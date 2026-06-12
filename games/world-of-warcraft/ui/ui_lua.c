@@ -10,58 +10,6 @@
 
 #include <strings.h>
 
-/* Default HUD script embedded at compile time so the game can render the
- * in-game overlay without any loose Lua files. */
-static char const wow_default_hud_lua[] =
-"local W = ow3\n"
-"local VW, VH = 1024, 768\n"
-"local function px(x, y, w, h) return x / VW, y / VH, w / VW, h / VH end\n"
-"local function image(path, x, y, w, h) W.draw_image(path, px(x, y, w, h)) end\n"
-"local function image_uv(path, x, y, w, h, l, r, t, b) W.draw_image_uv(path, x / VW, y / VH, w / VW, h / VH, l, r, t, b) end\n"
-"local function icon(index, x, y, w, h) if index and index > 0 then W.draw_image_index(index, px(x, y, w, h)) end end\n"
-"local function bar(x, y, w, h, value, maxvalue, r, g, b)\n"
-"    W.draw_color(x / VW, y / VH, w / VW, h / VH, 12, 10, 8, 220)\n"
-"    local p = maxvalue > 0 and value / maxvalue or 0\n"
-"    if p < 0 then p = 0 elseif p > 1 then p = 1 end\n"
-"    W.draw_color((x + 2) / VW, (y + 2) / VH, ((w - 4) * p) / VW, (h - 4) / VH, r, g, b, 235)\n"
-"end\n"
-"local function text(text, x, y, w, h, size, r, g, b, a, align)\n"
-"    W.draw_text(text or '', x / VW, y / VH, w / VW, h / VH, size, r, g, b, a or 255, align or 'left')\n"
-"end\n"
-"local function action_button(action, x, y)\n"
-"    image('Interface\\\\Buttons\\\\UI-Quickslot2.blp', x - 14, y - 13, 64, 64)\n"
-"    icon(action and action.image, x + 2, y + 2, 32, 32)\n"
-"    if action and action.count and action.count > 1 then text(tostring(action.count), x + 2, y + 23, 32, 10, 10, 255, 255, 255, 255, 'right') end\n"
-"end\n"
-"function ow3_draw()\n"
-"    local p = W.player()\n"
-"    W.draw_image_uv('Interface\\\\TargetingFrame\\\\UI-TargetingFrame.blp', -19 / VW, 4 / VH, 232 / VW, 100 / VH, 1.0, 0.09375, 0, 0.78125, 96, 92, 84, 230)\n"
-"    W.draw_color(87 / VW, 22 / VH, 119 / VW, 41 / VH, 0, 0, 0, 128)\n"
-"    text(p.name, 72, 18, 100, 12, 13, 255, 215, 120, 255, 'center')\n"
-"    text('Lvl ' .. p.level, 24, 58, 42, 12, 11, 235, 225, 190, 255, 'center')\n"
-"    bar(105, 41, 119, 12, p.health, p.healthMax, 20, 178, 48)\n"
-"    bar(105, 54, 119, 11, p.power, p.powerMax, 26, 82, 210)\n"
-"    image_uv('Interface\\\\MainMenuBar\\\\UI-MainMenuBar-Dwarf.blp', 0, 715, 256, 53, 0, 1.0, 0.79296875, 1.0)\n"
-"    image_uv('Interface\\\\MainMenuBar\\\\UI-MainMenuBar-Dwarf.blp', 256, 715, 256, 53, 0, 1.0, 0.54296875, 0.75)\n"
-"    image_uv('Interface\\\\MainMenuBar\\\\UI-MainMenuBar-Dwarf.blp', 512, 715, 256, 53, 0, 1.0, 0.29296875, 0.5)\n"
-"    image_uv('Interface\\\\MainMenuBar\\\\UI-MainMenuBar-Dwarf.blp', 768, 715, 256, 53, 0, 1.0, 0.04296875, 0.25)\n"
-"    image('Interface\\\\MainMenuBar\\\\UI-MainMenuBar-EndCap-Dwarf.blp', -96, 640, 128, 128)\n"
-"    image_uv('Interface\\\\MainMenuBar\\\\UI-MainMenuBar-EndCap-Dwarf.blp', 992, 640, 128, 128, 1.0, 0.0, 0.0, 1.0)\n"
-"    local actions = W.actions()\n"
-"    for i = 0, 11 do\n"
-"        action_button(actions[i + 1], 8 + i * 42, 728)\n"
-"    end\n"
-"    for i = 0, 3 do\n"
-"        action_button(nil, 939 - i * 42, 728)\n"
-"    end\n"
-"    image('Interface\\\\Buttons\\\\Button-Backpack-Up.blp', 981, 729, 37, 37)\n"
-"    image('Interface\\\\Minimap\\\\UI-Minimap-Border.blp', 879, 8, 128, 128)\n"
-"    W.draw_minimap(896 / VW, 25 / VH, 91 / VW, 91 / VH)\n"
-"    image('Interface\\\\QuestFrame\\\\UI-QuestLog-BookIcon.blp', 840, 162, 32, 32)\n"
-"    text('Quests', 876, 164, 110, 20, 13, 255, 215, 120, 255)\n"
-"    text('Copper ' .. p.copper, 816, 704, 150, 20, 12, 255, 210, 100, 255, 'right')\n"
-"end\n";
-
 /* -------------------------------------------------------------------------
  * Lua argument helpers
  * ---------------------------------------------------------------------- */
@@ -543,15 +491,12 @@ void UIWow_InitLua(void) {
     UIWow_LuaSetInteger(L, "STAT_COPPER",     WOW_STAT_COPPER);
     lua_setglobal(L, "ow3");
 
-    UIWow_RunLuaBuffer("@default_wow_hud.lua",
-                       wow_default_hud_lua,
-                       sizeof(wow_default_hud_lua) - 1);
-
     UIWow_LoadMenuLua("OW3Glue.lua");
     UIWow_LoadMenuLua("LoadingScreen.lua");
     UIWow_LoadMenuLua("LoginScreen.lua");
     UIWow_LoadMenuLua("CharacterSelectScreen.lua");
     UIWow_LoadMenuLua("CharacterCreateScreen.lua");
+    UIWow_LoadMenuLua("GameHUD.lua");
 }
 
 void UIWow_ShutdownLua(void) {

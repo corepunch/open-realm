@@ -1,0 +1,2 @@
+-- UIParent.lua — top-level WoW UI bootstrap (loaded last by UIWow_InitLua)
+-- The string "wow_lua_test" is referenced by GameHUD.lua via ow3.command().
