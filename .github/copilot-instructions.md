@@ -27,6 +27,8 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 - Minimize vertical space. Prefer fewer, denser lines over many short ones.
 - Single-statement functions go on one line: `int f(void) { return 0; }`
 - Omit braces for single-statement `if`/`else`/`while` bodies.
+- Keep control-flow keywords at the start of their own line in normal code paths. Do not write chained forms like `...; if (...)` or `...; while (...)` on the same physical line.
+- Add a short comment before each non-trivial function describing purpose and scope.
 
 ## Packing multiple statements
 - Chain sequential, logically related statements on one line with `;`:

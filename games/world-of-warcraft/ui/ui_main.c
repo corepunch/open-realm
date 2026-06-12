@@ -61,14 +61,58 @@ void UIWow_EnsureRenderer(void) {
     }
 }
 
+static BOOL UIWow_TexturePathHasExt(LPCSTR name) {
+    LPCSTR slash;
+    if (!name || !*name) return false;
+    slash = strrchr(name, '\\');
+    if (!slash) slash = strrchr(name, '/');
+    return strchr(slash ? slash + 1 : name, '.') != NULL;
+}
+
+static BOOL UIWow_MainHasArchiveFile(LPCSTR path) {
+    void *buf = NULL;
+    int size;
+    if (!path || !*path || !uiimport.FS_ReadFile || !uiimport.FS_FreeFile) return false;
+    size = uiimport.FS_ReadFile(path, &buf);
+    if (size > 0 && buf) { uiimport.FS_FreeFile(buf); return true; }
+    SAFE_DELETE(buf, uiimport.FS_FreeFile);
+    return false;
+}
+
+static void UIWow_ResolveTexturePath(LPCSTR in, LPSTR out, size_t out_size) {
+    static LPCSTR exts[] = { ".blp", ".tga", ".dds", NULL };
+    static LPCSTR splash_prefix = "Interface\\Glues\\Common\\Glues-Splash-";
+    static LPCSTR splash_fallback = "Interface\\Glues\\Common\\Glues-Logo.blp";
+    static LPCSTR disabled_down_fallback = "Interface\\Glues\\Common\\Glue-Panel-Button-Disabled.blp";
+    PATHSTR candidate;
+    snprintf(out, out_size, "%s", in ? in : "");
+    if (!in || !*in || UIWow_TexturePathHasExt(in)) return;
+    if (UIWow_MainHasArchiveFile(in)) return;
+    FOR_LOOP(i, sizeof(exts) / sizeof(exts[0])) {
+        if (!exts[i]) break;
+        snprintf(candidate, sizeof(candidate), "%s%s", in, exts[i]);
+        if (UIWow_MainHasArchiveFile(candidate)) { snprintf(out, out_size, "%s", candidate); return; }
+    }
+    if (!strncasecmp(in, splash_prefix, strlen(splash_prefix)) && UIWow_MainHasArchiveFile(splash_fallback)) {
+        snprintf(out, out_size, "%s", splash_fallback);
+        return;
+    }
+    if (!strcasecmp(in, "Interface\\Glues\\Common\\Glue-Panel-Button-Disabled-Down") && UIWow_MainHasArchiveFile(disabled_down_fallback)) {
+        snprintf(out, out_size, "%s", disabled_down_fallback);
+        return;
+    }
+}
+
 LPTEXTURE UIWow_LoadTexture(LPCSTR name) {
     int empty_slot = -1;
+    PATHSTR resolved;
 
     if (!name || !*name) {
         UIWow_WarnOnce(WOW_UI_WARN_NO_LOAD_BACKGROUND,
                        "UIWow: attempted to load texture with empty name\n");
         return NULL;
     }
+    UIWow_ResolveTexturePath(name, resolved, sizeof(resolved));
     UIWow_EnsureRenderer();
     if (!wow_ui.renderer) {
         return NULL;
@@ -76,7 +120,7 @@ LPTEXTURE UIWow_LoadTexture(LPCSTR name) {
     FOR_LOOP(i, WOW_UI_MAX_TEXTURES) {
         uiWowTexture_t *entry = &wow_ui.textures[i];
 
-        if (entry->texture && !strcmp(entry->name, name)) {
+        if (entry->texture && !strcmp(entry->name, resolved)) {
             return entry->texture;
         }
         if (empty_slot < 0 && !entry->texture) {
@@ -86,10 +130,10 @@ LPTEXTURE UIWow_LoadTexture(LPCSTR name) {
     if (empty_slot >= 0) {
         uiWowTexture_t *entry = &wow_ui.textures[empty_slot];
 
-        snprintf(entry->name, sizeof(entry->name), "%s", name);
-        entry->texture = wow_ui.renderer->LoadTexture(name);
+        snprintf(entry->name, sizeof(entry->name), "%s", resolved);
+        entry->texture = wow_ui.renderer->LoadTexture(resolved);
         if (!entry->texture) {
-            UIWow_Printf("UIWow: renderer failed to load texture '%s'\n", name);
+            UIWow_Printf("UIWow: renderer failed to load texture '%s' (from '%s')\n", resolved, name);
         }
         return entry->texture;
     }
@@ -99,10 +143,10 @@ LPTEXTURE UIWow_LoadTexture(LPCSTR name) {
 
         wow_ui.texture_recycle_index = (wow_ui.texture_recycle_index + 1) % WOW_UI_MAX_TEXTURES;
         SAFE_DELETE(entry->texture, wow_ui.renderer->ReleaseTexture);
-        snprintf(entry->name, sizeof(entry->name), "%s", name);
-        entry->texture = wow_ui.renderer->LoadTexture(name);
+        snprintf(entry->name, sizeof(entry->name), "%s", resolved);
+        entry->texture = wow_ui.renderer->LoadTexture(resolved);
         if (!entry->texture) {
-            UIWow_Printf("UIWow: renderer failed to load texture '%s'\n", name);
+            UIWow_Printf("UIWow: renderer failed to load texture '%s' (from '%s')\n", resolved, name);
         }
         return entry->texture;
     }

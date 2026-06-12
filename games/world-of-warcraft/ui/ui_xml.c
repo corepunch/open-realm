@@ -303,6 +303,7 @@ static void UIWow_XMLProcessTopLevel(LPCSTR path, xmlNodePtr root, int depth) {
     }
 }
 
+/* Load and parse one XML document, then process top-level Include/Script/frame nodes. */
 static BOOL UIWow_XMLProcessXml(LPCSTR path, int depth) {
     void *buf = NULL; int size; xmlDocPtr doc; xmlNodePtr root;
     if (depth > 32) { UIWow_Printf("UIWow: XML include recursion too deep at %s\n", path); return false; }
@@ -317,6 +318,7 @@ static BOOL UIWow_XMLProcessXml(LPCSTR path, int depth) {
     return true;
 }
 
+/* Dispatch one FrameXML path by extension: Lua files execute, others parse as XML. */
 static BOOL UIWow_XMLProcessFile(LPCSTR path, int depth) {
     LPCSTR ext = strrchr(path ? path : "", '.');
     if (!path || !*path) return false;
@@ -324,6 +326,7 @@ static BOOL UIWow_XMLProcessFile(LPCSTR path, int depth) {
     return UIWow_XMLProcessXml(path, depth);
 }
 
+/* Read Glue TOC entries line-by-line, ignore comments, resolve relative paths, and process each entry. */
 static BOOL UIWow_XMLLoadFromToc(LPCSTR toc_path) {
     void *buf = NULL; int size; char *text, *cur;
     if (!uiimport.FS_ReadFile || !uiimport.FS_FreeFile) { UIWow_WarnOnce(WOW_UI_WARN_NO_INPUT_FS, "UIWow: FS API unavailable for TOC load\n"); return false; }
@@ -331,13 +334,26 @@ static BOOL UIWow_XMLLoadFromToc(LPCSTR toc_path) {
     if (size <= 0 || !buf) { SAFE_DELETE(buf, uiimport.FS_FreeFile); UIWow_Printf("UIWow: missing TOC %s\n", toc_path); return false; }
     text = (char *)buf; cur = text;
     while (*cur) {
-        char line[PATH_MAX], resolved[PATH_MAX]; char *end = cur; int n = 0, len;
+        char line[PATH_MAX], resolved[PATH_MAX];
+        char *end = cur;
+        int n = 0, len;
         while (*end && *end != '\n' && *end != '\r') end++;
-        len = (int)(end - cur); if (len > 0 && len < (int)sizeof(line)) { memcpy(line, cur, (size_t)len); line[len] = '\0'; while (line[n] && isspace((unsigned char)line[n])) n++; if (line[n] && line[n] != '#') {
-            if (UIWow_XmlResolvePath(toc_path, line + n, resolved, sizeof(resolved))) UIWow_XMLProcessFile(resolved, 0);
-            else UIWow_Printf("UIWow: TOC entry path too long in %s: %s\n", toc_path, line + n);
-        }}
-        while (*end == '\n' || *end == '\r') end++; cur = end;
+        len = (int)(end - cur);
+        if (len > 0 && len < (int)sizeof(line)) {
+            memcpy(line, cur, (size_t)len);
+            line[len] = '\0';
+            while (line[n] && isspace((unsigned char)line[n])) n++;
+            if (line[n] && line[n] != '#') {
+                if (UIWow_XmlResolvePath(toc_path, line + n, resolved, sizeof(resolved))) {
+                    UIWow_XMLProcessFile(resolved, 0);
+                } else {
+                    UIWow_Printf("UIWow: TOC entry path too long in %s: %s\n", toc_path, line + n);
+                }
+            }
+        }
+
+        while (*end == '\n' || *end == '\r') end++;
+        cur = end;
     }
     uiimport.FS_FreeFile(buf);
     return true;
@@ -377,8 +393,8 @@ void UIWow_XMLDraw(void) {
         uiWowXmlElem_t const *e = &wow_xml.elems[i]; RECT r; RECT uv = MAKE(RECT, 0, 0, 1, 1);
         if (!e->used || e->hidden || e->draw_layer != layer) continue;
         r = UIWow_XmlComputeRect(i);
-        if (e->type == WOW_XML_MODEL || e->type == WOW_XML_FRAME || e->type == WOW_XML_BUTTON || e->type == WOW_XML_EDITBOX) UIWow_XMLDrawBackdrop(e, &r);
-        if (e->file[0] && (e->type == WOW_XML_TEXTURE || e->type == WOW_XML_MODEL || e->type == WOW_XML_BUTTON)) {
+        if (e->type == WOW_XML_FRAME || e->type == WOW_XML_BUTTON || e->type == WOW_XML_EDITBOX) UIWow_XMLDrawBackdrop(e, &r);
+        if (e->file[0] && (e->type == WOW_XML_TEXTURE || e->type == WOW_XML_BUTTON)) {
             LPTEXTURE t = UIWow_LoadTexture(e->file); if (t) wow_ui.renderer->DrawImage(t, &r, &uv, MAKE(COLOR32, 255, 255, 255, (BYTE)(255.0f * e->alpha)));
         }
         if (e->text[0] && (e->type == WOW_XML_FONTSTRING || e->type == WOW_XML_EDITBOX || e->type == WOW_XML_BUTTON)) {
