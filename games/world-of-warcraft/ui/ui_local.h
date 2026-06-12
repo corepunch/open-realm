@@ -20,6 +20,22 @@
 #define WOW_UI_MAX_TEXTURES 256
 #define WOW_UI_MAX_FONTS    16
 
+#define WOW_UI_WARN_FLAG(x) (1u << (x))
+
+#define WOW_UI_WARN_NO_RENDERER            WOW_UI_WARN_FLAG(0)
+#define WOW_UI_WARN_NO_LUA_STATE           WOW_UI_WARN_FLAG(1)
+#define WOW_UI_WARN_NO_DRAW_HANDLER        WOW_UI_WARN_FLAG(2)
+#define WOW_UI_WARN_NO_UPDATE_HANDLER      WOW_UI_WARN_FLAG(3)
+#define WOW_UI_WARN_NO_TEXT_HANDLER        WOW_UI_WARN_FLAG(4)
+#define WOW_UI_WARN_NO_MOUSE_HANDLER       WOW_UI_WARN_FLAG(5)
+#define WOW_UI_WARN_NO_MENU_HANDLER        WOW_UI_WARN_FLAG(6)
+#define WOW_UI_WARN_NO_SETGLUESCREEN       WOW_UI_WARN_FLAG(7)
+#define WOW_UI_WARN_NO_MOUSEMOVE_HANDLER   WOW_UI_WARN_FLAG(8)
+#define WOW_UI_WARN_NO_INPUT_FS            WOW_UI_WARN_FLAG(9)
+#define WOW_UI_WARN_NO_GLUE_BOOTSTRAP      WOW_UI_WARN_FLAG(10)
+#define WOW_UI_WARN_NO_LOADING_DRAW        WOW_UI_WARN_FLAG(11)
+#define WOW_UI_WARN_NO_LOAD_BACKGROUND     WOW_UI_WARN_FLAG(12)
+
 typedef struct {
     char name[256];
     LPTEXTURE texture;
@@ -40,6 +56,7 @@ typedef struct {
 typedef struct {
     LPRENDERER renderer;
     lua_State *lua;
+    DWORD warn_once_mask;
     uiWowTexture_t textures[WOW_UI_MAX_TEXTURES];
     DWORD texture_recycle_index;
     uiWowFont_t fonts[WOW_UI_MAX_FONTS];
@@ -67,6 +84,7 @@ void UIWow_UpdateMapBackground(LPCPLAYER ps);
 /* Shared helpers (defined in ui_main.c) */
 void UIWow_EnsureRenderer(void);
 void UIWow_Printf(LPCSTR fmt, ...);
+void UIWow_WarnOnce(DWORD flag, LPCSTR fmt, ...);
 LPTEXTURE UIWow_LoadTexture(LPCSTR name);
 LPCFONT UIWow_LoadFont(DWORD size);
 

@@ -34,9 +34,30 @@ void UIWow_Printf(LPCSTR fmt, ...) {
     uiimport.Printf("%s", text);
 }
 
+void UIWow_WarnOnce(DWORD flag, LPCSTR fmt, ...) {
+    va_list args;
+    char text[1024];
+
+    if (wow_ui.warn_once_mask & flag) {
+        return;
+    }
+    wow_ui.warn_once_mask |= flag;
+    if (!uiimport.Printf) {
+        return;
+    }
+    va_start(args, fmt);
+    vsnprintf(text, sizeof(text), fmt, args);
+    va_end(args);
+    uiimport.Printf("%s", text);
+}
+
 void UIWow_EnsureRenderer(void) {
     if (!wow_ui.renderer && uiimport.GetRenderer) {
         wow_ui.renderer = uiimport.GetRenderer();
+    }
+    if (!wow_ui.renderer) {
+        UIWow_WarnOnce(WOW_UI_WARN_NO_RENDERER,
+                       "UIWow: renderer is unavailable (GetRenderer returned NULL)\n");
     }
 }
 
@@ -44,6 +65,8 @@ LPTEXTURE UIWow_LoadTexture(LPCSTR name) {
     int empty_slot = -1;
 
     if (!name || !*name) {
+        UIWow_WarnOnce(WOW_UI_WARN_NO_LOAD_BACKGROUND,
+                       "UIWow: attempted to load texture with empty name\n");
         return NULL;
     }
     UIWow_EnsureRenderer();
@@ -65,6 +88,9 @@ LPTEXTURE UIWow_LoadTexture(LPCSTR name) {
 
         snprintf(entry->name, sizeof(entry->name), "%s", name);
         entry->texture = wow_ui.renderer->LoadTexture(name);
+        if (!entry->texture) {
+            UIWow_Printf("UIWow: renderer failed to load texture '%s'\n", name);
+        }
         return entry->texture;
     }
 
@@ -75,6 +101,9 @@ LPTEXTURE UIWow_LoadTexture(LPCSTR name) {
         SAFE_DELETE(entry->texture, wow_ui.renderer->ReleaseTexture);
         snprintf(entry->name, sizeof(entry->name), "%s", name);
         entry->texture = wow_ui.renderer->LoadTexture(name);
+        if (!entry->texture) {
+            UIWow_Printf("UIWow: renderer failed to load texture '%s'\n", name);
+        }
         return entry->texture;
     }
 }
@@ -93,10 +122,21 @@ LPCFONT UIWow_LoadFont(DWORD size) {
         if (!entry->font) {
             entry->size = size;
             entry->font = wow_ui.renderer->LoadFont("Fonts\\FRIZQT__.TTF", size);
+            if (!entry->font) {
+                UIWow_Printf("UIWow: renderer failed to load font '%s' size=%u\n",
+                             "Fonts\\FRIZQT__.TTF", size);
+            }
             return entry->font;
         }
     }
-    return wow_ui.renderer->LoadFont("Fonts\\FRIZQT__.TTF", size);
+    {
+        LPCFONT font = wow_ui.renderer->LoadFont("Fonts\\FRIZQT__.TTF", size);
+        if (!font) {
+            UIWow_Printf("UIWow: renderer failed to load font '%s' size=%u\n",
+                         "Fonts\\FRIZQT__.TTF", size);
+        }
+        return font;
+    }
 }
 
 /* -------------------------------------------------------------------------
@@ -140,6 +180,8 @@ static void UIWow_UpdateMouseHover(void) {
     last_x = mouse_x;
     last_y = mouse_y;
     if (!wow_ui.lua) {
+        UIWow_WarnOnce(WOW_UI_WARN_NO_LUA_STATE,
+                       "UIWow: Lua state is not initialized; mouse hover ignored\n");
         return;
     }
     lua_getglobal(wow_ui.lua, "ow3_handle_mouse_move");
@@ -149,29 +191,30 @@ static void UIWow_UpdateMouseHover(void) {
         UIWow_LuaPCall(2);
     } else {
         lua_pop(wow_ui.lua, 1);
+        UIWow_WarnOnce(WOW_UI_WARN_NO_MOUSEMOVE_HANDLER,
+                       "UIWow: missing Lua function 'ow3_handle_mouse_move'\n");
     }
 }
 
 static void UIWow_DrawFrame(void) {
     LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
 
-    if (!ps) {
-        return;
-    }
     UIWow_EnsureRenderer();
     UIWow_UpdateMouseHover();
 
-    if (ps->client_ui_state == CLIENT_UI_LOADING) {
+    if (ps && ps->client_ui_state == CLIENT_UI_LOADING) {
         UIWow_UpdateMapBackground(ps);
         lua_getglobal(wow_ui.lua, "ow3_draw_loading_screen");
         if (lua_isfunction(wow_ui.lua, -1)) {
             UIWow_LuaPCall(0);
         } else {
             lua_pop(wow_ui.lua, 1);
+            UIWow_WarnOnce(WOW_UI_WARN_NO_LOADING_DRAW,
+                           "UIWow: missing Lua function 'ow3_draw_loading_screen'\n");
         }
         return;
     }
-    if (wow_ui.current_menu[0] || ps->client_ui_state == CLIENT_UI_GAME) {
+    if (wow_ui.current_menu[0] || (ps && ps->client_ui_state == CLIENT_UI_GAME)) {
         UIWow_CallLuaDraw();
     }
 }
@@ -188,11 +231,17 @@ static void UIWow_KeyEvent(int key, BOOL down, DWORD time) {
 
 static void UIWow_TextInput(LPCSTR text) {
     if (!wow_ui.lua || !text) {
+        if (!wow_ui.lua) {
+            UIWow_WarnOnce(WOW_UI_WARN_NO_LUA_STATE,
+                           "UIWow: Lua state is not initialized; text input ignored\n");
+        }
         return;
     }
     lua_getglobal(wow_ui.lua, "ow3_handle_text_input");
     if (!lua_isfunction(wow_ui.lua, -1)) {
         lua_pop(wow_ui.lua, 1);
+        UIWow_WarnOnce(WOW_UI_WARN_NO_TEXT_HANDLER,
+                       "UIWow: missing Lua function 'ow3_handle_text_input'\n");
         return;
     }
     lua_pushstring(wow_ui.lua, text);
@@ -201,11 +250,17 @@ static void UIWow_TextInput(LPCSTR text) {
 
 static void UIWow_MouseEvent(int x, int y, int button, BOOL down) {
     if (!wow_ui.lua || !down) {
+        if (!wow_ui.lua && down) {
+            UIWow_WarnOnce(WOW_UI_WARN_NO_LUA_STATE,
+                           "UIWow: Lua state is not initialized; mouse click ignored\n");
+        }
         return;
     }
     lua_getglobal(wow_ui.lua, "ow3_handle_mouse_click");
     if (!lua_isfunction(wow_ui.lua, -1)) {
         lua_pop(wow_ui.lua, 1);
+        UIWow_WarnOnce(WOW_UI_WARN_NO_MOUSE_HANDLER,
+                       "UIWow: missing Lua function 'ow3_handle_mouse_click'\n");
         return;
     }
     lua_pushnumber(wow_ui.lua, x / 1024.0f);
@@ -218,22 +273,43 @@ static void UIWow_MouseEvent(int x, int y, int button, BOOL down) {
  * Glue-menu commands
  * ---------------------------------------------------------------------- */
 
-static void UIWow_CallLuaShow(LPCSTR menu_name, LPCSTR lua_func) {
+static void UIWow_CallLuaShow(LPCSTR menu_name, LPCSTR lua_func, LPCSTR glue_screen) {
     snprintf(wow_ui.current_menu, sizeof(wow_ui.current_menu), "%s", menu_name);
     if (!wow_ui.lua) {
+        UIWow_WarnOnce(WOW_UI_WARN_NO_LUA_STATE,
+                       "UIWow: Lua state is not initialized; menu command '%s' ignored\n",
+                       menu_name ? menu_name : "<unknown>");
         return;
     }
+
     lua_getglobal(wow_ui.lua, lua_func);
     if (lua_isfunction(wow_ui.lua, -1)) {
         UIWow_LuaPCall(0);
-    } else {
-        lua_pop(wow_ui.lua, 1);
+        return;
     }
+    lua_pop(wow_ui.lua, 1);
+
+    if (!glue_screen || !*glue_screen) {
+        UIWow_WarnOnce(WOW_UI_WARN_NO_MENU_HANDLER,
+                       "UIWow: missing Lua handler '%s' and no Glue fallback for menu '%s'\n",
+                       lua_func ? lua_func : "<unknown>", menu_name ? menu_name : "<unknown>");
+        return;
+    }
+    lua_getglobal(wow_ui.lua, "SetGlueScreen");
+    if (!lua_isfunction(wow_ui.lua, -1)) {
+        lua_pop(wow_ui.lua, 1);
+        UIWow_WarnOnce(WOW_UI_WARN_NO_SETGLUESCREEN,
+                       "UIWow: missing Lua function 'SetGlueScreen' for menu '%s' fallback '%s'\n",
+                       menu_name ? menu_name : "<unknown>", glue_screen);
+        return;
+    }
+    lua_pushstring(wow_ui.lua, glue_screen);
+    UIWow_LuaPCall(1);
 }
 
-static void UIWow_ShowLoginMenu(void)          { UIWow_CallLuaShow("login",            "ow3_show_login"); }
-static void UIWow_ShowCharacterSelectMenu(void){ UIWow_CallLuaShow("character_select", "ow3_show_character_select"); }
-static void UIWow_ShowCharacterCreateMenu(void){ UIWow_CallLuaShow("character_create", "ow3_show_character_create"); }
+static void UIWow_ShowLoginMenu(void)          { UIWow_CallLuaShow("login",            "ow3_show_login",            "login"); }
+static void UIWow_ShowCharacterSelectMenu(void){ UIWow_CallLuaShow("character_select", "ow3_show_character_select", "charselect"); }
+static void UIWow_ShowCharacterCreateMenu(void){ UIWow_CallLuaShow("character_create", "ow3_show_character_create", "charcreate"); }
 
 typedef struct { LPCSTR command; void (*function)(void); } uiWowMenuCommandDef_t;
 

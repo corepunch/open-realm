@@ -8,6 +8,7 @@
  */
 #include "ui_local.h"
 
+#include <ctype.h>
 #include <strings.h>
 
 /* -------------------------------------------------------------------------
@@ -175,6 +176,9 @@ static int UIWow_LuaDrawBackdrop(lua_State *L) {
             RECT uv_lft = MAKE(RECT, 0.0f, 0.0f, 0.5f, 1.0f);
             RECT uv_rgt = MAKE(RECT, 0.5f, 0.0f, 0.5f, 1.0f);
 
+            UIWow_Printf("UIWow: draw_backdrop border='%s' edge=%.4f screen={%.3f,%.3f,%.3f,%.3f} corners=[tl:%.3f,%.3f tr:%.3f,%.3f]\n",
+                         border_path, e, sc.x, sc.y, sc.w, sc.h, tl.x, tl.y, tr.x, tr.y);
+
             wow_ui.renderer->DrawImage(border, &tl,    &uv_tl,  COLOR32_WHITE);
             wow_ui.renderer->DrawImage(border, &tr,    &uv_tr,  COLOR32_WHITE);
             wow_ui.renderer->DrawImage(border, &bl,    &uv_bl,  COLOR32_WHITE);
@@ -275,6 +279,8 @@ static int UIWow_LuaPlayer(lua_State *L) {
     lua_newtable(L);
     lua_pushstring(L, ps && ps->name && *ps->name ? ps->name : "Player");
     lua_setfield(L, -2, "name");
+    lua_pushinteger(L, (ps && ps->client_ui_state == CLIENT_UI_GAME) ? 1 : 0);
+    lua_setfield(L, -2, "client_ui_state");
     UIWow_LuaSetPlayerField(L, "health",    WOW_STAT_HEALTH);
     UIWow_LuaSetPlayerField(L, "healthMax", WOW_STAT_HEALTH_MAX);
     UIWow_LuaSetPlayerField(L, "power",     WOW_STAT_POWER);
@@ -477,23 +483,214 @@ static BOOL UIWow_RunLuaBuffer(LPCSTR name, LPCSTR script, size_t len) {
     return UIWow_LuaPCall(0);
 }
 
-static void UIWow_LoadMenuLua(LPCSTR filename) {
+static BOOL UIWow_RunLuaString(LPCSTR name, LPCSTR script) {
+    if (!script) {
+        return false;
+    }
+    return UIWow_RunLuaBuffer(name, script, strlen(script));
+}
+
+static BOOL UIWow_LoadLuaFile(LPCSTR path, BOOL noisy_missing) {
     void *buf = NULL;
     int size;
-    char path[512];
 
-    if (!uiimport.FS_ReadFile || !uiimport.FS_FreeFile || !filename) {
-        return;
+    if (!uiimport.FS_ReadFile || !uiimport.FS_FreeFile || !path) {
+        UIWow_WarnOnce(WOW_UI_WARN_NO_INPUT_FS,
+                       "UIWow: FS_ReadFile/FS_FreeFile unavailable; cannot load Lua files\n");
+        return false;
     }
-    snprintf(path, sizeof(path), "Interface\\FrameXML\\%s", filename);
     size = uiimport.FS_ReadFile(path, &buf);
     if (size <= 0 || !buf) {
-        fprintf(stderr, "UIWow: could not load '%s'\n", path);
+        if (noisy_missing) {
+            UIWow_Printf("UIWow: could not load '%s'\n", path);
+        }
         SAFE_DELETE(buf, uiimport.FS_FreeFile);
-        return;
+        return false;
     }
     UIWow_RunLuaBuffer(path, buf, (size_t)size);
     uiimport.FS_FreeFile(buf);
+    return true;
+}
+
+static BOOL UIWow_HasArchiveFile(LPCSTR path) {
+    void *buf = NULL;
+    int size;
+
+    if (!uiimport.FS_ReadFile || !uiimport.FS_FreeFile || !path) {
+        UIWow_WarnOnce(WOW_UI_WARN_NO_INPUT_FS,
+                       "UIWow: FS_ReadFile/FS_FreeFile unavailable; cannot probe archive files\n");
+        return false;
+    }
+    size = uiimport.FS_ReadFile(path, &buf);
+    if (size > 0 && buf) {
+        uiimport.FS_FreeFile(buf);
+        return true;
+    }
+    SAFE_DELETE(buf, uiimport.FS_FreeFile);
+    return false;
+}
+
+static void UIWow_LoadLegacyMenuLua(void) {
+    UIWow_LoadLuaFile("Interface\\FrameXML\\OW3Glue.lua", true);
+    UIWow_LoadLuaFile("Interface\\FrameXML\\LoadingScreen.lua", true);
+    UIWow_LoadLuaFile("Interface\\FrameXML\\LoginScreen.lua", true);
+    UIWow_LoadLuaFile("Interface\\FrameXML\\CharacterSelectScreen.lua", true);
+    UIWow_LoadLuaFile("Interface\\FrameXML\\CharacterCreateScreen.lua", true);
+    UIWow_LoadLuaFile("Interface\\FrameXML\\GameHUD.lua", true);
+}
+
+static BOOL UIWow_LoadGlueXmlLua(void) {
+    void *buf = NULL;
+    int size;
+    static LPCSTR glue_bootstrap[] = {
+        "Interface\\GlueXML\\GlueParent.lua",
+        "Interface\\GlueXML\\GlueDialog.lua",
+        "Interface\\GlueXML\\GlueButtons.lua",
+        "Interface\\GlueXML\\GlueTemplates.lua",
+        "Interface\\GlueXML\\AccountLogin.lua",
+        "Interface\\GlueXML\\CharacterSelect.lua",
+        "Interface\\GlueXML\\CharacterCreate.lua",
+        "Interface\\GlueXML\\RealmList.lua",
+        "Interface\\GlueXML\\RealmWizard.lua",
+        "Interface\\GlueXML\\PatchDownload.lua",
+        "Interface\\GlueXML\\MovieFrame.lua",
+        "Interface\\GlueXML\\CreditsFrame.lua",
+        "Interface\\GlueXML\\GlueLocalization.lua",
+        NULL,
+    };
+    char line[512];
+    char path[512];
+    int loaded = 0;
+    char *text;
+    char *cursor;
+
+    if (!uiimport.FS_ReadFile || !uiimport.FS_FreeFile) {
+        UIWow_WarnOnce(WOW_UI_WARN_NO_INPUT_FS,
+                       "UIWow: FS_ReadFile/FS_FreeFile unavailable; cannot load GlueXML Lua\n");
+        return false;
+    }
+
+    /* Glue scripts use strings declared in FrameXML. */
+    if (!UIWow_LoadLuaFile("Interface\\FrameXML\\GlobalStrings.lua", false)) {
+        UIWow_Printf("UIWow: missing Glue prerequisite 'Interface\\FrameXML\\GlobalStrings.lua'\n");
+    }
+
+    /* Start from a deterministic core set so login works even without listfile. */
+    FOR_LOOP(i, sizeof(glue_bootstrap) / sizeof(glue_bootstrap[0])) {
+        if (!glue_bootstrap[i]) {
+            break;
+        }
+        if (UIWow_LoadLuaFile(glue_bootstrap[i], false)) {
+            loaded++;
+        }
+    }
+
+    size = uiimport.FS_ReadFile("(listfile)", &buf);
+    if (size <= 0 || !buf) {
+        SAFE_DELETE(buf, uiimport.FS_FreeFile);
+        UIWow_Printf("UIWow: could not read '(listfile)'; using deterministic GlueXML bootstrap only\n");
+        if (loaded > 0) {
+            UIWow_Printf("UIWow: loaded %d GlueXML Lua scripts\n", loaded);
+            return true;
+        }
+        return false;
+    }
+
+    text = (char *)buf;
+    cursor = text;
+    while (*cursor) {
+        char *end = cursor;
+        int line_len;
+
+        while (*end && *end != '\n' && *end != '\r') {
+            end++;
+        }
+        line_len = (int)(end - cursor);
+        if (line_len > 0 && line_len < (int)sizeof(line)) {
+            int n;
+
+            memcpy(line, cursor, (size_t)line_len);
+            line[line_len] = '\0';
+
+            /* Trim leading whitespace from the listfile line. */
+            n = 0;
+            while (line[n] && isspace((unsigned char)line[n])) {
+                n++;
+            }
+            if (!strncasecmp(line + n, "Interface\\GlueXML\\", 18)) {
+                int plen = (int)strlen(line + n);
+                if (plen > 4 && !strncasecmp(line + n + plen - 4, ".lua", 4)) {
+                    snprintf(path, sizeof(path), "%s", line + n);
+                    if (UIWow_LoadLuaFile(path, false)) {
+                        loaded++;
+                    }
+                }
+            }
+        }
+
+        while (*end == '\n' || *end == '\r') {
+            end++;
+        }
+        cursor = end;
+    }
+
+    uiimport.FS_FreeFile(buf);
+
+    if (loaded > 0) {
+        UIWow_Printf("UIWow: loaded %d GlueXML Lua scripts\n", loaded);
+        return true;
+    }
+    return false;
+}
+
+static BOOL UIWow_LoadGlueCompatLua(void) {
+    static LPCSTR glue_compat_lua =
+        "local BG='Interface\\\\Glues\\\\LoadingScreens\\\\LoadScreenEnviroment.blp'\n"
+        "local LOGO='Interface\\\\Glues\\\\Common\\\\Glues-WoW-Logo.blp'\n"
+        "local EBG='Interface\\\\Tooltips\\\\UI-Tooltip-Background.blp'\n"
+        "local EED='Interface\\\\Glues\\\\Common\\\\Glue-Tooltip-Border.blp'\n"
+        "local BUP='Interface\\\\Glues\\\\Common\\\\Glues-BigButton-Up.blp'\n"
+        "local VW,VH=1024,768\n"
+        "local function nx(px) return px/VW end\n"
+        "local function ny(px) return px/VH end\n"
+        "local g={screen='login'}\n"
+        "local function set_screen(name) g.screen=name or 'login' end\n"
+        "function ow3_show_login() set_screen('login'); if SetGlueScreen then SetGlueScreen('login') end end\n"
+        "function ow3_show_character_select() set_screen('charselect'); if SetGlueScreen then SetGlueScreen('charselect') end end\n"
+        "function ow3_show_character_create() set_screen('charcreate'); if SetGlueScreen then SetGlueScreen('charcreate') end end\n"
+        "function ow3_handle_text_input(_) end\n"
+        "function ow3_handle_mouse_click(_,_,_) end\n"
+        "function ow3_handle_mouse_move(_,_) end\n"
+        "function ow3_draw_loading_screen()\n"
+        "  if ow3.draw_loading_background then ow3.draw_loading_background() else ow3.draw_image(BG,0,0,1,1) end\n"
+        "end\n"
+        "local function draw_login()\n"
+        "  local ex=nx(512+8-80)\n"
+        "  local ey=ny(768-345-37)\n"
+        "  local ew=nx(160)\n"
+        "  local eh=ny(37)\n"
+        "  ow3.draw_image(BG,0,0,1,1)\n"
+        "  ow3.draw_image(LOGO,nx(3),ny(7),nx(256),ny(128))\n"
+        "  ow3.draw_text('Account Name:',ex,ey-ny(28),ew,ny(20),14,255,215,0,255,'center')\n"
+        "  ow3.draw_image(EBG,ex,ey,ew,eh)\n"
+        "  ow3.draw_text('Password:',ex,ey+ny(70)-ny(28),ew,ny(20),14,255,215,0,255,'center')\n"
+        "  ow3.draw_image(EBG,ex,ey+ny(70),ew,eh)\n"
+        "  ow3.draw_image(BUP,nx(512+8-64),ny(519),nx(128),ny(26))\n"
+        "  ow3.draw_text('Log In',nx(512+8-64),ny(519),nx(128),ny(26),14,255,215,0,255,'center')\n"
+        "end\n"
+        "function ow3_draw()\n"
+        "  local s = g.screen\n"
+        "  if GetCurrentGlueScreenName then local cur = GetCurrentGlueScreenName(); if cur and cur ~= '' then s = cur end end\n"
+        "  if s == 'login' then draw_login(); return end\n"
+        "  ow3.draw_image(BG,0,0,1,1)\n"
+        "  ow3.draw_text('Scene: '..tostring(s),0.30,0.45,0.40,0.06,18,255,230,140,255,'center')\n"
+        "end\n";
+
+    if (!UIWow_RunLuaString("GlueCompat.lua", glue_compat_lua)) {
+        UIWow_Printf("UIWow: failed to load embedded GlueCompat.lua\n");
+        return false;
+    }
+    return true;
 }
 
 static void UIWow_OpenLuaLib(lua_State *L, LPCSTR name, lua_CFunction openf) {
@@ -527,12 +724,24 @@ void UIWow_InitLua(void) {
     UIWow_LuaSetInteger(L, "STAT_COPPER",     WOW_STAT_COPPER);
     lua_setglobal(L, "ow3");
 
-    UIWow_LoadMenuLua("OW3Glue.lua");
-    UIWow_LoadMenuLua("LoadingScreen.lua");
-    UIWow_LoadMenuLua("LoginScreen.lua");
-    UIWow_LoadMenuLua("CharacterSelectScreen.lua");
-    UIWow_LoadMenuLua("CharacterCreateScreen.lua");
-    UIWow_LoadMenuLua("GameHUD.lua");
+    if (UIWow_HasArchiveFile("Interface\\FrameXML\\OW3Glue.lua")) {
+        UIWow_Printf("UIWow: using legacy FrameXML menu Lua bootstrap\n");
+        UIWow_LoadLegacyMenuLua();
+    } else if (UIWow_LoadGlueXmlLua()) {
+        UIWow_Printf("UIWow: using GlueXML Lua bootstrap\n");
+        UIWow_LoadGlueCompatLua();
+        lua_getglobal(L, "ow3_show_login");
+        if (lua_isfunction(L, -1)) {
+            UIWow_LuaPCall(0);
+        } else {
+            lua_pop(L, 1);
+            UIWow_WarnOnce(WOW_UI_WARN_NO_GLUE_BOOTSTRAP,
+                           "UIWow: Glue bootstrap missing 'ow3_show_login'\n");
+        }
+        snprintf(wow_ui.current_menu, sizeof(wow_ui.current_menu), "%s", "login");
+    } else {
+        UIWow_Printf("UIWow: no legacy OW3 FrameXML or GlueXML Lua bootstrap found\n");
+    }
 }
 
 void UIWow_ShutdownLua(void) {
@@ -548,11 +757,15 @@ void UIWow_ShutdownLua(void) {
 
 void UIWow_CallLuaDraw(void) {
     if (!wow_ui.lua) {
+        UIWow_WarnOnce(WOW_UI_WARN_NO_LUA_STATE,
+                       "UIWow: Lua state is not initialized; draw callback skipped\n");
         return;
     }
     lua_getglobal(wow_ui.lua, "ow3_draw");
     if (!lua_isfunction(wow_ui.lua, -1)) {
         lua_pop(wow_ui.lua, 1);
+        UIWow_WarnOnce(WOW_UI_WARN_NO_DRAW_HANDLER,
+                       "UIWow: missing Lua function 'ow3_draw'\n");
         return;
     }
     UIWow_LuaPCall(0);
@@ -562,11 +775,17 @@ void UIWow_CallLuaUpdate(DWORD msec) {
     LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
 
     if (!wow_ui.lua || !ps || ps->client_ui_state != CLIENT_UI_GAME) {
+        if (!wow_ui.lua) {
+            UIWow_WarnOnce(WOW_UI_WARN_NO_LUA_STATE,
+                           "UIWow: Lua state is not initialized; update callback skipped\n");
+        }
         return;
     }
     lua_getglobal(wow_ui.lua, "ow3_update");
     if (!lua_isfunction(wow_ui.lua, -1)) {
         lua_pop(wow_ui.lua, 1);
+        UIWow_WarnOnce(WOW_UI_WARN_NO_UPDATE_HANDLER,
+                       "UIWow: missing Lua function 'ow3_update'\n");
         return;
     }
     lua_pushinteger(wow_ui.lua, msec);

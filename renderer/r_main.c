@@ -160,6 +160,7 @@ LPTEXTURE R_LoadTexture(LPCSTR textureFilename) {
     void *buffer = NULL;
     int fileSize = ri.FS_ReadFile(textureFilename, &buffer);
     if (fileSize < 0 || !buffer) {
+        fprintf(stderr, "R_LoadTexture: not found: %s\n", textureFilename);
         return R_AllocateSinglePixelTexture(0xffffffff);
     }
     switch (*(DWORD *)buffer) {
