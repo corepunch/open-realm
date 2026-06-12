@@ -111,39 +111,78 @@ static int UIWow_LuaDrawColor(lua_State *L) {
 }
 
 /* draw_backdrop(bg_path, border_path, x, y, w, h, edge_size)
- * Draws a WoW-style backdrop.
- *   bg_path     — tiled background texture drawn inside the inset region
- *   border_path — border texture drawn as a full-size overlay; WoW border
- *                 textures are pre-composed with all four corners and edges
- *                 and are designed to be stretched over the entire frame rect
- *   edge_size   — inset in 0-1 screen space applied to the bg only; the
- *                 border always covers the full rect
+ * Draws a WoW-style 9-slice backdrop.
+ *   bg_path     — background texture tiled/stretched inside the inset region
+ *   border_path — border texture rendered as 9 pieces: 4 corners (edge×edge),
+ *                 4 edges stretched between them, matching WoW SetBackdrop
+ *   edge_size   — corner/edge size in 0-1 screen space (e.g. n(32) for a
+ *                 256px texture with EdgeSize=32)
+ * The border texture is assumed to be laid out with corners in the four
+ * quadrants and edges along the four sides, matching the WoW atlas format.
  * Either path may be nil/"" to skip that layer. */
 static int UIWow_LuaDrawBackdrop(lua_State *L) {
     LPCSTR bg_path     = luaL_optstring(L, 1, "");
     LPCSTR border_path = luaL_optstring(L, 2, "");
-    RECT screen        = UIWow_LuaRect(L, 3);
-    FLOAT esz          = (FLOAT)luaL_optnumber(L, 7, 0.0);
-    RECT full_uv       = MAKE(RECT, 0, 0, 1, 1);
+    RECT sc            = UIWow_LuaRect(L, 3);
+    FLOAT e            = (FLOAT)luaL_optnumber(L, 7, 0.0);
+    RECT fuv           = MAKE(RECT, 0, 0, 1, 1);
 
     UIWow_EnsureRenderer();
     if (!wow_ui.renderer) {
         return 0;
     }
 
+    /* Background — stretched inside the inset */
     if (bg_path && *bg_path) {
         LPTEXTURE bg = UIWow_LoadTexture(bg_path);
         if (bg) {
-            RECT inner = MAKE(RECT, screen.x + esz, screen.y + esz,
-                              screen.w - esz * 2.0f, screen.h - esz * 2.0f);
-            wow_ui.renderer->DrawImage(bg, &inner, &full_uv, COLOR32_WHITE);
+            RECT inner = MAKE(RECT, sc.x + e, sc.y + e,
+                              sc.w - e * 2.0f, sc.h - e * 2.0f);
+            wow_ui.renderer->DrawImage(bg, &inner, &fuv, COLOR32_WHITE);
         }
     }
 
-    if (border_path && *border_path) {
+    /* Border — 9-slice: UVs divide the texture into a 3×3 grid where
+     * each corner occupies 1/4 of the texture (the WoW atlas is 2×2 tiles
+     * each holding one corner/edge piece at half-texture size).
+     * UV layout: corners at the four quadrants, edges along each side. */
+    if (border_path && *border_path && e > 0.0f) {
         LPTEXTURE border = UIWow_LoadTexture(border_path);
         if (border) {
-            wow_ui.renderer->DrawImage(border, &screen, &full_uv, COLOR32_WHITE);
+            FLOAT r = sc.x + sc.w; /* right edge */
+            FLOAT b = sc.y + sc.h; /* bottom edge */
+            /* UVs: WoW border textures place TL corner in top-left quadrant,
+             * TR in top-right, BL in bottom-left, BR in bottom-right.
+             * Each quadrant = 0.5 × 0.5 of the texture. */
+            RECT uv_tl = MAKE(RECT, 0.0f, 0.0f, 0.5f, 0.5f);
+            RECT uv_tr = MAKE(RECT, 0.5f, 0.0f, 0.5f, 0.5f);
+            RECT uv_bl = MAKE(RECT, 0.0f, 0.5f, 0.5f, 0.5f);
+            RECT uv_br = MAKE(RECT, 0.5f, 0.5f, 0.5f, 0.5f);
+            /* corners */
+            RECT tl = MAKE(RECT, sc.x,     sc.y,     e, e);
+            RECT tr = MAKE(RECT, r - e,    sc.y,     e, e);
+            RECT bl = MAKE(RECT, sc.x,     b - e,    e, e);
+            RECT br = MAKE(RECT, r - e,    b - e,    e, e);
+            /* edges */
+            RECT top_e = MAKE(RECT, sc.x + e, sc.y,   sc.w - e*2, e);
+            RECT bot_e = MAKE(RECT, sc.x + e, b - e,  sc.w - e*2, e);
+            RECT lft_e = MAKE(RECT, sc.x,     sc.y+e, e, sc.h - e*2);
+            RECT rgt_e = MAKE(RECT, r - e,    sc.y+e, e, sc.h - e*2);
+            /* top/bottom edges use top strip UV (y=0..0.5, full x) */
+            RECT uv_top = MAKE(RECT, 0.0f, 0.0f, 1.0f, 0.5f);
+            RECT uv_bot = MAKE(RECT, 0.0f, 0.5f, 1.0f, 0.5f);
+            /* left/right edges use left strip UV (x=0..0.5, full y) */
+            RECT uv_lft = MAKE(RECT, 0.0f, 0.0f, 0.5f, 1.0f);
+            RECT uv_rgt = MAKE(RECT, 0.5f, 0.0f, 0.5f, 1.0f);
+
+            wow_ui.renderer->DrawImage(border, &tl,    &uv_tl,  COLOR32_WHITE);
+            wow_ui.renderer->DrawImage(border, &tr,    &uv_tr,  COLOR32_WHITE);
+            wow_ui.renderer->DrawImage(border, &bl,    &uv_bl,  COLOR32_WHITE);
+            wow_ui.renderer->DrawImage(border, &br,    &uv_br,  COLOR32_WHITE);
+            wow_ui.renderer->DrawImage(border, &top_e, &uv_top, COLOR32_WHITE);
+            wow_ui.renderer->DrawImage(border, &bot_e, &uv_bot, COLOR32_WHITE);
+            wow_ui.renderer->DrawImage(border, &lft_e, &uv_lft, COLOR32_WHITE);
+            wow_ui.renderer->DrawImage(border, &rgt_e, &uv_rgt, COLOR32_WHITE);
         }
     }
     return 0;
