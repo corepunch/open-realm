@@ -1,9 +1,10 @@
 -- Textures from Interface/GlueXML/AccountLogin.xml
-local LOGO          = "Interface\\Glues\\Common\\Glues-WoW-Logo"
-local EDITBOX_BG    = "Interface\\Tooltips\\UI-Tooltip-Background"
-local EDITBOX_EDGE  = "Interface\\Glues\\Common\\Glue-Tooltip-Border"
-local BUTTON_UP     = "Interface\\Glues\\Common\\Glues-BigButton-Up"
-local BUTTON_DOWN   = "Interface\\Glues\\Common\\Glues-BigButton-Down"
+local BACKGROUND    = "Interface\\Glues\\LoadingScreens\\LoadScreenEnviroment.blp"
+local LOGO          = "Interface\\Glues\\Common\\Glues-WoW-Logo.blp"
+local EDITBOX_BG    = "Interface\\Tooltips\\UI-Tooltip-Background.blp"
+local EDITBOX_EDGE  = "Interface\\Glues\\Common\\Glue-Tooltip-Border.blp"
+local BUTTON_UP     = "Interface\\Glues\\Common\\Glues-BigButton-Up.blp"
+local BUTTON_DOWN   = "Interface\\Glues\\Common\\Glues-BigButton-Down.blp"
 
 -- Screen dimensions in 0-1 space
 local VW, VH = 1024, 768
@@ -55,6 +56,8 @@ end
 
 function ow3_draw_login_screen()
     if not LOGIN_SCREEN.visible then return end
+
+    ow3.draw_image(BACKGROUND, 0, 0, 1, 1)
 
     -- WoW logo (top-left, 256×128 as in AccountLogin.xml)
     ow3.draw_image(LOGO, n(3), nv(7), n(256), nv(128))
