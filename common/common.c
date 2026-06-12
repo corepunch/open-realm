@@ -436,13 +436,7 @@ static void FS_ForEachDiskEntry(LPCSTR dirname, fsDiskEntryFunc_t func, void *us
 }
 
 static void FS_AddGameDirectory(LPCSTR dirname) {
-    char mapsDir[MAX_PATHLEN * 2];
-
     if (!dirname || !*dirname) {
-        return;
-    }
-    snprintf(mapsDir, sizeof(mapsDir), "%s/Maps", dirname);
-    if (!FS_DirectoryExists(mapsDir)) {
         return;
     }
     FOR_LOOP(i, MAX_GAME_DIRS) {

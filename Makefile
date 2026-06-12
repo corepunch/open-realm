@@ -150,7 +150,13 @@ run-wow: $(WOW_BINARY)
 build-run-wow-map: openwow
 	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +map World/Maps/Azeroth/Azeroth.wdt
 
+WOW_UI_SRC_DIR := $(WOW_TEST_DIR)/resources-src
 build-run-wow: openwow
+	@mkdir -p $(WOW_INSTALL_DATA_DIR)/Interface/FrameXML
+	@cp $(WOW_UI_SRC_DIR)/Interface/FrameXML/OW3Glue.lua $(WOW_INSTALL_DATA_DIR)/Interface/FrameXML/
+	@cp $(WOW_UI_SRC_DIR)/Interface/FrameXML/LoginScreen.lua $(WOW_INSTALL_DATA_DIR)/Interface/FrameXML/
+	@cp $(WOW_UI_SRC_DIR)/Interface/FrameXML/CharacterSelectScreen.lua $(WOW_INSTALL_DATA_DIR)/Interface/FrameXML/
+	@cp $(WOW_UI_SRC_DIR)/Interface/FrameXML/CharacterCreateScreen.lua $(WOW_INSTALL_DATA_DIR)/Interface/FrameXML/
 	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR)
 
 run-sc2: $(SC2_BINARY)

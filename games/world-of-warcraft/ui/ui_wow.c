@@ -8,7 +8,6 @@
 
 #define WOW_UI_MAX_TEXTURES 256
 #define WOW_UI_MAX_FONTS 16
-#define WOW_UI_SCRIPT "Interface\\FrameXML\\UIParent.lua"
 
 static uiImport_t uiimport;
 
@@ -512,22 +511,6 @@ static BOOL UIWow_RunLuaBuffer(LPCSTR name, LPCSTR script, size_t len) {
     return UIWow_LuaPCall(0);
 }
 
-static void UIWow_LoadExternalLua(void) {
-    void *buf = NULL;
-    int size;
-
-    if (!uiimport.FS_ReadFile || !uiimport.FS_FreeFile) {
-        return;
-    }
-    size = uiimport.FS_ReadFile(WOW_UI_SCRIPT, &buf);
-    if (size <= 0 || !buf) {
-        SAFE_DELETE(buf, uiimport.FS_FreeFile);
-        return;
-    }
-    UIWow_RunLuaBuffer("@" WOW_UI_SCRIPT, buf, (size_t)size);
-    uiimport.FS_FreeFile(buf);
-}
-
 static void UIWow_LoadMenuLua(LPCSTR filename) {
     void *buf = NULL;
     int size;
@@ -539,6 +522,7 @@ static void UIWow_LoadMenuLua(LPCSTR filename) {
     snprintf(path, sizeof(path), "Interface\\FrameXML\\%s", filename);
     size = uiimport.FS_ReadFile(path, &buf);
     if (size <= 0 || !buf) {
+        fprintf(stderr, "UIWow: could not load '%s'\n", path);
         SAFE_DELETE(buf, uiimport.FS_FreeFile);
         return;
     }
@@ -547,6 +531,7 @@ static void UIWow_LoadMenuLua(LPCSTR filename) {
 }
 
 static void UIWow_LoadAllMenuLua(void) {
+    UIWow_LoadMenuLua("OW3Glue.lua");
     UIWow_LoadMenuLua("LoginScreen.lua");
     UIWow_LoadMenuLua("CharacterSelectScreen.lua");
     UIWow_LoadMenuLua("CharacterCreateScreen.lua");
@@ -586,7 +571,6 @@ static void UIWow_InitLua(void) {
     UIWow_RunLuaBuffer("@default_wow_hud.lua",
                        wow_default_hud_lua,
                        sizeof(wow_default_hud_lua) - 1);
-    UIWow_LoadExternalLua();
     UIWow_LoadAllMenuLua();
 }
 
@@ -819,10 +803,11 @@ static void UIWow_DrawFrame(void) {
         UIWow_DrawLoadingScreen();
         return;
     }
-    if (ps->client_ui_state == CLIENT_UI_GAME) {
+    if (wow_ui.current_menu[0]) {
         UIWow_CallLuaDraw();
-    } else {
-        UIWow_EnsureRenderer();
+        return;
+    }
+    if (ps->client_ui_state == CLIENT_UI_GAME) {
         UIWow_CallLuaDraw();
     }
 }
