@@ -150,15 +150,6 @@ run-wow: $(WOW_BINARY)
 build-run-wow-map: openwow
 	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +map World/Maps/Azeroth/Azeroth.wdt
 
-WOW_UI_SRC_DIR := $(WOW_TEST_DIR)/resources-src
-install-wow-ui: mpqtool
-	@set --; \
-	for f in $$(find $(WOW_UI_SRC_DIR)/Interface/FrameXML -name '*.lua' | sort); do \
-		rel=$${f#$(WOW_UI_SRC_DIR)/}; set -- "$$@" "$$f" "$$rel"; \
-	done; \
-	$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_INSTALL_DATA_DIR)/interface.MPQ pack "$$@"
-	@echo "[install-wow-ui] done"
-
 run: build-run-wow
 build-run-wow: openwow
 	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR)
@@ -338,4 +329,4 @@ test-wow-assets: blpgen mpqtool | $(TESTS_DIR)
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_TEST_MPQ) cat Interface/Test/LuaPanel.blp | head -c4 | grep -q "BLP2" && echo "  cat panel OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_TEST_MPQ) cat Interface/FrameXML/UIParent.lua | grep -q "wow_lua_test" && echo "  cat lua OK"
 
-.PHONY: default build shared tools font $(TOOL_NAMES) diag clean download renderer-wow game-wow ui-wow openwow renderer-sc2 game-sc2 opensc2 run run-sc2 build-run-sc2 m2tool-wow-orcmale-player install-wow install-wow-ui test-wow-appearance test-wow-combat test-wow-game test-wow-ui test-wow-assets test-sc2 test-sc2-assets $(WC3_PHONY)
+.PHONY: default build shared tools font $(TOOL_NAMES) diag clean download renderer-wow game-wow ui-wow openwow renderer-sc2 game-sc2 opensc2 run run-sc2 build-run-sc2 m2tool-wow-orcmale-player install-wow test-wow-appearance test-wow-combat test-wow-game test-wow-ui test-wow-assets test-sc2 test-sc2-assets $(WC3_PHONY)
