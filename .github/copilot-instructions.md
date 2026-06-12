@@ -17,10 +17,47 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 - Do not use several booleans to represent mutually exclusive state. If only one mode/kind/type can be active, define and pass an enum, then dispatch from that enum. For example, use one `sc2ObjectType_t` value instead of separate `is_unit`, `is_doodad`, and `is_camera` flags.
 - Put pure, reusable local helpers in a small nearby utils header, such as `sc2_utils.h`, as `static` functions. Keep subsystem-owned helpers that touch globals, allocation hosts, file handles, or runtime state in the `.c` file that owns that state.
 - Write tiny parsing/utility helpers only when they remove real duplication or clarify a call site. Keep them brutally short; prefer simple standard C library calls (`strchr`, `strspn`, `strtoul`, etc.) over hand-written multi-line loops unless the format genuinely requires custom logic. Do not add ceremonial blank lines inside tiny helpers, and keep trivial statement bodies on one line when that is clearer, e.g. `if (*p == '"') quoted = !quoted;`. Avoid temporary success variables for tiny wrappers; branch directly on the call and return explicit `true`/`false` when that is shorter and clearer.
+- Follow a strict Don't Repeat Yourself (DRY) rule: do not duplicate logic or repeat the same data literal in multiple places. If the same path/key/constant appears more than once (for example `Interface\\GlueXML\\AccountLogin.xml`), centralize it as one named constant or one shared loader path and reuse it.
 - Use `snake_case` for functions and variables, `ALL_CAPS` for constants and macros, matching Quake 2 conventions.
 - Use the `BZ_` prefix for project-private compile-time macros, generated binding helpers, environment toggles, and namespaced constants that need a project prefix.
 - When fixing warnings for short, future-facing hooks such as one-line static moves, extern declarations, or placeholder assignments, prefer commenting them out over deleting them. Add a short comment explaining the warning being fixed and when the line should come back, for example that Linux `-Wall` warns while the hook is unused.
 - For WoW UI code (`games/world-of-warcraft/ui/`), do not fail silently. When a required script, handler, renderer resource, or fallback path is missing, emit a clear `UIWow:` log that explains what was skipped and why. Prefer one-time warnings for per-frame paths to avoid log spam.
+
+## General
+- Minimize vertical space. Prefer fewer, denser lines over many short ones.
+- Single-statement functions go on one line: `int f(void) { return 0; }`
+- Omit braces for single-statement `if`/`else`/`while` bodies.
+
+## Packing multiple statements
+- Chain sequential, logically related statements on one line with `;`:
+  `lua_pushvalue(L, 2); lua_pushvalue(L, 1);`
+- Merge declarations that belong to the same logical step:
+  `int key_idx = lua_absindex(L, -2), val_idx = lua_absindex(L, -1);`
+
+## Ternary + comma operator for conditional initialization
+- When an assignment depends on a condition that also has side effects, use
+  the comma operator inside the ternary branch to keep it a single expression:
+```c
+  int nargs = lua_isnoneornil(L, 2) ? 1 : (lua_pushvalue(L, 2), lua_xmove(L, co, 1), 2);
+```
+  The comma operator sequences the side-effect calls; the branch evaluates to
+  the final value. Use this to avoid splitting a variable's initialization from
+  its declaration.
+
+## Braces
+- Omit braces when the body is a single statement or a single comma-chained expression.
+- Keep braces for multi-statement `while` bodies, and anything
+  that would become ambiguous without them.
+
+## Pointers and casts
+- Inline pointer-through-cast writes where the intent is clear:
+  `*((struct Object **)lua_getextraspace(L)) = self;`
+
+## What to avoid
+- Do not introduce helper variables just to name an intermediate result if the
+  expression is already readable inline.
+- Do not add blank lines between short, related statements.
+- Do not split a declaration and its first assignment onto separate lines.
 
 ## Architecture
 
@@ -74,6 +111,7 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 ## MPQ Inspection Workflow
 
 - When investigating Warcraft III assets, prefer using the local CLI utility `build/bin/mpqtool` instead of guessing file paths.
+- Never define in C code any UI/layout/asset values that can be read from MPQ data files such as XML, Lua, FDF, DBC, SLK, or similar. Build or extend systems that load and use the authoritative MPQ data instead of embedding fallback literals in engine code.
 - Tests must not depend on a developer's local Warcraft III data or `War3.mpq`. Add any archive fixtures under `tests/resources-src`, pack them into the generated `build/tests/tests.mpq` through `make test-assets`, and point tests at that fixture MPQ instead.
 - Tests must not read from ignored local extraction folders such as `data/fdf` or `data/Warcraft III`. If a test needs FDF, map, texture, model, or other archive content, copy the minimal fixture into `tests/resources-src`, add it to `build/tests/tests.mpq`, and read it from that generated archive.
 - When a test fixture intentionally replaces an actual game archive file with custom content, use the same archive path and filename as the real game file. Do not invent project-specific replacement names for files that are meant to stand in for game files; keep the name WoW/Warcraft-style and make only the contents custom.

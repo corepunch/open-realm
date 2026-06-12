@@ -77,6 +77,14 @@ void UIWow_ShutdownLua(void);
 BOOL UIWow_LuaPCall(int nargs);
 void UIWow_CallLuaDraw(void);
 void UIWow_CallLuaUpdate(DWORD msec);
+BOOL UIWow_RunLuaString(LPCSTR name, LPCSTR script);
+BOOL UIWow_LoadLuaFile(LPCSTR path, BOOL noisy_missing);
+
+/* ui_xml.c */
+void UIWow_XMLInitRuntime(void);
+void UIWow_XMLShutdownRuntime(void);
+BOOL UIWow_XMLLoadGlueFromToc(LPCSTR toc_path);
+void UIWow_XMLDraw(void);
 
 /* ui_loading.c */
 void UIWow_UpdateMapBackground(LPCPLAYER ps);

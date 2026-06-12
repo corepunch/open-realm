@@ -164,6 +164,45 @@ static void UIWow_Refresh(DWORD msec) {
     UIWow_CallLuaUpdate(msec);
 }
 
+static void UIWow_ReleaseScreenAssets(void) {
+    if (!wow_ui.renderer) {
+        return;
+    }
+
+    FOR_LOOP(i, WOW_UI_MAX_TEXTURES) {
+        SAFE_DELETE(wow_ui.textures[i].texture, wow_ui.renderer->ReleaseTexture);
+        wow_ui.textures[i].name[0] = '\0';
+    }
+    FOR_LOOP(i, WOW_UI_MAX_FONTS) {
+        /* Renderer API does not expose font destruction; drop cached handles on screen switch. */
+        wow_ui.fonts[i].font = NULL;
+        wow_ui.fonts[i].size = 0;
+    }
+    SAFE_DELETE(wow_ui.background, wow_ui.renderer->ReleaseTexture);
+    wow_ui.texture_recycle_index = 0;
+}
+
+static void UIWow_RecreateLuaStateForMenu(LPCSTR menu_name) {
+    if (!menu_name || !*menu_name) {
+        return;
+    }
+    if (wow_ui.lua && wow_ui.current_menu[0] && !strcmp(wow_ui.current_menu, menu_name)) {
+        return;
+    }
+
+    if (wow_ui.lua) {
+        UIWow_Printf("UIWow: switching menu '%s' -> '%s'; recreating Lua state\n",
+                     wow_ui.current_menu[0] ? wow_ui.current_menu : "<none>",
+                     menu_name);
+        UIWow_ShutdownLua();
+    } else {
+        UIWow_Printf("UIWow: creating Lua state for menu '%s'\n", menu_name);
+    }
+
+    UIWow_ReleaseScreenAssets();
+    UIWow_InitLua();
+}
+
 /* -------------------------------------------------------------------------
  * Per-frame draw dispatch
  * ---------------------------------------------------------------------- */
@@ -215,6 +254,7 @@ static void UIWow_DrawFrame(void) {
         return;
     }
     if (wow_ui.current_menu[0] || (ps && ps->client_ui_state == CLIENT_UI_GAME)) {
+        UIWow_XMLDraw();
         UIWow_CallLuaDraw();
     }
 }
@@ -274,6 +314,7 @@ static void UIWow_MouseEvent(int x, int y, int button, BOOL down) {
  * ---------------------------------------------------------------------- */
 
 static void UIWow_CallLuaShow(LPCSTR menu_name, LPCSTR lua_func, LPCSTR glue_screen) {
+    UIWow_RecreateLuaStateForMenu(menu_name);
     snprintf(wow_ui.current_menu, sizeof(wow_ui.current_menu), "%s", menu_name);
     if (!wow_ui.lua) {
         UIWow_WarnOnce(WOW_UI_WARN_NO_LUA_STATE,
