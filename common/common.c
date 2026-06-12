@@ -1361,11 +1361,6 @@ void Com_Init(int argc, LPCSTR *argv) {
     Cvar_ApplyCommandLine(argc, argv);
     Cbuf_AddEarlyCommands(true);
     Cbuf_Execute();
-#ifdef WOW
-    if (!*Cvar_String("map", "") && !*Cvar_String("connect", "")) {
-        Cvar_Set("map", "World/Maps/Azeroth/Azeroth.wdt");
-    }
-#endif
     /* Leave generic +commands queued until client/UI modules register commands. */
 }
 
