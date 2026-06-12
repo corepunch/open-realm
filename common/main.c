@@ -94,6 +94,11 @@ int main(int argc, LPSTR argv[]) {
         data = 1;
     }
 
+    LPCSTR extra_data_dir = Cvar_String("extra_data", "");
+    if (extra_data_dir && *extra_data_dir) {
+        FS_AddDataDirectory(extra_data_dir);
+    }
+
     if (!data) {
         printf(USAGE);
         return 1;

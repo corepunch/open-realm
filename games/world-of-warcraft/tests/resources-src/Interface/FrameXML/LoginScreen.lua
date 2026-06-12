@@ -37,9 +37,7 @@ function ow3_draw_login_screen()
 
     local VW, VH = 1024, 768
 
-    ow3.draw_image('Interface\\Glues\\LoadingScreens\\LoadScreenEnviroment.blp', 0, 0, 1, 1)
-
-    ow3.draw_color(0.3, 0.3, 0.3, 0.4, 0, 0, 0, 200)
+    ow3.draw_color(0, 0, 1, 1, 0, 0, 0, 200)
 
     ow3.draw_text('World of Warcraft', 0.2, 0.2, 0.6, 0.1, 32, 255, 215, 120, 255, 'center')
 

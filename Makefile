@@ -152,12 +152,7 @@ build-run-wow-map: openwow
 
 WOW_UI_SRC_DIR := $(WOW_TEST_DIR)/resources-src
 build-run-wow: openwow
-	@mkdir -p $(WOW_INSTALL_DATA_DIR)/Interface/FrameXML
-	@cp $(WOW_UI_SRC_DIR)/Interface/FrameXML/OW3Glue.lua $(WOW_INSTALL_DATA_DIR)/Interface/FrameXML/
-	@cp $(WOW_UI_SRC_DIR)/Interface/FrameXML/LoginScreen.lua $(WOW_INSTALL_DATA_DIR)/Interface/FrameXML/
-	@cp $(WOW_UI_SRC_DIR)/Interface/FrameXML/CharacterSelectScreen.lua $(WOW_INSTALL_DATA_DIR)/Interface/FrameXML/
-	@cp $(WOW_UI_SRC_DIR)/Interface/FrameXML/CharacterCreateScreen.lua $(WOW_INSTALL_DATA_DIR)/Interface/FrameXML/
-	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR)
+	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +extra_data $(WOW_UI_SRC_DIR)
 
 run-sc2: $(SC2_BINARY)
 	$(SC2_BINARY) -data data/StarCraft2 +map TRaynor01
