@@ -346,6 +346,75 @@ static int UIWow_LuaCommand(lua_State *L) {
     return 0;
 }
 
+/* draw_loading_background() — draws the current map background texture fullscreen */
+static int UIWow_LuaDrawLoadingBackground(lua_State *L) {
+    RECT full = MAKE(RECT, 0, 0, 1, 1);
+
+    (void)L;
+    UIWow_EnsureRenderer();
+    if (wow_ui.renderer && wow_ui.background) {
+        wow_ui.renderer->DrawImage(wow_ui.background, &full, &full, COLOR32_WHITE);
+    }
+    return 0;
+}
+
+/* draw_image_additive(path, x, y, w, h) — draw texture with additive blending (e.g. glow) */
+static int UIWow_LuaDrawImageAdditive(lua_State *L) {
+    LPCSTR name = luaL_checkstring(L, 1);
+    RECT screen = UIWow_LuaRect(L, 2);
+    RECT uv = MAKE(RECT, 0, 0, 1, 1);
+    COLOR32 color = UIWow_LuaColor(L, 6, COLOR32_WHITE);
+    LPTEXTURE texture = UIWow_LoadTexture(name);
+
+    if (wow_ui.renderer && texture) {
+        wow_ui.renderer->DrawImageEx(&MAKE(drawImage_t,
+                                           .texture   = texture,
+                                           .screen    = screen,
+                                           .uv        = uv,
+                                           .color     = color,
+                                           .shader    = SHADER_UI,
+                                           .alphamode = BLEND_MODE_ADD));
+    }
+    lua_pushboolean(L, texture != NULL);
+    return 1;
+}
+
+static int UIWow_LuaGetLoadingProgress(lua_State *L) {
+    FLOAT target = uiimport.GetLoadingProgress ? uiimport.GetLoadingProgress() : 0.0f;
+
+    if (target < 0.0f) { target = 0.0f; }
+    else if (target > 1.0f) { target = 1.0f; }
+
+    if (target < wow_ui.displayed_progress) {
+        wow_ui.displayed_progress = target;
+    } else {
+        wow_ui.displayed_progress = wow_ui.displayed_progress * 0.82f + target * 0.18f;
+        if (target - wow_ui.displayed_progress < 0.002f) {
+            wow_ui.displayed_progress = target;
+        }
+    }
+    lua_pushnumber(L, (lua_Number)wow_ui.displayed_progress);
+    return 1;
+}
+
+static int UIWow_LuaGetLoadingTitle(lua_State *L) {
+    LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
+    LPCSTR title = ps ? ps->texts[PLAYERTEXT_MAP_TITLE] : NULL;
+
+    if (!title || !*title) {
+        title = uiimport.GetLoadingMap ? uiimport.GetLoadingMap() : "";
+    }
+    lua_pushstring(L, title ? title : "");
+    return 1;
+}
+
+static int UIWow_LuaGetLoadingStatus(lua_State *L) {
+    LPCSTR status = uiimport.GetLoadingStatus ? uiimport.GetLoadingStatus() : "";
+
+    lua_pushstring(L, status ? status : "");
+    return 1;
+}
+
 static int UIWow_LuaLoadMap(lua_State *L) {
     LPCSTR map_name = luaL_optstring(L, 1, "Maps\\Campaign\\Default.w3m");
     char cmd[512];
@@ -361,13 +430,18 @@ static int UIWow_LuaLoadMap(lua_State *L) {
 }
 
 static luaL_Reg const wow_lua_funcs[] = {
-    { "draw_image",       UIWow_LuaDrawImage },
-    { "draw_image_uv",    UIWow_LuaDrawImageUV },
-    { "draw_image_index", UIWow_LuaDrawImageIndex },
-    { "draw_color",       UIWow_LuaDrawColor },
-    { "draw_backdrop",    UIWow_LuaDrawBackdrop },
-    { "draw_minimap",     UIWow_LuaDrawMinimap },
-    { "draw_text",        UIWow_LuaDrawText },
+    { "draw_loading_background", UIWow_LuaDrawLoadingBackground },
+    { "draw_image",          UIWow_LuaDrawImage },
+    { "draw_image_uv",       UIWow_LuaDrawImageUV },
+    { "draw_image_index",    UIWow_LuaDrawImageIndex },
+    { "draw_image_additive", UIWow_LuaDrawImageAdditive },
+    { "draw_color",          UIWow_LuaDrawColor },
+    { "draw_backdrop",       UIWow_LuaDrawBackdrop },
+    { "draw_minimap",        UIWow_LuaDrawMinimap },
+    { "draw_text",           UIWow_LuaDrawText },
+    { "get_loading_progress",UIWow_LuaGetLoadingProgress },
+    { "get_loading_title",   UIWow_LuaGetLoadingTitle },
+    { "get_loading_status",  UIWow_LuaGetLoadingStatus },
     { "stat",             UIWow_LuaStat },
     { "text",             UIWow_LuaText },
     { "player_name",      UIWow_LuaPlayerName },
@@ -474,6 +548,7 @@ void UIWow_InitLua(void) {
                        sizeof(wow_default_hud_lua) - 1);
 
     UIWow_LoadMenuLua("OW3Glue.lua");
+    UIWow_LoadMenuLua("LoadingScreen.lua");
     UIWow_LoadMenuLua("LoginScreen.lua");
     UIWow_LoadMenuLua("CharacterSelectScreen.lua");
     UIWow_LoadMenuLua("CharacterCreateScreen.lua");

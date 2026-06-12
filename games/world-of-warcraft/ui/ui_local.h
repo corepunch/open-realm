@@ -47,7 +47,7 @@ typedef struct {
     uiWowIcon_t actions[WOW_UI_ACTION_SLOTS];
     LPTEXTURE background;
     PATHSTR active_map;
-    FLOAT displayed_progress;
+    FLOAT displayed_progress;  /* smoothed progress owned by get_loading_progress() */
     PATHSTR current_menu;
 } uiWowState_t;
 
@@ -62,10 +62,7 @@ void UIWow_CallLuaDraw(void);
 void UIWow_CallLuaUpdate(DWORD msec);
 
 /* ui_loading.c */
-void UIWow_InitLoadingAssets(void);
-void UIWow_ShutdownLoadingAssets(void);
 void UIWow_UpdateMapBackground(LPCPLAYER ps);
-void UIWow_DrawLoadingScreen(void);
 
 /* Shared helpers (defined in ui_main.c) */
 void UIWow_EnsureRenderer(void);

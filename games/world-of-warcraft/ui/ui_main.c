@@ -106,14 +106,12 @@ LPCFONT UIWow_LoadFont(DWORD size) {
 static void UIWow_Init(void) {
     memset(&wow_ui, 0, sizeof(wow_ui));
     UIWow_EnsureRenderer();
-    UIWow_InitLoadingAssets();
     UIWow_InitLua();
 }
 
 static void UIWow_Shutdown(void) {
     UIWow_ShutdownLua();
     if (wow_ui.renderer) {
-        UIWow_ShutdownLoadingAssets();
         FOR_LOOP(i, WOW_UI_MAX_TEXTURES) {
             SAFE_DELETE(wow_ui.textures[i].texture, wow_ui.renderer->ReleaseTexture);
         }
@@ -165,7 +163,12 @@ static void UIWow_DrawFrame(void) {
 
     if (ps->client_ui_state == CLIENT_UI_LOADING) {
         UIWow_UpdateMapBackground(ps);
-        UIWow_DrawLoadingScreen();
+        lua_getglobal(wow_ui.lua, "ow3_draw_loading_screen");
+        if (lua_isfunction(wow_ui.lua, -1)) {
+            UIWow_LuaPCall(0);
+        } else {
+            lua_pop(wow_ui.lua, 1);
+        }
         return;
     }
     if (wow_ui.current_menu[0] || ps->client_ui_state == CLIENT_UI_GAME) {
