@@ -119,7 +119,9 @@ int main(int argc, LPSTR argv[]) {
 
     NET_Init();
 
-    SV_Init();
+    if (!menu_mode) {
+        SV_Init();
+    }
     CL_Init();
     Cbuf_AddLateCommands();
     Cbuf_Execute();
@@ -130,6 +132,9 @@ int main(int argc, LPSTR argv[]) {
     } else if (listen_server_mode) {
         // Listen-server mode: show the client loading screen before the
         // synchronous server map load, mirroring Quake's loading plaque flow.
+        if (!svs.initialized) {
+            SV_Init();
+        }
         CL_BeginLoadingMap(map);
         SCR_UpdateScreen(0);
         SV_Map(map);
