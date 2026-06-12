@@ -110,16 +110,20 @@ static int UIWow_LuaDrawColor(lua_State *L) {
     return 0;
 }
 
-/* draw_backdrop(bg_path, border_path, x, y, w, h, border_size)
- * Draws a WoW-style backdrop: background texture stretched over the rect,
- * then four border quads (top/bottom/left/right) using the border texture.
- * border_size is in 0-1 normalised screen space (e.g. 0.004 ≈ 4px at 1024).
+/* draw_backdrop(bg_path, border_path, x, y, w, h, edge_size)
+ * Draws a WoW-style backdrop.
+ *   bg_path     — tiled background texture drawn inside the inset region
+ *   border_path — border texture drawn as a full-size overlay; WoW border
+ *                 textures are pre-composed with all four corners and edges
+ *                 and are designed to be stretched over the entire frame rect
+ *   edge_size   — inset in 0-1 screen space applied to the bg only; the
+ *                 border always covers the full rect
  * Either path may be nil/"" to skip that layer. */
 static int UIWow_LuaDrawBackdrop(lua_State *L) {
     LPCSTR bg_path     = luaL_optstring(L, 1, "");
     LPCSTR border_path = luaL_optstring(L, 2, "");
     RECT screen        = UIWow_LuaRect(L, 3);
-    FLOAT bsz          = (FLOAT)luaL_optnumber(L, 7, 0.0);
+    FLOAT esz          = (FLOAT)luaL_optnumber(L, 7, 0.0);
     RECT full_uv       = MAKE(RECT, 0, 0, 1, 1);
 
     UIWow_EnsureRenderer();
@@ -130,23 +134,16 @@ static int UIWow_LuaDrawBackdrop(lua_State *L) {
     if (bg_path && *bg_path) {
         LPTEXTURE bg = UIWow_LoadTexture(bg_path);
         if (bg) {
-            RECT inner = MAKE(RECT, screen.x + bsz, screen.y + bsz,
-                              screen.w - bsz * 2.0f, screen.h - bsz * 2.0f);
+            RECT inner = MAKE(RECT, screen.x + esz, screen.y + esz,
+                              screen.w - esz * 2.0f, screen.h - esz * 2.0f);
             wow_ui.renderer->DrawImage(bg, &inner, &full_uv, COLOR32_WHITE);
         }
     }
 
-    if (border_path && *border_path && bsz > 0.0f) {
+    if (border_path && *border_path) {
         LPTEXTURE border = UIWow_LoadTexture(border_path);
         if (border) {
-            RECT top = MAKE(RECT, screen.x, screen.y, screen.w, bsz);
-            RECT bot = MAKE(RECT, screen.x, screen.y + screen.h - bsz, screen.w, bsz);
-            RECT lft = MAKE(RECT, screen.x, screen.y + bsz, bsz, screen.h - bsz * 2.0f);
-            RECT rgt = MAKE(RECT, screen.x + screen.w - bsz, screen.y + bsz, bsz, screen.h - bsz * 2.0f);
-            wow_ui.renderer->DrawImage(border, &top, &full_uv, COLOR32_WHITE);
-            wow_ui.renderer->DrawImage(border, &bot, &full_uv, COLOR32_WHITE);
-            wow_ui.renderer->DrawImage(border, &lft, &full_uv, COLOR32_WHITE);
-            wow_ui.renderer->DrawImage(border, &rgt, &full_uv, COLOR32_WHITE);
+            wow_ui.renderer->DrawImage(border, &screen, &full_uv, COLOR32_WHITE);
         }
     }
     return 0;
