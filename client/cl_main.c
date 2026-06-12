@@ -682,12 +682,9 @@ void CL_Init(void) {
     CON_Init();
     CL_InitInput();
 
-    if (cls.key_dest == key_menu) {
-        CL_SetMenuBindings();
-        cls.state = ca_connecting;
-    } else {
-        CL_SetGameplayBindings();
-    }
+    CL_SetMenuBindings();
+    cls.state = ca_disconnected;
+    CL_MenuCommand("menu_login");
 }
 
 void CL_ConnectionlessPacket(const netadr_t *from, LPSIZEBUF msg) {

@@ -47,6 +47,7 @@ typedef struct {
     LPCFONT font_status;
     PATHSTR active_map;
     FLOAT displayed_progress;
+    PATHSTR current_menu;
 } uiWowState_t;
 
 static uiWowState_t wow_ui;
@@ -442,6 +443,21 @@ static int UIWow_LuaCommand(lua_State *L) {
     return 0;
 }
 
+static int UIWow_LuaLoadMap(lua_State *L) {
+    LPCSTR map_name = luaL_optstring(L, 1, "Maps\\Campaign\\Default.w3m");
+    char cmd[512];
+
+    if (!map_name || !*map_name) {
+        map_name = "Maps\\Campaign\\Default.w3m";
+    }
+
+    snprintf(cmd, sizeof(cmd), "+map %s", map_name);
+    if (uiimport.Cmd_ExecuteText) {
+        uiimport.Cmd_ExecuteText(cmd);
+    }
+    return 0;
+}
+
 static luaL_Reg const wow_lua_funcs[] = {
     { "draw_image", UIWow_LuaDrawImage },
     { "draw_image_uv", UIWow_LuaDrawImageUV },
@@ -457,6 +473,7 @@ static luaL_Reg const wow_lua_funcs[] = {
     { "actions", UIWow_LuaActions },
     { "time", UIWow_LuaTime },
     { "command", UIWow_LuaCommand },
+    { "load_map", UIWow_LuaLoadMap },
     { NULL, NULL },
 };
 
@@ -511,6 +528,30 @@ static void UIWow_LoadExternalLua(void) {
     uiimport.FS_FreeFile(buf);
 }
 
+static void UIWow_LoadMenuLua(LPCSTR filename) {
+    void *buf = NULL;
+    int size;
+    char path[512];
+
+    if (!uiimport.FS_ReadFile || !uiimport.FS_FreeFile || !filename) {
+        return;
+    }
+    snprintf(path, sizeof(path), "Interface\\FrameXML\\%s", filename);
+    size = uiimport.FS_ReadFile(path, &buf);
+    if (size <= 0 || !buf) {
+        SAFE_DELETE(buf, uiimport.FS_FreeFile);
+        return;
+    }
+    UIWow_RunLuaBuffer(path, buf, (size_t)size);
+    uiimport.FS_FreeFile(buf);
+}
+
+static void UIWow_LoadAllMenuLua(void) {
+    UIWow_LoadMenuLua("LoginScreen.lua");
+    UIWow_LoadMenuLua("CharacterSelectScreen.lua");
+    UIWow_LoadMenuLua("CharacterCreateScreen.lua");
+}
+
 static void UIWow_OpenLuaLib(lua_State *L, LPCSTR name, lua_CFunction openf) {
     luaL_requiref(L, name, openf, 1);
     lua_pop(L, 1);
@@ -546,6 +587,7 @@ static void UIWow_InitLua(void) {
                        wow_default_hud_lua,
                        sizeof(wow_default_hud_lua) - 1);
     UIWow_LoadExternalLua();
+    UIWow_LoadAllMenuLua();
 }
 
 static void UIWow_UpdateMapBackground(LPCPLAYER ps) {
@@ -738,6 +780,29 @@ static void UIWow_Refresh(DWORD msec) {
     UIWow_CallLuaUpdate(msec);
 }
 
+static void UIWow_UpdateMouseHover(void) {
+    static int last_x = -1, last_y = -1;
+    DWORD mouse_button = uiimport.GetMouseButton ? uiimport.GetMouseButton() : 0;
+    VECTOR2 mouse_pos = uiimport.GetMouseFdf ? uiimport.GetMouseFdf() : MAKE(VECTOR2, 0, 0);
+    int mouse_x = (int)(mouse_pos.x * 1024.0f);
+    int mouse_y = (int)(mouse_pos.y * 768.0f);
+
+    if (mouse_x != last_x || mouse_y != last_y) {
+        last_x = mouse_x;
+        last_y = mouse_y;
+        if (wow_ui.lua) {
+            lua_getglobal(wow_ui.lua, "ow3_handle_mouse_move");
+            if (lua_isfunction(wow_ui.lua, -1)) {
+                lua_pushnumber(wow_ui.lua, mouse_pos.x);
+                lua_pushnumber(wow_ui.lua, mouse_pos.y);
+                UIWow_LuaPCall(2);
+            } else {
+                lua_pop(wow_ui.lua, 1);
+            }
+        }
+    }
+}
+
 static void UIWow_DrawFrame(void) {
     LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
 
@@ -746,6 +811,7 @@ static void UIWow_DrawFrame(void) {
     }
 
     UIWow_EnsureRenderer();
+    UIWow_UpdateMouseHover();
 
     if (ps->client_ui_state == CLIENT_UI_LOADING) {
         UIWow_LoadStaticAssets();
@@ -754,6 +820,9 @@ static void UIWow_DrawFrame(void) {
         return;
     }
     if (ps->client_ui_state == CLIENT_UI_GAME) {
+        UIWow_CallLuaDraw();
+    } else {
+        UIWow_EnsureRenderer();
         UIWow_CallLuaDraw();
     }
 }
@@ -765,18 +834,98 @@ static void UIWow_KeyEvent(int key, BOOL down, DWORD time) {
 }
 
 static void UIWow_TextInput(LPCSTR text) {
-    (void)text;
+    if (!wow_ui.lua || !text) {
+        return;
+    }
+    lua_getglobal(wow_ui.lua, "ow3_handle_text_input");
+    if (!lua_isfunction(wow_ui.lua, -1)) {
+        lua_pop(wow_ui.lua, 1);
+        return;
+    }
+    lua_pushstring(wow_ui.lua, text);
+    UIWow_LuaPCall(1);
 }
 
 static void UIWow_MouseEvent(int x, int y, int button, BOOL down) {
-    (void)x;
-    (void)y;
-    (void)button;
-    (void)down;
+    if (!wow_ui.lua || !down) {
+        return;
+    }
+    lua_getglobal(wow_ui.lua, "ow3_handle_mouse_click");
+    if (!lua_isfunction(wow_ui.lua, -1)) {
+        lua_pop(wow_ui.lua, 1);
+        return;
+    }
+    lua_pushnumber(wow_ui.lua, x / 1024.0f);
+    lua_pushnumber(wow_ui.lua, y / 768.0f);
+    lua_pushinteger(wow_ui.lua, button);
+    UIWow_LuaPCall(3);
 }
 
+static void UIWow_ShowLoginMenu(void) {
+    snprintf(wow_ui.current_menu, sizeof(wow_ui.current_menu), "login");
+    if (wow_ui.lua) {
+        lua_getglobal(wow_ui.lua, "ow3_show_login");
+        if (lua_isfunction(wow_ui.lua, -1)) {
+            UIWow_LuaPCall(0);
+        } else {
+            lua_pop(wow_ui.lua, 1);
+        }
+    }
+}
+
+static void UIWow_ShowCharacterSelectMenu(void) {
+    snprintf(wow_ui.current_menu, sizeof(wow_ui.current_menu), "character_select");
+    if (wow_ui.lua) {
+        lua_getglobal(wow_ui.lua, "ow3_show_character_select");
+        if (lua_isfunction(wow_ui.lua, -1)) {
+            UIWow_LuaPCall(0);
+        } else {
+            lua_pop(wow_ui.lua, 1);
+        }
+    }
+}
+
+static void UIWow_ShowCharacterCreateMenu(void) {
+    snprintf(wow_ui.current_menu, sizeof(wow_ui.current_menu), "character_create");
+    if (wow_ui.lua) {
+        lua_getglobal(wow_ui.lua, "ow3_show_character_create");
+        if (lua_isfunction(wow_ui.lua, -1)) {
+            UIWow_LuaPCall(0);
+        } else {
+            lua_pop(wow_ui.lua, 1);
+        }
+    }
+}
+
+typedef struct {
+    LPCSTR command;
+    void (*function)(void);
+} uiWowMenuCommandDef_t;
+
+static uiWowMenuCommandDef_t const uiWow_menu_command_defs[] = {
+    { "menu_login", UIWow_ShowLoginMenu },
+    { "menu_character_select", UIWow_ShowCharacterSelectMenu },
+    { "menu_character_create", UIWow_ShowCharacterCreateMenu },
+    { NULL, NULL },
+};
+
 static void UIWow_MenuCommand(LPCSTR route) {
-    (void)route;
+    if (!route || !*route) {
+        return;
+    }
+    FOR_LOOP(i, sizeof(uiWow_menu_command_defs) / sizeof(uiWow_menu_command_defs[0])) {
+        uiWowMenuCommandDef_t const *cmd = &uiWow_menu_command_defs[i];
+        if (!cmd->command) {
+            break;
+        }
+        if (!strcmp(cmd->command, route)) {
+            if (cmd->function) {
+                cmd->function();
+            }
+            return;
+        }
+    }
+    UIWow_Printf("UIWow_MenuCommand: unknown route '%s'\n", route);
 }
 
 static DWORD UIWow_ImageIndex(LPCSTR art) {
