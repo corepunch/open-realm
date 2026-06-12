@@ -46,13 +46,6 @@ typedef struct {
     uiWowIcon_t inventory[WOW_UI_INVENTORY_SLOTS];
     uiWowIcon_t actions[WOW_UI_ACTION_SLOTS];
     LPTEXTURE background;
-    LPTEXTURE bar_background;
-    LPTEXTURE bar_border;
-    LPTEXTURE bar_fill;
-    LPTEXTURE bar_glass;
-    LPTEXTURE bar_glow;
-    LPCFONT font_title;
-    LPCFONT font_status;
     PATHSTR active_map;
     FLOAT displayed_progress;
     PATHSTR current_menu;
@@ -69,7 +62,8 @@ void UIWow_CallLuaDraw(void);
 void UIWow_CallLuaUpdate(DWORD msec);
 
 /* ui_loading.c */
-void UIWow_LoadStaticAssets(void);
+void UIWow_InitLoadingAssets(void);
+void UIWow_ShutdownLoadingAssets(void);
 void UIWow_UpdateMapBackground(LPCPLAYER ps);
 void UIWow_DrawLoadingScreen(void);
 

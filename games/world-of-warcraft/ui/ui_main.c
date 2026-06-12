@@ -106,21 +106,18 @@ LPCFONT UIWow_LoadFont(DWORD size) {
 static void UIWow_Init(void) {
     memset(&wow_ui, 0, sizeof(wow_ui));
     UIWow_EnsureRenderer();
+    UIWow_InitLoadingAssets();
     UIWow_InitLua();
 }
 
 static void UIWow_Shutdown(void) {
     UIWow_ShutdownLua();
     if (wow_ui.renderer) {
+        UIWow_ShutdownLoadingAssets();
         FOR_LOOP(i, WOW_UI_MAX_TEXTURES) {
             SAFE_DELETE(wow_ui.textures[i].texture, wow_ui.renderer->ReleaseTexture);
         }
-        SAFE_DELETE(wow_ui.background,       wow_ui.renderer->ReleaseTexture);
-        SAFE_DELETE(wow_ui.bar_background,   wow_ui.renderer->ReleaseTexture);
-        SAFE_DELETE(wow_ui.bar_border,       wow_ui.renderer->ReleaseTexture);
-        SAFE_DELETE(wow_ui.bar_fill,         wow_ui.renderer->ReleaseTexture);
-        SAFE_DELETE(wow_ui.bar_glass,        wow_ui.renderer->ReleaseTexture);
-        SAFE_DELETE(wow_ui.bar_glow,         wow_ui.renderer->ReleaseTexture);
+        SAFE_DELETE(wow_ui.background, wow_ui.renderer->ReleaseTexture);
     }
     memset(&wow_ui, 0, sizeof(wow_ui));
 }
@@ -167,7 +164,6 @@ static void UIWow_DrawFrame(void) {
     UIWow_UpdateMouseHover();
 
     if (ps->client_ui_state == CLIENT_UI_LOADING) {
-        UIWow_LoadStaticAssets();
         UIWow_UpdateMapBackground(ps);
         UIWow_DrawLoadingScreen();
         return;
