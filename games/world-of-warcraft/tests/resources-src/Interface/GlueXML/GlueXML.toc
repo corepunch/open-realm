@@ -1,3 +1,5 @@
 GlueFonts.xml
+GlueParent.xml
 GlueButtons.xml
 AccountLogin.xml
+CharacterSelect.xml

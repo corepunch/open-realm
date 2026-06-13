@@ -441,6 +441,23 @@ static int UIWow_LuaFalse(lua_State *L) { lua_pushboolean(L, 0); return 1; }
 static int UIWow_LuaNil(lua_State *L) { lua_pushnil(L); return 1; }
 static int UIWow_LuaZero(lua_State *L) { lua_pushinteger(L, 0); return 1; }
 
+static int UIWow_LuaRealmCategories(lua_State *L) {
+    lua_pushstring(L, "Test");
+    return 1;
+}
+
+static int UIWow_LuaRealmInfo(lua_State *L) {
+    lua_pushnil(L); lua_pushinteger(L, 0); lua_pushboolean(L, 0); lua_pushboolean(L, 0);
+    lua_pushboolean(L, 0); lua_pushboolean(L, 0); lua_pushboolean(L, 0); lua_pushinteger(L, 0);
+    return 8;
+}
+
+static int UIWow_LuaCharacterInfo(lua_State *L) {
+    lua_pushnil(L); lua_pushnil(L); lua_pushnil(L); lua_pushinteger(L, 0); lua_pushnil(L);
+    lua_pushnil(L); lua_pushnil(L); lua_pushnil(L); lua_pushnil(L); lua_pushnil(L);
+    return 10;
+}
+
 static int UIWow_LuaTextCompat(lua_State *L) {
     if (lua_isnil(L, 1)) lua_pushstring(L, "");
     else lua_pushvalue(L, 1);
@@ -498,6 +515,28 @@ static luaL_Reg const wow_global_funcs[] = {
     { "PlayGlueMusic",     UIWow_LuaNoop },
     { "StopGlueMusic",     UIWow_LuaNoop },
     { "PlayCreditsMusic",  UIWow_LuaNoop },
+    { "DisconnectFromServer", UIWow_LuaNoop },
+    { "IsConnectedToServer", UIWow_LuaFalse },
+    { "GetBillingTimeRemaining", UIWow_LuaZero },
+    { "EnterWorld",        UIWow_LuaNoop },
+    { "GetRealmCategories",UIWow_LuaRealmCategories },
+    { "GetSelectedCategory", UIWow_LuaZero },
+    { "GetNumRealms",      UIWow_LuaZero },
+    { "GetRealmInfo",      UIWow_LuaRealmInfo },
+    { "RequestRealmList",  UIWow_LuaNoop },
+    { "CancelRealmListQuery", UIWow_LuaNoop },
+    { "ChangeRealm",       UIWow_LuaNoop },
+    { "SetPreferredInfo",  UIWow_LuaNoop },
+    { "SortRealms",        UIWow_LuaNoop },
+    { "SetCharSelectModelFrame", UIWow_LuaNoop },
+    { "SetCharSelectBackground", UIWow_LuaNoop },
+    { "GetCharacterListUpdate", UIWow_LuaNoop },
+    { "GetNumCharacters",  UIWow_LuaZero },
+    { "GetCharacterInfo",  UIWow_LuaCharacterInfo },
+    { "SelectCharacter",   UIWow_LuaNoop },
+    { "UpdateSelectionCustomizationScene", UIWow_LuaNoop },
+    { "GetCharacterSelectFacing", UIWow_LuaZero },
+    { "SetCharacterSelectFacing", UIWow_LuaNoop },
     { "SetCurrentScreen",  UIWow_LuaNoop },
     { "SetCurrentGlueScreenName", UIWow_LuaNoop },
     { "QuitGame",          UIWow_LuaNoop },

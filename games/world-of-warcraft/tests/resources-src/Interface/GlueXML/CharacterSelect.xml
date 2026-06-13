@@ -1,0 +1,13 @@
+<Ui>
+    <Script file="CharacterSelect.lua"/>
+    <Frame name="CharacterSelect" setAllPoints="true" hidden="true">
+        <Frames>
+            <Button name="CharacterSelectBackButton" inherits="GlueButtonTemplate" text="BACK">
+                <Anchors>
+                    <Anchor point="TOP"><Offset><AbsDimension x="8" y="-570"/></Offset></Anchor>
+                </Anchors>
+                <Scripts><OnClick>CharacterSelect_Exit();</OnClick></Scripts>
+            </Button>
+        </Frames>
+    </Frame>
+</Ui>

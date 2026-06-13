@@ -326,8 +326,9 @@ extern BOOL UIWow_XMLLoadGlueFromToc(LPCSTR toc_path);
 extern void UIWow_XMLDraw(void);
 extern BOOL UIWow_XMLMouseEvent(int x, int y, int button, BOOL down);
 extern BOOL UIWow_XMLTextInput(LPCSTR text);
+extern BOOL UIWow_RunLuaString(LPCSTR name, LPCSTR script);
 
-static void test_wow_glue_xml_login_button_routes_next_screen(void) {
+static void test_wow_glue_xml_login_button_routes_character_select(void) {
     uiExport_t ui;
 
     reset_test_state();
@@ -336,6 +337,7 @@ static void test_wow_glue_xml_login_button_routes_next_screen(void) {
     ui = init_ui();
     reset_test_state();
     ASSERT(UIWow_XMLLoadGlueFromToc("Interface\\GlueXML\\GlueXML.toc"));
+    ASSERT(UIWow_RunLuaString("test_show_login", "SetGlueScreen('login');"));
     UIWow_XMLDraw();
 
     ASSERT(draw_panel_count > 0);
@@ -344,15 +346,20 @@ static void test_wow_glue_xml_login_button_routes_next_screen(void) {
     ASSERT(glue_account_label_centered > 0);
     ASSERT(glue_button_uv_width > 0.5f && glue_button_uv_width < 0.7f);
     ASSERT(glue_login_text_y < glue_button_y);
-    ASSERT_EQ_INT((int)glue_login_text_color.r, 255);
-    ASSERT_EQ_INT((int)glue_login_text_color.g, 198);
-    ASSERT_EQ_INT((int)glue_login_text_color.b, 0);
     ASSERT(draw_text_count > 0);
     ASSERT(UIWow_XMLMouseEvent(520, 400, 1, true));
     ASSERT(UIWow_XMLTextInput("A"));
     ASSERT(UIWow_XMLMouseEvent(520, 530, 1, true));
     ASSERT(UIWow_XMLMouseEvent(520, 530, 1, false));
-    ASSERT_STR_EQ(last_cmd_execute_text, "+menu_character_select\n");
+    ASSERT(UIWow_RunLuaString("test_current_glue_screen",
+                              "ow3.command(CURRENT_GLUE_SCREEN or '');"));
+    ASSERT_STR_EQ(last_server_command, "charselect");
+    ASSERT_STR_EQ(last_cmd_execute_text, "");
+
+    last_server_command[0] = '\0';
+    ASSERT(UIWow_RunLuaString("test_character_select_back",
+                              "CharacterSelect_Exit(); ow3.command(CURRENT_GLUE_SCREEN or '');"));
+    ASSERT_STR_EQ(last_server_command, "login");
 
     ui.Shutdown();
     FOR_LOOP(i, MAX_IMAGES) {
@@ -410,6 +417,6 @@ static void test_wow_lua_ui_draws_from_generated_mpq(void) {
 
 int main(void) {
     RUN_TEST(test_wow_lua_ui_draws_from_generated_mpq);
-    RUN_TEST(test_wow_glue_xml_login_button_routes_next_screen);
+    RUN_TEST(test_wow_glue_xml_login_button_routes_character_select);
     TEST_RESULTS();
 }

@@ -417,6 +417,18 @@ static int UIWow_LuaFrameHighlightText(lua_State *L) { (void)L; return 0; }
 static int UIWow_LuaFrameRegisterEvent(lua_State *L) { (void)L; return 0; }
 static int UIWow_LuaFrameSetSequence(lua_State *L) { (void)L; return 0; }
 static int UIWow_LuaFrameSetCamera(lua_State *L) { (void)L; return 0; }
+static int UIWow_LuaFrameSetModel(lua_State *L) {
+    int i = UIWow_FrameFromSelf(L);
+    if (i >= 0) {
+        UIWow_ElemSetStr(&wow_xml.elems[i], ELEM_FILE, luaL_optstring(L, 2, ""));
+        if (wow_xml.elems[i].model && wow_ui.renderer && wow_ui.renderer->ReleaseModel) {
+            wow_ui.renderer->ReleaseModel(wow_xml.elems[i].model);
+            wow_xml.elems[i].model = NULL;
+        }
+    }
+    return 0;
+}
+static int UIWow_LuaFrameAdvanceTime(lua_State *L) { (void)L; return 0; }
 static int UIWow_LuaFrameSetFogColor(lua_State *L) { (void)L; return 0; }
 static int UIWow_LuaFrameSetFogNear(lua_State *L) { (void)L; return 0; }
 static int UIWow_LuaFrameSetFogFar(lua_State *L) { (void)L; return 0; }
@@ -480,7 +492,8 @@ static void UIWow_XMLInstallLuaCompat(void) {
         { "GetChecked", UIWow_LuaFrameGetChecked }, { "GetID", UIWow_LuaFrameGetID },
         { "Click", UIWow_LuaFrameClick },
         { "SetVertexColor", UIWow_LuaFrameSetVertexColor }, { "SetFocus", UIWow_LuaFrameSetFocus }, { "HighlightText", UIWow_LuaFrameHighlightText }, { "RegisterEvent", UIWow_LuaFrameRegisterEvent }, { "SetSequence", UIWow_LuaFrameSetSequence },
-        { "SetCamera", UIWow_LuaFrameSetCamera }, { "SetFogColor", UIWow_LuaFrameSetFogColor }, { "SetFogNear", UIWow_LuaFrameSetFogNear }, { "SetFogFar", UIWow_LuaFrameSetFogFar },
+        { "SetCamera", UIWow_LuaFrameSetCamera }, { "SetModel", UIWow_LuaFrameSetModel }, { "AdvanceTime", UIWow_LuaFrameAdvanceTime },
+        { "SetFogColor", UIWow_LuaFrameSetFogColor }, { "SetFogNear", UIWow_LuaFrameSetFogNear }, { "SetFogFar", UIWow_LuaFrameSetFogFar },
         { "ClearFog", UIWow_LuaFrameClearFog }, { NULL, NULL }
     };
     if (!wow_ui.lua) return;

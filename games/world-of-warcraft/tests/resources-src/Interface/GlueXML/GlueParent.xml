@@ -1,0 +1,4 @@
+<Ui>
+    <Script file="GlueParent.lua"/>
+    <Frame name="GlueParent" setAllPoints="true" hidden="false"/>
+</Ui>
