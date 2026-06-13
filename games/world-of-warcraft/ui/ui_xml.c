@@ -41,6 +41,14 @@ typedef enum {
     ELEM_STRING_COUNT
 } uiWowXmlStr_t;
 
+typedef enum {
+    ELEM_COLOR_BACKDROP = 0,
+    ELEM_COLOR_BACKDROP_BORDER,
+    ELEM_COLOR_TEXT,
+    ELEM_COLOR_VERTEX,
+    ELEM_COLOR_COUNT
+} uiWowXmlColor_t;
+
 typedef enum { WOW_XML_FRAME, WOW_XML_MODEL, WOW_XML_TEXTURE, WOW_XML_FONTSTRING, WOW_XML_BUTTON, WOW_XML_EDITBOX } uiWowXmlType_t;
 
 typedef enum {
@@ -63,23 +71,15 @@ typedef enum {
 typedef struct {
     DWORD flags;
     uiWowXmlType_t type;
-    int parent;
-    int relative_to;
-    int draw_layer;
+    int id, parent, relative_to, draw_layer;
     char *texts[ELEM_STRING_COUNT];
-    fpoint_t pos;       /* x, y — anchor resolved position (unused at rest; computed on draw) */
-    fsize_t size;       /* w, h */
-    fpoint_t offset;    /* ox, oy — anchor offset */
-    fsize_t edge;       /* edge_w, edge_h */
-    fsize_t tile;       /* tile_w, tile_h */
-    fpoint_t text_off;  /* text_ox, text_oy */
-    fsize_t text_inset; /* text_left (w), text_bottom (h) */
+    fpoint_t pos, offset, text_off; /* pos(x,y), anchor offset(ox,oy), text offset(text_ox,text_oy) */
+    fsize_t size, edge, tile, text_inset; /* size(w,h), border edge, tile size, text inset */
     FLOAT alpha, font_size;
     FLOAT backdrop_insets[4];
-    int id;
     uiFontJustificationH_t halign;
     uiFontJustificationV_t valign;
-    COLOR32 backdrop_color, backdrop_border_color, text_color, vertex_color;
+    COLOR32 colors[ELEM_COLOR_COUNT];
     RECT texcoord;
     LPMODEL model;
 } uiWowXmlElem_t;
@@ -192,9 +192,9 @@ static int UIWow_XmlPushElem(uiWowXmlType_t type, LPCSTR name, int parent, int d
     e->flags = EF_USED | EF_ENABLED;
     e->type = type; e->parent = parent; e->relative_to = parent; e->draw_layer = draw_layer;
     e->alpha = 1.0f;
-    e->font_size = 14.0f; e->text_color = COLOR32_WHITE; e->vertex_color = COLOR32_WHITE;
+    e->font_size = 14.0f; e->colors[ELEM_COLOR_TEXT] = COLOR32_WHITE; e->colors[ELEM_COLOR_VERTEX] = COLOR32_WHITE;
     e->halign = FONT_JUSTIFYCENTER; e->valign = FONT_JUSTIFYMIDDLE;
-    e->backdrop_color = MAKE(COLOR32, 23, 23, 23, 120); e->backdrop_border_color = MAKE(COLOR32, 204, 204, 204, 255);
+    e->colors[ELEM_COLOR_BACKDROP] = MAKE(COLOR32, 23, 23, 23, 120); e->colors[ELEM_COLOR_BACKDROP_BORDER] = MAKE(COLOR32, 204, 204, 204, 255);
     e->texcoord = MAKE(RECT, 0, 0, 1, 1);
     UIWow_ElemSetStr(e, ELEM_NAME, name);
     return wow_xml.count++;
@@ -231,7 +231,7 @@ static void UIWow_XmlInheritElem(uiWowXmlElem_t *e, LPCSTR inherits) {
         if (src->text_off.x != 0.0f || src->text_off.y != 0.0f) e->text_off = src->text_off;
         if (src->flags & EF_HAS_HALIGN) { e->halign = src->halign; e->flags |= EF_HAS_HALIGN; }
         if (src->flags & EF_HAS_VALIGN) { e->valign = src->valign; e->flags |= EF_HAS_VALIGN; }
-        e->text_color = src->text_color;
+        e->colors[ELEM_COLOR_TEXT] = src->colors[ELEM_COLOR_TEXT];
     }
 }
 
@@ -364,17 +364,17 @@ static int UIWow_LuaFrameGetID(lua_State *L) {
 }
 static int UIWow_LuaFrameSetVertexColor(lua_State *L) {
     int i = UIWow_FrameFromSelf(L); FLOAT r = (FLOAT)luaL_optnumber(L, 2, 1.0), g = (FLOAT)luaL_optnumber(L, 3, 1.0), b = (FLOAT)luaL_optnumber(L, 4, 1.0), a = (FLOAT)luaL_optnumber(L, 5, 1.0);
-    if (i >= 0) wow_xml.elems[i].vertex_color = MAKE(COLOR32, (BYTE)(r * 255.0f), (BYTE)(g * 255.0f), (BYTE)(b * 255.0f), (BYTE)(a * 255.0f));
+    if (i >= 0) wow_xml.elems[i].colors[ELEM_COLOR_VERTEX] = MAKE(COLOR32, (BYTE)(r * 255.0f), (BYTE)(g * 255.0f), (BYTE)(b * 255.0f), (BYTE)(a * 255.0f));
     return 0;
 }
 static int UIWow_LuaFrameSetBackdropColor(lua_State *L) {
     int i = UIWow_FrameFromSelf(L); FLOAT r = (FLOAT)luaL_optnumber(L, 2, 0.09), g = (FLOAT)luaL_optnumber(L, 3, 0.09), b = (FLOAT)luaL_optnumber(L, 4, 0.09), a = (FLOAT)luaL_optnumber(L, 5, 0.5);
-    if (i >= 0) wow_xml.elems[i].backdrop_color = MAKE(COLOR32, (BYTE)(r * 255.0f), (BYTE)(g * 255.0f), (BYTE)(b * 255.0f), (BYTE)(a * 255.0f));
+    if (i >= 0) wow_xml.elems[i].colors[ELEM_COLOR_BACKDROP] = MAKE(COLOR32, (BYTE)(r * 255.0f), (BYTE)(g * 255.0f), (BYTE)(b * 255.0f), (BYTE)(a * 255.0f));
     return 0;
 }
 static int UIWow_LuaFrameSetBackdropBorderColor(lua_State *L) {
     int i = UIWow_FrameFromSelf(L); FLOAT r = (FLOAT)luaL_optnumber(L, 2, 0.8), g = (FLOAT)luaL_optnumber(L, 3, 0.8), b = (FLOAT)luaL_optnumber(L, 4, 0.8), a = (FLOAT)luaL_optnumber(L, 5, 1.0);
-    if (i >= 0) wow_xml.elems[i].backdrop_border_color = MAKE(COLOR32, (BYTE)(r * 255.0f), (BYTE)(g * 255.0f), (BYTE)(b * 255.0f), (BYTE)(a * 255.0f));
+    if (i >= 0) wow_xml.elems[i].colors[ELEM_COLOR_BACKDROP_BORDER] = MAKE(COLOR32, (BYTE)(r * 255.0f), (BYTE)(g * 255.0f), (BYTE)(b * 255.0f), (BYTE)(a * 255.0f));
     return 0;
 }
 static int UIWow_LuaFrameSetFocus(lua_State *L) { int i = UIWow_FrameFromSelf(L); if (i >= 0) wow_xml.focus = i; return 0; }
@@ -592,7 +592,7 @@ static void UIWow_XmlReadFont(uiWowXmlElem_t *e, xmlNodePtr node) {
             }
         } else if (!xmlStrcasecmp(c->name, BAD_CAST "Color")) {
             xmlChar *r = xmlGetProp(c, BAD_CAST "r"), *g = xmlGetProp(c, BAD_CAST "g"), *b = xmlGetProp(c, BAD_CAST "b"), *a = xmlGetProp(c, BAD_CAST "a");
-            e->text_color = MAKE(COLOR32, (BYTE)(UIWow_XmlFloat(r, 1.0f) * 255.0f), (BYTE)(UIWow_XmlFloat(g, 1.0f) * 255.0f), (BYTE)(UIWow_XmlFloat(b, 1.0f) * 255.0f), (BYTE)(UIWow_XmlFloat(a, 1.0f) * 255.0f));
+            e->colors[ELEM_COLOR_TEXT] = MAKE(COLOR32, (BYTE)(UIWow_XmlFloat(r, 1.0f) * 255.0f), (BYTE)(UIWow_XmlFloat(g, 1.0f) * 255.0f), (BYTE)(UIWow_XmlFloat(b, 1.0f) * 255.0f), (BYTE)(UIWow_XmlFloat(a, 1.0f) * 255.0f));
             SAFE_DELETE(r, xmlFree); SAFE_DELETE(g, xmlFree); SAFE_DELETE(b, xmlFree); SAFE_DELETE(a, xmlFree);
         }
     }
@@ -951,7 +951,7 @@ static void UIWow_XMLDrawBackdropBorder(uiWowXmlElem_t const *e, LPCRECT r, LPTE
         FLOAT const k = 1.0f / WOW_XML_NUM_BACKDROP_CORNERS;
         FLOAT const tile = UIWow_XMLBackdropTile(rects + corner, corner, image_w, image_h);
         RECT const uv = MAKE(RECT, i * k, 0, k, tile);
-        UIWow_XMLDrawImage(border, rects + corner, &uv, e->backdrop_border_color,
+        UIWow_XMLDrawImage(border, rects + corner, &uv, e->colors[ELEM_COLOR_BACKDROP_BORDER],
                            UIWow_XMLBackdropRotate(corner));
     }
 }
@@ -967,7 +967,7 @@ static void UIWow_XMLDrawBackdrop(uiWowXmlElem_t const *e, LPCRECT r) {
         bg_rect.y += e->backdrop_insets[WOW_XML_BACKDROP_TOP];
         bg_rect.w -= e->backdrop_insets[WOW_XML_BACKDROP_LEFT] + e->backdrop_insets[WOW_XML_BACKDROP_RIGHT];
         bg_rect.h -= e->backdrop_insets[WOW_XML_BACKDROP_TOP] + e->backdrop_insets[WOW_XML_BACKDROP_BOTTOM];
-        if (bg && e->backdrop_tile) {
+        if (bg && (e->flags & EF_BACKDROP_TILE)) {
             size2_t size = wow_ui.renderer->GetTextureSize ? wow_ui.renderer->GetTextureSize(bg) : MAKE(size2_t, 0, 0);
             FLOAT tw = e->tile.w > 0.0f ? e->tile.w : UIWow_XmlX((FLOAT)size.width);
             FLOAT th = e->tile.h > 0.0f ? e->tile.h : UIWow_XmlY((FLOAT)size.height);
@@ -975,7 +975,7 @@ static void UIWow_XMLDrawBackdrop(uiWowXmlElem_t const *e, LPCRECT r) {
             if (th > 0.0f) uv.h = bg_rect.h / th;
         }
         if (bg && bg_rect.w > 0.0f && bg_rect.h > 0.0f) {
-            UIWow_XMLDrawImage(bg, &bg_rect, &uv, e->backdrop_color, false);
+            UIWow_XMLDrawImage(bg, &bg_rect, &uv, e->colors[ELEM_COLOR_BACKDROP], false);
         }
     }
     if (edge_path && edge_path[0] && e->edge.w > 0.0f && e->edge.h > 0.0f) {
@@ -987,7 +987,7 @@ static void UIWow_XMLDrawBackdrop(uiWowXmlElem_t const *e, LPCRECT r) {
 static BOOL UIWow_XMLIsVisible(int idx) {
     while (idx >= 0 && idx < wow_xml.count) {
         uiWowXmlElem_t const *e = &wow_xml.elems[idx];
-        if (!e->used || e->hidden || e->virtual_frame) return false;
+        if (!(e->flags & EF_USED) || (e->flags & EF_HIDDEN) || (e->flags & EF_VIRTUAL)) return false;
         idx = e->parent;
     }
     return true;
@@ -1011,7 +1011,7 @@ static LPCSTR UIWow_XMLResolveText(uiWowXmlElem_t const *e, LPSTR out, size_t ou
 
 static LPCSTR UIWow_XMLDisplayText(uiWowXmlElem_t const *e, LPSTR out, size_t out_size) {
     LPCSTR t = e->texts[ELEM_TEXT];
-    if (!e || !e->password) return UIWow_XMLResolveText(e, out, out_size);
+    if (!e || !(e->flags & EF_PASSWORD)) return UIWow_XMLResolveText(e, out, out_size);
     size_t n = t ? MIN(strlen(t), out_size - 1) : 0;
     memset(out, '*', n); out[n] = '\0';
     return out;
@@ -1022,7 +1022,7 @@ void UIWow_XMLDraw(void) {
     for (int layer = WOW_XML_LAYER_BACKGROUND; layer <= WOW_XML_LAYER_OVERLAY; layer++) FOR_LOOP(i, wow_xml.count) {
         uiWowXmlElem_t *e = &wow_xml.elems[i]; RECT r; RECT uv = MAKE(RECT, 0, 0, 1, 1); char text[512];
         LPCSTR file = e->texts[ELEM_FILE], normal_file = e->texts[ELEM_NORMAL_FILE], elem_text = e->texts[ELEM_TEXT];
-        if (!e->used || e->draw_layer != layer || !UIWow_XMLIsVisible((int)i)) continue;
+        if (!(e->flags & EF_USED) || e->draw_layer != layer || !UIWow_XMLIsVisible((int)i)) continue;
         r = UIWow_XmlComputeRect(i);
         if (e->type == WOW_XML_MODEL && file && file[0]) {
             if (!e->model && wow_ui.renderer->LoadModel) e->model = wow_ui.renderer->LoadModel(file);
@@ -1033,16 +1033,16 @@ void UIWow_XMLDraw(void) {
         if ((file && file[0] && e->type == WOW_XML_TEXTURE) || (e->type == WOW_XML_BUTTON && ((normal_file && normal_file[0]) || (file && file[0])))) {
             LPCSTR src = (e->type == WOW_XML_BUTTON && normal_file && normal_file[0]) ? normal_file : file;
             LPTEXTURE t = UIWow_LoadTexture(src);
-            if (e->has_texcoord) uv = e->texcoord;
+            if (e->flags & EF_HAS_TEXCOORD) uv = e->texcoord;
             if (t) {
                 UIWow_XMLDrawImage(t,
                                    &r,
                                    &uv,
                                    MAKE(COLOR32,
-                                        e->vertex_color.r,
-                                        e->vertex_color.g,
-                                        e->vertex_color.b,
-                                        (BYTE)(e->vertex_color.a * e->alpha)),
+                                        e->colors[ELEM_COLOR_VERTEX].r,
+                                        e->colors[ELEM_COLOR_VERTEX].g,
+                                        e->colors[ELEM_COLOR_VERTEX].b,
+                                        (BYTE)(e->colors[ELEM_COLOR_VERTEX].a * e->alpha)),
                                    false);
             }
         }
@@ -1060,10 +1060,10 @@ void UIWow_XMLDraw(void) {
                                                 .text = display,
                                                 .rect = tr,
                                                 .color = MAKE(COLOR32,
-                                                              e->text_color.r,
-                                                              e->text_color.g,
-                                                              e->text_color.b,
-                                                              (BYTE)(e->text_color.a * e->alpha)),
+                                                              e->colors[ELEM_COLOR_TEXT].r,
+                                                              e->colors[ELEM_COLOR_TEXT].g,
+                                                              e->colors[ELEM_COLOR_TEXT].b,
+                                                              (BYTE)(e->colors[ELEM_COLOR_TEXT].a * e->alpha)),
                                                 .textWidth = tr.w,
                                                 .lineHeight = tr.h,
                                                 .wordWrap = false,
@@ -1096,7 +1096,7 @@ BOOL UIWow_XMLMouseEvent(int x, int y, int button, BOOL down) {
     hit = UIWow_XMLHitFrame(x / 1024.0f, y / 768.0f);
     if (hit < 0) return false;
     if (wow_xml.elems[hit].type == WOW_XML_EDITBOX) { wow_xml.focus = hit; return true; }
-    if (wow_xml.elems[hit].type == WOW_XML_BUTTON && wow_xml.elems[hit].enabled &&
+    if (wow_xml.elems[hit].type == WOW_XML_BUTTON && (wow_xml.elems[hit].flags & EF_ENABLED) &&
         UIWow_ElemStr(&wow_xml.elems[hit], ELEM_ON_CLICK)) {
         (void)button; UIWow_XMLRunFrameScript(hit, wow_xml.elems[hit].texts[ELEM_ON_CLICK], "OnClick"); return true;
     }
