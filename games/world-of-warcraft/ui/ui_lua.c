@@ -422,6 +422,40 @@ static int UIWow_LuaLoadMap(lua_State *L) {
     return 0;
 }
 
+static int UIWow_LuaDefaultServerLogin(lua_State *L) {
+    (void)L;
+    lua_getglobal(wow_ui.lua, "SetGlueScreen");
+    if (lua_isfunction(wow_ui.lua, -1)) {
+        lua_pushstring(wow_ui.lua, "charselect");
+        UIWow_LuaPCall(1);
+    } else {
+        lua_pop(wow_ui.lua, 1);
+        if (uiimport.Cmd_ExecuteText) uiimport.Cmd_ExecuteText("+menu_character_select\n");
+    }
+    return 0;
+}
+
+static int UIWow_LuaNoop(lua_State *L) { (void)L; return 0; }
+static int UIWow_LuaTrue(lua_State *L) { lua_pushboolean(L, 1); return 1; }
+static int UIWow_LuaFalse(lua_State *L) { lua_pushboolean(L, 0); return 1; }
+static int UIWow_LuaNil(lua_State *L) { lua_pushnil(L); return 1; }
+static int UIWow_LuaZero(lua_State *L) { lua_pushinteger(L, 0); return 1; }
+
+static int UIWow_LuaTextCompat(lua_State *L) {
+    if (lua_isnil(L, 1)) lua_pushstring(L, "");
+    else lua_pushvalue(L, 1);
+    return 1;
+}
+
+static int UIWow_LuaGetBuildInfo(lua_State *L) {
+    lua_pushstring(L, "OpenWoW");
+    lua_pushstring(L, "Debug");
+    lua_pushstring(L, "0.0.0");
+    lua_pushinteger(L, 1);
+    lua_pushstring(L, "Jun 13 2026");
+    return 5;
+}
+
 static luaL_Reg const wow_lua_funcs[] = {
     { "draw_loading_background", UIWow_LuaDrawLoadingBackground },
     { "draw_image",          UIWow_LuaDrawImage },
@@ -446,6 +480,67 @@ static luaL_Reg const wow_lua_funcs[] = {
     { "load_map",         UIWow_LuaLoadMap },
     { NULL, NULL },
 };
+
+static luaL_Reg const wow_global_funcs[] = {
+    { "DefaultServerLogin", UIWow_LuaDefaultServerLogin },
+    { "TEXT",              UIWow_LuaTextCompat },
+    { "GetBuildInfo",      UIWow_LuaGetBuildInfo },
+    { "TOSAccepted",       UIWow_LuaTrue },
+    { "ShowTOSNotice",     UIWow_LuaFalse },
+    { "GetLastAccountName",UIWow_LuaNil },
+    { "GetServerName",     UIWow_LuaNil },
+    { "GetDataInterface",  UIWow_LuaZero },
+    { "GetCodeInterface",  UIWow_LuaZero },
+    { "AcceptTOS",         UIWow_LuaNoop },
+    { "GlueDialog_Show",   UIWow_LuaNoop },
+    { "LaunchURL",         UIWow_LuaNoop },
+    { "PlaySound",         UIWow_LuaNoop },
+    { "PlayGlueMusic",     UIWow_LuaNoop },
+    { "StopGlueMusic",     UIWow_LuaNoop },
+    { "PlayCreditsMusic",  UIWow_LuaNoop },
+    { "SetCurrentScreen",  UIWow_LuaNoop },
+    { "SetCurrentGlueScreenName", UIWow_LuaNoop },
+    { "QuitGame",          UIWow_LuaNoop },
+    { "Screenshot",        UIWow_LuaNoop },
+    { NULL, NULL },
+};
+
+typedef struct {
+    LPCSTR table;
+    LPCSTR field;
+    LPCSTR global;
+} uiWowLuaAlias_t;
+
+static uiWowLuaAlias_t const wow_lua_aliases[] = {
+    { "string", "format", "format" },
+    { "string", "len",    "strlen" },
+    { "string", "upper",  "strupper" },
+    { "table",  "insert", "tinsert" },
+    { "table",  "remove", "tremove" },
+    { NULL, NULL, NULL },
+};
+
+static void UIWow_SetGlobalFunc(lua_State *L, LPCSTR name, lua_CFunction func) {
+    lua_pushcfunction(L, func);
+    lua_setglobal(L, name);
+}
+
+static void UIWow_SetGlobalAlias(lua_State *L, uiWowLuaAlias_t const *alias) {
+    lua_getglobal(L, alias->table);
+    lua_getfield(L, -1, alias->field);
+    lua_setglobal(L, alias->global);
+    lua_pop(L, 1);
+}
+
+static void UIWow_RegisterGlobalFuncs(lua_State *L, luaL_Reg const *funcs) {
+    for (; funcs && funcs->name; funcs++)
+        UIWow_SetGlobalFunc(L, funcs->name, funcs->func);
+}
+
+static void UIWow_RegisterGlobalAliases(lua_State *L) {
+    for (uiWowLuaAlias_t const *alias = wow_lua_aliases; alias->global; alias++)
+        UIWow_SetGlobalAlias(L, alias);
+}
 
 /* -------------------------------------------------------------------------
  * VM bootstrap
@@ -486,6 +581,38 @@ static BOOL UIWow_RunLuaBuffer(LPCSTR name, LPCSTR script, size_t len) {
     return UIWow_LuaPCall(0);
 }
 
+static char *UIWow_LuaCompatBuffer(LPCSTR script, size_t len) {
+    static LPCSTR needles[] = { " in GlueScreenInfo do", " in FRAMES_TO_BACKDROP_COLOR do", NULL };
+    static LPCSTR replacements[] = { " in pairs(GlueScreenInfo) do", " in pairs(FRAMES_TO_BACKDROP_COLOR) do", NULL };
+    size_t extra = 0; char *out, *dst; LPCSTR src = script;
+    FOR_LOOP(i, sizeof(needles) / sizeof(needles[0])) {
+        LPCSTR p = script;
+        if (!needles[i]) break;
+        while ((p = strstr(p, needles[i])) != NULL) {
+            extra += strlen(replacements[i]) - strlen(needles[i]);
+            p += strlen(needles[i]);
+        }
+    }
+    if (!extra) return NULL;
+    out = malloc(len + extra + 1);
+    if (!out) return NULL;
+    dst = out;
+    while (*src) {
+        BOOL replaced = false;
+        FOR_LOOP(i, sizeof(needles) / sizeof(needles[0])) {
+            if (!needles[i]) break;
+            if (!strncmp(src, needles[i], strlen(needles[i]))) {
+                size_t n = strlen(replacements[i]);
+                memcpy(dst, replacements[i], n);
+                dst += n; src += strlen(needles[i]); replaced = true; break;
+            }
+        }
+        if (!replaced) *dst++ = *src++;
+    }
+    *dst = '\0';
+    return out;
+}
+
 BOOL UIWow_RunLuaString(LPCSTR name, LPCSTR script) {
     if (!script) {
         return false;
@@ -495,6 +622,7 @@ BOOL UIWow_RunLuaString(LPCSTR name, LPCSTR script) {
 
 BOOL UIWow_LoadLuaFile(LPCSTR path, BOOL noisy_missing) {
     void *buf = NULL;
+    char *compat;
     int size;
 
     if (!uiimport.FS_ReadFile || !uiimport.FS_FreeFile || !path) {
@@ -510,7 +638,9 @@ BOOL UIWow_LoadLuaFile(LPCSTR path, BOOL noisy_missing) {
         SAFE_DELETE(buf, uiimport.FS_FreeFile);
         return false;
     }
-    UIWow_RunLuaBuffer(path, buf, (size_t)size);
+    compat = UIWow_LuaCompatBuffer(buf, (size_t)size);
+    UIWow_RunLuaBuffer(path, compat ? compat : buf, compat ? strlen(compat) : (size_t)size);
+    SAFE_DELETE(compat, free);
     uiimport.FS_FreeFile(buf);
     return true;
 }
@@ -535,16 +665,19 @@ static BOOL UIWow_HasArchiveFile(LPCSTR path) {
 
 static void UIWow_LoadLegacyMenuLua(void) {
     UIWow_LoadLuaFile("Interface\\FrameXML\\OW3Glue.lua", true);
-    UIWow_LoadLuaFile("Interface\\FrameXML\\LoadingScreen.lua", true);
-    UIWow_LoadLuaFile("Interface\\FrameXML\\LoginScreen.lua", true);
-    UIWow_LoadLuaFile("Interface\\FrameXML\\CharacterSelectScreen.lua", true);
-    UIWow_LoadLuaFile("Interface\\FrameXML\\CharacterCreateScreen.lua", true);
     UIWow_LoadLuaFile("Interface\\FrameXML\\GameHUD.lua", true);
+    UIWow_LoadLuaFile("Interface\\FrameXML\\LoadingScreen.lua", false);
+    UIWow_LoadLuaFile("Interface\\FrameXML\\LoginScreen.lua", false);
+    UIWow_LoadLuaFile("Interface\\FrameXML\\CharacterSelectScreen.lua", false);
+    UIWow_LoadLuaFile("Interface\\FrameXML\\CharacterCreateScreen.lua", false);
 }
 
 static LPCSTR const WOW_GLUE_XML_TOC = "Interface\\GlueXML\\GlueXML.toc";
 
 static BOOL UIWow_LoadGlueFrameXml(void) {
+    if (!UIWow_LoadLuaFile("Interface\\GlueXML\\GlueStrings.lua", false)) {
+        UIWow_Printf("UIWow: missing Glue prerequisite 'Interface\\GlueXML\\GlueStrings.lua'\n");
+    }
     if (!UIWow_LoadLuaFile("Interface\\FrameXML\\GlobalStrings.lua", false)) {
         UIWow_Printf("UIWow: missing Glue prerequisite 'Interface\\FrameXML\\GlobalStrings.lua'\n");
     }
@@ -570,6 +703,9 @@ void UIWow_InitLua(void) {
     UIWow_OpenLuaLib(L, LUA_STRLIBNAME, luaopen_string);
     UIWow_OpenLuaLib(L, LUA_MATHLIBNAME, luaopen_math);
     UIWow_XMLInitRuntime();
+    UIWow_SetGlobalFunc(L, "TEXT", UIWow_LuaTextCompat);
+    UIWow_RegisterGlobalAliases(L);
+    UIWow_RegisterGlobalFuncs(L, wow_global_funcs);
 
     lua_newtable(L);
     luaL_setfuncs(L, wow_lua_funcs, 0);

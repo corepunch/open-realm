@@ -1,0 +1,27 @@
+<Ui>
+    <Script file="AccountLogin.lua"/>
+    <Frame name="AccountLogin" setAllPoints="true" hidden="false">
+        <Frames>
+            <EditBox name="AccountLoginAccountEdit" letters="16">
+                <Size><AbsDimension x="160" y="37"/></Size>
+                <Anchors>
+                    <Anchor point="BOTTOM"><Offset><AbsDimension x="8" y="345"/></Offset></Anchor>
+                </Anchors>
+                <Backdrop bgFile="Interface\Test\LuaPanel" edgeFile="Interface\Test\Inventory">
+                    <EdgeSize><AbsValue val="16"/></EdgeSize>
+                </Backdrop>
+                <FontString inherits="GlueEditBoxFont"/>
+                <TextInsets><AbsInset left="15" bottom="5"/></TextInsets>
+            </EditBox>
+            <Button name="AccountLoginLoginButton" inherits="GlueButtonTemplate" text="LOGIN">
+                <Anchors>
+                    <Anchor point="TOP"><Offset><AbsDimension x="8" y="-519"/></Offset></Anchor>
+                </Anchors>
+                <Scripts><OnClick>AccountLogin_Login();</OnClick></Scripts>
+            </Button>
+        </Frames>
+        <Scripts>
+            <OnShow>AccountLoginAccountEdit:SetFocus();</OnShow>
+        </Scripts>
+    </Frame>
+</Ui>

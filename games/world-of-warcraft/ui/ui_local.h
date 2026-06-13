@@ -35,6 +35,7 @@
 #define WOW_UI_WARN_NO_GLUE_BOOTSTRAP      WOW_UI_WARN_FLAG(10)
 #define WOW_UI_WARN_NO_LOADING_DRAW        WOW_UI_WARN_FLAG(11)
 #define WOW_UI_WARN_NO_LOAD_BACKGROUND     WOW_UI_WARN_FLAG(12)
+#define WOW_UI_WARN_NO_MODEL_LOADER        WOW_UI_WARN_FLAG(13)
 
 typedef struct {
     char name[256];
@@ -95,5 +96,10 @@ void UIWow_Printf(LPCSTR fmt, ...);
 void UIWow_WarnOnce(DWORD flag, LPCSTR fmt, ...);
 LPTEXTURE UIWow_LoadTexture(LPCSTR name);
 LPCFONT UIWow_LoadFont(DWORD size);
+
+/* XML runtime input hooks. */
+BOOL UIWow_XMLMouseEvent(int x, int y, int button, BOOL down);
+BOOL UIWow_XMLTextInput(LPCSTR text);
+BOOL UIWow_XMLKeyEvent(int key, BOOL down, DWORD time);
 
 #endif /* wow_ui_local_h */

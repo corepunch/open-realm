@@ -285,6 +285,11 @@ static void UIWow_DrawFrame(void) {
     UIWow_EnsureRenderer();
     UIWow_UpdateMouseHover();
 
+    if (wow_ui.current_menu[0]) {
+        UIWow_XMLDraw();
+        UIWow_CallLuaDraw();
+        return;
+    }
     if (ps && ps->client_ui_state == CLIENT_UI_LOADING) {
         UIWow_UpdateMapBackground(ps);
         lua_getglobal(wow_ui.lua, "ow3_draw_loading_screen");
@@ -297,7 +302,7 @@ static void UIWow_DrawFrame(void) {
         }
         return;
     }
-    if (wow_ui.current_menu[0] || (ps && ps->client_ui_state == CLIENT_UI_GAME)) {
+    if (ps && ps->client_ui_state == CLIENT_UI_GAME) {
         UIWow_XMLDraw();
         UIWow_CallLuaDraw();
     }
@@ -308,12 +313,15 @@ static void UIWow_DrawFrame(void) {
  * ---------------------------------------------------------------------- */
 
 static void UIWow_KeyEvent(int key, BOOL down, DWORD time) {
-    (void)key;
-    (void)down;
-    (void)time;
+    if (UIWow_XMLKeyEvent(key, down, time)) {
+        return;
+    }
 }
 
 static void UIWow_TextInput(LPCSTR text) {
+    if (UIWow_XMLTextInput(text)) {
+        return;
+    }
     if (!wow_ui.lua || !text) {
         if (!wow_ui.lua) {
             UIWow_WarnOnce(WOW_UI_WARN_NO_LUA_STATE,
@@ -333,6 +341,9 @@ static void UIWow_TextInput(LPCSTR text) {
 }
 
 static void UIWow_MouseEvent(int x, int y, int button, BOOL down) {
+    if (UIWow_XMLMouseEvent(x, y, button, down)) {
+        return;
+    }
     if (!wow_ui.lua || !down) {
         if (!wow_ui.lua && down) {
             UIWow_WarnOnce(WOW_UI_WARN_NO_LUA_STATE,

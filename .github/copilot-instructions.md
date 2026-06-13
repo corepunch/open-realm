@@ -25,6 +25,8 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 
 ## General
 - Minimize vertical space. Prefer fewer, denser lines over many short ones.
+- Keep C source lines at or under 120 characters. Single-statement helpers may stay on one line when they fit,
+  but do not chain long runs of API calls or argument-heavy expressions horizontally.
 - Single-statement functions go on one line: `int f(void) { return 0; }`
 - Omit braces for single-statement `if`/`else`/`while` bodies.
 - Keep control-flow keywords at the start of their own line in normal code paths. Do not write chained forms like `...; if (...)` or `...; while (...)` on the same physical line.
@@ -33,6 +35,8 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 ## Packing multiple statements
 - Chain sequential, logically related statements on one line with `;`:
   `lua_pushvalue(L, 2); lua_pushvalue(L, 1);`
+- Stop packing when the line would exceed 120 characters or when the calls form a list of similar operations.
+  In those cases, use one operation per line or a small table/helper so the repetition reads vertically.
 - Merge declarations that belong to the same logical step:
   `int key_idx = lua_absindex(L, -2), val_idx = lua_absindex(L, -1);`
 

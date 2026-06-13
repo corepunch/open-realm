@@ -1,0 +1,8 @@
+<Ui>
+    <Texture name="GluePanelButtonUpTexture" file="Interface\Test\LuaPanel" virtual="true"/>
+    <Button name="GlueButtonTemplate" virtual="true">
+        <Size><AbsDimension x="170" y="45"/></Size>
+        <NormalText inherits="GlueFontNormal"/>
+        <NormalTexture inherits="GluePanelButtonUpTexture"/>
+    </Button>
+</Ui>

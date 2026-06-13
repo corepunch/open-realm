@@ -45,6 +45,7 @@ static DWORD draw_text_count;
 static DWORD draw_minimap_count;
 static char last_draw_text[256];
 static char last_server_command[256];
+static char last_cmd_execute_text[256];
 static DWORD last_panel_width;
 static DWORD last_panel_height;
 static DWORD last_inventory_width;
@@ -220,12 +221,17 @@ static void test_server_command(LPCSTR text) {
     snprintf(last_server_command, sizeof(last_server_command), "%s", text ? text : "");
 }
 
+static void test_cmd_execute_text(LPCSTR text) {
+    snprintf(last_cmd_execute_text, sizeof(last_cmd_execute_text), "%s", text ? text : "");
+}
+
 static void reset_test_state(void) {
     memset(&test_ps, 0, sizeof(test_ps));
     memset(test_textures, 0, sizeof(test_textures));
     memset(&test_renderer, 0, sizeof(test_renderer));
     memset(last_draw_text, 0, sizeof(last_draw_text));
     memset(last_server_command, 0, sizeof(last_server_command));
+    memset(last_cmd_execute_text, 0, sizeof(last_cmd_execute_text));
     test_time = 1000;
     next_texture_id = 0;
     loaded_textures = 0;
@@ -266,6 +272,7 @@ static uiExport_t init_ui(void) {
         .FS_FreeFile = test_fs_free_file,
         .MemAlloc = test_mem_alloc,
         .MemFree = test_mem_free,
+        .Cmd_ExecuteText = test_cmd_execute_text,
         .ImageIndex = test_image_index,
         .ServerCommand = test_server_command,
         .GetPlayerState = test_get_player_state,
@@ -280,6 +287,41 @@ static uiExport_t init_ui(void) {
     ASSERT_NOT_NULL(ui.Shutdown);
     ui.Init();
     return ui;
+}
+
+extern BOOL UIWow_XMLLoadGlueFromToc(LPCSTR toc_path);
+extern void UIWow_XMLDraw(void);
+extern BOOL UIWow_XMLMouseEvent(int x, int y, int button, BOOL down);
+extern BOOL UIWow_XMLTextInput(LPCSTR text);
+
+static void test_wow_glue_xml_login_button_routes_next_screen(void) {
+    uiExport_t ui;
+
+    reset_test_state();
+    ASSERT(SFileOpenArchive(TEST_WOW_MPQ, 0, 0, &test_archive));
+
+    ui = init_ui();
+    reset_test_state();
+    ASSERT(UIWow_XMLLoadGlueFromToc("Interface\\GlueXML\\GlueXML.toc"));
+    UIWow_XMLDraw();
+
+    ASSERT(draw_panel_count > 0);
+    ASSERT(draw_inventory_count > 0);
+    ASSERT(draw_text_count > 0);
+    ASSERT(UIWow_XMLMouseEvent(520, 400, 1, true));
+    ASSERT(UIWow_XMLTextInput("A"));
+    ASSERT(UIWow_XMLMouseEvent(520, 530, 1, true));
+    ASSERT_STR_EQ(last_cmd_execute_text, "+menu_character_select\n");
+
+    ui.Shutdown();
+    FOR_LOOP(i, MAX_IMAGES) {
+        if (test_textures[i]) {
+            test_release_texture((LPTEXTURE)test_textures[i]);
+            test_textures[i] = NULL;
+        }
+    }
+    SFileCloseArchive(test_archive);
+    test_archive = NULL;
 }
 
 static void test_wow_lua_ui_draws_from_generated_mpq(void) {
@@ -327,5 +369,6 @@ static void test_wow_lua_ui_draws_from_generated_mpq(void) {
 
 int main(void) {
     RUN_TEST(test_wow_lua_ui_draws_from_generated_mpq);
+    RUN_TEST(test_wow_glue_xml_login_button_routes_next_screen);
     TEST_RESULTS();
 }
