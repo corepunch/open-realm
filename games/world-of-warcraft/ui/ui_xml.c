@@ -127,6 +127,9 @@ static void UIWow_XmlInheritElem(uiWowXmlElem_t *e, LPCSTR inherits) {
         if (src->backdrop_tile) e->backdrop_tile = true;
         memcpy(e->backdrop_insets, src->backdrop_insets, sizeof(e->backdrop_insets));
         if (src->font_size > 0.0f) e->font_size = src->font_size;
+        if (src->text_ox != 0.0f || src->text_oy != 0.0f) {
+            e->text_ox = src->text_ox; e->text_oy = src->text_oy;
+        }
         if (src->has_halign) { e->halign = src->halign; e->has_halign = true; }
         if (src->has_valign) { e->valign = src->valign; e->has_valign = true; }
         e->text_color = src->text_color;
@@ -289,7 +292,6 @@ static int UIWow_LuaSetGlueScreen(lua_State *L) {
     LPCSTR screen = luaL_checkstring(L, 1);
     int target = -1;
 
-    UIWow_Printf("UIWow debug SetGlueScreen(%s)\n", screen);
     lua_getglobal(L, "GlueScreenInfo");
     if (!lua_istable(L, -1)) {
         lua_pop(L, 1);
@@ -299,8 +301,6 @@ static int UIWow_LuaSetGlueScreen(lua_State *L) {
     while (lua_next(L, -2) != 0) {
         LPCSTR key = lua_tostring(L, -2), frame_name = lua_tostring(L, -1);
         int idx = UIWow_XmlFindByName(frame_name);
-        UIWow_Printf("UIWow debug screen key=%s frame=%s idx=%d\n",
-                     key ? key : "<nil>", frame_name ? frame_name : "<nil>", idx);
         if (idx >= 0) {
             UIWow_XMLSetShown(idx, false);
             if (key && !strcmp(key, screen)) target = idx;
@@ -322,7 +322,6 @@ static void UIWow_XMLInstallScreenShim(void) {
         return;
     }
     lua_pop(wow_ui.lua, 1);
-    UIWow_Printf("UIWow debug installing SetGlueScreen shim\n");
     lua_pushcfunction(wow_ui.lua, UIWow_LuaSetGlueScreen);
     lua_setglobal(wow_ui.lua, "SetGlueScreen");
 }
