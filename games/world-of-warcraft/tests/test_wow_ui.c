@@ -50,6 +50,8 @@ static DWORD last_panel_width;
 static DWORD last_panel_height;
 static DWORD last_inventory_width;
 static DWORD last_inventory_height;
+static DWORD glue_backdrop_edge_draws;
+static FLOAT glue_button_uv_width;
 
 static BOOL test_path_is_wow_default(LPCSTR name) {
     return name &&
@@ -151,7 +153,6 @@ static void test_release_texture(LPTEXTURE texture) {
 }
 
 static void test_draw_image(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color) {
-    (void)screen;
     (void)uv;
     (void)color;
     if (!texture) {
@@ -161,10 +162,22 @@ static void test_draw_image(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLO
         draw_panel_count++;
         last_panel_width = texture->width;
         last_panel_height = texture->height;
+        if (screen && uv && screen->w > 0.16f && screen->h > 0.055f) {
+            glue_button_uv_width = uv->w;
+        }
     } else if (!strcmp(texture->name, "Interface\\Test\\Inventory.blp")) {
         draw_inventory_count++;
         last_inventory_width = texture->width;
         last_inventory_height = texture->height;
+        if (screen && screen->w < 0.03f) {
+            glue_backdrop_edge_draws++;
+        }
+    }
+}
+
+static void test_draw_image_ex(LPCDRAWIMAGE image) {
+    if (image) {
+        test_draw_image(image->texture, &image->screen, &image->uv, image->color);
     }
 }
 
@@ -246,11 +259,14 @@ static void reset_test_state(void) {
     last_panel_height = 0;
     last_inventory_width = 0;
     last_inventory_height = 0;
+    glue_backdrop_edge_draws = 0;
+    glue_button_uv_width = 0.0f;
 
     test_renderer.LoadTexture = test_load_texture;
     test_renderer.LoadFont = test_load_font;
     test_renderer.ReleaseTexture = test_release_texture;
     test_renderer.DrawImage = test_draw_image;
+    test_renderer.DrawImageEx = test_draw_image_ex;
     test_renderer.DrawFill = test_draw_fill;
     test_renderer.DrawMinimap = test_draw_minimap;
     test_renderer.DrawText = test_draw_text;
@@ -307,6 +323,8 @@ static void test_wow_glue_xml_login_button_routes_next_screen(void) {
 
     ASSERT(draw_panel_count > 0);
     ASSERT(draw_inventory_count > 0);
+    ASSERT(glue_backdrop_edge_draws >= 2);
+    ASSERT(glue_button_uv_width > 0.5f && glue_button_uv_width < 0.7f);
     ASSERT(draw_text_count > 0);
     ASSERT(UIWow_XMLMouseEvent(520, 400, 1, true));
     ASSERT(UIWow_XMLTextInput("A"));

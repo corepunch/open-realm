@@ -16,13 +16,26 @@ typedef struct {
     int focusable;
     char name[128], parent_name[128], relative_name[128], file[PATH_MAX], normal_file[PATH_MAX], pushed_file[PATH_MAX], text[256], point[24], relative_point[24], backdrop_bg[PATH_MAX], backdrop_edge[PATH_MAX];
     char on_click[1024], on_load[1024], on_show[1024], on_enter[512], on_leave[512], on_enter_pressed[512], on_escape_pressed[512], on_tab_pressed[512];
-    FLOAT x, y, w, h, ox, oy, alpha, edge_size, font_size, text_left, text_bottom;
-    BOOL has_anchor, has_size, hidden, virtual_frame, password, enabled, set_all_points;
+    FLOAT x, y, w, h, ox, oy, alpha, edge_w, edge_h, tile_w, tile_h, font_size, text_left, text_bottom;
+    FLOAT backdrop_insets[4];
+    BOOL has_anchor, has_size, has_texcoord, hidden, virtual_frame, password, enabled, set_all_points, backdrop_tile;
     COLOR32 backdrop_color, backdrop_border_color, text_color, vertex_color;
+    RECT texcoord;
     LPMODEL model;
 } uiWowXmlElem_t;
 
-enum { WOW_XML_MAX_ELEMS = 1024, WOW_XML_LAYER_BACKGROUND = 0, WOW_XML_LAYER_BORDER = 1, WOW_XML_LAYER_ARTWORK = 2, WOW_XML_LAYER_OVERLAY = 3 };
+enum {
+    WOW_XML_MAX_ELEMS = 1024,
+    WOW_XML_LAYER_BACKGROUND = 0,
+    WOW_XML_LAYER_BORDER = 1,
+    WOW_XML_LAYER_ARTWORK = 2,
+    WOW_XML_LAYER_OVERLAY = 3,
+    WOW_XML_BACKDROP_LEFT = 0,
+    WOW_XML_BACKDROP_RIGHT,
+    WOW_XML_BACKDROP_TOP,
+    WOW_XML_BACKDROP_BOTTOM,
+    WOW_XML_NUM_BACKDROP_CORNERS = 8
+};
 static struct {
     uiWowXmlElem_t elems[WOW_XML_MAX_ELEMS];
     int count;
@@ -64,6 +77,7 @@ static int UIWow_XmlPushElem(uiWowXmlType_t type, LPCSTR name, int parent, int d
     e->used = true; e->type = type; e->parent = parent; e->relative_to = parent; e->draw_layer = draw_layer; e->alpha = 1.0f; e->enabled = true;
     e->font_size = 14.0f; e->text_color = COLOR32_WHITE; e->vertex_color = COLOR32_WHITE;
     e->backdrop_color = MAKE(COLOR32, 23, 23, 23, 120); e->backdrop_border_color = MAKE(COLOR32, 204, 204, 204, 255);
+    e->texcoord = MAKE(RECT, 0, 0, 1, 1);
     snprintf(e->name, sizeof(e->name), "%s", name && *name ? name : "");
     return wow_xml.count++;
 }
@@ -83,7 +97,11 @@ static void UIWow_XmlInheritElem(uiWowXmlElem_t *e, LPCSTR inherits) {
         if (!e->text[0] && src->text[0]) snprintf(e->text, sizeof(e->text), "%s", src->text);
         if (!e->backdrop_bg[0] && src->backdrop_bg[0]) snprintf(e->backdrop_bg, sizeof(e->backdrop_bg), "%s", src->backdrop_bg);
         if (!e->backdrop_edge[0] && src->backdrop_edge[0]) snprintf(e->backdrop_edge, sizeof(e->backdrop_edge), "%s", src->backdrop_edge);
-        if (src->edge_size > 0.0f) e->edge_size = src->edge_size;
+        if (src->has_texcoord) { e->texcoord = src->texcoord; e->has_texcoord = true; }
+        if (src->edge_w > 0.0f) { e->edge_w = src->edge_w; e->edge_h = src->edge_h; }
+        if (src->tile_w > 0.0f) { e->tile_w = src->tile_w; e->tile_h = src->tile_h; }
+        if (src->backdrop_tile) e->backdrop_tile = true;
+        memcpy(e->backdrop_insets, src->backdrop_insets, sizeof(e->backdrop_insets));
         if (src->font_size > 0.0f) e->font_size = src->font_size;
         e->text_color = src->text_color;
     }
@@ -207,6 +225,9 @@ static void UIWow_XmlPublishFrame(int idx) {
     lua_setglobal(wow_ui.lua, e->name);
 }
 
+static FLOAT UIWow_XmlX(FLOAT pixels) { return pixels / 1024.0f; }
+static FLOAT UIWow_XmlY(FLOAT pixels) { return pixels / 768.0f; }
+
 static void UIWow_XmlReadSize(uiWowXmlElem_t *e, xmlNodePtr node) {
     xmlNodePtr c;
     for (c = node->children; c; c = c->next) {
@@ -216,7 +237,9 @@ static void UIWow_XmlReadSize(uiWowXmlElem_t *e, xmlNodePtr node) {
         for (d = c->children; d; d = d->next) {
             if (d->type != XML_ELEMENT_NODE || xmlStrcasecmp(d->name, BAD_CAST "AbsDimension")) continue;
             x = xmlGetProp(d, BAD_CAST "x"); y = xmlGetProp(d, BAD_CAST "y");
-            e->w = UIWow_XmlFloat(x, 0.0f) / 1024.0f; e->h = UIWow_XmlFloat(y, 0.0f) / 768.0f; e->has_size = (e->w > 0 || e->h > 0);
+            e->w = UIWow_XmlX(UIWow_XmlFloat(x, 0.0f));
+            e->h = UIWow_XmlY(UIWow_XmlFloat(y, 0.0f));
+            e->has_size = (e->w > 0 || e->h > 0);
             SAFE_DELETE(x, xmlFree); SAFE_DELETE(y, xmlFree); return;
         }
     }
@@ -244,7 +267,7 @@ static void UIWow_XmlReadAnchor(uiWowXmlElem_t *e, xmlNodePtr node) {
                         xmlChar *x, *y;
                         if (abs->type != XML_ELEMENT_NODE || xmlStrcasecmp(abs->name, BAD_CAST "AbsDimension")) continue;
                         x = xmlGetProp(abs, BAD_CAST "x"); y = xmlGetProp(abs, BAD_CAST "y");
-                        e->ox = UIWow_XmlFloat(x, 0.0f) / 1024.0f; e->oy = -UIWow_XmlFloat(y, 0.0f) / 768.0f;
+                        e->ox = UIWow_XmlX(UIWow_XmlFloat(x, 0.0f)); e->oy = -UIWow_XmlY(UIWow_XmlFloat(y, 0.0f));
                         SAFE_DELETE(x, xmlFree); SAFE_DELETE(y, xmlFree);
                     }
                 }
@@ -257,18 +280,59 @@ static void UIWow_XmlReadAnchor(uiWowXmlElem_t *e, xmlNodePtr node) {
 static void UIWow_XmlReadBackdrop(uiWowXmlElem_t *e, xmlNodePtr node) {
     xmlNodePtr c;
     for (c = node->children; c; c = c->next) {
-        xmlChar *bg, *edge;
+        xmlChar *bg, *edge, *tile;
         xmlNodePtr d;
         if (c->type != XML_ELEMENT_NODE || xmlStrcasecmp(c->name, BAD_CAST "Backdrop")) continue;
-        bg = xmlGetProp(c, BAD_CAST "bgFile"); edge = xmlGetProp(c, BAD_CAST "edgeFile");
+        bg = xmlGetProp(c, BAD_CAST "bgFile");
+        edge = xmlGetProp(c, BAD_CAST "edgeFile");
+        tile = xmlGetProp(c, BAD_CAST "tile");
         if (bg && *bg) snprintf(e->backdrop_bg, sizeof(e->backdrop_bg), "%s", (char const *)bg);
         if (edge && *edge) snprintf(e->backdrop_edge, sizeof(e->backdrop_edge), "%s", (char const *)edge);
-        SAFE_DELETE(bg, xmlFree); SAFE_DELETE(edge, xmlFree);
+        if (tile && *tile && !strcasecmp((char const *)tile, "true")) e->backdrop_tile = true;
+        SAFE_DELETE(bg, xmlFree); SAFE_DELETE(edge, xmlFree); SAFE_DELETE(tile, xmlFree);
         for (d = c->children; d; d = d->next) if (d->type == XML_ELEMENT_NODE && !xmlStrcasecmp(d->name, BAD_CAST "EdgeSize")) {
-            xmlNodePtr v; for (v = d->children; v; v = v->next) if (v->type == XML_ELEMENT_NODE && !xmlStrcasecmp(v->name, BAD_CAST "AbsValue")) {
-                xmlChar *val = xmlGetProp(v, BAD_CAST "val"); e->edge_size = UIWow_XmlFloat(val, 16.0f) / 1024.0f; SAFE_DELETE(val, xmlFree);
+            xmlNodePtr v;
+            for (v = d->children; v; v = v->next) {
+                if (v->type != XML_ELEMENT_NODE || xmlStrcasecmp(v->name, BAD_CAST "AbsValue")) continue;
+                xmlChar *val = xmlGetProp(v, BAD_CAST "val"); FLOAT px = UIWow_XmlFloat(val, 16.0f);
+                e->edge_w = UIWow_XmlX(px); e->edge_h = UIWow_XmlY(px); SAFE_DELETE(val, xmlFree);
+            }
+        } else if (d->type == XML_ELEMENT_NODE && !xmlStrcasecmp(d->name, BAD_CAST "TileSize")) {
+            xmlNodePtr v;
+            for (v = d->children; v; v = v->next) {
+                if (v->type != XML_ELEMENT_NODE || xmlStrcasecmp(v->name, BAD_CAST "AbsValue")) continue;
+                xmlChar *val = xmlGetProp(v, BAD_CAST "val"); FLOAT px = UIWow_XmlFloat(val, 16.0f);
+                e->tile_w = UIWow_XmlX(px); e->tile_h = UIWow_XmlY(px); SAFE_DELETE(val, xmlFree);
+            }
+        } else if (d->type == XML_ELEMENT_NODE && !xmlStrcasecmp(d->name, BAD_CAST "BackgroundInsets")) {
+            xmlNodePtr v;
+            for (v = d->children; v; v = v->next) {
+                if (v->type != XML_ELEMENT_NODE || xmlStrcasecmp(v->name, BAD_CAST "AbsInset")) continue;
+                xmlChar *l = xmlGetProp(v, BAD_CAST "left"), *r = xmlGetProp(v, BAD_CAST "right");
+                xmlChar *t = xmlGetProp(v, BAD_CAST "top"), *b = xmlGetProp(v, BAD_CAST "bottom");
+                e->backdrop_insets[WOW_XML_BACKDROP_LEFT] = UIWow_XmlX(UIWow_XmlFloat(l, 0.0f));
+                e->backdrop_insets[WOW_XML_BACKDROP_RIGHT] = UIWow_XmlX(UIWow_XmlFloat(r, 0.0f));
+                e->backdrop_insets[WOW_XML_BACKDROP_TOP] = UIWow_XmlY(UIWow_XmlFloat(t, 0.0f));
+                e->backdrop_insets[WOW_XML_BACKDROP_BOTTOM] = UIWow_XmlY(UIWow_XmlFloat(b, 0.0f));
+                SAFE_DELETE(l, xmlFree); SAFE_DELETE(r, xmlFree); SAFE_DELETE(t, xmlFree); SAFE_DELETE(b, xmlFree);
             }
         }
+        return;
+    }
+}
+
+static void UIWow_XmlReadTexCoords(uiWowXmlElem_t *e, xmlNodePtr node) {
+    xmlNodePtr c;
+    for (c = node->children; c; c = c->next) {
+        xmlChar *l, *r, *t, *b;
+        if (c->type != XML_ELEMENT_NODE || xmlStrcasecmp(c->name, BAD_CAST "TexCoords")) continue;
+        l = xmlGetProp(c, BAD_CAST "left"); r = xmlGetProp(c, BAD_CAST "right");
+        t = xmlGetProp(c, BAD_CAST "top"); b = xmlGetProp(c, BAD_CAST "bottom");
+        e->texcoord.x = UIWow_XmlFloat(l, 0.0f); e->texcoord.y = UIWow_XmlFloat(t, 0.0f);
+        e->texcoord.w = UIWow_XmlFloat(r, 1.0f) - e->texcoord.x;
+        e->texcoord.h = UIWow_XmlFloat(b, 1.0f) - e->texcoord.y;
+        e->has_texcoord = true;
+        SAFE_DELETE(l, xmlFree); SAFE_DELETE(r, xmlFree); SAFE_DELETE(t, xmlFree); SAFE_DELETE(b, xmlFree);
         return;
     }
 }
@@ -306,9 +370,14 @@ static void UIWow_XmlReadButtonPart(uiWowXmlElem_t *e, xmlNodePtr child) {
     xmlChar *file = xmlGetProp(child, BAD_CAST "file"), *inherits = xmlGetProp(child, BAD_CAST "inherits");
     uiWowXmlElem_t temp;
     memset(&temp, 0, sizeof(temp));
+    temp.texcoord = MAKE(RECT, 0, 0, 1, 1);
     UIWow_XmlInheritElem(&temp, (char const *)inherits);
     if (file && *file) snprintf(temp.file, sizeof(temp.file), "%s", (char const *)file);
-    if (!xmlStrcasecmp(child->name, BAD_CAST "NormalTexture") && temp.file[0]) snprintf(e->normal_file, sizeof(e->normal_file), "%s", temp.file);
+    UIWow_XmlReadTexCoords(&temp, child);
+    if (!xmlStrcasecmp(child->name, BAD_CAST "NormalTexture") && temp.file[0]) {
+        snprintf(e->normal_file, sizeof(e->normal_file), "%s", temp.file);
+        if (temp.has_texcoord) { e->texcoord = temp.texcoord; e->has_texcoord = true; }
+    }
     else if (!xmlStrcasecmp(child->name, BAD_CAST "PushedTexture") && temp.file[0]) snprintf(e->pushed_file, sizeof(e->pushed_file), "%s", temp.file);
     SAFE_DELETE(file, xmlFree); SAFE_DELETE(inherits, xmlFree);
 }
@@ -354,7 +423,9 @@ static void UIWow_XmlReadShared(uiWowXmlElem_t *e, xmlNodePtr node) {
     if (all && *all && !strcasecmp((char const *)all, "true")) e->set_all_points = true;
     if (password && *password && strcmp((char const *)password, "0")) e->password = true;
     SAFE_DELETE(file, xmlFree); SAFE_DELETE(hidden, xmlFree); SAFE_DELETE(text, xmlFree); SAFE_DELETE(virt, xmlFree); SAFE_DELETE(all, xmlFree); SAFE_DELETE(password, xmlFree);
-    UIWow_XmlReadSize(e, node); UIWow_XmlReadAnchor(e, node); UIWow_XmlReadBackdrop(e, node); UIWow_XmlReadFont(e, node); UIWow_XmlReadTextInsets(e, node); UIWow_XmlReadButton(e, node); UIWow_XmlReadScripts(e, node);
+    UIWow_XmlReadSize(e, node); UIWow_XmlReadAnchor(e, node); UIWow_XmlReadBackdrop(e, node);
+    UIWow_XmlReadTexCoords(e, node); UIWow_XmlReadFont(e, node); UIWow_XmlReadTextInsets(e, node);
+    UIWow_XmlReadButton(e, node); UIWow_XmlReadScripts(e, node);
 }
 
 static void UIWow_XmlParseNode(xmlNodePtr node, int parent, int draw_layer);
@@ -532,19 +603,97 @@ static void UIWow_XMLRunFrameScript(int idx, LPCSTR script, LPCSTR event_name) {
     lua_pushnil(wow_ui.lua); lua_setglobal(wow_ui.lua, "this");
 }
 
+static void UIWow_XMLDrawImage(LPTEXTURE tex, LPCRECT screen, LPCRECT uv, COLOR32 color, BOOL rotate) {
+    if (!wow_ui.renderer || !tex) return;
+    if (wow_ui.renderer->DrawImageEx) {
+        wow_ui.renderer->DrawImageEx(&MAKE(drawImage_t,
+                                           .texture = tex,
+                                           .shader = SHADER_UI,
+                                           .alphamode = BLEND_MODE_BLEND,
+                                           .screen = *screen,
+                                           .uv = *uv,
+                                           .color = color,
+                                           .rotate = rotate));
+    } else if (wow_ui.renderer->DrawImage) {
+        wow_ui.renderer->DrawImage(tex, screen, uv, color);
+    }
+}
+
+static void UIWow_XMLBackdropRects(LPCRECT screen, LPRECT rects, FLOAT edge_w, FLOAT edge_h) {
+    FLOAT ew = MIN(edge_w, screen->w * 0.5f), eh = MIN(edge_h, screen->h * 0.5f);
+    FLOAT x[] = { 0, ew, screen->w - ew, screen->w };
+    FLOAT y[] = { 0, eh, screen->h - eh, screen->h };
+
+    FOR_LOOP(i, BACKDROP_SIZE) {
+        rects[i].x = screen->x + x[i % 3];
+        rects[i].y = screen->y + y[i / 3];
+        rects[i].w = x[(i % 3) + 1] - x[i % 3];
+        rects[i].h = y[(i / 3) + 1] - y[i / 3];
+    }
+}
+
+static FLOAT UIWow_XMLBackdropTile(LPCRECT rect, BACKDROPCORNER edge, FLOAT image_w, FLOAT image_h) {
+    switch (edge) {
+        case BACKDROP_LEFT_EDGE:
+        case BACKDROP_RIGHT_EDGE:
+            return image_h > 0.0f ? rect->h / image_h : 1.0f;
+        case BACKDROP_TOP_EDGE:
+        case BACKDROP_BOTTOM_EDGE:
+            return image_w > 0.0f ? rect->w / image_w : 1.0f;
+        default:
+            return 1.0f;
+    }
+}
+
+static BOOL UIWow_XMLBackdropRotate(BACKDROPCORNER edge) {
+    return edge == BACKDROP_TOP_EDGE || edge == BACKDROP_BOTTOM_EDGE;
+}
+
+static void UIWow_XMLDrawBackdropBorder(uiWowXmlElem_t const *e, LPCRECT r, LPTEXTURE border) {
+    static BACKDROPCORNER const corners[WOW_XML_NUM_BACKDROP_CORNERS] = {
+        BACKDROP_LEFT_EDGE,        BACKDROP_RIGHT_EDGE,
+        BACKDROP_TOP_EDGE,         BACKDROP_BOTTOM_EDGE,
+        BACKDROP_TOP_LEFT_CORNER,  BACKDROP_TOP_RIGHT_CORNER,
+        BACKDROP_BOTTOM_LEFT_CORNER, BACKDROP_BOTTOM_RIGHT_CORNER,
+    };
+    RECT rects[BACKDROP_SIZE];
+    size2_t size = wow_ui.renderer->GetTextureSize ? wow_ui.renderer->GetTextureSize(border) : MAKE(size2_t, 0, 0);
+    FLOAT image_w = UIWow_XmlX((FLOAT)size.height), image_h = UIWow_XmlY((FLOAT)size.height);
+
+    UIWow_XMLBackdropRects(r, rects, e->edge_w, e->edge_h);
+    FOR_LOOP(i, WOW_XML_NUM_BACKDROP_CORNERS) {
+        BACKDROPCORNER corner = corners[i];
+        FLOAT const k = 1.0f / WOW_XML_NUM_BACKDROP_CORNERS;
+        FLOAT const tile = UIWow_XMLBackdropTile(rects + corner, corner, image_w, image_h);
+        RECT const uv = MAKE(RECT, i * k, 0, k, tile);
+        UIWow_XMLDrawImage(border, rects + corner, &uv, e->backdrop_border_color,
+                           UIWow_XMLBackdropRotate(corner));
+    }
+}
+
 static void UIWow_XMLDrawBackdrop(uiWowXmlElem_t const *e, LPCRECT r) {
     if (!wow_ui.renderer) return;
     if (e->backdrop_bg[0]) {
-        LPTEXTURE bg = UIWow_LoadTexture(e->backdrop_bg); RECT uv = MAKE(RECT, 0, 0, 1, 1);
-        if (bg) wow_ui.renderer->DrawImage(bg, r, &uv, e->backdrop_color);
+        LPTEXTURE bg = UIWow_LoadTexture(e->backdrop_bg);
+        RECT bg_rect = *r, uv = MAKE(RECT, 0, 0, 1, 1);
+        bg_rect.x += e->backdrop_insets[WOW_XML_BACKDROP_LEFT];
+        bg_rect.y += e->backdrop_insets[WOW_XML_BACKDROP_TOP];
+        bg_rect.w -= e->backdrop_insets[WOW_XML_BACKDROP_LEFT] + e->backdrop_insets[WOW_XML_BACKDROP_RIGHT];
+        bg_rect.h -= e->backdrop_insets[WOW_XML_BACKDROP_TOP] + e->backdrop_insets[WOW_XML_BACKDROP_BOTTOM];
+        if (bg && e->backdrop_tile) {
+            size2_t size = wow_ui.renderer->GetTextureSize ? wow_ui.renderer->GetTextureSize(bg) : MAKE(size2_t, 0, 0);
+            FLOAT tw = e->tile_w > 0.0f ? e->tile_w : UIWow_XmlX((FLOAT)size.width);
+            FLOAT th = e->tile_h > 0.0f ? e->tile_h : UIWow_XmlY((FLOAT)size.height);
+            if (tw > 0.0f) uv.w = bg_rect.w / tw;
+            if (th > 0.0f) uv.h = bg_rect.h / th;
+        }
+        if (bg && bg_rect.w > 0.0f && bg_rect.h > 0.0f) {
+            UIWow_XMLDrawImage(bg, &bg_rect, &uv, e->backdrop_color, false);
+        }
     }
-    if (e->backdrop_edge[0] && e->edge_size > 0.0f) {
-        LPTEXTURE bd = UIWow_LoadTexture(e->backdrop_edge); RECT uv = MAKE(RECT, 0, 0, 1, 1); RECT top, bot, lft, rgt;
-        if (!bd) return;
-        top = MAKE(RECT, r->x, r->y, r->w, e->edge_size); bot = MAKE(RECT, r->x, r->y + r->h - e->edge_size, r->w, e->edge_size);
-        lft = MAKE(RECT, r->x, r->y, e->edge_size, r->h); rgt = MAKE(RECT, r->x + r->w - e->edge_size, r->y, e->edge_size, r->h);
-        wow_ui.renderer->DrawImage(bd, &top, &uv, e->backdrop_border_color); wow_ui.renderer->DrawImage(bd, &bot, &uv, e->backdrop_border_color);
-        wow_ui.renderer->DrawImage(bd, &lft, &uv, e->backdrop_border_color); wow_ui.renderer->DrawImage(bd, &rgt, &uv, e->backdrop_border_color);
+    if (e->backdrop_edge[0] && e->edge_w > 0.0f && e->edge_h > 0.0f) {
+        LPTEXTURE border = UIWow_LoadTexture(e->backdrop_edge);
+        if (border) UIWow_XMLDrawBackdropBorder(e, r, border);
     }
 }
 
@@ -592,7 +741,18 @@ void UIWow_XMLDraw(void) {
         if (e->type == WOW_XML_FRAME || e->type == WOW_XML_BUTTON || e->type == WOW_XML_EDITBOX) UIWow_XMLDrawBackdrop(e, &r);
         if ((e->file[0] && e->type == WOW_XML_TEXTURE) || (e->type == WOW_XML_BUTTON && (e->normal_file[0] || e->file[0]))) {
             LPTEXTURE t = UIWow_LoadTexture(e->type == WOW_XML_BUTTON && e->normal_file[0] ? e->normal_file : e->file);
-            if (t) wow_ui.renderer->DrawImage(t, &r, &uv, MAKE(COLOR32, e->vertex_color.r, e->vertex_color.g, e->vertex_color.b, (BYTE)(e->vertex_color.a * e->alpha)));
+            if (e->has_texcoord) uv = e->texcoord;
+            if (t) {
+                UIWow_XMLDrawImage(t,
+                                   &r,
+                                   &uv,
+                                   MAKE(COLOR32,
+                                        e->vertex_color.r,
+                                        e->vertex_color.g,
+                                        e->vertex_color.b,
+                                        (BYTE)(e->vertex_color.a * e->alpha)),
+                                   false);
+            }
         }
         if (e->text[0] && (e->type == WOW_XML_FONTSTRING || e->type == WOW_XML_EDITBOX || e->type == WOW_XML_BUTTON)) {
             LPCFONT f = UIWow_LoadFont((DWORD)e->font_size); RECT tr = MAKE(RECT, r.x + e->text_left, r.y, r.w - e->text_left, r.h - e->text_bottom);

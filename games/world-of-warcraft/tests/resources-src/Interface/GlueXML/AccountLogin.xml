@@ -7,7 +7,11 @@
                 <Anchors>
                     <Anchor point="BOTTOM"><Offset><AbsDimension x="8" y="345"/></Offset></Anchor>
                 </Anchors>
-                <Backdrop bgFile="Interface\Test\LuaPanel" edgeFile="Interface\Test\Inventory">
+                <Backdrop bgFile="Interface\Test\LuaPanel" edgeFile="Interface\Test\Inventory" tile="true">
+                    <BackgroundInsets>
+                        <AbsInset left="2" right="2" top="2" bottom="2"/>
+                    </BackgroundInsets>
+                    <TileSize><AbsValue val="8"/></TileSize>
                     <EdgeSize><AbsValue val="16"/></EdgeSize>
                 </Backdrop>
                 <FontString inherits="GlueEditBoxFont"/>
