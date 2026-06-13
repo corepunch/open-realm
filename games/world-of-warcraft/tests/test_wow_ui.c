@@ -51,7 +51,10 @@ static DWORD last_panel_height;
 static DWORD last_inventory_width;
 static DWORD last_inventory_height;
 static DWORD glue_backdrop_edge_draws;
+static DWORD glue_account_label_centered;
 static FLOAT glue_button_uv_width;
+static FLOAT glue_button_y;
+static FLOAT glue_login_text_y;
 
 static BOOL test_path_is_wow_default(LPCSTR name) {
     return name &&
@@ -164,6 +167,7 @@ static void test_draw_image(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLO
         last_panel_height = texture->height;
         if (screen && uv && screen->w > 0.16f && screen->h > 0.055f) {
             glue_button_uv_width = uv->w;
+            glue_button_y = screen->y;
         }
     } else if (!strcmp(texture->name, "Interface\\Test\\Inventory.blp")) {
         draw_inventory_count++;
@@ -195,6 +199,13 @@ static void test_draw_minimap(LPCRECT rect) {
 static void test_draw_text(LPCDRAWTEXT drawText) {
     draw_text_count++;
     snprintf(last_draw_text, sizeof(last_draw_text), "%s", drawText && drawText->text ? drawText->text : "");
+    if (drawText && drawText->text && !strcmp(drawText->text, "Account Name") &&
+        drawText->halign == FONT_JUSTIFYCENTER) {
+        glue_account_label_centered++;
+    }
+    if (drawText && drawText->text && !strcmp(drawText->text, "LOGIN")) {
+        glue_login_text_y = drawText->rect.y;
+    }
 }
 
 static LPCTEXTURE test_get_texture(DWORD index) {
@@ -260,7 +271,10 @@ static void reset_test_state(void) {
     last_inventory_width = 0;
     last_inventory_height = 0;
     glue_backdrop_edge_draws = 0;
+    glue_account_label_centered = 0;
     glue_button_uv_width = 0.0f;
+    glue_button_y = 0.0f;
+    glue_login_text_y = 0.0f;
 
     test_renderer.LoadTexture = test_load_texture;
     test_renderer.LoadFont = test_load_font;
@@ -324,7 +338,9 @@ static void test_wow_glue_xml_login_button_routes_next_screen(void) {
     ASSERT(draw_panel_count > 0);
     ASSERT(draw_inventory_count > 0);
     ASSERT(glue_backdrop_edge_draws >= 2);
+    ASSERT(glue_account_label_centered > 0);
     ASSERT(glue_button_uv_width > 0.5f && glue_button_uv_width < 0.7f);
+    ASSERT(glue_login_text_y < glue_button_y);
     ASSERT(draw_text_count > 0);
     ASSERT(UIWow_XMLMouseEvent(520, 400, 1, true));
     ASSERT(UIWow_XMLTextInput("A"));

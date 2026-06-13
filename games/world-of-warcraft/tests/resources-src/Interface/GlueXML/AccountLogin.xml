@@ -7,6 +7,18 @@
                 <Anchors>
                     <Anchor point="BOTTOM"><Offset><AbsDimension x="8" y="345"/></Offset></Anchor>
                 </Anchors>
+                <Layers>
+                    <Layer level="BACKGROUND">
+                        <FontString inherits="GlueFontNormal" text="Account Name">
+                            <Size><AbsDimension x="256" y="64"/></Size>
+                            <Anchors>
+                                <Anchor point="BOTTOM" relativePoint="TOP">
+                                    <Offset><AbsDimension x="0" y="-23"/></Offset>
+                                </Anchor>
+                            </Anchors>
+                        </FontString>
+                    </Layer>
+                </Layers>
                 <Backdrop bgFile="Interface\Test\LuaPanel" edgeFile="Interface\Test\Inventory" tile="true">
                     <BackgroundInsets>
                         <AbsInset left="2" right="2" top="2" bottom="2"/>

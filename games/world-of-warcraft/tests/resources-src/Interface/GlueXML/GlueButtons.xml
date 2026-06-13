@@ -4,7 +4,11 @@
     </Texture>
     <Button name="GlueButtonTemplate" virtual="true">
         <Size><AbsDimension x="170" y="45"/></Size>
-        <NormalText inherits="GlueFontNormal"/>
+        <NormalText inherits="GlueFontNormal">
+            <Anchors>
+                <Anchor point="CENTER"><Offset><AbsDimension x="0" y="3"/></Offset></Anchor>
+            </Anchors>
+        </NormalText>
         <NormalTexture inherits="GluePanelButtonUpTexture"/>
     </Button>
 </Ui>
