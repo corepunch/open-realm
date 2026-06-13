@@ -49,8 +49,14 @@ typedef enum {
     ELEM_COLOR_COUNT
 } uiWowXmlColor_t;
 
-typedef enum { WOW_XML_FRAME, WOW_XML_MODEL, WOW_XML_TEXTURE, WOW_XML_FONTSTRING, WOW_XML_BUTTON, WOW_XML_EDITBOX } uiWowXmlType_t;
-
+typedef enum { 
+    WOW_XML_FRAME, 
+    WOW_XML_MODEL, 
+    WOW_XML_TEXTURE, 
+    WOW_XML_FONTSTRING, 
+    WOW_XML_BUTTON, 
+    WOW_XML_EDITBOX 
+} uiWowXmlType_t;
 typedef enum {
     EF_USED          = 1 << 0,
     EF_HAS_ANCHOR    = 1 << 1,
