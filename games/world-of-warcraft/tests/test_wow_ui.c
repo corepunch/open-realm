@@ -55,6 +55,7 @@ static DWORD glue_account_label_centered;
 static FLOAT glue_button_uv_width;
 static FLOAT glue_button_y;
 static FLOAT glue_login_text_y;
+static COLOR32 glue_login_text_color;
 
 static BOOL test_path_is_wow_default(LPCSTR name) {
     return name &&
@@ -205,6 +206,7 @@ static void test_draw_text(LPCDRAWTEXT drawText) {
     }
     if (drawText && drawText->text && !strcmp(drawText->text, "LOGIN")) {
         glue_login_text_y = drawText->rect.y;
+        glue_login_text_color = drawText->color;
     }
 }
 
@@ -275,6 +277,7 @@ static void reset_test_state(void) {
     glue_button_uv_width = 0.0f;
     glue_button_y = 0.0f;
     glue_login_text_y = 0.0f;
+    glue_login_text_color = COLOR32_BLACK;
 
     test_renderer.LoadTexture = test_load_texture;
     test_renderer.LoadFont = test_load_font;
@@ -341,10 +344,14 @@ static void test_wow_glue_xml_login_button_routes_next_screen(void) {
     ASSERT(glue_account_label_centered > 0);
     ASSERT(glue_button_uv_width > 0.5f && glue_button_uv_width < 0.7f);
     ASSERT(glue_login_text_y < glue_button_y);
+    ASSERT_EQ_INT((int)glue_login_text_color.r, 255);
+    ASSERT_EQ_INT((int)glue_login_text_color.g, 198);
+    ASSERT_EQ_INT((int)glue_login_text_color.b, 0);
     ASSERT(draw_text_count > 0);
     ASSERT(UIWow_XMLMouseEvent(520, 400, 1, true));
     ASSERT(UIWow_XMLTextInput("A"));
     ASSERT(UIWow_XMLMouseEvent(520, 530, 1, true));
+    ASSERT(UIWow_XMLMouseEvent(520, 530, 1, false));
     ASSERT_STR_EQ(last_cmd_execute_text, "+menu_character_select\n");
 
     ui.Shutdown();

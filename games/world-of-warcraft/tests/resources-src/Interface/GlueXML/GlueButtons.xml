@@ -9,6 +9,16 @@
                 <Anchor point="CENTER"><Offset><AbsDimension x="0" y="3"/></Offset></Anchor>
             </Anchors>
         </NormalText>
+        <DisabledText inherits="GlueFontDisable">
+            <Anchors>
+                <Anchor point="CENTER"><Offset><AbsDimension x="0" y="3"/></Offset></Anchor>
+            </Anchors>
+        </DisabledText>
+        <HighlightText inherits="GlueFontHighlight">
+            <Anchors>
+                <Anchor point="CENTER"><Offset><AbsDimension x="0" y="3"/></Offset></Anchor>
+            </Anchors>
+        </HighlightText>
         <NormalTexture inherits="GluePanelButtonUpTexture"/>
     </Button>
 </Ui>
