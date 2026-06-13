@@ -112,24 +112,27 @@ LPTEXTURE UIWow_LoadTexture(LPCSTR name) {
                        "UIWow: attempted to load texture with empty name\n");
         return NULL;
     }
-    UIWow_ResolveTexturePath(name, resolved, sizeof(resolved));
     UIWow_EnsureRenderer();
     if (!wow_ui.renderer) {
         return NULL;
     }
+    /* Fast path: input name already cached — skip MPQ resolution entirely. */
     FOR_LOOP(i, WOW_UI_MAX_TEXTURES) {
         uiWowTexture_t *entry = &wow_ui.textures[i];
 
-        if (entry->texture && !strcmp(entry->name, resolved)) {
+        if (entry->input_name[0] && !strcasecmp(entry->input_name, name)) {
             return entry->texture;
         }
-        if (empty_slot < 0 && !entry->texture) {
+        if (empty_slot < 0 && !entry->input_name[0]) {
             empty_slot = i;
         }
     }
+    /* Slow path: resolve once (MPQ probe), then store both names in the slot. */
+    UIWow_ResolveTexturePath(name, resolved, sizeof(resolved));
     if (empty_slot >= 0) {
         uiWowTexture_t *entry = &wow_ui.textures[empty_slot];
 
+        snprintf(entry->input_name, sizeof(entry->input_name), "%s", name);
         snprintf(entry->name, sizeof(entry->name), "%s", resolved);
         entry->texture = wow_ui.renderer->LoadTexture(resolved);
         if (!entry->texture) {
@@ -143,6 +146,7 @@ LPTEXTURE UIWow_LoadTexture(LPCSTR name) {
 
         wow_ui.texture_recycle_index = (wow_ui.texture_recycle_index + 1) % WOW_UI_MAX_TEXTURES;
         SAFE_DELETE(entry->texture, wow_ui.renderer->ReleaseTexture);
+        snprintf(entry->input_name, sizeof(entry->input_name), "%s", name);
         snprintf(entry->name, sizeof(entry->name), "%s", resolved);
         entry->texture = wow_ui.renderer->LoadTexture(resolved);
         if (!entry->texture) {
@@ -215,6 +219,7 @@ static void UIWow_ReleaseScreenAssets(void) {
 
     FOR_LOOP(i, WOW_UI_MAX_TEXTURES) {
         SAFE_DELETE(wow_ui.textures[i].texture, wow_ui.renderer->ReleaseTexture);
+        wow_ui.textures[i].input_name[0] = '\0';
         wow_ui.textures[i].name[0] = '\0';
     }
     FOR_LOOP(i, WOW_UI_MAX_FONTS) {

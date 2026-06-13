@@ -38,7 +38,8 @@
 #define WOW_UI_WARN_NO_MODEL_LOADER        WOW_UI_WARN_FLAG(13)
 
 typedef struct {
-    char name[256];
+    char input_name[256]; /* as passed to UIWow_LoadTexture, used for cache lookup */
+    char name[256];       /* resolved path (with extension), used for loading */
     LPTEXTURE texture;
 } uiWowTexture_t;
 
