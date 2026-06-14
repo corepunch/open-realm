@@ -103,7 +103,7 @@ typedef struct {
 } uiWowXmlElem_t;
 
 enum {
-    WOW_XML_MAX_ELEMS = 1024,
+    WOW_XML_MAX_ELEMS = 2048,
     WOW_XML_LAYER_BACKGROUND = 0,
     WOW_XML_LAYER_BORDER = 1,
     WOW_XML_LAYER_ARTWORK = 2,
@@ -939,8 +939,6 @@ BOOL UIWow_XMLLoadGlueFromToc(LPCSTR toc_path) {
     memset(wow_xml.elems, 0, sizeof(wow_xml.elems)); wow_xml.count = 0; wow_xml.focus = -1; wow_xml.pressed_button = -1;
     if (!UIWow_XMLLoadFromToc(toc_path)) return false;
     UIWow_XMLInstallScreenShim();
-    /* Apply initial screen visibility — hide all screens except "login". */
-    UIWow_LuaSetGlueScreen_named("login");
     FOR_LOOP(i, wow_xml.count) {
         uiWowXmlElem_t *e = &wow_xml.elems[i];
         if (UIWow_ElemStr(e, ELEM_PARENT_NAME)) {

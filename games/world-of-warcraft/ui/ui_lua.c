@@ -430,12 +430,22 @@ static int UIWow_LuaDefaultServerLogin(lua_State *L) {
         UIWow_LuaPCall(1);
     } else {
         lua_pop(wow_ui.lua, 1);
-        if (uiimport.Cmd_ExecuteText) uiimport.Cmd_ExecuteText("+menu_character_select\n");
+        if (uiimport.Cmd_ExecuteText) uiimport.Cmd_ExecuteText("menu_character_select\n");
     }
     return 0;
 }
 
 static int UIWow_LuaNoop(lua_State *L) { (void)L; return 0; }
+static int UIWow_LuaGetCharacterListUpdate(lua_State *L) {
+    /* No server — call UpdateCharacterList directly so the UI reflects local state. */
+    lua_getglobal(L, "UpdateCharacterList");
+    if (!lua_isfunction(L, -1)) { lua_pop(L, 1); return 0; }
+    if (lua_pcall(L, 0, 0, 0) != LUA_OK) {
+        fprintf(stderr, "UIWow GetCharacterListUpdate: %s\n", lua_tostring(L, -1));
+        lua_pop(L, 1);
+    }
+    return 0;
+}
 static int UIWow_LuaTrue(lua_State *L) { lua_pushboolean(L, 1); return 1; }
 static int UIWow_LuaFalse(lua_State *L) { lua_pushboolean(L, 0); return 1; }
 static int UIWow_LuaNil(lua_State *L) { lua_pushnil(L); return 1; }
@@ -516,7 +526,7 @@ static luaL_Reg const wow_global_funcs[] = {
     { "StopGlueMusic",     UIWow_LuaNoop },
     { "PlayCreditsMusic",  UIWow_LuaNoop },
     { "DisconnectFromServer", UIWow_LuaNoop },
-    { "IsConnectedToServer", UIWow_LuaFalse },
+    { "IsConnectedToServer", UIWow_LuaTrue },
     { "GetBillingTimeRemaining", UIWow_LuaZero },
     { "EnterWorld",        UIWow_LuaNoop },
     { "GetRealmCategories",UIWow_LuaRealmCategories },
@@ -530,7 +540,7 @@ static luaL_Reg const wow_global_funcs[] = {
     { "SortRealms",        UIWow_LuaNoop },
     { "SetCharSelectModelFrame", UIWow_LuaNoop },
     { "SetCharSelectBackground", UIWow_LuaNoop },
-    { "GetCharacterListUpdate", UIWow_LuaNoop },
+    { "GetCharacterListUpdate", UIWow_LuaGetCharacterListUpdate },
     { "GetNumCharacters",  UIWow_LuaZero },
     { "GetCharacterInfo",  UIWow_LuaCharacterInfo },
     { "SelectCharacter",   UIWow_LuaNoop },
@@ -601,7 +611,9 @@ BOOL UIWow_LuaPCall(int nargs) {
     status = lua_pcall(wow_ui.lua, nargs, 0, traceback);
     lua_remove(wow_ui.lua, traceback);
     if (status != LUA_OK) {
-        UIWow_Printf("UIWow Lua: %s\n", lua_tostring(wow_ui.lua, -1));
+        LPCSTR msg = lua_tostring(wow_ui.lua, -1);
+        UIWow_Printf("UIWow Lua: %s\n", msg);
+        fprintf(stderr, "UIWow Lua: %s\n", msg ? msg : "(null)");
         lua_pop(wow_ui.lua, 1);
         return false;
     }

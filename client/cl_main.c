@@ -111,12 +111,8 @@ static void CL_MenuCommand(LPCSTR command) {
     if (!command || !*command) {
         return;
     }
-    if (!ui.MenuCommand) {
-        Cbuf_AddText(command);
-        Cbuf_AddText("\n");
-        return;
-    }
-    ui.MenuCommand(command);
+    Cbuf_AddText(command);
+    Cbuf_AddText("\n");
 }
 
 void CL_Disconnect(LPCSTR reason, BOOL notify) {

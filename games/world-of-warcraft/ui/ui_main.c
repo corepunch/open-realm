@@ -17,6 +17,8 @@
 uiImport_t uiimport;
 uiWowState_t wow_ui;
 
+static BOOL uiWow_menu_commands_registered;
+
 /* -------------------------------------------------------------------------
  * Shared helpers used by ui_lua.c and ui_loading.c
  * ---------------------------------------------------------------------- */
@@ -187,12 +189,16 @@ LPCFONT UIWow_LoadFont(DWORD size) {
     }
 }
 
+static void UIWow_RegisterMenuCommands(void);
+
 /* -------------------------------------------------------------------------
  * Lifecycle
  * ---------------------------------------------------------------------- */
 
 static void UIWow_Init(void) {
     memset(&wow_ui, 0, sizeof(wow_ui));
+    uiWow_menu_commands_registered = false;
+    UIWow_RegisterMenuCommands();
     UIWow_EnsureRenderer();
     UIWow_InitLua();
 }
@@ -421,23 +427,14 @@ static uiWowMenuCommandDef_t const uiWow_menu_command_defs[] = {
     { NULL, NULL },
 };
 
-static void UIWow_MenuCommand(LPCSTR route) {
-    if (!route || !*route) {
+static void UIWow_RegisterMenuCommands(void) {
+    if (uiWow_menu_commands_registered || !uiimport.Cmd_AddCommand) {
         return;
     }
-    FOR_LOOP(i, sizeof(uiWow_menu_command_defs) / sizeof(uiWow_menu_command_defs[0])) {
-        uiWowMenuCommandDef_t const *cmd = &uiWow_menu_command_defs[i];
-        if (!cmd->command) {
-            break;
-        }
-        if (!strcmp(cmd->command, route)) {
-            if (cmd->function) {
-                cmd->function();
-            }
-            return;
-        }
+    for (uiWowMenuCommandDef_t const *cmd = uiWow_menu_command_defs; cmd->command; cmd++) {
+        uiimport.Cmd_AddCommand(cmd->command, cmd->function);
     }
-    UIWow_Printf("UIWow_MenuCommand: unknown route '%s'\n", route);
+    uiWow_menu_commands_registered = true;
 }
 
 /* -------------------------------------------------------------------------
@@ -522,7 +519,6 @@ uiExport_t UI_GetAPI(uiImport_t import) {
         .KeyEvent         = UIWow_KeyEvent,
         .TextInput        = UIWow_TextInput,
         .MouseEvent       = UIWow_MouseEvent,
-        .MenuCommand      = UIWow_MenuCommand,
         .UpdateUnitUI     = UIWow_UpdateUnitUI,
         .SetLayoutLayer   = UIWow_SetLayoutLayer,
         .ClearLayoutLayer = UIWow_ClearLayoutLayer,
