@@ -832,8 +832,9 @@ HANDLE FS_ReadFile(LPCSTR filename, LPDWORD size) {
         return FS_ReadLooseFile(filename, size, 0);
     }
     *size = SFileGetFileSize(fp, NULL);
-    LPSTR buffer = MemAlloc(*size);
+    LPSTR buffer = MemAlloc(*size + 1);
     SFileReadFile(fp, buffer, *size, NULL, NULL);
+    buffer[*size] = '\0';
     FS_CloseFile(fp);
     return buffer;
 }
