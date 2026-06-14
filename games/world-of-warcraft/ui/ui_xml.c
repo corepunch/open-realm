@@ -500,6 +500,10 @@ static void UIWow_XMLInstallLuaCompat(void) {
         { "Click", UIWow_LuaFrameClick },
         { "LockHighlight", UIWow_LuaFrameNoop }, { "UnlockHighlight", UIWow_LuaFrameNoop },
         { "GetButtonState", UIWow_LuaFrameGetButtonState }, { "IsShown", UIWow_LuaFrameIsVisible },
+        { "GetFrameLevel", UIWow_LuaFrameGetID }, { "SetFrameLevel", UIWow_LuaFrameNoop },
+        { "SetPoint", UIWow_LuaFrameNoop }, { "ClearAllPoints", UIWow_LuaFrameNoop },
+        { "Raise", UIWow_LuaFrameNoop }, { "Lower", UIWow_LuaFrameNoop },
+        { "GetTextWidth", UIWow_LuaFrameGetWidth }, { "GetTextHeight", UIWow_LuaFrameGetHeight },
         { "SetVertexColor", UIWow_LuaFrameSetVertexColor }, { "SetFocus", UIWow_LuaFrameSetFocus }, { "HighlightText", UIWow_LuaFrameHighlightText }, { "RegisterEvent", UIWow_LuaFrameRegisterEvent }, { "SetSequence", UIWow_LuaFrameSetSequence },
         { "SetCamera", UIWow_LuaFrameSetCamera }, { "SetModel", UIWow_LuaFrameSetModel }, { "AdvanceTime", UIWow_LuaFrameAdvanceTime },
         { "SetFogColor", UIWow_LuaFrameSetFogColor }, { "SetFogNear", UIWow_LuaFrameSetFogNear }, { "SetFogFar", UIWow_LuaFrameSetFogFar },
@@ -813,7 +817,20 @@ static void UIWow_XmlParseNode(xmlNodePtr node, int parent, int draw_layer) {
     else if (!xmlStrcasecmp(node->name, BAD_CAST "NormalText") || !xmlStrcasecmp(node->name, BAD_CAST "DisabledText") || !xmlStrcasecmp(node->name, BAD_CAST "HighlightText")) type = WOW_XML_FONTSTRING;
     else return;
     name_attr = xmlGetProp(node, BAD_CAST "name"); parent_attr = xmlGetProp(node, BAD_CAST "parent"); inherits_attr = xmlGetProp(node, BAD_CAST "inherits");
-    idx = UIWow_XmlPushElem(type, (char const *)name_attr, parent, draw_layer); SAFE_DELETE(name_attr, xmlFree);
+    /* Substitute $parent with the parent frame's name (WoW template convention). */
+    char resolved_name[256] = "";
+    if (name_attr && *name_attr) {
+        LPCSTR pname = (parent >= 0 && parent < wow_xml.count) ? wow_xml.elems[parent].texts[ELEM_NAME] : NULL;
+        LPCSTR raw = (char const *)name_attr;
+        LPCSTR dollar = strstr(raw, "$parent");
+        if (dollar && pname && *pname) {
+            snprintf(resolved_name, sizeof(resolved_name), "%.*s%s%s",
+                     (int)(dollar - raw), raw, pname, dollar + 7);
+        } else {
+            snprintf(resolved_name, sizeof(resolved_name), "%s", raw);
+        }
+    }
+    idx = UIWow_XmlPushElem(type, resolved_name[0] ? resolved_name : NULL, parent, draw_layer); SAFE_DELETE(name_attr, xmlFree);
     if (idx < 0) { SAFE_DELETE(parent_attr, xmlFree); UIWow_Printf("UIWow: XML element limit exceeded\n"); return; }
     UIWow_XmlInheritElem(&wow_xml.elems[idx], (char const *)inherits_attr); SAFE_DELETE(inherits_attr, xmlFree);
     if (parent_attr && *parent_attr) {
