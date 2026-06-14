@@ -377,6 +377,7 @@ static int UIWow_LuaFrameGetWidth(lua_State *L) {
     lua_pushnumber(L, r.w * 1024.0f);
     return 1;
 }
+static int UIWow_LuaFrameSetID(lua_State *L) { int i = UIWow_FrameFromSelf(L); if (i >= 0) wow_xml.elems[i].id = (int)luaL_checkinteger(L, 2); return 0; }
 static int UIWow_LuaFrameEnable(lua_State *L) { int i = UIWow_FrameFromSelf(L); if (i >= 0) wow_xml.elems[i].flags |= EF_ENABLED; return 0; }
 static int UIWow_LuaFrameDisable(lua_State *L) { int i = UIWow_FrameFromSelf(L); if (i >= 0) wow_xml.elems[i].flags &= ~EF_ENABLED; return 0; }
 static int UIWow_LuaFrameIsEnabled(lua_State *L) { int i = UIWow_FrameFromSelf(L); lua_pushboolean(L, i >= 0 && (wow_xml.elems[i].flags & EF_ENABLED)); return 1; }
@@ -395,6 +396,12 @@ static int UIWow_LuaFrameGetChecked(lua_State *L) {
 static int UIWow_LuaFrameGetID(lua_State *L) {
     int i = UIWow_FrameFromSelf(L);
     lua_pushinteger(L, i >= 0 ? wow_xml.elems[i].id : 0);
+    return 1;
+}
+static int UIWow_LuaFrameNoop(lua_State *L) { (void)L; return 0; }
+static int UIWow_LuaFrameGetButtonState(lua_State *L) {
+    int i = UIWow_FrameFromSelf(L);
+    lua_pushstring(L, (i >= 0 && wow_xml.pressed_button == i) ? "PUSHED" : "NORMAL");
     return 1;
 }
 static int UIWow_LuaFrameSetVertexColor(lua_State *L) {
@@ -484,13 +491,15 @@ static void UIWow_XMLInstallLuaCompat(void) {
     static luaL_Reg const methods[] = {
         { "Show", UIWow_LuaFrameShow }, { "Hide", UIWow_LuaFrameHide }, { "IsVisible", UIWow_LuaFrameIsVisible }, { "SetAlpha", UIWow_LuaFrameSetAlpha },
         { "SetText", UIWow_LuaFrameSetText }, { "GetText", UIWow_LuaFrameGetText }, { "SetBackdropColor", UIWow_LuaFrameSetBackdropColor }, { "SetBackdropBorderColor", UIWow_LuaFrameSetBackdropBorderColor },
-        { "GetName", UIWow_LuaFrameGetName }, { "GetParent", UIWow_LuaFrameGetParent },
+        { "GetName", UIWow_LuaFrameGetName }, { "GetParent", UIWow_LuaFrameGetParent }, { "SetID", UIWow_LuaFrameSetID },
         { "SetHeight", UIWow_LuaFrameSetHeight }, { "SetWidth", UIWow_LuaFrameSetWidth },
         { "GetHeight", UIWow_LuaFrameGetHeight }, { "GetWidth", UIWow_LuaFrameGetWidth },
         { "Enable", UIWow_LuaFrameEnable }, { "Disable", UIWow_LuaFrameDisable },
         { "IsEnabled", UIWow_LuaFrameIsEnabled }, { "SetChecked", UIWow_LuaFrameSetChecked },
         { "GetChecked", UIWow_LuaFrameGetChecked }, { "GetID", UIWow_LuaFrameGetID },
         { "Click", UIWow_LuaFrameClick },
+        { "LockHighlight", UIWow_LuaFrameNoop }, { "UnlockHighlight", UIWow_LuaFrameNoop },
+        { "GetButtonState", UIWow_LuaFrameGetButtonState }, { "IsShown", UIWow_LuaFrameIsVisible },
         { "SetVertexColor", UIWow_LuaFrameSetVertexColor }, { "SetFocus", UIWow_LuaFrameSetFocus }, { "HighlightText", UIWow_LuaFrameHighlightText }, { "RegisterEvent", UIWow_LuaFrameRegisterEvent }, { "SetSequence", UIWow_LuaFrameSetSequence },
         { "SetCamera", UIWow_LuaFrameSetCamera }, { "SetModel", UIWow_LuaFrameSetModel }, { "AdvanceTime", UIWow_LuaFrameAdvanceTime },
         { "SetFogColor", UIWow_LuaFrameSetFogColor }, { "SetFogNear", UIWow_LuaFrameSetFogNear }, { "SetFogFar", UIWow_LuaFrameSetFogFar },
@@ -732,7 +741,9 @@ static void UIWow_XmlReadScripts(uiWowXmlElem_t *e, xmlNodePtr node) {
             if (!body) continue;
             if (!xmlStrcasecmp(s->name, BAD_CAST "OnClick")) UIWow_ElemSetStr(e, ELEM_ON_CLICK, (char const *)body);
             else if (!xmlStrcasecmp(s->name, BAD_CAST "OnLoad")) UIWow_ElemSetStr(e, ELEM_ON_LOAD, (char const *)body);
-            else if (!xmlStrcasecmp(s->name, BAD_CAST "OnShow")) UIWow_ElemSetStr(e, ELEM_ON_SHOW, (char const *)body);
+            else if (!xmlStrcasecmp(s->name, BAD_CAST "OnShow")) {
+                UIWow_ElemSetStr(e, ELEM_ON_SHOW, (char const *)body);
+            }
             else if (!xmlStrcasecmp(s->name, BAD_CAST "OnEnter")) UIWow_ElemSetStr(e, ELEM_ON_ENTER, (char const *)body);
             else if (!xmlStrcasecmp(s->name, BAD_CAST "OnLeave")) UIWow_ElemSetStr(e, ELEM_ON_LEAVE, (char const *)body);
             else if (!xmlStrcasecmp(s->name, BAD_CAST "OnEnterPressed")) UIWow_ElemSetStr(e, ELEM_ON_ENTER_PRESSED, (char const *)body);
@@ -899,6 +910,17 @@ static BOOL UIWow_XMLLoadFromToc(LPCSTR toc_path) {
     return true;
 }
 
+static void UIWow_LuaSetGlueScreen_named(LPCSTR screen) {
+    if (!wow_ui.lua || !screen || !*screen) return;
+    lua_getglobal(wow_ui.lua, "SetGlueScreen");
+    if (lua_isfunction(wow_ui.lua, -1)) {
+        lua_pushstring(wow_ui.lua, screen);
+        UIWow_LuaPCall(1);
+    } else {
+        lua_pop(wow_ui.lua, 1);
+    }
+}
+
 static void UIWow_XMLFreeElems(void) {
     FOR_LOOP(i, wow_xml.count) UIWow_ElemFreeStrings(&wow_xml.elems[i]);
 }
@@ -917,6 +939,8 @@ BOOL UIWow_XMLLoadGlueFromToc(LPCSTR toc_path) {
     memset(wow_xml.elems, 0, sizeof(wow_xml.elems)); wow_xml.count = 0; wow_xml.focus = -1; wow_xml.pressed_button = -1;
     if (!UIWow_XMLLoadFromToc(toc_path)) return false;
     UIWow_XMLInstallScreenShim();
+    /* Apply initial screen visibility — hide all screens except "login". */
+    UIWow_LuaSetGlueScreen_named("login");
     FOR_LOOP(i, wow_xml.count) {
         uiWowXmlElem_t *e = &wow_xml.elems[i];
         if (UIWow_ElemStr(e, ELEM_PARENT_NAME)) {
