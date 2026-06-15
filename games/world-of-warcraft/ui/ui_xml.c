@@ -425,7 +425,43 @@ static int UIWow_LuaFrameSetVertexColor(lua_State *L) {
     if (i >= 0) wow_xml.elems[i].colors[ELEM_COLOR_VERTEX] = MAKE(COLOR32, (BYTE)(r * 255.0f), (BYTE)(g * 255.0f), (BYTE)(b * 255.0f), (BYTE)(a * 255.0f));
     return 0;
 }
-static int UIWow_LuaFrameSetTexCoord(lua_State *L) { (void)L; return 0; }
+static int UIWow_LuaFrameSetTexCoord(lua_State *L) {
+    int i = UIWow_FrameFromSelf(L);
+    FLOAT left = (FLOAT)luaL_checknumber(L, 2), right = (FLOAT)luaL_checknumber(L, 3);
+    FLOAT top  = (FLOAT)luaL_checknumber(L, 4), bot   = (FLOAT)luaL_checknumber(L, 5);
+    RECT tc = MAKE(RECT, left, top, right - left, bot - top);
+    if (i >= 0) {
+        wow_xml.elems[i].texcoord = tc;
+        wow_xml.elems[i].flags |= EF_HAS_TEXCOORD;
+        return 0;
+    }
+    /* Called on a synthetic NormalTexture child — find parent button by name suffix. */
+    lua_getfield(L, 1, "name");
+    if (lua_isstring(L, -1)) {
+        LPCSTR full = lua_tostring(L, -1);
+        static LPCSTR const suffixes[] = { "NormalTexture", "PushedTexture", "HighlightTexture", NULL };
+        for (int s = 0; suffixes[s]; s++) {
+            size_t slen = strlen(suffixes[s]), flen = strlen(full);
+            if (flen > slen && !strcmp(full + flen - slen, suffixes[s])) {
+                char parent_name[256];
+                snprintf(parent_name, sizeof(parent_name), "%.*s", (int)(flen - slen), full);
+                int pi = UIWow_XmlFindByName(parent_name);
+                if (pi >= 0) {
+                    if (s == 0) { /* NormalTexture */
+                        wow_xml.elems[pi].texcoord = tc;
+                        wow_xml.elems[pi].flags |= EF_HAS_TEXCOORD;
+                    } else if (s == 2) { /* HighlightTexture */
+                        wow_xml.elems[pi].highlight_texcoord = tc;
+                        wow_xml.elems[pi].flags |= EF_HAS_HIGHLIGHT_TEXCOORD;
+                    }
+                }
+                break;
+            }
+        }
+    }
+    lua_pop(L, 1);
+    return 0;
+}
 static int UIWow_LuaFrameSetBackdropColor(lua_State *L) {
     int i = UIWow_FrameFromSelf(L); FLOAT r = (FLOAT)luaL_optnumber(L, 2, 0.09), g = (FLOAT)luaL_optnumber(L, 3, 0.09), b = (FLOAT)luaL_optnumber(L, 4, 0.09), a = (FLOAT)luaL_optnumber(L, 5, 0.5);
     if (i >= 0) wow_xml.elems[i].colors[ELEM_COLOR_BACKDROP] = MAKE(COLOR32, (BYTE)(r * 255.0f), (BYTE)(g * 255.0f), (BYTE)(b * 255.0f), (BYTE)(a * 255.0f));
