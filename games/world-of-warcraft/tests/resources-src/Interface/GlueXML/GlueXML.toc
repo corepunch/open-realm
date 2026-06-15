@@ -1,5 +1,7 @@
 GlueFonts.xml
 GlueParent.xml
 GlueButtons.xml
+CompatLegacy.lua
+CompatChildGlobals.xml
 AccountLogin.xml
 CharacterSelect.xml

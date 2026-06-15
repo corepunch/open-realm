@@ -372,6 +372,33 @@ static void test_wow_glue_xml_login_button_routes_character_select(void) {
     test_archive = NULL;
 }
 
+static void test_wow_glue_compat_regressions(void) {
+    uiExport_t ui;
+
+    reset_test_state();
+    ASSERT(SFileOpenArchive(TEST_WOW_MPQ, 0, 0, &test_archive));
+
+    ui = init_ui();
+    reset_test_state();
+    ASSERT(UIWow_XMLLoadGlueFromToc("Interface\\GlueXML\\GlueXML.toc"));
+    ASSERT(UIWow_RunLuaString("compat_legacy_result", "ow3.command(CompatLegacyResult or 'missing');"));
+    ASSERT_STR_EQ(last_server_command, "2:alpha:beta");
+
+    last_server_command[0] = '\0';
+    ASSERT(UIWow_RunLuaString("compat_child_result", "ow3.command(CompatChildResult or 'missing');"));
+    ASSERT_STR_EQ(last_server_command, "table:table");
+
+    ui.Shutdown();
+    FOR_LOOP(i, MAX_IMAGES) {
+        if (test_textures[i]) {
+            test_release_texture((LPTEXTURE)test_textures[i]);
+            test_textures[i] = NULL;
+        }
+    }
+    SFileCloseArchive(test_archive);
+    test_archive = NULL;
+}
+
 static void test_wow_lua_ui_draws_from_generated_mpq(void) {
     uiExport_t ui;
     uiUnitData_t unit;
@@ -418,5 +445,6 @@ static void test_wow_lua_ui_draws_from_generated_mpq(void) {
 int main(void) {
     RUN_TEST(test_wow_lua_ui_draws_from_generated_mpq);
     RUN_TEST(test_wow_glue_xml_login_button_routes_character_select);
+    RUN_TEST(test_wow_glue_compat_regressions);
     TEST_RESULTS();
 }

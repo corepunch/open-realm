@@ -662,8 +662,16 @@ static BOOL UIWow_RunLuaBuffer(LPCSTR name, LPCSTR script, size_t len) {
 }
 
 static char *UIWow_LuaCompatBuffer(LPCSTR script, size_t len) {
-    static LPCSTR needles[] = { " in GlueScreenInfo do", " in FRAMES_TO_BACKDROP_COLOR do", NULL };
-    static LPCSTR replacements[] = { " in pairs(GlueScreenInfo) do", " in pairs(FRAMES_TO_BACKDROP_COLOR) do", NULL };
+    static LPCSTR needles[] = {
+        " in GlueScreenInfo do",
+        " in FRAMES_TO_BACKDROP_COLOR do",
+        NULL
+    };
+    static LPCSTR replacements[] = {
+        " in pairs(GlueScreenInfo) do",
+        " in pairs(FRAMES_TO_BACKDROP_COLOR) do",
+        NULL
+    };
     size_t extra = 0; char *out, *dst; LPCSTR src = script;
     FOR_LOOP(i, sizeof(needles) / sizeof(needles[0])) {
         LPCSTR p = script;
@@ -693,6 +701,39 @@ static char *UIWow_LuaCompatBuffer(LPCSTR script, size_t len) {
     return out;
 }
 
+static char *UIWow_LuaCompatVarargs(LPCSTR script, size_t len) {
+    static LPCSTR insert = "    local arg = { ... }; arg.n = select('#', ...)\n";
+    size_t extra = 0; char *out, *dst; LPCSTR src = script;
+
+    while (*src) {
+        LPCSTR line = src, end = src;
+        while (*end && *end != '\n' && *end != '\r') end++;
+        if (!strncmp(line, "function ", 9) && strstr(line, "(...)") && extra < SIZE_MAX - strlen(insert))
+            extra += strlen(insert);
+        src = end;
+        while (*src == '\n' || *src == '\r') src++;
+    }
+    if (!extra) return NULL;
+    out = malloc(len + extra + 1);
+    if (!out) return NULL;
+    src = script; dst = out;
+    while (*src) {
+        LPCSTR line = src, end = src;
+        while (*end && *end != '\n' && *end != '\r') end++;
+        memcpy(dst, line, (size_t)(end - line));
+        dst += end - line;
+        while (*end == '\r' || *end == '\n') *dst++ = *end++;
+        if (!strncmp(line, "function ", 9) && strstr(line, "(...)") ) {
+            size_t n = strlen(insert);
+            memcpy(dst, insert, n);
+            dst += n;
+        }
+        src = end;
+    }
+    *dst = '\0';
+    return out;
+}
+
 BOOL UIWow_RunLuaString(LPCSTR name, LPCSTR script) {
     if (!script) {
         return false;
@@ -702,7 +743,7 @@ BOOL UIWow_RunLuaString(LPCSTR name, LPCSTR script) {
 
 BOOL UIWow_LoadLuaFile(LPCSTR path, BOOL noisy_missing) {
     void *buf = NULL;
-    char *compat;
+    char *compat, *compat_varargs, *script;
     int size;
 
     if (!uiimport.FS_ReadFile || !uiimport.FS_FreeFile || !path) {
@@ -719,8 +760,12 @@ BOOL UIWow_LoadLuaFile(LPCSTR path, BOOL noisy_missing) {
         return false;
     }
     compat = UIWow_LuaCompatBuffer(buf, (size_t)size);
-    UIWow_RunLuaBuffer(path, compat ? compat : buf, compat ? strlen(compat) : (size_t)size);
+    script = compat ? compat : (char *)buf;
+    compat_varargs = UIWow_LuaCompatVarargs(script, compat ? strlen(compat) : (size_t)size);
+    UIWow_RunLuaBuffer(path, compat_varargs ? compat_varargs : script,
+                       compat_varargs ? strlen(compat_varargs) : (compat ? strlen(compat) : (size_t)size));
     SAFE_DELETE(compat, free);
+    SAFE_DELETE(compat_varargs, free);
     uiimport.FS_FreeFile(buf);
     return true;
 }

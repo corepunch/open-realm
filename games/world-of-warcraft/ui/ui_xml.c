@@ -82,6 +82,7 @@ typedef enum {
     EF_FOCUSABLE     = 1 << 13,
     EF_HAS_HIGHLIGHT_TEXCOORD = 1 << 14,
     EF_HAS_BUTTON_TEXT_COLORS = 1 << 15,
+    EF_PENDING_ONLOAD = 1 << 16,
 } uiWowXmlElemFlag_t;
 
 typedef struct {
@@ -270,6 +271,8 @@ static void UIWow_XmlInheritElem(uiWowXmlElem_t *e, LPCSTR inherits) {
     }
 }
 
+static void UIWow_XmlPublishFrame(int idx);
+
 static void UIWow_XmlRectPoint(LPCRECT r, LPCSTR point, LPFLOAT x, LPFLOAT y) {
     if (!strcasecmp(point, "TOPLEFT")) { *x = r->x; *y = r->y; return; }
     if (!strcasecmp(point, "TOP")) { *x = r->x + r->w * 0.5f; *y = r->y; return; }
@@ -318,6 +321,19 @@ static int UIWow_FrameFromSelf(lua_State *L) {
 }
 
 static void UIWow_XmlPublishFrame(int idx);
+
+static void UIWow_XmlPublishSyntheticFrame(LPCSTR name) {
+    if (!wow_ui.lua || !name || !name[0]) return;
+    lua_getglobal(wow_ui.lua, name);
+    if (lua_istable(wow_ui.lua, -1)) { lua_pop(wow_ui.lua, 1); return; }
+    lua_pop(wow_ui.lua, 1);
+    lua_newtable(wow_ui.lua);
+    lua_pushinteger(wow_ui.lua, -1); lua_setfield(wow_ui.lua, -2, "__ow3_index");
+    lua_pushstring(wow_ui.lua, name); lua_setfield(wow_ui.lua, -2, "name");
+    lua_pushboolean(wow_ui.lua, true); lua_setfield(wow_ui.lua, -2, "shown");
+    luaL_getmetatable(wow_ui.lua, "UIWow.Frame"); lua_setmetatable(wow_ui.lua, -2);
+    lua_setglobal(wow_ui.lua, name);
+}
 static void UIWow_XMLRunFrameScript(int idx, LPCSTR script, LPCSTR event_name);
 
 static void UIWow_XMLSetShown(int idx, BOOL shown) {
@@ -409,6 +425,7 @@ static int UIWow_LuaFrameSetVertexColor(lua_State *L) {
     if (i >= 0) wow_xml.elems[i].colors[ELEM_COLOR_VERTEX] = MAKE(COLOR32, (BYTE)(r * 255.0f), (BYTE)(g * 255.0f), (BYTE)(b * 255.0f), (BYTE)(a * 255.0f));
     return 0;
 }
+static int UIWow_LuaFrameSetTexCoord(lua_State *L) { (void)L; return 0; }
 static int UIWow_LuaFrameSetBackdropColor(lua_State *L) {
     int i = UIWow_FrameFromSelf(L); FLOAT r = (FLOAT)luaL_optnumber(L, 2, 0.09), g = (FLOAT)luaL_optnumber(L, 3, 0.09), b = (FLOAT)luaL_optnumber(L, 4, 0.09), a = (FLOAT)luaL_optnumber(L, 5, 0.5);
     if (i >= 0) wow_xml.elems[i].colors[ELEM_COLOR_BACKDROP] = MAKE(COLOR32, (BYTE)(r * 255.0f), (BYTE)(g * 255.0f), (BYTE)(b * 255.0f), (BYTE)(a * 255.0f));
@@ -504,6 +521,7 @@ static void UIWow_XMLInstallLuaCompat(void) {
         { "SetPoint", UIWow_LuaFrameNoop }, { "ClearAllPoints", UIWow_LuaFrameNoop },
         { "Raise", UIWow_LuaFrameNoop }, { "Lower", UIWow_LuaFrameNoop },
         { "GetTextWidth", UIWow_LuaFrameGetWidth }, { "GetTextHeight", UIWow_LuaFrameGetHeight },
+        { "SetTexCoord", UIWow_LuaFrameSetTexCoord },
         { "SetVertexColor", UIWow_LuaFrameSetVertexColor }, { "SetFocus", UIWow_LuaFrameSetFocus }, { "HighlightText", UIWow_LuaFrameHighlightText }, { "RegisterEvent", UIWow_LuaFrameRegisterEvent }, { "SetSequence", UIWow_LuaFrameSetSequence },
         { "SetCamera", UIWow_LuaFrameSetCamera }, { "SetModel", UIWow_LuaFrameSetModel }, { "AdvanceTime", UIWow_LuaFrameAdvanceTime },
         { "SetFogColor", UIWow_LuaFrameSetFogColor }, { "SetFogNear", UIWow_LuaFrameSetFogNear }, { "SetFogFar", UIWow_LuaFrameSetFogFar },
@@ -528,6 +546,15 @@ static void UIWow_XmlPublishFrame(int idx) {
     lua_pushboolean(wow_ui.lua, !(e->flags & EF_HIDDEN)); lua_setfield(wow_ui.lua, -2, "shown");
     luaL_getmetatable(wow_ui.lua, "UIWow.Frame"); lua_setmetatable(wow_ui.lua, -2);
     lua_setglobal(wow_ui.lua, name);
+    if (e->type == WOW_XML_BUTTON) {
+        char child_name[256];
+
+        snprintf(child_name, sizeof(child_name), "%sText", name); UIWow_XmlPublishSyntheticFrame(child_name);
+        snprintf(child_name, sizeof(child_name), "%sNormalTexture", name); UIWow_XmlPublishSyntheticFrame(child_name);
+        snprintf(child_name, sizeof(child_name), "%sPushedTexture", name); UIWow_XmlPublishSyntheticFrame(child_name);
+        snprintf(child_name, sizeof(child_name), "%sHighlightTexture", name); UIWow_XmlPublishSyntheticFrame(child_name);
+        snprintf(child_name, sizeof(child_name), "%sDisabledTexture", name); UIWow_XmlPublishSyntheticFrame(child_name);
+    }
 }
 
 static void UIWow_XmlReadSize(uiWowXmlElem_t *e, xmlNodePtr node) {
@@ -842,7 +869,7 @@ static void UIWow_XmlParseNode(xmlNodePtr node, int parent, int draw_layer) {
     if (type == WOW_XML_EDITBOX) wow_xml.elems[idx].flags |= EF_FOCUSABLE;
     UIWow_XmlReadShared(&wow_xml.elems[idx], node); UIWow_XmlPublishFrame(idx); UIWow_XmlParseChildren(node, idx);
     if (UIWow_ElemStr(&wow_xml.elems[idx], ELEM_ON_LOAD))
-        UIWow_XMLRunFrameScript(idx, wow_xml.elems[idx].texts[ELEM_ON_LOAD], "OnLoad");
+        wow_xml.elems[idx].flags |= EF_PENDING_ONLOAD;
 }
 
 static BOOL UIWow_XMLProcessFile(LPCSTR path, int depth);
@@ -965,6 +992,14 @@ BOOL UIWow_XMLLoadGlueFromToc(LPCSTR toc_path) {
         if (UIWow_ElemStr(e, ELEM_RELATIVE_NAME)) {
             int rel = UIWow_XmlFindByName(e->texts[ELEM_RELATIVE_NAME]);
             if (rel >= 0) e->relative_to = rel;
+        }
+    }
+    /* Fire OnLoad for every frame that registered one, now that all Lua files are loaded. */
+    FOR_LOOP(i, wow_xml.count) {
+        uiWowXmlElem_t *e = &wow_xml.elems[i];
+        if (e->flags & EF_PENDING_ONLOAD) {
+            e->flags &= ~EF_PENDING_ONLOAD;
+            UIWow_XMLRunFrameScript(i, e->texts[ELEM_ON_LOAD], "OnLoad");
         }
     }
     UIWow_Printf("UIWow: FrameXML loaded from %s (elements=%d)\n", toc_path, wow_xml.count);

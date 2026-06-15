@@ -1,0 +1,16 @@
+<Ui>
+    <Button name="CompatChildTemplate" virtual="true">
+        <Layers>
+            <Layer level="ARTWORK">
+                <FontString name="$parentText"/>
+            </Layer>
+        </Layers>
+    </Button>
+    <Button name="CompatChildButton" inherits="CompatChildTemplate">
+        <Scripts>
+            <OnLoad>
+                CompatChildResult = type(getglobal(this:GetName().."Text")) .. ":" .. type(getglobal(this:GetName().."NormalTexture"));
+            </OnLoad>
+        </Scripts>
+    </Button>
+</Ui>
