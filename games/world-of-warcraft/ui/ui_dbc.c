@@ -83,13 +83,11 @@ static void UIWow_LoadCharCreateDbc(void) {
     DWORD records, fields, rsize, ssize;
     BYTE *data; BYTE const *rb, *sb;
 
-    /* ChrRaces
+    /* ChrRaces (29-field 1.x layout verified against live DBC)
        0=id, 1=flags, 2=factionID, 3=explorationSnd, 4=maleDID, 5=femaleDID,
-       6=clientPrefix(str), 7=baseLang, 8=creatureType, 9=resSickSpell, 10=splashSnd,
-       11=clientFileString(str), 12=cinematicSeq, 13=alliance,
-       14=name(str), 15=nameFemale(str), 16=nameMale(str),
-       17=facialHairCustom0(str), 18=facialHairCustom1(str), 19=hairCustom(str),
-       20=requiredExpansion */
+       6..14=various ints, 15=clientFileString(str), 16=unused(str),
+       17=name(str), 18..25=unused, 26=hairCustom(str),
+       27=facialHairCustom0(str), 28=facialHairCustom1(str) */
     { void *_b = NULL; if (uiimport.FS_ReadFile) uiimport.FS_ReadFile("DBFilesClient\\ChrRaces.dbc", &_b); data = (BYTE*)_b; }
     if (data) {
         records = UIWow_DbcU32(data,1); fields = UIWow_DbcU32(data,2);
@@ -99,7 +97,7 @@ static void UIWow_LoadCharCreateDbc(void) {
         FOR_LOOP(i, (int)records) {
             if (wow_charcreate.num_races >= WOW_MAX_DBC_RACES) break;
             BYTE const *r = rb + i * rsize;
-            if (fields < 20) continue;
+            if (fields < 28) continue;
             DWORD flags = UIWow_DbcU32(r, 1);
             if (flags & 0x1) continue; /* NPC-only */
             wowRaceRec_t *rec = &wow_charcreate.races[wow_charcreate.num_races++];
@@ -108,14 +106,13 @@ static void UIWow_LoadCharCreateDbc(void) {
             rec->faction_id      = UIWow_DbcU32(r, 2);
             rec->male_id         = UIWow_DbcU32(r, 4);
             rec->female_id       = UIWow_DbcU32(r, 5);
-            rec->client_prefix   = UIWow_DbcStr(sb, ssize, UIWow_DbcU32(r,  6));
-            rec->client_file     = UIWow_DbcStr(sb, ssize, UIWow_DbcU32(r, 11));
-            rec->name            = UIWow_DbcStr(sb, ssize, UIWow_DbcU32(r, 14));
-            rec->name_female     = UIWow_DbcStr(sb, ssize, UIWow_DbcU32(r, 15));
-            rec->hair_custom     = UIWow_DbcStr(sb, ssize, UIWow_DbcU32(r, 19));
-            rec->facial_custom[0]= UIWow_DbcStr(sb, ssize, UIWow_DbcU32(r, 17));
-            rec->facial_custom[1]= UIWow_DbcStr(sb, ssize, UIWow_DbcU32(r, 18));
-            rec->required_exp    = UIWow_DbcU32(r, 20);
+            rec->client_file     = UIWow_DbcStr(sb, ssize, UIWow_DbcU32(r, 15));
+            rec->name            = UIWow_DbcStr(sb, ssize, UIWow_DbcU32(r, 17));
+            rec->name_female     = UIWow_DbcStr(sb, ssize, UIWow_DbcU32(r, 17));
+            rec->hair_custom     = UIWow_DbcStr(sb, ssize, UIWow_DbcU32(r, 26));
+            rec->facial_custom[0]= UIWow_DbcStr(sb, ssize, UIWow_DbcU32(r, 27));
+            rec->facial_custom[1]= UIWow_DbcStr(sb, ssize, UIWow_DbcU32(r, 28));
+            rec->required_exp    = 0;
         }
     }
 
