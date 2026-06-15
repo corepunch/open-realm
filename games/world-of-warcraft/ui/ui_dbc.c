@@ -256,9 +256,8 @@ int UIWow_LuaGetAvailableRaces(lua_State *L) {
         LPCSTR name = (wow_charcreate.sel_sex == 1) ? r->name : (r->name_female[0] ? r->name_female : r->name);
         lua_pushstring(L, name[0] ? name : r->client_file);
         lua_pushstring(L, r->client_file);
-        lua_pushnumber(L, r->required_exp == 0 ? 1 : 0);
     }
-    return wow_charcreate.num_playable * 3;
+    return wow_charcreate.num_playable * 2;
 }
 
 int UIWow_LuaGetAvailableClasses(lua_State *L) {
@@ -267,9 +266,8 @@ int UIWow_LuaGetAvailableClasses(lua_State *L) {
         wowClassRec_t const *c = &wow_charcreate.classes[i];
         lua_pushstring(L, c->name[0] ? c->name : c->filename);
         lua_pushstring(L, c->filename);
-        lua_pushnumber(L, c->required_exp == 0 ? 1 : 0);
     }
-    return wow_charcreate.num_classes * 3;
+    return wow_charcreate.num_classes * 2;
 }
 
 int UIWow_LuaGetClassesForRace(lua_State *L) {
