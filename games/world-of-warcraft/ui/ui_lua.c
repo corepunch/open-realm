@@ -708,7 +708,7 @@ static char *UIWow_LuaCompatVarargs(LPCSTR script, size_t len) {
     while (*src) {
         LPCSTR line = src, end = src;
         while (*end && *end != '\n' && *end != '\r') end++;
-        if (!strncmp(line, "function ", 9) && strstr(line, "(...)") && extra < SIZE_MAX - strlen(insert))
+        if (!strncmp(line, "function ", 9) && memmem(line, (size_t)(end - line), "(...)", 5) && extra < SIZE_MAX - strlen(insert))
             extra += strlen(insert);
         src = end;
         while (*src == '\n' || *src == '\r') src++;
@@ -723,7 +723,7 @@ static char *UIWow_LuaCompatVarargs(LPCSTR script, size_t len) {
         memcpy(dst, line, (size_t)(end - line));
         dst += end - line;
         while (*end == '\r' || *end == '\n') *dst++ = *end++;
-        if (!strncmp(line, "function ", 9) && strstr(line, "(...)") ) {
+        if (!strncmp(line, "function ", 9) && memmem(line, (size_t)(end - line), "(...)", 5)) {
             size_t n = strlen(insert);
             memcpy(dst, insert, n);
             dst += n;
