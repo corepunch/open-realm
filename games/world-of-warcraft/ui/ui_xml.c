@@ -316,17 +316,15 @@ static RECT UIWow_XmlComputeRect(int idx) {
     else if (!strcasecmp(point, "BOTTOM")) out.x = ax - out.w * 0.5f, out.y = ay - out.h;
     else if (!strcasecmp(point, "BOTTOMRIGHT")) out.x = ax - out.w, out.y = ay - out.h;
     else out.x = ax - out.w * 0.5f, out.y = ay - out.h * 0.5f;
-    /* Second anchor: use BOTTOMLEFT→BOTTOMRIGHT to derive height (scrollbar case). */
+    /* Second anchor: derive height from distance between the two anchor y-positions. */
     if ((e->flags & EF_HAS_ANCHOR2) && e->point2 && e->relative_point2) {
-        RECT ref2 = parent; /* reuse same relative_to */
+        RECT ref2 = parent; /* both anchors reference the same relative_to frame */
         FLOAT bx, by;
         UIWow_XmlRectPoint(&ref2, e->relative_point2, &bx, &by);
-        bx += e->offset2.x; by += e->offset2.y;
-        if (!strcasecmp(e->point2, "BOTTOMLEFT") || !strcasecmp(e->point2, "BOTTOM") || !strcasecmp(e->point2, "BOTTOMRIGHT"))
-            out.h = (by - e->offset2.y + e->offset2.y) - out.y;  /* bottom edge - top edge */
-        /* Simpler: the bottom anchor y sets the frame's bottom edge. */
+        by += e->offset2.y;
         out.h = by - out.y;
         if (out.h < 0) out.h = -out.h;
+        (void)bx;
     }
     return out;
 }
@@ -650,18 +648,9 @@ static void UIWow_XmlResolveRelativeTo(uiWowXmlElem_t *e, LPCSTR raw, LPCSTR par
 
 static void UIWow_XmlReadAnchor(uiWowXmlElem_t *e, xmlNodePtr node) {
     xmlNodePtr c;
-    LPCSTR parent_name = NULL;
-    /* Determine the owning frame's name for $parent substitution. */
-    {
-        xmlChar *n = xmlGetProp(node, BAD_CAST "name");
-        if (!n || !*n) {
-            /* node IS the frame node; use its own name attribute */
-            n = xmlGetProp(node, BAD_CAST "name");
-        }
-        /* We use the elem's already-stored name instead. */
-        SAFE_DELETE(n, xmlFree);
-        parent_name = e->texts[ELEM_NAME];
-    }
+    /* $parent in relativeTo expands to the parent frame's name, not this frame's name. */
+    LPCSTR parent_name = (e->parent >= 0 && e->parent < wow_xml.count)
+                         ? wow_xml.elems[e->parent].texts[ELEM_NAME] : NULL;
     int anchor_index = 0;
     for (c = node->children; c; c = c->next) {
         xmlNodePtr a;
@@ -962,6 +951,19 @@ static void UIWow_XmlCloneTemplateChildren(LPCSTR inherits, int dst, LPCSTR dst_
             FOR_LOOP(f, ELEM_STRING_COUNT) wow_xml.elems[clone].texts[f] = csrc->texts[f] ? strdup(csrc->texts[f]) : NULL;
             free(wow_xml.elems[clone].texts[ELEM_NAME]);
             wow_xml.elems[clone].texts[ELEM_NAME] = strdup(child_name);
+            /* Re-resolve relativeTo: substitute the template-name prefix with the concrete name so
+               intra-template references like "$parentRightButton" point to the cloned sibling. */
+            if (tmpl_len > 0 && wow_xml.elems[clone].texts[ELEM_RELATIVE_NAME]) {
+                LPCSTR rel = wow_xml.elems[clone].texts[ELEM_RELATIVE_NAME];
+                if (strncmp(rel, tmpl_name, tmpl_len) == 0) {
+                    char resolved_rel[256];
+                    snprintf(resolved_rel, sizeof(resolved_rel), "%s%s", dst_name, rel + tmpl_len);
+                    free(wow_xml.elems[clone].texts[ELEM_RELATIVE_NAME]);
+                    wow_xml.elems[clone].texts[ELEM_RELATIVE_NAME] = strdup(resolved_rel);
+                }
+                int rel_idx = UIWow_XmlFindByName(wow_xml.elems[clone].texts[ELEM_RELATIVE_NAME]);
+                if (rel_idx >= 0) wow_xml.elems[clone].relative_to = rel_idx;
+            }
             UIWow_XmlPublishFrame(clone);
         }
     }
@@ -1109,6 +1111,12 @@ static void UIWow_LuaSetGlueScreen_named(LPCSTR screen) {
 
 static void UIWow_XMLFreeElems(void) {
     FOR_LOOP(i, wow_xml.count) UIWow_ElemFreeStrings(&wow_xml.elems[i]);
+}
+
+int UIWow_XmlFindByNamePub(LPCSTR name) { return UIWow_XmlFindByName(name); }
+void UIWow_XmlComputeRectPub(int idx, FLOAT *x, FLOAT *y, FLOAT *w, FLOAT *h) {
+    RECT r = (idx >= 0 && idx < wow_xml.count) ? UIWow_XmlComputeRect(idx) : MAKE(RECT, 0, 0, 0, 0);
+    if (x) *x = r.x; if (y) *y = r.y; if (w) *w = r.w; if (h) *h = r.h;
 }
 
 void UIWow_XMLInitRuntime(void) { memset(&wow_xml, 0, sizeof(wow_xml)); wow_xml.focus = -1; wow_xml.pressed_button = -1; UIWow_XMLInstallLuaCompat(); }
@@ -1376,7 +1384,7 @@ void UIWow_XMLDraw(void) {
                                                               text_color.b,
                                                               (BYTE)(text_color.a * e->alpha)),
                                                 .textWidth = tr.w,
-                                                .lineHeight = tr.h,
+                                                .lineHeight = 1.33f,
                                                 .wordWrap = (e->flags & EF_WORD_WRAP) != 0,
                                                 .halign = e->type == WOW_XML_EDITBOX
                                                           ? FONT_JUSTIFYLEFT

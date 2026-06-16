@@ -442,9 +442,68 @@ static void test_wow_lua_ui_draws_from_generated_mpq(void) {
     test_archive = NULL;
 }
 
+extern int UIWow_XmlFindByNamePub(LPCSTR name);
+extern void UIWow_XmlComputeRectPub(int idx, FLOAT *x, FLOAT *y, FLOAT *w, FLOAT *h);
+
+#ifndef TEST_WOW_IFACE_MPQ
+#define TEST_WOW_IFACE_MPQ "data/world-of-warcraft/interface.MPQ"
+#endif
+
+static void test_wow_glue_charcreate_layout(void) {
+    uiExport_t ui;
+    HANDLE iface_archive;
+
+    /* This test requires the full interface MPQ from the WoW data directory. */
+    if (!SFileOpenArchive(TEST_WOW_IFACE_MPQ, 0, 0, &iface_archive)) {
+        return; /* skip if not available */
+    }
+
+    reset_test_state();
+    test_archive = iface_archive;
+    ui = init_ui();
+    reset_test_state();
+    ASSERT(UIWow_XMLLoadGlueFromToc("Interface\\GlueXML\\GlueXML.toc"));
+    UIWow_RunLuaString("test_charcreate", "SetGlueScreen('charcreate');");
+    UIWow_XMLDraw();
+
+    /* Scrollbar left edge should be at or beyond the scroll frame's right edge */
+    {
+        FLOAT sbx, sby, sbw, sbh;
+        FLOAT sfx, sfy, sfw, sfh;
+        int sb = UIWow_XmlFindByNamePub("CharacterCreateFactionScrollFrameScrollBar");
+        int sf = UIWow_XmlFindByNamePub("CharacterCreateFactionScrollFrame");
+        ASSERT(sb >= 0);
+        ASSERT(sf >= 0);
+        UIWow_XmlComputeRectPub(sb, &sbx, &sby, &sbw, &sbh);
+        UIWow_XmlComputeRectPub(sf, &sfx, &sfy, &sfw, &sfh);
+        ASSERT(sbx >= sfx + sfw - 0.001f);
+        (void)sby; (void)sbw; (void)sbh; (void)sfy; (void)sfh;
+    }
+    /* LeftButton right edge should be at or left of RightButton's left edge, same y-center */
+    {
+        FLOAT lbx, lby, lbw, lbh;
+        FLOAT rbx, rby, rbw, rbh;
+        int lb = UIWow_XmlFindByNamePub("CharacterCustomizationButtonFrame1LeftButton");
+        int rb = UIWow_XmlFindByNamePub("CharacterCustomizationButtonFrame1RightButton");
+        ASSERT(lb >= 0);
+        ASSERT(rb >= 0);
+        UIWow_XmlComputeRectPub(lb, &lbx, &lby, &lbw, &lbh);
+        UIWow_XmlComputeRectPub(rb, &rbx, &rby, &rbw, &rbh);
+        ASSERT(lbx + lbw <= rbx + 0.005f);
+        ASSERT(lby + lbh * 0.5f >= rby + rbh * 0.5f - 0.005f);
+        ASSERT(lby + lbh * 0.5f <= rby + rbh * 0.5f + 0.005f);
+        (void)lbx; (void)rbx; (void)rby; (void)rbw; (void)rbh;
+    }
+
+    ui.Shutdown();
+    SFileCloseArchive(iface_archive);
+    test_archive = NULL;
+}
+
 int main(void) {
     RUN_TEST(test_wow_lua_ui_draws_from_generated_mpq);
     RUN_TEST(test_wow_glue_xml_login_button_routes_character_select);
     RUN_TEST(test_wow_glue_compat_regressions);
+    RUN_TEST(test_wow_glue_charcreate_layout);
     TEST_RESULTS();
 }

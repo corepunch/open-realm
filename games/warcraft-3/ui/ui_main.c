@@ -1002,7 +1002,6 @@ uiExport_t UI_GetAPI(uiImport_t import) {
     exp.KeyEvent = UI_KeyEventLocal;
     exp.TextInput = UI_TextInputLocal;
     exp.MouseEvent = UI_MouseEventLocal;
-    exp.MenuCommand = UI_MenuCommandLocal;
     exp.UpdateUnitUI = UI_UpdateUnitUILocal;
     exp.UpdateLobbySetup = UI_UpdateLobbySetupLocal;
     exp.SetLayoutLayer = UI_LayoutSetLayer;
