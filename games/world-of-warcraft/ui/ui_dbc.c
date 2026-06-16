@@ -116,10 +116,8 @@ static void UIWow_LoadCharCreateDbc(void) {
         }
     }
 
-    /* ChrClasses
-       0=id, 1=damageBonusStat, 2=displayPower, 3=petNameToken(str),
-       4=name(str), 5=nameFemale(str), 6=nameMale(str), 7=filename(str),
-       8=spellClassSet, 9=flags, 10=cinematicSeq, 11=requiredExpansion */
+    /* ChrClasses (16-field 1.x layout verified against live DBC)
+       0=id, ..., 5=name(str), ..., 14=filename(str) e.g. "WARRIOR" */
     { void *_b = NULL; if (uiimport.FS_ReadFile) uiimport.FS_ReadFile("DBFilesClient\\ChrClasses.dbc", &_b); data = (BYTE*)_b; }
     if (data) {
         records = UIWow_DbcU32(data,1); fields = UIWow_DbcU32(data,2);
@@ -129,12 +127,12 @@ static void UIWow_LoadCharCreateDbc(void) {
         FOR_LOOP(i, (int)records) {
             if (wow_charcreate.num_classes >= WOW_MAX_DBC_CLASSES) break;
             BYTE const *r = rb + i * rsize;
-            if (fields < 8) continue;
+            if (fields < 15) continue;
             wowClassRec_t *rec = &wow_charcreate.classes[wow_charcreate.num_classes++];
             rec->id           = UIWow_DbcU32(r, 0);
-            rec->name         = UIWow_DbcStr(sb, ssize, UIWow_DbcU32(r, 4));
-            rec->filename     = UIWow_DbcStr(sb, ssize, UIWow_DbcU32(r, 7));
-            rec->required_exp = (fields >= 12) ? UIWow_DbcU32(r, 11) : 0;
+            rec->name         = UIWow_DbcStr(sb, ssize, UIWow_DbcU32(r,  5));
+            rec->filename     = UIWow_DbcStr(sb, ssize, UIWow_DbcU32(r, 14));
+            rec->required_exp = 0;
         }
     }
 

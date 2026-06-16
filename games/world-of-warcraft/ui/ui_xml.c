@@ -556,6 +556,11 @@ static void UIWow_XMLInstallLuaCompat(void) {
         { "GetFrameLevel", UIWow_LuaFrameGetID }, { "SetFrameLevel", UIWow_LuaFrameNoop },
         { "SetPoint", UIWow_LuaFrameNoop }, { "ClearAllPoints", UIWow_LuaFrameNoop },
         { "Raise", UIWow_LuaFrameNoop }, { "Lower", UIWow_LuaFrameNoop },
+        { "SetValue", UIWow_LuaFrameNoop }, { "GetValue", UIWow_LuaFrameNoop },
+        { "SetMinMaxValues", UIWow_LuaFrameNoop }, { "GetMinMaxValues", UIWow_LuaFrameNoop },
+        { "UpdateScrollChildRect", UIWow_LuaFrameNoop }, { "SetScrollChild", UIWow_LuaFrameNoop },
+        { "GetVerticalScrollRange", UIWow_LuaFrameGetHeight },
+        { "SetVerticalScroll", UIWow_LuaFrameNoop }, { "GetVerticalScroll", UIWow_LuaFrameNoop },
         { "GetTextWidth", UIWow_LuaFrameGetWidth }, { "GetTextHeight", UIWow_LuaFrameGetHeight },
         { "SetTexCoord", UIWow_LuaFrameSetTexCoord },
         { "SetVertexColor", UIWow_LuaFrameSetVertexColor }, { "SetFocus", UIWow_LuaFrameSetFocus }, { "HighlightText", UIWow_LuaFrameHighlightText }, { "RegisterEvent", UIWow_LuaFrameRegisterEvent }, { "SetSequence", UIWow_LuaFrameSetSequence },
@@ -586,6 +591,7 @@ static void UIWow_XmlPublishFrame(int idx) {
         char child_name[256];
 
         snprintf(child_name, sizeof(child_name), "%sText", name); UIWow_XmlPublishSyntheticFrame(child_name);
+        snprintf(child_name, sizeof(child_name), "%sHighlightText", name); UIWow_XmlPublishSyntheticFrame(child_name);
         snprintf(child_name, sizeof(child_name), "%sNormalTexture", name); UIWow_XmlPublishSyntheticFrame(child_name);
         snprintf(child_name, sizeof(child_name), "%sPushedTexture", name); UIWow_XmlPublishSyntheticFrame(child_name);
         snprintf(child_name, sizeof(child_name), "%sHighlightTexture", name); UIWow_XmlPublishSyntheticFrame(child_name);
@@ -857,9 +863,50 @@ static void UIWow_XmlParseChildren(xmlNodePtr node, int parent) {
             xmlNodePtr l; for (l = c->children; l; l = l->next) if (l->type == XML_ELEMENT_NODE && !xmlStrcasecmp(l->name, BAD_CAST "Layer")) UIWow_XmlParseLayer(l, parent);
             continue;
         }
-        if (!xmlStrcasecmp(c->name, BAD_CAST "Frames")) {
+        if (!xmlStrcasecmp(c->name, BAD_CAST "Frames") || !xmlStrcasecmp(c->name, BAD_CAST "ScrollChild")) {
             xmlNodePtr f; for (f = c->children; f; f = f->next) UIWow_XmlParseNode(f, parent, WOW_XML_LAYER_ARTWORK);
             continue;
+        }
+    }
+}
+
+/* Clone direct children of each inherited template into dst frame, re-substituting
+   $parent (or the template name prefix) with the concrete frame's name. */
+static void UIWow_XmlCloneTemplateChildren(LPCSTR inherits, int dst, LPCSTR dst_name) {
+    char inames[256], *tok, *save = NULL;
+    if (!inherits || !*inherits || !dst_name || !*dst_name) return;
+    snprintf(inames, sizeof(inames), "%s", inherits);
+    for (tok = strtok_r(inames, " ,", &save); tok; tok = strtok_r(NULL, " ,", &save)) {
+        int tmpl = UIWow_XmlFindByName(tok);
+        if (tmpl < 0) continue;
+        LPCSTR tmpl_name = wow_xml.elems[tmpl].texts[ELEM_NAME];
+        size_t tmpl_len = tmpl_name ? strlen(tmpl_name) : 0;
+        int src_limit = wow_xml.count;
+        FOR_LOOP(ci, src_limit) {
+            uiWowXmlElem_t const *csrc = &wow_xml.elems[ci];
+            char child_name[256] = "";
+            if (!(csrc->flags & EF_USED) || csrc->parent != tmpl) continue;
+            LPCSTR src_name = csrc->texts[ELEM_NAME];
+            if (src_name && *src_name) {
+                LPCSTR dollar = strstr(src_name, "$parent");
+                if (dollar)
+                    snprintf(child_name, sizeof(child_name), "%.*s%s%s",
+                             (int)(dollar - src_name), src_name, dst_name, dollar + 7);
+                else if (tmpl_len > 0 && strncmp(src_name, tmpl_name, tmpl_len) == 0)
+                    snprintf(child_name, sizeof(child_name), "%s%s", dst_name, src_name + tmpl_len);
+                else
+                    snprintf(child_name, sizeof(child_name), "%s", src_name);
+            }
+            if (!child_name[0] || UIWow_XmlFindByName(child_name) >= 0) continue;
+            int clone = UIWow_XmlPushElem(csrc->type, child_name, dst, csrc->draw_layer);
+            if (clone < 0) continue;
+            wow_xml.elems[clone] = *csrc;
+            wow_xml.elems[clone].parent = dst;
+            wow_xml.elems[clone].model = NULL;
+            FOR_LOOP(f, ELEM_STRING_COUNT) wow_xml.elems[clone].texts[f] = csrc->texts[f] ? strdup(csrc->texts[f]) : NULL;
+            free(wow_xml.elems[clone].texts[ELEM_NAME]);
+            wow_xml.elems[clone].texts[ELEM_NAME] = strdup(child_name);
+            UIWow_XmlPublishFrame(clone);
         }
     }
 }
@@ -869,7 +916,9 @@ static void UIWow_XmlParseNode(xmlNodePtr node, int parent, int draw_layer) {
     if (!node || node->type != XML_ELEMENT_NODE || !node->name) return;
     if (!xmlStrcasecmp(node->name, BAD_CAST "Layer")) { UIWow_XmlParseLayer(node, parent); return; }
     if (!xmlStrcasecmp(node->name, BAD_CAST "Frames") || !xmlStrcasecmp(node->name, BAD_CAST "Layers")) { UIWow_XmlParseChildren(node, parent); return; }
-    if (!xmlStrcasecmp(node->name, BAD_CAST "Frame")) type = WOW_XML_FRAME;
+    if (!xmlStrcasecmp(node->name, BAD_CAST "Frame") ||
+        !xmlStrcasecmp(node->name, BAD_CAST "ScrollFrame") ||
+        !xmlStrcasecmp(node->name, BAD_CAST "Slider")) type = WOW_XML_FRAME;
     else if (!xmlStrcasecmp(node->name, BAD_CAST "Model")) type = WOW_XML_MODEL;
     else if (!xmlStrcasecmp(node->name, BAD_CAST "Texture")) type = WOW_XML_TEXTURE;
     else if (!xmlStrcasecmp(node->name, BAD_CAST "FontString")) type = WOW_XML_FONTSTRING;
@@ -895,6 +944,7 @@ static void UIWow_XmlParseNode(xmlNodePtr node, int parent, int draw_layer) {
     }
     idx = UIWow_XmlPushElem(type, resolved_name[0] ? resolved_name : NULL, parent, draw_layer); SAFE_DELETE(name_attr, xmlFree);
     if (idx < 0) { SAFE_DELETE(parent_attr, xmlFree); UIWow_Printf("UIWow: XML element limit exceeded\n"); return; }
+    UIWow_XmlCloneTemplateChildren((char const *)inherits_attr, idx, resolved_name[0] ? resolved_name : NULL);
     UIWow_XmlInheritElem(&wow_xml.elems[idx], (char const *)inherits_attr); SAFE_DELETE(inherits_attr, xmlFree);
     if (parent_attr && *parent_attr) {
         uiWowXmlElem_t *e = &wow_xml.elems[idx]; int named_parent;
