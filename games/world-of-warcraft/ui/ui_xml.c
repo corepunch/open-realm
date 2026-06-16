@@ -83,6 +83,8 @@ typedef enum {
     EF_HAS_HIGHLIGHT_TEXCOORD = 1 << 14,
     EF_HAS_BUTTON_TEXT_COLORS = 1 << 15,
     EF_PENDING_ONLOAD = 1 << 16,
+    EF_HAS_ANCHOR2    = 1 << 17,
+    EF_WORD_WRAP      = 1 << 18,
 } uiWowXmlElemFlag_t;
 
 typedef struct {
@@ -90,7 +92,8 @@ typedef struct {
     uiWowXmlType_t type;
     int id, parent, relative_to, draw_layer;
     char *texts[ELEM_STRING_COUNT];
-    fpoint_t pos, offset, text_off; /* pos(x,y), anchor offset(ox,oy), text offset(text_ox,text_oy) */
+    fpoint_t pos, offset, text_off, offset2; /* pos(x,y), anchor offset(ox,oy), text offset, second anchor offset */
+    char *point2, *relative_point2; /* second anchor point names (owned strings) */
     fsize_t size, edge, tile, text_inset; /* size(w,h), border edge, tile size, text inset */
     FLOAT alpha, font_size;
     FLOAT backdrop_insets[4];
@@ -153,6 +156,8 @@ static void UIWow_ElemAppendStr(uiWowXmlElem_t *e, uiWowXmlStr_t f, LPCSTR s) {
 
 static void UIWow_ElemFreeStrings(uiWowXmlElem_t *e) {
     FOR_LOOP(f, ELEM_STRING_COUNT) { free(e->texts[f]); e->texts[f] = NULL; }
+    free(e->point2); e->point2 = NULL;
+    free(e->relative_point2); e->relative_point2 = NULL;
 }
 
 /* -------------------------------------------------------------------------
@@ -268,6 +273,7 @@ static void UIWow_XmlInheritElem(uiWowXmlElem_t *e, LPCSTR inherits) {
             e->button_text_colors[WOW_XML_BUTTON_TEXT_HIGHLIGHT] = src->button_text_colors[WOW_XML_BUTTON_TEXT_HIGHLIGHT];
             e->flags |= EF_HAS_BUTTON_TEXT_COLORS;
         }
+        if (src->flags & EF_WORD_WRAP) e->flags |= EF_WORD_WRAP;
     }
 }
 
@@ -286,7 +292,8 @@ static void UIWow_XmlRectPoint(LPCRECT r, LPCSTR point, LPFLOAT x, LPFLOAT y) {
 }
 
 static RECT UIWow_XmlComputeRect(int idx) {
-    uiWowXmlElem_t const *e = &wow_xml.elems[idx]; RECT parent = MAKE(RECT, 0, 0, 1, 1);
+    uiWowXmlElem_t const *e = &wow_xml.elems[idx];
+    RECT parent = MAKE(RECT, 0, 0, 1, 1);
     LPCSTR point = e->texts[ELEM_POINT];
     LPCSTR rel_point = e->texts[ELEM_RELATIVE_POINT];
     FLOAT default_h = e->type == WOW_XML_FONTSTRING ? UIWow_XmlY(e->font_size > 0.0f ? e->font_size : 14.0f) : 0.05f;
@@ -294,9 +301,7 @@ static RECT UIWow_XmlComputeRect(int idx) {
     FLOAT ax, ay;
     if (e->parent >= 0 && e->parent < wow_xml.count) parent = UIWow_XmlComputeRect(e->parent);
     if (e->flags & EF_SET_ALL_PTS) return parent;
-    if (!(e->flags & EF_HAS_ANCHOR)) {
-        out.x = parent.x; out.y = parent.y; return out;
-    }
+    if (!(e->flags & EF_HAS_ANCHOR)) { out.x = parent.x; out.y = parent.y; return out; }
     if (e->relative_to >= 0 && e->relative_to < wow_xml.count) parent = UIWow_XmlComputeRect(e->relative_to);
     UIWow_XmlRectPoint(&parent, (rel_point && rel_point[0]) ? rel_point : (point ? point : "CENTER"), &ax, &ay);
     ax += e->offset.x; ay += e->offset.y;
@@ -311,6 +316,18 @@ static RECT UIWow_XmlComputeRect(int idx) {
     else if (!strcasecmp(point, "BOTTOM")) out.x = ax - out.w * 0.5f, out.y = ay - out.h;
     else if (!strcasecmp(point, "BOTTOMRIGHT")) out.x = ax - out.w, out.y = ay - out.h;
     else out.x = ax - out.w * 0.5f, out.y = ay - out.h * 0.5f;
+    /* Second anchor: use BOTTOMLEFT→BOTTOMRIGHT to derive height (scrollbar case). */
+    if ((e->flags & EF_HAS_ANCHOR2) && e->point2 && e->relative_point2) {
+        RECT ref2 = parent; /* reuse same relative_to */
+        FLOAT bx, by;
+        UIWow_XmlRectPoint(&ref2, e->relative_point2, &bx, &by);
+        bx += e->offset2.x; by += e->offset2.y;
+        if (!strcasecmp(e->point2, "BOTTOMLEFT") || !strcasecmp(e->point2, "BOTTOM") || !strcasecmp(e->point2, "BOTTOMRIGHT"))
+            out.h = (by - e->offset2.y + e->offset2.y) - out.y;  /* bottom edge - top edge */
+        /* Simpler: the bottom anchor y sets the frame's bottom edge. */
+        out.h = by - out.y;
+        if (out.h < 0) out.h = -out.h;
+    }
     return out;
 }
 
@@ -616,38 +633,72 @@ static void UIWow_XmlReadSize(uiWowXmlElem_t *e, xmlNodePtr node) {
     }
 }
 
+/* Resolve $parent references inside an anchor relativeTo attribute. */
+static void UIWow_XmlResolveRelativeTo(uiWowXmlElem_t *e, LPCSTR raw, LPCSTR parent_name) {
+    char resolved[256];
+    LPCSTR dollar = raw ? strstr(raw, "$parent") : NULL;
+    if (dollar && parent_name && *parent_name) {
+        snprintf(resolved, sizeof(resolved), "%.*s%s%s",
+                 (int)(dollar - raw), raw, parent_name, dollar + 7);
+        UIWow_ElemSetStr(e, ELEM_RELATIVE_NAME, resolved);
+    } else if (raw && *raw) {
+        UIWow_ElemSetStr(e, ELEM_RELATIVE_NAME, raw);
+    }
+    if (UIWow_ElemStr(e, ELEM_RELATIVE_NAME))
+        e->relative_to = UIWow_XmlFindByName(e->texts[ELEM_RELATIVE_NAME]);
+}
+
 static void UIWow_XmlReadAnchor(uiWowXmlElem_t *e, xmlNodePtr node) {
     xmlNodePtr c;
+    LPCSTR parent_name = NULL;
+    /* Determine the owning frame's name for $parent substitution. */
+    {
+        xmlChar *n = xmlGetProp(node, BAD_CAST "name");
+        if (!n || !*n) {
+            /* node IS the frame node; use its own name attribute */
+            n = xmlGetProp(node, BAD_CAST "name");
+        }
+        /* We use the elem's already-stored name instead. */
+        SAFE_DELETE(n, xmlFree);
+        parent_name = e->texts[ELEM_NAME];
+    }
+    int anchor_index = 0;
     for (c = node->children; c; c = c->next) {
         xmlNodePtr a;
         if (c->type != XML_ELEMENT_NODE || xmlStrcasecmp(c->name, BAD_CAST "Anchors")) continue;
         for (a = c->children; a; a = a->next) {
             xmlChar *point, *relative, *relative_to;
+            fpoint_t off = {0, 0};
             if (a->type != XML_ELEMENT_NODE || xmlStrcasecmp(a->name, BAD_CAST "Anchor")) continue;
-            point = xmlGetProp(a, BAD_CAST "point"); relative = xmlGetProp(a, BAD_CAST "relativePoint"); relative_to = xmlGetProp(a, BAD_CAST "relativeTo");
-            UIWow_ElemSetStr(e, ELEM_POINT, point && *point ? (char const *)point : "CENTER");
-            UIWow_ElemSetStr(e, ELEM_RELATIVE_POINT, relative && *relative ? (char const *)relative : e->texts[ELEM_POINT]);
-            if (relative_to && *relative_to) {
-                UIWow_ElemSetStr(e, ELEM_RELATIVE_NAME, (char const *)relative_to);
-                e->relative_to = UIWow_XmlFindByName(e->texts[ELEM_RELATIVE_NAME]);
-            }
-            SAFE_DELETE(point, xmlFree); SAFE_DELETE(relative, xmlFree); SAFE_DELETE(relative_to, xmlFree);
-            {
-                xmlNodePtr off;
-                for (off = a->children; off; off = off->next) {
-                    xmlNodePtr abs;
-                    if (off->type != XML_ELEMENT_NODE || xmlStrcasecmp(off->name, BAD_CAST "Offset")) continue;
-                    for (abs = off->children; abs; abs = abs->next) {
-                        xmlChar *x, *y;
-                        if (abs->type != XML_ELEMENT_NODE || xmlStrcasecmp(abs->name, BAD_CAST "AbsDimension")) continue;
-                        x = xmlGetProp(abs, BAD_CAST "x"); y = xmlGetProp(abs, BAD_CAST "y");
-                        e->offset.x = UIWow_XmlX(UIWow_XmlFloat(x, 0.0f));
-                        e->offset.y = -UIWow_XmlY(UIWow_XmlFloat(y, 0.0f));
-                        SAFE_DELETE(x, xmlFree); SAFE_DELETE(y, xmlFree);
-                    }
+            point = xmlGetProp(a, BAD_CAST "point");
+            relative = xmlGetProp(a, BAD_CAST "relativePoint");
+            relative_to = xmlGetProp(a, BAD_CAST "relativeTo");
+            /* Parse offset. */
+            for (xmlNodePtr o = a->children; o; o = o->next) {
+                if (o->type != XML_ELEMENT_NODE || xmlStrcasecmp(o->name, BAD_CAST "Offset")) continue;
+                for (xmlNodePtr abs = o->children; abs; abs = abs->next) {
+                    xmlChar *x, *y;
+                    if (abs->type != XML_ELEMENT_NODE || xmlStrcasecmp(abs->name, BAD_CAST "AbsDimension")) continue;
+                    x = xmlGetProp(abs, BAD_CAST "x"); y = xmlGetProp(abs, BAD_CAST "y");
+                    off.x = UIWow_XmlX(UIWow_XmlFloat(x, 0.0f));
+                    off.y = -UIWow_XmlY(UIWow_XmlFloat(y, 0.0f));
+                    SAFE_DELETE(x, xmlFree); SAFE_DELETE(y, xmlFree);
                 }
             }
-            e->flags |= EF_HAS_ANCHOR; return;
+            if (anchor_index == 0) {
+                UIWow_ElemSetStr(e, ELEM_POINT, point && *point ? (char const *)point : "CENTER");
+                UIWow_ElemSetStr(e, ELEM_RELATIVE_POINT, relative && *relative ? (char const *)relative : e->texts[ELEM_POINT]);
+                UIWow_XmlResolveRelativeTo(e, relative_to ? (char const *)relative_to : NULL, parent_name);
+                e->offset = off;
+                e->flags |= EF_HAS_ANCHOR;
+            } else if (anchor_index == 1) {
+                free(e->point2); e->point2 = (point && *point) ? strdup((char const *)point) : NULL;
+                free(e->relative_point2); e->relative_point2 = (relative && *relative) ? strdup((char const *)relative) : (e->point2 ? strdup(e->point2) : NULL);
+                e->offset2 = off;
+                e->flags |= EF_HAS_ANCHOR2;
+            }
+            SAFE_DELETE(point, xmlFree); SAFE_DELETE(relative, xmlFree); SAFE_DELETE(relative_to, xmlFree);
+            anchor_index++;
         }
     }
 }
@@ -831,7 +882,7 @@ static void UIWow_XmlReadShared(uiWowXmlElem_t *e, xmlNodePtr node) {
     xmlChar *file = xmlGetProp(node, BAD_CAST "file"), *hidden = xmlGetProp(node, BAD_CAST "hidden");
     xmlChar *text = xmlGetProp(node, BAD_CAST "text"), *virt = xmlGetProp(node, BAD_CAST "virtual");
     xmlChar *all = xmlGetProp(node, BAD_CAST "setAllPoints"), *password = xmlGetProp(node, BAD_CAST "password");
-    xmlChar *id = xmlGetProp(node, BAD_CAST "id");
+    xmlChar *id = xmlGetProp(node, BAD_CAST "id"), *wordwrap = xmlGetProp(node, BAD_CAST "wordWrap");
     if (file && *file) UIWow_ElemSetStr(e, ELEM_FILE, (char const *)file);
     if (text && *text) UIWow_ElemSetStr(e, ELEM_TEXT, (char const *)text);
     if (hidden && *hidden && !strcasecmp((char const *)hidden, "true")) e->flags |= EF_HIDDEN;
@@ -839,8 +890,9 @@ static void UIWow_XmlReadShared(uiWowXmlElem_t *e, xmlNodePtr node) {
     if (all && *all && !strcasecmp((char const *)all, "true")) e->flags |= EF_SET_ALL_PTS;
     if (password && *password && strcmp((char const *)password, "0")) e->flags |= EF_PASSWORD;
     if (id && *id) e->id = atoi((char const *)id);
+    if (wordwrap && *wordwrap && !strcasecmp((char const *)wordwrap, "true")) e->flags |= EF_WORD_WRAP;
     SAFE_DELETE(file, xmlFree); SAFE_DELETE(hidden, xmlFree); SAFE_DELETE(text, xmlFree); SAFE_DELETE(virt, xmlFree);
-    SAFE_DELETE(all, xmlFree); SAFE_DELETE(password, xmlFree); SAFE_DELETE(id, xmlFree);
+    SAFE_DELETE(all, xmlFree); SAFE_DELETE(password, xmlFree); SAFE_DELETE(id, xmlFree); SAFE_DELETE(wordwrap, xmlFree);
     UIWow_XmlReadSize(e, node); UIWow_XmlReadAnchor(e, node); UIWow_XmlReadBackdrop(e, node);
     UIWow_XmlReadTexCoords(e, node); UIWow_XmlReadFont(e, node); UIWow_XmlReadJustify(e, node);
     UIWow_XmlReadTextInsets(e, node);
@@ -903,6 +955,10 @@ static void UIWow_XmlCloneTemplateChildren(LPCSTR inherits, int dst, LPCSTR dst_
             wow_xml.elems[clone] = *csrc;
             wow_xml.elems[clone].parent = dst;
             wow_xml.elems[clone].model = NULL;
+            /* If the child anchored to the template parent, re-anchor to the concrete parent. */
+            if (wow_xml.elems[clone].relative_to == tmpl) wow_xml.elems[clone].relative_to = dst;
+            wow_xml.elems[clone].point2 = csrc->point2 ? strdup(csrc->point2) : NULL;
+            wow_xml.elems[clone].relative_point2 = csrc->relative_point2 ? strdup(csrc->relative_point2) : NULL;
             FOR_LOOP(f, ELEM_STRING_COUNT) wow_xml.elems[clone].texts[f] = csrc->texts[f] ? strdup(csrc->texts[f]) : NULL;
             free(wow_xml.elems[clone].texts[ELEM_NAME]);
             wow_xml.elems[clone].texts[ELEM_NAME] = strdup(child_name);
@@ -1316,7 +1372,7 @@ void UIWow_XMLDraw(void) {
                                                               (BYTE)(text_color.a * e->alpha)),
                                                 .textWidth = tr.w,
                                                 .lineHeight = tr.h,
-                                                .wordWrap = false,
+                                                .wordWrap = (e->flags & EF_WORD_WRAP) != 0,
                                                 .halign = e->type == WOW_XML_EDITBOX
                                                           ? FONT_JUSTIFYLEFT
                                                           : e->halign,
