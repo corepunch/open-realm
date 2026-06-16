@@ -214,7 +214,7 @@ static int UIWow_XmlPushElem(uiWowXmlType_t type, LPCSTR name, int parent, int d
     uiWowXmlElem_t *e;
     if (wow_xml.count >= WOW_XML_MAX_ELEMS) return -1;
     e = &wow_xml.elems[wow_xml.count]; memset(e, 0, sizeof(*e));
-    e->flags = EF_USED | EF_ENABLED;
+    e->flags = EF_USED | EF_ENABLED | EF_WORD_WRAP; /* word-wrap on by default, same as CSimpleFontString */
     e->type = type; e->parent = parent; e->relative_to = parent; e->draw_layer = draw_layer;
     e->alpha = 1.0f;
     e->font_size = 14.0f; e->colors[ELEM_COLOR_TEXT] = COLOR32_WHITE; e->colors[ELEM_COLOR_VERTEX] = COLOR32_WHITE;
@@ -1312,7 +1312,13 @@ void UIWow_XMLDraw(void) {
         BOOL hovered = e->type == WOW_XML_BUTTON && hovered_button == (int)i;
         LPCSTR file = e->texts[ELEM_FILE], normal_file = e->texts[ELEM_NORMAL_FILE], pushed_file = e->texts[ELEM_PUSHED_FILE];
         LPCSTR highlight_file = e->texts[ELEM_HIGHLIGHT_FILE], elem_text = e->texts[ELEM_TEXT];
-        if (!(e->flags & EF_USED) || e->draw_layer != layer || !UIWow_XMLIsVisible((int)i)) continue;
+        if (!(e->flags & EF_USED) || !UIWow_XMLIsVisible((int)i)) continue;
+        /* Backdrops draw at BACKGROUND layer regardless of the frame's own draw_layer. */
+        if (layer == WOW_XML_LAYER_BACKGROUND && (e->type == WOW_XML_FRAME || e->type == WOW_XML_BUTTON || e->type == WOW_XML_EDITBOX)) {
+            r = UIWow_XmlComputeRect(i);
+            UIWow_XMLDrawBackdrop(e, &r);
+        }
+        if (e->draw_layer != layer) continue;
         r = UIWow_XmlComputeRect(i);
         if (e->type == WOW_XML_BUTTON) {
             text_color = !(e->flags & EF_ENABLED) ? e->button_text_colors[WOW_XML_BUTTON_TEXT_DISABLED] :
@@ -1327,7 +1333,6 @@ void UIWow_XMLDraw(void) {
             if (e->model && wow_ui.renderer->DrawPortrait) wow_ui.renderer->DrawPortrait(e->model, &r, "Stand");
             else if (!wow_ui.renderer->LoadModel) UIWow_WarnOnce(WOW_UI_WARN_NO_MODEL_LOADER, "UIWow: renderer has no model loader; XML model frames skipped\n");
         }
-        if (e->type == WOW_XML_FRAME || e->type == WOW_XML_BUTTON || e->type == WOW_XML_EDITBOX) UIWow_XMLDrawBackdrop(e, &r);
         if ((file && file[0] && e->type == WOW_XML_TEXTURE) || (e->type == WOW_XML_BUTTON && ((normal_file && normal_file[0]) || (file && file[0])))) {
             LPCSTR src = (e->type == WOW_XML_BUTTON && pressed && pushed_file && pushed_file[0]) ? pushed_file :
                          ((e->type == WOW_XML_BUTTON && normal_file && normal_file[0]) ? normal_file : file);
