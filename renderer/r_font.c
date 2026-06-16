@@ -239,6 +239,7 @@ static VECTOR2 get_position(LPCDRAWTEXT arg) {
         case FONT_JUSTIFYMIDDLE: pos.y = arg->rect.y + (arg->rect.h - size.y) / 2; break;
         case FONT_JUSTIFYTOP: pos.y = arg->rect.y; break;
     }
+    if (pos.y < arg->rect.y) pos.y = arg->rect.y;
     return pos;
 }
 
