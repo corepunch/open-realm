@@ -246,6 +246,12 @@ $(BIN_DIR)/img2sysfont$(EXE_EXT): tools/img2sysfont.c | $(BIN_DIR)
 $(BIN_DIR)/isoextract$(EXE_EXT): tools/isoextract.c | $(BIN_DIR)
 	@$(CC) $(CFLAGS) -o $@ tools/isoextract.c
 
+# imgdiff is standalone (stb only); it must NOT link the renderer, which also
+# defines STB_IMAGE_IMPLEMENTATION (duplicate symbols otherwise).
+$(BIN_DIR)/imgdiff$(EXE_EXT): tools/imgdiff.c renderer/stb/stb_image.h renderer/stb/stb_image_write.h | $(BIN_DIR)
+	@echo "[imgdiff]"
+	@$(CC) $(CFLAGS) -o $@ tools/imgdiff.c -lm
+
 $(FONT_HEADER): $(FONT_SRC) $(BIN_DIR)/img2sysfont$(EXE_EXT)
 	@$(BIN_DIR)/img2sysfont$(EXE_EXT) $(FONT_SRC) $(FONT_HEADER) $(FONT_SYMBOL)
 

@@ -1,0 +1,17 @@
+# Golden-image render manifest for tools/parity/render_golden.sh
+#
+# One render per line:  name | mpq | model | extra mdxtool args
+#   name   = output basename (golden/<name>.png)
+#   mpq    = archive (relative to the data dir) that contains the model AND its textures
+#   model  = MPQ path to the .mdx (use backslashes)
+#   extra  = extra mdxtool flags (camera, anim). --frame/--seed default deterministically.
+#
+# Pick models that are self-contained in one archive and exercise distinct
+# renderer paths (flipbook water, team color, particles, alpha UI, geometry).
+
+# Glue scenes carry their own camera (orbit-fit can't frame the huge scene);
+# units use the fitted orbit preview camera.
+menu3d_exp   | War3x.mpq | UI\Glues\MainMenu\MainMenu3D_exp\MainMenu3D_exp.mdx        | --use-model-camera
+wc3logo_exp  | War3x.mpq | UI\Glues\MainMenu\WarCraftIIILogo_exp\WarCraftIIILogo_exp.mdx | --use-model-camera
+peon         | War3.mpq  | Units\Orc\Peon\Peon.mdx                                    |
+footman      | War3.mpq  | Units\Human\Footman\Footman.mdx                            |
