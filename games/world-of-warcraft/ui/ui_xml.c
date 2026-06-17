@@ -39,6 +39,7 @@ typedef enum {
     ELEM_ON_ENTER_PRESSED,
     ELEM_ON_ESCAPE_PRESSED,
     ELEM_ON_TAB_PRESSED,
+    ELEM_SOURCE_FILE,
     ELEM_STRING_COUNT
 } uiWowXmlStr_t;
 
@@ -126,6 +127,10 @@ static struct {
     BOOL lua_ready;
 } wow_xml;
 
+/* XML file currently being parsed — set by UIWow_XMLProcessTopLevel, used by
+   UIWow_XmlParseNode to stamp ELEM_SOURCE_FILE on each newly created element. */
+static char s_current_xml_path[PATH_MAX];
+
 /* -------------------------------------------------------------------------
  * String field helpers
  * ------------------------------------------------------------------------- */
@@ -146,6 +151,11 @@ static void UIWow_ElemAppendStr(uiWowXmlElem_t *e, uiWowXmlStr_t f, LPCSTR s) {
     if (!e->texts[f] || !e->texts[f][0]) {
         UIWow_ElemSetStr(e, f, s);
         return;
+                {
+            xmlChar *name_check = xmlGetProp(c, BAD_CAST "name");
+            if (name_check && *name_check) UIWow_XmlParseNode(c, parent, WOW_XML_LAYER_ARTWORK);
+            SAFE_DELETE(name_check, xmlFree);
+        }
     }
     size_t old = strlen(e->texts[f]), add = strlen(s);
     char *buf = realloc(e->texts[f], old + add + 1);
@@ -430,6 +440,8 @@ static int UIWow_LuaFrameGetID(lua_State *L) {
     return 1;
 }
 static int UIWow_LuaFrameNoop(lua_State *L) { (void)L; return 0; }
+static int UIWow_LuaFrameGetZero(lua_State *L) { (void)L; lua_pushnumber(L, 0); return 1; }
+static int UIWow_LuaFrameGetMinMax(lua_State *L) { (void)L; lua_pushnumber(L, 0); lua_pushnumber(L, 0); return 2; }
 static int UIWow_LuaFrameGetButtonState(lua_State *L) {
     int i = UIWow_FrameFromSelf(L);
     lua_pushstring(L, (i >= 0 && wow_xml.pressed_button == i) ? "PUSHED" : "NORMAL");
@@ -571,8 +583,8 @@ static void UIWow_XMLInstallLuaCompat(void) {
         { "GetFrameLevel", UIWow_LuaFrameGetID }, { "SetFrameLevel", UIWow_LuaFrameNoop },
         { "SetPoint", UIWow_LuaFrameNoop }, { "ClearAllPoints", UIWow_LuaFrameNoop },
         { "Raise", UIWow_LuaFrameNoop }, { "Lower", UIWow_LuaFrameNoop },
-        { "SetValue", UIWow_LuaFrameNoop }, { "GetValue", UIWow_LuaFrameNoop },
-        { "SetMinMaxValues", UIWow_LuaFrameNoop }, { "GetMinMaxValues", UIWow_LuaFrameNoop },
+        { "SetValue", UIWow_LuaFrameNoop }, { "GetValue", UIWow_LuaFrameGetZero },
+        { "SetMinMaxValues", UIWow_LuaFrameNoop }, { "GetMinMaxValues", UIWow_LuaFrameGetMinMax },
         { "UpdateScrollChildRect", UIWow_LuaFrameNoop }, { "SetScrollChild", UIWow_LuaFrameNoop },
         { "GetVerticalScrollRange", UIWow_LuaFrameGetHeight },
         { "SetVerticalScroll", UIWow_LuaFrameNoop }, { "GetVerticalScroll", UIWow_LuaFrameNoop },
@@ -848,20 +860,20 @@ static void UIWow_XmlReadScripts(uiWowXmlElem_t *e, xmlNodePtr node) {
         xmlNodePtr s;
         if (c->type != XML_ELEMENT_NODE || xmlStrcasecmp(c->name, BAD_CAST "Scripts")) continue;
         for (s = c->children; s; s = s->next) {
-            xmlChar *body;
+            xmlChar *body; uiWowXmlStr_t field;
             if (s->type != XML_ELEMENT_NODE) continue;
             body = xmlNodeGetContent(s);
             if (!body) continue;
-            if (!xmlStrcasecmp(s->name, BAD_CAST "OnClick")) UIWow_ElemSetStr(e, ELEM_ON_CLICK, (char const *)body);
-            else if (!xmlStrcasecmp(s->name, BAD_CAST "OnLoad")) UIWow_ElemSetStr(e, ELEM_ON_LOAD, (char const *)body);
-            else if (!xmlStrcasecmp(s->name, BAD_CAST "OnShow")) {
-                UIWow_ElemSetStr(e, ELEM_ON_SHOW, (char const *)body);
-            }
-            else if (!xmlStrcasecmp(s->name, BAD_CAST "OnEnter")) UIWow_ElemSetStr(e, ELEM_ON_ENTER, (char const *)body);
-            else if (!xmlStrcasecmp(s->name, BAD_CAST "OnLeave")) UIWow_ElemSetStr(e, ELEM_ON_LEAVE, (char const *)body);
-            else if (!xmlStrcasecmp(s->name, BAD_CAST "OnEnterPressed")) UIWow_ElemSetStr(e, ELEM_ON_ENTER_PRESSED, (char const *)body);
-            else if (!xmlStrcasecmp(s->name, BAD_CAST "OnEscapePressed")) UIWow_ElemSetStr(e, ELEM_ON_ESCAPE_PRESSED, (char const *)body);
-            else if (!xmlStrcasecmp(s->name, BAD_CAST "OnTabPressed")) UIWow_ElemSetStr(e, ELEM_ON_TAB_PRESSED, (char const *)body);
+            if      (!xmlStrcasecmp(s->name, BAD_CAST "OnClick"))         field = ELEM_ON_CLICK;
+            else if (!xmlStrcasecmp(s->name, BAD_CAST "OnLoad"))          field = ELEM_ON_LOAD;
+            else if (!xmlStrcasecmp(s->name, BAD_CAST "OnShow"))          field = ELEM_ON_SHOW;
+            else if (!xmlStrcasecmp(s->name, BAD_CAST "OnEnter"))         field = ELEM_ON_ENTER;
+            else if (!xmlStrcasecmp(s->name, BAD_CAST "OnLeave"))         field = ELEM_ON_LEAVE;
+            else if (!xmlStrcasecmp(s->name, BAD_CAST "OnEnterPressed"))  field = ELEM_ON_ENTER_PRESSED;
+            else if (!xmlStrcasecmp(s->name, BAD_CAST "OnEscapePressed")) field = ELEM_ON_ESCAPE_PRESSED;
+            else if (!xmlStrcasecmp(s->name, BAD_CAST "OnTabPressed"))    field = ELEM_ON_TAB_PRESSED;
+            else { SAFE_DELETE(body, xmlFree); continue; }
+            UIWow_ElemSetStr(e, field, (char const *)body);
             SAFE_DELETE(body, xmlFree);
         }
     }
@@ -912,7 +924,10 @@ static void UIWow_XmlParseChildren(xmlNodePtr node, int parent) {
 }
 
 /* Clone direct children of each inherited template into dst frame, re-substituting
-   $parent (or the template name prefix) with the concrete frame's name. */
+   $parent (or the template name prefix) with the concrete frame's name.
+   Recurses into each cloned child so that nested template hierarchies (e.g. a
+   ScrollFrame template whose Slider child itself inherits a ScrollBar template
+   with ScrollUpButton / ScrollDownButton children) are fully expanded. */
 static void UIWow_XmlCloneTemplateChildren(LPCSTR inherits, int dst, LPCSTR dst_name) {
     char inames[256], *tok, *save = NULL;
     if (!inherits || !*inherits || !dst_name || !*dst_name) return;
@@ -965,6 +980,13 @@ static void UIWow_XmlCloneTemplateChildren(LPCSTR inherits, int dst, LPCSTR dst_
                 if (rel_idx >= 0) wow_xml.elems[clone].relative_to = rel_idx;
             }
             UIWow_XmlPublishFrame(clone);
+            /* Recurse: if the template child itself has sub-children (e.g. a Slider
+               template that owns ScrollUpButton/ScrollDownButton), clone those too
+               so that getglobal("...ScrollBarScrollDownButton") resolves correctly.
+               Use the original template child's name as the inherits key so we find
+               grandchildren parented to that template child in wow_xml.elems. */
+            if (src_name && *src_name)
+                UIWow_XmlCloneTemplateChildren(src_name, clone, child_name);
         }
     }
 }
@@ -1011,6 +1033,7 @@ static void UIWow_XmlParseNode(xmlNodePtr node, int parent, int draw_layer) {
     }
     SAFE_DELETE(parent_attr, xmlFree);
     if (type == WOW_XML_EDITBOX) wow_xml.elems[idx].flags |= EF_FOCUSABLE;
+    if (s_current_xml_path[0]) UIWow_ElemSetStr(&wow_xml.elems[idx], ELEM_SOURCE_FILE, s_current_xml_path);
     UIWow_XmlReadShared(&wow_xml.elems[idx], node); UIWow_XmlPublishFrame(idx); UIWow_XmlParseChildren(node, idx);
     if (UIWow_ElemStr(&wow_xml.elems[idx], ELEM_ON_LOAD))
         wow_xml.elems[idx].flags |= EF_PENDING_ONLOAD;
@@ -1020,6 +1043,7 @@ static BOOL UIWow_XMLProcessFile(LPCSTR path, int depth);
 
 static void UIWow_XMLProcessTopLevel(LPCSTR path, xmlNodePtr root, int depth) {
     xmlNodePtr n;
+    snprintf(s_current_xml_path, sizeof(s_current_xml_path), "%s", path ? path : "");
     for (n = root->children; n; n = n->next) {
         if (n->type != XML_ELEMENT_NODE || !n->name) continue;
         if (!xmlStrcasecmp(n->name, BAD_CAST "Include")) {
@@ -1157,14 +1181,20 @@ BOOL UIWow_XMLLoadGlueFromToc(LPCSTR toc_path) {
 }
 
 static void UIWow_XMLRunFrameScript(int idx, LPCSTR script, LPCSTR event_name) {
-    char chunk[192];
-    LPCSTR name;
+    char chunk[512];
+    LPCSTR name, src_file;
     if (!wow_ui.lua || idx < 0 || idx >= wow_xml.count || !script || !*script) return;
     UIWow_XmlPublishFrame(idx);
-    name = wow_xml.elems[idx].texts[ELEM_NAME];
+    name     = wow_xml.elems[idx].texts[ELEM_NAME];
+    src_file = wow_xml.elems[idx].texts[ELEM_SOURCE_FILE];
     lua_getglobal(wow_ui.lua, name ? name : ""); lua_setglobal(wow_ui.lua, "this");
     lua_pushstring(wow_ui.lua, event_name ? event_name : ""); lua_setglobal(wow_ui.lua, "event");
-    snprintf(chunk, sizeof(chunk), "%s:%s", name && name[0] ? name : "<anon>", event_name ? event_name : "Script");
+    if (src_file)
+        snprintf(chunk, sizeof(chunk), "=%s:%s (%s)",
+                 name && name[0] ? name : "<anon>", event_name ? event_name : "Script", src_file);
+    else
+        snprintf(chunk, sizeof(chunk), "=%s:%s",
+                 name && name[0] ? name : "<anon>", event_name ? event_name : "Script");
     if (luaL_loadbuffer(wow_ui.lua, script, strlen(script), chunk) != LUA_OK) {
         UIWow_Printf("UIWow Lua load: %s\n", lua_tostring(wow_ui.lua, -1)); lua_pop(wow_ui.lua, 1);
     } else {
