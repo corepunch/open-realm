@@ -595,6 +595,13 @@ static uiWowLuaAlias_t const wow_lua_aliases[] = {
     { "string", "upper",  "strupper" },
     { "table",  "insert", "tinsert" },
     { "table",  "remove", "tremove" },
+    { "math",   "floor",  "floor" },
+    { "math",   "ceil",   "ceil" },
+    { "math",   "abs",    "abs" },
+    { "math",   "mod",    "mod" },
+    { "math",   "sqrt",   "sqrt" },
+    { "math",   "max",    "max" },
+    { "math",   "min",    "min" },
     { NULL, NULL, NULL },
 };
 
