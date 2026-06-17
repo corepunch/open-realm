@@ -112,6 +112,9 @@ struct shader_program {
     DWORD uMdxLightFill;
     DWORD uEyePosition;
     DWORD uActiveGlow;
+    DWORD uFogEnable;
+    DWORD uFogColor;
+    DWORD uFogParams;
 };
 
 struct render_target {

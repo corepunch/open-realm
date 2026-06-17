@@ -254,7 +254,10 @@ LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
     R_RegisterUniform(program, uMdxLightFill);
     R_RegisterUniform(program, uEyePosition);
     R_RegisterUniform(program, uActiveGlow);
-    
+    R_RegisterUniform(program, uFogEnable);
+    R_RegisterUniform(program, uFogColor);
+    R_RegisterUniform(program, uFogParams);
+
     R_Call(glUniform1i, program->uTexture, 0);
 #if defined(USE_SHADOWMAPS) || defined(DEBUG_PATHFINDING)
     R_Call(glUniform1i, program->uShadowmap, 1);

@@ -166,11 +166,19 @@ static void R_FlushParticles(LPCTEXTURE texture, LPCMATRIX4 matrix, particleVert
 }
 
 static COLOR32 FX_GetFrame(const cparticle_t *p) {
-    DWORD frame = (tr.viewDef.time / 100) % (p->columns * p->rows);
-    DWORD u = frame % p->columns;
-    DWORD v = frame / p->rows;
-    DWORD usize = 256 / p->columns;
-    DWORD vsize = 256 / p->rows;
+    DWORD columns = p->columns ? p->columns : 1;
+    DWORD rows = p->rows ? p->rows : 1;
+    DWORD total = columns * rows;
+    /* The sprite-sheet frame advances over the particle's own lifetime, not a
+     * global clock — otherwise every particle flips frames in unison, which
+     * reads as a crude strobing "old game" effect. */
+    float k = (p->lifespan > 0.0f) ? (p->time / p->lifespan) : 0.0f;
+    DWORD frame = (DWORD)(k * (float)total);
+    if (frame >= total) frame = total - 1;
+    DWORD u = frame % columns;
+    DWORD v = frame / columns;
+    DWORD usize = 256 / columns;
+    DWORD vsize = 256 / rows;
     return (COLOR32) {
         usize * u,
         vsize * v,

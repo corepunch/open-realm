@@ -31,6 +31,7 @@ static LPCSTR mdx_vs =
 "out vec2 v_texcoord;\n"
 "out vec2 v_texcoord2;\n"
 "out vec3 v_lighting;\n"
+"out float v_fogDist;\n"
 "uniform mat4 uBones[128];\n"
 "uniform mat4 uMdxLights[8];\n"
 "uniform mat4 uViewProjectionMatrix;\n"
@@ -100,6 +101,7 @@ static LPCSTR mdx_vs =
 "    v_shadow = uLightMatrix * uModelMatrix * position;\n"
 #endif
 "    gl_Position = uViewProjectionMatrix * uModelMatrix * position;\n"
+"    v_fogDist = gl_Position.w;\n"
 "}\n";
 
 static LPCSTR mdx_fs =
@@ -110,8 +112,13 @@ static LPCSTR mdx_fs =
 "in vec4 v_shadow;\n"
 #endif
 "in vec3 v_lighting;\n"
+"in float v_fogDist;\n"
 "out vec4 o_color;\n"
 "uniform sampler2D uTexture;\n"
+"uniform bool uFogEnable;\n"
+"uniform vec3 uFogColor;\n"
+"uniform vec2 uFogParams;\n" // x = fog start, y = fog end (GL_LINEAR)
+
 #ifdef USE_SHADOWMAPS
 "uniform sampler2D uShadowmap;\n"
 #endif
@@ -144,6 +151,10 @@ static LPCSTR mdx_fs =
 "        col.rgb *= get_fogofwar() * v_lighting;\n"
 "    }\n"
 "    o_color = col;\n"
+"    if (uFogEnable) {\n"
+"        float f = clamp((uFogParams.y - v_fogDist) / (uFogParams.y - uFogParams.x), 0.0, 1.0);\n"
+"        o_color.rgb = mix(uFogColor, o_color.rgb, f);\n"
+"    }\n"
 "    if (o_color.a < 0.5 && uUseDiscard) discard;\n"
 "}\n";
 
@@ -158,6 +169,22 @@ static bool R_InitUIModelView(LPCMODEL model,
 
     memset(entity, 0, sizeof(*entity));
     memset(viewdef, 0, sizeof(*viewdef));
+
+    /* UI/glue scenes (e.g. the main-menu background) animate and emit
+     * particles continuously, so they need a real, advancing clock.  Without
+     * this viewdef->time/deltaTime stay 0 and particle emitters spawn nothing
+     * (no snow, no light-ray flares) and time-driven sequences freeze. */
+    {
+        static DWORD ui_lastTime = 0;
+        DWORD now = SDL_GetTicks();
+        DWORD delta = (ui_lastTime && now > ui_lastTime) ? now - ui_lastTime : 16;
+        if (delta > 100) {
+            delta = 100;
+        }
+        ui_lastTime = now;
+        viewdef->time = now;
+        viewdef->deltaTime = delta;
+    }
 
     entity->scale = 1;
     entity->model = model;
@@ -184,7 +211,7 @@ static bool R_InitUIModelView(LPCMODEL model,
         if (seq_len == 0) {
             seq_len = 1;
         }
-        entity->frame = seq->interval[0] + (tr.viewDef.time % seq_len);
+        entity->frame = seq->interval[0] + (viewdef->time % seq_len);
         entity->oldframe = entity->frame;
     }
 
@@ -369,6 +396,19 @@ void MDLX_DrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim) {
     entity.flags |= RF_NO_FOGOFWAR | RF_NO_SHADOW | RF_PORTRAIT_LIGHTING;
     viewdef.viewport = *viewport;
 
+    /* The full-screen glue scene (main-menu background) uses the original's
+     * atmospheric haze, which it draws with fixed-function GL linear fog
+     * (glFogi GL_FOG_MODE=LINEAR; glFogf START/END; glFogfv COLOR; see the
+     * 1.29 client's GL state-apply routine).  We replicate it in-shader.
+     * Unit portraits use a small viewport and stay fog-free. */
+    if (viewport->x == 0 && viewport->y == 0 &&
+        viewport->w >= 1.0f && viewport->h >= 1.0f) {
+        viewdef.fogEnable = true;
+        viewdef.fogColor = (VECTOR3){ 0.74f, 0.80f, 0.88f };
+        viewdef.fogStart = 1400.0f;
+        viewdef.fogEnd = 6500.0f;
+    }
+
     if (!R_GetModelCameraMatrix(mdx, entity.frame, aspect, &viewdef.viewProjectionMatrix, &root)) {
         return;
     }
@@ -405,6 +445,10 @@ void MDLX_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
     viewdef.viewport = (struct rect) {0,0,1,1};
 
     entity.flags |= RF_NO_FOGOFWAR | RF_NO_SHADOW | RF_NO_LIGHTING;
+    /* 2D sprite/panel pass: it must not touch the shared 3D particle pool,
+     * or particles get aged once per UI element drawn (running the scene
+     * several times too fast) and drawn with this ortho projection. */
+    viewdef.rdflags |= RDF_NOPARTICLES;
 
     RECT screen = R_UISceneRect();
     entity.origin = fdf_sprite_coords
