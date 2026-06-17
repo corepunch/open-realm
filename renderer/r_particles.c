@@ -203,7 +203,12 @@ void R_DrawParticles(void) {
             R_FlushParticles(texture, &matrix, pv);
             pv = particles_resources.vertices;
         }
-        VECTOR3 vel = Vector3_mad(&p->vel, p->time, &p->accel);
+        /* Kinematics: org = org0 + vel0*t + 1/2*accel*t^2. The original engine
+         * integrates gravity per-frame (semi-implicit Euler), which over a
+         * particle's life is the 1/2*a*t^2 closed form below; applying the full
+         * a*t^2 made gravity-driven particles fall ~2x too fast. */
+        VECTOR3 halfAccelT = Vector3_scale(&p->accel, 0.5f * p->time);
+        VECTOR3 vel = Vector3_add(&p->vel, &halfAccelT);
         VECTOR3 org = Vector3_mad(&p->org, p->time, &vel);
         COLOR32 col = FX_BlendColor(p);
         float size = FX_BlendFloat(p->size, p->time, BYTE2FLOAT(p->midtime));
