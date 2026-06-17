@@ -291,7 +291,9 @@ test-sc2-assets: sc2fixturegen mpqtool | $(TESTS_DIR)
 		rel=$${f#$(SC2_TEST_RES_DIR)/}; set -- "$$@" "$$f" "$$rel"; \
 	done; \
 	for f in $$(find $(SC2_TEST_SRC_DIR) -type f | sort); do \
-		rel=$${f#$(SC2_TEST_SRC_DIR)/}; set -- "$$@" "$$f" "$$rel"; \
+		rel=$${f#$(SC2_TEST_SRC_DIR)/}; \
+		if [ -f "$(SC2_TEST_RES_DIR)/$$rel" ]; then continue; fi; \
+		set -- "$$@" "$$f" "$$rel"; \
 	done; \
 	$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(SC2_TEST_MPQ) pack "$$@"
 	@echo "[test-sc2-assets] verifying archive"
