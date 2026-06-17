@@ -144,6 +144,13 @@ typedef struct {
     DWORD player;
     DWORD rdflags;
     FRUSTUM3 frustum;
+    /* Linear scene fog (matches the original's fixed-function glFog* setup:
+     * GL_FOG_MODE=LINEAR, GL_FOG_START/END, GL_FOG_COLOR).  Used by the glue
+     * menu scene for its atmospheric haze. */
+    BOOL fogEnable;
+    float fogStart;
+    float fogEnd;
+    VECTOR3 fogColor;
 } viewDef_t;
 
 struct modelInfo_s {

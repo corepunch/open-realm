@@ -34,7 +34,7 @@ ui:          $(UI_LIB)
 openwarcraft3: $(BINARY)
 
 run: $(BINARY)
-	$(BINARY) -data $(WC3DATA)
+	$(BINARY) -data $(WC3DATA) -tft
 
 run-demo: $(BINARY)
 	$(BINARY) -data $(DEMODATA)
@@ -44,6 +44,15 @@ run-map: $(BINARY)
 
 run-ui-text: $(BINARY)
 	$(BINARY) -data $(WC3DATA) +r_module stdout +com_frame_limit 1 +$(UI_CMD)
+
+# Golden-image render regression test (deterministic MDX renders vs committed
+# references). Requires a display/GL, so it is opt-in and NOT part of `make test`
+# (CI is headless). Run locally after renderer changes.
+test-render-golden: mdxtool imgdiff
+	@tools/parity/render_golden.sh --data "$(subst \,,$(WC3DATA))"
+
+update-render-golden: mdxtool imgdiff
+	@tools/parity/render_golden.sh --data "$(subst \,,$(WC3DATA))" --update
 
 # jass — standalone JASS interpreter (no renderer/game/SDL2 needed)
 $(JASS_BIN): tools/jass.c $(TOOL_DEPS) | $(BIN_DIR) $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB)
@@ -207,4 +216,4 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 $(TESTS_DIR):
 	@mkdir -p $@
 
-WC3_PHONY := wc3-build jass-tool jass sheet renderer game ui openwarcraft3 run run-demo run-map run-ui-text test test-jass test-commands test-ui test-mpq-compat test-assets
+WC3_PHONY := wc3-build jass-tool jass sheet renderer game ui openwarcraft3 run run-demo run-map run-ui-text test test-jass test-commands test-ui test-mpq-compat test-assets test-render-golden update-render-golden

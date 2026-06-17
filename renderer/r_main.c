@@ -503,7 +503,9 @@ void R_RenderView(void) {
     R_DrawDecals();
     R_DrawEntities();
     R_GameDrawAlphaSurfaces();
-    R_DrawParticles();
+    if (!(tr.viewDef.rdflags & RDF_NOPARTICLES)) {
+        R_DrawParticles();
+    }
     R_RevertSettings();
     
 //    extern LPCTEXTURE dds;
