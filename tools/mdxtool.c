@@ -1,6 +1,9 @@
 #include "games/warcraft-3/renderer/mdx/r_mdx.h"
 #include "tools/viewer_common.h"
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "renderer/stb/stb_image_write.h"
+
 #include <stdarg.h>
 #include <stdbool.h>
 #include <ctype.h>
@@ -20,6 +23,12 @@ static bool g_use_front_ortho = false;
 static bool g_info_only = false;
 static bool g_dump_all = false;
 static bool g_run_once = false;
+/* Deterministic golden-image output: when g_output_path is set, mdxtool renders
+ * one clean frame (no overlay/bbox), with a fixed logical time and seeded RNG so
+ * the PNG is byte-stable across runs, then exits. */
+static const char *g_output_path = NULL;
+static long g_fixed_time = -1;   /* logical ms; -1 => wall clock (SDL_GetTicks) */
+static long g_seed = -1;         /* srand seed for particle RNG; -1 => unseeded */
 static HANDLE archives[64] = { 0 };
 static viewer_orbit_t orbit;
 static VECTOR3 g_model_center = { 0, 0, 0 };
@@ -96,9 +105,10 @@ static void FreeTexturePreviewCache(void) {
 static void usage(void) {
     fprintf(stderr,
         "Usage:\n"
-    "  mdxtool -mpq <archive.mpq> -model <file.mdx> [--anim <sequence>] [--use-model-camera] [--front-ortho] [--info] [--dump-all] [--once]\n"
+    "  mdxtool -mpq <archive.mpq> -model <file.mdx> [--anim <sequence>] [--use-model-camera] [--front-ortho] [--info] [--dump-all] [--once] [-o <out.png> [--frame <ms>] [--seed <n>]]\n"
         "\n"
         "Examples:\n"
+    "  mdxtool -mpq War3x.mpq -model UI\\\\Glues\\\\MainMenu\\\\MainMenu3D_exp\\\\MainMenu3D_exp.mdx --use-model-camera -o out.png\n"
         "  mdxtool -mpq War3.mpq -model UI\\\\Glues\\\\MainMenu\\\\MainMenu3d\\\\MainMenu3d.mdx\n"
     "  mdxtool -mpq War3.mpq -model units\\\\orc\\\\Peon\\\\Peon.mdx --use-model-camera\n"
     "  mdxtool -mpq War3.mpq -model UI\\\\Glues\\\\SpriteLayers\\\\TopRightPanel.mdx --front-ortho\n"
@@ -109,7 +119,11 @@ static void usage(void) {
     "  --info prints model metadata and exits without creating a window.\n"
     "  --front-ortho uses a front-facing orthographic preview camera for flat UI models.\n"
     "  --dump-all prints loaded model details (nodes, bones, geosets, materials, cameras).\n"
-    "  --once renders one frame and exits.\n");
+    "  --once renders one frame and exits.\n"
+    "  -o/--output <file.png> renders one clean frame (no overlay/bbox) to a PNG and exits.\n"
+    "    Deterministic by default (--frame 1000 --seed 1234) for golden-image tests.\n"
+    "  --frame <ms> sets the logical animation time (fixes the frame; default wall clock).\n"
+    "  --seed <n> seeds the particle RNG for reproducible output.\n");
 }
 
 static void errorf(LPCSTR fmt, ...) {
@@ -987,6 +1001,36 @@ static void DumpFrameCoverage(refExport_t const *re) {
     free(pixels);
 }
 
+/* Read the rendered framebuffer back and write it as a PNG.  glReadPixels gives
+ * rows bottom-up, so flip on write.  Used for deterministic golden images. */
+static bool SaveFramePNG(refExport_t const *re, const char *path) {
+    size2_t window = re->GetWindowSize();
+    DWORD width = window.width;
+    DWORD height = window.height;
+    BYTE *pixels;
+    int ok;
+
+    if (!width || !height) {
+        fprintf(stderr, "mdxtool: cannot save '%s' (empty framebuffer)\n", path);
+        return false;
+    }
+    pixels = malloc((size_t)width * (size_t)height * 4);
+    if (!pixels) {
+        fprintf(stderr, "mdxtool: cannot save '%s' (alloc failed)\n", path);
+        return false;
+    }
+    R_Call(glReadPixels, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+    stbi_flip_vertically_on_write(1);
+    ok = stbi_write_png(path, (int)width, (int)height, 4, pixels, (int)width * 4);
+    free(pixels);
+    if (!ok) {
+        fprintf(stderr, "mdxtool: failed to write PNG '%s'\n", path);
+        return false;
+    }
+    fprintf(stderr, "mdxtool: wrote %ux%u PNG '%s'\n", (unsigned)width, (unsigned)height, path);
+    return true;
+}
+
 static void RenderModelFrame(refExport_t const *re, LPMODEL model, DWORD now, bool useModelCamera) {
     viewDef_t viewdef = { 0 };
     renderEntity_t entity = { 0 };
@@ -1068,7 +1112,9 @@ static void RenderModelFrame(refExport_t const *re, LPMODEL model, DWORD now, bo
 
     re->BeginFrame();
     re->RenderFrame(&viewdef);
-    if (mdx) {
+    /* Clean render: golden-image PNG output skips the debug bbox/overlay/text. */
+    bool const clean = (g_output_path != NULL);
+    if (mdx && !clean) {
         MATRIX4 entityMatrix;
         Matrix4_identity(&entityMatrix);
         Matrix4_translate(&entityMatrix, &entity.origin);
@@ -1078,6 +1124,12 @@ static void RenderModelFrame(refExport_t const *re, LPMODEL model, DWORD now, bo
     }
     if (g_run_once) {
         DumpFrameCoverage(re);
+    }
+    if (g_output_path) {
+        /* Save before EndFrame() swaps buffers and before any overlay is drawn. */
+        SaveFramePNG(re, g_output_path);
+        re->EndFrame();
+        return;
     }
     Tool_DrawString(re, useModelCamera ? "mdxtool: model camera" : (g_use_front_ortho ? "mdxtool: front ortho" : "mdxtool: preview camera"), 10, 10);
     Tool_DrawString(re, g_model_path, 10, 28);
@@ -1183,6 +1235,27 @@ int main(int argc, char **argv) {
             g_dump_all = true;
         } else if (!strcmp(argv[i], "--once") || !strcmp(argv[i], "-once")) {
             g_run_once = true;
+        } else if (!strcmp(argv[i], "-o") || !strcmp(argv[i], "--output") || !strcmp(argv[i], "-output")) {
+            if (++i >= argc) { usage(); return 1; }
+            g_output_path = argv[i];
+            g_run_once = true;
+            if (g_fixed_time < 0) g_fixed_time = 1000; /* deterministic default frame/time */
+            if (g_seed < 0) g_seed = 1234;             /* deterministic default RNG seed */
+        } else if (!strncmp(argv[i], "--output=", 9)) {
+            g_output_path = argv[i] + 9;
+            g_run_once = true;
+            if (g_fixed_time < 0) g_fixed_time = 1000;
+            if (g_seed < 0) g_seed = 1234;
+        } else if (!strcmp(argv[i], "--frame") || !strcmp(argv[i], "-frame")) {
+            if (++i >= argc) { usage(); return 1; }
+            g_fixed_time = strtol(argv[i], NULL, 10);
+        } else if (!strncmp(argv[i], "--frame=", 8)) {
+            g_fixed_time = strtol(argv[i] + 8, NULL, 10);
+        } else if (!strcmp(argv[i], "--seed") || !strcmp(argv[i], "-seed")) {
+            if (++i >= argc) { usage(); return 1; }
+            g_seed = strtol(argv[i], NULL, 10);
+        } else if (!strncmp(argv[i], "--seed=", 7)) {
+            g_seed = strtol(argv[i] + 7, NULL, 10);
         } else if (!strcmp(argv[i], "--anim") || !strcmp(argv[i], "-anim")) {
             if (++i >= argc) {
                 usage();
@@ -1371,7 +1444,10 @@ int main(int argc, char **argv) {
             }
         }
 
-        DWORD now = SDL_GetTicks();
+        DWORD now = (g_fixed_time >= 0) ? (DWORD)g_fixed_time : SDL_GetTicks();
+        if (g_seed >= 0) {
+            srand((unsigned)g_seed); /* deterministic particle RNG for golden renders */
+        }
         RenderModelFrame(&re, model, now, g_use_model_camera);
         if (g_run_once) {
             running = false;
