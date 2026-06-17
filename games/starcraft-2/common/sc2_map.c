@@ -1391,6 +1391,10 @@ static void sc2_parse_sync_height_map(sc2MapSource_t *source) {
     DWORD size = 0;
     LPBYTE data = sc2_source_read(source, "t3SyncHeightMap", &size);
 
+    if (!data || size < sizeof(sc2MapSyncHeightMap_t)) {
+        sc2_free_file(data);
+        return;
+    }
     sc2_map.t3SyncHeightMap = sc2_alloc(size);
     memcpy(sc2_map.t3SyncHeightMap, data, size);
     sc2_free_file(data);
@@ -1444,7 +1448,7 @@ BOOL SC2_MapLoad(LPCSTR mapFilename) {
     sc2_parse_light_data(&source);
     sc2_parse_height_map(&source);
     /* t3SyncHeightMap is not visible terrain height; merging it creates cliff spikes. */
-    /* sc2_parse_sync_height_map(&source); */
+    sc2_parse_sync_height_map(&source);
     sc2_parse_cell_flags(&source);
     sc2_parse_sync_cliff_level(&source);
     sc2_parse_texture_masks(&source);
