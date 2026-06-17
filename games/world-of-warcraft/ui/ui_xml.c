@@ -91,10 +91,10 @@ typedef enum {
 typedef struct {
     DWORD flags;
     uiWowXmlType_t type;
-    int id, parent, relative_to, draw_layer;
+    int id, parent, relative_to, relative_to2, draw_layer;
     char *texts[ELEM_STRING_COUNT];
     fpoint_t pos, offset, text_off, offset2; /* pos(x,y), anchor offset(ox,oy), text offset, second anchor offset */
-    char *point2, *relative_point2; /* second anchor point names (owned strings) */
+    char *point2, *relative_point2, *relative_name2; /* second anchor point/relativeTo names (owned strings) */
     fsize_t size, edge, tile, text_inset; /* size(w,h), border edge, tile size, text inset */
     FLOAT measured_h; /* renderer-measured text height; replaces size.h for FontStrings with y=0 */
     FLOAT alpha, font_size;
@@ -165,6 +165,7 @@ static void UIWow_ElemFreeStrings(uiWowXmlElem_t *e) {
     FOR_LOOP(f, ELEM_STRING_COUNT) { free(e->texts[f]); e->texts[f] = NULL; }
     free(e->point2); e->point2 = NULL;
     free(e->relative_point2); e->relative_point2 = NULL;
+    free(e->relative_name2); e->relative_name2 = NULL;
 }
 
 /* -------------------------------------------------------------------------
@@ -325,15 +326,24 @@ static RECT UIWow_XmlComputeRect(int idx) {
     else if (!strcasecmp(point, "BOTTOM")) out.x = ax - out.w * 0.5f, out.y = ay - out.h;
     else if (!strcasecmp(point, "BOTTOMRIGHT")) out.x = ax - out.w, out.y = ay - out.h;
     else out.x = ax - out.w * 0.5f, out.y = ay - out.h * 0.5f;
-    /* Second anchor: derive height from distance between the two anchor y-positions. */
+    /* Second anchor: pin a specific edge of the output rect, deriving width or height.
+       point2 names the edge of THIS frame that is being pinned:
+         right edge  if point2 contains "RIGHT"  → out.w = bx - out.x
+         bottom edge if point2 contains "BOTTOM" → out.h = by - out.y
+         left edge   if point2 contains "LEFT"   → out.x = bx (width from first anchor's right, unusual)
+         top edge    if point2 contains "TOP" (but not BOTTOM) → out.y = by (unusual)
+       Corner points (TOPLEFT, BOTTOMRIGHT, etc.) affect both axes. */
     if ((e->flags & EF_HAS_ANCHOR2) && e->point2 && e->relative_point2) {
-        RECT ref2 = parent; /* both anchors reference the same relative_to frame */
+        RECT ref2 = (e->relative_to2 >= 0 && e->relative_to2 < wow_xml.count)
+                    ? UIWow_XmlComputeRect(e->relative_to2) : parent;
         FLOAT bx, by;
+        LPCSTR p2 = e->point2;
         UIWow_XmlRectPoint(&ref2, e->relative_point2, &bx, &by);
-        by += e->offset2.y;
-        out.h = by - out.y;
-        if (out.h < 0) out.h = -out.h;
-        (void)bx;
+        bx += e->offset2.x; by += e->offset2.y;
+        if (strcasestr(p2, "RIGHT"))  { out.w = bx - out.x; if (out.w < 0) { out.x += out.w; out.w = -out.w; } }
+        else if (strcasestr(p2, "LEFT"))   { FLOAT r = out.x + out.w; out.x = bx; out.w = r - bx; if (out.w < 0) out.w = 0; }
+        if (strcasestr(p2, "BOTTOM")) { out.h = by - out.y; if (out.h < 0) { out.y += out.h; out.h = -out.h; } }
+        else if (!strcasecmp(p2, "TOP"))   { FLOAT b = out.y + out.h; out.y = by; out.h = b - by; if (out.h < 0) out.h = 0; }
     }
     return out;
 }
@@ -696,6 +706,21 @@ static void UIWow_XmlReadAnchor(uiWowXmlElem_t *e, xmlNodePtr node) {
                 free(e->relative_point2); e->relative_point2 = (relative && *relative) ? strdup((char const *)relative) : (e->point2 ? strdup(e->point2) : NULL);
                 e->offset2 = off;
                 e->flags |= EF_HAS_ANCHOR2;
+                /* Store the second anchor's relativeTo so the layout can reference a different frame. */
+                if (relative_to && *relative_to) {
+                    char resolved2[256];
+                    LPCSTR dollar2 = strstr((char const *)relative_to, "$parent");
+                    if (dollar2 && parent_name && *parent_name)
+                        snprintf(resolved2, sizeof(resolved2), "%.*s%s%s",
+                                 (int)(dollar2 - (char const *)relative_to), (char const *)relative_to,
+                                 parent_name, dollar2 + 7);
+                    else
+                        snprintf(resolved2, sizeof(resolved2), "%s", (char const *)relative_to);
+                    free(e->relative_name2); e->relative_name2 = strdup(resolved2);
+                    e->relative_to2 = UIWow_XmlFindByName(resolved2);
+                } else {
+                    e->relative_to2 = e->relative_to; /* default: same frame as anchor 1 */
+                }
             }
             SAFE_DELETE(point, xmlFree); SAFE_DELETE(relative, xmlFree); SAFE_DELETE(relative_to, xmlFree);
             anchor_index++;
@@ -962,6 +987,7 @@ static void UIWow_XmlCloneTemplateChildren(LPCSTR inherits, int dst, LPCSTR dst_
             if (wow_xml.elems[clone].relative_to == tmpl) wow_xml.elems[clone].relative_to = dst;
             wow_xml.elems[clone].point2 = csrc->point2 ? strdup(csrc->point2) : NULL;
             wow_xml.elems[clone].relative_point2 = csrc->relative_point2 ? strdup(csrc->relative_point2) : NULL;
+            wow_xml.elems[clone].relative_name2 = csrc->relative_name2 ? strdup(csrc->relative_name2) : NULL;
             FOR_LOOP(f, ELEM_STRING_COUNT) wow_xml.elems[clone].texts[f] = csrc->texts[f] ? strdup(csrc->texts[f]) : NULL;
             free(wow_xml.elems[clone].texts[ELEM_NAME]);
             wow_xml.elems[clone].texts[ELEM_NAME] = strdup(child_name);
@@ -977,6 +1003,20 @@ static void UIWow_XmlCloneTemplateChildren(LPCSTR inherits, int dst, LPCSTR dst_
                 }
                 int rel_idx = UIWow_XmlFindByName(wow_xml.elems[clone].texts[ELEM_RELATIVE_NAME]);
                 if (rel_idx >= 0) wow_xml.elems[clone].relative_to = rel_idx;
+            }
+            /* Re-resolve second anchor's relativeTo the same way. */
+            if (tmpl_len > 0 && wow_xml.elems[clone].relative_name2) {
+                LPCSTR rel2 = wow_xml.elems[clone].relative_name2;
+                if (strncmp(rel2, tmpl_name, tmpl_len) == 0) {
+                    char resolved_rel2[256];
+                    snprintf(resolved_rel2, sizeof(resolved_rel2), "%s%s", dst_name, rel2 + tmpl_len);
+                    free(wow_xml.elems[clone].relative_name2);
+                    wow_xml.elems[clone].relative_name2 = strdup(resolved_rel2);
+                }
+                int rel2_idx = UIWow_XmlFindByName(wow_xml.elems[clone].relative_name2);
+                if (rel2_idx >= 0) wow_xml.elems[clone].relative_to2 = rel2_idx;
+            } else if (wow_xml.elems[clone].relative_to2 == tmpl) {
+                wow_xml.elems[clone].relative_to2 = dst;
             }
             UIWow_XmlPublishFrame(clone);
             /* Recurse: if the template child itself has sub-children (e.g. a Slider
@@ -1165,6 +1205,10 @@ BOOL UIWow_XMLLoadGlueFromToc(LPCSTR toc_path) {
         if (UIWow_ElemStr(e, ELEM_RELATIVE_NAME)) {
             int rel = UIWow_XmlFindByName(e->texts[ELEM_RELATIVE_NAME]);
             if (rel >= 0) e->relative_to = rel;
+        }
+        if (e->relative_name2) {
+            int rel2 = UIWow_XmlFindByName(e->relative_name2);
+            if (rel2 >= 0) e->relative_to2 = rel2;
         }
     }
     /* Fire OnLoad for every frame that registered one, now that all Lua files are loaded. */
