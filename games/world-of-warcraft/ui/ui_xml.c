@@ -151,11 +151,6 @@ static void UIWow_ElemAppendStr(uiWowXmlElem_t *e, uiWowXmlStr_t f, LPCSTR s) {
     if (!e->texts[f] || !e->texts[f][0]) {
         UIWow_ElemSetStr(e, f, s);
         return;
-                {
-            xmlChar *name_check = xmlGetProp(c, BAD_CAST "name");
-            if (name_check && *name_check) UIWow_XmlParseNode(c, parent, WOW_XML_LAYER_ARTWORK);
-            SAFE_DELETE(name_check, xmlFree);
-        }
     }
     size_t old = strlen(e->texts[f]), add = strlen(s);
     char *buf = realloc(e->texts[f], old + add + 1);
