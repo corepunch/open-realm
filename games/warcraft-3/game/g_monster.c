@@ -310,7 +310,13 @@ void SP_SpawnUnit(LPEDICT self) {
     }
     self->s.scale = UNIT_SCALING_VALUE(self->class_id);
     self->s.radius = UNIT_SELECTION_SCALE(self->class_id) * SEL_SCALE / 2;
-    self->collision = self->s.radius;//UNIT_COLLISION(self->class_id);
+    /* Unit-vs-unit separation uses the authentic collisionSize ('ucol') from
+     * the unit data, matching WC3. Buildings have no meaningful collisionSize
+     * and instead block via their pathing footprint (set from pathtex below). */
+    {
+        FLOAT const ucol = (FLOAT)UNIT_COLLISION(self->class_id);
+        self->collision = ucol > 0.0f ? ucol : self->s.radius;
+    }
 //    printf("%.4s\n", &self->class_id);
     self->targtype = G_GetTargetType(UNIT_TARGETED_AS(self->class_id));
     if (UNIT_OCCLUDER_HEIGHT(self->class_id) > 0) {
@@ -350,7 +356,10 @@ void SP_SpawnUnit(LPEDICT self) {
     }
 
     if ((self->pathtex = M_LoadPathTex(path_tex))) {
-        self->collision = get_unit_collision(self->pathtex);
+        /* Buildings: collide by footprint (their collisionSize is ~0). */
+        if (UNIT_IS_BUILDING(self->class_id)) {
+            self->collision = get_unit_collision(self->pathtex);
+        }
     }
 }
 
