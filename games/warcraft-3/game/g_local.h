@@ -704,7 +704,7 @@ struct edict_s {
     unitAttack_t attack1;
     unitAttack_t attack2;
     DWORD defense_type;   /* WC3 defType index: small/medium/large/fort/normal/hero/divine/none */
-    FLOAT armor_value;    /* base armor ('def') for damage reduction */
+    FLOAT armor_value;    /* computed armor ('realdef', incl. hero AGI) for damage reduction */
 
     void (*stand)(LPEDICT);
     void (*birth)(LPEDICT);

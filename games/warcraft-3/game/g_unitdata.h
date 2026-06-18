@@ -7,7 +7,10 @@
 /* defType is a STRING enum in the SLK ("large","medium",...), not an integer,
  * so map it via FindEnumValue rather than atoi. 'udef' is the base armor value. */
 #define UNIT_DEFENSE_TYPE_NAME(UNIT) UnitStringField(UnitsMetaData, UNIT, "udty")
-#define UNIT_ARMOR_VALUE(UNIT) UnitRealField(UnitsMetaData, UNIT, "udef")
+/* Armor for combat reduction and the info panel: the computed 'realdef' column
+ * ('udfc'), which includes the hero AGI bonus. The base 'def' is 0 for heroes,
+ * same base-vs-computed split as uhpm->realHP and umpm->realM. */
+#define UNIT_ARMOR_VALUE(UNIT) UnitRealField(UnitsMetaData, UNIT, "udfc")
 #define UNIT_ARMOR_TYPE(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "uarm")
 #define UNIT_LOOPING_FADE_IN_RATE(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "ulfi")
 #define UNIT_LOOPING_FADE_OUT_RATE(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "ulfo")
@@ -71,7 +74,6 @@
 #define UNIT_SHADOW_IMAGE_CENTER_X(UNIT) UnitRealField(UnitsMetaData, UNIT, "ushx")
 #define UNIT_SHADOW_IMAGE_CENTER_Y(UNIT) UnitRealField(UnitsMetaData, UNIT, "ushy")
 #define UNIT_ANIMATION_WALK_SPEED(UNIT) UnitRealField(UnitsMetaData, UNIT, "uwal")
-#define UNIT_DEFENSE(UNIT) UnitRealField(UnitsMetaData, UNIT, "udfc")
 #define UNIT_SIGHT_RADIUS(UNIT) UnitRealField(UnitsMetaData, UNIT, "usid")
 #define UNIT_SIGHT_RADIUS_NIGHT(UNIT) UnitRealField(UnitsMetaData, UNIT, "usin")
 #define UNIT_PRIORITY(UNIT) UnitRealField(UnitsMetaData, UNIT, "upri")

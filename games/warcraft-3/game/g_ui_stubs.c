@@ -448,7 +448,7 @@ static void UI_WriteSingleInfo(LPEDICT ent) {
 
     UI_WriteTextFrame(INFO_PANEL_X + 0.010f, INFO_PANEL_Y + 0.066f, 0.055f, 0.012f, "Armor:",
                       MAKE(COLOR32, 252, 210, 18, 255), FONT_JUSTIFYLEFT);
-    snprintf(buffer, sizeof(buffer), "%d", (int)UNIT_DEFENSE(ent->class_id));
+    snprintf(buffer, sizeof(buffer), "%d", (int)UNIT_ARMOR_VALUE(ent->class_id));
     UI_WriteTextFrame(INFO_PANEL_X + 0.062f, INFO_PANEL_Y + 0.066f, 0.050f, 0.012f, buffer,
                       COLOR32_WHITE, FONT_JUSTIFYLEFT);
 

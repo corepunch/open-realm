@@ -220,6 +220,40 @@ static void test_unit_mana_uses_realM_not_manaN(void) {
     free_slk_rows(rows);
 }
 
+/*
+ * Armor (combat reduction and the info panel) must come from the computed
+ * 'realdef' column, not the base 'def'. Heroes carry def == 0 (armor derives
+ * from Agility) but a non-zero realdef, mirroring HP/mana realHP/realM.
+ */
+static void test_unit_armor_uses_realdef_not_def(void) {
+    static const char slk_armor[] =
+        "ID;PWXL;N;EBB;Y3;X4\n"
+        "C;Y1;X1;K\"unitBalanceID\"\n"
+        "C;Y1;X2;K\"def\"\n"
+        "C;Y1;X3;K\"realdef\"\n"
+        "C;Y1;X4;K\"spd\"\n"
+        "C;Y2;X1;K\"Ewar\"\n"   /* Maiev: hero, def 0, realdef 4 */
+        "C;Y2;X2;K\"0\"\n"
+        "C;Y2;X3;K\"4\"\n"
+        "C;Y2;X4;K\"270\"\n"
+        "C;Y3;X1;K\"hfoo\"\n"   /* Footman: def == realdef == 2 */
+        "C;Y3;X2;K\"2\"\n"
+        "C;Y3;X3;K\"2\"\n"
+        "C;Y3;X4;K\"270\"\n"
+        "E\n";
+    sheetRow_t *rows = parse_slk_string(slk_armor);
+
+    ASSERT_NOT_NULL(rows);
+    G_SetConfigTable(UnitsMetaData, "UnitBalance", rows);
+
+    /* The fix: a hero with def 0 still reports its real (AGI-boosted) armor. */
+    ASSERT_FLOAT_EQ(UNIT_ARMOR_VALUE(UNIT_ID("Ewar")), 4.0f);
+    ASSERT_FLOAT_EQ(UNIT_ARMOR_VALUE(UNIT_ID("hfoo")), 2.0f);
+
+    setup_test_unit_data();
+    free_slk_rows(rows);
+}
+
 /* -----------------------------------------------------------------------
  * Suite runner
  * --------------------------------------------------------------------- */
@@ -248,4 +282,5 @@ BEGIN_SUITE(slk)
     RUN_TEST(test_unit_collision_peasant);
     RUN_TEST(test_unit_unknown_id_returns_zero);
     RUN_TEST(test_unit_mana_uses_realM_not_manaN);
+    RUN_TEST(test_unit_armor_uses_realdef_not_def);
 END_SUITE()
