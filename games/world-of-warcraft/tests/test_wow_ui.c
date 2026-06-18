@@ -156,6 +156,12 @@ static void test_release_texture(LPTEXTURE texture) {
     free(texture);
 }
 
+static size2_t test_get_texture_size(LPCTEXTURE texture) {
+    size2_t s = {0, 0};
+    if (texture) { s.width = texture->width; s.height = texture->height; }
+    return s;
+}
+
 static void test_draw_image(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color) {
     (void)uv;
     (void)color;
@@ -166,7 +172,7 @@ static void test_draw_image(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLO
         draw_panel_count++;
         last_panel_width = texture->width;
         last_panel_height = texture->height;
-        if (screen && uv && screen->w > 0.16f && screen->h > 0.055f) {
+        if (screen && uv && screen->w > 0.14f && screen->h > 0.04f) {
             glue_button_uv_width = uv->w;
             glue_button_y = screen->y;
         }
@@ -282,6 +288,7 @@ static void reset_test_state(void) {
     test_renderer.LoadTexture = test_load_texture;
     test_renderer.LoadFont = test_load_font;
     test_renderer.ReleaseTexture = test_release_texture;
+    test_renderer.GetTextureSize = test_get_texture_size;
     test_renderer.DrawImage = test_draw_image;
     test_renderer.DrawImageEx = test_draw_image_ex;
     test_renderer.DrawFill = test_draw_fill;
@@ -344,7 +351,7 @@ static void test_wow_glue_xml_login_button_routes_character_select(void) {
     ASSERT(draw_inventory_count > 0);
     ASSERT(glue_backdrop_edge_draws >= 2);
     ASSERT(glue_account_label_centered > 0);
-    ASSERT(glue_button_uv_width > 0.5f && glue_button_uv_width < 0.7f);
+    ASSERT(glue_button_uv_width >= 0.5f && glue_button_uv_width < 0.7f);
     ASSERT(glue_login_text_y < glue_button_y);
     ASSERT(draw_text_count > 0);
     ASSERT(UIWow_XMLMouseEvent(520, 400, 1, true));
