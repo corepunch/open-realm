@@ -19,6 +19,9 @@
 #include "test_framework.h"
 #include "test_harness.h"
 
+/* Defined in g_metadata.c; swaps the sheet backing one metadata table. */
+void G_SetConfigTable(sheetMetaData_t *metadatas, LPCSTR slk, sheetRow_t *table);
+
 /* -----------------------------------------------------------------------
  * 1.  FS_FindSheetCell
  * --------------------------------------------------------------------- */
@@ -178,6 +181,45 @@ static void test_unit_unknown_id_returns_zero(void) {
     ASSERT_EQ_INT  (UNIT_BUILD_TIME(UNIT_ID("xxxx")), 0);
 }
 
+/*
+ * Max mana must come from the computed 'realM' column, not the base 'manaN'.
+ * Heroes carry manaN == 0 (their pool is derived from Intelligence) but a
+ * non-zero realM, mirroring how max HP uses 'realHP' rather than a base column.
+ * Reading manaN left Maiev (Ewar: manaN 0 / realM 225) showing no mana.
+ */
+static void test_unit_mana_uses_realM_not_manaN(void) {
+    static const char slk_mana[] =
+        "ID;PWXL;N;EBB;Y3;X4\n"
+        "C;Y1;X1;K\"unitBalanceID\"\n"
+        "C;Y1;X2;K\"manaN\"\n"
+        "C;Y1;X3;K\"realM\"\n"
+        "C;Y1;X4;K\"mana0\"\n"
+        "C;Y2;X1;K\"Ewar\"\n"   /* Maiev: hero, manaN 0, realM 225, mana0 100 */
+        "C;Y2;X2;K\"0\"\n"
+        "C;Y2;X3;K\"225\"\n"
+        "C;Y2;X4;K\"100\"\n"
+        "C;Y3;X1;K\"hsor\"\n"   /* Sorceress: caster, manaN == realM == 200 */
+        "C;Y3;X2;K\"200\"\n"
+        "C;Y3;X3;K\"200\"\n"
+        "C;Y3;X4;K\"75\"\n"
+        "E\n";
+    sheetRow_t *rows = parse_slk_string(slk_mana);
+
+    ASSERT_NOT_NULL(rows);
+    G_SetConfigTable(UnitsMetaData, "UnitBalance", rows);
+
+    /* The fix: a hero with manaN 0 still reports its real mana pool. */
+    ASSERT_FLOAT_EQ(UNIT_MANA_MAXIMUM(UNIT_ID("Ewar")), 225.0f);
+    ASSERT_FLOAT_EQ(UNIT_MANA_INITIAL(UNIT_ID("Ewar")), 100.0f);
+    /* Regular casters (manaN == realM) are unaffected. */
+    ASSERT_FLOAT_EQ(UNIT_MANA_MAXIMUM(UNIT_ID("hsor")), 200.0f);
+    ASSERT_FLOAT_EQ(UNIT_MANA_INITIAL(UNIT_ID("hsor")), 75.0f);
+
+    /* Restore the shared fixture tables for the rest of the suite. */
+    setup_test_unit_data();
+    free_slk_rows(rows);
+}
+
 /* -----------------------------------------------------------------------
  * Suite runner
  * --------------------------------------------------------------------- */
@@ -205,4 +247,5 @@ BEGIN_SUITE(slk)
     RUN_TEST(test_unit_build_time_footman);
     RUN_TEST(test_unit_collision_peasant);
     RUN_TEST(test_unit_unknown_id_returns_zero);
+    RUN_TEST(test_unit_mana_uses_realM_not_manaN);
 END_SUITE()
