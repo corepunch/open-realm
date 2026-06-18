@@ -363,6 +363,38 @@ BOOL CM_ClosestPathablePoint(LPCVECTOR2 location, LPVECTOR2 out) {
     return CM_ClosestPathablePointForRadius(location, 0, out);
 }
 
+/* Cheap straight-line walkability test between two world points: walk the
+ * pathmap cells along the segment (Bresenham) and fail on the first obstacle.
+ * O(cells on the line) — vastly cheaper than a full flow-field bake, so a unit
+ * chasing a target in the open can steer directly instead of flood-filling. */
+BOOL CM_LineIsWalkable(LPCVECTOR2 a, LPCVECTOR2 b) {
+    if (!a || !b || pathmap.width == 0 || pathmap.height == 0) {
+        return false;
+    }
+    VECTOR2 na = CM_GetNormalizedMapPosition(a->x, a->y);
+    VECTOR2 nb = CM_GetNormalizedMapPosition(b->x, b->y);
+    int ax = (int)(na.x * pathmap.width),  ay = (int)(na.y * pathmap.height);
+    int bx = (int)(nb.x * pathmap.width),  by = (int)(nb.y * pathmap.height);
+    int dx = abs(bx - ax), dy = abs(by - ay);
+    int sx = ax < bx ? 1 : -1, sy = ay < by ? 1 : -1;
+    int err = dx - dy;
+    int x = ax, y = ay;
+    int guard = dx + dy + 2;
+    while (guard-- > 0) {
+        if (x < 0 || y < 0 || !is_valid_point((DWORD)x, (DWORD)y) ||
+            is_obstacle((DWORD)x, (DWORD)y)) {
+            return false;
+        }
+        if (x == bx && y == by) {
+            return true;
+        }
+        int e2 = 2 * err;
+        if (e2 > -dy) { err -= dy; x += sx; }
+        if (e2 <  dx) { err += dx; y += sy; }
+    }
+    return true;
+}
+
 static VECTOR2 compute_flow_at(DWORD x, DWORD y) {
     int prices[8];
     int min_price = INT_MAX;

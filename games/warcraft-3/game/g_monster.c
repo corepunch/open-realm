@@ -89,6 +89,14 @@ BOOL M_IsDead(LPEDICT ent) {
     return ent->health.value <= 0;
 }
 
+/* Per-sim-tick budget on expensive flow-field bakes. Under heavy combat many
+ * units chase many moving targets; without a hard cap the bakes exceed the tick
+ * budget and the fixed-timestep catch-up loop death-spirals permanently. When
+ * the budget is spent, callers reuse a stale flow field (or fall back to direct
+ * steering if none exists). Reset each tick in G_RunFrame. */
+DWORD g_heatmap_builds_this_frame = 0;
+#define HEATMAP_BUILD_BUDGET 4
+
 DWORD M_RefreshHeatmap(LPEDICT self) {
     LPEDICT route = self && self->secondarygoal ? self->secondarygoal : self;
 
@@ -105,12 +113,24 @@ DWORD M_RefreshHeatmap(LPEDICT self) {
         if (!(route->svflags & SVF_MONSTER)) {
             return route->heatmap2;
         }
-        if (Vector2_distance(&route->s.origin2, &route->heatmap2_origin) < 64.0f) {
+        BOOL const moved = Vector2_distance(&route->s.origin2, &route->heatmap2_origin) >= 64.0f;
+        BOOL const stale = (DWORD)(level.time - route->heatmap2_time) >= 400;
+        if (!moved || !stale) {
             return route->heatmap2;
         }
+        /* Wants a rebuild, but defer if the per-tick bake budget is spent. */
+        if (g_heatmap_builds_this_frame >= HEATMAP_BUILD_BUDGET) {
+            return route->heatmap2;
+        }
+    } else if (g_heatmap_builds_this_frame >= HEATMAP_BUILD_BUDGET) {
+        /* No usable cache and budget spent: skip this tick. Caller (chasing a
+         * moving target) falls back to direct steering toward the goal. */
+        return route->heatmap2;
     }
+    g_heatmap_builds_this_frame++;
     route->heatmap2 = CM_BuildHeatmap(route);
     route->heatmap2_origin = route->s.origin2;
+    route->heatmap2_time = level.time;
     return route->heatmap2;
 }
 

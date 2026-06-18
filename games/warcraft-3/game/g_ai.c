@@ -17,6 +17,12 @@ void unit_changeangle(LPEDICT self) {
     if (dist <= NAVI_THRESHOLD) {
         /* Close enough: use direct vector, skip heatmap entirely. */
         dir = to_goal;
+    } else if (CM_LineIsWalkable(&self->s.origin2, &self->goalentity->s.origin2)) {
+        /* Clear straight line to the goal (the common case when chasing a
+         * target in the open): steer directly and skip the expensive flow-field
+         * bake. Flood-fill pathing is reserved for when terrain blocks the
+         * direct path. */
+        dir = to_goal;
     } else {
         DWORD heatmap = M_RefreshHeatmap(self->goalentity);
         dir = get_flow_direction(heatmap, self->s.origin.x, self->s.origin.y);

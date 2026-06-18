@@ -54,6 +54,7 @@ VECTOR2 CM_GetNormalizedMapPosition(float x, float y);
 VECTOR2 CM_GetDenormalizedMapPosition(float x, float y);
 BOOL CM_ClosestPathablePoint(LPCVECTOR2 location, LPVECTOR2 out);
 BOOL CM_ClosestPathablePointForRadius(LPCVECTOR2 location, FLOAT radius, LPVECTOR2 out);
+BOOL CM_LineIsWalkable(LPCVECTOR2 a, LPCVECTOR2 b);
 BOX2 CM_GetWorldBounds(void);
 void CM_BakeStaticObstacles(void);
 void CM_InvalidatePathCache(void);
