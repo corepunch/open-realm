@@ -162,6 +162,7 @@ sheetMetaData_t UnitsMetaData[] = {
     { "ulbs", "lumberbountysides", "UnitBalance" },
     { "ucol", "collision", "UnitData" },
     { "udef", "def", "UnitBalance" },
+    { "udfc", "realdef", "UnitBalance" },  /* computed armor (incl. hero AGI bonus), like uhpm->realHP */
     { "udty", "defType", "UnitBalance" },
     { "udup", "defUp", "UnitBalance" },
     { "ufma", "fmade", "UnitBalance" },

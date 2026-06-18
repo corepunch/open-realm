@@ -150,6 +150,29 @@ sheetMetaData_t *G_FindMetaData(sheetMetaData_t *metadatas, LPCSTR name) {
     return NULL;
 }
 
+/* A field code that no metadata entry maps is a programming error, not missing
+ * unit data: the accessor silently resolves to NULL/0. That is how stat bugs
+ * hid for so long ("umpc" mana, "udfc" armor, "uinc"/"ustc"/"uagc" attributes).
+ * Warn once per code so any such gap surfaces the first time it is read. */
+static void warn_unregistered_field(LPCSTR name) {
+    static char seen[64][8];
+    static DWORD count;
+
+    for (DWORD i = 0; i < count; i++) {
+        if (!strcmp(seen[i], name)) {
+            return;
+        }
+    }
+    if (count < 64) {
+        strncpy(seen[count], name, sizeof(seen[0]) - 1);
+        count++;
+    }
+    fprintf(stderr,
+            "WARNING: unit-data field code '%s' is not registered in the metadata "
+            "table; it silently reads as 0. Add it to UnitsMetaData[] (g_metadata.h).\n",
+            name);
+}
+
 LPCSTR UnitStringField(sheetMetaData_t *metadatas, DWORD unit_id, LPCSTR name) {
     FOR_LOOP(n, level.mapinfo->num_userCreatedUnits) {
         if (level.mapinfo->userCreatedUnits[n].newUnitID == unit_id) {
@@ -159,11 +182,14 @@ LPCSTR UnitStringField(sheetMetaData_t *metadatas, DWORD unit_id, LPCSTR name) {
         }
     }
     sheetMetaData_t *metadata = G_FindMetaData(metadatas, name);
-    if (metadata && metadata->table) {
-        return FS_FindSheetCell(metadata->table, GetClassName(unit_id), metadata->field);
-    } else {
+    if (!metadata) {
+        warn_unregistered_field(name);
         return NULL;
     }
+    if (metadata->table) {
+        return FS_FindSheetCell(metadata->table, GetClassName(unit_id), metadata->field);
+    }
+    return NULL;
 }
 
 LONG UnitIntegerField(sheetMetaData_t *metadatas, DWORD unit_id, LPCSTR name) {

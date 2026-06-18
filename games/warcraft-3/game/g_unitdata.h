@@ -11,9 +11,12 @@
 #define UNIT_ARMOR_TYPE(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "uarm")
 #define UNIT_LOOPING_FADE_IN_RATE(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "ulfi")
 #define UNIT_LOOPING_FADE_OUT_RATE(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "ulfo")
-#define UNIT_AGILITY(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "uagc")
-#define UNIT_INTELLIGENCE(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "uinc")
-#define UNIT_STRENGTH(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "ustc")
+/* Base hero attributes: the registered SLK columns are AGI/INT/STR under codes
+ * 'uagi'/'uint'/'ustr'. The old 'uagc'/'uinc'/'ustc' codes are not in the
+ * metadata table and silently read as 0. */
+#define UNIT_AGILITY(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "uagi")
+#define UNIT_INTELLIGENCE(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "uint")
+#define UNIT_STRENGTH(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "ustr")
 #define UNIT_AGILITY_PERMANENT(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "uagm")
 #define UNIT_INTELLIGENCE_PERMANENT(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "uinm")
 #define UNIT_STRENGTH_PERMANENT(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "ustm")
