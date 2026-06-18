@@ -1184,7 +1184,7 @@ DWORD IsTimerDialogDisplayed(LPJASS j) {
     return jass_pushboolean(j, 0);
 }
 DWORD SetCinematicScene(LPJASS j) {
-    //LONG portraitUnitId = jass_checkinteger(j, 1);
+    LONG portraitUnitId = jass_checkinteger(j, 1);
     //HANDLE color = jass_checkhandle(j, 2, "playercolor");
     LPCSTR speakerTitle = jass_checkstring(j, 3);
     LPCSTR text = jass_checkstring(j, 4);
@@ -1196,6 +1196,17 @@ DWORD SetCinematicScene(LPJASS j) {
     if (currentplayer) {
         currentplayer->texts[PLAYERTEXT_SPEAKER] = G_LevelString(speakerTitle);
         currentplayer->texts[PLAYERTEXT_DIALOGUE] = G_LevelString(text);
+        /* Bind the speaking unit-type's portrait so the cinematic shows the
+         * animated talking head, as in WC3. */
+        currentplayer->cinematic_portrait = 0;
+        if (portraitUnitId) {
+            LPCSTR model = UNIT_MODEL((DWORD)portraitUnitId);
+            if (model && *model) {
+                PATHSTR mf;
+                snprintf(mf, sizeof(mf), "%s.mdx", model);
+                currentplayer->cinematic_portrait = G_RegisterModel(mf);
+            }
+        }
         fprintf(stderr,
                 "SetCinematicScene: player=%u speaker=%s time=%u\n",
                 (unsigned)PLAYER_NUM(currentplayer),
@@ -1208,6 +1219,7 @@ DWORD EndCinematicScene(LPJASS j) {
     if (currentplayer) {
         currentplayer->texts[PLAYERTEXT_SPEAKER] = "";
         currentplayer->texts[PLAYERTEXT_DIALOGUE] = "";
+        currentplayer->cinematic_portrait = 0;
         fprintf(stderr,
                 "EndCinematicScene: player=%u time=%u\n",
                 (unsigned)PLAYER_NUM(currentplayer),
