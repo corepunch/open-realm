@@ -633,6 +633,7 @@ refExport_t R_GetAPI(refImport_t imp) {
         .GetHeightAtPoint = R_GameGetHeightAtPoint,
         .TraceEntity = R_TraceEntity,
         .TraceLocation = R_GameTraceLocation,
+        .TraceMinimap = R_TraceMinimap,
         .EntitiesInRect = R_EntitiesInRect,
 #ifdef DEBUG_PATHFINDING
         .SetPathTexture = R_SetPathTexture,

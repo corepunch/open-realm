@@ -218,4 +218,8 @@ void CL_InputModeFrame(void) {
               (double)wow_input.pitch,
               (double)wow_input.distance);
 }
+
+/* No minimap in the WoW input mode. */
+BOOL CL_TryMinimapClick(float x, float y) { (void)x; (void)y; return false; }
+void CL_EndMinimapDrag(void) {}
 #endif

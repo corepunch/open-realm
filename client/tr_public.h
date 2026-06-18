@@ -193,6 +193,7 @@ typedef struct {
     FLOAT (*GetHeightAtPoint)(float x, float y);
     bool (*TraceEntity)(viewDef_t const *viewdef, float x, float y, LPDWORD number);
     bool (*TraceLocation)(viewDef_t const *viewdef, float x, float y, LPVECTOR3 point);
+    bool (*TraceMinimap)(float x, float y, LPVECTOR2 outWorld);
     DWORD (*EntitiesInRect)(viewDef_t const *viewdef, LPCRECT rect, DWORD max, LPDWORD array);
 
 #ifdef DEBUG_PATHFINDING

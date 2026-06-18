@@ -188,6 +188,8 @@ struct render_globals {
     sheetRow_t *sheet[SHEET_COUNT];
     size2_t drawableSize;
     LPTEXTURE minimap;
+    RECT minimapRect;   /* last UI-space rect the minimap was drawn at */
+    BOOL hasMinimap;
 };
 
 void R_RegisterMap(LPCSTR mapFileName);
@@ -258,6 +260,7 @@ void R_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color);
 void R_DrawImageEx(LPCDRAWIMAGE drawImage);
 void R_DrawImageBatch(LPCTEXTURE texture, SHADERTYPE shaderType, BLEND_MODE alphamode, FLOAT uActiveGlow, BOOL hasClip, LPCRECT clip, LPCVERTEX vertices, DWORD num_vertices, BOOL repeat);
 void R_DrawMinimap(LPCRECT screen);
+bool R_TraceMinimap(float x, float y, LPVECTOR2 outWorld);
 void R_DrawLoadingIndicator(LPCRECT rect, DWORD time, COLOR32 color);
 void R_DrawPic(LPCTEXTURE texture, float x, float y);
 void R_DrawSelectionRect(LPCRECT rect, COLOR32 color);

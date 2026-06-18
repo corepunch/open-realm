@@ -332,10 +332,48 @@ static void R_DrawMinimapCameraRect(LPCRECT screen) {
     R_Call(glDrawArrays, GL_LINE_STRIP, 0, 5);
 }
 
+/* Inverse of R_MinimapPointForWorld: map a window-pixel click over the minimap
+ * to a world position, so a minimap click can recenter the camera. */
+bool R_TraceMinimap(float x, float y, LPVECTOR2 outWorld) {
+    size2_t window;
+    RECT scene;
+    VECTOR2 map_size;
+    float ux, uy, nx, ny;
+
+    if (!tr.hasMinimap || !tr.world || !outWorld) {
+        return false;
+    }
+    window = R_GetWindowSize();
+    if (window.width == 0 || window.height == 0) {
+        return false;
+    }
+    scene = R_UISceneRect();
+    /* window-pixel -> UI coords (same ortho R_DrawImageBatch draws the UI with) */
+    ux = scene.x + (x / (float)window.width)  * scene.w;
+    uy = scene.y + (y / (float)window.height) * scene.h;
+
+    RECT const r = tr.minimapRect;
+    if (ux < r.x || ux > r.x + r.w || uy < r.y || uy > r.y + r.h) {
+        return false;
+    }
+    map_size = R_GameWorldSize();
+    if (map_size.x <= 0.0f || map_size.y <= 0.0f) {
+        return false;
+    }
+    nx = (ux - r.x) / r.w;
+    ny = 1.0f - (uy - r.y) / r.h; /* y is flipped in R_MinimapPointForWorld */
+    outWorld->x = tr.world->center.x + nx * map_size.x;
+    outWorld->y = tr.world->center.y + ny * map_size.y;
+    return true;
+}
+
 void R_DrawMinimap(LPCRECT screen) {
     if (!tr.minimap || !screen) {
         return;
     }
+
+    tr.minimapRect = *screen;
+    tr.hasMinimap = true;
 
     R_DrawImage(tr.minimap, screen, &MAKE(RECT, 0, 0, 1, 1), COLOR32_WHITE);
 
