@@ -1,4 +1,6 @@
 
+DEFAULT_TOOLTIP_COLOR = {0, 0, 0, 0.8, 0.8, 0.8};
+
 CurrentGlueMusic = "Sound\\Music\\GlueScreenMusic\\wow_main_theme.mp3";
 
 GlueScreenInfo = { };

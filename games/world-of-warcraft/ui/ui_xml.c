@@ -88,6 +88,7 @@ typedef enum {
     EF_HAS_ANCHOR2    = 1 << 17,
     EF_WORD_WRAP      = 1 << 18,
     EF_IS_SCROLLFRAME = 1 << 19,
+    EF_SCROLLBAR_PART = 1 << 20,
 } uiWowXmlElemFlag_t;
 
 typedef struct {
@@ -1103,7 +1104,7 @@ static void UIWow_XmlParseNode(xmlNodePtr node, int parent, int draw_layer) {
     else if (!xmlStrcasecmp(node->name, BAD_CAST "Button") ||
              !xmlStrcasecmp(node->name, BAD_CAST "CheckButton")) type = WOW_XML_BUTTON;
     else if (!xmlStrcasecmp(node->name, BAD_CAST "EditBox")) type = WOW_XML_EDITBOX;
-    else if (!xmlStrcasecmp(node->name, BAD_CAST "NormalTexture") || !xmlStrcasecmp(node->name, BAD_CAST "PushedTexture") || !xmlStrcasecmp(node->name, BAD_CAST "DisabledTexture") || !xmlStrcasecmp(node->name, BAD_CAST "HighlightTexture")) type = WOW_XML_TEXTURE;
+    else if (!xmlStrcasecmp(node->name, BAD_CAST "NormalTexture") || !xmlStrcasecmp(node->name, BAD_CAST "PushedTexture") || !xmlStrcasecmp(node->name, BAD_CAST "DisabledTexture") || !xmlStrcasecmp(node->name, BAD_CAST "HighlightTexture") || !xmlStrcasecmp(node->name, BAD_CAST "ThumbTexture")) type = WOW_XML_TEXTURE;
     else if (!xmlStrcasecmp(node->name, BAD_CAST "NormalText") || !xmlStrcasecmp(node->name, BAD_CAST "DisabledText") || !xmlStrcasecmp(node->name, BAD_CAST "HighlightText")) type = WOW_XML_FONTSTRING;
     else return;
     name_attr = xmlGetProp(node, BAD_CAST "name"); parent_attr = xmlGetProp(node, BAD_CAST "parent"); inherits_attr = xmlGetProp(node, BAD_CAST "inherits");
@@ -1134,6 +1135,25 @@ static void UIWow_XmlParseNode(xmlNodePtr node, int parent, int draw_layer) {
     if (type == WOW_XML_EDITBOX) wow_xml.elems[idx].flags |= EF_FOCUSABLE;
     if (s_current_xml_path[0]) UIWow_ElemSetStr(&wow_xml.elems[idx], ELEM_SOURCE_FILE, s_current_xml_path);
     UIWow_XmlReadShared(&wow_xml.elems[idx], node); UIWow_XmlPublishFrame(idx); UIWow_XmlParseChildren(node, idx);
+    /* After parsing a ScrollFrame, mark its Slider child and all descendants as scrollbar parts
+       so they are excluded from scroll offset and clipping. */
+    if (is_scrollframe) {
+        FOR_LOOP(j, wow_xml.count) {
+            uiWowXmlElem_t *c = &wow_xml.elems[j];
+            if (!(c->flags & EF_USED) || c->parent != idx) continue;
+            LPCSTR cn = c->texts[ELEM_NAME];
+            BOOL is_scroll_child = (cn && strstr(cn, "ScrollChild"));
+            if (is_scroll_child) continue;
+            c->flags |= EF_SCROLLBAR_PART;
+            FOR_LOOP(k, wow_xml.count) {
+                int pp = k;
+                while (pp >= 0 && pp < wow_xml.count) {
+                    if (pp == j) { wow_xml.elems[k].flags |= EF_SCROLLBAR_PART; break; }
+                    pp = wow_xml.elems[pp].parent;
+                }
+            }
+        }
+    }
     if (UIWow_ElemStr(&wow_xml.elems[idx], ELEM_ON_LOAD))
         wow_xml.elems[idx].flags |= EF_PENDING_ONLOAD;
 }
@@ -1341,6 +1361,18 @@ static RECT s_scroll_clip;
 
 /* Compute scroll range for all ScrollFrames: the vertical extent of their
    children minus the viewport height. Called once per frame. */
+/* Recursively expand content bounds for element idx and all descendants. */
+static void UIWow_XMLExpandContentBounds(int idx, FLOAT *min_y, FLOAT *max_y) {
+    RECT cr = UIWow_XmlComputeRect(idx);
+    if (cr.y < *min_y) *min_y = cr.y;
+    if (cr.y + cr.h > *max_y) *max_y = cr.y + cr.h;
+    FOR_LOOP(j, wow_xml.count) {
+        uiWowXmlElem_t const *c = &wow_xml.elems[j];
+        if (!(c->flags & EF_USED) || c->parent != idx) continue;
+        UIWow_XMLExpandContentBounds(j, min_y, max_y);
+    }
+}
+
 static void UIWow_XMLComputeScrollRanges(void) {
     FOR_LOOP(i, wow_xml.count) {
         uiWowXmlElem_t *e = &wow_xml.elems[i];
@@ -1348,18 +1380,15 @@ static void UIWow_XMLComputeScrollRanges(void) {
         FLOAT min_y, max_y;
         if (!(e->flags & EF_USED) || !(e->flags & EF_IS_SCROLLFRAME)) continue;
         vr = UIWow_XmlComputeRect(i);
-        min_y = vr.y + vr.h; /* top of content (largest y = topmost in FDF space) */
-        max_y = vr.y;         /* bottom of content (smallest y = bottommost) */
+        min_y = vr.y + vr.h; /* start at viewport bottom */
+        max_y = vr.y;         /* start at viewport top */
         FOR_LOOP(j, wow_xml.count) {
             uiWowXmlElem_t *c = &wow_xml.elems[j];
-            RECT cr;
             if (!(c->flags & EF_USED) || c->parent != (int)i) continue;
             /* Skip the ScrollBar child (Slider with narrow width). */
             if (c->type == WOW_XML_FRAME && c->size.w > 0 && c->size.h > 0 && c->size.w < c->size.h * 0.5f)
                 continue;
-            cr = UIWow_XmlComputeRect(j);
-            if (cr.y < min_y) min_y = cr.y;
-            if (cr.y + cr.h > max_y) max_y = cr.y + cr.h;
+            UIWow_XMLExpandContentBounds(j, &min_y, &max_y);
         }
         wow_xml.scroll[i].scroll_range = MAX(0.0f, (max_y - min_y) - vr.h);
         /* Clamp scroll_y to valid range. */
@@ -1451,10 +1480,10 @@ static void UIWow_XMLDrawBackdrop(uiWowXmlElem_t const *e, LPCRECT r) {
         bg_rect.h -= e->backdrop_insets[WOW_XML_BACKDROP_TOP] + e->backdrop_insets[WOW_XML_BACKDROP_BOTTOM];
         if (bg && (e->flags & EF_BACKDROP_TILE)) {
             size2_t size = wow_ui.renderer->GetTextureSize ? wow_ui.renderer->GetTextureSize(bg) : MAKE(size2_t, 0, 0);
-            FLOAT tw = e->tile.w > 0.0f ? e->tile.w : UIWow_XmlX((FLOAT)size.width);
-            FLOAT th = e->tile.h > 0.0f ? e->tile.h : UIWow_XmlY((FLOAT)size.height);
-            if (tw > 0.0f) uv.w = bg_rect.w / tw;
-            if (th > 0.0f) uv.h = bg_rect.h / th;
+            FLOAT tw_px = e->tile.w > 0.0f ? e->tile.w * 1024.0f : (FLOAT)size.width;
+            FLOAT th_px = e->tile.h > 0.0f ? e->tile.h * 1024.0f : (FLOAT)size.height;
+            if (size.width > 0) uv.w = tw_px / (FLOAT)size.width;
+            if (size.height > 0) uv.h = th_px / (FLOAT)size.height;
         }
         if (bg && bg_rect.w > 0.0f && bg_rect.h > 0.0f) {
             UIWow_XMLDrawImage(bg, &bg_rect, &uv, e->colors[ELEM_COLOR_BACKDROP], false, BLEND_MODE_BLEND);
@@ -1535,7 +1564,6 @@ void UIWow_XMLDraw(void) {
         {
             int anc = -1;
             FLOAT total_off = 0.0f;
-            int pp = e->parent;
             int p = e->parent;
             while (p >= 0 && p < wow_xml.count) {
                 if (wow_xml.elems[p].flags & EF_IS_SCROLLFRAME) {
@@ -1546,16 +1574,7 @@ void UIWow_XMLDraw(void) {
             }
             /* Don't scroll the ScrollFrame itself, its direct Slider child, or the Slider's children
                (ThumbTexture, UpButton, DownButton). They must remain fixed. */
-            BOOL is_scrollbar_part = false;
-            if (pp >= 0 && pp < wow_xml.count && (wow_xml.elems[pp].flags & EF_IS_SCROLLFRAME) &&
-                e->type == WOW_XML_FRAME && e->size.h > 0 && e->size.w > 0 && e->size.w < e->size.h * 0.5f)
-                is_scrollbar_part = true; /* direct Slider child */
-            if (pp >= 0 && pp < wow_xml.count) {
-                uiWowXmlElem_t *par = &wow_xml.elems[pp];
-                if (par->parent >= 0 && par->parent < wow_xml.count && (wow_xml.elems[par->parent].flags & EF_IS_SCROLLFRAME) &&
-                    par->type == WOW_XML_FRAME && par->size.h > 0 && par->size.w > 0 && par->size.w < par->size.h * 0.5f)
-                    is_scrollbar_part = true; /* child of Slider (ThumbTexture, UpButton, DownButton) */
-            }
+            BOOL is_scrollbar_part = (e->flags & EF_SCROLLBAR_PART) != 0;
             if ((e->flags & EF_IS_SCROLLFRAME) || is_scrollbar_part) {
                 scroll_off_y = 0.0f;
             } else {
@@ -1696,14 +1715,18 @@ static int UIWow_XMLScrollBarPart(uiWowXmlElem_t const *e) {
     if (len > 15 && !strcmp(name + len - 15, "ScrollUpButton")) return 1;
     if (len > 17 && !strcmp(name + len - 17, "ScrollDownButton")) return 2;
     if (len > 5 && !strcmp(name + len - 5, "Thumb")) return 3;
+    if (len > 12 && !strcmp(name + len - 12, "ThumbTexture")) return 3;
     return 0;
 }
 
-/* Find the ScrollBar parent for a scrollbar part element. */
+/* Find the ScrollFrame ancestor for a scrollbar part element (walks up through Slider). */
 static int UIWow_XMLScrollBarParent(int idx) {
     int p = idx >= 0 && idx < wow_xml.count ? wow_xml.elems[idx].parent : -1;
-    if (p >= 0 && p < wow_xml.count && (wow_xml.elems[p].flags & EF_IS_SCROLLFRAME))
-        return p; /* direct child of ScrollFrame is the ScrollBar */
+    while (p >= 0 && p < wow_xml.count) {
+        if (wow_xml.elems[p].flags & EF_IS_SCROLLFRAME)
+            return p;
+        p = wow_xml.elems[p].parent;
+    }
     return -1;
 }
 
@@ -1725,7 +1748,8 @@ BOOL UIWow_XMLMouseEvent(int x, int y, int button, BOOL down) {
     if (down && (button == 4 || button == 5)) {
         int sf = UIWow_XMLHitScrollFrame(fdf_x, fdf_y);
         if (sf >= 0) {
-            FLOAT step = 0.02f; /* scroll step in FDF units */
+            RECT vr = UIWow_XmlComputeRect(sf);
+            FLOAT step = vr.h * 0.3f; /* scroll by 30% of viewport per notch */
             if (button == 4) wow_xml.scroll[sf].scroll_y = MAX(0.0f, wow_xml.scroll[sf].scroll_y - step);
             else wow_xml.scroll[sf].scroll_y = MIN(wow_xml.scroll[sf].scroll_range, wow_xml.scroll[sf].scroll_y + step);
             /* Run OnMouseWheel script if present. */
@@ -1802,7 +1826,8 @@ BOOL UIWow_XMLMouseEvent(int x, int y, int button, BOOL down) {
                 }
                 if (part == 1 || part == 2) {
                     /* Up/Down button: step scroll. */
-                    FLOAT step = 0.02f;
+                    RECT vr = UIWow_XmlComputeRect(sf);
+                    FLOAT step = vr.h * 0.3f;
                     if (part == 1) wow_xml.scroll[sf].scroll_y = MAX(0.0f, wow_xml.scroll[sf].scroll_y - step);
                     else wow_xml.scroll[sf].scroll_y = MIN(wow_xml.scroll[sf].scroll_range, wow_xml.scroll[sf].scroll_y + step);
                     wow_xml.pressed_button = hit;
