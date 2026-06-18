@@ -259,7 +259,12 @@ DWORD TriggerWaitForSound(LPJASS j) {
         jass_sleep(j, 1);
         return 0;
     }
-    jass_sleep(j, s->duration * 0.1 + offset * 1000);
+    /* s->duration is already in milliseconds (set via SetSoundDuration), and
+     * jass_sleep() takes milliseconds, so wait the full sound length plus the
+     * offset. A previous 0.1 scale made every WaitForSoundBJ() return in a
+     * tenth of the real time, flashing cinematic transmissions for a fraction
+     * of a second. */
+    jass_sleep(j, s->duration + offset * 1000);
     return 0;
 }
 DWORD TriggerEvaluate(LPJASS j) {
