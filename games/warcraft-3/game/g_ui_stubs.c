@@ -451,6 +451,21 @@ static void UI_WriteSingleInfo(LPEDICT ent) {
     snprintf(buffer, sizeof(buffer), "%d", (int)UNIT_DEFENSE(ent->class_id));
     UI_WriteTextFrame(INFO_PANEL_X + 0.062f, INFO_PANEL_Y + 0.066f, 0.050f, 0.012f, buffer,
                       COLOR32_WHITE, FONT_JUSTIFYLEFT);
+
+    /* Hit points (and mana for casters): current / max of the live unit, shown
+     * in WC3's green/blue, centred just beneath the portrait. */
+    if (ent->health.max_value > 0) {
+        snprintf(buffer, sizeof(buffer), "%d / %d",
+                 (int)(ent->health.value + 0.5f), (int)(ent->health.max_value + 0.5f));
+        UI_WriteTextFrame(PORTRAIT_X, PORTRAIT_Y + PORTRAIT_SIZE + 0.002f, PORTRAIT_SIZE, 0.012f,
+                          buffer, MAKE(COLOR32, 64, 224, 64, 255), FONT_JUSTIFYCENTER);
+    }
+    if (ent->mana.max_value > 0) {
+        snprintf(buffer, sizeof(buffer), "%d / %d",
+                 (int)(ent->mana.value + 0.5f), (int)(ent->mana.max_value + 0.5f));
+        UI_WriteTextFrame(PORTRAIT_X, PORTRAIT_Y + PORTRAIT_SIZE + 0.015f, PORTRAIT_SIZE, 0.012f,
+                          buffer, MAKE(COLOR32, 90, 160, 255, 255), FONT_JUSTIFYCENTER);
+    }
 }
 
 static void UI_WriteInventory(LPEDICT ent) {
