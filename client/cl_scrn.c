@@ -27,6 +27,7 @@ static void SCR_DrawFPS(DWORD msec) {
         fps = frames_drawn * 1000 / elapsed;
         elapsed = 0;
         frames_drawn = 0;
+        if (getenv("BZ_FPS_LOG")) fprintf(stderr, "BZ_FPS %u\n", (unsigned)fps);
     } else if (!fps && msec > 0) {
         fps = 1000 / msec;
     }

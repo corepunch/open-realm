@@ -187,6 +187,9 @@ typedef struct {
     animation_t *animations;
     DWORD        num_animations;
     char         filename[MAX_PATHLEN];
+    BOOL         loaded;   /* load attempted (success or failure) — avoids
+                              re-reading/parsing the model from the MPQ every
+                              frame for models that fail or have 0 animations. */
 } g_cmodel_t;
 
 static g_cmodel_t g_models[G_MAX_MODELS];
@@ -248,13 +251,16 @@ static g_cmodel_t *GetModel(DWORD modelindex) {
     if (modelindex == 0 || modelindex >= G_MAX_MODELS)
         return NULL;
     g_cmodel_t *entry = &g_models[modelindex];
-    if (!entry->animations && entry->filename[0]) {
+    if (!entry->loaded && entry->filename[0]) {
+        /* Attempt the load exactly once. Mark loaded up-front so a failed or
+         * empty parse is not retried (re-reading the MPQ) on every frame. */
+        entry->loaded = true;
         g_cmodel_t *m = LoadModel(entry->filename);
-        if (!m)
-            return NULL;
-        entry->animations     = m->animations;
-        entry->num_animations = m->num_animations;
-        gi.MemFree(m);
+        if (m) {
+            entry->animations     = m->animations;
+            entry->num_animations = m->num_animations;
+            gi.MemFree(m);
+        }
     }
     return entry->animations ? entry : NULL;
 }
