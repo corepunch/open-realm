@@ -95,7 +95,7 @@ BOOL M_IsDead(LPEDICT ent) {
  * the budget is spent, callers reuse a stale flow field (or fall back to direct
  * steering if none exists). Reset each tick in G_RunFrame. */
 DWORD g_heatmap_builds_this_frame = 0;
-#define HEATMAP_BUILD_BUDGET 4
+#define HEATMAP_BUILD_BUDGET 2
 
 DWORD M_RefreshHeatmap(LPEDICT self) {
     LPEDICT route = self && self->secondarygoal ? self->secondarygoal : self;
