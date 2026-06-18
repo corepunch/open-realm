@@ -14,6 +14,7 @@
 
 #include <float.h>
 #include <limits.h>
+#include <stdlib.h>  /* abs (CM_LineIsWalkable) */
 
 #define MAX_ITERATIONS 0xffff
 
