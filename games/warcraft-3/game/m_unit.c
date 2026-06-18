@@ -3,8 +3,14 @@
 //void unit_die(LPEDICT self);
 //void unit_decay2(LPEDICT self);
 void unit_decay1(LPEDICT self);
+void unit_begin_decay(LPEDICT self);
+void unit_decay_think(LPEDICT self);
 void unit_cooldown(LPEDICT self);
 void unit_stand(LPEDICT self);
+
+/* WC3 corpse lifetime: DecayTime (flesh, 2s) + BoneDecayTime (bone, 88s) = 90s
+ * after the death animation, then the corpse is removed (MiscData.txt). */
+#define UNIT_DECAY_SECONDS 90.0f
 
 void ai_birth2(LPEDICT self) {
     unit_runwait(self, unit_stand);
@@ -15,18 +21,25 @@ void ai_birth2(LPEDICT self) {
 static umove_t unit_move_birth = { "birth", ai_birth, unit_stand };
 static umove_t unit_move_stand = { "stand", ai_stand, unit_stand };
 static umove_t unit_move_stand_ready = { "stand ready", ai_stand, unit_stand };
-static umove_t unit_move_death = { "death", NULL, unit_decay1 };
-
-//void unit_die(LPEDICT self) {
-//}
-
-//void unit_decay2(LPEDICT self) {
-//    self->monsterinfo.currentmove = &unit_move_decay2;
-//}
+static umove_t unit_move_death = { "death", NULL, unit_begin_decay };
+/* The corpse holds its final death frame (AI_HOLD_FRAME) while the decay timer
+ * counts down; the model has no separate decay sequence we can rely on. */
+static umove_t unit_move_decay = { "decay", unit_decay_think, NULL };
 
 void unit_decay1(LPEDICT self) {
-//    self->monsterinfo.currentmove = &unit_move_decay1;
     self->aiflags |= AI_HOLD_FRAME;
+}
+
+/* Death animation finished: hold the corpse pose and start the removal timer. */
+void unit_begin_decay(LPEDICT self) {
+    unit_setmove(self, &unit_move_decay);
+    self->aiflags |= AI_HOLD_FRAME;
+    self->wait = UNIT_DECAY_SECONDS;
+}
+
+/* Count down the corpse decay timer; remove the corpse when it elapses. */
+void unit_decay_think(LPEDICT self) {
+    unit_runwait(self, G_FreeEdict);
 }
 
 void unit_entercombat(LPEDICT self, LPEDICT target) {
