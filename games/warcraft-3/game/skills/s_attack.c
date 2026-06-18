@@ -191,11 +191,54 @@ static BOOL apply_splash(LPEDICT attacker, LPCVECTOR2 impact, int base) {
     return true;
 }
 
+/* Bounce attack (e.g. Huntress moonglaive): hit the primary, then chain to the
+ * nearest not-yet-hit enemies, losing damageLoss of the damage each bounce. */
+#define BOUNCE_RANGE 300.0f
+static BOOL apply_bounce(LPEDICT attacker, LPEDICT primary, int base) {
+    if (attacker->attack1.weapon != WPN_MBOUNCE || attacker->attack1.maxTargets <= 1) {
+        return false;
+    }
+    DWORD const max = attacker->attack1.maxTargets;
+    FLOAT const loss = attacker->attack1.damageLoss;
+    LPEDICT hit[16];
+    DWORD nhit = 0;
+    FLOAT factor = 1.0f;
+    LPEDICT from = primary;
+
+    T_Damage(primary, attacker, G_AttackDamage(attacker, primary, base));
+    hit[nhit++] = primary;
+
+    while (nhit < max && nhit < 16) {
+        LPEDICT best = NULL;
+        FLOAT best_d = BOUNCE_RANGE;
+        FILTER_EDICTS(target, target->inuse && target != attacker) {
+            if (!S_SpellIsAliveTarget(target) || !S_SpellIsEnemy(attacker, target)) {
+                continue;
+            }
+            BOOL already = false;
+            FOR_LOOP(i, nhit) if (hit[i] == target) { already = true; break; }
+            if (already) continue;
+            FLOAT const d = Vector2_distance(&target->s.origin2, &from->s.origin2);
+            if (d < best_d) { best_d = d; best = target; }
+        }
+        if (!best) break;
+        factor *= (1.0f - loss);
+        int dmg = G_AttackDamage(attacker, best, (int)(base * factor + 0.5f));
+        if (dmg > 0) T_Damage(best, attacker, dmg);
+        hit[nhit++] = best;
+        from = best;
+    }
+    return true;
+}
+
 static void damage_target(LPEDICT ent) {
     LPEDICT other = ent->goalentity;
     int base = ai_rolldamage1(ent, 1);
     if (apply_splash(ent, &other->s.origin2, base)) {
         return; /* splash already hit the primary target (at distance 0) */
+    }
+    if (apply_bounce(ent, other, base)) {
+        return;
     }
     T_Damage(other, ent, G_AttackDamage(ent, other, base));
 }

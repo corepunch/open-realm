@@ -563,6 +563,8 @@ typedef struct {
     FLOAT areaSmall;
     FLOAT factorMedium;
     FLOAT factorSmall;
+    DWORD maxTargets;   /* bounce: max chained targets (utc1) */
+    FLOAT damageLoss;   /* bounce: fractional damage lost per bounce (udl1) */
     struct {
         DWORD model;
         FLOAT arc;
