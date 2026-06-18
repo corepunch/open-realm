@@ -291,8 +291,12 @@ static void G_StartScripts(void) {
  * a map loads, the JASS "main" function is invoked to run map initialization
  * triggers. */
 static void G_RunFrame(void) {
+    extern DWORD g_heatmap_builds_this_frame;
+
     if (!level.started)
         return;
+
+    g_heatmap_builds_this_frame = 0; /* reset per-tick flow-field bake budget */
 
     G_StartScripts();
     
