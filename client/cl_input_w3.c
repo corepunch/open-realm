@@ -23,6 +23,22 @@ static void CL_SetCameraPosition(VECTOR2 position) {
 }
 
 static BOOL smart_click_active;
+static BOOL minimap_drag_active;
+
+/* Left-click (or click-drag) on the minimap recenters the camera there. */
+BOOL CL_TryMinimapClick(float x, float y) {
+    VECTOR2 world;
+    if (!CL_GameplayInputReady() || !re.TraceMinimap || !re.TraceMinimap(x, y, &world)) {
+        return false;
+    }
+    minimap_drag_active = true;
+    CL_SetCameraPosition(world);
+    return true;
+}
+
+void CL_EndMinimapDrag(void) {
+    minimap_drag_active = false;
+}
 
 static void CL_BeginPan(float x, float y) {
     if (!CL_GameplayInputReady()) {
@@ -154,6 +170,12 @@ void CL_InputModeMouseMotion(SDL_MouseMotionEvent const *motion) {
     if (camera_drag.active) {
         CL_UpdatePan(motion->x, motion->y);
     }
+    if (minimap_drag_active) {
+        VECTOR2 world;
+        if (re.TraceMinimap && re.TraceMinimap(motion->x, motion->y, &world)) {
+            CL_SetCameraPosition(world);
+        }
+    }
     if (cl.selection.in_progress) {
         cl.selection.rect.w = motion->x - cl.selection.rect.x;
         cl.selection.rect.h = motion->y - cl.selection.rect.y;
@@ -165,6 +187,51 @@ BOOL CL_InputModeMouseWheel(SDL_MouseWheelEvent const *wheel) {
     return false;
 }
 
+/* WC3-style camera scrolling: arrow keys and screen-edge push. Runs every
+ * client frame. World +Y is north (up on screen), +X is east (right). */
+#define CL_CAMERA_SCROLL_SPEED 1400.0f /* world units per second */
+#define CL_CAMERA_EDGE_MARGIN  6        /* px from window edge that triggers scroll */
+
 void CL_InputModeFrame(void) {
+    static DWORD last_ms = 0;
+    DWORD now = SDL_GetTicks();
+    float dt = (last_ms && now > last_ms) ? (now - last_ms) / 1000.0f : 0.0f;
+    last_ms = now;
+    if (dt > 0.1f) dt = 0.1f; /* clamp after a stall */
+
+    /* Drag-pan takes over; don't fight it. Also require in-game input. */
+    if (camera_drag.active || !CL_GameplayInputReady() || dt <= 0.0f) {
+        return;
+    }
+
+    float dx = 0.0f, dy = 0.0f;
+    Uint8 const *keys = SDL_GetKeyboardState(NULL);
+    if (keys) {
+        if (keys[SDL_SCANCODE_LEFT])  dx -= 1.0f;
+        if (keys[SDL_SCANCODE_RIGHT]) dx += 1.0f;
+        if (keys[SDL_SCANCODE_UP])    dy += 1.0f;
+        if (keys[SDL_SCANCODE_DOWN])  dy -= 1.0f;
+    }
+
+    /* Screen-edge scrolling (only while the cursor is inside the window). */
+    size2_t win = re.GetWindowSize();
+    float mx = mouse.origin.x, my = mouse.origin.y;
+    if (win.width > 0 && win.height > 0 &&
+        mx >= 0 && my >= 0 && mx < win.width && my < win.height) {
+        if (mx <= CL_CAMERA_EDGE_MARGIN)               dx -= 1.0f;
+        if (mx >= (float)win.width - 1 - CL_CAMERA_EDGE_MARGIN)  dx += 1.0f;
+        if (my <= CL_CAMERA_EDGE_MARGIN)               dy += 1.0f; /* top of screen = north */
+        if (my >= (float)win.height - 1 - CL_CAMERA_EDGE_MARGIN) dy -= 1.0f;
+    }
+
+    if (dx == 0.0f && dy == 0.0f) {
+        return;
+    }
+
+    VECTOR2 position;
+    float step = CL_CAMERA_SCROLL_SPEED * dt;
+    position.x = cl.viewDef.camerastate[0].origin.x + dx * step;
+    position.y = cl.viewDef.camerastate[0].origin.y + dy * step;
+    CL_SetCameraPosition(position);
 }
 #endif

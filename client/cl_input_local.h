@@ -15,4 +15,9 @@ void CL_InputModeMouseMotion(SDL_MouseMotionEvent const *motion);
 BOOL CL_InputModeMouseWheel(SDL_MouseWheelEvent const *wheel);
 void CL_InputModeFrame(void);
 
+/* Minimap click-to-move-camera. Returns true if the click was on the minimap
+ * (and the camera was recentered). No-op / false outside RTS input mode. */
+BOOL CL_TryMinimapClick(float x, float y);
+void CL_EndMinimapDrag(void);
+
 #endif

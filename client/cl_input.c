@@ -246,6 +246,11 @@ void IN_SelectDown(void) {
         cl.selection.in_progress = false;
         return;
     }
+    /* A left-click on the minimap recenters the camera instead of selecting. */
+    if (CL_TryMinimapClick(mouse.origin.x, mouse.origin.y)) {
+        cl.selection.in_progress = false;
+        return;
+    }
     cl.selection.in_progress = true;
     cl.selection.rect.x = mouse.origin.x;
     cl.selection.rect.y = mouse.origin.y;
@@ -258,6 +263,7 @@ void IN_SelectDown(void) {
 }
 
 void IN_SelectUp(void) {
+    CL_EndMinimapDrag();
     if (!CL_GameplayInputReady()) {
         cl.selection.in_progress = false;
         return;
