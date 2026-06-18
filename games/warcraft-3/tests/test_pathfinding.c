@@ -398,7 +398,12 @@ static void test_proximity_shortcut_gives_correct_angle(void) {
     FLOAT dist = M_DistanceToGoal(unit);
     ASSERT(dist < NAVI_THRESHOLD);
 
-    unit_changeangle(unit);
+    /* Units now turn gradually (at their turn rate) toward the target facing
+     * rather than snapping instantly, so step a few ticks to let the facing
+     * converge before checking the final direction. */
+    for (int i = 0; i < 16; i++) {
+        unit_changeangle(unit);
+    }
 
     /* Angle must point from (0,0) toward the goal. */
     FLOAT expected = atan2f(wp->s.origin.y - unit->s.origin.y,

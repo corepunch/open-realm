@@ -1,4 +1,5 @@
 #include "client.h"
+#include <stdlib.h>  /* getenv (BZ_FPS_LOG diagnostic) */
 
 #define SCR_FPS_HEIGHT 8
 #define SCR_FPS_BOTTOM_MARGIN 4
