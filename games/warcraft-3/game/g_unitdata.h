@@ -75,9 +75,11 @@
 #define UNIT_SPEED(UNIT) UnitRealField(UnitsMetaData, UNIT, "umvs")
 #define UNIT_OCCLUDER_HEIGHT(UNIT) UnitRealField(UnitsMetaData, UNIT, "uocc")
 #define UNIT_HP(UNIT) UnitRealField(UnitsMetaData, UNIT, "uhpm")
-/* Mana pool comes from the UnitBalance fields 'umpm' (manaN, maximum) and
- * 'umpi' (mana0, starting amount). The old 'umpc' code is not registered in the
- * metadata table, so it always resolved to 0 and casters/heroes showed no mana. */
+/* Mana pool: 'umpm' maps to the computed UnitBalance column 'realM' (max mana
+ * including a hero's Intelligence bonus), mirroring how 'uhpm' uses 'realHP' for
+ * HP. 'umpi' is mana0 (starting amount). The base 'manaN' column is 0 for heroes
+ * (their max comes from INT), so reading it left every hero/caster showing no
+ * mana; the old 'umpc' code wasn't registered in the metadata table at all. */
 #define UNIT_MANA_MAXIMUM(UNIT) UnitRealField(UnitsMetaData, UNIT, "umpm")
 #define UNIT_MANA_INITIAL(UNIT) UnitRealField(UnitsMetaData, UNIT, "umpi")
 #define UNIT_ACQUISITION_RANGE(UNIT) UnitRealField(UnitsMetaData, UNIT, "uacq")

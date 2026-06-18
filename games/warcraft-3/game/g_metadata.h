@@ -176,7 +176,7 @@ sheetMetaData_t UnitsMetaData[] = {
     { "ulum", "lumbercost", "UnitBalance" },
     { "ulur", "lumberRep", "UnitBalance" },
     { "umpi", "mana0", "UnitBalance" },
-    { "umpm", "manaN", "UnitBalance" },
+    { "umpm", "realM", "UnitBalance" },  /* computed max mana (incl. hero INT bonus), like uhpm->realHP */
     { "umas", "maxSpd", "UnitBalance" },
     { "umis", "minSpd", "UnitBalance" },
     { "unbr", "nbrandom", "UnitBalance" },
