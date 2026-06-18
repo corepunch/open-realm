@@ -359,15 +359,33 @@ DWORD ForceClear(LPJASS j) {
     *whichForce = 0;
     return 0;
 }
+/* ForceEnumPlayers(whichForce, filter): add every player passing the filter to
+ * the force. The boolexpr filter (arg 2) can't be evaluated here (no boolexpr
+ * callback support), but the dominant caller is GetPlayersAll(), which passes a
+ * null filter and expects every player added. Blizzard.j gates all cinematic
+ * transmissions behind IsPlayerInForce(GetLocalPlayer(), GetPlayersAll()), so a
+ * no-op here silently suppresses every cinematic dialog/portrait. Add all real
+ * player slots so membership tests succeed. */
 DWORD ForceEnumPlayers(LPJASS j) {
-    //LPDWORD whichForce = jass_checkhandle(j, 1, "force");
-    //HANDLE filter = jass_checkhandle(j, 2, "boolexpr");
+    LPDWORD whichForce = jass_checkhandle(j, 1, "force");
+    if (whichForce) {
+        FOR_LOOP(i, game.max_clients) {
+            *whichForce |= 1 << game.clients[i].ps.number;
+        }
+    }
     return 0;
 }
 DWORD ForceEnumPlayersCounted(LPJASS j) {
-    //LPDWORD whichForce = jass_checkhandle(j, 1, "force");
-    //HANDLE filter = jass_checkhandle(j, 2, "boolexpr");
-    //LONG countLimit = jass_checkinteger(j, 3);
+    LPDWORD whichForce = jass_checkhandle(j, 1, "force");
+    LONG countLimit = jass_checkinteger(j, 3);
+    if (whichForce) {
+        LONG added = 0;
+        FOR_LOOP(i, game.max_clients) {
+            if (added >= countLimit) break;
+            *whichForce |= 1 << game.clients[i].ps.number;
+            added++;
+        }
+    }
     return 0;
 }
 DWORD ForceEnumAllies(LPJASS j) {
