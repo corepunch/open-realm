@@ -349,6 +349,7 @@ struct playerState_s {
     DWORD rdflags;
     DWORD uiflags;
     DWORD client_ui_state;
+    DWORD cinematic_portrait;   /* model index of the cinematic transmission portrait (0 = none) */
     DWORD team;
     DWORD color;    // player color index (0 = red, 1 = blue, … see PLAYER_COLOR_*)
     DWORD race;     // map player race, see playerRace_t

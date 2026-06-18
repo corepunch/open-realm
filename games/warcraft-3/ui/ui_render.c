@@ -627,10 +627,40 @@ static void UI_DrawPortrait(LPCFRAMEDEF frame, LPCRECT rect) {
     if (!model) {
         return;
     }
-    
+
     /* Default animation for portraits is "Stand" or first available */
     LPCSTR anim = "Stand";
     renderer->DrawPortrait(model, rect, anim);
+}
+
+/* Render a live game-unit portrait (cl.portraits[index]) inside the given
+ * frame's rect — used for the cinematic transmission portrait, whose model is a
+ * game configstring index, not a UI-cache model. Mirrors UI_LayoutDrawPortrait. */
+void UI_DrawGamePortraitInFrame(LPCFRAMEDEF frame, DWORD modelIndex, LPCSTR anim) {
+    LPRENDERER renderer = UI_GetRenderer();
+    LPCMODEL model;
+
+    if (!frame || !modelIndex || !renderer || !renderer->DrawPortrait) {
+        return;
+    }
+    LPCRECT rect = UI_LayoutRect(frame);
+    if (!rect || rect->w <= 0 || rect->h <= 0) {
+        return;
+    }
+    model = uiimport.GetPortrait ? uiimport.GetPortrait(modelIndex) : NULL;
+    if (!model) {
+        model = uiimport.GetModel ? uiimport.GetModel(modelIndex) : NULL;
+    }
+    if (!model) {
+        return;
+    }
+    RECT viewport = {
+        rect->x / UI_BASE_WIDTH,
+        (UI_BASE_HEIGHT - rect->y - rect->h) / UI_BASE_HEIGHT,
+        rect->w / UI_BASE_WIDTH,
+        rect->h / UI_BASE_HEIGHT,
+    };
+    renderer->DrawPortrait(model, &viewport, anim ? anim : "Portrait");
 }
 
 static void UI_DrawSprite(LPCFRAMEDEF frame, LPCRECT rect) {

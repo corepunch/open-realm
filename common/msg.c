@@ -120,6 +120,7 @@ netField_t playerStateFields[] = {
     { NETF(PLAYER, rdflags), NFT_LONG },
     { NETF(PLAYER, uiflags), NFT_LONG },
     { NETF(PLAYER, client_ui_state), NFT_LONG },
+    { NETF(PLAYER, cinematic_portrait), NFT_LONG },
     { NETF(PLAYER, team), NFT_BYTE },
     { NETF(PLAYER, color), NFT_BYTE },
     { NETF(PLAYER, race), NFT_BYTE },

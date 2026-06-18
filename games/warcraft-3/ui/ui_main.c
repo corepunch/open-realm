@@ -431,6 +431,14 @@ static void UI_DrawCinematicPanel(LPCPLAYER ps) {
     }
 
     UI_DrawFrame(cinematic_panel.CinematicPanel);
+
+    /* Overlay the speaking unit's live portrait (talking head) in the cinematic
+     * portrait frame. Its model is a game configstring index, so render it
+     * directly rather than through the FDF model path. */
+    if (ps->cinematic_portrait && cinematic_panel.CinematicPortrait) {
+        UI_DrawGamePortraitInFrame(cinematic_panel.CinematicPortrait,
+                                   ps->cinematic_portrait, "Portrait Talk");
+    }
 }
 
 static LPCSTR UI_CsvField(LPCSTR text, DWORD index, LPSTR out, DWORD out_size) {

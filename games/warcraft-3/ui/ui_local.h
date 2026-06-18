@@ -445,6 +445,7 @@ COLOR32 Theme_ListBoxIconTextColor(void);
 
 /* ui_render.c — Frame rendering */
 void UI_DrawFrame(LPCFRAMEDEF frame);
+void UI_DrawGamePortraitInFrame(LPCFRAMEDEF frame, DWORD modelIndex, LPCSTR anim);
 void UI_DrawFrames(LPCFRAMEDEF const *roots, DWORD num_roots);
 BOOL UI_EditKey(int key);
 void UI_TextInputLocal(LPCSTR text);
