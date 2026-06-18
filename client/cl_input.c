@@ -125,6 +125,10 @@ void CL_Input(void) {
                     CON_KeyEvent(event.key.keysym.sym, true);
                     break;
                 }
+                if (cls.key_dest == key_game &&
+                    CL_HandleGameKey(event.key.keysym.sym, event.key.keysym.mod)) {
+                    break; /* consumed by in-game handler (e.g. control groups) */
+                }
                 Key_Event(event.key.keysym.sym, true, event.key.timestamp);
                 break;
             case SDL_KEYUP:
