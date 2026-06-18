@@ -290,7 +290,7 @@ int UIWow_LuaGetFactionForRace(lua_State *L) {
     UIWow_LoadCharCreateDbc();
     LPCSTR internal = NULL;
     LPCSTR name = UIWow_FactionNameForRace(wow_charcreate.sel_race + 1, &internal);
-    if (!name) { lua_pushnil(L); lua_pushnil(L); return 2; }
+    if (!name) { lua_pushstring(L, ""); lua_pushstring(L, ""); return 2; }
     lua_pushstring(L, name);
     lua_pushstring(L, internal ? internal : "");
     return 2;
@@ -299,7 +299,7 @@ int UIWow_LuaGetFactionForRace(lua_State *L) {
 int UIWow_LuaGetNameForRace(lua_State *L) {
     UIWow_LoadCharCreateDbc();
     int pi = wow_charcreate.sel_race;
-    if (pi < 0 || pi >= wow_charcreate.num_playable) { lua_pushnil(L); lua_pushnil(L); return 2; }
+    if (pi < 0 || pi >= wow_charcreate.num_playable) { lua_pushstring(L, ""); lua_pushstring(L, ""); return 2; }
     wowRaceRec_t const *r = &wow_charcreate.races[wow_charcreate.playable[pi]];
     LPCSTR name = (wow_charcreate.sel_sex == 1) ? r->name : (r->name_female[0] ? r->name_female : r->name);
     lua_pushstring(L, name[0] ? name : r->client_file);
