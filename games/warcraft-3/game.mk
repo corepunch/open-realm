@@ -100,6 +100,7 @@ TEST_GAME_SRCS := \
 	$(WC3_DIR)/game/skills/s_stop.c \
 	$(WC3_DIR)/game/skills/s_summon.c \
 	$(WC3_DIR)/game/skills/s_thunderbolt.c \
+	$(WC3_DIR)/game/skills/s_warden_abilities.c \
 	$(WC3_DIR)/game/skills/s_train.c \
 	$(WC3_DIR)/game/skills/s_utility_abilities.c \
 	$(WC3_DIR)/game/skills/s_ability_stubs.c \
