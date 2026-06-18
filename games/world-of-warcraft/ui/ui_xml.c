@@ -39,6 +39,7 @@ typedef enum {
     ELEM_ON_ENTER_PRESSED,
     ELEM_ON_ESCAPE_PRESSED,
     ELEM_ON_TAB_PRESSED,
+    ELEM_ON_MOUSE_WHEEL,
     ELEM_SOURCE_FILE,
     ELEM_STRING_COUNT
 } uiWowXmlStr_t;
@@ -86,6 +87,7 @@ typedef enum {
     EF_PENDING_ONLOAD = 1 << 16,
     EF_HAS_ANCHOR2    = 1 << 17,
     EF_WORD_WRAP      = 1 << 18,
+    EF_IS_SCROLLFRAME = 1 << 19,
 } uiWowXmlElemFlag_t;
 
 typedef struct {
@@ -126,6 +128,16 @@ static struct {
     int focus;
     int pressed_button;
     BOOL lua_ready;
+    struct {
+        FLOAT scroll_y;
+        FLOAT scroll_range;
+        int   scrollbar_child; /* index of child ScrollBar/Slider, -1 if none */
+    } scroll[WOW_XML_MAX_ELEMS];
+    struct {
+        int   scrollbar_idx;   /* scrollbar being dragged */
+        FLOAT start_mouse_y;  /* mouse Y at drag start */
+        FLOAT start_value;    /* scrollbar scroll_y at drag start */
+    } drag;
 } wow_xml;
 
 /* XML file currently being parsed — set by UIWow_XMLProcessTopLevel, used by
@@ -456,6 +468,31 @@ static int UIWow_LuaFrameGetButtonState(lua_State *L) {
     lua_pushstring(L, (i >= 0 && wow_xml.pressed_button == i) ? "PUSHED" : "NORMAL");
     return 1;
 }
+static int UIWow_LuaFrameSetVerticalScroll(lua_State *L) {
+    int i = UIWow_FrameFromSelf(L);
+    if (i >= 0) {
+        FLOAT val = (FLOAT)luaL_optnumber(L, 2, 0.0);
+        wow_xml.scroll[i].scroll_y = MAX(0, MIN(val, wow_xml.scroll[i].scroll_range));
+    }
+    return 0;
+}
+static int UIWow_LuaFrameGetVerticalScroll(lua_State *L) {
+    int i = UIWow_FrameFromSelf(L);
+    lua_pushnumber(L, i >= 0 ? wow_xml.scroll[i].scroll_y : 0.0);
+    return 1;
+}
+static int UIWow_LuaFrameGetVerticalScrollRange(lua_State *L) {
+    int i = UIWow_FrameFromSelf(L);
+    FLOAT range = i >= 0 ? wow_xml.scroll[i].scroll_range : 0.0;
+    /* Return frame height in pixels when no scroll range is computed yet,
+       matching the previous GetVerticalScrollRange → GetHeight fallback. */
+    if (range <= 0.0f && i >= 0) {
+        RECT r = UIWow_XmlComputeRect(i);
+        range = r.h * 768.0f;
+    }
+    lua_pushnumber(L, range);
+    return 1;
+}
 static int UIWow_LuaFrameSetVertexColor(lua_State *L) {
     int i = UIWow_FrameFromSelf(L); FLOAT r = (FLOAT)luaL_optnumber(L, 2, 1.0), g = (FLOAT)luaL_optnumber(L, 3, 1.0), b = (FLOAT)luaL_optnumber(L, 4, 1.0), a = (FLOAT)luaL_optnumber(L, 5, 1.0);
     if (i >= 0) wow_xml.elems[i].colors[ELEM_COLOR_VERTEX] = MAKE(COLOR32, (BYTE)(r * 255.0f), (BYTE)(g * 255.0f), (BYTE)(b * 255.0f), (BYTE)(a * 255.0f));
@@ -613,8 +650,8 @@ static void UIWow_XMLInstallLuaCompat(void) {
         { "SetValue", UIWow_LuaFrameNoop }, { "GetValue", UIWow_LuaFrameGetZero },
         { "SetMinMaxValues", UIWow_LuaFrameNoop }, { "GetMinMaxValues", UIWow_LuaFrameGetMinMax },
         { "UpdateScrollChildRect", UIWow_LuaFrameNoop }, { "SetScrollChild", UIWow_LuaFrameNoop },
-        { "GetVerticalScrollRange", UIWow_LuaFrameGetHeight },
-        { "SetVerticalScroll", UIWow_LuaFrameNoop }, { "GetVerticalScroll", UIWow_LuaFrameNoop },
+        { "GetVerticalScrollRange", UIWow_LuaFrameGetVerticalScrollRange },
+        { "SetVerticalScroll", UIWow_LuaFrameSetVerticalScroll }, { "GetVerticalScroll", UIWow_LuaFrameGetVerticalScroll },
         { "GetTextWidth", UIWow_LuaFrameGetWidth }, { "GetTextHeight", UIWow_LuaFrameGetHeight },
         { "SetTexCoord", UIWow_LuaFrameSetTexCoord },
         { "SetVertexColor", UIWow_LuaFrameSetVertexColor }, { "SetFocus", UIWow_LuaFrameSetFocus }, { "HighlightText", UIWow_LuaFrameHighlightText }, { "RegisterEvent", UIWow_LuaFrameRegisterEvent }, { "SetSequence", UIWow_LuaFrameSetSequence },
@@ -914,6 +951,7 @@ static void UIWow_XmlReadScripts(uiWowXmlElem_t *e, xmlNodePtr node) {
             else if (!xmlStrcasecmp(s->name, BAD_CAST "OnEnterPressed"))  field = ELEM_ON_ENTER_PRESSED;
             else if (!xmlStrcasecmp(s->name, BAD_CAST "OnEscapePressed")) field = ELEM_ON_ESCAPE_PRESSED;
             else if (!xmlStrcasecmp(s->name, BAD_CAST "OnTabPressed"))    field = ELEM_ON_TAB_PRESSED;
+            else if (!xmlStrcasecmp(s->name, BAD_CAST "OnMouseWheel"))   field = ELEM_ON_MOUSE_WHEEL;
             else { SAFE_DELETE(body, xmlFree); continue; }
             UIWow_ElemSetStr(e, field, (char const *)body);
             SAFE_DELETE(body, xmlFree);
@@ -1050,13 +1088,16 @@ static void UIWow_XmlCloneTemplateChildren(LPCSTR inherits, int dst, LPCSTR dst_
 
 static void UIWow_XmlParseNode(xmlNodePtr node, int parent, int draw_layer) {
     uiWowXmlType_t type; xmlChar *name_attr, *parent_attr, *inherits_attr; int idx;
+    BOOL is_scrollframe = false;
     if (!node || node->type != XML_ELEMENT_NODE || !node->name) return;
     if (!xmlStrcasecmp(node->name, BAD_CAST "Layer")) { UIWow_XmlParseLayer(node, parent); return; }
     if (!xmlStrcasecmp(node->name, BAD_CAST "Frames") || !xmlStrcasecmp(node->name, BAD_CAST "Layers")) { UIWow_XmlParseChildren(node, parent); return; }
     if (!xmlStrcasecmp(node->name, BAD_CAST "Frame") ||
         !xmlStrcasecmp(node->name, BAD_CAST "ScrollFrame") ||
-        !xmlStrcasecmp(node->name, BAD_CAST "Slider")) type = WOW_XML_FRAME;
-    else if (!xmlStrcasecmp(node->name, BAD_CAST "Model")) type = WOW_XML_MODEL;
+        !xmlStrcasecmp(node->name, BAD_CAST "Slider")) {
+        type = WOW_XML_FRAME;
+        if (!xmlStrcasecmp(node->name, BAD_CAST "ScrollFrame")) is_scrollframe = true;
+    } else if (!xmlStrcasecmp(node->name, BAD_CAST "Model")) type = WOW_XML_MODEL;
     else if (!xmlStrcasecmp(node->name, BAD_CAST "Texture")) type = WOW_XML_TEXTURE;
     else if (!xmlStrcasecmp(node->name, BAD_CAST "FontString")) type = WOW_XML_FONTSTRING;
     else if (!xmlStrcasecmp(node->name, BAD_CAST "Button") ||
@@ -1081,6 +1122,7 @@ static void UIWow_XmlParseNode(xmlNodePtr node, int parent, int draw_layer) {
     }
     idx = UIWow_XmlPushElem(type, resolved_name[0] ? resolved_name : NULL, parent, draw_layer); SAFE_DELETE(name_attr, xmlFree);
     if (idx < 0) { SAFE_DELETE(parent_attr, xmlFree); UIWow_Printf("UIWow: XML element limit exceeded\n"); return; }
+    if (is_scrollframe) wow_xml.elems[idx].flags |= EF_IS_SCROLLFRAME;
     UIWow_XmlCloneTemplateChildren((char const *)inherits_attr, idx, resolved_name[0] ? resolved_name : NULL);
     UIWow_XmlInheritElem(&wow_xml.elems[idx], (char const *)inherits_attr); SAFE_DELETE(inherits_attr, xmlFree);
     if (parent_attr && *parent_attr) {
@@ -1200,18 +1242,18 @@ void UIWow_XmlComputeRectPub(int idx, FLOAT *x, FLOAT *y, FLOAT *w, FLOAT *h) {
     if (x) *x = r.x; if (y) *y = r.y; if (w) *w = r.w; if (h) *h = r.h;
 }
 
-void UIWow_XMLInitRuntime(void) { memset(&wow_xml, 0, sizeof(wow_xml)); wow_xml.focus = -1; wow_xml.pressed_button = -1; UIWow_XMLInstallLuaCompat(); }
+void UIWow_XMLInitRuntime(void) { memset(&wow_xml, 0, sizeof(wow_xml)); wow_xml.focus = -1; wow_xml.pressed_button = -1; wow_xml.drag.scrollbar_idx = -1; UIWow_XMLInstallLuaCompat(); }
 void UIWow_XMLShutdownRuntime(void) {
     if (wow_ui.renderer && wow_ui.renderer->ReleaseModel) FOR_LOOP(i, wow_xml.count) SAFE_DELETE(wow_xml.elems[i].model, wow_ui.renderer->ReleaseModel);
     UIWow_XMLFreeElems();
-    memset(&wow_xml, 0, sizeof(wow_xml)); wow_xml.focus = -1; wow_xml.pressed_button = -1;
+    memset(&wow_xml, 0, sizeof(wow_xml)); wow_xml.focus = -1; wow_xml.pressed_button = -1; wow_xml.drag.scrollbar_idx = -1;
 }
 
 BOOL UIWow_XMLLoadGlueFromToc(LPCSTR toc_path) {
     if (!wow_ui.lua) { UIWow_Printf("UIWow: XML runtime requires active lua_State\n"); return false; }
     if (!wow_xml.lua_ready) UIWow_XMLInstallLuaCompat();
     UIWow_XMLFreeElems();
-    memset(wow_xml.elems, 0, sizeof(wow_xml.elems)); wow_xml.count = 0; wow_xml.focus = -1; wow_xml.pressed_button = -1;
+    memset(wow_xml.elems, 0, sizeof(wow_xml.elems)); wow_xml.count = 0; wow_xml.focus = -1; wow_xml.pressed_button = -1; wow_xml.drag.scrollbar_idx = -1;
     if (!UIWow_XMLLoadFromToc(toc_path)) return false;
     UIWow_XMLInstallScreenShim();
     FOR_LOOP(i, wow_xml.count) {
@@ -1266,6 +1308,66 @@ static void UIWow_XMLRunFrameScript(int idx, LPCSTR script, LPCSTR event_name) {
 
 static int UIWow_XMLHitFrame(FLOAT x, FLOAT y);
 
+/* Compute cumulative vertical scroll offset for element idx by walking up the
+   parent chain and summing all ScrollFrame scroll_y values. */
+static FLOAT UIWow_XMLScrollOffset(int idx) {
+    FLOAT total = 0.0f;
+    int p = idx >= 0 && idx < wow_xml.count ? wow_xml.elems[idx].parent : -1;
+    while (p >= 0 && p < wow_xml.count) {
+        if (wow_xml.elems[p].flags & EF_IS_SCROLLFRAME)
+            total += wow_xml.scroll[p].scroll_y;
+        p = wow_xml.elems[p].parent;
+    }
+    return total;
+}
+
+/* Find the nearest ancestor ScrollFrame for element idx, or return -1.
+   When found, *clip is set to that ScrollFrame's computed rect. */
+static int UIWow_XMLScrollClipAncestor(int idx, RECT *clip) {
+    int p = idx >= 0 && idx < wow_xml.count ? wow_xml.elems[idx].parent : -1;
+    while (p >= 0 && p < wow_xml.count) {
+        if (wow_xml.elems[p].flags & EF_IS_SCROLLFRAME) {
+            if (clip) *clip = UIWow_XmlComputeRect(p);
+            return p;
+        }
+        p = wow_xml.elems[p].parent;
+    }
+    return -1;
+}
+
+/* Current scroll clip state, set per-element in UIWow_XMLDraw. */
+static BOOL s_has_scroll_clip;
+static RECT s_scroll_clip;
+
+/* Compute scroll range for all ScrollFrames: the vertical extent of their
+   children minus the viewport height. Called once per frame. */
+static void UIWow_XMLComputeScrollRanges(void) {
+    FOR_LOOP(i, wow_xml.count) {
+        uiWowXmlElem_t *e = &wow_xml.elems[i];
+        RECT vr;
+        FLOAT min_y, max_y;
+        if (!(e->flags & EF_USED) || !(e->flags & EF_IS_SCROLLFRAME)) continue;
+        vr = UIWow_XmlComputeRect(i);
+        min_y = vr.y + vr.h; /* top of content (largest y = topmost in FDF space) */
+        max_y = vr.y;         /* bottom of content (smallest y = bottommost) */
+        FOR_LOOP(j, wow_xml.count) {
+            uiWowXmlElem_t *c = &wow_xml.elems[j];
+            RECT cr;
+            if (!(c->flags & EF_USED) || c->parent != (int)i) continue;
+            /* Skip the ScrollBar child (Slider with narrow width). */
+            if (c->type == WOW_XML_FRAME && c->size.w > 0 && c->size.h > 0 && c->size.w < c->size.h * 0.5f)
+                continue;
+            cr = UIWow_XmlComputeRect(j);
+            if (cr.y < min_y) min_y = cr.y;
+            if (cr.y + cr.h > max_y) max_y = cr.y + cr.h;
+        }
+        wow_xml.scroll[i].scroll_range = MAX(0.0f, (max_y - min_y) - vr.h);
+        /* Clamp scroll_y to valid range. */
+        if (wow_xml.scroll[i].scroll_y > wow_xml.scroll[i].scroll_range)
+            wow_xml.scroll[i].scroll_y = wow_xml.scroll[i].scroll_range;
+    }
+}
+
 static void UIWow_XMLDrawImage(LPTEXTURE tex, LPCRECT screen, LPCRECT uv, COLOR32 color, BOOL rotate, BLEND_MODE mode) {
     if (!wow_ui.renderer || !tex) return;
     if (wow_ui.renderer->DrawImageEx) {
@@ -1276,7 +1378,9 @@ static void UIWow_XMLDrawImage(LPTEXTURE tex, LPCRECT screen, LPCRECT uv, COLOR3
                                            .screen = *screen,
                                            .uv = *uv,
                                            .color = color,
-                                           .rotate = rotate));
+                                           .rotate = rotate,
+                                           .hasClip = s_has_scroll_clip,
+                                           .clip = s_scroll_clip));
     } else if (wow_ui.renderer->DrawImage) {
         wow_ui.renderer->DrawImage(tex, screen, uv, color);
     }
@@ -1404,6 +1508,7 @@ void UIWow_XMLDraw(void) {
     }
 
     UIWow_EnsureRenderer(); if (!wow_ui.renderer) return;
+    UIWow_XMLComputeScrollRanges();
     for (int layer = WOW_XML_LAYER_BACKGROUND; layer <= WOW_XML_LAYER_OVERLAY; layer++) FOR_LOOP(i, wow_xml.count) {
         uiWowXmlElem_t *e = &wow_xml.elems[i]; RECT r; RECT uv = MAKE(RECT, 0, 0, 1, 1); char text[512];
         COLOR32 text_color = e->colors[ELEM_COLOR_TEXT];
@@ -1411,14 +1516,59 @@ void UIWow_XMLDraw(void) {
         BOOL hovered = e->type == WOW_XML_BUTTON && hovered_button == (int)i;
         LPCSTR file = e->texts[ELEM_FILE], normal_file = e->texts[ELEM_NORMAL_FILE], pushed_file = e->texts[ELEM_PUSHED_FILE];
         LPCSTR highlight_file = e->texts[ELEM_HIGHLIGHT_FILE], elem_text = e->texts[ELEM_TEXT];
+        FLOAT scroll_off_y = 0.0f;
+        RECT clip_rect = {0};
+        BOOL has_clip = false;
         if (!(e->flags & EF_USED) || !UIWow_XMLIsVisible((int)i)) continue;
         /* Backdrops draw at BACKGROUND layer regardless of the frame's own draw_layer. */
         if (layer == WOW_XML_LAYER_BACKGROUND && (e->type == WOW_XML_FRAME || e->type == WOW_XML_BUTTON || e->type == WOW_XML_EDITBOX)) {
             r = UIWow_XmlComputeRect(i);
+            s_has_scroll_clip = false;
             UIWow_XMLDrawBackdrop(e, &r);
         }
         if (e->draw_layer != layer) continue;
         r = UIWow_XmlComputeRect(i);
+        /* Compute scroll offset for descendants of ScrollFrames. Skip the
+           ScrollFrame itself (it is the viewport) and its direct ScrollBar
+           child (Slider) which must remain fixed. */
+        /* Walk parent chain for scroll offset and clip. */
+        {
+            int anc = -1;
+            FLOAT total_off = 0.0f;
+            int pp = e->parent;
+            int p = e->parent;
+            while (p >= 0 && p < wow_xml.count) {
+                if (wow_xml.elems[p].flags & EF_IS_SCROLLFRAME) {
+                    total_off += wow_xml.scroll[p].scroll_y;
+                    if (anc < 0) anc = p;
+                }
+                p = wow_xml.elems[p].parent;
+            }
+            /* Don't scroll the ScrollFrame itself, its direct Slider child, or the Slider's children
+               (ThumbTexture, UpButton, DownButton). They must remain fixed. */
+            BOOL is_scrollbar_part = false;
+            if (pp >= 0 && pp < wow_xml.count && (wow_xml.elems[pp].flags & EF_IS_SCROLLFRAME) &&
+                e->type == WOW_XML_FRAME && e->size.h > 0 && e->size.w > 0 && e->size.w < e->size.h * 0.5f)
+                is_scrollbar_part = true; /* direct Slider child */
+            if (pp >= 0 && pp < wow_xml.count) {
+                uiWowXmlElem_t *par = &wow_xml.elems[pp];
+                if (par->parent >= 0 && par->parent < wow_xml.count && (wow_xml.elems[par->parent].flags & EF_IS_SCROLLFRAME) &&
+                    par->type == WOW_XML_FRAME && par->size.h > 0 && par->size.w > 0 && par->size.w < par->size.h * 0.5f)
+                    is_scrollbar_part = true; /* child of Slider (ThumbTexture, UpButton, DownButton) */
+            }
+            if ((e->flags & EF_IS_SCROLLFRAME) || is_scrollbar_part) {
+                scroll_off_y = 0.0f;
+            } else {
+                scroll_off_y = total_off;
+            }
+            if (anc >= 0 && !is_scrollbar_part) {
+                clip_rect = UIWow_XmlComputeRect(anc);
+                has_clip = true;
+            }
+        }
+        r.y -= scroll_off_y;
+        s_has_scroll_clip = has_clip;
+        s_scroll_clip = clip_rect;
         if (e->type == WOW_XML_BUTTON) {
             text_color = !(e->flags & EF_ENABLED) ? e->button_text_colors[WOW_XML_BUTTON_TEXT_DISABLED] :
                          (hovered ? e->button_text_colors[WOW_XML_BUTTON_TEXT_HIGHLIGHT] : e->button_text_colors[WOW_XML_BUTTON_TEXT_NORMAL]);
@@ -1437,6 +1587,23 @@ void UIWow_XMLDraw(void) {
                          ((e->type == WOW_XML_BUTTON && normal_file && normal_file[0]) ? normal_file : file);
             LPTEXTURE t = UIWow_LoadTexture(src);
             if (e->flags & EF_HAS_TEXCOORD) uv = e->texcoord;
+            /* Scrollbar thumb: reposition ThumbTexture based on scroll_y / scroll_range. */
+            if (e->type == WOW_XML_TEXTURE && e->parent >= 0 && e->parent < wow_xml.count) {
+                uiWowXmlElem_t *par = &wow_xml.elems[e->parent];
+                if (par->parent >= 0 && par->parent < wow_xml.count && (wow_xml.elems[par->parent].flags & EF_IS_SCROLLFRAME)) {
+                    int sf = par->parent;
+                    FLOAT range = wow_xml.scroll[sf].scroll_range;
+                    if (range > 0.0f) {
+                        RECT pr = UIWow_XmlComputeRect(e->parent);
+                        FLOAT track_h = pr.h;
+                        FLOAT thumb_h = r.h;
+                        if (track_h > thumb_h) {
+                            FLOAT frac = wow_xml.scroll[sf].scroll_y / range;
+                            r.y = pr.y + frac * (track_h - thumb_h);
+                        }
+                    }
+                }
+            }
             if (t) {
                 UIWow_XMLDrawImage(t,
                                    &r,
@@ -1470,6 +1637,7 @@ void UIWow_XMLDraw(void) {
                 e->measured_h = sz.y;
                 /* Recompute r now that measured_h is known, so tr below uses the updated height. */
                 r = UIWow_XmlComputeRect(i);
+                r.y -= scroll_off_y;
             }
             RECT tr = MAKE(RECT,
                            r.x + e->text_inset.w + e->text_off.x,
@@ -1493,7 +1661,9 @@ void UIWow_XMLDraw(void) {
                                                 .halign = e->type == WOW_XML_EDITBOX
                                                           ? FONT_JUSTIFYLEFT
                                                           : e->halign,
-                                                .valign = e->valign));
+                                                .valign = e->valign,
+                                                .hasClip = has_clip,
+                                                .clip = clip_rect));
             }
         }
     }
@@ -1501,6 +1671,40 @@ void UIWow_XMLDraw(void) {
 
 static BOOL UIWow_XMLPointInRect(FLOAT x, FLOAT y, LPCRECT r) {
     return r && x >= r->x && y >= r->y && x <= r->x + r->w && y <= r->y + r->h;
+}
+
+/* Find the ScrollFrame under the mouse position (in FDF coords). */
+static int UIWow_XMLHitScrollFrame(FLOAT x, FLOAT y) {
+    for (int i = wow_xml.count - 1; i >= 0; i--) {
+        uiWowXmlElem_t const *e = &wow_xml.elems[i];
+        RECT r;
+        if (!(e->flags & EF_USED) || !(e->flags & EF_IS_SCROLLFRAME)) continue;
+        if (!UIWow_XMLIsVisible(i)) continue;
+        r = UIWow_XmlComputeRect(i);
+        if (UIWow_XMLPointInRect(x, y, &r)) return i;
+    }
+    return -1;
+}
+
+/* Detect scrollbar sub-parts by name suffix convention:
+   *ScrollUpButton → increment (scroll up), *ScrollDownButton → decrement (scroll down),
+   *Thumb → draggable thumb. Returns 1=up, 2=down, 3=thumb, 0=not a scrollbar part. */
+static int UIWow_XMLScrollBarPart(uiWowXmlElem_t const *e) {
+    LPCSTR name = e->texts[ELEM_NAME];
+    if (!name || !*name) return 0;
+    size_t len = strlen(name);
+    if (len > 15 && !strcmp(name + len - 15, "ScrollUpButton")) return 1;
+    if (len > 17 && !strcmp(name + len - 17, "ScrollDownButton")) return 2;
+    if (len > 5 && !strcmp(name + len - 5, "Thumb")) return 3;
+    return 0;
+}
+
+/* Find the ScrollBar parent for a scrollbar part element. */
+static int UIWow_XMLScrollBarParent(int idx) {
+    int p = idx >= 0 && idx < wow_xml.count ? wow_xml.elems[idx].parent : -1;
+    if (p >= 0 && p < wow_xml.count && (wow_xml.elems[p].flags & EF_IS_SCROLLFRAME))
+        return p; /* direct child of ScrollFrame is the ScrollBar */
+    return -1;
 }
 
 static int UIWow_XMLHitFrame(FLOAT x, FLOAT y) {
@@ -1514,11 +1718,61 @@ static int UIWow_XMLHitFrame(FLOAT x, FLOAT y) {
 }
 
 BOOL UIWow_XMLMouseEvent(int x, int y, int button, BOOL down) {
+    FLOAT fdf_x = x / 1024.0f, fdf_y = y / 768.0f;
     int hit;
-    hit = UIWow_XMLHitFrame(x / 1024.0f, y / 768.0f);
+
+    /* Mouse wheel (button 4 = up, 5 = down): scroll the ScrollFrame under the cursor. */
+    if (down && (button == 4 || button == 5)) {
+        int sf = UIWow_XMLHitScrollFrame(fdf_x, fdf_y);
+        if (sf >= 0) {
+            FLOAT step = 0.02f; /* scroll step in FDF units */
+            if (button == 4) wow_xml.scroll[sf].scroll_y = MAX(0.0f, wow_xml.scroll[sf].scroll_y - step);
+            else wow_xml.scroll[sf].scroll_y = MIN(wow_xml.scroll[sf].scroll_range, wow_xml.scroll[sf].scroll_y + step);
+            /* Run OnMouseWheel script if present. */
+            if (UIWow_ElemStr(&wow_xml.elems[sf], ELEM_ON_MOUSE_WHEEL))
+                UIWow_XMLRunFrameScript(sf, wow_xml.elems[sf].texts[ELEM_ON_MOUSE_WHEEL], "OnMouseWheel");
+            return true;
+        }
+        return false;
+    }
+
+    /* Mouse motion (button 0, not down): handle scrollbar thumb drag. */
+    if (button == 0 && !down && wow_xml.drag.scrollbar_idx >= 0) {
+        int sf = wow_xml.drag.scrollbar_idx;
+        RECT vr = UIWow_XmlComputeRect(sf);
+        FLOAT mouse_delta = fdf_y - wow_xml.drag.start_mouse_y;
+        FLOAT scroll_range = wow_xml.scroll[sf].scroll_range;
+        if (vr.h > 0.0f && scroll_range > 0.0f) {
+            /* Map mouse delta to scroll delta. Dragging down increases scroll_y. */
+            FLOAT scroll_delta = (mouse_delta / vr.h) * scroll_range;
+            wow_xml.scroll[sf].scroll_y = MIN(scroll_range, MAX(0.0f, wow_xml.drag.start_value + scroll_delta));
+        }
+        return true;
+    }
+
+    hit = UIWow_XMLHitFrame(fdf_x, fdf_y);
+
+    /* Also check if we hit a scrollbar part (thumb, up/down button). */
+    if (hit < 0) {
+        for (int i = wow_xml.count - 1; i >= 0; i--) {
+            uiWowXmlElem_t const *e = &wow_xml.elems[i]; RECT r;
+            int part;
+            if (!UIWow_XMLIsVisible(i) || e->type != WOW_XML_BUTTON) continue;
+            part = UIWow_XMLScrollBarPart(e);
+            if (!part) continue;
+            r = UIWow_XmlComputeRect(i);
+            if (UIWow_XMLPointInRect(fdf_x, fdf_y, &r)) { hit = i; break; }
+        }
+    }
+
     if (!down) {
         int pressed = wow_xml.pressed_button;
         wow_xml.pressed_button = -1;
+        /* End scrollbar drag. */
+        if (wow_xml.drag.scrollbar_idx >= 0) {
+            wow_xml.drag.scrollbar_idx = -1;
+            return true;
+        }
         if (button == 1 && pressed >= 0 && hit == pressed && wow_xml.elems[pressed].type == WOW_XML_BUTTON &&
             (wow_xml.elems[pressed].flags & EF_ENABLED) && wow_ui.lua &&
             UIWow_ElemStr(&wow_xml.elems[pressed], ELEM_ON_CLICK)) {
@@ -1529,8 +1783,35 @@ BOOL UIWow_XMLMouseEvent(int x, int y, int button, BOOL down) {
     }
     if (hit < 0) {
         wow_xml.pressed_button = -1;
+        wow_xml.drag.scrollbar_idx = -1;
         return false;
     }
+
+    /* Scrollbar part interaction. */
+    {
+        int part = UIWow_XMLScrollBarPart(&wow_xml.elems[hit]);
+        if (part) {
+            int sf = UIWow_XMLScrollBarParent(hit);
+            if (sf >= 0) {
+                if (part == 3) {
+                    /* Thumb: start drag. */
+                    wow_xml.drag.scrollbar_idx = sf;
+                    wow_xml.drag.start_mouse_y = fdf_y;
+                    wow_xml.drag.start_value = wow_xml.scroll[sf].scroll_y;
+                    return true;
+                }
+                if (part == 1 || part == 2) {
+                    /* Up/Down button: step scroll. */
+                    FLOAT step = 0.02f;
+                    if (part == 1) wow_xml.scroll[sf].scroll_y = MAX(0.0f, wow_xml.scroll[sf].scroll_y - step);
+                    else wow_xml.scroll[sf].scroll_y = MIN(wow_xml.scroll[sf].scroll_range, wow_xml.scroll[sf].scroll_y + step);
+                    wow_xml.pressed_button = hit;
+                    return true;
+                }
+            }
+        }
+    }
+
     if (wow_xml.elems[hit].type == WOW_XML_EDITBOX) {
         wow_xml.focus = hit;
         wow_xml.pressed_button = -1;
