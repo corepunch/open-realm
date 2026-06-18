@@ -4,6 +4,10 @@
 #include "g_local.h"
 
 #define UNIT_DEFENSE_TYPE(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "udty")
+/* defType is a STRING enum in the SLK ("large","medium",...), not an integer,
+ * so map it via FindEnumValue rather than atoi. 'udef' is the base armor value. */
+#define UNIT_DEFENSE_TYPE_NAME(UNIT) UnitStringField(UnitsMetaData, UNIT, "udty")
+#define UNIT_ARMOR_VALUE(UNIT) UnitRealField(UnitsMetaData, UNIT, "udef")
 #define UNIT_ARMOR_TYPE(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "uarm")
 #define UNIT_LOOPING_FADE_IN_RATE(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "ulfi")
 #define UNIT_LOOPING_FADE_OUT_RATE(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "ulfo")
