@@ -307,6 +307,8 @@ static void G_RunFrame(void) {
 
     G_RunEntities();
 
+    G_UpdateClientInfoPanels();
+
     G_SolveCollisions();
     G_FowUpdate();
     G_FowSendDeltas();
