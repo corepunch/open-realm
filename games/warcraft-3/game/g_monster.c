@@ -28,6 +28,19 @@ LPCSTR attack_type[] = {
     NULL
 };
 
+/* WC3 defType enum order (matches the damage-table columns). */
+LPCSTR defense_type[] = {
+    "small",
+    "medium",
+    "large",
+    "fort",
+    "normal",
+    "hero",
+    "divine",
+    "none",
+    NULL
+};
+
 LPCSTR weapon_type[] = {
     "none",
     "normal",
@@ -363,6 +376,8 @@ void SP_SpawnUnit(LPEDICT self) {
     self->think = monster_think;
     self->svflags |= SVF_MONSTER;
     
+    self->defense_type = FindEnumValue(UNIT_DEFENSE_TYPE_NAME(self->class_id), defense_type);
+    self->armor_value = UNIT_ARMOR_VALUE(self->class_id);
     self->attack1.type = FindEnumValue(UNIT_ATTACK1_ATTACK_TYPE(self->class_id), attack_type);
     self->attack1.weapon = FindEnumValue(UNIT_ATTACK1_WEAPON_TYPE(self->class_id), weapon_type);
     self->attack1.damageBase = UNIT_ATTACK1_DAMAGE_BASE(self->class_id);

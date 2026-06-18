@@ -121,15 +121,53 @@ void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
     }
 }
 
+/* WC3 1.29 attack-type x defense-type damage multiplier table (verified from
+ * MiscGame.txt). Rows = attack1.type (none,normal,pierce,siege,spells,chaos,
+ * magic,hero); cols = defense_type (small,medium,large,fort,normal,hero,divine,
+ * none). */
+static const FLOAT g_damage_table[8][8] = {
+    /* small  medium large  fort   normal hero   divine none  */
+    { 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f }, /* none   */
+    { 1.00f, 1.50f, 1.00f, 0.70f, 1.00f, 1.00f, 0.05f, 1.00f }, /* normal */
+    { 2.00f, 0.75f, 1.00f, 0.35f, 1.00f, 0.50f, 0.05f, 1.50f }, /* pierce */
+    { 1.00f, 0.50f, 1.00f, 1.50f, 1.00f, 0.50f, 0.05f, 1.50f }, /* siege  */
+    { 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 0.70f, 0.05f, 1.00f }, /* spells */
+    { 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f }, /* chaos  */
+    { 1.25f, 0.75f, 2.00f, 0.35f, 1.00f, 0.50f, 0.05f, 1.00f }, /* magic  */
+    { 1.00f, 1.00f, 1.00f, 0.50f, 1.00f, 1.00f, 0.05f, 1.00f }, /* hero   */
+};
+
+/* Apply WC3 damage reduction: attack/defense type multiplier, then armor value
+ * (0.06 coefficient). Used on the physical-attack path only; spells/triggers
+ * call T_Damage directly with their own (already-typed) damage. */
+static int G_AttackDamage(LPEDICT attacker, LPEDICT target, int base) {
+    if (!attacker || !target || base <= 0) {
+        return base;
+    }
+    DWORD at = attacker->attack1.type;
+    DWORD dt = target->defense_type;
+    if (at >= 8) at = 0;
+    if (dt >= 8) dt = 7;
+    FLOAT dmg = (FLOAT)base * g_damage_table[at][dt];
+    FLOAT const armor = target->armor_value;
+    if (armor >= 0.0f) {
+        dmg /= (1.0f + armor * 0.06f);
+    } else {
+        dmg *= (2.0f - 1.0f / (1.0f + (-armor) * 0.06f));
+    }
+    int out = (int)(dmg + 0.5f);
+    return out < 1 ? 1 : out;
+}
+
 static void damage_target(LPEDICT ent) {
     LPEDICT other = ent->goalentity;
-    DWORD damage = ai_rolldamage1(ent, 1);
+    DWORD damage = G_AttackDamage(ent, other, ai_rolldamage1(ent, 1));
     T_Damage(other, ent, damage);
 }
 
 static void throw_missile(LPEDICT ent) {
     LPEDICT other = ent->goalentity;
-    DWORD damage = ai_rolldamage1(ent, 1);
+    DWORD damage = G_AttackDamage(ent, other, ai_rolldamage1(ent, 1));
     MATRIX4 matrix;
     M_GetEntityMatrix(&ent->s, &matrix);
     VECTOR3 origin = Matrix4_multiply_vector3(&matrix, &ent->attack1.origin);
