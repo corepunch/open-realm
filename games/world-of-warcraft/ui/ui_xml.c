@@ -1001,6 +1001,11 @@ static void UIWow_XmlParseChildren(xmlNodePtr node, int parent) {
             xmlNodePtr f; for (f = c->children; f; f = f->next) UIWow_XmlParseNode(f, parent, WOW_XML_LAYER_ARTWORK);
             continue;
         }
+        /* ThumbTexture sits directly under Slider, outside <Frames>. */
+        if (!xmlStrcasecmp(c->name, BAD_CAST "ThumbTexture")) {
+            UIWow_XmlParseNode(c, parent, WOW_XML_LAYER_ARTWORK);
+            continue;
+        }
     }
 }
 
@@ -1033,6 +1038,10 @@ static void UIWow_XmlCloneTemplateChildren(LPCSTR inherits, int dst, LPCSTR dst_
                     snprintf(child_name, sizeof(child_name), "%s%s", dst_name, src_name + tmpl_len);
                 else
                     snprintf(child_name, sizeof(child_name), "%s", src_name);
+            } else {
+                /* Nameless children (e.g. ThumbTexture under Slider) get a
+                   synthetic $parent-prefixed name so they can be resolved. */
+                snprintf(child_name, sizeof(child_name), "%s%s", dst_name, csrc->type == WOW_XML_TEXTURE ? "ThumbTexture" : "Child");
             }
             if (!child_name[0] || UIWow_XmlFindByName(child_name) >= 0) continue;
             int clone = UIWow_XmlPushElem(csrc->type, child_name, dst, csrc->draw_layer);
