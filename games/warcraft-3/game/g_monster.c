@@ -386,6 +386,11 @@ void SP_SpawnUnit(LPEDICT self) {
     self->attack1.cooldown = UNIT_ATTACK1_BASE_COOLDOWN(self->class_id);
     self->attack1.damagePoint = UNIT_ATTACK1_DAMAGE_POINT(self->class_id);
     self->attack1.range = UNIT_ATTACK1_RANGE(self->class_id);
+    self->attack1.areaFull = UNIT_ATTACK1_AREA_OF_EFFECT_FULL_DAMAGE(self->class_id);
+    self->attack1.areaMedium = UNIT_ATTACK1_AREA_OF_EFFECT_MEDIUM_DAMAGE(self->class_id);
+    self->attack1.areaSmall = UNIT_ATTACK1_AREA_OF_EFFECT_SMALL_DAMAGE(self->class_id);
+    self->attack1.factorMedium = UNIT_ATTACK1_DAMAGE_FACTOR_MEDIUM(self->class_id);
+    self->attack1.factorSmall = UNIT_ATTACK1_DAMAGE_FACTOR_SMALL(self->class_id);
     
     if (self->attack1.weapon == WPN_MISSILE) {
         self->attack1.origin.x = UNIT_ATTACK1_LAUNCH_X(self->class_id);
