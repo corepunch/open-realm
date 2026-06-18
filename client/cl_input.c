@@ -304,6 +304,24 @@ void IN_SelectUp(void) {
         if (num > MAX_SELECTED_ENTITIES) {
             num = MAX_SELECTED_ENTITIES;
         }
+        /* Shift+drag adds to the existing selection (deduped) instead of
+         * replacing it, matching WC3. */
+        if (SDL_GetModState() & (KMOD_LSHIFT | KMOD_RSHIFT)) {
+            DWORD merged[MAX_SELECTED_ENTITIES];
+            DWORD mn = 0;
+            FOR_LOOP(i, cl.selection.num_selected) {
+                if (mn < MAX_SELECTED_ENTITIES)
+                    merged[mn++] = cl.selection.entity_nums[i];
+            }
+            FOR_LOOP(i, num) {
+                BOOL dup = false;
+                FOR_LOOP(j, mn) if (merged[j] == selected[i]) { dup = true; break; }
+                if (!dup && mn < MAX_SELECTED_ENTITIES)
+                    merged[mn++] = selected[i];
+            }
+            num = mn;
+            memcpy(selected, merged, sizeof(DWORD) * mn);
+        }
         strcpy(buffer, "select");
         FOR_LOOP(i, num) {
             size_t used = strlen(buffer);
