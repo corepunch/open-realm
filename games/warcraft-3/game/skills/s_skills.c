@@ -82,6 +82,11 @@ static abilityitem_t abilitylist[] = {
     { "Adro", &a_drop },
     { "Adri", &a_drop_instant },
     { "Aroo", &a_root },
+
+    /* Night Elf Warden (Maiev) hero abilities. */
+    { "AEbl", &a_blink },
+    { "AEfk", &a_fan_of_knives },
+    { "AEsh", &a_shadow_strike },
 };
 
 ability_t const *FindAbilityByClassname(LPCSTR classname) {
