@@ -2,6 +2,13 @@
 
 #define NAVI_THRESHOLD 128.0f
 
+/* Wrap an angle delta into [-PI, PI]. */
+static FLOAT angle_wrap(FLOAT a) {
+    while (a > (FLOAT)M_PI)  a -= 2.0f * (FLOAT)M_PI;
+    while (a < -(FLOAT)M_PI) a += 2.0f * (FLOAT)M_PI;
+    return a;
+}
+
 void unit_changeangle(LPEDICT self) {
     VECTOR2 to_goal = Vector2_sub(&self->goalentity->s.origin2, &self->s.origin2);
     FLOAT dist = Vector2_len(&to_goal);
@@ -17,7 +24,21 @@ void unit_changeangle(LPEDICT self) {
             dir = to_goal;
         }
     }
-    self->s.angle = atan2(dir.y, dir.x);
+
+    /* Turn gradually toward the target facing, at the unit's authentic turn
+     * rate ('umvr', radians per sim tick; WC3 default 0.5), instead of snapping
+     * instantly. */
+    FLOAT const target = (FLOAT)atan2(dir.y, dir.x);
+    FLOAT turn = UNIT_TURN_RATE(self->class_id);
+    if (turn <= 0.0f) turn = 0.5f;
+    FLOAT const delta = angle_wrap(target - self->s.angle);
+    if (delta > turn) {
+        self->s.angle = angle_wrap(self->s.angle + turn);
+    } else if (delta < -turn) {
+        self->s.angle = angle_wrap(self->s.angle - turn);
+    } else {
+        self->s.angle = target;
+    }
 }
 
 FLOAT unit_movedistance(LPEDICT self) {

@@ -80,6 +80,12 @@ void G_RunEntity(LPEDICT ent) {
             break;
     }
     SAFE_CALL(ent->think, ent);
+    /* Mana regeneration (WC3 'umpr', mana/second). Casters were stuck empty
+     * once drained. */
+    if (ent->mana.max_value > 0 && ent->mana.value < ent->mana.max_value) {
+        FLOAT const regen = UNIT_MANA_REGENERATION(ent->class_id) * (FRAMETIME / 1000.0f);
+        ent->mana.value = MIN(ent->mana.max_value, ent->mana.value + regen);
+    }
     ent->s.stats[ENT_HEALTH] = compress_stat(&ent->health);
     ent->s.stats[ENT_MANA] = compress_stat(&ent->mana);
     if (ent->currentmove) {
