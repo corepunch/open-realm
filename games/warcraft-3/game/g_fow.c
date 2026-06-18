@@ -400,6 +400,13 @@ static void G_FowRevealCircle(DWORD player, LPCEDICT ent, FLOAT radius) {
     }
 }
 
+/* WC3 day/night cycle: a full day is 480 game-seconds over 24 hours (20s per
+ * hour); daytime is 06:00-18:00 (MiscData.txt). */
+BOOL G_IsNight(void) {
+    DWORD const hour = (level.time % 480000) / 20000;
+    return hour < 6 || hour >= 18;
+}
+
 static FLOAT G_FowEntitySightRadius(LPCEDICT ent) {
     FLOAT day;
     FLOAT night;
@@ -409,7 +416,11 @@ static FLOAT G_FowEntitySightRadius(LPCEDICT ent) {
     }
     day = ent->balance.sight_radius.day;
     night = ent->balance.sight_radius.night;
-    return MAX(day, night);
+    /* Use the day or night sight radius based on time of day, rather than
+     * always taking the larger of the two. */
+    if (night <= 0.0f) night = day;
+    if (day <= 0.0f) day = night;
+    return G_IsNight() ? night : day;
 }
 
 static BOOL G_FowEntityIsRevealer(LPCEDICT ent) {
