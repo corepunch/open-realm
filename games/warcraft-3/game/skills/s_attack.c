@@ -159,10 +159,45 @@ static int G_AttackDamage(LPEDICT attacker, LPEDICT target, int base) {
     return out < 1 ? 1 : out;
 }
 
+/* Splash damage: full damage within areaFull of the impact, factorMedium within
+ * areaMedium, factorSmall within areaSmall (WC3 area-of-effect attacks). The
+ * type/armor multiplier is applied per target. Returns true if splash applied. */
+static BOOL apply_splash(LPEDICT attacker, LPCVECTOR2 impact, int base) {
+    FLOAT const rf = attacker->attack1.areaFull;
+    FLOAT const rm = attacker->attack1.areaMedium;
+    FLOAT const rs = attacker->attack1.areaSmall;
+    FLOAT const fm = attacker->attack1.factorMedium;
+    FLOAT const fs = attacker->attack1.factorSmall;
+    FLOAT const rmax = MAX(rf, MAX(rm, rs));
+
+    if (rmax <= 0.0f) {
+        return false; /* not a splash attack */
+    }
+    FILTER_EDICTS(target, target->inuse && target != attacker) {
+        if (!S_SpellIsAliveTarget(target) || !S_SpellIsEnemy(attacker, target)) {
+            continue;
+        }
+        FLOAT const d = Vector2_distance(&target->s.origin2, impact);
+        FLOAT factor;
+        if (rf > 0.0f && d <= rf)      factor = 1.0f;
+        else if (rm > 0.0f && d <= rm) factor = fm;
+        else if (rs > 0.0f && d <= rs) factor = fs;
+        else continue;
+        int dmg = G_AttackDamage(attacker, target, (int)(base * factor + 0.5f));
+        if (dmg > 0) {
+            T_Damage(target, attacker, dmg);
+        }
+    }
+    return true;
+}
+
 static void damage_target(LPEDICT ent) {
     LPEDICT other = ent->goalentity;
-    DWORD damage = G_AttackDamage(ent, other, ai_rolldamage1(ent, 1));
-    T_Damage(other, ent, damage);
+    int base = ai_rolldamage1(ent, 1);
+    if (apply_splash(ent, &other->s.origin2, base)) {
+        return; /* splash already hit the primary target (at distance 0) */
+    }
+    T_Damage(other, ent, G_AttackDamage(ent, other, base));
 }
 
 static void throw_missile(LPEDICT ent) {

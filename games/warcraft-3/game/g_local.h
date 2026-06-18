@@ -556,6 +556,13 @@ typedef struct {
     FLOAT damagePoint;
     FLOAT cooldown;
     FLOAT range;
+    /* Splash (area-of-effect) attack: full/medium/small radii and the damage
+     * factors applied in the medium and small rings. */
+    FLOAT areaFull;
+    FLOAT areaMedium;
+    FLOAT areaSmall;
+    FLOAT factorMedium;
+    FLOAT factorSmall;
     struct {
         DWORD model;
         FLOAT arc;
