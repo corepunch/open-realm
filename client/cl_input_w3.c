@@ -40,6 +40,46 @@ void CL_EndMinimapDrag(void) {
     minimap_drag_active = false;
 }
 
+/* --- Control groups (Ctrl+0..9 assign, 0..9 recall) ------------------------ */
+static DWORD cg_ids[10][MAX_SELECTED_ENTITIES];
+static DWORD cg_count[10];
+
+static void CL_ApplySelection(DWORD const *ids, DWORD n) {
+    char buffer[1024];
+    if (n == 0) return;
+    if (n > MAX_SELECTED_ENTITIES) n = MAX_SELECTED_ENTITIES;
+    strcpy(buffer, "select");
+    FOR_LOOP(i, n) {
+        size_t used = strlen(buffer);
+        snprintf(buffer + used, sizeof(buffer) - used, " %d", ids[i]);
+    }
+    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+    SZ_Printf(&cls.netchan.message, buffer);
+    cl.selection.num_selected = n;
+    memcpy(cl.selection.entity_nums, ids, sizeof(DWORD) * n);
+    CL_RequestUnitUI(n, cl.selection.entity_nums);
+}
+
+BOOL CL_HandleGameKey(int sym, Uint16 mod) {
+    if (!CL_GameplayInputReady())
+        return false;
+    if (sym < SDLK_0 || sym > SDLK_9)
+        return false;
+    DWORD const g = (DWORD)(sym - SDLK_0); /* 0..9 */
+    if (mod & KMOD_CTRL) {
+        /* Assign the current selection to this control group. */
+        DWORD n = cl.selection.num_selected;
+        if (n > MAX_SELECTED_ENTITIES) n = MAX_SELECTED_ENTITIES;
+        cg_count[g] = n;
+        memcpy(cg_ids[g], cl.selection.entity_nums, sizeof(DWORD) * n);
+    } else {
+        /* Recall the control group. */
+        if (cg_count[g] > 0)
+            CL_ApplySelection(cg_ids[g], cg_count[g]);
+    }
+    return true;
+}
+
 static void CL_BeginPan(float x, float y) {
     if (!CL_GameplayInputReady()) {
         camera_drag.active = false;

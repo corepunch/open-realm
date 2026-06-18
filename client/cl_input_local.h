@@ -20,4 +20,7 @@ void CL_InputModeFrame(void);
 BOOL CL_TryMinimapClick(float x, float y);
 void CL_EndMinimapDrag(void);
 
+/* In-game keyboard handling (control groups). Returns true if consumed. */
+BOOL CL_HandleGameKey(int sym, Uint16 mod);
+
 #endif
