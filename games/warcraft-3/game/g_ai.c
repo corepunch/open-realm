@@ -96,34 +96,78 @@ static LPEDICT sight_entities[MAX_SIGHT_ENTITIES];
 static BOOL filter_sight(LPCEDICT ent) {
     if (!(ent->svflags & SVF_MONSTER) || ent->s.player == ai_current_entity->s.player)
         return false;
+    /* Any non-allied player's units are valid targets — WC3 auto-acquisition
+     * applies to the player's units too, not only the AI's. */
     if (level.alliances[ent->s.player][ai_current_entity->s.player] != 0)
-        return false;
-    if (level.mapinfo->players[ent->s.player].playerType != kPlayerTypeHuman)
         return false;
     if (ent->svflags & SVF_DEADMONSTER)
         return false;
     if (UNIT_IS_BUILDING(ent->class_id))
         return false;
+    /* Only auto-engage fights that involve the human player (player vs anyone,
+     * and anyone vs player). This preserves the original computer->player
+     * aggression while letting the player's units fight back, without spawning
+     * map-wide computer-vs-neutral and neutral-vs-neutral brawls. */
+    if (level.mapinfo->players[ai_current_entity->s.player].playerType != kPlayerTypeHuman &&
+        level.mapinfo->players[ent->s.player].playerType != kPlayerTypeHuman)
+        return false;
     return true;
 }
+
+/* Does this unit have an attack to acquire targets with? */
+static BOOL unit_has_attack(LPCEDICT self) {
+    return self->attack1.cooldown > 0.0f &&
+           (self->attack1.damageBase > 0 || self->attack1.numberOfDice > 0);
+}
+
+/* Throttle target re-acquisition: idle units scan only a few times per second,
+ * staggered by entity index, instead of every sim tick. */
+#define AI_ACQUIRE_INTERVAL 300 /* ms */
 
 void ai_stand(LPEDICT self) {
     if (!(self->svflags & SVF_MONSTER))
         return;
-    if (level.mapinfo->players[self->s.player].playerType != kPlayerTypeComputer)
+    /* Idle units auto-engage the nearest enemy within acquisition range — for
+     * the player's own units too. Units with no attack (workers/critters) and
+     * units already chasing/attacking stay as they are. */
+    if (!unit_has_attack(self))
         return;
+    /* Only human- and computer-controlled units auto-acquire. Neutral/creep
+     * units do not initiate (avoids map-wide neutral-vs-neutral aggression),
+     * matching WC3's default behaviour closely enough for campaign play. */
+    {
+        DWORD const pt = level.mapinfo->players[self->s.player].playerType;
+        if (pt != kPlayerTypeComputer && pt != kPlayerTypeHuman)
+            return;
+    }
+    DWORD const stagger = (DWORD)(self - g_edicts) % AI_ACQUIRE_INTERVAL;
+    if (((level.time + stagger) % AI_ACQUIRE_INTERVAL) >= (DWORD)FRAMETIME)
+        return;
+
     ai_current_entity = self;
-    FLOAT const sight = self->balance.sight_radius.day / 2;
+    FLOAT const sight = self->balance.sight_radius.day;
+    FLOAT acquire = UNIT_ACQUISITION_RANGE(self->class_id);
+    if (acquire <= 0.0f)
+        acquire = sight * 0.5f;
+    if (sight > 0.0f && acquire > sight)
+        acquire = sight; /* cannot acquire beyond sight */
     BOX2 const sightbox = {
-        { self->s.origin2.x - sight, self->s.origin2.y - sight },
-        { self->s.origin2.x + sight, self->s.origin2.y + sight },
+        { self->s.origin2.x - acquire, self->s.origin2.y - acquire },
+        { self->s.origin2.x + acquire, self->s.origin2.y + acquire },
     };
     DWORD numents = gi.BoxEdicts(&sightbox, sight_entities, MAX_SIGHT_ENTITIES, filter_sight);
+    LPEDICT best = NULL;
+    FLOAT best_dist = acquire;
     FOR_LOOP(i, numents) {
         LPEDICT ent = sight_entities[i];
-        if (Vector2_distance(&ent->s.origin2, &self->s.origin2) < sight) {
-            order_attack(self, ent);
+        FLOAT const d = Vector2_distance(&ent->s.origin2, &self->s.origin2);
+        if (d < best_dist) {
+            best_dist = d;
+            best = ent;
         }
+    }
+    if (best) {
+        order_attack(self, best);
     }
 }
 

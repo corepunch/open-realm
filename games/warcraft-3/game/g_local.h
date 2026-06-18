@@ -649,6 +649,7 @@ struct edict_s {
     DWORD harvested_lumber;
     DWORD harvested_gold;
     DWORD heatmap2;
+    VECTOR2 heatmap2_origin;  /* target position when heatmap2 was last built */
     DWORD peonsinside;
     DWORD aiflags;
     DWORD damage;

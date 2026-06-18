@@ -97,13 +97,20 @@ DWORD M_RefreshHeatmap(LPEDICT self) {
     }
     /* For fixed waypoints (non-moving goals) the flow field only needs to be
      * computed once — reuse the cached result from the first call.  Monster
-     * targets can move, so their heatmap is always rebuilt to stay accurate. */
-    if (!(route->svflags & SVF_MONSTER) &&
-        route->heatmap2 &&
-        CM_ActivateCachedFlow(route->heatmap2)) {
-        return route->heatmap2;
+     * targets move, but rebuilding their heatmap every call (per chasing unit,
+     * every tick) is catastrophic — the flow field is shared by all chasers, so
+     * cache it on the target and rebuild only when the target has actually moved
+     * past ~half a pathing cell. */
+    if (route->heatmap2 && CM_ActivateCachedFlow(route->heatmap2)) {
+        if (!(route->svflags & SVF_MONSTER)) {
+            return route->heatmap2;
+        }
+        if (Vector2_distance(&route->s.origin2, &route->heatmap2_origin) < 64.0f) {
+            return route->heatmap2;
+        }
     }
     route->heatmap2 = CM_BuildHeatmap(route);
+    route->heatmap2_origin = route->s.origin2;
     return route->heatmap2;
 }
 
