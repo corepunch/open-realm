@@ -220,7 +220,7 @@ static int UIWow_XmlFindByName(LPCSTR name) {
 
 static int UIWow_XmlPushElem(uiWowXmlType_t type, LPCSTR name, int parent, int draw_layer) {
     uiWowXmlElem_t *e;
-    if (wow_xml.count >= WOW_XML_MAX_ELEMS) return -1;
+    if (wow_xml.count >= WOW_XML_MAX_ELEMS) { fprintf(stderr, "UIWow: XML ELEMENT LIMIT HIT (%d/%d) name=%s parent=%d\n", wow_xml.count, WOW_XML_MAX_ELEMS, name ? name : "<anon>", parent); return -1; }
     e = &wow_xml.elems[wow_xml.count]; memset(e, 0, sizeof(*e));
     e->flags = EF_USED | EF_ENABLED | EF_WORD_WRAP; /* word-wrap on by default, same as CSimpleFontString */
     e->type = type; e->parent = parent; e->relative_to = parent; e->draw_layer = draw_layer;
@@ -529,7 +529,25 @@ static int UIWow_LuaFrameSetFogColor(lua_State *L) { (void)L; return 0; }
 static int UIWow_LuaFrameSetFogNear(lua_State *L) { (void)L; return 0; }
 static int UIWow_LuaFrameSetFogFar(lua_State *L) { (void)L; return 0; }
 static int UIWow_LuaFrameClearFog(lua_State *L) { (void)L; return 0; }
-static int UIWow_LuaGetGlobalCompat(lua_State *L) { lua_getglobal(L, luaL_checkstring(L, 1)); return 1; }
+static int UIWow_LuaGetGlobalCompat(lua_State *L) {
+    LPCSTR name = luaL_checkstring(L, 1);
+    lua_getglobal(L, name);
+    /* WoW Lua 5.1 formats integers without decimal (e.g. "Button1"), but
+       Lua 5.2+/5.3+ number-to-string produces "Button1.0".  When the raw
+       lookup misses, strip a trailing ".0" so WoW scripts that concatenate
+       loop counters (e.g. "Button"..i) resolve correctly. */
+    if (lua_isnil(L, -1)) {
+        size_t len = strlen(name);
+        if (len > 2 && name[len - 2] == '.' && name[len - 1] == '0') {
+            char buf[256];
+            memcpy(buf, name, len - 2); buf[len - 2] = '\0';
+            lua_getglobal(L, buf);
+            if (!lua_isnil(L, -1)) return 1;
+            lua_pop(L, 1);
+        }
+    }
+    return 1;
+}
 
 static int UIWow_LuaFrameClick(lua_State *L) {
     int i = UIWow_FrameFromSelf(L);
