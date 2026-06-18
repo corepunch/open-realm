@@ -365,8 +365,8 @@ void SP_SpawnUnit(LPEDICT self) {
     if (UNIT_SIGHT_RADIUS(self->class_id) > 0 || UNIT_SIGHT_RADIUS_NIGHT(self->class_id) > 0) {
         self->s.flags |= EF_FOW_REVEALER;
     }
-    self->mana.value = UNIT_MANA(self->class_id);
-    self->mana.max_value = UNIT_MANA(self->class_id);
+    self->mana.max_value = UNIT_MANA_MAXIMUM(self->class_id);
+    self->mana.value = MIN(self->mana.max_value, UNIT_MANA_INITIAL(self->class_id));
     self->health.value = UNIT_HP(self->class_id);
     self->health.max_value = UNIT_HP(self->class_id);
     self->invulnerable = G_ActorHasSkill(self, "Avul");

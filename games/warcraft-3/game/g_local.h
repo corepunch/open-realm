@@ -532,6 +532,13 @@ struct client_s {
         LPEDICT target_controller;
         VECTOR2 target_offset;
     } camera;
+    /* Last HP/mana figures reflected in the single-unit info panel, so the
+     * server only re-sends LAYER_INFOPANEL when a displayed value changes. */
+    struct {
+        DWORD entity;
+        LONG hp;
+        LONG mana;
+    } infopanel;
 };
 
 typedef struct {
@@ -908,6 +915,8 @@ BYTE G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue);
 LPEDICT G_GetMainSelectedUnit(LPGAMECLIENT);
 void Get_Commands_f(LPEDICT);
 void Get_Portrait_f(LPEDICT);
+void G_RefreshInfoPanel(LPEDICT);
+void G_UpdateClientInfoPanels(void);
 void UI_AddCancelButton(LPEDICT);
 void UI_AddCommandButton(LPCSTR);
 void UI_AddCommandButtonExtended(LPCSTR code, BOOL research, DWORD level);

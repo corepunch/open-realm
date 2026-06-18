@@ -645,6 +645,43 @@ void Get_Commands_f(LPEDICT ent) {
     gi.unicast(ent);
 }
 
+/* Record the HP/mana figures currently reflected by the single-unit info panel
+ * so G_RefreshInfoPanel only re-sends LAYER_INFOPANEL when a value changes. */
+static void UI_SeedInfoPanelCache(LPEDICT ent, LPEDICT *selected, DWORD count) {
+    if (!ent->client) {
+        return;
+    }
+    if (count == 1 && !selected[0]->build) {
+        ent->client->infopanel.entity = selected[0]->s.number;
+        ent->client->infopanel.hp = (LONG)(selected[0]->health.value + 0.5f);
+        ent->client->infopanel.mana = (LONG)(selected[0]->mana.value + 0.5f);
+    } else {
+        ent->client->infopanel.entity = 0;
+    }
+}
+
+/* Build and unicast the LAYER_INFOPANEL layer for the player's current
+ * selection. Shared by the full portrait refresh and the per-frame HP/mana
+ * resend so both keep the change-detection cache consistent. */
+static void UI_SendInfoPanel(LPEDICT ent, LPEDICT *selected, DWORD count) {
+    gi.Write(PF_BYTE, &(LONG){svc_layout});
+    gi.Write(PF_BYTE, &(LONG){LAYER_INFOPANEL});
+    ui_next_frame_number = 1;
+    if (count == 1) {
+        if (selected[0]->build) {
+            UI_WriteBuildQueue(selected[0]);
+        } else {
+            UI_WriteSingleInfo(selected[0]);
+        }
+    } else if (count > 1) {
+        UI_WriteMultiselect(selected, count);
+    }
+    gi.Write(PF_LONG, &(LONG){0});
+    gi.Write(PF_SHORT, &(LONG){0});
+    gi.unicast(ent);
+    UI_SeedInfoPanelCache(ent, selected, count);
+}
+
 void Get_Portrait_f(LPEDICT ent) {
     LPEDICT selected[MAX_SELECTED_ENTITIES];
     DWORD count;
@@ -665,21 +702,7 @@ void Get_Portrait_f(LPEDICT ent) {
     gi.Write(PF_SHORT, &(LONG){0});
     gi.unicast(ent);
 
-    gi.Write(PF_BYTE, &(LONG){svc_layout});
-    gi.Write(PF_BYTE, &(LONG){LAYER_INFOPANEL});
-    ui_next_frame_number = 1;
-    if (count == 1) {
-        if (selected[0]->build) {
-            UI_WriteBuildQueue(selected[0]);
-        } else {
-            UI_WriteSingleInfo(selected[0]);
-        }
-    } else if (count > 1) {
-        UI_WriteMultiselect(selected, count);
-    }
-    gi.Write(PF_LONG, &(LONG){0});
-    gi.Write(PF_SHORT, &(LONG){0});
-    gi.unicast(ent);
+    UI_SendInfoPanel(ent, selected, count);
 
     gi.Write(PF_BYTE, &(LONG){svc_layout});
     gi.Write(PF_BYTE, &(LONG){LAYER_INVENTORY});
@@ -690,6 +713,43 @@ void Get_Portrait_f(LPEDICT ent) {
     gi.Write(PF_LONG, &(LONG){0});
     gi.Write(PF_SHORT, &(LONG){0});
     gi.unicast(ent);
+}
+
+/* Re-send the single-unit info panel for one player if the displayed HP or mana
+ * has changed since it was last sent. The portrait and inventory layers are left
+ * alone; multiselect bars and the build-queue timer already update client-side. */
+void G_RefreshInfoPanel(LPEDICT ent) {
+    LPEDICT selected[MAX_SELECTED_ENTITIES];
+    DWORD count;
+    LONG hp, mana;
+
+    if (!ent || !ent->client) {
+        return;
+    }
+    count = UI_SelectedUnits(ent->client, selected, MAX_SELECTED_ENTITIES);
+    if (count != 1 || selected[0]->build) {
+        ent->client->infopanel.entity = 0;
+        return;
+    }
+    hp = (LONG)(selected[0]->health.value + 0.5f);
+    mana = (LONG)(selected[0]->mana.value + 0.5f);
+    if (selected[0]->s.number == ent->client->infopanel.entity &&
+        hp == ent->client->infopanel.hp &&
+        mana == ent->client->infopanel.mana) {
+        return;
+    }
+    UI_SendInfoPanel(ent, selected, count);
+}
+
+/* Once per server frame, keep every player's info panel in sync with the live
+ * HP/mana of their selected unit. */
+void G_UpdateClientInfoPanels(void) {
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT ent = g_edicts + i;
+        if (ent->inuse && ent->client) {
+            G_RefreshInfoPanel(ent);
+        }
+    }
 }
 
 static DWORD UI_QuestIndex(LPCQUEST quest) {

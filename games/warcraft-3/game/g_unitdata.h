@@ -75,7 +75,11 @@
 #define UNIT_SPEED(UNIT) UnitRealField(UnitsMetaData, UNIT, "umvs")
 #define UNIT_OCCLUDER_HEIGHT(UNIT) UnitRealField(UnitsMetaData, UNIT, "uocc")
 #define UNIT_HP(UNIT) UnitRealField(UnitsMetaData, UNIT, "uhpm")
-#define UNIT_MANA(UNIT) UnitRealField(UnitsMetaData, UNIT, "umpc")
+/* Mana pool comes from the UnitBalance fields 'umpm' (manaN, maximum) and
+ * 'umpi' (mana0, starting amount). The old 'umpc' code is not registered in the
+ * metadata table, so it always resolved to 0 and casters/heroes showed no mana. */
+#define UNIT_MANA_MAXIMUM(UNIT) UnitRealField(UnitsMetaData, UNIT, "umpm")
+#define UNIT_MANA_INITIAL(UNIT) UnitRealField(UnitsMetaData, UNIT, "umpi")
 #define UNIT_ACQUISITION_RANGE(UNIT) UnitRealField(UnitsMetaData, UNIT, "uacq")
 #define UNIT_CAST_BACK_SWING(UNIT) UnitRealField(UnitsMetaData, UNIT, "ucbs")
 #define UNIT_CAST_POINT(UNIT) UnitRealField(UnitsMetaData, UNIT, "ucpt")
