@@ -1721,10 +1721,10 @@ static int UIWow_XMLScrollBarPart(uiWowXmlElem_t const *e) {
     LPCSTR name = e->texts[ELEM_NAME];
     if (!name || !*name) return 0;
     size_t len = strlen(name);
-    if (len > 15 && !strcmp(name + len - 15, "ScrollUpButton")) return 1;
-    if (len > 17 && !strcmp(name + len - 17, "ScrollDownButton")) return 2;
-    if (len > 5 && !strcmp(name + len - 5, "Thumb")) return 3;
-    if (len > 12 && !strcmp(name + len - 12, "ThumbTexture")) return 3;
+    if (len >= 14 && !strcmp(name + len - 14, "ScrollUpButton")) return 1;
+    if (len >= 16 && !strcmp(name + len - 16, "ScrollDownButton")) return 2;
+    if (len >= 12 && !strcmp(name + len - 12, "ThumbTexture")) return 3;
+    if (len >= 5 && !strcmp(name + len - 5, "Thumb")) return 3;
     return 0;
 }
 
@@ -1788,13 +1788,15 @@ BOOL UIWow_XMLMouseEvent(int x, int y, int button, BOOL down) {
     /* Also check if we hit a scrollbar part (thumb, up/down button). */
     if (hit < 0) {
         for (int i = wow_xml.count - 1; i >= 0; i--) {
-            uiWowXmlElem_t const *e = &wow_xml.elems[i]; RECT r;
-            int part;
-            if (!UIWow_XMLIsVisible(i) || e->type != WOW_XML_BUTTON) continue;
-            part = UIWow_XMLScrollBarPart(e);
-            if (!part) continue;
-            r = UIWow_XmlComputeRect(i);
-            if (UIWow_XMLPointInRect(fdf_x, fdf_y, &r)) { hit = i; break; }
+            uiWowXmlElem_t const *e = &wow_xml.elems[i];
+            if (!UIWow_XMLIsVisible(i)) continue;
+            if (e->type == WOW_XML_BUTTON || e->type == WOW_XML_TEXTURE) {
+                int part = UIWow_XMLScrollBarPart(e);
+                if (part) {
+                    RECT r = UIWow_XmlComputeRect(i);
+                    if (UIWow_XMLPointInRect(fdf_x, fdf_y, &r)) { hit = i; break; }
+                }
+            }
         }
     }
 
