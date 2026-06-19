@@ -139,19 +139,22 @@ void harvest_gold_start(LPEDICT self, LPEDICT target) {
  *   hfoo — Human Footman: speed 270, HP 420, build 60 s, collision 16
  * ===================================================================== */
 
-static sheetField_t hpea_balance_fields[5];
-static sheetField_t hfoo_balance_fields[5];
-static sheetRow_t   test_balance_rows[3];
+static sheetField_t hpea_balance_fields[7];
+static sheetField_t hfoo_balance_fields[7];
+static sheetField_t Hpal_balance_fields[12];
+static sheetRow_t   test_balance_rows[4];
 
 static sheetField_t hpea_data_fields[2];
 static sheetField_t hfoo_data_fields[2];
 static sheetField_t hbar_data_fields[2];
-static sheetRow_t   test_data_rows[3];
+static sheetField_t Hpal_data_fields[2];
+static sheetRow_t   test_data_rows[4];
 
 static sheetField_t hpea_ui_fields[1];
 static sheetField_t hfoo_ui_fields[1];
 static sheetField_t hbar_ui_fields[1];
-static sheetRow_t   test_ui_rows[3];
+static sheetField_t Hpal_ui_fields[1];
+static sheetRow_t   test_ui_rows[4];
 
 void setup_test_unit_data(void) {
     /* --- UnitBalance table (speed, HP, build time, gold/lumber cost) --- */
@@ -159,24 +162,46 @@ void setup_test_unit_data(void) {
     hpea_balance_fields[1] = (sheetField_t){"realHP", "250", &hpea_balance_fields[2]};
     hpea_balance_fields[2] = (sheetField_t){"bldtm",     "45",  &hpea_balance_fields[3]};
     hpea_balance_fields[3] = (sheetField_t){"goldcost",  "75",  &hpea_balance_fields[4]};
-    hpea_balance_fields[4] = (sheetField_t){"lumbercost","0",   NULL};
+    hpea_balance_fields[4] = (sheetField_t){"lumbercost","0",   &hpea_balance_fields[5]};
+    hpea_balance_fields[5] = (sheetField_t){"regenHP",   "0.25",&hpea_balance_fields[6]};
+    hpea_balance_fields[6] = (sheetField_t){"regenType", "always", NULL};
 
     hfoo_balance_fields[0] = (sheetField_t){"spd",    "270", &hfoo_balance_fields[1]};
     hfoo_balance_fields[1] = (sheetField_t){"realHP", "420", &hfoo_balance_fields[2]};
     hfoo_balance_fields[2] = (sheetField_t){"bldtm",     "60",  &hfoo_balance_fields[3]};
     hfoo_balance_fields[3] = (sheetField_t){"goldcost",  "135", &hfoo_balance_fields[4]};
-    hfoo_balance_fields[4] = (sheetField_t){"lumbercost","20",  NULL};
+    hfoo_balance_fields[4] = (sheetField_t){"lumbercost","20",  &hfoo_balance_fields[5]};
+    hfoo_balance_fields[5] = (sheetField_t){"regenHP",   "0.5", &hfoo_balance_fields[6]};
+    hfoo_balance_fields[6] = (sheetField_t){"regenType", "always", NULL};
 
-    static sheetField_t hbar_balance_fields[5];
+    static sheetField_t hbar_balance_fields[7];
     hbar_balance_fields[0] = (sheetField_t){"spd",    "0",    &hbar_balance_fields[1]};
     hbar_balance_fields[1] = (sheetField_t){"realHP", "1500", &hbar_balance_fields[2]};
     hbar_balance_fields[2] = (sheetField_t){"bldtm",  "120",  &hbar_balance_fields[3]};
     hbar_balance_fields[3] = (sheetField_t){"goldcost", "385", &hbar_balance_fields[4]};
-    hbar_balance_fields[4] = (sheetField_t){"lumbercost", "185", NULL};
+    hbar_balance_fields[4] = (sheetField_t){"lumbercost", "185", &hbar_balance_fields[5]};
+    hbar_balance_fields[5] = (sheetField_t){"regenHP",   "5",  &hbar_balance_fields[6]};
+    hbar_balance_fields[6] = (sheetField_t){"regenType", "none", NULL};
+
+    /* Hpal — Paladin hero with real WC3 base values: realHP 650, realM 255,
+     * realdef 3.9, STR 22 / INT 17 / AGI 13. Used for hero attribute scaling. */
+    Hpal_balance_fields[0] = (sheetField_t){"spd",     "270", &Hpal_balance_fields[1]};
+    Hpal_balance_fields[1] = (sheetField_t){"realHP",  "650", &Hpal_balance_fields[2]};
+    Hpal_balance_fields[2] = (sheetField_t){"realM",   "255", &Hpal_balance_fields[3]};
+    Hpal_balance_fields[3] = (sheetField_t){"realdef", "3.9", &Hpal_balance_fields[4]};
+    Hpal_balance_fields[4] = (sheetField_t){"STR",     "22",  &Hpal_balance_fields[5]};
+    Hpal_balance_fields[5] = (sheetField_t){"INT",     "17",  &Hpal_balance_fields[6]};
+    Hpal_balance_fields[6] = (sheetField_t){"AGI",     "13",  &Hpal_balance_fields[7]};
+    Hpal_balance_fields[7] = (sheetField_t){"manaN",   "0",   &Hpal_balance_fields[8]};
+    Hpal_balance_fields[8] = (sheetField_t){"STRplus", "2.7", &Hpal_balance_fields[9]};
+    Hpal_balance_fields[9] = (sheetField_t){"INTplus", "1.8", &Hpal_balance_fields[10]};
+    Hpal_balance_fields[10]= (sheetField_t){"AGIplus", "1.5", &Hpal_balance_fields[11]};
+    Hpal_balance_fields[11]= (sheetField_t){"Primary", "STR", NULL};
 
     test_balance_rows[0] = (sheetRow_t){"hpea", hpea_balance_fields, &test_balance_rows[1]};
     test_balance_rows[1] = (sheetRow_t){"hfoo", hfoo_balance_fields, &test_balance_rows[2]};
-    test_balance_rows[2] = (sheetRow_t){"hbar", hbar_balance_fields, NULL};
+    test_balance_rows[2] = (sheetRow_t){"hbar", hbar_balance_fields, &test_balance_rows[3]};
+    test_balance_rows[3] = (sheetRow_t){"Hpal", Hpal_balance_fields, NULL};
 
     /* --- UnitData table (collision radius, move type) --- */
     hpea_data_fields[0] = (sheetField_t){"collision", "16",   &hpea_data_fields[1]};
@@ -188,17 +213,23 @@ void setup_test_unit_data(void) {
     hbar_data_fields[0] = (sheetField_t){"collision", "64",   &hbar_data_fields[1]};
     hbar_data_fields[1] = (sheetField_t){"movetp",    "",     NULL};
 
+    Hpal_data_fields[0] = (sheetField_t){"collision", "16",   &Hpal_data_fields[1]};
+    Hpal_data_fields[1] = (sheetField_t){"movetp",    "foot", NULL};
+
     test_data_rows[0] = (sheetRow_t){"hpea", hpea_data_fields, &test_data_rows[1]};
     test_data_rows[1] = (sheetRow_t){"hfoo", hfoo_data_fields, &test_data_rows[2]};
-    test_data_rows[2] = (sheetRow_t){"hbar", hbar_data_fields, NULL};
+    test_data_rows[2] = (sheetRow_t){"hbar", hbar_data_fields, &test_data_rows[3]};
+    test_data_rows[3] = (sheetRow_t){"Hpal", Hpal_data_fields, NULL};
 
     hpea_ui_fields[0] = (sheetField_t){"isbldg", "0", NULL};
     hfoo_ui_fields[0] = (sheetField_t){"isbldg", "0", NULL};
     hbar_ui_fields[0] = (sheetField_t){"isbldg", "1", NULL};
+    Hpal_ui_fields[0] = (sheetField_t){"isbldg", "0", NULL};
 
     test_ui_rows[0] = (sheetRow_t){"hpea", hpea_ui_fields, &test_ui_rows[1]};
     test_ui_rows[1] = (sheetRow_t){"hfoo", hfoo_ui_fields, &test_ui_rows[2]};
-    test_ui_rows[2] = (sheetRow_t){"hbar", hbar_ui_fields, NULL};
+    test_ui_rows[2] = (sheetRow_t){"hbar", hbar_ui_fields, &test_ui_rows[3]};
+    test_ui_rows[3] = (sheetRow_t){"Hpal", Hpal_ui_fields, NULL};
 
     G_SetConfigTable(UnitsMetaData, "UnitBalance", test_balance_rows);
     G_SetConfigTable(UnitsMetaData, "UnitData",    test_data_rows);

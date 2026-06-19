@@ -63,6 +63,11 @@ void build_build(LPEDICT ent) {
         building->health.value = 0;
         building->build = building;
         G_PublishEvent(building, EVENT_PLAYER_UNIT_CONSTRUCT_START);
+        /* Bake the new building's footprint into the static pathmap so it
+         * becomes a hard obstacle for move-time collision and the flow field
+         * reroutes around it.  Units standing on the footprint are not pushed
+         * (WC3 does not push them either); they path out on their next order. */
+        CM_BakeStaticObstacles();
         Get_Portrait_f(G_GetPlayerEntityByNumber(ent->s.player));
     } else {
         ent->stand(ent);

@@ -254,13 +254,54 @@ static void test_group_move_ignores_selected_buildings(void) {
     ASSERT_NOT_NULL(peasant->goalentity);
 }
 
+/* A mixed-speed group travels at its slowest member's speed so it stays
+ * together instead of stringing out (WC3 group movement). */
+static void test_group_move_travels_at_slowest_member_speed(void) {
+    reset_entities();
+    LPEDICT clent = alloc_test_unit(0, 0.0f, 0.0f);
+    clent->client = &game.clients[0];
+
+    LPEDICT fast = alloc_test_unit(UNIT_ID("hpea"), 0.0f, 0.0f);
+    LPEDICT slow = alloc_test_unit(UNIT_ID("hpea"), 20.0f, 0.0f);
+    fast->unitinfo.MoveSpeed = 300.0f;
+    slow->unitinfo.MoveSpeed = 100.0f;
+    LPEDICT units[] = { fast, slow };
+    FOR_LOOP(i, 2) {
+        units[i]->collision = 16.0f;
+        units[i]->selected = 1 << clent->client->ps.number;
+        units[i]->stand = unit_stand;
+        unit_stand(units[i]);
+    }
+
+    VECTOR2 dest = {400.0f, 0.0f};
+    ASSERT(move_selectlocation(clent, &dest));
+
+    /* Both units adopt the slowest member's speed for the group move... */
+    ASSERT_EQ_FLOAT(fast->move_group_speed, 100.0f, 0.01f);
+    ASSERT_EQ_FLOAT(slow->move_group_speed, 100.0f, 0.01f);
+    /* ...so the fast unit's per-frame travel is capped to the slow speed. */
+    ASSERT_FLOAT_EQ(unit_movedistance(fast), 10.0f * 100.0f / (FLOAT)FRAMETIME);
+}
+
+/* A lone unit keeps its own speed (no group cap). */
+static void test_single_unit_move_keeps_own_speed(void) {
+    LPEDICT unit = make_moving_unit(0.0f, 0.0f);
+    unit->unitinfo.MoveSpeed = 300.0f;
+    VECTOR2 dest = {200.0f, 0.0f};
+    unit_issueorder(unit, "move", &dest);
+
+    ASSERT_EQ_FLOAT(unit->move_group_speed, 0.0f, 0.01f);
+    ASSERT_FLOAT_EQ(unit_movedistance(unit), 10.0f * 300.0f / (FLOAT)FRAMETIME);
+}
+
 static void test_blocked_move_stops_instead_of_walking_forever(void) {
     LPEDICT unit = make_moving_unit(0.0f, 0.0f);
     VECTOR2 origin = unit->s.origin2;
     VECTOR2 dest = {400.0f, 0.0f};
     unit_issueorder(unit, "move", &dest);
 
-    for (int i = 0; i < 16; i++) {
+    /* Budget exceeds MOVE_BLOCKED_FRAMES so the pinned (stuck) unit gives up. */
+    for (int i = 0; i < 30; i++) {
         if (!unit->currentmove || strcmp(unit->currentmove->animation, "walk") != 0) {
             break;
         }
@@ -301,22 +342,33 @@ static void test_unit_stops_when_goal_is_occupied(void) {
 
     unit->collision = 16.0f;
     blocker->collision = 16.0f;
+    blocker->s.model = 1;            /* non-hollow so it is a collision obstacle */
     blocker->stand = unit_stand;
-    unit_stand(blocker);
     blocker->movetype = MOVETYPE_NONE;
+    unit_stand(blocker);
+    gi.LinkEntity(blocker);          /* refresh bounds to reflect collision */
 
     unit_issueorder(unit, "move", &dest);
 
-    for (int i = 0; i < 20; i++) {
+    /* Move-time collision blocks the unit short of the occupied goal (it never
+     * steps into the blocker), then the blocked-frame accumulator settles it to
+     * stand.  No post-move solver is involved any more.  Track the closest the
+     * unit ever comes to the goal: it should reach right up against the blocker
+     * (just outside the combined collision radius) but never inside it. */
+    FLOAT min_goal_dist = M_DistanceToGoal(unit);
+    for (int i = 0; i < 40; i++) {
         if (!unit->currentmove || strcmp(unit->currentmove->animation, "walk") != 0) {
             break;
         }
         unit->currentmove->think(unit);
-        G_SolveCollisions();
+        FLOAT d = M_DistanceToGoal(unit);
+        if (d < min_goal_dist) min_goal_dist = d;
     }
 
-    ASSERT_ANIM(unit, "stand");
-    ASSERT(M_DistanceToGoal(unit) <= unit->collision + blocker->collision + 8.0f);
+    FLOAT combined = unit->collision + blocker->collision;
+    ASSERT_ANIM(unit, "stand");                                  /* settled, didn't walk forever */
+    ASSERT(min_goal_dist >= combined - 1.0f);                    /* never penetrated the blocker */
+    ASSERT(min_goal_dist <= combined + unit_movedistance(unit)); /* but reached right up to it */
 }
 
 /* -----------------------------------------------------------------------
@@ -338,6 +390,8 @@ BEGIN_SUITE(movement)
     RUN_TEST(test_unit_does_not_overshoot_goal);
     RUN_TEST(test_group_move_assigns_distinct_reserved_destinations);
     RUN_TEST(test_group_move_ignores_selected_buildings);
+    RUN_TEST(test_group_move_travels_at_slowest_member_speed);
+    RUN_TEST(test_single_unit_move_keeps_own_speed);
     RUN_TEST(test_blocked_move_stops_instead_of_walking_forever);
     RUN_TEST(test_near_goal_jitter_settles_to_stand);
     RUN_TEST(test_unit_stops_when_goal_is_occupied);

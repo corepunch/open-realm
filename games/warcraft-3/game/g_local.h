@@ -76,6 +76,7 @@ typedef struct {
 
 enum {
     AI_HOLD_FRAME = 1 << 0,
+    AI_FLYING     = 1 << 1,  /* air-layer unit (movetp "fly"): ignores ground collision */
 };
 
 typedef enum {
@@ -538,6 +539,7 @@ struct client_s {
         DWORD entity;
         LONG hp;
         LONG mana;
+        LONG xp;     /* hero experience, so the XP/attribute display updates live */
     } infopanel;
 };
 
@@ -686,6 +688,8 @@ struct edict_s {
     VECTOR2 move_last_origin;
     FLOAT move_last_distance;
     DWORD move_blocked_frames;
+    FLOAT move_group_speed;  // slowest member's speed for a group move (0 = no cap), keeps the group together
+    FLOAT move_heading;      // avoidance-resolved heading chosen this tick by unit_changeangle; movement follows it
     EDICTSTAT health;
     EDICTSTAT mana;
     MOVETYPE movetype;
@@ -712,6 +716,11 @@ struct edict_s {
     void (*think)(LPEDICT);
     void (*die)(LPEDICT, LPEDICT);
 };
+
+/* An entity that should be ignored by collision and physics: dead, hidden, or
+ * not a live model.  Shared by g_phys.c (M_CheckCollision) and g_ai.c
+ * (collision-aware movement). */
+#define IS_HOLLOW(ent) ((ent->svflags & SVF_DEADMONSTER) || (ent->s.renderfx & RF_HIDDEN) || !ent->s.model || !ent->inuse)
 
 struct game_locals {
     DWORD max_clients;
@@ -788,6 +797,21 @@ typedef struct {
     fowPlayerGrid_t players[MAX_PLAYERS];
 } fowGrid_t;
 
+/* A fog modifier reveals (or masks) a region for a player while started.
+ * FOG_OF_WAR_VISIBLE (state 4) reveals the region so units inside it become
+ * visible; cinematics use these to show staged units in unexplored areas. */
+typedef struct fogmodifier_s {
+    DWORD player;
+    DWORD state;             /* fogstate value: 4 = FOG_OF_WAR_VISIBLE */
+    BOOL is_rect;
+    BOX2 rect;               /* used when is_rect */
+    VECTOR2 center;          /* used when !is_rect */
+    FLOAT radius;            /* used when !is_rect */
+    BOOL use_shared_vision;
+    BOOL started;
+} FOGMODIFIER, *LPFOGMODIFIER;
+typedef FOGMODIFIER const *LPCFOGMODIFIER;
+
 struct level_locals {
     LPJASS vm;
     LPCMAPINFO mapinfo;
@@ -833,8 +857,11 @@ void G_FowUpdate(void);
 void G_FowSendDeltas(void);
 void G_FowSendFull(LPEDICT ent);
 BOOL G_FowPlayerCanSeeEntity(DWORD player, LPCEDICT ent);
+void G_FogModifierStart(LPFOGMODIFIER mod);
+void G_FogModifierStop(LPFOGMODIFIER mod);
 DWORD G_FowWorldToCellX(FLOAT x);
 DWORD G_FowWorldToCellY(FLOAT y);
+BOOL G_IsNight(void);
 
 // g_spawn.c
 LPEDICT G_Spawn(void);
@@ -842,6 +869,8 @@ void SP_CallSpawn(LPEDICT);
 void G_SpawnEntities(void);
 BOOL SP_FindEmptySpaceAround(LPEDICT, DWORD, LPVECTOR2, FLOAT *);
 LPEDICT SP_SpawnAtLocation(DWORD, DWORD, LPCVECTOR2);
+LPEDICT G_CreateDestructable(DWORD class_id, FLOAT x, FLOAT y, FLOAT z, FLOAT facing, FLOAT scale, DWORD variation);
+BOOL G_IsDestructable(LPCEDICT ent);
 
 LPEDICT Waypoint_add(LPCVECTOR2);
 void M_CheckGround (LPEDICT);
@@ -866,6 +895,7 @@ void unit_updatestatuses(LPEDICT);
 // g_monster.c
 void unit_moveindirection(LPEDICT);
 void unit_changeangle(LPEDICT);
+BOOL M_MoveIsValid(LPEDICT self, LPCVECTOR2 pos);
 BOOL M_CheckAttack(LPEDICT);
 void unit_setanimation(LPEDICT, LPCSTR);
 void unit_setmove(LPEDICT, umove_t *);
@@ -1023,6 +1053,14 @@ BOOL unit_additem(LPEDICT, LPEDICT);
 void unit_addstatus(LPEDICT, LPCSTR, DWORD);
 void unit_addtimedstatus(LPEDICT, LPCSTR, DWORD, FLOAT);
 void unit_learnability(LPEDICT, DWORD);
+void G_RecomputeHeroStats(LPEDICT);
+DWORD G_MaxHeroLevel(void);
+DWORD G_HeroXPForLevel(DWORD level);
+DWORD G_HeroLevelForXP(DWORD xp);
+void G_HeroApplyLevel(LPEDICT, DWORD level);
+void G_HeroSetXP(LPEDICT, DWORD xp);
+void G_GrantKillXP(LPEDICT victim, LPEDICT killer);
+void G_ReviveHero(LPEDICT, FLOAT x, FLOAT y);
 
 void order_attack(LPEDICT, LPEDICT);
 void order_move(LPEDICT, LPEDICT);

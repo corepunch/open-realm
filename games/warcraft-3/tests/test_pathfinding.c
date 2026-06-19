@@ -17,9 +17,9 @@
  *                      generation; switching between them does not force a
  *                      full rebuild every frame (fix #3).
  *   Flow direction — the flow vector at a cell points toward the goal.
- *   Transitive bumping — a unit that is stopped near its goal stops an
- *                        overlapping unit that shares the same goal
- *                        (fix #1: G_SolveCollisions propagates arrival).
+ *   Static point test — CM_PointIsPathableForRadius rejects wall cells and
+ *                       accepts open ground (the static half of move-time
+ *                       collision; see unit_trymove in g_ai.c).
  */
 
 #include <math.h>
@@ -38,9 +38,9 @@ void CM_SetupTestPathmap(DWORD width, DWORD height, BYTE const *cells);
 DWORD  CM_BuildHeatmap(edict_t *goalentity);
 VECTOR2 get_flow_direction(DWORD heatmapindex, float fnx, float fny);
 
-/* From g_phys.c — needed for transitive-bumping test. */
-extern ability_t a_move;
-void G_SolveCollisions(void);
+/* Static-map point test from routing.c — the static half of move-time
+ * collision (unit_trymove in g_ai.c). */
+BOOL CM_PointIsPathableForRadius(LPCVECTOR2 location, FLOAT radius);
 
 /* From g_monster.c */
 LPEDICT Waypoint_add(LPCVECTOR2 spot);
@@ -94,10 +94,19 @@ static LPEDICT make_waypoint(float cell_x, float cell_y) {
     return Waypoint_add(&pos);
 }
 
+/* Build the flow field for a goal and remember its generation so flow_at_cell
+ * can pass the real handle (get_flow_direction now activates the field for that
+ * generation rather than reading whatever was globally active). */
+static DWORD g_flow_gen = 0;
+static DWORD build_flow(LPEDICT goal) {
+    g_flow_gen = CM_BuildHeatmap(goal);
+    return g_flow_gen;
+}
+
 /* Query flow direction at cell (cx, cy), compensating for the identity
  * CM_GetNormalizedMapPosition stub the same way make_waypoint does. */
 static VECTOR2 flow_at_cell(float cell_x, float cell_y) {
-    return get_flow_direction(0,
+    return get_flow_direction(g_flow_gen,
         cell_x / (float)MAP_W,
         cell_y / (float)MAP_H);
 }
@@ -207,7 +216,7 @@ static void test_wall_routes_flow_around_obstacle(void) {
      * bend toward the gap at y=8/9, giving a downward (y) component.
      * We also verify the goal IS reachable from the right side (7,5). */
     LPEDICT wp = make_waypoint(7.0f, 5.0f);
-    CM_BuildHeatmap(wp);
+    build_flow(wp);
 
     /* Flow at (7, 5) itself (goal cell) may be zero or any direction.
      * Flow at (8, 5) — right side, open — should point toward the goal
@@ -228,7 +237,7 @@ static void test_flow_direction_points_toward_goal_open(void) {
 
     /* Goal at right edge; sample from left side. */
     LPEDICT wp = make_waypoint(9.0f, 5.0f);
-    CM_BuildHeatmap(wp);
+    build_flow(wp);
 
     /* At cell (2, 5), flow should point roughly rightward (+x). */
     VECTOR2 dir = flow_at_cell(2.0f, 5.0f);
@@ -259,60 +268,43 @@ static void test_unit_presence_does_not_invalidate_heatmap_cache(void) {
 }
 
 /* -----------------------------------------------------------------------
- * Transitive bumping / arrival propagation (fix #1):
+ * Static-map point test (CM_PointIsPathableForRadius):
  *
- * Two units share the same goalentity and are overlapping.  Unit A is
- * stopped (IS_MOVING == false), unit B is still walking.  After one call
- * to G_SolveCollisions(), unit B should also be stopped.
+ * The static half of move-time collision.  A point on a wall cell is not
+ * pathable; open ground is.  World coordinates are cell/MAP in the test
+ * harness (same convention as make_waypoint).
  * --------------------------------------------------------------------- */
 
-static void test_transitive_bumping_stops_overlapping_same_goal_unit(void) {
+static void test_point_pathable_rejects_wall_accepts_open(void) {
+    build_wall_map();
+    CM_SetupTestPathmap(MAP_W, MAP_H, wall_map);
     reset_entities();
 
-    /* Use normalized waypoint coords: cell (5, 5) in a 10x10 map. */
-    LPEDICT wp = make_waypoint(5.0f, 5.0f);
+    VECTOR2 wall_pt = { 5.0f / (float)MAP_W, 5.0f / (float)MAP_H }; /* on the wall column */
+    VECTOR2 open_pt = { 2.0f / (float)MAP_W, 5.0f / (float)MAP_H }; /* clear ground */
 
-    /* Unit A: already stopped at the goal (no currentmove → IS_MOVING false).
-     * Place at world position matching the waypoint origin. */
-    LPEDICT a = make_unit_at(wp->s.origin.x, wp->s.origin.y);
-    a->goalentity = wp;
-
-    /* Unit B: still walking toward the same goal, overlapping with A.
-     * Offset by less than 2× collision so they overlap. */
-    LPEDICT b = make_unit_at(wp->s.origin.x + a->collision, wp->s.origin.y);
-    b->stand = unit_stand;
-    order_move(b, wp);
-
-    /* Both units must be overlapping (sum of radii > distance). */
-    ASSERT(b->collision + a->collision > Vector2_distance(&a->s.origin2, &b->s.origin2));
-
-    G_SolveCollisions();
-
-    /* After solving, B should have been stopped by transitive bumping. */
-    ASSERT_ANIM(b, "stand");
+    ASSERT(!CM_PointIsPathableForRadius(&wall_pt, 0.0f));
+    ASSERT(CM_PointIsPathableForRadius(&open_pt, 0.0f));
 }
 
-static void test_transitive_bumping_does_not_stop_different_goal_unit(void) {
+/* The flood and the flow must not cut diagonally through a wall corner: with
+ * walls at (1,0) and (0,1), the cell (0,0) is boxed off from a goal at (1,1)
+ * (squeezing the corner is not a legal move), so its flow is zero, not a
+ * diagonal pointing into the corner. */
+static void test_no_diagonal_corner_cutting(void) {
+    BYTE corner_map[MAP_W * MAP_H];
+    memset(corner_map, 0, sizeof(corner_map));
+    corner_map[0 * MAP_W + 1] = 2;  /* wall at (1,0) */
+    corner_map[1 * MAP_W + 0] = 2;  /* wall at (0,1) */
+    CM_SetupTestPathmap(MAP_W, MAP_H, corner_map);
     reset_entities();
 
-    LPEDICT wp1 = make_waypoint(5.0f, 5.0f);
-    LPEDICT wp2 = make_waypoint(8.0f, 5.0f);
+    LPEDICT wp = make_waypoint(1.0f, 1.0f);  /* goal at cell (1,1) */
+    build_flow(wp);
 
-    /* Unit A: stopped at wp1. */
-    LPEDICT a = make_unit_at(wp1->s.origin.x, wp1->s.origin.y);
-    a->goalentity = wp1;
-
-    /* Unit B: walking toward a DIFFERENT goal, overlapping A. */
-    LPEDICT b = make_unit_at(wp1->s.origin.x + a->collision, wp1->s.origin.y);
-    b->stand = unit_stand;
-    order_move(b, wp2);
-
-    ASSERT(b->collision + a->collision > Vector2_distance(&a->s.origin2, &b->s.origin2));
-
-    G_SolveCollisions();
-
-    /* B is heading to a different goal — it should NOT be stopped. */
-    ASSERT_ANIM(b, "walk");
+    VECTOR2 flow = flow_at_cell(0.0f, 0.0f);
+    ASSERT_EQ_FLOAT(flow.x, 0.0f, 0.001f);
+    ASSERT_EQ_FLOAT(flow.y, 0.0f, 0.001f);
 }
 
 /* -----------------------------------------------------------------------
@@ -328,11 +320,11 @@ static void test_flow_cache_consistent_after_hit(void) {
     CM_SetupTestPathmap(MAP_W, MAP_H, open_map);
 
     LPEDICT wp = make_waypoint(9.0f, 5.0f);
-    CM_BuildHeatmap(wp);
+    build_flow(wp);
     VECTOR2 dir1 = flow_at_cell(2.0f, 5.0f);
 
     /* Second build of the same goal must hit the cache. */
-    CM_BuildHeatmap(wp);
+    build_flow(wp);
     VECTOR2 dir2 = flow_at_cell(2.0f, 5.0f);
 
     ASSERT_EQ_FLOAT(dir1.x, dir2.x, 0.001f);
@@ -354,14 +346,14 @@ static void test_flow_consistent_across_goal_switches(void) {
     LPEDICT wp_right = make_waypoint(9.0f, 5.0f);
 
     /* Build both goals. */
-    CM_BuildHeatmap(wp_right);
+    build_flow(wp_right);
     VECTOR2 flow_right = flow_at_cell(5.0f, 5.0f); /* should point right (+x) */
 
-    CM_BuildHeatmap(wp_left);
+    build_flow(wp_left);
     VECTOR2 flow_left = flow_at_cell(5.0f, 5.0f);  /* should point left (-x) */
 
     /* Switch back to right goal from cache. */
-    CM_BuildHeatmap(wp_right);
+    build_flow(wp_right);
     VECTOR2 flow_right2 = flow_at_cell(5.0f, 5.0f);
 
     /* Flow directions must be in opposite x halves. */
@@ -423,8 +415,8 @@ BEGIN_SUITE(pathfinding)
     RUN_TEST(test_wall_routes_flow_around_obstacle);
     RUN_TEST(test_flow_direction_points_toward_goal_open);
     RUN_TEST(test_unit_presence_does_not_invalidate_heatmap_cache);
-    RUN_TEST(test_transitive_bumping_stops_overlapping_same_goal_unit);
-    RUN_TEST(test_transitive_bumping_does_not_stop_different_goal_unit);
+    RUN_TEST(test_point_pathable_rejects_wall_accepts_open);
+    RUN_TEST(test_no_diagonal_corner_cutting);
     RUN_TEST(test_flow_cache_consistent_after_hit);
     RUN_TEST(test_flow_consistent_across_goal_switches);
     RUN_TEST(test_proximity_shortcut_gives_correct_angle);

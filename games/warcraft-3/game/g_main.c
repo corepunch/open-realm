@@ -296,8 +296,6 @@ static void G_RunFrame(void) {
     if (!level.started)
         return;
 
-    g_heatmap_builds_this_frame = 0; /* reset per-tick flow-field bake budget */
-
     G_StartScripts();
     
     G_RunEvents();

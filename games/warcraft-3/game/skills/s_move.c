@@ -17,8 +17,13 @@
 
 void move_walk(LPEDICT ent);
 
-#define MOVE_BLOCKED_FRAMES 8
-#define MOVE_SETTLE_FRAMES 4
+/* With move-time collision (block-and-slide), "blocked" now means the unit
+ * could not take a step this frame because it was boxed in — common and
+ * transient while a group slides around obstacles.  These thresholds are
+ * raised from the old free-move-plus-push values so units keep trying to
+ * thread through instead of giving up the instant they are briefly packed. */
+#define MOVE_BLOCKED_FRAMES 24
+#define MOVE_SETTLE_FRAMES 8
 #define MOVE_SLOT_MARGIN 8.0f
 #define MOVE_MIN_SLOT_SPACING 16.0f
 #define MOVE_ARRIVE_TOLERANCE 4.0f
@@ -161,6 +166,24 @@ static void move_reset_progress(LPEDICT self) {
     self->move_last_origin = self->s.origin2;
     self->move_last_distance = -1;
     self->move_blocked_frames = 0;
+    self->move_group_speed = 0;  /* single-unit/default: travel at own speed */
+}
+
+/* Effective current move speed of a unit (runtime override, else data table). */
+static FLOAT unit_effective_speed(LPEDICT ent) {
+    return ent->unitinfo.MoveSpeed > 0 ? ent->unitinfo.MoveSpeed : UNIT_SPEED(ent->class_id);
+}
+
+/* Slowest move speed across a group, so the whole group travels at it. */
+static FLOAT move_group_speed(LPEDICT const *units, DWORD count) {
+    FLOAT slowest = 0;
+    FOR_LOOP(i, count) {
+        FLOAT const s = unit_effective_speed(units[i]);
+        if (s > 0 && (slowest == 0 || s < slowest)) {
+            slowest = s;
+        }
+    }
+    return slowest;
 }
 
 static BOOL move_should_arrive(LPEDICT ent, FLOAT move_distance) {
@@ -188,25 +211,39 @@ static BOOL move_should_arrive(LPEDICT ent, FLOAT move_distance) {
 }
 
 static BOOL move_is_blocked(LPEDICT ent, FLOAT distance, FLOAT move_distance) {
+    FLOAT const settle_distance = move_distance + ent->collision + MOVE_SLOT_MARGIN;
     if (ent->move_last_distance >= 0) {
-        FLOAT progress = ent->move_last_distance - distance;
-        FLOAT moved = Vector2_distance(&ent->s.origin2, &ent->move_last_origin);
-        FLOAT min_progress = MAX(1.0f, move_distance * 0.05f);
-        FLOAT min_moved = MAX(1.0f, move_distance * 0.25f);
-        FLOAT settle_distance = move_distance + ent->collision + MOVE_SLOT_MARGIN;
+        /* move_last_distance is the *closest* the unit has come to its goal (a
+         * watermark), not just the previous frame's distance.  With move-time
+         * block-and-slide a unit boxed in near its goal orbits it: distance
+         * oscillates but never beats the watermark.  Measuring progress against
+         * the best-so-far (instead of frame-to-frame) lets the stuck counter
+         * accumulate through the orbit so the unit settles, instead of the
+         * lateral motion resetting it every frame and walking forever. */
+        FLOAT const improvement = ent->move_last_distance - distance;
+        FLOAT const moved = Vector2_distance(&ent->s.origin2, &ent->move_last_origin);
+        FLOAT const min_progress = MAX(1.0f, move_distance * 0.05f);
+        FLOAT const min_moved = MAX(1.0f, move_distance * 0.25f);
 
-        if (distance <= settle_distance && progress < min_progress) {
-            ent->move_blocked_frames++;
-        } else if (progress < min_progress && moved < min_moved) {
-            ent->move_blocked_frames++;
-        } else {
+        /* "Near goal" is judged by the watermark (the closest the unit has
+         * ever come), not the current position: once a unit has reached its
+         * best distance and can no longer improve on it, it is stuck even if
+         * its orbit around the blocked goal momentarily flings it back out
+         * past settle_distance. */
+        if (improvement >= min_progress) {
             ent->move_blocked_frames = 0;
+            ent->move_last_distance = distance;     /* advance the watermark */
+        } else if (ent->move_last_distance <= settle_distance || moved < min_moved) {
+            ent->move_blocked_frames++;             /* near goal, or barely moving */
+        } else {
+            ent->move_blocked_frames = 0;           /* far away but still making way */
         }
+    } else {
+        ent->move_last_distance = distance;
     }
 
-    ent->move_last_distance = distance;
     ent->move_last_origin = ent->s.origin2;
-    return distance <= move_distance + ent->collision + MOVE_SLOT_MARGIN
+    return ent->move_last_distance <= settle_distance
         ? ent->move_blocked_frames >= MOVE_SETTLE_FRAMES
         : ent->move_blocked_frames >= MOVE_BLOCKED_FRAMES;
 }
@@ -216,8 +253,13 @@ static void ai_move_walk(LPEDICT ent) {
     FLOAT move_distance = unit_movedistance(ent);
 
     if (move_should_arrive(ent, move_distance)) {
-        ent->s.origin2 = ent->goalentity->s.origin2;
-        gi.LinkEntity(ent);
+        /* Snap exactly onto the goal only if that spot is actually free; if the
+         * goal is occupied (e.g. ordered onto another unit, or an attack target)
+         * stop where we are rather than overlapping it. */
+        if (M_MoveIsValid(ent, &ent->goalentity->s.origin2)) {
+            ent->s.origin2 = ent->goalentity->s.origin2;
+            gi.LinkEntity(ent);
+        }
         ent->stand(ent);
     } else if (move_is_blocked(ent, distance, move_distance)) {
         ent->stand(ent);
@@ -254,6 +296,9 @@ BOOL move_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
     if (num_units == 0) {
         return false;
     }
+    /* A multi-unit move travels at the slowest member's speed so the group
+     * stays together (WC3).  A lone unit keeps its own speed (cap 0). */
+    FLOAT const group_speed = num_units > 1 ? move_group_speed(units, num_units) : 0;
     route_waypoint = Waypoint_add(location);
 
     FOR_LOOP(i, num_units) {
@@ -280,6 +325,7 @@ BOOL move_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
             have_confirmation = true;
         }
         order_move(ent, waypoint);
+        ent->move_group_speed = group_speed;  /* after order_move, which resets it */
     }
     gi.Write(PF_BYTE, &(LONG){svc_temp_entity});
     gi.Write(PF_BYTE, &(LONG){TE_MOVE_CONFIRMATION});

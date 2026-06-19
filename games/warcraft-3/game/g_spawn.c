@@ -136,12 +136,13 @@ static void SP_SpawnDestructable(LPEDICT edict) {
         snprintf(buffer, sizeof(buffer), "%s%d.mdx", file, edict->variation);
     }
     edict->s.model = G_RegisterModel(buffer);
-    if (radius <= 0.0f) {
-        radius = 50.0f;
-    }
-    edict->s.radius = radius;
-    edict->collision = radius;
     edict->pathtex = M_LoadPathTex(path_tex);
+    edict->s.radius = radius > 0.0f ? radius : 50.0f;  /* selection/UI circle only */
+    /* WC3 trees have collisionSize 0 and block solely via their baked pathing
+     * footprint; only destructables with a real radius (bridges, gates) get a
+     * collision circle.  Fabricating a 50-unit circle on every tree was a prime
+     * cause of units sticking on trunks. */
+    edict->collision = radius > 0.0f ? radius : 0.0f;
     edict->s.shadow = G_LoadShadowTexture(DESTRUCTABLE_SHADOW(edict->class_id), false);
     edict->s.shadow_rect = 0;
     edict->health.value = DESTRUCTABLE_HIT_POINT_MAXIMUM(edict->class_id);
@@ -151,6 +152,18 @@ static void SP_SpawnDestructable(LPEDICT edict) {
         edict->s.flags |= EF_FOW_BLOCKER;
     }
     edict->movetype = MOVETYPE_NONE;
+}
+
+/* The destructable currently being visited by EnumDestructablesInRect, read
+ * back by the GetEnumDestructable native inside the enum action (mirrors the
+ * jass-lib `currentunit`/GetEnumUnit pair). */
+LPEDICT currentdestructable = NULL;
+
+/* A live destructable edict (crate, gate, tree): in use, not a unit/building
+ * (those carry SVF_MONSTER), and a class_id that resolves in DestructableData.
+ * Used by the JASS destructable enumerators. */
+BOOL G_IsDestructable(LPCEDICT ent) {
+    return ent->inuse && !(ent->svflags & SVF_MONSTER) && DESTRUCTABLE_FILE(ent->class_id) != NULL;
 }
 
 sheetRow_t *find_row(LPCSTR dood_id) {
@@ -346,6 +359,48 @@ LPEDICT SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location) {
     if (ent->birth) {
         ent->birth(ent);
     }
+    return ent;
+}
+
+/* Runtime (JASS CreateDestructable) spawn of a destructable.  Mirrors the
+ * map-doodad spawn loop in G_SpawnEntities: set class_id/variation/origin/
+ * facing/scale, then route through SP_CallSpawn (which sends a destructable
+ * class_id to SP_SpawnDestructable + SP_monster_tree, giving it a model, life,
+ * collision and the tree_die death handler that publishes EVENT_UNIT_DEATH).
+ * Destructables are neutral-passive, like the map-placed ones.  facing is in
+ * radians (the native converts from JASS degrees).
+ *
+ * Parity note (Ghidra): the original CreateDestructable (FUN_003f80b0 ->
+ * worker FUN_00621d90) always creates a fresh instance — its hash lookup
+ * resolves the destructable *type* by objectid, not an existing entity by
+ * position.  We diverge with find-or-create because OUR engine already spawns
+ * every war3map.doo destructable in G_SpawnEntities, and the map's generated
+ * CreateAllDestructables then "creates" the 13 named ones again to bind their
+ * gg_dest_* handles + death triggers.  Reusing the pre-placed entity (like
+ * unit_createorfind does for CreateUnit) yields the same observable result as
+ * the original — one crate/gate carrying the trigger — instead of a stacked
+ * duplicate.  Match a same-type destructable within 10 units of the spot. */
+LPEDICT G_CreateDestructable(DWORD class_id, FLOAT x, FLOAT y, FLOAT z, FLOAT facing, FLOAT scale, DWORD variation) {
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT existing = &g_edicts[i];
+        if (existing->class_id == class_id && G_IsDestructable(existing) &&
+            Vector2_distance(&MAKE(VECTOR2, x, y), &existing->s.origin2) < 10) {
+            return existing;
+        }
+    }
+    LPEDICT ent = G_Spawn();
+    if (!ent) {
+        return NULL;
+    }
+    ent->class_id = class_id;
+    ent->variation = variation;
+    ent->s.player = PLAYER_NEUTRAL_PASSIVE;
+    ent->s.origin = MAKE(VECTOR3, x, y, z);
+    ent->s.angle = facing;
+    ent->s.scale = scale;
+    ent->spawn_time = gi.GetTime();
+    SP_CallSpawn(ent);
+    gi.LinkEntity(ent);
     return ent;
 }
 

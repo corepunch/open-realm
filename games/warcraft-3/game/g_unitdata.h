@@ -42,6 +42,9 @@
 #define UNIT_TINTING_COLOR_BLUE(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "uclb")
 #define UNIT_TINTING_COLOR_ALPHA(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "ucal")
 #define UNIT_MOVE_TYPE(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "umvt")
+/* 'umvt'/movetp is a string column ("foot", "fly", "hover", "float", "amph",
+ * "horse"); read it as text since UnitIntegerField would atoi() it to 0. */
+#define UNIT_MOVE_TYPE_NAME(UNIT) UnitStringField(UnitsMetaData, UNIT, "umvt")
 #define UNIT_TARGETED_AS(UNIT) UnitStringField(UnitsMetaData, UNIT, "utar")
 #define UNIT_BUILD_TIME(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "ubld")
 #define UNIT_BUILD_TIME_MSEC(UNIT) (UnitIntegerField(UnitsMetaData, UNIT, "ubld") * 1000)
@@ -51,6 +54,8 @@
 #define UNIT_FOOD_MADE(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "ufma")
 #define UNIT_UNIT_CLASSIFICATION(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "utyp")
 #define UNIT_HIT_POINTS_REGENERATION_TYPE(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "uhrt")
+/* regenType is a string enum in UnitBalance.slk: "always"/"night"/"blight"/"none". */
+#define UNIT_HIT_POINTS_REGENERATION_TYPE_NAME(UNIT) UnitStringField(UnitsMetaData, UNIT, "uhrt")
 #define UNIT_PLACEMENT_PREVENTED_BY(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "upar")
 #define UNIT_PRIMARY_ATTRIBUTE(UNIT) UnitStringField(UnitsMetaData, UNIT, "upra")
 #define UNIT_STRENGTH_PER_LEVEL(UNIT) UnitRealField(UnitsMetaData, UNIT, "ustp")
