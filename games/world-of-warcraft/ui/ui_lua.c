@@ -504,6 +504,29 @@ static int UIWow_LuaSetCharSelectBackground(lua_State *L) {
     return 0;
 }
 
+static int UIWow_LuaSetCharCustomizeFrame(lua_State *L) {
+    LPCSTR name = luaL_checkstring(L, 1);
+    int idx = UIWow_XmlFindByNamePub(name);
+    if (idx >= 0) {
+        wow_ui.model_frame_idx = idx;
+    }
+    return 0;
+}
+
+static int UIWow_LuaSetCharCustomizeBackground(lua_State *L) {
+    LPCSTR model_path = luaL_checkstring(L, 1);
+    int idx = wow_ui.model_frame_idx;
+    if (idx >= 0) {
+        UIWow_XmlSetFrameModel(idx, model_path);
+    }
+    return 0;
+}
+
+static int UIWow_LuaUpdateCustomizationScene(lua_State *L) {
+    (void)L;
+    return 0;
+}
+
 static luaL_Reg const wow_lua_funcs[] = {
     { "draw_loading_background", UIWow_LuaDrawLoadingBackground },
     { "draw_image",          UIWow_LuaDrawImage },
@@ -561,8 +584,8 @@ static luaL_Reg const wow_global_funcs[] = {
     { "SortRealms",        UIWow_LuaNoop },
     { "SetCharSelectModelFrame",  UIWow_LuaSetCharSelectModelFrame },
     { "SetCharSelectBackground",  UIWow_LuaSetCharSelectBackground },
-    { "SetCharCustomizeFrame",    UIWow_LuaNoop },
-    { "SetCharCustomizeBackground", UIWow_LuaNoop },
+    { "SetCharCustomizeFrame",    UIWow_LuaSetCharCustomizeFrame },
+    { "SetCharCustomizeBackground", UIWow_LuaSetCharCustomizeBackground },
     { "ResetCharCustomize",       UIWow_LuaResetCharCustomize },
     { "GetAvailableRaces",        UIWow_LuaGetAvailableRaces },
     { "GetAvailableClasses",      UIWow_LuaGetAvailableClasses },
@@ -586,7 +609,8 @@ static luaL_Reg const wow_global_funcs[] = {
     { "GetRandomName",            UIWow_LuaGetRandomName },
     { "CreateCharacter",          UIWow_LuaCreateCharacter },
     { "UpdateCustomizationBackground", UIWow_LuaNoop },
-    { "UpdateSelectionCustomizationScene", UIWow_LuaNoop },
+    { "UpdateSelectionCustomizationScene", UIWow_LuaUpdateCustomizationScene },
+    { "UpdateCustomizationScene",   UIWow_LuaUpdateCustomizationScene },
     { "GetCreateBackgroundModel", UIWow_LuaNil },
     { "GetCharacterListUpdate",   UIWow_LuaGetCharacterListUpdate },
     { "GetNumCharacters",  UIWow_LuaZero },

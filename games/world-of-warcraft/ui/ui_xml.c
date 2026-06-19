@@ -1,10 +1,29 @@
 /* ui_xml.c — WoW Glue FrameXML-style loader/runtime (TOC, Include/Script, frame registry, basic drawing). */
 #include "ui_local.h"
+#include "client/ui_text_input.h"
 
 #include <ctype.h>
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 #include <limits.h>
+#if defined(__has_include)
+#if __has_include(<SDL2/SDL_keycode.h>)
+#include <SDL2/SDL_keycode.h>
+#endif
+#endif
+
+#ifndef SDLK_BACKSPACE
+#define SDLK_BACKSPACE 8
+#define SDLK_DELETE 127
+#define SDLK_LEFT 1073741904
+#define SDLK_RIGHT 1073741903
+#define SDLK_HOME 1073741898
+#define SDLK_END 1073741901
+#define SDLK_RETURN 13
+#define SDLK_KP_ENTER 1073741912
+#define SDLK_TAB 9
+#define SDLK_ESCAPE 27
+#endif
 
 /* -------------------------------------------------------------------------
  * Local float-pair types used throughout the elem struct.
@@ -40,6 +59,7 @@ typedef enum {
     ELEM_ON_ESCAPE_PRESSED,
     ELEM_ON_TAB_PRESSED,
     ELEM_ON_MOUSE_WHEEL,
+    ELEM_ON_UPDATE_MODEL,
     ELEM_SOURCE_FILE,
     ELEM_STRING_COUNT
 } uiWowXmlStr_t;
@@ -109,6 +129,11 @@ typedef struct {
     RECT texcoord;
     RECT highlight_texcoord;
     LPMODEL model;
+    DWORD frame; /* animation frame for Model elements */
+    COLOR32 fog_color;
+    FLOAT fog_near;
+    FLOAT fog_far;
+    BOOL has_fog;
 } uiWowXmlElem_t;
 
 enum {
@@ -127,6 +152,7 @@ static struct {
     uiWowXmlElem_t elems[WOW_XML_MAX_ELEMS];
     int count;
     int focus;
+    DWORD focus_cursor;
     int pressed_button;
     BOOL lua_ready;
     struct {
@@ -237,7 +263,7 @@ static int UIWow_XmlPushElem(uiWowXmlType_t type, LPCSTR name, int parent, int d
     e = &wow_xml.elems[wow_xml.count]; memset(e, 0, sizeof(*e));
     e->flags = EF_USED | EF_ENABLED | EF_WORD_WRAP; /* word-wrap on by default, same as CSimpleFontString */
     e->type = type; e->parent = parent; e->relative_to = parent; e->draw_layer = draw_layer;
-    e->alpha = 1.0f;
+    e->alpha = 1.0f; e->id = 0;
     e->font_size = 14.0f; e->colors[ELEM_COLOR_TEXT] = COLOR32_WHITE; e->colors[ELEM_COLOR_VERTEX] = COLOR32_WHITE;
     e->halign = FONT_JUSTIFYCENTER; e->valign = FONT_JUSTIFYMIDDLE;
     e->colors[ELEM_COLOR_BACKDROP] = MAKE(COLOR32, 23, 23, 23, 120); e->colors[ELEM_COLOR_BACKDROP_BORDER] = MAKE(COLOR32, 204, 204, 204, 255);
@@ -562,11 +588,53 @@ static int UIWow_LuaFrameSetModel(lua_State *L) {
     }
     return 0;
 }
-static int UIWow_LuaFrameAdvanceTime(lua_State *L) { (void)L; return 0; }
-static int UIWow_LuaFrameSetFogColor(lua_State *L) { (void)L; return 0; }
-static int UIWow_LuaFrameSetFogNear(lua_State *L) { (void)L; return 0; }
-static int UIWow_LuaFrameSetFogFar(lua_State *L) { (void)L; return 0; }
-static int UIWow_LuaFrameClearFog(lua_State *L) { (void)L; return 0; }
+
+static int UIWow_LuaFrameAdvanceTime(lua_State *L) {
+    int i = UIWow_FrameFromSelf(L);
+    if (i >= 0) {
+        wow_xml.elems[i].frame++;
+    }
+    return 0;
+}
+
+static int UIWow_LuaFrameSetFogColor(lua_State *L) {
+    int i = UIWow_FrameFromSelf(L);
+    if (i >= 0) {
+        BYTE r = (BYTE)(255.0f * (FLOAT)luaL_optnumber(L, 2, 0.0));
+        BYTE g = (BYTE)(255.0f * (FLOAT)luaL_optnumber(L, 3, 0.0));
+        BYTE b = (BYTE)(255.0f * (FLOAT)luaL_optnumber(L, 4, 0.0));
+        wow_xml.elems[i].fog_color.r = r;
+        wow_xml.elems[i].fog_color.g = g;
+        wow_xml.elems[i].fog_color.b = b;
+        wow_xml.elems[i].has_fog = true;
+    }
+    return 0;
+}
+
+static int UIWow_LuaFrameSetFogNear(lua_State *L) {
+    int i = UIWow_FrameFromSelf(L);
+    if (i >= 0) {
+        wow_xml.elems[i].fog_near = (FLOAT)luaL_optnumber(L, 2, 0.0f);
+    }
+    return 0;
+}
+
+static int UIWow_LuaFrameSetFogFar(lua_State *L) {
+    int i = UIWow_FrameFromSelf(L);
+    if (i >= 0) {
+        wow_xml.elems[i].fog_far = (FLOAT)luaL_optnumber(L, 2, 0.0f);
+    }
+    return 0;
+}
+
+static int UIWow_LuaFrameClearFog(lua_State *L) {
+    int i = UIWow_FrameFromSelf(L);
+    if (i >= 0) {
+        wow_xml.elems[i].has_fog = false;
+    }
+    return 0;
+}
+
 static int UIWow_LuaGetGlobalCompat(lua_State *L) {
     LPCSTR name = luaL_checkstring(L, 1);
     lua_getglobal(L, name);
@@ -677,6 +745,7 @@ static void UIWow_XmlPublishFrame(int idx) {
     lua_pushinteger(wow_ui.lua, idx); lua_setfield(wow_ui.lua, -2, "__ow3_index");
     lua_pushstring(wow_ui.lua, name); lua_setfield(wow_ui.lua, -2, "name");
     lua_pushboolean(wow_ui.lua, !(e->flags & EF_HIDDEN)); lua_setfield(wow_ui.lua, -2, "shown");
+    lua_pushinteger(wow_ui.lua, e->id); lua_setfield(wow_ui.lua, -2, "id");
     luaL_getmetatable(wow_ui.lua, "UIWow.Frame"); lua_setmetatable(wow_ui.lua, -2);
     lua_setglobal(wow_ui.lua, name);
     if (e->type == WOW_XML_BUTTON) {
@@ -953,6 +1022,7 @@ static void UIWow_XmlReadScripts(uiWowXmlElem_t *e, xmlNodePtr node) {
             else if (!xmlStrcasecmp(s->name, BAD_CAST "OnEscapePressed")) field = ELEM_ON_ESCAPE_PRESSED;
             else if (!xmlStrcasecmp(s->name, BAD_CAST "OnTabPressed"))    field = ELEM_ON_TAB_PRESSED;
             else if (!xmlStrcasecmp(s->name, BAD_CAST "OnMouseWheel"))   field = ELEM_ON_MOUSE_WHEEL;
+            else if (!xmlStrcasecmp(s->name, BAD_CAST "OnUpdateModel"))   field = ELEM_ON_UPDATE_MODEL;
             else { SAFE_DELETE(body, xmlFree); continue; }
             UIWow_ElemSetStr(e, field, (char const *)body);
             SAFE_DELETE(body, xmlFree);
@@ -1597,8 +1667,22 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
             r.y += UIWow_XmlY(1.0f);
         }
         if (e->type == WOW_XML_MODEL && file && file[0]) {
+            if (UIWow_ElemStr(e, ELEM_ON_UPDATE_MODEL))
+                UIWow_XMLRunFrameScript(i, e->texts[ELEM_ON_UPDATE_MODEL], "OnUpdateModel");
             if (!e->model && wow_ui.renderer->LoadModel) e->model = wow_ui.renderer->LoadModel(file);
-            if (e->model && wow_ui.renderer->DrawPortrait) wow_ui.renderer->DrawPortrait(e->model, &r, "Stand");
+            if (e->model && wow_ui.renderer->DrawPortrait) {
+                PORTRAITDEF p = {
+                    .model = e->model,
+                    .viewport = &r,
+                    .anim = "Stand",
+                    .frame = e->frame,
+                    .fog.has_fog = e->has_fog,
+                    .fog.fog_color = e->fog_color,
+                    .fog.fog_near = e->fog_near,
+                    .fog.fog_far = e->fog_far
+                };
+                wow_ui.renderer->DrawPortrait(&p);
+            }
             else if (!wow_ui.renderer->LoadModel) UIWow_WarnOnce(WOW_UI_WARN_NO_MODEL_LOADER, "UIWow: renderer has no model loader; XML model frames skipped\n");
         }
         if ((file && file[0] && e->type == WOW_XML_TEXTURE) || (e->type == WOW_XML_BUTTON && ((normal_file && normal_file[0]) || (file && file[0])))) {
@@ -1642,7 +1726,8 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
                 if (ht) UIWow_XMLDrawImage(ht, &r, &huv, COLOR32_WHITE, false, BLEND_MODE_ADD);
             }
         }
-        if (elem_text && elem_text[0] && (e->type == WOW_XML_FONTSTRING || e->type == WOW_XML_EDITBOX || e->type == WOW_XML_BUTTON)) {
+        if (((elem_text && elem_text[0]) || (e->type == WOW_XML_EDITBOX && wow_xml.focus == i)) &&
+            (e->type == WOW_XML_FONTSTRING || e->type == WOW_XML_EDITBOX || e->type == WOW_XML_BUTTON)) {
             LPCFONT f = UIWow_LoadFont((DWORD)e->font_size);
             /* For FontStrings with no authored height, measure the wrapped text height so that
                sibling FontStrings anchored to BOTTOMLEFT of this one are positioned correctly. */
@@ -1665,24 +1750,25 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
                            r.h - e->text_inset.h);
             LPCSTR display = UIWow_XMLDisplayText(e, text, sizeof(text));
             if (f) {
-                wow_ui.renderer->DrawText(&MAKE(drawText_t,
-                                                .font = f,
-                                                .text = display,
-                                                .rect = tr,
-                                                .color = MAKE(COLOR32,
-                                                              text_color.r,
-                                                              text_color.g,
-                                                              text_color.b,
-                                                              (BYTE)(text_color.a * e->alpha)),
-                                                .textWidth = tr.w,
-                                                .lineHeight = 1.33f,
-                                                .wordWrap = (e->flags & EF_WORD_WRAP) != 0,
-                                                .halign = e->type == WOW_XML_EDITBOX
-                                                          ? FONT_JUSTIFYLEFT
-                                                          : e->halign,
-                                                .valign = e->valign,
-                                                .hasClip = has_clip,
-                                                .clip = clip_rect));
+                drawText_t dt = MAKE(drawText_t,
+                                     .font = f,
+                                     .text = display,
+                                     .rect = tr,
+                                     .color = MAKE(COLOR32,
+                                                   text_color.r,
+                                                   text_color.g,
+                                                   text_color.b,
+                                                   (BYTE)(text_color.a * e->alpha)),
+                                     .textWidth = tr.w,
+                                     .lineHeight = 1.33f,
+                                     .wordWrap = (e->flags & EF_WORD_WRAP) != 0,
+                                     .halign = e->type == WOW_XML_EDITBOX ? FONT_JUSTIFYLEFT : e->halign,
+                                     .valign = e->valign,
+                                     .hasClip = has_clip,
+                                     .clip = clip_rect);
+                wow_ui.renderer->DrawText(&dt);
+                if (e->type == WOW_XML_EDITBOX && wow_xml.focus == i)
+                    UI_DrawTextInputCursor(wow_ui.renderer, &dt, display, wow_xml.focus_cursor, text_color);
             }
         }
 }
@@ -1866,6 +1952,9 @@ BOOL UIWow_XMLMouseEvent(int x, int y, int button, BOOL down) {
 
     if (wow_xml.elems[hit].type == WOW_XML_EDITBOX) {
         wow_xml.focus = hit;
+        wow_xml.focus_cursor = (DWORD)strlen(wow_xml.elems[hit].texts[ELEM_TEXT]
+                                             ? wow_xml.elems[hit].texts[ELEM_TEXT]
+                                             : "");
         wow_xml.pressed_button = -1;
         return true;
     }
@@ -1878,17 +1967,49 @@ BOOL UIWow_XMLMouseEvent(int x, int y, int button, BOOL down) {
     return false;
 }
 
+static void UIWow_XMLEditInsert(uiWowXmlElem_t *e, LPCSTR text) {
+    LPCSTR old = e->texts[ELEM_TEXT] ? e->texts[ELEM_TEXT] : "";
+    size_t len = strlen(old), add = text ? strlen(text) : 0;
+    DWORD cursor = MIN(wow_xml.focus_cursor, (DWORD)len);
+    char *buf;
+    if (!add) return;
+    buf = malloc(len + add + 1);
+    if (!buf) return;
+    memcpy(buf, old, cursor);
+    memcpy(buf + cursor, text, add);
+    memcpy(buf + cursor + add, old + cursor, len - cursor + 1);
+    free(e->texts[ELEM_TEXT]);
+    e->texts[ELEM_TEXT] = buf;
+    e->measured_h = 0;
+    wow_xml.focus_cursor = cursor + (DWORD)add;
+}
+
+static void UIWow_XMLEditBackspace(uiWowXmlElem_t *e) {
+    char *t = e->texts[ELEM_TEXT];
+    size_t len = t ? strlen(t) : 0;
+    DWORD cursor = MIN(wow_xml.focus_cursor, (DWORD)len);
+    if (!t || cursor == 0) return;
+    memmove(t + cursor - 1, t + cursor, len - cursor + 1);
+    wow_xml.focus_cursor = cursor - 1;
+    e->measured_h = 0;
+}
+
+static void UIWow_XMLEditDelete(uiWowXmlElem_t *e) {
+    char *t = e->texts[ELEM_TEXT];
+    size_t len = t ? strlen(t) : 0;
+    DWORD cursor = MIN(wow_xml.focus_cursor, (DWORD)len);
+    if (!t || cursor >= len) return;
+    memmove(t + cursor, t + cursor + 1, len - cursor);
+    e->measured_h = 0;
+}
+
 BOOL UIWow_XMLTextInput(LPCSTR text) {
     uiWowXmlElem_t *e;
     if (wow_xml.focus < 0 || wow_xml.focus >= wow_xml.count || !text || !*text) return false;
     e = &wow_xml.elems[wow_xml.focus];
     if (e->type != WOW_XML_EDITBOX) return false;
     if (!strcmp(text, "\b")) {
-        LPCSTR t = e->texts[ELEM_TEXT];
-        if (t && t[0]) {
-            size_t n = strlen(t);
-            e->texts[ELEM_TEXT][n - 1] = '\0';
-        }
+        UIWow_XMLEditBackspace(e);
         return true;
     }
     if (!strcmp(text, "\r") || !strcmp(text, "\n")) {
@@ -1896,7 +2017,7 @@ BOOL UIWow_XMLTextInput(LPCSTR text) {
             UIWow_XMLRunFrameScript(wow_xml.focus, e->texts[ELEM_ON_ENTER_PRESSED], "OnEnterPressed");
         return true;
     }
-    UIWow_ElemAppendStr(e, ELEM_TEXT, text);
+    UIWow_XMLEditInsert(e, text);
     return true;
 }
 
@@ -1906,22 +2027,44 @@ BOOL UIWow_XMLKeyEvent(int key, BOOL down, DWORD time) {
     if (!down || wow_xml.focus < 0 || wow_xml.focus >= wow_xml.count) return false;
     e = &wow_xml.elems[wow_xml.focus];
     if (e->type != WOW_XML_EDITBOX) return false;
-    if (key == '\r' || key == '\n') {
+    if (key == SDLK_RETURN || key == SDLK_KP_ENTER || key == '\r' || key == '\n') {
         if (UIWow_ElemStr(e, ELEM_ON_ENTER_PRESSED))
             UIWow_XMLRunFrameScript(wow_xml.focus, e->texts[ELEM_ON_ENTER_PRESSED], "OnEnterPressed");
         return true;
     }
-    if (key == '\b' || key == 127) {
-        LPCSTR t = e->texts[ELEM_TEXT];
-        if (t && t[0]) e->texts[ELEM_TEXT][strlen(t) - 1] = '\0';
+    if (key == SDLK_BACKSPACE || key == '\b') {
+        UIWow_XMLEditBackspace(e);
         return true;
     }
-    if (key == '\t') {
+    if (key == SDLK_DELETE || key == 127) {
+        UIWow_XMLEditDelete(e);
+        return true;
+    }
+    if (key == SDLK_LEFT) {
+        if (wow_xml.focus_cursor > 0) wow_xml.focus_cursor--;
+        return true;
+    }
+    if (key == SDLK_RIGHT) {
+        size_t len = strlen(e->texts[ELEM_TEXT] ? e->texts[ELEM_TEXT] : "");
+        if (wow_xml.focus_cursor < len) wow_xml.focus_cursor++;
+        return true;
+    }
+    if (key == SDLK_HOME) {
+        wow_xml.focus_cursor = 0;
+        return true;
+    }
+    if (key == SDLK_END) {
+        wow_xml.focus_cursor = (DWORD)strlen(e->texts[ELEM_TEXT]
+                                             ? e->texts[ELEM_TEXT]
+                                             : "");
+        return true;
+    }
+    if (key == SDLK_TAB || key == '\t') {
         if (UIWow_ElemStr(e, ELEM_ON_TAB_PRESSED))
             UIWow_XMLRunFrameScript(wow_xml.focus, e->texts[ELEM_ON_TAB_PRESSED], "OnTabPressed");
         return true;
     }
-    if (key == 27) {
+    if (key == SDLK_ESCAPE || key == 27) {
         if (UIWow_ElemStr(e, ELEM_ON_ESCAPE_PRESSED))
             UIWow_XMLRunFrameScript(wow_xml.focus, e->texts[ELEM_ON_ESCAPE_PRESSED], "OnEscapePressed");
         return true;
