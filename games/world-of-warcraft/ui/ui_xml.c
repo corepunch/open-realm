@@ -1537,34 +1537,25 @@ static LPCSTR UIWow_XMLDisplayText(uiWowXmlElem_t const *e, LPSTR out, size_t ou
     return out;
 }
 
-void UIWow_XMLDraw(void) {
-    int hovered_button = -1;
-    if (uiimport.GetMouseFdf) {
-        VECTOR2 m = uiimport.GetMouseFdf();
-        int hit = UIWow_XMLHitFrame(m.x, m.y);
-        if (hit >= 0 && wow_xml.elems[hit].type == WOW_XML_BUTTON) hovered_button = hit;
-    }
-
-    UIWow_EnsureRenderer(); if (!wow_ui.renderer) return;
-    UIWow_XMLComputeScrollRanges();
-    for (int layer = WOW_XML_LAYER_BACKGROUND; layer <= WOW_XML_LAYER_OVERLAY; layer++) FOR_LOOP(i, wow_xml.count) {
+/* Draw one XML frame's own layer. whoa draws a frame's batches before recursing into child frames. */
+static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
         uiWowXmlElem_t *e = &wow_xml.elems[i]; RECT r; RECT uv = MAKE(RECT, 0, 0, 1, 1); char text[512];
         COLOR32 text_color = e->colors[ELEM_COLOR_TEXT];
-        BOOL pressed = e->type == WOW_XML_BUTTON && wow_xml.pressed_button == (int)i;
-        BOOL hovered = e->type == WOW_XML_BUTTON && hovered_button == (int)i;
+        BOOL pressed = e->type == WOW_XML_BUTTON && wow_xml.pressed_button == i;
+        BOOL hovered = e->type == WOW_XML_BUTTON && hovered_button == i;
         LPCSTR file = e->texts[ELEM_FILE], normal_file = e->texts[ELEM_NORMAL_FILE], pushed_file = e->texts[ELEM_PUSHED_FILE];
         LPCSTR highlight_file = e->texts[ELEM_HIGHLIGHT_FILE], elem_text = e->texts[ELEM_TEXT];
         FLOAT scroll_off_y = 0.0f;
         RECT clip_rect = {0};
         BOOL has_clip = false;
-        if (!(e->flags & EF_USED) || !UIWow_XMLIsVisible((int)i)) continue;
+        if (!(e->flags & EF_USED) || !UIWow_XMLIsVisible(i)) return;
         /* Backdrops draw at BACKGROUND layer regardless of the frame's own draw_layer. */
         if (layer == WOW_XML_LAYER_BACKGROUND && (e->type == WOW_XML_FRAME || e->type == WOW_XML_BUTTON || e->type == WOW_XML_EDITBOX)) {
             r = UIWow_XmlComputeRect(i);
             s_has_scroll_clip = false;
             UIWow_XMLDrawBackdrop(e, &r);
         }
-        if (e->draw_layer != layer) continue;
+        if (e->draw_layer != layer) return;
         r = UIWow_XmlComputeRect(i);
         /* Compute scroll offset for descendants of ScrollFrames. Skip the
            ScrollFrame itself (it is the viewport) and its direct ScrollBar
@@ -1694,6 +1685,31 @@ void UIWow_XMLDraw(void) {
                                                 .clip = clip_rect));
             }
         }
+}
+
+static void UIWow_XMLDrawTree(int i, int hovered_button) {
+    if (!(wow_xml.elems[i].flags & EF_USED) || !UIWow_XMLIsVisible(i)) return;
+    for (int layer = WOW_XML_LAYER_BACKGROUND; layer <= WOW_XML_LAYER_OVERLAY; layer++)
+        UIWow_XMLDrawElementLayer(i, layer, hovered_button);
+    FOR_LOOP(j, wow_xml.count) {
+        if (wow_xml.elems[j].parent == i)
+            UIWow_XMLDrawTree((int)j, hovered_button);
+    }
+}
+
+void UIWow_XMLDraw(void) {
+    int hovered_button = -1;
+    if (uiimport.GetMouseFdf) {
+        VECTOR2 m = uiimport.GetMouseFdf();
+        int hit = UIWow_XMLHitFrame(m.x, m.y);
+        if (hit >= 0 && wow_xml.elems[hit].type == WOW_XML_BUTTON) hovered_button = hit;
+    }
+
+    UIWow_EnsureRenderer(); if (!wow_ui.renderer) return;
+    UIWow_XMLComputeScrollRanges();
+    FOR_LOOP(i, wow_xml.count) {
+        if (wow_xml.elems[i].parent < 0)
+            UIWow_XMLDrawTree((int)i, hovered_button);
     }
 }
 
