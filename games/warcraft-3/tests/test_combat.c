@@ -28,6 +28,9 @@
 /* Forward declarations for internal functions not in any public header. */
 BOOL  player_pay(LPPLAYER ps, DWORD project);
 void  T_Damage(LPEDICT target, LPEDICT attacker, int damage);
+void  attack_melee(LPEDICT self);
+void  attack_melee_cooldown(LPEDICT self);
+void  attack_ranged_cooldown(LPEDICT self);
 void  M_MoveFrame(LPEDICT self);
 void  G_RunEntity(LPEDICT ent);
 void  unit_add_build_queue(LPEDICT self, LPEDICT item);
@@ -248,6 +251,298 @@ static void test_runentity_ability_index_from_currentmove(void) {
     ASSERT_EQ_INT((int)ent->s.ability, (int)expected);
 }
 
+/* Hit-point regeneration (WC3 'uhpr'/'uhrt'): a wounded "always"-regen unit
+ * heals by rate * frametime each frame; "none" never heals; healing caps at
+ * max HP.  Test data (test_harness.c): hfoo regenHP 0.5 "always", hbar "none". */
+static void test_runentity_hp_regen_always(void) {
+    LPEDICT ent           = make_combat_unit(UNIT_ID("hfoo"), 420.0f, 0.0f, 0.0f);
+    ent->health.max_value = 420.0f;
+    ent->health.value     = 200.0f;
+    ent->mana.max_value   = 0.0f;
+    ent->movetype         = MOVETYPE_NONE;
+
+    G_RunEntity(ent);
+
+    ASSERT_EQ_FLOAT(ent->health.value, 200.0f + 0.5f * (FRAMETIME / 1000.0f), 0.0001f);
+}
+
+static void test_runentity_hp_regen_caps_at_max(void) {
+    LPEDICT ent           = make_combat_unit(UNIT_ID("hfoo"), 420.0f, 0.0f, 0.0f);
+    ent->health.max_value = 420.0f;
+    ent->health.value     = 419.99f;   /* less than one frame's regen from full */
+    ent->movetype         = MOVETYPE_NONE;
+
+    G_RunEntity(ent);
+
+    ASSERT_EQ_FLOAT(ent->health.value, 420.0f, 0.0001f);
+}
+
+static void test_runentity_hp_regen_none_does_not_heal(void) {
+    /* regenType "none" must not heal even though regenHP is positive. */
+    LPEDICT ent           = make_combat_unit(UNIT_ID("hbar"), 1500.0f, 0.0f, 0.0f);
+    ent->health.max_value = 1500.0f;
+    ent->health.value     = 1000.0f;
+    ent->movetype         = MOVETYPE_NONE;
+
+    G_RunEntity(ent);
+
+    ASSERT_EQ_FLOAT(ent->health.value, 1000.0f, 0.0001f);
+}
+
+/* Hero attribute -> derived-stat scaling (G_RecomputeHeroStats).  Test hero
+ * "Hpal" (test_harness.c) has real Paladin bases: realHP 650, realM 255,
+ * realdef 3.9, STR 22 / INT 17 / AGI 13.  Per WC3: +25 HP/STR, +15 mana/INT,
+ * +0.3 armor/AGI. */
+static void test_hero_strength_adds_hp(void) {
+    LPEDICT hero          = make_combat_unit(UNIT_ID("Hpal"), 650.0f, 0.0f, 0.0f);
+    hero->hero.str        = 22;            /* base */
+    hero->health.max_value = 650.0f;
+    hero->health.value     = 650.0f;
+
+    hero->hero.str = 25;                   /* +3 STR */
+    G_RecomputeHeroStats(hero);
+
+    ASSERT_EQ_FLOAT(hero->health.max_value, 650.0f + 3 * 25.0f, 0.01f); /* 725 */
+    ASSERT_EQ_FLOAT(hero->health.value,     650.0f + 3 * 25.0f, 0.01f); /* heals by gain */
+}
+
+static void test_hero_intelligence_adds_mana(void) {
+    LPEDICT hero        = make_combat_unit(UNIT_ID("Hpal"), 650.0f, 0.0f, 0.0f);
+    hero->hero.intel    = 17;              /* base */
+    hero->mana.max_value = 255.0f;
+    hero->mana.value     = 255.0f;
+
+    hero->hero.intel = 20;                 /* +3 INT */
+    G_RecomputeHeroStats(hero);
+
+    ASSERT_EQ_FLOAT(hero->mana.max_value, 255.0f + 3 * 15.0f, 0.01f); /* 300 */
+}
+
+static void test_hero_agility_adds_armor(void) {
+    LPEDICT hero       = make_combat_unit(UNIT_ID("Hpal"), 650.0f, 0.0f, 0.0f);
+    hero->hero.agi     = 13;               /* base */
+    hero->armor_value  = 3.9f;
+
+    hero->hero.agi = 23;                    /* +10 AGI */
+    G_RecomputeHeroStats(hero);
+
+    ASSERT_EQ_FLOAT(hero->armor_value, 3.9f + 10 * 0.3f, 0.01f); /* 6.9 */
+}
+
+/* A hero's Strength adds +0.05 HP regen/sec per point; Intelligence adds +0.05
+ * mana regen/sec per point (on top of the unit's base regen). */
+static void test_hero_strength_hp_regen_bonus(void) {
+    LPEDICT h            = make_combat_unit(UNIT_ID("Hpal"), 650.0f, 0.0f, 0.0f);
+    h->hero.str          = 22;
+    h->health.max_value  = 650.0f; h->health.value = 600.0f;  /* wounded */
+    h->mana.max_value    = 0.0f;                              /* no mana regen */
+    h->movetype          = MOVETYPE_NONE;
+
+    G_RunEntity(h);
+
+    ASSERT_EQ_FLOAT(h->health.value, 600.0f + 22 * 0.05f * (FRAMETIME / 1000.0f), 0.001f);
+}
+
+static void test_hero_intelligence_mana_regen_bonus(void) {
+    LPEDICT h          = make_combat_unit(UNIT_ID("Hpal"), 650.0f, 0.0f, 0.0f);
+    h->hero.intel      = 17;
+    h->health.max_value = 650.0f; h->health.value = 650.0f;   /* full -> no HP regen */
+    h->mana.max_value  = 255.0f; h->mana.value = 100.0f;
+    h->movetype        = MOVETYPE_NONE;
+
+    G_RunEntity(h);
+
+    ASSERT_EQ_FLOAT(h->mana.value, 100.0f + 17 * 0.05f * (FRAMETIME / 1000.0f), 0.001f);
+}
+
+static void test_hero_primary_attribute_adds_damage(void) {
+    /* Hpal's Primary is STR, so attack damage rises +1 per Strength point. */
+    LPEDICT h     = make_combat_unit(UNIT_ID("Hpal"), 650.0f, 0.0f, 0.0f);
+    h->hero.str   = 22;
+    G_RecomputeHeroStats(h);
+    FLOAT const dmg0 = h->attack1.damageBase;
+
+    h->hero.str = 30;            /* +8 Strength */
+    G_RecomputeHeroStats(h);
+
+    ASSERT_EQ_FLOAT(h->attack1.damageBase, dmg0 + 8.0f, 0.01f);
+}
+
+static void test_hero_stats_noop_for_non_hero(void) {
+    /* Footman has no attributes — recompute must leave its stats untouched. */
+    LPEDICT u            = make_combat_unit(UNIT_ID("hfoo"), 420.0f, 0.0f, 0.0f);
+    u->health.max_value  = 420.0f;
+    u->health.value      = 300.0f;
+    u->hero.str          = 99;             /* bogus; must be ignored */
+
+    G_RecomputeHeroStats(u);
+
+    ASSERT_EQ_FLOAT(u->health.max_value, 420.0f, 0.01f);
+    ASSERT_EQ_FLOAT(u->health.value,     300.0f, 0.01f);
+}
+
+/* Hero XP / leveling (verified vs WC3 1.29).  XP-to-reach-L = 50*L*(L+1)-100;
+ * attributes = base + trunc((L-1)*perLevel).  Hpal test hero: STR/INT/AGI per
+ * level 2.7 / 1.8 / 1.5. */
+static void test_hero_xp_for_level_table(void) {
+    ASSERT_EQ_INT((int)G_HeroXPForLevel(1), 0);
+    ASSERT_EQ_INT((int)G_HeroXPForLevel(2), 200);
+    ASSERT_EQ_INT((int)G_HeroXPForLevel(3), 500);
+    ASSERT_EQ_INT((int)G_HeroXPForLevel(4), 900);
+    ASSERT_EQ_INT((int)G_HeroXPForLevel(10), 5400);
+}
+
+static void test_hero_level_for_xp(void) {
+    ASSERT_EQ_INT((int)G_HeroLevelForXP(0),   1);
+    ASSERT_EQ_INT((int)G_HeroLevelForXP(199), 1);
+    ASSERT_EQ_INT((int)G_HeroLevelForXP(200), 2);
+    ASSERT_EQ_INT((int)G_HeroLevelForXP(499), 2);
+    ASSERT_EQ_INT((int)G_HeroLevelForXP(500), 3);
+    ASSERT_EQ_INT((int)G_HeroLevelForXP(99999999), 10); /* capped at MaxHeroLevel */
+}
+
+static void test_hero_apply_level_truncates_attributes(void) {
+    LPEDICT h            = make_combat_unit(UNIT_ID("Hpal"), 650.0f, 0.0f, 0.0f);
+    h->health.max_value  = 650.0f; h->health.value = 650.0f;
+    h->mana.max_value    = 255.0f; h->mana.value   = 255.0f;
+    h->armor_value       = 3.9f;
+
+    G_HeroApplyLevel(h, 3);  /* steps=2: STR+trunc(5.4)=5, INT+trunc(3.6)=3, AGI+trunc(3.0)=3 */
+
+    ASSERT_EQ_INT((int)h->hero.str,   27);
+    ASSERT_EQ_INT((int)h->hero.intel, 20);
+    ASSERT_EQ_INT((int)h->hero.agi,   16);
+    ASSERT_EQ_INT((int)h->hero.level, 3);
+    ASSERT_EQ_FLOAT(h->health.max_value, 650.0f + 5 * 25.0f, 0.01f); /* 775 */
+    ASSERT_EQ_FLOAT(h->mana.max_value,   255.0f + 3 * 15.0f, 0.01f); /* 300 */
+    ASSERT_EQ_FLOAT(h->armor_value,      3.9f + 3 * 0.3f,    0.01f); /* 4.8 */
+}
+
+static void test_hero_setxp_levels_up(void) {
+    LPEDICT h           = make_combat_unit(UNIT_ID("Hpal"), 650.0f, 0.0f, 0.0f);
+    h->health.max_value = 650.0f; h->health.value = 650.0f;
+    h->mana.max_value   = 255.0f; h->mana.value   = 255.0f;
+    h->hero.level       = 1;
+
+    G_HeroSetXP(h, 500);  /* crosses the level-3 threshold */
+
+    ASSERT_EQ_INT((int)h->hero.level, 3);
+    ASSERT_EQ_INT((int)h->hero.xp,    500);
+    ASSERT_EQ_FLOAT(h->health.max_value, 775.0f, 0.01f);
+}
+
+/* XP-on-kill (G_GrantKillXP).  With no map misc overrides the WC3 defaults
+ * apply: GrantNormalXP 25, HeroExpRange 1200.  A level-1 hero killing a level-1
+ * normal unit in range gains the full 25 XP; out of range gains nothing. */
+static void test_grant_kill_xp_awards_base(void) {
+    LPEDICT killer = make_combat_unit(UNIT_ID("Hpal"), 650.0f, 0.0f, 0.0f);
+    killer->s.player = 0; killer->hero.level = 1; killer->hero.xp = 0;
+    LPEDICT victim = make_combat_unit(UNIT_ID("hfoo"), 420.0f, 0.0f, 0.0f);
+    victim->s.player = 1;
+
+    G_GrantKillXP(victim, killer);
+
+    ASSERT_EQ_INT((int)killer->hero.xp, 25);
+}
+
+static void test_grant_kill_xp_out_of_range(void) {
+    LPEDICT killer = make_combat_unit(UNIT_ID("Hpal"), 650.0f, 0.0f, 0.0f);
+    killer->s.player = 0; killer->hero.level = 1; killer->hero.xp = 0;
+    LPEDICT victim = make_combat_unit(UNIT_ID("hfoo"), 420.0f, 5000.0f, 0.0f);
+    victim->s.player = 1;
+
+    G_GrantKillXP(victim, killer);
+
+    ASSERT_EQ_INT((int)killer->hero.xp, 0); /* > HeroExpRange (1200) away */
+}
+
+/* unit_learnability (used by the SelectHeroSkill native): learning an ability
+ * adds it at level 1; learning it again raises its level; a second ability
+ * takes its own slot. */
+static void test_hero_learn_skill(void) {
+    LPEDICT h = make_combat_unit(UNIT_ID("Hpal"), 650.0f, 0.0f, 0.0f);
+    memset(h->heroabilities, 0, sizeof(h->heroabilities));
+
+    unit_learnability(h, UNIT_ID("AHhb"));   /* Holy Light */
+    ASSERT_EQ_INT((int)h->heroabilities[0].code, (int)UNIT_ID("AHhb"));
+    ASSERT_EQ_INT((int)h->heroabilities[0].level, 1);
+
+    unit_learnability(h, UNIT_ID("AHhb"));   /* upgrade to level 2 */
+    ASSERT_EQ_INT((int)h->heroabilities[0].level, 2);
+
+    unit_learnability(h, UNIT_ID("AHds"));   /* Divine Shield in slot 1 */
+    ASSERT_EQ_INT((int)h->heroabilities[1].code, (int)UNIT_ID("AHds"));
+    ASSERT_EQ_INT((int)h->heroabilities[1].level, 1);
+}
+
+/* ReviveHero: a dead hero comes back to life at the given point with HP/mana
+ * from the revive factors (defaults: full life, no mana). */
+static void test_hero_revive(void) {
+    LPEDICT h           = make_combat_unit(UNIT_ID("Hpal"), 650.0f, 0.0f, 0.0f);
+    h->health.max_value = 650.0f; h->health.value = 0.0f;   /* dead */
+    h->mana.max_value   = 255.0f; h->mana.value   = 0.0f;
+    h->svflags         |= SVF_DEADMONSTER;
+
+    G_ReviveHero(h, 100.0f, 200.0f);
+
+    ASSERT_EQ_FLOAT(h->health.value, 650.0f, 0.01f);   /* HeroReviveLifeFactor 1.0 */
+    ASSERT_EQ_FLOAT(h->mana.value,   0.0f,   0.01f);   /* HeroReviveManaFactor 0.0 */
+    ASSERT((h->svflags & SVF_DEADMONSTER) == 0);       /* alive again */
+    ASSERT_EQ_FLOAT(h->s.origin2.x, 100.0f, 0.01f);
+    ASSERT_EQ_FLOAT(h->s.origin2.y, 200.0f, 0.01f);
+}
+
+static void test_hero_levelup_fires_event(void) {
+    LPEDICT h           = make_combat_unit(UNIT_ID("Hpal"), 650.0f, 0.0f, 0.0f);
+    h->hero.level       = 1;
+    h->health.max_value = 650.0f; h->health.value = 650.0f;
+    level.events.write  = 0;
+    level.events.read   = 0;
+
+    G_HeroSetXP(h, 500);  /* level 1 -> 3: two level-ups -> two events */
+
+    ASSERT_EQ_INT((int)level.events.write, 2);
+    ASSERT_EQ_INT((int)level.events.queue[0].type, EVENT_PLAYER_HERO_LEVEL);
+    ASSERT(level.events.queue[0].edict == h);
+    ASSERT_EQ_INT((int)level.events.queue[1].type, EVENT_PLAYER_HERO_LEVEL);
+}
+
+/* Attack timing: the post-swing recovery is cooldown - damagePoint, so the full
+ * attack cycle (windup + recovery) equals WC3's "Cooldown Time". */
+static void test_attack_recovery_excludes_damage_point(void) {
+    LPEDICT u              = make_combat_unit(UNIT_ID("hfoo"), 420.0f, 0.0f, 0.0f);
+    u->attack1.cooldown    = 1.5f;
+    u->attack1.damagePoint = 0.3f;
+    attack_melee_cooldown(u);
+    ASSERT_EQ_FLOAT(u->wait, 1.2f, 0.001f);   /* 1.5 - 0.3 */
+
+    u->attack1.cooldown    = 2.0f;
+    u->attack1.damagePoint = 0.5f;
+    attack_ranged_cooldown(u);
+    ASSERT_EQ_FLOAT(u->wait, 1.5f, 0.001f);   /* 2.0 - 0.5 */
+
+    /* damagePoint >= cooldown clamps recovery to zero. */
+    u->attack1.cooldown    = 0.4f;
+    u->attack1.damagePoint = 0.5f;
+    attack_melee_cooldown(u);
+    ASSERT_EQ_FLOAT(u->wait, 0.0f, 0.001f);
+}
+
+/* A hero's Agility increases attack speed (+2%/point), dividing the windup and
+ * recovery so the whole cycle speeds up. */
+static void test_attack_speed_scales_with_agility(void) {
+    LPEDICT h              = make_combat_unit(UNIT_ID("Hpal"), 650.0f, 0.0f, 0.0f);
+    h->hero.agi            = 20;       /* +40% -> divisor 1.4 */
+    h->attack1.cooldown    = 1.5f;
+    h->attack1.damagePoint = 0.3f;
+
+    attack_melee_cooldown(h);
+    ASSERT_EQ_FLOAT(h->wait, (1.5f - 0.3f) / 1.4f, 0.001f);   /* recovery scaled */
+
+    attack_melee(h);
+    ASSERT_EQ_FLOAT(h->wait, 0.3f / 1.4f, 0.001f);            /* windup scaled */
+}
+
 /* ==========================================================================
  * Ability lookup
  * ========================================================================== */
@@ -304,7 +599,7 @@ static void test_registered_reference_ability_codes(void) {
 }
 
 static const char slk_ability_helpers[] =
-    "ID;PWXL;N;EBB;Y3;X12\n"
+    "ID;PWXL;N;EBB;Y3;X13\n"
     "C;Y1;X1;K\"alias\"\n"
     "C;Y1;X2;K\"code\"\n"
     "C;Y1;X3;K\"targs\"\n"
@@ -312,11 +607,12 @@ static const char slk_ability_helpers[] =
     "C;Y1;X5;K\"Cool1\"\n"
     "C;Y1;X6;K\"Rng1\"\n"
     "C;Y1;X7;K\"Dur1\"\n"
-    "C;Y1;X8;K\"Data11\"\n"
-    "C;Y1;X9;K\"Data12\"\n"
+    "C;Y1;X8;K\"DataA1\"\n"
+    "C;Y1;X9;K\"DataB1\"\n"
     "C;Y1;X10;K\"UnitID1\"\n"
     "C;Y1;X11;K\"Area1\"\n"
     "C;Y1;X12;K\"HeroDur1\"\n"
+    "C;Y1;X13;K\"DataE1\"\n"
     "C;Y2;X1;K\"AHtb\"\n"
     "C;Y2;X2;K\"AHtb\"\n"
     "C;Y2;X3;K\"air,ground,enemy,neutral\"\n"
@@ -325,7 +621,9 @@ static const char slk_ability_helpers[] =
     "C;Y2;X6;K\"600\"\n"
     "C;Y2;X7;K\"5\"\n"
     "C;Y2;X8;K\"100\"\n"
+    "C;Y2;X9;K\"55\"\n"
     "C;Y2;X12;K\"3\"\n"
+    "C;Y2;X13;K\"42\"\n"
     "C;Y3;X1;K\"AHwe\"\n"
     "C;Y3;X2;K\"AHwe\"\n"
     "C;Y3;X4;K\"140\"\n"
@@ -346,7 +644,12 @@ static void test_spell_helpers_read_slk_fields(void) {
     ASSERT_EQ_FLOAT(S_SpellNumber(thunder, "Cost", 1), 75.0f, 0.01f);
     ASSERT_EQ_FLOAT(S_SpellRange(thunder, 1), 600.0f, 0.01f);
     ASSERT_EQ_FLOAT(S_SpellDuration(thunder, 1, true), 3.0f, 0.01f);
-    ASSERT_EQ_FLOAT(S_SpellData(thunder, 1, 1), 100.0f, 0.01f);
+    ASSERT_EQ_FLOAT(S_SpellData(thunder, 1, 1), 100.0f, 0.01f); /* DataA1 */
+    ASSERT_EQ_FLOAT(S_SpellData(thunder, 1, 2), 55.0f, 0.01f);  /* DataB1 */
+    /* index 5 -> DataE1: the columns are Data<Letter><Level>, and index must
+     * reach past D (the old code built numeric "Data15" and clamped index to 4,
+     * so every DataE+ read — e.g. Shadow Strike's Initial Damage — returned 0). */
+    ASSERT_EQ_FLOAT(S_SpellData(thunder, 1, 5), 42.0f, 0.01f);  /* DataE1 */
     ASSERT_EQ_INT((int)S_SpellUnitId(water, 1), (int)UNIT_ID("hwat"));
 
     game.config.abilities = old_abilities;
@@ -370,9 +673,15 @@ static void test_spell_mana_and_cooldown(void) {
 
     S_SpellStartCooldown(caster, thunder, 1);
     ASSERT(!S_SpellCooldownReady(caster, thunder));
-    level.time += 9001;
+    /* Just used -> full cooldown shade on the command-card icon. */
+    ASSERT_EQ_FLOAT(S_SpellCooldownFraction(caster, thunder, 1), 1.0f, 0.01f);
+    level.time += 4500; /* halfway through the 9s cooldown */
+    ASSERT_EQ_FLOAT(S_SpellCooldownFraction(caster, thunder, 1), 0.5f, 0.01f);
+    level.time += 4501; /* past the end */
     unit_updatestatuses(caster);
     ASSERT(S_SpellCooldownReady(caster, thunder));
+    /* Ready again -> no shade. */
+    ASSERT_EQ_FLOAT(S_SpellCooldownFraction(caster, thunder, 1), 0.0f, 0.01f);
 
     game.config.abilities = old_abilities;
     free_slk_rows(rows);
@@ -605,6 +914,27 @@ BEGIN_SUITE(combat)
     /* G_RunEntity */
     RUN_TEST(test_runentity_stat_fields_updated);
     RUN_TEST(test_runentity_ability_index_from_currentmove);
+    RUN_TEST(test_runentity_hp_regen_always);
+    RUN_TEST(test_runentity_hp_regen_caps_at_max);
+    RUN_TEST(test_runentity_hp_regen_none_does_not_heal);
+    RUN_TEST(test_hero_strength_adds_hp);
+    RUN_TEST(test_hero_intelligence_adds_mana);
+    RUN_TEST(test_hero_agility_adds_armor);
+    RUN_TEST(test_hero_strength_hp_regen_bonus);
+    RUN_TEST(test_hero_intelligence_mana_regen_bonus);
+    RUN_TEST(test_hero_primary_attribute_adds_damage);
+    RUN_TEST(test_hero_stats_noop_for_non_hero);
+    RUN_TEST(test_hero_xp_for_level_table);
+    RUN_TEST(test_hero_level_for_xp);
+    RUN_TEST(test_hero_apply_level_truncates_attributes);
+    RUN_TEST(test_hero_setxp_levels_up);
+    RUN_TEST(test_grant_kill_xp_awards_base);
+    RUN_TEST(test_grant_kill_xp_out_of_range);
+    RUN_TEST(test_hero_learn_skill);
+    RUN_TEST(test_hero_revive);
+    RUN_TEST(test_hero_levelup_fires_event);
+    RUN_TEST(test_attack_recovery_excludes_damage_point);
+    RUN_TEST(test_attack_speed_scales_with_agility);
 
     /* Ability lookup */
     RUN_TEST(test_find_ability_stop);

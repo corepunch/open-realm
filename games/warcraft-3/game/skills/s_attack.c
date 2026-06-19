@@ -321,24 +321,43 @@ void order_attack(LPEDICT self, LPEDICT target) {
     attack_walk(self);
 }
 
+/* Post-swing recovery before the next attack.  WC3's "Cooldown Time" (ua1c) is
+ * the total time *between* attacks, and the damage point is the windup *within*
+ * that window — so the full cycle (windup + recovery) must equal the cooldown,
+ * i.e. recovery = cooldown - damagePoint.  (Previously recovery was the full
+ * cooldown, making the cycle cooldown+damagePoint and every unit attack too
+ * slowly, the more so the larger its damage point.) */
+/* Increased attack speed divisor: a hero's Agility speeds up its whole attack
+ * (windup + recovery) by AgiAttackSpeedBonus per point (WC3 MiscGame, 0.02 =
+ * +2% attack speed per Agility).  hero.agi is 0 on non-heroes -> divisor 1.0. */
+#define AGI_ATTACKSPEED_BONUS 0.02f
+static FLOAT attack_speed_factor(LPCEDICT self) {
+    return 1.0f + (FLOAT)self->hero.agi * AGI_ATTACKSPEED_BONUS;
+}
+
+static FLOAT attack_recovery(LPCEDICT self) {
+    FLOAT const recovery = self->attack1.cooldown - self->attack1.damagePoint;
+    return (recovery > 0.0f ? recovery : 0.0f) / attack_speed_factor(self);
+}
+
 void attack_melee_cooldown(LPEDICT self) {
     unit_setmove(self, &attack_move_melee_cooldown);
-    self->wait = self->attack1.cooldown;
+    self->wait = attack_recovery(self);
 }
 
 void attack_melee(LPEDICT self) {
     unit_setmove(self, &attack_move_melee);
-    self->wait = self->attack1.damagePoint;
+    self->wait = self->attack1.damagePoint / attack_speed_factor(self);
 }
 
 void attack_ranged_cooldown(LPEDICT self) {
     unit_setmove(self, &attack_move_ranged_cooldown);
-    self->wait = self->attack1.cooldown;
+    self->wait = attack_recovery(self);
 }
 
 void attack_ranged(LPEDICT self) {
     unit_setmove(self, &attack_move_ranged);
-    self->wait = self->attack1.damagePoint;
+    self->wait = self->attack1.damagePoint / attack_speed_factor(self);
 }
 
 BOOL attack_menu_selecttarget(LPEDICT ent, LPEDICT target) {

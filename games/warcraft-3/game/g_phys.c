@@ -15,7 +15,13 @@
  */
 #include "g_local.h"
 
-#define IS_HOLLOW(ent) ((ent->svflags & SVF_DEADMONSTER) || (ent->s.renderfx & RF_HIDDEN) || !ent->s.model || !ent->inuse)
+/* Hero per-attribute regen bonuses (WC3 Units\MiscGame.txt):
+ * StrRegenBonus=0.05 HP/sec per Strength, IntRegenBonus=0.05 mana/sec per
+ * Intelligence.  hero.str/intel are 0 on non-heroes, so this only affects heroes. */
+#define STR_REGEN_BONUS 0.05f
+#define INT_REGEN_BONUS 0.05f
+
+/* IS_HOLLOW is shared and lives in g_local.h. */
 #define IS_STATIC(ent) (ent->movetype == MOVETYPE_NONE)
 #define IS_MOVING(ent) (ent->currentmove && ent->currentmove->ability == &a_move)
 
@@ -59,6 +65,26 @@ void SV_Physics_Link(LPEDICT ent) {
     ent->s.angle = ent->goalentity->s.angle;
 }
 
+/* Whether a unit's hit points regenerate right now, per its WC3 regenType
+ * ("uhrt": always / night / blight / none).  Unknown/missing defaults to
+ * always, which is the most common case. */
+static BOOL G_UnitRegeneratesHP(LPCEDICT ent) {
+    LPCSTR const type = UNIT_HIT_POINTS_REGENERATION_TYPE_NAME(ent->class_id);
+    if (!type || !*type) {
+        return true;
+    }
+    if (!strcmp(type, "none")) {
+        return false;
+    }
+    if (!strcmp(type, "night")) {
+        return G_IsNight();
+    }
+    if (!strcmp(type, "blight")) {
+        return false; /* no blight system yet: treat as off-blight (no regen) */
+    }
+    return true; /* "always" */
+}
+
 /* Per-entity update called every game frame.  Runs physics based on movetype,
  * then calls the entity's think function, and finally compresses health/mana
  * into the 8-bit stat fields that are sent to clients. */
@@ -80,11 +106,24 @@ void G_RunEntity(LPEDICT ent) {
             break;
     }
     SAFE_CALL(ent->think, ent);
-    /* Mana regeneration (WC3 'umpr', mana/second). Casters were stuck empty
-     * once drained. */
+    /* Mana regeneration (WC3 'umpr', mana/second), plus a hero's Intelligence
+     * regen bonus (MiscGame IntRegenBonus = 0.05 mana/sec per Intelligence;
+     * hero.intel is 0 for non-heroes). */
     if (ent->mana.max_value > 0 && ent->mana.value < ent->mana.max_value) {
-        FLOAT const regen = UNIT_MANA_REGENERATION(ent->class_id) * (FRAMETIME / 1000.0f);
-        ent->mana.value = MIN(ent->mana.max_value, ent->mana.value + regen);
+        FLOAT const rate = UNIT_MANA_REGENERATION(ent->class_id)
+                         + (FLOAT)ent->hero.intel * INT_REGEN_BONUS;
+        ent->mana.value = MIN(ent->mana.max_value, ent->mana.value + rate * (FRAMETIME / 1000.0f));
+    }
+    /* Hit-point regeneration (WC3 'uhpr', HP/second), plus a hero's Strength
+     * regen bonus (MiscGame StrRegenBonus = 0.05 HP/sec per Strength).  Gated by
+     * the unit's 'uhrt' regenType: "always" any time, "night" only at night
+     * (night elves), "blight" only on blight (no blight system yet -> off-blight
+     * = no regen), "none" never.  Living, wounded units only. */
+    if (ent->health.max_value > 0 && ent->health.value > 0 &&
+        ent->health.value < ent->health.max_value && G_UnitRegeneratesHP(ent)) {
+        FLOAT const rate = UNIT_HIT_POINTS_REGENERATION_RATE(ent->class_id)
+                         + (FLOAT)ent->hero.str * STR_REGEN_BONUS;
+        ent->health.value = MIN(ent->health.max_value, ent->health.value + rate * (FRAMETIME / 1000.0f));
     }
     ent->s.stats[ENT_HEALTH] = compress_stat(&ent->health);
     ent->s.stats[ENT_MANA] = compress_stat(&ent->mana);
@@ -109,59 +148,25 @@ inline BOOL M_CheckCollision(LPCVECTOR2 origin, FLOAT radius) {
     return false;
 }
 
-static LPCEDICT phys_current_entity = NULL;
+/* Collision is now enforced at move time: unit_trymove() (g_ai.c) only commits
+ * a step into a position free of terrain and other units, so units never end up
+ * overlapping through normal movement and there is nothing left to push apart
+ * here.  The old penalty solver shoved idle bystanders out of the way — which
+ * never happens in WC3 — so it is retired.  G_SolveCollisions is kept as a
+ * documented no-op so the frame loop (g_main.c) and the test suite retain a
+ * stable symbol; spawn/teleport overlaps are resolved at the source by
+ * nearest-free-space placement (SP_FindEmptySpaceAround) and by the
+ * "don't deepen penetration" rule in move_is_valid().
+ *
+ * The query helpers it used are retired with it; left commented in case a
+ * future global de-overlap pass is ever needed.  (Linux -Wall would warn that
+ * these are unused.) */
+// static LPCEDICT phys_current_entity = NULL;
+// static BOOL FilterColliders(LPCEDICT ent) {
+//     return ent != phys_current_entity && !IS_HOLLOW(ent);
+// }
+// #define MAX_COLLIDERS 256
+// static LPEDICT sv_colliders[MAX_COLLIDERS];
 
-static BOOL FilterColliders(LPCEDICT ent) {
-    return ent != phys_current_entity && !IS_HOLLOW(ent);
-}
-
-#define MAX_COLLIDERS 256
-
-static LPEDICT sv_colliders[MAX_COLLIDERS];
-
-/* Resolve all entity-entity overlaps for one game frame.
- * For each entity, nearby candidates are fetched with a bounding-box query.
- * Overlapping pairs are pushed apart:
- *   - If one side is static, only the dynamic entity moves.
- *   - If both are actively walking, separation is split by distance-to-goal
- *     so that the unit closer to its destination yields more ground.
- *   - Otherwise the separation is split evenly. */
 void G_SolveCollisions(void) {
-    FOR_LOOP(i, globals.num_edicts) {
-        LPEDICT a = g_edicts+i;
-        if (IS_HOLLOW(a) || IS_STATIC(a))
-            continue;
-        phys_current_entity = a;
-        DWORD num_colliders = gi.BoxEdicts(&a->bounds, sv_colliders, MAX_COLLIDERS, FilterColliders);
-        FOR_LOOP(j, num_colliders) {
-            LPEDICT b = sv_colliders[j];
-            FLOAT const radius = (a->collision + b->collision);
-            FLOAT const distance = Vector2_distance(&a->s.origin2, &b->s.origin2);
-            if (distance >= radius)
-                continue;
-            VECTOR2 d = Vector2_sub(&a->s.origin2, &b->s.origin2);
-            Vector2_normalize(&d);
-            FLOAT const diff = distance - radius;
-            if (IS_STATIC(b)) {
-                G_PushEntity(a, -diff, &d);
-            } else if (IS_MOVING(a) && IS_MOVING(b)) {
-                FLOAT const ad = M_DistanceToGoal(a);
-                FLOAT const bd = M_DistanceToGoal(b);
-                G_PushEntity(a, -diff * ad / (ad + bd), &d);
-                G_PushEntity(b, diff * bd / (ad + bd), &d);
-            } else {
-                G_PushEntity(a, -diff * 0.5f, &d);
-                G_PushEntity(b, diff * 0.5f, &d);
-                /* Transitive bumping: a stopped unit that has reached its
-                 * goal passes arrival to any overlapping unit heading for
-                 * the same goal.  This prevents the jitter that occurs when
-                 * collision nudges keep a nearly-arrived unit oscillating
-                 * around the destination. */
-                if (a->goalentity && a->goalentity == b->goalentity) {
-                    if (!IS_MOVING(a) && IS_MOVING(b)) b->stand(b);
-                    if (!IS_MOVING(b) && IS_MOVING(a)) a->stand(a);
-                }
-            }
-        }
-    }
 }
