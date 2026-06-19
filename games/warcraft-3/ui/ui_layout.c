@@ -1,15 +1,10 @@
 #include <stdlib.h>
-#include <SDL2/SDL.h>
-
 #include "ui_local.h"
 
 
-#define MAX_EDIT_STATES 32
-#define MAX_EDIT_TEXT 256
 #define MAX_LISTBOX_TEXT 2048
 
 static LPCSTR active_tooltip = NULL;
-static DWORD active_edit_number = 0;
 static HANDLE layout_layers[MAX_LAYOUT_LAYERS];
 static LPTEXTURE layout_dynamic_pics[MAX_DYNAMIC_IMAGES];
 static char layout_dynamic_pic_names[MAX_DYNAMIC_IMAGES][512];
@@ -119,16 +114,6 @@ static drawText_t UI_LayoutGetDrawText(LPCUIFRAME frame,
     return MAKE(drawText_t, .text = text, .textWidth = avl_width);
 }
 
-typedef struct {
-    DWORD number;
-    BOOL inuse;
-    DWORD cursor;
-    DWORD maxChars;
-    char text[MAX_EDIT_TEXT];
-} editState_t;
-
-static editState_t edit_states[MAX_EDIT_STATES];
-
 static RECT get_uvrect(uint8_t const *texcoord) {
     RECT const uv = {
         texcoord[0],
@@ -210,40 +195,6 @@ static LPCENTITYSTATE UI_LayoutSelectedEntity(void) {
         }
     }
     return NULL;
-}
-
-static BOOL UI_LayoutIsEditBoxType(FRAMETYPE type) {
-    return type == FT_EDITBOX || type == FT_GLUEEDITBOX || type == FT_SLASHCHATBOX;
-}
-
-static editState_t *UI_LayoutEditState(LPCUIFRAME frame, BOOL create) {
-    editState_t *free_state = NULL;
-    uiEditBox_t const *edit = frame->buffer.data;
-
-    FOR_LOOP(i, MAX_EDIT_STATES) {
-        editState_t *state = edit_states + i;
-        if (state->inuse && state->number == frame->number) {
-            state->maxChars = edit && edit->maxChars ? edit->maxChars : MAX_EDIT_TEXT - 1;
-            return state;
-        }
-        if (!state->inuse && !free_state) {
-            free_state = state;
-        }
-    }
-
-    if (!create || !free_state) {
-        return NULL;
-    }
-
-    memset(free_state, 0, sizeof(*free_state));
-    free_state->inuse = true;
-    free_state->number = frame->number;
-    free_state->maxChars = edit && edit->maxChars ? edit->maxChars : MAX_EDIT_TEXT - 1;
-    if (frame->text) {
-        snprintf(free_state->text, sizeof(free_state->text), "%s", frame->text);
-    }
-    free_state->cursor = (DWORD)strlen(free_state->text);
-    return free_state;
 }
 
 void UI_LayoutDrawStatusbar(LPCUIFRAME frame, LPCRECT screen) {
@@ -629,7 +580,13 @@ void UI_LayoutDrawPortrait(LPCUIFRAME frame, LPCRECT screen) {
     };
     LPCMODEL port = uiimport.GetPortrait ? uiimport.GetPortrait(frame->tex.index) : NULL;
     LPCMODEL model = uiimport.GetModel ? uiimport.GetModel(frame->tex.index) : NULL;
-    re.DrawPortrait(port ? port : model, &viewport, "Stand");
+    PORTRAITDEF p = {
+        .model = port ? port : model,
+        .viewport = &viewport,
+        .anim = "Stand",
+        .frame = 0
+    };
+    re.DrawPortrait(&p);
 }
 
 void UI_LayoutDrawSprite(LPCUIFRAME frame, LPCRECT screen) {
@@ -738,62 +695,6 @@ void UI_LayoutDrawTextArea(LPCUIFRAME frame, LPCRECT screen) {
                       .textWidth = scr.w,
                       .rect = scr,
                       .wordWrap = true));
-}
-
-void UI_LayoutDrawEditBox(LPCUIFRAME frame, LPCRECT screen) {
-    uiEditBox_t const *edit = frame->buffer.data;
-    editState_t *state = UI_LayoutEditState(frame, true);
-    RECT text_rect = Rect_inset(screen, edit->borderSize);
-    char cursor_text[MAX_EDIT_TEXT + 2];
-    LPCSTR text = state ? state->text : "";
-
-    UI_LayoutDrawBackdrop2(frame, screen, &edit->background);
-
-    re.DrawText(&MAKE(drawText_t,
-                      .font = UI_LayoutFont(edit->font),
-                      .text = text,
-                      .color = edit->textColor,
-                      .halign = FONT_JUSTIFYLEFT,
-                      .valign = FONT_JUSTIFYMIDDLE,
-                      .icons = UI_LayoutTextures(),
-                      .lineHeight = 1.33,
-                      .textWidth = text_rect.w,
-                      .rect = text_rect,
-                      .wordWrap = false));
-
-    if (active_edit_number == frame->number && state && (UI_LayoutTime() % 500) < 250) {
-        DWORD cursor = MIN(state->cursor, (DWORD)strlen(state->text));
-        drawText_t measure;
-        VECTOR2 prefix_size;
-        RECT cursor_rect = text_rect;
-
-        snprintf(cursor_text, sizeof(cursor_text), "%.*s", (int)cursor, state->text);
-        measure = MAKE(drawText_t,
-                       .font = UI_LayoutFont(edit->font),
-                       .text = cursor_text,
-                       .color = edit->textColor,
-                       .halign = FONT_JUSTIFYLEFT,
-                       .valign = FONT_JUSTIFYMIDDLE,
-                       .icons = UI_LayoutTextures(),
-                       .lineHeight = 1.33,
-                       .textWidth = text_rect.w,
-                       .rect = text_rect,
-                       .wordWrap = false);
-        prefix_size = re.GetTextSize(&measure);
-        cursor_rect.x += prefix_size.x;
-        cursor_rect.w = MAX(cursor_rect.w - prefix_size.x, 0.0f);
-        re.DrawText(&MAKE(drawText_t,
-                          .font = UI_LayoutFont(edit->font),
-                          .text = "|",
-                          .color = edit->cursorColor,
-                          .halign = FONT_JUSTIFYLEFT,
-                          .valign = FONT_JUSTIFYMIDDLE,
-                          .icons = UI_LayoutTextures(),
-                          .lineHeight = 1.33,
-                          .textWidth = cursor_rect.w,
-                          .rect = cursor_rect,
-                          .wordWrap = false));
-    }
 }
 
 void UI_LayoutDrawListBox(LPCUIFRAME frame, LPCRECT screen) {
@@ -928,9 +829,6 @@ static drawer_t drawers[] = {
     { FT_STRING, UI_LayoutDrawString },
     { FT_TEXT, UI_LayoutDrawString },
     { FT_TEXTAREA, UI_LayoutDrawTextArea },
-    { FT_EDITBOX, UI_LayoutDrawEditBox },
-    { FT_GLUEEDITBOX, UI_LayoutDrawEditBox },
-    { FT_SLASHCHATBOX, UI_LayoutDrawEditBox },
     { FT_LISTBOX, UI_LayoutDrawListBox },
     { FT_SCROLLBAR, UI_LayoutDrawScrollBar },
     { FT_TOOLTIPTEXT, UI_LayoutDrawTooltip },
@@ -952,13 +850,6 @@ static drawer_t drawers[] = {
 void UI_LayoutDrawFrame(LPCUIFRAME frame) {
     VECTOR2 const m = UI_LayoutMouseToFdf();
     RECT const *screen = UI_LayoutLayoutRect(frame);
-    if (UI_LayoutIsEditBoxType(frame->flags.type) &&
-        Rect_contains(screen, &m) &&
-        UI_LayoutMouseEvent() == UI_CLIENT_MOUSE_LEFT_DOWN)
-    {
-        active_edit_number = frame->number;
-        UI_LayoutEditState(frame, true);
-    }
     FOR_LOOP(j, sizeof(drawers)/sizeof(*drawers)) {
         if (drawers[j].type == frame->flags.type) {
             drawers[j].func(frame, screen);
@@ -998,9 +889,6 @@ void UI_LayoutUpdateTooltip(HANDLE _frames) {
 }
 
 void UI_LayoutDrawOverlay(HANDLE _frames) {
-    if (UI_LayoutMouseEvent() == UI_CLIENT_MOUSE_LEFT_DOWN) {
-        active_edit_number = 0;
-    }
     FOR_LOOP(i, UI_LayoutNumFrames()) {
         LPCUIFRAME frame = UI_LayoutFrame(i);
         if (frame && frame->flags.type == FT_SPRITE) {
@@ -1095,101 +983,6 @@ BOOL UI_LayoutHitTest(int x, int y) {
                 return true;
             }
         }
-    }
-    return false;
-}
-
-static editState_t *UI_LayoutActiveEditState(void) {
-    FOR_LOOP(i, MAX_EDIT_STATES) {
-        if (edit_states[i].inuse && edit_states[i].number == active_edit_number) {
-            return edit_states + i;
-        }
-    }
-    return NULL;
-}
-
-void UI_LayoutTextInput(LPCSTR text) {
-    editState_t *state = UI_LayoutActiveEditState();
-    size_t len;
-    size_t add_len;
-    DWORD cursor;
-
-    if (!state || !text || !*text) {
-        return;
-    }
-
-    len = strlen(state->text);
-    add_len = strlen(text);
-    cursor = MIN(state->cursor, (DWORD)len);
-    if (state->maxChars > 0 && len >= state->maxChars) {
-        return;
-    }
-    if (state->maxChars > 0 && len + add_len > state->maxChars) {
-        add_len = state->maxChars - len;
-    }
-    if (len + add_len >= sizeof(state->text)) {
-        add_len = sizeof(state->text) - len - 1;
-    }
-    if (add_len == 0) {
-        return;
-    }
-
-    memmove(state->text + cursor + add_len,
-            state->text + cursor,
-            len - cursor + 1);
-    memcpy(state->text + cursor, text, add_len);
-    state->cursor = cursor + (DWORD)add_len;
-}
-
-BOOL UI_LayoutEditKey(int key) {
-    editState_t *state = UI_LayoutActiveEditState();
-    size_t len;
-    DWORD cursor;
-
-    if (!state) {
-        return false;
-    }
-
-    len = strlen(state->text);
-    cursor = MIN(state->cursor, (DWORD)len);
-    switch (key) {
-        case SDLK_BACKSPACE:
-            if (cursor > 0) {
-                memmove(state->text + cursor - 1,
-                        state->text + cursor,
-                        len - cursor + 1);
-                state->cursor = cursor - 1;
-            }
-            return true;
-        case SDLK_DELETE:
-            if (cursor < len) {
-                memmove(state->text + cursor,
-                        state->text + cursor + 1,
-                        len - cursor);
-            }
-            return true;
-        case SDLK_LEFT:
-            if (cursor > 0) {
-                state->cursor = cursor - 1;
-            }
-            return true;
-        case SDLK_RIGHT:
-            if (cursor < len) {
-                state->cursor = cursor + 1;
-            }
-            return true;
-        case SDLK_HOME:
-            state->cursor = 0;
-            return true;
-        case SDLK_END:
-            state->cursor = (DWORD)len;
-            return true;
-        case SDLK_RETURN:
-        case SDLK_KP_ENTER:
-            active_edit_number = 0;
-            return false;
-        default:
-            break;
     }
     return false;
 }

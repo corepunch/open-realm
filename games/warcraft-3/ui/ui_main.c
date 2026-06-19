@@ -753,9 +753,6 @@ void UI_KeyEventLocal(int key, BOOL down, DWORD time) {
         return;
     }
 
-    if (down && UI_LayoutEditKey(key)) {
-        return;
-    }
     if (down && UI_EditKey(key)) {
         return;
     }
