@@ -31,6 +31,12 @@ typedef struct { DWORD id; DWORD mask_id; LPCSTR internal_name; LPCSTR name; } w
 #define WOW_MAX_FACTION_TPL 256
 #define WOW_MAX_FACTION_GRP 8
 
+/* BZ_HARDCODED_DATA_FALLBACK: used only when test/interface fixtures omit the DBC files. */
+#define BZ_WOW_CHARCREATE_FALLBACK_RACE_NAME  "Human"
+#define BZ_WOW_CHARCREATE_FALLBACK_CLASS_NAME "Warrior"
+#define BZ_WOW_CHARCREATE_FALLBACK_CLASS_FILE "WARRIOR"
+#define BZ_WOW_CHARCREATE_FALLBACK_FACTION    "Alliance"
+
 /* -------------------------------------------------------------------------
  * Shared state
  * ---------------------------------------------------------------------- */
@@ -246,6 +252,11 @@ static LPCSTR UIWow_FactionNameForRace(int race_idx_1based, LPCSTR *internal_out
 
 int UIWow_LuaGetAvailableRaces(lua_State *L) {
     UIWow_LoadCharCreateDbc();
+    if (!wow_charcreate.num_playable) {
+        lua_pushstring(L, BZ_WOW_CHARCREATE_FALLBACK_RACE_NAME);
+        lua_pushstring(L, BZ_WOW_CHARCREATE_FALLBACK_RACE_NAME);
+        return 2;
+    }
     FOR_LOOP(i, wow_charcreate.num_playable) {
         wowRaceRec_t const *r = &wow_charcreate.races[wow_charcreate.playable[i]];
         LPCSTR name = (wow_charcreate.sel_sex == 1) ? r->name : (r->name_female[0] ? r->name_female : r->name);
@@ -257,6 +268,11 @@ int UIWow_LuaGetAvailableRaces(lua_State *L) {
 
 int UIWow_LuaGetAvailableClasses(lua_State *L) {
     UIWow_LoadCharCreateDbc();
+    if (!wow_charcreate.num_classes) {
+        lua_pushstring(L, BZ_WOW_CHARCREATE_FALLBACK_CLASS_NAME);
+        lua_pushstring(L, BZ_WOW_CHARCREATE_FALLBACK_CLASS_FILE);
+        return 2;
+    }
     FOR_LOOP(i, wow_charcreate.num_classes) {
         wowClassRec_t const *c = &wow_charcreate.classes[i];
         lua_pushstring(L, c->name[0] ? c->name : c->filename);
@@ -268,6 +284,11 @@ int UIWow_LuaGetAvailableClasses(lua_State *L) {
 int UIWow_LuaGetClassesForRace(lua_State *L) {
     UIWow_LoadCharCreateDbc();
     int pi = wow_charcreate.sel_race;
+    if (!wow_charcreate.num_playable || !wow_charcreate.num_classes) {
+        lua_pushstring(L, BZ_WOW_CHARCREATE_FALLBACK_CLASS_NAME);
+        lua_pushstring(L, BZ_WOW_CHARCREATE_FALLBACK_CLASS_FILE);
+        return 2;
+    }
     if (pi < 0 || pi >= wow_charcreate.num_playable) return 0;
     int race_id = (int)wow_charcreate.races[wow_charcreate.playable[pi]].id;
     int count = 0;
@@ -290,6 +311,11 @@ int UIWow_LuaGetFactionForRace(lua_State *L) {
     UIWow_LoadCharCreateDbc();
     LPCSTR internal = NULL;
     LPCSTR name = UIWow_FactionNameForRace(wow_charcreate.sel_race + 1, &internal);
+    if (!wow_charcreate.num_playable) {
+        lua_pushstring(L, BZ_WOW_CHARCREATE_FALLBACK_FACTION);
+        lua_pushstring(L, BZ_WOW_CHARCREATE_FALLBACK_FACTION);
+        return 2;
+    }
     if (!name) { lua_pushstring(L, ""); lua_pushstring(L, ""); return 2; }
     lua_pushstring(L, name);
     lua_pushstring(L, internal ? internal : "");
@@ -299,6 +325,11 @@ int UIWow_LuaGetFactionForRace(lua_State *L) {
 int UIWow_LuaGetNameForRace(lua_State *L) {
     UIWow_LoadCharCreateDbc();
     int pi = wow_charcreate.sel_race;
+    if (!wow_charcreate.num_playable) {
+        lua_pushstring(L, BZ_WOW_CHARCREATE_FALLBACK_RACE_NAME);
+        lua_pushstring(L, BZ_WOW_CHARCREATE_FALLBACK_RACE_NAME);
+        return 2;
+    }
     if (pi < 0 || pi >= wow_charcreate.num_playable) { lua_pushstring(L, ""); lua_pushstring(L, ""); return 2; }
     wowRaceRec_t const *r = &wow_charcreate.races[wow_charcreate.playable[pi]];
     LPCSTR name = (wow_charcreate.sel_sex == 1) ? r->name : (r->name_female[0] ? r->name_female : r->name);
@@ -322,6 +353,13 @@ int UIWow_LuaGetSelectedSex(lua_State *L) {
 int UIWow_LuaGetSelectedClass(lua_State *L) {
     UIWow_LoadCharCreateDbc();
     int ci = wow_charcreate.sel_class - 1;
+    if (!wow_charcreate.num_classes) {
+        lua_pushstring(L, BZ_WOW_CHARCREATE_FALLBACK_CLASS_NAME);
+        lua_pushstring(L, BZ_WOW_CHARCREATE_FALLBACK_CLASS_FILE);
+        lua_pushnumber(L, 1);
+        lua_pushboolean(L, 0); lua_pushboolean(L, 0); lua_pushboolean(L, 1);
+        return 6;
+    }
     if (ci < 0 || ci >= wow_charcreate.num_classes) return 0;
     wowClassRec_t const *c = &wow_charcreate.classes[ci];
     lua_pushstring(L, c->name[0] ? c->name : c->filename);
@@ -398,6 +436,20 @@ int UIWow_LuaSetCharacterCreateFacing(lua_State *L) {
     UIWow_LoadCharCreateDbc();
     wow_charcreate.facing = (float)luaL_checknumber(L, 1);
     return 0;
+}
+
+/* Format the selected race/gender character M2 used by the glue create scene. */
+void UIWow_GetCharacterCreateModelPath(LPSTR out, size_t out_size) {
+    LPCSTR race = BZ_WOW_CHARCREATE_FALLBACK_RACE_NAME;
+    LPCSTR gender = wow_charcreate.sel_sex == 2 ? "Female" : "Male";
+
+    if (!out || out_size == 0) return;
+    UIWow_LoadCharCreateDbc();
+    if (wow_charcreate.sel_race >= 0 && wow_charcreate.sel_race < wow_charcreate.num_playable) {
+        LPCSTR client_file = wow_charcreate.races[wow_charcreate.playable[wow_charcreate.sel_race]].client_file;
+        if (client_file && client_file[0]) race = client_file;
+    }
+    snprintf(out, out_size, "Character\\%s\\%s\\%s%s.m2", race, gender, race, gender);
 }
 
 int UIWow_LuaResetCharCustomize(lua_State *L) {

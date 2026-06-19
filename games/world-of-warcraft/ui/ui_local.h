@@ -36,6 +36,7 @@
 #define WOW_UI_WARN_NO_LOADING_DRAW        WOW_UI_WARN_FLAG(11)
 #define WOW_UI_WARN_NO_LOAD_BACKGROUND     WOW_UI_WARN_FLAG(12)
 #define WOW_UI_WARN_NO_MODEL_LOADER        WOW_UI_WARN_FLAG(13)
+#define WOW_UI_WARN_NO_CHAR_MODEL          WOW_UI_WARN_FLAG(14)
 
 typedef struct {
     char input_name[256]; /* as passed to UIWow_LoadTexture, used for cache lookup */
@@ -69,6 +70,9 @@ typedef struct {
     FLOAT displayed_progress;  /* smoothed progress owned by get_loading_progress() */
     PATHSTR current_menu;
     int model_frame_idx;      /* frame index for SetCharSelectModelFrame */
+    int char_customize_frame_idx;
+    LPMODEL char_customize_model;
+    PATHSTR char_customize_model_path;
 } uiWowState_t;
 
 extern uiImport_t uiimport;

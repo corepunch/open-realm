@@ -2757,6 +2757,8 @@ FLOAT M2_GroundOffset(m2Model_t const *model) {
     return -model->geometry_bounds.min.z;
 }
 
+BOOL M2_IsCharacterModel(m2Model_t const *model) { return model && model->character_model; }
+
 void M2_Release(m2Model_t *model) {
     m2ModelBatch_t *batch;
 

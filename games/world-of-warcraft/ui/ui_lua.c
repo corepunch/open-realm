@@ -509,6 +509,7 @@ static int UIWow_LuaSetCharCustomizeFrame(lua_State *L) {
     int idx = UIWow_XmlFindByNamePub(name);
     if (idx >= 0) {
         wow_ui.model_frame_idx = idx;
+        wow_ui.char_customize_frame_idx = idx;
     }
     return 0;
 }
