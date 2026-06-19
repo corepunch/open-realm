@@ -24,7 +24,7 @@ bool R_GameGetModelInfo(LPMODEL model, LPMODELINFO info);
 bool R_GameEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix);
 bool R_GameRenderShadow(renderEntity_t const *entity, LPCVECTOR2 origin);
 
-void R_GameDrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim);
+void R_GameDrawPortrait(LPCPORTRAITDEF params);
 void R_GameDrawSprite(LPCMODEL model, LPCSTR anim, float x, float y);
 
 #endif

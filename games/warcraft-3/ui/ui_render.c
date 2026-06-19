@@ -10,6 +10,7 @@
  */
 
 #include "ui_local.h"
+#include "client/ui_text_input.h"
 #if defined(__has_include)
 #if __has_include(<SDL2/SDL_keycode.h>)
 #include <SDL2/SDL_keycode.h>
@@ -627,10 +628,16 @@ static void UI_DrawPortrait(LPCFRAMEDEF frame, LPCRECT rect) {
     if (!model) {
         return;
     }
-    
+
     /* Default animation for portraits is "Stand" or first available */
     LPCSTR anim = "Stand";
-    renderer->DrawPortrait(model, rect, anim);
+    PORTRAITDEF p = {
+        .model = model,
+        .viewport = rect,
+        .anim = anim,
+        .frame = 0
+    };
+    renderer->DrawPortrait(&p);
 }
 
 static void UI_DrawSprite(LPCFRAMEDEF frame, LPCRECT rect) {

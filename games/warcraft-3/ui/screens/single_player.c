@@ -419,7 +419,13 @@ static void SinglePlayer_DrawCampaignBackdrop(void) {
     RECT viewport = { 0, 0, 1, 1 };
 
     if (renderer && renderer->DrawPortrait && model) {
-        renderer->DrawPortrait(model, &viewport, "Stand");
+        PORTRAITDEF p = {
+            .model = model,
+            .viewport = &viewport,
+            .anim = "Stand",
+            .frame = 0
+        };
+        renderer->DrawPortrait(&p);
     }
 }
 

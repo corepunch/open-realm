@@ -66,7 +66,13 @@ void UI_DrawGlueSceneLayers(LPCSTR left_panel_anim, LPCSTR right_panel_anim) {
 
     if (renderer->DrawPortrait && ui_glue_scene.background) {
         RECT viewport = { 0, 0, 1, 1 };
-        renderer->DrawPortrait(ui_glue_scene.background, &viewport, "Stand");
+        PORTRAITDEF p = {
+            .model = ui_glue_scene.background,
+            .viewport = &viewport,
+            .anim = "Stand",
+            .frame = 0
+        };
+        renderer->DrawPortrait(&p);
     }
 
     if (renderer->DrawSprite) {
