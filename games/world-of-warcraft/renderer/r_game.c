@@ -12,6 +12,13 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size);
 void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMATRIX4 transform);
 BOOL M2_AttachmentMatrix(m2Model_t const *model, DWORD attachment_id, LPCMATRIX4 model_matrix, LPMATRIX4 out);
 FLOAT M2_GroundOffset(m2Model_t const *model);
+BOOL M2_CameraView(m2Model_t const *model,
+                   DWORD camera_index,
+                   LPVECTOR3 eye,
+                   LPVECTOR3 target,
+                   LPFLOAT fov_degrees,
+                   LPFLOAT znear,
+                   LPFLOAT zfar);
 void M2_Release(m2Model_t *model);
 void M2_Shutdown(void);
 
@@ -75,9 +82,11 @@ VECTOR2 R_GameWorldSize(void) {
 
 LPMODEL R_GameLoadModel(LPCSTR modelFilename) {
     void *buffer = NULL;
+    PATHSTR load_name;
     int fileSize = ri.FS_ReadFile(modelFilename, &buffer);
     LPMODEL model;
 
+    snprintf(load_name, sizeof(load_name), "%s", modelFilename ? modelFilename : "");
     if ((fileSize < 0 || !buffer) && R_GamePathHasExtension(modelFilename, ".mdx")) {
         PATHSTR tempFileName = { 0 };
         LPSTR ext = strstr(modelFilename, ".mdx");
@@ -85,6 +94,14 @@ LPMODEL R_GameLoadModel(LPCSTR modelFilename) {
         strncpy(tempFileName, modelFilename, ext - modelFilename);
         strcpy(tempFileName + strlen(tempFileName), ".m2");
         fileSize = ri.FS_ReadFile(tempFileName, &buffer);
+        if (fileSize >= 0 && buffer) {
+            snprintf(load_name, sizeof(load_name), "%s", tempFileName);
+        } else {
+            fprintf(stderr,
+                    "R_LoadModel: missing WoW glue model %s and converted path %s\n",
+                    modelFilename,
+                    tempFileName);
+        }
     }
     if ((fileSize < 0 || !buffer) &&
         (R_GamePathHasExtension(modelFilename, ".m2") ||
@@ -106,7 +123,7 @@ LPMODEL R_GameLoadModel(LPCSTR modelFilename) {
     }
 
     model = ri.MemAlloc(sizeof(model_t));
-    model->m2 = R_LoadModelM2(modelFilename, buffer, fileSize);
+    model->m2 = R_LoadModelM2(load_name, buffer, fileSize);
     model->modeltype = ID_MD20;
     if (!model->m2) {
         ri.MemFree(model);
@@ -301,9 +318,91 @@ bool R_GameGetModelInfo(LPMODEL model, LPMODELINFO info) {
 }
 
 void R_GameDrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim) {
-    (void)model;
-    (void)viewport;
+    renderEntity_t entity;
+    MATRIX4 transform;
+    MATRIX4 proj_matrix;
+    MATRIX4 view_matrix;
+    viewDef_t saved_viewdef;
+    int saved_viewport[4];
+    BOX3 const *bounds;
+    VECTOR3 center;
+    VECTOR3 eye;
+    VECTOR3 target;
+    VECTOR3 dir;
+    float radius;
+    float distance;
+    float aspect;
+    float fov = 35.0f;
+    float znear = 1.0f;
+    float zfar = 4000.0f;
+
     (void)anim;
+
+    if (!model || !model->m2 || !viewport) {
+        return;
+    }
+
+    bounds = &model->m2->bounds;
+
+    center = (VECTOR3){
+        (bounds->max.x + bounds->min.x) * 0.5f,
+        (bounds->max.y + bounds->min.y) * 0.5f,
+        (bounds->max.z + bounds->min.z) * 0.5f
+    };
+    radius = Vector3_len(&(VECTOR3){
+        bounds->max.x - bounds->min.x,
+        bounds->max.y - bounds->min.y,
+        bounds->max.z - bounds->min.z
+    }) * 0.5f;
+    if (radius < 1.0f) {
+        radius = 32.0f;
+    }
+
+    memset(&entity, 0, sizeof(entity));
+    entity.model = model;
+    entity.frame = 0;
+    entity.oldframe = 0;
+    entity.flags = RF_NO_SHADOW | RF_NO_FOGOFWAR | RF_NO_LIGHTING | RDF_NOFRUSTUMCULL;
+    entity.rotation = (VECTOR3){0, 0, 0};
+    entity.scale = 1.0f;
+    entity.origin = (VECTOR3){0, 0, 0};
+
+    Matrix4_identity(&transform);
+    Matrix4_translate(&transform, &entity.origin);
+    Matrix4_scale(&transform, &(VECTOR3){entity.scale, entity.scale, entity.scale});
+
+    saved_viewdef = tr.viewDef;
+    glGetIntegerv(GL_VIEWPORT, saved_viewport);
+
+    glViewport((GLint)(viewport->x * tr.drawableSize.width),
+               (GLint)(viewport->y * tr.drawableSize.height),
+               (GLint)(viewport->w * tr.drawableSize.width),
+               (GLint)(viewport->h * tr.drawableSize.height));
+    R_Call(glClear, GL_DEPTH_BUFFER_BIT);
+
+    aspect = viewport->h > 0.0f ? viewport->w / viewport->h : 1.0f;
+    if (!M2_CameraView(model->m2, 0, &eye, &target, &fov, &znear, &zfar)) {
+        distance = radius / tanf((fov * (FLOAT)M_PI / 180.0f) * 0.5f);
+        eye = (VECTOR3){ center.x, center.y - distance * 1.35f, center.z + radius * 0.25f };
+        target = center;
+        zfar = MAX(zfar, distance + radius * 4.0f);
+    }
+    dir = Vector3_sub(&target, &eye);
+    if (Vector3_len(&dir) <= 0.001f) {
+        dir = (VECTOR3){ 0.0f, 1.0f, 0.0f };
+    }
+    Matrix4_perspective(&proj_matrix, fov, aspect, znear, zfar);
+    Matrix4_lookAt(&view_matrix, &eye, &dir, &(VECTOR3){0, 0, 1});
+
+    Matrix4_multiply(&proj_matrix, &view_matrix, &tr.viewDef.viewProjectionMatrix);
+    Frustum_Calculate(&tr.viewDef.viewProjectionMatrix, &tr.viewDef.frustum);
+    Matrix4_identity(&tr.viewDef.textureMatrix);
+    Matrix4_identity(&tr.viewDef.lightMatrix);
+
+    M2_RenderModel(&entity, model->m2, &transform);
+
+    tr.viewDef = saved_viewdef;
+    glViewport(saved_viewport[0], saved_viewport[1], saved_viewport[2], saved_viewport[3]);
 }
 
 void R_GameDrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
