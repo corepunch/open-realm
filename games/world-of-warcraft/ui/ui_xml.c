@@ -110,6 +110,7 @@ typedef enum {
     EF_WORD_WRAP      = 1 << 18,
     EF_IS_SCROLLFRAME = 1 << 19,
     EF_SCROLLBAR_PART = 1 << 20,
+    EF_CHECKBUTTON    = 1 << 21,
 } uiWowXmlElemFlag_t;
 
 typedef struct {
@@ -1186,7 +1187,7 @@ static void UIWow_XmlCloneTemplateChildren(LPCSTR inherits, int dst, LPCSTR dst_
 
 static void UIWow_XmlParseNode(xmlNodePtr node, int parent, int draw_layer) {
     uiWowXmlType_t type; xmlChar *name_attr, *parent_attr, *inherits_attr; int idx;
-    BOOL is_scrollframe = false;
+    BOOL is_scrollframe = false, is_checkbutton = false;
     if (!node || node->type != XML_ELEMENT_NODE || !node->name) return;
     if (!xmlStrcasecmp(node->name, BAD_CAST "Layer")) { UIWow_XmlParseLayer(node, parent); return; }
     if (!xmlStrcasecmp(node->name, BAD_CAST "Frames") || !xmlStrcasecmp(node->name, BAD_CAST "Layers")) { UIWow_XmlParseChildren(node, parent); return; }
@@ -1199,7 +1200,10 @@ static void UIWow_XmlParseNode(xmlNodePtr node, int parent, int draw_layer) {
     else if (!xmlStrcasecmp(node->name, BAD_CAST "Texture")) type = WOW_XML_TEXTURE;
     else if (!xmlStrcasecmp(node->name, BAD_CAST "FontString")) type = WOW_XML_FONTSTRING;
     else if (!xmlStrcasecmp(node->name, BAD_CAST "Button") ||
-             !xmlStrcasecmp(node->name, BAD_CAST "CheckButton")) type = WOW_XML_BUTTON;
+             !xmlStrcasecmp(node->name, BAD_CAST "CheckButton")) {
+        type = WOW_XML_BUTTON;
+        is_checkbutton = !xmlStrcasecmp(node->name, BAD_CAST "CheckButton");
+    }
     else if (!xmlStrcasecmp(node->name, BAD_CAST "EditBox")) type = WOW_XML_EDITBOX;
     else if (!xmlStrcasecmp(node->name, BAD_CAST "NormalTexture") || !xmlStrcasecmp(node->name, BAD_CAST "PushedTexture") || !xmlStrcasecmp(node->name, BAD_CAST "DisabledTexture") || !xmlStrcasecmp(node->name, BAD_CAST "HighlightTexture") || !xmlStrcasecmp(node->name, BAD_CAST "ThumbTexture")) type = WOW_XML_TEXTURE;
     else if (!xmlStrcasecmp(node->name, BAD_CAST "NormalText") || !xmlStrcasecmp(node->name, BAD_CAST "DisabledText") || !xmlStrcasecmp(node->name, BAD_CAST "HighlightText")) type = WOW_XML_FONTSTRING;
@@ -1221,6 +1225,7 @@ static void UIWow_XmlParseNode(xmlNodePtr node, int parent, int draw_layer) {
     idx = UIWow_XmlPushElem(type, resolved_name[0] ? resolved_name : NULL, parent, draw_layer); SAFE_DELETE(name_attr, xmlFree);
     if (idx < 0) { SAFE_DELETE(parent_attr, xmlFree); UIWow_Printf("UIWow: XML element limit exceeded\n"); return; }
     if (is_scrollframe) wow_xml.elems[idx].flags |= EF_IS_SCROLLFRAME;
+    if (is_checkbutton) wow_xml.elems[idx].flags |= EF_CHECKBUTTON;
     UIWow_XmlCloneTemplateChildren((char const *)inherits_attr, idx, resolved_name[0] ? resolved_name : NULL);
     UIWow_XmlInheritElem(&wow_xml.elems[idx], (char const *)inherits_attr); SAFE_DELETE(inherits_attr, xmlFree);
     if (parent_attr && *parent_attr) {
@@ -1982,6 +1987,8 @@ BOOL UIWow_XMLMouseEvent(int x, int y, int button, BOOL down) {
         if (button == 1 && pressed >= 0 && hit == pressed && wow_xml.elems[pressed].type == WOW_XML_BUTTON &&
             (wow_xml.elems[pressed].flags & EF_ENABLED) && wow_ui.lua &&
             UIWow_ElemStr(&wow_xml.elems[pressed], ELEM_ON_CLICK)) {
+            if (wow_xml.elems[pressed].flags & EF_CHECKBUTTON)
+                wow_xml.elems[pressed].flags ^= EF_CHECKED;
             UIWow_XMLRunFrameScript(pressed, wow_xml.elems[pressed].texts[ELEM_ON_CLICK], "OnClick");
             return true;
         }

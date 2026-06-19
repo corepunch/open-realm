@@ -374,9 +374,16 @@ void R_GameDrawPortrait(LPCPORTRAITDEF params) {
     entity.scale = 1.0f;
     entity.origin = (VECTOR3){0, 0, 0};
 
-    Matrix4_identity(&transform);
-    Matrix4_translate(&transform, &entity.origin);
-    Matrix4_scale(&transform, &(VECTOR3){entity.scale, entity.scale, entity.scale});
+    if (M2_IsCharacterModel(model->m2)) {
+        entity.flags |= RF_GROUND_ANCHOR;
+        entity.angle = -(FLOAT)M_PI * 0.5f;
+        R_GetEntityMatrix(&entity, &transform);
+        center = Matrix4_multiply_vector3(&transform, &center);
+    } else {
+        Matrix4_identity(&transform);
+        Matrix4_translate(&transform, &entity.origin);
+        Matrix4_scale(&transform, &(VECTOR3){entity.scale, entity.scale, entity.scale});
+    }
 
     saved_viewdef = tr.viewDef;
     glGetIntegerv(GL_VIEWPORT, saved_viewport);
@@ -388,8 +395,13 @@ void R_GameDrawPortrait(LPCPORTRAITDEF params) {
     R_Call(glClear, GL_DEPTH_BUFFER_BIT);
 
     aspect = viewport->h > 0.0f ? viewport->w / viewport->h : 1.0f;
-    if (M2_IsCharacterModel(model->m2) ||
-        !M2_CameraView(model->m2, 0, &eye, &target, &fov, &znear, &zfar)) {
+    if (M2_IsCharacterModel(model->m2)) {
+        distance = radius / tanf((fov * (FLOAT)M_PI / 180.0f) * 0.5f);
+        target = (VECTOR3){ center.x, center.y, center.z + radius * 0.28f };
+        eye = (VECTOR3){ target.x, target.y - distance * 0.52f, target.z + radius * 0.02f };
+        znear = MAX(0.1f, distance * 0.02f);
+        zfar = MAX(zfar, distance + radius * 4.0f);
+    } else if (!M2_CameraView(model->m2, 0, &eye, &target, &fov, &znear, &zfar)) {
         distance = radius / tanf((fov * (FLOAT)M_PI / 180.0f) * 0.5f);
         eye = (VECTOR3){ center.x, center.y - distance * 1.35f, center.z + radius * 0.25f };
         target = center;
