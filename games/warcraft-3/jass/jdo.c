@@ -768,6 +768,28 @@ BOOL jass_evaluatetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
     return true;
 }
 
+/* Evaluate a single boolexpr (a Condition()/Filter() code) against a candidate
+ * unit, the way jass_evaluatetrigger evaluates a trigger condition: run the
+ * function in a scratch state with the unit bound as the context/current unit
+ * so GetFilterUnit()/GetEnumUnit() inside the filter resolve to it.  Returns
+ * the filter's boolean result; a null filter passes (matches "no filter"). */
+BOOL jass_evaluateboolexpr(LPJASS j, LPCJASSFUNC expr, LPEDICT unit) {
+    if (!expr) {
+        return true;
+    }
+    JASS tmp_state;
+    memcpy(&tmp_state, j, sizeof(struct jass_s));
+    memset(tmp_state.stack, 0, sizeof(tmp_state.stack));
+    tmp_state.num_stack = 0;
+    tmp_state.context.unit = unit;
+    jass_pushfunction(&tmp_state, expr);
+    LPEDICT previous_unit = currentunit;
+    currentunit = unit;
+    DWORD result_count = jass_call(&tmp_state, 0);
+    currentunit = previous_unit;
+    return result_count == 1 && jass_popboolean(&tmp_state);
+}
+
 void jass_executetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
     FOR_EACH_LIST(TRIGGERACTION, action, trigger->actions) {
         LPPLAYER player = jass_eventplayer(unit);
@@ -1094,6 +1116,10 @@ DWORD jass_pushstringlen(LPJASS j, LPCSTR value, DWORD len) {
 }
 
 DWORD jass_pushstring(LPJASS j, LPCSTR value) {
+    /* Tolerate a NULL string from a native (several are stubs that return 0);
+     * strlen(NULL) would crash.  An unset JASS string is the empty string. */
+    if (!value)
+        value = "";
     jass_pushstringlen(j, value, (DWORD)strlen(value));
     return 1;
 }
@@ -1324,9 +1350,15 @@ DWORD jass_dotoken(LPJASS j, LPCTOKEN token) {
 
 static void jass_set_value(LPJASS j, LPJASSVAR dest, LPCTOKEN init) {
     DWORD stack = jass_dotoken(j, init);
-    assert(stack == 1);
-    jass_copy(j, dest, j->stack + jass_top(j));
-    jass_pop(j, 1);
+    /* Normally an initializer expression yields exactly one value.  Tolerate
+     * other counts instead of aborting: a value-returning function whose body
+     * fell through, or an unimplemented/void native (returns 0), would
+     * otherwise crash the whole VM mid-map.  Assign the top value when one was
+     * produced and pop exactly what was pushed so the stack stays balanced. */
+    if (stack >= 1) {
+        jass_copy(j, dest, j->stack + jass_top(j));
+        jass_pop(j, stack);
+    }
 }
 
 static void jass_set_array_value(LPJASS j, LPJASSVAR dest, LPCTOKEN index, LPCTOKEN init) {

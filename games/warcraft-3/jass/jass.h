@@ -142,6 +142,7 @@ BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit);
 BOOL jass_popboolean(LPJASS j);
 void jass_pop(LPJASS j, DWORD count);
 BOOL jass_evaluatetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit);
+BOOL jass_evaluateboolexpr(LPJASS j, LPCJASSFUNC expr, LPEDICT unit);
 void jass_executetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit);
 
 /* -------------------------------------------------------------------------

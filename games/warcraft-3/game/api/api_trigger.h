@@ -163,9 +163,21 @@ DWORD TriggerRegisterPlayerChatEvent(LPJASS j) {
     return jass_pushnullhandle(j, "event");
 }
 DWORD TriggerRegisterDeathEvent(LPJASS j) {
-    //LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
-    //HANDLE whichWidget = jass_checkhandle(j, 2, "widget");
-    return jass_pushnullhandle(j, "event");
+    /* Fire whichTrigger when whichWidget dies.  "widget" is the base type of
+     * unit/destructable/item, and a unit handle resolves to its edict; the
+     * engine publishes EVENT_UNIT_DEATH for both units (m_unit.c) and trees
+     * (m_tree.c), so registering on that type matches the same way
+     * TriggerRegisterUnitEvent does.  G_ExecuteEvent's default case matches on
+     * (subject, type), so this fires exactly when the registered widget dies. */
+    LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
+    LPEDICT whichWidget = jass_checkhandle(j, 2, "widget");
+    if (!whichTrigger || !whichWidget) {
+        return jass_pushnullhandle(j, "event");
+    }
+    LPEVENT evt = G_MakeEvent(EVENT_UNIT_DEATH);
+    evt->subject = whichWidget;
+    evt->trigger = whichTrigger;
+    return jass_pushlighthandle(j, evt, "event");
 }
 DWORD TriggerRegisterUnitStateEvent(LPJASS j) {
     //LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
@@ -284,5 +296,9 @@ DWORD GetTriggerUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 DWORD GetTriggerWidget(LPJASS j) {
-    return jass_pushnullhandle(j, "widget");
+    /* The widget whose event fired this trigger.  Units/destructables/items are
+     * all edicts, and the dispatcher passes the subject edict in as the context
+     * unit (jass_executetrigger), so a death-registered trigger sees the dying
+     * destructable here — e.g. SaveDyingWidget -> WidgetDropItem loot drops. */
+    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "widget");
 }

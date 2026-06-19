@@ -435,7 +435,8 @@ DWORD GetFilterDestructable(LPJASS j) {
     return jass_pushnullhandle(j, "destructable");
 }
 DWORD GetEnumDestructable(LPJASS j) {
-    return jass_pushnullhandle(j, "destructable");
+    extern LPEDICT currentdestructable;
+    return jass_pushlighthandle(j, currentdestructable, "destructable");
 }
 DWORD GetFilterPlayer(LPJASS j) {
     return jass_pushnullhandle(j, "player");
@@ -478,8 +479,13 @@ DWORD DestroyCondition(LPJASS j) {
     return 0;
 }
 DWORD Filter(LPJASS j) {
-    //LPCJASSFUNC func = jass_checkcode(j, 1);
-    return jass_pushnullhandle(j, "filterfunc");
+    /* Like Condition(): wrap the code as a boolexpr handle so enumeration
+     * natives (GroupEnumUnitsInRect, ForceEnum*, etc.) can evaluate it per
+     * candidate via jass_evaluateboolexpr.  Was a stub returning null, which
+     * made every Filter()-based enum match everything (e.g. GetUnitsInRectOf-
+     * Player returned all players' units, polluting victory/kill-count groups). */
+    LPCJASSFUNC func = jass_checkcode(j, 1);
+    return jass_pushlighthandle(j, (HANDLE)func, "filterfunc");
 }
 DWORD DestroyFilter(LPJASS j) {
     //HANDLE f = jass_checkhandle(j, 1, "filterfunc");
@@ -628,21 +634,24 @@ DWORD GetEventTargetUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 DWORD GetWidgetLife(LPJASS j) {
-    //HANDLE whichWidget = jass_checkhandle(j, 1, "widget");
-    return jass_pushnumber(j, 0);
+    LPEDICT whichWidget = jass_checkhandle(j, 1, "widget");
+    return jass_pushnumber(j, whichWidget ? whichWidget->health.value : 0);
 }
 DWORD SetWidgetLife(LPJASS j) {
-    //HANDLE whichWidget = jass_checkhandle(j, 1, "widget");
-    //FLOAT newLife = jass_checknumber(j, 2);
+    LPEDICT whichWidget = jass_checkhandle(j, 1, "widget");
+    FLOAT newLife = jass_checknumber(j, 2);
+    if (whichWidget) {
+        whichWidget->health.value = newLife;
+    }
     return 0;
 }
 DWORD GetWidgetX(LPJASS j) {
-    //HANDLE whichWidget = jass_checkhandle(j, 1, "widget");
-    return jass_pushnumber(j, 0);
+    LPEDICT whichWidget = jass_checkhandle(j, 1, "widget");
+    return jass_pushnumber(j, whichWidget ? whichWidget->s.origin.x : 0);
 }
 DWORD GetWidgetY(LPJASS j) {
-    //HANDLE whichWidget = jass_checkhandle(j, 1, "widget");
-    return jass_pushnumber(j, 0);
+    LPEDICT whichWidget = jass_checkhandle(j, 1, "widget");
+    return jass_pushnumber(j, whichWidget ? whichWidget->s.origin.y : 0);
 }
 DWORD GetFoodMade(LPJASS j) {
     //LONG unitId = jass_checkinteger(j, 1);

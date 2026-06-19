@@ -18,6 +18,32 @@ DWORD GetItemTypeId(LPJASS j) {
     LPEDICT item = jass_checkhandle(j, 1, "item");
     return jass_pushinteger(j, item ? (LONG)item->class_id : 0);
 }
+/* GetItemType: the item's classification (itemtype enum), read data-driven from
+ * ItemData's "icla"/itemClass column and mapped to the ITEM_TYPE_* indices
+ * (common.j: 0=Permanent..6=Miscellaneous, 7=Unknown).  Pushed as an itemtype
+ * handle exactly like ConvertItemType, so `set t = GetItemType(i)` gets 1 value
+ * (an unregistered/void-returning stub here desynced the VM stack). */
+DWORD GetItemType(LPJASS j) {
+    LPEDICT item = jass_checkhandle(j, 1, "item");
+    LPCSTR cls = item ? UnitStringField(ItemsMetaData, item->class_id, "icla") : NULL;
+    DWORD type = 7; /* ITEM_TYPE_UNKNOWN */
+    if (cls) {
+        if      (!strcasecmp(cls, "Permanent"))     type = 0;
+        else if (!strcasecmp(cls, "Charged"))       type = 1;
+        else if (!strcasecmp(cls, "PowerUp"))       type = 2;
+        else if (!strcasecmp(cls, "Artifact"))      type = 3;
+        else if (!strcasecmp(cls, "Purchasable"))   type = 4;
+        else if (!strcasecmp(cls, "Campaign"))      type = 5;
+        else if (!strcasecmp(cls, "Miscellaneous")) type = 6;
+    }
+    API_ALLOC(DWORD, itemtype);
+    *itemtype = type;
+    return 1;
+}
+DWORD GetItemLevel(LPJASS j) {
+    LPEDICT item = jass_checkhandle(j, 1, "item");
+    return jass_pushinteger(j, item ? UnitIntegerField(ItemsMetaData, item->class_id, "ilev") : 0);
+}
 DWORD GetItemX(LPJASS j) {
     LPEDICT item = jass_checkhandle(j, 1, "item");
     return jass_pushnumber(j, item ? item->s.origin.x : 0);

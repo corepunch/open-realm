@@ -211,39 +211,54 @@ DWORD CameraSetupGetDestPositionY(LPJASS j) {
     LPCAMERASETUP whichSetup = jass_checkhandle(j, 1, "camerasetup");
     return jass_pushnumber(j, whichSetup->position.y);
 }
+/* Ghidra: CameraSetupApply (FUN_0040b0d0), ...WithZ, ...ForceDuration
+ * (FUN_0040b190) and ...ForceDurationWithZ all funnel into one worker
+ * (FUN_00336020) that snaps the player camera to the setup, optionally panning
+ * over a duration.  ForceDuration supplies an explicit pan time; the plain
+ * Apply uses the setup's own (per-field) duration.  Our CAMERASETUP does not
+ * carry that intrinsic duration, so the non-force variants apply instantly
+ * (correct final framing; only the in-between pan timing is dropped — and the
+ * campaign path uses ForceDuration via CameraSetupApplyForPlayer anyway).  The
+ * WithZ variants ignore the extra Z offset, matching PanCameraToWithZ here. */
+static void G_ApplyCameraSetup(LPCAMERASETUP setup, FLOAT duration_ms) {
+    LPGAMECLIENT gc = G_CurrentCameraClient("CameraSetupApply");
+    if (!gc || !setup) {
+        return;
+    }
+    if (G_SkipCutscene()) {
+        duration_ms = 0;
+    }
+    G_ClearCameraTarget(gc, "CameraSetupApply");
+    gc->camera.old_state = gc->camera.state;
+    gc->camera.state = *setup;
+    gc->camera.start_time = gi.GetTime();
+    gc->camera.end_time = gc->camera.start_time + duration_ms;
+}
 DWORD CameraSetupApply(LPJASS j) {
-    //HANDLE whichSetup = jass_checkhandle(j, 1, "camerasetup");
+    LPCAMERASETUP whichSetup = jass_checkhandle(j, 1, "camerasetup");
     //BOOL doPan = jass_checkboolean(j, 2);
     //BOOL panTimed = jass_checkboolean(j, 3);
+    G_ApplyCameraSetup(whichSetup, 0);
     return 0;
 }
 DWORD CameraSetupApplyWithZ(LPJASS j) {
-    //HANDLE whichSetup = jass_checkhandle(j, 1, "camerasetup");
+    LPCAMERASETUP whichSetup = jass_checkhandle(j, 1, "camerasetup");
     //FLOAT zDestOffset = jass_checknumber(j, 2);
+    G_ApplyCameraSetup(whichSetup, 0);
     return 0;
 }
 DWORD CameraSetupApplyForceDuration(LPJASS j) {
     LPCAMERASETUP whichSetup = jass_checkhandle(j, 1, "camerasetup");
     BOOL doPan = jass_checkboolean(j, 2);
     FLOAT forceDuration = jass_checknumber(j, 3);
-    LPGAMECLIENT gc = G_CurrentCameraClient("CameraSetupApplyForceDuration");
-    if (!gc) {
-        return 0;
-    }
-    if (G_SkipCutscene()) {
-        forceDuration = 0;
-    }
-    G_ClearCameraTarget(gc, "CameraSetupApplyForceDuration");
-    gc->camera.old_state = gc->camera.state;
-    gc->camera.state = *whichSetup;
-    gc->camera.start_time = gi.GetTime();
-    gc->camera.end_time = gc->camera.start_time + (doPan ? forceDuration * 1000 : 0);
+    G_ApplyCameraSetup(whichSetup, doPan ? forceDuration * 1000 : 0);
     return 0;
 }
 DWORD CameraSetupApplyForceDurationWithZ(LPJASS j) {
-    //HANDLE whichSetup = jass_checkhandle(j, 1, "camerasetup");
+    LPCAMERASETUP whichSetup = jass_checkhandle(j, 1, "camerasetup");
     //FLOAT zDestOffset = jass_checknumber(j, 2);
-    //FLOAT forceDuration = jass_checknumber(j, 3);
+    FLOAT forceDuration = jass_checknumber(j, 3);
+    G_ApplyCameraSetup(whichSetup, forceDuration * 1000);
     return 0;
 }
 DWORD CameraSetTargetNoise(LPJASS j) {

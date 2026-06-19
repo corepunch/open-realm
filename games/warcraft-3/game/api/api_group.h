@@ -71,13 +71,17 @@ DWORD GroupEnumUnitsOfTypeCounted(LPJASS j) {
 DWORD GroupEnumUnitsInRect(LPJASS j) {
     ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
     LPBOX2 r = jass_checkhandle(j, 2, "rect");
-//    HANDLE filter = jass_checkhandle(j, 3, "boolexpr");
+    /* boolexpr filter (e.g. GetUnitsInRectOfPlayer's owner==player test):
+     * evaluated per candidate with the unit bound so GetFilterUnit() resolves.
+     * NULL passes (no filter). */
+    LPCJASSFUNC filter = jass_checkhandle(j, 3, "boolexpr");
     if (!whichGroup || !r) {
         return 0;
     }
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT ent = &globals.edicts[i];
-        if (IS_UNIT(ent) && Box2_containsPoint(r, &ent->s.origin2)) {
+        if (IS_UNIT(ent) && Box2_containsPoint(r, &ent->s.origin2) &&
+            jass_evaluateboolexpr(j, filter, ent)) {
             group_add_entity(whichGroup, ent);
         }
     }
