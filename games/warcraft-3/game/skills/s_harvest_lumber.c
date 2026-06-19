@@ -164,9 +164,9 @@ void harvest_command(LPEDICT ent) {
 }
 
 void SP_ability_harvest(LPCSTR classname, ability_t *self) {
-    HARVEST_LUMBER_CAPACITY = AB_Number(classname, "Data12");
-    HARVEST_GOLD_CAPACITY = AB_Number(classname, "Data13");
-    HARVEST_TREE_DAMAGE = AB_Number(classname, "Data11");
+    HARVEST_LUMBER_CAPACITY = AB_Number(classname, "DataB1"); /* Lumber Capacity */
+    HARVEST_GOLD_CAPACITY = AB_Number(classname, "DataC1");   /* Gold Capacity */
+    HARVEST_TREE_DAMAGE = AB_Number(classname, "DataA1");     /* Damage to Tree */
     HARVEST_RANGE = AB_Number(classname, "Rng1");
     HARVEST_COOLDOWN = AB_Number(classname, "Dur1");
     HARVEST_SEARCH_RANGE = AB_Number(classname, "Area1");
