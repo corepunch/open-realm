@@ -62,6 +62,9 @@ typedef enum {
     ELEM_ON_MOUSE_WHEEL,
     ELEM_ON_UPDATE_MODEL,
     ELEM_SOURCE_FILE,
+    ELEM_NORMAL_NAME,
+    ELEM_PUSHED_NAME,
+    ELEM_HIGHLIGHT_NAME,
     ELEM_STRING_COUNT
 } uiWowXmlStr_t;
 
@@ -180,6 +183,12 @@ static char s_current_xml_path[PATH_MAX];
 static LPCSTR UIWow_ElemStr(uiWowXmlElem_t const *e, uiWowXmlStr_t f) {
     return (e->texts[f] && e->texts[f][0]) ? e->texts[f] : NULL;
 }
+
+static uiWowXmlStr_t const uiwow_button_part_name_fields[] = {
+    ELEM_NORMAL_NAME,
+    ELEM_PUSHED_NAME,
+    ELEM_HIGHLIGHT_NAME
+};
 
 /* Set a string field, freeing the previous value. */
 static void UIWow_ElemSetStr(uiWowXmlElem_t *e, uiWowXmlStr_t f, LPCSTR s) {
@@ -308,6 +317,10 @@ static void UIWow_XmlInheritElem(uiWowXmlElem_t *e, LPCSTR inherits) {
             UIWow_ElemSetStr(e, ELEM_PUSHED_FILE, src->texts[ELEM_PUSHED_FILE]);
         if (!UIWow_ElemStr(e, ELEM_HIGHLIGHT_FILE) && UIWow_ElemStr(src, ELEM_HIGHLIGHT_FILE))
             UIWow_ElemSetStr(e, ELEM_HIGHLIGHT_FILE, src->texts[ELEM_HIGHLIGHT_FILE]);
+        FOR_LOOP(i, sizeof(uiwow_button_part_name_fields) / sizeof(uiwow_button_part_name_fields[0])) {
+            uiWowXmlStr_t f = uiwow_button_part_name_fields[i];
+            if (!UIWow_ElemStr(e, f) && UIWow_ElemStr(src, f)) UIWow_ElemSetStr(e, f, src->texts[f]);
+        }
         if (!UIWow_ElemStr(e, ELEM_TEXT) && UIWow_ElemStr(src, ELEM_TEXT))
             UIWow_ElemSetStr(e, ELEM_TEXT, src->texts[ELEM_TEXT]);
         if (src->flags & EF_HIDDEN) e->flags |= EF_HIDDEN;
@@ -810,6 +823,16 @@ static void UIWow_XmlPublishFrame(int idx) {
         snprintf(child_name, sizeof(child_name), "%sPushedTexture", name); UIWow_XmlPublishSyntheticFrame(child_name);
         snprintf(child_name, sizeof(child_name), "%sHighlightTexture", name); UIWow_XmlPublishSyntheticFrame(child_name);
         snprintf(child_name, sizeof(child_name), "%sDisabledTexture", name); UIWow_XmlPublishSyntheticFrame(child_name);
+        FOR_LOOP(i, sizeof(uiwow_button_part_name_fields) / sizeof(uiwow_button_part_name_fields[0])) {
+            LPCSTR raw = e->texts[uiwow_button_part_name_fields[i]], dollar;
+            if (!raw || !*raw) continue;
+            dollar = strstr(raw, "$parent");
+            if (dollar)
+                snprintf(child_name, sizeof(child_name), "%.*s%s%s", (int)(dollar - raw), raw, name, dollar + 7);
+            else
+                snprintf(child_name, sizeof(child_name), "%s", raw);
+            UIWow_XmlPublishSyntheticFrame(child_name);
+        }
     }
 }
 
@@ -1005,6 +1028,7 @@ static void UIWow_XmlReadTextInsets(uiWowXmlElem_t *e, xmlNodePtr node) {
 
 static void UIWow_XmlReadButtonPart(uiWowXmlElem_t *e, xmlNodePtr child) {
     xmlChar *file = xmlGetProp(child, BAD_CAST "file"), *inherits = xmlGetProp(child, BAD_CAST "inherits");
+    xmlChar *name = xmlGetProp(child, BAD_CAST "name");
     uiWowXmlElem_t temp;
     memset(&temp, 0, sizeof(temp));
     temp.texcoord = MAKE(RECT, 0, 0, 1, 1);
@@ -1013,17 +1037,20 @@ static void UIWow_XmlReadButtonPart(uiWowXmlElem_t *e, xmlNodePtr child) {
     UIWow_XmlReadTexCoords(&temp, child);
     if (!xmlStrcasecmp(child->name, BAD_CAST "NormalTexture") && UIWow_ElemStr(&temp, ELEM_FILE)) {
         UIWow_ElemSetStr(e, ELEM_NORMAL_FILE, temp.texts[ELEM_FILE]);
+        if (name && *name) UIWow_ElemSetStr(e, ELEM_NORMAL_NAME, (char const *)name);
         if (temp.flags & EF_HAS_TEXCOORD) { e->texcoord = temp.texcoord; e->flags |= EF_HAS_TEXCOORD; }
     } else if (!xmlStrcasecmp(child->name, BAD_CAST "PushedTexture") && UIWow_ElemStr(&temp, ELEM_FILE)) {
         UIWow_ElemSetStr(e, ELEM_PUSHED_FILE, temp.texts[ELEM_FILE]);
+        if (name && *name) UIWow_ElemSetStr(e, ELEM_PUSHED_NAME, (char const *)name);
     } else if (!xmlStrcasecmp(child->name, BAD_CAST "HighlightTexture") && UIWow_ElemStr(&temp, ELEM_FILE)) {
         UIWow_ElemSetStr(e, ELEM_HIGHLIGHT_FILE, temp.texts[ELEM_FILE]);
+        if (name && *name) UIWow_ElemSetStr(e, ELEM_HIGHLIGHT_NAME, (char const *)name);
         if (temp.flags & EF_HAS_TEXCOORD) {
             e->highlight_texcoord = temp.texcoord;
             e->flags |= EF_HAS_HIGHLIGHT_TEXCOORD;
         }
     }
-    SAFE_DELETE(file, xmlFree); SAFE_DELETE(inherits, xmlFree);
+    SAFE_DELETE(file, xmlFree); SAFE_DELETE(inherits, xmlFree); SAFE_DELETE(name, xmlFree);
     UIWow_ElemFreeStrings(&temp);
 }
 
@@ -1771,6 +1798,7 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
                 renderEntity_t entity = {0};
                 entity.model = e->model;
                 entity.attached_model = UIWow_XMLCharCustomizeModel(i);
+                entity.appearance = UIWow_GetCharacterCreateAppearance();
                 entity.frame = e->frame;
                 entity.oldframe = e->oldframe;
                 entity.scale = 1.0f;
