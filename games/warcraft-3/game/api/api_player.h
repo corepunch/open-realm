@@ -337,8 +337,26 @@ DWORD SetPlayerState(LPJASS j) {
     return 0;
 }
 DWORD RemovePlayer(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    //HANDLE gameResult = jass_checkhandle(j, 2, "playergameresult");
+    /* Ghidra: RemovePlayer (FUN_00401220) -> worker FUN_003b32c0 marks the
+     * player removed and records their game result (PLAYER_GAME_RESULT_*:
+     * 0=VICTORY, 1=DEFEAT, 2=TIE, 3=NEUTRAL), driving the victory/defeat
+     * notification.  Our equivalent of that notification is the player victory/
+     * defeat game event the map registers via TriggerRegisterPlayerEventVictory
+     * /Defeat (EVENT_PLAYER_VICTORY=14 / EVENT_PLAYER_DEFEAT=13), so publishing
+     * it here fires the mission's end-of-level triggers (e.g. CustomVictoryBJ
+     * -> RemovePlayer -> the victory dialog/quest completion). */
+    LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
+    DWORD *gameResult = jass_checkhandle(j, 2, "playergameresult");
+    if (whichPlayer && gameResult) {
+        LPEDICT pent = PLAYER_ENT(whichPlayer);
+        if (pent) {
+            if (*gameResult == 0) {
+                G_PublishEvent(pent, EVENT_PLAYER_VICTORY);
+            } else if (*gameResult == 1) {
+                G_PublishEvent(pent, EVENT_PLAYER_DEFEAT);
+            }
+        }
+    }
     return 0;
 }
 DWORD CachePlayerHeroData(LPJASS j) {
@@ -405,43 +423,69 @@ DWORD IsFogEnabled(LPJASS j) {
         return jass_pushboolean(j, !(game.clients->ps.rdflags & RDF_NOFOG));
     }
 }
+static LPFOGMODIFIER G_NewFogModifier(LPJASS j, LPPLAYER player, DWORD *state, BOOL useShared) {
+    API_ALLOC(FOGMODIFIER, fogmodifier);
+    if (!fogmodifier) {
+        return NULL;
+    }
+    memset(fogmodifier, 0, sizeof(*fogmodifier));
+    fogmodifier->player = player ? PLAYER_NUM(player) : 0;
+    fogmodifier->state = state ? *state : 0;
+    fogmodifier->use_shared_vision = useShared;
+    return fogmodifier;
+}
 DWORD CreateFogModifierRect(LPJASS j) {
-    //HANDLE forWhichPlayer = jass_checkhandle(j, 1, "player");
-    //HANDLE whichState = jass_checkhandle(j, 2, "fogstate");
-    //HANDLE where = jass_checkhandle(j, 3, "rect");
-    //BOOL useSharedVision = jass_checkboolean(j, 4);
-    //BOOL afterUnits = jass_checkboolean(j, 5);
-    return jass_pushnullhandle(j, "fogmodifier");
+    LPPLAYER forWhichPlayer = jass_checkhandle(j, 1, "player");
+    DWORD *whichState = jass_checkhandle(j, 2, "fogstate");
+    LPCBOX2 where = jass_checkhandle(j, 3, "rect");
+    BOOL useSharedVision = jass_checkboolean(j, 4);
+    LPFOGMODIFIER mod = G_NewFogModifier(j, forWhichPlayer, whichState, useSharedVision);
+    if (mod && where) {
+        mod->is_rect = true;
+        mod->rect = *where;
+    }
+    return 1;
 }
 DWORD CreateFogModifierRadius(LPJASS j) {
-    //HANDLE forWhichPlayer = jass_checkhandle(j, 1, "player");
-    //HANDLE whichState = jass_checkhandle(j, 2, "fogstate");
-    //FLOAT centerx = jass_checknumber(j, 3);
-    //FLOAT centerY = jass_checknumber(j, 4);
-    //FLOAT radius = jass_checknumber(j, 5);
-    //BOOL useSharedVision = jass_checkboolean(j, 6);
-    //BOOL afterUnits = jass_checkboolean(j, 7);
-    return jass_pushnullhandle(j, "fogmodifier");
+    LPPLAYER forWhichPlayer = jass_checkhandle(j, 1, "player");
+    DWORD *whichState = jass_checkhandle(j, 2, "fogstate");
+    FLOAT centerx = jass_checknumber(j, 3);
+    FLOAT centerY = jass_checknumber(j, 4);
+    FLOAT radius = jass_checknumber(j, 5);
+    BOOL useSharedVision = jass_checkboolean(j, 6);
+    LPFOGMODIFIER mod = G_NewFogModifier(j, forWhichPlayer, whichState, useSharedVision);
+    if (mod) {
+        mod->center = MAKE(VECTOR2, centerx, centerY);
+        mod->radius = radius;
+    }
+    return 1;
 }
 DWORD CreateFogModifierRadiusLoc(LPJASS j) {
-    //HANDLE forWhichPlayer = jass_checkhandle(j, 1, "player");
-    //HANDLE whichState = jass_checkhandle(j, 2, "fogstate");
-    //HANDLE center = jass_checkhandle(j, 3, "location");
-    //FLOAT radius = jass_checknumber(j, 4);
-    //BOOL useSharedVision = jass_checkboolean(j, 5);
-    //BOOL afterUnits = jass_checkboolean(j, 6);
-    return jass_pushnullhandle(j, "fogmodifier");
+    LPPLAYER forWhichPlayer = jass_checkhandle(j, 1, "player");
+    DWORD *whichState = jass_checkhandle(j, 2, "fogstate");
+    LPCVECTOR2 center = jass_checkhandle(j, 3, "location");
+    FLOAT radius = jass_checknumber(j, 4);
+    BOOL useSharedVision = jass_checkboolean(j, 5);
+    LPFOGMODIFIER mod = G_NewFogModifier(j, forWhichPlayer, whichState, useSharedVision);
+    if (mod && center) {
+        mod->center = *center;
+        mod->radius = radius;
+    }
+    return 1;
 }
 DWORD DestroyFogModifier(LPJASS j) {
-    //HANDLE whichFogModifier = jass_checkhandle(j, 1, "fogmodifier");
+    LPFOGMODIFIER whichFogModifier = jass_checkhandle(j, 1, "fogmodifier");
+    G_FogModifierStop(whichFogModifier);
     return 0;
 }
 DWORD FogModifierStart(LPJASS j) {
-    //HANDLE whichFogModifier = jass_checkhandle(j, 1, "fogmodifier");
+    LPFOGMODIFIER whichFogModifier = jass_checkhandle(j, 1, "fogmodifier");
+    G_FogModifierStart(whichFogModifier);
     return 0;
 }
 DWORD FogModifierStop(LPJASS j) {
-    //HANDLE whichFogModifier = jass_checkhandle(j, 1, "fogmodifier");
+    LPFOGMODIFIER whichFogModifier = jass_checkhandle(j, 1, "fogmodifier");
+    G_FogModifierStop(whichFogModifier);
     return 0;
 }
 DWORD DisplayTextToPlayer(LPJASS j) {

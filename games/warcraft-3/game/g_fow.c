@@ -643,6 +643,98 @@ static void G_FowRevealForSharedPlayers(LPCEDICT ent, FLOAT radius) {
     }
 }
 
+/* --- Fog modifiers ------------------------------------------------------- *
+ * CreateFogModifier + FogModifierStart register a region that reveals (or
+ * masks) fog for a player independent of unit sight. Cinematics use VISIBLE
+ * modifiers to show staged units in otherwise-unexplored areas. Applied each
+ * G_FowUpdate after unit-based reveals so they persist while started. */
+
+#define FOG_OF_WAR_VISIBLE 4
+#define MAX_FOG_MODIFIERS 256
+
+static LPFOGMODIFIER g_fog_modifiers[MAX_FOG_MODIFIERS];
+static DWORD g_num_fog_modifiers;
+
+void G_FogModifierStart(LPFOGMODIFIER mod) {
+    if (!mod) {
+        return;
+    }
+    mod->started = true;
+    FOR_LOOP(i, g_num_fog_modifiers) {
+        if (g_fog_modifiers[i] == mod) {
+            return;
+        }
+    }
+    if (g_num_fog_modifiers < MAX_FOG_MODIFIERS) {
+        g_fog_modifiers[g_num_fog_modifiers++] = mod;
+    }
+}
+
+void G_FogModifierStop(LPFOGMODIFIER mod) {
+    if (!mod) {
+        return;
+    }
+    mod->started = false;
+    FOR_LOOP(i, g_num_fog_modifiers) {
+        if (g_fog_modifiers[i] == mod) {
+            g_fog_modifiers[i] = g_fog_modifiers[--g_num_fog_modifiers];
+            return;
+        }
+    }
+}
+
+static void G_FowRevealBox(fowPlayerGrid_t *grid, LPCBOX2 box) {
+    DWORD x0 = G_FowWorldToCellX(box->min.x);
+    DWORD y0 = G_FowWorldToCellY(box->min.y);
+    DWORD x1 = G_FowWorldToCellX(box->max.x);
+    DWORD y1 = G_FowWorldToCellY(box->max.y);
+
+    if (x0 == FOW_INVALID_CELL || y0 == FOW_INVALID_CELL ||
+        x1 == FOW_INVALID_CELL || y1 == FOW_INVALID_CELL) {
+        return;
+    }
+    grid->had_visible = true;
+    for (DWORD y = y0; y <= y1; y++) {
+        for (DWORD x = x0; x <= x1; x++) {
+            G_FOW_SET_VISIBLE_CELL(grid, x, y);
+        }
+    }
+}
+
+static void G_FowApplyModifierForPlayer(DWORD player, LPCFOGMODIFIER mod) {
+    fowPlayerGrid_t *grid = &level.fow.players[player];
+
+    if (mod->is_rect) {
+        G_FowRevealBox(grid, &mod->rect);
+    } else {
+        DWORD cx = G_FowWorldToCellX(mod->center.x);
+        DWORD cy = G_FowWorldToCellY(mod->center.y);
+        if (cx == FOW_INVALID_CELL || cy == FOW_INVALID_CELL) {
+            return;
+        }
+        grid->had_visible = true;
+        G_FowRevealDisk(grid, cx, cy, G_FowRadiusCells(mod->radius));
+    }
+}
+
+static void G_FowApplyModifiers(void) {
+    FOR_LOOP(i, g_num_fog_modifiers) {
+        LPCFOGMODIFIER mod = g_fog_modifiers[i];
+        if (!mod || !mod->started || mod->state != FOG_OF_WAR_VISIBLE ||
+            mod->player >= MAX_PLAYERS) {
+            continue;
+        }
+        G_FowApplyModifierForPlayer(mod->player, mod);
+        if (mod->use_shared_vision) {
+            FOR_LOOP(player, MAX_PLAYERS) {
+                if (player != mod->player && G_FowSharedVision(player, mod->player)) {
+                    G_FowApplyModifierForPlayer(player, mod);
+                }
+            }
+        }
+    }
+}
+
 void G_FowShutdown(void) {
     FOR_LOOP(player, MAX_PLAYERS) {
         fowPlayerGrid_t *grid = &level.fow.players[player];
@@ -653,6 +745,8 @@ void G_FowShutdown(void) {
     }
     SAFE_DELETE(level.fow.blocked, gi.MemFree);
     memset(&level.fow, 0, sizeof(level.fow));
+    memset(g_fog_modifiers, 0, sizeof(g_fog_modifiers));
+    g_num_fog_modifiers = 0;
     g_fow_blocker_hash = 0;
     g_fow_blocker_count = 0;
     g_fow_blockers_valid = false;
@@ -721,6 +815,18 @@ void G_FowUpdate(void) {
         radius = G_FowEntitySightRadius(ent);
         G_FowRevealForSharedPlayers(ent, radius);
     }
+
+    G_FowApplyModifiers();
+}
+
+/* FogEnable(false) reveals the whole map for this player, units included
+   (matches WC3 cinematic behavior). RDF_NOFOG is the client-visual flag set by
+   the FogEnable native; honor it for server-side unit visibility too, otherwise
+   units in the (still-fogged) cinematic area are never networked and the scene
+   renders without its actors. */
+static BOOL G_FowPlayerFogDisabled(DWORD player) {
+    LPGAMECLIENT client = G_GetPlayerClientByNumber(player);
+    return client && (client->ps.rdflags & RDF_NOFOG);
 }
 
 BOOL G_FowPlayerCanSeeEntity(DWORD player, LPCEDICT ent) {
@@ -730,6 +836,9 @@ BOOL G_FowPlayerCanSeeEntity(DWORD player, LPCEDICT ent) {
         return true;
     }
     if (ent->s.player < MAX_PLAYERS && G_FowSharedVision(player, ent->s.player)) {
+        return true;
+    }
+    if (G_FowPlayerFogDisabled(player)) {
         return true;
     }
     x = G_FowWorldToCellX(ent->s.origin.x);
