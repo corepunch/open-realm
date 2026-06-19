@@ -94,6 +94,7 @@ BOOL UIWow_XMLLoadGlueFromToc(LPCSTR toc_path);
 void UIWow_XMLDraw(void);
 int UIWow_XmlFindByNamePub(LPCSTR name);
 void UIWow_XmlSetFrameModel(int idx, LPCSTR model_path);
+void UIWow_XMLInvalidateCharCustomizeModel(void);
 
 /* ui_loading.c */
 void UIWow_UpdateMapBackground(LPCPLAYER ps);

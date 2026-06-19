@@ -131,7 +131,7 @@ typedef struct {
     RECT texcoord;
     RECT highlight_texcoord;
     LPMODEL model;
-    DWORD frame; /* animation frame for Model elements */
+    DWORD sequence, frame, oldframe, anim_start; /* Model animation sequence and time */
     COLOR32 fog_color;
     FLOAT fog_near;
     FLOAT fog_far;
@@ -279,7 +279,20 @@ static int UIWow_XmlPushElem(uiWowXmlType_t type, LPCSTR name, int parent, int d
 }
 
 static void UIWow_XmlInheritElem(uiWowXmlElem_t *e, LPCSTR inherits) {
+    static uiWowXmlStr_t const script_fields[] = {
+        ELEM_ON_CLICK,
+        ELEM_ON_LOAD,
+        ELEM_ON_SHOW,
+        ELEM_ON_ENTER,
+        ELEM_ON_LEAVE,
+        ELEM_ON_ENTER_PRESSED,
+        ELEM_ON_ESCAPE_PRESSED,
+        ELEM_ON_TAB_PRESSED,
+        ELEM_ON_MOUSE_WHEEL,
+        ELEM_ON_UPDATE_MODEL,
+    };
     char names[256], *tok, *save = NULL;
+
     if (!e || !inherits || !*inherits) return;
     snprintf(names, sizeof(names), "%s", inherits);
     for (tok = strtok_r(names, " ,", &save); tok; tok = strtok_r(NULL, " ,", &save)) {
@@ -321,6 +334,10 @@ static void UIWow_XmlInheritElem(uiWowXmlElem_t *e, LPCSTR inherits) {
             e->button_text_colors[WOW_XML_BUTTON_TEXT_DISABLED] = src->button_text_colors[WOW_XML_BUTTON_TEXT_DISABLED];
             e->button_text_colors[WOW_XML_BUTTON_TEXT_HIGHLIGHT] = src->button_text_colors[WOW_XML_BUTTON_TEXT_HIGHLIGHT];
             e->flags |= EF_HAS_BUTTON_TEXT_COLORS;
+        }
+        FOR_LOOP(i, sizeof(script_fields) / sizeof(script_fields[0])) {
+            uiWowXmlStr_t f = script_fields[i];
+            if (!UIWow_ElemStr(e, f) && UIWow_ElemStr(src, f)) UIWow_ElemSetStr(e, f, src->texts[f]);
         }
         if (src->flags & EF_WORD_WRAP) e->flags |= EF_WORD_WRAP;
     }
@@ -593,7 +610,18 @@ static int UIWow_LuaFrameSetFocus(lua_State *L) {
 }
 static int UIWow_LuaFrameHighlightText(lua_State *L) { (void)L; return 0; }
 static int UIWow_LuaFrameRegisterEvent(lua_State *L) { (void)L; return 0; }
-static int UIWow_LuaFrameSetSequence(lua_State *L) { (void)L; return 0; }
+static int UIWow_LuaFrameSetSequence(lua_State *L) {
+    int i = UIWow_FrameFromSelf(L);
+    DWORD now = uiimport.GetClientTime ? uiimport.GetClientTime() : 0;
+
+    if (i >= 0) {
+        wow_xml.elems[i].sequence = (DWORD)luaL_optinteger(L, 2, 0);
+        wow_xml.elems[i].frame = 0;
+        wow_xml.elems[i].oldframe = 0;
+        wow_xml.elems[i].anim_start = now;
+    }
+    return 0;
+}
 static int UIWow_LuaFrameSetCamera(lua_State *L) { (void)L; return 0; }
 static int UIWow_LuaFrameSetModel(lua_State *L) {
     int i = UIWow_FrameFromSelf(L);
@@ -610,7 +638,13 @@ static int UIWow_LuaFrameSetModel(lua_State *L) {
 static int UIWow_LuaFrameAdvanceTime(lua_State *L) {
     int i = UIWow_FrameFromSelf(L);
     if (i >= 0) {
-        wow_xml.elems[i].frame++;
+        uiWowXmlElem_t *e = &wow_xml.elems[i];
+        DWORD now = uiimport.GetClientTime ? uiimport.GetClientTime() : e->frame + 16;
+
+        e->oldframe = e->frame;
+        e->frame = uiimport.GetClientTime
+            ? (now >= e->anim_start ? now - e->anim_start : 0)
+            : now;
     }
     return 0;
 }
@@ -1372,6 +1406,12 @@ static void UIWow_XMLReleaseCharCustomizeModel(void) {
     wow_ui.char_customize_frame_idx = -1;
 }
 
+void UIWow_XMLInvalidateCharCustomizeModel(void) {
+    if (wow_ui.renderer && wow_ui.renderer->ReleaseModel)
+        SAFE_DELETE(wow_ui.char_customize_model, wow_ui.renderer->ReleaseModel);
+    wow_ui.char_customize_model_path[0] = '\0';
+}
+
 void UIWow_XMLInitRuntime(void) {
     memset(&wow_xml, 0, sizeof(wow_xml)); wow_xml.focus = -1; wow_xml.pressed_button = -1;
     wow_xml.drag.scrollbar_idx = -1; wow_ui.char_customize_frame_idx = -1; UIWow_XMLInstallLuaCompat();
@@ -1732,9 +1772,16 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
                 entity.model = e->model;
                 entity.attached_model = UIWow_XMLCharCustomizeModel(i);
                 entity.frame = e->frame;
+                entity.oldframe = e->oldframe;
                 entity.scale = 1.0f;
                 entity.angle = (FLOAT)DEG2RAD(UIWow_GetCharacterCreateFacing());
                 entity.flags = RF_NO_SHADOW | RF_NO_FOGOFWAR | RF_NO_LIGHTING;
+                if (wow_ui.renderer->SetEntityAnimFrame) {
+                    char anim[16];
+
+                    snprintf(anim, sizeof(anim), "%u", (unsigned)e->sequence);
+                    wow_ui.renderer->SetEntityAnimFrame(entity.model, anim, &entity);
+                }
 
                 viewDef_t viewdef = {0};
                 viewdef.viewport = r;

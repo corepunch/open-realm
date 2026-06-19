@@ -14,6 +14,8 @@ int UIWow_LuaGetSelectedClass(lua_State *L);
 int UIWow_LuaSetSelectedRace(lua_State *L);
 int UIWow_LuaSetSelectedSex(lua_State *L);
 int UIWow_LuaSetSelectedClass(lua_State *L);
+BOOL UIWow_SetSelectedRace(int race_index);
+BOOL UIWow_SetSelectedSex(int sex);
 int UIWow_LuaIsRaceClassValid(lua_State *L);
 int UIWow_LuaGetHairCustomization(lua_State *L);
 int UIWow_LuaGetFacialHairCustomization(lua_State *L);

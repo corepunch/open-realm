@@ -528,6 +528,18 @@ static int UIWow_LuaUpdateCustomizationScene(lua_State *L) {
     return 0;
 }
 
+static int UIWow_LuaSetSelectedRaceChanged(lua_State *L) {
+    if (UIWow_SetSelectedRace((int)luaL_checknumber(L, 1)))
+        UIWow_XMLInvalidateCharCustomizeModel();
+    return 0;
+}
+
+static int UIWow_LuaSetSelectedSexChanged(lua_State *L) {
+    if (UIWow_SetSelectedSex((int)luaL_checknumber(L, 1)))
+        UIWow_XMLInvalidateCharCustomizeModel();
+    return 0;
+}
+
 static luaL_Reg const wow_lua_funcs[] = {
     { "draw_loading_background", UIWow_LuaDrawLoadingBackground },
     { "draw_image",          UIWow_LuaDrawImage },
@@ -596,8 +608,8 @@ static luaL_Reg const wow_global_funcs[] = {
     { "GetSelectedRace",          UIWow_LuaGetSelectedRace },
     { "GetSelectedSex",           UIWow_LuaGetSelectedSex },
     { "GetSelectedClass",         UIWow_LuaGetSelectedClass },
-    { "SetSelectedRace",          UIWow_LuaSetSelectedRace },
-    { "SetSelectedSex",           UIWow_LuaSetSelectedSex },
+    { "SetSelectedRace",          UIWow_LuaSetSelectedRaceChanged },
+    { "SetSelectedSex",           UIWow_LuaSetSelectedSexChanged },
     { "SetSelectedClass",         UIWow_LuaSetSelectedClass },
     { "IsRaceClassValid",         UIWow_LuaIsRaceClassValid },
     { "IsRaceClassRestricted",    UIWow_LuaNoop },

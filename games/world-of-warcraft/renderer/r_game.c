@@ -20,6 +20,7 @@ BOOL M2_CameraView(m2Model_t const *model,
                    LPFLOAT znear,
                    LPFLOAT zfar);
 BOOL M2_IsCharacterModel(m2Model_t const *model);
+BOOL M2_SetEntitySequenceFrame(m2Model_t const *model, LPCSTR anim, renderEntity_t *entity);
 void M2_Release(m2Model_t *model);
 void M2_Shutdown(void);
 
@@ -211,8 +212,10 @@ void R_GameRenderModel(renderEntity_t const *entity) {
         attached_entity = *entity;
         attached_entity.model = entity->attached_model;
         attached_entity.attached_model = NULL;
-        attached_entity.frame = 0;
-        attached_entity.oldframe = 0;
+        if (!(tr.viewDef.rdflags & RDF_USE_ENTITY_CAMERA)) {
+            attached_entity.frame = 0;
+            attached_entity.oldframe = 0;
+        }
         attached_entity.flags &= ~RF_GROUND_ANCHOR;
         attached_entity.flags |= RF_NO_SHADOW;
         M2_RenderModel(&attached_entity, attached_entity.model->m2, &attached_transform);
@@ -398,10 +401,9 @@ bool R_GameExtractEntityCamera(renderEntity_t const *entity, float aspect, viewD
 }
 
 bool R_GameSetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
-    (void)model;
-    (void)anim;
-    (void)entity;
-    return false;
+    if (!model || model->modeltype != ID_MD20)
+        return false;
+    return M2_SetEntitySequenceFrame(model->m2, anim, entity);
 }
 
 void R_GameDrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {

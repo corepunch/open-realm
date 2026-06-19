@@ -1,4 +1,5 @@
 #include "renderer/r_local.h"
+#include <stdlib.h>
 #include <strings.h>
 
 #define M2_MAX_BONES_PER_BATCH 64
@@ -1413,6 +1414,31 @@ static DWORD M2_SequenceFlags(m2Model_t const *model, DWORD sequence_index) {
     }
 }
 
+#define M2_FRAME_SEQUENCE_FLAG  0x80000000u
+#define M2_FRAME_SEQUENCE_SHIFT 21
+#define M2_FRAME_SEQUENCE_MASK  0x3ffu
+#define M2_FRAME_TIME_MASK      0x1fffffu
+
+BOOL M2_SetEntitySequenceFrame(m2Model_t const *model, LPCSTR anim, renderEntity_t *entity) {
+    char *end = NULL;
+    DWORD sequence;
+
+    if (!model || !entity)
+        return false;
+    sequence = anim && *anim ? (DWORD)strtoul(anim, &end, 10) : 0;
+    if (anim && *anim && (!end || *end))
+        return false;
+    if (model->sequence_count > 0 && sequence >= model->sequence_count)
+        return false;
+    entity->frame = M2_FRAME_SEQUENCE_FLAG |
+                    ((sequence & M2_FRAME_SEQUENCE_MASK) << M2_FRAME_SEQUENCE_SHIFT) |
+                    (entity->frame & M2_FRAME_TIME_MASK);
+    entity->oldframe = M2_FRAME_SEQUENCE_FLAG |
+                       ((sequence & M2_FRAME_SEQUENCE_MASK) << M2_FRAME_SEQUENCE_SHIFT) |
+                       (entity->oldframe & M2_FRAME_TIME_MASK);
+    return true;
+}
+
 typedef struct {
     DWORD sequence_index;
     DWORD sequence_time;
@@ -1427,6 +1453,21 @@ static BOOL M2_FrameToPoseTime(m2Model_t const *model, DWORD frame, m2PoseTime_t
     }
     if (!model || !model->sequences || model->sequence_count == 0 || !pose) {
         return false;
+    }
+
+    if (frame & M2_FRAME_SEQUENCE_FLAG) {
+        DWORD sequence = (frame >> M2_FRAME_SEQUENCE_SHIFT) & M2_FRAME_SEQUENCE_MASK;
+        DWORD local_time = frame & M2_FRAME_TIME_MASK;
+        DWORD duration;
+
+        if (sequence >= model->sequence_count)
+            sequence = 0;
+        duration = M2_SequenceDuration(model, sequence);
+        pose->sequence_index = sequence;
+        pose->sequence_time = duration
+            ? M2_SequenceStart(model, sequence) + (local_time % duration)
+            : M2_SequenceStart(model, sequence);
+        return true;
     }
 
     FOR_LOOP(i, model->sequence_count) {

@@ -371,16 +371,31 @@ int UIWow_LuaGetSelectedClass(lua_State *L) {
     return 6;
 }
 
-int UIWow_LuaSetSelectedRace(lua_State *L) {
+BOOL UIWow_SetSelectedRace(int race_index) {
     UIWow_LoadCharCreateDbc();
-    int v = (int)luaL_checknumber(L, 1) - 1;
-    if (v >= 0 && v < wow_charcreate.num_playable) wow_charcreate.sel_race = v;
+    int v = race_index - 1;
+
+    if (v < 0 || v >= wow_charcreate.num_playable || v == wow_charcreate.sel_race)
+        return false;
+    wow_charcreate.sel_race = v;
+    return true;
+}
+
+int UIWow_LuaSetSelectedRace(lua_State *L) {
+    UIWow_SetSelectedRace((int)luaL_checknumber(L, 1));
     return 0;
 }
 
+BOOL UIWow_SetSelectedSex(int sex) {
+    UIWow_LoadCharCreateDbc();
+    if ((sex != 1 && sex != 2) || sex == wow_charcreate.sel_sex)
+        return false;
+    wow_charcreate.sel_sex = sex;
+    return true;
+}
+
 int UIWow_LuaSetSelectedSex(lua_State *L) {
-    int v = (int)luaL_checknumber(L, 1);
-    if (v == 1 || v == 2) wow_charcreate.sel_sex = v;
+    UIWow_SetSelectedSex((int)luaL_checknumber(L, 1));
     return 0;
 }
 
