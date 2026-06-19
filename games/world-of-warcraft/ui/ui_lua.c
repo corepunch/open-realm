@@ -486,6 +486,24 @@ static int UIWow_LuaGetBuildInfo(lua_State *L) {
     return 5;
 }
 
+static int UIWow_LuaSetCharSelectModelFrame(lua_State *L) {
+    LPCSTR name = luaL_checkstring(L, 1);
+    int idx = UIWow_XmlFindByNamePub(name);
+    if (idx >= 0) {
+        wow_ui.model_frame_idx = idx;
+    }
+    return 0;
+}
+
+static int UIWow_LuaSetCharSelectBackground(lua_State *L) {
+    LPCSTR model_path = luaL_checkstring(L, 1);
+    int idx = wow_ui.model_frame_idx;
+    if (idx >= 0) {
+        UIWow_XmlSetFrameModel(idx, model_path);
+    }
+    return 0;
+}
+
 static luaL_Reg const wow_lua_funcs[] = {
     { "draw_loading_background", UIWow_LuaDrawLoadingBackground },
     { "draw_image",          UIWow_LuaDrawImage },
@@ -541,8 +559,8 @@ static luaL_Reg const wow_global_funcs[] = {
     { "ChangeRealm",       UIWow_LuaNoop },
     { "SetPreferredInfo",  UIWow_LuaNoop },
     { "SortRealms",        UIWow_LuaNoop },
-    { "SetCharSelectModelFrame",  UIWow_LuaNoop },
-    { "SetCharSelectBackground",  UIWow_LuaNoop },
+    { "SetCharSelectModelFrame",  UIWow_LuaSetCharSelectModelFrame },
+    { "SetCharSelectBackground",  UIWow_LuaSetCharSelectBackground },
     { "SetCharCustomizeFrame",    UIWow_LuaNoop },
     { "SetCharCustomizeBackground", UIWow_LuaNoop },
     { "ResetCharCustomize",       UIWow_LuaResetCharCustomize },

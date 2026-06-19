@@ -1928,3 +1928,14 @@ BOOL UIWow_XMLKeyEvent(int key, BOOL down, DWORD time) {
     }
     return false;
 }
+
+void UIWow_XmlSetFrameModel(int idx, LPCSTR model_path) {
+    if (idx < 0 || idx >= wow_xml.count || !model_path) return;
+    uiWowXmlElem_t *e = &wow_xml.elems[idx];
+    if (e->model && wow_ui.renderer && wow_ui.renderer->ReleaseModel) {
+        wow_ui.renderer->ReleaseModel(e->model);
+        e->model = NULL;
+    }
+    free(e->texts[ELEM_FILE]);
+    e->texts[ELEM_FILE] = model_path && *model_path ? strdup(model_path) : NULL;
+}

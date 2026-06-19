@@ -68,6 +68,7 @@ typedef struct {
     PATHSTR active_map;
     FLOAT displayed_progress;  /* smoothed progress owned by get_loading_progress() */
     PATHSTR current_menu;
+    int model_frame_idx;      /* frame index for SetCharSelectModelFrame */
 } uiWowState_t;
 
 extern uiImport_t uiimport;
@@ -87,6 +88,8 @@ void UIWow_XMLInitRuntime(void);
 void UIWow_XMLShutdownRuntime(void);
 BOOL UIWow_XMLLoadGlueFromToc(LPCSTR toc_path);
 void UIWow_XMLDraw(void);
+int UIWow_XmlFindByNamePub(LPCSTR name);
+void UIWow_XmlSetFrameModel(int idx, LPCSTR model_path);
 
 /* ui_loading.c */
 void UIWow_UpdateMapBackground(LPCPLAYER ps);
