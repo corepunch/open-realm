@@ -78,6 +78,7 @@ typedef struct {
     BYTE y;
     BYTE research;
     BYTE active;
+    FLOAT cooldown; /* fraction of the ability's cooldown still remaining (0=ready, 1=just used) */
 } gameCommandButton_t;
 
 typedef struct {

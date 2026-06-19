@@ -5,6 +5,10 @@
 #include "g_local.h"
 #include "g_metadata.h"
 
+/* Defined in skills/s_spell.c — remaining cooldown fraction for a unit's ability,
+ * used to shade the command-card button while it recharges. */
+FLOAT S_SpellCooldownFraction(LPEDICT caster, DWORD code, DWORD level);
+
 static void G_CopyString(LPSTR out, DWORD out_size, LPCSTR text) {
     if (!out || out_size == 0) {
         return;
@@ -231,14 +235,23 @@ BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_but
         PARSE_LIST(UNIT_ABILITIES_NORMAL(ent->class_id), abil, parse_segment) {
             LPCSTR code = game.config.abilities ? FS_FindSheetCell(game.config.abilities, abil, "code") : NULL;
             if (code && G_IsImplementedAbility(code)) {
+                BYTE const idx = count;
                 G_AddCommandButton(ent, buttons, max_buttons, &count, abil, false, 0);
+                if (count > idx && strlen(code) >= 4) {
+                    buttons[idx].cooldown = S_SpellCooldownFraction(ent,
+                        MAKEFOURCC(code[0], code[1], code[2], code[3]), 0);
+                }
             }
         }
     }
     FOR_LOOP(i, MAX_HERO_ABILITIES) {
         heroability_t const *ha = ent->heroabilities + i;
         if (ha->level > 0) {
+            BYTE const idx = count;
             G_AddCommandButton(ent, buttons, max_buttons, &count, GetClassName(ha->code), false, ha->level);
+            if (count > idx) {
+                buttons[idx].cooldown = S_SpellCooldownFraction(ent, ha->code, ha->level);
+            }
         }
     }
     if (UNIT_TRAINS(ent->class_id)) {

@@ -662,6 +662,19 @@ void UI_LayoutDrawCommandButton(LPCUIFRAME frame, LPCRECT screen) {
                          .rotate = false,
                          .shader = SHADER_COMMANDBUTTON,
                          .uActiveGlow = selentity ? selentity->ability == frame->stat : 0));
+    /* Cooldown shade: while an ability recharges, darken its icon in proportion
+     * to the cooldown remaining (frame->value, 1=just used -> 0=ready), the WC3
+     * "this ability is on cooldown" cue. */
+    if (frame->value > 0.0f) {
+        FLOAT const frac = MIN(frame->value, 1.0f);
+        re.DrawImageEx(&MAKE(drawImage_t,
+                             .texture = UI_LayoutTexture(frame->tex.index),
+                             .screen = scrn,
+                             .uv = suv,
+                             .color = MAKE(COLOR32, 0, 0, 0, (BYTE)(110.0f + 130.0f * frac)),
+                             .rotate = false,
+                             .shader = SHADER_COMMANDBUTTON));
+    }
 }
 
 void layout_text(LPCUIFRAME frame, LPCRECT screen, LPCSTR text) {

@@ -81,6 +81,7 @@ DWORD S_SpellUnitId(DWORD code, DWORD level);
 FLOAT S_SpellRange(DWORD code, DWORD level);
 FLOAT S_SpellDuration(DWORD code, DWORD level, BOOL hero);
 BOOL S_SpellCooldownReady(LPEDICT caster, DWORD code);
+FLOAT S_SpellCooldownFraction(LPEDICT caster, DWORD code, DWORD level);
 void S_SpellStartCooldown(LPEDICT caster, DWORD code, DWORD level);
 BOOL S_SpellSpendMana(LPEDICT caster, DWORD code, DWORD level);
 BOOL S_SpellCanPay(LPEDICT caster, DWORD code, DWORD level);

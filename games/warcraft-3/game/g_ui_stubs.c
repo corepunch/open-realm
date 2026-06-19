@@ -426,10 +426,16 @@ static void UI_WriteSingleInfo(LPEDICT ent) {
     char buffer[128];
     LPCSTR name = UNIT_PROPER_NAMES(ent->class_id);
     LPCSTR unit_name = UNIT_NAME(ent->class_id);
-    DWORD level = MAX(1, UNIT_LEVEL(ent->class_id));
-    LONG dice = UNIT_ATTACK1_DAMAGE_NUMBER_OF_DICE(ent->class_id);
-    LONG min_damage = dice ? UNIT_ATTACK1_DAMAGE_BASE(ent->class_id) + dice : 0;
-    LONG max_damage = dice ? UNIT_ATTACK1_DAMAGE_BASE(ent->class_id) + dice * UNIT_ATTACK1_DAMAGE_SIDES_PER_DIE(ent->class_id) : 0;
+    /* A hero's primary attributes drive its current stats; show the LIVE values
+     * (which reflect leveling/tomes) rather than the static data baselines. */
+    BOOL const is_hero = UNIT_STRENGTH(ent->class_id) > 0 ||
+                         UNIT_AGILITY(ent->class_id) > 0 ||
+                         UNIT_INTELLIGENCE(ent->class_id) > 0;
+    DWORD level = is_hero && ent->hero.level > 0 ? ent->hero.level
+                                                 : MAX(1, UNIT_LEVEL(ent->class_id));
+    LONG dice = ent->attack1.numberOfDice;
+    LONG min_damage = dice ? (LONG)(ent->attack1.damageBase + dice) : 0;
+    LONG max_damage = dice ? (LONG)(ent->attack1.damageBase + dice * ent->attack1.sidesPerDie) : 0;
 
     if (!name || !*name) {
         name = unit_name ? unit_name : GetClassName(ent->class_id);
@@ -448,9 +454,42 @@ static void UI_WriteSingleInfo(LPEDICT ent) {
 
     UI_WriteTextFrame(INFO_PANEL_X + 0.010f, INFO_PANEL_Y + 0.066f, 0.055f, 0.012f, "Armor:",
                       MAKE(COLOR32, 252, 210, 18, 255), FONT_JUSTIFYLEFT);
-    snprintf(buffer, sizeof(buffer), "%d", (int)UNIT_ARMOR_VALUE(ent->class_id));
+    snprintf(buffer, sizeof(buffer), "%d", (int)(ent->armor_value + 0.5f));
     UI_WriteTextFrame(INFO_PANEL_X + 0.062f, INFO_PANEL_Y + 0.066f, 0.050f, 0.012f, buffer,
                       COLOR32_WHITE, FONT_JUSTIFYLEFT);
+
+    /* Hero primary attributes (STR/AGI/INT), primary one highlighted green, with
+     * the experience toward the next level beneath. */
+    if (is_hero) {
+        LPCSTR const prim = UNIT_PRIMARY_ATTRIBUTE(ent->class_id);
+        COLOR32 const lbl   = MAKE(COLOR32, 252, 210, 18, 255);
+        COLOR32 const white = COLOR32_WHITE;
+        COLOR32 const green = MAKE(COLOR32, 120, 230, 120, 255);
+        struct { LPCSTR tag, code; DWORD val; } attrs[3] = {
+            { "Str:", "STR", ent->hero.str },
+            { "Agi:", "AGI", ent->hero.agi },
+            { "Int:", "INT", ent->hero.intel },
+        };
+        FOR_LOOP(a, 3) {
+            FLOAT const ay = INFO_PANEL_Y + 0.090f + a * 0.016f;
+            BOOL const isprim = prim && !strcmp(prim, attrs[a].code);
+            UI_WriteTextFrame(INFO_PANEL_X + 0.010f, ay, 0.040f, 0.012f, attrs[a].tag,
+                              lbl, FONT_JUSTIFYLEFT);
+            snprintf(buffer, sizeof(buffer), "%lu", (unsigned long)attrs[a].val);
+            UI_WriteTextFrame(INFO_PANEL_X + 0.050f, ay, 0.040f, 0.012f, buffer,
+                              isprim ? green : white, FONT_JUSTIFYLEFT);
+        }
+        DWORD const need = G_HeroXPForLevel(level + 1);
+        DWORD const have = G_HeroXPForLevel(level);
+        if (need > have) {
+            snprintf(buffer, sizeof(buffer), "XP: %lu / %lu",
+                     (unsigned long)(ent->hero.xp - (ent->hero.xp < have ? ent->hero.xp : have)),
+                     (unsigned long)(need - have));
+            UI_WriteTextFrame(INFO_PANEL_X + 0.010f, INFO_PANEL_Y + 0.090f + 3 * 0.016f,
+                              0.110f, 0.012f, buffer, MAKE(COLOR32, 200, 200, 200, 255),
+                              FONT_JUSTIFYLEFT);
+        }
+    }
 
     /* Hit points (and mana for casters): current / max of the live unit, shown
      * in WC3's green/blue, centred just beneath the portrait. */
@@ -504,6 +543,7 @@ static void UI_WriteCommandButtonFrame(gameCommandButton_t const *button) {
     frame.color = COLOR32_WHITE;
     frame.tex.index = gi.ImageIndex(button->art);
     frame.stat = button->active;
+    frame.value = button->cooldown; /* command-card cooldown shade (0 = ready) */
     UI_FormatTooltip(button->command,
                      button->tooltip,
                      button->ubertip,
@@ -655,6 +695,7 @@ static void UI_SeedInfoPanelCache(LPEDICT ent, LPEDICT *selected, DWORD count) {
         ent->client->infopanel.entity = selected[0]->s.number;
         ent->client->infopanel.hp = (LONG)(selected[0]->health.value + 0.5f);
         ent->client->infopanel.mana = (LONG)(selected[0]->mana.value + 0.5f);
+        ent->client->infopanel.xp = (LONG)selected[0]->hero.xp;
     } else {
         ent->client->infopanel.entity = 0;
     }
@@ -735,7 +776,8 @@ void G_RefreshInfoPanel(LPEDICT ent) {
     mana = (LONG)(selected[0]->mana.value + 0.5f);
     if (selected[0]->s.number == ent->client->infopanel.entity &&
         hp == ent->client->infopanel.hp &&
-        mana == ent->client->infopanel.mana) {
+        mana == ent->client->infopanel.mana &&
+        (LONG)selected[0]->hero.xp == ent->client->infopanel.xp) {
         return;
     }
     UI_SendInfoPanel(ent, selected, count);
