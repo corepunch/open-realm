@@ -347,8 +347,6 @@ void UI_ShutdownLocal(void);
 void UI_RefreshLocal(DWORD msec);
 void UI_DrawFrameLocal(void);
 void UI_LayoutDrawOverlays(void);
-void UI_LayoutTextInput(LPCSTR text);
-BOOL UI_LayoutEditKey(int key);
 void UI_LayoutSetLayer(DWORD layer, HANDLE data);
 void UI_LayoutClearLayer(DWORD layer);
 BOOL UI_LayoutHitTest(int x, int y);

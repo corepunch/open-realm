@@ -50,7 +50,7 @@ static LPCFRAMEDEF active_slider = NULL;
 static LPCFRAMEDEF active_popup = NULL;
 static LPCFRAMEDEF active_modal = NULL;
 static LPFRAMEDEF active_edit = NULL;
-static DWORD active_edit_cursor = 0;
+static uiTextInput_t active_ti;
 
 static LPRENDERER UI_GetRenderer(void) {
     if (!uiimport.GetRenderer) {

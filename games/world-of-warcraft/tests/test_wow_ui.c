@@ -42,6 +42,7 @@ static DWORD draw_panel_count;
 static DWORD draw_inventory_count;
 static DWORD draw_fill_count;
 static DWORD draw_text_count;
+static DWORD draw_cursor_count;
 static DWORD draw_minimap_count;
 static char last_draw_text[256];
 static char last_server_command[256];
@@ -203,9 +204,17 @@ static void test_draw_minimap(LPCRECT rect) {
     draw_minimap_count++;
 }
 
+static VECTOR2 test_get_text_size(LPCDRAWTEXT drawText) {
+    FLOAT w = drawText && drawText->text ? (FLOAT)strlen(drawText->text) * 0.01f : 0.0f;
+    FLOAT h = drawText && drawText->font ? drawText->font->size / 1000.0f : 0.012f;
+    return MAKE(VECTOR2, w, h);
+}
+
 static void test_draw_text(LPCDRAWTEXT drawText) {
     draw_text_count++;
     snprintf(last_draw_text, sizeof(last_draw_text), "%s", drawText && drawText->text ? drawText->text : "");
+    if (drawText && drawText->text && !strcmp(drawText->text, "|"))
+        draw_cursor_count++;
     if (drawText && drawText->text && !strcmp(drawText->text, "Account Name") &&
         drawText->halign == FONT_JUSTIFYCENTER) {
         glue_account_label_centered++;
@@ -273,6 +282,7 @@ static void reset_test_state(void) {
     draw_inventory_count = 0;
     draw_fill_count = 0;
     draw_text_count = 0;
+    draw_cursor_count = 0;
     draw_minimap_count = 0;
     last_panel_width = 0;
     last_panel_height = 0;
@@ -294,6 +304,7 @@ static void reset_test_state(void) {
     test_renderer.DrawFill = test_draw_fill;
     test_renderer.DrawMinimap = test_draw_minimap;
     test_renderer.DrawText = test_draw_text;
+    test_renderer.GetTextSize = test_get_text_size;
 
     test_ps.client_ui_state = CLIENT_UI_GAME;
     test_ps.name = "LuaTester";
@@ -356,6 +367,8 @@ static void test_wow_glue_xml_login_button_routes_character_select(void) {
     ASSERT(draw_text_count > 0);
     ASSERT(UIWow_XMLMouseEvent(520, 400, 1, true));
     ASSERT(UIWow_XMLTextInput("A"));
+    UIWow_XMLDraw();
+    ASSERT(draw_cursor_count > 0);
     ASSERT(UIWow_XMLMouseEvent(520, 530, 1, true));
     ASSERT(UIWow_XMLMouseEvent(520, 530, 1, false));
     ASSERT(UIWow_RunLuaString("test_current_glue_screen",
