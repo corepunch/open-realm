@@ -3,19 +3,32 @@
 #define ID_BLIZZARD MAKEFOURCC('A', 'H', 'b', 'z')
 #define ID_CARRION_SWARM MAKEFOURCC('A', 'U', 'c', 's')
 
-static void area_spell_damage(LPEDICT ent) {
+/* Deal ent->damage to every enemy within ent->collision of ent.  maxtotal > 0
+ * caps the combined damage of this burst (WC3 "Max Damage" / "Maximum Damage per
+ * Wave"): when damage*targets would exceed it, the per-target damage is scaled
+ * down so the total lands on the cap. */
+static void area_spell_damage(LPEDICT ent, FLOAT maxtotal) {
     LPEDICT caster = ent->owner;
     FLOAT radius = ent->collision;
+    FLOAT damage = (FLOAT)ent->damage;
+    DWORD ntargets = 0;
 
-    FILTER_EDICTS(target, target->inuse && target != caster) {
-        if (!S_SpellIsAliveTarget(target) || !S_SpellIsEnemy(caster, target)) {
-            continue;
+#define AREA_HITS(t) ((t)->inuse && (t) != caster && S_SpellIsAliveTarget(t) && \
+                      S_SpellIsEnemy(caster, t) &&                              \
+                      Vector2_distance(&(t)->s.origin2, &ent->s.origin2) <= radius)
+
+    if (maxtotal > 0.0f) {
+        FILTER_EDICTS(target, AREA_HITS(target)) {
+            ntargets++;
         }
-        if (Vector2_distance(&target->s.origin2, &ent->s.origin2) > radius) {
-            continue;
+        if (ntargets > 0 && damage * (FLOAT)ntargets > maxtotal) {
+            damage = MAX(1.0f, maxtotal / (FLOAT)ntargets);
         }
-        T_Damage(target, caster, ent->damage);
     }
+    FILTER_EDICTS(target, AREA_HITS(target)) {
+        T_Damage(target, caster, (DWORD)damage);
+    }
+#undef AREA_HITS
 }
 
 static void blizzard_think(LPEDICT ent) {
@@ -24,7 +37,7 @@ static void blizzard_think(LPEDICT ent) {
     if (ent->freetime && now < ent->freetime) {
         return;
     }
-    area_spell_damage(ent);
+    area_spell_damage(ent, ent->velocity); /* velocity reused: max damage per wave */
     if (ent->resources > 0) {
         ent->resources--;
     }
@@ -64,6 +77,9 @@ static BOOL blizzard_selectlocation(LPEDICT clent, LPCVECTOR2 point) {
     thinker->collision = area > 0 ? area : 200.0f;
     thinker->damage = damage ? damage : 1;
     thinker->resources = waves ? waves : 1;
+    /* DataF (HBZ6) = Maximum Damage per Wave; stash on the stationary thinker's
+     * (otherwise unused) velocity field so each wave can apply the cap. */
+    thinker->velocity = S_SpellData(code, level, 6);
     thinker->spawn_time = gi.GetTime() + (DWORD)(MAX(1.0f, S_SpellDuration(code, level, false)) * 1000.0f);
     thinker->think = blizzard_think;
     blizzard_think(thinker);
@@ -105,7 +121,7 @@ static BOOL carrion_swarm_selectlocation(LPEDICT clent, LPCVECTOR2 point) {
     blast->s.origin2 = *point;
     blast->collision = MAX(96.0f, S_SpellNumber(code, "Area", level));
     blast->damage = (DWORD)MAX(1.0f, S_SpellData(code, level, 1));
-    area_spell_damage(blast);
+    area_spell_damage(blast, S_SpellData(code, level, 2)); /* DataB (UCS2) = Max Damage */
     G_FreeEdict(blast);
     S_SpellCursorSplat(clent, 0.0f);
     return true;

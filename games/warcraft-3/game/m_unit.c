@@ -7,6 +7,7 @@ void unit_begin_decay(LPEDICT self);
 void unit_decay_think(LPEDICT self);
 void unit_cooldown(LPEDICT self);
 void unit_stand(LPEDICT self);
+static BOOL G_UnitIsHero(LPCEDICT ent);
 
 /* WC3 corpse lifetime: DecayTime (flesh, 2s) + BoneDecayTime (bone, 88s) = 90s
  * after the death animation, then the corpse is removed (MiscData.txt). */
@@ -37,8 +38,13 @@ void unit_begin_decay(LPEDICT self) {
     self->wait = UNIT_DECAY_SECONDS;
 }
 
-/* Count down the corpse decay timer; remove the corpse when it elapses. */
+/* Count down the corpse decay timer; remove the corpse when it elapses.  Dead
+ * heroes are NOT removed — they persist as a revivable body (ReviveHero), as in
+ * the original where heroes wait at the altar rather than decaying away. */
 void unit_decay_think(LPEDICT self) {
+    if (G_UnitIsHero(self)) {
+        return;
+    }
     unit_runwait(self, G_FreeEdict);
 }
 
@@ -83,8 +89,17 @@ void unit_stand(LPEDICT self) {
 void unit_die(LPEDICT self, LPEDICT attacker) {
     unit_leavecombat(self);
     unit_setmove(self, &unit_move_death);
+    /* EVENT_UNIT_DEATH matches widget-specific death triggers
+     * (TriggerRegisterDeathEvent/UnitEvent); EVENT_PLAYER_UNIT_DEATH fires the
+     * owner's player-unit-death triggers (TriggerRegisterPlayerUnitEvent), e.g.
+     * the mission win check that counts the player's dying naga. */
     G_PublishEvent(self, EVENT_UNIT_DEATH);
+    G_PublishEvent(self, EVENT_PLAYER_UNIT_DEATH);
     self->svflags |= SVF_DEADMONSTER;
+    /* Award experience to the killer's nearby heroes (enemy kills only). */
+    if (attacker && attacker != self && attacker->s.player != self->s.player) {
+        G_GrantKillXP(self, attacker);
+    }
 }
 
 void unit_birth(LPEDICT self) {
@@ -301,6 +316,218 @@ void unit_learnability(LPEDICT ent, DWORD abilcode) {
             return;
         }
     }
+}
+
+/* WC3 hero attribute -> derived-stat bonuses.  Per-point constants are taken
+ * exactly from UnitBalance.slk (consistent across every hero): +25 max HP per
+ * Strength, +15 max mana per Intelligence, +0.3 armor per Agility.  The unit's
+ * realHP/realM/realdef columns are precomputed at the hero's BASE attributes,
+ * so we add the delta for the hero's current attributes.  Current HP/mana move
+ * with the max (gaining Strength heals by the HP gained; losing attributes
+ * cannot drop a living hero below 1 HP).  Non-heroes (no attributes) are a
+ * no-op.  Call whenever a hero's str/agi/intel change. */
+void G_RecomputeHeroStats(LPEDICT ent) {
+    DWORD const cls = ent->class_id;
+    LONG const baseStr = UNIT_STRENGTH(cls);
+    LONG const baseAgi = UNIT_AGILITY(cls);
+    LONG const baseInt = UNIT_INTELLIGENCE(cls);
+    if (baseStr <= 0 && baseAgi <= 0 && baseInt <= 0) {
+        return;
+    }
+    FLOAT const newMaxHP   = UNIT_HP(cls)           + ((LONG)ent->hero.str   - baseStr) * 25.0f;
+    FLOAT const newMaxMana = UNIT_MANA_MAXIMUM(cls) + ((LONG)ent->hero.intel - baseInt) * 15.0f;
+    FLOAT const newArmor   = UNIT_ARMOR_VALUE(cls)  + ((LONG)ent->hero.agi   - baseAgi) * 0.3f;
+
+    BOOL const alive = ent->health.value > 0.0f;
+    FLOAT const dHP = newMaxHP - ent->health.max_value;
+    ent->health.max_value = MAX(1.0f, newMaxHP);
+    ent->health.value = MIN(ent->health.max_value, ent->health.value + dHP);
+    if (alive && ent->health.value < 1.0f) {
+        ent->health.value = 1.0f;
+    }
+
+    FLOAT const dMana = newMaxMana - ent->mana.max_value;
+    ent->mana.max_value = MAX(0.0f, newMaxMana);
+    ent->mana.value = MAX(0.0f, MIN(ent->mana.max_value, ent->mana.value + dMana));
+
+    ent->armor_value = newArmor;
+
+    /* Primary attribute adds +1 attack damage per point (WC3 "green" bonus
+     * damage = the hero's current primary-attribute value).  Primary is the
+     * UnitBalance "Primary" column: STR/AGI/INT. */
+    {
+        LPCSTR const prim = UNIT_PRIMARY_ATTRIBUTE(cls);
+        DWORD primVal = ent->hero.str;
+        if (prim) {
+            if (!strcmp(prim, "AGI")) primVal = ent->hero.agi;
+            else if (!strcmp(prim, "INT")) primVal = ent->hero.intel;
+        }
+        ent->attack1.damageBase = UNIT_ATTACK1_DAMAGE_BASE(cls) + (FLOAT)primVal;
+    }
+}
+
+/* ---- Hero experience / leveling (verified against WC3 1.29 binary) ----------
+ * - Max level: Misc/MaxHeroLevel gameplay constant (default 10).
+ * - XP to REACH level L: the "NeedHeroXP" table; the default WC3 values are
+ *   100*(L*(L+1)/2 - 1) = 50*L*(L+1) - 100 (L1=0, L2=200, L3=500, L10=5400).
+ * - Attributes are derived live from level, not stored per level-up: each
+ *   primary attribute = base + trunc((level-1) * perLevelGain).  The product is
+ *   TRUNCATED toward zero (the binary's attribute getter converts the float via
+ *   a bare float->int, no rounding) — a (LONG) cast matches that exactly.
+ * - SetHeroLevel works by granting enough XP to reach the level; XP is the
+ *   source of truth and level only ever increases. */
+DWORD G_MaxHeroLevel(void) {
+    LPCSTR const v = FS_FindSheetCell(game.config.misc, "Misc", "MaxHeroLevel");
+    DWORD const m = v ? (DWORD)atoi(v) : 0;
+    return m > 0 ? m : 10;
+}
+
+DWORD G_HeroXPForLevel(DWORD level) {
+    if (level <= 1) {
+        return 0;
+    }
+    return 50 * level * (level + 1) - 100;
+}
+
+DWORD G_HeroLevelForXP(DWORD xp) {
+    DWORD const maxLevel = G_MaxHeroLevel();
+    DWORD level = 1;
+    while (level < maxLevel && xp >= G_HeroXPForLevel(level + 1)) {
+        level++;
+    }
+    return level;
+}
+
+/* Set a hero's level and derive its attributes + HP/mana/armor for that level. */
+void G_HeroApplyLevel(LPEDICT ent, DWORD level) {
+    DWORD const cls = ent->class_id;
+    LONG const baseStr = UNIT_STRENGTH(cls);
+    LONG const baseAgi = UNIT_AGILITY(cls);
+    LONG const baseInt = UNIT_INTELLIGENCE(cls);
+    if (baseStr <= 0 && baseAgi <= 0 && baseInt <= 0) {
+        return; /* not a hero */
+    }
+    if (level < 1) level = 1;
+    if (level > G_MaxHeroLevel()) level = G_MaxHeroLevel();
+
+    FLOAT const steps = (FLOAT)(level - 1);
+    ent->hero.level = level;
+    ent->hero.str   = (DWORD)MAX(0, baseStr + (LONG)(steps * UNIT_STRENGTH_PER_LEVEL(cls)));
+    ent->hero.agi   = (DWORD)MAX(0, baseAgi + (LONG)(steps * UNIT_AGILITY_PER_LEVEL(cls)));
+    ent->hero.intel = (DWORD)MAX(0, baseInt + (LONG)(steps * UNIT_INTELLIGENCE_PER_LEVEL(cls)));
+    G_RecomputeHeroStats(ent);
+}
+
+/* Update a hero's accumulated XP, leveling it up if a threshold was crossed. */
+void G_HeroSetXP(LPEDICT ent, DWORD xp) {
+    DWORD const oldLevel = ent->hero.level;
+    ent->hero.xp = xp;
+    DWORD const newLevel = G_HeroLevelForXP(xp);
+    if (newLevel > oldLevel) {
+        G_HeroApplyLevel(ent, newLevel);
+        /* WC3 fires the hero level-up event once per level gained; campaign
+         * triggers (TriggerRegisterPlayerUnitEvent, EVENT_PLAYER_HERO_LEVEL)
+         * react to it and GetLevelingUnit() resolves to this hero. */
+        for (DWORD lv = oldLevel + 1; lv <= newLevel; lv++) {
+            G_PublishEvent(ent, EVENT_PLAYER_HERO_LEVEL);
+        }
+    }
+}
+
+/* --- XP-on-kill (data-driven from Units\MiscGame.txt) ------------------------
+ * Constants read live from config.misc so map overrides stay 1:1; fallbacks are
+ * the WC3 1.29 defaults: HeroExpRange=1200 (XP-share radius), GrantNormalXP=25 +
+ * GrantNormalXPFormulaB=5/level (base XP by victim level), GrantHeroXP list
+ * 100,120,160,220,300 (heroes), HeroFactorXP=80,70,60,50,0 (diminishing % when
+ * the hero outlevels the victim by N), BuildingKillsGiveExp=0. */
+static FLOAT G_MiscNum(LPCSTR key, FLOAT fallback) {
+    LPCSTR const v = FS_FindSheetCell(game.config.misc, "Misc", key);
+    return (v && *v) ? (FLOAT)atof(v) : fallback;
+}
+
+/* n-th (0-based) comma-separated entry of a Misc list, clamped to the last. */
+static FLOAT G_MiscListNum(LPCSTR key, DWORD n, FLOAT fallback) {
+    LPCSTR v = FS_FindSheetCell(game.config.misc, "Misc", key);
+    if (!v || !*v) {
+        return fallback;
+    }
+    FLOAT val = fallback;
+    for (DWORD i = 0; ; i++) {
+        val = (FLOAT)atof(v);
+        LPCSTR const comma = strchr(v, ',');
+        if (i >= n || !comma) {
+            break;
+        }
+        v = comma + 1;
+    }
+    return val;
+}
+
+static BOOL G_UnitIsHero(LPCEDICT ent) {
+    DWORD const cls = ent->class_id;
+    return UNIT_STRENGTH(cls) > 0 || UNIT_AGILITY(cls) > 0 || UNIT_INTELLIGENCE(cls) > 0;
+}
+
+/* Award experience for killing `victim` to the killer's heroes within range,
+ * applying the per-victim base XP and the level-difference diminishing returns. */
+void G_GrantKillXP(LPEDICT victim, LPEDICT killer) {
+    DWORD const vcls = victim->class_id;
+    if (UNIT_IS_BUILDING(vcls) && G_MiscNum("BuildingKillsGiveExp", 0.0f) == 0.0f) {
+        return;
+    }
+    BOOL const victimHero = G_UnitIsHero(victim);
+    DWORD const victimLevel = victimHero ? (DWORD)MAX(1, (LONG)victim->hero.level)
+                                         : (DWORD)MAX(1, UNIT_LEVEL(vcls));
+    DWORD baseXP;
+    if (victimHero) {
+        baseXP = (DWORD)G_MiscListNum("GrantHeroXP", victimLevel - 1, 100.0f);
+    } else {
+        FLOAT const g0 = G_MiscNum("GrantNormalXP", 25.0f);
+        FLOAT const gb = G_MiscNum("GrantNormalXPFormulaB", 5.0f);
+        baseXP = (DWORD)(g0 + gb * (FLOAT)(victimLevel - 1));
+    }
+    FLOAT const range = G_MiscNum("HeroExpRange", 1200.0f);
+
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT h = &globals.edicts[i];
+        if (!h->inuse || h->s.player != killer->s.player || h->health.value <= 0) {
+            continue;
+        }
+        if (!G_UnitIsHero(h) ||
+            Vector2_distance(&h->s.origin2, &victim->s.origin2) > range) {
+            continue;
+        }
+        /* Diminishing returns: hero N levels above the victim earns
+         * HeroFactorXP[N-1] percent (full XP when at or below the victim). */
+        LONG const diff = (LONG)h->hero.level - (LONG)victimLevel;
+        FLOAT factor = 1.0f;
+        if (diff > 0) {
+            factor = G_MiscListNum("HeroFactorXP", (DWORD)(diff - 1), 0.0f) / 100.0f;
+        }
+        DWORD const award = (DWORD)(baseXP * factor + 0.5f);
+        if (award > 0) {
+            G_HeroSetXP(h, h->hero.xp + award);
+        }
+    }
+}
+
+/* Scripted hero revival (ReviveHero native): bring a dead hero back to life at
+ * (x,y) with HP/mana set from the MiscGame revive factors (defaults: full life,
+ * no mana).  Dead heroes persist (unit_decay_think) so the edict is still valid. */
+void G_ReviveHero(LPEDICT ent, FLOAT x, FLOAT y) {
+    if (!ent) {
+        return;
+    }
+    FLOAT const lifeFactor = G_MiscNum("HeroReviveLifeFactor", 1.0f);
+    FLOAT const manaFactor = G_MiscNum("HeroReviveManaFactor", 0.0f);
+    ent->svflags &= ~SVF_DEADMONSTER;
+    ent->aiflags &= ~AI_HOLD_FRAME;
+    ent->combatentity = NULL;
+    ent->health.value = MAX(1.0f, ent->health.max_value * lifeFactor);
+    ent->mana.value   = MAX(0.0f, ent->mana.max_value * manaFactor);
+    ent->s.origin2.x = x;
+    ent->s.origin2.y = y;
+    unit_stand(ent); /* back to a living idle state */
 }
 
 void SP_monster_unit(LPEDICT self) {

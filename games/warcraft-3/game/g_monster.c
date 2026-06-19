@@ -71,7 +71,10 @@ static FLOAT get_unit_collision(pathTex_t const *pathtex) {
         if (pathtex->map[(pathtex->width + 1) * x].b)
             size++;
     }
-    return size * 16 * 1.3;
+    /* size footprint cells wide -> radius = size * (32/2) = size*16.  The old
+     * extra *1.3 inflated every building's collision circle 30% with no WC3
+     * basis (buildings already block via their baked footprint). */
+    return size * 16;
 }
 
 /* Allocate a waypoint entity at the given map location.
@@ -355,7 +358,10 @@ void SP_SpawnUnit(LPEDICT self) {
      * and instead block via their pathing footprint (set from pathtex below). */
     {
         FLOAT const ucol = (FLOAT)UNIT_COLLISION(self->class_id);
-        self->collision = ucol > 0.0f ? ucol : self->s.radius;
+        /* Real WC3 units always have ucol>0; if missing, fall back to 0 (block
+         * via footprint, set below for buildings) — NOT s.radius, which is a
+         * selection-circle scale, not a world-unit collision radius. */
+        self->collision = ucol > 0.0f ? ucol : 0.0f;
     }
 //    printf("%.4s\n", &self->class_id);
     self->targtype = G_GetTargetType(UNIT_TARGETED_AS(self->class_id));
@@ -375,9 +381,34 @@ void SP_SpawnUnit(LPEDICT self) {
     self->balance.sight_radius.night = UNIT_SIGHT_RADIUS_NIGHT(self->class_id);
     self->think = monster_think;
     self->svflags |= SVF_MONSTER;
-    
+    /* Cache the air/ground collision layer once. Flyers ('movetp' == "fly")
+     * never collide with ground units and vice-versa. */
+    {
+        LPCSTR const movetp = UNIT_MOVE_TYPE_NAME(self->class_id);
+        if (movetp && !strcmp(movetp, "fly"))
+            self->aiflags |= AI_FLYING;
+    }
+
     self->defense_type = FindEnumValue(UNIT_DEFENSE_TYPE_NAME(self->class_id), defense_type);
     self->armor_value = UNIT_ARMOR_VALUE(self->class_id);
+    /* Heroes carry their base primary attributes.  realHP/realM/realdef already
+     * bake in the level-1 attribute bonus, so we just record the base values;
+     * when the attributes later change (tomes, SetHeroStr/Agi/Int, level-up)
+     * G_RecomputeHeroStats applies the per-point deltas (+25 HP / +15 mana /
+     * +0.3 armor).  Non-heroes have no attributes (all zero) and are skipped. */
+    {
+        LONG const baseStr = UNIT_STRENGTH(self->class_id);
+        LONG const baseAgi = UNIT_AGILITY(self->class_id);
+        LONG const baseInt = UNIT_INTELLIGENCE(self->class_id);
+        if (baseStr > 0 || baseAgi > 0 || baseInt > 0) {
+            self->hero.str   = (DWORD)baseStr;
+            self->hero.agi   = (DWORD)baseAgi;
+            self->hero.intel = (DWORD)baseInt;
+            if (self->hero.level == 0) {
+                self->hero.level = 1;
+            }
+        }
+    }
     self->attack1.type = FindEnumValue(UNIT_ATTACK1_ATTACK_TYPE(self->class_id), attack_type);
     self->attack1.weapon = FindEnumValue(UNIT_ATTACK1_WEAPON_TYPE(self->class_id), weapon_type);
     self->attack1.damageBase = UNIT_ATTACK1_DAMAGE_BASE(self->class_id);
@@ -393,7 +424,10 @@ void SP_SpawnUnit(LPEDICT self) {
     self->attack1.factorSmall = UNIT_ATTACK1_DAMAGE_FACTOR_SMALL(self->class_id);
     self->attack1.maxTargets = UNIT_ATTACK1_MAXIMUM_NUMBER_OF_TARGETS(self->class_id);
     self->attack1.damageLoss = UNIT_ATTACK1_DAMAGE_LOSS_FACTOR(self->class_id);
-    
+    /* Heroes: fold the primary-attribute attack-damage bonus into damageBase now
+     * that base attributes + attack1 are loaded (no-op for non-heroes). */
+    G_RecomputeHeroStats(self);
+
     if (self->attack1.weapon == WPN_MISSILE) {
         self->attack1.origin.x = UNIT_ATTACK1_LAUNCH_X(self->class_id);
         self->attack1.origin.y = UNIT_ATTACK1_LAUNCH_Y(self->class_id);

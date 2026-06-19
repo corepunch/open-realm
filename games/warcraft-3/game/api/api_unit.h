@@ -242,21 +242,21 @@ DWORD SetHeroStr(LPJASS j) {
     LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
     LONG newStr = jass_checkinteger(j, 2);
 //    BOOL permanent = jass_checkboolean(j, 3);
-    if (whichHero) whichHero->hero.str = (DWORD)MAX(0, newStr);
+    if (whichHero) { whichHero->hero.str = (DWORD)MAX(0, newStr); G_RecomputeHeroStats(whichHero); }
     return 0;
 }
 DWORD SetHeroAgi(LPJASS j) {
     LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
     LONG newAgi = jass_checkinteger(j, 2);
 //    BOOL permanent = jass_checkboolean(j, 3);
-    if (whichHero) whichHero->hero.agi = (DWORD)MAX(0, newAgi);
+    if (whichHero) { whichHero->hero.agi = (DWORD)MAX(0, newAgi); G_RecomputeHeroStats(whichHero); }
     return 0;
 }
 DWORD SetHeroInt(LPJASS j) {
     LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
     LONG newInt = jass_checkinteger(j, 2);
 //    BOOL permanent = jass_checkboolean(j, 3);
-    if (whichHero) whichHero->hero.intel = (DWORD)MAX(0, newInt);
+    if (whichHero) { whichHero->hero.intel = (DWORD)MAX(0, newInt); G_RecomputeHeroStats(whichHero); }
     return 0;
 }
 DWORD GetHeroXP(LPJASS j) {
@@ -268,7 +268,7 @@ DWORD SetHeroXP(LPJASS j) {
     LONG newXpVal = jass_checkinteger(j, 2);
 //    BOOL showEyeCandy = jass_checkboolean(j, 3);
     if (whichHero && !whichHero->hero.suspend_xp) {
-        whichHero->hero.xp = (DWORD)MAX(0, newXpVal);
+        G_HeroSetXP(whichHero, (DWORD)MAX(0, newXpVal));
     }
     return 0;
 }
@@ -281,7 +281,7 @@ DWORD AddHeroXP(LPJASS j) {
         DWORD cur = whichHero->hero.xp;
         /* Cap at INT32_MAX so GetHeroXP (signed return) never reads negative. */
         DWORD sum = cur + add;
-        whichHero->hero.xp = (sum < cur || sum > (DWORD)INT32_MAX) ? (DWORD)INT32_MAX : sum;
+        G_HeroSetXP(whichHero, (sum < cur || sum > (DWORD)INT32_MAX) ? (DWORD)INT32_MAX : sum);
     }
     return 0;
 }
@@ -289,7 +289,15 @@ DWORD SetHeroLevel(LPJASS j) {
     LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
     LONG level = jass_checkinteger(j, 2);
 //    BOOL showEyeCandy = jass_checkboolean(j, 3);
-    if (whichHero) whichHero->hero.level = level;
+    if (whichHero && level > (LONG)whichHero->hero.level) {
+        /* WC3 SetHeroLevel raises the level by granting enough XP to reach it
+         * (level only increases); attributes/stats derive from the new level. */
+        DWORD const need = G_HeroXPForLevel((DWORD)level);
+        if (whichHero->hero.xp < need) {
+            whichHero->hero.xp = need;
+        }
+        G_HeroApplyLevel(whichHero, (DWORD)level);
+    }
     return 0;
 }
 DWORD GetHeroLevel(LPJASS j) {
@@ -308,15 +316,21 @@ DWORD IsSuspendedXP(LPJASS j) {
 }
 DWORD SelectHeroSkill(LPJASS j) {
     LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
-    (void)whichHero;
-    //LONG abilcode = jass_checkinteger(j, 2);
+    LONG abilcode = jass_checkinteger(j, 2);
+    if (whichHero) {
+        unit_learnability(whichHero, (DWORD)abilcode);
+    }
     return 0;
 }
 DWORD ReviveHero(LPJASS j) {
-    //LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
-    //FLOAT x = jass_checknumber(j, 2);
-    //FLOAT y = jass_checknumber(j, 3);
+    LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
+    FLOAT x = jass_checknumber(j, 2);
+    FLOAT y = jass_checknumber(j, 3);
     //BOOL doEyecandy = jass_checkboolean(j, 4);
+    if (whichHero) {
+        G_ReviveHero(whichHero, x, y);
+        return jass_pushboolean(j, 1);
+    }
     return jass_pushboolean(j, 0);
 }
 DWORD ReviveHeroLoc(LPJASS j) {
