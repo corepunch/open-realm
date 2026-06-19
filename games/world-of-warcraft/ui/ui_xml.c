@@ -1,5 +1,6 @@
 /* ui_xml.c — WoW Glue FrameXML-style loader/runtime (TOC, Include/Script, frame registry, basic drawing). */
 #include "ui_local.h"
+#include "ui_dbc.h"
 #include "client/ui_text_input.h"
 
 #include <ctype.h>
@@ -738,6 +739,7 @@ static void UIWow_XMLInstallLuaCompat(void) {
         { "GetVerticalScrollRange", UIWow_LuaFrameGetVerticalScrollRange },
         { "SetVerticalScroll", UIWow_LuaFrameSetVerticalScroll }, { "GetVerticalScroll", UIWow_LuaFrameGetVerticalScroll },
         { "GetTextWidth", UIWow_LuaFrameGetWidth }, { "GetTextHeight", UIWow_LuaFrameGetHeight },
+        { "GetStringWidth", UIWow_LuaFrameGetWidth }, { "GetStringHeight", UIWow_LuaFrameGetHeight },
         { "SetTexCoord", UIWow_LuaFrameSetTexCoord },
         { "SetVertexColor", UIWow_LuaFrameSetVertexColor }, { "SetFocus", UIWow_LuaFrameSetFocus }, { "HighlightText", UIWow_LuaFrameHighlightText }, { "RegisterEvent", UIWow_LuaFrameRegisterEvent }, { "SetSequence", UIWow_LuaFrameSetSequence },
         { "SetCamera", UIWow_LuaFrameSetCamera }, { "SetModel", UIWow_LuaFrameSetModel }, { "AdvanceTime", UIWow_LuaFrameAdvanceTime },
@@ -1357,9 +1359,21 @@ void UIWow_XmlComputeRectPub(int idx, FLOAT *x, FLOAT *y, FLOAT *w, FLOAT *h) {
     if (x) *x = r.x; if (y) *y = r.y; if (w) *w = r.w; if (h) *h = r.h;
 }
 
-void UIWow_XMLInitRuntime(void) { memset(&wow_xml, 0, sizeof(wow_xml)); wow_xml.focus = -1; wow_xml.pressed_button = -1; wow_xml.drag.scrollbar_idx = -1; UIWow_XMLInstallLuaCompat(); }
+/* Drop the injected character-create model when XML runtime state is rebuilt. */
+static void UIWow_XMLReleaseCharCustomizeModel(void) {
+    if (wow_ui.renderer && wow_ui.renderer->ReleaseModel)
+        SAFE_DELETE(wow_ui.char_customize_model, wow_ui.renderer->ReleaseModel);
+    wow_ui.char_customize_model_path[0] = '\0';
+    wow_ui.char_customize_frame_idx = -1;
+}
+
+void UIWow_XMLInitRuntime(void) {
+    memset(&wow_xml, 0, sizeof(wow_xml)); wow_xml.focus = -1; wow_xml.pressed_button = -1;
+    wow_xml.drag.scrollbar_idx = -1; wow_ui.char_customize_frame_idx = -1; UIWow_XMLInstallLuaCompat();
+}
 void UIWow_XMLShutdownRuntime(void) {
     if (wow_ui.renderer && wow_ui.renderer->ReleaseModel) FOR_LOOP(i, wow_xml.count) SAFE_DELETE(wow_xml.elems[i].model, wow_ui.renderer->ReleaseModel);
+    UIWow_XMLReleaseCharCustomizeModel();
     UIWow_XMLFreeElems();
     memset(&wow_xml, 0, sizeof(wow_xml)); wow_xml.focus = -1; wow_xml.pressed_button = -1; wow_xml.drag.scrollbar_idx = -1;
 }
@@ -1368,6 +1382,7 @@ BOOL UIWow_XMLLoadGlueFromToc(LPCSTR toc_path) {
     if (!wow_ui.lua) { UIWow_Printf("UIWow: XML runtime requires active lua_State\n"); return false; }
     if (!wow_xml.lua_ready) UIWow_XMLInstallLuaCompat();
     UIWow_XMLFreeElems();
+    UIWow_XMLReleaseCharCustomizeModel();
     memset(wow_xml.elems, 0, sizeof(wow_xml.elems)); wow_xml.count = 0; wow_xml.focus = -1; wow_xml.pressed_button = -1; wow_xml.drag.scrollbar_idx = -1;
     if (!UIWow_XMLLoadFromToc(toc_path)) return false;
     UIWow_XMLInstallScreenShim();
@@ -1623,12 +1638,45 @@ static LPCSTR UIWow_XMLDisplayText(uiWowXmlElem_t const *e, LPSTR out, size_t ou
     return out;
 }
 
+/* Draw the live character-create actor over Blizzard's background model frame. */
+static void UIWow_XMLDrawCharCustomizeModel(int i, LPCRECT frame_rect) {
+    char path[MAX_PATHLEN];
+    RECT viewport;
+    FLOAT w, h;
+
+    if (i != wow_ui.char_customize_frame_idx || !frame_rect || !wow_ui.renderer ||
+        !wow_ui.renderer->LoadModel || !wow_ui.renderer->DrawPortrait)
+        return;
+    UIWow_GetCharacterCreateModelPath(path, sizeof(path));
+    if (!path[0]) return;
+    if (!wow_ui.char_customize_model || strcmp(wow_ui.char_customize_model_path, path)) {
+        if (wow_ui.char_customize_model && wow_ui.renderer->ReleaseModel)
+            wow_ui.renderer->ReleaseModel(wow_ui.char_customize_model);
+        wow_ui.char_customize_model = wow_ui.renderer->LoadModel(path);
+        snprintf(wow_ui.char_customize_model_path, sizeof(wow_ui.char_customize_model_path), "%s", path);
+        if (!wow_ui.char_customize_model)
+            UIWow_WarnOnce(WOW_UI_WARN_NO_CHAR_MODEL, "UIWow: failed to load character create model %s\n", path);
+    }
+    if (!wow_ui.char_customize_model) return;
+    w = UIWow_XmlX(360.0f); h = UIWow_XmlY(520.0f);
+    viewport = MAKE(RECT,
+        frame_rect->x + frame_rect->w * 0.5f - w * 0.5f,
+        frame_rect->y + frame_rect->h * 0.5f - h * 0.5f + UIWow_XmlY(-25.0f),
+        w, h);
+    wow_ui.renderer->DrawPortrait(&MAKE(PORTRAITDEF,
+        .model = wow_ui.char_customize_model,
+        .viewport = &viewport,
+        .anim = "Stand",
+        .frame = wow_xml.elems[i].frame));
+}
+
 /* Draw one XML frame's own layer. whoa draws a frame's batches before recursing into child frames. */
 static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
         uiWowXmlElem_t *e = &wow_xml.elems[i]; RECT r; RECT uv = MAKE(RECT, 0, 0, 1, 1); char text[512];
         COLOR32 text_color = e->colors[ELEM_COLOR_TEXT];
         BOOL pressed = e->type == WOW_XML_BUTTON && wow_xml.pressed_button == i;
         BOOL hovered = e->type == WOW_XML_BUTTON && hovered_button == i;
+        int draw_layer = e->type == WOW_XML_MODEL ? WOW_XML_LAYER_BACKGROUND : e->draw_layer;
         LPCSTR file = e->texts[ELEM_FILE], normal_file = e->texts[ELEM_NORMAL_FILE], pushed_file = e->texts[ELEM_PUSHED_FILE];
         LPCSTR highlight_file = e->texts[ELEM_HIGHLIGHT_FILE], elem_text = e->texts[ELEM_TEXT];
         FLOAT scroll_off_y = 0.0f;
@@ -1641,7 +1689,7 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
             s_has_scroll_clip = false;
             UIWow_XMLDrawBackdrop(e, &r);
         }
-        if (e->draw_layer != layer) return;
+        if (draw_layer != layer) return;
         r = UIWow_XmlComputeRect(i);
         /* Compute scroll offset for descendants of ScrollFrames. Skip the
            ScrollFrame itself (it is the viewport) and its direct ScrollBar
@@ -1698,6 +1746,7 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
                     .fog.fog_far = e->fog_far
                 };
                 wow_ui.renderer->DrawPortrait(&p);
+                UIWow_XMLDrawCharCustomizeModel(i, &r);
             }
             else if (!wow_ui.renderer->LoadModel) UIWow_WarnOnce(WOW_UI_WARN_NO_MODEL_LOADER, "UIWow: renderer has no model loader; XML model frames skipped\n");
         }
@@ -1789,14 +1838,18 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
         }
 }
 
-static void UIWow_XMLDrawTree(int i, int hovered_button) {
+static void UIWow_XMLDrawTreeLayer(int i, int layer, int hovered_button) {
     if (!(wow_xml.elems[i].flags & EF_USED) || !UIWow_XMLIsVisible(i)) return;
-    for (int layer = WOW_XML_LAYER_BACKGROUND; layer <= WOW_XML_LAYER_OVERLAY; layer++)
-        UIWow_XMLDrawElementLayer(i, layer, hovered_button);
+    UIWow_XMLDrawElementLayer(i, layer, hovered_button);
     FOR_LOOP(j, wow_xml.count) {
         if (wow_xml.elems[j].parent == i)
-            UIWow_XMLDrawTree((int)j, hovered_button);
+            UIWow_XMLDrawTreeLayer((int)j, layer, hovered_button);
     }
+}
+
+static void UIWow_XMLDrawTree(int i, int hovered_button) {
+    for (int layer = WOW_XML_LAYER_BACKGROUND; layer <= WOW_XML_LAYER_OVERLAY; layer++)
+        UIWow_XMLDrawTreeLayer(i, layer, hovered_button);
 }
 
 void UIWow_XMLDraw(void) {

@@ -19,6 +19,7 @@ BOOL M2_CameraView(m2Model_t const *model,
                    LPFLOAT fov_degrees,
                    LPFLOAT znear,
                    LPFLOAT zfar);
+BOOL M2_IsCharacterModel(m2Model_t const *model);
 void M2_Release(m2Model_t *model);
 void M2_Shutdown(void);
 
@@ -387,7 +388,8 @@ void R_GameDrawPortrait(LPCPORTRAITDEF params) {
     R_Call(glClear, GL_DEPTH_BUFFER_BIT);
 
     aspect = viewport->h > 0.0f ? viewport->w / viewport->h : 1.0f;
-    if (!M2_CameraView(model->m2, 0, &eye, &target, &fov, &znear, &zfar)) {
+    if (M2_IsCharacterModel(model->m2) ||
+        !M2_CameraView(model->m2, 0, &eye, &target, &fov, &znear, &zfar)) {
         distance = radius / tanf((fov * (FLOAT)M_PI / 180.0f) * 0.5f);
         eye = (VECTOR3){ center.x, center.y - distance * 1.35f, center.z + radius * 0.25f };
         target = center;

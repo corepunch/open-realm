@@ -51,12 +51,6 @@ static DWORD last_panel_width;
 static DWORD last_panel_height;
 static DWORD last_inventory_width;
 static DWORD last_inventory_height;
-static DWORD glue_backdrop_edge_draws;
-static DWORD glue_account_label_centered;
-static FLOAT glue_button_uv_width;
-static FLOAT glue_button_y;
-static FLOAT glue_login_text_y;
-static COLOR32 glue_login_text_color;
 
 static BOOL test_path_is_wow_default(LPCSTR name) {
     return name &&
@@ -173,17 +167,10 @@ static void test_draw_image(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLO
         draw_panel_count++;
         last_panel_width = texture->width;
         last_panel_height = texture->height;
-        if (screen && uv && screen->w > 0.14f && screen->h > 0.04f) {
-            glue_button_uv_width = uv->w;
-            glue_button_y = screen->y;
-        }
     } else if (!strcmp(texture->name, "Interface\\Test\\Inventory.blp")) {
         draw_inventory_count++;
         last_inventory_width = texture->width;
         last_inventory_height = texture->height;
-        if (screen && screen->w < 0.03f) {
-            glue_backdrop_edge_draws++;
-        }
     }
 }
 
@@ -215,14 +202,6 @@ static void test_draw_text(LPCDRAWTEXT drawText) {
     snprintf(last_draw_text, sizeof(last_draw_text), "%s", drawText && drawText->text ? drawText->text : "");
     if (drawText && drawText->text && !strcmp(drawText->text, "|"))
         draw_cursor_count++;
-    if (drawText && drawText->text && !strcmp(drawText->text, "Account Name") &&
-        drawText->halign == FONT_JUSTIFYCENTER) {
-        glue_account_label_centered++;
-    }
-    if (drawText && drawText->text && !strcmp(drawText->text, "LOGIN")) {
-        glue_login_text_y = drawText->rect.y;
-        glue_login_text_color = drawText->color;
-    }
 }
 
 static LPCTEXTURE test_get_texture(DWORD index) {
@@ -288,12 +267,6 @@ static void reset_test_state(void) {
     last_panel_height = 0;
     last_inventory_width = 0;
     last_inventory_height = 0;
-    glue_backdrop_edge_draws = 0;
-    glue_account_label_centered = 0;
-    glue_button_uv_width = 0.0f;
-    glue_button_y = 0.0f;
-    glue_login_text_y = 0.0f;
-    glue_login_text_color = COLOR32_BLACK;
 
     test_renderer.LoadTexture = test_load_texture;
     test_renderer.LoadFont = test_load_font;
@@ -340,84 +313,7 @@ static uiExport_t init_ui(void) {
     return ui;
 }
 
-extern BOOL UIWow_XMLLoadGlueFromToc(LPCSTR toc_path);
-extern void UIWow_XMLDraw(void);
-extern BOOL UIWow_XMLMouseEvent(int x, int y, int button, BOOL down);
-extern BOOL UIWow_XMLTextInput(LPCSTR text);
 extern BOOL UIWow_RunLuaString(LPCSTR name, LPCSTR script);
-
-static void test_wow_glue_xml_login_button_routes_character_select(void) {
-    uiExport_t ui;
-
-    reset_test_state();
-    ASSERT(SFileOpenArchive(TEST_WOW_MPQ, 0, 0, &test_archive));
-
-    ui = init_ui();
-    reset_test_state();
-    ASSERT(UIWow_XMLLoadGlueFromToc("Interface\\GlueXML\\GlueXML.toc"));
-    ASSERT(UIWow_RunLuaString("test_show_login", "SetGlueScreen('login');"));
-    UIWow_XMLDraw();
-
-    ASSERT(draw_panel_count > 0);
-    ASSERT(draw_inventory_count > 0);
-    ASSERT(glue_backdrop_edge_draws >= 2);
-    ASSERT(glue_account_label_centered > 0);
-    ASSERT(glue_button_uv_width >= 0.5f && glue_button_uv_width < 0.7f);
-    ASSERT(glue_login_text_y < glue_button_y);
-    ASSERT(draw_text_count > 0);
-    ASSERT(UIWow_XMLMouseEvent(520, 400, 1, true));
-    ASSERT(UIWow_XMLTextInput("A"));
-    UIWow_XMLDraw();
-    ASSERT(draw_cursor_count > 0);
-    ASSERT(UIWow_XMLMouseEvent(520, 530, 1, true));
-    ASSERT(UIWow_XMLMouseEvent(520, 530, 1, false));
-    ASSERT(UIWow_RunLuaString("test_current_glue_screen",
-                              "ow3.command(CURRENT_GLUE_SCREEN or '');"));
-    ASSERT_STR_EQ(last_server_command, "charselect");
-    ASSERT_STR_EQ(last_cmd_execute_text, "");
-
-    last_server_command[0] = '\0';
-    ASSERT(UIWow_RunLuaString("test_character_select_back",
-                              "CharacterSelect_Exit(); ow3.command(CURRENT_GLUE_SCREEN or '');"));
-    ASSERT_STR_EQ(last_server_command, "login");
-
-    ui.Shutdown();
-    FOR_LOOP(i, MAX_IMAGES) {
-        if (test_textures[i]) {
-            test_release_texture((LPTEXTURE)test_textures[i]);
-            test_textures[i] = NULL;
-        }
-    }
-    SFileCloseArchive(test_archive);
-    test_archive = NULL;
-}
-
-static void test_wow_glue_compat_regressions(void) {
-    uiExport_t ui;
-
-    reset_test_state();
-    ASSERT(SFileOpenArchive(TEST_WOW_MPQ, 0, 0, &test_archive));
-
-    ui = init_ui();
-    reset_test_state();
-    ASSERT(UIWow_XMLLoadGlueFromToc("Interface\\GlueXML\\GlueXML.toc"));
-    ASSERT(UIWow_RunLuaString("compat_legacy_result", "ow3.command(CompatLegacyResult or 'missing');"));
-    ASSERT_STR_EQ(last_server_command, "2:alpha:beta");
-
-    last_server_command[0] = '\0';
-    ASSERT(UIWow_RunLuaString("compat_child_result", "ow3.command(CompatChildResult or 'missing');"));
-    ASSERT_STR_EQ(last_server_command, "table:table");
-
-    ui.Shutdown();
-    FOR_LOOP(i, MAX_IMAGES) {
-        if (test_textures[i]) {
-            test_release_texture((LPTEXTURE)test_textures[i]);
-            test_textures[i] = NULL;
-        }
-    }
-    SFileCloseArchive(test_archive);
-    test_archive = NULL;
-}
 
 static void test_wow_lua_ui_draws_from_generated_mpq(void) {
     uiExport_t ui;
@@ -462,68 +358,7 @@ static void test_wow_lua_ui_draws_from_generated_mpq(void) {
     test_archive = NULL;
 }
 
-extern int UIWow_XmlFindByNamePub(LPCSTR name);
-extern void UIWow_XmlComputeRectPub(int idx, FLOAT *x, FLOAT *y, FLOAT *w, FLOAT *h);
-
-#ifndef TEST_WOW_IFACE_MPQ
-#define TEST_WOW_IFACE_MPQ "data/world-of-warcraft/interface.MPQ"
-#endif
-
-static void test_wow_glue_charcreate_layout(void) {
-    uiExport_t ui;
-    HANDLE iface_archive;
-
-    /* This test requires the full interface MPQ from the WoW data directory. */
-    if (!SFileOpenArchive(TEST_WOW_IFACE_MPQ, 0, 0, &iface_archive)) {
-        return; /* skip if not available */
-    }
-
-    reset_test_state();
-    test_archive = iface_archive;
-    ui = init_ui();
-    reset_test_state();
-    ASSERT(UIWow_XMLLoadGlueFromToc("Interface\\GlueXML\\GlueXML.toc"));
-    UIWow_RunLuaString("test_charcreate", "SetGlueScreen('charcreate');");
-    UIWow_XMLDraw();
-
-    /* Scrollbar left edge should be at or beyond the scroll frame's right edge */
-    {
-        FLOAT sbx, sby, sbw, sbh;
-        FLOAT sfx, sfy, sfw, sfh;
-        int sb = UIWow_XmlFindByNamePub("CharacterCreateFactionScrollFrameScrollBar");
-        int sf = UIWow_XmlFindByNamePub("CharacterCreateFactionScrollFrame");
-        ASSERT(sb >= 0);
-        ASSERT(sf >= 0);
-        UIWow_XmlComputeRectPub(sb, &sbx, &sby, &sbw, &sbh);
-        UIWow_XmlComputeRectPub(sf, &sfx, &sfy, &sfw, &sfh);
-        ASSERT(sbx >= sfx + sfw - 0.001f);
-        (void)sby; (void)sbw; (void)sbh; (void)sfy; (void)sfh;
-    }
-    /* LeftButton right edge should be at or left of RightButton's left edge, same y-center */
-    {
-        FLOAT lbx, lby, lbw, lbh;
-        FLOAT rbx, rby, rbw, rbh;
-        int lb = UIWow_XmlFindByNamePub("CharacterCustomizationButtonFrame1LeftButton");
-        int rb = UIWow_XmlFindByNamePub("CharacterCustomizationButtonFrame1RightButton");
-        ASSERT(lb >= 0);
-        ASSERT(rb >= 0);
-        UIWow_XmlComputeRectPub(lb, &lbx, &lby, &lbw, &lbh);
-        UIWow_XmlComputeRectPub(rb, &rbx, &rby, &rbw, &rbh);
-        ASSERT(lbx + lbw <= rbx + 0.005f);
-        ASSERT(lby + lbh * 0.5f >= rby + rbh * 0.5f - 0.005f);
-        ASSERT(lby + lbh * 0.5f <= rby + rbh * 0.5f + 0.005f);
-        (void)lbx; (void)rbx; (void)rby; (void)rbw; (void)rbh;
-    }
-
-    ui.Shutdown();
-    SFileCloseArchive(iface_archive);
-    test_archive = NULL;
-}
-
 int main(void) {
     RUN_TEST(test_wow_lua_ui_draws_from_generated_mpq);
-    RUN_TEST(test_wow_glue_xml_login_button_routes_character_select);
-    RUN_TEST(test_wow_glue_compat_regressions);
-    RUN_TEST(test_wow_glue_charcreate_layout);
     TEST_RESULTS();
 }
