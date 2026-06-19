@@ -1,18 +1,18 @@
 <p align="center">
-  <img width="480" height="265" alt="OpenWarcraft3 logo" src="doc/images/logo.png" />
+  <img width="480" height="320" src="https://github.com/user-attachments/assets/e4491ef4-fa69-4efd-814f-f7335d4c448a" />
 </p>
 
-**OpenWarcraft3** is an open-source implementation of Warcraft III that uses SDL2 and runs on Windows, Linux, and macOS.
+**OpenRealm** is an open-source implementation of Warcraft III that uses SDL2 and runs on Windows, Linux, and macOS.
 
 It was developed using War3.mpq from Warcraft III v1.0 as reference, with ongoing support for version 1.29b.
 
-<a href="https://corepunch.github.io/openwarcraft3/">📖 Documentation</a> · <a href="https://youtu.be/vg7Jm046vcI">▶ Watch the demo on YouTube</a> · see screenshots below
+<a href="https://corepunch.github.io/open-realm/">📖 Documentation</a> · <a href="https://youtu.be/vg7Jm046vcI">▶ Watch the demo on YouTube</a> · see screenshots below
 
 ## Download
 
-Pre-built binaries for Linux and macOS are available on the [Releases page](https://github.com/corepunch/openwarcraft3/releases/latest).
+Pre-built binaries for Linux and macOS are available on the [Releases page](https://github.com/corepunch/open-realm/releases/latest).
 
-You can also download the latest build artifact from the [CI workflow runs](https://github.com/corepunch/openwarcraft3/actions/workflows/c-cpp.yml) (click the most recent successful run and download `openwarcraft3-linux-x64`).
+You can also download the latest build artifact from the [CI workflow runs](https://github.com/corepunch/open-realm/actions/workflows/c-cpp.yml) (click the most recent successful run and download `open-realm-linux-x64`).
 
 <p align="center">
   <img src="doc/images/screenshot1.jpg" width="31%" style="margin-right:2%;" />
@@ -28,7 +28,7 @@ Warcraft III is the first and most complete target, but the long-term goal is a 
 
 The project is being organized around a small core runtime: client, server, renderer, UI, networking, math, archive loading, console/cvars, and Quake-style module boundaries. Each game then brings its own policy and data formats under `games/<game>/`: game simulation, renderer hooks, UI layer, scripts, tables, models, maps, and tests.
 
-In spirit, this is a little like ScummVM: keep the original game data outside the repository, rebuild the engine/runtime behavior in open source, and let legally owned local assets run through a modern, portable codebase. OpenWarcraft3 is not affiliated with Blizzard and does not ship retail assets; it is an engine and compatibility project for people who already have the original data.
+In spirit, this is a little like ScummVM: keep the original game data outside the repository, rebuild the engine/runtime behavior in open source, and let legally owned local assets run through a modern, portable codebase. OpenRealm is not affiliated with Blizzard and does not ship retail assets; it is an engine and compatibility project for people who already have the original data.
 
 Current and planned targets:
 
@@ -44,8 +44,8 @@ The near-term priority is still Warcraft III. The broader vision is to keep extr
 ### 1. Clone
 
 ```bash
-git clone git@github.com:corepunch/openwarcraft3.git
-cd openwarcraft3
+git clone git@github.com:corepunch/open-realm.git
+cd open-realm
 ```
 
 ### 2. Install Dependencies
@@ -74,7 +74,7 @@ Install SDL2 development libraries and build with a C compiler such as MSYS2/Min
 make build
 ```
 
-Compiles the engine and game libraries (`shared`, `jass`, `sheet`, `renderer`, `game`, `ui`) and the `openwarcraft3` executable into `build/`.
+Compiles the engine and game libraries (`shared`, `jass`, `sheet`, `renderer`, `game`, `ui`) and the `open-realm` executable into `build/`.
 
 The default Warcraft III libraries are built from engine sources plus `games/warcraft-3/`. Warcraft III-specific script, sheet, game, renderer, UI, and test sources live under that tree. Alternate game builds use the same engine sources with `games/world-of-warcraft/` or `games/starcraft-2/`.
 
@@ -90,12 +90,12 @@ Viewer tools are also built into `build/bin/`:
 make run
 ```
 
-Runs `openwarcraft3` from `build/bin/` using the data folder configured in the Makefile.
+Runs `open-realm` from `build/bin/` using the data folder configured in the Makefile.
 
 The executable expects a Warcraft III data folder rather than a single archive:
 
 ```bash
-build/bin/openwarcraft3 -data "data/Warcraft III"
+build/bin/open-realm -data "data/Warcraft III"
 ```
 
 The data folder is scanned for top-level `.mpq` archives and an optional loose `Maps/` directory. This lets newer installs expose multiplayer maps from the filesystem while older assets can still be loaded from MPQs.
@@ -125,20 +125,20 @@ make run-ui-text
 That expands to:
 
 ```bash
-build/bin/openwarcraft3 -data data/Warcraft\ III +r_module stdout +com_frame_limit 1 +menu_main
+build/bin/open-realm -data data/Warcraft\ III +r_module stdout +com_frame_limit 1 +menu_main
 ```
 
 It prints calls such as `draw_portrait`, `draw_sprite`, `draw_image`, `draw_text`, and `draw_sys_text`, then exits after one frame.
 
 ### In-game console
 
-OpenWarcraft3 includes a Quake-style console for diagnostics and runtime commands. Press backtick/tilde to open or close it, press Enter to run a command, use Up/Down for command history, and press Tab to complete command and cvar names.
+OpenRealm includes a Quake-style console for diagnostics and runtime commands. Press backtick/tilde to open or close it, press Enter to run a command, use Up/Down for command history, and press Tab to complete command and cvar names.
 
 The console accepts the same commands and cvars used by the command line. For example, `map "Maps\Campaign\Orc01.w3m"` starts a listen-server game directly, while `menu_main`, `menu_credits`, and `menu_options` switch client-side menu screens.
 
 ### Configuration and cvars
 
-OpenWarcraft3 uses Quake-style cvars and config files. Defaults live in `share/default.cfg`; generated user settings are written to `share/config.cfg`; optional local overrides can be placed in `share/autoexec.cfg`.
+OpenRealm uses Quake-style cvars and config files. Defaults live in `share/default.cfg`; generated user settings are written to `share/config.cfg`; optional local overrides can be placed in `share/autoexec.cfg`.
 
 Config load order:
 
@@ -216,7 +216,7 @@ The World of Warcraft target expects rebuilt MPQ archives under
 
 ## Client-Server Architecture
 
-OpenWarcraft3 uses a strict client-server separation where all game logic runs exclusively on the server and clients are responsible only for rendering and input.
+OpenRealm uses a strict client-server separation where all game logic runs exclusively on the server and clients are responsible only for rendering and input.
 
 The **server** hosts the selected game library. For Warcraft III, the source lives in `games/warcraft-3/game/` and is built as `libgame` behind a Quake-style function table boundary. It maintains the authoritative game state: all entities, their positions, health, current animations, and AI state. The server processes player commands, runs the game simulation each frame, and sends the resulting state to clients.
 
@@ -415,7 +415,7 @@ The default Warcraft III build produces the engine/game libraries and one execut
 4. **librenderer** (`renderer/` + `games/warcraft-3/renderer/`) — generic renderer backend plus Warcraft III model/map hooks; depends on `libshared`, SDL2
 5. **libgame** (`games/warcraft-3/game/`) — server-side Warcraft III game logic; depends on `libshared`
 6. **libui** (`games/warcraft-3/ui/`) — client-side FDF parser, command-driven screen controller, and UI renderer
-7. **openwarcraft3** — main executable linking the runtime libraries plus SDL2
+7. **open-realm** — main executable linking the runtime libraries plus SDL2
 
 Alternate builds follow the same shape: `openwow` links `libgame-wow`, `librenderer-wow`, and `libui-wow` from `games/world-of-warcraft/`; `opensc2` links `libgame-sc2` and `librenderer-sc2` from `games/starcraft-2/`.
 
