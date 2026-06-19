@@ -620,7 +620,7 @@ static void UI_DrawPortrait(LPCFRAMEDEF frame, LPCRECT rect) {
         return;
     }
 
-    if (!renderer || !renderer->DrawPortrait) {
+    if (!renderer || !renderer->RenderFrame) {
         return;
     }
 
@@ -629,15 +629,19 @@ static void UI_DrawPortrait(LPCFRAMEDEF frame, LPCRECT rect) {
         return;
     }
 
-    /* Default animation for portraits is "Stand" or first available */
-    LPCSTR anim = "Stand";
-    PORTRAITDEF p = {
-        .model = model,
-        .viewport = rect,
-        .anim = anim,
-        .frame = 0
-    };
-    renderer->DrawPortrait(&p);
+    renderEntity_t entity = {0};
+    entity.model = model;
+    entity.scale = 1.0f;
+    entity.flags = RF_NO_SHADOW | RF_NO_FOGOFWAR | RF_PORTRAIT_LIGHTING;
+    renderer->SetEntityAnimFrame(model, "Stand", &entity);
+
+    viewDef_t viewdef = {0};
+    viewdef.viewport = *rect;
+    viewdef.rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL | RDF_NOFOG | RDF_USE_ENTITY_CAMERA;
+    viewdef.num_entities = 1;
+    viewdef.entities = &entity;
+
+    renderer->RenderFrame(&viewdef);
 }
 
 static void UI_DrawSprite(LPCFRAMEDEF frame, LPCRECT rect) {

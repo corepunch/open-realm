@@ -63,24 +63,6 @@ typedef struct drawImage_s {
 typedef drawText_t const *LPCDRAWTEXT;
 typedef drawImage_t const *LPCDRAWIMAGE;
 
-/* Portrait drawing parameters */
-typedef struct _PORTRAITFOG {
-    BOOL has_fog;
-    COLOR32 fog_color;
-    FLOAT fog_near;
-    FLOAT fog_far;
-} PORTRAITFOG, *PPORTRAITFOG;
-typedef PORTRAITFOG const *LPCPORTRAITFOG;
-
-typedef struct _PORTRAITDEF {
-    LPCMODEL model;
-    LPCRECT viewport;
-    LPCSTR anim;
-    DWORD frame;
-    PORTRAITFOG fog;
-} PORTRAITDEF, *PPORTRAITDEF;
-typedef PORTRAITDEF const *LPCPORTRAITDEF;
-
 typedef struct {
     // Quake 3-style file API: renderer is archive-agnostic
     int (*FS_ReadFile)(LPCSTR name, void **buf);  // Returns file size, allocates buf
@@ -194,8 +176,8 @@ typedef struct {
     void (*DrawImageEx)(LPCDRAWIMAGE drawImage);
     void (*DrawMinimap)(LPCRECT screen);
     void (*DrawLoadingIndicator)(LPCRECT rect, DWORD time, COLOR32 color);
-    void (*DrawPortrait)(LPCPORTRAITDEF params);
     void (*DrawSprite)(LPCMODEL model, LPCSTR anim, float x, float y);
+    bool (*SetEntityAnimFrame)(LPCMODEL model, LPCSTR anim, renderEntity_t *entity);
     void (*DrawText)(LPCDRAWTEXT drawText);
     VECTOR2 (*GetTextSize)(LPCDRAWTEXT drawText);
     bool (*GetModelInfo)(LPMODEL model, LPMODELINFO info);

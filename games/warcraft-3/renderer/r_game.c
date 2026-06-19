@@ -284,12 +284,18 @@ bool R_GameGetModelInfo(LPMODEL model, LPMODELINFO info) {
     return true;
 }
 
-void R_GameDrawPortrait(LPCPORTRAITDEF params) {
-    (void)params->fog.has_fog;
-    (void)params->fog.fog_color;
-    (void)params->fog.fog_near;
-    (void)params->fog.fog_far;
-    MDLX_DrawPortrait(params->model, params->viewport, params->anim);
+bool R_GameExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t *viewdef) {
+    if (!entity || !entity->model || !entity->model->mdx || !viewdef) {
+        return false;
+    }
+    bool ok = MDLX_ExtractCamera(entity->model->mdx, entity->frame, aspect, &viewdef->viewProjectionMatrix,
+                                 &viewdef->lightMatrix);
+    Matrix4_identity(&viewdef->textureMatrix);
+    return ok;
+}
+
+bool R_GameSetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
+    return MDLX_SetEntityAnimationFrame(model, anim, entity);
 }
 
 void R_GameDrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {

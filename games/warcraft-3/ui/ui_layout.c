@@ -580,13 +580,22 @@ void UI_LayoutDrawPortrait(LPCUIFRAME frame, LPCRECT screen) {
     };
     LPCMODEL port = uiimport.GetPortrait ? uiimport.GetPortrait(frame->tex.index) : NULL;
     LPCMODEL model = uiimport.GetModel ? uiimport.GetModel(frame->tex.index) : NULL;
-    PORTRAITDEF p = {
-        .model = port ? port : model,
-        .viewport = &viewport,
-        .anim = "Stand",
-        .frame = 0
-    };
-    re.DrawPortrait(&p);
+    LPCMODEL draw_model = port ? port : model;
+    if (!draw_model) return;
+
+    renderEntity_t entity = {0};
+    entity.model = draw_model;
+    entity.scale = 1.0f;
+    entity.flags = RF_NO_SHADOW | RF_NO_FOGOFWAR | RF_PORTRAIT_LIGHTING;
+    re.SetEntityAnimFrame(draw_model, "Stand", &entity);
+
+    viewDef_t viewdef = {0};
+    viewdef.viewport = viewport;
+    viewdef.rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL | RDF_NOFOG | RDF_USE_ENTITY_CAMERA;
+    viewdef.num_entities = 1;
+    viewdef.entities = &entity;
+
+    re.RenderFrame(&viewdef);
 }
 
 void UI_LayoutDrawSprite(LPCUIFRAME frame, LPCRECT screen) {

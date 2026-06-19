@@ -1643,36 +1643,24 @@ static LPCSTR UIWow_XMLDisplayText(uiWowXmlElem_t const *e, LPSTR out, size_t ou
     return out;
 }
 
-/* Draw the live character-create actor over Blizzard's background model frame. */
-static void UIWow_XMLDrawCharCustomizeModel(int i, LPCRECT frame_rect) {
+/* Return the live character-create actor for Blizzard's background model scene. */
+static LPMODEL UIWow_XMLCharCustomizeModel(int i) {
     char path[MAX_PATHLEN];
-    RECT viewport;
-    FLOAT w, h;
 
-    if (i != wow_ui.char_customize_frame_idx || !frame_rect || !wow_ui.renderer ||
-        !wow_ui.renderer->LoadModel || !wow_ui.renderer->DrawPortrait)
-        return;
+    if (i != wow_ui.char_customize_frame_idx || !wow_ui.renderer || !wow_ui.renderer->LoadModel)
+        return NULL;
     UIWow_GetCharacterCreateModelPath(path, sizeof(path));
-    if (!path[0]) return;
+    if (!path[0]) return NULL;
     if (!wow_ui.char_customize_model || strcmp(wow_ui.char_customize_model_path, path)) {
         if (wow_ui.char_customize_model && wow_ui.renderer->ReleaseModel)
             wow_ui.renderer->ReleaseModel(wow_ui.char_customize_model);
         wow_ui.char_customize_model = wow_ui.renderer->LoadModel(path);
         snprintf(wow_ui.char_customize_model_path, sizeof(wow_ui.char_customize_model_path), "%s", path);
         if (!wow_ui.char_customize_model)
-            UIWow_WarnOnce(WOW_UI_WARN_NO_CHAR_MODEL, "UIWow: failed to load character create model %s\n", path);
+            UIWow_WarnOnce(WOW_UI_WARN_NO_CHAR_MODEL,
+                           "UIWow: failed to load character create model %s\n", path);
     }
-    if (!wow_ui.char_customize_model) return;
-    w = UIWow_XmlX(360.0f); h = UIWow_XmlY(520.0f);
-    viewport = MAKE(RECT,
-        frame_rect->x + frame_rect->w * 0.5f - w * 0.5f,
-        frame_rect->y + frame_rect->h * 0.5f - h * 0.5f + UIWow_XmlY(-25.0f),
-        w, h);
-    wow_ui.renderer->DrawPortrait(&MAKE(PORTRAITDEF,
-        .model = wow_ui.char_customize_model,
-        .viewport = &viewport,
-        .anim = "Stand",
-        .frame = wow_xml.elems[i].frame));
+    return wow_ui.char_customize_model;
 }
 
 /* Draw one XML frame's own layer. whoa draws a frame's batches before recursing into child frames. */
@@ -1739,21 +1727,30 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
             if (UIWow_ElemStr(e, ELEM_ON_UPDATE_MODEL))
                 UIWow_XMLRunFrameScript(i, e->texts[ELEM_ON_UPDATE_MODEL], "OnUpdateModel");
             if (!e->model && wow_ui.renderer->LoadModel) e->model = wow_ui.renderer->LoadModel(file);
-            if (e->model && wow_ui.renderer->DrawPortrait) {
-                PORTRAITDEF p = {
-                    .model = e->model,
-                    .viewport = &r,
-                    .anim = "Stand",
-                    .frame = e->frame,
-                    .fog.has_fog = e->has_fog,
-                    .fog.fog_color = e->fog_color,
-                    .fog.fog_near = e->fog_near,
-                    .fog.fog_far = e->fog_far
-                };
-                wow_ui.renderer->DrawPortrait(&p);
-                UIWow_XMLDrawCharCustomizeModel(i, &r);
+            if (e->model && wow_ui.renderer->RenderFrame) {
+                renderEntity_t entity = {0};
+                entity.model = e->model;
+                entity.attached_model = UIWow_XMLCharCustomizeModel(i);
+                entity.frame = e->frame;
+                entity.scale = 1.0f;
+                entity.angle = (FLOAT)DEG2RAD(UIWow_GetCharacterCreateFacing());
+                entity.flags = RF_NO_SHADOW | RF_NO_FOGOFWAR | RF_NO_LIGHTING;
+
+                viewDef_t viewdef = {0};
+                viewdef.viewport = r;
+                viewdef.rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL | RDF_NOFOG |
+                                  RDF_USE_ENTITY_CAMERA;
+                viewdef.num_entities = 1;
+                viewdef.entities = &entity;
+
+                wow_ui.renderer->RenderFrame(&viewdef);
             }
-            else if (!wow_ui.renderer->LoadModel) UIWow_WarnOnce(WOW_UI_WARN_NO_MODEL_LOADER, "UIWow: renderer has no model loader; XML model frames skipped\n");
+            else if (!wow_ui.renderer->LoadModel)
+                UIWow_WarnOnce(WOW_UI_WARN_NO_MODEL_LOADER,
+                               "UIWow: renderer has no model loader; XML model frames skipped\n");
+            else if (!wow_ui.renderer->RenderFrame)
+                UIWow_WarnOnce(WOW_UI_WARN_NO_MODEL_LOADER,
+                               "UIWow: renderer has no frame renderer; XML model frames skipped\n");
         }
         if ((file && file[0] && e->type == WOW_XML_TEXTURE) || (e->type == WOW_XML_BUTTON && ((normal_file && normal_file[0]) || (file && file[0])))) {
             LPCSTR src = (e->type == WOW_XML_BUTTON && pressed && pushed_file && pushed_file[0]) ? pushed_file :

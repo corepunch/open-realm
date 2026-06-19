@@ -345,46 +345,43 @@ static FLOAT R_UISequenceFrameRatio(LPCSTR anim) {
     return value;
 }
 
-void MDLX_DrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim) {
+bool MDLX_ExtractCamera(mdxModel_t const *model, DWORD frame, float aspect, LPMATRIX4 output, LPMATRIX4 light) {
     VECTOR3 root;
     VECTOR3 lightAngles = { 10, 270, 0 };
-    renderEntity_t entity;
-    viewDef_t viewdef;
-    
-    if (!model || !model->mdx) {
-        return;
+    bool ok = R_GetModelCameraMatrix(model, frame, aspect, output, &root);
+    if (ok && light) {
+        Matrix4_getLightMatrix(&lightAngles, &root, PORTRAIT_SHADOW_SIZE, light);
     }
-    
+    return ok;
+}
+
+bool MDLX_SetEntityAnimationFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
+    if (!model || !model->mdx || !entity) {
+        return false;
+    }
     mdxModel_t const *mdx = model->mdx;
     mdxSequence_t const *seq = R_SelectUISequence(mdx, anim);
-
-    float viewport_width = viewport->w * tr.drawableSize.width;
-    float viewport_height = viewport->h * tr.drawableSize.height;
-    float aspect = viewport_height > 0.0f ? viewport_width / viewport_height : 1.0f;
-
-    if (!R_InitUIModelView(model, &viewdef, &entity, seq, R_UISequenceFrameRatio(anim))) {
-        return;
+    if (!seq) {
+        return false;
     }
-
-    entity.flags |= RF_NO_FOGOFWAR | RF_NO_SHADOW | RF_PORTRAIT_LIGHTING;
-    viewdef.viewport = *viewport;
-
-    if (!R_GetModelCameraMatrix(mdx, entity.frame, aspect, &viewdef.viewProjectionMatrix, &root)) {
-        return;
+    FLOAT frame_ratio = R_UISequenceFrameRatio(anim);
+    DWORD seq_len = seq->interval[1] - seq->interval[0];
+    if (seq_len == 0) {
+        seq_len = 1;
     }
-
-    Matrix4_getLightMatrix(&lightAngles, &root, PORTRAIT_SHADOW_SIZE, &viewdef.lightMatrix);
-
-    R_Call(glActiveTexture, GL_TEXTURE2);
-    R_Call(glBindTexture, GL_TEXTURE_2D, tr.texture[TEX_WHITE]->texid);
-    R_Call(glActiveTexture, GL_TEXTURE0);
-
-    tr.viewDef = viewdef;
-
-#ifdef USE_SHADOWMAPS
-    R_RenderShadowMap();
-#endif
-    R_RenderView();
+    if (frame_ratio >= 0.0f) {
+        if (frame_ratio > 1.0f) {
+            frame_ratio = 1.0f;
+        }
+        entity->frame = seq->interval[0] + (DWORD)((FLOAT)(seq_len - 1) * frame_ratio);
+        if (entity->frame >= seq->interval[1]) {
+            entity->frame = seq->interval[1] - 1;
+        }
+    } else {
+        entity->frame = seq->interval[0] + (tr.viewDef.time % seq_len);
+    }
+    entity->oldframe = entity->frame;
+    return true;
 }
 
 void MDLX_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {

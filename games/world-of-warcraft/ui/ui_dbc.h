@@ -20,6 +20,7 @@ int UIWow_LuaGetFacialHairCustomization(lua_State *L);
 int UIWow_LuaGetCharacterCreateFacing(lua_State *L);
 int UIWow_LuaSetCharacterCreateFacing(lua_State *L);
 void UIWow_GetCharacterCreateModelPath(LPSTR out, size_t out_size);
+FLOAT UIWow_GetCharacterCreateFacing(void);
 int UIWow_LuaResetCharCustomize(lua_State *L);
 int UIWow_LuaGetRandomName(lua_State *L);
 int UIWow_LuaCreateCharacter(lua_State *L);

@@ -379,7 +379,8 @@ void MDLX_Init(void);
 void MDLX_Shutdown(void);
 void MDX_RenderModel(renderEntity_t const *entity, mdxModel_t const *model, LPCMATRIX4 model_matrix);
 bool MDLX_TraceModel(renderEntity_t const *ent, LPCLINE3 line);
-void MDLX_DrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim);
+bool MDLX_ExtractCamera(mdxModel_t const *model, DWORD frame, float aspect, LPMATRIX4 output, LPMATRIX4 light);
+bool MDLX_SetEntityAnimationFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity);
 void MDLX_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y);
 
 #endif
