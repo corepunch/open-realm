@@ -316,27 +316,21 @@ static void RStd_DrawLoadingIndicator(LPCRECT rect, DWORD time, COLOR32 color) {
     printf("\n");
 }
 
-static void RStd_DrawPortrait(LPCPORTRAITDEF params) {
-    printf("draw_portrait");
-    RStd_PrintName("model", RStd_HandleName((HANDLE)params->model));
-    RStd_PrintName("anim", params->anim);
-    RStd_PrintRect("viewport", params->viewport);
-    printf(" frame=%u has_fog=%d fog_color={%u,%u,%u,%u} fog_near=%.6f fog_far=%.6f\n",
-           params->frame,
-           params->fog.has_fog,
-           params->fog.fog_color.r,
-           params->fog.fog_color.g,
-           params->fog.fog_color.b,
-           params->fog.fog_color.a,
-           params->fog.fog_near,
-           params->fog.fog_far);
-}
-
 static void RStd_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
     printf("draw_sprite");
     RStd_PrintName("model", RStd_HandleName((HANDLE)model));
     RStd_PrintName("anim", anim);
     printf(" x=%.6f y=%.6f\n", x, y);
+}
+
+static bool RStd_SetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
+    (void)model;
+    (void)anim;
+    if (!entity) {
+        return false;
+    }
+    entity->frame = 0; entity->oldframe = 0;
+    return true;
 }
 
 static DWORD RStd_VisibleTextLength(LPCSTR text) {
@@ -474,8 +468,8 @@ refExport_t R_StdoutGetAPI(refImport_t imp) {
         .DrawImageEx = RStd_DrawImageEx,
         .DrawMinimap = RStd_DrawMinimap,
         .DrawLoadingIndicator = RStd_DrawLoadingIndicator,
-        .DrawPortrait = RStd_DrawPortrait,
         .DrawSprite = RStd_DrawSprite,
+        .SetEntityAnimFrame = RStd_SetEntityAnimFrame,
         .DrawText = RStd_DrawText,
         .GetTextSize = RStd_GetTextSize,
         .GetModelInfo = RStd_GetModelInfo,

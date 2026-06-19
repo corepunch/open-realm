@@ -416,16 +416,21 @@ static void SinglePlayer_SetCampaignBackdrop(singlePlayerCampaign_t const *campa
 static void SinglePlayer_DrawCampaignBackdrop(void) {
     LPRENDERER renderer = uiimport.GetRenderer ? uiimport.GetRenderer() : NULL;
     LPCMODEL model = UI_GetModel(campaign_background_model);
-    RECT viewport = { 0, 0, 1, 1 };
 
-    if (renderer && renderer->DrawPortrait && model) {
-        PORTRAITDEF p = {
-            .model = model,
-            .viewport = &viewport,
-            .anim = "Stand",
-            .frame = 0
-        };
-        renderer->DrawPortrait(&p);
+    if (renderer && renderer->RenderFrame && model) {
+        renderEntity_t entity = {0};
+        entity.model = model;
+        entity.scale = 1.0f;
+        entity.flags = RF_NO_SHADOW | RF_NO_FOGOFWAR | RF_PORTRAIT_LIGHTING;
+        renderer->SetEntityAnimFrame(model, "Stand", &entity);
+
+        viewDef_t viewdef = {0};
+        viewdef.viewport = (RECT){0, 0, 1, 1};
+        viewdef.rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL | RDF_NOFOG | RDF_USE_ENTITY_CAMERA;
+        viewdef.num_entities = 1;
+        viewdef.entities = &entity;
+
+        renderer->RenderFrame(&viewdef);
     }
 }
 

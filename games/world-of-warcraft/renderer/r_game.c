@@ -189,18 +189,25 @@ void R_GameRenderModel(renderEntity_t const *entity) {
     MATRIX4 transform;
     MATRIX4 attached_transform;
     renderEntity_t attached_entity;
+    DWORD attachment_id;
 
     if (!entity || !entity->model || entity->model->modeltype != ID_MD20) {
         return;
     }
     R_GetEntityMatrix(entity, &transform);
     M2_RenderModel(entity, entity->model->m2, &transform);
+    attachment_id = (tr.viewDef.rdflags & RDF_USE_ENTITY_CAMERA) ? 0 : 1;
     if (entity->attached_model &&
         entity->attached_model->modeltype == ID_MD20 &&
 #ifdef USE_SHADOWMAPS
         !is_rendering_lights &&
 #endif
-        M2_AttachmentMatrix(entity->model->m2, 1, &transform, &attached_transform)) {
+        M2_AttachmentMatrix(entity->model->m2, attachment_id, &transform, &attached_transform)) {
+        if (tr.viewDef.rdflags & RDF_USE_ENTITY_CAMERA) {
+            Matrix4_rotate(&attached_transform,
+                           &(VECTOR3){ 0.0f, 0.0f, entity->angle * 180.0f / (FLOAT)M_PI },
+                           ROTATE_XYZ);
+        }
         attached_entity = *entity;
         attached_entity.model = entity->attached_model;
         attached_entity.attached_model = NULL;
@@ -318,38 +325,29 @@ bool R_GameGetModelInfo(LPMODEL model, LPMODELINFO info) {
     return false;
 }
 
-void R_GameDrawPortrait(LPCPORTRAITDEF params) {
-    renderEntity_t entity;
-    MATRIX4 transform;
-    MATRIX4 proj_matrix;
-    MATRIX4 view_matrix;
-    viewDef_t saved_viewdef;
-    int saved_viewport[4];
+bool R_GameExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t *viewdef) {
     BOX3 const *bounds;
+    MATRIX4 transform;
     VECTOR3 center;
     VECTOR3 eye;
     VECTOR3 target;
     VECTOR3 dir;
+    VECTOR3 up;
+    VECTOR3 model_origin;
+    VECTOR3 model_z;
     float radius;
     float distance;
-    float aspect;
     float fov = 35.0f;
     float znear = 1.0f;
     float zfar = 4000.0f;
-    LPCMODEL model = params->model;
-    LPCRECT viewport = params->viewport;
 
-    (void)params;
-    (void)params->fog.has_fog;
-    (void)params->fog.fog_color;
-    (void)params->fog.fog_near;
-    (void)params->fog.fog_far;
-
-    if (!model || !model->m2 || !viewport) {
-        return;
+    if (!entity || !entity->model || entity->model->modeltype != ID_MD20 || !viewdef) {
+        return false;
     }
 
-    bounds = &model->m2->bounds;
+    m2Model_t const *m2 = entity->model->m2;
+    bounds = &m2->bounds;
+    R_GetEntityMatrix(entity, &transform);
 
     center = (VECTOR3){
         (bounds->max.x + bounds->min.x) * 0.5f,
@@ -365,64 +363,45 @@ void R_GameDrawPortrait(LPCPORTRAITDEF params) {
         radius = 32.0f;
     }
 
-    memset(&entity, 0, sizeof(entity));
-    entity.model = model;
-    entity.frame = params->frame;
-    entity.oldframe = 0;
-    entity.flags = RF_NO_SHADOW | RF_NO_FOGOFWAR | RF_NO_LIGHTING | RDF_NOFRUSTUMCULL;
-    entity.rotation = (VECTOR3){0, 0, 0};
-    entity.scale = 1.0f;
-    entity.origin = (VECTOR3){0, 0, 0};
-
-    if (M2_IsCharacterModel(model->m2)) {
-        entity.flags |= RF_GROUND_ANCHOR;
-        entity.angle = -(FLOAT)M_PI * 0.5f;
-        R_GetEntityMatrix(&entity, &transform);
-        center = Matrix4_multiply_vector3(&transform, &center);
-    } else {
-        Matrix4_identity(&transform);
-        Matrix4_translate(&transform, &entity.origin);
-        Matrix4_scale(&transform, &(VECTOR3){entity.scale, entity.scale, entity.scale});
+    if (!M2_CameraView(m2, 0, &eye, &target, &fov, &znear, &zfar)) {
+        distance = radius / tanf((fov * (FLOAT)M_PI / 180.0f) * 0.5f);
+        if (M2_IsCharacterModel(m2)) {
+            target = (VECTOR3){ center.x, center.y, center.z + radius * 0.28f };
+            eye = (VECTOR3){ target.x, target.y - distance * 0.52f, target.z + radius * 0.02f };
+            znear = MAX(0.1f, distance * 0.02f);
+        } else {
+            eye = (VECTOR3){ center.x, center.y - distance * 1.35f, center.z + radius * 0.25f };
+            target = center;
+        }
+        zfar = MAX(zfar, distance + radius * 4.0f);
     }
-
-    saved_viewdef = tr.viewDef;
-    glGetIntegerv(GL_VIEWPORT, saved_viewport);
-
-    glViewport((GLint)(viewport->x * tr.drawableSize.width),
-               (GLint)(viewport->y * tr.drawableSize.height),
-               (GLint)(viewport->w * tr.drawableSize.width),
-               (GLint)(viewport->h * tr.drawableSize.height));
-    R_Call(glClear, GL_DEPTH_BUFFER_BIT);
-
-    aspect = viewport->h > 0.0f ? viewport->w / viewport->h : 1.0f;
-    if (M2_IsCharacterModel(model->m2)) {
-        distance = radius / tanf((fov * (FLOAT)M_PI / 180.0f) * 0.5f);
-        target = (VECTOR3){ center.x, center.y, center.z + radius * 0.28f };
-        eye = (VECTOR3){ target.x, target.y - distance * 0.52f, target.z + radius * 0.02f };
-        znear = MAX(0.1f, distance * 0.02f);
-        zfar = MAX(zfar, distance + radius * 4.0f);
-    } else if (!M2_CameraView(model->m2, 0, &eye, &target, &fov, &znear, &zfar)) {
-        distance = radius / tanf((fov * (FLOAT)M_PI / 180.0f) * 0.5f);
-        eye = (VECTOR3){ center.x, center.y - distance * 1.35f, center.z + radius * 0.25f };
-        target = center;
-        zfar = MAX(zfar, distance + radius * 4.0f);
+    eye = Matrix4_multiply_vector3(&transform, &eye);
+    target = Matrix4_multiply_vector3(&transform, &target);
+    model_origin = Matrix4_multiply_vector3(&transform, &(VECTOR3){0, 0, 0});
+    model_z = Matrix4_multiply_vector3(&transform, &(VECTOR3){0, 0, 1});
+    up = Vector3_sub(&model_z, &model_origin);
+    if (Vector3_len(&up) <= 0.001f) {
+        up = (VECTOR3){ 0.0f, 0.0f, 1.0f };
     }
     dir = Vector3_sub(&target, &eye);
     if (Vector3_len(&dir) <= 0.001f) {
         dir = (VECTOR3){ 0.0f, 1.0f, 0.0f };
     }
+
+    MATRIX4 proj_matrix, view_matrix;
     Matrix4_perspective(&proj_matrix, fov, aspect, znear, zfar);
-    Matrix4_lookAt(&view_matrix, &eye, &dir, &(VECTOR3){0, 0, 1});
+    Matrix4_lookAt(&view_matrix, &eye, &dir, &up);
+    Matrix4_multiply(&proj_matrix, &view_matrix, &viewdef->viewProjectionMatrix);
+    Matrix4_identity(&viewdef->textureMatrix);
+    Matrix4_identity(&viewdef->lightMatrix);
+    return true;
+}
 
-    Matrix4_multiply(&proj_matrix, &view_matrix, &tr.viewDef.viewProjectionMatrix);
-    Frustum_Calculate(&tr.viewDef.viewProjectionMatrix, &tr.viewDef.frustum);
-    Matrix4_identity(&tr.viewDef.textureMatrix);
-    Matrix4_identity(&tr.viewDef.lightMatrix);
-
-    M2_RenderModel(&entity, model->m2, &transform);
-
-    tr.viewDef = saved_viewdef;
-    glViewport(saved_viewport[0], saved_viewport[1], saved_viewport[2], saved_viewport[3]);
+bool R_GameSetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
+    (void)model;
+    (void)anim;
+    (void)entity;
+    return false;
 }
 
 void R_GameDrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {

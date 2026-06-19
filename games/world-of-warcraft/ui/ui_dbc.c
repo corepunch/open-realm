@@ -452,6 +452,11 @@ void UIWow_GetCharacterCreateModelPath(LPSTR out, size_t out_size) {
     snprintf(out, out_size, "Character\\%s\\%s\\%s%s.m2", race, gender, race, gender);
 }
 
+FLOAT UIWow_GetCharacterCreateFacing(void) {
+    UIWow_LoadCharCreateDbc();
+    return wow_charcreate.facing;
+}
+
 int UIWow_LuaResetCharCustomize(lua_State *L) {
     (void)L;
     UIWow_LoadCharCreateDbc();
