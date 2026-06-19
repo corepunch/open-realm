@@ -58,7 +58,8 @@ static struct {
     /* character creation selection state */
     int   sel_race;   /* 0-based playable index */
     int   sel_sex;    /* 1 = male, 2 = female (Lua convention) */
-    int   sel_class;  /* 1-based class index */
+    int   sel_class;  /* class ID */
+    BYTE  skin, face, hair_style, hair_color, facial_hair;
     float facing;
     /* playable race list: indices into races[] in Alliance-first order */
     int   playable[WOW_MAX_DBC_RACES];
@@ -246,6 +247,33 @@ static LPCSTR UIWow_FactionNameForRace(int race_idx_1based, LPCSTR *internal_out
     return NULL;
 }
 
+static wowClassRec_t const *UIWow_ClassByID(int class_id) {
+    FOR_LOOP(i, wow_charcreate.num_classes)
+        if ((int)wow_charcreate.classes[i].id == class_id) return &wow_charcreate.classes[i];
+    return NULL;
+}
+
+static wowClassRec_t const *UIWow_ClassForRaceButton(int button_index) {
+    int pi = wow_charcreate.sel_race, count = 0;
+    if (button_index < 1 || pi < 0 || pi >= wow_charcreate.num_playable) return NULL;
+    int race_id = (int)wow_charcreate.races[wow_charcreate.playable[pi]].id;
+    FOR_LOOP(bi, wow_charcreate.num_base_info) {
+        if (wow_charcreate.base_info[bi].race_id != race_id) continue;
+        int class_id = wow_charcreate.base_info[bi].class_id;
+        FOR_LOOP(ci, wow_charcreate.num_classes) {
+            if ((int)wow_charcreate.classes[ci].id != class_id) continue;
+            if (++count == button_index) return &wow_charcreate.classes[ci];
+            break;
+        }
+    }
+    return NULL;
+}
+
+static void UIWow_SelectFirstClassForRace(void) {
+    wowClassRec_t const *c = UIWow_ClassForRaceButton(1);
+    if (c) wow_charcreate.sel_class = (int)c->id;
+}
+
 /* -------------------------------------------------------------------------
  * Lua bindings
  * ---------------------------------------------------------------------- */
@@ -352,7 +380,7 @@ int UIWow_LuaGetSelectedSex(lua_State *L) {
 
 int UIWow_LuaGetSelectedClass(lua_State *L) {
     UIWow_LoadCharCreateDbc();
-    int ci = wow_charcreate.sel_class - 1;
+    wowClassRec_t const *c = UIWow_ClassByID(wow_charcreate.sel_class);
     if (!wow_charcreate.num_classes) {
         lua_pushstring(L, BZ_WOW_CHARCREATE_FALLBACK_CLASS_NAME);
         lua_pushstring(L, BZ_WOW_CHARCREATE_FALLBACK_CLASS_FILE);
@@ -360,11 +388,10 @@ int UIWow_LuaGetSelectedClass(lua_State *L) {
         lua_pushboolean(L, 0); lua_pushboolean(L, 0); lua_pushboolean(L, 1);
         return 6;
     }
-    if (ci < 0 || ci >= wow_charcreate.num_classes) return 0;
-    wowClassRec_t const *c = &wow_charcreate.classes[ci];
+    if (!c) return 0;
     lua_pushstring(L, c->name[0] ? c->name : c->filename);
     lua_pushstring(L, c->filename);
-    lua_pushnumber(L, wow_charcreate.sel_class);
+    lua_pushnumber(L, c->id);
     lua_pushboolean(L, 0); /* tank */
     lua_pushboolean(L, 0); /* healer */
     lua_pushboolean(L, 1); /* damage */
@@ -378,6 +405,7 @@ BOOL UIWow_SetSelectedRace(int race_index) {
     if (v < 0 || v >= wow_charcreate.num_playable || v == wow_charcreate.sel_race)
         return false;
     wow_charcreate.sel_race = v;
+    UIWow_SelectFirstClassForRace();
     return true;
 }
 
@@ -399,10 +427,19 @@ int UIWow_LuaSetSelectedSex(lua_State *L) {
     return 0;
 }
 
-int UIWow_LuaSetSelectedClass(lua_State *L) {
+BOOL UIWow_SetSelectedClass(int class_index) {
     UIWow_LoadCharCreateDbc();
-    int v = (int)luaL_checknumber(L, 1);
-    if (v >= 1 && v <= wow_charcreate.num_classes) wow_charcreate.sel_class = v;
+    wowClassRec_t const *c = UIWow_ClassForRaceButton(class_index);
+    if (!c && class_index >= 1 && class_index <= wow_charcreate.num_classes)
+        c = &wow_charcreate.classes[class_index - 1];
+    if (!c || (int)c->id == wow_charcreate.sel_class)
+        return false;
+    wow_charcreate.sel_class = (int)c->id;
+    return true;
+}
+
+int UIWow_LuaSetSelectedClass(lua_State *L) {
+    UIWow_SetSelectedClass((int)luaL_checknumber(L, 1));
     return 0;
 }
 
@@ -467,6 +504,17 @@ void UIWow_GetCharacterCreateModelPath(LPSTR out, size_t out_size) {
     snprintf(out, out_size, "Character\\%s\\%s\\%s%s.m2", race, gender, race, gender);
 }
 
+DWORD UIWow_GetCharacterCreateAppearance(void) {
+    UIWow_LoadCharCreateDbc();
+    return Wow_PackAppearance(wow_charcreate.skin,
+                              wow_charcreate.face,
+                              wow_charcreate.hair_style,
+                              wow_charcreate.hair_color,
+                              wow_charcreate.facial_hair,
+                              (BYTE)wow_charcreate.sel_class,
+                              0);
+}
+
 FLOAT UIWow_GetCharacterCreateFacing(void) {
     UIWow_LoadCharCreateDbc();
     return wow_charcreate.facing;
@@ -478,6 +526,36 @@ int UIWow_LuaResetCharCustomize(lua_State *L) {
     wow_charcreate.sel_race  = 0;
     wow_charcreate.sel_sex   = 1;
     wow_charcreate.sel_class = 1;
+    wow_charcreate.skin = wow_charcreate.face = wow_charcreate.hair_style = 0;
+    wow_charcreate.hair_color = wow_charcreate.facial_hair = 0;
+    return 0;
+}
+
+int UIWow_LuaCycleCharCustomization(lua_State *L) {
+    BYTE *field = NULL;
+    int id = (int)luaL_checknumber(L, 1), delta = (int)luaL_checknumber(L, 2);
+
+    UIWow_LoadCharCreateDbc();
+    switch (id) {
+        case 1: field = &wow_charcreate.skin; break;
+        case 2: field = &wow_charcreate.face; break;
+        case 3: field = &wow_charcreate.hair_style; break;
+        case 4: field = &wow_charcreate.hair_color; break;
+        case 5: field = &wow_charcreate.facial_hair; break;
+        default: return 0;
+    }
+    *field = (BYTE)((*field + (delta < 0 ? 4 : 1)) % 5);
+    return 0;
+}
+
+int UIWow_LuaRandomizeCharCustomization(lua_State *L) {
+    (void)L;
+    UIWow_LoadCharCreateDbc();
+    wow_charcreate.skin = (wow_charcreate.skin + 1) % 5;
+    wow_charcreate.face = (wow_charcreate.face + 2) % 5;
+    wow_charcreate.hair_style = (wow_charcreate.hair_style + 3) % 5;
+    wow_charcreate.hair_color = (wow_charcreate.hair_color + 4) % 5;
+    wow_charcreate.facial_hair = (wow_charcreate.facial_hair + 1) % 5;
     return 0;
 }
 

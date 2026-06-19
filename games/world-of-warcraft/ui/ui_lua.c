@@ -540,6 +540,11 @@ static int UIWow_LuaSetSelectedSexChanged(lua_State *L) {
     return 0;
 }
 
+static int UIWow_LuaSetSelectedClassChanged(lua_State *L) {
+    UIWow_SetSelectedClass((int)luaL_checknumber(L, 1));
+    return 0;
+}
+
 static luaL_Reg const wow_lua_funcs[] = {
     { "draw_loading_background", UIWow_LuaDrawLoadingBackground },
     { "draw_image",          UIWow_LuaDrawImage },
@@ -610,15 +615,15 @@ static luaL_Reg const wow_global_funcs[] = {
     { "GetSelectedClass",         UIWow_LuaGetSelectedClass },
     { "SetSelectedRace",          UIWow_LuaSetSelectedRaceChanged },
     { "SetSelectedSex",           UIWow_LuaSetSelectedSexChanged },
-    { "SetSelectedClass",         UIWow_LuaSetSelectedClass },
+    { "SetSelectedClass",         UIWow_LuaSetSelectedClassChanged },
     { "IsRaceClassValid",         UIWow_LuaIsRaceClassValid },
     { "IsRaceClassRestricted",    UIWow_LuaNoop },
     { "GetHairCustomization",     UIWow_LuaGetHairCustomization },
     { "GetFacialHairCustomization", UIWow_LuaGetFacialHairCustomization },
     { "GetCharacterCreateFacing", UIWow_LuaGetCharacterCreateFacing },
     { "SetCharacterCreateFacing", UIWow_LuaSetCharacterCreateFacing },
-    { "CycleCharCustomization",   UIWow_LuaNoop },
-    { "RandomizeCharCustomization", UIWow_LuaNoop },
+    { "CycleCharCustomization",   UIWow_LuaCycleCharCustomization },
+    { "RandomizeCharCustomization", UIWow_LuaRandomizeCharCustomization },
     { "GetRandomName",            UIWow_LuaGetRandomName },
     { "CreateCharacter",          UIWow_LuaCreateCharacter },
     { "UpdateCustomizationBackground", UIWow_LuaNoop },
