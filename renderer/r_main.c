@@ -507,7 +507,9 @@ void R_RenderView(void) {
         R_DrawParticles();
     }
     R_RevertSettings();
-    
+
+    R_DrawHealthBars();
+
 //    extern LPCTEXTURE dds;
 //    R_DrawPic(dds, 0, 0);
 }

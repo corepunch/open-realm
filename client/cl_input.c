@@ -12,7 +12,7 @@
 mouseEvent_t mouse;
 static keyCode_t mouse_button_keys[8];
 
-static BOOL CL_AltModifierDown(void) {
+BOOL CL_AltModifierDown(void) {
     SDL_Keymod const mod = SDL_GetModState();
     return (mod & (KMOD_LALT | KMOD_RALT)) != 0;
 }

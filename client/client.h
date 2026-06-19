@@ -130,6 +130,7 @@ void CL_SetGameplayBindings(void);
 void CL_BeginLoadingMap(LPCSTR mapName);
 void CL_LoadingUpdate(LPCSTR status, FLOAT progress);
 void CL_RequestUnitUI(DWORD num_selected, DWORD *entity_nums);
+BOOL CL_AltModifierDown(void);
 
 void V_RenderView(void);
 void V_Shutdown(void);

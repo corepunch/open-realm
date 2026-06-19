@@ -295,6 +295,8 @@ static void V_AddClientEntity(centity_t const *ent) {
     }
     re.radius = ent->current.radius;
     re.number = ent->current.number;
+    re.health = ent->current.stats[ENT_HEALTH];
+    re.mana   = ent->current.stats[ENT_MANA];
     re.splat = cl.pics[ent->current.splat & 0xffff];
     re.splatsize = ent->current.splat >> 16;
     re.shadow = cl.pics[ent->current.shadow];
@@ -747,6 +749,9 @@ void V_RenderView(void) {
     cl.viewDef.time = cl.time;
     cl.viewDef.deltaTime = cl.time - lastTime;
     cl.viewDef.rdflags = cl.playerstate.rdflags;
+    if (CL_AltModifierDown()) {
+        cl.viewDef.rdflags |= RDF_SHOW_ALL_HEALTHBARS; /* ALT: bars on every unit */
+    }
     cl.viewDef.player = cl.playerstate.number;
     
     Matrix4_getCameraMatrix(&cl.viewDef.viewProjectionMatrix);

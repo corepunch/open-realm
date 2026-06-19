@@ -146,6 +146,7 @@ enum {
     FLAG(RDF_NOWORLDMODEL, 2),
     FLAG(RDF_NOFRUSTUMCULL, 3),
     FLAG(RDF_NOPARTICLES, 4),
+    FLAG(RDF_SHOW_ALL_HEALTHBARS, 5), /* ALT held: overhead bars on every unit */
 };
 
 #define MAX_COMMANDS 12

@@ -84,12 +84,17 @@ LPCSTR S_SpellString(DWORD code, LPCSTR field, DWORD level) {
     return value;
 }
 
+/* Ability "Data" columns in AbilityData.slk are named Data<Letter><Level> —
+ * e.g. DataA1, DataB1 … DataE3 — where the letter (A=1 … I=9) selects the
+ * parameter and the trailing digit the ability level.  (Non-Data fields such as
+ * Cool/Cost/Rng have no letter dimension, so S_SpellNumber appends just the
+ * level.)  index is 1-based: 1=DataA, 5=DataE, etc. */
 FLOAT S_SpellData(DWORD code, DWORD level, DWORD index) {
     char field[16];
 
-    level = MAX(1, MIN(level, 3));
-    index = MAX(1, MIN(index, 4));
-    snprintf(field, sizeof(field), "Data%u%u", (unsigned)level, (unsigned)index);
+    level = MAX(1, MIN(level, 4));
+    index = MAX(1, MIN(index, 9));
+    snprintf(field, sizeof(field), "Data%c%u", 'A' + (int)(index - 1), (unsigned)level);
     return S_SpellNumber(code, field, 0);
 }
 
@@ -126,6 +131,30 @@ BOOL S_SpellCooldownReady(LPEDICT caster, DWORD code) {
         }
     }
     return true;
+}
+
+/* Fraction of an ability's cooldown still remaining for this caster: ~1.0 just
+ * after it was used, decaying to 0.0 when it becomes ready again.  Returns 0 if
+ * the ability is off cooldown or has none.  Drives the command-card cooldown
+ * shade (the darkened icon while an ability recharges). */
+FLOAT S_SpellCooldownFraction(LPEDICT caster, DWORD code, DWORD level) {
+    DWORD now;
+
+    if (!caster) {
+        return 0.0f;
+    }
+    now = gi.GetTime();
+    FOR_LOOP(i, MAX_UNIT_STATUSES) {
+        heroabilitystatus_t const *status = caster->abilstatus + i;
+        if (status->level && status->code == code && status->timestamp > now) {
+            FLOAT const total = S_SpellNumber(code, "Cool", level ? level : status->level);
+            if (total <= 0.0f) {
+                return 0.0f;
+            }
+            return MIN(1.0f, (FLOAT)(status->timestamp - now) / (total * 1000.0f));
+        }
+    }
+    return 0.0f;
 }
 
 void S_SpellStartCooldown(LPEDICT caster, DWORD code, DWORD level) {

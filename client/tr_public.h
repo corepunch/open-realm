@@ -118,6 +118,8 @@ typedef struct {
     float shadow_y;
     float shadow_w;
     float shadow_h;
+    BYTE health;   /* current HP fraction, 0-255 (0 = dead/no bar) */
+    BYTE mana;     /* current mana fraction, 0-255 (0 = no mana bar) */
 } renderEntity_t;
 
 typedef struct {
