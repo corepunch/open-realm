@@ -66,6 +66,22 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 - Inline pointer-through-cast writes where the intent is clear:
   `*((struct Object **)lua_getextraspace(L)) = self;`
 
+## WinAPI-style Typedefs for Structs
+- Struct names are ALL CAPS, short, and descriptive (e.g., `PORTRAITFOG`, `PORTRAITDEF`). No `_t` suffix.
+- Use WinAPI-style `LP`/`LPC` typedefs for struct pointer types (e.g., `LPCPORTRAITDEF`, `LPRECT`).
+- `LP` = long pointer (non-const), `LPC` = long pointer to const.
+- Define both in `tr_public.h` alongside the struct, using separate `typedef` lines so `LPC` is `const struct *`:
+  ```c
+  typedef struct _PORTRAITFOG {
+      BOOL has_fog;
+      COLOR32 fog_color;
+      FLOAT fog_near;
+      FLOAT fog_far;
+  } PORTRAITFOG, *PPORTRAITFOG;
+  typedef PORTRAITFOG const *LPCPORTRAITFOG;
+  ```
+- Use these typedefs in function signatures and call sites rather than bare `struct foo *`.
+
 ## What to avoid
 - Do not introduce helper variables just to name an intermediate result if the
   expression is already readable inline.

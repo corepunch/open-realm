@@ -591,8 +591,8 @@ bool R_GetModelInfo(LPMODEL model, LPMODELINFO info) {
     return R_GameGetModelInfo(model, info);
 }
 
-void R_DrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim) {
-    R_GameDrawPortrait(model, viewport, anim);
+void R_DrawPortrait(LPCPORTRAITDEF params) {
+    R_GameDrawPortrait(params);
 }
 
 void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {

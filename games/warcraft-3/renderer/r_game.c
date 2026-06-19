@@ -284,8 +284,12 @@ bool R_GameGetModelInfo(LPMODEL model, LPMODELINFO info) {
     return true;
 }
 
-void R_GameDrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim) {
-    MDLX_DrawPortrait(model, viewport, anim);
+void R_GameDrawPortrait(LPCPORTRAITDEF params) {
+    (void)params->fog.has_fog;
+    (void)params->fog.fog_color;
+    (void)params->fog.fog_near;
+    (void)params->fog.fog_far;
+    MDLX_DrawPortrait(params->model, params->viewport, params->anim);
 }
 
 void R_GameDrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {

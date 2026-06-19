@@ -317,7 +317,7 @@ bool R_GameGetModelInfo(LPMODEL model, LPMODELINFO info) {
     return false;
 }
 
-void R_GameDrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim) {
+void R_GameDrawPortrait(LPCPORTRAITDEF params) {
     renderEntity_t entity;
     MATRIX4 transform;
     MATRIX4 proj_matrix;
@@ -335,8 +335,14 @@ void R_GameDrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim) {
     float fov = 35.0f;
     float znear = 1.0f;
     float zfar = 4000.0f;
+    LPCMODEL model = params->model;
+    LPCRECT viewport = params->viewport;
 
-    (void)anim;
+    (void)params;
+    (void)params->fog.has_fog;
+    (void)params->fog.fog_color;
+    (void)params->fog.fog_near;
+    (void)params->fog.fog_far;
 
     if (!model || !model->m2 || !viewport) {
         return;
@@ -360,7 +366,7 @@ void R_GameDrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim) {
 
     memset(&entity, 0, sizeof(entity));
     entity.model = model;
-    entity.frame = 0;
+    entity.frame = params->frame;
     entity.oldframe = 0;
     entity.flags = RF_NO_SHADOW | RF_NO_FOGOFWAR | RF_NO_LIGHTING | RDF_NOFRUSTUMCULL;
     entity.rotation = (VECTOR3){0, 0, 0};

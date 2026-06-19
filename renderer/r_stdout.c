@@ -316,12 +316,20 @@ static void RStd_DrawLoadingIndicator(LPCRECT rect, DWORD time, COLOR32 color) {
     printf("\n");
 }
 
-static void RStd_DrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim) {
+static void RStd_DrawPortrait(LPCPORTRAITDEF params) {
     printf("draw_portrait");
-    RStd_PrintName("model", RStd_HandleName((HANDLE)model));
-    RStd_PrintName("anim", anim);
-    RStd_PrintRect("viewport", viewport);
-    printf("\n");
+    RStd_PrintName("model", RStd_HandleName((HANDLE)params->model));
+    RStd_PrintName("anim", params->anim);
+    RStd_PrintRect("viewport", params->viewport);
+    printf(" frame=%u has_fog=%d fog_color={%u,%u,%u,%u} fog_near=%.6f fog_far=%.6f\n",
+           params->frame,
+           params->fog.has_fog,
+           params->fog.fog_color.r,
+           params->fog.fog_color.g,
+           params->fog.fog_color.b,
+           params->fog.fog_color.a,
+           params->fog.fog_near,
+           params->fog.fog_far);
 }
 
 static void RStd_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
