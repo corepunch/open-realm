@@ -217,6 +217,7 @@ void UI_InitFrame(LPFRAMEDEF frame, FRAMETYPE type) {
     frame->base.type = type;
     frame->base.color = COLOR32_WHITE;
     frame->base.parent_index = (DWORD)-1;
+    frame->base.on_draw = UI_GenericOnDraw;
     frame->base.size.width = 0;
     frame->base.size.height = 0;
     frame->base.text = frame->TextStorage;

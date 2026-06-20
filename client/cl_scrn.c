@@ -50,7 +50,7 @@ void SCR_UpdateScreen(DWORD msec) {
         DWORD nf = ui.GetNumFrames();
         for (DWORD i = 0; i < nf; i++) {
             LPUIBASEFRAME f = (LPUIBASEFRAME)((char *)ui.frames + i * ui.frame_size);
-            if (!f || (f->ui_flags & UIFLAG_HIDDEN) || f->hidden) continue;
+            if (!f || f->hidden || (f->ui_flags & UIFLAG_HIDDEN)) continue;
             if (f->parent_index != (DWORD)-1) continue;
             if (f->on_draw) f->on_draw(f, &f->screen_rect);
         }

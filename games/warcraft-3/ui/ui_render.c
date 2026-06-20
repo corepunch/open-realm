@@ -349,7 +349,9 @@ static LPCRECT UI_LayoutRect(LPCFRAMEDEF frame) {
                  * baked into the model and intentionally omit Width/Height.
                  */
                 break;
-            default:
+        default:
+            ((LPFRAMEDEF)frame)->base.on_draw = UI_GenericOnDraw;
+            break;
                 /* Default size if not specified */
                 if (intrinsic_w == 0) intrinsic_w = 0.1f;
                 if (intrinsic_h == 0) intrinsic_h = 0.1f;
@@ -472,6 +474,12 @@ static void UI_DrawHighlightFrame(LPCFRAMEDEF frame, LPCRECT rect);
 #include "controls/ui_control_editbox.h"
 #include "controls/ui_control_map_list.h"
 #include "controls/ui_control_slider.h"
+
+/* Generic on_draw for frames without specific handlers — calls UI_DrawFrameOne */
+void UI_GenericOnDraw(struct uiBaseFrame_s *base, LPCRECT rect) {
+    (void)rect;
+    UI_DrawFrameOne((LPFRAMEDEF)base);
+}
 
 /* ========================================================================
  * PER-TYPE EVENT HANDLERS — called from UI_MouseEventLocal

@@ -37,23 +37,6 @@ static BOOL CL_LayoutShouldSkipLayoutLayer(DWORD layer) {
     return (state == CLIENT_UI_CINEMATIC || state == CLIENT_UI_LOADING) && layer > 0;
 }
 
-/* Format onclick command with {param} interpolation */
-static void CL_LayoutFormatOnClickCommand(LPCSTR source, LPSTR dest, DWORD dest_size) {
-    DWORD out = 0;
-    if (!dest || dest_size == 0) return;
-    dest[0] = '\0';
-    if (!source) return;
-    for (DWORD i = 0; source[i] && out + 1 < dest_size; i++) {
-        if (source[i] == '{' && source[i + 1] == 'p' && source[i + 2] == 'a' &&
-            source[i + 3] == 'r' && source[i + 4] == 'a' && source[i + 5] == 'm' &&
-            source[i + 6] == '}') {
-            dest[out++] = '%'; dest[out++] = 'u'; i += 6;
-        } else {
-            dest[out++] = source[i];
-        }
-    }
-    dest[out] = '\0';
-}
 
 static LPCSTR CL_LayoutStringValue(LPCUIFRAME frame) {
     if (frame->stat >= MAX_STATS) {
@@ -88,15 +71,6 @@ static LPCTEXTURE CL_LayoutGetDynamicTexture(LPCSTR name) {
     return NULL;
 }
 
-/* Selected entity for command button glow */
-static LPCENTITYSTATE CL_LayoutSelectedEntity(void) {
-    FOR_LOOP(i, cl.num_entities) {
-        if (cl.ents[i].current.flags & RF_SELECTED) {
-            return &cl.ents[i].current;
-        }
-    }
-    return NULL;
-}
 
 /* Backdrop drawing (background + 8-piece border) */
 static RECT CL_GetUVRect(BYTE const *coord) {
