@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #include "common.h"
 #include "games/starcraft-2/common/sc2_map.h"
@@ -12,6 +13,9 @@
 #ifndef TEST_SC2_MPQ
 #define TEST_SC2_MPQ "build/tests/test-sc2.SC2Maps"
 #endif
+
+#define TEST_SC2_SRC_DIR "games/starcraft-2/tests/resources-src"
+#define TEST_SC2_TINY_DIR TEST_SC2_SRC_DIR "/Maps/Test/Tiny.SC2Map"
 
 static BOOL sc2_tests_initialized;
 static DWORD listed_count;
@@ -60,13 +64,84 @@ static void setup_sc2_tests(void) {
     LPCSTR argv[] = { "test_sc2", "-config", "" };
     Com_Init(3, argv);
     ASSERT(FS_AddArchive(TEST_SC2_MPQ) != NULL);
+    sc2_tests_initialized = true;
+}
+
+static void use_sc2_fs_host(void) {
     SC2_MapSetHost(&(sc2MapHost_t){
         .read_file = FS_ReadFile,
         .free_file = FS_FreeFile,
         .mem_alloc = MemAlloc,
         .mem_free = MemFree,
     });
-    sc2_tests_initialized = true;
+}
+
+static HANDLE read_test_disk_path(LPCSTR filename, LPDWORD size) {
+    FILE *file;
+    long file_size;
+    LPBYTE data;
+    struct stat st;
+
+    if (size) *size = 0;
+    if (!filename || !*filename)
+        return NULL;
+    if (stat(filename, &st) != 0 || !S_ISREG(st.st_mode))
+        return NULL;
+    file = fopen(filename, "rb");
+    if (!file)
+        return NULL;
+    if (fseek(file, 0, SEEK_END) != 0 || (file_size = ftell(file)) < 0 || fseek(file, 0, SEEK_SET) != 0) {
+        fclose(file);
+        return NULL;
+    }
+    data = MemAlloc(file_size ? file_size : 1);
+    if (!data) {
+        fclose(file);
+        return NULL;
+    }
+    if (file_size > 0 && fread(data, 1, file_size, file) != (size_t)file_size) {
+        MemFree(data);
+        fclose(file);
+        return NULL;
+    }
+    fclose(file);
+    if (size) *size = (DWORD)file_size;
+    return data;
+}
+
+static void normalize_disk_path(LPSTR path) {
+    if (!path) return;
+    for (LPSTR p = path; *p; p++) {
+        if (*p == '\\') *p = '/';
+    }
+}
+
+static HANDLE read_test_disk_file(LPCSTR filename, LPDWORD size) {
+    char path[MAX_PATHLEN * 2];
+    HANDLE data;
+
+    data = read_test_disk_path(filename, size);
+    if (data)
+        return data;
+
+    snprintf(path, sizeof(path), "%s", filename ? filename : "");
+    normalize_disk_path(path);
+    data = read_test_disk_path(path, size);
+    if (data)
+        return data;
+
+    snprintf(path, sizeof(path), "%s/%s", TEST_SC2_SRC_DIR, filename ? filename : "");
+    normalize_disk_path(path);
+    return read_test_disk_path(path, size);
+}
+
+static void use_sc2_disk_host(void) {
+    SC2_MapSetHost(&(sc2MapHost_t){
+        .read_file = read_test_disk_file,
+        .free_file = MemFree,
+        .mem_alloc = MemAlloc,
+        .mem_free = MemFree,
+    });
 }
 
 static void collect_map(LPCSTR path, void *userData) {
@@ -79,6 +154,7 @@ static void collect_map(LPCSTR path, void *userData) {
 
 static void test_sc2_fixture_archive_lists_map_root(void) {
     setup_sc2_tests();
+    use_sc2_fs_host();
     listed_count = 0;
     listed_map[0] = '\0';
 
@@ -91,6 +167,7 @@ static void test_sc2_fixture_short_name_resolves(void) {
     PATHSTR path;
 
     setup_sc2_tests();
+    use_sc2_fs_host();
     ASSERT_EQ_INT(FS_ResolveMapPath("Tiny", path, sizeof(path)), FS_MAP_RESOLVE_OK);
     ASSERT_STR_EQ(path, "Maps\\Test\\Tiny.SC2Map");
 }
@@ -99,6 +176,7 @@ static void test_sc2_map_loads_xml_objects_and_terrain(void) {
     sc2Map_t *map;
 
     setup_sc2_tests();
+    use_sc2_fs_host();
     ASSERT(SC2_MapLoad("Maps\\Test\\Tiny.SC2Map"));
     map = SC2_MapCurrent();
 
@@ -199,6 +277,7 @@ static void test_sc2_map_loads_binary_terrain_layers(void) {
     sc2Map_t *map;
 
     setup_sc2_tests();
+    use_sc2_fs_host();
     ASSERT(SC2_MapLoad("Maps\\Test\\Tiny.SC2Map"));
     map = SC2_MapCurrent();
 
@@ -261,11 +340,62 @@ static void test_sc2_map_loads_binary_terrain_layers(void) {
     }
 }
 
+static void test_sc2_map_loads_directory_fixture_without_generated_layers(void) {
+    sc2Map_t *map;
+
+    setup_sc2_tests();
+    use_sc2_disk_host();
+    ASSERT(SC2_MapLoad(TEST_SC2_TINY_DIR));
+    map = SC2_MapCurrent();
+
+    ASSERT_STR_EQ(map->map_name, "SC2 Tiny Fixture");
+    ASSERT_EQ_INT(map->MapInfo.fourcc, MAKEFOURCC('M','a','p','I'));
+    ASSERT_EQ_INT(map->MapInfo.width, 8);
+    ASSERT_EQ_INT(map->MapInfo.height, 6);
+    ASSERT_EQ_INT(map->num_objects, 5);
+
+    ASSERT_STR_EQ(map->objects[0].name, "StartGame02");
+    ASSERT_EQ_INT(map->objects[0].type, SC2_OBJECT_CAMERA);
+    ASSERT_EQ_FLOAT(map->objects[0].camera.distance, 34.0f, 0.001f);
+    ASSERT_STR_EQ(map->objects[1].name, "Marine");
+    ASSERT_EQ_INT(map->objects[1].type, SC2_OBJECT_UNIT);
+    ASSERT_STR_EQ(map->objects[1].model, "Assets\\Units\\Terran\\Marine\\Marine.m3");
+    ASSERT_EQ_FLOAT(map->objects[1].position.x, 3.5f, 0.001f);
+    ASSERT_EQ_INT(map->objects[1].player, 2);
+    ASSERT_STR_EQ(map->objects[4].name, "MineralField");
+    ASSERT_EQ_INT(map->objects[4].type, SC2_OBJECT_DOODAD);
+    ASSERT_STR_EQ(map->objects[4].model, "Assets\\Doodads\\Terran\\MineralField\\MineralField.m3");
+
+    ASSERT_STR_EQ(map->t3Terrain.tile_set, "Fixture");
+    ASSERT_EQ_FLOAT(map->t3Terrain.height_quantize_scale, 1.0f, 0.001f);
+    ASSERT_EQ_INT(map->t3Terrain.num_terrain_textures, 2);
+    ASSERT_STR_EQ(map->t3Terrain.terrain_textures[0].diffuse, "Assets\\Textures\\Terrain\\FixtureGrass_Diffuse.dds");
+    ASSERT_EQ_INT(map->t3Terrain.num_cliff_sets, 1);
+    ASSERT_STR_EQ(map->t3Terrain.cliff_sets[0].name, "FixtureCliff0");
+    ASSERT_STR_EQ(map->t3Terrain.cliff_sets[0].mesh, "CliffNatural0");
+    ASSERT_EQ_INT(map->t3Terrain.num_cliff_cells, 2);
+    ASSERT_EQ_INT(map->t3Terrain.cliff_cells[0].variant, 2);
+    ASSERT_EQ_INT(map->lighting.enabled, true);
+    ASSERT_STR_EQ(map->lighting.id, "Fixture");
+    ASSERT_EQ_FLOAT(map->lighting.directional[SC2_LIGHT_KEY].color_multiplier, 2.0f, 0.001f);
+
+    ASSERT_NULL(map->t3CellFlags);
+    ASSERT_NULL(map->t3SyncCliffLevel);
+    ASSERT_NULL(map->t3HeightMap);
+    ASSERT_NULL(map->t3SyncHeightMap);
+    ASSERT_NULL(map->t3TextureMasks);
+    ASSERT_EQ_INT(map->t3TextureMasksSize, 0);
+
+    SC2_MapShutdown();
+    use_sc2_fs_host();
+}
+
 void run_sc2_map_tests(void) {
     RUN_TEST(test_sc2_fixture_archive_lists_map_root);
     RUN_TEST(test_sc2_fixture_short_name_resolves);
     RUN_TEST(test_sc2_map_loads_xml_objects_and_terrain);
     RUN_TEST(test_sc2_map_loads_binary_terrain_layers);
+    RUN_TEST(test_sc2_map_loads_directory_fixture_without_generated_layers);
     SC2_MapShutdown();
     FS_Shutdown();
 }
