@@ -194,7 +194,7 @@ static void UI_DrawMenu(LPCFRAMEDEF frame, LPCRECT rect) {
     DWORD max_scroll;
     RECT clip;
 
-    UI_DrawBackdropWithColor(backdrop, rect, frame->Color);
+    UI_DrawBackdropWithColor(backdrop, rect, frame->base.color);
     if (!renderer || !renderer->LoadFont || !renderer->DrawText) {
         return;
     }

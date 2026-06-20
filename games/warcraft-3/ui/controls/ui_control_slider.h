@@ -88,7 +88,7 @@ static void UI_DrawSlider(LPCFRAMEDEF frame, LPCRECT rect) {
 
     if (frame->Control.Backdrop.Normal[0]) {
         backdrop = UI_FindFrameNear(frame, frame->Control.Backdrop.Normal);
-        UI_DrawBackdropWithColor(backdrop, rect, frame->Color);
+        UI_DrawBackdropWithColor(backdrop, rect, frame->base.color);
     }
 
     thumb = UI_FindFrameNear(frame, frame->Slider.ThumbButtonFrame);
@@ -99,7 +99,7 @@ static void UI_DrawSlider(LPCFRAMEDEF frame, LPCRECT rect) {
         if (!thumb_backdrop) {
             thumb_backdrop = UI_ButtonBackdrop(thumb, &thumb_rect);
         }
-        UI_DrawBackdropWithColor(thumb_backdrop, &thumb_rect, thumb->Color);
+        UI_DrawBackdropWithColor(thumb_backdrop, &thumb_rect, thumb->base.color);
         UI_DrawTexture(thumb, &thumb_rect);
     }
 }

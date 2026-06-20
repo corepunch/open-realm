@@ -215,7 +215,7 @@ void UI_InitFrame(LPFRAMEDEF frame, FRAMETYPE type) {
     memset(frame, 0, sizeof(FRAMEDEF));
     frame->inuse = true;
     frame->Type = type;
-    frame->Color = COLOR32_WHITE;
+    frame->base.color = COLOR32_WHITE;
     frame->Text = frame->TextStorage;
     switch (type) {
         case FT_TEXTURE:

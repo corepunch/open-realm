@@ -98,7 +98,7 @@ static void UI_DialogWar3UseDialogBackdrop(uiDialogWar3_t *dialog) {
 
     if (!source || !dest) return;
     dest->Backdrop = source->Backdrop;
-    dest->Color = source->Color;
+    dest->base.color = source->base.color;
     dest->AlphaMode = source->AlphaMode;
     dest->DecorateFileNames = source->DecorateFileNames;
     dialog->frame->DialogBackdrop = dest;

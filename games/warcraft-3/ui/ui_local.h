@@ -139,7 +139,6 @@ struct uiFrameDef_s {
     UINAME OnClick;
     LPCSTR Text, Tip, Ubertip;     /* TODO: Text → base.text */
     FLOAT Width, Height;           /* TODO: migrate to base.size */
-    COLOR32 Color;                 /* TODO: migrate to base.color */
     BLEND_MODE AlphaMode;
     BOOL DecorateFileNames;
     BOOL inuse;
