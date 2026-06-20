@@ -33,6 +33,8 @@ typedef enum {
     UI_CLIENT_MOUSE_RIGHT_DOWN,
     UI_CLIENT_MOUSE_RIGHT_UP,
     UI_CLIENT_MOUSE_RIGHT_DRAGGED,
+    UI_CLIENT_MOUSE_WHEEL_UP,
+    UI_CLIENT_MOUSE_WHEEL_DOWN,
 } uiClientMouseEvent_t;
 
 typedef struct {
@@ -156,8 +158,10 @@ typedef struct {
     LPCTEXTURE *(*GetTextures)(void);           /* cl.pics, for inline text icons */
     LPCFONT (*GetFont)(DWORD idx);              /* cl.fonts[idx] */
     DWORD (*GetClientTime)(void);               /* cl.time */
-    VECTOR2 (*GetMouseFdf)(void);               /* current mouse in Warcraft UI coords */
+    VECTOR2 (*GetMouseFdf)(void);               /* current mouse in FDF/UI coords */
+    VECTOR2 (*GetMousePos)(void);               /* current mouse in pixel coords */
     DWORD (*GetMouseButton)(void);
+    BOOL (*GetMouseButtonDown)(DWORD button);   /* true while button is held */
     uiClientMouseEvent_t (*GetMouseEvent)(void);
     LPCUIFRAME (*LayoutClear)(HANDLE data);
     DWORD (*LayoutNumFrames)(void);

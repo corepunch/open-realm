@@ -9,8 +9,8 @@ static BOOL UI_CheckBoxIsPushed(LPCFRAMEDEF frame, LPCRECT rect) {
     return UI_CheckBoxEnabled(frame) &&
            !UI_PointerBlockedByPopup(frame) &&
            UI_MouseContains(rect) &&
-           ui_mouse.button == 1 &&
-           ui_mouse.down;
+           uiimport.GetMouseButton && uiimport.GetMouseButton() == 1 &&
+           uiimport.GetMouseButtonDown && uiimport.GetMouseButtonDown(1);
 }
 
 static LPCFRAMEDEF UI_CheckBoxBackdrop(LPCFRAMEDEF frame, LPCRECT rect) {
@@ -51,7 +51,7 @@ static void UI_DrawCheckBox(LPCFRAMEDEF frame, LPCRECT rect) {
 
     if (!UI_PointerBlockedByPopup(frame) &&
         UI_MouseContains(rect) &&
-        ui_mouse.event == UI_MOUSE_LEFT_UP) {
+        uiimport.GetMouseEvent && uiimport.GetMouseEvent() == UI_CLIENT_MOUSE_LEFT_UP) {
         ((LPFRAMEDEF)frame)->CheckBox.Checked = !frame->CheckBox.Checked;
         if (frame->OnClick[0]) {
             UI_MenuCommandLocal(frame->OnClick);

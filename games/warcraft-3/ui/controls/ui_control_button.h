@@ -111,7 +111,9 @@ static BOOL UI_ButtonEnabled(LPCFRAMEDEF frame) {
 }
 
 static BOOL UI_ButtonIsPushed(LPCFRAMEDEF frame, LPCRECT rect) {
-    return UI_ButtonEnabled(frame) && UI_MouseContains(rect) && ui_mouse.button == 1 && ui_mouse.down;
+    return UI_ButtonEnabled(frame) && UI_MouseContains(rect) &&
+           uiimport.GetMouseButton && uiimport.GetMouseButton() == 1 &&
+           uiimport.GetMouseButtonDown && uiimport.GetMouseButtonDown(1);
 }
 
 static void UI_DrawButtonText(LPCFRAMEDEF frame, LPCRECT rect) {

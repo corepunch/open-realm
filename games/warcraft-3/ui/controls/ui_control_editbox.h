@@ -130,8 +130,9 @@ void UI_TextInputLocal(LPCSTR text) {
 
 static void UI_ClearEditFocusIfClickedOutside(void) {
     LPCRECT rect;
+    uiClientMouseEvent_t mouse_event = uiimport.GetMouseEvent ? uiimport.GetMouseEvent() : UI_CLIENT_MOUSE_NONE;
 
-    if (!active_edit || ui_mouse.event != UI_MOUSE_LEFT_DOWN) {
+    if (!active_edit || mouse_event != UI_CLIENT_MOUSE_LEFT_DOWN) {
         return;
     }
     rect = UI_LayoutRect(active_edit);

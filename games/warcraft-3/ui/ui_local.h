@@ -89,26 +89,6 @@ typedef struct {
 
 typedef FRAMEPOINT const *LPCFRAMEPOINT;
 
-typedef enum {
-    UI_MOUSE_EVENT_NONE,
-    UI_MOUSE_LEFT_DOWN,
-    UI_MOUSE_LEFT_UP,
-    UI_MOUSE_RIGHT_DOWN,
-    UI_MOUSE_RIGHT_UP,
-    UI_MOUSE_WHEEL_UP,
-    UI_MOUSE_WHEEL_DOWN,
-} uiMouseEvent_t;
-
-typedef struct {
-    int x;
-    int y;
-    int button;
-    BOOL down;
-    uiMouseEvent_t event;
-} uiMouseState_t;
-
-extern uiMouseState_t ui_mouse;
-
 #define UI_MAX_MAP_LIST_ITEMS 1024
 #define UI_MAX_MENU_ITEMS 32
 
@@ -380,7 +360,6 @@ void UI_ClearTheme(void);
 void UI_MenuCommandLocal(LPCSTR command);
 VECTOR2 UI_MouseToFdf(void);
 BOOL UI_MouseContains(LPCRECT rect);
-void UI_ClearMouseTransient(void);
 DWORD UI_FindFrameNumber(LPCSTR);
 DWORD UI_CollectFrameTree(LPCFRAMEDEF root, LPCFRAMEDEF *out, DWORD max);
 DWORD UI_LoadTexture(LPCSTR, BOOL);

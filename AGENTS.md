@@ -97,6 +97,13 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 - Runtime modules communicate through function tables (`R_GetAPI`, `UI_GetAPI`, game imports/exports). Prefer this boundary over direct cross-module dependencies.
 - Use cvars for runtime choices: `r_module`, `ui_module`, `g_module`, and `com_frame_limit`.
 
+## Mouse Input Architecture
+
+- Mouse state is owned by the client: the `mouse` global (`mouseEvent_t` in `client/cl_input.c`) is the single source of truth for position, button, event, and wheel state.
+- The UI library reads mouse state through `uiImport_t` accessors: `GetMouseFdf()` (normalized FDF coords), `GetMousePos()` (pixel coords), `GetMouseButton()` (held button), `GetMouseButtonDown()` (is held), `GetMouseEvent()` (discrete event).
+- Game-mode-specific mouse behavior (camera pan, selection, zoom) lives in per-game `cl_input_<game>.c` files via the `CL_InputMode*` functions.
+- Never create a separate mouse state struct in game UI code. Use the `uiImport_t` accessors instead.
+
 ## Network State Contracts
 
 - Do not casually add fields to `entityState_t`. It is a network snapshot/delta contract, so every new field increases protocol surface, bandwidth, baseline/delta behavior, save/load assumptions, and renderer/client coupling. Adding a field must be extremely well justified and should only happen after considering narrower alternatives such as existing state fields, configstrings, typed UI payloads, game-side state, or explicit commands.
@@ -306,3 +313,10 @@ Agent guidance:
 - Avoid excessive pointer null-check noise in screen controllers. Prefer one scene-level readiness gate (early return) over repeated per-widget checks.
 - If a required root frame is missing, fail fast for that screen and skip further scene setup/update work.
 - Keep frame names data-driven by FDF and avoid hardcoded lookup strings when macro-based lookup can use the frame identifier directly.
+
+## Documentation Discipline
+
+- When implementing or changing a feature, always add or adjust agent-friendly documentation in this file (AGENTS.md) if the change introduces a new workflow, tool, convention, or subsystem that an agent would need to know about.
+- If the feature has a dedicated workflow section (e.g. "MPQ Inspection Workflow", "DBC Inspection Workflow"), update that section rather than creating a new one.
+- If the feature is a new subsystem or introduces a new pattern, add a brief section describing the architecture, the key files involved, and how to inspect/debug/test the feature.
+- Keep documentation concise and actionable — prefer command examples and file paths over prose.
