@@ -502,9 +502,14 @@ static int UIWow_LuaFrameSetID(lua_State *L) { int i = UIWow_FrameFromSelf(L); i
 static int UIWow_LuaFrameEnable(lua_State *L) { int i = UIWow_FrameFromSelf(L); if (i >= 0) wow_xml.elems[i].flags |= EF_ENABLED; return 0; }
 static int UIWow_LuaFrameDisable(lua_State *L) { int i = UIWow_FrameFromSelf(L); if (i >= 0) wow_xml.elems[i].flags &= ~EF_ENABLED; return 0; }
 static int UIWow_LuaFrameIsEnabled(lua_State *L) { int i = UIWow_FrameFromSelf(L); lua_pushboolean(L, i >= 0 && (wow_xml.elems[i].flags & EF_ENABLED)); return 1; }
+static BOOL UIWow_LuaToBool(lua_State *L, int idx) {
+    if (lua_isnil(L, idx)) return false;
+    if (lua_isnumber(L, idx)) return lua_tonumber(L, idx) != 0.0;
+    return lua_toboolean(L, idx) != 0;
+}
 static int UIWow_LuaFrameSetChecked(lua_State *L) {
     int i = UIWow_FrameFromSelf(L);
-    if (i >= 0) { if (lua_toboolean(L, 2)) wow_xml.elems[i].flags |= EF_CHECKED; else wow_xml.elems[i].flags &= ~EF_CHECKED; }
+    if (i >= 0) { if (UIWow_LuaToBool(L, 2)) wow_xml.elems[i].flags |= EF_CHECKED; else wow_xml.elems[i].flags &= ~EF_CHECKED; }
     return 0;
 }
 
@@ -2059,10 +2064,21 @@ BOOL UIWow_XMLMouseEvent(int x, int y, int button, BOOL down) {
         if (button == 1 && pressed >= 0 && hit == pressed && wow_xml.elems[pressed].type == WOW_XML_BUTTON &&
             (wow_xml.elems[pressed].flags & EF_ENABLED) && wow_ui.lua &&
             UIWow_ElemStr(&wow_xml.elems[pressed], ELEM_ON_CLICK)) {
+            UIWow_Printf("UIWow: OnClick dispatch idx=%d name='%s' checkbtn=%d checked=%d\n",
+                         pressed, wow_xml.elems[pressed].texts[ELEM_NAME] ? wow_xml.elems[pressed].texts[ELEM_NAME] : "?",
+                         !!(wow_xml.elems[pressed].flags & EF_CHECKBUTTON),
+                         !!(wow_xml.elems[pressed].flags & EF_CHECKED));
             if (wow_xml.elems[pressed].flags & EF_CHECKBUTTON)
                 wow_xml.elems[pressed].flags ^= EF_CHECKED;
             UIWow_XMLRunFrameScript(pressed, wow_xml.elems[pressed].texts[ELEM_ON_CLICK], "OnClick");
             return true;
+        }
+        if (button == 1 && pressed >= 0 && hit == pressed) {
+            UIWow_Printf("UIWow: OnClick MISS idx=%d name='%s' type=%d enabled=%d has_onclick=%d\n",
+                         pressed, wow_xml.elems[pressed].texts[ELEM_NAME] ? wow_xml.elems[pressed].texts[ELEM_NAME] : "?",
+                         wow_xml.elems[pressed].type,
+                         !!(wow_xml.elems[pressed].flags & EF_ENABLED),
+                         !!UIWow_ElemStr(&wow_xml.elems[pressed], ELEM_ON_CLICK));
         }
         return hit >= 0 || pressed >= 0;
     }
