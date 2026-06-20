@@ -722,10 +722,92 @@ void UI_KeyEventLocal(int key, BOOL down, DWORD time) {
     }
 }
 
+/* Convert pixel coordinates to FDF/UI space for hit testing */
+static VECTOR2 UI_PixelToFdf(int px, int py) {
+    LPRENDERER renderer = uiimport.GetRenderer ? uiimport.GetRenderer() : NULL;
+    size2_t window = renderer && renderer->GetWindowSize ? renderer->GetWindowSize() : MAKE(size2_t, 0, 0);
+    FLOAT window_aspect = UI_MIN_ASPECT;
+    FLOAT x_scale = 1.0f;
+    FLOAT y_scale = 1.0f;
+    RECT scene;
+    FLOAT nx = 0;
+    FLOAT ny = 0;
+
+    if (window.width > 0 && window.height > 0) {
+        window_aspect = (FLOAT)window.width / (FLOAT)window.height;
+        nx = (FLOAT)px / (FLOAT)window.width;
+        ny = (FLOAT)py / (FLOAT)window.height;
+    }
+    if (window_aspect > UI_MIN_ASPECT) {
+        x_scale = window_aspect / UI_MIN_ASPECT;
+    } else if (window_aspect < UI_MIN_ASPECT) {
+        y_scale = UI_MIN_ASPECT / window_aspect;
+    }
+    scene.w = UI_BASE_WIDTH * x_scale;
+    scene.h = UI_BASE_HEIGHT * y_scale;
+    scene.x = (UI_BASE_WIDTH - scene.w) * 0.5f;
+    scene.y = (UI_BASE_HEIGHT - scene.h) * 0.5f;
+    return MAKE(VECTOR2, scene.x + nx * scene.w, scene.y + ny * scene.h);
+}
+
+/* Check if a frame type is a button variant */
+static BOOL UI_IsButtonType(FRAMETYPE type) {
+    return type == FT_BUTTON || type == FT_TEXTBUTTON || type == FT_GLUETEXTBUTTON ||
+           type == FT_GLUEBUTTON || type == FT_SIMPLEBUTTON || type == FT_COMMANDBUTTON;
+}
+
+/* Check if a frame type is a checkbox variant */
+static BOOL UI_IsCheckBoxType(FRAMETYPE type) {
+    return type == FT_CHECKBOX || type == FT_GLUECHECKBOX || type == FT_SIMPLECHECKBOX;
+}
+
+/* Check if a frame type is an editbox variant */
+static BOOL UI_IsEditBoxType(FRAMETYPE type) {
+    return type == FT_EDITBOX || type == FT_GLUEEDITBOX || type == FT_SLASHCHATBOX;
+}
+
+/* Check if a frame type is a popup menu variant */
+static BOOL UI_IsPopupType(FRAMETYPE type) {
+    return type == FT_POPUPMENU || type == FT_GLUEPOPUPMENU;
+}
+
 void UI_MouseEventLocal(int x, int y, int button, BOOL down) {
-    (void)x; (void)y; (void)button; (void)down;
-    /* Mouse state is managed by the client through the mouse global.
-     * The UI reads it via uiimport.GetMouseFdf/GetMouseButton/GetMouseEvent. */
+    if (!ui_state.active) {
+        return;
+    }
+
+    VECTOR2 fdf = UI_PixelToFdf(x, y);
+    LPCFRAMEDEF hit = UI_HitTest(fdf.x, fdf.y);
+
+    /* Button clicks: LEFT_UP over frame → execute OnClick */
+    if (hit && !down && button == 1) {
+        if (UI_IsButtonType(hit->Type) && hit->OnClick[0]) {
+            UI_MenuCommandLocal(hit->OnClick);
+        }
+    }
+
+    /* Checkbox toggle: LEFT_UP over frame → toggle Checked */
+    if (hit && !down && button == 1) {
+        if (UI_IsCheckBoxType(hit->Type)) {
+            ((LPFRAMEDEF)hit)->CheckBox.Checked = !hit->CheckBox.Checked;
+            if (hit->OnClick[0]) {
+                UI_MenuCommandLocal(hit->OnClick);
+            }
+        }
+    }
+
+    /* Popup toggle: LEFT_UP over popup frame → toggle open/close */
+    if (hit && !down && button == 1) {
+        if (UI_IsPopupType(hit->Type)) {
+            UI_TogglePopup(hit);
+        }
+    }
+
+    /* Delegate to current screen */
+    uiScreen_t *screen = UI_GetCurrentScreen();
+    if (screen && screen->mouse_event) {
+        screen->mouse_event(x, y, button);
+    }
 }
 
 void UI_MenuCommandLocal(LPCSTR command) {
