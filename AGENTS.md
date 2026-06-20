@@ -10,6 +10,7 @@ Read this file before making any changes. Load the reference docs below only whe
 - `docs/wow-character.md` — WoW character appearance, DBC fields, M2 skin sections, component textures. Read when touching WoW character rendering or equipment.
 - `docs/diagnostic-tools.md` — mpqtool, mdxtool, UI text renderer, time profiler. Read when investigating asset, rendering, or performance bugs.
 - `docs/ui-authoring.md` — FDF/screen authoring conventions, UI layout rules. Read when writing or modifying UI screens or FDF-driven frames.
+- `docs/wc3-data-model.md` — SLK/metadata field codes, base-vs-computed column traps, combat damage model, hero stat system, pathfinding rules, JASS event semantics, MiscGame.txt constants. Read when touching unit stats, combat, abilities, heroes, pathfinding, or any code that reads from the metadata tables.
 
 ---
 
