@@ -285,7 +285,7 @@ static int UIWow_XmlPushElem(uiWowXmlType_t type, LPCSTR name, int parent, int d
     e->button_text_colors[WOW_XML_BUTTON_TEXT_HIGHLIGHT] = e->colors[ELEM_COLOR_TEXT];
     e->texcoord = MAKE(RECT, 0, 0, 1, 1);
     e->highlight_texcoord = MAKE(RECT, 0, 0, 1, 1);
-    e->base.on_draw = UIWow_XMLDrawElement;
+    e->base.on_draw = UIWow_XMLOnDraw;
     UIWow_ElemSetStr(e, ELEM_NAME, name);
     return wow_xml.count++;
 }
