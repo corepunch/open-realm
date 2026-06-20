@@ -758,27 +758,6 @@ static VECTOR2 UI_PixelToFdf(int px, int py) {
     return MAKE(VECTOR2, scene.x + nx * scene.w, scene.y + ny * scene.h);
 }
 
-/* Check if a frame type is a button variant */
-static BOOL UI_IsButtonType(FRAMETYPE type) {
-    return type == FT_BUTTON || type == FT_TEXTBUTTON || type == FT_GLUETEXTBUTTON ||
-           type == FT_GLUEBUTTON || type == FT_SIMPLEBUTTON || type == FT_COMMANDBUTTON;
-}
-
-/* Check if a frame type is a checkbox variant */
-static BOOL UI_IsCheckBoxType(FRAMETYPE type) {
-    return type == FT_CHECKBOX || type == FT_GLUECHECKBOX || type == FT_SIMPLECHECKBOX;
-}
-
-/* Check if a frame type is an editbox variant */
-static BOOL UI_IsEditBoxType(FRAMETYPE type) {
-    return type == FT_EDITBOX || type == FT_GLUEEDITBOX || type == FT_SLASHCHATBOX;
-}
-
-/* Check if a frame type is a popup menu variant */
-static BOOL UI_IsPopupType(FRAMETYPE type) {
-    return type == FT_POPUPMENU || type == FT_GLUEPOPUPMENU;
-}
-
 void UI_MouseEventLocal(int x, int y, int button, BOOL down) {
     if (!ui_state.active) {
         return;
@@ -787,14 +766,21 @@ void UI_MouseEventLocal(int x, int y, int button, BOOL down) {
     VECTOR2 fdf = UI_PixelToFdf(x, y);
     LPCFRAMEDEF hit = UI_HitTest(fdf.x, fdf.y);
 
-    /* Slider drag: LEFT_DOWN → start; motion → update; LEFT_UP → end */
-    if (hit && hit->Type == FT_SLIDER) {
-        if (down && button == 1) {
-            UI_SliderBeginDrag(hit, fdf.x, fdf.y);
-        } else if (!down && button == 1) {
-            UI_SliderEndDrag(hit);
+    /* Dispatch to per-type event handler */
+    if (hit && hit->event_handler) {
+        hit->event_handler((LPFRAMEDEF)hit, fdf.x, fdf.y, button, down);
+    }
+
+    /* Global: editbox clear focus on miss (LEFT_DOWN outside any editbox) */
+    if (down && button == 1) {
+        BOOL hit_editbox = hit && (hit->Type == FT_EDITBOX || hit->Type == FT_GLUEEDITBOX ||
+                                   hit->Type == FT_SLASHCHATBOX);
+        if (!hit_editbox) {
+            UI_EditboxClearFocusOnMiss();
         }
     }
+
+    /* Global: slider drag tracking (motion when no frame hit) */
     if (UI_SliderIsDragging() && button == 0 && !down) {
         UI_SliderUpdateDrag(UI_SliderActiveFrame(), fdf.x, fdf.y);
     }
@@ -802,21 +788,12 @@ void UI_MouseEventLocal(int x, int y, int button, BOOL down) {
         UI_SliderEndDrag(NULL);
     }
 
-    /* EditBox focus: LEFT_DOWN over → focus; LEFT_DOWN outside → clear */
-    if (down && button == 1) {
-        if (hit && UI_IsEditBoxType(hit->Type)) {
-            UI_EditboxFocusOnHit(hit);
-        } else {
-            UI_EditboxClearFocusOnMiss();
-        }
-    }
-
-    /* Popup close on outside click: LEFT_DOWN outside active popup → close */
+    /* Global: popup close on outside click */
     if (down && button == 1 && UI_HasActivePopup() && !UI_PopupPointInside(fdf.x, fdf.y)) {
         UI_PopupCloseOnMiss();
     }
 
-    /* Popup menu: wheel → scroll; LEFT_UP → select item */
+    /* Global: popup menu wheel scroll */
     if (UI_HasActivePopup() && button == 4) {
         UI_PopupMenuScroll(true);
     }
@@ -825,43 +802,6 @@ void UI_MouseEventLocal(int x, int y, int button, BOOL down) {
     }
     if (UI_HasActivePopup() && !down && button == 1) {
         UI_PopupSelectItem(fdf.x, fdf.y);
-    }
-
-    /* MapList: LEFT_UP → select row; wheel → scroll */
-    if (hit && hit->MapListControl.State) {
-        if (!down && button == 1) {
-            UI_MapListSelectRow(hit, fdf.x, fdf.y);
-        }
-        if (button == 4) {
-            UI_MapListScroll(hit, true);
-        }
-        if (button == 5) {
-            UI_MapListScroll(hit, false);
-        }
-    }
-
-    /* Button clicks: LEFT_UP over frame → execute OnClick */
-    if (hit && !down && button == 1) {
-        if (UI_IsButtonType(hit->Type) && hit->OnClick[0]) {
-            UI_MenuCommandLocal(hit->OnClick);
-        }
-    }
-
-    /* Checkbox toggle: LEFT_UP over frame → toggle Checked */
-    if (hit && !down && button == 1) {
-        if (UI_IsCheckBoxType(hit->Type)) {
-            ((LPFRAMEDEF)hit)->CheckBox.Checked = !hit->CheckBox.Checked;
-            if (hit->OnClick[0]) {
-                UI_MenuCommandLocal(hit->OnClick);
-            }
-        }
-    }
-
-    /* Popup toggle: LEFT_UP over popup frame → toggle open/close */
-    if (hit && !down && button == 1) {
-        if (UI_IsPopupType(hit->Type)) {
-            UI_TogglePopup(hit);
-        }
     }
 
     /* Delegate to current screen */

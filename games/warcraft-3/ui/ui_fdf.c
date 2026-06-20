@@ -240,6 +240,7 @@ LPFRAMEDEF UI_Spawn(FRAMETYPE type, LPFRAMEDEF parent) {
         LPFRAMEDEF frame = &frames[i];
         if (!frame->inuse) {
             UI_InitFrame(frame, type);
+            UI_WireFrameTypeFunctions(frame);
             frame->Parent = parent;
             return frame;
         }
@@ -1307,6 +1308,7 @@ void UI_BindMapList(LPFRAMEDEF frame,
     control = &frame->MapListControl;
     memset(control, 0, sizeof(*control));
     control->State = state;
+    UI_WireFrameTypeFunctions(frame);
     control->VisibleRows = visible_rows;
     control->RowHeight = 0.019f;
     control->InsetX = 0.008f;

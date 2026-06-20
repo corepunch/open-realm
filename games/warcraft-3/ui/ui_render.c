@@ -473,6 +473,170 @@ static void UI_DrawHighlightFrame(LPCFRAMEDEF frame, LPCRECT rect);
 #include "controls/ui_control_map_list.h"
 #include "controls/ui_control_slider.h"
 
+/* ========================================================================
+ * PER-TYPE EVENT HANDLERS — called from UI_MouseEventLocal
+ * ======================================================================== */
+
+static void UI_ButtonEventHandler(LPFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
+    (void)fdf_x; (void)fdf_y;
+    if (button != 1) {
+        return;
+    }
+    if (down) {
+        frame->ui_flags |= UIFLAG_PRESSED;
+    } else {
+        frame->ui_flags &= ~UIFLAG_PRESSED;
+        if (frame->OnClick[0]) {
+            UI_MenuCommandLocal(frame->OnClick);
+        }
+    }
+}
+
+static void UI_CheckBoxEventHandler(LPFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
+    (void)fdf_x; (void)fdf_y;
+    if (button != 1) {
+        return;
+    }
+    if (down) {
+        frame->ui_flags |= UIFLAG_PRESSED;
+    } else {
+        frame->ui_flags &= ~UIFLAG_PRESSED;
+        frame->ui_flags ^= UIFLAG_CHECKED;
+        ((LPFRAMEDEF)frame)->CheckBox.Checked = (frame->ui_flags & UIFLAG_CHECKED) != 0;
+        if (frame->OnClick[0]) {
+            UI_MenuCommandLocal(frame->OnClick);
+        }
+    }
+}
+
+static void UI_SliderEventHandler(LPFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
+    if (down && button == 1) {
+        UI_SliderBeginDrag(frame, fdf_x, fdf_y);
+        frame->ui_flags |= UIFLAG_PRESSED;
+    } else if (!down && button == 1) {
+        UI_SliderEndDrag(frame);
+        frame->ui_flags &= ~UIFLAG_PRESSED;
+    } else if (button == 0 && !down) {
+        UI_SliderUpdateDrag(frame, fdf_x, fdf_y);
+    }
+}
+
+static void UI_EditBoxEventHandler(LPFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
+    (void)fdf_x; (void)fdf_y;
+    if (down && button == 1) {
+        UI_EditboxFocusOnHit(frame);
+    }
+}
+
+static void UI_MapListEventHandler(LPFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
+    if (!down && button == 1) {
+        UI_MapListSelectRow(frame, fdf_x, fdf_y);
+    }
+    if (button == 4) {
+        UI_MapListScroll(frame, true);
+    }
+    if (button == 5) {
+        UI_MapListScroll(frame, false);
+    }
+}
+
+static void UI_PopupEventHandler(LPFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
+    (void)fdf_x; (void)fdf_y;
+    if (!down && button == 1) {
+        UI_TogglePopup(frame);
+    }
+}
+
+static void UI_PopupMenuEventHandler(LPFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
+    (void)frame;
+    if (button == 4) {
+        UI_PopupMenuScroll(true);
+    }
+    if (button == 5) {
+        UI_PopupMenuScroll(false);
+    }
+    if (!down && button == 1) {
+        UI_PopupSelectItem(fdf_x, fdf_y);
+    }
+}
+
+/* ========================================================================
+ * PER-TYPE DRAW FUNCTIONS — called from UI_DrawFrameOne
+ * ======================================================================== */
+
+static void UI_ButtonDraw(LPCFRAMEDEF frame, LPCRECT rect) {
+    UI_DrawTexture(frame, rect);
+    UI_DrawButtonText(frame, rect);
+}
+
+static void UI_CheckBoxDraw(LPCFRAMEDEF frame, LPCRECT rect) {
+    LPCFRAMEDEF backdrop = UI_CheckBoxBackdrop(frame, rect);
+    UI_DrawBackdropWithColor(backdrop, rect, frame->Color);
+    UI_DrawTexture(frame, rect);
+    UI_DrawHighlightFrame(UI_CheckBoxCheckHighlight(frame), rect);
+}
+
+static void UI_SliderDraw(LPCFRAMEDEF frame, LPCRECT rect) {
+    UI_DrawSlider(frame, rect);
+}
+
+static void UI_EditBoxDraw(LPCFRAMEDEF frame, LPCRECT rect) {
+    UI_DrawEditBox(frame, rect);
+}
+
+static void UI_MapListDraw(LPCFRAMEDEF frame, LPCRECT rect) {
+    UI_DrawMapListControl(frame, rect);
+}
+
+static void UI_MenuDraw(LPCFRAMEDEF frame, LPCRECT rect) {
+    UI_DrawMenu(frame, rect);
+}
+
+/* Wire per-type event handler and draw function pointers */
+void UI_WireFrameTypeFunctions(LPFRAMEDEF frame) {
+    if (!frame) {
+        return;
+    }
+    switch (frame->Type) {
+        case FT_BUTTON: case FT_TEXTBUTTON: case FT_GLUETEXTBUTTON:
+        case FT_GLUEBUTTON: case FT_SIMPLEBUTTON: case FT_COMMANDBUTTON:
+            frame->event_handler = UI_ButtonEventHandler;
+            frame->draw = UI_ButtonDraw;
+            break;
+        case FT_CHECKBOX: case FT_GLUECHECKBOX: case FT_SIMPLECHECKBOX:
+            frame->event_handler = UI_CheckBoxEventHandler;
+            frame->draw = UI_CheckBoxDraw;
+            if (frame->CheckBox.Checked) {
+                frame->ui_flags |= UIFLAG_CHECKED;
+            }
+            break;
+        case FT_SLIDER:
+            frame->event_handler = UI_SliderEventHandler;
+            frame->draw = UI_SliderDraw;
+            break;
+        case FT_EDITBOX: case FT_GLUEEDITBOX: case FT_SLASHCHATBOX:
+            frame->event_handler = UI_EditBoxEventHandler;
+            frame->draw = UI_EditBoxDraw;
+            break;
+        case FT_MENU:
+            frame->event_handler = UI_PopupMenuEventHandler;
+            frame->draw = UI_MenuDraw;
+            break;
+        case FT_POPUPMENU: case FT_GLUEPOPUPMENU:
+            frame->event_handler = UI_PopupEventHandler;
+            break;
+        case FT_FRAME: case FT_SIMPLEFRAME:
+            /* FT_FRAME with MapListControl is a map list */
+            if (frame->MapListControl.State) {
+                frame->event_handler = UI_MapListEventHandler;
+                frame->draw = UI_MapListDraw;
+            }
+            break;
+        default:
+            break;
+    }
+}
+
 BOOL UI_EditHasFocus(LPCFRAMEDEF frame) {
     return active_edit && active_edit == frame;
 }
@@ -769,9 +933,8 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
     switch (frame->Type) {
         case FT_FRAME:
         case FT_SIMPLEFRAME:
-            /* Container frames have no visual representation */
-            if (frame->MapListControl.State) {
-                UI_DrawMapListControl(frame, rect);
+            if (frame->draw) {
+                frame->draw((LPFRAMEDEF)frame, rect);
             }
             break;
 
@@ -808,9 +971,22 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
         case FT_TEXTBUTTON:
         case FT_GLUETEXTBUTTON:
         case FT_GLUEBUTTON:
+        case FT_SIMPLEBUTTON:
+        case FT_CHECKBOX:
+        case FT_GLUECHECKBOX:
+        case FT_SIMPLECHECKBOX:
+        case FT_SLIDER:
+        case FT_EDITBOX:
+        case FT_GLUEEDITBOX:
+        case FT_SLASHCHATBOX:
+        case FT_MENU:
+            if (frame->draw) {
+                frame->draw((LPFRAMEDEF)frame, rect);
+            }
+            break;
+
         case FT_GLUEPOPUPMENU:
         case FT_POPUPMENU:
-        case FT_SIMPLEBUTTON:
             /* Draw button background */
             {
                 LPCFRAMEDEF backdrop = UI_ButtonBackdrop(frame, rect);
@@ -821,35 +997,14 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
                 }
             }
             UI_DrawTexture(frame, rect);
-            UI_DrawButtonText(frame, rect);
             break;
-            
+
         case FT_MODEL:
             UI_DrawPortrait(frame, rect);
             break;
-            
+
         case FT_SPRITE:
             UI_DrawSprite(frame, rect);
-            break;
-            
-        case FT_SLIDER:
-            UI_DrawSlider(frame, rect);
-            break;
-
-        case FT_CHECKBOX:
-        case FT_GLUECHECKBOX:
-        case FT_SIMPLECHECKBOX:
-            UI_DrawCheckBox(frame, rect);
-            break;
-
-        case FT_EDITBOX:
-        case FT_GLUEEDITBOX:
-        case FT_SLASHCHATBOX:
-            UI_DrawEditBox(frame, rect);
-            break;
-
-        case FT_MENU:
-            UI_DrawMenu(frame, rect);
             break;
 
         case FT_LISTBOX:
@@ -964,7 +1119,8 @@ BOOL UI_HasActivePopup(void) {
 }
 
 void UI_EditboxFocusOnHit(LPCFRAMEDEF frame) {
-    if (frame && UI_IsEditBoxType(frame->Type)) {
+    if (frame && (frame->Type == FT_EDITBOX || frame->Type == FT_GLUEEDITBOX ||
+                  frame->Type == FT_SLASHCHATBOX)) {
         UI_FocusEdit((LPFRAMEDEF)frame);
     }
 }
