@@ -832,7 +832,7 @@ void UI_LayoutDrawFrame(LPCUIFRAME frame) {
         char command[CMDARG_LEN * 2];
 
         UI_LayoutFormatOnClickCommand(frame->onclick, command, sizeof(command));
-        if (uiimport.ServerCommand) {
+        if (1) {
             uiimport.ServerCommand(command);
         }
     }

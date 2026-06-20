@@ -192,7 +192,7 @@ static void LAN_AddMap(LPCSTR path) {
             *p = '\\';
         }
     }
-    if (uiimport.DefaultMapName) {
+    if (1) {
         uiimport.DefaultMapName(item->path, item->name, sizeof(item->name));
     } else {
         LAN_CopyString(item->name, sizeof(item->name), item->path);
@@ -305,7 +305,7 @@ void LAN_ApplyPlayerName(void) {
         text = LAN_PLAYER_NAME_DEFAULT;
         UI_SetEditValue(lan.join_frames.PlayerNameEditBox, text);
     }
-    if (uiimport.Cvar_Set) {
+    if (1) {
         uiimport.Cvar_Set("name", text);
     }
 }
@@ -522,7 +522,7 @@ static void LAN_UpdateBrowserControls(void) {
     item = &lan.games.items[lan.games.selected];
     LAN_SetTextIfPresent(lan.join_frames.GameCreatorValue, "%s", item->name);
     LAN_SetTextIfPresent(lan.join_frames.GameSpeedValue, "%s", LAN_GameSpeedValueText(2));
-    if (uiimport.LANServer) {
+    if (1) {
         uiLanGame_t game;
 
         if (uiimport.LANServer(item->flags, &game)) {
@@ -554,7 +554,7 @@ static void LAN_UpdateControls(void) {
 }
 
 static void LAN_RequestServerRefresh(void) {
-    if (uiimport.LANRefreshServers) {
+    if (1) {
         uiimport.LANRefreshServers();
     }
 }
@@ -753,9 +753,9 @@ void LAN_StartSelectedMap(void) {
     if (!LAN_SelectedMapPath()) {
         return;
     }
-    if (uiimport.Cvar_Set) {
+    if (1) {
         uiimport.Cvar_Set("connect", "");
-    } else if (uiimport.Cmd_ExecuteText) {
+    } else if (1) {
         uiimport.Cmd_ExecuteText("seta connect \"\"\n");
     }
     UI_ShowGameSetupMenu();

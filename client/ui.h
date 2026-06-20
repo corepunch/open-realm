@@ -117,9 +117,6 @@ typedef struct {
     int (*ModelIndex)(LPCSTR modelName);
     int (*ImageIndex)(LPCSTR imageName);
     int (*FontIndex)(LPCSTR fontName, DWORD fontSize);
-    sheetRow_t *(*ReadSheet)(LPCSTR sheetFilename);
-    sheetRow_t *(*ReadConfig)(LPCSTR configFilename);
-    LPCSTR (*FindSheetCell)(sheetRow_t *sheet, LPCSTR row, LPCSTR column);
     
     /* Command execution (following Quake 3 pattern)
      * UI executes console commands; engine dispatcher handles routing */

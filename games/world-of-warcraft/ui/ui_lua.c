@@ -333,7 +333,7 @@ static int UIWow_LuaTime(lua_State *L) {
 static int UIWow_LuaCommand(lua_State *L) {
     LPCSTR text = luaL_checkstring(L, 1);
 
-    if (uiimport.ServerCommand && text && *text) {
+    if (text && *text) {
         uiimport.ServerCommand(text);
     }
     return 0;
@@ -416,7 +416,7 @@ static int UIWow_LuaLoadMap(lua_State *L) {
         map_name = "Maps\\Campaign\\Default.w3m";
     }
     snprintf(cmd, sizeof(cmd), "+map %s", map_name);
-    if (uiimport.Cmd_ExecuteText) {
+    if (1) {
         uiimport.Cmd_ExecuteText(cmd);
     }
     return 0;
@@ -430,7 +430,7 @@ static int UIWow_LuaDefaultServerLogin(lua_State *L) {
         UIWow_LuaPCall(1);
     } else {
         lua_pop(wow_ui.lua, 1);
-        if (uiimport.Cmd_ExecuteText) uiimport.Cmd_ExecuteText("menu_character_select\n");
+        if (1) uiimport.Cmd_ExecuteText("menu_character_select\n");
     }
     return 0;
 }
