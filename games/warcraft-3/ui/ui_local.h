@@ -360,6 +360,8 @@ void UI_ClearTheme(void);
 void UI_MenuCommandLocal(LPCSTR command);
 VECTOR2 UI_MouseToFdf(void);
 BOOL UI_MouseContains(LPCRECT rect);
+LPCFRAMEDEF UI_HitTest(FLOAT fdf_x, FLOAT fdf_y);
+void UI_TogglePopup(LPCFRAMEDEF frame);
 DWORD UI_FindFrameNumber(LPCSTR);
 DWORD UI_CollectFrameTree(LPCFRAMEDEF root, LPCFRAMEDEF *out, DWORD max);
 DWORD UI_LoadTexture(LPCSTR, BOOL);

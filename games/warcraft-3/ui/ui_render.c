@@ -126,7 +126,7 @@ static BOOL UI_FrameIsInteractive(LPCFRAMEDEF frame) {
 
 /* Walk the layout cache back-to-front and return the topmost interactive frame
  * at the given FDF-space coordinates. Returns NULL if nothing was hit. */
-static LPCFRAMEDEF UI_HitTest(FLOAT fdf_x, FLOAT fdf_y) {
+LPCFRAMEDEF UI_HitTest(FLOAT fdf_x, FLOAT fdf_y) {
     for (int i = MAX_UI_CLASSES - 1; i >= 0; i--) {
         if (!runtimes[i].calculated) {
             continue;
@@ -918,6 +918,19 @@ static void UI_DrawFrameRangeHighlights(LPCFRAMEDEF const *draw_order, DWORD sta
             !UI_IsActivePopupMenu(draw_order[i])) {
             UI_DrawCheckBoxMouseOverHighlight(draw_order[i]);
         }
+    }
+}
+
+void UI_TogglePopup(LPCFRAMEDEF frame) {
+    if (!frame) {
+        return;
+    }
+    if (active_popup == frame) {
+        UI_ResetPopupScroll();
+        active_popup = NULL;
+    } else {
+        UI_ResetPopupScroll();
+        active_popup = frame;
     }
 }
 
