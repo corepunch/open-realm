@@ -768,7 +768,7 @@ void UI_MouseEventLocal(int x, int y, int button, BOOL down) {
 
     /* Dispatch to per-type event handler */
     if (hit && hit->base.on_event) {
-        hit->base.on_event((void *)hit, fdf.x, fdf.y, button, down);
+        hit->base.on_event((struct uiBaseFrame_s *)hit, fdf.x, fdf.y, button, down);
     }
 
     /* Global: editbox clear focus on miss (LEFT_DOWN outside any editbox) */

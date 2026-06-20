@@ -633,8 +633,8 @@ typedef struct uiBaseFrame_s {
         FLOAT insets[4];
     } backdrop;
     DWORD ui_flags;                 /* UIFLAG_* bitmask */
-    void (*on_event)(void *frame, FLOAT x, FLOAT y, int button, BOOL down);
-    void (*on_draw)(void *frame, LPCRECT rect);
+    void (*on_event)(struct uiBaseFrame_s *frame, FLOAT x, FLOAT y, int button, BOOL down);
+    void (*on_draw)(struct uiBaseFrame_s *frame, LPCRECT rect);
 } uiBaseFrame_t;
 
 typedef uiBaseFrame_t *LPUIBASEFRAME;
