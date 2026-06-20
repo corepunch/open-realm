@@ -77,7 +77,7 @@ static void UI_UpdateSliderInteraction(LPCFRAMEDEF frame, LPCRECT rect, LPCFRAME
     if (active_slider == frame) {
         ((LPFRAMEDEF)frame)->Slider.InitialValue = UI_SliderValueFromMousePos(frame, rect, thumb, mouse);
     }
-    if (!uiimport.GetMouseButtonDown(1) && active_slider == frame) {
+    if (!(active_slider && (active_slider->ui_flags & UIFLAG_PRESSED)) && active_slider == frame) {
         active_slider = NULL;
     }
 }

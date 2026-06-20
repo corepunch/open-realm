@@ -129,6 +129,11 @@ typedef struct {
     COLOR32 SelectedTextColor;
 } uiMapListControl_t;
 
+/* UI interaction flags for uiFrameDef_s.ui_flags */
+#define UIFLAG_PRESSED  (1 << 0)
+#define UIFLAG_HOVERED  (1 << 1)
+#define UIFLAG_CHECKED  (1 << 2)
+
 /* Frame template definition (server-side/library-side only) */
 struct uiFrameDef_s {
     LPCFRAMEDEF Parent;
@@ -303,6 +308,12 @@ struct uiFrameDef_s {
         DWORD NumItems;
         uiMultiselectItem_t Items[MAX_SELECTED_ENTITIES];
     } Multiselect;
+    /* Interaction state — updated by event handler, read by draw */
+    DWORD ui_flags;
+    /* Per-type event handler: called from UI_MouseEventLocal */
+    void (*event_handler)(LPFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down);
+    /* Per-type draw function: called from UI_DrawFrameOne */
+    void (*draw)(LPCFRAMEDEF frame, LPCRECT rect);
 };
 
 /* Global parsed FDF frame table. */
@@ -343,6 +354,7 @@ void UI_ParseFDF(LPCSTR filename);
 void UI_ParseFDF_Buffer(LPCSTR filename, LPSTR buffer);
 void UI_ClearTemplates(void);
 void UI_InitFrame(LPFRAMEDEF, FRAMETYPE);
+void UI_WireFrameTypeFunctions(LPFRAMEDEF frame);
 void UI_SetAllPoints(LPFRAMEDEF);
 void UI_SetParent(LPFRAMEDEF, LPCFRAMEDEF);
 void UI_SetText(LPFRAMEDEF, LPCSTR, ...);
