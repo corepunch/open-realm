@@ -16,8 +16,12 @@
 
 #define TEST_SC2_SRC_DIR "games/starcraft-2/tests/resources-src"
 #define TEST_SC2_TINY_DIR TEST_SC2_SRC_DIR "/Maps/Test/Tiny.SC2Map"
+#define TEST_SC2_SHORT_TERRAIN_DIMENSIONS 0
+#define TEST_SC2_ZERO_TERRAIN_DIMENSIONS  1
+#define TEST_SC2_HUGE_TERRAIN_DIMENSIONS  2
 
 static BOOL sc2_tests_initialized;
+static DWORD short_terrain_dimensions;
 static DWORD listed_count;
 static PATHSTR listed_map;
 
@@ -138,6 +142,124 @@ static HANDLE read_test_disk_file(LPCSTR filename, LPDWORD size) {
 static void use_sc2_disk_host(void) {
     SC2_MapSetHost(&(sc2MapHost_t){
         .read_file = read_test_disk_file,
+        .free_file = MemFree,
+        .mem_alloc = MemAlloc,
+        .mem_free = MemFree,
+    });
+}
+
+static BOOL test_path_leaf_is(LPCSTR filename, LPCSTR leaf) {
+    LPCSTR base;
+
+    if (!filename || !leaf)
+        return false;
+    base = filename + strlen(filename);
+    while (base > filename && base[-1] != '/' && base[-1] != '\\') {
+        base--;
+    }
+    return !strcmp(base, leaf);
+}
+
+static DWORD short_terrain_width(DWORD width) {
+    if (short_terrain_dimensions == TEST_SC2_ZERO_TERRAIN_DIMENSIONS)
+        return 0;
+    if (short_terrain_dimensions == TEST_SC2_HUGE_TERRAIN_DIMENSIONS)
+        return 0xffffffffu;
+    return width;
+}
+
+static DWORD short_terrain_height(DWORD height) {
+    if (short_terrain_dimensions == TEST_SC2_ZERO_TERRAIN_DIMENSIONS)
+        return 0;
+    if (short_terrain_dimensions == TEST_SC2_HUGE_TERRAIN_DIMENSIONS)
+        return 0xffffffffu;
+    return height;
+}
+
+static HANDLE make_short_height_map(LPDWORD size) {
+    sc2MapHeightMap_t *layer = MemAlloc(sizeof(*layer));
+
+    if (!layer)
+        return NULL;
+    memset(layer, 0, sizeof(*layer));
+    layer->fourcc = MAKEFOURCC('H','M','A','P');
+    layer->width = short_terrain_width(9);
+    layer->height = short_terrain_height(7);
+    if (size) *size = sizeof(*layer);
+    return layer;
+}
+
+static HANDLE make_short_sync_height_map(LPDWORD size) {
+    sc2MapSyncHeightMap_t *layer = MemAlloc(sizeof(*layer));
+
+    if (!layer)
+        return NULL;
+    memset(layer, 0, sizeof(*layer));
+    layer->fourcc = MAKEFOURCC('S','M','A','P');
+    layer->width = short_terrain_width(9);
+    layer->height = short_terrain_height(7);
+    if (size) *size = sizeof(*layer);
+    return layer;
+}
+
+static HANDLE make_short_cell_flags(LPDWORD size) {
+    sc2MapCellFlags_t *layer = MemAlloc(sizeof(*layer));
+
+    if (!layer)
+        return NULL;
+    memset(layer, 0, sizeof(*layer));
+    layer->fourcc = MAKEFOURCC('L','F','C','T');
+    layer->width = short_terrain_width(8);
+    layer->height = short_terrain_height(6);
+    if (size) *size = sizeof(*layer);
+    return layer;
+}
+
+static HANDLE make_short_sync_cliff_level(LPDWORD size) {
+    sc2MapSyncCliffLevel_t *layer = MemAlloc(sizeof(*layer));
+
+    if (!layer)
+        return NULL;
+    memset(layer, 0, sizeof(*layer));
+    layer->fourcc = MAKEFOURCC('C','L','I','F');
+    layer->width = short_terrain_width(8);
+    layer->height = short_terrain_height(6);
+    if (size) *size = sizeof(*layer);
+    return layer;
+}
+
+static HANDLE make_short_texture_masks(LPDWORD size) {
+    sc2MapTextureMasks_t *layer = MemAlloc(sizeof(*layer));
+
+    if (!layer)
+        return NULL;
+    memset(layer, 0, sizeof(*layer));
+    layer->fourcc = MAKEFOURCC('M','A','S','K');
+    layer->width = short_terrain_width(4);
+    layer->height = short_terrain_height(4);
+    if (size) *size = sizeof(*layer);
+    return layer;
+}
+
+static HANDLE read_test_short_terrain_file(LPCSTR filename, LPDWORD size) {
+    if (size) *size = 0;
+    if (test_path_leaf_is(filename, "t3HeightMap"))
+        return make_short_height_map(size);
+    if (test_path_leaf_is(filename, "t3SyncHeightMap"))
+        return make_short_sync_height_map(size);
+    if (test_path_leaf_is(filename, "t3CellFlags"))
+        return make_short_cell_flags(size);
+    if (test_path_leaf_is(filename, "t3SyncCliffLevel"))
+        return make_short_sync_cliff_level(size);
+    if (test_path_leaf_is(filename, "t3TextureMasks"))
+        return make_short_texture_masks(size);
+    return read_test_disk_file(filename, size);
+}
+
+static void use_sc2_short_terrain_host(DWORD dimensions) {
+    short_terrain_dimensions = dimensions;
+    SC2_MapSetHost(&(sc2MapHost_t){
+        .read_file = read_test_short_terrain_file,
         .free_file = MemFree,
         .mem_alloc = MemAlloc,
         .mem_free = MemFree,
@@ -390,12 +512,73 @@ static void test_sc2_map_loads_directory_fixture_without_generated_layers(void) 
     use_sc2_fs_host();
 }
 
+static void assert_tiny_map_loaded_without_binary_terrain_layers(sc2Map_t *map) {
+    ASSERT_STR_EQ(map->map_name, "SC2 Tiny Fixture");
+    ASSERT_EQ_INT(map->MapInfo.width, 8);
+    ASSERT_EQ_INT(map->MapInfo.height, 6);
+    ASSERT_EQ_INT(map->num_objects, 5);
+    ASSERT_STR_EQ(map->objects[1].name, "Marine");
+    ASSERT_STR_EQ(map->t3Terrain.tile_set, "Fixture");
+
+    ASSERT_NULL(map->t3HeightMap);
+    ASSERT_NULL(map->t3SyncHeightMap);
+    ASSERT_NULL(map->t3CellFlags);
+    ASSERT_NULL(map->t3SyncCliffLevel);
+    ASSERT_NULL(map->t3TextureMasks);
+    ASSERT_EQ_INT(map->t3TextureMasksSize, 0);
+}
+
+static void test_sc2_map_rejects_short_binary_terrain_layers(void) {
+    sc2Map_t *map;
+
+    setup_sc2_tests();
+    use_sc2_short_terrain_host(TEST_SC2_SHORT_TERRAIN_DIMENSIONS);
+    ASSERT(SC2_MapLoad(TEST_SC2_TINY_DIR));
+    map = SC2_MapCurrent();
+
+    assert_tiny_map_loaded_without_binary_terrain_layers(map);
+
+    SC2_MapShutdown();
+    use_sc2_fs_host();
+}
+
+static void test_sc2_map_rejects_zero_dimension_binary_terrain_layers(void) {
+    sc2Map_t *map;
+
+    setup_sc2_tests();
+    use_sc2_short_terrain_host(TEST_SC2_ZERO_TERRAIN_DIMENSIONS);
+    ASSERT(SC2_MapLoad(TEST_SC2_TINY_DIR));
+    map = SC2_MapCurrent();
+
+    assert_tiny_map_loaded_without_binary_terrain_layers(map);
+
+    SC2_MapShutdown();
+    use_sc2_fs_host();
+}
+
+static void test_sc2_map_rejects_huge_dimension_binary_terrain_layers(void) {
+    sc2Map_t *map;
+
+    setup_sc2_tests();
+    use_sc2_short_terrain_host(TEST_SC2_HUGE_TERRAIN_DIMENSIONS);
+    ASSERT(SC2_MapLoad(TEST_SC2_TINY_DIR));
+    map = SC2_MapCurrent();
+
+    assert_tiny_map_loaded_without_binary_terrain_layers(map);
+
+    SC2_MapShutdown();
+    use_sc2_fs_host();
+}
+
 void run_sc2_map_tests(void) {
     RUN_TEST(test_sc2_fixture_archive_lists_map_root);
     RUN_TEST(test_sc2_fixture_short_name_resolves);
     RUN_TEST(test_sc2_map_loads_xml_objects_and_terrain);
     RUN_TEST(test_sc2_map_loads_binary_terrain_layers);
     RUN_TEST(test_sc2_map_loads_directory_fixture_without_generated_layers);
+    RUN_TEST(test_sc2_map_rejects_short_binary_terrain_layers);
+    RUN_TEST(test_sc2_map_rejects_zero_dimension_binary_terrain_layers);
+    RUN_TEST(test_sc2_map_rejects_huge_dimension_binary_terrain_layers);
     SC2_MapShutdown();
     FS_Shutdown();
 }

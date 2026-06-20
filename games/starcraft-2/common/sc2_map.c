@@ -1409,36 +1409,97 @@ static LPBYTE sc2_read_binary_layer(sc2MapSource_t *source,
     return copy;
 }
 
+static BOOL sc2_binary_layer_payload_valid(DWORD size,
+                                           DWORD header_size,
+                                           DWORD width,
+                                           DWORD height,
+                                           DWORD sample_size) {
+    size_t count;
+    size_t payload_size;
+    size_t total_size;
+
+    if (!width || !height || !sample_size)
+        return false;
+    if ((size_t)width > (size_t)-1 / (size_t)height)
+        return false;
+    count = (size_t)width * (size_t)height;
+    if (count > ((size_t)-1 - (size_t)header_size) / (size_t)sample_size)
+        return false;
+    payload_size = count * (size_t)sample_size;
+    total_size = (size_t)header_size + payload_size;
+    return (size_t)size >= total_size;
+}
+
 static void sc2_parse_height_map(sc2MapSource_t *source) {
+    DWORD size = 0;
+
     sc2_map.t3HeightMap = (sc2MapHeightMap_t *)sc2_read_binary_layer(source,
                                                                      "t3HeightMap",
                                                                      sizeof(sc2MapHeightMap_t),
                                                                      MAKEFOURCC('H','M','A','P'),
-                                                                     NULL);
+                                                                     &size);
+    if (sc2_map.t3HeightMap &&
+        !sc2_binary_layer_payload_valid(size,
+                                        sizeof(sc2MapHeightMap_t),
+                                        sc2_map.t3HeightMap->width,
+                                        sc2_map.t3HeightMap->height,
+                                        sizeof(sc2MapHeightSample_t))) {
+        SAFE_DELETE(sc2_map.t3HeightMap, sc2_free);
+    }
 }
 
 static void sc2_parse_sync_height_map(sc2MapSource_t *source) {
+    DWORD size = 0;
+
     sc2_map.t3SyncHeightMap = (sc2MapSyncHeightMap_t *)sc2_read_binary_layer(source,
                                                                              "t3SyncHeightMap",
                                                                              sizeof(sc2MapSyncHeightMap_t),
                                                                              MAKEFOURCC('S','M','A','P'),
-                                                                             NULL);
+                                                                             &size);
+    if (sc2_map.t3SyncHeightMap &&
+        !sc2_binary_layer_payload_valid(size,
+                                        sizeof(sc2MapSyncHeightMap_t),
+                                        sc2_map.t3SyncHeightMap->width,
+                                        sc2_map.t3SyncHeightMap->height,
+                                        sizeof(sc2MapSyncHeightSample_t))) {
+        SAFE_DELETE(sc2_map.t3SyncHeightMap, sc2_free);
+    }
 }
 
 static void sc2_parse_cell_flags(sc2MapSource_t *source) {
+    DWORD size = 0;
+
     sc2_map.t3CellFlags = (sc2MapCellFlags_t *)sc2_read_binary_layer(source,
                                                                      "t3CellFlags",
                                                                      sizeof(sc2MapCellFlags_t),
                                                                      MAKEFOURCC('L','F','C','T'),
-                                                                     NULL);
+                                                                     &size);
+    if (sc2_map.t3CellFlags &&
+        !sc2_binary_layer_payload_valid(size,
+                                        sizeof(sc2MapCellFlags_t),
+                                        sc2_map.t3CellFlags->width,
+                                        sc2_map.t3CellFlags->height,
+                                        sizeof(BYTE))) {
+        SAFE_DELETE(sc2_map.t3CellFlags, sc2_free);
+    }
 }
 
 static void sc2_parse_sync_cliff_level(sc2MapSource_t *source) {
+    DWORD size = 0;
+
     sc2_map.t3SyncCliffLevel = (sc2MapSyncCliffLevel_t *)sc2_read_binary_layer(source,
                                                                                "t3SyncCliffLevel",
                                                                                sizeof(sc2MapSyncCliffLevel_t),
                                                                                MAKEFOURCC('C','L','I','F'),
-                                                                               NULL);
+                                                                               &size);
+    if (sc2_map.t3SyncCliffLevel &&
+        !sc2_binary_layer_payload_valid(size,
+                                        sizeof(sc2MapSyncCliffLevel_t),
+                                        sc2_map.t3SyncCliffLevel->width,
+                                        sc2_map.t3SyncCliffLevel->height,
+                                        sizeof(USHORT))) {
+        SAFE_DELETE(sc2_map.t3SyncCliffLevel, sc2_free);
+    }
 }
 
 static void sc2_parse_texture_masks(sc2MapSource_t *source) {
@@ -1447,6 +1508,15 @@ static void sc2_parse_texture_masks(sc2MapSource_t *source) {
                                                                            sizeof(sc2MapTextureMasks_t),
                                                                            MAKEFOURCC('M','A','S','K'),
                                                                            &sc2_map.t3TextureMasksSize);
+    if (sc2_map.t3TextureMasks &&
+        !sc2_binary_layer_payload_valid(sc2_map.t3TextureMasksSize,
+                                        sizeof(sc2MapTextureMasks_t),
+                                        sc2_map.t3TextureMasks->width,
+                                        sc2_map.t3TextureMasks->height,
+                                        sizeof(BYTE))) {
+        SAFE_DELETE(sc2_map.t3TextureMasks, sc2_free);
+        sc2_map.t3TextureMasksSize = 0;
+    }
 }
 
 void SC2_MapSetHost(sc2MapHost_t const *host) {
