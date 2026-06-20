@@ -218,6 +218,7 @@ static void UIWow_Init(void) {
     UIWow_RegisterMenuCommands();
     UIWow_EnsureRenderer();
     UIWow_InitLua();
+    fprintf(stderr, "UIWow_Init: xml_count=%d\n", (int)UIWow_GetNumFrames());
 }
 
 static void UIWow_Shutdown(void) {
@@ -550,6 +551,6 @@ uiExport_t UI_GetAPI(uiImport_t import) {
         .HitTestLayout    = UIWow_HitTestLayout,
         .frame_size = UIWow_GetFrameSize(),
         .frames = UIWow_GetFrames(),
-        .num_frames = UIWow_GetNumFrames(),
+        .GetNumFrames = UIWow_GetNumFrames,
     };
 }

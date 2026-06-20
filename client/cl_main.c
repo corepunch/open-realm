@@ -308,7 +308,8 @@ static BOOL CL_UIPointInRect(FLOAT x, FLOAT y, LPCRECT r) {
 
 LPUIBASEFRAME CL_UIHitTest(FLOAT x, FLOAT y) {
     LPUIBASEFRAME best = NULL;
-    for (DWORD i = 0; i < ui.num_frames; i++) {
+    DWORD nf = ui.GetNumFrames ? ui.GetNumFrames() : 0;
+    for (DWORD i = 0; i < nf; i++) {
         LPUIBASEFRAME f = (LPUIBASEFRAME)((char *)ui.frames + i * ui.frame_size);
         if (!f || (f->ui_flags & UIFLAG_HIDDEN) || f->hidden || f->disabled) {
             continue;
@@ -629,8 +630,14 @@ void CL_Init(void) {
         .Printf = CON_printf,
     });
     
+    /* Expose FDF frame data to UI DLL */
+    ui.frames = frames;
+
     if (ui.Init) {
+        fprintf(stderr, "CL_Init: calling ui.Init\n");
         ui.Init();
+        fprintf(stderr, "CL_Init: ui.Init done, num_frames=%u\n",
+                ui.GetNumFrames ? ui.GetNumFrames() : 0);
     }
 
     SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
