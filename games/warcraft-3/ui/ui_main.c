@@ -765,8 +765,8 @@ void UI_MouseEventLocal(int x, int y, int button, BOOL down) {
 
     /* Global: editbox clear focus on miss (LEFT_DOWN outside any editbox) */
     if (down && button == 1) {
-        BOOL hit_editbox = hit && (hit->Type == FT_EDITBOX || hit->Type == FT_GLUEEDITBOX ||
-                                   hit->Type == FT_SLASHCHATBOX);
+        BOOL hit_editbox = hit && (hit->base.type == FT_EDITBOX || hit->base.type == FT_GLUEEDITBOX ||
+                                   hit->base.type == FT_SLASHCHATBOX);
         if (!hit_editbox) {
             UI_EditboxClearFocusOnMiss();
         }

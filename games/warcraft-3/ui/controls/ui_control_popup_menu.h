@@ -167,7 +167,7 @@ static void UI_UpdatePopupVisibility(LPCFRAMEDEF const *draw_order, DWORD count)
     FOR_LOOP(i, count) {
         LPFRAMEDEF frame = (LPFRAMEDEF)draw_order[i];
 
-        if (!UI_IsPopupFrameType(frame->Type)) {
+        if (!UI_IsPopupFrameType(frame->base.type)) {
             continue;
         }
 

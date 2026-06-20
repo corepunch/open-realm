@@ -6,7 +6,7 @@ static BOOL UI_ButtonIsPopupArrow(LPCFRAMEDEF frame) {
 
     return frame &&
            parent &&
-           UI_IsPopupFrameType(parent->Type) &&
+           UI_IsPopupFrameType(parent->base.type) &&
            parent->Popup.ArrowFrame[0] &&
            !strcmp(frame->Name, parent->Popup.ArrowFrame);
 }
@@ -37,7 +37,7 @@ static BOOL UI_ButtonBackdropTextureContains(LPCFRAMEDEF frame, LPCSTR text) {
 }
 
 static LPCSTR UI_ButtonPopupPushedBackdropName(LPCFRAMEDEF frame) {
-    if (!frame || !UI_IsPopupFrameType(frame->Type)) {
+    if (!frame || !UI_IsPopupFrameType(frame->base.type)) {
         return NULL;
     }
     if (UI_ButtonBackdropNameContains(frame, "Campaign")) {
@@ -89,7 +89,7 @@ static VECTOR2 UI_ButtonPushedTextOffset(LPCFRAMEDEF frame) {
          frame->Button.PushedTextOffset.y != 0.0f)) {
         return frame->Button.PushedTextOffset;
     }
-    if (frame && UI_IsPopupFrameType(frame->Type)) {
+    if (frame && UI_IsPopupFrameType(frame->base.type)) {
         if (UI_ButtonBackdropNameContains(frame, "BattleNet")) {
             return MAKE(VECTOR2, -0.002f, -0.003f);
         }
@@ -105,8 +105,8 @@ static BOOL UI_ButtonEnabled(LPCFRAMEDEF frame) {
     return frame &&
            !frame->base.disabled &&
            (frame->OnClick[0] ||
-            frame->Type == FT_POPUPMENU ||
-            frame->Type == FT_GLUEPOPUPMENU ||
+            frame->base.type == FT_POPUPMENU ||
+            frame->base.type == FT_GLUEPOPUPMENU ||
             UI_ButtonIsPopupArrow(frame));
 }
 

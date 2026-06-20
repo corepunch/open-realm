@@ -214,7 +214,7 @@ void UI_ClearTemplates(void) {
 void UI_InitFrame(LPFRAMEDEF frame, FRAMETYPE type) {
     memset(frame, 0, sizeof(FRAMEDEF));
     frame->inuse = true;
-    frame->Type = type;
+    frame->base.type = type;
     frame->base.color = COLOR32_WHITE;
     frame->Text = frame->TextStorage;
     switch (type) {
@@ -781,7 +781,7 @@ MAKE_PARSERCALL(IncludeFile) {
 MAKE_PARSERCALL(StringList) {
     FRAMEDEF string_list;
     memset(&string_list, 0, sizeof(FRAMEDEF));
-    string_list.Type = FT_STRINGLIST;
+    string_list.base.type = FT_STRINGLIST;
     FDF_ParseFrame(parser, &string_list);
 }
 
@@ -963,7 +963,7 @@ void parse_func(LPPARSER parser, LPFRAMEDEF frame) {
     /* Some shipped FDF files end while a frame is still open. Treat EOF like
      * an implicit close so we can consume the original assets verbatim. */
     while ((token = parse_token(parser)) && *token && (*token != '}')) {
-        if (frame->Type == FT_STRINGLIST) {
+        if (frame->base.type == FT_STRINGLIST) {
             static parseItem_t stringitem = { "", { F(Name, StringListItem), F_END } };
             stringListItem_t *str = uiimport.MemAlloc(sizeof(stringListItem_t));
             ADD_TO_LIST(str, strings);
@@ -1022,16 +1022,16 @@ static BOOL UI_FrameTypesCompatible(FRAMETYPE frameType, FRAMETYPE inheritType) 
 
 void UI_InheritFrom(LPFRAMEDEF frame, LPCSTR inheritName) {
     LPFRAMEDEF inherit = FindFrameTemplate(inheritName);
-    if (inherit && UI_FrameTypesCompatible(frame->Type, inherit->Type)) {
+     if (inherit && UI_FrameTypesCompatible(frame->base.type, inherit->base.type)) {
         FRAMEDEF tmp;
-        FRAMETYPE requested_type = frame->Type;
+        FRAMETYPE requested_type = frame->base.type;
         memcpy(&tmp, frame, sizeof(FRAMEDEF));
         UI_FreeFrameDynamicText(frame);
         memcpy(frame, inherit, sizeof(FRAMEDEF));
         UI_FixCopiedFrameTextPointer(frame, inherit);
         memcpy(frame->Name, tmp.Name, sizeof(UINAME));
         frame->Parent = tmp.Parent;
-        frame->Type = requested_type;
+        frame->base.type = requested_type;
         frame->AnyPointsSet = false;
     } else if (inherit) {
         fprintf(stderr, "Can't inherit from different type %s\n", inheritName);
@@ -1143,27 +1143,27 @@ static BOOL UI_IsEmbeddedControlPart(LPCFRAMEDEF parent, LPCFRAMEDEF child) {
     }
     /* Control art children are serialized into their owning control's payload by
      * ui_write.c. Emitting them again as standalone children draws duplicates. */
-    if (child->Type == FT_BACKDROP) {
+    if (child->base.type == FT_BACKDROP) {
         return UI_FrameNameEquals(child, parent->Control.Backdrop.Normal) ||
                UI_FrameNameEquals(child, parent->Control.Backdrop.Pushed) ||
                UI_FrameNameEquals(child, parent->Control.Backdrop.Disabled) ||
                UI_FrameNameEquals(child, parent->Control.Backdrop.DisabledPushed);
     }
-    if (child->Type == FT_HIGHLIGHT) {
+    if (child->base.type == FT_HIGHLIGHT) {
         return UI_FrameNameEquals(child, parent->Control.Backdrop.MouseOver) ||
-               (UI_IsCheckBoxFrameType(parent->Type) &&
+               (UI_IsCheckBoxFrameType(parent->base.type) &&
                 (UI_FrameNameEquals(child, parent->CheckBox.CheckHighlight) ||
                  UI_FrameNameEquals(child, parent->CheckBox.DisabledCheckHighlight)));
     }
-    if (child->Type == FT_TEXT) {
-        if (UI_IsButtonFrameType(parent->Type) &&
+    if (child->base.type == FT_TEXT) {
+        if (UI_IsButtonFrameType(parent->base.type) &&
             (UI_FrameNameEquals(child, parent->Text) ||
              UI_FrameNameEquals(child, parent->Button.NormalText.frame))) {
             return true;
         }
         return UI_FrameNameEquals(child, parent->Edit.TextFrame);
     }
-    if (parent->Type == FT_SLIDER && UI_IsButtonFrameType(child->Type)) {
+    if (parent->base.type == FT_SLIDER && UI_IsButtonFrameType(child->base.type)) {
         return UI_FrameNameEquals(child, parent->Slider.ThumbButtonFrame) ||
                UI_FrameNameEquals(child, parent->Slider.IncButtonFrame) ||
                UI_FrameNameEquals(child, parent->Slider.DecButtonFrame);
@@ -1267,7 +1267,7 @@ LPFRAMEDEF UI_CloneFrameTree(LPCFRAMEDEF source, LPFRAMEDEF parent) {
     }
 
     FOR_LOOP(i, count) {
-        copies[i] = UI_Spawn(sources[i]->Type, parent);
+        copies[i] = UI_Spawn(sources[i]->base.type, parent);
         if (!copies[i]) {
             return NULL;
         }

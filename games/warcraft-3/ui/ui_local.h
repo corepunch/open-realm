@@ -133,7 +133,6 @@ typedef struct {
 struct uiFrameDef_s {
     uiBaseFrame_t base;             /* shared engine frame — keep in sync with common/shared.h */
     LPCFRAMEDEF Parent;
-    FRAMETYPE Type;                 /* TODO: migrate to base.type */
     UINAME Name;
     UINAME TextStorage;
     UINAME OnClick;
