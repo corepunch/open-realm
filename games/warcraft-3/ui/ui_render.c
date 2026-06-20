@@ -916,6 +916,219 @@ void UI_TogglePopup(LPCFRAMEDEF frame) {
     }
 }
 
+/* ========================================================================
+ * EVENT-TIME CONTROL INTERACTION — called from UI_MouseEventLocal
+ * ======================================================================== */
+
+void UI_SliderBeginDrag(LPCFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y) {
+    if (!frame || frame->Type != FT_SLIDER) {
+        return;
+    }
+    LPCRECT rect = UI_LayoutRect(frame);
+    if (!rect) {
+        return;
+    }
+    LPCFRAMEDEF thumb = UI_FindFrameNear(frame, frame->Slider.ThumbButtonFrame);
+    RECT thumb_rect = UI_SliderThumbRect(frame, rect, thumb);
+    if (UI_PointInRect(fdf_x, fdf_y, rect) || UI_PointInRect(fdf_x, fdf_y, &thumb_rect)) {
+        VECTOR2 mouse = { fdf_x, fdf_y };
+        active_slider = frame;
+        ((LPFRAMEDEF)frame)->Slider.InitialValue = UI_SliderValueFromMousePos(frame, rect, thumb, mouse);
+    }
+}
+
+void UI_SliderUpdateDrag(LPCFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y) {
+    if (!frame || active_slider != frame) {
+        return;
+    }
+    LPCRECT rect = UI_LayoutRect(frame);
+    if (!rect) {
+        return;
+    }
+    LPCFRAMEDEF thumb = UI_FindFrameNear(frame, frame->Slider.ThumbButtonFrame);
+    VECTOR2 mouse = { fdf_x, fdf_y };
+    ((LPFRAMEDEF)frame)->Slider.InitialValue = UI_SliderValueFromMousePos(frame, rect, thumb, mouse);
+}
+
+void UI_SliderEndDrag(LPCFRAMEDEF frame) {
+    if (frame && active_slider == frame) {
+        active_slider = NULL;
+    }
+}
+
+BOOL UI_SliderIsDragging(void) {
+    return active_slider != NULL;
+}
+
+LPCFRAMEDEF UI_SliderActiveFrame(void) {
+    return active_slider;
+}
+
+BOOL UI_HasActivePopup(void) {
+    return active_popup != NULL;
+}
+
+void UI_EditboxFocusOnHit(LPCFRAMEDEF frame) {
+    if (frame && UI_IsEditBoxType(frame->Type)) {
+        UI_FocusEdit((LPFRAMEDEF)frame);
+    }
+}
+
+void UI_EditboxClearFocusOnMiss(void) {
+    UI_FocusEdit(NULL);
+}
+
+void UI_MapListSelectRow(LPCFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y) {
+    if (!frame || !frame->MapListControl.State) {
+        return;
+    }
+    LPCRECT rect = UI_LayoutRect(frame);
+    if (!rect) {
+        return;
+    }
+    uiMapListControl_t const *control = &frame->MapListControl;
+    uiMapListState_t *state = control->State;
+    FLOAT row_height = control->RowHeight > 0 ? control->RowHeight : 0.019f;
+    RECT content = { rect->x + control->InsetX, rect->y + control->InsetY,
+                     rect->w - control->InsetX * 2.0f, row_height };
+    DWORD visible_rows = control->VisibleRows ? control->VisibleRows :
+        (DWORD)((rect->h - control->InsetY * 2.0f) / row_height);
+    if (visible_rows == 0 || state->count == 0) {
+        return;
+    }
+    FLOAT row = (fdf_y - content.y) / row_height;
+    DWORD index = (DWORD)floorf(state->visualScroll + row);
+    if (row >= 0.0f && row < (FLOAT)visible_rows && index < state->count) {
+        char command[128];
+        snprintf(command, sizeof(command),
+                 control->SelectCommand[0] ? control->SelectCommand : "menu_lan_select %u",
+                 (unsigned)index);
+        UI_MenuCommandLocal(command);
+    }
+}
+
+void UI_MapListScroll(LPCFRAMEDEF frame, BOOL scroll_up) {
+    if (!frame || !frame->MapListControl.State) {
+        return;
+    }
+    uiMapListControl_t const *control = &frame->MapListControl;
+    uiMapListState_t *state = control->State;
+    DWORD visible_rows = control->VisibleRows ? control->VisibleRows : 0;
+    if (visible_rows == 0 || state->count <= visible_rows) {
+        return;
+    }
+    DWORD max_scroll = state->count - visible_rows;
+    if (scroll_up) {
+        state->scroll = state->scroll > 0 ? state->scroll - 1 : 0;
+    } else if (state->scroll < max_scroll) {
+        state->scroll++;
+    }
+}
+
+void UI_PopupCloseOnMiss(void) {
+    if (active_popup) {
+        UI_ResetPopupScroll();
+        active_popup = NULL;
+    }
+}
+
+BOOL UI_PopupPointInside(FLOAT fdf_x, FLOAT fdf_y) {
+    if (!active_popup) {
+        return FALSE;
+    }
+    LPCRECT popup_rect = UI_LayoutRect(active_popup);
+    if (popup_rect && UI_PointInRect(fdf_x, fdf_y, popup_rect)) {
+        return TRUE;
+    }
+    LPFRAMEDEF menu = UI_PopupMenuFrame(active_popup);
+    if (menu) {
+        LPCRECT menu_rect = UI_LayoutRect(menu);
+        if (menu_rect && UI_PointInRect(fdf_x, fdf_y, menu_rect)) {
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
+void UI_PopupMenuScroll(BOOL scroll_up) {
+    LPFRAMEDEF menu = active_popup ? UI_PopupMenuFrame(active_popup) : NULL;
+    if (!menu || menu->hidden) {
+        return;
+    }
+    /* Find the parent popup frame to get menu border/row info */
+    LPCFRAMEDEF parent = menu->Parent;
+    if (!parent) {
+        return;
+    }
+    FLOAT border = parent->Menu.Border > 0.0f ? parent->Menu.Border : 0.006f;
+    FLOAT row_height = parent->Menu.Item.Height > 0.0f ? parent->Menu.Item.Height : 0.014f;
+    LPCRECT rect = UI_LayoutRect(parent);
+    if (!rect) {
+        return;
+    }
+    FLOAT content_height = MAX(0.0f, rect->h - border * 2.0f);
+    DWORD visible_rows = content_height > 0.0f ? (DWORD)floorf(content_height / row_height) : 0;
+    if (visible_rows > parent->Menu.ItemCount) {
+        visible_rows = parent->Menu.ItemCount;
+    }
+    DWORD max_scroll = parent->Menu.ItemCount > visible_rows ? parent->Menu.ItemCount - visible_rows : 0;
+    if (scroll_up) {
+        active_popup_scroll = active_popup_scroll > 0 ? active_popup_scroll - 1 : 0;
+    } else if (active_popup_scroll < max_scroll) {
+        active_popup_scroll++;
+    }
+}
+
+void UI_PopupSelectItem(FLOAT fdf_x, FLOAT fdf_y) {
+    LPFRAMEDEF menu = active_popup ? UI_PopupMenuFrame(active_popup) : NULL;
+    if (!menu || menu->hidden) {
+        return;
+    }
+    LPCFRAMEDEF parent = menu->Parent;
+    if (!parent) {
+        return;
+    }
+    LPRENDERER renderer = UI_GetRenderer();
+    if (!renderer || !renderer->LoadFont || !renderer->DrawText) {
+        return;
+    }
+    FLOAT border = parent->Menu.Border > 0.0f ? parent->Menu.Border : 0.006f;
+    FLOAT row_height = parent->Menu.Item.Height > 0.0f ? parent->Menu.Item.Height : 0.014f;
+    LPCRECT rect = UI_LayoutRect(parent);
+    if (!rect) {
+        return;
+    }
+    FLOAT content_height = MAX(0.0f, rect->h - border * 2.0f);
+    DWORD visible_rows = content_height > 0.0f ? (DWORD)floorf(content_height / row_height) : 0;
+    if (visible_rows > parent->Menu.ItemCount) {
+        visible_rows = parent->Menu.ItemCount;
+    }
+    FOR_LOOP(row_index, visible_rows) {
+        DWORD i = active_popup_scroll + row_index;
+        RECT row = { rect->x + border, rect->y + border + row_height * (FLOAT)row_index,
+                     MAX(0.0f, rect->w - border * 2.0f), row_height };
+        if (i >= parent->Menu.ItemCount) {
+            break;
+        }
+        if (UI_PointInRect(fdf_x, fdf_y, &row)) {
+            LPFRAMEDEF popup = (LPFRAMEDEF)parent->Parent;
+            LPFRAMEDEF title = UI_IsPopupFrameType(popup ? popup->Type : FT_NONE)
+                ? UI_PopupTitleTextFrame(popup) : NULL;
+            char command[160];
+            if (title) {
+                UI_SetText(title, "%s", parent->Menu.Items[i].text);
+            }
+            if (parent->OnClick[0]) {
+                snprintf(command, sizeof(command), "%s %u", parent->OnClick, (unsigned)i);
+                UI_MenuCommandLocal(command);
+            }
+            active_popup = NULL;
+            UI_ResetPopupScroll();
+            return;
+        }
+    }
+}
+
 void UI_DrawFrames(LPCFRAMEDEF const *roots, DWORD num_roots) {
     LPCFRAMEDEF draw_order[MAX_UI_CLASSES];
     DWORD total;

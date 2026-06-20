@@ -34,8 +34,7 @@ static RECT UI_SliderThumbRect(LPCFRAMEDEF slider, LPCRECT slider_rect, LPCFRAME
     return rect;
 }
 
-static FLOAT UI_SliderValueFromMouse(LPCFRAMEDEF slider, LPCRECT slider_rect, LPCFRAMEDEF thumb) {
-    VECTOR2 const mouse = UI_MouseToFdf();
+static FLOAT UI_SliderValueFromMousePos(LPCFRAMEDEF slider, LPCRECT slider_rect, LPCFRAMEDEF thumb, VECTOR2 mouse) {
     FLOAT const min_value = slider->Slider.MinValue;
     FLOAT const max_value = slider->Slider.MaxValue;
     FLOAT value_range = max_value - min_value;
@@ -68,23 +67,17 @@ static FLOAT UI_SliderValueFromMouse(LPCFRAMEDEF slider, LPCRECT slider_rect, LP
 
 static void UI_UpdateSliderInteraction(LPCFRAMEDEF frame, LPCRECT rect, LPCFRAMEDEF thumb) {
     RECT thumb_rect = UI_SliderThumbRect(frame, rect, thumb);
-    uiClientMouseEvent_t mouse_event = uiimport.GetMouseEvent ? uiimport.GetMouseEvent() : UI_CLIENT_MOUSE_NONE;
-    BOOL mouse_down = uiimport.GetMouseButtonDown && uiimport.GetMouseButtonDown(1);
-    BOOL const can_start = mouse_event == UI_CLIENT_MOUSE_LEFT_DOWN &&
-                           !UI_PointerBlockedByPopup(frame) &&
+    VECTOR2 mouse = UI_MouseToFdf();
+    BOOL const can_start = !UI_PointerBlockedByPopup(frame) &&
                            (UI_MouseContains(rect) || UI_MouseContains(&thumb_rect));
 
     if (can_start) {
         active_slider = frame;
     }
-    if (active_slider == frame && mouse_down) {
-        ((LPFRAMEDEF)frame)->Slider.InitialValue = UI_SliderValueFromMouse(frame, rect, thumb);
+    if (active_slider == frame) {
+        ((LPFRAMEDEF)frame)->Slider.InitialValue = UI_SliderValueFromMousePos(frame, rect, thumb, mouse);
     }
-    if (active_slider == frame && mouse_event == UI_CLIENT_MOUSE_LEFT_UP) {
-        ((LPFRAMEDEF)frame)->Slider.InitialValue = UI_SliderValueFromMouse(frame, rect, thumb);
-        active_slider = NULL;
-    }
-    if (!mouse_down && active_slider == frame) {
+    if (!uiimport.GetMouseButtonDown(1) && active_slider == frame) {
         active_slider = NULL;
     }
 }
