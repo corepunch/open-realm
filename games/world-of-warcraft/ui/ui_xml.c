@@ -658,12 +658,10 @@ static int UIWow_LuaFrameAdvanceTime(lua_State *L) {
     int i = UIWow_FrameFromSelf(L);
     if (i >= 0) {
         uiWowXmlElem_t *e = &wow_xml.elems[i];
-        DWORD now = uiimport.GetClientTime ? uiimport.GetClientTime() : e->frame + 16;
+        DWORD now = wow_ui.time;
 
         e->oldframe = e->frame;
-        e->frame = uiimport.GetClientTime
-            ? (now >= e->anim_start ? now - e->anim_start : 0)
-            : now;
+        e->frame = (now >= e->anim_start ? now - e->anim_start : 0);
     }
     return 0;
 }
