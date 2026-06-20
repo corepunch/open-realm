@@ -81,6 +81,17 @@ static BOOL UIWow_MainHasArchiveFile(LPCSTR path) {
     return false;
 }
 
+/* Both fallbacks below compensate for textures that the 1.0 vanilla MPQ never shipped — not bugs in
+ * this code. The whoa-master UI XML was likely written against a later/more complete asset set.
+ *
+ * Glues-Splash-* → Glues-Logo.blp: XML requests per-realm/locale splash backgrounds
+ * (e.g. Glues-Splash-US, Glues-Splash-EU) but none of those exist in the MPQ; only
+ * Glues-Logo.blp is present. Any missing splash falls back to the generic logo.
+ *
+ * Glue-Panel-Button-Disabled-Down: the MPQ has Glue-Panel-Button-Disabled.blp and
+ * Glue-Panel-Button-Down.blp as separate states but no combined disabled+pressed variant.
+ * The UI XML references this composite path for the pushed state of a disabled button, so
+ * we fall back to Disabled.blp — treating disabled+down identically to disabled. */
 static void UIWow_ResolveTexturePath(LPCSTR in, LPSTR out, size_t out_size) {
     static LPCSTR exts[] = { ".blp", ".tga", ".dds", NULL };
     static LPCSTR splash_prefix = "Interface\\Glues\\Common\\Glues-Splash-";
