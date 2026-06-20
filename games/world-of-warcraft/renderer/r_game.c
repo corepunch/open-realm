@@ -186,6 +186,22 @@ bool R_GameEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
     return true;
 }
 
+/* Build a stable top/front light for WoW UI model-camera previews. */
+static void R_GameEntityCameraLightMatrix(LPCVECTOR3 target, FLOAT radius, LPMATRIX4 output) {
+    MATRIX4 proj;
+    MATRIX4 view;
+    VECTOR3 light_dir = { -0.35f, -0.50f, 0.80f };
+    VECTOR3 eye;
+    FLOAT distance = MAX(1000.0f, radius * 8.0f);
+    FLOAT scale = MAX(64.0f, radius * 2.5f);
+
+    Vector3_normalize(&light_dir);
+    eye = Vector3_mad(target, -distance, &light_dir);
+    Matrix4_ortho(&proj, -scale, scale, -scale, scale, -1000.0f, 3000.0f);
+    Matrix4_lookAt(&view, &eye, &light_dir, &(VECTOR3){ 0.0f, 0.0f, 1.0f });
+    Matrix4_multiply(&proj, &view, output);
+}
+
 void R_GameRenderModel(renderEntity_t const *entity) {
     MATRIX4 transform;
     MATRIX4 attached_transform;
@@ -396,7 +412,7 @@ bool R_GameExtractEntityCamera(renderEntity_t const *entity, float aspect, viewD
     Matrix4_lookAt(&view_matrix, &eye, &dir, &up);
     Matrix4_multiply(&proj_matrix, &view_matrix, &viewdef->viewProjectionMatrix);
     Matrix4_identity(&viewdef->textureMatrix);
-    Matrix4_identity(&viewdef->lightMatrix);
+    R_GameEntityCameraLightMatrix(&target, radius, &viewdef->lightMatrix);
     return true;
 }
 
