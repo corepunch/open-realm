@@ -450,6 +450,29 @@ void UI_SanitizeMapInfoText(LPSTR text) {
     }
 }
 
+LPCSTR UI_MapTilesetName(BYTE tileset) {
+    switch (tileset) {
+        case 'A': return "Ashenvale"; case 'B': return "Barrens";
+        case 'C': return "Felwood"; case 'D': return "Dungeon";
+        case 'F': return "Lordaeron Fall"; case 'G': return "Underground";
+        case 'I': return "Icecrown Glacier"; case 'J': return "Dalaran";
+        case 'K': return "Black Citadel"; case 'L': return "Lordaeron Summer";
+        case 'N': return "Northrend"; case 'O': return "Outland";
+        case 'Q': return "Village Fall"; case 'V': return "Village";
+        case 'W': return "Lordaeron Winter"; case 'X': return "Kalimdor";
+        case 'Y': return "Blackrock"; case 'Z': return "Dungeon";
+        default: return "Unknown";
+    }
+}
+
+LPCSTR UI_MapSizeName(DWORD width, DWORD height) {
+    DWORD largest = MAX(width, height);
+    if (largest <= 96) return "Small";
+    if (largest <= 128) return "Medium";
+    if (largest <= 160) return "Large";
+    return "Huge";
+}
+
 static LPCSTR UI_CsvField(LPCSTR text, DWORD index, LPSTR out, DWORD out_size) {
     DWORD field = 0;
     DWORD len = 0;

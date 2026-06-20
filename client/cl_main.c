@@ -601,8 +601,6 @@ void CL_Init(void) {
         .DefaultMapName = CM_DefaultMapName,
         .ResolveMapInfoString = CM_ResolveMapInfoString,
         .MapNameMatchesFile = CM_MapNameMatchesFile,
-        .MapTilesetName = CM_TilesetName,
-        .MapSizeName = CM_MapSizeName,
         .MemAlloc = MemAlloc,
         .MemFree = MemFree,
         .ModelIndex = CL_ModelIndex,
