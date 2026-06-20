@@ -605,8 +605,11 @@ static void UI_DrawLoadingScreen(void) {
     UI_DrawFrame(loading_screen.Loading);
 }
 
+/* Last mouse position in FDF coords — set by UI_MouseEventLocal, read by draw helpers */
+static VECTOR2 ui_last_mouse_fdf;
+
 VECTOR2 UI_MouseToFdf(void) {
-    return uiimport.GetMouseFdf ? uiimport.GetMouseFdf() : MAKE(VECTOR2, 0, 0);
+    return ui_last_mouse_fdf;
 }
 
 BOOL UI_MouseContains(LPCRECT rect) {
@@ -799,8 +802,11 @@ void UI_MouseEventLocal(int x, int y, int button, BOOL down) {
     if (!ui_state.active) {
         return;
     }
-
     VECTOR2 fdf = UI_PixelToFdf(x, y);
+    ui_last_mouse_fdf = fdf;
+    /* Track mouse position for layout system */
+    UI_LayoutSetMouseState(fdf, down && button == 1);
+
     LPCFRAMEDEF hit = UI_HitTest(fdf.x, fdf.y);
 
     /* Dispatch to per-type event handler */

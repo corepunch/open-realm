@@ -1937,8 +1937,9 @@ static void UIWow_XMLDrawTree(int i, int hovered_button) {
 
 void UIWow_XMLDraw(void) {
     int hovered_button = -1;
-    if (uiimport.GetMouseFdf) {
-        VECTOR2 m = uiimport.GetMouseFdf();
+    extern VECTOR2 wow_last_mouse_fdf;
+    {
+        VECTOR2 m = wow_last_mouse_fdf;
         int hit = UIWow_XMLHitFrame(m.x, m.y);
         if (hit >= 0 && wow_xml.elems[hit].type == WOW_XML_BUTTON) hovered_button = hit;
     }
@@ -2006,13 +2007,11 @@ static int UIWow_XMLHitFrame(FLOAT x, FLOAT y) {
 BOOL UIWow_XMLMouseEvent(int x, int y, int button, BOOL down) {
     FLOAT fdf_x, fdf_y;
     int hit;
-    /* Convert pixel coords using the same aspect-correct scene transform the
-     * renderer uses, so hit-testing matches what is actually drawn on screen. */
-    if (uiimport.GetMouseFdf) {
-        VECTOR2 m = uiimport.GetMouseFdf();
-        fdf_x = m.x; fdf_y = m.y;
-    } else {
-        fdf_x = x / 1024.0f; fdf_y = y / 768.0f;
+    /* Use stored mouse position from event handler */
+    {
+        extern VECTOR2 wow_last_mouse_fdf;
+        fdf_x = wow_last_mouse_fdf.x;
+        fdf_y = wow_last_mouse_fdf.y;
     }
 
     /* Mouse wheel (button 4 = up, 5 = down): scroll the ScrollFrame under the cursor. */
