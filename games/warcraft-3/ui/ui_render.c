@@ -300,14 +300,14 @@ static LPCRECT UI_LayoutRect(LPCFRAMEDEF frame) {
         switch (frame->base.type) {
             case FT_TEXT:
             case FT_STRING:
-                if (frame->Text && frame->Font.Index) {
+                if (frame->base.text && frame->Font.Index) {
                     BOOL auto_width = intrinsic_w == 0;
                     BOOL auto_height = intrinsic_h == 0;
                     LPRENDERER renderer = UI_GetRenderer();
                     drawText_t dt = {
                         .font = renderer ? renderer->LoadFont(UI_FontFile(frame->Font.Name),
                                                               UI_FontPixelSize(frame->Font.Size)) : NULL,
-                        .text = frame->Text,
+                        .text = frame->base.text,
                         .textWidth = intrinsic_w > 0 ? intrinsic_w : 0.0f,
                         .lineHeight = 1.0f,
                         .wordWrap = intrinsic_w > 0,
@@ -326,7 +326,7 @@ static LPCRECT UI_LayoutRect(LPCFRAMEDEF frame) {
                          */
                         intrinsic_h = (auto_width &&
                                        frame->Font.Size > 0.0f &&
-                                       !UI_TextHasLineBreak(frame->Text))
+                                       !UI_TextHasLineBreak(frame->base.text))
                                       ? frame->Font.Size
                                       : text_size.y;
                     }
@@ -425,7 +425,7 @@ static void UI_DrawText(LPCFRAMEDEF frame, LPCRECT rect) {
     DWORD font_size;
     RECT text_rect = *rect;
 
-    if (!frame->Text || !*frame->Text) {
+    if (!frame->base.text || !*frame->base.text) {
         return;
     }
 
@@ -450,7 +450,7 @@ static void UI_DrawText(LPCFRAMEDEF frame, LPCRECT rect) {
 
     drawText_t dt = {
         .font = font,
-        .text = frame->Text,
+        .text = frame->base.text,
         .rect = text_rect,
         .color = color,
         .textWidth = text_rect.w,
@@ -902,7 +902,7 @@ static void UI_DrawSprite(LPCFRAMEDEF frame, LPCRECT rect) {
         return;
     }
     
-    LPCSTR anim = (frame->Text && *frame->Text) ? frame->Text : "Stand";
+    LPCSTR anim = (frame->base.text && *frame->base.text) ? frame->base.text : "Stand";
     renderer->DrawSprite(model, anim, rect->x, rect->y);
 }
 

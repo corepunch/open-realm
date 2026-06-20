@@ -64,7 +64,7 @@ static LPFRAMEDEF UI_PopupTitleTextFrame(LPCFRAMEDEF popup) {
         return NULL;
     }
     title = UI_FindChildFrame((LPFRAMEDEF)popup, popup->Popup.TitleFrame);
-    text = title && title->Text ? UI_FindChildFrame(title, title->Text) : NULL;
+    text = title && title->base.text ? UI_FindChildFrame(title, title->base.text) : NULL;
     if (!text) {
         text = title ? UI_FindChildFrame(title, "StandardPopupMenuTitleTextTemplate") : NULL;
     }

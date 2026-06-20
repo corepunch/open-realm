@@ -59,7 +59,7 @@ static LPFRAMEDEF UI_EditTextFrame(LPCFRAMEDEF frame) {
 
 static LPCSTR UI_EditText(LPCFRAMEDEF frame) {
     LPFRAMEDEF text_frame = UI_EditTextFrame(frame);
-    return text_frame && text_frame->Text ? text_frame->Text : "";
+    return text_frame && text_frame->base.text ? text_frame->base.text : "";
 }
 
 static void UI_SetEditText(LPCFRAMEDEF frame, LPCSTR text) {
