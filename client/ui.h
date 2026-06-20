@@ -106,8 +106,6 @@ typedef struct {
     BOOL (*MapNameMatchesFile)(LPCSTR name, LPCSTR path);
     LPCSTR (*MapTilesetName)(BYTE tileset);
     LPCSTR (*MapSizeName)(DWORD width, DWORD height);
-    void (*SanitizeMapListField)(LPSTR text);
-    void (*SanitizeMapInfoText)(LPSTR text);
     
     /* Memory allocation */
     HANDLE (*MemAlloc)(long size);

@@ -575,7 +575,7 @@ static void GameSetup_ResolveMapString(LPCSTR raw, LPSTR out, DWORD out_size) {
         snprintf(out, out_size, "%s", raw);
     }
     if (1) {
-        uiimport.SanitizeMapInfoText(out);
+        UI_SanitizeMapInfoText(out);
     }
 }
 
@@ -803,7 +803,7 @@ static void GameSetup_UpdateMapInfo(void) {
                                   setup.map_info.playersRecommended,
                                   value,
                                   sizeof(value));
-    uiimport.SanitizeMapInfoText(value);
+    UI_SanitizeMapInfoText(value);
     GameSetup_SetTextIfPresent(setup.map_info_pane.SuggestedPlayersValue, "%s", value);
 
     GameSetup_SetTextIfPresent(setup.map_info_pane.MapSizeValue,
@@ -818,7 +818,7 @@ static void GameSetup_UpdateMapInfo(void) {
                                   setup.map_info.mapDescription,
                                   value,
                                   sizeof(value));
-    uiimport.SanitizeMapInfoText(value);
+    UI_SanitizeMapInfoText(value);
     GameSetup_SetTextIfPresent(setup.map_info_pane.MapDescValue, "%s", value[0] ? value : UI_GetString("UNKNOWNMAP_DESCRIPTION"));
 
     if (setup.map_info_pane.MinimapImage && uiimport.FindMapPreviewTexture) {
