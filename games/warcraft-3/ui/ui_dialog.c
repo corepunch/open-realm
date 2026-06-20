@@ -165,7 +165,7 @@ static BOOL UI_DialogWar3CreateButton(uiDialogWar3_t *dialog,
     dialog->ok_backdrop = dialog->ok_button;
     UI_SetSize(dialog->ok_button, battlenet ? 0.18f : 0.159f, 0.031f);
     UI_SetPoint(dialog->ok_button, FRAMEPOINT_BOTTOM, dialog->frame, FRAMEPOINT_BOTTOM, 0.0f, 0.045f);
-    dialog->ok_button->Text = text->Name;
+    dialog->ok_button->base.text = text->Name;
     UI_SetText(text, "OK");
     UI_SetOnClick(dialog->ok_button, "%s", command ? command : "");
     return true;

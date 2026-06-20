@@ -121,8 +121,8 @@ static void UI_DrawButtonText(LPCFRAMEDEF frame, LPCRECT rect) {
     COLOR32 original_color;
     BOOL use_disabled_color;
 
-    if (frame->Text && *frame->Text) {
-        text_frame = UI_FindChildFrame((LPFRAMEDEF)frame, frame->Text);
+    if (frame->base.text && *frame->base.text) {
+        text_frame = UI_FindChildFrame((LPFRAMEDEF)frame, frame->base.text);
     }
     if (!text_frame && frame->Button.NormalText.frame[0]) {
         text_frame = UI_FindChildFrame((LPFRAMEDEF)frame, frame->Button.NormalText.frame);

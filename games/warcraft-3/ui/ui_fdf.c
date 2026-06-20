@@ -218,7 +218,7 @@ void UI_InitFrame(LPFRAMEDEF frame, FRAMETYPE type) {
     frame->base.color = COLOR32_WHITE;
     frame->base.size.width = 0;
     frame->base.size.height = 0;
-    frame->Text = frame->TextStorage;
+    frame->base.text = frame->TextStorage;
     switch (type) {
         case FT_TEXTURE:
         case FT_SIMPLESTATUSBAR:
@@ -336,14 +336,14 @@ static void UI_SetFrameDisplayString(LPFRAMEDEF frame, LPCSTR text) {
 
     if (!text) {
         frame->TextStorage[0] = '\0';
-        frame->Text = frame->TextStorage;
+        frame->base.text = frame->TextStorage;
         return;
     }
 
     len = strlen(text);
     if (len < sizeof(frame->TextStorage)) {
         UI_CopyDisplayString(frame->TextStorage, sizeof(frame->TextStorage), text);
-        frame->Text = frame->TextStorage;
+        frame->base.text = frame->TextStorage;
         return;
     }
 
@@ -351,30 +351,30 @@ static void UI_SetFrameDisplayString(LPFRAMEDEF frame, LPCSTR text) {
     if (frame->DynamicText) {
         memcpy(frame->DynamicText, text, len + 1);
         frame->DynamicTextCapacity = (DWORD)(len + 1);
-        frame->Text = frame->DynamicText;
+        frame->base.text = frame->DynamicText;
     } else {
         UI_CopyDisplayString(frame->TextStorage, sizeof(frame->TextStorage), text);
-        frame->Text = frame->TextStorage;
+        frame->base.text = frame->TextStorage;
     }
 }
 
 static void UI_FixCopiedFrameTextPointer(LPFRAMEDEF frame, LPCFRAMEDEF source) {
     LPCSTR copied_text;
 
-    if (!frame || !source || !source->Text) {
+    if (!frame || !source || !source->base.text) {
         return;
     }
 
-    copied_text = source->Text;
+    copied_text = source->base.text;
     frame->DynamicText = NULL;
     frame->DynamicTextCapacity = 0;
 
     if (copied_text == source->TextStorage) {
-        frame->Text = frame->TextStorage;
+        frame->base.text = frame->TextStorage;
     } else if (copied_text == source->DynamicText) {
         UI_SetFrameDisplayString(frame, copied_text);
     } else {
-        frame->Text = copied_text;
+        frame->base.text = copied_text;
     }
 }
 
@@ -595,7 +595,7 @@ MAKE_PARSER(Text) {
     } else {
         memset(out, 0, sizeof(UINAME));
         UI_CopyDisplayString(out, sizeof(UINAME), str);
-        frame->Text = out;
+        frame->base.text = out;
     }
 }
 
@@ -1159,7 +1159,7 @@ static BOOL UI_IsEmbeddedControlPart(LPCFRAMEDEF parent, LPCFRAMEDEF child) {
     }
     if (child->base.type == FT_TEXT) {
         if (UI_IsButtonFrameType(parent->base.type) &&
-            (UI_FrameNameEquals(child, parent->Text) ||
+            (UI_FrameNameEquals(child, parent->base.text) ||
              UI_FrameNameEquals(child, parent->Button.NormalText.frame))) {
             return true;
         }
@@ -1510,7 +1510,7 @@ void UI_SetEnabled(LPFRAMEDEF frame, BOOL enabled) {
 
 void UI_SetTextPointer(LPFRAMEDEF frame, LPCSTR text) {
     UI_FreeFrameDynamicText(frame);
-    frame->Text = text;
+    frame->base.text = text;
 }
 
 void UI_SetSize(LPFRAMEDEF frame, FLOAT width, FLOAT height) {

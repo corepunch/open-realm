@@ -576,12 +576,12 @@ static void UI_DrawLoadingScreen(void) {
     if (loading_screen.LoadingBackground) {
         snprintf(loading_screen.LoadingBackground->TextStorage, sizeof(loading_screen.LoadingBackground->TextStorage), "#!%u",
                  (unsigned)loading_state.background_sequence);
-        loading_screen.LoadingBackground->Text = loading_screen.LoadingBackground->TextStorage;
+        loading_screen.LoadingBackground->base.text = loading_screen.LoadingBackground->TextStorage;
         loading_screen.LoadingBackground->Portrait.model = loading_state.background_model;
     }
     if (loading_screen.LoadingBar) {
         snprintf(loading_screen.LoadingBar->TextStorage, sizeof(loading_screen.LoadingBar->TextStorage), "#0@%.4f", loading_progress);
-        loading_screen.LoadingBar->Text = loading_screen.LoadingBar->TextStorage;
+        loading_screen.LoadingBar->base.text = loading_screen.LoadingBar->TextStorage;
         loading_screen.LoadingBar->Portrait.model = loading_state.progress_model;
     }
     if (loading_screen.LoadingTitleText) {

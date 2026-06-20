@@ -82,7 +82,7 @@ static LPFRAMEDEF OptionsMenu_EnsureEditText(LPFRAMEDEF edit, LPCSTR name) {
 
 static LPCSTR OptionsMenu_EditText(LPFRAMEDEF edit) {
     LPFRAMEDEF text = edit ? UI_FindChildFrame(edit, edit->Edit.TextFrame) : NULL;
-    return text && text->Text ? text->Text : "";
+    return text && text->base.text ? text->base.text : "";
 }
 
 static void OptionsMenu_SetEditText(LPFRAMEDEF edit, LPCSTR text) {
