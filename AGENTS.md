@@ -106,6 +106,7 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 - **Drawing** happens in the client. The client walks the frame tree and calls `frame->on_draw()` directly. No `ui.DrawFrame()` call needed.
 - The UI library's role: parse format-specific data (FDF/XML), populate `uiBaseFrame_t` arrays, export them. The client does everything else.
 - Game-specific frame types extend `uiBaseFrame_t` as first member (edict_s pattern). The client only sees `uiBaseFrame_t *`.
+- The DLL writes `parent_index` and `screen_rect` into the base frame during `Refresh()`. The client reads them directly — no callbacks needed.
 
 ## Mouse Input Architecture
 
