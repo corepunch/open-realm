@@ -59,6 +59,9 @@ void SCR_UpdateScreen(DWORD msec) {
     }
 #endif
 
+    /* Client-owned layout frame rendering — server-authored HUD */
+    CL_LayoutDrawOverlays();
+
     CON_DrawConsole();
     if (Cvar_Integer("scr_showfps", 0)) {
         SCR_DrawFPS(msec);
