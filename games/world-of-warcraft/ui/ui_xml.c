@@ -2235,3 +2235,7 @@ void UIWow_XmlSetFrameModel(int idx, LPCSTR model_path) {
     free(e->texts[ELEM_FILE]);
     e->texts[ELEM_FILE] = model_path && *model_path ? strdup(model_path) : NULL;
 }
+
+size_t UIWow_GetFrameSize(void) { return sizeof(uiWowXmlElem_t); }
+void *UIWow_GetFrames(void) { return wow_xml.elems; }
+DWORD UIWow_GetNumFrames(void) { return (DWORD)wow_xml.count; }

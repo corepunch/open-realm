@@ -10,6 +10,11 @@
 
 #include <stdarg.h>
 
+/* Frame data accessors (defined in ui_xml.c) */
+extern size_t UIWow_GetFrameSize(void);
+extern void *UIWow_GetFrames(void);
+extern DWORD UIWow_GetNumFrames(void);
+
 /* -------------------------------------------------------------------------
  * Global state (declared extern in ui_local.h)
  * ---------------------------------------------------------------------- */
@@ -534,5 +539,8 @@ uiExport_t UI_GetAPI(uiImport_t import) {
         .SetLayoutLayer   = UIWow_SetLayoutLayer,
         .ClearLayoutLayer = UIWow_ClearLayoutLayer,
         .HitTestLayout    = UIWow_HitTestLayout,
+        .frame_size = UIWow_GetFrameSize(),
+        .frames = UIWow_GetFrames(),
+        .num_frames = UIWow_GetNumFrames(),
     };
 }

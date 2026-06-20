@@ -184,6 +184,11 @@ typedef struct {
     void (*TextInput)(LPCSTR text);
     void (*MouseEvent)(int x, int y, int button, BOOL down);
     
+    /* Frame data — client iterates by stride, game-specific struct extends uiBaseFrame_t */
+    size_t  frame_size;             /* sizeof game-specific frame struct */
+    void   *frames;                 /* base pointer to flat frame array */
+    DWORD   num_frames;             /* number of LIVE frames (not capacity) */
+
     /* Unit UI data updates (Phase 8: HUD migration) */
     void (*UpdateUnitUI)(DWORD num_units, uiUnitData_t *units);
     void (*UpdateLobbySetup)(lobbyState_t const *state);

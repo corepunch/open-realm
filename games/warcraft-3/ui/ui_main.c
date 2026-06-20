@@ -1008,6 +1008,9 @@ uiExport_t UI_GetAPI(uiImport_t import) {
     exp.SetLayoutLayer = UI_LayoutSetLayer;
     exp.ClearLayoutLayer = UI_LayoutClearLayer;
     exp.HitTestLayout = UI_LayoutHitTest;
+    exp.frame_size = sizeof(FRAMEDEF);
+    exp.frames = frames;
+    exp.num_frames = MAX_UI_CLASSES;
     
     return exp;
 }
