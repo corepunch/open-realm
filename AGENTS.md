@@ -100,9 +100,10 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 ## Mouse Input Architecture
 
 - Mouse state is owned by the client: the `mouse` global (`mouseEvent_t` in `client/cl_input.c`) is the single source of truth for position, button, event, and wheel state.
-- The UI library reads mouse state through `uiImport_t` accessors: `GetMouseFdf()` (normalized FDF coords), `GetMousePos()` (pixel coords), `GetMouseButton()` (held button), `GetMouseButtonDown()` (is held), `GetMouseEvent()` (discrete event).
+- The UI library receives mouse events via `ui.MouseEvent(x, y, button, down)` — a push-based model called during `SDL_PollEvent` in `CL_Input()`. The UI processes events immediately (hit test + action).
+- The UI library reads mouse position through `uiImport_t.GetMouseFdf()` for per-frame hover detection (visual-only, no state mutation).
 - Game-mode-specific mouse behavior (camera pan, selection, zoom) lives in per-game `cl_input_<game>.c` files via the `CL_InputMode*` functions.
-- Never create a separate mouse state struct in game UI code. Use the `uiImport_t` accessors instead.
+- Never create a separate mouse state struct in game UI code. Never poll mouse event state during draw — process events in the event handler instead.
 
 ## Network State Contracts
 
