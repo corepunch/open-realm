@@ -435,6 +435,21 @@ static void UI_DrawCinematicPanel(LPCPLAYER ps) {
     UI_DrawFrame(cinematic_panel.CinematicPanel);
 }
 
+/* Text sanitization — replaces whitespace with spaces (inlined from CM_Sanitize*) */
+void UI_SanitizeMapListField(LPSTR text) {
+    if (!text) return;
+    for (LPSTR p = text; *p; p++) {
+        if (*p == '\n' || *p == '\r' || *p == '\t') *p = ' ';
+    }
+}
+
+void UI_SanitizeMapInfoText(LPSTR text) {
+    if (!text) return;
+    for (LPSTR p = text; *p; p++) {
+        if (*p == '\t') *p = ' ';
+    }
+}
+
 static LPCSTR UI_CsvField(LPCSTR text, DWORD index, LPSTR out, DWORD out_size) {
     DWORD field = 0;
     DWORD len = 0;
@@ -503,7 +518,7 @@ static DWORD UI_CustomLoadingModel(LPCMAPINFO info) {
         return 0;
     }
     snprintf(model, sizeof(model), "%s", info->loadingScreenModel);
-    uiimport.SanitizeMapInfoText(model);
+    UI_SanitizeMapInfoText(model);
     return model[0] ? UI_LoadModel(model, false) : 0;
 }
 
@@ -528,9 +543,9 @@ static void UI_UpdateLoadingMapInfo(void) {
         }
         uiimport.ResolveMapInfoString(&info, info.loadingScreenSubtitle, loading_state.subtitle, sizeof(loading_state.subtitle));
         uiimport.ResolveMapInfoString(&info, info.loadingScreenText, loading_state.text, sizeof(loading_state.text));
-        uiimport.SanitizeMapInfoText(loading_state.title);
-        uiimport.SanitizeMapInfoText(loading_state.subtitle);
-        uiimport.SanitizeMapInfoText(loading_state.text);
+        UI_SanitizeMapInfoText(loading_state.title);
+        UI_SanitizeMapInfoText(loading_state.subtitle);
+        UI_SanitizeMapInfoText(loading_state.text);
         background_model = UI_CustomLoadingModel(&info);
         if (!background_model && info.campaignBackgroundNumber != (DWORD)-1) {
             background_model = UI_LoadCampaignLoadingModel(info.campaignBackgroundNumber, &background_sequence);

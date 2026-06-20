@@ -603,8 +603,6 @@ void CL_Init(void) {
         .MapNameMatchesFile = CM_MapNameMatchesFile,
         .MapTilesetName = CM_TilesetName,
         .MapSizeName = CM_MapSizeName,
-        .SanitizeMapListField = CM_SanitizeMapListField,
-        .SanitizeMapInfoText = CM_SanitizeMapInfoText,
         .MemAlloc = MemAlloc,
         .MemFree = MemFree,
         .ModelIndex = CL_ModelIndex,

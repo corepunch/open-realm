@@ -100,7 +100,7 @@ static void LAN_SetMapDisplayName(uiMapListItem_t *item,
     char loading_subtitle[96];
 
     uiimport.ResolveMapInfoString(info, info ? info->mapName : NULL, name, sizeof(name));
-    uiimport.SanitizeMapListField(name);
+    UI_SanitizeMapListField(name);
     if (name[0]) {
         LAN_CopyString(item->name, sizeof(item->name), name);
     }
@@ -113,9 +113,9 @@ static void LAN_SetMapDisplayName(uiMapListItem_t *item,
     uiimport.ResolveMapInfoString(info, info ? info->mapDescription : NULL, description, sizeof(description));
     uiimport.ResolveMapInfoString(info, info ? info->loadingScreenTitle : NULL, loading_title, sizeof(loading_title));
     uiimport.ResolveMapInfoString(info, info ? info->loadingScreenSubtitle : NULL, loading_subtitle, sizeof(loading_subtitle));
-    uiimport.SanitizeMapListField(description);
-    uiimport.SanitizeMapListField(loading_title);
-    uiimport.SanitizeMapListField(loading_subtitle);
+    UI_SanitizeMapListField(description);
+    UI_SanitizeMapListField(loading_title);
+    UI_SanitizeMapListField(loading_subtitle);
 
     if (loading_title[0] && loading_subtitle[0]) {
         LAN_CopyTitleSubtitle(item->name, sizeof(item->name), loading_title, loading_subtitle);
@@ -146,7 +146,7 @@ static BOOL LAN_ParseMapInfo(uiMapListItem_t *item) {
     if (!item || !uiimport.ReadMapInfo || !uiimport.FreeMapInfo ||
         !uiimport.ResolveMapInfoString || !uiimport.MapTilesetName ||
         !uiimport.MapSizeName || !uiimport.MapNameMatchesFile ||
-        !uiimport.SanitizeMapListField || !uiimport.SanitizeMapInfoText) {
+        !UI_SanitizeMapListField || !UI_SanitizeMapInfoText) {
         return false;
     }
     if (!uiimport.ReadMapInfo(item->path, &info)) {
@@ -156,8 +156,8 @@ static BOOL LAN_ParseMapInfo(uiMapListItem_t *item) {
     LAN_SetMapDisplayName(item, &info);
     uiimport.ResolveMapInfoString(&info, info.mapDescription, item->description, sizeof(item->description));
     uiimport.ResolveMapInfoString(&info, info.playersRecommended, item->suggestedPlayers, sizeof(item->suggestedPlayers));
-    uiimport.SanitizeMapInfoText(item->description);
-    uiimport.SanitizeMapInfoText(item->suggestedPlayers);
+    UI_SanitizeMapInfoText(item->description);
+    UI_SanitizeMapInfoText(item->suggestedPlayers);
     snprintf(item->mapSize, sizeof(item->mapSize), "%s", uiimport.MapSizeName(info.playableArea.width, info.playableArea.height));
     tileset = uiimport.MapTilesetName((BYTE)info.mainGroundType);
     snprintf(item->tileset, sizeof(item->tileset), "%s", tileset ? tileset : UI_GetString("UNKNOWNMAP_TILESET"));
