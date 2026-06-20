@@ -759,8 +759,8 @@ void UI_MouseEventLocal(int x, int y, int button, BOOL down) {
     LPCFRAMEDEF hit = UI_HitTest(fdf.x, fdf.y);
 
     /* Dispatch to per-type event handler */
-    if (hit && hit->event_handler) {
-        hit->event_handler((LPFRAMEDEF)hit, fdf.x, fdf.y, button, down);
+    if (hit && hit->base.on_event) {
+        hit->base.on_event((void *)hit, fdf.x, fdf.y, button, down);
     }
 
     /* Global: editbox clear focus on miss (LEFT_DOWN outside any editbox) */
