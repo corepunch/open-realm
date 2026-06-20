@@ -153,7 +153,7 @@ static void GameSetup_SetBackdropTexture(LPFRAMEDEF frame, LPCSTR name, BOOL dec
     }
     frame->Backdrop.Background = UI_LoadTexture(name, decorate);
     frame->Backdrop.BlendAll = true;
-    frame->Color = COLOR32_WHITE;
+    frame->base.color = COLOR32_WHITE;
 }
 
 static void GameSetup_SetTextIfPresent(LPFRAMEDEF frame, LPCSTR format, ...) {

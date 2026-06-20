@@ -134,7 +134,7 @@ static void UI_DrawEditBox(LPCFRAMEDEF frame, LPCRECT rect) {
     LPCFRAMEDEF backdrop = UI_FindFrameNear(frame, frame->Control.Backdrop.Normal);
     RECT text_rect = *rect;
 
-    UI_DrawBackdropWithColor(backdrop, rect, frame->Color);
+    UI_DrawBackdropWithColor(backdrop, rect, frame->base.color);
     if (!text_frame) {
         return;
     }

@@ -412,7 +412,7 @@ static void UI_DrawTexture(LPCFRAMEDEF frame, LPCRECT rect) {
         .alphamode = frame->AlphaMode,
         .screen = *rect,
         .uv = uv,
-        .color = frame->Color,
+        .color = frame->base.color,
         .rotate = FALSE,
     };
     
@@ -571,7 +571,7 @@ static void UI_ButtonDraw(LPCFRAMEDEF frame, LPCRECT rect) {
 
 static void UI_CheckBoxDraw(LPCFRAMEDEF frame, LPCRECT rect) {
     LPCFRAMEDEF backdrop = UI_CheckBoxBackdrop(frame, rect);
-    UI_DrawBackdropWithColor(backdrop, rect, frame->Color);
+    UI_DrawBackdropWithColor(backdrop, rect, frame->base.color);
     UI_DrawTexture(frame, rect);
     UI_DrawHighlightFrame(UI_CheckBoxCheckHighlight(frame), rect);
 }
@@ -927,13 +927,13 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
             if (!dialog_backdrop && frame->DialogBackdropName[0]) {
                 dialog_backdrop = UI_FindChildFrame((LPFRAMEDEF)frame, frame->DialogBackdropName);
             }
-            UI_DrawBackdropWithColor(dialog_backdrop, rect, frame->Color);
+            UI_DrawBackdropWithColor(dialog_backdrop, rect, frame->base.color);
             break;
 
         case FT_CONTROL:
             if (frame->Control.Backdrop.Normal[0]) {
                 LPCFRAMEDEF backdrop = UI_FindFrameNear(frame, frame->Control.Backdrop.Normal);
-                UI_DrawBackdropWithColor(backdrop, rect, frame->Color);
+                UI_DrawBackdropWithColor(backdrop, rect, frame->base.color);
             }
             UI_DrawMapListControl(frame, rect);
             break;
@@ -977,7 +977,7 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
                 if (backdrop && backdrop->Type == FT_TEXTURE) {
                     UI_DrawTexture(backdrop, rect);
                 } else {
-                    UI_DrawBackdropWithColor(backdrop, rect, frame->Color);
+                    UI_DrawBackdropWithColor(backdrop, rect, frame->base.color);
                 }
             }
             UI_DrawTexture(frame, rect);

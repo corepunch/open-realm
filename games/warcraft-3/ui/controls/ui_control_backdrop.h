@@ -158,7 +158,7 @@ static void UI_DrawBackdropWithColor(LPCFRAMEDEF frame, LPCRECT rect, COLOR32 co
 }
 
 static void UI_DrawBackdrop(LPCFRAMEDEF frame, LPCRECT rect) {
-    UI_DrawBackdropWithColor(frame, rect, frame->Color);
+    UI_DrawBackdropWithColor(frame, rect, frame->base.color);
 }
 
 #endif
