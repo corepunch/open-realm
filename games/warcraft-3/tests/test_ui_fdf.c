@@ -32,9 +32,6 @@ static HANDLE test_mpq_archive;
 static BOOL hide_expansion_campaign_file;
 static BOOL test_fs_expansion;
 static VECTOR2 test_mouse_pos;
-static DWORD test_mouse_button;
-static BOOL test_mouse_button_down;
-static uiClientMouseEvent_t test_mouse_event;
 
 static int fake_image_index(LPCSTR name) {
     captured_image_path = name;
@@ -144,19 +141,6 @@ static VECTOR2 test_get_text_size(LPCDRAWTEXT draw_text) {
 
 static VECTOR2 test_ui_get_mouse_fdf(void) {
     return test_mouse_pos;
-}
-
-static DWORD test_ui_get_mouse_button(void) {
-    return test_mouse_button;
-}
-
-static BOOL test_ui_get_mouse_button_down(DWORD button) {
-    (void)button;
-    return test_mouse_button_down;
-}
-
-static uiClientMouseEvent_t test_ui_get_mouse_event(void) {
-    return test_mouse_event;
 }
 
 static void test_draw_text(LPCDRAWTEXT draw_text) {
@@ -303,9 +287,6 @@ static void reset_ui_state(void) {
     memset(captured_text_rects, 0, sizeof(captured_text_rects));
     fake_text_size = MAKE(VECTOR2, 0.050f, 0.016f);
     test_mouse_pos = MAKE(VECTOR2, 0, 0);
-    test_mouse_button = 0;
-    test_mouse_button_down = false;
-    test_mouse_event = UI_CLIENT_MOUSE_NONE;
     UI_ClearEditFocus();
     uiimport.MemAlloc = test_ui_mem_alloc;
     uiimport.MemFree = test_ui_mem_free;
@@ -314,8 +295,6 @@ static void reset_ui_state(void) {
     uiimport.FontIndex = test_font_index;
     uiimport.GetRenderer = test_get_renderer;
     uiimport.GetMouseFdf = test_ui_get_mouse_fdf;
-    uiimport.GetMouseButtonDown = test_ui_get_mouse_button_down;
-    uiimport.GetMouseEvent = test_ui_get_mouse_event;
     uiimport.Printf = test_ui_printf;
     uiimport.Error = test_ui_printf;
 }
@@ -1278,13 +1257,13 @@ static void test_glue_checkbox_toggles_and_draws_check_highlight(void) {
 
     test_mouse_pos.x = 130;
     test_mouse_pos.y = 130;
-    test_mouse_event = UI_CLIENT_MOUSE_LEFT_UP;
+    UI_MouseEventLocal(130, 130, 1, false);
     captured_draw_calls = 0;
     UI_DrawFrame(root);
     ASSERT(checkbox->CheckBox.Checked);
     ASSERT_EQ_INT(captured_draw_calls, 2);
 
-    test_mouse_event = UI_CLIENT_MOUSE_LEFT_UP;
+    UI_MouseEventLocal(130, 130, 1, false);
     captured_draw_calls = 0;
     UI_DrawFrame(root);
     ASSERT(!checkbox->CheckBox.Checked);
@@ -1369,9 +1348,7 @@ static void test_editbox_without_text_frame_click_focus_accepts_text_input(void)
 
     test_mouse_pos.x = 130;
     test_mouse_pos.y = 130;
-    test_mouse_event = UI_CLIENT_MOUSE_LEFT_DOWN;
-    test_mouse_button = 1;
-    test_mouse_button_down = true;
+    UI_MouseEventLocal(130, 130, 1, true);
     UI_DrawFrame(root);
 
     ASSERT(UI_EditHasFocus(editbox));
@@ -1416,9 +1393,7 @@ static void test_options_game_port_enter_applies_and_blurs(void) {
     UI_SetEditValue(editbox, "27911");
     test_mouse_pos.x = 130;
     test_mouse_pos.y = 130;
-    test_mouse_event = UI_CLIENT_MOUSE_LEFT_DOWN;
-    test_mouse_button = 1;
-    test_mouse_button_down = true;
+    UI_MouseEventLocal(130, 130, 1, true);
     UI_DrawFrame(root);
     ASSERT(UI_EditHasFocus(editbox));
 
