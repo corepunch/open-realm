@@ -307,7 +307,6 @@ static uiExport_t init_ui(void) {
     });
     ASSERT_NOT_NULL(ui.Init);
     ASSERT_NOT_NULL(ui.Refresh);
-    ASSERT_NOT_NULL(ui.DrawFrame);
     ASSERT_NOT_NULL(ui.Shutdown);
     ui.Init();
     return ui;
@@ -331,7 +330,15 @@ static void test_wow_lua_ui_draws_from_generated_mpq(void) {
     unit.inventory[0].slot = 0;
     ui.UpdateUnitUI(1, &unit);
     ui.Refresh(33);
-    ui.DrawFrame();
+    /* Iterate frames like the client does */
+    if (ui.frames && ui.frame_size > 0) {
+        for (DWORD i = 0; i < ui.num_frames; i++) {
+            LPUIBASEFRAME f = (LPUIBASEFRAME)((char *)ui.frames + i * ui.frame_size);
+            if (f && f->on_draw && !(f->ui_flags & UIFLAG_HIDDEN) && !f->hidden) {
+                f->on_draw(f, &f->screen_rect);
+            }
+        }
+    }
 
     ASSERT_EQ_INT((int)forbidden_texture_loads, 0);
     ASSERT_EQ_INT((int)missing_textures, 0);

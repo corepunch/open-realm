@@ -177,7 +177,6 @@ typedef struct {
     
     /* Main loop integration */
     void (*Refresh)(DWORD msec);
-    void (*DrawFrame)(void);
     
     /* Input event handling */
     void (*KeyEvent)(int key, BOOL down, DWORD time);
