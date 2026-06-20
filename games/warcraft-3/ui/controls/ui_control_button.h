@@ -103,7 +103,7 @@ static VECTOR2 UI_ButtonPushedTextOffset(LPCFRAMEDEF frame) {
 
 static BOOL UI_ButtonEnabled(LPCFRAMEDEF frame) {
     return frame &&
-           !frame->disabled &&
+           !frame->base.disabled &&
            (frame->OnClick[0] ||
             frame->Type == FT_POPUPMENU ||
             frame->Type == FT_GLUEPOPUPMENU ||

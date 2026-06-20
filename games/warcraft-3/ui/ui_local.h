@@ -144,8 +144,6 @@ struct uiFrameDef_s {
     BOOL DecorateFileNames;
     BOOL inuse;
     BOOL AnyPointsSet;
-    BOOL hidden;                   /* TODO: migrate to base.hidden */
-    BOOL disabled;                 /* TODO: migrate to base.disabled */
     DWORD TextLength;
     DWORD Stat;
     LPSTR DynamicText;

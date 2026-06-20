@@ -252,5 +252,5 @@ void UI_DialogWar3Hide(uiDialogWar3_t *dialog) {
 
 BOOL UI_DialogWar3Visible(uiDialogWar3_t const *dialog) {
     return dialog && dialog->modal && dialog->frame &&
-           !dialog->modal->hidden && !dialog->frame->hidden;
+           !dialog->modal->base.hidden && !dialog->frame->base.hidden;
 }
