@@ -216,6 +216,8 @@ void UI_InitFrame(LPFRAMEDEF frame, FRAMETYPE type) {
     frame->inuse = true;
     frame->base.type = type;
     frame->base.color = COLOR32_WHITE;
+    frame->base.size.width = 0;
+    frame->base.size.height = 0;
     frame->Text = frame->TextStorage;
     switch (type) {
         case FT_TEXTURE:
@@ -1512,6 +1514,8 @@ void UI_SetTextPointer(LPFRAMEDEF frame, LPCSTR text) {
 }
 
 void UI_SetSize(LPFRAMEDEF frame, FLOAT width, FLOAT height) {
+    frame->base.size.width = width;
+    frame->base.size.height = height;
     frame->Width = width;
     frame->Height = height;
 }

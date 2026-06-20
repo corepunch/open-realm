@@ -292,8 +292,8 @@ static LPCRECT UI_LayoutRect(LPCFRAMEDEF frame) {
     }
     
     /* Calculate intrinsic size based on frame type */
-    FLOAT intrinsic_w = frame->Width;
-    FLOAT intrinsic_h = frame->Height;
+    FLOAT intrinsic_w = frame->base.size.width;
+    FLOAT intrinsic_h = frame->base.size.height;
     
     if (intrinsic_w == 0 || intrinsic_h == 0) {
         /* Try to derive size from content */
@@ -455,7 +455,7 @@ static void UI_DrawText(LPCFRAMEDEF frame, LPCRECT rect) {
         .color = color,
         .textWidth = text_rect.w,
         .lineHeight = 1.0f,
-        .wordWrap = frame->Width > 0,
+        .wordWrap = frame->base.size.width > 0,
         .halign = frame->Font.Justification.Horizontal,
         .valign = frame->Font.Justification.Vertical,
     };
