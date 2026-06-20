@@ -135,11 +135,11 @@ static void GameSetup_PositionPopupMenuParts(LPFRAMEDEF popup) {
 
     title = UI_FindChildFrame(popup, popup->Popup.TitleFrame);
     arrow = UI_FindChildFrame(popup, popup->Popup.ArrowFrame);
-    arrow_width = arrow && arrow->Width > 0.0f ? arrow->Width : 0.011f;
-    title_width = popup->Width - arrow_width - inset * 2.0f;
+    arrow_width = arrow && arrow->base.size.width > 0.0f ? arrow->base.size.width : 0.011f;
+    title_width = popup->base.size.width - arrow_width - inset * 2.0f;
 
     if (title) {
-        UI_SetSize(title, MAX(0.0f, title_width), popup->Height);
+        UI_SetSize(title, MAX(0.0f, title_width), popup->base.size.height);
         UI_SetPoint(title, FRAMEPOINT_LEFT, popup, FRAMEPOINT_LEFT, inset, 0.0f);
     }
     if (arrow) {
@@ -217,8 +217,8 @@ static LPFRAMEDEF GameSetup_EnsureChatText(void) {
     template = UI_FindFrame("StandardInfoTextTemplate");
     if (template) {
         setup.chat_text->DecorateFileNames = template->DecorateFileNames;
-        setup.chat_text->Width = template->Width;
-        setup.chat_text->Height = template->Height;
+        setup.chat_text->base.size.width = template->base.size.width;
+        setup.chat_text->base.size.height = template->base.size.height;
         setup.chat_text->Font = template->Font;
     }
     if (!setup.chat_text->Font.Name[0]) {
@@ -298,19 +298,19 @@ static void GameSetup_FitSlotRow(PlayerSlot_t *row) {
         UI_SetHidden(row->DownloadValue, true);
     }
     if (row->NameMenu) {
-        UI_SetSize(row->NameMenu, 0.168f, row->NameMenu->Height);
+        UI_SetSize(row->NameMenu, 0.168f, row->NameMenu->base.size.height);
         UI_SetPoint(row->NameMenu, FRAMEPOINT_LEFT, row->PlayerSlot, FRAMEPOINT_LEFT, 0.0f, 0.0f);
     }
     if (row->RaceMenu && row->NameMenu) {
-        UI_SetSize(row->RaceMenu, 0.085f, row->RaceMenu->Height);
+        UI_SetSize(row->RaceMenu, 0.085f, row->RaceMenu->base.size.height);
         UI_SetPoint(row->RaceMenu, FRAMEPOINT_LEFT, row->NameMenu, FRAMEPOINT_RIGHT, 0.0f, 0.0f);
     }
     if (row->TeamButton && row->RaceMenu) {
-        UI_SetSize(row->TeamButton, 0.085f, row->TeamButton->Height);
+        UI_SetSize(row->TeamButton, 0.085f, row->TeamButton->base.size.height);
         UI_SetPoint(row->TeamButton, FRAMEPOINT_LEFT, row->RaceMenu, FRAMEPOINT_RIGHT, 0.0f, 0.0f);
     }
     if (row->ColorButton && row->TeamButton) {
-        UI_SetSize(row->ColorButton, 0.038f, row->ColorButton->Height);
+        UI_SetSize(row->ColorButton, 0.038f, row->ColorButton->base.size.height);
         UI_SetPoint(row->ColorButton, FRAMEPOINT_LEFT, row->TeamButton, FRAMEPOINT_RIGHT, 0.0f, 0.0f);
     }
 }
@@ -367,7 +367,7 @@ static void GameSetup_BuildSlotRows(void) {
             return;
         }
         snprintf(slot->frames.PlayerSlot->Name, sizeof(slot->frames.PlayerSlot->Name), "CreateGamePlayerSlot%u", (unsigned)i);
-        UI_SetSize(slot->frames.PlayerSlot, 0.46375f, slot->frames.PlayerSlot->Height > 0.0f ? slot->frames.PlayerSlot->Height : 0.025f);
+        UI_SetSize(slot->frames.PlayerSlot, 0.46375f, slot->frames.PlayerSlot->base.size.height > 0.0f ? slot->frames.PlayerSlot->base.size.height : 0.025f);
         if (previous) {
             UI_SetPoint(slot->frames.PlayerSlot, FRAMEPOINT_TOPLEFT, previous, FRAMEPOINT_BOTTOMLEFT, 0.0f, 0.0f);
         } else {

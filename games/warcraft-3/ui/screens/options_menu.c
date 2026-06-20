@@ -71,8 +71,8 @@ static LPFRAMEDEF OptionsMenu_EnsureEditText(LPFRAMEDEF edit, LPCSTR name) {
     template = UI_FindFrame("StandardEditBoxTextTemplate");
     if (template) {
         text->DecorateFileNames = template->DecorateFileNames;
-        text->Width = template->Width;
-        text->Height = template->Height;
+        text->base.size.width = template->base.size.width;
+        text->base.size.height = template->base.size.height;
         text->Font = template->Font;
     }
     text->Font.Justification.Horizontal = FONT_JUSTIFYLEFT;

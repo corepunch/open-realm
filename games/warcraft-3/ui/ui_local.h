@@ -137,7 +137,7 @@ struct uiFrameDef_s {
     UINAME TextStorage;
     UINAME OnClick;
     LPCSTR Text, Tip, Ubertip;     /* TODO: Text → base.text */
-    FLOAT Width, Height;           /* TODO: migrate to base.size */
+    FLOAT Width, Height;           /* mirrored in base.size — kept for FDF parser offset macro */
     BLEND_MODE AlphaMode;
     BOOL DecorateFileNames;
     BOOL inuse;

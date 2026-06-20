@@ -21,8 +21,8 @@ static LPFRAMEDEF UI_CreateEditTextFrame(LPFRAMEDEF frame) {
     template = UI_FindFrame("StandardEditBoxTextTemplate");
     if (template) {
         text_frame->DecorateFileNames = template->DecorateFileNames;
-        text_frame->Width = template->Width;
-        text_frame->Height = template->Height;
+        text_frame->base.size.width = template->base.size.width;
+        text_frame->base.size.height = template->base.size.height;
         text_frame->Font = template->Font;
     }
     if (!text_frame->Font.Name[0]) {
