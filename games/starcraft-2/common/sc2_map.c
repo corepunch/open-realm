@@ -1378,54 +1378,75 @@ static BOOL sc2_mapinfo_fourcc(sc2MapInfo_t const *mapInfo) {
          mapInfo->fourcc == MAKEFOURCC('M','a','p','I'));
 }
 
-static void sc2_parse_height_map(sc2MapSource_t *source) {
+static LPBYTE sc2_read_binary_layer(sc2MapSource_t *source,
+                                    LPCSTR filename,
+                                    DWORD min_size,
+                                    DWORD expected_fourcc,
+                                    LPDWORD out_size) {
     DWORD size = 0;
-    LPBYTE data = sc2_source_read(source, "t3HeightMap", &size);
+    DWORD fourcc = 0;
+    LPBYTE data = sc2_source_read(source, filename, &size);
+    LPBYTE copy;
 
-    sc2_map.t3HeightMap = sc2_alloc(size);
-    memcpy(sc2_map.t3HeightMap, data, size);
+    if (out_size) *out_size = 0;
+    if (!data || size < min_size || size < sizeof(fourcc)) {
+        sc2_free_file(data);
+        return NULL;
+    }
+    memcpy(&fourcc, data, sizeof(fourcc));
+    if (fourcc != expected_fourcc) {
+        sc2_free_file(data);
+        return NULL;
+    }
+    copy = sc2_alloc(size);
+    if (!copy) {
+        sc2_free_file(data);
+        return NULL;
+    }
+    memcpy(copy, data, size);
     sc2_free_file(data);
+    if (out_size) *out_size = size;
+    return copy;
+}
+
+static void sc2_parse_height_map(sc2MapSource_t *source) {
+    sc2_map.t3HeightMap = (sc2MapHeightMap_t *)sc2_read_binary_layer(source,
+                                                                     "t3HeightMap",
+                                                                     sizeof(sc2MapHeightMap_t),
+                                                                     MAKEFOURCC('H','M','A','P'),
+                                                                     NULL);
 }
 
 static void sc2_parse_sync_height_map(sc2MapSource_t *source) {
-    DWORD size = 0;
-    LPBYTE data = sc2_source_read(source, "t3SyncHeightMap", &size);
-
-    if (!data || size < sizeof(sc2MapSyncHeightMap_t)) {
-        sc2_free_file(data);
-        return;
-    }
-    sc2_map.t3SyncHeightMap = sc2_alloc(size);
-    memcpy(sc2_map.t3SyncHeightMap, data, size);
-    sc2_free_file(data);
+    sc2_map.t3SyncHeightMap = (sc2MapSyncHeightMap_t *)sc2_read_binary_layer(source,
+                                                                             "t3SyncHeightMap",
+                                                                             sizeof(sc2MapSyncHeightMap_t),
+                                                                             MAKEFOURCC('S','M','A','P'),
+                                                                             NULL);
 }
 
 static void sc2_parse_cell_flags(sc2MapSource_t *source) {
-    DWORD size = 0;
-    LPBYTE data = sc2_source_read(source, "t3CellFlags", &size);
-
-    sc2_map.t3CellFlags = sc2_alloc(size);
-    memcpy(sc2_map.t3CellFlags, data, size);
-    sc2_free_file(data);
+    sc2_map.t3CellFlags = (sc2MapCellFlags_t *)sc2_read_binary_layer(source,
+                                                                     "t3CellFlags",
+                                                                     sizeof(sc2MapCellFlags_t),
+                                                                     MAKEFOURCC('L','F','C','T'),
+                                                                     NULL);
 }
 
 static void sc2_parse_sync_cliff_level(sc2MapSource_t *source) {
-    DWORD size = 0;
-    LPBYTE data = sc2_source_read(source, "t3SyncCliffLevel", &size);
-
-    sc2_map.t3SyncCliffLevel = sc2_alloc(size);
-    memcpy(sc2_map.t3SyncCliffLevel, data, size);
-    sc2_free_file(data);
+    sc2_map.t3SyncCliffLevel = (sc2MapSyncCliffLevel_t *)sc2_read_binary_layer(source,
+                                                                               "t3SyncCliffLevel",
+                                                                               sizeof(sc2MapSyncCliffLevel_t),
+                                                                               MAKEFOURCC('C','L','I','F'),
+                                                                               NULL);
 }
 
 static void sc2_parse_texture_masks(sc2MapSource_t *source) {
-    DWORD size = 0;
-    LPBYTE data = sc2_source_read(source, "t3TextureMasks", &size);
-
-    sc2_map.t3TextureMasks = sc2_alloc(size);
-    memcpy(sc2_map.t3TextureMasks, data, size);
-    sc2_map.t3TextureMasksSize = size;
-    sc2_free_file(data);
+    sc2_map.t3TextureMasks = (sc2MapTextureMasks_t *)sc2_read_binary_layer(source,
+                                                                           "t3TextureMasks",
+                                                                           sizeof(sc2MapTextureMasks_t),
+                                                                           MAKEFOURCC('M','A','S','K'),
+                                                                           &sc2_map.t3TextureMasksSize);
 }
 
 void SC2_MapSetHost(sc2MapHost_t const *host) {
