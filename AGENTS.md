@@ -37,7 +37,8 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 - Single-statement functions go on one line: `int f(void) { return 0; }`
 - Omit braces for single-statement `if`/`else`/`while` bodies.
 - Keep control-flow keywords at the start of their own line in normal code paths. Do not write chained forms like `...; if (...)` or `...; while (...)` on the same physical line.
-- Add a short comment before each non-trivial function describing purpose and scope.
+- Add a short comment before each non-trivial function describing why it exists and what it does — not a restatement of the name, but the constraint or contract that isn't obvious from the signature alone.
+- For any fallback, workaround, or partial implementation, prepend `/* HACK: */` or `/* TODO: */` and explain *why* the fallback is needed (what asset/variant is missing, what upstream bug forces it, or what the proper fix would be). Never leave a silent fallback undocumented.
 
 ## Packing multiple statements
 - Chain sequential, logically related statements on one line with `;`:
