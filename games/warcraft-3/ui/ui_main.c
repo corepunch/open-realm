@@ -95,7 +95,7 @@ static void UI_SetScreen(uiScreen_t *screen) {
                 "UI_SetScreen: failed to load screen '%s', keeping '%s'\n",
                 screen->name,
                 previous_screen ? previous_screen->name : "(null)");
-        if (uiimport.Printf) {
+        if (1) {
             uiimport.Printf("UI_SetScreen: failed to load screen '%s'\n", screen->name);
         }
         return;
@@ -488,13 +488,10 @@ static DWORD UI_LoadCampaignLoadingModel(DWORD campaign_background, DWORD *seque
     if (sequence_index) {
         *sequence_index = 0;
     }
-    if (!uiimport.ReadConfig || !uiimport.FindSheetCell) {
-        return 0;
-    }
 
-    world_edit_data = uiimport.ReadConfig("UI\\WorldEditData.txt");
+    world_edit_data = FS_ParseINI("UI\\WorldEditData.txt");
     snprintf(key, sizeof(key), "%02u", (unsigned)campaign_background);
-    row = uiimport.FindSheetCell(world_edit_data, "LoadingScreens", key);
+    row = FS_FindSheetCell(world_edit_data, "LoadingScreens", key);
     UI_CsvField(row, 1, sequence, sizeof(sequence));
     UI_CsvField(row, 2, model, sizeof(model));
     if (sequence_index && sequence[0]) {
@@ -514,9 +511,7 @@ static DWORD UI_CustomLoadingModel(LPCMAPINFO info) {
         return 0;
     }
     snprintf(model, sizeof(model), "%s", info->loadingScreenModel);
-    if (uiimport.SanitizeMapInfoText) {
-        uiimport.SanitizeMapInfoText(model);
-    }
+    uiimport.SanitizeMapInfoText(model);
     return model[0] ? UI_LoadModel(model, false) : 0;
 }
 
@@ -534,30 +529,24 @@ static void UI_UpdateLoadingMapInfo(void) {
     memset(&loading_state, 0, sizeof(loading_state));
     snprintf(loading_state.map, sizeof(loading_state.map), "%s", map_path);
 
-    if (uiimport.ReadMapInfo && uiimport.ReadMapInfo(map_path, &info)) {
-        if (uiimport.ResolveMapInfoString) {
-            uiimport.ResolveMapInfoString(&info, info.loadingScreenTitle, loading_state.title, sizeof(loading_state.title));
-            if (!loading_state.title[0]) {
-                uiimport.ResolveMapInfoString(&info, info.mapName, loading_state.title, sizeof(loading_state.title));
-            }
-            uiimport.ResolveMapInfoString(&info, info.loadingScreenSubtitle, loading_state.subtitle, sizeof(loading_state.subtitle));
-            uiimport.ResolveMapInfoString(&info, info.loadingScreenText, loading_state.text, sizeof(loading_state.text));
+    if (uiimport.ReadMapInfo(map_path, &info)) {
+        uiimport.ResolveMapInfoString(&info, info.loadingScreenTitle, loading_state.title, sizeof(loading_state.title));
+        if (!loading_state.title[0]) {
+            uiimport.ResolveMapInfoString(&info, info.mapName, loading_state.title, sizeof(loading_state.title));
         }
-        if (uiimport.SanitizeMapInfoText) {
-            uiimport.SanitizeMapInfoText(loading_state.title);
-            uiimport.SanitizeMapInfoText(loading_state.subtitle);
-            uiimport.SanitizeMapInfoText(loading_state.text);
-        }
+        uiimport.ResolveMapInfoString(&info, info.loadingScreenSubtitle, loading_state.subtitle, sizeof(loading_state.subtitle));
+        uiimport.ResolveMapInfoString(&info, info.loadingScreenText, loading_state.text, sizeof(loading_state.text));
+        uiimport.SanitizeMapInfoText(loading_state.title);
+        uiimport.SanitizeMapInfoText(loading_state.subtitle);
+        uiimport.SanitizeMapInfoText(loading_state.text);
         background_model = UI_CustomLoadingModel(&info);
         if (!background_model && info.campaignBackgroundNumber != (DWORD)-1) {
             background_model = UI_LoadCampaignLoadingModel(info.campaignBackgroundNumber, &background_sequence);
         }
-        if (uiimport.FreeMapInfo) {
-            uiimport.FreeMapInfo(&info);
-        }
+        uiimport.FreeMapInfo(&info);
     }
 
-    if (!loading_state.title[0] && uiimport.DefaultMapName) {
+    if (!loading_state.title[0]) {
         uiimport.DefaultMapName(map_path, loading_state.title, sizeof(loading_state.title));
     }
 

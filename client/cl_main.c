@@ -77,7 +77,7 @@ void CL_ClearState(void) {
     SAFE_DELETE(cl.fow.explored, MemFree);
     SAFE_DELETE(cl.fow.texture, MemFree);
 
-    if (ui.ClearLayoutLayer) {
+    if (1) {
         FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
             ui.ClearLayoutLayer(layer);
         }
@@ -324,7 +324,7 @@ LPUIBASEFRAME CL_UIHitTest(FLOAT x, FLOAT y) {
 static void CL_UIRequestUnitUI(DWORD num_selected, DWORD *entity_nums) {
     (void)num_selected;
     (void)entity_nums;
-    if (ui.UpdateUnitUI) {
+    if (1) {
         ui.UpdateUnitUI(0, NULL);
     }
 }
@@ -460,7 +460,7 @@ void CL_BeginLoadingMap(LPCSTR mapName) {
     cl.playerstate.client_ui_state = CLIENT_UI_LOADING;
     cls.state = ca_loading;
     CL_MenuCommand("menu_ingame");
-    if (ui.SetLoadingState) {
+    if (1) {
         ui.SetLoadingState(cl.loading_map, cl.loading_status, cl.loading_progress);
     }
 }
@@ -475,7 +475,7 @@ void CL_LoadingUpdate(LPCSTR status, FLOAT progress) {
         progress = 1.0f;
     }
     cl.loading_progress = progress;
-    if (ui.SetLoadingState) {
+    if (1) {
         ui.SetLoadingState(cl.loading_map, cl.loading_status, cl.loading_progress);
     }
 }
@@ -610,9 +610,6 @@ void CL_Init(void) {
         .ModelIndex = CL_ModelIndex,
         .ImageIndex = CL_ImageIndex,
         .FontIndex = CL_FontIndex,
-        .ReadSheet = FS_ParseSLK,
-        .ReadConfig = FS_ParseINI,
-        .FindSheetCell = FS_FindSheetCell,
         .Cmd_AddCommand = Cmd_AddCommand,
         .Cmd_ExecuteText = Cbuf_AddText,
         .ServerCommand = CL_UIServerCommand,

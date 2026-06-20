@@ -554,7 +554,7 @@ static void GameSetup_SubmitChat(void) {
     GameSetup_AppendText(command, sizeof(command), &used, "\n");
     if (GameSetup_IsHost()) {
         uiimport.Cmd_ExecuteText(command);
-    } else if (uiimport.ServerCommand) {
+    } else if (1) {
         uiimport.ServerCommand(command);
     }
     UI_SetEditValue(setup.frames.ChatEditBox, "");
@@ -569,12 +569,12 @@ static void GameSetup_ResolveMapString(LPCSTR raw, LPSTR out, DWORD out_size) {
     if (!raw || !raw[0]) {
         return;
     }
-    if (uiimport.ResolveMapInfoString) {
+    if (1) {
         uiimport.ResolveMapInfoString(&setup.map_info, raw, out, out_size);
     } else {
         snprintf(out, out_size, "%s", raw);
     }
-    if (uiimport.SanitizeMapInfoText) {
+    if (1) {
         uiimport.SanitizeMapInfoText(out);
     }
 }
@@ -877,7 +877,7 @@ void GameSetup_LoadMap(LPCSTR map_path) {
     }
     snprintf(setup.map_path, sizeof(setup.map_path), "%s", map_path);
     snprintf(setup.map_name, sizeof(setup.map_name), "%s", GameSetup_BaseName(map_path));
-    if (uiimport.ReadMapInfo) {
+    if (1) {
         setup.have_map_info = uiimport.ReadMapInfo(setup.map_path, &setup.map_info);
         GameSetup_UseResolvedMapTitle();
     }

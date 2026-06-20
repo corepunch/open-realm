@@ -175,7 +175,7 @@ static void OptionsMenu_ApplyGamePort(void) {
         return;
     }
     snprintf(command, sizeof(command), "seta game_port %d\n", port);
-    if (uiimport.Cmd_ExecuteText) {
+    if (1) {
         uiimport.Cmd_ExecuteText(command);
     }
 }
