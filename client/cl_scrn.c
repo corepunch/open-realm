@@ -45,18 +45,14 @@ void SCR_UpdateScreen(DWORD msec) {
     V_RenderView();
 
 #ifndef SC2
-    /* Game-specific draw override (e.g. WoW XML) or client-owned frame iteration */
-    if (ui.DrawFrames) {
-        ui.DrawFrames();
-    } else if (ui.frames && ui.frame_size > 0) {
+    /* Client-owned UI frame rendering — iterate root frames only */
+    if (ui.frames && ui.frame_size > 0) {
         for (DWORD i = 0; i < ui.num_frames; i++) {
             LPUIBASEFRAME f = (LPUIBASEFRAME)((char *)ui.frames + i * ui.frame_size);
-            if (!f || (f->ui_flags & UIFLAG_HIDDEN) || f->hidden) {
-                continue;
-            }
-            if (f->on_draw) {
-                f->on_draw(f, &f->screen_rect);
-            }
+            if (!f || (f->ui_flags & UIFLAG_HIDDEN) || f->hidden) continue;
+            /* Skip non-roots — their parent's on_draw recurses into them */
+            if (f->parent_index != (DWORD)-1) continue;
+            if (f->on_draw) f->on_draw(f, &f->screen_rect);
         }
     }
 #endif

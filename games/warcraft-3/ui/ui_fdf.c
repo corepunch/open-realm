@@ -216,6 +216,7 @@ void UI_InitFrame(LPFRAMEDEF frame, FRAMETYPE type) {
     frame->inuse = true;
     frame->base.type = type;
     frame->base.color = COLOR32_WHITE;
+    frame->base.parent_index = (DWORD)-1;
     frame->base.size.width = 0;
     frame->base.size.height = 0;
     frame->base.text = frame->TextStorage;
@@ -1477,6 +1478,7 @@ void UI_SetAllPoints(LPFRAMEDEF frame) {
 
 void UI_SetParent(LPFRAMEDEF frame, LPCFRAMEDEF parent) {
     frame->Parent = parent;
+    frame->base.parent_index = parent ? (DWORD)(parent - frames) : (DWORD)-1;
 }
 
 void UI_SetText(LPFRAMEDEF frame, LPCSTR format, ...) {

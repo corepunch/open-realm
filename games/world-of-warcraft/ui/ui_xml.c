@@ -276,6 +276,7 @@ static int UIWow_XmlPushElem(uiWowXmlType_t type, LPCSTR name, int parent, int d
     e->flags = EF_USED | EF_WORD_WRAP; /* word-wrap on by default, same as CSimpleFontString */
     e->type = type; e->parent = parent; e->relative_to = parent; e->draw_layer = draw_layer;
     e->alpha = 1.0f; e->id = 0;
+    e->base.parent_index = parent >= 0 ? (DWORD)parent : (DWORD)-1;
     e->font_size = 14.0f; e->colors[ELEM_COLOR_TEXT] = COLOR32_WHITE; e->colors[ELEM_COLOR_VERTEX] = COLOR32_WHITE;
     e->halign = FONT_JUSTIFYCENTER; e->valign = FONT_JUSTIFYMIDDLE;
     e->colors[ELEM_COLOR_BACKDROP] = MAKE(COLOR32, 23, 23, 23, 120); e->colors[ELEM_COLOR_BACKDROP_BORDER] = MAKE(COLOR32, 204, 204, 204, 255);
@@ -284,6 +285,7 @@ static int UIWow_XmlPushElem(uiWowXmlType_t type, LPCSTR name, int parent, int d
     e->button_text_colors[WOW_XML_BUTTON_TEXT_HIGHLIGHT] = e->colors[ELEM_COLOR_TEXT];
     e->texcoord = MAKE(RECT, 0, 0, 1, 1);
     e->highlight_texcoord = MAKE(RECT, 0, 0, 1, 1);
+    e->base.on_draw = UIWow_XMLDrawElement;
     UIWow_ElemSetStr(e, ELEM_NAME, name);
     return wow_xml.count++;
 }
@@ -1931,6 +1933,20 @@ static void UIWow_XMLDrawTreeLayer(int i, int layer, int hovered_button) {
 static void UIWow_XMLDrawTree(int i, int hovered_button) {
     for (int layer = WOW_XML_LAYER_BACKGROUND; layer <= WOW_XML_LAYER_OVERLAY; layer++)
         UIWow_XMLDrawTreeLayer(i, layer, hovered_button);
+}
+
+/* on_draw callback for XML elements — draws this element's subtree */
+static void UIWow_XMLOnDraw(uiBaseFrame_t *base, LPCRECT rect) {
+    (void)rect;
+    int idx = (int)((uiWowXmlElem_t *)base - wow_xml.elems);
+    int hovered_button = -1;
+    extern VECTOR2 wow_last_mouse_fdf;
+    {
+        VECTOR2 m = wow_last_mouse_fdf;
+        int hit = UIWow_XMLHitFrame(m.x, m.y);
+        if (hit >= 0 && wow_xml.elems[hit].type == WOW_XML_BUTTON) hovered_button = hit;
+    }
+    UIWow_XMLDrawTree(idx, hovered_button);
 }
 
 void UIWow_XMLDraw(void) {
