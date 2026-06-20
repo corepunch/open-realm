@@ -477,58 +477,63 @@ static void UI_DrawHighlightFrame(LPCFRAMEDEF frame, LPCRECT rect);
  * PER-TYPE EVENT HANDLERS — called from UI_MouseEventLocal
  * ======================================================================== */
 
-static void UI_ButtonEventHandler(LPFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
+static void UI_ButtonEventHandler(void *f, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
+    LPFRAMEDEF frame = (LPFRAMEDEF)f;
     (void)fdf_x; (void)fdf_y;
     if (button != 1) {
         return;
     }
     if (down) {
-        frame->ui_flags |= UIFLAG_PRESSED;
+        frame->base.ui_flags |= UIFLAG_PRESSED;
     } else {
-        frame->ui_flags &= ~UIFLAG_PRESSED;
+        frame->base.ui_flags &= ~UIFLAG_PRESSED;
         if (frame->OnClick[0]) {
             UI_MenuCommandLocal(frame->OnClick);
         }
     }
 }
 
-static void UI_CheckBoxEventHandler(LPFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
+static void UI_CheckBoxEventHandler(void *f, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
+    LPFRAMEDEF frame = (LPFRAMEDEF)f;
     (void)fdf_x; (void)fdf_y;
     if (button != 1) {
         return;
     }
     if (down) {
-        frame->ui_flags |= UIFLAG_PRESSED;
+        frame->base.ui_flags |= UIFLAG_PRESSED;
     } else {
-        frame->ui_flags &= ~UIFLAG_PRESSED;
-        frame->ui_flags ^= UIFLAG_CHECKED;
-        ((LPFRAMEDEF)frame)->CheckBox.Checked = (frame->ui_flags & UIFLAG_CHECKED) != 0;
+        frame->base.ui_flags &= ~UIFLAG_PRESSED;
+        frame->base.ui_flags ^= UIFLAG_CHECKED;
+        ((LPFRAMEDEF)frame)->CheckBox.Checked = (frame->base.ui_flags & UIFLAG_CHECKED) != 0;
         if (frame->OnClick[0]) {
             UI_MenuCommandLocal(frame->OnClick);
         }
     }
 }
 
-static void UI_SliderEventHandler(LPFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
+static void UI_SliderEventHandler(void *f, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
+    LPFRAMEDEF frame = (LPFRAMEDEF)f;
     if (down && button == 1) {
         UI_SliderBeginDrag(frame, fdf_x, fdf_y);
-        frame->ui_flags |= UIFLAG_PRESSED;
+        frame->base.ui_flags |= UIFLAG_PRESSED;
     } else if (!down && button == 1) {
         UI_SliderEndDrag(frame);
-        frame->ui_flags &= ~UIFLAG_PRESSED;
+        frame->base.ui_flags &= ~UIFLAG_PRESSED;
     } else if (button == 0 && !down) {
         UI_SliderUpdateDrag(frame, fdf_x, fdf_y);
     }
 }
 
-static void UI_EditBoxEventHandler(LPFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
+static void UI_EditBoxEventHandler(void *f, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
+    LPFRAMEDEF frame = (LPFRAMEDEF)f;
     (void)fdf_x; (void)fdf_y;
     if (down && button == 1) {
         UI_EditboxFocusOnHit(frame);
     }
 }
 
-static void UI_MapListEventHandler(LPFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
+static void UI_MapListEventHandler(void *f, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
+    LPFRAMEDEF frame = (LPFRAMEDEF)f;
     if (!down && button == 1) {
         UI_MapListSelectRow(frame, fdf_x, fdf_y);
     }
@@ -540,15 +545,16 @@ static void UI_MapListEventHandler(LPFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y, i
     }
 }
 
-static void UI_PopupEventHandler(LPFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
+static void UI_PopupEventHandler(void *f, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
+    LPFRAMEDEF frame = (LPFRAMEDEF)f;
     (void)fdf_x; (void)fdf_y;
     if (!down && button == 1) {
         UI_TogglePopup(frame);
     }
 }
 
-static void UI_PopupMenuEventHandler(LPFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
-    (void)frame;
+static void UI_PopupMenuEventHandler(void *f, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
+    (void)f;
     if (button == 4) {
         UI_PopupMenuScroll(true);
     }
@@ -564,19 +570,24 @@ static void UI_PopupMenuEventHandler(LPFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y,
  * PER-TYPE DRAW FUNCTIONS — called from UI_DrawFrameOne
  * ======================================================================== */
 
-static void UI_ButtonDraw(LPCFRAMEDEF frame, LPCRECT rect) {
+static void UI_ButtonDraw(void *f, LPCRECT rect) {
+    LPCFRAMEDEF frame = (LPCFRAMEDEF)f;
     UI_DrawTexture(frame, rect);
     UI_DrawButtonText(frame, rect);
 }
 
-static void UI_CheckBoxDraw(LPCFRAMEDEF frame, LPCRECT rect) {
+static void UI_CheckBoxDraw(void *f, LPCRECT rect) {
+    LPCFRAMEDEF frame = (LPCFRAMEDEF)f;
     LPCFRAMEDEF backdrop = UI_CheckBoxBackdrop(frame, rect);
     UI_DrawBackdropWithColor(backdrop, rect, frame->base.color);
     UI_DrawTexture(frame, rect);
     UI_DrawHighlightFrame(UI_CheckBoxCheckHighlight(frame), rect);
 }
 
-/* Wire per-type event handler and draw function pointers */
+static void UI_SliderDraw(void *f, LPCRECT rect) { UI_DrawSlider((LPCFRAMEDEF)f, rect); }
+static void UI_EditBoxDraw(void *f, LPCRECT rect) { UI_DrawEditBox((LPCFRAMEDEF)f, rect); }
+static void UI_MapListDraw(void *f, LPCRECT rect) { UI_DrawMapListControl((LPCFRAMEDEF)f, rect); }
+static void UI_MenuDraw(void *f, LPCRECT rect) { UI_DrawMenu((LPCFRAMEDEF)f, rect); }
 void UI_WireFrameTypeFunctions(LPFRAMEDEF frame) {
     if (!frame) {
         return;
@@ -584,36 +595,36 @@ void UI_WireFrameTypeFunctions(LPFRAMEDEF frame) {
     switch (frame->base.type) {
         case FT_BUTTON: case FT_TEXTBUTTON: case FT_GLUETEXTBUTTON:
         case FT_GLUEBUTTON: case FT_SIMPLEBUTTON: case FT_COMMANDBUTTON:
-            frame->event_handler = UI_ButtonEventHandler;
-            frame->draw = UI_ButtonDraw;
+            frame->base.on_event = UI_ButtonEventHandler;
+            frame->base.on_draw = UI_ButtonDraw;
             break;
         case FT_CHECKBOX: case FT_GLUECHECKBOX: case FT_SIMPLECHECKBOX:
-            frame->event_handler = UI_CheckBoxEventHandler;
-            frame->draw = UI_CheckBoxDraw;
+            frame->base.on_event = UI_CheckBoxEventHandler;
+            frame->base.on_draw = UI_CheckBoxDraw;
             if (frame->CheckBox.Checked) {
-                frame->ui_flags |= UIFLAG_CHECKED;
+                frame->base.ui_flags |= UIFLAG_CHECKED;
             }
             break;
         case FT_SLIDER:
-            frame->event_handler = UI_SliderEventHandler;
-            frame->draw = UI_DrawSlider;
+            frame->base.on_event = UI_SliderEventHandler;
+            frame->base.on_draw = UI_SliderDraw;
             break;
         case FT_EDITBOX: case FT_GLUEEDITBOX: case FT_SLASHCHATBOX:
-            frame->event_handler = UI_EditBoxEventHandler;
-            frame->draw = UI_DrawEditBox;
+            frame->base.on_event = UI_EditBoxEventHandler;
+            frame->base.on_draw = UI_EditBoxDraw;
             break;
         case FT_MENU:
-            frame->event_handler = UI_PopupMenuEventHandler;
-            frame->draw = UI_DrawMenu;
+            frame->base.on_event = UI_PopupMenuEventHandler;
+            frame->base.on_draw = UI_MenuDraw;
             break;
         case FT_POPUPMENU: case FT_GLUEPOPUPMENU:
-            frame->event_handler = UI_PopupEventHandler;
+            frame->base.on_event = UI_PopupEventHandler;
             break;
         case FT_FRAME: case FT_SIMPLEFRAME:
             /* FT_FRAME with MapListControl is a map list */
             if (frame->MapListControl.State) {
-                frame->event_handler = UI_MapListEventHandler;
-                frame->draw = UI_DrawMapListControl;
+                frame->base.on_event = UI_MapListEventHandler;
+                frame->base.on_draw = UI_MapListDraw;
             }
             break;
         default:
@@ -917,8 +928,8 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
     switch (frame->base.type) {
         case FT_FRAME:
         case FT_SIMPLEFRAME:
-            if (frame->draw) {
-                frame->draw((LPFRAMEDEF)frame, rect);
+            if (frame->base.on_draw) {
+                frame->base.on_draw((void *)frame, rect);
             }
             break;
 
@@ -964,8 +975,8 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
         case FT_GLUEEDITBOX:
         case FT_SLASHCHATBOX:
         case FT_MENU:
-            if (frame->draw) {
-                frame->draw((LPFRAMEDEF)frame, rect);
+            if (frame->base.on_draw) {
+                frame->base.on_draw((void *)frame, rect);
             }
             break;
 

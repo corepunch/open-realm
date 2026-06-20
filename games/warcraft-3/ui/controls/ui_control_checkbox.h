@@ -9,7 +9,7 @@ static BOOL UI_CheckBoxIsPushed(LPCFRAMEDEF frame, LPCRECT rect) {
     return UI_CheckBoxEnabled(frame) &&
            !UI_PointerBlockedByPopup(frame) &&
            UI_MouseContains(rect) &&
-           (frame->ui_flags & UIFLAG_PRESSED);
+           (frame->base.ui_flags & UIFLAG_PRESSED);
 }
 
 static LPCFRAMEDEF UI_CheckBoxBackdrop(LPCFRAMEDEF frame, LPCRECT rect) {

@@ -300,10 +300,6 @@ struct uiFrameDef_s {
         DWORD NumItems;
         uiMultiselectItem_t Items[MAX_SELECTED_ENTITIES];
     } Multiselect;
-    /* TODO: migrate to base.ui_flags, base.on_event, base.on_draw */
-    DWORD ui_flags;
-    void (*event_handler)(LPFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down);
-    void (*draw)(LPCFRAMEDEF frame, LPCRECT rect);
 };
 
 /* Global parsed FDF frame table. */
