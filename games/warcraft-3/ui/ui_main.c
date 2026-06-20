@@ -779,6 +779,59 @@ void UI_MouseEventLocal(int x, int y, int button, BOOL down) {
     VECTOR2 fdf = UI_PixelToFdf(x, y);
     LPCFRAMEDEF hit = UI_HitTest(fdf.x, fdf.y);
 
+    /* Slider drag: LEFT_DOWN → start; motion → update; LEFT_UP → end */
+    if (hit && hit->Type == FT_SLIDER) {
+        if (down && button == 1) {
+            UI_SliderBeginDrag(hit, fdf.x, fdf.y);
+        } else if (!down && button == 1) {
+            UI_SliderEndDrag(hit);
+        }
+    }
+    if (UI_SliderIsDragging() && button == 0 && !down) {
+        UI_SliderUpdateDrag(UI_SliderActiveFrame(), fdf.x, fdf.y);
+    }
+    if (!down && button == 1) {
+        UI_SliderEndDrag(NULL);
+    }
+
+    /* EditBox focus: LEFT_DOWN over → focus; LEFT_DOWN outside → clear */
+    if (down && button == 1) {
+        if (hit && UI_IsEditBoxType(hit->Type)) {
+            UI_EditboxFocusOnHit(hit);
+        } else {
+            UI_EditboxClearFocusOnMiss();
+        }
+    }
+
+    /* Popup close on outside click: LEFT_DOWN outside active popup → close */
+    if (down && button == 1 && UI_HasActivePopup() && !UI_PopupPointInside(fdf.x, fdf.y)) {
+        UI_PopupCloseOnMiss();
+    }
+
+    /* Popup menu: wheel → scroll; LEFT_UP → select item */
+    if (UI_HasActivePopup() && button == 4) {
+        UI_PopupMenuScroll(true);
+    }
+    if (UI_HasActivePopup() && button == 5) {
+        UI_PopupMenuScroll(false);
+    }
+    if (UI_HasActivePopup() && !down && button == 1) {
+        UI_PopupSelectItem(fdf.x, fdf.y);
+    }
+
+    /* MapList: LEFT_UP → select row; wheel → scroll */
+    if (hit && hit->MapListControl.State) {
+        if (!down && button == 1) {
+            UI_MapListSelectRow(hit, fdf.x, fdf.y);
+        }
+        if (button == 4) {
+            UI_MapListScroll(hit, true);
+        }
+        if (button == 5) {
+            UI_MapListScroll(hit, false);
+        }
+    }
+
     /* Button clicks: LEFT_UP over frame → execute OnClick */
     if (hit && !down && button == 1) {
         if (UI_IsButtonType(hit->Type) && hit->OnClick[0]) {
