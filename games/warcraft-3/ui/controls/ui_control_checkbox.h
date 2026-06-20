@@ -49,15 +49,6 @@ static void UI_DrawCheckBox(LPCFRAMEDEF frame, LPCRECT rect) {
         return;
     }
 
-    if (!UI_PointerBlockedByPopup(frame) &&
-        UI_MouseContains(rect) &&
-        uiimport.GetMouseEvent && uiimport.GetMouseEvent() == UI_CLIENT_MOUSE_LEFT_UP) {
-        ((LPFRAMEDEF)frame)->CheckBox.Checked = !frame->CheckBox.Checked;
-        if (frame->OnClick[0]) {
-            UI_MenuCommandLocal(frame->OnClick);
-        }
-    }
-
     backdrop = UI_CheckBoxBackdrop(frame, rect);
     UI_DrawBackdropWithColor(backdrop, rect, frame->Color);
     UI_DrawTexture(frame, rect);
