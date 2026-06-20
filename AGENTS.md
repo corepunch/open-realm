@@ -20,6 +20,19 @@ This codebase is inspired by **Quake 2**. The developer is deeply familiar with 
 
 Do not make assumptions — prefer to use Ghidra for parity when you can, to be as close to the original as possible. 1:1 is ideal.
 
+## Testing
+
+Add tests for new functionality and update existing tests when changing existing behaviour.
+
+Apply judgment on scope: write tests when the logic has meaningful surface area (a formula, a table lookup, a state machine, a data-driven rule). Skip tests when the setup cost dwarfs the test value — 90% harness and 10% assertion is a sign the test belongs at a higher level or doesn't need to exist yet.
+
+Concrete guidance:
+- A new formula or table (damage multipliers, XP curves, armor reduction) always gets unit tests — these are cheap to write and pin the verified values against future drift.
+- A new code path through existing infrastructure (new ability type, new event kind) gets a test on the new path.
+- A bug fix gets a test that would have caught the bug — exercise the broken input through the same layer that was broken, not a bypassed internal helper.
+- When changing the behaviour of an existing function, update its tests to match. Do not leave tests asserting the old (wrong) behaviour.
+- When setup genuinely requires 50+ lines of scaffolding for a single assertion, step back — either test at a higher integration level, or note in the PR that the case is covered by existing integration coverage.
+
 ## Debugging Discipline
 
 **Find the actual root cause. Do not introduce workarounds.**
