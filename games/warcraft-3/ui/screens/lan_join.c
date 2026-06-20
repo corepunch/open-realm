@@ -466,11 +466,11 @@ static void LAN_CopyGame(uiMapListItem_t *item, const uiLanGame_t *game, DWORD i
 static void LAN_LoadGames(void) {
     DWORD count;
 
-    if (!uiimport.LANNumServers || !uiimport.LANServer) {
+    if (!uiimport.LAN_NumServers || !uiimport.LAN_Server) {
         return;
     }
 
-    count = uiimport.LANNumServers();
+    count = uiimport.LAN_NumServers();
     if (count > UI_MAX_MAP_LIST_ITEMS) {
         count = UI_MAX_MAP_LIST_ITEMS;
     }
@@ -478,7 +478,7 @@ static void LAN_LoadGames(void) {
         uiLanGame_t game;
         uiMapListItem_t *item;
 
-        if (!uiimport.LANServer(i, &game)) {
+        if (!uiimport.LAN_Server(i, &game)) {
             continue;
         }
         if (i >= lan.games.count) {
@@ -525,7 +525,7 @@ static void LAN_UpdateBrowserControls(void) {
     if (1) {
         uiLanGame_t game;
 
-        if (uiimport.LANServer(item->flags, &game)) {
+        if (uiimport.LAN_Server(item->flags, &game)) {
             LAN_SetTextIfPresent(lan.join_frames.GameSpeedValue, "%s", LAN_GameSpeedValueText(game.speed));
         }
     }
@@ -555,7 +555,7 @@ static void LAN_UpdateControls(void) {
 
 static void LAN_RequestServerRefresh(void) {
     if (1) {
-        uiimport.LANRefreshServers();
+        uiimport.LAN_RefreshServers();
     }
 }
 
@@ -784,14 +784,14 @@ void LAN_SelectMapIndex(DWORD index) {
 }
 
 void LAN_JoinSelectedGame(void) {
-    if (!lan.ready || lan.mode != LAN_MODE_BROWSER || !uiimport.LANConnectServer) {
+    if (!lan.ready || lan.mode != LAN_MODE_BROWSER || !uiimport.LAN_ConnectServer) {
         return;
     }
     if (lan.games.count == 0 || lan.games.selected >= lan.games.count) {
         return;
     }
     LAN_ApplyPlayerName();
-    uiimport.LANConnectServer(lan.games.items[lan.games.selected].flags);
+    uiimport.LAN_ConnectServer(lan.games.items[lan.games.selected].flags);
 }
 
 void LAN_ShowBrowser(void) {
