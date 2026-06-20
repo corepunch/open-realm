@@ -146,10 +146,10 @@ typedef struct {
     LPCTEXTURE *(*GetTextures)(void);           /* cl.pics, for inline text icons */
     LPCFONT (*GetFont)(DWORD idx);              /* cl.fonts[idx] */
     DWORD (*GetClientTime)(void);               /* cl.time */
-    LPCUIFRAME (*LayoutClear)(HANDLE data);
+    LPCUIFRAME (*LayoutClear)(HANDLE data);     /* deserialize layout blob into frames */
     DWORD (*LayoutNumFrames)(void);
     LPUIFRAME (*LayoutFrame)(DWORD number);
-    LPCRECT (*LayoutRect)(LPCUIFRAME frame);
+    LPCRECT (*LayoutRect)(LPCUIFRAME frame);    /* compute screen rect for layout frame */
     LPCSTR (*LayoutStringValue)(LPCUIFRAME frame);
     drawText_t (*LayoutDrawText)(LPCUIFRAME frame,
                                  FLOAT avl_width,
