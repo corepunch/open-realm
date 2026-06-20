@@ -25,18 +25,6 @@
 #define MAX_BUILD_QUEUE_ITEMS 7
 #define MAX_LAYOUT_LAYERS 16
 
-typedef enum {
-    UI_CLIENT_MOUSE_NONE,
-    UI_CLIENT_MOUSE_LEFT_DOWN,
-    UI_CLIENT_MOUSE_LEFT_UP,
-    UI_CLIENT_MOUSE_LEFT_DRAGGED,
-    UI_CLIENT_MOUSE_RIGHT_DOWN,
-    UI_CLIENT_MOUSE_RIGHT_UP,
-    UI_CLIENT_MOUSE_RIGHT_DRAGGED,
-    UI_CLIENT_MOUSE_WHEEL_UP,
-    UI_CLIENT_MOUSE_WHEEL_DOWN,
-} uiClientMouseEvent_t;
-
 typedef struct {
     char art[256];        /* Button icon path */
     char tooltip[256];    /* Tooltip text */
@@ -159,10 +147,7 @@ typedef struct {
     LPCFONT (*GetFont)(DWORD idx);              /* cl.fonts[idx] */
     DWORD (*GetClientTime)(void);               /* cl.time */
     VECTOR2 (*GetMouseFdf)(void);               /* current mouse in FDF/UI coords */
-    VECTOR2 (*GetMousePos)(void);               /* current mouse in pixel coords */
-    DWORD (*GetMouseButton)(void);
     BOOL (*GetMouseButtonDown)(DWORD button);   /* true while button is held */
-    uiClientMouseEvent_t (*GetMouseEvent)(void);
     LPCUIFRAME (*LayoutClear)(HANDLE data);
     DWORD (*LayoutNumFrames)(void);
     LPUIFRAME (*LayoutFrame)(DWORD number);

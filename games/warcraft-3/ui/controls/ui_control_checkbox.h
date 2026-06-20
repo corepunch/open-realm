@@ -9,7 +9,6 @@ static BOOL UI_CheckBoxIsPushed(LPCFRAMEDEF frame, LPCRECT rect) {
     return UI_CheckBoxEnabled(frame) &&
            !UI_PointerBlockedByPopup(frame) &&
            UI_MouseContains(rect) &&
-           uiimport.GetMouseButton && uiimport.GetMouseButton() == 1 &&
            uiimport.GetMouseButtonDown && uiimport.GetMouseButtonDown(1);
 }
 

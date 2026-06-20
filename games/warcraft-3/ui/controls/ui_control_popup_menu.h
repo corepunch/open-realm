@@ -179,28 +179,6 @@ static void UI_UpdatePopupVisibility(LPCFRAMEDEF const *draw_order, DWORD count)
     }
 }
 
-static void UI_ClosePopupIfClickedOutside(void) {
-    LPFRAMEDEF menu;
-    LPCRECT popup_rect;
-    LPCRECT menu_rect = NULL;
-
-    if (!active_popup || !uiimport.GetMouseEvent || uiimport.GetMouseEvent() != UI_CLIENT_MOUSE_LEFT_DOWN) {
-        return;
-    }
-
-    popup_rect = UI_LayoutRect(active_popup);
-    menu = UI_PopupMenuFrame(active_popup);
-    if (menu && !menu->hidden) {
-        menu_rect = UI_LayoutRect(menu);
-    }
-    if ((popup_rect && UI_MouseContains(popup_rect)) ||
-        (menu_rect && UI_MouseContains(menu_rect))) {
-        return;
-    }
-    active_popup = NULL;
-    UI_ResetPopupScroll();
-}
-
 static void UI_DrawMenu(LPCFRAMEDEF frame, LPCRECT rect) {
     LPRENDERER renderer = UI_GetRenderer();
     LPCFRAMEDEF backdrop = UI_FindFrameNear(frame, frame->Control.Backdrop.Normal);
@@ -238,16 +216,6 @@ static void UI_DrawMenu(LPCFRAMEDEF frame, LPCRECT rect) {
     }
     if (active_popup_scroll > max_scroll) {
         active_popup_scroll = max_scroll;
-    }
-    if (max_scroll > 0 &&
-        UI_MouseContains(rect) &&
-        uiimport.GetMouseEvent &&
-        (uiimport.GetMouseEvent() == UI_CLIENT_MOUSE_WHEEL_UP || uiimport.GetMouseEvent() == UI_CLIENT_MOUSE_WHEEL_DOWN)) {
-        if (uiimport.GetMouseEvent() == UI_CLIENT_MOUSE_WHEEL_UP) {
-            active_popup_scroll = active_popup_scroll > 0 ? active_popup_scroll - 1 : 0;
-        } else if (active_popup_scroll < max_scroll) {
-            active_popup_scroll++;
-        }
     }
     clip = MAKE(RECT,
                 rect->x + border,
@@ -296,27 +264,6 @@ static void UI_DrawMenu(LPCFRAMEDEF frame, LPCRECT rect) {
                                  .valign = FONT_JUSTIFYMIDDLE,
                                  .hasClip = TRUE,
                                  .clip = clip));
-        if (hover && uiimport.GetMouseEvent && uiimport.GetMouseEvent() == UI_CLIENT_MOUSE_LEFT_UP) {
-            LPFRAMEDEF popup = (LPFRAMEDEF)frame->Parent;
-            LPFRAMEDEF title = UI_IsPopupFrameType(popup ? popup->Type : FT_NONE)
-                ? UI_PopupTitleTextFrame(popup)
-                : NULL;
-            char command[160];
-
-            if (title) {
-                UI_SetText(title, "%s", frame->Menu.Items[i].text);
-            }
-            if (frame->OnClick[0]) {
-                snprintf(command,
-                         sizeof(command),
-                         frame->OnClick,
-                         (unsigned)frame->Menu.Items[i].value,
-                         (unsigned)i);
-                UI_MenuCommandLocal(command);
-            }
-            active_popup = NULL;
-            UI_ResetPopupScroll();
-        }
     }
     if (max_scroll > 0 && renderer->DrawImageEx) {
         FLOAT const scroll_w = MIN(0.004f, MAX(0.0f, clip.w * 0.2f));

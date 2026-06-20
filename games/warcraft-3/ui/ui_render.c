@@ -845,11 +845,6 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
         case FT_EDITBOX:
         case FT_GLUEEDITBOX:
         case FT_SLASHCHATBOX:
-            if (!UI_PointerBlockedByPopup(frame) &&
-                UI_MouseContains(rect) &&
-                uiimport.GetMouseEvent && uiimport.GetMouseEvent() == UI_CLIENT_MOUSE_LEFT_DOWN) {
-                UI_FocusEdit((LPFRAMEDEF)frame);
-            }
             UI_DrawEditBox(frame, rect);
             break;
 
