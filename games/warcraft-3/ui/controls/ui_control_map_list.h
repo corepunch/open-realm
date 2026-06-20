@@ -13,7 +13,6 @@ static void UI_DrawMapListControl(LPCFRAMEDEF frame, LPCRECT rect) {
     FLOAT row_offset;
     RECT content;
     RECT clip;
-    VECTOR2 mouse;
 
     if (!frame || !rect) {
         return;
@@ -37,37 +36,6 @@ static void UI_DrawMapListControl(LPCFRAMEDEF frame, LPCRECT rect) {
                 content.y,
                 content.w,
                 row_height * (FLOAT)visible_rows);
-
-    if (!UI_PointerBlockedByPopup(frame) &&
-        UI_MouseContains(rect) &&
-        uiimport.GetMouseEvent && uiimport.GetMouseEvent() == UI_CLIENT_MOUSE_LEFT_UP && visible_rows > 0) {
-        FLOAT row;
-        DWORD index;
-        mouse = UI_MouseToFdf();
-        row = (mouse.y - content.y) / row_height;
-        index = (DWORD)floorf(state->visualScroll + row);
-        if (row >= 0.0f && row < (FLOAT)visible_rows && index < state->count) {
-            char command[128];
-            snprintf(command,
-                     sizeof(command),
-                     control->SelectCommand[0] ? control->SelectCommand : "menu_lan_select %u",
-                     (unsigned)index);
-            UI_MenuCommandLocal(command);
-        }
-    }
-    if (!UI_PointerBlockedByPopup(frame) &&
-        UI_MouseContains(rect) &&
-        uiimport.GetMouseEvent &&
-        (uiimport.GetMouseEvent() == UI_CLIENT_MOUSE_WHEEL_UP || uiimport.GetMouseEvent() == UI_CLIENT_MOUSE_WHEEL_DOWN) &&
-        visible_rows > 0 && state->count > visible_rows) {
-        DWORD const max_scroll = state->count - visible_rows;
-
-        if (uiimport.GetMouseEvent() == UI_CLIENT_MOUSE_WHEEL_UP) {
-            state->scroll = state->scroll > 0 ? state->scroll - 1 : 0;
-        } else if (state->scroll < max_scroll) {
-            state->scroll++;
-        }
-    }
 
     font = renderer->LoadFont(UI_FontFile(control->FontName), UI_FontPixelSize(control->FontSize));
     if (!font) {

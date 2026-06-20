@@ -112,7 +112,6 @@ static BOOL UI_ButtonEnabled(LPCFRAMEDEF frame) {
 
 static BOOL UI_ButtonIsPushed(LPCFRAMEDEF frame, LPCRECT rect) {
     return UI_ButtonEnabled(frame) && UI_MouseContains(rect) &&
-           uiimport.GetMouseButton && uiimport.GetMouseButton() == 1 &&
            uiimport.GetMouseButtonDown && uiimport.GetMouseButtonDown(1);
 }
 

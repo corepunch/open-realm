@@ -62,14 +62,6 @@ static VECTOR2 UI_LayoutScreenToFdf(int x, int y) {
     return MAKE(VECTOR2, scene.x + nx * scene.w, scene.y + ny * scene.h);
 }
 
-static DWORD UI_LayoutMouseButton(void) {
-    return uiimport.GetMouseButton ? uiimport.GetMouseButton() : 0;
-}
-
-static uiClientMouseEvent_t UI_LayoutMouseEvent(void) {
-    return uiimport.GetMouseEvent ? uiimport.GetMouseEvent() : UI_CLIENT_MOUSE_NONE;
-}
-
 static LPCTEXTURE UI_LayoutTexture(DWORD index) {
     return uiimport.GetTexture ? uiimport.GetTexture(index) : NULL;
 }
@@ -428,7 +420,8 @@ static BOOL UI_LayoutFrameHasClickCommand(LPCUIFRAME frame) {
 
 static BOOL UI_LayoutGlueTextButtonIsPushed(LPCUIFRAME frame, LPCRECT screen) {
     VECTOR2 const m = UI_LayoutMouseToFdf();
-    return UI_LayoutFrameHasClickCommand(frame) && Rect_contains(screen, &m) && UI_LayoutMouseButton() == 1;
+    return UI_LayoutFrameHasClickCommand(frame) && Rect_contains(screen, &m) &&
+           uiimport.GetMouseButtonDown && uiimport.GetMouseButtonDown(1);
 }
 
 static void UI_LayoutFormatOnClickCommand(LPCSTR source, LPSTR dest, DWORD dest_size) {
@@ -616,7 +609,7 @@ void UI_LayoutDrawCommandButton(LPCUIFRAME frame, LPCRECT screen) {
     VECTOR2 const m = UI_LayoutMouseToFdf();
     RECT scrn = scale_rect(screen, 0.925);
     if (Rect_contains(screen, &m)) {
-        if (UI_LayoutMouseButton() == 1 || UI_LayoutMouseEvent() == UI_CLIENT_MOUSE_LEFT_UP) {
+        if (uiimport.GetMouseButtonDown && uiimport.GetMouseButtonDown(1)) {
             scrn = scale_rect(screen, 0.875);
         }
     }
@@ -853,7 +846,6 @@ void UI_LayoutDrawFrame(LPCUIFRAME frame) {
         }
     }
     if (Rect_contains(screen, &m) &&
-        UI_LayoutMouseEvent() == UI_CLIENT_MOUSE_LEFT_UP &&
         UI_LayoutFrameHasClickCommand(frame))
     {
         char command[CMDARG_LEN * 2];

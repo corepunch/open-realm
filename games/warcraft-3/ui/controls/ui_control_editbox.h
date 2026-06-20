@@ -128,19 +128,6 @@ void UI_TextInputLocal(LPCSTR text) {
     }
 }
 
-static void UI_ClearEditFocusIfClickedOutside(void) {
-    LPCRECT rect;
-    uiClientMouseEvent_t mouse_event = uiimport.GetMouseEvent ? uiimport.GetMouseEvent() : UI_CLIENT_MOUSE_NONE;
-
-    if (!active_edit || mouse_event != UI_CLIENT_MOUSE_LEFT_DOWN) {
-        return;
-    }
-    rect = UI_LayoutRect(active_edit);
-    if (!rect || !UI_MouseContains(rect)) {
-        UI_FocusEdit(NULL);
-    }
-}
-
 static void UI_DrawEditBox(LPCFRAMEDEF frame, LPCRECT rect) {
     LPRENDERER renderer = UI_GetRenderer();
     LPFRAMEDEF text_frame = UI_EditTextFrame(frame);
