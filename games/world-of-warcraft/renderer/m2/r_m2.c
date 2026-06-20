@@ -1008,14 +1008,13 @@ static BYTE M2_CharacterTextureSlotForSection(WORD section_id) {
 }
 
 static BOOL M2_CharacterVariationTexturePath(LPCSTR model_path,
-                                             DWORD appearance,
                                              DWORD section_index,
                                              DWORD variation_index,
+                                             DWORD color_index,
                                              DWORD texture_index,
                                              LPSTR out,
                                              DWORD out_size) {
     DWORD race_id, gender_id;
-    wowAppearance_t unpacked;
 
     if (!out || out_size == 0 ||
         !M2_CharacterRaceGender(model_path, &race_id, &gender_id) ||
@@ -1023,7 +1022,6 @@ static BOOL M2_CharacterVariationTexturePath(LPCSTR model_path,
         return false;
     }
 
-    unpacked = Wow_UnpackAppearance(appearance);
     FOR_LOOP(i, m2_char_sections_dbc.records) {
         BYTE const *record = m2_char_sections_dbc.records_base + i * m2_char_sections_dbc.record_size;
         LPCSTR texture;
@@ -1032,7 +1030,7 @@ static BOOL M2_CharacterVariationTexturePath(LPCSTR model_path,
             M2_DbcField(&m2_char_sections_dbc, record, 2) != gender_id ||
             M2_DbcField(&m2_char_sections_dbc, record, 3) != section_index ||
             M2_DbcField(&m2_char_sections_dbc, record, 4) != variation_index ||
-            M2_DbcField(&m2_char_sections_dbc, record, 5) != unpacked.skinColorID) {
+            M2_DbcField(&m2_char_sections_dbc, record, 5) != color_index) {
             continue;
         }
         if (texture_index >= 3)
@@ -1051,13 +1049,16 @@ static BOOL M2_CharacterTexturePathForType(LPCSTR model_path,
                                            DWORD texture_type,
                                            LPSTR out,
                                            DWORD out_size) {
+    wowAppearance_t unpacked = Wow_UnpackAppearance(appearance);
     switch (texture_type) {
         case 1:
-            return M2_CharacterVariationTexturePath(model_path, appearance, 0, 0, 0, out, out_size);
+            return M2_CharacterVariationTexturePath(model_path, 0, 0, unpacked.skinColorID, 0, out, out_size);
         case 2:
-            return M2_CharacterVariationTexturePath(model_path, appearance, 4, 0, 0, out, out_size);
+            return M2_CharacterVariationTexturePath(model_path, 4, 0, unpacked.skinColorID, 0, out, out_size);
+        case 6:
+            return M2_CharacterVariationTexturePath(model_path, 3, unpacked.hairStyleID, unpacked.hairColorID, 0, out, out_size);
         case 8:
-            return M2_CharacterVariationTexturePath(model_path, appearance, 0, 0, 1, out, out_size);
+            return M2_CharacterVariationTexturePath(model_path, 0, 0, unpacked.skinColorID, 1, out, out_size);
         default:
             return false;
     }
@@ -1303,9 +1304,7 @@ static BOOL M2_DefaultCharacterTexturePath(LPCSTR model_path,
 
     switch (texture_type) {
         case 6:
-            /* BZ_HARDCODED_DATA_FALLBACK: replace with CharHairTextures.dbc/CharHairGeosets.dbc resolution. */
-            snprintf(out, out_size, "Character\\%s\\Hair00_00.blp", race_buf);
-            return true;
+            return M2_CharacterVariationTexturePath(model_path, 3, 0, 0, 0, out, out_size);
         default:
             return false;
     }
