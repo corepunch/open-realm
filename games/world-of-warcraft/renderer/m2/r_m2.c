@@ -635,6 +635,7 @@ typedef struct {
 
 static m2Dbc_t m2_char_start_outfit_dbc;
 static m2Dbc_t m2_item_display_info_dbc;
+static m2Dbc_t m2_char_sections_dbc;
 
 static DWORD M2_Read32(BYTE const *p) {
     return ((DWORD)p[0]) | ((DWORD)p[1] << 8) | ((DWORD)p[2] << 16) | ((DWORD)p[3] << 24);
@@ -1006,6 +1007,62 @@ static BYTE M2_CharacterTextureSlotForSection(WORD section_id) {
     }
 }
 
+static BOOL M2_CharacterVariationTexturePath(LPCSTR model_path,
+                                             DWORD appearance,
+                                             DWORD section_index,
+                                             DWORD variation_index,
+                                             DWORD texture_index,
+                                             LPSTR out,
+                                             DWORD out_size) {
+    DWORD race_id, gender_id;
+    wowAppearance_t unpacked;
+
+    if (!out || out_size == 0 ||
+        !M2_CharacterRaceGender(model_path, &race_id, &gender_id) ||
+        !M2_DbcLoad(&m2_char_sections_dbc, "DBFilesClient\\CharSections.dbc")) {
+        return false;
+    }
+
+    unpacked = Wow_UnpackAppearance(appearance);
+    FOR_LOOP(i, m2_char_sections_dbc.records) {
+        BYTE const *record = m2_char_sections_dbc.records_base + i * m2_char_sections_dbc.record_size;
+        LPCSTR texture;
+
+        if (M2_DbcField(&m2_char_sections_dbc, record, 1) != race_id ||
+            M2_DbcField(&m2_char_sections_dbc, record, 2) != gender_id ||
+            M2_DbcField(&m2_char_sections_dbc, record, 3) != section_index ||
+            M2_DbcField(&m2_char_sections_dbc, record, 4) != variation_index ||
+            M2_DbcField(&m2_char_sections_dbc, record, 5) != unpacked.skinColorID) {
+            continue;
+        }
+        if (texture_index >= 3)
+            return false;
+        texture = M2_DbcString(&m2_char_sections_dbc, M2_DbcField(&m2_char_sections_dbc, record, 6 + texture_index));
+        if (!texture || !*texture)
+            return false;
+        snprintf(out, out_size, "%s", texture);
+        return true;
+    }
+    return false;
+}
+
+static BOOL M2_CharacterTexturePathForType(LPCSTR model_path,
+                                           DWORD appearance,
+                                           DWORD texture_type,
+                                           LPSTR out,
+                                           DWORD out_size) {
+    switch (texture_type) {
+        case 1:
+            return M2_CharacterVariationTexturePath(model_path, appearance, 0, 0, 0, out, out_size);
+        case 2:
+            return M2_CharacterVariationTexturePath(model_path, appearance, 4, 0, 0, out, out_size);
+        case 8:
+            return M2_CharacterVariationTexturePath(model_path, appearance, 0, 0, 1, out, out_size);
+        default:
+            return false;
+    }
+}
+
 static BOOL M2_TextureExists(LPCSTR path) {
     LPBYTE data = NULL;
     int size;
@@ -1245,17 +1302,9 @@ static BOOL M2_DefaultCharacterTexturePath(LPCSTR model_path,
     model_buf[len] = '\0';
 
     switch (texture_type) {
-        case 1:
-            snprintf(out, out_size, "Character\\%s\\%s\\%sSkin00_00.blp", race_buf, gender_buf, model_buf);
-            return true;
-        case 2:
-            snprintf(out, out_size, "Character\\%s\\%s\\%sNakedPelvisSkin00_00.blp", race_buf, gender_buf, model_buf);
-            return true;
         case 6:
+            /* BZ_HARDCODED_DATA_FALLBACK: replace with CharHairTextures.dbc/CharHairGeosets.dbc resolution. */
             snprintf(out, out_size, "Character\\%s\\Hair00_00.blp", race_buf);
-            return true;
-        case 8:
-            snprintf(out, out_size, "Character\\%s\\%s\\%sSkin00_100.blp", race_buf, gender_buf, model_buf);
             return true;
         default:
             return false;
@@ -1414,6 +1463,30 @@ static DWORD M2_SequenceFlags(m2Model_t const *model, DWORD sequence_index) {
     }
 }
 
+static WORD M2_SequenceAnimId(m2Model_t const *model, DWORD sequence_index) {
+    BYTE const *sequence;
+
+    if (!model || !model->sequences || sequence_index >= model->sequence_count)
+        return 0;
+    sequence = model->sequences + sequence_index * model->sequence_stride;
+    if (model->classic_sequences)
+        return ((m2SequenceClassic_t const *)sequence)->animation_id;
+    return ((m2SequenceModern_t const *)sequence)->animation_id;
+}
+
+/* Lua SetSequence passes Blizzard animation IDs, not raw M2 sequence row indices. */
+static BOOL M2_FindSequenceByAnimId(m2Model_t const *model, DWORD anim_id, LPDWORD sequence_index) {
+    if (!model || !sequence_index)
+        return false;
+    FOR_LOOP(i, model->sequence_count) {
+        if (M2_SequenceAnimId(model, i) == anim_id) {
+            *sequence_index = i;
+            return true;
+        }
+    }
+    return false;
+}
+
 #define M2_FRAME_SEQUENCE_FLAG  0x80000000u
 #define M2_FRAME_SEQUENCE_SHIFT 21
 #define M2_FRAME_SEQUENCE_MASK  0x3ffu
@@ -1421,20 +1494,23 @@ static DWORD M2_SequenceFlags(m2Model_t const *model, DWORD sequence_index) {
 
 BOOL M2_SetEntitySequenceFrame(m2Model_t const *model, LPCSTR anim, renderEntity_t *entity) {
     char *end = NULL;
-    DWORD sequence;
+    DWORD anim_id;
+    DWORD sequence_index;
 
     if (!model || !entity)
         return false;
-    sequence = anim && *anim ? (DWORD)strtoul(anim, &end, 10) : 0;
+    anim_id = anim && *anim ? (DWORD)strtoul(anim, &end, 10) : 0;
     if (anim && *anim && (!end || *end))
         return false;
-    if (model->sequence_count > 0 && sequence >= model->sequence_count)
+    if (!M2_FindSequenceByAnimId(model, anim_id, &sequence_index))
+        sequence_index = anim_id;
+    if (model->sequence_count > 0 && sequence_index >= model->sequence_count)
         return false;
     entity->frame = M2_FRAME_SEQUENCE_FLAG |
-                    ((sequence & M2_FRAME_SEQUENCE_MASK) << M2_FRAME_SEQUENCE_SHIFT) |
+                    ((anim_id & M2_FRAME_SEQUENCE_MASK) << M2_FRAME_SEQUENCE_SHIFT) |
                     (entity->frame & M2_FRAME_TIME_MASK);
     entity->oldframe = M2_FRAME_SEQUENCE_FLAG |
-                       ((sequence & M2_FRAME_SEQUENCE_MASK) << M2_FRAME_SEQUENCE_SHIFT) |
+                       ((anim_id & M2_FRAME_SEQUENCE_MASK) << M2_FRAME_SEQUENCE_SHIFT) |
                        (entity->oldframe & M2_FRAME_TIME_MASK);
     return true;
 }
@@ -1456,10 +1532,13 @@ static BOOL M2_FrameToPoseTime(m2Model_t const *model, DWORD frame, m2PoseTime_t
     }
 
     if (frame & M2_FRAME_SEQUENCE_FLAG) {
-        DWORD sequence = (frame >> M2_FRAME_SEQUENCE_SHIFT) & M2_FRAME_SEQUENCE_MASK;
+        DWORD anim_id = (frame >> M2_FRAME_SEQUENCE_SHIFT) & M2_FRAME_SEQUENCE_MASK;
+        DWORD sequence;
         DWORD local_time = frame & M2_FRAME_TIME_MASK;
         DWORD duration;
 
+        if (!M2_FindSequenceByAnimId(model, anim_id, &sequence))
+            sequence = anim_id;
         if (sequence >= model->sequence_count)
             sequence = 0;
         duration = M2_SequenceDuration(model, sequence);
@@ -2636,12 +2715,23 @@ static LPTEXTURE M2_CharacterTextureForBatch(m2Model_t const *model,
                                              m2CharacterOutfit_t const *outfit) {
     m2Model_t *mutable_model;
     DWORD key;
+    PATHSTR texture_path;
+    BOOL has_base_path;
     LPCOLOR32 pixels = NULL;
     LPTEXTURE base_texture = NULL;
 
-    if (!model || !entity || !batch || !model->character_model || batch->texture_type != 1) {
+    if (!model || !entity || !batch || !model->character_model) {
         return batch ? batch->texture : tr.texture[TEX_WHITE];
     }
+    has_base_path = M2_CharacterTexturePathForType(model->filename,
+                                                  entity->appearance,
+                                                  batch->texture_type,
+                                                  texture_path,
+                                                  sizeof(texture_path));
+    if (has_base_path && batch->texture_type != 1)
+        return R_LoadTexture(texture_path);
+    if (batch->texture_type != 1)
+        return batch->texture;
 
     mutable_model = (m2Model_t *)model;
     key = entity->appearance ^ (entity->equipment * 16777619u);
@@ -2659,10 +2749,14 @@ static LPTEXTURE M2_CharacterTextureForBatch(m2Model_t const *model,
         return batch->texture;
     }
 
-    for (m2ModelBatch_t *it = mutable_model->batches; it; it = it->next) {
-        if (it->texture_type == 1 && it->texture) {
-            base_texture = it->texture;
-            break;
+    if (has_base_path) {
+        base_texture = R_LoadTexture(texture_path);
+    } else {
+        for (m2ModelBatch_t *it = mutable_model->batches; it; it = it->next) {
+            if (it->texture_type == 1 && it->texture) {
+                base_texture = it->texture;
+                break;
+            }
         }
     }
     if (!base_texture || !M2_TexturePixels(base_texture, &pixels)) {
@@ -2826,4 +2920,5 @@ void M2_Release(m2Model_t *model) {
 void M2_Shutdown(void) {
     M2_DbcShutdown(&m2_char_start_outfit_dbc);
     M2_DbcShutdown(&m2_item_display_info_dbc);
+    M2_DbcShutdown(&m2_char_sections_dbc);
 }
