@@ -47,8 +47,17 @@ void SCR_UpdateScreen(DWORD msec) {
     V_RenderView();
 
 #ifndef SC2
-    if (ui.DrawFrame) {
-        ui.DrawFrame();
+    /* Client-owned UI frame rendering — iterate DLL's frame array by stride */
+    if (ui.frames && ui.frame_size > 0) {
+        for (DWORD i = 0; i < ui.num_frames; i++) {
+            LPUIBASEFRAME f = (LPUIBASEFRAME)((char *)ui.frames + i * ui.frame_size);
+            if (!f || (f->ui_flags & UIFLAG_HIDDEN) || f->hidden) {
+                continue;
+            }
+            if (f->on_draw) {
+                f->on_draw(f, &f->screen_rect);
+            }
+        }
     }
 #endif
 

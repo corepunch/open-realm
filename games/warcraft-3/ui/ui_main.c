@@ -675,13 +675,50 @@ void UI_RefreshLocal(DWORD msec) {
     if (!ui_state.active) {
         return;
     }
-    
     ui_state.time += msec;
-    
-    /* Call current screen refresh */
     uiScreen_t *screen = UI_GetCurrentScreen();
     if (screen && screen->refresh) {
         screen->refresh((int)msec);
+    }
+    /* Overlay visibility and text updates — DLL owns this, client owns draw */
+    if (ui_state.game_mode) {
+        LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
+        if (loading_screen.Loading) UI_SetHidden(loading_screen.Loading, !UI_LoadingActive(ps));
+        if (UI_LoadingActive(ps)) {
+            UI_UpdateLoadingMapInfo();
+            FLOAT lp = uiimport.GetLoadingProgress ? uiimport.GetLoadingProgress() : 0.0f;
+            if (loading_screen.LoadingBackground) {
+                snprintf(loading_screen.LoadingBackground->TextStorage, sizeof(loading_screen.LoadingBackground->TextStorage), "#!%u", (unsigned)loading_state.background_sequence);
+                loading_screen.LoadingBackground->base.text = loading_screen.LoadingBackground->TextStorage;
+                loading_screen.LoadingBackground->Portrait.model = loading_state.background_model;
+            }
+            if (loading_screen.LoadingBar) {
+                snprintf(loading_screen.LoadingBar->TextStorage, sizeof(loading_screen.LoadingBar->TextStorage), "#0@%.4f", lp);
+                loading_screen.LoadingBar->base.text = loading_screen.LoadingBar->TextStorage;
+                loading_screen.LoadingBar->Portrait.model = loading_state.progress_model;
+            }
+            if (loading_screen.LoadingTitleText) UI_SetTextPointer(loading_screen.LoadingTitleText, loading_state.title);
+            if (loading_screen.LoadingSubtitleText) UI_SetTextPointer(loading_screen.LoadingSubtitleText, loading_state.subtitle);
+            if (loading_screen.LoadingText) UI_SetTextPointer(loading_screen.LoadingText, loading_state.text);
+        }
+        if (cinematic_panel.CinematicPanel) UI_SetHidden(cinematic_panel.CinematicPanel, !UI_CinematicActive(ps));
+        if (UI_CinematicActive(ps) && ps) {
+            if (cinematic_panel.CinematicSpeakerText) UI_SetTextPointer(cinematic_panel.CinematicSpeakerText, ps->texts[PLAYERTEXT_SPEAKER] ? ps->texts[PLAYERTEXT_SPEAKER] : "");
+            if (cinematic_panel.CinematicDialogueText) UI_SetTextPointer(cinematic_panel.CinematicDialogueText, ps->texts[PLAYERTEXT_DIALOGUE] ? ps->texts[PLAYERTEXT_DIALOGUE] : "");
+        }
+        if (resource_bar.ResourceBarFrame) {
+            UI_SetHidden(resource_bar.ResourceBarFrame, false);
+            if (ps) {
+                if (resource_bar.ResourceBarGoldText) UI_SetText(resource_bar.ResourceBarGoldText, "%u", (unsigned)ps->stats[PLAYERSTATE_RESOURCE_GOLD]);
+                if (resource_bar.ResourceBarLumberText) UI_SetText(resource_bar.ResourceBarLumberText, "%u", (unsigned)ps->stats[PLAYERSTATE_RESOURCE_LUMBER]);
+                if (resource_bar.ResourceBarSupplyText) UI_SetText(resource_bar.ResourceBarSupplyText, "%u/%u", (unsigned)ps->stats[PLAYERSTATE_RESOURCE_FOOD_USED], (unsigned)ps->stats[PLAYERSTATE_RESOURCE_FOOD_CAP]);
+                if (resource_bar.ResourceBarUpkeepText) UI_SetText(resource_bar.ResourceBarUpkeepText, "UPKEEP_NONE");
+            }
+        }
+    } else {
+        if (loading_screen.Loading) UI_SetHidden(loading_screen.Loading, true);
+        if (cinematic_panel.CinematicPanel) UI_SetHidden(cinematic_panel.CinematicPanel, true);
+        if (resource_bar.ResourceBarFrame) UI_SetHidden(resource_bar.ResourceBarFrame, true);
     }
 }
 
@@ -1007,7 +1044,6 @@ uiExport_t UI_GetAPI(uiImport_t import) {
     exp.Init = UI_InitLocal;
     exp.Shutdown = UI_ShutdownLocal;
     exp.Refresh = UI_RefreshLocal;
-    exp.DrawFrame = UI_DrawFrameLocal;
     exp.KeyEvent = UI_KeyEventLocal;
     exp.TextInput = UI_TextInputLocal;
     exp.MouseEvent = UI_MouseEventLocal;
