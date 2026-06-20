@@ -14,8 +14,9 @@
 #include <OpenGLES/ES3/gl.h>
 #endif
 #elif __linux__
-//#include <SDL2/SDL_opengl.h>
-#include <GLES3/gl3.h>
+#define GL_GLEXT_PROTOTYPES 1
+#include <GL/gl.h>
+#include <GL/glext.h>
 #endif
 
 #ifdef DIAG_OUTPUT

@@ -1417,10 +1417,23 @@ BOOL UI_EnsureFDF(LPCSTR fileName) {
 
     int size = uiimport.FS_ReadFile(fileName, &buffer);
     if (size >= 0 && buffer) {
-        LPSTR text = uiimport.MemAlloc((DWORD)size + 1);
+        const BYTE *raw = (const BYTE *)buffer;
+        BOOL utf16le = (size >= 2 && raw[0] == 0xFF && raw[1] == 0xFE);
+        DWORD text_size = utf16le ? (DWORD)(size / 2) : (DWORD)size;
+        LPSTR text = uiimport.MemAlloc(text_size + 1);
         if (text) {
-            memcpy(text, buffer, (size_t)size);
-            text[size] = '\0';
+            if (utf16le) {
+                /* Strip UTF-16 LE BOM and fold 16-bit chars to 8-bit.
+                 * FDF files are ASCII-only so the high byte is always 0. */
+                DWORD out = 0;
+                for (int i = 2; i + 1 < size; i += 2) {
+                    text[out++] = (char)raw[i];
+                }
+                text[out] = '\0';
+            } else {
+                memcpy(text, buffer, (size_t)size);
+                text[size] = '\0';
+            }
             UI_ParseFDF_Buffer(fileName, text);
             uiimport.MemFree(text);
             UI_MarkFDFLoaded(fileName);

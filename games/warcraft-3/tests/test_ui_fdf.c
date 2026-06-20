@@ -1759,6 +1759,64 @@ static void test_single_player_screen_loads_tft_campaigns(void) {
     test_single_player_campaign_profile(true);
 }
 
+static const char *utf16le_src_ascii;
+static int utf16le_fs_read(LPCSTR file_name, void **buf) {
+    const char *src = utf16le_src_ascii;
+    size_t len = strlen(src);
+    /* Encode as UTF-16 LE: BOM (FF FE) then each ASCII char as two bytes. */
+    size_t out_size = 2 + len * 2;
+    unsigned char *data = malloc(out_size + 2);
+    if (!data) return -1;
+    data[0] = 0xFF; data[1] = 0xFE;
+    for (size_t i = 0; i < len; i++) {
+        data[2 + i * 2]     = (unsigned char)src[i];
+        data[2 + i * 2 + 1] = 0x00;
+    }
+    data[out_size]     = 0;
+    data[out_size + 1] = 0;
+    *buf = data;
+    (void)file_name;
+    return (int)out_size;
+}
+
+static void utf16le_fs_free(void *buf) { free(buf); }
+
+static void test_utf16le_fdf_is_parsed_correctly(void) {
+    uiImport_t saved = uiimport;
+    LPFRAMEDEF frame;
+
+    reset_ui_state();
+    UI_ClearTemplates();
+
+    utf16le_src_ascii =
+        "/* UTF-16 LE block comment at file start */\n"
+        "// UTF-16 LE line comment\n"
+        "Frame \"BACKDROP\" \"UTF16Frame\" {\n"
+        "    Width 0.75,\n"
+        "    Height 0.50,\n"
+        "}\n";
+
+    memset(&uiimport, 0, sizeof(uiimport));
+    uiimport.FS_ReadFile = utf16le_fs_read;
+    uiimport.FS_FreeFile = utf16le_fs_free;
+    uiimport.MemAlloc = test_ui_mem_alloc;
+    uiimport.MemFree = test_ui_mem_free;
+    uiimport.ImageIndex = fake_image_index;
+    uiimport.ModelIndex = fake_model_index;
+    uiimport.FontIndex = test_font_index;
+    uiimport.Printf = test_ui_printf;
+    uiimport.Error = test_ui_printf;
+
+    UI_ParseFDF("utf16le_test.fdf");
+    uiimport = saved;
+
+    frame = UI_FindFrame("UTF16Frame");
+    if (!require_not_null(frame)) return;
+    ASSERT_EQ_INT(frame->Type, FT_BACKDROP);
+    ASSERT_FLOAT_EQ(frame->Width, 0.75f);
+    ASSERT_FLOAT_EQ(frame->Height, 0.50f);
+}
+
 BEGIN_SUITE(ui_fdf)
     RUN_TEST(test_parse_single_frame_definition);
     RUN_TEST(test_parse_nested_parent_child_relationship);
@@ -1813,4 +1871,5 @@ BEGIN_SUITE(ui_fdf)
     RUN_TEST(test_main_menu_realm_select_uses_realm_panel_anim);
     RUN_TEST(test_single_player_screen_loads_roc_campaigns);
     RUN_TEST(test_single_player_screen_loads_tft_campaigns);
+    RUN_TEST(test_utf16le_fdf_is_parsed_correctly);
 END_SUITE()
