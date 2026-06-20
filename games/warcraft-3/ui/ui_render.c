@@ -95,6 +95,54 @@ static BOOL UI_PointerBlockedByModal(LPCFRAMEDEF frame);
 static LPCFRAMEDEF UI_FindActiveModalRoot(LPCFRAMEDEF const *roots, DWORD num_roots);
 
 /* ========================================================================
+ * HIT TESTING — used by event handlers to find frames under the cursor
+ * ======================================================================== */
+
+static BOOL UI_PointInRect(FLOAT x, FLOAT y, LPCRECT rect) {
+    return rect && x >= rect->x && x < rect->x + rect->w &&
+           y >= rect->y && y < rect->y + rect->h;
+}
+
+static BOOL UI_FrameIsInteractive(LPCFRAMEDEF frame) {
+    if (!frame || frame->hidden || frame->disabled) {
+        return FALSE;
+    }
+    switch (frame->Type) {
+        case FT_BUTTON: case FT_GLUEBUTTON: case FT_SIMPLEBUTTON:
+        case FT_TEXTBUTTON: case FT_GLUETEXTBUTTON: case FT_COMMANDBUTTON:
+        case FT_CHECKBOX: case FT_GLUECHECKBOX: case FT_SIMPLECHECKBOX:
+        case FT_SLIDER:
+        case FT_EDITBOX: case FT_GLUEEDITBOX: case FT_SLASHCHATBOX:
+        case FT_MENU:
+        case FT_POPUPMENU: case FT_GLUEPOPUPMENU:
+        case FT_LISTBOX:
+            return TRUE;
+        case FT_FRAME: case FT_SIMPLEFRAME:
+            return frame->OnClick[0] || frame->MapListControl.State != NULL;
+        default:
+            return FALSE;
+    }
+}
+
+/* Walk the layout cache back-to-front and return the topmost interactive frame
+ * at the given FDF-space coordinates. Returns NULL if nothing was hit. */
+static LPCFRAMEDEF UI_HitTest(FLOAT fdf_x, FLOAT fdf_y) {
+    for (int i = MAX_UI_CLASSES - 1; i >= 0; i--) {
+        if (!runtimes[i].calculated) {
+            continue;
+        }
+        LPCFRAMEDEF frame = &frames[i];
+        if (!frame->inuse || !UI_FrameIsInteractive(frame)) {
+            continue;
+        }
+        if (UI_PointInRect(fdf_x, fdf_y, &runtimes[i].rect)) {
+            return frame;
+        }
+    }
+    return NULL;
+}
+
+/* ========================================================================
  * LAYOUT SOLVING
  * ======================================================================== */
 
