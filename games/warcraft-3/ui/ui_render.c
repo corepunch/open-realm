@@ -792,24 +792,6 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
             }
             UI_DrawTexture(frame, rect);
             UI_DrawButtonText(frame, rect);
-            if (!UI_PointerBlockedByPopup(frame) &&
-                UI_MouseContains(rect) &&
-                uiimport.GetMouseEvent && uiimport.GetMouseEvent() == UI_CLIENT_MOUSE_LEFT_UP &&
-                UI_ButtonEnabled(frame) &&
-                frame->OnClick[0]) {
-                UI_MenuCommandLocal(frame->OnClick);
-            }
-            if (UI_IsPopupFrameType(frame->Type) &&
-                !UI_PointerBlockedByPopup(frame) &&
-                UI_ButtonEnabled(frame) &&
-                UI_MouseContains(rect) &&
-                uiimport.GetMouseEvent && uiimport.GetMouseEvent() == UI_CLIENT_MOUSE_LEFT_UP) {
-                LPCFRAMEDEF next_popup = active_popup == frame ? NULL : frame;
-                if (active_popup != next_popup) {
-                    UI_ResetPopupScroll();
-                    active_popup = next_popup;
-                }
-            }
             break;
             
         case FT_MODEL:
@@ -936,8 +918,6 @@ void UI_DrawFrames(LPCFRAMEDEF const *roots, DWORD num_roots) {
     active_modal = UI_FindActiveModalRoot(roots, num_roots);
     modal_index = UI_FrameDrawOrderIndex(draw_order, count, active_modal);
     UI_SanitizeInteractionState(draw_order, count);
-    UI_ClosePopupIfClickedOutside();
-    UI_ClearEditFocusIfClickedOutside();
     UI_UpdatePopupVisibility(draw_order, count);
 
     /* Match the old client overlay pass: animated/model sprites first, then
