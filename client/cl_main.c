@@ -316,6 +316,25 @@ static BOOL CL_UIGetMouseButtonDown(DWORD button) {
     return mouse.button == button;
 }
 
+/* Client-side UI hit testing — walks frame array owned by the UI DLL */
+static BOOL CL_UIPointInRect(FLOAT x, FLOAT y, LPCRECT r) {
+    return r && x >= r->x && x < r->x + r->w && y >= r->y && y < r->y + r->h;
+}
+
+LPUIBASEFRAME CL_UIHitTest(FLOAT x, FLOAT y) {
+    LPUIBASEFRAME best = NULL;
+    for (DWORD i = 0; i < ui.num_frames; i++) {
+        LPUIBASEFRAME f = (LPUIBASEFRAME)((char *)ui.frames + i * ui.frame_size);
+        if (!f || (f->ui_flags & UIFLAG_HIDDEN) || f->hidden || f->disabled) {
+            continue;
+        }
+        if (f->on_event && CL_UIPointInRect(x, y, &f->screen_rect)) {
+            best = f;
+        }
+    }
+    return best;
+}
+
 /* Request unit UI data (command card, inventory, build queue) */
 static void CL_UIRequestUnitUI(DWORD num_selected, DWORD *entity_nums) {
     (void)num_selected;
