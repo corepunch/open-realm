@@ -413,8 +413,7 @@ static LPCSTR m2_vs =
 #endif
 "out vec2 v_texcoord;\n"
 "out vec2 v_texcoord2;\n"
-"out vec3 v_normal;\n"
-"out vec3 v_lightDir;\n"
+"out float v_light;\n"
 "out vec4 v_color;\n"
 "uniform mat4 uViewProjectionMatrix;\n"
 "uniform mat4 uTextureMatrix;\n"
@@ -445,12 +444,13 @@ static LPCSTR m2_vs =
 "    vec4 pos = uModelMatrix * local;\n"
 "    v_texcoord = i_texcoord;\n"
 "    v_texcoord2 = (uTextureMatrix * pos).xy;\n"
-"    v_normal = normalize(uNormalMatrix * skin_normal(vec4(i_normal, 0.0)));\n"
+"    vec3 normal = normalize(uNormalMatrix * skin_normal(vec4(i_normal, 0.0)));\n"
+"    vec3 lightDir = normalize(vec3(uLightMatrix[0][2], uLightMatrix[1][2], uLightMatrix[2][2]))*1.2;\n"
+"    v_light = clamp(dot(normal, lightDir), 0.0, 1.0);\n"
 #ifdef USE_SHADOWMAPS
 "    v_shadow = uLightMatrix * pos;\n"
 #endif
 "    v_color = i_color;\n"
-"    v_lightDir = -normalize(vec3(uLightMatrix[0][2], uLightMatrix[1][2], uLightMatrix[2][2]))*1.2;\n"
 "    gl_Position = uViewProjectionMatrix * pos;\n"
 "}\n";
 
@@ -461,18 +461,14 @@ static LPCSTR m2_fs =
 #ifdef USE_SHADOWMAPS
 "in vec4 v_shadow;\n"
 #endif
-"in vec3 v_normal;\n"
+"in float v_light;\n"
 "in vec4 v_color;\n"
-"in vec3 v_lightDir;\n"
 "out vec4 o_color;\n"
 "uniform sampler2D uTexture;\n"
 #if defined(USE_SHADOWMAPS) || defined(DEBUG_PATHFINDING)
 "uniform sampler2D uShadowmap;\n"
 #endif
 "uniform sampler2D uFogOfWar;\n"
-"float get_light() {\n"
-"    return clamp(dot(v_normal, v_lightDir), 0.0, 1.0);\n"
-"}\n"
 #ifdef USE_SHADOWMAPS
 "float get_shadow() {\n"
 "    float depth = texture(uShadowmap, vec2(v_shadow.x + 1.0, v_shadow.y + 1.0) * 0.5).r;\n"
@@ -481,9 +477,9 @@ static LPCSTR m2_fs =
 #endif
 "float get_lighting() {\n"
 #ifdef USE_SHADOWMAPS
-"    return mix(0.5, 1.0, get_shadow() * get_light());"
+"    return mix(0.5, 1.0, get_shadow() * v_light);"
 #else
-"    return mix(0.5, 1.0, get_light());"
+"    return mix(0.5, 1.0, v_light);"
 #endif
 "}\n"
 "float get_fogofwar() {\n"
