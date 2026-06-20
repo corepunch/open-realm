@@ -277,6 +277,7 @@ static int UIWow_XmlPushElem(uiWowXmlType_t type, LPCSTR name, int parent, int d
     e = &wow_xml.elems[wow_xml.count]; memset(e, 0, sizeof(*e));
     e->flags = EF_USED | EF_WORD_WRAP; /* word-wrap on by default, same as CSimpleFontString */
     e->type = type; e->parent = parent; e->relative_to = parent; e->draw_layer = draw_layer;
+    e->base.type = type;  /* also set base type for client iteration */
     e->alpha = 1.0f; e->id = 0;
     e->base.parent_index = parent >= 0 ? (DWORD)parent : (DWORD)-1;
     e->font_size = 14.0f; e->colors[ELEM_COLOR_TEXT] = COLOR32_WHITE; e->colors[ELEM_COLOR_VERTEX] = COLOR32_WHITE;
@@ -1939,7 +1940,6 @@ static void UIWow_XMLDrawTree(int i, int hovered_button) {
 
 /* on_draw callback for XML elements — draws this element's subtree */
 static void UIWow_XMLOnDraw(uiBaseFrame_t *base, LPCRECT rect) {
-    (void)rect;
     int idx = (int)((uiWowXmlElem_t *)base - wow_xml.elems);
     int hovered_button = -1;
     extern VECTOR2 wow_last_mouse_fdf;
