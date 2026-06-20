@@ -117,9 +117,10 @@ typedef enum {
 } uiWowXmlElemFlag_t;
 
 typedef struct {
-    DWORD flags;
-    uiWowXmlType_t type;
-    int id, parent, relative_to, relative_to2, draw_layer;
+    uiBaseFrame_t base;             /* shared engine frame — keep in sync with common/shared.h */
+    DWORD flags;                    /* WoW-specific: EF_* element flags */
+    uiWowXmlType_t type;            /* TODO: migrate to base.type */
+    int id, parent, relative_to, relative_to2, draw_layer; /* TODO: parent → base.parent */
     char *texts[ELEM_STRING_COUNT];
     fpoint_t pos, offset, text_off, offset2; /* pos(x,y), anchor offset(ox,oy), text offset, second anchor offset */
     char *point2, *relative_point2, *relative_name2; /* second anchor point/relativeTo names (owned strings) */
