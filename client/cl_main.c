@@ -94,10 +94,10 @@ static DWORD CL_UIGetNumEntities(void);
 static LPCENTITYSTATE CL_UIGetEntity(DWORD idx);
 static void CL_UIServerCommand(LPCSTR text);
 static void CL_UIRequestUnitUI(DWORD num_selected, DWORD *entity_nums);
-static void CL_LANRefreshServers(void);
-static DWORD CL_LANNumServers(void);
-static BOOL CL_LANServer(DWORD index, uiLanGame_t *out);
-static void CL_LANConnectServer(DWORD index);
+static void CL_LAN_RefreshServers(void);
+static DWORD CL_LAN_NumServers(void);
+static BOOL CL_LAN_Server(DWORD index, uiLanGame_t *out);
+static void CL_LAN_ConnectServer(DWORD index);
 static LPCMODEL CL_UIGetModel(DWORD idx);
 static LPCMODEL CL_UIGetPortrait(DWORD idx);
 static LPRENDERER CL_UIGetRenderer(void);
@@ -364,7 +364,7 @@ static void CL_InfoValue(LPCSTR info, LPCSTR key, LPSTR out, DWORD out_size) {
     out[len] = '\0';
 }
 
-static void CL_LANRefreshServers(void) {
+static void CL_LAN_RefreshServers(void) {
     netadr_t adr;
     unsigned short port = (unsigned short)Cvar_Integer("game_port", PORT_SERVER);
     BOOL const open_client_socket = !NET_IsConfigured(NS_CLIENT);
@@ -372,11 +372,11 @@ static void CL_LANRefreshServers(void) {
     memset(cl_lan_servers, 0, sizeof(cl_lan_servers));
     cl_num_lan_servers = 0;
     if (open_client_socket) {
-        fprintf(stderr, "CL_LANRefreshServers: opening client UDP socket for LAN queries\n");
+        fprintf(stderr, "CL_LAN_RefreshServers: opening client UDP socket for LAN queries\n");
     }
     NET_ConfigSource(NS_CLIENT, true);
     if (!NET_IsConfigured(NS_CLIENT)) {
-        fprintf(stderr, "CL_LANRefreshServers: client UDP socket is closed, cannot query LAN servers\n");
+        fprintf(stderr, "CL_LAN_RefreshServers: client UDP socket is closed, cannot query LAN servers\n");
         return;
     }
 
@@ -386,11 +386,11 @@ static void CL_LANRefreshServers(void) {
     Netchan_OutOfBandPrint(NS_CLIENT, adr, "info");
 }
 
-static DWORD CL_LANNumServers(void) {
+static DWORD CL_LAN_NumServers(void) {
     return cl_num_lan_servers;
 }
 
-static BOOL CL_LANServer(DWORD index, uiLanGame_t *out) {
+static BOOL CL_LAN_Server(DWORD index, uiLanGame_t *out) {
     if (!out || index >= cl_num_lan_servers) {
         return false;
     }
@@ -398,7 +398,7 @@ static BOOL CL_LANServer(DWORD index, uiLanGame_t *out) {
     return true;
 }
 
-static void CL_LANConnectServer(DWORD index) {
+static void CL_LAN_ConnectServer(DWORD index) {
     uiLanGame_t *game;
     unsigned short port = (unsigned short)Cvar_Integer("game_port", PORT_SERVER);
 
@@ -617,10 +617,10 @@ void CL_Init(void) {
         .ServerCommand = CL_UIServerCommand,
         .Cvar_String = Cvar_String,
         .Cvar_Set = CL_UICvarSet,
-        .LANRefreshServers = CL_LANRefreshServers,
-        .LANNumServers = CL_LANNumServers,
-        .LANServer = CL_LANServer,
-        .LANConnectServer = CL_LANConnectServer,
+        .LAN_RefreshServers = CL_LAN_RefreshServers,
+        .LAN_NumServers = CL_LAN_NumServers,
+        .LAN_Server = CL_LAN_Server,
+        .LAN_ConnectServer = CL_LAN_ConnectServer,
         .GetPlayerState = CL_UIGetPlayerState,
         .GetNumEntities = CL_UIGetNumEntities,
         .GetEntity = CL_UIGetEntity,

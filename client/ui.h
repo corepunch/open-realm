@@ -123,10 +123,10 @@ typedef struct {
     void (*ServerCommand)(LPCSTR text);
     LPCSTR (*Cvar_String)(LPCSTR name, LPCSTR fallback);
     void (*Cvar_Set)(LPCSTR name, LPCSTR value);
-    void (*LANRefreshServers)(void);
-    DWORD (*LANNumServers)(void);
-    BOOL (*LANServer)(DWORD index, uiLanGame_t *out);
-    void (*LANConnectServer)(DWORD index);
+    void (*LAN_RefreshServers)(void);
+    DWORD (*LAN_NumServers)(void);
+    BOOL (*LAN_Server)(DWORD index, uiLanGame_t *out);
+    void (*LAN_ConnectServer)(DWORD index);
     
     /* Game state access (for in-game HUD) */
     LPCPLAYER (*GetPlayerState)(void);          /* Access to cl.playerstate */
