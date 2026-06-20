@@ -749,7 +749,6 @@ void UI_DrawFrameLocal(void) {
             screen->draw();
         }
     }
-    UI_LayoutDrawOverlays();
 }
 
 void UI_KeyEventLocal(int key, BOOL down, DWORD time) {

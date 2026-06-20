@@ -165,9 +165,10 @@ VECTOR2 SCR_SolveAxisPosition(LPCUIFRAME frame,
                               bool is_x_axis);
 LPCSTR SCR_GetStringValue(LPCUIFRAME frame);
 drawText_t SCR_GetDrawText(LPCUIFRAME frame,
-                         FLOAT avl_width,
-                         LPCSTR text,
-                         uiLabel_t const *label);
+                           FLOAT avl_width,
+                           LPCSTR text,
+                           uiLabel_t const *label);
+void CL_LayoutDrawOverlays(void);
 void SCR_UpdateScreen(DWORD msec);
 
 // cl_input.c
