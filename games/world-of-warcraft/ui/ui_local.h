@@ -74,6 +74,9 @@ typedef struct {
     LPMODEL char_customize_model;
     PATHSTR char_customize_model_path;
     DWORD time;
+    PATHSTR loading_map;
+    PATHSTR loading_status;
+    FLOAT loading_progress;
 } uiWowState_t;
 
 extern uiImport_t uiimport;

@@ -236,6 +236,12 @@ static void UIWow_Refresh(DWORD msec) {
     UIWow_CallLuaUpdate(msec);
 }
 
+static void UIWow_SetLoadingState(LPCSTR map, LPCSTR status, FLOAT progress) {
+    if (map) snprintf(wow_ui.loading_map, sizeof(wow_ui.loading_map), "%s", map);
+    if (status) snprintf(wow_ui.loading_status, sizeof(wow_ui.loading_status), "%s", status);
+    wow_ui.loading_progress = progress;
+}
+
 static void UIWow_ReleaseScreenAssets(void) {
     if (!wow_ui.renderer) {
         return;
@@ -534,6 +540,7 @@ uiExport_t UI_GetAPI(uiImport_t import) {
         .Init             = UIWow_Init,
         .Shutdown         = UIWow_Shutdown,
         .Refresh          = UIWow_Refresh,
+        .SetLoadingState  = UIWow_SetLoadingState,
         .KeyEvent         = UIWow_KeyEvent,
         .TextInput        = UIWow_TextInput,
         .MouseEvent       = UIWow_MouseEvent,
