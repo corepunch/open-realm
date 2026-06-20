@@ -617,6 +617,8 @@ typedef struct uiBaseFrame_s {
     DWORD number;
     FRAMETYPE type;
     void *parent;                   /* game resolves: pointer or index */
+    DWORD parent_index;             /* index into frames array, -1 = root */
+    RECT screen_rect;               /* computed screen-space AABB, filled by DLL during Refresh */
     COLOR32 color;
     FLOAT alpha;
     struct { FLOAT width, height; } size;
