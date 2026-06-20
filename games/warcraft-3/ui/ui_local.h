@@ -346,6 +346,7 @@ void UI_ParseFDF_Buffer(LPCSTR filename, LPSTR buffer);
 void UI_ClearTemplates(void);
 void UI_InitFrame(LPFRAMEDEF, FRAMETYPE);
 void UI_WireFrameTypeFunctions(LPFRAMEDEF frame);
+void UI_GenericOnDraw(struct uiBaseFrame_s *base, LPCRECT rect);
 void UI_SetAllPoints(LPFRAMEDEF);
 void UI_SetParent(LPFRAMEDEF, LPCFRAMEDEF);
 void UI_SetText(LPFRAMEDEF, LPCSTR, ...);
