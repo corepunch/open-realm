@@ -576,22 +576,6 @@ static void UI_CheckBoxDraw(LPCFRAMEDEF frame, LPCRECT rect) {
     UI_DrawHighlightFrame(UI_CheckBoxCheckHighlight(frame), rect);
 }
 
-static void UI_SliderDraw(LPCFRAMEDEF frame, LPCRECT rect) {
-    UI_DrawSlider(frame, rect);
-}
-
-static void UI_EditBoxDraw(LPCFRAMEDEF frame, LPCRECT rect) {
-    UI_DrawEditBox(frame, rect);
-}
-
-static void UI_MapListDraw(LPCFRAMEDEF frame, LPCRECT rect) {
-    UI_DrawMapListControl(frame, rect);
-}
-
-static void UI_MenuDraw(LPCFRAMEDEF frame, LPCRECT rect) {
-    UI_DrawMenu(frame, rect);
-}
-
 /* Wire per-type event handler and draw function pointers */
 void UI_WireFrameTypeFunctions(LPFRAMEDEF frame) {
     if (!frame) {
@@ -612,15 +596,15 @@ void UI_WireFrameTypeFunctions(LPFRAMEDEF frame) {
             break;
         case FT_SLIDER:
             frame->event_handler = UI_SliderEventHandler;
-            frame->draw = UI_SliderDraw;
+            frame->draw = UI_DrawSlider;
             break;
         case FT_EDITBOX: case FT_GLUEEDITBOX: case FT_SLASHCHATBOX:
             frame->event_handler = UI_EditBoxEventHandler;
-            frame->draw = UI_EditBoxDraw;
+            frame->draw = UI_DrawEditBox;
             break;
         case FT_MENU:
             frame->event_handler = UI_PopupMenuEventHandler;
-            frame->draw = UI_MenuDraw;
+            frame->draw = UI_DrawMenu;
             break;
         case FT_POPUPMENU: case FT_GLUEPOPUPMENU:
             frame->event_handler = UI_PopupEventHandler;
@@ -629,7 +613,7 @@ void UI_WireFrameTypeFunctions(LPFRAMEDEF frame) {
             /* FT_FRAME with MapListControl is a map list */
             if (frame->MapListControl.State) {
                 frame->event_handler = UI_MapListEventHandler;
-                frame->draw = UI_MapListDraw;
+                frame->draw = UI_DrawMapListControl;
             }
             break;
         default:

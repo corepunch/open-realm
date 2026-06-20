@@ -40,22 +40,6 @@ static LPCFRAMEDEF UI_CheckBoxCheckHighlight(LPCFRAMEDEF frame) {
     return UI_FindFrameNear(frame, highlight_name);
 }
 
-static void UI_DrawCheckBox(LPCFRAMEDEF frame, LPCRECT rect) {
-    LPCFRAMEDEF backdrop;
-    LPCFRAMEDEF check_highlight;
-
-    if (!frame || !rect) {
-        return;
-    }
-
-    backdrop = UI_CheckBoxBackdrop(frame, rect);
-    UI_DrawBackdropWithColor(backdrop, rect, frame->Color);
-    UI_DrawTexture(frame, rect);
-
-    check_highlight = UI_CheckBoxCheckHighlight(frame);
-    UI_DrawHighlightFrame(check_highlight, rect);
-}
-
 static void UI_DrawCheckBoxMouseOverHighlight(LPCFRAMEDEF frame) {
     LPCRECT rect;
 
