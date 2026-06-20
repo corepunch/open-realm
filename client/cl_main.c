@@ -102,7 +102,6 @@ static LPCSTR CL_UIGetLoadingMap(void);
 static LPCMODEL CL_UIGetModel(DWORD idx);
 static LPCMODEL CL_UIGetPortrait(DWORD idx);
 static LPRENDERER CL_UIGetRenderer(void);
-static DWORD CL_UIGetClientTime(void);
 
 static void CL_MenuCommand(LPCSTR command) {
     if (!command || !*command) {
@@ -301,10 +300,6 @@ static LPCMODEL CL_UIGetPortrait(DWORD idx) {
 /* Renderer access callback for UI rendering */
 static LPRENDERER CL_UIGetRenderer(void) {
     return &re;
-}
-
-static DWORD CL_UIGetClientTime(void) {
-    return cl.time;
 }
 
 /* Client-side UI hit testing — walks frame array owned by the UI DLL */
@@ -645,7 +640,6 @@ void CL_Init(void) {
         .GetTexture = CL_GetTextureByIndex,
         .GetTextures = CL_UIGetTextures,
         .GetFont = CL_UIGetFont,
-        .GetClientTime = CL_UIGetClientTime,
         .LayoutClear = SCR_Clear,
         .LayoutNumFrames = SCR_NumFrames,
         .LayoutFrame = SCR_Frame,

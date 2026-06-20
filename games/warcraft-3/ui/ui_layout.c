@@ -27,7 +27,7 @@ static LPCPLAYER UI_LayoutPlayerState(void) {
 }
 
 static DWORD UI_LayoutTime(void) {
-    return uiimport.GetClientTime ? uiimport.GetClientTime() : 0;
+    return 0;
 }
 
 static VECTOR2 UI_LayoutMouseToFdf(void) {
