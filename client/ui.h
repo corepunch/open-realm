@@ -132,9 +132,6 @@ typedef struct {
     DWORD (*LANNumServers)(void);
     BOOL (*LANServer)(DWORD index, uiLanGame_t *out);
     void (*LANConnectServer)(DWORD index);
-    LPCSTR (*GetLoadingMap)(void);
-    LPCSTR (*GetLoadingStatus)(void);
-    FLOAT (*GetLoadingProgress)(void);
     
     /* Game state access (for in-game HUD) */
     LPCPLAYER (*GetPlayerState)(void);          /* Access to cl.playerstate */
@@ -165,6 +162,7 @@ typedef struct {
     
     /* Main loop integration */
     void (*Refresh)(DWORD msec);
+    void (*SetLoadingState)(LPCSTR map, LPCSTR status, FLOAT progress);
     
     /* Input event handling */
     void (*KeyEvent)(int key, BOOL down, DWORD time);

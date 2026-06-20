@@ -20,6 +20,9 @@ typedef struct {
     BOOL active;
     BOOL game_mode;
     DWORD time;
+    PATHSTR loading_map;
+    PATHSTR loading_status;
+    FLOAT loading_progress;
 } uiState_t;
 
 static uiState_t ui_state;
@@ -467,7 +470,7 @@ static LPCSTR UI_CsvField(LPCSTR text, DWORD index, LPSTR out, DWORD out_size) {
 }
 
 static LPCSTR UI_LoadingMapPath(void) {
-    LPCSTR path = uiimport.GetLoadingMap ? uiimport.GetLoadingMap() : NULL;
+    LPCSTR path = ui_state.loading_map;
 
     if (path && *path) {
         return path;
@@ -574,7 +577,7 @@ static void UI_InitLoadingScreen(void) {
 }
 
 static void UI_DrawLoadingScreen(void) {
-    FLOAT loading_progress = uiimport.GetLoadingProgress ? uiimport.GetLoadingProgress() : 0.0f;
+    FLOAT loading_progress = ui_state.loading_progress;
 
     UI_UpdateLoadingMapInfo();
 
@@ -615,6 +618,12 @@ VECTOR2 UI_MouseToFdf(void) {
 BOOL UI_MouseContains(LPCRECT rect) {
     VECTOR2 const mouse = UI_MouseToFdf();
     return Rect_contains(rect, &mouse);
+}
+
+void UI_SetLoadingState(LPCSTR map, LPCSTR status, FLOAT progress) {
+    if (map) snprintf(ui_state.loading_map, sizeof(ui_state.loading_map), "%s", map);
+    if (status) snprintf(ui_state.loading_status, sizeof(ui_state.loading_status), "%s", status);
+    ui_state.loading_progress = progress;
 }
 
 void UI_InitLocal(void) {
@@ -689,7 +698,7 @@ void UI_RefreshLocal(DWORD msec) {
         if (loading_screen.Loading) UI_SetHidden(loading_screen.Loading, !UI_LoadingActive(ps));
         if (UI_LoadingActive(ps)) {
             UI_UpdateLoadingMapInfo();
-            FLOAT lp = uiimport.GetLoadingProgress ? uiimport.GetLoadingProgress() : 0.0f;
+            FLOAT lp = ui_state.loading_progress;
             if (loading_screen.LoadingBackground) {
                 snprintf(loading_screen.LoadingBackground->TextStorage, sizeof(loading_screen.LoadingBackground->TextStorage), "#!%u", (unsigned)loading_state.background_sequence);
                 loading_screen.LoadingBackground->base.text = loading_screen.LoadingBackground->TextStorage;
@@ -1049,6 +1058,7 @@ uiExport_t UI_GetAPI(uiImport_t import) {
     exp.Init = UI_InitLocal;
     exp.Shutdown = UI_ShutdownLocal;
     exp.Refresh = UI_RefreshLocal;
+    exp.SetLoadingState = UI_SetLoadingState;
     exp.KeyEvent = UI_KeyEventLocal;
     exp.TextInput = UI_TextInputLocal;
     exp.MouseEvent = UI_MouseEventLocal;

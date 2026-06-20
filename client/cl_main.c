@@ -98,7 +98,6 @@ static void CL_LANRefreshServers(void);
 static DWORD CL_LANNumServers(void);
 static BOOL CL_LANServer(DWORD index, uiLanGame_t *out);
 static void CL_LANConnectServer(DWORD index);
-static LPCSTR CL_UIGetLoadingMap(void);
 static LPCMODEL CL_UIGetModel(DWORD idx);
 static LPCMODEL CL_UIGetPortrait(DWORD idx);
 static LPRENDERER CL_UIGetRenderer(void);
@@ -450,20 +449,8 @@ update:
     }
 }
 
-static LPCSTR CL_UIGetLoadingMap(void) {
-    return cl.loading_map;
-}
-
 static void CL_UICvarSet(LPCSTR name, LPCSTR value) {
     Cvar_Set(name, value);
-}
-
-static LPCSTR CL_UIGetLoadingStatus(void) {
-    return cl.loading_status;
-}
-
-static FLOAT CL_UIGetLoadingProgress(void) {
-    return cl.loading_progress;
 }
 
 void CL_BeginLoadingMap(LPCSTR mapName) {
@@ -473,6 +460,9 @@ void CL_BeginLoadingMap(LPCSTR mapName) {
     cl.playerstate.client_ui_state = CLIENT_UI_LOADING;
     cls.state = ca_loading;
     CL_MenuCommand("menu_ingame");
+    if (ui.SetLoadingState) {
+        ui.SetLoadingState(cl.loading_map, cl.loading_status, cl.loading_progress);
+    }
 }
 
 void CL_LoadingUpdate(LPCSTR status, FLOAT progress) {
@@ -485,6 +475,9 @@ void CL_LoadingUpdate(LPCSTR status, FLOAT progress) {
         progress = 1.0f;
     }
     cl.loading_progress = progress;
+    if (ui.SetLoadingState) {
+        ui.SetLoadingState(cl.loading_map, cl.loading_status, cl.loading_progress);
+    }
 }
 
 /* Public wrapper for UI library and input system (Phase 8.6) */
@@ -629,9 +622,6 @@ void CL_Init(void) {
         .LANNumServers = CL_LANNumServers,
         .LANServer = CL_LANServer,
         .LANConnectServer = CL_LANConnectServer,
-        .GetLoadingMap = CL_UIGetLoadingMap,
-        .GetLoadingStatus = CL_UIGetLoadingStatus,
-        .GetLoadingProgress = CL_UIGetLoadingProgress,
         .GetPlayerState = CL_UIGetPlayerState,
         .GetNumEntities = CL_UIGetNumEntities,
         .GetEntity = CL_UIGetEntity,
