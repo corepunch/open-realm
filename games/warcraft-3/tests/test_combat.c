@@ -10,6 +10,11 @@
  *                          no animation → no-op
  *   G_RunEntity          — stat fields compressed after run,
  *                          ability index updated from currentmove (non-zero)
+ *   G_AttackDamage       — representative attack×defense table cells (pierce/
+ *                          small=2.0, normal/medium=1.5, siege/fort=1.5,
+ *                          magic/large=2.0, chaos passthrough, hero/fort=0.5),
+ *                          armor reduction (0.06/point), negative armor,
+ *                          minimum-1 clamp, zero-armor passthrough
  *   Ability lookup       — FindAbilityByClassname hit/miss,
  *                          GetAbilityByIndex, GetAbilityIndex
  *   player_pay           — deducts gold on success,
@@ -28,6 +33,7 @@
 /* Forward declarations for internal functions not in any public header. */
 BOOL  player_pay(LPPLAYER ps, DWORD project);
 void  T_Damage(LPEDICT target, LPEDICT attacker, int damage);
+int   G_AttackDamage(LPEDICT attacker, LPEDICT target, int base);
 void  attack_melee(LPEDICT self);
 void  attack_melee_cooldown(LPEDICT self);
 void  attack_ranged_cooldown(LPEDICT self);
@@ -544,6 +550,102 @@ static void test_attack_speed_scales_with_agility(void) {
 }
 
 /* ==========================================================================
+ * G_AttackDamage — attack×defense table and armor reduction
+ *
+ * Defense type indices (matches defense_type[] in g_monster.c):
+ *   0=small 1=medium 2=large 3=fort 4=normal 5=hero 6=divine 7=none
+ * Attack type indices (ATK_ enum in g_local.h):
+ *   0=none 1=normal 2=pierce 3=siege 4=spells 5=chaos 6=magic 7=hero
+ * ========================================================================== */
+
+static LPEDICT make_attacker(DWORD atk_type) {
+    LPEDICT a = make_combat_unit(UNIT_ID("hfoo"), 100.0f, 0.0f, 0.0f);
+    a->attack1.type = atk_type;
+    return a;
+}
+
+static LPEDICT make_target(DWORD def_type, FLOAT armor) {
+    LPEDICT t = make_combat_unit(UNIT_ID("hfoo"), 1000.0f, 50.0f, 0.0f);
+    t->defense_type = def_type;
+    t->armor_value  = armor;
+    return t;
+}
+
+/* Pierce vs small = 2.0× (infantry shredded by arrows). */
+static void test_attack_damage_pierce_vs_small(void) {
+    LPEDICT a = make_attacker(ATK_PIERCE);
+    LPEDICT t = make_target(0 /* small */, 0.0f);
+    ASSERT_EQ_INT(G_AttackDamage(a, t, 100), 200);
+}
+
+/* Normal vs medium = 1.5× (footmen effective vs soldiers). */
+static void test_attack_damage_normal_vs_medium(void) {
+    LPEDICT a = make_attacker(ATK_NORMAL);
+    LPEDICT t = make_target(1 /* medium */, 0.0f);
+    ASSERT_EQ_INT(G_AttackDamage(a, t, 100), 150);
+}
+
+/* Siege vs fort = 1.5× (catapults effective vs buildings). */
+static void test_attack_damage_siege_vs_fort(void) {
+    LPEDICT a = make_attacker(ATK_SIEGE);
+    LPEDICT t = make_target(3 /* fort */, 0.0f);
+    ASSERT_EQ_INT(G_AttackDamage(a, t, 100), 150);
+}
+
+/* Magic vs large = 2.0× (spells shred large units). */
+static void test_attack_damage_magic_vs_large(void) {
+    LPEDICT a = make_attacker(ATK_MAGIC);
+    LPEDICT t = make_target(2 /* large */, 0.0f);
+    ASSERT_EQ_INT(G_AttackDamage(a, t, 100), 200);
+}
+
+/* Chaos ignores defense type — always 1.0× regardless of armor type. */
+static void test_attack_damage_chaos_passthrough(void) {
+    LPEDICT a = make_attacker(ATK_CHAOS);
+    ASSERT_EQ_INT(G_AttackDamage(a, make_target(0, 0.0f), 100), 100); /* small  */
+    ASSERT_EQ_INT(G_AttackDamage(a, make_target(2, 0.0f), 100), 100); /* large  */
+    ASSERT_EQ_INT(G_AttackDamage(a, make_target(3, 0.0f), 100), 100); /* fort   */
+    ASSERT_EQ_INT(G_AttackDamage(a, make_target(5, 0.0f), 100), 100); /* hero   */
+}
+
+/* Hero attack vs fort = 0.5× (heroes less effective vs buildings). */
+static void test_attack_damage_hero_vs_fort(void) {
+    LPEDICT a = make_attacker(ATK_HERO);
+    LPEDICT t = make_target(3 /* fort */, 0.0f);
+    ASSERT_EQ_INT(G_AttackDamage(a, t, 100), 50);
+}
+
+/* Armor reduction: dmg / (1 + armor * 0.06). 100 base, 2 armor: 100/1.12 ≈ 89. */
+static void test_attack_damage_armor_reduces_damage(void) {
+    LPEDICT a = make_attacker(ATK_NORMAL);
+    LPEDICT t = make_target(4 /* normal */, 2.0f);
+    int result = G_AttackDamage(a, t, 100);
+    ASSERT(result >= 88 && result <= 90);
+}
+
+/* Negative armor amplifies damage: dmg * (2 - 1/(1 + 2*0.06)) ≈ 111. */
+static void test_attack_damage_negative_armor_amplifies(void) {
+    LPEDICT a = make_attacker(ATK_NORMAL);
+    LPEDICT t = make_target(4 /* normal */, -2.0f);
+    int result = G_AttackDamage(a, t, 100);
+    ASSERT(result >= 110 && result <= 112);
+}
+
+/* Minimum 1: even a tiny base through heavy armor can't go below 1. */
+static void test_attack_damage_minimum_one(void) {
+    LPEDICT a = make_attacker(ATK_PIERCE);
+    LPEDICT t = make_target(5 /* hero, pierce=0.5× */, 100.0f); /* enormous armor */
+    ASSERT_EQ_INT(G_AttackDamage(a, t, 1), 1);
+}
+
+/* Zero armor: multiplier applied cleanly with no reduction. */
+static void test_attack_damage_zero_armor_no_reduction(void) {
+    LPEDICT a = make_attacker(ATK_NORMAL);
+    LPEDICT t = make_target(4 /* normal */, 0.0f);
+    ASSERT_EQ_INT(G_AttackDamage(a, t, 100), 100);
+}
+
+/* ==========================================================================
  * Ability lookup
  * ========================================================================== */
 
@@ -935,6 +1037,18 @@ BEGIN_SUITE(combat)
     RUN_TEST(test_hero_levelup_fires_event);
     RUN_TEST(test_attack_recovery_excludes_damage_point);
     RUN_TEST(test_attack_speed_scales_with_agility);
+
+    /* G_AttackDamage */
+    RUN_TEST(test_attack_damage_pierce_vs_small);
+    RUN_TEST(test_attack_damage_normal_vs_medium);
+    RUN_TEST(test_attack_damage_siege_vs_fort);
+    RUN_TEST(test_attack_damage_magic_vs_large);
+    RUN_TEST(test_attack_damage_chaos_passthrough);
+    RUN_TEST(test_attack_damage_hero_vs_fort);
+    RUN_TEST(test_attack_damage_armor_reduces_damage);
+    RUN_TEST(test_attack_damage_negative_armor_amplifies);
+    RUN_TEST(test_attack_damage_minimum_one);
+    RUN_TEST(test_attack_damage_zero_armor_no_reduction);
 
     /* Ability lookup */
     RUN_TEST(test_find_ability_stop);

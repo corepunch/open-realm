@@ -140,7 +140,7 @@ static const FLOAT g_damage_table[8][8] = {
 /* Apply WC3 damage reduction: attack/defense type multiplier, then armor value
  * (0.06 coefficient). Used on the physical-attack path only; spells/triggers
  * call T_Damage directly with their own (already-typed) damage. */
-static int G_AttackDamage(LPEDICT attacker, LPEDICT target, int base) {
+int G_AttackDamage(LPEDICT attacker, LPEDICT target, int base) {
     if (!attacker || !target || base <= 0) {
         return base;
     }
