@@ -1740,11 +1740,11 @@ static LPMODEL UIWow_XMLCharCustomizeModel(int i) {
 }
 
 /* Draw one XML frame's own layer. whoa draws a frame's batches before recursing into child frames. */
-static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
+static void UIWow_XMLDrawElementLayer(int i, int layer) {
         uiWowXmlElem_t *e = &wow_xml.elems[i]; RECT r; RECT uv = MAKE(RECT, 0, 0, 1, 1); char text[512];
         COLOR32 text_color = e->colors[ELEM_COLOR_TEXT];
         BOOL pressed = e->type == WOW_XML_BUTTON && wow_xml.pressed_button == i;
-        BOOL hovered = e->type == WOW_XML_BUTTON && hovered_button == i;
+        BOOL hovered = e->type == WOW_XML_BUTTON && (e->base.ui_flags & UIFLAG_HOVERED);
         int draw_layer = e->type == WOW_XML_MODEL ? WOW_XML_LAYER_BACKGROUND : e->draw_layer;
         LPCSTR file = e->texts[ELEM_FILE], normal_file = e->texts[ELEM_NORMAL_FILE], pushed_file = e->texts[ELEM_PUSHED_FILE];
         LPCSTR highlight_file = e->texts[ELEM_HIGHLIGHT_FILE], elem_text = e->texts[ELEM_TEXT];
@@ -1924,45 +1924,32 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
         }
 }
 
-static void UIWow_XMLDrawTreeLayer(int i, int layer, int hovered_button) {
+static void UIWow_XMLDrawTreeLayer(int i, int layer) {
     if (!(wow_xml.elems[i].flags & EF_USED) || !UIWow_XMLIsVisible(i)) return;
-    UIWow_XMLDrawElementLayer(i, layer, hovered_button);
+    UIWow_XMLDrawElementLayer(i, layer);
     FOR_LOOP(j, wow_xml.count) {
         if (wow_xml.elems[j].parent == i)
-            UIWow_XMLDrawTreeLayer((int)j, layer, hovered_button);
+            UIWow_XMLDrawTreeLayer((int)j, layer);
     }
 }
 
-static void UIWow_XMLDrawTree(int i, int hovered_button) {
+static void UIWow_XMLDrawTree(int i) {
     for (int layer = WOW_XML_LAYER_BACKGROUND; layer <= WOW_XML_LAYER_OVERLAY; layer++)
-        UIWow_XMLDrawTreeLayer(i, layer, hovered_button);
+        UIWow_XMLDrawTreeLayer(i, layer);
 }
 
 /* on_draw callback for XML elements — draws this element's subtree */
 static void UIWow_XMLOnDraw(uiBaseFrame_t *base, LPCRECT rect) {
     int idx = (int)((uiWowXmlElem_t *)base - wow_xml.elems);
-    /* Find hovered button from UIFLAG_HOVERED (set during event handling) */
-    int hovered_button = -1;
-    if (base->ui_flags & UIFLAG_HOVERED) hovered_button = idx;
-    UIWow_XMLDrawTree(idx, hovered_button);
+    UIWow_XMLDrawTree(idx);
 }
 
 void UIWow_XMLDraw(void) {
-    int hovered_button = -1;
-    /* Find hovered button from UIFLAG_HOVERED flags */
-    FOR_LOOP(i, wow_xml.count) {
-        if ((wow_xml.elems[i].base.ui_flags & UIFLAG_HOVERED) &&
-            wow_xml.elems[i].type == WOW_XML_BUTTON) {
-            hovered_button = i;
-            break;
-        }
-    }
-
     UIWow_EnsureRenderer(); if (!wow_ui.renderer) return;
     UIWow_XMLComputeScrollRanges();
     FOR_LOOP(i, wow_xml.count) {
         if (wow_xml.elems[i].parent < 0)
-            UIWow_XMLDrawTree((int)i, hovered_button);
+            UIWow_XMLDrawTree((int)i);
     }
 }
 
