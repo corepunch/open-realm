@@ -8,7 +8,6 @@ static LPCSTR active_tooltip = NULL;
 static HANDLE layout_layers[MAX_LAYOUT_LAYERS];
 static LPTEXTURE layout_dynamic_pics[MAX_DYNAMIC_IMAGES];
 static char layout_dynamic_pic_names[MAX_DYNAMIC_IMAGES][512];
-static VECTOR2 layout_last_mouse;
 static DWORD layout_dynamic_pic_cursor;
 
 static RECT Rect_inset(LPCRECT r, FLOAT inset);
@@ -30,8 +29,9 @@ static DWORD UI_LayoutTime(void) {
     return 0;
 }
 
+/* Mouse position for layout hover detection — set during event handling via UIFLAG_HOVERED */
 static VECTOR2 UI_LayoutMouseToFdf(void) {
-    return layout_last_mouse;
+    return MAKE(VECTOR2, 0, 0);
 }
 
 static VECTOR2 UI_LayoutScreenToFdf(int x, int y) {
@@ -970,5 +970,5 @@ BOOL UI_LayoutHitTest(int x, int y) {
 }
 
 void UI_LayoutSetMouseState(VECTOR2 fdf_pos, BOOL button_held) {
-    layout_last_mouse = fdf_pos;
+    (void)fdf_pos; (void)button_held;
 }
