@@ -541,7 +541,6 @@ uiExport_t UI_GetAPI(uiImport_t import) {
         .Shutdown         = UIWow_Shutdown,
         .Refresh          = UIWow_Refresh,
         .SetLoadingState  = UIWow_SetLoadingState,
-        .DrawFrames       = UIWow_DrawFrame,
         .KeyEvent         = UIWow_KeyEvent,
         .TextInput        = UIWow_TextInput,
         .MouseEvent       = UIWow_MouseEvent,

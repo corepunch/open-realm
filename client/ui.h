@@ -158,7 +158,6 @@ typedef struct {
     /* Main loop integration */
     void (*Refresh)(DWORD msec);
     void (*SetLoadingState)(LPCSTR map, LPCSTR status, FLOAT progress);
-    void (*DrawFrames)(void);  /* optional: game-specific draw override (WoW XML) */
     
     /* Input event handling */
     void (*KeyEvent)(int key, BOOL down, DWORD time);
