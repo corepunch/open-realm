@@ -144,8 +144,8 @@ static BOOL LAN_ParseMapInfo(uiMapListItem_t *item) {
     LPCSTR tileset;
 
     if (!item || !uiimport.ReadMapInfo || !uiimport.FreeMapInfo ||
-        !uiimport.ResolveMapInfoString || !uiimport.MapTilesetName ||
-        !uiimport.MapSizeName || !uiimport.MapNameMatchesFile ||
+        !uiimport.ResolveMapInfoString || !UI_MapTilesetName ||
+        !UI_MapSizeName || !uiimport.MapNameMatchesFile ||
         !UI_SanitizeMapListField || !UI_SanitizeMapInfoText) {
         return false;
     }
@@ -158,8 +158,8 @@ static BOOL LAN_ParseMapInfo(uiMapListItem_t *item) {
     uiimport.ResolveMapInfoString(&info, info.playersRecommended, item->suggestedPlayers, sizeof(item->suggestedPlayers));
     UI_SanitizeMapInfoText(item->description);
     UI_SanitizeMapInfoText(item->suggestedPlayers);
-    snprintf(item->mapSize, sizeof(item->mapSize), "%s", uiimport.MapSizeName(info.playableArea.width, info.playableArea.height));
-    tileset = uiimport.MapTilesetName((BYTE)info.mainGroundType);
+    snprintf(item->mapSize, sizeof(item->mapSize), "%s", UI_MapSizeName(info.playableArea.width, info.playableArea.height));
+    tileset = UI_MapTilesetName((BYTE)info.mainGroundType);
     snprintf(item->tileset, sizeof(item->tileset), "%s", tileset ? tileset : UI_GetString("UNKNOWNMAP_TILESET"));
     item->flags = info.flags;
     item->players = MIN(LAN_CountMapPlayers(&info), 16);

@@ -808,10 +808,10 @@ static void GameSetup_UpdateMapInfo(void) {
 
     GameSetup_SetTextIfPresent(setup.map_info_pane.MapSizeValue,
                                "%s",
-                               uiimport.MapSizeName(setup.map_info.playableArea.width,
+                               UI_MapSizeName(setup.map_info.playableArea.width,
                                                     setup.map_info.playableArea.height));
 
-    tileset = uiimport.MapTilesetName((BYTE)setup.map_info.mainGroundType);
+    tileset = UI_MapTilesetName((BYTE)setup.map_info.mainGroundType);
     GameSetup_SetTextIfPresent(setup.map_info_pane.MapTilesetValue, "%s", tileset ? tileset : UI_GetString("UNKNOWNMAP_TILESET"));
 
     uiimport.ResolveMapInfoString(&setup.map_info,

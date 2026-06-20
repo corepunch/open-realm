@@ -325,6 +325,8 @@ void UI_RefreshLocal(DWORD msec);
 void UI_LayoutSetMouseState(VECTOR2 fdf_pos, BOOL button_held);
 void UI_SanitizeMapListField(LPSTR text);
 void UI_SanitizeMapInfoText(LPSTR text);
+LPCSTR UI_MapTilesetName(BYTE tileset);
+LPCSTR UI_MapSizeName(DWORD width, DWORD height);
 void UI_LayoutDrawOverlays(void);
 void UI_LayoutSetMouseState(VECTOR2 fdf_pos, BOOL button_held);
 void UI_LayoutSetLayer(DWORD layer, HANDLE data);
