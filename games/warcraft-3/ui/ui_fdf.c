@@ -1190,7 +1190,7 @@ static DWORD UI_CollectFrameTreeRecursiveEx(LPCFRAMEDEF frame,
     FOR_LOOP(i, MAX_UI_CLASSES) {
         LPCFRAMEDEF child = frames + i;
         if (child->Parent == frame &&
-            (include_embedded || (!child->hidden && !UI_IsEmbeddedControlPart(frame, child)))) {
+            (include_embedded || (!child->base.hidden && !UI_IsEmbeddedControlPart(frame, child)))) {
             DWORD emitted = UI_CollectFrameTreeRecursiveEx(child,
                                                            out ? out + total : NULL,
                                                            max > total ? max - total : 0,
@@ -1516,7 +1516,7 @@ void UI_SetEnabled(LPFRAMEDEF frame, BOOL enabled) {
     if (!frame) {
         return;
     }
-    frame->disabled = !enabled;
+    frame->base.disabled = !enabled;
 }
 
 void UI_SetTextPointer(LPFRAMEDEF frame, LPCSTR text) {
@@ -1550,7 +1550,7 @@ void UI_SetHidden(LPFRAMEDEF frame, BOOL value) {
     if (!frame) {
         return;
     }
-    frame->hidden = value;
+    frame->base.hidden = value;
 }
 
 void UI_WriteFrameWithChildrenWithTriggers(LPEDICT ent, LPCFRAMEDEF frame, LPCFRAMEDEF parent, uiTrigger_t const *triggers) {

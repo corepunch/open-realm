@@ -104,7 +104,7 @@ static BOOL UI_PointInRect(FLOAT x, FLOAT y, LPCRECT rect) {
 }
 
 static BOOL UI_FrameIsInteractive(LPCFRAMEDEF frame) {
-    if (!frame || frame->hidden || frame->disabled) {
+    if (!frame || frame->base.hidden || frame->base.disabled) {
         return FALSE;
     }
     switch (frame->Type) {
@@ -702,7 +702,7 @@ static LPCFRAMEDEF UI_FindActiveModalRoot(LPCFRAMEDEF const *roots, DWORD num_ro
 
     FOR_LOOP(i, num_roots) {
         LPCFRAMEDEF frame = roots[i];
-        if (frame && !frame->hidden && frame->Type == FT_DIALOG) {
+        if (frame && !frame->base.hidden && frame->Type == FT_DIALOG) {
             modal = frame;
         }
     }
@@ -903,7 +903,7 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
     }
     
     /* Skip hidden frames */
-    if (frame->hidden) {
+    if (frame->base.hidden) {
         return;
     }
     
@@ -1187,7 +1187,7 @@ BOOL UI_PopupPointInside(FLOAT fdf_x, FLOAT fdf_y) {
 
 void UI_PopupMenuScroll(BOOL scroll_up) {
     LPFRAMEDEF menu = active_popup ? UI_PopupMenuFrame(active_popup) : NULL;
-    if (!menu || menu->hidden) {
+     if (!menu || menu->base.hidden) {
         return;
     }
     /* Find the parent popup frame to get menu border/row info */
@@ -1216,7 +1216,7 @@ void UI_PopupMenuScroll(BOOL scroll_up) {
 
 void UI_PopupSelectItem(FLOAT fdf_x, FLOAT fdf_y) {
     LPFRAMEDEF menu = active_popup ? UI_PopupMenuFrame(active_popup) : NULL;
-    if (!menu || menu->hidden) {
+     if (!menu || menu->base.hidden) {
         return;
     }
     LPCFRAMEDEF parent = menu->Parent;
@@ -1284,7 +1284,7 @@ void UI_DrawFrames(LPCFRAMEDEF const *roots, DWORD num_roots) {
     total = 0;
     FOR_LOOP(i, num_roots) {
         DWORD emitted;
-        if (!roots[i] || roots[i]->hidden) {
+        if (!roots[i] || roots[i]->base.hidden) {
             continue;
         }
         emitted = UI_CollectFrameTree(roots[i],
@@ -1311,7 +1311,7 @@ void UI_DrawFrames(LPCFRAMEDEF const *roots, DWORD num_roots) {
     UI_DrawFrameRangeHighlights(draw_order, modal_index, count);
 
     popup_menu = active_popup ? UI_PopupMenuFrame(active_popup) : NULL;
-    if (popup_menu && !popup_menu->hidden) {
+    if (popup_menu && !popup_menu->base.hidden) {
         UI_DrawFrameOne(popup_menu);
     }
 }
