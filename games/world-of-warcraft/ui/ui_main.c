@@ -232,6 +232,7 @@ static void UIWow_Shutdown(void) {
 }
 
 static void UIWow_Refresh(DWORD msec) {
+    wow_ui.time += msec;
     UIWow_CallLuaUpdate(msec);
 }
 
