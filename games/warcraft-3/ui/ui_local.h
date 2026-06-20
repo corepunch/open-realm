@@ -129,27 +129,23 @@ typedef struct {
     COLOR32 SelectedTextColor;
 } uiMapListControl_t;
 
-/* UI interaction flags for uiFrameDef_s.ui_flags */
-#define UIFLAG_PRESSED  (1 << 0)
-#define UIFLAG_HOVERED  (1 << 1)
-#define UIFLAG_CHECKED  (1 << 2)
-
 /* Frame template definition (server-side/library-side only) */
 struct uiFrameDef_s {
+    uiBaseFrame_t base;             /* shared engine frame — keep in sync with common/shared.h */
     LPCFRAMEDEF Parent;
-    FRAMETYPE Type;
+    FRAMETYPE Type;                 /* TODO: migrate to base.type */
     UINAME Name;
     UINAME TextStorage;
     UINAME OnClick;
-    LPCSTR Text, Tip, Ubertip;
-    FLOAT Width, Height;
-    COLOR32 Color;
+    LPCSTR Text, Tip, Ubertip;     /* TODO: Text → base.text */
+    FLOAT Width, Height;           /* TODO: migrate to base.size */
+    COLOR32 Color;                 /* TODO: migrate to base.color */
     BLEND_MODE AlphaMode;
     BOOL DecorateFileNames;
     BOOL inuse;
     BOOL AnyPointsSet;
-    BOOL hidden;
-    BOOL disabled;
+    BOOL hidden;                   /* TODO: migrate to base.hidden */
+    BOOL disabled;                 /* TODO: migrate to base.disabled */
     DWORD TextLength;
     DWORD Stat;
     LPSTR DynamicText;
@@ -308,11 +304,9 @@ struct uiFrameDef_s {
         DWORD NumItems;
         uiMultiselectItem_t Items[MAX_SELECTED_ENTITIES];
     } Multiselect;
-    /* Interaction state — updated by event handler, read by draw */
+    /* TODO: migrate to base.ui_flags, base.on_event, base.on_draw */
     DWORD ui_flags;
-    /* Per-type event handler: called from UI_MouseEventLocal */
     void (*event_handler)(LPFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down);
-    /* Per-type draw function: called from UI_DrawFrameOne */
     void (*draw)(LPCFRAMEDEF frame, LPCRECT rect);
 };
 
