@@ -269,6 +269,8 @@ static int UIWow_XmlFindByName(LPCSTR name) {
     return -1;
 }
 
+static void UIWow_XMLOnDraw(uiBaseFrame_t *base, LPCRECT rect);
+
 static int UIWow_XmlPushElem(uiWowXmlType_t type, LPCSTR name, int parent, int draw_layer) {
     uiWowXmlElem_t *e;
     if (wow_xml.count >= WOW_XML_MAX_ELEMS) { fprintf(stderr, "UIWow: XML ELEMENT LIMIT HIT (%d/%d) name=%s parent=%d\n", wow_xml.count, WOW_XML_MAX_ELEMS, name ? name : "<anon>", parent); return -1; }
