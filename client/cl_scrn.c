@@ -46,14 +46,24 @@ void SCR_UpdateScreen(DWORD msec) {
 
 #ifndef SC2
     /* Client-owned UI frame rendering — iterate root frames only */
-    if (ui.frames && ui.frame_size > 0) {
-        for (DWORD i = 0; i < ui.num_frames; i++) {
+    if (ui.frames && ui.frame_size > 0 && ui.GetNumFrames) {
+        static int logged = 0;
+        DWORD nf = ui.GetNumFrames();
+        if (!logged) {
+            fprintf(stderr, "UI frames: size=%zu count=%u frames=%p\n",
+                    ui.frame_size, nf, ui.frames);
+        }
+        for (DWORD i = 0; i < nf; i++) {
             LPUIBASEFRAME f = (LPUIBASEFRAME)((char *)ui.frames + i * ui.frame_size);
             if (!f || (f->ui_flags & UIFLAG_HIDDEN) || f->hidden) continue;
-            /* Skip non-roots — their parent's on_draw recurses into them */
             if (f->parent_index != (DWORD)-1) continue;
-            if (f->on_draw) f->on_draw(f, &f->screen_rect);
+            if (f->on_draw) {
+                f->on_draw(f, &f->screen_rect);
+            } else if (!logged) {
+                fprintf(stderr, "  frame[%u] type=%u no on_draw\n", i, f->type);
+            }
         }
+        logged = 1;
     }
 #endif
 

@@ -1068,6 +1068,10 @@ static void UI_UpdateLobbySetupLocal(lobbyState_t const *state) {
 }
 
 /* Export function table */
+static DWORD UI_WC3GetNumFrames(void) {
+    return MAX_UI_CLASSES;
+}
+
 uiExport_t UI_GetAPI(uiImport_t import) {
     uiimport = import;
     
@@ -1088,7 +1092,7 @@ uiExport_t UI_GetAPI(uiImport_t import) {
     exp.HitTestLayout = UI_LayoutHitTest;
     exp.frame_size = sizeof(FRAMEDEF);
     exp.frames = frames;
-    exp.num_frames = MAX_UI_CLASSES;
+    exp.GetNumFrames = UI_WC3GetNumFrames;
     
     return exp;
 }

@@ -167,7 +167,7 @@ typedef struct {
     /* Frame data — client iterates by stride, game-specific struct extends uiBaseFrame_t */
     size_t  frame_size;             /* sizeof game-specific frame struct */
     void   *frames;                 /* base pointer to flat frame array */
-    DWORD   num_frames;             /* number of LIVE frames (not capacity) */
+    DWORD  (*GetNumFrames)(void);   /* returns live frame count */
 
     /* Unit UI data updates (Phase 8: HUD migration) */
     void (*UpdateUnitUI)(DWORD num_units, uiUnitData_t *units);
