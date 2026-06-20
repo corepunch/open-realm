@@ -98,6 +98,8 @@ typedef struct {
     int (*FS_ReadFile)(LPCSTR fileName, void **buf);  /* Returns file size, allocates buf */
     void (*FS_FreeFile)(void *buf);
     int (*FS_GetFileList)(LPCSTR path, LPCSTR extension, char *listbuf, int bufsize);
+    /* WC3-only map info callbacks — TODO: remove by moving MPQ to shared lib
+     * or duplicating map reading in the DLL (CM_ReadInfoInto is 190 lines). */
     BOOL (*ReadMapInfo)(LPCSTR mapName, LPMAPINFO info);
     BOOL (*FindMapPreviewTexture)(LPCSTR mapName, LPSTR out, DWORD out_size);
     void (*FreeMapInfo)(LPMAPINFO info);
