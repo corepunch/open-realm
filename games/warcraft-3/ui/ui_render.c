@@ -107,7 +107,7 @@ static BOOL UI_FrameIsInteractive(LPCFRAMEDEF frame) {
     if (!frame || frame->base.hidden || frame->base.disabled) {
         return FALSE;
     }
-    switch (frame->Type) {
+    switch (frame->base.type) {
         case FT_BUTTON: case FT_GLUEBUTTON: case FT_SIMPLEBUTTON:
         case FT_TEXTBUTTON: case FT_GLUETEXTBUTTON: case FT_COMMANDBUTTON:
         case FT_CHECKBOX: case FT_GLUECHECKBOX: case FT_SIMPLECHECKBOX:
@@ -297,7 +297,7 @@ static LPCRECT UI_LayoutRect(LPCFRAMEDEF frame) {
     
     if (intrinsic_w == 0 || intrinsic_h == 0) {
         /* Try to derive size from content */
-        switch (frame->Type) {
+        switch (frame->base.type) {
             case FT_TEXT:
             case FT_STRING:
                 if (frame->Text && frame->Font.Index) {
@@ -581,7 +581,7 @@ void UI_WireFrameTypeFunctions(LPFRAMEDEF frame) {
     if (!frame) {
         return;
     }
-    switch (frame->Type) {
+    switch (frame->base.type) {
         case FT_BUTTON: case FT_TEXTBUTTON: case FT_GLUETEXTBUTTON:
         case FT_GLUEBUTTON: case FT_SIMPLEBUTTON: case FT_COMMANDBUTTON:
             frame->event_handler = UI_ButtonEventHandler;
@@ -702,7 +702,7 @@ static LPCFRAMEDEF UI_FindActiveModalRoot(LPCFRAMEDEF const *roots, DWORD num_ro
 
     FOR_LOOP(i, num_roots) {
         LPCFRAMEDEF frame = roots[i];
-        if (frame && !frame->base.hidden && frame->Type == FT_DIALOG) {
+        if (frame && !frame->base.hidden && frame->base.type == FT_DIALOG) {
             modal = frame;
         }
     }
@@ -909,12 +909,12 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
     
     /* Calculate layout */
     LPCRECT rect = UI_LayoutRect(frame);
-    if (!rect || ((rect->w <= 0 || rect->h <= 0) && frame->Type != FT_SPRITE)) {
+    if (!rect || ((rect->w <= 0 || rect->h <= 0) && frame->base.type != FT_SPRITE)) {
         return;
     }
     
     /* Render based on frame type */
-    switch (frame->Type) {
+    switch (frame->base.type) {
         case FT_FRAME:
         case FT_SIMPLEFRAME:
             if (frame->draw) {
@@ -974,7 +974,7 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
             /* Draw button background */
             {
                 LPCFRAMEDEF backdrop = UI_ButtonBackdrop(frame, rect);
-                if (backdrop && backdrop->Type == FT_TEXTURE) {
+                if (backdrop && backdrop->base.type == FT_TEXTURE) {
                     UI_DrawTexture(backdrop, rect);
                 } else {
                     UI_DrawBackdropWithColor(backdrop, rect, frame->base.color);
@@ -1008,7 +1008,7 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
 
 static void UI_DrawFrameRangeSprites(LPCFRAMEDEF const *draw_order, DWORD start, DWORD end) {
     for (DWORD i = start; i < end; i++) {
-        if (draw_order[i]->Type == FT_SPRITE &&
+        if (draw_order[i]->base.type == FT_SPRITE &&
             !UI_IsActivePopupMenu(draw_order[i])) {
             UI_DrawFrameOne(draw_order[i]);
         }
@@ -1017,7 +1017,7 @@ static void UI_DrawFrameRangeSprites(LPCFRAMEDEF const *draw_order, DWORD start,
 
 static void UI_DrawFrameRangeControls(LPCFRAMEDEF const *draw_order, DWORD start, DWORD end) {
     for (DWORD i = start; i < end; i++) {
-        if (draw_order[i]->Type != FT_SPRITE &&
+        if (draw_order[i]->base.type != FT_SPRITE &&
             !UI_IsActivePopupMenu(draw_order[i])) {
             UI_DrawFrameOne(draw_order[i]);
         }
@@ -1026,11 +1026,11 @@ static void UI_DrawFrameRangeControls(LPCFRAMEDEF const *draw_order, DWORD start
 
 static void UI_DrawFrameRangeHighlights(LPCFRAMEDEF const *draw_order, DWORD start, DWORD end) {
     for (DWORD i = start; i < end; i++) {
-        if (UI_RenderIsButtonFrameType(draw_order[i]->Type) &&
+        if (UI_RenderIsButtonFrameType(draw_order[i]->base.type) &&
             !UI_IsActivePopupMenu(draw_order[i])) {
             UI_DrawButtonHighlight(draw_order[i]);
         }
-        if (UI_RenderIsCheckBoxFrameType(draw_order[i]->Type) &&
+        if (UI_RenderIsCheckBoxFrameType(draw_order[i]->base.type) &&
             !UI_IsActivePopupMenu(draw_order[i])) {
             UI_DrawCheckBoxMouseOverHighlight(draw_order[i]);
         }
@@ -1055,7 +1055,7 @@ void UI_TogglePopup(LPCFRAMEDEF frame) {
  * ======================================================================== */
 
 void UI_SliderBeginDrag(LPCFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y) {
-    if (!frame || frame->Type != FT_SLIDER) {
+    if (!frame || frame->base.type != FT_SLIDER) {
         return;
     }
     LPCRECT rect = UI_LayoutRect(frame);
@@ -1103,8 +1103,8 @@ BOOL UI_HasActivePopup(void) {
 }
 
 void UI_EditboxFocusOnHit(LPCFRAMEDEF frame) {
-    if (frame && (frame->Type == FT_EDITBOX || frame->Type == FT_GLUEEDITBOX ||
-                  frame->Type == FT_SLASHCHATBOX)) {
+    if (frame && (frame->base.type == FT_EDITBOX || frame->base.type == FT_GLUEEDITBOX ||
+                  frame->base.type == FT_SLASHCHATBOX)) {
         UI_FocusEdit((LPFRAMEDEF)frame);
     }
 }
@@ -1247,7 +1247,7 @@ void UI_PopupSelectItem(FLOAT fdf_x, FLOAT fdf_y) {
         }
         if (UI_PointInRect(fdf_x, fdf_y, &row)) {
             LPFRAMEDEF popup = (LPFRAMEDEF)parent->Parent;
-            LPFRAMEDEF title = UI_IsPopupFrameType(popup ? popup->Type : FT_NONE)
+            LPFRAMEDEF title = UI_IsPopupFrameType(popup ? popup->base.type : FT_NONE)
                 ? UI_PopupTitleTextFrame(popup) : NULL;
             char command[160];
             if (title) {
