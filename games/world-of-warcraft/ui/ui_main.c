@@ -21,7 +21,6 @@ extern DWORD UIWow_GetNumFrames(void);
 
 uiImport_t uiimport;
 uiWowState_t wow_ui;
-static VECTOR2 wow_last_mouse_fdf;
 
 static BOOL uiWow_menu_commands_registered;
 
@@ -286,39 +285,10 @@ static void UIWow_RecreateLuaStateForMenu(LPCSTR menu_name) {
  * Per-frame draw dispatch
  * ---------------------------------------------------------------------- */
 
-static void UIWow_UpdateMouseHover(void) {
-    static int last_x = -1, last_y = -1;
-    VECTOR2 mouse_pos = wow_last_mouse_fdf;
-    int mouse_x = (int)(mouse_pos.x * 1024.0f);
-    int mouse_y = (int)(mouse_pos.y * 768.0f);
-
-    if (mouse_x == last_x && mouse_y == last_y) {
-        return;
-    }
-    last_x = mouse_x;
-    last_y = mouse_y;
-    if (!wow_ui.lua) {
-        UIWow_WarnOnce(WOW_UI_WARN_NO_LUA_STATE,
-                       "UIWow: Lua state is not initialized; mouse hover ignored\n");
-        return;
-    }
-    lua_getglobal(wow_ui.lua, "ow3_handle_mouse_move");
-    if (lua_isfunction(wow_ui.lua, -1)) {
-        lua_pushnumber(wow_ui.lua, mouse_pos.x);
-        lua_pushnumber(wow_ui.lua, mouse_pos.y);
-        UIWow_LuaPCall(2);
-    } else {
-        lua_pop(wow_ui.lua, 1);
-        UIWow_WarnOnce(WOW_UI_WARN_NO_MOUSEMOVE_HANDLER,
-                       "UIWow: missing Lua function 'ow3_handle_mouse_move'\n");
-    }
-}
-
 static void UIWow_DrawFrame(void) {
     LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
 
     UIWow_EnsureRenderer();
-    UIWow_UpdateMouseHover();
 
     if (wow_ui.current_menu[0]) {
         UIWow_XMLDraw();
@@ -375,9 +345,29 @@ static void UIWow_TextInput(LPCSTR text) {
     UIWow_LuaPCall(1);
 }
 
+/* Lua hover callback — called during event handling when mouse moves */
+static void UIWow_LuaMouseMove(FLOAT fdf_x, FLOAT fdf_y) {
+    static int last_x = -1, last_y = -1;
+    int mouse_x = (int)(fdf_x * 1024.0f);
+    int mouse_y = (int)(fdf_y * 768.0f);
+    if (mouse_x == last_x && mouse_y == last_y) return;
+    last_x = mouse_x;
+    last_y = mouse_y;
+    if (!wow_ui.lua) return;
+    lua_getglobal(wow_ui.lua, "ow3_handle_mouse_move");
+    if (lua_isfunction(wow_ui.lua, -1)) {
+        lua_pushnumber(wow_ui.lua, fdf_x);
+        lua_pushnumber(wow_ui.lua, fdf_y);
+        UIWow_LuaPCall(2);
+    } else {
+        lua_pop(wow_ui.lua, 1);
+    }
+}
+
 static void UIWow_MouseEvent(int x, int y, int button, BOOL down) {
-    wow_last_mouse_fdf = MAKE(VECTOR2, (FLOAT)x / 1024.0f, (FLOAT)y / 768.0f);
-    if (UIWow_XMLMouseEvent(x, y, button, down)) {
+    VECTOR2 fdf = MAKE(VECTOR2, (FLOAT)x / 1024.0f, (FLOAT)y / 768.0f);
+    UIWow_LuaMouseMove(fdf.x, fdf.y);
+    if (UIWow_XMLMouseEvent(fdf.x, fdf.y, button, down)) {
         return;
     }
     if (!wow_ui.lua || !down) {
