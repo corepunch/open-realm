@@ -324,6 +324,7 @@ void UI_ShutdownLocal(void);
 void UI_RefreshLocal(DWORD msec);
 void UI_DrawFrameLocal(void);
 void UI_LayoutDrawOverlays(void);
+void UI_LayoutSetMouseState(VECTOR2 fdf_pos, BOOL button_held);
 void UI_LayoutSetLayer(DWORD layer, HANDLE data);
 void UI_LayoutClearLayer(DWORD layer);
 BOOL UI_LayoutHitTest(int x, int y);

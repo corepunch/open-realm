@@ -666,6 +666,7 @@ typedef struct uiFrame_s {
     } buffer;
     DWORD textLength;
     DWORD stat;
+    DWORD ui_flags;                 /* UIFLAG_* bitmask — set by DLL during event handling */
     LPCSTR text;
     LPCSTR tooltip;
     LPCSTR onclick;

@@ -21,6 +21,7 @@ extern DWORD UIWow_GetNumFrames(void);
 
 uiImport_t uiimport;
 uiWowState_t wow_ui;
+static VECTOR2 wow_last_mouse_fdf;
 
 static BOOL uiWow_menu_commands_registered;
 
@@ -280,7 +281,7 @@ static void UIWow_RecreateLuaStateForMenu(LPCSTR menu_name) {
 
 static void UIWow_UpdateMouseHover(void) {
     static int last_x = -1, last_y = -1;
-    VECTOR2 mouse_pos = uiimport.GetMouseFdf ? uiimport.GetMouseFdf() : MAKE(VECTOR2, 0, 0);
+    VECTOR2 mouse_pos = wow_last_mouse_fdf;
     int mouse_x = (int)(mouse_pos.x * 1024.0f);
     int mouse_y = (int)(mouse_pos.y * 768.0f);
 
@@ -368,6 +369,7 @@ static void UIWow_TextInput(LPCSTR text) {
 }
 
 static void UIWow_MouseEvent(int x, int y, int button, BOOL down) {
+    wow_last_mouse_fdf = MAKE(VECTOR2, (FLOAT)x / 1024.0f, (FLOAT)y / 768.0f);
     if (UIWow_XMLMouseEvent(x, y, button, down)) {
         return;
     }
