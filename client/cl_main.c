@@ -630,14 +630,10 @@ void CL_Init(void) {
         .Printf = CON_printf,
     });
     
-    /* Expose FDF frame data to UI DLL */
-    ui.frames = frames;
+    /* DLL sets frame_size, frames, GetNumFrames in UI_GetAPI return */
 
     if (ui.Init) {
-        fprintf(stderr, "CL_Init: calling ui.Init\n");
         ui.Init();
-        fprintf(stderr, "CL_Init: ui.Init done, num_frames=%u\n",
-                ui.GetNumFrames ? ui.GetNumFrames() : 0);
     }
 
     SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);

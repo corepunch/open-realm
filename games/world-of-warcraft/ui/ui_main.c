@@ -218,7 +218,6 @@ static void UIWow_Init(void) {
     UIWow_RegisterMenuCommands();
     UIWow_EnsureRenderer();
     UIWow_InitLua();
-    fprintf(stderr, "UIWow_Init: xml_count=%d\n", (int)UIWow_GetNumFrames());
 }
 
 static void UIWow_Shutdown(void) {
