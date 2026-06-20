@@ -1941,23 +1941,21 @@ static void UIWow_XMLDrawTree(int i, int hovered_button) {
 /* on_draw callback for XML elements — draws this element's subtree */
 static void UIWow_XMLOnDraw(uiBaseFrame_t *base, LPCRECT rect) {
     int idx = (int)((uiWowXmlElem_t *)base - wow_xml.elems);
+    /* Find hovered button from UIFLAG_HOVERED (set during event handling) */
     int hovered_button = -1;
-    extern VECTOR2 wow_last_mouse_fdf;
-    {
-        VECTOR2 m = wow_last_mouse_fdf;
-        int hit = UIWow_XMLHitFrame(m.x, m.y);
-        if (hit >= 0 && wow_xml.elems[hit].type == WOW_XML_BUTTON) hovered_button = hit;
-    }
+    if (base->ui_flags & UIFLAG_HOVERED) hovered_button = idx;
     UIWow_XMLDrawTree(idx, hovered_button);
 }
 
 void UIWow_XMLDraw(void) {
     int hovered_button = -1;
-    extern VECTOR2 wow_last_mouse_fdf;
-    {
-        VECTOR2 m = wow_last_mouse_fdf;
-        int hit = UIWow_XMLHitFrame(m.x, m.y);
-        if (hit >= 0 && wow_xml.elems[hit].type == WOW_XML_BUTTON) hovered_button = hit;
+    /* Find hovered button from UIFLAG_HOVERED flags */
+    FOR_LOOP(i, wow_xml.count) {
+        if ((wow_xml.elems[i].base.ui_flags & UIFLAG_HOVERED) &&
+            wow_xml.elems[i].type == WOW_XML_BUTTON) {
+            hovered_button = i;
+            break;
+        }
     }
 
     UIWow_EnsureRenderer(); if (!wow_ui.renderer) return;
@@ -2020,14 +2018,16 @@ static int UIWow_XMLHitFrame(FLOAT x, FLOAT y) {
     return -1;
 }
 
-BOOL UIWow_XMLMouseEvent(int x, int y, int button, BOOL down) {
-    FLOAT fdf_x, fdf_y;
+BOOL UIWow_XMLMouseEvent(FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
     int hit;
-    /* Use stored mouse position from event handler */
-    {
-        extern VECTOR2 wow_last_mouse_fdf;
-        fdf_x = wow_last_mouse_fdf.x;
-        fdf_y = wow_last_mouse_fdf.y;
+
+    /* Update hover flags on all elements */
+    hit = UIWow_XMLHitFrame(fdf_x, fdf_y);
+    FOR_LOOP(i, wow_xml.count) {
+        if (wow_xml.elems[i].type == WOW_XML_BUTTON || wow_xml.elems[i].type == WOW_XML_EDITBOX) {
+            wow_xml.elems[i].base.ui_flags = (wow_xml.elems[i].base.ui_flags & ~UIFLAG_HOVERED)
+                                              | (i == hit ? UIFLAG_HOVERED : 0);
+        }
     }
 
     /* Mouse wheel (button 4 = up, 5 = down): scroll the ScrollFrame under the cursor. */
