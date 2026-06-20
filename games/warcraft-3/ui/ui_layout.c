@@ -75,35 +75,15 @@ static LPCFONT UI_LayoutFont(DWORD index) {
     return uiimport.GetFont ? uiimport.GetFont(index) : NULL;
 }
 
-static LPCUIFRAME UI_LayoutClear(HANDLE data) {
-    return uiimport.LayoutClear ? uiimport.LayoutClear(data) : NULL;
-}
-
-static DWORD UI_LayoutNumFrames(void) {
-    return uiimport.LayoutNumFrames ? uiimport.LayoutNumFrames() : 0;
-}
-
-static LPUIFRAME UI_LayoutFrame(DWORD number) {
-    return uiimport.LayoutFrame ? uiimport.LayoutFrame(number) : NULL;
-}
-
-static LPCRECT UI_LayoutLayoutRect(LPCUIFRAME frame) {
-    static RECT empty_rect;
-    LPCRECT rect = uiimport.LayoutRect ? uiimport.LayoutRect(frame) : NULL;
-    return rect ? rect : &empty_rect;
-}
-
-static LPCSTR UI_LayoutGetStringValue(LPCUIFRAME frame) {
-    return uiimport.LayoutStringValue ? uiimport.LayoutStringValue(frame) : "";
-}
-
-static drawText_t UI_LayoutGetDrawText(LPCUIFRAME frame,
-                                       FLOAT avl_width,
-                                       LPCSTR text,
-                                       uiLabel_t const *label) {
-    if (uiimport.LayoutDrawText) {
-        return uiimport.LayoutDrawText(frame, avl_width, text, label);
-    }
+/* Layout callback wrappers — dead code (draw moved to client).
+ * Kept as stubs to allow dead code to compile. Remove when dead code is cleaned. */
+static LPCUIFRAME UI_LayoutClear(HANDLE data) { (void)data; return NULL; }
+static DWORD UI_LayoutNumFrames(void) { return 0; }
+static LPUIFRAME UI_LayoutFrame(DWORD number) { (void)number; return NULL; }
+static LPCRECT UI_LayoutLayoutRect(LPCUIFRAME frame) { (void)frame; static RECT r; return &r; }
+static LPCSTR UI_LayoutGetStringValue(LPCUIFRAME frame) { (void)frame; return ""; }
+static drawText_t UI_LayoutGetDrawText(LPCUIFRAME frame, FLOAT avl_width, LPCSTR text, uiLabel_t const *label) {
+    (void)frame; (void)label;
     return MAKE(drawText_t, .text = text, .textWidth = avl_width);
 }
 
