@@ -314,8 +314,16 @@ static VECTOR2 CL_UIGetMouseFdf(void) {
     return SCR_MouseToFdf();
 }
 
+static VECTOR2 CL_UIGetMousePos(void) {
+    return mouse.origin;
+}
+
 static DWORD CL_UIGetMouseButton(void) {
     return mouse.button;
+}
+
+static BOOL CL_UIGetMouseButtonDown(DWORD button) {
+    return mouse.button == button;
 }
 
 static uiClientMouseEvent_t CL_UIGetMouseEvent(void) {
@@ -326,8 +334,11 @@ static uiClientMouseEvent_t CL_UIGetMouseEvent(void) {
         case UI_RIGHT_MOUSE_DOWN: return UI_CLIENT_MOUSE_RIGHT_DOWN;
         case UI_RIGHT_MOUSE_UP: return UI_CLIENT_MOUSE_RIGHT_UP;
         case UI_RIGHT_MOUSE_DRAGGED: return UI_CLIENT_MOUSE_RIGHT_DRAGGED;
-        default: return UI_CLIENT_MOUSE_NONE;
+        default: break;
     }
+    if (mouse.wheel > 0) return UI_CLIENT_MOUSE_WHEEL_UP;
+    if (mouse.wheel < 0) return UI_CLIENT_MOUSE_WHEEL_DOWN;
+    return UI_CLIENT_MOUSE_NONE;
 }
 
 /* Request unit UI data (command card, inventory, build queue) */
@@ -651,7 +662,9 @@ void CL_Init(void) {
         .GetFont = CL_UIGetFont,
         .GetClientTime = CL_UIGetClientTime,
         .GetMouseFdf = CL_UIGetMouseFdf,
+        .GetMousePos = CL_UIGetMousePos,
         .GetMouseButton = CL_UIGetMouseButton,
+        .GetMouseButtonDown = CL_UIGetMouseButtonDown,
         .GetMouseEvent = CL_UIGetMouseEvent,
         .LayoutClear = SCR_Clear,
         .LayoutNumFrames = SCR_NumFrames,

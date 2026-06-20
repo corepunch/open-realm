@@ -39,7 +39,8 @@ static void UI_DrawMapListControl(LPCFRAMEDEF frame, LPCRECT rect) {
                 row_height * (FLOAT)visible_rows);
 
     if (!UI_PointerBlockedByPopup(frame) &&
-        UI_MouseContains(rect) && ui_mouse.event == UI_MOUSE_LEFT_UP && visible_rows > 0) {
+        UI_MouseContains(rect) &&
+        uiimport.GetMouseEvent && uiimport.GetMouseEvent() == UI_CLIENT_MOUSE_LEFT_UP && visible_rows > 0) {
         FLOAT row;
         DWORD index;
         mouse = UI_MouseToFdf();
@@ -56,11 +57,12 @@ static void UI_DrawMapListControl(LPCFRAMEDEF frame, LPCRECT rect) {
     }
     if (!UI_PointerBlockedByPopup(frame) &&
         UI_MouseContains(rect) &&
-        (ui_mouse.event == UI_MOUSE_WHEEL_UP || ui_mouse.event == UI_MOUSE_WHEEL_DOWN) &&
+        uiimport.GetMouseEvent &&
+        (uiimport.GetMouseEvent() == UI_CLIENT_MOUSE_WHEEL_UP || uiimport.GetMouseEvent() == UI_CLIENT_MOUSE_WHEEL_DOWN) &&
         visible_rows > 0 && state->count > visible_rows) {
         DWORD const max_scroll = state->count - visible_rows;
 
-        if (ui_mouse.event == UI_MOUSE_WHEEL_UP) {
+        if (uiimport.GetMouseEvent() == UI_CLIENT_MOUSE_WHEEL_UP) {
             state->scroll = state->scroll > 0 ? state->scroll - 1 : 0;
         } else if (state->scroll < max_scroll) {
             state->scroll++;
