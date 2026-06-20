@@ -445,7 +445,7 @@ static LPCSTR m2_vs =
 "    v_texcoord = i_texcoord;\n"
 "    v_texcoord2 = (uTextureMatrix * pos).xy;\n"
 "    vec3 normal = normalize(uNormalMatrix * skin_normal(vec4(i_normal, 0.0)));\n"
-"    vec3 lightDir = normalize(vec3(uLightMatrix[0][2], uLightMatrix[1][2], uLightMatrix[2][2]))*1.2;\n"
+"    vec3 lightDir = -normalize(vec3(uLightMatrix[0][2], uLightMatrix[1][2], uLightMatrix[2][2]))*1.2;\n"
 "    v_light = clamp(dot(normal, lightDir), 0.0, 1.0);\n"
 #ifdef USE_SHADOWMAPS
 "    v_shadow = uLightMatrix * pos;\n"
