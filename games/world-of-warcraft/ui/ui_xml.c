@@ -2003,8 +2003,16 @@ static int UIWow_XMLHitFrame(FLOAT x, FLOAT y) {
 }
 
 BOOL UIWow_XMLMouseEvent(int x, int y, int button, BOOL down) {
-    FLOAT fdf_x = x / 1024.0f, fdf_y = y / 768.0f;
+    FLOAT fdf_x, fdf_y;
     int hit;
+    /* Convert pixel coords using the same aspect-correct scene transform the
+     * renderer uses, so hit-testing matches what is actually drawn on screen. */
+    if (uiimport.GetMouseFdf) {
+        VECTOR2 m = uiimport.GetMouseFdf();
+        fdf_x = m.x; fdf_y = m.y;
+    } else {
+        fdf_x = x / 1024.0f; fdf_y = y / 768.0f;
+    }
 
     /* Mouse wheel (button 4 = up, 5 = down): scroll the ScrollFrame under the cursor. */
     if (down && (button == 4 || button == 5)) {
@@ -2022,18 +2030,22 @@ BOOL UIWow_XMLMouseEvent(int x, int y, int button, BOOL down) {
         return false;
     }
 
-    /* Mouse motion (button 0, not down): handle scrollbar thumb drag. */
-    if (button == 0 && !down && wow_xml.drag.scrollbar_idx >= 0) {
-        int sf = wow_xml.drag.scrollbar_idx;
-        RECT vr = UIWow_XmlComputeRect(sf);
-        FLOAT mouse_delta = fdf_y - wow_xml.drag.start_mouse_y;
-        FLOAT scroll_range = wow_xml.scroll[sf].scroll_range;
-        if (vr.h > 0.0f && scroll_range > 0.0f) {
-            /* Map mouse delta to scroll delta. Dragging down increases scroll_y. */
-            FLOAT scroll_delta = (mouse_delta / vr.h) * scroll_range;
-            wow_xml.scroll[sf].scroll_y = MIN(scroll_range, MAX(0.0f, wow_xml.drag.start_value + scroll_delta));
+    /* Mouse motion (button 0, not down): handle scrollbar thumb drag, then return.
+     * Must not fall through to the !down block — that clears pressed_button,
+     * which would drop a button press if a motion event arrives between DOWN and UP. */
+    if (button == 0 && !down) {
+        if (wow_xml.drag.scrollbar_idx >= 0) {
+            int sf = wow_xml.drag.scrollbar_idx;
+            RECT vr = UIWow_XmlComputeRect(sf);
+            FLOAT mouse_delta = fdf_y - wow_xml.drag.start_mouse_y;
+            FLOAT scroll_range = wow_xml.scroll[sf].scroll_range;
+            if (vr.h > 0.0f && scroll_range > 0.0f) {
+                FLOAT scroll_delta = (mouse_delta / vr.h) * scroll_range;
+                wow_xml.scroll[sf].scroll_y = MIN(scroll_range, MAX(0.0f, wow_xml.drag.start_value + scroll_delta));
+            }
+            return true;
         }
-        return true;
+        return false;
     }
 
     hit = UIWow_XMLHitFrame(fdf_x, fdf_y);
