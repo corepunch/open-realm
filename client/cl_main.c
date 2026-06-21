@@ -93,7 +93,6 @@ static LPCPLAYER CL_UIGetPlayerState(void);
 static DWORD CL_UIGetNumEntities(void);
 static LPCENTITYSTATE CL_UIGetEntity(DWORD idx);
 static void CL_UIServerCommand(LPCSTR text);
-static void CL_UIRequestUnitUI(DWORD num_selected, DWORD *entity_nums);
 static void CL_LANRefreshServers(void);
 static DWORD CL_LANNumServers(void);
 static BOOL CL_LANServer(DWORD index, uiLanGame_t *out);
@@ -307,15 +306,6 @@ static DWORD CL_UIGetClientTime(void) {
     return cl.time;
 }
 
-/* Request unit UI data (command card, inventory, build queue) */
-static void CL_UIRequestUnitUI(DWORD num_selected, DWORD *entity_nums) {
-    (void)num_selected;
-    (void)entity_nums;
-    if (ui.UpdateUnitUI) {
-        ui.UpdateUnitUI(0, NULL);
-    }
-}
-
 #define CL_MAX_LAN_SERVERS 64
 
 static uiLanGame_t cl_lan_servers[CL_MAX_LAN_SERVERS];
@@ -475,7 +465,11 @@ void CL_LoadingUpdate(LPCSTR status, FLOAT progress) {
 
 /* Public wrapper for UI library and input system (Phase 8.6) */
 void CL_RequestUnitUI(DWORD num_selected, DWORD *entity_nums) {
-    CL_UIRequestUnitUI(num_selected, entity_nums);
+    (void)num_selected;
+    (void)entity_nums;
+    if (ui.UpdateUnitUI) {
+        ui.UpdateUnitUI(0, NULL);
+    }
 }
 
 int CL_ModelIndex(LPCSTR modelName) {
@@ -600,10 +594,8 @@ void CL_Init(void) {
         .SanitizeMapInfoText = CM_SanitizeMapInfoText,
         .MemAlloc = MemAlloc,
         .MemFree = MemFree,
-        .ModelIndex = CL_ModelIndex,
         .ImageIndex = CL_ImageIndex,
         .FontIndex = CL_FontIndex,
-        .ReadSheet = FS_ParseSLK,
         .ReadConfig = FS_ParseINI,
         .FindSheetCell = FS_FindSheetCell,
         .Cmd_AddCommand = Cmd_AddCommand,
@@ -633,9 +625,7 @@ void CL_Init(void) {
         .LayoutRect = SCR_LayoutRect,
         .LayoutStringValue = SCR_GetStringValue,
         .LayoutDrawText = SCR_GetDrawText,
-        .RequestUnitUI = CL_UIRequestUnitUI,
         .GetRenderer = CL_UIGetRenderer,
-        .Error = CON_printf,
         .Printf = CON_printf,
     });
     
