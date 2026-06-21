@@ -1,7 +1,5 @@
 #ifdef GAME_WORLD
-#if defined(SC2)
-#include "games/starcraft-2/game/g_sc2_local.h"
-#elif defined(WOW)
+#if defined(WOW) || defined(SC2)
 #include "server/server.h"
 #else
 #include "game/g_local.h"

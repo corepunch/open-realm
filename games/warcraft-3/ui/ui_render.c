@@ -104,10 +104,10 @@ static BOOL UI_PointInRect(FLOAT x, FLOAT y, LPCRECT rect) {
 }
 
 static BOOL UI_FrameIsInteractive(LPCFRAMEDEF frame) {
-    if (!frame || frame->base.hidden || frame->base.disabled) {
+    if (!frame || frame->hidden || frame->disabled) {
         return FALSE;
     }
-    switch (frame->base.type) {
+    switch (frame->Type) {
         case FT_BUTTON: case FT_GLUEBUTTON: case FT_SIMPLEBUTTON:
         case FT_TEXTBUTTON: case FT_GLUETEXTBUTTON: case FT_COMMANDBUTTON:
         case FT_CHECKBOX: case FT_GLUECHECKBOX: case FT_SIMPLECHECKBOX:
@@ -292,22 +292,22 @@ static LPCRECT UI_LayoutRect(LPCFRAMEDEF frame) {
     }
     
     /* Calculate intrinsic size based on frame type */
-    FLOAT intrinsic_w = frame->base.size.width;
-    FLOAT intrinsic_h = frame->base.size.height;
+    FLOAT intrinsic_w = frame->Width;
+    FLOAT intrinsic_h = frame->Height;
     
     if (intrinsic_w == 0 || intrinsic_h == 0) {
         /* Try to derive size from content */
-        switch (frame->base.type) {
+        switch (frame->Type) {
             case FT_TEXT:
             case FT_STRING:
-                if (frame->base.text && frame->Font.Index) {
+                if (frame->Text && frame->Font.Index) {
                     BOOL auto_width = intrinsic_w == 0;
                     BOOL auto_height = intrinsic_h == 0;
                     LPRENDERER renderer = UI_GetRenderer();
                     drawText_t dt = {
                         .font = renderer ? renderer->LoadFont(UI_FontFile(frame->Font.Name),
                                                               UI_FontPixelSize(frame->Font.Size)) : NULL,
-                        .text = frame->base.text,
+                        .text = frame->Text,
                         .textWidth = intrinsic_w > 0 ? intrinsic_w : 0.0f,
                         .lineHeight = 1.0f,
                         .wordWrap = intrinsic_w > 0,
@@ -326,7 +326,7 @@ static LPCRECT UI_LayoutRect(LPCFRAMEDEF frame) {
                          */
                         intrinsic_h = (auto_width &&
                                        frame->Font.Size > 0.0f &&
-                                       !UI_TextHasLineBreak(frame->base.text))
+                                       !UI_TextHasLineBreak(frame->Text))
                                       ? frame->Font.Size
                                       : text_size.y;
                     }
@@ -349,9 +349,7 @@ static LPCRECT UI_LayoutRect(LPCFRAMEDEF frame) {
                  * baked into the model and intentionally omit Width/Height.
                  */
                 break;
-        default:
-            ((LPFRAMEDEF)frame)->base.on_draw = UI_GenericOnDraw;
-            break;
+            default:
                 /* Default size if not specified */
                 if (intrinsic_w == 0) intrinsic_w = 0.1f;
                 if (intrinsic_h == 0) intrinsic_h = 0.1f;
@@ -414,7 +412,7 @@ static void UI_DrawTexture(LPCFRAMEDEF frame, LPCRECT rect) {
         .alphamode = frame->AlphaMode,
         .screen = *rect,
         .uv = uv,
-        .color = frame->base.color,
+        .color = frame->Color,
         .rotate = FALSE,
     };
     
@@ -427,7 +425,7 @@ static void UI_DrawText(LPCFRAMEDEF frame, LPCRECT rect) {
     DWORD font_size;
     RECT text_rect = *rect;
 
-    if (!frame->base.text || !*frame->base.text) {
+    if (!frame->Text || !*frame->Text) {
         return;
     }
 
@@ -452,12 +450,12 @@ static void UI_DrawText(LPCFRAMEDEF frame, LPCRECT rect) {
 
     drawText_t dt = {
         .font = font,
-        .text = frame->base.text,
+        .text = frame->Text,
         .rect = text_rect,
         .color = color,
         .textWidth = text_rect.w,
         .lineHeight = 1.0f,
-        .wordWrap = frame->base.size.width > 0,
+        .wordWrap = frame->Width > 0,
         .halign = frame->Font.Justification.Horizontal,
         .valign = frame->Font.Justification.Vertical,
     };
@@ -475,73 +473,62 @@ static void UI_DrawHighlightFrame(LPCFRAMEDEF frame, LPCRECT rect);
 #include "controls/ui_control_map_list.h"
 #include "controls/ui_control_slider.h"
 
-/* Generic on_draw for frames without specific handlers — calls UI_DrawFrameOne */
-void UI_GenericOnDraw(struct uiBaseFrame_s *base, LPCRECT rect) {
-    (void)rect;
-    UI_DrawFrameOne((LPFRAMEDEF)base);
-}
-
 /* ========================================================================
  * PER-TYPE EVENT HANDLERS — called from UI_MouseEventLocal
  * ======================================================================== */
 
-static void UI_ButtonEventHandler(struct uiBaseFrame_s *f, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
-    LPFRAMEDEF frame = (LPFRAMEDEF)f;
+static void UI_ButtonEventHandler(LPFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
     (void)fdf_x; (void)fdf_y;
     if (button != 1) {
         return;
     }
     if (down) {
-        frame->base.ui_flags |= UIFLAG_PRESSED;
+        frame->ui_flags |= UIFLAG_PRESSED;
     } else {
-        frame->base.ui_flags &= ~UIFLAG_PRESSED;
+        frame->ui_flags &= ~UIFLAG_PRESSED;
         if (frame->OnClick[0]) {
             UI_MenuCommandLocal(frame->OnClick);
         }
     }
 }
 
-static void UI_CheckBoxEventHandler(struct uiBaseFrame_s *f, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
-    LPFRAMEDEF frame = (LPFRAMEDEF)f;
+static void UI_CheckBoxEventHandler(LPFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
     (void)fdf_x; (void)fdf_y;
     if (button != 1) {
         return;
     }
     if (down) {
-        frame->base.ui_flags |= UIFLAG_PRESSED;
+        frame->ui_flags |= UIFLAG_PRESSED;
     } else {
-        frame->base.ui_flags &= ~UIFLAG_PRESSED;
-        frame->base.ui_flags ^= UIFLAG_CHECKED;
-        ((LPFRAMEDEF)frame)->CheckBox.Checked = (frame->base.ui_flags & UIFLAG_CHECKED) != 0;
+        frame->ui_flags &= ~UIFLAG_PRESSED;
+        frame->ui_flags ^= UIFLAG_CHECKED;
+        ((LPFRAMEDEF)frame)->CheckBox.Checked = (frame->ui_flags & UIFLAG_CHECKED) != 0;
         if (frame->OnClick[0]) {
             UI_MenuCommandLocal(frame->OnClick);
         }
     }
 }
 
-static void UI_SliderEventHandler(struct uiBaseFrame_s *f, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
-    LPFRAMEDEF frame = (LPFRAMEDEF)f;
+static void UI_SliderEventHandler(LPFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
     if (down && button == 1) {
         UI_SliderBeginDrag(frame, fdf_x, fdf_y);
-        frame->base.ui_flags |= UIFLAG_PRESSED;
+        frame->ui_flags |= UIFLAG_PRESSED;
     } else if (!down && button == 1) {
         UI_SliderEndDrag(frame);
-        frame->base.ui_flags &= ~UIFLAG_PRESSED;
+        frame->ui_flags &= ~UIFLAG_PRESSED;
     } else if (button == 0 && !down) {
         UI_SliderUpdateDrag(frame, fdf_x, fdf_y);
     }
 }
 
-static void UI_EditBoxEventHandler(struct uiBaseFrame_s *f, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
-    LPFRAMEDEF frame = (LPFRAMEDEF)f;
+static void UI_EditBoxEventHandler(LPFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
     (void)fdf_x; (void)fdf_y;
     if (down && button == 1) {
         UI_EditboxFocusOnHit(frame);
     }
 }
 
-static void UI_MapListEventHandler(struct uiBaseFrame_s *f, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
-    LPFRAMEDEF frame = (LPFRAMEDEF)f;
+static void UI_MapListEventHandler(LPFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
     if (!down && button == 1) {
         UI_MapListSelectRow(frame, fdf_x, fdf_y);
     }
@@ -553,16 +540,15 @@ static void UI_MapListEventHandler(struct uiBaseFrame_s *f, FLOAT fdf_x, FLOAT f
     }
 }
 
-static void UI_PopupEventHandler(struct uiBaseFrame_s *f, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
-    LPFRAMEDEF frame = (LPFRAMEDEF)f;
+static void UI_PopupEventHandler(LPFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
     (void)fdf_x; (void)fdf_y;
     if (!down && button == 1) {
         UI_TogglePopup(frame);
     }
 }
 
-static void UI_PopupMenuEventHandler(struct uiBaseFrame_s *f, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
-    (void)f;
+static void UI_PopupMenuEventHandler(LPFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
+    (void)frame;
     if (button == 4) {
         UI_PopupMenuScroll(true);
     }
@@ -578,61 +564,62 @@ static void UI_PopupMenuEventHandler(struct uiBaseFrame_s *f, FLOAT fdf_x, FLOAT
  * PER-TYPE DRAW FUNCTIONS — called from UI_DrawFrameOne
  * ======================================================================== */
 
-static void UI_ButtonDraw(struct uiBaseFrame_s *f, LPCRECT rect) {
-    LPCFRAMEDEF frame = (LPCFRAMEDEF)f;
+static void UI_ButtonDraw(LPCFRAMEDEF frame, LPCRECT rect) {
+    LPCFRAMEDEF backdrop = UI_ButtonBackdrop(frame, rect);
+    if (backdrop && backdrop->Type == FT_TEXTURE) {
+        UI_DrawTexture(backdrop, rect);
+    } else {
+        UI_DrawBackdropWithColor(backdrop, rect, frame->Color);
+    }
     UI_DrawTexture(frame, rect);
     UI_DrawButtonText(frame, rect);
 }
 
-static void UI_CheckBoxDraw(struct uiBaseFrame_s *f, LPCRECT rect) {
-    LPCFRAMEDEF frame = (LPCFRAMEDEF)f;
+static void UI_CheckBoxDraw(LPCFRAMEDEF frame, LPCRECT rect) {
     LPCFRAMEDEF backdrop = UI_CheckBoxBackdrop(frame, rect);
-    UI_DrawBackdropWithColor(backdrop, rect, frame->base.color);
+    UI_DrawBackdropWithColor(backdrop, rect, frame->Color);
     UI_DrawTexture(frame, rect);
     UI_DrawHighlightFrame(UI_CheckBoxCheckHighlight(frame), rect);
 }
 
-static void UI_SliderDraw(struct uiBaseFrame_s *f, LPCRECT rect) { UI_DrawSlider((LPCFRAMEDEF)f, rect); }
-static void UI_EditBoxDraw(struct uiBaseFrame_s *f, LPCRECT rect) { UI_DrawEditBox((LPCFRAMEDEF)f, rect); }
-static void UI_MapListDraw(struct uiBaseFrame_s *f, LPCRECT rect) { UI_DrawMapListControl((LPCFRAMEDEF)f, rect); }
-static void UI_MenuDraw(struct uiBaseFrame_s *f, LPCRECT rect) { UI_DrawMenu((LPCFRAMEDEF)f, rect); }
+/* Wire per-type event handler and draw function pointers */
 void UI_WireFrameTypeFunctions(LPFRAMEDEF frame) {
     if (!frame) {
         return;
     }
-    switch (frame->base.type) {
+    switch (frame->Type) {
         case FT_BUTTON: case FT_TEXTBUTTON: case FT_GLUETEXTBUTTON:
         case FT_GLUEBUTTON: case FT_SIMPLEBUTTON: case FT_COMMANDBUTTON:
-            frame->base.on_event = UI_ButtonEventHandler;
-            frame->base.on_draw = UI_ButtonDraw;
+            frame->event_handler = UI_ButtonEventHandler;
+            frame->draw = UI_ButtonDraw;
             break;
         case FT_CHECKBOX: case FT_GLUECHECKBOX: case FT_SIMPLECHECKBOX:
-            frame->base.on_event = UI_CheckBoxEventHandler;
-            frame->base.on_draw = UI_CheckBoxDraw;
+            frame->event_handler = UI_CheckBoxEventHandler;
+            frame->draw = UI_CheckBoxDraw;
             if (frame->CheckBox.Checked) {
-                frame->base.ui_flags |= UIFLAG_CHECKED;
+                frame->ui_flags |= UIFLAG_CHECKED;
             }
             break;
         case FT_SLIDER:
-            frame->base.on_event = UI_SliderEventHandler;
-            frame->base.on_draw = UI_SliderDraw;
+            frame->event_handler = UI_SliderEventHandler;
+            frame->draw = UI_DrawSlider;
             break;
         case FT_EDITBOX: case FT_GLUEEDITBOX: case FT_SLASHCHATBOX:
-            frame->base.on_event = UI_EditBoxEventHandler;
-            frame->base.on_draw = UI_EditBoxDraw;
+            frame->event_handler = UI_EditBoxEventHandler;
+            frame->draw = UI_DrawEditBox;
             break;
         case FT_MENU:
-            frame->base.on_event = UI_PopupMenuEventHandler;
-            frame->base.on_draw = UI_MenuDraw;
+            frame->event_handler = UI_PopupMenuEventHandler;
+            frame->draw = UI_DrawMenu;
             break;
         case FT_POPUPMENU: case FT_GLUEPOPUPMENU:
-            frame->base.on_event = UI_PopupEventHandler;
+            frame->event_handler = UI_PopupEventHandler;
             break;
         case FT_FRAME: case FT_SIMPLEFRAME:
             /* FT_FRAME with MapListControl is a map list */
             if (frame->MapListControl.State) {
-                frame->base.on_event = UI_MapListEventHandler;
-                frame->base.on_draw = UI_MapListDraw;
+                frame->event_handler = UI_MapListEventHandler;
+                frame->draw = UI_DrawMapListControl;
             }
             break;
         default:
@@ -721,7 +708,7 @@ static LPCFRAMEDEF UI_FindActiveModalRoot(LPCFRAMEDEF const *roots, DWORD num_ro
 
     FOR_LOOP(i, num_roots) {
         LPCFRAMEDEF frame = roots[i];
-        if (frame && !frame->base.hidden && frame->base.type == FT_DIALOG) {
+        if (frame && !frame->hidden && frame->Type == FT_DIALOG) {
             modal = frame;
         }
     }
@@ -910,7 +897,7 @@ static void UI_DrawSprite(LPCFRAMEDEF frame, LPCRECT rect) {
         return;
     }
     
-    LPCSTR anim = (frame->base.text && *frame->base.text) ? frame->base.text : "Stand";
+    LPCSTR anim = (frame->Text && *frame->Text) ? frame->Text : "Stand";
     renderer->DrawSprite(model, anim, rect->x, rect->y);
 }
 
@@ -922,22 +909,22 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
     }
     
     /* Skip hidden frames */
-    if (frame->base.hidden) {
+    if (frame->hidden) {
         return;
     }
     
     /* Calculate layout */
     LPCRECT rect = UI_LayoutRect(frame);
-    if (!rect || ((rect->w <= 0 || rect->h <= 0) && frame->base.type != FT_SPRITE)) {
+    if (!rect || ((rect->w <= 0 || rect->h <= 0) && frame->Type != FT_SPRITE)) {
         return;
     }
     
     /* Render based on frame type */
-    switch (frame->base.type) {
+    switch (frame->Type) {
         case FT_FRAME:
         case FT_SIMPLEFRAME:
-            if (frame->base.on_draw) {
-                frame->base.on_draw((struct uiBaseFrame_s *)frame, rect);
+            if (frame->draw) {
+                frame->draw((LPFRAMEDEF)frame, rect);
             }
             break;
 
@@ -946,13 +933,13 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
             if (!dialog_backdrop && frame->DialogBackdropName[0]) {
                 dialog_backdrop = UI_FindChildFrame((LPFRAMEDEF)frame, frame->DialogBackdropName);
             }
-            UI_DrawBackdropWithColor(dialog_backdrop, rect, frame->base.color);
+            UI_DrawBackdropWithColor(dialog_backdrop, rect, frame->Color);
             break;
 
         case FT_CONTROL:
             if (frame->Control.Backdrop.Normal[0]) {
                 LPCFRAMEDEF backdrop = UI_FindFrameNear(frame, frame->Control.Backdrop.Normal);
-                UI_DrawBackdropWithColor(backdrop, rect, frame->base.color);
+                UI_DrawBackdropWithColor(backdrop, rect, frame->Color);
             }
             UI_DrawMapListControl(frame, rect);
             break;
@@ -975,6 +962,7 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
         case FT_GLUETEXTBUTTON:
         case FT_GLUEBUTTON:
         case FT_SIMPLEBUTTON:
+        case FT_COMMANDBUTTON:
         case FT_CHECKBOX:
         case FT_GLUECHECKBOX:
         case FT_SIMPLECHECKBOX:
@@ -983,8 +971,8 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
         case FT_GLUEEDITBOX:
         case FT_SLASHCHATBOX:
         case FT_MENU:
-            if (frame->base.on_draw) {
-                frame->base.on_draw((struct uiBaseFrame_s *)frame, rect);
+            if (frame->draw) {
+                frame->draw((LPFRAMEDEF)frame, rect);
             }
             break;
 
@@ -993,10 +981,10 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
             /* Draw button background */
             {
                 LPCFRAMEDEF backdrop = UI_ButtonBackdrop(frame, rect);
-                if (backdrop && backdrop->base.type == FT_TEXTURE) {
+                if (backdrop && backdrop->Type == FT_TEXTURE) {
                     UI_DrawTexture(backdrop, rect);
                 } else {
-                    UI_DrawBackdropWithColor(backdrop, rect, frame->base.color);
+                    UI_DrawBackdropWithColor(backdrop, rect, frame->Color);
                 }
             }
             UI_DrawTexture(frame, rect);
@@ -1027,7 +1015,7 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
 
 static void UI_DrawFrameRangeSprites(LPCFRAMEDEF const *draw_order, DWORD start, DWORD end) {
     for (DWORD i = start; i < end; i++) {
-        if (draw_order[i]->base.type == FT_SPRITE &&
+        if (draw_order[i]->Type == FT_SPRITE &&
             !UI_IsActivePopupMenu(draw_order[i])) {
             UI_DrawFrameOne(draw_order[i]);
         }
@@ -1036,7 +1024,7 @@ static void UI_DrawFrameRangeSprites(LPCFRAMEDEF const *draw_order, DWORD start,
 
 static void UI_DrawFrameRangeControls(LPCFRAMEDEF const *draw_order, DWORD start, DWORD end) {
     for (DWORD i = start; i < end; i++) {
-        if (draw_order[i]->base.type != FT_SPRITE &&
+        if (draw_order[i]->Type != FT_SPRITE &&
             !UI_IsActivePopupMenu(draw_order[i])) {
             UI_DrawFrameOne(draw_order[i]);
         }
@@ -1045,11 +1033,11 @@ static void UI_DrawFrameRangeControls(LPCFRAMEDEF const *draw_order, DWORD start
 
 static void UI_DrawFrameRangeHighlights(LPCFRAMEDEF const *draw_order, DWORD start, DWORD end) {
     for (DWORD i = start; i < end; i++) {
-        if (UI_RenderIsButtonFrameType(draw_order[i]->base.type) &&
+        if (UI_RenderIsButtonFrameType(draw_order[i]->Type) &&
             !UI_IsActivePopupMenu(draw_order[i])) {
             UI_DrawButtonHighlight(draw_order[i]);
         }
-        if (UI_RenderIsCheckBoxFrameType(draw_order[i]->base.type) &&
+        if (UI_RenderIsCheckBoxFrameType(draw_order[i]->Type) &&
             !UI_IsActivePopupMenu(draw_order[i])) {
             UI_DrawCheckBoxMouseOverHighlight(draw_order[i]);
         }
@@ -1074,7 +1062,7 @@ void UI_TogglePopup(LPCFRAMEDEF frame) {
  * ======================================================================== */
 
 void UI_SliderBeginDrag(LPCFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y) {
-    if (!frame || frame->base.type != FT_SLIDER) {
+    if (!frame || frame->Type != FT_SLIDER) {
         return;
     }
     LPCRECT rect = UI_LayoutRect(frame);
@@ -1122,8 +1110,8 @@ BOOL UI_HasActivePopup(void) {
 }
 
 void UI_EditboxFocusOnHit(LPCFRAMEDEF frame) {
-    if (frame && (frame->base.type == FT_EDITBOX || frame->base.type == FT_GLUEEDITBOX ||
-                  frame->base.type == FT_SLASHCHATBOX)) {
+    if (frame && (frame->Type == FT_EDITBOX || frame->Type == FT_GLUEEDITBOX ||
+                  frame->Type == FT_SLASHCHATBOX)) {
         UI_FocusEdit((LPFRAMEDEF)frame);
     }
 }
@@ -1206,7 +1194,7 @@ BOOL UI_PopupPointInside(FLOAT fdf_x, FLOAT fdf_y) {
 
 void UI_PopupMenuScroll(BOOL scroll_up) {
     LPFRAMEDEF menu = active_popup ? UI_PopupMenuFrame(active_popup) : NULL;
-     if (!menu || menu->base.hidden) {
+    if (!menu || menu->hidden) {
         return;
     }
     /* Find the parent popup frame to get menu border/row info */
@@ -1235,7 +1223,7 @@ void UI_PopupMenuScroll(BOOL scroll_up) {
 
 void UI_PopupSelectItem(FLOAT fdf_x, FLOAT fdf_y) {
     LPFRAMEDEF menu = active_popup ? UI_PopupMenuFrame(active_popup) : NULL;
-     if (!menu || menu->base.hidden) {
+    if (!menu || menu->hidden) {
         return;
     }
     LPCFRAMEDEF parent = menu->Parent;
@@ -1266,7 +1254,7 @@ void UI_PopupSelectItem(FLOAT fdf_x, FLOAT fdf_y) {
         }
         if (UI_PointInRect(fdf_x, fdf_y, &row)) {
             LPFRAMEDEF popup = (LPFRAMEDEF)parent->Parent;
-            LPFRAMEDEF title = UI_IsPopupFrameType(popup ? popup->base.type : FT_NONE)
+            LPFRAMEDEF title = UI_IsPopupFrameType(popup ? popup->Type : FT_NONE)
                 ? UI_PopupTitleTextFrame(popup) : NULL;
             char command[160];
             if (title) {
@@ -1303,7 +1291,7 @@ void UI_DrawFrames(LPCFRAMEDEF const *roots, DWORD num_roots) {
     total = 0;
     FOR_LOOP(i, num_roots) {
         DWORD emitted;
-        if (!roots[i] || roots[i]->base.hidden) {
+        if (!roots[i] || roots[i]->hidden) {
             continue;
         }
         emitted = UI_CollectFrameTree(roots[i],
@@ -1330,7 +1318,7 @@ void UI_DrawFrames(LPCFRAMEDEF const *roots, DWORD num_roots) {
     UI_DrawFrameRangeHighlights(draw_order, modal_index, count);
 
     popup_menu = active_popup ? UI_PopupMenuFrame(active_popup) : NULL;
-    if (popup_menu && !popup_menu->base.hidden) {
+    if (popup_menu && !popup_menu->hidden) {
         UI_DrawFrameOne(popup_menu);
     }
 }

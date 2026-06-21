@@ -64,7 +64,7 @@ static LPFRAMEDEF UI_PopupTitleTextFrame(LPCFRAMEDEF popup) {
         return NULL;
     }
     title = UI_FindChildFrame((LPFRAMEDEF)popup, popup->Popup.TitleFrame);
-    text = title && title->base.text ? UI_FindChildFrame(title, title->base.text) : NULL;
+    text = title && title->Text ? UI_FindChildFrame(title, title->Text) : NULL;
     if (!text) {
         text = title ? UI_FindChildFrame(title, "StandardPopupMenuTitleTextTemplate") : NULL;
     }
@@ -133,11 +133,11 @@ static void UI_PositionPopupParts(LPFRAMEDEF popup) {
     title = UI_FindChildFrame(popup, popup->Popup.TitleFrame);
     arrow = UI_FindChildFrame(popup, popup->Popup.ArrowFrame);
     menu = UI_PopupMenuFrame(popup);
-    arrow_width = arrow && arrow->base.size.width > 0.0f ? arrow->base.size.width : 0.011f;
-    title_width = popup->base.size.width - arrow_width - inset * 2.0f;
+    arrow_width = arrow && arrow->Width > 0.0f ? arrow->Width : 0.011f;
+    title_width = popup->Width - arrow_width - inset * 2.0f;
 
     if (title && !title->AnyPointsSet) {
-        UI_SetSize(title, MAX(0.0f, title_width), popup->base.size.height);
+        UI_SetSize(title, MAX(0.0f, title_width), popup->Height);
         UI_SetPoint(title, FRAMEPOINT_LEFT, popup, FRAMEPOINT_LEFT, inset, 0.0f);
     }
     if (title) {
@@ -154,7 +154,7 @@ static void UI_PositionPopupParts(LPFRAMEDEF popup) {
         FLOAT row_height = menu->Menu.Item.Height > 0.0f ? menu->Menu.Item.Height : 0.014f;
         FLOAT border = menu->Menu.Border > 0.0f ? menu->Menu.Border : 0.006f;
         if (menu->Menu.ItemCount > 0) {
-            UI_SetSize(menu, popup->base.size.width, UI_PopupMenuMaxHeight(popup, menu, row_height, border));
+            UI_SetSize(menu, popup->Width, UI_PopupMenuMaxHeight(popup, menu, row_height, border));
         }
         if (!menu->AnyPointsSet) {
             UI_SetPoint(menu, FRAMEPOINT_TOPLEFT, popup, FRAMEPOINT_BOTTOMLEFT, 0.0f, 0.0f);
@@ -167,7 +167,7 @@ static void UI_UpdatePopupVisibility(LPCFRAMEDEF const *draw_order, DWORD count)
     FOR_LOOP(i, count) {
         LPFRAMEDEF frame = (LPFRAMEDEF)draw_order[i];
 
-        if (!UI_IsPopupFrameType(frame->base.type)) {
+        if (!UI_IsPopupFrameType(frame->Type)) {
             continue;
         }
 
@@ -194,7 +194,7 @@ static void UI_DrawMenu(LPCFRAMEDEF frame, LPCRECT rect) {
     DWORD max_scroll;
     RECT clip;
 
-    UI_DrawBackdropWithColor(backdrop, rect, frame->base.color);
+    UI_DrawBackdropWithColor(backdrop, rect, frame->Color);
     if (!renderer || !renderer->LoadFont || !renderer->DrawText) {
         return;
     }

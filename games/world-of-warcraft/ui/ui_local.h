@@ -73,10 +73,6 @@ typedef struct {
     int char_customize_frame_idx;
     LPMODEL char_customize_model;
     PATHSTR char_customize_model_path;
-    DWORD time;
-    PATHSTR loading_map;
-    PATHSTR loading_status;
-    FLOAT loading_progress;
 } uiWowState_t;
 
 extern uiImport_t uiimport;
@@ -111,7 +107,7 @@ LPTEXTURE UIWow_LoadTexture(LPCSTR name);
 LPCFONT UIWow_LoadFont(DWORD size);
 
 /* XML runtime input hooks. */
-BOOL UIWow_XMLMouseEvent(FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down);
+BOOL UIWow_XMLMouseEvent(int x, int y, int button, BOOL down);
 BOOL UIWow_XMLTextInput(LPCSTR text);
 BOOL UIWow_XMLKeyEvent(int key, BOOL down, DWORD time);
 

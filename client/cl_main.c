@@ -77,7 +77,7 @@ void CL_ClearState(void) {
     SAFE_DELETE(cl.fow.explored, MemFree);
     SAFE_DELETE(cl.fow.texture, MemFree);
 
-    if (1) {
+    if (ui.ClearLayoutLayer) {
         FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
             ui.ClearLayoutLayer(layer);
         }
@@ -94,13 +94,16 @@ static DWORD CL_UIGetNumEntities(void);
 static LPCENTITYSTATE CL_UIGetEntity(DWORD idx);
 static void CL_UIServerCommand(LPCSTR text);
 static void CL_UIRequestUnitUI(DWORD num_selected, DWORD *entity_nums);
-static void CL_LAN_RefreshServers(void);
-static DWORD CL_LAN_NumServers(void);
-static BOOL CL_LAN_Server(DWORD index, uiLanGame_t *out);
-static void CL_LAN_ConnectServer(DWORD index);
+static void CL_LANRefreshServers(void);
+static DWORD CL_LANNumServers(void);
+static BOOL CL_LANServer(DWORD index, uiLanGame_t *out);
+static void CL_LANConnectServer(DWORD index);
+static LPCSTR CL_UIGetLoadingMap(void);
 static LPCMODEL CL_UIGetModel(DWORD idx);
 static LPCMODEL CL_UIGetPortrait(DWORD idx);
 static LPRENDERER CL_UIGetRenderer(void);
+static DWORD CL_UIGetClientTime(void);
+static VECTOR2 CL_UIGetMouseFdf(void);
 
 static void CL_MenuCommand(LPCSTR command) {
     if (!command || !*command) {
@@ -301,31 +304,23 @@ static LPRENDERER CL_UIGetRenderer(void) {
     return &re;
 }
 
-/* Client-side UI hit testing — walks frame array owned by the UI DLL */
-static BOOL CL_UIPointInRect(FLOAT x, FLOAT y, LPCRECT r) {
-    return r && x >= r->x && x < r->x + r->w && y >= r->y && y < r->y + r->h;
+static DWORD CL_UIGetClientTime(void) {
+    return cl.time;
 }
 
-LPUIBASEFRAME CL_UIHitTest(FLOAT x, FLOAT y) {
-    LPUIBASEFRAME best = NULL;
-    DWORD nf = ui.GetNumFrames ? ui.GetNumFrames() : 0;
-    for (DWORD i = 0; i < nf; i++) {
-        LPUIBASEFRAME f = (LPUIBASEFRAME)((char *)ui.frames + i * ui.frame_size);
-        if (!f || (f->ui_flags & UIFLAG_HIDDEN) || f->hidden || f->disabled) {
-            continue;
-        }
-        if (f->on_event && CL_UIPointInRect(x, y, &f->screen_rect)) {
-            best = f;
-        }
-    }
-    return best;
+static VECTOR2 CL_UIGetMouseFdf(void) {
+    return SCR_MouseToFdf();
+}
+
+static BOOL CL_UIGetMouseButtonDown(DWORD button) {
+    return mouse.button == button;
 }
 
 /* Request unit UI data (command card, inventory, build queue) */
 static void CL_UIRequestUnitUI(DWORD num_selected, DWORD *entity_nums) {
     (void)num_selected;
     (void)entity_nums;
-    if (1) {
+    if (ui.UpdateUnitUI) {
         ui.UpdateUnitUI(0, NULL);
     }
 }
@@ -365,7 +360,7 @@ static void CL_InfoValue(LPCSTR info, LPCSTR key, LPSTR out, DWORD out_size) {
     out[len] = '\0';
 }
 
-static void CL_LAN_RefreshServers(void) {
+static void CL_LANRefreshServers(void) {
     netadr_t adr;
     unsigned short port = (unsigned short)Cvar_Integer("game_port", PORT_SERVER);
     BOOL const open_client_socket = !NET_IsConfigured(NS_CLIENT);
@@ -373,11 +368,11 @@ static void CL_LAN_RefreshServers(void) {
     memset(cl_lan_servers, 0, sizeof(cl_lan_servers));
     cl_num_lan_servers = 0;
     if (open_client_socket) {
-        fprintf(stderr, "CL_LAN_RefreshServers: opening client UDP socket for LAN queries\n");
+        fprintf(stderr, "CL_LANRefreshServers: opening client UDP socket for LAN queries\n");
     }
     NET_ConfigSource(NS_CLIENT, true);
     if (!NET_IsConfigured(NS_CLIENT)) {
-        fprintf(stderr, "CL_LAN_RefreshServers: client UDP socket is closed, cannot query LAN servers\n");
+        fprintf(stderr, "CL_LANRefreshServers: client UDP socket is closed, cannot query LAN servers\n");
         return;
     }
 
@@ -387,11 +382,11 @@ static void CL_LAN_RefreshServers(void) {
     Netchan_OutOfBandPrint(NS_CLIENT, adr, "info");
 }
 
-static DWORD CL_LAN_NumServers(void) {
+static DWORD CL_LANNumServers(void) {
     return cl_num_lan_servers;
 }
 
-static BOOL CL_LAN_Server(DWORD index, uiLanGame_t *out) {
+static BOOL CL_LANServer(DWORD index, uiLanGame_t *out) {
     if (!out || index >= cl_num_lan_servers) {
         return false;
     }
@@ -399,7 +394,7 @@ static BOOL CL_LAN_Server(DWORD index, uiLanGame_t *out) {
     return true;
 }
 
-static void CL_LAN_ConnectServer(DWORD index) {
+static void CL_LANConnectServer(DWORD index) {
     uiLanGame_t *game;
     unsigned short port = (unsigned short)Cvar_Integer("game_port", PORT_SERVER);
 
@@ -450,8 +445,20 @@ update:
     }
 }
 
+static LPCSTR CL_UIGetLoadingMap(void) {
+    return cl.loading_map;
+}
+
 static void CL_UICvarSet(LPCSTR name, LPCSTR value) {
     Cvar_Set(name, value);
+}
+
+static LPCSTR CL_UIGetLoadingStatus(void) {
+    return cl.loading_status;
+}
+
+static FLOAT CL_UIGetLoadingProgress(void) {
+    return cl.loading_progress;
 }
 
 void CL_BeginLoadingMap(LPCSTR mapName) {
@@ -461,9 +468,6 @@ void CL_BeginLoadingMap(LPCSTR mapName) {
     cl.playerstate.client_ui_state = CLIENT_UI_LOADING;
     cls.state = ca_loading;
     CL_MenuCommand("menu_ingame");
-    if (1) {
-        ui.SetLoadingState(cl.loading_map, cl.loading_status, cl.loading_progress);
-    }
 }
 
 void CL_LoadingUpdate(LPCSTR status, FLOAT progress) {
@@ -476,9 +480,6 @@ void CL_LoadingUpdate(LPCSTR status, FLOAT progress) {
         progress = 1.0f;
     }
     cl.loading_progress = progress;
-    if (1) {
-        ui.SetLoadingState(cl.loading_map, cl.loading_status, cl.loading_progress);
-    }
 }
 
 /* Public wrapper for UI library and input system (Phase 8.6) */
@@ -602,20 +603,30 @@ void CL_Init(void) {
         .DefaultMapName = CM_DefaultMapName,
         .ResolveMapInfoString = CM_ResolveMapInfoString,
         .MapNameMatchesFile = CM_MapNameMatchesFile,
+        .MapTilesetName = CM_TilesetName,
+        .MapSizeName = CM_MapSizeName,
+        .SanitizeMapListField = CM_SanitizeMapListField,
+        .SanitizeMapInfoText = CM_SanitizeMapInfoText,
         .MemAlloc = MemAlloc,
         .MemFree = MemFree,
         .ModelIndex = CL_ModelIndex,
         .ImageIndex = CL_ImageIndex,
         .FontIndex = CL_FontIndex,
+        .ReadSheet = FS_ParseSLK,
+        .ReadConfig = FS_ParseINI,
+        .FindSheetCell = FS_FindSheetCell,
         .Cmd_AddCommand = Cmd_AddCommand,
         .Cmd_ExecuteText = Cbuf_AddText,
         .ServerCommand = CL_UIServerCommand,
         .Cvar_String = Cvar_String,
         .Cvar_Set = CL_UICvarSet,
-        .LAN_RefreshServers = CL_LAN_RefreshServers,
-        .LAN_NumServers = CL_LAN_NumServers,
-        .LAN_Server = CL_LAN_Server,
-        .LAN_ConnectServer = CL_LAN_ConnectServer,
+        .LANRefreshServers = CL_LANRefreshServers,
+        .LANNumServers = CL_LANNumServers,
+        .LANServer = CL_LANServer,
+        .LANConnectServer = CL_LANConnectServer,
+        .GetLoadingMap = CL_UIGetLoadingMap,
+        .GetLoadingStatus = CL_UIGetLoadingStatus,
+        .GetLoadingProgress = CL_UIGetLoadingProgress,
         .GetPlayerState = CL_UIGetPlayerState,
         .GetNumEntities = CL_UIGetNumEntities,
         .GetEntity = CL_UIGetEntity,
@@ -624,14 +635,21 @@ void CL_Init(void) {
         .GetTexture = CL_GetTextureByIndex,
         .GetTextures = CL_UIGetTextures,
         .GetFont = CL_UIGetFont,
+        .GetClientTime = CL_UIGetClientTime,
+        .GetMouseFdf = CL_UIGetMouseFdf,
+        .GetMouseButtonDown = CL_UIGetMouseButtonDown,
+        .LayoutClear = SCR_Clear,
+        .LayoutNumFrames = SCR_NumFrames,
+        .LayoutFrame = SCR_Frame,
+        .LayoutRect = SCR_LayoutRect,
+        .LayoutStringValue = SCR_GetStringValue,
+        .LayoutDrawText = SCR_GetDrawText,
         .RequestUnitUI = CL_UIRequestUnitUI,
         .GetRenderer = CL_UIGetRenderer,
         .Error = CON_printf,
         .Printf = CON_printf,
     });
     
-    /* DLL sets frame_size, frames, GetNumFrames in UI_GetAPI return */
-
     if (ui.Init) {
         ui.Init();
     }

@@ -98,14 +98,16 @@ typedef struct {
     int (*FS_ReadFile)(LPCSTR fileName, void **buf);  /* Returns file size, allocates buf */
     void (*FS_FreeFile)(void *buf);
     int (*FS_GetFileList)(LPCSTR path, LPCSTR extension, char *listbuf, int bufsize);
-    /* WC3-only map info callbacks — TODO: remove by moving MPQ to shared lib
-     * or duplicating map reading in the DLL (CM_ReadInfoInto is 190 lines). */
     BOOL (*ReadMapInfo)(LPCSTR mapName, LPMAPINFO info);
     BOOL (*FindMapPreviewTexture)(LPCSTR mapName, LPSTR out, DWORD out_size);
     void (*FreeMapInfo)(LPMAPINFO info);
     void (*DefaultMapName)(LPCSTR path, LPSTR out, DWORD out_size);
     void (*ResolveMapInfoString)(LPCMAPINFO info, LPCSTR text, LPSTR out, DWORD out_size);
     BOOL (*MapNameMatchesFile)(LPCSTR name, LPCSTR path);
+    LPCSTR (*MapTilesetName)(BYTE tileset);
+    LPCSTR (*MapSizeName)(DWORD width, DWORD height);
+    void (*SanitizeMapListField)(LPSTR text);
+    void (*SanitizeMapInfoText)(LPSTR text);
     
     /* Memory allocation */
     HANDLE (*MemAlloc)(long size);
@@ -115,6 +117,9 @@ typedef struct {
     int (*ModelIndex)(LPCSTR modelName);
     int (*ImageIndex)(LPCSTR imageName);
     int (*FontIndex)(LPCSTR fontName, DWORD fontSize);
+    sheetRow_t *(*ReadSheet)(LPCSTR sheetFilename);
+    sheetRow_t *(*ReadConfig)(LPCSTR configFilename);
+    LPCSTR (*FindSheetCell)(sheetRow_t *sheet, LPCSTR row, LPCSTR column);
     
     /* Command execution (following Quake 3 pattern)
      * UI executes console commands; engine dispatcher handles routing */
@@ -123,10 +128,13 @@ typedef struct {
     void (*ServerCommand)(LPCSTR text);
     LPCSTR (*Cvar_String)(LPCSTR name, LPCSTR fallback);
     void (*Cvar_Set)(LPCSTR name, LPCSTR value);
-    void (*LAN_RefreshServers)(void);
-    DWORD (*LAN_NumServers)(void);
-    BOOL (*LAN_Server)(DWORD index, uiLanGame_t *out);
-    void (*LAN_ConnectServer)(DWORD index);
+    void (*LANRefreshServers)(void);
+    DWORD (*LANNumServers)(void);
+    BOOL (*LANServer)(DWORD index, uiLanGame_t *out);
+    void (*LANConnectServer)(DWORD index);
+    LPCSTR (*GetLoadingMap)(void);
+    LPCSTR (*GetLoadingStatus)(void);
+    FLOAT (*GetLoadingProgress)(void);
     
     /* Game state access (for in-game HUD) */
     LPCPLAYER (*GetPlayerState)(void);          /* Access to cl.playerstate */
@@ -137,6 +145,18 @@ typedef struct {
     LPCTEXTURE (*GetTexture)(DWORD idx);        /* cl.pics[idx] */
     LPCTEXTURE *(*GetTextures)(void);           /* cl.pics, for inline text icons */
     LPCFONT (*GetFont)(DWORD idx);              /* cl.fonts[idx] */
+    DWORD (*GetClientTime)(void);               /* cl.time */
+    VECTOR2 (*GetMouseFdf)(void);               /* current mouse in FDF/UI coords */
+    BOOL (*GetMouseButtonDown)(DWORD button);   /* true while button is held */
+    LPCUIFRAME (*LayoutClear)(HANDLE data);
+    DWORD (*LayoutNumFrames)(void);
+    LPUIFRAME (*LayoutFrame)(DWORD number);
+    LPCRECT (*LayoutRect)(LPCUIFRAME frame);
+    LPCSTR (*LayoutStringValue)(LPCUIFRAME frame);
+    drawText_t (*LayoutDrawText)(LPCUIFRAME frame,
+                                 FLOAT avl_width,
+                                 LPCSTR text,
+                                 uiLabel_t const *label);
     
     /* Unit UI data requests (for command card, inventory, build queue) */
     void (*RequestUnitUI)(DWORD num_selected, DWORD *entity_nums);
@@ -157,18 +177,13 @@ typedef struct {
     
     /* Main loop integration */
     void (*Refresh)(DWORD msec);
-    void (*SetLoadingState)(LPCSTR map, LPCSTR status, FLOAT progress);
+    void (*DrawFrame)(void);
     
     /* Input event handling */
     void (*KeyEvent)(int key, BOOL down, DWORD time);
     void (*TextInput)(LPCSTR text);
     void (*MouseEvent)(int x, int y, int button, BOOL down);
     
-    /* Frame data — client iterates by stride, game-specific struct extends uiBaseFrame_t */
-    size_t  frame_size;             /* sizeof game-specific frame struct */
-    void   *frames;                 /* base pointer to flat frame array */
-    DWORD  (*GetNumFrames)(void);   /* returns live frame count */
-
     /* Unit UI data updates (Phase 8: HUD migration) */
     void (*UpdateUnitUI)(DWORD num_units, uiUnitData_t *units);
     void (*UpdateLobbySetup)(lobbyState_t const *state);
@@ -182,23 +197,5 @@ typedef struct {
 /* Entry point called by the client to get the UI function table.
  * The client must fill the uiImport_t struct before calling this. */
 uiExport_t UI_GetAPI(uiImport_t uiimport);
-
-/* Shared uiBaseFrame helpers — work on both WC3 and WoW frames.
- * Game code embeds uiBaseFrame_t as first member and casts as needed. */
-static inline BOOL UI_BaseIsVisible(LPCUIBASEFRAME frame) {
-    return frame && !(frame->ui_flags & UIFLAG_HIDDEN) && !frame->hidden;
-}
-
-static inline void UI_BaseSetHidden(LPUIBASEFRAME frame, BOOL hidden) {
-    if (frame) {
-        if (hidden) frame->ui_flags |= UIFLAG_HIDDEN;
-        else frame->ui_flags &= ~UIFLAG_HIDDEN;
-        frame->hidden = hidden;
-    }
-}
-
-static inline void UI_BaseSetSize(LPUIBASEFRAME frame, FLOAT w, FLOAT h) {
-    if (frame) { frame->size.width = w; frame->size.height = h; }
-}
 
 #endif

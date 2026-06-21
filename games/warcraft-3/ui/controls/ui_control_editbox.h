@@ -21,8 +21,8 @@ static LPFRAMEDEF UI_CreateEditTextFrame(LPFRAMEDEF frame) {
     template = UI_FindFrame("StandardEditBoxTextTemplate");
     if (template) {
         text_frame->DecorateFileNames = template->DecorateFileNames;
-        text_frame->base.size.width = template->base.size.width;
-        text_frame->base.size.height = template->base.size.height;
+        text_frame->Width = template->Width;
+        text_frame->Height = template->Height;
         text_frame->Font = template->Font;
     }
     if (!text_frame->Font.Name[0]) {
@@ -59,7 +59,7 @@ static LPFRAMEDEF UI_EditTextFrame(LPCFRAMEDEF frame) {
 
 static LPCSTR UI_EditText(LPCFRAMEDEF frame) {
     LPFRAMEDEF text_frame = UI_EditTextFrame(frame);
-    return text_frame && text_frame->base.text ? text_frame->base.text : "";
+    return text_frame && text_frame->Text ? text_frame->Text : "";
 }
 
 static void UI_SetEditText(LPCFRAMEDEF frame, LPCSTR text) {
@@ -134,7 +134,7 @@ static void UI_DrawEditBox(LPCFRAMEDEF frame, LPCRECT rect) {
     LPCFRAMEDEF backdrop = UI_FindFrameNear(frame, frame->Control.Backdrop.Normal);
     RECT text_rect = *rect;
 
-    UI_DrawBackdropWithColor(backdrop, rect, frame->base.color);
+    UI_DrawBackdropWithColor(backdrop, rect, frame->Color);
     if (!text_frame) {
         return;
     }

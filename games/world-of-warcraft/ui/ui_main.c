@@ -10,11 +10,6 @@
 
 #include <stdarg.h>
 
-/* Frame data accessors (defined in ui_xml.c) */
-extern size_t UIWow_GetFrameSize(void);
-extern void *UIWow_GetFrames(void);
-extern DWORD UIWow_GetNumFrames(void);
-
 /* -------------------------------------------------------------------------
  * Global state (declared extern in ui_local.h)
  * ---------------------------------------------------------------------- */
@@ -231,14 +226,7 @@ static void UIWow_Shutdown(void) {
 }
 
 static void UIWow_Refresh(DWORD msec) {
-    wow_ui.time += msec;
     UIWow_CallLuaUpdate(msec);
-}
-
-static void UIWow_SetLoadingState(LPCSTR map, LPCSTR status, FLOAT progress) {
-    if (map) snprintf(wow_ui.loading_map, sizeof(wow_ui.loading_map), "%s", map);
-    if (status) snprintf(wow_ui.loading_status, sizeof(wow_ui.loading_status), "%s", status);
-    wow_ui.loading_progress = progress;
 }
 
 static void UIWow_ReleaseScreenAssets(void) {
@@ -285,10 +273,39 @@ static void UIWow_RecreateLuaStateForMenu(LPCSTR menu_name) {
  * Per-frame draw dispatch
  * ---------------------------------------------------------------------- */
 
+static void UIWow_UpdateMouseHover(void) {
+    static int last_x = -1, last_y = -1;
+    VECTOR2 mouse_pos = uiimport.GetMouseFdf ? uiimport.GetMouseFdf() : MAKE(VECTOR2, 0, 0);
+    int mouse_x = (int)(mouse_pos.x * 1024.0f);
+    int mouse_y = (int)(mouse_pos.y * 768.0f);
+
+    if (mouse_x == last_x && mouse_y == last_y) {
+        return;
+    }
+    last_x = mouse_x;
+    last_y = mouse_y;
+    if (!wow_ui.lua) {
+        UIWow_WarnOnce(WOW_UI_WARN_NO_LUA_STATE,
+                       "UIWow: Lua state is not initialized; mouse hover ignored\n");
+        return;
+    }
+    lua_getglobal(wow_ui.lua, "ow3_handle_mouse_move");
+    if (lua_isfunction(wow_ui.lua, -1)) {
+        lua_pushnumber(wow_ui.lua, mouse_pos.x);
+        lua_pushnumber(wow_ui.lua, mouse_pos.y);
+        UIWow_LuaPCall(2);
+    } else {
+        lua_pop(wow_ui.lua, 1);
+        UIWow_WarnOnce(WOW_UI_WARN_NO_MOUSEMOVE_HANDLER,
+                       "UIWow: missing Lua function 'ow3_handle_mouse_move'\n");
+    }
+}
+
 static void UIWow_DrawFrame(void) {
     LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
 
     UIWow_EnsureRenderer();
+    UIWow_UpdateMouseHover();
 
     if (wow_ui.current_menu[0]) {
         UIWow_XMLDraw();
@@ -345,29 +362,8 @@ static void UIWow_TextInput(LPCSTR text) {
     UIWow_LuaPCall(1);
 }
 
-/* Lua hover callback — called during event handling when mouse moves */
-static void UIWow_LuaMouseMove(FLOAT fdf_x, FLOAT fdf_y) {
-    static int last_x = -1, last_y = -1;
-    int mouse_x = (int)(fdf_x * 1024.0f);
-    int mouse_y = (int)(fdf_y * 768.0f);
-    if (mouse_x == last_x && mouse_y == last_y) return;
-    last_x = mouse_x;
-    last_y = mouse_y;
-    if (!wow_ui.lua) return;
-    lua_getglobal(wow_ui.lua, "ow3_handle_mouse_move");
-    if (lua_isfunction(wow_ui.lua, -1)) {
-        lua_pushnumber(wow_ui.lua, fdf_x);
-        lua_pushnumber(wow_ui.lua, fdf_y);
-        UIWow_LuaPCall(2);
-    } else {
-        lua_pop(wow_ui.lua, 1);
-    }
-}
-
 static void UIWow_MouseEvent(int x, int y, int button, BOOL down) {
-    VECTOR2 fdf = MAKE(VECTOR2, (FLOAT)x / 1024.0f, (FLOAT)y / 768.0f);
-    UIWow_LuaMouseMove(fdf.x, fdf.y);
-    if (UIWow_XMLMouseEvent(fdf.x, fdf.y, button, down)) {
+    if (UIWow_XMLMouseEvent(x, y, button, down)) {
         return;
     }
     if (!wow_ui.lua || !down) {
@@ -530,7 +526,7 @@ uiExport_t UI_GetAPI(uiImport_t import) {
         .Init             = UIWow_Init,
         .Shutdown         = UIWow_Shutdown,
         .Refresh          = UIWow_Refresh,
-        .SetLoadingState  = UIWow_SetLoadingState,
+        .DrawFrame        = UIWow_DrawFrame,
         .KeyEvent         = UIWow_KeyEvent,
         .TextInput        = UIWow_TextInput,
         .MouseEvent       = UIWow_MouseEvent,
@@ -538,8 +534,5 @@ uiExport_t UI_GetAPI(uiImport_t import) {
         .SetLayoutLayer   = UIWow_SetLayoutLayer,
         .ClearLayoutLayer = UIWow_ClearLayoutLayer,
         .HitTestLayout    = UIWow_HitTestLayout,
-        .frame_size = UIWow_GetFrameSize(),
-        .frames = UIWow_GetFrames(),
-        .GetNumFrames = UIWow_GetNumFrames,
     };
 }

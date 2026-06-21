@@ -2,14 +2,14 @@
 #define UI_CONTROL_CHECKBOX_H
 
 static BOOL UI_CheckBoxEnabled(LPCFRAMEDEF frame) {
-    return frame && !frame->base.disabled;
+    return frame && !frame->disabled;
 }
 
 static BOOL UI_CheckBoxIsPushed(LPCFRAMEDEF frame, LPCRECT rect) {
     return UI_CheckBoxEnabled(frame) &&
            !UI_PointerBlockedByPopup(frame) &&
            UI_MouseContains(rect) &&
-           (frame->base.ui_flags & UIFLAG_PRESSED);
+           (frame->ui_flags & UIFLAG_PRESSED);
 }
 
 static LPCFRAMEDEF UI_CheckBoxBackdrop(LPCFRAMEDEF frame, LPCRECT rect) {

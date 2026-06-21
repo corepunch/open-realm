@@ -95,7 +95,7 @@ static void UIWow_LoadCharCreateDbc(void) {
        6..14=various ints, 15=clientFileString(str), 16=unused(str),
        17=name(str), 18..25=unused, 26=hairCustom(str),
        27=facialHairCustom0(str), 28=facialHairCustom1(str) */
-    { void *_b = NULL; uiimport.FS_ReadFile("DBFilesClient\\ChrRaces.dbc", &_b); data = (BYTE*)_b; }
+    { void *_b = NULL; if (uiimport.FS_ReadFile) uiimport.FS_ReadFile("DBFilesClient\\ChrRaces.dbc", &_b); data = (BYTE*)_b; }
     if (data) {
         records = UIWow_DbcU32(data,1); fields = UIWow_DbcU32(data,2);
         rsize   = UIWow_DbcU32(data,3); ssize  = UIWow_DbcU32(data,4);
@@ -125,7 +125,7 @@ static void UIWow_LoadCharCreateDbc(void) {
 
     /* ChrClasses (16-field 1.x layout verified against live DBC)
        0=id, ..., 5=name(str), ..., 14=filename(str) e.g. "WARRIOR" */
-    { void *_b = NULL; uiimport.FS_ReadFile("DBFilesClient\\ChrClasses.dbc", &_b); data = (BYTE*)_b; }
+    { void *_b = NULL; if (uiimport.FS_ReadFile) uiimport.FS_ReadFile("DBFilesClient\\ChrClasses.dbc", &_b); data = (BYTE*)_b; }
     if (data) {
         records = UIWow_DbcU32(data,1); fields = UIWow_DbcU32(data,2);
         rsize   = UIWow_DbcU32(data,3); ssize  = UIWow_DbcU32(data,4);
@@ -144,7 +144,7 @@ static void UIWow_LoadCharCreateDbc(void) {
     }
 
     /* CharBaseInfo — 2-byte records: raceID (byte), classID (byte) */
-    { void *_b = NULL; uiimport.FS_ReadFile("DBFilesClient\\CharBaseInfo.dbc", &_b); data = (BYTE*)_b; }
+    { void *_b = NULL; if (uiimport.FS_ReadFile) uiimport.FS_ReadFile("DBFilesClient\\CharBaseInfo.dbc", &_b); data = (BYTE*)_b; }
     if (data) {
         wow_charcreate.base_buf = data;
         records = UIWow_DbcU32(data,1);
@@ -159,7 +159,7 @@ static void UIWow_LoadCharCreateDbc(void) {
     }
 
     /* FactionTemplate — 0=id, 1=faction, 2=flags, 3=factionGroup, ... */
-    { void *_b = NULL; uiimport.FS_ReadFile("DBFilesClient\\FactionTemplate.dbc", &_b); data = (BYTE*)_b; }
+    { void *_b = NULL; if (uiimport.FS_ReadFile) uiimport.FS_ReadFile("DBFilesClient\\FactionTemplate.dbc", &_b); data = (BYTE*)_b; }
     if (data) {
         records = UIWow_DbcU32(data,1); fields = UIWow_DbcU32(data,2);
         rsize   = UIWow_DbcU32(data,3);
@@ -178,7 +178,7 @@ static void UIWow_LoadCharCreateDbc(void) {
     }
 
     /* FactionGroup — 0=id, 1=maskID, 2=internalName(str), 3=name(str) */
-    { void *_b = NULL; uiimport.FS_ReadFile("DBFilesClient\\FactionGroup.dbc", &_b); data = (BYTE*)_b; }
+    { void *_b = NULL; if (uiimport.FS_ReadFile) uiimport.FS_ReadFile("DBFilesClient\\FactionGroup.dbc", &_b); data = (BYTE*)_b; }
     if (data) {
         records = UIWow_DbcU32(data,1); fields = UIWow_DbcU32(data,2);
         rsize   = UIWow_DbcU32(data,3); ssize  = UIWow_DbcU32(data,4);

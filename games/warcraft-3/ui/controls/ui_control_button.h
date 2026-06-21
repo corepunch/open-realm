@@ -6,7 +6,7 @@ static BOOL UI_ButtonIsPopupArrow(LPCFRAMEDEF frame) {
 
     return frame &&
            parent &&
-           UI_IsPopupFrameType(parent->base.type) &&
+           UI_IsPopupFrameType(parent->Type) &&
            parent->Popup.ArrowFrame[0] &&
            !strcmp(frame->Name, parent->Popup.ArrowFrame);
 }
@@ -37,7 +37,7 @@ static BOOL UI_ButtonBackdropTextureContains(LPCFRAMEDEF frame, LPCSTR text) {
 }
 
 static LPCSTR UI_ButtonPopupPushedBackdropName(LPCFRAMEDEF frame) {
-    if (!frame || !UI_IsPopupFrameType(frame->base.type)) {
+    if (!frame || !UI_IsPopupFrameType(frame->Type)) {
         return NULL;
     }
     if (UI_ButtonBackdropNameContains(frame, "Campaign")) {
@@ -89,7 +89,7 @@ static VECTOR2 UI_ButtonPushedTextOffset(LPCFRAMEDEF frame) {
          frame->Button.PushedTextOffset.y != 0.0f)) {
         return frame->Button.PushedTextOffset;
     }
-    if (frame && UI_IsPopupFrameType(frame->base.type)) {
+    if (frame && UI_IsPopupFrameType(frame->Type)) {
         if (UI_ButtonBackdropNameContains(frame, "BattleNet")) {
             return MAKE(VECTOR2, -0.002f, -0.003f);
         }
@@ -103,16 +103,16 @@ static VECTOR2 UI_ButtonPushedTextOffset(LPCFRAMEDEF frame) {
 
 static BOOL UI_ButtonEnabled(LPCFRAMEDEF frame) {
     return frame &&
-           !frame->base.disabled &&
+           !frame->disabled &&
            (frame->OnClick[0] ||
-            frame->base.type == FT_POPUPMENU ||
-            frame->base.type == FT_GLUEPOPUPMENU ||
+            frame->Type == FT_POPUPMENU ||
+            frame->Type == FT_GLUEPOPUPMENU ||
             UI_ButtonIsPopupArrow(frame));
 }
 
 static BOOL UI_ButtonIsPushed(LPCFRAMEDEF frame, LPCRECT rect) {
     return UI_ButtonEnabled(frame) && UI_MouseContains(rect) &&
-           (frame->base.ui_flags & UIFLAG_PRESSED);
+           (frame->ui_flags & UIFLAG_PRESSED);
 }
 
 static void UI_DrawButtonText(LPCFRAMEDEF frame, LPCRECT rect) {
@@ -121,8 +121,8 @@ static void UI_DrawButtonText(LPCFRAMEDEF frame, LPCRECT rect) {
     COLOR32 original_color;
     BOOL use_disabled_color;
 
-    if (frame->base.text && *frame->base.text) {
-        text_frame = UI_FindChildFrame((LPFRAMEDEF)frame, frame->base.text);
+    if (frame->Text && *frame->Text) {
+        text_frame = UI_FindChildFrame((LPFRAMEDEF)frame, frame->Text);
     }
     if (!text_frame && frame->Button.NormalText.frame[0]) {
         text_frame = UI_FindChildFrame((LPFRAMEDEF)frame, frame->Button.NormalText.frame);

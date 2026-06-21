@@ -96,10 +96,10 @@ typedef enum {
     EF_HAS_ANCHOR    = 1 << 1,
     EF_HAS_SIZE      = 1 << 2,
     EF_HAS_TEXCOORD  = 1 << 3,
-    /* EF_HIDDEN removed: use base.hidden */
+    EF_HIDDEN        = 1 << 4,
     EF_VIRTUAL       = 1 << 5,
     EF_PASSWORD      = 1 << 6,
-    /* EF_ENABLED removed: use !base.disabled */
+    EF_ENABLED       = 1 << 7,
     EF_CHECKED       = 1 << 8,
     EF_SET_ALL_PTS   = 1 << 9,
     EF_BACKDROP_TILE = 1 << 10,
@@ -117,10 +117,9 @@ typedef enum {
 } uiWowXmlElemFlag_t;
 
 typedef struct {
-    uiBaseFrame_t base;             /* shared engine frame — keep in sync with common/shared.h */
-    DWORD flags;                    /* WoW-specific: EF_* element flags */
-    uiWowXmlType_t type;            /* TODO: migrate to base.type */
-    int id, parent, relative_to, relative_to2, draw_layer; /* TODO: parent → base.parent */
+    DWORD flags;
+    uiWowXmlType_t type;
+    int id, parent, relative_to, relative_to2, draw_layer;
     char *texts[ELEM_STRING_COUNT];
     fpoint_t pos, offset, text_off, offset2; /* pos(x,y), anchor offset(ox,oy), text offset, second anchor offset */
     char *point2, *relative_point2, *relative_name2; /* second anchor point/relativeTo names (owned strings) */
@@ -269,17 +268,13 @@ static int UIWow_XmlFindByName(LPCSTR name) {
     return -1;
 }
 
-static void UIWow_XMLOnDraw(uiBaseFrame_t *base, LPCRECT rect);
-
 static int UIWow_XmlPushElem(uiWowXmlType_t type, LPCSTR name, int parent, int draw_layer) {
     uiWowXmlElem_t *e;
     if (wow_xml.count >= WOW_XML_MAX_ELEMS) { fprintf(stderr, "UIWow: XML ELEMENT LIMIT HIT (%d/%d) name=%s parent=%d\n", wow_xml.count, WOW_XML_MAX_ELEMS, name ? name : "<anon>", parent); return -1; }
     e = &wow_xml.elems[wow_xml.count]; memset(e, 0, sizeof(*e));
-    e->flags = EF_USED | EF_WORD_WRAP; /* word-wrap on by default, same as CSimpleFontString */
+    e->flags = EF_USED | EF_ENABLED | EF_WORD_WRAP; /* word-wrap on by default, same as CSimpleFontString */
     e->type = type; e->parent = parent; e->relative_to = parent; e->draw_layer = draw_layer;
-    e->base.type = type;  /* also set base type for client iteration */
     e->alpha = 1.0f; e->id = 0;
-    e->base.parent_index = parent >= 0 ? (DWORD)parent : (DWORD)-1;
     e->font_size = 14.0f; e->colors[ELEM_COLOR_TEXT] = COLOR32_WHITE; e->colors[ELEM_COLOR_VERTEX] = COLOR32_WHITE;
     e->halign = FONT_JUSTIFYCENTER; e->valign = FONT_JUSTIFYMIDDLE;
     e->colors[ELEM_COLOR_BACKDROP] = MAKE(COLOR32, 23, 23, 23, 120); e->colors[ELEM_COLOR_BACKDROP_BORDER] = MAKE(COLOR32, 204, 204, 204, 255);
@@ -288,7 +283,6 @@ static int UIWow_XmlPushElem(uiWowXmlType_t type, LPCSTR name, int parent, int d
     e->button_text_colors[WOW_XML_BUTTON_TEXT_HIGHLIGHT] = e->colors[ELEM_COLOR_TEXT];
     e->texcoord = MAKE(RECT, 0, 0, 1, 1);
     e->highlight_texcoord = MAKE(RECT, 0, 0, 1, 1);
-    e->base.on_draw = UIWow_XMLOnDraw;
     UIWow_ElemSetStr(e, ELEM_NAME, name);
     return wow_xml.count++;
 }
@@ -329,7 +323,7 @@ static void UIWow_XmlInheritElem(uiWowXmlElem_t *e, LPCSTR inherits) {
         }
         if (!UIWow_ElemStr(e, ELEM_TEXT) && UIWow_ElemStr(src, ELEM_TEXT))
             UIWow_ElemSetStr(e, ELEM_TEXT, src->texts[ELEM_TEXT]);
-        if (src->base.hidden) e->base.hidden = true;
+        if (src->flags & EF_HIDDEN) e->flags |= EF_HIDDEN;
         if (!UIWow_ElemStr(e, ELEM_BACKDROP_BG) && UIWow_ElemStr(src, ELEM_BACKDROP_BG))
             UIWow_ElemSetStr(e, ELEM_BACKDROP_BG, src->texts[ELEM_BACKDROP_BG]);
         if (!UIWow_ElemStr(e, ELEM_BACKDROP_EDGE) && UIWow_ElemStr(src, ELEM_BACKDROP_EDGE))
@@ -450,12 +444,12 @@ static void UIWow_XMLRunFrameScript(int idx, LPCSTR script, LPCSTR event_name);
 static void UIWow_XMLSetShown(int idx, BOOL shown) {
     if (idx < 0 || idx >= wow_xml.count) return;
     if (shown) {
-        BOOL was_hidden = wow_xml.elems[idx].base.hidden;
-        wow_xml.elems[idx].base.hidden = false;
+        BOOL was_hidden = (wow_xml.elems[idx].flags & EF_HIDDEN) != 0;
+        wow_xml.elems[idx].flags &= ~EF_HIDDEN;
         if (was_hidden && UIWow_ElemStr(&wow_xml.elems[idx], ELEM_ON_SHOW))
             UIWow_XMLRunFrameScript(idx, wow_xml.elems[idx].texts[ELEM_ON_SHOW], "OnShow");
     } else {
-        wow_xml.elems[idx].base.hidden = true;
+        wow_xml.elems[idx].flags |= EF_HIDDEN;
     }
 }
 
@@ -469,7 +463,7 @@ static int UIWow_LuaFrameHide(lua_State *L) {
     if (i >= 0) UIWow_XMLSetShown(i, false);
     return 0;
 }
-static int UIWow_LuaFrameIsVisible(lua_State *L) { int i = UIWow_FrameFromSelf(L); lua_pushboolean(L, i >= 0 && !wow_xml.elems[i].base.hidden); return 1; }
+static int UIWow_LuaFrameIsVisible(lua_State *L) { int i = UIWow_FrameFromSelf(L); lua_pushboolean(L, i >= 0 && !(wow_xml.elems[i].flags & EF_HIDDEN)); return 1; }
 static int UIWow_LuaFrameSetAlpha(lua_State *L) { int i = UIWow_FrameFromSelf(L); if (i >= 0) wow_xml.elems[i].alpha = (FLOAT)luaL_optnumber(L, 2, 1.0); return 0; }
 static int UIWow_LuaFrameSetText(lua_State *L) { int i = UIWow_FrameFromSelf(L); if (i >= 0) UIWow_ElemSetStr(&wow_xml.elems[i], ELEM_TEXT, luaL_optstring(L, 2, "")); return 0; }
 static int UIWow_LuaFrameGetText(lua_State *L) { int i = UIWow_FrameFromSelf(L); lua_pushstring(L, i >= 0 && wow_xml.elems[i].texts[ELEM_TEXT] ? wow_xml.elems[i].texts[ELEM_TEXT] : ""); return 1; }
@@ -505,9 +499,9 @@ static int UIWow_LuaFrameGetWidth(lua_State *L) {
     return 1;
 }
 static int UIWow_LuaFrameSetID(lua_State *L) { int i = UIWow_FrameFromSelf(L); if (i >= 0) wow_xml.elems[i].id = (int)luaL_checkinteger(L, 2); return 0; }
-static int UIWow_LuaFrameEnable(lua_State *L) { int i = UIWow_FrameFromSelf(L); if (i >= 0) wow_xml.elems[i].base.disabled = false; return 0; }
-static int UIWow_LuaFrameDisable(lua_State *L) { int i = UIWow_FrameFromSelf(L); if (i >= 0) wow_xml.elems[i].base.disabled = true; return 0; }
-static int UIWow_LuaFrameIsEnabled(lua_State *L) { int i = UIWow_FrameFromSelf(L); lua_pushboolean(L, i >= 0 && !wow_xml.elems[i].base.disabled); return 1; }
+static int UIWow_LuaFrameEnable(lua_State *L) { int i = UIWow_FrameFromSelf(L); if (i >= 0) wow_xml.elems[i].flags |= EF_ENABLED; return 0; }
+static int UIWow_LuaFrameDisable(lua_State *L) { int i = UIWow_FrameFromSelf(L); if (i >= 0) wow_xml.elems[i].flags &= ~EF_ENABLED; return 0; }
+static int UIWow_LuaFrameIsEnabled(lua_State *L) { int i = UIWow_FrameFromSelf(L); lua_pushboolean(L, i >= 0 && (wow_xml.elems[i].flags & EF_ENABLED)); return 1; }
 static BOOL UIWow_LuaToBool(lua_State *L, int idx) {
     if (lua_isnil(L, idx)) return false;
     if (lua_isnumber(L, idx)) return lua_tonumber(L, idx) != 0.0;
@@ -636,7 +630,7 @@ static int UIWow_LuaFrameHighlightText(lua_State *L) { (void)L; return 0; }
 static int UIWow_LuaFrameRegisterEvent(lua_State *L) { (void)L; return 0; }
 static int UIWow_LuaFrameSetSequence(lua_State *L) {
     int i = UIWow_FrameFromSelf(L);
-    DWORD now = wow_ui.time;
+    DWORD now = uiimport.GetClientTime ? uiimport.GetClientTime() : 0;
 
     if (i >= 0) {
         wow_xml.elems[i].sequence = (DWORD)luaL_optinteger(L, 2, 0);
@@ -663,10 +657,12 @@ static int UIWow_LuaFrameAdvanceTime(lua_State *L) {
     int i = UIWow_FrameFromSelf(L);
     if (i >= 0) {
         uiWowXmlElem_t *e = &wow_xml.elems[i];
-        DWORD now = wow_ui.time;
+        DWORD now = uiimport.GetClientTime ? uiimport.GetClientTime() : e->frame + 16;
 
         e->oldframe = e->frame;
-        e->frame = (now >= e->anim_start ? now - e->anim_start : 0);
+        e->frame = uiimport.GetClientTime
+            ? (now >= e->anim_start ? now - e->anim_start : 0)
+            : now;
     }
     return 0;
 }
@@ -819,7 +815,7 @@ static void UIWow_XmlPublishFrame(int idx) {
     lua_newtable(wow_ui.lua);
     lua_pushinteger(wow_ui.lua, idx); lua_setfield(wow_ui.lua, -2, "__ow3_index");
     lua_pushstring(wow_ui.lua, name); lua_setfield(wow_ui.lua, -2, "name");
-    lua_pushboolean(wow_ui.lua, !e->base.hidden); lua_setfield(wow_ui.lua, -2, "shown");
+    lua_pushboolean(wow_ui.lua, !(e->flags & EF_HIDDEN)); lua_setfield(wow_ui.lua, -2, "shown");
     lua_pushinteger(wow_ui.lua, e->id); lua_setfield(wow_ui.lua, -2, "id");
     luaL_getmetatable(wow_ui.lua, "UIWow.Frame"); lua_setmetatable(wow_ui.lua, -2);
     lua_setglobal(wow_ui.lua, name);
@@ -1126,7 +1122,7 @@ static void UIWow_XmlReadShared(uiWowXmlElem_t *e, xmlNodePtr node) {
     xmlChar *id = xmlGetProp(node, BAD_CAST "id"), *wordwrap = xmlGetProp(node, BAD_CAST "wordWrap");
     if (file && *file) UIWow_ElemSetStr(e, ELEM_FILE, (char const *)file);
     if (text && *text) UIWow_ElemSetStr(e, ELEM_TEXT, (char const *)text);
-    if (hidden && *hidden && !strcasecmp((char const *)hidden, "true")) e->base.hidden = true;
+    if (hidden && *hidden && !strcasecmp((char const *)hidden, "true")) e->flags |= EF_HIDDEN;
     if (virt && *virt && !strcasecmp((char const *)virt, "true")) e->flags |= EF_VIRTUAL;
     if (all && *all && !strcasecmp((char const *)all, "true")) e->flags |= EF_SET_ALL_PTS;
     if (password && *password && strcmp((char const *)password, "0")) e->flags |= EF_PASSWORD;
@@ -1689,7 +1685,7 @@ static void UIWow_XMLDrawBackdrop(uiWowXmlElem_t const *e, LPCRECT r) {
 static BOOL UIWow_XMLIsVisible(int idx) {
     while (idx >= 0 && idx < wow_xml.count) {
         uiWowXmlElem_t const *e = &wow_xml.elems[idx];
-        if (!(e->flags & EF_USED) || e->base.hidden || (e->flags & EF_VIRTUAL)) return false;
+        if (!(e->flags & EF_USED) || (e->flags & EF_HIDDEN) || (e->flags & EF_VIRTUAL)) return false;
         idx = e->parent;
     }
     return true;
@@ -1740,11 +1736,11 @@ static LPMODEL UIWow_XMLCharCustomizeModel(int i) {
 }
 
 /* Draw one XML frame's own layer. whoa draws a frame's batches before recursing into child frames. */
-static void UIWow_XMLDrawElementLayer(int i, int layer) {
+static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
         uiWowXmlElem_t *e = &wow_xml.elems[i]; RECT r; RECT uv = MAKE(RECT, 0, 0, 1, 1); char text[512];
         COLOR32 text_color = e->colors[ELEM_COLOR_TEXT];
         BOOL pressed = e->type == WOW_XML_BUTTON && wow_xml.pressed_button == i;
-        BOOL hovered = e->type == WOW_XML_BUTTON && (e->base.ui_flags & UIFLAG_HOVERED);
+        BOOL hovered = e->type == WOW_XML_BUTTON && hovered_button == i;
         int draw_layer = e->type == WOW_XML_MODEL ? WOW_XML_LAYER_BACKGROUND : e->draw_layer;
         LPCSTR file = e->texts[ELEM_FILE], normal_file = e->texts[ELEM_NORMAL_FILE], pushed_file = e->texts[ELEM_PUSHED_FILE];
         LPCSTR highlight_file = e->texts[ELEM_HIGHLIGHT_FILE], elem_text = e->texts[ELEM_TEXT];
@@ -1792,7 +1788,7 @@ static void UIWow_XMLDrawElementLayer(int i, int layer) {
         s_has_scroll_clip = has_clip;
         s_scroll_clip = clip_rect;
         if (e->type == WOW_XML_BUTTON) {
-            text_color = e->base.disabled ? e->button_text_colors[WOW_XML_BUTTON_TEXT_DISABLED] :
+            text_color = !(e->flags & EF_ENABLED) ? e->button_text_colors[WOW_XML_BUTTON_TEXT_DISABLED] :
                          (hovered ? e->button_text_colors[WOW_XML_BUTTON_TEXT_HIGHLIGHT] : e->button_text_colors[WOW_XML_BUTTON_TEXT_NORMAL]);
         }
         if (pressed) {
@@ -1924,32 +1920,33 @@ static void UIWow_XMLDrawElementLayer(int i, int layer) {
         }
 }
 
-static void UIWow_XMLDrawTreeLayer(int i, int layer) {
+static void UIWow_XMLDrawTreeLayer(int i, int layer, int hovered_button) {
     if (!(wow_xml.elems[i].flags & EF_USED) || !UIWow_XMLIsVisible(i)) return;
-    UIWow_XMLDrawElementLayer(i, layer);
+    UIWow_XMLDrawElementLayer(i, layer, hovered_button);
     FOR_LOOP(j, wow_xml.count) {
         if (wow_xml.elems[j].parent == i)
-            UIWow_XMLDrawTreeLayer((int)j, layer);
+            UIWow_XMLDrawTreeLayer((int)j, layer, hovered_button);
     }
 }
 
-static void UIWow_XMLDrawTree(int i) {
+static void UIWow_XMLDrawTree(int i, int hovered_button) {
     for (int layer = WOW_XML_LAYER_BACKGROUND; layer <= WOW_XML_LAYER_OVERLAY; layer++)
-        UIWow_XMLDrawTreeLayer(i, layer);
-}
-
-/* on_draw callback for XML elements — draws this element's subtree */
-static void UIWow_XMLOnDraw(uiBaseFrame_t *base, LPCRECT rect) {
-    int idx = (int)((uiWowXmlElem_t *)base - wow_xml.elems);
-    UIWow_XMLDrawTree(idx);
+        UIWow_XMLDrawTreeLayer(i, layer, hovered_button);
 }
 
 void UIWow_XMLDraw(void) {
+    int hovered_button = -1;
+    if (uiimport.GetMouseFdf) {
+        VECTOR2 m = uiimport.GetMouseFdf();
+        int hit = UIWow_XMLHitFrame(m.x, m.y);
+        if (hit >= 0 && wow_xml.elems[hit].type == WOW_XML_BUTTON) hovered_button = hit;
+    }
+
     UIWow_EnsureRenderer(); if (!wow_ui.renderer) return;
     UIWow_XMLComputeScrollRanges();
     FOR_LOOP(i, wow_xml.count) {
         if (wow_xml.elems[i].parent < 0)
-            UIWow_XMLDrawTree((int)i);
+            UIWow_XMLDrawTree((int)i, hovered_button);
     }
 }
 
@@ -2005,16 +2002,16 @@ static int UIWow_XMLHitFrame(FLOAT x, FLOAT y) {
     return -1;
 }
 
-BOOL UIWow_XMLMouseEvent(FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
+BOOL UIWow_XMLMouseEvent(int x, int y, int button, BOOL down) {
+    FLOAT fdf_x, fdf_y;
     int hit;
-
-    /* Update hover flags on all elements */
-    hit = UIWow_XMLHitFrame(fdf_x, fdf_y);
-    FOR_LOOP(i, wow_xml.count) {
-        if (wow_xml.elems[i].type == WOW_XML_BUTTON || wow_xml.elems[i].type == WOW_XML_EDITBOX) {
-            wow_xml.elems[i].base.ui_flags = (wow_xml.elems[i].base.ui_flags & ~UIFLAG_HOVERED)
-                                              | (i == hit ? UIFLAG_HOVERED : 0);
-        }
+    /* Convert pixel coords using the same aspect-correct scene transform the
+     * renderer uses, so hit-testing matches what is actually drawn on screen. */
+    if (uiimport.GetMouseFdf) {
+        VECTOR2 m = uiimport.GetMouseFdf();
+        fdf_x = m.x; fdf_y = m.y;
+    } else {
+        fdf_x = x / 1024.0f; fdf_y = y / 768.0f;
     }
 
     /* Mouse wheel (button 4 = up, 5 = down): scroll the ScrollFrame under the cursor. */
@@ -2077,7 +2074,7 @@ BOOL UIWow_XMLMouseEvent(FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
             return true;
         }
         if (button == 1 && pressed >= 0 && hit == pressed && wow_xml.elems[pressed].type == WOW_XML_BUTTON &&
-            !wow_xml.elems[pressed].base.disabled && wow_ui.lua &&
+            (wow_xml.elems[pressed].flags & EF_ENABLED) && wow_ui.lua &&
             UIWow_ElemStr(&wow_xml.elems[pressed], ELEM_ON_CLICK)) {
             UIWow_Printf("UIWow: OnClick dispatch idx=%d name='%s' checkbtn=%d checked=%d\n",
                          pressed, wow_xml.elems[pressed].texts[ELEM_NAME] ? wow_xml.elems[pressed].texts[ELEM_NAME] : "?",
@@ -2092,7 +2089,7 @@ BOOL UIWow_XMLMouseEvent(FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
             UIWow_Printf("UIWow: OnClick MISS idx=%d name='%s' type=%d enabled=%d has_onclick=%d\n",
                          pressed, wow_xml.elems[pressed].texts[ELEM_NAME] ? wow_xml.elems[pressed].texts[ELEM_NAME] : "?",
                          wow_xml.elems[pressed].type,
-                         !wow_xml.elems[pressed].base.disabled,
+                         !!(wow_xml.elems[pressed].flags & EF_ENABLED),
                          !!UIWow_ElemStr(&wow_xml.elems[pressed], ELEM_ON_CLICK));
         }
         return hit >= 0 || pressed >= 0;
@@ -2144,7 +2141,7 @@ BOOL UIWow_XMLMouseEvent(FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
         wow_xml.pressed_button = -1;
         return true;
     }
-    if (wow_xml.elems[hit].type == WOW_XML_BUTTON && !wow_xml.elems[hit].base.disabled) {
+    if (wow_xml.elems[hit].type == WOW_XML_BUTTON && (wow_xml.elems[hit].flags & EF_ENABLED)) {
         wow_xml.pressed_button = hit;
         (void)button;
         return true;
@@ -2237,7 +2234,3 @@ void UIWow_XmlSetFrameModel(int idx, LPCSTR model_path) {
     free(e->texts[ELEM_FILE]);
     e->texts[ELEM_FILE] = model_path && *model_path ? strdup(model_path) : NULL;
 }
-
-size_t UIWow_GetFrameSize(void) { return sizeof(uiWowXmlElem_t); }
-void *UIWow_GetFrames(void) { return wow_xml.elems; }
-DWORD UIWow_GetNumFrames(void) { return (DWORD)wow_xml.count; }

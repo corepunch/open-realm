@@ -98,7 +98,7 @@ static void UI_DialogWar3UseDialogBackdrop(uiDialogWar3_t *dialog) {
 
     if (!source || !dest) return;
     dest->Backdrop = source->Backdrop;
-    dest->base.color = source->base.color;
+    dest->Color = source->Color;
     dest->AlphaMode = source->AlphaMode;
     dest->DecorateFileNames = source->DecorateFileNames;
     dialog->frame->DialogBackdrop = dest;
@@ -123,7 +123,7 @@ static BOOL UI_DialogWar3CreateLegacy(uiDialogWar3_t *dialog) {
     UI_SetParent(dialog->frames.DialogWar3, dialog->modal);
     UI_SetPoint(dialog->frames.DialogWar3, FRAMEPOINT_CENTER, dialog->modal, FRAMEPOINT_CENTER, 0.0f, 0.0f);
     UI_DialogWar3BindCommon(dialog);
-    dialog->default_height = dialog->frame->base.size.height;
+    dialog->default_height = dialog->frame->Height;
     return true;
 }
 
@@ -141,7 +141,7 @@ static LPFRAMEDEF UI_DialogWar3CreateText(uiDialogWar3_t *dialog, LPCSTR templat
     }
     text->Font.Justification.Horizontal = FONT_JUSTIFYLEFT;
     text->Font.Justification.Vertical = FONT_JUSTIFYTOP;
-    UI_SetSize(text, dialog->frame->base.size.width - 0.12f, dialog->frame->base.size.height - 0.15f);
+    UI_SetSize(text, dialog->frame->Width - 0.12f, dialog->frame->Height - 0.15f);
     UI_SetPoint(text, FRAMEPOINT_TOPLEFT, dialog->frame, FRAMEPOINT_TOPLEFT, 0.06f, -0.055f);
     return text;
 }
@@ -165,7 +165,7 @@ static BOOL UI_DialogWar3CreateButton(uiDialogWar3_t *dialog,
     dialog->ok_backdrop = dialog->ok_button;
     UI_SetSize(dialog->ok_button, battlenet ? 0.18f : 0.159f, 0.031f);
     UI_SetPoint(dialog->ok_button, FRAMEPOINT_BOTTOM, dialog->frame, FRAMEPOINT_BOTTOM, 0.0f, 0.045f);
-    dialog->ok_button->base.text = text->Name;
+    dialog->ok_button->Text = text->Name;
     UI_SetText(text, "OK");
     UI_SetOnClick(dialog->ok_button, "%s", command ? command : "");
     return true;
@@ -193,7 +193,7 @@ static BOOL UI_DialogWar3CreateTemplate(uiDialogWar3_t *dialog,
     if (!dialog->text || !UI_DialogWar3CreateButton(dialog, template_name, NULL)) {
         return false;
     }
-    dialog->default_height = dialog->frame->base.size.height;
+    dialog->default_height = dialog->frame->Height;
 
     return true;
 }
@@ -252,5 +252,5 @@ void UI_DialogWar3Hide(uiDialogWar3_t *dialog) {
 
 BOOL UI_DialogWar3Visible(uiDialogWar3_t const *dialog) {
     return dialog && dialog->modal && dialog->frame &&
-           !dialog->modal->base.hidden && !dialog->frame->base.hidden;
+           !dialog->modal->hidden && !dialog->frame->hidden;
 }

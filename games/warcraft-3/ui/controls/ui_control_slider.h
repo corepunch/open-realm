@@ -15,8 +15,8 @@ static FLOAT UI_SliderFraction(LPCFRAMEDEF frame) {
 
 static RECT UI_SliderThumbRect(LPCFRAMEDEF slider, LPCRECT slider_rect, LPCFRAMEDEF thumb) {
     FLOAT const fraction = UI_SliderFraction(slider);
-    FLOAT const thumb_w = thumb && thumb->base.size.width > 0 ? thumb->base.size.width : slider_rect->h;
-    FLOAT const thumb_h = thumb && thumb->base.size.height > 0 ? thumb->base.size.height : slider_rect->h;
+    FLOAT const thumb_w = thumb && thumb->Width > 0 ? thumb->Width : slider_rect->h;
+    FLOAT const thumb_h = thumb && thumb->Height > 0 ? thumb->Height : slider_rect->h;
     FLOAT const travel_w = MAX(0.0f, slider_rect->w - thumb_w);
     FLOAT const travel_h = MAX(0.0f, slider_rect->h - thumb_h);
     RECT rect = {
@@ -46,12 +46,12 @@ static FLOAT UI_SliderValueFromMousePos(LPCFRAMEDEF slider, LPCRECT slider_rect,
     }
 
     if (slider->Slider.Layout == LAYOUT_VERTICAL) {
-        FLOAT const thumb_h = thumb && thumb->base.size.height > 0 ? thumb->base.size.height : slider_rect->h;
+        FLOAT const thumb_h = thumb && thumb->Height > 0 ? thumb->Height : slider_rect->h;
         FLOAT const travel_h = MAX(0.0f, slider_rect->h - thumb_h);
         FLOAT const local = mouse.y - slider_rect->y - thumb_h * 0.5f;
         fraction = travel_h > 0.0f ? 1.0f - (local / travel_h) : 0.0f;
     } else {
-        FLOAT const thumb_w = thumb && thumb->base.size.width > 0 ? thumb->base.size.width : slider_rect->h;
+        FLOAT const thumb_w = thumb && thumb->Width > 0 ? thumb->Width : slider_rect->h;
         FLOAT const travel_w = MAX(0.0f, slider_rect->w - thumb_w);
         FLOAT const local = mouse.x - slider_rect->x - thumb_w * 0.5f;
         fraction = travel_w > 0.0f ? local / travel_w : 0.0f;
@@ -77,7 +77,7 @@ static void UI_UpdateSliderInteraction(LPCFRAMEDEF frame, LPCRECT rect, LPCFRAME
     if (active_slider == frame) {
         ((LPFRAMEDEF)frame)->Slider.InitialValue = UI_SliderValueFromMousePos(frame, rect, thumb, mouse);
     }
-    if (!(active_slider && (active_slider->base.ui_flags & UIFLAG_PRESSED)) && active_slider == frame) {
+    if (!(active_slider && (active_slider->ui_flags & UIFLAG_PRESSED)) && active_slider == frame) {
         active_slider = NULL;
     }
 }
@@ -88,7 +88,7 @@ static void UI_DrawSlider(LPCFRAMEDEF frame, LPCRECT rect) {
 
     if (frame->Control.Backdrop.Normal[0]) {
         backdrop = UI_FindFrameNear(frame, frame->Control.Backdrop.Normal);
-        UI_DrawBackdropWithColor(backdrop, rect, frame->base.color);
+        UI_DrawBackdropWithColor(backdrop, rect, frame->Color);
     }
 
     thumb = UI_FindFrameNear(frame, frame->Slider.ThumbButtonFrame);
@@ -99,7 +99,7 @@ static void UI_DrawSlider(LPCFRAMEDEF frame, LPCRECT rect) {
         if (!thumb_backdrop) {
             thumb_backdrop = UI_ButtonBackdrop(thumb, &thumb_rect);
         }
-        UI_DrawBackdropWithColor(thumb_backdrop, &thumb_rect, thumb->base.color);
+        UI_DrawBackdropWithColor(thumb_backdrop, &thumb_rect, thumb->Color);
         UI_DrawTexture(thumb, &thumb_rect);
     }
 }

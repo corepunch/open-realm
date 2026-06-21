@@ -40,9 +40,9 @@ void UI_LayoutMapInfoPane(LPFRAMEDEF frame) {
     if (!MapInfoPane_Bind(&pane, frame)) {
         return;
     }
-    height = frame->base.size.height;
+    height = frame->Height;
     if (height <= 0.0f && frame->Parent) {
-        height = frame->Parent->base.size.height;
+        height = frame->Parent->Height;
     }
     compact = height > 0.0f && height < 0.25f;
 

@@ -20,9 +20,6 @@ typedef struct {
     BOOL active;
     BOOL game_mode;
     DWORD time;
-    PATHSTR loading_map;
-    PATHSTR loading_status;
-    FLOAT loading_progress;
 } uiState_t;
 
 static uiState_t ui_state;
@@ -95,7 +92,7 @@ static void UI_SetScreen(uiScreen_t *screen) {
                 "UI_SetScreen: failed to load screen '%s', keeping '%s'\n",
                 screen->name,
                 previous_screen ? previous_screen->name : "(null)");
-        if (1) {
+        if (uiimport.Printf) {
             uiimport.Printf("UI_SetScreen: failed to load screen '%s'\n", screen->name);
         }
         return;
@@ -288,6 +285,63 @@ static uiMenuCommandDef_t const ui_menu_command_defs[] = {
     { NULL, NULL },
 };
 
+typedef struct {
+    LPCSTR texture;
+    BOOL decorate;
+    RECT screen;
+    RECT uv;
+} uiConsoleBackdropPart_t;
+
+static void UI_DrawImagePart(LPCSTR texture_name, BOOL decorate, LPCRECT screen, LPCRECT uv) {
+    LPRENDERER renderer = uiimport.GetRenderer ? uiimport.GetRenderer() : NULL;
+    DWORD texture_id;
+    LPCTEXTURE texture;
+
+    if (!renderer || !renderer->DrawImageEx || !texture_name || !*texture_name) {
+        return;
+    }
+
+    texture_id = UI_LoadTexture(texture_name, decorate);
+    texture = UI_GetTexture(texture_id);
+    if (!texture) {
+        return;
+    }
+
+    renderer->DrawImageEx(&MAKE(drawImage_t,
+                                .texture = texture,
+                                .shader = SHADER_UI,
+                                .alphamode = BLEND_MODE_ALPHAKEY,
+                                .screen = *screen,
+                                .uv = *uv,
+                                .color = COLOR32_WHITE,
+                                .rotate = false));
+}
+
+static void UI_DrawConsoleBackdropPart(uiConsoleBackdropPart_t const *part) {
+    if (!part) {
+        return;
+    }
+    UI_DrawImagePart(part->texture, part->decorate, &part->screen, &part->uv);
+}
+
+static void UI_DrawConsoleBackdropOnly(void) {
+    static uiConsoleBackdropPart_t const parts[] = {
+        { "ConsoleTexture01", true, { 0.000f, 0.000f, 0.256f, 0.032f }, { 0.00000000f, 0.000000f, 1.00000000f, 0.125000f } },
+        { "ConsoleTexture02", true, { 0.256f, 0.000f, 0.087f, 0.032f }, { 0.00000000f, 0.000000f, 0.33984375f, 0.125000f } },
+        { "ConsoleTexture02", true, { 0.459f, 0.000f, 0.053f, 0.032f }, { 0.79296875f, 0.000000f, 0.20703125f, 0.125000f } },
+        { "ConsoleTexture03", true, { 0.512f, 0.000f, 0.256f, 0.032f }, { 0.00000000f, 0.000000f, 1.00000000f, 0.125000f } },
+        { "ConsoleTexture04", true, { 0.768f, 0.000f, 0.032f, 0.032f }, { 0.00000000f, 0.000000f, 1.00000000f, 0.125000f } },
+        { "ConsoleTexture01", true, { 0.000f, 0.424f, 0.256f, 0.176f }, { 0.00000000f, 0.312500f, 1.00000000f, 0.687500f } },
+        { "ConsoleTexture02", true, { 0.256f, 0.450f, 0.256f, 0.150f }, { 0.00000000f, 0.414062f, 1.00000000f, 0.585938f } },
+        { "ConsoleTexture03", true, { 0.512f, 0.424f, 0.256f, 0.176f }, { 0.00000000f, 0.312500f, 1.00000000f, 0.687500f } },
+        { "ConsoleTexture04", true, { 0.768f, 0.424f, 0.032f, 0.176f }, { 0.00000000f, 0.312500f, 1.00000000f, 0.687500f } },
+    };
+
+    FOR_LOOP(i, sizeof(parts) / sizeof(parts[0])) {
+        UI_DrawConsoleBackdropPart(&parts[i]);
+    }
+}
+
 static void UI_DrawConsoleMinimap(void) {
     LPRENDERER renderer = uiimport.GetRenderer ? uiimport.GetRenderer() : NULL;
     RECT const rect = { 0.0070f, 0.4525f, 0.1395f, 0.1395f };
@@ -386,44 +440,6 @@ static void UI_DrawCinematicPanel(LPCPLAYER ps) {
     }
 }
 
-/* Text sanitization — replaces whitespace with spaces (inlined from CM_Sanitize*) */
-void UI_SanitizeMapListField(LPSTR text) {
-    if (!text) return;
-    for (LPSTR p = text; *p; p++) {
-        if (*p == '\n' || *p == '\r' || *p == '\t') *p = ' ';
-    }
-}
-
-void UI_SanitizeMapInfoText(LPSTR text) {
-    if (!text) return;
-    for (LPSTR p = text; *p; p++) {
-        if (*p == '\t') *p = ' ';
-    }
-}
-
-LPCSTR UI_MapTilesetName(BYTE tileset) {
-    switch (tileset) {
-        case 'A': return "Ashenvale"; case 'B': return "Barrens";
-        case 'C': return "Felwood"; case 'D': return "Dungeon";
-        case 'F': return "Lordaeron Fall"; case 'G': return "Underground";
-        case 'I': return "Icecrown Glacier"; case 'J': return "Dalaran";
-        case 'K': return "Black Citadel"; case 'L': return "Lordaeron Summer";
-        case 'N': return "Northrend"; case 'O': return "Outland";
-        case 'Q': return "Village Fall"; case 'V': return "Village";
-        case 'W': return "Lordaeron Winter"; case 'X': return "Kalimdor";
-        case 'Y': return "Blackrock"; case 'Z': return "Dungeon";
-        default: return "Unknown";
-    }
-}
-
-LPCSTR UI_MapSizeName(DWORD width, DWORD height) {
-    DWORD largest = MAX(width, height);
-    if (largest <= 96) return "Small";
-    if (largest <= 128) return "Medium";
-    if (largest <= 160) return "Large";
-    return "Huge";
-}
-
 static LPCSTR UI_CsvField(LPCSTR text, DWORD index, LPSTR out, DWORD out_size) {
     DWORD field = 0;
     DWORD len = 0;
@@ -451,7 +467,7 @@ static LPCSTR UI_CsvField(LPCSTR text, DWORD index, LPSTR out, DWORD out_size) {
 }
 
 static LPCSTR UI_LoadingMapPath(void) {
-    LPCSTR path = ui_state.loading_map;
+    LPCSTR path = uiimport.GetLoadingMap ? uiimport.GetLoadingMap() : NULL;
 
     if (path && *path) {
         return path;
@@ -469,10 +485,13 @@ static DWORD UI_LoadCampaignLoadingModel(DWORD campaign_background, DWORD *seque
     if (sequence_index) {
         *sequence_index = 0;
     }
+    if (!uiimport.ReadConfig || !uiimport.FindSheetCell) {
+        return 0;
+    }
 
-    world_edit_data = FS_ParseINI("UI\\WorldEditData.txt");
+    world_edit_data = uiimport.ReadConfig("UI\\WorldEditData.txt");
     snprintf(key, sizeof(key), "%02u", (unsigned)campaign_background);
-    row = FS_FindSheetCell(world_edit_data, "LoadingScreens", key);
+    row = uiimport.FindSheetCell(world_edit_data, "LoadingScreens", key);
     UI_CsvField(row, 1, sequence, sizeof(sequence));
     UI_CsvField(row, 2, model, sizeof(model));
     if (sequence_index && sequence[0]) {
@@ -492,7 +511,9 @@ static DWORD UI_CustomLoadingModel(LPCMAPINFO info) {
         return 0;
     }
     snprintf(model, sizeof(model), "%s", info->loadingScreenModel);
-    UI_SanitizeMapInfoText(model);
+    if (uiimport.SanitizeMapInfoText) {
+        uiimport.SanitizeMapInfoText(model);
+    }
     return model[0] ? UI_LoadModel(model, false) : 0;
 }
 
@@ -510,24 +531,30 @@ static void UI_UpdateLoadingMapInfo(void) {
     memset(&loading_state, 0, sizeof(loading_state));
     snprintf(loading_state.map, sizeof(loading_state.map), "%s", map_path);
 
-    if (uiimport.ReadMapInfo(map_path, &info)) {
-        uiimport.ResolveMapInfoString(&info, info.loadingScreenTitle, loading_state.title, sizeof(loading_state.title));
-        if (!loading_state.title[0]) {
-            uiimport.ResolveMapInfoString(&info, info.mapName, loading_state.title, sizeof(loading_state.title));
+    if (uiimport.ReadMapInfo && uiimport.ReadMapInfo(map_path, &info)) {
+        if (uiimport.ResolveMapInfoString) {
+            uiimport.ResolveMapInfoString(&info, info.loadingScreenTitle, loading_state.title, sizeof(loading_state.title));
+            if (!loading_state.title[0]) {
+                uiimport.ResolveMapInfoString(&info, info.mapName, loading_state.title, sizeof(loading_state.title));
+            }
+            uiimport.ResolveMapInfoString(&info, info.loadingScreenSubtitle, loading_state.subtitle, sizeof(loading_state.subtitle));
+            uiimport.ResolveMapInfoString(&info, info.loadingScreenText, loading_state.text, sizeof(loading_state.text));
         }
-        uiimport.ResolveMapInfoString(&info, info.loadingScreenSubtitle, loading_state.subtitle, sizeof(loading_state.subtitle));
-        uiimport.ResolveMapInfoString(&info, info.loadingScreenText, loading_state.text, sizeof(loading_state.text));
-        UI_SanitizeMapInfoText(loading_state.title);
-        UI_SanitizeMapInfoText(loading_state.subtitle);
-        UI_SanitizeMapInfoText(loading_state.text);
+        if (uiimport.SanitizeMapInfoText) {
+            uiimport.SanitizeMapInfoText(loading_state.title);
+            uiimport.SanitizeMapInfoText(loading_state.subtitle);
+            uiimport.SanitizeMapInfoText(loading_state.text);
+        }
         background_model = UI_CustomLoadingModel(&info);
         if (!background_model && info.campaignBackgroundNumber != (DWORD)-1) {
             background_model = UI_LoadCampaignLoadingModel(info.campaignBackgroundNumber, &background_sequence);
         }
-        uiimport.FreeMapInfo(&info);
+        if (uiimport.FreeMapInfo) {
+            uiimport.FreeMapInfo(&info);
+        }
     }
 
-    if (!loading_state.title[0]) {
+    if (!loading_state.title[0] && uiimport.DefaultMapName) {
         uiimport.DefaultMapName(map_path, loading_state.title, sizeof(loading_state.title));
     }
 
@@ -547,7 +574,7 @@ static void UI_InitLoadingScreen(void) {
 }
 
 static void UI_DrawLoadingScreen(void) {
-    FLOAT loading_progress = ui_state.loading_progress;
+    FLOAT loading_progress = uiimport.GetLoadingProgress ? uiimport.GetLoadingProgress() : 0.0f;
 
     UI_UpdateLoadingMapInfo();
 
@@ -557,12 +584,12 @@ static void UI_DrawLoadingScreen(void) {
     if (loading_screen.LoadingBackground) {
         snprintf(loading_screen.LoadingBackground->TextStorage, sizeof(loading_screen.LoadingBackground->TextStorage), "#!%u",
                  (unsigned)loading_state.background_sequence);
-        loading_screen.LoadingBackground->base.text = loading_screen.LoadingBackground->TextStorage;
+        loading_screen.LoadingBackground->Text = loading_screen.LoadingBackground->TextStorage;
         loading_screen.LoadingBackground->Portrait.model = loading_state.background_model;
     }
     if (loading_screen.LoadingBar) {
         snprintf(loading_screen.LoadingBar->TextStorage, sizeof(loading_screen.LoadingBar->TextStorage), "#0@%.4f", loading_progress);
-        loading_screen.LoadingBar->base.text = loading_screen.LoadingBar->TextStorage;
+        loading_screen.LoadingBar->Text = loading_screen.LoadingBar->TextStorage;
         loading_screen.LoadingBar->Portrait.model = loading_state.progress_model;
     }
     if (loading_screen.LoadingTitleText) {
@@ -578,22 +605,13 @@ static void UI_DrawLoadingScreen(void) {
     UI_DrawFrame(loading_screen.Loading);
 }
 
-/* Last mouse position in FDF coords — set by UI_MouseEventLocal, read by draw helpers */
-static VECTOR2 ui_last_mouse_fdf;
-
 VECTOR2 UI_MouseToFdf(void) {
-    return ui_last_mouse_fdf;
+    return uiimport.GetMouseFdf ? uiimport.GetMouseFdf() : MAKE(VECTOR2, 0, 0);
 }
 
 BOOL UI_MouseContains(LPCRECT rect) {
     VECTOR2 const mouse = UI_MouseToFdf();
     return Rect_contains(rect, &mouse);
-}
-
-void UI_SetLoadingState(LPCSTR map, LPCSTR status, FLOAT progress) {
-    if (map) snprintf(ui_state.loading_map, sizeof(ui_state.loading_map), "%s", map);
-    if (status) snprintf(ui_state.loading_status, sizeof(ui_state.loading_status), "%s", status);
-    ui_state.loading_progress = progress;
 }
 
 void UI_InitLocal(void) {
@@ -622,7 +640,6 @@ void UI_InitLocal(void) {
     UI_ParseFDF("UI\\FrameDef\\Glue\\PlayerSlot.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\GameChatroom.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\Loading.fdf");
-    UI_ParseFDF("UI\\FrameDef\\UI\\ConsoleUI.fdf");
     UI_ParseFDF("UI\\FrameDef\\UI\\ResourceBar.fdf");
     UI_ParseFDF("UI\\FrameDef\\UI\\CinematicPanel.fdf");
     UI_InitLoadingScreen();
@@ -658,50 +675,13 @@ void UI_RefreshLocal(DWORD msec) {
     if (!ui_state.active) {
         return;
     }
+    
     ui_state.time += msec;
+    
+    /* Call current screen refresh */
     uiScreen_t *screen = UI_GetCurrentScreen();
     if (screen && screen->refresh) {
         screen->refresh((int)msec);
-    }
-    /* Overlay visibility and text updates — DLL owns this, client owns draw */
-    if (ui_state.game_mode) {
-        LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
-        if (loading_screen.Loading) UI_SetHidden(loading_screen.Loading, !UI_LoadingActive(ps));
-        if (UI_LoadingActive(ps)) {
-            UI_UpdateLoadingMapInfo();
-            FLOAT lp = ui_state.loading_progress;
-            if (loading_screen.LoadingBackground) {
-                snprintf(loading_screen.LoadingBackground->TextStorage, sizeof(loading_screen.LoadingBackground->TextStorage), "#!%u", (unsigned)loading_state.background_sequence);
-                loading_screen.LoadingBackground->base.text = loading_screen.LoadingBackground->TextStorage;
-                loading_screen.LoadingBackground->Portrait.model = loading_state.background_model;
-            }
-            if (loading_screen.LoadingBar) {
-                snprintf(loading_screen.LoadingBar->TextStorage, sizeof(loading_screen.LoadingBar->TextStorage), "#0@%.4f", lp);
-                loading_screen.LoadingBar->base.text = loading_screen.LoadingBar->TextStorage;
-                loading_screen.LoadingBar->Portrait.model = loading_state.progress_model;
-            }
-            if (loading_screen.LoadingTitleText) UI_SetTextPointer(loading_screen.LoadingTitleText, loading_state.title);
-            if (loading_screen.LoadingSubtitleText) UI_SetTextPointer(loading_screen.LoadingSubtitleText, loading_state.subtitle);
-            if (loading_screen.LoadingText) UI_SetTextPointer(loading_screen.LoadingText, loading_state.text);
-        }
-        if (cinematic_panel.CinematicPanel) UI_SetHidden(cinematic_panel.CinematicPanel, !UI_CinematicActive(ps));
-        if (UI_CinematicActive(ps) && ps) {
-            if (cinematic_panel.CinematicSpeakerText) UI_SetTextPointer(cinematic_panel.CinematicSpeakerText, ps->texts[PLAYERTEXT_SPEAKER] ? ps->texts[PLAYERTEXT_SPEAKER] : "");
-            if (cinematic_panel.CinematicDialogueText) UI_SetTextPointer(cinematic_panel.CinematicDialogueText, ps->texts[PLAYERTEXT_DIALOGUE] ? ps->texts[PLAYERTEXT_DIALOGUE] : "");
-        }
-        if (resource_bar.ResourceBarFrame) {
-            UI_SetHidden(resource_bar.ResourceBarFrame, false);
-            if (ps) {
-                if (resource_bar.ResourceBarGoldText) UI_SetText(resource_bar.ResourceBarGoldText, "%u", (unsigned)ps->stats[PLAYERSTATE_RESOURCE_GOLD]);
-                if (resource_bar.ResourceBarLumberText) UI_SetText(resource_bar.ResourceBarLumberText, "%u", (unsigned)ps->stats[PLAYERSTATE_RESOURCE_LUMBER]);
-                if (resource_bar.ResourceBarSupplyText) UI_SetText(resource_bar.ResourceBarSupplyText, "%u/%u", (unsigned)ps->stats[PLAYERSTATE_RESOURCE_FOOD_USED], (unsigned)ps->stats[PLAYERSTATE_RESOURCE_FOOD_CAP]);
-                if (resource_bar.ResourceBarUpkeepText) UI_SetText(resource_bar.ResourceBarUpkeepText, "UPKEEP_NONE");
-            }
-        }
-    } else {
-        if (loading_screen.Loading) UI_SetHidden(loading_screen.Loading, true);
-        if (cinematic_panel.CinematicPanel) UI_SetHidden(cinematic_panel.CinematicPanel, true);
-        if (resource_bar.ResourceBarFrame) UI_SetHidden(resource_bar.ResourceBarFrame, true);
     }
 }
 
@@ -719,10 +699,7 @@ void UI_DrawFrameLocal(void) {
         } else if (UI_CinematicActive(ps)) {
             UI_DrawCinematicPanel(ps);
         } else {
-            LPFRAMEDEF consoleui = UI_FindFrame("ConsoleUI");
-            if (consoleui) {
-                UI_DrawFrame(consoleui);
-            }
+            UI_DrawConsoleBackdropOnly();
             UI_DrawConsoleMinimap();
             UI_DrawResourceBar();
         }
@@ -732,6 +709,7 @@ void UI_DrawFrameLocal(void) {
             screen->draw();
         }
     }
+    UI_LayoutDrawOverlays();
 }
 
 void UI_KeyEventLocal(int key, BOOL down, DWORD time) {
@@ -784,22 +762,19 @@ void UI_MouseEventLocal(int x, int y, int button, BOOL down) {
     if (!ui_state.active) {
         return;
     }
-    VECTOR2 fdf = UI_PixelToFdf(x, y);
-    ui_last_mouse_fdf = fdf;
-    /* Track mouse position for layout system */
-    UI_LayoutSetMouseState(fdf, down && button == 1);
 
+    VECTOR2 fdf = UI_PixelToFdf(x, y);
     LPCFRAMEDEF hit = UI_HitTest(fdf.x, fdf.y);
 
     /* Dispatch to per-type event handler */
-    if (hit && hit->base.on_event) {
-        hit->base.on_event((struct uiBaseFrame_s *)hit, fdf.x, fdf.y, button, down);
+    if (hit && hit->event_handler) {
+        hit->event_handler((LPFRAMEDEF)hit, fdf.x, fdf.y, button, down);
     }
 
     /* Global: editbox clear focus on miss (LEFT_DOWN outside any editbox) */
     if (down && button == 1) {
-        BOOL hit_editbox = hit && (hit->base.type == FT_EDITBOX || hit->base.type == FT_GLUEEDITBOX ||
-                                   hit->base.type == FT_SLASHCHATBOX);
+        BOOL hit_editbox = hit && (hit->Type == FT_EDITBOX || hit->Type == FT_GLUEEDITBOX ||
+                                   hit->Type == FT_SLASHCHATBOX);
         if (!hit_editbox) {
             UI_EditboxClearFocusOnMiss();
         }
@@ -1023,10 +998,6 @@ static void UI_UpdateLobbySetupLocal(lobbyState_t const *state) {
 }
 
 /* Export function table */
-static DWORD UI_WC3GetNumFrames(void) {
-    return MAX_UI_CLASSES;
-}
-
 uiExport_t UI_GetAPI(uiImport_t import) {
     uiimport = import;
     
@@ -1036,7 +1007,7 @@ uiExport_t UI_GetAPI(uiImport_t import) {
     exp.Init = UI_InitLocal;
     exp.Shutdown = UI_ShutdownLocal;
     exp.Refresh = UI_RefreshLocal;
-    exp.SetLoadingState = UI_SetLoadingState;
+    exp.DrawFrame = UI_DrawFrameLocal;
     exp.KeyEvent = UI_KeyEventLocal;
     exp.TextInput = UI_TextInputLocal;
     exp.MouseEvent = UI_MouseEventLocal;
@@ -1045,9 +1016,6 @@ uiExport_t UI_GetAPI(uiImport_t import) {
     exp.SetLayoutLayer = UI_LayoutSetLayer;
     exp.ClearLayoutLayer = UI_LayoutClearLayer;
     exp.HitTestLayout = UI_LayoutHitTest;
-    exp.frame_size = sizeof(FRAMEDEF);
-    exp.frames = frames;
-    exp.GetNumFrames = UI_WC3GetNumFrames;
     
     return exp;
 }

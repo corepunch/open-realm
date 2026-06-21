@@ -47,20 +47,10 @@ void SCR_UpdateScreen(DWORD msec) {
     V_RenderView();
 
 #ifndef SC2
-    /* Client-owned UI frame rendering — iterate root frames only */
-    if (ui.frames && ui.frame_size > 0 && ui.GetNumFrames) {
-        DWORD nf = ui.GetNumFrames();
-        for (DWORD i = 0; i < nf; i++) {
-            LPUIBASEFRAME f = (LPUIBASEFRAME)((char *)ui.frames + i * ui.frame_size);
-            if (!f || f->hidden || (f->ui_flags & UIFLAG_HIDDEN)) continue;
-            if (f->parent_index != (DWORD)-1) continue;
-            if (f->on_draw) f->on_draw(f, &f->screen_rect);
-        }
+    if (ui.DrawFrame) {
+        ui.DrawFrame();
     }
 #endif
-
-    /* Client-owned layout frame rendering — server-authored HUD */
-    CL_LayoutDrawOverlays();
 
     CON_DrawConsole();
     if (Cvar_Integer("scr_showfps", 0)) {

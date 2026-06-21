@@ -100,7 +100,7 @@ static void LAN_SetMapDisplayName(uiMapListItem_t *item,
     char loading_subtitle[96];
 
     uiimport.ResolveMapInfoString(info, info ? info->mapName : NULL, name, sizeof(name));
-    UI_SanitizeMapListField(name);
+    uiimport.SanitizeMapListField(name);
     if (name[0]) {
         LAN_CopyString(item->name, sizeof(item->name), name);
     }
@@ -113,9 +113,9 @@ static void LAN_SetMapDisplayName(uiMapListItem_t *item,
     uiimport.ResolveMapInfoString(info, info ? info->mapDescription : NULL, description, sizeof(description));
     uiimport.ResolveMapInfoString(info, info ? info->loadingScreenTitle : NULL, loading_title, sizeof(loading_title));
     uiimport.ResolveMapInfoString(info, info ? info->loadingScreenSubtitle : NULL, loading_subtitle, sizeof(loading_subtitle));
-    UI_SanitizeMapListField(description);
-    UI_SanitizeMapListField(loading_title);
-    UI_SanitizeMapListField(loading_subtitle);
+    uiimport.SanitizeMapListField(description);
+    uiimport.SanitizeMapListField(loading_title);
+    uiimport.SanitizeMapListField(loading_subtitle);
 
     if (loading_title[0] && loading_subtitle[0]) {
         LAN_CopyTitleSubtitle(item->name, sizeof(item->name), loading_title, loading_subtitle);
@@ -144,9 +144,9 @@ static BOOL LAN_ParseMapInfo(uiMapListItem_t *item) {
     LPCSTR tileset;
 
     if (!item || !uiimport.ReadMapInfo || !uiimport.FreeMapInfo ||
-        !uiimport.ResolveMapInfoString || !UI_MapTilesetName ||
-        !UI_MapSizeName || !uiimport.MapNameMatchesFile ||
-        !UI_SanitizeMapListField || !UI_SanitizeMapInfoText) {
+        !uiimport.ResolveMapInfoString || !uiimport.MapTilesetName ||
+        !uiimport.MapSizeName || !uiimport.MapNameMatchesFile ||
+        !uiimport.SanitizeMapListField || !uiimport.SanitizeMapInfoText) {
         return false;
     }
     if (!uiimport.ReadMapInfo(item->path, &info)) {
@@ -156,10 +156,10 @@ static BOOL LAN_ParseMapInfo(uiMapListItem_t *item) {
     LAN_SetMapDisplayName(item, &info);
     uiimport.ResolveMapInfoString(&info, info.mapDescription, item->description, sizeof(item->description));
     uiimport.ResolveMapInfoString(&info, info.playersRecommended, item->suggestedPlayers, sizeof(item->suggestedPlayers));
-    UI_SanitizeMapInfoText(item->description);
-    UI_SanitizeMapInfoText(item->suggestedPlayers);
-    snprintf(item->mapSize, sizeof(item->mapSize), "%s", UI_MapSizeName(info.playableArea.width, info.playableArea.height));
-    tileset = UI_MapTilesetName((BYTE)info.mainGroundType);
+    uiimport.SanitizeMapInfoText(item->description);
+    uiimport.SanitizeMapInfoText(item->suggestedPlayers);
+    snprintf(item->mapSize, sizeof(item->mapSize), "%s", uiimport.MapSizeName(info.playableArea.width, info.playableArea.height));
+    tileset = uiimport.MapTilesetName((BYTE)info.mainGroundType);
     snprintf(item->tileset, sizeof(item->tileset), "%s", tileset ? tileset : UI_GetString("UNKNOWNMAP_TILESET"));
     item->flags = info.flags;
     item->players = MIN(LAN_CountMapPlayers(&info), 16);
@@ -192,7 +192,7 @@ static void LAN_AddMap(LPCSTR path) {
             *p = '\\';
         }
     }
-    if (1) {
+    if (uiimport.DefaultMapName) {
         uiimport.DefaultMapName(item->path, item->name, sizeof(item->name));
     } else {
         LAN_CopyString(item->name, sizeof(item->name), item->path);
@@ -305,7 +305,7 @@ void LAN_ApplyPlayerName(void) {
         text = LAN_PLAYER_NAME_DEFAULT;
         UI_SetEditValue(lan.join_frames.PlayerNameEditBox, text);
     }
-    if (1) {
+    if (uiimport.Cvar_Set) {
         uiimport.Cvar_Set("name", text);
     }
 }
@@ -466,11 +466,11 @@ static void LAN_CopyGame(uiMapListItem_t *item, const uiLanGame_t *game, DWORD i
 static void LAN_LoadGames(void) {
     DWORD count;
 
-    if (!uiimport.LAN_NumServers || !uiimport.LAN_Server) {
+    if (!uiimport.LANNumServers || !uiimport.LANServer) {
         return;
     }
 
-    count = uiimport.LAN_NumServers();
+    count = uiimport.LANNumServers();
     if (count > UI_MAX_MAP_LIST_ITEMS) {
         count = UI_MAX_MAP_LIST_ITEMS;
     }
@@ -478,7 +478,7 @@ static void LAN_LoadGames(void) {
         uiLanGame_t game;
         uiMapListItem_t *item;
 
-        if (!uiimport.LAN_Server(i, &game)) {
+        if (!uiimport.LANServer(i, &game)) {
             continue;
         }
         if (i >= lan.games.count) {
@@ -522,10 +522,10 @@ static void LAN_UpdateBrowserControls(void) {
     item = &lan.games.items[lan.games.selected];
     LAN_SetTextIfPresent(lan.join_frames.GameCreatorValue, "%s", item->name);
     LAN_SetTextIfPresent(lan.join_frames.GameSpeedValue, "%s", LAN_GameSpeedValueText(2));
-    if (1) {
+    if (uiimport.LANServer) {
         uiLanGame_t game;
 
-        if (uiimport.LAN_Server(item->flags, &game)) {
+        if (uiimport.LANServer(item->flags, &game)) {
             LAN_SetTextIfPresent(lan.join_frames.GameSpeedValue, "%s", LAN_GameSpeedValueText(game.speed));
         }
     }
@@ -554,8 +554,8 @@ static void LAN_UpdateControls(void) {
 }
 
 static void LAN_RequestServerRefresh(void) {
-    if (1) {
-        uiimport.LAN_RefreshServers();
+    if (uiimport.LANRefreshServers) {
+        uiimport.LANRefreshServers();
     }
 }
 
@@ -753,9 +753,9 @@ void LAN_StartSelectedMap(void) {
     if (!LAN_SelectedMapPath()) {
         return;
     }
-    if (1) {
+    if (uiimport.Cvar_Set) {
         uiimport.Cvar_Set("connect", "");
-    } else if (1) {
+    } else if (uiimport.Cmd_ExecuteText) {
         uiimport.Cmd_ExecuteText("seta connect \"\"\n");
     }
     UI_ShowGameSetupMenu();
@@ -784,14 +784,14 @@ void LAN_SelectMapIndex(DWORD index) {
 }
 
 void LAN_JoinSelectedGame(void) {
-    if (!lan.ready || lan.mode != LAN_MODE_BROWSER || !uiimport.LAN_ConnectServer) {
+    if (!lan.ready || lan.mode != LAN_MODE_BROWSER || !uiimport.LANConnectServer) {
         return;
     }
     if (lan.games.count == 0 || lan.games.selected >= lan.games.count) {
         return;
     }
     LAN_ApplyPlayerName();
-    uiimport.LAN_ConnectServer(lan.games.items[lan.games.selected].flags);
+    uiimport.LANConnectServer(lan.games.items[lan.games.selected].flags);
 }
 
 void LAN_ShowBrowser(void) {
