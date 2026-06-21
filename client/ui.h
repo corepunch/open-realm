@@ -177,10 +177,33 @@ typedef struct {
     void (*DrawOverlays)(void);
     void (*LayoutMouseEvent)(uiMouseEvent_t event, int x, int y, int32_t param);
     void (*DrawLoadingScreen)(LPCSTR map, LPCSTR status, FLOAT progress);
+
+    /* Frame data — client iterates by stride, game-specific struct extends uiBaseFrame_t */
+    size_t  frame_size;
+    void   *frames;
+    DWORD  (*GetNumFrames)(void);
 } uiExport_t;
 
 /* Entry point called by the client to get the UI function table.
  * The client must fill the uiImport_t struct before calling this. */
 uiExport_t UI_GetAPI(uiImport_t uiimport);
+
+/* Shared uiBaseFrame helpers — work on both WC3 and WoW frames.
+ * Game code embeds uiBaseFrame_t as first member and casts as needed. */
+static inline BOOL UI_BaseIsVisible(LPCUIBASEFRAME frame) {
+    return frame && !frame->hidden && !(frame->ui_flags & (UIFLAG_HIDDEN | UIFLAG_HIDDEN_IN_HIERARCHY));
+}
+
+static inline void UI_BaseSetHidden(LPUIBASEFRAME frame, BOOL hidden) {
+    if (frame) {
+        if (hidden) frame->ui_flags |= UIFLAG_HIDDEN;
+        else frame->ui_flags &= ~UIFLAG_HIDDEN;
+        frame->hidden = hidden;
+    }
+}
+
+static inline void UI_BaseSetSize(LPUIBASEFRAME frame, FLOAT w, FLOAT h) {
+    if (frame) { frame->size.width = w; frame->size.height = h; }
+}
 
 #endif

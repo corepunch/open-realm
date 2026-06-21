@@ -75,6 +75,7 @@ typedef struct {
 } gameSetupState_t;
 
 static gameSetupState_t setup;
+static LPFRAMEDEF setup_bg, setup_left_panel, setup_right_panel;
 
 static DWORD GameSetup_CountPlayers(LPCMAPINFO info);
 static void GameSetup_PublishLobby(void);
@@ -911,6 +912,9 @@ static void GameSetup_Init(void) {
     if (!setup.ready) {
         return;
     }
+    UI_SpawnGlueSceneFrames(setup.root, "MultiplayerPreGameChat Stand", "MultiplayerPreGameChat Stand",
+                            &setup_bg, &setup_left_panel, &setup_right_panel);
+    UI_SetHidden(setup.root, false);
     GameSetup_LoadSelectedMap();
     GameSetup_SetTextIfPresent(setup.game_name, "%s", setup.map_name[0] ? setup.map_name : "Local Game");
     GameSetup_UpdateMapInfo();
@@ -920,6 +924,7 @@ static void GameSetup_Init(void) {
 }
 
 static void GameSetup_Shutdown(void) {
+    UI_SetHidden(setup.root, true);
 }
 
 static void GameSetup_Refresh(int msec) {
@@ -931,7 +936,6 @@ static void GameSetup_Draw(void) {
         return;
     }
 
-    UI_DrawGlueScene("MultiplayerPreGameChat Stand");
     UI_DrawFrame(setup.root);
 }
 

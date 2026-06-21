@@ -26,9 +26,7 @@ static DWORD cl_last_packet_time = 0;
 static DWORD cl_realtime = 0;
 
 void Cmd_ForwardToServer(LPCSTR text) {
-    if (cls.state <= ca_connected || *text == '-' || *text == '+') {
-        fprintf(stderr, "Unknown command \"%s\"\n", text);
-        CON_printf("Unknown command \"%s\"", text);
+    if (cls.state <= ca_connected) {
         return;
     }
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
@@ -132,7 +130,7 @@ void CL_Disconnect(LPCSTR reason, BOOL notify) {
     if (notify) {
         CL_MenuCommand("menu_disconnected");
     } else {
-        CL_MenuCommand("menu_main");
+    CL_MenuCommand("menu_login");
     }
 }
 
@@ -304,6 +302,35 @@ static LPRENDERER CL_UIGetRenderer(void) {
 /* Time access callback for UI build queues */
 static DWORD CL_UIGetTime(void) {
     return cl_realtime;
+}
+
+/* Client-side UI hit testing — walks frame array owned by the UI DLL */
+static BOOL CL_UIPointInRect(FLOAT x, FLOAT y, LPCRECT r) {
+    return r && x >= r->x && x < r->x + r->w && y >= r->y && y < r->y + r->h;
+}
+
+LPUIBASEFRAME CL_UIHitTest(FLOAT x, FLOAT y) {
+    LPUIBASEFRAME best = NULL;
+    DWORD nf = ui.GetNumFrames ? ui.GetNumFrames() : 0;
+    for (DWORD i = 0; i < nf; i++) {
+        LPUIBASEFRAME f = (LPUIBASEFRAME)((char *)ui.frames + i * ui.frame_size);
+        if (!f || f->hidden || (f->ui_flags & (UIFLAG_HIDDEN | UIFLAG_HIDDEN_IN_HIERARCHY)) || f->disabled) {
+            continue;
+        }
+        if (f->on_event && CL_UIPointInRect(x, y, &f->screen_rect)) {
+            best = f;
+        }
+    }
+    return best;
+}
+
+/* Request unit UI data (command card, inventory, build queue) */
+static void CL_UIRequestUnitUI(DWORD num_selected, DWORD *entity_nums) {
+    (void)num_selected;
+    (void)entity_nums;
+    if (1) {
+        ui.UpdateUnitUI(0, NULL);
+    }
 }
 
 #define CL_MAX_LAN_SERVERS 64
@@ -605,6 +632,8 @@ void CL_Init(void) {
     
     if (ui.Init) {
         ui.Init();
+    } else {
+        fprintf(stderr, "CL_Init: UI library has no Init function\n");
     }
 
     SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
@@ -618,7 +647,7 @@ void CL_Init(void) {
 
     CL_SetMenuBindings();
     cls.state = ca_disconnected;
-    CL_MenuCommand("menu_login");
+    CL_MenuCommand("menu_main");
 }
 
 void CL_ConnectionlessPacket(const netadr_t *from, LPSIZEBUF msg) {

@@ -10,6 +10,7 @@
 #include "../generated/esc_menu_main_panel.h"
 
 static EscMenuMainPanel_t quit_confirm;
+static LPFRAMEDEF qc_bg, qc_left_panel, qc_right_panel;
 
 static BOOL QuitConfirm_LoadScreen(void) {
     return EscMenuMainPanel_Load(&quit_confirm);
@@ -17,6 +18,8 @@ static BOOL QuitConfirm_LoadScreen(void) {
 
 static void QuitConfirm_UpdateVisibility(void) {
     if (quit_confirm.EscMenuMainPanel) {
+        UI_SpawnGlueSceneFrames(quit_confirm.EscMenuMainPanel, "MainMenu Stand", "MainMenu Stand",
+                                &qc_bg, &qc_left_panel, &qc_right_panel);
         UI_SetHidden(quit_confirm.EscMenuMainPanel, false);
     }
     if (quit_confirm.MainPanel) {
@@ -73,7 +76,6 @@ static void QuitConfirm_Refresh(int msec) {
 }
 
 static void QuitConfirm_Draw(void) {
-    UI_DrawGlueScene("MainMenu Stand");
     if (quit_confirm.EscMenuMainPanel) {
         UI_DrawFrame(quit_confirm.EscMenuMainPanel);
     }

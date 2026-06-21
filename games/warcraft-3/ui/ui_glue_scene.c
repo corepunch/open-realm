@@ -13,7 +13,7 @@ typedef struct {
 
 static uiGlueSceneState_t ui_glue_scene;
 
-static LPCSTR UI_GlueBackgroundPath(void) {
+LPCSTR UI_GlueBackgroundPath(void) {
     LPCSTR model = Theme_String("GlueSpriteLayerBackground", "Default");
 
     if (!model || !*model || !strcmp(model, "GlueSpriteLayerBackground")) {
@@ -25,11 +25,11 @@ static LPCSTR UI_GlueBackgroundPath(void) {
     return model;
 }
 
-static LPCSTR UI_GlueTopLeftPanelPath(void) {
+LPCSTR UI_GlueTopLeftPanelPath(void) {
     return Theme_String("GlueSpriteLayerTopLeft", "UI\\Glues\\SpriteLayers\\TopLeftPanel.mdx");
 }
 
-static LPCSTR UI_GlueTopRightPanelPath(void) {
+LPCSTR UI_GlueTopRightPanelPath(void) {
     return Theme_String("GlueSpriteLayerTopRight", "UI\\Glues\\SpriteLayers\\TopRightPanel.mdx");
 }
 
@@ -92,4 +92,49 @@ void UI_DrawGlueSceneLayers(LPCSTR left_panel_anim, LPCSTR right_panel_anim) {
 
 void UI_DrawGlueScene(LPCSTR panel_anim) {
     UI_DrawGlueSceneLayers(panel_anim, panel_anim);
+}
+
+/* Spawn background + side-panel frames as children of root (idempotent).
+ * left_anim / right_anim are the animation names (may be equal). */
+void UI_SpawnGlueSceneFrames(LPFRAMEDEF root, LPCSTR left_anim, LPCSTR right_anim,
+                              LPFRAMEDEF *out_bg, LPFRAMEDEF *out_left, LPFRAMEDEF *out_right) {
+    if (!root) return;
+
+    if (out_bg && !*out_bg) {
+        LPFRAMEDEF f = UI_Spawn(FT_MODEL, root);
+        if (f) {
+            /* Full-screen viewport: anchor TOPLEFT to scene, size 1×1 (RenderFrame uses 0..1 normalized). */
+            UI_SetPoint(f, FRAMEPOINT_TOPLEFT, NULL, FRAMEPOINT_TOPLEFT, 0.0f, 0.0f);
+            UI_SetSize(f, 1.0f, 1.0f);
+            f->Portrait.model = UI_LoadModel(UI_GlueBackgroundPath(), false);
+            UI_SetTextPointer(f, left_anim);
+        }
+        *out_bg = f;
+    }
+    if (out_left && !*out_left) {
+        LPFRAMEDEF f = UI_Spawn(FT_SPRITE, root);
+        if (f) {
+            UI_SetAllPoints(f);
+            f->Portrait.model = UI_LoadModel(UI_GlueTopLeftPanelPath(), false);
+            UI_SetTextPointer(f, left_anim);
+        }
+        *out_left = f;
+    }
+    if (out_right && !*out_right) {
+        LPFRAMEDEF f = UI_Spawn(FT_SPRITE, root);
+        if (f) {
+            UI_SetAllPoints(f);
+            f->Portrait.model = UI_LoadModel(UI_GlueTopRightPanelPath(), false);
+            UI_SetTextPointer(f, right_anim);
+        }
+        *out_right = f;
+    }
+}
+
+/* Update glue scene frame animations (call when scene state changes). */
+void UI_SetGlueSceneAnim(LPFRAMEDEF bg, LPFRAMEDEF left, LPFRAMEDEF right,
+                          LPCSTR left_anim, LPCSTR right_anim) {
+    if (bg)    UI_SetTextPointer(bg, left_anim);
+    if (left)  UI_SetTextPointer(left, left_anim);
+    if (right) UI_SetTextPointer(right, right_anim);
 }

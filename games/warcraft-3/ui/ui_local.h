@@ -140,6 +140,7 @@ typedef struct {
 
 /* Frame template definition (server-side/library-side only) */
 struct uiFrameDef_s {
+    uiBaseFrame_t base;            /* client-side base frame — first member for casting */
     LPCFRAMEDEF Parent;
     FRAMETYPE Type;
     UINAME Name;
@@ -352,6 +353,13 @@ void UI_ResetGlueSceneModels(void);
 void UI_PreloadGlueSceneModels(void);
 void UI_DrawGlueScene(LPCSTR panel_anim);
 void UI_DrawGlueSceneLayers(LPCSTR left_panel_anim, LPCSTR right_panel_anim);
+LPCSTR UI_GlueBackgroundPath(void);
+LPCSTR UI_GlueTopLeftPanelPath(void);
+LPCSTR UI_GlueTopRightPanelPath(void);
+void UI_SpawnGlueSceneFrames(LPFRAMEDEF root, LPCSTR left_anim, LPCSTR right_anim,
+                              LPFRAMEDEF *out_bg, LPFRAMEDEF *out_left, LPFRAMEDEF *out_right);
+void UI_SetGlueSceneAnim(LPFRAMEDEF bg, LPFRAMEDEF left, LPFRAMEDEF right,
+                          LPCSTR left_anim, LPCSTR right_anim);
 
 /* ui_fdf.c — FDF parsing (moved from game/ui/ui_fdf.c) */
 BOOL UI_EnsureFDF(LPCSTR filename);
@@ -371,7 +379,10 @@ void UI_SetPoint(LPFRAMEDEF, UIFRAMEPOINT, LPCFRAMEDEF, UIFRAMEPOINT, FLOAT, FLO
 void UI_SetTexture(LPFRAMEDEF, LPCSTR, BOOL);
 void UI_SetTexture2(LPFRAMEDEF, LPCSTR, BOOL);
 void UI_SetHidden(LPFRAMEDEF, BOOL);
+void UI_SetRootFramesHidden(BOOL);
 void UI_InheritFrom(LPFRAMEDEF, LPCSTR);
+void UI_UpdateFrameHierarchyFlags(void);
+void UI_UpdateStandaloneFrameDraws(void);
 void UI_LoadTheme(LPCSTR fileName);
 void UI_ClearTheme(void);
 void UI_MenuCommandLocal(LPCSTR command);
@@ -465,6 +476,7 @@ COLOR32 Theme_ListBoxIconTextColor(void);
 // Additional frame management functions will be declared here
 
 /* ui_render.c — Frame rendering */
+void UI_UpdateFrameScreenRects(void);
 void UI_DrawFrame(LPCFRAMEDEF frame);
 void UI_DrawFrames(LPCFRAMEDEF const *roots, DWORD num_roots);
 BOOL UI_EditKey(int key);

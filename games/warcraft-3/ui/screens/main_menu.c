@@ -23,8 +23,20 @@
 static MainMenu_t main_menu;
 static uiDialogWar3_t quit_dialog;
 
-/* State */
-static BOOL show_realm_select = false;
+/* Spawned glue scene sprite frames — background (FT_MODEL) + side panels (FT_SPRITE) */
+static LPFRAMEDEF main_menu_background;
+static LPFRAMEDEF main_menu_left_panel;
+static LPFRAMEDEF main_menu_right_panel;
+
+static void MainMenu_SpawnGlueFrames(void) {
+    UI_SpawnGlueSceneFrames(main_menu.MainMenuFrame, "MainMenu Stand", "MainMenu Stand",
+                            &main_menu_background, &main_menu_left_panel, &main_menu_right_panel);
+}
+
+static void MainMenu_SetGlueAnim(LPCSTR anim) {
+    UI_SetGlueSceneAnim(main_menu_background, main_menu_left_panel, main_menu_right_panel, anim, anim);
+}
+
 
 static BOOL MainMenu_LoadScreen(void) {
     return MainMenu_Load(&main_menu);
@@ -56,6 +68,9 @@ static void MainMenu_InitFrames(void) {
         uiimport.Printf("ERROR: MainMenuFrame not found\n");
         return;
     }
+    MainMenu_SpawnGlueFrames();
+    MainMenu_SetGlueAnim("MainMenu Stand");
+    UI_SetHidden(main_menu.MainMenuFrame, false);
 
     if (main_menu.RealmSelect) {
         UI_SetHidden(main_menu.RealmSelect, true);
@@ -100,7 +115,8 @@ static void MainMenu_Init(void) {
 }
 
 static void MainMenu_Shutdown(void) {
-    /* Nothing to clean up */
+    UI_SetHidden(main_menu.MainMenuFrame, true);
+    UI_DialogWar3Hide(&quit_dialog);
 }
 
 static void MainMenu_Refresh(int msec) {
@@ -111,8 +127,6 @@ static void MainMenu_Refresh(int msec) {
 static void MainMenu_Draw(void) {
     LPCFRAMEDEF roots[2];
     DWORD num_roots = 0;
-
-    UI_DrawGlueScene(show_realm_select ? "RealmSelection Stand" : "MainMenu Stand");
 
     if (main_menu.MainMenuFrame) {
         roots[num_roots++] = main_menu.MainMenuFrame;
@@ -132,8 +146,9 @@ static void MainMenu_KeyEvent(int key, BOOL down) {
 }
 
 void MainMenu_ShowMainPanel(void) {
-    show_realm_select = false;
     UI_DialogWar3Hide(&quit_dialog);
+    MainMenu_SetGlueAnim("MainMenu Stand");
+    UI_SetHidden(main_menu.MainMenuFrame, false);
     if (main_menu.RealmSelect) {
         UI_SetHidden(main_menu.RealmSelect, true);
     }
@@ -147,7 +162,8 @@ void MainMenu_ShowMainPanel(void) {
 
 void MainMenu_ShowRealmSelect(void) {
     UI_DialogWar3Hide(&quit_dialog);
-    show_realm_select = true;
+    MainMenu_SetGlueAnim("RealmSelection Stand");
+    UI_SetHidden(main_menu.MainMenuFrame, false);
     if (main_menu.RealmSelect) {
         UI_SetHidden(main_menu.RealmSelect, false);
     }
@@ -160,6 +176,7 @@ void MainMenu_ShowRealmSelect(void) {
 }
 
 void MainMenu_ShowQuitConfirm(void) {
+    UI_SetHidden(main_menu.MainMenuFrame, false);
     MainMenu_ShowQuitDialog();
 }
 
@@ -171,7 +188,8 @@ void MainMenu_ShowDisconnected(void) {
         .ok_command = "menu_main",
     };
 
-    show_realm_select = false;
+    MainMenu_SetGlueAnim("MainMenu Stand");
+    UI_SetHidden(main_menu.MainMenuFrame, false);
     if (main_menu.RealmSelect) {
         UI_SetHidden(main_menu.RealmSelect, true);
     }

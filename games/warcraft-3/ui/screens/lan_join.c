@@ -52,6 +52,7 @@ typedef struct lan_join_state_s {
 } lan_join_state_t;
 
 static lan_join_state_t lan;
+static LPFRAMEDEF lan_bg, lan_left_panel, lan_right_panel;
 
 static BOOL LANJoin_LoadScreen(void) {
     BOOL ok = true;
@@ -622,10 +623,19 @@ static BOOL LAN_BuildCreateFrames(void) {
 
 static void LAN_BuildFrames(lanMode_t mode) {
     lan.mode = mode;
+    UI_SetHidden(lan.join_frames.LocalMultiplayerJoin, true);
+    UI_SetHidden(lan.create_frames.LocalMultiplayerCreate, true);
     if (mode == LAN_MODE_BROWSER) {
         lan.ready = LAN_BuildBrowserFrames();
     } else {
         lan.ready = LAN_BuildCreateFrames();
+    }
+    if (lan.root) {
+        LPCSTR anim = mode == LAN_MODE_BROWSER ? "BattlenetCustom Stand" : "BattlenetCustomCreate Stand";
+        lan_bg = lan_left_panel = lan_right_panel = NULL;
+        UI_SpawnGlueSceneFrames(lan.root, anim, anim,
+                                &lan_bg, &lan_left_panel, &lan_right_panel);
+        UI_SetHidden(lan.root, false);
     }
 }
 
@@ -647,6 +657,8 @@ static void LANJoin_Init(void) {
 }
 
 static void LANJoin_Shutdown(void) {
+    UI_SetHidden(lan.join_frames.LocalMultiplayerJoin, true);
+    UI_SetHidden(lan.create_frames.LocalMultiplayerCreate, true);
 }
 
 static void LANJoin_Refresh(int msec) {
@@ -684,9 +696,6 @@ static void LANJoin_Draw(void) {
         return;
     }
 
-    UI_DrawGlueScene(lan.mode == LAN_MODE_BROWSER
-                     ? "BattlenetCustom Stand"
-                     : "BattlenetCustomCreate Stand");
     if (lan.mode == LAN_MODE_CREATE) {
         LAN_UpdateGameSpeed();
     }
