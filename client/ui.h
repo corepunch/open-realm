@@ -158,7 +158,6 @@ typedef struct {
     LPCTEXTURE *(*GetTextures)(void);           /* cl.pics, for inline text icons */
     LPCFONT (*GetFont)(DWORD idx);              /* cl.fonts[idx] */
     DWORD (*GetClientTime)(void);               /* cl.time */
-    BOOL (*GetMouseButtonDown)(DWORD button);   /* true while button is held */
     LPCUIFRAME (*LayoutClear)(HANDLE data);
     DWORD (*LayoutNumFrames)(void);
     LPUIFRAME (*LayoutFrame)(DWORD number);
