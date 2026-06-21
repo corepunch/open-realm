@@ -26,12 +26,11 @@ static LPCPLAYER UI_LayoutPlayerState(void) {
 }
 
 static DWORD UI_LayoutTime(void) {
-    return 0;
+    return uiimport.GetClientTime ? uiimport.GetClientTime() : 0;
 }
 
-/* Mouse position for layout hover detection — set during event handling via UIFLAG_HOVERED */
 static VECTOR2 UI_LayoutMouseToFdf(void) {
-    return MAKE(VECTOR2, 0, 0);
+    return uiimport.GetMouseFdf ? uiimport.GetMouseFdf() : MAKE(VECTOR2, 0, 0);
 }
 
 static VECTOR2 UI_LayoutScreenToFdf(int x, int y) {
@@ -75,15 +74,35 @@ static LPCFONT UI_LayoutFont(DWORD index) {
     return uiimport.GetFont ? uiimport.GetFont(index) : NULL;
 }
 
-/* Layout callback wrappers — dead code (draw moved to client).
- * Kept as stubs to allow dead code to compile. Remove when dead code is cleaned. */
-static LPCUIFRAME UI_LayoutClear(HANDLE data) { (void)data; return NULL; }
-static DWORD UI_LayoutNumFrames(void) { return 0; }
-static LPUIFRAME UI_LayoutFrame(DWORD number) { (void)number; return NULL; }
-static LPCRECT UI_LayoutLayoutRect(LPCUIFRAME frame) { (void)frame; static RECT r; return &r; }
-static LPCSTR UI_LayoutGetStringValue(LPCUIFRAME frame) { (void)frame; return ""; }
-static drawText_t UI_LayoutGetDrawText(LPCUIFRAME frame, FLOAT avl_width, LPCSTR text, uiLabel_t const *label) {
-    (void)frame; (void)label;
+static LPCUIFRAME UI_LayoutClear(HANDLE data) {
+    return uiimport.LayoutClear ? uiimport.LayoutClear(data) : NULL;
+}
+
+static DWORD UI_LayoutNumFrames(void) {
+    return uiimport.LayoutNumFrames ? uiimport.LayoutNumFrames() : 0;
+}
+
+static LPUIFRAME UI_LayoutFrame(DWORD number) {
+    return uiimport.LayoutFrame ? uiimport.LayoutFrame(number) : NULL;
+}
+
+static LPCRECT UI_LayoutLayoutRect(LPCUIFRAME frame) {
+    static RECT empty_rect;
+    LPCRECT rect = uiimport.LayoutRect ? uiimport.LayoutRect(frame) : NULL;
+    return rect ? rect : &empty_rect;
+}
+
+static LPCSTR UI_LayoutGetStringValue(LPCUIFRAME frame) {
+    return uiimport.LayoutStringValue ? uiimport.LayoutStringValue(frame) : "";
+}
+
+static drawText_t UI_LayoutGetDrawText(LPCUIFRAME frame,
+                                       FLOAT avl_width,
+                                       LPCSTR text,
+                                       uiLabel_t const *label) {
+    if (uiimport.LayoutDrawText) {
+        return uiimport.LayoutDrawText(frame, avl_width, text, label);
+    }
     return MAKE(drawText_t, .text = text, .textWidth = avl_width);
 }
 
@@ -402,7 +421,7 @@ static BOOL UI_LayoutFrameHasClickCommand(LPCUIFRAME frame) {
 static BOOL UI_LayoutGlueTextButtonIsPushed(LPCUIFRAME frame, LPCRECT screen) {
     VECTOR2 const m = UI_LayoutMouseToFdf();
     return UI_LayoutFrameHasClickCommand(frame) && Rect_contains(screen, &m) &&
-           (frame->ui_flags & UIFLAG_PRESSED);
+           uiimport.GetMouseButtonDown && uiimport.GetMouseButtonDown(1);
 }
 
 static void UI_LayoutFormatOnClickCommand(LPCSTR source, LPSTR dest, DWORD dest_size) {
@@ -590,7 +609,7 @@ void UI_LayoutDrawCommandButton(LPCUIFRAME frame, LPCRECT screen) {
     VECTOR2 const m = UI_LayoutMouseToFdf();
     RECT scrn = scale_rect(screen, 0.925);
     if (Rect_contains(screen, &m)) {
-        if (frame->ui_flags & UIFLAG_PRESSED) {
+        if (uiimport.GetMouseButtonDown && uiimport.GetMouseButtonDown(1)) {
             scrn = scale_rect(screen, 0.875);
         }
     }
@@ -832,7 +851,7 @@ void UI_LayoutDrawFrame(LPCUIFRAME frame) {
         char command[CMDARG_LEN * 2];
 
         UI_LayoutFormatOnClickCommand(frame->onclick, command, sizeof(command));
-        if (1) {
+        if (uiimport.ServerCommand) {
             uiimport.ServerCommand(command);
         }
     }
@@ -954,8 +973,4 @@ BOOL UI_LayoutHitTest(int x, int y) {
         }
     }
     return false;
-}
-
-void UI_LayoutSetMouseState(VECTOR2 fdf_pos, BOOL button_held) {
-    (void)fdf_pos; (void)button_held;
 }

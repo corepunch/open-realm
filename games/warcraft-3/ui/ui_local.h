@@ -129,19 +129,27 @@ typedef struct {
     COLOR32 SelectedTextColor;
 } uiMapListControl_t;
 
+/* UI interaction flags for uiFrameDef_s.ui_flags */
+#define UIFLAG_PRESSED  (1 << 0)
+#define UIFLAG_HOVERED  (1 << 1)
+#define UIFLAG_CHECKED  (1 << 2)
+
 /* Frame template definition (server-side/library-side only) */
 struct uiFrameDef_s {
-    uiBaseFrame_t base;             /* shared engine frame — keep in sync with common/shared.h */
     LPCFRAMEDEF Parent;
+    FRAMETYPE Type;
     UINAME Name;
     UINAME TextStorage;
     UINAME OnClick;
-    LPCSTR Tip, Ubertip;
-    FLOAT Width, Height;           /* mirrored in base.size — kept for FDF parser offset macro */
+    LPCSTR Text, Tip, Ubertip;
+    FLOAT Width, Height;
+    COLOR32 Color;
     BLEND_MODE AlphaMode;
     BOOL DecorateFileNames;
     BOOL inuse;
     BOOL AnyPointsSet;
+    BOOL hidden;
+    BOOL disabled;
     DWORD TextLength;
     DWORD Stat;
     LPSTR DynamicText;
@@ -300,6 +308,12 @@ struct uiFrameDef_s {
         DWORD NumItems;
         uiMultiselectItem_t Items[MAX_SELECTED_ENTITIES];
     } Multiselect;
+    /* Interaction state — updated by event handler, read by draw */
+    DWORD ui_flags;
+    /* Per-type event handler: called from UI_MouseEventLocal */
+    void (*event_handler)(LPFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down);
+    /* Per-type draw function: called from UI_DrawFrameOne */
+    void (*draw)(LPCFRAMEDEF frame, LPCRECT rect);
 };
 
 /* Global parsed FDF frame table. */
@@ -322,13 +336,8 @@ typedef void *LPEDICT;
 void UI_InitLocal(void);
 void UI_ShutdownLocal(void);
 void UI_RefreshLocal(DWORD msec);
-void UI_LayoutSetMouseState(VECTOR2 fdf_pos, BOOL button_held);
-void UI_SanitizeMapListField(LPSTR text);
-void UI_SanitizeMapInfoText(LPSTR text);
-LPCSTR UI_MapTilesetName(BYTE tileset);
-LPCSTR UI_MapSizeName(DWORD width, DWORD height);
+void UI_DrawFrameLocal(void);
 void UI_LayoutDrawOverlays(void);
-void UI_LayoutSetMouseState(VECTOR2 fdf_pos, BOOL button_held);
 void UI_LayoutSetLayer(DWORD layer, HANDLE data);
 void UI_LayoutClearLayer(DWORD layer);
 BOOL UI_LayoutHitTest(int x, int y);
@@ -346,7 +355,6 @@ void UI_ParseFDF_Buffer(LPCSTR filename, LPSTR buffer);
 void UI_ClearTemplates(void);
 void UI_InitFrame(LPFRAMEDEF, FRAMETYPE);
 void UI_WireFrameTypeFunctions(LPFRAMEDEF frame);
-void UI_GenericOnDraw(struct uiBaseFrame_s *base, LPCRECT rect);
 void UI_SetAllPoints(LPFRAMEDEF);
 void UI_SetParent(LPFRAMEDEF, LPCFRAMEDEF);
 void UI_SetText(LPFRAMEDEF, LPCSTR, ...);

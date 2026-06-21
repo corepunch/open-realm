@@ -71,8 +71,8 @@ static LPFRAMEDEF OptionsMenu_EnsureEditText(LPFRAMEDEF edit, LPCSTR name) {
     template = UI_FindFrame("StandardEditBoxTextTemplate");
     if (template) {
         text->DecorateFileNames = template->DecorateFileNames;
-        text->base.size.width = template->base.size.width;
-        text->base.size.height = template->base.size.height;
+        text->Width = template->Width;
+        text->Height = template->Height;
         text->Font = template->Font;
     }
     text->Font.Justification.Horizontal = FONT_JUSTIFYLEFT;
@@ -82,7 +82,7 @@ static LPFRAMEDEF OptionsMenu_EnsureEditText(LPFRAMEDEF edit, LPCSTR name) {
 
 static LPCSTR OptionsMenu_EditText(LPFRAMEDEF edit) {
     LPFRAMEDEF text = edit ? UI_FindChildFrame(edit, edit->Edit.TextFrame) : NULL;
-    return text && text->base.text ? text->base.text : "";
+    return text && text->Text ? text->Text : "";
 }
 
 static void OptionsMenu_SetEditText(LPFRAMEDEF edit, LPCSTR text) {
@@ -175,7 +175,7 @@ static void OptionsMenu_ApplyGamePort(void) {
         return;
     }
     snprintf(command, sizeof(command), "seta game_port %d\n", port);
-    if (1) {
+    if (uiimport.Cmd_ExecuteText) {
         uiimport.Cmd_ExecuteText(command);
     }
 }

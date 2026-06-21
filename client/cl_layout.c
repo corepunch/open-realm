@@ -283,10 +283,6 @@ DWORD SCR_NumFrames(void) {
     return num_frames;
 }
 
-DWORD *SCR_NumFramesPtr(void) {
-    return &num_frames;
-}
-
 LPUIFRAME SCR_Frame(DWORD number) {
     if (number >= MAX_LAYOUT_OBJECTS) {
         return NULL;

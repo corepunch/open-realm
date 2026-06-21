@@ -135,11 +135,11 @@ static void GameSetup_PositionPopupMenuParts(LPFRAMEDEF popup) {
 
     title = UI_FindChildFrame(popup, popup->Popup.TitleFrame);
     arrow = UI_FindChildFrame(popup, popup->Popup.ArrowFrame);
-    arrow_width = arrow && arrow->base.size.width > 0.0f ? arrow->base.size.width : 0.011f;
-    title_width = popup->base.size.width - arrow_width - inset * 2.0f;
+    arrow_width = arrow && arrow->Width > 0.0f ? arrow->Width : 0.011f;
+    title_width = popup->Width - arrow_width - inset * 2.0f;
 
     if (title) {
-        UI_SetSize(title, MAX(0.0f, title_width), popup->base.size.height);
+        UI_SetSize(title, MAX(0.0f, title_width), popup->Height);
         UI_SetPoint(title, FRAMEPOINT_LEFT, popup, FRAMEPOINT_LEFT, inset, 0.0f);
     }
     if (arrow) {
@@ -153,7 +153,7 @@ static void GameSetup_SetBackdropTexture(LPFRAMEDEF frame, LPCSTR name, BOOL dec
     }
     frame->Backdrop.Background = UI_LoadTexture(name, decorate);
     frame->Backdrop.BlendAll = true;
-    frame->base.color = COLOR32_WHITE;
+    frame->Color = COLOR32_WHITE;
 }
 
 static void GameSetup_SetTextIfPresent(LPFRAMEDEF frame, LPCSTR format, ...) {
@@ -217,8 +217,8 @@ static LPFRAMEDEF GameSetup_EnsureChatText(void) {
     template = UI_FindFrame("StandardInfoTextTemplate");
     if (template) {
         setup.chat_text->DecorateFileNames = template->DecorateFileNames;
-        setup.chat_text->base.size.width = template->base.size.width;
-        setup.chat_text->base.size.height = template->base.size.height;
+        setup.chat_text->Width = template->Width;
+        setup.chat_text->Height = template->Height;
         setup.chat_text->Font = template->Font;
     }
     if (!setup.chat_text->Font.Name[0]) {
@@ -298,19 +298,19 @@ static void GameSetup_FitSlotRow(PlayerSlot_t *row) {
         UI_SetHidden(row->DownloadValue, true);
     }
     if (row->NameMenu) {
-        UI_SetSize(row->NameMenu, 0.168f, row->NameMenu->base.size.height);
+        UI_SetSize(row->NameMenu, 0.168f, row->NameMenu->Height);
         UI_SetPoint(row->NameMenu, FRAMEPOINT_LEFT, row->PlayerSlot, FRAMEPOINT_LEFT, 0.0f, 0.0f);
     }
     if (row->RaceMenu && row->NameMenu) {
-        UI_SetSize(row->RaceMenu, 0.085f, row->RaceMenu->base.size.height);
+        UI_SetSize(row->RaceMenu, 0.085f, row->RaceMenu->Height);
         UI_SetPoint(row->RaceMenu, FRAMEPOINT_LEFT, row->NameMenu, FRAMEPOINT_RIGHT, 0.0f, 0.0f);
     }
     if (row->TeamButton && row->RaceMenu) {
-        UI_SetSize(row->TeamButton, 0.085f, row->TeamButton->base.size.height);
+        UI_SetSize(row->TeamButton, 0.085f, row->TeamButton->Height);
         UI_SetPoint(row->TeamButton, FRAMEPOINT_LEFT, row->RaceMenu, FRAMEPOINT_RIGHT, 0.0f, 0.0f);
     }
     if (row->ColorButton && row->TeamButton) {
-        UI_SetSize(row->ColorButton, 0.038f, row->ColorButton->base.size.height);
+        UI_SetSize(row->ColorButton, 0.038f, row->ColorButton->Height);
         UI_SetPoint(row->ColorButton, FRAMEPOINT_LEFT, row->TeamButton, FRAMEPOINT_RIGHT, 0.0f, 0.0f);
     }
 }
@@ -367,7 +367,7 @@ static void GameSetup_BuildSlotRows(void) {
             return;
         }
         snprintf(slot->frames.PlayerSlot->Name, sizeof(slot->frames.PlayerSlot->Name), "CreateGamePlayerSlot%u", (unsigned)i);
-        UI_SetSize(slot->frames.PlayerSlot, 0.46375f, slot->frames.PlayerSlot->base.size.height > 0.0f ? slot->frames.PlayerSlot->base.size.height : 0.025f);
+        UI_SetSize(slot->frames.PlayerSlot, 0.46375f, slot->frames.PlayerSlot->Height > 0.0f ? slot->frames.PlayerSlot->Height : 0.025f);
         if (previous) {
             UI_SetPoint(slot->frames.PlayerSlot, FRAMEPOINT_TOPLEFT, previous, FRAMEPOINT_BOTTOMLEFT, 0.0f, 0.0f);
         } else {
@@ -554,7 +554,7 @@ static void GameSetup_SubmitChat(void) {
     GameSetup_AppendText(command, sizeof(command), &used, "\n");
     if (GameSetup_IsHost()) {
         uiimport.Cmd_ExecuteText(command);
-    } else if (1) {
+    } else if (uiimport.ServerCommand) {
         uiimport.ServerCommand(command);
     }
     UI_SetEditValue(setup.frames.ChatEditBox, "");
@@ -569,13 +569,13 @@ static void GameSetup_ResolveMapString(LPCSTR raw, LPSTR out, DWORD out_size) {
     if (!raw || !raw[0]) {
         return;
     }
-    if (1) {
+    if (uiimport.ResolveMapInfoString) {
         uiimport.ResolveMapInfoString(&setup.map_info, raw, out, out_size);
     } else {
         snprintf(out, out_size, "%s", raw);
     }
-    if (1) {
-        UI_SanitizeMapInfoText(out);
+    if (uiimport.SanitizeMapInfoText) {
+        uiimport.SanitizeMapInfoText(out);
     }
 }
 
@@ -803,22 +803,22 @@ static void GameSetup_UpdateMapInfo(void) {
                                   setup.map_info.playersRecommended,
                                   value,
                                   sizeof(value));
-    UI_SanitizeMapInfoText(value);
+    uiimport.SanitizeMapInfoText(value);
     GameSetup_SetTextIfPresent(setup.map_info_pane.SuggestedPlayersValue, "%s", value);
 
     GameSetup_SetTextIfPresent(setup.map_info_pane.MapSizeValue,
                                "%s",
-                               UI_MapSizeName(setup.map_info.playableArea.width,
+                               uiimport.MapSizeName(setup.map_info.playableArea.width,
                                                     setup.map_info.playableArea.height));
 
-    tileset = UI_MapTilesetName((BYTE)setup.map_info.mainGroundType);
+    tileset = uiimport.MapTilesetName((BYTE)setup.map_info.mainGroundType);
     GameSetup_SetTextIfPresent(setup.map_info_pane.MapTilesetValue, "%s", tileset ? tileset : UI_GetString("UNKNOWNMAP_TILESET"));
 
     uiimport.ResolveMapInfoString(&setup.map_info,
                                   setup.map_info.mapDescription,
                                   value,
                                   sizeof(value));
-    UI_SanitizeMapInfoText(value);
+    uiimport.SanitizeMapInfoText(value);
     GameSetup_SetTextIfPresent(setup.map_info_pane.MapDescValue, "%s", value[0] ? value : UI_GetString("UNKNOWNMAP_DESCRIPTION"));
 
     if (setup.map_info_pane.MinimapImage && uiimport.FindMapPreviewTexture) {
@@ -877,7 +877,7 @@ void GameSetup_LoadMap(LPCSTR map_path) {
     }
     snprintf(setup.map_path, sizeof(setup.map_path), "%s", map_path);
     snprintf(setup.map_name, sizeof(setup.map_name), "%s", GameSetup_BaseName(map_path));
-    if (1) {
+    if (uiimport.ReadMapInfo) {
         setup.have_map_info = uiimport.ReadMapInfo(setup.map_path, &setup.map_info);
         GameSetup_UseResolvedMapTitle();
     }

@@ -214,13 +214,9 @@ void UI_ClearTemplates(void) {
 void UI_InitFrame(LPFRAMEDEF frame, FRAMETYPE type) {
     memset(frame, 0, sizeof(FRAMEDEF));
     frame->inuse = true;
-    frame->base.type = type;
-    frame->base.color = COLOR32_WHITE;
-    frame->base.parent_index = (DWORD)-1;
-    frame->base.on_draw = UI_GenericOnDraw;
-    frame->base.size.width = 0;
-    frame->base.size.height = 0;
-    frame->base.text = frame->TextStorage;
+    frame->Type = type;
+    frame->Color = COLOR32_WHITE;
+    frame->Text = frame->TextStorage;
     switch (type) {
         case FT_TEXTURE:
         case FT_SIMPLESTATUSBAR:
@@ -338,14 +334,14 @@ static void UI_SetFrameDisplayString(LPFRAMEDEF frame, LPCSTR text) {
 
     if (!text) {
         frame->TextStorage[0] = '\0';
-        frame->base.text = frame->TextStorage;
+        frame->Text = frame->TextStorage;
         return;
     }
 
     len = strlen(text);
     if (len < sizeof(frame->TextStorage)) {
         UI_CopyDisplayString(frame->TextStorage, sizeof(frame->TextStorage), text);
-        frame->base.text = frame->TextStorage;
+        frame->Text = frame->TextStorage;
         return;
     }
 
@@ -353,30 +349,30 @@ static void UI_SetFrameDisplayString(LPFRAMEDEF frame, LPCSTR text) {
     if (frame->DynamicText) {
         memcpy(frame->DynamicText, text, len + 1);
         frame->DynamicTextCapacity = (DWORD)(len + 1);
-        frame->base.text = frame->DynamicText;
+        frame->Text = frame->DynamicText;
     } else {
         UI_CopyDisplayString(frame->TextStorage, sizeof(frame->TextStorage), text);
-        frame->base.text = frame->TextStorage;
+        frame->Text = frame->TextStorage;
     }
 }
 
 static void UI_FixCopiedFrameTextPointer(LPFRAMEDEF frame, LPCFRAMEDEF source) {
     LPCSTR copied_text;
 
-    if (!frame || !source || !source->base.text) {
+    if (!frame || !source || !source->Text) {
         return;
     }
 
-    copied_text = source->base.text;
+    copied_text = source->Text;
     frame->DynamicText = NULL;
     frame->DynamicTextCapacity = 0;
 
     if (copied_text == source->TextStorage) {
-        frame->base.text = frame->TextStorage;
+        frame->Text = frame->TextStorage;
     } else if (copied_text == source->DynamicText) {
         UI_SetFrameDisplayString(frame, copied_text);
     } else {
-        frame->base.text = copied_text;
+        frame->Text = copied_text;
     }
 }
 
@@ -597,7 +593,7 @@ MAKE_PARSER(Text) {
     } else {
         memset(out, 0, sizeof(UINAME));
         UI_CopyDisplayString(out, sizeof(UINAME), str);
-        frame->base.text = out;
+        frame->Text = out;
     }
 }
 
@@ -785,7 +781,7 @@ MAKE_PARSERCALL(IncludeFile) {
 MAKE_PARSERCALL(StringList) {
     FRAMEDEF string_list;
     memset(&string_list, 0, sizeof(FRAMEDEF));
-    string_list.base.type = FT_STRINGLIST;
+    string_list.Type = FT_STRINGLIST;
     FDF_ParseFrame(parser, &string_list);
 }
 
@@ -967,7 +963,7 @@ void parse_func(LPPARSER parser, LPFRAMEDEF frame) {
     /* Some shipped FDF files end while a frame is still open. Treat EOF like
      * an implicit close so we can consume the original assets verbatim. */
     while ((token = parse_token(parser)) && *token && (*token != '}')) {
-        if (frame->base.type == FT_STRINGLIST) {
+        if (frame->Type == FT_STRINGLIST) {
             static parseItem_t stringitem = { "", { F(Name, StringListItem), F_END } };
             stringListItem_t *str = uiimport.MemAlloc(sizeof(stringListItem_t));
             ADD_TO_LIST(str, strings);
@@ -1026,16 +1022,16 @@ static BOOL UI_FrameTypesCompatible(FRAMETYPE frameType, FRAMETYPE inheritType) 
 
 void UI_InheritFrom(LPFRAMEDEF frame, LPCSTR inheritName) {
     LPFRAMEDEF inherit = FindFrameTemplate(inheritName);
-     if (inherit && UI_FrameTypesCompatible(frame->base.type, inherit->base.type)) {
+    if (inherit && UI_FrameTypesCompatible(frame->Type, inherit->Type)) {
         FRAMEDEF tmp;
-        FRAMETYPE requested_type = frame->base.type;
+        FRAMETYPE requested_type = frame->Type;
         memcpy(&tmp, frame, sizeof(FRAMEDEF));
         UI_FreeFrameDynamicText(frame);
         memcpy(frame, inherit, sizeof(FRAMEDEF));
         UI_FixCopiedFrameTextPointer(frame, inherit);
         memcpy(frame->Name, tmp.Name, sizeof(UINAME));
         frame->Parent = tmp.Parent;
-        frame->base.type = requested_type;
+        frame->Type = requested_type;
         frame->AnyPointsSet = false;
     } else if (inherit) {
         fprintf(stderr, "Can't inherit from different type %s\n", inheritName);
@@ -1147,27 +1143,27 @@ static BOOL UI_IsEmbeddedControlPart(LPCFRAMEDEF parent, LPCFRAMEDEF child) {
     }
     /* Control art children are serialized into their owning control's payload by
      * ui_write.c. Emitting them again as standalone children draws duplicates. */
-    if (child->base.type == FT_BACKDROP) {
+    if (child->Type == FT_BACKDROP) {
         return UI_FrameNameEquals(child, parent->Control.Backdrop.Normal) ||
                UI_FrameNameEquals(child, parent->Control.Backdrop.Pushed) ||
                UI_FrameNameEquals(child, parent->Control.Backdrop.Disabled) ||
                UI_FrameNameEquals(child, parent->Control.Backdrop.DisabledPushed);
     }
-    if (child->base.type == FT_HIGHLIGHT) {
+    if (child->Type == FT_HIGHLIGHT) {
         return UI_FrameNameEquals(child, parent->Control.Backdrop.MouseOver) ||
-               (UI_IsCheckBoxFrameType(parent->base.type) &&
+               (UI_IsCheckBoxFrameType(parent->Type) &&
                 (UI_FrameNameEquals(child, parent->CheckBox.CheckHighlight) ||
                  UI_FrameNameEquals(child, parent->CheckBox.DisabledCheckHighlight)));
     }
-    if (child->base.type == FT_TEXT) {
-        if (UI_IsButtonFrameType(parent->base.type) &&
-            (UI_FrameNameEquals(child, parent->base.text) ||
+    if (child->Type == FT_TEXT) {
+        if (UI_IsButtonFrameType(parent->Type) &&
+            (UI_FrameNameEquals(child, parent->Text) ||
              UI_FrameNameEquals(child, parent->Button.NormalText.frame))) {
             return true;
         }
         return UI_FrameNameEquals(child, parent->Edit.TextFrame);
     }
-    if (parent->base.type == FT_SLIDER && UI_IsButtonFrameType(child->base.type)) {
+    if (parent->Type == FT_SLIDER && UI_IsButtonFrameType(child->Type)) {
         return UI_FrameNameEquals(child, parent->Slider.ThumbButtonFrame) ||
                UI_FrameNameEquals(child, parent->Slider.IncButtonFrame) ||
                UI_FrameNameEquals(child, parent->Slider.DecButtonFrame);
@@ -1194,7 +1190,7 @@ static DWORD UI_CollectFrameTreeRecursiveEx(LPCFRAMEDEF frame,
     FOR_LOOP(i, MAX_UI_CLASSES) {
         LPCFRAMEDEF child = frames + i;
         if (child->Parent == frame &&
-            (include_embedded || (!child->base.hidden && !UI_IsEmbeddedControlPart(frame, child)))) {
+            (include_embedded || (!child->hidden && !UI_IsEmbeddedControlPart(frame, child)))) {
             DWORD emitted = UI_CollectFrameTreeRecursiveEx(child,
                                                            out ? out + total : NULL,
                                                            max > total ? max - total : 0,
@@ -1271,7 +1267,7 @@ LPFRAMEDEF UI_CloneFrameTree(LPCFRAMEDEF source, LPFRAMEDEF parent) {
     }
 
     FOR_LOOP(i, count) {
-        copies[i] = UI_Spawn(sources[i]->base.type, parent);
+        copies[i] = UI_Spawn(sources[i]->Type, parent);
         if (!copies[i]) {
             return NULL;
         }
@@ -1479,7 +1475,6 @@ void UI_SetAllPoints(LPFRAMEDEF frame) {
 
 void UI_SetParent(LPFRAMEDEF frame, LPCFRAMEDEF parent) {
     frame->Parent = parent;
-    frame->base.parent_index = parent ? (DWORD)(parent - frames) : (DWORD)-1;
 }
 
 void UI_SetText(LPFRAMEDEF frame, LPCSTR format, ...) {
@@ -1508,17 +1503,15 @@ void UI_SetEnabled(LPFRAMEDEF frame, BOOL enabled) {
     if (!frame) {
         return;
     }
-    frame->base.disabled = !enabled;
+    frame->disabled = !enabled;
 }
 
 void UI_SetTextPointer(LPFRAMEDEF frame, LPCSTR text) {
     UI_FreeFrameDynamicText(frame);
-    frame->base.text = text;
+    frame->Text = text;
 }
 
 void UI_SetSize(LPFRAMEDEF frame, FLOAT width, FLOAT height) {
-    frame->base.size.width = width;
-    frame->base.size.height = height;
     frame->Width = width;
     frame->Height = height;
 }
@@ -1544,7 +1537,7 @@ void UI_SetHidden(LPFRAMEDEF frame, BOOL value) {
     if (!frame) {
         return;
     }
-    frame->base.hidden = value;
+    frame->hidden = value;
 }
 
 void UI_WriteFrameWithChildrenWithTriggers(LPEDICT ent, LPCFRAMEDEF frame, LPCFRAMEDEF parent, uiTrigger_t const *triggers) {

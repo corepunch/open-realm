@@ -97,22 +97,11 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 - Runtime modules communicate through function tables (`R_GetAPI`, `UI_GetAPI`, game imports/exports). Prefer this boundary over direct cross-module dependencies.
 - Use cvars for runtime choices: `r_module`, `ui_module`, `g_module`, and `com_frame_limit`.
 
-## UI Architecture (client/ui.dll boundary)
-
-- The UI library is a **data provider**, not an active controller. Same pattern as `game.dll` exporting `entityState_t`: the UI library exports `uiBaseFrame_t` arrays.
-- The UI library exports `ui_frame_size` (like `entitySize` in game.dll) so the client can allocate, iterate, and cast frames without knowing the game-specific struct size.
-- **Layout** (positioning, sizing, anchoring) happens in the client, not the UI library. Both WC3 and WoW share the layout system via `uiBaseFrame_t`.
-- **Event routing** (hit testing, dispatch) happens in the client. The client walks the frame tree, finds the target frame via hit testing, and calls `frame->on_event()` directly. No `ui.MouseEvent()` push needed.
-- **Drawing** happens in the client. The client walks the frame tree and calls `frame->on_draw()` directly. No `ui.DrawFrame()` call needed.
-- The UI library's role: parse format-specific data (FDF/XML), populate `uiBaseFrame_t` arrays, export them. The client does everything else.
-- Game-specific frame types extend `uiBaseFrame_t` as first member (edict_s pattern). The client only sees `uiBaseFrame_t *`.
-- The DLL writes `parent_index` and `screen_rect` into the base frame during `Refresh()`. The client reads them directly — no callbacks needed.
-
 ## Mouse Input Architecture
 
 - Mouse state is owned by the client: the `mouse` global (`mouseEvent_t` in `client/cl_input.c`) is the single source of truth for position, button, event, and wheel state.
 - The UI library receives mouse events via `ui.MouseEvent(x, y, button, down)` — a push-based model called during `SDL_PollEvent` in `CL_Input()`. The UI processes events immediately (hit test + action).
-- **Never store mouse position or button state in the UI library.** Use `UIFLAG_PRESSED` / `UIFLAG_HOVERED` flags on frames, set during event handling. Draw functions read flags, not mouse state.
+- The UI library reads mouse position through `uiImport_t.GetMouseFdf()` for per-frame hover detection (visual-only, no state mutation).
 - Game-mode-specific mouse behavior (camera pan, selection, zoom) lives in per-game `cl_input_<game>.c` files via the `CL_InputMode*` functions.
 - Never create a separate mouse state struct in game UI code. Never poll mouse event state during draw — process events in the event handler instead.
 

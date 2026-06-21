@@ -326,14 +326,14 @@ static int UIWow_LuaActions(lua_State *L) {
 }
 
 static int UIWow_LuaTime(lua_State *L) {
-    lua_pushinteger(L, wow_ui.time);
+    lua_pushinteger(L, uiimport.GetClientTime ? uiimport.GetClientTime() : 0);
     return 1;
 }
 
 static int UIWow_LuaCommand(lua_State *L) {
     LPCSTR text = luaL_checkstring(L, 1);
 
-    if (text && *text) {
+    if (uiimport.ServerCommand && text && *text) {
         uiimport.ServerCommand(text);
     }
     return 0;
@@ -373,7 +373,7 @@ static int UIWow_LuaDrawImageAdditive(lua_State *L) {
 }
 
 static int UIWow_LuaGetLoadingProgress(lua_State *L) {
-    FLOAT target = wow_ui.loading_progress;
+    FLOAT target = uiimport.GetLoadingProgress ? uiimport.GetLoadingProgress() : 0.0f;
 
     if (target < 0.0f) { target = 0.0f; }
     else if (target > 1.0f) { target = 1.0f; }
@@ -395,14 +395,14 @@ static int UIWow_LuaGetLoadingTitle(lua_State *L) {
     LPCSTR title = ps ? ps->texts[PLAYERTEXT_MAP_TITLE] : NULL;
 
     if (!title || !*title) {
-        title = wow_ui.loading_map;
+        title = uiimport.GetLoadingMap ? uiimport.GetLoadingMap() : "";
     }
     lua_pushstring(L, title ? title : "");
     return 1;
 }
 
 static int UIWow_LuaGetLoadingStatus(lua_State *L) {
-    LPCSTR status = wow_ui.loading_status;
+    LPCSTR status = uiimport.GetLoadingStatus ? uiimport.GetLoadingStatus() : "";
 
     lua_pushstring(L, status ? status : "");
     return 1;
@@ -416,7 +416,7 @@ static int UIWow_LuaLoadMap(lua_State *L) {
         map_name = "Maps\\Campaign\\Default.w3m";
     }
     snprintf(cmd, sizeof(cmd), "+map %s", map_name);
-    if (1) {
+    if (uiimport.Cmd_ExecuteText) {
         uiimport.Cmd_ExecuteText(cmd);
     }
     return 0;
@@ -430,7 +430,7 @@ static int UIWow_LuaDefaultServerLogin(lua_State *L) {
         UIWow_LuaPCall(1);
     } else {
         lua_pop(wow_ui.lua, 1);
-        if (1) uiimport.Cmd_ExecuteText("menu_character_select\n");
+        if (uiimport.Cmd_ExecuteText) uiimport.Cmd_ExecuteText("menu_character_select\n");
     }
     return 0;
 }

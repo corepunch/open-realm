@@ -10,7 +10,7 @@
 
 void UIWow_UpdateMapBackground(LPCPLAYER ps) {
     static LPCSTR default_bg = "Interface\\Glues\\LoadingScreens\\LoadScreenEnviroment.blp";
-    LPCSTR map_path   = wow_ui.loading_map;
+    LPCSTR map_path   = uiimport.GetLoadingMap ? uiimport.GetLoadingMap() : "";
     LPCSTR screen_path;
 
     if (!map_path) {
