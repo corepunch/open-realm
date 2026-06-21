@@ -58,10 +58,11 @@ static void CreditsMenu_KeyEvent(int key, BOOL down) {
     (void)down;
 }
 
-static void CreditsMenu_MouseEvent(int x, int y, int buttons) {
+static void CreditsMenu_MouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
     (void)x;
     (void)y;
-    (void)buttons;
+    (void)event;
+    (void)param;
 }
 
 uiScreen_t creditsMenuScreen = {

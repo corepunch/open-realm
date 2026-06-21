@@ -131,11 +131,12 @@ static void MainMenu_KeyEvent(int key, BOOL down) {
     (void)down;
 }
 
-static void MainMenu_MouseEvent(int x, int y, int buttons) {
+static void MainMenu_MouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
     /* Handle mouse events */
     (void)x;
     (void)y;
-    (void)buttons;
+    (void)event;
+    (void)param;
 }
 
 void MainMenu_ShowMainPanel(void) {

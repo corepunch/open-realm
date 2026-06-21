@@ -594,10 +594,11 @@ static void SinglePlayerMenu_KeyEvent(int key, BOOL down) {
     (void)down;
 }
 
-static void SinglePlayerMenu_MouseEvent(int x, int y, int buttons) {
+static void SinglePlayerMenu_MouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
     (void)x;
     (void)y;
-    (void)buttons;
+    (void)event;
+    (void)param;
 }
 
 void SinglePlayerMenu_ShowMain(void) {

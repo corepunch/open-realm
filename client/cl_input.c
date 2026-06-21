@@ -141,10 +141,10 @@ void CL_Input(void) {
                 mouse.origin.x = event.button.x;
                 mouse.origin.y = event.button.y;
                 mouse.button = event.button.button;
+                if ((cls.key_dest == key_menu || cls.key_dest == key_game) && ui.MouseEvent) {
+                    ui.MouseEvent(UI_MOUSE_DOWN, event.button.x, event.button.y, event.button.button);
+                }
                 if (cls.key_dest == key_menu) {
-                    if (ui.MouseEvent) {
-                        ui.MouseEvent(UI_MOUSE_DOWN, event.button.x, event.button.y, event.button.button);
-                    }
                     if (event.button.button == SDL_BUTTON_LEFT) {
                         mouse.event = UI_LEFT_MOUSE_DOWN;
                     } else if (event.button.button == SDL_BUTTON_RIGHT) {
@@ -162,10 +162,10 @@ void CL_Input(void) {
                 mouse.origin.x = event.button.x;
                 mouse.origin.y = event.button.y;
                 mouse.button = 0;
+                if ((cls.key_dest == key_menu || cls.key_dest == key_game) && ui.MouseEvent) {
+                    ui.MouseEvent(UI_MOUSE_UP, event.button.x, event.button.y, event.button.button);
+                }
                 if (cls.key_dest == key_menu) {
-                    if (ui.MouseEvent) {
-                        ui.MouseEvent(UI_MOUSE_UP, event.button.x, event.button.y, event.button.button);
-                    }
                     if (event.button.button == SDL_BUTTON_LEFT) {
                         mouse.event = UI_LEFT_MOUSE_UP;
                     } else if (event.button.button == SDL_BUTTON_RIGHT) {
@@ -182,22 +182,22 @@ void CL_Input(void) {
             case SDL_MOUSEMOTION:
                 mouse.origin.x = event.motion.x;
                 mouse.origin.y = event.motion.y;
+                if ((cls.key_dest == key_menu || cls.key_dest == key_game) && ui.MouseEvent) {
+                    ui.MouseEvent(UI_MOUSE_MOVE, event.motion.x, event.motion.y, 0);
+                }
                 if (cls.key_dest == key_menu) {
-                    if (ui.MouseEvent) {
-                        ui.MouseEvent(UI_MOUSE_MOVE, event.motion.x, event.motion.y, 0);
-                    }
                     break;
                 }
                 CL_InputModeMouseMotion(&event.motion);
                 break;
             case SDL_MOUSEWHEEL:
-                if (cls.key_dest == key_game && CL_InputModeMouseWheel(&event.wheel)) {
-                    break;
-                }
-                if (cls.key_dest == key_menu && ui.MouseEvent) {
+                if ((cls.key_dest == key_menu || cls.key_dest == key_game) && ui.MouseEvent) {
                     int x, y;
                     SDL_GetMouseState(&x, &y);
                     ui.MouseEvent(UI_MOUSE_SCROLL, x, y, UI_MOUSE_PARAM(event.wheel.x, event.wheel.y));
+                }
+                if (cls.key_dest == key_game && CL_InputModeMouseWheel(&event.wheel)) {
+                    break;
                 }
                 break;
             case SDL_WINDOWEVENT:

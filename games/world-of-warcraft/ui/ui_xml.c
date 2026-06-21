@@ -159,6 +159,7 @@ static struct {
     int focus;
     uiTextInput_t text_input;
     int pressed_button;
+    int hovered_button;
     BOOL lua_ready;
     struct {
         FLOAT scroll_y;
@@ -1445,14 +1446,15 @@ void UIWow_XMLInvalidateCharCustomizeModel(void) {
 }
 
 void UIWow_XMLInitRuntime(void) {
-    memset(&wow_xml, 0, sizeof(wow_xml)); wow_xml.focus = -1; wow_xml.pressed_button = -1;
+    memset(&wow_xml, 0, sizeof(wow_xml)); wow_xml.focus = -1; wow_xml.pressed_button = -1; wow_xml.hovered_button = -1;
     wow_xml.drag.scrollbar_idx = -1; wow_ui.char_customize_frame_idx = -1; UIWow_XMLInstallLuaCompat();
 }
 void UIWow_XMLShutdownRuntime(void) {
     if (wow_ui.renderer && wow_ui.renderer->ReleaseModel) FOR_LOOP(i, wow_xml.count) SAFE_DELETE(wow_xml.elems[i].model, wow_ui.renderer->ReleaseModel);
     UIWow_XMLReleaseCharCustomizeModel();
     UIWow_XMLFreeElems();
-    memset(&wow_xml, 0, sizeof(wow_xml)); wow_xml.focus = -1; wow_xml.pressed_button = -1; wow_xml.drag.scrollbar_idx = -1;
+    memset(&wow_xml, 0, sizeof(wow_xml)); wow_xml.focus = -1; wow_xml.pressed_button = -1;
+    wow_xml.hovered_button = -1; wow_xml.drag.scrollbar_idx = -1;
 }
 
 BOOL UIWow_XMLLoadGlueFromToc(LPCSTR toc_path) {
@@ -1460,7 +1462,8 @@ BOOL UIWow_XMLLoadGlueFromToc(LPCSTR toc_path) {
     if (!wow_xml.lua_ready) UIWow_XMLInstallLuaCompat();
     UIWow_XMLFreeElems();
     UIWow_XMLReleaseCharCustomizeModel();
-    memset(wow_xml.elems, 0, sizeof(wow_xml.elems)); wow_xml.count = 0; wow_xml.focus = -1; wow_xml.pressed_button = -1; wow_xml.drag.scrollbar_idx = -1;
+    memset(wow_xml.elems, 0, sizeof(wow_xml.elems)); wow_xml.count = 0; wow_xml.focus = -1;
+    wow_xml.pressed_button = -1; wow_xml.hovered_button = -1; wow_xml.drag.scrollbar_idx = -1;
     if (!UIWow_XMLLoadFromToc(toc_path)) return false;
     UIWow_XMLInstallScreenShim();
     FOR_LOOP(i, wow_xml.count) {
@@ -1935,18 +1938,11 @@ static void UIWow_XMLDrawTree(int i, int hovered_button) {
 }
 
 void UIWow_XMLDraw(void) {
-    int hovered_button = -1;
-    if (uiimport.GetMouseFdf) {
-        VECTOR2 m = uiimport.GetMouseFdf();
-        int hit = UIWow_XMLHitFrame(m.x, m.y);
-        if (hit >= 0 && wow_xml.elems[hit].type == WOW_XML_BUTTON) hovered_button = hit;
-    }
-
     UIWow_EnsureRenderer(); if (!wow_ui.renderer) return;
     UIWow_XMLComputeScrollRanges();
     FOR_LOOP(i, wow_xml.count) {
         if (wow_xml.elems[i].parent < 0)
-            UIWow_XMLDrawTree((int)i, hovered_button);
+            UIWow_XMLDrawTree((int)i, wow_xml.hovered_button);
     }
 }
 
@@ -2002,25 +1998,25 @@ static int UIWow_XMLHitFrame(FLOAT x, FLOAT y) {
     return -1;
 }
 
-BOOL UIWow_XMLMouseEvent(int x, int y, int button, BOOL down) {
-    FLOAT fdf_x, fdf_y;
+BOOL UIWow_XMLMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
+    VECTOR2 mouse = UIWow_MouseFdf(x, y);
+    FLOAT fdf_x = mouse.x, fdf_y = mouse.y;
+    int wheel_y = event == UI_MOUSE_SCROLL ? UI_MOUSE_PARAM_Y(param) : 0;
     int hit;
-    /* Convert pixel coords using the same aspect-correct scene transform the
-     * renderer uses, so hit-testing matches what is actually drawn on screen. */
-    if (uiimport.GetMouseFdf) {
-        VECTOR2 m = uiimport.GetMouseFdf();
-        fdf_x = m.x; fdf_y = m.y;
-    } else {
-        fdf_x = x / 1024.0f; fdf_y = y / 768.0f;
+
+    wow_xml.hovered_button = -1;
+    hit = UIWow_XMLHitFrame(fdf_x, fdf_y);
+    if (hit >= 0 && wow_xml.elems[hit].type == WOW_XML_BUTTON) {
+        wow_xml.hovered_button = hit;
     }
 
-    /* Mouse wheel (button 4 = up, 5 = down): scroll the ScrollFrame under the cursor. */
-    if (down && (button == 4 || button == 5)) {
+    /* Mouse wheel: scroll the ScrollFrame under the cursor. */
+    if (event == UI_MOUSE_SCROLL && wheel_y) {
         int sf = UIWow_XMLHitScrollFrame(fdf_x, fdf_y);
         if (sf >= 0) {
             RECT vr = UIWow_XmlComputeRect(sf);
             FLOAT step = vr.h * 0.3f; /* scroll by 30% of viewport per notch */
-            if (button == 4) wow_xml.scroll[sf].scroll_y = MAX(0.0f, wow_xml.scroll[sf].scroll_y - step);
+            if (wheel_y > 0) wow_xml.scroll[sf].scroll_y = MAX(0.0f, wow_xml.scroll[sf].scroll_y - step);
             else wow_xml.scroll[sf].scroll_y = MIN(wow_xml.scroll[sf].scroll_range, wow_xml.scroll[sf].scroll_y + step);
             /* Run OnMouseWheel script if present. */
             if (UIWow_ElemStr(&wow_xml.elems[sf], ELEM_ON_MOUSE_WHEEL))
@@ -2030,10 +2026,10 @@ BOOL UIWow_XMLMouseEvent(int x, int y, int button, BOOL down) {
         return false;
     }
 
-    /* Mouse motion (button 0, not down): handle scrollbar thumb drag, then return.
-     * Must not fall through to the !down block — that clears pressed_button,
+    /* Mouse motion: handle scrollbar thumb drag, then return.
+     * Must not fall through to the mouse-up block — that clears pressed_button,
      * which would drop a button press if a motion event arrives between DOWN and UP. */
-    if (button == 0 && !down) {
+    if (event == UI_MOUSE_MOVE) {
         if (wow_xml.drag.scrollbar_idx >= 0) {
             int sf = wow_xml.drag.scrollbar_idx;
             RECT vr = UIWow_XmlComputeRect(sf);
@@ -2047,8 +2043,6 @@ BOOL UIWow_XMLMouseEvent(int x, int y, int button, BOOL down) {
         }
         return false;
     }
-
-    hit = UIWow_XMLHitFrame(fdf_x, fdf_y);
 
     /* Also check if we hit a scrollbar part (thumb, up/down button). */
     if (hit < 0) {
@@ -2065,7 +2059,7 @@ BOOL UIWow_XMLMouseEvent(int x, int y, int button, BOOL down) {
         }
     }
 
-    if (!down) {
+    if (event == UI_MOUSE_UP) {
         int pressed = wow_xml.pressed_button;
         wow_xml.pressed_button = -1;
         /* End scrollbar drag. */
@@ -2073,7 +2067,7 @@ BOOL UIWow_XMLMouseEvent(int x, int y, int button, BOOL down) {
             wow_xml.drag.scrollbar_idx = -1;
             return true;
         }
-        if (button == 1 && pressed >= 0 && hit == pressed && wow_xml.elems[pressed].type == WOW_XML_BUTTON &&
+        if (param == 1 && pressed >= 0 && hit == pressed && wow_xml.elems[pressed].type == WOW_XML_BUTTON &&
             (wow_xml.elems[pressed].flags & EF_ENABLED) && wow_ui.lua &&
             UIWow_ElemStr(&wow_xml.elems[pressed], ELEM_ON_CLICK)) {
             UIWow_Printf("UIWow: OnClick dispatch idx=%d name='%s' checkbtn=%d checked=%d\n",
@@ -2085,7 +2079,7 @@ BOOL UIWow_XMLMouseEvent(int x, int y, int button, BOOL down) {
             UIWow_XMLRunFrameScript(pressed, wow_xml.elems[pressed].texts[ELEM_ON_CLICK], "OnClick");
             return true;
         }
-        if (button == 1 && pressed >= 0 && hit == pressed) {
+        if (param == 1 && pressed >= 0 && hit == pressed) {
             UIWow_Printf("UIWow: OnClick MISS idx=%d name='%s' type=%d enabled=%d has_onclick=%d\n",
                          pressed, wow_xml.elems[pressed].texts[ELEM_NAME] ? wow_xml.elems[pressed].texts[ELEM_NAME] : "?",
                          wow_xml.elems[pressed].type,
@@ -2093,6 +2087,9 @@ BOOL UIWow_XMLMouseEvent(int x, int y, int button, BOOL down) {
                          !!UIWow_ElemStr(&wow_xml.elems[pressed], ELEM_ON_CLICK));
         }
         return hit >= 0 || pressed >= 0;
+    }
+    if (event != UI_MOUSE_DOWN) {
+        return hit >= 0;
     }
     if (hit < 0) {
         wow_xml.pressed_button = -1;
@@ -2143,7 +2140,6 @@ BOOL UIWow_XMLMouseEvent(int x, int y, int button, BOOL down) {
     }
     if (wow_xml.elems[hit].type == WOW_XML_BUTTON && (wow_xml.elems[hit].flags & EF_ENABLED)) {
         wow_xml.pressed_button = hit;
-        (void)button;
         return true;
     }
     wow_xml.pressed_button = -1;

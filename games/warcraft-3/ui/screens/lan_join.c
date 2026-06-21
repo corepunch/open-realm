@@ -705,10 +705,11 @@ static void LANJoin_KeyEvent(int key, BOOL down) {
     }
 }
 
-static void LANJoin_MouseEvent(int x, int y, int buttons) {
+static void LANJoin_MouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
     (void)x;
     (void)y;
-    (void)buttons;
+    (void)event;
+    (void)param;
 }
 
 LPCSTR LAN_SelectedMapPath(void) {

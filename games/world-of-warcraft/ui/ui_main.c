@@ -273,17 +273,17 @@ static void UIWow_RecreateLuaStateForMenu(LPCSTR menu_name) {
  * Per-frame draw dispatch
  * ---------------------------------------------------------------------- */
 
-static void UIWow_UpdateMouseHover(void) {
-    static int last_x = -1, last_y = -1;
-    VECTOR2 mouse_pos = uiimport.GetMouseFdf ? uiimport.GetMouseFdf() : MAKE(VECTOR2, 0, 0);
-    int mouse_x = (int)(mouse_pos.x * 1024.0f);
-    int mouse_y = (int)(mouse_pos.y * 768.0f);
-
-    if (mouse_x == last_x && mouse_y == last_y) {
-        return;
+/* Convert event pixels into FDF space, deferring to the client-owned mouse transform when present. */
+VECTOR2 UIWow_MouseFdf(int x, int y) {
+    if (uiimport.GetMouseFdf) {
+        return uiimport.GetMouseFdf();
     }
-    last_x = mouse_x;
-    last_y = mouse_y;
+    return MAKE(VECTOR2, x / 1024.0f, y / 768.0f);
+}
+
+/* Forward mouse motion to Lua when XML does not own the hovered frame. */
+static void UIWow_LuaMouseMove(int x, int y) {
+    VECTOR2 mouse_pos = UIWow_MouseFdf(x, y);
     if (!wow_ui.lua) {
         UIWow_WarnOnce(WOW_UI_WARN_NO_LUA_STATE,
                        "UIWow: Lua state is not initialized; mouse hover ignored\n");
@@ -305,7 +305,6 @@ static void UIWow_DrawFrame(void) {
     LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
 
     UIWow_EnsureRenderer();
-    UIWow_UpdateMouseHover();
 
     if (wow_ui.current_menu[0]) {
         UIWow_XMLDraw();
@@ -362,12 +361,17 @@ static void UIWow_TextInput(LPCSTR text) {
     UIWow_LuaPCall(1);
 }
 
-static void UIWow_MouseEvent(int x, int y, int button, BOOL down) {
-    if (UIWow_XMLMouseEvent(x, y, button, down)) {
+static void UIWow_MouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
+    VECTOR2 mouse_pos;
+    if (UIWow_XMLMouseEvent(event, x, y, param)) {
         return;
     }
-    if (!wow_ui.lua || !down) {
-        if (!wow_ui.lua && down) {
+    if (event == UI_MOUSE_MOVE) {
+        UIWow_LuaMouseMove(x, y);
+        return;
+    }
+    if (!wow_ui.lua || event != UI_MOUSE_DOWN) {
+        if (!wow_ui.lua && event == UI_MOUSE_DOWN) {
             UIWow_WarnOnce(WOW_UI_WARN_NO_LUA_STATE,
                            "UIWow: Lua state is not initialized; mouse click ignored\n");
         }
@@ -380,9 +384,10 @@ static void UIWow_MouseEvent(int x, int y, int button, BOOL down) {
                        "UIWow: missing Lua function 'ow3_handle_mouse_click'\n");
         return;
     }
-    lua_pushnumber(wow_ui.lua, x / 1024.0f);
-    lua_pushnumber(wow_ui.lua, y / 768.0f);
-    lua_pushinteger(wow_ui.lua, button);
+    mouse_pos = UIWow_MouseFdf(x, y);
+    lua_pushnumber(wow_ui.lua, mouse_pos.x);
+    lua_pushnumber(wow_ui.lua, mouse_pos.y);
+    lua_pushinteger(wow_ui.lua, param);
     UIWow_LuaPCall(3);
 }
 

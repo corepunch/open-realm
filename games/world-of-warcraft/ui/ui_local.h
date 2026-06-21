@@ -103,11 +103,12 @@ void UIWow_UpdateMapBackground(LPCPLAYER ps);
 void UIWow_EnsureRenderer(void);
 void UIWow_Printf(LPCSTR fmt, ...);
 void UIWow_WarnOnce(DWORD flag, LPCSTR fmt, ...);
+VECTOR2 UIWow_MouseFdf(int x, int y);
 LPTEXTURE UIWow_LoadTexture(LPCSTR name);
 LPCFONT UIWow_LoadFont(DWORD size);
 
 /* XML runtime input hooks. */
-BOOL UIWow_XMLMouseEvent(int x, int y, int button, BOOL down);
+BOOL UIWow_XMLMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param);
 BOOL UIWow_XMLTextInput(LPCSTR text);
 BOOL UIWow_XMLKeyEvent(int key, BOOL down, DWORD time);
 

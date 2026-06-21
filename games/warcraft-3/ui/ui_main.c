@@ -20,6 +20,7 @@ typedef struct {
     BOOL active;
     BOOL game_mode;
     DWORD time;
+    VECTOR2 mouse_fdf;
 } uiState_t;
 
 static uiState_t ui_state;
@@ -598,7 +599,7 @@ static void UI_DrawLoadingScreen(void) {
 }
 
 VECTOR2 UI_MouseToFdf(void) {
-    return uiimport.GetMouseFdf ? uiimport.GetMouseFdf() : MAKE(VECTOR2, 0, 0);
+    return ui_state.mouse_fdf;
 }
 
 BOOL UI_MouseContains(LPCRECT rect) {
@@ -750,21 +751,28 @@ static VECTOR2 UI_PixelToFdf(int px, int py) {
     return MAKE(VECTOR2, scene.x + nx * scene.w, scene.y + ny * scene.h);
 }
 
-void UI_MouseEventLocal(int x, int y, int button, BOOL down) {
+/* All UI mouse work starts here so draw code only consumes event-updated state. */
+void UI_MouseEventLocal(uiMouseEvent_t event, int x, int y, int32_t param) {
+    BOOL const down = event == UI_MOUSE_DOWN;
+    BOOL const up = event == UI_MOUSE_UP;
+    BOOL const left = param == 1;
+    int const wheel_y = event == UI_MOUSE_SCROLL ? UI_MOUSE_PARAM_Y(param) : 0;
     if (!ui_state.active) {
         return;
     }
 
     VECTOR2 fdf = UI_PixelToFdf(x, y);
+    ui_state.mouse_fdf = fdf;
+    UI_LayoutMouseEvent(event, x, y, param);
     LPCFRAMEDEF hit = UI_HitTest(fdf.x, fdf.y);
 
     /* Dispatch to per-type event handler */
     if (hit && hit->event_handler) {
-        hit->event_handler((LPFRAMEDEF)hit, fdf.x, fdf.y, button, down);
+        hit->event_handler((LPFRAMEDEF)hit, event, fdf.x, fdf.y, param);
     }
 
     /* Global: editbox clear focus on miss (LEFT_DOWN outside any editbox) */
-    if (down && button == 1) {
+    if (down && left) {
         BOOL hit_editbox = hit && (hit->Type == FT_EDITBOX || hit->Type == FT_GLUEEDITBOX ||
                                    hit->Type == FT_SLASHCHATBOX);
         if (!hit_editbox) {
@@ -773,33 +781,33 @@ void UI_MouseEventLocal(int x, int y, int button, BOOL down) {
     }
 
     /* Global: slider drag tracking (motion when no frame hit) */
-    if (UI_SliderIsDragging() && button == 0 && !down) {
+    if (UI_SliderIsDragging() && event == UI_MOUSE_MOVE) {
         UI_SliderUpdateDrag(UI_SliderActiveFrame(), fdf.x, fdf.y);
     }
-    if (!down && button == 1) {
+    if (up && left) {
         UI_SliderEndDrag(NULL);
     }
 
     /* Global: popup close on outside click */
-    if (down && button == 1 && UI_HasActivePopup() && !UI_PopupPointInside(fdf.x, fdf.y)) {
+    if (down && left && UI_HasActivePopup() && !UI_PopupPointInside(fdf.x, fdf.y)) {
         UI_PopupCloseOnMiss();
     }
 
     /* Global: popup menu wheel scroll */
-    if (UI_HasActivePopup() && button == 4) {
+    if (UI_HasActivePopup() && wheel_y > 0) {
         UI_PopupMenuScroll(true);
     }
-    if (UI_HasActivePopup() && button == 5) {
+    if (UI_HasActivePopup() && wheel_y < 0) {
         UI_PopupMenuScroll(false);
     }
-    if (UI_HasActivePopup() && !down && button == 1) {
+    if (UI_HasActivePopup() && up && left) {
         UI_PopupSelectItem(fdf.x, fdf.y);
     }
 
     /* Delegate to current screen */
     uiScreen_t *screen = UI_GetCurrentScreen();
     if (screen && screen->mouse_event) {
-        screen->mouse_event(x, y, button);
+        screen->mouse_event(event, x, y, param);
     }
 }
 
