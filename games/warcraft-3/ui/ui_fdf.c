@@ -1176,8 +1176,14 @@ static BOOL UI_IsEmbeddedControlPart(LPCFRAMEDEF parent, LPCFRAMEDEF child) {
     if (!parent || !child) {
         return false;
     }
-    /* Control art children are serialized into their owning control's payload by
-     * ui_write.c. Emitting them again as standalone children draws duplicates. */
+    /* Button state backdrops (Normal/Pushed/Disabled) are drawn by UI_ButtonDraw
+     * using the button's own rect. Suppress standalone draw to avoid duplicates. */
+    if (child->base.type == FT_BACKDROP && UI_IsButtonFrameType(parent->base.type)) {
+        return UI_FrameNameEquals(child, parent->Control.Backdrop.Normal) ||
+               UI_FrameNameEquals(child, parent->Control.Backdrop.Pushed) ||
+               UI_FrameNameEquals(child, parent->Control.Backdrop.Disabled) ||
+               UI_FrameNameEquals(child, parent->Control.Backdrop.DisabledPushed);
+    }
     if (child->base.type == FT_BACKDROP)
         return false;
     if (child->base.type == FT_HIGHLIGHT) {

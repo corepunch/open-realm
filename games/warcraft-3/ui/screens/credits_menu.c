@@ -7,6 +7,7 @@
 #include "../ui_screen.h"
 
 static LPFRAMEDEF credits_root;
+static LPFRAMEDEF credits_bg, credits_left_panel, credits_right_panel;
 static uiDialogWar3_t credits_dialog;
 
 static BOOL CreditsMenu_LoadScreen(void) {
@@ -18,11 +19,6 @@ static BOOL CreditsMenu_LoadScreen(void) {
     }
     UI_SetAllPoints(credits_root);
     return credits_root != NULL;
-}
-
-static void CreditsMenu_RootDraw(struct uiBaseFrame_s *base, LPCRECT rect) {
-    (void)base; (void)rect;
-    UI_DrawGlueScene("MainMenu Stand");
 }
 
 static void CreditsMenu_Init(void) {
@@ -39,7 +35,8 @@ static void CreditsMenu_Init(void) {
 
     uiimport.Printf("CreditsMenu_Init\n");
     UI_PreloadGlueSceneModels();
-    credits_root->base.on_draw = CreditsMenu_RootDraw;
+    UI_SpawnGlueSceneFrames(credits_root, "MainMenu Stand", "MainMenu Stand",
+                            &credits_bg, &credits_left_panel, &credits_right_panel);
     UI_SetHidden(credits_root, false);
     if (UI_DialogWar3Init(&credits_dialog, credits_root, &init)) {
         UI_DialogWar3Show(&credits_dialog, &config);
@@ -56,7 +53,6 @@ static void CreditsMenu_Refresh(int msec) {
 }
 
 static void CreditsMenu_Draw(void) {
-    UI_DrawGlueScene("MainMenu Stand");
     if (credits_dialog.modal) {
         UI_DrawFrame(credits_dialog.modal);
     }

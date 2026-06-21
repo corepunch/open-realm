@@ -90,6 +90,7 @@ static DWORD UI_FontPixelSize(FLOAT size) {
 /* Forward declarations */
 static LPCRECT UI_LayoutRect(LPCFRAMEDEF frame);
 static void UI_DrawFrameOne(LPCFRAMEDEF frame);
+static void UI_DrawFrameWithRect(LPCFRAMEDEF frame, LPCRECT rect);
 static BOOL UI_FrameWithinRoot(LPCFRAMEDEF root, LPCFRAMEDEF frame);
 static BOOL UI_PointerBlockedByModal(LPCFRAMEDEF frame);
 static LPCFRAMEDEF UI_FindActiveModalRoot(LPCFRAMEDEF const *roots, DWORD num_roots);
@@ -483,7 +484,10 @@ static void UI_DrawHighlightFrame(LPCFRAMEDEF frame, LPCRECT rect);
 #include "controls/ui_control_map_list.h"
 #include "controls/ui_control_slider.h"
 
-/* Generic on_draw draws one frame; the client owns the flat frame loop. */
+/* Generic on_draw draws one frame; the client owns the flat frame loop.
+ * The rect from the client is ignored — WC3 FDF frames use their own
+ * pointer-based anchor solver (frame->Points), not the index-based
+ * base.points used by network layout frames. */
 void UI_GenericOnDraw(struct uiBaseFrame_s *base, LPCRECT rect) {
     (void)rect;
     UI_DrawFrameOne((LPFRAMEDEF)base);
@@ -588,6 +592,9 @@ static void UI_PopupMenuEventHandler(struct uiBaseFrame_s *f, FLOAT fdf_x, FLOAT
 
 static void UI_ButtonDraw(struct uiBaseFrame_s *f, LPCRECT rect) {
     LPCFRAMEDEF frame = (LPCFRAMEDEF)f;
+    LPCFRAMEDEF backdrop = UI_ButtonBackdrop(frame, rect);
+    if (backdrop)
+        UI_DrawBackdropWithColor(backdrop, rect, frame->base.color);
     UI_DrawTexture(frame, rect);
     UI_DrawButtonText(frame, rect);
 }
@@ -856,7 +863,7 @@ static void UI_DrawPortrait(LPCFRAMEDEF frame, LPCRECT rect) {
     entity.model = model;
     entity.scale = 1.0f;
     entity.flags = RF_NO_SHADOW | RF_NO_FOGOFWAR | RF_PORTRAIT_LIGHTING;
-    renderer->SetEntityAnimFrame(model, "Stand", &entity);
+    renderer->SetEntityAnimFrame(model, (frame->base.text && *frame->base.text) ? frame->base.text : "Stand", &entity);
 
     viewDef_t viewdef = {0};
     viewdef.viewport = *rect;
@@ -892,31 +899,18 @@ static void UI_DrawSprite(LPCFRAMEDEF frame, LPCRECT rect) {
     renderer->DrawSprite(model, anim, rect->x, rect->y);
 }
 
-static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
+static void UI_DrawFrameWithRect(LPCFRAMEDEF frame, LPCRECT rect) {
     LPCFRAMEDEF dialog_backdrop;
 
-    if (!frame) {
+    if (!frame || !rect) {
         return;
     }
-    
-    /* Skip hidden frames */
-    if (frame->base.hidden) {
-        return;
-    }
-    
-    /* Calculate layout */
-    LPCRECT rect = UI_LayoutRect(frame);
-    if (!rect || ((rect->w <= 0 || rect->h <= 0) && frame->base.type != FT_SPRITE)) {
-        return;
-    }
-    
-    /* Render based on frame type */
+
     switch (frame->base.type) {
         case FT_FRAME:
         case FT_SIMPLEFRAME:
             /* Container frames — no visual content of their own.
-             * Children are already collected and drawn individually
-             * by UI_CollectFrameTree in the outer draw loop. */
+             * Children are drawn individually by the client's flat frame loop. */
             break;
 
         case FT_DIALOG:
@@ -996,7 +990,44 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
         default:
             break;
     }
-    
+}
+
+static LPCSTR UI_FrameTypeName(FRAMETYPE t) {
+    switch (t) {
+        case FT_FRAME:          return "FRAME";
+        case FT_SIMPLEFRAME:    return "SIMPLEFRAME";
+        case FT_DIALOG:         return "DIALOG";
+        case FT_CONTROL:        return "CONTROL";
+        case FT_BACKDROP:       return "BACKDROP";
+        case FT_TEXTURE:        return "TEXTURE";
+        case FT_TEXT:           return "TEXT";
+        case FT_STRING:         return "STRING";
+        case FT_BUTTON:         return "BUTTON";
+        case FT_TEXTBUTTON:     return "TEXTBUTTON";
+        case FT_GLUETEXTBUTTON: return "GLUETEXTBUTTON";
+        case FT_GLUEBUTTON:     return "GLUEBUTTON";
+        case FT_SIMPLEBUTTON:   return "SIMPLEBUTTON";
+        case FT_SPRITE:         return "SPRITE";
+        case FT_MODEL:          return "MODEL";
+        default:                return "?";
+    }
+}
+
+static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
+    LPCRECT rect;
+
+    if (!frame || frame->base.hidden)
+        return;
+    rect = UI_LayoutRect(frame);
+    if (!rect || ((rect->w <= 0 || rect->h <= 0) && frame->base.type != FT_SPRITE))
+        return;
+#ifdef UI_DEBUG_DRAW
+    fprintf(stderr, "draw_frame type=%-16s name=%-32s rect={x:%.3f,y:%.3f,w:%.3f,h:%.3f}\n",
+            UI_FrameTypeName(frame->base.type),
+            frame->Name[0] ? frame->Name : "(anon)",
+            rect->x, rect->y, rect->w, rect->h);
+#endif
+    UI_DrawFrameWithRect(frame, rect);
 }
 
 /* ========================================================================

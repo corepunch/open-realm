@@ -338,6 +338,13 @@ void UI_ResetGlueSceneModels(void);
 void UI_PreloadGlueSceneModels(void);
 void UI_DrawGlueScene(LPCSTR panel_anim);
 void UI_DrawGlueSceneLayers(LPCSTR left_panel_anim, LPCSTR right_panel_anim);
+LPCSTR UI_GlueBackgroundPath(void);
+LPCSTR UI_GlueTopLeftPanelPath(void);
+LPCSTR UI_GlueTopRightPanelPath(void);
+void UI_SpawnGlueSceneFrames(LPFRAMEDEF root, LPCSTR left_anim, LPCSTR right_anim,
+                              LPFRAMEDEF *out_bg, LPFRAMEDEF *out_left, LPFRAMEDEF *out_right);
+void UI_SetGlueSceneAnim(LPFRAMEDEF bg, LPFRAMEDEF left, LPFRAMEDEF right,
+                          LPCSTR left_anim, LPCSTR right_anim);
 
 /* ui_fdf.c — FDF parsing (moved from game/ui/ui_fdf.c) */
 BOOL UI_EnsureFDF(LPCSTR filename);

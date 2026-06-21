@@ -36,6 +36,7 @@ typedef struct {
 } singlePlayerCampaign_t;
 
 static SinglePlayerMenu_t single_player;
+static LPFRAMEDEF sp_bg, sp_left_panel, sp_right_panel;
 static singlePlayerCampaign_t campaigns[SINGLE_PLAYER_MAX_CAMPAIGNS];
 static DWORD campaign_count;
 static DWORD campaign_order[SINGLE_PLAYER_MAX_CAMPAIGNS];
@@ -434,11 +435,6 @@ static void SinglePlayer_DrawCampaignBackdrop(void) {
     }
 }
 
-static void SinglePlayer_RootDraw(struct uiBaseFrame_s *base, LPCRECT rect) {
-    (void)base; (void)rect;
-    UI_DrawGlueScene("SinglePlayer Stand");
-}
-
 static void SinglePlayer_CampaignRootDraw(struct uiBaseFrame_s *base, LPCRECT rect) {
     (void)base; (void)rect;
     SinglePlayer_DrawCampaignBackdrop();
@@ -570,7 +566,8 @@ static void SinglePlayerMenu_Init(void) {
         single_player.WarCraftIIILogo->Portrait.model = UI_LoadModel("CampaignLogo", true);
     }
     if (single_player.SinglePlayerMenu) {
-        single_player.SinglePlayerMenu->base.on_draw = SinglePlayer_RootDraw;
+        UI_SpawnGlueSceneFrames(single_player.SinglePlayerMenu, "SinglePlayer Stand", "SinglePlayer Stand",
+                                &sp_bg, &sp_left_panel, &sp_right_panel);
     }
     if (single_player.CampaignMenu) {
         single_player.CampaignMenu->base.on_draw = SinglePlayer_CampaignRootDraw;
@@ -601,7 +598,6 @@ static void SinglePlayerMenu_Draw(void) {
         return;
     }
 
-    UI_DrawGlueScene("SinglePlayer Stand");
     if (single_player.SinglePlayerMenu) {
         UI_DrawFrame(single_player.SinglePlayerMenu);
     }

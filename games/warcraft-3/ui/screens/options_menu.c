@@ -36,6 +36,7 @@ typedef struct {
 } optionsResolution_t;
 
 static OptionsMenu_t options_menu;
+static LPFRAMEDEF options_bg, options_left_panel, options_right_panel;
 static optionsPanel_t current_panel = OPTIONS_PANEL_GAMEPLAY;
 
 static BOOL OptionsMenu_LoadScreen(void) {
@@ -330,17 +331,14 @@ static void OptionsMenu_SetPanel(optionsPanel_t panel) {
     OptionsMenu_SetHidden(options_menu.SoundPanel, panel != OPTIONS_PANEL_SOUND);
 }
 
-static void OptionsMenu_RootDraw(struct uiBaseFrame_s *base, LPCRECT rect) {
-    (void)base; (void)rect;
-    UI_DrawGlueSceneLayers("Options Stand Alternate", "Options Stand");
-}
-
 static void OptionsMenu_Init(void) {
     uiimport.Printf("OptionsMenu_Init\n");
     UI_PreloadGlueSceneModels();
     current_panel = OPTIONS_PANEL_GAMEPLAY;
     if (options_menu.OptionsMenu) {
-        options_menu.OptionsMenu->base.on_draw = OptionsMenu_RootDraw;
+        UI_SpawnGlueSceneFrames(options_menu.OptionsMenu,
+                                "Options Stand Alternate", "Options Stand",
+                                &options_bg, &options_left_panel, &options_right_panel);
         UI_SetHidden(options_menu.OptionsMenu, false);
     }
 
@@ -366,7 +364,6 @@ static void OptionsMenu_Refresh(int msec) {
 }
 
 static void OptionsMenu_Draw(void) {
-    UI_DrawGlueSceneLayers("Options Stand Alternate", "Options Stand");
     if (options_menu.OptionsMenu) {
         UI_DrawFrame(options_menu.OptionsMenu);
     }

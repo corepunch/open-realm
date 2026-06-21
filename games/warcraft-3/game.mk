@@ -9,7 +9,7 @@ WC3_JASS_DIR := $(WC3_DIR)/jass
 WC3_SHEET_DIR := $(WC3_DIR)/sheet
 WC3_TEST_DIR := $(WC3_DIR)/tests
 
-WC3_CFLAGS := $(CFLAGS) -I$(WC3_DIR)
+WC3_CFLAGS := $(CFLAGS) -I$(WC3_DIR) -DUI_DEBUG_DRAW
 WC3_COMMON_SRCS := $(shell find $(WC3_DIR)/common -name '*.c' 2>/dev/null | sort)
 WC3_UI_HEADERS := $(shell find $(WC3_DIR)/ui -name '*.h' | sort) client/ui.h
 

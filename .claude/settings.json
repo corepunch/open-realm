@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -n \"^run\\\\b\\\\b\\\\|run:$\\\\b\" /Users/ICHERNA/Developer/openwarcraft3/Makefile)",
+      "Bash(awk '/^run:/{found=1} found{print NR\": \"$0; if\\(NR>1 && /^[a-z]/\\) exit}' /Users/ICHERNA/Developer/openwarcraft3/Makefile)",
+      "Bash(build/bin/openwarcraft3 -data \"data/Warcraft III\")"
+    ]
+  }
+}
