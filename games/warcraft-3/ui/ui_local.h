@@ -136,6 +136,7 @@ typedef struct {
 #define UIFLAG_DISABLED (1 << 3)
 #define UIFLAG_ACTIVE   (1 << 4)
 #define UIFLAG_VISIBLE  (1 << 5)
+#define UIFLAG_PASSTHROUGH (1 << 6)  /* child of popup: rendered but not hit-tested */
 
 /* Frame template definition (server-side/library-side only) */
 struct uiFrameDef_s {

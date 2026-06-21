@@ -87,7 +87,6 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame);
 static BOOL UI_FrameWithinRoot(LPCFRAMEDEF root, LPCFRAMEDEF frame);
 static BOOL UI_PointerBlockedByModal(LPCFRAMEDEF frame);
 static BOOL UI_PointerBlockedByPopup(LPCFRAMEDEF frame);
-static BOOL UI_IsPopupFrameType(FRAMETYPE type);
 static LPCFRAMEDEF UI_FindActiveModalRoot(LPCFRAMEDEF const *roots, DWORD num_roots);
 
 /* ========================================================================
@@ -100,7 +99,7 @@ static BOOL UI_PointInRect(FLOAT x, FLOAT y, LPCRECT rect) {
 }
 
 static BOOL UI_FrameIsInteractive(LPCFRAMEDEF frame) {
-    if (!frame || frame->hidden || frame->disabled) {
+    if (!frame || frame->hidden || frame->disabled || (frame->ui_flags & UIFLAG_PASSTHROUGH)) {
         return FALSE;
     }
     switch (frame->Type) {
@@ -121,9 +120,7 @@ static BOOL UI_FrameIsInteractive(LPCFRAMEDEF frame) {
 }
 
 /* Walk the layout cache back-to-front and return the topmost interactive frame
- * at the given FDF-space coordinates. Returns NULL if nothing was hit.
- * When a child frame inside a popup button is hit, the popup button itself
- * is returned instead — popup buttons own the hover/click, not their children. */
+ * at the given FDF-space coordinates. Returns NULL if nothing was hit. */
 LPCFRAMEDEF UI_HitTest(FLOAT fdf_x, FLOAT fdf_y) {
     for (int i = MAX_UI_CLASSES - 1; i >= 0; i--) {
         if (!runtimes[i].calculated) {
@@ -137,11 +134,6 @@ LPCFRAMEDEF UI_HitTest(FLOAT fdf_x, FLOAT fdf_y) {
             continue;
         }
         if (UI_PointInRect(fdf_x, fdf_y, &runtimes[i].rect)) {
-            /* If this frame is a child of a popup button, return the popup
-             * button instead — it owns the hover/click area. */
-            if (frame->Parent && UI_IsPopupFrameType(frame->Parent->Type)) {
-                return frame->Parent;
-            }
             return frame;
         }
     }

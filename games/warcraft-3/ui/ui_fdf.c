@@ -771,6 +771,16 @@ MAKE_PARSERCALL(Frame) {
     FRAMETYPE type = ParseEnumString(stype, FrameType);
     LPFRAMEDEF current = UI_Spawn(type, frame);
     FDF_ParseFrame(parser, current);
+    /* Popup menu title and arrow frames are rendered by the popup button
+     * but must not participate in hit testing (Warsmash convention:
+     * PopupMenuFrame extends GlueButtonFrame, not AbstractUIFrame, so its
+     * title/arrow are not in the child list for hit-test traversal). */
+    if (type == FT_POPUPMENU || type == FT_GLUEPOPUPMENU) {
+        LPFRAMEDEF title = UI_FindChildFrame(current, current->Popup.TitleFrame);
+        LPFRAMEDEF arrow = UI_FindChildFrame(current, current->Popup.ArrowFrame);
+        if (title) title->ui_flags |= UIFLAG_PASSTHROUGH;
+        if (arrow) arrow->ui_flags |= UIFLAG_PASSTHROUGH;
+    }
 }
 
 MAKE_PARSERCALL(IncludeFile) {
