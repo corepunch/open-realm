@@ -50,6 +50,9 @@ void SCR_UpdateScreen(DWORD msec) {
     if (ui.DrawFrame) {
         ui.DrawFrame();
     }
+    if (ui.DrawOverlays) {
+        ui.DrawOverlays();
+    }
 #endif
 
     CON_DrawConsole();

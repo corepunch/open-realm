@@ -11,6 +11,7 @@
  */
 #include "client.h"
 #include "tr_public.h"
+#include "ui_layout.h"
 #include <arpa/inet.h>
 
 refExport_t re;
@@ -622,6 +623,13 @@ void CL_Init(void) {
         .GetRenderer = CL_UIGetRenderer,
         .Printf = CON_printf,
     });
+    
+    /* Wire layout functions from the client into the UI export table */
+    ui.DrawOverlays = UI_LayoutDrawOverlays;
+    ui.LayoutMouseEvent = UI_LayoutMouseEvent;
+    ui.SetLayoutLayer = UI_LayoutSetLayer;
+    ui.ClearLayoutLayer = UI_LayoutClearLayer;
+    ui.HitTestLayout = UI_LayoutHitTest;
     
     if (ui.Init) {
         ui.Init();
