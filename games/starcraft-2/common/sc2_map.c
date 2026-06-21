@@ -9,6 +9,7 @@
 #define SC2_MAX_CATALOG_ACTORS       8192
 #define SC2_MAX_CATALOG_TERRAIN_TEX  512
 #define SC2_MAX_CATALOG_CLIFFS       256
+#define SC2_MAX_CATALOG_PARENT_DEPTH 8
 #define SC2_ARRAY_LEN(x)             ((DWORD)(sizeof(x) / sizeof((x)[0])))
 #define SC2_XML_STRING_FIELD(name, field) { name, offsetof(sc2MapObject_t, field), SC2_XML_FIELD_STRING, sizeof(((sc2MapObject_t *)0)->field) }
 #define SC2_XML_FIELD(name, field, type)  { name, offsetof(sc2MapObject_t, field), type, 0 }
@@ -25,6 +26,8 @@ typedef struct {
 
 typedef struct {
     char id[64];
+    char parent[64];
+    char race[64];
     char path[256];
 } sc2CatalogModel_t;
 
@@ -934,13 +937,15 @@ static void sc2_parse_objects(sc2MapSource_t *source) {
     xmlFreeDoc(doc);
 }
 
-static void sc2_catalog_add_model(sc2Catalog_t *catalog, LPCSTR id, LPCSTR path) {
+static void sc2_catalog_add_model(sc2Catalog_t *catalog, LPCSTR id, LPCSTR parent, LPCSTR race, LPCSTR path) {
     sc2CatalogModel_t *model;
 
-    if (!catalog || !id || !*id || !path || !*path) return;
+    if (!catalog || !id || !*id) return;
     FOR_LOOP(i, catalog->models_count) {
         if (!strcasecmp(catalog->models[i].id, id)) {
-            snprintf(catalog->models[i].path, sizeof(catalog->models[i].path), "%s", path);
+            snprintf(catalog->models[i].parent, sizeof(catalog->models[i].parent), "%s", parent ? parent : "");
+            snprintf(catalog->models[i].race, sizeof(catalog->models[i].race), "%s", race ? race : "");
+            snprintf(catalog->models[i].path, sizeof(catalog->models[i].path), "%s", path ? path : "");
             sc2_normalize_slashes(catalog->models[i].path);
             return;
         }
@@ -948,7 +953,9 @@ static void sc2_catalog_add_model(sc2Catalog_t *catalog, LPCSTR id, LPCSTR path)
     if (catalog->models_count >= SC2_MAX_CATALOG_MODELS) return;
     model = &catalog->models[catalog->models_count++];
     snprintf(model->id, sizeof(model->id), "%s", id);
-    snprintf(model->path, sizeof(model->path), "%s", path);
+    snprintf(model->parent, sizeof(model->parent), "%s", parent ? parent : "");
+    snprintf(model->race, sizeof(model->race), "%s", race ? race : "");
+    snprintf(model->path, sizeof(model->path), "%s", path ? path : "");
     sc2_normalize_slashes(model->path);
 }
 
@@ -1006,12 +1013,81 @@ static void sc2_catalog_add_cliff(sc2Catalog_t *catalog, LPCSTR id, LPCSTR mesh)
     snprintf(cliff->mesh, sizeof(cliff->mesh), "%s", mesh);
 }
 
-static LPCSTR sc2_catalog_model_path(sc2Catalog_t const *catalog, LPCSTR id) {
+static sc2CatalogModel_t const *sc2_catalog_model(sc2Catalog_t const *catalog, LPCSTR id) {
     if (!catalog || !id || !*id) return NULL;
     FOR_LOOP(i, catalog->models_count) {
-        if (!strcasecmp(catalog->models[i].id, id)) return catalog->models[i].path;
+        if (!strcasecmp(catalog->models[i].id, id)) return &catalog->models[i];
     }
     return NULL;
+}
+
+static BOOL sc2_append_text(LPSTR out, DWORD out_size, DWORD *pos, LPCSTR text) {
+    DWORD len;
+
+    if (!out || !out_size || !pos || !text) return false;
+    len = (DWORD)strlen(text);
+    if (*pos + len >= out_size) return false;
+    memcpy(out + *pos, text, len);
+    *pos += len;
+    out[*pos] = '\0';
+    return true;
+}
+
+static BOOL sc2_catalog_expand_model_path(LPCSTR path, LPCSTR id, LPCSTR race, LPSTR out, DWORD out_size) {
+    DWORD pos = 0;
+
+    if (!path || !*path || !id || !*id || !out || !out_size) return false;
+    out[0] = '\0';
+    for (LPCSTR p = path; *p; ) {
+        if (!strncmp(p, "##id##", 6)) {
+            if (!sc2_append_text(out, out_size, &pos, id)) return false;
+            p += 6;
+        } else if (!strncmp(p, "##Race##", 8)) {
+            if (!race || !*race || !sc2_append_text(out, out_size, &pos, race)) return false;
+            p += 8;
+        } else if (!strncmp(p, "##", 2)) {
+            return false;
+        } else {
+            if (pos + 1 >= out_size) return false;
+            out[pos++] = *p++;
+            out[pos] = '\0';
+        }
+    }
+    sc2_normalize_slashes(out);
+    return out[0] != '\0';
+}
+
+static BOOL sc2_catalog_resolve_model_path_r(sc2Catalog_t const *catalog,
+                                             sc2CatalogModel_t const *model,
+                                             LPCSTR id,
+                                             LPCSTR race,
+                                             LPSTR out,
+                                             DWORD out_size,
+                                             DWORD depth) {
+    if (!catalog || !model || !out || !out_size || depth > SC2_MAX_CATALOG_PARENT_DEPTH) return false;
+    if (model->path[0]) {
+        return sc2_catalog_expand_model_path(model->path,
+                                             id && *id ? id : model->id,
+                                             race && *race ? race : model->race,
+                                             out,
+                                             out_size);
+    }
+    if (model->parent[0]) {
+        return sc2_catalog_resolve_model_path_r(catalog,
+                                                sc2_catalog_model(catalog, model->parent),
+                                                id && *id ? id : model->id,
+                                                race && *race ? race : model->race,
+                                                out,
+                                                out_size,
+                                                depth + 1);
+    }
+    return false;
+}
+
+static BOOL sc2_catalog_model_path(sc2Catalog_t const *catalog, LPCSTR id, LPSTR out, DWORD out_size) {
+    sc2CatalogModel_t const *model = sc2_catalog_model(catalog, id);
+
+    return sc2_catalog_resolve_model_path_r(catalog, model, id, model ? model->race : NULL, out, out_size, 0);
 }
 
 static LPCSTR sc2_catalog_cliff_mesh(sc2Catalog_t const *catalog, LPCSTR id) {
@@ -1102,18 +1178,22 @@ static void sc2_parse_model_catalog_file(sc2Catalog_t *catalog, LPCSTR root_name
     root = xmlDocGetRootElement(doc);
     for (xmlNodePtr node = root ? root->children : NULL; node; node = node->next) {
         char id[64];
+        char parent[64] = "";
+        char race[64] = "";
         char path[256] = "";
 
         if (node->type != XML_ELEMENT_NODE || !sc2_contains_i((char const *)node->name, "CModel"))
             continue;
         if (!sc2_xml_attr(node, "id", id, sizeof(id))) continue;
+        sc2_xml_attr(node, "parent", parent, sizeof(parent));
+        sc2_xml_attr(node, "Race", race, sizeof(race));
         for (xmlNodePtr child = node->children; child; child = child->next) {
             if (child->type == XML_ELEMENT_NODE && sc2_streqi((char const *)child->name, "Model")) {
                 sc2_xml_attr(child, "value", path, sizeof(path));
                 break;
             }
         }
-        sc2_catalog_add_model(catalog, id, path);
+        sc2_catalog_add_model(catalog, id, parent, race, path);
     }
     xmlFreeDoc(doc);
 }
@@ -1333,7 +1413,7 @@ static void sc2_resolve_object_models(sc2Catalog_t const *catalog) {
     FOR_LOOP(i, sc2_map.num_objects) {
         sc2MapObject_t *object = &sc2_map.objects[i];
         LPCSTR model_id;
-        LPCSTR path;
+        char path[256];
 
         if (!object->name[0]) continue;
         FOR_LOOP(j, resolved_count) {
@@ -1344,8 +1424,8 @@ static void sc2_resolve_object_models(sc2Catalog_t const *catalog) {
         }
         model_id = sc2_catalog_actor_model(catalog, object->name);
         if (!model_id) model_id = object->name;
-        path = sc2_catalog_model_path(catalog, model_id);
-        if (path && *path) {
+        path[0] = '\0';
+        if (sc2_catalog_model_path(catalog, model_id, path, sizeof(path))) {
             snprintf(object->model, sizeof(object->model), "%s", path);
         } else {
             sc2_resolve_object_model_candidates(object);
