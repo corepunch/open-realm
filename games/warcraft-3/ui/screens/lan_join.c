@@ -99,23 +99,26 @@ static void LAN_SetMapDisplayName(uiMapListItem_t *item,
     char loading_title[64];
     char loading_subtitle[96];
 
-    uiimport.ResolveMapInfoString(info, info ? info->mapName : NULL, name, sizeof(name));
-    uiimport.SanitizeMapListField(name);
+    UI_ResolveMapInfoString(info, info ? info->mapName : NULL, name, sizeof(name));
+    UI_SanitizeMapListField(name);
     if (name[0]) {
         LAN_CopyString(item->name, sizeof(item->name), name);
     }
 
     if (strncasecmp(item->path, "Maps\\Campaign\\", 14) ||
-        !uiimport.MapNameMatchesFile(item->name, item->path)) {
+        !UI_MapNameMatchesFile(item->name, item->path)) {
         return;
     }
 
-    uiimport.ResolveMapInfoString(info, info ? info->mapDescription : NULL, description, sizeof(description));
-    uiimport.ResolveMapInfoString(info, info ? info->loadingScreenTitle : NULL, loading_title, sizeof(loading_title));
-    uiimport.ResolveMapInfoString(info, info ? info->loadingScreenSubtitle : NULL, loading_subtitle, sizeof(loading_subtitle));
-    uiimport.SanitizeMapListField(description);
-    uiimport.SanitizeMapListField(loading_title);
-    uiimport.SanitizeMapListField(loading_subtitle);
+    UI_ResolveMapInfoString(info, info ? info->mapDescription : NULL, description, sizeof(description));
+    UI_ResolveMapInfoString(info, info ? info->loadingScreenTitle : NULL, loading_title, sizeof(loading_title));
+    UI_ResolveMapInfoString(info,
+                            info ? info->loadingScreenSubtitle : NULL,
+                            loading_subtitle,
+                            sizeof(loading_subtitle));
+    UI_SanitizeMapListField(description);
+    UI_SanitizeMapListField(loading_title);
+    UI_SanitizeMapListField(loading_subtitle);
 
     if (loading_title[0] && loading_subtitle[0]) {
         LAN_CopyTitleSubtitle(item->name, sizeof(item->name), loading_title, loading_subtitle);
@@ -143,27 +146,27 @@ static BOOL LAN_ParseMapInfo(uiMapListItem_t *item) {
     MAPINFO info;
     LPCSTR tileset;
 
-    if (!item || !uiimport.ReadMapInfo || !uiimport.FreeMapInfo ||
-        !uiimport.ResolveMapInfoString || !uiimport.MapTilesetName ||
-        !uiimport.MapSizeName || !uiimport.MapNameMatchesFile ||
-        !uiimport.SanitizeMapListField || !uiimport.SanitizeMapInfoText) {
+    if (!item) {
         return false;
     }
-    if (!uiimport.ReadMapInfo(item->path, &info)) {
+    if (!UI_ReadMapInfo(item->path, &info)) {
         return false;
     }
 
     LAN_SetMapDisplayName(item, &info);
-    uiimport.ResolveMapInfoString(&info, info.mapDescription, item->description, sizeof(item->description));
-    uiimport.ResolveMapInfoString(&info, info.playersRecommended, item->suggestedPlayers, sizeof(item->suggestedPlayers));
-    uiimport.SanitizeMapInfoText(item->description);
-    uiimport.SanitizeMapInfoText(item->suggestedPlayers);
-    snprintf(item->mapSize, sizeof(item->mapSize), "%s", uiimport.MapSizeName(info.playableArea.width, info.playableArea.height));
-    tileset = uiimport.MapTilesetName((BYTE)info.mainGroundType);
+    UI_ResolveMapInfoString(&info, info.mapDescription, item->description, sizeof(item->description));
+    UI_ResolveMapInfoString(&info, info.playersRecommended, item->suggestedPlayers, sizeof(item->suggestedPlayers));
+    UI_SanitizeMapInfoText(item->description);
+    UI_SanitizeMapInfoText(item->suggestedPlayers);
+    snprintf(item->mapSize,
+             sizeof(item->mapSize),
+             "%s",
+             UI_MapSizeName(info.playableArea.width, info.playableArea.height));
+    tileset = UI_MapTilesetName((BYTE)info.mainGroundType);
     snprintf(item->tileset, sizeof(item->tileset), "%s", tileset ? tileset : UI_GetString("UNKNOWNMAP_TILESET"));
     item->flags = info.flags;
     item->players = MIN(LAN_CountMapPlayers(&info), 16);
-    uiimport.FreeMapInfo(&info);
+    UI_FreeMapInfo(&info);
     return true;
 }
 
@@ -192,11 +195,7 @@ static void LAN_AddMap(LPCSTR path) {
             *p = '\\';
         }
     }
-    if (uiimport.DefaultMapName) {
-        uiimport.DefaultMapName(item->path, item->name, sizeof(item->name));
-    } else {
-        LAN_CopyString(item->name, sizeof(item->name), item->path);
-    }
+    UI_DefaultMapName(item->path, item->name, sizeof(item->name));
     snprintf(item->description, sizeof(item->description), "%s", UI_GetString("UNKNOWNMAP_DESCRIPTION"));
     snprintf(item->suggestedPlayers, sizeof(item->suggestedPlayers), "%s", UI_GetString("UNKNOWNMAP_SUGGESTEDPLAYERS"));
     snprintf(item->mapSize, sizeof(item->mapSize), "%s", UI_GetString("UNKNOWNMAP_MAPSIZE"));
@@ -387,10 +386,10 @@ static void LAN_UpdateMapInfo(MapInfoPane_t *pane, uiMapListState_t *items) {
     }
 
     item = &items->items[items->selected];
-    if (pane->MinimapImage && uiimport.FindMapPreviewTexture) {
+    if (pane->MinimapImage) {
         PATHSTR preview;
 
-        if (uiimport.FindMapPreviewTexture(item->path, preview, sizeof(preview))) {
+        if (UI_FindMapPreviewTexture(item->path, preview, sizeof(preview))) {
             UI_SetTexture(pane->MinimapImage, preview, false);
             UI_SetHidden(pane->MinimapImage, false);
         } else {

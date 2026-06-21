@@ -35,16 +35,6 @@ struct war3map {
 
 bool CM_LoadMap(LPCSTR mapFilename);
 BOOL CM_IsMapLoaded(LPCSTR mapFilename);
-BOOL CM_ReadMapInfo(LPCSTR mapFilename, LPMAPINFO info);
-BOOL CM_FindMapPreviewTexture(LPCSTR mapFilename, LPSTR out, DWORD out_size);
-void CM_FreeMapInfo(LPMAPINFO info);
-void CM_DefaultMapName(LPCSTR path, LPSTR out, DWORD out_size);
-void CM_ResolveMapInfoString(LPCMAPINFO info, LPCSTR text, LPSTR out, DWORD out_size);
-BOOL CM_MapNameMatchesFile(LPCSTR name, LPCSTR path);
-LPCSTR CM_TilesetName(BYTE tileset);
-LPCSTR CM_MapSizeName(DWORD width, DWORD height);
-void CM_SanitizeMapListField(LPSTR text);
-void CM_SanitizeMapInfoText(LPSTR text);
 float CM_GetHeightAtPoint(float sx, float sy);
 LPDOODAD CM_GetDoodads(void);
 //LPCMAPPLAYER CM_GetPlayer(DWORD index);
