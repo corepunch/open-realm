@@ -621,12 +621,23 @@ static BOOL LAN_BuildCreateFrames(void) {
     return true;
 }
 
+static void LANJoin_RootDraw(struct uiBaseFrame_s *base, LPCRECT rect) {
+    (void)base; (void)rect;
+    UI_DrawGlueScene(lan.mode == LAN_MODE_BROWSER ? "BattlenetCustom Stand" : "BattlenetCustomCreate Stand");
+}
+
 static void LAN_BuildFrames(lanMode_t mode) {
     lan.mode = mode;
+    UI_SetHidden(lan.join_frames.LocalMultiplayerJoin, true);
+    UI_SetHidden(lan.create_frames.LocalMultiplayerCreate, true);
     if (mode == LAN_MODE_BROWSER) {
         lan.ready = LAN_BuildBrowserFrames();
     } else {
         lan.ready = LAN_BuildCreateFrames();
+    }
+    if (lan.root) {
+        lan.root->base.on_draw = LANJoin_RootDraw;
+        UI_SetHidden(lan.root, false);
     }
 }
 
@@ -648,6 +659,8 @@ static void LANJoin_Init(void) {
 }
 
 static void LANJoin_Shutdown(void) {
+    UI_SetHidden(lan.join_frames.LocalMultiplayerJoin, true);
+    UI_SetHidden(lan.create_frames.LocalMultiplayerCreate, true);
 }
 
 static void LANJoin_Refresh(int msec) {

@@ -349,10 +349,7 @@ static LPCRECT UI_LayoutRect(LPCFRAMEDEF frame) {
                  * baked into the model and intentionally omit Width/Height.
                  */
                 break;
-        default:
-            ((LPFRAMEDEF)frame)->base.on_draw = UI_GenericOnDraw;
-            break;
-                /* Default size if not specified */
+            default:
                 if (intrinsic_w == 0) intrinsic_w = 0.1f;
                 if (intrinsic_h == 0) intrinsic_h = 0.1f;
                 break;
@@ -369,8 +366,19 @@ static LPCRECT UI_LayoutRect(LPCFRAMEDEF frame) {
         .w = x_pos.y,
         .h = y_pos.y,
     };
+    ((LPFRAMEDEF)frame)->base.screen_rect = *out;
     
     return out;
+}
+
+void UI_UpdateFrameScreenRects(void) {
+    scene_rect_valid = FALSE;
+    memset(runtimes, 0, sizeof(runtimes));
+    scene_rect = UI_GetSceneRect();
+    FOR_LOOP(i, MAX_UI_CLASSES) {
+        if (frames[i].inuse)
+            UI_LayoutRect(frames + i);
+    }
 }
 
 /* ========================================================================
@@ -475,7 +483,7 @@ static void UI_DrawHighlightFrame(LPCFRAMEDEF frame, LPCRECT rect);
 #include "controls/ui_control_map_list.h"
 #include "controls/ui_control_slider.h"
 
-/* Generic on_draw for frames without specific handlers — calls UI_DrawFrameOne */
+/* Generic on_draw draws one frame; the client owns the flat frame loop. */
 void UI_GenericOnDraw(struct uiBaseFrame_s *base, LPCRECT rect) {
     (void)rect;
     UI_DrawFrameOne((LPFRAMEDEF)base);
@@ -906,9 +914,9 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
     switch (frame->base.type) {
         case FT_FRAME:
         case FT_SIMPLEFRAME:
-            if (frame->base.on_draw) {
-                frame->base.on_draw((struct uiBaseFrame_s *)frame, rect);
-            }
+            /* Container frames — no visual content of their own.
+             * Children are already collected and drawn individually
+             * by UI_CollectFrameTree in the outer draw loop. */
             break;
 
         case FT_DIALOG:

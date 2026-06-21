@@ -20,6 +20,11 @@ static BOOL CreditsMenu_LoadScreen(void) {
     return credits_root != NULL;
 }
 
+static void CreditsMenu_RootDraw(struct uiBaseFrame_s *base, LPCRECT rect) {
+    (void)base; (void)rect;
+    UI_DrawGlueScene("MainMenu Stand");
+}
+
 static void CreditsMenu_Init(void) {
     uiDialogWar3Init_t init = {
         .modal_name = "CreditsDialogModal",
@@ -34,12 +39,16 @@ static void CreditsMenu_Init(void) {
 
     uiimport.Printf("CreditsMenu_Init\n");
     UI_PreloadGlueSceneModels();
+    credits_root->base.on_draw = CreditsMenu_RootDraw;
+    UI_SetHidden(credits_root, false);
     if (UI_DialogWar3Init(&credits_dialog, credits_root, &init)) {
         UI_DialogWar3Show(&credits_dialog, &config);
     }
 }
 
 static void CreditsMenu_Shutdown(void) {
+    UI_SetHidden(credits_root, true);
+    UI_DialogWar3Hide(&credits_dialog);
 }
 
 static void CreditsMenu_Refresh(int msec) {

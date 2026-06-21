@@ -602,12 +602,22 @@ typedef struct { // serialized as 4 bytes
 
 typedef uiFramePoint_t uiFramePoints_t[FPP_COUNT];
 
+typedef struct {
+    uiFramePointPos_t targetPos;
+    BOOL used;
+    DWORD relative_index;           /* index into exported frame array, -1 = scene */
+    FLOAT offset;
+} uiBaseFramePoint_t;
+
+typedef uiBaseFramePoint_t uiBaseFramePoints_t[FPP_COUNT];
+
 /* UI interaction flags — shared between engine and game UI */
 #define UIFLAG_PRESSED  (1 << 0)
 #define UIFLAG_HOVERED  (1 << 1)
 #define UIFLAG_CHECKED  (1 << 2)
 #define UIFLAG_HIDDEN   (1 << 3)
 #define UIFLAG_DISABLED (1 << 4)
+#define UIFLAG_HIDDEN_IN_HIERARCHY (1 << 5)  /* derived effective visibility */
 
 /* Base frame struct — engine defines, game extends (edict_s pattern).
  * Game structs embed this as their first member and add fields below
@@ -618,7 +628,8 @@ typedef struct uiBaseFrame_s {
     FRAMETYPE type;
     void *parent;                   /* game resolves: pointer or index */
     DWORD parent_index;             /* index into frames array, -1 = root */
-    RECT screen_rect;               /* computed screen-space AABB, filled by DLL during Refresh */
+    struct { uiBaseFramePoints_t x, y; } points;
+    RECT screen_rect;               /* computed screen-space AABB, filled by client layout */
     COLOR32 color;
     FLOAT alpha;
     struct { FLOAT width, height; } size;

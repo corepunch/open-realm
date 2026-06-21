@@ -151,6 +151,7 @@ void UI_ShowGameSetupMenu(void) {
 }
 
 static void UI_MenuMain_f(void) {
+    fprintf(stderr, "UI_MenuMain_f: showing main menu\n");
     UI_ShowMainMenu();
 }
 
@@ -262,6 +263,7 @@ typedef struct {
 
 static uiMenuCommandDef_t const ui_menu_command_defs[] = {
     { "menu_main", UI_MenuMain_f },
+    { "menu_login", UI_MenuMain_f },
     { "menu_game", UI_MenuGame_f },
     { "menu_multiplayer", UI_MenuMultiplayer_f },
     { "menu_options", UI_MenuOptions_f },
@@ -617,9 +619,21 @@ void UI_InitLocal(void) {
     UI_ParseFDF("UI\\FrameDef\\UI\\ConsoleUI.fdf");
     UI_ParseFDF("UI\\FrameDef\\UI\\ResourceBar.fdf");
     UI_ParseFDF("UI\\FrameDef\\UI\\CinematicPanel.fdf");
+    UI_SetRootFramesHidden(true);
     UI_InitLoadingScreen();
     UI_InitGameResourceBar();
     UI_InitCinematicPanel();
+
+    /* Hide game-mode-only frames on init — the client draws all root FDF
+       frames directly via ui.frames, so these must be hidden until
+       game_mode is entered. */
+    {
+        LPFRAMEDEF consoleui = UI_FindFrame("ConsoleUI");
+        if (consoleui) UI_SetHidden(consoleui, true);
+    }
+    if (resource_bar.ResourceBarFrame) UI_SetHidden(resource_bar.ResourceBarFrame, true);
+    if (loading_screen.Loading) UI_SetHidden(loading_screen.Loading, true);
+    if (cinematic_panel.CinematicPanel) UI_SetHidden(cinematic_panel.CinematicPanel, true);
     
     ui_state.initialized = true;
     ui_state.active = true;
@@ -647,8 +661,15 @@ void UI_ShutdownLocal(void) {
 }
 
 void UI_RefreshLocal(DWORD msec) {
+    static BOOL refresh_logged;
     if (!ui_state.active) {
         return;
+    }
+    if (!refresh_logged) {
+        fprintf(stderr, "UI_RefreshLocal: game_mode=%d resource_bar.frame=%p\n",
+                (int)ui_state.game_mode,
+                (void *)resource_bar.ResourceBarFrame);
+        refresh_logged = true;
     }
     ui_state.time += msec;
     uiScreen_t *screen = UI_GetCurrentScreen();
@@ -658,6 +679,10 @@ void UI_RefreshLocal(DWORD msec) {
     /* Overlay visibility and text updates — DLL owns this, client owns draw */
     if (ui_state.game_mode) {
         LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
+        {
+            LPFRAMEDEF consoleui = UI_FindFrame("ConsoleUI");
+            if (consoleui) UI_SetHidden(consoleui, false);
+        }
         if (loading_screen.Loading) UI_SetHidden(loading_screen.Loading, !UI_LoadingActive(ps));
         if (UI_LoadingActive(ps)) {
             UI_UpdateLoadingMapInfo();
@@ -691,17 +716,23 @@ void UI_RefreshLocal(DWORD msec) {
             }
         }
     } else {
+        {
+            LPFRAMEDEF consoleui = UI_FindFrame("ConsoleUI");
+            if (consoleui) UI_SetHidden(consoleui, true);
+        }
         if (loading_screen.Loading) UI_SetHidden(loading_screen.Loading, true);
         if (cinematic_panel.CinematicPanel) UI_SetHidden(cinematic_panel.CinematicPanel, true);
         if (resource_bar.ResourceBarFrame) UI_SetHidden(resource_bar.ResourceBarFrame, true);
     }
+    UI_UpdateStandaloneFrameDraws();
+    UI_UpdateFrameHierarchyFlags();
 }
 
 void UI_DrawFrameLocal(void) {
     if (!ui_state.active) {
         return;
     }
-    
+
     /* Call current screen draw */
     if (ui_state.game_mode) {
         LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;

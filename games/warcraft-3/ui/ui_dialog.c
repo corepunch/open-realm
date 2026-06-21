@@ -75,7 +75,7 @@ static LPFRAMEDEF UI_DialogWar3CloneTemplate(LPCSTR template_name, LPFRAMEDEF pa
     LPFRAMEDEF template_frame = UI_FindFrame(template_name);
     LPFRAMEDEF frame = template_frame ? UI_CloneFrameTree(template_frame, parent) : NULL;
     if (frame) {
-        frame->Parent = parent;
+        UI_SetParent(frame, parent);
     }
     return frame;
 }

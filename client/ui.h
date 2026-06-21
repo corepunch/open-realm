@@ -186,7 +186,7 @@ uiExport_t UI_GetAPI(uiImport_t uiimport);
 /* Shared uiBaseFrame helpers — work on both WC3 and WoW frames.
  * Game code embeds uiBaseFrame_t as first member and casts as needed. */
 static inline BOOL UI_BaseIsVisible(LPCUIBASEFRAME frame) {
-    return frame && !(frame->ui_flags & UIFLAG_HIDDEN) && !frame->hidden;
+    return frame && !frame->hidden && !(frame->ui_flags & (UIFLAG_HIDDEN | UIFLAG_HIDDEN_IN_HIERARCHY));
 }
 
 static inline void UI_BaseSetHidden(LPUIBASEFRAME frame, BOOL hidden) {

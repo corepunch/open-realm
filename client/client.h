@@ -168,6 +168,8 @@ drawText_t SCR_GetDrawText(LPCUIFRAME frame,
                            LPCSTR text,
                            uiLabel_t const *label);
 void CL_LayoutDrawOverlays(void);
+RECT SCR_GetUISceneRect(void);
+void CL_UIUpdateFrameRects(void);
 void SCR_UpdateScreen(DWORD msec);
 
 // cl_input.c

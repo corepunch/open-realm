@@ -434,6 +434,16 @@ static void SinglePlayer_DrawCampaignBackdrop(void) {
     }
 }
 
+static void SinglePlayer_RootDraw(struct uiBaseFrame_s *base, LPCRECT rect) {
+    (void)base; (void)rect;
+    UI_DrawGlueScene("SinglePlayer Stand");
+}
+
+static void SinglePlayer_CampaignRootDraw(struct uiBaseFrame_s *base, LPCRECT rect) {
+    (void)base; (void)rect;
+    SinglePlayer_DrawCampaignBackdrop();
+}
+
 static void SinglePlayer_LaunchCampaign(singlePlayerCampaign_t const *campaign) {
     char command[256];
     LPCSTR map_path = SinglePlayer_FirstMissionMap(campaign);
@@ -559,6 +569,12 @@ static void SinglePlayerMenu_Init(void) {
     if (single_player.WarCraftIIILogo) {
         single_player.WarCraftIIILogo->Portrait.model = UI_LoadModel("CampaignLogo", true);
     }
+    if (single_player.SinglePlayerMenu) {
+        single_player.SinglePlayerMenu->base.on_draw = SinglePlayer_RootDraw;
+    }
+    if (single_player.CampaignMenu) {
+        single_player.CampaignMenu->base.on_draw = SinglePlayer_CampaignRootDraw;
+    }
 
     SinglePlayer_BindMainMenu();
     SinglePlayer_BindCampaignMenu();
@@ -568,6 +584,8 @@ static void SinglePlayerMenu_Init(void) {
 }
 
 static void SinglePlayerMenu_Shutdown(void) {
+    UI_SetHidden(single_player.SinglePlayerMenu, true);
+    UI_SetHidden(single_player.CampaignMenu, true);
 }
 
 static void SinglePlayerMenu_Refresh(int msec) {

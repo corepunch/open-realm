@@ -283,6 +283,26 @@ void Cmd_ExecuteString(LPCSTR text) {
     if (Cvar_Command()) {
         return;
     }
+
+    /* Command not found as a registered command or cvar.
+       Warn once per unique name to avoid per-frame spam. */
+    {
+        static char seen[8][64];
+        static DWORD next_slot;
+        BOOL already_logged = false;
+        for (DWORD i = 0; i < 8; i++) {
+            if (!strcmp(seen[i], token)) {
+                already_logged = true;
+                break;
+            }
+        }
+        if (!already_logged) {
+            fprintf(stderr, "Cmd_ExecuteString: unknown command \"%s\"\n", token);
+            strncpy(seen[next_slot], token, sizeof(seen[0]) - 1);
+            seen[next_slot][sizeof(seen[0]) - 1] = '\0';
+            next_slot = (next_slot + 1) & 7;
+        }
+    }
     
     // send it as a server command if we are connected
     Cmd_ForwardToServer(text);
