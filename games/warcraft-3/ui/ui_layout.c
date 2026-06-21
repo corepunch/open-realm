@@ -63,30 +63,6 @@ static VECTOR2 UI_LayoutScreenToFdf(int x, int y) {
     return MAKE(VECTOR2, scene.x + nx * scene.w, scene.y + ny * scene.h);
 }
 
-static LPCTEXTURE UI_LayoutTexture(DWORD index) {
-    return uiimport.GetTexture ? uiimport.GetTexture(index) : NULL;
-}
-
-static LPCTEXTURE *UI_LayoutTextures(void) {
-    return uiimport.GetTextures ? uiimport.GetTextures() : NULL;
-}
-
-static LPCFONT UI_LayoutFont(DWORD index) {
-    return uiimport.GetFont ? uiimport.GetFont(index) : NULL;
-}
-
-static LPCUIFRAME UI_LayoutClear(HANDLE data) {
-    return uiimport.LayoutClear ? uiimport.LayoutClear(data) : NULL;
-}
-
-static DWORD UI_LayoutNumFrames(void) {
-    return uiimport.LayoutNumFrames ? uiimport.LayoutNumFrames() : 0;
-}
-
-static LPUIFRAME UI_LayoutFrame(DWORD number) {
-    return uiimport.LayoutFrame ? uiimport.LayoutFrame(number) : NULL;
-}
-
 static LPCRECT UI_LayoutLayoutRect(LPCUIFRAME frame) {
     static RECT empty_rect;
     LPCRECT rect = uiimport.LayoutRect ? uiimport.LayoutRect(frame) : NULL;
@@ -202,17 +178,17 @@ void UI_LayoutDrawStatusbar(LPCUIFRAME frame, LPCRECT screen) {
         uv2.w *= frame->value;
 //    }
     RECT const suv2 = Rect_div(&uv2, 0xff);
-    re.DrawImage(UI_LayoutTexture(frame->tex.index), &screen2, &suv2, frame->color);
+    re.DrawImage(uiimport.GetTexture(frame->tex.index), &screen2, &suv2, frame->color);
     if (frame->tex.index2 > 0) {
         RECT const suv = Rect_div(&uv, 0xff);
-        re.DrawImage(UI_LayoutTexture(frame->tex.index2), screen, &suv, COLOR32_WHITE);
+        re.DrawImage(uiimport.GetTexture(frame->tex.index2), screen, &suv, COLOR32_WHITE);
     }
 }
 
 void UI_LayoutDrawTexture(LPCUIFRAME frame, LPCRECT screen) {
     RECT const uv = get_uvrect(frame->tex.coord);
     RECT const suv = Rect_div(&uv, 0xff);
-    LPCTEXTURE texture = UI_LayoutTexture(frame->tex.index);
+    LPCTEXTURE texture = uiimport.GetTexture(frame->tex.index);
     if (frame->stat >= MAX_STATS && frame->stat - MAX_STATS < MAX_STATS) {
         LPCSTR resource = UI_LayoutPlayerState()->texts[frame->stat - MAX_STATS];
         LPCTEXTURE dynamicTexture = UI_LayoutGetDynamicTexture(resource);
@@ -228,7 +204,7 @@ static void UI_LayoutDrawHighlightData(uiHighlight_t const *highlight, LPCRECT s
         return;
     }
     re.DrawImageEx(&MAKE(drawImage_t,
-                         .texture = UI_LayoutTexture(highlight->alphaFile),
+                         .texture = uiimport.GetTexture(highlight->alphaFile),
                          .alphamode = highlight->alphaMode,
                          .screen = *screen,
                          .uv = MAKE(RECT,0,0,1,1),
@@ -246,10 +222,10 @@ void UI_LayoutSimpleButton(LPCUIFRAME frame, LPCRECT screen) {
     LPCSTR label = frame->text;
     RECT const uv = get_uvrect((BYTE *)&button->normal.texcoord);
     RECT const suv = Rect_div(&uv, 0xff);
-    re.DrawImage(UI_LayoutTexture(button->normal.texture), screen, &suv, COLOR32_WHITE);
+    re.DrawImage(uiimport.GetTexture(button->normal.texture), screen, &suv, COLOR32_WHITE);
     re.DrawText(&MAKE(drawText_t,
                       .rect = *screen,
-                      .font = UI_LayoutFont(button->normal.font),
+                      .font = uiimport.GetFont(button->normal.font),
                       .text = label,
                       .color = button->normal.fontcolor,
                       .textWidth = screen->w));
@@ -318,8 +294,8 @@ void UI_LayoutDrawBackdrop2(LPCUIFRAME frame, LPCRECT screen, uiBackdrop_t const
     (void)backdrop;
 #endif
 
-    size2_t backSize = re.GetTextureSize(UI_LayoutTexture(backdrop->Background));
-    size2_t edgeSize = re.GetTextureSize(UI_LayoutTexture(backdrop->EdgeFile));
+    size2_t backSize = re.GetTextureSize(uiimport.GetTexture(backdrop->Background));
+    size2_t edgeSize = re.GetTextureSize(uiimport.GetTexture(backdrop->EdgeFile));
 
     RECT uv = { backdrop->Mirrored ? 1 : 0, 0, backdrop->Mirrored ? -1 : 1, 1};
     RECT background = *screen;
@@ -338,7 +314,7 @@ void UI_LayoutDrawBackdrop2(LPCUIFRAME frame, LPCRECT screen, uiBackdrop_t const
         uv.h = background.h / (backSize.height / 1000.f);
     }
     re.DrawImageEx(&MAKE(drawImage_t,
-                         .texture = UI_LayoutTexture(backdrop->Background),
+                         .texture = uiimport.GetTexture(backdrop->Background),
                          .alphamode = BLEND_MODE_BLEND,
                          .screen = background,
                          .uv = uv,
@@ -355,7 +331,7 @@ void UI_LayoutDrawBackdrop2(LPCUIFRAME frame, LPCRECT screen, uiBackdrop_t const
         BOOL const flip = backdrop_edge_flip(corners[i]);
         RECT const rect = { i * k, 0, k, tile };
         re.DrawImageEx(&MAKE(drawImage_t,
-                             .texture = UI_LayoutTexture(backdrop->EdgeFile),
+                             .texture = uiimport.GetTexture(backdrop->EdgeFile),
                              .alphamode = BLEND_MODE_BLEND,
                              .screen = rects[corners[i]],
                              .uv = rect,
@@ -501,7 +477,7 @@ void UI_LayoutDrawBuildQueue(LPCUIFRAME frame, LPCRECT scrn) {
     }
     for (DWORD i = active + 1; i < queue->numitems; i++) {
         if (UI_LayoutTime() < queue->items[i].endtime) {
-            re.DrawImage(UI_LayoutTexture(queue->items[i].image), &screen, &uv, frame->color);
+            re.DrawImage(uiimport.GetTexture(queue->items[i].image), &screen, &uv, frame->color);
             screen.x += queue->itemoffset;
         }
     }
@@ -509,8 +485,8 @@ void UI_LayoutDrawBuildQueue(LPCUIFRAME frame, LPCRECT scrn) {
 
 void UI_LayoutUpdateBuildQueue(LPCUIFRAME frame, LPCRECT screen) {
     uiBuildQueue_t const *queue = frame->buffer.data;
-    LPUIFRAME buildtimer = UI_LayoutFrame(queue->buildtimer);
-    LPUIFRAME firstitem = UI_LayoutFrame(queue->firstitem);
+    LPUIFRAME buildtimer = uiimport.LayoutFrame(queue->buildtimer);
+    LPUIFRAME firstitem = uiimport.LayoutFrame(queue->firstitem);
 
     FOR_LOOP(i, queue->numitems) {
         uiBuildQueueItem_t const *item = &queue->items[i];
@@ -537,7 +513,7 @@ void UI_LayoutDrawMultiSelect(LPCUIFRAME frame, LPCRECT scrn) {
     FOR_LOOP(i, multiselect->numitems) {
         RECT uv = { 0, 0, 1, 1 };
         uiMultiselectItem_t const *item = &multiselect->items[i];
-        re.DrawImage(UI_LayoutTexture(item->image), &screen, &uv, frame->color);
+        re.DrawImage(uiimport.GetTexture(item->image), &screen, &uv, frame->color);
         LPCENTITYSTATE ent = uiimport.GetEntity ? uiimport.GetEntity(item->entity) : NULL;
         if (ent) {
             FLOAT health = BYTE2FLOAT(ent->stats[ENT_HEALTH]);
@@ -549,11 +525,11 @@ void UI_LayoutDrawMultiSelect(LPCUIFRAME frame, LPCRECT scrn) {
                 screen.h * HP_BAR_HEIGHT_RATIO
             };
             uv.w = health;
-            re.DrawImage(UI_LayoutTexture(multiselect->hp_bar), &rect, &uv, MAKE(COLOR32,0,255,0,255));
+            re.DrawImage(uiimport.GetTexture(multiselect->hp_bar), &rect, &uv, MAKE(COLOR32,0,255,0,255));
             uv.w = mana;
             rect.w = screen.w * mana;
             rect.y += screen.h * (HP_BAR_HEIGHT_RATIO + HP_BAR_SPACING_RATIO);
-            re.DrawImage(UI_LayoutTexture(multiselect->mana_bar), &rect, &uv, MAKE(COLOR32,0,255,255,255));
+            re.DrawImage(uiimport.GetTexture(multiselect->mana_bar), &rect, &uv, MAKE(COLOR32,0,255,255,255));
         }
         if (++column >= multiselect->numcolumns) {
             column = 0;
@@ -615,7 +591,7 @@ void UI_LayoutDrawCommandButton(LPCUIFRAME frame, LPCRECT screen) {
         }
     }
     re.DrawImageEx(&MAKE(drawImage_t,
-                         .texture = UI_LayoutTexture(frame->tex.index),
+                         .texture = uiimport.GetTexture(frame->tex.index),
                          .screen = scrn,
                          .uv = suv,
                          .color = COLOR32_WHITE,
@@ -645,11 +621,11 @@ void layout_text(LPCUIFRAME frame, LPCRECT screen, LPCSTR text) {
 }
 
 static void UI_LayoutApplyPushedTextOffset(LPCUIFRAME frame, LPRECT screen) {
-    if (frame->parent >= UI_LayoutNumFrames()) {
+    if (frame->parent >= uiimport.LayoutNumFrames()) {
         return;
     }
 
-    LPCUIFRAME parent = UI_LayoutFrame(frame->parent);
+    LPCUIFRAME parent = uiimport.LayoutFrame(frame->parent);
     if (!parent) {
         return;
     }
@@ -688,12 +664,12 @@ void UI_LayoutDrawTextArea(LPCUIFRAME frame, LPCRECT screen) {
         screen->h - textArea->inset * 2,
     };
     re.DrawText(&MAKE(drawText_t,
-                      .font = UI_LayoutFont(textArea->font),
+                      .font = uiimport.GetFont(textArea->font),
                       .text = frame->text ? frame->text : "",
                       .color = frame->color.a ? frame->color : COLOR32_WHITE,
                       .halign = FONT_JUSTIFYLEFT,
                       .valign = FONT_JUSTIFYTOP,
-                      .icons = UI_LayoutTextures(),
+                      .icons = uiimport.GetTextures(),
                       .lineHeight = 1.33,
                       .textWidth = scr.w,
                       .rect = scr,
@@ -718,8 +694,8 @@ void UI_LayoutDrawListBox(LPCUIFRAME frame, LPCRECT screen) {
 
     UI_LayoutDrawBackdrop2(frame, screen, &listbox->background);
 
-    FOR_LOOP(i, UI_LayoutNumFrames()) {
-        LPCUIFRAME child = UI_LayoutFrame(i);
+    FOR_LOOP(i, uiimport.LayoutNumFrames()) {
+        LPCUIFRAME child = uiimport.LayoutFrame(i);
         if (child && child->parent == frame->number && child->flags.type == FT_SCROLLBAR) {
             scrollbar = child;
             break;
@@ -762,15 +738,15 @@ void UI_LayoutDrawListBox(LPCUIFRAME frame, LPCRECT screen) {
         row.h = MIN(item_height, item_y - list_rect.y);
         row.y = item_y - row.h;
         if (rowIndex == selectedIndex) {
-            re.DrawImage(UI_LayoutTexture(0), &row, &MAKE(RECT, 0, 0, 1, 1), MAKE(COLOR32, 32, 64, 180, 128));
+            re.DrawImage(uiimport.GetTexture(0), &row, &MAKE(RECT, 0, 0, 1, 1), MAKE(COLOR32, 32, 64, 180, 128));
         }
         re.DrawText(&MAKE(drawText_t,
-                          .font = UI_LayoutFont(listbox->text.font),
+                          .font = uiimport.GetFont(listbox->text.font),
                           .text = display,
                           .color = frame->color.a ? frame->color : COLOR32_WHITE,
                           .halign = FONT_JUSTIFYLEFT,
                           .valign = FONT_JUSTIFYMIDDLE,
-                          .icons = UI_LayoutTextures(),
+                          .icons = uiimport.GetTextures(),
                           .lineHeight = 1.33,
                           .textWidth = row.w,
                           .rect = row,
@@ -871,8 +847,8 @@ void UI_LayoutUpdateFrame(LPCUIFRAME frame) {
 }
 
 void UI_LayoutUpdateTooltip(HANDLE _frames) {
-    FOR_LOOP(i, UI_LayoutNumFrames()) {
-        LPCUIFRAME frame = UI_LayoutFrame(i);
+    FOR_LOOP(i, uiimport.LayoutNumFrames()) {
+        LPCUIFRAME frame = uiimport.LayoutFrame(i);
         if (frame) {
             UI_LayoutUpdateFrame(frame);
         }
@@ -880,20 +856,20 @@ void UI_LayoutUpdateTooltip(HANDLE _frames) {
 }
 
 void UI_LayoutDrawOverlay(HANDLE _frames) {
-    FOR_LOOP(i, UI_LayoutNumFrames()) {
-        LPCUIFRAME frame = UI_LayoutFrame(i);
+    FOR_LOOP(i, uiimport.LayoutNumFrames()) {
+        LPCUIFRAME frame = uiimport.LayoutFrame(i);
         if (frame && frame->flags.type == FT_SPRITE) {
             UI_LayoutDrawFrame(frame);
         }
     }
-    FOR_LOOP(i, UI_LayoutNumFrames()) {
-        LPCUIFRAME frame = UI_LayoutFrame(i);
+    FOR_LOOP(i, uiimport.LayoutNumFrames()) {
+        LPCUIFRAME frame = uiimport.LayoutFrame(i);
         if (frame && frame->flags.type != FT_SPRITE) {
             UI_LayoutDrawFrame(frame);
         }
     }
-    FOR_LOOP(i, UI_LayoutNumFrames()) {
-        LPCUIFRAME frame = UI_LayoutFrame(i);
+    FOR_LOOP(i, uiimport.LayoutNumFrames()) {
+        LPCUIFRAME frame = uiimport.LayoutFrame(i);
         if (frame && (frame->flags.type == FT_GLUETEXTBUTTON || frame->flags.type == FT_GLUEBUTTON)) {
             UI_LayoutDrawGlueTextButtonHighlight(frame);
         }
@@ -906,7 +882,7 @@ void UI_LayoutDrawOverlays(void) {
     if (UI_LayoutPlayerState()->cinefade > 0) {
         COLOR32 color = COLOR32_BLACK;
         color.a = 255 * UI_LayoutPlayerState()->cinefade;
-        re.DrawImage(UI_LayoutTexture(0), &MAKE(RECT,0,0,1,1), &MAKE(RECT,0,0,1,1), color);
+        re.DrawImage(uiimport.GetTexture(0), &MAKE(RECT,0,0,1,1), &MAKE(RECT,0,0,1,1), color);
     }
     
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
@@ -916,7 +892,7 @@ void UI_LayoutDrawOverlays(void) {
             continue;
         HANDLE layout = layout_layers[layer];
         if (layout) {
-            UI_LayoutClear(layout);
+            uiimport.LayoutClear(layout);
             UI_LayoutUpdateTooltip(layout);
         }
     }
@@ -928,7 +904,7 @@ void UI_LayoutDrawOverlays(void) {
             continue;
         HANDLE layout = layout_layers[layer];
         if (layout) {
-            UI_LayoutClear(layout);
+            uiimport.LayoutClear(layout);
             UI_LayoutUpdateTooltip(layout);
             UI_LayoutDrawOverlay(layout);
         }
@@ -968,9 +944,9 @@ void UI_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
         if (!layout || ((1 << layer) & UI_LayoutPlayerState()->uiflags) || UI_LayoutShouldSkipLayoutLayer(layer)) {
             continue;
         }
-        UI_LayoutClear(layout);
-        for (DWORD i = UI_LayoutNumFrames(); i > 0; i--) {
-            LPCUIFRAME frame = UI_LayoutFrame(i - 1);
+        uiimport.LayoutClear(layout);
+        for (DWORD i = uiimport.LayoutNumFrames(); i > 0; i--) {
+            LPCUIFRAME frame = uiimport.LayoutFrame(i - 1);
             if (!frame || !UI_LayoutFrameHasClickCommand(frame)) {
                 continue;
             }
@@ -1001,9 +977,9 @@ BOOL UI_LayoutHitTest(int x, int y) {
         if (UI_LayoutShouldSkipLayoutLayer(layer)) {
             continue;
         }
-        UI_LayoutClear(layout);
-        FOR_LOOP(i, UI_LayoutNumFrames()) {
-            LPCUIFRAME frame = UI_LayoutFrame(i);
+        uiimport.LayoutClear(layout);
+        FOR_LOOP(i, uiimport.LayoutNumFrames()) {
+            LPCUIFRAME frame = uiimport.LayoutFrame(i);
             if (!frame || frame->flags.type != FT_TEXTURE) {
                 continue;
             }
