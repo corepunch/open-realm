@@ -25,7 +25,6 @@ BOOL UI_LayoutHitTest(int x, int y);
 void UI_LayoutDrawOverlays(void);
 void UI_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param);
 
-/* Time accessor (implemented in the UI library, available to layout system) */
-DWORD UI_GetTime(void);
+/* Time accessor — use uiimport.GetTime() instead of calling UI_GetTime directly */
 
 #endif /* ui_layout_h */

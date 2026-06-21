@@ -301,6 +301,11 @@ static LPRENDERER CL_UIGetRenderer(void) {
     return &re;
 }
 
+/* Time access callback for UI build queues */
+static DWORD CL_UIGetTime(void) {
+    return cl_realtime;
+}
+
 #define CL_MAX_LAN_SERVERS 64
 
 static uiLanGame_t cl_lan_servers[CL_MAX_LAN_SERVERS];
@@ -587,6 +592,7 @@ void CL_Init(void) {
         .GetTextures = CL_UIGetTextures,
         .GetFont = CL_UIGetFont,
         .GetRenderer = CL_UIGetRenderer,
+        .GetTime = CL_UIGetTime,
         .Printf = CON_printf,
     });
     
