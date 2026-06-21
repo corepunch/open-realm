@@ -812,11 +812,6 @@ void UI_MouseEventLocal(uiMouseEvent_t event, int x, int y, int32_t param) {
         UI_PopupSelectItem(fdf.x, fdf.y);
     }
 
-    /* Delegate to current screen */
-    uiScreen_t *screen = UI_GetCurrentScreen();
-    if (screen && screen->mouse_event) {
-        screen->mouse_event(event, x, y, param);
-    }
 }
 
 void UI_MenuCommandLocal(LPCSTR command) {

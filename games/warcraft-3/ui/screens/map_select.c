@@ -24,13 +24,6 @@ static void MapSelect_KeyEvent(int key, BOOL down) {
     (void)down;
 }
 
-static void MapSelect_MouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
-    (void)x;
-    (void)y;
-    (void)event;
-    (void)param;
-}
-
 uiScreen_t mapSelectScreen = {
     .name = "map-select",
     .init = MapSelect_Init,
@@ -38,5 +31,4 @@ uiScreen_t mapSelectScreen = {
     .refresh = MapSelect_Refresh,
     .draw = MapSelect_Draw,
     .key_event = MapSelect_KeyEvent,
-    .mouse_event = MapSelect_MouseEvent,
 };

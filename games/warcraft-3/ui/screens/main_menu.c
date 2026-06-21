@@ -131,14 +131,6 @@ static void MainMenu_KeyEvent(int key, BOOL down) {
     (void)down;
 }
 
-static void MainMenu_MouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
-    /* Handle mouse events */
-    (void)x;
-    (void)y;
-    (void)event;
-    (void)param;
-}
-
 void MainMenu_ShowMainPanel(void) {
     show_realm_select = false;
     UI_DialogWar3Hide(&quit_dialog);
@@ -200,5 +192,4 @@ uiScreen_t mainMenuScreen = {
     .refresh = MainMenu_Refresh,
     .draw = MainMenu_Draw,
     .key_event = MainMenu_KeyEvent,
-    .mouse_event = MainMenu_MouseEvent,
 };
