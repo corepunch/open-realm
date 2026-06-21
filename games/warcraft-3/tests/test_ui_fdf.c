@@ -294,7 +294,6 @@ static void reset_ui_state(void) {
     uiimport.ModelIndex = fake_model_index;
     uiimport.FontIndex = test_font_index;
     uiimport.GetRenderer = test_get_renderer;
-    uiimport.GetMouseFdf = test_ui_get_mouse_fdf;
     uiimport.Printf = test_ui_printf;
     uiimport.Error = test_ui_printf;
 }
@@ -1270,6 +1269,41 @@ static void test_glue_checkbox_toggles_and_draws_check_highlight(void) {
     ASSERT_EQ_INT(captured_draw_calls, 1);
 }
 
+static void test_popup_menu_hover_sets_flag_on_middle_row(void) {
+    LPFRAMEDEF root;
+    LPFRAMEDEF popup;
+
+    reset_ui_state();
+    parse_fdf("popup_hover.fdf",
+              "Frame \"FRAME\" \"Root\" {"
+              " Width 0.8, Height 0.6,"
+              " Frame \"POPUPMENU\" \"GameMenu\" {"
+              "  Width 0.18, Height 0.025,"
+              "  SetPoint TOPLEFT, \"Root\", TOPLEFT, 0.1, 0.1,"
+              " }"
+              "}");
+
+    root = UI_FindFrame("Root");
+    popup = UI_FindFrame("GameMenu");
+    if (!require_not_null(root)) return;
+    if (!require_not_null(popup)) return;
+
+    /* Draw once to populate layout rects */
+    UI_DrawFrame(root);
+
+    /* The popup is at (0.1, 0.1) with size (0.18, 0.025) in FDF coords.
+     * Window is 1000x750, scene is (0,0,0.8,0.6).
+     * pixel = fdf * (1000/0.8, 750/0.6). */
+    FLOAT mid_x = 0.1f + 0.18f * 0.5f;  /* 0.19 */
+    FLOAT mid_y = 0.1f + 0.025f * 0.5f; /* 0.1125 */
+    int px = (int)(mid_x / 0.8f * 1000.0f);
+    int py = (int)(mid_y / 0.6f * 750.0f);
+
+    UI_MouseEventLocal(UI_MOUSE_MOVE, px, py, 0);
+
+    ASSERT(popup->ui_flags & UIFLAG_HOVERED);
+}
+
 static void test_button1_dropdown_backdrop_gets_hover_highlight(void) {
     LPFRAMEDEF root;
 
@@ -1805,6 +1839,7 @@ BEGIN_SUITE(ui_fdf)
     RUN_TEST(test_single_line_text_auto_height_uses_fdf_font_size);
     RUN_TEST(test_glue_checkbox_toggles_and_draws_check_highlight);
     RUN_TEST(test_button1_dropdown_backdrop_gets_hover_highlight);
+    RUN_TEST(test_popup_menu_hover_sets_flag_on_middle_row);
     RUN_TEST(test_backdrop_edge_without_corner_size_logs_error);
     RUN_TEST(test_editbox_without_text_frame_click_focus_accepts_text_input);
     RUN_TEST(test_esc_menu_confirm_quit_panel_is_available);
