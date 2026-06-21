@@ -103,7 +103,6 @@ static LPCMODEL CL_UIGetModel(DWORD idx);
 static LPCMODEL CL_UIGetPortrait(DWORD idx);
 static LPRENDERER CL_UIGetRenderer(void);
 static DWORD CL_UIGetClientTime(void);
-static VECTOR2 CL_UIGetMouseFdf(void);
 
 static void CL_MenuCommand(LPCSTR command) {
     if (!command || !*command) {
@@ -306,10 +305,6 @@ static LPRENDERER CL_UIGetRenderer(void) {
 
 static DWORD CL_UIGetClientTime(void) {
     return cl.time;
-}
-
-static VECTOR2 CL_UIGetMouseFdf(void) {
-    return SCR_MouseToFdf();
 }
 
 static BOOL CL_UIGetMouseButtonDown(DWORD button) {
@@ -636,7 +631,6 @@ void CL_Init(void) {
         .GetTextures = CL_UIGetTextures,
         .GetFont = CL_UIGetFont,
         .GetClientTime = CL_UIGetClientTime,
-        .GetMouseFdf = CL_UIGetMouseFdf,
         .GetMouseButtonDown = CL_UIGetMouseButtonDown,
         .LayoutClear = SCR_Clear,
         .LayoutNumFrames = SCR_NumFrames,

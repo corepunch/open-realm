@@ -356,10 +356,9 @@ static BOOL UI_LayoutFrameHasClickCommand(LPCUIFRAME frame) {
     return frame && frame->onclick && *frame->onclick;
 }
 
-static BOOL UI_LayoutGlueTextButtonIsPushed(LPCUIFRAME frame, LPCRECT screen) {
-    VECTOR2 const m = UI_MouseToFdf();
-    return UI_LayoutFrameHasClickCommand(frame) && Rect_contains(screen, &m) &&
-           layout_left_down;
+static BOOL UI_LayoutGlueTextButtonIsPushed(LPCUIFRAME frame) {
+    LPFRAMEDEF def = UI_FindFrameByNumber(frame->number);
+    return def && (def->ui_flags & UIFLAG_PRESSED);
 }
 
 static void UI_LayoutFormatOnClickCommand(LPCSTR source, LPSTR dest, DWORD dest_size) {
@@ -404,8 +403,8 @@ void UI_LayoutGlueTextButton(LPCUIFRAME frame, LPCRECT screen) {
     BOOL const enabled = UI_LayoutFrameHasClickCommand(frame);
     uiBackdrop_t const *backdrop = &gluetextbutton->normal;
     if (!enabled) {
-        backdrop = UI_LayoutGlueTextButtonIsPushed(frame, screen) ? &gluetextbutton->disabledPushed : &gluetextbutton->disabled;
-    } else if (UI_LayoutGlueTextButtonIsPushed(frame, screen)) {
+        backdrop = UI_LayoutGlueTextButtonIsPushed(frame) ? &gluetextbutton->disabledPushed : &gluetextbutton->disabled;
+    } else if (UI_LayoutGlueTextButtonIsPushed(frame)) {
         backdrop = &gluetextbutton->pushed;
     }
 
@@ -415,9 +414,9 @@ void UI_LayoutGlueTextButton(LPCUIFRAME frame, LPCRECT screen) {
 static void UI_LayoutDrawGlueTextButtonHighlight(LPCUIFRAME frame) {
     uiGlueTextButton_t const *gluetextbutton = frame->buffer.data;
     RECT const *screen = uiimport.LayoutRect(frame);
-    VECTOR2 const m = UI_MouseToFdf();
+    LPFRAMEDEF def = UI_FindFrameByNumber(frame->number);
     BOOL const enabled = UI_LayoutFrameHasClickCommand(frame);
-    BOOL const mouse_over = Rect_contains(screen, &m);
+    BOOL const mouse_over = def && (def->ui_flags & UIFLAG_HOVERED);
 
     if (enabled && mouse_over) {
         UI_LayoutDrawHighlightData(&gluetextbutton->highlight, screen);
@@ -544,10 +543,10 @@ void UI_LayoutDrawCommandButton(LPCUIFRAME frame, LPCRECT screen) {
     LPCENTITYSTATE selentity = UI_LayoutSelectedEntity();
     RECT const uv = get_uvrect(frame->tex.coord);
     RECT const suv = Rect_div(&uv, 0xff);
-    VECTOR2 const m = UI_MouseToFdf();
+    LPFRAMEDEF def = UI_FindFrameByNumber(frame->number);
     RECT scrn = scale_rect(screen, 0.925);
-    if (Rect_contains(screen, &m)) {
-        if (layout_left_down) {
+    if (def && (def->ui_flags & UIFLAG_HOVERED)) {
+        if (def->ui_flags & UIFLAG_PRESSED) {
             scrn = scale_rect(screen, 0.875);
         }
     }
@@ -584,8 +583,7 @@ static void UI_LayoutApplyPushedTextOffset(LPCUIFRAME frame, LPRECT screen) {
         return;
     }
 
-    LPCRECT parent_screen = uiimport.LayoutRect(parent);
-    if (!UI_LayoutGlueTextButtonIsPushed(parent, parent_screen)) {
+    if (!UI_LayoutGlueTextButtonIsPushed(parent)) {
         return;
     }
 
@@ -731,8 +729,8 @@ void UI_LayoutDrawTooltip(LPCUIFRAME frame, LPCRECT scrn) {
 }
 
 void UI_LayoutUpdateCommandButton(LPCUIFRAME frame, LPCRECT screen) {
-    VECTOR2 const m = UI_MouseToFdf();
-    if (Rect_contains(screen, &m) && frame->tooltip) {
+    LPFRAMEDEF def = UI_FindFrameByNumber(frame->number);
+    if (def && (def->ui_flags & UIFLAG_HOVERED) && frame->tooltip) {
         active_tooltip = frame->tooltip;
     }
 }

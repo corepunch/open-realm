@@ -1076,6 +1076,13 @@ LPFRAMEDEF UI_FindFrame(LPCSTR name) {
     return NULL;
 }
 
+LPFRAMEDEF UI_FindFrameByNumber(DWORD number) {
+    if (number < MAX_UI_CLASSES && frames[number].inuse) {
+        return &frames[number];
+    }
+    return NULL;
+}
+
 LPFRAMEDEF UI_FindFrameNear(LPCFRAMEDEF anchor, LPCSTR name) {
     if (!name || !*name) {
         return NULL;
