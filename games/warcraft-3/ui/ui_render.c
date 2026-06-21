@@ -51,6 +51,7 @@ static LPCFRAMEDEF active_popup = NULL;
 static LPCFRAMEDEF active_modal = NULL;
 static LPFRAMEDEF active_edit = NULL;
 static uiTextInput_t active_ti;
+static int active_popup_hover_item = -1;
 
 static LPRENDERER UI_GetRenderer(void) {
     if (!uiimport.GetRenderer) {
@@ -791,7 +792,7 @@ static void UI_DrawButtonHighlight(LPCFRAMEDEF frame) {
         return;
     }
     rect = UI_LayoutRect(frame);
-    if (!rect || !UI_MouseContains(rect)) {
+    if (!rect || !(frame->ui_flags & UIFLAG_HOVERED)) {
         return;
     }
 
@@ -1218,6 +1219,41 @@ void UI_PopupMenuScroll(BOOL scroll_up) {
         active_popup_scroll = active_popup_scroll > 0 ? active_popup_scroll - 1 : 0;
     } else if (active_popup_scroll < max_scroll) {
         active_popup_scroll++;
+    }
+}
+
+void UI_PopupMenuHover(FLOAT fdf_x, FLOAT fdf_y) {
+    LPFRAMEDEF menu = active_popup ? UI_PopupMenuFrame(active_popup) : NULL;
+    active_popup_hover_item = -1;
+    if (!menu || menu->hidden) {
+        return;
+    }
+    LPCFRAMEDEF parent = menu->Parent;
+    if (!parent) {
+        return;
+    }
+    FLOAT border = parent->Menu.Border > 0.0f ? parent->Menu.Border : 0.006f;
+    FLOAT row_height = parent->Menu.Item.Height > 0.0f ? parent->Menu.Item.Height : 0.014f;
+    LPCRECT rect = UI_LayoutRect(parent);
+    if (!rect) {
+        return;
+    }
+    FLOAT content_height = MAX(0.0f, rect->h - border * 2.0f);
+    DWORD visible_rows = content_height > 0.0f ? (DWORD)floorf(content_height / row_height) : 0;
+    if (visible_rows > parent->Menu.ItemCount) {
+        visible_rows = parent->Menu.ItemCount;
+    }
+    FOR_LOOP(row_index, visible_rows) {
+        DWORD i = active_popup_scroll + row_index;
+        RECT row = { rect->x + border, rect->y + border + row_height * (FLOAT)row_index,
+                     MAX(0.0f, rect->w - border * 2.0f), row_height };
+        if (i >= parent->Menu.ItemCount) {
+            break;
+        }
+        if (UI_PointInRect(fdf_x, fdf_y, &row)) {
+            active_popup_hover_item = (int)i;
+            return;
+        }
     }
 }
 

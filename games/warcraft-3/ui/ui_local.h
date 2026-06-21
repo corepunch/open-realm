@@ -133,6 +133,9 @@ typedef struct {
 #define UIFLAG_PRESSED  (1 << 0)
 #define UIFLAG_HOVERED  (1 << 1)
 #define UIFLAG_CHECKED  (1 << 2)
+#define UIFLAG_DISABLED (1 << 3)
+#define UIFLAG_ACTIVE   (1 << 4)
+#define UIFLAG_VISIBLE  (1 << 5)
 
 /* Frame template definition (server-side/library-side only) */
 struct uiFrameDef_s {
@@ -388,6 +391,7 @@ void UI_MapListScroll(LPCFRAMEDEF frame, BOOL scroll_up);
 void UI_PopupCloseOnMiss(void);
 BOOL UI_PopupPointInside(FLOAT fdf_x, FLOAT fdf_y);
 void UI_PopupMenuScroll(BOOL scroll_up);
+void UI_PopupMenuHover(FLOAT fdf_x, FLOAT fdf_y);
 void UI_PopupSelectItem(FLOAT fdf_x, FLOAT fdf_y);
 DWORD UI_FindFrameNumber(LPCSTR);
 DWORD UI_CollectFrameTree(LPCFRAMEDEF root, LPCFRAMEDEF *out, DWORD max);
