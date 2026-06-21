@@ -77,7 +77,7 @@ static LPFRAMEDEF UI_PopupTitleTextFrame(LPCFRAMEDEF popup) {
 }
 
 static FLOAT UI_PopupBottomPadding(void) {
-    LPRENDERER renderer = UI_GetRenderer();
+    LPRENDERER renderer = uiimport.GetRenderer();
     RECT scene = UI_GetSceneRect();
     size2_t window;
 
@@ -179,7 +179,7 @@ static void UI_UpdatePopupVisibility(LPCFRAMEDEF const *draw_order, DWORD count)
 }
 
 static void UI_DrawMenu(LPCFRAMEDEF frame, LPCRECT rect) {
-    LPRENDERER renderer = UI_GetRenderer();
+    LPRENDERER renderer = uiimport.GetRenderer();
     LPCFRAMEDEF backdrop = UI_FindFrameNear(frame, frame->Control.Backdrop.Normal);
     LPCFONT font;
     FLOAT const border = frame->Menu.Border > 0.0f ? frame->Menu.Border : 0.006f;

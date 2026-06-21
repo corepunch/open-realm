@@ -53,13 +53,6 @@ static LPFRAMEDEF active_edit = NULL;
 static uiTextInput_t active_ti;
 static int active_popup_hover_item = -1;
 
-static LPRENDERER UI_GetRenderer(void) {
-    if (!uiimport.GetRenderer) {
-        return NULL;
-    }
-    return uiimport.GetRenderer();
-}
-
 static BOOL UI_FrameIndex(LPCFRAMEDEF frame, DWORD *index) {
     if (!frame || frame < frames || frame >= frames + MAX_UI_CLASSES) {
         return FALSE;
@@ -152,7 +145,7 @@ static RECT UI_GetSceneRect(void) {
         return scene_rect;
     }
     
-    LPRENDERER renderer = UI_GetRenderer();
+    LPRENDERER renderer = uiimport.GetRenderer();
     size2_t window;
     FLOAT window_aspect = UI_MIN_ASPECT;
     FLOAT x_scale = 1.0f;
@@ -304,7 +297,7 @@ static LPCRECT UI_LayoutRect(LPCFRAMEDEF frame) {
                 if (frame->Text && frame->Font.Index) {
                     BOOL auto_width = intrinsic_w == 0;
                     BOOL auto_height = intrinsic_h == 0;
-                    LPRENDERER renderer = UI_GetRenderer();
+                    LPRENDERER renderer = uiimport.GetRenderer();
                     drawText_t dt = {
                         .font = renderer ? renderer->LoadFont(UI_FontFile(frame->Font.Name),
                                                               UI_FontPixelSize(frame->Font.Size)) : NULL,
@@ -336,7 +329,7 @@ static LPCRECT UI_LayoutRect(LPCFRAMEDEF frame) {
             case FT_TEXTURE:
             case FT_BACKDROP:
                 if (frame->Texture.Image) {
-                    LPRENDERER renderer = UI_GetRenderer();
+                    LPRENDERER renderer = uiimport.GetRenderer();
                     LPCTEXTURE texture = UI_GetTexture(frame->Texture.Image);
                     size2_t tex_size = (renderer && texture) ? renderer->GetTextureSize(texture) : MAKE(size2_t, 0, 0);
                     if (intrinsic_w == 0) intrinsic_w = tex_size.width / 1000.0f;  /* Normalize to 0-1 space */
@@ -377,7 +370,7 @@ static LPCRECT UI_LayoutRect(LPCFRAMEDEF frame) {
  * ======================================================================== */
 
 static void UI_DrawTexture(LPCFRAMEDEF frame, LPCRECT rect) {
-    LPRENDERER renderer = UI_GetRenderer();
+    LPRENDERER renderer = uiimport.GetRenderer();
 
     if (!frame->Texture.Image) {
         return;
@@ -421,7 +414,7 @@ static void UI_DrawTexture(LPCFRAMEDEF frame, LPCRECT rect) {
 }
 
 static void UI_DrawText(LPCFRAMEDEF frame, LPCRECT rect) {
-    LPRENDERER renderer = UI_GetRenderer();
+    LPRENDERER renderer = uiimport.GetRenderer();
     LPCSTR font_name;
     DWORD font_size;
     RECT text_rect = *rect;
@@ -726,7 +719,7 @@ static DWORD UI_FrameDrawOrderIndex(LPCFRAMEDEF const *draw_order, DWORD count, 
 }
 
 static void UI_DrawModalDim(void) {
-    LPRENDERER renderer = UI_GetRenderer();
+    LPRENDERER renderer = uiimport.GetRenderer();
     DWORD texture;
     LPCTEXTURE tex;
     LPCRECT rect;
@@ -757,7 +750,7 @@ static void UI_DrawModalDim(void) {
 }
 
 static void UI_DrawHighlightFrame(LPCFRAMEDEF frame, LPCRECT rect) {
-    LPRENDERER renderer = UI_GetRenderer();
+    LPRENDERER renderer = uiimport.GetRenderer();
 
     if (!frame || !frame->Highlight.AlphaFile) {
         return;
@@ -817,7 +810,7 @@ static BOOL UI_RenderIsCheckBoxFrameType(FRAMETYPE type) {
 }
 
 static void UI_DrawPortrait(LPCFRAMEDEF frame, LPCRECT rect) {
-    LPRENDERER renderer = UI_GetRenderer();
+    LPRENDERER renderer = uiimport.GetRenderer();
 
     if (!frame->Portrait.model) {
         return;
@@ -848,7 +841,7 @@ static void UI_DrawPortrait(LPCFRAMEDEF frame, LPCRECT rect) {
 }
 
 static void UI_DrawSprite(LPCFRAMEDEF frame, LPCRECT rect) {
-    LPRENDERER renderer = UI_GetRenderer();
+    LPRENDERER renderer = uiimport.GetRenderer();
 
     if (frame->Texture.Image) {
         UI_DrawTexture(frame, rect);
@@ -1236,7 +1229,7 @@ void UI_PopupSelectItem(FLOAT fdf_x, FLOAT fdf_y) {
     if (!parent) {
         return;
     }
-    LPRENDERER renderer = UI_GetRenderer();
+    LPRENDERER renderer = uiimport.GetRenderer();
     if (!renderer || !renderer->LoadFont || !renderer->DrawText) {
         return;
     }

@@ -170,7 +170,7 @@ static void GameSetup_SetTextIfPresent(LPFRAMEDEF frame, LPCSTR format, ...) {
 }
 
 static BOOL GameSetup_IsHost(void) {
-    LPCSTR connect = uiimport.Cvar_String ? uiimport.Cvar_String("connect", "") : "";
+    LPCSTR connect = uiimport.Cvar_String("connect", "");
 
     return !connect || !connect[0];
 }
@@ -603,7 +603,7 @@ static void GameSetup_SlotName(LPCMAPPLAYER player, BOOL first_human, LPSTR out,
         return;
     }
     if (player->playerType == kPlayerTypeHuman && first_human) {
-        name = uiimport.Cvar_String ? uiimport.Cvar_String("name", "Player") : "Player";
+        name = uiimport.Cvar_String("name", "Player");
         snprintf(out, out_size, "%s", name && name[0] ? name : "Player");
         return;
     }

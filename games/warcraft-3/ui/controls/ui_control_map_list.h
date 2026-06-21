@@ -2,7 +2,7 @@
 #define UI_CONTROL_MAP_LIST_H
 
 static void UI_DrawMapListControl(LPCFRAMEDEF frame, LPCRECT rect) {
-    LPRENDERER renderer = UI_GetRenderer();
+    LPRENDERER renderer = uiimport.GetRenderer();
     uiMapListControl_t const *control;
     uiMapListState_t *state;
     LPCFONT font;
