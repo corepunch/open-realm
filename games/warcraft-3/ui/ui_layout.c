@@ -13,30 +13,11 @@ static BOOL layout_left_down;
 
 static RECT Rect_inset(LPCRECT r, FLOAT inset);
 
-static PLAYER const empty_player;
-
-static LPRENDERER UI_LayoutRenderer(void) {
-    return uiimport.GetRenderer ? uiimport.GetRenderer() : NULL;
-}
-
-#define re (*UI_LayoutRenderer())
-
-static LPCPLAYER UI_LayoutPlayerState(void) {
-    LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
-    return ps ? ps : &empty_player;
-}
-
-static DWORD UI_LayoutTime(void) {
-    return uiimport.GetClientTime ? uiimport.GetClientTime() : 0;
-}
-
-static VECTOR2 UI_LayoutMouseToFdf(void) {
-    return UI_MouseToFdf();
-}
+#define re (*uiimport.GetRenderer())
 
 static VECTOR2 UI_LayoutScreenToFdf(int x, int y) {
-    LPRENDERER renderer = UI_LayoutRenderer();
-    size2_t window = renderer && renderer->GetWindowSize ? renderer->GetWindowSize() : MAKE(size2_t, 0, 0);
+    LPRENDERER renderer = uiimport.GetRenderer();
+    size2_t window = renderer->GetWindowSize();
     FLOAT window_aspect = UI_MIN_ASPECT;
     FLOAT x_scale = 1.0f;
     FLOAT y_scale = 1.0f;
@@ -61,26 +42,6 @@ static VECTOR2 UI_LayoutScreenToFdf(int x, int y) {
     scene.y = (UI_BASE_HEIGHT - scene.h) * 0.5f;
 
     return MAKE(VECTOR2, scene.x + nx * scene.w, scene.y + ny * scene.h);
-}
-
-static LPCRECT UI_LayoutLayoutRect(LPCUIFRAME frame) {
-    static RECT empty_rect;
-    LPCRECT rect = uiimport.LayoutRect ? uiimport.LayoutRect(frame) : NULL;
-    return rect ? rect : &empty_rect;
-}
-
-static LPCSTR UI_LayoutGetStringValue(LPCUIFRAME frame) {
-    return uiimport.LayoutStringValue ? uiimport.LayoutStringValue(frame) : "";
-}
-
-static drawText_t UI_LayoutGetDrawText(LPCUIFRAME frame,
-                                       FLOAT avl_width,
-                                       LPCSTR text,
-                                       uiLabel_t const *label) {
-    if (uiimport.LayoutDrawText) {
-        return uiimport.LayoutDrawText(frame, avl_width, text, label);
-    }
-    return MAKE(drawText_t, .text = text, .textWidth = avl_width);
 }
 
 static RECT get_uvrect(uint8_t const *texcoord) {
@@ -124,8 +85,8 @@ static LPCTEXTURE UI_LayoutGetDynamicTexture(LPCSTR resource) {
 }
 
 static BOOL UI_LayoutShouldSkipLayoutLayer(DWORD layer) {
-    if (UI_LayoutPlayerState()->client_ui_state != CLIENT_UI_CINEMATIC &&
-        UI_LayoutPlayerState()->client_ui_state != CLIENT_UI_LOADING) {
+    if (uiimport.GetPlayerState()->client_ui_state != CLIENT_UI_CINEMATIC &&
+        uiimport.GetPlayerState()->client_ui_state != CLIENT_UI_LOADING) {
         return false;
     }
 
@@ -155,10 +116,10 @@ static RECT scale_rect(LPCRECT rect, FLOAT factor) {
 }
 
 static LPCENTITYSTATE UI_LayoutSelectedEntity(void) {
-    DWORD num_entities = uiimport.GetNumEntities ? uiimport.GetNumEntities() : 0;
+    DWORD num_entities = uiimport.GetNumEntities();
 
     FOR_LOOP(index, num_entities) {
-        LPCENTITYSTATE ent = uiimport.GetEntity ? uiimport.GetEntity(index) : NULL;
+        LPCENTITYSTATE ent = uiimport.GetEntity(index);
         if (ent && (ent->renderfx & RF_SELECTED)) {
             return ent;
         }
@@ -171,8 +132,8 @@ void UI_LayoutDrawStatusbar(LPCUIFRAME frame, LPCRECT screen) {
     RECT screen2 = *screen;
     RECT uv2 = uv;
 //    if (frame->stat > 0 ) {
-//        screen2.w *= UI_LayoutPlayerState()->unit_stats[frame->stat] / (FLOAT)255;
-//        uv2.w *= UI_LayoutPlayerState()->unit_stats[frame->stat] / (FLOAT)255;
+//        screen2.w *= uiimport.GetPlayerState()->unit_stats[frame->stat] / (FLOAT)255;
+//        uv2.w *= uiimport.GetPlayerState()->unit_stats[frame->stat] / (FLOAT)255;
 //    } else {
         screen2.w *= frame->value;
         uv2.w *= frame->value;
@@ -190,7 +151,7 @@ void UI_LayoutDrawTexture(LPCUIFRAME frame, LPCRECT screen) {
     RECT const suv = Rect_div(&uv, 0xff);
     LPCTEXTURE texture = uiimport.GetTexture(frame->tex.index);
     if (frame->stat >= MAX_STATS && frame->stat - MAX_STATS < MAX_STATS) {
-        LPCSTR resource = UI_LayoutPlayerState()->texts[frame->stat - MAX_STATS];
+        LPCSTR resource = uiimport.GetPlayerState()->texts[frame->stat - MAX_STATS];
         LPCTEXTURE dynamicTexture = UI_LayoutGetDynamicTexture(resource);
         if (dynamicTexture) {
             texture = dynamicTexture;
@@ -396,7 +357,7 @@ static BOOL UI_LayoutFrameHasClickCommand(LPCUIFRAME frame) {
 }
 
 static BOOL UI_LayoutGlueTextButtonIsPushed(LPCUIFRAME frame, LPCRECT screen) {
-    VECTOR2 const m = UI_LayoutMouseToFdf();
+    VECTOR2 const m = UI_MouseToFdf();
     return UI_LayoutFrameHasClickCommand(frame) && Rect_contains(screen, &m) &&
            layout_left_down;
 }
@@ -453,8 +414,8 @@ void UI_LayoutGlueTextButton(LPCUIFRAME frame, LPCRECT screen) {
 
 static void UI_LayoutDrawGlueTextButtonHighlight(LPCUIFRAME frame) {
     uiGlueTextButton_t const *gluetextbutton = frame->buffer.data;
-    RECT const *screen = UI_LayoutLayoutRect(frame);
-    VECTOR2 const m = UI_LayoutMouseToFdf();
+    RECT const *screen = uiimport.LayoutRect(frame);
+    VECTOR2 const m = UI_MouseToFdf();
     BOOL const enabled = UI_LayoutFrameHasClickCommand(frame);
     BOOL const mouse_over = Rect_contains(screen, &m);
 
@@ -470,13 +431,13 @@ void UI_LayoutDrawBuildQueue(LPCUIFRAME frame, LPCRECT scrn) {
     DWORD active = queue->numitems;
 
     FOR_LOOP(i, queue->numitems) {
-        if (UI_LayoutTime() < queue->items[i].endtime) {
+        if (uiimport.GetClientTime() < queue->items[i].endtime) {
             active = i;
             break;
         }
     }
     for (DWORD i = active + 1; i < queue->numitems; i++) {
-        if (UI_LayoutTime() < queue->items[i].endtime) {
+        if (uiimport.GetClientTime() < queue->items[i].endtime) {
             re.DrawImage(uiimport.GetTexture(queue->items[i].image), &screen, &uv, frame->color);
             screen.x += queue->itemoffset;
         }
@@ -490,9 +451,9 @@ void UI_LayoutUpdateBuildQueue(LPCUIFRAME frame, LPCRECT screen) {
 
     FOR_LOOP(i, queue->numitems) {
         uiBuildQueueItem_t const *item = &queue->items[i];
-        if (UI_LayoutTime() < item->endtime) {
+        if (uiimport.GetClientTime() < item->endtime) {
             FLOAT duration = item->endtime - item->starttime;
-            FLOAT elapsed = UI_LayoutTime() > item->starttime ? (FLOAT)(UI_LayoutTime() - item->starttime) : 0;
+            FLOAT elapsed = uiimport.GetClientTime() > item->starttime ? (FLOAT)(uiimport.GetClientTime() - item->starttime) : 0;
             FLOAT progress = duration > 0 ? elapsed / duration : 1;
             progress = MAX(0, MIN(progress, 1));
             if (buildtimer) buildtimer->value = progress;
@@ -514,7 +475,7 @@ void UI_LayoutDrawMultiSelect(LPCUIFRAME frame, LPCRECT scrn) {
         RECT uv = { 0, 0, 1, 1 };
         uiMultiselectItem_t const *item = &multiselect->items[i];
         re.DrawImage(uiimport.GetTexture(item->image), &screen, &uv, frame->color);
-        LPCENTITYSTATE ent = uiimport.GetEntity ? uiimport.GetEntity(item->entity) : NULL;
+        LPCENTITYSTATE ent = uiimport.GetEntity(item->entity);
         if (ent) {
             FLOAT health = BYTE2FLOAT(ent->stats[ENT_HEALTH]);
             FLOAT mana = BYTE2FLOAT(ent->stats[ENT_MANA]);
@@ -533,7 +494,7 @@ void UI_LayoutDrawMultiSelect(LPCUIFRAME frame, LPCRECT scrn) {
         }
         if (++column >= multiselect->numcolumns) {
             column = 0;
-            screen.x = UI_LayoutLayoutRect(frame)->x;
+            screen.x = uiimport.LayoutRect(frame)->x;
             screen.y += multiselect->offset.y;
         } else {
             screen.x += multiselect->offset.x;
@@ -548,8 +509,8 @@ void UI_LayoutDrawPortrait(LPCUIFRAME frame, LPCRECT screen) {
         screen->w / UI_BASE_WIDTH,
         screen->h / UI_BASE_HEIGHT
     };
-    LPCMODEL port = uiimport.GetPortrait ? uiimport.GetPortrait(frame->tex.index) : NULL;
-    LPCMODEL model = uiimport.GetModel ? uiimport.GetModel(frame->tex.index) : NULL;
+    LPCMODEL port = uiimport.GetPortrait(frame->tex.index);
+    LPCMODEL model = uiimport.GetModel(frame->tex.index);
     LPCMODEL draw_model = port ? port : model;
     if (!draw_model) return;
 
@@ -570,7 +531,7 @@ void UI_LayoutDrawPortrait(LPCUIFRAME frame, LPCRECT screen) {
 
 void UI_LayoutDrawSprite(LPCUIFRAME frame, LPCRECT screen) {
     LPCSTR anim = frame->text;
-    LPCMODEL model = uiimport.GetModel ? uiimport.GetModel(frame->tex.index) : NULL;
+    LPCMODEL model = uiimport.GetModel(frame->tex.index);
 
     if (anim && *anim) {
         re.DrawSprite(model, anim, screen->x, screen->y);
@@ -583,7 +544,7 @@ void UI_LayoutDrawCommandButton(LPCUIFRAME frame, LPCRECT screen) {
     LPCENTITYSTATE selentity = UI_LayoutSelectedEntity();
     RECT const uv = get_uvrect(frame->tex.coord);
     RECT const suv = Rect_div(&uv, 0xff);
-    VECTOR2 const m = UI_LayoutMouseToFdf();
+    VECTOR2 const m = UI_MouseToFdf();
     RECT scrn = scale_rect(screen, 0.925);
     if (Rect_contains(screen, &m)) {
         if (layout_left_down) {
@@ -614,7 +575,7 @@ void UI_LayoutDrawCommandButton(LPCUIFRAME frame, LPCRECT screen) {
 }
 
 void layout_text(LPCUIFRAME frame, LPCRECT screen, LPCSTR text) {
-    drawText_t drawtext = UI_LayoutGetDrawText(frame, screen->w, text, frame->buffer.data);
+    drawText_t drawtext = uiimport.LayoutDrawText(frame, screen->w, text, frame->buffer.data);
     drawtext.rect = *screen;
     drawtext.wordWrap = true;
     re.DrawText(&drawtext);
@@ -636,7 +597,7 @@ static void UI_LayoutApplyPushedTextOffset(LPCUIFRAME frame, LPRECT screen) {
         return;
     }
 
-    LPCRECT parent_screen = UI_LayoutLayoutRect(parent);
+    LPCRECT parent_screen = uiimport.LayoutRect(parent);
     if (!UI_LayoutGlueTextButtonIsPushed(parent, parent_screen)) {
         return;
     }
@@ -652,7 +613,7 @@ void UI_LayoutDrawString(LPCUIFRAME frame, LPCRECT screen) {
     scr.x += label->offsetx;
     scr.y += label->offsety;
     UI_LayoutApplyPushedTextOffset(frame, &scr);
-    layout_text(frame, &scr, UI_LayoutGetStringValue(frame));
+    layout_text(frame, &scr, uiimport.LayoutStringValue(frame));
 }
 
 void UI_LayoutDrawTextArea(LPCUIFRAME frame, LPCRECT screen) {
@@ -702,7 +663,7 @@ void UI_LayoutDrawListBox(LPCUIFRAME frame, LPCRECT screen) {
         }
     }
     if (scrollbar) {
-        LPCRECT scroll_rect = UI_LayoutLayoutRect(scrollbar);
+        LPCRECT scroll_rect = uiimport.LayoutRect(scrollbar);
         FLOAT scroll_inset = MAX(scroll_rect->w, 0.0f);
 
         if (scroll_inset > 0 && scroll_inset < list_rect.w) {
@@ -767,7 +728,7 @@ void UI_LayoutDrawTooltip(LPCUIFRAME frame, LPCRECT scrn) {
         uiTooltip_t const *tooltip = frame->buffer.data;
         FLOAT const PADDING = 0.005;
         FLOAT const avlspace = screen.w - PADDING * 2;
-        drawText_t drawtext = UI_LayoutGetDrawText(frame, avlspace, active_tooltip, &tooltip->text);
+        drawText_t drawtext = uiimport.LayoutDrawText(frame, avlspace, active_tooltip, &tooltip->text);
         drawtext.wordWrap = true;
         VECTOR2 textsize = re.GetTextSize(&drawtext);
         textsize.y += PADDING * 2;
@@ -775,7 +736,7 @@ void UI_LayoutDrawTooltip(LPCUIFRAME frame, LPCRECT scrn) {
         screen.h = textsize.y;
         RECT text = Rect_inset(&screen, PADDING);
         UI_LayoutDrawBackdrop(frame, &screen);
-        drawtext = UI_LayoutGetDrawText(frame, text.w, active_tooltip, &tooltip->text);
+        drawtext = uiimport.LayoutDrawText(frame, text.w, active_tooltip, &tooltip->text);
         drawtext.rect = text;
         drawtext.wordWrap = true;
         re.DrawText(&drawtext);
@@ -783,7 +744,7 @@ void UI_LayoutDrawTooltip(LPCUIFRAME frame, LPCRECT scrn) {
 }
 
 void UI_LayoutUpdateCommandButton(LPCUIFRAME frame, LPCRECT screen) {
-    VECTOR2 const m = UI_LayoutMouseToFdf();
+    VECTOR2 const m = UI_MouseToFdf();
     if (Rect_contains(screen, &m) && frame->tooltip) {
         active_tooltip = frame->tooltip;
     }
@@ -827,7 +788,7 @@ static drawer_t drawers[] = {
 };
 
 void UI_LayoutDrawFrame(LPCUIFRAME frame) {
-    RECT const *screen = UI_LayoutLayoutRect(frame);
+    RECT const *screen = uiimport.LayoutRect(frame);
     FOR_LOOP(j, sizeof(drawers)/sizeof(*drawers)) {
         if (drawers[j].type == frame->flags.type) {
             drawers[j].func(frame, screen);
@@ -837,7 +798,7 @@ void UI_LayoutDrawFrame(LPCUIFRAME frame) {
 }
 
 void UI_LayoutUpdateFrame(LPCUIFRAME frame) {
-    RECT const *screen = UI_LayoutLayoutRect(frame);
+    RECT const *screen = uiimport.LayoutRect(frame);
     FOR_LOOP(j, sizeof(updaters)/sizeof(*updaters)) {
         if (updaters[j].type == frame->flags.type) {
             updaters[j].func(frame, screen);
@@ -879,14 +840,14 @@ void UI_LayoutDrawOverlay(HANDLE _frames) {
 void UI_LayoutDrawOverlays(void) {
     active_tooltip = NULL;
     
-    if (UI_LayoutPlayerState()->cinefade > 0) {
+    if (uiimport.GetPlayerState()->cinefade > 0) {
         COLOR32 color = COLOR32_BLACK;
-        color.a = 255 * UI_LayoutPlayerState()->cinefade;
+        color.a = 255 * uiimport.GetPlayerState()->cinefade;
         re.DrawImage(uiimport.GetTexture(0), &MAKE(RECT,0,0,1,1), &MAKE(RECT,0,0,1,1), color);
     }
     
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
-        if ((1 << layer) & UI_LayoutPlayerState()->uiflags)
+        if ((1 << layer) & uiimport.GetPlayerState()->uiflags)
             continue;
         if (UI_LayoutShouldSkipLayoutLayer(layer))
             continue;
@@ -898,7 +859,7 @@ void UI_LayoutDrawOverlays(void) {
     }
     
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
-        if ((1 << layer) & UI_LayoutPlayerState()->uiflags)
+        if ((1 << layer) & uiimport.GetPlayerState()->uiflags)
             continue;
         if (UI_LayoutShouldSkipLayoutLayer(layer))
             continue;
@@ -941,7 +902,7 @@ void UI_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
     }
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
         HANDLE layout = layout_layers[layer];
-        if (!layout || ((1 << layer) & UI_LayoutPlayerState()->uiflags) || UI_LayoutShouldSkipLayoutLayer(layer)) {
+        if (!layout || ((1 << layer) & uiimport.GetPlayerState()->uiflags) || UI_LayoutShouldSkipLayoutLayer(layer)) {
             continue;
         }
         uiimport.LayoutClear(layout);
@@ -950,7 +911,7 @@ void UI_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
             if (!frame || !UI_LayoutFrameHasClickCommand(frame)) {
                 continue;
             }
-            if (Rect_contains(UI_LayoutLayoutRect(frame), &point)) {
+            if (Rect_contains(uiimport.LayoutRect(frame), &point)) {
                 char command[CMDARG_LEN * 2];
                 UI_LayoutFormatOnClickCommand(frame->onclick, command, sizeof(command));
                 if (uiimport.ServerCommand) {
@@ -971,7 +932,7 @@ BOOL UI_LayoutHitTest(int x, int y) {
         if (!layout) {
             continue;
         }
-        if ((1 << layer) & UI_LayoutPlayerState()->uiflags) {
+        if ((1 << layer) & uiimport.GetPlayerState()->uiflags) {
             continue;
         }
         if (UI_LayoutShouldSkipLayoutLayer(layer)) {
@@ -983,7 +944,7 @@ BOOL UI_LayoutHitTest(int x, int y) {
             if (!frame || frame->flags.type != FT_TEXTURE) {
                 continue;
             }
-            if (Rect_contains(UI_LayoutLayoutRect(frame), &point)) {
+            if (Rect_contains(uiimport.LayoutRect(frame), &point)) {
                 return true;
             }
         }

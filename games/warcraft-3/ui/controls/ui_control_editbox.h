@@ -129,7 +129,7 @@ void UI_TextInputLocal(LPCSTR text) {
 }
 
 static void UI_DrawEditBox(LPCFRAMEDEF frame, LPCRECT rect) {
-    LPRENDERER renderer = UI_GetRenderer();
+    LPRENDERER renderer = uiimport.GetRenderer();
     LPFRAMEDEF text_frame = UI_EditTextFrame(frame);
     LPCFRAMEDEF backdrop = UI_FindFrameNear(frame, frame->Control.Backdrop.Normal);
     RECT text_rect = *rect;

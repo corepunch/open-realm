@@ -294,7 +294,7 @@ typedef struct {
 } uiConsoleBackdropPart_t;
 
 static void UI_DrawImagePart(LPCSTR texture_name, BOOL decorate, LPCRECT screen, LPCRECT uv) {
-    LPRENDERER renderer = uiimport.GetRenderer ? uiimport.GetRenderer() : NULL;
+    LPRENDERER renderer = uiimport.GetRenderer();
     DWORD texture_id;
     LPCTEXTURE texture;
 
@@ -344,7 +344,7 @@ static void UI_DrawConsoleBackdropOnly(void) {
 }
 
 static void UI_DrawConsoleMinimap(void) {
-    LPRENDERER renderer = uiimport.GetRenderer ? uiimport.GetRenderer() : NULL;
+    LPRENDERER renderer = uiimport.GetRenderer();
     RECT const rect = { 0.0070f, 0.4525f, 0.1395f, 0.1395f };
 
     if (!renderer || !renderer->DrawMinimap) {
@@ -376,7 +376,7 @@ static void UI_InitGameResourceBar(void) {
 }
 
 static void UI_DrawResourceBar(void) {
-    LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
+    LPCPLAYER ps = uiimport.GetPlayerState();
 
     if (!ps || !resource_bar.ResourceBarFrame) {
         return;
@@ -468,12 +468,12 @@ static LPCSTR UI_CsvField(LPCSTR text, DWORD index, LPSTR out, DWORD out_size) {
 }
 
 static LPCSTR UI_LoadingMapPath(void) {
-    LPCSTR path = uiimport.GetLoadingMap ? uiimport.GetLoadingMap() : NULL;
+    LPCSTR path = uiimport.GetLoadingMap();
 
     if (path && *path) {
         return path;
     }
-    return uiimport.Cvar_String ? uiimport.Cvar_String("map", "") : "";
+    return uiimport.Cvar_String("map", "");
 }
 
 static DWORD UI_LoadCampaignLoadingModel(DWORD campaign_background, DWORD *sequence_index) {
@@ -575,7 +575,7 @@ static void UI_InitLoadingScreen(void) {
 }
 
 static void UI_DrawLoadingScreen(void) {
-    FLOAT loading_progress = uiimport.GetLoadingProgress ? uiimport.GetLoadingProgress() : 0.0f;
+    FLOAT loading_progress = uiimport.GetLoadingProgress();
 
     UI_UpdateLoadingMapInfo();
 
@@ -714,7 +714,7 @@ void UI_DrawFrameLocal(void) {
     
     /* Call current screen draw */
     if (ui_state.game_mode) {
-        LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
+        LPCPLAYER ps = uiimport.GetPlayerState();
 
         if (UI_LoadingActive(ps)) {
             UI_DrawLoadingScreen();
@@ -754,7 +754,7 @@ void UI_KeyEventLocal(int key, BOOL down, DWORD time) {
 
 /* Convert pixel coordinates to FDF/UI space for hit testing */
 static VECTOR2 UI_PixelToFdf(int px, int py) {
-    LPRENDERER renderer = uiimport.GetRenderer ? uiimport.GetRenderer() : NULL;
+    LPRENDERER renderer = uiimport.GetRenderer();
     size2_t window = renderer && renderer->GetWindowSize ? renderer->GetWindowSize() : MAKE(size2_t, 0, 0);
     FLOAT window_aspect = UI_MIN_ASPECT;
     FLOAT x_scale = 1.0f;

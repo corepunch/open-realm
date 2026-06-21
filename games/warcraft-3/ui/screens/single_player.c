@@ -253,7 +253,7 @@ static BOOL SinglePlayer_LoadCampaignFile(LPCSTR file_name) {
     void *buffer = NULL;
     UINAME section = "";
     singlePlayerCampaign_t *campaign = NULL;
-    int size = uiimport.FS_ReadFile ? uiimport.FS_ReadFile(file_name, &buffer) : -1;
+    int size = uiimport.FS_ReadFile(file_name, &buffer);
     if (size <= 0 || !buffer) {
         return false;
     }
@@ -331,7 +331,7 @@ static void SinglePlayer_FinalizeCampaignOrder(void) {
 }
 
 static BOOL SinglePlayer_ExpansionEnabled(void) {
-    LPCSTR value = uiimport.Cvar_String ? uiimport.Cvar_String("fs_expansion", "0") : "0";
+    LPCSTR value = uiimport.Cvar_String("fs_expansion", "0");
     return value && atoi(value) != 0;
 }
 
@@ -414,7 +414,7 @@ static void SinglePlayer_SetCampaignBackdrop(singlePlayerCampaign_t const *campa
 }
 
 static void SinglePlayer_DrawCampaignBackdrop(void) {
-    LPRENDERER renderer = uiimport.GetRenderer ? uiimport.GetRenderer() : NULL;
+    LPRENDERER renderer = uiimport.GetRenderer();
     LPCMODEL model = UI_GetModel(campaign_background_model);
 
     if (renderer && renderer->RenderFrame && model) {

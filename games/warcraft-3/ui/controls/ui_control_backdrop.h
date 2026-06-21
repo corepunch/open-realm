@@ -67,7 +67,7 @@ static BOOL UI_BackdropEdgeFlip(BACKDROPCORNER edge) {
 }
 
 static void UI_DrawBackdropWithColor(LPCFRAMEDEF frame, LPCRECT rect, COLOR32 color) {
-    LPRENDERER renderer = UI_GetRenderer();
+    LPRENDERER renderer = uiimport.GetRenderer();
     BACKDROPCORNER const corners[NUM_BACKDROP_CORNERS] = {
         BACKDROP_LEFT_EDGE,
         BACKDROP_RIGHT_EDGE,

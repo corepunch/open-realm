@@ -457,7 +457,7 @@ LPCTEXTURE UI_GetTexture(DWORD index) {
     if (ui_texture_decorated[index] && ui_texture_keys[index][0]) {
         resolved = EnsureExtension(Theme_String(ui_texture_keys[index], "Default"), ".blp");
         if (strcmp(ui_texture_names[index], resolved)) {
-            renderer = uiimport.GetRenderer ? uiimport.GetRenderer() : NULL;
+            renderer = uiimport.GetRenderer();
             if (renderer && renderer->LoadTexture) {
                 if (ui_textures[index] && renderer->ReleaseTexture) {
                     renderer->ReleaseTexture((LPTEXTURE)ui_textures[index]);
