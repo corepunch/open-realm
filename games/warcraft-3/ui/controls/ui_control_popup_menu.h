@@ -14,6 +14,7 @@ static BOOL UI_IsPopupFrameType(FRAMETYPE type) {
 static void UI_ResetPopupScroll(void) {
     active_popup_scroll_menu = NULL;
     active_popup_scroll = 0;
+    active_popup_hover_item = -1;
 }
 
 static COLOR32 UI_PopupHoverBackgroundColor(COLOR32 color) {
@@ -40,7 +41,6 @@ static BOOL UI_IsActivePopupMenu(LPCFRAMEDEF frame) {
 
 static BOOL UI_PointerBlockedByPopup(LPCFRAMEDEF frame) {
     LPFRAMEDEF menu;
-    LPCRECT rect;
 
     if (UI_PointerBlockedByModal(frame)) {
         return true;
@@ -52,8 +52,7 @@ static BOOL UI_PointerBlockedByPopup(LPCFRAMEDEF frame) {
     if (!menu || frame == active_popup || frame == menu) {
         return false;
     }
-    rect = UI_LayoutRect(menu);
-    return rect && UI_MouseContains(rect);
+    return !UI_FrameWithinRoot(menu, frame);
 }
 
 static LPFRAMEDEF UI_PopupTitleTextFrame(LPCFRAMEDEF popup) {
@@ -231,7 +230,7 @@ static void UI_DrawMenu(LPCFRAMEDEF frame, LPCRECT rect) {
                         MAX(0.0f, rect->w - border * 2.0f),
                         row_height);
         RECT hover_rect = row;
-        BOOL hover;
+        BOOL const hover = (int)i == active_popup_hover_item;
 
         if (i >= frame->Menu.ItemCount || row.y >= clip.y + clip.h) {
             break;
@@ -239,8 +238,7 @@ static void UI_DrawMenu(LPCFRAMEDEF frame, LPCRECT rect) {
         if (hover_rect.y + hover_rect.h > clip.y + clip.h) {
             hover_rect.h = MAX(0.0f, clip.y + clip.h - hover_rect.y);
         }
-        hover = hover_rect.h > 0.0f && UI_MouseContains(&hover_rect);
-        if (hover && renderer->DrawImageEx) {
+        if (hover && hover_rect.h > 0.0f && renderer->DrawImageEx) {
             renderer->DrawImageEx(&MAKE(drawImage_t,
                                         .texture = NULL,
                                         .shader = SHADER_UI,

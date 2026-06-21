@@ -607,6 +607,27 @@ BOOL UI_MouseContains(LPCRECT rect) {
     return Rect_contains(rect, &mouse);
 }
 
+/* Refresh frame state flags before dispatch so draw never asks for mouse position. */
+static void UI_UpdateMouseFrameFlags(LPCFRAMEDEF hit, BOOL clear_pressed) {
+    FOR_LOOP(i, MAX_UI_CLASSES) {
+        LPFRAMEDEF frame = &frames[i];
+        if (!frame->inuse) {
+            continue;
+        }
+        frame->ui_flags &= ~(UIFLAG_HOVERED | UIFLAG_ACTIVE);
+        if (clear_pressed) {
+            frame->ui_flags &= ~UIFLAG_PRESSED;
+        }
+        if (frame->hidden) frame->ui_flags &= ~UIFLAG_VISIBLE;
+        else frame->ui_flags |= UIFLAG_VISIBLE;
+        if (frame->disabled) frame->ui_flags |= UIFLAG_DISABLED;
+        else frame->ui_flags &= ~UIFLAG_DISABLED;
+    }
+    if (hit) {
+        ((LPFRAMEDEF)hit)->ui_flags |= UIFLAG_HOVERED | UIFLAG_ACTIVE;
+    }
+}
+
 void UI_InitLocal(void) {
     memset(&ui_state, 0, sizeof(ui_state));
     UI_ResetGlueSceneModels();
@@ -765,6 +786,7 @@ void UI_MouseEventLocal(uiMouseEvent_t event, int x, int y, int32_t param) {
     ui_state.mouse_fdf = fdf;
     UI_LayoutMouseEvent(event, x, y, param);
     LPCFRAMEDEF hit = UI_HitTest(fdf.x, fdf.y);
+    UI_UpdateMouseFrameFlags(hit, up && left);
 
     /* Dispatch to per-type event handler */
     if (hit && hit->event_handler) {
@@ -803,6 +825,8 @@ void UI_MouseEventLocal(uiMouseEvent_t event, int x, int y, int32_t param) {
     if (UI_HasActivePopup() && up && left) {
         UI_PopupSelectItem(fdf.x, fdf.y);
     }
+
+    UI_PopupMenuHover(fdf.x, fdf.y);
 
 }
 

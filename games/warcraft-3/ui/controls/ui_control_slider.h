@@ -65,23 +65,6 @@ static FLOAT UI_SliderValueFromMousePos(LPCFRAMEDEF slider, LPCRECT slider_rect,
     return MAX(min_value, MIN(max_value, value));
 }
 
-static void UI_UpdateSliderInteraction(LPCFRAMEDEF frame, LPCRECT rect, LPCFRAMEDEF thumb) {
-    RECT thumb_rect = UI_SliderThumbRect(frame, rect, thumb);
-    VECTOR2 mouse = UI_MouseToFdf();
-    BOOL const can_start = !UI_PointerBlockedByPopup(frame) &&
-                           (UI_MouseContains(rect) || UI_MouseContains(&thumb_rect));
-
-    if (can_start) {
-        active_slider = frame;
-    }
-    if (active_slider == frame) {
-        ((LPFRAMEDEF)frame)->Slider.InitialValue = UI_SliderValueFromMousePos(frame, rect, thumb, mouse);
-    }
-    if (!(active_slider && (active_slider->ui_flags & UIFLAG_PRESSED)) && active_slider == frame) {
-        active_slider = NULL;
-    }
-}
-
 static void UI_DrawSlider(LPCFRAMEDEF frame, LPCRECT rect) {
     LPCFRAMEDEF backdrop;
     LPCFRAMEDEF thumb;
@@ -93,7 +76,6 @@ static void UI_DrawSlider(LPCFRAMEDEF frame, LPCRECT rect) {
 
     thumb = UI_FindFrameNear(frame, frame->Slider.ThumbButtonFrame);
     if (thumb) {
-        UI_UpdateSliderInteraction(frame, rect, thumb);
         RECT thumb_rect = UI_SliderThumbRect(frame, rect, thumb);
         LPCFRAMEDEF thumb_backdrop = UI_FindFrameNear(thumb, thumb->Control.Backdrop.Normal);
         if (!thumb_backdrop) {

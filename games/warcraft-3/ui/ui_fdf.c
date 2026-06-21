@@ -1504,6 +1504,8 @@ void UI_SetEnabled(LPFRAMEDEF frame, BOOL enabled) {
         return;
     }
     frame->disabled = !enabled;
+    if (frame->disabled) frame->ui_flags |= UIFLAG_DISABLED;
+    else frame->ui_flags &= ~UIFLAG_DISABLED;
 }
 
 void UI_SetTextPointer(LPFRAMEDEF frame, LPCSTR text) {
@@ -1538,6 +1540,8 @@ void UI_SetHidden(LPFRAMEDEF frame, BOOL value) {
         return;
     }
     frame->hidden = value;
+    if (frame->hidden) frame->ui_flags &= ~UIFLAG_VISIBLE;
+    else frame->ui_flags |= UIFLAG_VISIBLE;
 }
 
 void UI_WriteFrameWithChildrenWithTriggers(LPEDICT ent, LPCFRAMEDEF frame, LPCFRAMEDEF parent, uiTrigger_t const *triggers) {

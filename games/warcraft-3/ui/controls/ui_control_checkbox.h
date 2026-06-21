@@ -2,13 +2,13 @@
 #define UI_CONTROL_CHECKBOX_H
 
 static BOOL UI_CheckBoxEnabled(LPCFRAMEDEF frame) {
-    return frame && !frame->disabled;
+    return frame && !(frame->ui_flags & UIFLAG_DISABLED);
 }
 
 static BOOL UI_CheckBoxIsPushed(LPCFRAMEDEF frame, LPCRECT rect) {
+    (void)rect;
     return UI_CheckBoxEnabled(frame) &&
            !UI_PointerBlockedByPopup(frame) &&
-           UI_MouseContains(rect) &&
            (frame->ui_flags & UIFLAG_PRESSED);
 }
 
@@ -47,7 +47,7 @@ static void UI_DrawCheckBoxMouseOverHighlight(LPCFRAMEDEF frame) {
         return;
     }
     rect = UI_LayoutRect(frame);
-    if (!rect || !UI_MouseContains(rect)) {
+    if (!rect || !(frame->ui_flags & UIFLAG_HOVERED)) {
         return;
     }
     UI_DrawHighlightFrame(UI_ButtonMouseOverHighlight(frame), rect);

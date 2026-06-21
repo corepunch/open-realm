@@ -34,8 +34,16 @@
 /* Defined in routing.c, only compiled for test builds. */
 void CM_SetupTestPathmap(DWORD width, DWORD height, BYTE const *cells);
 
+typedef struct routePerfStats_s {
+    DWORD cache_hits, cache_misses, heatmap_iterations, flow_cells_baked;
+} routePerfStats_t;
+
+void CM_ResetTestPathPerfStats(void);
+routePerfStats_t CM_GetTestPathPerfStats(void);
+
 /* Public API from routing.c. */
 DWORD  CM_BuildHeatmap(edict_t *goalentity);
+BOOL   CM_ClosestPathablePointForRadius(LPCVECTOR2 location, FLOAT radius, LPVECTOR2 out);
 VECTOR2 get_flow_direction(DWORD heatmapindex, float fnx, float fny);
 
 /* From g_phys.c — needed for transitive-bumping test. */
@@ -73,6 +81,9 @@ static BYTE open_map[MAP_W * MAP_H];   /* all open */
 /* Wall column at x=5, rows 0-7, leaving rows 8-9 as a gap. */
 static BYTE wall_map[MAP_W * MAP_H];
 
+/* Full wall column at x=5, splitting the map into two unreachable halves. */
+static BYTE split_map[MAP_W * MAP_H];
+
 static void build_open_map(void) {
     memset(open_map, 0, sizeof(open_map));
 }
@@ -81,6 +92,13 @@ static void build_wall_map(void) {
     memset(wall_map, 0, sizeof(wall_map));
     for (int y = 0; y < 8; y++) {
         wall_map[y * MAP_W + 5] = 2; /* nowalk */
+    }
+}
+
+static void build_split_map(void) {
+    memset(split_map, 0, sizeof(split_map));
+    for (int y = 0; y < MAP_H; y++) {
+        split_map[y * MAP_W + 5] = 2; /* nowalk */
     }
 }
 
@@ -131,6 +149,38 @@ static void test_heatmap_cache_hit_same_goal(void) {
 
     /* Same goal: generation must be identical — no rebuild. */
     ASSERT_EQ_INT(gen1, gen2);
+}
+
+static void test_heatmap_cache_hit_same_target_different_waypoint(void) {
+    build_open_map();
+    CM_SetupTestPathmap(MAP_W, MAP_H, open_map);
+    reset_entities();
+
+    LPEDICT wp1 = make_waypoint(5.0f, 5.0f);
+    LPEDICT wp2 = make_waypoint(5.0f, 5.0f);
+    DWORD gen1 = CM_BuildHeatmap(wp1);
+    DWORD gen2 = CM_BuildHeatmap(wp2);
+
+    ASSERT(wp1 != wp2);
+    ASSERT_EQ_INT(gen1, gen2);
+}
+
+static void test_heatmap_cache_perf_same_target_builds_once(void) {
+    build_open_map();
+    CM_SetupTestPathmap(MAP_W, MAP_H, open_map);
+    reset_entities();
+    CM_ResetTestPathPerfStats();
+
+    LPEDICT wp1 = make_waypoint(5.0f, 5.0f);
+    LPEDICT wp2 = make_waypoint(5.0f, 5.0f);
+    CM_BuildHeatmap(wp1);
+    CM_BuildHeatmap(wp2);
+
+    routePerfStats_t stats = CM_GetTestPathPerfStats();
+    ASSERT_EQ_INT(stats.cache_misses, 1);
+    ASSERT_EQ_INT(stats.cache_hits, 1);
+    ASSERT_EQ_INT(stats.heatmap_iterations, MAP_W * MAP_H);
+    ASSERT_EQ_INT(stats.flow_cells_baked, MAP_W * MAP_H);
 }
 
 static void test_heatmap_cache_miss_different_goal(void) {
@@ -189,6 +239,41 @@ static void test_multi_goal_cache_no_thrash(void) {
 
     ASSERT_EQ_INT(gen_a1, gen_a2);
     ASSERT_EQ_INT(gen_b1, gen_b2);
+}
+
+static void test_heatmap_cache_ignores_stale_dynamic_pathmap_stamps(void) {
+    build_open_map();
+    CM_SetupTestPathmap(MAP_W, MAP_H, open_map);
+    reset_entities();
+
+    LPEDICT wp1 = make_waypoint(5.0f, 5.0f);
+    DWORD gen1 = CM_BuildHeatmap(wp1);
+
+    LPEDICT unit = make_unit_at(wp1->s.origin.x, wp1->s.origin.y);
+    VECTOR2 pathable;
+    CM_ClosestPathablePointForRadius(&wp1->s.origin2, unit->collision, &pathable);
+
+    LPEDICT wp2 = make_waypoint(5.0f, 5.0f);
+    DWORD gen2 = CM_BuildHeatmap(wp2);
+
+    ASSERT_EQ_INT(gen1, gen2);
+}
+
+static void test_flow_bake_perf_skips_unreachable_half(void) {
+    build_split_map();
+    CM_SetupTestPathmap(MAP_W, MAP_H, split_map);
+    reset_entities();
+    CM_ResetTestPathPerfStats();
+
+    LPEDICT wp = make_waypoint(7.0f, 5.0f);
+    CM_BuildHeatmap(wp);
+
+    routePerfStats_t stats = CM_GetTestPathPerfStats();
+    ASSERT_EQ_INT(stats.cache_misses, 1);
+    ASSERT_EQ_INT(stats.cache_hits, 0);
+    ASSERT_EQ_INT(stats.heatmap_iterations, (MAP_W - 6) * MAP_H);
+    ASSERT_EQ_INT(stats.flow_cells_baked, stats.heatmap_iterations);
+    ASSERT(stats.flow_cells_baked < MAP_W * MAP_H);
 }
 
 /* -----------------------------------------------------------------------
@@ -412,9 +497,13 @@ static void test_proximity_shortcut_gives_correct_angle(void) {
 
 BEGIN_SUITE(pathfinding)
     RUN_TEST(test_heatmap_cache_hit_same_goal);
+    RUN_TEST(test_heatmap_cache_hit_same_target_different_waypoint);
+    RUN_TEST(test_heatmap_cache_perf_same_target_builds_once);
     RUN_TEST(test_heatmap_cache_miss_different_goal);
     RUN_TEST(test_heatmap_generation_is_nonzero);
     RUN_TEST(test_multi_goal_cache_no_thrash);
+    RUN_TEST(test_heatmap_cache_ignores_stale_dynamic_pathmap_stamps);
+    RUN_TEST(test_flow_bake_perf_skips_unreachable_half);
     RUN_TEST(test_wall_routes_flow_around_obstacle);
     RUN_TEST(test_flow_direction_points_toward_goal_open);
     RUN_TEST(test_unit_presence_does_not_invalidate_heatmap_cache);
