@@ -676,6 +676,10 @@ void UI_ShutdownLocal(void) {
     memset(&ui_state, 0, sizeof(ui_state));
 }
 
+DWORD UI_GetTime(void) {
+    return ui_state.time;
+}
+
 void UI_RefreshLocal(DWORD msec) {
     if (!ui_state.active) {
         return;

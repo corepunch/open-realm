@@ -375,6 +375,7 @@ void UI_InheritFrom(LPFRAMEDEF, LPCSTR);
 void UI_LoadTheme(LPCSTR fileName);
 void UI_ClearTheme(void);
 void UI_MenuCommandLocal(LPCSTR command);
+DWORD UI_GetTime(void);
 LPCFRAMEDEF UI_HitTest(FLOAT fdf_x, FLOAT fdf_y);
 void UI_TogglePopup(LPCFRAMEDEF frame);
 void UI_SliderBeginDrag(LPCFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y);
