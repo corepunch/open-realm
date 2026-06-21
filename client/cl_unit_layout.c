@@ -415,7 +415,7 @@ void UI_LayoutGlueTextButton(LPCUIFRAME frame, LPCRECT screen) {
 
 static void UI_LayoutDrawGlueTextButtonHighlight(LPCUIFRAME frame) {
     uiGlueTextButton_t const *gluetextbutton = frame->buffer.data;
-    RECT const *screen = uiimport.LayoutRect(frame);
+    RECT const *screen = SCR_LayoutRect(frame);
     BOOL const enabled = UI_LayoutFrameHasClickCommand(frame);
     BOOL const mouse_over = UI_LayoutFrameIsHovered(frame);
 
@@ -446,8 +446,8 @@ void UI_LayoutDrawBuildQueue(LPCUIFRAME frame, LPCRECT scrn) {
 
 void UI_LayoutUpdateBuildQueue(LPCUIFRAME frame, LPCRECT screen) {
     uiBuildQueue_t const *queue = frame->buffer.data;
-    LPUIFRAME buildtimer = uiimport.LayoutFrame(queue->buildtimer);
-    LPUIFRAME firstitem = uiimport.LayoutFrame(queue->firstitem);
+    LPUIFRAME buildtimer = SCR_Frame(queue->buildtimer);
+    LPUIFRAME firstitem = SCR_Frame(queue->firstitem);
 
     FOR_LOOP(i, queue->numitems) {
         uiBuildQueueItem_t const *item = &queue->items[i];
@@ -494,7 +494,7 @@ void UI_LayoutDrawMultiSelect(LPCUIFRAME frame, LPCRECT scrn) {
         }
         if (++column >= multiselect->numcolumns) {
             column = 0;
-            screen.x = uiimport.LayoutRect(frame)->x;
+            screen.x = SCR_LayoutRect(frame)->x;
             screen.y += multiselect->offset.y;
         } else {
             screen.x += multiselect->offset.x;
@@ -574,18 +574,18 @@ void UI_LayoutDrawCommandButton(LPCUIFRAME frame, LPCRECT screen) {
 }
 
 void layout_text(LPCUIFRAME frame, LPCRECT screen, LPCSTR text) {
-    drawText_t drawtext = uiimport.LayoutDrawText(frame, screen->w, text, frame->buffer.data);
+    drawText_t drawtext = SCR_GetDrawText(frame, screen->w, text, frame->buffer.data);
     drawtext.rect = *screen;
     drawtext.wordWrap = true;
     re.DrawText(&drawtext);
 }
 
 static void UI_LayoutApplyPushedTextOffset(LPCUIFRAME frame, LPRECT screen) {
-    if (frame->parent >= uiimport.LayoutNumFrames()) {
+    if (frame->parent >= SCR_NumFrames()) {
         return;
     }
 
-    LPCUIFRAME parent = uiimport.LayoutFrame(frame->parent);
+    LPCUIFRAME parent = SCR_Frame(frame->parent);
     if (!parent) {
         return;
     }
@@ -611,7 +611,7 @@ void UI_LayoutDrawString(LPCUIFRAME frame, LPCRECT screen) {
     scr.x += label->offsetx;
     scr.y += label->offsety;
     UI_LayoutApplyPushedTextOffset(frame, &scr);
-    layout_text(frame, &scr, uiimport.LayoutStringValue(frame));
+    layout_text(frame, &scr, SCR_GetStringValue(frame));
 }
 
 void UI_LayoutDrawTextArea(LPCUIFRAME frame, LPCRECT screen) {
@@ -653,15 +653,15 @@ void UI_LayoutDrawListBox(LPCUIFRAME frame, LPCRECT screen) {
 
     UI_LayoutDrawBackdrop2(frame, screen, &listbox->background);
 
-    FOR_LOOP(i, uiimport.LayoutNumFrames()) {
-        LPCUIFRAME child = uiimport.LayoutFrame(i);
+    FOR_LOOP(i, SCR_NumFrames()) {
+        LPCUIFRAME child = SCR_Frame(i);
         if (child && child->parent == frame->number && child->flags.type == FT_SCROLLBAR) {
             scrollbar = child;
             break;
         }
     }
     if (scrollbar) {
-        LPCRECT scroll_rect = uiimport.LayoutRect(scrollbar);
+        LPCRECT scroll_rect = SCR_LayoutRect(scrollbar);
         FLOAT scroll_inset = MAX(scroll_rect->w, 0.0f);
 
         if (scroll_inset > 0 && scroll_inset < list_rect.w) {
@@ -726,7 +726,7 @@ void UI_LayoutDrawTooltip(LPCUIFRAME frame, LPCRECT scrn) {
         uiTooltip_t const *tooltip = frame->buffer.data;
         FLOAT const PADDING = 0.005;
         FLOAT const avlspace = screen.w - PADDING * 2;
-        drawText_t drawtext = uiimport.LayoutDrawText(frame, avlspace, active_tooltip, &tooltip->text);
+        drawText_t drawtext = SCR_GetDrawText(frame, avlspace, active_tooltip, &tooltip->text);
         drawtext.wordWrap = true;
         VECTOR2 textsize = re.GetTextSize(&drawtext);
         textsize.y += PADDING * 2;
@@ -734,7 +734,7 @@ void UI_LayoutDrawTooltip(LPCUIFRAME frame, LPCRECT scrn) {
         screen.h = textsize.y;
         RECT text = Rect_inset(&screen, PADDING);
         UI_LayoutDrawBackdrop(frame, &screen);
-        drawtext = uiimport.LayoutDrawText(frame, text.w, active_tooltip, &tooltip->text);
+        drawtext = SCR_GetDrawText(frame, text.w, active_tooltip, &tooltip->text);
         drawtext.rect = text;
         drawtext.wordWrap = true;
         re.DrawText(&drawtext);
@@ -785,7 +785,7 @@ static drawer_t drawers[] = {
 };
 
 void UI_LayoutDrawFrame(LPCUIFRAME frame) {
-    RECT const *screen = uiimport.LayoutRect(frame);
+    RECT const *screen = SCR_LayoutRect(frame);
     FOR_LOOP(j, sizeof(drawers)/sizeof(*drawers)) {
         if (drawers[j].type == frame->flags.type) {
             drawers[j].func(frame, screen);
@@ -795,7 +795,7 @@ void UI_LayoutDrawFrame(LPCUIFRAME frame) {
 }
 
 void UI_LayoutUpdateFrame(LPCUIFRAME frame) {
-    RECT const *screen = uiimport.LayoutRect(frame);
+    RECT const *screen = SCR_LayoutRect(frame);
     FOR_LOOP(j, sizeof(updaters)/sizeof(*updaters)) {
         if (updaters[j].type == frame->flags.type) {
             updaters[j].func(frame, screen);
@@ -805,8 +805,8 @@ void UI_LayoutUpdateFrame(LPCUIFRAME frame) {
 }
 
 void UI_LayoutUpdateTooltip(HANDLE _frames) {
-    FOR_LOOP(i, uiimport.LayoutNumFrames()) {
-        LPCUIFRAME frame = uiimport.LayoutFrame(i);
+    FOR_LOOP(i, SCR_NumFrames()) {
+        LPCUIFRAME frame = SCR_Frame(i);
         if (frame) {
             UI_LayoutUpdateFrame(frame);
         }
@@ -814,20 +814,20 @@ void UI_LayoutUpdateTooltip(HANDLE _frames) {
 }
 
 void UI_LayoutDrawOverlay(HANDLE _frames) {
-    FOR_LOOP(i, uiimport.LayoutNumFrames()) {
-        LPCUIFRAME frame = uiimport.LayoutFrame(i);
+    FOR_LOOP(i, SCR_NumFrames()) {
+        LPCUIFRAME frame = SCR_Frame(i);
         if (frame && frame->flags.type == FT_SPRITE) {
             UI_LayoutDrawFrame(frame);
         }
     }
-    FOR_LOOP(i, uiimport.LayoutNumFrames()) {
-        LPCUIFRAME frame = uiimport.LayoutFrame(i);
+    FOR_LOOP(i, SCR_NumFrames()) {
+        LPCUIFRAME frame = SCR_Frame(i);
         if (frame && frame->flags.type != FT_SPRITE) {
             UI_LayoutDrawFrame(frame);
         }
     }
-    FOR_LOOP(i, uiimport.LayoutNumFrames()) {
-        LPCUIFRAME frame = uiimport.LayoutFrame(i);
+    FOR_LOOP(i, SCR_NumFrames()) {
+        LPCUIFRAME frame = SCR_Frame(i);
         if (frame && (frame->flags.type == FT_GLUETEXTBUTTON || frame->flags.type == FT_GLUEBUTTON)) {
             UI_LayoutDrawGlueTextButtonHighlight(frame);
         }
@@ -850,7 +850,7 @@ void UI_LayoutDrawOverlays(void) {
             continue;
         HANDLE layout = layout_layers[layer];
         if (layout) {
-            uiimport.LayoutClear(layout);
+            SCR_Clear(layout);
             UI_LayoutUpdateTooltip(layout);
         }
     }
@@ -862,7 +862,7 @@ void UI_LayoutDrawOverlays(void) {
             continue;
         HANDLE layout = layout_layers[layer];
         if (layout) {
-            uiimport.LayoutClear(layout);
+            SCR_Clear(layout);
             UI_LayoutUpdateTooltip(layout);
             UI_LayoutDrawOverlay(layout);
         }
@@ -894,13 +894,13 @@ void UI_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
         if (!layout || ((1 << layer) & uiimport.GetPlayerState()->uiflags) || UI_LayoutShouldSkipLayoutLayer(layer)) {
             continue;
         }
-        uiimport.LayoutClear(layout);
-        for (DWORD i = uiimport.LayoutNumFrames(); i > 0; i--) {
-            LPCUIFRAME frame = uiimport.LayoutFrame(i - 1);
+        SCR_Clear(layout);
+        for (DWORD i = SCR_NumFrames(); i > 0; i--) {
+            LPCUIFRAME frame = SCR_Frame(i - 1);
             if (!frame || !UI_LayoutFrameHasClickCommand(frame)) {
                 continue;
             }
-            if (Rect_contains(uiimport.LayoutRect(frame), &point)) {
+            if (Rect_contains(SCR_LayoutRect(frame), &point)) {
                 layout_hovered_number = frame->number;
                 break;
             }
@@ -925,13 +925,13 @@ void UI_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
         if (!layout || ((1 << layer) & uiimport.GetPlayerState()->uiflags) || UI_LayoutShouldSkipLayoutLayer(layer)) {
             continue;
         }
-        uiimport.LayoutClear(layout);
-        for (DWORD i = uiimport.LayoutNumFrames(); i > 0; i--) {
-            LPCUIFRAME frame = uiimport.LayoutFrame(i - 1);
+        SCR_Clear(layout);
+        for (DWORD i = SCR_NumFrames(); i > 0; i--) {
+            LPCUIFRAME frame = SCR_Frame(i - 1);
             if (!frame || !UI_LayoutFrameHasClickCommand(frame)) {
                 continue;
             }
-            if (Rect_contains(uiimport.LayoutRect(frame), &point)) {
+            if (Rect_contains(SCR_LayoutRect(frame), &point)) {
                 char command[CMDARG_LEN * 2];
                 UI_LayoutFormatOnClickCommand(frame->onclick, command, sizeof(command));
                 if (uiimport.ServerCommand) {
@@ -958,13 +958,13 @@ BOOL UI_LayoutHitTest(int x, int y) {
         if (UI_LayoutShouldSkipLayoutLayer(layer)) {
             continue;
         }
-        uiimport.LayoutClear(layout);
-        FOR_LOOP(i, uiimport.LayoutNumFrames()) {
-            LPCUIFRAME frame = uiimport.LayoutFrame(i);
+        SCR_Clear(layout);
+        FOR_LOOP(i, SCR_NumFrames()) {
+            LPCUIFRAME frame = SCR_Frame(i);
             if (!frame || frame->flags.type != FT_TEXTURE) {
                 continue;
             }
-            if (Rect_contains(uiimport.LayoutRect(frame), &point)) {
+            if (Rect_contains(SCR_LayoutRect(frame), &point)) {
                 return true;
             }
         }
