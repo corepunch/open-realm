@@ -86,6 +86,7 @@ static LPCRECT UI_LayoutRect(LPCFRAMEDEF frame);
 static void UI_DrawFrameOne(LPCFRAMEDEF frame);
 static BOOL UI_FrameWithinRoot(LPCFRAMEDEF root, LPCFRAMEDEF frame);
 static BOOL UI_PointerBlockedByModal(LPCFRAMEDEF frame);
+static BOOL UI_PointerBlockedByPopup(LPCFRAMEDEF frame);
 static LPCFRAMEDEF UI_FindActiveModalRoot(LPCFRAMEDEF const *roots, DWORD num_roots);
 
 /* ========================================================================
@@ -127,6 +128,9 @@ LPCFRAMEDEF UI_HitTest(FLOAT fdf_x, FLOAT fdf_y) {
         }
         LPCFRAMEDEF frame = &frames[i];
         if (!frame->inuse || !UI_FrameIsInteractive(frame)) {
+            continue;
+        }
+        if (UI_PointerBlockedByPopup(frame)) {
             continue;
         }
         if (UI_PointInRect(fdf_x, fdf_y, &runtimes[i].rect)) {
