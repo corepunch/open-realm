@@ -185,6 +185,7 @@ static PATHSTR ui_texture_keys[MAX_IMAGES] = { 0 };
 static BOOL ui_texture_decorated[MAX_IMAGES] = { 0 };
 static LPCMODEL ui_models[MAX_MODELS] = { 0 };
 static PATHSTR ui_model_names[MAX_MODELS] = { 0 };
+static BOOL ui_visibility_dirty = true;
 
 void FDF_ParseFrame(LPPARSER p, LPFRAMEDEF frame);
 static char *UI_Trim(char *text);
@@ -194,6 +195,7 @@ static void UI_FixCopiedFrameTextPointer(LPFRAMEDEF frame, LPCFRAMEDEF source);
 static void UI_FreeFrameDynamicText(LPFRAMEDEF frame);
 static void UI_RemoveBom(LPSTR buffer);
 static void UI_CloneTemplateChildren(LPCFRAMEDEF source, LPFRAMEDEF parent);
+static void UI_SyncBaseFramePoints(LPFRAMEDEF frame);
 
 void UI_ClearTemplates(void) {
     FOR_LOOP(i, MAX_UI_CLASSES) {
@@ -208,6 +210,7 @@ void UI_ClearTemplates(void) {
     memset(ui_model_names, 0, sizeof(ui_model_names));
     memset(ui_loaded_fdfs, 0, sizeof(ui_loaded_fdfs));
     ui_num_loaded_fdfs = 0;
+    ui_visibility_dirty = true;
     UI_ClearTheme();
 }
 
@@ -241,7 +244,7 @@ LPFRAMEDEF UI_Spawn(FRAMETYPE type, LPFRAMEDEF parent) {
         if (!frame->inuse) {
             UI_InitFrame(frame, type);
             UI_WireFrameTypeFunctions(frame);
-            frame->Parent = parent;
+            UI_SetParent(frame, parent);
             return frame;
         }
     }
@@ -675,9 +678,36 @@ static DWORD UI_DecodeFramePointY(DWORD framepoint) {
     return (framepoint >> 2) & 3;
 }
 
+static DWORD UI_BaseFrameRelativeIndex(LPCFRAMEDEF relativeTo) {
+    if (!relativeTo)
+        return (DWORD)-1;
+    if (relativeTo >= frames && relativeTo < frames + MAX_UI_CLASSES)
+        return (DWORD)(relativeTo - frames);
+    return (DWORD)-1;
+}
+
+static void UI_SyncBaseFramePoint(uiBaseFramePoint_t *dst, LPCFRAMEPOINT src, BOOL y_axis) {
+    if (!src || !src->used) {
+        memset(dst, 0, sizeof(*dst));
+        return;
+    }
+    dst->used = true;
+    dst->targetPos = src->targetPos;
+    dst->relative_index = UI_BaseFrameRelativeIndex(src->relativeTo);
+    dst->offset = y_axis ? -src->offset : src->offset;
+}
+
+static void UI_SyncBaseFramePoints(LPFRAMEDEF frame) {
+    FOR_LOOP(i, FPP_COUNT) {
+        UI_SyncBaseFramePoint(&frame->base.points.x[i], &frame->Points.x[i], false);
+        UI_SyncBaseFramePoint(&frame->base.points.y[i], &frame->Points.y[i], true);
+    }
+}
+
 MAKE_PARSERCALL(SetPoint) {
     if (!frame->AnyPointsSet) { // clear any template points
         memset(&frame->Points, 0, sizeof(frame->Points));
+        memset(&frame->base.points, 0, sizeof(frame->base.points));
         frame->AnyPointsSet = true;
     }
     DWORD const x = frame->SetPoint.type & 3;
@@ -698,6 +728,7 @@ MAKE_PARSERCALL(SetPoint) {
         yp[y].targetPos = UI_DecodeFramePointY(frame->SetPoint.target);
         yp[y].relativeTo = frame->SetPoint.relativeTo;
     }
+    UI_SyncBaseFramePoints(frame);
 }
 
 MAKE_PARSERCALL(Anchor) {
@@ -1040,8 +1071,8 @@ void UI_InheritFrom(LPFRAMEDEF frame, LPCSTR inheritName) {
         memcpy(frame, inherit, sizeof(FRAMEDEF));
         UI_FixCopiedFrameTextPointer(frame, inherit);
         memcpy(frame->Name, tmp.Name, sizeof(UINAME));
-        frame->Parent = tmp.Parent;
-        frame->Type = requested_type;
+        UI_SetParent(frame, tmp.Parent);
+        frame->base.type = requested_type;
         frame->AnyPointsSet = false;
     } else if (inherit) {
         fprintf(stderr, "Can't inherit from different type %s\n", inheritName);
@@ -1160,13 +1191,9 @@ static BOOL UI_IsEmbeddedControlPart(LPCFRAMEDEF parent, LPCFRAMEDEF child) {
     }
     /* Control art children are serialized into their owning control's payload by
      * ui_write.c. Emitting them again as standalone children draws duplicates. */
-    if (child->Type == FT_BACKDROP) {
-        return UI_FrameNameEquals(child, parent->Control.Backdrop.Normal) ||
-               UI_FrameNameEquals(child, parent->Control.Backdrop.Pushed) ||
-               UI_FrameNameEquals(child, parent->Control.Backdrop.Disabled) ||
-               UI_FrameNameEquals(child, parent->Control.Backdrop.DisabledPushed);
-    }
-    if (child->Type == FT_HIGHLIGHT) {
+    if (child->base.type == FT_BACKDROP)
+        return false;
+    if (child->base.type == FT_HIGHLIGHT) {
         return UI_FrameNameEquals(child, parent->Control.Backdrop.MouseOver) ||
                (UI_IsCheckBoxFrameType(parent->Type) &&
                 (UI_FrameNameEquals(child, parent->CheckBox.CheckHighlight) ||
@@ -1232,6 +1259,43 @@ DWORD UI_CollectFrameTree(LPCFRAMEDEF root, LPCFRAMEDEF *out, DWORD max) {
     return UI_CollectFrameTreeRecursive(root, out, max);
 }
 
+static BOOL UI_FrameHiddenInHierarchy(LPCFRAMEDEF frame) {
+    LPCFRAMEDEF it = frame;
+    DWORD depth = 0;
+
+    while (it && depth++ < MAX_UI_CLASSES) {
+        if (it->base.hidden || (it->base.ui_flags & UIFLAG_HIDDEN))
+            return true;
+        it = it->Parent;
+    }
+    return it != NULL;
+}
+
+void UI_UpdateFrameHierarchyFlags(void) {
+    if (!ui_visibility_dirty)
+        return;
+    FOR_LOOP(i, MAX_UI_CLASSES) {
+        LPFRAMEDEF frame = frames + i;
+        if (!frame->inuse)
+            continue;
+        if (UI_FrameHiddenInHierarchy(frame))
+            frame->base.ui_flags |= UIFLAG_HIDDEN_IN_HIERARCHY;
+        else
+            frame->base.ui_flags &= ~UIFLAG_HIDDEN_IN_HIERARCHY;
+    }
+    ui_visibility_dirty = false;
+}
+
+void UI_UpdateStandaloneFrameDraws(void) {
+    FOR_LOOP(i, MAX_UI_CLASSES) {
+        LPFRAMEDEF frame = frames + i;
+        if (!frame->inuse)
+            continue;
+        if (frame->Parent && UI_IsEmbeddedControlPart(frame->Parent, frame))
+            frame->base.on_draw = NULL;
+    }
+}
+
 static LPCFRAMEDEF UI_RemapClonedFrame(LPCFRAMEDEF frame,
                                        LPCFRAMEDEF const *sources,
                                        LPFRAMEDEF const *copies,
@@ -1261,9 +1325,9 @@ static void UI_RemapClonedFramePointers(LPFRAMEDEF frame,
                                         LPFRAMEDEF const *copies,
                                         DWORD count)
 {
-    frame->Parent = UI_RemapClonedFrame(frame->Parent, sources, copies, count);
+    UI_SetParent(frame, UI_RemapClonedFrame(frame->Parent, sources, copies, count));
     if (!frame->Parent && parent) {
-        frame->Parent = parent;
+        UI_SetParent(frame, parent);
     }
     frame->DialogBackdrop = UI_RemapClonedFrame(frame->DialogBackdrop, sources, copies, count);
     frame->SetPoint.relativeTo = UI_RemapClonedFrame(frame->SetPoint.relativeTo, sources, copies, count);
@@ -1271,6 +1335,7 @@ static void UI_RemapClonedFramePointers(LPFRAMEDEF frame,
         UI_RemapClonedPoint(&frame->Points.x[i], sources, copies, count);
         UI_RemapClonedPoint(&frame->Points.y[i], sources, copies, count);
     }
+    UI_SyncBaseFramePoints(frame);
 }
 
 LPFRAMEDEF UI_CloneFrameTree(LPCFRAMEDEF source, LPFRAMEDEF parent) {
@@ -1294,7 +1359,7 @@ LPFRAMEDEF UI_CloneFrameTree(LPCFRAMEDEF source, LPFRAMEDEF parent) {
     FOR_LOOP(i, count) {
         UI_RemapClonedFramePointers(copies[i], parent, sources, copies, count);
     }
-    copies[0]->Parent = parent;
+    UI_SetParent(copies[0], parent);
     return copies[0];
 }
 
@@ -1505,6 +1570,8 @@ void UI_SetAllPoints(LPFRAMEDEF frame) {
 
 void UI_SetParent(LPFRAMEDEF frame, LPCFRAMEDEF parent) {
     frame->Parent = parent;
+    frame->base.parent_index = parent ? (DWORD)(parent - frames) : (DWORD)-1;
+    ui_visibility_dirty = true;
 }
 
 void UI_SetText(LPFRAMEDEF frame, LPCSTR format, ...) {
@@ -1569,9 +1636,24 @@ void UI_SetHidden(LPFRAMEDEF frame, BOOL value) {
     if (!frame) {
         return;
     }
-    frame->hidden = value;
-    if (frame->hidden) frame->ui_flags &= ~UIFLAG_VISIBLE;
-    else frame->ui_flags |= UIFLAG_VISIBLE;
+    if (frame->base.hidden == value &&
+        ((frame->base.ui_flags & UIFLAG_HIDDEN) != 0) == (value != 0)) {
+        return;
+    }
+    frame->base.hidden = value;
+    if (value)
+        frame->base.ui_flags |= UIFLAG_HIDDEN;
+    else
+        frame->base.ui_flags &= ~UIFLAG_HIDDEN;
+    ui_visibility_dirty = true;
+}
+
+void UI_SetRootFramesHidden(BOOL value) {
+    FOR_LOOP(i, MAX_UI_CLASSES) {
+        LPFRAMEDEF frame = frames + i;
+        if (frame->inuse && !frame->Parent)
+            UI_SetHidden(frame, value);
+    }
 }
 
 void UI_WriteFrameWithChildrenWithTriggers(LPEDICT ent, LPCFRAMEDEF frame, LPCFRAMEDEF parent, uiTrigger_t const *triggers) {

@@ -348,6 +348,7 @@ static LPCRECT UI_LayoutRect(LPCFRAMEDEF frame) {
                  */
                 break;
             default:
+            default:
                 /* Default size if not specified */
                 if (intrinsic_w == 0) intrinsic_w = 0.1f;
                 if (intrinsic_h == 0) intrinsic_h = 0.1f;
@@ -365,8 +366,19 @@ static LPCRECT UI_LayoutRect(LPCFRAMEDEF frame) {
         .w = x_pos.y,
         .h = y_pos.y,
     };
+    ((LPFRAMEDEF)frame)->base.screen_rect = *out;
     
     return out;
+}
+
+void UI_UpdateFrameScreenRects(void) {
+    scene_rect_valid = FALSE;
+    memset(runtimes, 0, sizeof(runtimes));
+    scene_rect = UI_GetSceneRect();
+    FOR_LOOP(i, MAX_UI_CLASSES) {
+        if (frames[i].inuse)
+            UI_LayoutRect(frames + i);
+    }
 }
 
 /* ========================================================================
@@ -469,6 +481,12 @@ static void UI_DrawHighlightFrame(LPCFRAMEDEF frame, LPCRECT rect);
 #include "controls/ui_control_editbox.h"
 #include "controls/ui_control_map_list.h"
 #include "controls/ui_control_slider.h"
+
+/* Generic on_draw draws one frame; the client owns the flat frame loop. */
+void UI_GenericOnDraw(struct uiBaseFrame_s *base, LPCRECT rect) {
+    (void)rect;
+    UI_DrawFrameOne((LPFRAMEDEF)base);
+}
 
 /* ========================================================================
  * PER-TYPE EVENT HANDLERS — called from UI_MouseEventLocal
@@ -925,9 +943,9 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
     switch (frame->Type) {
         case FT_FRAME:
         case FT_SIMPLEFRAME:
-            if (frame->draw) {
-                frame->draw((LPFRAMEDEF)frame, rect);
-            }
+            /* Container frames — no visual content of their own.
+             * Children are already collected and drawn individually
+             * by UI_CollectFrameTree in the outer draw loop. */
             break;
 
         case FT_DIALOG:

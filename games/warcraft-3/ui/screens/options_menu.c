@@ -330,10 +330,19 @@ static void OptionsMenu_SetPanel(optionsPanel_t panel) {
     OptionsMenu_SetHidden(options_menu.SoundPanel, panel != OPTIONS_PANEL_SOUND);
 }
 
+static void OptionsMenu_RootDraw(struct uiBaseFrame_s *base, LPCRECT rect) {
+    (void)base; (void)rect;
+    UI_DrawGlueSceneLayers("Options Stand Alternate", "Options Stand");
+}
+
 static void OptionsMenu_Init(void) {
     uiimport.Printf("OptionsMenu_Init\n");
     UI_PreloadGlueSceneModels();
     current_panel = OPTIONS_PANEL_GAMEPLAY;
+    if (options_menu.OptionsMenu) {
+        options_menu.OptionsMenu->base.on_draw = OptionsMenu_RootDraw;
+        UI_SetHidden(options_menu.OptionsMenu, false);
+    }
 
     UI_SetOnClick(options_menu.GameplayButton, "menu_options_gameplay");
     UI_SetOnClick(options_menu.VideoButton, "menu_video");
@@ -349,6 +358,7 @@ static void OptionsMenu_Init(void) {
 }
 
 static void OptionsMenu_Shutdown(void) {
+    UI_SetHidden(options_menu.OptionsMenu, true);
 }
 
 static void OptionsMenu_Refresh(int msec) {

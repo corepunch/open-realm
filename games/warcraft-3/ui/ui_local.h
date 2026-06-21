@@ -365,7 +365,10 @@ void UI_SetPoint(LPFRAMEDEF, UIFRAMEPOINT, LPCFRAMEDEF, UIFRAMEPOINT, FLOAT, FLO
 void UI_SetTexture(LPFRAMEDEF, LPCSTR, BOOL);
 void UI_SetTexture2(LPFRAMEDEF, LPCSTR, BOOL);
 void UI_SetHidden(LPFRAMEDEF, BOOL);
+void UI_SetRootFramesHidden(BOOL);
 void UI_InheritFrom(LPFRAMEDEF, LPCSTR);
+void UI_UpdateFrameHierarchyFlags(void);
+void UI_UpdateStandaloneFrameDraws(void);
 void UI_LoadTheme(LPCSTR fileName);
 void UI_ClearTheme(void);
 void UI_MenuCommandLocal(LPCSTR command);
@@ -459,6 +462,7 @@ COLOR32 Theme_ListBoxIconTextColor(void);
 // Additional frame management functions will be declared here
 
 /* ui_render.c — Frame rendering */
+void UI_UpdateFrameScreenRects(void);
 void UI_DrawFrame(LPCFRAMEDEF frame);
 void UI_DrawGamePortraitInFrame(LPCFRAMEDEF frame, DWORD modelIndex, LPCSTR anim);
 void UI_DrawFrames(LPCFRAMEDEF const *roots, DWORD num_roots);

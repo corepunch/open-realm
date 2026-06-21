@@ -30,6 +30,11 @@ static BOOL MainMenu_LoadScreen(void) {
     return MainMenu_Load(&main_menu);
 }
 
+static void MainMenu_RootDraw(struct uiBaseFrame_s *base, LPCRECT rect) {
+    (void)base; (void)rect;
+    UI_DrawGlueScene(show_realm_select ? "RealmSelection Stand" : "MainMenu Stand");
+}
+
 static void MainMenu_InitQuitDialog(void) {
     uiDialogWar3Init_t init = {
         .modal_name = "MainMenuQuitModal",
@@ -56,6 +61,8 @@ static void MainMenu_InitFrames(void) {
         uiimport.Printf("ERROR: MainMenuFrame not found\n");
         return;
     }
+    main_menu.MainMenuFrame->base.on_draw = MainMenu_RootDraw;
+    UI_SetHidden(main_menu.MainMenuFrame, false);
 
     if (main_menu.RealmSelect) {
         UI_SetHidden(main_menu.RealmSelect, true);
@@ -100,7 +107,8 @@ static void MainMenu_Init(void) {
 }
 
 static void MainMenu_Shutdown(void) {
-    /* Nothing to clean up */
+    UI_SetHidden(main_menu.MainMenuFrame, true);
+    UI_DialogWar3Hide(&quit_dialog);
 }
 
 static void MainMenu_Refresh(int msec) {
@@ -134,6 +142,7 @@ static void MainMenu_KeyEvent(int key, BOOL down) {
 void MainMenu_ShowMainPanel(void) {
     show_realm_select = false;
     UI_DialogWar3Hide(&quit_dialog);
+    UI_SetHidden(main_menu.MainMenuFrame, false);
     if (main_menu.RealmSelect) {
         UI_SetHidden(main_menu.RealmSelect, true);
     }
@@ -148,6 +157,7 @@ void MainMenu_ShowMainPanel(void) {
 void MainMenu_ShowRealmSelect(void) {
     UI_DialogWar3Hide(&quit_dialog);
     show_realm_select = true;
+    UI_SetHidden(main_menu.MainMenuFrame, false);
     if (main_menu.RealmSelect) {
         UI_SetHidden(main_menu.RealmSelect, false);
     }
@@ -160,6 +170,7 @@ void MainMenu_ShowRealmSelect(void) {
 }
 
 void MainMenu_ShowQuitConfirm(void) {
+    UI_SetHidden(main_menu.MainMenuFrame, false);
     MainMenu_ShowQuitDialog();
 }
 
@@ -172,6 +183,7 @@ void MainMenu_ShowDisconnected(void) {
     };
 
     show_realm_select = false;
+    UI_SetHidden(main_menu.MainMenuFrame, false);
     if (main_menu.RealmSelect) {
         UI_SetHidden(main_menu.RealmSelect, true);
     }

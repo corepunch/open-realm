@@ -6,12 +6,16 @@
 static UIFRAME frames[MAX_LAYOUT_OBJECTS];
 static DWORD num_frames = 0;
 
-struct {
+typedef struct {
     RECT rect;
     bool calculated;
-} runtimes[MAX_LAYOUT_OBJECTS];
+} layoutRuntime_t;
 
-static RECT SCR_GetUISceneRect(void) {
+static layoutRuntime_t runtimes[MAX_LAYOUT_OBJECTS];
+static layoutRuntime_t ui_runtimes[MAX_LAYOUT_OBJECTS];
+static RECT ui_scene_rect;
+
+RECT SCR_GetUISceneRect(void) {
     size2_t window = re.GetWindowSize();
     FLOAT window_aspect = UI_MIN_ASPECT;
     FLOAT x_scale = 1.0f;
@@ -110,6 +114,91 @@ VECTOR2 SCR_SolveAxisPosition(LPCUIFRAME frame,
             width,
         };
     }
+}
+
+static LPUIBASEFRAME CL_UIBaseFrame(DWORD number) {
+    if (!ui.frames || ui.frame_size == 0 || !ui.GetNumFrames || number >= ui.GetNumFrames())
+        return NULL;
+    return (LPUIBASEFRAME)((char *)ui.frames + number * ui.frame_size);
+}
+
+static LPCRECT CL_UIBaseLayoutRect(DWORD number);
+
+static LPCRECT CL_UIBaseRelativeRect(LPCUIBASEFRAME frame, uiBaseFramePoint_t const *p) {
+    if (!p || p->relative_index == (DWORD)-1)
+        return &ui_scene_rect;
+    if (p->relative_index == UI_PARENT)
+        return frame && frame->parent_index != (DWORD)-1 ? CL_UIBaseLayoutRect(frame->parent_index) : &ui_scene_rect;
+    return CL_UIBaseLayoutRect(p->relative_index);
+}
+
+static FLOAT CL_UIBaseAnchorOffset(uiBaseFramePoint_t const *p, bool is_x_axis) {
+    FLOAT offset = p ? p->offset : 0.0f;
+    return is_x_axis ? offset : -offset;
+}
+
+static FLOAT CL_UIBaseGetAnchor(LPCUIBASEFRAME frame, uiBaseFramePoint_t const *p, bool is_x_axis) {
+    VECTOR2 b = SCR_GetAxisBounds(CL_UIBaseRelativeRect(frame, p), is_x_axis);
+    FLOAT offset = CL_UIBaseAnchorOffset(p, is_x_axis);
+    if (p->targetPos == FPP_MID)
+        return (b.x + b.y) / 2 + offset;
+    if (p->targetPos == FPP_MAX)
+        return b.y + offset;
+    return b.x + offset;
+}
+
+static VECTOR2 CL_UIBaseSolveAxisPosition(LPCUIBASEFRAME frame,
+                                          uiBaseFramePoints_t const points,
+                                          FLOAT size,
+                                          bool is_x_axis)
+{
+    uiBaseFramePoint_t const *pmin = points + FPP_MIN;
+    uiBaseFramePoint_t const *pmid = points + FPP_MID;
+    uiBaseFramePoint_t const *pmax = points + FPP_MAX;
+
+    if (pmid->used)
+        return MAKE(VECTOR2, CL_UIBaseGetAnchor(frame, pmid, is_x_axis) - size / 2, size);
+    if (pmin->used && pmax->used) {
+        FLOAT anchor_min = CL_UIBaseGetAnchor(frame, pmin, is_x_axis);
+        FLOAT anchor_max = CL_UIBaseGetAnchor(frame, pmax, is_x_axis);
+        return MAKE(VECTOR2, anchor_min, anchor_max - anchor_min);
+    }
+    if (pmax->used)
+        return MAKE(VECTOR2, CL_UIBaseGetAnchor(frame, pmax, is_x_axis) - size, size);
+    if (pmin->used)
+        return MAKE(VECTOR2, CL_UIBaseGetAnchor(frame, pmin, is_x_axis), size);
+    return MAKE(VECTOR2, 0.0f, size);
+}
+
+static LPCRECT CL_UIBaseLayoutRect(DWORD number) {
+    LPUIBASEFRAME frame = CL_UIBaseFrame(number);
+    VECTOR2 x, y;
+    FLOAT width, height;
+
+    if (!frame || number >= MAX_LAYOUT_OBJECTS)
+        return &ui_scene_rect;
+    if (ui_runtimes[number].calculated)
+        return &ui_runtimes[number].rect;
+    ui_runtimes[number].calculated = true;
+    width = frame->size.width != 0.0f ? frame->size.width : 0.1f;
+    height = frame->size.height != 0.0f ? frame->size.height : 0.1f;
+    x = CL_UIBaseSolveAxisPosition(frame, frame->points.x, width, true);
+    y = CL_UIBaseSolveAxisPosition(frame, frame->points.y, height, false);
+    ui_runtimes[number].rect = MAKE(RECT, x.x, y.x, x.y, y.y);
+    frame->screen_rect = ui_runtimes[number].rect;
+    return &ui_runtimes[number].rect;
+}
+
+void CL_UIUpdateFrameRects(void) {
+    DWORD nf;
+
+    memset(ui_runtimes, 0, sizeof(ui_runtimes));
+    ui_scene_rect = SCR_GetUISceneRect();
+    if (!ui.frames || ui.frame_size == 0 || !ui.GetNumFrames)
+        return;
+    nf = MIN(ui.GetNumFrames(), MAX_LAYOUT_OBJECTS);
+    for (DWORD i = 0; i < nf; i++)
+        CL_UIBaseLayoutRect(i);
 }
 
 VECTOR2 get_position(LPCUIFRAME frame,

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<Desc>
+    <Constant name="TestColorRed" val="255,0,0"/>
+    <Constant name="TestColorGreen" val="0,255,0"/>
+    <Constant name="TestColorBlue" val="0,0,255"/>
+    <Constant name="TestGap" val="4"/>
+</Desc>

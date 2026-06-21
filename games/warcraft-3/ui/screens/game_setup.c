@@ -902,6 +902,11 @@ static void GameSetup_BuildFrames(void) {
     setup.ready = true;
 }
 
+static void GameSetup_RootDraw(struct uiBaseFrame_s *base, LPCRECT rect) {
+    (void)base; (void)rect;
+    UI_DrawGlueScene("MultiplayerPreGameChat Stand");
+}
+
 static void GameSetup_Init(void) {
     uiimport.Printf("GameSetup_Init\n");
     UI_PreloadGlueSceneModels();
@@ -911,6 +916,8 @@ static void GameSetup_Init(void) {
     if (!setup.ready) {
         return;
     }
+    setup.root->base.on_draw = GameSetup_RootDraw;
+    UI_SetHidden(setup.root, false);
     GameSetup_LoadSelectedMap();
     GameSetup_SetTextIfPresent(setup.game_name, "%s", setup.map_name[0] ? setup.map_name : "Local Game");
     GameSetup_UpdateMapInfo();
@@ -920,6 +927,7 @@ static void GameSetup_Init(void) {
 }
 
 static void GameSetup_Shutdown(void) {
+    UI_SetHidden(setup.root, true);
 }
 
 static void GameSetup_Refresh(int msec) {
