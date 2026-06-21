@@ -110,16 +110,6 @@ typedef struct {
     int (*FS_ReadFile)(LPCSTR fileName, void **buf);  /* Returns file size, allocates buf */
     void (*FS_FreeFile)(void *buf);
     int (*FS_GetFileList)(LPCSTR path, LPCSTR extension, char *listbuf, int bufsize);
-    BOOL (*ReadMapInfo)(LPCSTR mapName, LPMAPINFO info);
-    BOOL (*FindMapPreviewTexture)(LPCSTR mapName, LPSTR out, DWORD out_size);
-    void (*FreeMapInfo)(LPMAPINFO info);
-    void (*DefaultMapName)(LPCSTR path, LPSTR out, DWORD out_size);
-    void (*ResolveMapInfoString)(LPCMAPINFO info, LPCSTR text, LPSTR out, DWORD out_size);
-    BOOL (*MapNameMatchesFile)(LPCSTR name, LPCSTR path);
-    LPCSTR (*MapTilesetName)(BYTE tileset);
-    LPCSTR (*MapSizeName)(DWORD width, DWORD height);
-    void (*SanitizeMapListField)(LPSTR text);
-    void (*SanitizeMapInfoText)(LPSTR text);
     
     /* Memory allocation */
     HANDLE (*MemAlloc)(long size);

@@ -444,6 +444,16 @@ void UI_BindMapList(LPFRAMEDEF frame,
 void UI_MenuClearItems(LPFRAMEDEF frame);
 void UI_MenuAddItem(LPFRAMEDEF frame, LPCSTR text, LONG value);
 void UI_LayoutMapInfoPane(LPFRAMEDEF frame);
+BOOL UI_ReadMapInfo(LPCSTR mapFilename, LPMAPINFO info);
+BOOL UI_FindMapPreviewTexture(LPCSTR mapFilename, LPSTR out, DWORD out_size);
+void UI_FreeMapInfo(LPMAPINFO info);
+void UI_DefaultMapName(LPCSTR path, LPSTR out, DWORD out_size);
+void UI_ResolveMapInfoString(LPCMAPINFO info, LPCSTR text, LPSTR out, DWORD out_size);
+BOOL UI_MapNameMatchesFile(LPCSTR name, LPCSTR path);
+LPCSTR UI_MapTilesetName(BYTE tileset);
+LPCSTR UI_MapSizeName(DWORD width, DWORD height);
+void UI_SanitizeMapListField(LPSTR text);
+void UI_SanitizeMapInfoText(LPSTR text);
 LPCSTR Theme_String(LPCSTR, LPCSTR);
 FLOAT Theme_Float(LPCSTR, LPCSTR);
 COLOR32 Theme_ListBoxSelectionColor(void);
