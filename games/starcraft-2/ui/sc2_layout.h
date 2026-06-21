@@ -212,11 +212,18 @@ void SC2_LayoutShutdown(void);
 /* Parse a .SC2Layout file from MPQ or filesystem */
 BOOL SC2_LayoutParseFile(LPCSTR filename);
 
+/* Flatten parsed templates into the frame array (call after parsing) */
+BOOL SC2_LayoutFlatten(LPCSTR root_name);
+
 /* Get the resolved frame array for client rendering */
 uiBaseFrame_t *SC2_LayoutGetFrames(DWORD *count);
 
 /* Find a template by name */
 sc2Frame_t *SC2_LayoutFindTemplate(LPCSTR name);
+
+/* Template accessors for iteration */
+int SC2_LayoutNumTemplates(void);
+sc2Frame_t *SC2_LayoutGetTemplate(int index);
 
 /* Resolve a constant value (##Name → val) */
 LPCSTR SC2_LayoutResolveConstant(LPCSTR name);

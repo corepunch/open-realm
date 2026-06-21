@@ -236,7 +236,7 @@ static void SC2_AddConstant(LPCSTR name, LPCSTR val) {
 
 LPCSTR SC2_LayoutResolveConstant(LPCSTR name) {
     if (!name || name[0] != '#') return name;
-    name++; /* skip '#' */
+    while (*name == '#') name++; /* strip all leading '#' (SC2 uses ##Name) */
     for (int i = 0; i < sc2_layout.num_constants; i++) {
         if (!strcasecmp(sc2_layout.constants[i].name, name))
             return sc2_layout.constants[i].val;
@@ -285,12 +285,33 @@ static void SC2_ResolveTemplate(sc2Frame_t *frame, sc2Frame_t *tmpl) {
     if (!frame->highlight_on_hover) frame->highlight_on_hover = tmpl->highlight_on_hover;
     if (!frame->highlight_on_focus) frame->highlight_on_focus = tmpl->highlight_on_focus;
 
-    /* Inherit anchors if none set on this frame */
-    if (frame->num_anchors == 0 && tmpl->num_anchors > 0) {
-        for (int i = 0; i < tmpl->num_anchors; i++) {
-            frame->anchors[i] = tmpl->anchors[i];
-            frame->num_anchors++;
+    /* Inherit anchors: template anchors are the base, frame's inline anchors
+     * override the same side or are appended if new. This matches SC2 behavior
+     * where the template provides base positioning and the frame can override
+     * specific sides. */
+    if (tmpl->num_anchors > 0) {
+        /* First, copy template anchors as the base */
+        int num = 0;
+        sc2Anchor_t merged[SC2_MAX_ANCHORS];
+        for (int i = 0; i < tmpl->num_anchors && num < SC2_MAX_ANCHORS; i++) {
+            merged[num++] = tmpl->anchors[i];
         }
+        /* Then, for each frame anchor, either override same-side or append */
+        for (int i = 0; i < frame->num_anchors && num < SC2_MAX_ANCHORS; i++) {
+            BOOL found = false;
+            for (int j = 0; j < num; j++) {
+                if (merged[j].side == frame->anchors[i].side) {
+                    merged[j] = frame->anchors[i];
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                merged[num++] = frame->anchors[i];
+            }
+        }
+        memcpy(frame->anchors, merged, sizeof(merged));
+        frame->num_anchors = num;
     }
 
     /* Inherit textures if none set */
@@ -376,6 +397,26 @@ static void SC2_ParseConstant(xmlNode *node) {
     if (val) SC2_XmlFree(val);
 }
 
+/* Read an integer attribute, resolving ##constant references first */
+static int SC2_ResolveAttrInt(xmlNode *node, LPCSTR attr, int default_val) {
+    LPCSTR raw = SC2_XmlGetProp(node, attr);
+    if (!raw) return default_val;
+    LPCSTR resolved = SC2_LayoutResolveConstant(raw);
+    int result = atoi(resolved ? resolved : raw);
+    SC2_XmlFree(raw);
+    return result;
+}
+
+/* Read a float attribute, resolving ##constant references first */
+static FLOAT SC2_ResolveAttrFloat(xmlNode *node, LPCSTR attr, FLOAT default_val) {
+    LPCSTR raw = SC2_XmlGetProp(node, attr);
+    if (!raw) return default_val;
+    LPCSTR resolved = SC2_LayoutResolveConstant(raw);
+    FLOAT result = (FLOAT)atof(resolved ? resolved : raw);
+    SC2_XmlFree(raw);
+    return result;
+}
+
 /* Parse <Anchor side="..." relative="..." pos="..." offset="..."/> */
 static void SC2_ParseAnchor(xmlNode *node, sc2Frame_t *frame) {
     if (frame->num_anchors >= SC2_MAX_ANCHORS) return;
@@ -394,8 +435,7 @@ static void SC2_ParseAnchor(xmlNode *node, sc2Frame_t *frame) {
     sc2Anchor_t *a = &frame->anchors[frame->num_anchors];
     a->side = SC2_LookupSide(side_str);
     a->pos = SC2_LookupPos(pos_str);
-    a->offset = 0;
-    xmlGetAttrInt(node, "offset", (int *)&a->offset);
+    a->offset = (int16_t)SC2_ResolveAttrInt(node, "offset", 0);
     if (relative) {
         SC2_Strncpyz(a->relative, relative, sizeof(a->relative));
         SC2_XmlFree(relative);
@@ -489,17 +529,11 @@ static void SC2_ParseFrameChildren(xmlNode *node, sc2Frame_t *frame) {
         LPCSTR tag = (const char *)cur->name;
 
         if (!strcasecmp(tag, "Width")) {
-            FLOAT val;
-            if (xmlGetAttrFloat(cur, "val", &val)) {
-                frame->width = val;
-                frame->has_width = true;
-            }
+            frame->width = SC2_ResolveAttrFloat(cur, "val", 0.0f);
+            frame->has_width = true;
         } else if (!strcasecmp(tag, "Height")) {
-            FLOAT val;
-            if (xmlGetAttrFloat(cur, "val", &val)) {
-                frame->height = val;
-                frame->has_height = true;
-            }
+            frame->height = SC2_ResolveAttrFloat(cur, "val", 0.0f);
+            frame->has_height = true;
         } else if (!strcasecmp(tag, "Anchor")) {
             SC2_ParseAnchor(cur, frame);
         } else if (!strcasecmp(tag, "Texture")) {
@@ -540,7 +574,8 @@ static void SC2_ParseFrameChildren(xmlNode *node, sc2Frame_t *frame) {
         } else if (!strcasecmp(tag, "Color")) {
             LPCSTR val = SC2_XmlGetProp(cur, "val");
             if (val) {
-                frame->color = SC2_ParseColor(val);
+                LPCSTR resolved = SC2_LayoutResolveConstant(val);
+                frame->color = SC2_ParseColor(resolved ? resolved : val);
                 frame->has_color = true;
                 SC2_XmlFree(val);
             }
@@ -654,17 +689,7 @@ static void SC2_ParseTopLevelFrame(xmlNode *node) {
 
     SC2_ParseFrameAttrs(node, frame);
     SC2_ParseFrameChildren(node, frame);
-
-    /* Resolve template inheritance if specified */
-    if (frame->template_path[0]) {
-        sc2Frame_t *tmpl = SC2_ResolveTemplatePath(frame->template_path);
-        if (tmpl) {
-            SC2_ResolveTemplate(frame, tmpl);
-        } else {
-            fprintf(stderr, "SC2_Layout: template '%s' not found for frame '%s'\n",
-                    frame->template_path, frame->name);
-        }
-    }
+    /* Template resolution deferred to second pass in SC2_ParseDescNode */
 }
 
 /* Parse XML document node (the <Desc> root) */
@@ -680,11 +705,28 @@ static void SC2_ParseDescNode(xmlNode *node) {
         }
     }
 
-    /* Pass 3: parse frame templates */
+    /* Pass 3: parse frame templates (deferred template resolution) */
+    int templates_before = sc2_layout.num_templates;
     for (xmlNode *cur = node; cur; cur = cur->next) {
         if (cur->type != XML_ELEMENT_NODE) continue;
         if (!strcasecmp((const char *)cur->name, "Frame")) {
             SC2_ParseTopLevelFrame(cur);
+        }
+    }
+
+    /* Pass 4: resolve template inheritance for all frames parsed in this file.
+     * Deferring to after all frames are parsed ensures same-file templates
+     * are fully populated before being used as bases. */
+    for (int i = templates_before; i < sc2_layout.num_templates; i++) {
+        sc2Frame_t *frame = &sc2_layout.templates[i];
+        if (frame->template_path[0]) {
+            sc2Frame_t *tmpl = SC2_ResolveTemplatePath(frame->template_path);
+            if (tmpl) {
+                SC2_ResolveTemplate(frame, tmpl);
+            } else {
+                fprintf(stderr, "SC2_Layout: template '%s' not found for frame '%s'\n",
+                        frame->template_path, frame->name);
+            }
         }
     }
 }
@@ -756,33 +798,134 @@ static FRAMETYPE SC2_MapFrameType(sc2FrameType sc2_type) {
     }
 }
 
-/* Resolve anchors: map SC2 side+pos to uiBaseFrame_t uiFramePoints_t */
+/* Resolve anchors: map SC2 side+pos to uiBaseFrame_t points.x/y[FPP_*].
+ *
+ * SC2 anchor model: each anchor specifies which edge of the frame (side) and
+ * which edge/position of the relative frame (pos) to attach to.
+ *   side = Top, Bottom, Left, Right
+ *   pos  = Min (top/left edge), Mid (center), Max (bottom/right edge)
+ *
+ * Mapping to uiBaseFrame_t:
+ *   Top+Min → y[FPP_MIN], Top+Mid → y[FPP_MID], Top+Max → y[FPP_MAX]
+ *   Bottom+Min → y[FPP_MIN], Bottom+Mid → y[FPP_MID], Bottom+Max → y[FPP_MAX]
+ *   Left+Min → x[FPP_MIN], Left+Mid → x[FPP_MID], Left+Max → x[FPP_MAX]
+ *   Right+Min → x[FPP_MIN], Right+Mid → x[FPP_MID], Right+Max → x[FPP_MAX]
+ *
+ * SC2 offsets are in pixels with y-down positive. WC3 normalized space also
+ * uses y-down, but the layout solver negates y offsets, so we negate here.
+ *
+ * Named relative frames ("$parent", "$root", or a frame name) are resolved
+ * by index. $parent and $root are resolved immediately. Named frames are
+ * resolved in SC2_ResolveNamedRelatives() after the full tree is flattened. */
+static LPCSTR SC2_ParseRelativeName(LPCSTR relative, LPCSTR parent_name) {
+    if (!relative) return NULL;
+    if (!strcasecmp(relative, "$parent")) return parent_name;
+    if (!strcasecmp(relative, "$root")) return NULL;
+    /* $parent/ChildName → extract ChildName */
+    if (!strncasecmp(relative, "$parent/", 8)) return relative + 8;
+    return relative;
+}
+
 static void SC2_ResolveAnchors(sc2Frame_t *src, uiBaseFrame_t *dst) {
-    /* Default: all points at (0,0) */
-    for (int i = 0; i < FPP_COUNT; i++) {
-        dst->screen_rect.x = 0;
-        dst->screen_rect.y = 0;
+    if (src->has_width) dst->size.width = src->width;
+    if (src->has_height) dst->size.height = src->height;
+
+    sc2Frame_t *parent = NULL;
+    if (dst->parent_index != (DWORD)-1) {
+        for (int i = 0; i < sc2_layout.num_templates; i++) {
+            if (sc2_layout.templates[i].resolved_index == (int)dst->parent_index) {
+                parent = &sc2_layout.templates[i];
+                break;
+            }
+        }
     }
+    LPCSTR parent_name = parent ? parent->name : NULL;
 
     for (int i = 0; i < src->num_anchors; i++) {
         sc2Anchor_t *a = &src->anchors[i];
         if (!a->has_anchor) continue;
 
-        /* Map SC2 side+pos to a frame point index.
-         * SC2 uses separate anchors per axis:
-         *   Top/Left → y/x at Min
-         *   Bottom/Right → y/x at Max
-         *   Left/Right → x at Min/Max
-         *   Top/Bottom → y at Min/Max
-         * pos=Min/Max maps to screen edge, pos=Mid maps to center. */
-        (void)a;
-    }
+        /* side determines which point index on the axis */
+        int point_idx;
+        BOOL is_x;
+        switch (a->side) {
+            case SC2_SIDE_LEFT:   is_x = true;  point_idx = FPP_MIN; break;
+            case SC2_SIDE_RIGHT:  is_x = true;  point_idx = FPP_MAX; break;
+            case SC2_SIDE_TOP:    is_x = false; point_idx = FPP_MIN; break;
+            case SC2_SIDE_BOTTOM: is_x = false; point_idx = FPP_MAX; break;
+            default: continue;
+        }
 
-    /* For now, use explicit size-based layout: set screen_rect from width/height */
-    if (src->has_width)
-        dst->size.width = src->width;
-    if (src->has_height)
-        dst->size.height = src->height;
+        /* pos determines target position on the parent */
+        int target_idx = (a->pos == SC2_POS_MIN) ? FPP_MIN :
+                         (a->pos == SC2_POS_MID) ? FPP_MID : FPP_MAX;
+
+        uiBaseFramePoint_t *p = is_x ? &dst->points.x[point_idx] : &dst->points.y[point_idx];
+        p->used = true;
+        p->targetPos = (uiFramePointPos_t)target_idx;
+        p->offset = is_x ? (FLOAT)a->offset : -(FLOAT)a->offset;
+
+        LPCSTR resolved_name = SC2_ParseRelativeName(a->relative, parent_name);
+        if (!resolved_name || !strcasecmp(resolved_name, parent_name)) {
+            p->relative_index = dst->parent_index;
+        } else if (!strcasecmp(a->relative, "$root")) {
+            p->relative_index = 0;
+        } else {
+            /* Named frame — mark for post-flatten resolution */
+            p->relative_index = (DWORD)-2; /* sentinel: needs named resolution */
+        }
+    }
+}
+
+/* Resolve named relative references after the full frame tree is flattened.
+ * Scans all frames for anchors with relative_index == -2 and looks up the
+ * named frame in the flat array by matching sc2Frame_t name. */
+static void SC2_ResolveNamedRelatives(void) {
+    for (DWORD i = 0; i < (DWORD)sc2_layout.num_frames; i++) {
+        uiBaseFrame_t *dst = &sc2_layout.frames[i];
+        for (int axis = 0; axis < 2; axis++) {
+            uiBaseFramePoint_t *pts = axis == 0 ? dst->points.x : dst->points.y;
+            for (int j = 0; j < FPP_COUNT; j++) {
+                if (pts[j].relative_index != (DWORD)-2) continue;
+                sc2Frame_t *src = NULL;
+                for (int k = 0; k < sc2_layout.num_templates; k++) {
+                    if (sc2_layout.templates[k].resolved_index == (int)i) {
+                        src = &sc2_layout.templates[k];
+                        break;
+                    }
+                }
+                if (!src) continue;
+                /* Find the anchor that produced this sentinel */
+                for (int k = 0; k < src->num_anchors; k++) {
+                    sc2Anchor_t *a = &src->anchors[k];
+                    if (!a->has_anchor) continue;
+                    BOOL is_x_axis = (a->side == SC2_SIDE_LEFT || a->side == SC2_SIDE_RIGHT);
+                    if ((axis == 0) != is_x_axis) continue;
+                    int a_point = (a->side == SC2_SIDE_LEFT || a->side == SC2_SIDE_TOP) ? FPP_MIN :
+                                  (a->side == SC2_SIDE_RIGHT || a->side == SC2_SIDE_BOTTOM) ? FPP_MAX : FPP_MID;
+                    if (a_point != j) continue;
+                    /* Extract the name to look up: $parent/ChildName → ChildName */
+                    LPCSTR look_name = a->relative;
+                    if (!strncasecmp(look_name, "$parent/", 8)) look_name += 8;
+                    /* Look up named frame in flat array */
+                    for (DWORD m = 0; m < (DWORD)sc2_layout.num_frames; m++) {
+                        sc2Frame_t *f = NULL;
+                        for (int n = 0; n < sc2_layout.num_templates; n++) {
+                            if (sc2_layout.templates[n].resolved_index == (int)m) {
+                                f = &sc2_layout.templates[n];
+                                break;
+                            }
+                        }
+                        if (f && !strcasecmp(f->name, look_name)) {
+                            pts[j].relative_index = m;
+                            break;
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+    }
 }
 
 /* Recursively flatten frame tree into uiBaseFrame_t array */
@@ -802,14 +945,28 @@ static void SC2_FlattenFrame(sc2Frame_t *frame, int parent_index) {
     dst->disabled = false;
     dst->ui_flags = 0;
     if (dst->hidden) dst->ui_flags |= UIFLAG_HIDDEN;
+    if (frame->has_visible) dst->ui_flags |= UIFLAG_HIDDEN_IN_HIERARCHY;
 
-    if (frame->has_width) dst->size.width = frame->width;
-    if (frame->has_height) dst->size.height = frame->height;
+    /* Resolve anchor points */
+    SC2_ResolveAnchors(frame, dst);
 
     /* Resolve first texture as primary image */
     if (frame->num_textures > 0 && frame->textures[0].has_texture) {
-        /* Store texture reference index — resolved later by renderer */
+        /* Store raw reference hash — resolved at render time */
         dst->image = 0; /* TODO: resolve @@UI/Name to image index */
+    }
+
+    /* Backdrop: first tiled texture as background, border textures as edge */
+    for (int i = 0; i < frame->num_textures; i++) {
+        sc2Texture_t *tex = &frame->textures[i];
+        if (!tex->has_texture) continue;
+        if (tex->tiled && dst->backdrop.bg == 0) {
+            dst->backdrop.bg = 0; /* TODO: resolve texture */
+            dst->backdrop.tile = true;
+        }
+        if (!strcasecmp(tex->texture_type, "Border") && dst->backdrop.edge == 0) {
+            dst->backdrop.edge = 0; /* TODO: resolve texture */
+        }
     }
 
     frame->resolved_index = index;
@@ -897,16 +1054,20 @@ BOOL SC2_LayoutBuildGameUI(void) {
         }
     }
 
-    /* Find the GameUI root frame template */
-    sc2Frame_t *gameui = SC2_FindTemplate("GameUI");
-    if (!gameui) {
-        fprintf(stderr, "SC2_Layout: 'GameUI' template not found\n");
+    return SC2_LayoutFlatten("GameUI");
+}
+
+/* Flatten parsed templates into the frame array for client consumption */
+BOOL SC2_LayoutFlatten(LPCSTR root_name) {
+    sc2Frame_t *root = SC2_FindTemplate(root_name);
+    if (!root) {
+        fprintf(stderr, "SC2_Layout: '%s' template not found\n", root_name);
         return false;
     }
 
-    /* Flatten into frame array */
     sc2_layout.num_frames = 0;
-    SC2_FlattenFrame(gameui, -1);
+    SC2_FlattenFrame(root, -1);
+    SC2_ResolveNamedRelatives();
 
     fprintf(stderr, "SC2_Layout: built %d frames from %d templates, %d constants\n",
             sc2_layout.num_frames, sc2_layout.num_templates, sc2_layout.num_constants);
@@ -921,4 +1082,13 @@ uiBaseFrame_t *SC2_LayoutGetFrames(DWORD *count) {
 
 sc2Frame_t *SC2_LayoutFindTemplate(LPCSTR name) {
     return SC2_FindTemplate(name);
+}
+
+int SC2_LayoutNumTemplates(void) {
+    return sc2_layout.num_templates;
+}
+
+sc2Frame_t *SC2_LayoutGetTemplate(int index) {
+    if (index < 0 || index >= sc2_layout.num_templates) return NULL;
+    return &sc2_layout.templates[index];
 }

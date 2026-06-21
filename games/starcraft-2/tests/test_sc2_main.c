@@ -11,6 +11,7 @@ int _tests_failed = 0;
 
 void run_sc2_map_tests(void);
 void run_sc2_layout_tests(void);
+void run_sc2_consoleui_tests(void);
 
 int main(void) {
     printf("=== OpenWarcraft3 StarCraft II Tests ===\n\n");
@@ -21,6 +22,10 @@ int main(void) {
 
     printf("[SC2 layout XML parser]\n");
     run_sc2_layout_tests();
+    printf("\n");
+
+    printf("[SC2 ConsoleUI adapter]\n");
+    run_sc2_consoleui_tests();
     printf("\n");
 
     TEST_RESULTS();
