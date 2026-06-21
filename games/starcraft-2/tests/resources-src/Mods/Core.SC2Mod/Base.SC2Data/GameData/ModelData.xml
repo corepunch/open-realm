@@ -6,7 +6,7 @@
     <CModel id="Unit">
         <Model value="Assets\Units\##Race##\##id##\##id##.m3"/>
     </CModel>
-    <CModel id="Marine" parent="Unit" Race="Terran">
+    <CModel id="MarineCatalogModel" parent="Unit" Race="Terran">
         <Occlusion value="Show"/>
     </CModel>
     <CModel id="BillboardTall" parent="Doodad">

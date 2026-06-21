@@ -325,7 +325,7 @@ static void test_sc2_map_loads_xml_objects_and_terrain(void) {
 
     ASSERT_STR_EQ(map->objects[1].name, "Marine");
     ASSERT_EQ_INT(map->objects[1].id, 1);
-    ASSERT_STR_EQ(map->objects[1].model, "Assets\\Units\\Terran\\Marine\\Marine.m3");
+    ASSERT_STR_EQ(map->objects[1].model, "Assets\\Units\\Terran\\MarineCatalogModel\\MarineCatalogModel.m3");
     ASSERT_EQ_INT(map->objects[1].type, SC2_OBJECT_UNIT);
     ASSERT_EQ_FLOAT(map->objects[1].position.x, 3.5f, 0.001f);
     ASSERT_EQ_FLOAT(map->objects[1].position.y, 3.5f, 0.001f);
@@ -336,7 +336,7 @@ static void test_sc2_map_loads_xml_objects_and_terrain(void) {
     ASSERT_STR_EQ(map->objects[3].name, "BillboardTall");
     ASSERT_EQ_INT(map->objects[3].id, 3);
     ASSERT_EQ_INT(map->objects[3].type, SC2_OBJECT_DOODAD);
-    ASSERT_STR_EQ(map->objects[3].model, "");
+    ASSERT_STR_EQ(map->objects[3].model, "Assets\\Doodads\\BillboardTall\\BillboardTall.m3");
     ASSERT_EQ_FLOAT(map->objects[3].position.z, 8.0f, 0.001f);
     ASSERT_EQ_INT(map->objects[3].flags, SC2_OBJECT_HEIGHT_ABSOLUTE | SC2_OBJECT_FORCE_PLACEMENT);
 
@@ -481,7 +481,7 @@ static void test_sc2_map_loads_directory_fixture_without_generated_layers(void) 
     ASSERT_EQ_FLOAT(map->objects[0].camera.distance, 34.0f, 0.001f);
     ASSERT_STR_EQ(map->objects[1].name, "Marine");
     ASSERT_EQ_INT(map->objects[1].type, SC2_OBJECT_UNIT);
-    ASSERT_STR_EQ(map->objects[1].model, "Assets\\Units\\Terran\\Marine\\Marine.m3");
+    ASSERT_STR_EQ(map->objects[1].model, "Assets\\Units\\Terran\\MarineCatalogModel\\MarineCatalogModel.m3");
     ASSERT_EQ_FLOAT(map->objects[1].position.x, 3.5f, 0.001f);
     ASSERT_EQ_INT(map->objects[1].player, 2);
     ASSERT_STR_EQ(map->objects[4].name, "MineralField");
