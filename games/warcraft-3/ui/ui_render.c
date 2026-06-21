@@ -477,14 +477,14 @@ static void UI_DrawHighlightFrame(LPCFRAMEDEF frame, LPCRECT rect);
  * PER-TYPE EVENT HANDLERS — called from UI_MouseEventLocal
  * ======================================================================== */
 
-static void UI_ButtonEventHandler(LPFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
+static void UI_ButtonEventHandler(LPFRAMEDEF frame, uiMouseEvent_t event, FLOAT fdf_x, FLOAT fdf_y, int32_t param) {
     (void)fdf_x; (void)fdf_y;
-    if (button != 1) {
+    if (param != 1) {
         return;
     }
-    if (down) {
+    if (event == UI_MOUSE_DOWN) {
         frame->ui_flags |= UIFLAG_PRESSED;
-    } else {
+    } else if (event == UI_MOUSE_UP) {
         frame->ui_flags &= ~UIFLAG_PRESSED;
         if (frame->OnClick[0]) {
             UI_MenuCommandLocal(frame->OnClick);
@@ -492,14 +492,14 @@ static void UI_ButtonEventHandler(LPFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y, in
     }
 }
 
-static void UI_CheckBoxEventHandler(LPFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
+static void UI_CheckBoxEventHandler(LPFRAMEDEF frame, uiMouseEvent_t event, FLOAT fdf_x, FLOAT fdf_y, int32_t param) {
     (void)fdf_x; (void)fdf_y;
-    if (button != 1) {
+    if (param != 1) {
         return;
     }
-    if (down) {
+    if (event == UI_MOUSE_DOWN) {
         frame->ui_flags |= UIFLAG_PRESSED;
-    } else {
+    } else if (event == UI_MOUSE_UP) {
         frame->ui_flags &= ~UIFLAG_PRESSED;
         frame->ui_flags ^= UIFLAG_CHECKED;
         ((LPFRAMEDEF)frame)->CheckBox.Checked = (frame->ui_flags & UIFLAG_CHECKED) != 0;
@@ -509,53 +509,53 @@ static void UI_CheckBoxEventHandler(LPFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y, 
     }
 }
 
-static void UI_SliderEventHandler(LPFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
-    if (down && button == 1) {
+static void UI_SliderEventHandler(LPFRAMEDEF frame, uiMouseEvent_t event, FLOAT fdf_x, FLOAT fdf_y, int32_t param) {
+    if (event == UI_MOUSE_DOWN && param == 1) {
         UI_SliderBeginDrag(frame, fdf_x, fdf_y);
         frame->ui_flags |= UIFLAG_PRESSED;
-    } else if (!down && button == 1) {
+    } else if (event == UI_MOUSE_UP && param == 1) {
         UI_SliderEndDrag(frame);
         frame->ui_flags &= ~UIFLAG_PRESSED;
-    } else if (button == 0 && !down) {
+    } else if (event == UI_MOUSE_MOVE) {
         UI_SliderUpdateDrag(frame, fdf_x, fdf_y);
     }
 }
 
-static void UI_EditBoxEventHandler(LPFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
+static void UI_EditBoxEventHandler(LPFRAMEDEF frame, uiMouseEvent_t event, FLOAT fdf_x, FLOAT fdf_y, int32_t param) {
     (void)fdf_x; (void)fdf_y;
-    if (down && button == 1) {
+    if (event == UI_MOUSE_DOWN && param == 1) {
         UI_EditboxFocusOnHit(frame);
     }
 }
 
-static void UI_MapListEventHandler(LPFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
-    if (!down && button == 1) {
+static void UI_MapListEventHandler(LPFRAMEDEF frame, uiMouseEvent_t event, FLOAT fdf_x, FLOAT fdf_y, int32_t param) {
+    if (event == UI_MOUSE_UP && param == 1) {
         UI_MapListSelectRow(frame, fdf_x, fdf_y);
     }
-    if (button == 4) {
+    if (event == UI_MOUSE_SCROLL && UI_MOUSE_PARAM_Y(param) > 0) {
         UI_MapListScroll(frame, true);
     }
-    if (button == 5) {
+    if (event == UI_MOUSE_SCROLL && UI_MOUSE_PARAM_Y(param) < 0) {
         UI_MapListScroll(frame, false);
     }
 }
 
-static void UI_PopupEventHandler(LPFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
+static void UI_PopupEventHandler(LPFRAMEDEF frame, uiMouseEvent_t event, FLOAT fdf_x, FLOAT fdf_y, int32_t param) {
     (void)fdf_x; (void)fdf_y;
-    if (!down && button == 1) {
+    if (event == UI_MOUSE_UP && param == 1) {
         UI_TogglePopup(frame);
     }
 }
 
-static void UI_PopupMenuEventHandler(LPFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down) {
+static void UI_PopupMenuEventHandler(LPFRAMEDEF frame, uiMouseEvent_t event, FLOAT fdf_x, FLOAT fdf_y, int32_t param) {
     (void)frame;
-    if (button == 4) {
+    if (event == UI_MOUSE_SCROLL && UI_MOUSE_PARAM_Y(param) > 0) {
         UI_PopupMenuScroll(true);
     }
-    if (button == 5) {
+    if (event == UI_MOUSE_SCROLL && UI_MOUSE_PARAM_Y(param) < 0) {
         UI_PopupMenuScroll(false);
     }
-    if (!down && button == 1) {
+    if (event == UI_MOUSE_UP && param == 1) {
         UI_PopupSelectItem(fdf_x, fdf_y);
     }
 }

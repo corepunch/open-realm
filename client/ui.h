@@ -32,10 +32,10 @@ typedef enum {
     UI_MOUSE_SCROLL,
 } uiMouseEvent_t;
 
-/* Pack/unpack signed 16-bit dx/dy into a uint32_t button param (WinAPI MAKELPARAM style). */
-#define UI_MOUSE_PARAM(dx, dy)  ((uint32_t)(((uint16_t)(int16_t)(dx)) | ((uint32_t)((uint16_t)(int16_t)(dy)) << 16)))
-#define UI_MOUSE_PARAM_X(p)     ((int16_t)((p) & 0xFFFF))
-#define UI_MOUSE_PARAM_Y(p)     ((int16_t)(((p) >> 16) & 0xFFFF))
+/* Pack/unpack signed 16-bit dx/dy into the generic int32_t param (WinAPI MAKELPARAM style). */
+#define UI_MOUSE_PARAM(dx, dy)  ((int32_t)(((uint16_t)(int16_t)(dx)) | ((uint32_t)((uint16_t)(int16_t)(dy)) << 16)))
+#define UI_MOUSE_PARAM_X(p)     ((int16_t)(((uint32_t)(p)) & 0xFFFF))
+#define UI_MOUSE_PARAM_Y(p)     ((int16_t)((((uint32_t)(p)) >> 16) & 0xFFFF))
 
 typedef struct {
     char art[256];        /* Button icon path */
@@ -194,7 +194,7 @@ typedef struct {
     /* Input event handling */
     void (*KeyEvent)(int key, BOOL down, DWORD time);
     void (*TextInput)(LPCSTR text);
-    void (*MouseEvent)(uiMouseEvent_t event, int x, int y, uint32_t button);
+    void (*MouseEvent)(uiMouseEvent_t event, int x, int y, int32_t param);
     
     /* Unit UI data updates (Phase 8: HUD migration) */
     void (*UpdateUnitUI)(DWORD num_units, uiUnitData_t *units);

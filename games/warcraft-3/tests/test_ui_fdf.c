@@ -1257,13 +1257,13 @@ static void test_glue_checkbox_toggles_and_draws_check_highlight(void) {
 
     test_mouse_pos.x = 130;
     test_mouse_pos.y = 130;
-    UI_MouseEventLocal(130, 130, 1, false);
+    UI_MouseEventLocal(UI_MOUSE_UP, 130, 130, 1);
     captured_draw_calls = 0;
     UI_DrawFrame(root);
     ASSERT(checkbox->CheckBox.Checked);
     ASSERT_EQ_INT(captured_draw_calls, 2);
 
-    UI_MouseEventLocal(130, 130, 1, false);
+    UI_MouseEventLocal(UI_MOUSE_UP, 130, 130, 1);
     captured_draw_calls = 0;
     UI_DrawFrame(root);
     ASSERT(!checkbox->CheckBox.Checked);
@@ -1348,7 +1348,7 @@ static void test_editbox_without_text_frame_click_focus_accepts_text_input(void)
 
     test_mouse_pos.x = 130;
     test_mouse_pos.y = 130;
-    UI_MouseEventLocal(130, 130, 1, true);
+    UI_MouseEventLocal(UI_MOUSE_DOWN, 130, 130, 1);
     UI_DrawFrame(root);
 
     ASSERT(UI_EditHasFocus(editbox));
@@ -1393,7 +1393,7 @@ static void test_options_game_port_enter_applies_and_blurs(void) {
     UI_SetEditValue(editbox, "27911");
     test_mouse_pos.x = 130;
     test_mouse_pos.y = 130;
-    UI_MouseEventLocal(130, 130, 1, true);
+    UI_MouseEventLocal(UI_MOUSE_DOWN, 130, 130, 1);
     UI_DrawFrame(root);
     ASSERT(UI_EditHasFocus(editbox));
 

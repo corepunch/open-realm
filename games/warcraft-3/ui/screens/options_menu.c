@@ -373,10 +373,11 @@ static void OptionsMenu_KeyEvent(int key, BOOL down) {
     }
 }
 
-static void OptionsMenu_MouseEvent(int x, int y, int buttons) {
+static void OptionsMenu_MouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
     (void)x;
     (void)y;
-    (void)buttons;
+    (void)event;
+    (void)param;
 }
 
 void OptionsMenu_ShowGameplay(void) {

@@ -9,6 +9,7 @@ static HANDLE layout_layers[MAX_LAYOUT_LAYERS];
 static LPTEXTURE layout_dynamic_pics[MAX_DYNAMIC_IMAGES];
 static char layout_dynamic_pic_names[MAX_DYNAMIC_IMAGES][512];
 static DWORD layout_dynamic_pic_cursor;
+static BOOL layout_left_down;
 
 static RECT Rect_inset(LPCRECT r, FLOAT inset);
 
@@ -30,7 +31,7 @@ static DWORD UI_LayoutTime(void) {
 }
 
 static VECTOR2 UI_LayoutMouseToFdf(void) {
-    return uiimport.GetMouseFdf ? uiimport.GetMouseFdf() : MAKE(VECTOR2, 0, 0);
+    return UI_MouseToFdf();
 }
 
 static VECTOR2 UI_LayoutScreenToFdf(int x, int y) {
@@ -421,7 +422,7 @@ static BOOL UI_LayoutFrameHasClickCommand(LPCUIFRAME frame) {
 static BOOL UI_LayoutGlueTextButtonIsPushed(LPCUIFRAME frame, LPCRECT screen) {
     VECTOR2 const m = UI_LayoutMouseToFdf();
     return UI_LayoutFrameHasClickCommand(frame) && Rect_contains(screen, &m) &&
-           uiimport.GetMouseButtonDown && uiimport.GetMouseButtonDown(1);
+           layout_left_down;
 }
 
 static void UI_LayoutFormatOnClickCommand(LPCSTR source, LPSTR dest, DWORD dest_size) {
@@ -609,7 +610,7 @@ void UI_LayoutDrawCommandButton(LPCUIFRAME frame, LPCRECT screen) {
     VECTOR2 const m = UI_LayoutMouseToFdf();
     RECT scrn = scale_rect(screen, 0.925);
     if (Rect_contains(screen, &m)) {
-        if (uiimport.GetMouseButtonDown && uiimport.GetMouseButtonDown(1)) {
+        if (layout_left_down) {
             scrn = scale_rect(screen, 0.875);
         }
     }
@@ -850,22 +851,11 @@ static drawer_t drawers[] = {
 };
 
 void UI_LayoutDrawFrame(LPCUIFRAME frame) {
-    VECTOR2 const m = UI_LayoutMouseToFdf();
     RECT const *screen = UI_LayoutLayoutRect(frame);
     FOR_LOOP(j, sizeof(drawers)/sizeof(*drawers)) {
         if (drawers[j].type == frame->flags.type) {
             drawers[j].func(frame, screen);
             break;
-        }
-    }
-    if (Rect_contains(screen, &m) &&
-        UI_LayoutFrameHasClickCommand(frame))
-    {
-        char command[CMDARG_LEN * 2];
-
-        UI_LayoutFormatOnClickCommand(frame->onclick, command, sizeof(command));
-        if (uiimport.ServerCommand) {
-            uiimport.ServerCommand(command);
         }
     }
 }
@@ -957,6 +947,43 @@ void UI_LayoutClearLayer(DWORD layer) {
         return;
     }
     layout_layers[layer] = NULL;
+}
+
+/* Server-authored layout clicks are handled at event time, not during drawing. */
+void UI_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
+    VECTOR2 const point = UI_LayoutScreenToFdf(x, y);
+
+    if (param == 1) {
+        if (event == UI_MOUSE_DOWN) {
+            layout_left_down = true;
+        } else if (event == UI_MOUSE_UP) {
+            layout_left_down = false;
+        }
+    }
+    if (event != UI_MOUSE_UP || param != 1) {
+        return;
+    }
+    FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
+        HANDLE layout = layout_layers[layer];
+        if (!layout || ((1 << layer) & UI_LayoutPlayerState()->uiflags) || UI_LayoutShouldSkipLayoutLayer(layer)) {
+            continue;
+        }
+        UI_LayoutClear(layout);
+        for (DWORD i = UI_LayoutNumFrames(); i > 0; i--) {
+            LPCUIFRAME frame = UI_LayoutFrame(i - 1);
+            if (!frame || !UI_LayoutFrameHasClickCommand(frame)) {
+                continue;
+            }
+            if (Rect_contains(UI_LayoutLayoutRect(frame), &point)) {
+                char command[CMDARG_LEN * 2];
+                UI_LayoutFormatOnClickCommand(frame->onclick, command, sizeof(command));
+                if (uiimport.ServerCommand) {
+                    uiimport.ServerCommand(command);
+                }
+                return;
+            }
+        }
+    }
 }
 
 BOOL UI_LayoutHitTest(int x, int y) {
