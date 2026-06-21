@@ -311,7 +311,7 @@ struct uiFrameDef_s {
     /* Interaction state — updated by event handler, read by draw */
     DWORD ui_flags;
     /* Per-type event handler: called from UI_MouseEventLocal */
-    void (*event_handler)(LPFRAMEDEF frame, FLOAT fdf_x, FLOAT fdf_y, int button, BOOL down);
+    void (*event_handler)(LPFRAMEDEF frame, uiMouseEvent_t event, FLOAT fdf_x, FLOAT fdf_y, uint32_t button);
     /* Per-type draw function: called from UI_DrawFrameOne */
     void (*draw)(LPCFRAMEDEF frame, LPCRECT rect);
 };
