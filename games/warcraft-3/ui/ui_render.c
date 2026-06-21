@@ -53,10 +53,7 @@ static LPFRAMEDEF active_edit = NULL;
 static uiTextInput_t active_ti;
 
 static LPRENDERER UI_GetRenderer(void) {
-    if (!uiimport.GetRenderer) {
-        return NULL;
-    }
-    return uiimport.GetRenderer();
+    return uiimport.state ? uiimport.state->renderer : NULL;
 }
 
 static BOOL UI_FrameIndex(LPCFRAMEDEF frame, DWORD *index) {

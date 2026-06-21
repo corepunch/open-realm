@@ -59,8 +59,8 @@ void UIWow_WarnOnce(DWORD flag, LPCSTR fmt, ...) {
 }
 
 void UIWow_EnsureRenderer(void) {
-    if (!wow_ui.renderer && uiimport.GetRenderer) {
-        wow_ui.renderer = uiimport.GetRenderer();
+    if (!wow_ui.renderer && uiimport.state) {
+        wow_ui.renderer = uiimport.state->renderer;
     }
     if (!wow_ui.renderer) {
         UIWow_WarnOnce(WOW_UI_WARN_NO_RENDERER,
@@ -307,7 +307,7 @@ static void UIWow_UpdateMouseHover(void) {
 }
 
 static void UIWow_DrawFrame(void) {
-    LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
+    LPCPLAYER ps = uiimport.state ? uiimport.state->playerstate : NULL;
 
     UIWow_EnsureRenderer();
     UIWow_UpdateMouseHover();

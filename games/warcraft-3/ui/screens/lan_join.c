@@ -466,28 +466,25 @@ static void LAN_CopyGame(uiMapListItem_t *item, const uiLanGame_t *game, DWORD i
 static void LAN_LoadGames(void) {
     DWORD count;
 
-    if (!uiimport.LANNumServers || !uiimport.LANServer) {
+    if (!uiimport.state || !uiimport.state->num_lan_servers || !uiimport.state->lan_servers) {
         return;
     }
 
-    count = uiimport.LANNumServers();
+    count = *uiimport.state->num_lan_servers;
     if (count > UI_MAX_MAP_LIST_ITEMS) {
         count = UI_MAX_MAP_LIST_ITEMS;
     }
     FOR_LOOP(i, count) {
-        uiLanGame_t game;
+        uiLanGame_t const *game = &uiimport.state->lan_servers[i];
         uiMapListItem_t *item;
 
-        if (!uiimport.LANServer(i, &game)) {
-            continue;
-        }
         if (i >= lan.games.count) {
             item = &lan.games.items[lan.games.count++];
             memset(item, 0, sizeof(*item));
         } else {
             item = &lan.games.items[i];
         }
-        LAN_CopyGame(item, &game, i);
+        LAN_CopyGame(item, game, i);
     }
     if (lan.games.count > count) {
         memset(&lan.games.items[count], 0, sizeof(lan.games.items[0]) * (lan.games.count - count));
@@ -522,12 +519,9 @@ static void LAN_UpdateBrowserControls(void) {
     item = &lan.games.items[lan.games.selected];
     LAN_SetTextIfPresent(lan.join_frames.GameCreatorValue, "%s", item->name);
     LAN_SetTextIfPresent(lan.join_frames.GameSpeedValue, "%s", LAN_GameSpeedValueText(2));
-    if (uiimport.LANServer) {
-        uiLanGame_t game;
-
-        if (uiimport.LANServer(item->flags, &game)) {
-            LAN_SetTextIfPresent(lan.join_frames.GameSpeedValue, "%s", LAN_GameSpeedValueText(game.speed));
-        }
+    if (uiimport.state && uiimport.state->lan_servers && item->flags < *uiimport.state->num_lan_servers) {
+        uiLanGame_t const *game = &uiimport.state->lan_servers[item->flags];
+        LAN_SetTextIfPresent(lan.join_frames.GameSpeedValue, "%s", LAN_GameSpeedValueText(game->speed));
     }
     LAN_UpdateMapInfo(&lan.game_map_info_pane, &lan.games);
 }

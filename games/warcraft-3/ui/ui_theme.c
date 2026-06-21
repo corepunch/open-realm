@@ -128,7 +128,7 @@ static LPCSTR UI_ThemeEffectiveCategory(LPCSTR category) {
         return category;
     }
 
-    ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
+    ps = uiimport.state ? uiimport.state->playerstate : NULL;
     player_category = ps ? UI_ThemeRaceCategory(ps->race) : NULL;
     return player_category ? player_category : category;
 }

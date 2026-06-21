@@ -96,7 +96,7 @@ static int UIWow_LuaDrawImageIndex(lua_State *L) {
     RECT screen = UIWow_LuaRect(L, 2);
     RECT uv = MAKE(RECT, 0, 0, 1, 1);
     COLOR32 color = UIWow_LuaColor(L, 6, COLOR32_WHITE);
-    LPCTEXTURE texture = uiimport.GetTexture ? uiimport.GetTexture(index) : NULL;
+    LPCTEXTURE texture = (uiimport.state && uiimport.state->textures) ? uiimport.state->textures[index] : NULL;
 
     UIWow_EnsureRenderer();
     if (wow_ui.renderer && texture) {
@@ -241,7 +241,7 @@ static int UIWow_LuaDrawText(lua_State *L) {
 
 static int UIWow_LuaStat(lua_State *L) {
     DWORD index = (DWORD)luaL_checkinteger(L, 1);
-    LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
+    LPCPLAYER ps = uiimport.state ? uiimport.state->playerstate : NULL;
 
     lua_pushinteger(L, ps && index < MAX_STATS ? ps->stats[index] : 0);
     return 1;
@@ -249,7 +249,7 @@ static int UIWow_LuaStat(lua_State *L) {
 
 static int UIWow_LuaText(lua_State *L) {
     DWORD index = (DWORD)luaL_checkinteger(L, 1);
-    LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
+    LPCPLAYER ps = uiimport.state ? uiimport.state->playerstate : NULL;
     LPCSTR text = ps && index < MAX_STATS && ps->texts[index] ? ps->texts[index] : "";
 
     lua_pushstring(L, text);
@@ -257,7 +257,7 @@ static int UIWow_LuaText(lua_State *L) {
 }
 
 static int UIWow_LuaPlayerName(lua_State *L) {
-    LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
+    LPCPLAYER ps = uiimport.state ? uiimport.state->playerstate : NULL;
     LPCSTR name = ps && ps->name && *ps->name ? ps->name : "Player";
 
     lua_pushstring(L, name);
@@ -270,14 +270,14 @@ static void UIWow_LuaSetInteger(lua_State *L, LPCSTR name, lua_Integer value) {
 }
 
 static void UIWow_LuaSetPlayerField(lua_State *L, LPCSTR name, int stat) {
-    LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
+    LPCPLAYER ps = uiimport.state ? uiimport.state->playerstate : NULL;
 
     lua_pushinteger(L, ps ? ps->stats[stat] : 0);
     lua_setfield(L, -2, name);
 }
 
 static int UIWow_LuaPlayer(lua_State *L) {
-    LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
+    LPCPLAYER ps = uiimport.state ? uiimport.state->playerstate : NULL;
 
     lua_newtable(L);
     lua_pushstring(L, ps && ps->name && *ps->name ? ps->name : "Player");
@@ -326,7 +326,7 @@ static int UIWow_LuaActions(lua_State *L) {
 }
 
 static int UIWow_LuaTime(lua_State *L) {
-    lua_pushinteger(L, uiimport.GetClientTime ? uiimport.GetClientTime() : 0);
+    lua_pushinteger(L, (uiimport.state && uiimport.state->time) ? (lua_Integer)*uiimport.state->time : 0);
     return 1;
 }
 
@@ -373,7 +373,7 @@ static int UIWow_LuaDrawImageAdditive(lua_State *L) {
 }
 
 static int UIWow_LuaGetLoadingProgress(lua_State *L) {
-    FLOAT target = uiimport.GetLoadingProgress ? uiimport.GetLoadingProgress() : 0.0f;
+    FLOAT target = (uiimport.state && uiimport.state->loading_progress) ? *uiimport.state->loading_progress : 0.0f;
 
     if (target < 0.0f) { target = 0.0f; }
     else if (target > 1.0f) { target = 1.0f; }
@@ -391,11 +391,11 @@ static int UIWow_LuaGetLoadingProgress(lua_State *L) {
 }
 
 static int UIWow_LuaGetLoadingTitle(lua_State *L) {
-    LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
+    LPCPLAYER ps = uiimport.state ? uiimport.state->playerstate : NULL;
     LPCSTR title = ps ? ps->texts[PLAYERTEXT_MAP_TITLE] : NULL;
 
     if (!title || !*title) {
-        title = uiimport.GetLoadingMap ? uiimport.GetLoadingMap() : "";
+        title = uiimport.state ? uiimport.state->loading_map : "";
     }
     lua_pushstring(L, title ? title : "");
     return 1;
@@ -960,7 +960,7 @@ void UIWow_CallLuaDraw(void) {
 }
 
 void UIWow_CallLuaUpdate(DWORD msec) {
-    LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
+    LPCPLAYER ps = uiimport.state ? uiimport.state->playerstate : NULL;
 
     if (!wow_ui.lua || !ps || ps->client_ui_state != CLIENT_UI_GAME) {
         if (!wow_ui.lua) {

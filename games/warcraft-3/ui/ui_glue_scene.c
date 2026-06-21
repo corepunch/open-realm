@@ -44,7 +44,7 @@ void UI_PreloadGlueSceneModels(void) {
         return;
     }
 
-    renderer = uiimport.GetRenderer ? uiimport.GetRenderer() : NULL;
+    renderer = uiimport.state ? uiimport.state->renderer : NULL;
     if (!renderer || !renderer->LoadModel) {
         return;
     }
@@ -56,7 +56,7 @@ void UI_PreloadGlueSceneModels(void) {
 }
 
 void UI_DrawGlueSceneLayers(LPCSTR left_panel_anim, LPCSTR right_panel_anim) {
-    LPRENDERER renderer = uiimport.GetRenderer ? uiimport.GetRenderer() : NULL;
+    LPRENDERER renderer = uiimport.state ? uiimport.state->renderer : NULL;
 
     if (!renderer) {
         return;

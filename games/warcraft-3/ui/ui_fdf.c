@@ -428,14 +428,14 @@ DWORD UI_LoadTexture(LPCSTR file, BOOL decorate) {
             break;
         }
     }
-    if (!index || !uiimport.GetRenderer) {
+    renderer = uiimport.state ? uiimport.state->renderer : NULL;
+    if (!index || !renderer) {
         return 0;
     }
 
     snprintf(ui_texture_names[index], sizeof(ui_texture_names[index]), "%s", resolved);
     snprintf(ui_texture_keys[index], sizeof(ui_texture_keys[index]), "%s", file);
     ui_texture_decorated[index] = decorate;
-    renderer = uiimport.GetRenderer();
     if (renderer && renderer->LoadTexture && !ui_textures[index]) {
         ui_textures[index] = renderer->LoadTexture(resolved);
     }
@@ -459,7 +459,7 @@ LPCTEXTURE UI_GetTexture(DWORD index) {
     if (ui_texture_decorated[index] && ui_texture_keys[index][0]) {
         resolved = EnsureExtension(Theme_String(ui_texture_keys[index], "Default"), ".blp");
         if (strcmp(ui_texture_names[index], resolved)) {
-            renderer = uiimport.GetRenderer ? uiimport.GetRenderer() : NULL;
+            renderer = uiimport.state ? uiimport.state->renderer : NULL;
             if (renderer && renderer->LoadTexture) {
                 if (ui_textures[index] && renderer->ReleaseTexture) {
                     renderer->ReleaseTexture((LPTEXTURE)ui_textures[index]);
@@ -501,12 +501,12 @@ DWORD UI_LoadModel(LPCSTR file, BOOL decorate) {
             break;
         }
     }
-    if (!modelIndex || !uiimport.GetRenderer) {
+    renderer = uiimport.state ? uiimport.state->renderer : NULL;
+    if (!modelIndex || !renderer) {
         return 0;
     }
 
     snprintf(ui_model_names[modelIndex], sizeof(ui_model_names[modelIndex]), "%s", model);
-    renderer = uiimport.GetRenderer();
     if (renderer && renderer->LoadModel && !ui_models[modelIndex]) {
         ui_models[modelIndex] = renderer->LoadModel(model);
     }

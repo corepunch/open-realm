@@ -53,17 +53,6 @@ LPCTEXTURE CL_GetTextureByIndex(DWORD index) {
     return NULL;
 }
 
-static LPCTEXTURE *CL_UIGetTextures(void) {
-    return cl.pics;
-}
-
-static LPCFONT CL_UIGetFont(DWORD index) {
-    if (index < MAX_FONTSTYLES) {
-        return cl.fonts[index];
-    }
-    return NULL;
-}
-
 void CL_ClientCommand(LPCSTR cmd) {
     memset(cls.netchan.message.data, 0, cls.netchan.message.maxsize);
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
@@ -89,20 +78,11 @@ void CL_ClearState(void) {
 }
 
 /* Forward declarations for UI callbacks */
-static LPCPLAYER CL_UIGetPlayerState(void);
-static DWORD CL_UIGetNumEntities(void);
 static LPCENTITYSTATE CL_UIGetEntity(DWORD idx);
 static void CL_UIServerCommand(LPCSTR text);
 static void CL_UIRequestUnitUI(DWORD num_selected, DWORD *entity_nums);
 static void CL_LANRefreshServers(void);
-static DWORD CL_LANNumServers(void);
-static BOOL CL_LANServer(DWORD index, uiLanGame_t *out);
 static void CL_LANConnectServer(DWORD index);
-static LPCSTR CL_UIGetLoadingMap(void);
-static LPCMODEL CL_UIGetModel(DWORD idx);
-static LPCMODEL CL_UIGetPortrait(DWORD idx);
-static LPRENDERER CL_UIGetRenderer(void);
-static DWORD CL_UIGetClientTime(void);
 static VECTOR2 CL_UIGetMouseFdf(void);
 
 static void CL_MenuCommand(LPCSTR command) {
@@ -149,11 +129,6 @@ static refExport_t CL_GetRendererAPI(refImport_t imp) {
         fprintf(stderr, "Unknown renderer module \"%s\", using renderer\n", module);
     }
     return R_GetAPI(imp);
-}
-
-/* UI library FS_ReadFile wrapper that converts to Quake 3 pattern */
-static int CL_UI_ReadFile(LPCSTR fileName, void **buf) {
-    return FS_ReadFileQ3(fileName, buf);
 }
 
 static BOOL CL_UI_HasExtension(LPCSTR name, LPCSTR extension) {
@@ -261,15 +236,6 @@ static int CL_UI_GetFileList(LPCSTR path, LPCSTR extension, char *listbuf, int b
     return count;
 }
 
-/* Game state access callbacks for UI library */
-static LPCPLAYER CL_UIGetPlayerState(void) {
-    return &cl.playerstate;
-}
-
-static DWORD CL_UIGetNumEntities(void) {
-    return cl.num_entities;
-}
-
 static LPCENTITYSTATE CL_UIGetEntity(DWORD idx) {
     if (idx >= MAX_CLIENT_ENTITIES) {
         return NULL;
@@ -283,29 +249,6 @@ static void CL_UIServerCommand(LPCSTR text) {
     }
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
     SZ_Printf(&cls.netchan.message, "%s", text);
-}
-
-static LPCMODEL CL_UIGetModel(DWORD idx) {
-    if (idx >= MAX_MODELS) {
-        return NULL;
-    }
-    return cl.models[idx];
-}
-
-static LPCMODEL CL_UIGetPortrait(DWORD idx) {
-    if (idx >= MAX_MODELS) {
-        return NULL;
-    }
-    return cl.portraits[idx];
-}
-
-/* Renderer access callback for UI rendering */
-static LPRENDERER CL_UIGetRenderer(void) {
-    return &re;
-}
-
-static DWORD CL_UIGetClientTime(void) {
-    return cl.time;
 }
 
 static VECTOR2 CL_UIGetMouseFdf(void) {
@@ -401,18 +344,6 @@ static void CL_LANRefreshServers(void) {
     Netchan_OutOfBandPrint(NS_CLIENT, adr, "info");
 }
 
-static DWORD CL_LANNumServers(void) {
-    return cl_num_lan_servers;
-}
-
-static BOOL CL_LANServer(DWORD index, uiLanGame_t *out) {
-    if (!out || index >= cl_num_lan_servers) {
-        return false;
-    }
-    *out = cl_lan_servers[index];
-    return true;
-}
-
 static void CL_LANConnectServer(DWORD index) {
     uiLanGame_t *game;
     unsigned short port = (unsigned short)Cvar_Integer("game_port", PORT_SERVER);
@@ -462,22 +393,6 @@ update:
     if (!game->hostname[0]) {
         snprintf(game->hostname, sizeof(game->hostname), "%s", "OpenWarcraft3");
     }
-}
-
-static LPCSTR CL_UIGetLoadingMap(void) {
-    return cl.loading_map;
-}
-
-static void CL_UICvarSet(LPCSTR name, LPCSTR value) {
-    Cvar_Set(name, value);
-}
-
-static LPCSTR CL_UIGetLoadingStatus(void) {
-    return cl.loading_status;
-}
-
-static FLOAT CL_UIGetLoadingProgress(void) {
-    return cl.loading_progress;
 }
 
 void CL_BeginLoadingMap(LPCSTR mapName) {
@@ -612,61 +527,64 @@ void CL_Init(void) {
     re.Init(mode.width, mode.height);
     
     /* Initialize UI library */
+    static clSharedState_t cl_shared_state;
+    cl_shared_state = (clSharedState_t) {
+        .renderer        = &re,
+        .playerstate     = &cl.playerstate,
+        .time            = &cl.time,
+        .loading_map     = cl.loading_map,
+        .loading_status  = cl.loading_status,
+        .loading_progress = &cl.loading_progress,
+        .textures        = (LPCTEXTURE const *)cl.pics,
+        .models          = (LPCMODEL const *)cl.models,
+        .portraits       = (LPCMODEL const *)cl.portraits,
+        .fonts           = (LPCFONT const *)cl.fonts,
+        .num_entities    = &cl.num_entities,
+        .lan_servers     = cl_lan_servers,
+        .num_lan_servers = &cl_num_lan_servers,
+    };
     ui = UI_GetAPI((uiImport_t) {
-        .FS_ReadFile = CL_UI_ReadFile,
-        .FS_FreeFile = FS_FreeFile,
-        .FS_GetFileList = CL_UI_GetFileList,
-        .ReadMapInfo = CM_ReadMapInfo,
+        .state           = &cl_shared_state,
+        .FS_ReadFile     = FS_ReadFileQ3,
+        .FS_FreeFile     = FS_FreeFile,
+        .FS_GetFileList  = CL_UI_GetFileList,
+        .ReadMapInfo     = CM_ReadMapInfo,
         .FindMapPreviewTexture = CM_FindMapPreviewTexture,
-        .FreeMapInfo = CM_FreeMapInfo,
-        .DefaultMapName = CM_DefaultMapName,
+        .FreeMapInfo     = CM_FreeMapInfo,
+        .DefaultMapName  = CM_DefaultMapName,
         .ResolveMapInfoString = CM_ResolveMapInfoString,
         .MapNameMatchesFile = CM_MapNameMatchesFile,
-        .MapTilesetName = CM_TilesetName,
-        .MapSizeName = CM_MapSizeName,
+        .MapTilesetName  = CM_TilesetName,
+        .MapSizeName     = CM_MapSizeName,
         .SanitizeMapListField = CM_SanitizeMapListField,
         .SanitizeMapInfoText = CM_SanitizeMapInfoText,
-        .MemAlloc = MemAlloc,
-        .MemFree = MemFree,
-        .ModelIndex = CL_ModelIndex,
-        .ImageIndex = CL_ImageIndex,
-        .FontIndex = CL_FontIndex,
-        .ReadSheet = FS_ParseSLK,
-        .ReadConfig = FS_ParseINI,
-        .FindSheetCell = FS_FindSheetCell,
-        .Cmd_AddCommand = Cmd_AddCommand,
+        .MemAlloc        = MemAlloc,
+        .MemFree         = MemFree,
+        .ModelIndex      = CL_ModelIndex,
+        .ImageIndex      = CL_ImageIndex,
+        .FontIndex       = CL_FontIndex,
+        .ReadSheet       = FS_ParseSLK,
+        .ReadConfig      = FS_ParseINI,
+        .FindSheetCell   = FS_FindSheetCell,
+        .Cmd_AddCommand  = Cmd_AddCommand,
         .Cmd_ExecuteText = Cbuf_AddText,
-        .ServerCommand = CL_UIServerCommand,
-        .Cvar_String = Cvar_String,
-        .Cvar_Set = CL_UICvarSet,
+        .ServerCommand   = CL_UIServerCommand,
+        .Cvar_String     = Cvar_String,
+        .Cvar_Set        = Cvar_Set,
         .LANRefreshServers = CL_LANRefreshServers,
-        .LANNumServers = CL_LANNumServers,
-        .LANServer = CL_LANServer,
         .LANConnectServer = CL_LANConnectServer,
-        .GetLoadingMap = CL_UIGetLoadingMap,
-        .GetLoadingStatus = CL_UIGetLoadingStatus,
-        .GetLoadingProgress = CL_UIGetLoadingProgress,
-        .GetPlayerState = CL_UIGetPlayerState,
-        .GetNumEntities = CL_UIGetNumEntities,
-        .GetEntity = CL_UIGetEntity,
-        .GetModel = CL_UIGetModel,
-        .GetPortrait = CL_UIGetPortrait,
-        .GetTexture = CL_GetTextureByIndex,
-        .GetTextures = CL_UIGetTextures,
-        .GetFont = CL_UIGetFont,
-        .GetClientTime = CL_UIGetClientTime,
-        .GetMouseFdf = CL_UIGetMouseFdf,
+        .GetEntity       = CL_UIGetEntity,
+        .GetMouseFdf     = CL_UIGetMouseFdf,
         .GetMouseButtonDown = CL_UIGetMouseButtonDown,
-        .LayoutClear = SCR_Clear,
+        .LayoutClear     = SCR_Clear,
         .LayoutNumFrames = SCR_NumFrames,
-        .LayoutFrame = SCR_Frame,
-        .LayoutRect = SCR_LayoutRect,
+        .LayoutFrame     = SCR_Frame,
+        .LayoutRect      = SCR_LayoutRect,
         .LayoutStringValue = SCR_GetStringValue,
-        .LayoutDrawText = SCR_GetDrawText,
-        .RequestUnitUI = CL_UIRequestUnitUI,
-        .GetRenderer = CL_UIGetRenderer,
-        .Error = CON_printf,
-        .Printf = CON_printf,
+        .LayoutDrawText  = SCR_GetDrawText,
+        .RequestUnitUI   = CL_UIRequestUnitUI,
+        .Error           = CON_printf,
+        .Printf          = CON_printf,
     });
     
     if (ui.Init) {

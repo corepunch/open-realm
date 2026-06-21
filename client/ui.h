@@ -91,9 +91,31 @@ typedef struct {
     uiQueueItem_t queue[MAX_BUILD_QUEUE_ITEMS];
 } uiUnitData_t;
 
+/* Read-only client state exposed directly to the UI library.
+ * All fields are valid for the lifetime of the process; the UI must not
+ * write through any pointer here. */
+typedef struct {
+    LPRENDERER          renderer;       /* &re — stable process-lifetime pointer */
+    LPCPLAYER           playerstate;    /* &cl.playerstate */
+    DWORD const        *time;           /* &cl.time */
+    LPCSTR              loading_map;    /* cl.loading_map */
+    LPCSTR              loading_status; /* cl.loading_status */
+    FLOAT const        *loading_progress; /* &cl.loading_progress */
+    LPCTEXTURE const   *textures;        /* cl.pics[MAX_IMAGES] */
+    LPCMODEL const     *models;          /* cl.models[MAX_MODELS] */
+    LPCMODEL const     *portraits;       /* cl.portraits[MAX_MODELS] */
+    LPCFONT const      *fonts;           /* cl.fonts[MAX_FONTSTYLES] */
+    DWORD const        *num_entities;    /* &cl.num_entities */
+    uiLanGame_t const  *lan_servers;     /* cl_lan_servers[] */
+    DWORD const        *num_lan_servers; /* &cl_num_lan_servers */
+} clSharedState_t;
+
 /* Callbacks provided by the client to the UI library.
  * The UI imports file I/O, memory allocation, and command forwarding. */
 typedef struct {
+    /* Read-only snapshot of client state — replaces all trivial getter callbacks */
+    clSharedState_t const *state;
+
     /* File system operations (archive-agnostic, Quake 3 pattern) */
     int (*FS_ReadFile)(LPCSTR fileName, void **buf);  /* Returns file size, allocates buf */
     void (*FS_FreeFile)(void *buf);
@@ -108,11 +130,11 @@ typedef struct {
     LPCSTR (*MapSizeName)(DWORD width, DWORD height);
     void (*SanitizeMapListField)(LPSTR text);
     void (*SanitizeMapInfoText)(LPSTR text);
-    
+
     /* Memory allocation */
     HANDLE (*MemAlloc)(long size);
     void (*MemFree)(HANDLE);
-    
+
     /* Asset indexing (for textures, models, fonts) */
     int (*ModelIndex)(LPCSTR modelName);
     int (*ImageIndex)(LPCSTR imageName);
@@ -120,7 +142,7 @@ typedef struct {
     sheetRow_t *(*ReadSheet)(LPCSTR sheetFilename);
     sheetRow_t *(*ReadConfig)(LPCSTR configFilename);
     LPCSTR (*FindSheetCell)(sheetRow_t *sheet, LPCSTR row, LPCSTR column);
-    
+
     /* Command execution (following Quake 3 pattern)
      * UI executes console commands; engine dispatcher handles routing */
     void (*Cmd_AddCommand)(LPCSTR name, void (*function)(void));
@@ -129,23 +151,10 @@ typedef struct {
     LPCSTR (*Cvar_String)(LPCSTR name, LPCSTR fallback);
     void (*Cvar_Set)(LPCSTR name, LPCSTR value);
     void (*LANRefreshServers)(void);
-    DWORD (*LANNumServers)(void);
-    BOOL (*LANServer)(DWORD index, uiLanGame_t *out);
     void (*LANConnectServer)(DWORD index);
-    LPCSTR (*GetLoadingMap)(void);
-    LPCSTR (*GetLoadingStatus)(void);
-    FLOAT (*GetLoadingProgress)(void);
-    
-    /* Game state access (for in-game HUD) */
-    LPCPLAYER (*GetPlayerState)(void);          /* Access to cl.playerstate */
-    DWORD (*GetNumEntities)(void);              /* cl.num_entities */
-    LPCENTITYSTATE (*GetEntity)(DWORD idx);     /* &cl.ents[idx].current */
-    LPCMODEL (*GetModel)(DWORD idx);            /* cl.models[idx] */
-    LPCMODEL (*GetPortrait)(DWORD idx);         /* cl.portraits[idx] */
-    LPCTEXTURE (*GetTexture)(DWORD idx);        /* cl.pics[idx] */
-    LPCTEXTURE *(*GetTextures)(void);           /* cl.pics, for inline text icons */
-    LPCFONT (*GetFont)(DWORD idx);              /* cl.fonts[idx] */
-    DWORD (*GetClientTime)(void);               /* cl.time */
+
+    LPCENTITYSTATE (*GetEntity)(DWORD idx);     /* bounds-checked &cl.ents[idx].current */
+
     VECTOR2 (*GetMouseFdf)(void);               /* current mouse in FDF/UI coords */
     BOOL (*GetMouseButtonDown)(DWORD button);   /* true while button is held */
     LPCUIFRAME (*LayoutClear)(HANDLE data);
@@ -157,13 +166,10 @@ typedef struct {
                                  FLOAT avl_width,
                                  LPCSTR text,
                                  uiLabel_t const *label);
-    
+
     /* Unit UI data requests (for command card, inventory, build queue) */
     void (*RequestUnitUI)(DWORD num_selected, DWORD *entity_nums);
-    
-    /* Renderer access for frame drawing */
-    LPRENDERER (*GetRenderer)(void);
-    
+
     /* Error reporting */
     void (*Error)(LPCSTR fmt, ...);
     void (*Printf)(LPCSTR fmt, ...);

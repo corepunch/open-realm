@@ -15,18 +15,18 @@ static RECT Rect_inset(LPCRECT r, FLOAT inset);
 static PLAYER const empty_player;
 
 static LPRENDERER UI_LayoutRenderer(void) {
-    return uiimport.GetRenderer ? uiimport.GetRenderer() : NULL;
+    return uiimport.state ? uiimport.state->renderer : NULL;
 }
 
 #define re (*UI_LayoutRenderer())
 
 static LPCPLAYER UI_LayoutPlayerState(void) {
-    LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
+    LPCPLAYER ps = uiimport.state ? uiimport.state->playerstate : NULL;
     return ps ? ps : &empty_player;
 }
 
 static DWORD UI_LayoutTime(void) {
-    return uiimport.GetClientTime ? uiimport.GetClientTime() : 0;
+    return (uiimport.state && uiimport.state->time) ? *uiimport.state->time : 0;
 }
 
 static VECTOR2 UI_LayoutMouseToFdf(void) {
@@ -63,15 +63,15 @@ static VECTOR2 UI_LayoutScreenToFdf(int x, int y) {
 }
 
 static LPCTEXTURE UI_LayoutTexture(DWORD index) {
-    return uiimport.GetTexture ? uiimport.GetTexture(index) : NULL;
+    return (uiimport.state && uiimport.state->textures) ? uiimport.state->textures[index] : NULL;
 }
 
 static LPCTEXTURE *UI_LayoutTextures(void) {
-    return uiimport.GetTextures ? uiimport.GetTextures() : NULL;
+    return uiimport.state ? (LPCTEXTURE *)uiimport.state->textures : NULL;
 }
 
 static LPCFONT UI_LayoutFont(DWORD index) {
-    return uiimport.GetFont ? uiimport.GetFont(index) : NULL;
+    return (uiimport.state && uiimport.state->fonts) ? uiimport.state->fonts[index] : NULL;
 }
 
 static LPCUIFRAME UI_LayoutClear(HANDLE data) {
@@ -178,7 +178,7 @@ static RECT scale_rect(LPCRECT rect, FLOAT factor) {
 }
 
 static LPCENTITYSTATE UI_LayoutSelectedEntity(void) {
-    DWORD num_entities = uiimport.GetNumEntities ? uiimport.GetNumEntities() : 0;
+    DWORD num_entities = (uiimport.state && uiimport.state->num_entities) ? *uiimport.state->num_entities : 0;
 
     FOR_LOOP(index, num_entities) {
         LPCENTITYSTATE ent = uiimport.GetEntity ? uiimport.GetEntity(index) : NULL;
@@ -571,8 +571,8 @@ void UI_LayoutDrawPortrait(LPCUIFRAME frame, LPCRECT screen) {
         screen->w / UI_BASE_WIDTH,
         screen->h / UI_BASE_HEIGHT
     };
-    LPCMODEL port = uiimport.GetPortrait ? uiimport.GetPortrait(frame->tex.index) : NULL;
-    LPCMODEL model = uiimport.GetModel ? uiimport.GetModel(frame->tex.index) : NULL;
+    LPCMODEL port = (uiimport.state && uiimport.state->portraits) ? uiimport.state->portraits[frame->tex.index] : NULL;
+    LPCMODEL model = (uiimport.state && uiimport.state->models) ? uiimport.state->models[frame->tex.index] : NULL;
     LPCMODEL draw_model = port ? port : model;
     if (!draw_model) return;
 
@@ -593,7 +593,7 @@ void UI_LayoutDrawPortrait(LPCUIFRAME frame, LPCRECT screen) {
 
 void UI_LayoutDrawSprite(LPCUIFRAME frame, LPCRECT screen) {
     LPCSTR anim = frame->text;
-    LPCMODEL model = uiimport.GetModel ? uiimport.GetModel(frame->tex.index) : NULL;
+    LPCMODEL model = (uiimport.state && uiimport.state->models) ? uiimport.state->models[frame->tex.index] : NULL;
 
     if (anim && *anim) {
         re.DrawSprite(model, anim, screen->x, screen->y);
