@@ -606,15 +606,6 @@ static void UI_DrawLoadingScreen(void) {
     UI_DrawFrame(loading_screen.Loading);
 }
 
-VECTOR2 UI_MouseToFdf(void) {
-    return ui_state.mouse_fdf;
-}
-
-BOOL UI_MouseContains(LPCRECT rect) {
-    VECTOR2 const mouse = UI_MouseToFdf();
-    return Rect_contains(rect, &mouse);
-}
-
 /* Refresh frame state flags before dispatch so draw never asks for mouse position. */
 static void UI_UpdateMouseFrameFlags(LPCFRAMEDEF hit, BOOL clear_pressed) {
     FOR_LOOP(i, MAX_UI_CLASSES) {
