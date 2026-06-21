@@ -73,6 +73,7 @@ typedef struct {
     int char_customize_frame_idx;
     LPMODEL char_customize_model;
     PATHSTR char_customize_model_path;
+    DWORD time;
 } uiWowState_t;
 
 extern uiImport_t uiimport;

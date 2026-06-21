@@ -326,7 +326,7 @@ static int UIWow_LuaActions(lua_State *L) {
 }
 
 static int UIWow_LuaTime(lua_State *L) {
-    lua_pushinteger(L, uiimport.GetClientTime ? uiimport.GetClientTime() : 0);
+    lua_pushinteger(L, wow_ui.time);
     return 1;
 }
 

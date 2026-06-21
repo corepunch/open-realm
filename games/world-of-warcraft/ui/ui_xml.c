@@ -631,7 +631,7 @@ static int UIWow_LuaFrameHighlightText(lua_State *L) { (void)L; return 0; }
 static int UIWow_LuaFrameRegisterEvent(lua_State *L) { (void)L; return 0; }
 static int UIWow_LuaFrameSetSequence(lua_State *L) {
     int i = UIWow_FrameFromSelf(L);
-    DWORD now = uiimport.GetClientTime ? uiimport.GetClientTime() : 0;
+    DWORD now = wow_ui.time;
 
     if (i >= 0) {
         wow_xml.elems[i].sequence = (DWORD)luaL_optinteger(L, 2, 0);
@@ -658,12 +658,10 @@ static int UIWow_LuaFrameAdvanceTime(lua_State *L) {
     int i = UIWow_FrameFromSelf(L);
     if (i >= 0) {
         uiWowXmlElem_t *e = &wow_xml.elems[i];
-        DWORD now = uiimport.GetClientTime ? uiimport.GetClientTime() : e->frame + 16;
+        DWORD now = wow_ui.time;
 
         e->oldframe = e->frame;
-        e->frame = uiimport.GetClientTime
-            ? (now >= e->anim_start ? now - e->anim_start : 0)
-            : now;
+        e->frame = (now >= e->anim_start ? now - e->anim_start : 0);
     }
     return 0;
 }
