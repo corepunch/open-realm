@@ -143,7 +143,7 @@ void CL_Input(void) {
                 mouse.button = event.button.button;
                 if (cls.key_dest == key_menu) {
                     if (ui.MouseEvent) {
-                        ui.MouseEvent(event.button.x, event.button.y, event.button.button, true);
+                        ui.MouseEvent(UI_MOUSE_DOWN, event.button.x, event.button.y, event.button.button);
                     }
                     if (event.button.button == SDL_BUTTON_LEFT) {
                         mouse.event = UI_LEFT_MOUSE_DOWN;
@@ -164,7 +164,7 @@ void CL_Input(void) {
                 mouse.button = 0;
                 if (cls.key_dest == key_menu) {
                     if (ui.MouseEvent) {
-                        ui.MouseEvent(event.button.x, event.button.y, event.button.button, false);
+                        ui.MouseEvent(UI_MOUSE_UP, event.button.x, event.button.y, event.button.button);
                     }
                     if (event.button.button == SDL_BUTTON_LEFT) {
                         mouse.event = UI_LEFT_MOUSE_UP;
@@ -184,7 +184,7 @@ void CL_Input(void) {
                 mouse.origin.y = event.motion.y;
                 if (cls.key_dest == key_menu) {
                     if (ui.MouseEvent) {
-                        ui.MouseEvent(event.motion.x, event.motion.y, 0, false);
+                        ui.MouseEvent(UI_MOUSE_MOVE, event.motion.x, event.motion.y, 0);
                     }
                     break;
                 }
@@ -195,17 +195,9 @@ void CL_Input(void) {
                     break;
                 }
                 if (cls.key_dest == key_menu && ui.MouseEvent) {
-                    int x;
-                    int y;
-                    int steps = event.wheel.y;
-
+                    int x, y;
                     SDL_GetMouseState(&x, &y);
-                    if (steps < 0) {
-                        steps = -steps;
-                    }
-                    for (int i = 0; i < steps; i++) {
-                        ui.MouseEvent(x, y, event.wheel.y > 0 ? 4 : 5, true);
-                    }
+                    ui.MouseEvent(UI_MOUSE_SCROLL, x, y, UI_MOUSE_PARAM(event.wheel.x, event.wheel.y));
                 }
                 break;
             case SDL_WINDOWEVENT:
