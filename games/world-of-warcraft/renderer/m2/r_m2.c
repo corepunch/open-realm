@@ -2475,8 +2475,8 @@ static BOOL M2_CharacterGeosetVisible(m2Model_t const *model,
         case 4:  expected = 401 + geoset; break;
         case 5:  expected = 501 + geoset; break;
         case 7:  expected = 702; break;
-        case 8:  expected = 802 + geoset; break;
-        case 9:  expected = 902 + geoset; break;
+        case 8:  expected = 800 + geoset; break;
+        case 9:  expected = 900 + geoset; break;
         case 10: return false;
         case 11: return false;
         case 12: return false;
