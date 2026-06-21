@@ -98,7 +98,6 @@ static void CL_LANRefreshServers(void);
 static DWORD CL_LANNumServers(void);
 static BOOL CL_LANServer(DWORD index, uiLanGame_t *out);
 static void CL_LANConnectServer(DWORD index);
-static LPCSTR CL_UIGetLoadingMap(void);
 static LPCMODEL CL_UIGetModel(DWORD idx);
 static LPCMODEL CL_UIGetPortrait(DWORD idx);
 static LPRENDERER CL_UIGetRenderer(void);
@@ -422,20 +421,8 @@ update:
     }
 }
 
-static LPCSTR CL_UIGetLoadingMap(void) {
-    return cl.loading_map;
-}
-
 static void CL_UICvarSet(LPCSTR name, LPCSTR value) {
     Cvar_Set(name, value);
-}
-
-static LPCSTR CL_UIGetLoadingStatus(void) {
-    return cl.loading_status;
-}
-
-static FLOAT CL_UIGetLoadingProgress(void) {
-    return cl.loading_progress;
 }
 
 void CL_BeginLoadingMap(LPCSTR mapName) {
@@ -592,20 +579,15 @@ void CL_Init(void) {
         .MemFree = MemFree,
         .ImageIndex = CL_ImageIndex,
         .FontIndex = CL_FontIndex,
-        .ReadConfig = FS_ParseINI,
-        .FindSheetCell = FS_FindSheetCell,
         .Cmd_AddCommand = Cmd_AddCommand,
         .Cmd_ExecuteText = Cbuf_AddText,
         .ServerCommand = CL_UIServerCommand,
         .Cvar_String = Cvar_String,
         .Cvar_Set = CL_UICvarSet,
-        .LANRefreshServers = CL_LANRefreshServers,
-        .LANNumServers = CL_LANNumServers,
-        .LANServer = CL_LANServer,
-        .LANConnectServer = CL_LANConnectServer,
-        .GetLoadingMap = CL_UIGetLoadingMap,
-        .GetLoadingStatus = CL_UIGetLoadingStatus,
-        .GetLoadingProgress = CL_UIGetLoadingProgress,
+        .LAN_RefreshServers = CL_LANRefreshServers,
+        .LAN_NumServers = CL_LANNumServers,
+        .LAN_Server = CL_LANServer,
+        .LAN_ConnectServer = CL_LANConnectServer,
         .GetPlayerState = CL_UIGetPlayerState,
         .GetNumEntities = CL_UIGetNumEntities,
         .GetEntity = CL_UIGetEntity,

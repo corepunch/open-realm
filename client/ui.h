@@ -128,8 +128,6 @@ typedef struct {
     /* Asset indexing (for textures, models, fonts) */
     int (*ImageIndex)(LPCSTR imageName);
     int (*FontIndex)(LPCSTR fontName, DWORD fontSize);
-    sheetRow_t *(*ReadConfig)(LPCSTR configFilename);
-    LPCSTR (*FindSheetCell)(sheetRow_t *sheet, LPCSTR row, LPCSTR column);
     
     /* Command execution (following Quake 3 pattern)
      * UI executes console commands; engine dispatcher handles routing */
@@ -138,14 +136,11 @@ typedef struct {
     void (*ServerCommand)(LPCSTR text);
     LPCSTR (*Cvar_String)(LPCSTR name, LPCSTR fallback);
     void (*Cvar_Set)(LPCSTR name, LPCSTR value);
-    void (*LANRefreshServers)(void);
-    DWORD (*LANNumServers)(void);
-    BOOL (*LANServer)(DWORD index, uiLanGame_t *out);
-    void (*LANConnectServer)(DWORD index);
-    LPCSTR (*GetLoadingMap)(void);
-    LPCSTR (*GetLoadingStatus)(void);
-    FLOAT (*GetLoadingProgress)(void);
-    
+    void (*LAN_RefreshServers)(void);
+    DWORD (*LAN_NumServers)(void);
+    BOOL (*LAN_Server)(DWORD index, uiLanGame_t *out);
+    void (*LAN_ConnectServer)(DWORD index);
+   
     /* Game state access (for in-game HUD) */
     LPCPLAYER (*GetPlayerState)(void);          /* Access to cl.playerstate */
     DWORD (*GetNumEntities)(void);              /* cl.num_entities */
@@ -188,6 +183,7 @@ typedef struct {
     BOOL (*HitTestLayout)(int x, int y);
     void (*DrawOverlays)(void);
     void (*LayoutMouseEvent)(uiMouseEvent_t event, int x, int y, int32_t param);
+    void (*DrawLoadingScreen)(LPCSTR map, LPCSTR status, FLOAT progress);
 } uiExport_t;
 
 /* Entry point called by the client to get the UI function table.

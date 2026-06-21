@@ -373,7 +373,7 @@ static int UIWow_LuaDrawImageAdditive(lua_State *L) {
 }
 
 static int UIWow_LuaGetLoadingProgress(lua_State *L) {
-    FLOAT target = uiimport.GetLoadingProgress ? uiimport.GetLoadingProgress() : 0.0f;
+    FLOAT target = wow_ui.loading_progress;
 
     if (target < 0.0f) { target = 0.0f; }
     else if (target > 1.0f) { target = 1.0f; }
@@ -395,16 +395,14 @@ static int UIWow_LuaGetLoadingTitle(lua_State *L) {
     LPCSTR title = ps ? ps->texts[PLAYERTEXT_MAP_TITLE] : NULL;
 
     if (!title || !*title) {
-        title = uiimport.GetLoadingMap ? uiimport.GetLoadingMap() : "";
+        title = wow_ui.loading_map;
     }
     lua_pushstring(L, title ? title : "");
     return 1;
 }
 
 static int UIWow_LuaGetLoadingStatus(lua_State *L) {
-    LPCSTR status = uiimport.GetLoadingStatus ? uiimport.GetLoadingStatus() : "";
-
-    lua_pushstring(L, status ? status : "");
+    lua_pushstring(L, wow_ui.loading_status);
     return 1;
 }
 
