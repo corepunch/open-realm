@@ -144,6 +144,9 @@ void CL_Input(void) {
                 if ((cls.key_dest == key_menu || cls.key_dest == key_game) && ui.MouseEvent) {
                     ui.MouseEvent(UI_MOUSE_DOWN, event.button.x, event.button.y, event.button.button);
                 }
+                if (ui.LayoutMouseEvent) {
+                    ui.LayoutMouseEvent(UI_MOUSE_DOWN, event.button.x, event.button.y, event.button.button);
+                }
                 if (cls.key_dest == key_menu) {
                     if (event.button.button == SDL_BUTTON_LEFT) {
                         mouse.event = UI_LEFT_MOUSE_DOWN;
@@ -165,6 +168,9 @@ void CL_Input(void) {
                 if ((cls.key_dest == key_menu || cls.key_dest == key_game) && ui.MouseEvent) {
                     ui.MouseEvent(UI_MOUSE_UP, event.button.x, event.button.y, event.button.button);
                 }
+                if (ui.LayoutMouseEvent) {
+                    ui.LayoutMouseEvent(UI_MOUSE_UP, event.button.x, event.button.y, event.button.button);
+                }
                 if (cls.key_dest == key_menu) {
                     if (event.button.button == SDL_BUTTON_LEFT) {
                         mouse.event = UI_LEFT_MOUSE_UP;
@@ -185,6 +191,9 @@ void CL_Input(void) {
                 if ((cls.key_dest == key_menu || cls.key_dest == key_game) && ui.MouseEvent) {
                     ui.MouseEvent(UI_MOUSE_MOVE, event.motion.x, event.motion.y, 0);
                 }
+                if (ui.LayoutMouseEvent) {
+                    ui.LayoutMouseEvent(UI_MOUSE_MOVE, event.motion.x, event.motion.y, 0);
+                }
                 if (cls.key_dest == key_menu) {
                     break;
                 }
@@ -195,6 +204,11 @@ void CL_Input(void) {
                     int x, y;
                     SDL_GetMouseState(&x, &y);
                     ui.MouseEvent(UI_MOUSE_SCROLL, x, y, UI_MOUSE_PARAM(event.wheel.x, event.wheel.y));
+                }
+                if (ui.LayoutMouseEvent) {
+                    int x, y;
+                    SDL_GetMouseState(&x, &y);
+                    ui.LayoutMouseEvent(UI_MOUSE_SCROLL, x, y, UI_MOUSE_PARAM(event.wheel.x, event.wheel.y));
                 }
                 if (cls.key_dest == key_game && CL_InputModeMouseWheel(&event.wheel)) {
                     break;

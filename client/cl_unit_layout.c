@@ -1,5 +1,5 @@
 #include <stdlib.h>
-#include "ui_local.h"
+#include "ui_layout.h"
 
 
 #define MAX_LISTBOX_TEXT 2048
@@ -10,10 +10,9 @@ static LPTEXTURE layout_dynamic_pics[MAX_DYNAMIC_IMAGES];
 static char layout_dynamic_pic_names[MAX_DYNAMIC_IMAGES][512];
 static DWORD layout_dynamic_pic_cursor;
 static BOOL layout_left_down;
+static DWORD layout_hovered_number;
 
 static RECT Rect_inset(LPCRECT r, FLOAT inset);
-
-#define re (*uiimport.GetRenderer())
 
 static VECTOR2 UI_LayoutScreenToFdf(int x, int y) {
     LPRENDERER renderer = uiimport.GetRenderer();
@@ -357,8 +356,11 @@ static BOOL UI_LayoutFrameHasClickCommand(LPCUIFRAME frame) {
 }
 
 static BOOL UI_LayoutGlueTextButtonIsPushed(LPCUIFRAME frame) {
-    LPFRAMEDEF def = UI_FindFrameByNumber(frame->number);
-    return def && (def->ui_flags & UIFLAG_PRESSED);
+    return layout_left_down && UI_LayoutFrameHasClickCommand(frame);
+}
+
+static BOOL UI_LayoutFrameIsHovered(LPCUIFRAME frame) {
+    return frame && frame->number == layout_hovered_number;
 }
 
 static void UI_LayoutFormatOnClickCommand(LPCSTR source, LPSTR dest, DWORD dest_size) {
@@ -414,9 +416,8 @@ void UI_LayoutGlueTextButton(LPCUIFRAME frame, LPCRECT screen) {
 static void UI_LayoutDrawGlueTextButtonHighlight(LPCUIFRAME frame) {
     uiGlueTextButton_t const *gluetextbutton = frame->buffer.data;
     RECT const *screen = uiimport.LayoutRect(frame);
-    LPFRAMEDEF def = UI_FindFrameByNumber(frame->number);
     BOOL const enabled = UI_LayoutFrameHasClickCommand(frame);
-    BOOL const mouse_over = def && (def->ui_flags & UIFLAG_HOVERED);
+    BOOL const mouse_over = UI_LayoutFrameIsHovered(frame);
 
     if (enabled && mouse_over) {
         UI_LayoutDrawHighlightData(&gluetextbutton->highlight, screen);
@@ -543,10 +544,9 @@ void UI_LayoutDrawCommandButton(LPCUIFRAME frame, LPCRECT screen) {
     LPCENTITYSTATE selentity = UI_LayoutSelectedEntity();
     RECT const uv = get_uvrect(frame->tex.coord);
     RECT const suv = Rect_div(&uv, 0xff);
-    LPFRAMEDEF def = UI_FindFrameByNumber(frame->number);
     RECT scrn = scale_rect(screen, 0.925);
-    if (def && (def->ui_flags & UIFLAG_HOVERED)) {
-        if (def->ui_flags & UIFLAG_PRESSED) {
+    if (UI_LayoutFrameIsHovered(frame)) {
+        if (layout_left_down) {
             scrn = scale_rect(screen, 0.875);
         }
     }
@@ -729,8 +729,7 @@ void UI_LayoutDrawTooltip(LPCUIFRAME frame, LPCRECT scrn) {
 }
 
 void UI_LayoutUpdateCommandButton(LPCUIFRAME frame, LPCRECT screen) {
-    LPFRAMEDEF def = UI_FindFrameByNumber(frame->number);
-    if (def && (def->ui_flags & UIFLAG_HOVERED) && frame->tooltip) {
+    if (UI_LayoutFrameIsHovered(frame) && frame->tooltip) {
         active_tooltip = frame->tooltip;
     }
 }
@@ -874,6 +873,29 @@ void UI_LayoutClearLayer(DWORD layer) {
 /* Server-authored layout clicks are handled at event time, not during drawing. */
 void UI_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
     VECTOR2 const point = UI_LayoutScreenToFdf(x, y);
+
+    /* Track hover state on every mouse event */
+    layout_hovered_number = 0;
+    FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
+        HANDLE layout = layout_layers[layer];
+        if (!layout || ((1 << layer) & uiimport.GetPlayerState()->uiflags) || UI_LayoutShouldSkipLayoutLayer(layer)) {
+            continue;
+        }
+        uiimport.LayoutClear(layout);
+        for (DWORD i = uiimport.LayoutNumFrames(); i > 0; i--) {
+            LPCUIFRAME frame = uiimport.LayoutFrame(i - 1);
+            if (!frame || !UI_LayoutFrameHasClickCommand(frame)) {
+                continue;
+            }
+            if (Rect_contains(uiimport.LayoutRect(frame), &point)) {
+                layout_hovered_number = frame->number;
+                break;
+            }
+        }
+        if (layout_hovered_number) {
+            break;
+        }
+    }
 
     if (param == 1) {
         if (event == UI_MOUSE_DOWN) {

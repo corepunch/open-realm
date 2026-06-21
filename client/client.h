@@ -5,6 +5,7 @@
 #include "tr_public.h"
 #include "keys.h"
 #include "client/ui.h"
+#include "ui_layout.h"
 
 #define WINDOW_WIDTH 1024
 #define WINDOW_HEIGHT 768

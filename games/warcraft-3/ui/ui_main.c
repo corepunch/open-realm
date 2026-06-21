@@ -718,7 +718,6 @@ void UI_DrawFrameLocal(void) {
             screen->draw();
         }
     }
-    UI_LayoutDrawOverlays();
 }
 
 void UI_KeyEventLocal(int key, BOOL down, DWORD time) {
@@ -779,7 +778,6 @@ void UI_MouseEventLocal(uiMouseEvent_t event, int x, int y, int32_t param) {
 
     VECTOR2 fdf = UI_PixelToFdf(x, y);
     ui_state.mouse_fdf = fdf;
-    UI_LayoutMouseEvent(event, x, y, param);
     LPCFRAMEDEF hit = UI_HitTest(fdf.x, fdf.y);
     UI_UpdateMouseFrameFlags(hit, up && left);
 
@@ -1027,9 +1025,6 @@ uiExport_t UI_GetAPI(uiImport_t import) {
     exp.MouseEvent = UI_MouseEventLocal;
     exp.UpdateUnitUI = UI_UpdateUnitUILocal;
     exp.UpdateLobbySetup = UI_UpdateLobbySetupLocal;
-    exp.SetLayoutLayer = UI_LayoutSetLayer;
-    exp.ClearLayoutLayer = UI_LayoutClearLayer;
-    exp.HitTestLayout = UI_LayoutHitTest;
     
     return exp;
 }

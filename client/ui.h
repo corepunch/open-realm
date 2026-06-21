@@ -195,6 +195,8 @@ typedef struct {
     void (*SetLayoutLayer)(DWORD layer, HANDLE data);
     void (*ClearLayoutLayer)(DWORD layer);
     BOOL (*HitTestLayout)(int x, int y);
+    void (*DrawOverlays)(void);
+    void (*LayoutMouseEvent)(uiMouseEvent_t event, int x, int y, int32_t param);
 } uiExport_t;
 
 /* Entry point called by the client to get the UI function table.
