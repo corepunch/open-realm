@@ -373,13 +373,6 @@ static void OptionsMenu_KeyEvent(int key, BOOL down) {
     }
 }
 
-static void OptionsMenu_MouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
-    (void)x;
-    (void)y;
-    (void)event;
-    (void)param;
-}
-
 void OptionsMenu_ShowGameplay(void) {
     OptionsMenu_SetPanel(OPTIONS_PANEL_GAMEPLAY);
 }
@@ -408,5 +401,4 @@ uiScreen_t optionsMenuScreen = {
     .refresh = OptionsMenu_Refresh,
     .draw = OptionsMenu_Draw,
     .key_event = OptionsMenu_KeyEvent,
-    .mouse_event = OptionsMenu_MouseEvent,
 };

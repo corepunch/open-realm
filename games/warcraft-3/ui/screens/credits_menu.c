@@ -58,13 +58,6 @@ static void CreditsMenu_KeyEvent(int key, BOOL down) {
     (void)down;
 }
 
-static void CreditsMenu_MouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
-    (void)x;
-    (void)y;
-    (void)event;
-    (void)param;
-}
-
 uiScreen_t creditsMenuScreen = {
     .name = "credits",
     .load = CreditsMenu_LoadScreen,
@@ -73,5 +66,4 @@ uiScreen_t creditsMenuScreen = {
     .refresh = CreditsMenu_Refresh,
     .draw = CreditsMenu_Draw,
     .key_event = CreditsMenu_KeyEvent,
-    .mouse_event = CreditsMenu_MouseEvent,
 };

@@ -705,13 +705,6 @@ static void LANJoin_KeyEvent(int key, BOOL down) {
     }
 }
 
-static void LANJoin_MouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
-    (void)x;
-    (void)y;
-    (void)event;
-    (void)param;
-}
-
 LPCSTR LAN_SelectedMapPath(void) {
     if (!lan.ready) {
         return NULL;
@@ -837,5 +830,4 @@ uiScreen_t lanJoinScreen = {
     .refresh = LANJoin_Refresh,
     .draw = LANJoin_Draw,
     .key_event = LANJoin_KeyEvent,
-    .mouse_event = LANJoin_MouseEvent,
 };

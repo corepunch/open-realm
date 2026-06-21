@@ -952,13 +952,6 @@ static void GameSetup_KeyEvent(int key, BOOL down) {
     }
 }
 
-static void GameSetup_MouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
-    (void)x;
-    (void)y;
-    (void)event;
-    (void)param;
-}
-
 BOOL GameSetup_StartGame(void) {
     char command[8192];
     DWORD slot_count;
@@ -1076,5 +1069,4 @@ uiScreen_t gameSetupScreen = {
     .refresh = GameSetup_Refresh,
     .draw = GameSetup_Draw,
     .key_event = GameSetup_KeyEvent,
-    .mouse_event = GameSetup_MouseEvent,
 };
