@@ -405,10 +405,6 @@ static BOOL UI_CinematicActive(LPCPLAYER ps) {
     return ps && ps->client_ui_state == CLIENT_UI_CINEMATIC;
 }
 
-static BOOL UI_LoadingActive(LPCPLAYER ps) {
-    return ps && ps->client_ui_state == CLIENT_UI_LOADING;
-}
-
 static void UI_EnterGameMode(void) {
     ui_state.game_mode = true;
     UI_SetScreen(NULL);
@@ -460,10 +456,8 @@ static LPCSTR UI_CsvField(LPCSTR text, DWORD index, LPSTR out, DWORD out_size) {
 }
 
 static LPCSTR UI_LoadingMapPath(void) {
-    LPCSTR path = uiimport.GetLoadingMap();
-
-    if (path && *path) {
-        return path;
+    if (loading_state.map[0]) {
+        return loading_state.map;
     }
     return uiimport.Cvar_String("map", "");
 }
@@ -478,13 +472,10 @@ static DWORD UI_LoadCampaignLoadingModel(DWORD campaign_background, DWORD *seque
     if (sequence_index) {
         *sequence_index = 0;
     }
-    if (!uiimport.ReadConfig || !uiimport.FindSheetCell) {
-        return 0;
-    }
 
-    world_edit_data = uiimport.ReadConfig("UI\\WorldEditData.txt");
+    world_edit_data = FS_ParseINI("UI\\WorldEditData.txt");
     snprintf(key, sizeof(key), "%02u", (unsigned)campaign_background);
-    row = uiimport.FindSheetCell(world_edit_data, "LoadingScreens", key);
+    row = FS_FindSheetCell(world_edit_data, "LoadingScreens", key);
     UI_CsvField(row, 1, sequence, sizeof(sequence));
     UI_CsvField(row, 2, model, sizeof(model));
     if (sequence_index && sequence[0]) {
@@ -566,8 +557,13 @@ static void UI_InitLoadingScreen(void) {
     }
 }
 
-static void UI_DrawLoadingScreen(void) {
-    FLOAT loading_progress = uiimport.GetLoadingProgress();
+static void UI_DrawLoadingScreenLocal(LPCSTR map, LPCSTR status, FLOAT progress) {
+    if (map && *map) {
+        snprintf(loading_state.map, sizeof(loading_state.map), "%s", map);
+    }
+    if (status && *status) {
+        snprintf(loading_state.text, sizeof(loading_state.text), "%s", status);
+    }
 
     UI_UpdateLoadingMapInfo();
 
@@ -581,7 +577,7 @@ static void UI_DrawLoadingScreen(void) {
         loading_screen.LoadingBackground->Portrait.model = loading_state.background_model;
     }
     if (loading_screen.LoadingBar) {
-        snprintf(loading_screen.LoadingBar->TextStorage, sizeof(loading_screen.LoadingBar->TextStorage), "#0@%.4f", loading_progress);
+        snprintf(loading_screen.LoadingBar->TextStorage, sizeof(loading_screen.LoadingBar->TextStorage), "#0@%.4f", progress);
         loading_screen.LoadingBar->Text = loading_screen.LoadingBar->TextStorage;
         loading_screen.LoadingBar->Portrait.model = loading_state.progress_model;
     }
@@ -703,9 +699,7 @@ void UI_DrawFrameLocal(void) {
     if (ui_state.game_mode) {
         LPCPLAYER ps = uiimport.GetPlayerState();
 
-        if (UI_LoadingActive(ps)) {
-            UI_DrawLoadingScreen();
-        } else if (UI_CinematicActive(ps)) {
+        if (UI_CinematicActive(ps)) {
             UI_DrawCinematicPanel(ps);
         } else {
             UI_DrawConsoleBackdropOnly();
@@ -1025,6 +1019,7 @@ uiExport_t UI_GetAPI(uiImport_t import) {
     exp.MouseEvent = UI_MouseEventLocal;
     exp.UpdateUnitUI = UI_UpdateUnitUILocal;
     exp.UpdateLobbySetup = UI_UpdateLobbySetupLocal;
+    exp.DrawLoadingScreen = UI_DrawLoadingScreenLocal;
     
     return exp;
 }

@@ -522,6 +522,28 @@ static BOOL UIWow_HitTestLayout(int x, int y) {
  * Entry point
  * ---------------------------------------------------------------------- */
 
+static void UIWow_DrawLoadingScreen(LPCSTR map, LPCSTR status, FLOAT progress) {
+    wow_ui.loading_map[0] = '\0';
+    if (map && *map) {
+        snprintf(wow_ui.loading_map, sizeof(wow_ui.loading_map), "%s", map);
+    }
+    wow_ui.loading_status[0] = '\0';
+    if (status && *status) {
+        snprintf(wow_ui.loading_status, sizeof(wow_ui.loading_status), "%s", status);
+    }
+    wow_ui.loading_progress = progress;
+
+    LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
+    UIWow_EnsureRenderer();
+    UIWow_UpdateMapBackground(ps);
+    lua_getglobal(wow_ui.lua, "ow3_draw_loading_screen");
+    if (lua_isfunction(wow_ui.lua, -1)) {
+        UIWow_LuaPCall(0);
+    } else {
+        lua_pop(wow_ui.lua, 1);
+    }
+}
+
 uiExport_t UI_GetAPI(uiImport_t import) {
     uiimport = import;
 
@@ -537,5 +559,6 @@ uiExport_t UI_GetAPI(uiImport_t import) {
         .SetLayoutLayer   = UIWow_SetLayoutLayer,
         .ClearLayoutLayer = UIWow_ClearLayoutLayer,
         .HitTestLayout    = UIWow_HitTestLayout,
+        .DrawLoadingScreen = UIWow_DrawLoadingScreen,
     };
 }

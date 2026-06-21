@@ -45,11 +45,17 @@ void SCR_UpdateScreen(DWORD msec) {
     V_RenderView();
 
 #ifndef SC2
-    if (ui.DrawFrame) {
-        ui.DrawFrame();
-    }
-    if (ui.DrawOverlays) {
-        ui.DrawOverlays();
+    if (cls.state == ca_loading) {
+        if (ui.DrawLoadingScreen) {
+            ui.DrawLoadingScreen(cl.loading_map, cl.loading_status, cl.loading_progress);
+        }
+    } else {
+        if (ui.DrawFrame) {
+            ui.DrawFrame();
+        }
+        if (ui.DrawOverlays) {
+            ui.DrawOverlays();
+        }
     }
 #endif
 
@@ -57,8 +63,6 @@ void SCR_UpdateScreen(DWORD msec) {
     if (Cvar_Integer("scr_showfps", 0)) {
         SCR_DrawFPS(msec);
     }
-    
-//    if (cl.pics[42]) re.DrawPic(cl.pics[42], 0, 0);
     
     re.EndFrame();
 }
