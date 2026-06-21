@@ -431,13 +431,13 @@ void UI_LayoutDrawBuildQueue(LPCUIFRAME frame, LPCRECT scrn) {
     DWORD active = queue->numitems;
 
     FOR_LOOP(i, queue->numitems) {
-        if (UI_GetTime() < queue->items[i].endtime) {
+        if (uiimport.GetTime() < queue->items[i].endtime) {
             active = i;
             break;
         }
     }
     for (DWORD i = active + 1; i < queue->numitems; i++) {
-        if (UI_GetTime() < queue->items[i].endtime) {
+        if (uiimport.GetTime() < queue->items[i].endtime) {
             re.DrawImage(uiimport.GetTexture(queue->items[i].image), &screen, &uv, frame->color);
             screen.x += queue->itemoffset;
         }
@@ -451,9 +451,9 @@ void UI_LayoutUpdateBuildQueue(LPCUIFRAME frame, LPCRECT screen) {
 
     FOR_LOOP(i, queue->numitems) {
         uiBuildQueueItem_t const *item = &queue->items[i];
-        if (UI_GetTime() < item->endtime) {
+        if (uiimport.GetTime() < item->endtime) {
             FLOAT duration = item->endtime - item->starttime;
-            FLOAT elapsed = UI_GetTime() > item->starttime ? (FLOAT)(UI_GetTime() - item->starttime) : 0;
+            FLOAT elapsed = uiimport.GetTime() > item->starttime ? (FLOAT)(uiimport.GetTime() - item->starttime) : 0;
             FLOAT progress = duration > 0 ? elapsed / duration : 1;
             progress = MAX(0, MIN(progress, 1));
             if (buildtimer) buildtimer->value = progress;

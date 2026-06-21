@@ -144,6 +144,9 @@ typedef struct {
     /* Renderer access for frame drawing */
     LPRENDERER (*GetRenderer)(void);
     
+    /* Time (milliseconds since init) */
+    DWORD (*GetTime)(void);
+    
     /* Output */
     void (*Printf)(LPCSTR fmt, ...);
 } uiImport_t;
