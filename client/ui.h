@@ -126,10 +126,8 @@ typedef struct {
     void (*MemFree)(HANDLE);
     
     /* Asset indexing (for textures, models, fonts) */
-    int (*ModelIndex)(LPCSTR modelName);
     int (*ImageIndex)(LPCSTR imageName);
     int (*FontIndex)(LPCSTR fontName, DWORD fontSize);
-    sheetRow_t *(*ReadSheet)(LPCSTR sheetFilename);
     sheetRow_t *(*ReadConfig)(LPCSTR configFilename);
     LPCSTR (*FindSheetCell)(sheetRow_t *sheet, LPCSTR row, LPCSTR column);
     
@@ -168,14 +166,10 @@ typedef struct {
                                  LPCSTR text,
                                  uiLabel_t const *label);
     
-    /* Unit UI data requests (for command card, inventory, build queue) */
-    void (*RequestUnitUI)(DWORD num_selected, DWORD *entity_nums);
-    
     /* Renderer access for frame drawing */
     LPRENDERER (*GetRenderer)(void);
     
-    /* Error reporting */
-    void (*Error)(LPCSTR fmt, ...);
+    /* Output */
     void (*Printf)(LPCSTR fmt, ...);
 } uiImport_t;
 

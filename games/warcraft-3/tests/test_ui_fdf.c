@@ -241,10 +241,8 @@ static void load_ui_file(LPCSTR file_name) {
     uiimport.MemAlloc = test_ui_mem_alloc;
     uiimport.MemFree = test_ui_mem_free;
     uiimport.ImageIndex = test_image_index;
-    uiimport.ModelIndex = test_model_index;
     uiimport.FontIndex = test_font_index;
     uiimport.Printf = test_ui_printf;
-    uiimport.Error = test_ui_printf;
     UI_ParseFDF(file_name);
     uiimport = saved;
 }
@@ -259,10 +257,8 @@ static void load_ui_files(LPCSTR const *file_names, size_t count) {
     uiimport.MemAlloc = test_ui_mem_alloc;
     uiimport.MemFree = test_ui_mem_free;
     uiimport.ImageIndex = test_image_index;
-    uiimport.ModelIndex = test_model_index;
     uiimport.FontIndex = test_font_index;
     uiimport.Printf = test_ui_printf;
-    uiimport.Error = test_ui_printf;
     for (size_t i = 0; i < count; i++) {
         UI_ParseFDF(file_names[i]);
     }
@@ -291,11 +287,9 @@ static void reset_ui_state(void) {
     uiimport.MemAlloc = test_ui_mem_alloc;
     uiimport.MemFree = test_ui_mem_free;
     uiimport.ImageIndex = fake_image_index;
-    uiimport.ModelIndex = fake_model_index;
     uiimport.FontIndex = test_font_index;
     uiimport.GetRenderer = test_get_renderer;
     uiimport.Printf = test_ui_printf;
-    uiimport.Error = test_ui_printf;
 }
 
 static void test_parse_single_frame_definition(void) {
