@@ -267,6 +267,7 @@ static void test_layout_flatten_to_frames(void) {
     setup_sc2_layout_tests();
     SC2_LayoutInit();
     ASSERT(SC2_LayoutParseFile("UI/Layout/TestGameUI.SC2Layout"));
+    ASSERT(SC2_LayoutFlatten("TestGameUI"));
 
     /* Build the frame array from the TestGameUI root */
     DWORD count = 0;

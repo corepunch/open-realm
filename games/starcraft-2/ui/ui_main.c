@@ -113,7 +113,23 @@ static void SC2_UI_ClearLayoutLayer(DWORD layer) {
 }
 
 static BOOL SC2_UI_HitTestLayout(int x, int y) {
-    (void)x; (void)y;
+    DWORD count = 0;
+    uiBaseFrame_t *frames = SC2_LayoutGetFrames(&count);
+    if (!frames || count == 0) return false;
+
+    /* Convert pixel coords to normalized FDF space */
+    /* TODO: use proper scene rect conversion from client */
+    FLOAT nx = (FLOAT)x / 1024.0f;
+    FLOAT ny = (FLOAT)y / 768.0f;
+
+    /* Iterate back-to-front (last drawn = topmost) */
+    for (int i = (int)count - 1; i >= 0; i--) {
+        uiBaseFrame_t *f = &frames[i];
+        if (f->ui_flags & UIFLAG_HIDDEN) continue;
+        LPCRECT r = &f->screen_rect;
+        if (nx >= r->x && nx < r->x + r->w && ny >= r->y && ny < r->y + r->h)
+            return true;
+    }
     return false;
 }
 
