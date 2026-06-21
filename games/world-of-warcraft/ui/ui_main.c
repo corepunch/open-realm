@@ -273,11 +273,8 @@ static void UIWow_RecreateLuaStateForMenu(LPCSTR menu_name) {
  * Per-frame draw dispatch
  * ---------------------------------------------------------------------- */
 
-/* Convert event pixels into FDF space, deferring to the client-owned mouse transform when present. */
+/* Convert event pixels into FDF space. */
 VECTOR2 UIWow_MouseFdf(int x, int y) {
-    if (uiimport.GetMouseFdf) {
-        return uiimport.GetMouseFdf();
-    }
     return MAKE(VECTOR2, x / 1024.0f, y / 768.0f);
 }
 

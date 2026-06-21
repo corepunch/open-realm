@@ -307,10 +307,6 @@ static DWORD CL_UIGetClientTime(void) {
     return cl.time;
 }
 
-static BOOL CL_UIGetMouseButtonDown(DWORD button) {
-    return mouse.button == button;
-}
-
 /* Request unit UI data (command card, inventory, build queue) */
 static void CL_UIRequestUnitUI(DWORD num_selected, DWORD *entity_nums) {
     (void)num_selected;
@@ -631,7 +627,6 @@ void CL_Init(void) {
         .GetTextures = CL_UIGetTextures,
         .GetFont = CL_UIGetFont,
         .GetClientTime = CL_UIGetClientTime,
-        .GetMouseButtonDown = CL_UIGetMouseButtonDown,
         .LayoutClear = SCR_Clear,
         .LayoutNumFrames = SCR_NumFrames,
         .LayoutFrame = SCR_Frame,
