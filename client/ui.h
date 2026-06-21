@@ -149,6 +149,10 @@ typedef struct {
     
     /* Output */
     void (*Printf)(LPCSTR fmt, ...);
+
+    /* Sound */
+    void (*PlaySound)(DWORD kit_id);
+    void (*PlaySoundByName)(LPCSTR name);
 } uiImport_t;
 
 /* Function table exported by the UI library to the client. */
