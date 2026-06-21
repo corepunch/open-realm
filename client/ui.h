@@ -155,15 +155,6 @@ typedef struct {
     LPCTEXTURE (*GetTexture)(DWORD idx);        /* cl.pics[idx] */
     LPCTEXTURE *(*GetTextures)(void);           /* cl.pics, for inline text icons */
     LPCFONT (*GetFont)(DWORD idx);              /* cl.fonts[idx] */
-    LPCUIFRAME (*LayoutClear)(HANDLE data);
-    DWORD (*LayoutNumFrames)(void);
-    LPUIFRAME (*LayoutFrame)(DWORD number);
-    LPCRECT (*LayoutRect)(LPCUIFRAME frame);
-    LPCSTR (*LayoutStringValue)(LPCUIFRAME frame);
-    drawText_t (*LayoutDrawText)(LPCUIFRAME frame,
-                                 FLOAT avl_width,
-                                 LPCSTR text,
-                                 uiLabel_t const *label);
     
     /* Renderer access for frame drawing */
     LPRENDERER (*GetRenderer)(void);

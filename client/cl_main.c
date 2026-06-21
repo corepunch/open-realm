@@ -614,12 +614,6 @@ void CL_Init(void) {
         .GetTexture = CL_GetTextureByIndex,
         .GetTextures = CL_UIGetTextures,
         .GetFont = CL_UIGetFont,
-        .LayoutClear = SCR_Clear,
-        .LayoutNumFrames = SCR_NumFrames,
-        .LayoutFrame = SCR_Frame,
-        .LayoutRect = SCR_LayoutRect,
-        .LayoutStringValue = SCR_GetStringValue,
-        .LayoutDrawText = SCR_GetDrawText,
         .GetRenderer = CL_UIGetRenderer,
         .Printf = CON_printf,
     });
