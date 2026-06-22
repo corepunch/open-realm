@@ -1,6 +1,42 @@
 # Sound Architecture
 
-Based on Quake 2's sound system. Sound is a client-side subsystem with server-mediated triggering via configstrings and multicast messages.
+Based on Quake 2's sound system. Sound is a client-side subsystem with server-mediated triggering via configstrings and entity state events.
+
+## Entity Sound Events (One-Shot)
+
+Unit sounds (attack, death, movement) are delivered through `entityState_t.event` and `entityState_t.sound` — the same delta-compressed entity snapshot used for position and model. This avoids a separate svc_sound packet channel.
+
+### Protocol
+
+1. **Server game code** registers a WAV file path via `gi.SoundIndex(path)` → index stored in `edict->sound_attack` / `sound_death` at spawn.
+2. On the trigger frame, game sets `ent->s.event = EV_ATTACK` (or `EV_DEATH`) and `ent->s.sound = sound_attack`.  Both fields are zeroed at the top of `G_RunEntities` so they are non-zero for exactly one snapshot.
+3. **Client** (`cl_parse.c`) calls `CL_EntityEvent(ent)` after applying each entity delta if `ent->event != 0`.
+4. `CL_EntityEvent` (`cl_fx.c`) resolves `cl.configstrings[CS_SOUNDS + ent->sound]` to a file path and calls `S_PlaySoundFile(path)`.
+5. `S_PlaySoundFile` loads the WAV from the MPQ (with LRU cache) and mixes it into an SDL audio channel.
+
+### Event Types (`entity_event_t` in `common/shared.h`)
+
+| Value | Name | Trigger |
+|-------|------|---------|
+| 0 | `EV_NONE` | No event |
+| 1 | `EV_ATTACK` | Attack swing began |
+| 2 | `EV_DEATH` | Unit died |
+| 3 | `EV_MOVE` | Footstep / movement sound |
+
+### WC3 Sound Registration
+
+At map load, `G_RegisterUnitSounds` reads the unit's `usnd` label from `unitUI.slk`, looks up the label in `UI/SoundInfo/UnitAckSounds.slk`, and registers the first matching WAV file as a configstring via `gi.SoundIndex`. See `doc/games/warcraft-3/docs/sounds.md` for the full SLK schema.
+
+### Key Files
+
+| File | Role |
+|------|------|
+| `games/warcraft-3/game/g_monster.c` | `G_RegisterUnitSounds` — sound index registration at spawn |
+| `games/warcraft-3/game/g_events.c` | `G_RunEntities` — clears `s.event`/`s.sound` each frame |
+| `client/cl_fx.c` | `CL_EntityEvent` — fires sounds on event |
+| `sound/s_sound.c` | `S_PlaySoundFile` — raw MPQ path playback |
+
+
 
 ## Assets
 

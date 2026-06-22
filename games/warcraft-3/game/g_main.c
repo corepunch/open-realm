@@ -172,6 +172,8 @@ static void G_InitGame(void) {
     game.config.uberSplats = FS_ParseSLK("Splats\\UberSplatData.slk");
     game.config.abilities = FS_ParseSLK("Units\\AbilityData.slk");
     game.config.items = FS_ParseSLK("Units\\ItemData.slk");
+    game.config.unitAckSounds = FS_ParseSLK("UI\\SoundInfo\\UnitAckSounds.slk");
+    game.config.unitCombatSounds = FS_ParseSLK("UI\\SoundInfo\\UnitCombatSounds.slk");
     InitConstants();
     InitUnitData();
     InitAbilities();

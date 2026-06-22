@@ -263,3 +263,46 @@ void S_PlaySoundByName(LPCSTR name) {
     sHashNode_t *n = S_FindByName(name);
     if (n) S_PlaySound(n->kit_id);
 }
+
+/* Play a sound by its raw MPQ-relative file path (e.g. "Units\\Human\\Footman\\FootmanYesAttack1.wav").
+ * Uses kit_id=0 slot in wav_cache as a path-keyed one-shot entry.
+ * kit_id=0 is never used by the DBC kit system (IDs start at 1). */
+void S_PlaySoundFile(LPCSTR path) {
+    if (!s.initialized || !path || !*path) return;
+    /* Look for already-cached entry matching this path. */
+    for (DWORD i = 0; i < S_MAX_CACHED_WAVS; i++) {
+        if (s.wav_cache[i].data && s.wav_cache[i].kit_id == 0 &&
+            s.wav_cache[i].path && !strcasecmp(s.wav_cache[i].path, path)) {
+            SDL_LockAudioDevice(s.device);
+            for (DWORD ch = 0; ch < S_MAX_CHANNELS; ch++) {
+                if (!s.channels[ch].active) {
+                    s.channels[ch].wav = &s.wav_cache[i];
+                    s.channels[ch].pos = 0;
+                    s.channels[ch].volume = 1.0f;
+                    s.channels[ch].active = TRUE;
+                    SDL_UnlockAudioDevice(s.device);
+                    return;
+                }
+            }
+            SDL_UnlockAudioDevice(s.device);
+            return;
+        }
+    }
+    /* Not cached — load it. */
+    sWavCache_t *w = S_CacheWav(0, path);
+    if (!w) return;
+    /* Tag it with the path so future lookups find it. */
+    w->path = path;
+    SDL_LockAudioDevice(s.device);
+    for (DWORD ch = 0; ch < S_MAX_CHANNELS; ch++) {
+        if (!s.channels[ch].active) {
+            s.channels[ch].wav = w;
+            s.channels[ch].pos = 0;
+            s.channels[ch].volume = 1.0f;
+            s.channels[ch].active = TRUE;
+            SDL_UnlockAudioDevice(s.device);
+            return;
+        }
+    }
+    SDL_UnlockAudioDevice(s.device);
+}

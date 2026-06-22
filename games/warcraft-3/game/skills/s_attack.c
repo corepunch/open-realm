@@ -213,6 +213,7 @@ void attack_melee_cooldown(LPEDICT self) {
 void attack_melee(LPEDICT self) {
     unit_setmove(self, &attack_move_melee);
     self->wait = self->attack1.damagePoint;
+    if (self->sound_attack) { self->s.event = EV_ATTACK; self->s.sound = self->sound_attack; }
 }
 
 void attack_ranged_cooldown(LPEDICT self) {
@@ -223,6 +224,7 @@ void attack_ranged_cooldown(LPEDICT self) {
 void attack_ranged(LPEDICT self) {
     unit_setmove(self, &attack_move_ranged);
     self->wait = self->attack1.damagePoint;
+    if (self->sound_attack) { self->s.event = EV_ATTACK; self->s.sound = self->sound_attack; }
 }
 
 BOOL attack_menu_selecttarget(LPEDICT ent, LPEDICT target) {
