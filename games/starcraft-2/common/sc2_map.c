@@ -7,6 +7,7 @@
 
 #define SC2_MAX_CATALOG_MODELS       8192
 #define SC2_MAX_CATALOG_ACTORS       8192
+#define SC2_MAX_CATALOG_UNITS        8192
 #define SC2_MAX_CATALOG_TERRAIN_TEX  512
 #define SC2_MAX_CATALOG_CLIFFS       256
 #define SC2_MAX_CATALOG_PARENT_DEPTH 8
@@ -37,6 +38,11 @@ typedef struct {
 } sc2CatalogActor_t;
 
 typedef struct {
+    char id[64];
+    char actor[64];
+} sc2CatalogUnit_t;
+
+typedef struct {
     char name[64];
     char model[256];
 } sc2ResolvedObjectModel_t;
@@ -55,10 +61,12 @@ typedef struct {
 typedef struct {
     DWORD models_count;
     DWORD actors_count;
+    DWORD units_count;
     DWORD terrain_tex_count;
     DWORD cliffs_count;
     sc2CatalogModel_t models[SC2_MAX_CATALOG_MODELS];
     sc2CatalogActor_t actors[SC2_MAX_CATALOG_ACTORS];
+    sc2CatalogUnit_t units[SC2_MAX_CATALOG_UNITS];
     sc2CatalogTerrainTex_t terrain_tex[SC2_MAX_CATALOG_TERRAIN_TEX];
     sc2CatalogCliff_t cliffs[SC2_MAX_CATALOG_CLIFFS];
 } sc2Catalog_t;
@@ -975,6 +983,22 @@ static void sc2_catalog_add_actor(sc2Catalog_t *catalog, LPCSTR id, LPCSTR model
     snprintf(actor->model, sizeof(actor->model), "%s", model_id);
 }
 
+static void sc2_catalog_add_unit(sc2Catalog_t *catalog, LPCSTR id, LPCSTR actor_id) {
+    sc2CatalogUnit_t *unit;
+
+    if (!catalog || !id || !*id || !actor_id || !*actor_id) return;
+    FOR_LOOP(i, catalog->units_count) {
+        if (!strcasecmp(catalog->units[i].id, id)) {
+            snprintf(catalog->units[i].actor, sizeof(catalog->units[i].actor), "%s", actor_id);
+            return;
+        }
+    }
+    if (catalog->units_count >= SC2_MAX_CATALOG_UNITS) return;
+    unit = &catalog->units[catalog->units_count++];
+    snprintf(unit->id, sizeof(unit->id), "%s", id);
+    snprintf(unit->actor, sizeof(unit->actor), "%s", actor_id);
+}
+
 static void sc2_catalog_add_terrain_tex(sc2Catalog_t *catalog, LPCSTR id, LPCSTR diffuse, LPCSTR normal) {
     sc2CatalogTerrainTex_t *tex;
 
@@ -1127,6 +1151,14 @@ static LPCSTR sc2_catalog_actor_model(sc2Catalog_t const *catalog, LPCSTR id) {
     return NULL;
 }
 
+static LPCSTR sc2_catalog_unit_actor(sc2Catalog_t const *catalog, LPCSTR id) {
+    if (!catalog || !id || !*id) return NULL;
+    FOR_LOOP(i, catalog->units_count) {
+        if (!strcasecmp(catalog->units[i].id, id)) return catalog->units[i].actor;
+    }
+    return NULL;
+}
+
 static LPCSTR sc2_catalog_terrain_diffuse(sc2Catalog_t const *catalog, LPCSTR id, LPCSTR *normal) {
     char key[64];
 
@@ -1229,6 +1261,30 @@ static void sc2_parse_actor_catalog_file(sc2Catalog_t *catalog, LPCSTR root_name
     xmlFreeDoc(doc);
 }
 
+static void sc2_parse_unit_catalog_file(sc2Catalog_t *catalog, LPCSTR root_name) {
+    xmlDocPtr doc = sc2_read_catalog_xml(root_name, "GameData\\UnitData.xml");
+    xmlNodePtr root;
+
+    if (!doc) return;
+    root = xmlDocGetRootElement(doc);
+    for (xmlNodePtr node = root ? root->children : NULL; node; node = node->next) {
+        char id[64];
+        char actor_id[64] = "";
+
+        if (node->type != XML_ELEMENT_NODE || !sc2_contains_i((char const *)node->name, "CUnit"))
+            continue;
+        if (!sc2_xml_attr(node, "id", id, sizeof(id))) continue;
+        for (xmlNodePtr child = node->children; child; child = child->next) {
+            if (child->type == XML_ELEMENT_NODE && sc2_streqi((char const *)child->name, "Actor")) {
+                sc2_xml_attr(child, "value", actor_id, sizeof(actor_id));
+                break;
+            }
+        }
+        sc2_catalog_add_unit(catalog, id, actor_id);
+    }
+    xmlFreeDoc(doc);
+}
+
 static void sc2_parse_terrain_tex_catalog_file(sc2Catalog_t *catalog, LPCSTR root_name) {
     xmlDocPtr doc = sc2_read_catalog_xml(root_name, "GameData\\TerrainTexData.xml");
     xmlNodePtr root;
@@ -1290,11 +1346,13 @@ static void sc2_parse_catalogs(sc2Catalog_t *catalog) {
         NULL,
     };
 
+    sc2_parse_unit_catalog_file(catalog, "");
     sc2_parse_model_catalog_file(catalog, "");
     sc2_parse_actor_catalog_file(catalog, "");
     sc2_parse_terrain_tex_catalog_file(catalog, "");
     sc2_parse_cliff_catalog_file(catalog, "");
     for (DWORD i = 0; roots[i]; i++) {
+        sc2_parse_unit_catalog_file(catalog, roots[i]);
         sc2_parse_model_catalog_file(catalog, roots[i]);
         sc2_parse_actor_catalog_file(catalog, roots[i]);
         sc2_parse_terrain_tex_catalog_file(catalog, roots[i]);
@@ -1422,7 +1480,12 @@ static void sc2_resolve_object_models(sc2Catalog_t const *catalog) {
                 goto next_object;
             }
         }
-        model_id = sc2_catalog_actor_model(catalog, object->name);
+        model_id = NULL;
+        if (object->type == SC2_OBJECT_UNIT) {
+            LPCSTR actor_id = sc2_catalog_unit_actor(catalog, object->name);
+            if (actor_id) model_id = sc2_catalog_actor_model(catalog, actor_id);
+        }
+        if (!model_id) model_id = sc2_catalog_actor_model(catalog, object->name);
         if (!model_id) model_id = object->name;
         path[0] = '\0';
         if (sc2_catalog_model_path(catalog, model_id, path, sizeof(path))) {

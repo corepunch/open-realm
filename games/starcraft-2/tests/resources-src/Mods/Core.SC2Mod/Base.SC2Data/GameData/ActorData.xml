@@ -10,7 +10,7 @@
         <RandomScaleRange value="1.000000,1.000000"/>
         <EditorFlags index="NoAutoRotate" value="1"/>
     </CActorDoodad>
-    <CActorUnit id="Marine" unitName="Marine">
+    <CActorUnit id="MarineActor">
         <Model value="MarineCatalogModel"/>
         <DeathArray index="Normal" ModelLink="MarineDeath"/>
     </CActorUnit>
