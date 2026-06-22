@@ -2095,11 +2095,11 @@ BOOL UIWow_XMLMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
         return false;
     }
 
-    /* Fire OnClick on mouse-down (matches whoa-master: down=true) */
+    /* Play button click sound on mouse-down (action fires on mouse-up) */
     if (wow_xml.elems[hit].type == WOW_XML_BUTTON &&
         (wow_xml.elems[hit].flags & EF_ENABLED) && wow_ui.lua &&
-        UIWow_ElemStr(&wow_xml.elems[hit], ELEM_ON_CLICK)) {
-        UIWow_XMLRunFrameScript(hit, wow_xml.elems[hit].texts[ELEM_ON_CLICK], "OnClick");
+        UIWow_ElemStr(&wow_xml.elems[hit], ELEM_ON_CLICK) && uiimport.PlaySound) {
+        uiimport.PlaySound(624); /* GAMEGENERICBUTTONPRESS */
     }
 
     /* Scrollbar part interaction. */
