@@ -152,6 +152,16 @@ static int CL_UI_ReadFile(LPCSTR fileName, void **buf) {
     return FS_ReadFileQ3(fileName, buf);
 }
 
+/* Write a local file by path (relative to CWD, same as share/ configs). */
+static void CL_UI_WriteFile(LPCSTR path, const void *data, int size) {
+    FILE *f;
+    if (!path || !data || size <= 0) return;
+    f = fopen(path, "wb");
+    if (!f) return;
+    fwrite(data, 1, (size_t)size, f);
+    fclose(f);
+}
+
 static BOOL CL_UI_HasExtension(LPCSTR name, LPCSTR extension) {
     LPCSTR dot;
 
@@ -600,6 +610,7 @@ void CL_Init(void) {
         .FS_ReadFile = CL_UI_ReadFile,
         .FS_FreeFile = FS_FreeFile,
         .FS_GetFileList = CL_UI_GetFileList,
+        .FS_WriteFile = CL_UI_WriteFile,
         .MemAlloc = MemAlloc,
         .MemFree = MemFree,
         .ImageIndex = CL_ImageIndex,
