@@ -93,7 +93,7 @@ static void Matrix4_fromViewQuat(LPCVECTOR3 target, LPCQUATERNION quat, FLOAT di
     Matrix4_translate(output, &vieworg);
 }
 
-static void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, LPCVECTOR3 target, float scale, LPMATRIX4 output) {
+static void Matrix4_getWorldShadowMatrix(LPCVECTOR3 sunangles, LPCVECTOR3 target, float scale, LPMATRIX4 output) {
     MATRIX4 proj, view;
     Matrix4_ortho(&proj, -scale, scale, -scale, scale, 100.0, 3500.0);
     Matrix4_fromViewAngles(target, sunangles, 1000, &view);
@@ -127,7 +127,7 @@ static void BuildMapCamera(refExport_t const *re, viewDef_t *viewdef) {
     Matrix4_perspective(&proj, camera.fov, aspect, 100.0f, 5000.0f);
     Matrix4_fromViewQuat(&target, &quat, camera.target_distance, &view);
     Matrix4_multiply(&proj, &view, &viewdef->viewProjectionMatrix);
-    Matrix4_getLightMatrix(&(VECTOR3){ -40, 0, 60 }, &target, radius, &viewdef->lightMatrix);
+    Matrix4_getWorldShadowMatrix(&(VECTOR3){ -40, 0, 60 }, &target, radius, &viewdef->lightMatrix);
 }
 
 int main(int argc, char **argv) {

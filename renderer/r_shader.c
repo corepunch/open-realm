@@ -6,9 +6,7 @@ LPCSTR vs_default =
 "in vec2 i_texcoord;\n"
 "in vec3 i_normal;\n"
 "in vec4 i_color;\n"
-#ifdef USE_SHADOWMAPS
 "out vec4 v_shadow;\n"
-#endif
 "out vec2 v_texcoord;\n"
 "out vec2 v_texcoord2;\n"
 "out vec3 v_normal;\n"
@@ -24,9 +22,7 @@ LPCSTR vs_default =
 "    v_texcoord = i_texcoord;\n"
 "    v_texcoord2 = (uTextureMatrix * pos).xy;\n"
 "    v_normal = normalize(uNormalMatrix * i_normal);\n"
-#ifdef USE_SHADOWMAPS
 "    v_shadow = uLightMatrix * pos;\n"
-#endif
 "    v_color = i_color;\n"
 "    v_lightDir = -normalize(vec3(uLightMatrix[0][2], uLightMatrix[1][2], uLightMatrix[2][2]))*1.2;\n"
 "    gl_Position = uViewProjectionMatrix * uModelMatrix * vec4(i_position, 1.0);\n"
@@ -36,33 +32,26 @@ LPCSTR fs_default =
 "#version 140\n"
 "in vec2 v_texcoord;\n"
 "in vec2 v_texcoord2;\n"
-#ifdef USE_SHADOWMAPS
 "in vec4 v_shadow;\n"
-#endif
 "in vec3 v_normal;\n"
 "in vec4 v_color;\n"
 "in vec3 v_lightDir;\n"
 "out vec4 o_color;\n"
 "uniform sampler2D uTexture;\n"
-#if defined(USE_SHADOWMAPS) || defined(DEBUG_PATHFINDING)
 "uniform sampler2D uShadowmap;\n"
-#endif
+"uniform sampler2D uTerrainShadow;\n"
 "uniform sampler2D uFogOfWar;\n"
 "float get_light() {\n"
 "    return dot(v_normal, v_lightDir);\n"
 "}\n"
-#ifdef USE_SHADOWMAPS
 "float get_shadow() {\n"
 "    float depth = texture(uShadowmap, vec2(v_shadow.x + 1.0, v_shadow.y + 1.0) * 0.5).r;\n"
-"    return depth < (v_shadow.z + 0.99) * 0.5 ? 0.0 : 1.0;\n"
+"    float depth_shadow = depth < (v_shadow.z + 0.99) * 0.5 ? 0.0 : 1.0;\n"
+"    float terrain_shadow = texture(uTerrainShadow, v_texcoord2).r;\n"
+"    return min(depth_shadow, 1.0 - terrain_shadow);\n"
 "}\n"
-#endif
 "float get_lighting() {\n"
-#ifdef USE_SHADOWMAPS
 "    return min(1.0, mix(0.35, 1.0, get_shadow() * get_light()) * 1.1);"
-#else
-"    return min(1.0, mix(0.35, 1.0, get_light()) * 1.1);"
-#endif
 "}\n"
 "float get_fogofwar() {\n"
 "    return texture(uFogOfWar, v_texcoord2).r;\n"
@@ -112,20 +101,6 @@ LPCSTR fs_splat =
 "void main() {\n"
 "    o_color = texture(uTexture, v_texcoord) * v_color;\n"
 "    o_color.a *= crop_edges(v_texcoord);\n"
-"}\n";
-
-LPCSTR fs_shadow_splat =
-"#version 140\n"
-"in vec4 v_color;\n"
-"in vec2 v_texcoord;\n"
-"out vec4 o_color;\n"
-"uniform sampler2D uTexture;\n"
-"float crop_edges(vec2 tc) {\n"
-"   return step(abs(tc.x - 0.5), 0.5) * step(abs(tc.y - 0.5), 0.5);\n"
-"}\n"
-"void main() {\n"
-"    vec4 tex = texture(uTexture, v_texcoord);\n"
-"    o_color = vec4(0.0, 0.0, 0.0, tex.a * v_color.a * crop_edges(v_texcoord));\n"
 "}\n";
 
 LPCSTR fs_commandbutton =
@@ -236,9 +211,7 @@ LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
     R_RegisterUniform(program, uNormalMatrix);
     R_RegisterUniform(program, uTextureMatrix);
     R_RegisterUniform(program, uTexture);
-#if defined(USE_SHADOWMAPS) || defined(DEBUG_PATHFINDING)
     R_RegisterUniform(program, uShadowmap);
-#endif
     R_RegisterUniform(program, uFogOfWar);
     R_RegisterUniform(program, uBones);
     R_RegisterUniform(program, uUseDiscard);
@@ -256,10 +229,9 @@ LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
     R_RegisterUniform(program, uActiveGlow);
     
     R_Call(glUniform1i, program->uTexture, 0);
-#if defined(USE_SHADOWMAPS) || defined(DEBUG_PATHFINDING)
     R_Call(glUniform1i, program->uShadowmap, 1);
-#endif
     R_Call(glUniform1i, program->uFogOfWar, 2);
+    R_Call(glUniform1i, program->uTerrainShadow, 3);
 
     return program;
 }

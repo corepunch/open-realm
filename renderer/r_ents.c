@@ -199,58 +199,7 @@ DWORD R_EntitiesInRect(viewDef_t const *viewdef, LPCRECT rect, DWORD max, LPDWOR
     return count;
 }
 
-#ifdef USE_SHADOWMAPS
-extern bool is_rendering_lights;
-#endif
 DWORD selCircles[NUM_SELECTION_CIRCLES] = { 100, 300, 100000 };
-
-static void R_RenderUberSplat(const renderEntity_t *entity, LPCVECTOR2 origin) {
-    if (entity->splat && !(entity->flags & RF_NO_UBERSPLAT)) {
-        R_RenderSplat(origin, entity->splatsize, entity->splat, tr.shader[SHADER_DEFAULT], COLOR32_WHITE);
-    }
-}
-
-static void R_RenderShadow(const renderEntity_t *entity, LPCVECTOR2 origin) {
-    LPCTEXTURE shadow = entity->shadow;
-    BOX3 bounds;
-
-    if (R_GameRenderShadow(entity, origin)) {
-        return;
-    }
-    if (!shadow || (entity->flags & RF_NO_SHADOW) || !tr.world) {
-        return;
-    }
-
-    VECTOR2 mins;
-    VECTOR2 maxs;
-    if (entity->shadow_w > 0 && entity->shadow_h > 0) {
-        mins.x = origin->x - entity->shadow_x;
-        mins.y = origin->y - entity->shadow_y;
-        maxs.x = mins.x + entity->shadow_w;
-        maxs.y = mins.y + entity->shadow_h;
-    } else {
-        int pivot_x = (int)(shadow->width * 0.3f + 0.5f);
-        int pivot_y = (int)(shadow->height * 0.7f + 0.5f);
-        float width = shadow->width * 32.0f;
-        float height = shadow->height * 32.0f;
-        mins.x = origin->x - pivot_x * 32.0f;
-        mins.y = origin->y - (shadow->height - pivot_y) * 32.0f;
-        maxs.x = mins.x + width;
-        maxs.y = mins.y + height;
-    }
-
-    COLOR32 shadowColor = {0, 0, 0, 128};
-    if (!(tr.viewDef.rdflags & RDF_NOFRUSTUMCULL)) {
-        bounds = (BOX3){
-            .min = { mins.x, mins.y, entity->origin.z - 32.0f },
-            .max = { maxs.x, maxs.y, entity->origin.z + 32.0f },
-        };
-        if (!Frustum_ContainsAABox(&tr.viewDef.frustum, &bounds)) {
-            return;
-        }
-    }
-    R_RenderRectSplat(&mins, &maxs, shadow, tr.shader[SHADER_SHADOWSPLAT], shadowColor);
-}
 
 static void R_RenderSelectedCircle(const renderEntity_t *entity, LPCVECTOR2 origin) {
     if (entity->flags & RF_SELECTED) {
@@ -269,26 +218,13 @@ void R_RenderModel(renderEntity_t const *entity) {
     if ((entity->flags & RF_HIDDEN) || !entity->model)
         return;
     
-#ifdef USE_SHADOWMAPS
-    if (is_rendering_lights && (entity->flags & RF_NO_SHADOW))
+    if (R_IsShadowPass() && (entity->flags & RF_NO_SHADOW))
         return;
-#endif
 
-#ifdef USE_SHADOWMAPS
-    if (!is_rendering_lights)
-#endif
-        R_RenderUberSplat(entity, (LPCVECTOR2)&entity->origin);
-#ifdef USE_SHADOWMAPS
-    if (!is_rendering_lights)
-#endif
-        R_RenderShadow(entity, (LPCVECTOR2)&entity->origin);
-    
     R_GameRenderModel(entity);
     
-#ifdef USE_SHADOWMAPS
-    if (is_rendering_lights)
+    if (R_IsShadowPass())
         return;
-#endif
 
     R_RenderSelectedCircle(entity, (LPCVECTOR2)&entity->origin);
 }

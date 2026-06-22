@@ -161,7 +161,7 @@ static void Matrix4_getSc2CameraMatrix(LPCVECTOR3 origin,
 }
 #endif
 
-void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, FLOAT scale, LPMATRIX4 output) {
+void Matrix4_getWorldShadowMatrix(LPCVECTOR3 sunangles, FLOAT scale, LPMATRIX4 output) {
     MATRIX4 proj, view, tmp1, tmp2;
     viewCamera_t const *a = cl.viewDef.camerastate+1;
     viewCamera_t const *b = cl.viewDef.camerastate+0;
@@ -187,7 +187,7 @@ static void Matrix4_getPreviewCameraMatrix(LPCVECTOR3 target, LPMATRIX4 output) 
     Matrix4_multiply(&proj, &view, output);
 }
 
-static void Matrix4_getPreviewLightMatrix(LPCVECTOR3 sunangles, LPCVECTOR3 target, float scale, LPMATRIX4 output) {
+static void Matrix4_getPreviewShadowMatrix(LPCVECTOR3 sunangles, LPCVECTOR3 target, float scale, LPMATRIX4 output) {
     MATRIX4 proj, view;
     Matrix4_ortho(&proj, -scale, scale, -scale, scale, -1000.0, 3000.0);
     Matrix4_fromViewAngles(target, sunangles, 1000, &view);
@@ -297,11 +297,6 @@ static void V_AddClientEntity(centity_t const *ent) {
     re.number = ent->current.number;
     re.splat = cl.pics[ent->current.splat & 0xffff];
     re.splatsize = ent->current.splat >> 16;
-    re.shadow = cl.pics[ent->current.shadow];
-    ShadowUnpackRect(ent->current.shadow_rect, &re.shadow_x, &re.shadow_y, &re.shadow_w, &re.shadow_h);
-    if (!Cvar_Integer("r_unit_shadows", 1)) {
-        re.flags |= RF_NO_SHADOW;
-    }
 #ifdef WOW
     if (ent->current.model2 > 0 &&
         ent->current.model2 < MAX_MODELS &&
@@ -728,7 +723,7 @@ void V_RenderView(void) {
 
         V_ClearScene();
         Matrix4_getPreviewCameraMatrix(&target, &cl.viewDef.viewProjectionMatrix);
-        Matrix4_getPreviewLightMatrix(&lightAngles, &target, VIEW_SHADOW_SIZE, &cl.viewDef.lightMatrix);
+        Matrix4_getPreviewShadowMatrix(&lightAngles, &target, VIEW_SHADOW_SIZE, &cl.viewDef.lightMatrix);
         Matrix4_identity(&cl.viewDef.textureMatrix);
 
         re.RenderFrame(&cl.viewDef);
@@ -750,7 +745,7 @@ void V_RenderView(void) {
     cl.viewDef.player = cl.playerstate.number;
     
     Matrix4_getCameraMatrix(&cl.viewDef.viewProjectionMatrix);
-    Matrix4_getLightMatrix(&lightAngles, VIEW_SHADOW_SIZE, &cl.viewDef.lightMatrix);
+    Matrix4_getWorldShadowMatrix(&lightAngles, VIEW_SHADOW_SIZE, &cl.viewDef.lightMatrix);
 
     V_ClearScene();
     CL_AddEntities();

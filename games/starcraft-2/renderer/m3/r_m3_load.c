@@ -47,9 +47,7 @@ static LPCSTR m3_vs =
 "in vec4 i_skin1;\n"
 "in vec4 i_boneWeight1;\n"
 "out vec4 v_color;\n"
-#ifdef USE_SHADOWMAPS
 "out vec4 v_shadow;\n"
-#endif
 "out vec2 v_texcoord;\n"
 "out vec2 v_texcoord2;\n"
 "out vec3 v_normal;\n"
@@ -92,9 +90,7 @@ static LPCSTR m3_vs =
 "    v_texcoord2 = (uTextureMatrix * uModelMatrix * position).xy;\n"
 "    v_normal = normalize(worldNormal);\n"
 "    v_light = vertex_lighting(worldNormal);\n"
-#ifdef USE_SHADOWMAPS
 "    v_shadow = uLightMatrix * uModelMatrix * position;\n"
-#endif
 "    v_fragCoord = uViewProjectionMatrix * uModelMatrix * position;\n"
 "    gl_Position = v_fragCoord;\n"
 "}\n";
@@ -105,9 +101,7 @@ static LPCSTR m3_fs =
 "in vec2 v_texcoord;\n"
 "in vec2 v_texcoord2;\n"
 "in vec4 v_color;\n"
-#ifdef USE_SHADOWMAPS
 "in vec4 v_shadow;\n"
-#endif
 "in vec3 v_normal;\n"
 "in vec3 v_light;\n"
 //"in vec4 v_fragCoord;\n"
@@ -119,9 +113,8 @@ static LPCSTR m3_fs =
 "uniform sampler2D uAlphaMaskMap;\n"
 
 "uniform sampler2D uTexture;\n"
-#ifdef USE_SHADOWMAPS
 "uniform sampler2D uShadowmap;\n"
-#endif
+"uniform sampler2D uTerrainShadow;\n"
 "uniform sampler2D uFogOfWar;\n"
 "uniform vec4 uMaterialColor;\n"
 "uniform float uAlphaCutoff;\n"
@@ -137,12 +130,10 @@ static LPCSTR m3_fs =
 "    return color * bumpColor.rgb;\n"
 "}\n"
 
-#ifdef USE_SHADOWMAPS
 "float get_shadow() {\n"
 "    float depth = texture(uShadowmap, vec2(v_shadow.x + 1.0, v_shadow.y + 1.0) * 0.5).r;\n"
 "    return depth < (v_shadow.z + 0.99) * 0.5 ? 0.0 : 1.0;\n"
 "}\n"
-#endif
 
 "float get_fogofwar() {\n"
 "    return texture(uFogOfWar, v_texcoord2).r;\n"
@@ -178,10 +169,6 @@ static MATRIX4 bonemats[M3_MAX_NODES];
 static MATRIX4 tmp[M3_MAX_NODES];
 
 m3Model_t *currentmodel;
-
-#ifdef USE_SHADOWMAPS
-extern bool is_rendering_lights;
-#endif
 
 static struct {
     LPSHADER shader;
@@ -717,46 +704,36 @@ static BOOL M3_SetMaterialBlendMode(m3Material_t const *material) {
             R_Call(glDepthMask, GL_TRUE);
             break;
         case BLEND_MODE_BLEND:
-#ifdef USE_SHADOWMAPS
-            if (is_rendering_lights)
+            if (R_IsShadowPass())
                 return false;
-#endif
             R_Call(glEnable, GL_BLEND);
             R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             R_Call(glDepthMask, GL_FALSE);
             break;
         case BLEND_MODE_ADD:
-#ifdef USE_SHADOWMAPS
-            if (is_rendering_lights)
+            if (R_IsShadowPass())
                 return false;
-#endif
             R_Call(glEnable, GL_BLEND);
             R_Call(glBlendFunc, GL_ONE, GL_ONE);
             R_Call(glDepthMask, GL_FALSE);
             break;
         case BLEND_MODE_ADDALPHA:
-#ifdef USE_SHADOWMAPS
-            if (is_rendering_lights)
+            if (R_IsShadowPass())
                 return false;
-#endif
             R_Call(glEnable, GL_BLEND);
             R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE);
             R_Call(glDepthMask, GL_FALSE);
             break;
         case BLEND_MODE_MODULATE:
-#ifdef USE_SHADOWMAPS
-            if (is_rendering_lights)
+            if (R_IsShadowPass())
                 return false;
-#endif
             R_Call(glEnable, GL_BLEND);
             R_Call(glBlendFunc, GL_DST_COLOR, GL_ZERO);
             R_Call(glDepthMask, GL_FALSE);
             break;
         case BLEND_MODE_MODULATE_2X:
-#ifdef USE_SHADOWMAPS
-            if (is_rendering_lights)
+            if (R_IsShadowPass())
                 return false;
-#endif
             R_Call(glEnable, GL_BLEND);
             R_Call(glBlendFunc, GL_DST_COLOR, GL_SRC_COLOR);
             R_Call(glDepthMask, GL_FALSE);
@@ -997,16 +974,7 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_TRUE);
     R_Call(glUseProgram, m3.shader->progid);
-#ifdef USE_SHADOWMAPS
-    extern bool is_rendering_lights;
-    if (is_rendering_lights) {
-        R_Call(glUniformMatrix4fv, m3.shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
-    } else {
-        R_Call(glUniformMatrix4fv, m3.shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
-    }
-#else
-    R_Call(glUniformMatrix4fv, m3.shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
-#endif
+    R_Call(glUniformMatrix4fv, m3.shader->uViewProjectionMatrix, 1, GL_FALSE, R_ViewProjectionForPass()->v);
     R_Call(glUniformMatrix4fv, m3.shader->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
     R_Call(glUniformMatrix4fv, m3.shader->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
     R_Call(glUniformMatrix4fv, m3.shader->uModelMatrix, 1, GL_FALSE, mScaledMatrix.v);

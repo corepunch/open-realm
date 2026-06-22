@@ -38,10 +38,14 @@
 #endif
 
 #define R_Call(func, ...) func(__VA_ARGS__); GetError();
-#ifdef USE_SHADOWMAPS
+
 #define SHADOW_TEXSIZE 1024
 #define SHADOW_SCALE 1500
-#endif
+
+typedef enum {
+    R_PASS_COLOR,
+    R_PASS_SHADOW,
+} renderPass_t;
 #define MAX_TEAMS 16
 #define TEAM_MASK (MAX_TEAMS - 1)
 #define PORTRAIT_SHADOW_SIZE 50
@@ -94,9 +98,8 @@ struct shader_program {
     DWORD uNormalMatrix;
     DWORD uTextureMatrix;
     DWORD uTexture;
-#if defined(USE_SHADOWMAPS) || defined(DEBUG_PATHFINDING)
     DWORD uShadowmap;
-#endif
+    DWORD uTerrainShadow;
     DWORD uFogOfWar;
     DWORD uBones;
     DWORD uUseDiscard;
@@ -135,14 +138,11 @@ typedef enum {
 } MODELKEYTRACKDATATYPE;
 
 enum {
-#ifdef USE_SHADOWMAPS
     TEX_SHADOWMAP,
-#endif
     TEX_WATER,
     TEX_FONT,
     TEX_WHITE,
     TEX_BLACK,
-    TEX_BLOB_SHADOW,
     TEX_LOADING_INDICATOR,
     TEX_TERRAIN_SHADOW,
     TEX_TEAM_GLOW,
@@ -152,9 +152,7 @@ enum {
 };
 
 enum {
-#ifdef USE_SHADOWMAPS
     RT_DEPTHMAP,
-#endif
     RT_COUNT,
 };
 
@@ -185,7 +183,16 @@ struct render_globals {
     sheetRow_t *sheet[SHEET_COUNT];
     size2_t drawableSize;
     LPTEXTURE minimap;
+    renderPass_t pass;
 };
+
+extern struct render_globals tr;
+
+static inline LPCMATRIX4 R_ViewProjectionForPass(void) {
+    return tr.pass == R_PASS_SHADOW ? &tr.viewDef.lightMatrix : &tr.viewDef.viewProjectionMatrix;
+}
+
+static inline BOOL R_IsShadowPass(void) { return tr.pass == R_PASS_SHADOW; }
 
 void R_RegisterMap(LPCSTR mapFileName);
 int R_RegisterTextureFile(LPCSTR textureFileName);
@@ -219,9 +226,7 @@ LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default);
 void R_ReleaseShader(LPSHADER shader);
 
 // r_main.c
-#ifdef USE_SHADOWMAPS
 void R_RenderShadowMap(void);
-#endif
 void R_RenderView(void);
 
 // r_ents.c
@@ -285,7 +290,5 @@ void R_InitParticles(void);
 void R_ShutdownParticles(void);
 void R_DrawParticles(void);
 cparticle_t *R_SpawnParticle(void);
-
-extern struct render_globals tr;
 
 #endif

@@ -13,9 +13,6 @@ struct render_globals tr;
 SDL_Window *window;
 SDL_GLContext context;
 
-#ifdef USE_SHADOWMAPS
-bool is_rendering_lights = false;
-#endif
 static bool renderer_shutdown = false;
 
 LPTEXTURE R_LoadTextureBLP1(HANDLE data, DWORD filesize);
@@ -135,26 +132,6 @@ LPTEXTURE R_MakeLoadingIndicatorTexture(void) {
     return texture;
 }
 
-static LPTEXTURE R_MakeBlobShadowTexture(void) {
-    enum { TEXTURE_SIZE = 64 };
-    COLOR32 pixels[TEXTURE_SIZE * TEXTURE_SIZE];
-    LPTEXTURE texture = R_AllocateTexture(TEXTURE_SIZE, TEXTURE_SIZE);
-
-    FOR_LOOP(y, TEXTURE_SIZE) {
-        FOR_LOOP(x, TEXTURE_SIZE) {
-            FLOAT const fx = ((FLOAT)x + 0.5f) / (FLOAT)TEXTURE_SIZE * 2.0f - 1.0f;
-            FLOAT const fy = ((FLOAT)y + 0.5f) / (FLOAT)TEXTURE_SIZE * 2.0f - 1.0f;
-            FLOAT const distance = sqrtf(fx * fx + fy * fy);
-            FLOAT const alpha = 1.0f - R_SmoothStep(0.25f, 1.0f, distance);
-
-            pixels[y * TEXTURE_SIZE + x] = MAKE(COLOR32, 255, 255, 255, (BYTE)(alpha * 255.0f));
-        }
-    }
-
-    R_LoadTextureMipLevel(texture, 0, pixels, TEXTURE_SIZE, TEXTURE_SIZE);
-    return texture;
-}
-
 LPTEXTURE R_LoadTexture(LPCSTR textureFilename) {
     LPTEXTURE texture = NULL;
     void *buffer = NULL;
@@ -263,11 +240,7 @@ static void R_SetupGL(bool drawLight) {
     R_Call(glEnable, GL_CULL_FACE);
     R_Call(glCullFace, GL_BACK);
     
-    GLfloat const *viewProjectionMatrix =
-#ifdef USE_SHADOWMAPS
-        drawLight ? tr.viewDef.lightMatrix.v :
-#endif
-        tr.viewDef.viewProjectionMatrix.v;
+    GLfloat const *viewProjectionMatrix = R_ViewProjectionForPass()->v;
 
     R_Call(glUseProgram, tr.shader[SHADER_DEFAULT]->progid);
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uViewProjectionMatrix, 1, GL_FALSE, viewProjectionMatrix);
@@ -285,7 +258,6 @@ static void R_SetupGL(bool drawLight) {
     R_Call(glDepthMask, GL_TRUE);
     R_Call(glDepthFunc, GL_LEQUAL);
 
-#ifdef USE_SHADOWMAPS
     if (drawLight) {
         R_Call(glViewport, 0, 0, SHADOW_TEXSIZE, SHADOW_TEXSIZE);
         R_Call(glScissor, 0, 0, SHADOW_TEXSIZE, SHADOW_TEXSIZE);
@@ -297,10 +269,6 @@ static void R_SetupGL(bool drawLight) {
         R_Call(glActiveTexture, GL_TEXTURE1);
         R_Call(glBindTexture, GL_TEXTURE_2D, tr.rt[RT_DEPTHMAP]->texture);
     }
-#else
-    (void)drawLight;
-    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, 0);
-#endif
 }
 
 static LPCSTR R_GLString(GLenum name) {
@@ -408,7 +376,6 @@ void R_Init(DWORD width, DWORD height) {
     extern LPCSTR fs_default;
     extern LPCSTR fs_ui;
     extern LPCSTR fs_splat;
-    extern LPCSTR fs_shadow_splat;
 //    extern LPCSTR fs_alphatest;
     extern LPCSTR fs_commandbutton;
     extern LPCSTR fs_minimap_fog;
@@ -418,7 +385,6 @@ void R_Init(DWORD width, DWORD height) {
     tr.shader[SHADER_DEFAULT] = R_InitShader(vs_default, fs_default);
     tr.shader[SHADER_UI] = R_InitShader(vs_default, fs_ui);
     tr.shader[SHADER_SPLAT] = R_InitShader(vs_default, fs_splat);
-    tr.shader[SHADER_SHADOWSPLAT] = R_InitShader(vs_default, fs_shadow_splat);
     tr.shader[SHADER_COMMANDBUTTON] = R_InitShader(vs_default, fs_commandbutton);
     tr.shader[SHADER_MINIMAP_FOG] = R_InitShader(vs_default, fs_minimap_fog);
     fprintf(stderr, "Loading shaders succeeded.\n");
@@ -426,12 +392,9 @@ void R_Init(DWORD width, DWORD height) {
     tr.buffer[RBUF_TEMP1] = R_MakeVertexArrayObject(NULL, 0);
     tr.texture[TEX_WHITE] = R_AllocateSinglePixelTexture(0xffffffff);
     tr.texture[TEX_BLACK] = R_AllocateSinglePixelTexture(0xff000000);
-    tr.texture[TEX_BLOB_SHADOW] = R_MakeBlobShadowTexture();
     tr.texture[TEX_LOADING_INDICATOR] = R_MakeLoadingIndicatorTexture();
     tr.texture[TEX_FONT] = R_MakeSysFontTexture();
-#ifdef USE_SHADOWMAPS
     tr.rt[RT_DEPTHMAP] = R_AllocateRenderTexture(SHADOW_TEXSIZE, SHADOW_TEXSIZE, GL_DEPTH_COMPONENT, GL_FLOAT, GL_DEPTH_ATTACHMENT);
-#endif
     R_Call(glDisable, GL_DEPTH_TEST);
     R_Call(glClearColor, 0.0, 0.0, 0.0, 1.0);
     R_Call(glViewport, 0, 0, tr.drawableSize.width, tr.drawableSize.height);
@@ -479,21 +442,16 @@ void R_RevertSettings(void) {
     R_SetupScissor(&(RECT){0,0,1,1});
 }
 
-#ifdef USE_SHADOWMAPS
 void R_RenderShadowMap(void) {
-    is_rendering_lights = true;
+    tr.pass = R_PASS_SHADOW;
     R_SetupGL(true);
     R_BindTexture(tr.texture[TEX_SHADOWMAP], 1);
     R_GameDrawWorld();
-    R_GameDrawTerrainShadows();
     R_DrawEntities();
 }
-#endif
 
 void R_RenderView(void) {
-#ifdef USE_SHADOWMAPS
-    is_rendering_lights = false;
-#endif
+    tr.pass = R_PASS_COLOR;
     R_SetupViewport(&tr.viewDef.viewport);
     R_SetupScissor(&tr.viewDef.scissor);
     R_SetupGL(false);
@@ -535,12 +493,10 @@ void R_RenderFrame(viewDef_t const *viewDef) {
     R_RenderFogOfWar();
     R_Call(glActiveTexture, GL_TEXTURE2);
     R_Call(glBindTexture, GL_TEXTURE_2D, R_GetFogOfWarTexture());
+    R_Call(glActiveTexture, GL_TEXTURE3);
+    R_Call(glBindTexture, GL_TEXTURE_2D, tr.texture[TEX_TERRAIN_SHADOW] ? tr.texture[TEX_TERRAIN_SHADOW]->texid : tr.texture[TEX_WHITE]->texid);
     R_Call(glActiveTexture, GL_TEXTURE0);
-#ifdef USE_SHADOWMAPS
-    if (!(tr.viewDef.rdflags & RDF_USE_ENTITY_CAMERA)) {
-        R_RenderShadowMap();
-    }
-#endif
+    R_RenderShadowMap();
     R_RenderView();
 }
 

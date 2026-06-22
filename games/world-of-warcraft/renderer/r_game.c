@@ -216,9 +216,7 @@ void R_GameRenderModel(renderEntity_t const *entity) {
     attachment_id = (tr.viewDef.rdflags & RDF_USE_ENTITY_CAMERA) ? 0 : 1;
     if (entity->attached_model &&
         entity->attached_model->modeltype == ID_MD20 &&
-#ifdef USE_SHADOWMAPS
-        !is_rendering_lights &&
-#endif
+        !R_IsShadowPass() &&
         M2_AttachmentMatrix(entity->model->m2, attachment_id, &transform, &attached_transform)) {
         if (tr.viewDef.rdflags & RDF_USE_ENTITY_CAMERA) {
             Matrix4_rotate(&attached_transform,
@@ -277,63 +275,6 @@ bool R_GameTraceModel(renderEntity_t const *entity, LPCLINE3 line, LPFLOAT dista
     }
     if (distance) {
         *distance = t;
-    }
-    return true;
-}
-
-bool R_GameRenderShadow(renderEntity_t const *entity, LPCVECTOR2 origin) {
-    LPCTEXTURE shadow;
-    BOOL use_fast_blob;
-    float shadow_z;
-    VECTOR2 mins;
-    VECTOR2 maxs;
-    BOX3 bounds;
-    COLOR32 shadowColor = {0, 0, 0, 128};
-
-    if (!entity || (entity->flags & RF_NO_SHADOW)) {
-        return true;
-    }
-
-    shadow = entity->shadow ? entity->shadow : tr.texture[TEX_BLOB_SHADOW];
-    if (!shadow) {
-        return true;
-    }
-
-    shadow_z = entity->origin.z + WOW_SPLAT_Z_BIAS;
-    use_fast_blob = shadow == tr.texture[TEX_BLOB_SHADOW] &&
-                    entity->shadow_w <= 0 &&
-                    entity->shadow_h <= 0;
-
-    if (entity->shadow_w > 0 && entity->shadow_h > 0) {
-        mins.x = origin->x - entity->shadow_x;
-        mins.y = origin->y - entity->shadow_y;
-        maxs.x = mins.x + entity->shadow_w;
-        maxs.y = mins.y + entity->shadow_h;
-    } else {
-        float radius = MAX(entity->radius * MAX(entity->scale, 1.0f), 1.0f);
-        float width = MAX(radius * 2.4f, 2.0f);
-        float height = MAX(radius * 1.6f, 1.5f);
-        mins.x = origin->x - width * 0.5f;
-        mins.y = origin->y - height * 0.5f;
-        maxs.x = mins.x + width;
-        maxs.y = mins.y + height;
-    }
-
-    if (use_fast_blob) {
-        shadow_z = R_GameGetHeightAtPoint(origin->x, origin->y) + WOW_SPLAT_Z_BIAS;
-    }
-    bounds = (BOX3){
-        .min = { mins.x, mins.y, shadow_z - 16.0f },
-        .max = { maxs.x, maxs.y, shadow_z + 16.0f },
-    };
-    if (!(tr.viewDef.rdflags & RDF_NOFRUSTUMCULL) &&
-        !Frustum_ContainsAABox(&tr.viewDef.frustum, &bounds)) {
-        return true;
-    }
-    if (use_fast_blob) {
-        R_RenderFlatRectSplat(&mins, &maxs, shadow_z, shadow, tr.shader[SHADER_SHADOWSPLAT], shadowColor);
-    } else {
-        R_RenderRectSplat(&mins, &maxs, shadow, tr.shader[SHADER_SHADOWSPLAT], shadowColor);
     }
     return true;
 }

@@ -22,7 +22,6 @@ typedef enum {
     SHADER_DEFAULT,
     SHADER_UI,
     SHADER_SPLAT,
-    SHADER_SHADOWSPLAT,
     SHADER_COMMANDBUTTON,
     SHADER_MINIMAP_FOG,
     SHADER_COUNT,
@@ -99,7 +98,6 @@ typedef struct {
     LPCMODEL attached_model;
     LPCTEXTURE skin;
     LPCTEXTURE splat;
-    LPCTEXTURE shadow;
     DWORD number;
     DWORD team;
 #ifdef WOW
@@ -114,10 +112,6 @@ typedef struct {
     float scale;
     float radius;
     float splatsize;
-    float shadow_x;
-    float shadow_y;
-    float shadow_w;
-    float shadow_h;
 } renderEntity_t;
 
 typedef struct {

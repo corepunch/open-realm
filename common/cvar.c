@@ -433,7 +433,6 @@ void Cvar_Init(void) {
     Cvar_Get("r_texture_quality", "2", CVAR_ARCHIVE);
     Cvar_Get("r_particles", "2", CVAR_ARCHIVE);
     Cvar_Get("r_lights", "2", CVAR_ARCHIVE);
-    Cvar_Get("r_unit_shadows", "1", CVAR_ARCHIVE);
     Cvar_Get("r_occlusion", "1", CVAR_ARCHIVE);
     Cvar_Get("ui_chat_support", "0", CVAR_ARCHIVE);
     Cvar_Get("s_provider", "1", CVAR_ARCHIVE);

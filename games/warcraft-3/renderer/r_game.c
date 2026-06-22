@@ -204,12 +204,6 @@ bool R_GameEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
     return false;
 }
 
-bool R_GameRenderShadow(renderEntity_t const *entity, LPCVECTOR2 origin) {
-    (void)entity;
-    (void)origin;
-    return false;
-}
-
 static void R_GameTextureCacheAdd(LPCSTR path) {
     if (!path || !*path || model_texture_cache.count >= 256) {
         return;

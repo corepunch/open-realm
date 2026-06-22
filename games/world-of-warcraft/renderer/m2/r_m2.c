@@ -411,9 +411,7 @@ static LPCSTR m2_vs =
 "in vec4 i_color;\n"
 "in vec4 i_skin1;\n"
 "in vec4 i_boneWeight1;\n"
-#ifdef USE_SHADOWMAPS
 "out vec4 v_shadow;\n"
-#endif
 "out vec2 v_texcoord;\n"
 "out vec2 v_texcoord2;\n"
 "out float v_light;\n"
@@ -450,9 +448,7 @@ static LPCSTR m2_vs =
 "    vec3 normal = normalize(uNormalMatrix * skin_normal(vec4(i_normal, 0.0)));\n"
 "    vec3 lightDir = -normalize(vec3(uLightMatrix[0][2], uLightMatrix[1][2], uLightMatrix[2][2]))*1.2;\n"
 "    v_light = clamp(dot(normal, lightDir), 0.0, 1.0);\n"
-#ifdef USE_SHADOWMAPS
 "    v_shadow = uLightMatrix * pos;\n"
-#endif
 "    v_color = i_color;\n"
 "    gl_Position = uViewProjectionMatrix * pos;\n"
 "}\n";
@@ -461,29 +457,22 @@ static LPCSTR m2_fs =
 "#version 140\n"
 "in vec2 v_texcoord;\n"
 "in vec2 v_texcoord2;\n"
-#ifdef USE_SHADOWMAPS
 "in vec4 v_shadow;\n"
-#endif
 "in float v_light;\n"
 "in vec4 v_color;\n"
 "out vec4 o_color;\n"
 "uniform sampler2D uTexture;\n"
-#if defined(USE_SHADOWMAPS) || defined(DEBUG_PATHFINDING)
 "uniform sampler2D uShadowmap;\n"
-#endif
+"uniform sampler2D uTerrainShadow;\n"
 "uniform sampler2D uFogOfWar;\n"
-#ifdef USE_SHADOWMAPS
 "float get_shadow() {\n"
 "    float depth = texture(uShadowmap, vec2(v_shadow.x + 1.0, v_shadow.y + 1.0) * 0.5).r;\n"
-"    return depth < (v_shadow.z + 0.99) * 0.5 ? 0.0 : 1.0;\n"
+"    float depth_shadow = depth < (v_shadow.z + 0.99) * 0.5 ? 0.0 : 1.0;\n"
+"    float terrain_shadow = texture(uTerrainShadow, v_texcoord2).r;\n"
+"    return min(depth_shadow, 1.0 - terrain_shadow);\n"
 "}\n"
-#endif
 "float get_lighting() {\n"
-#ifdef USE_SHADOWMAPS
 "    return mix(0.5, 1.0, get_shadow() * v_light);"
-#else
-"    return mix(0.5, 1.0, v_light);"
-#endif
 "}\n"
 "float get_fogofwar() {\n"
 "    return texture(uFogOfWar, v_texcoord2).r;\n"
@@ -2918,9 +2907,7 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
         texture = M2_CharacterTextureForBatch(model, entity, batch, outfit);
         M2_UploadBatchBones(model, batch, shader);
         R_BindTexture(texture ? texture : tr.texture[TEX_WHITE], 0);
-#ifdef USE_SHADOWMAPS
         R_BindTexture(tr.texture[TEX_SHADOWMAP], 1);
-#endif
         R_BindTexture(tr.texture[TEX_WHITE], 2);
         R_DrawBuffer(batch->buffer, batch->num_vertices);
     }

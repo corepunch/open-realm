@@ -25,9 +25,7 @@ static LPCSTR mdx_vs =
 "in vec4 i_skin2;\n"
 #endif
 "out vec4 v_color;\n"
-#ifdef USE_SHADOWMAPS
 "out vec4 v_shadow;\n"
-#endif
 "out vec2 v_texcoord;\n"
 "out vec2 v_texcoord2;\n"
 "out vec3 v_lighting;\n"
@@ -96,9 +94,7 @@ static LPCSTR mdx_vs =
 "    vec3 worldNormal = normalize(uNormalMatrix * normal.xyz);\n"
 "    vec3 worldPosition = (uModelMatrix * position).xyz;\n"
 "    v_lighting = get_vertex_lighting(worldNormal, worldPosition);\n"
-#ifdef USE_SHADOWMAPS
 "    v_shadow = uLightMatrix * uModelMatrix * position;\n"
-#endif
 "    gl_Position = uViewProjectionMatrix * uModelMatrix * position;\n"
 "}\n";
 
@@ -106,15 +102,12 @@ static LPCSTR mdx_fs =
 "#version 140\n"
 "in vec2 v_texcoord;\n"
 "in vec2 v_texcoord2;\n"
-#ifdef USE_SHADOWMAPS
 "in vec4 v_shadow;\n"
-#endif
 "in vec3 v_lighting;\n"
 "out vec4 o_color;\n"
 "uniform sampler2D uTexture;\n"
-#ifdef USE_SHADOWMAPS
 "uniform sampler2D uShadowmap;\n"
-#endif
+"uniform sampler2D uTerrainShadow;\n"
 "uniform sampler2D uFogOfWar;\n"
 "uniform mat4 uLightMatrix;\n"
 "uniform bool uUseDiscard;\n"
@@ -141,7 +134,8 @@ static LPCSTR mdx_fs =
 "    col *= uGeosetColor;\n"
 "    col *= uLayerAlpha;\n"
 "    if (!uUnshaded) {\n"
-"        col.rgb *= get_fogofwar() * v_lighting;\n"
+"        float terrain_shadow = texture(uTerrainShadow, v_texcoord2).r;\n"
+"        col.rgb *= get_fogofwar() * v_lighting * (1.0 - terrain_shadow);\n"
 "    }\n"
 "    o_color = col;\n"
 "    if (o_color.a < 0.5 && uUseDiscard) discard;\n"
@@ -204,7 +198,7 @@ void Matrix4_fromViewAngles(LPCVECTOR3 target, LPCVECTOR3 angles, float distance
     Matrix4_translate(output, &vieworg);
 }
 
-void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, LPCVECTOR3 target, float scale, LPMATRIX4 output) {
+void Matrix4_getWorldShadowMatrix(LPCVECTOR3 sunangles, LPCVECTOR3 target, float scale, LPMATRIX4 output) {
     MATRIX4 proj, view;
     Matrix4_ortho(&proj, -scale, scale, -scale, scale, 100.0, 3500.0);
     Matrix4_fromViewAngles(target, sunangles, 1000, &view);
@@ -350,7 +344,7 @@ bool MDLX_ExtractCamera(mdxModel_t const *model, DWORD frame, float aspect, LPMA
     VECTOR3 lightAngles = { 10, 270, 0 };
     bool ok = R_GetModelCameraMatrix(model, frame, aspect, output, &root);
     if (ok && light) {
-        Matrix4_getLightMatrix(&lightAngles, &root, PORTRAIT_SHADOW_SIZE, light);
+        Matrix4_getWorldShadowMatrix(&lightAngles, &root, PORTRAIT_SHADOW_SIZE, light);
     }
     return ok;
 }
@@ -412,9 +406,7 @@ void MDLX_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
 
     tr.viewDef = viewdef;
 
-#ifdef USE_SHADOWMAPS
     R_RenderShadowMap();
-#endif
     R_RenderView();
 }
 

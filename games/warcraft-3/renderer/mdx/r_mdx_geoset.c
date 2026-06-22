@@ -2,10 +2,6 @@
 #include "renderer/r_local.h"
 #include <stdlib.h>
 
-#ifdef USE_SHADOWMAPS
-extern bool is_rendering_lights;
-#endif
-
 #define MDX_SHADER_MAX_LIGHTS 8
 #define MDLX_STACK_DRAW_ORDER 64
 
@@ -147,10 +143,8 @@ static bool MDLX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
             R_Call(glDepthMask, GL_TRUE);
             break;
         case BLEND_MODE_BLEND:
-#ifdef USE_SHADOWMAPS
-            if (is_rendering_lights)
+            if (R_IsShadowPass())
                 return false;
-#endif
             R_Call(glEnable, GL_BLEND);
             R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             R_Call(glDepthMask, GL_FALSE);
@@ -160,37 +154,29 @@ static bool MDLX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
             return false;
 #else
         case BLEND_MODE_ADD:
-#ifdef USE_SHADOWMAPS
-            if (is_rendering_lights)
+            if (R_IsShadowPass())
                 return false;
-#endif
             R_Call(glEnable, GL_BLEND);
             R_Call(glBlendFunc, GL_ONE, GL_ONE);
             R_Call(glDepthMask, GL_FALSE);
             break;
         case BLEND_MODE_ADDALPHA:
-#ifdef USE_SHADOWMAPS
-            if (is_rendering_lights)
+            if (R_IsShadowPass())
                 return false;
-#endif
             R_Call(glEnable, GL_BLEND);
             R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE);
             R_Call(glDepthMask, GL_FALSE);
             break;
         case BLEND_MODE_MODULATE:
-#ifdef USE_SHADOWMAPS
-            if (is_rendering_lights)
+            if (R_IsShadowPass())
                 return false;
-#endif
             R_Call(glEnable, GL_BLEND);
             R_Call(glBlendFunc, GL_DST_COLOR, GL_ZERO);
             R_Call(glDepthMask, GL_FALSE);
             break;
         case BLEND_MODE_MODULATE_2X:
-#ifdef USE_SHADOWMAPS
-            if (is_rendering_lights)
+            if (R_IsShadowPass())
                 return false;
-#endif
             R_Call(glEnable, GL_BLEND);
             R_Call(glBlendFunc, GL_DST_COLOR, GL_SRC_COLOR);
             R_Call(glDepthMask, GL_FALSE);
@@ -763,11 +749,7 @@ void MDX_RenderModel(renderEntity_t const *entity,
     
     LPSHADER shader = mdlx.shader;
     MATRIX3 normalMatrix;
-    GLfloat const *viewProjectionMatrix =
-#ifdef USE_SHADOWMAPS
-        is_rendering_lights ? tr.viewDef.lightMatrix.v :
-#endif
-        tr.viewDef.viewProjectionMatrix.v;
+    GLfloat const *viewProjectionMatrix = R_ViewProjectionForPass()->v;
     Matrix3_normal(&normalMatrix, transform);
     R_Call(glUseProgram, shader->progid);
     R_Call(glUniformMatrix4fv, shader->uViewProjectionMatrix, 1, GL_FALSE, viewProjectionMatrix);

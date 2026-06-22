@@ -217,81 +217,6 @@ DWORD M_LoadUberSplat(LPCSTR uber_splat) {
     }
 }
 
-static BOOL G_FileExists(LPCSTR filename) {
-    DWORD filesize = 0;
-    HANDLE buffer = gi.ReadFile(filename, &filesize);
-    if (buffer) {
-        gi.MemFree(buffer);
-        return true;
-    }
-    return false;
-}
-
-static BOOL G_HasShadowName(LPCSTR shadow) {
-    return shadow && shadow[0] && strcmp(shadow, "_");
-}
-
-DWORD G_LoadShadowTexture(LPCSTR shadow, BOOL allowDDSFallback) {
-    PATHSTR filename;
-
-    if (!G_HasShadowName(shadow)) {
-        return 0;
-    }
-
-    snprintf(filename, sizeof(filename), "ReplaceableTextures\\Shadows\\%s.blp", shadow);
-    if (G_FileExists(filename)) {
-        return gi.ImageIndex(filename);
-    }
-
-    if (allowDDSFallback) {
-        snprintf(filename, sizeof(filename), "ReplaceableTextures\\Shadows\\%s.dds", shadow);
-        if (G_FileExists(filename)) {
-            return gi.ImageIndex(filename);
-        }
-    }
-
-    return 0;
-}
-
-static void M_SetUnitShadow(LPEDICT self) {
-    LPCSTR unit_shadow = UNIT_SHADOW_IMAGE_UNIT(self->class_id);
-    DWORD shadow = G_LoadShadowTexture(unit_shadow, true);
-    if (!shadow) {
-        shadow = G_LoadShadowTexture("Shadow", true);
-    }
-    if (!shadow) {
-        return;
-    }
-
-    self->s.shadow = shadow;
-    FLOAT shadow_x = UNIT_SHADOW_IMAGE_CENTER_X(self->class_id);
-    FLOAT shadow_y = UNIT_SHADOW_IMAGE_CENTER_Y(self->class_id);
-    FLOAT shadow_w = UNIT_SHADOW_IMAGE_WIDTH(self->class_id);
-    FLOAT shadow_h = UNIT_SHADOW_IMAGE_HEIGHT(self->class_id);
-    if (shadow_w <= 0 || shadow_h <= 0) {
-        FLOAT size = MAX(72, UNIT_SELECTION_SCALE(self->class_id) * SEL_SCALE);
-        shadow_x = size * 0.5f;
-        shadow_y = size * 0.5f;
-        shadow_w = size;
-        shadow_h = size;
-    }
-    self->s.shadow_rect = ShadowPackRect(shadow_x, shadow_y, shadow_w, shadow_h);
-}
-
-static void M_SetBuildingShadow(LPEDICT self) {
-    LPCSTR building_shadow = UNIT_BUILDING_SHADOW(self->class_id);
-    DWORD shadow = G_LoadShadowTexture(building_shadow, false);
-    if (!shadow) {
-        if (G_HasShadowName(UNIT_SHADOW_IMAGE_UNIT(self->class_id))) {
-            M_SetUnitShadow(self);
-        }
-        return;
-    }
-
-    self->s.shadow = shadow;
-    self->s.shadow_rect = 0;
-}
-
 /* Register the first sound file for a given SLK label+suffix and return its
  * configstring index, or 0 if the entry is not found or has no files. */
 static int G_RegisterSoundLabel(sheetRow_t *sounds, LPCSTR label, LPCSTR suffix) {
@@ -358,11 +283,6 @@ void SP_SpawnUnit(LPEDICT self) {
     sprintf(model_filename, "%s.mdx", UNIT_MODEL(self->class_id));
     self->s.model = G_RegisterModel(model_filename);
     self->s.splat = M_LoadUberSplat(uber_splat);
-    if (UNIT_IS_BUILDING(self->class_id)) {
-        M_SetBuildingShadow(self);
-    } else {
-        M_SetUnitShadow(self);
-    }
     self->s.scale = UNIT_SCALING_VALUE(self->class_id);
     self->s.radius = UNIT_SELECTION_SCALE(self->class_id) * SEL_SCALE / 2;
     self->collision = self->s.radius;//UNIT_COLLISION(self->class_id);

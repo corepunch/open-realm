@@ -262,12 +262,6 @@ static void OptionsMenu_InitVideoMenus(void) {
                               OPTIONS_ARRAY_COUNT(quality_items),
                               OptionsMenu_CvarSelection("r_lights", 2, OPTIONS_ARRAY_COUNT(quality_items)));
     OptionsMenu_SetPopupCvar(options_menu.LightsPopupMenuMenu, "r_lights");
-    OptionsMenu_SetPopupItems(options_menu.ShadowsMenu,
-                              options_menu.ShadowsPopupMenuMenu,
-                              toggle_items,
-                              OPTIONS_ARRAY_COUNT(toggle_items),
-                              OptionsMenu_CvarSelection("r_unit_shadows", 1, OPTIONS_ARRAY_COUNT(toggle_items)));
-    OptionsMenu_SetPopupCvar(options_menu.ShadowsPopupMenuMenu, "r_unit_shadows");
     OptionsMenu_SetPopupItems(options_menu.OcclusionMenu,
                               options_menu.OcclusionPopupMenuMenu,
                               toggle_items,

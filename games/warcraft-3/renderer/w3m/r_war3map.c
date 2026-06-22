@@ -256,7 +256,7 @@ void R_DrawTerrainShadows(void) {
     };
     COLOR32 shadowColor = {0, 0, 0, 255};
 
-    R_RenderRectSplat(&mins, &maxs, tr.texture[TEX_TERRAIN_SHADOW], tr.shader[SHADER_SHADOWSPLAT], shadowColor);
+    R_RenderRectSplat(&mins, &maxs, tr.texture[TEX_TERRAIN_SHADOW], tr.shader[SHADER_SPLAT], shadowColor);
 }
 
 void R_DrawWorld(void) {

@@ -864,7 +864,6 @@ void SP_SpawnUnit(LPEDICT);
 void SP_TrainUnit(LPEDICT, DWORD);
 BOOL player_pay(LPPLAYER, DWORD);
 BYTE compress_stat(EDICTSTAT const *);
-DWORD G_LoadShadowTexture(LPCSTR, BOOL);
 
 // g_pathing.c
 pathTex_t *LoadTGA(BYTE const*, size_t);
