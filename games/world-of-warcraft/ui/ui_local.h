@@ -97,8 +97,10 @@ void UIWow_XMLShutdownRuntime(void);
 BOOL UIWow_XMLLoadGlueFromToc(LPCSTR toc_path);
 void UIWow_XMLDraw(void);
 int UIWow_XmlFindByNamePub(LPCSTR name);
-void UIWow_XmlSetFrameModel(int idx, LPCSTR model_path);
+void UIWow_XMLSetFrameModel(int idx, LPCSTR model_path);
 void UIWow_XMLInvalidateCharCustomizeModel(void);
+BOOL UIWow_IsButtonDown(void);
+void UIWow_XmlSetFrameModel(int idx, LPCSTR model_path);
 
 /* ui_loading.c */
 void UIWow_UpdateMapBackground(LPCPLAYER ps);
