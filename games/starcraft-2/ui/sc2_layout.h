@@ -218,8 +218,14 @@ BOOL SC2_LayoutFlatten(LPCSTR root_name);
 /* Get the resolved frame array for client rendering */
 uiBaseFrame_t *SC2_LayoutGetFrames(DWORD *count);
 
+/* Build and flatten the main game UI from the standard SC2Layout files */
+BOOL SC2_LayoutBuildGameUI(void);
+
 /* Find a template by name */
 sc2Frame_t *SC2_LayoutFindTemplate(LPCSTR name);
+
+/* Find the first resolved uiBaseFrame_t with the given SC2 frame type */
+uiBaseFrame_t *SC2_LayoutFindFrameByType(sc2FrameType type);
 
 /* Template accessors for iteration */
 int SC2_LayoutNumTemplates(void);
