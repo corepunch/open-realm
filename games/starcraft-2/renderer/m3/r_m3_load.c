@@ -131,8 +131,11 @@ static LPCSTR m3_fs =
 "}\n"
 
 "float get_shadow() {\n"
-"    float depth = texture(uShadowmap, vec2(v_shadow.x + 1.0, v_shadow.y + 1.0) * 0.5).r;\n"
-"    return depth < (v_shadow.z + 0.99) * 0.5 ? 0.0 : 1.0;\n"
+"    if (v_shadow.w <= 0.0) return 1.0;\n"
+"    vec3 shadow = v_shadow.xyz / v_shadow.w;\n"
+"    if (any(lessThan(shadow, vec3(-1.0))) || any(greaterThan(shadow, vec3(1.0)))) return 1.0;\n"
+"    float depth = texture(uShadowmap, shadow.xy * 0.5 + 0.5).r;\n"
+"    return depth < (shadow.z + 0.99) * 0.5 ? 0.0 : 1.0;\n"
 "}\n"
 
 "float get_fogofwar() {\n"

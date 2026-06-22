@@ -134,6 +134,7 @@ typedef struct {
     renderDecal_t *decals;
     MATRIX4 viewProjectionMatrix;
     MATRIX4 lightMatrix;
+    VECTOR3 lightDir;
     MATRIX4 textureMatrix;
     DWORD player;
     DWORD rdflags;

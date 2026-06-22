@@ -420,6 +420,7 @@ static LPCSTR m2_vs =
 "uniform mat4 uTextureMatrix;\n"
 "uniform mat4 uModelMatrix;\n"
 "uniform mat4 uLightMatrix;\n"
+"uniform vec3 uLightDir;\n"
 "uniform mat3 uNormalMatrix;\n"
 "uniform mat4 uBones[64];\n"
 "vec4 skin_position(vec4 p) {\n"
@@ -446,7 +447,7 @@ static LPCSTR m2_vs =
 "    v_texcoord = i_texcoord;\n"
 "    v_texcoord2 = (uTextureMatrix * pos).xy;\n"
 "    vec3 normal = normalize(uNormalMatrix * skin_normal(vec4(i_normal, 0.0)));\n"
-"    vec3 lightDir = -normalize(vec3(uLightMatrix[0][2], uLightMatrix[1][2], uLightMatrix[2][2]))*1.2;\n"
+"    vec3 lightDir = normalize(uLightDir) * 1.2;\n"
 "    v_light = clamp(dot(normal, lightDir), 0.0, 1.0);\n"
 "    v_shadow = uLightMatrix * pos;\n"
 "    v_color = i_color;\n"
@@ -466,8 +467,11 @@ static LPCSTR m2_fs =
 "uniform sampler2D uTerrainShadow;\n"
 "uniform sampler2D uFogOfWar;\n"
 "float get_shadow() {\n"
-"    float depth = texture(uShadowmap, vec2(v_shadow.x + 1.0, v_shadow.y + 1.0) * 0.5).r;\n"
-"    float depth_shadow = depth < (v_shadow.z + 0.99) * 0.5 ? 0.0 : 1.0;\n"
+"    if (v_shadow.w <= 0.0) return 1.0;\n"
+"    vec3 shadow = v_shadow.xyz / v_shadow.w;\n"
+"    if (any(lessThan(shadow, vec3(-1.0))) || any(greaterThan(shadow, vec3(1.0)))) return 1.0;\n"
+"    float depth = texture(uShadowmap, shadow.xy * 0.5 + 0.5).r;\n"
+"    float depth_shadow = depth < (shadow.z + 0.99) * 0.5 ? 0.0 : 1.0;\n"
 "    float terrain_shadow = texture(uTerrainShadow, v_texcoord2).r;\n"
 "    return min(depth_shadow, 1.0 - terrain_shadow);\n"
 "}\n"
@@ -2893,6 +2897,7 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
     R_Call(glUniformMatrix4fv, shader->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
     R_Call(glUniformMatrix4fv, shader->uModelMatrix, 1, GL_FALSE, transform->v);
     R_Call(glUniformMatrix4fv, shader->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
+    R_Call(glUniform3f, shader->uLightDir, tr.viewDef.lightDir.x, tr.viewDef.lightDir.y, tr.viewDef.lightDir.z);
     R_Call(glUniformMatrix3fv, shader->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_TRUE);

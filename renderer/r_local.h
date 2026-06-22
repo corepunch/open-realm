@@ -95,6 +95,7 @@ struct shader_program {
     DWORD uViewProjectionMatrix;
     DWORD uModelMatrix;
     DWORD uLightMatrix;
+    DWORD uLightDir;
     DWORD uNormalMatrix;
     DWORD uTextureMatrix;
     DWORD uTexture;

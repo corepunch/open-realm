@@ -200,6 +200,8 @@ R_AllocateRenderTexture(GLsizei width,
     R_Call(glBindTexture, GL_TEXTURE_2D, rt->texture);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     R_Call(glTexImage2D, GL_TEXTURE_2D, 0, format, width, height, 0, format, type, NULL);
     R_Call(glFramebufferTexture2D, GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D, rt->texture, 0);
     if (attachment == GL_COLOR_ATTACHMENT0) {
@@ -247,6 +249,8 @@ static void R_SetupGL(bool drawLight) {
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uModelMatrix, 1, GL_FALSE, model_matrix.v);
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
+    R_Call(glUniform3f, tr.shader[SHADER_DEFAULT]->uLightDir,
+           tr.viewDef.lightDir.x, tr.viewDef.lightDir.y, tr.viewDef.lightDir.z);
     R_Call(glUniformMatrix3fv, tr.shader[SHADER_DEFAULT]->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
 
     R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
@@ -485,7 +489,11 @@ void R_RenderFrame(viewDef_t const *viewDef) {
             Matrix4_identity(&tr.viewDef.viewProjectionMatrix);
             Matrix4_identity(&tr.viewDef.textureMatrix);
             Matrix4_identity(&tr.viewDef.lightMatrix);
+            tr.viewDef.lightDir = (VECTOR3){ 0.0f, 0.0f, 1.0f };
         }
+    }
+    if (Vector3_len(&tr.viewDef.lightDir) <= 0.001f) {
+        tr.viewDef.lightDir = (VECTOR3){ 0.0f, 0.0f, 1.0f };
     }
 
     Frustum_Calculate(&tr.viewDef.viewProjectionMatrix, &tr.viewDef.frustum);
@@ -494,9 +502,13 @@ void R_RenderFrame(viewDef_t const *viewDef) {
     R_Call(glActiveTexture, GL_TEXTURE2);
     R_Call(glBindTexture, GL_TEXTURE_2D, R_GetFogOfWarTexture());
     R_Call(glActiveTexture, GL_TEXTURE3);
-    R_Call(glBindTexture, GL_TEXTURE_2D, tr.texture[TEX_TERRAIN_SHADOW] ? tr.texture[TEX_TERRAIN_SHADOW]->texid : tr.texture[TEX_WHITE]->texid);
+    R_Call(glBindTexture, GL_TEXTURE_2D, tr.texture[TEX_TERRAIN_SHADOW] ? tr.texture[TEX_TERRAIN_SHADOW]->texid : tr.texture[TEX_BLACK]->texid);
     R_Call(glActiveTexture, GL_TEXTURE0);
-    R_RenderShadowMap();
+    if (tr.world || tr.viewDef.num_entities > 0) {
+        R_RenderShadowMap();
+    } else {
+        tr.pass = R_PASS_COLOR;
+    }
     R_RenderView();
 }
 

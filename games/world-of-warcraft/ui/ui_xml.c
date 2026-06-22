@@ -1818,7 +1818,7 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
                 entity.oldframe = e->oldframe;
                 entity.scale = 1.0f;
                 entity.angle = (FLOAT)DEG2RAD(UIWow_GetCharacterCreateFacing());
-                entity.flags = RF_NO_SHADOW | RF_NO_FOGOFWAR | RF_NO_LIGHTING;
+                entity.flags = RF_NO_FOGOFWAR | RF_NO_LIGHTING;
                 if (wow_ui.renderer->SetEntityAnimFrame) {
                     char anim[16];
 

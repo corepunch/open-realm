@@ -16,6 +16,7 @@ LPCSTR vs_default =
 "uniform mat4 uTextureMatrix;\n"
 "uniform mat4 uModelMatrix;\n"
 "uniform mat4 uLightMatrix;\n"
+"uniform vec3 uLightDir;\n"
 "uniform mat3 uNormalMatrix;\n"
 "void main() {\n"
 "    vec4 pos = uModelMatrix * vec4(i_position, 1.0);"
@@ -24,7 +25,7 @@ LPCSTR vs_default =
 "    v_normal = normalize(uNormalMatrix * i_normal);\n"
 "    v_shadow = uLightMatrix * pos;\n"
 "    v_color = i_color;\n"
-"    v_lightDir = -normalize(vec3(uLightMatrix[0][2], uLightMatrix[1][2], uLightMatrix[2][2]))*1.2;\n"
+"    v_lightDir = normalize(uLightDir) * 1.2;\n"
 "    gl_Position = uViewProjectionMatrix * uModelMatrix * vec4(i_position, 1.0);\n"
 "}\n";
 
@@ -45,8 +46,11 @@ LPCSTR fs_default =
 "    return dot(v_normal, v_lightDir);\n"
 "}\n"
 "float get_shadow() {\n"
-"    float depth = texture(uShadowmap, vec2(v_shadow.x + 1.0, v_shadow.y + 1.0) * 0.5).r;\n"
-"    float depth_shadow = depth < (v_shadow.z + 0.99) * 0.5 ? 0.0 : 1.0;\n"
+"    if (v_shadow.w <= 0.0) return 1.0;\n"
+"    vec3 shadow = v_shadow.xyz / v_shadow.w;\n"
+"    if (any(lessThan(shadow, vec3(-1.0))) || any(greaterThan(shadow, vec3(1.0)))) return 1.0;\n"
+"    float depth = texture(uShadowmap, shadow.xy * 0.5 + 0.5).r;\n"
+"    float depth_shadow = depth < (shadow.z + 0.99) * 0.5 ? 0.0 : 1.0;\n"
 "    float terrain_shadow = texture(uTerrainShadow, v_texcoord2).r;\n"
 "    return min(depth_shadow, 1.0 - terrain_shadow);\n"
 "}\n"
@@ -208,10 +212,12 @@ LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
     R_RegisterUniform(program, uViewProjectionMatrix);
     R_RegisterUniform(program, uModelMatrix);
     R_RegisterUniform(program, uLightMatrix);
+    R_RegisterUniform(program, uLightDir);
     R_RegisterUniform(program, uNormalMatrix);
     R_RegisterUniform(program, uTextureMatrix);
     R_RegisterUniform(program, uTexture);
     R_RegisterUniform(program, uShadowmap);
+    R_RegisterUniform(program, uTerrainShadow);
     R_RegisterUniform(program, uFogOfWar);
     R_RegisterUniform(program, uBones);
     R_RegisterUniform(program, uUseDiscard);

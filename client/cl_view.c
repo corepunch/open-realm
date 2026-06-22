@@ -24,6 +24,14 @@ static bool begin_sent = false;
 
 VECTOR3 lightAngles = {-40,0,60};
 
+/* Lighting direction is not the shadow projection; keep it explicit for shaders. */
+static VECTOR3 V_LightDirForAngles(LPCVECTOR3 angles) {
+    FLOAT yaw = (FLOAT)DEG2RAD(angles->y), pitch = (FLOAT)DEG2RAD(angles->x);
+    VECTOR3 dir = { cosf(pitch) * cosf(yaw), cosf(pitch) * sinf(yaw), -sinf(pitch) };
+    Vector3_normalize(&dir);
+    return dir;
+}
+
 static DWORD CL_CountConfigstrings(DWORD start, DWORD max) {
     DWORD count = 0;
 
@@ -724,6 +732,7 @@ void V_RenderView(void) {
         V_ClearScene();
         Matrix4_getPreviewCameraMatrix(&target, &cl.viewDef.viewProjectionMatrix);
         Matrix4_getPreviewShadowMatrix(&lightAngles, &target, VIEW_SHADOW_SIZE, &cl.viewDef.lightMatrix);
+        cl.viewDef.lightDir = V_LightDirForAngles(&lightAngles);
         Matrix4_identity(&cl.viewDef.textureMatrix);
 
         re.RenderFrame(&cl.viewDef);
@@ -746,6 +755,7 @@ void V_RenderView(void) {
     
     Matrix4_getCameraMatrix(&cl.viewDef.viewProjectionMatrix);
     Matrix4_getWorldShadowMatrix(&lightAngles, VIEW_SHADOW_SIZE, &cl.viewDef.lightMatrix);
+    cl.viewDef.lightDir = V_LightDirForAngles(&lightAngles);
 
     V_ClearScene();
     CL_AddEntities();

@@ -202,6 +202,13 @@ static void R_GameEntityCameraLightMatrix(LPCVECTOR3 target, FLOAT radius, LPMAT
     Matrix4_multiply(&proj, &view, output);
 }
 
+/* Keep preview lighting matched to its light camera without deriving it from projection scale. */
+static VECTOR3 R_GameEntityCameraLightDir(void) {
+    VECTOR3 light_dir = { -0.35f, -0.50f, 0.80f };
+    Vector3_normalize(&light_dir);
+    return light_dir;
+}
+
 void R_GameRenderModel(renderEntity_t const *entity) {
     MATRIX4 transform;
     MATRIX4 attached_transform;
@@ -216,7 +223,6 @@ void R_GameRenderModel(renderEntity_t const *entity) {
     attachment_id = (tr.viewDef.rdflags & RDF_USE_ENTITY_CAMERA) ? 0 : 1;
     if (entity->attached_model &&
         entity->attached_model->modeltype == ID_MD20 &&
-        !R_IsShadowPass() &&
         M2_AttachmentMatrix(entity->model->m2, attachment_id, &transform, &attached_transform)) {
         if (tr.viewDef.rdflags & RDF_USE_ENTITY_CAMERA) {
             Matrix4_rotate(&attached_transform,
@@ -231,7 +237,6 @@ void R_GameRenderModel(renderEntity_t const *entity) {
             attached_entity.oldframe = 0;
         }
         attached_entity.flags &= ~RF_GROUND_ANCHOR;
-        attached_entity.flags |= RF_NO_SHADOW;
         M2_RenderModel(&attached_entity, attached_entity.model->m2, &attached_transform);
     }
 }
@@ -354,6 +359,7 @@ bool R_GameExtractEntityCamera(renderEntity_t const *entity, float aspect, viewD
     Matrix4_multiply(&proj_matrix, &view_matrix, &viewdef->viewProjectionMatrix);
     Matrix4_identity(&viewdef->textureMatrix);
     R_GameEntityCameraLightMatrix(&target, radius, &viewdef->lightMatrix);
+    viewdef->lightDir = R_GameEntityCameraLightDir();
     return true;
 }
 
