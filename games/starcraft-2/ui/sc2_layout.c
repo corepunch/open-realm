@@ -928,6 +928,47 @@ static void SC2_ResolveNamedRelatives(void) {
     }
 }
 
+/* ---------- on_draw callbacks (called by client per frame) ---------- */
+
+static void SC2_DrawImage(struct uiBaseFrame_s *frame, LPCRECT rect) {
+    LPRENDERER renderer = uiimport.GetRenderer();
+    if (!renderer || !renderer->DrawImage) return;
+    LPCTEXTURE tex = frame->image ? uiimport.GetTexture(frame->image) : NULL;
+    if (!tex) return;
+    static const RECT uv = { 0.0f, 0.0f, 1.0f, 1.0f };
+    renderer->DrawImage(tex, rect, &uv, frame->color);
+}
+
+static void SC2_DrawText(struct uiBaseFrame_s *frame, LPCRECT rect) {
+    LPRENDERER renderer = uiimport.GetRenderer();
+    if (!renderer || !renderer->DrawText || !frame->text || !*frame->text) return;
+    LPCFONT font = uiimport.GetFont ? uiimport.GetFont(0) : NULL;
+    if (!font) return;
+    renderer->DrawText(&MAKE(drawText_t,
+                             .font = font,
+                             .text = frame->text,
+                             .rect = *rect,
+                             .color = frame->color,
+                             .textWidth = rect->w,
+                             .wordWrap = false,
+                             .lineHeight = 1.0f));
+}
+
+static void SC2_DrawButton(struct uiBaseFrame_s *frame, LPCRECT rect) {
+    LPRENDERER renderer = uiimport.GetRenderer();
+    if (!renderer || !renderer->DrawImage) return;
+    LPCTEXTURE tex = frame->image ? uiimport.GetTexture(frame->image) : NULL;
+    if (!tex) return;
+    static const RECT uv = { 0.0f, 0.0f, 1.0f, 1.0f };
+    renderer->DrawImageEx(&MAKE(drawImage_t,
+                                .texture = tex,
+                                .shader = SHADER_COMMANDBUTTON,
+                                .alphamode = BLEND_MODE_ALPHAKEY,
+                                .screen = *rect,
+                                .uv = uv,
+                                .color = frame->color));
+}
+
 /* Recursively flatten frame tree into uiBaseFrame_t array */
 static void SC2_FlattenFrame(sc2Frame_t *frame, int parent_index) {
     if (sc2_layout.num_frames >= SC2_MAX_FRAMES) return;
@@ -939,13 +980,19 @@ static void SC2_FlattenFrame(sc2Frame_t *frame, int parent_index) {
     dst->number = (DWORD)index;
     dst->type = SC2_MapFrameType(frame->type);
     dst->parent_index = (parent_index >= 0) ? (DWORD)parent_index : (DWORD)-1;
+
+    switch (dst->type) {
+        case FT_SPRITE: dst->on_draw = SC2_DrawImage;  break;
+        case FT_BUTTON: dst->on_draw = SC2_DrawButton; break;
+        case FT_TEXT:   dst->on_draw = SC2_DrawText;   break;
+        default:        dst->on_draw = NULL;            break;
+    }
     dst->color = frame->has_color ? frame->color : (COLOR32){255, 255, 255, 255};
     dst->alpha = frame->has_alpha ? frame->alpha : 1.0f;
     dst->hidden = frame->has_visible ? !frame->visible : false;
     dst->disabled = false;
     dst->ui_flags = 0;
-    if (dst->hidden) dst->ui_flags |= UIFLAG_HIDDEN;
-    if (frame->has_visible) dst->ui_flags |= UIFLAG_HIDDEN_IN_HIERARCHY;
+    if (dst->hidden) dst->ui_flags |= UIFLAG_HIDDEN | UIFLAG_HIDDEN_IN_HIERARCHY;
 
     /* Resolve anchor points */
     SC2_ResolveAnchors(frame, dst);
@@ -1082,6 +1129,15 @@ uiBaseFrame_t *SC2_LayoutGetFrames(DWORD *count) {
 
 sc2Frame_t *SC2_LayoutFindTemplate(LPCSTR name) {
     return SC2_FindTemplate(name);
+}
+
+uiBaseFrame_t *SC2_LayoutFindFrameByType(sc2FrameType type) {
+    for (int i = 0; i < sc2_layout.num_templates; i++) {
+        sc2Frame_t *tmpl = &sc2_layout.templates[i];
+        if (tmpl->type == type && tmpl->resolved_index >= 0)
+            return &sc2_layout.frames[tmpl->resolved_index];
+    }
+    return NULL;
 }
 
 int SC2_LayoutNumTemplates(void) {
