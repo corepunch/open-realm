@@ -508,6 +508,17 @@ void R_RenderFrame(viewDef_t const *viewDef) {
         tr.pass = R_PASS_COLOR;
     }
     R_RenderView();
+
+    if (ri.CvarString && atoi(ri.CvarString("r_debug_shadows", "0")) && tr.rt[RT_DEPTHMAP]) {
+        struct texture depth_tex = {
+            .texid = tr.rt[RT_DEPTHMAP]->texture,
+            .width = SHADOW_TEXSIZE,
+            .height = SHADOW_TEXSIZE,
+        };
+        RECT screen = { 0.75f, 0.0f, 0.25f, 0.25f };
+        RECT uv = { 0, 0, 1, 1 };
+        R_DrawImage(&depth_tex, &screen, &uv, COLOR32_WHITE);
+    }
 }
 
 void R_DrawBuffer(LPCBUFFER buffer, DWORD num_vertices) {

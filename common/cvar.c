@@ -417,6 +417,7 @@ void Cvar_Init(void) {
     Cvar_Get("cl_debug_entities", "0", 0);
     Cvar_Get("sv_debug_entities", "0", 0);
     Cvar_Get("r_debug_entities", "0", 0);
+    Cvar_Get("r_debug_shadows", "0", 0);
     Cvar_Get("r_module", "renderer", CVAR_ARCHIVE);
     Cvar_Get("ui_module", "ui", CVAR_ARCHIVE);
     Cvar_Get("g_module", "game", CVAR_ARCHIVE);
