@@ -275,6 +275,7 @@ typedef struct {
     svM2EventTrackClassic_t track;
 } svM2EventClassic_t;
 
+
 static BOOL M2ArrayRange(svM2Array_t array, DWORD elem_size, DWORD file_size,
                          DWORD *offset, DWORD *bytes) {
     if (array.size <= 0 || array.offset < 0 || elem_size == 0)
