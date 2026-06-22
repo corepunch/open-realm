@@ -40,7 +40,6 @@ LPCSTR fs_default =
 "out vec4 o_color;\n"
 "uniform sampler2D uTexture;\n"
 "uniform sampler2D uShadowmap;\n"
-"uniform sampler2D uTerrainShadow;\n"
 "uniform sampler2D uFogOfWar;\n"
 "float get_light() {\n"
 "    return dot(v_normal, v_lightDir);\n"
@@ -50,9 +49,7 @@ LPCSTR fs_default =
 "    vec3 shadow = v_shadow.xyz / v_shadow.w;\n"
 "    if (any(lessThan(shadow, vec3(-1.0))) || any(greaterThan(shadow, vec3(1.0)))) return 1.0;\n"
 "    float depth = texture(uShadowmap, shadow.xy * 0.5 + 0.5).r;\n"
-"    float depth_shadow = depth < (shadow.z + 0.99) * 0.5 ? 0.0 : 1.0;\n"
-"    float terrain_shadow = texture(uTerrainShadow, v_texcoord2).r;\n"
-"    return min(depth_shadow, 1.0 - terrain_shadow);\n"
+"    return depth < (shadow.z + 0.99) * 0.5 ? 0.0 : 1.0;\n"
 "}\n"
 "float get_lighting() {\n"
 "    return min(1.0, mix(0.35, 1.0, get_shadow() * get_light()) * 1.1);"
@@ -217,7 +214,6 @@ LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
     R_RegisterUniform(program, uTextureMatrix);
     R_RegisterUniform(program, uTexture);
     R_RegisterUniform(program, uShadowmap);
-    R_RegisterUniform(program, uTerrainShadow);
     R_RegisterUniform(program, uFogOfWar);
     R_RegisterUniform(program, uBones);
     R_RegisterUniform(program, uUseDiscard);
@@ -237,7 +233,6 @@ LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
     R_Call(glUniform1i, program->uTexture, 0);
     R_Call(glUniform1i, program->uShadowmap, 1);
     R_Call(glUniform1i, program->uFogOfWar, 2);
-    R_Call(glUniform1i, program->uTerrainShadow, 3);
 
     return program;
 }

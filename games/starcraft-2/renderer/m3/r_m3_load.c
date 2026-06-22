@@ -114,7 +114,6 @@ static LPCSTR m3_fs =
 
 "uniform sampler2D uTexture;\n"
 "uniform sampler2D uShadowmap;\n"
-"uniform sampler2D uTerrainShadow;\n"
 "uniform sampler2D uFogOfWar;\n"
 "uniform vec4 uMaterialColor;\n"
 "uniform float uAlphaCutoff;\n"

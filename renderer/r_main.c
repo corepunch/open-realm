@@ -501,8 +501,6 @@ void R_RenderFrame(viewDef_t const *viewDef) {
     R_RenderFogOfWar();
     R_Call(glActiveTexture, GL_TEXTURE2);
     R_Call(glBindTexture, GL_TEXTURE_2D, R_GetFogOfWarTexture());
-    R_Call(glActiveTexture, GL_TEXTURE3);
-    R_Call(glBindTexture, GL_TEXTURE_2D, tr.texture[TEX_TERRAIN_SHADOW] ? tr.texture[TEX_TERRAIN_SHADOW]->texid : tr.texture[TEX_BLACK]->texid);
     R_Call(glActiveTexture, GL_TEXTURE0);
     if (tr.world || tr.viewDef.num_entities > 0) {
         R_RenderShadowMap();

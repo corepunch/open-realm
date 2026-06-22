@@ -100,7 +100,6 @@ struct shader_program {
     DWORD uTextureMatrix;
     DWORD uTexture;
     DWORD uShadowmap;
-    DWORD uTerrainShadow;
     DWORD uFogOfWar;
     DWORD uBones;
     DWORD uUseDiscard;
