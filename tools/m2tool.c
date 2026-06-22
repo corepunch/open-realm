@@ -1102,41 +1102,32 @@ static void PrintAttachments(BYTE const *data, DWORD size, m2HeaderInfo_t const 
     }
 }
 
-static LPCSTR M2EventIdName(DWORD id) {
-    switch (id) {
-        case 0: return "sound_default";
-        case 1: return "sound_exittest";
-        case 2: return "footstep_left";
-        case 3: return "footstep_right";
-        case 4: return "weapon_left";
-        case 5: return "weapon_right";
-        case 6: return "spell_hit";
-        case 7: return "spell_cast";
-        default: return "unknown";
-    }
-}
-
 static void PrintEvents(BYTE const *data, DWORD size, m2HeaderInfo_t const *header) {
-    BOOL legacy = header->version <= 263;
-    DWORD event_stride = legacy ? 52 : 44;
+    /* Both modern and legacy event structs are 44 bytes:
+     *   4(id) + 4(data) + 2(bone) + 2(pad) + 12(pos) + 20(track) = 44
+     * Track is M2TrackBase: 2+2 header + two M2Arrays (16 bytes). */
     BYTE const *events;
 
     if (header->events.count <= 0) {
         return;
     }
-    events = ArrayPtr(data, size, header->events, event_stride);
+    events = ArrayPtr(data, size, header->events, 44);
     if (!events) {
         return;
     }
 
     printf("events:\n");
     FOR_LOOP(i, (DWORD)header->events.count) {
-        BYTE const *ev = events + i * event_stride;
-        DWORD event_id = *(DWORD const *)(ev + 0);
-        DWORD event_data = *(DWORD const *)(ev + 4);
-        WORD bone = *(WORD const *)(ev + 8);
-        printf("  [%03u] id=%u (%s) data=%u bone=%u\n",
-               (unsigned)i, (unsigned)event_id, M2EventIdName(event_id),
+        BYTE const *ev = events + i * 44;
+        char id_str[5];
+        DWORD event_data;
+        WORD bone;
+        memcpy(id_str, ev + 0, 4);
+        id_str[4] = '\0';
+        memcpy(&event_data, ev + 4, sizeof(DWORD));
+        memcpy(&bone, ev + 8, sizeof(WORD));
+        printf("  [%03u] id=%.4s data=%u bone=%u\n",
+               (unsigned)i, id_str,
                (unsigned)event_data, (unsigned)bone);
     }
 }

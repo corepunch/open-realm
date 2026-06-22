@@ -226,24 +226,27 @@ typedef struct {
     WORD  alias_next;
 } svM2SequenceModern_t;
 
-/* M2 event IDs for weapon impacts (from wowdev.wiki/M2/eventID) */
-#define M2_EVENT_WEAPON_LEFT  4
-#define M2_EVENT_WEAPON_RIGHT 5
+/* M2 event FourCC identifiers for weapon hits (little-endian packed uint32) */
+#define M2_EVENT_SWH  (*(DWORD const *)"$SWH")   /* swing weapon hit (melee right) */
+#define M2_EVENT_SHD  (*(DWORD const *)"$SHD")   /* shield / off-hand hit */
 
+/* M2TrackBase layout matches all track types (bone, event, etc.) — same struct in file.
+ * Event tracks have the keys/values M2Arrays present but always zero-size.
+ * Modern (Wrath+, version >= 264): sequence_times -> per-sequence M2Array<uint32_t>.
+ * Classic (pre-Wrath): ranges -> M2Array<M2Range>; times -> flat M2Array<uint32_t>. */
 typedef struct {
     uint16_t track_type;
     uint16_t loop_index;
     svM2Array_t sequence_times;
     svM2Array_t sequence_keys;
-} svM2Track_t;
+} svM2EventTrack_t;
 
 typedef struct {
     uint16_t track_type;
     uint16_t loop_index;
     svM2Array_t ranges;
     svM2Array_t times;
-    svM2Array_t keys;
-} svM2TrackClassic_t;
+} svM2EventTrackClassic_t;
 
 typedef struct {
     svM2Array_t times;
@@ -260,7 +263,7 @@ typedef struct {
     WORD bone_index;
     WORD padding;
     VECTOR3 position;
-    svM2Track_t track;
+    svM2EventTrack_t track;
 } svM2EventModern_t;
 
 typedef struct {
@@ -269,7 +272,7 @@ typedef struct {
     WORD bone_index;
     WORD padding;
     VECTOR3 position;
-    svM2TrackClassic_t track;
+    svM2EventTrackClassic_t track;
 } svM2EventClassic_t;
 
 /* Read the first timestamp for a given sequence from an event track.
@@ -278,22 +281,22 @@ static DWORD M2EventTrackTime(BYTE const *data, DWORD file_size,
                                BYTE const *track_ptr, BOOL classic,
                                DWORD sequence_index) {
     if (classic) {
-        svM2TrackClassic_t const *track = (svM2TrackClassic_t const *)track_ptr;
+        svM2EventTrackClassic_t const *track = (svM2EventTrackClassic_t const *)track_ptr;
         svM2Range_t const *ranges = (svM2Range_t const *)M2ArrayAt(data, file_size, track->ranges, sizeof(svM2Range_t));
         DWORD const *times = (DWORD const *)M2ArrayAt(data, file_size, track->times, sizeof(DWORD));
-        if (!ranges || !times || sequence_index >= (DWORD)track->ranges.count)
+        if (!ranges || !times || sequence_index >= (DWORD)track->ranges.size)
             return 0;
         svM2Range_t range = ranges[sequence_index];
-        if (range.start >= (DWORD)track->times.count)
+        if (range.start >= (DWORD)track->times.size)
             return 0;
         return times[range.start];
     } else {
-        svM2Track_t const *track = (svM2Track_t const *)track_ptr;
+        svM2EventTrack_t const *track = (svM2EventTrack_t const *)track_ptr;
         svM2SequenceTimes_t const *seq_times = (svM2SequenceTimes_t const *)M2ArrayAt(data, file_size, track->sequence_times, sizeof(svM2SequenceTimes_t));
-        if (!seq_times || sequence_index >= (DWORD)track->sequence_times.count)
+        if (!seq_times || sequence_index >= (DWORD)track->sequence_times.size)
             return 0;
         DWORD const *times = (DWORD const *)M2ArrayAt(data, file_size, seq_times[sequence_index].times, sizeof(DWORD));
-        if (!times || seq_times[sequence_index].times.count == 0)
+        if (!times || seq_times[sequence_index].times.size == 0)
             return 0;
         return times[0];
     }
@@ -517,7 +520,7 @@ static animation_t *LoadModelM2(BYTE const *data, DWORD read_size, DWORD *out_co
             FOR_LOOP(e, event_count) {
                 BYTE const *ev = events + e * event_stride;
                 DWORD event_id = *(DWORD const *)ev;
-                if (event_id != M2_EVENT_WEAPON_LEFT && event_id != M2_EVENT_WEAPON_RIGHT)
+                if (event_id != M2_EVENT_SWH && event_id != M2_EVENT_SHD)
                     continue;
                 /* event track starts after: event_id(4) + data(4) + bone(2) + padding(2) + position(12) = 24 */
                 BYTE const *track_ptr = ev + 24;
