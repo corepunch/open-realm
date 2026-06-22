@@ -275,6 +275,24 @@ typedef struct {
     svM2EventTrackClassic_t track;
 } svM2EventClassic_t;
 
+static BOOL M2ArrayRange(svM2Array_t array, DWORD elem_size, DWORD file_size,
+                         DWORD *offset, DWORD *bytes) {
+    if (array.size <= 0 || array.offset < 0 || elem_size == 0)
+        return false;
+    if ((DWORD)array.size > ((DWORD)~0u) / elem_size)
+        return false;
+    *offset = (DWORD)array.offset;
+    *bytes  = (DWORD)array.size * elem_size;
+    return *offset <= file_size && *bytes <= file_size - *offset;
+}
+
+static void const *M2ArrayAt(BYTE const *data, DWORD file_size, svM2Array_t array, DWORD elem_size) {
+    DWORD offset, bytes;
+    if (!M2ArrayRange(array, elem_size, file_size, &offset, &bytes))
+        return NULL;
+    return data + offset;
+}
+
 /* Read the first timestamp for a given sequence from an event track.
  * Returns 0 if no timestamp is found. */
 static DWORD M2EventTrackTime(BYTE const *data, DWORD file_size,
@@ -300,24 +318,6 @@ static DWORD M2EventTrackTime(BYTE const *data, DWORD file_size,
             return 0;
         return times[0];
     }
-}
-
-static BOOL M2ArrayRange(svM2Array_t array, DWORD elem_size, DWORD file_size,
-                         DWORD *offset, DWORD *bytes) {
-    if (array.size <= 0 || array.offset < 0 || elem_size == 0)
-        return false;
-    if ((DWORD)array.size > ((DWORD)~0u) / elem_size)
-        return false;
-    *offset = (DWORD)array.offset;
-    *bytes  = (DWORD)array.size * elem_size;
-    return *offset <= file_size && *bytes <= file_size - *offset;
-}
-
-static void const *M2ArrayAt(BYTE const *data, DWORD file_size, svM2Array_t array, DWORD elem_size) {
-    DWORD offset, bytes;
-    if (!M2ArrayRange(array, elem_size, file_size, &offset, &bytes))
-        return NULL;
-    return data + offset;
 }
 
 /* Read the events m2Array_t from the correct header offset.
