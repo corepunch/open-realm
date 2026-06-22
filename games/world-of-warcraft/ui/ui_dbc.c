@@ -717,6 +717,18 @@ int UIWow_LuaCreateCharacter(lua_State *L) {
     return 0;
 }
 
+int UIWow_LuaCharacterCreateResult(lua_State *L) {
+    LPCSTR result = luaL_checkstring(L, 1);
+    lua_getglobal(L, "SetGlueScreen");
+    if (lua_isfunction(L, -1)) {
+        lua_pushstring(L, (result && strcmp(result, "OKAY") == 0) ? "charselect" : "charcreate");
+        lua_pcall(L, 1, 0, 0);
+    } else {
+        lua_pop(L, 1);
+    }
+    return 0;
+}
+
 int UIWow_LuaGetNumCharacters(lua_State *L) {
     (void)L;
     if (!wow_charlist.loaded)
@@ -757,17 +769,18 @@ int UIWow_LuaGetCharacterInfo(lua_State *L) {
     cls = UIWow_ClassByID((int)e->class_id);
     if (cls) class_name = cls->name ? cls->name : "";
 
-    /* Return: name, level, class, race, sex, zone, guild,
-               status, className, raceFileName */
+    /* Return: name, race, class, level, zone, fileString, gender,
+               guild, status, className, raceFileName */
     lua_pushstring(L, e->name);       /* 1  name */
-    lua_pushinteger(L, 1);            /* 2  level */
+    lua_pushstring(L, race_name);     /* 2  race  (localised) */
     lua_pushstring(L, class_name);    /* 3  class (localised) */
-    lua_pushstring(L, race_name);     /* 4  race  (localised) */
-    lua_pushinteger(L, (int)e->sex_id - 1); /* 5  sex (0=male,1=female) */
-    lua_pushstring(L, "");            /* 6  zone */
-    lua_pushstring(L, "");            /* 7  guild */
-    lua_pushstring(L, "");            /* 8  status */
-    lua_pushstring(L, class_name);    /* 9  className */
-    lua_pushstring(L, race_file);     /* 10 raceFileName */
-    return 10;
+    lua_pushinteger(L, 1);            /* 4  level */
+    lua_pushstring(L, "");            /* 5  zone */
+    lua_pushstring(L, race_file);     /* 6  fileString */
+    lua_pushinteger(L, (int)e->sex_id - 1); /* 7  gender (0=male,1=female) */
+    lua_pushstring(L, "");            /* 8  guild */
+    lua_pushstring(L, "");            /* 9  status */
+    lua_pushstring(L, class_name);    /* 10 className */
+    lua_pushstring(L, race_file);     /* 11 raceFileName */
+    return 11;
 }

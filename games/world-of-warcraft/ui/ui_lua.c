@@ -629,6 +629,7 @@ static luaL_Reg const wow_global_funcs[] = {
     { "RandomizeCharCustomization", UIWow_LuaRandomizeCharCustomization },
     { "GetRandomName",            UIWow_LuaGetRandomName },
     { "CreateCharacter",          UIWow_LuaCreateCharacter },
+    { "CharacterCreateResult",    UIWow_LuaCharacterCreateResult },
     { "UpdateCustomizationBackground", UIWow_LuaNoop },
     { "UpdateSelectionCustomizationScene", UIWow_LuaUpdateCustomizationScene },
     { "UpdateCustomizationScene",   UIWow_LuaUpdateCustomizationScene },
