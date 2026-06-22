@@ -489,6 +489,8 @@ void Wow_DrawGrass(void) {
     R_Call(glUseProgram, wow_grass_shader->progid);
     R_Call(glUniformMatrix4fv, wow_grass_shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
     R_Call(glUniformMatrix4fv, wow_grass_shader->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
+    R_Call(glUniform3f, wow_grass_shader->uLightDir,
+           tr.viewDef.lightDir.x, tr.viewDef.lightDir.y, tr.viewDef.lightDir.z);
     R_Call(glUniform1f, wow_uGrassTime, (GLfloat)tr.viewDef.time * 0.001f);
     R_Call(glUniform3f, wow_uGrassCameraOrigin, camera_origin.x, camera_origin.y, camera_origin.z);
     R_Call(glUniform1f, wow_uGrassDrawDistance, draw_distance);

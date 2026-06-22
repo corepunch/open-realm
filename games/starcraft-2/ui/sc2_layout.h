@@ -17,8 +17,8 @@
 #include "client/ui.h"
 
 /* Maximum frames in the layout system */
-#define SC2_MAX_FRAMES     4096
-#define SC2_MAX_TEMPLATES  1024
+#define SC2_MAX_FRAMES     16384
+#define SC2_MAX_TEMPLATES  16384
 #define SC2_MAX_INCLUDES   128
 #define SC2_MAX_ANCHORS    4       /* per frame: Top, Bottom, Left, Right */
 #define SC2_MAX_CONSTANTS  256
@@ -176,6 +176,9 @@ typedef struct sc2Frame_s {
 
     /* Resolved index into flat frame array (-1 = not yet resolved) */
     int resolved_index;
+
+    /* Template resolution tracking */
+    BOOL template_resolved;
 
     /* Source file for debugging */
     PATHSTR source_file;

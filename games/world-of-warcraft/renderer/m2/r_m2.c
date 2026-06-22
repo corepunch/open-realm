@@ -473,7 +473,7 @@ static LPCSTR m2_fs =
 "    return depth < (shadow.z + 0.99) * 0.5 ? 0.0 : 1.0;\n"
 "}\n"
 "float get_lighting() {\n"
-"    return mix(0.5, 1.0, get_shadow() * v_light);"
+"    return mix(0.0, 1.0, get_shadow() * v_light);"
 "}\n"
 "float get_fogofwar() {\n"
 "    return texture(uFogOfWar, v_texcoord2).r;\n"

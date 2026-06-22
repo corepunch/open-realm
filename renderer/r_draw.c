@@ -4,6 +4,9 @@
 #ifdef WOW
 #define R_UI_BASE_WIDTH  1.0f
 #define R_UI_BASE_HEIGHT 1.0f
+#elif defined(SC2)
+#define R_UI_BASE_WIDTH  1600.0f
+#define R_UI_BASE_HEIGHT 1200.0f
 #else
 #define R_UI_BASE_WIDTH  0.8f
 #define R_UI_BASE_HEIGHT 0.6f

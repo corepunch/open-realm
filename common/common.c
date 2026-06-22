@@ -710,6 +710,31 @@ HANDLE FS_OpenFile(LPCSTR fileName) {
     return NULL;
 }
 
+/* Open file searching archives in forward order (first-loaded wins).
+ * Useful when a file exists in multiple archives and the first (typically
+ * the base/core archive) has the authoritative or more complete version. */
+HANDLE FS_OpenFileFirst(LPCSTR fileName) {
+    while (filelock) {
+        PF_Sleep(10);
+    }
+    filelock = true;
+    if (!fileName || !*fileName) {
+        filelock = false;
+        return NULL;
+    }
+    for (int i = 0; i < MAX_ARCHIVES; i++) {
+        HANDLE file;
+        if (!archives[i]) {
+            continue;
+        }
+        if (SFileOpenFileEx(archives[i], fileName, SFILE_OPEN_FROM_MPQ, &file)) {
+            return file;
+        }
+    }
+    filelock = false;
+    return NULL;
+}
+
 bool FS_FileExists(LPCSTR fileName) {
     HANDLE file = FS_OpenFile(fileName);
     if (file) {
@@ -826,6 +851,24 @@ int FS_ReadFileQ3(LPCSTR filename, void **buf) {
     return (int)size;
 }
 
+int FS_ReadFileFirstQ3(LPCSTR filename, void **buf) {
+    if (!buf) {
+        return -1;
+    }
+    HANDLE fp = FS_OpenFileFirst(filename);
+    if (!fp) {
+        *buf = NULL;
+        return -1;
+    }
+    DWORD size = SFileGetFileSize(fp, NULL);
+    LPSTR buffer = MemAlloc(size + 1);
+    SFileReadFile(fp, buffer, size, NULL, NULL);
+    buffer[size] = '\0';
+    FS_CloseFile(fp);
+    *buf = buffer;
+    return (int)size;
+}
+
 HANDLE FS_ReadFile(LPCSTR filename, LPDWORD size) {
     HANDLE fp = FS_OpenFile(filename);
     if (!fp) {
@@ -841,6 +884,34 @@ HANDLE FS_ReadFile(LPCSTR filename, LPDWORD size) {
 
 void FS_FreeFile(void *buf) {
     MemFree(buf);
+}
+
+/* Read a text file from ALL archives that contain it, concatenating results.
+ * Useful for files like Assets.txt that exist in multiple archives with
+ * different subsets; the caller gets the union of all copies. */
+LPSTR FS_ReadFileAll(LPCSTR filename, LPDWORD totalSize) {
+    DWORD total = 0;
+    LPSTR merged = NULL;
+    for (int i = 0; i < MAX_ARCHIVES; i++) {
+        HANDLE file;
+        if (!archives[i]) continue;
+        if (!SFileOpenFileEx(archives[i], filename, SFILE_OPEN_FROM_MPQ, &file)) continue;
+        DWORD sz = SFileGetFileSize(file, NULL);
+        if (sz == 0) { FS_CloseFile(file); continue; }
+        LPSTR buf = MemAlloc(sz + 1);
+        SFileReadFile(file, buf, sz, NULL, NULL);
+        buf[sz] = '\0';
+        FS_CloseFile(file);
+        /* Append to merged buffer */
+        merged = realloc(merged, total + sz + 1);
+        if (!merged) continue;
+        memcpy(merged + total, buf, sz);
+        total += sz;
+        merged[total] = '\0';
+        MemFree(buf);
+    }
+    if (totalSize) *totalSize = total;
+    return merged;
 }
 
 static BOOL FS_FindAdvance(fsFind_t *find, SFILE_FIND_DATA *findData) {

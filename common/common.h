@@ -161,14 +161,17 @@ void Sys_Quit(void);
 HANDLE FS_AddArchive(LPCSTR filename);
 BOOL FS_AddDataDirectory(LPCSTR dirname);
 HANDLE FS_OpenFile(LPCSTR fileName);
+HANDLE FS_OpenFileFirst(LPCSTR fileName);
 void FS_CloseFile(HANDLE file);
 HANDLE FS_ReadLooseFile(LPCSTR filename, LPDWORD size, DWORD extraBytes);
 bool FS_ExtractFile(LPCSTR toExtract, LPCSTR extracted);
 bool FS_FileExists(LPCSTR fileName);
 HANDLE FS_ReadFile(LPCSTR filename, LPDWORD size);
+LPSTR FS_ReadFileAll(LPCSTR filename, LPDWORD totalSize);
 
 // Quake 3-style file API (returns file size, allocates buffer)
 int FS_ReadFileQ3(LPCSTR filename, void **buf);
+int FS_ReadFileFirstQ3(LPCSTR filename, void **buf);
 void FS_FreeFile(void *buf);
 HANDLE FS_FindFirstFile(LPCSTR mask, SFILE_FIND_DATA *findData);
 BOOL FS_FindNextFile(HANDLE find, SFILE_FIND_DATA *findData);

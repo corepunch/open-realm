@@ -152,6 +152,18 @@ static int CL_UI_ReadFile(LPCSTR fileName, void **buf) {
     return FS_ReadFileQ3(fileName, buf);
 }
 
+/* Forward-search variant: first-loaded (base/core) archive wins */
+static int CL_UI_ReadFileFirst(LPCSTR fileName, void **buf) {
+    return FS_ReadFileFirstQ3(fileName, buf);
+}
+
+/* Merge variant: concatenate file from all archives */
+static int CL_UI_ReadFileAll(LPCSTR fileName, void **buf) {
+    DWORD totalSize = 0;
+    *buf = FS_ReadFileAll(fileName, &totalSize);
+    return *buf ? (int)totalSize : -1;
+}
+
 /* Write a local file by path (relative to CWD, same as share/ configs). */
 static void CL_UI_WriteFile(LPCSTR path, const void *data, int size) {
     FILE *f;
@@ -608,6 +620,8 @@ void CL_Init(void) {
     /* Initialize UI library */
     ui = UI_GetAPI((uiImport_t) {
         .FS_ReadFile = CL_UI_ReadFile,
+        .FS_ReadFileFirst = CL_UI_ReadFileFirst,
+        .FS_ReadFileAll = CL_UI_ReadFileAll,
         .FS_FreeFile = FS_FreeFile,
         .FS_GetFileList = CL_UI_GetFileList,
         .FS_WriteFile = CL_UI_WriteFile,
@@ -646,15 +660,15 @@ void CL_Init(void) {
     ui.ClearLayoutLayer = UI_LayoutClearLayer;
     ui.HitTestLayout = UI_LayoutHitTest;
     
+    SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
+    
+    CL_ClearState();
+
     if (ui.Init) {
         ui.Init();
     } else {
         fprintf(stderr, "CL_Init: UI library has no Init function\n");
     }
-
-    SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
-    
-    CL_ClearState();
 
     Cmd_AddCommand("quit", Com_Quit);
 

@@ -193,11 +193,14 @@ static void R_GameEntityCameraLightMatrix(LPCVECTOR3 target, FLOAT radius, LPMAT
     VECTOR3 eye;
     FLOAT distance = MAX(1000.0f, radius * 8.0f);
     FLOAT scale = MAX(64.0f, radius * 2.5f);
+    FLOAT depth = MAX(256.0f, radius * 4.0f);
+    FLOAT znear = MAX(1.0f, distance - depth);
+    FLOAT zfar = distance + depth;
 
     Vector3_normalize(&light_dir);
     view_dir = Vector3_unm(&light_dir);
     eye = Vector3_mad(target, distance, &light_dir);
-    Matrix4_ortho(&proj, -scale, scale, -scale, scale, -1000.0f, 3000.0f);
+    Matrix4_ortho(&proj, -scale, scale, -scale, scale, znear, zfar);
     Matrix4_lookAt(&view, &eye, &view_dir, &(VECTOR3){ 0.0f, 0.0f, 1.0f });
     Matrix4_multiply(&proj, &view, output);
 }
@@ -207,6 +210,23 @@ static VECTOR3 R_GameEntityCameraLightDir(void) {
     VECTOR3 light_dir = { -0.35f, -0.50f, 0.80f };
     Vector3_normalize(&light_dir);
     return light_dir;
+}
+
+/* UI model scenes can be large backdrops with a small attached actor; fit shadows to the actor. */
+static FLOAT R_GameModelBoundsRadius(m2Model_t const *model) {
+    BOX3 const *bounds;
+    FLOAT radius;
+
+    if (!model) {
+        return 32.0f;
+    }
+    bounds = &model->bounds;
+    radius = Vector3_len(&(VECTOR3){
+        bounds->max.x - bounds->min.x,
+        bounds->max.y - bounds->min.y,
+        bounds->max.z - bounds->min.z
+    }) * 0.5f;
+    return radius < 1.0f ? 32.0f : radius;
 }
 
 void R_GameRenderModel(renderEntity_t const *entity) {
@@ -301,6 +321,7 @@ bool R_GameExtractEntityCamera(renderEntity_t const *entity, float aspect, viewD
     VECTOR3 model_origin;
     VECTOR3 model_z;
     float radius;
+    float shadow_radius;
     float distance;
     float fov = 35.0f;
     float znear = 1.0f;
@@ -319,14 +340,10 @@ bool R_GameExtractEntityCamera(renderEntity_t const *entity, float aspect, viewD
         (bounds->max.y + bounds->min.y) * 0.5f,
         (bounds->max.z + bounds->min.z) * 0.5f
     };
-    radius = Vector3_len(&(VECTOR3){
-        bounds->max.x - bounds->min.x,
-        bounds->max.y - bounds->min.y,
-        bounds->max.z - bounds->min.z
-    }) * 0.5f;
-    if (radius < 1.0f) {
-        radius = 32.0f;
-    }
+    radius = R_GameModelBoundsRadius(m2);
+    shadow_radius = entity->attached_model && entity->attached_model->modeltype == ID_MD20
+        ? R_GameModelBoundsRadius(entity->attached_model->m2)
+        : radius;
 
     if (!M2_CameraView(m2, 0, &eye, &target, &fov, &znear, &zfar)) {
         distance = radius / tanf((fov * (FLOAT)M_PI / 180.0f) * 0.5f);
@@ -358,7 +375,7 @@ bool R_GameExtractEntityCamera(renderEntity_t const *entity, float aspect, viewD
     Matrix4_lookAt(&view_matrix, &eye, &dir, &up);
     Matrix4_multiply(&proj_matrix, &view_matrix, &viewdef->viewProjectionMatrix);
     Matrix4_identity(&viewdef->textureMatrix);
-    R_GameEntityCameraLightMatrix(&target, radius, &viewdef->lightMatrix);
+    R_GameEntityCameraLightMatrix(&target, shadow_radius, &viewdef->lightMatrix);
     viewdef->lightDir = R_GameEntityCameraLightDir();
     return true;
 }

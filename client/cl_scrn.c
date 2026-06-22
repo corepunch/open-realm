@@ -44,12 +44,12 @@ void SCR_UpdateScreen(DWORD msec) {
     
     V_RenderView();
 
-#ifndef SC2
     if (cls.state == ca_loading) {
         if (ui.DrawLoadingScreen) {
             ui.DrawLoadingScreen(cl.loading_map, cl.loading_status, cl.loading_progress);
         }
     } else {
+        CL_UIUpdateFrameRects();
         if (ui.DrawFrame) {
             ui.DrawFrame();
         }
@@ -57,18 +57,6 @@ void SCR_UpdateScreen(DWORD msec) {
             ui.DrawOverlays();
         }
     }
-#else
-    /* Client-owned UI frame rendering.  UI DLL publishes effective visibility. */
-    if (ui.frames && ui.frame_size > 0 && ui.GetNumFrames) {
-        DWORD nf = ui.GetNumFrames();
-        CL_UIUpdateFrameRects();
-        for (DWORD i = 0; i < nf; i++) {
-            LPUIBASEFRAME f = (LPUIBASEFRAME)((char *)ui.frames + i * ui.frame_size);
-            if (!f || f->hidden || (f->ui_flags & (UIFLAG_HIDDEN | UIFLAG_HIDDEN_IN_HIERARCHY))) continue;
-            if (f->on_draw) f->on_draw(f, &f->screen_rect);
-        }
-    }
-#endif
 
     CON_DrawConsole();
     if (Cvar_Integer("scr_showfps", 0)) {

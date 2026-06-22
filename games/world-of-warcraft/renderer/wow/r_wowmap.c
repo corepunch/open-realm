@@ -101,6 +101,8 @@ void R_DrawWorld(void) {
     R_Call(glUniformMatrix4fv, wow_terrain_shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
     R_Call(glUniformMatrix4fv, wow_terrain_shader->uModelMatrix, 1, GL_FALSE, identity.v);
     R_Call(glUniformMatrix4fv, wow_terrain_shader->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
+    R_Call(glUniform3f, wow_terrain_shader->uLightDir,
+           tr.viewDef.lightDir.x, tr.viewDef.lightDir.y, tr.viewDef.lightDir.z);
     R_Call(glUniformMatrix3fv, wow_terrain_shader->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
     R_Call(glUniform1i, wow_uUseWeightedBlend, wow_world.use_weighted_blend ? 1 : 0);
     R_Call(glEnable, GL_DEPTH_TEST);

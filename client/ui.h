@@ -108,6 +108,8 @@ typedef struct {
 typedef struct {
     /* File system operations (archive-agnostic, Quake 3 pattern) */
     int (*FS_ReadFile)(LPCSTR fileName, void **buf);  /* Returns file size, allocates buf */
+    int (*FS_ReadFileFirst)(LPCSTR fileName, void **buf);  /* Forward search: first-loaded archive wins */
+    int (*FS_ReadFileAll)(LPCSTR fileName, void **buf);    /* Merge: concatenate file from all archives */
     void (*FS_FreeFile)(void *buf);
     int (*FS_GetFileList)(LPCSTR path, LPCSTR extension, char *listbuf, int bufsize);
     void (*FS_WriteFile)(LPCSTR path, const void *data, int size); /* Write to local disk */

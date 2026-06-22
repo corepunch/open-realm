@@ -51,7 +51,8 @@ static void SC2_UI_InitLocal(void) {
     fprintf(stderr, "SC2_UI: initializing SC2 layout system\n");
 
     /* Register SC2 UI commands */
-    uiimport.Cmd_AddCommand("sc2_menu", SC2_UI_Menu_f);
+    uiimport.Cmd_AddCommand("menu_main", SC2_UI_Menu_f);
+    uiimport.Cmd_AddCommand("menu_ingame", SC2_UI_Menu_f);
 
     /* Parse SC2 layout files */
     if (!SC2_LayoutBuildGameUI()) {
@@ -131,15 +132,18 @@ static DWORD SC2_UI_GetNumFrames(void) {
 }
 
 static void SC2_UI_DrawFrame(void) {
-    if (!sc2_ui_state.game_mode) return;
-
     LPRENDERER renderer = uiimport.GetRenderer ? uiimport.GetRenderer() : NULL;
     if (!renderer) return;
 
-    /* Draw minimap in its panel rect */
-    uiBaseFrame_t *minimap = SC2_LayoutFindFrameByType(SC2_FRAMETYPE_MINIMAP_PANEL);
-    if (minimap && renderer->DrawMinimap) {
-        renderer->DrawMinimap(&minimap->screen_rect);
+    DWORD count = 0;
+    uiBaseFrame_t *frames = SC2_LayoutGetFrames(&count);
+    if (!frames || count == 0) return;
+
+    for (DWORD i = 0; i < count; i++) {
+        uiBaseFrame_t *f = &frames[i];
+        if (!f || f->hidden || (f->ui_flags & (UIFLAG_HIDDEN | UIFLAG_HIDDEN_IN_HIERARCHY))) continue;
+        if (f->screen_rect.w < 1.0f || f->screen_rect.h < 1.0f) continue;
+        if (f->on_draw) f->on_draw(f, &f->screen_rect);
     }
 }
 

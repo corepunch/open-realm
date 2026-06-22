@@ -58,6 +58,88 @@ static void SC2_XmlFree(LPCSTR s) {
 /* Global layout state */
 static sc2Layout_t sc2_layout;
 
+/* SC2 asset path mapping: UI/Name → actual file path (from GameData/Assets.txt) */
+#define SC2_ASSET_MAP_SIZE 4096
+#define SC2_ASSET_MAP_MASK (SC2_ASSET_MAP_SIZE - 1)
+typedef struct {
+    UINAME key;     /* UI/Name */
+    PATHSTR path;   /* Assets\Textures\filename.dds */
+} sc2AssetEntry_t;
+static sc2AssetEntry_t sc2_asset_map[SC2_ASSET_MAP_SIZE];
+static int sc2_asset_count;
+
+static DWORD SC2_AssetHash(LPCSTR s) {
+    DWORD h = 0x811c9dc5;
+    for (; *s; s++) { h ^= (BYTE)tolower(*s); h *= 0x01000193; }
+    return h;
+}
+
+static void SC2_AssetInsert(LPCSTR key, LPCSTR path) {
+    DWORD h = SC2_AssetHash(key) & SC2_ASSET_MAP_MASK;
+    for (int i = 0; i < SC2_ASSET_MAP_SIZE; i++) {
+        if (!sc2_asset_map[h].key[0]) {
+            SC2_Strncpyz(sc2_asset_map[h].key, key, sizeof(sc2_asset_map[h].key));
+            SC2_Strncpyz(sc2_asset_map[h].path, path, sizeof(sc2_asset_map[h].path));
+            sc2_asset_count++;
+            return;
+        }
+        if (!strcasecmp(sc2_asset_map[h].key, key)) {
+            SC2_Strncpyz(sc2_asset_map[h].path, path, sizeof(sc2_asset_map[h].path));
+            return;
+        }
+        h = (h + 1) & SC2_ASSET_MAP_MASK;
+    }
+}
+
+static LPCSTR SC2_AssetLookup(LPCSTR name) {
+    if (!name || !name[0]) return NULL;
+    DWORD h = SC2_AssetHash(name) & SC2_ASSET_MAP_MASK;
+    for (int i = 0; i < SC2_ASSET_MAP_SIZE; i++) {
+        if (!sc2_asset_map[h].key[0]) return NULL;
+        if (!strcasecmp(sc2_asset_map[h].key, name))
+            return sc2_asset_map[h].path;
+        h = (h + 1) & SC2_ASSET_MAP_MASK;
+    }
+    return NULL;
+}
+
+/* Parse GameData/Assets.txt: lines of form "UI/Name=Assets\Textures\file.dds" */
+static void SC2_LoadAssetMap(void) {
+    void *buf = NULL;
+    int len = uiimport.FS_ReadFileAll
+        ? uiimport.FS_ReadFileAll("GameData/Assets.txt", &buf)
+        : uiimport.FS_ReadFile("GameData/Assets.txt", &buf);
+    if (len < 0 || !buf) { fprintf(stderr, "SC2_AssetMap: failed to load Assets.txt\n"); return; }
+    LPCSTR p = (LPCSTR)buf;
+    LPCSTR end = p + len;
+    int lines_total = 0, lines_ui = 0;
+    while (p < end) {
+        LPCSTR line = p;
+        while (p < end && *p != '\n') p++;
+        int linelen = (int)(p - line);
+        if (p < end) p++;
+        lines_total++;
+        if (linelen > 3 && (BYTE)line[0] == 0xEF && (BYTE)line[1] == 0xBB && (BYTE)line[2] == 0xBF) { line += 3; linelen -= 3; }
+        while (linelen > 0 && line[linelen-1] == '\r') linelen--;
+        if (linelen < 5) continue;
+        if (line[0] == '/' && line[1] == '/') continue;
+        LPCSTR eq = memchr(line, '=', linelen);
+        if (!eq) continue;
+        int klen = (int)(eq - line);
+        int vlen = linelen - klen - 1;
+        if (klen <= 0 || vlen <= 0) continue;
+        if (klen < 3 || strncasecmp(line, "UI/", 3)) continue;
+        lines_ui++;
+        char key[128], val[256];
+        memcpy(key, line, klen); key[klen] = '\0';
+        memcpy(val, eq + 1, vlen); val[vlen] = '\0';
+        for (char *s = val; *s; s++) { if (*s == '\\') *s = '/'; }
+        SC2_AssetInsert(key, val);
+    }
+    fprintf(stderr, "SC2_AssetMap: merged total=%d ui=%d loaded=%d\n", lines_total, lines_ui, sc2_asset_count);
+    uiimport.FS_FreeFile(buf);
+}
+
 /* Frame type name → sc2FrameType mapping table */
 static struct { LPCSTR name; sc2FrameType type; } sc2_frame_types[] = {
     { "Frame",                  SC2_FRAMETYPE_FRAME },
@@ -417,13 +499,40 @@ static FLOAT SC2_ResolveAttrFloat(xmlNode *node, LPCSTR attr, FLOAT default_val)
     return result;
 }
 
-/* Parse <Anchor side="..." relative="..." pos="..." offset="..."/> */
+/* Parse <Anchor side="..." relative="..." pos="..." offset="..."/>
+ * When side/pos are omitted but relative is present, synthesize four anchors
+ * to fill the parent — SC2's standard "fill parent" pattern. */
 static void SC2_ParseAnchor(xmlNode *node, sc2Frame_t *frame) {
     if (frame->num_anchors >= SC2_MAX_ANCHORS) return;
 
     LPCSTR side_str = SC2_XmlGetProp(node,"side");
     LPCSTR pos_str = SC2_XmlGetProp(node,"pos");
     LPCSTR relative = SC2_XmlGetProp(node,"relative");
+
+    if (!side_str && !pos_str && relative) {
+        int16_t offset = (int16_t)SC2_ResolveAttrInt(node, "offset", 0);
+        static const struct { SC2Side side; SC2Pos pos; } fill[] = {
+            { SC2_SIDE_LEFT,   SC2_POS_MIN },
+            { SC2_SIDE_RIGHT,  SC2_POS_MAX },
+            { SC2_SIDE_TOP,    SC2_POS_MIN },
+            { SC2_SIDE_BOTTOM, SC2_POS_MAX },
+        };
+        for (int i = 0; i < 4 && frame->num_anchors < SC2_MAX_ANCHORS; i++) {
+            sc2Anchor_t *a = &frame->anchors[frame->num_anchors];
+            a->side = fill[i].side;
+            a->pos = fill[i].pos;
+            a->offset = offset;
+            if (relative) {
+                SC2_Strncpyz(a->relative, relative, sizeof(a->relative));
+            } else {
+                SC2_Strncpyz(a->relative, "$parent", sizeof(a->relative));
+            }
+            a->has_anchor = true;
+            frame->num_anchors++;
+        }
+        if (relative) SC2_XmlFree(relative);
+        return;
+    }
 
     if (!side_str || !pos_str) {
         if (side_str) SC2_XmlFree(side_str);
@@ -715,17 +824,19 @@ static void SC2_ParseDescNode(xmlNode *node) {
     }
 
     /* Pass 4: resolve template inheritance for all frames parsed in this file.
-     * Deferring to after all frames are parsed ensures same-file templates
-     * are fully populated before being used as bases. */
-    for (int i = templates_before; i < sc2_layout.num_templates; i++) {
+     * Some references may fail here if the target template is defined later
+     * in the same file or in a file loaded afterward. A second pass after
+     * all files are loaded handles those.
+     * Snapshot num_templates because SC2_ResolveTemplate clones children
+     * into the templates array, which would extend the loop endlessly. */
+    int pass4_count = sc2_layout.num_templates;
+    for (int i = templates_before; i < pass4_count; i++) {
         sc2Frame_t *frame = &sc2_layout.templates[i];
         if (frame->template_path[0]) {
             sc2Frame_t *tmpl = SC2_ResolveTemplatePath(frame->template_path);
             if (tmpl) {
                 SC2_ResolveTemplate(frame, tmpl);
-            } else {
-                fprintf(stderr, "SC2_Layout: template '%s' not found for frame '%s'\n",
-                        frame->template_path, frame->name);
+                frame->template_resolved = true;
             }
         }
     }
@@ -851,19 +962,27 @@ static void SC2_ResolveAnchors(sc2Frame_t *src, uiBaseFrame_t *dst) {
         switch (a->side) {
             case SC2_SIDE_LEFT:   is_x = true;  point_idx = FPP_MIN; break;
             case SC2_SIDE_RIGHT:  is_x = true;  point_idx = FPP_MAX; break;
-            case SC2_SIDE_TOP:    is_x = false; point_idx = FPP_MIN; break;
-            case SC2_SIDE_BOTTOM: is_x = false; point_idx = FPP_MAX; break;
+            case SC2_SIDE_TOP:    is_x = false; point_idx = FPP_MAX; break;
+            case SC2_SIDE_BOTTOM: is_x = false; point_idx = FPP_MIN; break;
             default: continue;
         }
 
-        /* pos determines target position on the parent */
-        int target_idx = (a->pos == SC2_POS_MIN) ? FPP_MIN :
+        /* pos determines target position on the parent.
+         * SC2 Y axis is inverted: Min=top=engine FPP_MAX, Max=bottom=engine FPP_MIN.
+         * X axis maps directly: Min=left=FPP_MIN, Max=right=FPP_MAX. */
+        int target_idx;
+        if (is_x) {
+            target_idx = (a->pos == SC2_POS_MIN) ? FPP_MIN :
                          (a->pos == SC2_POS_MID) ? FPP_MID : FPP_MAX;
+        } else {
+            target_idx = (a->pos == SC2_POS_MIN) ? FPP_MAX :
+                         (a->pos == SC2_POS_MID) ? FPP_MID : FPP_MIN;
+        }
 
         uiBaseFramePoint_t *p = is_x ? &dst->points.x[point_idx] : &dst->points.y[point_idx];
         p->used = true;
         p->targetPos = (uiFramePointPos_t)target_idx;
-        p->offset = is_x ? (FLOAT)a->offset : -(FLOAT)a->offset;
+        p->offset = is_x ? (FLOAT)a->offset : (FLOAT)a->offset;
 
         LPCSTR resolved_name = SC2_ParseRelativeName(a->relative, parent_name);
         if (!resolved_name || !strcasecmp(resolved_name, parent_name)) {
@@ -901,8 +1020,8 @@ static void SC2_ResolveNamedRelatives(void) {
                     if (!a->has_anchor) continue;
                     BOOL is_x_axis = (a->side == SC2_SIDE_LEFT || a->side == SC2_SIDE_RIGHT);
                     if ((axis == 0) != is_x_axis) continue;
-                    int a_point = (a->side == SC2_SIDE_LEFT || a->side == SC2_SIDE_TOP) ? FPP_MIN :
-                                  (a->side == SC2_SIDE_RIGHT || a->side == SC2_SIDE_BOTTOM) ? FPP_MAX : FPP_MID;
+                    int a_point = (a->side == SC2_SIDE_LEFT || a->side == SC2_SIDE_TOP) ? FPP_MAX :
+                                  (a->side == SC2_SIDE_RIGHT || a->side == SC2_SIDE_BOTTOM) ? FPP_MIN : FPP_MID;
                     if (a_point != j) continue;
                     /* Extract the name to look up: $parent/ChildName → ChildName */
                     LPCSTR look_name = a->relative;
@@ -929,6 +1048,32 @@ static void SC2_ResolveNamedRelatives(void) {
 }
 
 /* ---------- on_draw callbacks (called by client per frame) ---------- */
+
+static void SC2_DrawFrame(struct uiBaseFrame_s *frame, LPCRECT rect) {
+    LPRENDERER renderer = uiimport.GetRenderer();
+    if (!renderer) return;
+    if (frame->backdrop.bg && renderer->DrawImage) {
+        LPCTEXTURE tex = uiimport.GetTexture(frame->backdrop.bg);
+        if (tex) {
+            static const RECT uv = { 0.0f, 0.0f, 1.0f, 1.0f };
+            renderer->DrawImage(tex, rect, &uv, frame->color);
+            return;
+        }
+    }
+    if (frame->image && renderer->DrawImage) {
+        LPCTEXTURE tex = uiimport.GetTexture(frame->image);
+        if (tex) {
+            static const RECT uv = { 0.0f, 0.0f, 1.0f, 1.0f };
+            renderer->DrawImage(tex, rect, &uv, frame->color);
+        }
+    }
+}
+
+static void SC2_DrawMinimap(struct uiBaseFrame_s *frame, LPCRECT rect) {
+    LPRENDERER renderer = uiimport.GetRenderer();
+    if (!renderer || !renderer->DrawMinimap) return;
+    renderer->DrawMinimap(rect);
+}
 
 static void SC2_DrawImage(struct uiBaseFrame_s *frame, LPCRECT rect) {
     LPRENDERER renderer = uiimport.GetRenderer();
@@ -969,6 +1114,19 @@ static void SC2_DrawButton(struct uiBaseFrame_s *frame, LPCRECT rect) {
                                 .color = frame->color));
 }
 
+/* Resolve an SC2 texture resource name to an actual file path.
+ * Strips @@ prefix, then looks up UI/Name in the asset map.
+ * Returns the resolved path, or the original name if not found. */
+static LPCSTR SC2_ResolveTexturePath(LPCSTR resource) {
+    if (!resource || !resource[0]) return resource;
+    LPCSTR name = resource;
+    if (name[0] == '@') name++;
+    if (name[0] == '@') name++;
+    /* Asset map uses "UI/Name" keys, resource has "UI/Name" after @@ strip */
+    LPCSTR resolved = SC2_AssetLookup(name);
+    return resolved ? resolved : name;
+}
+
 /* Recursively flatten frame tree into uiBaseFrame_t array */
 static void SC2_FlattenFrame(sc2Frame_t *frame, int parent_index) {
     if (sc2_layout.num_frames >= SC2_MAX_FRAMES) return;
@@ -985,8 +1143,10 @@ static void SC2_FlattenFrame(sc2Frame_t *frame, int parent_index) {
         case FT_SPRITE: dst->on_draw = SC2_DrawImage;  break;
         case FT_BUTTON: dst->on_draw = SC2_DrawButton; break;
         case FT_TEXT:   dst->on_draw = SC2_DrawText;   break;
-        default:        dst->on_draw = NULL;            break;
+        default:        dst->on_draw = SC2_DrawFrame;  break;
     }
+    if (frame->type == SC2_FRAMETYPE_MINIMAP_PANEL)
+        dst->on_draw = SC2_DrawMinimap;
     dst->color = frame->has_color ? frame->color : (COLOR32){255, 255, 255, 255};
     dst->alpha = frame->has_alpha ? frame->alpha : 1.0f;
     dst->hidden = frame->has_visible ? !frame->visible : false;
@@ -998,21 +1158,22 @@ static void SC2_FlattenFrame(sc2Frame_t *frame, int parent_index) {
     SC2_ResolveAnchors(frame, dst);
 
     /* Resolve first texture as primary image */
-    if (frame->num_textures > 0 && frame->textures[0].has_texture) {
-        /* Store raw reference hash — resolved at render time */
-        dst->image = 0; /* TODO: resolve @@UI/Name to image index */
+    if (frame->num_textures > 0 && frame->textures[0].has_texture && frame->textures[0].resource[0]) {
+        LPCSTR res = SC2_ResolveTexturePath(frame->textures[0].resource);
+        dst->image = uiimport.ImageIndex(res);
     }
 
     /* Backdrop: first tiled texture as background, border textures as edge */
     for (int i = 0; i < frame->num_textures; i++) {
         sc2Texture_t *tex = &frame->textures[i];
-        if (!tex->has_texture) continue;
+        if (!tex->has_texture || !tex->resource[0]) continue;
+        LPCSTR res = SC2_ResolveTexturePath(tex->resource);
         if (tex->tiled && dst->backdrop.bg == 0) {
-            dst->backdrop.bg = 0; /* TODO: resolve texture */
+            dst->backdrop.bg = uiimport.ImageIndex(res);
             dst->backdrop.tile = true;
         }
         if (!strcasecmp(tex->texture_type, "Border") && dst->backdrop.edge == 0) {
-            dst->backdrop.edge = 0; /* TODO: resolve texture */
+            dst->backdrop.edge = uiimport.ImageIndex(res);
         }
     }
 
@@ -1024,13 +1185,31 @@ static void SC2_FlattenFrame(sc2Frame_t *frame, int parent_index) {
     }
 }
 
+/* Propagate UIFLAG_HIDDEN_IN_HIERARCHY from parents to children.
+ * A frame is effectively hidden if it OR any ancestor is hidden. */
+static void SC2_PropagateHiddenFlags(void) {
+    for (int i = 0; i < sc2_layout.num_frames; i++) {
+        uiBaseFrame_t *f = &sc2_layout.frames[i];
+        if (f->parent_index != (DWORD)-1) {
+            uiBaseFrame_t *parent = &sc2_layout.frames[f->parent_index];
+            if (parent->ui_flags & UIFLAG_HIDDEN_IN_HIERARCHY) {
+                f->ui_flags |= UIFLAG_HIDDEN_IN_HIERARCHY;
+                f->hidden = true;
+            }
+        }
+    }
+}
+
 /* ---------- Public API ---------- */
 
 void SC2_LayoutInit(void) {
     memset(&sc2_layout, 0, sizeof(sc2_layout));
+    memset(sc2_asset_map, 0, sizeof(sc2_asset_map));
+    sc2_asset_count = 0;
     for (int i = 0; i < SC2_MAX_TEMPLATES; i++) {
         sc2_layout.templates[i].resolved_index = -1;
     }
+    SC2_LoadAssetMap();
 }
 
 void SC2_LayoutShutdown(void) {
@@ -1070,27 +1249,55 @@ BOOL SC2_LayoutParseFile(LPCSTR filename) {
 BOOL SC2_LayoutBuildGameUI(void) {
     SC2_LayoutInit();
 
-    /* Load core layouts — order matters: templates before consumers */
+    /* Load core layouts — order matches DescIndex.SC2Layout: templates before consumers */
     static LPCSTR core_files[] = {
+        /* Constants and common templates first */
         "UI/Layout/Common/StandardConstants.SC2Layout",
-        "UI/Layout/UI/GameButton.SC2Layout",
         "UI/Layout/Common/StandardTemplates.SC2Layout",
         "UI/Layout/Common/StandardTooltip.SC2Layout",
         "UI/Layout/Common/StandardDialog.SC2Layout",
-        "UI/Layout/UI/ConsolePanel.SC2Layout",
-        "UI/Layout/UI/CommandPanel.SC2Layout",
-        "UI/Layout/UI/CommandButton.SC2Layout",
-        "UI/Layout/UI/ResourcePanel.SC2Layout",
-        "UI/Layout/UI/MinimapPanel.SC2Layout",
+        /* Game UI panels — in-game HUD only, no Glue/menu panels */
         "UI/Layout/UI/PortraitPanel.SC2Layout",
-        "UI/Layout/UI/InfoPanel.SC2Layout",
+        "UI/Layout/UI/ConsolePanel.SC2Layout",
+        "UI/Layout/UI/TimePanel.SC2Layout",
+        "UI/Layout/UI/ResourcePanel.SC2Layout",
         "UI/Layout/UI/MenuBar.SC2Layout",
+        "UI/Layout/UI/SubtitlePanel.SC2Layout",
+        "UI/Layout/UI/ConversationPanel.SC2Layout",
+        "UI/Layout/UI/PausePanel.SC2Layout",
+        "UI/Layout/UI/TeamResourcePanel.SC2Layout",
+        "UI/Layout/UI/AlliancePanel.SC2Layout",
+        "UI/Layout/UI/ObjectivePanel.SC2Layout",
+        "UI/Layout/UI/MinimapPanel.SC2Layout",
+        "UI/Layout/UI/GameButton.SC2Layout",
+        "UI/Layout/UI/CommandButton.SC2Layout",
+        "UI/Layout/UI/CommandPanel.SC2Layout",
+        "UI/Layout/UI/AIFrames.SC2Layout",
+        "UI/Layout/UI/HeroPanel.SC2Layout",
+        "UI/Layout/UI/InventoryPanel.SC2Layout",
+        "UI/Layout/UI/UnitButton.SC2Layout",
+        "UI/Layout/UI/UnitWireframe.SC2Layout",
+        "UI/Layout/UI/BehaviorBar.SC2Layout",
+        "UI/Layout/UI/InfoPaneUnit.SC2Layout",
+        "UI/Layout/UI/InfoPaneHero.SC2Layout",
+        "UI/Layout/UI/InfoPaneQueue.SC2Layout",
+        "UI/Layout/UI/InfoPaneProgress.SC2Layout",
+        "UI/Layout/UI/InfoPaneCargo.SC2Layout",
+        "UI/Layout/UI/InfoPaneGroup.SC2Layout",
+        "UI/Layout/UI/InfoPanel.SC2Layout",
         "UI/Layout/UI/ControlGroupPanel.SC2Layout",
         "UI/Layout/UI/AlertPanel.SC2Layout",
-        "UI/Layout/UI/ObjectivePanel.SC2Layout",
-        "UI/Layout/UI/TimePanel.SC2Layout",
-        "UI/Layout/UI/ConversationPanel.SC2Layout",
-        "UI/Layout/UI/SubtitlePanel.SC2Layout",
+        "UI/Layout/UI/LeaderPanel.SC2Layout",
+        "UI/Layout/UI/TipAlertPanel.SC2Layout",
+        "UI/Layout/UI/SystemAlertPanel.SC2Layout",
+        "UI/Layout/UI/ChatBar.SC2Layout",
+        "UI/Layout/UI/CashPanel.SC2Layout",
+        "UI/Layout/UI/ResourceRequestAlertPanel.SC2Layout",
+        "UI/Layout/UI/RevealPanel.SC2Layout",
+        "UI/Layout/UI/CampaignTemplates.SC2Layout",
+        "UI/Layout/UI/AchievementPanel.SC2Layout",
+        "UI/Layout/UI/VictoryPanel.SC2Layout",
+        "UI/Layout/UI/GameMenuDialog.SC2Layout",
         "UI/Layout/UI/GameUI.SC2Layout",
         NULL,
     };
@@ -1098,6 +1305,25 @@ BOOL SC2_LayoutBuildGameUI(void) {
     for (int i = 0; core_files[i]; i++) {
         if (!SC2_LayoutParseFile(core_files[i])) {
             fprintf(stderr, "SC2_Layout: failed to load core file '%s'\n", core_files[i]);
+        }
+    }
+
+    /* Second resolution pass: inline children may reference templates defined
+     * later in the same file or in files loaded after their own.
+     * Snapshot the count first because SC2_ResolveTemplate clones children
+     * into the templates array, which would cause an infinite loop. */
+    int unresolved_count = sc2_layout.num_templates;
+    for (int i = 0; i < unresolved_count; i++) {
+        sc2Frame_t *frame = &sc2_layout.templates[i];
+        if (frame->template_path[0] && !frame->template_resolved) {
+            sc2Frame_t *tmpl = SC2_ResolveTemplatePath(frame->template_path);
+            if (tmpl) {
+                SC2_ResolveTemplate(frame, tmpl);
+                frame->template_resolved = true;
+            } else {
+                fprintf(stderr, "SC2_Layout: template '%s' not found for frame '%s'\n",
+                        frame->template_path, frame->name);
+            }
         }
     }
 
@@ -1114,6 +1340,7 @@ BOOL SC2_LayoutFlatten(LPCSTR root_name) {
 
     sc2_layout.num_frames = 0;
     SC2_FlattenFrame(root, -1);
+    SC2_PropagateHiddenFlags();
     SC2_ResolveNamedRelatives();
 
     fprintf(stderr, "SC2_Layout: built %d frames from %d templates, %d constants\n",
