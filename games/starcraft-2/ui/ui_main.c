@@ -262,7 +262,7 @@ uiExport_t UI_GetAPI(uiImport_t import) {
     exp.Shutdown = SC2_UI_ShutdownLocal;
     exp.Refresh = SC2_UI_RefreshLocal;
     exp.DrawFrame = SC2_UI_DrawFrame;
-    exp.SetLoadingState = SC2_UI_SetLoadingState;
+    exp.DrawLoadingScreen = SC2_UI_SetLoadingState;
     exp.KeyEvent = SC2_UI_KeyEvent;
     exp.TextInput = SC2_UI_TextInput;
     exp.MouseEvent = SC2_UI_MouseEvent;
