@@ -2095,6 +2095,13 @@ BOOL UIWow_XMLMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
         return false;
     }
 
+    /* Fire OnClick on mouse-down (matches whoa-master: down=true) */
+    if (wow_xml.elems[hit].type == WOW_XML_BUTTON &&
+        (wow_xml.elems[hit].flags & EF_ENABLED) && wow_ui.lua &&
+        UIWow_ElemStr(&wow_xml.elems[hit], ELEM_ON_CLICK)) {
+        UIWow_XMLRunFrameScript(hit, wow_xml.elems[hit].texts[ELEM_ON_CLICK], "OnClick");
+    }
+
     /* Scrollbar part interaction. */
     {
         int part = UIWow_XMLScrollBarPart(&wow_xml.elems[hit]);
