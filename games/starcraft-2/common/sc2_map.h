@@ -42,6 +42,7 @@ typedef struct {
     VECTOR3         position;
     FLOAT           angle;
     FLOAT           scale;
+    FLOAT           radius;
     DWORD           variation;
     DWORD           player;
     DWORD           flags;

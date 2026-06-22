@@ -327,6 +327,7 @@ static void test_sc2_map_loads_xml_objects_and_terrain(void) {
     ASSERT_EQ_INT(map->objects[1].id, 1);
     ASSERT_STR_EQ(map->objects[1].model, "Assets\\Units\\Terran\\MarineCatalogModel\\MarineCatalogModel.m3");
     ASSERT_EQ_INT(map->objects[1].type, SC2_OBJECT_UNIT);
+    ASSERT_EQ_FLOAT(map->objects[1].radius, 0.75f, 0.001f);
     ASSERT_EQ_FLOAT(map->objects[1].position.x, 3.5f, 0.001f);
     ASSERT_EQ_FLOAT(map->objects[1].position.y, 3.5f, 0.001f);
     ASSERT_EQ_FLOAT(map->objects[1].position.z, 0.25f, 0.001f);
@@ -482,6 +483,7 @@ static void test_sc2_map_loads_directory_fixture_without_generated_layers(void) 
     ASSERT_STR_EQ(map->objects[1].name, "Marine");
     ASSERT_EQ_INT(map->objects[1].type, SC2_OBJECT_UNIT);
     ASSERT_STR_EQ(map->objects[1].model, "Assets\\Units\\Terran\\MarineCatalogModel\\MarineCatalogModel.m3");
+    ASSERT_EQ_FLOAT(map->objects[1].radius, 0.75f, 0.001f);
     ASSERT_EQ_FLOAT(map->objects[1].position.x, 3.5f, 0.001f);
     ASSERT_EQ_INT(map->objects[1].player, 2);
     ASSERT_STR_EQ(map->objects[4].name, "MineralField");

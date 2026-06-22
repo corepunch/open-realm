@@ -40,11 +40,14 @@ typedef struct {
 typedef struct {
     char id[64];
     char actor[64];
+    BOOL has_radius;
+    FLOAT radius;
 } sc2CatalogUnit_t;
 
 typedef struct {
     char name[64];
     char model[256];
+    FLOAT radius;
 } sc2ResolvedObjectModel_t;
 
 typedef struct {
@@ -983,20 +986,27 @@ static void sc2_catalog_add_actor(sc2Catalog_t *catalog, LPCSTR id, LPCSTR model
     snprintf(actor->model, sizeof(actor->model), "%s", model_id);
 }
 
-static void sc2_catalog_add_unit(sc2Catalog_t *catalog, LPCSTR id, LPCSTR actor_id) {
+static void sc2_catalog_add_unit(sc2Catalog_t *catalog, LPCSTR id, LPCSTR actor_id, FLOAT radius, BOOL has_radius) {
     sc2CatalogUnit_t *unit;
 
-    if (!catalog || !id || !*id || !actor_id || !*actor_id) return;
+    if (!catalog || !id || !*id || ((!actor_id || !*actor_id) && !has_radius)) return;
     FOR_LOOP(i, catalog->units_count) {
         if (!strcasecmp(catalog->units[i].id, id)) {
-            snprintf(catalog->units[i].actor, sizeof(catalog->units[i].actor), "%s", actor_id);
+            if (actor_id && *actor_id)
+                snprintf(catalog->units[i].actor, sizeof(catalog->units[i].actor), "%s", actor_id);
+            if (has_radius) {
+                catalog->units[i].has_radius = true;
+                catalog->units[i].radius = radius;
+            }
             return;
         }
     }
     if (catalog->units_count >= SC2_MAX_CATALOG_UNITS) return;
     unit = &catalog->units[catalog->units_count++];
     snprintf(unit->id, sizeof(unit->id), "%s", id);
-    snprintf(unit->actor, sizeof(unit->actor), "%s", actor_id);
+    snprintf(unit->actor, sizeof(unit->actor), "%s", actor_id ? actor_id : "");
+    unit->has_radius = has_radius;
+    unit->radius = has_radius ? radius : 0.0f;
 }
 
 static void sc2_catalog_add_terrain_tex(sc2Catalog_t *catalog, LPCSTR id, LPCSTR diffuse, LPCSTR normal) {
@@ -1151,10 +1161,10 @@ static LPCSTR sc2_catalog_actor_model(sc2Catalog_t const *catalog, LPCSTR id) {
     return NULL;
 }
 
-static LPCSTR sc2_catalog_unit_actor(sc2Catalog_t const *catalog, LPCSTR id) {
+static sc2CatalogUnit_t const *sc2_catalog_unit(sc2Catalog_t const *catalog, LPCSTR id) {
     if (!catalog || !id || !*id) return NULL;
     FOR_LOOP(i, catalog->units_count) {
-        if (!strcasecmp(catalog->units[i].id, id)) return catalog->units[i].actor;
+        if (!strcasecmp(catalog->units[i].id, id)) return &catalog->units[i];
     }
     return NULL;
 }
@@ -1270,17 +1280,26 @@ static void sc2_parse_unit_catalog_file(sc2Catalog_t *catalog, LPCSTR root_name)
     for (xmlNodePtr node = root ? root->children : NULL; node; node = node->next) {
         char id[64];
         char actor_id[64] = "";
+        FLOAT radius = 0.0f;
+        BOOL has_radius = false;
 
         if (node->type != XML_ELEMENT_NODE || !sc2_contains_i((char const *)node->name, "CUnit"))
             continue;
         if (!sc2_xml_attr(node, "id", id, sizeof(id))) continue;
         for (xmlNodePtr child = node->children; child; child = child->next) {
-            if (child->type == XML_ELEMENT_NODE && sc2_streqi((char const *)child->name, "Actor")) {
+            char value[64];
+
+            if (child->type != XML_ELEMENT_NODE)
+                continue;
+            if (sc2_streqi((char const *)child->name, "Actor")) {
                 sc2_xml_attr(child, "value", actor_id, sizeof(actor_id));
-                break;
+            } else if (sc2_streqi((char const *)child->name, "Radius") &&
+                       sc2_xml_attr(child, "value", value, sizeof(value)) &&
+                       sscanf(value, "%f", &radius) == 1 && radius > 0.0f) {
+                has_radius = true;
             }
         }
-        sc2_catalog_add_unit(catalog, id, actor_id);
+        sc2_catalog_add_unit(catalog, id, actor_id, radius, has_radius);
     }
     xmlFreeDoc(doc);
 }
@@ -1477,13 +1496,15 @@ static void sc2_resolve_object_models(sc2Catalog_t const *catalog) {
         FOR_LOOP(j, resolved_count) {
             if (!strcasecmp(resolved[j].name, object->name)) {
                 snprintf(object->model, sizeof(object->model), "%s", resolved[j].model);
+                object->radius = resolved[j].radius;
                 goto next_object;
             }
         }
         model_id = NULL;
         if (object->type == SC2_OBJECT_UNIT) {
-            LPCSTR actor_id = sc2_catalog_unit_actor(catalog, object->name);
-            if (actor_id) model_id = sc2_catalog_actor_model(catalog, actor_id);
+            sc2CatalogUnit_t const *unit = sc2_catalog_unit(catalog, object->name);
+            if (unit && unit->has_radius) object->radius = unit->radius;
+            if (unit && unit->actor[0]) model_id = sc2_catalog_actor_model(catalog, unit->actor);
         }
         if (!model_id) model_id = sc2_catalog_actor_model(catalog, object->name);
         if (!model_id) model_id = object->name;
@@ -1496,6 +1517,7 @@ static void sc2_resolve_object_models(sc2Catalog_t const *catalog) {
         if (resolved_count < SC2_MAX_MAP_OBJECTS) {
             snprintf(resolved[resolved_count].name, sizeof(resolved[resolved_count].name), "%s", object->name);
             snprintf(resolved[resolved_count].model, sizeof(resolved[resolved_count].model), "%s", object->model);
+            resolved[resolved_count].radius = object->radius;
             resolved_count++;
         }
 next_object:

@@ -2,5 +2,6 @@
 <Catalog>
     <CUnit id="Marine">
         <Actor value="MarineActor"/>
+        <Radius value="0.75"/>
     </CUnit>
 </Catalog>

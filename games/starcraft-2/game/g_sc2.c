@@ -45,6 +45,16 @@ static FLOAT SC2_ObjectSpawnZ(sc2MapObject_t const *object) {
     return SC2_MapHeightAtPoint(object->position.x, object->position.y) + object->position.z;
 }
 
+static FLOAT SC2_ObjectRadius(sc2MapObject_t const *object) {
+    if (!object) {
+        return 0.0f;
+    }
+    if (object->radius > 0.0f) {
+        return object->radius;
+    }
+    return object->type == SC2_OBJECT_UNIT ? 1.0f : 0.5f;
+}
+
 static void SC2_LinkAtGround(LPEDICT ent) {
     ent->s.origin.x = ent->s.origin2.x;
     ent->s.origin.y = ent->s.origin2.y;
@@ -322,7 +332,7 @@ static void SC2_SpawnEntities(void) {
         ent->s.origin.z = SC2_ObjectSpawnZ(object);
         ent->s.angle = object->angle;
         ent->s.scale = object->scale > 0.0f ? object->scale : 1.0f;
-        ent->s.radius = object->type == SC2_OBJECT_UNIT ? 1.0f : 0.5f;
+        ent->s.radius = SC2_ObjectRadius(object);
         ent->s.player = object->player;
         ent->s.model = G_RegisterModel(object->model);
         ent->collision = ent->s.radius;
