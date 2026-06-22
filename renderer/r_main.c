@@ -449,7 +449,6 @@ void R_RevertSettings(void) {
 void R_RenderShadowMap(void) {
     tr.pass = R_PASS_SHADOW;
     R_SetupGL(true);
-    R_BindTexture(tr.texture[TEX_SHADOWMAP], 1);
     R_GameDrawWorld();
     R_DrawEntities();
 }

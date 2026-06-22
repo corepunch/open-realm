@@ -2909,7 +2909,6 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
         texture = M2_CharacterTextureForBatch(model, entity, batch, outfit);
         M2_UploadBatchBones(model, batch, shader);
         R_BindTexture(texture ? texture : tr.texture[TEX_WHITE], 0);
-        R_BindTexture(tr.texture[TEX_SHADOWMAP], 1);
         R_BindTexture(tr.texture[TEX_WHITE], 2);
         R_DrawBuffer(batch->buffer, batch->num_vertices);
     }
