@@ -436,6 +436,7 @@ static int UIWow_LuaDefaultServerLogin(lua_State *L) {
 static int UIWow_LuaNoop(lua_State *L) { (void)L; return 0; }
 
 static int UIWow_LuaPlaySound(lua_State *L) {
+    if (!UIWow_IsButtonDown()) return 0; /* suppress sounds during mouse-up */
     if (lua_isnumber(L, 1) && uiimport.PlaySound) {
         DWORD id = (DWORD)lua_tointeger(L, 1);
         printf("[ui] PlaySound(id=%lu)\n", (unsigned long)id);
