@@ -57,6 +57,7 @@ struct game_import {
 
     void (*configstring)(DWORD index, LPCSTR string);
     void (*confignstring)(DWORD index, LPCSTR string, DWORD len);
+    LPCSTR (*GetConfigstring)(DWORD index);
     void (*error)(LPCSTR fmt, ...);
     void (*ApplyLobbySettings)(LPMAPINFO info);
 

@@ -71,6 +71,8 @@ typedef struct {
     PATHSTR current_menu;
     int model_frame_idx;      /* frame index for SetCharSelectModelFrame */
     int char_customize_frame_idx;
+    int char_select_frame_idx;
+    int selected_char_idx;    /* 0-based index into wow_charlist for char-select screen */
     LPMODEL char_customize_model;
     PATHSTR char_customize_model_path;
     DWORD time;

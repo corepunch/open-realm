@@ -1437,6 +1437,8 @@ static void UIWow_XMLReleaseCharCustomizeModel(void) {
         SAFE_DELETE(wow_ui.char_customize_model, wow_ui.renderer->ReleaseModel);
     wow_ui.char_customize_model_path[0] = '\0';
     wow_ui.char_customize_frame_idx = -1;
+    wow_ui.char_select_frame_idx = -1;
+    wow_ui.selected_char_idx = -1;
 }
 
 void UIWow_XMLInvalidateCharCustomizeModel(void) {
@@ -1447,7 +1449,9 @@ void UIWow_XMLInvalidateCharCustomizeModel(void) {
 
 void UIWow_XMLInitRuntime(void) {
     memset(&wow_xml, 0, sizeof(wow_xml)); wow_xml.focus = -1; wow_xml.pressed_button = -1; wow_xml.hovered_button = -1;
-    wow_xml.drag.scrollbar_idx = -1; wow_ui.char_customize_frame_idx = -1; UIWow_XMLInstallLuaCompat();
+    wow_xml.drag.scrollbar_idx = -1; wow_ui.char_customize_frame_idx = -1;
+    wow_ui.char_select_frame_idx = -1; wow_ui.selected_char_idx = -1;
+    UIWow_XMLInstallLuaCompat();
 }
 void UIWow_XMLShutdownRuntime(void) {
     if (wow_ui.renderer && wow_ui.renderer->ReleaseModel) FOR_LOOP(i, wow_xml.count) SAFE_DELETE(wow_xml.elems[i].model, wow_ui.renderer->ReleaseModel);
@@ -1723,13 +1727,19 @@ static LPCSTR UIWow_XMLDisplayText(uiWowXmlElem_t const *e, LPSTR out, size_t ou
     return out;
 }
 
-/* Return the live character-create actor for Blizzard's background model scene. */
+/* Return the live character actor for Blizzard's background model scene.
+   Handles both char-create (customize) and char-select screens. */
 static LPMODEL UIWow_XMLCharCustomizeModel(int i) {
     char path[MAX_PATHLEN];
+    BOOL is_char_select = (i == wow_ui.char_select_frame_idx);
+    BOOL is_char_customize = (i == wow_ui.char_customize_frame_idx);
 
-    if (i != wow_ui.char_customize_frame_idx || !wow_ui.renderer || !wow_ui.renderer->LoadModel)
+    if ((!is_char_select && !is_char_customize) || !wow_ui.renderer || !wow_ui.renderer->LoadModel)
         return NULL;
-    UIWow_GetCharacterCreateModelPath(path, sizeof(path));
+    if (is_char_select)
+        UIWow_GetCharacterSelectModelPath(path, sizeof(path));
+    else
+        UIWow_GetCharacterCreateModelPath(path, sizeof(path));
     if (!path[0]) return NULL;
     if (!wow_ui.char_customize_model || strcmp(wow_ui.char_customize_model_path, path)) {
         if (wow_ui.char_customize_model && wow_ui.renderer->ReleaseModel)
@@ -1738,7 +1748,7 @@ static LPMODEL UIWow_XMLCharCustomizeModel(int i) {
         snprintf(wow_ui.char_customize_model_path, sizeof(wow_ui.char_customize_model_path), "%s", path);
         if (!wow_ui.char_customize_model)
             UIWow_WarnOnce(WOW_UI_WARN_NO_CHAR_MODEL,
-                           "UIWow: failed to load character create model %s\n", path);
+                           "UIWow: failed to load character model %s\n", path);
     }
     return wow_ui.char_customize_model;
 }
@@ -1810,14 +1820,17 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
                 UIWow_XMLRunFrameScript(i, e->texts[ELEM_ON_UPDATE_MODEL], "OnUpdateModel");
             if (!e->model && wow_ui.renderer->LoadModel) e->model = wow_ui.renderer->LoadModel(file);
             if (e->model && wow_ui.renderer->RenderFrame) {
+                BOOL is_char_select = (i == wow_ui.char_select_frame_idx);
                 renderEntity_t entity = {0};
                 entity.model = e->model;
                 entity.attached_model = UIWow_XMLCharCustomizeModel(i);
-                entity.appearance = UIWow_GetCharacterCreateAppearance();
+                entity.appearance = is_char_select ? UIWow_GetCharacterSelectAppearance()
+                                                   : UIWow_GetCharacterCreateAppearance();
                 entity.frame = e->frame;
                 entity.oldframe = e->oldframe;
                 entity.scale = 1.0f;
-                entity.angle = (FLOAT)DEG2RAD(UIWow_GetCharacterCreateFacing());
+                entity.angle = is_char_select ? 0.0f
+                                              : (FLOAT)DEG2RAD(UIWow_GetCharacterCreateFacing());
                 entity.flags = RF_NO_SHADOW | RF_NO_FOGOFWAR | RF_NO_LIGHTING;
                 if (wow_ui.renderer->SetEntityAnimFrame) {
                     char anim[16];

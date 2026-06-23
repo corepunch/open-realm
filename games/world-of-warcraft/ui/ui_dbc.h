@@ -33,3 +33,6 @@ int UIWow_LuaCreateCharacter(lua_State *L);
 int UIWow_LuaCharacterCreateResult(lua_State *L);
 int UIWow_LuaGetNumCharacters(lua_State *L);
 int UIWow_LuaGetCharacterInfo(lua_State *L);
+void UIWow_GetCharacterSelectModelPath(LPSTR out, size_t out_size);
+DWORD UIWow_GetCharacterSelectAppearance(void);
+void UIWow_SetSelectedCharCvars(void);
