@@ -93,6 +93,12 @@ void PF_Configstring(DWORD index, LPCSTR value) {
     strcpy(sv.configstrings[index], value);
 }
 
+LPCSTR PF_GetConfigstring(DWORD index) {
+    if (index >= MAX_CONFIGSTRINGS)
+        return "";
+    return sv.configstrings[index];
+}
+
 DWORD SV_GetTime(void) {
     return sv.time;
 }
@@ -159,6 +165,7 @@ void SV_InitGameProgs(void) {
     import.ClearWorld = SV_ClearWorld;
     import.configstring = PF_Configstring;
     import.confignstring = PF_Confignstring;
+    import.GetConfigstring = PF_GetConfigstring;
     import.Write = PF_Write;
     import.ApplyLobbySettings = SV_ApplyLobbySettings;
     import.CvarString = Cvar_String;
