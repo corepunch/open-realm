@@ -89,7 +89,6 @@ void S_LoadSoundEntries(void) {
         S_InsertHash(id, k->name);
     }
     s.dbc_data = data;
-    printf("[sound] loaded %lu kits from SoundEntries.dbc\n", (unsigned long)nrec);
 }
 
 static sWavCache_t *S_CacheWav(DWORD kit_id, LPCSTR path) {
@@ -209,7 +208,6 @@ BOOL S_Init(void) {
     SDL_PauseAudioDevice(s.device, 0);
     S_LoadSoundEntries();
     s.initialized = TRUE;
-    printf("[sound] initialized (44100 Hz, 16-bit, mono)\n");
     return TRUE;
 }
 
@@ -220,7 +218,6 @@ void S_Shutdown(void) {
         if (s.wav_cache[i].data) free(s.wav_cache[i].data);
     FS_FreeFile(s.dbc_data);
     memset(&s, 0, sizeof(s));
-    printf("[sound] shutdown\n");
 }
 
 void S_PlaySound(DWORD kit_id) {
@@ -251,7 +248,6 @@ void S_PlaySound(DWORD kit_id) {
             s.channels[ch].volume = k->volume > 0.0f ? k->volume : 1.0f;
             s.channels[ch].active = TRUE;
             SDL_UnlockAudioDevice(s.device);
-            printf("[sound] play id=%lu name=%s\n", (unsigned long)kit_id, k->name);
             return;
         }
     }
