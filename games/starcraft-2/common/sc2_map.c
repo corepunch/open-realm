@@ -103,6 +103,15 @@ typedef struct {
 static sc2MapHost_t sc2_host;
 static sc2Map_t     sc2_map;
 
+static LPCSTR const sc2_catalog_roots[] = {
+    "Mods/Core.SC2Mod/Base.SC2Data",
+    "Mods/Liberty.SC2Mod/Base.SC2Data",
+    "Mods/LibertyMulti.SC2Mod/Base.SC2Data",
+    "Campaigns/LibertyStory.SC2Campaign/Base.SC2Data",
+    "Campaigns/Liberty.SC2Campaign/Base.SC2Data",
+    NULL,
+};
+
 static BOOL sc2_mapinfo_fourcc(sc2MapInfo_t const *mapInfo);
 static BOOL sc2_parse_xml_field(void *base, sc2XmlField_t const *fields, DWORD num_fields, LPCSTR name, LPCSTR value);
 
@@ -336,6 +345,20 @@ static xmlDocPtr sc2_read_catalog_xml(LPCSTR root, LPCSTR filename) {
         return sc2_read_catalog_xml_from_archive(path, filename);
     }
     return sc2_read_catalog_xml_from_archive(root, filename);
+}
+
+static xmlDocPtr sc2_read_map_catalog_xml(sc2MapSource_t *source, LPCSTR filename) {
+    PATHSTR path;
+    xmlDocPtr doc;
+
+    snprintf(path, sizeof(path), "Base.SC2Data/%s", filename);
+    for (char *p = path; *p; p++) if (*p == '\\') *p = '/';
+    doc = sc2_read_xml(source, path);
+    if (doc)
+        return doc;
+    snprintf(path, sizeof(path), "Base.SC2Data\\%s", filename);
+    for (char *p = path; *p; p++) if (*p == '/') *p = '\\';
+    return sc2_read_xml(source, path);
 }
 
 static BOOL sc2_xml_attr(xmlNodePtr node, LPCSTR attr_name, LPSTR buffer, DWORD size) {
@@ -714,18 +737,9 @@ static void sc2_parse_terrain_data_catalog_file(LPCSTR root_name) {
 }
 
 static void sc2_parse_terrain_data_catalogs(void) {
-    static LPCSTR const roots[] = {
-        "Mods/Core.SC2Mod/Base.SC2Data",
-        "Mods/Liberty.SC2Mod/Base.SC2Data",
-        "Mods/LibertyMulti.SC2Mod/Base.SC2Data",
-        "Campaigns/LibertyStory.SC2Campaign/Base.SC2Data",
-        "Campaigns/Liberty.SC2Campaign/Base.SC2Data",
-        NULL,
-    };
-
+    for (DWORD i = 0; sc2_catalog_roots[i]; i++)
+        sc2_parse_terrain_data_catalog_file(sc2_catalog_roots[i]);
     sc2_parse_terrain_data_catalog_file("");
-    for (DWORD i = 0; roots[i]; i++)
-        sc2_parse_terrain_data_catalog_file(roots[i]);
 }
 
 static void sc2_parse_light_data(sc2MapSource_t *source) {
@@ -744,18 +758,9 @@ static void sc2_parse_light_data_catalog_file(LPCSTR root_name) {
 }
 
 static void sc2_parse_light_data_catalogs(void) {
-    static LPCSTR const roots[] = {
-        "Mods/Core.SC2Mod/Base.SC2Data",
-        "Mods/Liberty.SC2Mod/Base.SC2Data",
-        "Mods/LibertyMulti.SC2Mod/Base.SC2Data",
-        "Campaigns/LibertyStory.SC2Campaign/Base.SC2Data",
-        "Campaigns/Liberty.SC2Campaign/Base.SC2Data",
-        NULL,
-    };
-
+    for (DWORD i = 0; sc2_catalog_roots[i]; i++)
+        sc2_parse_light_data_catalog_file(sc2_catalog_roots[i]);
     sc2_parse_light_data_catalog_file("");
-    for (DWORD i = 0; roots[i]; i++)
-        sc2_parse_light_data_catalog_file(roots[i]);
 }
 
 static void sc2_set_object_model(sc2MapObject_t *object) {
@@ -1212,8 +1217,7 @@ static BOOL sc2_terrain_texture_path_from_tileset(LPCSTR id,
     return true;
 }
 
-static void sc2_parse_model_catalog_file(sc2Catalog_t *catalog, LPCSTR root_name) {
-    xmlDocPtr doc = sc2_read_catalog_xml(root_name, "GameData\\ModelData.xml");
+static void sc2_parse_model_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
     xmlNodePtr root;
 
     if (!doc) return;
@@ -1237,11 +1241,23 @@ static void sc2_parse_model_catalog_file(sc2Catalog_t *catalog, LPCSTR root_name
         }
         sc2_catalog_add_model(catalog, id, parent, race, path);
     }
+}
+
+static void sc2_parse_model_catalog_file(sc2Catalog_t *catalog, LPCSTR root_name) {
+    xmlDocPtr doc = sc2_read_catalog_xml(root_name, "GameData\\ModelData.xml");
+
+    sc2_parse_model_catalog_doc(catalog, doc);
     xmlFreeDoc(doc);
 }
 
-static void sc2_parse_actor_catalog_file(sc2Catalog_t *catalog, LPCSTR root_name) {
-    xmlDocPtr doc = sc2_read_catalog_xml(root_name, "GameData\\ActorData.xml");
+static void sc2_parse_model_catalog_source(sc2Catalog_t *catalog, sc2MapSource_t *source) {
+    xmlDocPtr doc = sc2_read_map_catalog_xml(source, "GameData\\ModelData.xml");
+
+    sc2_parse_model_catalog_doc(catalog, doc);
+    xmlFreeDoc(doc);
+}
+
+static void sc2_parse_actor_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
     xmlNodePtr root;
 
     if (!doc) return;
@@ -1268,11 +1284,23 @@ static void sc2_parse_actor_catalog_file(sc2Catalog_t *catalog, LPCSTR root_name
         sc2_catalog_add_actor(catalog, id, model_id);
         if (unit_name[0]) sc2_catalog_add_actor(catalog, unit_name, model_id);
     }
+}
+
+static void sc2_parse_actor_catalog_file(sc2Catalog_t *catalog, LPCSTR root_name) {
+    xmlDocPtr doc = sc2_read_catalog_xml(root_name, "GameData\\ActorData.xml");
+
+    sc2_parse_actor_catalog_doc(catalog, doc);
     xmlFreeDoc(doc);
 }
 
-static void sc2_parse_unit_catalog_file(sc2Catalog_t *catalog, LPCSTR root_name) {
-    xmlDocPtr doc = sc2_read_catalog_xml(root_name, "GameData\\UnitData.xml");
+static void sc2_parse_actor_catalog_source(sc2Catalog_t *catalog, sc2MapSource_t *source) {
+    xmlDocPtr doc = sc2_read_map_catalog_xml(source, "GameData\\ActorData.xml");
+
+    sc2_parse_actor_catalog_doc(catalog, doc);
+    xmlFreeDoc(doc);
+}
+
+static void sc2_parse_unit_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
     xmlNodePtr root;
 
     if (!doc) return;
@@ -1301,11 +1329,23 @@ static void sc2_parse_unit_catalog_file(sc2Catalog_t *catalog, LPCSTR root_name)
         }
         sc2_catalog_add_unit(catalog, id, actor_id, radius, has_radius);
     }
+}
+
+static void sc2_parse_unit_catalog_file(sc2Catalog_t *catalog, LPCSTR root_name) {
+    xmlDocPtr doc = sc2_read_catalog_xml(root_name, "GameData\\UnitData.xml");
+
+    sc2_parse_unit_catalog_doc(catalog, doc);
     xmlFreeDoc(doc);
 }
 
-static void sc2_parse_terrain_tex_catalog_file(sc2Catalog_t *catalog, LPCSTR root_name) {
-    xmlDocPtr doc = sc2_read_catalog_xml(root_name, "GameData\\TerrainTexData.xml");
+static void sc2_parse_unit_catalog_source(sc2Catalog_t *catalog, sc2MapSource_t *source) {
+    xmlDocPtr doc = sc2_read_map_catalog_xml(source, "GameData\\UnitData.xml");
+
+    sc2_parse_unit_catalog_doc(catalog, doc);
+    xmlFreeDoc(doc);
+}
+
+static void sc2_parse_terrain_tex_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
     xmlNodePtr root;
 
     if (!doc) return;
@@ -1327,11 +1367,23 @@ static void sc2_parse_terrain_tex_catalog_file(sc2Catalog_t *catalog, LPCSTR roo
         }
         sc2_catalog_add_terrain_tex(catalog, id, diffuse, normal);
     }
+}
+
+static void sc2_parse_terrain_tex_catalog_file(sc2Catalog_t *catalog, LPCSTR root_name) {
+    xmlDocPtr doc = sc2_read_catalog_xml(root_name, "GameData\\TerrainTexData.xml");
+
+    sc2_parse_terrain_tex_catalog_doc(catalog, doc);
     xmlFreeDoc(doc);
 }
 
-static void sc2_parse_cliff_catalog_file(sc2Catalog_t *catalog, LPCSTR root_name) {
-    xmlDocPtr doc = sc2_read_catalog_xml(root_name, "GameData\\CliffData.xml");
+static void sc2_parse_terrain_tex_catalog_source(sc2Catalog_t *catalog, sc2MapSource_t *source) {
+    xmlDocPtr doc = sc2_read_map_catalog_xml(source, "GameData\\TerrainTexData.xml");
+
+    sc2_parse_terrain_tex_catalog_doc(catalog, doc);
+    xmlFreeDoc(doc);
+}
+
+static void sc2_parse_cliff_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
     xmlNodePtr root;
 
     if (!doc) return;
@@ -1352,31 +1404,40 @@ static void sc2_parse_cliff_catalog_file(sc2Catalog_t *catalog, LPCSTR root_name
         }
         sc2_catalog_add_cliff(catalog, id, mesh);
     }
+}
+
+static void sc2_parse_cliff_catalog_file(sc2Catalog_t *catalog, LPCSTR root_name) {
+    xmlDocPtr doc = sc2_read_catalog_xml(root_name, "GameData\\CliffData.xml");
+
+    sc2_parse_cliff_catalog_doc(catalog, doc);
     xmlFreeDoc(doc);
 }
 
-static void sc2_parse_catalogs(sc2Catalog_t *catalog) {
-    static LPCSTR const roots[] = {
-        "Mods/Core.SC2Mod/Base.SC2Data",
-        "Mods/Liberty.SC2Mod/Base.SC2Data",
-        "Mods/LibertyMulti.SC2Mod/Base.SC2Data",
-        "Campaigns/LibertyStory.SC2Campaign/Base.SC2Data",
-        "Campaigns/Liberty.SC2Campaign/Base.SC2Data",
-        NULL,
-    };
+static void sc2_parse_cliff_catalog_source(sc2Catalog_t *catalog, sc2MapSource_t *source) {
+    xmlDocPtr doc = sc2_read_map_catalog_xml(source, "GameData\\CliffData.xml");
 
+    sc2_parse_cliff_catalog_doc(catalog, doc);
+    xmlFreeDoc(doc);
+}
+
+static void sc2_parse_catalogs(sc2Catalog_t *catalog, sc2MapSource_t *source) {
+    for (DWORD i = 0; sc2_catalog_roots[i]; i++) {
+        sc2_parse_unit_catalog_file(catalog, sc2_catalog_roots[i]);
+        sc2_parse_model_catalog_file(catalog, sc2_catalog_roots[i]);
+        sc2_parse_actor_catalog_file(catalog, sc2_catalog_roots[i]);
+        sc2_parse_terrain_tex_catalog_file(catalog, sc2_catalog_roots[i]);
+        sc2_parse_cliff_catalog_file(catalog, sc2_catalog_roots[i]);
+    }
     sc2_parse_unit_catalog_file(catalog, "");
     sc2_parse_model_catalog_file(catalog, "");
     sc2_parse_actor_catalog_file(catalog, "");
     sc2_parse_terrain_tex_catalog_file(catalog, "");
     sc2_parse_cliff_catalog_file(catalog, "");
-    for (DWORD i = 0; roots[i]; i++) {
-        sc2_parse_unit_catalog_file(catalog, roots[i]);
-        sc2_parse_model_catalog_file(catalog, roots[i]);
-        sc2_parse_actor_catalog_file(catalog, roots[i]);
-        sc2_parse_terrain_tex_catalog_file(catalog, roots[i]);
-        sc2_parse_cliff_catalog_file(catalog, roots[i]);
-    }
+    sc2_parse_unit_catalog_source(catalog, source);
+    sc2_parse_model_catalog_source(catalog, source);
+    sc2_parse_actor_catalog_source(catalog, source);
+    sc2_parse_terrain_tex_catalog_source(catalog, source);
+    sc2_parse_cliff_catalog_source(catalog, source);
 }
 
 static void sc2_resolve_terrain_textures(sc2Catalog_t const *catalog) {
@@ -1525,12 +1586,12 @@ next_object:
     }
 }
 
-static void sc2_resolve_catalogs(void) {
+static void sc2_resolve_catalogs(sc2MapSource_t *source) {
     sc2Catalog_t *catalog = sc2_alloc(sizeof(*catalog));
 
     if (!catalog) return;
     memset(catalog, 0, sizeof(*catalog));
-    sc2_parse_catalogs(catalog);
+    sc2_parse_catalogs(catalog, source);
     sc2_resolve_terrain_textures(catalog);
     sc2_resolve_cliff_sets(catalog);
     sc2_resolve_object_models(catalog);
@@ -1709,8 +1770,8 @@ BOOL SC2_MapLoad(LPCSTR mapFilename) {
     sc2_parse_sync_cliff_level(&source);
     sc2_parse_texture_masks(&source);
     sc2_parse_objects(&source);
+    sc2_resolve_catalogs(&source);
     sc2_source_close(&source);
-    sc2_resolve_catalogs();
     sc2_map.origin.x = 0.0f;
     sc2_map.origin.y = 0.0f;
     fprintf(stderr, "SC2_MapLoad: %s %ux%u objects=%u\n",

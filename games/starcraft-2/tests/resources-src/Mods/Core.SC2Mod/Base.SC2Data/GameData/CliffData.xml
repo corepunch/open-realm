@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="us-ascii"?>
 <Catalog>
     <CCliff id="FixtureCliff0">
-        <CliffMesh value="CliffNatural0"/>
+        <CliffMesh value="CoreCliff0"/>
     </CCliff>
     <CCliff id="MarSaraCliff0">
         <CliffMesh value="CliffNatural0"/>

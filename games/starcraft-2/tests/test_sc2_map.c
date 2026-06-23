@@ -294,6 +294,14 @@ static void test_sc2_fixture_short_name_resolves(void) {
     ASSERT_STR_EQ(path, "Maps\\Test\\Tiny.SC2Map");
 }
 
+static void assert_tiny_map_catalog_overrides(sc2Map_t *map) {
+    ASSERT_STR_EQ(map->objects[1].model, "Assets\\Units\\Terran\\MarineCatalogModel\\MarineCatalogModel.m3");
+    ASSERT_EQ_FLOAT(map->objects[1].radius, 0.75f, 0.001f);
+    ASSERT_STR_EQ(map->t3Terrain.terrain_textures[0].diffuse, "Assets\\Textures\\Terrain\\FixtureGrass_Diffuse.dds");
+    ASSERT_STR_EQ(map->t3Terrain.terrain_textures[0].normal, "Assets\\Textures\\Terrain\\FixtureGrass_Diffuse_normal.dds");
+    ASSERT_STR_EQ(map->t3Terrain.cliff_sets[0].mesh, "CliffNatural0");
+}
+
 static void test_sc2_map_loads_xml_objects_and_terrain(void) {
     sc2Map_t *map;
 
@@ -308,6 +316,7 @@ static void test_sc2_map_loads_xml_objects_and_terrain(void) {
     ASSERT_EQ_INT(map->MapInfo.height, 6);
     ASSERT_STR_EQ((char const *)map->MapInfo.data, "SC2 Tiny Fixture");
     ASSERT_EQ_INT(map->num_objects, 5);
+    assert_tiny_map_catalog_overrides(map);
 
     ASSERT_STR_EQ(map->objects[0].name, "StartGame02");
     ASSERT_EQ_INT(map->objects[0].id, 10);
@@ -325,9 +334,7 @@ static void test_sc2_map_loads_xml_objects_and_terrain(void) {
 
     ASSERT_STR_EQ(map->objects[1].name, "Marine");
     ASSERT_EQ_INT(map->objects[1].id, 1);
-    ASSERT_STR_EQ(map->objects[1].model, "Assets\\Units\\Terran\\MarineCatalogModel\\MarineCatalogModel.m3");
     ASSERT_EQ_INT(map->objects[1].type, SC2_OBJECT_UNIT);
-    ASSERT_EQ_FLOAT(map->objects[1].radius, 0.75f, 0.001f);
     ASSERT_EQ_FLOAT(map->objects[1].position.x, 3.5f, 0.001f);
     ASSERT_EQ_FLOAT(map->objects[1].position.y, 3.5f, 0.001f);
     ASSERT_EQ_FLOAT(map->objects[1].position.z, 0.25f, 0.001f);
@@ -361,13 +368,10 @@ static void test_sc2_map_loads_xml_objects_and_terrain(void) {
     ASSERT_EQ_INT(map->t3Terrain.fog_color.g, 20);
     ASSERT_EQ_INT(map->t3Terrain.fog_color.b, 30);
     ASSERT_EQ_INT(map->t3Terrain.num_terrain_textures, 2);
-    ASSERT_STR_EQ(map->t3Terrain.terrain_textures[0].diffuse, "Assets\\Textures\\Terrain\\FixtureGrass_Diffuse.dds");
-    ASSERT_STR_EQ(map->t3Terrain.terrain_textures[0].normal, "Assets\\Textures\\Terrain\\FixtureGrass_Diffuse_normal.dds");
     ASSERT_STR_EQ(map->t3Terrain.terrain_textures[1].diffuse, "Assets\\Textures\\Terrain\\FixtureDirt_Diffuse.dds");
 
     ASSERT_EQ_INT(map->t3Terrain.num_cliff_sets, 1);
     ASSERT_STR_EQ(map->t3Terrain.cliff_sets[0].name, "FixtureCliff0");
-    ASSERT_STR_EQ(map->t3Terrain.cliff_sets[0].mesh, "CliffNatural0");
     ASSERT_EQ_INT(map->t3Terrain.num_cliff_cells, 2);
     ASSERT_EQ_INT(map->t3Terrain.cliff_cells[0].index, 0);
     ASSERT_EQ_INT(map->t3Terrain.cliff_cells[0].flags, 1);
@@ -476,14 +480,13 @@ static void test_sc2_map_loads_directory_fixture_without_generated_layers(void) 
     ASSERT_EQ_INT(map->MapInfo.width, 8);
     ASSERT_EQ_INT(map->MapInfo.height, 6);
     ASSERT_EQ_INT(map->num_objects, 5);
+    assert_tiny_map_catalog_overrides(map);
 
     ASSERT_STR_EQ(map->objects[0].name, "StartGame02");
     ASSERT_EQ_INT(map->objects[0].type, SC2_OBJECT_CAMERA);
     ASSERT_EQ_FLOAT(map->objects[0].camera.distance, 34.0f, 0.001f);
     ASSERT_STR_EQ(map->objects[1].name, "Marine");
     ASSERT_EQ_INT(map->objects[1].type, SC2_OBJECT_UNIT);
-    ASSERT_STR_EQ(map->objects[1].model, "Assets\\Units\\Terran\\MarineCatalogModel\\MarineCatalogModel.m3");
-    ASSERT_EQ_FLOAT(map->objects[1].radius, 0.75f, 0.001f);
     ASSERT_EQ_FLOAT(map->objects[1].position.x, 3.5f, 0.001f);
     ASSERT_EQ_INT(map->objects[1].player, 2);
     ASSERT_STR_EQ(map->objects[4].name, "MineralField");
@@ -493,10 +496,8 @@ static void test_sc2_map_loads_directory_fixture_without_generated_layers(void) 
     ASSERT_STR_EQ(map->t3Terrain.tile_set, "Fixture");
     ASSERT_EQ_FLOAT(map->t3Terrain.height_quantize_scale, 1.0f, 0.001f);
     ASSERT_EQ_INT(map->t3Terrain.num_terrain_textures, 2);
-    ASSERT_STR_EQ(map->t3Terrain.terrain_textures[0].diffuse, "Assets\\Textures\\Terrain\\FixtureGrass_Diffuse.dds");
     ASSERT_EQ_INT(map->t3Terrain.num_cliff_sets, 1);
     ASSERT_STR_EQ(map->t3Terrain.cliff_sets[0].name, "FixtureCliff0");
-    ASSERT_STR_EQ(map->t3Terrain.cliff_sets[0].mesh, "CliffNatural0");
     ASSERT_EQ_INT(map->t3Terrain.num_cliff_cells, 2);
     ASSERT_EQ_INT(map->t3Terrain.cliff_cells[0].variant, 2);
     ASSERT_EQ_INT(map->lighting.enabled, true);
