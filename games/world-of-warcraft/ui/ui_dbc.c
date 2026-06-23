@@ -631,6 +631,68 @@ FLOAT UIWow_GetCharacterCreateFacing(void) {
     return wow_charcreate.facing;
 }
 
+/* Format the character M2 path from a saved character entry (char-select screen). */
+void UIWow_GetCharacterSelectModelPath(LPSTR out, size_t out_size) {
+    LPCSTR race = BZ_WOW_CHARCREATE_FALLBACK_RACE_NAME;
+    LPCSTR gender = "Male";
+    wowCharEntry_t const *e;
+
+    if (!out || out_size == 0) return;
+    if (!wow_charlist.loaded) CharList_Load();
+    if (wow_ui.selected_char_idx < 0 || wow_ui.selected_char_idx >= wow_charlist.count) {
+        out[0] = '\0';
+        return;
+    }
+    e = &wow_charlist.entries[wow_ui.selected_char_idx];
+    gender = (e->sex_id == 2) ? "Female" : "Male";
+    UIWow_LoadCharCreateDbc();
+    FOR_LOOP(ri, wow_charcreate.num_races) {
+        if (wow_charcreate.races[ri].id == (int)e->race_id) {
+            if (wow_charcreate.races[ri].client_file && wow_charcreate.races[ri].client_file[0])
+                race = wow_charcreate.races[ri].client_file;
+            break;
+        }
+    }
+    snprintf(out, out_size, "Character\\%s\\%s\\%s%s.m2", race, gender, race, gender);
+}
+
+/* Return packed appearance from a saved character entry (char-select screen). */
+DWORD UIWow_GetCharacterSelectAppearance(void) {
+    if (!wow_charlist.loaded) CharList_Load();
+    if (wow_ui.selected_char_idx >= 0 && wow_ui.selected_char_idx < wow_charlist.count)
+        return wow_charlist.entries[wow_ui.selected_char_idx].appearance;
+    return 0;
+}
+
+/* Push the selected character's race/sex/class/appearance into cvars so the
+   game module can read them during Wow_Init and store in CS_GENERAL. */
+void UIWow_SetSelectedCharCvars(void) {
+    wowCharEntry_t const *e;
+    LPCSTR race = "Orc";
+    LPCSTR sex = "Male";
+    char buf[32];
+
+    if (!wow_charlist.loaded) CharList_Load();
+    if (wow_ui.selected_char_idx < 0 || wow_ui.selected_char_idx >= wow_charlist.count)
+        return;
+    e = &wow_charlist.entries[wow_ui.selected_char_idx];
+    sex = (e->sex_id == 2) ? "Female" : "Male";
+    UIWow_LoadCharCreateDbc();
+    FOR_LOOP(ri, wow_charcreate.num_races) {
+        if (wow_charcreate.races[ri].id == (int)e->race_id) {
+            if (wow_charcreate.races[ri].client_file && wow_charcreate.races[ri].client_file[0])
+                race = wow_charcreate.races[ri].client_file;
+            break;
+        }
+    }
+    uiimport.Cvar_Set(WOW_CVAR_RACE, race);
+    uiimport.Cvar_Set(WOW_CVAR_SEX, sex);
+    snprintf(buf, sizeof(buf), "%u", (unsigned)e->class_id);
+    uiimport.Cvar_Set(WOW_CVAR_CLASS, buf);
+    snprintf(buf, sizeof(buf), "%u", (unsigned)e->appearance);
+    uiimport.Cvar_Set(WOW_CVAR_APPEARANCE, buf);
+}
+
 int UIWow_LuaResetCharCustomize(lua_State *L) {
     (void)L;
     UIWow_LoadCharCreateDbc();

@@ -494,6 +494,7 @@ static int UIWow_LuaSetCharSelectModelFrame(lua_State *L) {
     int idx = UIWow_XmlFindByNamePub(name);
     if (idx >= 0) {
         wow_ui.model_frame_idx = idx;
+        wow_ui.char_select_frame_idx = idx;
     }
     return 0;
 }
@@ -504,6 +505,24 @@ static int UIWow_LuaSetCharSelectBackground(lua_State *L) {
     if (idx >= 0) {
         UIWow_XmlSetFrameModel(idx, model_path);
     }
+    return 0;
+}
+
+static int UIWow_LuaSelectCharacter(lua_State *L) {
+    wow_ui.selected_char_idx = (int)luaL_checkinteger(L, 1) - 1; /* Lua is 1-based */
+    return 0;
+}
+
+static int UIWow_LuaEnterWorld(lua_State *L) {
+    LPCSTR map_name = luaL_optstring(L, 1, "Maps\\Campaign\\Default.w3m");
+    char cmd[512];
+
+    if (!map_name || !*map_name)
+        map_name = "Maps\\Campaign\\Default.w3m";
+    UIWow_SetSelectedCharCvars();
+    snprintf(cmd, sizeof(cmd), "+map %s", map_name);
+    if (uiimport.Cmd_ExecuteText)
+        uiimport.Cmd_ExecuteText(cmd);
     return 0;
 }
 
@@ -593,7 +612,7 @@ static luaL_Reg const wow_global_funcs[] = {
     { "DisconnectFromServer", UIWow_LuaNoop },
     { "IsConnectedToServer", UIWow_LuaTrue },
     { "GetBillingTimeRemaining", UIWow_LuaZero },
-    { "EnterWorld",        UIWow_LuaNoop },
+    { "EnterWorld",        UIWow_LuaEnterWorld },
     { "GetRealmCategories",UIWow_LuaRealmCategories },
     { "GetSelectedCategory", UIWow_LuaZero },
     { "GetNumRealms",      UIWow_LuaZero },
@@ -637,7 +656,7 @@ static luaL_Reg const wow_global_funcs[] = {
     { "GetCharacterListUpdate",   UIWow_LuaGetCharacterListUpdate },
     { "GetNumCharacters",  UIWow_LuaGetNumCharacters },
     { "GetCharacterInfo",  UIWow_LuaGetCharacterInfo },
-    { "SelectCharacter",   UIWow_LuaNoop },
+    { "SelectCharacter",   UIWow_LuaSelectCharacter },
     { "GetCharacterSelectFacing", UIWow_LuaZero },
     { "SetCharacterSelectFacing", UIWow_LuaNoop },
     { "SetCurrentScreen",  UIWow_LuaNoop },
