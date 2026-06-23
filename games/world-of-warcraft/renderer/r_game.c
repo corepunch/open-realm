@@ -160,23 +160,21 @@ bool R_GameEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
     Matrix4_translate(matrix, &origin);
     if (entity->flags & RF_GROUND_ANCHOR) {
         /* Dynamic grounded actors share the Warcraft III one-dimensional yaw path. */
-        Matrix4_rotate(matrix, &(VECTOR3){ 0.0f, 0.0f, (entity->angle * 180.0f / (FLOAT)M_PI) + 180.0f }, ROTATE_XYZ);
+        Matrix4_rotate(matrix, &(VECTOR3){ 0.0f, entity->angle * 180.0f / (FLOAT)M_PI, 0.0f }, ROTATE_XYZ);
     }
 
     Matrix4_identity(&adt_to_world_basis);
     adt_to_world_basis.v[0] = 0.0f;
-    adt_to_world_basis.v[1] = -1.0f;
+    adt_to_world_basis.v[1] = 1.0f;
     adt_to_world_basis.v[2] = 0.0f;
     adt_to_world_basis.v[4] = 0.0f;
     adt_to_world_basis.v[5] = 0.0f;
     adt_to_world_basis.v[6] = 1.0f;
-    adt_to_world_basis.v[8] = -1.0f;
+    adt_to_world_basis.v[8] = 1.0f;
     adt_to_world_basis.v[9] = 0.0f;
     adt_to_world_basis.v[10] = 0.0f;
     Matrix4_multiply(matrix, &adt_to_world_basis, &tmp);
     *matrix = tmp;
-
-    Matrix4_scale(matrix, &(VECTOR3){ -1.0f, 1.0f, -1.0f });
     Matrix4_rotate(matrix, &(VECTOR3){ 0.0f, entity->rotation.y - 270.0f, 0.0f }, ROTATE_XYZ);
     if (!(entity->flags & RF_GROUND_ANCHOR)) {
         Matrix4_rotate(matrix, &(VECTOR3){ 0.0f, 0.0f, -entity->rotation.x }, ROTATE_XYZ);
