@@ -1489,6 +1489,11 @@ BOOL UIWow_XMLLoadGlueFromToc(LPCSTR toc_path) {
             UIWow_XMLRunFrameScript(i, e->texts[ELEM_ON_LOAD], "OnLoad");
         }
     }
+    /* Show the hidden random-name button so players can generate names. */
+    {
+        int rn = UIWow_XmlFindByName("CharacterCreateRandomName");
+        if (rn >= 0) UIWow_XMLSetShown(rn, true);
+    }
     UIWow_Printf("UIWow: FrameXML loaded from %s (elements=%d)\n", toc_path, wow_xml.count);
     return wow_xml.count > 0;
 }
