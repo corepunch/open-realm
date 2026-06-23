@@ -123,13 +123,15 @@ static sWavCache_t *S_CacheWav(DWORD kit_id, LPCSTR path) {
     }
 
     SDL_RWops *rw = SDL_RWFromMem(file_data, file_size);
-    sWavCache_t *w = &s.wav_cache[slot];
-    if (!SDL_LoadWAV_RW(rw, 1, &w->spec, &w->data, &w->len)) {
-        SDL_RWclose(rw);
+    if (!rw) {
         FS_FreeFile(file_data);
         return NULL;
     }
-    SDL_RWclose(rw);
+    sWavCache_t *w = &s.wav_cache[slot];
+    if (!SDL_LoadWAV_RW(rw, 1, &w->spec, &w->data, &w->len)) {
+        FS_FreeFile(file_data);
+        return NULL;
+    }
     FS_FreeFile(file_data);
 
     w->kit_id = kit_id;
