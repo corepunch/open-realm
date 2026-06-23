@@ -435,6 +435,15 @@ static int UIWow_LuaDefaultServerLogin(lua_State *L) {
 
 static int UIWow_LuaNoop(lua_State *L) { (void)L; return 0; }
 
+static int UIWow_LuaPlaySound(lua_State *L) {
+    if (lua_isnumber(L, 1) && uiimport.PlaySound) {
+        uiimport.PlaySound((DWORD)lua_tointeger(L, 1));
+    } else if (lua_isstring(L, 1) && uiimport.PlaySoundByName) {
+        uiimport.PlaySoundByName(lua_tostring(L, 1));
+    }
+    return 0;
+}
+
 #include "ui_dbc.h"
 
 static int UIWow_LuaGetCharacterListUpdate(lua_State *L) {
@@ -581,7 +590,7 @@ static luaL_Reg const wow_global_funcs[] = {
     { "AcceptTOS",         UIWow_LuaNoop },
     { "GlueDialog_Show",   UIWow_LuaNoop },
     { "LaunchURL",         UIWow_LuaNoop },
-    { "PlaySound",         UIWow_LuaNoop },
+    { "PlaySound",         UIWow_LuaPlaySound },
     { "PlayGlueMusic",     UIWow_LuaNoop },
     { "StopGlueMusic",     UIWow_LuaNoop },
     { "PlayCreditsMusic",  UIWow_LuaNoop },

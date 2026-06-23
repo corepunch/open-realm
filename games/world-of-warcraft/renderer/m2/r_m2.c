@@ -340,14 +340,17 @@ typedef struct m2ModelBatch_s {
     WORD bone_count;
     WORD bone_combo_index;
     WORD section_id;
+    WORD geoset_index;
     BYTE character_texture_slot;
     BOOL character_texture_loaded;
     struct m2ModelBatch_s *next;
 } m2ModelBatch_t;
 
+#define M2_NUM_GEOSET_GROUPS 16
+
 typedef struct {
     LPCSTR texture[M2_CHAR_TEX_COUNT];
-    DWORD geoset_group[3];
+    DWORD geoset[M2_NUM_GEOSET_GROUPS];
     DWORD flags;
 } m2CharacterOutfit_t;
 
@@ -791,7 +794,39 @@ static DWORD M2_ItemDisplayInfoFlagsField(m2Dbc_t const *dbc) {
     return dbc->fields >= 25 ? 10 : 9;
 }
 
-static void M2_AddDisplayInfoToOutfit(m2CharacterOutfit_t *outfit, DWORD display_id) {
+enum {
+    M2_SLOT_NONE,
+    M2_SLOT_HEAD,
+    M2_SLOT_SHOULDERS,
+    M2_SLOT_CHEST,
+    M2_SLOT_SHIRT,
+    M2_SLOT_BELT,
+    M2_SLOT_LEGS,
+    M2_SLOT_BOOTS,
+    M2_SLOT_GLOVES,
+    M2_SLOT_TABARD,
+    M2_SLOT_CAPE,
+    M2_SLOT_COUNT
+};
+
+// Maps (slot, geosetFieldIndex) → M2 section group number.
+// geosetFieldIndex 0/1/2 correspond to geosetGroup[0]/[1]/[2] from ItemDisplayInfo.dbc.
+// Group 0 means "no group mapping" for that field.
+static DWORD const slot_geoset_group_map[M2_SLOT_COUNT][3] = {
+    /* NONE */      { 0, 0, 0 },
+    /* HEAD */      { 0, 0, 0 },
+    /* SHOULDERS */ { 0, 0, 0 },
+    /* CHEST */     { 8, 0, 12 },
+    /* SHIRT */     { 8, 0, 0 },
+    /* BELT */      { 0, 0, 0 },
+    /* LEGS */      { 0, 9, 13 },
+    /* BOOTS */     { 5, 0, 0 },
+    /* GLOVES */    { 4, 0, 0 },
+    /* TABARD */    { 0, 0, 0 },
+    /* CAPE */      { 15, 0, 0 },
+};
+
+static void M2_AddDisplayInfoToOutfit(m2CharacterOutfit_t *outfit, DWORD display_id, DWORD slot) {
     BYTE const *record;
     DWORD texture_base;
     DWORD geoset_base;
@@ -812,9 +847,12 @@ static void M2_AddDisplayInfoToOutfit(m2CharacterOutfit_t *outfit, DWORD display
     flags_field = M2_ItemDisplayInfoFlagsField(&m2_item_display_info_dbc);
 
     FOR_LOOP(i, 3) {
-        DWORD geoset_group = M2_DbcField(&m2_item_display_info_dbc, record, geoset_base + i);
-        if (geoset_group) {
-            outfit->geoset_group[i] = geoset_group;
+        DWORD group = (slot < M2_SLOT_COUNT) ? slot_geoset_group_map[slot][i] : 0;
+        if (group) {
+            DWORD geoset_val = M2_DbcField(&m2_item_display_info_dbc, record, geoset_base + i);
+            if (geoset_val) {
+                outfit->geoset[group] = geoset_val;
+            }
         }
     }
     outfit->flags |= M2_DbcField(&m2_item_display_info_dbc, record, flags_field);
@@ -828,10 +866,11 @@ static void M2_AddDisplayInfoToOutfit(m2CharacterOutfit_t *outfit, DWORD display
 }
 
 static void M2_AddDisplayInfoListToOutfit(m2CharacterOutfit_t *outfit,
-                                          DWORD const *display_ids,
-                                          DWORD display_count) {
+                                           DWORD const *display_ids,
+                                           DWORD display_count,
+                                           DWORD slot) {
     FOR_LOOP(i, display_count) {
-        M2_AddDisplayInfoToOutfit(outfit, display_ids[i]);
+        M2_AddDisplayInfoToOutfit(outfit, display_ids[i], slot);
     }
 }
 
@@ -863,7 +902,8 @@ static void M2_AddEquipmentItemToOutfit(m2CharacterOutfit_t *outfit,
                                         DWORD list_count,
                                         DWORD race_id,
                                         DWORD gender_id,
-                                        BYTE item_index) {
+                                        BYTE item_index,
+                                        DWORD slot) {
     m2EquipmentItem_t const *item = M2_EquipmentSlotItem(lists, list_count, race_id, gender_id, item_index);
 
     if (!outfit || !item) {
@@ -871,7 +911,8 @@ static void M2_AddEquipmentItemToOutfit(m2CharacterOutfit_t *outfit,
     }
     M2_AddDisplayInfoListToOutfit(outfit,
                                   item->display_ids,
-                                  sizeof(item->display_ids) / sizeof(item->display_ids[0]));
+                                  sizeof(item->display_ids) / sizeof(item->display_ids[0]),
+                                  slot);
 }
 
 static void M2_ApplyEquipmentItems(m2CharacterOutfit_t *outfit,
@@ -894,16 +935,16 @@ static void M2_ApplyEquipmentItems(m2CharacterOutfit_t *outfit,
 
     M2_AddEquipmentItemToOutfit(outfit, upper_body_items,
                                 sizeof(upper_body_items) / sizeof(upper_body_items[0]),
-                                race_id, gender_id, items.upperBodyItem);
+                                race_id, gender_id, items.upperBodyItem, M2_SLOT_CHEST);
     M2_AddEquipmentItemToOutfit(outfit, lower_body_items,
                                 sizeof(lower_body_items) / sizeof(lower_body_items[0]),
-                                race_id, gender_id, items.lowerBodyItem);
+                                race_id, gender_id, items.lowerBodyItem, M2_SLOT_LEGS);
     M2_AddEquipmentItemToOutfit(outfit, hand_items,
                                 sizeof(hand_items) / sizeof(hand_items[0]),
-                                race_id, gender_id, items.handItem);
+                                race_id, gender_id, items.handItem, M2_SLOT_GLOVES);
     M2_AddEquipmentItemToOutfit(outfit, foot_items,
                                 sizeof(foot_items) / sizeof(foot_items[0]),
-                                race_id, gender_id, items.footItem);
+                                race_id, gender_id, items.footItem, M2_SLOT_BOOTS);
 }
 
 static BOOL M2_CharacterStartOutfit(LPCSTR model_path,
@@ -933,8 +974,16 @@ static BOOL M2_CharacterStartOutfit(LPCSTR model_path,
         if (record_race != race_id || record_class != class_id || record_gender != gender_id) {
             continue;
         }
+        // CharStartOutfit.dbc fields 14-25 map to equipment slots in order:
+        // head, shoulders, chest, shirt, belt, legs, boots, gloves, tabard, cape, unused, unused
+        static DWORD const start_outfit_slot_map[12] = {
+            M2_SLOT_HEAD, M2_SLOT_SHOULDERS, M2_SLOT_CHEST, M2_SLOT_SHIRT,
+            M2_SLOT_BELT, M2_SLOT_LEGS, M2_SLOT_BOOTS, M2_SLOT_GLOVES,
+            M2_SLOT_TABARD, M2_SLOT_CAPE, M2_SLOT_NONE, M2_SLOT_NONE
+        };
         FOR_LOOP(i, 12) {
-            M2_AddDisplayInfoToOutfit(outfit, M2_DbcField(&m2_char_start_outfit_dbc, record, 14 + i));
+            M2_AddDisplayInfoToOutfit(outfit, M2_DbcField(&m2_char_start_outfit_dbc, record, 14 + i),
+                                      start_outfit_slot_map[i]);
         }
         return true;
     }
@@ -2267,6 +2316,7 @@ static void M2_AddBatch(m2Model_t *model,
     render_batch->bone_count = bone_count;
     render_batch->bone_combo_index = bone_combo_index;
     render_batch->section_id = section_id;
+    render_batch->geoset_index = batch->geoset_index;
     render_batch->character_texture_slot = M2_CharacterTextureSlotForSection(section_id);
     ADD_TO_LIST(render_batch, model->batches);
     model->num_batches++;
@@ -2405,8 +2455,8 @@ static BOOL M2_IsCharacterModelPath(LPCSTR model_path) {
 }
 
 static BOOL M2_CharacterGeosetVisible(m2Model_t const *model,
-                                      m2CharacterOutfit_t const *outfit,
-                                      WORD section_id) {
+                                       m2CharacterOutfit_t const *outfit,
+                                       WORD section_id) {
     if (!model || !model->character_model || section_id < 400) {
         return true;
     }
@@ -2414,33 +2464,29 @@ static BOOL M2_CharacterGeosetVisible(m2Model_t const *model,
         return section_id == 401 || section_id == 702 || section_id == 1501;
     }
 
-    switch (section_id / 100) {
-        case 4:
-            return section_id == 401;
-        case 5:
-            return section_id == 501;
-        case 7:
-            return section_id == 702;
-        case 8:
-            return section_id == 802;
-        case 9:
-            return section_id == 902;
-        case 10:
-            return false;
-        case 11:
-            return false;
-        case 12:
-            return false;
+    DWORD group = section_id / 100;
+    DWORD geoset = (group < M2_NUM_GEOSET_GROUPS) ? outfit->geoset[group] : 0;
+    WORD expected;
+
+    switch (group) {
+        case 4:  expected = 401 + geoset; break;
+        case 5:  expected = 501 + geoset; break;
+        case 7:  expected = 702; break;
+        case 8:  expected = 802 + geoset; break;
+        case 9:  expected = 902 + geoset; break;
+        case 10: return false;
+        case 11: return false;
+        case 12: return false;
         case 13:
             if (outfit->flags & 0x4) {
                 return false;
             }
-            return section_id == 1301;
-        case 15:
-            return section_id == 1501;
-        default:
-            return false;
+            expected = 1301 + geoset;
+            break;
+        case 15: expected = 1501; break;
+        default: return false;
     }
+    return section_id == expected;
 }
 
 static void M2_FreeModelData(m2Model_t *model) {
