@@ -61,6 +61,7 @@ typedef enum {
     ELEM_ON_TAB_PRESSED,
     ELEM_ON_MOUSE_WHEEL,
     ELEM_ON_UPDATE_MODEL,
+    ELEM_ON_UPDATE,
     ELEM_SOURCE_FILE,
     ELEM_NORMAL_NAME,
     ELEM_PUSHED_NAME,
@@ -1107,6 +1108,7 @@ static void UIWow_XmlReadScripts(uiWowXmlElem_t *e, xmlNodePtr node) {
             else if (!xmlStrcasecmp(s->name, BAD_CAST "OnTabPressed"))    field = ELEM_ON_TAB_PRESSED;
             else if (!xmlStrcasecmp(s->name, BAD_CAST "OnMouseWheel"))   field = ELEM_ON_MOUSE_WHEEL;
             else if (!xmlStrcasecmp(s->name, BAD_CAST "OnUpdateModel"))   field = ELEM_ON_UPDATE_MODEL;
+            else if (!xmlStrcasecmp(s->name, BAD_CAST "OnUpdate"))       field = ELEM_ON_UPDATE;
             else { SAFE_DELETE(body, xmlFree); continue; }
             UIWow_ElemSetStr(e, field, (char const *)body);
             SAFE_DELETE(body, xmlFree);
@@ -1796,6 +1798,8 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
             r.x += UIWow_XmlX(1.0f);
             r.y += UIWow_XmlY(1.0f);
         }
+        if (e->type == WOW_XML_BUTTON && UIWow_ElemStr(e, ELEM_ON_UPDATE))
+            UIWow_XMLRunFrameScript(i, e->texts[ELEM_ON_UPDATE], "OnUpdate");
         if (e->type == WOW_XML_MODEL && file && file[0]) {
             if (UIWow_ElemStr(e, ELEM_ON_UPDATE_MODEL))
                 UIWow_XMLRunFrameScript(i, e->texts[ELEM_ON_UPDATE_MODEL], "OnUpdateModel");
