@@ -261,10 +261,5 @@ void S_PlaySound(DWORD kit_id) {
 void S_PlaySoundByName(LPCSTR name) {
     if (!s.initialized || !name || !*name) return;
     sHashNode_t *n = S_FindByName(name);
-    if (n) {
-        printf("[sound] found kit_id=%lu for \"%s\"\n", (unsigned long)n->kit_id, name);
-        S_PlaySound(n->kit_id);
-    } else {
-        printf("[sound] unknown kit name \"%s\"\n", name);
-    }
+    if (n) S_PlaySound(n->kit_id);
 }

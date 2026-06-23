@@ -160,7 +160,6 @@ static struct {
     uiTextInput_t text_input;
     int pressed_button;
     int hovered_button;
-    int button_down;
     BOOL lua_ready;
     struct {
         FLOAT scroll_y;
@@ -173,8 +172,6 @@ static struct {
         FLOAT start_value;    /* scrollbar scroll_y at drag start */
     } drag;
 } wow_xml;
-
-BOOL UIWow_IsButtonDown(void) { return wow_xml.button_down; }
 
 /* XML file currently being parsed — set by UIWow_XMLProcessTopLevel, used by
    UIWow_XmlParseNode to stamp ELEM_SOURCE_FILE on each newly created element. */
@@ -2063,7 +2060,6 @@ BOOL UIWow_XMLMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
     if (event == UI_MOUSE_UP) {
         int pressed = wow_xml.pressed_button;
         wow_xml.pressed_button = -1;
-        wow_xml.button_down = 0;
         /* End scrollbar drag. */
         if (wow_xml.drag.scrollbar_idx >= 0) {
             wow_xml.drag.scrollbar_idx = -1;
@@ -2097,14 +2093,6 @@ BOOL UIWow_XMLMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
         wow_xml.pressed_button = -1;
         wow_xml.drag.scrollbar_idx = -1;
         return false;
-    }
-
-    /* Play button click sound on mouse-down (action fires on mouse-up) */
-    if (wow_xml.elems[hit].type == WOW_XML_BUTTON &&
-        (wow_xml.elems[hit].flags & EF_ENABLED) && wow_ui.lua &&
-        UIWow_ElemStr(&wow_xml.elems[hit], ELEM_ON_CLICK)) {
-        wow_xml.button_down = 1;
-        if (uiimport.PlaySound) uiimport.PlaySound(624); /* GAMEGENERICBUTTONPRESS */
     }
 
     /* Scrollbar part interaction. */
