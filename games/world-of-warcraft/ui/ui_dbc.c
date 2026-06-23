@@ -9,6 +9,7 @@
 #include "ui_dbc.h"
 
 #include <string.h>
+#include <time.h>
 
 /* -------------------------------------------------------------------------
  * Record types
@@ -670,13 +671,31 @@ int UIWow_LuaRandomizeCharCustomization(lua_State *L) {
 }
 
 int UIWow_LuaGetRandomName(lua_State *L) {
-    (void)L; lua_pushstring(L, ""); return 1;
+    static char const *prefix[] = {
+        "Ara", "Bel", "Cor", "Dal", "Eir", "Fal", "Gar", "Hal",
+        "Ili", "Jar", "Kal", "Lor", "Mer", "Nor", "Orl", "Pyr",
+        "Rhi", "Ser", "Tal", "Uri", "Val", "Wen", "Xan", "Zal",
+    };
+    static char const *suffix[] = {
+        "andas", "eth", "in", "ius", "ond", "ara", "ius", "wen",
+        "ath", "ric", "nor", "wyn", "gor", "ash", "den", "mir",
+        "ath", "lor", "rin", "ith", "ore", "ane", "wyn", "us",
+    };
+    unsigned int seed = (unsigned int)time(NULL) ^ (unsigned int)clock();
+    int p = (int)(seed % 24); seed /= 24;
+    int s = (int)(seed % 24); seed /= 24;
+    int n = (int)(seed % 100);
+    char buf[64];
+    snprintf(buf, sizeof(buf), "%s%s%d", prefix[p], suffix[s], n);
+    lua_pushstring(L, buf);
+    return 1;
 }
 
 int UIWow_LuaCreateCharacter(lua_State *L) {
     LPCSTR name = luaL_checkstring(L, 1);
     wowCharEntry_t *e;
     int pi, race_id, sex_id;
+    char generated[64];
 
     UIWow_LoadCharCreateDbc();
 
@@ -687,6 +706,14 @@ int UIWow_LuaCreateCharacter(lua_State *L) {
         lua_pushstring(L, "ERR_CHAR_CREATE_LIST_FULL");
         lua_setglobal(L, "CharacterCreateResult");
         return 0;
+    }
+
+    if (!name || !name[0]) {
+        UIWow_LuaGetRandomName(L);
+        name = lua_tostring(L, -1);
+        snprintf(generated, sizeof(generated), "%s", name);
+        lua_pop(L, 1);
+        name = generated;
     }
 
     pi      = wow_charcreate.sel_race;
