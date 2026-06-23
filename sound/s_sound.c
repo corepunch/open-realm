@@ -8,6 +8,9 @@
  */
 #include "s_local.h"
 
+#define STB_VORBIS_IMPLEMENTATION
+#include "stb_vorbis.c"
+
 sState_t s;
 
 static DWORD S_HashString(LPCSTR str) {
@@ -99,7 +102,7 @@ static sWavCache_t *S_CacheWav(DWORD kit_id, LPCSTR path) {
                 oldest_idx = i;
             }
         }
-        SDL_FreeWAV(s.wav_cache[oldest_idx].data);
+        free(s.wav_cache[oldest_idx].data);
         memset(&s.wav_cache[oldest_idx], 0, sizeof(sWavCache_t));
         s.wav_cache_count--;
         /* Shift LRU counters */
@@ -122,19 +125,20 @@ static sWavCache_t *S_CacheWav(DWORD kit_id, LPCSTR path) {
         return NULL;
     }
 
-    SDL_RWops *rw = SDL_RWFromMem(file_data, file_size);
-    if (!rw) {
-        fprintf(stderr, "[sound] SDL_RWFromMem failed for %s\n", path);
-        FS_FreeFile(file_data);
-        return NULL;
-    }
     sWavCache_t *w = &s.wav_cache[slot];
-    if (!SDL_LoadWAV_RW(rw, 1, &w->spec, &w->data, &w->len)) {
-        fprintf(stderr, "[sound] SDL_LoadWAV_RW failed for %s: %s\n", path, SDL_GetError());
-        FS_FreeFile(file_data);
+    int channels, sample_rate;
+    short *pcm = NULL;
+    int num_samples = stb_vorbis_decode_memory((const unsigned char *)file_data, (int)file_size, &channels, &sample_rate, &pcm);
+    FS_FreeFile(file_data);
+    if (num_samples <= 0 || !pcm) {
+        fprintf(stderr, "[sound] stb_vorbis decode failed for %s\n", path);
         return NULL;
     }
-    FS_FreeFile(file_data);
+    w->data = (Uint8 *)pcm;
+    w->len = (Uint32)(num_samples * channels * sizeof(short));
+    w->spec.format = AUDIO_S16SYS;
+    w->spec.channels = channels;
+    w->spec.freq = sample_rate;
 
     w->kit_id = kit_id;
     s.wav_cache_count++;
@@ -213,7 +217,7 @@ void S_Shutdown(void) {
     if (!s.initialized) return;
     SDL_CloseAudioDevice(s.device);
     for (DWORD i = 0; i < S_MAX_CACHED_WAVS; i++)
-        if (s.wav_cache[i].data) SDL_FreeWAV(s.wav_cache[i].data);
+        if (s.wav_cache[i].data) free(s.wav_cache[i].data);
     FS_FreeFile(s.dbc_data);
     memset(&s, 0, sizeof(s));
     printf("[sound] shutdown\n");
