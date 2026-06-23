@@ -124,11 +124,13 @@ static sWavCache_t *S_CacheWav(DWORD kit_id, LPCSTR path) {
 
     SDL_RWops *rw = SDL_RWFromMem(file_data, file_size);
     if (!rw) {
+        fprintf(stderr, "[sound] SDL_RWFromMem failed for %s\n", path);
         FS_FreeFile(file_data);
         return NULL;
     }
     sWavCache_t *w = &s.wav_cache[slot];
     if (!SDL_LoadWAV_RW(rw, 1, &w->spec, &w->data, &w->len)) {
+        fprintf(stderr, "[sound] SDL_LoadWAV_RW failed for %s: %s\n", path, SDL_GetError());
         FS_FreeFile(file_data);
         return NULL;
     }
@@ -255,5 +257,10 @@ void S_PlaySound(DWORD kit_id) {
 void S_PlaySoundByName(LPCSTR name) {
     if (!s.initialized || !name || !*name) return;
     sHashNode_t *n = S_FindByName(name);
-    if (n) S_PlaySound(n->kit_id);
+    if (n) {
+        printf("[sound] found kit_id=%lu for \"%s\"\n", (unsigned long)n->kit_id, name);
+        S_PlaySound(n->kit_id);
+    } else {
+        printf("[sound] unknown kit name \"%s\"\n", name);
+    }
 }
