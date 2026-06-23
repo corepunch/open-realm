@@ -121,7 +121,7 @@ endef
 define app_schema
 $(1): $(2) | $$(BIN_DIR)
 	@echo "[$(3)]"
-	@$$(call UNITY,client server common,) | \
+	@$$(call UNITY,client server common sound,) | \
 		$$(CC) $(4) -x c -o $$@ - $$(RPATH) $$(LDFLAGS) $(5)
 endef
 

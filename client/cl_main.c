@@ -12,6 +12,7 @@
 #include "client.h"
 #include "tr_public.h"
 #include "ui_layout.h"
+#include "sound/s_local.h"
 #include <arpa/inet.h>
 
 refExport_t re;
@@ -565,6 +566,8 @@ void CL_Init(void) {
     mode = CL_VideoMode();
     re.Init(mode.width, mode.height);
     
+    S_Init();
+
     /* Initialize UI library */
     ui = UI_GetAPI((uiImport_t) {
         .FS_ReadFile = CL_UI_ReadFile,
@@ -594,6 +597,8 @@ void CL_Init(void) {
         .GetRenderer = CL_UIGetRenderer,
         .GetTime = CL_UIGetTime,
         .Printf = CON_printf,
+        .PlaySound = S_PlaySound,
+        .PlaySoundByName = S_PlaySoundByName,
     });
     
     /* Wire layout functions from the client into the UI export table */
@@ -767,6 +772,7 @@ void CL_Shutdown(void) {
     }
     V_Shutdown();
     re.Shutdown();
+    S_Shutdown();
 }
 
 void CL_SendCommand(void) {
