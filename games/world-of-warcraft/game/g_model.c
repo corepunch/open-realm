@@ -226,6 +226,79 @@ typedef struct {
     WORD  alias_next;
 } svM2SequenceModern_t;
 
+/* M2 event IDs for weapon impacts (from wowdev.wiki/M2/eventID) */
+#define M2_EVENT_WEAPON_LEFT  4
+#define M2_EVENT_WEAPON_RIGHT 5
+
+typedef struct {
+    uint16_t track_type;
+    uint16_t loop_index;
+    svM2Array_t sequence_times;
+    svM2Array_t sequence_keys;
+} svM2Track_t;
+
+typedef struct {
+    uint16_t track_type;
+    uint16_t loop_index;
+    svM2Array_t ranges;
+    svM2Array_t times;
+    svM2Array_t keys;
+} svM2TrackClassic_t;
+
+typedef struct {
+    svM2Array_t times;
+} svM2SequenceTimes_t;
+
+typedef struct {
+    DWORD start;
+    DWORD end;
+} svM2Range_t;
+
+typedef struct {
+    DWORD event_id;
+    DWORD data;
+    WORD bone_index;
+    WORD padding;
+    VECTOR3 position;
+    svM2Track_t track;
+} svM2EventModern_t;
+
+typedef struct {
+    DWORD event_id;
+    DWORD data;
+    WORD bone_index;
+    WORD padding;
+    VECTOR3 position;
+    svM2TrackClassic_t track;
+} svM2EventClassic_t;
+
+/* Read the first timestamp for a given sequence from an event track.
+ * Returns 0 if no timestamp is found. */
+static DWORD M2EventTrackTime(BYTE const *data, DWORD file_size,
+                               BYTE const *track_ptr, BOOL classic,
+                               DWORD sequence_index) {
+    if (classic) {
+        svM2TrackClassic_t const *track = (svM2TrackClassic_t const *)track_ptr;
+        svM2Range_t const *ranges = (svM2Range_t const *)M2ArrayAt(data, file_size, track->ranges, sizeof(svM2Range_t));
+        DWORD const *times = (DWORD const *)M2ArrayAt(data, file_size, track->times, sizeof(DWORD));
+        if (!ranges || !times || sequence_index >= (DWORD)track->ranges.count)
+            return 0;
+        svM2Range_t range = ranges[sequence_index];
+        if (range.start >= (DWORD)track->times.count)
+            return 0;
+        return times[range.start];
+    } else {
+        svM2Track_t const *track = (svM2Track_t const *)track_ptr;
+        svM2SequenceTimes_t const *seq_times = (svM2SequenceTimes_t const *)M2ArrayAt(data, file_size, track->sequence_times, sizeof(svM2SequenceTimes_t));
+        if (!seq_times || sequence_index >= (DWORD)track->sequence_times.count)
+            return 0;
+        DWORD const *times = (DWORD const *)M2ArrayAt(data, file_size, seq_times[sequence_index].times, sizeof(DWORD));
+        if (!times || seq_times[sequence_index].times.count == 0)
+            return 0;
+        return times[0];
+    }
+}
+
 static BOOL M2ArrayRange(svM2Array_t array, DWORD elem_size, DWORD file_size,
                          DWORD *offset, DWORD *bytes) {
     if (array.size <= 0 || array.offset < 0 || elem_size == 0)
@@ -235,6 +308,29 @@ static BOOL M2ArrayRange(svM2Array_t array, DWORD elem_size, DWORD file_size,
     *offset = (DWORD)array.offset;
     *bytes  = (DWORD)array.size * elem_size;
     return *offset <= file_size && *bytes <= file_size - *offset;
+}
+
+static void const *M2ArrayAt(BYTE const *data, DWORD file_size, svM2Array_t array, DWORD elem_size) {
+    DWORD offset, bytes;
+    if (!M2ArrayRange(array, elem_size, file_size, &offset, &bytes))
+        return NULL;
+    return data + offset;
+}
+
+/* Read the events m2Array_t from the correct header offset.
+ * Classic M2 (version <= 263) has playable_animation_lookup between
+ * sequence_lookups and bones, shifting events to a later offset. */
+static svM2Array_t M2ReadEventsArray(BYTE const *payload, DWORD payload_size) {
+    svM2Array_t empty = { 0, 0 };
+    svM2Header_t const *hdr = (svM2Header_t const *)payload;
+    BOOL classic = hdr->version <= 263;
+    /* events offset from start of M2 header:
+     *   modern: 264 bytes (no playable_animation_lookup, no texture_flipbooks, views is uint32)
+     *   classic: 284 bytes (has playable_animation_lookup + texture_flipbooks, views is m2Array) */
+    DWORD events_offset = classic ? 284 : 264;
+    if (events_offset + sizeof(svM2Array_t) > payload_size)
+        return empty;
+    return *(svM2Array_t const *)(payload + events_offset);
 }
 
 static BOOL M2FindPayload(BYTE const *data, DWORD size,
@@ -402,6 +498,39 @@ static animation_t *LoadModelM2(BYTE const *data, DWORD read_size, DWORD *out_co
 
     BYTE const *sequences   = payload + sequences_offset;
     DWORD sequence_count    = sequences_bytes / stride;
+
+    /* Parse M2 events to extract weapon-hit timestamps per sequence.
+     * Events reference sequences by raw index; we store the damage_point
+     * for each sequence, then apply it when building the animation array. */
+    DWORD *seq_damage_points = NULL;
+    svM2Array_t events_array = M2ReadEventsArray(payload, payload_size);
+    if (sequence_count > 0) {
+        seq_damage_points = gi.MemAlloc(sizeof(DWORD) * sequence_count);
+        memset(seq_damage_points, 0, sizeof(DWORD) * sequence_count);
+
+        DWORD event_stride = classic ? sizeof(svM2EventClassic_t) : sizeof(svM2EventModern_t);
+        DWORD event_offset, event_bytes;
+        if (M2ArrayRange(events_array, event_stride, payload_size,
+                         &event_offset, &event_bytes)) {
+            BYTE const *events = payload + event_offset;
+            DWORD event_count = event_bytes / event_stride;
+            FOR_LOOP(e, event_count) {
+                BYTE const *ev = events + e * event_stride;
+                DWORD event_id = *(DWORD const *)ev;
+                if (event_id != M2_EVENT_WEAPON_LEFT && event_id != M2_EVENT_WEAPON_RIGHT)
+                    continue;
+                /* event track starts after: event_id(4) + data(4) + bone(2) + padding(2) + position(12) = 24 */
+                BYTE const *track_ptr = ev + 24;
+                /* Try all sequences — weapon-hit events typically fire in attack animations */
+                FOR_LOOP(s, sequence_count) {
+                    DWORD ts = M2EventTrackTime(payload, payload_size, track_ptr, classic, s);
+                    if (ts > 0 && seq_damage_points[s] == 0)
+                        seq_damage_points[s] = ts;
+                }
+            }
+        }
+    }
+
     animations = gi.MemAlloc(sizeof(animation_t) * sequence_count);
     memset(animations, 0, sizeof(animation_t) * sequence_count);
 
@@ -425,9 +554,15 @@ static animation_t *LoadModelM2(BYTE const *data, DWORD read_size, DWORD *out_co
             dest->radius      = M2SequenceRadius(src, classic);
             dest->min         = M2SequenceMin(src, classic);
             dest->max         = M2SequenceMax(src, classic);
+            /* Apply damage_point from M2 events (clamped to sequence length) */
+            if (seq_damage_points && seq_damage_points[i] > 0)
+                dest->damage_point = MIN(seq_damage_points[i], length);
         }
         frame_base += length;
     }
+
+    if (seq_damage_points)
+        gi.MemFree(seq_damage_points);
 
     if (num > 1)
         qsort(animations, num, sizeof(animation_t), compare_animation_name);

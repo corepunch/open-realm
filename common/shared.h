@@ -509,6 +509,7 @@ typedef struct animation_s {
     FLOAT radius;
     VECTOR3 min;
     VECTOR3 max;
+    DWORD damage_point;  /* ms from sequence start when the hit lands (from M2 events) */
 } animation_t;
 
 typedef struct {
