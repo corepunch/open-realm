@@ -437,9 +437,13 @@ static int UIWow_LuaNoop(lua_State *L) { (void)L; return 0; }
 
 static int UIWow_LuaPlaySound(lua_State *L) {
     if (lua_isnumber(L, 1) && uiimport.PlaySound) {
-        uiimport.PlaySound((DWORD)lua_tointeger(L, 1));
+        DWORD id = (DWORD)lua_tointeger(L, 1);
+        printf("[ui] PlaySound(id=%lu)\n", (unsigned long)id);
+        uiimport.PlaySound(id);
     } else if (lua_isstring(L, 1) && uiimport.PlaySoundByName) {
-        uiimport.PlaySoundByName(lua_tostring(L, 1));
+        const char *name = lua_tostring(L, 1);
+        printf("[ui] PlaySound(\"%s\")\n", name);
+        uiimport.PlaySoundByName(name);
     }
     return 0;
 }
