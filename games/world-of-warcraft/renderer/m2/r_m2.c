@@ -1283,6 +1283,52 @@ static void M2_PasteOutfitComponent(LPCOLOR32 pixels,
     R_ReleaseTexture(texture);
 }
 
+/* Paste a CharSections variation (e.g. face or facial hair) into the head
+   regions of the composite.  section_id: 1=face, 2=facial_hair.
+   HEAD_UPPER = (0,320,256,64), HEAD_LOWER = (0,384,256,128) in the 512 atlas. */
+static void M2_PasteHeadVariation(LPCOLOR32 pixels,
+                                  DWORD width,
+                                  DWORD height,
+                                  LPCSTR model_path,
+                                  DWORD section_id,
+                                  DWORD variation_index,
+                                  DWORD color_index) {
+    enum { atlas = 512 };
+    static DWORD const head_rects[2][4] = {
+        { 0, 320, 256, 64  }, /* HEAD_UPPER, texture_index 1 */
+        { 0, 384, 256, 128 }, /* HEAD_LOWER, texture_index 0 */
+    };
+    /* upper first (tex 1), then lower (tex 0) */
+    static DWORD const tex_indices[2] = { 1, 0 };
+
+    for (int i = 0; i < 2; i++) {
+        PATHSTR path;
+        LPTEXTURE tex;
+        LPCOLOR32 src = NULL;
+        DWORD dx, dy, dw, dh;
+
+        if (!M2_CharacterVariationTexturePath(model_path, section_id,
+                                              variation_index, color_index,
+                                              tex_indices[i],
+                                              path, sizeof(path))) {
+            continue;
+        }
+        tex = R_LoadTexture(path);
+        if (!tex || !M2_TexturePixels(tex, &src)) {
+            SAFE_DELETE(tex, R_ReleaseTexture);
+            continue;
+        }
+        dx = head_rects[i][0] * width  / atlas;
+        dy = head_rects[i][1] * height / atlas;
+        dw = MAX(1u, head_rects[i][2] * width  / atlas);
+        dh = MAX(1u, head_rects[i][3] * height / atlas);
+        M2_PasteComponent(pixels, width, height, src, tex->width, tex->height,
+                          dx, dy, dw, dh);
+        ri.MemFree(src);
+        R_ReleaseTexture(tex);
+    }
+}
+
 static BOOL M2_DefaultCharacterTexturePath(LPCSTR model_path,
                                            DWORD texture_type,
                                            LPSTR out,
@@ -2815,6 +2861,16 @@ static LPTEXTURE M2_CharacterTextureForBatch(m2Model_t const *model,
                                 model->filename,
                                 outfit,
                                 (BYTE)slot);
+    }
+
+    {
+        wowAppearance_t unpacked = Wow_UnpackAppearance(entity->appearance);
+        M2_PasteHeadVariation(pixels, base_texture->width, base_texture->height,
+                              model->filename, 1,
+                              unpacked.faceID, unpacked.skinColorID);
+        M2_PasteHeadVariation(pixels, base_texture->width, base_texture->height,
+                              model->filename, 2,
+                              unpacked.facialHairStyleID, unpacked.hairColorID);
     }
 
     mutable_model->character_composite = R_AllocateTexture(base_texture->width, base_texture->height);
