@@ -48,8 +48,12 @@ static void Wow_AttackTimingFromAnimation(wowEntityLocal_t const *local,
                 ? local->animation->interval[1] - local->animation->interval[0]
                 : 0;
             if (duration > 0) {
-                /* Use animation length as timing source: hit around 35%, recover on remaining frames. */
-                dp = MAX(1, duration * 35 / 100);
+                /* Prefer M2 event-derived damage_point over the 35% fallback */
+                if (local->animation->damage_point > 0) {
+                    dp = MIN(local->animation->damage_point, duration);
+                } else {
+                    dp = MAX(1, duration * 35 / 100);
+                }
                 bs = MAX(1, duration - dp);
             }
         }

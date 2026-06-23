@@ -1102,6 +1102,45 @@ static void PrintAttachments(BYTE const *data, DWORD size, m2HeaderInfo_t const 
     }
 }
 
+static LPCSTR M2EventIdName(DWORD id) {
+    switch (id) {
+        case 0: return "sound_default";
+        case 1: return "sound_exittest";
+        case 2: return "footstep_left";
+        case 3: return "footstep_right";
+        case 4: return "weapon_left";
+        case 5: return "weapon_right";
+        case 6: return "spell_hit";
+        case 7: return "spell_cast";
+        default: return "unknown";
+    }
+}
+
+static void PrintEvents(BYTE const *data, DWORD size, m2HeaderInfo_t const *header) {
+    BOOL legacy = header->version <= 263;
+    DWORD event_stride = legacy ? 52 : 44;
+    BYTE const *events;
+
+    if (header->events.count <= 0) {
+        return;
+    }
+    events = ArrayPtr(data, size, header->events, event_stride);
+    if (!events) {
+        return;
+    }
+
+    printf("events:\n");
+    FOR_LOOP(i, (DWORD)header->events.count) {
+        BYTE const *ev = events + i * event_stride;
+        DWORD event_id = *(DWORD const *)(ev + 0);
+        DWORD event_data = *(DWORD const *)(ev + 4);
+        WORD bone = *(WORD const *)(ev + 8);
+        printf("  [%03u] id=%u (%s) data=%u bone=%u\n",
+               (unsigned)i, (unsigned)event_id, M2EventIdName(event_id),
+               (unsigned)event_data, (unsigned)bone);
+    }
+}
+
 static void UpdateBounds(BOX3 *bounds, VECTOR3 p, BOOL *has_bounds) {
     if (!*has_bounds) {
         bounds->min = p;
@@ -2036,6 +2075,7 @@ static void InspectModel(void) {
 
         PrintHeaderArrays(&header);
         PrintAttachments(payload, payload_size, &header);
+        PrintEvents(payload, payload_size, &header);
         PrintTextures(payload, payload_size, &header);
         PrintTextureLookup(payload, payload_size, &header);
         PrintSkinInfo(resolved, payload, payload_size, &header);
