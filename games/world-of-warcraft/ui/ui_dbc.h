@@ -30,3 +30,5 @@ int UIWow_LuaCycleCharCustomization(lua_State *L);
 int UIWow_LuaRandomizeCharCustomization(lua_State *L);
 int UIWow_LuaGetRandomName(lua_State *L);
 int UIWow_LuaCreateCharacter(lua_State *L);
+int UIWow_LuaGetNumCharacters(lua_State *L);
+int UIWow_LuaGetCharacterInfo(lua_State *L);

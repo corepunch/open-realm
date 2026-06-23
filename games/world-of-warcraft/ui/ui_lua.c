@@ -472,11 +472,7 @@ static int UIWow_LuaRealmInfo(lua_State *L) {
     return 8;
 }
 
-static int UIWow_LuaCharacterInfo(lua_State *L) {
-    lua_pushnil(L); lua_pushnil(L); lua_pushnil(L); lua_pushinteger(L, 0); lua_pushnil(L);
-    lua_pushnil(L); lua_pushnil(L); lua_pushnil(L); lua_pushnil(L); lua_pushnil(L);
-    return 10;
-}
+/* GetCharacterInfo and GetNumCharacters are implemented in ui_dbc.c */
 
 static int UIWow_LuaTextCompat(lua_State *L) {
     if (lua_isnil(L, 1)) lua_pushstring(L, "");
@@ -638,8 +634,8 @@ static luaL_Reg const wow_global_funcs[] = {
     { "UpdateCustomizationScene",   UIWow_LuaUpdateCustomizationScene },
     { "GetCreateBackgroundModel", UIWow_LuaNil },
     { "GetCharacterListUpdate",   UIWow_LuaGetCharacterListUpdate },
-    { "GetNumCharacters",  UIWow_LuaZero },
-    { "GetCharacterInfo",  UIWow_LuaCharacterInfo },
+    { "GetNumCharacters",  UIWow_LuaGetNumCharacters },
+    { "GetCharacterInfo",  UIWow_LuaGetCharacterInfo },
     { "SelectCharacter",   UIWow_LuaNoop },
     { "GetCharacterSelectFacing", UIWow_LuaZero },
     { "SetCharacterSelectFacing", UIWow_LuaNoop },

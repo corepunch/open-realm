@@ -67,6 +67,116 @@ static struct {
 } wow_charcreate;
 
 /* -------------------------------------------------------------------------
+ * Local character list
+ * ---------------------------------------------------------------------- */
+
+#define WOW_MAX_CHARACTERS 10
+#define WOW_CHARACTERS_FILE "share/characters.xml"
+
+typedef struct {
+    char  name[64];
+    DWORD race_id;
+    DWORD sex_id;
+    DWORD class_id;
+    DWORD appearance;
+} wowCharEntry_t;
+
+static struct {
+    wowCharEntry_t entries[WOW_MAX_CHARACTERS];
+    int            count;
+    BOOL           loaded;
+} wow_charlist;
+
+/* Trim leading whitespace from s, return pointer past it. */
+static LPCSTR CharList_TrimLeft(LPCSTR s) {
+    while (*s == ' ' || *s == '\t' || *s == '\r' || *s == '\n') s++;
+    return s;
+}
+
+/* Find attr="value" in a tag string, copy value into buf (max len).
+   Returns true on success. */
+static BOOL CharList_XmlAttr(LPCSTR tag, LPCSTR attr, char *buf, int len) {
+    char needle[64];
+    LPCSTR p;
+    char q;
+
+    snprintf(needle, sizeof(needle), "%s=", attr);
+    p = strstr(tag, needle);
+    if (!p) return false;
+    p += strlen(needle);
+    q = *p;
+    if (q != '"' && q != '\'') return false;
+    p++;
+    int i = 0;
+    while (*p && *p != q && i < len - 1)
+        buf[i++] = *p++;
+    buf[i] = '\0';
+    return true;
+}
+
+static void CharList_Load(void) {
+    void *buf = NULL;
+    int   size;
+    LPCSTR p;
+
+    wow_charlist.count  = 0;
+    wow_charlist.loaded = true;
+
+    if (!uiimport.FS_ReadFile) return;
+    size = uiimport.FS_ReadFile(WOW_CHARACTERS_FILE, &buf);
+    if (size <= 0 || !buf) { SAFE_DELETE(buf, uiimport.FS_FreeFile); return; }
+
+    p = (LPCSTR)buf;
+    while (*p && wow_charlist.count < WOW_MAX_CHARACTERS) {
+        p = CharList_TrimLeft(p);
+        if (*p != '<') { p++; continue; }
+        p++;
+        if (strncmp(p, "Character", 9) != 0) {
+            while (*p && *p != '>') p++;
+            if (*p) p++;
+            continue;
+        }
+        /* find end of tag */
+        LPCSTR tag_end = strchr(p, '>');
+        if (!tag_end) break;
+        int tag_len = (int)(tag_end - p);
+        char tag[512];
+        if (tag_len >= (int)sizeof(tag)) { p = tag_end + 1; continue; }
+        memcpy(tag, p, (size_t)tag_len);
+        tag[tag_len] = '\0';
+
+        wowCharEntry_t *e = &wow_charlist.entries[wow_charlist.count];
+        char tmp[32];
+        if (!CharList_XmlAttr(tag, "name", e->name, sizeof(e->name))) { p = tag_end + 1; continue; }
+        e->race_id    = CharList_XmlAttr(tag, "race",       tmp, sizeof(tmp)) ? (DWORD)atoi(tmp) : 1;
+        e->sex_id     = CharList_XmlAttr(tag, "sex",        tmp, sizeof(tmp)) ? (DWORD)atoi(tmp) : 1;
+        e->class_id   = CharList_XmlAttr(tag, "class",      tmp, sizeof(tmp)) ? (DWORD)atoi(tmp) : 1;
+        e->appearance = CharList_XmlAttr(tag, "appearance", tmp, sizeof(tmp)) ? (DWORD)atoi(tmp) : 0;
+        wow_charlist.count++;
+        p = tag_end + 1;
+    }
+    uiimport.FS_FreeFile(buf);
+}
+
+static void CharList_Save(void) {
+    char xml[4096];
+    int  pos = 0;
+
+    if (!uiimport.FS_WriteFile) return;
+
+    pos += snprintf(xml + pos, sizeof(xml) - (size_t)pos, "<Characters>\n");
+    for (int i = 0; i < wow_charlist.count; i++) {
+        wowCharEntry_t *e = &wow_charlist.entries[i];
+        pos += snprintf(xml + pos, sizeof(xml) - (size_t)pos,
+                        "  <Character name=\"%s\" race=\"%u\" sex=\"%u\""
+                        " class=\"%u\" appearance=\"%u\" />\n",
+                        e->name, e->race_id, e->sex_id, e->class_id, e->appearance);
+    }
+    pos += snprintf(xml + pos, sizeof(xml) - (size_t)pos, "</Characters>\n");
+    uiimport.FS_WriteFile(WOW_CHARACTERS_FILE, xml, pos);
+}
+
+/* -------------------------------------------------------------------------
  * DBC read helpers
  * ---------------------------------------------------------------------- */
 
@@ -564,5 +674,100 @@ int UIWow_LuaGetRandomName(lua_State *L) {
 }
 
 int UIWow_LuaCreateCharacter(lua_State *L) {
-    (void)L; return 0;
+    LPCSTR name = luaL_checkstring(L, 1);
+    wowCharEntry_t *e;
+    int pi, race_id, sex_id;
+
+    UIWow_LoadCharCreateDbc();
+
+    if (!wow_charlist.loaded)
+        CharList_Load();
+
+    if (wow_charlist.count >= WOW_MAX_CHARACTERS) {
+        lua_pushstring(L, "ERR_CHAR_CREATE_LIST_FULL");
+        lua_setglobal(L, "CharacterCreateResult");
+        return 0;
+    }
+
+    pi      = wow_charcreate.sel_race;
+    race_id = (pi >= 0 && pi < wow_charcreate.num_playable)
+                  ? (int)wow_charcreate.races[wow_charcreate.playable[pi]].id : 1;
+    sex_id  = wow_charcreate.sel_sex;
+
+    e = &wow_charlist.entries[wow_charlist.count++];
+    snprintf(e->name, sizeof(e->name), "%s", name);
+    e->race_id    = (DWORD)race_id;
+    e->sex_id     = (DWORD)sex_id;
+    e->class_id   = (DWORD)wow_charcreate.sel_class;
+    e->appearance = UIWow_GetCharacterCreateAppearance();
+
+    CharList_Save();
+
+    /* Fire CharacterCreateResult("OKAY") so the Lua UI advances. */
+    lua_getglobal(L, "CharacterCreateResult");
+    if (lua_isfunction(L, -1)) {
+        lua_pushstring(L, "OKAY");
+        if (lua_pcall(L, 1, 0, 0) != LUA_OK) {
+            fprintf(stderr, "UIWow CreateCharacter: %s\n", lua_tostring(L, -1));
+            lua_pop(L, 1);
+        }
+    } else {
+        lua_pop(L, 1);
+    }
+    return 0;
+}
+
+int UIWow_LuaGetNumCharacters(lua_State *L) {
+    (void)L;
+    if (!wow_charlist.loaded)
+        CharList_Load();
+    lua_pushinteger(L, wow_charlist.count);
+    return 1;
+}
+
+int UIWow_LuaGetCharacterInfo(lua_State *L) {
+    int index = (int)luaL_checkinteger(L, 1) - 1; /* Lua is 1-based */
+    wowCharEntry_t const *e;
+    wowClassRec_t const *cls;
+    wowRaceRec_t const *race = NULL;
+    LPCSTR race_name = "", race_file = "", class_name = "";
+
+    UIWow_LoadCharCreateDbc();
+    if (!wow_charlist.loaded)
+        CharList_Load();
+
+    if (index < 0 || index >= wow_charlist.count) {
+        for (int i = 0; i < 10; i++) lua_pushnil(L);
+        return 10;
+    }
+
+    e = &wow_charlist.entries[index];
+
+    /* Resolve race name and client file from DBC. */
+    FOR_LOOP(ri, wow_charcreate.num_races) {
+        if (wow_charcreate.races[ri].id == e->race_id) {
+            race = &wow_charcreate.races[ri];
+            race_name = (e->sex_id == 2 && race->name_female[0])
+                            ? race->name_female : race->name;
+            race_file = race->client_file ? race->client_file : "";
+            break;
+        }
+    }
+
+    cls = UIWow_ClassByID((int)e->class_id);
+    if (cls) class_name = cls->name ? cls->name : "";
+
+    /* Return: name, level, class, race, sex, zone, guild,
+               status, className, raceFileName */
+    lua_pushstring(L, e->name);       /* 1  name */
+    lua_pushinteger(L, 1);            /* 2  level */
+    lua_pushstring(L, class_name);    /* 3  class (localised) */
+    lua_pushstring(L, race_name);     /* 4  race  (localised) */
+    lua_pushinteger(L, (int)e->sex_id - 1); /* 5  sex (0=male,1=female) */
+    lua_pushstring(L, "");            /* 6  zone */
+    lua_pushstring(L, "");            /* 7  guild */
+    lua_pushstring(L, "");            /* 8  status */
+    lua_pushstring(L, class_name);    /* 9  className */
+    lua_pushstring(L, race_file);     /* 10 raceFileName */
+    return 10;
 }
