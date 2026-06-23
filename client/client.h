@@ -184,6 +184,9 @@ int CL_ImageIndex(LPCSTR imageName);
 int CL_FontIndex(LPCSTR fontName, DWORD fontSize);
 void CL_UIMenuCommand(LPCSTR command);
 
+/* Entity one-shot sound/effect events (cl_fx.c) */
+void CL_EntityEvent(entityState_t const *ent);
+
 /* Unit UI data parsing (Phase 8) */
 void CL_ParseUnitUI(LPSIZEBUF msg);
 

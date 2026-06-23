@@ -93,6 +93,9 @@ void G_RunEntities(void) {
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT ent = globals.edicts+i;
         ent->old_origin = ent->s.origin2;
+        /* Clear one-shot event fields so each event fires for exactly one frame. */
+        ent->s.event = EV_NONE;
+        ent->s.sound = 0;
     }
     FOR_LOOP(i, globals.num_edicts) {
         G_RunEntity(globals.edicts+i);

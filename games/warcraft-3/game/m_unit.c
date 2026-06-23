@@ -72,6 +72,7 @@ void unit_die(LPEDICT self, LPEDICT attacker) {
     unit_setmove(self, &unit_move_death);
     G_PublishEvent(self, EVENT_UNIT_DEATH);
     self->svflags |= SVF_DEADMONSTER;
+    if (self->sound_death) { self->s.event = EV_DEATH; self->s.sound = self->sound_death; }
 }
 
 void unit_birth(LPEDICT self) {

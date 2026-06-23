@@ -89,6 +89,8 @@ static void CL_ReadPacketEntities(LPSIZEBUF msg) {
         }
         ent->prev = ent->current;
         MSG_ReadDeltaEntity(msg, &ent->current, nument, bits);
+        if (ent->current.event)
+            CL_EntityEvent(&ent->current);
         if (debug_entities) {
             if (!old.model && ent->current.model) {
                 fprintf(stderr,

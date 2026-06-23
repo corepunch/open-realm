@@ -685,6 +685,10 @@ struct edict_s {
     UNITINFO unitinfo;
     unitAttack_t attack1;
     unitAttack_t attack2;
+    /* Registered sound configstring indices, populated at spawn from unitSound label. */
+    int sound_attack;   /* attack swing sound */
+    int sound_death;    /* death sound */
+    int sound_move;     /* footstep / movement sound */
 
     void (*stand)(LPEDICT);
     void (*birth)(LPEDICT);
@@ -704,6 +708,8 @@ struct game_locals {
         sheetRow_t *splats;
         sheetRow_t *uberSplats;
         sheetRow_t *misc;
+        sheetRow_t *unitAckSounds;    /* UI/SoundInfo/UnitAckSounds.slk */
+        sheetRow_t *unitCombatSounds; /* UI/SoundInfo/UnitCombatSounds.slk */
     } config;
     struct {
         FLOAT attackHalfAngle;
