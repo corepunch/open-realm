@@ -110,6 +110,7 @@ typedef struct {
     int (*FS_ReadFile)(LPCSTR fileName, void **buf);  /* Returns file size, allocates buf */
     void (*FS_FreeFile)(void *buf);
     int (*FS_GetFileList)(LPCSTR path, LPCSTR extension, char *listbuf, int bufsize);
+    void (*FS_WriteFile)(LPCSTR path, const void *data, int size); /* Write to local disk */
     
     /* Memory allocation */
     HANDLE (*MemAlloc)(long size);
