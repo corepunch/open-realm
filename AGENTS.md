@@ -182,7 +182,7 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 
 ## DBC Inspection Workflow (dbctool)
 
-- Use `build/bin/dbctool` to inspect any WoW DBC file without writing C code or running the game.
+- Use `build/bin/dbctool` to inspect or create WoW DBC files without writing C code or running the game.
 - DBCs live inside WoW MPQ archives under `DBFilesClient\`. You can also pass a raw extracted file with `-file`.
 - CLI synopsis:
     - `build/bin/dbctool -mpq <archive.mpq> info <DBFilesClient\File.dbc>`
@@ -206,12 +206,35 @@ build/bin/dbctool -mpq data/world-of-warcraft/Data/patch.mpq str  DBFilesClient\
 build/bin/dbctool -file /tmp/ChrRaces.dbc dump
 ```
 
+### Writing DBC files for tests
+
+Use `create`, `set`, `setstr`, and `save` to build fixture DBCs for unit tests. No `-mpq` or `-file` prefix needed.
+
+Write commands:
+- `create <out.dbc> <fields> <record_size>` — create an empty DBC (record_size must be 4× fields).
+- `set <file.dbc> <row> <field> <value>` — set a uint32 field. Row is auto-created.
+- `setstr <file.dbc> <row> <field> <string>` — set a string field (value stored in string block).
+- `save <file.dbc>` — write the in-memory DBC to disk and clean up.
+
+Example:
+```
+build/bin/dbctool create /tmp/test.dbc 3 12
+build/bin/dbctool set /tmp/test.dbc 0 0 1
+build/bin/dbctool setstr /tmp/test.dbc 0 1 "Hello"
+build/bin/dbctool set /tmp/test.dbc 0 2 42
+build/bin/dbctool save /tmp/test.dbc
+build/bin/dbctool -file /tmp/test.dbc dump
+```
+
+This creates a 3-field, 12-byte/record DBC with 1 row. String fields are automatically collected into the string block on `save`.
+
 When to use dbctool:
 - Before hardcoding any race/class/faction/item/display ID or name in C or Lua: confirm the real value by querying the authoritative DBC.
 - When debugging character creation (`ChrRaces.dbc`, `ChrClasses.dbc`, `CharBaseInfo.dbc`), faction assignment (`FactionTemplate.dbc`, `FactionGroup.dbc`), outfit display (`CharStartOutfit.dbc`, `ItemDisplayInfo.dbc`), or geoset visibility (`CharSections.dbc`, `CharHairGeosets.dbc`).
 - To determine field layout before writing or updating a DBC loader in `ui_dbc.c` or the renderer: run `info` to get field count and record size, then `dump 1` to see the first row's raw uint32 values, then `str` to identify which columns are string offsets.
 - Prefer `info` first, then `str` for named fields, then `dump` when you need the full picture.
 - Pipe `dump` output through `grep`, `awk`, or `cut` for quick filtering (e.g. find all rows where field 0 equals a specific race ID).
+- Use `create`/`set`/`setstr`/`save` to generate minimal DBC fixtures for tests that exercise DBC-dependent code paths.
 
 Agent guidance:
 - Always use this tool when investigating a DBC layout mismatch or verifying field indices documented in comments in `ui_dbc.c`.
