@@ -359,6 +359,16 @@ struct playerState_s {
     LPCSTR texts[MAX_STATS];
 };
 
+/* One-shot events embedded in entityState_t.event.
+ * The server sets event once; the client fires the sound and resets it.
+ * Zero means no event. */
+typedef enum {
+    EV_NONE = 0,
+    EV_ATTACK,       /* unit began an attack swing */
+    EV_DEATH,        /* unit died */
+    EV_MOVE,         /* footstep / movement sound */
+} entity_event_t;
+
 typedef struct entityState_s {
     DWORD number; // edict index
     DWORD class_id;

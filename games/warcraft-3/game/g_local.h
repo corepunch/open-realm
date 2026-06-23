@@ -709,6 +709,10 @@ struct edict_s {
     unitAttack_t attack2;
     DWORD defense_type;   /* WC3 defType index: small/medium/large/fort/normal/hero/divine/none */
     FLOAT armor_value;    /* computed armor ('realdef', incl. hero AGI) for damage reduction */
+    /* Registered sound configstring indices, populated at spawn from unitSound label. */
+    int sound_attack;   /* attack swing sound */
+    int sound_death;    /* death sound */
+    int sound_move;     /* footstep / movement sound */
 
     void (*stand)(LPEDICT);
     void (*birth)(LPEDICT);
@@ -733,6 +737,8 @@ struct game_locals {
         sheetRow_t *splats;
         sheetRow_t *uberSplats;
         sheetRow_t *misc;
+        sheetRow_t *unitAckSounds;    /* UI/SoundInfo/UnitAckSounds.slk */
+        sheetRow_t *unitCombatSounds; /* UI/SoundInfo/UnitCombatSounds.slk */
     } config;
     struct {
         FLOAT attackHalfAngle;

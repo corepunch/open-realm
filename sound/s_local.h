@@ -33,6 +33,7 @@ typedef struct {
     Uint32 len;
     SDL_AudioSpec spec;
     DWORD kit_id;
+    LPCSTR path;  /* non-NULL for path-keyed entries (kit_id==0) */
 } sWavCache_t;
 
 typedef struct sHashNode_s {
@@ -68,5 +69,6 @@ extern sState_t s;
 
 /* s_sound.c */
 void S_LoadSoundEntries(void);
+void S_PlaySoundFile(LPCSTR path);
 
 #endif
