@@ -11,7 +11,7 @@
         <EditorFlags index="NoAutoRotate" value="1"/>
     </CActorDoodad>
     <CActorUnit id="MarineActor">
-        <Model value="MarineCatalogModel"/>
+        <Model value="MarineCoreModel"/>
         <DeathArray index="Normal" ModelLink="MarineDeath"/>
     </CActorUnit>
     <CActorUnit id="Civilian" unitName="Civilian">

@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="us-ascii"?>
 <Catalog>
     <CTerrainTex id="FixtureGrass">
-        <Texture value="Assets\Textures\Terrain\FixtureGrass_Diffuse.dds"/>
-        <Normalmap value="Assets\Textures\Terrain\FixtureGrass_Diffuse_normal.dds"/>
+        <Texture value="Assets\Textures\Terrain\CoreGrass_Diffuse.dds"/>
+        <Normalmap value="Assets\Textures\Terrain\CoreGrass_Diffuse_normal.dds"/>
     </CTerrainTex>
     <CTerrainTex id="FixtureDirt">
         <Texture value="Assets\Textures\Terrain\FixtureDirt_Diffuse.dds"/>

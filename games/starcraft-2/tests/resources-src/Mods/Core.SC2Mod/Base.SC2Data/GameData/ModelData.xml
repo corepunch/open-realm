@@ -9,6 +9,9 @@
     <CModel id="MarineCatalogModel" parent="Unit" Race="Terran">
         <Occlusion value="Show"/>
     </CModel>
+    <CModel id="MarineCoreModel" parent="Unit" Race="Protoss">
+        <Occlusion value="Hide"/>
+    </CModel>
     <CModel id="BillboardTall" parent="Doodad">
         <VariationCount value="4"/>
     </CModel>
