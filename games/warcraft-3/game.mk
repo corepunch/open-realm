@@ -36,6 +36,9 @@ openwarcraft3: $(BINARY)
 run: $(BINARY)
 	$(BINARY) -data $(WC3DATA) -tft
 
+run-roc: $(BINARY)
+	$(BINARY) -data $(WC3DATA)
+
 run-demo: $(BINARY)
 	$(BINARY) -data $(DEMODATA)
 

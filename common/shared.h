@@ -145,7 +145,9 @@ enum {
     FLAG(RDF_NOFOGMASK, 1),
     FLAG(RDF_NOWORLDMODEL, 2),
     FLAG(RDF_NOFRUSTUMCULL, 3),
-    FLAG(RDF_USE_ENTITY_CAMERA, 4),
+    FLAG(RDF_NOPARTICLES, 4),
+    FLAG(RDF_USE_ENTITY_CAMERA, 5),
+    FLAG(RDF_SHOW_ALL_HEALTHBARS, 6), /* ALT held: overhead bars on every unit */
 };
 
 #define MAX_COMMANDS 12
@@ -349,6 +351,7 @@ struct playerState_s {
     DWORD rdflags;
     DWORD uiflags;
     DWORD client_ui_state;
+    DWORD cinematic_portrait;   /* model index of the cinematic transmission portrait (0 = none) */
     DWORD team;
     DWORD color;    // player color index (0 = red, 1 = blue, … see PLAYER_COLOR_*)
     DWORD race;     // map player race, see playerRace_t
@@ -509,7 +512,6 @@ typedef struct animation_s {
     FLOAT radius;
     VECTOR3 min;
     VECTOR3 max;
-    DWORD damage_point;  /* ms from sequence start when the hit lands (from M2 events) */
 } animation_t;
 
 typedef struct {
