@@ -40,6 +40,9 @@ typedef struct {
 typedef struct {
     char id[64];
     char actor[64];
+    char footprint[64];
+    char mover[64];
+    DWORD flags;
     BOOL has_radius;
     FLOAT radius;
 } sc2CatalogUnit_t;
@@ -47,7 +50,10 @@ typedef struct {
 typedef struct {
     char name[64];
     char model[256];
+    char footprint[64];
+    char mover[64];
     FLOAT radius;
+    DWORD unit_flags;
 } sc2ResolvedObjectModel_t;
 
 typedef struct {
@@ -991,14 +997,37 @@ static void sc2_catalog_add_actor(sc2Catalog_t *catalog, LPCSTR id, LPCSTR model
     snprintf(actor->model, sizeof(actor->model), "%s", model_id);
 }
 
-static void sc2_catalog_add_unit(sc2Catalog_t *catalog, LPCSTR id, LPCSTR actor_id, FLOAT radius, BOOL has_radius) {
+static DWORD sc2_unit_flag(LPCSTR name) {
+    if (!name || !*name) return 0;
+    if (sc2_streqi(name, "Movable")) return SC2_UNIT_FLAG_MOVABLE;
+    if (sc2_streqi(name, "Worker")) return SC2_UNIT_FLAG_WORKER;
+    if (sc2_streqi(name, "Resource")) return SC2_UNIT_FLAG_RESOURCE;
+    if (sc2_streqi(name, "Structure")) return SC2_UNIT_FLAG_STRUCTURE;
+    return 0;
+}
+
+static void sc2_catalog_add_unit(sc2Catalog_t *catalog,
+                                 LPCSTR id,
+                                 LPCSTR actor_id,
+                                 LPCSTR footprint,
+                                 LPCSTR mover,
+                                 DWORD flags,
+                                 FLOAT radius,
+                                 BOOL has_radius) {
     sc2CatalogUnit_t *unit;
 
-    if (!catalog || !id || !*id || ((!actor_id || !*actor_id) && !has_radius)) return;
+    if (!catalog || !id || !*id ||
+        ((!actor_id || !*actor_id) && (!footprint || !*footprint) && (!mover || !*mover) && !flags && !has_radius))
+        return;
     FOR_LOOP(i, catalog->units_count) {
         if (!strcasecmp(catalog->units[i].id, id)) {
             if (actor_id && *actor_id)
                 snprintf(catalog->units[i].actor, sizeof(catalog->units[i].actor), "%s", actor_id);
+            if (footprint && *footprint)
+                snprintf(catalog->units[i].footprint, sizeof(catalog->units[i].footprint), "%s", footprint);
+            if (mover && *mover)
+                snprintf(catalog->units[i].mover, sizeof(catalog->units[i].mover), "%s", mover);
+            catalog->units[i].flags |= flags;
             if (has_radius) {
                 catalog->units[i].has_radius = true;
                 catalog->units[i].radius = radius;
@@ -1010,6 +1039,9 @@ static void sc2_catalog_add_unit(sc2Catalog_t *catalog, LPCSTR id, LPCSTR actor_
     unit = &catalog->units[catalog->units_count++];
     snprintf(unit->id, sizeof(unit->id), "%s", id);
     snprintf(unit->actor, sizeof(unit->actor), "%s", actor_id ? actor_id : "");
+    snprintf(unit->footprint, sizeof(unit->footprint), "%s", footprint ? footprint : "");
+    snprintf(unit->mover, sizeof(unit->mover), "%s", mover ? mover : "");
+    unit->flags = flags;
     unit->has_radius = has_radius;
     unit->radius = has_radius ? radius : 0.0f;
 }
@@ -1308,6 +1340,9 @@ static void sc2_parse_unit_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
     for (xmlNodePtr node = root ? root->children : NULL; node; node = node->next) {
         char id[64];
         char actor_id[64] = "";
+        char footprint[64] = "";
+        char mover[64] = "";
+        DWORD flags = 0;
         FLOAT radius = 0.0f;
         BOOL has_radius = false;
 
@@ -1321,13 +1356,26 @@ static void sc2_parse_unit_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
                 continue;
             if (sc2_streqi((char const *)child->name, "Actor")) {
                 sc2_xml_attr(child, "value", actor_id, sizeof(actor_id));
+            } else if (sc2_streqi((char const *)child->name, "Footprint")) {
+                sc2_xml_attr(child, "value", footprint, sizeof(footprint));
+            } else if (sc2_streqi((char const *)child->name, "Mover")) {
+                sc2_xml_attr(child, "value", mover, sizeof(mover));
+            } else if (sc2_contains_i((char const *)child->name, "Flag")) {
+                char index[64];
+                if ((sc2_xml_attr(child, "index", index, sizeof(index)) ||
+                     sc2_xml_attr(child, "Index", index, sizeof(index))) &&
+                    (sc2_xml_attr(child, "value", value, sizeof(value)) ||
+                     sc2_xml_attr(child, "Value", value, sizeof(value))) &&
+                    atoi(value)) {
+                    flags |= sc2_unit_flag(index);
+                }
             } else if (sc2_streqi((char const *)child->name, "Radius") &&
                        sc2_xml_attr(child, "value", value, sizeof(value)) &&
                        sscanf(value, "%f", &radius) == 1 && radius > 0.0f) {
                 has_radius = true;
             }
         }
-        sc2_catalog_add_unit(catalog, id, actor_id, radius, has_radius);
+        sc2_catalog_add_unit(catalog, id, actor_id, footprint, mover, flags, radius, has_radius);
     }
 }
 
@@ -1557,15 +1605,23 @@ static void sc2_resolve_object_models(sc2Catalog_t const *catalog) {
         FOR_LOOP(j, resolved_count) {
             if (!strcasecmp(resolved[j].name, object->name)) {
                 snprintf(object->model, sizeof(object->model), "%s", resolved[j].model);
+                snprintf(object->footprint, sizeof(object->footprint), "%s", resolved[j].footprint);
+                snprintf(object->mover, sizeof(object->mover), "%s", resolved[j].mover);
                 object->radius = resolved[j].radius;
+                object->unit_flags = resolved[j].unit_flags;
                 goto next_object;
             }
         }
         model_id = NULL;
         if (object->type == SC2_OBJECT_UNIT) {
             sc2CatalogUnit_t const *unit = sc2_catalog_unit(catalog, object->name);
-            if (unit && unit->has_radius) object->radius = unit->radius;
-            if (unit && unit->actor[0]) model_id = sc2_catalog_actor_model(catalog, unit->actor);
+            if (unit) {
+                if (unit->has_radius) object->radius = unit->radius;
+                if (unit->footprint[0]) snprintf(object->footprint, sizeof(object->footprint), "%s", unit->footprint);
+                if (unit->mover[0]) snprintf(object->mover, sizeof(object->mover), "%s", unit->mover);
+                object->unit_flags |= unit->flags;
+                if (unit->actor[0]) model_id = sc2_catalog_actor_model(catalog, unit->actor);
+            }
         }
         if (!model_id) model_id = sc2_catalog_actor_model(catalog, object->name);
         if (!model_id) model_id = object->name;
@@ -1578,7 +1634,10 @@ static void sc2_resolve_object_models(sc2Catalog_t const *catalog) {
         if (resolved_count < SC2_MAX_MAP_OBJECTS) {
             snprintf(resolved[resolved_count].name, sizeof(resolved[resolved_count].name), "%s", object->name);
             snprintf(resolved[resolved_count].model, sizeof(resolved[resolved_count].model), "%s", object->model);
+            snprintf(resolved[resolved_count].footprint, sizeof(resolved[resolved_count].footprint), "%s", object->footprint);
+            snprintf(resolved[resolved_count].mover, sizeof(resolved[resolved_count].mover), "%s", object->mover);
             resolved[resolved_count].radius = object->radius;
+            resolved[resolved_count].unit_flags = object->unit_flags;
             resolved_count++;
         }
 next_object:

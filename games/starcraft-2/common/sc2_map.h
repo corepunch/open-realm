@@ -12,6 +12,10 @@
 #define SC2_OBJECT_HEIGHT_ABSOLUTE 0x00000001
 #define SC2_OBJECT_HEIGHT_OFFSET   0x00000002
 #define SC2_OBJECT_FORCE_PLACEMENT 0x00000004
+#define SC2_UNIT_FLAG_MOVABLE      0x00000001
+#define SC2_UNIT_FLAG_WORKER       0x00000002
+#define SC2_UNIT_FLAG_RESOURCE     0x00000004
+#define SC2_UNIT_FLAG_STRUCTURE    0x00000008
 #define SC2_LIGHT_KEY              0
 #define SC2_LIGHT_FILL             1
 #define SC2_LIGHT_BACK             2
@@ -39,6 +43,8 @@ typedef struct {
     DWORD           id;
     char            name[64];
     char            model[256];
+    char            footprint[64];
+    char            mover[64];
     VECTOR3         position;
     FLOAT           angle;
     FLOAT           scale;
@@ -46,6 +52,7 @@ typedef struct {
     DWORD           variation;
     DWORD           player;
     DWORD           flags;
+    DWORD           unit_flags;
     sc2MapCamera_t  camera;
 } sc2MapObject_t;
 
