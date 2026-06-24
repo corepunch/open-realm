@@ -204,7 +204,7 @@ void UI_TextInputLocal(LPCSTR text) {
 static void UI_ClearEditFocusIfClickedOutside(void) {
     LPCRECT rect;
 
-    if (!active_edit || ui_mouse.event != UI_MOUSE_LEFT_DOWN) {
+    if (!active_edit || ui_mouse.event != UI_WC3_MOUSE_LEFT_DOWN) {
         return;
     }
     rect = UI_LayoutRect(active_edit);

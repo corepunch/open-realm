@@ -43,21 +43,40 @@ static void SCR_DrawFPS(DWORD msec) {
 
 void SCR_UpdateScreen(DWORD msec) {
     re.BeginFrame();
-    
-    V_RenderView();
 
-#ifndef SC2
-    if (ui.DrawFrame) {
-        ui.DrawFrame();
+    /* 3D scene: game world for loading/active, preview camera for menus */
+    if (cls.state == ca_loading || cls.state == ca_active) {
+        V_RenderView();
     }
-#endif
+
+    /* UI layer: dispatch by connection state */
+    switch (cls.state) {
+    case ca_disconnected:
+    case ca_connecting:
+    case ca_connected:
+        if (ui.DrawFrame) {
+            ui.DrawFrame();
+        }
+        break;
+    case ca_loading:
+        if (ui.DrawLoadingScreen) {
+            ui.DrawLoadingScreen(cl.loading_map, cl.loading_status, cl.loading_progress);
+        }
+        break;
+    case ca_active:
+        if (ui.DrawFrame) {
+            ui.DrawFrame();
+        }
+        if (ui.DrawOverlays) {
+            ui.DrawOverlays();
+        }
+        break;
+    }
 
     CON_DrawConsole();
     if (Cvar_Integer("scr_showfps", 0)) {
         SCR_DrawFPS(msec);
     }
-    
-//    if (cl.pics[42]) re.DrawPic(cl.pics[42], 0, 0);
-    
+
     re.EndFrame();
 }

@@ -765,7 +765,7 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
             UI_DrawButtonText(frame, rect);
             if (!UI_PointerBlockedByPopup(frame) &&
                 UI_MouseContains(rect) &&
-                ui_mouse.event == UI_MOUSE_LEFT_UP &&
+                ui_mouse.event == UI_WC3_MOUSE_LEFT_UP &&
                 UI_ButtonEnabled(frame) &&
                 frame->OnClick[0]) {
                 UI_MenuCommandLocal(frame->OnClick);
@@ -774,7 +774,7 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
                 !UI_PointerBlockedByPopup(frame) &&
                 UI_ButtonEnabled(frame) &&
                 UI_MouseContains(rect) &&
-                ui_mouse.event == UI_MOUSE_LEFT_UP) {
+                ui_mouse.event == UI_WC3_MOUSE_LEFT_UP) {
                 LPCFRAMEDEF next_popup = active_popup == frame ? NULL : frame;
                 if (active_popup != next_popup) {
                     UI_ResetPopupScroll();
@@ -805,7 +805,7 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
         case FT_GLUEEDITBOX:
         case FT_SLASHCHATBOX:
             if (!UI_PointerBlockedByPopup(frame) &&
-                UI_MouseContains(rect) && ui_mouse.event == UI_MOUSE_LEFT_DOWN) {
+                UI_MouseContains(rect) && ui_mouse.event == UI_WC3_MOUSE_LEFT_DOWN) {
                 UI_FocusEdit((LPFRAMEDEF)frame);
             }
             UI_DrawEditBox(frame, rect);

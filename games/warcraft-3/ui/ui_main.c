@@ -643,7 +643,7 @@ BOOL UI_MouseContains(LPCRECT rect) {
 }
 
 void UI_ClearMouseTransient(void) {
-    ui_mouse.event = UI_MOUSE_EVENT_NONE;
+    ui_mouse.event = UI_WC3_MOUSE_EVENT_NONE;
 }
 
 void UI_InitLocal(void) {
@@ -767,38 +767,49 @@ void UI_KeyEventLocal(int key, BOOL down, DWORD time) {
     }
 }
 
-void UI_MouseEventLocal(int x, int y, int button, BOOL down) {
+void UI_MouseEventLocal(uiMouseEvent_t event, int x, int y, int32_t param) {
     if (!ui_state.active) {
         return;
     }
 
     ui_mouse.x = x;
     ui_mouse.y = y;
-    if (button) {
-        ui_mouse.button = button;
-        ui_mouse.down = down;
-        if (button == 1) {
-            ui_mouse.event = down ? UI_MOUSE_LEFT_DOWN : UI_MOUSE_LEFT_UP;
-        } else if (button == 2) {
-            ui_mouse.event = down ? UI_MOUSE_RIGHT_DOWN : UI_MOUSE_RIGHT_UP;
-        } else if (button == 4) {
-            ui_mouse.event = UI_MOUSE_WHEEL_UP;
-            ui_mouse.button = 0;
-            ui_mouse.down = false;
-        } else if (button == 5) {
-            ui_mouse.event = UI_MOUSE_WHEEL_DOWN;
-            ui_mouse.button = 0;
-            ui_mouse.down = false;
+    switch (event) {
+    case UI_MOUSE_DOWN:
+        ui_mouse.button = (int)param;
+        ui_mouse.down = true;
+        if (param == 1) {
+            ui_mouse.event = UI_WC3_MOUSE_LEFT_DOWN;
+        } else if (param == 2) {
+            ui_mouse.event = UI_WC3_MOUSE_RIGHT_DOWN;
         }
-        if (!down) {
-            ui_mouse.button = 0;
+        break;
+    case UI_MOUSE_UP:
+        ui_mouse.button = (int)param;
+        ui_mouse.down = false;
+        if (param == 1) {
+            ui_mouse.event = UI_WC3_MOUSE_LEFT_UP;
+        } else if (param == 2) {
+            ui_mouse.event = UI_WC3_MOUSE_RIGHT_UP;
         }
+        ui_mouse.button = 0;
+        break;
+    case UI_MOUSE_SCROLL:
+        ui_mouse.button = 0;
+        ui_mouse.down = false;
+        ui_mouse.event = (param > 0) ? UI_WC3_MOUSE_WHEEL_UP : UI_WC3_MOUSE_WHEEL_DOWN;
+        break;
+    case UI_MOUSE_MOVE:
+        ui_mouse.button = 0;
+        ui_mouse.down = false;
+        ui_mouse.event = UI_WC3_MOUSE_EVENT_NONE;
+        break;
     }
     
     /* Delegate to current screen */
     uiScreen_t *screen = UI_GetCurrentScreen();
     if (screen && screen->mouse_event) {
-        screen->mouse_event(x, y, button);
+        screen->mouse_event(x, y, ui_mouse.button);
     }
 }
 
@@ -1002,7 +1013,6 @@ uiExport_t UI_GetAPI(uiImport_t import) {
     exp.KeyEvent = UI_KeyEventLocal;
     exp.TextInput = UI_TextInputLocal;
     exp.MouseEvent = UI_MouseEventLocal;
-    exp.MenuCommand = UI_MenuCommandLocal;
     exp.UpdateUnitUI = UI_UpdateUnitUILocal;
     exp.UpdateLobbySetup = UI_UpdateLobbySetupLocal;
     exp.SetLayoutLayer = UI_LayoutSetLayer;

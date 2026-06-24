@@ -11,6 +11,7 @@
  */
 #include "client.h"
 #include "tr_public.h"
+#include "ui_layout.h"
 #include <arpa/inet.h>
 
 refExport_t re;
@@ -104,19 +105,13 @@ static LPCMODEL CL_UIGetPortrait(DWORD idx);
 static LPRENDERER CL_UIGetRenderer(void);
 static DWORD CL_UIGetClientTime(void);
 static VECTOR2 CL_UIGetMouseFdf(void);
-static DWORD CL_UIGetMouseButton(void);
-static uiClientMouseEvent_t CL_UIGetMouseEvent(void);
 
 static void CL_MenuCommand(LPCSTR command) {
     if (!command || !*command) {
         return;
     }
-    if (!ui.MenuCommand) {
-        Cbuf_AddText(command);
-        Cbuf_AddText("\n");
-        return;
-    }
-    ui.MenuCommand(command);
+    Cbuf_AddText(command);
+    Cbuf_AddText("\n");
 }
 
 void CL_Disconnect(LPCSTR reason, BOOL notify) {
@@ -160,6 +155,16 @@ static refExport_t CL_GetRendererAPI(refImport_t imp) {
 /* UI library FS_ReadFile wrapper that converts to Quake 3 pattern */
 static int CL_UI_ReadFile(LPCSTR fileName, void **buf) {
     return FS_ReadFileQ3(fileName, buf);
+}
+
+/* Write a local file by path (relative to CWD, same as share/ configs). */
+static void CL_UI_WriteFile(LPCSTR path, const void *data, int size) {
+    FILE *f;
+    if (!path || !data || size <= 0) return;
+    f = fopen(path, "wb");
+    if (!f) return;
+    fwrite(data, 1, (size_t)size, f);
+    fclose(f);
 }
 
 static BOOL CL_UI_HasExtension(LPCSTR name, LPCSTR extension) {
@@ -316,22 +321,6 @@ static DWORD CL_UIGetClientTime(void) {
 
 static VECTOR2 CL_UIGetMouseFdf(void) {
     return SCR_MouseToFdf();
-}
-
-static DWORD CL_UIGetMouseButton(void) {
-    return mouse.button;
-}
-
-static uiClientMouseEvent_t CL_UIGetMouseEvent(void) {
-    switch (mouse.event) {
-        case UI_LEFT_MOUSE_DOWN: return UI_CLIENT_MOUSE_LEFT_DOWN;
-        case UI_LEFT_MOUSE_UP: return UI_CLIENT_MOUSE_LEFT_UP;
-        case UI_LEFT_MOUSE_DRAGGED: return UI_CLIENT_MOUSE_LEFT_DRAGGED;
-        case UI_RIGHT_MOUSE_DOWN: return UI_CLIENT_MOUSE_RIGHT_DOWN;
-        case UI_RIGHT_MOUSE_UP: return UI_CLIENT_MOUSE_RIGHT_UP;
-        case UI_RIGHT_MOUSE_DRAGGED: return UI_CLIENT_MOUSE_RIGHT_DRAGGED;
-        default: return UI_CLIENT_MOUSE_NONE;
-    }
 }
 
 /* Request unit UI data (command card, inventory, build queue) */
@@ -615,6 +604,7 @@ void CL_Init(void) {
         .FS_ReadFile = CL_UI_ReadFile,
         .FS_FreeFile = FS_FreeFile,
         .FS_GetFileList = CL_UI_GetFileList,
+        .FS_WriteFile = CL_UI_WriteFile,
         .ReadMapInfo = CM_ReadMapInfo,
         .FindMapPreviewTexture = CM_FindMapPreviewTexture,
         .FreeMapInfo = CM_FreeMapInfo,
@@ -655,8 +645,6 @@ void CL_Init(void) {
         .GetFont = CL_UIGetFont,
         .GetClientTime = CL_UIGetClientTime,
         .GetMouseFdf = CL_UIGetMouseFdf,
-        .GetMouseButton = CL_UIGetMouseButton,
-        .GetMouseEvent = CL_UIGetMouseEvent,
         .LayoutClear = SCR_Clear,
         .LayoutNumFrames = SCR_NumFrames,
         .LayoutFrame = SCR_Frame,
@@ -665,9 +653,17 @@ void CL_Init(void) {
         .LayoutDrawText = SCR_GetDrawText,
         .RequestUnitUI = CL_UIRequestUnitUI,
         .GetRenderer = CL_UIGetRenderer,
+        .GetTime = CL_UIGetClientTime,
         .Error = CON_printf,
         .Printf = CON_printf,
     });
+    
+    /* Wire layout functions from the client into the UI export table */
+    ui.DrawOverlays = UI_LayoutDrawOverlays;
+    ui.LayoutMouseEvent = UI_LayoutMouseEvent;
+    ui.SetLayoutLayer = UI_LayoutSetLayer;
+    ui.ClearLayoutLayer = UI_LayoutClearLayer;
+    ui.HitTestLayout = UI_LayoutHitTest;
     
     if (ui.Init) {
         ui.Init();
@@ -682,12 +678,9 @@ void CL_Init(void) {
     CON_Init();
     CL_InitInput();
 
-    if (cls.key_dest == key_menu) {
-        CL_SetMenuBindings();
-        cls.state = ca_connecting;
-    } else {
-        CL_SetGameplayBindings();
-    }
+    CL_SetMenuBindings();
+    cls.state = ca_disconnected;
+    CL_MenuCommand("menu_login");
 }
 
 void CL_ConnectionlessPacket(const netadr_t *from, LPSIZEBUF msg) {

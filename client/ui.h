@@ -26,14 +26,16 @@
 #define MAX_LAYOUT_LAYERS 16
 
 typedef enum {
-    UI_CLIENT_MOUSE_NONE,
-    UI_CLIENT_MOUSE_LEFT_DOWN,
-    UI_CLIENT_MOUSE_LEFT_UP,
-    UI_CLIENT_MOUSE_LEFT_DRAGGED,
-    UI_CLIENT_MOUSE_RIGHT_DOWN,
-    UI_CLIENT_MOUSE_RIGHT_UP,
-    UI_CLIENT_MOUSE_RIGHT_DRAGGED,
-} uiClientMouseEvent_t;
+    UI_MOUSE_MOVE,
+    UI_MOUSE_DOWN,
+    UI_MOUSE_UP,
+    UI_MOUSE_SCROLL,
+} uiMouseEvent_t;
+
+/* Pack/unpack signed 16-bit dx/dy into the generic int32_t param (WinAPI MAKELPARAM style). */
+#define UI_MOUSE_PARAM(dx, dy)  ((int32_t)(((uint16_t)(int16_t)(dx)) | ((uint32_t)((uint16_t)(int16_t)(dy)) << 16)))
+#define UI_MOUSE_PARAM_X(p)     ((int16_t)(((uint32_t)(p)) & 0xFFFF))
+#define UI_MOUSE_PARAM_Y(p)     ((int16_t)((((uint32_t)(p)) >> 16) & 0xFFFF))
 
 typedef struct {
     char art[256];        /* Button icon path */
@@ -108,6 +110,7 @@ typedef struct {
     int (*FS_ReadFile)(LPCSTR fileName, void **buf);  /* Returns file size, allocates buf */
     void (*FS_FreeFile)(void *buf);
     int (*FS_GetFileList)(LPCSTR path, LPCSTR extension, char *listbuf, int bufsize);
+    void (*FS_WriteFile)(LPCSTR path, const void *data, int size); /* Write to local disk */
     BOOL (*ReadMapInfo)(LPCSTR mapName, LPMAPINFO info);
     BOOL (*FindMapPreviewTexture)(LPCSTR mapName, LPSTR out, DWORD out_size);
     void (*FreeMapInfo)(LPMAPINFO info);
@@ -158,7 +161,6 @@ typedef struct {
     DWORD (*GetClientTime)(void);               /* cl.time */
     VECTOR2 (*GetMouseFdf)(void);               /* current mouse in Warcraft UI coords */
     DWORD (*GetMouseButton)(void);
-    uiClientMouseEvent_t (*GetMouseEvent)(void);
     LPCUIFRAME (*LayoutClear)(HANDLE data);
     DWORD (*LayoutNumFrames)(void);
     LPUIFRAME (*LayoutFrame)(DWORD number);
@@ -175,9 +177,16 @@ typedef struct {
     /* Renderer access for frame drawing */
     LPRENDERER (*GetRenderer)(void);
     
-    /* Error reporting */
+    /* Time (milliseconds since init) */
+    DWORD (*GetTime)(void);
+    
+    /* Output */
     void (*Error)(LPCSTR fmt, ...);
     void (*Printf)(LPCSTR fmt, ...);
+
+    /* Sound */
+    void (*PlaySound)(DWORD kit_id);
+    void (*PlaySoundByName)(LPCSTR name);
 } uiImport_t;
 
 /* Function table exported by the UI library to the client. */
@@ -193,10 +202,7 @@ typedef struct {
     /* Input event handling */
     void (*KeyEvent)(int key, BOOL down, DWORD time);
     void (*TextInput)(LPCSTR text);
-    void (*MouseEvent)(int x, int y, int button, BOOL down);
-    
-    /* Menu navigation (called by client for button clicks, console commands) */
-    void (*MenuCommand)(LPCSTR command);
+    void (*MouseEvent)(uiMouseEvent_t event, int x, int y, int32_t param);
     
     /* Unit UI data updates (Phase 8: HUD migration) */
     void (*UpdateUnitUI)(DWORD num_units, uiUnitData_t *units);
@@ -206,6 +212,9 @@ typedef struct {
     void (*SetLayoutLayer)(DWORD layer, HANDLE data);
     void (*ClearLayoutLayer)(DWORD layer);
     BOOL (*HitTestLayout)(int x, int y);
+    void (*DrawOverlays)(void);
+    void (*LayoutMouseEvent)(uiMouseEvent_t event, int x, int y, int32_t param);
+    void (*DrawLoadingScreen)(LPCSTR map, LPCSTR status, FLOAT progress);
 } uiExport_t;
 
 /* Entry point called by the client to get the UI function table.

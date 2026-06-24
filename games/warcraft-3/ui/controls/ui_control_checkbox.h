@@ -51,7 +51,7 @@ static void UI_DrawCheckBox(LPCFRAMEDEF frame, LPCRECT rect) {
 
     if (!UI_PointerBlockedByPopup(frame) &&
         UI_MouseContains(rect) &&
-        ui_mouse.event == UI_MOUSE_LEFT_UP) {
+        ui_mouse.event == UI_WC3_MOUSE_LEFT_UP) {
         ((LPFRAMEDEF)frame)->CheckBox.Checked = !frame->CheckBox.Checked;
         if (frame->OnClick[0]) {
             UI_MenuCommandLocal(frame->OnClick);

@@ -89,6 +89,14 @@ void CL_Disconnect(LPCSTR reason, BOOL notify) {
     cls.state = ca_disconnected;
 }
 
+void CL_EntityEvent(entityState_t const *ent) {
+    (void)ent;
+}
+
+void Cbuf_AddText(LPCSTR text) {
+    (void)text;
+}
+
 void test_client_stubs_init(void) {
     memset(&cl, 0, sizeof(cl));
     memset(&cls, 0, sizeof(cls));

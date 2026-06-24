@@ -68,7 +68,7 @@ static FLOAT UI_SliderValueFromMouse(LPCFRAMEDEF slider, LPCRECT slider_rect, LP
 
 static void UI_UpdateSliderInteraction(LPCFRAMEDEF frame, LPCRECT rect, LPCFRAMEDEF thumb) {
     RECT thumb_rect = UI_SliderThumbRect(frame, rect, thumb);
-    BOOL const can_start = ui_mouse.event == UI_MOUSE_LEFT_DOWN &&
+    BOOL const can_start = ui_mouse.event == UI_WC3_MOUSE_LEFT_DOWN &&
                            !UI_PointerBlockedByPopup(frame) &&
                            (UI_MouseContains(rect) || UI_MouseContains(&thumb_rect));
 
@@ -78,7 +78,7 @@ static void UI_UpdateSliderInteraction(LPCFRAMEDEF frame, LPCRECT rect, LPCFRAME
     if (active_slider == frame && ui_mouse.down) {
         ((LPFRAMEDEF)frame)->Slider.InitialValue = UI_SliderValueFromMouse(frame, rect, thumb);
     }
-    if (active_slider == frame && ui_mouse.event == UI_MOUSE_LEFT_UP) {
+    if (active_slider == frame && ui_mouse.event == UI_WC3_MOUSE_LEFT_UP) {
         ((LPFRAMEDEF)frame)->Slider.InitialValue = UI_SliderValueFromMouse(frame, rect, thumb);
         active_slider = NULL;
     }

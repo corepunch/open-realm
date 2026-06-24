@@ -90,21 +90,21 @@ typedef struct {
 typedef FRAMEPOINT const *LPCFRAMEPOINT;
 
 typedef enum {
-    UI_MOUSE_EVENT_NONE,
-    UI_MOUSE_LEFT_DOWN,
-    UI_MOUSE_LEFT_UP,
-    UI_MOUSE_RIGHT_DOWN,
-    UI_MOUSE_RIGHT_UP,
-    UI_MOUSE_WHEEL_UP,
-    UI_MOUSE_WHEEL_DOWN,
-} uiMouseEvent_t;
+    UI_WC3_MOUSE_EVENT_NONE,
+    UI_WC3_MOUSE_LEFT_DOWN,
+    UI_WC3_MOUSE_LEFT_UP,
+    UI_WC3_MOUSE_RIGHT_DOWN,
+    UI_WC3_MOUSE_RIGHT_UP,
+    UI_WC3_MOUSE_WHEEL_UP,
+    UI_WC3_MOUSE_WHEEL_DOWN,
+} uiWc3MouseEvent_t;
 
 typedef struct {
     int x;
     int y;
     int button;
     BOOL down;
-    uiMouseEvent_t event;
+    uiWc3MouseEvent_t event;
 } uiMouseState_t;
 
 extern uiMouseState_t ui_mouse;

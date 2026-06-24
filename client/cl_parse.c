@@ -585,11 +585,9 @@ static void CL_ParseLobbyChat(LPSIZEBUF msg) {
     if (!text[0]) {
         return;
     }
-    if (!ui.MenuCommand) {
-        return;
-    }
     snprintf(command, sizeof(command), "menu_game_setup_chat %u %s", own ? 1u : 0u, text);
-    ui.MenuCommand(command);
+    Cbuf_AddText(command);
+    Cbuf_AddText("\n");
 }
 
 static void CL_ParseGameCommand(LPSIZEBUF msg) {

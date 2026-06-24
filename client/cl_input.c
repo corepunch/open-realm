@@ -1,14 +1,5 @@
 #include "cl_input_local.h"
 
-//struct {
-//    LPCSTR command;
-//    DWORD key;
-//} hotkey_t;
-//
-//hotkey_t hotkeys = {
-//    { "show_quests",  }
-//};
-
 mouseEvent_t mouse;
 static keyCode_t mouse_button_keys[8];
 
@@ -129,6 +120,10 @@ void CL_Input(void) {
                     CL_HandleGameKey(event.key.keysym.sym, event.key.keysym.mod)) {
                     break; /* consumed by in-game handler (e.g. control groups) */
                 }
+                if (cls.key_dest == key_menu && ui.KeyEvent) {
+                    ui.KeyEvent(event.key.keysym.sym, true, event.key.timestamp);
+                    break;
+                }
                 Key_Event(event.key.keysym.sym, true, event.key.timestamp);
                 break;
             case SDL_KEYUP:
@@ -136,19 +131,23 @@ void CL_Input(void) {
                     CON_KeyEvent(event.key.keysym.sym, false);
                     break;
                 }
+                if (cls.key_dest == key_menu && ui.KeyEvent) {
+                    ui.KeyEvent(event.key.keysym.sym, false, event.key.timestamp);
+                    break;
+                }
                 Key_Event(event.key.keysym.sym, false, event.key.timestamp);
-//                if(event.key.keysym.sym == SDLK_ESCAPE) {
-//                    return Com_Quit();
-//                }
                 break;
             case SDL_MOUSEBUTTONDOWN:
                 mouse.origin.x = event.button.x;
                 mouse.origin.y = event.button.y;
                 mouse.button = event.button.button;
+                if (ui.MouseEvent) {
+                    ui.MouseEvent(UI_MOUSE_DOWN, event.button.x, event.button.y, event.button.button);
+                }
+                if (ui.LayoutMouseEvent) {
+                    ui.LayoutMouseEvent(UI_MOUSE_DOWN, event.button.x, event.button.y, event.button.button);
+                }
                 if (cls.key_dest == key_menu) {
-                    if (ui.MouseEvent) {
-                        ui.MouseEvent(event.button.x, event.button.y, event.button.button, true);
-                    }
                     if (event.button.button == SDL_BUTTON_LEFT) {
                         mouse.event = UI_LEFT_MOUSE_DOWN;
                     } else if (event.button.button == SDL_BUTTON_RIGHT) {
@@ -166,10 +165,13 @@ void CL_Input(void) {
                 mouse.origin.x = event.button.x;
                 mouse.origin.y = event.button.y;
                 mouse.button = 0;
+                if (ui.MouseEvent) {
+                    ui.MouseEvent(UI_MOUSE_UP, event.button.x, event.button.y, event.button.button);
+                }
+                if (ui.LayoutMouseEvent) {
+                    ui.LayoutMouseEvent(UI_MOUSE_UP, event.button.x, event.button.y, event.button.button);
+                }
                 if (cls.key_dest == key_menu) {
-                    if (ui.MouseEvent) {
-                        ui.MouseEvent(event.button.x, event.button.y, event.button.button, false);
-                    }
                     if (event.button.button == SDL_BUTTON_LEFT) {
                         mouse.event = UI_LEFT_MOUSE_UP;
                     } else if (event.button.button == SDL_BUTTON_RIGHT) {
@@ -186,30 +188,30 @@ void CL_Input(void) {
             case SDL_MOUSEMOTION:
                 mouse.origin.x = event.motion.x;
                 mouse.origin.y = event.motion.y;
+                if (ui.MouseEvent) {
+                    ui.MouseEvent(UI_MOUSE_MOVE, event.motion.x, event.motion.y, 0);
+                }
+                if (ui.LayoutMouseEvent) {
+                    ui.LayoutMouseEvent(UI_MOUSE_MOVE, event.motion.x, event.motion.y, 0);
+                }
                 if (cls.key_dest == key_menu) {
-                    if (ui.MouseEvent) {
-                        ui.MouseEvent(event.motion.x, event.motion.y, 0, false);
-                    }
                     break;
                 }
                 CL_InputModeMouseMotion(&event.motion);
                 break;
             case SDL_MOUSEWHEEL:
+                if (ui.MouseEvent) {
+                    int x, y;
+                    SDL_GetMouseState(&x, &y);
+                    ui.MouseEvent(UI_MOUSE_SCROLL, x, y, UI_MOUSE_PARAM(event.wheel.x, event.wheel.y));
+                }
+                if (ui.LayoutMouseEvent) {
+                    int x, y;
+                    SDL_GetMouseState(&x, &y);
+                    ui.LayoutMouseEvent(UI_MOUSE_SCROLL, x, y, UI_MOUSE_PARAM(event.wheel.x, event.wheel.y));
+                }
                 if (cls.key_dest == key_game && CL_InputModeMouseWheel(&event.wheel)) {
                     break;
-                }
-                if (cls.key_dest == key_menu && ui.MouseEvent) {
-                    int x;
-                    int y;
-                    int steps = event.wheel.y;
-
-                    SDL_GetMouseState(&x, &y);
-                    if (steps < 0) {
-                        steps = -steps;
-                    }
-                    for (int i = 0; i < steps; i++) {
-                        ui.MouseEvent(x, y, event.wheel.y > 0 ? 4 : 5, true);
-                    }
                 }
                 break;
             case SDL_WINDOWEVENT:
@@ -223,7 +225,6 @@ void CL_Input(void) {
         }
     }
     CL_InputModeFrame();
-//    cl.viewDef.camera.origin.z = CM_GetHeightAtPoint(cl.viewDef.camera.origin.x, cl.viewDef.camera.origin.y);
 }
 
 void CL_SetMenuBindings(void) {

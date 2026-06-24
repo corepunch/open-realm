@@ -184,7 +184,7 @@ static void UI_ClosePopupIfClickedOutside(void) {
     LPCRECT popup_rect;
     LPCRECT menu_rect = NULL;
 
-    if (!active_popup || ui_mouse.event != UI_MOUSE_LEFT_DOWN) {
+    if (!active_popup || ui_mouse.event != UI_WC3_MOUSE_LEFT_DOWN) {
         return;
     }
 
@@ -241,8 +241,8 @@ static void UI_DrawMenu(LPCFRAMEDEF frame, LPCRECT rect) {
     }
     if (max_scroll > 0 &&
         UI_MouseContains(rect) &&
-        (ui_mouse.event == UI_MOUSE_WHEEL_UP || ui_mouse.event == UI_MOUSE_WHEEL_DOWN)) {
-        if (ui_mouse.event == UI_MOUSE_WHEEL_UP) {
+        (ui_mouse.event == UI_WC3_MOUSE_WHEEL_UP || ui_mouse.event == UI_WC3_MOUSE_WHEEL_DOWN)) {
+        if (ui_mouse.event == UI_WC3_MOUSE_WHEEL_UP) {
             active_popup_scroll = active_popup_scroll > 0 ? active_popup_scroll - 1 : 0;
         } else if (active_popup_scroll < max_scroll) {
             active_popup_scroll++;
@@ -295,7 +295,7 @@ static void UI_DrawMenu(LPCFRAMEDEF frame, LPCRECT rect) {
                                  .valign = FONT_JUSTIFYMIDDLE,
                                  .hasClip = TRUE,
                                  .clip = clip));
-        if (hover && ui_mouse.event == UI_MOUSE_LEFT_UP) {
+        if (hover && ui_mouse.event == UI_WC3_MOUSE_LEFT_UP) {
             LPFRAMEDEF popup = (LPFRAMEDEF)frame->Parent;
             LPFRAMEDEF title = UI_IsPopupFrameType(popup ? popup->Type : FT_NONE)
                 ? UI_PopupTitleTextFrame(popup)
