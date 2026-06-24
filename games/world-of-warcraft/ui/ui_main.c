@@ -432,12 +432,17 @@ static void UIWow_ShowLoginMenu(void)          { UIWow_CallLuaShow("login",     
 static void UIWow_ShowCharacterSelectMenu(void){ UIWow_CallLuaShow("character_select", "ow3_show_character_select", "charselect"); }
 static void UIWow_ShowCharacterCreateMenu(void){ UIWow_CallLuaShow("character_create", "ow3_show_character_create", "charcreate"); }
 
+static void UIWow_EnterGameMode(void) {
+    wow_ui.current_menu[0] = '\0';
+}
+
 typedef struct { LPCSTR command; void (*function)(void); } uiWowMenuCommandDef_t;
 
 static uiWowMenuCommandDef_t const uiWow_menu_command_defs[] = {
     { "menu_login",            UIWow_ShowLoginMenu },
     { "menu_character_select", UIWow_ShowCharacterSelectMenu },
     { "menu_character_create", UIWow_ShowCharacterCreateMenu },
+    { "menu_ingame",           UIWow_EnterGameMode },
     { NULL, NULL },
 };
 
