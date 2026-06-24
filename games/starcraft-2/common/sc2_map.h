@@ -2,6 +2,7 @@
 #define SC2_MAP_H
 
 #include "common/common.h"
+#include <stdio.h>
 
 #define SC2_MAX_MAP_OBJECTS 1024
 #define SC2_CELL_SIZE          1.0f
@@ -187,6 +188,13 @@ typedef struct {
 } sc2MapInfo_t;
 
 typedef struct {
+    DWORD          units;
+    DWORD          actors;
+    DWORD          models;
+    DWORD          unresolved_models;
+} sc2CatalogStats_t;
+
+typedef struct {
     char           map_name[128];
     VECTOR2        origin;
     FLOAT          cell_size;
@@ -201,6 +209,7 @@ typedef struct {
     sc2MapHeightMap_t *t3HeightMap;
     sc2MapSyncHeightMap_t *t3SyncHeightMap;
     sc2MapLighting_t lighting;
+    sc2CatalogStats_t catalog;
 } sc2Map_t;
 
 typedef struct {
@@ -319,5 +328,6 @@ VECTOR2       SC2_MapNormalizedPosition(FLOAT x, FLOAT y);
 VECTOR2       SC2_MapDenormalizedPosition(FLOAT x, FLOAT y);
 DWORD         SC2_MapObjectClassId(sc2MapObject_t const *object);
 BOOL          SC2_MapDefaultCamera(sc2MapCamera_t *camera);
+void          SC2_MapDump(FILE *out, LPCSTR filename);
 
 #endif

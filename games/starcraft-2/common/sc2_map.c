@@ -1689,6 +1689,22 @@ next_object:
     }
 }
 
+static DWORD sc2_count_unresolved_models(void) {
+    DWORD count = 0;
+
+    FOR_LOOP(i, sc2_map.num_objects) {
+        sc2MapObject_t const *object = &sc2_map.objects[i];
+
+        if ((object->type == SC2_OBJECT_UNIT ||
+             object->type == SC2_OBJECT_DOODAD ||
+             object->type == SC2_OBJECT_POINT) &&
+            object->name[0] && !object->model[0]) {
+            count++;
+        }
+    }
+    return count;
+}
+
 static void sc2_resolve_catalogs(sc2MapSource_t *source) {
     sc2Catalog_t *catalog = sc2_alloc(sizeof(*catalog));
 
@@ -1698,6 +1714,10 @@ static void sc2_resolve_catalogs(sc2MapSource_t *source) {
     sc2_resolve_terrain_textures(catalog);
     sc2_resolve_cliff_sets(catalog);
     sc2_resolve_object_models(catalog);
+    sc2_map.catalog.units = catalog->units_count;
+    sc2_map.catalog.actors = catalog->actors_count;
+    sc2_map.catalog.models = catalog->models_count;
+    sc2_map.catalog.unresolved_models = sc2_count_unresolved_models();
     sc2_free(catalog);
 }
 
@@ -1705,6 +1725,130 @@ static BOOL sc2_mapinfo_fourcc(sc2MapInfo_t const *mapInfo) {
     return mapInfo &&
         (mapInfo->fourcc == MAKEFOURCC('I','p','a','M') ||
          mapInfo->fourcc == MAKEFOURCC('M','a','p','I'));
+}
+
+static LPCSTR sc2_object_type_name(sc2ObjectType_t type) {
+    switch (type) {
+        case SC2_OBJECT_UNIT: return "unit";
+        case SC2_OBJECT_DOODAD: return "doodad";
+        case SC2_OBJECT_POINT: return "point";
+        case SC2_OBJECT_CAMERA: return "camera";
+    }
+    return "unknown";
+}
+
+static void sc2_dump_cell_flags(FILE *out, sc2MapCellFlags_t const *layer) {
+    DWORD counts[4] = { 0 };
+
+    if (!out || !layer) return;
+    FOR_LOOP(i, layer->width * layer->height) {
+        if (layer->data[i] < SC2_ARRAY_LEN(counts))
+            counts[layer->data[i]]++;
+    }
+    fprintf(out,
+            "t3CellFlags: version=%u size=%ux%u counts[00]=%u counts[01]=%u counts[02]=%u counts[03]=%u\n",
+            (unsigned)layer->version,
+            (unsigned)layer->width,
+            (unsigned)layer->height,
+            (unsigned)counts[0],
+            (unsigned)counts[1],
+            (unsigned)counts[2],
+            (unsigned)counts[3]);
+}
+
+static void sc2_dump_height_map(FILE *out, sc2MapHeightMap_t const *layer) {
+    FLOAT min_height = 0.0f;
+    FLOAT max_height = 0.0f;
+    BOOL have_height = false;
+
+    if (!out || !layer) return;
+    FOR_LOOP(y, layer->height) {
+        FOR_LOOP(x, layer->width) {
+            FLOAT height = sc2_map_height_at_grid(&sc2_map, x, y);
+
+            if (!have_height || height < min_height) min_height = height;
+            if (!have_height || height > max_height) max_height = height;
+            have_height = true;
+        }
+    }
+    fprintf(out,
+            "t3HeightMap: version=%u size=%ux%u min=%.3f max=%.3f\n",
+            (unsigned)layer->version,
+            (unsigned)layer->width,
+            (unsigned)layer->height,
+            min_height,
+            max_height);
+}
+
+void SC2_MapDump(FILE *out, LPCSTR filename) {
+    DWORD object_counts[4] = { 0 };
+
+    if (!out) out = stdout;
+    FOR_LOOP(i, sc2_map.num_objects) {
+        if ((DWORD)sc2_map.objects[i].type < SC2_ARRAY_LEN(object_counts))
+            object_counts[sc2_map.objects[i].type]++;
+    }
+    fprintf(out, "sc2map: file=%s\n", filename && *filename ? filename : "(current)");
+    fprintf(out,
+            "MapInfo: version=%u size=%ux%u name=\"%s\"\n",
+            (unsigned)sc2_map.MapInfo.version,
+            (unsigned)sc2_map.MapInfo.width,
+            (unsigned)sc2_map.MapInfo.height,
+            sc2_map.map_name);
+    if (sc2_map.t3CellFlags)
+        sc2_dump_cell_flags(out, sc2_map.t3CellFlags);
+    if (sc2_map.t3HeightMap)
+        sc2_dump_height_map(out, sc2_map.t3HeightMap);
+    if (sc2_map.t3SyncHeightMap) {
+        fprintf(out,
+                "t3SyncHeightMap: version=%u size=%ux%u\n",
+                (unsigned)sc2_map.t3SyncHeightMap->version,
+                (unsigned)sc2_map.t3SyncHeightMap->width,
+                (unsigned)sc2_map.t3SyncHeightMap->height);
+    }
+    if (sc2_map.t3SyncCliffLevel) {
+        fprintf(out,
+                "t3SyncCliffLevel: version=%u size=%ux%u\n",
+                (unsigned)sc2_map.t3SyncCliffLevel->version,
+                (unsigned)sc2_map.t3SyncCliffLevel->width,
+                (unsigned)sc2_map.t3SyncCliffLevel->height);
+    }
+    if (sc2_map.t3TextureMasks) {
+        fprintf(out,
+                "t3TextureMasks: version=%u size=%ux%u bytes=%u\n",
+                (unsigned)sc2_map.t3TextureMasks->version,
+                (unsigned)sc2_map.t3TextureMasks->width,
+                (unsigned)sc2_map.t3TextureMasks->height,
+                (unsigned)sc2_map.t3TextureMasksSize);
+    }
+    fprintf(out,
+            "Objects: units=%u doodads=%u points=%u cameras=%u total=%u\n",
+            (unsigned)object_counts[SC2_OBJECT_UNIT],
+            (unsigned)object_counts[SC2_OBJECT_DOODAD],
+            (unsigned)object_counts[SC2_OBJECT_POINT],
+            (unsigned)object_counts[SC2_OBJECT_CAMERA],
+            (unsigned)sc2_map.num_objects);
+    fprintf(out,
+            "Catalog: units=%u actors=%u models=%u unresolvedModels=%u\n",
+            (unsigned)sc2_map.catalog.units,
+            (unsigned)sc2_map.catalog.actors,
+            (unsigned)sc2_map.catalog.models,
+            (unsigned)sc2_map.catalog.unresolved_models);
+    FOR_LOOP(i, sc2_map.num_objects) {
+        sc2MapObject_t const *object = &sc2_map.objects[i];
+
+        fprintf(out,
+                "Object[%u]: type=%s id=%u name=%s model=%s pos=%.3f,%.3f,%.3f radius=%.3f\n",
+                (unsigned)i,
+                sc2_object_type_name(object->type),
+                (unsigned)object->id,
+                object->name,
+                object->model,
+                object->position.x,
+                object->position.y,
+                object->position.z,
+                object->radius);
+    }
 }
 
 static LPBYTE sc2_read_binary_layer(sc2MapSource_t *source,
