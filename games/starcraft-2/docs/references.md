@@ -49,6 +49,12 @@ Collected through 2026-06-06.
   - Full 127-field model catalog: Art/Model path, animations, .m3a, flags, tipability, variations, texture declarations, physics.
 - StarCraft II Editor Guides, `Data Spaces`: https://s2editor-guides.readthedocs.io/New_Tutorials/04_Data_Editor/data-spaces/
   - How to create data space XML files, `GameData.xml` includes, `.SC2Components` workflow, localization separation.
+- SC2Mapster, `Standard Dependencies`: https://github.com/SC2Mapster/blizzard-tutorials/blob/master/docs/New_Tutorials/01_Introduction/013_Standard_Dependencies.md
+  - Full dependency chain: Core → Liberty → LibertyMulti → LibertyCampaign → Swarm → Void, with data counts per mod.
+- SC2ModKit (JS catalog loader): https://github.com/star-tools/modkit
+  - Reference implementation of SC2 catalog loading, merging, and entity resolution.
+- chansey97/sc2-gamedata-documentation: https://github.com/chansey97/sc2-gamedata-documentation
+  - Compiled CHM with class hierarchy and module dependency diagrams for all SC2 data types.
 
 ## Archive / Container Format
 

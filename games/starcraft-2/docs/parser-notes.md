@@ -93,5 +93,5 @@ Use existing community tools as comparators:
 - Complete `Objects` schema and whether it is always text/XML-like for current maps.
 - Exact dimensions and coordinate transforms between height, cliff, pathing, and render grids.
 - Exact Unit -> Actor -> Model catalog links across base game, campaign, arcade maps, and Heroes-era assets.
-- Dependency load order across maps, mods, campaigns, and Arcade content.
+- ~~Dependency load order across maps, mods, campaigns, and Arcade content.~~ (Answered: see [catalog-layering.md](catalog-layering.md))
 - Locked/protected map behavior and whether some downloaded maps omit editor-useful content.

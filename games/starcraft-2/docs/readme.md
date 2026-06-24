@@ -10,6 +10,7 @@ They are not Blizzard documentation and are not a complete implementation spec. 
 - [Embedded Map Files](embedded-map-files.md) — full binary specs for all known files inside `.SC2Map` archives (`t3HeightMap`, `t3SyncCliffLevel`, `t3CellFlags`, `t3TextureMasks`, `t3Water`, `t3Terrain.xml`, and more).
 - [Map, Model, And Unit Data](map-model-unit-data.md) — practical path from placed objects through catalog XML to M3 models, plus staged terrain reconstruction notes.
 - [Parser Notes](parser-notes.md) — practical loading order and implementation guidance for an OpenWarcraft3-style parser.
+- [Catalog Layering](catalog-layering.md) — SC2 catalog dependency chain, load order, inheritance model, and map-local override semantics.
 - [References](references.md) — all public sources, tools, and GitHub repos used to assemble these notes.
 
 ### File Format Details
@@ -30,7 +31,7 @@ They are not Blizzard documentation and are not a complete implementation spec. 
 4. Parse `Objects` for placed units, doodads, points, cameras
 5. Parse `t3Terrain.xml` for height quantization params, cliff sets, texture layers, cliff cells
 6. Parse binary terrain layers: `t3CellFlags` (authoritative map size + cliff holes), `t3HeightMap` (vertex heights), `t3SyncCliffLevel` (cliff tiers), `t3TextureMasks` (texture blend)
-7. Parse catalog XML (`Base.SC2Data/GameData/*.xml`) to resolve unit types → actors → models
+7. Parse catalog XML (`Base.SC2Data/GameData/*.xml`) with dependency layering (Core → Liberty → loose → map-local) to resolve unit types → actors → models
 8. Load `.m3` models and optional `.m3a` animation supplements
 
 **Unit rendering resolution chain:**
@@ -56,6 +57,6 @@ Objects <Unit unitType="X"> → CUnit → CActorUnit → CModel → .m3 path + .
 | `t3SyncPathingInfo` (pathing) | **not started** |
 | `t3Water` | **not started** |
 | `t3FluffDoodad` | **not started** |
-| Catalog-driven unit → model resolution | **not started** (currently uses path guessing) |
+| Catalog-driven unit → model resolution | done (with dependency layering) |
 | `.m3a` animation supplements | **not started** |
 | Team-color texture swapping | **not started** |
