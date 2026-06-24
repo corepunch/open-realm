@@ -848,10 +848,10 @@ static void UI_DrawPortrait(LPCFRAMEDEF frame, LPCRECT rect) {
  * frame's rect — used for the cinematic transmission portrait, whose model is a
  * game configstring index, not a UI-cache model. Mirrors UI_LayoutDrawPortrait. */
 void UI_DrawGamePortraitInFrame(LPCFRAMEDEF frame, DWORD modelIndex, LPCSTR anim) {
-    LPRENDERER renderer = UI_GetRenderer();
+    LPRENDERER renderer = uiimport.GetRenderer();
     LPCMODEL model;
 
-    if (!frame || !modelIndex || !renderer || !renderer->DrawPortrait) {
+    if (!frame || !modelIndex || !renderer || !renderer->RenderFrame) {
         return;
     }
     LPCRECT rect = UI_LayoutRect(frame);
@@ -865,13 +865,20 @@ void UI_DrawGamePortraitInFrame(LPCFRAMEDEF frame, DWORD modelIndex, LPCSTR anim
     if (!model) {
         return;
     }
-    RECT viewport = {
-        rect->x / UI_BASE_WIDTH,
-        (UI_BASE_HEIGHT - rect->y - rect->h) / UI_BASE_HEIGHT,
-        rect->w / UI_BASE_WIDTH,
-        rect->h / UI_BASE_HEIGHT,
-    };
-    renderer->DrawPortrait(model, &viewport, anim ? anim : "Portrait");
+
+    renderEntity_t entity = {0};
+    entity.model = model;
+    entity.scale = 1.0f;
+    entity.flags = RF_NO_SHADOW | RF_NO_FOGOFWAR | RF_PORTRAIT_LIGHTING;
+    renderer->SetEntityAnimFrame(model, anim ? anim : "Portrait", &entity);
+
+    viewDef_t viewdef = {0};
+    viewdef.viewport = *rect;
+    viewdef.rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL | RDF_NOFOG | RDF_USE_ENTITY_CAMERA;
+    viewdef.num_entities = 1;
+    viewdef.entities = &entity;
+
+    renderer->RenderFrame(&viewdef);
 }
 
 static void UI_DrawSprite(LPCFRAMEDEF frame, LPCRECT rect) {
