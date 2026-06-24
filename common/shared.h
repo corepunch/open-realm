@@ -512,6 +512,7 @@ typedef struct animation_s {
     FLOAT radius;
     VECTOR3 min;
     VECTOR3 max;
+    DWORD damage_point;
 } animation_t;
 
 typedef struct {

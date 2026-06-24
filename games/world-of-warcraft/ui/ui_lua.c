@@ -406,14 +406,28 @@ static int UIWow_LuaGetLoadingStatus(lua_State *L) {
     return 1;
 }
 
+static void Wow_ResolveMapPath(LPCSTR name, LPSTR out, DWORD out_size) {
+    if (!name || !*name) {
+        snprintf(out, out_size, "World/Maps/Azeroth/Azeroth.wdt");
+    } else {
+        LPCSTR dot = strrchr(name, '.');
+        if (dot && !strcasecmp(dot, ".wdt"))
+            snprintf(out, out_size, "%s", name);
+        else
+            snprintf(out, out_size, "World/Maps/%s/%s.wdt", name, name);
+    }
+}
+
 static int UIWow_LuaLoadMap(lua_State *L) {
-    LPCSTR map_name = luaL_optstring(L, 1, "Maps\\Campaign\\Default.w3m");
+    LPCSTR map_name = luaL_optstring(L, 1, "Azeroth");
+    PATHSTR resolved;
     char cmd[512];
 
     if (!map_name || !*map_name) {
-        map_name = "Maps\\Campaign\\Default.w3m";
+        map_name = "Azeroth";
     }
-    snprintf(cmd, sizeof(cmd), "+map %s", map_name);
+    Wow_ResolveMapPath(map_name, resolved, sizeof(resolved));
+    snprintf(cmd, sizeof(cmd), "map %s", resolved);
     if (uiimport.Cmd_ExecuteText) {
         uiimport.Cmd_ExecuteText(cmd);
     }
@@ -514,13 +528,16 @@ static int UIWow_LuaSelectCharacter(lua_State *L) {
 }
 
 static int UIWow_LuaEnterWorld(lua_State *L) {
-    LPCSTR map_name = luaL_optstring(L, 1, "Maps\\Campaign\\Default.w3m");
+    LPCSTR map_name = luaL_optstring(L, 1, "Azeroth");
+    PATHSTR resolved;
     char cmd[512];
 
     if (!map_name || !*map_name)
-        map_name = "Maps\\Campaign\\Default.w3m";
+        map_name = "Azeroth";
+    Wow_ResolveMapPath(map_name, resolved, sizeof(resolved));
+    UIWow_EnterGameMode();
     UIWow_SetSelectedCharCvars();
-    snprintf(cmd, sizeof(cmd), "+map %s", map_name);
+    snprintf(cmd, sizeof(cmd), "map %s", resolved);
     if (uiimport.Cmd_ExecuteText)
         uiimport.Cmd_ExecuteText(cmd);
     return 0;

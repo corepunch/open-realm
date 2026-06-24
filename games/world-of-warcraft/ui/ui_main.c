@@ -227,7 +227,8 @@ static void UIWow_Shutdown(void) {
 
 static void UIWow_Refresh(DWORD msec) {
     wow_ui.time += msec;
-    UIWow_CallLuaUpdate(msec);
+    if (!wow_ui.game_mode)
+        UIWow_CallLuaUpdate(msec);
 }
 
 static void UIWow_ReleaseScreenAssets(void) {
@@ -321,7 +322,7 @@ static void UIWow_DrawFrame(void) {
         }
         return;
     }
-    if (ps && ps->client_ui_state == CLIENT_UI_GAME) {
+    if (ps && ps->client_ui_state == CLIENT_UI_GAME && !wow_ui.game_mode) {
         UIWow_XMLDraw();
         UIWow_CallLuaDraw();
     }
@@ -332,12 +333,18 @@ static void UIWow_DrawFrame(void) {
  * ---------------------------------------------------------------------- */
 
 static void UIWow_KeyEvent(int key, BOOL down, DWORD time) {
+    if (wow_ui.game_mode) {
+        return;
+    }
     if (UIWow_XMLKeyEvent(key, down, time)) {
         return;
     }
 }
 
 static void UIWow_TextInput(LPCSTR text) {
+    if (wow_ui.game_mode) {
+        return;
+    }
     if (UIWow_XMLTextInput(text)) {
         return;
     }
@@ -361,6 +368,9 @@ static void UIWow_TextInput(LPCSTR text) {
 
 static void UIWow_MouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
     VECTOR2 mouse_pos;
+    if (wow_ui.game_mode) {
+        return;
+    }
     if (UIWow_XMLMouseEvent(event, x, y, param)) {
         return;
     }
@@ -432,7 +442,8 @@ static void UIWow_ShowLoginMenu(void)          { UIWow_CallLuaShow("login",     
 static void UIWow_ShowCharacterSelectMenu(void){ UIWow_CallLuaShow("character_select", "ow3_show_character_select", "charselect"); }
 static void UIWow_ShowCharacterCreateMenu(void){ UIWow_CallLuaShow("character_create", "ow3_show_character_create", "charcreate"); }
 
-static void UIWow_EnterGameMode(void) {
+void UIWow_EnterGameMode(void) {
+    wow_ui.game_mode = true;
     wow_ui.current_menu[0] = '\0';
 }
 

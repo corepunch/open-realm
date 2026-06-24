@@ -142,6 +142,12 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 - Never add `DYLIB_LOOKUP := -Wl,-undefined,dynamic_lookup` or otherwise rely on `-Wl,-undefined,dynamic_lookup` in this repository.
 - If a target has unresolved symbols, fix the dependency graph or shared implementation instead of weakening the linker contract.
 
+## Command Conventions
+
+- The `+` prefix (e.g. `+map`, `+menu_main`) is for **command-line arguments only**. It tells `Cbuf_AddLateCommands` to strip the `+` and queue the command for startup execution.
+- In code, use the bare command name when calling `Cbuf_AddText` or `uiimport.Cmd_ExecuteText`: `"map ..."` not `"+map ..."`. The `+` prefix causes `Cmd_ForwardToServer` to reject the command.
+- Same for the console: type `map Maps\Campaign\Orc01.w3m`, not `+map`.
+
 ## Domain
 
 - This is a **real-time strategy game** (RTS), so game logic should account for unit management, pathfinding, resource gathering, building construction, and large numbers of entities — adapted from the Quake 2 entity/server model where applicable.

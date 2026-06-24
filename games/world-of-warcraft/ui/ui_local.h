@@ -59,6 +59,7 @@ typedef struct {
 typedef struct {
     LPRENDERER renderer;
     lua_State *lua;
+    BOOL game_mode;
     DWORD warn_once_mask;
     uiWowTexture_t textures[WOW_UI_MAX_TEXTURES];
     DWORD texture_recycle_index;
@@ -107,6 +108,7 @@ void UIWow_XmlSetFrameModel(int idx, LPCSTR model_path);
 void UIWow_UpdateMapBackground(LPCPLAYER ps);
 
 /* Shared helpers (defined in ui_main.c) */
+void UIWow_EnterGameMode(void);
 void UIWow_EnsureRenderer(void);
 void UIWow_Printf(LPCSTR fmt, ...);
 void UIWow_WarnOnce(DWORD flag, LPCSTR fmt, ...);
