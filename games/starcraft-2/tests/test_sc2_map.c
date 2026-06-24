@@ -296,6 +296,9 @@ static void test_sc2_fixture_short_name_resolves(void) {
 
 static void assert_tiny_map_catalog_overrides(sc2Map_t *map) {
     ASSERT_STR_EQ(map->objects[1].model, "Assets\\Units\\Terran\\MarineCatalogModel\\MarineCatalogModel.m3");
+    ASSERT_STR_EQ(map->objects[1].footprint, "FootprintMarine");
+    ASSERT_STR_EQ(map->objects[1].mover, "Ground");
+    ASSERT_EQ_INT(map->objects[1].unit_flags, SC2_UNIT_FLAG_MOVABLE);
     ASSERT_EQ_FLOAT(map->objects[1].radius, 0.75f, 0.001f);
     ASSERT_STR_EQ(map->t3Terrain.terrain_textures[0].diffuse, "Assets\\Textures\\Terrain\\FixtureGrass_Diffuse.dds");
     ASSERT_STR_EQ(map->t3Terrain.terrain_textures[0].normal, "Assets\\Textures\\Terrain\\FixtureGrass_Diffuse_normal.dds");

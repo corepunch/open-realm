@@ -2,6 +2,7 @@
 #include "games/starcraft-2/common/sc2_map.h"
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
 
 #define SC2_MOVE_SPEED  6.0f
 #define SC2_MOVE_CLOSE  4.0f
@@ -28,6 +29,13 @@ static sc2MoveState_t sc2_move[SC2_MAX_EDICTS];
 static BOOL SC2_ObjectIsMobile(sc2MapObject_t const *object) {
     if (!object || object->type != SC2_OBJECT_UNIT) {
         return false;
+    }
+    if (object->mover[0]) {
+        return strcasecmp(object->mover, "None") &&
+               strcasecmp(object->mover, "Stationary");
+    }
+    if (object->unit_flags & SC2_UNIT_FLAG_MOVABLE) {
+        return true;
     }
     if (strstr(object->name, "CommandCenter") || strstr(object->model, "CommandCenter")) {
         return false;
