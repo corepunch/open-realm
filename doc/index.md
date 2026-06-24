@@ -161,6 +161,21 @@ The build is driven by a `Makefile` for Linux/macOS. Run `make test` to execute 
 - Active development focused on expanding game feature completeness
 - Cross-platform support for Linux and macOS environments
 
+## Related Projects
+
+### World of Warcraft Unity Implementations
+
+Open-source World of Warcraft client and gameplay reimplementations in Unity, useful as design and architecture reference:
+
+| Repository | Description | Stars |
+|---|---|---|
+| [Reinisch/Warcraft-Arena-Unity](https://github.com/Reinisch/Warcraft-Arena-Unity) | WoW client-server combat system in Unity with Photon Bolt | 581 |
+| [CodeSteel/WoW-GameplayFeatures](https://github.com/CodeSteel/WoW-GameplayFeatures) | Core gameplay features in C# using Unity & FishNet | 11 |
+| [LuigiElleBalotta/UnityStudyProject](https://github.com/LuigiElleBalotta/UnityStudyProject) | Study project using WoW models for rendering reference | 4 |
+| [JensDevWoW/World-of-Warcraft-Unity](https://github.com/JensDevWoW/World-of-Warcraft-Unity) | WoW emulator built in Unity | 1 |
+| [EloiStree/2024_08_26_WowMovingInUnity](https://github.com/EloiStree/2024_08_26_WowMovingInUnity) | WoW-style character movement system | 1 |
+| [Sylian1337/World-of-Warcraft-Unity](https://github.com/Sylian1337/World-of-Warcraft-Unity) | WoW emulator built in Unity | 0 |
+
 ## License
 
 This project is licensed under the [MIT License](https://github.com/corepunch/openwarcraft3/blob/main/LICENSE). Contributions are welcome!
