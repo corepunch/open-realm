@@ -378,3 +378,12 @@ See per-game sound documentation in:
 - If the feature has a dedicated workflow section (e.g. "MPQ Inspection Workflow", "DBC Inspection Workflow"), update that section rather than creating a new one.
 - If the feature is a new subsystem or introduces a new pattern, add a brief section describing the architecture, the key files involved, and how to inspect/debug/test the feature.
 - Keep documentation concise and actionable — prefer command examples and file paths over prose.
+
+## GitHub Issues
+
+- Before creating a GitHub issue, check available labels with `gh label list`.
+- When creating issues, assign appropriate labels (e.g. `enhancement`, `warcraft-3`, `world-of-warcraft`, `renderer`, `ui`).
+- If a needed label doesn't exist, create it first with `gh label create`.
+- Keep issue titles at most 80 characters.
+- Keep issues scoped to one game/title when possible; use game-specific labels (`warcraft-3`, `world-of-warcraft`).
+- Use `renderer` for rendering subsystem issues, `ui` for user interface issues.

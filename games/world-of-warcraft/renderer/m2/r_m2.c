@@ -1059,6 +1059,9 @@ static BOOL M2_CharacterVariationTexturePath(LPCSTR model_path,
                                              DWORD texture_index,
                                              LPSTR out,
                                              DWORD out_size) {
+    /* Classic CharSections.dbc: 10 fields, textures not contiguous.
+       0=ID 1=race 2=sex 3=section 4=tex[0] 5=variation
+       6=tex[1] 7=tex[2] 8=tex[3] 9=color */
     DWORD race_id, gender_id;
 
     if (!out || out_size == 0 ||
@@ -1074,15 +1077,15 @@ static BOOL M2_CharacterVariationTexturePath(LPCSTR model_path,
         if (M2_DbcField(&m2_char_sections_dbc, record, 1) != race_id ||
             M2_DbcField(&m2_char_sections_dbc, record, 2) != gender_id ||
             M2_DbcField(&m2_char_sections_dbc, record, 3) != section_index ||
-            M2_DbcField(&m2_char_sections_dbc, record, 4) != variation_index ||
-            M2_DbcField(&m2_char_sections_dbc, record, 5) != color_index) {
+            M2_DbcField(&m2_char_sections_dbc, record, 5) != variation_index ||
+            M2_DbcField(&m2_char_sections_dbc, record, 9) != color_index) {
             continue;
         }
         if (texture_index >= 3)
             return false;
         texture = M2_DbcString(&m2_char_sections_dbc, M2_DbcField(&m2_char_sections_dbc, record, 6 + texture_index));
         if (!texture || !*texture)
-            return false;
+            continue;
         snprintf(out, out_size, "%s", texture);
         return true;
     }
