@@ -7,11 +7,12 @@
         <CameraValue Index="Pitch" Value="56"/>
         <CameraValue Index="Yaw" Value="179.9584"/>
     </ObjectCamera>
-    <ObjectUnit Id="1" UnitType="Marine" Position="3.5,3.5,0.25" Rotation="0.75" Scale="1,1,1" Player="2"/>
+    <ObjectUnit Id="1" UnitType="Marine" Position="3.5,3.5,0.25" Rotation="0.75" Scale="1,1,1" Player="2" Section="7" Resources="50"/>
     <ObjectUnit Id="2" UnitType="SCV" Position="5.0,5.0,0" Rotation="1.25" Scale="1,1,1" Player="2"/>
-    <ObjectDoodad Id="3" Type="BillboardTall" Position="7.0,2.0,8.0" Rotation="2.5" Scale="1,1,1">
+    <ObjectDoodad Id="3" Type="BillboardTall" Position="7.0,2.0,8.0" Rotation="2.5" Scale="1,1,1" TintColor="10,20,30,128">
         <Flag Index="HeightAbsolute" Value="1"/>
         <Flag Index="ForcePlacement" Value="1"/>
     </ObjectDoodad>
     <ObjectDoodad Id="4" Type="MineralField" Model="Assets\Doodads\Terran\MineralField\MineralField.m3" x="4" y="3" z="0" Angle="0" Scale="1" Player="15" />
+    <ObjectPoint id="5" type="StartLocation" name="StartPoint01" position="2.0,6.0,0.0" rotation="0.5" scale="1,1,1" section="9" color="200,180,160,255" model="Assets\Editor\StartLocation\StartLocation.m3" animProps="Stand" sound="Assets\Sounds\StartLocation.ogg" attachID="StartAttach" objectID="1" objectType="Unit" PathingSoftRadius="1.5" PathingHardRadius="0.75"/>
 </PlacedObjects>

@@ -318,7 +318,7 @@ static void test_sc2_map_loads_xml_objects_and_terrain(void) {
     ASSERT_EQ_INT(map->MapInfo.width, 8);
     ASSERT_EQ_INT(map->MapInfo.height, 6);
     ASSERT_STR_EQ((char const *)map->MapInfo.data, "SC2 Tiny Fixture");
-    ASSERT_EQ_INT(map->num_objects, 5);
+    ASSERT_EQ_INT(map->num_objects, 6);
     assert_tiny_map_catalog_overrides(map);
 
     ASSERT_STR_EQ(map->objects[0].name, "StartGame02");
@@ -343,6 +343,8 @@ static void test_sc2_map_loads_xml_objects_and_terrain(void) {
     ASSERT_EQ_FLOAT(map->objects[1].position.z, 0.25f, 0.001f);
     ASSERT_EQ_FLOAT(map->objects[1].angle, 0.75f, 0.001f);
     ASSERT_EQ_INT(map->objects[1].player, 2);
+    ASSERT_EQ_INT(map->objects[1].section, 7);
+    ASSERT_EQ_INT(map->objects[1].resources, 50);
 
     ASSERT_STR_EQ(map->objects[3].name, "BillboardTall");
     ASSERT_EQ_INT(map->objects[3].id, 3);
@@ -350,6 +352,10 @@ static void test_sc2_map_loads_xml_objects_and_terrain(void) {
     ASSERT_STR_EQ(map->objects[3].model, "Assets\\Doodads\\BillboardTall\\BillboardTall.m3");
     ASSERT_EQ_FLOAT(map->objects[3].position.z, 8.0f, 0.001f);
     ASSERT_EQ_INT(map->objects[3].flags, SC2_OBJECT_HEIGHT_ABSOLUTE | SC2_OBJECT_FORCE_PLACEMENT);
+    ASSERT_EQ_INT(map->objects[3].tint_color.r, 10);
+    ASSERT_EQ_INT(map->objects[3].tint_color.g, 20);
+    ASSERT_EQ_INT(map->objects[3].tint_color.b, 30);
+    ASSERT_EQ_INT(map->objects[3].tint_color.a, 128);
 
     ASSERT_STR_EQ(map->objects[4].name, "MineralField");
     ASSERT_EQ_INT(map->objects[4].type, SC2_OBJECT_DOODAD);
@@ -357,6 +363,26 @@ static void test_sc2_map_loads_xml_objects_and_terrain(void) {
     ASSERT_EQ_FLOAT(map->objects[4].position.x, 4.0f, 0.001f);
     ASSERT_EQ_FLOAT(map->objects[4].position.y, 3.0f, 0.001f);
     ASSERT_EQ_FLOAT(map->objects[4].position.z, 0.0f, 0.001f);
+
+    ASSERT_STR_EQ(map->objects[5].name, "StartPoint01");
+    ASSERT_EQ_INT(map->objects[5].id, 5);
+    ASSERT_EQ_INT(map->objects[5].type, SC2_OBJECT_POINT);
+    ASSERT_STR_EQ(map->objects[5].type_name, "StartLocation");
+    ASSERT_STR_EQ(map->objects[5].model, "Assets\\Editor\\StartLocation\\StartLocation.m3");
+    ASSERT_STR_EQ(map->objects[5].anim_props, "Stand");
+    ASSERT_STR_EQ(map->objects[5].sound, "Assets\\Sounds\\StartLocation.ogg");
+    ASSERT_STR_EQ(map->objects[5].attach_id, "StartAttach");
+    ASSERT_EQ_INT(map->objects[5].object_id, 1);
+    ASSERT_STR_EQ(map->objects[5].object_type, "Unit");
+    ASSERT_EQ_FLOAT(map->objects[5].pathing_soft_radius, 1.5f, 0.001f);
+    ASSERT_EQ_FLOAT(map->objects[5].pathing_hard_radius, 0.75f, 0.001f);
+    ASSERT_EQ_FLOAT(map->objects[5].position.x, 2.0f, 0.001f);
+    ASSERT_EQ_FLOAT(map->objects[5].angle, 0.5f, 0.001f);
+    ASSERT_EQ_INT(map->objects[5].section, 9);
+    ASSERT_EQ_INT(map->objects[5].color.r, 200);
+    ASSERT_EQ_INT(map->objects[5].color.g, 180);
+    ASSERT_EQ_INT(map->objects[5].color.b, 160);
+    ASSERT_EQ_INT(map->objects[5].color.a, 255);
 
     ASSERT_STR_EQ(map->t3Terrain.tile_set, "Fixture");
     ASSERT_EQ_FLOAT(map->t3Terrain.height_quantize_bias, 0.0f, 0.001f);
@@ -482,7 +508,7 @@ static void test_sc2_map_loads_directory_fixture_without_generated_layers(void) 
     ASSERT_EQ_INT(map->MapInfo.fourcc, MAKEFOURCC('M','a','p','I'));
     ASSERT_EQ_INT(map->MapInfo.width, 8);
     ASSERT_EQ_INT(map->MapInfo.height, 6);
-    ASSERT_EQ_INT(map->num_objects, 5);
+    ASSERT_EQ_INT(map->num_objects, 6);
     assert_tiny_map_catalog_overrides(map);
 
     ASSERT_STR_EQ(map->objects[0].name, "StartGame02");
@@ -522,7 +548,7 @@ static void assert_tiny_map_loaded_without_binary_terrain_layers(sc2Map_t *map) 
     ASSERT_STR_EQ(map->map_name, "SC2 Tiny Fixture");
     ASSERT_EQ_INT(map->MapInfo.width, 8);
     ASSERT_EQ_INT(map->MapInfo.height, 6);
-    ASSERT_EQ_INT(map->num_objects, 5);
+    ASSERT_EQ_INT(map->num_objects, 6);
     ASSERT_STR_EQ(map->objects[1].name, "Marine");
     ASSERT_STR_EQ(map->t3Terrain.tile_set, "Fixture");
 

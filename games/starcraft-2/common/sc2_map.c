@@ -86,6 +86,7 @@ typedef enum {
     SC2_XML_FIELD_STRING,
     SC2_XML_FIELD_VEC3,
     SC2_XML_FIELD_COLOR_ARGB,
+    SC2_XML_FIELD_COLOR_RGBA,
 } sc2XmlFieldType_t;
 
 typedef struct {
@@ -368,14 +369,19 @@ static xmlDocPtr sc2_read_map_catalog_xml(sc2MapSource_t *source, LPCSTR filenam
 }
 
 static BOOL sc2_xml_attr(xmlNodePtr node, LPCSTR attr_name, LPSTR buffer, DWORD size) {
-    xmlChar *text;
-
     if (!node || !attr_name || !buffer || !size) return false;
-    text = xmlGetProp(node, (xmlChar const *)attr_name);
-    if (!text) return false;
-    snprintf(buffer, size, "%s", (char const *)text);
-    xmlFree(text);
-    return buffer[0] != '\0';
+    for (xmlAttrPtr attr = node->properties; attr; attr = attr->next) {
+        xmlChar *text;
+
+        if (!sc2_streqi((char const *)attr->name, attr_name))
+            continue;
+        text = xmlNodeListGetString(node->doc, attr->children, 1);
+        if (!text) return false;
+        snprintf(buffer, size, "%s", (char const *)text);
+        xmlFree(text);
+        return buffer[0] != '\0';
+    }
+    return false;
 }
 
 static LPCSTR sc2_xml_content(xmlNodePtr node, char *buffer, DWORD size) {
@@ -444,6 +450,22 @@ static BOOL sc2_parse_argb_color(LPCSTR text, LPCOLOR32 color) {
     if (!text || !color)
         return false;
     if (sscanf(text, "%u,%u,%u,%u", &a, &r, &g, &b) == 4) {
+        *color = (COLOR32){ (BYTE)r, (BYTE)g, (BYTE)b, (BYTE)a };
+        return true;
+    }
+    if (sscanf(text, "%u,%u,%u", &r, &g, &b) == 3) {
+        *color = (COLOR32){ (BYTE)r, (BYTE)g, (BYTE)b, 255 };
+        return true;
+    }
+    return false;
+}
+
+static BOOL sc2_parse_rgba_color(LPCSTR text, LPCOLOR32 color) {
+    DWORD r, g, b, a;
+
+    if (!text || !color)
+        return false;
+    if (sscanf(text, "%u,%u,%u,%u", &r, &g, &b, &a) == 4) {
         *color = (COLOR32){ (BYTE)r, (BYTE)g, (BYTE)b, (BYTE)a };
         return true;
     }
@@ -790,6 +812,10 @@ static sc2XmlField_t const sc2_object_fields[] = {
     SC2_XML_FIELD("Variation", variation, SC2_XML_FIELD_DWORD),
     SC2_XML_FIELD("Player", player, SC2_XML_FIELD_DWORD),
     SC2_XML_FIELD("Owner", player, SC2_XML_FIELD_DWORD),
+    SC2_XML_FIELD("Section", section, SC2_XML_FIELD_DWORD),
+    SC2_XML_FIELD("Resources", resources, SC2_XML_FIELD_DWORD),
+    SC2_XML_FIELD("TintColor", tint_color, SC2_XML_FIELD_COLOR_RGBA),
+    SC2_XML_FIELD("Color", color, SC2_XML_FIELD_COLOR_RGBA),
 };
 
 static sc2XmlField_t const sc2_unit_fields[] = {
@@ -800,8 +826,20 @@ static sc2XmlField_t const sc2_doodad_fields[] = {
     SC2_XML_STRING_FIELD("Type", name),
 };
 
+static sc2XmlField_t const sc2_point_fields[] = {
+    SC2_XML_STRING_FIELD("Type", type_name),
+    SC2_XML_STRING_FIELD("AnimProps", anim_props),
+    SC2_XML_STRING_FIELD("Sound", sound),
+    SC2_XML_STRING_FIELD("AttachID", attach_id),
+    SC2_XML_FIELD("ObjectID", object_id, SC2_XML_FIELD_DWORD),
+    SC2_XML_STRING_FIELD("ObjectType", object_type),
+    SC2_XML_FIELD("PathingSoftRadius", pathing_soft_radius, SC2_XML_FIELD_FLOAT),
+    SC2_XML_FIELD("PathingHardRadius", pathing_hard_radius, SC2_XML_FIELD_FLOAT),
+};
+
 static sc2XmlField_t const sc2_camera_fields[] = {
     SC2_XML_FIELD("CameraTarget", camera.target, SC2_XML_FIELD_VEC3),
+    SC2_XML_FIELD("Target", camera.target, SC2_XML_FIELD_VEC3),
 };
 
 static sc2XmlField_t const sc2_camera_value_fields[] = {
@@ -842,6 +880,8 @@ static BOOL sc2_parse_xml_field(void *base, sc2XmlField_t const *fields, DWORD n
                 return sc2_parse_vec3(value, (LPVECTOR3)out);
             case SC2_XML_FIELD_COLOR_ARGB:
                 return sc2_parse_argb_color(value, (LPCOLOR32)out);
+            case SC2_XML_FIELD_COLOR_RGBA:
+                return sc2_parse_rgba_color(value, (LPCOLOR32)out);
         }
     }
     return false;
@@ -864,6 +904,9 @@ static void sc2_parse_object_fields(sc2MapObject_t *object, sc2ObjectType_t type
         case SC2_OBJECT_DOODAD:
             sc2_parse_object_field(object, sc2_doodad_fields, SC2_ARRAY_LEN(sc2_doodad_fields), key, value, has_position);
             break;
+        case SC2_OBJECT_POINT:
+            sc2_parse_object_field(object, sc2_point_fields, SC2_ARRAY_LEN(sc2_point_fields), key, value, has_position);
+            break;
         case SC2_OBJECT_CAMERA:
             sc2_parse_object_field(object, sc2_camera_fields, SC2_ARRAY_LEN(sc2_camera_fields), key, value, has_position);
             break;
@@ -873,9 +916,10 @@ static void sc2_parse_object_fields(sc2MapObject_t *object, sc2ObjectType_t type
 static BOOL sc2_object_type(xmlNodePtr node, sc2ObjectType_t *type) {
     LPCSTR name = (char const *)node->name;
 
-    if (sc2_contains_i(name, "ObjectUnit")) *type = SC2_OBJECT_UNIT;
-    else if (sc2_contains_i(name, "ObjectDoodad")) *type = SC2_OBJECT_DOODAD;
-    else if (sc2_contains_i(name, "ObjectCamera")) *type = SC2_OBJECT_CAMERA;
+    if (sc2_contains_i(name, "ObjectUnit") || sc2_streqi(name, "Unit")) *type = SC2_OBJECT_UNIT;
+    else if (sc2_contains_i(name, "ObjectDoodad") || sc2_streqi(name, "Doodad")) *type = SC2_OBJECT_DOODAD;
+    else if (sc2_contains_i(name, "ObjectPoint") || sc2_streqi(name, "Point")) *type = SC2_OBJECT_POINT;
+    else if (sc2_contains_i(name, "ObjectCamera") || sc2_streqi(name, "Camera")) *type = SC2_OBJECT_CAMERA;
     else return false;
     return true;
 }

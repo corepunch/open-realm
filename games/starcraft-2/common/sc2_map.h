@@ -24,6 +24,7 @@
 typedef enum {
     SC2_OBJECT_UNIT,
     SC2_OBJECT_DOODAD,
+    SC2_OBJECT_POINT,
     SC2_OBJECT_CAMERA,
 } sc2ObjectType_t;
 
@@ -45,14 +46,26 @@ typedef struct {
     char            model[256];
     char            footprint[64];
     char            mover[64];
+    char            type_name[64];
+    char            anim_props[64];
+    char            sound[256];
+    char            attach_id[64];
+    char            object_type[64];
     VECTOR3         position;
     FLOAT           angle;
     FLOAT           scale;
     FLOAT           radius;
+    FLOAT           pathing_soft_radius;
+    FLOAT           pathing_hard_radius;
     DWORD           variation;
     DWORD           player;
+    DWORD           section;
+    DWORD           resources;
+    DWORD           object_id;
     DWORD           flags;
     DWORD           unit_flags;
+    COLOR32         color;
+    COLOR32         tint_color;
     sc2MapCamera_t  camera;
 } sc2MapObject_t;
 
