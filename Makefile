@@ -227,7 +227,7 @@ include games/warcraft-3/game.mk
 WOW_TEST_RES_DIR := $(TESTS_DIR)/wow-resources
 WOW_TEST_SRC_DIR := $(WOW_TEST_DIR)/resources-src
 WOW_TEST_MPQ     := $(TESTS_DIR)/test-wow.mpq
-WOW_UI_TEST_CFLAGS := $(WOW_TEST_CFLAGS) $(LUA_CFLAGS) -DTEST_WOW_MPQ=\"$(WOW_TEST_MPQ)\"
+WOW_UI_TEST_CFLAGS := $(WOW_TEST_CFLAGS) $(LUA_CFLAGS) $(WOW_XML_CFLAGS) -DTEST_WOW_MPQ=\"$(WOW_TEST_MPQ)\"
 SC2_TEST_RES_DIR := $(TESTS_DIR)/sc2-resources
 SC2_TEST_SRC_DIR := $(SC2_TEST_DIR)/resources-src
 SC2_TEST_MPQ     := $(TESTS_DIR)/test-sc2.SC2Maps
