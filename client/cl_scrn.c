@@ -1,4 +1,5 @@
 #include "client.h"
+#include "ui_layout.h"
 #include <stdlib.h>  /* getenv (BZ_FPS_LOG diagnostic) */
 
 #define SCR_FPS_HEIGHT 8
@@ -55,9 +56,7 @@ void SCR_UpdateScreen(DWORD msec) {
         if (ui.Refresh) {
             ui.Refresh(cl.time);
         }
-        if (ui.DrawOverlays) {
-            ui.DrawOverlays();
-        }
+        SCR_DrawLayout();
     }
 #endif
 

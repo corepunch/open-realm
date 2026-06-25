@@ -79,10 +79,8 @@ void CL_ClearState(void) {
     SAFE_DELETE(cl.fow.explored, MemFree);
     SAFE_DELETE(cl.fow.texture, MemFree);
 
-    if (ui.ClearLayoutLayer) {
-        FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
-            ui.ClearLayoutLayer(layer);
-        }
+    FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
+        SCR_ClearLayoutLayer(layer);
     }
 
     memset(&cl, 0, sizeof(struct client_state));
@@ -605,13 +603,6 @@ void CL_Init(void) {
         .PlaySound = S_PlaySound,
         .PlaySoundByName = S_PlaySoundByName,
     });
-    
-    /* Wire layout functions from the client into the UI export table */
-    ui.DrawOverlays = SCR_DrawLayout;
-    ui.LayoutMouseEvent = SCR_LayoutMouseEvent;
-    ui.SetLayoutLayer = SCR_SetLayoutLayer;
-    ui.ClearLayoutLayer = SCR_ClearLayoutLayer;
-    ui.HitTestLayout = SCR_LayoutHitTest;
     
     if (ui.Init) {
         ui.Init();
