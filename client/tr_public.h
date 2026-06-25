@@ -109,8 +109,8 @@ typedef struct {
     DWORD frame;
     DWORD oldframe;
     DWORD flags;
-    float angle;
-    VECTOR3 rotation;
+    float angle;        /* 1D yaw for dynamic actors (units, players); grounded Warcraft III entities use this */
+    VECTOR3 rotation;   /* 3D rotation for renderer-only static objects (WoW map objects, doodads) */
     float scale;
     float radius;
     float splatsize;

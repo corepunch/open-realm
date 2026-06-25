@@ -101,9 +101,14 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 
 - Mouse state is owned by the client: the `mouse` global (`mouseEvent_t` in `client/cl_input.c`) is the single source of truth for position, button, event, and wheel state.
 - The UI library receives mouse events via `ui.MouseEvent(x, y, button, down)` — a push-based model called during `SDL_PollEvent` in `CL_Input()`. The UI processes events immediately (hit test + action).
-- The UI library reads mouse position through `uiImport_t.GetMouseFdf()` for per-frame hover detection (visual-only, no state mutation).
 - Game-mode-specific mouse behavior (camera pan, selection, zoom) lives in per-game `cl_input_<game>.c` files via the `CL_InputMode*` functions.
 - Never create a separate mouse state struct in game UI code. Never poll mouse event state during draw — process events in the event handler instead.
+
+## UI Module Boundary
+
+- Keep `ui.dll` focused on loading screens and menu/glue UI.
+- Draw in-game HUD/ConsoleUI through server-authored `svc_layout` payloads in the generic client path (`client/cl_layout.c`, `client/cl_unit_layout.c`). Do not move gameplay HUD drawing, portraits, minimap, or layout decoding back into `games/<game>/ui`.
+- Do not add UI import callbacks for mouse polling, loading state polling, layout decoding, or Warcraft III map-info helpers. Use pushed `MouseEvent`/`LayoutMouseEvent`, `DrawLoadingScreen(map, status, progress)`, client-owned layout functions, and direct `CM_*` map-info calls inside the UI module.
 
 ## Network State Contracts
 

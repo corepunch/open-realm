@@ -110,6 +110,7 @@ TEST_GAME_SRCS := \
 	client/cl_layout.c \
 	client/cl_parse.c \
 	client/cl_scrn.c \
+	client/cl_unit_layout.c \
 	client/cl_unit_ui.c \
 	server/sv_init.c \
 	server/sv_lan.c \

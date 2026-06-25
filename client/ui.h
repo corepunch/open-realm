@@ -165,18 +165,12 @@ typedef struct {
     /* Input event handling */
     void (*KeyEvent)(int key, BOOL down, DWORD time);
     void (*TextInput)(LPCSTR text);
-    void (*MouseEvent)(uiMouseEvent_t event, int x, int y, int32_t param);
+    BOOL (*MouseEvent)(uiMouseEvent_t event, int x, int y, int32_t param);
     
     /* Unit UI data updates (Phase 8: HUD migration) */
     void (*UpdateUnitUI)(DWORD num_units, uiUnitData_t *units);
     void (*UpdateLobbySetup)(lobbyState_t const *state);
 
-    /* Server-authored layout layers decoded by the generic client. */
-    void (*SetLayoutLayer)(DWORD layer, HANDLE data);
-    void (*ClearLayoutLayer)(DWORD layer);
-    BOOL (*HitTestLayout)(int x, int y);
-    void (*DrawOverlays)(void);
-    void (*LayoutMouseEvent)(uiMouseEvent_t event, int x, int y, int32_t param);
     void (*DrawLoadingScreen)(LPCSTR map, LPCSTR status, FLOAT progress);
 } uiExport_t;
 
