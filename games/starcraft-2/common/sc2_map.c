@@ -12,6 +12,7 @@
 #define SC2_MAX_CATALOG_TERRAIN_TEX  512
 #define SC2_MAX_CATALOG_CLIFFS       256
 #define SC2_MAX_CATALOG_PARENT_DEPTH 8
+#define SC2_MAX_CATALOG_INCLUDE_DEPTH 8
 #define SC2_ARRAY_LEN(x)             ((DWORD)(sizeof(x) / sizeof((x)[0])))
 #define SC2_XML_STRING_FIELD(name, field) { name, offsetof(sc2MapObject_t, field), SC2_XML_FIELD_STRING, sizeof(((sc2MapObject_t *)0)->field) }
 #define SC2_XML_FIELD(name, field, type)  { name, offsetof(sc2MapObject_t, field), type, 0 }
@@ -130,6 +131,16 @@ static LPCSTR const sc2_catalog_roots[] = {
     "Mods/LibertyMulti.SC2Mod/Base.SC2Data",
     "Campaigns/LibertyStory.SC2Campaign/Base.SC2Data",
     "Campaigns/Liberty.SC2Campaign/Base.SC2Data",
+    NULL,
+};
+
+static LPCSTR const sc2_catalog_known_files[] = {
+    "GameData\\UnitData.xml",
+    "GameData\\ModelData.xml",
+    "GameData\\ActorData.xml",
+    "GameData\\FootprintData.xml",
+    "GameData\\TerrainTexData.xml",
+    "GameData\\CliffData.xml",
     NULL,
 };
 
@@ -380,6 +391,39 @@ static xmlDocPtr sc2_read_map_catalog_xml(sc2MapSource_t *source, LPCSTR filenam
     snprintf(path, sizeof(path), "Base.SC2Data\\%s", filename);
     for (char *p = path; *p; p++) if (*p == '/') *p = '\\';
     return sc2_read_xml(source, path);
+}
+
+static BOOL sc2_catalog_include_path(LPCSTR in, LPSTR out, DWORD out_size) {
+    char path[MAX_PATHLEN];
+    DWORD len;
+
+    if (!in || !*in || !out || !out_size)
+        return false;
+    if (strlen(in) >= sizeof(path) || strlen(in) >= out_size)
+        return false;
+    if (in[0] == '/' || in[0] == '\\' || strchr(in, ':'))
+        return false;
+    snprintf(path, sizeof(path), "%s", in);
+    for (char *p = path; *p; p++) if (*p == '\\') *p = '/';
+    len = (DWORD)strlen(path);
+    if (!len)
+        return false;
+    for (DWORD i = 0; i <= len; ) {
+        DWORD start = i;
+
+        while (i < len && path[i] != '/') i++;
+        if (i == start || (i == start + 1 && path[start] == '.') ||
+            (i == start + 2 && path[start] == '.' && path[start + 1] == '.'))
+            return false;
+        i++;
+    }
+    snprintf(out, out_size, "%s", path);
+    for (char *p = out; *p; p++) if (*p == '/') *p = '\\';
+    return true;
+}
+
+static xmlDocPtr sc2_read_layer_catalog_xml(sc2MapSource_t *source, LPCSTR root_name, LPCSTR filename) {
+    return source ? sc2_read_map_catalog_xml(source, filename) : sc2_read_catalog_xml(root_name, filename);
 }
 
 static BOOL sc2_xml_attr(xmlNodePtr node, LPCSTR attr_name, LPSTR buffer, DWORD size) {
@@ -1669,27 +1713,83 @@ static void sc2_parse_cliff_catalog_source(sc2Catalog_t *catalog, sc2MapSource_t
     xmlFreeDoc(doc);
 }
 
-static void sc2_parse_catalogs(sc2Catalog_t *catalog, sc2MapSource_t *source) {
-    for (DWORD i = 0; sc2_catalog_roots[i]; i++) {
-        sc2_parse_unit_catalog_file(catalog, sc2_catalog_roots[i]);
-        sc2_parse_model_catalog_file(catalog, sc2_catalog_roots[i]);
-        sc2_parse_actor_catalog_file(catalog, sc2_catalog_roots[i]);
-        sc2_parse_footprint_catalog_file(catalog, sc2_catalog_roots[i]);
-        sc2_parse_terrain_tex_catalog_file(catalog, sc2_catalog_roots[i]);
-        sc2_parse_cliff_catalog_file(catalog, sc2_catalog_roots[i]);
+static void sc2_parse_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
+    sc2_parse_unit_catalog_doc(catalog, doc);
+    sc2_parse_model_catalog_doc(catalog, doc);
+    sc2_parse_actor_catalog_doc(catalog, doc);
+    sc2_parse_footprint_catalog_doc(catalog, doc);
+    sc2_parse_terrain_tex_catalog_doc(catalog, doc);
+    sc2_parse_cliff_catalog_doc(catalog, doc);
+}
+
+static void sc2_parse_catalog_layer_doc(sc2Catalog_t *catalog,
+                                        sc2MapSource_t *source,
+                                        LPCSTR root_name,
+                                        xmlDocPtr doc,
+                                        DWORD depth) {
+    xmlNodePtr root;
+
+    if (!catalog || !doc)
+        return;
+    root = xmlDocGetRootElement(doc);
+    if (!root || root->type != XML_ELEMENT_NODE)
+        return;
+    if (sc2_streqi((char const *)root->name, "Catalog")) {
+        sc2_parse_catalog_doc(catalog, doc);
+        return;
     }
-    sc2_parse_unit_catalog_file(catalog, "");
-    sc2_parse_model_catalog_file(catalog, "");
-    sc2_parse_actor_catalog_file(catalog, "");
-    sc2_parse_footprint_catalog_file(catalog, "");
-    sc2_parse_terrain_tex_catalog_file(catalog, "");
-    sc2_parse_cliff_catalog_file(catalog, "");
-    sc2_parse_unit_catalog_source(catalog, source);
-    sc2_parse_model_catalog_source(catalog, source);
-    sc2_parse_actor_catalog_source(catalog, source);
-    sc2_parse_footprint_catalog_source(catalog, source);
-    sc2_parse_terrain_tex_catalog_source(catalog, source);
-    sc2_parse_cliff_catalog_source(catalog, source);
+    if (!sc2_streqi((char const *)root->name, "Includes") ||
+        depth >= SC2_MAX_CATALOG_INCLUDE_DEPTH)
+        return;
+    for (xmlNodePtr node = root->children; node; node = node->next) {
+        char include_path[MAX_PATHLEN];
+        char path[MAX_PATHLEN];
+        xmlDocPtr include_doc;
+
+        if (node->type != XML_ELEMENT_NODE || !sc2_streqi((char const *)node->name, "Catalog"))
+            continue;
+        if (!sc2_xml_attr(node, "path", include_path, sizeof(include_path)) &&
+            !sc2_xml_attr(node, "Path", include_path, sizeof(include_path)))
+            continue;
+        if (!sc2_catalog_include_path(include_path, path, sizeof(path)))
+            continue;
+        include_doc = sc2_read_layer_catalog_xml(source, root_name, path);
+        if (!include_doc)
+            continue;
+        sc2_parse_catalog_layer_doc(catalog, source, root_name, include_doc, depth + 1);
+        xmlFreeDoc(include_doc);
+    }
+}
+
+static void sc2_parse_catalog_layer_fallback(sc2Catalog_t *catalog,
+                                             sc2MapSource_t *source,
+                                             LPCSTR root_name) {
+    for (DWORD i = 0; sc2_catalog_known_files[i]; i++) {
+        xmlDocPtr doc = sc2_read_layer_catalog_xml(source, root_name, sc2_catalog_known_files[i]);
+
+        sc2_parse_catalog_doc(catalog, doc);
+        xmlFreeDoc(doc);
+    }
+}
+
+static void sc2_parse_catalog_layer(sc2Catalog_t *catalog,
+                                    sc2MapSource_t *source,
+                                    LPCSTR root_name) {
+    xmlDocPtr manifest = sc2_read_layer_catalog_xml(source, root_name, "GameData.xml");
+
+    if (manifest) {
+        sc2_parse_catalog_layer_doc(catalog, source, root_name, manifest, 0);
+        xmlFreeDoc(manifest);
+        return;
+    }
+    sc2_parse_catalog_layer_fallback(catalog, source, root_name);
+}
+
+static void sc2_parse_catalogs(sc2Catalog_t *catalog, sc2MapSource_t *source) {
+    for (DWORD i = 0; sc2_catalog_roots[i]; i++)
+        sc2_parse_catalog_layer(catalog, NULL, sc2_catalog_roots[i]);
+    sc2_parse_catalog_layer(catalog, NULL, "");
+    sc2_parse_catalog_layer(catalog, source, NULL);
 }
 
 static void sc2_resolve_terrain_textures(sc2Catalog_t const *catalog) {

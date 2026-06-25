@@ -312,6 +312,7 @@ test-sc2-assets: sc2fixturegen mpqtool sc2map | $(TESTS_DIR)
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(SC2_TEST_MPQ) info Maps/Test/Tiny.SC2Map/t3CellFlags | grep -q "size=80" && echo "  binary cell flags OK"
 	@diag="$$( $(BIN_DIR)/sc2map$(EXE_EXT) -mpq $(SC2_TEST_MPQ) Maps/Test/Tiny.SC2Map )"; \
 	echo "$$diag" | grep -q "Objects: units=3 doodads=2 points=1 cameras=1 total=7" && \
+	echo "$$diag" | grep -q "MarineManifestModel" && \
 	echo "$$diag" | grep -q "footprint=Footprint2x2 size=2.000x2.000 fpRadius=1.414" && \
 	echo "  sc2map diag OK"
 

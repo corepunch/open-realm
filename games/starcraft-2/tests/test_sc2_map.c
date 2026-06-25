@@ -160,6 +160,23 @@ static BOOL test_path_leaf_is(LPCSTR filename, LPCSTR leaf) {
     return !strcmp(base, leaf);
 }
 
+static HANDLE read_test_no_manifest_file(LPCSTR filename, LPDWORD size) {
+    if (test_path_leaf_is(filename, "GameData.xml")) {
+        if (size) *size = 0;
+        return NULL;
+    }
+    return read_test_disk_file(filename, size);
+}
+
+static void use_sc2_no_manifest_disk_host(void) {
+    SC2_MapSetHost(&(sc2MapHost_t){
+        .read_file = read_test_no_manifest_file,
+        .free_file = MemFree,
+        .mem_alloc = MemAlloc,
+        .mem_free = MemFree,
+    });
+}
+
 static DWORD short_terrain_width(DWORD width) {
     if (short_terrain_dimensions == TEST_SC2_ZERO_TERRAIN_DIMENSIONS)
         return 0;
@@ -296,11 +313,11 @@ static void test_sc2_fixture_short_name_resolves(void) {
 
 static void assert_tiny_map_catalog_overrides(sc2Map_t *map) {
     ASSERT_EQ_INT(map->catalog.footprints, 3);
-    ASSERT_STR_EQ(map->objects[1].model, "Assets\\Units\\Terran\\MarineCatalogModel\\MarineCatalogModel.m3");
+    ASSERT_STR_EQ(map->objects[1].model, "Assets\\Units\\Terran\\MarineManifestModel\\MarineManifestModel.m3");
     ASSERT_STR_EQ(map->objects[1].footprint, "FootprintMarine");
     ASSERT_STR_EQ(map->objects[1].mover, "Ground");
     ASSERT_EQ_INT(map->objects[1].unit_flags, SC2_UNIT_FLAG_MOVABLE);
-    ASSERT_EQ_FLOAT(map->objects[1].radius, 0.75f, 0.001f);
+    ASSERT_EQ_FLOAT(map->objects[1].radius, 0.875f, 0.001f);
     ASSERT_EQ_FLOAT(map->objects[1].footprint_width, 1.0f, 0.001f);
     ASSERT_EQ_FLOAT(map->objects[1].footprint_height, 1.0f, 0.001f);
     ASSERT_EQ_FLOAT(map->objects[1].footprint_radius, 0.5f, 0.001f);
@@ -317,6 +334,18 @@ static void assert_tiny_map_catalog_overrides(sc2Map_t *map) {
     ASSERT_EQ_FLOAT(map->objects[6].footprint_radius, 1.4143f, 0.001f);
     ASSERT_STR_EQ(map->t3Terrain.terrain_textures[0].diffuse, "Assets\\Textures\\Terrain\\FixtureGrass_Diffuse.dds");
     ASSERT_STR_EQ(map->t3Terrain.terrain_textures[0].normal, "Assets\\Textures\\Terrain\\FixtureGrass_Diffuse_normal.dds");
+    ASSERT_STR_EQ(map->t3Terrain.cliff_sets[0].mesh, "CliffNatural0");
+}
+
+static void assert_tiny_map_known_file_catalog_fallback(sc2Map_t *map) {
+    ASSERT_EQ_INT(map->catalog.footprints, 3);
+    ASSERT_STR_EQ(map->objects[1].model, "Assets\\Units\\Terran\\MarineCatalogModel\\MarineCatalogModel.m3");
+    ASSERT_STR_EQ(map->objects[1].footprint, "FootprintMarine");
+    ASSERT_STR_EQ(map->objects[1].mover, "Ground");
+    ASSERT_EQ_FLOAT(map->objects[1].radius, 0.75f, 0.001f);
+    ASSERT_STR_EQ(map->objects[6].model, "Assets\\Buildings\\Terran\\SupplyDepotCatalogModel\\SupplyDepotCatalogModel.m3");
+    ASSERT_EQ_FLOAT(map->objects[6].footprint_radius, 1.4143f, 0.001f);
+    ASSERT_STR_EQ(map->t3Terrain.terrain_textures[0].diffuse, "Assets\\Textures\\Terrain\\FixtureGrass_Diffuse.dds");
     ASSERT_STR_EQ(map->t3Terrain.cliff_sets[0].mesh, "CliffNatural0");
 }
 
@@ -569,6 +598,22 @@ static void test_sc2_map_loads_directory_fixture_without_generated_layers(void) 
     use_sc2_fs_host();
 }
 
+static void test_sc2_map_catalog_known_files_fallback_without_manifest(void) {
+    sc2Map_t *map;
+
+    setup_sc2_tests();
+    use_sc2_no_manifest_disk_host();
+    ASSERT(SC2_MapLoad(TEST_SC2_TINY_DIR));
+    map = SC2_MapCurrent();
+
+    ASSERT_STR_EQ(map->map_name, "SC2 Tiny Fixture");
+    ASSERT_EQ_INT(map->num_objects, 7);
+    assert_tiny_map_known_file_catalog_fallback(map);
+
+    SC2_MapShutdown();
+    use_sc2_fs_host();
+}
+
 static void assert_tiny_map_loaded_without_binary_terrain_layers(sc2Map_t *map) {
     ASSERT_STR_EQ(map->map_name, "SC2 Tiny Fixture");
     ASSERT_EQ_INT(map->MapInfo.width, 8);
@@ -633,6 +678,7 @@ void run_sc2_map_tests(void) {
     RUN_TEST(test_sc2_map_loads_xml_objects_and_terrain);
     RUN_TEST(test_sc2_map_loads_binary_terrain_layers);
     RUN_TEST(test_sc2_map_loads_directory_fixture_without_generated_layers);
+    RUN_TEST(test_sc2_map_catalog_known_files_fallback_without_manifest);
     RUN_TEST(test_sc2_map_rejects_short_binary_terrain_layers);
     RUN_TEST(test_sc2_map_rejects_zero_dimension_binary_terrain_layers);
     RUN_TEST(test_sc2_map_rejects_huge_dimension_binary_terrain_layers);
