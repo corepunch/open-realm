@@ -15,6 +15,7 @@
 #include <stdio.h>
 
 #include "client/ui.h"
+#include "common/cmodel.h"
 #include "common/shared.h"  /* For PLAYERSTATE/PLAYERTEXT enums */
 #include "games/warcraft-3/common/mapinfo.h"
 
@@ -346,12 +347,8 @@ void UI_InitLocal(void);
 void UI_ShutdownLocal(void);
 void UI_RefreshLocal(DWORD msec);
 void UI_DrawFrameLocal(void);
-void UI_LayoutDrawOverlays(void);
 void UI_LayoutTextInput(LPCSTR text);
 BOOL UI_LayoutEditKey(int key);
-void UI_LayoutSetLayer(DWORD layer, HANDLE data);
-void UI_LayoutClearLayer(DWORD layer);
-BOOL UI_LayoutHitTest(int x, int y);
 
 /* ui_glue_scene.c */
 void UI_ResetGlueSceneModels(void);
@@ -382,7 +379,6 @@ void UI_ClearTheme(void);
 void UI_MenuCommandLocal(LPCSTR command);
 VECTOR2 UI_MouseToFdf(void);
 BOOL UI_MouseContains(LPCRECT rect);
-void UI_ClearMouseTransient(void);
 DWORD UI_FindFrameNumber(LPCSTR);
 DWORD UI_CollectFrameTree(LPCFRAMEDEF root, LPCFRAMEDEF *out, DWORD max);
 DWORD UI_LoadTexture(LPCSTR, BOOL);
@@ -447,6 +443,7 @@ COLOR32 Theme_ListBoxIconTextColor(void);
 void UI_DrawFrame(LPCFRAMEDEF frame);
 void UI_DrawGamePortraitInFrame(LPCFRAMEDEF frame, DWORD modelIndex, LPCSTR anim);
 void UI_DrawFrames(LPCFRAMEDEF const *roots, DWORD num_roots);
+void UI_HandleMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param);
 BOOL UI_EditKey(int key);
 void UI_TextInputLocal(LPCSTR text);
 BOOL UI_EditHasFocus(LPCFRAMEDEF frame);

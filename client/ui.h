@@ -111,17 +111,7 @@ typedef struct {
     void (*FS_FreeFile)(void *buf);
     int (*FS_GetFileList)(LPCSTR path, LPCSTR extension, char *listbuf, int bufsize);
     void (*FS_WriteFile)(LPCSTR path, const void *data, int size); /* Write to local disk */
-    BOOL (*ReadMapInfo)(LPCSTR mapName, LPMAPINFO info);
-    BOOL (*FindMapPreviewTexture)(LPCSTR mapName, LPSTR out, DWORD out_size);
-    void (*FreeMapInfo)(LPMAPINFO info);
-    void (*DefaultMapName)(LPCSTR path, LPSTR out, DWORD out_size);
-    void (*ResolveMapInfoString)(LPCMAPINFO info, LPCSTR text, LPSTR out, DWORD out_size);
-    BOOL (*MapNameMatchesFile)(LPCSTR name, LPCSTR path);
-    LPCSTR (*MapTilesetName)(BYTE tileset);
-    LPCSTR (*MapSizeName)(DWORD width, DWORD height);
-    void (*SanitizeMapListField)(LPSTR text);
-    void (*SanitizeMapInfoText)(LPSTR text);
-    
+
     /* Memory allocation */
     HANDLE (*MemAlloc)(long size);
     void (*MemFree)(HANDLE);
@@ -145,10 +135,7 @@ typedef struct {
     DWORD (*LANNumServers)(void);
     BOOL (*LANServer)(DWORD index, uiLanGame_t *out);
     void (*LANConnectServer)(DWORD index);
-    LPCSTR (*GetLoadingMap)(void);
-    LPCSTR (*GetLoadingStatus)(void);
-    FLOAT (*GetLoadingProgress)(void);
-    
+
     /* Game state access (for in-game HUD) */
     LPCPLAYER (*GetPlayerState)(void);          /* Access to cl.playerstate */
     DWORD (*GetNumEntities)(void);              /* cl.num_entities */
@@ -159,18 +146,7 @@ typedef struct {
     LPCTEXTURE *(*GetTextures)(void);           /* cl.pics, for inline text icons */
     LPCFONT (*GetFont)(DWORD idx);              /* cl.fonts[idx] */
     DWORD (*GetClientTime)(void);               /* cl.time */
-    VECTOR2 (*GetMouseFdf)(void);               /* current mouse in Warcraft UI coords */
-    DWORD (*GetMouseButton)(void);
-    LPCUIFRAME (*LayoutClear)(HANDLE data);
-    DWORD (*LayoutNumFrames)(void);
-    LPUIFRAME (*LayoutFrame)(DWORD number);
-    LPCRECT (*LayoutRect)(LPCUIFRAME frame);
-    LPCSTR (*LayoutStringValue)(LPCUIFRAME frame);
-    drawText_t (*LayoutDrawText)(LPCUIFRAME frame,
-                                 FLOAT avl_width,
-                                 LPCSTR text,
-                                 uiLabel_t const *label);
-    
+
     /* Unit UI data requests (for command card, inventory, build queue) */
     void (*RequestUnitUI)(DWORD num_selected, DWORD *entity_nums);
     
@@ -208,12 +184,6 @@ typedef struct {
     void (*UpdateUnitUI)(DWORD num_units, uiUnitData_t *units);
     void (*UpdateLobbySetup)(lobbyState_t const *state);
 
-    /* Server-authored layout layers decoded by the generic client. */
-    void (*SetLayoutLayer)(DWORD layer, HANDLE data);
-    void (*ClearLayoutLayer)(DWORD layer);
-    BOOL (*HitTestLayout)(int x, int y);
-    void (*DrawOverlays)(void);
-    void (*LayoutMouseEvent)(uiMouseEvent_t event, int x, int y, int32_t param);
     void (*DrawLoadingScreen)(LPCSTR map, LPCSTR status, FLOAT progress);
 } uiExport_t;
 

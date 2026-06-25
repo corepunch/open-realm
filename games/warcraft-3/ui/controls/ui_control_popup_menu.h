@@ -179,28 +179,6 @@ static void UI_UpdatePopupVisibility(LPCFRAMEDEF const *draw_order, DWORD count)
     }
 }
 
-static void UI_ClosePopupIfClickedOutside(void) {
-    LPFRAMEDEF menu;
-    LPCRECT popup_rect;
-    LPCRECT menu_rect = NULL;
-
-    if (!active_popup || ui_mouse.event != UI_WC3_MOUSE_LEFT_DOWN) {
-        return;
-    }
-
-    popup_rect = UI_LayoutRect(active_popup);
-    menu = UI_PopupMenuFrame(active_popup);
-    if (menu && !menu->hidden) {
-        menu_rect = UI_LayoutRect(menu);
-    }
-    if ((popup_rect && UI_MouseContains(popup_rect)) ||
-        (menu_rect && UI_MouseContains(menu_rect))) {
-        return;
-    }
-    active_popup = NULL;
-    UI_ResetPopupScroll();
-}
-
 static void UI_DrawMenu(LPCFRAMEDEF frame, LPCRECT rect) {
     LPRENDERER renderer = UI_GetRenderer();
     LPCFRAMEDEF backdrop = UI_FindFrameNear(frame, frame->Control.Backdrop.Normal);

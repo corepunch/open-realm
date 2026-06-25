@@ -47,6 +47,12 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 
 - This is a **real-time strategy game** (RTS), so game logic should account for unit management, pathfinding, resource gathering, building construction, and large numbers of entities — adapted from the Quake 2 entity/server model where applicable.
 
+## UI Module Boundary
+
+- Keep `ui.dll` focused on loading screens and menu/glue UI.
+- Draw in-game HUD/ConsoleUI through server-authored `svc_layout` payloads in the generic client path (`client/cl_layout.c`, `client/cl_unit_layout.c`). Do not move gameplay HUD drawing, portraits, minimap, or layout decoding back into `games/<game>/ui`.
+- Do not add UI import callbacks for mouse polling, loading state polling, layout decoding, or Warcraft III map-info helpers. Use pushed `MouseEvent`/`LayoutMouseEvent`, `DrawLoadingScreen(map, status, progress)`, client-owned layout functions, and direct `CM_*` map-info calls inside the UI module.
+
 ## Documentation Discipline
 
 - When implementing or changing a feature, always add or adjust agent-friendly documentation in this file (AGENTS.md) if the change introduces a new workflow, tool, convention, or subsystem that an agent would need to know about.

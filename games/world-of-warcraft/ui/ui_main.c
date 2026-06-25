@@ -519,21 +519,6 @@ static void UIWow_UpdateUnitUI(DWORD num_units, uiUnitData_t *units) {
  * Layout layer stubs (not used by WoW UI)
  * ---------------------------------------------------------------------- */
 
-static void UIWow_SetLayoutLayer(DWORD layer, HANDLE data) {
-    (void)layer;
-    (void)data;
-}
-
-static void UIWow_ClearLayoutLayer(DWORD layer) {
-    (void)layer;
-}
-
-static BOOL UIWow_HitTestLayout(int x, int y) {
-    (void)x;
-    (void)y;
-    return false;
-}
-
 /* -------------------------------------------------------------------------
  * Entry point
  * ---------------------------------------------------------------------- */
@@ -572,9 +557,6 @@ uiExport_t UI_GetAPI(uiImport_t import) {
         .TextInput        = UIWow_TextInput,
         .MouseEvent       = UIWow_MouseEvent,
         .UpdateUnitUI     = UIWow_UpdateUnitUI,
-        .SetLayoutLayer   = UIWow_SetLayoutLayer,
-        .ClearLayoutLayer = UIWow_ClearLayoutLayer,
-        .HitTestLayout    = UIWow_HitTestLayout,
         .DrawLoadingScreen = UIWow_DrawLoadingScreen,
     };
 }

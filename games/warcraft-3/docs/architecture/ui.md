@@ -1,12 +1,10 @@
 # UI System Architecture
 
-As of Phase 8 (May 2026), all UI logic in OpenWarcraft3 runs **client-side** in the selected UI library. Warcraft III UI sources live in `games/warcraft-3/ui/`; the shared client-facing UI API is declared in `client/ui.h`. The server is now game-agnostic and provides unit data through a query protocol when clients request it. This follows the Quake 3 Arena pattern where UI is a separate client-side library.
+Menus and loading screens run in the selected UI library (`games/warcraft-3/ui/`). The in-game HUD/ConsoleUI is server-authored through compact `svc_layout` payloads and drawn by the generic client layout renderer in `client/cl_layout.c` and `client/cl_unit_layout.c`. The shared client-facing UI API is declared in `client/ui.h`.
 
 ## Migration from Server-Side UI (Phase 1-7)
 
-Previously, all UI logic ran on the server in `game/ui/` and `game/hud/`. The server would generate complete frame trees and send them via `svc_layout` messages. This violated the game-agnostic principle and bloated the game library by ~107KB.
-
-Phase 8 removed all server-side UI code. The game library now only provides **data** (command buttons, inventory, build queue) via callbacks, and the client handles all rendering and layout.
+Previously, the UI module also drew pieces of the in-game ConsoleUI. Gameplay HUD ownership has moved back to the Quake-style server-authored layout path: the game writes title-specific proxy frames, the client decodes and draws them, and `ui.dll` stays focused on glue screens and loading.
 
 ## Quick Navigation
 
@@ -42,57 +40,9 @@ FDF files declare frame templates hierarchically. `UI_ParseFDF_Buffer` (`games/w
 
 See [FDF File Format](../file-formats/fdf.md) for the full syntax reference.
 
-## Unit Data Query Protocol (Phase 8)
+## Server-Authored Gameplay UI
 
-When the player selects units, the client requests unit UI data from the server:
-
-### Client → Server: `clc_request_unit_ui`
-
-```c
-// client/cl_input.c - Selection complete
-CL_RequestUnitUI(num_selected, entity_nums);
-
-// Message format:
-MSG_WriteByte(&cls.netchan.message, clc_request_unit_ui);
-MSG_WriteByte(&cls.netchan.message, num_selected);
-for (i = 0; i < num_selected; i++)
-    MSG_WriteShort(&cls.netchan.message, entity_nums[i]);
-```
-
-### Server → Client: `svc_unit_ui`
-
-Server queries game DLL for unit data and responds:
-
-```c
-// server/sv_unit_ui.c - Handle request
-gameCommandButton_t buttons[12];
-BYTE num_buttons = ge->GetCommandButtons(ent, buttons, 12);
-
-// Message format (for each selected entity):
-MSG_WriteByte(response, num_buttons);
-for (j = 0; j < num_buttons; j++) {
-    MSG_WriteString(response, buttons[j].art);
-    MSG_WriteString(response, buttons[j].tooltip);
-    MSG_WriteString(response, buttons[j].ubertip);
-    MSG_WriteString(response, buttons[j].command);
-    MSG_WriteByte(response, buttons[j].hotkey);
-}
-// ... repeat for inventory and build queue
-```
-
-### Client Storage
-
-```c
-// games/warcraft-3/ui/screens/console_ui.c - Store unit data
-static uiUnitData_t cached_units[MAX_CACHED_UNITS];
-static DWORD cached_unit_count = 0;
-
-void ConsoleUI_UpdateUnitUI(DWORD num_units, uiUnitData_t *units) {
-    cached_unit_count = num_units;
-    memcpy(cached_units, units, sizeof(uiUnitData_t) * num_units);
-    // Rendering uses cached_units[] to draw command card
-}
-```
+Gameplay HUD state is sent with `svc_layout`. Warcraft III creates title-specific proxy frames in `games/warcraft-3/game/g_ui_stubs.c`; the client stores each layer in `cl.layout[layer]`, decodes frame geometry in `client/cl_layout.c`, and draws the result in `client/cl_unit_layout.c`.
 
 ## Frame Tree Layout
 
@@ -108,16 +58,14 @@ The frame tree is a depth-first hierarchy managed client-side by the UI library.
 
 The UI library maintains the frame tree and recalculates layout when frames are added, removed, or resized.
 
-## Client-Side Rendering (Phase 8+)
+## Rendering
 
-The Warcraft III UI library (`games/warcraft-3/ui/`) handles all frame rendering:
+The Warcraft III UI library handles menus, lobby/setup screens, loading screens, and cinematic glue panels through FDF frames. Active gameplay uses `svc_layout` instead:
 
-1. Screen controller (e.g., `console_ui.c`) updates frame states based on game data.
-2. `UI_DrawFrame` walks the frame tree and dispatches each frame to type-specific renderers.
-3. Frame renderers call back into the client's renderer import functions to draw quads, text, and models.
-4. Resource stats (gold, lumber, food) update automatically from `cl.playerstate`.
-
-The client parses FDF files locally and maintains the complete frame hierarchy. No serialized UI blobs are transmitted over the network.
+1. Game code sends layer payloads such as `LAYER_CONSOLE`, `LAYER_PORTRAIT`, `LAYER_COMMANDBAR`, `LAYER_INFOPANEL`, and `LAYER_INVENTORY`.
+2. `CL_ParseLayout` stores each raw layer payload and wires it to the client layout renderer.
+3. `SCR_DrawLayout` in `client/cl_unit_layout.c` draws the HUD, portrait, command card, inventory, tooltips, and other server-authored frames.
+4. Menu input goes to `ui.MouseEvent`; gameplay HUD input goes directly to `SCR_LayoutMouseEvent` in the client-owned layout handler.
 
 ## Menu Commands
 
@@ -148,14 +96,14 @@ That command uses `r_module=stdout` and `com_frame_limit=1` to print one frame o
 
 ## Dynamic Updates
 
-UI updates happen client-side in response to:
+Gameplay HUD updates happen through server-authored layout layers:
 
-- **Selection changes** — `IN_SelectUp()` triggers `CL_RequestUnitUI()`, server responds with unit data, `ConsoleUI_UpdateUnitUI()` stores it.
-- **Command card** — client renders buttons from `cached_units[].buttons[]` received via `svc_unit_ui`.
-- **Resource display** — frames poll `cl.playerstate` directly, no network traffic.
-- **Chat messages** — (future) append frames to chat panel.
+- **Selection changes** — game code sends updated `LAYER_PORTRAIT`, `LAYER_INFOPANEL`, `LAYER_INVENTORY`, and `LAYER_COMMANDBAR` payloads.
+- **Command card** — `games/warcraft-3/game/g_ui_stubs.c` writes `FT_COMMANDBUTTON` frames with click commands and icon indices.
+- **Resource display** — player state values arrive in snapshots; text frames can refer to player stats through `uiFrame_t.stat`.
+- **Mouse/clicks** — `client/cl_input.c` pushes events to `SCR_LayoutMouseEvent`, which hit-tests the decoded frame layer and forwards click commands to the server.
 
-All rendering happens client-side; server only provides game data (unit stats, abilities, inventory).
+Rendering still happens client-side, but the gameplay HUD shape and contents are authored by the game through `svc_layout`.
 
 ## Stdout Renderer Diagnostics
 
@@ -190,33 +138,20 @@ Note: `fdftool` was removed in Phase 8 as it depended on deleted server-side UI 
 
 ## Adding a New UI Element
 
-1. In the appropriate screen controller (e.g., `games/warcraft-3/ui/screens/console_ui.c`), define the frame using the FDF API or programmatically:
+For menu/loading screens, add FDF-backed frames in `games/warcraft-3/ui/screens/*.c`.
+
+For gameplay HUD elements, add proxy frames in `games/warcraft-3/game/g_ui_stubs.c` and send them on an appropriate layout layer:
 
 ```c
-// Option A: Reference FDF-defined frame
-LPFRAMEDEF btn = UI_FindFrame("MyCommandButton");
-
-// Option B: Create frame programmatically
-FRAMEDEF btn;
-UI_InitFrame(&btn, FT_COMMANDBUTTON);
-UI_SetPoint(&btn, FRAMEPOINT_BOTTOMLEFT, parent, FRAMEPOINT_BOTTOMLEFT, 0.40, 0.10);
-UI_SetSize(&btn, 0.04, 0.04);
-UI_SetTexture(&btn, "CommandButtonNormal", true);
+uiFrame_t frame;
+memset(&frame, 0, sizeof(frame));
+frame.flags.type = FT_TEXTURE;
+frame.tex.index = gi.ImageIndex("SomeTexture");
+UI_SetFrameRect(&frame, x, y, w, h);
+UI_WriteProxyFrame(&frame, NULL, 0);
 ```
 
-2. Update frame state in response to game events (e.g., unit selection, stat changes):
-
-```c
-void ConsoleUI_UpdateUnitUI(DWORD num_units, uiUnitData_t *units) {
-    // Store unit data
-    cached_unit_count = num_units;
-    memcpy(cached_units, units, sizeof(uiUnitData_t) * num_units);
-    
-    // Frame tree updates automatically on next render
-}
-```
-
-3. The UI library's render loop will automatically draw updated frames.
+The client layout renderer supports the frame types listed in `client/cl_unit_layout.c`. Add generic draw behavior there only when the frame type is not Warcraft-specific.
 
 ## Key Files
 
@@ -224,25 +159,15 @@ void ConsoleUI_UpdateUnitUI(DWORD num_units, uiUnitData_t *units) {
 
 | File | Purpose |
 |------|---------|
-| `server/sv_unit_ui.c` | Handle `clc_request_unit_ui`, query game DLL |
-| `games/warcraft-3/game/g_unit_ui.c` | `G_GetCommandButtons`, `G_GetInventory`, `G_GetBuildQueue` |
-| `games/warcraft-3/game/g_ui_stubs.c` | No-op stubs for legacy server-side UI functions |
-| `server/game.h` | `game_export` callbacks for unit data queries |
+| `games/warcraft-3/game/g_ui_stubs.c` | Author Warcraft III gameplay HUD proxy frames |
+| `client/cl_parse.c` | `CL_ParseLayout` receives `svc_layout` payloads |
+| `client/cl_layout.c` | Decode server-authored frame geometry |
+| `client/cl_unit_layout.c` | Draw gameplay HUD layers and handle layout input |
 | `client/ui.h` | Shared UI module API declaration |
-| `games/warcraft-3/ui/ui_main.c` | `UI_GetAPI`, library entry point, screen routing |
+| `games/warcraft-3/ui/ui_main.c` | `UI_GetAPI`, menus, loading, cinematic glue panels |
 | `games/warcraft-3/ui/ui_fdf.c` | FDF parser and programmatic frame API |
-| `games/warcraft-3/ui/ui_render.c` | Frame rendering dispatch |
-| `games/warcraft-3/ui/screens/console_ui.c` | In-game HUD (resource bar, command card, inventory) |
+| `games/warcraft-3/ui/ui_render.c` | Menu/loading FDF frame rendering dispatch |
 | `games/warcraft-3/ui/screens/main_menu.c` | Main menu, single player menu, etc. |
-| `client/cl_unit_ui.c` | `CL_ParseUnitUI` — receive unit data from server |
-| `client/cl_input.c` | Selection tracking, query trigger |
+| `client/cl_input.c` | Mouse input, menu/layout event routing |
 | `renderer/r_font.c` | Bitmap font rasteriser |
-| `common/common.h` | `clc_request_unit_ui`, `svc_unit_ui` opcodes |
-
-### Server-Side Data Providers
-
-| File | Purpose |
-|------|---------|
-| `games/warcraft-3/game/g_unit_ui.c` | Converts selected entities into command card, inventory, and build queue data |
-| `server/sv_unit_ui.c` | Marshals unit UI data into `svc_unit_ui` messages |
-| `client/cl_unit_ui.c` | Receives `svc_unit_ui` and forwards decoded data to the UI library |
+| `common/common.h` | `svc_layout` opcode |
