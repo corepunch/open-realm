@@ -748,15 +748,29 @@ static int UIWow_LuaTraceback(lua_State *L) {
 BOOL UIWow_LuaPCall(int nargs) {
     int traceback = lua_gettop(wow_ui.lua) - nargs;
     int status;
-
+    /* [debug-1] log the chunk name (stored in the debug info of the function being called) */
+    {
+        lua_Debug ar;
+        int fn_slot = traceback - 1;  /* the function sits just below its args */
+        if (fn_slot >= 1 && lua_isfunction(wow_ui.lua, fn_slot)) {
+            lua_pushvalue(wow_ui.lua, fn_slot);
+            if (lua_getinfo(wow_ui.lua, ">S", &ar) == 0)
+                UIWow_Printf("[debug-1] pcall chunk='%s'\n",
+                             ar.source ? ar.source : "?");
+            else
+                UIWow_Printf("[debug-1] pcall chunk='%s'\n",
+                             ar.source ? ar.source : "?");
+        }
+    }
     lua_pushcfunction(wow_ui.lua, UIWow_LuaTraceback);
     lua_insert(wow_ui.lua, traceback);
     status = lua_pcall(wow_ui.lua, nargs, 0, traceback);
     lua_remove(wow_ui.lua, traceback);
     if (status != LUA_OK) {
         LPCSTR msg = lua_tostring(wow_ui.lua, -1);
+        fprintf(stderr, "[debug-1] pcall FAILED: %s\n", msg ? msg : "(null)"); fflush(stderr);
+        UIWow_Printf("[debug-1] pcall FAILED: %s\n", msg ? msg : "(null)");
         UIWow_Printf("UIWow Lua: %s\n", msg);
-        fprintf(stderr, "UIWow Lua: %s\n", msg ? msg : "(null)");
         lua_pop(wow_ui.lua, 1);
         return false;
     }
@@ -872,19 +886,26 @@ BOOL UIWow_LoadLuaFile(LPCSTR path, BOOL noisy_missing) {
                        "UIWow: FS_ReadFile/FS_FreeFile unavailable; cannot load Lua files\n");
         return false;
     }
+    UIWow_Printf("[debug-1] LoadLuaFile: reading '%s'\n", path);
     size = uiimport.FS_ReadFile(path, &buf);
     if (size <= 0 || !buf) {
         if (noisy_missing) {
             UIWow_Printf("UIWow: could not load '%s'\n", path);
         }
+        UIWow_Printf("[debug-1] LoadLuaFile: MISSING '%s'\n", path);
         SAFE_DELETE(buf, uiimport.FS_FreeFile);
         return false;
     }
+    UIWow_Printf("[debug-1] LoadLuaFile: executing '%s' (%d bytes)\n", path, size);
     compat = UIWow_LuaCompatBuffer(buf, (size_t)size);
     script = compat ? compat : (char *)buf;
     compat_varargs = UIWow_LuaCompatVarargs(script, compat ? strlen(compat) : (size_t)size);
-    UIWow_RunLuaBuffer(path, compat_varargs ? compat_varargs : script,
-                       compat_varargs ? strlen(compat_varargs) : (compat ? strlen(compat) : (size_t)size));
+    {
+        LPCSTR final_script = compat_varargs ? compat_varargs : script;
+        size_t final_len = compat_varargs ? strlen(compat_varargs) : (compat ? strlen(compat) : (size_t)size);
+        BOOL ok = UIWow_RunLuaBuffer(path, final_script, final_len);
+        UIWow_Printf("[debug-1] LoadLuaFile: %s '%s'\n", ok ? "done" : "FAILED", path);
+    }
     SAFE_DELETE(compat, free);
     SAFE_DELETE(compat_varargs, free);
     uiimport.FS_FreeFile(buf);
@@ -992,16 +1013,21 @@ void UIWow_InitLua(void) {
         UIWow_LoadLegacyMenuLua();
     } else if (UIWow_LoadGlueFrameXml()) {
         UIWow_Printf("UIWow: using GlueXML FrameXML bootstrap\n");
+        UIWow_Printf("[debug-1] InitLua: calling SetGlueScreen('login')\n");
         lua_getglobal(L, "SetGlueScreen");
         if (lua_isfunction(L, -1)) {
             lua_pushstring(L, "login");
             UIWOW_LUA(1);
+            UIWow_Printf("[debug-1] InitLua: SetGlueScreen('login') returned\n");
         } else {
+            UIWow_Printf("[debug-1] InitLua: SetGlueScreen is NOT a function (type=%s)\n",
+                         lua_typename(L, lua_type(L, -1)));
             lua_pop(L, 1);
             UIWow_WarnOnce(WOW_UI_WARN_NO_GLUE_BOOTSTRAP,
                            "UIWow: Glue bootstrap missing 'SetGlueScreen'\n");
         }
         snprintf(wow_ui.current_menu, sizeof(wow_ui.current_menu), "%s", "login");
+        UIWow_Printf("[debug-1] InitLua: bootstrap complete, current_menu='%s'\n", wow_ui.current_menu);
     } else {
         UIWow_Printf("UIWow: no legacy OW3 FrameXML or GlueXML Lua bootstrap found\n");
     }

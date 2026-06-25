@@ -27,12 +27,17 @@ void UIWow_Printf(LPCSTR fmt, ...) {
     va_list args;
     char text[1024];
 
-    if (!uiimport.Printf) {
-        return;
-    }
     va_start(args, fmt);
     vsnprintf(text, sizeof(text), fmt, args);
     va_end(args);
+    /* [debug-1] mirror all debug lines to stderr so they reach the terminal */
+    if (strncmp(text, "[debug-1]", 9) == 0) {
+        fprintf(stderr, "%s", text);
+        fflush(stderr);
+    }
+    if (!uiimport.Printf) {
+        return;
+    }
     uiimport.Printf("%s", text);
 }
 

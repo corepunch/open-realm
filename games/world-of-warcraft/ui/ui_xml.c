@@ -445,6 +445,10 @@ static void UIWow_XMLRunFrameScript(int idx, LPCSTR script, LPCSTR event_name);
 
 static void UIWow_XMLSetShown(int idx, BOOL shown) {
     if (idx < 0 || idx >= wow_xml.count) return;
+    UIWow_Printf("[debug-1] SetShown idx=%d name='%s' shown=%d\n",
+                 idx,
+                 wow_xml.elems[idx].texts[ELEM_NAME] ? wow_xml.elems[idx].texts[ELEM_NAME] : "<anon>",
+                 shown);
     if (shown) {
         BOOL was_hidden = (wow_xml.elems[idx].flags & EF_HIDDEN) != 0;
         wow_xml.elems[idx].flags &= ~EF_HIDDEN;
@@ -762,12 +766,15 @@ static void UIWow_XMLInstallScreenShim(void) {
     if (!wow_ui.lua) return;
     lua_getglobal(wow_ui.lua, "GlueScreenInfo");
     if (!lua_istable(wow_ui.lua, -1)) {
+        fprintf(stderr, "[debug-1] InstallScreenShim: GlueScreenInfo type=%s — SKIPPING shim\n",
+                lua_typename(wow_ui.lua, lua_type(wow_ui.lua, -1))); fflush(stderr);
         lua_pop(wow_ui.lua, 1);
         return;
     }
     lua_pop(wow_ui.lua, 1);
     lua_pushcfunction(wow_ui.lua, UIWow_LuaSetGlueScreen);
     lua_setglobal(wow_ui.lua, "SetGlueScreen");
+    fprintf(stderr, "[debug-1] InstallScreenShim: C shim installed\n"); fflush(stderr);
 }
 
 static void UIWow_XMLInstallLuaCompat(void) {
@@ -1396,7 +1403,9 @@ static BOOL UIWow_XMLLoadFromToc(LPCSTR toc_path) {
             while (line[n] && isspace((unsigned char)line[n])) n++;
             if (line[n] && line[n] != '#') {
                 if (UIWow_XmlResolvePath(toc_path, line + n, resolved, sizeof(resolved))) {
+                    UIWow_Printf("[debug-1] TOC entry: processing '%s'\n", resolved);
                     UIWow_XMLProcessFile(resolved, 0);
+                    UIWow_Printf("[debug-1] TOC entry: done '%s' (elems_so_far=%d)\n", resolved, wow_xml.count);
                 } else {
                     UIWow_Printf("UIWow: TOC entry path too long in %s: %s\n", toc_path, line + n);
                 }
@@ -1406,7 +1415,9 @@ static BOOL UIWow_XMLLoadFromToc(LPCSTR toc_path) {
         while (*end == '\n' || *end == '\r') end++;
         cur = end;
     }
+    fprintf(stderr, "[debug-1] XMLLoadFromToc: loop done, freeing buf, count=%d\n", wow_xml.count); fflush(stderr);
     uiimport.FS_FreeFile(buf);
+    fprintf(stderr, "[debug-1] XMLLoadFromToc: buf freed, returning true\n"); fflush(stderr);
     return true;
 }
 
@@ -1468,8 +1479,15 @@ BOOL UIWow_XMLLoadGlueFromToc(LPCSTR toc_path) {
     UIWow_XMLReleaseCharCustomizeModel();
     memset(wow_xml.elems, 0, sizeof(wow_xml.elems)); wow_xml.count = 0; wow_xml.focus = -1;
     wow_xml.pressed_button = -1; wow_xml.hovered_button = -1; wow_xml.drag.scrollbar_idx = -1;
+    UIWow_Printf("[debug-1] XMLLoadGlueFromToc: loading TOC '%s'\n", toc_path);
     if (!UIWow_XMLLoadFromToc(toc_path)) return false;
+    UIWow_Printf("[debug-1] XMLLoadGlueFromToc: TOC loaded, elem_count=%d\n", wow_xml.count);
     UIWow_XMLInstallScreenShim();
+    {
+        lua_getglobal(wow_ui.lua, "SetGlueScreen");
+        fprintf(stderr, "[debug-1] after ScreenShim: SetGlueScreen type=%s\n", lua_typename(wow_ui.lua, lua_type(wow_ui.lua, -1))); fflush(stderr);
+        lua_pop(wow_ui.lua, 1);
+    }
     FOR_LOOP(i, wow_xml.count) {
         uiWowXmlElem_t *e = &wow_xml.elems[i];
         if (UIWow_ElemStr(e, ELEM_PARENT_NAME)) {
@@ -1486,12 +1504,27 @@ BOOL UIWow_XMLLoadGlueFromToc(LPCSTR toc_path) {
         }
     }
     /* Fire OnLoad for every frame that registered one, now that all Lua files are loaded. */
+    {
+        int pending_count = 0;
+        FOR_LOOP(i, wow_xml.count) {
+            if (wow_xml.elems[i].flags & EF_PENDING_ONLOAD) pending_count++;
+        }
+        UIWow_Printf("[debug-1] XMLLoadGlueFromToc: firing deferred OnLoad for %d frames\n", pending_count);
+    }
     FOR_LOOP(i, wow_xml.count) {
         uiWowXmlElem_t *e = &wow_xml.elems[i];
         if (e->flags & EF_PENDING_ONLOAD) {
+            UIWow_Printf("[debug-1] OnLoad deferred-fire idx=%d name='%s'\n",
+                         i, e->texts[ELEM_NAME] ? e->texts[ELEM_NAME] : "<anon>");
             e->flags &= ~EF_PENDING_ONLOAD;
             UIWow_XMLRunFrameScript(i, e->texts[ELEM_ON_LOAD], "OnLoad");
         }
+    }
+    UIWow_Printf("[debug-1] XMLLoadGlueFromToc: all OnLoad callbacks complete\n");
+    {
+        lua_getglobal(wow_ui.lua, "SetGlueScreen");
+        fprintf(stderr, "[debug-1] after OnLoads: SetGlueScreen type=%s\n", lua_typename(wow_ui.lua, lua_type(wow_ui.lua, -1))); fflush(stderr);
+        lua_pop(wow_ui.lua, 1);
     }
     /* Show the hidden random-name button so players can generate names. */
     {
@@ -1509,6 +1542,9 @@ static void UIWow_XMLRunFrameScript(int idx, LPCSTR script, LPCSTR event_name) {
     UIWow_XmlPublishFrame(idx);
     name     = wow_xml.elems[idx].texts[ELEM_NAME];
     src_file = wow_xml.elems[idx].texts[ELEM_SOURCE_FILE];
+    UIWow_Printf("[debug-1] RunFrameScript idx=%d name='%s' event='%s' src='%s'\n",
+                 idx, name ? name : "<anon>", event_name ? event_name : "Script",
+                 src_file ? src_file : "?");
     lua_getglobal(wow_ui.lua, name ? name : ""); lua_setglobal(wow_ui.lua, "this");
     lua_pushstring(wow_ui.lua, event_name ? event_name : ""); lua_setglobal(wow_ui.lua, "event");
     if (src_file)
@@ -1518,10 +1554,13 @@ static void UIWow_XMLRunFrameScript(int idx, LPCSTR script, LPCSTR event_name) {
         snprintf(chunk, sizeof(chunk), "=%s:%s",
                  name && name[0] ? name : "<anon>", event_name ? event_name : "Script");
     if (luaL_loadbuffer(wow_ui.lua, script, strlen(script), chunk) != LUA_OK) {
-        UIWow_Printf("UIWow Lua load: %s\n", lua_tostring(wow_ui.lua, -1)); lua_pop(wow_ui.lua, 1);
+        UIWow_Printf("[debug-1] RunFrameScript load error: %s\n", lua_tostring(wow_ui.lua, -1));
+        lua_pop(wow_ui.lua, 1);
     } else {
         UIWOW_LUA(0);
     }
+    UIWow_Printf("[debug-1] RunFrameScript done idx=%d name='%s' event='%s'\n",
+                 idx, name ? name : "<anon>", event_name ? event_name : "Script");
     lua_pushnil(wow_ui.lua); lua_setglobal(wow_ui.lua, "this");
 }
 
