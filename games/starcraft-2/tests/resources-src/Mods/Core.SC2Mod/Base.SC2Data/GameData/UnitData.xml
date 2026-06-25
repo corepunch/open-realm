@@ -2,6 +2,8 @@
 <Catalog>
     <CUnit id="Marine">
         <Actor value="MarineActor"/>
+        <Footprint value="FootprintCoreMarine"/>
+        <Mover value="None"/>
         <Radius value="0.25"/>
     </CUnit>
 </Catalog>

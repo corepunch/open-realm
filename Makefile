@@ -245,6 +245,10 @@ $(BIN_DIR)/m3tool$(EXE_EXT): tools/m3tool.c $(TOOL_DEPS) $(CLIENT_HEADERS) $(COM
 	@$(CC) $(SC2_CFLAGS) -o $@ $< \
 		$(RPATH) $(LDFLAGS) -lrenderer-sc2 -lsheet -lshared $(LIBS) -lm -lz $(SC2_XML_LIBS)
 
+$(BIN_DIR)/sc2map$(EXE_EXT): tools/sc2map.c $(SC2_DIR)/common/sc2_map.c $(SC2_DIR)/common/sc2_map.h common/mpq.c | $(BIN_DIR)
+	@$(CC) $(SC2_CFLAGS) -o $@ tools/sc2map.c $(SC2_DIR)/common/sc2_map.c common/mpq.c \
+		$(RPATH) $(LDFLAGS) -lm -lz $(SC2_XML_LIBS)
+
 $(BIN_DIR)/img2sysfont$(EXE_EXT): tools/img2sysfont.c | $(BIN_DIR)
 	@$(CC) $(CFLAGS) -o $@ tools/img2sysfont.c
 
@@ -287,7 +291,7 @@ $(eval $(call test_schema,test-wow-game,,$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_
 $(eval $(call test_schema,test-wow-ui,test-wow-assets,$(WOW_UI_TEST_CFLAGS),$(BIN_DIR)/test_wow_ui$(EXE_EXT),$(WOW_TEST_DIR)/test_wow_ui.c $(WOW_DIR)/ui/ui_main.c $(WOW_DIR)/ui/ui_lua.c $(WOW_DIR)/ui/ui_dbc.c $(WOW_DIR)/ui/ui_loading.c $(WOW_DIR)/ui/ui_xml.c common/mpq.c,-lshared $(LUA_LIBS) $(WOW_XML_LIBS) -lz,))
 $(eval $(call test_schema,test-sc2,test-sc2-assets $(SHARED_LIB) $(SHEET_LIB),$(SC2_TEST_CFLAGS),$(BIN_DIR)/test_sc2$(EXE_EXT),$(SC2_TEST_DIR)/test_sc2_main.c $(SC2_TEST_DIR)/test_sc2_map.c $(SC2_DIR)/common/sc2_map.c common/common.c common/cmd.c common/cvar.c common/msg.c common/net.c common/mpq.c,-lsheet -lshared -lm -lz $(SC2_XML_LIBS),))
 
-test-sc2-assets: sc2fixturegen mpqtool | $(TESTS_DIR)
+test-sc2-assets: sc2fixturegen mpqtool sc2map | $(TESTS_DIR)
 	@echo "[test-sc2-assets] generating SC2 terrain fixtures"
 	@mkdir -p $(SC2_TEST_RES_DIR)/Maps/Test/Tiny.SC2Map
 	@$(BIN_DIR)/sc2fixturegen$(EXE_EXT) map-info $(SC2_TEST_RES_DIR)/Maps/Test/Tiny.SC2Map/MapInfo
@@ -311,6 +315,7 @@ test-sc2-assets: sc2fixturegen mpqtool | $(TESTS_DIR)
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(SC2_TEST_MPQ) ls Maps/Test/Tiny.SC2Map | grep -q "MapInfo" && echo "  ls map OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(SC2_TEST_MPQ) cat Maps/Test/Tiny.SC2Map/Objects | grep -q "UnitType=\"Marine\"" && echo "  cat objects OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(SC2_TEST_MPQ) info Maps/Test/Tiny.SC2Map/t3CellFlags | grep -q "size=80" && echo "  binary cell flags OK"
+	@$(BIN_DIR)/sc2map$(EXE_EXT) -mpq $(SC2_TEST_MPQ) Maps/Test/Tiny.SC2Map | grep -q "Objects: units=2 doodads=2 points=1 cameras=1 total=6" && echo "  sc2map diag OK"
 
 test-wow-assets: blpgen mpqtool | $(TESTS_DIR)
 	@echo "[test-wow-assets] generating WoW UI fixtures"

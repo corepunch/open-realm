@@ -40,6 +40,9 @@ typedef struct {
 typedef struct {
     char id[64];
     char actor[64];
+    char footprint[64];
+    char mover[64];
+    DWORD flags;
     BOOL has_radius;
     FLOAT radius;
 } sc2CatalogUnit_t;
@@ -47,7 +50,10 @@ typedef struct {
 typedef struct {
     char name[64];
     char model[256];
+    char footprint[64];
+    char mover[64];
     FLOAT radius;
+    DWORD unit_flags;
 } sc2ResolvedObjectModel_t;
 
 typedef struct {
@@ -80,6 +86,7 @@ typedef enum {
     SC2_XML_FIELD_STRING,
     SC2_XML_FIELD_VEC3,
     SC2_XML_FIELD_COLOR_ARGB,
+    SC2_XML_FIELD_COLOR_RGBA,
 } sc2XmlFieldType_t;
 
 typedef struct {
@@ -362,14 +369,19 @@ static xmlDocPtr sc2_read_map_catalog_xml(sc2MapSource_t *source, LPCSTR filenam
 }
 
 static BOOL sc2_xml_attr(xmlNodePtr node, LPCSTR attr_name, LPSTR buffer, DWORD size) {
-    xmlChar *text;
-
     if (!node || !attr_name || !buffer || !size) return false;
-    text = xmlGetProp(node, (xmlChar const *)attr_name);
-    if (!text) return false;
-    snprintf(buffer, size, "%s", (char const *)text);
-    xmlFree(text);
-    return buffer[0] != '\0';
+    for (xmlAttrPtr attr = node->properties; attr; attr = attr->next) {
+        xmlChar *text;
+
+        if (!sc2_streqi((char const *)attr->name, attr_name))
+            continue;
+        text = xmlNodeListGetString(node->doc, attr->children, 1);
+        if (!text) return false;
+        snprintf(buffer, size, "%s", (char const *)text);
+        xmlFree(text);
+        return buffer[0] != '\0';
+    }
+    return false;
 }
 
 static LPCSTR sc2_xml_content(xmlNodePtr node, char *buffer, DWORD size) {
@@ -438,6 +450,22 @@ static BOOL sc2_parse_argb_color(LPCSTR text, LPCOLOR32 color) {
     if (!text || !color)
         return false;
     if (sscanf(text, "%u,%u,%u,%u", &a, &r, &g, &b) == 4) {
+        *color = (COLOR32){ (BYTE)r, (BYTE)g, (BYTE)b, (BYTE)a };
+        return true;
+    }
+    if (sscanf(text, "%u,%u,%u", &r, &g, &b) == 3) {
+        *color = (COLOR32){ (BYTE)r, (BYTE)g, (BYTE)b, 255 };
+        return true;
+    }
+    return false;
+}
+
+static BOOL sc2_parse_rgba_color(LPCSTR text, LPCOLOR32 color) {
+    DWORD r, g, b, a;
+
+    if (!text || !color)
+        return false;
+    if (sscanf(text, "%u,%u,%u,%u", &r, &g, &b, &a) == 4) {
         *color = (COLOR32){ (BYTE)r, (BYTE)g, (BYTE)b, (BYTE)a };
         return true;
     }
@@ -784,6 +812,10 @@ static sc2XmlField_t const sc2_object_fields[] = {
     SC2_XML_FIELD("Variation", variation, SC2_XML_FIELD_DWORD),
     SC2_XML_FIELD("Player", player, SC2_XML_FIELD_DWORD),
     SC2_XML_FIELD("Owner", player, SC2_XML_FIELD_DWORD),
+    SC2_XML_FIELD("Section", section, SC2_XML_FIELD_DWORD),
+    SC2_XML_FIELD("Resources", resources, SC2_XML_FIELD_DWORD),
+    SC2_XML_FIELD("TintColor", tint_color, SC2_XML_FIELD_COLOR_RGBA),
+    SC2_XML_FIELD("Color", color, SC2_XML_FIELD_COLOR_RGBA),
 };
 
 static sc2XmlField_t const sc2_unit_fields[] = {
@@ -794,8 +826,20 @@ static sc2XmlField_t const sc2_doodad_fields[] = {
     SC2_XML_STRING_FIELD("Type", name),
 };
 
+static sc2XmlField_t const sc2_point_fields[] = {
+    SC2_XML_STRING_FIELD("Type", type_name),
+    SC2_XML_STRING_FIELD("AnimProps", anim_props),
+    SC2_XML_STRING_FIELD("Sound", sound),
+    SC2_XML_STRING_FIELD("AttachID", attach_id),
+    SC2_XML_FIELD("ObjectID", object_id, SC2_XML_FIELD_DWORD),
+    SC2_XML_STRING_FIELD("ObjectType", object_type),
+    SC2_XML_FIELD("PathingSoftRadius", pathing_soft_radius, SC2_XML_FIELD_FLOAT),
+    SC2_XML_FIELD("PathingHardRadius", pathing_hard_radius, SC2_XML_FIELD_FLOAT),
+};
+
 static sc2XmlField_t const sc2_camera_fields[] = {
     SC2_XML_FIELD("CameraTarget", camera.target, SC2_XML_FIELD_VEC3),
+    SC2_XML_FIELD("Target", camera.target, SC2_XML_FIELD_VEC3),
 };
 
 static sc2XmlField_t const sc2_camera_value_fields[] = {
@@ -836,6 +880,8 @@ static BOOL sc2_parse_xml_field(void *base, sc2XmlField_t const *fields, DWORD n
                 return sc2_parse_vec3(value, (LPVECTOR3)out);
             case SC2_XML_FIELD_COLOR_ARGB:
                 return sc2_parse_argb_color(value, (LPCOLOR32)out);
+            case SC2_XML_FIELD_COLOR_RGBA:
+                return sc2_parse_rgba_color(value, (LPCOLOR32)out);
         }
     }
     return false;
@@ -858,6 +904,9 @@ static void sc2_parse_object_fields(sc2MapObject_t *object, sc2ObjectType_t type
         case SC2_OBJECT_DOODAD:
             sc2_parse_object_field(object, sc2_doodad_fields, SC2_ARRAY_LEN(sc2_doodad_fields), key, value, has_position);
             break;
+        case SC2_OBJECT_POINT:
+            sc2_parse_object_field(object, sc2_point_fields, SC2_ARRAY_LEN(sc2_point_fields), key, value, has_position);
+            break;
         case SC2_OBJECT_CAMERA:
             sc2_parse_object_field(object, sc2_camera_fields, SC2_ARRAY_LEN(sc2_camera_fields), key, value, has_position);
             break;
@@ -867,9 +916,10 @@ static void sc2_parse_object_fields(sc2MapObject_t *object, sc2ObjectType_t type
 static BOOL sc2_object_type(xmlNodePtr node, sc2ObjectType_t *type) {
     LPCSTR name = (char const *)node->name;
 
-    if (sc2_contains_i(name, "ObjectUnit")) *type = SC2_OBJECT_UNIT;
-    else if (sc2_contains_i(name, "ObjectDoodad")) *type = SC2_OBJECT_DOODAD;
-    else if (sc2_contains_i(name, "ObjectCamera")) *type = SC2_OBJECT_CAMERA;
+    if (sc2_contains_i(name, "ObjectUnit") || sc2_streqi(name, "Unit")) *type = SC2_OBJECT_UNIT;
+    else if (sc2_contains_i(name, "ObjectDoodad") || sc2_streqi(name, "Doodad")) *type = SC2_OBJECT_DOODAD;
+    else if (sc2_contains_i(name, "ObjectPoint") || sc2_streqi(name, "Point")) *type = SC2_OBJECT_POINT;
+    else if (sc2_contains_i(name, "ObjectCamera") || sc2_streqi(name, "Camera")) *type = SC2_OBJECT_CAMERA;
     else return false;
     return true;
 }
@@ -991,14 +1041,37 @@ static void sc2_catalog_add_actor(sc2Catalog_t *catalog, LPCSTR id, LPCSTR model
     snprintf(actor->model, sizeof(actor->model), "%s", model_id);
 }
 
-static void sc2_catalog_add_unit(sc2Catalog_t *catalog, LPCSTR id, LPCSTR actor_id, FLOAT radius, BOOL has_radius) {
+static DWORD sc2_unit_flag(LPCSTR name) {
+    if (!name || !*name) return 0;
+    if (sc2_streqi(name, "Movable")) return SC2_UNIT_FLAG_MOVABLE;
+    if (sc2_streqi(name, "Worker")) return SC2_UNIT_FLAG_WORKER;
+    if (sc2_streqi(name, "Resource")) return SC2_UNIT_FLAG_RESOURCE;
+    if (sc2_streqi(name, "Structure")) return SC2_UNIT_FLAG_STRUCTURE;
+    return 0;
+}
+
+static void sc2_catalog_add_unit(sc2Catalog_t *catalog,
+                                 LPCSTR id,
+                                 LPCSTR actor_id,
+                                 LPCSTR footprint,
+                                 LPCSTR mover,
+                                 DWORD flags,
+                                 FLOAT radius,
+                                 BOOL has_radius) {
     sc2CatalogUnit_t *unit;
 
-    if (!catalog || !id || !*id || ((!actor_id || !*actor_id) && !has_radius)) return;
+    if (!catalog || !id || !*id ||
+        ((!actor_id || !*actor_id) && (!footprint || !*footprint) && (!mover || !*mover) && !flags && !has_radius))
+        return;
     FOR_LOOP(i, catalog->units_count) {
         if (!strcasecmp(catalog->units[i].id, id)) {
             if (actor_id && *actor_id)
                 snprintf(catalog->units[i].actor, sizeof(catalog->units[i].actor), "%s", actor_id);
+            if (footprint && *footprint)
+                snprintf(catalog->units[i].footprint, sizeof(catalog->units[i].footprint), "%s", footprint);
+            if (mover && *mover)
+                snprintf(catalog->units[i].mover, sizeof(catalog->units[i].mover), "%s", mover);
+            catalog->units[i].flags |= flags;
             if (has_radius) {
                 catalog->units[i].has_radius = true;
                 catalog->units[i].radius = radius;
@@ -1010,6 +1083,9 @@ static void sc2_catalog_add_unit(sc2Catalog_t *catalog, LPCSTR id, LPCSTR actor_
     unit = &catalog->units[catalog->units_count++];
     snprintf(unit->id, sizeof(unit->id), "%s", id);
     snprintf(unit->actor, sizeof(unit->actor), "%s", actor_id ? actor_id : "");
+    snprintf(unit->footprint, sizeof(unit->footprint), "%s", footprint ? footprint : "");
+    snprintf(unit->mover, sizeof(unit->mover), "%s", mover ? mover : "");
+    unit->flags = flags;
     unit->has_radius = has_radius;
     unit->radius = has_radius ? radius : 0.0f;
 }
@@ -1308,6 +1384,9 @@ static void sc2_parse_unit_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
     for (xmlNodePtr node = root ? root->children : NULL; node; node = node->next) {
         char id[64];
         char actor_id[64] = "";
+        char footprint[64] = "";
+        char mover[64] = "";
+        DWORD flags = 0;
         FLOAT radius = 0.0f;
         BOOL has_radius = false;
 
@@ -1321,13 +1400,26 @@ static void sc2_parse_unit_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
                 continue;
             if (sc2_streqi((char const *)child->name, "Actor")) {
                 sc2_xml_attr(child, "value", actor_id, sizeof(actor_id));
+            } else if (sc2_streqi((char const *)child->name, "Footprint")) {
+                sc2_xml_attr(child, "value", footprint, sizeof(footprint));
+            } else if (sc2_streqi((char const *)child->name, "Mover")) {
+                sc2_xml_attr(child, "value", mover, sizeof(mover));
+            } else if (sc2_contains_i((char const *)child->name, "Flag")) {
+                char index[64];
+                if ((sc2_xml_attr(child, "index", index, sizeof(index)) ||
+                     sc2_xml_attr(child, "Index", index, sizeof(index))) &&
+                    (sc2_xml_attr(child, "value", value, sizeof(value)) ||
+                     sc2_xml_attr(child, "Value", value, sizeof(value))) &&
+                    atoi(value)) {
+                    flags |= sc2_unit_flag(index);
+                }
             } else if (sc2_streqi((char const *)child->name, "Radius") &&
                        sc2_xml_attr(child, "value", value, sizeof(value)) &&
                        sscanf(value, "%f", &radius) == 1 && radius > 0.0f) {
                 has_radius = true;
             }
         }
-        sc2_catalog_add_unit(catalog, id, actor_id, radius, has_radius);
+        sc2_catalog_add_unit(catalog, id, actor_id, footprint, mover, flags, radius, has_radius);
     }
 }
 
@@ -1557,15 +1649,23 @@ static void sc2_resolve_object_models(sc2Catalog_t const *catalog) {
         FOR_LOOP(j, resolved_count) {
             if (!strcasecmp(resolved[j].name, object->name)) {
                 snprintf(object->model, sizeof(object->model), "%s", resolved[j].model);
+                snprintf(object->footprint, sizeof(object->footprint), "%s", resolved[j].footprint);
+                snprintf(object->mover, sizeof(object->mover), "%s", resolved[j].mover);
                 object->radius = resolved[j].radius;
+                object->unit_flags = resolved[j].unit_flags;
                 goto next_object;
             }
         }
         model_id = NULL;
         if (object->type == SC2_OBJECT_UNIT) {
             sc2CatalogUnit_t const *unit = sc2_catalog_unit(catalog, object->name);
-            if (unit && unit->has_radius) object->radius = unit->radius;
-            if (unit && unit->actor[0]) model_id = sc2_catalog_actor_model(catalog, unit->actor);
+            if (unit) {
+                if (unit->has_radius) object->radius = unit->radius;
+                if (unit->footprint[0]) snprintf(object->footprint, sizeof(object->footprint), "%s", unit->footprint);
+                if (unit->mover[0]) snprintf(object->mover, sizeof(object->mover), "%s", unit->mover);
+                object->unit_flags |= unit->flags;
+                if (unit->actor[0]) model_id = sc2_catalog_actor_model(catalog, unit->actor);
+            }
         }
         if (!model_id) model_id = sc2_catalog_actor_model(catalog, object->name);
         if (!model_id) model_id = object->name;
@@ -1578,12 +1678,31 @@ static void sc2_resolve_object_models(sc2Catalog_t const *catalog) {
         if (resolved_count < SC2_MAX_MAP_OBJECTS) {
             snprintf(resolved[resolved_count].name, sizeof(resolved[resolved_count].name), "%s", object->name);
             snprintf(resolved[resolved_count].model, sizeof(resolved[resolved_count].model), "%s", object->model);
+            snprintf(resolved[resolved_count].footprint, sizeof(resolved[resolved_count].footprint), "%s", object->footprint);
+            snprintf(resolved[resolved_count].mover, sizeof(resolved[resolved_count].mover), "%s", object->mover);
             resolved[resolved_count].radius = object->radius;
+            resolved[resolved_count].unit_flags = object->unit_flags;
             resolved_count++;
         }
 next_object:
         ;
     }
+}
+
+static DWORD sc2_count_unresolved_models(void) {
+    DWORD count = 0;
+
+    FOR_LOOP(i, sc2_map.num_objects) {
+        sc2MapObject_t const *object = &sc2_map.objects[i];
+
+        if ((object->type == SC2_OBJECT_UNIT ||
+             object->type == SC2_OBJECT_DOODAD ||
+             object->type == SC2_OBJECT_POINT) &&
+            object->name[0] && !object->model[0]) {
+            count++;
+        }
+    }
+    return count;
 }
 
 static void sc2_resolve_catalogs(sc2MapSource_t *source) {
@@ -1595,6 +1714,10 @@ static void sc2_resolve_catalogs(sc2MapSource_t *source) {
     sc2_resolve_terrain_textures(catalog);
     sc2_resolve_cliff_sets(catalog);
     sc2_resolve_object_models(catalog);
+    sc2_map.catalog.units = catalog->units_count;
+    sc2_map.catalog.actors = catalog->actors_count;
+    sc2_map.catalog.models = catalog->models_count;
+    sc2_map.catalog.unresolved_models = sc2_count_unresolved_models();
     sc2_free(catalog);
 }
 
@@ -1602,6 +1725,130 @@ static BOOL sc2_mapinfo_fourcc(sc2MapInfo_t const *mapInfo) {
     return mapInfo &&
         (mapInfo->fourcc == MAKEFOURCC('I','p','a','M') ||
          mapInfo->fourcc == MAKEFOURCC('M','a','p','I'));
+}
+
+static LPCSTR sc2_object_type_name(sc2ObjectType_t type) {
+    switch (type) {
+        case SC2_OBJECT_UNIT: return "unit";
+        case SC2_OBJECT_DOODAD: return "doodad";
+        case SC2_OBJECT_POINT: return "point";
+        case SC2_OBJECT_CAMERA: return "camera";
+    }
+    return "unknown";
+}
+
+static void sc2_dump_cell_flags(FILE *out, sc2MapCellFlags_t const *layer) {
+    DWORD counts[4] = { 0 };
+
+    if (!out || !layer) return;
+    FOR_LOOP(i, layer->width * layer->height) {
+        if (layer->data[i] < SC2_ARRAY_LEN(counts))
+            counts[layer->data[i]]++;
+    }
+    fprintf(out,
+            "t3CellFlags: version=%u size=%ux%u counts[00]=%u counts[01]=%u counts[02]=%u counts[03]=%u\n",
+            (unsigned)layer->version,
+            (unsigned)layer->width,
+            (unsigned)layer->height,
+            (unsigned)counts[0],
+            (unsigned)counts[1],
+            (unsigned)counts[2],
+            (unsigned)counts[3]);
+}
+
+static void sc2_dump_height_map(FILE *out, sc2MapHeightMap_t const *layer) {
+    FLOAT min_height = 0.0f;
+    FLOAT max_height = 0.0f;
+    BOOL have_height = false;
+
+    if (!out || !layer) return;
+    FOR_LOOP(y, layer->height) {
+        FOR_LOOP(x, layer->width) {
+            FLOAT height = sc2_map_height_at_grid(&sc2_map, x, y);
+
+            if (!have_height || height < min_height) min_height = height;
+            if (!have_height || height > max_height) max_height = height;
+            have_height = true;
+        }
+    }
+    fprintf(out,
+            "t3HeightMap: version=%u size=%ux%u min=%.3f max=%.3f\n",
+            (unsigned)layer->version,
+            (unsigned)layer->width,
+            (unsigned)layer->height,
+            min_height,
+            max_height);
+}
+
+void SC2_MapDump(FILE *out, LPCSTR filename) {
+    DWORD object_counts[4] = { 0 };
+
+    if (!out) out = stdout;
+    FOR_LOOP(i, sc2_map.num_objects) {
+        if ((DWORD)sc2_map.objects[i].type < SC2_ARRAY_LEN(object_counts))
+            object_counts[sc2_map.objects[i].type]++;
+    }
+    fprintf(out, "sc2map: file=%s\n", filename && *filename ? filename : "(current)");
+    fprintf(out,
+            "MapInfo: version=%u size=%ux%u name=\"%s\"\n",
+            (unsigned)sc2_map.MapInfo.version,
+            (unsigned)sc2_map.MapInfo.width,
+            (unsigned)sc2_map.MapInfo.height,
+            sc2_map.map_name);
+    if (sc2_map.t3CellFlags)
+        sc2_dump_cell_flags(out, sc2_map.t3CellFlags);
+    if (sc2_map.t3HeightMap)
+        sc2_dump_height_map(out, sc2_map.t3HeightMap);
+    if (sc2_map.t3SyncHeightMap) {
+        fprintf(out,
+                "t3SyncHeightMap: version=%u size=%ux%u\n",
+                (unsigned)sc2_map.t3SyncHeightMap->version,
+                (unsigned)sc2_map.t3SyncHeightMap->width,
+                (unsigned)sc2_map.t3SyncHeightMap->height);
+    }
+    if (sc2_map.t3SyncCliffLevel) {
+        fprintf(out,
+                "t3SyncCliffLevel: version=%u size=%ux%u\n",
+                (unsigned)sc2_map.t3SyncCliffLevel->version,
+                (unsigned)sc2_map.t3SyncCliffLevel->width,
+                (unsigned)sc2_map.t3SyncCliffLevel->height);
+    }
+    if (sc2_map.t3TextureMasks) {
+        fprintf(out,
+                "t3TextureMasks: version=%u size=%ux%u bytes=%u\n",
+                (unsigned)sc2_map.t3TextureMasks->version,
+                (unsigned)sc2_map.t3TextureMasks->width,
+                (unsigned)sc2_map.t3TextureMasks->height,
+                (unsigned)sc2_map.t3TextureMasksSize);
+    }
+    fprintf(out,
+            "Objects: units=%u doodads=%u points=%u cameras=%u total=%u\n",
+            (unsigned)object_counts[SC2_OBJECT_UNIT],
+            (unsigned)object_counts[SC2_OBJECT_DOODAD],
+            (unsigned)object_counts[SC2_OBJECT_POINT],
+            (unsigned)object_counts[SC2_OBJECT_CAMERA],
+            (unsigned)sc2_map.num_objects);
+    fprintf(out,
+            "Catalog: units=%u actors=%u models=%u unresolvedModels=%u\n",
+            (unsigned)sc2_map.catalog.units,
+            (unsigned)sc2_map.catalog.actors,
+            (unsigned)sc2_map.catalog.models,
+            (unsigned)sc2_map.catalog.unresolved_models);
+    FOR_LOOP(i, sc2_map.num_objects) {
+        sc2MapObject_t const *object = &sc2_map.objects[i];
+
+        fprintf(out,
+                "Object[%u]: type=%s id=%u name=%s model=%s pos=%.3f,%.3f,%.3f radius=%.3f\n",
+                (unsigned)i,
+                sc2_object_type_name(object->type),
+                (unsigned)object->id,
+                object->name,
+                object->model,
+                object->position.x,
+                object->position.y,
+                object->position.z,
+                object->radius);
+    }
 }
 
 static LPBYTE sc2_read_binary_layer(sc2MapSource_t *source,

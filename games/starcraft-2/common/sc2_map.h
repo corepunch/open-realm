@@ -2,6 +2,7 @@
 #define SC2_MAP_H
 
 #include "common/common.h"
+#include <stdio.h>
 
 #define SC2_MAX_MAP_OBJECTS 1024
 #define SC2_CELL_SIZE          1.0f
@@ -12,6 +13,10 @@
 #define SC2_OBJECT_HEIGHT_ABSOLUTE 0x00000001
 #define SC2_OBJECT_HEIGHT_OFFSET   0x00000002
 #define SC2_OBJECT_FORCE_PLACEMENT 0x00000004
+#define SC2_UNIT_FLAG_MOVABLE      0x00000001
+#define SC2_UNIT_FLAG_WORKER       0x00000002
+#define SC2_UNIT_FLAG_RESOURCE     0x00000004
+#define SC2_UNIT_FLAG_STRUCTURE    0x00000008
 #define SC2_LIGHT_KEY              0
 #define SC2_LIGHT_FILL             1
 #define SC2_LIGHT_BACK             2
@@ -20,6 +25,7 @@
 typedef enum {
     SC2_OBJECT_UNIT,
     SC2_OBJECT_DOODAD,
+    SC2_OBJECT_POINT,
     SC2_OBJECT_CAMERA,
 } sc2ObjectType_t;
 
@@ -39,13 +45,28 @@ typedef struct {
     DWORD           id;
     char            name[64];
     char            model[256];
+    char            footprint[64];
+    char            mover[64];
+    char            type_name[64];
+    char            anim_props[64];
+    char            sound[256];
+    char            attach_id[64];
+    char            object_type[64];
     VECTOR3         position;
     FLOAT           angle;
     FLOAT           scale;
     FLOAT           radius;
+    FLOAT           pathing_soft_radius;
+    FLOAT           pathing_hard_radius;
     DWORD           variation;
     DWORD           player;
+    DWORD           section;
+    DWORD           resources;
+    DWORD           object_id;
     DWORD           flags;
+    DWORD           unit_flags;
+    COLOR32         color;
+    COLOR32         tint_color;
     sc2MapCamera_t  camera;
 } sc2MapObject_t;
 
@@ -167,6 +188,13 @@ typedef struct {
 } sc2MapInfo_t;
 
 typedef struct {
+    DWORD          units;
+    DWORD          actors;
+    DWORD          models;
+    DWORD          unresolved_models;
+} sc2CatalogStats_t;
+
+typedef struct {
     char           map_name[128];
     VECTOR2        origin;
     FLOAT          cell_size;
@@ -181,6 +209,7 @@ typedef struct {
     sc2MapHeightMap_t *t3HeightMap;
     sc2MapSyncHeightMap_t *t3SyncHeightMap;
     sc2MapLighting_t lighting;
+    sc2CatalogStats_t catalog;
 } sc2Map_t;
 
 typedef struct {
@@ -299,5 +328,6 @@ VECTOR2       SC2_MapNormalizedPosition(FLOAT x, FLOAT y);
 VECTOR2       SC2_MapDenormalizedPosition(FLOAT x, FLOAT y);
 DWORD         SC2_MapObjectClassId(sc2MapObject_t const *object);
 BOOL          SC2_MapDefaultCamera(sc2MapCamera_t *camera);
+void          SC2_MapDump(FILE *out, LPCSTR filename);
 
 #endif
