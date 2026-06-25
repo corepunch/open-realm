@@ -17,6 +17,7 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 - `docs/wc3-data-model.md` — SLK/metadata field codes, base-vs-computed column traps, combat damage model, hero stat system, pathfinding rules, JASS event semantics, MiscGame.txt constants. Read when touching unit stats, combat, abilities, heroes, pathfinding, or any code that reads from the metadata tables.
 
 
+
 ## Network State Contracts
 
 - Do not casually add fields to `entityState_t`. It is a network snapshot/delta contract, so every new field increases protocol surface, bandwidth, baseline/delta behavior, save/load assumptions, and renderer/client coupling. Adding a field must be extremely well justified and should only happen after considering narrower alternatives such as existing state fields, configstrings, typed UI payloads, game-side state, or explicit commands.
