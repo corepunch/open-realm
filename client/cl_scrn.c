@@ -55,13 +55,13 @@ void SCR_UpdateScreen(DWORD msec) {
     case ca_disconnected:
     case ca_connecting:
     case ca_connected:
-        ui.DrawFrame();
+        ui.Refresh(cl.time);
         break;
     case ca_loading:
         ui.DrawLoadingScreen(cl.loading_map, cl.loading_status, cl.loading_progress);
         break;
     case ca_active:
-        ui.DrawFrame();
+        ui.Refresh(cl.time);
         SCR_DrawLayout();
         break;
     }

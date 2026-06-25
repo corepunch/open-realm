@@ -345,8 +345,7 @@ typedef void *LPEDICT;
 /* ui_main.c */
 void UI_InitLocal(void);
 void UI_ShutdownLocal(void);
-void UI_RefreshLocal(DWORD msec);
-void UI_DrawFrameLocal(void);
+void UI_RefreshLocal(DWORD time);
 void UI_LayoutTextInput(LPCSTR text);
 BOOL UI_LayoutEditKey(int key);
 

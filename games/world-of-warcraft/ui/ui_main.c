@@ -225,10 +225,36 @@ static void UIWow_Shutdown(void) {
     memset(&wow_ui, 0, sizeof(wow_ui));
 }
 
-static void UIWow_Refresh(DWORD msec) {
-    wow_ui.time += msec;
+static void UIWow_Refresh(DWORD time) {
+    wow_ui.time = time;
     if (!wow_ui.game_mode)
-        UIWow_CallLuaUpdate(msec);
+        UIWow_CallLuaUpdate(time);
+
+    LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
+
+    UIWow_EnsureRenderer();
+
+    if (wow_ui.current_menu[0]) {
+        UIWow_XMLDraw();
+        UIWow_CallLuaDraw();
+        return;
+    }
+    if (ps && ps->client_ui_state == CLIENT_UI_LOADING) {
+        UIWow_UpdateMapBackground(ps);
+        lua_getglobal(wow_ui.lua, "ow3_draw_loading_screen");
+        if (lua_isfunction(wow_ui.lua, -1)) {
+            UIWow_LuaPCall(0);
+        } else {
+            lua_pop(wow_ui.lua, 1);
+            UIWow_WarnOnce(WOW_UI_WARN_NO_LOADING_DRAW,
+                           "UIWow: missing Lua function 'ow3_draw_loading_screen'\n");
+        }
+        return;
+    }
+    if (ps && ps->client_ui_state == CLIENT_UI_GAME && !wow_ui.game_mode) {
+        UIWow_XMLDraw();
+        UIWow_CallLuaDraw();
+    }
 }
 
 static void UIWow_ReleaseScreenAssets(void) {
@@ -297,34 +323,6 @@ static void UIWow_LuaMouseMove(int x, int y) {
         lua_pop(wow_ui.lua, 1);
         UIWow_WarnOnce(WOW_UI_WARN_NO_MOUSEMOVE_HANDLER,
                        "UIWow: missing Lua function 'ow3_handle_mouse_move'\n");
-    }
-}
-
-static void UIWow_DrawFrame(void) {
-    LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
-
-    UIWow_EnsureRenderer();
-
-    if (wow_ui.current_menu[0]) {
-        UIWow_XMLDraw();
-        UIWow_CallLuaDraw();
-        return;
-    }
-    if (ps && ps->client_ui_state == CLIENT_UI_LOADING) {
-        UIWow_UpdateMapBackground(ps);
-        lua_getglobal(wow_ui.lua, "ow3_draw_loading_screen");
-        if (lua_isfunction(wow_ui.lua, -1)) {
-            UIWow_LuaPCall(0);
-        } else {
-            lua_pop(wow_ui.lua, 1);
-            UIWow_WarnOnce(WOW_UI_WARN_NO_LOADING_DRAW,
-                           "UIWow: missing Lua function 'ow3_draw_loading_screen'\n");
-        }
-        return;
-    }
-    if (ps && ps->client_ui_state == CLIENT_UI_GAME && !wow_ui.game_mode) {
-        UIWow_XMLDraw();
-        UIWow_CallLuaDraw();
     }
 }
 
@@ -552,7 +550,6 @@ uiExport_t UI_GetAPI(uiImport_t import) {
         .Init             = UIWow_Init,
         .Shutdown         = UIWow_Shutdown,
         .Refresh          = UIWow_Refresh,
-        .DrawFrame        = UIWow_DrawFrame,
         .KeyEvent         = UIWow_KeyEvent,
         .TextInput        = UIWow_TextInput,
         .MouseEvent       = UIWow_MouseEvent,

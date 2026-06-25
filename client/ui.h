@@ -153,9 +153,6 @@ typedef struct {
     /* Renderer access for frame drawing */
     LPRENDERER (*GetRenderer)(void);
     
-    /* Time (milliseconds since init) */
-    DWORD (*GetTime)(void);
-    
     /* Output */
     void (*Error)(LPCSTR fmt, ...);
     void (*Printf)(LPCSTR fmt, ...);
@@ -171,9 +168,8 @@ typedef struct {
     void (*Init)(void);
     void (*Shutdown)(void);
     
-    /* Main loop integration */
-    void (*Refresh)(DWORD msec);
-    void (*DrawFrame)(void);
+    /* Main loop integration — called at draw time with current client time */
+    void (*Refresh)(DWORD time);
     
     /* Input event handling */
     void (*KeyEvent)(int key, BOOL down, DWORD time);

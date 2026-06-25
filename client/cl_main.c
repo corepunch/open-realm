@@ -101,7 +101,6 @@ static void CL_LANConnectServer(DWORD index);
 static LPCMODEL CL_UIGetModel(DWORD idx);
 static LPCMODEL CL_UIGetPortrait(DWORD idx);
 static LPRENDERER CL_UIGetRenderer(void);
-static DWORD CL_UIGetClientTime(void);
 
 static void CL_MenuCommand(LPCSTR command) {
     if (!command || !*command) {
@@ -310,10 +309,6 @@ static LPCMODEL CL_UIGetPortrait(DWORD idx) {
 /* Renderer access callback for UI rendering */
 static LPRENDERER CL_UIGetRenderer(void) {
     return &re;
-}
-
-static DWORD CL_UIGetClientTime(void) {
-    return cl.time;
 }
 
 /* Request unit UI data (command card, inventory, build queue) */
@@ -611,10 +606,8 @@ void CL_Init(void) {
         .GetTexture = CL_GetTextureByIndex,
         .GetTextures = CL_UIGetTextures,
         .GetFont = CL_UIGetFont,
-        .GetClientTime = CL_UIGetClientTime,
         .RequestUnitUI = CL_UIRequestUnitUI,
         .GetRenderer = CL_UIGetRenderer,
-        .GetTime = CL_UIGetClientTime,
         .Error = CON_printf,
         .Printf = CON_printf,
         .PlaySound = S_PlaySound,
@@ -796,9 +789,6 @@ void CL_SendCommand(void) {
 void CL_Frame(DWORD msec) {
     cl_realtime += msec;
     cl.time += msec;
-
-    /* Update UI library */
-    ui.Refresh(msec);
 
     CL_Input();
     CL_ReadPackets();

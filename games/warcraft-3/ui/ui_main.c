@@ -569,26 +569,20 @@ void UI_ShutdownLocal(void) {
     memset(&ui_state, 0, sizeof(ui_state));
 }
 
-void UI_RefreshLocal(DWORD msec) {
+void UI_RefreshLocal(DWORD time) {
     if (!ui_state.active) {
         return;
     }
     
-    ui_state.time += msec;
+    ui_state.time = time;
     
     /* Call current screen refresh */
     uiScreen_t *screen = UI_GetCurrentScreen();
     if (screen && screen->refresh) {
-        screen->refresh((int)msec);
-    }
-}
-
-void UI_DrawFrameLocal(void) {
-    if (!ui_state.active) {
-        return;
+        screen->refresh((int)time);
     }
     
-    /* Call current screen draw */
+    /* Draw current screen */
     if (ui_state.game_mode) {
         LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
 
@@ -596,7 +590,6 @@ void UI_DrawFrameLocal(void) {
             UI_DrawCinematicPanel(ps);
         }
     } else {
-        uiScreen_t *screen = UI_GetCurrentScreen();
         if (screen && screen->draw) {
             screen->draw();
         }
@@ -872,7 +865,6 @@ uiExport_t UI_GetAPI(uiImport_t import) {
     exp.Init = UI_InitLocal;
     exp.Shutdown = UI_ShutdownLocal;
     exp.Refresh = UI_RefreshLocal;
-    exp.DrawFrame = UI_DrawFrameLocal;
     exp.KeyEvent = UI_KeyEventLocal;
     exp.TextInput = UI_TextInputLocal;
     exp.MouseEvent = UI_MouseEventLocal;
