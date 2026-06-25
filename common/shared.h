@@ -130,8 +130,7 @@ enum {
     FLAG(RF_NO_LIGHTING, 8),
     FLAG(RF_GROUND_ANCHOR, 9),
     FLAG(RF_FOW_BLOCKER, 10),
-    FLAG(RF_PORTRAIT_LIGHTING, 11),
-    FLAG(RF_FOW_REVEALER, 12),
+    FLAG(RF_FOW_REVEALER, 11),
 };
 
 enum {
@@ -148,6 +147,7 @@ enum {
     FLAG(RDF_NOPARTICLES, 4),
     FLAG(RDF_USE_ENTITY_CAMERA, 5),
     FLAG(RDF_SHOW_ALL_HEALTHBARS, 6), /* ALT held: overhead bars on every unit */
+    FLAG(RDF_PORTRAIT_LIGHTING, 7),   /* portrait ambient/fill constants instead of world defaults */
 };
 
 #define MAX_COMMANDS 12

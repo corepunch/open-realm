@@ -517,7 +517,7 @@ void UI_LayoutDrawPortrait(LPCUIFRAME frame, LPCRECT screen) {
     renderEntity_t entity = {0};
     entity.model = draw_model;
     entity.scale = 1.0f;
-    entity.flags = RF_NO_SHADOW | RF_NO_FOGOFWAR | RF_PORTRAIT_LIGHTING;
+    entity.flags = RF_NO_SHADOW | RF_NO_FOGOFWAR;
     re.SetEntityAnimFrame(draw_model, "Stand", &entity);
 
     viewDef_t viewdef = {0};

@@ -343,6 +343,7 @@ bool R_GameExtractEntityCamera(renderEntity_t const *entity, float aspect, viewD
 
     VECTOR3 lightAngles = { 10, 270, 0 };
     Matrix4_getLightMatrix(&lightAngles, &target, PORTRAIT_SHADOW_SIZE, &viewdef->lightMatrix);
+    viewdef->rdflags |= RDF_PORTRAIT_LIGHTING;
     return true;
 }
 

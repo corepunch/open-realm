@@ -74,7 +74,10 @@ void UI_DrawGlueSceneLayers(LPCSTR left_panel_anim, LPCSTR right_panel_anim) {
             renderer->SetEntityAnimFrame(ui_glue_scene.background, "Stand", &entity);
         viewDef_t viewdef = {0};
         viewdef.viewport = viewport;
-        viewdef.rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL | RDF_NOFOG | RDF_USE_ENTITY_CAMERA;
+        viewdef.rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL | RDF_USE_ENTITY_CAMERA;
+        viewdef.fogEnable = true;
+        viewdef.fogColor = (VECTOR3){ 0.74f, 0.80f, 0.88f };
+        viewdef.fogStart = 1400.0f; viewdef.fogEnd = 6500.0f;
         viewdef.num_entities = 1;
         viewdef.entities = &entity;
         renderer->RenderFrame(&viewdef);

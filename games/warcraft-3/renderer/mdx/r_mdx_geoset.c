@@ -811,7 +811,7 @@ void MDX_RenderModel(renderEntity_t const *entity,
                tr.viewDef.fogColor.x, tr.viewDef.fogColor.y, tr.viewDef.fogColor.z);
         R_Call(glUniform2f, shader->uFogParams, tr.viewDef.fogStart, tr.viewDef.fogEnd);
     }
-    if (entity->flags & RF_PORTRAIT_LIGHTING) {
+    if (tr.viewDef.rdflags & RDF_PORTRAIT_LIGHTING) {
         R_Call(glUniform2f, shader->uMdxFallbackLighting, 0.58f, 0.62f);
         R_Call(glUniform1f, shader->uMdxLightFill, 0.22f);
     } else {

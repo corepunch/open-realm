@@ -405,6 +405,7 @@ bool R_GameExtractEntityCamera(renderEntity_t const *entity, float aspect, viewD
     Matrix4_multiply(&proj_matrix, &view_matrix, &viewdef->viewProjectionMatrix);
     Matrix4_identity(&viewdef->textureMatrix);
     R_GameEntityCameraLightMatrix(&target, radius, &viewdef->lightMatrix);
+    viewdef->rdflags |= RDF_PORTRAIT_LIGHTING;
     return true;
 }
 

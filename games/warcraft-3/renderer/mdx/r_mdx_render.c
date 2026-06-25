@@ -393,7 +393,8 @@ void MDLX_DrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim) {
         return;
     }
 
-    entity.flags |= RF_NO_FOGOFWAR | RF_NO_SHADOW | RF_PORTRAIT_LIGHTING;
+    entity.flags |= RF_NO_FOGOFWAR | RF_NO_SHADOW;
+    viewdef.rdflags |= RDF_PORTRAIT_LIGHTING;
     viewdef.viewport = *viewport;
 
     /* The full-screen glue scene (main-menu background) uses the original's
