@@ -79,7 +79,7 @@ A single-commit port is cleaner and what the user requested.
 - Remove `CL_MenuCommand` wrapper — replace with direct `Cbuf_AddText` calls
 - Simplify `uiImport_t`: remove `ReadMapInfo`, `FindMapPreviewTexture`, `FreeMapInfo`, `DefaultMapName`, `ResolveMapInfoString`, `MapNameMatchesFile`, `MapTilesetName`, `MapSizeName`, `SanitizeMapListField`, `SanitizeMapInfoText`, `ModelIndex`, `GetClientTime`, `GetMouseFdf`, `GetMouseButton`, `GetMouseEvent`, `LayoutClear`, `LayoutNumFrames`, `LayoutFrame`, `LayoutRect`, `LayoutStringValue`, `LayoutDrawText`, `RequestUnitUI`, `Error`
 - **Add** to `uiImport_t`: `FS_WriteFile`, `GetTime`, `PlaySound`, `PlaySoundByName`
-- Wire in `CL_Init()`: `ui.DrawOverlays = UI_LayoutDrawOverlays`, `ui.LayoutMouseEvent = UI_LayoutMouseEvent`, `ui.SetLayoutLayer = UI_LayoutSetLayer`, `ui.ClearLayoutLayer = UI_LayoutClearLayer`, `ui.HitTestLayout = UI_LayoutHitTest`
+- Wire in `CL_Init()`: `ui.DrawOverlays = SCR_DrawLayout`, `ui.LayoutMouseEvent = SCR_LayoutMouseEvent`, `ui.SetLayoutLayer = SCR_SetLayoutLayer`, `ui.ClearLayoutLayer = SCR_ClearLayoutLayer`, `ui.HitTestLayout = SCR_LayoutHitTest`
 - At end of `CL_Init()`: `CL_SetMenuBindings()`, `cls.state = ca_disconnected`, `CL_MenuCommand("menu_login")`
 - Add `CL_UI_WriteFile` helper (simple `fopen`/`fwrite`/`fclose`)
 - Remove `#include "ui_layout.h"` (it's now a separate header)

@@ -1,4 +1,5 @@
 #include "client.h"
+#include "ui_layout.h"
 #include <stdlib.h>  /* getenv (BZ_FPS_LOG diagnostic) */
 
 #define SCR_FPS_HEIGHT 8
@@ -54,14 +55,14 @@ void SCR_UpdateScreen(DWORD msec) {
     case ca_disconnected:
     case ca_connecting:
     case ca_connected:
-        ui.DrawFrame();
+        ui.Refresh(cl.time);
         break;
     case ca_loading:
         ui.DrawLoadingScreen(cl.loading_map, cl.loading_status, cl.loading_progress);
         break;
     case ca_active:
-        ui.DrawFrame();
-        ui.DrawOverlays();
+        ui.Refresh(cl.time);
+        SCR_DrawLayout();
         break;
     }
 

@@ -3,6 +3,8 @@
 #ifndef _WIN32
 #include <strings.h>
 #endif
+#include <ctype.h>
+#include <stdlib.h>
 
 struct world_state world = { 0 };
 static PATHSTR cm_loaded_map = { 0 };

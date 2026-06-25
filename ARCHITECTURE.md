@@ -18,6 +18,20 @@
 - The renderer library is a compound module: engine renderer sources in `renderer/` are compiled together with the selected game's `games/<game>/renderer/` sources. Engine renderer code calls the `R_Game*` API declared in `renderer/r_game.h`; it must not switch on MDX/M2/M3 model formats or include game renderer internals directly.
 - Prefer generic fallbacks in engine code (caller-provided names, first available sequence, data-driven metadata) rather than title-specific heuristics.
 
+## Mouse Input Architecture
+
+- Mouse state is owned by the client: the `mouse` global (`mouseEvent_t` in `client/cl_input.c`) is the single source of truth for position, button, event, and wheel state.
+- The UI library receives mouse events via `ui.MouseEvent(...)` — a push-based model called during `SDL_PollEvent` in `CL_Input()`. The UI processes menu events immediately (hit test + action).
+- Server-authored gameplay UI receives the same pushed input through the client-owned layout path (`SCR_LayoutMouseEvent` in `client/cl_unit_layout.c`). Do not add `uiImport_t` mouse polling callbacks such as `GetMouseFdf` or `GetMouseButton`.
+- Game-mode-specific mouse behavior (camera pan, selection, zoom) lives in per-game `cl_input_<game>.c` files via the `CL_InputMode*` functions.
+- Never create a separate mouse state struct in game UI code. Never poll mouse event state during draw — process events in the event handler instead.
+
+## UI Module Boundary
+
+- `ui.dll` owns loading screens and menu/glue UI for the selected game.
+- In-game HUD/ConsoleUI layers are server-authored `svc_layout` payloads decoded and drawn by the generic client path in `client/cl_layout.c` and `client/cl_unit_layout.c`.
+- Warcraft III map list/setup/loading helpers call the common `CM_*` map-info functions directly from `ui.dll`; do not route them through `uiImport_t`.
+
 ## Network State Contracts
 
 - Do not casually add fields to `entityState_t`. It is a network snapshot/delta contract — every new field increases protocol surface, bandwidth, baseline/delta behavior, save/load assumptions, and renderer/client coupling. Adding a field must be extremely well justified and should only happen after considering narrower alternatives: existing state fields, configstrings, typed UI payloads, game-side state, or explicit commands.
