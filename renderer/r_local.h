@@ -218,6 +218,7 @@ void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y);
 bool R_SetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity);
 void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture, LPCSHADER shader, COLOR32 color);
 void R_DrawHealthBars(void);
+void R_DrawBackdrop(LPCDRAWBACKDROP drawBackdrop);
 void R_RenderRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, LPCSHADER shader, COLOR32 color);
 void R_RenderFlatRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, FLOAT z, LPCTEXTURE texture, LPCSHADER shader, COLOR32 color);
 
@@ -245,6 +246,7 @@ LPMODEL R_LoadModel(LPCSTR modelFilename);
 void R_ReleaseModel(LPMODEL model);
 
 size2_t R_GetWindowSize(void);
+size2_t R_GetTextureSize(LPCTEXTURE texture);
 
 // r_buffer.c
 VERTEX *R_AddQuad(VERTEX *buffer, LPCRECT screen, LPCRECT uv, COLOR32 color, float z);

@@ -278,10 +278,9 @@ static void RStd_DrawImageEx(LPCDRAWIMAGE drawImage) {
     }
     printf("draw_image texture=%u", drawImage->texture ? drawImage->texture->texid : 0);
     RStd_PrintName("name", RStd_HandleName(drawImage->texture));
-    printf(" shader=%u blend=%u rotate=%d angle=%.3f glow=%.3f",
+    printf(" shader=%u blend=%u angle=%.3f glow=%.3f",
            drawImage->shader,
            drawImage->alphamode,
-           drawImage->rotate,
            drawImage->angle,
            drawImage->uActiveGlow);
     RStd_PrintRect("screen", &drawImage->screen);
@@ -290,6 +289,15 @@ static void RStd_DrawImageEx(LPCDRAWIMAGE drawImage) {
         RStd_PrintRect("clip", &drawImage->clip);
     }
     RStd_PrintColor(drawImage->color);
+    printf("\n");
+}
+
+static void RStd_DrawBackdrop(LPCDRAWBACKDROP db) {
+    if (!db) return;
+    printf("draw_backdrop screen=");
+    RStd_PrintRect("", &db->screen);
+    if (db->bg_texture) printf(" bg=%s", RStd_HandleName(db->bg_texture));
+    if (db->edge_texture) printf(" edge=%s", RStd_HandleName(db->edge_texture));
     printf("\n");
 }
 
@@ -466,6 +474,7 @@ refExport_t R_StdoutGetAPI(refImport_t imp) {
         .DrawPic = RStd_DrawPic,
         .DrawImage = RStd_DrawImage,
         .DrawImageEx = RStd_DrawImageEx,
+        .DrawBackdrop = RStd_DrawBackdrop,
         .DrawMinimap = RStd_DrawMinimap,
         .DrawLoadingIndicator = RStd_DrawLoadingIndicator,
         .DrawSprite = RStd_DrawSprite,

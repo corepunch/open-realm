@@ -169,7 +169,6 @@ static void SCR_LayoutDrawHighlightData(uiHighlight_t const *highlight, LPCRECT 
                          .screen = *screen,
                          .uv = MAKE(RECT,0,0,1,1),
                          .color = COLOR32_WHITE,
-                         .rotate = false,
                          .shader = SHADER_UI));
 }
 
@@ -191,114 +190,25 @@ void SCR_LayoutSimpleButton(LPCUIFRAME frame, LPCRECT screen) {
                       .textWidth = screen->w));
 }
 
-typedef enum {
-    LAYOUT_BACKDROPINSET_RIGHT,
-    LAYOUT_BACKDROPINSET_TOP,
-    LAYOUT_BACKDROPINSET_BOTTOM,
-    LAYOUT_BACKDROPINSET_LEFT,
-} UI_LAYOUT_BACKDROPINSET;
-
-#define NUM_BACKDROP_CORNERS 8
-
-void backdrop_rects(LPCRECT screen, LPRECT rects, FLOAT corner_size) {
-    FLOAT x[] = { 0, corner_size, screen->w - corner_size, screen->w };
-    FLOAT y[] = { 0, corner_size, screen->h - corner_size, screen->h };
-    FOR_LOOP(i, BACKDROP_SIZE) {
-        rects[i].x = screen->x + x[i % 3];
-        rects[i].y = screen->y + y[i / 3];
-        rects[i].w = x[(i % 3) + 1] - x[i % 3];
-        rects[i].h = y[(i / 3) + 1] - y[i / 3];
-    }
-}
-
-FLOAT backdrop_edge_tile(LPCRECT rect, BACKDROPCORNER edge, FLOAT imagesize) {
-    switch (edge) {
-        case BACKDROP_LEFT_EDGE:
-        case BACKDROP_RIGHT_EDGE:
-            return ceil(rect->h / imagesize);
-        case BACKDROP_TOP_EDGE:
-        case BACKDROP_BOTTOM_EDGE:
-            return ceil(rect->w / imagesize);
-        default:
-            return 1;
-    }
-}
-
-BOOL backdrop_edge_flip(BACKDROPCORNER edge) {
-    switch (edge) {
-        case BACKDROP_TOP_EDGE:
-        case BACKDROP_BOTTOM_EDGE:
-            return true;
-        default:
-            return false;
-    }
-}
-
 void SCR_LayoutDrawBackdrop2(LPCUIFRAME frame, LPCRECT screen, uiBackdrop_t const *backdrop) {
-    BACKDROPCORNER const corners[NUM_BACKDROP_CORNERS] = {
-        BACKDROP_LEFT_EDGE,
-        BACKDROP_RIGHT_EDGE,
-        BACKDROP_TOP_EDGE,
-        BACKDROP_BOTTOM_EDGE,
-        BACKDROP_TOP_LEFT_CORNER,
-        BACKDROP_TOP_RIGHT_CORNER,
-        BACKDROP_BOTTOM_LEFT_CORNER,
-        BACKDROP_BOTTOM_RIGHT_CORNER,
-    };
-    RECT rects[BACKDROP_SIZE];
-    backdrop_rects(screen, rects, backdrop->CornerSize);
-
-#ifdef DIAG_OUTPUT
-    (void)frame;
-    (void)screen;
-    (void)backdrop;
-#endif
-
-    size2_t backSize = re.GetTextureSize(uiimport.GetTexture(backdrop->Background));
-    size2_t edgeSize = re.GetTextureSize(uiimport.GetTexture(backdrop->EdgeFile));
-
-    RECT uv = { backdrop->Mirrored ? 1 : 0, 0, backdrop->Mirrored ? -1 : 1, 1};
-    RECT background = *screen;
-    background.x += backdrop->BackgroundInsets[LAYOUT_BACKDROPINSET_LEFT];
-    background.y += backdrop->BackgroundInsets[LAYOUT_BACKDROPINSET_TOP];
-    background.w -= backdrop->BackgroundInsets[LAYOUT_BACKDROPINSET_LEFT];
-    background.w -= backdrop->BackgroundInsets[LAYOUT_BACKDROPINSET_RIGHT];
-    background.h -= backdrop->BackgroundInsets[LAYOUT_BACKDROPINSET_TOP];
-    background.h -= backdrop->BackgroundInsets[LAYOUT_BACKDROPINSET_BOTTOM];
-    if (backdrop->TileBackground) {
-        uv.w = background.w / (backSize.width / 1000.f);
-        if (backdrop->Mirrored) {
-            uv.x = uv.w;
-            uv.w = -uv.w;
-        }
-        uv.h = background.h / (backSize.height / 1000.f);
+    if (!backdrop || !screen || screen->w <= 0 || screen->h <= 0) {
+        return;
     }
-    re.DrawImageEx(&MAKE(drawImage_t,
-                         .texture = uiimport.GetTexture(backdrop->Background),
-                         .alphamode = BLEND_MODE_BLEND,
-                         .screen = background,
-                         .uv = uv,
-                         .color = frame->color,
-                         .rotate = false,
-                         .shader = SHADER_UI));
-
-    FOR_LOOP(i, NUM_BACKDROP_CORNERS) {
-        if ((backdrop->CornerFlags & (1 << corners[i])) == 0)
-            continue;
-        FLOAT const k = 1.0 / NUM_BACKDROP_CORNERS;
-        FLOAT const h = edgeSize.height / 1000.f;
-        FLOAT const tile = backdrop_edge_tile(rects+corners[i], corners[i], h);
-        BOOL const flip = backdrop_edge_flip(corners[i]);
-        RECT const rect = { i * k, 0, k, tile };
-        re.DrawImageEx(&MAKE(drawImage_t,
-                             .texture = uiimport.GetTexture(backdrop->EdgeFile),
-                             .alphamode = BLEND_MODE_BLEND,
-                             .screen = rects[corners[i]],
-                             .uv = rect,
-                             .color = frame->color,
-                             .rotate = flip,
-                             .shader = SHADER_UI));
+    if (!backdrop->Background && !backdrop->EdgeFile) {
+        return;
     }
+    re.DrawBackdrop(&MAKE(drawBackdrop_t,
+                          .screen = *screen,
+                          .bg_texture = uiimport.GetTexture(backdrop->Background),
+                          .edge_texture = uiimport.GetTexture(backdrop->EdgeFile),
+                          .bg_color = frame->color,
+                          .edge_color = frame->color,
+                          .corner_flags = backdrop->CornerFlags,
+                          .corner_size = backdrop->CornerSize,
+                          .bg_insets = { backdrop->BackgroundInsets[0], backdrop->BackgroundInsets[1],
+                                         backdrop->BackgroundInsets[2], backdrop->BackgroundInsets[3] },
+                          .tile_bg = backdrop->TileBackground,
+                          .mirrored = backdrop->Mirrored));
 }
 
 void SCR_LayoutDrawBackdrop(LPCUIFRAME frame, LPCRECT screen) {
@@ -555,7 +465,6 @@ void SCR_LayoutDrawCommandButton(LPCUIFRAME frame, LPCRECT screen) {
                          .screen = scrn,
                          .uv = suv,
                          .color = COLOR32_WHITE,
-                         .rotate = false,
                          .shader = SHADER_COMMANDBUTTON,
                           .uActiveGlow = selentity ? selentity->ability == frame->stat : 0));
     /* TODO: Cooldown shade — SCR_LayoutTexture is not available in the client

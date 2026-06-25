@@ -29,6 +29,7 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 - Use the `BZ_` prefix for project-private compile-time macros, generated binding helpers, environment toggles, and namespaced constants that need a project prefix.
 - When fixing warnings for short, future-facing hooks such as one-line static moves, extern declarations, or placeholder assignments, prefer commenting them out over deleting them. Add a short comment explaining the warning being fixed and when the line should come back, for example that Linux `-Wall` warns while the hook is unused.
 - For WoW UI code (`games/world-of-warcraft/ui/`), do not fail silently. When a required script, handler, renderer resource, or fallback path is missing, emit a clear `UIWow:` log that explains what was skipped and why. Prefer one-time warnings for per-frame paths to avoid log spam.
+- When a function has more than 3 parameters, group them into a dedicated input struct rather than adding more arguments. Name the struct `draw<Thing>_t` or `<thing>Params_t` in the public header. This applies to renderer API functions, game import/export callbacks, and similar cross-module interfaces.
 
 ## General
 - Minimize vertical space. Prefer fewer, denser lines over many short ones.

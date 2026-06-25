@@ -639,6 +639,7 @@ refExport_t R_GetAPI(refImport_t imp) {
         .DrawPic = R_DrawPic,
         .DrawImage = R_DrawImage,
         .DrawImageEx = R_DrawImageEx,
+        .DrawBackdrop = R_DrawBackdrop,
         .DrawMinimap = R_DrawMinimap,
         .DrawLoadingIndicator = R_DrawLoadingIndicator,
         .DrawSelectionRect = R_DrawSelectionRect,

@@ -196,12 +196,6 @@ void R_DrawImageEx(LPCDRAWIMAGE drawImage) {
     VERTEX simp[6];
     R_AddQuad(simp, &drawImage->screen, &drawImage->uv, drawImage->color, 0);
 
-    if (drawImage->rotate) {
-        VECTOR2 tmp1 = simp[1].texcoord;
-        VECTOR2 tmp2 = simp[5].texcoord;
-        simp[1].texcoord = tmp2;
-        simp[5].texcoord = tmp1;
-    }
     if (drawImage->angle) {
         FLOAT const cx = drawImage->screen.x + drawImage->screen.w * 0.5f;
         FLOAT const cy = drawImage->screen.y + drawImage->screen.h * 0.5f;
@@ -234,7 +228,6 @@ void R_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color) 
                         .screen = *screen,
                         .uv = uv ? *uv : MAKE(RECT,0,0,1,1),
                         .color = color,
-                        .rotate = false,
                         .shader = SHADER_UI));
 }
 

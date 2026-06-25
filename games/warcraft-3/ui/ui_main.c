@@ -314,8 +314,7 @@ static void UI_DrawImagePart(LPCSTR texture_name, BOOL decorate, LPCRECT screen,
                                 .alphamode = BLEND_MODE_ALPHAKEY,
                                 .screen = *screen,
                                 .uv = *uv,
-                                .color = COLOR32_WHITE,
-                                .rotate = false));
+                                .color = COLOR32_WHITE));
 }
 
 static void UI_DrawConsoleBackdropPart(uiConsoleBackdropPart_t const *part) {

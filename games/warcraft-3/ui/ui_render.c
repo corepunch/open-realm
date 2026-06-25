@@ -411,7 +411,6 @@ static void UI_DrawTexture(LPCFRAMEDEF frame, LPCRECT rect) {
         .screen = *rect,
         .uv = uv,
         .color = frame->Color,
-        .rotate = FALSE,
     };
     
     renderer->DrawImageEx((LPCDRAWIMAGE)&di);
@@ -749,8 +748,7 @@ static void UI_DrawModalDim(void) {
                                 .alphamode = BLEND_MODE_BLEND,
                                 .screen = *rect,
                                 .uv = MAKE(RECT, 0, 0, 1, 1),
-                                .color = MAKE(COLOR32, 255, 255, 255, 128),
-                                .rotate = FALSE));
+                                .color = MAKE(COLOR32, 255, 255, 255, 128)));
 }
 
 static void UI_DrawHighlightFrame(LPCFRAMEDEF frame, LPCRECT rect) {
@@ -774,8 +772,7 @@ static void UI_DrawHighlightFrame(LPCFRAMEDEF frame, LPCRECT rect) {
                                 .alphamode = frame->Highlight.AlphaMode,
                                 .screen = *rect,
                                 .uv = MAKE(RECT, 0, 0, 1, 1),
-                                .color = COLOR32_WHITE,
-                                .rotate = FALSE));
+                                .color = COLOR32_WHITE));
 }
 
 static void UI_DrawButtonHighlight(LPCFRAMEDEF frame) {

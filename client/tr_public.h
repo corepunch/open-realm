@@ -52,16 +52,30 @@ typedef struct drawImage_s {
     RECT screen;
     RECT uv;
     COLOR32 color;
-    BOOL rotate;
     FLOAT angle;
     FLOAT uActiveGlow;
     BOOL hasClip;
     RECT clip;
 } drawImage_t;
 
+/* Backdrop drawing parameters (9-slice border + tiled background) */
+typedef struct drawBackdrop_s {
+    RECT screen;
+    LPCTEXTURE bg_texture;
+    LPCTEXTURE edge_texture;
+    COLOR32 bg_color;
+    COLOR32 edge_color;
+    SHORT corner_flags;
+    FLOAT corner_size;
+    FLOAT bg_insets[4]; /* right, top, bottom, left */
+    BOOL tile_bg;
+    BOOL mirrored;
+} drawBackdrop_t;
+
 /* Standard pointer typedefs */
 typedef drawText_t const *LPCDRAWTEXT;
 typedef drawImage_t const *LPCDRAWIMAGE;
+typedef drawBackdrop_t const *LPCDRAWBACKDROP;
 
 typedef struct {
     // Quake 3-style file API: renderer is archive-agnostic
@@ -183,6 +197,7 @@ typedef struct {
     void (*DrawPic)(LPCTEXTURE texture, float x, float y);
     void (*DrawImage)(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color);
     void (*DrawImageEx)(LPCDRAWIMAGE drawImage);
+    void (*DrawBackdrop)(LPCDRAWBACKDROP drawBackdrop);
     void (*DrawMinimap)(LPCRECT screen);
     void (*DrawLoadingIndicator)(LPCRECT rect, DWORD time, COLOR32 color);
     void (*DrawSprite)(LPCMODEL model, LPCSTR anim, float x, float y);

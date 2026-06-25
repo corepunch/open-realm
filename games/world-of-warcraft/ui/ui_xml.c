@@ -152,7 +152,6 @@ enum {
     WOW_XML_BACKDROP_RIGHT,
     WOW_XML_BACKDROP_TOP,
     WOW_XML_BACKDROP_BOTTOM,
-    WOW_XML_NUM_BACKDROP_CORNERS = 8
 };
 static struct {
     uiWowXmlElem_t elems[WOW_XML_MAX_ELEMS];
@@ -1596,7 +1595,7 @@ static void UIWow_XMLComputeScrollRanges(void) {
     }
 }
 
-static void UIWow_XMLDrawImage(LPTEXTURE tex, LPCRECT screen, LPCRECT uv, COLOR32 color, BOOL rotate, BLEND_MODE mode) {
+static void UIWow_XMLDrawImage(LPTEXTURE tex, LPCRECT screen, LPCRECT uv, COLOR32 color, BLEND_MODE mode) {
     if (!wow_ui.renderer || !tex) return;
     if (wow_ui.renderer->DrawImageEx) {
         wow_ui.renderer->DrawImageEx(&MAKE(drawImage_t,
@@ -1606,7 +1605,6 @@ static void UIWow_XMLDrawImage(LPTEXTURE tex, LPCRECT screen, LPCRECT uv, COLOR3
                                            .screen = *screen,
                                            .uv = *uv,
                                            .color = color,
-                                           .rotate = rotate,
                                            .hasClip = s_has_scroll_clip,
                                            .clip = s_scroll_clip));
     } else if (wow_ui.renderer->DrawImage) {
@@ -1614,84 +1612,41 @@ static void UIWow_XMLDrawImage(LPTEXTURE tex, LPCRECT screen, LPCRECT uv, COLOR3
     }
 }
 
-static void UIWow_XMLBackdropRects(LPCRECT screen, LPRECT rects, FLOAT edge_w, FLOAT edge_h) {
-    FLOAT ew = MIN(edge_w, screen->w * 0.5f), eh = MIN(edge_h, screen->h * 0.5f);
-    FLOAT x[] = { 0, ew, screen->w - ew, screen->w };
-    FLOAT y[] = { 0, eh, screen->h - eh, screen->h };
-
-    FOR_LOOP(i, BACKDROP_SIZE) {
-        rects[i].x = screen->x + x[i % 3];
-        rects[i].y = screen->y + y[i / 3];
-        rects[i].w = x[(i % 3) + 1] - x[i % 3];
-        rects[i].h = y[(i / 3) + 1] - y[i / 3];
-    }
-}
-
-static FLOAT UIWow_XMLBackdropTile(LPCRECT rect, BACKDROPCORNER edge, FLOAT image_w, FLOAT image_h) {
-    switch (edge) {
-        case BACKDROP_LEFT_EDGE:
-        case BACKDROP_RIGHT_EDGE:
-            return image_h > 0.0f ? rect->h / image_h : 1.0f;
-        case BACKDROP_TOP_EDGE:
-        case BACKDROP_BOTTOM_EDGE:
-            return image_w > 0.0f ? rect->w / image_w : 1.0f;
-        default:
-            return 1.0f;
-    }
-}
-
-static BOOL UIWow_XMLBackdropRotate(BACKDROPCORNER edge) {
-    return edge == BACKDROP_TOP_EDGE || edge == BACKDROP_BOTTOM_EDGE;
-}
-
-static void UIWow_XMLDrawBackdropBorder(uiWowXmlElem_t const *e, LPCRECT r, LPTEXTURE border) {
-    static BACKDROPCORNER const corners[WOW_XML_NUM_BACKDROP_CORNERS] = {
-        BACKDROP_LEFT_EDGE,        BACKDROP_RIGHT_EDGE,
-        BACKDROP_TOP_EDGE,         BACKDROP_BOTTOM_EDGE,
-        BACKDROP_TOP_LEFT_CORNER,  BACKDROP_TOP_RIGHT_CORNER,
-        BACKDROP_BOTTOM_LEFT_CORNER, BACKDROP_BOTTOM_RIGHT_CORNER,
-    };
-    RECT rects[BACKDROP_SIZE];
-    size2_t size = wow_ui.renderer->GetTextureSize ? wow_ui.renderer->GetTextureSize(border) : MAKE(size2_t, 0, 0);
-    FLOAT image_w = UIWow_XmlX((FLOAT)size.height), image_h = UIWow_XmlY((FLOAT)size.height);
-
-    UIWow_XMLBackdropRects(r, rects, e->edge.w, e->edge.h);
-    FOR_LOOP(i, WOW_XML_NUM_BACKDROP_CORNERS) {
-        BACKDROPCORNER corner = corners[i];
-        FLOAT const k = 1.0f / WOW_XML_NUM_BACKDROP_CORNERS;
-        FLOAT const tile = UIWow_XMLBackdropTile(rects + corner, corner, image_w, image_h);
-        RECT const uv = MAKE(RECT, i * k, 0, k, tile);
-        UIWow_XMLDrawImage(border, rects + corner, &uv, e->colors[ELEM_COLOR_BACKDROP_BORDER],
-                   UIWow_XMLBackdropRotate(corner), BLEND_MODE_BLEND);
-    }
-}
-
 static void UIWow_XMLDrawBackdrop(uiWowXmlElem_t const *e, LPCRECT r) {
     LPCSTR bg_path = e->texts[ELEM_BACKDROP_BG];
     LPCSTR edge_path = e->texts[ELEM_BACKDROP_EDGE];
-    if (!wow_ui.renderer) return;
+    LPCTEXTURE bg_tex = NULL;
+    LPCTEXTURE edge_tex = NULL;
+    drawBackdrop_t db;
+
+    if (!wow_ui.renderer || !wow_ui.renderer->DrawBackdrop) return;
+
     if (bg_path && bg_path[0]) {
-        LPTEXTURE bg = UIWow_LoadTexture(bg_path);
-        RECT bg_rect = *r, uv = MAKE(RECT, 0, 0, 1, 1);
-        bg_rect.x += e->backdrop_insets[WOW_XML_BACKDROP_LEFT];
-        bg_rect.y += e->backdrop_insets[WOW_XML_BACKDROP_TOP];
-        bg_rect.w -= e->backdrop_insets[WOW_XML_BACKDROP_LEFT] + e->backdrop_insets[WOW_XML_BACKDROP_RIGHT];
-        bg_rect.h -= e->backdrop_insets[WOW_XML_BACKDROP_TOP] + e->backdrop_insets[WOW_XML_BACKDROP_BOTTOM];
-        if (bg && (e->flags & EF_BACKDROP_TILE)) {
-            size2_t size = wow_ui.renderer->GetTextureSize ? wow_ui.renderer->GetTextureSize(bg) : MAKE(size2_t, 0, 0);
-            FLOAT tw_px = e->tile.w > 0.0f ? e->tile.w * 1024.0f : (FLOAT)size.width;
-            FLOAT th_px = e->tile.h > 0.0f ? e->tile.h * 1024.0f : (FLOAT)size.height;
-            if (size.width > 0) uv.w = tw_px / (FLOAT)size.width;
-            if (size.height > 0) uv.h = th_px / (FLOAT)size.height;
-        }
-        if (bg && bg_rect.w > 0.0f && bg_rect.h > 0.0f) {
-            UIWow_XMLDrawImage(bg, &bg_rect, &uv, e->colors[ELEM_COLOR_BACKDROP], false, BLEND_MODE_BLEND);
-        }
+        bg_tex = UIWow_LoadTexture(bg_path);
     }
     if (edge_path && edge_path[0] && e->edge.w > 0.0f && e->edge.h > 0.0f) {
-        LPTEXTURE border = UIWow_LoadTexture(edge_path);
-        if (border) UIWow_XMLDrawBackdropBorder(e, r, border);
+        edge_tex = UIWow_LoadTexture(edge_path);
     }
+    if (!bg_tex && !edge_tex) {
+        return;
+    }
+
+    memset(&db, 0, sizeof(db));
+    db.screen = *r;
+    db.bg_texture = bg_tex;
+    db.edge_texture = edge_tex;
+    db.bg_color = e->colors[ELEM_COLOR_BACKDROP];
+    db.edge_color = e->colors[ELEM_COLOR_BACKDROP_BORDER];
+    db.corner_flags = edge_tex ? 0x1ff : 0; /* all 9 bits if edge present */
+    db.corner_size = (e->edge.w + e->edge.h) * 0.5f;
+    /* uiBackdrop_t inset order: right=0, top=1, bottom=2, left=3 */
+    db.bg_insets[0] = e->backdrop_insets[WOW_XML_BACKDROP_RIGHT];
+    db.bg_insets[1] = e->backdrop_insets[WOW_XML_BACKDROP_TOP];
+    db.bg_insets[2] = e->backdrop_insets[WOW_XML_BACKDROP_BOTTOM];
+    db.bg_insets[3] = e->backdrop_insets[WOW_XML_BACKDROP_LEFT];
+    db.tile_bg = (e->flags & EF_BACKDROP_TILE) != 0;
+
+    wow_ui.renderer->DrawBackdrop(&db);
 }
 
 static BOOL UIWow_XMLIsVisible(int idx) {
@@ -1886,14 +1841,13 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
                                         e->colors[ELEM_COLOR_VERTEX].g,
                                         e->colors[ELEM_COLOR_VERTEX].b,
                                         (BYTE)(e->colors[ELEM_COLOR_VERTEX].a * e->alpha)),
-                                   false,
                                    BLEND_MODE_BLEND);
             }
             if (e->type == WOW_XML_BUTTON && hovered && highlight_file && highlight_file[0]) {
                 LPTEXTURE ht = UIWow_LoadTexture(highlight_file);
                 RECT huv = MAKE(RECT, 0, 0, 1, 1);
                 if (e->flags & EF_HAS_HIGHLIGHT_TEXCOORD) huv = e->highlight_texcoord;
-                if (ht) UIWow_XMLDrawImage(ht, &r, &huv, COLOR32_WHITE, false, BLEND_MODE_ADD);
+                if (ht) UIWow_XMLDrawImage(ht, &r, &huv, COLOR32_WHITE, BLEND_MODE_ADD);
             }
         }
         if (((elem_text && elem_text[0]) || (e->type == WOW_XML_EDITBOX && wow_xml.focus == i)) &&
