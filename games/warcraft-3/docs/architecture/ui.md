@@ -34,6 +34,18 @@ Previously, the UI module also drew pieces of the in-game ConsoleUI. Gameplay HU
 4. UI executes `ui_start_command`, defaulting to `menu_main`.
 5. Screen controller manages frame lifecycle, drawing, and input routing.
 
+## Draw Flow (Verified)
+
+`SCR_UpdateScreen` (`client/cl_scrn.c`) dispatches UI drawing by connection state:
+
+| State | What draws | Module |
+|-------|-----------|--------|
+| `ca_disconnected` / `ca_connecting` / `ca_connected` | `ui.Refresh(time)` — menus, glue UI | ui.dll |
+| `ca_loading` | `ui.DrawLoadingScreen(map, status, progress)` | ui.dll |
+| `ca_active` | `ui.Refresh(time)` — menus + `SCR_DrawLayout()` — server-authored HUD | ui.dll + client.dll |
+
+Server-authored in-game HUD (command card, inventory, build queue, portraits, minimap) is drawn by `SCR_DrawLayout` in `client/cl_unit_layout.c`. This is client code, not ui.dll. The server sends layout frame trees via `svc_layout`; the client decodes and renders them.
+
 ## Frame Definition Files (FDF)
 
 FDF files declare frame templates hierarchically. `UI_ParseFDF_Buffer` (`games/warcraft-3/ui/ui_fdf.c`) accepts a writable C string, tokenises it, and registers `frameDef_t` entries in a global lookup table. Frames can inherit from a base template with `InheritsParts`.
