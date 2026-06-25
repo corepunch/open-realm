@@ -11,6 +11,7 @@
  *   - 16 simultaneous channels (up from 8)
  */
 #include "s_local.h"
+#include "client/client.h"
 
 sState_t s;
 
@@ -240,17 +241,58 @@ static sChannel_t *S_PickChannel(DWORD entnum, DWORD entchannel) {
 /*  Spatialization — distance-based volume with stereo panning         */
 /* ================================================================== */
 
+void S_SetListener(LPCVECTOR3 origin) {
+    s.listener_origin = *origin;
+}
+
 static void S_SpatializeChannel(sChannel_t *ch) {
-    /* Without a position or entity, full volume mono */
-    if (!ch->entnum) {
+    /* Entity 0 or local player = full volume mono */
+    if (!ch->entnum || ch->entnum == s.local_entnum) {
         ch->leftvol = ch->rightvol = 255;
         return;
     }
 
-    /* TODO: query entity position from game code via import.
-       For now, full volume — proper spatialization needs
-       CL_GetEntitySoundOrigin or equivalent. */
-    ch->leftvol = ch->rightvol = 255;
+    /* Get entity position from client state */
+    if (ch->entnum >= MAX_CLIENT_ENTITIES) {
+        ch->leftvol = ch->rightvol = 255;
+        return;
+    }
+    centity_t *cent = &cl.ents[ch->entnum];
+    VECTOR3 origin = cent->current.origin;
+
+    /* Distance from listener */
+    float dx = origin.x - s.listener_origin.x;
+    float dy = origin.y - s.listener_origin.y;
+    float dz = origin.z - s.listener_origin.z;
+    float dist = sqrtf(dx * dx + dy * dy + dz * dz);
+
+    /* Full volume within SOUND_FULLVOLUME range */
+    float atten = dist - SOUND_FULLVOLUME;
+    if (atten < 0) atten = 0;
+    /* Attenuate over 2000 units beyond full-volume radius */
+    atten = atten / 2000.0f;
+    if (atten > 1.0f) atten = 1.0f;
+
+    float scale = 1.0f - atten;
+    int vol = (int)(255.0f * scale);
+    if (vol < 0) vol = 0;
+
+    /* Stereo panning: project onto listener's right axis.
+       For an RTS camera, use world X as the "right" direction. */
+    float right = dx;  /* simplified: world-X axis */
+    float len = sqrtf(dx * dx + dy * dy);
+    if (len > 0.01f)
+        right /= len;
+    else
+        right = 0;
+
+    float lscale = 0.5f * (1.0f - right);
+    float rscale = 0.5f * (1.0f + right);
+
+    ch->leftvol  = (int)(vol * lscale);
+    ch->rightvol = (int)(vol * rscale);
+    if (ch->leftvol > 255) ch->leftvol = 255;
+    if (ch->rightvol > 255) ch->rightvol = 255;
 }
 
 /* ================================================================== */

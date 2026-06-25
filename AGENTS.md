@@ -30,6 +30,7 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 - Follow a strict Don't Repeat Yourself (DRY) rule: do not duplicate logic or repeat the same data literal in multiple places. If the same path/key/constant appears more than once (for example `Interface\\GlueXML\\AccountLogin.xml`), centralize it as one named constant or one shared loader path and reuse it.
 - Keep runtime structs concise and organized by grouping related fields and repeated shapes.
 - Prefer small helper structs for repeated concepts (for example point/size/color groups) instead of repeating scalar fields across large structs.
+- Prefer passing and returning existing structs (`VECTOR3`, `RECT`, `COLOR32`, etc.) as pointers-to-const rather than decomposing into scalar parameters. For example, use `void set_origin(LPCVECTOR3 origin)` instead of `void set_origin(float x, float y, float z)`. This keeps call sites readable and avoids parameter reorder bugs.
 - When several fields share the same type and semantic family, declare them together on one line (for example `int id, parent, relative_to, draw_layer;` or `fsize_t size, edge, tile;`).
 - For many same-kind string fields, prefer enum-indexed arrays plus tiny access helpers over many separate named string members.
 - Avoid fixed-size inline string buffers in runtime structs when the data is variable-length. Prefer owned pointers with one clear setter/append/free path.

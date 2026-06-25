@@ -95,6 +95,9 @@ typedef struct {
     DWORD mix_buf_write;           /* main thread writes here */
     DWORD painted;                 /* total samples painted so far */
 
+    /* Listener position — set by client each frame */
+    VECTOR3 listener_origin;
+
     SDL_AudioDeviceID device;
     BOOL initialized;
     BYTE *dbc_data;
@@ -110,5 +113,6 @@ BOOL S_Init(void);
 void S_Shutdown(void);
 void S_PlaySound(DWORD kit_id);
 void S_PlaySoundByName(LPCSTR name);
+void S_SetListener(LPCVECTOR3 origin);
 
 #endif
