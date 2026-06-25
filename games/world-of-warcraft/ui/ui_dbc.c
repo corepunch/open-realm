@@ -811,7 +811,10 @@ int UIWow_LuaCharacterCreateResult(lua_State *L) {
     lua_getglobal(L, "SetGlueScreen");
     if (lua_isfunction(L, -1)) {
         lua_pushstring(L, (result && strcmp(result, "OKAY") == 0) ? "charselect" : "charcreate");
-        lua_pcall(L, 1, 0, 0);
+        if (lua_pcall(L, 1, 0, 0) != LUA_OK) {
+            UIWow_Printf("UIWow Lua SetGlueScreen: %s\n", lua_tostring(L, -1));
+            lua_pop(L, 1);
+        }
     } else {
         lua_pop(L, 1);
     }

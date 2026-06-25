@@ -80,7 +80,7 @@ void CL_ClearState(void) {
     SAFE_DELETE(cl.fow.texture, MemFree);
 
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
-        ui.ClearLayoutLayer(layer);
+        SCR_ClearLayoutLayer(layer);
     }
 
     memset(&cl, 0, sizeof(struct client_state));
@@ -98,12 +98,9 @@ static void CL_LANRefreshServers(void);
 static DWORD CL_LANNumServers(void);
 static BOOL CL_LANServer(DWORD index, uiLanGame_t *out);
 static void CL_LANConnectServer(DWORD index);
-static LPCSTR CL_UIGetLoadingMap(void);
 static LPCMODEL CL_UIGetModel(DWORD idx);
 static LPCMODEL CL_UIGetPortrait(DWORD idx);
 static LPRENDERER CL_UIGetRenderer(void);
-static DWORD CL_UIGetClientTime(void);
-static VECTOR2 CL_UIGetMouseFdf(void);
 
 static void CL_MenuCommand(LPCSTR command) {
     if (!command || !*command) {
@@ -314,14 +311,6 @@ static LPRENDERER CL_UIGetRenderer(void) {
     return &re;
 }
 
-static DWORD CL_UIGetClientTime(void) {
-    return cl.time;
-}
-
-static VECTOR2 CL_UIGetMouseFdf(void) {
-    return SCR_MouseToFdf();
-}
-
 /* Request unit UI data (command card, inventory, build queue) */
 static void CL_UIRequestUnitUI(DWORD num_selected, DWORD *entity_nums) {
     (void)num_selected;
@@ -449,20 +438,8 @@ update:
     }
 }
 
-static LPCSTR CL_UIGetLoadingMap(void) {
-    return cl.loading_map;
-}
-
 static void CL_UICvarSet(LPCSTR name, LPCSTR value) {
     Cvar_Set(name, value);
-}
-
-static LPCSTR CL_UIGetLoadingStatus(void) {
-    return cl.loading_status;
-}
-
-static FLOAT CL_UIGetLoadingProgress(void) {
-    return cl.loading_progress;
 }
 
 void CL_BeginLoadingMap(LPCSTR mapName) {
@@ -604,16 +581,6 @@ void CL_Init(void) {
         .FS_FreeFile = FS_FreeFile,
         .FS_GetFileList = CL_UI_GetFileList,
         .FS_WriteFile = CL_UI_WriteFile,
-        .ReadMapInfo = CM_ReadMapInfo,
-        .FindMapPreviewTexture = CM_FindMapPreviewTexture,
-        .FreeMapInfo = CM_FreeMapInfo,
-        .DefaultMapName = CM_DefaultMapName,
-        .ResolveMapInfoString = CM_ResolveMapInfoString,
-        .MapNameMatchesFile = CM_MapNameMatchesFile,
-        .MapTilesetName = CM_TilesetName,
-        .MapSizeName = CM_MapSizeName,
-        .SanitizeMapListField = CM_SanitizeMapListField,
-        .SanitizeMapInfoText = CM_SanitizeMapInfoText,
         .MemAlloc = MemAlloc,
         .MemFree = MemFree,
         .ModelIndex = CL_ModelIndex,
@@ -631,9 +598,6 @@ void CL_Init(void) {
         .LANNumServers = CL_LANNumServers,
         .LANServer = CL_LANServer,
         .LANConnectServer = CL_LANConnectServer,
-        .GetLoadingMap = CL_UIGetLoadingMap,
-        .GetLoadingStatus = CL_UIGetLoadingStatus,
-        .GetLoadingProgress = CL_UIGetLoadingProgress,
         .GetPlayerState = CL_UIGetPlayerState,
         .GetNumEntities = CL_UIGetNumEntities,
         .GetEntity = CL_UIGetEntity,
@@ -642,29 +606,13 @@ void CL_Init(void) {
         .GetTexture = CL_GetTextureByIndex,
         .GetTextures = CL_UIGetTextures,
         .GetFont = CL_UIGetFont,
-        .GetClientTime = CL_UIGetClientTime,
-        .GetMouseFdf = CL_UIGetMouseFdf,
-        .LayoutClear = SCR_Clear,
-        .LayoutNumFrames = SCR_NumFrames,
-        .LayoutFrame = SCR_Frame,
-        .LayoutRect = SCR_LayoutRect,
-        .LayoutStringValue = SCR_GetStringValue,
-        .LayoutDrawText = SCR_GetDrawText,
         .RequestUnitUI = CL_UIRequestUnitUI,
         .GetRenderer = CL_UIGetRenderer,
-        .GetTime = CL_UIGetClientTime,
         .Error = CON_printf,
         .Printf = CON_printf,
         .PlaySound = S_PlaySound,
         .PlaySoundByName = S_PlaySoundByName,
     });
-    
-    /* Wire layout functions from the client into the UI export table */
-    ui.DrawOverlays = UI_LayoutDrawOverlays;
-    ui.LayoutMouseEvent = UI_LayoutMouseEvent;
-    ui.SetLayoutLayer = UI_LayoutSetLayer;
-    ui.ClearLayoutLayer = UI_LayoutClearLayer;
-    ui.HitTestLayout = UI_LayoutHitTest;
     
     ui.Init();
 
@@ -841,9 +789,6 @@ void CL_SendCommand(void) {
 void CL_Frame(DWORD msec) {
     cl_realtime += msec;
     cl.time += msec;
-
-    /* Update UI library */
-    ui.Refresh(msec);
 
     CL_Input();
     CL_ReadPackets();

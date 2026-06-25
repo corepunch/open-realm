@@ -439,7 +439,7 @@ static int UIWow_LuaDefaultServerLogin(lua_State *L) {
     lua_getglobal(wow_ui.lua, "SetGlueScreen");
     if (lua_isfunction(wow_ui.lua, -1)) {
         lua_pushstring(wow_ui.lua, "charselect");
-        UIWow_LuaPCall(1);
+        UIWOW_LUA(1);
     } else {
         lua_pop(wow_ui.lua, 1);
         if (uiimport.Cmd_ExecuteText) uiimport.Cmd_ExecuteText("menu_character_select\n");
@@ -763,6 +763,13 @@ BOOL UIWow_LuaPCall(int nargs) {
     return true;
 }
 
+BOOL UIWow_LuaPCallLogged(int nargs, LPCSTR file, int line) {
+    BOOL ok = UIWow_LuaPCall(nargs);
+    if (!ok)
+        UIWow_Printf("UIWow: Lua error at %s:%d\n", file, line);
+    return ok;
+}
+
 static BOOL UIWow_RunLuaBuffer(LPCSTR name, LPCSTR script, size_t len) {
     if (!wow_ui.lua || !script || len == 0) {
         return false;
@@ -988,7 +995,7 @@ void UIWow_InitLua(void) {
         lua_getglobal(L, "SetGlueScreen");
         if (lua_isfunction(L, -1)) {
             lua_pushstring(L, "login");
-            UIWow_LuaPCall(1);
+            UIWOW_LUA(1);
         } else {
             lua_pop(L, 1);
             UIWow_WarnOnce(WOW_UI_WARN_NO_GLUE_BOOTSTRAP,
@@ -1025,7 +1032,7 @@ void UIWow_CallLuaDraw(void) {
                        "UIWow: missing Lua function 'ow3_draw'\n");
         return;
     }
-    UIWow_LuaPCall(0);
+    UIWOW_LUA(0);
 }
 
 void UIWow_CallLuaUpdate(DWORD msec) {
@@ -1046,5 +1053,5 @@ void UIWow_CallLuaUpdate(DWORD msec) {
         return;
     }
     lua_pushinteger(wow_ui.lua, msec);
-    UIWow_LuaPCall(1);
+    UIWOW_LUA(1);
 }

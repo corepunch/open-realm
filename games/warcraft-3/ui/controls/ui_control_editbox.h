@@ -201,18 +201,6 @@ void UI_TextInputLocal(LPCSTR text) {
     UI_InsertEditText(filtered);
 }
 
-static void UI_ClearEditFocusIfClickedOutside(void) {
-    LPCRECT rect;
-
-    if (!active_edit || ui_mouse.event != UI_WC3_MOUSE_LEFT_DOWN) {
-        return;
-    }
-    rect = UI_LayoutRect(active_edit);
-    if (!rect || !UI_MouseContains(rect)) {
-        UI_FocusEdit(NULL);
-    }
-}
-
 static void UI_DrawEditBox(LPCFRAMEDEF frame, LPCRECT rect) {
     LPRENDERER renderer = UI_GetRenderer();
     LPFRAMEDEF text_frame = UI_EditTextFrame(frame);

@@ -16,6 +16,8 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 - `docs/wow-character.md` — WoW character appearance, DBC fields, M2 skin sections, component textures, WoW client/tool references. Read when touching WoW character rendering or equipment.
 - `docs/wc3-data-model.md` — SLK/metadata field codes, base-vs-computed column traps, combat damage model, hero stat system, pathfinding rules, JASS event semantics, MiscGame.txt constants. Read when touching unit stats, combat, abilities, heroes, pathfinding, or any code that reads from the metadata tables.
 
+
+
 ## Network State Contracts
 
 - Do not casually add fields to `entityState_t`. It is a network snapshot/delta contract, so every new field increases protocol surface, bandwidth, baseline/delta behavior, save/load assumptions, and renderer/client coupling. Adding a field must be extremely well justified and should only happen after considering narrower alternatives such as existing state fields, configstrings, typed UI payloads, game-side state, or explicit commands.
@@ -46,6 +48,12 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 ## Domain
 
 - This is a **real-time strategy game** (RTS), so game logic should account for unit management, pathfinding, resource gathering, building construction, and large numbers of entities — adapted from the Quake 2 entity/server model where applicable.
+
+## UI Module Boundary
+
+- Keep `ui.dll` focused on loading screens and menu/glue UI.
+- Draw in-game HUD/ConsoleUI through server-authored `svc_layout` payloads in the generic client path (`client/cl_layout.c`, `client/cl_unit_layout.c`). Do not move gameplay HUD drawing, portraits, minimap, or layout decoding back into `games/<game>/ui`.
+- Do not add UI import callbacks for mouse polling, loading state polling, layout decoding, or Warcraft III map-info helpers. Use pushed `MouseEvent`/`LayoutMouseEvent`, `DrawLoadingScreen(map, status, progress)`, client-owned layout functions, and direct `CM_*` map-info calls inside the UI module.
 
 ## Documentation Discipline
 

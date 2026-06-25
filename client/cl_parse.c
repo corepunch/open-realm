@@ -10,6 +10,7 @@
  * config strings and temporary effects each have their own message types.
  */
 #include "client.h"
+#include "ui_layout.h"
 #ifdef SC2
 #include "games/starcraft-2/common/sc2_map.h"
 #endif
@@ -255,7 +256,7 @@ void CL_ParseLayout(LPSIZEBUF msg) {
         return;
     }
 
-    ui.ClearLayoutLayer(layer);
+    SCR_ClearLayoutLayer(layer);
     SAFE_DELETE(cl.layout[layer], MemFree);
     DWORD start = msg->readcount;
     while (true) {
@@ -295,7 +296,7 @@ void CL_ParseLayout(LPSIZEBUF msg) {
     cl.layout[layer] = MemAlloc(sizeof(DWORD) + payload_size);
     memcpy(cl.layout[layer], &payload_size, sizeof(payload_size));
     memcpy((LPBYTE)cl.layout[layer] + sizeof(payload_size), msg->data + start, payload_size);
-    ui.SetLayoutLayer(layer, cl.layout[layer]);
+    SCR_SetLayoutLayer(layer, cl.layout[layer]);
 }
 
 void CL_ParseCursor(LPSIZEBUF msg) {

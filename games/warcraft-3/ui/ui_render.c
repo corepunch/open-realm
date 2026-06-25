@@ -51,6 +51,10 @@ static LPCFRAMEDEF active_modal = NULL;
 static LPFRAMEDEF active_edit = NULL;
 static DWORD active_edit_cursor = 0;
 
+/* Cached roots for event-time mouse interaction */
+static LPCFRAMEDEF event_roots[MAX_UI_CLASSES];
+static DWORD event_num_roots = 0;
+
 static LPRENDERER UI_GetRenderer(void) {
     if (!uiimport.GetRenderer) {
         return NULL;
@@ -786,24 +790,6 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
             }
             UI_DrawTexture(frame, rect);
             UI_DrawButtonText(frame, rect);
-            if (!UI_PointerBlockedByPopup(frame) &&
-                UI_MouseContains(rect) &&
-                ui_mouse.event == UI_WC3_MOUSE_LEFT_UP &&
-                UI_ButtonEnabled(frame) &&
-                frame->OnClick[0]) {
-                UI_MenuCommandLocal(frame->OnClick);
-            }
-            if (UI_IsPopupFrameType(frame->Type) &&
-                !UI_PointerBlockedByPopup(frame) &&
-                UI_ButtonEnabled(frame) &&
-                UI_MouseContains(rect) &&
-                ui_mouse.event == UI_WC3_MOUSE_LEFT_UP) {
-                LPCFRAMEDEF next_popup = active_popup == frame ? NULL : frame;
-                if (active_popup != next_popup) {
-                    UI_ResetPopupScroll();
-                    active_popup = next_popup;
-                }
-            }
             break;
             
         case FT_MODEL:
@@ -827,10 +813,6 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
         case FT_EDITBOX:
         case FT_GLUEEDITBOX:
         case FT_SLASHCHATBOX:
-            if (!UI_PointerBlockedByPopup(frame) &&
-                UI_MouseContains(rect) && ui_mouse.event == UI_WC3_MOUSE_LEFT_DOWN) {
-                UI_FocusEdit((LPFRAMEDEF)frame);
-            }
             UI_DrawEditBox(frame, rect);
             break;
 
@@ -847,6 +829,209 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
             break;
     }
     
+}
+
+/* ========================================================================
+ * EVENT-TIME MOUSE INTERACTION
+ *
+ * All click/hover/scroll dispatch happens here, called from
+ * UI_MouseEventLocal() during SDL_PollEvent.  Draw functions only read
+ * cached visual state (pushed, hover highlight) — never dispatch actions.
+ * ======================================================================== */
+
+static void UI_HandleMapListEvent(LPCFRAMEDEF frame, LPCRECT rect) {
+    uiMapListControl_t const *control = &frame->MapListControl;
+    uiMapListState_t *state = control->State;
+    FLOAT row_height = control->RowHeight > 0 ? control->RowHeight : 0.019f;
+    DWORD visible_rows = control->VisibleRows
+        ? control->VisibleRows
+        : (DWORD)((rect->h - control->InsetY * 2.0f) / row_height);
+    RECT content = MAKE(RECT,
+                         rect->x + control->InsetX,
+                         rect->y + control->InsetY,
+                         rect->w - control->InsetX * 2.0f,
+                         row_height);
+
+    if (!state) return;
+
+    if (ui_mouse.event == UI_WC3_MOUSE_LEFT_UP && visible_rows > 0) {
+        VECTOR2 mouse = UI_MouseToFdf();
+        FLOAT row = (mouse.y - content.y) / row_height;
+        DWORD index = (DWORD)floorf(state->visualScroll + row);
+        if (row >= 0.0f && row < (FLOAT)visible_rows && index < state->count) {
+            char command[128];
+            snprintf(command, sizeof(command),
+                     control->SelectCommand[0] ? control->SelectCommand : "menu_lan_select %u",
+                     (unsigned)index);
+            UI_MenuCommandLocal(command);
+        }
+    }
+    if ((ui_mouse.event == UI_WC3_MOUSE_WHEEL_UP || ui_mouse.event == UI_WC3_MOUSE_WHEEL_DOWN) &&
+        visible_rows > 0 && state->count > visible_rows) {
+        DWORD const max_scroll = state->count - visible_rows;
+        if (ui_mouse.event == UI_WC3_MOUSE_WHEEL_UP) {
+            state->scroll = state->scroll > 0 ? state->scroll - 1 : 0;
+        } else if (state->scroll < max_scroll) {
+            state->scroll++;
+        }
+    }
+}
+
+static void UI_HandleSliderEvent(LPCFRAMEDEF frame, LPCRECT rect) {
+    LPCFRAMEDEF thumb = UI_FindFrameNear(frame, frame->Slider.ThumbButtonFrame);
+    if (!thumb) return;
+    RECT thumb_rect = UI_SliderThumbRect(frame, rect, thumb);
+    BOOL const can_start = ui_mouse.event == UI_WC3_MOUSE_LEFT_DOWN &&
+                           !UI_PointerBlockedByPopup(frame) &&
+                           (UI_MouseContains(rect) || UI_MouseContains(&thumb_rect));
+    if (can_start) {
+        active_slider = frame;
+    }
+    if (active_slider == frame && ui_mouse.down) {
+        ((LPFRAMEDEF)frame)->Slider.InitialValue = UI_SliderValueFromMouse(frame, rect, thumb);
+    }
+    if (active_slider == frame && ui_mouse.event == UI_WC3_MOUSE_LEFT_UP) {
+        ((LPFRAMEDEF)frame)->Slider.InitialValue = UI_SliderValueFromMouse(frame, rect, thumb);
+        active_slider = NULL;
+    }
+    if (!ui_mouse.down && active_slider == frame) {
+        active_slider = NULL;
+    }
+}
+
+static void UI_HandleCheckboxEvent(LPCFRAMEDEF frame, LPCRECT rect) {
+    if (!UI_PointerBlockedByPopup(frame) &&
+        UI_MouseContains(rect) &&
+        ui_mouse.event == UI_WC3_MOUSE_LEFT_UP) {
+        ((LPFRAMEDEF)frame)->CheckBox.Checked = !frame->CheckBox.Checked;
+        if (frame->OnClick[0]) {
+            UI_MenuCommandLocal(frame->OnClick);
+        }
+    }
+}
+
+void UI_HandleMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
+    LPCFRAMEDEF draw_order[MAX_UI_CLASSES];
+    DWORD count;
+    LPCFRAMEDEF modal;
+    (void)event; (void)x; (void)y; (void)param;
+
+    if (!event_num_roots) return;
+
+    scene_rect_valid = FALSE;
+    memset(runtimes, 0, sizeof(runtimes));
+    scene_rect = UI_GetSceneRect();
+
+    count = 0;
+    FOR_LOOP(i, event_num_roots) {
+        if (!event_roots[i] || event_roots[i]->hidden) continue;
+        DWORD emitted = UI_CollectFrameTree(event_roots[i],
+            count < MAX_UI_CLASSES ? draw_order + count : NULL,
+            count < MAX_UI_CLASSES ? MAX_UI_CLASSES - count : 0);
+        count += emitted;
+    }
+    count = MIN(count, MAX_UI_CLASSES);
+    modal = UI_FindActiveModalRoot(event_roots, event_num_roots);
+    active_modal = modal;
+
+    UI_SanitizeInteractionState(draw_order, count);
+
+    /* Close popup / clear edit focus on outside clicks */
+    if (ui_mouse.event == UI_WC3_MOUSE_LEFT_DOWN) {
+        if (active_popup) {
+            LPCRECT popup_rect = UI_LayoutRect(active_popup);
+            LPFRAMEDEF menu = UI_PopupMenuFrame(active_popup);
+            LPCRECT menu_rect = menu && !menu->hidden ? UI_LayoutRect(menu) : NULL;
+            if (!(popup_rect && UI_MouseContains(popup_rect)) &&
+                !(menu_rect && UI_MouseContains(menu_rect))) {
+                active_popup = NULL;
+                UI_ResetPopupScroll();
+            }
+        }
+        if (active_edit) {
+            LPCRECT rect = UI_LayoutRect(active_edit);
+            if (!rect || !UI_MouseContains(rect)) {
+                UI_FocusEdit(NULL);
+            }
+        }
+    }
+
+    /* Dispatch per-frame interactions */
+    FOR_LOOP(i, count) {
+        LPCFRAMEDEF frame = draw_order[i];
+        if (!frame || frame->hidden) continue;
+        if (UI_IsActivePopupMenu(frame)) continue;
+
+        LPCRECT rect = UI_LayoutRect(frame);
+        if (!rect) continue;
+
+        BOOL blocked = UI_PointerBlockedByPopup(frame);
+
+        switch (frame->Type) {
+        case FT_BUTTON:
+        case FT_TEXTBUTTON:
+        case FT_GLUETEXTBUTTON:
+        case FT_GLUEBUTTON:
+        case FT_SIMPLEBUTTON:
+            if (!blocked && UI_MouseContains(rect) &&
+                ui_mouse.event == UI_WC3_MOUSE_LEFT_UP &&
+                UI_ButtonEnabled(frame) && frame->OnClick[0]) {
+                UI_MenuCommandLocal(frame->OnClick);
+            }
+            if (UI_IsPopupFrameType(frame->Type) &&
+                !blocked && UI_ButtonEnabled(frame) &&
+                UI_MouseContains(rect) &&
+                ui_mouse.event == UI_WC3_MOUSE_LEFT_UP) {
+                LPCFRAMEDEF next_popup = active_popup == frame ? NULL : frame;
+                if (active_popup != next_popup) {
+                    UI_ResetPopupScroll();
+                    active_popup = next_popup;
+                }
+            }
+            break;
+        case FT_POPUPMENU:
+        case FT_GLUEPOPUPMENU:
+            if (!blocked && UI_MouseContains(rect) &&
+                ui_mouse.event == UI_WC3_MOUSE_LEFT_UP &&
+                UI_ButtonEnabled(frame) && frame->OnClick[0]) {
+                UI_MenuCommandLocal(frame->OnClick);
+            }
+            if (UI_IsPopupFrameType(frame->Type) &&
+                !blocked && UI_ButtonEnabled(frame) &&
+                UI_MouseContains(rect) &&
+                ui_mouse.event == UI_WC3_MOUSE_LEFT_UP) {
+                LPCFRAMEDEF next_popup = active_popup == frame ? NULL : frame;
+                if (active_popup != next_popup) {
+                    UI_ResetPopupScroll();
+                    active_popup = next_popup;
+                }
+            }
+            break;
+        case FT_EDITBOX:
+        case FT_GLUEEDITBOX:
+        case FT_SLASHCHATBOX:
+            if (!blocked && UI_MouseContains(rect) &&
+                ui_mouse.event == UI_WC3_MOUSE_LEFT_DOWN) {
+                UI_FocusEdit((LPFRAMEDEF)frame);
+            }
+            break;
+        case FT_CONTROL:
+            if (frame->MapListControl.State) {
+                if (!blocked) UI_HandleMapListEvent(frame, rect);
+            }
+            break;
+        case FT_CHECKBOX:
+        case FT_GLUECHECKBOX:
+        case FT_SIMPLECHECKBOX:
+            if (!blocked) UI_HandleCheckboxEvent(frame, rect);
+            break;
+        case FT_SLIDER:
+            if (!blocked) UI_HandleSliderEvent(frame, rect);
+            break;
+        default:
+            break;
+        }
+    }
 }
 
 /* ========================================================================
@@ -894,6 +1079,12 @@ void UI_DrawFrames(LPCFRAMEDEF const *roots, DWORD num_roots) {
     if (!roots || num_roots == 0) {
         return;
     }
+
+    /* Store roots for event-time mouse interaction */
+    event_num_roots = MIN(num_roots, MAX_UI_CLASSES);
+    FOR_LOOP(i, event_num_roots) {
+        event_roots[i] = roots[i];
+    }
     
     /* Clear layout cache (scene rect may have changed) */
     scene_rect_valid = FALSE;
@@ -916,8 +1107,6 @@ void UI_DrawFrames(LPCFRAMEDEF const *roots, DWORD num_roots) {
     active_modal = UI_FindActiveModalRoot(roots, num_roots);
     modal_index = UI_FrameDrawOrderIndex(draw_order, count, active_modal);
     UI_SanitizeInteractionState(draw_order, count);
-    UI_ClosePopupIfClickedOutside();
-    UI_ClearEditFocusIfClickedOutside();
     UI_UpdatePopupVisibility(draw_order, count);
 
     /* Match the old client overlay pass: animated/model sprites first, then

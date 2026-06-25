@@ -97,6 +97,88 @@ void Cbuf_AddText(LPCSTR text) {
     (void)text;
 }
 
+void Cmd_ForwardToServer(LPCSTR text) {
+    (void)text;
+}
+
+HANDLE FS_ReadFile(LPCSTR filename, LPDWORD size) {
+    (void)filename;
+    if (size) {
+        *size = 0;
+    }
+    return NULL;
+}
+
+BOMStatus PF_TextRemoveBom(LPSTR buffer) {
+    (void)buffer;
+    return NO_BOM;
+}
+
+bool CM_LoadMapFormat(LPCSTR mapFilename) {
+    (void)mapFilename;
+    return false;
+}
+
+BOOL CM_ReadMapInfo(LPCSTR mapFilename, LPMAPINFO info) {
+    (void)mapFilename;
+    if (info) {
+        memset(info, 0, sizeof(*info));
+    }
+    return false;
+}
+
+BOOL CM_FindMapPreviewTexture(LPCSTR mapFilename, LPSTR out, DWORD out_size) {
+    (void)mapFilename;
+    if (out && out_size) {
+        out[0] = '\0';
+    }
+    return false;
+}
+
+void CM_FreeMapInfo(LPMAPINFO info) {
+    (void)info;
+}
+
+void CM_DefaultMapName(LPCSTR path, LPSTR out, DWORD out_size) {
+    if (!out || out_size == 0) {
+        return;
+    }
+    snprintf(out, out_size, "%s", path ? path : "");
+}
+
+void CM_ResolveMapInfoString(LPCMAPINFO info, LPCSTR text, LPSTR out, DWORD out_size) {
+    (void)info;
+    if (!out || out_size == 0) {
+        return;
+    }
+    snprintf(out, out_size, "%s", text ? text : "");
+}
+
+BOOL CM_MapNameMatchesFile(LPCSTR name, LPCSTR path) {
+    (void)name;
+    (void)path;
+    return false;
+}
+
+LPCSTR CM_TilesetName(BYTE tileset) {
+    (void)tileset;
+    return NULL;
+}
+
+LPCSTR CM_MapSizeName(DWORD width, DWORD height) {
+    (void)width;
+    (void)height;
+    return "Unknown";
+}
+
+void CM_SanitizeMapListField(LPSTR text) {
+    (void)text;
+}
+
+void CM_SanitizeMapInfoText(LPSTR text) {
+    (void)text;
+}
+
 void test_client_stubs_init(void) {
     memset(&cl, 0, sizeof(cl));
     memset(&cls, 0, sizeof(cls));
