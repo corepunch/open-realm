@@ -899,6 +899,18 @@ static void Wow_SpawnEntities(void) {
         wow_spawn_location = 0;
     }
     Wow_SelectLoadingScreen(mapinfo ? mapinfo->mapName : NULL);
+    /* Re-populate the playerinfo configstring from cvars after SV_Map's
+       memset cleared all configstrings (same pattern as Q3: game module
+       re-sets configstrings after the server wipes them on map load). */
+    {
+        LPCSTR race, sex;
+        DWORD class_id, appearance;
+        char buf[MAX_PATHLEN];
+        Wow_ReadSelectedCharFromCvars(&race, &sex, &class_id, &appearance);
+        snprintf(buf, sizeof(buf), "\\race\\%s\\sex\\%s\\class\\%u\\appearance\\%u",
+                 race, sex, (unsigned)class_id, (unsigned)appearance);
+        gi.configstring(CS_GENERAL + WOW_CS_PLAYERINFO, buf);
+    }
     wow_move.flags = 0;
     wow_move.yaw = 0.0f;
     wow_move.pitch = 328.0f;

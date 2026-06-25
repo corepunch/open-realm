@@ -116,7 +116,7 @@ static void UI_DrawBackdropWithColor(LPCFRAMEDEF frame, LPCRECT rect, COLOR32 co
                                         .screen = background,
                                         .uv = uv,
                                         .color = color,
-                                        .rotate = FALSE));
+                                        ));
         } else {
             UI_BackdropWarnOnce(frame, UI_BACKDROP_WARN_BACKGROUND_TEXTURE, "background texture is missing");
         }
@@ -152,8 +152,7 @@ static void UI_DrawBackdropWithColor(LPCFRAMEDEF frame, LPCRECT rect, COLOR32 co
                                     .alphamode = BLEND_MODE_BLEND,
                                     .screen = rects[corners[i]],
                                     .uv = uv,
-                                    .color = color,
-                                    .rotate = flip));
+                                    .color = color));
     }
 }
 

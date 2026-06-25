@@ -532,6 +532,14 @@ void R_RenderFrame(viewDef_t const *viewDef) {
             Matrix4_identity(&tr.viewDef.textureMatrix);
             Matrix4_identity(&tr.viewDef.lightMatrix);
         }
+        Frustum_Calculate(&tr.viewDef.viewProjectionMatrix, &tr.viewDef.frustum);
+        R_SetupViewport(&tr.viewDef.viewport);
+        R_SetupScissor(&tr.viewDef.scissor);
+        R_SetupGL(false);
+        R_Call(glClear, GL_DEPTH_BUFFER_BIT);
+        R_DrawEntities();
+        R_RevertSettings();
+        return;
     }
 
     Frustum_Calculate(&tr.viewDef.viewProjectionMatrix, &tr.viewDef.frustum);

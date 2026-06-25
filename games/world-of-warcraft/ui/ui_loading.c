@@ -2,9 +2,7 @@
  * ui_loading.c — Loading screen drawing and map background management.
  *
  * Draws the loading screen entirely in C: map background, progress bar
- * (five layered textures), and title/status text.  If a Lua function
- * ow3_draw_loading_screen is defined, it is called instead; the C path
- * acts as the fallback.
+ * (five layered textures), and title/status text.
  */
 #include "ui_local.h"
 
@@ -85,6 +83,27 @@ void UIWow_UpdateMapBackground(LPCPLAYER ps) {
 }
 
 /* -------------------------------------------------------------------------
+ * Progress smoothing — same lerp as main/
+ * ---------------------------------------------------------------------- */
+
+static FLOAT UIWow_SmoothProgress(FLOAT target) {
+    if (target < 0.0f) {
+        target = 0.0f;
+    } else if (target > 1.0f) {
+        target = 1.0f;
+    }
+    if (target < wow_ui.displayed_progress) {
+        wow_ui.displayed_progress = target;
+    } else {
+        wow_ui.displayed_progress = wow_ui.displayed_progress * 0.82f + target * 0.18f;
+        if (target - wow_ui.displayed_progress < 0.002f) {
+            wow_ui.displayed_progress = target;
+        }
+    }
+    return wow_ui.displayed_progress;
+}
+
+/* -------------------------------------------------------------------------
  * C fallback drawing (progress bar + title + status text)
  * ---------------------------------------------------------------------- */
 
@@ -96,6 +115,7 @@ void UIWow_DrawLoadingScreenC(LPCSTR map, LPCSTR status, FLOAT progress) {
     RECT bar_fill = bar;
     RECT title_rect = MAKE(RECT, 0.16f, 0.77f, 0.68f, 0.05f);
     RECT status_rect = MAKE(RECT, 0.16f, 0.818f, 0.68f, 0.04f);
+    FLOAT smoothed = UIWow_SmoothProgress(progress);
     LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
     LPCSTR map_title = ps ? ps->texts[PLAYERTEXT_MAP_TITLE] : NULL;
 
@@ -113,10 +133,10 @@ void UIWow_DrawLoadingScreenC(LPCSTR map, LPCSTR status, FLOAT progress) {
         wow_ui.renderer->DrawImage(wow_ui.bar_background, &bar, &uv, COLOR32_WHITE);
     }
     if (wow_ui.bar_fill) {
-        bar_fill.w *= progress;
+        bar_fill.w *= smoothed;
         if (bar_fill.w > 0.0f) {
             RECT fill_uv = uv;
-            fill_uv.w = progress;
+            fill_uv.w = smoothed;
             wow_ui.renderer->DrawImage(wow_ui.bar_fill, &bar_fill, &fill_uv, COLOR32_WHITE);
         }
     }

@@ -354,6 +354,12 @@ typedef struct {
     DWORD flags;
 } m2CharacterOutfit_t;
 
+enum { M2_COMPOSITE_CACHE_SIZE = 4 };
+typedef struct {
+    LPTEXTURE texture;
+    DWORD key;
+} m2CompositeCacheEntry_t;
+
 struct m2Model_s {
     m2ModelBatch_t *batches;
     DWORD num_batches;
@@ -362,8 +368,8 @@ struct m2Model_s {
     BOX3 geometry_bounds;
     BOOL has_geometry_bounds;
     BOOL character_model;
-    LPTEXTURE character_composite;
-    DWORD character_composite_key;
+    m2CompositeCacheEntry_t composite_cache[M2_COMPOSITE_CACHE_SIZE];
+    DWORD composite_cache_lru;
     m2CharacterOutfit_t character_outfit;
     DWORD character_outfit_appearance;
     DWORD character_outfit_equipment;
@@ -2805,6 +2811,7 @@ static LPTEXTURE M2_CharacterTextureForBatch(m2Model_t const *model,
                                              m2CharacterOutfit_t const *outfit) {
     m2Model_t *mutable_model;
     DWORD key;
+    DWORD victim;
     PATHSTR texture_path;
     BOOL has_base_path;
     LPCOLOR32 pixels = NULL;
@@ -2818,22 +2825,51 @@ static LPTEXTURE M2_CharacterTextureForBatch(m2Model_t const *model,
                                                   batch->texture_type,
                                                   texture_path,
                                                   sizeof(texture_path));
-    if (has_base_path && batch->texture_type != 1)
-        return R_LoadTexture(texture_path);
-    if (batch->texture_type != 1)
+    if (batch->texture_type != 1) {
+        if (has_base_path) {
+            key = entity->appearance ^ (entity->equipment * 16777619u);
+            if (batch->character_texture && batch->character_texture_key == key) {
+                return batch->character_texture;
+            }
+            if (batch->character_texture) {
+                R_ReleaseTexture(batch->character_texture);
+            }
+            batch->character_texture = R_LoadTexture(texture_path);
+            batch->character_texture_key = key;
+            return batch->character_texture;
+        }
         return batch->texture;
+    }
 
     mutable_model = (m2Model_t *)model;
     key = entity->appearance ^ (entity->equipment * 16777619u);
-    if (mutable_model->character_composite && mutable_model->character_composite_key == key) {
-        return mutable_model->character_composite;
-    }
 
-    if (mutable_model->character_composite) {
-        R_ReleaseTexture(mutable_model->character_composite);
+    /* Look up composite cache — find existing or LRU victim */
+    {
+        DWORD lru = mutable_model->composite_cache_lru;
+        victim = 0;
+        for (DWORD i = 0; i < M2_COMPOSITE_CACHE_SIZE; i++) {
+            if (mutable_model->composite_cache[i].texture &&
+                mutable_model->composite_cache[i].key == key) {
+                mutable_model->composite_cache_lru = lru | (1u << i);
+                return mutable_model->composite_cache[i].texture;
+            }
+            if (!mutable_model->composite_cache[i].texture) {
+                victim = i;
+                break;
+            }
+            if (!(lru & (1u << i))) {
+                victim = i;
+            }
+        }
+        /* Evict victim if occupied */
+        if (mutable_model->composite_cache[victim].texture) {
+            R_ReleaseTexture(mutable_model->composite_cache[victim].texture);
+        }
+        mutable_model->composite_cache[victim].texture = NULL;
+        mutable_model->composite_cache[victim].key = key;
+        mutable_model->composite_cache_lru = lru | (1u << victim);
     }
-    mutable_model->character_composite = NULL;
-    mutable_model->character_composite_key = key;
 
     if (!outfit) {
         return batch->texture;
@@ -2872,14 +2908,13 @@ static LPTEXTURE M2_CharacterTextureForBatch(m2Model_t const *model,
                               unpacked.facialHairStyleID, unpacked.hairColorID);
     }
 
-    mutable_model->character_composite = R_AllocateTexture(base_texture->width, base_texture->height);
-    R_LoadTextureMipLevel(mutable_model->character_composite,
-                          0,
-                          pixels,
-                          base_texture->width,
-                          base_texture->height);
-    ri.MemFree(pixels);
-    return mutable_model->character_composite ? mutable_model->character_composite : batch->texture;
+    {
+        LPTEXTURE comp = R_AllocateTexture(base_texture->width, base_texture->height);
+        R_LoadTextureMipLevel(comp, 0, pixels, base_texture->width, base_texture->height);
+        ri.MemFree(pixels);
+        mutable_model->composite_cache[victim].texture = comp;
+        return comp ? comp : batch->texture;
+    }
 }
 
 void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMATRIX4 transform) {
@@ -3010,8 +3045,10 @@ void M2_Release(m2Model_t *model) {
         ri.MemFree(batch);
         batch = next;
     }
-    if (model->character_composite) {
-        R_ReleaseTexture(model->character_composite);
+    for (DWORD i = 0; i < M2_COMPOSITE_CACHE_SIZE; i++) {
+        if (model->composite_cache[i].texture) {
+            R_ReleaseTexture(model->composite_cache[i].texture);
+        }
     }
     M2_FreeModelData(model);
     ri.MemFree(model);
