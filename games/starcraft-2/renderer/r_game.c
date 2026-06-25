@@ -336,6 +336,16 @@ void R_GameDrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim) {
     (void)anim;
 }
 
+bool R_GameExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t *viewdef) {
+    (void)entity; (void)aspect; (void)viewdef;
+    return false;
+}
+
+bool R_GameSetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
+    (void)model; (void)anim; (void)entity;
+    return false;
+}
+
 void R_GameDrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
     (void)model;
     (void)anim;

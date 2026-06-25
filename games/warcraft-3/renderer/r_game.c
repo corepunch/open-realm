@@ -288,6 +288,103 @@ void R_GameDrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim) {
     MDLX_DrawPortrait(model, viewport, anim);
 }
 
+bool R_GameExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t *viewdef) {
+    if (!entity || !entity->model || entity->model->modeltype != ID_MDLX || !viewdef)
+        return false;
+    mdxModel_t const *mdx = entity->model->mdx;
+    if (!mdx || !mdx->cameras)
+        return false;
+
+    mdxCamera_t const *camera = mdx->cameras;
+    VECTOR3 eye = camera->pivot;
+    VECTOR3 target = camera->targetPivot;
+    VECTOR3 up = { 0, 0, 1 };
+    float fov_deg = camera->fieldOfView * (180.0f / (float)M_PI);
+    float near_clip = camera->nearClip;
+    float far_clip = camera->farClip;
+    float roll = 0.0f;
+
+    if (!isfinite(fov_deg) || fov_deg <= 1.0f || fov_deg >= 179.0f)
+        fov_deg = 35.0f;
+    if (!isfinite(near_clip) || near_clip < 0.01f)
+        near_clip = 1.0f;
+    if (!isfinite(far_clip) || far_clip <= near_clip + 1.0f)
+        far_clip = near_clip + 5000.0f;
+    if (!isfinite(aspect) || aspect <= 0.0f)
+        aspect = 1.0f;
+
+    if (camera->translation) {
+        VECTOR3 translation = { 0, 0, 0 };
+        MDLX_GetModelKeytrackValue(mdx, camera->translation, entity->frame, &translation);
+        eye = Vector3_add(&eye, &translation);
+    }
+    if (camera->targetTranslation) {
+        VECTOR3 targetTranslation = { 0, 0, 0 };
+        MDLX_GetModelKeytrackValue(mdx, camera->targetTranslation, entity->frame, &targetTranslation);
+        target = Vector3_add(&target, &targetTranslation);
+    }
+    VECTOR3 dir = Vector3_sub(&target, &eye);
+    if (Vector3_len(&dir) < 0.001f)
+        return false;
+    if (camera->roll) {
+        MDLX_GetModelKeytrackValue(mdx, camera->roll, entity->frame, &roll);
+        if (isfinite(roll) && fabsf(roll) > 0.0001f)
+            up = Vector3_rotateAroundAxis(&up, &dir, roll);
+    }
+
+    float const camera_aspect = 1.66f;
+    fov_deg = 2.0f * atanf(tanf(fov_deg * (float)M_PI / 360.0f) / camera_aspect) * 180.0f / (float)M_PI;
+
+    MATRIX4 proj_matrix, view_matrix;
+    Matrix4_perspective(&proj_matrix, fov_deg, aspect, near_clip, far_clip);
+    Matrix4_lookAt(&view_matrix, &eye, &dir, &up);
+    Matrix4_multiply(&proj_matrix, &view_matrix, &viewdef->viewProjectionMatrix);
+    Matrix4_identity(&viewdef->textureMatrix);
+
+    VECTOR3 lightAngles = { 10, 270, 0 };
+    Matrix4_getLightMatrix(&lightAngles, &target, PORTRAIT_SHADOW_SIZE, &viewdef->lightMatrix);
+    return true;
+}
+
+bool R_GameSetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
+    if (!model || model->modeltype != ID_MDLX || !model->mdx || !anim || !entity)
+        return false;
+    mdxModel_t const *mdx = model->mdx;
+    mdxSequence_t const *seq = NULL;
+    LPCSTR sequence = anim;
+
+    if (sequence && sequence[0] == '#' && sequence[1] == '!')
+        sequence += 2;
+    else if (sequence && sequence[0] == '#')
+        sequence++;
+
+    if (anim[0] == '#') {
+        char *end = NULL;
+        unsigned long index = strtoul(sequence, &end, 10);
+        if (end && (*end == '\0' || *end == '@') && index < (unsigned long)mdx->num_sequences)
+            seq = &mdx->sequences[index];
+    } else if (anim && *anim) {
+        LPCSTR ratio = strchr(anim, '@');
+        char sequence_name[sizeof(mdxObjectName_t) + 1];
+        size_t len = ratio ? (size_t)(ratio - anim) : strlen(anim);
+
+        if (len >= sizeof(sequence_name))
+            len = sizeof(sequence_name) - 1;
+        memcpy(sequence_name, anim, len);
+        sequence_name[len] = '\0';
+        seq = MDLX_FindSequenceByName(mdx, sequence_name);
+    }
+    if (!seq)
+        return false;
+
+    DWORD seq_len = seq->interval[1] - seq->interval[0];
+    if (seq_len == 0)
+        seq_len = 1;
+    entity->frame = seq->interval[0] + (entity->frame % seq_len);
+    entity->oldframe = entity->frame;
+    return true;
+}
+
 void R_GameDrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
     MDLX_DrawSprite(model, anim, x, y);
 }

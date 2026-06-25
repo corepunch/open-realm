@@ -12,6 +12,15 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size);
 void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMATRIX4 transform);
 BOOL M2_AttachmentMatrix(m2Model_t const *model, DWORD attachment_id, LPCMATRIX4 model_matrix, LPMATRIX4 out);
 FLOAT M2_GroundOffset(m2Model_t const *model);
+BOOL M2_CameraView(m2Model_t const *model,
+                   DWORD camera_index,
+                   LPVECTOR3 eye,
+                   LPVECTOR3 target,
+                   LPFLOAT fov_degrees,
+                   LPFLOAT znear,
+                   LPFLOAT zfar);
+BOOL M2_IsCharacterModel(m2Model_t const *model);
+BOOL M2_SetEntitySequenceFrame(m2Model_t const *model, LPCSTR anim, renderEntity_t *entity);
 void M2_Release(m2Model_t *model);
 void M2_Shutdown(void);
 
@@ -167,27 +176,54 @@ bool R_GameEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
     return true;
 }
 
+/* Build a stable top/front light for WoW UI model-camera previews. */
+static void R_GameEntityCameraLightMatrix(LPCVECTOR3 target, FLOAT radius, LPMATRIX4 output) {
+    MATRIX4 proj;
+    MATRIX4 view;
+    VECTOR3 light_dir = { -0.35f, -0.50f, 0.80f };
+    VECTOR3 view_dir;
+    VECTOR3 eye;
+    FLOAT distance = MAX(1000.0f, radius * 8.0f);
+    FLOAT scale = MAX(64.0f, radius * 2.5f);
+
+    Vector3_normalize(&light_dir);
+    view_dir = Vector3_unm(&light_dir);
+    eye = Vector3_mad(target, distance, &light_dir);
+    Matrix4_ortho(&proj, -scale, scale, -scale, scale, -1000.0f, 3000.0f);
+    Matrix4_lookAt(&view, &eye, &view_dir, &(VECTOR3){ 0.0f, 0.0f, 1.0f });
+    Matrix4_multiply(&proj, &view, output);
+}
+
 void R_GameRenderModel(renderEntity_t const *entity) {
     MATRIX4 transform;
     MATRIX4 attached_transform;
     renderEntity_t attached_entity;
+    DWORD attachment_id;
 
     if (!entity || !entity->model || entity->model->modeltype != ID_MD20) {
         return;
     }
     R_GetEntityMatrix(entity, &transform);
     M2_RenderModel(entity, entity->model->m2, &transform);
+    attachment_id = (tr.viewDef.rdflags & RDF_USE_ENTITY_CAMERA) ? 0 : 1;
     if (entity->attached_model &&
         entity->attached_model->modeltype == ID_MD20 &&
 #ifdef USE_SHADOWMAPS
         !is_rendering_lights &&
 #endif
-        M2_AttachmentMatrix(entity->model->m2, 1, &transform, &attached_transform)) {
+        M2_AttachmentMatrix(entity->model->m2, attachment_id, &transform, &attached_transform)) {
+        if (tr.viewDef.rdflags & RDF_USE_ENTITY_CAMERA) {
+            Matrix4_rotate(&attached_transform,
+                           &(VECTOR3){ 0.0f, 0.0f, entity->angle * 180.0f / (FLOAT)M_PI },
+                           ROTATE_XYZ);
+        }
         attached_entity = *entity;
         attached_entity.model = entity->attached_model;
         attached_entity.attached_model = NULL;
-        attached_entity.frame = 0;
-        attached_entity.oldframe = 0;
+        if (!(tr.viewDef.rdflags & RDF_USE_ENTITY_CAMERA)) {
+            attached_entity.frame = 0;
+            attached_entity.oldframe = 0;
+        }
         attached_entity.flags &= ~RF_GROUND_ANCHOR;
         attached_entity.flags |= RF_NO_SHADOW;
         M2_RenderModel(&attached_entity, attached_entity.model->m2, &attached_transform);
@@ -298,6 +334,84 @@ bool R_GameGetModelInfo(LPMODEL model, LPMODELINFO info) {
     (void)model;
     (void)info;
     return false;
+}
+
+bool R_GameExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t *viewdef) {
+    BOX3 const *bounds;
+    MATRIX4 transform;
+    VECTOR3 center;
+    VECTOR3 eye;
+    VECTOR3 target;
+    VECTOR3 dir;
+    VECTOR3 up;
+    VECTOR3 model_origin;
+    VECTOR3 model_z;
+    float radius;
+    float distance;
+    float fov = 35.0f;
+    float znear = 1.0f;
+    float zfar = 4000.0f;
+
+    if (!entity || !entity->model || entity->model->modeltype != ID_MD20 || !viewdef) {
+        return false;
+    }
+
+    m2Model_t const *m2 = entity->model->m2;
+    bounds = &m2->bounds;
+    R_GetEntityMatrix(entity, &transform);
+
+    center = (VECTOR3){
+        (bounds->max.x + bounds->min.x) * 0.5f,
+        (bounds->max.y + bounds->min.y) * 0.5f,
+        (bounds->max.z + bounds->min.z) * 0.5f
+    };
+    radius = Vector3_len(&(VECTOR3){
+        bounds->max.x - bounds->min.x,
+        bounds->max.y - bounds->min.y,
+        bounds->max.z - bounds->min.z
+    }) * 0.5f;
+    if (radius < 1.0f) {
+        radius = 32.0f;
+    }
+
+    if (!M2_CameraView(m2, 0, &eye, &target, &fov, &znear, &zfar)) {
+        distance = radius / tanf((fov * (FLOAT)M_PI / 180.0f) * 0.5f);
+        if (M2_IsCharacterModel(m2)) {
+            target = (VECTOR3){ center.x, center.y, center.z + radius * 0.28f };
+            eye = (VECTOR3){ target.x, target.y - distance * 0.52f, target.z + radius * 0.02f };
+            znear = MAX(0.1f, distance * 0.02f);
+        } else {
+            eye = (VECTOR3){ center.x, center.y - distance * 1.35f, center.z + radius * 0.25f };
+            target = center;
+        }
+        zfar = MAX(zfar, distance + radius * 4.0f);
+    }
+    eye = Matrix4_multiply_vector3(&transform, &eye);
+    target = Matrix4_multiply_vector3(&transform, &target);
+    model_origin = Matrix4_multiply_vector3(&transform, &(VECTOR3){0, 0, 0});
+    model_z = Matrix4_multiply_vector3(&transform, &(VECTOR3){0, 0, 1});
+    up = Vector3_sub(&model_z, &model_origin);
+    if (Vector3_len(&up) <= 0.001f) {
+        up = (VECTOR3){ 0.0f, 0.0f, 1.0f };
+    }
+    dir = Vector3_sub(&target, &eye);
+    if (Vector3_len(&dir) <= 0.001f) {
+        dir = (VECTOR3){ 0.0f, 1.0f, 0.0f };
+    }
+
+    MATRIX4 proj_matrix, view_matrix;
+    Matrix4_perspective(&proj_matrix, fov, aspect, znear, zfar);
+    Matrix4_lookAt(&view_matrix, &eye, &dir, &up);
+    Matrix4_multiply(&proj_matrix, &view_matrix, &viewdef->viewProjectionMatrix);
+    Matrix4_identity(&viewdef->textureMatrix);
+    R_GameEntityCameraLightMatrix(&target, radius, &viewdef->lightMatrix);
+    return true;
+}
+
+bool R_GameSetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
+    if (!model || model->modeltype != ID_MD20)
+        return false;
+    return M2_SetEntitySequenceFrame(model->m2, anim, entity);
 }
 
 void R_GameDrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim) {

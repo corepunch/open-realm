@@ -113,6 +113,26 @@ typedef struct {
 } m2AttachmentClassic_t;
 
 typedef struct {
+    DWORD camera_id;
+    FLOAT fov, far_clip, near_clip;
+    m2Track_t position_track;
+    VECTOR3 position_pivot;
+    m2Track_t target_track;
+    VECTOR3 target_pivot;
+    m2Track_t roll_track;
+} m2CameraModern_t;
+
+typedef struct {
+    DWORD camera_id;
+    FLOAT fov, far_clip, near_clip;
+    m2TrackClassic_t position_track;
+    VECTOR3 position_pivot;
+    m2TrackClassic_t target_track;
+    VECTOR3 target_pivot;
+    m2TrackClassic_t roll_track;
+} m2CameraClassic_t;
+
+typedef struct {
     DWORD bone_id;
     DWORD flags;
     WORD parent_index;
@@ -143,6 +163,9 @@ typedef struct {
     m2Array_t sequence_times;
     m2Array_t sequence_keys;
 } m2TrackView_t;
+
+static m2TrackView_t M2_ModernTrackView(m2Track_t const *track);
+static m2TrackView_t M2_ClassicTrackView(m2TrackClassic_t const *track);
 
 typedef struct {
     DWORD magic;
@@ -176,6 +199,13 @@ typedef struct {
     m2Array_t collision_normals;
     m2Array_t attachments;
     m2Array_t attachment_lookup;
+    m2Array_t events;
+    m2Array_t lights;
+    m2Array_t cameras;
+    m2Array_t camera_lookup;
+    m2Array_t ribbons;
+    m2Array_t particles;
+    m2Array_t texture_combiner_combos;
 } m2Header_t;
 
 typedef struct {
@@ -212,6 +242,12 @@ typedef struct {
     m2Array_t collision_normals;
     m2Array_t attachments;
     m2Array_t attachment_lookup;
+    m2Array_t events;
+    m2Array_t lights;
+    m2Array_t cameras;
+    m2Array_t camera_lookup;
+    m2Array_t ribbons;
+    m2Array_t particles;
 } m2HeaderLegacy_t;
 
 typedef struct {
@@ -347,6 +383,10 @@ struct m2Model_s {
     m2Array_t attachment_lookup;
     DWORD attachment_stride;
     BOOL classic_attachments;
+    BYTE *cameras;
+    DWORD camera_count;
+    DWORD camera_stride;
+    BOOL classic_cameras;
     MATRIX4 *bone_matrices;
 };
 
@@ -1378,6 +1418,57 @@ typedef struct {
     DWORD sequence_time;
 } m2PoseTime_t;
 
+static WORD M2_SequenceAnimId(m2Model_t const *model, DWORD sequence_index) {
+    BYTE const *sequence;
+
+    if (!model || !model->sequences || sequence_index >= model->sequence_count)
+        return 0;
+    sequence = model->sequences + sequence_index * model->sequence_stride;
+    if (model->classic_sequences)
+        return ((m2SequenceClassic_t const *)sequence)->animation_id;
+    return ((m2SequenceModern_t const *)sequence)->animation_id;
+}
+
+static BOOL M2_FindSequenceByAnimId(m2Model_t const *model, DWORD anim_id, LPDWORD sequence_index) {
+    if (!model || !sequence_index)
+        return false;
+    FOR_LOOP(i, model->sequence_count) {
+        if (M2_SequenceAnimId(model, i) == anim_id) {
+            *sequence_index = i;
+            return true;
+        }
+    }
+    return false;
+}
+
+#define M2_FRAME_SEQUENCE_FLAG  0x80000000u
+#define M2_FRAME_SEQUENCE_SHIFT 21
+#define M2_FRAME_SEQUENCE_MASK  0x3ffu
+#define M2_FRAME_TIME_MASK      0x1fffffu
+
+BOOL M2_SetEntitySequenceFrame(m2Model_t const *model, LPCSTR anim, renderEntity_t *entity) {
+    char *end = NULL;
+    DWORD anim_id;
+    DWORD sequence_index;
+
+    if (!model || !entity)
+        return false;
+    anim_id = anim && *anim ? (DWORD)strtoul(anim, &end, 10) : 0;
+    if (anim && *anim && (!end || *end))
+        return false;
+    if (!M2_FindSequenceByAnimId(model, anim_id, &sequence_index))
+        sequence_index = anim_id;
+    if (model->sequence_count > 0 && sequence_index >= model->sequence_count)
+        return false;
+    entity->frame = M2_FRAME_SEQUENCE_FLAG |
+                    ((anim_id & M2_FRAME_SEQUENCE_MASK) << M2_FRAME_SEQUENCE_SHIFT) |
+                    (entity->frame & M2_FRAME_TIME_MASK);
+    entity->oldframe = M2_FRAME_SEQUENCE_FLAG |
+                       ((anim_id & M2_FRAME_SEQUENCE_MASK) << M2_FRAME_SEQUENCE_SHIFT) |
+                       (entity->oldframe & M2_FRAME_TIME_MASK);
+    return true;
+}
+
 static BOOL M2_FrameToPoseTime(m2Model_t const *model, DWORD frame, m2PoseTime_t *pose) {
     DWORD range_start = 0;
 
@@ -1387,6 +1478,24 @@ static BOOL M2_FrameToPoseTime(m2Model_t const *model, DWORD frame, m2PoseTime_t
     }
     if (!model || !model->sequences || model->sequence_count == 0 || !pose) {
         return false;
+    }
+
+    if (frame & M2_FRAME_SEQUENCE_FLAG) {
+        DWORD anim_id = (frame >> M2_FRAME_SEQUENCE_SHIFT) & M2_FRAME_SEQUENCE_MASK;
+        DWORD sequence;
+        DWORD local_time = frame & M2_FRAME_TIME_MASK;
+        DWORD duration;
+
+        if (!M2_FindSequenceByAnimId(model, anim_id, &sequence))
+            sequence = anim_id;
+        if (sequence >= model->sequence_count)
+            sequence = 0;
+        duration = M2_SequenceDuration(model, sequence);
+        pose->sequence_index = sequence;
+        pose->sequence_time = duration
+            ? M2_SequenceStart(model, sequence) + (local_time % duration)
+            : M2_SequenceStart(model, sequence);
+        return true;
     }
 
     FOR_LOOP(i, model->sequence_count) {
@@ -1584,6 +1693,69 @@ static VECTOR3 M2_EvaluateVectorTrack(m2Model_t const *model,
         return *(VECTOR3 const *)left;
     }
     return Vector3_lerp((LPCVECTOR3)left, (LPCVECTOR3)right, ratio);
+}
+
+BOOL M2_CameraView(m2Model_t const *model,
+                   DWORD camera_index,
+                   LPVECTOR3 eye,
+                   LPVECTOR3 target,
+                   LPFLOAT fov_degrees,
+                   LPFLOAT znear,
+                   LPFLOAT zfar) {
+    m2PoseTime_t pose;
+    m2TrackView_t position_track;
+    m2TrackView_t target_track;
+    VECTOR3 position_value;
+    VECTOR3 target_value;
+    VECTOR3 position_pivot;
+    VECTOR3 target_pivot;
+    FLOAT fov;
+    FLOAT far_clip;
+    FLOAT near_clip;
+
+    if (!model || !model->cameras || camera_index >= model->camera_count || !eye || !target) {
+        return false;
+    }
+
+    if (model->classic_cameras) {
+        BYTE const *record = model->cameras + camera_index * model->camera_stride;
+        m2CameraClassic_t const *camera = (m2CameraClassic_t const *)record;
+
+        position_track = M2_ClassicTrackView(&camera->position_track);
+        target_track = M2_ClassicTrackView(&camera->target_track);
+        position_pivot = camera->position_pivot;
+        target_pivot = camera->target_pivot;
+        fov = camera->fov; near_clip = camera->near_clip; far_clip = camera->far_clip;
+    } else {
+        BYTE const *record = model->cameras + camera_index * model->camera_stride;
+        m2CameraModern_t const *camera = (m2CameraModern_t const *)record;
+
+        position_track = M2_ModernTrackView(&camera->position_track);
+        target_track = M2_ModernTrackView(&camera->target_track);
+        position_pivot = camera->position_pivot;
+        target_pivot = camera->target_pivot;
+        fov = camera->fov; near_clip = camera->near_clip; far_clip = camera->far_clip;
+    }
+    M2_FrameToPoseTime(model, tr.viewDef.time, &pose);
+    position_value = M2_EvaluateVectorTrack(model,
+                                            &position_track,
+                                            pose.sequence_index,
+                                            pose.sequence_time,
+                                            (VECTOR3){ 0.0f, 0.0f, 0.0f });
+    target_value = M2_EvaluateVectorTrack(model,
+                                          &target_track,
+                                          pose.sequence_index,
+                                          pose.sequence_time,
+                                          (VECTOR3){ 0.0f, 0.0f, 0.0f });
+    *eye = Vector3_add(&position_pivot, &position_value);
+    *target = Vector3_add(&target_pivot, &target_value);
+    if (fov_degrees)
+        *fov_degrees = fov > 0.0f ? fov * 0.6f * 180.0f / (FLOAT)M_PI : 35.0f;
+    if (znear)
+        *znear = near_clip > 0.0f ? near_clip : 1.0f;
+    if (zfar)
+        *zfar = far_clip > near_clip ? far_clip : 4000.0f;
+    return true;
 }
 
 static QUATERNION M2_DecodeCompQuat(m2CompQuat_t const *source) {
@@ -2243,6 +2415,7 @@ static BOOL M2_CopyModelData(m2Model_t *model, BYTE const *m2_base, DWORD m2_siz
     m2Array_t bones;
     m2Array_t sequences;
     m2Array_t bone_lookup_table;
+    m2Array_t cameras;
 
     if (!model || !m2_base || m2_size < sizeof(m2Header_t)) {
         return false;
@@ -2261,6 +2434,8 @@ static BOOL M2_CopyModelData(m2Model_t *model, BYTE const *m2_base, DWORD m2_siz
     model->bone_stride = model->classic_bones ? sizeof(m2CompBoneClassic_t) : sizeof(m2CompBoneModern_t);
     model->classic_attachments = model->header->version <= 263;
     model->attachment_stride = model->classic_attachments ? sizeof(m2AttachmentClassic_t) : sizeof(m2AttachmentModern_t);
+    model->classic_cameras = model->header->version <= 263;
+    model->camera_stride = model->classic_cameras ? sizeof(m2CameraClassic_t) : sizeof(m2CameraModern_t);
 
     if (legacy_header) {
         m2HeaderLegacy_t *legacy = (m2HeaderLegacy_t *)model->data;
@@ -2270,6 +2445,7 @@ static BOOL M2_CopyModelData(m2Model_t *model, BYTE const *m2_base, DWORD m2_siz
         bone_lookup_table = legacy->bone_lookup_table;
         model->attachments = legacy->attachments;
         model->attachment_lookup = legacy->attachment_lookup;
+        cameras = legacy->cameras;
     } else {
         model->global_loops = model->header->global_loops;
         bones = model->header->bones;
@@ -2277,14 +2453,17 @@ static BOOL M2_CopyModelData(m2Model_t *model, BYTE const *m2_base, DWORD m2_siz
         bone_lookup_table = model->header->bone_lookup_table;
         model->attachments = model->header->attachments;
         model->attachment_lookup = model->header->attachment_lookup;
+        cameras = model->header->cameras;
     }
 
     model->bones = M2_ModelArrayPtr(model, bones, model->bone_stride);
     model->sequences = M2_ModelArrayPtr(model, sequences, model->sequence_stride);
     model->bone_lookup_table = M2_ModelArrayPtr(model, bone_lookup_table, sizeof(*model->bone_lookup_table));
+    model->cameras = M2_ModelArrayPtr(model, cameras, model->camera_stride);
     model->bone_count = model->bones ? (DWORD)bones.size : 0;
     model->sequence_count = model->sequences ? (DWORD)sequences.size : 0;
     model->bone_lookup_count = model->bone_lookup_table ? (DWORD)bone_lookup_table.size : 0;
+    model->camera_count = model->cameras ? (DWORD)cameras.size : 0;
 
     if (model->bone_count) {
         model->bone_matrices = ri.MemAlloc(sizeof(*model->bone_matrices) * model->bone_count);
@@ -2646,6 +2825,8 @@ FLOAT M2_GroundOffset(m2Model_t const *model) {
     }
     return -model->geometry_bounds.min.z;
 }
+
+BOOL M2_IsCharacterModel(m2Model_t const *model) { return model && model->character_model; }
 
 void M2_Release(m2Model_t *model) {
     m2ModelBatch_t *batch;

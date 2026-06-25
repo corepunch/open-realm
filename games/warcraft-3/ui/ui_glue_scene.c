@@ -64,9 +64,20 @@ void UI_DrawGlueSceneLayers(LPCSTR left_panel_anim, LPCSTR right_panel_anim) {
 
     UI_PreloadGlueSceneModels();
 
-    if (renderer->DrawPortrait && ui_glue_scene.background) {
+    if (renderer->RenderFrame && ui_glue_scene.background) {
         RECT viewport = { 0, 0, 1, 1 };
-        renderer->DrawPortrait(ui_glue_scene.background, &viewport, "Stand");
+        renderEntity_t entity = {0};
+        entity.model = ui_glue_scene.background;
+        entity.scale = 1.0f;
+        entity.flags = RF_NO_FOGOFWAR | RF_NO_SHADOW;
+        if (renderer->SetEntityAnimFrame)
+            renderer->SetEntityAnimFrame(ui_glue_scene.background, "Stand", &entity);
+        viewDef_t viewdef = {0};
+        viewdef.viewport = viewport;
+        viewdef.rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL | RDF_NOFOG | RDF_USE_ENTITY_CAMERA;
+        viewdef.num_entities = 1;
+        viewdef.entities = &entity;
+        renderer->RenderFrame(&viewdef);
     }
 
     if (renderer->DrawSprite) {

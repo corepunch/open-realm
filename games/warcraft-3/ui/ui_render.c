@@ -619,7 +619,7 @@ static void UI_DrawPortrait(LPCFRAMEDEF frame, LPCRECT rect) {
         return;
     }
 
-    if (!renderer || !renderer->DrawPortrait) {
+    if (!renderer || !renderer->RenderFrame) {
         return;
     }
 
@@ -628,9 +628,19 @@ static void UI_DrawPortrait(LPCFRAMEDEF frame, LPCRECT rect) {
         return;
     }
 
-    /* Default animation for portraits is "Stand" or first available */
-    LPCSTR anim = "Stand";
-    renderer->DrawPortrait(model, rect, anim);
+    renderEntity_t entity = {0};
+    entity.model = model;
+    entity.scale = 1.0f;
+    entity.flags = RF_NO_FOGOFWAR | RF_NO_SHADOW;
+    if (renderer->SetEntityAnimFrame)
+        renderer->SetEntityAnimFrame(model, "Stand", &entity);
+
+    viewDef_t viewdef = {0};
+    viewdef.viewport = *rect;
+    viewdef.rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL | RDF_NOFOG | RDF_USE_ENTITY_CAMERA;
+    viewdef.num_entities = 1;
+    viewdef.entities = &entity;
+    renderer->RenderFrame(&viewdef);
 }
 
 /* Render a live game-unit portrait (cl.portraits[index]) inside the given
@@ -640,7 +650,7 @@ void UI_DrawGamePortraitInFrame(LPCFRAMEDEF frame, DWORD modelIndex, LPCSTR anim
     LPRENDERER renderer = UI_GetRenderer();
     LPCMODEL model;
 
-    if (!frame || !modelIndex || !renderer || !renderer->DrawPortrait) {
+    if (!frame || !modelIndex || !renderer || !renderer->RenderFrame) {
         return;
     }
     LPCRECT rect = UI_LayoutRect(frame);
@@ -660,7 +670,20 @@ void UI_DrawGamePortraitInFrame(LPCFRAMEDEF frame, DWORD modelIndex, LPCSTR anim
         rect->w / UI_BASE_WIDTH,
         rect->h / UI_BASE_HEIGHT,
     };
-    renderer->DrawPortrait(model, &viewport, anim ? anim : "Portrait");
+
+    renderEntity_t entity = {0};
+    entity.model = model;
+    entity.scale = 1.0f;
+    entity.flags = RF_NO_FOGOFWAR | RF_NO_SHADOW;
+    if (renderer->SetEntityAnimFrame)
+        renderer->SetEntityAnimFrame(model, anim ? anim : "Portrait", &entity);
+
+    viewDef_t viewdef = {0};
+    viewdef.viewport = viewport;
+    viewdef.rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL | RDF_NOFOG | RDF_USE_ENTITY_CAMERA;
+    viewdef.num_entities = 1;
+    viewdef.entities = &entity;
+    renderer->RenderFrame(&viewdef);
 }
 
 static void UI_DrawSprite(LPCFRAMEDEF frame, LPCRECT rect) {

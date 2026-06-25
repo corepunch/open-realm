@@ -516,14 +516,33 @@ void R_RenderView(void) {
 
 void R_RenderFrame(viewDef_t const *viewDef) {
     tr.viewDef = *viewDef;
-    Frustum_Calculate(&viewDef->viewProjectionMatrix, &tr.viewDef.frustum);
+
+    if (!tr.viewDef.scissor.w && !tr.viewDef.scissor.h) {
+        tr.viewDef.scissor = (RECT){0, 0, 1, 1};
+    }
+
+    if ((tr.viewDef.rdflags & RDF_USE_ENTITY_CAMERA) && tr.viewDef.num_entities > 0) {
+        renderEntity_t const *entity = &tr.viewDef.entities[0];
+        float aspect = (tr.viewDef.viewport.w * tr.drawableSize.width) > 0.0f
+            ? (tr.viewDef.viewport.w * tr.drawableSize.width) / (tr.viewDef.viewport.h * tr.drawableSize.height)
+            : 1.0f;
+        if (!R_GameExtractEntityCamera(entity, aspect, &tr.viewDef)) {
+            Matrix4_identity(&tr.viewDef.viewProjectionMatrix);
+            Matrix4_identity(&tr.viewDef.textureMatrix);
+            Matrix4_identity(&tr.viewDef.lightMatrix);
+        }
+    }
+
+    Frustum_Calculate(&tr.viewDef.viewProjectionMatrix, &tr.viewDef.frustum);
 
     R_RenderFogOfWar();
     R_Call(glActiveTexture, GL_TEXTURE2);
     R_Call(glBindTexture, GL_TEXTURE_2D, R_GetFogOfWarTexture());
     R_Call(glActiveTexture, GL_TEXTURE0);
 #ifdef USE_SHADOWMAPS
-    R_RenderShadowMap();
+    if (!(tr.viewDef.rdflags & RDF_USE_ENTITY_CAMERA)) {
+        R_RenderShadowMap();
+    }
 #endif
     R_RenderView();
 }
@@ -594,6 +613,10 @@ void R_DrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim) {
     R_GameDrawPortrait(model, viewport, anim);
 }
 
+bool R_SetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
+    return R_GameSetEntityAnimFrame(model, anim, entity);
+}
+
 void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
     R_GameDrawSprite(model, anim, x, y);
 }
@@ -628,6 +651,7 @@ refExport_t R_GetAPI(refImport_t imp) {
         .GetTextureSize = R_GetTextureSize,
         .DrawPortrait = R_DrawPortrait,
         .DrawSprite = R_DrawSprite,
+        .SetEntityAnimFrame = R_SetEntityAnimFrame,
         .DrawText = R_DrawText,
         .GetTextSize = R_GetTextSize,
         .GetModelInfo = R_GetModelInfo,

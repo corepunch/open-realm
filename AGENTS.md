@@ -397,3 +397,28 @@ See per-game sound documentation in:
 - Keep issue titles at most 80 characters.
 - Keep issues scoped to one game/title when possible; use game-specific labels (`warcraft-3`, `world-of-warcraft`).
 - Use `renderer` for rendering subsystem issues, `ui` for user interface issues.
+
+## Useful public WoW references:
+- TrinityCore `ItemDisplayInfo.dbc` field layout and flags: https://trinitycore.info/files/DBC/335/itemdisplayinfo
+- WoTLK Modding Wiki `ItemDisplayInfo`: https://wotlkdev.github.io/wiki/dbc/ItemDisplayInfo
+- getMaNGOS TBC `ItemDisplayInfo` field list: https://www.getmangos.eu/wiki/referenceinfo/dbcfiles/mangosonedbc/ItemDisplayInfo-r7649/
+- `wow_dbc` parser crate notes for vanilla/TBC/Wrath DBC schemas: https://github.com/gtker/wow_dbc
+- WoWee (C++ WoW client, Vulkan renderer, Vanilla/TBC/WotLK): https://github.com/Kelsidavis/WoWee
+	— Full protocol client with M2/WMO/ADT rendering, skeletal animation, particle emitters, shadow mapping, SRP6a auth.
+	Reference for: M2 animation state machine, ADT terrain streaming, WMO rendering, particle/aura effects, character geoset selection.
+- OpenWow (C++ WoW 1.12 open source client): https://github.com/World0fWarcraft/OpenWow
+	— Reference for: Vanilla protocol, M2/WMO/ADT loading pipeline.
+- Wowser (WoW in the browser, JS/WebGL, WotLK 3.3.5a): https://github.com/wowserhq/wowser
+	— Reference for: auth/realm/world packet flow, asset pipeline from MPQ to WebGL.
+- Warcraft Arena Unity (WoW arena combat system, Unity + Photon Bolt): https://github.com/Reinisch/Warcraft-Arena-Unity
+	— Reference for: spell system architecture (auras, effects, periodic damage/heal, absorb, dispel, CC types), unit frame layout, action bar keybinding, arena map setup.
+- Everlook (cross-platform WoW model viewer, C#/OpenTK/GTK): https://github.com/WowDevTools/Everlook
+	— Reference for: M2/WMO/BLP/ADT/MPQ browsing and export pipeline, OpenGL rendering of WoW formats.
+- libwarcraft (C# all-in-one WoW format library, Vanilla–WotLK): https://github.com/WowDevTools/libwarcraft
+	— Reference for: BLP, MPQ, DBC, MDX/M2, WDT, WDL, WMO, ADT read/write implementations and field layouts.
+- warcraft-rs (Rust CLI + crates for WoW file formats, 1.12–5.4.8): https://github.com/wowemulation-dev/warcraft-rs
+	— Reference for: wow-mpq, wow-blp, wow-adt crate APIs; cross-version format differences.
+- WoWmapview (original 3D WoW terrain viewer, C++): https://wowmapview.sourceforge.net/
+	— Foundational ADT/WMO/M2 reverse-engineering reference; ancestor of Noggit and most format knowledge.
+- Noggit3 (WoW 3.3.5a terrain editor, C++/Qt, Lua-scriptable): https://github.com/wowdev/noggit3
+	— Reference for: ADT terrain read/write, WMO placement, M2 doodad placement, chunk-level map editing.
