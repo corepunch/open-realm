@@ -56,6 +56,9 @@ typedef struct {
     FLOAT           angle;
     FLOAT           scale;
     FLOAT           radius;
+    FLOAT           footprint_width;
+    FLOAT           footprint_height;
+    FLOAT           footprint_radius;
     FLOAT           pathing_soft_radius;
     FLOAT           pathing_hard_radius;
     DWORD           variation;
@@ -191,6 +194,7 @@ typedef struct {
     DWORD          units;
     DWORD          actors;
     DWORD          models;
+    DWORD          footprints;
     DWORD          unresolved_models;
 } sc2CatalogStats_t;
 

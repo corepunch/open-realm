@@ -8,6 +8,7 @@
 #define SC2_MAX_CATALOG_MODELS       8192
 #define SC2_MAX_CATALOG_ACTORS       8192
 #define SC2_MAX_CATALOG_UNITS        8192
+#define SC2_MAX_CATALOG_FOOTPRINTS   1024
 #define SC2_MAX_CATALOG_TERRAIN_TEX  512
 #define SC2_MAX_CATALOG_CLIFFS       256
 #define SC2_MAX_CATALOG_PARENT_DEPTH 8
@@ -35,6 +36,7 @@ typedef struct {
 typedef struct {
     char id[64];
     char model[64];
+    char footprint[64];
 } sc2CatalogActor_t;
 
 typedef struct {
@@ -53,8 +55,18 @@ typedef struct {
     char footprint[64];
     char mover[64];
     FLOAT radius;
+    FLOAT footprint_width;
+    FLOAT footprint_height;
+    FLOAT footprint_radius;
     DWORD unit_flags;
 } sc2ResolvedObjectModel_t;
+
+typedef struct {
+    char id[64];
+    FLOAT width;
+    FLOAT height;
+    FLOAT radius;
+} sc2CatalogFootprint_t;
 
 typedef struct {
     char id[64];
@@ -71,11 +83,13 @@ typedef struct {
     DWORD models_count;
     DWORD actors_count;
     DWORD units_count;
+    DWORD footprints_count;
     DWORD terrain_tex_count;
     DWORD cliffs_count;
     sc2CatalogModel_t models[SC2_MAX_CATALOG_MODELS];
     sc2CatalogActor_t actors[SC2_MAX_CATALOG_ACTORS];
     sc2CatalogUnit_t units[SC2_MAX_CATALOG_UNITS];
+    sc2CatalogFootprint_t footprints[SC2_MAX_CATALOG_FOOTPRINTS];
     sc2CatalogTerrainTex_t terrain_tex[SC2_MAX_CATALOG_TERRAIN_TEX];
     sc2CatalogCliff_t cliffs[SC2_MAX_CATALOG_CLIFFS];
 } sc2Catalog_t;
@@ -474,6 +488,30 @@ static BOOL sc2_parse_rgba_color(LPCSTR text, LPCOLOR32 color) {
         return true;
     }
     return false;
+}
+
+static FLOAT sc2_abs_float(FLOAT value) {
+    return value < 0.0f ? -value : value;
+}
+
+static BOOL sc2_parse_float_pair(LPCSTR text, FLOAT *x, FLOAT *y) {
+    FLOAT a, b;
+
+    if (!text || !x || !y) return false;
+    if (sscanf(text, "%f,%f", &a, &b) != 2) return false;
+    *x = a;
+    *y = b;
+    return true;
+}
+
+static BOOL sc2_parse_footprint_area(LPCSTR text, FLOAT *width, FLOAT *height) {
+    FLOAT x0, y0, x1, y1;
+
+    if (!text || !width || !height) return false;
+    if (sscanf(text, "%f,%f,%f,%f", &x0, &y0, &x1, &y1) != 4) return false;
+    *width = sc2_abs_float(x1 - x0);
+    *height = sc2_abs_float(y1 - y0);
+    return *width > 0.0f && *height > 0.0f;
 }
 
 static sc2XmlField_t const sc2_terrain_data_fields[] = {
@@ -1025,20 +1063,24 @@ static void sc2_catalog_add_model(sc2Catalog_t *catalog, LPCSTR id, LPCSTR paren
     sc2_normalize_slashes(model->path);
 }
 
-static void sc2_catalog_add_actor(sc2Catalog_t *catalog, LPCSTR id, LPCSTR model_id) {
+static void sc2_catalog_add_actor(sc2Catalog_t *catalog, LPCSTR id, LPCSTR model_id, LPCSTR footprint) {
     sc2CatalogActor_t *actor;
 
-    if (!catalog || !id || !*id || !model_id || !*model_id) return;
+    if (!catalog || !id || !*id || ((!model_id || !*model_id) && (!footprint || !*footprint))) return;
     FOR_LOOP(i, catalog->actors_count) {
         if (!strcasecmp(catalog->actors[i].id, id)) {
-            snprintf(catalog->actors[i].model, sizeof(catalog->actors[i].model), "%s", model_id);
+            if (model_id && *model_id)
+                snprintf(catalog->actors[i].model, sizeof(catalog->actors[i].model), "%s", model_id);
+            if (footprint && *footprint)
+                snprintf(catalog->actors[i].footprint, sizeof(catalog->actors[i].footprint), "%s", footprint);
             return;
         }
     }
     if (catalog->actors_count >= SC2_MAX_CATALOG_ACTORS) return;
     actor = &catalog->actors[catalog->actors_count++];
     snprintf(actor->id, sizeof(actor->id), "%s", id);
-    snprintf(actor->model, sizeof(actor->model), "%s", model_id);
+    snprintf(actor->model, sizeof(actor->model), "%s", model_id ? model_id : "");
+    snprintf(actor->footprint, sizeof(actor->footprint), "%s", footprint ? footprint : "");
 }
 
 static DWORD sc2_unit_flag(LPCSTR name) {
@@ -1126,6 +1168,37 @@ static void sc2_catalog_add_cliff(sc2Catalog_t *catalog, LPCSTR id, LPCSTR mesh)
     cliff = &catalog->cliffs[catalog->cliffs_count++];
     snprintf(cliff->id, sizeof(cliff->id), "%s", id);
     snprintf(cliff->mesh, sizeof(cliff->mesh), "%s", mesh);
+}
+
+static void sc2_catalog_add_footprint(sc2Catalog_t *catalog,
+                                      LPCSTR id,
+                                      FLOAT width,
+                                      FLOAT height,
+                                      FLOAT radius) {
+    sc2CatalogFootprint_t *footprint;
+
+    if (!catalog || !id || !*id || (width <= 0.0f && height <= 0.0f && radius <= 0.0f))
+        return;
+    if (radius <= 0.0f)
+        radius = MAX(width, height) * 0.5f;
+    if (width <= 0.0f)
+        width = radius * 2.0f;
+    if (height <= 0.0f)
+        height = radius * 2.0f;
+    FOR_LOOP(i, catalog->footprints_count) {
+        if (!strcasecmp(catalog->footprints[i].id, id)) {
+            catalog->footprints[i].width = width;
+            catalog->footprints[i].height = height;
+            catalog->footprints[i].radius = radius;
+            return;
+        }
+    }
+    if (catalog->footprints_count >= SC2_MAX_CATALOG_FOOTPRINTS) return;
+    footprint = &catalog->footprints[catalog->footprints_count++];
+    snprintf(footprint->id, sizeof(footprint->id), "%s", id);
+    footprint->width = width;
+    footprint->height = height;
+    footprint->radius = radius;
 }
 
 static sc2CatalogModel_t const *sc2_catalog_model(sc2Catalog_t const *catalog, LPCSTR id) {
@@ -1234,18 +1307,36 @@ static LPCSTR sc2_cliff_mesh_fallback(LPCSTR name) {
     return NULL;
 }
 
-static LPCSTR sc2_catalog_actor_model(sc2Catalog_t const *catalog, LPCSTR id) {
+static sc2CatalogActor_t const *sc2_catalog_actor(sc2Catalog_t const *catalog, LPCSTR id) {
     if (!catalog || !id || !*id) return NULL;
     FOR_LOOP(i, catalog->actors_count) {
-        if (!strcasecmp(catalog->actors[i].id, id)) return catalog->actors[i].model;
+        if (!strcasecmp(catalog->actors[i].id, id)) return &catalog->actors[i];
     }
     return NULL;
+}
+
+static LPCSTR sc2_catalog_actor_model(sc2Catalog_t const *catalog, LPCSTR id) {
+    sc2CatalogActor_t const *actor = sc2_catalog_actor(catalog, id);
+    return actor && actor->model[0] ? actor->model : NULL;
+}
+
+static LPCSTR sc2_catalog_actor_footprint(sc2Catalog_t const *catalog, LPCSTR id) {
+    sc2CatalogActor_t const *actor = sc2_catalog_actor(catalog, id);
+    return actor && actor->footprint[0] ? actor->footprint : NULL;
 }
 
 static sc2CatalogUnit_t const *sc2_catalog_unit(sc2Catalog_t const *catalog, LPCSTR id) {
     if (!catalog || !id || !*id) return NULL;
     FOR_LOOP(i, catalog->units_count) {
         if (!strcasecmp(catalog->units[i].id, id)) return &catalog->units[i];
+    }
+    return NULL;
+}
+
+static sc2CatalogFootprint_t const *sc2_catalog_footprint(sc2Catalog_t const *catalog, LPCSTR id) {
+    if (!catalog || !id || !*id) return NULL;
+    FOR_LOOP(i, catalog->footprints_count) {
+        if (!strcasecmp(catalog->footprints[i].id, id)) return &catalog->footprints[i];
     }
     return NULL;
 }
@@ -1342,6 +1433,7 @@ static void sc2_parse_actor_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
         char id[64];
         char unit_name[64] = "";
         char model_id[64] = "";
+        char footprint[64] = "";
         BOOL actor_node;
 
         if (node->type != XML_ELEMENT_NODE) continue;
@@ -1353,12 +1445,13 @@ static void sc2_parse_actor_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
             if (child->type != XML_ELEMENT_NODE) continue;
             if (sc2_streqi((char const *)child->name, "Model")) {
                 sc2_xml_attr(child, "value", model_id, sizeof(model_id));
-                break;
+            } else if (sc2_streqi((char const *)child->name, "Footprint")) {
+                sc2_xml_attr(child, "value", footprint, sizeof(footprint));
             }
         }
         if (!model_id[0]) snprintf(model_id, sizeof(model_id), "%s", id);
-        sc2_catalog_add_actor(catalog, id, model_id);
-        if (unit_name[0]) sc2_catalog_add_actor(catalog, unit_name, model_id);
+        sc2_catalog_add_actor(catalog, id, model_id, footprint);
+        if (unit_name[0]) sc2_catalog_add_actor(catalog, unit_name, model_id, footprint);
     }
 }
 
@@ -1434,6 +1527,70 @@ static void sc2_parse_unit_catalog_source(sc2Catalog_t *catalog, sc2MapSource_t 
     xmlDocPtr doc = sc2_read_map_catalog_xml(source, "GameData\\UnitData.xml");
 
     sc2_parse_unit_catalog_doc(catalog, doc);
+    xmlFreeDoc(doc);
+}
+
+static void sc2_parse_footprint_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
+    xmlNodePtr root;
+
+    if (!doc) return;
+    root = xmlDocGetRootElement(doc);
+    for (xmlNodePtr node = root ? root->children : NULL; node; node = node->next) {
+        char id[64];
+        FLOAT width = 0.0f;
+        FLOAT height = 0.0f;
+        FLOAT radius = 0.0f;
+
+        if (node->type != XML_ELEMENT_NODE || !sc2_contains_i((char const *)node->name, "CFootprint"))
+            continue;
+        if (!sc2_xml_attr(node, "id", id, sizeof(id))) continue;
+        for (xmlNodePtr child = node->children; child; child = child->next) {
+            char value[64];
+            FLOAT child_width;
+            FLOAT child_height;
+
+            if (child->type != XML_ELEMENT_NODE) continue;
+            if (sc2_streqi((char const *)child->name, "Layers") &&
+                sc2_xml_attr(child, "Area", value, sizeof(value)) &&
+                sc2_parse_footprint_area(value, &child_width, &child_height) &&
+                child_width * child_height >= width * height) {
+                width = child_width;
+                height = child_height;
+            } else if (sc2_streqi((char const *)child->name, "Size") &&
+                       sc2_xml_attr(child, "value", value, sizeof(value)) &&
+                       sc2_parse_float_pair(value, &child_width, &child_height) &&
+                       child_width > 0.0f && child_height > 0.0f) {
+                width = child_width;
+                height = child_height;
+            } else if (sc2_streqi((char const *)child->name, "Shape")) {
+                if (sc2_xml_attr(child, "Radius", value, sizeof(value)) ||
+                    sc2_xml_attr(child, "radius", value, sizeof(value))) {
+                    sscanf(value, "%f", &radius);
+                }
+                for (xmlNodePtr shape = child->children; shape; shape = shape->next) {
+                    if (shape->type == XML_ELEMENT_NODE &&
+                        sc2_streqi((char const *)shape->name, "Radius") &&
+                        sc2_xml_attr(shape, "value", value, sizeof(value))) {
+                        sscanf(value, "%f", &radius);
+                    }
+                }
+            }
+        }
+        sc2_catalog_add_footprint(catalog, id, width, height, radius);
+    }
+}
+
+static void sc2_parse_footprint_catalog_file(sc2Catalog_t *catalog, LPCSTR root_name) {
+    xmlDocPtr doc = sc2_read_catalog_xml(root_name, "GameData\\FootprintData.xml");
+
+    sc2_parse_footprint_catalog_doc(catalog, doc);
+    xmlFreeDoc(doc);
+}
+
+static void sc2_parse_footprint_catalog_source(sc2Catalog_t *catalog, sc2MapSource_t *source) {
+    xmlDocPtr doc = sc2_read_map_catalog_xml(source, "GameData\\FootprintData.xml");
+
+    sc2_parse_footprint_catalog_doc(catalog, doc);
     xmlFreeDoc(doc);
 }
 
@@ -1517,17 +1674,20 @@ static void sc2_parse_catalogs(sc2Catalog_t *catalog, sc2MapSource_t *source) {
         sc2_parse_unit_catalog_file(catalog, sc2_catalog_roots[i]);
         sc2_parse_model_catalog_file(catalog, sc2_catalog_roots[i]);
         sc2_parse_actor_catalog_file(catalog, sc2_catalog_roots[i]);
+        sc2_parse_footprint_catalog_file(catalog, sc2_catalog_roots[i]);
         sc2_parse_terrain_tex_catalog_file(catalog, sc2_catalog_roots[i]);
         sc2_parse_cliff_catalog_file(catalog, sc2_catalog_roots[i]);
     }
     sc2_parse_unit_catalog_file(catalog, "");
     sc2_parse_model_catalog_file(catalog, "");
     sc2_parse_actor_catalog_file(catalog, "");
+    sc2_parse_footprint_catalog_file(catalog, "");
     sc2_parse_terrain_tex_catalog_file(catalog, "");
     sc2_parse_cliff_catalog_file(catalog, "");
     sc2_parse_unit_catalog_source(catalog, source);
     sc2_parse_model_catalog_source(catalog, source);
     sc2_parse_actor_catalog_source(catalog, source);
+    sc2_parse_footprint_catalog_source(catalog, source);
     sc2_parse_terrain_tex_catalog_source(catalog, source);
     sc2_parse_cliff_catalog_source(catalog, source);
 }
@@ -1635,6 +1795,17 @@ static void sc2_resolve_object_model_candidates(sc2MapObject_t *object) {
     }
 }
 
+static void sc2_resolve_object_footprint(sc2Catalog_t const *catalog, sc2MapObject_t *object) {
+    sc2CatalogFootprint_t const *footprint;
+
+    if (!catalog || !object || !object->footprint[0]) return;
+    footprint = sc2_catalog_footprint(catalog, object->footprint);
+    if (!footprint) return;
+    object->footprint_width = footprint->width;
+    object->footprint_height = footprint->height;
+    object->footprint_radius = footprint->radius;
+}
+
 static void sc2_resolve_object_models(sc2Catalog_t const *catalog) {
     sc2ResolvedObjectModel_t resolved[SC2_MAX_MAP_OBJECTS];
     DWORD resolved_count = 0;
@@ -1652,6 +1823,9 @@ static void sc2_resolve_object_models(sc2Catalog_t const *catalog) {
                 snprintf(object->footprint, sizeof(object->footprint), "%s", resolved[j].footprint);
                 snprintf(object->mover, sizeof(object->mover), "%s", resolved[j].mover);
                 object->radius = resolved[j].radius;
+                object->footprint_width = resolved[j].footprint_width;
+                object->footprint_height = resolved[j].footprint_height;
+                object->footprint_radius = resolved[j].footprint_radius;
                 object->unit_flags = resolved[j].unit_flags;
                 goto next_object;
             }
@@ -1664,9 +1838,20 @@ static void sc2_resolve_object_models(sc2Catalog_t const *catalog) {
                 if (unit->footprint[0]) snprintf(object->footprint, sizeof(object->footprint), "%s", unit->footprint);
                 if (unit->mover[0]) snprintf(object->mover, sizeof(object->mover), "%s", unit->mover);
                 object->unit_flags |= unit->flags;
-                if (unit->actor[0]) model_id = sc2_catalog_actor_model(catalog, unit->actor);
+                if (unit->actor[0]) {
+                    LPCSTR actor_footprint = sc2_catalog_actor_footprint(catalog, unit->actor);
+                    if (!object->footprint[0] && actor_footprint)
+                        snprintf(object->footprint, sizeof(object->footprint), "%s", actor_footprint);
+                    model_id = sc2_catalog_actor_model(catalog, unit->actor);
+                }
             }
         }
+        if (!object->footprint[0]) {
+            LPCSTR actor_footprint = sc2_catalog_actor_footprint(catalog, object->name);
+            if (actor_footprint)
+                snprintf(object->footprint, sizeof(object->footprint), "%s", actor_footprint);
+        }
+        sc2_resolve_object_footprint(catalog, object);
         if (!model_id) model_id = sc2_catalog_actor_model(catalog, object->name);
         if (!model_id) model_id = object->name;
         path[0] = '\0';
@@ -1681,6 +1866,9 @@ static void sc2_resolve_object_models(sc2Catalog_t const *catalog) {
             snprintf(resolved[resolved_count].footprint, sizeof(resolved[resolved_count].footprint), "%s", object->footprint);
             snprintf(resolved[resolved_count].mover, sizeof(resolved[resolved_count].mover), "%s", object->mover);
             resolved[resolved_count].radius = object->radius;
+            resolved[resolved_count].footprint_width = object->footprint_width;
+            resolved[resolved_count].footprint_height = object->footprint_height;
+            resolved[resolved_count].footprint_radius = object->footprint_radius;
             resolved[resolved_count].unit_flags = object->unit_flags;
             resolved_count++;
         }
@@ -1717,6 +1905,7 @@ static void sc2_resolve_catalogs(sc2MapSource_t *source) {
     sc2_map.catalog.units = catalog->units_count;
     sc2_map.catalog.actors = catalog->actors_count;
     sc2_map.catalog.models = catalog->models_count;
+    sc2_map.catalog.footprints = catalog->footprints_count;
     sc2_map.catalog.unresolved_models = sc2_count_unresolved_models();
     sc2_free(catalog);
 }
