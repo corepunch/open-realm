@@ -610,24 +610,43 @@ LPEDICT Wow_Spawn(void) {
 }
 
 /* Quake-style userinfo parser: find value for key in "\key\value\key\value" string.
-   Returns pointer to value in str, or fallback if key not found. */
+   Returns pointer to a static buffer with the null-terminated value, or fallback
+   if key not found.  Two rotating buffers so two calls don't stomp each other
+   (same pattern as Q3 Info_ValueForKey in q_shared.c). */
 static LPCSTR Wow_InfoValueForKey(LPCSTR str, LPCSTR key, LPCSTR fallback) {
-    char keybuf[64];
-    LPCSTR k, v, next;
-    size_t klen;
+    static char value[2][MAX_PATHLEN];
+    static int valueindex = 0;
+    char pkey[64];
+    LPCSTR s = str;
+    char *o;
 
-    if (!str || !key || !*key)
+    if (!s || !key || !*key)
         return fallback;
-    snprintf(keybuf, sizeof(keybuf), "\\%s\\", key);
-    klen = strlen(keybuf);
-    for (k = str; *k; k = next) {
-        if (*k == '\\') k++;
-        next = strchr(k, '\\');
-        if (!next) next = k + strlen(k);
-        if (!strncmp(k, keybuf + 1, klen - 1) && *(k + klen - 1) == '\\') {
-            v = k + klen;
-            return v;
+
+    valueindex ^= 1;
+    if (*s == '\\')
+        s++;
+    while (1) {
+        o = pkey;
+        while (*s != '\\') {
+            if (!*s)
+                return fallback;
+            *o++ = *s++;
         }
+        *o = 0;
+        s++;
+
+        o = value[valueindex];
+        while (*s != '\\' && *s)
+            *o++ = *s++;
+        *o = 0;
+
+        if (!strcasecmp(key, pkey))
+            return value[valueindex];
+
+        if (!*s)
+            break;
+        s++;
     }
     return fallback;
 }
