@@ -310,7 +310,10 @@ test-sc2-assets: sc2fixturegen mpqtool sc2map | $(TESTS_DIR)
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(SC2_TEST_MPQ) ls Maps/Test/Tiny.SC2Map | grep -q "MapInfo" && echo "  ls map OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(SC2_TEST_MPQ) cat Maps/Test/Tiny.SC2Map/Objects | grep -q "UnitType=\"Marine\"" && echo "  cat objects OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(SC2_TEST_MPQ) info Maps/Test/Tiny.SC2Map/t3CellFlags | grep -q "size=80" && echo "  binary cell flags OK"
-	@$(BIN_DIR)/sc2map$(EXE_EXT) -mpq $(SC2_TEST_MPQ) Maps/Test/Tiny.SC2Map | grep -q "Objects: units=2 doodads=2 points=1 cameras=1 total=6" && echo "  sc2map diag OK"
+	@diag="$$( $(BIN_DIR)/sc2map$(EXE_EXT) -mpq $(SC2_TEST_MPQ) Maps/Test/Tiny.SC2Map )"; \
+	echo "$$diag" | grep -q "Objects: units=3 doodads=2 points=1 cameras=1 total=7" && \
+	echo "$$diag" | grep -q "footprint=Footprint2x2 size=2.000x2.000 fpRadius=1.414" && \
+	echo "  sc2map diag OK"
 
 test-wow-assets: blpgen mpqtool | $(TESTS_DIR)
 	@echo "[test-wow-assets] generating WoW UI fixtures"

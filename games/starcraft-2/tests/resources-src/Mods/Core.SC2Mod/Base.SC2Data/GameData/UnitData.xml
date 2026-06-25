@@ -6,4 +6,9 @@
         <Mover value="None"/>
         <Radius value="0.25"/>
     </CUnit>
+    <CUnit id="SupplyDepot">
+        <Actor value="SupplyDepotActor"/>
+        <Footprint value="Footprint2x2"/>
+        <Mover value="Ground"/>
+    </CUnit>
 </Catalog>

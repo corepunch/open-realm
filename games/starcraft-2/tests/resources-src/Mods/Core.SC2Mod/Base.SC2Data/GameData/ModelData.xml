@@ -12,6 +12,9 @@
     <CModel id="MarineCoreModel" parent="Unit" Race="Protoss">
         <Occlusion value="Hide"/>
     </CModel>
+    <CModel id="SupplyDepotCoreModel" Race="Protoss">
+        <Model value="Assets\Buildings\Protoss\SupplyDepotCoreModel\SupplyDepotCoreModel.m3"/>
+    </CModel>
     <CModel id="BillboardTall" parent="Doodad">
         <VariationCount value="4"/>
     </CModel>

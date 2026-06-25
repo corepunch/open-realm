@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="us-ascii"?>
+<Catalog>
+    <CFootprint id="FootprintMarine">
+        <Layers index="Check" Area="0,0,4,4">
+            <Rows value="xxxx"/>
+            <Rows value="xxxx"/>
+            <Rows value="xxxx"/>
+            <Rows value="xxxx"/>
+        </Layers>
+        <Shape>
+            <Radius value="4.0"/>
+        </Shape>
+    </CFootprint>
+    <CFootprint id="FootprintDoodad1x1">
+        <Layers index="Check" Area="0,0,3,1">
+            <Rows value="xxx"/>
+        </Layers>
+        <Shape>
+            <Radius value="3.0"/>
+        </Shape>
+    </CFootprint>
+    <CFootprint id="Footprint2x2">
+        <Layers index="Check" Area="0,0,5,5">
+            <Rows value="xxxxx"/>
+            <Rows value="xxxxx"/>
+            <Rows value="xxxxx"/>
+            <Rows value="xxxxx"/>
+            <Rows value="xxxxx"/>
+        </Layers>
+        <Shape>
+            <Radius value="5.0"/>
+        </Shape>
+    </CFootprint>
+</Catalog>

@@ -295,11 +295,26 @@ static void test_sc2_fixture_short_name_resolves(void) {
 }
 
 static void assert_tiny_map_catalog_overrides(sc2Map_t *map) {
+    ASSERT_EQ_INT(map->catalog.footprints, 3);
     ASSERT_STR_EQ(map->objects[1].model, "Assets\\Units\\Terran\\MarineCatalogModel\\MarineCatalogModel.m3");
     ASSERT_STR_EQ(map->objects[1].footprint, "FootprintMarine");
     ASSERT_STR_EQ(map->objects[1].mover, "Ground");
     ASSERT_EQ_INT(map->objects[1].unit_flags, SC2_UNIT_FLAG_MOVABLE);
     ASSERT_EQ_FLOAT(map->objects[1].radius, 0.75f, 0.001f);
+    ASSERT_EQ_FLOAT(map->objects[1].footprint_width, 1.0f, 0.001f);
+    ASSERT_EQ_FLOAT(map->objects[1].footprint_height, 1.0f, 0.001f);
+    ASSERT_EQ_FLOAT(map->objects[1].footprint_radius, 0.5f, 0.001f);
+    ASSERT_STR_EQ(map->objects[3].footprint, "FootprintDoodad1x1");
+    ASSERT_EQ_FLOAT(map->objects[3].footprint_width, 1.0f, 0.001f);
+    ASSERT_EQ_FLOAT(map->objects[3].footprint_height, 1.0f, 0.001f);
+    ASSERT_EQ_FLOAT(map->objects[3].footprint_radius, 0.7072f, 0.001f);
+    ASSERT_STR_EQ(map->objects[6].model, "Assets\\Buildings\\Terran\\SupplyDepotCatalogModel\\SupplyDepotCatalogModel.m3");
+    ASSERT_STR_EQ(map->objects[6].footprint, "Footprint2x2");
+    ASSERT_STR_EQ(map->objects[6].mover, "None");
+    ASSERT_EQ_INT(map->objects[6].unit_flags, SC2_UNIT_FLAG_STRUCTURE);
+    ASSERT_EQ_FLOAT(map->objects[6].footprint_width, 2.0f, 0.001f);
+    ASSERT_EQ_FLOAT(map->objects[6].footprint_height, 2.0f, 0.001f);
+    ASSERT_EQ_FLOAT(map->objects[6].footprint_radius, 1.4143f, 0.001f);
     ASSERT_STR_EQ(map->t3Terrain.terrain_textures[0].diffuse, "Assets\\Textures\\Terrain\\FixtureGrass_Diffuse.dds");
     ASSERT_STR_EQ(map->t3Terrain.terrain_textures[0].normal, "Assets\\Textures\\Terrain\\FixtureGrass_Diffuse_normal.dds");
     ASSERT_STR_EQ(map->t3Terrain.cliff_sets[0].mesh, "CliffNatural0");
@@ -318,7 +333,7 @@ static void test_sc2_map_loads_xml_objects_and_terrain(void) {
     ASSERT_EQ_INT(map->MapInfo.width, 8);
     ASSERT_EQ_INT(map->MapInfo.height, 6);
     ASSERT_STR_EQ((char const *)map->MapInfo.data, "SC2 Tiny Fixture");
-    ASSERT_EQ_INT(map->num_objects, 6);
+    ASSERT_EQ_INT(map->num_objects, 7);
     assert_tiny_map_catalog_overrides(map);
 
     ASSERT_STR_EQ(map->objects[0].name, "StartGame02");
@@ -383,6 +398,13 @@ static void test_sc2_map_loads_xml_objects_and_terrain(void) {
     ASSERT_EQ_INT(map->objects[5].color.g, 180);
     ASSERT_EQ_INT(map->objects[5].color.b, 160);
     ASSERT_EQ_INT(map->objects[5].color.a, 255);
+
+    ASSERT_STR_EQ(map->objects[6].name, "SupplyDepot");
+    ASSERT_EQ_INT(map->objects[6].id, 6);
+    ASSERT_EQ_INT(map->objects[6].type, SC2_OBJECT_UNIT);
+    ASSERT_EQ_FLOAT(map->objects[6].position.x, 6.0f, 0.001f);
+    ASSERT_EQ_FLOAT(map->objects[6].position.y, 1.0f, 0.001f);
+    ASSERT_EQ_INT(map->objects[6].player, 2);
 
     ASSERT_STR_EQ(map->t3Terrain.tile_set, "Fixture");
     ASSERT_EQ_FLOAT(map->t3Terrain.height_quantize_bias, 0.0f, 0.001f);
@@ -508,7 +530,7 @@ static void test_sc2_map_loads_directory_fixture_without_generated_layers(void) 
     ASSERT_EQ_INT(map->MapInfo.fourcc, MAKEFOURCC('M','a','p','I'));
     ASSERT_EQ_INT(map->MapInfo.width, 8);
     ASSERT_EQ_INT(map->MapInfo.height, 6);
-    ASSERT_EQ_INT(map->num_objects, 6);
+    ASSERT_EQ_INT(map->num_objects, 7);
     assert_tiny_map_catalog_overrides(map);
 
     ASSERT_STR_EQ(map->objects[0].name, "StartGame02");
@@ -521,6 +543,9 @@ static void test_sc2_map_loads_directory_fixture_without_generated_layers(void) 
     ASSERT_STR_EQ(map->objects[4].name, "MineralField");
     ASSERT_EQ_INT(map->objects[4].type, SC2_OBJECT_DOODAD);
     ASSERT_STR_EQ(map->objects[4].model, "Assets\\Doodads\\Terran\\MineralField\\MineralField.m3");
+    ASSERT_STR_EQ(map->objects[6].name, "SupplyDepot");
+    ASSERT_STR_EQ(map->objects[6].mover, "None");
+    ASSERT_EQ_FLOAT(map->objects[6].footprint_radius, 1.4143f, 0.001f);
 
     ASSERT_STR_EQ(map->t3Terrain.tile_set, "Fixture");
     ASSERT_EQ_FLOAT(map->t3Terrain.height_quantize_scale, 1.0f, 0.001f);
@@ -548,7 +573,7 @@ static void assert_tiny_map_loaded_without_binary_terrain_layers(sc2Map_t *map) 
     ASSERT_STR_EQ(map->map_name, "SC2 Tiny Fixture");
     ASSERT_EQ_INT(map->MapInfo.width, 8);
     ASSERT_EQ_INT(map->MapInfo.height, 6);
-    ASSERT_EQ_INT(map->num_objects, 6);
+    ASSERT_EQ_INT(map->num_objects, 7);
     ASSERT_STR_EQ(map->objects[1].name, "Marine");
     ASSERT_STR_EQ(map->t3Terrain.tile_set, "Fixture");
 

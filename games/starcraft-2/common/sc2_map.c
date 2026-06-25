@@ -2018,21 +2018,28 @@ void SC2_MapDump(FILE *out, LPCSTR filename) {
             (unsigned)object_counts[SC2_OBJECT_CAMERA],
             (unsigned)sc2_map.num_objects);
     fprintf(out,
-            "Catalog: units=%u actors=%u models=%u unresolvedModels=%u\n",
+            "Catalog: units=%u actors=%u models=%u footprints=%u unresolvedModels=%u\n",
             (unsigned)sc2_map.catalog.units,
             (unsigned)sc2_map.catalog.actors,
             (unsigned)sc2_map.catalog.models,
+            (unsigned)sc2_map.catalog.footprints,
             (unsigned)sc2_map.catalog.unresolved_models);
     FOR_LOOP(i, sc2_map.num_objects) {
         sc2MapObject_t const *object = &sc2_map.objects[i];
 
         fprintf(out,
-                "Object[%u]: type=%s id=%u name=%s model=%s pos=%.3f,%.3f,%.3f radius=%.3f\n",
+                "Object[%u]: type=%s id=%u name=%s model=%s footprint=%s size=%.3fx%.3f fpRadius=%.3f mover=%s unitFlags=0x%08x pos=%.3f,%.3f,%.3f radius=%.3f\n",
                 (unsigned)i,
                 sc2_object_type_name(object->type),
                 (unsigned)object->id,
                 object->name,
                 object->model,
+                object->footprint,
+                object->footprint_width,
+                object->footprint_height,
+                object->footprint_radius,
+                object->mover,
+                (unsigned)object->unit_flags,
                 object->position.x,
                 object->position.y,
                 object->position.z,

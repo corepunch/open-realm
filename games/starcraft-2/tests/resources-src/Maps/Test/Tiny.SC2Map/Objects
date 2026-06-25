@@ -15,4 +15,5 @@
     </ObjectDoodad>
     <ObjectDoodad Id="4" Type="MineralField" Model="Assets\Doodads\Terran\MineralField\MineralField.m3" x="4" y="3" z="0" Angle="0" Scale="1" Player="15" />
     <ObjectPoint id="5" type="StartLocation" name="StartPoint01" position="2.0,6.0,0.0" rotation="0.5" scale="1,1,1" section="9" color="200,180,160,255" model="Assets\Editor\StartLocation\StartLocation.m3" animProps="Stand" sound="Assets\Sounds\StartLocation.ogg" attachID="StartAttach" objectID="1" objectType="Unit" PathingSoftRadius="1.5" PathingHardRadius="0.75"/>
+    <ObjectUnit Id="6" UnitType="SupplyDepot" Position="6.0,1.0,0.0" Rotation="0" Scale="1,1,1" Player="2"/>
 </PlacedObjects>

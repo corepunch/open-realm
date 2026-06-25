@@ -9,6 +9,9 @@
     <CModel id="MarineCatalogModel" parent="Unit" Race="Terran">
         <Occlusion value="Show"/>
     </CModel>
+    <CModel id="SupplyDepotCatalogModel" Race="Terran">
+        <Model value="Assets\Buildings\Terran\SupplyDepotCatalogModel\SupplyDepotCatalogModel.m3"/>
+    </CModel>
     <CModel id="BillboardTall" parent="Doodad">
         <VariationCount value="4"/>
     </CModel>

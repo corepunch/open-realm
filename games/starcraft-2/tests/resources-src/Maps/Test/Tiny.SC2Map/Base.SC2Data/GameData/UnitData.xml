@@ -7,4 +7,10 @@
         <Flag index="Movable" value="1"/>
         <Radius value="0.75"/>
     </CUnit>
+    <CUnit id="SupplyDepot">
+        <Actor value="SupplyDepotActor"/>
+        <Footprint value="Footprint2x2"/>
+        <Mover value="None"/>
+        <Flag index="Structure" value="1"/>
+    </CUnit>
 </Catalog>
