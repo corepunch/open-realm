@@ -8,6 +8,7 @@ struct client_state cl;
 struct client_static cls;
 refExport_t re;
 uiExport_t ui;
+uiImport_t uiimport;
 mouseEvent_t mouse;
 
 typedef struct {
