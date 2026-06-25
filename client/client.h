@@ -196,5 +196,6 @@ extern struct client_static cls;
 extern refExport_t re;
 extern uiExport_t ui;
 extern mouseEvent_t mouse;
+extern BOOL scr_initialized;
 
 #endif

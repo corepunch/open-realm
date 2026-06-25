@@ -2,6 +2,8 @@
 #include "ui_layout.h"
 #include <stdlib.h>  /* getenv (BZ_FPS_LOG diagnostic) */
 
+BOOL scr_initialized;
+
 #define SCR_FPS_HEIGHT 8
 #define SCR_FPS_BOTTOM_MARGIN 4
 
@@ -42,28 +44,71 @@ static void SCR_DrawFPS(DWORD msec) {
     SCR_DrawString(10, y, text);
 }
 
-void SCR_UpdateScreen(DWORD msec) {
+void SCR_DrawScreenField(DWORD msec) {
     re.BeginFrame();
-    
-    V_RenderView();
 
-#ifndef SC2
-    if (cls.state == ca_loading) {
+    switch (cls.state) {
+    default:
+        Com_Error(ERR_FATAL, "SCR_DrawScreenField: bad cls.state");
+        break;
+    case ca_disconnected:
+        if (ui.Refresh) ui.Refresh(cl.time);
+        break;
+    case ca_connecting:
+    case ca_connected:
+        if (ui.Refresh) ui.Refresh(cl.time);
+        break;
+    case ca_loading:
         if (ui.DrawLoadingScreen) {
             ui.DrawLoadingScreen(cl.loading_map, cl.loading_status, cl.loading_progress);
+        } else {
+            size2_t w = re.GetWindowSize();
+            char buf[256];
+            int y = (int)w.height / 2 - 16;
+            if (cl.loading_map[0]) {
+                snprintf(buf, sizeof(buf), "Loading %s...", cl.loading_map);
+                SCR_DrawString((int)(w.width - strlen(buf) * 8) / 2, y, buf);
+            }
+            if (cl.loading_status[0]) {
+                snprintf(buf, sizeof(buf), "%s", cl.loading_status);
+                SCR_DrawString((int)(w.width - strlen(buf) * 8) / 2, y + 16, buf);
+            }
+            snprintf(buf, sizeof(buf), "%.0f%%", cl.loading_progress * 100.0f);
+            SCR_DrawString((int)(w.width - strlen(buf) * 8) / 2, y + 32, buf);
         }
-    } else {
-        if (ui.Refresh) {
-            ui.Refresh(cl.time);
-        }
+        break;
+    case ca_active:
+        V_RenderView();
         SCR_DrawLayout();
+        /* TODO: research whether to replace key_dest enum with a keyCatchers bitmask
+        * like Q3 — multiple input consumers can be active simultaneously. */
+        if (cls.key_dest == key_menu) {
+            if (ui.Refresh) ui.Refresh(cl.time);
+        }
+        break;
     }
-#endif
 
     CON_DrawConsole();
     if (Cvar_Integer("scr_showfps", 0)) {
         SCR_DrawFPS(msec);
     }
-    
+
     re.EndFrame();
+}
+
+void SCR_UpdateScreen(DWORD msec) {
+    static int recursive;
+
+    if (!scr_initialized) {
+        return;
+    }
+
+    if (++recursive > 2) {
+        Com_Error(ERR_FATAL, "SCR_UpdateScreen: recursively called");
+    }
+    recursive = 1;
+
+    SCR_DrawScreenField(msec);
+
+    recursive = 0;
 }

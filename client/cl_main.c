@@ -619,6 +619,7 @@ void CL_Init(void) {
 
     CL_SetMenuBindings();
     cls.state = ca_disconnected;
+    scr_initialized = true;
     CL_MenuCommand("menu_login");
 }
 

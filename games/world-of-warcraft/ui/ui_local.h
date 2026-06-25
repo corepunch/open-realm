@@ -33,7 +33,6 @@
 #define WOW_UI_WARN_NO_MOUSEMOVE_HANDLER   WOW_UI_WARN_FLAG(8)
 #define WOW_UI_WARN_NO_INPUT_FS            WOW_UI_WARN_FLAG(9)
 #define WOW_UI_WARN_NO_GLUE_BOOTSTRAP      WOW_UI_WARN_FLAG(10)
-#define WOW_UI_WARN_NO_LOADING_DRAW        WOW_UI_WARN_FLAG(11)
 #define WOW_UI_WARN_NO_LOAD_BACKGROUND     WOW_UI_WARN_FLAG(12)
 #define WOW_UI_WARN_NO_MODEL_LOADER        WOW_UI_WARN_FLAG(13)
 #define WOW_UI_WARN_NO_CHAR_MODEL          WOW_UI_WARN_FLAG(14)
@@ -67,6 +66,13 @@ typedef struct {
     uiWowIcon_t inventory[WOW_UI_INVENTORY_SLOTS];
     uiWowIcon_t actions[WOW_UI_ACTION_SLOTS];
     LPTEXTURE background;
+    LPTEXTURE bar_background;
+    LPTEXTURE bar_border;
+    LPTEXTURE bar_fill;
+    LPTEXTURE bar_glass;
+    LPTEXTURE bar_glow;
+    LPCFONT font_title;
+    LPCFONT font_status;
     PATHSTR active_map;
     FLOAT displayed_progress;  /* smoothed progress owned by get_loading_progress() */
     PATHSTR current_menu;
@@ -105,7 +111,9 @@ void UIWow_XMLInvalidateCharCustomizeModel(void);
 void UIWow_XmlSetFrameModel(int idx, LPCSTR model_path);
 
 /* ui_loading.c */
+void UIWow_LoadStaticAssets(void);
 void UIWow_UpdateMapBackground(LPCPLAYER ps);
+void UIWow_DrawLoadingScreenC(LPCSTR map, LPCSTR status, FLOAT progress);
 
 /* Shared helpers (defined in ui_main.c) */
 void UIWow_EnterGameMode(void);

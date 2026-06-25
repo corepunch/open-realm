@@ -221,6 +221,11 @@ static void UIWow_Shutdown(void) {
             SAFE_DELETE(wow_ui.textures[i].texture, wow_ui.renderer->ReleaseTexture);
         }
         SAFE_DELETE(wow_ui.background, wow_ui.renderer->ReleaseTexture);
+        SAFE_DELETE(wow_ui.bar_background, wow_ui.renderer->ReleaseTexture);
+        SAFE_DELETE(wow_ui.bar_border, wow_ui.renderer->ReleaseTexture);
+        SAFE_DELETE(wow_ui.bar_fill, wow_ui.renderer->ReleaseTexture);
+        SAFE_DELETE(wow_ui.bar_glass, wow_ui.renderer->ReleaseTexture);
+        SAFE_DELETE(wow_ui.bar_glow, wow_ui.renderer->ReleaseTexture);
     }
     memset(&wow_ui, 0, sizeof(wow_ui));
 }
@@ -241,14 +246,7 @@ static void UIWow_Refresh(DWORD time) {
     }
     if (ps && ps->client_ui_state == CLIENT_UI_LOADING) {
         UIWow_UpdateMapBackground(ps);
-        lua_getglobal(wow_ui.lua, "ow3_draw_loading_screen");
-        if (lua_isfunction(wow_ui.lua, -1)) {
-            UIWow_LuaPCall(0);
-        } else {
-            lua_pop(wow_ui.lua, 1);
-            UIWow_WarnOnce(WOW_UI_WARN_NO_LOADING_DRAW,
-                           "UIWow: missing Lua function 'ow3_draw_loading_screen'\n");
-        }
+        UIWow_DrawLoadingScreenC(wow_ui.loading_map, wow_ui.loading_status, wow_ui.loading_progress);
         return;
     }
     if (ps && ps->client_ui_state == CLIENT_UI_GAME && !wow_ui.game_mode) {
@@ -527,12 +525,7 @@ static void UIWow_DrawLoadingScreen(LPCSTR map, LPCSTR status, FLOAT progress) {
     LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
     UIWow_EnsureRenderer();
     UIWow_UpdateMapBackground(ps);
-    lua_getglobal(wow_ui.lua, "ow3_draw_loading_screen");
-    if (lua_isfunction(wow_ui.lua, -1)) {
-        UIWow_LuaPCall(0);
-    } else {
-        lua_pop(wow_ui.lua, 1);
-    }
+    UIWow_DrawLoadingScreenC(map, status, progress);
 }
 
 uiExport_t UI_GetAPI(uiImport_t import) {
