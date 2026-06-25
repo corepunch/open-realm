@@ -1564,29 +1564,6 @@ typedef struct {
     DWORD sequence_time;
 } m2PoseTime_t;
 
-static WORD M2_SequenceAnimId(m2Model_t const *model, DWORD sequence_index) {
-    BYTE const *sequence;
-
-    if (!model || !model->sequences || sequence_index >= model->sequence_count)
-        return 0;
-    sequence = model->sequences + sequence_index * model->sequence_stride;
-    if (model->classic_sequences)
-        return ((m2SequenceClassic_t const *)sequence)->animation_id;
-    return ((m2SequenceModern_t const *)sequence)->animation_id;
-}
-
-
-static BOOL M2_FindSequenceByAnimId(m2Model_t const *model, DWORD anim_id, LPDWORD sequence_index) {
-    if (!model || !sequence_index)
-        return false;
-    FOR_LOOP(i, model->sequence_count) {
-        if (M2_SequenceAnimId(model, i) == anim_id) {
-            *sequence_index = i;
-            return true;
-        }
-    }
-    return false;
-}
 
 #define M2_FRAME_SEQUENCE_FLAG  0x80000000u
 #define M2_FRAME_SEQUENCE_SHIFT 21
@@ -1595,23 +1572,20 @@ static BOOL M2_FindSequenceByAnimId(m2Model_t const *model, DWORD anim_id, LPDWO
 
 BOOL M2_SetEntitySequenceFrame(m2Model_t const *model, LPCSTR anim, renderEntity_t *entity) {
     char *end = NULL;
-    DWORD anim_id;
-    DWORD sequence_index;
+    DWORD sequence;
 
     if (!model || !entity)
         return false;
-    anim_id = anim && *anim ? (DWORD)strtoul(anim, &end, 10) : 0;
+    sequence = anim && *anim ? (DWORD)strtoul(anim, &end, 10) : 0;
     if (anim && *anim && (!end || *end))
         return false;
-    if (!M2_FindSequenceByAnimId(model, anim_id, &sequence_index))
-        sequence_index = anim_id;
-    if (model->sequence_count > 0 && sequence_index >= model->sequence_count)
+    if (model->sequence_count > 0 && sequence >= model->sequence_count)
         return false;
     entity->frame = M2_FRAME_SEQUENCE_FLAG |
-                    ((anim_id & M2_FRAME_SEQUENCE_MASK) << M2_FRAME_SEQUENCE_SHIFT) |
+                    ((sequence & M2_FRAME_SEQUENCE_MASK) << M2_FRAME_SEQUENCE_SHIFT) |
                     (entity->frame & M2_FRAME_TIME_MASK);
     entity->oldframe = M2_FRAME_SEQUENCE_FLAG |
-                       ((anim_id & M2_FRAME_SEQUENCE_MASK) << M2_FRAME_SEQUENCE_SHIFT) |
+                       ((sequence & M2_FRAME_SEQUENCE_MASK) << M2_FRAME_SEQUENCE_SHIFT) |
                        (entity->oldframe & M2_FRAME_TIME_MASK);
     return true;
 }
@@ -1628,13 +1602,10 @@ static BOOL M2_FrameToPoseTime(m2Model_t const *model, DWORD frame, m2PoseTime_t
     }
 
     if (frame & M2_FRAME_SEQUENCE_FLAG) {
-        DWORD anim_id = (frame >> M2_FRAME_SEQUENCE_SHIFT) & M2_FRAME_SEQUENCE_MASK;
-        DWORD sequence;
+        DWORD sequence = (frame >> M2_FRAME_SEQUENCE_SHIFT) & M2_FRAME_SEQUENCE_MASK;
         DWORD local_time = frame & M2_FRAME_TIME_MASK;
         DWORD duration;
 
-        if (!M2_FindSequenceByAnimId(model, anim_id, &sequence))
-            sequence = anim_id;
         if (sequence >= model->sequence_count)
             sequence = 0;
         duration = M2_SequenceDuration(model, sequence);
