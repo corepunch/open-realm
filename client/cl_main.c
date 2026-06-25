@@ -849,6 +849,7 @@ void CL_Frame(DWORD msec) {
     CL_ReadPackets();
     CL_CheckTimeout();
     CL_SendCommand();
+    S_Update();
     CL_PrepRefresh();
     SCR_UpdateScreen(msec);
 }
