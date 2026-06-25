@@ -370,7 +370,7 @@ typedef struct entityState_s {
         struct { VECTOR2 origin2; FLOAT z; };
     };
     FLOAT angle;
-    VECTOR3 rotation;
+    VECTOR3 rotation; /* renderer-only: WoW doodad Euler rotation from ADT, not networked */
     FLOAT scale;
     FLOAT radius;
     BYTE stats[ENT_STAT_COUNT];

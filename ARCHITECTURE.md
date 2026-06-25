@@ -18,6 +18,14 @@
 - The renderer library is a compound module: engine renderer sources in `renderer/` are compiled together with the selected game's `games/<game>/renderer/` sources. Engine renderer code calls the `R_Game*` API declared in `renderer/r_game.h`; it must not switch on MDX/M2/M3 model formats or include game renderer internals directly.
 - Prefer generic fallbacks in engine code (caller-provided names, first available sequence, data-driven metadata) rather than title-specific heuristics.
 
+## Mouse Input Architecture
+
+- Mouse state is owned by the client: the `mouse` global (`mouseEvent_t` in `client/cl_input.c`) is the single source of truth for position, button, event, and wheel state.
+- The UI library receives mouse events via `ui.MouseEvent(x, y, button, down)` — a push-based model called during `SDL_PollEvent` in `CL_Input()`. The UI processes events immediately (hit test + action).
+- The UI library reads mouse position through `uiImport_t.GetMouseFdf()` for per-frame hover detection (visual-only, no state mutation).
+- Game-mode-specific mouse behavior (camera pan, selection, zoom) lives in per-game `cl_input_<game>.c` files via the `CL_InputMode*` functions.
+- Never create a separate mouse state struct in game UI code. Never poll mouse event state during draw — process events in the event handler instead.
+
 ## Network State Contracts
 
 - Do not casually add fields to `entityState_t`. It is a network snapshot/delta contract — every new field increases protocol surface, bandwidth, baseline/delta behavior, save/load assumptions, and renderer/client coupling. Adding a field must be extremely well justified and should only happen after considering narrower alternatives: existing state fields, configstrings, typed UI payloads, game-side state, or explicit commands.

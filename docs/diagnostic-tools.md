@@ -10,6 +10,7 @@
 	- `build/bin/mpqtool -mpq <path-to-mpq> cat <archive-file>`
 	- Example with redirect: `build/bin/mpqtool -mpq <path-to-mpq> cat Scripts/war3map.j > /tmp/war3map.j`
 - Normalize slashes as needed; both `\` and `/` are accepted.
+- Never define in C code any UI/layout/asset values that can be read from MPQ data files such as XML, Lua, FDF, DBC, SLK, or similar. Build or extend systems that load and use the authoritative MPQ data instead of embedding fallback literals in engine code.
 - Default to this tool whenever you need to discover MPQ contents, inspect text assets, or extract raw file bytes for analysis.
 
 ## MDX Inspection (mdxtool)
@@ -23,6 +24,8 @@
 	- `build/bin/mdxtool -mpq <path-to-mpq> -model <archive-model-path> --front-ortho`
 - Info mode (no window, stdout only):
 	- `build/bin/mdxtool -mpq <path-to-mpq> -model <archive-model-path> --info`
+- Example: `build/bin/mdxtool -mpq data/Warcraft\ III/War3.mpq -model UI\Glues\MainMenu\WarCraftIIILogo\WarCraftIIILogo.mdx`
+- Front-ortho example: `build/bin/mdxtool -mpq data/Warcraft\ III/War3.mpq -model UI\Glues\SpriteLayers\TopRightPanel.mdx --front-ortho`
 
 Common flags:
 - `--anim <sequence>`: render or inspect a specific sequence by name.
@@ -43,6 +46,12 @@ Agent guidance:
 - Use `--front-ortho` for glue sprites, panel layers, logos, and other flat UI-facing models.
 - Use `--use-model-camera` only when the model actually contains a useful embedded camera.
 
+Expected output style:
+- `mdxtool --info: model=<path> size=<bytes>`
+- one line per relevant chunk with counts, e.g. `SEQS: count=...`, `CAMS: count=...`, `LITE: count=...`.
+
+Use this output in bug reports/diagnostics so rendering issues can be triaged from data facts (camera/lights/particles/sequence availability) without requiring screenshots.
+
 ## UI Text Renderer
 
 - Use `make run-ui-text` to inspect client-side UI rendering without opening a window.
@@ -55,6 +64,7 @@ Expected output includes: `load_texture`, `load_model`, `load_font`, `draw_portr
 Agent guidance:
 - Prefer the stdout renderer first for UI layout, FDF translation, button state, backdrop tiling, UV, color, and menu-command bugs.
 - Use `mdxtool --info` first when a UI model itself may be missing or malformed.
+- `fdftool` is no longer the primary UI inspection path; Phase 8 moved UI rendering into the client-side UI library.
 - For startup-menu diagnostics, invoke a concrete menu command directly with `+`. Do not add router-style paths, a generic `ui` console command, or startup cvars for menu routing. Register concrete commands such as `menu_credits` or `menu_options`. Examples:
 	- `build/bin/openwarcraft3 -data data/Warcraft\ III +menu_main`
 	- `make run-ui-text UI_CMD=menu_single_player_campaign`
