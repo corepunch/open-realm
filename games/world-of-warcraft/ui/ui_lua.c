@@ -946,15 +946,27 @@ void UIWow_InitLua(void) {
     UIWow_RegisterGlobalAliases(L);
     UIWow_RegisterGlobalFuncs(L, wow_global_funcs);
 
-    /* CharModelFogInfo is a WoW 1.12 global table indexed by CharacterSelect.lua */
-    lua_newtable(L);
-    lua_pushnumber(L, 0.0); lua_setfield(L, -2, "r");
-    lua_pushnumber(L, 0.0); lua_setfield(L, -2, "g");
-    lua_pushnumber(L, 0.0); lua_setfield(L, -2, "b");
-    lua_pushnumber(L, 1.0); lua_setfield(L, -2, "a");
-    lua_pushnumber(L, 10.0); lua_setfield(L, -2, "near");
-    lua_pushnumber(L, 100.0); lua_setfield(L, -2, "far");
-    lua_setglobal(L, "CharModelFogInfo");
+    /* CharModelFogInfo is a WoW 1.12 global table keyed by race name (e.g.
+     * CharModelFogInfo["ORC"]) — each entry holds {r,g,b,a,near,far}. */
+    {
+        static LPCSTR const races[] = {
+            "HUMAN", "ORC", "DWARF", "NIGHTELF",
+            "UNDEAD", "TAUREN", "GNOME", "TROLL", NULL
+        };
+        int i;
+        lua_newtable(L);
+        for (i = 0; races[i]; i++) {
+            lua_newtable(L);
+            lua_pushnumber(L, 0.0);   lua_setfield(L, -2, "r");
+            lua_pushnumber(L, 0.0);   lua_setfield(L, -2, "g");
+            lua_pushnumber(L, 0.0);   lua_setfield(L, -2, "b");
+            lua_pushnumber(L, 1.0);   lua_setfield(L, -2, "a");
+            lua_pushnumber(L, 10.0);  lua_setfield(L, -2, "near");
+            lua_pushnumber(L, 100.0); lua_setfield(L, -2, "far");
+            lua_setfield(L, -2, races[i]);
+        }
+        lua_setglobal(L, "CharModelFogInfo");
+    }
 
     lua_newtable(L);
     luaL_setfuncs(L, wow_lua_funcs, 0);
