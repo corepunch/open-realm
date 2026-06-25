@@ -339,13 +339,7 @@ typedef void *LPEDICT;
 /* ui_main.c */
 void UI_InitLocal(void);
 void UI_ShutdownLocal(void);
-void UI_RefreshLocal(DWORD msec);
-void UI_DrawFrameLocal(void);
-void UI_LayoutDrawOverlays(void);
-void UI_LayoutSetLayer(DWORD layer, HANDLE data);
-void UI_LayoutClearLayer(DWORD layer);
-void UI_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param);
-BOOL UI_LayoutHitTest(int x, int y);
+void UI_RefreshLocal(DWORD time);
 
 /* ui_glue_scene.c */
 void UI_ResetGlueSceneModels(void);

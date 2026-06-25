@@ -312,11 +312,6 @@ static LPRENDERER CL_UIGetRenderer(void) {
     return &re;
 }
 
-/* Time access callback for UI build queues */
-static DWORD CL_UIGetTime(void) {
-    return cl_realtime;
-}
-
 #define CL_MAX_LAN_SERVERS 64
 
 static uiLanGame_t cl_lan_servers[CL_MAX_LAN_SERVERS];
@@ -606,18 +601,17 @@ void CL_Init(void) {
         .GetTextures = CL_UIGetTextures,
         .GetFont = CL_UIGetFont,
         .GetRenderer = CL_UIGetRenderer,
-        .GetTime = CL_UIGetTime,
         .Printf = CON_printf,
         .PlaySound = S_PlaySound,
         .PlaySoundByName = S_PlaySoundByName,
     });
     
     /* Wire layout functions from the client into the UI export table */
-    ui.DrawOverlays = UI_LayoutDrawOverlays;
-    ui.LayoutMouseEvent = UI_LayoutMouseEvent;
-    ui.SetLayoutLayer = UI_LayoutSetLayer;
-    ui.ClearLayoutLayer = UI_LayoutClearLayer;
-    ui.HitTestLayout = UI_LayoutHitTest;
+    ui.DrawOverlays = SCR_DrawLayout;
+    ui.LayoutMouseEvent = SCR_LayoutMouseEvent;
+    ui.SetLayoutLayer = SCR_SetLayoutLayer;
+    ui.ClearLayoutLayer = SCR_ClearLayoutLayer;
+    ui.HitTestLayout = SCR_LayoutHitTest;
     
     if (ui.Init) {
         ui.Init();
@@ -798,11 +792,6 @@ void CL_SendCommand(void) {
 void CL_Frame(DWORD msec) {
     cl_realtime += msec;
     cl.time += msec;
-
-    /* Update UI library */
-    if (ui.Refresh) {
-        ui.Refresh(msec);
-    }
 
     CL_Input();
     CL_ReadPackets();

@@ -52,8 +52,8 @@ void SCR_UpdateScreen(DWORD msec) {
             ui.DrawLoadingScreen(cl.loading_map, cl.loading_status, cl.loading_progress);
         }
     } else {
-        if (ui.DrawFrame) {
-            ui.DrawFrame();
+        if (ui.Refresh) {
+            ui.Refresh(cl.time);
         }
         if (ui.DrawOverlays) {
             ui.DrawOverlays();

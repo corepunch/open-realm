@@ -19,12 +19,10 @@ extern uiImport_t uiimport;
 typedef void (*layoutDrawFunc_t)(LPCUIFRAME frame, LPCRECT screen);
 
 /* Layout system functions (implemented in cl_unit_layout.c) */
-void UI_LayoutSetLayer(DWORD layer, HANDLE data);
-void UI_LayoutClearLayer(DWORD layer);
-BOOL UI_LayoutHitTest(int x, int y);
-void UI_LayoutDrawOverlays(void);
-void UI_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param);
-
-/* Time accessor — use uiimport.GetTime() instead of calling UI_GetTime directly */
+void SCR_SetLayoutLayer(DWORD layer, HANDLE data);
+void SCR_ClearLayoutLayer(DWORD layer);
+BOOL SCR_LayoutHitTest(int x, int y);
+void SCR_DrawLayout(void);
+void SCR_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param);
 
 #endif /* ui_layout_h */
