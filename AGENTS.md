@@ -74,3 +74,10 @@ When you propose a fix and it touches symptoms rather than causes, stop and ask 
 ## Domain
 
 - This is a **real-time strategy game** (RTS). Game logic must account for unit management, pathfinding, resource gathering, building construction, and large numbers of entities — adapted from the Quake 2 entity/server model where applicable.
+
+## UI Library Conventions
+
+- The UI library (`uiExport_t`) is always loaded and initialized at startup via `UI_GetAPI()` in `CL_Init()`. All function pointers in `uiExport_t` are always valid — never guard them with null checks (`if (ui.DrawFrame)` is wrong).
+- Call UI functions directly: `ui.DrawFrame()`, `ui.Refresh(msec)`, `ui.KeyEvent(...)`, etc.
+- The same applies to client-side layout functions wired into the UI table (`ui.SetLayoutLayer`, `ui.ClearLayoutLayer`, `ui.HitTestLayout`, `ui.DrawOverlays`, `ui.LayoutMouseEvent`). These are assigned in `CL_Init()` and are always present.
+- `SCR_UpdateScreen()` dispatches rendering by `cls.state` via a `switch` statement — not by probing for optional APIs.

@@ -149,10 +149,10 @@ font:       $(FONT_HEADER)
 $(TOOL_NAMES): %: $(BIN_DIR)/%$(EXE_EXT)
 
 run-wow: $(WOW_BINARY)
-	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +map World/Maps/Azeroth/Azeroth.wdt
+	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR)
 
 build-run-wow: openwow
-	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +map World/Maps/Azeroth/Azeroth.wdt
+	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR)
 
 run-sc2: $(SC2_BINARY)
 	$(SC2_BINARY) -data data/StarCraft2 +map TRaynor01

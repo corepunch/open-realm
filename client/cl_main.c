@@ -78,10 +78,8 @@ void CL_ClearState(void) {
     SAFE_DELETE(cl.fow.explored, MemFree);
     SAFE_DELETE(cl.fow.texture, MemFree);
 
-    if (ui.ClearLayoutLayer) {
-        FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
-            ui.ClearLayoutLayer(layer);
-        }
+    FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
+        ui.ClearLayoutLayer(layer);
     }
 
     memset(&cl, 0, sizeof(struct client_state));
@@ -327,9 +325,7 @@ static VECTOR2 CL_UIGetMouseFdf(void) {
 static void CL_UIRequestUnitUI(DWORD num_selected, DWORD *entity_nums) {
     (void)num_selected;
     (void)entity_nums;
-    if (ui.UpdateUnitUI) {
-        ui.UpdateUnitUI(0, NULL);
-    }
+    ui.UpdateUnitUI(0, NULL);
 }
 
 #define CL_MAX_LAN_SERVERS 64
@@ -665,9 +661,7 @@ void CL_Init(void) {
     ui.ClearLayoutLayer = UI_LayoutClearLayer;
     ui.HitTestLayout = UI_LayoutHitTest;
     
-    if (ui.Init) {
-        ui.Init();
-    }
+    ui.Init();
 
     SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
     
@@ -817,9 +811,7 @@ void CL_Connect(LPCSTR host, unsigned short port) {
 }
 
 void CL_Shutdown(void) {
-    if (ui.Shutdown) {
-        ui.Shutdown();
-    }
+    ui.Shutdown();
     FOR_LOOP(modelIndex, MAX_MODELS) {
         SAFE_DELETE(cl.models[modelIndex], re.ReleaseModel);
         SAFE_DELETE(cl.portraits[modelIndex], re.ReleaseModel);
@@ -845,9 +837,7 @@ void CL_Frame(DWORD msec) {
     cl.time += msec;
 
     /* Update UI library */
-    if (ui.Refresh) {
-        ui.Refresh(msec);
-    }
+    ui.Refresh(msec);
 
     CL_Input();
     CL_ReadPackets();
