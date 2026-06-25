@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="us-ascii"?>
+<Includes>
+    <Catalog path="GameData/UnitData.xml"/>
+    <Catalog path="GameData/ModelData.xml"/>
+    <Catalog path="GameData/ActorData.xml"/>
+    <Catalog path="GameData/FootprintData.xml"/>
+    <Catalog path="GameData/TerrainTexData.xml"/>
+    <Catalog path="GameData/CliffData.xml"/>
+    <Catalog path="GameData/Overrides/CoreManifest.xml"/>
+</Includes>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="us-ascii"?>
+<Catalog>
+    <CUnit id="Marine">
+        <Radius value="0.5"/>
+    </CUnit>
+    <CModel id="MarineCoreManifestModel" parent="Unit" Race="Protoss">
+        <Occlusion value="Hide"/>
+    </CModel>
+    <CActorUnit id="MarineActor">
+        <Model value="MarineCoreManifestModel"/>
+    </CActorUnit>
+</Catalog>
