@@ -90,7 +90,9 @@ void S_LoadSoundEntries(void) {
 }
 
 static sWavCache_t *S_CacheWav(DWORD kit_id, LPCSTR path) {
-    /* Evict LRU if full */
+    /* Evict LRU if full — hold audio lock so S_MixAudio cannot read
+       a slot while we free/zero it. */
+    SDL_LockAudioDevice(s.device);
     if (s.wav_cache_count >= S_MAX_CACHED_WAVS) {
         DWORD oldest_lru = UINT32_MAX, oldest_idx = 0;
         for (DWORD i = 0; i < S_MAX_CACHED_WAVS; i++) {
@@ -112,9 +114,13 @@ static sWavCache_t *S_CacheWav(DWORD kit_id, LPCSTR path) {
     DWORD slot = 0;
     for (slot = 0; slot < S_MAX_CACHED_WAVS; slot++)
         if (!s.wav_cache[slot].data) break;
-    if (slot >= S_MAX_CACHED_WAVS) return NULL;
+    if (slot >= S_MAX_CACHED_WAVS) {
+        SDL_UnlockAudioDevice(s.device);
+        return NULL;
+    }
+    SDL_UnlockAudioDevice(s.device);
 
-    /* Read WAV from MPQ */
+    /* Read WAV from MPQ — outside lock; only we touch slot here */
     DWORD file_size = 0;
     void *file_data = FS_ReadFile(path, &file_size);
     if (!file_data || file_size == 0) {
@@ -123,21 +129,25 @@ static sWavCache_t *S_CacheWav(DWORD kit_id, LPCSTR path) {
     }
 
     SDL_RWops *rw = SDL_RWFromMem(file_data, file_size);
-    sWavCache_t *w = &s.wav_cache[slot];
-    if (!SDL_LoadWAV_RW(rw, 1, &w->spec, &w->data, &w->len)) {
-        SDL_RWclose(rw);
+    if (!rw) {
         FS_FreeFile(file_data);
         return NULL;
     }
-    SDL_RWclose(rw);
+    sWavCache_t *w = &s.wav_cache[slot];
+    if (!SDL_LoadWAV_RW(rw, 1, &w->spec, &w->data, &w->len)) {
+        FS_FreeFile(file_data);
+        return NULL;
+    }
     FS_FreeFile(file_data);
 
     w->kit_id = kit_id;
+    /* Re-lock to update cache bookkeeping atomically */
+    SDL_LockAudioDevice(s.device);
     s.wav_cache_count++;
-    /* Reset all LRU counters, mark this slot as most recent */
     for (DWORD i = 0; i < S_MAX_CACHED_WAVS; i++)
         s.wav_cache_lru[i]++;
     s.wav_cache_lru[slot] = 0;
+    SDL_UnlockAudioDevice(s.device);
     return w;
 }
 
