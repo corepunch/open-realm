@@ -1025,6 +1025,7 @@ static void Wow_ClientBegin(LPEDICT ent) {
     }
     ent->client = &wow_clients[0].client;
     Wow_SendPlayerUi(ent);
+    UI_WriteWowHud(ent);
 }
 
 struct game_export *GetGameAPI(struct game_import *import) {
