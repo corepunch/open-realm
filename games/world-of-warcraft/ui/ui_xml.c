@@ -1415,7 +1415,7 @@ static void UIWow_LuaSetGlueScreen_named(LPCSTR screen) {
     lua_getglobal(wow_ui.lua, "SetGlueScreen");
     if (lua_isfunction(wow_ui.lua, -1)) {
         lua_pushstring(wow_ui.lua, screen);
-        UIWow_LuaPCall(1);
+        UIWOW_LUA(1);
     } else {
         lua_pop(wow_ui.lua, 1);
     }
@@ -1520,7 +1520,7 @@ static void UIWow_XMLRunFrameScript(int idx, LPCSTR script, LPCSTR event_name) {
     if (luaL_loadbuffer(wow_ui.lua, script, strlen(script), chunk) != LUA_OK) {
         UIWow_Printf("UIWow Lua load: %s\n", lua_tostring(wow_ui.lua, -1)); lua_pop(wow_ui.lua, 1);
     } else {
-        UIWow_LuaPCall(0);
+        UIWOW_LUA(0);
     }
     lua_pushnil(wow_ui.lua); lua_setglobal(wow_ui.lua, "this");
 }

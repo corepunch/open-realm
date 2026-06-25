@@ -292,7 +292,7 @@ static void UIWow_LuaMouseMove(int x, int y) {
     if (lua_isfunction(wow_ui.lua, -1)) {
         lua_pushnumber(wow_ui.lua, mouse_pos.x);
         lua_pushnumber(wow_ui.lua, mouse_pos.y);
-        UIWow_LuaPCall(2);
+        UIWOW_LUA(2);
     } else {
         lua_pop(wow_ui.lua, 1);
         UIWow_WarnOnce(WOW_UI_WARN_NO_MOUSEMOVE_HANDLER,
@@ -314,7 +314,7 @@ static void UIWow_DrawFrame(void) {
         UIWow_UpdateMapBackground(ps);
         lua_getglobal(wow_ui.lua, "ow3_draw_loading_screen");
         if (lua_isfunction(wow_ui.lua, -1)) {
-            UIWow_LuaPCall(0);
+            UIWOW_LUA(0);
         } else {
             lua_pop(wow_ui.lua, 1);
             UIWow_WarnOnce(WOW_UI_WARN_NO_LOADING_DRAW,
@@ -363,7 +363,7 @@ static void UIWow_TextInput(LPCSTR text) {
         return;
     }
     lua_pushstring(wow_ui.lua, text);
-    UIWow_LuaPCall(1);
+    UIWOW_LUA(1);
 }
 
 static void UIWow_MouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
@@ -396,7 +396,7 @@ static void UIWow_MouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) 
     lua_pushnumber(wow_ui.lua, mouse_pos.x);
     lua_pushnumber(wow_ui.lua, mouse_pos.y);
     lua_pushinteger(wow_ui.lua, param);
-    UIWow_LuaPCall(3);
+    UIWOW_LUA(3);
 }
 
 /* -------------------------------------------------------------------------
@@ -415,7 +415,7 @@ static void UIWow_CallLuaShow(LPCSTR menu_name, LPCSTR lua_func, LPCSTR glue_scr
 
     lua_getglobal(wow_ui.lua, lua_func);
     if (lua_isfunction(wow_ui.lua, -1)) {
-        UIWow_LuaPCall(0);
+        UIWOW_LUA(0);
         return;
     }
     lua_pop(wow_ui.lua, 1);
@@ -435,7 +435,7 @@ static void UIWow_CallLuaShow(LPCSTR menu_name, LPCSTR lua_func, LPCSTR glue_scr
         return;
     }
     lua_pushstring(wow_ui.lua, glue_screen);
-    UIWow_LuaPCall(1);
+    UIWOW_LUA(1);
 }
 
 static void UIWow_ShowLoginMenu(void)          { UIWow_CallLuaShow("login",            "ow3_show_login",            "login"); }
@@ -554,7 +554,7 @@ static void UIWow_DrawLoadingScreen(LPCSTR map, LPCSTR status, FLOAT progress) {
     UIWow_UpdateMapBackground(ps);
     lua_getglobal(wow_ui.lua, "ow3_draw_loading_screen");
     if (lua_isfunction(wow_ui.lua, -1)) {
-        UIWow_LuaPCall(0);
+        UIWOW_LUA(0);
     } else {
         lua_pop(wow_ui.lua, 1);
     }

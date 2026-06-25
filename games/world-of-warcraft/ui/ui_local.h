@@ -89,6 +89,11 @@ extern uiWowState_t wow_ui;
 void UIWow_InitLua(void);
 void UIWow_ShutdownLua(void);
 BOOL UIWow_LuaPCall(int nargs);
+
+/* Wrap UIWow_LuaPCall so every Lua error is logged with call-site info.
+   Use this instead of calling UIWow_LuaPCall directly. */
+#define UIWOW_LUA(nargs) UIWow_LuaPCallLogged(nargs, __FILE__, __LINE__)
+BOOL UIWow_LuaPCallLogged(int nargs, LPCSTR file, int line);
 void UIWow_CallLuaDraw(void);
 void UIWow_CallLuaUpdate(DWORD msec);
 BOOL UIWow_RunLuaString(LPCSTR name, LPCSTR script);
