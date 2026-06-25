@@ -680,6 +680,13 @@ static luaL_Reg const wow_global_funcs[] = {
     { "SetCurrentGlueScreenName", UIWow_LuaNoop },
     { "QuitGame",          UIWow_LuaNoop },
     { "Screenshot",        UIWow_LuaNoop },
+    /* WoW 1.12 GlueXML frame OnLoad/handler stubs */
+    { "GlueParent_OnLoad",   UIWow_LuaNoop },
+    { "RealmList_OnLoad",    UIWow_LuaNoop },
+    { "RealmWizard_OnLoad",  UIWow_LuaNoop },
+    { "RealmWizard_Exit",    UIWow_LuaNoop },
+    { "CharacterSelect_OnLoad", UIWow_LuaNoop },
+    { "CharacterCreate_OnLoad", UIWow_LuaNoop },
     { NULL, NULL },
 };
 
@@ -938,6 +945,16 @@ void UIWow_InitLua(void) {
     UIWow_SetGlobalFunc(L, "TEXT", UIWow_LuaTextCompat);
     UIWow_RegisterGlobalAliases(L);
     UIWow_RegisterGlobalFuncs(L, wow_global_funcs);
+
+    /* CharModelFogInfo is a WoW 1.12 global table indexed by CharacterSelect.lua */
+    lua_newtable(L);
+    lua_pushnumber(L, 0.0); lua_setfield(L, -2, "r");
+    lua_pushnumber(L, 0.0); lua_setfield(L, -2, "g");
+    lua_pushnumber(L, 0.0); lua_setfield(L, -2, "b");
+    lua_pushnumber(L, 1.0); lua_setfield(L, -2, "a");
+    lua_pushnumber(L, 10.0); lua_setfield(L, -2, "near");
+    lua_pushnumber(L, 100.0); lua_setfield(L, -2, "far");
+    lua_setglobal(L, "CharModelFogInfo");
 
     lua_newtable(L);
     luaL_setfuncs(L, wow_lua_funcs, 0);
