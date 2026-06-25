@@ -680,6 +680,9 @@ static luaL_Reg const wow_global_funcs[] = {
     { "SetCurrentGlueScreenName", UIWow_LuaNoop },
     { "QuitGame",          UIWow_LuaNoop },
     { "Screenshot",        UIWow_LuaNoop },
+    { "CharacterCreate_UpdateModel", UIWow_LuaNoop },
+    { "CharacterCreateRotateLeft_OnUpdate", UIWow_LuaNoop },
+    { "CharacterCreateRotateRight_OnUpdate", UIWow_LuaNoop },
     { NULL, NULL },
 };
 
