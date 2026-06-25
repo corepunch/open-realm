@@ -664,13 +664,14 @@ DWORD UIWow_GetCharacterSelectAppearance(void) {
     return 0;
 }
 
-/* Push the selected character's race/sex/class/appearance into cvars so the
-   game module can read them during Wow_Init and store in CS_GENERAL. */
+/* Pack the selected character's race/sex/class/appearance into a single
+   userinfo-style cvar so the game module can read it during Wow_Init and
+   store in one CS_GENERAL configstring.  Format: \race\Human\sex\Male\class\1\appearance\12345 */
 void UIWow_SetSelectedCharCvars(void) {
     wowCharEntry_t const *e;
     LPCSTR race = "Orc";
     LPCSTR sex = "Male";
-    char buf[32];
+    char userinfo[MAX_PATHLEN];
 
     if (!wow_charlist.loaded) CharList_Load();
     if (wow_ui.selected_char_idx < 0 || wow_ui.selected_char_idx >= wow_charlist.count)
@@ -685,12 +686,9 @@ void UIWow_SetSelectedCharCvars(void) {
             break;
         }
     }
-    uiimport.Cvar_Set(WOW_CVAR_RACE, race);
-    uiimport.Cvar_Set(WOW_CVAR_SEX, sex);
-    snprintf(buf, sizeof(buf), "%u", (unsigned)e->class_id);
-    uiimport.Cvar_Set(WOW_CVAR_CLASS, buf);
-    snprintf(buf, sizeof(buf), "%u", (unsigned)e->appearance);
-    uiimport.Cvar_Set(WOW_CVAR_APPEARANCE, buf);
+    snprintf(userinfo, sizeof(userinfo), "\\race\\%s\\sex\\%s\\class\\%u\\appearance\\%u",
+             race, sex, (unsigned)e->class_id, (unsigned)e->appearance);
+    uiimport.Cvar_Set(WOW_CVAR_PLAYERINFO, userinfo);
 }
 
 int UIWow_LuaResetCharCustomize(lua_State *L) {

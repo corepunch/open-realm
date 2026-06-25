@@ -4,13 +4,11 @@
 #define WOW_UI_INVENTORY_SLOTS 6
 #define WOW_UI_ACTION_SLOTS 12
 
-/* Cvar names used to pass selected character data from UI to game module.
-   The UI sets these before map load; the game module reads them in Wow_Init
-   and stores the values in CS_GENERAL configstrings. */
-#define WOW_CVAR_RACE      "wow_race"
-#define WOW_CVAR_SEX       "wow_sex"
-#define WOW_CVAR_CLASS     "wow_class"
-#define WOW_CVAR_APPEARANCE "wow_appearance"
+/* Single userinfo-style cvar used to pass selected character data from UI to
+   game module.  Format: \race\Human\sex\Male\class\1\appearance\12345
+   The UI sets this before map load; the game module reads it in Wow_Init
+   and stores the value in one CS_GENERAL configstring. */
+#define WOW_CVAR_PLAYERINFO "wow_playerinfo"
 
 typedef enum {
     WOW_STAT_HEALTH = 0,

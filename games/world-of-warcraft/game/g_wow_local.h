@@ -10,12 +10,10 @@
 #define WOW_PLAYER_WEAPON_MODEL "Item\\ObjectComponents\\Weapon\\Axe_1H_Horde_A_01.m2"
 #define WOW_CLASS_WARRIOR 1
 
-/* CS_GENERAL slots used to pass selected character data from UI to game module.
-   Set by the UI via cvars before map load, read by Wow_Init. */
-#define WOW_CS_RACE      0  /* race client_file (e.g. "Orc") */
-#define WOW_CS_SEX       1  /* sex_id as string (1=male, 2=female) */
-#define WOW_CS_CLASS     2  /* class_id as string */
-#define WOW_CS_APPEARANCE 3 /* packed appearance DWORD as string */
+/* CS_GENERAL slot used to pass selected character data from UI to game module.
+   Set by the UI via a single userinfo-style cvar before map load, read by
+   Wow_Init.  Format: \race\Human\sex\Male\class\1\appearance\12345 */
+#define WOW_CS_PLAYERINFO 0
 #define WOW_MOVE_FORWARD 1
 #define WOW_MOVE_BACK 2
 #define WOW_MOVE_LEFT 4
