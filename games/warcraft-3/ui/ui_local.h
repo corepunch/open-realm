@@ -463,7 +463,7 @@ void UI_DrawFrame(LPCFRAMEDEF frame);
 void UI_DrawGamePortraitInFrame(LPCFRAMEDEF frame, DWORD modelIndex, LPCSTR anim);
 void UI_DrawFrames(LPCFRAMEDEF const *roots, DWORD num_roots);
 BOOL UI_EditKey(int key);
-void UI_MouseEventLocal(uiMouseEvent_t event, int x, int y, int32_t param);
+BOOL UI_MouseEventLocal(uiMouseEvent_t event, int x, int y, int32_t param);
 void UI_TextInputLocal(LPCSTR text);
 BOOL UI_EditHasFocus(LPCFRAMEDEF frame);
 LPCSTR UI_EditValue(LPCFRAMEDEF frame);

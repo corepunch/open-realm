@@ -359,37 +359,38 @@ static void UIWow_TextInput(LPCSTR text) {
     UIWow_LuaPCall(1);
 }
 
-static void UIWow_MouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
+static BOOL UIWow_MouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
     VECTOR2 mouse_pos;
     if (wow_ui.game_mode) {
-        return;
+        return false;
     }
     if (UIWow_XMLMouseEvent(event, x, y, param)) {
-        return;
+        return true;
     }
     if (event == UI_MOUSE_MOVE) {
         UIWow_LuaMouseMove(x, y);
-        return;
+        return false;
     }
     if (!wow_ui.lua || event != UI_MOUSE_DOWN) {
         if (!wow_ui.lua && event == UI_MOUSE_DOWN) {
             UIWow_WarnOnce(WOW_UI_WARN_NO_LUA_STATE,
                            "UIWow: Lua state is not initialized; mouse click ignored\n");
         }
-        return;
+        return false;
     }
     lua_getglobal(wow_ui.lua, "ow3_handle_mouse_click");
     if (!lua_isfunction(wow_ui.lua, -1)) {
         lua_pop(wow_ui.lua, 1);
         UIWow_WarnOnce(WOW_UI_WARN_NO_MOUSE_HANDLER,
                        "UIWow: missing Lua function 'ow3_handle_mouse_click'\n");
-        return;
+        return false;
     }
     mouse_pos = UIWow_MouseFdf(x, y);
     lua_pushnumber(wow_ui.lua, mouse_pos.x);
     lua_pushnumber(wow_ui.lua, mouse_pos.y);
     lua_pushinteger(wow_ui.lua, param);
     UIWow_LuaPCall(3);
+    return true;
 }
 
 /* -------------------------------------------------------------------------

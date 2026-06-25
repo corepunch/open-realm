@@ -165,7 +165,7 @@ typedef struct {
     /* Input event handling */
     void (*KeyEvent)(int key, BOOL down, DWORD time);
     void (*TextInput)(LPCSTR text);
-    void (*MouseEvent)(uiMouseEvent_t event, int x, int y, int32_t param);
+    BOOL (*MouseEvent)(uiMouseEvent_t event, int x, int y, int32_t param);
     
     /* Unit UI data updates (Phase 8: HUD migration) */
     void (*UpdateUnitUI)(DWORD num_units, uiUnitData_t *units);

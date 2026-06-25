@@ -753,13 +753,13 @@ static VECTOR2 UI_PixelToFdf(int px, int py) {
 }
 
 /* All UI mouse work starts here so draw code only consumes event-updated state. */
-void UI_MouseEventLocal(uiMouseEvent_t event, int x, int y, int32_t param) {
+BOOL UI_MouseEventLocal(uiMouseEvent_t event, int x, int y, int32_t param) {
     BOOL const down = event == UI_MOUSE_DOWN;
     BOOL const up = event == UI_MOUSE_UP;
     BOOL const left = param == 1;
     int const wheel_y = event == UI_MOUSE_SCROLL ? UI_MOUSE_PARAM_Y(param) : 0;
     if (!ui_state.active) {
-        return;
+        return false;
     }
 
     VECTOR2 fdf = UI_PixelToFdf(x, y);
@@ -807,6 +807,7 @@ void UI_MouseEventLocal(uiMouseEvent_t event, int x, int y, int32_t param) {
 
     UI_PopupMenuHover(fdf.x, fdf.y);
 
+    return hit != NULL;
 }
 
 void UI_MenuCommandLocal(LPCSTR command) {

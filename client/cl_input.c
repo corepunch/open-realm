@@ -132,7 +132,9 @@ void CL_Input(void) {
                 mouse.origin.x = event.button.x;
                 mouse.origin.y = event.button.y;
                 mouse.button = event.button.button;
-                ui.MouseEvent(UI_MOUSE_DOWN, event.button.x, event.button.y, event.button.button);
+                if (ui.MouseEvent(UI_MOUSE_DOWN, event.button.x, event.button.y, event.button.button)) {
+                    break;
+                }
                 SCR_LayoutMouseEvent(UI_MOUSE_DOWN, event.button.x, event.button.y, event.button.button);
                 if (cls.key_dest == key_menu) {
                     if (event.button.button == SDL_BUTTON_LEFT) {
@@ -152,7 +154,9 @@ void CL_Input(void) {
                 mouse.origin.x = event.button.x;
                 mouse.origin.y = event.button.y;
                 mouse.button = 0;
-                ui.MouseEvent(UI_MOUSE_UP, event.button.x, event.button.y, event.button.button);
+                if (ui.MouseEvent(UI_MOUSE_UP, event.button.x, event.button.y, event.button.button)) {
+                    break;
+                }
                 SCR_LayoutMouseEvent(UI_MOUSE_UP, event.button.x, event.button.y, event.button.button);
                 if (cls.key_dest == key_menu) {
                     if (event.button.button == SDL_BUTTON_LEFT) {
