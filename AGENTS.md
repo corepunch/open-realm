@@ -393,6 +393,7 @@ See per-game sound documentation in:
 
 - Before creating a GitHub issue, check available labels with `gh label list`.
 - When creating issues, assign appropriate labels (e.g. `enhancement`, `warcraft-3`, `world-of-warcraft`, `renderer`, `ui`).
+- Do not prefix issue titles with game names (e.g. `wow:`, `wc3:`). Use labels instead.
 - If a needed label doesn't exist, create it first with `gh label create`.
 - Keep issue titles at most 80 characters.
 - Keep issues scoped to one game/title when possible; use game-specific labels (`warcraft-3`, `world-of-warcraft`).
