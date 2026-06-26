@@ -94,6 +94,20 @@ void R_Viewport(LPCRECT viewport) {
                viewport->h * tr.drawableSize.height / 600);
 }
 
+static LPTEXTURE R_MakePlaceholderTexture(void) {
+    enum { SIZE = 16 };
+    COLOR32 pixels[SIZE * SIZE];
+    LPTEXTURE texture = R_AllocateTexture(SIZE, SIZE);
+
+    FOR_LOOP(y, SIZE) FOR_LOOP(x, SIZE) {
+        BOOL const checker = ((x ^ y) & 1) != 0;
+        pixels[y * SIZE + x] = checker ? MAKE(COLOR32, 255, 0, 255, 255)
+                                        : MAKE(COLOR32, 0, 0, 0, 255);
+    }
+    R_LoadTextureMipLevel(texture, 0, pixels, SIZE, SIZE);
+    return texture;
+}
+
 LPTEXTURE R_AllocateSinglePixelTexture(int color) {
     LPTEXTURE texture = R_AllocateTexture(1, 1);
     R_LoadTextureMipLevel(texture, 0, (LPCCOLOR32)&color, 1, 1);
@@ -160,8 +174,12 @@ LPTEXTURE R_LoadTexture(LPCSTR textureFilename) {
     void *buffer = NULL;
     int fileSize = ri.FS_ReadFile(textureFilename, &buffer);
     if (fileSize < 0 || !buffer) {
-        fprintf(stderr, "R_LoadTexture: not found: %s\n", textureFilename);
-        return R_AllocateSinglePixelTexture(0xffffffff);
+        static LPCSTR last_missing = NULL;
+        if (textureFilename != last_missing) {
+            fprintf(stderr, "R_LoadTexture: not found: %s\n", textureFilename);
+            last_missing = textureFilename;
+        }
+        return tr.texture[TEX_PLACEHOLDER];
     }
     switch (*(DWORD *)buffer) {
         case ID_BLP1:
@@ -189,12 +207,13 @@ LPTEXTURE R_LoadTexture(LPCSTR textureFilename) {
 }
 
 static LPMODEL R_LoadEmptyModel(LPCSTR modelFilename, LPCSTR reason) {
-    LPMODEL model;
+    static LPCSTR last_missing = NULL;
 
-    fprintf(stderr, "R_LoadModel: %s: %s, using empty model\n", reason, modelFilename);
-    model = ri.MemAlloc(sizeof(model_t));
-    memset(model, 0, sizeof(*model));
-    return model;
+    if (modelFilename != last_missing) {
+        fprintf(stderr, "R_LoadModel: %s: %s, using empty model\n", reason, modelFilename);
+        last_missing = modelFilename;
+    }
+    return ri.MemAlloc(sizeof(model_t));
 }
 
 LPMODEL R_LoadModel(LPCSTR modelFilename) {
@@ -426,6 +445,7 @@ void R_Init(DWORD width, DWORD height) {
     tr.buffer[RBUF_TEMP1] = R_MakeVertexArrayObject(NULL, 0);
     tr.texture[TEX_WHITE] = R_AllocateSinglePixelTexture(0xffffffff);
     tr.texture[TEX_BLACK] = R_AllocateSinglePixelTexture(0xff000000);
+    tr.texture[TEX_PLACEHOLDER] = R_MakePlaceholderTexture();
     tr.texture[TEX_BLOB_SHADOW] = R_MakeBlobShadowTexture();
     tr.texture[TEX_LOADING_INDICATOR] = R_MakeLoadingIndicatorTexture();
     tr.texture[TEX_FONT] = R_MakeSysFontTexture();

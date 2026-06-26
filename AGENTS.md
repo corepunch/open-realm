@@ -150,6 +150,16 @@ This codebase is inspired by **Quake 3** (id Software). The developer is deeply 
 - Never add `DYLIB_LOOKUP := -Wl,-undefined,dynamic_lookup` or otherwise rely on `-Wl,-undefined,dynamic_lookup` in this repository.
 - If a target has unresolved symbols, fix the dependency graph or shared implementation instead of weakening the linker contract.
 
+## Missing Asset Placeholders
+
+Follow Quake 3's pattern for missing textures, models, and sounds. Never fail silently, never crash, never log per-frame.
+
+- **Registration always returns a valid handle.** `R_LoadTexture` returns `tr.texture[TEX_PLACEHOLDER]` (magenta/black checkerboard) on file-not-found. `R_LoadModel` returns an empty zeroed `model_t`. Callers never get NULL.
+- **Log once per unique asset.** Use a static `last_missing` pointer to suppress repeated warnings for the same filename. The first miss logs to stderr; subsequent misses for the same path are silent.
+- **Cache the result.** Higher-level caches (UI texture arrays, configstring pic arrays, WoW `wow_ui.textures[]`) store the placeholder handle just like a successful load. The next lookup for the same name returns the cached placeholder without re-probing the filesystem.
+- **Do not add per-frame or per-draw warnings.** If a texture is missing, the checkerboard placeholder makes it visually obvious. Warnings belong at registration time only.
+- **Do not add local null-check guards for textures returned by `R_LoadTexture`.** The function guarantees a valid pointer. Code that checks `if (!tex)` before drawing is redundant.
+
 ## Command Conventions
 
 - The `+` prefix (e.g. `+map`, `+menu_main`) is for **command-line arguments only**. It tells `Cbuf_AddLateCommands` to strip the `+` and queue the command for startup execution.
