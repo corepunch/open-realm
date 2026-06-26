@@ -109,12 +109,9 @@ void R_DrawBackdrop(LPCDRAWBACKDROP db) {
             }
             R_AddQuad(vertices + num_vertices, rects + corners[i], &uv, db->edge_color, 0);
             if (flip) {
-                VECTOR2 tmp = vertices[num_vertices + 0].texcoord;
-                vertices[num_vertices + 0].texcoord = vertices[num_vertices + 2].texcoord;
-                vertices[num_vertices + 2].texcoord = tmp;
-                vertices[num_vertices + 3].texcoord = vertices[num_vertices + 0].texcoord;
-                vertices[num_vertices + 4].texcoord = vertices[num_vertices + 2].texcoord;
-                vertices[num_vertices + 5].texcoord = vertices[num_vertices + 2].texcoord;
+                VECTOR2 tmp = vertices[num_vertices + 1].texcoord;
+                vertices[num_vertices + 1].texcoord = vertices[num_vertices + 5].texcoord;
+                vertices[num_vertices + 5].texcoord = tmp;
             }
             num_vertices += 6;
         }
