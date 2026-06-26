@@ -128,10 +128,7 @@ typedef struct {
     float scale;
     float radius;
     float splatsize;
-    float shadow_x;
-    float shadow_y;
-    float shadow_w;
-    float shadow_h;
+    RECT shadow_rect;
     BYTE health;   /* current HP fraction, 0-255 (0 = dead/no bar) */
     BYTE mana;     /* current mana fraction, 0-255 (0 = no mana bar) */
 } renderEntity_t;

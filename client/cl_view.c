@@ -300,7 +300,11 @@ static void V_AddClientEntity(centity_t const *ent) {
     re.splat = cl.pics[ent->current.splat & 0xffff];
     re.splatsize = ent->current.splat >> 16;
     re.shadow = cl.pics[ent->current.shadow];
-    ShadowUnpackRect(ent->current.shadow_rect, &re.shadow_x, &re.shadow_y, &re.shadow_w, &re.shadow_h);
+    re.shadow_rect = MAKE(RECT,
+                          ShadowUnpackRectComponent((BYTE)(ent->current.shadow_rect & 0xff)),
+                          ShadowUnpackRectComponent((BYTE)((ent->current.shadow_rect >> 8) & 0xff)),
+                          ShadowUnpackRectComponent((BYTE)((ent->current.shadow_rect >> 16) & 0xff)),
+                          ShadowUnpackRectComponent((BYTE)((ent->current.shadow_rect >> 24) & 0xff)));
     if (!Cvar_Integer("r_unit_shadows", 1)) {
         re.flags |= RF_NO_SHADOW;
     }

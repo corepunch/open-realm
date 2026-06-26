@@ -301,14 +301,14 @@ bool R_GameRenderShadow(renderEntity_t const *entity, LPCVECTOR2 origin) {
 
     shadow_z = entity->origin.z + WOW_SPLAT_Z_BIAS;
     use_fast_blob = shadow == tr.texture[TEX_BLOB_SHADOW] &&
-                    entity->shadow_w <= 0 &&
-                    entity->shadow_h <= 0;
+                    entity->shadow_rect.w <= 0 &&
+                    entity->shadow_rect.h <= 0;
 
-    if (entity->shadow_w > 0 && entity->shadow_h > 0) {
-        mins.x = origin->x - entity->shadow_x;
-        mins.y = origin->y - entity->shadow_y;
-        maxs.x = mins.x + entity->shadow_w;
-        maxs.y = mins.y + entity->shadow_h;
+    if (entity->shadow_rect.w > 0 && entity->shadow_rect.h > 0) {
+        mins.x = origin->x - entity->shadow_rect.x;
+        mins.y = origin->y - entity->shadow_rect.y;
+        maxs.x = mins.x + entity->shadow_rect.w;
+        maxs.y = mins.y + entity->shadow_rect.h;
     } else {
         float radius = MAX(entity->radius * MAX(entity->scale, 1.0f), 1.0f);
         float width = MAX(radius * 2.4f, 2.0f);
