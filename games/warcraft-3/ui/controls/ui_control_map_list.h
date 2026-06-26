@@ -80,8 +80,8 @@ static void UI_DrawMapListControl(LPCFRAMEDEF frame, LPCRECT rect) {
                                         .alphamode = BLEND_MODE_BLEND,
                                         .screen = selection,
                                         .uv = MAKE(RECT, 0, 0, 1, 1),
-                                        .color = Theme_ListBoxSelectionColor(),
-                                        .hasClip = TRUE,
+                                         .color = Theme_ListBoxSelectionColor(),
+                                         .flags = DRAW_CLIP,
                                         .clip = clip));
         }
         snprintf(text,
@@ -104,8 +104,8 @@ static void UI_DrawMapListControl(LPCFRAMEDEF frame, LPCRECT rect) {
                                             .alphamode = BLEND_MODE_BLEND,
                                             .screen = icon_rect,
                                             .uv = MAKE(RECT, 0, 0, 1, 1),
-                                            .color = COLOR32_WHITE,
-                                            .hasClip = TRUE,
+                                             .color = COLOR32_WHITE,
+                                             .flags = DRAW_CLIP,
                                             .clip = clip));
             }
         }
@@ -121,12 +121,11 @@ static void UI_DrawMapListControl(LPCFRAMEDEF frame, LPCRECT rect) {
                                          .rect = icon_rect,
                                          .color = Theme_ListBoxIconTextColor(),
                                          .textWidth = icon_rect.w,
-                                         .lineHeight = 1.0f,
-                                         .wordWrap = FALSE,
-                                         .halign = FONT_JUSTIFYCENTER,
-                                         .valign = FONT_JUSTIFYMIDDLE,
-                                         .hasClip = TRUE,
-                                         .clip = clip));
+                                          .lineHeight = 1.0f,
+                                          .flags = DRAW_CLIP,
+                                          .halign = FONT_JUSTIFYCENTER,
+                                          .valign = FONT_JUSTIFYMIDDLE,
+                                          .clip = clip));
             }
         }
         text_rect = row_rect;
@@ -138,12 +137,11 @@ static void UI_DrawMapListControl(LPCFRAMEDEF frame, LPCRECT rect) {
                                  .rect = text_rect,
                                  .color = selected ? control->SelectedTextColor : control->TextColor,
                                  .textWidth = text_rect.w,
-                                 .lineHeight = 1.0f,
-                                 .wordWrap = FALSE,
-                                 .halign = FONT_JUSTIFYLEFT,
-                                 .valign = FONT_JUSTIFYMIDDLE,
-                                 .hasClip = TRUE,
-                                 .clip = clip));
+                                  .lineHeight = 1.0f,
+                                  .flags = DRAW_CLIP,
+                                  .halign = FONT_JUSTIFYLEFT,
+                                  .valign = FONT_JUSTIFYMIDDLE,
+                                  .clip = clip));
     }
 }
 

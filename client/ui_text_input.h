@@ -198,7 +198,7 @@ static void UI_DrawTextInputCursor(LPRENDERER renderer,
     snprintf(prefix, sizeof(prefix), "%.*s", (int)cursor, text);
     measure = *style;
     measure.text = prefix;
-    measure.wordWrap = false;
+    measure.flags &= ~DRAW_WORD_WRAP;
     prefix_size = renderer->GetTextSize(&measure);
     cursor_rect = style->rect;
     cursor_rect.x += prefix_size.x;
@@ -208,7 +208,7 @@ static void UI_DrawTextInputCursor(LPRENDERER renderer,
     draw.rect = cursor_rect;
     draw.color = color.a ? color : COLOR32_WHITE;
     draw.textWidth = cursor_rect.w;
-    draw.wordWrap = false;
+    draw.flags &= ~DRAW_WORD_WRAP;
     draw.halign = FONT_JUSTIFYLEFT;
     renderer->DrawText(&draw);
 }

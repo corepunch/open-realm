@@ -28,6 +28,14 @@ typedef enum {
     SHADER_COUNT,
 } SHADERTYPE;
 
+/* Shared flags for draw structs */
+enum {
+    DRAW_CLIP      = 1 << 0,
+    DRAW_WORD_WRAP = 1 << 1,
+    DRAW_TILE      = 1 << 2,
+    DRAW_MIRRORED  = 1 << 3,
+};
+
 /* Text drawing parameters */
 typedef struct drawText_s {
     LPCFONT font;
@@ -36,11 +44,10 @@ typedef struct drawText_s {
     COLOR32 color;
     FLOAT textWidth;
     FLOAT lineHeight;
-    BOOL wordWrap;
+    BYTE flags;
     uiFontJustificationH_t halign;
     uiFontJustificationV_t valign;
     LPCTEXTURE *icons;
-    BOOL hasClip;
     RECT clip;
 } drawText_t;
 
@@ -54,22 +61,17 @@ typedef struct drawImage_s {
     COLOR32 color;
     FLOAT angle;
     FLOAT uActiveGlow;
-    BOOL hasClip;
+    BYTE flags;
     RECT clip;
 } drawImage_t;
 
 /* Backdrop drawing parameters (9-slice border + tiled background) */
 typedef struct drawBackdrop_s {
     RECT screen;
-    LPCTEXTURE bg_texture;
-    LPCTEXTURE edge_texture;
-    COLOR32 bg_color;
-    COLOR32 edge_color;
-    SHORT corner_flags;
-    FLOAT corner_size;
-    FLOAT bg_insets[4]; /* right, top, bottom, left */
-    BOOL tile_bg;
-    BOOL mirrored;
+    struct { LPCTEXTURE texture; COLOR32 color; } bg, edge;
+    struct { SHORT flags; FLOAT size; } corner;
+    struct { FLOAT right, top, bottom, left; } insets;
+    BYTE flags;
 } drawBackdrop_t;
 
 /* Standard pointer typedefs */

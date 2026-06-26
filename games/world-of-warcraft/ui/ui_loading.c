@@ -167,9 +167,8 @@ void UIWow_DrawLoadingScreenC(LPCSTR map, LPCSTR status, FLOAT progress) {
                                         .rect = title_rect,
                                         .color = MAKE(COLOR32, 235, 210, 160, 255),
                                         .textWidth = title_rect.w,
-                                        .lineHeight = title_rect.h,
-                                        .wordWrap = false,
-                                        .halign = FONT_JUSTIFYCENTER,
+                                         .lineHeight = title_rect.h,
+                                         .halign = FONT_JUSTIFYCENTER,
                                         .valign = FONT_JUSTIFYMIDDLE));
     }
     if (wow_ui.font_status && status && *status) {
@@ -179,9 +178,8 @@ void UIWow_DrawLoadingScreenC(LPCSTR map, LPCSTR status, FLOAT progress) {
                                         .rect = status_rect,
                                         .color = MAKE(COLOR32, 220, 220, 220, 255),
                                         .textWidth = status_rect.w,
-                                        .lineHeight = status_rect.h,
-                                        .wordWrap = false,
-                                        .halign = FONT_JUSTIFYCENTER,
+                                         .lineHeight = status_rect.h,
+                                         .halign = FONT_JUSTIFYCENTER,
                                         .valign = FONT_JUSTIFYMIDDLE));
     }
 }

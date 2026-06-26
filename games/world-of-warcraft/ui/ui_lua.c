@@ -227,9 +227,8 @@ static int UIWow_LuaDrawText(lua_State *L) {
                                         .rect = screen,
                                         .color = color,
                                         .textWidth = screen.w,
-                                        .lineHeight = screen.h,
-                                        .wordWrap = false,
-                                        .halign = halign,
+                                         .lineHeight = screen.h,
+                                         .halign = halign,
                                         .valign = FONT_JUSTIFYMIDDLE));
     }
     return 0;

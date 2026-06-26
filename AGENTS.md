@@ -25,7 +25,9 @@ This codebase is inspired by **Quake 3** (id Software). The developer is deeply 
 - When several fields share the same type and semantic family, declare them together on one line (for example `int id, parent, relative_to, draw_layer;` or `fsize_t size, edge, tile;`).
 - For many same-kind string fields, prefer enum-indexed arrays plus tiny access helpers over many separate named string members.
 - Avoid fixed-size inline string buffers in runtime structs when the data is variable-length. Prefer owned pointers with one clear setter/append/free path.
-- Prefer bit flags (`DWORD flags`) for many independent boolean properties instead of scattering many standalone `BOOL` fields.
+- Prefer bit flags (`DWORD flags`) for many independent boolean properties instead of scattering many standalone `BOOL` fields. Even 2-3 related booleans should become a flags byte with named constants (e.g. `BACKDROP_TILE | BACKDROP_MIRRORED`).
+- Test flag membership with implicit bool conversion: `flags & FLAG` not `(flags & FLAG) != 0`.
+- Group related fields into anonymous structs inspired by CSS shorthands. Example: `struct { LPCTEXTURE texture; COLOR32 color; } bg, edge;` instead of `bg_texture`, `edge_texture`, `bg_color`, `edge_color`. Similarly `struct { FLOAT right, top, bottom, left; } insets;` instead of `bg_insets[4]`.
 - Keep struct field ownership explicit: pair every dynamic struct field family with local helpers for set/append/free and use one cleanup loop when possible.
 - Use `snake_case` for functions and variables, `ALL_CAPS` for constants and macros, matching Quake 2 conventions.
 - Use the `BZ_` prefix for project-private compile-time macros, generated binding helpers, environment toggles, and namespaced constants that need a project prefix.

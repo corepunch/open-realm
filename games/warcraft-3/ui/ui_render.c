@@ -308,7 +308,7 @@ static LPCRECT UI_LayoutRect(LPCFRAMEDEF frame) {
                         .text = frame->Text,
                         .textWidth = intrinsic_w > 0 ? intrinsic_w : 0.0f,
                         .lineHeight = 1.0f,
-                        .wordWrap = intrinsic_w > 0,
+                        .flags = (intrinsic_w > 0) ? DRAW_WORD_WRAP : 0,
                     };
                     VECTOR2 text_size = renderer ? renderer->GetTextSize((LPCDRAWTEXT)&dt) : MAKE(VECTOR2, 0, 0);
                     if (auto_width) {
@@ -452,7 +452,7 @@ static void UI_DrawText(LPCFRAMEDEF frame, LPCRECT rect) {
         .color = color,
         .textWidth = text_rect.w,
         .lineHeight = 1.0f,
-        .wordWrap = frame->Width > 0,
+        .flags = (frame->Width > 0) ? DRAW_WORD_WRAP : 0,
         .halign = frame->Font.Justification.Horizontal,
         .valign = frame->Font.Justification.Vertical,
     };

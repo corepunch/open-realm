@@ -20,18 +20,18 @@ static void UI_DrawBackdropWithColor(LPCFRAMEDEF frame, LPCRECT rect, COLOR32 co
     }
     renderer->DrawBackdrop(&MAKE(drawBackdrop_t,
                                  .screen = *rect,
-                                 .bg_texture = UI_GetTexture(frame->Backdrop.Background),
-                                 .edge_texture = UI_GetTexture(frame->Backdrop.EdgeFile),
-                                 .bg_color = color,
-                                 .edge_color = color,
-                                 .corner_flags = frame->Backdrop.CornerFlags,
-                                 .corner_size = frame->Backdrop.CornerSize,
-                                 .bg_insets = { frame->Backdrop.BackgroundInsets[BACKDROPINSET_RIGHT],
-                                                frame->Backdrop.BackgroundInsets[BACKDROPINSET_TOP],
-                                                frame->Backdrop.BackgroundInsets[BACKDROPINSET_BOTTOM],
-                                                frame->Backdrop.BackgroundInsets[BACKDROPINSET_LEFT] },
-                                 .tile_bg = frame->Backdrop.TileBackground,
-                                 .mirrored = frame->Backdrop.Mirrored));
+                                 .bg.texture = UI_GetTexture(frame->Backdrop.Background),
+                                 .bg.color = color,
+                                 .edge.texture = UI_GetTexture(frame->Backdrop.EdgeFile),
+                                 .edge.color = color,
+                                 .corner.flags = frame->Backdrop.CornerFlags,
+                                 .corner.size = frame->Backdrop.CornerSize,
+                                 .insets.right = frame->Backdrop.BackgroundInsets[BACKDROPINSET_RIGHT],
+                                 .insets.top = frame->Backdrop.BackgroundInsets[BACKDROPINSET_TOP],
+                                 .insets.bottom = frame->Backdrop.BackgroundInsets[BACKDROPINSET_BOTTOM],
+                                 .insets.left = frame->Backdrop.BackgroundInsets[BACKDROPINSET_LEFT],
+                                 .flags = (frame->Backdrop.TileBackground ? DRAW_TILE : 0)
+                                        | (frame->Backdrop.Mirrored ? DRAW_MIRRORED : 0)));
 }
 
 static void UI_DrawBackdrop(LPCFRAMEDEF frame, LPCRECT rect) {

@@ -155,7 +155,7 @@ drawText_t SCR_GetDrawText(LPCUIFRAME frame,
                 .valign = label->textaligny,
                 .icons = cl.pics,
                 .lineHeight = 1.33,
-                .wordWrap = true,
+                .flags = DRAW_WORD_WRAP,
                 .textWidth = avl_width);
 }
 

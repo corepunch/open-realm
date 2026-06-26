@@ -245,8 +245,8 @@ static void UI_DrawMenu(LPCFRAMEDEF frame, LPCRECT rect) {
                                         .alphamode = BLEND_MODE_BLEND,
                                         .screen = hover_rect,
                                         .uv = MAKE(RECT, 0, 0, 1, 1),
-                                        .color = UI_PopupHoverBackgroundColor(text_color),
-                                        .hasClip = TRUE,
+                                         .color = UI_PopupHoverBackgroundColor(text_color),
+                                         .flags = DRAW_CLIP,
                                         .clip = clip));
         }
 
@@ -256,12 +256,11 @@ static void UI_DrawMenu(LPCFRAMEDEF frame, LPCRECT rect) {
                                  .rect = row,
                                  .color = hover ? highlight_color : text_color,
                                  .textWidth = row.w,
-                                 .lineHeight = 1.0f,
-                                 .wordWrap = FALSE,
-                                 .halign = FONT_JUSTIFYLEFT,
-                                 .valign = FONT_JUSTIFYMIDDLE,
-                                 .hasClip = TRUE,
-                                 .clip = clip));
+                                  .lineHeight = 1.0f,
+                                  .flags = DRAW_CLIP,
+                                  .halign = FONT_JUSTIFYLEFT,
+                                  .valign = FONT_JUSTIFYMIDDLE,
+                                  .clip = clip));
     }
     if (max_scroll > 0 && renderer->DrawImageEx) {
         FLOAT const scroll_w = MIN(0.004f, MAX(0.0f, clip.w * 0.2f));
@@ -284,8 +283,8 @@ static void UI_DrawMenu(LPCFRAMEDEF frame, LPCRECT rect) {
                                     .alphamode = BLEND_MODE_BLEND,
                                     .screen = track,
                                     .uv = MAKE(RECT, 0, 0, 1, 1),
-                                    .color = MAKE(COLOR32, 0, 0, 0, 96),
-                                    .hasClip = TRUE,
+                                     .color = MAKE(COLOR32, 0, 0, 0, 96),
+                                     .flags = DRAW_CLIP,
                                     .clip = clip));
         renderer->DrawImageEx(&MAKE(drawImage_t,
                                     .texture = NULL,
@@ -293,8 +292,8 @@ static void UI_DrawMenu(LPCFRAMEDEF frame, LPCRECT rect) {
                                     .alphamode = BLEND_MODE_BLEND,
                                     .screen = thumb,
                                     .uv = MAKE(RECT, 0, 0, 1, 1),
-                                    .color = Theme_ListBoxSelectionColor(),
-                                    .hasClip = TRUE,
+                                     .color = Theme_ListBoxSelectionColor(),
+                                     .flags = DRAW_CLIP,
                                     .clip = clip));
     }
 }

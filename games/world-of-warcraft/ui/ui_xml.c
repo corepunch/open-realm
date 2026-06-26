@@ -1605,7 +1605,7 @@ static void UIWow_XMLDrawImage(LPTEXTURE tex, LPCRECT screen, LPCRECT uv, COLOR3
                                            .screen = *screen,
                                            .uv = *uv,
                                            .color = color,
-                                           .hasClip = s_has_scroll_clip,
+                                           .flags = s_has_scroll_clip ? DRAW_CLIP : 0,
                                            .clip = s_scroll_clip));
     } else if (wow_ui.renderer->DrawImage) {
         wow_ui.renderer->DrawImage(tex, screen, uv, color);
@@ -1633,18 +1633,18 @@ static void UIWow_XMLDrawBackdrop(uiWowXmlElem_t const *e, LPCRECT r) {
 
     memset(&db, 0, sizeof(db));
     db.screen = *r;
-    db.bg_texture = bg_tex;
-    db.edge_texture = edge_tex;
-    db.bg_color = e->colors[ELEM_COLOR_BACKDROP];
-    db.edge_color = e->colors[ELEM_COLOR_BACKDROP_BORDER];
-    db.corner_flags = edge_tex ? 0x1ff : 0; /* all 9 bits if edge present */
-    db.corner_size = (e->edge.w + e->edge.h) * 0.5f;
+    db.bg.texture = bg_tex;
+    db.bg.color = e->colors[ELEM_COLOR_BACKDROP];
+    db.edge.texture = edge_tex;
+    db.edge.color = e->colors[ELEM_COLOR_BACKDROP_BORDER];
+    db.corner.flags = edge_tex ? 0x1ff : 0; /* all 9 bits if edge present */
+    db.corner.size = (e->edge.w + e->edge.h) * 0.5f;
     /* uiBackdrop_t inset order: right=0, top=1, bottom=2, left=3 */
-    db.bg_insets[0] = e->backdrop_insets[WOW_XML_BACKDROP_RIGHT];
-    db.bg_insets[1] = e->backdrop_insets[WOW_XML_BACKDROP_TOP];
-    db.bg_insets[2] = e->backdrop_insets[WOW_XML_BACKDROP_BOTTOM];
-    db.bg_insets[3] = e->backdrop_insets[WOW_XML_BACKDROP_LEFT];
-    db.tile_bg = (e->flags & EF_BACKDROP_TILE) != 0;
+    db.insets.right = e->backdrop_insets[WOW_XML_BACKDROP_RIGHT];
+    db.insets.top = e->backdrop_insets[WOW_XML_BACKDROP_TOP];
+    db.insets.bottom = e->backdrop_insets[WOW_XML_BACKDROP_BOTTOM];
+    db.insets.left = e->backdrop_insets[WOW_XML_BACKDROP_LEFT];
+    if (e->flags & EF_BACKDROP_TILE) db.flags |= DRAW_TILE;
 
     wow_ui.renderer->DrawBackdrop(&db);
 }
@@ -1861,7 +1861,7 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
                                                                .font = f, .text = display,
                                                                .rect = r, .textWidth = r.w,
                                                                .lineHeight = 1.33f,
-                                                               .wordWrap = (e->flags & EF_WORD_WRAP) != 0));
+                                                               .flags = (e->flags & EF_WORD_WRAP) ? DRAW_WORD_WRAP : 0));
                 e->measured_h = sz.y;
                 /* Recompute r now that measured_h is known, so tr below uses the updated height. */
                 r = UIWow_XmlComputeRect(i);
@@ -1885,10 +1885,10 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
                                                    (BYTE)(text_color.a * e->alpha)),
                                      .textWidth = tr.w,
                                      .lineHeight = 1.33f,
-                                     .wordWrap = (e->flags & EF_WORD_WRAP) != 0,
+                                     .flags = ((e->flags & EF_WORD_WRAP) ? DRAW_WORD_WRAP : 0)
+                                            | (has_clip ? DRAW_CLIP : 0),
                                      .halign = e->type == WOW_XML_EDITBOX ? FONT_JUSTIFYLEFT : e->halign,
                                      .valign = e->valign,
-                                     .hasClip = has_clip,
                                      .clip = clip_rect);
                 wow_ui.renderer->DrawText(&dt);
                 if (e->type == WOW_XML_EDITBOX && wow_xml.focus == i)

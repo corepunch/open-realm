@@ -285,7 +285,7 @@ static void RStd_DrawImageEx(LPCDRAWIMAGE drawImage) {
            drawImage->uActiveGlow);
     RStd_PrintRect("screen", &drawImage->screen);
     RStd_PrintRect("uv", &drawImage->uv);
-    if (drawImage->hasClip) {
+    if (drawImage->flags & DRAW_CLIP) {
         RStd_PrintRect("clip", &drawImage->clip);
     }
     RStd_PrintColor(drawImage->color);
@@ -296,8 +296,8 @@ static void RStd_DrawBackdrop(LPCDRAWBACKDROP db) {
     if (!db) return;
     printf("draw_backdrop screen=");
     RStd_PrintRect("", &db->screen);
-    if (db->bg_texture) printf(" bg=%s", RStd_HandleName(db->bg_texture));
-    if (db->edge_texture) printf(" edge=%s", RStd_HandleName(db->edge_texture));
+    if (db->bg.texture) printf(" bg=%s", RStd_HandleName(db->bg.texture));
+    if (db->edge.texture) printf(" edge=%s", RStd_HandleName(db->edge.texture));
     printf("\n");
 }
 
@@ -367,7 +367,7 @@ static VECTOR2 RStd_GetTextSize(LPCDRAWTEXT drawText) {
     FLOAT width = RStd_VisibleTextLength(drawText ? drawText->text : "") * size * 0.52f;
     FLOAT height = size;
 
-    if (drawText && drawText->wordWrap && drawText->textWidth > 0 && width > drawText->textWidth) {
+    if (drawText && (drawText->flags & DRAW_WORD_WRAP) && drawText->textWidth > 0 && width > drawText->textWidth) {
         DWORD lines = (DWORD)ceilf(width / drawText->textWidth);
         width = drawText->textWidth;
         height *= MAX(1, lines) * (drawText->lineHeight > 0 ? drawText->lineHeight : 1.0f);
@@ -391,9 +391,9 @@ static void RStd_DrawText(LPCDRAWTEXT drawText) {
                size.y,
                drawText->halign,
                drawText->valign,
-               drawText->wordWrap);
+               (drawText->flags & DRAW_WORD_WRAP) != 0);
         RStd_PrintRect("rect", &drawText->rect);
-        if (drawText->hasClip) {
+        if (drawText->flags & DRAW_CLIP) {
             RStd_PrintRect("clip", &drawText->clip);
         }
         RStd_PrintColor(drawText->color);

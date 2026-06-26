@@ -57,44 +57,44 @@ void R_DrawBackdrop(LPCDRAWBACKDROP db) {
     };
     size2_t backSize, edgeSize;
 
-    if (!db || (!db->bg_texture && !db->edge_texture)) {
+    if (!db || (!db->bg.texture && !db->edge.texture)) {
         return;
     }
 
-    backdrop_rects(&db->screen, rects, db->corner_size);
+    backdrop_rects(&db->screen, rects, db->corner.size);
 
     /* --- background quad (possibly tiled) --- */
-    if (db->bg_texture) {
-        backSize = R_GetTextureSize(db->bg_texture);
+    if (db->bg.texture) {
+        backSize = R_GetTextureSize(db->bg.texture);
 
         background = db->screen;
-        background.x += db->bg_insets[3]; /* left */
-        background.y += db->bg_insets[1]; /* top */
-        background.w -= db->bg_insets[3] + db->bg_insets[0]; /* left + right */
-        background.h -= db->bg_insets[1] + db->bg_insets[2]; /* top + bottom */
+        background.x += db->insets.left;
+        background.y += db->insets.top;
+        background.w -= db->insets.left + db->insets.right;
+        background.h -= db->insets.top + db->insets.bottom;
 
         RECT bg_uv = { 0, 0, 1, 1 };
-        if (db->tile_bg && backSize.width > 0 && backSize.height > 0) {
+        if ((db->flags & DRAW_TILE) && backSize.width > 0 && backSize.height > 0) {
             bg_uv.w = background.w / (backSize.width / 1000.f);
             bg_uv.h = background.h / (backSize.height / 1000.f);
-            if (db->mirrored) {
+            if (db->flags & DRAW_MIRRORED) {
                 bg_uv.x = bg_uv.w;
                 bg_uv.w = -bg_uv.w;
             }
         }
 
         num_vertices = 0;
-        R_AddQuad(vertices + num_vertices, &background, &bg_uv, db->bg_color, 0);
+        R_AddQuad(vertices + num_vertices, &background, &bg_uv, db->bg.color, 0);
         num_vertices += 6;
 
-        R_DrawImageBatch(db->bg_texture, SHADER_UI, BLEND_MODE_BLEND,
+        R_DrawImageBatch(db->bg.texture, SHADER_UI, BLEND_MODE_BLEND,
                          0, false, NULL, vertices, num_vertices,
-                         db->tile_bg && (bg_uv.w > 1 || bg_uv.h > 1));
+                         (db->flags & DRAW_TILE) && (bg_uv.w > 1 || bg_uv.h > 1));
     }
 
     /* --- edge/corner quads (batched into one drawcall) --- */
-    if (db->edge_texture) {
-        edgeSize = R_GetTextureSize(db->edge_texture);
+    if (db->edge.texture) {
+        edgeSize = R_GetTextureSize(db->edge.texture);
 
         num_vertices = 0;
         FOR_LOOP(i, NUM_BACKDROP_CORNERS) {
@@ -104,10 +104,10 @@ void R_DrawBackdrop(LPCDRAWBACKDROP db) {
             BOOL const flip = backdrop_edge_flip(corners[i]);
             RECT const uv = { i * k, 0, k, tile };
 
-            if ((db->corner_flags & (1 << corners[i])) == 0) {
+            if ((db->corner.flags & (1 << corners[i])) == 0) {
                 continue;
             }
-            R_AddQuad(vertices + num_vertices, rects + corners[i], &uv, db->edge_color, 0);
+            R_AddQuad(vertices + num_vertices, rects + corners[i], &uv, db->edge.color, 0);
             if (flip) {
                 VECTOR2 tmp = vertices[num_vertices + 1].texcoord;
                 vertices[num_vertices + 1].texcoord = vertices[num_vertices + 5].texcoord;
@@ -117,7 +117,7 @@ void R_DrawBackdrop(LPCDRAWBACKDROP db) {
         }
 
         if (num_vertices > 0) {
-            R_DrawImageBatch(db->edge_texture, SHADER_UI, BLEND_MODE_BLEND,
+            R_DrawImageBatch(db->edge.texture, SHADER_UI, BLEND_MODE_BLEND,
                              0, false, NULL, vertices, num_vertices, false);
         }
     }

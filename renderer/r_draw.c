@@ -215,7 +215,7 @@ void R_DrawImageEx(LPCDRAWIMAGE drawImage) {
                      drawImage->shader,
                      drawImage->alphamode,
                      drawImage->uActiveGlow,
-                     drawImage->hasClip,
+                     drawImage->flags & DRAW_CLIP,
                      &drawImage->clip,
                      simp,
                      6,

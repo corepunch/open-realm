@@ -199,16 +199,18 @@ void SCR_LayoutDrawBackdrop2(LPCUIFRAME frame, LPCRECT screen, uiBackdrop_t cons
     }
     re.DrawBackdrop(&MAKE(drawBackdrop_t,
                           .screen = *screen,
-                          .bg_texture = uiimport.GetTexture(backdrop->Background),
-                          .edge_texture = uiimport.GetTexture(backdrop->EdgeFile),
-                          .bg_color = frame->color,
-                          .edge_color = frame->color,
-                          .corner_flags = backdrop->CornerFlags,
-                          .corner_size = backdrop->CornerSize,
-                          .bg_insets = { backdrop->BackgroundInsets[0], backdrop->BackgroundInsets[1],
-                                         backdrop->BackgroundInsets[2], backdrop->BackgroundInsets[3] },
-                          .tile_bg = backdrop->TileBackground,
-                          .mirrored = backdrop->Mirrored));
+                          .bg.texture = uiimport.GetTexture(backdrop->Background),
+                          .bg.color = frame->color,
+                          .edge.texture = uiimport.GetTexture(backdrop->EdgeFile),
+                          .edge.color = frame->color,
+                          .corner.flags = backdrop->CornerFlags,
+                          .corner.size = backdrop->CornerSize,
+                          .insets.right = backdrop->BackgroundInsets[0],
+                          .insets.top = backdrop->BackgroundInsets[1],
+                          .insets.bottom = backdrop->BackgroundInsets[2],
+                          .insets.left = backdrop->BackgroundInsets[3],
+                          .flags = (backdrop->TileBackground ? DRAW_TILE : 0)
+                                 | (backdrop->Mirrored ? DRAW_MIRRORED : 0)));
 }
 
 void SCR_LayoutDrawBackdrop(LPCUIFRAME frame, LPCRECT screen) {
@@ -475,7 +477,7 @@ void SCR_LayoutDrawCommandButton(LPCUIFRAME frame, LPCRECT screen) {
 void layout_text(LPCUIFRAME frame, LPCRECT screen, LPCSTR text) {
     drawText_t drawtext = SCR_GetDrawText(frame, screen->w, text, frame->buffer.data);
     drawtext.rect = *screen;
-    drawtext.wordWrap = true;
+    drawtext.flags |= DRAW_WORD_WRAP;
     re.DrawText(&drawtext);
 }
 
@@ -531,7 +533,7 @@ void SCR_LayoutDrawTextArea(LPCUIFRAME frame, LPCRECT screen) {
                       .lineHeight = 1.33,
                       .textWidth = scr.w,
                       .rect = scr,
-                      .wordWrap = true));
+                      .flags = DRAW_WORD_WRAP));
 }
 
 void SCR_LayoutDrawListBox(LPCUIFRAME frame, LPCRECT screen) {
@@ -607,8 +609,7 @@ void SCR_LayoutDrawListBox(LPCUIFRAME frame, LPCRECT screen) {
                           .icons = uiimport.GetTextures(),
                           .lineHeight = 1.33,
                           .textWidth = row.w,
-                          .rect = row,
-                          .wordWrap = false));
+                          .rect = row));
         item_y -= item_height;
         line = strtok_r(NULL, "\n", &save);
         index++;
@@ -626,7 +627,7 @@ void SCR_LayoutDrawTooltip(LPCUIFRAME frame, LPCRECT scrn) {
         FLOAT const PADDING = 0.005;
         FLOAT const avlspace = screen.w - PADDING * 2;
         drawText_t drawtext = SCR_GetDrawText(frame, avlspace, active_tooltip, &tooltip->text);
-        drawtext.wordWrap = true;
+        drawtext.flags |= DRAW_WORD_WRAP;
         VECTOR2 textsize = re.GetTextSize(&drawtext);
         textsize.y += PADDING * 2;
         screen.y += screen.h - textsize.y;
@@ -635,7 +636,7 @@ void SCR_LayoutDrawTooltip(LPCUIFRAME frame, LPCRECT scrn) {
         SCR_LayoutDrawBackdrop(frame, &screen);
         drawtext = SCR_GetDrawText(frame, text.w, active_tooltip, &tooltip->text);
         drawtext.rect = text;
-        drawtext.wordWrap = true;
+        drawtext.flags |= DRAW_WORD_WRAP;
         re.DrawText(&drawtext);
     }
 }
