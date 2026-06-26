@@ -102,7 +102,8 @@ void SCR_LayoutDrawStatusbar(LPCUIFRAME frame, LPCRECT screen) {
 }
 
 void SCR_LayoutDrawTexture(LPCUIFRAME frame, LPCRECT screen) {
-    RECT const suv = Rect_div(&get_uvrect(frame->tex.coord), 0xff);
+    RECT const uv = get_uvrect(frame->tex.coord);
+    RECT const suv = Rect_div(&uv, 0xff);
     LPCTEXTURE tex = uiimport.GetTexture(frame->tex.index);
     if (frame->stat >= MAX_STATS && frame->stat - MAX_STATS < MAX_STATS) {
         LPCSTR resource = uiimport.GetPlayerState()->texts[frame->stat - MAX_STATS];
@@ -129,7 +130,8 @@ void SCR_LayoutDrawHighlight(LPCUIFRAME frame, LPCRECT screen) {
 
 void SCR_LayoutSimpleButton(LPCUIFRAME frame, LPCRECT screen) {
     uiSimpleButton_t *b = frame->buffer.data;
-    RECT const suv = Rect_div(&get_uvrect((BYTE *)&b->normal.texcoord), 0xff);
+    RECT const uv = get_uvrect((BYTE *)&b->normal.texcoord);
+    RECT const suv = Rect_div(&uv, 0xff);
     re.DrawImage(uiimport.GetTexture(b->normal.texture), screen, &suv, COLOR32_WHITE);
     re.DrawText(&MAKE(drawText_t,
         .rect      = *screen,
@@ -356,7 +358,8 @@ void SCR_LayoutDrawSprite(LPCUIFRAME frame, LPCRECT screen) {
 
 void SCR_LayoutDrawCommandButton(LPCUIFRAME frame, LPCRECT screen) {
     LPCENTITYSTATE sel = SCR_LayoutSelectedEntity();
-    RECT const suv = Rect_div(&get_uvrect(frame->tex.coord), 0xff);
+    RECT const uv = get_uvrect(frame->tex.coord);
+    RECT const suv = Rect_div(&uv, 0xff);
     RECT scrn = scale_rect(screen, SCR_LayoutFrameIsHovered(frame) && layout_left_down ? 0.875f : 0.925f);
     re.DrawImageEx(&MAKE(drawImage_t,
         .texture     = uiimport.GetTexture(frame->tex.index),

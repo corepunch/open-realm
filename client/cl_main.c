@@ -147,9 +147,24 @@ static refExport_t CL_GetRendererAPI(refImport_t imp) {
     return R_GetAPI(imp);
 }
 
-/* UI library FS_ReadFile wrapper that converts to Quake 3 pattern */
+/* UI library FS_ReadFile wrapper — tries engine filesystem first,
+ * then falls back to a raw CWD fopen so share/ files written by
+ * CL_UI_WriteFile (which writes relative to CWD) are readable. */
 static int CL_UI_ReadFile(LPCSTR fileName, void **buf) {
-    return FS_ReadFileQ3(fileName, buf);
+    int size = FS_ReadFileQ3(fileName, buf);
+    if (size > 0 || !buf) return size;
+    FILE *f = fopen(fileName, "rb");
+    if (!f) return -1;
+    fseek(f, 0, SEEK_END);
+    long len = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    if (len <= 0) { fclose(f); return -1; }
+    *buf = MemAlloc((size_t)len + 1);
+    if (!*buf) { fclose(f); return -1; }
+    fread(*buf, 1, (size_t)len, f);
+    ((char *)*buf)[len] = '\0';
+    fclose(f);
+    return (int)len;
 }
 
 /* Write a local file by path (relative to CWD, same as share/ configs). */
