@@ -102,15 +102,27 @@ void SCR_LayoutDrawStatusbar(LPCUIFRAME frame, LPCRECT screen) {
 }
 
 void SCR_LayoutDrawTexture(LPCUIFRAME frame, LPCRECT screen) {
-    RECT const uv = get_uvrect(frame->tex.coord);
-    RECT const suv = Rect_div(&uv, 0xff);
     LPCTEXTURE tex = uiimport.GetTexture(frame->tex.index);
     if (frame->stat >= MAX_STATS && frame->stat - MAX_STATS < MAX_STATS) {
         LPCSTR resource = uiimport.GetPlayerState()->texts[frame->stat - MAX_STATS];
         LPCTEXTURE dyn = SCR_LayoutGetDynamicTexture(resource);
         if (dyn) tex = dyn;
     }
-    re.DrawImage(tex, screen, &suv, frame->color);
+    if (frame->buffer.data && frame->buffer.size >= sizeof(uiTextureUV_t)) {
+        uiTextureUV_t const *uv = frame->buffer.data;
+        COLOR32 color = uv->color.a ? uv->color : frame->color;
+        re.DrawImageEx(&MAKE(drawImage_t,
+                             .texture = tex,
+                             .shader = SHADER_UI,
+                             .alphamode = uv->alphamode,
+                             .screen = *screen,
+                             .uv = MAKE(RECT, uv->l, uv->t, uv->r - uv->l, uv->b - uv->t),
+                             .color = color));
+    } else {
+        RECT const uv = get_uvrect(frame->tex.coord);
+        RECT const suv = Rect_div(&uv, 0xff);
+        re.DrawImage(tex, screen, &suv, frame->color);
+    }
 }
 
 static void SCR_LayoutDrawHighlightData(uiHighlight_t const *h, LPCRECT screen) {

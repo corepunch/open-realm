@@ -15,8 +15,6 @@
 #define PY(y) ((y) / VH)
 #define PW(w) ((w) / VW)
 #define PH(h) ((h) / VH)
-#define UV(v) ((BYTE)((v) * 255.0f + 0.5f))
-
 #define HUD_FONT_SIZE 10
 
 static DWORD ui_next_frame_number;
@@ -65,21 +63,22 @@ static void UI_WriteTextFrame(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR text, C
     UI_WriteProxyFrame(&frame, &label, sizeof(label));
 }
 
-/* Write an FT_TEXTURE frame; uv = {l, r, t, b} in [0,1] */
+/* Write an FT_TEXTURE frame with float-precision UV (supports l>r or t>b for flips). */
 static void UI_WriteImageUV(LPCSTR path, FLOAT x, FLOAT y, FLOAT w, FLOAT h,
                             FLOAT l, FLOAT r, FLOAT t, FLOAT b, COLOR32 color) {
     uiFrame_t frame;
+    uiTextureUV_t uv;
 
     memset(&frame, 0, sizeof(frame));
+    memset(&uv, 0, sizeof(uv));
     frame.flags.type = FT_TEXTURE;
     frame.color = color;
     frame.tex.index = gi.ImageIndex(path);
-    frame.tex.coord[0] = UV(l);
-    frame.tex.coord[1] = UV(r);
-    frame.tex.coord[2] = UV(t);
-    frame.tex.coord[3] = UV(b);
+    uv.l = l; uv.r = r; uv.t = t; uv.b = b;
+    uv.color = color;
+    uv.alphamode = BLEND_MODE_ALPHAKEY;
     UI_SetFrameRect(&frame, x, y, w, h);
-    UI_WriteProxyFrame(&frame, NULL, 0);
+    UI_WriteProxyFrame(&frame, &uv, sizeof(uv));
 }
 
 static void UI_WriteImage(LPCSTR path, FLOAT x, FLOAT y, FLOAT w, FLOAT h, COLOR32 color) {

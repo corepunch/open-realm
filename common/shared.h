@@ -721,6 +721,14 @@ typedef struct {
     BOOL Mirrored:1;
 } uiBackdrop_t;
 
+/* Optional buffer for FT_TEXTURE frames that need float-precision UV or flip.
+ * When present, SCR_LayoutDrawTexture uses these values instead of tex.coord. */
+typedef struct {
+    FLOAT l, r, t, b;   /* UV as float [0,1]; l>r or t>b = flipped axis */
+    COLOR32 color;
+    BLEND_MODE alphamode;
+} uiTextureUV_t;
+
 typedef struct {
     uiBackdrop_t background;
     RESOURCE font;
