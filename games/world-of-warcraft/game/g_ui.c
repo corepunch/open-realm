@@ -39,8 +39,11 @@ static void UI_WriteProxyFrame(LPUIFRAME frame, HANDLE data, DWORD data_size) {
     frame->number = ui_next_frame_number++;
     frame->parent = 0;
     frame->color = frame->color.a ? frame->color : COLOR32_WHITE;
-    frame->tex.coord[1] = 0xff;
-    frame->tex.coord[3] = 0xff;
+    /* Set default full-UV only when caller left coords zeroed */
+    if (!frame->tex.coord[1] && !frame->tex.coord[3]) {
+        frame->tex.coord[1] = 0xff;
+        frame->tex.coord[3] = 0xff;
+    }
     frame->buffer.data = data;
     frame->buffer.size = data_size;
     gi.Write(PF_UIFRAME, frame);
