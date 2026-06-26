@@ -44,6 +44,13 @@ static void SCR_DrawFPS(DWORD msec) {
     SCR_DrawString(10, y, text);
 }
 
+/* Draw the loading plaque even if the client state has already flipped active.
+ * Some game flows set ca_active before the world is fully ready, so the screen
+ * path must still honor CLIENT_UI_LOADING until gameplay truly starts. */
+static void SCR_DrawLoadingScreen(void) {
+    ui.DrawLoadingScreen(cl.loading_map, cl.loading_status, cl.loading_progress);
+}
+
 void SCR_DrawScreenField(DWORD msec) {
     re.BeginFrame();
 
@@ -52,38 +59,26 @@ void SCR_DrawScreenField(DWORD msec) {
         Com_Error(ERR_FATAL, "SCR_DrawScreenField: bad cls.state");
         break;
     case ca_disconnected:
-        if (ui.Refresh) ui.Refresh(cl.time);
+        ui.Refresh(cl.time);
         break;
     case ca_connecting:
     case ca_connected:
-        if (ui.Refresh) ui.Refresh(cl.time);
+        ui.Refresh(cl.time);
         break;
     case ca_loading:
-        if (ui.DrawLoadingScreen) {
-            ui.DrawLoadingScreen(cl.loading_map, cl.loading_status, cl.loading_progress);
-        } else {
-            size2_t w = re.GetWindowSize();
-            char buf[256];
-            int y = (int)w.height / 2 - 16;
-            if (cl.loading_map[0]) {
-                snprintf(buf, sizeof(buf), "Loading %s...", cl.loading_map);
-                SCR_DrawString((int)(w.width - strlen(buf) * 8) / 2, y, buf);
-            }
-            if (cl.loading_status[0]) {
-                snprintf(buf, sizeof(buf), "%s", cl.loading_status);
-                SCR_DrawString((int)(w.width - strlen(buf) * 8) / 2, y + 16, buf);
-            }
-            snprintf(buf, sizeof(buf), "%.0f%%", cl.loading_progress * 100.0f);
-            SCR_DrawString((int)(w.width - strlen(buf) * 8) / 2, y + 32, buf);
-        }
+        SCR_DrawLoadingScreen();
         break;
     case ca_active:
+        if (cl.playerstate.client_ui_state == CLIENT_UI_LOADING) {
+            SCR_DrawLoadingScreen();
+            break;
+        }
         V_RenderView();
         SCR_DrawLayout();
         /* TODO: research whether to replace key_dest enum with a keyCatchers bitmask
         * like Q3 — multiple input consumers can be active simultaneously. */
         if (cls.key_dest == key_menu) {
-            if (ui.Refresh) ui.Refresh(cl.time);
+            ui.Refresh(cl.time);
         }
         break;
     }

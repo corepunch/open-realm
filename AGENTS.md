@@ -93,6 +93,7 @@ This codebase is inspired by **Quake 3** (id Software). The developer is deeply 
   expression is already readable inline.
 - Do not add blank lines between short, related statements.
 - Do not split a declaration and its first assignment onto separate lines.
+- Do not add null-pointer or function-pointer guards before calling cross-module API functions (`ui.*`, `re.*`, `s.*`, etc.). These are guaranteed to be set at init time and should be called directly.
 
 ## Architecture
 

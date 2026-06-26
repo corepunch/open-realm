@@ -459,9 +459,7 @@ void CL_LoadingUpdate(LPCSTR status, FLOAT progress) {
 void CL_RequestUnitUI(DWORD num_selected, DWORD *entity_nums) {
     (void)num_selected;
     (void)entity_nums;
-    if (ui.UpdateUnitUI) {
-        ui.UpdateUnitUI(0, NULL);
-    }
+    ui.UpdateUnitUI(0, NULL);
 }
 
 int CL_ModelIndex(LPCSTR modelName) {
@@ -604,9 +602,7 @@ void CL_Init(void) {
         .PlaySoundByName = S_PlaySoundByName,
     });
     
-    if (ui.Init) {
-        ui.Init();
-    }
+    ui.Init();
 
     SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
     
@@ -757,9 +753,7 @@ void CL_Connect(LPCSTR host, unsigned short port) {
 }
 
 void CL_Shutdown(void) {
-    if (ui.Shutdown) {
-        ui.Shutdown();
-    }
+    ui.Shutdown();
     FOR_LOOP(modelIndex, MAX_MODELS) {
         SAFE_DELETE(cl.models[modelIndex], re.ReleaseModel);
         SAFE_DELETE(cl.portraits[modelIndex], re.ReleaseModel);

@@ -373,9 +373,7 @@ static void CL_UpdateFogTexture(void) {
     FOR_LOOP(i, cells) {
         cl.fow.texture[i] = cl.fow.visible[i] ? 255 : (cl.fow.explored[i] ? 128 : 0);
     }
-    if (re.SetFogOfWarData) {
-        re.SetFogOfWarData(cl.fow.width, cl.fow.height, cl.fow.texture);
-    }
+    re.SetFogOfWarData(cl.fow.width, cl.fow.height, cl.fow.texture);
 }
 
 static BYTE *CL_FogPlaneForStreamIndex(DWORD flags, DWORD stream_index) {
