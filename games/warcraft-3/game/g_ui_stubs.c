@@ -283,14 +283,104 @@ static LPCSTR UI_FormatMessageText(LPCSTR text) {
     return out;
 }
 
-static void UI_WriteServerConsoleShell(LPEDICT ent) {
-    if (!ent) {
-        return;
+/* ConsoleUI backdrop parts — from the hardcoded table in ui_main.c.
+ * uv: {u_min, u_max, v_min, v_max} as bytes 0-255 (coord[] encoding). */
+typedef struct { LPCSTR key; RECT screen; BYTE uv[4]; } consoleBackdropPart_t;
+static consoleBackdropPart_t const console_backdrop[] = {
+    /* top strip */
+    { "ConsoleTexture01", { 0.000f, 0.000f, 0.256f, 0.032f }, { 0,   255,  0,  32 } },
+    { "ConsoleTexture02", { 0.256f, 0.000f, 0.087f, 0.032f }, { 0,    87,  0,  32 } },
+    { "ConsoleTexture02", { 0.459f, 0.000f, 0.053f, 0.032f }, { 202, 255,  0,  32 } },
+    { "ConsoleTexture03", { 0.512f, 0.000f, 0.256f, 0.032f }, { 0,   255,  0,  32 } },
+    { "ConsoleTexture04", { 0.768f, 0.000f, 0.032f, 0.032f }, { 0,   255,  0,  32 } },
+    /* bottom panel */
+    { "ConsoleTexture01", { 0.000f, 0.424f, 0.256f, 0.176f }, { 0,   255,  80, 255 } },
+    { "ConsoleTexture02", { 0.256f, 0.450f, 0.256f, 0.150f }, { 0,   255, 106, 255 } },
+    { "ConsoleTexture03", { 0.512f, 0.424f, 0.256f, 0.176f }, { 0,   255,  80, 255 } },
+    { "ConsoleTexture04", { 0.768f, 0.424f, 0.032f, 0.176f }, { 0,   255,  80, 255 } },
+};
+
+/* Write the ConsoleUI backdrop nine-part image mosaic as FT_TEXTURE frames. */
+static void UI_WriteConsoleBackdrop(void) {
+    FOR_LOOP(i, sizeof(console_backdrop) / sizeof(console_backdrop[0])) {
+        consoleBackdropPart_t const *p = &console_backdrop[i];
+        uiFrame_t frame;
+
+        memset(&frame, 0, sizeof(frame));
+        frame.flags.type = FT_TEXTURE;
+        frame.color = COLOR32_WHITE;
+        frame.tex.index = gi.ImageIndex(Theme_String(p->key, p->key));
+        frame.tex.coord[0] = p->uv[0];
+        frame.tex.coord[1] = p->uv[1];
+        frame.tex.coord[2] = p->uv[2];
+        frame.tex.coord[3] = p->uv[3];
+        UI_SetFrameRect(&frame, p->screen.x, p->screen.y, p->screen.w, p->screen.h);
+        UI_WriteProxyFrame(&frame, NULL, 0);
     }
+}
+
+/* Minimap viewport — FT_MINIMAP; client calls DrawMinimap() for this rect. */
+static void UI_WriteMinimapFrame(void) {
+    uiFrame_t frame;
+
+    memset(&frame, 0, sizeof(frame));
+    frame.flags.type = FT_MINIMAP;
+    frame.color = COLOR32_WHITE;
+    UI_SetFrameRect(&frame, 0.0070f, 0.4525f, 0.1395f, 0.1395f);
+    UI_WriteProxyFrame(&frame, NULL, 0);
+}
+
+/* ResourceBar icon images — theme keys match ResourceBar.fdf DecorateFileNames entries. */
+static void UI_WriteResourceBarIcons(void) {
+    static struct { LPCSTR key; FLOAT x; } icons[] = {
+        { "GoldIcon",   0.66171875f },
+        { "LumberIcon", 0.74765625f },
+        { "SupplyIcon", 0.83437500f },
+    };
+    static FLOAT const icon_y = 0.003125f, icon_size = 0.01640625f;
+
+    FOR_LOOP(i, 3) {
+        uiFrame_t frame;
+
+        memset(&frame, 0, sizeof(frame));
+        frame.flags.type = FT_TEXTURE;
+        frame.color = COLOR32_WHITE;
+        frame.tex.index = gi.ImageIndex(Theme_String(icons[i].key, icons[i].key));
+        frame.tex.coord[1] = 0xff;
+        frame.tex.coord[3] = 0xff;
+        UI_SetFrameRect(&frame, icons[i].x, icon_y, icon_size, icon_size);
+        UI_WriteProxyFrame(&frame, NULL, 0);
+    }
+}
+
+/* Resource value text frames — right-justified into anchors from ResourceBar.fdf.
+ * Font: MasterFont at size 0.01 (10px via UI_FontPixelSize). */
+static void UI_WriteResourceText(LPCSTR text, FLOAT right_anchor) {
+    static FLOAT const text_w = 0.065f, text_y = 0.003125f, text_h = 0.01640625f;
+    UI_WriteTextFrameSized(right_anchor - text_w, text_y, text_w, text_h,
+                           text, COLOR32_WHITE, FONT_JUSTIFYRIGHT,
+                           /* MasterFont 0.01 → 10px */ 10);
+}
+
+/* Send the full LAYER_CONSOLE payload: backdrop + minimap + resource icons +
+ * resource text values + top-bar buttons + tooltip. */
+static void UI_SendConsoleLayer(LPEDICT ent, LONG gold, LONG lumber, LONG food_used, LONG food_cap) {
+    char gold_buf[16], lumber_buf[16], supply_buf[16];
+
+    snprintf(gold_buf,   sizeof(gold_buf),   "%ld", (long)gold);
+    snprintf(lumber_buf, sizeof(lumber_buf), "%ld", (long)lumber);
+    snprintf(supply_buf, sizeof(supply_buf), "%ld/%ld", (long)food_used, (long)food_cap);
 
     gi.Write(PF_BYTE, &(LONG){svc_layout});
     gi.Write(PF_BYTE, &(LONG){LAYER_CONSOLE});
     ui_next_frame_number = 1;
+
+    UI_WriteConsoleBackdrop();
+    UI_WriteMinimapFrame();
+    UI_WriteResourceBarIcons();
+    UI_WriteResourceText(gold_buf,   0.73515625f);
+    UI_WriteResourceText(lumber_buf, 0.82187500f);
+    UI_WriteResourceText(supply_buf, 0.90859375f);
 
     UI_WriteCommandTextFrame(0.004f, 0.006f, 0.085f, 0.014f, "Quests (F9)", "quests",
                              COLOR32_WHITE, FONT_JUSTIFYCENTER, HUD_FONT_SIZE);
@@ -303,6 +393,24 @@ static void UI_WriteServerConsoleShell(LPEDICT ent) {
     gi.Write(PF_LONG, &(LONG){0});
     gi.Write(PF_SHORT, &(LONG){0});
     gi.unicast(ent);
+}
+
+static void UI_WriteServerConsoleShell(LPEDICT ent) {
+    LPPLAYER ps = ent && ent->client ? &ent->client->ps : NULL;
+    LONG gold    = ps ? (LONG)ps->stats[PLAYERSTATE_RESOURCE_GOLD]      : 0;
+    LONG lumber  = ps ? (LONG)ps->stats[PLAYERSTATE_RESOURCE_LUMBER]    : 0;
+    LONG food_u  = ps ? (LONG)ps->stats[PLAYERSTATE_RESOURCE_FOOD_USED] : 0;
+    LONG food_c  = ps ? (LONG)ps->stats[PLAYERSTATE_RESOURCE_FOOD_CAP]  : 0;
+
+    if (!ent)
+        return;
+    UI_SendConsoleLayer(ent, gold, lumber, food_u, food_c);
+    if (ent->client) {
+        ent->client->resourcebar.gold      = gold;
+        ent->client->resourcebar.lumber    = lumber;
+        ent->client->resourcebar.food_used = food_u;
+        ent->client->resourcebar.food_cap  = food_c;
+    }
 }
 
 static void UI_WritePortraitFrame(LPEDICT ent) {
@@ -791,6 +899,40 @@ void G_UpdateClientInfoPanels(void) {
         if (ent->inuse && ent->client) {
             G_RefreshInfoPanel(ent);
         }
+    }
+}
+
+/* Re-send LAYER_CONSOLE for one player only when a resource value changed. */
+void G_RefreshResourceBar(LPEDICT ent) {
+    LPPLAYER ps;
+    LONG gold, lumber, food_u, food_c;
+
+    if (!ent || !ent->client)
+        return;
+    ps     = &ent->client->ps;
+    gold   = (LONG)ps->stats[PLAYERSTATE_RESOURCE_GOLD];
+    lumber = (LONG)ps->stats[PLAYERSTATE_RESOURCE_LUMBER];
+    food_u = (LONG)ps->stats[PLAYERSTATE_RESOURCE_FOOD_USED];
+    food_c = (LONG)ps->stats[PLAYERSTATE_RESOURCE_FOOD_CAP];
+
+    if (gold   == ent->client->resourcebar.gold   &&
+        lumber == ent->client->resourcebar.lumber  &&
+        food_u == ent->client->resourcebar.food_used &&
+        food_c == ent->client->resourcebar.food_cap)
+        return;
+
+    UI_SendConsoleLayer(ent, gold, lumber, food_u, food_c);
+    ent->client->resourcebar.gold      = gold;
+    ent->client->resourcebar.lumber    = lumber;
+    ent->client->resourcebar.food_used = food_u;
+    ent->client->resourcebar.food_cap  = food_c;
+}
+
+void G_UpdateClientResourceBars(void) {
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT ent = g_edicts + i;
+        if (ent->inuse && ent->client)
+            G_RefreshResourceBar(ent);
     }
 }
 

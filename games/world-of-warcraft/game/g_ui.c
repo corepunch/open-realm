@@ -1,49 +1,23 @@
 /*
  * g_ui.c — Server-authored WoW HUD via svc_layout.
  *
- * Generates compact uiFrame_t trees for the gameplay HUD (health bar,
- * mana bar, level/XP/copper text, character portrait, minimap rect)
- * and sends them through svc_layout, following the WC3 ConsoleUI pattern.
+ * Reproduces the classic WoW 1.12 HUD layout (action bar, targeting frame,
+ * minimap, copper) using the actual WoW assets and pixel positions from the
+ * virtual 1024×768 canvas, exactly matching what ui.dll rendered before
+ * in-game UI was moved server-side.
  */
 
 #include "g_wow_local.h"
 
+#define VW 1024.0f
+#define VH 768.0f
+#define PX(x) ((x) / VW)
+#define PY(y) ((y) / VH)
+#define PW(w) ((w) / VW)
+#define PH(h) ((h) / VH)
+#define UV(v) ((BYTE)((v) * 255.0f + 0.5f))
+
 #define HUD_FONT_SIZE 10
-#define HUD_SMALL_FONT_SIZE 8
-
-/* WoW HUD layout coordinates (normalized 0-1 screen space) */
-#define WOW_PORTRAIT_X 0.010f
-#define WOW_PORTRAIT_Y 0.850f
-#define WOW_PORTRAIT_SIZE 0.080f
-
-#define WOW_HEALTH_BAR_X 0.100f
-#define WOW_HEALTH_BAR_Y 0.905f
-#define WOW_HEALTH_BAR_W 0.150f
-#define WOW_HEALTH_BAR_H 0.015f
-
-#define WOW_MANA_BAR_X 0.100f
-#define WOW_MANA_BAR_Y 0.925f
-#define WOW_MANA_BAR_W 0.150f
-#define WOW_MANA_BAR_H 0.015f
-
-#define WOW_LEVEL_X 0.100f
-#define WOW_LEVEL_Y 0.880f
-#define WOW_LEVEL_W 0.050f
-#define WOW_LEVEL_H 0.015f
-
-#define WOW_XP_BAR_X 0.100f
-#define WOW_XP_BAR_Y 0.945f
-#define WOW_XP_BAR_W 0.150f
-#define WOW_XP_BAR_H 0.008f
-
-#define WOW_COPPER_X 0.010f
-#define WOW_COPPER_Y 0.970f
-#define WOW_COPPER_W 0.100f
-#define WOW_COPPER_H 0.015f
-
-#define WOW_MINIMAP_X 0.880f
-#define WOW_MINIMAP_Y 0.020f
-#define WOW_MINIMAP_SIZE 0.110f
 
 static DWORD ui_next_frame_number;
 
@@ -88,123 +62,198 @@ static void UI_WriteTextFrame(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR text, C
     UI_WriteProxyFrame(&frame, &label, sizeof(label));
 }
 
-/* Health bar: green fill with border */
-static void UI_WriteHealthBar(FLOAT current, FLOAT max) {
+/* Write an FT_TEXTURE frame; uv = {l, r, t, b} in [0,1] */
+static void UI_WriteImageUV(LPCSTR path, FLOAT x, FLOAT y, FLOAT w, FLOAT h,
+                            FLOAT l, FLOAT r, FLOAT t, FLOAT b, COLOR32 color) {
     uiFrame_t frame;
 
     memset(&frame, 0, sizeof(frame));
-    frame.flags.type = FT_SIMPLESTATUSBAR;
-    frame.color = MAKE(COLOR32, 0, 200, 0, 255);
-    frame.tex.index = gi.ImageIndex("UI\\Widgets\\Console\\Human\\human-statbar-fill.blp");
-    frame.tex.index2 = gi.ImageIndex("UI\\Widgets\\Console\\Human\\human-statbar-border.blp");
-    frame.value = max > 0 ? current / max : 0.0f;
-    UI_SetFrameRect(&frame, WOW_HEALTH_BAR_X, WOW_HEALTH_BAR_Y, WOW_HEALTH_BAR_W, WOW_HEALTH_BAR_H);
+    frame.flags.type = FT_TEXTURE;
+    frame.color = color;
+    frame.tex.index = gi.ImageIndex(path);
+    frame.tex.coord[0] = UV(l);
+    frame.tex.coord[1] = UV(r);
+    frame.tex.coord[2] = UV(t);
+    frame.tex.coord[3] = UV(b);
+    UI_SetFrameRect(&frame, x, y, w, h);
     UI_WriteProxyFrame(&frame, NULL, 0);
 }
 
-/* Mana bar: blue fill with border */
-static void UI_WriteManaBar(FLOAT current, FLOAT max) {
+static void UI_WriteImage(LPCSTR path, FLOAT x, FLOAT y, FLOAT w, FLOAT h, COLOR32 color) {
+    UI_WriteImageUV(path, x, y, w, h, 0.0f, 1.0f, 0.0f, 1.0f, color);
+}
+
+/* Solid-color quad via a null texture slot */
+static void UI_WriteColorRect(FLOAT x, FLOAT y, FLOAT w, FLOAT h, COLOR32 color) {
     uiFrame_t frame;
 
     memset(&frame, 0, sizeof(frame));
-    frame.flags.type = FT_SIMPLESTATUSBAR;
-    frame.color = MAKE(COLOR32, 0, 100, 255, 255);
-    frame.tex.index = gi.ImageIndex("UI\\Widgets\\Console\\Human\\human-statbar-mana-fill.blp");
-    frame.tex.index2 = gi.ImageIndex("UI\\Widgets\\Console\\Human\\human-statbar-mana-border.blp");
-    frame.value = max > 0 ? current / max : 0.0f;
-    UI_SetFrameRect(&frame, WOW_MANA_BAR_X, WOW_MANA_BAR_Y, WOW_MANA_BAR_W, WOW_MANA_BAR_H);
+    frame.flags.type = FT_TEXTURE;
+    frame.color = color;
+    frame.tex.index = 0;
+    frame.tex.coord[1] = 0xff;
+    frame.tex.coord[3] = 0xff;
+    UI_SetFrameRect(&frame, x, y, w, h);
     UI_WriteProxyFrame(&frame, NULL, 0);
 }
 
-/* XP bar: gold fill with border */
-static void UI_WriteXpBar(FLOAT current, FLOAT max) {
-    uiFrame_t frame;
-
-    memset(&frame, 0, sizeof(frame));
-    frame.flags.type = FT_SIMPLESTATUSBAR;
-    frame.color = MAKE(COLOR32, 200, 170, 0, 255);
-    frame.tex.index = gi.ImageIndex("UI\\Widgets\\Console\\Human\\human-statbar-xp-fill.blp");
-    frame.tex.index2 = gi.ImageIndex("UI\\Widgets\\Console\\Human\\human-statbar-xp-border.blp");
-    frame.value = max > 0 ? current / max : 0.0f;
-    UI_SetFrameRect(&frame, WOW_XP_BAR_X, WOW_XP_BAR_Y, WOW_XP_BAR_W, WOW_XP_BAR_H);
-    UI_WriteProxyFrame(&frame, NULL, 0);
+/* Solid health/mana bar drawn as two color rects (dark background + colored fill) */
+static void UI_WriteColorBar(FLOAT x, FLOAT y, FLOAT w, FLOAT h,
+                             FLOAT value, FLOAT maxvalue,
+                             COLOR32 fill_color) {
+    FLOAT p = maxvalue > 0.0f ? value / maxvalue : 0.0f;
+    if (p < 0.0f) p = 0.0f;
+    if (p > 1.0f) p = 1.0f;
+    UI_WriteColorRect(x, y, w, h, MAKE(COLOR32, 12, 10, 8, 220));
+    if (p > 0.0f)
+        UI_WriteColorRect(x + PW(2), y + PH(2), (w - PW(4)) * p, h - PH(4), fill_color);
 }
 
-/* Character portrait frame */
-static void UI_WritePortraitFrame(LPEDICT ent) {
-    uiFrame_t frame;
+/* Minimap: border image + actual minimap viewport */
+static void UI_WriteMinimapFrames(void) {
+    uiFrame_t minimap;
 
-    if (!ent || !ent->s.model) {
-        return;
+    /* Minimap border overlay */
+    UI_WriteImage("Interface\\Minimap\\UI-Minimap-Border.blp",
+                  PX(879), PY(8), PW(128), PH(128), COLOR32_WHITE);
+
+    /* Minimap viewport — FT_MINIMAP; client calls DrawMinimap() for this rect. */
+    memset(&minimap, 0, sizeof(minimap));
+    minimap.flags.type = FT_MINIMAP;
+    minimap.color = COLOR32_WHITE;
+    UI_SetFrameRect(&minimap, PX(896), PY(25), PW(91), PH(91));
+    UI_WriteProxyFrame(&minimap, NULL, 0);
+}
+
+/* Main action bar: four 256×53 strips + two end-caps from UI-MainMenuBar-Dwarf.blp */
+static void UI_WriteActionBar(void) {
+    static LPCSTR const bar = "Interface\\MainMenuBar\\UI-MainMenuBar-Dwarf.blp";
+    static LPCSTR const cap = "Interface\\MainMenuBar\\UI-MainMenuBar-EndCap-Dwarf.blp";
+    /* Each strip covers a different vertical slice of the texture (v slices at 53/256 intervals) */
+    static FLOAT const strips[4][4] = {
+        /* {l, r, t, b}, screen x starts at 0 */
+        { 0.0f, 1.0f, 0.79296875f, 1.0f },
+        { 0.0f, 1.0f, 0.54296875f, 0.75f },
+        { 0.0f, 1.0f, 0.29296875f, 0.5f },
+        { 0.0f, 1.0f, 0.04296875f, 0.25f },
+    };
+
+    FOR_LOOP(i, 4)
+        UI_WriteImageUV(bar,
+                        PX((FLOAT)(i * 256)), PY(715), PW(256), PH(53),
+                        strips[i][0], strips[i][1], strips[i][2], strips[i][3],
+                        COLOR32_WHITE);
+
+    /* Left end-cap (normal orientation) */
+    UI_WriteImage(cap, PX(-96), PY(640), PW(128), PH(128), COLOR32_WHITE);
+    /* Right end-cap (horizontally flipped: l=1, r=0) */
+    UI_WriteImageUV(cap, PX(992), PY(640), PW(128), PH(128),
+                    1.0f, 0.0f, 0.0f, 1.0f, COLOR32_WHITE);
+}
+
+/* Action button slot at grid position i (0..11 = left row, 12..15 = right empty slots) */
+static void UI_WriteActionButtonSlot(FLOAT x, FLOAT y, DWORD image_index) {
+    /* Slot frame */
+    UI_WriteImage("Interface\\Buttons\\UI-Quickslot2.blp",
+                  x + PX(-14), y + PY(-13), PW(64), PH(64), COLOR32_WHITE);
+    /* Icon (may be 0 = empty slot, renderer draws nothing for index 0) */
+    if (image_index) {
+        uiFrame_t icon;
+        memset(&icon, 0, sizeof(icon));
+        icon.flags.type = FT_TEXTURE;
+        icon.color = COLOR32_WHITE;
+        icon.tex.index = image_index;
+        icon.tex.coord[1] = 0xff;
+        icon.tex.coord[3] = 0xff;
+        UI_SetFrameRect(&icon, x + PX(2), y + PY(2), PW(32), PH(32));
+        UI_WriteProxyFrame(&icon, NULL, 0);
     }
-    memset(&frame, 0, sizeof(frame));
-    frame.flags.type = FT_PORTRAIT;
-    frame.color = COLOR32_WHITE;
-    frame.tex.index = ent->s.model;
-    UI_SetFrameRect(&frame, WOW_PORTRAIT_X, WOW_PORTRAIT_Y, WOW_PORTRAIT_SIZE, WOW_PORTRAIT_SIZE);
-    UI_WriteProxyFrame(&frame, NULL, 0);
 }
 
-/* Minimap position frame (server drives rect, client renders the actual map) */
-static void UI_WriteMinimapFrame(void) {
-    uiFrame_t frame;
+/* Targeting frame: the WoW character frame backdrop + health/mana bars + name/level text */
+static void UI_WriteTargetingFrame(LPEDICT ent) {
+    LPPLAYER ps = &ent->client->ps;
+    char name_buf[64], level_buf[32];
 
-    memset(&frame, 0, sizeof(frame));
-    frame.flags.type = FT_BACKDROP;
-    frame.color = MAKE(COLOR32, 255, 255, 255, 200);
-    UI_SetFrameRect(&frame, WOW_MINIMAP_X, WOW_MINIMAP_Y, WOW_MINIMAP_SIZE, WOW_MINIMAP_SIZE);
-    UI_WriteProxyFrame(&frame, NULL, 0);
+    /* Character frame backdrop — drawn with a slight tint matching the original */
+    UI_WriteImageUV("Interface\\TargetingFrame\\UI-TargetingFrame.blp",
+                    PX(-19), PY(4), PW(232), PH(100),
+                    1.0f, 0.09375f, 0.0f, 0.78125f,
+                    MAKE(COLOR32, 96, 92, 84, 230));
+
+    /* Dark name area */
+    UI_WriteColorRect(PX(87), PY(22), PW(119), PH(41), MAKE(COLOR32, 0, 0, 0, 128));
+
+    /* Name */
+    snprintf(name_buf, sizeof(name_buf), "%s",
+             ps->name && *ps->name ? ps->name : "Player");
+    UI_WriteTextFrame(PX(72), PY(18), PW(100), PH(12),
+                      name_buf, MAKE(COLOR32, 255, 215, 120, 255), FONT_JUSTIFYCENTER);
+
+    /* Level */
+    snprintf(level_buf, sizeof(level_buf), "Lvl %d", (int)ps->stats[WOW_STAT_LEVEL]);
+    UI_WriteTextFrame(PX(24), PY(58), PW(42), PH(12),
+                      level_buf, MAKE(COLOR32, 235, 225, 190, 255), FONT_JUSTIFYCENTER);
+
+    /* Health bar */
+    UI_WriteColorBar(PX(105), PY(41), PW(119), PH(12),
+                     (FLOAT)ps->stats[WOW_STAT_HEALTH], (FLOAT)ps->stats[WOW_STAT_HEALTH_MAX],
+                     MAKE(COLOR32, 20, 178, 48, 235));
+
+    /* Mana/power bar */
+    UI_WriteColorBar(PX(105), PY(54), PW(119), PH(11),
+                     (FLOAT)ps->stats[WOW_STAT_POWER], (FLOAT)ps->stats[WOW_STAT_POWER_MAX],
+                     MAKE(COLOR32, 26, 82, 210, 235));
 }
 
 /* Build and unicast the WoW HUD layer for a player */
 void UI_WriteWowHud(LPEDICT ent) {
     LPPLAYER ps;
-    char buffer[128];
+    wowClient_t *wc;
+    char copper_buf[64];
 
-    if (!ent || !ent->client) {
+    if (!ent || !ent->client)
         return;
-    }
     ps = &ent->client->ps;
+    wc = (wowClient_t *)ent->client;
 
     gi.Write(PF_BYTE, &(LONG){svc_layout});
     gi.Write(PF_BYTE, &(LONG){LAYER_CONSOLE});
     ui_next_frame_number = 1;
 
-    /* Character portrait */
-    UI_WritePortraitFrame(ent);
+    /* Character/targeting frame (portrait area top-left) */
+    UI_WriteTargetingFrame(ent);
 
-    /* Health bar + text */
-    UI_WriteHealthBar((FLOAT)ps->stats[WOW_STAT_HEALTH], (FLOAT)ps->stats[WOW_STAT_HEALTH_MAX]);
-    snprintf(buffer, sizeof(buffer), "%d / %d",
-             (int)ps->stats[WOW_STAT_HEALTH], (int)ps->stats[WOW_STAT_HEALTH_MAX]);
-    UI_WriteTextFrame(WOW_HEALTH_BAR_X + WOW_HEALTH_BAR_W + 0.005f, WOW_HEALTH_BAR_Y,
-                      0.050f, 0.015f, buffer, COLOR32_WHITE, FONT_JUSTIFYLEFT);
+    /* Main action bar + end-caps */
+    UI_WriteActionBar();
 
-    /* Mana bar + text */
-    UI_WriteManaBar((FLOAT)ps->stats[WOW_STAT_POWER], (FLOAT)ps->stats[WOW_STAT_POWER_MAX]);
-    snprintf(buffer, sizeof(buffer), "%d / %d",
-             (int)ps->stats[WOW_STAT_POWER], (int)ps->stats[WOW_STAT_POWER_MAX]);
-    UI_WriteTextFrame(WOW_MANA_BAR_X + WOW_MANA_BAR_W + 0.005f, WOW_MANA_BAR_Y,
-                      0.050f, 0.015f, buffer, COLOR32_WHITE, FONT_JUSTIFYLEFT);
+    /* 12 action buttons, left row */
+    FOR_LOOP(i, 12) {
+        DWORD img = wc->actions[i].icon[0] ? gi.ImageIndex(wc->actions[i].icon) : 0;
+        UI_WriteActionButtonSlot(PX(8.0f + (FLOAT)i * 42.0f), PY(728), img);
+    }
 
-    /* Level text */
-    snprintf(buffer, sizeof(buffer), "Level %d", (int)ps->stats[WOW_STAT_LEVEL]);
-    UI_WriteTextFrame(WOW_LEVEL_X, WOW_LEVEL_Y, WOW_LEVEL_W, WOW_LEVEL_H,
-                      buffer, MAKE(COLOR32, 252, 210, 18, 255), FONT_JUSTIFYLEFT);
+    /* 4 empty button slots, right side */
+    FOR_LOOP(i, 4)
+        UI_WriteActionButtonSlot(PX(939.0f - (FLOAT)i * 42.0f), PY(728), 0);
 
-    /* XP bar */
-    UI_WriteXpBar((FLOAT)ps->stats[WOW_STAT_XP], (FLOAT)ps->stats[WOW_STAT_XP_MAX]);
+    /* Backpack */
+    UI_WriteImage("Interface\\Buttons\\Button-Backpack-Up.blp",
+                  PX(981), PY(729), PW(37), PH(37), COLOR32_WHITE);
+
+    /* Minimap border + viewport */
+    UI_WriteMinimapFrames();
+
+    /* Quest log icon + label */
+    UI_WriteImage("Interface\\QuestFrame\\UI-QuestLog-BookIcon.blp",
+                  PX(840), PY(162), PW(32), PH(32), COLOR32_WHITE);
+    UI_WriteTextFrame(PX(876), PY(164), PW(110), PH(20),
+                      "Quests", MAKE(COLOR32, 255, 215, 120, 255), FONT_JUSTIFYLEFT);
 
     /* Copper display */
-    snprintf(buffer, sizeof(buffer), "%d g %d s %d c",
-             (int)ps->stats[WOW_STAT_COPPER] / 10000,
-             ((int)ps->stats[WOW_STAT_COPPER] % 10000) / 100,
-             (int)ps->stats[WOW_STAT_COPPER] % 100);
-    UI_WriteTextFrame(WOW_COPPER_X, WOW_COPPER_Y, WOW_COPPER_W, WOW_COPPER_H,
-                      buffer, MAKE(COLOR32, 255, 200, 0, 255), FONT_JUSTIFYLEFT);
-
-    /* Minimap position frame */
-    UI_WriteMinimapFrame();
+    snprintf(copper_buf, sizeof(copper_buf), "Copper %d", (int)ps->stats[WOW_STAT_COPPER]);
+    UI_WriteTextFrame(PX(816), PY(704), PW(150), PH(20),
+                      copper_buf, MAKE(COLOR32, 255, 210, 100, 255), FONT_JUSTIFYRIGHT);
 
     gi.Write(PF_LONG, &(LONG){0});
     gi.Write(PF_SHORT, &(LONG){0});

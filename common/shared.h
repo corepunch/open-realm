@@ -570,6 +570,7 @@ typedef enum {
     FT_BUILDQUEUE,
     FT_MULTISELECT,
     FT_TOOLTIPTEXT,
+    FT_MINIMAP,
 } FRAMETYPE;
 
 typedef enum {

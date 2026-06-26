@@ -9,7 +9,6 @@
 #include "ui_screen.h"
 #include "generated/cinematic_panel.h"
 #include "generated/loading_screen.h"
-#include "generated/resource_bar.h"
 
 /* Global import table filled by UI_GetAPI */
 uiImport_t uiimport;
@@ -26,7 +25,6 @@ typedef struct {
 static uiState_t ui_state;
 static uiScreen_t *ui_current_screen = NULL;
 static BOOL ui_menu_commands_registered;
-static ResourceBar_t resource_bar;
 static CinematicPanel_t cinematic_panel;
 static LoadingScreen_t loading_screen;
 
@@ -286,72 +284,6 @@ static uiMenuCommandDef_t const ui_menu_command_defs[] = {
     { NULL, NULL },
 };
 
-typedef struct {
-    LPCSTR texture;
-    BOOL decorate;
-    RECT screen;
-    RECT uv;
-} uiConsoleBackdropPart_t;
-
-static void UI_DrawImagePart(LPCSTR texture_name, BOOL decorate, LPCRECT screen, LPCRECT uv) {
-    LPRENDERER renderer = uiimport.GetRenderer();
-    DWORD texture_id;
-    LPCTEXTURE texture;
-
-    if (!renderer || !renderer->DrawImageEx || !texture_name || !*texture_name) {
-        return;
-    }
-
-    texture_id = UI_LoadTexture(texture_name, decorate);
-    texture = UI_GetTexture(texture_id);
-    if (!texture) {
-        return;
-    }
-
-    renderer->DrawImageEx(&MAKE(drawImage_t,
-                                .texture = texture,
-                                .shader = SHADER_UI,
-                                .alphamode = BLEND_MODE_ALPHAKEY,
-                                .screen = *screen,
-                                .uv = *uv,
-                                .color = COLOR32_WHITE));
-}
-
-static void UI_DrawConsoleBackdropPart(uiConsoleBackdropPart_t const *part) {
-    if (!part) {
-        return;
-    }
-    UI_DrawImagePart(part->texture, part->decorate, &part->screen, &part->uv);
-}
-
-static void UI_DrawConsoleBackdropOnly(void) {
-    static uiConsoleBackdropPart_t const parts[] = {
-        { "ConsoleTexture01", true, { 0.000f, 0.000f, 0.256f, 0.032f }, { 0.00000000f, 0.000000f, 1.00000000f, 0.125000f } },
-        { "ConsoleTexture02", true, { 0.256f, 0.000f, 0.087f, 0.032f }, { 0.00000000f, 0.000000f, 0.33984375f, 0.125000f } },
-        { "ConsoleTexture02", true, { 0.459f, 0.000f, 0.053f, 0.032f }, { 0.79296875f, 0.000000f, 0.20703125f, 0.125000f } },
-        { "ConsoleTexture03", true, { 0.512f, 0.000f, 0.256f, 0.032f }, { 0.00000000f, 0.000000f, 1.00000000f, 0.125000f } },
-        { "ConsoleTexture04", true, { 0.768f, 0.000f, 0.032f, 0.032f }, { 0.00000000f, 0.000000f, 1.00000000f, 0.125000f } },
-        { "ConsoleTexture01", true, { 0.000f, 0.424f, 0.256f, 0.176f }, { 0.00000000f, 0.312500f, 1.00000000f, 0.687500f } },
-        { "ConsoleTexture02", true, { 0.256f, 0.450f, 0.256f, 0.150f }, { 0.00000000f, 0.414062f, 1.00000000f, 0.585938f } },
-        { "ConsoleTexture03", true, { 0.512f, 0.424f, 0.256f, 0.176f }, { 0.00000000f, 0.312500f, 1.00000000f, 0.687500f } },
-        { "ConsoleTexture04", true, { 0.768f, 0.424f, 0.032f, 0.176f }, { 0.00000000f, 0.312500f, 1.00000000f, 0.687500f } },
-    };
-
-    FOR_LOOP(i, sizeof(parts) / sizeof(parts[0])) {
-        UI_DrawConsoleBackdropPart(&parts[i]);
-    }
-}
-
-static void UI_DrawConsoleMinimap(void) {
-    LPRENDERER renderer = uiimport.GetRenderer();
-    RECT const rect = { 0.0070f, 0.4525f, 0.1395f, 0.1395f };
-
-    if (!renderer || !renderer->DrawMinimap) {
-        return;
-    }
-    renderer->DrawMinimap(&rect);
-}
-
 static void UI_RegisterMenuCommands(void) {
     if (ui_menu_commands_registered || !uiimport.Cmd_AddCommand) {
         return;
@@ -360,44 +292,6 @@ static void UI_RegisterMenuCommands(void) {
         uiimport.Cmd_AddCommand(cmd->command, cmd->function);
     }
     ui_menu_commands_registered = true;
-}
-
-static void UI_InitGameResourceBar(void) {
-    ResourceBar_Load(&resource_bar);
-    if (resource_bar.ResourceBarFrame) {
-        UI_SetPoint(resource_bar.ResourceBarFrame,
-                    FRAMEPOINT_TOPRIGHT,
-                    NULL,
-                    FRAMEPOINT_TOPRIGHT,
-                    0.0f,
-                    0.0f);
-    }
-}
-
-static void UI_DrawResourceBar(void) {
-    LPCPLAYER ps = uiimport.GetPlayerState();
-
-    if (!ps || !resource_bar.ResourceBarFrame) {
-        return;
-    }
-
-    if (resource_bar.ResourceBarGoldText) {
-        UI_SetText(resource_bar.ResourceBarGoldText, "%u", (unsigned)ps->stats[PLAYERSTATE_RESOURCE_GOLD]);
-    }
-    if (resource_bar.ResourceBarLumberText) {
-        UI_SetText(resource_bar.ResourceBarLumberText, "%u", (unsigned)ps->stats[PLAYERSTATE_RESOURCE_LUMBER]);
-    }
-    if (resource_bar.ResourceBarSupplyText) {
-        UI_SetText(resource_bar.ResourceBarSupplyText,
-                   "%u/%u",
-                   (unsigned)ps->stats[PLAYERSTATE_RESOURCE_FOOD_USED],
-                   (unsigned)ps->stats[PLAYERSTATE_RESOURCE_FOOD_CAP]);
-    }
-    if (resource_bar.ResourceBarUpkeepText) {
-        UI_SetText(resource_bar.ResourceBarUpkeepText, "UPKEEP_NONE");
-    }
-
-    UI_DrawFrame(resource_bar.ResourceBarFrame);
 }
 
 static BOOL UI_CinematicActive(LPCPLAYER ps) {
@@ -643,10 +537,8 @@ void UI_InitLocal(void) {
     UI_ParseFDF("UI\\FrameDef\\Glue\\PlayerSlot.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\GameChatroom.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\Loading.fdf");
-    UI_ParseFDF("UI\\FrameDef\\UI\\ResourceBar.fdf");
     UI_ParseFDF("UI\\FrameDef\\UI\\CinematicPanel.fdf");
     UI_InitLoadingScreen();
-    UI_InitGameResourceBar();
     UI_InitCinematicPanel();
     
     ui_state.initialized = true;
@@ -687,21 +579,14 @@ void UI_RefreshLocal(DWORD time) {
         screen->refresh((int)time);
     }
     
-    /* Draw current screen */
-    if (ui_state.game_mode) {
-        LPCPLAYER ps = uiimport.GetPlayerState();
-
-        if (UI_CinematicActive(ps)) {
-            UI_DrawCinematicPanel(ps);
-        } else {
-            UI_DrawConsoleBackdropOnly();
-            UI_DrawConsoleMinimap();
-            UI_DrawResourceBar();
-        }
-    } else {
-        if (screen && screen->draw) {
+    /* Draw current screen (menus/glue only — in-game HUD is server-authored via svc_layout) */
+    if (!ui_state.game_mode) {
+        if (screen && screen->draw)
             screen->draw();
-        }
+    } else {
+        LPCPLAYER ps = uiimport.GetPlayerState();
+        if (UI_CinematicActive(ps))
+            UI_DrawCinematicPanel(ps);
     }
 }
 

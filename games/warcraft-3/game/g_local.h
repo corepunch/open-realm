@@ -541,6 +541,14 @@ struct client_s {
         LONG mana;
         LONG xp;     /* hero experience, so the XP/attribute display updates live */
     } infopanel;
+    /* Last resource values reflected in the resource bar, so the server only
+     * re-sends LAYER_CONSOLE when gold/lumber/food changes. */
+    struct {
+        LONG gold;
+        LONG lumber;
+        LONG food_used;
+        LONG food_cap;
+    } resourcebar;
 };
 
 typedef struct {
@@ -953,6 +961,8 @@ void Get_Commands_f(LPEDICT);
 void Get_Portrait_f(LPEDICT);
 void G_RefreshInfoPanel(LPEDICT);
 void G_UpdateClientInfoPanels(void);
+void G_RefreshResourceBar(LPEDICT);
+void G_UpdateClientResourceBars(void);
 void UI_AddCancelButton(LPEDICT);
 void UI_AddCommandButton(LPCSTR);
 void UI_AddCommandButtonExtended(LPCSTR code, BOOL research, DWORD level);
