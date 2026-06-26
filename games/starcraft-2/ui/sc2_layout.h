@@ -218,6 +218,9 @@ BOOL SC2_LayoutFlatten(LPCSTR root_name);
 /* Get the resolved frame array for client rendering */
 uiBaseFrame_t *SC2_LayoutGetFrames(DWORD *count);
 
+/* Build and flatten the main menu from glue SC2Layout files */
+BOOL SC2_LayoutBuildMainMenu(void);
+
 /* Build and flatten the main game UI from the standard SC2Layout files */
 BOOL SC2_LayoutBuildGameUI(void);
 

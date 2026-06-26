@@ -348,7 +348,6 @@ static LPCRECT UI_LayoutRect(LPCFRAMEDEF frame) {
                  */
                 break;
             default:
-            default:
                 /* Default size if not specified */
                 if (intrinsic_w == 0) intrinsic_w = 0.1f;
                 if (intrinsic_h == 0) intrinsic_h = 0.1f;

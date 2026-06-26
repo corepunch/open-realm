@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<Desc>
+    <!-- SC2 Main Menu glue screen layout -->
+
+    <Frame type="Frame" name="GlueMainMenu">
+        <Anchor relative="$parent"/>
+
+        <!-- Background fill -->
+        <Frame type="Image" name="Background">
+            <Anchor relative="$parent"/>
+        </Frame>
+
+        <!-- Logo -->
+        <Frame type="Image" name="Logo">
+            <Width val="256"/>
+            <Height val="128"/>
+            <Anchor side="Top"    relative="$parent" pos="Min" offset="60"/>
+            <Anchor side="Left"   relative="$parent" pos="Min" offset="40"/>
+        </Frame>
+
+        <!-- Button column -->
+        <Frame type="Button" name="PlayButton">
+            <Width val="200"/>
+            <Height val="40"/>
+            <Anchor side="Top"  relative="$parent" pos="Min" offset="220"/>
+            <Anchor side="Left" relative="$parent" pos="Min" offset="40"/>
+        </Frame>
+
+        <Frame type="Button" name="MultiplayerButton">
+            <Width val="200"/>
+            <Height val="40"/>
+            <Anchor side="Top"  relative="$parent/PlayButton" pos="Max" offset="8"/>
+            <Anchor side="Left" relative="$parent/PlayButton" pos="Min" offset="0"/>
+        </Frame>
+
+        <Frame type="Button" name="CustomButton">
+            <Width val="200"/>
+            <Height val="40"/>
+            <Anchor side="Top"  relative="$parent/MultiplayerButton" pos="Max" offset="8"/>
+            <Anchor side="Left" relative="$parent/MultiplayerButton" pos="Min" offset="0"/>
+        </Frame>
+
+        <Frame type="Button" name="OptionsButton">
+            <Width val="200"/>
+            <Height val="40"/>
+            <Anchor side="Top"  relative="$parent/CustomButton" pos="Max" offset="8"/>
+            <Anchor side="Left" relative="$parent/CustomButton" pos="Min" offset="0"/>
+        </Frame>
+
+        <Frame type="Button" name="ExitButton">
+            <Width val="200"/>
+            <Height val="40"/>
+            <Anchor side="Top"  relative="$parent/OptionsButton" pos="Max" offset="8"/>
+            <Anchor side="Left" relative="$parent/OptionsButton" pos="Min" offset="0"/>
+        </Frame>
+
+        <!-- Version label -->
+        <Frame type="Label" name="VersionLabel">
+            <Width val="200"/>
+            <Height val="20"/>
+            <Anchor side="Bottom" relative="$parent" pos="Max" offset="-8"/>
+            <Anchor side="Right"  relative="$parent" pos="Max" offset="-8"/>
+        </Frame>
+    </Frame>
+</Desc>

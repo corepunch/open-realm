@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<Desc>
+    <!-- SC2 standard UI constants — development stub -->
+    <Constant name="DefaultButtonWidth"  val="200"/>
+    <Constant name="DefaultButtonHeight" val="40"/>
+    <Constant name="DefaultPadding"      val="8"/>
+    <Constant name="SmallPadding"        val="4"/>
+</Desc>

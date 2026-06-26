@@ -172,6 +172,11 @@ typedef struct {
     void (*UpdateLobbySetup)(lobbyState_t const *state);
 
     void (*DrawLoadingScreen)(LPCSTR map, LPCSTR status, FLOAT progress);
+
+    /* Frame array — client iterates ui.frames by ui.frame_size stride to render UI */
+    void *frames;
+    DWORD frame_size;
+    DWORD (*GetNumFrames)(void);
 } uiExport_t;
 
 /* Entry point called by the client to get the UI function table.

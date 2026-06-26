@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<Desc>
+    <!-- SC2 standard UI templates — development stub -->
+
+    <Frame type="Button" name="GlueButtonTemplate">
+        <Width val="#DefaultButtonWidth"/>
+        <Height val="#DefaultButtonHeight"/>
+    </Frame>
+
+    <Frame type="Frame" name="GluePanelTemplate">
+        <Anchor relative="$parent"/>
+    </Frame>
+</Desc>

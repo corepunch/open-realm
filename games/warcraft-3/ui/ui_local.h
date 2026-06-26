@@ -129,17 +129,14 @@ typedef struct {
     COLOR32 SelectedTextColor;
 } uiMapListControl_t;
 
-/* UI interaction flags for uiFrameDef_s.ui_flags */
-#define UIFLAG_PRESSED  (1 << 0)
-#define UIFLAG_HOVERED  (1 << 1)
-#define UIFLAG_CHECKED  (1 << 2)
-#define UIFLAG_DISABLED (1 << 3)
-#define UIFLAG_ACTIVE   (1 << 4)
-#define UIFLAG_VISIBLE  (1 << 5)
-#define UIFLAG_PASSTHROUGH (1 << 6)  /* child of popup: rendered but not hit-tested */
+/* UI interaction flags for uiFrameDef_s.ui_flags — extends shared.h UIFLAG_* */
+#define UIFLAG_ACTIVE   (1 << 6)
+#define UIFLAG_VISIBLE  (1 << 7)
+#define UIFLAG_PASSTHROUGH (1 << 8)  /* child of popup: rendered but not hit-tested */
 
 /* Frame template definition (server-side/library-side only) */
 struct uiFrameDef_s {
+    uiBaseFrame_t base;            /* client-side base frame — first member for casting */
     LPCFRAMEDEF Parent;
     FRAMETYPE Type;
     UINAME Name;

@@ -160,10 +160,13 @@ build-run-wow-map: openwow
 	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +map World/Maps/Azeroth/Azeroth.wdt
 
 run-sc2: $(SC2_BINARY)
-	$(SC2_BINARY) -data data/StarCraft2 +map TRaynor01
+	$(SC2_BINARY) -data data/StarCraft2 -extra_data games/starcraft-2/share
+
+run-sc2-menu: $(SC2_BINARY)
+	$(SC2_BINARY) -data games/starcraft-2/share
 
 build-run-sc2: opensc2
-	$(SC2_BINARY) -data data/StarCraft2 +map TRaynor01
+	$(SC2_BINARY) -data data/StarCraft2 -extra_data games/starcraft-2/share
 
 m2tool-wow-orcmale-player: m2tool
 	$(BIN_DIR)/m2tool$(EXE_EXT) \

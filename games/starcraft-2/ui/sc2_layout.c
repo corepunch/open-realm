@@ -950,7 +950,7 @@ static void SC2_DrawText(struct uiBaseFrame_s *frame, LPCRECT rect) {
                              .rect = *rect,
                              .color = frame->color,
                              .textWidth = rect->w,
-                             .wordWrap = false,
+                             .flags = 0,
                              .lineHeight = 1.0f));
 }
 
@@ -1064,6 +1064,26 @@ BOOL SC2_LayoutParseFile(LPCSTR filename) {
     SC2_ParseDescNode(root->children);
     xmlFreeDoc(doc);
     return true;
+}
+
+/* Build main menu layout from glue screen layout files */
+BOOL SC2_LayoutBuildMainMenu(void) {
+    SC2_LayoutInit();
+
+    static LPCSTR glue_files[] = {
+        "UI/Layout/Common/StandardConstants.SC2Layout",
+        "UI/Layout/Common/StandardTemplates.SC2Layout",
+        "UI/Layout/Glue/GlueMainMenu.SC2Layout",
+        NULL,
+    };
+
+    for (int i = 0; glue_files[i]; i++) {
+        if (!SC2_LayoutParseFile(glue_files[i])) {
+            fprintf(stderr, "SC2_Layout: failed to load glue file '%s'\n", glue_files[i]);
+        }
+    }
+
+    return SC2_LayoutFlatten("GlueMainMenu");
 }
 
 /* Build the main game UI from known layout files */

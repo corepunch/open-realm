@@ -343,14 +343,14 @@ LPUIBASEFRAME CL_UIHitTest(FLOAT x, FLOAT y) {
     return best;
 }
 
-/* Request unit UI data (command card, inventory, build queue) */
+/* TODO: re-enable when CL_UIRequestUnitUI is needed for SC2 unit selection
 static void CL_UIRequestUnitUI(DWORD num_selected, DWORD *entity_nums) {
     (void)num_selected;
     (void)entity_nums;
     if (1) {
         ui.UpdateUnitUI(0, NULL);
     }
-}
+} */
 
 #define CL_MAX_LAN_SERVERS 64
 
