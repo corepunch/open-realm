@@ -771,10 +771,6 @@ static void Wow_InitPlayer(LPEDICT ent) {
 }
 
 static void Wow_Init(void) {
-    char race[64], sex[64];
-    DWORD class_id, appearance;
-    char buf[MAX_PATHLEN];
-
     memset(wow_edicts, 0, sizeof(wow_edicts));
     memset(wow_entity_locals, 0, sizeof(wow_entity_locals));
     memset(wow_clients, 0, sizeof(wow_clients));
@@ -784,15 +780,6 @@ static void Wow_Init(void) {
     globals.max_clients = WOW_MAX_CLIENTS;
     globals.num_edicts = WOW_MAX_CLIENTS;
     globals.edict_size = sizeof(edict_t);
-
-    /* Copy selected character from cvars into a single CS_GENERAL configstring
-       so the client can also read them for rendering. */
-    Wow_ReadSelectedCharFromCvars(race, sizeof(race), sex, sizeof(sex), &class_id, &appearance);
-    snprintf(buf, sizeof(buf), "\\race\\%s\\sex\\%s\\class\\%u\\appearance\\%u",
-             race, sex, (unsigned)class_id, (unsigned)appearance);
-    gi.configstring(CS_GENERAL + WOW_CS_PLAYERINFO, buf);
-
-    Wow_InitPlayer(&wow_edicts[0]);
 }
 
 static void Wow_Shutdown(void) {
