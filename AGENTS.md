@@ -2,7 +2,7 @@
 
 ## Project Context
 
-This codebase is inspired by **Quake 2**. The developer working on this project is deeply familiar with the architecture and source code of Quake 2 and wants to build a **real-time strategy (RTS) game** following the same style, conventions, and design philosophy found in Quake 2.
+This codebase is inspired by **Quake 3** (id Software). The developer is deeply familiar with Quake 3's architecture and source code. **Quake 3 is the primary reference** for all lifecycle, configstring, userinfo, cvar, entity, and player-setup patterns. Use **Quake 2** as a secondary reference for features Q3 lacks, such as `monsterinfo`, brush-based entities, or BSP-level game logic.
 
 ## Coding Style
 
@@ -10,6 +10,8 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 - Use the same patterns for module organization, data structures, and naming conventions as in Quake 2.
 - Prefer simple, flat, and data-oriented design over complex object-oriented abstractions.
 - Keep the code readable, compact, and close to the metal — minimize unnecessary indirection.
+- **No hacks.** Every implementation must have a solid reasoning. If a shortcut is taken, mark it with `/* HACK: */` or `/* TODO: */` and explain *why* the proper fix is not yet possible. Silent fallbacks are forbidden.
+- **Write as little code as possible.** Prefer smart tricks and reuse of existing code over writing new functions. When Quake code style leads to verbose vertical expansion, override it with denser, shorter forms: pack related statements on one line, use ternary/comma for conditional side effects, omit braces for single-statement bodies, and collapse trivial helpers into one-liners.
 - For trusted binary game data, prefer memory-mapped/file-shaped structs with trailing arrays wherever possible. Read the blob, allocate/copy it as one block if ownership is needed, and point consumers at that struct instead of decoding, cropping, or post-processing into parallel runtime arrays.
 - Prefer table-driven parsing for keyed/text formats such as XML, FDF, catalogs, and similar game data. Define a small schema table first, for example `{ name, offsetof(struct, field), type }`, then run one generic parser over that table. This is also called data-driven or array-driven parsing: the field mapping is data, and the parser is a tiny machine that applies it.
 - Prefer format-driven parsing when the data has a fixed syntax. Configure the parser with the format and launch it, for example `sscanf(text, "%f,%f,%f", ...)` for SC2 comma-separated vectors, instead of hand-writing character walkers, separator loops, and ad hoc token logic.
@@ -156,7 +158,7 @@ This codebase is inspired by **Quake 2**. The developer working on this project 
 
 ## Domain
 
-- This is a **real-time strategy game** (RTS), so game logic should account for unit management, pathfinding, resource gathering, building construction, and large numbers of entities — adapted from the Quake 2 entity/server model where applicable.
+- This is a **real-time strategy game** (RTS), so game logic should account for unit management, pathfinding, resource gathering, building construction, and large numbers of entities — adapted from the Quake 2/3 entity/server model where applicable.
 
 ## MPQ Inspection Workflow
 
@@ -352,7 +354,7 @@ Agent guidance:
 
 ## Entity Sound Architecture
 
-Unit sounds fire via a one-shot event mechanism mirroring Quake 2's `s.event` pattern:
+Unit sounds fire via a one-shot event mechanism mirroring Quake 2/3's `s.event` pattern:
 
 1. **Server (game code):** At spawn, `G_RegisterUnitSounds` reads the unit's `usnd` label from `unitUI.slk`, looks it up in `UI/SoundInfo/UnitAckSounds.slk`, and calls `gi.SoundIndex(path)` to register the file path as a configstring.  The returned index is cached in `edict->sound_attack` / `edict->sound_death`.
 2. **Trigger:** On attack swing, `s.event = EV_ATTACK; s.sound = sound_attack`.  On death, `s.event = EV_DEATH; s.sound = sound_death`.  Both are cleared to zero at the start of every `G_RunEntities` frame so they fire for exactly one snapshot.
