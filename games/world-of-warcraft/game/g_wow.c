@@ -763,7 +763,7 @@ static void Wow_InitPlayer(LPEDICT ent) {
     ps->fov = 54;
     ps->distance = 250.0f;
 #endif
-    ps->client_ui_state = CLIENT_UI_GAME;
+    ps->client_ui_state = CLIENT_UI_LOADING;
     ps->name = wow_clients[0].name;
     ps->texts[PLAYERTEXT_MAP_TITLE] = wow_loading_title;
     ps->texts[PLAYERTEXT_MAP_PREVIEW] = wow_loading_texture;
@@ -1047,6 +1047,7 @@ static void Wow_ClientBegin(LPEDICT ent) {
         return;
     }
     ent->client = &wow_clients[0].client;
+    ent->client->ps.client_ui_state = CLIENT_UI_GAME;
     Wow_SendPlayerUi(ent);
     UI_WriteWowHud(ent);
 }
