@@ -653,70 +653,62 @@ static LPCSTR Wow_InfoValueForKey(LPCSTR str, LPCSTR key, LPCSTR fallback) {
 
 /* Read selected character data from the single userinfo-style cvar set by the
    UI.  Fallbacks to OrcMale Warrior when no character was selected. */
-static void Wow_ReadSelectedCharFromCvars(LPCSTR *race_out, LPCSTR *sex_out, DWORD *class_out, DWORD *appearance_out) {
-    LPCSTR race = "Orc";
-    LPCSTR sex = "Male";
-    DWORD class_id = WOW_CLASS_WARRIOR;
-    DWORD appearance = Wow_PackAppearance(0, 0, 0, 0, 0, WOW_CLASS_WARRIOR, 0);
+static void Wow_ReadSelectedCharFromCvars(char *race, size_t race_sz, char *sex, size_t sex_sz, DWORD *class_out, DWORD *appearance_out) {
     LPCSTR val;
+
+    snprintf(race, race_sz, "Orc");
+    snprintf(sex, sex_sz, "Male");
+    *class_out = WOW_CLASS_WARRIOR;
+    *appearance_out = Wow_PackAppearance(0, 0, 0, 0, 0, WOW_CLASS_WARRIOR, 0);
 
     val = gi.CvarString(WOW_CVAR_PLAYERINFO, "");
     if (val[0]) {
         LPCSTR v;
         v = Wow_InfoValueForKey(val, "race", "");
-        if (v[0]) race = v;
+        if (v[0]) snprintf(race, race_sz, "%s", v);
         v = Wow_InfoValueForKey(val, "sex", "");
-        if (v[0]) sex = v;
+        if (v[0]) snprintf(sex, sex_sz, "%s", v);
         v = Wow_InfoValueForKey(val, "class", "");
-        if (v[0]) class_id = (DWORD)atoi(v);
+        if (v[0]) *class_out = (DWORD)atoi(v);
         v = Wow_InfoValueForKey(val, "appearance", "");
-        if (v[0]) appearance = (DWORD)strtoul(v, NULL, 10);
+        if (v[0]) *appearance_out = (DWORD)strtoul(v, NULL, 10);
     }
-
-    *race_out = race;
-    *sex_out = sex;
-    *class_out = class_id;
-    *appearance_out = appearance;
 }
 
 /* Read selected character data from the single CS_GENERAL configstring set by
    Wow_Init.  Fallbacks to OrcMale Warrior when no character was selected. */
-static void Wow_ReadSelectedCharFromCS(LPCSTR *race_out, LPCSTR *sex_out, DWORD *class_out, DWORD *appearance_out) {
-    LPCSTR race = "Orc";
-    LPCSTR sex = "Male";
-    DWORD class_id = WOW_CLASS_WARRIOR;
-    DWORD appearance = Wow_PackAppearance(0, 0, 0, 0, 0, WOW_CLASS_WARRIOR, 0);
+static void Wow_ReadSelectedCharFromCS(char *race, size_t race_sz, char *sex, size_t sex_sz, DWORD *class_out, DWORD *appearance_out) {
     LPCSTR val;
+
+    snprintf(race, race_sz, "Orc");
+    snprintf(sex, sex_sz, "Male");
+    *class_out = WOW_CLASS_WARRIOR;
+    *appearance_out = Wow_PackAppearance(0, 0, 0, 0, 0, WOW_CLASS_WARRIOR, 0);
 
     val = gi.GetConfigstring(CS_GENERAL + WOW_CS_PLAYERINFO);
     if (val && val[0]) {
         LPCSTR v;
         v = Wow_InfoValueForKey(val, "race", "");
-        if (v[0]) race = v;
+        if (v[0]) snprintf(race, race_sz, "%s", v);
         v = Wow_InfoValueForKey(val, "sex", "");
-        if (v[0]) sex = v;
+        if (v[0]) snprintf(sex, sex_sz, "%s", v);
         v = Wow_InfoValueForKey(val, "class", "");
-        if (v[0]) class_id = (DWORD)atoi(v);
+        if (v[0]) *class_out = (DWORD)atoi(v);
         v = Wow_InfoValueForKey(val, "appearance", "");
-        if (v[0]) appearance = (DWORD)strtoul(v, NULL, 10);
+        if (v[0]) *appearance_out = (DWORD)strtoul(v, NULL, 10);
     }
-
-    *race_out = race;
-    *sex_out = sex;
-    *class_out = class_id;
-    *appearance_out = appearance;
 }
 
 static void Wow_InitPlayer(LPEDICT ent) {
     LPPLAYER ps;
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
     FLOAT height = Wow_TerrainHeight(wow_spawn_origin.x, wow_spawn_origin.y);
-    LPCSTR race, sex;
+    char race[64], sex[64];
     DWORD class_id, appearance;
     char model_path[MAX_PATHLEN];
 
     /* Read selected character from CS_GENERAL configstrings (set by Wow_Init from cvars). */
-    Wow_ReadSelectedCharFromCS(&race, &sex, &class_id, &appearance);
+    Wow_ReadSelectedCharFromCS(race, sizeof(race), sex, sizeof(sex), &class_id, &appearance);
 
     memset(ent, 0, sizeof(*ent));
     if (local) {
@@ -779,7 +771,7 @@ static void Wow_InitPlayer(LPEDICT ent) {
 }
 
 static void Wow_Init(void) {
-    LPCSTR race, sex;
+    char race[64], sex[64];
     DWORD class_id, appearance;
     char buf[MAX_PATHLEN];
 
@@ -795,7 +787,7 @@ static void Wow_Init(void) {
 
     /* Copy selected character from cvars into a single CS_GENERAL configstring
        so the client can also read them for rendering. */
-    Wow_ReadSelectedCharFromCvars(&race, &sex, &class_id, &appearance);
+    Wow_ReadSelectedCharFromCvars(race, sizeof(race), sex, sizeof(sex), &class_id, &appearance);
     snprintf(buf, sizeof(buf), "\\race\\%s\\sex\\%s\\class\\%u\\appearance\\%u",
              race, sex, (unsigned)class_id, (unsigned)appearance);
     gi.configstring(CS_GENERAL + WOW_CS_PLAYERINFO, buf);
@@ -922,10 +914,10 @@ static void Wow_SpawnEntities(void) {
        memset cleared all configstrings (same pattern as Q3: game module
        re-sets configstrings after the server wipes them on map load). */
     {
-        LPCSTR race, sex;
+        char race[64], sex[64];
         DWORD class_id, appearance;
         char buf[MAX_PATHLEN];
-        Wow_ReadSelectedCharFromCvars(&race, &sex, &class_id, &appearance);
+        Wow_ReadSelectedCharFromCvars(race, sizeof(race), sex, sizeof(sex), &class_id, &appearance);
         snprintf(buf, sizeof(buf), "\\race\\%s\\sex\\%s\\class\\%u\\appearance\\%u",
                  race, sex, (unsigned)class_id, (unsigned)appearance);
         gi.configstring(CS_GENERAL + WOW_CS_PLAYERINFO, buf);
