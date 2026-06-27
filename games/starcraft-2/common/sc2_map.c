@@ -4,6 +4,7 @@
 #include <libxml/parser.h>
 #include <libxml/tree.h>
 #include <stddef.h>
+#include <stdlib.h>
 
 #define SC2_MAX_CATALOG_MODELS       8192
 #define SC2_MAX_CATALOG_ACTORS       8192
