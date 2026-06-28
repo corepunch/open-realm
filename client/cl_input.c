@@ -1,4 +1,5 @@
 #include "cl_input_local.h"
+#include "ui_layout.h"
 
 mouseEvent_t mouse;
 static keyCode_t mouse_button_keys[8];
@@ -34,7 +35,7 @@ static keyCode_t CL_MouseButtonKey(SDL_MouseButtonEvent const *button) {
 }
 
 BOOL CL_MouseOverGameplayUI(void) {
-    return false;
+    return SCR_LayoutHitTest((int)mouse.origin.x, (int)mouse.origin.y);
 }
 
 BOOL CL_GameplayInputReady(void) {
@@ -134,6 +135,7 @@ void CL_Input(void) {
                 if (ui.MouseEvent(UI_MOUSE_DOWN, event.button.x, event.button.y, event.button.button)) {
                     break;
                 }
+                SCR_LayoutMouseEvent(UI_MOUSE_DOWN, event.button.x, event.button.y, event.button.button);
                 if (cls.key_dest == key_menu) {
                     if (event.button.button == SDL_BUTTON_LEFT) {
                         mouse.event = UI_LEFT_MOUSE_DOWN;
@@ -155,6 +157,7 @@ void CL_Input(void) {
                 if (ui.MouseEvent(UI_MOUSE_UP, event.button.x, event.button.y, event.button.button)) {
                     break;
                 }
+                SCR_LayoutMouseEvent(UI_MOUSE_UP, event.button.x, event.button.y, event.button.button);
                 if (cls.key_dest == key_menu) {
                     if (event.button.button == SDL_BUTTON_LEFT) {
                         mouse.event = UI_LEFT_MOUSE_UP;
@@ -173,6 +176,7 @@ void CL_Input(void) {
                 mouse.origin.x = event.motion.x;
                 mouse.origin.y = event.motion.y;
                 ui.MouseEvent(UI_MOUSE_MOVE, event.motion.x, event.motion.y, 0);
+                SCR_LayoutMouseEvent(UI_MOUSE_MOVE, event.motion.x, event.motion.y, 0);
                 if (cls.key_dest == key_menu) {
                     break;
                 }
@@ -183,6 +187,7 @@ void CL_Input(void) {
                     int x, y;
                     SDL_GetMouseState(&x, &y);
                     ui.MouseEvent(UI_MOUSE_SCROLL, x, y, UI_MOUSE_PARAM(event.wheel.x, event.wheel.y));
+                    SCR_LayoutMouseEvent(UI_MOUSE_SCROLL, x, y, UI_MOUSE_PARAM(event.wheel.x, event.wheel.y));
                 }
                 if (cls.key_dest == key_game && CL_InputModeMouseWheel(&event.wheel)) {
                     break;

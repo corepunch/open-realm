@@ -13,7 +13,7 @@
 
 #include <stdio.h>
 
-#include "stb_fdf.h"
+#include "common/stb_fdf.h"
 #include "client/ui.h"
 #include "games/warcraft-3/common/mapinfo.h"
 
@@ -42,19 +42,11 @@ BOOL UI_EnsureFDF(LPCSTR filename);
 void UI_ParseFDF(LPCSTR filename);
 void UI_ParseFDF_Buffer(LPCSTR filename, LPSTR buffer);
 void UI_ClearTemplates(void);
-void UI_InitFrame(LPFRAMEDEF, FRAMETYPE);
 void UI_WireFrameTypeFunctions(LPFRAMEDEF frame);
-void UI_SetAllPoints(LPFRAMEDEF);
-void UI_SetParent(LPFRAMEDEF, LPCFRAMEDEF);
 void UI_SetText(LPFRAMEDEF, LPCSTR, ...);
-void UI_SetOnClick(LPFRAMEDEF, LPCSTR, ...);
-void UI_SetEnabled(LPFRAMEDEF, BOOL);
 void UI_SetTextPointer(LPFRAMEDEF, LPCSTR);
-void UI_SetSize(LPFRAMEDEF, FLOAT, FLOAT);
-void UI_SetPoint(LPFRAMEDEF, UIFRAMEPOINT, LPCFRAMEDEF, UIFRAMEPOINT, FLOAT, FLOAT);
 void UI_SetTexture(LPFRAMEDEF, LPCSTR, BOOL);
 void UI_SetTexture2(LPFRAMEDEF, LPCSTR, BOOL);
-void UI_SetHidden(LPFRAMEDEF, BOOL);
 void UI_InheritFrom(LPFRAMEDEF, LPCSTR);
 void UI_LoadTheme(LPCSTR fileName);
 void UI_ClearTheme(void);
@@ -77,8 +69,6 @@ BOOL UI_PopupPointInside(FLOAT fdf_x, FLOAT fdf_y);
 void UI_PopupMenuScroll(BOOL scroll_up);
 void UI_PopupMenuHover(FLOAT fdf_x, FLOAT fdf_y);
 void UI_PopupSelectItem(FLOAT fdf_x, FLOAT fdf_y);
-DWORD UI_FindFrameNumber(LPCSTR);
-DWORD UI_CollectFrameTree(LPCFRAMEDEF root, LPCFRAMEDEF *out, DWORD max);
 DWORD UI_LoadTexture(LPCSTR, BOOL);
 LPCSTR UI_TextureName(DWORD index);
 LPCTEXTURE UI_GetTexture(DWORD index);
@@ -86,10 +76,6 @@ LPCMODEL UI_GetModel(DWORD index);
 DWORD UI_LoadModel(LPCSTR file, BOOL decorate);
 LPCSTR UI_GetString(LPCSTR);
 LPFRAMEDEF UI_Spawn(FRAMETYPE, LPFRAMEDEF);
-LPFRAMEDEF UI_FindFrame(LPCSTR);
-LPFRAMEDEF UI_FindFrameByNumber(DWORD);
-LPFRAMEDEF UI_FindFrameNear(LPCFRAMEDEF, LPCSTR);
-LPFRAMEDEF UI_FindChildFrame(LPFRAMEDEF, LPCSTR);
 LPFRAMEDEF UI_CloneFrameTree(LPCFRAMEDEF source, LPFRAMEDEF parent);
 
 #ifndef BZ_FDF_REPORT_MISSING
@@ -125,8 +111,6 @@ void UI_BindMapList(LPFRAMEDEF frame,
                     LPCFRAMEDEF label,
                     DWORD visible_rows,
                     LPCSTR select_command);
-void UI_MenuClearItems(LPFRAMEDEF frame);
-void UI_MenuAddItem(LPFRAMEDEF frame, LPCSTR text, LONG value);
 void UI_LayoutMapInfoPane(LPFRAMEDEF frame);
 BOOL UI_ReadMapInfo(LPCSTR mapFilename, LPMAPINFO info);
 BOOL UI_FindMapPreviewTexture(LPCSTR mapFilename, LPSTR out, DWORD out_size);

@@ -108,8 +108,13 @@ Useful options:
 Examples:
 
 ```bash
+# UI module (glue menus):
 build/bin/fdfbindgen -prefix MainMenu -root MainMenuFrame -load "UI\\FrameDef\\Glue\\MainMenu.fdf" MainMenu.fdf > games/warcraft-3/ui/generated/main_menu.h
 build/bin/mpqtool -mpq "data/Warcraft III/War3.mpq" cat UI/FrameDef/Glue/MainMenu.fdf | build/bin/fdfbindgen -prefix MainMenu -root MainMenuFrame -load "UI\\FrameDef\\Glue\\MainMenu.fdf" -
+
+# Game module (in-game HUD panels, info panels, dialogs):
+build/bin/mpqtool -mpq "data/Warcraft III/War3.mpq" cat UI/FrameDef/UI/InfoPanelUnitDetail.fdf | build/bin/fdfbindgen -prefix InfoPanelUnitDetail -root InfoPanelUnitDetail -load "UI\\FrameDef\\UI\\InfoPanelTemplates.fdf" -load "UI\\FrameDef\\UI\\InfoPanelUnitDetail.fdf" -include "../g_local.h" - > games/warcraft-3/game/generated/info_panel_unit_detail.h
+build/bin/mpqtool -mpq "data/Warcraft III/War3.mpq" cat UI/FrameDef/UI/ConsoleUI.fdf | build/bin/fdfbindgen -prefix ConsoleUI -root ConsoleUI -load "UI\\FrameDef\\UI\\ConsoleUI.fdf" -include "../g_local.h" - > games/warcraft-3/game/generated/console_ui.h
 ```
 
 ## `img2sysfont`

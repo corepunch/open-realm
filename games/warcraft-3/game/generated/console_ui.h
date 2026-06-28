@@ -2,7 +2,7 @@
 #ifndef CONSOLEUI_H
 #define CONSOLEUI_H
 
-#include "../ui_local.h"
+#include "../g_local.h"
 
 typedef struct ConsoleUI_s {
     LPFRAMEDEF ConsoleUI;

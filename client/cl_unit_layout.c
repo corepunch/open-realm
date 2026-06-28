@@ -1,129 +1,5 @@
-#include "client.h"
+#include <stdlib.h>
 #include "ui_layout.h"
-#include <stdlib.h>  /* getenv (BZ_FPS_LOG diagnostic) */
-#include <SDL2/SDL.h>
-
-BOOL scr_initialized;
-
-#define SCR_FPS_HEIGHT 8
-#define SCR_FPS_BOTTOM_MARGIN 4
-
-static void SCR_DrawString(int x, int y, LPCSTR string) {
-    if (!string) {
-        return;
-    }
-    for (DWORD i = 0; string[i]; i++) {
-        re.DrawChar(x + i * 8, y, (BYTE)string[i]);
-    }
-}
-
-static void SCR_DrawFPS(DWORD msec) {
-    static DWORD elapsed = 0;
-    static DWORD frames_drawn = 0;
-    static DWORD fps = 0;
-    char text[32];
-    size2_t window = re.GetWindowSize();
-    DWORD inset = SCR_FPS_HEIGHT + SCR_FPS_BOTTOM_MARGIN;
-    DWORD y = window.height > inset ? window.height - inset : 0;
-
-    elapsed += msec;
-    frames_drawn++;
-    if (elapsed >= 500) {
-        fps = frames_drawn * 1000 / elapsed;
-        elapsed = 0;
-        frames_drawn = 0;
-        if (getenv("BZ_FPS_LOG")) fprintf(stderr, "BZ_FPS %u\n", (unsigned)fps);
-    } else if (!fps && msec > 0) {
-        fps = 1000 / msec;
-    }
-
-    if (fps) {
-        snprintf(text, sizeof(text), "FPS: %u", (unsigned)fps);
-    } else {
-        snprintf(text, sizeof(text), "FPS: --");
-    }
-    SCR_DrawString(10, y, text);
-}
-
-void SCR_BeginLoadingPlaque(void) {
-    if (cls.disable_screen)
-        return;
-    if (cls.state == ca_disconnected)
-        return;
-    if (cls.key_dest == key_console)
-        return;
-    SCR_UpdateScreen(0);
-    cls.disable_screen = SDL_GetTicks();
-    cls.disable_servercount = -1;
-}
-
-void SCR_EndLoadingPlaque(void) {
-    cls.disable_screen = 0;
-}
-
-void SCR_DrawScreenField(DWORD msec) {
-    re.BeginFrame();
-
-    switch (cls.state) {
-    default:
-        Com_Error(ERR_FATAL, "SCR_DrawScreenField: bad cls.state");
-        break;
-    case ca_disconnected:
-        ui.Refresh(cl.time);
-        break;
-    case ca_connecting:
-    case ca_connected:
-        ui.Refresh(cl.time);
-        break;
-    case ca_active:
-        V_RenderView();
-        SCR_DrawLayout();
-        /* TODO: research whether to replace key_dest enum with a keyCatchers bitmask
-        * like Q3 — multiple input consumers can be active simultaneously. */
-        if (cls.key_dest == key_menu) {
-            ui.Refresh(cl.time);
-        }
-        break;
-    }
-
-    CON_DrawConsole();
-    if (Cvar_Integer("scr_showfps", 0)) {
-        SCR_DrawFPS(msec);
-    }
-
-    re.EndFrame();
-}
-
-void SCR_UpdateScreen(DWORD msec) {
-    static int recursive;
-
-    if (!scr_initialized) {
-        return;
-    }
-
-    if (cls.disable_screen) {
-        if (SDL_GetTicks() - cls.disable_screen > 120000) {
-            cls.disable_screen = 0;
-            fprintf(stderr, "Loading plaque timed out.\n");
-        }
-        return;
-    }
-
-    if (++recursive > 2) {
-        Com_Error(ERR_FATAL, "SCR_UpdateScreen: recursively called");
-    }
-    recursive = 1;
-
-    SCR_DrawScreenField(msec);
-
-    recursive = 0;
-}
-
-/* --------------------------------------------------------------------------
- * Layout system — server-authored UI frame rendering and hit testing.
- * Previously in cl_unit_layout.c; merged here because the "unit_" prefix
- * was misleading — this is general-purpose layout, not unit-specific.
- * -------------------------------------------------------------------------- */
 
 #define MAX_LISTBOX_TEXT 2048
 
@@ -660,9 +536,9 @@ static drawer_t drawers[] = {
 void SCR_LayoutDrawFrame(LPCUIFRAME frame) {
     RECT const *screen = SCR_LayoutRect(frame);
     FOR_LOOP(j, sizeof(drawers)/sizeof(*drawers)) {
-        if (drawers[j].type == frame->flags.type) {
-            drawers[j].func(frame, screen);
-            break;
+        if (drawers[j].type == frame->flags.type) { 
+            drawers[j].func(frame, screen); 
+            break; 
         }
     }
 }
@@ -670,9 +546,9 @@ void SCR_LayoutDrawFrame(LPCUIFRAME frame) {
 void SCR_LayoutUpdateFrame(LPCUIFRAME frame) {
     RECT const *screen = SCR_LayoutRect(frame);
     FOR_LOOP(j, sizeof(updaters)/sizeof(*updaters)) {
-        if (updaters[j].type == frame->flags.type) {
-            updaters[j].func(frame, screen);
-            break;
+        if (updaters[j].type == frame->flags.type) { 
+            updaters[j].func(frame, screen); 
+            break; 
         }
     }
 }
@@ -718,9 +594,9 @@ void SCR_DrawLayout(void) {
         DWORD flags = cl.playerstate.uiflags;
         if ((1 << layer) & flags) continue;
         HANDLE layout = layout_layers[layer];
-        if (layout) {
-            SCR_Clear(layout);
-            SCR_LayoutUpdateTooltip(layout);
+        if (layout) { 
+            SCR_Clear(layout); 
+            SCR_LayoutUpdateTooltip(layout); 
         }
     }
 
@@ -728,9 +604,9 @@ void SCR_DrawLayout(void) {
         DWORD flags = cl.playerstate.uiflags;
         if ((1 << layer) & flags) continue;
         HANDLE layout = layout_layers[layer];
-        if (layout) {
-            SCR_Clear(layout);
-            SCR_LayoutUpdateTooltip(layout);
+        if (layout) { 
+            SCR_Clear(layout); 
+            SCR_LayoutUpdateTooltip(layout); 
             SCR_LayoutDrawOverlay(layout);
         }
     }
@@ -802,72 +678,4 @@ BOOL SCR_LayoutHitTest(int x, int y) {
         }
     }
     return false;
-}
-
-/* --------------------------------------------------------------------------
- * Legacy unit UI response parser.
- *
- * Normal selection HUD updates are local now; this parser is retained for
- * compatibility with svc_unit_ui messages.
- * -------------------------------------------------------------------------- */
-
-void CL_ParseUnitUI(LPSIZEBUF msg) {
-    BYTE num_units = MSG_ReadByte(msg);
-
-    if (num_units == 0 || num_units > 12) {
-        if (num_units == 0 && ui.UpdateUnitUI) {
-            ui.UpdateUnitUI(0, NULL);
-        }
-        return;
-    }
-
-    uiUnitData_t *units = (uiUnitData_t *)MemAlloc(sizeof(uiUnitData_t) * num_units);
-    memset(units, 0, sizeof(uiUnitData_t) * num_units);
-
-    for (BYTE i = 0; i < num_units; i++) {
-        uiUnitData_t *unit = &units[i];
-        unit->entity_num = MSG_ReadShort(msg);
-
-        unit->num_buttons = MSG_ReadByte(msg);
-        if (unit->num_buttons > MAX_COMMAND_BUTTONS) {
-            unit->num_buttons = MAX_COMMAND_BUTTONS;
-        }
-        for (BYTE j = 0; j < unit->num_buttons; j++) {
-            uiCommandButton_t *btn = &unit->buttons[j];
-
-            strncpy(btn->art, MSG_ReadString2(msg), sizeof(btn->art) - 1);
-            strncpy(btn->tooltip, MSG_ReadString2(msg), sizeof(btn->tooltip) - 1);
-            strncpy(btn->ubertip, MSG_ReadString2(msg), sizeof(btn->ubertip) - 1);
-            strncpy(btn->command, MSG_ReadString2(msg), sizeof(btn->command) - 1);
-            btn->hotkey = MSG_ReadByte(msg);
-        }
-
-        unit->num_inventory = MSG_ReadByte(msg);
-        if (unit->num_inventory > MAX_INVENTORY_SLOTS) {
-            unit->num_inventory = MAX_INVENTORY_SLOTS;
-        }
-        for (BYTE j = 0; j < unit->num_inventory; j++) {
-            uiInventoryItem_t *item = &unit->inventory[j];
-
-            strncpy(item->art, MSG_ReadString2(msg), sizeof(item->art) - 1);
-            strncpy(item->tooltip, MSG_ReadString2(msg), sizeof(item->tooltip) - 1);
-            strncpy(item->ubertip, MSG_ReadString2(msg), sizeof(item->ubertip) - 1);
-            item->slot = MSG_ReadByte(msg);
-        }
-
-        unit->num_queue = MSG_ReadByte(msg);
-        if (unit->num_queue > MAX_BUILD_QUEUE_ITEMS) {
-            unit->num_queue = MAX_BUILD_QUEUE_ITEMS;
-        }
-        for (BYTE j = 0; j < unit->num_queue; j++) {
-            uiQueueItem_t *queue_item = &unit->queue[j];
-            LPCSTR art = MSG_ReadString2(msg);
-
-            strncpy(queue_item->art, art, sizeof(queue_item->art) - 1);
-            queue_item->entity = MSG_ReadShort(msg);
-        }
-    }
-
-    ui.UpdateUnitUI((DWORD)num_units, units);
-    MemFree(units);
 }

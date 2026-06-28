@@ -3,6 +3,8 @@
 
 #include "../common/shared.h"
 
+#ifndef WORD_EXTRACTOR_DEFINED
+#define WORD_EXTRACTOR_DEFINED
 KNOWN_AS(word_extractor, PARSER);
 
 struct word_extractor {
@@ -11,6 +13,7 @@ struct word_extractor {
     BOOL error;
     BOOL eat_quotes;
 };
+#endif
 
 LPCSTR parse_token(LPPARSER p);
 LPCSTR parse_segment(LPPARSER p);

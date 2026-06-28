@@ -147,7 +147,24 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 - `stb_fdf.h` is the shared declarations-only header for FDF types (`FRAMEDEF`, enums, bind macros) and API declarations (`UI_ParseFDF`, `UI_DrawFrames`, etc.).
 - Parser implementation stays in `ui_fdf.c` (has `uiimport` dependency for MPQ asset loading). `stb_fdf.h` provides shared types + declarations so both modules see identical structs without circular includes.
 - Generated binding headers in `generated/` map FDF field names to struct member offsets via macros like `bind_<fieldname>`. Use `fdfbindgen` tool to regenerate from MPQ source FDF files.
+- Both the UI module (`games/warcraft-3/ui/generated/`) and the game module (`games/warcraft-3/game/generated/`) have generated FDF binding headers. UI generated headers include `"../ui_local.h"`, game generated headers include `"../g_local.h"`.
 - Screen controllers in `ui/screens/` follow the pattern: one `*_Load()` that calls `UI_EnsureFDF()`, one `*_Bind()` that wires FDF children to struct fields, and a `uiScreen_t` definition with `load/init/refresh/draw/shutdown/update_unit_ui` callbacks.
+
+### Server-Authoring HUD (`game/hud/`)
+
+The server-authored gameplay HUD lives in `games/warcraft-3/game/hud/`, split by concern:
+
+| File | Role |
+|------|------|
+| `hud_local.h` | Shared constants, layout macros, and function prototypes for all HUD files |
+| `hud_write.c` | Frame-write primitives (`UI_WriteProxyFrame`, `UI_WriteTextFrame`, etc.), theme lookup, text formatting |
+| `hud_console.c` | ConsoleUI backdrop textures, minimap viewport, resource bar (gold/lumber/supply/upkeep) |
+| `hud_commands.c` | Command button grid, build queue, inventory buttons, tooltip formatting |
+| `hud_infopanel.c` | Single-unit info panel, multi-select grid, per-frame HP/mana change detection, stubs for client-side console_ui.c |
+| `hud_quests.c` | Quest dialog overlay with list items, objectives, show/hide |
+| `hud_cinematic.c` | Cinematic letterbox bars, portrait model, speaker/dialogue text, interface toggle, message overlay, layer clear |
+
+The FDF→uiframe bridge (`UI_WriteFrame`, `UI_WriteLayout`, etc.) stays in `hud/hud.c` alongside the `frames[]` global registry. Skills and server code call into HUD functions via `g_local.h` declarations.
 
 ## Network State Contracts
 
@@ -421,7 +438,7 @@ Agent guidance:
 
 ### ConsoleUI Screen Controller (In-Game HUD)
 
-- `ui/screens/console_ui.c` is the client-side replacement for the server-authored `g_ui_stubs.c` HUD.
+- `ui/screens/console_ui.c` is the client-side replacement for the server-authored `hud/hud.c` HUD.
 - Loads Blizzard's ConsoleUI.fdf, ResourceBar.fdf, UpperButtonBar.fdf, InfoPanelUnitDetail.fdf, InfoPanelBuildingDetail.fdf, InfoPanelItemDetail.fdf, and SimpleInfoPanel.fdf from MPQ at runtime via `UI_EnsureFDF()`.
 - Binds player state (gold, lumber, food) via `uiimport.GetPlayerState()`.
 - Receives unit selection/command data via `update_unit_ui` callback from `svc_unit_ui` messages.

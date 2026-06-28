@@ -15,7 +15,7 @@
 
 ## ConsoleUI Screen Controller (In-Game HUD)
 
-- `ui/screens/console_ui.c` is the client-side replacement for the server-authored `g_ui_stubs.c` HUD.
+- `ui/screens/console_ui.c` is the client-side replacement for the server-authored `hud/hud.c` HUD.
 - Loads Blizzard's ConsoleUI.fdf, ResourceBar.fdf, UpperButtonBar.fdf, InfoPanelUnitDetail.fdf, InfoPanelBuildingDetail.fdf, InfoPanelItemDetail.fdf, and SimpleInfoPanel.fdf from MPQ at runtime via `UI_EnsureFDF()`.
 - Binds player state (gold, lumber, food) via `uiimport.GetPlayerState()`.
 - Receives unit selection/command data via `update_unit_ui` callback from `svc_unit_ui` messages.

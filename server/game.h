@@ -28,6 +28,7 @@ typedef enum {
     PF_DIRECTION,
     PF_ANGLE,
     PF_ENTITY,
+    PF_UIFRAME,
     PF_DATA,
 } pfWriteType_t;
 

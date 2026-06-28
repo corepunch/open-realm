@@ -2,7 +2,7 @@
 #ifndef UPPERBUTTONBAR_H
 #define UPPERBUTTONBAR_H
 
-#include "../ui_local.h"
+#include "../g_local.h"
 
 typedef struct UpperButtonBar_s {
     LPFRAMEDEF UpperButtonBarFrame;

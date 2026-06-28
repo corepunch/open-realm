@@ -6,6 +6,7 @@
 #include <limits.h>
 
 #include "common/common.h"
+#include "common/stb_fdf.h"
 #include "server/game.h"
 #include "g_shared.h"
 #include "g_unitdata.h"
@@ -35,8 +36,6 @@ ENT++) if (CONDITION)
 #define PLAYER_ENT(PLAYER) G_GetPlayerEntityByNumber(PLAYER_NUM(PLAYER))
 #define PLAYER_CLIENT(PLAYER) G_GetPlayerClientByNumber(PLAYER_NUM(PLAYER))
 
-#define UI_FRAME(NAME) LPFRAMEDEF NAME = UI_FindFrame(#NAME);
-#define UI_CHILD_FRAME(NAME, PARENT) LPFRAMEDEF NAME = UI_FindChildFrame(PARENT, #NAME);
 #define UI_CHILD_VALUE(NAME, PARENT, VALUE, ...) \
 LPFRAMEDEF NAME = UI_FindChildFrame(PARENT, #NAME); \
 if (NAME) { \
@@ -45,11 +44,22 @@ if (NAME) { \
     fprintf(stderr, #NAME " not found");\
 }
 
+#define UI_WRITE_LAYER(ent, BuildUI, layer, ...) \
+    UI_SetCurrentClient(ent->client); \
+    UI_WriteStart(layer); \
+    BuildUI(ent->client, ##__VA_ARGS__); \
+    gi.Write(PF_LONG, &(LONG){0}); \
+    gi.Write(PF_SHORT, &(LONG){0}); \
+    gi.unicast(ent); \
+    UI_SetCurrentClient(NULL);
+
 
 #define FOR_SELECTED_UNITS(CLIENT, ENT) \
 FILTER_EDICTS(ENT, G_IsEntitySelected(CLIENT, ENT))
 
+#ifndef FRAMEDEF_DEFINED
 KNOWN_AS(uiFrameDef_s, FRAMEDEF);
+#endif
 KNOWN_AS(jass_s, JASS);
 KNOWN_AS(gcamerasetup_s, CAMERASETUP);
 KNOWN_AS(gregion_s, REGION);
@@ -177,6 +187,8 @@ typedef enum {
     MOVETYPE_BOUNCE
 } MOVETYPE;
 
+#ifndef UIFRAMEPOINT_DEFINED
+#define UIFRAMEPOINT_DEFINED
 typedef enum { // Keep in sync with uiFramePointPos_t
     FRAMEPOINT_TOPLEFT,
     FRAMEPOINT_TOP,
@@ -191,11 +203,15 @@ typedef enum { // Keep in sync with uiFramePointPos_t
     FRAMEPOINT_BOTTOMRIGHT,
     FRAMEPOINT_UNUSED3,
 } UIFRAMEPOINT;
+#endif
 
+#ifndef UIFONTFLAGS_DEFINED
+#define UIFONTFLAGS_DEFINED
 typedef enum {
     FONTFLAGS_FIXEDSIZE,
     FONTFLAGS_PASSWORDFIELD,
 } UIFONTFLAGS;
+#endif
 
 typedef enum {
     EVENT_GAME_VICTORY = 0,
@@ -295,201 +311,49 @@ typedef enum {
     EVENT_UNIT_IN_RANGE,
 } EVENTTYPE;
 
+#ifndef HIGHLIGHTTYPE_DEFINED
+#define HIGHLIGHTTYPE_DEFINED
 typedef enum {
     FILETEXTURE,
 } HIGHLIGHTTYPE;
+#endif
 
+#ifndef CONTROLSTYLE_DEFINED
+#define CONTROLSTYLE_DEFINED
 typedef enum {
     AUTOTRACK = 1,
     HIGHLIGHTONFOCUS = 2,
     HIGHLIGHTONMOUSEOVER = 4,
 } CONTROLSTYLE;
+#endif
 
+#ifndef LAYOUTDIRECTION_DEFINED
+#define LAYOUTDIRECTION_DEFINED
 typedef enum {
     LAYOUT_HORIZONTAL,
     LAYOUT_VERTICAL,
 } LAYOUTDIRECTION;
+#endif
 
+#ifndef BUTTONTEXT_DEFINED
+#define BUTTONTEXT_DEFINED
 typedef struct {
     UINAME frame;
     UINAME text;
 } BUTTONTEXT;
+#endif
 
+#ifndef FRAMEPOINT_DEFINED
+#define FRAMEPOINT_DEFINED
 typedef struct {
     uiFramePointPos_t targetPos;
     bool used;
     LPCFRAMEDEF relativeTo;
     FLOAT offset;
 } FRAMEPOINT;
+#endif
 
-struct uiFrameDef_s {
-    LPCFRAMEDEF Parent;
-    FRAMETYPE Type;
-    UINAME Name;
-    UINAME TextStorage;
-    UINAME OnClick;
-    LPCSTR Text, Tip, Ubertip;
-    FLOAT Width, Height;
-    COLOR32 Color;
-    BLEND_MODE AlphaMode;
-    BOOL DecorateFileNames;
-    BOOL inuse;
-    BOOL AnyPointsSet;
-    BOOL hidden;
-    DWORD TextLength;
-    DWORD Stat;
-    LPSTR DynamicText;
-    DWORD DynamicTextCapacity;
-    struct {
-        FRAMEPOINT x[FPP_COUNT];
-        FRAMEPOINT y[FPP_COUNT];
-    } Points;
-    struct {
-        DWORD Image;
-        DWORD Image2;
-        BOX2 TexCoord;
-    } Texture;
-    struct {
-        BOOL TileBackground;
-        DWORD Background;
-        DWORD CornerFlags;// "UL|UR|BL|BR|T|L|B|R",
-        FLOAT CornerSize;
-        FLOAT BackgroundSize;
-        FLOAT BackgroundInsets[4];// 0.01 0.01 0.01 0.01,
-        DWORD EdgeFile;//  "EscMenuBorder",
-        BOOL BlendAll;
-        BOOL Mirrored;
-    } Backdrop;
-    LPCFRAMEDEF DialogBackdrop;
-    struct {
-        DWORD model;
-    } Portrait;
-    struct {
-        UIFRAMEPOINT corner;
-        FLOAT x, y;
-    } Anchor;
-    struct {
-        UIFRAMEPOINT type;
-        LPCFRAMEDEF relativeTo;
-        UIFRAMEPOINT target;
-        FLOAT x, y;
-    } SetPoint;
-    struct {
-        UINAME Name;
-        UINAME Unknown;
-        UIFONTFLAGS FontFlags;
-        FLOAT Size;
-        DWORD Index;
-        COLOR32 Color;
-        COLOR32 HighlightColor;
-        COLOR32 DisabledColor;
-        COLOR32 ShadowColor;
-        VECTOR2 ShadowOffset;
-        struct {
-            VECTOR2 Offset;
-            uiFontJustificationH_t Horizontal;
-            uiFontJustificationV_t Vertical;
-        } Justification;
-    } Font;
-    struct {
-        HIGHLIGHTTYPE Type;
-        DWORD AlphaFile;
-        BLEND_MODE AlphaMode;
-    } Highlight;
-    struct {
-        VECTOR2 PushedTextOffset;
-//        UINAME Text;
-        UINAME NormalTexture;
-        UINAME PushedTexture;
-        UINAME DisabledTexture;
-        UINAME UseHighlight;
-        BUTTONTEXT NormalText;
-        BUTTONTEXT DisabledText;
-        BUTTONTEXT HighlightText;
-    } Button;
-    struct {
-        DWORD Style;
-        struct {
-            UINAME Normal;
-            UINAME Pushed;
-            UINAME Disabled;
-            UINAME MouseOver;
-            UINAME DisabledPushed;
-            UINAME Focus;
-        } Backdrop;
-        UINAME ShortcutKey;
-        UINAME TabFocusNext;
-        BOOL TabFocusDefault;
-    } Control;
-    struct {
-        FLOAT InitialValue;
-        LAYOUTDIRECTION Layout;
-        FLOAT MaxValue;
-        FLOAT MinValue;
-        FLOAT StepSize;
-        UINAME ThumbButtonFrame;
-        UINAME IncButtonFrame;
-        UINAME DecButtonFrame;
-    } Slider;
-    struct {
-        FLOAT Border;
-        UINAME ScrollBar;
-        UINAME FetchCommand;
-    } ListBox;
-    struct {
-        FLOAT Border;
-        struct {
-            UINAME Text;
-            DWORD Value;
-            FLOAT Height;
-        } Item;
-        COLOR32 TextHighlightColor;
-    } Menu;
-    struct {
-        FLOAT BorderSize;
-        COLOR32 CursorColor;
-        COLOR32 HighlightColor;
-        BOOL HighlightInitial;
-        DWORD MaxChars;
-        BOOL Focus;
-        UINAME Text;
-        COLOR32 TextColor;
-        UINAME TextFrame;
-        VECTOR2 TextOffset;
-    } Edit;
-    struct {
-        UINAME ArrowFrame;
-        UINAME MenuFrame;
-        UINAME TitleFrame;
-        FLOAT ButtonInset;
-    } Popup;
-    struct {
-        FLOAT LineHeight;
-        FLOAT LineGap;
-        FLOAT Inset;
-        DWORD MaxLines;
-        UINAME ScrollBar;
-    } TextArea;
-    struct {
-        UINAME CheckHighlight;
-        UINAME DisabledCheckHighlight;
-    } CheckBox;
-    struct {
-        LPCFRAMEDEF FirstItem;
-        LPCFRAMEDEF BuildTimer;
-        FLOAT ItemOffset;
-        DWORD NumQueue;
-        uiBuildQueueItem_t Queue[MAX_BUILD_QUEUE];
-    } BuildQueue;
-    struct {
-        DWORD HpBar;
-        DWORD ManaBar;
-        VECTOR2 Offset;
-        DWORD NumColumns;
-        DWORD NumItems;
-        uiMultiselectItem_t Items[MAX_SELECTED_ENTITIES];
-    } Multiselect;
-};
+/* struct uiFrameDef_s is defined in common/stb_fdf.h (shared with UI module) */
 
 struct gregion_s {
     BOX2 rects[MAX_REGION_SIZE];
@@ -839,6 +703,7 @@ typedef struct sheetMetaData_s {
     sheetRow_t *table;
 } sheetMetaData_t;
 
+#define UITRIGGER_T_DEFINED
 typedef struct {
     LPCSTR name;
     void (*callback)(LPEDICT, LPCFRAMEDEF);
@@ -951,22 +816,60 @@ BYTE G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue);
 LPEDICT G_GetMainSelectedUnit(LPGAMECLIENT);
 void Get_Commands_f(LPEDICT);
 void Get_Portrait_f(LPEDICT);
+void G_RefreshInfoPanel(LPEDICT);
 void G_UpdateClientInfoPanels(void);
-void G_UpdateClientResourceBars(void);
 void G_RefreshResourceBar(LPEDICT);
+void G_UpdateClientResourceBars(void);
 void UI_AddCancelButton(LPEDICT);
 void UI_AddCommandButton(LPCSTR);
 void UI_AddCommandButtonExtended(LPCSTR code, BOOL research, DWORD level);
-void UI_ShowQuests(LPEDICT);
-void UI_HideQuests(LPEDICT);
-void UI_ShowQuest(LPEDICT, LPCQUEST);
+void UI_SetCurrentClient(LPGAMECLIENT client);
+void UI_ShowInterface(LPEDICT, BOOL, FLOAT);
+void UI_ShowText(LPEDICT, LPCVECTOR2, LPCSTR, FLOAT);
 LPCSTR GetBuildCommand(unitRace_t);
 void UI_RenderRoute(LPEDICT, LPCSTR);
+void UI_ShowMainMenu(LPEDICT);
+void UI_ShowRealmSelect(LPEDICT, BOOL);
+void UI_ShowSinglePlayerMenu(LPEDICT);
+void UI_ShowMultiplayerMenu(LPEDICT);
+void UI_ShowMultiplayerCreateMenu(LPEDICT);
+void UI_ShowMultiplayerGameSetupMenu(LPEDICT, DWORD);
 void UI_ShowGameInterface(LPEDICT);
-void UI_ShowInterface(LPEDICT, BOOL, FLOAT);
 void UI_WriteCinematicLayer(LPEDICT);
-void UI_ShowText(LPEDICT, LPCVECTOR2, LPCSTR, FLOAT);
+void UI_ShowMapSelectMenu(LPEDICT, LPCSTR);
+void UI_ShowMultiplayerCreateMapInfo(LPEDICT);
+void UI_ClearCreateGameSlots(void);
+void UI_AddCreateGameSlot(DWORD, LPCSTR, LPCSTR, LPCSTR, DWORD);
+
+// p_fdf.c
+void UI_PrintClasses(void);
+void UI_ClearTemplates(void);
+void UI_ParseFDF(LPCSTR);
+void UI_ParseFDF_Buffer(LPCSTR, LPSTR);
+void UI_SetAllPoints(LPFRAMEDEF);
+void UI_SetParent(LPFRAMEDEF, LPCFRAMEDEF);
+void UI_SetText(LPFRAMEDEF, LPCSTR, ...);
+void UI_SetOnClick(LPFRAMEDEF, LPCSTR, ...);
+void UI_SetTextPointer(LPFRAMEDEF, LPCSTR);
+void UI_SetSize(LPFRAMEDEF, FLOAT, FLOAT);
+void UI_SetTexture(LPFRAMEDEF, LPCSTR, BOOL);
+void UI_SetTexture2(LPFRAMEDEF, LPCSTR, BOOL);
+void UI_WriteLayout(LPEDICT, LPCFRAMEDEF, DWORD);
+void UI_WriteStart(DWORD);
+void UI_ClearLayer(LPEDICT, DWORD);
+void UI_WriteWithTriggers(LPEDICT, LPCFRAMEDEF, DWORD, uiTrigger_t const *);
+void UI_SetPoint(LPFRAMEDEF, UIFRAMEPOINT, LPCFRAMEDEF, UIFRAMEPOINT, FLOAT, FLOAT);
+void UI_InitFrame(LPFRAMEDEF, FRAMETYPE);
+void UI_SetHidden(LPFRAMEDEF, BOOL);
+void UI_InheritFrom(LPFRAMEDEF, LPCSTR);
+DWORD UI_FindFrameNumber(LPCSTR);
 DWORD UI_LoadTexture(LPCSTR, BOOL);
+LPCSTR UI_GetString(LPCSTR);
+LPFRAMEDEF UI_Spawn(FRAMETYPE, LPFRAMEDEF);
+LPFRAMEDEF UI_FindFrame(LPCSTR);
+LPFRAMEDEF UI_FindFrameNear(LPCFRAMEDEF, LPCSTR);
+LPFRAMEDEF UI_FindChildFrame(LPFRAMEDEF, LPCSTR);
+
 LPCSTR Theme_String(LPCSTR, LPCSTR);
 FLOAT Theme_Float(LPCSTR, LPCSTR);
 
@@ -974,7 +877,6 @@ FLOAT Theme_Float(LPCSTR, LPCSTR);
 void UI_WriteFrame(LPCFRAMEDEF);
 void UI_WriteFrameWithChildren(LPCFRAMEDEF, LPCFRAMEDEF);
 void UI_WriteFrameWithChildrenWithTriggers(LPEDICT, LPCFRAMEDEF, LPCFRAMEDEF, uiTrigger_t const *);
-DWORD UI_CollectFrameTree(LPCFRAMEDEF root, LPCFRAMEDEF *out, DWORD max);
 BOOL UI_BuildFrameForWrite(LPCFRAMEDEF frame,
                            LPUIFRAME out,
                            LPBYTE typedata,

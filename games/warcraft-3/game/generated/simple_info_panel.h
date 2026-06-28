@@ -2,32 +2,15 @@
 #ifndef SIMPLEINFOPANEL_H
 #define SIMPLEINFOPANEL_H
 
-#include "../ui_local.h"
+#include "../g_local.h"
 
 typedef struct SimpleInfoPanel_s {
-    LPFRAMEDEF SimpleInfoPanelTitleTextTemplate;
-    LPFRAMEDEF SimpleInfoPanelTitleTextDisabledTemplate;
-    LPFRAMEDEF SimpleInfoPanelDescriptionTextTemplate;
-    LPFRAMEDEF SimpleInfoPanelDescriptionHighlightTextTemplate;
-    LPFRAMEDEF SimpleInfoPanelDescriptionDisabledTextTemplate;
-    LPFRAMEDEF SimpleInfoPanelLabelTextTemplate;
-    LPFRAMEDEF SimpleInfoPanelLabelHighlightTextTemplate;
-    LPFRAMEDEF SimpleInfoPanelLabelDisabledTextTemplate;
-    LPFRAMEDEF SimpleInfoPanelValueTextTemplate;
-    LPFRAMEDEF SimpleInfoPanelAttributeTextTemplate;
-    LPFRAMEDEF SimpleInfoPanelAttributeDisabledTextTemplate;
-    LPFRAMEDEF InfoPanelIconTemplate;
-    LPFRAMEDEF ResourceIconTemplate;
-    LPFRAMEDEF ResourceTextTemplate;
     LPFRAMEDEF SimpleInfoPanelUnitDetail;
     LPFRAMEDEF SimpleNameValue;
     LPFRAMEDEF SimpleHeroLevelBar;
     LPFRAMEDEF SimpleProgressIndicator;
     LPFRAMEDEF SimpleUnitStatsPanel;
     LPFRAMEDEF SimpleClassValue;
-    LPFRAMEDEF SimpleInfoPanelCargoDetail;
-    LPFRAMEDEF SimpleHoldNameValue;
-    LPFRAMEDEF SimpleHoldDescriptionValue;
     LPFRAMEDEF SimpleInfoPanelBuildingDetail;
     LPFRAMEDEF SimpleBuildingNameValue;
     LPFRAMEDEF SimpleBuildingDescriptionValue;
@@ -81,6 +64,9 @@ typedef struct SimpleInfoPanel_s {
     LPFRAMEDEF InfoPanelIconAllyFoodIcon;
     LPFRAMEDEF InfoPanelIconAllyFoodValue;
     LPFRAMEDEF InfoPanelIconAllyUpkeep;
+    LPFRAMEDEF SimpleInfoPanelCargoDetail;
+    LPFRAMEDEF SimpleHoldNameValue;
+    LPFRAMEDEF SimpleHoldDescriptionValue;
 } SimpleInfoPanel_t;
 
 static inline BOOL SimpleInfoPanel_Load(SimpleInfoPanel_t *out) {
@@ -93,34 +79,6 @@ static inline BOOL SimpleInfoPanel_Load(SimpleInfoPanel_t *out) {
         ok = false;
     }
     memset(out, 0, sizeof(*out));
-    BZ_FDF_BIND_ROOT(out, SimpleInfoPanelTitleTextTemplate, "SimpleInfoPanelTitleTextTemplate");
-    bind_root = out->SimpleInfoPanelTitleTextTemplate;
-    BZ_FDF_BIND_ROOT(out, SimpleInfoPanelTitleTextDisabledTemplate, "SimpleInfoPanelTitleTextDisabledTemplate");
-    bind_root = out->SimpleInfoPanelTitleTextDisabledTemplate;
-    BZ_FDF_BIND_ROOT(out, SimpleInfoPanelDescriptionTextTemplate, "SimpleInfoPanelDescriptionTextTemplate");
-    bind_root = out->SimpleInfoPanelDescriptionTextTemplate;
-    BZ_FDF_BIND_ROOT(out, SimpleInfoPanelDescriptionHighlightTextTemplate, "SimpleInfoPanelDescriptionHighlightTextTemplate");
-    bind_root = out->SimpleInfoPanelDescriptionHighlightTextTemplate;
-    BZ_FDF_BIND_ROOT(out, SimpleInfoPanelDescriptionDisabledTextTemplate, "SimpleInfoPanelDescriptionDisabledTextTemplate");
-    bind_root = out->SimpleInfoPanelDescriptionDisabledTextTemplate;
-    BZ_FDF_BIND_ROOT(out, SimpleInfoPanelLabelTextTemplate, "SimpleInfoPanelLabelTextTemplate");
-    bind_root = out->SimpleInfoPanelLabelTextTemplate;
-    BZ_FDF_BIND_ROOT(out, SimpleInfoPanelLabelHighlightTextTemplate, "SimpleInfoPanelLabelHighlightTextTemplate");
-    bind_root = out->SimpleInfoPanelLabelHighlightTextTemplate;
-    BZ_FDF_BIND_ROOT(out, SimpleInfoPanelLabelDisabledTextTemplate, "SimpleInfoPanelLabelDisabledTextTemplate");
-    bind_root = out->SimpleInfoPanelLabelDisabledTextTemplate;
-    BZ_FDF_BIND_ROOT(out, SimpleInfoPanelValueTextTemplate, "SimpleInfoPanelValueTextTemplate");
-    bind_root = out->SimpleInfoPanelValueTextTemplate;
-    BZ_FDF_BIND_ROOT(out, SimpleInfoPanelAttributeTextTemplate, "SimpleInfoPanelAttributeTextTemplate");
-    bind_root = out->SimpleInfoPanelAttributeTextTemplate;
-    BZ_FDF_BIND_ROOT(out, SimpleInfoPanelAttributeDisabledTextTemplate, "SimpleInfoPanelAttributeDisabledTextTemplate");
-    bind_root = out->SimpleInfoPanelAttributeDisabledTextTemplate;
-    BZ_FDF_BIND_ROOT(out, InfoPanelIconTemplate, "InfoPanelIconTemplate");
-    bind_root = out->InfoPanelIconTemplate;
-    BZ_FDF_BIND_ROOT(out, ResourceIconTemplate, "ResourceIconTemplate");
-    bind_root = out->ResourceIconTemplate;
-    BZ_FDF_BIND_ROOT(out, ResourceTextTemplate, "ResourceTextTemplate");
-    bind_root = out->ResourceTextTemplate;
     BZ_FDF_BIND_ROOT(out, SimpleInfoPanelUnitDetail, "SimpleInfoPanelUnitDetail");
     bind_root = out->SimpleInfoPanelUnitDetail;
     BZ_FDF_BIND_CHILD(out, SimpleNameValue, bind_root, "SimpleNameValue");
@@ -128,10 +86,6 @@ static inline BOOL SimpleInfoPanel_Load(SimpleInfoPanel_t *out) {
     BZ_FDF_BIND_CHILD(out, SimpleProgressIndicator, bind_root, "SimpleProgressIndicator");
     BZ_FDF_BIND_CHILD(out, SimpleUnitStatsPanel, bind_root, "SimpleUnitStatsPanel");
     BZ_FDF_BIND_CHILD(out, SimpleClassValue, out->SimpleUnitStatsPanel, "SimpleClassValue");
-    BZ_FDF_BIND_ROOT(out, SimpleInfoPanelCargoDetail, "SimpleInfoPanelCargoDetail");
-    bind_root = out->SimpleInfoPanelCargoDetail;
-    BZ_FDF_BIND_CHILD(out, SimpleHoldNameValue, bind_root, "SimpleHoldNameValue");
-    BZ_FDF_BIND_CHILD(out, SimpleHoldDescriptionValue, bind_root, "SimpleHoldDescriptionValue");
     BZ_FDF_BIND_ROOT(out, SimpleInfoPanelBuildingDetail, "SimpleInfoPanelBuildingDetail");
     bind_root = out->SimpleInfoPanelBuildingDetail;
     BZ_FDF_BIND_CHILD(out, SimpleBuildingNameValue, bind_root, "SimpleBuildingNameValue");
@@ -194,6 +148,10 @@ static inline BOOL SimpleInfoPanel_Load(SimpleInfoPanel_t *out) {
     BZ_FDF_BIND_CHILD(out, InfoPanelIconAllyFoodIcon, bind_root, "InfoPanelIconAllyFoodIcon");
     BZ_FDF_BIND_CHILD(out, InfoPanelIconAllyFoodValue, bind_root, "InfoPanelIconAllyFoodValue");
     BZ_FDF_BIND_CHILD(out, InfoPanelIconAllyUpkeep, bind_root, "InfoPanelIconAllyUpkeep");
+    BZ_FDF_BIND_ROOT(out, SimpleInfoPanelCargoDetail, "SimpleInfoPanelCargoDetail");
+    bind_root = out->SimpleInfoPanelCargoDetail;
+    BZ_FDF_BIND_CHILD(out, SimpleHoldNameValue, bind_root, "SimpleHoldNameValue");
+    BZ_FDF_BIND_CHILD(out, SimpleHoldDescriptionValue, bind_root, "SimpleHoldDescriptionValue");
     return ok;
 }
 

@@ -2,7 +2,7 @@
 #ifndef INFOPANELUNITDETAIL_H
 #define INFOPANELUNITDETAIL_H
 
-#include "../ui_local.h"
+#include "../g_local.h"
 
 typedef struct InfoPanelUnitDetail_s {
     LPFRAMEDEF InfoPanelUnitDetail;
@@ -75,6 +75,7 @@ static inline BOOL InfoPanelUnitDetail_Bind(InfoPanelUnitDetail_t *out, LPFRAMED
 
 static inline BOOL InfoPanelUnitDetail_Load(InfoPanelUnitDetail_t *out) {
     return out &&
+           UI_EnsureFDF("UI\\FrameDef\\UI\\InfoPanelTemplates.fdf") &&
            UI_EnsureFDF("UI\\FrameDef\\UI\\InfoPanelUnitDetail.fdf") &&
            InfoPanelUnitDetail_Bind(out, UI_FindFrame("InfoPanelUnitDetail"));
 }

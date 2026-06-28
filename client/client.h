@@ -5,6 +5,7 @@
 #include "tr_public.h"
 #include "keys.h"
 #include "client/ui.h"
+#include "ui_layout.h"
 
 #define WINDOW_WIDTH 1024
 #define WINDOW_HEIGHT 768
@@ -21,6 +22,7 @@
 #define MAX_CONSOLE_MESSAGE_LEN 1024
 #define VIEW_SHADOW_SIZE 1500
 #define MAX_CONFIRMATION_OBJECTS 16
+#define MAX_LAYOUT_LAYERS 16
 
 typedef struct {
     entityState_t baseline;
@@ -79,6 +81,7 @@ struct client_state {
     LPCFONT fonts[MAX_FONTSTYLES];
     PATHSTR configstrings[MAX_CONFIGSTRINGS];
     centity_t ents[MAX_CLIENT_ENTITIES];
+    HANDLE layout[MAX_LAYOUT_LAYERS];
     viewDef_t viewDef;
     struct frame frame;
     VECTOR2 startingPosition;
@@ -148,6 +151,21 @@ void V_AddEntity(renderEntity_t *ent);
 void V_AddDecal(renderDecal_t *decal);
 
 // cl_scrn.c
+LPCUIFRAME SCR_Clear(HANDLE data);
+DWORD SCR_NumFrames(void);
+LPUIFRAME SCR_Frame(DWORD number);
+LPCRECT SCR_LayoutRect(LPCUIFRAME frame);
+VECTOR2 SCR_GetAxisBounds(LPCRECT rect, bool is_x_axis);
+FLOAT SCR_NormalizeAnchorOffset(uiFramePoint_t const *p, bool is_x_axis);
+VECTOR2 SCR_SolveAxisPosition(LPCUIFRAME frame,
+                              uiFramePoints_t const points,
+                              FLOAT width,
+                              bool is_x_axis);
+LPCSTR SCR_GetStringValue(LPCUIFRAME frame);
+drawText_t SCR_GetDrawText(LPCUIFRAME frame,
+                         FLOAT avl_width,
+                         LPCSTR text,
+                         uiLabel_t const *label);
 void SCR_UpdateScreen(DWORD msec);
 void SCR_BeginLoadingPlaque(void);
 void SCR_EndLoadingPlaque(void);

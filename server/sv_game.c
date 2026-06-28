@@ -38,6 +38,22 @@ void PF_Write(pfWriteType_t type, void const *value) {
             MSG_WriteDeltaEntity(&sv.multicast, &empty, (LPCENTITYSTATE)value, true);
             break;
         }
+        case PF_UIFRAME: {
+            LPCUIFRAME frame = (LPCUIFRAME)value;
+            DWORD before = sv.multicast.cursize;
+            uiFrame_t empty;
+            memset(&empty, 0, sizeof(uiFrame_t));
+            empty.tex.coord[1] = 0xff;
+            empty.tex.coord[3] = 0xff;
+            MSG_WriteDeltaUIFrame(&sv.multicast, &empty, frame, true);
+            MSG_WriteShort(&sv.multicast, frame->buffer.size);
+            MSG_Write(&sv.multicast, frame->buffer.data, frame->buffer.size);
+            if (sv.multicast.cursize >= before) {
+                extern DWORD layoutBytesWritten;
+                layoutBytesWritten += sv.multicast.cursize - before;
+            }
+            break;
+        }
         case PF_DATA: {
             pfWriteData_t const *data = value;
             if (data && data->data && data->size) {

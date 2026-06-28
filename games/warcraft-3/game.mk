@@ -9,7 +9,8 @@ WC3_JASS_DIR := $(WC3_DIR)/jass
 WC3_SHEET_DIR := $(WC3_DIR)/sheet
 WC3_TEST_DIR := $(WC3_DIR)/tests
 
-WC3_CFLAGS := $(CFLAGS) -I$(WC3_DIR)
+WC3_CFLAGS := $(CFLAGS) -I$(WC3_DIR) -I$(WC3_DIR)/common
+WC3_FDF_CFLAGS := $(WC3_CFLAGS) -DSTB_FDF_IMPLEMENTATION
 WC3_COMMON_SRCS := $(shell find $(WC3_DIR)/common -name '*.c' 2>/dev/null | sort)
 WC3_UI_HEADERS := $(shell find $(WC3_DIR)/ui -name '*.h' | sort) client/ui.h
 
@@ -70,9 +71,9 @@ $(MPQ_TEST): $(WC3_TEST_DIR)/test_mpq_compat.c common/mpq.c common/mpq.h | $(BIN
 $(eval $(call unity_lib_schema,$(JASS_LIB),$(SHARED_LIB) $(shell find $(WC3_JASS_DIR) -name '*.c' -o -name '*.h'),jass,$(WC3_JASS_DIR),,$(WC3_CFLAGS),,-lshared -lm))
 $(eval $(call src_lib_schema,$(SHEET_LIB),$(WC3_SHEET_DIR)/parser.c $(WC3_SHEET_DIR)/sheet.c common/common.h,sheet,$(CFLAGS),$(WC3_SHEET_DIR)/parser.c $(WC3_SHEET_DIR)/sheet.c,))
 $(eval $(call unity_lib_schema,$(RENDERER_LIB),$(RENDERER_BASE_DEPS) $(call CSRC,renderer $(WC3_DIR)/renderer),renderer,renderer $(WC3_DIR)/renderer,,$(WC3_CFLAGS),common/mpq.c,$(RENDERER_SHARED_LIBS)))
-$(eval $(call unity_lib_schema,$(GAME_LIB),$(GAME_BASE_DEPS) $(JASS_LIB) $(SHEET_LIB) $(WORLD_CORE_SRCS) $(WC3_COMMON_SRCS) $(call CSRC,$(WC3_DIR)/game),game,$(WC3_DIR)/game,,$(WC3_CFLAGS),common/mpq.c,-lsheet -lshared -ljass $(LIBS) -lm -lz))
-$(eval $(call unity_lib_schema,$(UI_LIB),$(UI_BASE_DEPS) $(WC3_UI_HEADERS) common/mpq.c common/mpq.h $(call CSRC,$(WC3_DIR)/ui),ui,$(WC3_DIR)/ui,,$(WC3_CFLAGS),common/mpq.c,-lshared -lsheet -lm -lz))
-$(eval $(call app_schema,$(BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_LIB) $(RENDERER_LIB) $(UI_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS),openwarcraft3,$(WC3_CFLAGS),-lsheet -lshared -ljass -lgame -lrenderer -lui $(LIBS) -lz))
+$(eval $(call unity_lib_schema,$(GAME_LIB),$(GAME_BASE_DEPS) $(JASS_LIB) $(SHEET_LIB) $(WORLD_CORE_SRCS) $(WC3_COMMON_SRCS) $(call CSRC,$(WC3_DIR)/game),game,$(WC3_DIR)/game $(WC3_DIR)/common,! -name 'world_w3.c',,$(WC3_FDF_CFLAGS),common/mpq.c,-lsheet -lshared -ljass $(LIBS) -lm -lz))
+$(eval $(call unity_lib_schema,$(UI_LIB),$(UI_BASE_DEPS) $(WC3_UI_HEADERS) common/mpq.c common/mpq.h $(call CSRC,$(WC3_DIR)/ui),ui,$(WC3_DIR)/ui $(WC3_DIR)/common,! -name 'world_w3.c',,$(WC3_FDF_CFLAGS),common/mpq.c,-lshared -lsheet -lm -lz))
+$(eval $(call app_schema,$(BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_LIB) $(RENDERER_LIB) $(UI_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS),openwarcraft3,$(WC3_FDF_CFLAGS),-lsheet -lshared -ljass -lgame -lrenderer -lui $(LIBS) -lz))
 
 # ---------------------------------------------------------------------------
 # Test target — builds and runs the Warcraft III unit test binary.
@@ -110,8 +111,6 @@ TEST_GAME_SRCS := \
 	client/cl_layout.c \
 	client/cl_parse.c \
 	client/cl_scrn.c \
-	client/cl_unit_layout.c \
-	client/cl_unit_ui.c \
 	server/sv_init.c \
 	server/sv_lan.c \
 	server/sv_lobby.c \

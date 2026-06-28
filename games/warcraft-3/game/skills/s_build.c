@@ -100,7 +100,19 @@ void build_menu_selectlocation(LPEDICT ent, DWORD building_id) {
     ent->build_project = building_id;
 }
 
+void ui_builds(LPGAMECLIENT client) {
+    LPEDICT ent = G_GetMainSelectedUnit(client);
+    LPCSTR builds = UNIT_BUILDS(ent->class_id);
+    if (!builds)
+        return;
+    PARSE_LIST(builds, build, parse_segment) {
+        UI_AddCommandButton(build);
+    }
+    UI_AddCommandButton(STR_CmdCancel);
+}
+
 void build_command(LPEDICT edict) {
+    UI_WRITE_LAYER(edict, ui_builds, LAYER_COMMANDBAR);
     edict->client->menu.cmdbutton = build_menu_selectlocation;
 }
 

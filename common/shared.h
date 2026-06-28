@@ -21,6 +21,7 @@
 #define MAX_SELECTED_ENTITIES 64
 #define TOKEN_LEN 1024
 #define FRAMETIME 100
+#define MAX_LAYOUT_OBJECTS 0xffff
 #define MAX_LIST_FETCH_TEXT 2048
 #define MAX_LIST_FETCH_ROWS 32
 #define MIN(x, y) (((x)<(y))?(x):(y))
@@ -242,6 +243,7 @@ KNOWN_AS(Doodad, DOODAD);
 KNOWN_AS(vector3, VECTOR3);
 KNOWN_AS(color32, COLOR32);
 KNOWN_AS(animation_s, ANIMATION);
+KNOWN_AS(uiFrame_s, UIFRAME);
 KNOWN_AS(entityState_s, ENTITYSTATE);
 KNOWN_AS(mapInfo_s, MAPINFO);
 KNOWN_AS(mapPlayer_s, MAPPLAYER);
@@ -322,6 +324,18 @@ typedef enum {
 } PLAYERTEXT;
 
 typedef enum {
+    LAYER_BACKGROUND,
+    LAYER_PORTRAIT,
+    LAYER_CINEMATIC,
+    LAYER_CONSOLE,
+    LAYER_COMMANDBAR,
+    LAYER_INFOPANEL,
+    LAYER_INVENTORY,
+    LAYER_MESSAGE,
+    LAYER_QUESTDIALOG,
+} UILAYOUTLAYER;
+
+typedef enum {
     CLIENT_UI_GAME,
     CLIENT_UI_LOADING,
     CLIENT_UI_CINEMATIC,
@@ -335,6 +349,7 @@ struct playerState_s {
     FLOAT distance;
     DWORD fov;      /* vertical field of view in degrees */
     DWORD rdflags;
+    DWORD uiflags;
     DWORD client_ui_state;
     DWORD cinematic_portrait;   /* model index of the cinematic transmission portrait (0 = none) */
     DWORD team;
@@ -512,7 +527,6 @@ typedef enum {
     TE_MISSILE,
 } tempEvent_t;
 
-/* FDF frame types — shared by FDF parser, renderer, and game module */
 typedef enum {
     FT_NONE,
     FT_BACKDROP,
@@ -552,6 +566,7 @@ typedef enum {
     FT_COMMANDBUTTON,
     FT_PORTRAIT,
     FT_STRINGLIST,
+    // custom types
     FT_BUILDQUEUE,
     FT_MULTISELECT,
     FT_TOOLTIPTEXT,
@@ -592,6 +607,45 @@ typedef enum {
 
 #define UI_FRAMEPOINT_SCALE 32767.0
 #define UI_PARENT 255
+
+typedef struct { // serialized as 4 bytes
+    uiFramePointPos_t targetPos: 7;
+    uint8_t used: 1;
+    uint8_t relativeTo: 8;
+    int16_t offset: 16;
+} uiFramePoint_t;
+
+typedef uiFramePoint_t uiFramePoints_t[FPP_COUNT];
+
+typedef struct uiFrame_s {
+    DWORD number;
+    DWORD parent;
+    COLOR32 color;
+    struct { uiFramePoints_t x, y; } points;
+    struct { FLOAT width, height; } size;
+    struct {
+        USHORT index;
+        USHORT index2;
+        BYTE coord[4];  // also used as animation start timestamp
+    } tex;
+    union {
+        struct {
+            FRAMETYPE type: 8;
+            BYTE alphaMode: 2;
+        } flags;
+        DWORD flagsvalue;
+    };
+    struct {
+        HANDLE data;
+        DWORD size;
+    } buffer;
+    DWORD textLength;
+    DWORD stat;
+    LPCSTR text;
+    LPCSTR tooltip;
+    LPCSTR onclick;
+    FLOAT value;
+} uiFrame_t;
 
 typedef USHORT RESOURCE;
 
@@ -659,16 +713,18 @@ typedef struct {
     SHORT CornerFlags;
     FLOAT CornerSize;
     FLOAT BackgroundSize;
-    FLOAT BackgroundInsets[4];
-    RESOURCE EdgeFile;
+    FLOAT BackgroundInsets[4];// 0.01 0.01 0.01 0.01,
+    RESOURCE EdgeFile;//  "EscMenuBorder",
     RESOURCE Background;
     BOOL TileBackground:1;
     BOOL BlendAll:1;
     BOOL Mirrored:1;
 } uiBackdrop_t;
 
+/* Optional buffer for FT_TEXTURE frames that need float-precision UV or flip.
+ * When present, SCR_LayoutDrawTexture uses these values instead of tex.coord. */
 typedef struct {
-    FLOAT l, r, t, b;
+    FLOAT l, r, t, b;   /* UV as float [0,1]; l>r or t>b = flipped axis */
     COLOR32 color;
     BLEND_MODE alphamode;
 } uiTextureUV_t;
@@ -712,49 +768,6 @@ typedef struct {
     uiHighlight_t highlight;
     VECTOR2 pushedTextOffset;
 } uiGlueTextButton_t;
-
-typedef struct {
-    uiFramePointPos_t targetPos: 7;
-    uint8_t used: 1;
-    uint8_t relativeTo: 8;
-    int16_t offset: 16;
-} uiFramePoint_t;
-
-typedef uiFramePoint_t uiFramePoints_t[FPP_COUNT];
-
-/* uiFrame_t — used by renderer for drawing FDF frames */
-typedef struct uiFrame_s {
-    DWORD number;
-    DWORD parent;
-    COLOR32 color;
-    struct { uiFramePoints_t x, y; } points;
-    struct { FLOAT width, height; } size;
-    struct {
-        USHORT index;
-        USHORT index2;
-        BYTE coord[4];
-    } tex;
-    union {
-        struct {
-            FRAMETYPE type: 8;
-            BYTE alphaMode: 2;
-        } flags;
-        DWORD flagsvalue;
-    };
-    struct {
-        HANDLE data;
-        DWORD size;
-    } buffer;
-    DWORD textLength;
-    DWORD stat;
-    LPCSTR text;
-    LPCSTR tooltip;
-    LPCSTR onclick;
-    FLOAT value;
-} uiFrame_t;
-
-typedef uiFrame_t *LPUIFRAME;
-typedef uiFrame_t const *LPCUIFRAME;
 
 typedef struct sheetField_s {
     LPCSTR name, value;

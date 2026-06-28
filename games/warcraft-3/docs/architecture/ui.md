@@ -226,7 +226,7 @@ void ConsoleUI_UpdateUnitUI(DWORD num_units, uiUnitData_t *units) {
 |------|---------|
 | `server/sv_unit_ui.c` | Handle `clc_request_unit_ui`, query game DLL |
 | `games/warcraft-3/game/g_unit_ui.c` | `G_GetCommandButtons`, `G_GetInventory`, `G_GetBuildQueue` |
-| `games/warcraft-3/game/g_ui_stubs.c` | No-op stubs for legacy server-side UI functions |
+| `games/warcraft-3/game/hud/hud.c` | FDF→uiframe serialization bridge, frames[] global registry |
 | `server/game.h` | `game_export` callbacks for unit data queries |
 | `client/ui.h` | Shared UI module API declaration |
 | `games/warcraft-3/ui/ui_main.c` | `UI_GetAPI`, library entry point, screen routing |

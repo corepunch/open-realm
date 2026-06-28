@@ -1,0 +1,96 @@
+/*
+ * hud_cinematic.c — Cinematic layer, interface toggle, message overlay.
+ *
+ * Manages the cinematic letterbox bars, portrait model, speaker/dialogue
+ * text, the client_ui_state toggle, the text message overlay, and the
+ * layer clear helper.
+ */
+
+#include "hud_local.h"
+#include "../generated/cinematic_panel.h"
+
+static CinematicPanel_t cin;
+static BOOL cinematic_loaded;
+
+static void CinematicEnsureLoaded(void) {
+    if (cinematic_loaded) return;
+    cinematic_loaded = true;
+    CinematicPanel_Load(&cin);
+}
+
+void UI_ClearLayer(LPEDICT ent, DWORD layer) {
+    if (!ent) return;
+    gi.Write(PF_BYTE, &(LONG){svc_layout});
+    gi.Write(PF_BYTE, &(LONG){layer});
+    gi.Write(PF_LONG, &(LONG){0});
+    gi.Write(PF_SHORT, &(LONG){0});
+    gi.unicast(ent);
+}
+
+void UI_ShowInterface(LPEDICT ent, BOOL flag, FLOAT duration) {
+    (void)duration;
+    if (!ent || !ent->client) return;
+    ent->client->ps.client_ui_state = flag ? CLIENT_UI_GAME : CLIENT_UI_CINEMATIC;
+    if (flag)
+        ent->client->ps.uiflags = 1 << LAYER_CINEMATIC;
+    else
+        ent->client->ps.uiflags = ~(1u << LAYER_CINEMATIC);
+}
+
+void UI_ShowMainMenu(LPEDICT ent) { (void)ent; }
+
+void UI_ShowGameInterface(LPEDICT ent) {
+    UI_WriteCinematicLayer(ent);
+}
+
+void UI_ShowText(LPEDICT ent, LPCVECTOR2 pos, LPCSTR text, FLOAT duration) {
+    FLOAT x = pos ? pos->x : 0.0500f;
+    FLOAT y = QUEST_MESSAGE_Y;
+    LPCSTR message = NULL;
+
+    (void)duration;
+    if (!ent) return;
+    if (x < 0.0f || x > UI_BASE_WIDTH) x = 0.0500f;
+
+    gi.Write(PF_BYTE, &(LONG){svc_layout});
+    gi.Write(PF_BYTE, &(LONG){LAYER_MESSAGE});
+    ui_next_frame_number = 1;
+    message = UI_FormatMessageText(UI_LevelStringSafe(text));
+    UI_WriteTextAreaFrame(x, y, QUEST_MESSAGE_W, QUEST_MESSAGE_H,
+                          message, COLOR32_WHITE, HUD_FONT_SIZE, 0.0f);
+    gi.Write(PF_LONG, &(LONG){0});
+    gi.Write(PF_SHORT, &(LONG){0});
+    gi.unicast(ent);
+}
+
+void UI_WriteCinematicLayer(LPEDICT ent) {
+    LPPLAYER ps;
+
+    if (!ent || !ent->client) return;
+    ps = &ent->client->ps;
+
+    CinematicEnsureLoaded();
+
+    BOOL has_portrait = ps->cinematic_portrait != 0;
+    BOOL has_speaker = ps->texts[PLAYERTEXT_SPEAKER] && ps->texts[PLAYERTEXT_SPEAKER][0];
+    BOOL has_dialogue = ps->texts[PLAYERTEXT_DIALOGUE] && ps->texts[PLAYERTEXT_DIALOGUE][0];
+
+    UI_SetHidden(cin.CinematicScenePanel, !has_portrait);
+
+    if (has_portrait) {
+        cin.CinematicPortrait->Type = FT_PORTRAIT;
+        cin.CinematicPortrait->Texture.Image = ps->cinematic_portrait;
+        cin.CinematicPortrait->Text = "Portrait";
+    }
+
+    if (has_speaker) {
+        UI_SetText(cin.CinematicSpeakerText, "%s", ps->texts[PLAYERTEXT_SPEAKER]);
+        cin.CinematicSpeakerText->Font.Color = MAKE(COLOR32, 252, 211, 18, 255);
+    }
+
+    if (has_dialogue) {
+        cin.CinematicDialogueText->Stat = MAX_STATS + PLAYERTEXT_DIALOGUE;
+    }
+
+    UI_WriteLayout(ent, cin.CinematicPanel, LAYER_CINEMATIC);
+}

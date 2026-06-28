@@ -240,7 +240,7 @@ void SCR_UpdateScreen(void) {
 | Aspect | Old (`openwarcraft3-old`) | Current (`openwarcraft3`) |
 |--------|--------------------------|---------------------------|
 | State field | `playerState_t.uiflags` + `cinefade` | `playerState_t.client_ui_state` enum (`CLIENT_UI_GAME`/`LOADING`/`CINEMATIC`) + `uiflags` |
-| FDF source | CinematicPanel loaded from MPQ `UI\FrameDef\UI\CinematicPanel.fdf`, frame tree sent via `svc_layout` | No FDF; cinematic UI is constructed programmatically by `UI_WriteCinematicLayer()` in `games/warcraft-3/game/g_ui_stubs.c` |
+| FDF source | CinematicPanel loaded from MPQ `UI\FrameDef\UI\CinematicPanel.fdf`, frame tree sent via `svc_layout` | No FDF; cinematic UI is constructed programmatically by `UI_WriteCinematicLayer()` in `games/warcraft-3/game/hud/hud.c` |
 | uiflags logic | `1 << LAYER_CINEMATIC` to hide cinematic; `~(1 << LAYER_CINEMATIC)` to show only cinematic | `UIFLAG_HIDE_GAMEPLAY` bitmask defined in `g_local.h:985` hides portrait/console/commandbar/infopanel/inventory |
 | Camera interpolation | In `G_RunClients()` in `game/g_main.c` | Same pattern, in `games/warcraft-3/game/g_main.c:G_RunClients()` |
 | Server state | `ss_cinematic` enum in `server/server.h` | Not used; client state driven by `client_ui_state` in playerState |

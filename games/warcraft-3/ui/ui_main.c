@@ -25,7 +25,6 @@ static uiState_t ui_state;
 static uiScreen_t *ui_current_screen = NULL;
 static BOOL ui_menu_commands_registered;
 static LoadingScreen_t loading_screen;
-extern uiScreen_t consoleUIScreen;
 
 static void UI_EnterGameMode(void);
 
@@ -296,13 +295,6 @@ static void UI_RegisterMenuCommands(void) {
 static void UI_EnterGameMode(void) {
     ui_state.game_mode = true;
     UI_SetScreen(NULL);
-    /* Initialize the in-game HUD screen */
-    if (consoleUIScreen.load && !consoleUIScreen.load()) {
-        uiimport.Printf("WARNING: ConsoleUI failed to load\n");
-    }
-    if (consoleUIScreen.init) {
-        consoleUIScreen.init();
-    }
 }
 
 static LPCSTR UI_CsvField(LPCSTR text, DWORD index, LPSTR out, DWORD out_size) {
@@ -557,11 +549,6 @@ void UI_RefreshLocal(DWORD time) {
         screen->refresh((int)time);
     }
 
-    /* Refresh console UI during game mode */
-    if (ui_state.game_mode && consoleUIScreen.refresh) {
-        consoleUIScreen.refresh((int)time);
-    }
-    
     /* Draw current screen (menus/glue only — in-game HUD is server-authored via svc_layout) */
     if (!ui_state.game_mode) {
         if (screen && screen->draw)
@@ -570,8 +557,6 @@ void UI_RefreshLocal(DWORD time) {
         LPCPLAYER ps = uiimport.GetPlayerState();
         if (ps && ps->client_ui_state == CLIENT_UI_LOADING) {
             UI_DrawLoadingScreenLocal(NULL, NULL, 0.0f);
-        } else if (consoleUIScreen.draw) {
-            consoleUIScreen.draw();
         }
     }
 }
@@ -855,11 +840,6 @@ void UI_UpdateUnitUILocal(DWORD num_units, uiUnitData_t *units) {
     uiScreen_t *screen = UI_GetCurrentScreen();
     if (screen && screen->update_unit_ui) {
         screen->update_unit_ui(num_units, units);
-    }
-
-    /* Also forward to console UI during game mode */
-    if (ui_state.game_mode && consoleUIScreen.update_unit_ui) {
-        consoleUIScreen.update_unit_ui(num_units, units);
     }
 }
 
