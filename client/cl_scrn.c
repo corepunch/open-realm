@@ -1,5 +1,4 @@
 #include "client.h"
-#include "ui_layout.h"
 #include <stdlib.h>  /* getenv (BZ_FPS_LOG diagnostic) */
 #include <SDL2/SDL.h>
 
@@ -77,7 +76,6 @@ void SCR_DrawScreenField(DWORD msec) {
         break;
     case ca_active:
         V_RenderView();
-        SCR_DrawLayout();
         /* TODO: research whether to replace key_dest enum with a keyCatchers bitmask
         * like Q3 — multiple input consumers can be active simultaneously. */
         if (cls.key_dest == key_menu) {

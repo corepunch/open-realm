@@ -6,11 +6,10 @@
  * are defined in src/common/common.h (svc_* constants).
  *
  * Entity state arrives as delta-compressed packets (svc_packetentities) that
- * are applied on top of the previous frame's state.  Player state, UI layout,
+ * are applied on top of the previous frame's state.  Player state,
  * config strings and temporary effects each have their own message types.
  */
 #include "client.h"
-#include "ui_layout.h"
 #ifdef SC2
 #include "games/starcraft-2/common/sc2_map.h"
 #endif
@@ -262,63 +261,6 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
             cl.viewDef.camerastate[1].origin.y = cl.camera_prediction.origin.y;
         }
     }
-}
-
-/* Receive an svc_layout message from the server.  The server serializes the
- * entire UI frame tree as a binary blob; the client stores the raw blob and
- * passes it to the renderer each frame without interpreting the contents. */
-void CL_ParseLayout(LPSIZEBUF msg) {
-    DWORD layer = MSG_ReadByte(msg);
-    DWORD payload_size = 0;
-    BOOL terminated = false;
-
-    if (layer >= MAX_LAYOUT_LAYERS) {
-        fprintf(stderr, "CL_ParseLayout: bad layer %u\n", (unsigned)layer);
-        msg->readcount = msg->cursize;
-        return;
-    }
-
-    SCR_ClearLayoutLayer(layer);
-    SAFE_DELETE(cl.layout[layer], MemFree);
-    DWORD start = msg->readcount;
-    while (true) {
-        UIFRAME ent = { 0 };
-        DWORD bits = 0;
-        if (msg->readcount + sizeof(DWORD) + sizeof(WORD) > msg->cursize) {
-            break;
-        }
-        DWORD nument = MSG_ReadEntityBits(msg, &bits);
-        if (nument == 0 && bits == 0) {
-            terminated = true;
-            break;
-        }
-        MSG_ReadDeltaUIFrame(msg, &ent, nument, bits);
-        if (msg->readcount + sizeof(WORD) > msg->cursize) {
-            break;
-        }
-        ent.buffer.size = MSG_ReadShort(msg);
-        if (msg->readcount > msg->cursize ||
-            ent.buffer.size > msg->cursize - msg->readcount) {
-            break;
-        }
-
-        msg->readcount += ent.buffer.size;
-    }
-    if (!terminated) {
-        fprintf(stderr, "CL_ParseLayout: malformed layer %u\n", (unsigned)layer);
-        msg->readcount = msg->cursize;
-        return;
-    }
-    if (start > msg->cursize || msg->readcount > msg->cursize ||
-        msg->readcount < start) { /* guard against malformed data and wraparound */
-        msg->readcount = msg->cursize;
-        return;
-    }
-    payload_size = msg->readcount - start;
-    cl.layout[layer] = MemAlloc(sizeof(DWORD) + payload_size);
-    memcpy(cl.layout[layer], &payload_size, sizeof(payload_size));
-    memcpy((LPBYTE)cl.layout[layer] + sizeof(payload_size), msg->data + start, payload_size);
-    SCR_SetLayoutLayer(layer, cl.layout[layer]);
 }
 
 void CL_ParseCursor(LPSIZEBUF msg) {
@@ -658,9 +600,6 @@ void CL_ParseServerMessage(LPSIZEBUF msg) {
                 break;
             case svc_frame:
                 CL_ParseFrame(msg);
-                break;
-            case svc_layout:
-                CL_ParseLayout(msg);
                 break;
             case svc_cursor:
                 CL_ParseCursor(msg);
