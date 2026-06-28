@@ -78,8 +78,8 @@ typedef struct mdxBounds_s {
 } mdxBounds_t;
 
 typedef struct mdxVertexSkin_s {
-    BYTE skin[MAX_SKIN_BONES];
-    BYTE boneWeight[MAX_SKIN_BONES];
+    BYTE skin[4];
+    BYTE boneWeight[4];
 } mdxVertexSkin_t;
 
 typedef DWORD replaceableID_t;
@@ -379,8 +379,7 @@ void MDLX_Init(void);
 void MDLX_Shutdown(void);
 void MDX_RenderModel(renderEntity_t const *entity, mdxModel_t const *model, LPCMATRIX4 model_matrix);
 bool MDLX_TraceModel(renderEntity_t const *ent, LPCLINE3 line);
-bool MDLX_ExtractCamera(mdxModel_t const *model, DWORD frame, float aspect, LPMATRIX4 output, LPMATRIX4 light);
-bool MDLX_SetEntityAnimationFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity);
+void MDLX_DrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim);
 void MDLX_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y);
 
 #endif

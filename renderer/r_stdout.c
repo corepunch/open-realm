@@ -278,26 +278,18 @@ static void RStd_DrawImageEx(LPCDRAWIMAGE drawImage) {
     }
     printf("draw_image texture=%u", drawImage->texture ? drawImage->texture->texid : 0);
     RStd_PrintName("name", RStd_HandleName(drawImage->texture));
-    printf(" shader=%u blend=%u angle=%.3f glow=%.3f",
+    printf(" shader=%u blend=%u rotate=%d angle=%.3f glow=%.3f",
            drawImage->shader,
            drawImage->alphamode,
+           drawImage->rotate,
            drawImage->angle,
            drawImage->uActiveGlow);
     RStd_PrintRect("screen", &drawImage->screen);
     RStd_PrintRect("uv", &drawImage->uv);
-    if (drawImage->flags & DRAW_CLIP) {
+    if (drawImage->hasClip) {
         RStd_PrintRect("clip", &drawImage->clip);
     }
     RStd_PrintColor(drawImage->color);
-    printf("\n");
-}
-
-static void RStd_DrawBackdrop(LPCDRAWBACKDROP db) {
-    if (!db) return;
-    printf("draw_backdrop screen=");
-    RStd_PrintRect("", &db->screen);
-    if (db->bg.texture) printf(" bg=%s", RStd_HandleName(db->bg.texture));
-    if (db->edge.texture) printf(" edge=%s", RStd_HandleName(db->edge.texture));
     printf("\n");
 }
 
@@ -367,7 +359,7 @@ static VECTOR2 RStd_GetTextSize(LPCDRAWTEXT drawText) {
     FLOAT width = RStd_VisibleTextLength(drawText ? drawText->text : "") * size * 0.52f;
     FLOAT height = size;
 
-    if (drawText && (drawText->flags & DRAW_WORD_WRAP) && drawText->textWidth > 0 && width > drawText->textWidth) {
+    if (drawText && drawText->wordWrap && drawText->textWidth > 0 && width > drawText->textWidth) {
         DWORD lines = (DWORD)ceilf(width / drawText->textWidth);
         width = drawText->textWidth;
         height *= MAX(1, lines) * (drawText->lineHeight > 0 ? drawText->lineHeight : 1.0f);
@@ -391,9 +383,9 @@ static void RStd_DrawText(LPCDRAWTEXT drawText) {
                size.y,
                drawText->halign,
                drawText->valign,
-               (drawText->flags & DRAW_WORD_WRAP) != 0);
+               drawText->wordWrap);
         RStd_PrintRect("rect", &drawText->rect);
-        if (drawText->flags & DRAW_CLIP) {
+        if (drawText->hasClip) {
             RStd_PrintRect("clip", &drawText->clip);
         }
         RStd_PrintColor(drawText->color);
@@ -474,7 +466,6 @@ refExport_t R_StdoutGetAPI(refImport_t imp) {
         .DrawPic = RStd_DrawPic,
         .DrawImage = RStd_DrawImage,
         .DrawImageEx = RStd_DrawImageEx,
-        .DrawBackdrop = RStd_DrawBackdrop,
         .DrawMinimap = RStd_DrawMinimap,
         .DrawLoadingIndicator = RStd_DrawLoadingIndicator,
         .DrawSprite = RStd_DrawSprite,

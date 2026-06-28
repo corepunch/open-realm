@@ -223,11 +223,11 @@ static void R_RenderShadow(const renderEntity_t *entity, LPCVECTOR2 origin) {
 
     VECTOR2 mins;
     VECTOR2 maxs;
-    if (entity->shadow_rect.w > 0 && entity->shadow_rect.h > 0) {
-        mins.x = origin->x - entity->shadow_rect.x;
-        mins.y = origin->y - entity->shadow_rect.y;
-        maxs.x = mins.x + entity->shadow_rect.w;
-        maxs.y = mins.y + entity->shadow_rect.h;
+    if (entity->shadow_w > 0 && entity->shadow_h > 0) {
+        mins.x = origin->x - entity->shadow_x;
+        mins.y = origin->y - entity->shadow_y;
+        maxs.x = mins.x + entity->shadow_w;
+        maxs.y = mins.y + entity->shadow_h;
     } else {
         int pivot_x = (int)(shadow->width * 0.3f + 0.5f);
         int pivot_y = (int)(shadow->height * 0.7f + 0.5f);
@@ -261,73 +261,6 @@ static void R_RenderSelectedCircle(const renderEntity_t *entity, LPCVECTOR2 orig
                 continue;
             R_RenderSplat(origin, radius, tr.texture[TEX_SELECTION_CIRCLE+i], tr.shader[SHADER_SPLAT], color);
             break;
-        }
-    }
-}
-
-/* Project a world point through the active view-projection into UI scene
- * coordinates (the space R_DrawImageEx draws in).  Returns false when the
- * point is behind the camera (clip w <= 0). */
-static bool R_WorldToUI(LPCVECTOR3 world, FLOAT *out_x, FLOAT *out_y) {
-    FLOAT const *m = tr.viewDef.viewProjectionMatrix.v;
-    FLOAT const cx = m[0] * world->x + m[4] * world->y + m[8]  * world->z + m[12];
-    FLOAT const cy = m[1] * world->x + m[5] * world->y + m[9]  * world->z + m[13];
-    FLOAT const cw = m[3] * world->x + m[7] * world->y + m[11] * world->z + m[15];
-    if (cw <= 0.0001f) {
-        return false;
-    }
-    RECT const scene = R_UISceneRect();
-    *out_x = scene.x + (cx / cw * 0.5f + 0.5f) * scene.w;
-    *out_y = scene.y + (1.0f - (cy / cw * 0.5f + 0.5f)) * scene.h;
-    return true;
-}
-
-/* A two-layer status bar (dark backing + colored fill) in UI scene coords. */
-static void R_DrawStatusBar(FLOAT x, FLOAT y, FLOAT w, FLOAT h, FLOAT frac, COLOR32 fill) {
-    frac = frac < 0.0f ? 0.0f : (frac > 1.0f ? 1.0f : frac);
-    R_DrawImageEx(&MAKE(drawImage_t, .texture = tr.texture[TEX_WHITE],
-        .screen = MAKE(RECT, x, y, w, h), .uv = MAKE(RECT, 0, 0, 1, 1),
-        .color = MAKE(COLOR32, 0, 0, 0, 200), .shader = SHADER_UI, .alphamode = BLEND_MODE_BLEND));
-    if (frac > 0.0f) {
-        R_DrawImageEx(&MAKE(drawImage_t, .texture = tr.texture[TEX_WHITE],
-            .screen = MAKE(RECT, x, y, w * frac, h), .uv = MAKE(RECT, 0, 0, 1, 1),
-            .color = fill, .shader = SHADER_UI, .alphamode = BLEND_MODE_BLEND));
-    }
-}
-
-/* WC3-style health/mana bars floating above selected, living units.  Runs as a
- * 2D overlay pass after the 3D scene (R_DrawImageEx rebinds UI shader/state, so
- * it must not run mid-model). */
-void R_DrawHealthBars(void) {
-    if (tr.viewDef.rdflags & RDF_NOWORLDMODEL) {
-        return; /* portrait / offscreen views have no overhead bars */
-    }
-    BOOL const show_all = (tr.viewDef.rdflags & RDF_SHOW_ALL_HEALTHBARS) != 0;
-    RECT const scene = R_UISceneRect();
-    FLOAT const w = scene.w * 0.045f;
-    FLOAT const h = scene.h * 0.008f;
-    FOR_LOOP(i, tr.viewDef.num_entities) {
-        renderEntity_t const *e = tr.viewDef.entities + i;
-        /* Always for the current selection; for every unit while ALT is held. */
-        if (e->health == 0 || (!show_all && !(e->flags & RF_SELECTED))) {
-            continue;
-        }
-        VECTOR3 top = e->origin;
-        top.z += e->radius * 2.0f + 48.0f; /* float above the unit */
-        FLOAT ux, uy;
-        if (!R_WorldToUI(&top, &ux, &uy)) {
-            continue;
-        }
-        FLOAT const x  = ux - w * 0.5f;
-        FLOAT const hp = e->health / 255.0f;
-        /* Green at full -> yellow at half -> red when low, like the original. */
-        COLOR32 const hpcol = hp > 0.5f
-            ? MAKE(COLOR32, (BYTE)(255.0f * (1.0f - hp) * 2.0f), 200, 0, 255)
-            : MAKE(COLOR32, 220, (BYTE)(200.0f * hp * 2.0f), 0, 255);
-        R_DrawStatusBar(x, uy, w, h, hp, hpcol);
-        if (e->mana > 0) {
-            R_DrawStatusBar(x, uy + h + scene.h * 0.0015f, w, h,
-                            e->mana / 255.0f, MAKE(COLOR32, 60, 90, 235, 255));
         }
     }
 }

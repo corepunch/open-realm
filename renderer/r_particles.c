@@ -166,19 +166,11 @@ static void R_FlushParticles(LPCTEXTURE texture, LPCMATRIX4 matrix, particleVert
 }
 
 static COLOR32 FX_GetFrame(const cparticle_t *p) {
-    DWORD columns = p->columns ? p->columns : 1;
-    DWORD rows = p->rows ? p->rows : 1;
-    DWORD total = columns * rows;
-    /* The sprite-sheet frame advances over the particle's own lifetime, not a
-     * global clock — otherwise every particle flips frames in unison, which
-     * reads as a crude strobing "old game" effect. */
-    float k = (p->lifespan > 0.0f) ? (p->time / p->lifespan) : 0.0f;
-    DWORD frame = (DWORD)(k * (float)total);
-    if (frame >= total) frame = total - 1;
-    DWORD u = frame % columns;
-    DWORD v = frame / columns;
-    DWORD usize = 256 / columns;
-    DWORD vsize = 256 / rows;
+    DWORD frame = (tr.viewDef.time / 100) % (p->columns * p->rows);
+    DWORD u = frame % p->columns;
+    DWORD v = frame / p->rows;
+    DWORD usize = 256 / p->columns;
+    DWORD vsize = 256 / p->rows;
     return (COLOR32) {
         usize * u,
         vsize * v,
@@ -203,12 +195,7 @@ void R_DrawParticles(void) {
             R_FlushParticles(texture, &matrix, pv);
             pv = particles_resources.vertices;
         }
-        /* Kinematics: org = org0 + vel0*t + 1/2*accel*t^2. The original engine
-         * integrates gravity per-frame (semi-implicit Euler), which over a
-         * particle's life is the 1/2*a*t^2 closed form below; applying the full
-         * a*t^2 made gravity-driven particles fall ~2x too fast. */
-        VECTOR3 halfAccelT = Vector3_scale(&p->accel, 0.5f * p->time);
-        VECTOR3 vel = Vector3_add(&p->vel, &halfAccelT);
+        VECTOR3 vel = Vector3_mad(&p->vel, p->time, &p->accel);
         VECTOR3 org = Vector3_mad(&p->org, p->time, &vel);
         COLOR32 col = FX_BlendColor(p);
         float size = FX_BlendFloat(p->size, p->time, BYTE2FLOAT(p->midtime));

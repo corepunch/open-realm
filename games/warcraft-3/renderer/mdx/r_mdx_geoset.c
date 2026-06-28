@@ -289,24 +289,6 @@ static mdxTextureAnim_t *MDLX_GetTextureAnimAtIndex(mdxModel_t const *model, DWO
     return textureAnim;
 }
 
-/* Resolve the texture slot used by a layer at the current frame.  Layers with
- * a flipbook (KMTF) track animate their TEXS index over time (e.g. the menu
- * ocean cycling ocean_h.01..30); without evaluating it the layer is stuck on
- * its static base texture and renders wrong (white). */
-static DWORD MDLX_EvaluateLayerTextureId(mdxModel_t const *model,
-                                         mdxMaterialLayer_t const *layer,
-                                         DWORD frame) {
-    DWORD textureId = layer->textureId;
-    if (layer->flipbook) {
-        int value = (int)textureId;
-        MDLX_GetModelKeytrackValue(model, layer->flipbook, frame, &value);
-        if (value >= 0 && value < model->num_textures) {
-            textureId = (DWORD)value;
-        }
-    }
-    return textureId;
-}
-
 static void MDLX_BindLayerTextureAnimation(mdxModel_t const *model,
                                            mdxMaterialLayer_t const *layer,
                                            DWORD frame)
@@ -550,24 +532,13 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
         MDLX_ApplyLayerFlags(layer);
         BOOL unshaded = forceUnshaded || (layer->flags & MODEL_GEO_UNSHADED);
         R_Call(glUniform1i, shader->uUnshaded, unshaded);
-        /* Fog only affects opaque/alpha-blended geometry.  Additive and
-         * modulate layers (glows, the blue spire flare) must NOT mix toward
-         * the fog colour or they turn into solid fog-coloured quads. */
-        {
-            BOOL layerFog = tr.viewDef.fogEnable &&
-                (layer->blendMode == BLEND_MODE_NONE ||
-                 layer->blendMode == BLEND_MODE_ALPHAKEY ||
-                 layer->blendMode == BLEND_MODE_BLEND);
-            R_Call(glUniform1i, shader->uFogEnable, layerFog ? 1 : 0);
-        }
         alpha = MDLX_EvaluateLayerAlpha(model, material, layer, frame);
         if (alpha < EPSILON)
             continue;
         R_Call(glUniform1f, shader->uLayerAlpha, alpha);
         MDLX_BindLayerTextureAnimation(model, layer, frame);
-        DWORD textureId = MDLX_EvaluateLayerTextureId(model, layer, frame);
-        mdxTexture_t const *modeltex = &model->textures[textureId];
-        LPCTEXTURE texture = MDLX_GetTexture(model, team, textureId, modeltex->replaceableID, overrideTexture);
+        mdxTexture_t const *modeltex = &model->textures[layer->textureId];
+        LPCTEXTURE texture = MDLX_GetTexture(model, team, layer->textureId, modeltex->replaceableID, overrideTexture);
         R_BindTexture(texture, 0);
         R_Call(glBindVertexArray, geoset->vertexArrayBuffer);
         R_Call(glBindBuffer, GL_ELEMENT_ARRAY_BUFFER, *geoset->buffer);
@@ -805,12 +776,6 @@ void MDX_RenderModel(renderEntity_t const *entity,
     R_Call(glUniformMatrix4fv, shader->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
     R_Call(glUniformMatrix4fv, shader->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
     R_Call(glUniform1i, shader->uUnshaded, (entity->flags & RF_NO_LIGHTING) != 0);
-    R_Call(glUniform1i, shader->uFogEnable, tr.viewDef.fogEnable ? 1 : 0);
-    if (tr.viewDef.fogEnable) {
-        R_Call(glUniform3f, shader->uFogColor,
-               tr.viewDef.fogColor.x, tr.viewDef.fogColor.y, tr.viewDef.fogColor.z);
-        R_Call(glUniform2f, shader->uFogParams, tr.viewDef.fogStart, tr.viewDef.fogEnd);
-    }
     if (entity->flags & RF_PORTRAIT_LIGHTING) {
         R_Call(glUniform2f, shader->uMdxFallbackLighting, 0.58f, 0.62f);
         R_Call(glUniform1f, shader->uMdxLightFill, 0.22f);

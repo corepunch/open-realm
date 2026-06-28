@@ -354,12 +354,6 @@ typedef struct {
     DWORD flags;
 } m2CharacterOutfit_t;
 
-enum { M2_COMPOSITE_CACHE_SIZE = 4 };
-typedef struct {
-    LPTEXTURE texture;
-    DWORD key;
-} m2CompositeCacheEntry_t;
-
 struct m2Model_s {
     m2ModelBatch_t *batches;
     DWORD num_batches;
@@ -368,8 +362,8 @@ struct m2Model_s {
     BOX3 geometry_bounds;
     BOOL has_geometry_bounds;
     BOOL character_model;
-    m2CompositeCacheEntry_t composite_cache[M2_COMPOSITE_CACHE_SIZE];
-    DWORD composite_cache_lru;
+    LPTEXTURE character_composite;
+    DWORD character_composite_key;
     m2CharacterOutfit_t character_outfit;
     DWORD character_outfit_appearance;
     DWORD character_outfit_equipment;
@@ -406,107 +400,6 @@ typedef struct {
     m2Array_t texture_lookup_table;
     m2Box_t bounding_box;
 } m2GeometryInfo_t;
-
-static LPSHADER m2_shader;
-
-static LPCSTR m2_vs =
-"#version 140\n"
-"in vec3 i_position;\n"
-"in vec2 i_texcoord;\n"
-"in vec3 i_normal;\n"
-"in vec4 i_color;\n"
-"in vec4 i_skin1;\n"
-"in vec4 i_boneWeight1;\n"
-#ifdef USE_SHADOWMAPS
-"out vec4 v_shadow;\n"
-#endif
-"out vec2 v_texcoord;\n"
-"out vec2 v_texcoord2;\n"
-"out float v_light;\n"
-"out vec4 v_color;\n"
-"uniform mat4 uViewProjectionMatrix;\n"
-"uniform mat4 uTextureMatrix;\n"
-"uniform mat4 uModelMatrix;\n"
-"uniform mat4 uLightMatrix;\n"
-"uniform mat3 uNormalMatrix;\n"
-"uniform mat4 uBones[64];\n"
-"vec4 skin_position(vec4 p) {\n"
-"    vec4 outp = vec4(0.0);\n"
-"    float weight = 0.0;\n"
-"    for (int i = 0; i < 4; ++i) {\n"
-"        outp += uBones[int(i_skin1[i])] * p * i_boneWeight1[i];\n"
-"        weight += i_boneWeight1[i];\n"
-"    }\n"
-"    return weight > 0.0 ? outp : p;\n"
-"}\n"
-"vec3 skin_normal(vec4 n) {\n"
-"    vec4 outn = vec4(0.0);\n"
-"    float weight = 0.0;\n"
-"    for (int i = 0; i < 4; ++i) {\n"
-"        outn += uBones[int(i_skin1[i])] * n * i_boneWeight1[i];\n"
-"        weight += i_boneWeight1[i];\n"
-"    }\n"
-"    return weight > 0.0 ? outn.xyz : n.xyz;\n"
-"}\n"
-"void main() {\n"
-"    vec4 local = skin_position(vec4(i_position, 1.0));\n"
-"    vec4 pos = uModelMatrix * local;\n"
-"    v_texcoord = i_texcoord;\n"
-"    v_texcoord2 = (uTextureMatrix * pos).xy;\n"
-"    vec3 normal = normalize(uNormalMatrix * skin_normal(vec4(i_normal, 0.0)));\n"
-"    vec3 lightDir = -normalize(vec3(uLightMatrix[0][2], uLightMatrix[1][2], uLightMatrix[2][2]))*1.2;\n"
-"    v_light = clamp(dot(normal, lightDir), 0.0, 1.0);\n"
-#ifdef USE_SHADOWMAPS
-"    v_shadow = uLightMatrix * pos;\n"
-#endif
-"    v_color = i_color;\n"
-"    gl_Position = uViewProjectionMatrix * pos;\n"
-"}\n";
-
-static LPCSTR m2_fs =
-"#version 140\n"
-"in vec2 v_texcoord;\n"
-"in vec2 v_texcoord2;\n"
-#ifdef USE_SHADOWMAPS
-"in vec4 v_shadow;\n"
-#endif
-"in float v_light;\n"
-"in vec4 v_color;\n"
-"out vec4 o_color;\n"
-"uniform sampler2D uTexture;\n"
-#if defined(USE_SHADOWMAPS) || defined(DEBUG_PATHFINDING)
-"uniform sampler2D uShadowmap;\n"
-#endif
-"uniform sampler2D uFogOfWar;\n"
-#ifdef USE_SHADOWMAPS
-"float get_shadow() {\n"
-"    float depth = texture(uShadowmap, vec2(v_shadow.x + 1.0, v_shadow.y + 1.0) * 0.5).r;\n"
-"    return depth < (v_shadow.z + 0.99) * 0.5 ? 0.0 : 1.0;\n"
-"}\n"
-#endif
-"float get_lighting() {\n"
-#ifdef USE_SHADOWMAPS
-"    return mix(0.5, 1.0, get_shadow() * v_light);"
-#else
-"    return mix(0.5, 1.0, v_light);"
-#endif
-"}\n"
-"float get_fogofwar() {\n"
-"    return texture(uFogOfWar, v_texcoord2).r;\n"
-"}\n"
-"void main() {\n"
-"    vec4 col = texture(uTexture, v_texcoord) * v_color;\n"
-"    if (col.a < 0.5) discard;\n"
-"    col.rgb *= get_fogofwar() * get_lighting();\n"
-"    o_color = col;\n"
-"}\n";
-
-static LPSHADER M2_Shader(void) {
-    if (!m2_shader) {
-        m2_shader = R_InitShader(m2_vs, m2_fs);
-    }
-    return m2_shader ? m2_shader : tr.shader[SHADER_DEFAULT];
-}
 
 static void M2_LogFallback(LPCSTR modelFilename, LPCSTR reason) {
     static DWORD fallback_count;
@@ -1065,9 +958,6 @@ static BOOL M2_CharacterVariationTexturePath(LPCSTR model_path,
                                              DWORD texture_index,
                                              LPSTR out,
                                              DWORD out_size) {
-    /* Classic CharSections.dbc: 10 fields, textures not contiguous.
-       0=ID 1=race 2=sex 3=section 4=tex[0] 5=variation
-       6=tex[1] 7=tex[2] 8=tex[3] 9=color */
     DWORD race_id, gender_id;
 
     if (!out || out_size == 0 ||
@@ -1083,15 +973,15 @@ static BOOL M2_CharacterVariationTexturePath(LPCSTR model_path,
         if (M2_DbcField(&m2_char_sections_dbc, record, 1) != race_id ||
             M2_DbcField(&m2_char_sections_dbc, record, 2) != gender_id ||
             M2_DbcField(&m2_char_sections_dbc, record, 3) != section_index ||
-            M2_DbcField(&m2_char_sections_dbc, record, 5) != variation_index ||
-            M2_DbcField(&m2_char_sections_dbc, record, 9) != color_index) {
+            M2_DbcField(&m2_char_sections_dbc, record, 4) != variation_index ||
+            M2_DbcField(&m2_char_sections_dbc, record, 5) != color_index) {
             continue;
         }
         if (texture_index >= 3)
             return false;
         texture = M2_DbcString(&m2_char_sections_dbc, M2_DbcField(&m2_char_sections_dbc, record, 6 + texture_index));
         if (!texture || !*texture)
-            continue;
+            return false;
         snprintf(out, out_size, "%s", texture);
         return true;
     }
@@ -2811,7 +2701,6 @@ static LPTEXTURE M2_CharacterTextureForBatch(m2Model_t const *model,
                                              m2CharacterOutfit_t const *outfit) {
     m2Model_t *mutable_model;
     DWORD key;
-    DWORD victim;
     PATHSTR texture_path;
     BOOL has_base_path;
     LPCOLOR32 pixels = NULL;
@@ -2825,51 +2714,22 @@ static LPTEXTURE M2_CharacterTextureForBatch(m2Model_t const *model,
                                                   batch->texture_type,
                                                   texture_path,
                                                   sizeof(texture_path));
-    if (batch->texture_type != 1) {
-        if (has_base_path) {
-            key = entity->appearance ^ (entity->equipment * 16777619u);
-            if (batch->character_texture && batch->character_texture_key == key) {
-                return batch->character_texture;
-            }
-            if (batch->character_texture) {
-                R_ReleaseTexture(batch->character_texture);
-            }
-            batch->character_texture = R_LoadTexture(texture_path);
-            batch->character_texture_key = key;
-            return batch->character_texture;
-        }
+    if (has_base_path && batch->texture_type != 1)
+        return R_LoadTexture(texture_path);
+    if (batch->texture_type != 1)
         return batch->texture;
-    }
 
     mutable_model = (m2Model_t *)model;
     key = entity->appearance ^ (entity->equipment * 16777619u);
-
-    /* Look up composite cache — find existing or LRU victim */
-    {
-        DWORD lru = mutable_model->composite_cache_lru;
-        victim = 0;
-        for (DWORD i = 0; i < M2_COMPOSITE_CACHE_SIZE; i++) {
-            if (mutable_model->composite_cache[i].texture &&
-                mutable_model->composite_cache[i].key == key) {
-                mutable_model->composite_cache_lru = lru | (1u << i);
-                return mutable_model->composite_cache[i].texture;
-            }
-            if (!mutable_model->composite_cache[i].texture) {
-                victim = i;
-                break;
-            }
-            if (!(lru & (1u << i))) {
-                victim = i;
-            }
-        }
-        /* Evict victim if occupied */
-        if (mutable_model->composite_cache[victim].texture) {
-            R_ReleaseTexture(mutable_model->composite_cache[victim].texture);
-        }
-        mutable_model->composite_cache[victim].texture = NULL;
-        mutable_model->composite_cache[victim].key = key;
-        mutable_model->composite_cache_lru = lru | (1u << victim);
+    if (mutable_model->character_composite && mutable_model->character_composite_key == key) {
+        return mutable_model->character_composite;
     }
+
+    if (mutable_model->character_composite) {
+        R_ReleaseTexture(mutable_model->character_composite);
+    }
+    mutable_model->character_composite = NULL;
+    mutable_model->character_composite_key = key;
 
     if (!outfit) {
         return batch->texture;
@@ -2908,13 +2768,14 @@ static LPTEXTURE M2_CharacterTextureForBatch(m2Model_t const *model,
                               unpacked.facialHairStyleID, unpacked.hairColorID);
     }
 
-    {
-        LPTEXTURE comp = R_AllocateTexture(base_texture->width, base_texture->height);
-        R_LoadTextureMipLevel(comp, 0, pixels, base_texture->width, base_texture->height);
-        ri.MemFree(pixels);
-        mutable_model->composite_cache[victim].texture = comp;
-        return comp ? comp : batch->texture;
-    }
+    mutable_model->character_composite = R_AllocateTexture(base_texture->width, base_texture->height);
+    R_LoadTextureMipLevel(mutable_model->character_composite,
+                          0,
+                          pixels,
+                          base_texture->width,
+                          base_texture->height);
+    ri.MemFree(pixels);
+    return mutable_model->character_composite ? mutable_model->character_composite : batch->texture;
 }
 
 void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMATRIX4 transform) {
@@ -2930,7 +2791,7 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
         return;
     }
 
-    shader = M2_Shader();
+    shader = R_ModelShader();
     M2_CalculateBoneMatrices(model, entity);
     outfit = M2_CharacterOutfitForEntity(model, entity);
     Matrix3_normal(&normal_matrix, transform);
@@ -2940,6 +2801,19 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
     R_Call(glUniformMatrix4fv, shader->uModelMatrix, 1, GL_FALSE, transform->v);
     R_Call(glUniformMatrix4fv, shader->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
     R_Call(glUniformMatrix3fv, shader->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
+    {
+        VECTOR3 lightDir = { -tr.viewDef.lightMatrix.v[2], -tr.viewDef.lightMatrix.v[6], -tr.viewDef.lightMatrix.v[10] };
+        R_Call(glUniform3f, shader->uLightDir, lightDir.x, lightDir.y, lightDir.z);
+        R_Call(glUniform3f, shader->uLightColor, 0.5f, 0.5f, 0.5f);
+        R_Call(glUniform3f, shader->uLightAmbient, 0.5f, 0.5f, 0.5f);
+    }
+    R_Call(glUniform1i, shader->uUnshaded, 0);
+    R_Call(glUniform4f, shader->uGeosetColor, 1.0f, 1.0f, 1.0f, 1.0f);
+    R_Call(glUniform1f, shader->uLayerAlpha, 1.0f);
+    R_Call(glUniform1i, shader->uUseDiscard, 1);
+    R_Call(glUniform2f, shader->uUvTrans, 0.0f, 0.0f);
+    R_Call(glUniform2f, shader->uUvRot, 0.0f, 1.0f);
+    R_Call(glUniform2f, shader->uUvScale, 1.0f, 1.0f);
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_TRUE);
     R_Call(glDisable, GL_BLEND);
@@ -3045,10 +2919,8 @@ void M2_Release(m2Model_t *model) {
         ri.MemFree(batch);
         batch = next;
     }
-    for (DWORD i = 0; i < M2_COMPOSITE_CACHE_SIZE; i++) {
-        if (model->composite_cache[i].texture) {
-            R_ReleaseTexture(model->composite_cache[i].texture);
-        }
+    if (model->character_composite) {
+        R_ReleaseTexture(model->character_composite);
     }
     M2_FreeModelData(model);
     ri.MemFree(model);

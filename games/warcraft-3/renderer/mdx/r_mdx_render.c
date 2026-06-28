@@ -147,6 +147,55 @@ static LPCSTR mdx_fs =
 "    if (o_color.a < 0.5 && uUseDiscard) discard;\n"
 "}\n";
 
+static bool R_InitUIModelView(LPCMODEL model,
+                              viewDef_t *viewdef,
+                              renderEntity_t *entity,
+                              mdxSequence_t const *seq,
+                              FLOAT frame_ratio) {
+    if (!model || !model->mdx) {
+        return false;
+    }
+
+    memset(entity, 0, sizeof(*entity));
+    memset(viewdef, 0, sizeof(*viewdef));
+
+    entity->scale = 1;
+    entity->model = model;
+    if (!seq) {
+        return false;
+    }
+
+    if (frame_ratio >= 0.0f) {
+        DWORD seq_len = seq->interval[1] - seq->interval[0];
+
+        if (seq_len == 0) {
+            seq_len = 1;
+        }
+        if (frame_ratio > 1.0f) {
+            frame_ratio = 1.0f;
+        }
+        entity->frame = seq->interval[0] + (DWORD)((FLOAT)(seq_len - 1) * frame_ratio);
+        if (entity->frame >= seq->interval[1]) {
+            entity->frame = seq->interval[1] - 1;
+        }
+        entity->oldframe = entity->frame;
+    } else {
+        DWORD seq_len = seq->interval[1] - seq->interval[0];
+        if (seq_len == 0) {
+            seq_len = 1;
+        }
+        entity->frame = seq->interval[0] + (tr.viewDef.time % seq_len);
+        entity->oldframe = entity->frame;
+    }
+
+    viewdef->scissor = (RECT) { 0, 0, 1, 1 };
+    viewdef->num_entities = 1;
+    viewdef->entities = entity;
+    viewdef->rdflags |= RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL;
+
+    return true;
+}
+
 void Matrix4_fromViewAngles(LPCVECTOR3 target, LPCVECTOR3 angles, float distance, LPMATRIX4 output) {
     VECTOR3 const vieworg = Vector3_unm(target);
     Matrix4_identity(output);
@@ -271,6 +320,31 @@ static mdxSequence_t const *R_SelectUISequence(mdxModel_t const *mdx, LPCSTR ani
     return seq;
 }
 
+static FLOAT R_UISequenceFrameRatio(LPCSTR anim) {
+    LPCSTR ratio;
+    char *end = NULL;
+    FLOAT value;
+
+    if (!anim) {
+        return -1.0f;
+    }
+    ratio = strchr(anim, '@');
+    if (!ratio) {
+        return -1.0f;
+    }
+    value = strtof(ratio + 1, &end);
+    if (end == ratio + 1) {
+        return -1.0f;
+    }
+    if (value < 0.0f) {
+        return 0.0f;
+    }
+    if (value > 1.0f) {
+        return 1.0f;
+    }
+    return value;
+}
+
 bool MDLX_ExtractCamera(mdxModel_t const *model, DWORD frame, float aspect, LPMATRIX4 output, LPMATRIX4 light) {
     VECTOR3 root;
     VECTOR3 lightAngles = { 10, 270, 0 };
@@ -290,11 +364,22 @@ bool MDLX_SetEntityAnimationFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *e
     if (!seq) {
         return false;
     }
+    FLOAT frame_ratio = R_UISequenceFrameRatio(anim);
     DWORD seq_len = seq->interval[1] - seq->interval[0];
     if (seq_len == 0) {
         seq_len = 1;
     }
-    entity->frame = seq->interval[0] + (tr.viewDef.time % seq_len);
+    if (frame_ratio >= 0.0f) {
+        if (frame_ratio > 1.0f) {
+            frame_ratio = 1.0f;
+        }
+        entity->frame = seq->interval[0] + (DWORD)((FLOAT)(seq_len - 1) * frame_ratio);
+        if (entity->frame >= seq->interval[1]) {
+            entity->frame = seq->interval[1] - 1;
+        }
+    } else {
+        entity->frame = seq->interval[0] + (tr.viewDef.time % seq_len);
+    }
     entity->oldframe = entity->frame;
     return true;
 }
@@ -310,22 +395,10 @@ void MDLX_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
     mdxModel_t const *mdx = model->mdx;
     mdxSequence_t const *seq = R_SelectUISequence(mdx, anim);
 
-    if (!model || !model->mdx || !seq) {
+    if (!R_InitUIModelView(model, &viewdef, &entity, seq, R_UISequenceFrameRatio(anim))) {
         return;
     }
 
-    memset(&entity, 0, sizeof(entity));
-    memset(&viewdef, 0, sizeof(viewdef));
-    entity.scale = 1;
-    entity.model = model;
-    DWORD seq_len = seq->interval[1] - seq->interval[0];
-    if (seq_len == 0) seq_len = 1;
-    entity.frame = seq->interval[0] + (tr.viewDef.time % seq_len);
-    entity.oldframe = entity.frame;
-    viewdef.scissor = (RECT) { 0, 0, 1, 1 };
-    viewdef.num_entities = 1;
-    viewdef.entities = &entity;
-    viewdef.rdflags |= RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL;
     viewdef.viewport = (struct rect) {0,0,1,1};
 
     entity.flags |= RF_NO_FOGOFWAR | RF_NO_SHADOW | RF_NO_LIGHTING;

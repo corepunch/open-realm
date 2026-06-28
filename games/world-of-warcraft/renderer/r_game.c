@@ -158,6 +158,10 @@ bool R_GameEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
 
     Matrix4_identity(matrix);
     Matrix4_translate(matrix, &origin);
+    if (entity->flags & RF_GROUND_ANCHOR) {
+        /* Dynamic grounded actors share the Warcraft III one-dimensional yaw path. */
+        Matrix4_rotate(matrix, &(VECTOR3){ 0.0f, entity->angle * 180.0f / (FLOAT)M_PI, 0.0f }, ROTATE_XYZ);
+    }
 
     Matrix4_identity(&adt_to_world_basis);
     adt_to_world_basis.v[0] = 0.0f;
@@ -171,11 +175,7 @@ bool R_GameEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
     adt_to_world_basis.v[10] = 0.0f;
     Matrix4_multiply(matrix, &adt_to_world_basis, &tmp);
     *matrix = tmp;
-    if (entity->flags & RF_GROUND_ANCHOR) {
-        /* Grounded actors: yaw around Z (up in renderer space). */
-        Matrix4_rotate(matrix, &(VECTOR3){ 0.0f, entity->angle * 180.0f / (FLOAT)M_PI, 0.0f }, ROTATE_XYZ);
-    }
-    Matrix4_rotate(matrix, &(VECTOR3){ 0.0f, entity->rotation.y - 90.0f, 0.0f }, ROTATE_XYZ);
+    Matrix4_rotate(matrix, &(VECTOR3){ 0.0f, entity->rotation.y - 270.0f, 0.0f }, ROTATE_XYZ);
     if (!(entity->flags & RF_GROUND_ANCHOR)) {
         Matrix4_rotate(matrix, &(VECTOR3){ 0.0f, 0.0f, -entity->rotation.x }, ROTATE_XYZ);
     }
@@ -301,14 +301,14 @@ bool R_GameRenderShadow(renderEntity_t const *entity, LPCVECTOR2 origin) {
 
     shadow_z = entity->origin.z + WOW_SPLAT_Z_BIAS;
     use_fast_blob = shadow == tr.texture[TEX_BLOB_SHADOW] &&
-                    entity->shadow_rect.w <= 0 &&
-                    entity->shadow_rect.h <= 0;
+                    entity->shadow_w <= 0 &&
+                    entity->shadow_h <= 0;
 
-    if (entity->shadow_rect.w > 0 && entity->shadow_rect.h > 0) {
-        mins.x = origin->x - entity->shadow_rect.x;
-        mins.y = origin->y - entity->shadow_rect.y;
-        maxs.x = mins.x + entity->shadow_rect.w;
-        maxs.y = mins.y + entity->shadow_rect.h;
+    if (entity->shadow_w > 0 && entity->shadow_h > 0) {
+        mins.x = origin->x - entity->shadow_x;
+        mins.y = origin->y - entity->shadow_y;
+        maxs.x = mins.x + entity->shadow_w;
+        maxs.y = mins.y + entity->shadow_h;
     } else {
         float radius = MAX(entity->radius * MAX(entity->scale, 1.0f), 1.0f);
         float width = MAX(radius * 2.4f, 2.0f);

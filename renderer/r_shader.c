@@ -158,6 +158,119 @@ LPCSTR fs_minimap_fog =
 "    o_color = vec4(v_color.rgb, alpha);\n"
 "}\n";
 
+static LPCSTR vs_model =
+"#version 140\n"
+"in vec3 i_position;\n"
+"in vec4 i_color;\n"
+"in vec2 i_texcoord;\n"
+"in vec3 i_normal;\n"
+"in vec4 i_skin1;\n"
+"in vec4 i_boneWeight1;\n"
+"out vec4 v_color;\n"
+#ifdef USE_SHADOWMAPS
+"out vec4 v_shadow;\n"
+#endif
+"out vec2 v_texcoord;\n"
+"out vec2 v_texcoord2;\n"
+"out vec3 v_lighting;\n"
+"uniform mat4 uBones[128];\n"
+"uniform mat4 uViewProjectionMatrix;\n"
+"uniform mat4 uTextureMatrix;\n"
+"uniform mat4 uModelMatrix;\n"
+"uniform mat4 uLightMatrix;\n"
+"uniform mat3 uNormalMatrix;\n"
+"uniform vec3 uLightDir;\n"
+"uniform vec3 uLightColor;\n"
+"uniform vec3 uLightAmbient;\n"
+"vec3 vertex_lighting(vec3 normal) {\n"
+"    vec3 n = normalize(normal);\n"
+"    return uLightAmbient + uLightColor * max(dot(n, normalize(uLightDir)), 0.0);\n"
+"}\n"
+"void main() {\n"
+"    vec4 pos4 = vec4(i_position, 1.0);\n"
+"    vec4 norm4 = vec4(i_normal, 0.0);\n"
+"    vec4 position = vec4(0.0);\n"
+"    vec4 normal = vec4(0.0);\n"
+"    for (int i = 0; i < 4; ++i) {\n"
+"        position += uBones[int(i_skin1[i])] * pos4 * i_boneWeight1[i];\n"
+"        normal += uBones[int(i_skin1[i])] * norm4 * i_boneWeight1[i];\n"
+"    }\n"
+"    position.w = 1.0;\n"
+"    v_color = i_color;\n"
+"    v_texcoord = i_texcoord;\n"
+"    v_texcoord2 = (uTextureMatrix * uModelMatrix * position).xy;\n"
+"    vec3 worldNormal = normalize(uNormalMatrix * normal.xyz);\n"
+"    v_lighting = vertex_lighting(worldNormal);\n"
+#ifdef USE_SHADOWMAPS
+"    v_shadow = uLightMatrix * uModelMatrix * position;\n"
+#endif
+"    gl_Position = uViewProjectionMatrix * uModelMatrix * position;\n"
+"}\n";
+
+static LPCSTR fs_model =
+"#version 140\n"
+"in vec2 v_texcoord;\n"
+"in vec2 v_texcoord2;\n"
+#ifdef USE_SHADOWMAPS
+"in vec4 v_shadow;\n"
+#endif
+"in vec3 v_lighting;\n"
+"in vec4 v_color;\n"
+"out vec4 o_color;\n"
+"uniform sampler2D uTexture;\n"
+#if defined(USE_SHADOWMAPS) || defined(DEBUG_PATHFINDING)
+"uniform sampler2D uShadowmap;\n"
+#endif
+"uniform sampler2D uFogOfWar;\n"
+"uniform bool uUseDiscard;\n"
+"uniform bool uUnshaded;\n"
+"uniform float uLayerAlpha;\n"
+"uniform vec4 uGeosetColor;\n"
+"uniform vec2 uUvTrans;\n"
+"uniform vec2 uUvRot;\n"
+"uniform vec2 uUvScale;\n"
+"vec2 quat_transform(vec2 q, vec2 v) {\n"
+"    float c = q.y * q.y - q.x * q.x;\n"
+"    float s = 2.0 * q.x * q.y;\n"
+"    return vec2(v.x * c - v.y * s, v.x * s + v.y * c);\n"
+"}\n"
+#ifdef USE_SHADOWMAPS
+"float get_shadow() {\n"
+"    float depth = texture(uShadowmap, vec2(v_shadow.x + 1.0, v_shadow.y + 1.0) * 0.5).r;\n"
+"    return depth < (v_shadow.z + 0.99) * 0.5 ? 0.0 : 1.0;\n"
+"}\n"
+#endif
+"float get_fogofwar() {\n"
+"    return texture(uFogOfWar, v_texcoord2).r;\n"
+"}\n"
+"void main() {\n"
+"    vec2 uv = v_texcoord;\n"
+"    uv += uUvTrans;\n"
+"    uv = quat_transform(uUvRot, uv - 0.5) + 0.5;\n"
+"    uv = uUvScale * (uv - 0.5) + 0.5;\n"
+"    vec4 col = texture(uTexture, uv) * v_color * uGeosetColor;\n"
+"    col.a *= uLayerAlpha;\n"
+"    if (uUseDiscard && col.a < 0.5) discard;\n"
+"    if (!uUnshaded) {\n"
+#ifdef USE_SHADOWMAPS
+"        float shadow = get_shadow();\n"
+"        col.rgb *= get_fogofwar() * mix(v_lighting * 0.5, v_lighting, shadow);\n"
+#else
+"        col.rgb *= get_fogofwar() * v_lighting;\n"
+#endif
+"    }\n"
+"    o_color = col;\n"
+"}\n";
+
+static LPSHADER model_shader;
+
+LPSHADER R_ModelShader(void) {
+    if (!model_shader) {
+        model_shader = R_InitShader(vs_model, fs_model);
+    }
+    return model_shader;
+}
+
 LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
     GLuint vs = R_Call(glCreateShader, GL_VERTEX_SHADER);
     GLuint fs = R_Call(glCreateShader, GL_FRAGMENT_SHADER);
@@ -257,6 +370,9 @@ LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
     R_RegisterUniform(program, uFogEnable);
     R_RegisterUniform(program, uFogColor);
     R_RegisterUniform(program, uFogParams);
+    R_RegisterUniform(program, uLightDir);
+    R_RegisterUniform(program, uLightColor);
+    R_RegisterUniform(program, uLightAmbient);
 
     R_Call(glUniform1i, program->uTexture, 0);
 #if defined(USE_SHADOWMAPS) || defined(DEBUG_PATHFINDING)
