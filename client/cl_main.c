@@ -11,7 +11,6 @@
  */
 #include "client.h"
 #include "tr_public.h"
-#include "ui_layout.h"
 #include "sound/s_local.h"
 #include <arpa/inet.h>
 
@@ -78,10 +77,6 @@ void CL_ClearState(void) {
     SAFE_DELETE(cl.fow.visible, MemFree);
     SAFE_DELETE(cl.fow.explored, MemFree);
     SAFE_DELETE(cl.fow.texture, MemFree);
-
-    FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
-        SCR_ClearLayoutLayer(layer);
-    }
 
     memset(&cl, 0, sizeof(struct client_state));
 

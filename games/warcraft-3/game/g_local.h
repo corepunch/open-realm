@@ -45,15 +45,6 @@ if (NAME) { \
     fprintf(stderr, #NAME " not found");\
 }
 
-#define UI_WRITE_LAYER(ent, BuildUI, layer, ...) \
-    UI_SetCurrentClient(ent->client); \
-    UI_WriteStart(layer); \
-    BuildUI(ent->client, ##__VA_ARGS__); \
-    gi.Write(PF_LONG, &(LONG){0}); \
-    gi.Write(PF_SHORT, &(LONG){0}); \
-    gi.unicast(ent); \
-    UI_SetCurrentClient(NULL);
-
 
 #define FOR_SELECTED_UNITS(CLIENT, ENT) \
 FILTER_EDICTS(ENT, G_IsEntitySelected(CLIENT, ENT))
@@ -960,60 +951,22 @@ BYTE G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue);
 LPEDICT G_GetMainSelectedUnit(LPGAMECLIENT);
 void Get_Commands_f(LPEDICT);
 void Get_Portrait_f(LPEDICT);
-void G_RefreshInfoPanel(LPEDICT);
 void G_UpdateClientInfoPanels(void);
-void G_RefreshResourceBar(LPEDICT);
 void G_UpdateClientResourceBars(void);
+void G_RefreshResourceBar(LPEDICT);
 void UI_AddCancelButton(LPEDICT);
 void UI_AddCommandButton(LPCSTR);
 void UI_AddCommandButtonExtended(LPCSTR code, BOOL research, DWORD level);
-void UI_SetCurrentClient(LPGAMECLIENT client);
-void UI_ShowInterface(LPEDICT, BOOL, FLOAT);
-void UI_ShowText(LPEDICT, LPCVECTOR2, LPCSTR, FLOAT);
+void UI_ShowQuests(LPEDICT);
+void UI_HideQuests(LPEDICT);
+void UI_ShowQuest(LPEDICT, LPCQUEST);
 LPCSTR GetBuildCommand(unitRace_t);
 void UI_RenderRoute(LPEDICT, LPCSTR);
-void UI_ShowMainMenu(LPEDICT);
-void UI_ShowRealmSelect(LPEDICT, BOOL);
-void UI_ShowSinglePlayerMenu(LPEDICT);
-void UI_ShowMultiplayerMenu(LPEDICT);
-void UI_ShowMultiplayerCreateMenu(LPEDICT);
-void UI_ShowMultiplayerGameSetupMenu(LPEDICT, DWORD);
 void UI_ShowGameInterface(LPEDICT);
+void UI_ShowInterface(LPEDICT, BOOL, FLOAT);
 void UI_WriteCinematicLayer(LPEDICT);
-void UI_ShowMapSelectMenu(LPEDICT, LPCSTR);
-void UI_ShowMultiplayerCreateMapInfo(LPEDICT);
-void UI_ClearCreateGameSlots(void);
-void UI_AddCreateGameSlot(DWORD, LPCSTR, LPCSTR, LPCSTR, DWORD);
-
-// p_fdf.c
-void UI_PrintClasses(void);
-void UI_ClearTemplates(void);
-void UI_ParseFDF(LPCSTR);
-void UI_ParseFDF_Buffer(LPCSTR, LPSTR);
-void UI_SetAllPoints(LPFRAMEDEF);
-void UI_SetParent(LPFRAMEDEF, LPCFRAMEDEF);
-void UI_SetText(LPFRAMEDEF, LPCSTR, ...);
-void UI_SetOnClick(LPFRAMEDEF, LPCSTR, ...);
-void UI_SetTextPointer(LPFRAMEDEF, LPCSTR);
-void UI_SetSize(LPFRAMEDEF, FLOAT, FLOAT);
-void UI_SetTexture(LPFRAMEDEF, LPCSTR, BOOL);
-void UI_SetTexture2(LPFRAMEDEF, LPCSTR, BOOL);
-void UI_WriteLayout(LPEDICT, LPCFRAMEDEF, DWORD);
-void UI_WriteStart(DWORD);
-void UI_ClearLayer(LPEDICT, DWORD);
-void UI_WriteWithTriggers(LPEDICT, LPCFRAMEDEF, DWORD, uiTrigger_t const *);
-void UI_SetPoint(LPFRAMEDEF, UIFRAMEPOINT, LPCFRAMEDEF, UIFRAMEPOINT, FLOAT, FLOAT);
-void UI_InitFrame(LPFRAMEDEF, FRAMETYPE);
-void UI_SetHidden(LPFRAMEDEF, BOOL);
-void UI_InheritFrom(LPFRAMEDEF, LPCSTR);
-DWORD UI_FindFrameNumber(LPCSTR);
+void UI_ShowText(LPEDICT, LPCVECTOR2, LPCSTR, FLOAT);
 DWORD UI_LoadTexture(LPCSTR, BOOL);
-LPCSTR UI_GetString(LPCSTR);
-LPFRAMEDEF UI_Spawn(FRAMETYPE, LPFRAMEDEF);
-LPFRAMEDEF UI_FindFrame(LPCSTR);
-LPFRAMEDEF UI_FindFrameNear(LPCFRAMEDEF, LPCSTR);
-LPFRAMEDEF UI_FindChildFrame(LPFRAMEDEF, LPCSTR);
-
 LPCSTR Theme_String(LPCSTR, LPCSTR);
 FLOAT Theme_Float(LPCSTR, LPCSTR);
 

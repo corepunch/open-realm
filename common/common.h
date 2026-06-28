@@ -46,7 +46,6 @@ enum svc_ops {
 //    svc_muzzleflash,
 //    svc_muzzleflash2,
     svc_temp_entity,
-    svc_layout,
     svc_playerinfo,
     svc_cursor,
     svc_cursor_splat,
