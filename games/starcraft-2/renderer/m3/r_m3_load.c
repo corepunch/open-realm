@@ -854,6 +854,7 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_TRUE);
     R_Call(glUseProgram, m3.shader->progid);
+    R_Call(glUniform1i, m3.shader->uLightCount, 0);
 #ifdef USE_SHADOWMAPS
     extern bool is_rendering_lights;
     if (is_rendering_lights) {

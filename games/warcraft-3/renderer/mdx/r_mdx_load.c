@@ -134,12 +134,6 @@ static BYTE R_AddGeosetMatrixPaletteEntry(mdxGeoset_t *geoset, int matrix_id, DW
 }
 
 void R_SetupGeosetVertexBuffer(mdxGeoset_t *geoset) {
-    DWORD biggestGeoset = R_ModelFindBiggestGroup(geoset);
-    if (biggestGeoset > MAX_SKIN_BONES) {
-        ri.error("Geoset with more that %d bones skinning int\n", MAX_SKIN_BONES);
-        biggestGeoset = MAX_SKIN_BONES;
-    }
-    
     typedef BYTE matrixGroup_t[MAX_SKIN_BONES];
     mdxVertexSkin_t *vertices = ri.MemAlloc(sizeof(mdxVertexSkin_t) * geoset->num_vertices);
     DWORD matrixGroupCount = geoset->num_matrixGroupSizes > 0 && geoset->matrixGroupSizes && geoset->matrices
@@ -158,19 +152,21 @@ void R_SetupGeosetVertexBuffer(mdxGeoset_t *geoset) {
             matrixGroups[matrixGroupIndex][0] = R_AddGeosetMatrixPaletteEntry(geoset, 0, &paletteOverflowCount, &paletteOverflowFirst);
             continue;
         }
-        DWORD groupSize = geoset->matrixGroupSizes[matrixGroupIndex];
-        if (groupSize > MAX_SKIN_BONES) {
-            groupSize = MAX_SKIN_BONES;
-        }
+        DWORD sourceGroupSize = geoset->matrixGroupSizes[matrixGroupIndex];
+        DWORD groupSize = MIN(sourceGroupSize, MAX_SKIN_BONES);
         if (indexOffset >= (DWORD)geoset->num_matrices) {
             groupSize = 0;
         } else if (indexOffset + groupSize > (DWORD)geoset->num_matrices) {
             groupSize = (DWORD)geoset->num_matrices - indexOffset;
         }
         FOR_LOOP(matrixIndex, groupSize) {
-            int matrix_id = geoset->matrices[indexOffset++];
-            matrixGroups[matrixGroupIndex][matrixIndex] = R_AddGeosetMatrixPaletteEntry(geoset, matrix_id, &paletteOverflowCount, &paletteOverflowFirst);
+            int matrix_id = geoset->matrices[indexOffset + matrixIndex];
+            matrixGroups[matrixGroupIndex][matrixIndex] = R_AddGeosetMatrixPaletteEntry(
+                geoset, matrix_id, &paletteOverflowCount, &paletteOverflowFirst);
         }
+        /* Top-four filtering consumes four matrices but the next group still
+           starts after the complete file-shaped group. */
+        indexOffset += sourceGroupSize;
     }
     if (paletteOverflowCount) {
         fprintf(stderr,

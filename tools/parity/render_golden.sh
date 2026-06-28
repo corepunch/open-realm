@@ -56,8 +56,11 @@ while IFS= read -r line; do
 
   out="$WORK/$name.png"
   ref="$GOLDEN/$name.png"
+  archive="$DATA/$mpq"
+  # Expansion archives retain Blizzard's Frozen Throne subdirectory layout.
+  [ -f "$archive" ] || archive="$DATA/Frozen Throne/$mpq"
 
-  if ! "$MDXTOOL" -mpq "$DATA/$mpq" -model "$model" $extra -o "$out" >"$WORK/$name.log" 2>&1; then
+  if ! "$MDXTOOL" -mpq "$archive" -model "$model" $extra -o "$out" >"$WORK/$name.log" 2>&1; then
     echo "RENDER-FAIL $name"; tail -3 "$WORK/$name.log" | sed 's/^/    /'; fail=$((fail+1)); continue
   fi
   if [ ! -f "$out" ]; then

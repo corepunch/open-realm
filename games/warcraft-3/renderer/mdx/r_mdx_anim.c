@@ -34,14 +34,12 @@ void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *ke
     if (keytrack->globalSeqId != -1) {
         interval[0] = 0;
         interval[1] = model->globalSequences[keytrack->globalSeqId].value;
-        /* Reference (WarsmashModEngine / MdxComplexInstance.updateAnimations):
-         * global sequences use a monotonically increasing counter that does NOT
-         * reset when the per-sequence frame loops.  Our entity->frame cycles
-         * within the sequence interval (e.g. 11267..12700 for Stand), which
-         * would lock the global sequence to a tiny window of its keyframes.
-         * Use the wall clock instead so all global sequence keyframes play. */
+        /* Global sequences follow the render clock instead of entity->frame,
+           which loops within the selected sequence. This preserves their full
+           range while keeping fixed-time renderer captures deterministic. */
         DWORD gs_len = model->globalSequences[keytrack->globalSeqId].value + 1;
-        time = gs_len > 0 ? (SDL_GetTicks() % gs_len) : 0;
+        DWORD global_time = tr.viewDef.time ? tr.viewDef.time : SDL_GetTicks();
+        time = gs_len > 0 ? (global_time % gs_len) : 0;
     } else {
         mdxSequence_t const *seq = R_FindSequenceAtTime(model, time);
         if (!seq)

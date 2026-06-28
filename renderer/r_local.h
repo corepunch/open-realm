@@ -110,6 +110,8 @@ struct shader_program {
     DWORD uLightDir;
     DWORD uLightColor;
     DWORD uLightAmbient;
+    DWORD uLightCount;
+    DWORD uLights;
     DWORD uEyePosition;
     DWORD uActiveGlow;
     DWORD uFogEnable;

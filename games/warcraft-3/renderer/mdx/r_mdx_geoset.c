@@ -8,6 +8,10 @@ extern bool is_rendering_lights;
 
 #define MDLX_STACK_DRAW_ORDER 64
 
+#define MDX_SHADER_MAX_LIGHTS 8
+
+typedef struct { MATRIX4 matrix; } mdxCollectedLight_t;
+
 #define GET_PARTICLE_ANIM_PARAM(MODEL, EMITTER, NAME) \
 float NAME = EMITTER->NAME; \
 if (EMITTER->keytracks.NAME) { \
@@ -675,6 +679,79 @@ static void MDLX_RenderParticleEmitters(const renderEntity_t *entity, const mdxM
     }
 }
 
+static int MDLX_CollectModelLights(mdxModel_t const *model,
+                                   LPCMATRIX4 modelMatrix,
+                                   DWORD frame,
+                                   mdxCollectedLight_t *lights,
+                                   int maxLights)
+{
+    int count = 0;
+
+    FOR_EACH_LIST(mdxLight_t, light, model->lights) {
+        float visibility = 1.0f;
+        VECTOR3 color = light->Color;
+        VECTOR3 ambc = light->AmbColor;
+        float intensity = light->Intensity;
+        float ambIntensity = light->AmbIntensity;
+        float astart = light->AttenuationStart;
+        float aend = light->AttenuationEnd;
+
+        if (light->keytracks.Visibility)
+            MDLX_GetModelKeytrackValue(model, light->keytracks.Visibility, frame, &visibility);
+        if (visibility < EPSILON)
+            continue;
+        if (light->keytracks.Color)
+            MDLX_GetModelKeytrackValue(model, light->keytracks.Color, frame, &color);
+        if (light->keytracks.Intensity)
+            MDLX_GetModelKeytrackValue(model, light->keytracks.Intensity, frame, &intensity);
+        if (light->keytracks.AmbColor)
+            MDLX_GetModelKeytrackValue(model, light->keytracks.AmbColor, frame, &ambc);
+        if (light->keytracks.AmbIntensity)
+            MDLX_GetModelKeytrackValue(model, light->keytracks.AmbIntensity, frame, &ambIntensity);
+        if (light->keytracks.AttenuationStart)
+            MDLX_GetModelKeytrackValue(model, light->keytracks.AttenuationStart, frame, &astart);
+        if (light->keytracks.AttenuationEnd)
+            MDLX_GetModelKeytrackValue(model, light->keytracks.AttenuationEnd, frame, &aend);
+
+        VECTOR3 pivot = { 0, 0, 0 };
+        if (light->node.node_id < (DWORD)model->num_pivots)
+            pivot = model->pivots[light->node.node_id];
+        VECTOR3 localPos = pivot;
+        VECTOR3 localDirTarget = { pivot.x, pivot.y, pivot.z - 1.0f };
+        if (light->node.node_id < MDX_MAX_NODES && model->nodes[light->node.node_id]) {
+            localPos = Matrix4_multiply_vector3(&node_matrices[light->node.node_id], &pivot);
+            localDirTarget = Matrix4_multiply_vector3(&node_matrices[light->node.node_id], &localDirTarget);
+        }
+
+        VECTOR3 worldPos = Matrix4_multiply_vector3(modelMatrix, &localPos);
+        VECTOR3 worldDirTarget = Matrix4_multiply_vector3(modelMatrix, &localDirTarget);
+        VECTOR3 worldDir = Vector3_sub(&worldDirTarget, &worldPos);
+        if (Vector3_lengthsq(&worldDir) < EPSILON)
+            worldDir = (VECTOR3){ 0, 0, -1 };
+        else
+            Vector3_normalize(&worldDir);
+
+        if (count < maxLights)
+            lights[count].matrix = (MATRIX4){ .v = {
+                worldPos.x, worldPos.y, worldPos.z, (float)light->type,
+                worldDir.x, worldDir.y, worldDir.z, astart,
+                color.x, color.y, color.z, intensity * visibility,
+                ambc.x, ambc.y, ambc.z, ambIntensity * visibility,
+            }};
+        count++;
+    }
+
+    return MIN(count, maxLights);
+}
+
+/* The shared shader adds all active sources in one geometry pass, avoiding
+   the coplanar redraw that would otherwise require polygon offset. */
+static void MDLX_BindModelLights(LPCSHADER shader, mdxCollectedLight_t const *lights, int count) {
+    R_Call(glUniform1i, shader->uLightCount, count);
+    if (count)
+        R_Call(glUniformMatrix4fv, shader->uLights, count, GL_FALSE, lights[0].matrix.v);
+}
+
 void MDX_RenderModel(renderEntity_t const *entity,
                      mdxModel_t const *model,
                      LPCMATRIX4 transform)
@@ -724,28 +801,27 @@ void MDX_RenderModel(renderEntity_t const *entity,
                tr.viewDef.fogColor.x, tr.viewDef.fogColor.y, tr.viewDef.fogColor.z);
         R_Call(glUniform2f, shader->uFogParams, tr.viewDef.fogStart, tr.viewDef.fogEnd);
     }
-    {
-        /* MDX per-model omni lights are WC3-specific and not part of the unified
-           base shader. Map the fallback directional into uLightDir/Color/Ambient. */
-        FLOAT ambient = (entity->flags & RF_PORTRAIT_LIGHTING) ? 0.58f : 0.35f;
-        FLOAT directional = (entity->flags & RF_PORTRAIT_LIGHTING) ? 0.62f : 0.75f;
-        VECTOR3 lightDir = {
-            -tr.viewDef.lightMatrix.v[2],
-            -tr.viewDef.lightMatrix.v[6],
-            -tr.viewDef.lightMatrix.v[10],
-        };
-        R_Call(glUniform3f, shader->uLightDir, lightDir.x, lightDir.y, lightDir.z);
-        R_Call(glUniform3f, shader->uLightColor, directional, directional, directional);
-        R_Call(glUniform3f, shader->uLightAmbient, ambient, ambient, ambient);
-    }
     MDLX_BindBoneMatrices(model, transform, entity->frame, entity->oldframe);
+    mdxCollectedLight_t lights[MDX_SHADER_MAX_LIGHTS];
+    int numLights = MDLX_CollectModelLights(model, transform, entity->frame, lights, MDX_SHADER_MAX_LIGHTS);
+    FLOAT ambient = numLights ? ((entity->flags & RF_PORTRAIT_LIGHTING) ? 0.22f : 0.0f)
+                              : ((entity->flags & RF_PORTRAIT_LIGHTING) ? 0.58f : 0.35f);
+    FLOAT directional = (entity->flags & RF_PORTRAIT_LIGHTING) ? 0.62f : 0.75f;
+    VECTOR3 lightDir = {
+        -tr.viewDef.lightMatrix.v[2],
+        -tr.viewDef.lightMatrix.v[6],
+        -tr.viewDef.lightMatrix.v[10],
+    };
+    R_Call(glUniform3f, shader->uLightDir, lightDir.x, lightDir.y, lightDir.z);
+    R_Call(glUniform3f, shader->uLightColor, directional, directional, directional);
+    R_Call(glUniform3f, shader->uLightAmbient, ambient, ambient, ambient);
+    MDLX_BindModelLights(shader, lights, numLights);
 
     if (entity->flags & RF_NO_FOGOFWAR) {
         R_Call(glActiveTexture, GL_TEXTURE2);
         R_Call(glBindTexture, GL_TEXTURE_2D, tr.texture[TEX_WHITE]->texid);
         R_Call(glActiveTexture, GL_TEXTURE0);
     }
-    
     MDLX_RenderGeosets(entity, model);
     
     MDLX_RenderParticleEmitters(entity, model, transform);

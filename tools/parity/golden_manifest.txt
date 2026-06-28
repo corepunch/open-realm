@@ -12,6 +12,7 @@
 # Glue scenes carry their own camera (orbit-fit can't frame the huge scene);
 # units use the fitted orbit preview camera.
 menu3d_exp   | War3x.mpq | UI\Glues\MainMenu\MainMenu3D_exp\MainMenu3D_exp.mdx        | --use-model-camera
+menu3d_roc_lightning | War3.mpq | UI\Glues\MainMenu\MainMenu3d\MainMenu3d.mdx         | --use-model-camera --frame 7650
 wc3logo_exp  | War3x.mpq | UI\Glues\MainMenu\WarCraftIIILogo_exp\WarCraftIIILogo_exp.mdx | --use-model-camera
 peon         | War3.mpq  | Units\Orc\Peon\Peon.mdx                                    |
 footman      | War3.mpq  | Units\Human\Footman\Footman.mdx                            |

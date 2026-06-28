@@ -2843,6 +2843,7 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
     outfit = M2_CharacterOutfitForEntity(model, entity);
     Matrix3_normal(&normal_matrix, transform);
     R_Call(glUseProgram, shader->progid);
+    R_Call(glUniform1i, shader->uLightCount, 0);
     R_Call(glUniformMatrix4fv, shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
     R_Call(glUniformMatrix4fv, shader->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
     R_Call(glUniformMatrix4fv, shader->uModelMatrix, 1, GL_FALSE, transform->v);

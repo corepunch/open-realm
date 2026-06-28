@@ -182,9 +182,40 @@ static LPCSTR model_vs =
 "uniform vec3 uLightDir;\n"
 "uniform vec3 uLightColor;\n"
 "uniform vec3 uLightAmbient;\n"
-"vec3 vertex_lighting(vec3 normal) {\n"
+"uniform int uLightCount;\n"
+"uniform mat4 uLights[8];\n"
+"const int MODEL_LIGHT_OMNI = 0;\n"
+"const int MODEL_LIGHT_DIRECT = 1;\n"
+"const int MODEL_LIGHT_AMBIENT = 2;\n"
+"vec3 vertex_lighting(vec3 normal, vec3 worldPos) {\n"
 "    vec3 n = normalize(normal);\n"
-"    return uLightAmbient + uLightColor * max(dot(n, normalize(uLightDir)), 0.0);\n"
+"    if (uLightCount == 0)\n"
+"        return uLightAmbient + uLightColor * max(dot(n, normalize(uLightDir)), 0.0);\n"
+"    vec3 lighting = uLightAmbient;\n"
+"    for (int i = 0; i < 8; ++i) {\n"
+"        if (i >= uLightCount) break;\n"
+"        vec4 positionType = uLights[i][0];\n"
+"        vec4 direction = uLights[i][1];\n"
+"        vec4 colorIntensity = uLights[i][2];\n"
+"        vec4 ambientIntensity = uLights[i][3];\n"
+"        int type = int(positionType.w + 0.5);\n"
+"        vec3 color = colorIntensity.rgb * colorIntensity.a;\n"
+"        vec3 ambient = ambientIntensity.rgb * ambientIntensity.a;\n"
+"        if (type == MODEL_LIGHT_AMBIENT) {\n"
+"            lighting += color + ambient;\n"
+"        } else if (type == MODEL_LIGHT_DIRECT) {\n"
+"            vec3 l = normalize(-direction.xyz);\n"
+"            lighting += clamp(color * max(dot(n, l), 0.0), vec3(0.0), vec3(1.0)) + ambient;\n"
+"        } else {\n"
+"            vec3 delta = positionType.xyz - worldPos;\n"
+"            vec3 l = normalize(delta);\n"
+"            float dist = length(delta) / 64.0 + 1.0;\n"
+"            float atten = 1.0 / (dist * dist);\n"
+"            lighting += clamp(color * atten * max(dot(n, l), 0.0), vec3(0.0), vec3(1.0));\n"
+"            lighting += ambient * atten;\n"
+"        }\n"
+"    }\n"
+"    return min(lighting, vec3(1.0));\n"
 "}\n"
 "void main() {\n"
 "    vec4 pos4 = vec4(i_position, 1.0);\n"
@@ -200,7 +231,8 @@ static LPCSTR model_vs =
 "    v_texcoord = i_texcoord;\n"
 "    v_texcoord2 = (uTextureMatrix * uModelMatrix * position).xy;\n"
 "    vec3 worldNormal = normalize(uNormalMatrix * normal.xyz);\n"
-"    v_lighting = vertex_lighting(worldNormal);\n"
+"    vec3 worldPos = (uModelMatrix * position).xyz;\n"
+"    v_lighting = vertex_lighting(worldNormal, worldPos);\n"
 #ifdef USE_SHADOWMAPS
 "    v_shadow = uLightMatrix * uModelMatrix * position;\n"
 #endif
@@ -363,6 +395,8 @@ LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
     R_RegisterUniform(program, uLightDir);
     R_RegisterUniform(program, uLightColor);
     R_RegisterUniform(program, uLightAmbient);
+    R_RegisterUniform(program, uLightCount);
+    program->uLights = glGetUniformLocation(program->progid, "uLights[0]");
     R_RegisterUniform(program, uEyePosition);
     R_RegisterUniform(program, uActiveGlow);
     R_RegisterUniform(program, uFogEnable);
