@@ -28,8 +28,6 @@
 #define BUILDQUEUE_FIRST_Y (INFO_PANEL_Y + 0.0390f)
 #define BUILDQUEUE_FIRST_W 0.0280f
 #define BUILDQUEUE_FIRST_H 0.0310f
-
-static void UI_ClearCursorSplat(LPEDICT ent);
 #define BUILDQUEUE_LIST_X (INFO_PANEL_X + 0.0095f)
 #define BUILDQUEUE_LIST_Y (INFO_PANEL_Y + 0.0800f)
 #define BUILDQUEUE_ITEM_W 0.0200f
@@ -458,62 +456,6 @@ static void UI_WriteResourceBar(LONG food_used) {
     UI_WriteProxyFrameToParent(&frame, &label, sizeof(label), root);
 }
 
-/* Send the full LAYER_CONSOLE payload: backdrop + minimap + resource icons +
- * resource text values + top-bar buttons + tooltip. */
-static void UI_SendConsoleLayer(LPEDICT ent, LONG food_used) {
-    gi.Write(PF_BYTE, &(LONG){svc_layout});
-    gi.Write(PF_BYTE, &(LONG){LAYER_CONSOLE});
-    ui_next_frame_number = 1;
-
-    UI_WriteConsoleBackdrop();
-    UI_WriteMinimapFrame();
-    UI_WriteResourceBar(food_used);
-
-    UI_WriteCommandTextFrame(0.004f, 0.006f, 0.085f, 0.014f, "Quests (F9)", "quests",
-                             COLOR32_WHITE, FONT_JUSTIFYCENTER, HUD_FONT_SIZE);
-    UI_WriteCommandTextFrame(0.089f, 0.006f, 0.085f, 0.014f, "Menu (F10)", "menu",
-                             COLOR32_WHITE, FONT_JUSTIFYCENTER, HUD_FONT_SIZE);
-    UI_WriteTextFrame(0.174f, 0.006f, 0.085f, 0.014f, "Allies (F11)", COLOR32_WHITE, FONT_JUSTIFYCENTER);
-    UI_WriteTextFrame(0.259f, 0.006f, 0.085f, 0.014f, "Chat (F12)", COLOR32_WHITE, FONT_JUSTIFYCENTER);
-    UI_WriteTooltipFrame();
-
-    gi.Write(PF_LONG, &(LONG){0});
-    gi.Write(PF_SHORT, &(LONG){0});
-    gi.unicast(ent);
-}
-
-static void UI_WriteServerConsoleShell(LPEDICT ent) {
-    LPPLAYER ps = ent && ent->client ? &ent->client->ps : NULL;
-    LONG gold    = ps ? (LONG)ps->stats[PLAYERSTATE_RESOURCE_GOLD]      : 0;
-    LONG lumber  = ps ? (LONG)ps->stats[PLAYERSTATE_RESOURCE_LUMBER]    : 0;
-    LONG food_u  = ps ? (LONG)ps->stats[PLAYERSTATE_RESOURCE_FOOD_USED] : 0;
-    LONG food_c  = ps ? (LONG)ps->stats[PLAYERSTATE_RESOURCE_FOOD_CAP]  : 0;
-
-    if (!ent)
-        return;
-    UI_SendConsoleLayer(ent, food_u);
-    if (ent->client) {
-        ent->client->resourcebar.gold      = gold;
-        ent->client->resourcebar.lumber    = lumber;
-        ent->client->resourcebar.food_used = food_u;
-        ent->client->resourcebar.food_cap  = food_c;
-    }
-}
-
-static void UI_WritePortraitFrame(LPEDICT ent) {
-    uiFrame_t frame;
-
-    if (!ent || !ent->s.model) {
-        return;
-    }
-    memset(&frame, 0, sizeof(frame));
-    frame.flags.type = FT_PORTRAIT;
-    frame.color = COLOR32_WHITE;
-    frame.tex.index = ent->s.model;
-    UI_SetFrameRect(&frame, PORTRAIT_X, PORTRAIT_Y, PORTRAIT_SIZE, PORTRAIT_SIZE);
-    UI_WriteProxyFrame(&frame, NULL, 0);
-}
-
 static RECT UI_CommandButtonRect(BYTE x, BYTE y) {
     return MAKE(RECT,
                 COMMAND_BUTTON_CENTER_X(x) - COMMAND_BUTTON_SIZE * 0.5f,
@@ -603,18 +545,6 @@ void UI_ClearLayer(LPEDICT ent, DWORD layer) {
     gi.Write(PF_LONG, &(LONG){0});
     gi.Write(PF_SHORT, &(LONG){0});
     gi.unicast(ent);
-}
-
-static DWORD UI_SelectedUnits(LPGAMECLIENT client, LPEDICT *out, DWORD max_out) {
-    DWORD count = 0;
-
-    FOR_SELECTED_UNITS(client, ent) {
-        if (count < max_out) {
-            out[count] = ent;
-        }
-        count++;
-    }
-    return MIN(count, max_out);
 }
 
 static void UI_WriteSingleInfo(LPEDICT ent) {
@@ -711,27 +641,6 @@ static void UI_WriteSingleInfo(LPEDICT ent) {
                  (int)(ent->mana.value + 0.5f), (int)(ent->mana.max_value + 0.5f));
         UI_WriteTextFrame(PORTRAIT_X, PORTRAIT_Y + PORTRAIT_SIZE + 0.015f, PORTRAIT_SIZE, 0.012f,
                           buffer, MAKE(COLOR32, 90, 160, 255, 255), FONT_JUSTIFYCENTER);
-    }
-}
-
-static void UI_WriteInventory(LPEDICT ent) {
-    gameInventoryItem_t items[MAX_INVENTORY];
-    BYTE count = G_GetInventory(ent, items, MAX_INVENTORY);
-
-    FOR_LOOP(i, count) {
-        RECT rect = UI_InventoryButtonRect(items[i].slot);
-        uiFrame_t frame;
-        char onclick[128];
-
-        memset(&frame, 0, sizeof(frame));
-        frame.flags.type = FT_COMMANDBUTTON;
-        frame.color = COLOR32_WHITE;
-        frame.tex.index = gi.ImageIndex(items[i].art);
-        frame.tooltip = items[i].ubertip[0] ? items[i].ubertip : items[i].tooltip;
-        snprintf(onclick, sizeof(onclick), "inventory %u", (unsigned)items[i].slot);
-        frame.onclick = onclick;
-        UI_SetFrameRect(&frame, rect.x, rect.y, rect.w, rect.h);
-        UI_WriteProxyFrame(&frame, NULL, 0);
     }
 }
 
@@ -868,28 +777,12 @@ static void UI_WriteMultiselect(LPEDICT *ents, DWORD count) {
     gi.MemFree(buffer);
 }
 
+/* STUBBED: console_ui.c now draws command buttons client-side */
 void Get_Commands_f(LPEDICT ent) {
-    LPEDICT selected = ent && ent->client ? G_GetMainSelectedUnit(ent->client) : NULL;
-    gameCommandButton_t buttons[12];
-    BYTE count;
+}
 
-    UI_ClearCursorSplat(ent);
-    if (!ent || !ent->client || !selected) {
-        UI_ClearLayer(ent, LAYER_COMMANDBAR);
-        return;
-    }
-    memset(&ent->client->menu, 0, sizeof(ent->client->menu));
-
-    gi.Write(PF_BYTE, &(LONG){svc_layout});
-    gi.Write(PF_BYTE, &(LONG){LAYER_COMMANDBAR});
-    ui_next_frame_number = 1;
-    count = G_GetCommandButtons(selected, buttons, 12);
-    FOR_LOOP(i, count) {
-        UI_WriteCommandButtonFrame(&buttons[i]);
-    }
-    gi.Write(PF_LONG, &(LONG){0});
-    gi.Write(PF_SHORT, &(LONG){0});
-    gi.unicast(ent);
+/* STUBBED: console_ui.c now draws portrait/info/inventory client-side */
+void Get_Portrait_f(LPEDICT ent) {
 }
 
 /* Record the HP/mana figures currently reflected by the single-unit info panel
@@ -930,109 +823,23 @@ static void UI_SendInfoPanel(LPEDICT ent, LPEDICT *selected, DWORD count) {
     UI_SeedInfoPanelCache(ent, selected, count);
 }
 
-void Get_Portrait_f(LPEDICT ent) {
-    LPEDICT selected[MAX_SELECTED_ENTITIES];
-    DWORD count;
-
-    if (!ent || !ent->client) {
-        return;
-    }
-
-    count = UI_SelectedUnits(ent->client, selected, MAX_SELECTED_ENTITIES);
-
-    gi.Write(PF_BYTE, &(LONG){svc_layout});
-    gi.Write(PF_BYTE, &(LONG){LAYER_PORTRAIT});
-    ui_next_frame_number = 1;
-    if (count == 1) {
-        UI_WritePortraitFrame(selected[0]);
-    }
-    gi.Write(PF_LONG, &(LONG){0});
-    gi.Write(PF_SHORT, &(LONG){0});
-    gi.unicast(ent);
-
-    UI_SendInfoPanel(ent, selected, count);
-
-    gi.Write(PF_BYTE, &(LONG){svc_layout});
-    gi.Write(PF_BYTE, &(LONG){LAYER_INVENTORY});
-    ui_next_frame_number = 1;
-    if (count == 1) {
-        UI_WriteInventory(selected[0]);
-    }
-    gi.Write(PF_LONG, &(LONG){0});
-    gi.Write(PF_SHORT, &(LONG){0});
-    gi.unicast(ent);
-}
-
-/* Re-send the single-unit info panel for one player if the displayed HP or mana
- * has changed since it was last sent. The portrait and inventory layers are left
- * alone; multiselect bars and the build-queue timer already update client-side. */
+/* STUBBED: console_ui.c now draws info panels client-side */
 void G_RefreshInfoPanel(LPEDICT ent) {
-    LPEDICT selected[MAX_SELECTED_ENTITIES];
-    DWORD count;
-    LONG hp, mana;
-
-    if (!ent || !ent->client) {
-        return;
-    }
-    count = UI_SelectedUnits(ent->client, selected, MAX_SELECTED_ENTITIES);
-    if (count != 1 || selected[0]->build) {
-        ent->client->infopanel.entity = 0;
-        return;
-    }
-    hp = (LONG)(selected[0]->health.value + 0.5f);
-    mana = (LONG)(selected[0]->mana.value + 0.5f);
-    if (selected[0]->s.number == ent->client->infopanel.entity &&
-        hp == ent->client->infopanel.hp &&
-        mana == ent->client->infopanel.mana &&
-        (LONG)selected[0]->hero.xp == ent->client->infopanel.xp) {
-        return;
-    }
-    UI_SendInfoPanel(ent, selected, count);
 }
 
 /* Once per server frame, keep every player's info panel in sync with the live
  * HP/mana of their selected unit. */
+/* STUBBED: console_ui.c now draws info panels client-side via UI_DrawFrames() */
 void G_UpdateClientInfoPanels(void) {
-    FOR_LOOP(i, globals.num_edicts) {
-        LPEDICT ent = g_edicts + i;
-        if (ent->inuse && ent->client) {
-            G_RefreshInfoPanel(ent);
-        }
-    }
 }
 
 /* Re-send LAYER_CONSOLE for one player only when a resource value changed. */
+/* STUBBED: console_ui.c now draws resource bar client-side via UI_DrawFrames() */
 void G_RefreshResourceBar(LPEDICT ent) {
-    LPPLAYER ps;
-    LONG gold, lumber, food_u, food_c;
-
-    if (!ent || !ent->client)
-        return;
-    ps     = &ent->client->ps;
-    gold   = (LONG)ps->stats[PLAYERSTATE_RESOURCE_GOLD];
-    lumber = (LONG)ps->stats[PLAYERSTATE_RESOURCE_LUMBER];
-    food_u = (LONG)ps->stats[PLAYERSTATE_RESOURCE_FOOD_USED];
-    food_c = (LONG)ps->stats[PLAYERSTATE_RESOURCE_FOOD_CAP];
-
-    if (gold   == ent->client->resourcebar.gold   &&
-        lumber == ent->client->resourcebar.lumber  &&
-        food_u == ent->client->resourcebar.food_used &&
-        food_c == ent->client->resourcebar.food_cap)
-        return;
-
-    UI_SendConsoleLayer(ent, food_u);
-    ent->client->resourcebar.gold      = gold;
-    ent->client->resourcebar.lumber    = lumber;
-    ent->client->resourcebar.food_used = food_u;
-    ent->client->resourcebar.food_cap  = food_c;
 }
 
+/* STUBBED: console_ui.c now draws resource bar client-side */
 void G_UpdateClientResourceBars(void) {
-    FOR_LOOP(i, globals.num_edicts) {
-        LPEDICT ent = g_edicts + i;
-        if (ent->inuse && ent->client)
-            G_RefreshResourceBar(ent);
-    }
 }
 
 static DWORD UI_QuestIndex(LPCQUEST quest) {
@@ -1232,7 +1039,7 @@ void UI_ShowInterface(LPEDICT ent, BOOL flag, FLOAT duration) {
 }
 void UI_ShowMainMenu(LPEDICT ent) { (void)ent; }
 void UI_ShowGameInterface(LPEDICT ent) {
-    UI_WriteServerConsoleShell(ent);
+    /* UI_WriteServerConsoleShell stubbed: console_ui.c handles console shell client-side */
     UI_WriteCinematicLayer(ent);  /* Match old G_ClientBegin: send cinematic layout once */
 }
 void UI_ShowText(LPEDICT ent, LPCVECTOR2 pos, LPCSTR text, FLOAT duration) {
@@ -1410,14 +1217,3 @@ void UI_WriteCinematicLayer(LPEDICT ent) {
     gi.unicast(ent);
 }
 
-static void UI_ClearCursorSplat(LPEDICT ent) {
-    FLOAT radius = 0.0f;
-
-    if (!ent || !ent->client) {
-        return;
-    }
-    gi.Write(PF_BYTE, &(LONG){ svc_cursor_splat });
-    gi.Write(PF_SHORT, &(LONG){ 0 });
-    gi.Write(PF_FLOAT, &radius);
-    gi.unicast(ent);
-}

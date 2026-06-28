@@ -25,12 +25,15 @@
 #define MAX_BUILD_QUEUE_ITEMS 7
 #define MAX_LAYOUT_LAYERS 16
 
+#ifndef UI_MOUSE_EVENT_DEFINED
+#define UI_MOUSE_EVENT_DEFINED
 typedef enum {
     UI_MOUSE_MOVE,
     UI_MOUSE_DOWN,
     UI_MOUSE_UP,
     UI_MOUSE_SCROLL,
 } uiMouseEvent_t;
+#endif
 
 /* Pack/unpack signed 16-bit dx/dy into the generic int32_t param (WinAPI MAKELPARAM style). */
 #define UI_MOUSE_PARAM(dx, dy)  ((int32_t)(((uint16_t)(int16_t)(dx)) | ((uint32_t)((uint16_t)(int16_t)(dy)) << 16)))
