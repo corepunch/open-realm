@@ -41,6 +41,18 @@ Important cvars:
 | `ui_start_command` | Initial command, usually `menu_main` |
 | `com_frame_limit` | Exit after N frames |
 
+## Loading Flow
+
+Loading follows the Quake-style client state split:
+
+1. `CL_BeginLoadingMap()` sets `cls.state = ca_loading` and seeds the loading text/progress.
+2. `SCR_DrawScreenField()` draws the loading plaque only while `cls.state == ca_loading`.
+3. `CL_PrepRefresh()` loads configstring-backed assets and registers the map.
+4. Only after all required assets are ready does `CL_PrepRefresh()` send `begin` and promote the client to `ca_active`.
+5. Snapshot parsing may update `playerstate`, but it must not flip `cls.state` by itself.
+
+That separation matters because `ca_active` means "gameplay can render now", not "we already received a player snapshot." If the loading plaque disappears before the world is ready, the client should keep `ca_loading` until the precache gate completes.
+
 ## Menu Navigation Flow
 
 1. SDL input is translated by the client input layer.

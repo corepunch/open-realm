@@ -14,6 +14,7 @@ static BOOL UI_IsPopupFrameType(FRAMETYPE type) {
 static void UI_ResetPopupScroll(void) {
     active_popup_scroll_menu = NULL;
     active_popup_scroll = 0;
+    active_popup_hover_item = -1;
 }
 
 static COLOR32 UI_PopupHoverBackgroundColor(COLOR32 color) {
@@ -40,7 +41,6 @@ static BOOL UI_IsActivePopupMenu(LPCFRAMEDEF frame) {
 
 static BOOL UI_PointerBlockedByPopup(LPCFRAMEDEF frame) {
     LPFRAMEDEF menu;
-    LPCRECT rect;
 
     if (UI_PointerBlockedByModal(frame)) {
         return true;
@@ -52,8 +52,7 @@ static BOOL UI_PointerBlockedByPopup(LPCFRAMEDEF frame) {
     if (!menu || frame == active_popup || frame == menu) {
         return false;
     }
-    rect = UI_LayoutRect(menu);
-    return rect && UI_MouseContains(rect);
+    return !UI_FrameWithinRoot(menu, frame);
 }
 
 static LPFRAMEDEF UI_PopupTitleTextFrame(LPCFRAMEDEF popup) {
@@ -78,7 +77,7 @@ static LPFRAMEDEF UI_PopupTitleTextFrame(LPCFRAMEDEF popup) {
 }
 
 static FLOAT UI_PopupBottomPadding(void) {
-    LPRENDERER renderer = UI_GetRenderer();
+    LPRENDERER renderer = uiimport.GetRenderer();
     RECT scene = UI_GetSceneRect();
     size2_t window;
 
@@ -179,30 +178,8 @@ static void UI_UpdatePopupVisibility(LPCFRAMEDEF const *draw_order, DWORD count)
     }
 }
 
-static void UI_ClosePopupIfClickedOutside(void) {
-    LPFRAMEDEF menu;
-    LPCRECT popup_rect;
-    LPCRECT menu_rect = NULL;
-
-    if (!active_popup || ui_mouse.event != UI_MOUSE_LEFT_DOWN) {
-        return;
-    }
-
-    popup_rect = UI_LayoutRect(active_popup);
-    menu = UI_PopupMenuFrame(active_popup);
-    if (menu && !menu->hidden) {
-        menu_rect = UI_LayoutRect(menu);
-    }
-    if ((popup_rect && UI_MouseContains(popup_rect)) ||
-        (menu_rect && UI_MouseContains(menu_rect))) {
-        return;
-    }
-    active_popup = NULL;
-    UI_ResetPopupScroll();
-}
-
 static void UI_DrawMenu(LPCFRAMEDEF frame, LPCRECT rect) {
-    LPRENDERER renderer = UI_GetRenderer();
+    LPRENDERER renderer = uiimport.GetRenderer();
     LPCFRAMEDEF backdrop = UI_FindFrameNear(frame, frame->Control.Backdrop.Normal);
     LPCFONT font;
     FLOAT const border = frame->Menu.Border > 0.0f ? frame->Menu.Border : 0.006f;
@@ -239,15 +216,6 @@ static void UI_DrawMenu(LPCFRAMEDEF frame, LPCRECT rect) {
     if (active_popup_scroll > max_scroll) {
         active_popup_scroll = max_scroll;
     }
-    if (max_scroll > 0 &&
-        UI_MouseContains(rect) &&
-        (ui_mouse.event == UI_MOUSE_WHEEL_UP || ui_mouse.event == UI_MOUSE_WHEEL_DOWN)) {
-        if (ui_mouse.event == UI_MOUSE_WHEEL_UP) {
-            active_popup_scroll = active_popup_scroll > 0 ? active_popup_scroll - 1 : 0;
-        } else if (active_popup_scroll < max_scroll) {
-            active_popup_scroll++;
-        }
-    }
     clip = MAKE(RECT,
                 rect->x + border,
                 rect->y + border,
@@ -262,7 +230,7 @@ static void UI_DrawMenu(LPCFRAMEDEF frame, LPCRECT rect) {
                         MAX(0.0f, rect->w - border * 2.0f),
                         row_height);
         RECT hover_rect = row;
-        BOOL hover;
+        BOOL const hover = (int)i == active_popup_hover_item;
 
         if (i >= frame->Menu.ItemCount || row.y >= clip.y + clip.h) {
             break;
@@ -270,16 +238,15 @@ static void UI_DrawMenu(LPCFRAMEDEF frame, LPCRECT rect) {
         if (hover_rect.y + hover_rect.h > clip.y + clip.h) {
             hover_rect.h = MAX(0.0f, clip.y + clip.h - hover_rect.y);
         }
-        hover = hover_rect.h > 0.0f && UI_MouseContains(&hover_rect);
-        if (hover && renderer->DrawImageEx) {
+        if (hover && hover_rect.h > 0.0f && renderer->DrawImageEx) {
             renderer->DrawImageEx(&MAKE(drawImage_t,
                                         .texture = NULL,
                                         .shader = SHADER_UI,
                                         .alphamode = BLEND_MODE_BLEND,
                                         .screen = hover_rect,
                                         .uv = MAKE(RECT, 0, 0, 1, 1),
-                                        .color = UI_PopupHoverBackgroundColor(text_color),
-                                        .hasClip = TRUE,
+                                         .color = UI_PopupHoverBackgroundColor(text_color),
+                                         .flags = DRAW_CLIP,
                                         .clip = clip));
         }
 
@@ -289,33 +256,11 @@ static void UI_DrawMenu(LPCFRAMEDEF frame, LPCRECT rect) {
                                  .rect = row,
                                  .color = hover ? highlight_color : text_color,
                                  .textWidth = row.w,
-                                 .lineHeight = 1.0f,
-                                 .wordWrap = FALSE,
-                                 .halign = FONT_JUSTIFYLEFT,
-                                 .valign = FONT_JUSTIFYMIDDLE,
-                                 .hasClip = TRUE,
-                                 .clip = clip));
-        if (hover && ui_mouse.event == UI_MOUSE_LEFT_UP) {
-            LPFRAMEDEF popup = (LPFRAMEDEF)frame->Parent;
-            LPFRAMEDEF title = UI_IsPopupFrameType(popup ? popup->Type : FT_NONE)
-                ? UI_PopupTitleTextFrame(popup)
-                : NULL;
-            char command[160];
-
-            if (title) {
-                UI_SetText(title, "%s", frame->Menu.Items[i].text);
-            }
-            if (frame->OnClick[0]) {
-                snprintf(command,
-                         sizeof(command),
-                         frame->OnClick,
-                         (unsigned)frame->Menu.Items[i].value,
-                         (unsigned)i);
-                UI_MenuCommandLocal(command);
-            }
-            active_popup = NULL;
-            UI_ResetPopupScroll();
-        }
+                                  .lineHeight = 1.0f,
+                                  .flags = DRAW_CLIP,
+                                  .halign = FONT_JUSTIFYLEFT,
+                                  .valign = FONT_JUSTIFYMIDDLE,
+                                  .clip = clip));
     }
     if (max_scroll > 0 && renderer->DrawImageEx) {
         FLOAT const scroll_w = MIN(0.004f, MAX(0.0f, clip.w * 0.2f));
@@ -338,8 +283,8 @@ static void UI_DrawMenu(LPCFRAMEDEF frame, LPCRECT rect) {
                                     .alphamode = BLEND_MODE_BLEND,
                                     .screen = track,
                                     .uv = MAKE(RECT, 0, 0, 1, 1),
-                                    .color = MAKE(COLOR32, 0, 0, 0, 96),
-                                    .hasClip = TRUE,
+                                     .color = MAKE(COLOR32, 0, 0, 0, 96),
+                                     .flags = DRAW_CLIP,
                                     .clip = clip));
         renderer->DrawImageEx(&MAKE(drawImage_t,
                                     .texture = NULL,
@@ -347,8 +292,8 @@ static void UI_DrawMenu(LPCFRAMEDEF frame, LPCRECT rect) {
                                     .alphamode = BLEND_MODE_BLEND,
                                     .screen = thumb,
                                     .uv = MAKE(RECT, 0, 0, 1, 1),
-                                    .color = Theme_ListBoxSelectionColor(),
-                                    .hasClip = TRUE,
+                                     .color = Theme_ListBoxSelectionColor(),
+                                     .flags = DRAW_CLIP,
                                     .clip = clip));
     }
 }

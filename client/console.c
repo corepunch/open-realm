@@ -92,10 +92,8 @@ static void CON_DrawFull(void) {
     DWORD y = CON_MARGIN + CON_LINE_HEIGHT;
     char prompt[CON_INPUT_LEN + 8];
 
-    if (re.DrawFill) {
-        re.DrawFill(&(RECT){ 0, 0, window.width, height }, (COLOR32){ 0, 0, 0, 220 });
-        re.DrawFill(&(RECT){ 0, height - 2, window.width, 2 }, (COLOR32){ 180, 160, 80, 220 });
-    }
+    re.DrawFill(&(RECT){ 0, 0, window.width, height }, (COLOR32){ 0, 0, 0, 220 });
+    re.DrawFill(&(RECT){ 0, height - 2, window.width, 2 }, (COLOR32){ 180, 160, 80, 220 });
 
     CON_DrawAltString(CON_MARGIN, CON_MARGIN, "OpenWarcraft3 Console");
 

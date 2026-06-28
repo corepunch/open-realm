@@ -240,6 +240,7 @@ LPFRAMEDEF UI_Spawn(FRAMETYPE type, LPFRAMEDEF parent) {
         LPFRAMEDEF frame = &frames[i];
         if (!frame->inuse) {
             UI_InitFrame(frame, type);
+            UI_WireFrameTypeFunctions(frame);
             frame->Parent = parent;
             return frame;
         }
@@ -456,7 +457,7 @@ LPCTEXTURE UI_GetTexture(DWORD index) {
     if (ui_texture_decorated[index] && ui_texture_keys[index][0]) {
         resolved = EnsureExtension(Theme_String(ui_texture_keys[index], "Default"), ".blp");
         if (strcmp(ui_texture_names[index], resolved)) {
-            renderer = uiimport.GetRenderer ? uiimport.GetRenderer() : NULL;
+            renderer = uiimport.GetRenderer();
             if (renderer && renderer->LoadTexture) {
                 if (ui_textures[index] && renderer->ReleaseTexture) {
                     renderer->ReleaseTexture((LPTEXTURE)ui_textures[index]);
@@ -770,6 +771,16 @@ MAKE_PARSERCALL(Frame) {
     FRAMETYPE type = ParseEnumString(stype, FrameType);
     LPFRAMEDEF current = UI_Spawn(type, frame);
     FDF_ParseFrame(parser, current);
+    /* Popup menu title and arrow frames are rendered by the popup button
+     * but must not participate in hit testing (Warsmash convention:
+     * PopupMenuFrame extends GlueButtonFrame, not AbstractUIFrame, so its
+     * title/arrow are not in the child list for hit-test traversal). */
+    if (type == FT_POPUPMENU || type == FT_GLUEPOPUPMENU) {
+        LPFRAMEDEF title = UI_FindChildFrame(current, current->Popup.TitleFrame);
+        LPFRAMEDEF arrow = UI_FindChildFrame(current, current->Popup.ArrowFrame);
+        if (title) title->ui_flags |= UIFLAG_PASSTHROUGH;
+        if (arrow) arrow->ui_flags |= UIFLAG_PASSTHROUGH;
+    }
 }
 
 MAKE_PARSERCALL(IncludeFile) {
@@ -1075,6 +1086,13 @@ LPFRAMEDEF UI_FindFrame(LPCSTR name) {
     return NULL;
 }
 
+LPFRAMEDEF UI_FindFrameByNumber(DWORD number) {
+    if (number < MAX_UI_CLASSES && frames[number].inuse) {
+        return &frames[number];
+    }
+    return NULL;
+}
+
 LPFRAMEDEF UI_FindFrameNear(LPCFRAMEDEF anchor, LPCSTR name) {
     if (!name || !*name) {
         return NULL;
@@ -1307,6 +1325,7 @@ void UI_BindMapList(LPFRAMEDEF frame,
     control = &frame->MapListControl;
     memset(control, 0, sizeof(*control));
     control->State = state;
+    UI_WireFrameTypeFunctions(frame);
     control->VisibleRows = visible_rows;
     control->RowHeight = 0.019f;
     control->InsetX = 0.008f;
@@ -1515,6 +1534,8 @@ void UI_SetEnabled(LPFRAMEDEF frame, BOOL enabled) {
         return;
     }
     frame->disabled = !enabled;
+    if (frame->disabled) frame->ui_flags |= UIFLAG_DISABLED;
+    else frame->ui_flags &= ~UIFLAG_DISABLED;
 }
 
 void UI_SetTextPointer(LPFRAMEDEF frame, LPCSTR text) {
@@ -1549,6 +1570,8 @@ void UI_SetHidden(LPFRAMEDEF frame, BOOL value) {
         return;
     }
     frame->hidden = value;
+    if (frame->hidden) frame->ui_flags &= ~UIFLAG_VISIBLE;
+    else frame->ui_flags |= UIFLAG_VISIBLE;
 }
 
 void UI_WriteFrameWithChildrenWithTriggers(LPEDICT ent, LPCFRAMEDEF frame, LPCFRAMEDEF parent, uiTrigger_t const *triggers) {

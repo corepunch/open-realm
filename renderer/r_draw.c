@@ -196,12 +196,6 @@ void R_DrawImageEx(LPCDRAWIMAGE drawImage) {
     VERTEX simp[6];
     R_AddQuad(simp, &drawImage->screen, &drawImage->uv, drawImage->color, 0);
 
-    if (drawImage->rotate) {
-        VECTOR2 tmp1 = simp[1].texcoord;
-        VECTOR2 tmp2 = simp[5].texcoord;
-        simp[1].texcoord = tmp2;
-        simp[5].texcoord = tmp1;
-    }
     if (drawImage->angle) {
         FLOAT const cx = drawImage->screen.x + drawImage->screen.w * 0.5f;
         FLOAT const cy = drawImage->screen.y + drawImage->screen.h * 0.5f;
@@ -221,7 +215,7 @@ void R_DrawImageEx(LPCDRAWIMAGE drawImage) {
                      drawImage->shader,
                      drawImage->alphamode,
                      drawImage->uActiveGlow,
-                     drawImage->hasClip,
+                     drawImage->flags & DRAW_CLIP,
                      &drawImage->clip,
                      simp,
                      6,
@@ -234,7 +228,6 @@ void R_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color) 
                         .screen = *screen,
                         .uv = uv ? *uv : MAKE(RECT,0,0,1,1),
                         .color = color,
-                        .rotate = false,
                         .shader = SHADER_UI));
 }
 
@@ -378,7 +371,7 @@ void R_DrawMinimap(LPCRECT screen) {
     R_DrawImage(tr.minimap, screen, &MAKE(RECT, 0, 0, 1, 1), COLOR32_WHITE);
 
     if (tr.world && tr.shader[SHADER_MINIMAP_FOG]) {
-        DWORD const fow_texid = R_GetFogOfWarTexture();
+        DWORD const fow_texid = R_GetMinimapFogOfWarTexture();
         if (fow_texid && (!tr.texture[TEX_WHITE] || fow_texid != tr.texture[TEX_WHITE]->texid)) {
             TEXTURE fog_texture = {
                 .texid = fow_texid,

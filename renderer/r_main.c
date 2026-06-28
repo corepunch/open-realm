@@ -94,6 +94,20 @@ void R_Viewport(LPCRECT viewport) {
                viewport->h * tr.drawableSize.height / 600);
 }
 
+static LPTEXTURE R_MakePlaceholderTexture(void) {
+    enum { SIZE = 16 };
+    COLOR32 pixels[SIZE * SIZE];
+    LPTEXTURE texture = R_AllocateTexture(SIZE, SIZE);
+
+    FOR_LOOP(y, SIZE) FOR_LOOP(x, SIZE) {
+        BOOL const checker = ((x ^ y) & 1) != 0;
+        pixels[y * SIZE + x] = checker ? MAKE(COLOR32, 255, 0, 255, 255)
+                                        : MAKE(COLOR32, 0, 0, 0, 255);
+    }
+    R_LoadTextureMipLevel(texture, 0, pixels, SIZE, SIZE);
+    return texture;
+}
+
 LPTEXTURE R_AllocateSinglePixelTexture(int color) {
     LPTEXTURE texture = R_AllocateTexture(1, 1);
     R_LoadTextureMipLevel(texture, 0, (LPCCOLOR32)&color, 1, 1);
@@ -155,12 +169,33 @@ static LPTEXTURE R_MakeBlobShadowTexture(void) {
     return texture;
 }
 
+static BOOL R_HasImageExtension(LPCSTR path) {
+    return R_PathHasExtension(path, ".blp") ||
+           R_PathHasExtension(path, ".tga") ||
+           R_PathHasExtension(path, ".dds") ||
+           R_PathHasExtension(path, ".pcx");
+}
+
 LPTEXTURE R_LoadTexture(LPCSTR textureFilename) {
     LPTEXTURE texture = NULL;
     void *buffer = NULL;
-    int fileSize = ri.FS_ReadFile(textureFilename, &buffer);
+    PATHSTR blp_fallback;
+    LPCSTR load_path = textureFilename;
+    int fileSize = ri.FS_ReadFile(load_path, &buffer);
+    /* WC3 war3skins.txt paths omit .blp — try appending it before giving up. */
+    if ((fileSize < 0 || !buffer) && !R_HasImageExtension(load_path)) {
+        snprintf(blp_fallback, sizeof(blp_fallback), "%s.blp", load_path);
+        fileSize = ri.FS_ReadFile(blp_fallback, &buffer);
+        if (fileSize >= 0 && buffer)
+            load_path = blp_fallback;
+    }
     if (fileSize < 0 || !buffer) {
-        return R_AllocateSinglePixelTexture(0xffffffff);
+        static LPCSTR last_missing = NULL;
+        if (textureFilename != last_missing) {
+            fprintf(stderr, "R_LoadTexture: not found: %s\n", textureFilename);
+            last_missing = textureFilename;
+        }
+        return tr.texture[TEX_PLACEHOLDER];
     }
     switch (*(DWORD *)buffer) {
         case ID_BLP1:
@@ -173,13 +208,13 @@ LPTEXTURE R_LoadTexture(LPCSTR textureFilename) {
             texture = R_LoadTextureDDS(buffer, fileSize);
             break;
         default:
-            if (R_IsTexturePCX(buffer, fileSize) || R_PathHasExtension(textureFilename, ".pcx")) {
+            if (R_IsTexturePCX(buffer, fileSize) || R_PathHasExtension(load_path, ".pcx")) {
                 texture = R_LoadTexturePCX(buffer, fileSize);
-            } else if (R_PathHasExtension(textureFilename, ".tga")) {
+            } else if (R_PathHasExtension(load_path, ".tga")) {
                 texture = R_LoadTextureSTB(buffer, fileSize);
             }
             if (!texture) {
-                fprintf(stderr, "Unknown texture format %.4s in file %s\n", (LPSTR)buffer, textureFilename);
+                fprintf(stderr, "Unknown texture format %.4s in file %s\n", (LPSTR)buffer, load_path);
             }
             break;
     }
@@ -188,12 +223,13 @@ LPTEXTURE R_LoadTexture(LPCSTR textureFilename) {
 }
 
 static LPMODEL R_LoadEmptyModel(LPCSTR modelFilename, LPCSTR reason) {
-    LPMODEL model;
+    static LPCSTR last_missing = NULL;
 
-    fprintf(stderr, "R_LoadModel: %s: %s, using empty model\n", reason, modelFilename);
-    model = ri.MemAlloc(sizeof(model_t));
-    memset(model, 0, sizeof(*model));
-    return model;
+    if (modelFilename != last_missing) {
+        fprintf(stderr, "R_LoadModel: %s: %s, using empty model\n", reason, modelFilename);
+        last_missing = modelFilename;
+    }
+    return ri.MemAlloc(sizeof(model_t));
 }
 
 LPMODEL R_LoadModel(LPCSTR modelFilename) {
@@ -425,6 +461,7 @@ void R_Init(DWORD width, DWORD height) {
     tr.buffer[RBUF_TEMP1] = R_MakeVertexArrayObject(NULL, 0);
     tr.texture[TEX_WHITE] = R_AllocateSinglePixelTexture(0xffffffff);
     tr.texture[TEX_BLACK] = R_AllocateSinglePixelTexture(0xff000000);
+    tr.texture[TEX_PLACEHOLDER] = R_MakePlaceholderTexture();
     tr.texture[TEX_BLOB_SHADOW] = R_MakeBlobShadowTexture();
     tr.texture[TEX_LOADING_INDICATOR] = R_MakeLoadingIndicatorTexture();
     tr.texture[TEX_FONT] = R_MakeSysFontTexture();
@@ -516,14 +553,41 @@ void R_RenderView(void) {
 
 void R_RenderFrame(viewDef_t const *viewDef) {
     tr.viewDef = *viewDef;
-    Frustum_Calculate(&viewDef->viewProjectionMatrix, &tr.viewDef.frustum);
+
+    if (!tr.viewDef.scissor.w && !tr.viewDef.scissor.h) {
+        tr.viewDef.scissor = (RECT){0, 0, 1, 1};
+    }
+
+    if ((tr.viewDef.rdflags & RDF_USE_ENTITY_CAMERA) && tr.viewDef.num_entities > 0) {
+        renderEntity_t const *entity = &tr.viewDef.entities[0];
+        float aspect = (tr.viewDef.viewport.w * tr.drawableSize.width) > 0.0f
+            ? (tr.viewDef.viewport.w * tr.drawableSize.width) / (tr.viewDef.viewport.h * tr.drawableSize.height)
+            : 1.0f;
+        if (!R_GameExtractEntityCamera(entity, aspect, &tr.viewDef)) {
+            Matrix4_identity(&tr.viewDef.viewProjectionMatrix);
+            Matrix4_identity(&tr.viewDef.textureMatrix);
+            Matrix4_identity(&tr.viewDef.lightMatrix);
+        }
+        Frustum_Calculate(&tr.viewDef.viewProjectionMatrix, &tr.viewDef.frustum);
+        R_SetupViewport(&tr.viewDef.viewport);
+        R_SetupScissor(&tr.viewDef.scissor);
+        R_SetupGL(false);
+        R_Call(glClear, GL_DEPTH_BUFFER_BIT);
+        R_DrawEntities();
+        R_RevertSettings();
+        return;
+    }
+
+    Frustum_Calculate(&tr.viewDef.viewProjectionMatrix, &tr.viewDef.frustum);
 
     R_RenderFogOfWar();
     R_Call(glActiveTexture, GL_TEXTURE2);
     R_Call(glBindTexture, GL_TEXTURE_2D, R_GetFogOfWarTexture());
     R_Call(glActiveTexture, GL_TEXTURE0);
 #ifdef USE_SHADOWMAPS
-    R_RenderShadowMap();
+    if (!(tr.viewDef.rdflags & RDF_USE_ENTITY_CAMERA)) {
+        R_RenderShadowMap();
+    }
 #endif
     R_RenderView();
 }
@@ -590,12 +654,12 @@ bool R_GetModelInfo(LPMODEL model, LPMODELINFO info) {
     return R_GameGetModelInfo(model, info);
 }
 
-void R_DrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim) {
-    R_GameDrawPortrait(model, viewport, anim);
-}
-
 void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
     R_GameDrawSprite(model, anim, x, y);
+}
+
+bool R_SetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
+    return R_GameSetEntityAnimFrame(model, anim, entity);
 }
 
 refExport_t R_GetAPI(refImport_t imp) {
@@ -619,6 +683,7 @@ refExport_t R_GetAPI(refImport_t imp) {
         .DrawPic = R_DrawPic,
         .DrawImage = R_DrawImage,
         .DrawImageEx = R_DrawImageEx,
+        .DrawBackdrop = R_DrawBackdrop,
         .DrawMinimap = R_DrawMinimap,
         .DrawLoadingIndicator = R_DrawLoadingIndicator,
         .DrawSelectionRect = R_DrawSelectionRect,
@@ -626,8 +691,8 @@ refExport_t R_GetAPI(refImport_t imp) {
         .DrawFill = R_DrawFill,
         .GetWindowSize = R_GetWindowSize,
         .GetTextureSize = R_GetTextureSize,
-        .DrawPortrait = R_DrawPortrait,
         .DrawSprite = R_DrawSprite,
+        .SetEntityAnimFrame = R_SetEntityAnimFrame,
         .DrawText = R_DrawText,
         .GetTextSize = R_GetTextSize,
         .GetModelInfo = R_GetModelInfo,

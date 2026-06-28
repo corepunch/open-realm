@@ -12,22 +12,9 @@
 
 //#define PRINT_ANIMATIONS
 
-/* Max game frames to simulate in one SV_Frame call when catching up to real
- * time, bounding worst-case work per host frame (0.5s of sim at FRAMETIME). */
-#define SV_MAX_CATCHUP_FRAMES 5
-
 struct game_export *ge;
 struct server sv;
 struct server_static svs;
-
-static BOOL SV_HasSpawnedClient(void) {
-    FOR_LOOP(i, svs.num_clients) {
-        if (svs.clients[i].state == cs_spawned) {
-            return true;
-        }
-    }
-    return false;
-}
 
 void SV_WriteConfigString(LPSIZEBUF msg, DWORD i) {
     MSG_WriteByte(msg, svc_configstring);
@@ -191,25 +178,7 @@ void SV_Frame(DWORD msec) {
         return;
     }
 
-    if (!SV_HasSpawnedClient()) {
-        return;
-    }
-
-    /* Advance the simulation to catch up with elapsed real time.  Running a
-     * single game frame per SV_Frame call starves the sim whenever the client
-     * frame is slow (most visibly the headless text renderer, whose per-frame
-     * stdout dump can take far longer than FRAMETIME) — the sim then crawls or
-     * appears to stall.  Run the frames that should have elapsed, capped so a
-     * host that can't keep up doesn't spiral; if still behind after the cap,
-     * drop the accumulated backlog so the clock can't fall permanently behind. */
-    DWORD frames = 0;
-    while (svs.realtime >= sv.time && frames < SV_MAX_CATCHUP_FRAMES) {
-        SV_RunGameFrame();
-        frames++;
-    }
-    if (svs.realtime > sv.time) {
-        sv.time = svs.realtime;
-    }
+    SV_RunGameFrame();
 
     SV_SendClientMessages();
 }

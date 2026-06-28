@@ -11,6 +11,8 @@
  */
 #include "client.h"
 #include "tr_public.h"
+#include "ui_layout.h"
+#include "sound/s_local.h"
 #include <arpa/inet.h>
 
 refExport_t re;
@@ -77,10 +79,8 @@ void CL_ClearState(void) {
     SAFE_DELETE(cl.fow.explored, MemFree);
     SAFE_DELETE(cl.fow.texture, MemFree);
 
-    if (ui.ClearLayoutLayer) {
-        FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
-            ui.ClearLayoutLayer(layer);
-        }
+    FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
+        SCR_ClearLayoutLayer(layer);
     }
 
     memset(&cl, 0, sizeof(struct client_state));
@@ -93,30 +93,20 @@ static LPCPLAYER CL_UIGetPlayerState(void);
 static DWORD CL_UIGetNumEntities(void);
 static LPCENTITYSTATE CL_UIGetEntity(DWORD idx);
 static void CL_UIServerCommand(LPCSTR text);
-static void CL_UIRequestUnitUI(DWORD num_selected, DWORD *entity_nums);
 static void CL_LANRefreshServers(void);
 static DWORD CL_LANNumServers(void);
 static BOOL CL_LANServer(DWORD index, uiLanGame_t *out);
 static void CL_LANConnectServer(DWORD index);
-static LPCSTR CL_UIGetLoadingMap(void);
 static LPCMODEL CL_UIGetModel(DWORD idx);
 static LPCMODEL CL_UIGetPortrait(DWORD idx);
 static LPRENDERER CL_UIGetRenderer(void);
-static DWORD CL_UIGetClientTime(void);
-static VECTOR2 CL_UIGetMouseFdf(void);
-static DWORD CL_UIGetMouseButton(void);
-static uiClientMouseEvent_t CL_UIGetMouseEvent(void);
 
 static void CL_MenuCommand(LPCSTR command) {
     if (!command || !*command) {
         return;
     }
-    if (!ui.MenuCommand) {
-        Cbuf_AddText(command);
-        Cbuf_AddText("\n");
-        return;
-    }
-    ui.MenuCommand(command);
+    Cbuf_AddText(command);
+    Cbuf_AddText("\n");
 }
 
 void CL_Disconnect(LPCSTR reason, BOOL notify) {
@@ -157,9 +147,34 @@ static refExport_t CL_GetRendererAPI(refImport_t imp) {
     return R_GetAPI(imp);
 }
 
-/* UI library FS_ReadFile wrapper that converts to Quake 3 pattern */
+/* UI library FS_ReadFile wrapper — tries engine filesystem first,
+ * then falls back to a raw CWD fopen so share/ files written by
+ * CL_UI_WriteFile (which writes relative to CWD) are readable. */
 static int CL_UI_ReadFile(LPCSTR fileName, void **buf) {
-    return FS_ReadFileQ3(fileName, buf);
+    int size = FS_ReadFileQ3(fileName, buf);
+    if (size > 0 || !buf) return size;
+    FILE *f = fopen(fileName, "rb");
+    if (!f) return -1;
+    fseek(f, 0, SEEK_END);
+    long len = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    if (len <= 0) { fclose(f); return -1; }
+    *buf = MemAlloc((size_t)len + 1);
+    if (!*buf) { fclose(f); return -1; }
+    fread(*buf, 1, (size_t)len, f);
+    ((char *)*buf)[len] = '\0';
+    fclose(f);
+    return (int)len;
+}
+
+/* Write a local file by path (relative to CWD, same as share/ configs). */
+static void CL_UI_WriteFile(LPCSTR path, const void *data, int size) {
+    FILE *f;
+    if (!path || !data || size <= 0) return;
+    f = fopen(path, "wb");
+    if (!f) return;
+    fwrite(data, 1, (size_t)size, f);
+    fclose(f);
 }
 
 static BOOL CL_UI_HasExtension(LPCSTR name, LPCSTR extension) {
@@ -310,39 +325,6 @@ static LPRENDERER CL_UIGetRenderer(void) {
     return &re;
 }
 
-static DWORD CL_UIGetClientTime(void) {
-    return cl.time;
-}
-
-static VECTOR2 CL_UIGetMouseFdf(void) {
-    return SCR_MouseToFdf();
-}
-
-static DWORD CL_UIGetMouseButton(void) {
-    return mouse.button;
-}
-
-static uiClientMouseEvent_t CL_UIGetMouseEvent(void) {
-    switch (mouse.event) {
-        case UI_LEFT_MOUSE_DOWN: return UI_CLIENT_MOUSE_LEFT_DOWN;
-        case UI_LEFT_MOUSE_UP: return UI_CLIENT_MOUSE_LEFT_UP;
-        case UI_LEFT_MOUSE_DRAGGED: return UI_CLIENT_MOUSE_LEFT_DRAGGED;
-        case UI_RIGHT_MOUSE_DOWN: return UI_CLIENT_MOUSE_RIGHT_DOWN;
-        case UI_RIGHT_MOUSE_UP: return UI_CLIENT_MOUSE_RIGHT_UP;
-        case UI_RIGHT_MOUSE_DRAGGED: return UI_CLIENT_MOUSE_RIGHT_DRAGGED;
-        default: return UI_CLIENT_MOUSE_NONE;
-    }
-}
-
-/* Request unit UI data (command card, inventory, build queue) */
-static void CL_UIRequestUnitUI(DWORD num_selected, DWORD *entity_nums) {
-    (void)num_selected;
-    (void)entity_nums;
-    if (ui.UpdateUnitUI) {
-        ui.UpdateUnitUI(0, NULL);
-    }
-}
-
 #define CL_MAX_LAN_SERVERS 64
 
 static uiLanGame_t cl_lan_servers[CL_MAX_LAN_SERVERS];
@@ -463,46 +445,23 @@ update:
     }
 }
 
-static LPCSTR CL_UIGetLoadingMap(void) {
-    return cl.loading_map;
-}
-
 static void CL_UICvarSet(LPCSTR name, LPCSTR value) {
     Cvar_Set(name, value);
 }
 
-static LPCSTR CL_UIGetLoadingStatus(void) {
-    return cl.loading_status;
-}
-
-static FLOAT CL_UIGetLoadingProgress(void) {
-    return cl.loading_progress;
-}
-
 void CL_BeginLoadingMap(LPCSTR mapName) {
-    snprintf(cl.loading_map, sizeof(cl.loading_map), "%s", mapName ? mapName : "");
-    cl.loading_status[0] = '\0';
-    cl.loading_progress = 0.0f;
+    (void)mapName;
     cl.playerstate.client_ui_state = CLIENT_UI_LOADING;
-    cls.state = ca_loading;
+    cls.state = ca_connected;
     CL_MenuCommand("menu_ingame");
-}
-
-void CL_LoadingUpdate(LPCSTR status, FLOAT progress) {
-    if (status && *status) {
-        snprintf(cl.loading_status, sizeof(cl.loading_status), "%s", status);
-    }
-    if (progress < 0.0f) {
-        progress = 0.0f;
-    } else if (progress > 1.0f) {
-        progress = 1.0f;
-    }
-    cl.loading_progress = progress;
+    SCR_BeginLoadingPlaque();
 }
 
 /* Public wrapper for UI library and input system (Phase 8.6) */
 void CL_RequestUnitUI(DWORD num_selected, DWORD *entity_nums) {
-    CL_UIRequestUnitUI(num_selected, entity_nums);
+    (void)num_selected;
+    (void)entity_nums;
+    ui.UpdateUnitUI(0, NULL);
 }
 
 int CL_ModelIndex(LPCSTR modelName) {
@@ -610,41 +569,27 @@ void CL_Init(void) {
     mode = CL_VideoMode();
     re.Init(mode.width, mode.height);
     
+    S_Init();
+
     /* Initialize UI library */
     ui = UI_GetAPI((uiImport_t) {
         .FS_ReadFile = CL_UI_ReadFile,
         .FS_FreeFile = FS_FreeFile,
         .FS_GetFileList = CL_UI_GetFileList,
-        .ReadMapInfo = CM_ReadMapInfo,
-        .FindMapPreviewTexture = CM_FindMapPreviewTexture,
-        .FreeMapInfo = CM_FreeMapInfo,
-        .DefaultMapName = CM_DefaultMapName,
-        .ResolveMapInfoString = CM_ResolveMapInfoString,
-        .MapNameMatchesFile = CM_MapNameMatchesFile,
-        .MapTilesetName = CM_TilesetName,
-        .MapSizeName = CM_MapSizeName,
-        .SanitizeMapListField = CM_SanitizeMapListField,
-        .SanitizeMapInfoText = CM_SanitizeMapInfoText,
+        .FS_WriteFile = CL_UI_WriteFile,
         .MemAlloc = MemAlloc,
         .MemFree = MemFree,
-        .ModelIndex = CL_ModelIndex,
         .ImageIndex = CL_ImageIndex,
         .FontIndex = CL_FontIndex,
-        .ReadSheet = FS_ParseSLK,
-        .ReadConfig = FS_ParseINI,
-        .FindSheetCell = FS_FindSheetCell,
         .Cmd_AddCommand = Cmd_AddCommand,
         .Cmd_ExecuteText = Cbuf_AddText,
         .ServerCommand = CL_UIServerCommand,
         .Cvar_String = Cvar_String,
         .Cvar_Set = CL_UICvarSet,
-        .LANRefreshServers = CL_LANRefreshServers,
-        .LANNumServers = CL_LANNumServers,
-        .LANServer = CL_LANServer,
-        .LANConnectServer = CL_LANConnectServer,
-        .GetLoadingMap = CL_UIGetLoadingMap,
-        .GetLoadingStatus = CL_UIGetLoadingStatus,
-        .GetLoadingProgress = CL_UIGetLoadingProgress,
+        .LAN_RefreshServers = CL_LANRefreshServers,
+        .LAN_NumServers = CL_LANNumServers,
+        .LAN_Server = CL_LANServer,
+        .LAN_ConnectServer = CL_LANConnectServer,
         .GetPlayerState = CL_UIGetPlayerState,
         .GetNumEntities = CL_UIGetNumEntities,
         .GetEntity = CL_UIGetEntity,
@@ -653,25 +598,13 @@ void CL_Init(void) {
         .GetTexture = CL_GetTextureByIndex,
         .GetTextures = CL_UIGetTextures,
         .GetFont = CL_UIGetFont,
-        .GetClientTime = CL_UIGetClientTime,
-        .GetMouseFdf = CL_UIGetMouseFdf,
-        .GetMouseButton = CL_UIGetMouseButton,
-        .GetMouseEvent = CL_UIGetMouseEvent,
-        .LayoutClear = SCR_Clear,
-        .LayoutNumFrames = SCR_NumFrames,
-        .LayoutFrame = SCR_Frame,
-        .LayoutRect = SCR_LayoutRect,
-        .LayoutStringValue = SCR_GetStringValue,
-        .LayoutDrawText = SCR_GetDrawText,
-        .RequestUnitUI = CL_UIRequestUnitUI,
         .GetRenderer = CL_UIGetRenderer,
-        .Error = CON_printf,
         .Printf = CON_printf,
+        .PlaySound = S_PlaySound,
+        .PlaySoundByName = S_PlaySoundByName,
     });
     
-    if (ui.Init) {
-        ui.Init();
-    }
+    ui.Init();
 
     SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
     
@@ -682,12 +615,10 @@ void CL_Init(void) {
     CON_Init();
     CL_InitInput();
 
-    if (cls.key_dest == key_menu) {
-        CL_SetMenuBindings();
-        cls.state = ca_connecting;
-    } else {
-        CL_SetGameplayBindings();
-    }
+    CL_SetMenuBindings();
+    cls.state = ca_disconnected;
+    scr_initialized = true;
+    CL_MenuCommand("menu_login");
 }
 
 void CL_ConnectionlessPacket(const netadr_t *from, LPSIZEBUF msg) {
@@ -716,7 +647,9 @@ void CL_ConnectionlessPacket(const netadr_t *from, LPSIZEBUF msg) {
 
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
     MSG_WriteString(&cls.netchan.message, "new");
-    cls.state = ca_connected;
+    if (cls.state < ca_connected) {
+        cls.state = ca_connected;
+    }
 }
 
 static void CL_ReadPacketMessage(const netadr_t *from, LPSIZEBUF msg, int length) {
@@ -824,9 +757,7 @@ void CL_Connect(LPCSTR host, unsigned short port) {
 }
 
 void CL_Shutdown(void) {
-    if (ui.Shutdown) {
-        ui.Shutdown();
-    }
+    ui.Shutdown();
     FOR_LOOP(modelIndex, MAX_MODELS) {
         SAFE_DELETE(cl.models[modelIndex], re.ReleaseModel);
         SAFE_DELETE(cl.portraits[modelIndex], re.ReleaseModel);
@@ -836,6 +767,7 @@ void CL_Shutdown(void) {
     }
     V_Shutdown();
     re.Shutdown();
+    S_Shutdown();
 }
 
 void CL_SendCommand(void) {
@@ -851,15 +783,21 @@ void CL_Frame(DWORD msec) {
     cl_realtime += msec;
     cl.time += msec;
 
-    /* Update UI library */
-    if (ui.Refresh) {
-        ui.Refresh(msec);
-    }
-
     CL_Input();
     CL_ReadPackets();
     CL_CheckTimeout();
     CL_SendCommand();
-    CL_PrepRefresh();
+    if (cls.state == ca_connected && !cl.refresh_prepped) {
+        CL_PrepRefresh();
+    } else if (cls.state == ca_active) {
+        /* Keep calling CL_PrepRefresh every frame during gameplay so that models
+         * and images registered by JASS triggers after map-load (e.g. the Arthas
+         * hero created by the LoadArthas trigger on Human02) get loaded as soon as
+         * their configstring arrives.  CL_PrepRefresh skips already-loaded slots, so
+         * this is a cheap array scan on frames where nothing new was registered.
+         * Original behaviour: the old codebase called CL_PrepRefresh unconditionally
+         * every frame with no state gate at all. */
+        CL_PrepRefresh();
+    }
     SCR_UpdateScreen(msec);
 }

@@ -1098,18 +1098,11 @@ DWORD GetTimeOfDayScale(LPJASS j) {
 }
 DWORD ShowInterface(LPJASS j) {
     BOOL flag = jass_checkboolean(j, 1);
-    (void)jass_checknumber(j, 2);
+    FLOAT fadeDuration = jass_checknumber(j, 2);
     LPPLAYER player = currentplayer;
-    if (G_SkipCutscene()) {
-        flag = true;
-    }
-    if (player) {
-        LPGAMECLIENT client = PLAYER_CLIENT(player);
-
-        if (client) {
-            client->ps.client_ui_state = flag ? CLIENT_UI_GAME : CLIENT_UI_CINEMATIC;
-        }
-    }
+    if (G_SkipCutscene()) flag = true;
+    if (player)
+        UI_ShowInterface(PLAYER_ENT(player), flag, fadeDuration);
     return 0;
 }
 DWORD PauseGame(LPJASS j) {
@@ -1215,16 +1208,12 @@ DWORD SetCinematicScene(LPJASS j) {
     //HANDLE color = jass_checkhandle(j, 2, "playercolor");
     LPCSTR speakerTitle = jass_checkstring(j, 3);
     LPCSTR text = jass_checkstring(j, 4);
-    //FLOAT sceneDuration = jass_checknumber(j, 5);
+    FLOAT sceneDuration = jass_checknumber(j, 5);
     //FLOAT voiceoverDuration = jass_checknumber(j, 6);
-    if (G_SkipCutscene()) {
-        return 0;
-    }
+    if (G_SkipCutscene()) return 0;
     if (currentplayer) {
         currentplayer->texts[PLAYERTEXT_SPEAKER] = G_LevelString(speakerTitle);
         currentplayer->texts[PLAYERTEXT_DIALOGUE] = G_LevelString(text);
-        /* Bind the speaking unit-type's portrait so the cinematic shows the
-         * animated talking head, as in WC3. */
         currentplayer->cinematic_portrait = 0;
         if (portraitUnitId) {
             LPCSTR model = UNIT_MODEL((DWORD)portraitUnitId);
@@ -1234,11 +1223,11 @@ DWORD SetCinematicScene(LPJASS j) {
                 currentplayer->cinematic_portrait = G_RegisterModel(mf);
             }
         }
-        fprintf(stderr,
-                "SetCinematicScene: player=%u speaker=%s time=%u\n",
-                (unsigned)PLAYER_NUM(currentplayer),
-                speakerTitle,
-                (unsigned)gi.GetTime());
+        if (sceneDuration > 0) {
+            LPGAMECLIENT gc = PLAYER_CLIENT(currentplayer);
+            if (gc) gc->cinematic_end_time = gi.GetTime() + (DWORD)(sceneDuration * 1000.0f);
+        }
+        UI_WriteCinematicLayer(PLAYER_ENT(currentplayer));
     }
     return 0;
 }
@@ -1247,10 +1236,7 @@ DWORD EndCinematicScene(LPJASS j) {
         currentplayer->texts[PLAYERTEXT_SPEAKER] = "";
         currentplayer->texts[PLAYERTEXT_DIALOGUE] = "";
         currentplayer->cinematic_portrait = 0;
-        fprintf(stderr,
-                "EndCinematicScene: player=%u time=%u\n",
-                (unsigned)PLAYER_NUM(currentplayer),
-                (unsigned)gi.GetTime());
+        UI_WriteCinematicLayer(PLAYER_ENT(currentplayer));
     }
     return 0;
 }

@@ -24,12 +24,6 @@ static void LANCreate_KeyEvent(int key, BOOL down) {
     (void)down;
 }
 
-static void LANCreate_MouseEvent(int x, int y, int buttons) {
-    (void)x;
-    (void)y;
-    (void)buttons;
-}
-
 uiScreen_t lanCreateScreen = {
     .name = "lan-create",
     .init = LANCreate_Init,
@@ -37,5 +31,4 @@ uiScreen_t lanCreateScreen = {
     .refresh = LANCreate_Refresh,
     .draw = LANCreate_Draw,
     .key_event = LANCreate_KeyEvent,
-    .mouse_event = LANCreate_MouseEvent,
 };

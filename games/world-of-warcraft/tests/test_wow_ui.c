@@ -42,9 +42,11 @@ static DWORD draw_panel_count;
 static DWORD draw_inventory_count;
 static DWORD draw_fill_count;
 static DWORD draw_text_count;
+static DWORD draw_cursor_count;
 static DWORD draw_minimap_count;
 static char last_draw_text[256];
 static char last_server_command[256];
+static char last_cmd_execute_text[256];
 static DWORD last_panel_width;
 static DWORD last_panel_height;
 static DWORD last_inventory_width;
@@ -149,8 +151,13 @@ static void test_release_texture(LPTEXTURE texture) {
     free(texture);
 }
 
+static size2_t test_get_texture_size(LPCTEXTURE texture) {
+    size2_t s = {0, 0};
+    if (texture) { s.width = texture->width; s.height = texture->height; }
+    return s;
+}
+
 static void test_draw_image(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color) {
-    (void)screen;
     (void)uv;
     (void)color;
     if (!texture) {
@@ -167,6 +174,12 @@ static void test_draw_image(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLO
     }
 }
 
+static void test_draw_image_ex(LPCDRAWIMAGE image) {
+    if (image) {
+        test_draw_image(image->texture, &image->screen, &image->uv, image->color);
+    }
+}
+
 static void test_draw_fill(LPCRECT rect, COLOR32 color) {
     (void)rect;
     (void)color;
@@ -178,9 +191,17 @@ static void test_draw_minimap(LPCRECT rect) {
     draw_minimap_count++;
 }
 
+static VECTOR2 test_get_text_size(LPCDRAWTEXT drawText) {
+    FLOAT w = drawText && drawText->text ? (FLOAT)strlen(drawText->text) * 0.01f : 0.0f;
+    FLOAT h = drawText && drawText->font ? drawText->font->size / 1000.0f : 0.012f;
+    return MAKE(VECTOR2, w, h);
+}
+
 static void test_draw_text(LPCDRAWTEXT drawText) {
     draw_text_count++;
     snprintf(last_draw_text, sizeof(last_draw_text), "%s", drawText && drawText->text ? drawText->text : "");
+    if (drawText && drawText->text && !strcmp(drawText->text, "|"))
+        draw_cursor_count++;
 }
 
 static LPCTEXTURE test_get_texture(DWORD index) {
@@ -220,12 +241,17 @@ static void test_server_command(LPCSTR text) {
     snprintf(last_server_command, sizeof(last_server_command), "%s", text ? text : "");
 }
 
+static void test_cmd_execute_text(LPCSTR text) {
+    snprintf(last_cmd_execute_text, sizeof(last_cmd_execute_text), "%s", text ? text : "");
+}
+
 static void reset_test_state(void) {
     memset(&test_ps, 0, sizeof(test_ps));
     memset(test_textures, 0, sizeof(test_textures));
     memset(&test_renderer, 0, sizeof(test_renderer));
     memset(last_draw_text, 0, sizeof(last_draw_text));
     memset(last_server_command, 0, sizeof(last_server_command));
+    memset(last_cmd_execute_text, 0, sizeof(last_cmd_execute_text));
     test_time = 1000;
     next_texture_id = 0;
     loaded_textures = 0;
@@ -235,6 +261,7 @@ static void reset_test_state(void) {
     draw_inventory_count = 0;
     draw_fill_count = 0;
     draw_text_count = 0;
+    draw_cursor_count = 0;
     draw_minimap_count = 0;
     last_panel_width = 0;
     last_panel_height = 0;
@@ -244,10 +271,13 @@ static void reset_test_state(void) {
     test_renderer.LoadTexture = test_load_texture;
     test_renderer.LoadFont = test_load_font;
     test_renderer.ReleaseTexture = test_release_texture;
+    test_renderer.GetTextureSize = test_get_texture_size;
     test_renderer.DrawImage = test_draw_image;
+    test_renderer.DrawImageEx = test_draw_image_ex;
     test_renderer.DrawFill = test_draw_fill;
     test_renderer.DrawMinimap = test_draw_minimap;
     test_renderer.DrawText = test_draw_text;
+    test_renderer.GetTextSize = test_get_text_size;
 
     test_ps.client_ui_state = CLIENT_UI_GAME;
     test_ps.name = "LuaTester";
@@ -266,6 +296,7 @@ static uiExport_t init_ui(void) {
         .FS_FreeFile = test_fs_free_file,
         .MemAlloc = test_mem_alloc,
         .MemFree = test_mem_free,
+        .Cmd_ExecuteText = test_cmd_execute_text,
         .ImageIndex = test_image_index,
         .ServerCommand = test_server_command,
         .GetPlayerState = test_get_player_state,
@@ -276,11 +307,12 @@ static uiExport_t init_ui(void) {
     });
     ASSERT_NOT_NULL(ui.Init);
     ASSERT_NOT_NULL(ui.Refresh);
-    ASSERT_NOT_NULL(ui.DrawFrame);
     ASSERT_NOT_NULL(ui.Shutdown);
     ui.Init();
     return ui;
 }
+
+extern BOOL UIWow_RunLuaString(LPCSTR name, LPCSTR script);
 
 static void test_wow_lua_ui_draws_from_generated_mpq(void) {
     uiExport_t ui;
@@ -298,7 +330,6 @@ static void test_wow_lua_ui_draws_from_generated_mpq(void) {
     unit.inventory[0].slot = 0;
     ui.UpdateUnitUI(1, &unit);
     ui.Refresh(33);
-    ui.DrawFrame();
 
     ASSERT_EQ_INT((int)forbidden_texture_loads, 0);
     ASSERT_EQ_INT((int)missing_textures, 0);

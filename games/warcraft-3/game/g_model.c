@@ -166,10 +166,12 @@ static animation_t *LoadModelMDLX(BYTE const *data, DWORD data_size, DWORD *out_
             size = (DWORD)(end - ptr);
         }
         if (header == ID_SEQS) {
-            animations = gi.MemAlloc(size);
-            num = size / sizeof(animation_t);
-            memcpy(animations, ptr, size);
+            enum { SEQ_RECORD_SIZE = 132 }; /* on-disk mdxSequence_t, may differ from animation_t */
+            num = size / SEQ_RECORD_SIZE;
+            animations = gi.MemAlloc(sizeof(animation_t) * num);
+            memset(animations, 0, sizeof(animation_t) * num);
             FOR_LOOP(i, num) {
+                memcpy(animations + i, ptr + i * SEQ_RECORD_SIZE, SEQ_RECORD_SIZE);
                 ConvertMDLXAnimationName(animations + i);
             }
         }

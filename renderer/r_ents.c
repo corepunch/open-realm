@@ -223,11 +223,11 @@ static void R_RenderShadow(const renderEntity_t *entity, LPCVECTOR2 origin) {
 
     VECTOR2 mins;
     VECTOR2 maxs;
-    if (entity->shadow_w > 0 && entity->shadow_h > 0) {
-        mins.x = origin->x - entity->shadow_x;
-        mins.y = origin->y - entity->shadow_y;
-        maxs.x = mins.x + entity->shadow_w;
-        maxs.y = mins.y + entity->shadow_h;
+    if (entity->shadow_rect.w > 0 && entity->shadow_rect.h > 0) {
+        mins.x = origin->x - entity->shadow_rect.x;
+        mins.y = origin->y - entity->shadow_rect.y;
+        maxs.x = mins.x + entity->shadow_rect.w;
+        maxs.y = mins.y + entity->shadow_rect.h;
     } else {
         int pivot_x = (int)(shadow->width * 0.3f + 0.5f);
         int pivot_y = (int)(shadow->height * 0.7f + 0.5f);

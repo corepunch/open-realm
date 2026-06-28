@@ -64,8 +64,6 @@ void CL_ParseUnitUI(LPSIZEBUF msg) {
         }
     }
 
-    if (ui.UpdateUnitUI) {
-        ui.UpdateUnitUI((DWORD)num_units, units);
-    }
+    ui.UpdateUnitUI((DWORD)num_units, units);
     MemFree(units);
 }

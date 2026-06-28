@@ -5,6 +5,7 @@
 #include "tr_public.h"
 #include "keys.h"
 #include "client/ui.h"
+#include "ui_layout.h"
 
 #define WINDOW_WIDTH 1024
 #define WINDOW_HEIGHT 768
@@ -60,7 +61,6 @@ typedef enum {
     ca_disconnected,
     ca_connecting,
     ca_connected,
-    ca_loading,
     ca_active,
 } connstate_t;
 
@@ -71,6 +71,7 @@ struct frame {
 };
 
 struct client_state {
+    BOOL refresh_prepped;
     LPMODEL models[MAX_MODELS];
     LPMODEL portraits[MAX_MODELS];
     LPCTEXTURE pics[MAX_IMAGES];
@@ -79,9 +80,6 @@ struct client_state {
     DWORD dynamicPicCursor;
     LPCFONT fonts[MAX_FONTSTYLES];
     PATHSTR configstrings[MAX_CONFIGSTRINGS];
-    PATHSTR loading_map;
-    char loading_status[128];
-    FLOAT loading_progress;
     centity_t ents[MAX_CLIENT_ENTITIES];
     HANDLE layout[MAX_LAYOUT_LAYERS];
     viewDef_t viewDef;
@@ -119,6 +117,8 @@ struct client_static {
     struct netchan netchan;
     keydest_t key_dest;
     connstate_t state;
+    DWORD disable_screen;       /* loading plaque timestamp; freeze screen while nonzero */
+    int disable_servercount;    /* servercount when plaque was raised */
 };
 
 // cl_main.c
@@ -128,7 +128,6 @@ void CL_SetMenuBindings(void);
 void CL_SetGameplayInput(void);
 void CL_SetGameplayBindings(void);
 void CL_BeginLoadingMap(LPCSTR mapName);
-void CL_LoadingUpdate(LPCSTR status, FLOAT progress);
 void CL_RequestUnitUI(DWORD num_selected, DWORD *entity_nums);
 BOOL CL_AltModifierDown(void);
 
@@ -156,7 +155,6 @@ LPCUIFRAME SCR_Clear(HANDLE data);
 DWORD SCR_NumFrames(void);
 LPUIFRAME SCR_Frame(DWORD number);
 LPCRECT SCR_LayoutRect(LPCUIFRAME frame);
-VECTOR2 SCR_MouseToFdf(void);
 VECTOR2 SCR_GetAxisBounds(LPCRECT rect, bool is_x_axis);
 FLOAT SCR_NormalizeAnchorOffset(uiFramePoint_t const *p, bool is_x_axis);
 VECTOR2 SCR_SolveAxisPosition(LPCUIFRAME frame,
@@ -169,6 +167,8 @@ drawText_t SCR_GetDrawText(LPCUIFRAME frame,
                          LPCSTR text,
                          uiLabel_t const *label);
 void SCR_UpdateScreen(DWORD msec);
+void SCR_BeginLoadingPlaque(void);
+void SCR_EndLoadingPlaque(void);
 
 // cl_input.c
 void CL_Input(void);
@@ -185,6 +185,9 @@ int CL_ImageIndex(LPCSTR imageName);
 int CL_FontIndex(LPCSTR fontName, DWORD fontSize);
 void CL_UIMenuCommand(LPCSTR command);
 
+/* Entity one-shot sound/effect events (cl_fx.c) */
+void CL_EntityEvent(entityState_t const *ent);
+
 /* Unit UI data parsing (Phase 8) */
 void CL_ParseUnitUI(LPSIZEBUF msg);
 
@@ -193,5 +196,6 @@ extern struct client_static cls;
 extern refExport_t re;
 extern uiExport_t ui;
 extern mouseEvent_t mouse;
+extern BOOL scr_initialized;
 
 #endif

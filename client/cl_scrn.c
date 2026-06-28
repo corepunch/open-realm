@@ -1,5 +1,9 @@
 #include "client.h"
+#include "ui_layout.h"
 #include <stdlib.h>  /* getenv (BZ_FPS_LOG diagnostic) */
+#include <SDL2/SDL.h>
+
+BOOL scr_initialized;
 
 #define SCR_FPS_HEIGHT 8
 #define SCR_FPS_BOTTOM_MARGIN 4
@@ -41,23 +45,76 @@ static void SCR_DrawFPS(DWORD msec) {
     SCR_DrawString(10, y, text);
 }
 
-void SCR_UpdateScreen(DWORD msec) {
-    re.BeginFrame();
-    
-    V_RenderView();
+void SCR_BeginLoadingPlaque(void) {
+    if (cls.disable_screen)
+        return;
+    if (cls.state == ca_disconnected)
+        return;
+    if (cls.key_dest == key_console)
+        return;
+    SCR_UpdateScreen(0);
+    cls.disable_screen = SDL_GetTicks();
+    cls.disable_servercount = -1;
+}
 
-#ifndef SC2
-    if (ui.DrawFrame) {
-        ui.DrawFrame();
+void SCR_EndLoadingPlaque(void) {
+    cls.disable_screen = 0;
+}
+
+void SCR_DrawScreenField(DWORD msec) {
+    re.BeginFrame();
+
+    switch (cls.state) {
+    default:
+        Com_Error(ERR_FATAL, "SCR_DrawScreenField: bad cls.state");
+        break;
+    case ca_disconnected:
+        ui.Refresh(cl.time);
+        break;
+    case ca_connecting:
+    case ca_connected:
+        ui.Refresh(cl.time);
+        break;
+    case ca_active:
+        V_RenderView();
+        SCR_DrawLayout();
+        /* TODO: research whether to replace key_dest enum with a keyCatchers bitmask
+        * like Q3 — multiple input consumers can be active simultaneously. */
+        if (cls.key_dest == key_menu) {
+            ui.Refresh(cl.time);
+        }
+        break;
     }
-#endif
 
     CON_DrawConsole();
     if (Cvar_Integer("scr_showfps", 0)) {
         SCR_DrawFPS(msec);
     }
-    
-//    if (cl.pics[42]) re.DrawPic(cl.pics[42], 0, 0);
-    
+
     re.EndFrame();
+}
+
+void SCR_UpdateScreen(DWORD msec) {
+    static int recursive;
+
+    if (!scr_initialized) {
+        return;
+    }
+
+    if (cls.disable_screen) {
+        if (SDL_GetTicks() - cls.disable_screen > 120000) {
+            cls.disable_screen = 0;
+            fprintf(stderr, "Loading plaque timed out.\n");
+        }
+        return;
+    }
+
+    if (++recursive > 2) {
+        Com_Error(ERR_FATAL, "SCR_UpdateScreen: recursively called");
+    }
+    recursive = 1;
+
+    SCR_DrawScreenField(msec);
+
+    recursive = 0;
 }

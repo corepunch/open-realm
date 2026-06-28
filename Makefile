@@ -71,13 +71,16 @@ RENDERER_SC2_LIB := $(LIB_DIR)/librenderer-sc2$(LIB_EXT)
 GAME_WOW_LIB     := $(LIB_DIR)/libgame-wow$(LIB_EXT)
 GAME_SC2_LIB     := $(LIB_DIR)/libgame-sc2$(LIB_EXT)
 UI_WOW_LIB       := $(LIB_DIR)/libui-wow$(LIB_EXT)
+UI_SC2_LIB       := $(LIB_DIR)/libui-sc2$(LIB_EXT)
 WOW_BINARY   := $(BIN_DIR)/openwow$(EXE_EXT)
 SC2_BINARY   := $(BIN_DIR)/opensc2$(EXE_EXT)
 WOW_CFLAGS   := $(CFLAGS) -I$(WOW_DIR) -DWOW -DOW3_LOAD_ALL_MPQS -Wno-unused-function
 WOW_TEST_CFLAGS := $(WOW_CFLAGS) -DTOOL_COMMON_NO_MPQ -Itests
 LUA_CFLAGS   := $(shell pkg-config --cflags lua5.4 2>/dev/null || pkg-config --cflags lua 2>/dev/null)
 LUA_LIBS     := $(shell pkg-config --libs lua5.4 2>/dev/null || pkg-config --libs lua 2>/dev/null)
-WOW_UI_CFLAGS := $(WOW_CFLAGS) $(LUA_CFLAGS)
+WOW_XML_CFLAGS := $(shell pkg-config --cflags libxml-2.0 2>/dev/null || xml2-config --cflags 2>/dev/null) -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/libxml2
+WOW_XML_LIBS := $(shell pkg-config --libs libxml-2.0 2>/dev/null || xml2-config --libs 2>/dev/null)
+WOW_UI_CFLAGS := $(WOW_CFLAGS) $(LUA_CFLAGS) $(WOW_XML_CFLAGS)
 SC2_XML_CFLAGS := $(shell pkg-config --cflags libxml-2.0 2>/dev/null || xml2-config --cflags 2>/dev/null) -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/libxml2
 SC2_XML_LIBS := $(shell pkg-config --libs libxml-2.0 2>/dev/null || xml2-config --libs 2>/dev/null)
 SC2_CFLAGS   := $(CFLAGS) -I$(SC2_DIR) -DSC2 -DOW3_LOAD_ALL_MPQS -Wno-unused-function $(SC2_XML_CFLAGS)
@@ -119,7 +122,7 @@ endef
 define app_schema
 $(1): $(2) | $$(BIN_DIR)
 	@echo "[$(3)]"
-	@$$(call UNITY,client server common,) | \
+	@$$(call UNITY,client server common sound,! -name 'stb_vorbis.c') | \
 		$$(CC) $(4) -x c -o $$@ - $$(RPATH) $$(LDFLAGS) $(5)
 endef
 
@@ -136,6 +139,7 @@ renderer-wow: $(RENDERER_WOW_LIB)
 renderer-sc2: $(RENDERER_SC2_LIB)
 game-wow:     $(GAME_WOW_LIB)
 ui-wow:       $(UI_WOW_LIB)
+ui-sc2:       $(UI_SC2_LIB)
 openwow:      $(WOW_BINARY)
 game-sc2:     $(GAME_SC2_LIB)
 opensc2:      $(SC2_BINARY)
@@ -148,6 +152,9 @@ run-wow: $(WOW_BINARY)
 	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +map World/Maps/Azeroth/Azeroth.wdt
 
 build-run-wow: openwow
+	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR)
+
+build-run-wow-map: openwow
 	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +map World/Maps/Azeroth/Azeroth.wdt
 
 run-sc2: $(SC2_BINARY)
@@ -265,10 +272,11 @@ $(eval $(call unity_lib_schema,$(RENDERER_SC2_LIB),$(RENDERER_BASE_DEPS) $(call 
 $(eval $(call unity_lib_schema,$(GAME_WOW_LIB),$(GAME_BASE_DEPS) common/world.c $(WOW_COMMON_SRCS) $(call CSRC,$(WOW_DIR)/game),game-wow,$(WOW_DIR)/game,,$(WOW_CFLAGS),common/mpq.c,-lshared $(LIBS) -lm -lz))
 $(eval $(call unity_lib_schema,$(GAME_SC2_LIB),$(GAME_BASE_DEPS) $(WORLD_CORE_SRCS) $(SC2_COMMON_SRCS) $(call CSRC,$(SC2_DIR)/game),game-sc2,$(SC2_DIR)/game,,$(SC2_CFLAGS),common/mpq.c,-lshared $(LIBS) -lm -lz $(SC2_XML_LIBS)))
 
-$(eval $(call unity_lib_schema,$(UI_WOW_LIB),$(UI_BASE_DEPS) client/ui.h $(call CSRC,$(WOW_DIR)/ui),ui-wow,$(WOW_DIR)/ui,,$(WOW_UI_CFLAGS),,-lshared $(LUA_LIBS)))
+$(eval $(call unity_lib_schema,$(UI_WOW_LIB),$(UI_BASE_DEPS) client/ui.h $(call CSRC,$(WOW_DIR)/ui),ui-wow,$(WOW_DIR)/ui,,$(WOW_UI_CFLAGS),,-lshared $(LUA_LIBS) $(WOW_XML_LIBS)))
+$(eval $(call unity_lib_schema,$(UI_SC2_LIB),$(UI_BASE_DEPS) client/ui.h $(call CSRC,$(SC2_DIR)/ui),ui-sc2,$(SC2_DIR)/ui,,$(SC2_CFLAGS),,-lshared))
 
 $(eval $(call app_schema,$(WOW_BINARY),$(SHARED_LIB) $(SHEET_LIB) $(GAME_WOW_LIB) $(RENDERER_WOW_LIB) $(UI_WOW_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS),openwow,$(WOW_CFLAGS),-lsheet -lshared -lgame-wow -lrenderer-wow -lui-wow $(LIBS) -lz))
-$(eval $(call app_schema,$(SC2_BINARY),$(SHARED_LIB) $(SHEET_LIB) $(GAME_SC2_LIB) $(RENDERER_SC2_LIB) $(UI_LIB) $(APP_SRCS) $(CLIENT_HEADERS),opensc2,$(SC2_CFLAGS),-lsheet -lshared -lgame-sc2 -lrenderer-sc2 -lui $(LIBS) -lz))
+$(eval $(call app_schema,$(SC2_BINARY),$(SHARED_LIB) $(SHEET_LIB) $(GAME_SC2_LIB) $(RENDERER_SC2_LIB) $(UI_SC2_LIB) $(APP_SRCS) $(CLIENT_HEADERS),opensc2,$(SC2_CFLAGS),-lsheet -lshared -lgame-sc2 -lrenderer-sc2 -lui-sc2 $(LIBS) -lz))
 
 download: $(ZIP_FILE)
 	mkdir -p $(DATA_DIR)
@@ -283,7 +291,7 @@ clean:
 $(eval $(call test_schema,test-wow-appearance,,$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_appearance$(EXE_EXT),$(WOW_TEST_DIR)/test_wow_appearance.c common/msg.c common/net.c $(call CSRC,shared),-lm,))
 $(eval $(call test_schema,test-wow-combat,,$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_combat$(EXE_EXT),$(WOW_TEST_DIR)/test_wow_combat.c $(WOW_DIR)/game/g_ai.c $(call CSRC,shared),-lm,))
 $(eval $(call test_schema,test-wow-game,,$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_game$(EXE_EXT),$(WOW_TEST_DIR)/test_wow_game.c $(WOW_DIR)/game/g_wow.c $(WOW_DIR)/game/g_world.c $(WOW_DIR)/game/g_ai.c $(WOW_DIR)/game/m_creature.c common/mpq.c $(call CSRC,shared),-lm -lz,))
-$(eval $(call test_schema,test-wow-ui,test-wow-assets,$(WOW_UI_TEST_CFLAGS),$(BIN_DIR)/test_wow_ui$(EXE_EXT),$(WOW_TEST_DIR)/test_wow_ui.c $(WOW_DIR)/ui/ui_wow.c common/mpq.c,-lshared $(LUA_LIBS) -lz,))
+$(eval $(call test_schema,test-wow-ui,test-wow-assets,$(WOW_UI_TEST_CFLAGS),$(BIN_DIR)/test_wow_ui$(EXE_EXT),$(WOW_TEST_DIR)/test_wow_ui.c $(WOW_DIR)/ui/ui_main.c $(WOW_DIR)/ui/ui_lua.c $(WOW_DIR)/ui/ui_dbc.c $(WOW_DIR)/ui/ui_loading.c $(WOW_DIR)/ui/ui_xml.c common/mpq.c,-lshared $(LUA_LIBS) $(WOW_XML_LIBS) -lz,))
 $(eval $(call test_schema,test-sc2,test-sc2-assets $(SHARED_LIB) $(SHEET_LIB),$(SC2_TEST_CFLAGS),$(BIN_DIR)/test_sc2$(EXE_EXT),$(SC2_TEST_DIR)/test_sc2_main.c $(SC2_TEST_DIR)/test_sc2_map.c $(SC2_DIR)/common/sc2_map.c common/common.c common/cmd.c common/cvar.c common/msg.c common/net.c common/mpq.c,-lsheet -lshared -lm -lz $(SC2_XML_LIBS),))
 
 test-sc2-assets: sc2fixturegen mpqtool sc2map | $(TESTS_DIR)
@@ -332,6 +340,6 @@ test-wow-assets: blpgen mpqtool | $(TESTS_DIR)
 	$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_TEST_MPQ) pack "$$@"
 	@echo "[test-wow-assets] verifying archive"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_TEST_MPQ) cat Interface/Test/LuaPanel.blp | head -c4 | grep -q "BLP2" && echo "  cat panel OK"
-	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_TEST_MPQ) cat Interface/FrameXML/UIParent.lua | grep -q "wow_lua_test" && echo "  cat lua OK"
+	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_TEST_MPQ) cat Interface/FrameXML/GameHUD.lua | grep -q "wow_lua_test" && echo "  cat lua OK"
 
-.PHONY: default build shared tools font $(TOOL_NAMES) diag clean download renderer-wow game-wow ui-wow openwow renderer-sc2 game-sc2 opensc2 run-sc2 build-run-sc2 m2tool-wow-orcmale-player install-wow test-wow-appearance test-wow-combat test-wow-game test-wow-ui test-wow-assets test-sc2 test-sc2-assets $(WC3_PHONY)
+.PHONY: default build shared tools font $(TOOL_NAMES) diag clean download renderer-wow game-wow ui-wow openwow renderer-sc2 game-sc2 opensc2 run run-sc2 build-run-sc2 m2tool-wow-orcmale-player install-wow test-wow-appearance test-wow-combat test-wow-game test-wow-ui test-wow-assets test-sc2 test-sc2-assets $(WC3_PHONY)

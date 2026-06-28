@@ -409,6 +409,16 @@ DWORD R_GetFogOfWarTexture(void) {
     return tr.texture[TEX_WHITE]->texid;
 }
 
+DWORD R_GetMinimapFogOfWarTexture(void) {
+    if (fow_resources.network) {
+        return fow_resources.network->texid;
+    }
+    if (fow_resources.rt[FOW_RT_RESULT]) {
+        return fow_resources.rt[FOW_RT_RESULT]->texture;
+    }
+    return tr.texture[TEX_WHITE]->texid;
+}
+
 void R_SetFogOfWarData(DWORD width, DWORD height, BYTE const *data) {
     if (!width || !height || !data) {
         R_ReleaseTexture(fow_resources.network);

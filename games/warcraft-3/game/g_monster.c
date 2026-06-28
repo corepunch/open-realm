@@ -335,6 +335,61 @@ static void M_SetBuildingShadow(LPEDICT self) {
     self->s.shadow_rect = 0;
 }
 
+/* Register the first sound file for a given SLK label+suffix and return its
+ * configstring index, or 0 if the entry is not found or has no files. */
+static int G_RegisterSoundLabel(sheetRow_t *sounds, LPCSTR label, LPCSTR suffix) {
+    char key[128];
+    snprintf(key, sizeof(key), "%s%s", label, suffix);
+    LPCSTR files = FS_FindSheetCell(sounds, key, "FileNames");
+    LPCSTR dir   = FS_FindSheetCell(sounds, key, "DirectoryBase");
+    if (!files || !files[0]) return 0;
+    /* Take the first comma-separated filename. */
+    char first[256];
+    LPCSTR comma = strchr(files, ',');
+    if (comma)
+        snprintf(first, sizeof(first), "%.*s", (int)(comma - files), files);
+    else
+        snprintf(first, sizeof(first), "%s", files);
+    char path[512];
+    if (dir && dir[0])
+        snprintf(path, sizeof(path), "%s%s", dir, first);
+    else
+        snprintf(path, sizeof(path), "%s", first);
+    return gi.SoundIndex(path);
+}
+
+/* Populate the unit's cached sound indices from UnitAckSounds.slk using the
+ * "unitSound" label (e.g. "Footman").  Falls back gracefully if entries are
+ * missing — sounds simply won't fire for that unit. */
+static void G_RegisterUnitSounds(LPEDICT self) {
+    LPCSTR label = UnitStringField(UnitsMetaData, self->class_id, "usnd");
+    if (!label || !label[0]) return;
+    sheetRow_t *ack = game.config.unitAckSounds;
+    if (!ack) return;
+    self->sound_attack = G_RegisterSoundLabel(ack, label, "YesAttack");
+    /* Death sounds follow the pattern {label}Death but may not exist in the
+     * AckSounds SLK.  Try the SLK first; fall back to the raw file path. */
+    self->sound_death = G_RegisterSoundLabel(ack, label, "Death");
+    if (!self->sound_death) {
+        /* Derive death sound path from model directory: units\race\Name\NameDeath.wav */
+        LPCSTR model = UNIT_MODEL(self->class_id);
+        if (model && model[0]) {
+            char path[512];
+            snprintf(path, sizeof(path), "%s\\%sDeath.wav",
+                     model,           /* e.g. units\human\Footman\Footman */
+                     strrchr(model, '\\') ? strrchr(model, '\\') + 1 : model);
+            /* Rewrite: strip model base name from dir and append death filename. */
+            LPCSTR slash = strrchr(model, '\\');
+            if (slash) {
+                char dir_part[256];
+                snprintf(dir_part, sizeof(dir_part), "%.*s", (int)(slash - model + 1), model);
+                snprintf(path, sizeof(path), "%s%sDeath.wav", dir_part, slash + 1);
+            }
+            self->sound_death = gi.SoundIndex(path);
+        }
+    }
+}
+
 /* Initialize a unit entity from the unit data tables.
  * Reads model path, scale, collision radius, HP, mana, and attack parameters
  * (type, weapon class, damage dice, range, projectile model/speed) for the
@@ -444,6 +499,7 @@ void SP_SpawnUnit(LPEDICT self) {
             self->collision = get_unit_collision(self->pathtex);
         }
     }
+    G_RegisterUnitSounds(self);
 }
 
 void M_CheckGround(LPEDICT self) {
