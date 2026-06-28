@@ -18,6 +18,10 @@ static void UI_DrawBackdropWithColor(LPCFRAMEDEF frame, LPCRECT rect, COLOR32 co
     if (!UI_BackdropHasArt(frame) || !renderer || !renderer->DrawBackdrop) {
         return;
     }
+    if (frame->Backdrop.EdgeFile && frame->Backdrop.CornerSize <= 0.0f) {
+        uiimport.Printf("BackdropCornerSize is zero for frame '%s'\n",
+                        frame->Name[0] ? frame->Name : "(unnamed)");
+    }
     renderer->DrawBackdrop(&MAKE(drawBackdrop_t,
                                  .screen = *rect,
                                  .bg.texture = UI_GetTexture(frame->Backdrop.Background),

@@ -211,7 +211,7 @@ static void SinglePlayer_ParseFileValue(singlePlayerCampaign_t *campaign, DWORD 
     if (strchr(file, '\\') || strchr(file, '/')) {
         snprintf(mission->map_path, sizeof(mission->map_path), "%s", file);
     } else {
-        snprintf(mission->map_path, sizeof(mission->map_path), "Maps\\Campaign\\%s.w3m", file);
+        snprintf(mission->map_path, sizeof(mission->map_path), "Maps\\Campaign\\%.*s.w3m", (int)(sizeof(mission->map_path) - 19), file);
     }
     SinglePlayer_SetMissionCount(campaign, index);
 }
@@ -410,6 +410,8 @@ static void SinglePlayer_SetCampaignBackdrop(singlePlayerCampaign_t const *campa
     if (single_player.CampaignBackdrop_2 && campaign && campaign->background[0]) {
         campaign_background_model = UI_LoadModel(campaign->background, true);
         single_player.CampaignBackdrop_2->Portrait.model = campaign_background_model;
+        fprintf(stderr, "[UI] Campaign backdrop: skin=\"%s\" model_idx=%u\n",
+                campaign->background, (unsigned)campaign_background_model);
     }
 }
 
@@ -461,7 +463,7 @@ static void SinglePlayer_PopulateCampaignList(void) {
         }
         item = &campaign_list.items[campaign_list.count++];
         if (campaign->header[0] && campaign->name[0]) {
-            snprintf(item->name, sizeof(item->name), "%s: %s", campaign->header, campaign->name);
+            snprintf(item->name, sizeof(item->name), "%.80s: %.46s", campaign->header, campaign->name);
         } else {
             snprintf(item->name, sizeof(item->name), "%s", campaign->name[0] ? campaign->name : campaign->key);
         }

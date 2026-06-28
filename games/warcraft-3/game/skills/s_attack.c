@@ -93,6 +93,41 @@ static BOOL can_attack(LPCEDICT ent) {
     return false;
 }
 
+/* WC3 attack-type × defense-type damage multiplier table.
+ * Rows: attack type (ATK_NORMAL..ATK_HERO), columns: defense type (0..7).
+ * Defense indices: 0=small 1=medium 2=large 3=fort 4=normal 5=hero 6=divine 7=none */
+static FLOAT const g_damage_table[8][8] = {
+    /* none   */ { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f },
+    /* normal */ { 1.0f, 1.5f, 1.0f, 0.7f, 1.0f, 1.0f, 1.0f, 1.0f },
+    /* pierce */ { 2.0f, 0.75f,0.5f, 0.35f,1.0f, 0.5f, 1.0f, 1.0f },
+    /* siege  */ { 1.0f, 1.0f, 1.0f, 1.5f, 1.0f, 1.0f, 1.0f, 1.0f },
+    /* spells */ { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f },
+    /* chaos  */ { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f },
+    /* magic  */ { 1.0f, 1.0f, 2.0f, 0.35f,1.0f, 1.0f, 0.0f, 1.0f },
+    /* hero   */ { 1.0f, 1.0f, 1.0f, 0.5f, 1.0f, 1.0f, 1.0f, 1.0f },
+};
+
+/* Apply the WC3 damage formula: attack×defense type multiplier, then armor
+ * reduction (0.06 coefficient).  Chaos attack bypasses the type table.
+ * Result is clamped to a minimum of 1. */
+int G_AttackDamage(LPEDICT attacker, LPEDICT target, int base) {
+    if (!attacker || !target || base <= 0)
+        return base;
+    DWORD atk = attacker->attack1.type;
+    DWORD def = target->defense_type;
+    if (atk >= 8) atk = 0;
+    if (def >= 8) def = 7;
+    FLOAT mult = (atk == ATK_CHAOS) ? 1.0f : g_damage_table[atk][def];
+    FLOAT dmg = (FLOAT)base * mult;
+    FLOAT armor = target->armor_value;
+    if (armor >= 0.0f)
+        dmg = dmg / (1.0f + armor * 0.06f);
+    else
+        dmg = dmg * (2.0f - 1.0f / (1.0f - armor * 0.06f));
+    int result = (int)dmg;
+    return result < 1 ? 1 : result;
+}
+
 /* Apply damage to target from attacker.
  * If the hit is lethal, the target's die() callback is invoked and the
  * attacker returns to its stand (idle) state.  Otherwise, if the target is
@@ -205,25 +240,35 @@ void order_attack(LPEDICT self, LPEDICT target) {
     attack_walk(self);
 }
 
+static FLOAT attack_speed_divisor(LPEDICT self) {
+    if (self->hero.agi > 0)
+        return 1.0f + (FLOAT)self->hero.agi * 0.02f;
+    return 1.0f;
+}
+
 void attack_melee_cooldown(LPEDICT self) {
+    FLOAT divisor = attack_speed_divisor(self);
     unit_setmove(self, &attack_move_melee_cooldown);
-    self->wait = self->attack1.cooldown;
+    self->wait = MAX(0.0f, (self->attack1.cooldown - self->attack1.damagePoint) / divisor);
 }
 
 void attack_melee(LPEDICT self) {
+    FLOAT divisor = attack_speed_divisor(self);
     unit_setmove(self, &attack_move_melee);
-    self->wait = self->attack1.damagePoint;
+    self->wait = self->attack1.damagePoint / divisor;
     if (self->sound_attack) { self->s.event = EV_ATTACK; self->s.sound = self->sound_attack; }
 }
 
 void attack_ranged_cooldown(LPEDICT self) {
+    FLOAT divisor = attack_speed_divisor(self);
     unit_setmove(self, &attack_move_ranged_cooldown);
-    self->wait = self->attack1.cooldown;
+    self->wait = MAX(0.0f, (self->attack1.cooldown - self->attack1.damagePoint) / divisor);
 }
 
 void attack_ranged(LPEDICT self) {
+    FLOAT divisor = attack_speed_divisor(self);
     unit_setmove(self, &attack_move_ranged);
-    self->wait = self->attack1.damagePoint;
+    self->wait = self->attack1.damagePoint / divisor;
     if (self->sound_attack) { self->s.event = EV_ATTACK; self->s.sound = self->sound_attack; }
 }
 

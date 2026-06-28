@@ -482,6 +482,7 @@ void R_Shutdown(void) {
     }
     renderer_shutdown = true;
     R_GameShutdown();
+    R_ShutdownModelShader();
     R_ShutdownFonts();
     
     R_ShutdownFogOfWar();
@@ -553,6 +554,14 @@ void R_RenderView(void) {
 
 void R_RenderFrame(viewDef_t const *viewDef) {
     tr.viewDef = *viewDef;
+
+    /* UI scene and portrait callers zero-initialise their viewDef, leaving
+     * time == 0, which would freeze model animations (MDLX_SetEntityAnimationFrame
+     * uses tr.viewDef.time to compute the current frame).  Fall back to the
+     * wall clock so the menu background and portraits animate. */
+    if (tr.viewDef.time == 0) {
+        tr.viewDef.time = SDL_GetTicks();
+    }
 
     if (!tr.viewDef.scissor.w && !tr.viewDef.scissor.h) {
         tr.viewDef.scissor = (RECT){0, 0, 1, 1};

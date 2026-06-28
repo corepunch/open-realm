@@ -38,141 +38,6 @@ M3_READER(TYPE##SequenceData) { \
     M3_REFR(sb, data->values, TYPE, 0); \
 }
 
-static LPCSTR m3_vs =
-"#version 140\n"
-"in vec3 i_position;\n"
-"in vec4 i_color;\n"
-"in vec2 i_texcoord;\n"
-"in vec3 i_normal;\n"
-"in vec4 i_skin1;\n"
-"in vec4 i_boneWeight1;\n"
-"out vec4 v_color;\n"
-#ifdef USE_SHADOWMAPS
-"out vec4 v_shadow;\n"
-#endif
-"out vec2 v_texcoord;\n"
-"out vec2 v_texcoord2;\n"
-"out vec3 v_normal;\n"
-"out vec3 v_light;\n"
-"out vec4 v_fragCoord;\n"
-"uniform mat4 uBones[128];\n"
-"uniform mat4 uViewProjectionMatrix;\n"
-"uniform mat4 uTextureMatrix;\n"
-"uniform mat4 uModelMatrix;\n"
-"uniform mat4 uLightMatrix;\n"
-"uniform mat3 uNormalMatrix;\n"
-"uniform vec3 uLightAmbient;\n"
-"uniform vec3 uLightDir[3];\n"
-"uniform vec3 uLightColor[3];\n"
-"uniform float uFirstBoneLookupIndex;\n"
-"uniform float uBoneWeightPairsCount;\n"
-"vec3 transform(vec4 bones, vec4 position) {\n"
-"    vec4 value = vec4(0);\n"
-"    for (int i = 0; i < 4; i++) {\n"
-"        value += uBones[int(bones[i])] * position * i_boneWeight1[i];\n"
-"    }\n"
-"    return value.xyz;\n"
-"}\n"
-"vec3 vertex_lighting(vec3 normal) {\n"
-"    vec3 n = normalize(normal);\n"
-"    vec3 light = uLightAmbient;\n"
-"    for (int i = 0; i < 3; i++) {\n"
-"        vec3 l = normalize(uLightDir[i]);\n"
-"        light += uLightColor[i] * max(dot(n, l), 0.0);\n"
-"    }\n"
-"    return max(light, vec3(0.0));\n"
-"}\n"
-"void main() {\n"
-"    vec4 bones = i_skin1 + vec4(uFirstBoneLookupIndex);\n"
-"    vec4 position = vec4(transform(bones, vec4(i_position, 1.0)), 1.0);\n"
-"    vec3 normal = transform(bones, vec4(i_normal * 2.0 - 1.0, 0.0));\n"
-"    vec3 worldNormal = uNormalMatrix * normal;\n"
-"    v_color = i_color;\n"
-"    v_texcoord = i_texcoord / 2048.0;\n"
-"    v_texcoord2 = (uTextureMatrix * uModelMatrix * position).xy;\n"
-"    v_normal = normalize(worldNormal);\n"
-"    v_light = vertex_lighting(worldNormal);\n"
-#ifdef USE_SHADOWMAPS
-"    v_shadow = uLightMatrix * uModelMatrix * position;\n"
-#endif
-"    v_fragCoord = uViewProjectionMatrix * uModelMatrix * position;\n"
-"    gl_Position = v_fragCoord;\n"
-"}\n";
-
-
-static LPCSTR m3_fs =
-"#version 140\n"
-"in vec2 v_texcoord;\n"
-"in vec2 v_texcoord2;\n"
-"in vec4 v_color;\n"
-#ifdef USE_SHADOWMAPS
-"in vec4 v_shadow;\n"
-#endif
-"in vec3 v_normal;\n"
-"in vec3 v_light;\n"
-//"in vec4 v_fragCoord;\n"
-"out vec4 o_color;\n"
-
-"uniform sampler2D uDiffuseMap;\n"
-"uniform sampler2D uSpecularMap;\n"
-"uniform sampler2D uNormalMap;\n"
-"uniform sampler2D uAlphaMaskMap;\n"
-
-"uniform sampler2D uTexture;\n"
-#ifdef USE_SHADOWMAPS
-"uniform sampler2D uShadowmap;\n"
-#endif
-"uniform sampler2D uFogOfWar;\n"
-"uniform vec4 uMaterialColor;\n"
-"uniform float uAlphaCutoff;\n"
-"uniform float uUseAlphaMask;\n"
-
-"vec3 calculateSpecular(vec3 normal, vec3 viewDir, vec3 lightDir, vec3 specularColor) {\n"
-"    vec3 reflectDir = reflect(-lightDir, normal);\n"
-"    float specularFactor = pow(max(0.0, dot(viewDir, reflectDir)), specularColor.r);\n"
-"    return specularColor * specularFactor;\n"
-"}\n"
-
-"vec3 applyBumpMap(vec3 color, vec4 bumpColor) {\n"
-"    return color * bumpColor.rgb;\n"
-"}\n"
-
-#ifdef USE_SHADOWMAPS
-"float get_shadow() {\n"
-"    float depth = texture(uShadowmap, vec2(v_shadow.x + 1.0, v_shadow.y + 1.0) * 0.5).r;\n"
-"    return depth < (v_shadow.z + 0.99) * 0.5 ? 0.0 : 1.0;\n"
-"}\n"
-#endif
-
-"float get_fogofwar() {\n"
-"    return texture(uFogOfWar, v_texcoord2).r;\n"
-"}\n"
-
-"vec3 decodeNormal(sampler2D map, vec2 texcoord) {\n"
-"    vec4 texel = texture(map, texcoord);\n"
-"    vec3 normal = vec3(2.0 * texel.wy - 1.0, 0.0);\n"
-"    normal.z = sqrt(max(0.0, 1.0 - dot(normal.xy, normal.xy)));\n"
-"    return normal;\n"
-"}\n"
-
-"void main() {\n"
-"    vec4 diffuseColor = texture(uDiffuseMap, v_texcoord);\n"
-"    float alphaMask = mix(1.0, texture(uAlphaMaskMap, v_texcoord).r, uUseAlphaMask);\n"
-"    diffuseColor *= uMaterialColor;\n"
-"    diffuseColor.a *= alphaMask;\n"
-"    if (diffuseColor.a < uAlphaCutoff) discard;\n"
-"    vec4 specularColor = texture(uSpecularMap, v_texcoord);\n"
-//"    vec3 normal = decodeNormal(uNormalMap, v_texcoord);\n"
-//"    vec4 col = texture(uTexture, v_texcoord);\n"
-//"    col.rgb *= get_fogofwar() * get_lighting();\n"
-//"    o_color = col;\n"
-//"    vec3 viewDir = normalize(-vec3(v_fragCoord.xy/v_fragCoord.w, 1.0));\n"
-//"    vec3 specularLight = calculateSpecular(normal, viewDir, lightDir, specularColor.rgb);\n"
-//"    vec3 ambientColor = vec3(0.1);  // Add ambient light\n"
-"    vec3 finalColor = diffuseColor.rgb * v_light;// ambientColor + diffuseLight + specularLight;\n"
-// "    diffuseLight.rgb *= get_fogofwar() * get_lighting();\n"
-"    o_color = vec4(finalColor, diffuseColor.a) * v_color;\n"
-"}\n";
 
 static MATRIX4 bonemats[M3_MAX_NODES];
 static MATRIX4 tmp[M3_MAX_NODES];
@@ -185,18 +50,7 @@ extern bool is_rendering_lights;
 
 static struct {
     LPSHADER shader;
-    DWORD uFirstBoneLookupIndex;
-    DWORD uBoneWeightPairsCount;
     DWORD uDiffuseMap;
-    DWORD uSpecularMap;
-    DWORD uNormalMap;
-    DWORD uAlphaMaskMap;
-    GLint uMaterialColor;
-    GLint uAlphaCutoff;
-    GLint uUseAlphaMask;
-    GLint uLightAmbient;
-    GLint uLightDir[SC2_MAX_DIRECTIONAL_LIGHTS];
-    GLint uLightColor[SC2_MAX_DIRECTIONAL_LIGHTS];
 } m3 = { 0 };
 
 typedef struct {
@@ -215,34 +69,21 @@ R_EvalKeyframeValue(void const *left,
                     MODELKEYTRACKTYPE linetype,
                     HANDLE out);
 
-static void M3_InitLightUniforms(void) {
-    m3.uLightAmbient = R_Call(glGetUniformLocation, m3.shader->progid, "uLightAmbient");
-    FOR_LOOP(i, SC2_MAX_DIRECTIONAL_LIGHTS) {
-        char name[32];
-
-        snprintf(name, sizeof(name), "uLightDir[%u]", (unsigned)i);
-        m3.uLightDir[i] = R_Call(glGetUniformLocation, m3.shader->progid, name);
-        snprintf(name, sizeof(name), "uLightColor[%u]", (unsigned)i);
-        m3.uLightColor[i] = R_Call(glGetUniformLocation, m3.shader->progid, name);
-    }
-}
-
-static void M3_SetLightUniforms(void) {
+/* Map SC2 multi-directional lights onto the unified single directional + ambient.
+   Use directional[0] as the primary light; ambient comes from the map ambient. */
+static void M3_SetLightUniforms(LPSHADER shader) {
     sc2Map_t const *map = SC2_MapCurrent();
     sc2MapLighting_t const *lighting = map ? &map->lighting : NULL;
     VECTOR3 ambient = lighting && lighting->enabled ? lighting->ambient_color : (VECTOR3){ 1.0f, 1.0f, 1.0f };
+    sc2DirectionalLight_t const *light0 = lighting && lighting->enabled ? &lighting->directional[0] : NULL;
+    FLOAT enabled = light0 && light0->enabled ? 1.0f : 0.0f;
+    VECTOR3 direction = enabled ? (VECTOR3){ -light0->direction.x, -light0->direction.y, -light0->direction.z } : (VECTOR3){ 0.0f, 0.0f, 1.0f };
+    VECTOR3 color = (enabled && light0) ? light0->color : (VECTOR3){ 0.0f, 0.0f, 0.0f };
+    FLOAT multiplier = (enabled && light0) ? light0->color_multiplier : 0.0f;
 
-    R_Call(glUniform3f, m3.uLightAmbient, ambient.x, ambient.y, ambient.z);
-    FOR_LOOP(i, SC2_MAX_DIRECTIONAL_LIGHTS) {
-        sc2DirectionalLight_t const *light = lighting && lighting->enabled ? &lighting->directional[i] : NULL;
-        FLOAT enabled = light && light->enabled ? 1.0f : 0.0f;
-        VECTOR3 direction = enabled ? (VECTOR3){ -light->direction.x, -light->direction.y, -light->direction.z } : (VECTOR3){ 0.0f, 0.0f, 1.0f };
-        VECTOR3 color = enabled ? light->color : (VECTOR3){ 0.0f, 0.0f, 0.0f };
-        FLOAT multiplier = enabled ? light->color_multiplier : 0.0f;
-
-        R_Call(glUniform3f, m3.uLightDir[i], direction.x, direction.y, direction.z);
-        R_Call(glUniform3f, m3.uLightColor[i], color.x * multiplier, color.y * multiplier, color.z * multiplier);
-    }
+    R_Call(glUniform3f, shader->uLightAmbient, ambient.x, ambient.y, ambient.z);
+    R_Call(glUniform3f, shader->uLightDir, direction.x, direction.y, direction.z);
+    R_Call(glUniform3f, shader->uLightColor, color.x * multiplier, color.y * multiplier, color.z * multiplier);
 }
 
 void M3_Read(m3Reader_t *buffer, void *dest, DWORD bytes) {
@@ -520,12 +361,30 @@ M3_READER(Bone) {
     M3_READ(sb, data->visibility, 0);
 }
 
+/* Converts M3 vertex data (SHORT UV ÷ 2048, ubyte normal ×2−1) to the unified
+   float layout expected by the shared model shader. Uploads a VERTEX array so
+   M3 uses the same VAO layout as MDX/M2. */
 void M3_MakeBuffer(m3Model_t *model) {
+    VERTEX *verts = model->verticesNum ? ri.MemAlloc(model->verticesNum * sizeof(VERTEX)) : NULL;
     model->renbuf = ri.MemAlloc(sizeof(BUFFER));
+
+    FOR_LOOP(i, model->verticesNum) {
+        m3Vertex_t const *src = &model->vertices[i];
+        VERTEX *dst = &verts[i];
+        dst->position = src->pos;
+        dst->texcoord = (VECTOR2){ src->uv[0][0] / 2048.0f, src->uv[0][1] / 2048.0f };
+        dst->normal = (VECTOR3){
+            src->normal[0] / 127.5f - 1.0f,
+            src->normal[1] / 127.5f - 1.0f,
+            src->normal[2] / 127.5f - 1.0f,
+        };
+        dst->color = src->color;
+        memcpy(dst->skin, src->boneIndex, 4);
+        memcpy(dst->boneWeight, src->boneWeight, 4);
+    }
 
     R_Call(glGenVertexArrays, 1, &model->renbuf->vao);
     R_Call(glBindVertexArray, model->renbuf->vao);
-
     R_Call(glGenBuffers, 1, &model->renbuf->vbo);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, model->renbuf->vbo);
 
@@ -536,14 +395,15 @@ void M3_MakeBuffer(m3Model_t *model) {
     R_Call(glEnableVertexAttribArray, attrib_normal);
     R_Call(glEnableVertexAttribArray, attrib_color);
 
-    R_Call(glVertexAttribPointer, attrib_position, 3, GL_FLOAT, GL_FALSE, sizeof(m3Vertex_t), FOFS(m3Vertex_s, pos));
-    R_Call(glVertexAttribPointer, attrib_texcoord, 2, GL_SHORT, GL_FALSE, sizeof(m3Vertex_t), FOFS(m3Vertex_s, uv[0]));
-    R_Call(glVertexAttribPointer, attrib_skin1, 4, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(m3Vertex_t), FOFS(m3Vertex_s, boneIndex));
-    R_Call(glVertexAttribPointer, attrib_boneWeight1, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(m3Vertex_t), FOFS(m3Vertex_s, boneWeight));
-    R_Call(glVertexAttribPointer, attrib_normal, 3, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(m3Vertex_t), FOFS(m3Vertex_s, normal));
-    R_Call(glVertexAttribPointer, attrib_color, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(m3Vertex_t), FOFS(m3Vertex_s, color));
+    R_Call(glVertexAttribPointer, attrib_position, 3, GL_FLOAT, GL_FALSE, sizeof(VERTEX), FOFS(vertex, position));
+    R_Call(glVertexAttribPointer, attrib_texcoord, 2, GL_FLOAT, GL_FALSE, sizeof(VERTEX), FOFS(vertex, texcoord));
+    R_Call(glVertexAttribPointer, attrib_skin1, 4, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(VERTEX), FOFS(vertex, skin[0]));
+    R_Call(glVertexAttribPointer, attrib_boneWeight1, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(VERTEX), FOFS(vertex, boneWeight[0]));
+    R_Call(glVertexAttribPointer, attrib_normal, 3, GL_FLOAT, GL_FALSE, sizeof(VERTEX), FOFS(vertex, normal));
+    R_Call(glVertexAttribPointer, attrib_color, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(VERTEX), FOFS(vertex, color));
 
-    R_Call(glBufferData, GL_ARRAY_BUFFER, model->verticesNum * sizeof(m3Vertex_t), model->vertices, GL_STATIC_DRAW);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, model->verticesNum * sizeof(VERTEX), verts, GL_STATIC_DRAW);
+    ri.MemFree(verts);
 }
 
 void M3_InitMODL(m3Model_t *model, m3Reader_t sb) {
@@ -801,9 +661,6 @@ m3Model_t *R_LoadModelM3(void *data, DWORD size) {
 
 static void M3_DrawRegionMaterial(m3Region_t const *region, m3Material_t const *material, FLOAT alpha) {
     LPCTEXTURE diffuse = material->diffuseLayer && material->diffuseLayer->texture ? material->diffuseLayer->texture : tr.texture[TEX_WHITE];
-    LPCTEXTURE specular = material->specularLayer && material->specularLayer->texture ? material->specularLayer->texture : tr.texture[TEX_WHITE];
-    LPCTEXTURE normal = material->normalLayer && material->normalLayer->texture ? material->normalLayer->texture : tr.texture[TEX_WHITE];
-    LPCTEXTURE alpha_mask = material->alphaMaskLayer && material->alphaMaskLayer->texture ? material->alphaMaskLayer->texture : tr.texture[TEX_WHITE];
     COLOR32 diffuse_color = M3_LayerColor(material->diffuseLayer);
 #ifndef __linux__
     DWORD const num_indices = region->triangleIndicesCount;
@@ -814,25 +671,17 @@ static void M3_DrawRegionMaterial(m3Region_t const *region, m3Material_t const *
     if (!M3_SetMaterialBlendMode(material)) {
         return;
     }
-    R_Call(glUniform1f, m3.uFirstBoneLookupIndex, region->firstBoneLookupIndex);
-    R_Call(glUniform1f, m3.uBoneWeightPairsCount, region->boneWeightPairsCount);
-    R_Call(glUniform4f,
-           m3.uMaterialColor,
+    R_Call(glUniform4f, m3.shader->uGeosetColor,
            diffuse_color.r / 255.0f,
            diffuse_color.g / 255.0f,
            diffuse_color.b / 255.0f,
            diffuse_color.a / 255.0f * alpha);
-    R_Call(glUniform1f, m3.uAlphaCutoff, M3_MaterialAlphaCutoff(material));
-    R_Call(glUniform1f, m3.uUseAlphaMask, M3_MaterialHasAlphaMask(material) ? 1.0f : 0.0f);
+    /* Use uUseDiscard for alpha cutoff; M3_MaterialAlphaCutoff > 0 means discard
+       enabled. Exact cutoff is baked into the material alpha test. */
+    R_Call(glUniform1i, m3.shader->uUseDiscard, M3_MaterialAlphaCutoff(material) >= 0.0f ? 1 : 0);
 
     R_Call(glActiveTexture, GL_TEXTURE0);
     R_Call(glBindTexture, GL_TEXTURE_2D, diffuse->texid);
-    R_Call(glActiveTexture, GL_TEXTURE3);
-    R_Call(glBindTexture, GL_TEXTURE_2D, specular->texid);
-    R_Call(glActiveTexture, GL_TEXTURE4);
-    R_Call(glBindTexture, GL_TEXTURE_2D, normal->texid);
-    R_Call(glActiveTexture, GL_TEXTURE5);
-    R_Call(glBindTexture, GL_TEXTURE_2D, alpha_mask->texid);
 
     M3_FOR_EACH(Layer, layer, material->diffuseLayer) {
         if (!layer->texture)
@@ -972,15 +821,23 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
         M3_MakeBoneMatrix(&p, (LPCVECTOR4)&r, &s, parent, tmp+(bone-model->bones));
     }
 
+    /* Build a full 128-entry bone palette indexed by boneLookup[i].
+       Vertex boneIndex values are boneLookup-relative so we pre-multiply
+       the inverse rest pose here, making every vertex index an absolute
+       palette slot. This removes the need for uFirstBoneLookupIndex. */
+    memset(bonemats, 0, sizeof(bonemats));
+    FOR_LOOP(j, M3_MAX_NODES) {
+        MATRIX4 ident; Matrix4_identity(&ident); bonemats[j] = ident;
+    }
     M3_FOR_EACH(Uint16, boneLookup, model->boneLookup) {
         m3Uint16_t boneIndex = *boneLookup;
+        DWORD paletteIndex = (DWORD)(boneLookup - model->boneLookup);
         if (boneIndex >= model->bonesNum || boneIndex >= model->absoluteInverseBoneRestPositionsNum ||
-            (DWORD)(boneLookup - model->boneLookup) >= M3_MAX_NODES) {
+            paletteIndex >= M3_MAX_NODES) {
             continue;
         }
-        LPCMATRIX4 bonematrix = tmp+boneIndex;
-        LPCMATRIX4 baseline = model->absoluteInverseBoneRestPositions+boneIndex;
-        Matrix4_multiply(bonematrix, baseline, bonemats+(boneLookup-model->boneLookup));
+        Matrix4_multiply(tmp + boneIndex, model->absoluteInverseBoneRestPositions + boneIndex,
+                         bonemats + paletteIndex);
     }
 
     MATRIX4 mScaledMatrix;
@@ -1012,7 +869,17 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
     R_Call(glUniformMatrix4fv, m3.shader->uModelMatrix, 1, GL_FALSE, mScaledMatrix.v);
     R_Call(glUniformMatrix3fv, m3.shader->uNormalMatrix, 1, GL_TRUE, mNormalMatrix.v);
     R_Call(glUniformMatrix4fv, m3.shader->uBones, MIN(model->boneLookupNum, M3_MAX_NODES), GL_FALSE, bonemats->v);
-    M3_SetLightUniforms();
+    M3_SetLightUniforms(m3.shader);
+    /* The unified model shader requires identity defaults for uniforms that
+       M3 does not animate (texture UV transform, layer alpha, geoset colour). */
+    R_Call(glUniform4f, m3.shader->uGeosetColor, 1.0f, 1.0f, 1.0f, 1.0f);
+    R_Call(glUniform1f, m3.shader->uLayerAlpha, 1.0f);
+    R_Call(glUniform2f, m3.shader->uUvTrans, 0.0f, 0.0f);
+    R_Call(glUniform2f, m3.shader->uUvRot, 0.0f, 1.0f);
+    R_Call(glUniform2f, m3.shader->uUvScale, 1.0f, 1.0f);
+    R_Call(glUniform1i, m3.shader->uUseDiscard, 0);
+    R_Call(glUniform1i, m3.shader->uUnshaded, 0);
+    R_Call(glUniform1f, m3.shader->uFogEnable, 0);
     R_Call(glBindVertexArray, model->renbuf->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, model->renbuf->vbo);
     
@@ -1033,24 +900,10 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
 }
 
 void M3_Init(void) {
-    m3.shader = R_InitShader(m3_vs, m3_fs);
-    m3.uFirstBoneLookupIndex = R_Call(glGetUniformLocation, m3.shader->progid, "uFirstBoneLookupIndex");
-    m3.uBoneWeightPairsCount = R_Call(glGetUniformLocation, m3.shader->progid, "uBoneWeightPairsCount");
-    m3.uDiffuseMap = R_Call(glGetUniformLocation, m3.shader->progid, "uDiffuseMap");
-    m3.uSpecularMap = R_Call(glGetUniformLocation, m3.shader->progid, "uSpecularMap");
-    m3.uNormalMap = R_Call(glGetUniformLocation, m3.shader->progid, "uNormalMap");
-    m3.uAlphaMaskMap = R_Call(glGetUniformLocation, m3.shader->progid, "uAlphaMaskMap");
-    m3.uMaterialColor = R_Call(glGetUniformLocation, m3.shader->progid, "uMaterialColor");
-    m3.uAlphaCutoff = R_Call(glGetUniformLocation, m3.shader->progid, "uAlphaCutoff");
-    m3.uUseAlphaMask = R_Call(glGetUniformLocation, m3.shader->progid, "uUseAlphaMask");
-    M3_InitLightUniforms();
-    
-    R_Call(glUniform1i, m3.uDiffuseMap, 0);
-    R_Call(glUniform1i, m3.uSpecularMap, 3);
-    R_Call(glUniform1i, m3.uNormalMap, 4);
-    R_Call(glUniform1i, m3.uAlphaMaskMap, 5);
+    m3.shader = R_ModelShader();
+    /* uTexture (unit 0) is wired up by R_InitShader; diffuse texture binds to unit 0. */
 }
 
 void M3_Shutdown(void) {
-    R_ReleaseShader(m3.shader);
+    /* m3.shader is the shared model shader, released by the renderer. */
 }

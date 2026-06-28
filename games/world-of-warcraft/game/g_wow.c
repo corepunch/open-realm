@@ -705,7 +705,7 @@ static void Wow_InitPlayer(LPEDICT ent) {
     FLOAT height = Wow_TerrainHeight(wow_spawn_origin.x, wow_spawn_origin.y);
     char race[64], sex[64];
     DWORD class_id, appearance;
-    char model_path[MAX_PATHLEN];
+    char model_path[MAX_PATHLEN * 2];
 
     /* Read selected character from CS_GENERAL configstrings (set by Wow_Init from cvars). */
     Wow_ReadSelectedCharFromCS(race, sizeof(race), sex, sizeof(sex), &class_id, &appearance);

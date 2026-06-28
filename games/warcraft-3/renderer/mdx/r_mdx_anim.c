@@ -10,6 +10,7 @@ DWORD GetModelKeyTrackDataTypeSize(MODELKEYTRACKDATATYPE dataType);
 DWORD GetModelKeyTrackTypeSize(MODELKEYTRACKTYPE keyTrackType);
 DWORD GetModelKeyFrameSize(MODELKEYTRACKDATATYPE dataType, MODELKEYTRACKTYPE keyTrackType);
 void R_GetKeyframeValue(mdxKeyFrame_t const *left, mdxKeyFrame_t const *right, mdxKeyTrack_t const *keytrack, DWORD time, HANDLE out);
+void R_EvalKeyframeValue(void const *left, void const *right, float t, MODELKEYTRACKDATATYPE datatype, MODELKEYTRACKTYPE linetype, HANDLE out);
 
 static MATRIX4 local_matrices[MDX_MAX_NODES];
 MATRIX4 node_matrices[MDX_MAX_NODES];
@@ -33,7 +34,14 @@ void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *ke
     if (keytrack->globalSeqId != -1) {
         interval[0] = 0;
         interval[1] = model->globalSequences[keytrack->globalSeqId].value;
-        time = time % (model->globalSequences[keytrack->globalSeqId].value + 1);
+        /* Reference (WarsmashModEngine / MdxComplexInstance.updateAnimations):
+         * global sequences use a monotonically increasing counter that does NOT
+         * reset when the per-sequence frame loops.  Our entity->frame cycles
+         * within the sequence interval (e.g. 11267..12700 for Stand), which
+         * would lock the global sequence to a tiny window of its keyframes.
+         * Use the wall clock instead so all global sequence keyframes play. */
+        DWORD gs_len = model->globalSequences[keytrack->globalSeqId].value + 1;
+        time = gs_len > 0 ? (SDL_GetTicks() % gs_len) : 0;
     } else {
         mdxSequence_t const *seq = R_FindSequenceAtTime(model, time);
         if (!seq)
@@ -41,28 +49,58 @@ void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *ke
         interval[0] = seq->interval[0];
         interval[1] = seq->interval[1];
     }
-    FOR_LOOP(keyframeIndex, keytrack->keyframeCount) {
-        mdxKeyFrame_t *keyFrame = (HANDLE)(keyFrames + keyframeSize * keyframeIndex);
-        if (keyFrame->time < interval[0])
-            continue;
-        if (keyFrame->time > interval[1]) {
-            if (prevKeyFrame) {
-                memcpy(output, prevKeyFrame->data, GetModelKeyTrackDataTypeSize(keytrack->datatype));
+    {
+        /* Find the first and last keyframe within the sequence interval.
+         * Used by both the main evaluation loop and the wrap-at-end path. */
+        mdxKeyFrame_t *firstKF = NULL, *lastKF = NULL;
+
+        FOR_LOOP(i, keytrack->keyframeCount) {
+            mdxKeyFrame_t *kf = (HANDLE)(keyFrames + keyframeSize * i);
+            if (kf->time < interval[0] || kf->time > interval[1]) continue;
+            if (!firstKF || kf->time < firstKF->time) firstKF = kf;
+            if (!lastKF  || kf->time > lastKF->time)  lastKF  = kf;
+        }
+
+        if (lastKF && firstKF && time >= lastKF->time && time <= interval[1]) {
+            /* Reference (WarsmashModEngine / SdSequence.getValue): when frame
+             * exceeds the last keyframe within the interval, wrap back toward
+             * the first keyframe over the remaining interval span. */
+            if (firstKF != lastKF) {
+                FLOAT end_to_start = (FLOAT)((interval[1] - lastKF->time) + (firstKF->time - interval[0]));
+                FLOAT wrap_t = (FLOAT)(time - lastKF->time) / end_to_start;
+                if (wrap_t < 1.0f) {
+                    R_EvalKeyframeValue(lastKF->data, firstKF->data,
+                        wrap_t, keytrack->datatype, keytrack->linetype, output);
+                    return;
+                }
             }
+            memcpy(output, lastKF->data, GetModelKeyTrackDataTypeSize(keytrack->datatype));
             return;
         }
-        if (keyFrame->time == time || (keyFrame->time > time && !prevKeyFrame)) {
-            memcpy(output, keyFrame->data, GetModelKeyTrackDataTypeSize(keytrack->datatype));
-            return;
+
+        FOR_LOOP(keyframeIndex, keytrack->keyframeCount) {
+            mdxKeyFrame_t *keyFrame = (HANDLE)(keyFrames + keyframeSize * keyframeIndex);
+            if (keyFrame->time < interval[0])
+                continue;
+            if (keyFrame->time > interval[1]) {
+                if (prevKeyFrame) {
+                    memcpy(output, prevKeyFrame->data, GetModelKeyTrackDataTypeSize(keytrack->datatype));
+                }
+                return;
+            }
+            if (keyFrame->time == time || (keyFrame->time > time && !prevKeyFrame)) {
+                memcpy(output, keyFrame->data, GetModelKeyTrackDataTypeSize(keytrack->datatype));
+                return;
+            }
+            if (keyFrame->time > time) {
+                R_GetKeyframeValue(prevKeyFrame, keyFrame, keytrack, time, output);
+                return;
+            }
+            prevKeyFrame = keyFrame;
         }
-        if (keyFrame->time > time) {
-            R_GetKeyframeValue(prevKeyFrame, keyFrame, keytrack, time, output);
-            return;
+        if (prevKeyFrame) {
+            memcpy(output, prevKeyFrame->data, GetModelKeyTrackDataTypeSize(keytrack->datatype));
         }
-        prevKeyFrame = keyFrame;
-    }
-    if (prevKeyFrame) {
-        memcpy(output, prevKeyFrame->data, GetModelKeyTrackDataTypeSize(keytrack->datatype));
     }
 }
 

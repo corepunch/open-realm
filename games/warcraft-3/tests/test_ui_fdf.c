@@ -32,13 +32,7 @@ static HANDLE test_mpq_archive;
 static BOOL hide_expansion_campaign_file;
 static BOOL test_fs_expansion;
 static VECTOR2 test_mouse_pos;
-
 static int fake_image_index(LPCSTR name) {
-    captured_image_path = name;
-    return (name && *name) ? 123 : 0;
-}
-
-static int fake_model_index(LPCSTR name) {
     captured_model_path = name;
     return (name && *name) ? 456 : 0;
 }
@@ -109,9 +103,10 @@ static int test_image_index(LPCSTR name) {
     return (name && *name) ? 123 : 0;
 }
 
-static int test_model_index(LPCSTR name) {
+/* Commented out — currently unused by any test stub. */
+/* static int test_model_index(LPCSTR name) {
     return (name && *name) ? 456 : 0;
-}
+} */
 
 static LPTEXTURE test_load_texture(LPCSTR name) {
     LPTEXTURE texture = (LPTEXTURE)(uintptr_t)(++fake_texture_id);
@@ -139,9 +134,10 @@ static VECTOR2 test_get_text_size(LPCDRAWTEXT draw_text) {
     return fake_text_size;
 }
 
-static VECTOR2 test_ui_get_mouse_fdf(void) {
+/* Commented out — currently unused by any test stub. */
+/* static VECTOR2 test_ui_get_mouse_fdf(void) {
     return test_mouse_pos;
-}
+} */
 
 static void test_draw_text(LPCDRAWTEXT draw_text) {
     if (captured_text_draws < sizeof(captured_text_rects) / sizeof(captured_text_rects[0]) &&
@@ -176,6 +172,11 @@ static void test_draw_sprite(LPCMODEL model, LPCSTR anim, float x, float y) {
         captured_realm_panel_sprites++;
 }
 
+static void test_draw_backdrop(LPCDRAWBACKDROP draw_backdrop) {
+    (void)draw_backdrop;
+    captured_draw_calls++;
+}
+
 static size2_t test_get_window_size(void) {
     return MAKE(size2_t, 1000, 750);
 }
@@ -187,6 +188,7 @@ static LPRENDERER test_get_renderer(void) {
         .LoadFont = test_load_font,
         .GetWindowSize = test_get_window_size,
         .DrawImageEx = test_draw_image_ex,
+        .DrawBackdrop = test_draw_backdrop,
         .DrawText = test_draw_text,
         .DrawSprite = test_draw_sprite,
         .GetTextSize = test_get_text_size,
@@ -231,6 +233,10 @@ static LPCSTR test_cvar_string(LPCSTR name, LPCSTR fallback) {
     return fallback;
 }
 
+static LPCPLAYER test_get_player_state(void) {
+    return NULL;
+}
+
 static void load_ui_file(LPCSTR file_name) {
     uiImport_t saved = uiimport;
 
@@ -240,6 +246,7 @@ static void load_ui_file(LPCSTR file_name) {
     uiimport.FS_FreeFile = test_fs_free_file;
     uiimport.MemAlloc = test_ui_mem_alloc;
     uiimport.MemFree = test_ui_mem_free;
+    uiimport.GetPlayerState = test_get_player_state;
     uiimport.ImageIndex = test_image_index;
     uiimport.FontIndex = test_font_index;
     uiimport.Printf = test_ui_printf;
@@ -256,6 +263,7 @@ static void load_ui_files(LPCSTR const *file_names, size_t count) {
     uiimport.FS_FreeFile = test_fs_free_file;
     uiimport.MemAlloc = test_ui_mem_alloc;
     uiimport.MemFree = test_ui_mem_free;
+    uiimport.GetPlayerState = test_get_player_state;
     uiimport.ImageIndex = test_image_index;
     uiimport.FontIndex = test_font_index;
     uiimport.Printf = test_ui_printf;
@@ -290,6 +298,8 @@ static void reset_ui_state(void) {
     uiimport.FontIndex = test_font_index;
     uiimport.GetRenderer = test_get_renderer;
     uiimport.Printf = test_ui_printf;
+    uiimport.GetPlayerState = test_get_player_state;
+    UI_SetActive(true);
 }
 
 static void test_parse_single_frame_definition(void) {
@@ -1273,7 +1283,8 @@ static void test_popup_menu_hover_sets_flag_on_middle_row(void) {
               " Width 0.8, Height 0.6,"
               " Frame \"POPUPMENU\" \"GameMenu\" {"
               "  Width 0.18, Height 0.025,"
-              "  SetPoint TOPLEFT, \"Root\", TOPLEFT, 0.1, 0.1,"
+              /* FDF top-anchor Y offsets are positive upward, so -0.1 places the popup on-screen at y=0.1. */
+              "  SetPoint TOPLEFT, \"Root\", TOPLEFT, 0.1, -0.1,"
               " }"
               "}");
 
@@ -1327,6 +1338,8 @@ static void test_button1_dropdown_backdrop_gets_hover_highlight(void) {
 
     test_mouse_pos.x = 130;
     test_mouse_pos.y = 130;
+    UI_DrawFrame(root);
+    UI_MouseEventLocal(UI_MOUSE_MOVE, 130, 130, 0);
     captured_hover_draws = 0;
     UI_DrawFrame(root);
 
@@ -1376,7 +1389,9 @@ static void test_editbox_without_text_frame_click_focus_accepts_text_input(void)
 
     test_mouse_pos.x = 130;
     test_mouse_pos.y = 130;
+    UI_DrawFrame(root);
     UI_MouseEventLocal(UI_MOUSE_DOWN, 130, 130, 1);
+    captured_draw_calls = 0;
     UI_DrawFrame(root);
 
     ASSERT(UI_EditHasFocus(editbox));
@@ -1402,6 +1417,9 @@ static void test_options_game_port_enter_applies_and_blurs(void) {
     uiimport.GetRenderer = test_get_renderer;
     uiimport.Cmd_ExecuteText = test_cmd_execute_text;
     uiimport.Cvar_String = test_cvar_string;
+    uiimport.MemAlloc = test_ui_mem_alloc;
+    uiimport.MemFree = test_ui_mem_free;
+    uiimport.GetPlayerState = test_get_player_state;
     captured_command[0] = '\0';
 
     ASSERT(optionsMenuScreen.load());
@@ -1421,8 +1439,9 @@ static void test_options_game_port_enter_applies_and_blurs(void) {
     UI_SetEditValue(editbox, "27911");
     test_mouse_pos.x = 130;
     test_mouse_pos.y = 130;
-    UI_MouseEventLocal(UI_MOUSE_DOWN, 130, 130, 1);
+    /* Event hit testing consumes the layout cache built by the preceding draw. */
     UI_DrawFrame(root);
+    UI_MouseEventLocal(UI_MOUSE_DOWN, 130, 130, 1);
     ASSERT(UI_EditHasFocus(editbox));
 
     optionsMenuScreen.key_event(13, true);
@@ -1573,6 +1592,9 @@ static void test_main_menu_quit_dialog_commands_quit(void) {
     uiimport.Printf = test_ui_printf;
     uiimport.GetRenderer = test_get_renderer;
     uiimport.Cmd_ExecuteText = test_cmd_execute_text;
+    uiimport.MemAlloc = test_ui_mem_alloc;
+    uiimport.MemFree = test_ui_mem_free;
+    uiimport.GetPlayerState = test_get_player_state;
     captured_command[0] = '\0';
 
     ASSERT(mainMenuScreen.load());
@@ -1679,6 +1701,9 @@ static void test_main_menu_realm_select_uses_realm_panel_anim(void) {
     memset(&uiimport, 0, sizeof(uiimport));
     uiimport.Printf = test_ui_printf;
     uiimport.GetRenderer = test_get_renderer;
+    uiimport.MemAlloc = test_ui_mem_alloc;
+    uiimport.MemFree = test_ui_mem_free;
+    uiimport.GetPlayerState = test_get_player_state;
 
     ASSERT(mainMenuScreen.load());
     mainMenuScreen.init();
@@ -1719,6 +1744,7 @@ static void test_single_player_campaign_profile(BOOL tft) {
     uiimport.FS_FreeFile = test_fs_free_file;
     uiimport.MemAlloc = test_ui_mem_alloc;
     uiimport.MemFree = test_ui_mem_free;
+    uiimport.GetPlayerState = test_get_player_state;
 
     if (!singlePlayerMenuScreen.load()) {
         ASSERT(false);
@@ -1832,10 +1858,8 @@ static void test_utf16le_fdf_is_parsed_correctly(void) {
     uiimport.MemAlloc = test_ui_mem_alloc;
     uiimport.MemFree = test_ui_mem_free;
     uiimport.ImageIndex = fake_image_index;
-    uiimport.ModelIndex = fake_model_index;
     uiimport.FontIndex = test_font_index;
     uiimport.Printf = test_ui_printf;
-    uiimport.Error = test_ui_printf;
 
     UI_ParseFDF("utf16le_test.fdf");
     uiimport = saved;

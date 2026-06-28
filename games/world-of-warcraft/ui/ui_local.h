@@ -52,7 +52,7 @@ typedef struct {
     DWORD image;
     DWORD count;
     DWORD slot;
-    char name[128];
+    char name[256];
 } uiWowIcon_t;
 
 typedef struct {

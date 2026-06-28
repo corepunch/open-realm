@@ -304,7 +304,7 @@ static void G_StartScripts(void) {
  * a map loads, the JASS "main" function is invoked to run map initialization
  * triggers. */
 static void G_RunFrame(void) {
-    extern DWORD g_heatmap_builds_this_frame;
+    /* extern DWORD g_heatmap_builds_this_frame; */ /* unused for now */
 
     if (!level.started)
         return;

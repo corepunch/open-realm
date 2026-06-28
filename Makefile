@@ -5,7 +5,7 @@ DATA_DIR := data
 CC      := gcc
 BIN_DIR := build/bin
 LIB_DIR := build/lib
-CFLAGS  := -Wall -I. -Ishared -Ishared/types
+CFLAGS  := -Wall -Wmisleading-indentation -fno-common -I. -Ishared -Ishared/types
 WOW_DIR := games/world-of-warcraft
 WOW_TEST_DIR := $(WOW_DIR)/tests
 WOW_DATA_DIR := data/world-of-warcraft
@@ -230,7 +230,7 @@ include games/warcraft-3/game.mk
 WOW_TEST_RES_DIR := $(TESTS_DIR)/wow-resources
 WOW_TEST_SRC_DIR := $(WOW_TEST_DIR)/resources-src
 WOW_TEST_MPQ     := $(TESTS_DIR)/test-wow.mpq
-WOW_UI_TEST_CFLAGS := $(WOW_TEST_CFLAGS) $(LUA_CFLAGS) -DTEST_WOW_MPQ=\"$(WOW_TEST_MPQ)\"
+WOW_UI_TEST_CFLAGS := $(WOW_TEST_CFLAGS) $(LUA_CFLAGS) $(WOW_XML_CFLAGS) -DTEST_WOW_MPQ=\"$(WOW_TEST_MPQ)\"
 SC2_TEST_RES_DIR := $(TESTS_DIR)/sc2-resources
 SC2_TEST_SRC_DIR := $(SC2_TEST_DIR)/resources-src
 SC2_TEST_MPQ     := $(TESTS_DIR)/test-sc2.SC2Maps

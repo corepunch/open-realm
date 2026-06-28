@@ -535,7 +535,7 @@ static BOOL CM_ReadModifiedAbilities(HANDLE file, DWORD *num, modifiedAbility_t 
 
 static BOOL CM_ReadUnit(HANDLE file, struct Doodad *unit, cmPlacementHeader_t const *header, DWORD index) {
     char context[128];
-    char array_context[128];
+    char array_context[256];
 
     snprintf(context, sizeof(context), "war3mapUnits.doo unit %u", (unsigned)index);
 

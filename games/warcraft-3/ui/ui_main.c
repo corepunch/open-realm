@@ -532,6 +532,10 @@ void UI_ShutdownLocal(void) {
     memset(&ui_state, 0, sizeof(ui_state));
 }
 
+void UI_SetActive(BOOL active) {
+    ui_state.active = active;
+}
+
 void UI_RefreshLocal(DWORD time) {
     if (!ui_state.active) {
         return;

@@ -1,4 +1,5 @@
 #include <string.h>
+#include <stdlib.h>
 #include <ctype.h>
 #include <stdio.h>
 #include "common/common.h"
@@ -17,7 +18,9 @@ BOOL eat_token(LPPARSER p, LPCSTR value) {
 }
 
 static void skip_space_and_comments(LPPARSER p) {
+    DWORD guard = 0;
     for (;;) {
+        if (++guard > 10000) { fprintf(stderr, "[HANG] skip_space_and_comments\n"); abort(); }
         while (isspace((unsigned char)*p->buffer)) {
             ++p->buffer;
         }
@@ -129,6 +132,7 @@ LPCSTR parse_segment2(LPPARSER p) {
     LPSTR out = segment;
     BOOL quoted = false;
     BOOL have_segment = false;
+    DWORD guard = 0;
 
     memset(segment, 0, MAX_SEGMENT_SIZE);
     if (*p->buffer == '\0')
@@ -139,6 +143,7 @@ LPCSTR parse_segment2(LPPARSER p) {
         return NULL;
 
     while (*p->buffer) {
+        if (++guard > 100000) { fprintf(stderr, "[HANG] parse_segment2\n"); abort(); }
         if (!quoted && *p->buffer == ',') {
             ++p->buffer;
             break;

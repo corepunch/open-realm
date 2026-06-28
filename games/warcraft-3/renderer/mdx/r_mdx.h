@@ -78,8 +78,8 @@ typedef struct mdxBounds_s {
 } mdxBounds_t;
 
 typedef struct mdxVertexSkin_s {
-    BYTE skin[MAX_SKIN_BONES];
-    BYTE boneWeight[MAX_SKIN_BONES];
+    BYTE skin[4];
+    BYTE boneWeight[4];
 } mdxVertexSkin_t;
 
 typedef DWORD replaceableID_t;

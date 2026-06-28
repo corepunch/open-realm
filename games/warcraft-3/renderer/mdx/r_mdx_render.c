@@ -12,140 +12,6 @@
 //    vertexattr_boneWeight2,
 //} mdxVertexAttribute_t;
 
-static LPCSTR mdx_vs =
-"#version 140\n"
-"in vec3 i_position;\n"
-"in vec4 i_color;\n"
-"in vec2 i_texcoord;\n"
-"in vec3 i_normal;\n"
-"in vec4 i_skin1;\n"
-"in vec4 i_boneWeight1;\n"
-#if MAX_SKIN_BONES > 4
-"in vec4 i_boneWeight2;\n"
-"in vec4 i_skin2;\n"
-#endif
-"out vec4 v_color;\n"
-#ifdef USE_SHADOWMAPS
-"out vec4 v_shadow;\n"
-#endif
-"out vec2 v_texcoord;\n"
-"out vec2 v_texcoord2;\n"
-"out vec3 v_lighting;\n"
-"uniform mat4 uBones[128];\n"
-"uniform mat4 uMdxLights[8];\n"
-"uniform mat4 uViewProjectionMatrix;\n"
-"uniform mat4 uTextureMatrix;\n"
-"uniform mat4 uModelMatrix;\n"
-"uniform mat4 uLightMatrix;\n"
-"uniform mat3 uNormalMatrix;\n"
-"uniform int uMdxLightCount;\n"
-"uniform vec2 uMdxFallbackLighting;\n"
-"uniform float uMdxLightFill;\n"
-"const int MDX_LIGHT_OMNI = 0;\n"
-"const int MDX_LIGHT_DIRECT = 1;\n"
-"const int MDX_LIGHT_AMBIENT = 2;\n"
-"vec3 get_vertex_lighting(vec3 normal, vec3 worldPosition) {\n"
-"    if (uMdxLightCount == 0) {\n"
-"        vec3 fallbackDir = -normalize(vec3(uLightMatrix[0][2], uLightMatrix[1][2], uLightMatrix[2][2]));\n"
-"        return vec3(uMdxFallbackLighting.x) + vec3(uMdxFallbackLighting.y) * max(dot(normal, fallbackDir), 0.0);\n"
-"    }\n"
-"    vec3 lighting = vec3(uMdxLightFill);\n"
-"    for (int i = 0; i < 8; ++i) {\n"
-"        if (i >= uMdxLightCount) break;\n"
-"        mat4 light = uMdxLights[i];\n"
-"        vec4 positionType = light[0];\n"
-"        vec4 directionAtten = light[1];\n"
-"        vec4 colorIntensity = light[2];\n"
-"        vec4 ambientIntensity = light[3];\n"
-"        int lightType = int(positionType.w + 0.5);\n"
-"        vec3 color = colorIntensity.rgb * colorIntensity.a;\n"
-"        vec3 ambient = ambientIntensity.rgb * ambientIntensity.a;\n"
-"        if (lightType == MDX_LIGHT_AMBIENT) {\n"
-"            lighting += color + ambient;\n"
-"        } else if (lightType == MDX_LIGHT_DIRECT) {\n"
-"            vec3 dir = normalize(-directionAtten.xyz);\n"
-"            lighting += clamp(color * max(dot(normal, dir), 0.0), vec3(0.0), vec3(1.0)) + ambient;\n"
-"        } else {\n"
-"            vec3 delta = positionType.xyz - worldPosition;\n"
-"            vec3 dir = normalize(delta);\n"
-"            float dist = length(delta) / 64.0 + 1.0;\n"
-"            float atten = 1.0 / (dist * dist);\n"
-"            lighting += clamp(color * atten * max(dot(normal, dir), 0.0), vec3(0.0), vec3(1.0));\n"
-"            lighting += ambient * atten;\n"
-"        }\n"
-"    }\n"
-"    return min(lighting, vec3(1.0));\n"
-"}\n"
-"void main() {\n"
-"    vec4 pos4 = vec4(i_position, 1.0);\n"
-"    vec4 norm4 = vec4(i_normal, 0.0);\n"
-"    vec4 position = vec4(0.0);\n"
-"    vec4 normal = vec4(0.0);\n"
-"    for (int i = 0; i < 4; ++i) {\n"
-"        position += uBones[int(i_skin1[i])] * pos4 * i_boneWeight1[i];\n"
-"        normal += uBones[int(i_skin1[i])] * norm4 * i_boneWeight1[i];\n"
-#if MAX_SKIN_BONES > 4
-"        position += uBones[int(i_skin2[i])] * pos4 * i_boneWeight2[i];\n"
-"        normal += uBones[int(i_skin2[i])] * norm4 * i_boneWeight2[i];\n"
-#endif
-"    }\n"
-"    position.w = 1.0;\n"
-"    v_color = i_color;\n"
-"    v_texcoord = i_texcoord;\n"
-"    v_texcoord2 = (uTextureMatrix * uModelMatrix * position).xy;\n"
-"    vec3 worldNormal = normalize(uNormalMatrix * normal.xyz);\n"
-"    vec3 worldPosition = (uModelMatrix * position).xyz;\n"
-"    v_lighting = get_vertex_lighting(worldNormal, worldPosition);\n"
-#ifdef USE_SHADOWMAPS
-"    v_shadow = uLightMatrix * uModelMatrix * position;\n"
-#endif
-"    gl_Position = uViewProjectionMatrix * uModelMatrix * position;\n"
-"}\n";
-
-static LPCSTR mdx_fs =
-"#version 140\n"
-"in vec2 v_texcoord;\n"
-"in vec2 v_texcoord2;\n"
-#ifdef USE_SHADOWMAPS
-"in vec4 v_shadow;\n"
-#endif
-"in vec3 v_lighting;\n"
-"out vec4 o_color;\n"
-"uniform sampler2D uTexture;\n"
-#ifdef USE_SHADOWMAPS
-"uniform sampler2D uShadowmap;\n"
-#endif
-"uniform sampler2D uFogOfWar;\n"
-"uniform mat4 uLightMatrix;\n"
-"uniform bool uUseDiscard;\n"
-"uniform bool uUnshaded;\n"
-"uniform float uLayerAlpha;\n"
-"uniform vec4 uGeosetColor;\n"
-"uniform vec2 uUvTrans;\n"
-"uniform vec2 uUvRot;\n"
-"uniform vec2 uUvScale;\n"
-"vec2 quat_transform(vec2 q, vec2 v) {\n"
-"    float c = q.y * q.y - q.x * q.x;\n"
-"    float s = 2.0 * q.x * q.y;\n"
-"    return vec2(v.x * c - v.y * s, v.x * s + v.y * c);\n"
-"}\n"
-"float get_fogofwar() {\n"
-"    return texture(uFogOfWar, v_texcoord2).r;\n"
-"}\n"
-"void main() {\n"
-"    vec2 uv = v_texcoord;\n"
-"    uv += uUvTrans;\n"
-"    uv = quat_transform(uUvRot, uv - 0.5) + 0.5;\n"
-"    uv = uUvScale * (uv - 0.5) + 0.5;\n"
-"    vec4 col = texture(uTexture, uv);\n"
-"    col *= uGeosetColor;\n"
-"    col *= uLayerAlpha;\n"
-"    if (!uUnshaded) {\n"
-"        col.rgb *= get_fogofwar() * v_lighting;\n"
-"    }\n"
-"    o_color = col;\n"
-"    if (o_color.a < 0.5 && uUseDiscard) discard;\n"
-"}\n";
 
 void Matrix4_fromViewAngles(LPCVECTOR3 target, LPCVECTOR3 angles, float distance, LPMATRIX4 output) {
     VECTOR3 const vieworg = Vector3_unm(target);
@@ -294,7 +160,15 @@ bool MDLX_SetEntityAnimationFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *e
     if (seq_len == 0) {
         seq_len = 1;
     }
-    entity->frame = seq->interval[0] + (tr.viewDef.time % seq_len);
+    /* Use the viewDef time when available.  UI callers (glue scene, portraits)
+     * zero-initialise their viewDef and call SetEntityAnimFrame *before*
+     * RenderFrame, so tr.viewDef.time is still 0.  Fall back to the wall clock
+     * to keep menu/model animation advancing. */
+    DWORD anim_time = tr.viewDef.time;
+    if (anim_time == 0) {
+        anim_time = SDL_GetTicks();
+    }
+    entity->frame = seq->interval[0] + (anim_time % seq_len);
     entity->oldframe = entity->frame;
     return true;
 }
@@ -346,9 +220,9 @@ void MDLX_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
 }
 
 void MDLX_Init(void) {
-    mdlx.shader = R_InitShader(mdx_vs, mdx_fs);
+    mdlx.shader = R_ModelShader();
 }
 
 void MDLX_Shutdown(void) {
-    R_ReleaseShader(mdlx.shader);
+    /* mdlx.shader is the shared model shader, released by the renderer. */
 }

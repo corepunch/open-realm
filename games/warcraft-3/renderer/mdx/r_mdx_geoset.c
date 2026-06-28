@@ -6,12 +6,7 @@
 extern bool is_rendering_lights;
 #endif
 
-#define MDX_SHADER_MAX_LIGHTS 8
 #define MDLX_STACK_DRAW_ORDER 64
-
-typedef struct mdxShaderLight_s {
-    MATRIX4 matrix;
-} mdxShaderLight_t;
 
 #define GET_PARTICLE_ANIM_PARAM(MODEL, EMITTER, NAME) \
 float NAME = EMITTER->NAME; \
@@ -343,88 +338,6 @@ static void MDLX_BindLayerTextureAnimation(mdxModel_t const *model,
     R_Call(glUniform2f, mdlx.shader->uUvScale, scale.x, scale.y);
 }
 
-static void MDLX_GetLightKeytrackValue(mdxModel_t const *model,
-                                       mdxKeyTrack_t const *keytrack,
-                                       DWORD frame,
-                                       void *value)
-{
-    if (keytrack) {
-        MDLX_GetModelKeytrackValue(model, keytrack, frame, value);
-    }
-}
-
-static int MDLX_CollectModelLights(mdxModel_t const *model,
-                                   LPCMATRIX4 modelMatrix,
-                                   DWORD frame,
-                                   mdxShaderLight_t *lights,
-                                   int maxLights)
-{
-    int count = 0;
-
-    FOR_EACH_LIST(mdxLight_t, light, model->lights) {
-        if (count >= maxLights) {
-            break;
-        }
-
-        float visibility = 1.0f;
-        VECTOR3 color = light->Color;
-        VECTOR3 ambient = light->AmbColor;
-        float intensity = light->Intensity;
-        float ambientIntensity = light->AmbIntensity;
-        float attenuationStart = light->AttenuationStart;
-        float attenuationEnd = light->AttenuationEnd;
-
-        MDLX_GetLightKeytrackValue(model, light->keytracks.Visibility, frame, &visibility);
-        if (visibility < EPSILON) {
-            continue;
-        }
-        MDLX_GetLightKeytrackValue(model, light->keytracks.Color, frame, &color);
-        MDLX_GetLightKeytrackValue(model, light->keytracks.Intensity, frame, &intensity);
-        MDLX_GetLightKeytrackValue(model, light->keytracks.AmbColor, frame, &ambient);
-        MDLX_GetLightKeytrackValue(model, light->keytracks.AmbIntensity, frame, &ambientIntensity);
-        MDLX_GetLightKeytrackValue(model, light->keytracks.AttenuationStart, frame, &attenuationStart);
-        MDLX_GetLightKeytrackValue(model, light->keytracks.AttenuationEnd, frame, &attenuationEnd);
-
-        VECTOR3 pivot = { 0, 0, 0 };
-        if (light->node.node_id < (DWORD)model->num_pivots) {
-            pivot = model->pivots[light->node.node_id];
-        }
-        VECTOR3 localPosition = pivot;
-        VECTOR3 localDirectionTarget = { pivot.x, pivot.y, pivot.z - 1.0f };
-        if (light->node.node_id < MDX_MAX_NODES && model->nodes[light->node.node_id]) {
-            localPosition = Matrix4_multiply_vector3(&node_matrices[light->node.node_id], &pivot);
-            localDirectionTarget = Matrix4_multiply_vector3(&node_matrices[light->node.node_id], &localDirectionTarget);
-        }
-
-        VECTOR3 worldPosition = Matrix4_multiply_vector3(modelMatrix, &localPosition);
-        VECTOR3 worldDirectionTarget = Matrix4_multiply_vector3(modelMatrix, &localDirectionTarget);
-        VECTOR3 worldDirection = Vector3_sub(&worldDirectionTarget, &worldPosition);
-        if (Vector3_lengthsq(&worldDirection) < EPSILON) {
-            worldDirection = (VECTOR3){ 0, 0, -1 };
-        } else {
-            Vector3_normalize(&worldDirection);
-        }
-
-        lights[count].matrix = (MATRIX4){ .v = {
-            worldPosition.x, worldPosition.y, worldPosition.z, (float)light->type,
-            worldDirection.x, worldDirection.y, worldDirection.z, attenuationStart,
-            color.x, color.y, color.z, intensity * visibility,
-            ambient.x, ambient.y, ambient.z, ambientIntensity * visibility,
-        }};
-        count++;
-    }
-
-    return count;
-}
-
-static void MDLX_BindShaderLights(mdxShaderLight_t const *lights, int numLights) {
-    LPSHADER shader = mdlx.shader;
-    numLights = MIN(numLights, MDX_SHADER_MAX_LIGHTS);
-    R_Call(glUniform1i, shader->uMdxLightCount, numLights);
-    if (numLights > 0) {
-        R_Call(glUniformMatrix4fv, shader->uMdxLights, numLights, GL_FALSE, lights[0].matrix.v);
-    }
-}
 
 static void MDLX_BindGeosetMatrixPalette(mdxModel_t const *model, mdxGeoset_t const *geoset) {
     MATRIX4 matrixPalette[MDX_MATRIX_PALETTE];
@@ -811,18 +724,21 @@ void MDX_RenderModel(renderEntity_t const *entity,
                tr.viewDef.fogColor.x, tr.viewDef.fogColor.y, tr.viewDef.fogColor.z);
         R_Call(glUniform2f, shader->uFogParams, tr.viewDef.fogStart, tr.viewDef.fogEnd);
     }
-    if (entity->flags & RF_PORTRAIT_LIGHTING) {
-        R_Call(glUniform2f, shader->uMdxFallbackLighting, 0.58f, 0.62f);
-        R_Call(glUniform1f, shader->uMdxLightFill, 0.22f);
-    } else {
-        R_Call(glUniform2f, shader->uMdxFallbackLighting, 0.35f, 0.75f);
-        R_Call(glUniform1f, shader->uMdxLightFill, 0.0f);
+    {
+        /* MDX per-model omni lights are WC3-specific and not part of the unified
+           base shader. Map the fallback directional into uLightDir/Color/Ambient. */
+        FLOAT ambient = (entity->flags & RF_PORTRAIT_LIGHTING) ? 0.58f : 0.35f;
+        FLOAT directional = (entity->flags & RF_PORTRAIT_LIGHTING) ? 0.62f : 0.75f;
+        VECTOR3 lightDir = {
+            -tr.viewDef.lightMatrix.v[2],
+            -tr.viewDef.lightMatrix.v[6],
+            -tr.viewDef.lightMatrix.v[10],
+        };
+        R_Call(glUniform3f, shader->uLightDir, lightDir.x, lightDir.y, lightDir.z);
+        R_Call(glUniform3f, shader->uLightColor, directional, directional, directional);
+        R_Call(glUniform3f, shader->uLightAmbient, ambient, ambient, ambient);
     }
-
     MDLX_BindBoneMatrices(model, transform, entity->frame, entity->oldframe);
-    mdxShaderLight_t lights[MDX_SHADER_MAX_LIGHTS];
-    int numLights = MDLX_CollectModelLights(model, transform, entity->frame, lights, MDX_SHADER_MAX_LIGHTS);
-    MDLX_BindShaderLights(lights, numLights);
 
     if (entity->flags & RF_NO_FOGOFWAR) {
         R_Call(glActiveTexture, GL_TEXTURE2);

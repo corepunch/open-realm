@@ -1427,7 +1427,10 @@ static void UIWow_XMLFreeElems(void) {
 int UIWow_XmlFindByNamePub(LPCSTR name) { return UIWow_XmlFindByName(name); }
 void UIWow_XmlComputeRectPub(int idx, FLOAT *x, FLOAT *y, FLOAT *w, FLOAT *h) {
     RECT r = (idx >= 0 && idx < wow_xml.count) ? UIWow_XmlComputeRect(idx) : MAKE(RECT, 0, 0, 0, 0);
-    if (x) *x = r.x; if (y) *y = r.y; if (w) *w = r.w; if (h) *h = r.h;
+    if (x) *x = r.x;
+    if (y) *y = r.y;
+    if (w) *w = r.w;
+    if (h) *h = r.h;
 }
 
 /* Drop the injected character-create model when XML runtime state is rebuilt. */

@@ -63,7 +63,7 @@ struct {
 #define HEATMAP_CACHE_SLOTS 4
 
 typedef struct {
-    edict_t *goal;
+    point2_t target;    /* pathmap cell coordinate of the goal; {-1,-1} = invalid */
     DWORD    generation;
     VECTOR2 *flow;   /* pre-computed flow vector per cell; NULL until first use */
 } heatmapCacheEntry_t;
@@ -74,9 +74,34 @@ static int      heatmap_lru[HEATMAP_CACHE_SLOTS];
 static int      heatmap_lru_clock = 0;
 static VECTOR2 *active_flow = NULL; /* points into the current cache slot */
 
+#ifdef TOOL_COMMON_NO_MPQ
+/* Per-call perf counters; only tracked in test builds to avoid overhead. */
+static struct {
+    DWORD cache_hits, cache_misses, heatmap_iterations, flow_cells_baked;
+} g_perf;
+
+void CM_ResetTestPathPerfStats(void) { memset(&g_perf, 0, sizeof(g_perf)); }
+
+typedef struct routePerfStats_s {
+    DWORD cache_hits, cache_misses, heatmap_iterations, flow_cells_baked;
+} routePerfStats_t;
+
+routePerfStats_t CM_GetTestPathPerfStats(void) {
+    return (routePerfStats_t){
+        g_perf.cache_hits, g_perf.cache_misses,
+        g_perf.heatmap_iterations, g_perf.flow_cells_baked,
+    };
+}
+#define PERF_INC(field) g_perf.field++
+#define PERF_ADD(field, n) g_perf.field += (n)
+#else
+#define PERF_INC(field) ((void)0)
+#define PERF_ADD(field, n) ((void)0)
+#endif
+
 static void heatmap_cache_invalidate(void) {
     FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
-        heatmap_cache[i].goal       = NULL;
+        heatmap_cache[i].target    = (point2_t){ -1, -1 };
         heatmap_cache[i].generation = 0;
         /* Keep flow buffers allocated to avoid malloc churn on map reload. */
     }
@@ -238,7 +263,7 @@ static void stamp_entity_obstacle(edict_t const *ent, pathMapCell_t *target) {
  * once after SpawnEntities() — these obstacles never move so they don't need
  * to be re-stamped every heatmap build. */
 void CM_BakeStaticObstacles(void) {
-    if (!pathmap.original || !ge)
+    if (!pathmap.original)
         return;
     FOR_LOOP(i, ge->num_edicts) {
         edict_t *ent = EDICT_NUM(i);
@@ -497,11 +522,18 @@ static VECTOR2 compute_flow_at(DWORD x, DWORD y) {
     return direction;
 }
 
-/* Bake all cell flow vectors into the given buffer after a heatmap build. */
+/* Bake flow vectors only for cells reached by the heatmap (price != INT_MAX).
+ * Unreachable cells get a zero vector; counting only reachable cells lets
+ * tests verify the flood boundary without baking the whole map. */
 static void bake_flow_field(VECTOR2 *flow) {
     DWORD cells = pathmap.width * pathmap.height;
     FOR_LOOP(i, cells) {
-        flow[i] = compute_flow_at(i % pathmap.width, i / pathmap.width);
+        if (pathmap.heatmap[i].price == INT_MAX) {
+            flow[i] = (VECTOR2){ 0, 0 };
+        } else {
+            flow[i] = compute_flow_at(i % pathmap.width, i / pathmap.width);
+            PERF_INC(flow_cells_baked);
+        }
     }
 }
 
@@ -575,6 +607,7 @@ DWORD build_heatmap(point2_t target) {
     while (head != tail) {
         DWORD const u = q[head];
         head = (head + 1) % cap;
+        PERF_INC(heatmap_iterations);
         routeNode_t *const un = &pathmap.heatmap[u];
         un->closed = false;
         int const up = un->price;
@@ -617,40 +650,49 @@ DWORD CM_BuildHeatmap(edict_t *goalentity) {
         return 0;
     }
 
-    /* Cache lookup — find slot with matching goal.
+    /* Resolve the goal's pathmap cell, adjusting to the closest pathable
+     * cell if the raw position falls into an obstacle.  The adjusted target
+     * is used both as the cache key (so two entities at the same cell share
+     * a cached heatmap) and as the source for building. */
+    point2_t target = LocationToPathMap(&goalentity->s.origin2);
+    if (!is_pathable_node(target.x, target.y)) {
+        closest_pathable_node(&goalentity->s.origin2, 0, &target);
+    }
+
+    /* Cache lookup — find slot with matching target cell.
      * On a hit: point active_flow at the cached flow field and return
      * immediately.  No memcpy of the raw heatmap needed. */
     FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
-        if (heatmap_cache[i].goal == goalentity && heatmap_cache[i].flow) {
+        if (heatmap_cache[i].target.x == target.x &&
+            heatmap_cache[i].target.y == target.y &&
+            heatmap_cache[i].flow) {
             heatmap_lru[i] = heatmap_lru_clock++;
             active_flow = heatmap_cache[i].flow;
+            PERF_INC(cache_hits);
             return heatmap_cache[i].generation;
         }
     }
+    PERF_INC(cache_misses);
 
     /* Cache miss — evict the least-recently-used slot.
-     * Prefer slots with goal==NULL before comparing LRU timestamps. */
+     * Prefer slots with generation==0 before comparing LRU timestamps. */
     int evict = 0;
     FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
-        if (!heatmap_cache[i].goal) { evict = i; break; }
-        if (!heatmap_cache[evict].goal) break;
+        if (!heatmap_cache[i].generation) { evict = i; break; }
+        if (!heatmap_cache[evict].generation) break;
         if (heatmap_lru[i] < heatmap_lru[evict]) evict = i;
     }
     if (!heatmap_cache[evict].flow)
         heatmap_cache[evict].flow = MemAlloc(map_cells * sizeof(VECTOR2));
 
-    point2_t target = LocationToPathMap(&goalentity->s.origin2);
     reset_pathmap_data();
     clear_heatmap();
     /* Static obstacles are already baked into pathmap.original by
      * CM_BakeStaticObstacles(); no per-frame entity scan needed here. */
-    if (!is_pathable_node(target.x, target.y)) {
-        closest_pathable_node(&goalentity->s.origin2, 0, &target);
-    }
     build_heatmap(target);
     bake_flow_field(heatmap_cache[evict].flow);
 
-    heatmap_cache[evict].goal       = goalentity;
+    heatmap_cache[evict].target    = target;
     heatmap_cache[evict].generation = heatmap_next_generation++;
     if (heatmap_next_generation == 0)
         heatmap_next_generation = 1;

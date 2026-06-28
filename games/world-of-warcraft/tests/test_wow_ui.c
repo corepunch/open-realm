@@ -33,7 +33,6 @@ static HANDLE test_archive;
 static PLAYER test_ps;
 static refExport_t test_renderer;
 static LPCTEXTURE test_textures[MAX_IMAGES];
-static DWORD test_time;
 static DWORD next_texture_id;
 static DWORD loaded_textures;
 static DWORD missing_textures;
@@ -229,9 +228,7 @@ static LPCPLAYER test_get_player_state(void) {
     return &test_ps;
 }
 
-static DWORD test_get_client_time(void) {
-    return test_time;
-}
+
 
 static LPRENDERER test_get_renderer(void) {
     return &test_renderer;
@@ -252,7 +249,6 @@ static void reset_test_state(void) {
     memset(last_draw_text, 0, sizeof(last_draw_text));
     memset(last_server_command, 0, sizeof(last_server_command));
     memset(last_cmd_execute_text, 0, sizeof(last_cmd_execute_text));
-    test_time = 1000;
     next_texture_id = 0;
     loaded_textures = 0;
     missing_textures = 0;
@@ -301,7 +297,6 @@ static uiExport_t init_ui(void) {
         .ServerCommand = test_server_command,
         .GetPlayerState = test_get_player_state,
         .GetTexture = test_get_texture,
-        .GetClientTime = test_get_client_time,
         .GetRenderer = test_get_renderer,
         .Printf = test_printf,
     });

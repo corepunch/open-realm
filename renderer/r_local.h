@@ -46,7 +46,7 @@
 #define MAX_TEAMS 16
 #define TEAM_MASK (MAX_TEAMS - 1)
 #define PORTRAIT_SHADOW_SIZE 50
-#define MAX_SKIN_BONES 8
+#define MAX_SKIN_BONES 4
 #define NUM_SELECTION_CIRCLES 3
 #define NUM_RECT_VERTICES 6
 #define SYSFONT_COLS 16
@@ -107,10 +107,9 @@ struct shader_program {
     DWORD uUvTrans;
     DWORD uUvRot;
     DWORD uUvScale;
-    DWORD uMdxLightCount;
-    DWORD uMdxLights;
-    DWORD uMdxFallbackLighting;
-    DWORD uMdxLightFill;
+    DWORD uLightDir;
+    DWORD uLightColor;
+    DWORD uLightAmbient;
     DWORD uEyePosition;
     DWORD uActiveGlow;
     DWORD uFogEnable;
@@ -226,6 +225,8 @@ void R_RenderFlatRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, FLOAT z, LPCTEXTURE
 // r_shader.c
 LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default);
 void R_ReleaseShader(LPSHADER shader);
+LPSHADER R_ModelShader(void);
+void R_ShutdownModelShader(void);
 
 // r_main.c
 #ifdef USE_SHADOWMAPS

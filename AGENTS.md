@@ -98,6 +98,19 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 - Do not split a declaration and its first assignment onto separate lines.
 - Do not add null-pointer or function-pointer guards before calling cross-module API functions (`ui.*`, `re.*`, `s.*`, etc.). These are guaranteed to be set at init time and should be called directly.
 
+## Tool Failures
+
+- **If a tool fails repeatedly, stop and notify the user.** When a tool (terminal, build command, test runner, etc.) fails more than 2-3 times with the same error, do not keep retrying blindly or switch to purely static analysis. Instead, inform the user what is failing and why, propose a workaround (e.g. redirecting output to a file, running in background), and ask whether to continue with the workaround or wait for the user's help. Wasting time fighting a tool instead of asking for help is worse than a brief interruption.
+
+## Test Discipline
+
+- **Every structural change must include or update tests.** When you add a new function, change a behavior path, fix a bug, or modify a struct/API contract, check whether existing tests cover the change. If they do not, add a test before or alongside the change.
+- **New code paths need new tests.** If you add an `if` branch, a new function, a new field, or a new cache/state machine, write a test that exercises the new path and its inverse (hit + miss, success + failure, zero + non-zero).
+- **Cache/state-machine changes double-test.** When changing a caching layer or state machine, test both cache hit and cache miss paths, and verify performance counters (`cache_hits`, `cache_misses`, etc.) where the implementation tracks them.
+- **Run `make test` before committing.** The WC3 test binary (`test_openwarcraft3`) includes all unit tests. If the full suite takes too long, run individual test suites first (by temporarily commenting out other suites in the runner), but verify the full suite passes before finalising the change.
+- **`git blame` before changing existing struct/API fields.** Use `git blame` or `git log -p -S <pattern>` to understand why a field exists, what trade-offs were made, and whether your change is consistent with the original intent. This is especially important for network-contract structs (`entityState_t`, `playerState_t`), engine APIs, and cache keys — see the "Engine Struct/API Discipline" section above.
+- **Do not disable a failing test.** If a test fails, fix the code or fix the test — do not comment it out, add `SKIP`, or reduce its coverage. A failing test that is expected to pass is a bug report; a test that is wrong describes the wrong contract.
+
 ## Architecture
 
 - Structure the project similarly to Quake 2: separate modules for rendering, game logic, input, sound, networking, etc.
@@ -327,6 +340,26 @@ Agent guidance:
 - Use `--use-model-camera` only when the model actually contains a useful embedded camera.
 
 Use this output in bug reports/diagnostics so rendering issues can be triaged from data facts (camera/lights/particles/sequence availability) without requiring screenshots.
+
+## MDX Animation Reference (WarsmashModEngine)
+
+The `data/WarsmashModEngine/` directory contains a Java port of the mdx-m3-viewer used as
+reference for MDX animation behaviour.  Key differences from our C implementation:
+
+- **Keyframe wrapping** (`SdSequence.getValue` in `AnimatedObject.java`): when the animation
+  frame exceeds the last keyframe within the sequence interval, the game interpolates from
+  the last keyframe's value back toward the first keyframe's value — it does NOT clamp to
+  the last pose.
+- **Per-sequence keyframe filtering**: Warsmash builds a separate filtered keyframe list for
+  each sequence at load time (`SdSequence` constructor), selecting keyframes with
+  `start <= frame <= end` (inclusive).  Our code filters at evaluation time with exclusive
+  upper bound.
+
+When investigating animation crop/truncation bugs, the relevant source files are:
+- `data/WarsmashModEngine/.../mdx/AnimatedObject.java`
+- `data/WarsmashModEngine/.../mdx/SdSequence.java`
+- `data/WarsmashModEngine/.../mdx/Sd.java`
+- `data/WarsmashModEngine/.../mdx/MdxComplexInstance.java` (updateAnimations method)
 
 ## UI Text Renderer Workflow
 

@@ -21,6 +21,10 @@
 
 void test_client_stubs_init(void);
 
+/* ge is declared extern in server/server.h and defined in server/sv_main.c.
+ * We re-declare it here so this file can set it in setup_game(). */
+extern struct game_export *ge;
+
 /* Forward-declare functions defined in game .c files but not in any header. */
 void G_SetConfigTable(sheetMetaData_t *metadatas, LPCSTR slk, sheetRow_t *table);
 
@@ -272,7 +276,10 @@ void setup_game(void) {
     gi.CvarString          = NULL; /* tests don't use in-game test runner */
     test_client_stubs_init();
 
-    /* Initialise game-export fields. */
+    /* Initialise game-export fields and the ge pointer (declared extern in
+     * server/server.h, defined in server/sv_main.c) so routing.c can access
+     * ge->num_edicts in non-GAME_WORLD builds (tool_common test builds). */
+    ge                  = &globals;
     globals.edicts      = g_edicts;
     globals.num_edicts  = 0;
     globals.max_edicts  = MAX_ENTITIES;

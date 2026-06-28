@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <strings.h>
 
-#define M2_MAX_BONES_PER_BATCH 64
+#define M2_MAX_BONES_PER_BATCH 128
 #define M2_CHARACTER_TEXTURE_NONE 0xff
 
 enum {
@@ -409,101 +409,9 @@ typedef struct {
 
 static LPSHADER m2_shader;
 
-static LPCSTR m2_vs =
-"#version 140\n"
-"in vec3 i_position;\n"
-"in vec2 i_texcoord;\n"
-"in vec3 i_normal;\n"
-"in vec4 i_color;\n"
-"in vec4 i_skin1;\n"
-"in vec4 i_boneWeight1;\n"
-#ifdef USE_SHADOWMAPS
-"out vec4 v_shadow;\n"
-#endif
-"out vec2 v_texcoord;\n"
-"out vec2 v_texcoord2;\n"
-"out float v_light;\n"
-"out vec4 v_color;\n"
-"uniform mat4 uViewProjectionMatrix;\n"
-"uniform mat4 uTextureMatrix;\n"
-"uniform mat4 uModelMatrix;\n"
-"uniform mat4 uLightMatrix;\n"
-"uniform mat3 uNormalMatrix;\n"
-"uniform mat4 uBones[64];\n"
-"vec4 skin_position(vec4 p) {\n"
-"    vec4 outp = vec4(0.0);\n"
-"    float weight = 0.0;\n"
-"    for (int i = 0; i < 4; ++i) {\n"
-"        outp += uBones[int(i_skin1[i])] * p * i_boneWeight1[i];\n"
-"        weight += i_boneWeight1[i];\n"
-"    }\n"
-"    return weight > 0.0 ? outp : p;\n"
-"}\n"
-"vec3 skin_normal(vec4 n) {\n"
-"    vec4 outn = vec4(0.0);\n"
-"    float weight = 0.0;\n"
-"    for (int i = 0; i < 4; ++i) {\n"
-"        outn += uBones[int(i_skin1[i])] * n * i_boneWeight1[i];\n"
-"        weight += i_boneWeight1[i];\n"
-"    }\n"
-"    return weight > 0.0 ? outn.xyz : n.xyz;\n"
-"}\n"
-"void main() {\n"
-"    vec4 local = skin_position(vec4(i_position, 1.0));\n"
-"    vec4 pos = uModelMatrix * local;\n"
-"    v_texcoord = i_texcoord;\n"
-"    v_texcoord2 = (uTextureMatrix * pos).xy;\n"
-"    vec3 normal = normalize(uNormalMatrix * skin_normal(vec4(i_normal, 0.0)));\n"
-"    vec3 lightDir = -normalize(vec3(uLightMatrix[0][2], uLightMatrix[1][2], uLightMatrix[2][2]))*1.2;\n"
-"    v_light = clamp(dot(normal, lightDir), 0.0, 1.0);\n"
-#ifdef USE_SHADOWMAPS
-"    v_shadow = uLightMatrix * pos;\n"
-#endif
-"    v_color = i_color;\n"
-"    gl_Position = uViewProjectionMatrix * pos;\n"
-"}\n";
-
-static LPCSTR m2_fs =
-"#version 140\n"
-"in vec2 v_texcoord;\n"
-"in vec2 v_texcoord2;\n"
-#ifdef USE_SHADOWMAPS
-"in vec4 v_shadow;\n"
-#endif
-"in float v_light;\n"
-"in vec4 v_color;\n"
-"out vec4 o_color;\n"
-"uniform sampler2D uTexture;\n"
-#if defined(USE_SHADOWMAPS) || defined(DEBUG_PATHFINDING)
-"uniform sampler2D uShadowmap;\n"
-#endif
-"uniform sampler2D uFogOfWar;\n"
-#ifdef USE_SHADOWMAPS
-"float get_shadow() {\n"
-"    float depth = texture(uShadowmap, vec2(v_shadow.x + 1.0, v_shadow.y + 1.0) * 0.5).r;\n"
-"    return depth < (v_shadow.z + 0.99) * 0.5 ? 0.0 : 1.0;\n"
-"}\n"
-#endif
-"float get_lighting() {\n"
-#ifdef USE_SHADOWMAPS
-"    return mix(0.5, 1.0, get_shadow() * v_light);"
-#else
-"    return mix(0.5, 1.0, v_light);"
-#endif
-"}\n"
-"float get_fogofwar() {\n"
-"    return texture(uFogOfWar, v_texcoord2).r;\n"
-"}\n"
-"void main() {\n"
-"    vec4 col = texture(uTexture, v_texcoord) * v_color;\n"
-"    if (col.a < 0.5) discard;\n"
-"    col.rgb *= get_fogofwar() * get_lighting();\n"
-"    o_color = col;\n"
-"}\n";
-
 static LPSHADER M2_Shader(void) {
     if (!m2_shader) {
-        m2_shader = R_InitShader(m2_vs, m2_fs);
+        m2_shader = R_ModelShader();
     }
     return m2_shader ? m2_shader : tr.shader[SHADER_DEFAULT];
 }
@@ -2940,6 +2848,30 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
     R_Call(glUniformMatrix4fv, shader->uModelMatrix, 1, GL_FALSE, transform->v);
     R_Call(glUniformMatrix4fv, shader->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
     R_Call(glUniformMatrix3fv, shader->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
+    {
+        VECTOR3 lightDir = {
+            -tr.viewDef.lightMatrix.v[2],
+            -tr.viewDef.lightMatrix.v[6],
+            -tr.viewDef.lightMatrix.v[10],
+        };
+        /* Match the old M2 shader which mixed mix(0.5, 1.0, v_light), i.e.
+           0.5 ambient + 0.5 directional.  The unified shader uses
+           uLightAmbient + uLightColor * dot(normal, uLightDir). */
+        R_Call(glUniform3f, shader->uLightDir, lightDir.x * 1.2f, lightDir.y * 1.2f, lightDir.z * 1.2f);
+        R_Call(glUniform3f, shader->uLightColor, 0.5f, 0.5f, 0.5f);
+        R_Call(glUniform3f, shader->uLightAmbient, 0.5f, 0.5f, 0.5f);
+    }
+    /* The unified model shader transforms UVs through quat_transform using
+     * uUvRot (default (0,0) collapses all UVs to 0.5).  Set identity defaults
+     * for all UV/color/layer uniforms that M2 does not animate. */
+    R_Call(glUniform4f, shader->uGeosetColor, 1.0f, 1.0f, 1.0f, 1.0f);
+    R_Call(glUniform1f, shader->uLayerAlpha, 1.0f);
+    R_Call(glUniform2f, shader->uUvTrans, 0.0f, 0.0f);
+    R_Call(glUniform2f, shader->uUvRot, 0.0f, 1.0f);  /* identity quaternion */
+    R_Call(glUniform2f, shader->uUvScale, 1.0f, 1.0f);
+    R_Call(glUniform1i, shader->uUseDiscard, 0);
+    R_Call(glUniform1i, shader->uUnshaded, 0);
+    R_Call(glUniform1f, shader->uFogEnable, 0);
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_TRUE);
     R_Call(glDisable, GL_BLEND);

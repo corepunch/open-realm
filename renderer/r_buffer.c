@@ -88,12 +88,6 @@ LPBUFFER R_MakeVertexArrayObject(LPCVERTEX vertices, DWORD size) {
     R_Call(glVertexAttribPointer, attrib_boneWeight1, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(struct vertex), FOFS(vertex, boneWeight[0]));
     R_Call(glVertexAttribPointer, attrib_normal, 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex), FOFS(vertex, normal));
 
-#if MAX_SKIN_BONES > 4
-    R_Call(glEnableVertexAttribArray, attrib_skin2);
-    R_Call(glEnableVertexAttribArray, attrib_boneWeight2);
-    R_Call(glVertexAttribPointer, attrib_skin2, 4, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(struct vertex), FOFS(vertex, skin[4]));
-    R_Call(glVertexAttribPointer, attrib_boneWeight2, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(struct vertex), FOFS(vertex, boneWeight[4]));
-#endif
 
     if (vertices) {
         R_Call(glBufferData, GL_ARRAY_BUFFER, size * sizeof(VERTEX), vertices, GL_STATIC_DRAW);

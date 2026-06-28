@@ -229,7 +229,11 @@ BOOL CL_InputModeMouseWheel(SDL_MouseWheelEvent const *wheel) {
 
 /* WC3-style camera scrolling: arrow keys and screen-edge push. Runs every
  * client frame. World +Y is north (up on screen), +X is east (right). */
-#define CL_CAMERA_SCROLL_SPEED 1400.0f /* world units per second */
+#define CL_CAMERA_SCROLL_SPEED 1400.0f /* world units per second (WC3 default) */
+#ifdef SC2
+#undef  CL_CAMERA_SCROLL_SPEED
+#define CL_CAMERA_SCROLL_SPEED 350.0f  /* SC2 world scale is smaller */
+#endif
 #define CL_CAMERA_EDGE_MARGIN  6        /* px from window edge that triggers scroll */
 
 void CL_InputModeFrame(void) {

@@ -34,7 +34,8 @@ jobs:
           sudo apt-get install -y \
             libgles2-mesa-dev \
             libsdl2-dev \
-            libjpeg-dev
+            libjpeg-dev \
+            libxml2-dev
 
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'

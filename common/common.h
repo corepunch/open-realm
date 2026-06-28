@@ -93,9 +93,9 @@ typedef enum t_attrib_id {
     attrib_texcoord,
     attrib_normal,
     attrib_skin1,
-    attrib_skin2,
+    //attrib_skin2,        /* removed: unified shader uses top-4 bones only */
     attrib_boneWeight1,
-    attrib_boneWeight2,
+    //attrib_boneWeight2,  /* removed: unified shader uses top-4 bones only */
     attrib_particleAxis,
     attrib_particleSize,
 } t_attrib_id;

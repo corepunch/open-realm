@@ -250,10 +250,12 @@ static HANDLE sc2_source_read(sc2MapSource_t *source, LPCSTR filename, LPDWORD s
 
     if (!source->base[0])
         return sc2_read_file(filename, size);
-    snprintf(path, sizeof(path), "%s/%s", source->base, filename);
-    data = sc2_read_file(path, size);
+    /* base + separator + filename can exceed PATHSTR; use a wider stack buffer */
+    char wide_path[MAX_PATHLEN + MAX_PATHLEN];
+    snprintf(wide_path, sizeof(wide_path), "%s/%s", source->base, filename);
+    data = sc2_read_file(wide_path, size);
     if (!data) {
-        snprintf(path, sizeof(path), "%s\\%s", source->base, filename);
+        snprintf(wide_path, sizeof(wide_path), "%s\\%s", source->base, filename);
         data = sc2_read_file(path, size);
     }
     return data;
@@ -756,7 +758,7 @@ static BOOL sc2_parse_mapinfo_binary(sc2MapSource_t *source) {
     }
     if (!sc2_map.map_name[0] && sc2_map.MapInfo.data[0])
         snprintf(sc2_map.map_name, sizeof(sc2_map.map_name), "%.*s",
-                 (int)sizeof(sc2_map.MapInfo.data), (char const *)sc2_map.MapInfo.data);
+                 (int)(sizeof(sc2_map.map_name) - 1), (char const *)sc2_map.MapInfo.data);
     return true;
 }
 
@@ -1835,10 +1837,10 @@ static void sc2_resolve_cliff_sets(sc2Catalog_t const *catalog) {
         if (mesh && *mesh) {
             snprintf(sc2_map.t3Terrain.cliff_sets[i].mesh, sizeof(sc2_map.t3Terrain.cliff_sets[i].mesh), "%s", mesh);
         } else if (sc2_map.t3Terrain.cliff_sets[i].name[0]) {
-            snprintf(sc2_map.t3Terrain.cliff_sets[i].mesh,
-                     sizeof(sc2_map.t3Terrain.cliff_sets[i].mesh),
-                     "%s",
-                     sc2_map.t3Terrain.cliff_sets[i].name);
+            strncpy(sc2_map.t3Terrain.cliff_sets[i].mesh,
+                    sc2_map.t3Terrain.cliff_sets[i].name,
+                    sizeof(sc2_map.t3Terrain.cliff_sets[i].mesh) - 1);
+            sc2_map.t3Terrain.cliff_sets[i].mesh[sizeof(sc2_map.t3Terrain.cliff_sets[i].mesh) - 1] = '\0';
         }
     }
 }

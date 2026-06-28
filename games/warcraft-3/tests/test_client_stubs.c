@@ -8,7 +8,6 @@ struct client_state cl;
 struct client_static cls;
 refExport_t re;
 uiExport_t ui;
-uiImport_t uiimport;
 mouseEvent_t mouse;
 
 typedef struct {
@@ -42,6 +41,12 @@ static void mock_DrawLoadingIndicator(LPCRECT rect, DWORD time, COLOR32 color) {
     (void)rect;
     (void)time;
     (void)color;
+}
+
+static void mock_SetFogOfWarData(DWORD width, DWORD height, BYTE const *data) {
+    (void)width;
+    (void)height;
+    (void)data;
 }
 
 void V_RenderView(void) {
@@ -105,10 +110,6 @@ void Com_Error(errorCode_t code, LPCSTR fmt, ...) {
     (void)fmt;
 }
 
-void SCR_EndLoadingPlaque(void) {
-    cls.disable_screen = 0;
-}
-
 void test_client_stubs_init(void) {
     memset(&cl, 0, sizeof(cl));
     memset(&cls, 0, sizeof(cls));
@@ -117,4 +118,5 @@ void test_client_stubs_init(void) {
     memset(&mouse, 0, sizeof(mouse));
     re.GetWindowSize = mock_GetWindowSize;
     re.DrawLoadingIndicator = mock_DrawLoadingIndicator;
+    re.SetFogOfWarData = mock_SetFogOfWarData;
 }

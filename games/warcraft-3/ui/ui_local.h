@@ -338,6 +338,7 @@ typedef void *LPEDICT;
 
 /* ui_main.c */
 void UI_InitLocal(void);
+void UI_SetActive(BOOL active);
 void UI_ShutdownLocal(void);
 void UI_RefreshLocal(DWORD time);
 

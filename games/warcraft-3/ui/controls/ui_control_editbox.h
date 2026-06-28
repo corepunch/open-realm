@@ -16,7 +16,7 @@ static LPFRAMEDEF UI_CreateEditTextFrame(LPFRAMEDEF frame) {
 
     snprintf(text_frame->Name,
              sizeof(text_frame->Name),
-             "%sText",
+             "%.75sText",
              frame->Name[0] ? frame->Name : "EditBox");
     template = UI_FindFrame("StandardEditBoxTextTemplate");
     if (template) {

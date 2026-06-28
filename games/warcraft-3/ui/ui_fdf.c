@@ -970,9 +970,11 @@ void parse_item(LPPARSER parser, LPFRAMEDEF frame, parseItem_t *item) {
 
 void parse_func(LPPARSER parser, LPFRAMEDEF frame) {
     LPCSTR token = NULL;
+    DWORD loop_guard = 0;
     /* Some shipped FDF files end while a frame is still open. Treat EOF like
      * an implicit close so we can consume the original assets verbatim. */
     while ((token = parse_token(parser)) && *token && (*token != '}')) {
+        if (++loop_guard > 1000) { fprintf(stderr, "[HANG] parse_func frame=%s token=%s\n", frame ? frame->Name : "(null)", token); abort(); }
         if (frame->Type == FT_STRINGLIST) {
             static parseItem_t stringitem = { "", { F(Name, StringListItem), F_END } };
             stringListItem_t *str = uiimport.MemAlloc(sizeof(stringListItem_t));
@@ -1367,7 +1369,9 @@ void UI_MenuAddItem(LPFRAMEDEF frame, LPCSTR text, LONG value) {
 void FDF_ParseScene(LPPARSER parser) {
     LPCSTR token = NULL;
     LPFRAMEDEF frame = NULL;
+    DWORD loop_guard = 0;
     while (*(token = parse_token(parser))) {
+        if (++loop_guard > 1000) { fprintf(stderr, "[HANG] FDF_ParseScene token=%s\n", token); abort(); }
         for (fdf_parse_class_t *it = classes; it->name; it++) {
             if (!strcmp(it->name, token)) {
                 it->func(parser, frame);

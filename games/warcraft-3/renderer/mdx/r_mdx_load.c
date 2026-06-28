@@ -200,17 +200,51 @@ void R_SetupGeosetVertexBuffer(mdxGeoset_t *geoset) {
             leftoversize = matrixGroupSize;
         }
         BYTE *matrixGroup = matrixGroups[matrixGroupIndex];
-        memcpy(vertices[vertex].skin, matrixGroup, sizeof(matrixGroup_t));
-        memset(vertices[vertex].boneWeight, 0, sizeof(matrixGroup_t));
+        /* Distribute equal weights across all bones in the group, then keep
+           the top 4 by weight (descending) and renormalize to sum=255. */
+        BYTE rawSkin[MAX_SKIN_BONES] = {0};
+        BYTE rawWeight[MAX_SKIN_BONES] = {0};
+        memcpy(rawSkin, matrixGroup, MAX_SKIN_BONES);
         if (matrixGroupCount == 1 && matrixGroup[0] == 0) {
-            vertices[vertex].boneWeight[0] = 255;
+            rawWeight[0] = 255;
         } else {
             FOR_LOOP(matrixIndex, matrixGroupSize) {
                 BYTE value = (float)leftover / (float)leftoversize;
-                vertices[vertex].boneWeight[matrixIndex] = value;
+                rawWeight[matrixIndex] = value;
                 leftover = MAX(0, leftover - value);
                 leftoversize = MAX(1, leftoversize - 1);
             }
+        }
+        /* Insertion-sort top 4 (weight desc) into the 4-slot skin/boneWeight. */
+        memset(vertices[vertex].skin, 0, 4);
+        memset(vertices[vertex].boneWeight, 0, 4);
+        FOR_LOOP(i, MAX_SKIN_BONES) {
+            if (!rawWeight[i]) continue;
+            FOR_LOOP(j, 4) {
+                if (rawWeight[i] > vertices[vertex].boneWeight[j]) {
+                    /* Shift lower entries down, dropping slot 3. */
+                    for (int k = 3; k > (int)j; k--) {
+                        vertices[vertex].skin[k] = vertices[vertex].skin[k - 1];
+                        vertices[vertex].boneWeight[k] = vertices[vertex].boneWeight[k - 1];
+                    }
+                    vertices[vertex].skin[j] = rawSkin[i];
+                    vertices[vertex].boneWeight[j] = rawWeight[i];
+                    break;
+                }
+            }
+        }
+        /* Renormalize top-4 weights to sum=255. */
+        DWORD wsum = 0;
+        FOR_LOOP(j, 4) wsum += vertices[vertex].boneWeight[j];
+        if (wsum && wsum != 255) {
+            DWORD acc = 0;
+            FOR_LOOP(j, 4) {
+                DWORD w = vertices[vertex].boneWeight[j] * 255 / wsum;
+                vertices[vertex].boneWeight[j] = (BYTE)w;
+                acc += w;
+            }
+            /* Fix rounding remainder in the highest-weight slot. */
+            if (acc < 255) vertices[vertex].boneWeight[0] += (BYTE)(255 - acc);
         }
     }
     R_Call(glGenVertexArrays, 1, &geoset->vertexArrayBuffer);
@@ -234,22 +268,36 @@ void R_SetupGeosetVertexBuffer(mdxGeoset_t *geoset) {
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, geoset->buffer[4]);
 
     R_Call(glEnableVertexAttribArray, attrib_skin1);
-    R_Call(glEnableVertexAttribArray, attrib_skin2);
     R_Call(glEnableVertexAttribArray, attrib_boneWeight1);
-    R_Call(glEnableVertexAttribArray, attrib_boneWeight2);
 
     R_Call(glVertexAttribPointer, attrib_skin1, 4, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(mdxVertexSkin_t), FOFS(mdxVertexSkin_s, skin[0]));
-    R_Call(glVertexAttribPointer, attrib_skin2, 4, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(mdxVertexSkin_t), FOFS(mdxVertexSkin_s, skin[4]));
     R_Call(glVertexAttribPointer, attrib_boneWeight1, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(mdxVertexSkin_t), FOFS(mdxVertexSkin_s, boneWeight[0]));
-    R_Call(glVertexAttribPointer, attrib_boneWeight2, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(mdxVertexSkin_t), FOFS(mdxVertexSkin_s, boneWeight[4]));
 
     R_Call(glBufferData, GL_ARRAY_BUFFER, geoset->num_vertices * sizeof(mdxVertexSkin_t), vertices, GL_STATIC_DRAW);
+
+    /* MDX models have no per-vertex colour data.  The unified model shader
+     * multiplies the sampled texture by v_color (i_color attribute), so we
+     * supply a white (255,255,255,255) buffer to make it a no-op. */
+    {
+        typedef BYTE color4_t[4];
+        color4_t *whiteColors = ri.MemAlloc(sizeof(color4_t) * geoset->num_vertices);
+        FOR_LOOP(i, geoset->num_vertices) {
+            whiteColors[i][0] = 255;
+            whiteColors[i][1] = 255;
+            whiteColors[i][2] = 255;
+            whiteColors[i][3] = 255;
+        }
+        R_Call(glBindBuffer, GL_ARRAY_BUFFER, geoset->buffer[5]);
+        R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(color4_t) * geoset->num_vertices, whiteColors, GL_STATIC_DRAW);
+        R_Call(glEnableVertexAttribArray, attrib_color);
+        R_Call(glVertexAttribPointer, attrib_color, 4, GL_UNSIGNED_BYTE, GL_TRUE, 0, 0);
+        ri.MemFree(whiteColors);
+    }
 
     R_Call(glBindBuffer, GL_ELEMENT_ARRAY_BUFFER, geoset->buffer[0]);
     R_Call(glBufferData, GL_ELEMENT_ARRAY_BUFFER, sizeof(USHORT) * geoset->num_triangles, geoset->triangles, GL_STATIC_DRAW);
             
     ri.MemFree(vertices);
-//    geoset->skinning = vertices;
     ri.MemFree(matrixGroups);
 }
 

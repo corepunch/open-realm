@@ -31,6 +31,30 @@ static DWORD test_last_unicast_size;
 static DWORD test_unicast_calls;
 static char test_last_error[512];
 
+/* ---- configstring stubs (game_import.configstring / GetConfigstring) ---- */
+#define TEST_CONFIGSTRINGS 128
+static char test_configstrings[TEST_CONFIGSTRINGS][512];
+
+static void test_configstring(DWORD index, LPCSTR string) {
+    if (index < TEST_CONFIGSTRINGS) {
+        strncpy(test_configstrings[index], string ? string : "", sizeof(test_configstrings[index]) - 1);
+        test_configstrings[index][sizeof(test_configstrings[index]) - 1] = '\0';
+    }
+}
+
+static LPCSTR test_get_configstring(DWORD index) {
+    if (index < TEST_CONFIGSTRINGS) {
+        return test_configstrings[index];
+    }
+    return "";
+}
+
+/* ---- cvar stub ---- */
+static LPCSTR test_cvar_string(LPCSTR name, LPCSTR fallback) {
+    (void)name;
+    return fallback ? fallback : "";
+}
+
 static animation_t test_animations[] = {
     { .name = "Stand",        .interval = { 0, 1000 } },
     { .name = "Walk",         .interval = { 0, 1000 } },
@@ -274,6 +298,10 @@ static void test_error(LPCSTR fmt, ...) {
     va_end(args);
 }
 
+void UI_WriteWowHud(LPEDICT ent) {
+    (void)ent;
+}
+
 static void test_write_data(void const *data, DWORD size) {
     if (!data || test_multicast_size + size > sizeof(test_multicast_buf)) {
         return;
@@ -324,6 +352,9 @@ static struct game_import test_import(void) {
     import.ReadFile = test_read_file;
     import.ClearWorld = test_clear_world;
     import.ApplyLobbySettings = test_apply_lobby_settings;
+    import.configstring = test_configstring;
+    import.GetConfigstring = test_get_configstring;
+    import.CvarString = test_cvar_string;
     import.Write = test_write;
     import.unicast = test_unicast;
     import.error = test_error;
@@ -375,6 +406,7 @@ static void reset_test_state(void) {
     test_last_unicast_size = 0;
     test_unicast_calls = 0;
     memset(test_last_error, 0, sizeof(test_last_error));
+    memset(test_configstrings, 0, sizeof(test_configstrings));
 }
 
 static void assert_player_ui_payload(void) {
@@ -474,7 +506,7 @@ static void test_wow_load_map_initializes_player_state(void) {
     assert_player_spawned_at_safe_loc(player);
     ASSERT_EQ_FLOAT(player->client->ps.origin.x, player->s.origin.x, 0.001f);
     ASSERT_EQ_FLOAT(player->client->ps.origin.y, player->s.origin.y, 0.001f);
-    ASSERT_EQ_INT((int)player->client->ps.client_ui_state, CLIENT_UI_GAME);
+    ASSERT_EQ_INT((int)player->client->ps.client_ui_state, CLIENT_UI_LOADING);
     ASSERT_STR_EQ(player->client->ps.name, "Thrall");
     ASSERT_EQ_INT((int)player->client->ps.stats[WOW_STAT_HEALTH], 100);
     ASSERT_EQ_INT((int)player->client->ps.stats[WOW_STAT_HEALTH_MAX], 100);
@@ -483,6 +515,7 @@ static void test_wow_load_map_initializes_player_state(void) {
     ASSERT_EQ_INT((int)test_unicast_calls, 0);
     ASSERT_NOT_NULL(game->ClientBegin);
     game->ClientBegin(player);
+    ASSERT_EQ_INT((int)player->client->ps.client_ui_state, CLIENT_UI_GAME);
     ASSERT(test_unicast_calls > 0);
     assert_player_ui_payload();
     ASSERT_STR_EQ(player->client->ps.texts[PLAYERTEXT_MAP_TITLE], "Elwynn Test");
