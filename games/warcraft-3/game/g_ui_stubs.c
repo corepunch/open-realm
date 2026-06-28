@@ -145,6 +145,20 @@ static void UI_WriteTextFrame(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR text, C
     UI_WriteProxyFrame(&frame, &label, sizeof(label));
 }
 
+static void UI_WriteTextureFrame(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR art) {
+    uiFrame_t frame;
+
+    if (!art || !*art) {
+        return;
+    }
+    memset(&frame, 0, sizeof(frame));
+    frame.flags.type = FT_TEXTURE;
+    frame.color = COLOR32_WHITE;
+    frame.tex.index = gi.ImageIndex(art);
+    UI_SetFrameRect(&frame, x, y, w, h);
+    UI_WriteProxyFrame(&frame, NULL, 0);
+}
+
 static void UI_WriteTextFrameSized(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR text, COLOR32 color,
                                    uiFontJustificationH_t align, DWORD font_size) {
     uiFrame_t frame;
@@ -622,6 +636,8 @@ static void UI_WriteSingleInfo(LPEDICT ent) {
         name = unit_name ? unit_name : GetClassName(ent->class_id);
     }
 
+    UI_WriteBackdropFrame(INFO_PANEL_X, INFO_PANEL_Y, INFO_PANEL_W, INFO_PANEL_H,
+                          "ToolTipBackground", "ToolTipBorder");
     UI_WriteTextFrame(INFO_PANEL_X, INFO_PANEL_Y, INFO_PANEL_W, 0.018f, name, COLOR32_WHITE, FONT_JUSTIFYCENTER);
     snprintf(buffer, sizeof(buffer), "Level %lu %s", (unsigned long)level, unit_name ? unit_name : "");
     UI_WriteTextFrame(INFO_PANEL_X, INFO_PANEL_Y + 0.020f, INFO_PANEL_W, 0.014f, buffer,
@@ -670,6 +686,16 @@ static void UI_WriteSingleInfo(LPEDICT ent) {
                               0.110f, 0.012f, buffer, MAKE(COLOR32, 200, 200, 200, 255),
                               FONT_JUSTIFYLEFT);
         }
+
+        /* WC3's info panel ends with the hero attribute icon strip.  Keep the
+         * live numbers above, but also draw the canonical STR/AGI/INT art so
+         * the panel matches the original UI instead of looking text-only. */
+        UI_WriteTextureFrame(INFO_PANEL_X + 0.0000f, INFO_PANEL_Y + 0.0755f, 0.032f, 0.032f,
+                             "HeroStrengthIcon");
+        UI_WriteTextureFrame(INFO_PANEL_X + 0.0343f, INFO_PANEL_Y + 0.0755f, 0.032f, 0.032f,
+                             "HeroAgilityIcon");
+        UI_WriteTextureFrame(INFO_PANEL_X + 0.0687f, INFO_PANEL_Y + 0.0755f, 0.032f, 0.032f,
+                             "HeroIntelligenceIcon");
     }
 
     /* Hit points (and mana for casters): current / max of the live unit, shown
