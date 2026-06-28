@@ -136,11 +136,19 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 
 ## UI Module Boundary
 
-- Keep `ui.dll` focused on loading screens and menu/glue UI.
-- Draw in-game HUD/ConsoleUI through server-authored `svc_layout` payloads in the generic client path (`client/cl_layout.c`, `client/cl_unit_layout.c`). Do not move gameplay HUD drawing, portraits, minimap, or layout decoding back into `games/<game>/ui`.
+- Keep `ui.dll` focused on loading screens, menu/glue UI, and client-side in-game HUD screens.
+- In-game HUD panels are drawn by client-side screen controllers under `ui/screens/` (e.g. `console_ui.c`). These load FDF from Blizzard's MPQ archives at runtime via `UI_EnsureFDF()` and draw through `UI_DrawFrames()`. They read game state through `uiimport.GetPlayerState()` and receive unit selection updates via the `update_unit_ui` callback.
+- The server still sends `svc_layout` frames for FDF-based skill/build menus (via `UI_WRITE_LAYER` macro) and for data the client cannot compute (minimap, portrait model). The client renders these through `SCR_DrawLayout()` in `client/cl_unit_layout.c`.
 - Do not add UI import callbacks for mouse polling, loading state polling, layout decoding, or Warcraft III map-info helpers. Use pushed `MouseEvent`/`LayoutMouseEvent`, `DrawLoadingScreen(map, status, progress)`, client-owned layout functions, and direct `CM_*` map-info calls inside the UI module.
 - Loading-screen ownership stays with `ca_loading`. Snapshot parsing may update `playerstate`, but it must not promote `cls.state` to `ca_active`.
 - The client may only enter `ca_active` from the precache/load-completion gate in `CL_PrepRefresh()` after all required assets are registered and the client has sent its `begin` command. If a loading plaque vanishes early and the screen goes black, fix the state transition, not the renderer.
+
+### stb_fdf.h Pattern
+
+- `stb_fdf.h` is the shared declarations-only header for FDF types (`FRAMEDEF`, enums, bind macros) and API declarations (`UI_ParseFDF`, `UI_DrawFrames`, etc.).
+- Parser implementation stays in `ui_fdf.c` (has `uiimport` dependency for MPQ asset loading). `stb_fdf.h` provides shared types + declarations so both modules see identical structs without circular includes.
+- Generated binding headers in `generated/` map FDF field names to struct member offsets via macros like `bind_<fieldname>`. Use `fdfbindgen` tool to regenerate from MPQ source FDF files.
+- Screen controllers in `ui/screens/` follow the pattern: one `*_Load()` that calls `UI_EnsureFDF()`, one `*_Bind()` that wires FDF children to struct fields, and a `uiScreen_t` definition with `load/init/refresh/draw/shutdown/update_unit_ui` callbacks.
 
 ## Network State Contracts
 
@@ -383,6 +391,7 @@ Agent guidance:
 - Prefer the stdout renderer first for UI layout, FDF translation, button state, backdrop tiling, UV, color-code, and menu-command composition bugs.
 - Use `mdxtool --info` first when a UI model itself may be missing or malformed.
 - `fdftool` is no longer the primary UI inspection path; Phase 8 moved UI rendering into the client-side UI library.
+- For in-game HUD diagnostics (resource bar, command buttons, info panels), the ConsoleUI screen controller in `ui/screens/console_ui.c` draws via `UI_DrawFrames()`. Use the stdout renderer to inspect its FDF binding and frame output.
 - For startup-menu diagnostics, invoke a concrete menu command directly with a leading `+`. UI navigation is command-based; do not add router-style paths such as `/credits` or `/options`, do not add a generic `ui` console command, and do not add startup cvars for menu routing. Register concrete menu commands such as `menu_credits` or `menu_options` instead. Examples:
 	- `build/bin/openwarcraft3 -data data/Warcraft\ III +menu_main`
 	- `build/bin/openwarcraft3 -data data/Warcraft\ III +menu_single_player_campaign`
@@ -410,6 +419,15 @@ Agent guidance:
 - Avoid excessive pointer null-check noise in screen controllers. Prefer one scene-level readiness gate (early return) over repeated per-widget checks.
 - If a required root frame is missing, fail fast for that screen and skip further scene setup/update work.
 - Keep frame names data-driven by FDF and avoid hardcoded lookup strings when macro-based lookup can use the frame identifier directly.
+
+### ConsoleUI Screen Controller (In-Game HUD)
+
+- `ui/screens/console_ui.c` is the client-side replacement for the server-authored `g_ui_stubs.c` HUD.
+- Loads Blizzard's ConsoleUI.fdf, ResourceBar.fdf, UpperButtonBar.fdf, InfoPanelUnitDetail.fdf, InfoPanelBuildingDetail.fdf, InfoPanelItemDetail.fdf, and SimpleInfoPanel.fdf from MPQ at runtime via `UI_EnsureFDF()`.
+- Binds player state (gold, lumber, food) via `uiimport.GetPlayerState()`.
+- Receives unit selection/command data via `update_unit_ui` callback from `svc_unit_ui` messages.
+- Draw path: `UI_DrawFrames()` renders FDF FRAMEDEF trees. This is separate from the server-authored UIFRAME/`SCR_DrawLayout()` path used for FDF-based skill/build menus.
+- Wire into game mode via `UI_EnterGameMode()` in `ui_main.c`, which calls `consoleUIScreen.load()` and `consoleUIScreen.init()`. The `UI_RefreshLocal()` and `UI_UpdateUnitUILocal()` functions route to the screen during game mode.
 
 ## Entity Sound Architecture
 
