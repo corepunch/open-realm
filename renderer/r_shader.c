@@ -260,6 +260,7 @@ static LPCSTR model_fs =
 "uniform vec2 uUvRot;\n"
 "uniform vec2 uUvScale;\n"
 "uniform bool uUseDiscard;\n"
+"uniform float uAlphaCutoff;\n"
 "uniform bool uUnshaded;\n"
 "uniform bool uFogEnable;\n"
 "uniform vec3 uFogColor;\n"
@@ -289,7 +290,7 @@ static LPCSTR model_fs =
 "        }\n"
 "    }\n"
 "    o_color = col;\n"
-"    if (o_color.a < 0.5 && uUseDiscard) discard;\n"
+"    if (o_color.a < uAlphaCutoff && uUseDiscard) discard;\n"
 "}\n";
 
 static LPSHADER model_shader;
@@ -300,6 +301,10 @@ static LPSHADER model_shader;
 LPSHADER R_ModelShader(void) {
     if (!model_shader) {
         model_shader = R_InitShader(model_vs, model_fs);
+        if (model_shader) {
+            R_Call(glUseProgram, model_shader->progid);
+            R_Call(glUniform1f, model_shader->uAlphaCutoff, 0.5f);
+        }
     }
     return model_shader ? model_shader : tr.shader[SHADER_DEFAULT];
 }
@@ -386,6 +391,7 @@ LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
     R_RegisterUniform(program, uFogOfWar);
     R_RegisterUniform(program, uBones);
     R_RegisterUniform(program, uUseDiscard);
+    R_RegisterUniform(program, uAlphaCutoff);
     R_RegisterUniform(program, uUnshaded);
     R_RegisterUniform(program, uLayerAlpha);
     R_RegisterUniform(program, uGeosetColor);

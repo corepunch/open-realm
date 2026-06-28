@@ -101,6 +101,7 @@ struct shader_program {
     DWORD uFogOfWar;
     DWORD uBones;
     DWORD uUseDiscard;
+    DWORD uAlphaCutoff;
     DWORD uUnshaded;
     DWORD uLayerAlpha;
     DWORD uGeosetColor;

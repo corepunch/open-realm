@@ -676,9 +676,11 @@ static void M3_DrawRegionMaterial(m3Region_t const *region, m3Material_t const *
            diffuse_color.g / 255.0f,
            diffuse_color.b / 255.0f,
            diffuse_color.a / 255.0f * alpha);
-    /* Use uUseDiscard for alpha cutoff; M3_MaterialAlphaCutoff > 0 means discard
-       enabled. Exact cutoff is baked into the material alpha test. */
-    R_Call(glUniform1i, m3.shader->uUseDiscard, M3_MaterialAlphaCutoff(material) >= 0.0f ? 1 : 0);
+    {
+        FLOAT cutoff = M3_MaterialAlphaCutoff(material);
+        R_Call(glUniform1i, m3.shader->uUseDiscard, cutoff >= 0.0f ? 1 : 0);
+        R_Call(glUniform1f, m3.shader->uAlphaCutoff, cutoff >= 0.0f ? cutoff : 0.5f);
+    }
 
     R_Call(glActiveTexture, GL_TEXTURE0);
     R_Call(glBindTexture, GL_TEXTURE_2D, diffuse->texid);
@@ -879,6 +881,7 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
     R_Call(glUniform2f, m3.shader->uUvRot, 0.0f, 1.0f);
     R_Call(glUniform2f, m3.shader->uUvScale, 1.0f, 1.0f);
     R_Call(glUniform1i, m3.shader->uUseDiscard, 0);
+    R_Call(glUniform1f, m3.shader->uAlphaCutoff, 0.5f);
     R_Call(glUniform1i, m3.shader->uUnshaded, 0);
     R_Call(glUniform1f, m3.shader->uFogEnable, 0);
     R_Call(glBindVertexArray, model->renbuf->vao);
