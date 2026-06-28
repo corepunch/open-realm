@@ -142,9 +142,7 @@ TEST_UI_SRCS := \
 	$(WC3_TEST_DIR)/test_jass.c \
 	tests/test_tool_common.c \
 	$(shell find $(WC3_TEST_DIR) -maxdepth 1 -name 'test_ui_*.c' \
-		! -name 'test_ui_e2e.c' \
-		! -name 'test_ui_oracle.c' \
-		! -name 'test_ui_serialize.c' | sort)
+		! -name 'test_ui_oracle.c' | sort)
 
 test: test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) | $(BIN_DIR)
 	@$(CC) $(TEST_CFLAGS) -o $(BIN_DIR)/test_openwarcraft3$(EXE_EXT) \

@@ -40,35 +40,10 @@
 - When replacing a single existing line or macro call with a larger custom block, keep the original line commented out immediately above the replacement with a short comment explaining why.
 - Do not hardcode values that are likely to exist in source game data, map files, catalog XML/DBC/SLK/FDF/etc., or asset metadata. Inspect the data first. If a temporary literal is genuinely unavoidable, mark it with a `BZ_HARDCODED_DATA_FALLBACK` comment naming the expected source file/field and reason it is not parsed yet.
 
-## UI Frame Separation (uiFrame_t vs UI Library Frames)
+## UI Rendering
 
-Three separate frame structs exist because they solve different problems at different boundaries:
+The in-game HUD is drawn entirely client-side by `ui/screens/console_ui.c`, which loads FDF files from MPQ archives at runtime and renders through `UI_DrawFrames()`. Game state (player stats, unit selection) flows through `uiimport.GetPlayerState()` and the `update_unit_ui` callback.
 
-| Struct | Location | Purpose |
-|--------|----------|---------|
-| `uiFrame_t` | `common/shared.h` | Network wire protocol — server-authored in-game HUD |
-| `FRAMEDEF` (`uiFrameDef_s`) | `warcraft-3/ui/ui_local.h` | WC3 UI runtime — FDF-parsed frames for menus and overlays |
-| `uiWowXmlElem_t` | `world-of-warcraft/ui/ui_xml.c` | WoW UI runtime — XML-parsed frames for glue/menu screens |
+Menus and glue screens use the same FDF rendering path (`UI_DrawFrames()`) via screen controllers under `ui/screens/`.
 
-### `uiFrame_t` is a wire protocol struct
-
-`uiFrame_t` lives in `common/shared.h` so both server and client can serialize it. It is flat (uses `DWORD number` indices instead of pointers), pointer-free, and designed for delta compression (`MSG_WriteDeltaUIFrame` / `MSG_ReadDeltaUIFrame` in `common/msg.c`). Both games use it for the same purpose: the server builds frame trees for in-game HUD elements (action bars, minimap icons, unit frames) and sends them via `svc_layout` payloads to the client, which renders them from `client/cl_unit_layout.c`.
-
-Because it crosses the network, `uiFrame_t` is intentionally sparse — one color, one texture slot, one `onclick` string, simple MIN/MID/MAX axis positioning, and a generic `FRAMETYPE` tag.
-
-### Game UI DLLs are runtime rendering engines
-
-The UI modules (`warcraft-3/ui/`, `world-of-warcraft/ui/`) handle menus, glue screens, and overlay UI — interactive surfaces that are never sent over the wire. These are library-internal runtime representations parsed from game data files (FDF or XML). They need:
-
-- **Event/script systems** — WoW has 12 Lua script hooks per frame (OnLoad, OnShow, OnEnter, OnLeave, OnMouseWheel, OnUpdateModel, etc.). WC3 has per-type `event_handler` and `draw` function pointers. `uiFrame_t` has only one `onclick` string.
-- **Complex anchoring** — WoW XML uses named anchor points (TOPLEFT, CENTER, BOTTOMRIGHT, etc.) with dual anchors that compute width/height between two referenced frames. WC3 uses `UIFRAMEPOINT` enums plus relative frame pointers. `uiFrame_t` uses a fixed MIN/MID/MAX axis system.
-- **Rich backdrop** — bg/edge textures, tile size, edge size, background insets, backdrop color, border color. WC3 adds corner flags, blend modes, mirrored tiling, and dialog backdrops. `uiFrame_t` has none of this.
-- **Multi-state textures** — WoW has NormalTexture, PushedTexture, HighlightTexture, DisabledTexture with separate texcoords per state. WC3 binds Normal/Pushed/Disabled texture names. `uiFrame_t` has one texture slot.
-- **Font configuration** — Font size, justification, shadow color/offset, highlight and disabled colors, word wrap, measured text height. `uiFrame_t` has only a `text` string.
-- **Widget-specific data** — Slider (min/max/step/thumb), ListBox, Menu, Popup, EditBox, TextArea, CheckBox, ScrollFrame, BuildQueue, Multiselect. `uiFrame_t` has none of this.
-- **Model/animation state** — Model handles, sequence time, fog settings for character portrait rendering. Not in `uiFrame_t`.
-- **Runtime interaction state** — Pressed, hovered, checked, disabled, focus, scroll offset, drag state. `uiFrame_t` is stateless (state lives in the network snapshot, not persisted on the frame).
-
-### Why not unify them
-
-These are not interchangeable — `uiFrame_t` is sparse by design because it fits in UDP packets; the DLL structs are rich because they drive interactive UI. Merging them would either bloat the wire format (wasting bandwidth for every in-game HUD frame) or starve the UI runtime (forcing workarounds for missing fields). The split follows the same pattern as `entityState_t` (wire protocol) vs game-side `edict_t` (runtime): narrow and serializable across the network boundary, full and pointer-heavy inside the module that owns it.
+The server no longer sends UIFRAME trees or `svc_layout` messages. Game logic functions that previously generated frames (e.g. `UI_AddCancelButton`, `UI_ShowQuests`) are now empty stubs in `g_ui_stub.c`.

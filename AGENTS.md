@@ -138,7 +138,6 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 
 - Keep `ui.dll` focused on loading screens, menu/glue UI, and client-side in-game HUD screens.
 - In-game HUD panels are drawn by client-side screen controllers under `ui/screens/` (e.g. `console_ui.c`). These load FDF from Blizzard's MPQ archives at runtime via `UI_EnsureFDF()` and draw through `UI_DrawFrames()`. They read game state through `uiimport.GetPlayerState()` and receive unit selection updates via the `update_unit_ui` callback.
-- The server still sends `svc_layout` frames for FDF-based skill/build menus (via `UI_WRITE_LAYER` macro) and for data the client cannot compute (minimap, portrait model). The client renders these through `SCR_DrawLayout()` in `client/cl_unit_layout.c`.
 - Do not add UI import callbacks for mouse polling, loading state polling, layout decoding, or Warcraft III map-info helpers. Use pushed `MouseEvent`/`LayoutMouseEvent`, `DrawLoadingScreen(map, status, progress)`, client-owned layout functions, and direct `CM_*` map-info calls inside the UI module.
 - Loading-screen ownership stays with `ca_loading`. Snapshot parsing may update `playerstate`, but it must not promote `cls.state` to `ca_active`.
 - The client may only enter `ca_active` from the precache/load-completion gate in `CL_PrepRefresh()` after all required assets are registered and the client has sent its `begin` command. If a loading plaque vanishes early and the screen goes black, fix the state transition, not the renderer.
@@ -426,7 +425,7 @@ Agent guidance:
 - Loads Blizzard's ConsoleUI.fdf, ResourceBar.fdf, UpperButtonBar.fdf, InfoPanelUnitDetail.fdf, InfoPanelBuildingDetail.fdf, InfoPanelItemDetail.fdf, and SimpleInfoPanel.fdf from MPQ at runtime via `UI_EnsureFDF()`.
 - Binds player state (gold, lumber, food) via `uiimport.GetPlayerState()`.
 - Receives unit selection/command data via `update_unit_ui` callback from `svc_unit_ui` messages.
-- Draw path: `UI_DrawFrames()` renders FDF FRAMEDEF trees. This is separate from the server-authored UIFRAME/`SCR_DrawLayout()` path used for FDF-based skill/build menus.
+- Draw path: `UI_DrawFrames()` renders FDF FRAMEDEF trees. This is the only draw path for the in-game HUD.
 - Wire into game mode via `UI_EnterGameMode()` in `ui_main.c`, which calls `consoleUIScreen.load()` and `consoleUIScreen.init()`. The `UI_RefreshLocal()` and `UI_UpdateUnitUILocal()` functions route to the screen during game mode.
 
 ## Entity Sound Architecture
