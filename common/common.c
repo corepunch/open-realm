@@ -436,13 +436,7 @@ static void FS_ForEachDiskEntry(LPCSTR dirname, fsDiskEntryFunc_t func, void *us
 }
 
 static void FS_AddGameDirectory(LPCSTR dirname) {
-    char mapsDir[MAX_PATHLEN * 2];
-
     if (!dirname || !*dirname) {
-        return;
-    }
-    snprintf(mapsDir, sizeof(mapsDir), "%s/Maps", dirname);
-    if (!FS_DirectoryExists(mapsDir)) {
         return;
     }
     FOR_LOOP(i, MAX_GAME_DIRS) {
@@ -838,8 +832,9 @@ HANDLE FS_ReadFile(LPCSTR filename, LPDWORD size) {
         return FS_ReadLooseFile(filename, size, 0);
     }
     *size = SFileGetFileSize(fp, NULL);
-    LPSTR buffer = MemAlloc(*size);
+    LPSTR buffer = MemAlloc(*size + 1);
     SFileReadFile(fp, buffer, *size, NULL, NULL);
+    buffer[*size] = '\0';
     FS_CloseFile(fp);
     return buffer;
 }
@@ -1361,11 +1356,6 @@ void Com_Init(int argc, LPCSTR *argv) {
     Cvar_ApplyCommandLine(argc, argv);
     Cbuf_AddEarlyCommands(true);
     Cbuf_Execute();
-#ifdef WOW
-    if (!*Cvar_String("map", "") && !*Cvar_String("connect", "")) {
-        Cvar_Set("map", "World/Maps/Azeroth/Azeroth.wdt");
-    }
-#endif
     /* Leave generic +commands queued until client/UI modules register commands. */
 }
 

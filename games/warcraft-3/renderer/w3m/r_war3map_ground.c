@@ -229,6 +229,7 @@ void R_RenderRectSplat(LPCVECTOR2 mins,
     }
 
     R_BindTexture(texture, 0);
+    R_SetTextureWrap(texture, false, false); /* splats are decals, so repeating the source texture smears the edges */
     R_Call(glUseProgram, shader->progid);
     R_Call(glUniformMatrix4fv, shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
     R_Call(glUniformMatrix4fv, shader->uModelMatrix, 1, GL_FALSE, mModelMatrix.v);
@@ -281,6 +282,7 @@ void R_RenderFlatRectSplat(LPCVECTOR2 mins,
     Matrix4_identity(&model_matrix);
 
     R_BindTexture(texture, 0);
+    R_SetTextureWrap(texture, false, false); /* this pass uses a 0..1 quad, so clamp the border instead of tiling */
     R_Call(glUseProgram, shader->progid);
     R_Call(glUniformMatrix4fv, shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
     R_Call(glUniformMatrix4fv, shader->uModelMatrix, 1, GL_FALSE, model_matrix.v);

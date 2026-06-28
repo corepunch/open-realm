@@ -80,7 +80,7 @@ static LPCSTR UI_ButtonFallbackMouseOverHighlightName(LPCFRAMEDEF frame) {
     if (UI_ButtonBackdropTextureContains(frame, "GlueScreen-Button1-")) {
         return "StandardButtonMouseOverHighlightTemplate";
     }
-    return NULL;
+    return "StandardButtonMouseOverHighlightTemplate";
 }
 
 static VECTOR2 UI_ButtonPushedTextOffset(LPCFRAMEDEF frame) {
@@ -103,7 +103,7 @@ static VECTOR2 UI_ButtonPushedTextOffset(LPCFRAMEDEF frame) {
 
 static BOOL UI_ButtonEnabled(LPCFRAMEDEF frame) {
     return frame &&
-           !frame->disabled &&
+           !(frame->ui_flags & UIFLAG_DISABLED) &&
            (frame->OnClick[0] ||
             frame->Type == FT_POPUPMENU ||
             frame->Type == FT_GLUEPOPUPMENU ||
@@ -111,7 +111,8 @@ static BOOL UI_ButtonEnabled(LPCFRAMEDEF frame) {
 }
 
 static BOOL UI_ButtonIsPushed(LPCFRAMEDEF frame, LPCRECT rect) {
-    return UI_ButtonEnabled(frame) && UI_MouseContains(rect) && ui_mouse.button == 1 && ui_mouse.down;
+    (void)rect;
+    return UI_ButtonEnabled(frame) && (frame->ui_flags & UIFLAG_PRESSED);
 }
 
 static void UI_DrawButtonText(LPCFRAMEDEF frame, LPCRECT rect) {

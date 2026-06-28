@@ -8,6 +8,7 @@ struct client_state cl;
 struct client_static cls;
 refExport_t re;
 uiExport_t ui;
+uiImport_t uiimport;
 mouseEvent_t mouse;
 
 typedef struct {
@@ -35,6 +36,10 @@ void test_client_stubs_set_cvar(LPCSTR name, LPCSTR value) {
 
 static size2_t mock_GetWindowSize(void) {
     return MAKE(size2_t, 1024, 768);
+}
+
+static LPCPLAYER mock_GetPlayerState(void) {
+    return &cl.playerstate;
 }
 
 static void mock_DrawLoadingIndicator(LPCRECT rect, DWORD time, COLOR32 color) {
@@ -72,11 +77,9 @@ void CL_ParseTEnt(LPSIZEBUF msg) {
 }
 
 void CL_BeginLoadingMap(LPCSTR mapName) {
-    snprintf(cl.loading_map, sizeof(cl.loading_map), "%s", mapName ? mapName : "");
-    cl.loading_status[0] = '\0';
-    cl.loading_progress = 0.0f;
+    (void)mapName;
     cl.playerstate.client_ui_state = CLIENT_UI_LOADING;
-    cls.state = ca_loading;
+    cls.state = ca_connected;
 }
 
 void CL_SetGameplayInput(void) {
@@ -89,6 +92,23 @@ void CL_Disconnect(LPCSTR reason, BOOL notify) {
     cls.state = ca_disconnected;
 }
 
+void CL_EntityEvent(entityState_t const *ent) {
+    (void)ent;
+}
+
+void Cbuf_AddText(LPCSTR text) {
+    (void)text;
+}
+
+unsigned int SDL_GetTicks(void) {
+    return 0;
+}
+
+void Com_Error(errorCode_t code, LPCSTR fmt, ...) {
+    (void)code;
+    (void)fmt;
+}
+
 void test_client_stubs_init(void) {
     memset(&cl, 0, sizeof(cl));
     memset(&cls, 0, sizeof(cls));
@@ -97,4 +117,5 @@ void test_client_stubs_init(void) {
     memset(&mouse, 0, sizeof(mouse));
     re.GetWindowSize = mock_GetWindowSize;
     re.DrawLoadingIndicator = mock_DrawLoadingIndicator;
+    uiimport.GetPlayerState = mock_GetPlayerState;
 }

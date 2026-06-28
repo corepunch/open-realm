@@ -36,6 +36,9 @@ openwarcraft3: $(BINARY)
 run: $(BINARY)
 	$(BINARY) -data $(WC3DATA) -tft
 
+run-roc: $(BINARY)
+	$(BINARY) -data $(WC3DATA)
+
 run-demo: $(BINARY)
 	$(BINARY) -data $(DEMODATA)
 
@@ -68,7 +71,7 @@ $(eval $(call unity_lib_schema,$(JASS_LIB),$(SHARED_LIB) $(shell find $(WC3_JASS
 $(eval $(call src_lib_schema,$(SHEET_LIB),$(WC3_SHEET_DIR)/parser.c $(WC3_SHEET_DIR)/sheet.c common/common.h,sheet,$(CFLAGS),$(WC3_SHEET_DIR)/parser.c $(WC3_SHEET_DIR)/sheet.c,))
 $(eval $(call unity_lib_schema,$(RENDERER_LIB),$(RENDERER_BASE_DEPS) $(call CSRC,renderer $(WC3_DIR)/renderer),renderer,renderer $(WC3_DIR)/renderer,,$(WC3_CFLAGS),common/mpq.c,$(RENDERER_SHARED_LIBS)))
 $(eval $(call unity_lib_schema,$(GAME_LIB),$(GAME_BASE_DEPS) $(JASS_LIB) $(SHEET_LIB) $(WORLD_CORE_SRCS) $(WC3_COMMON_SRCS) $(call CSRC,$(WC3_DIR)/game),game,$(WC3_DIR)/game,,$(WC3_CFLAGS),common/mpq.c,-lsheet -lshared -ljass $(LIBS) -lm -lz))
-$(eval $(call unity_lib_schema,$(UI_LIB),$(UI_BASE_DEPS) $(WC3_UI_HEADERS) $(call CSRC,$(WC3_DIR)/ui),ui,$(WC3_DIR)/ui,,$(WC3_CFLAGS),,-lshared -lm))
+$(eval $(call unity_lib_schema,$(UI_LIB),$(UI_BASE_DEPS) $(WC3_UI_HEADERS) common/mpq.c common/mpq.h $(call CSRC,$(WC3_DIR)/ui),ui,$(WC3_DIR)/ui,,$(WC3_CFLAGS),common/mpq.c,-lshared -lsheet -lm -lz))
 $(eval $(call app_schema,$(BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_LIB) $(RENDERER_LIB) $(UI_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS),openwarcraft3,$(WC3_CFLAGS),-lsheet -lshared -ljass -lgame -lrenderer -lui $(LIBS) -lz))
 
 # ---------------------------------------------------------------------------
@@ -107,6 +110,7 @@ TEST_GAME_SRCS := \
 	client/cl_layout.c \
 	client/cl_parse.c \
 	client/cl_scrn.c \
+	client/cl_unit_layout.c \
 	client/cl_unit_ui.c \
 	server/sv_init.c \
 	server/sv_lan.c \
@@ -128,7 +132,7 @@ TEST_SRCS := \
 	tests/test_tool_common.c
 
 TEST_CFLAGS := $(WC3_CFLAGS) -DTOOL_COMMON_NO_MPQ -Itests -I$(WC3_TEST_DIR) -Ishared/types -I$(WC3_DIR)/game -Iserver -Icommon -Iclient -I$(WC3_DIR)/game/skills
-TEST_UI_CFLAGS := $(TEST_CFLAGS)
+TEST_UI_CFLAGS := $(TEST_CFLAGS) -DTEST_
 
 TEST_UI_SRCS := \
 	$(WC3_TEST_DIR)/test_main_ui.c \

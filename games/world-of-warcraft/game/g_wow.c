@@ -609,10 +609,106 @@ LPEDICT Wow_Spawn(void) {
     return ent;
 }
 
+/* Quake-style userinfo parser: find value for key in "\key\value\key\value" string.
+   Returns pointer to a static buffer with the null-terminated value, or fallback
+   if key not found.  Two rotating buffers so two calls don't stomp each other
+   (same pattern as Q3 Info_ValueForKey in q_shared.c). */
+static LPCSTR Wow_InfoValueForKey(LPCSTR str, LPCSTR key, LPCSTR fallback) {
+    static char value[2][MAX_PATHLEN];
+    static int valueindex = 0;
+    char pkey[64];
+    LPCSTR s = str;
+    char *o;
+
+    if (!s || !key || !*key)
+        return fallback;
+
+    valueindex ^= 1;
+    if (*s == '\\')
+        s++;
+    while (1) {
+        o = pkey;
+        while (*s != '\\') {
+            if (!*s)
+                return fallback;
+            *o++ = *s++;
+        }
+        *o = 0;
+        s++;
+
+        o = value[valueindex];
+        while (*s != '\\' && *s)
+            *o++ = *s++;
+        *o = 0;
+
+        if (!strcasecmp(key, pkey))
+            return value[valueindex];
+
+        if (!*s)
+            break;
+        s++;
+    }
+    return fallback;
+}
+
+/* Read selected character data from the single userinfo-style cvar set by the
+   UI.  Fallbacks to OrcMale Warrior when no character was selected. */
+static void Wow_ReadSelectedCharFromCvars(char *race, size_t race_sz, char *sex, size_t sex_sz, DWORD *class_out, DWORD *appearance_out) {
+    LPCSTR val;
+
+    snprintf(race, race_sz, "Orc");
+    snprintf(sex, sex_sz, "Male");
+    *class_out = WOW_CLASS_WARRIOR;
+    *appearance_out = Wow_PackAppearance(0, 0, 0, 0, 0, WOW_CLASS_WARRIOR, 0);
+
+    val = gi.CvarString(WOW_CVAR_PLAYERINFO, "");
+    if (val[0]) {
+        LPCSTR v;
+        v = Wow_InfoValueForKey(val, "race", "");
+        if (v[0]) snprintf(race, race_sz, "%s", v);
+        v = Wow_InfoValueForKey(val, "sex", "");
+        if (v[0]) snprintf(sex, sex_sz, "%s", v);
+        v = Wow_InfoValueForKey(val, "class", "");
+        if (v[0]) *class_out = (DWORD)atoi(v);
+        v = Wow_InfoValueForKey(val, "appearance", "");
+        if (v[0]) *appearance_out = (DWORD)strtoul(v, NULL, 10);
+    }
+}
+
+/* Read selected character data from the single CS_GENERAL configstring set by
+   Wow_Init.  Fallbacks to OrcMale Warrior when no character was selected. */
+static void Wow_ReadSelectedCharFromCS(char *race, size_t race_sz, char *sex, size_t sex_sz, DWORD *class_out, DWORD *appearance_out) {
+    LPCSTR val;
+
+    snprintf(race, race_sz, "Orc");
+    snprintf(sex, sex_sz, "Male");
+    *class_out = WOW_CLASS_WARRIOR;
+    *appearance_out = Wow_PackAppearance(0, 0, 0, 0, 0, WOW_CLASS_WARRIOR, 0);
+
+    val = gi.GetConfigstring(CS_GENERAL + WOW_CS_PLAYERINFO);
+    if (val && val[0]) {
+        LPCSTR v;
+        v = Wow_InfoValueForKey(val, "race", "");
+        if (v[0]) snprintf(race, race_sz, "%s", v);
+        v = Wow_InfoValueForKey(val, "sex", "");
+        if (v[0]) snprintf(sex, sex_sz, "%s", v);
+        v = Wow_InfoValueForKey(val, "class", "");
+        if (v[0]) *class_out = (DWORD)atoi(v);
+        v = Wow_InfoValueForKey(val, "appearance", "");
+        if (v[0]) *appearance_out = (DWORD)strtoul(v, NULL, 10);
+    }
+}
+
 static void Wow_InitPlayer(LPEDICT ent) {
     LPPLAYER ps;
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
     FLOAT height = Wow_TerrainHeight(wow_spawn_origin.x, wow_spawn_origin.y);
+    char race[64], sex[64];
+    DWORD class_id, appearance;
+    char model_path[MAX_PATHLEN];
+
+    /* Read selected character from CS_GENERAL configstrings (set by Wow_Init from cvars). */
+    Wow_ReadSelectedCharFromCS(race, sizeof(race), sex, sizeof(sex), &class_id, &appearance);
 
     memset(ent, 0, sizeof(*ent));
     if (local) {
@@ -627,9 +723,10 @@ static void Wow_InitPlayer(LPEDICT ent) {
     ent->client = &wow_clients[0].client;
     ent->inuse = true;
     ent->s.number = 0;
-    ent->s.model = G_RegisterModel(WOW_PLAYER_MODEL);
+    snprintf(model_path, sizeof(model_path), "Character\\%s\\%s\\%s%s.m2", race, sex, race, sex);
+    ent->s.model = G_RegisterModel(model_path);
     ent->s.model2 = G_RegisterModel(WOW_PLAYER_WEAPON_MODEL);
-    ent->s.appearance = Wow_PackAppearance(0, 0, 0, 0, 0, WOW_CLASS_WARRIOR, 0);
+    ent->s.appearance = appearance;
     ent->s.equipment = Wow_PackEquipment(WOW_PLAYER_EQUIPMENT_UPPER_BODY,
                                          WOW_PLAYER_EQUIPMENT_LOWER_BODY,
                                          WOW_PLAYER_EQUIPMENT_HANDS,
@@ -666,7 +763,7 @@ static void Wow_InitPlayer(LPEDICT ent) {
     ps->fov = 54;
     ps->distance = 250.0f;
 #endif
-    ps->client_ui_state = CLIENT_UI_GAME;
+    ps->client_ui_state = CLIENT_UI_LOADING;
     ps->name = wow_clients[0].name;
     ps->texts[PLAYERTEXT_MAP_TITLE] = wow_loading_title;
     ps->texts[PLAYERTEXT_MAP_PREVIEW] = wow_loading_texture;
@@ -683,8 +780,6 @@ static void Wow_Init(void) {
     globals.max_clients = WOW_MAX_CLIENTS;
     globals.num_edicts = WOW_MAX_CLIENTS;
     globals.edict_size = sizeof(edict_t);
-
-    Wow_InitPlayer(&wow_edicts[0]);
 }
 
 static void Wow_Shutdown(void) {
@@ -802,6 +897,18 @@ static void Wow_SpawnEntities(void) {
         wow_spawn_location = 0;
     }
     Wow_SelectLoadingScreen(mapinfo ? mapinfo->mapName : NULL);
+    /* Re-populate the playerinfo configstring from cvars after SV_Map's
+       memset cleared all configstrings (same pattern as Q3: game module
+       re-sets configstrings after the server wipes them on map load). */
+    {
+        char race[64], sex[64];
+        DWORD class_id, appearance;
+        char buf[MAX_PATHLEN];
+        Wow_ReadSelectedCharFromCvars(race, sizeof(race), sex, sizeof(sex), &class_id, &appearance);
+        snprintf(buf, sizeof(buf), "\\race\\%s\\sex\\%s\\class\\%u\\appearance\\%u",
+                 race, sex, (unsigned)class_id, (unsigned)appearance);
+        gi.configstring(CS_GENERAL + WOW_CS_PLAYERINFO, buf);
+    }
     wow_move.flags = 0;
     wow_move.yaw = 0.0f;
     wow_move.pitch = 328.0f;
@@ -927,7 +1034,9 @@ static void Wow_ClientBegin(LPEDICT ent) {
         return;
     }
     ent->client = &wow_clients[0].client;
+    ent->client->ps.client_ui_state = CLIENT_UI_GAME;
     Wow_SendPlayerUi(ent);
+    UI_WriteWowHud(ent);
 }
 
 struct game_export *GetGameAPI(struct game_import *import) {

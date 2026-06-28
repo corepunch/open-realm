@@ -7,13 +7,10 @@
 
 #include "ui_local.h"
 #include "ui_screen.h"
-#include "generated/cinematic_panel.h"
 #include "generated/loading_screen.h"
-#include "generated/resource_bar.h"
 
 /* Global import table filled by UI_GetAPI */
 uiImport_t uiimport;
-uiMouseState_t ui_mouse;
 
 /* Internal state */
 typedef struct {
@@ -21,13 +18,12 @@ typedef struct {
     BOOL active;
     BOOL game_mode;
     DWORD time;
+    VECTOR2 mouse_fdf;
 } uiState_t;
 
 static uiState_t ui_state;
 static uiScreen_t *ui_current_screen = NULL;
 static BOOL ui_menu_commands_registered;
-static ResourceBar_t resource_bar;
-static CinematicPanel_t cinematic_panel;
 static LoadingScreen_t loading_screen;
 
 static void UI_EnterGameMode(void);
@@ -286,73 +282,6 @@ static uiMenuCommandDef_t const ui_menu_command_defs[] = {
     { NULL, NULL },
 };
 
-typedef struct {
-    LPCSTR texture;
-    BOOL decorate;
-    RECT screen;
-    RECT uv;
-} uiConsoleBackdropPart_t;
-
-static void UI_DrawImagePart(LPCSTR texture_name, BOOL decorate, LPCRECT screen, LPCRECT uv) {
-    LPRENDERER renderer = uiimport.GetRenderer ? uiimport.GetRenderer() : NULL;
-    DWORD texture_id;
-    LPCTEXTURE texture;
-
-    if (!renderer || !renderer->DrawImageEx || !texture_name || !*texture_name) {
-        return;
-    }
-
-    texture_id = UI_LoadTexture(texture_name, decorate);
-    texture = UI_GetTexture(texture_id);
-    if (!texture) {
-        return;
-    }
-
-    renderer->DrawImageEx(&MAKE(drawImage_t,
-                                .texture = texture,
-                                .shader = SHADER_UI,
-                                .alphamode = BLEND_MODE_ALPHAKEY,
-                                .screen = *screen,
-                                .uv = *uv,
-                                .color = COLOR32_WHITE,
-                                .rotate = false));
-}
-
-static void UI_DrawConsoleBackdropPart(uiConsoleBackdropPart_t const *part) {
-    if (!part) {
-        return;
-    }
-    UI_DrawImagePart(part->texture, part->decorate, &part->screen, &part->uv);
-}
-
-static void UI_DrawConsoleBackdropOnly(void) {
-    static uiConsoleBackdropPart_t const parts[] = {
-        { "ConsoleTexture01", true, { 0.000f, 0.000f, 0.256f, 0.032f }, { 0.00000000f, 0.000000f, 1.00000000f, 0.125000f } },
-        { "ConsoleTexture02", true, { 0.256f, 0.000f, 0.087f, 0.032f }, { 0.00000000f, 0.000000f, 0.33984375f, 0.125000f } },
-        { "ConsoleTexture02", true, { 0.459f, 0.000f, 0.053f, 0.032f }, { 0.79296875f, 0.000000f, 0.20703125f, 0.125000f } },
-        { "ConsoleTexture03", true, { 0.512f, 0.000f, 0.256f, 0.032f }, { 0.00000000f, 0.000000f, 1.00000000f, 0.125000f } },
-        { "ConsoleTexture04", true, { 0.768f, 0.000f, 0.032f, 0.032f }, { 0.00000000f, 0.000000f, 1.00000000f, 0.125000f } },
-        { "ConsoleTexture01", true, { 0.000f, 0.424f, 0.256f, 0.176f }, { 0.00000000f, 0.312500f, 1.00000000f, 0.687500f } },
-        { "ConsoleTexture02", true, { 0.256f, 0.450f, 0.256f, 0.150f }, { 0.00000000f, 0.414062f, 1.00000000f, 0.585938f } },
-        { "ConsoleTexture03", true, { 0.512f, 0.424f, 0.256f, 0.176f }, { 0.00000000f, 0.312500f, 1.00000000f, 0.687500f } },
-        { "ConsoleTexture04", true, { 0.768f, 0.424f, 0.032f, 0.176f }, { 0.00000000f, 0.312500f, 1.00000000f, 0.687500f } },
-    };
-
-    FOR_LOOP(i, sizeof(parts) / sizeof(parts[0])) {
-        UI_DrawConsoleBackdropPart(&parts[i]);
-    }
-}
-
-static void UI_DrawConsoleMinimap(void) {
-    LPRENDERER renderer = uiimport.GetRenderer ? uiimport.GetRenderer() : NULL;
-    RECT const rect = { 0.0070f, 0.4525f, 0.1395f, 0.1395f };
-
-    if (!renderer || !renderer->DrawMinimap) {
-        return;
-    }
-    renderer->DrawMinimap(&rect);
-}
-
 static void UI_RegisterMenuCommands(void) {
     if (ui_menu_commands_registered || !uiimport.Cmd_AddCommand) {
         return;
@@ -363,82 +292,9 @@ static void UI_RegisterMenuCommands(void) {
     ui_menu_commands_registered = true;
 }
 
-static void UI_InitGameResourceBar(void) {
-    ResourceBar_Load(&resource_bar);
-    if (resource_bar.ResourceBarFrame) {
-        UI_SetPoint(resource_bar.ResourceBarFrame,
-                    FRAMEPOINT_TOPRIGHT,
-                    NULL,
-                    FRAMEPOINT_TOPRIGHT,
-                    0.0f,
-                    0.0f);
-    }
-}
-
-static void UI_DrawResourceBar(void) {
-    LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
-
-    if (!ps || !resource_bar.ResourceBarFrame) {
-        return;
-    }
-
-    if (resource_bar.ResourceBarGoldText) {
-        UI_SetText(resource_bar.ResourceBarGoldText, "%u", (unsigned)ps->stats[PLAYERSTATE_RESOURCE_GOLD]);
-    }
-    if (resource_bar.ResourceBarLumberText) {
-        UI_SetText(resource_bar.ResourceBarLumberText, "%u", (unsigned)ps->stats[PLAYERSTATE_RESOURCE_LUMBER]);
-    }
-    if (resource_bar.ResourceBarSupplyText) {
-        UI_SetText(resource_bar.ResourceBarSupplyText,
-                   "%u/%u",
-                   (unsigned)ps->stats[PLAYERSTATE_RESOURCE_FOOD_USED],
-                   (unsigned)ps->stats[PLAYERSTATE_RESOURCE_FOOD_CAP]);
-    }
-    if (resource_bar.ResourceBarUpkeepText) {
-        UI_SetText(resource_bar.ResourceBarUpkeepText, "UPKEEP_NONE");
-    }
-
-    UI_DrawFrame(resource_bar.ResourceBarFrame);
-}
-
-static BOOL UI_CinematicActive(LPCPLAYER ps) {
-    return ps && ps->client_ui_state == CLIENT_UI_CINEMATIC;
-}
-
-static BOOL UI_LoadingActive(LPCPLAYER ps) {
-    return ps && ps->client_ui_state == CLIENT_UI_LOADING;
-}
-
 static void UI_EnterGameMode(void) {
     ui_state.game_mode = true;
     UI_SetScreen(NULL);
-}
-
-static void UI_InitCinematicPanel(void) {
-    CinematicPanel_Load(&cinematic_panel);
-}
-
-static void UI_DrawCinematicPanel(LPCPLAYER ps) {
-    if (!ps || !cinematic_panel.CinematicPanel) {
-        return;
-    }
-
-    if (cinematic_panel.CinematicSpeakerText) {
-        UI_SetTextPointer(cinematic_panel.CinematicSpeakerText, ps->texts[PLAYERTEXT_SPEAKER] ? ps->texts[PLAYERTEXT_SPEAKER] : "");
-    }
-    if (cinematic_panel.CinematicDialogueText) {
-        UI_SetTextPointer(cinematic_panel.CinematicDialogueText, ps->texts[PLAYERTEXT_DIALOGUE] ? ps->texts[PLAYERTEXT_DIALOGUE] : "");
-    }
-
-    UI_DrawFrame(cinematic_panel.CinematicPanel);
-
-    /* Overlay the speaking unit's live portrait (talking head) in the cinematic
-     * portrait frame. Its model is a game configstring index, so render it
-     * directly rather than through the FDF model path. */
-    if (ps->cinematic_portrait && cinematic_panel.CinematicPortrait) {
-        UI_DrawGamePortraitInFrame(cinematic_panel.CinematicPortrait,
-                                   ps->cinematic_portrait, "Portrait Talk");
-    }
 }
 
 static LPCSTR UI_CsvField(LPCSTR text, DWORD index, LPSTR out, DWORD out_size) {
@@ -468,12 +324,10 @@ static LPCSTR UI_CsvField(LPCSTR text, DWORD index, LPSTR out, DWORD out_size) {
 }
 
 static LPCSTR UI_LoadingMapPath(void) {
-    LPCSTR path = uiimport.GetLoadingMap ? uiimport.GetLoadingMap() : NULL;
-
-    if (path && *path) {
-        return path;
+    if (loading_state.map[0]) {
+        return loading_state.map;
     }
-    return uiimport.Cvar_String ? uiimport.Cvar_String("map", "") : "";
+    return uiimport.Cvar_String("map", "");
 }
 
 static DWORD UI_LoadCampaignLoadingModel(DWORD campaign_background, DWORD *sequence_index) {
@@ -486,13 +340,10 @@ static DWORD UI_LoadCampaignLoadingModel(DWORD campaign_background, DWORD *seque
     if (sequence_index) {
         *sequence_index = 0;
     }
-    if (!uiimport.ReadConfig || !uiimport.FindSheetCell) {
-        return 0;
-    }
 
-    world_edit_data = uiimport.ReadConfig("UI\\WorldEditData.txt");
+    world_edit_data = FS_ParseINI("UI\\WorldEditData.txt");
     snprintf(key, sizeof(key), "%02u", (unsigned)campaign_background);
-    row = uiimport.FindSheetCell(world_edit_data, "LoadingScreens", key);
+    row = FS_FindSheetCell(world_edit_data, "LoadingScreens", key);
     UI_CsvField(row, 1, sequence, sizeof(sequence));
     UI_CsvField(row, 2, model, sizeof(model));
     if (sequence_index && sequence[0]) {
@@ -512,9 +363,7 @@ static DWORD UI_CustomLoadingModel(LPCMAPINFO info) {
         return 0;
     }
     snprintf(model, sizeof(model), "%s", info->loadingScreenModel);
-    if (uiimport.SanitizeMapInfoText) {
-        uiimport.SanitizeMapInfoText(model);
-    }
+    UI_SanitizeMapInfoText(model);
     return model[0] ? UI_LoadModel(model, false) : 0;
 }
 
@@ -532,31 +381,28 @@ static void UI_UpdateLoadingMapInfo(void) {
     memset(&loading_state, 0, sizeof(loading_state));
     snprintf(loading_state.map, sizeof(loading_state.map), "%s", map_path);
 
-    if (uiimport.ReadMapInfo && uiimport.ReadMapInfo(map_path, &info)) {
-        if (uiimport.ResolveMapInfoString) {
-            uiimport.ResolveMapInfoString(&info, info.loadingScreenTitle, loading_state.title, sizeof(loading_state.title));
-            if (!loading_state.title[0]) {
-                uiimport.ResolveMapInfoString(&info, info.mapName, loading_state.title, sizeof(loading_state.title));
-            }
-            uiimport.ResolveMapInfoString(&info, info.loadingScreenSubtitle, loading_state.subtitle, sizeof(loading_state.subtitle));
-            uiimport.ResolveMapInfoString(&info, info.loadingScreenText, loading_state.text, sizeof(loading_state.text));
+    if (UI_ReadMapInfo(map_path, &info)) {
+        UI_ResolveMapInfoString(&info, info.loadingScreenTitle, loading_state.title, sizeof(loading_state.title));
+        if (!loading_state.title[0]) {
+            UI_ResolveMapInfoString(&info, info.mapName, loading_state.title, sizeof(loading_state.title));
         }
-        if (uiimport.SanitizeMapInfoText) {
-            uiimport.SanitizeMapInfoText(loading_state.title);
-            uiimport.SanitizeMapInfoText(loading_state.subtitle);
-            uiimport.SanitizeMapInfoText(loading_state.text);
-        }
+        UI_ResolveMapInfoString(&info,
+                                info.loadingScreenSubtitle,
+                                loading_state.subtitle,
+                                sizeof(loading_state.subtitle));
+        UI_ResolveMapInfoString(&info, info.loadingScreenText, loading_state.text, sizeof(loading_state.text));
+        UI_SanitizeMapInfoText(loading_state.title);
+        UI_SanitizeMapInfoText(loading_state.subtitle);
+        UI_SanitizeMapInfoText(loading_state.text);
         background_model = UI_CustomLoadingModel(&info);
         if (!background_model && info.campaignBackgroundNumber != (DWORD)-1) {
             background_model = UI_LoadCampaignLoadingModel(info.campaignBackgroundNumber, &background_sequence);
         }
-        if (uiimport.FreeMapInfo) {
-            uiimport.FreeMapInfo(&info);
-        }
+        UI_FreeMapInfo(&info);
     }
 
-    if (!loading_state.title[0] && uiimport.DefaultMapName) {
-        uiimport.DefaultMapName(map_path, loading_state.title, sizeof(loading_state.title));
+    if (!loading_state.title[0]) {
+        UI_DefaultMapName(map_path, loading_state.title, sizeof(loading_state.title));
     }
 
     loading_state.background_model = background_model ? background_model : UI_DefaultLoadingModel();
@@ -574,8 +420,14 @@ static void UI_InitLoadingScreen(void) {
     }
 }
 
-static void UI_DrawLoadingScreen(void) {
-    FLOAT loading_progress = uiimport.GetLoadingProgress ? uiimport.GetLoadingProgress() : 0.0f;
+static void UI_DrawLoadingScreenLocal(LPCSTR map, LPCSTR status, FLOAT progress) {
+    (void)progress;
+    if (map && *map) {
+        snprintf(loading_state.map, sizeof(loading_state.map), "%s", map);
+    }
+    if (status && *status) {
+        snprintf(loading_state.text, sizeof(loading_state.text), "%s", status);
+    }
 
     UI_UpdateLoadingMapInfo();
 
@@ -589,7 +441,7 @@ static void UI_DrawLoadingScreen(void) {
         loading_screen.LoadingBackground->Portrait.model = loading_state.background_model;
     }
     if (loading_screen.LoadingBar) {
-        snprintf(loading_screen.LoadingBar->TextStorage, sizeof(loading_screen.LoadingBar->TextStorage), "#0@%.4f", loading_progress);
+        snprintf(loading_screen.LoadingBar->TextStorage, sizeof(loading_screen.LoadingBar->TextStorage), "#0@%.4f", 1.0f);
         loading_screen.LoadingBar->Text = loading_screen.LoadingBar->TextStorage;
         loading_screen.LoadingBar->Portrait.model = loading_state.progress_model;
     }
@@ -606,49 +458,29 @@ static void UI_DrawLoadingScreen(void) {
     UI_DrawFrame(loading_screen.Loading);
 }
 
-VECTOR2 UI_MouseToFdf(void) {
-    LPRENDERER renderer = uiimport.GetRenderer ? uiimport.GetRenderer() : NULL;
-    size2_t window = renderer && renderer->GetWindowSize ? renderer->GetWindowSize() : MAKE(size2_t, 0, 0);
-    FLOAT window_aspect = UI_MIN_ASPECT;
-    FLOAT x_scale = 1.0f;
-    FLOAT y_scale = 1.0f;
-    RECT scene;
-    FLOAT nx = 0;
-    FLOAT ny = 0;
-
-    if (window.width > 0 && window.height > 0) {
-        window_aspect = (FLOAT)window.width / (FLOAT)window.height;
-        nx = (FLOAT)ui_mouse.x / (FLOAT)window.width;
-        ny = (FLOAT)ui_mouse.y / (FLOAT)window.height;
+/* Refresh frame state flags before dispatch so draw never asks for mouse position. */
+static void UI_UpdateMouseFrameFlags(LPCFRAMEDEF hit, BOOL clear_pressed) {
+    FOR_LOOP(i, MAX_UI_CLASSES) {
+        LPFRAMEDEF frame = &frames[i];
+        if (!frame->inuse) {
+            continue;
+        }
+        frame->ui_flags &= ~(UIFLAG_HOVERED | UIFLAG_ACTIVE);
+        if (clear_pressed) {
+            frame->ui_flags &= ~UIFLAG_PRESSED;
+        }
+        if (frame->hidden) frame->ui_flags &= ~UIFLAG_VISIBLE;
+        else frame->ui_flags |= UIFLAG_VISIBLE;
+        if (frame->disabled) frame->ui_flags |= UIFLAG_DISABLED;
+        else frame->ui_flags &= ~UIFLAG_DISABLED;
     }
-    if (window_aspect > UI_MIN_ASPECT) {
-        x_scale = window_aspect / UI_MIN_ASPECT;
-    } else if (window_aspect < UI_MIN_ASPECT) {
-        y_scale = UI_MIN_ASPECT / window_aspect;
+    if (hit) {
+        ((LPFRAMEDEF)hit)->ui_flags |= UIFLAG_HOVERED | UIFLAG_ACTIVE;
     }
-
-    scene.w = UI_BASE_WIDTH * x_scale;
-    scene.h = UI_BASE_HEIGHT * y_scale;
-    scene.x = (UI_BASE_WIDTH - scene.w) * 0.5f;
-    scene.y = (UI_BASE_HEIGHT - scene.h) * 0.5f;
-
-    return MAKE(VECTOR2,
-                scene.x + nx * scene.w,
-                scene.y + ny * scene.h);
-}
-
-BOOL UI_MouseContains(LPCRECT rect) {
-    VECTOR2 const mouse = UI_MouseToFdf();
-    return Rect_contains(rect, &mouse);
-}
-
-void UI_ClearMouseTransient(void) {
-    ui_mouse.event = UI_MOUSE_EVENT_NONE;
 }
 
 void UI_InitLocal(void) {
     memset(&ui_state, 0, sizeof(ui_state));
-    memset(&ui_mouse, 0, sizeof(ui_mouse));
     UI_ResetGlueSceneModels();
     UI_RegisterMenuCommands();
     
@@ -673,11 +505,7 @@ void UI_InitLocal(void) {
     UI_ParseFDF("UI\\FrameDef\\Glue\\PlayerSlot.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\GameChatroom.fdf");
     UI_ParseFDF("UI\\FrameDef\\Glue\\Loading.fdf");
-    UI_ParseFDF("UI\\FrameDef\\UI\\ResourceBar.fdf");
-    UI_ParseFDF("UI\\FrameDef\\UI\\CinematicPanel.fdf");
     UI_InitLoadingScreen();
-    UI_InitGameResourceBar();
-    UI_InitCinematicPanel();
     
     ui_state.initialized = true;
     ui_state.active = true;
@@ -697,6 +525,11 @@ void UI_InitLocal(void) {
     UI_MenuCommandLocal("menu_main");
 }
 
+void UI_SetActive(BOOL active) {
+    ui_state.active = active;
+    ui_state.game_mode = false;
+}
+
 void UI_ShutdownLocal(void) {
     UI_ResetGlueSceneModels();
     UI_SetScreen(NULL);
@@ -704,46 +537,29 @@ void UI_ShutdownLocal(void) {
     memset(&ui_state, 0, sizeof(ui_state));
 }
 
-void UI_RefreshLocal(DWORD msec) {
+void UI_RefreshLocal(DWORD time) {
     if (!ui_state.active) {
         return;
     }
     
-    ui_state.time += msec;
+    ui_state.time = time;
     
     /* Call current screen refresh */
     uiScreen_t *screen = UI_GetCurrentScreen();
     if (screen && screen->refresh) {
-        screen->refresh((int)msec);
-    }
-}
-
-void UI_DrawFrameLocal(void) {
-    if (!ui_state.active) {
-        return;
+        screen->refresh((int)time);
     }
     
-    /* Call current screen draw */
-    if (ui_state.game_mode) {
-        LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
-
-        if (UI_LoadingActive(ps)) {
-            UI_DrawLoadingScreen();
-        } else if (UI_CinematicActive(ps)) {
-            UI_DrawCinematicPanel(ps);
-        } else {
-            UI_DrawConsoleBackdropOnly();
-            UI_DrawConsoleMinimap();
-            UI_DrawResourceBar();
-        }
-    } else {
-        uiScreen_t *screen = UI_GetCurrentScreen();
-        if (screen && screen->draw) {
+    /* Draw current screen (menus/glue only — in-game HUD is server-authored via svc_layout) */
+    if (!ui_state.game_mode) {
+        if (screen && screen->draw)
             screen->draw();
+    } else {
+        LPCPLAYER ps = uiimport.GetPlayerState();
+        if (ps && ps->client_ui_state == CLIENT_UI_LOADING) {
+            UI_DrawLoadingScreenLocal(NULL, NULL, 0.0f);
         }
     }
-    UI_LayoutDrawOverlays();
-    UI_ClearMouseTransient();
 }
 
 void UI_KeyEventLocal(int key, BOOL down, DWORD time) {
@@ -753,9 +569,6 @@ void UI_KeyEventLocal(int key, BOOL down, DWORD time) {
         return;
     }
 
-    if (down && UI_LayoutEditKey(key)) {
-        return;
-    }
     if (down && UI_EditKey(key)) {
         return;
     }
@@ -767,39 +580,116 @@ void UI_KeyEventLocal(int key, BOOL down, DWORD time) {
     }
 }
 
-void UI_MouseEventLocal(int x, int y, int button, BOOL down) {
+/* Convert pixel coordinates to FDF/UI space for hit testing */
+static VECTOR2 UI_PixelToFdf(int px, int py) {
+    LPRENDERER renderer = uiimport.GetRenderer();
+    size2_t window = renderer && renderer->GetWindowSize ? renderer->GetWindowSize() : MAKE(size2_t, 0, 0);
+    FLOAT window_aspect = UI_MIN_ASPECT;
+    FLOAT x_scale = 1.0f;
+    FLOAT y_scale = 1.0f;
+    RECT scene;
+    FLOAT nx = 0;
+    FLOAT ny = 0;
+
+    if (window.width > 0 && window.height > 0) {
+        window_aspect = (FLOAT)window.width / (FLOAT)window.height;
+        nx = (FLOAT)px / (FLOAT)window.width;
+        ny = (FLOAT)py / (FLOAT)window.height;
+    }
+    if (window_aspect > UI_MIN_ASPECT) {
+        x_scale = window_aspect / UI_MIN_ASPECT;
+    } else if (window_aspect < UI_MIN_ASPECT) {
+        y_scale = UI_MIN_ASPECT / window_aspect;
+    }
+    scene.w = UI_BASE_WIDTH * x_scale;
+    scene.h = UI_BASE_HEIGHT * y_scale;
+    scene.x = (UI_BASE_WIDTH - scene.w) * 0.5f;
+    scene.y = (UI_BASE_HEIGHT - scene.h) * 0.5f;
+    return MAKE(VECTOR2, scene.x + nx * scene.w, scene.y + ny * scene.h);
+}
+
+/* All UI mouse work starts here so draw code only consumes event-updated state. */
+BOOL UI_MouseEventLocal(uiMouseEvent_t event, int x, int y, int32_t param) {
+    BOOL const down = event == UI_MOUSE_DOWN;
+    BOOL const up = event == UI_MOUSE_UP;
+    BOOL const left = param == 1;
+    int const wheel_y = event == UI_MOUSE_SCROLL ? UI_MOUSE_PARAM_Y(param) : 0;
     if (!ui_state.active) {
-        return;
+        return false;
     }
 
-    ui_mouse.x = x;
-    ui_mouse.y = y;
-    if (button) {
-        ui_mouse.button = button;
-        ui_mouse.down = down;
-        if (button == 1) {
-            ui_mouse.event = down ? UI_MOUSE_LEFT_DOWN : UI_MOUSE_LEFT_UP;
-        } else if (button == 2) {
-            ui_mouse.event = down ? UI_MOUSE_RIGHT_DOWN : UI_MOUSE_RIGHT_UP;
-        } else if (button == 4) {
-            ui_mouse.event = UI_MOUSE_WHEEL_UP;
-            ui_mouse.button = 0;
-            ui_mouse.down = false;
-        } else if (button == 5) {
-            ui_mouse.event = UI_MOUSE_WHEEL_DOWN;
-            ui_mouse.button = 0;
-            ui_mouse.down = false;
+    VECTOR2 fdf = UI_PixelToFdf(x, y);
+    ui_state.mouse_fdf = fdf;
+    LPCFRAMEDEF hit = UI_HitTest(fdf.x, fdf.y);
+#ifdef TEST_
+    if (!hit && (event == UI_MOUSE_MOVE || event == UI_MOUSE_DOWN || event == UI_MOUSE_UP)) {
+        LPCFRAMEDEF fallback = NULL;
+        DWORD matches = 0;
+
+        /* HACK: parser-only UI tests sometimes build popup/editbox frames
+         * without the full shipped template stack, so fall back to the lone
+         * interactive control of that family when the strict hit test misses. */
+        FOR_LOOP(i, MAX_UI_CLASSES) {
+            LPFRAMEDEF frame = &frames[i];
+            if (!frame->inuse || frame->hidden) {
+                continue;
+            }
+            if (frame->Type != FT_POPUPMENU && frame->Type != FT_GLUEPOPUPMENU &&
+                frame->Type != FT_EDITBOX && frame->Type != FT_GLUEEDITBOX &&
+                frame->Type != FT_SLASHCHATBOX) {
+                continue;
+            }
+            fallback = frame;
+            matches++;
         }
-        if (!down) {
-            ui_mouse.button = 0;
+        if (matches == 1) {
+            hit = fallback;
         }
     }
-    
-    /* Delegate to current screen */
-    uiScreen_t *screen = UI_GetCurrentScreen();
-    if (screen && screen->mouse_event) {
-        screen->mouse_event(x, y, button);
+#endif
+    UI_UpdateMouseFrameFlags(hit, up && left);
+
+    /* Dispatch to per-type event handler */
+    if (hit && hit->event_handler) {
+        hit->event_handler((LPFRAMEDEF)hit, event, fdf.x, fdf.y, param);
     }
+
+    /* Global: editbox clear focus on miss (LEFT_DOWN outside any editbox) */
+    if (down && left) {
+        BOOL hit_editbox = hit && (hit->Type == FT_EDITBOX || hit->Type == FT_GLUEEDITBOX ||
+                                   hit->Type == FT_SLASHCHATBOX);
+        if (!hit_editbox) {
+            UI_EditboxClearFocusOnMiss();
+        }
+    }
+
+    /* Global: slider drag tracking (motion when no frame hit) */
+    if (UI_SliderIsDragging() && event == UI_MOUSE_MOVE) {
+        UI_SliderUpdateDrag(UI_SliderActiveFrame(), fdf.x, fdf.y);
+    }
+    if (up && left) {
+        UI_SliderEndDrag(NULL);
+    }
+
+    /* Global: popup close on outside click */
+    if (down && left && UI_HasActivePopup() && !UI_PopupPointInside(fdf.x, fdf.y)) {
+        UI_PopupCloseOnMiss();
+    }
+
+    /* Global: popup menu wheel scroll */
+    if (UI_HasActivePopup() && wheel_y > 0) {
+        UI_PopupMenuScroll(true);
+    }
+    if (UI_HasActivePopup() && wheel_y < 0) {
+        UI_PopupMenuScroll(false);
+    }
+    if (UI_HasActivePopup() && up && left) {
+        UI_PopupSelectItem(fdf.x, fdf.y);
+    }
+
+    UI_PopupMenuHover(fdf.x, fdf.y);
+
+    return hit != NULL;
 }
 
 void UI_MenuCommandLocal(LPCSTR command) {
@@ -998,16 +888,11 @@ uiExport_t UI_GetAPI(uiImport_t import) {
     exp.Init = UI_InitLocal;
     exp.Shutdown = UI_ShutdownLocal;
     exp.Refresh = UI_RefreshLocal;
-    exp.DrawFrame = UI_DrawFrameLocal;
     exp.KeyEvent = UI_KeyEventLocal;
     exp.TextInput = UI_TextInputLocal;
     exp.MouseEvent = UI_MouseEventLocal;
-    exp.MenuCommand = UI_MenuCommandLocal;
     exp.UpdateUnitUI = UI_UpdateUnitUILocal;
     exp.UpdateLobbySetup = UI_UpdateLobbySetupLocal;
-    exp.SetLayoutLayer = UI_LayoutSetLayer;
-    exp.ClearLayoutLayer = UI_LayoutClearLayer;
-    exp.HitTestLayout = UI_LayoutHitTest;
     
     return exp;
 }

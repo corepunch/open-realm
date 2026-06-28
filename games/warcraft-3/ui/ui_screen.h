@@ -18,7 +18,6 @@ typedef struct uiScreen_s {
     void (*refresh)(int msec);
     void (*draw)(void);
     void (*key_event)(int key, BOOL down);
-    void (*mouse_event)(int x, int y, int buttons);
     void (*update_unit_ui)(DWORD num_units, uiUnitData_t *units);  /* Phase 8: receive unit UI data */
 } uiScreen_t;
 

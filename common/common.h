@@ -192,6 +192,12 @@ sheetRow_t *FS_GetParsedSheetTail(void);
 void CL_Init(void);
 void CL_Frame(DWORD msec);
 void CL_Shutdown(void);
+
+/* Sound (sound/s_sound.c) */
+BOOL S_Init(void);
+void S_Shutdown(void);
+void S_PlaySound(DWORD kit_id);
+void S_PlaySoundByName(LPCSTR name);
 void CL_Connect(LPCSTR host, unsigned short port);
 void CL_SetMenuBindings(void);
 void CL_SetGameplayBindings(void);

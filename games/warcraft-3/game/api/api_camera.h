@@ -167,7 +167,15 @@ DWORD CameraSetupSetField(LPJASS j) {
         case CAMERA_FIELD_TARGET_DISTANCE: whichSetup->target_distance = value; break;
         case CAMERA_FIELD_FARZ: whichSetup->far_z = value; break;
         case CAMERA_FIELD_ANGLE_OF_ATTACK: whichSetup->viewangles.x = -90 - value; break;
-        case CAMERA_FIELD_FIELD_OF_VIEW: whichSetup->fov = value; break;
+        case CAMERA_FIELD_FIELD_OF_VIEW: {
+            /* WC3 CameraSetup stores horizontal FOV; our internal convention
+             * (Matrix4_perspective) expects vertical FOV. Convert using the
+             * same camera_aspect = 1.66f as r_mdx_render.c. This undoes the
+             * removal of FOV_ASPECT in commit 89e9116e. */
+            FLOAT const hfov_rad = value * (FLOAT)M_PI / 180.0f;
+            whichSetup->fov = 2.0f * atanf(tanf(hfov_rad / 2.0f) / 1.66f) * 180.0f / (FLOAT)M_PI;
+            break;
+        }
         case CAMERA_FIELD_ROLL: whichSetup->viewangles.y = value; break;
         case CAMERA_FIELD_ROTATION: whichSetup->viewangles.z = 90 - value; break;
         case CAMERA_FIELD_ZOFFSET: whichSetup->z_offset = value; break;
@@ -183,7 +191,13 @@ DWORD CameraSetupGetField(LPJASS j) {
         case CAMERA_FIELD_TARGET_DISTANCE: value = whichSetup->target_distance; break;
         case CAMERA_FIELD_FARZ: value = whichSetup->far_z; break;
         case CAMERA_FIELD_ANGLE_OF_ATTACK: value = -90 - whichSetup->viewangles.x; break;
-        case CAMERA_FIELD_FIELD_OF_VIEW: value = whichSetup->fov; break;
+        case CAMERA_FIELD_FIELD_OF_VIEW: {
+            /* Convert back from internal vertical FOV to JASS horizontal FOV
+             * so that CameraSetupGetField returns the value that was set. */
+            FLOAT const vfov_rad = whichSetup->fov * (FLOAT)M_PI / 180.0f;
+            value = 2.0f * atanf(tanf(vfov_rad / 2.0f) * 1.66f) * 180.0f / (FLOAT)M_PI;
+            break;
+        }
         case CAMERA_FIELD_ROLL: value = whichSetup->viewangles.y; break;
         case CAMERA_FIELD_ROTATION: value = 90 - whichSetup->viewangles.z; break;
         case CAMERA_FIELD_ZOFFSET: value = whichSetup->z_offset; break;

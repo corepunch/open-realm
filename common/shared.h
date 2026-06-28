@@ -146,7 +146,8 @@ enum {
     FLAG(RDF_NOWORLDMODEL, 2),
     FLAG(RDF_NOFRUSTUMCULL, 3),
     FLAG(RDF_NOPARTICLES, 4),
-    FLAG(RDF_SHOW_ALL_HEALTHBARS, 5), /* ALT held: overhead bars on every unit */
+    FLAG(RDF_USE_ENTITY_CAMERA, 5),
+    FLAG(RDF_SHOW_ALL_HEALTHBARS, 6), /* ALT held: overhead bars on every unit */
 };
 
 #define MAX_COMMANDS 12
@@ -361,6 +362,16 @@ struct playerState_s {
     LPCSTR texts[MAX_STATS];
 };
 
+/* One-shot events embedded in entityState_t.event.
+ * The server sets event once; the client fires the sound and resets it.
+ * Zero means no event. */
+typedef enum {
+    EV_NONE = 0,
+    EV_ATTACK,       /* unit began an attack swing */
+    EV_DEATH,        /* unit died */
+    EV_MOVE,         /* footstep / movement sound */
+} entity_event_t;
+
 typedef struct entityState_s {
     DWORD number; // edict index
     DWORD class_id;
@@ -501,6 +512,7 @@ typedef struct animation_s {
     FLOAT radius;
     VECTOR3 min;
     VECTOR3 max;
+    DWORD damage_point;
 } animation_t;
 
 typedef struct {
@@ -558,6 +570,7 @@ typedef enum {
     FT_BUILDQUEUE,
     FT_MULTISELECT,
     FT_TOOLTIPTEXT,
+    FT_MINIMAP,
 } FRAMETYPE;
 
 typedef enum {
@@ -707,6 +720,14 @@ typedef struct {
     BOOL BlendAll:1;
     BOOL Mirrored:1;
 } uiBackdrop_t;
+
+/* Optional buffer for FT_TEXTURE frames that need float-precision UV or flip.
+ * When present, SCR_LayoutDrawTexture uses these values instead of tex.coord. */
+typedef struct {
+    FLOAT l, r, t, b;   /* UV as float [0,1]; l>r or t>b = flipped axis */
+    COLOR32 color;
+    BLEND_MODE alphamode;
+} uiTextureUV_t;
 
 typedef struct {
     uiBackdrop_t background;

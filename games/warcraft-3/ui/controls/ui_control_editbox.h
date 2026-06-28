@@ -79,142 +79,57 @@ static DWORD UI_EditMaxChars(LPCFRAMEDEF frame) {
 static void UI_FocusEdit(LPFRAMEDEF frame) {
     if (!frame) {
         active_edit = NULL;
-        active_edit_cursor = 0;
+        active_ti.text = NULL;
+        active_ti.size = 0;
+        active_ti.max_chars = 0;
+        active_ti.cursor = 0;
         return;
     }
     if (active_edit != frame) {
+        LPFRAMEDEF text_frame = UI_EditTextFrame(frame);
         active_edit = frame;
-        active_edit_cursor = (DWORD)strlen(UI_EditText(frame));
+        active_ti.text = text_frame ? text_frame->TextStorage : NULL;
+        active_ti.size = text_frame ? sizeof(text_frame->TextStorage) : 0;
+        active_ti.max_chars = UI_EditMaxChars(frame);
+        active_ti.cursor = (DWORD)strlen(UI_EditText(frame));
     }
-}
-
-static void UI_InsertEditText(LPCSTR text) {
-    char buffer[256];
-    LPCSTR old_text;
-    size_t len;
-    size_t add_len;
-    DWORD max_chars;
-    DWORD cursor;
-
-    if (!active_edit || !text || !*text) {
-        return;
-    }
-    old_text = UI_EditText(active_edit);
-    len = strlen(old_text);
-    add_len = strlen(text);
-    max_chars = UI_EditMaxChars(active_edit);
-    cursor = MIN(active_edit_cursor, (DWORD)len);
-    if (len >= max_chars) {
-        return;
-    }
-    if (len + add_len > max_chars) {
-        add_len = max_chars - len;
-    }
-    if (len + add_len >= sizeof(buffer)) {
-        add_len = sizeof(buffer) - len - 1;
-    }
-    if (add_len == 0) {
-        return;
-    }
-
-    memcpy(buffer, old_text, cursor);
-    memcpy(buffer + cursor, text, add_len);
-    memcpy(buffer + cursor + add_len, old_text + cursor, len - cursor + 1);
-    UI_SetEditText(active_edit, buffer);
-    active_edit_cursor = cursor + (DWORD)add_len;
 }
 
 BOOL UI_EditKey(int key) {
-    char buffer[256];
-    LPCSTR old_text;
-    size_t len;
-    DWORD cursor;
+    int result;
 
     if (!active_edit) {
         return false;
     }
 
-    old_text = UI_EditText(active_edit);
-    len = strlen(old_text);
-    cursor = MIN(active_edit_cursor, (DWORD)len);
-
-    switch (key) {
-        case SDLK_BACKSPACE:
-            if (cursor > 0) {
-                memcpy(buffer, old_text, cursor - 1);
-                memcpy(buffer + cursor - 1, old_text + cursor, len - cursor + 1);
-                UI_SetEditText(active_edit, buffer);
-                active_edit_cursor = cursor - 1;
-            }
+    result = UI_TextInput_Key(&active_ti, key);
+    switch (result) {
+        case UI_TEXTINPUT_CONSUMED:
             return true;
-        case SDLK_DELETE:
-            if (cursor < len) {
-                memcpy(buffer, old_text, cursor);
-                memcpy(buffer + cursor, old_text + cursor + 1, len - cursor);
-                UI_SetEditText(active_edit, buffer);
-            }
-            return true;
-        case SDLK_LEFT:
-            if (cursor > 0) {
-                active_edit_cursor = cursor - 1;
-            }
-            return true;
-        case SDLK_RIGHT:
-            if (cursor < len) {
-                active_edit_cursor = cursor + 1;
-            }
-            return true;
-        case SDLK_HOME:
-            active_edit_cursor = 0;
-            return true;
-        case SDLK_END:
-            active_edit_cursor = (DWORD)len;
-            return true;
-        case SDLK_RETURN:
-        case SDLK_KP_ENTER:
+        case UI_TEXTINPUT_ENTER:
             return false;
-        case SDLK_ESCAPE:
+        case UI_TEXTINPUT_ESCAPE:
             UI_FocusEdit(NULL);
             return false;
         default:
-            break;
+            return false;
     }
-    return false;
 }
 
 void UI_TextInputLocal(LPCSTR text) {
     char filtered[256];
-    DWORD out = 0;
-
-    UI_LayoutTextInput(text);
 
     if (!active_edit || !text) {
         return;
     }
-    for (LPCSTR in = text; *in && out < sizeof(filtered) - 1; in++) {
-        unsigned char ch = (unsigned char)*in;
-        if (ch >= 32) {
-            filtered[out++] = (char)ch;
-        }
-    }
-    filtered[out] = '\0';
-    UI_InsertEditText(filtered);
-}
-
-static void UI_ClearEditFocusIfClickedOutside(void) {
-    LPCRECT rect;
-
-    if (!active_edit || ui_mouse.event != UI_MOUSE_LEFT_DOWN) {
-        return;
-    }
-    rect = UI_LayoutRect(active_edit);
-    if (!rect || !UI_MouseContains(rect)) {
-        UI_FocusEdit(NULL);
+    UI_TextInput_Filter(text, filtered, sizeof(filtered));
+    if (filtered[0]) {
+        UI_TextInput_Insert(&active_ti, filtered);
     }
 }
 
 static void UI_DrawEditBox(LPCFRAMEDEF frame, LPCRECT rect) {
-    LPRENDERER renderer = UI_GetRenderer();
+    LPRENDERER renderer = uiimport.GetRenderer();
     LPFRAMEDEF text_frame = UI_EditTextFrame(frame);
     LPCFRAMEDEF backdrop = UI_FindFrameNear(frame, frame->Control.Backdrop.Normal);
     RECT text_rect = *rect;
@@ -237,39 +152,25 @@ static void UI_DrawEditBox(LPCFRAMEDEF frame, LPCRECT rect) {
 
     if (active_edit == frame && renderer && renderer->DrawText && renderer->GetTextSize) {
         LPCSTR text = UI_EditText(frame);
-        DWORD const cursor = MIN(active_edit_cursor, (DWORD)strlen(text));
-        char prefix[256];
         LPCFONT font = renderer->LoadFont(UI_FontFile(text_frame->Font.Name),
                                           UI_FontPixelSize(text_frame->Font.Size));
-        VECTOR2 prefix_size;
-        RECT cursor_rect = text_rect;
         COLOR32 cursor_color = frame->Edit.CursorColor.a ? frame->Edit.CursorColor : COLOR32_WHITE;
 
         if (!font) {
             return;
         }
-        snprintf(prefix, sizeof(prefix), "%.*s", (int)cursor, text);
-        prefix_size = renderer->GetTextSize(&MAKE(drawText_t,
-                                                  .font = font,
-                                                  .text = prefix,
-                                                  .rect = text_rect,
-                                                  .textWidth = text_rect.w,
-                                                  .lineHeight = 1.33f,
-                                                  .wordWrap = FALSE,
-                                                  .halign = text_frame->Font.Justification.Horizontal,
-                                                  .valign = text_frame->Font.Justification.Vertical));
-        cursor_rect.x += prefix_size.x;
-        cursor_rect.w = MAX(0.0f, cursor_rect.w - prefix_size.x);
-        renderer->DrawText(&MAKE(drawText_t,
-                                 .font = font,
-                                 .text = "|",
-                                 .rect = cursor_rect,
-                                 .color = cursor_color,
-                                 .textWidth = cursor_rect.w,
-                                 .lineHeight = 1.33f,
-                                 .wordWrap = FALSE,
-                                 .halign = FONT_JUSTIFYLEFT,
-                                 .valign = text_frame->Font.Justification.Vertical));
+        UI_DrawTextInputCursor(renderer,
+                               &MAKE(drawText_t,
+                                     .font = font,
+                                     .text = text,
+                                     .rect = text_rect,
+                                     .textWidth = text_rect.w,
+                                      .lineHeight = 1.33f,
+                                      .halign = text_frame->Font.Justification.Horizontal,
+                                     .valign = text_frame->Font.Justification.Vertical),
+                               text,
+                               active_ti.cursor,
+                               cursor_color);
     }
 }
 

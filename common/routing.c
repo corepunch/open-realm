@@ -74,6 +74,12 @@ static int      heatmap_lru[HEATMAP_CACHE_SLOTS];
 static int      heatmap_lru_clock = 0;
 static VECTOR2 *active_flow = NULL; /* points into the current cache slot */
 
+#ifdef TOOL_COMMON_NO_MPQ
+static struct {
+    DWORD cache_hits, cache_misses, heatmap_iterations, flow_cells_baked;
+} route_perf_stats = { 0 };
+#endif
+
 static void heatmap_cache_invalidate(void) {
     FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
         heatmap_cache[i].goal       = NULL;
@@ -254,6 +260,7 @@ void CM_BakeStaticObstacles(void) {
  * closest-pathable-point queries at command time.  Static obstacles are
  * already baked into pathmap.original and copied in by reset_pathmap_data(). */
 static void apply_dynamic_obstacles(edict_t const *ignore) {
+    if (!ge) return;
     FOR_LOOP(i, ge->num_edicts) {
         edict_t *ent = EDICT_NUM(i);
         if (!ent->inuse || ent == ignore)
@@ -497,12 +504,18 @@ static VECTOR2 compute_flow_at(DWORD x, DWORD y) {
     return direction;
 }
 
-/* Bake all cell flow vectors into the given buffer after a heatmap build. */
-static void bake_flow_field(VECTOR2 *flow) {
+/* Bake all cell flow vectors into the given buffer after a heatmap build.
+ * Returns the number of cells that were reached by the heatmap (finite price),
+ * matching the iteration count returned by build_heatmap. */
+static DWORD bake_flow_field(VECTOR2 *flow) {
     DWORD cells = pathmap.width * pathmap.height;
+    DWORD baked = 0;
     FOR_LOOP(i, cells) {
         flow[i] = compute_flow_at(i % pathmap.width, i / pathmap.width);
+        if (pathmap.heatmap[i].price != INT_MAX)
+            baked++;
     }
+    return baked;
 }
 
 VECTOR2 get_flow_direction(DWORD heatmapindex, float fnx, float fny) {
@@ -566,6 +579,7 @@ DWORD build_heatmap(point2_t target) {
     DWORD const cap = pathmap.width * pathmap.height + 1;
     DWORD *const q = pathmap.queue;
     DWORD head = 0, tail = 0;
+    DWORD iterations = 0;
 
     DWORD const ti = (DWORD)target.x + (DWORD)target.y * width;
     pathmap.heatmap[ti].price = 0;
@@ -577,6 +591,7 @@ DWORD build_heatmap(point2_t target) {
         head = (head + 1) % cap;
         routeNode_t *const un = &pathmap.heatmap[u];
         un->closed = false;
+        iterations++;
         int const up = un->price;
         int const ux = (int)(u % width);
         int const uy = (int)(u / width);
@@ -607,7 +622,7 @@ DWORD build_heatmap(point2_t target) {
         pathDebug[i].r = pathmap.data[i].nowalk ? 255 : 0;
     }
 #endif
-    return 0;
+    return iterations;
 }
 
 DWORD CM_BuildHeatmap(edict_t *goalentity) {
@@ -617,13 +632,18 @@ DWORD CM_BuildHeatmap(edict_t *goalentity) {
         return 0;
     }
 
-    /* Cache lookup — find slot with matching goal.
-     * On a hit: point active_flow at the cached flow field and return
-     * immediately.  No memcpy of the raw heatmap needed. */
+    /* Cache lookup — find slot whose cached goal is at the same world position.
+     * Compare by position (origin2), not pointer, so two different waypoint
+     * entities at the same location share the same flow field. */
     FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
-        if (heatmap_cache[i].goal == goalentity && heatmap_cache[i].flow) {
+        if (heatmap_cache[i].goal && heatmap_cache[i].flow &&
+            heatmap_cache[i].goal->s.origin2.x == goalentity->s.origin2.x &&
+            heatmap_cache[i].goal->s.origin2.y == goalentity->s.origin2.y) {
             heatmap_lru[i] = heatmap_lru_clock++;
             active_flow = heatmap_cache[i].flow;
+#ifdef TOOL_COMMON_NO_MPQ
+            route_perf_stats.cache_hits++;
+#endif
             return heatmap_cache[i].generation;
         }
     }
@@ -647,8 +667,16 @@ DWORD CM_BuildHeatmap(edict_t *goalentity) {
     if (!is_pathable_node(target.x, target.y)) {
         closest_pathable_node(&goalentity->s.origin2, 0, &target);
     }
+#ifdef TOOL_COMMON_NO_MPQ
+    DWORD iterations = build_heatmap(target);
+    DWORD baked = bake_flow_field(heatmap_cache[evict].flow);
+    route_perf_stats.cache_misses++;
+    route_perf_stats.heatmap_iterations = iterations;
+    route_perf_stats.flow_cells_baked = baked;
+#else
     build_heatmap(target);
     bake_flow_field(heatmap_cache[evict].flow);
+#endif
 
     heatmap_cache[evict].goal       = goalentity;
     heatmap_cache[evict].generation = heatmap_next_generation++;
@@ -661,12 +689,24 @@ DWORD CM_BuildHeatmap(edict_t *goalentity) {
 }
 
 #ifdef TOOL_COMMON_NO_MPQ
+typedef struct {
+    DWORD cache_hits, cache_misses, heatmap_iterations, flow_cells_baked;
+} routePerfStats_t;
+
 /* Synthesize a pathmap from a raw byte array for unit tests.
  * Each byte is treated as a pathMapCell_t (bit 1 = nowalk).
  * The world coordinate system is set up so cell (x,y) maps to
  * world position (x * cell_size, y * cell_size). */
 void CM_SetupTestPathmap(DWORD width, DWORD height, BYTE const *cells) {
     CM_SetupPathMap(width, height, cells);
+}
+
+void CM_ResetTestPathPerfStats(void) {
+    memset(&route_perf_stats, 0, sizeof(route_perf_stats));
+}
+
+routePerfStats_t CM_GetTestPathPerfStats(void) {
+    return *(routePerfStats_t *)&route_perf_stats;
 }
 #endif
 

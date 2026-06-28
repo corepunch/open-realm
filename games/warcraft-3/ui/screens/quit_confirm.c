@@ -85,12 +85,6 @@ static void QuitConfirm_KeyEvent(int key, BOOL down) {
     }
 }
 
-static void QuitConfirm_MouseEvent(int x, int y, int buttons) {
-    (void)x;
-    (void)y;
-    (void)buttons;
-}
-
 uiScreen_t quitConfirmScreen = {
     .name = "quit-confirm",
     .load = QuitConfirm_LoadScreen,
@@ -99,5 +93,4 @@ uiScreen_t quitConfirmScreen = {
     .refresh = QuitConfirm_Refresh,
     .draw = QuitConfirm_Draw,
     .key_event = QuitConfirm_KeyEvent,
-    .mouse_event = QuitConfirm_MouseEvent,
 };

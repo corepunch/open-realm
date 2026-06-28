@@ -239,6 +239,7 @@ static VECTOR2 get_position(LPCDRAWTEXT arg) {
         case FONT_JUSTIFYMIDDLE: pos.y = arg->rect.y + (arg->rect.h - size.y) / 2; break;
         case FONT_JUSTIFYTOP: pos.y = arg->rect.y; break;
     }
+    if (pos.y < arg->rect.y) pos.y = arg->rect.y;
     return pos;
 }
 
@@ -276,7 +277,7 @@ static void flush_text_batch(textBatch_t *batch, LPCDRAWTEXT arg) {
                      SHADER_UI,
                      BLEND_MODE_BLEND,
                      0.0f,
-                     arg->hasClip,
+                     arg->flags & DRAW_CLIP,
                      &arg->clip,
                      batch->vertices,
                      batch->count,
@@ -350,7 +351,7 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
                                             .screen = MAKE(RECT, cursor.x, cursor.y + linesize * 0.1, linesize, linesize),
                                             .uv = MAKE(RECT, 0, 0, 1, 1),
                                             .color = COLOR32_WHITE,
-                                            .hasClip = arg->hasClip,
+                                            .flags = (arg->flags & DRAW_CLIP),
                                             .clip = arg->clip));
                     }
                     cursor.x += linesize;
@@ -374,7 +375,7 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
             p += 10;
             continue;
         }
-        if (arg->wordWrap && cursor.x > pos.x && !will_word_fit(p, arg->textWidth - (cursor.x - pos.x), arg->font)) {
+        if ((arg->flags & DRAW_WORD_WRAP) && cursor.x > pos.x && !will_word_fit(p, arg->textWidth - (cursor.x - pos.x), arg->font)) {
             cursor.x = pos.x;
             cursor.y += line_advance;
             max_cursor_y = MAX(max_cursor_y, cursor.y);

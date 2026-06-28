@@ -21,7 +21,8 @@ jobs:
             libgles2-mesa-dev \
             libsdl2-dev \
             liblua5.4-dev \
-            libjpeg-dev
+            libjpeg-dev \
+            libxml2-dev
 
       - name: Run unit tests
         run: make test

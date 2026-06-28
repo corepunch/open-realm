@@ -31,7 +31,6 @@ static LPCSTR mdx_vs =
 "out vec2 v_texcoord;\n"
 "out vec2 v_texcoord2;\n"
 "out vec3 v_lighting;\n"
-"out float v_fogDist;\n"
 "uniform mat4 uBones[128];\n"
 "uniform mat4 uMdxLights[8];\n"
 "uniform mat4 uViewProjectionMatrix;\n"
@@ -101,7 +100,6 @@ static LPCSTR mdx_vs =
 "    v_shadow = uLightMatrix * uModelMatrix * position;\n"
 #endif
 "    gl_Position = uViewProjectionMatrix * uModelMatrix * position;\n"
-"    v_fogDist = gl_Position.w;\n"
 "}\n";
 
 static LPCSTR mdx_fs =
@@ -112,13 +110,8 @@ static LPCSTR mdx_fs =
 "in vec4 v_shadow;\n"
 #endif
 "in vec3 v_lighting;\n"
-"in float v_fogDist;\n"
 "out vec4 o_color;\n"
 "uniform sampler2D uTexture;\n"
-"uniform bool uFogEnable;\n"
-"uniform vec3 uFogColor;\n"
-"uniform vec2 uFogParams;\n" // x = fog start, y = fog end (GL_LINEAR)
-
 #ifdef USE_SHADOWMAPS
 "uniform sampler2D uShadowmap;\n"
 #endif
@@ -151,77 +144,8 @@ static LPCSTR mdx_fs =
 "        col.rgb *= get_fogofwar() * v_lighting;\n"
 "    }\n"
 "    o_color = col;\n"
-"    if (uFogEnable) {\n"
-"        float f = clamp((uFogParams.y - v_fogDist) / (uFogParams.y - uFogParams.x), 0.0, 1.0);\n"
-"        o_color.rgb = mix(uFogColor, o_color.rgb, f);\n"
-"    }\n"
 "    if (o_color.a < 0.5 && uUseDiscard) discard;\n"
 "}\n";
-
-static bool R_InitUIModelView(LPCMODEL model,
-                              viewDef_t *viewdef,
-                              renderEntity_t *entity,
-                              mdxSequence_t const *seq,
-                              FLOAT frame_ratio) {
-    if (!model || !model->mdx) {
-        return false;
-    }
-
-    memset(entity, 0, sizeof(*entity));
-    memset(viewdef, 0, sizeof(*viewdef));
-
-    /* UI/glue scenes (e.g. the main-menu background) animate and emit
-     * particles continuously, so they need a real, advancing clock.  Without
-     * this viewdef->time/deltaTime stay 0 and particle emitters spawn nothing
-     * (no snow, no light-ray flares) and time-driven sequences freeze. */
-    {
-        static DWORD ui_lastTime = 0;
-        DWORD now = SDL_GetTicks();
-        DWORD delta = (ui_lastTime && now > ui_lastTime) ? now - ui_lastTime : 16;
-        if (delta > 100) {
-            delta = 100;
-        }
-        ui_lastTime = now;
-        viewdef->time = now;
-        viewdef->deltaTime = delta;
-    }
-
-    entity->scale = 1;
-    entity->model = model;
-    if (!seq) {
-        return false;
-    }
-
-    if (frame_ratio >= 0.0f) {
-        DWORD seq_len = seq->interval[1] - seq->interval[0];
-
-        if (seq_len == 0) {
-            seq_len = 1;
-        }
-        if (frame_ratio > 1.0f) {
-            frame_ratio = 1.0f;
-        }
-        entity->frame = seq->interval[0] + (DWORD)((FLOAT)(seq_len - 1) * frame_ratio);
-        if (entity->frame >= seq->interval[1]) {
-            entity->frame = seq->interval[1] - 1;
-        }
-        entity->oldframe = entity->frame;
-    } else {
-        DWORD seq_len = seq->interval[1] - seq->interval[0];
-        if (seq_len == 0) {
-            seq_len = 1;
-        }
-        entity->frame = seq->interval[0] + (viewdef->time % seq_len);
-        entity->oldframe = entity->frame;
-    }
-
-    viewdef->scissor = (RECT) { 0, 0, 1, 1 };
-    viewdef->num_entities = 1;
-    viewdef->entities = entity;
-    viewdef->rdflags |= RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL;
-
-    return true;
-}
 
 void Matrix4_fromViewAngles(LPCVECTOR3 target, LPCVECTOR3 angles, float distance, LPMATRIX4 output) {
     VECTOR3 const vieworg = Vector3_unm(target);
@@ -347,84 +271,32 @@ static mdxSequence_t const *R_SelectUISequence(mdxModel_t const *mdx, LPCSTR ani
     return seq;
 }
 
-static FLOAT R_UISequenceFrameRatio(LPCSTR anim) {
-    LPCSTR ratio;
-    char *end = NULL;
-    FLOAT value;
-
-    if (!anim) {
-        return -1.0f;
-    }
-    ratio = strchr(anim, '@');
-    if (!ratio) {
-        return -1.0f;
-    }
-    value = strtof(ratio + 1, &end);
-    if (end == ratio + 1) {
-        return -1.0f;
-    }
-    if (value < 0.0f) {
-        return 0.0f;
-    }
-    if (value > 1.0f) {
-        return 1.0f;
-    }
-    return value;
-}
-
-void MDLX_DrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim) {
+bool MDLX_ExtractCamera(mdxModel_t const *model, DWORD frame, float aspect, LPMATRIX4 output, LPMATRIX4 light) {
     VECTOR3 root;
     VECTOR3 lightAngles = { 10, 270, 0 };
-    renderEntity_t entity;
-    viewDef_t viewdef;
-    
-    if (!model || !model->mdx) {
-        return;
+    bool ok = R_GetModelCameraMatrix(model, frame, aspect, output, &root);
+    if (ok && light) {
+        Matrix4_getLightMatrix(&lightAngles, &root, PORTRAIT_SHADOW_SIZE, light);
     }
-    
+    return ok;
+}
+
+bool MDLX_SetEntityAnimationFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
+    if (!model || !model->mdx || !entity) {
+        return false;
+    }
     mdxModel_t const *mdx = model->mdx;
     mdxSequence_t const *seq = R_SelectUISequence(mdx, anim);
-
-    float viewport_width = viewport->w * tr.drawableSize.width;
-    float viewport_height = viewport->h * tr.drawableSize.height;
-    float aspect = viewport_height > 0.0f ? viewport_width / viewport_height : 1.0f;
-
-    if (!R_InitUIModelView(model, &viewdef, &entity, seq, R_UISequenceFrameRatio(anim))) {
-        return;
+    if (!seq) {
+        return false;
     }
-
-    entity.flags |= RF_NO_FOGOFWAR | RF_NO_SHADOW | RF_PORTRAIT_LIGHTING;
-    viewdef.viewport = *viewport;
-
-    /* The full-screen glue scene (main-menu background) uses the original's
-     * atmospheric haze, which it draws with fixed-function GL linear fog
-     * (glFogi GL_FOG_MODE=LINEAR; glFogf START/END; glFogfv COLOR; see the
-     * 1.29 client's GL state-apply routine).  We replicate it in-shader.
-     * Unit portraits use a small viewport and stay fog-free. */
-    if (viewport->x == 0 && viewport->y == 0 &&
-        viewport->w >= 1.0f && viewport->h >= 1.0f) {
-        viewdef.fogEnable = true;
-        viewdef.fogColor = (VECTOR3){ 0.74f, 0.80f, 0.88f };
-        viewdef.fogStart = 1400.0f;
-        viewdef.fogEnd = 6500.0f;
+    DWORD seq_len = seq->interval[1] - seq->interval[0];
+    if (seq_len == 0) {
+        seq_len = 1;
     }
-
-    if (!R_GetModelCameraMatrix(mdx, entity.frame, aspect, &viewdef.viewProjectionMatrix, &root)) {
-        return;
-    }
-
-    Matrix4_getLightMatrix(&lightAngles, &root, PORTRAIT_SHADOW_SIZE, &viewdef.lightMatrix);
-
-    R_Call(glActiveTexture, GL_TEXTURE2);
-    R_Call(glBindTexture, GL_TEXTURE_2D, tr.texture[TEX_WHITE]->texid);
-    R_Call(glActiveTexture, GL_TEXTURE0);
-
-    tr.viewDef = viewdef;
-
-#ifdef USE_SHADOWMAPS
-    R_RenderShadowMap();
-#endif
-    R_RenderView();
+    entity->frame = seq->interval[0] + (tr.viewDef.time % seq_len);
+    entity->oldframe = entity->frame;
+    return true;
 }
 
 void MDLX_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
@@ -438,17 +310,25 @@ void MDLX_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
     mdxModel_t const *mdx = model->mdx;
     mdxSequence_t const *seq = R_SelectUISequence(mdx, anim);
 
-    if (!R_InitUIModelView(model, &viewdef, &entity, seq, R_UISequenceFrameRatio(anim))) {
+    if (!model || !model->mdx || !seq) {
         return;
     }
 
+    memset(&entity, 0, sizeof(entity));
+    memset(&viewdef, 0, sizeof(viewdef));
+    entity.scale = 1;
+    entity.model = model;
+    DWORD seq_len = seq->interval[1] - seq->interval[0];
+    if (seq_len == 0) seq_len = 1;
+    entity.frame = seq->interval[0] + (tr.viewDef.time % seq_len);
+    entity.oldframe = entity.frame;
+    viewdef.scissor = (RECT) { 0, 0, 1, 1 };
+    viewdef.num_entities = 1;
+    viewdef.entities = &entity;
+    viewdef.rdflags |= RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL;
     viewdef.viewport = (struct rect) {0,0,1,1};
 
     entity.flags |= RF_NO_FOGOFWAR | RF_NO_SHADOW | RF_NO_LIGHTING;
-    /* 2D sprite/panel pass: it must not touch the shared 3D particle pool,
-     * or particles get aged once per UI element drawn (running the scene
-     * several times too fast) and drawn with this ortho projection. */
-    viewdef.rdflags |= RDF_NOPARTICLES;
 
     RECT screen = R_UISceneRect();
     entity.origin = fdf_sprite_coords

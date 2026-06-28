@@ -10,6 +10,7 @@
  * config strings and temporary effects each have their own message types.
  */
 #include "client.h"
+#include "ui_layout.h"
 #ifdef SC2
 #include "games/starcraft-2/common/sc2_map.h"
 #endif
@@ -89,6 +90,8 @@ static void CL_ReadPacketEntities(LPSIZEBUF msg) {
         }
         ent->prev = ent->current;
         MSG_ReadDeltaEntity(msg, &ent->current, nument, bits);
+        if (ent->current.event)
+            CL_EntityEvent(&ent->current);
         if (debug_entities) {
             if (!old.model && ent->current.model) {
                 fprintf(stderr,
@@ -134,6 +137,7 @@ static void CL_ReadPacketEntities(LPSIZEBUF msg) {
 }
 
 static void CL_ParseConfigString(LPSIZEBUF msg) {
+    static PATHSTR last_world;
     int const index = MSG_ReadShort(msg);
     if (index == CS_STATUSBAR) {
         MSG_Read(msg, cl.configstrings[index], sizeof(*cl.configstrings));
@@ -141,10 +145,10 @@ static void CL_ParseConfigString(LPSIZEBUF msg) {
         MSG_ReadString(msg, cl.configstrings[index]);
     }
     if (index == CS_WORLD && cl.configstrings[index][0] &&
-        strcmp(cl.loading_map, cl.configstrings[index])) {
+        strcmp(last_world, cl.configstrings[index])) {
+        snprintf(last_world, sizeof(last_world), "%s", cl.configstrings[index]);
         CL_BeginLoadingMap(cl.configstrings[index]);
     }
-//    printf("%d %s\n", index, cl.configstrings[index]);
 }
 
 static void CL_ParseBaseline(LPSIZEBUF msg) {
@@ -171,6 +175,13 @@ void CL_ParseFrame(LPSIZEBUF msg) {
     cl.frame.oldclientframe = MSG_ReadLong(msg);
     cl.time = cl.frame.servertime;
     
+    if (cls.state != ca_active && cl.refresh_prepped) {
+        cls.state = ca_active;
+        cl.playerstate.client_ui_state = CLIENT_UI_GAME;
+        SCR_EndLoadingPlaque();
+        CL_SetGameplayInput();
+    }
+    
     FOR_LOOP(index, MAX_CLIENT_ENTITIES) {
         centity_t *ce = &cl.ents[index];
         if (!ce->current.model)
@@ -188,7 +199,6 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
     FLOAT zfar;
     MSG_ReadDeltaPlayerState(msg, &cl.playerstate, plnum, bits);
     VECTOR2 server_origin = cl.playerstate.origin;
-    cls.state = ca_active;
     if (cl.playerstate.client_ui_state == CLIENT_UI_GAME) {
         CL_SetGameplayInput();
     }
@@ -255,9 +265,7 @@ void CL_ParseLayout(LPSIZEBUF msg) {
         return;
     }
 
-    if (ui.ClearLayoutLayer) {
-        ui.ClearLayoutLayer(layer);
-    }
+    SCR_ClearLayoutLayer(layer);
     SAFE_DELETE(cl.layout[layer], MemFree);
     DWORD start = msg->readcount;
     while (true) {
@@ -297,9 +305,7 @@ void CL_ParseLayout(LPSIZEBUF msg) {
     cl.layout[layer] = MemAlloc(sizeof(DWORD) + payload_size);
     memcpy(cl.layout[layer], &payload_size, sizeof(payload_size));
     memcpy((LPBYTE)cl.layout[layer] + sizeof(payload_size), msg->data + start, payload_size);
-    if (ui.SetLayoutLayer) {
-        ui.SetLayoutLayer(layer, cl.layout[layer]);
-    }
+    SCR_SetLayoutLayer(layer, cl.layout[layer]);
 }
 
 void CL_ParseCursor(LPSIZEBUF msg) {
@@ -374,9 +380,8 @@ static void CL_UpdateFogTexture(void) {
     FOR_LOOP(i, cells) {
         cl.fow.texture[i] = cl.fow.visible[i] ? 255 : (cl.fow.explored[i] ? 128 : 0);
     }
-    if (re.SetFogOfWarData) {
+    if (re.SetFogOfWarData)
         re.SetFogOfWarData(cl.fow.width, cl.fow.height, cl.fow.texture);
-    }
 }
 
 static BYTE *CL_FogPlaneForStreamIndex(DWORD flags, DWORD stream_index) {
@@ -585,11 +590,9 @@ static void CL_ParseLobbyChat(LPSIZEBUF msg) {
     if (!text[0]) {
         return;
     }
-    if (!ui.MenuCommand) {
-        return;
-    }
     snprintf(command, sizeof(command), "menu_game_setup_chat %u %s", own ? 1u : 0u, text);
-    ui.MenuCommand(command);
+    Cbuf_AddText(command);
+    Cbuf_AddText("\n");
 }
 
 static void CL_ParseGameCommand(LPSIZEBUF msg) {

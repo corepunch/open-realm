@@ -16,45 +16,7 @@ static struct {
 static bool world_loaded = false;
 static bool begin_sent = false;
 
-#ifdef WOW
-#define CL_MODEL_LOADS_PER_FRAME 32
-#else
-#define CL_MODEL_LOADS_PER_FRAME 8
-#endif
-
 VECTOR3 lightAngles = {-40,0,60};
-
-static DWORD CL_CountConfigstrings(DWORD start, DWORD max) {
-    DWORD count = 0;
-
-    for (DWORD i = 1; i < max && start + i < MAX_CONFIGSTRINGS; i++) {
-        if (*cl.configstrings[start + i]) {
-            count++;
-        }
-    }
-    return count;
-}
-
-static DWORD CL_CountLoadedConfigstrings(DWORD start, DWORD max, HANDLE const *handles) {
-    DWORD count = 0;
-
-    for (DWORD i = 1; i < max && start + i < MAX_CONFIGSTRINGS; i++) {
-        if (*cl.configstrings[start + i] && handles[i]) {
-            count++;
-        }
-    }
-    return count;
-}
-
-static void CL_UpdateAssetLoadingProgress(LPCSTR status, DWORD loaded, DWORD total) {
-    FLOAT progress;
-
-    if (!total) {
-        total = 1;
-    }
-    progress = (FLOAT)loaded / (FLOAT)total;
-    CL_LoadingUpdate(status, progress);
-}
 
 static void CL_SendBegin(void) {
     fprintf(stderr,
@@ -300,7 +262,11 @@ static void V_AddClientEntity(centity_t const *ent) {
     re.splat = cl.pics[ent->current.splat & 0xffff];
     re.splatsize = ent->current.splat >> 16;
     re.shadow = cl.pics[ent->current.shadow];
-    ShadowUnpackRect(ent->current.shadow_rect, &re.shadow_x, &re.shadow_y, &re.shadow_w, &re.shadow_h);
+    re.shadow_rect = MAKE(RECT,
+                          ShadowUnpackRectComponent((BYTE)(ent->current.shadow_rect & 0xff)),
+                          ShadowUnpackRectComponent((BYTE)((ent->current.shadow_rect >> 8) & 0xff)),
+                          ShadowUnpackRectComponent((BYTE)((ent->current.shadow_rect >> 16) & 0xff)),
+                          ShadowUnpackRectComponent((BYTE)((ent->current.shadow_rect >> 24) & 0xff)));
     if (!Cvar_Integer("r_unit_shadows", 1)) {
         re.flags |= RF_NO_SHADOW;
     }
@@ -344,109 +310,6 @@ static void V_ClearScene(void) {
     view_state.num_decals = 0;
     cl.viewDef.num_entities = 0;
     cl.viewDef.num_decals = 0;
-}
-
-static void CL_DebugEntityView(void) {
-    static BYTE prev_snapshot[MAX_CLIENT_ENTITIES];
-    static BYTE prev_view[MAX_CLIENT_ENTITIES];
-    static BYTE prev_mismatch[MAX_CLIENT_ENTITIES];
-    static BOOL initialized = false;
-    BYTE snapshot[MAX_CLIENT_ENTITIES];
-    BYTE view[MAX_CLIENT_ENTITIES];
-    BYTE mismatch[MAX_CLIENT_ENTITIES];
-    int debug_entities = Cvar_Integer("cl_debug_entities", 0);
-    DWORD snapshot_count = 0;
-    DWORD view_count = 0;
-    DWORD missing_model_handles = 0;
-
-    if (!debug_entities) {
-        initialized = false;
-        return;
-    }
-
-    memset(snapshot, 0, sizeof(snapshot));
-    memset(view, 0, sizeof(view));
-    memset(mismatch, 0, sizeof(mismatch));
-
-    FOR_LOOP(index, MAX_CLIENT_ENTITIES) {
-        centity_t const *ce = &cl.ents[index];
-
-        if (!ce->current.model) {
-            continue;
-        }
-        snapshot[index] = 1;
-        snapshot_count++;
-        if (ce->current.model >= MAX_MODELS || !cl.models[ce->current.model]) {
-            missing_model_handles++;
-        }
-    }
-    FOR_LOOP(index, view_state.num_entities) {
-        renderEntity_t const *ent = &view_state.entities[index];
-
-        if (ent->number < MAX_CLIENT_ENTITIES) {
-            view[ent->number] = 1;
-        }
-        view_count++;
-    }
-    FOR_LOOP(index, MAX_CLIENT_ENTITIES) {
-        centity_t const *ce = &cl.ents[index];
-
-        mismatch[index] = snapshot[index] && !view[index];
-        if (!initialized) {
-            continue;
-        }
-        if (prev_snapshot[index] && !snapshot[index]) {
-            fprintf(stderr, "CL view snapshot lost frame=%d ent=%u\n", cl.frame.serverframe, (unsigned)index);
-        } else if (!prev_snapshot[index] && snapshot[index]) {
-            fprintf(stderr,
-                    "CL view snapshot gained frame=%d ent=%u model=%u class=%u origin=(%.1f %.1f %.1f)\n",
-                    cl.frame.serverframe,
-                    (unsigned)index,
-                    (unsigned)ce->current.model,
-                    (unsigned)ce->current.class_id,
-                    ce->current.origin.x,
-                    ce->current.origin.y,
-                    ce->current.origin.z);
-        }
-        if (prev_view[index] && !view[index]) {
-            fprintf(stderr,
-                    "CL view render lost frame=%d ent=%u snapshot=%d model=%u class=%u\n",
-                    cl.frame.serverframe,
-                    (unsigned)index,
-                    snapshot[index] ? 1 : 0,
-                    (unsigned)ce->current.model,
-                    (unsigned)ce->current.class_id);
-        } else if (!prev_view[index] && view[index]) {
-            fprintf(stderr,
-                    "CL view render gained frame=%d ent=%u model=%u class=%u\n",
-                    cl.frame.serverframe,
-                    (unsigned)index,
-                    (unsigned)ce->current.model,
-                    (unsigned)ce->current.class_id);
-        }
-        if (debug_entities > 1 && mismatch[index] && !prev_mismatch[index]) {
-            fprintf(stderr,
-                    "CL view mismatch frame=%d ent=%u model=%u class=%u model_handle=%d\n",
-                    cl.frame.serverframe,
-                    (unsigned)index,
-                    (unsigned)ce->current.model,
-                    (unsigned)ce->current.class_id,
-                    ce->current.model < MAX_MODELS && cl.models[ce->current.model] ? 1 : 0);
-        }
-    }
-    if (debug_entities > 1) {
-        fprintf(stderr,
-                "CL view summary frame=%d snapshot=%u view=%u missing_model_handles=%u\n",
-                cl.frame.serverframe,
-                (unsigned)snapshot_count,
-                (unsigned)view_count,
-                (unsigned)missing_model_handles);
-    }
-
-    memcpy(prev_snapshot, snapshot, sizeof(prev_snapshot));
-    memcpy(prev_view, view, sizeof(prev_view));
-    memcpy(prev_mismatch, mismatch, sizeof(prev_mismatch));
-    initialized = true;
 }
 
 static void CL_AddBuilding(void) {
@@ -515,68 +378,21 @@ static void CL_AddEntities(void) {
     cl.viewDef.entities = view_state.entities;
     cl.viewDef.num_decals = view_state.num_decals;
     cl.viewDef.decals = view_state.decals;
-    CL_DebugEntityView();
 }
 
 void CL_PrepRefresh(void) {
-    static bool map_registered = false;
-    static bool map_load_announced = false;
-    static bool loading_complete_displayed = false;
-    static DWORD loading_settle_frames = 0;
-    static PATHSTR registered_map;
-    DWORD total_assets;
-    DWORD loaded_assets;
-
     if (!*cl.configstrings[CS_WORLD]) {
-        map_registered = false;
-        map_load_announced = false;
-        loading_complete_displayed = false;
-        loading_settle_frames = 0;
         world_loaded = false;
         begin_sent = false;
-        registered_map[0] = '\0';
-        CL_LoadingUpdate("Awaiting configstrings", 0.0f);
         return;
     }
 
-    if (strcmp(registered_map, cl.configstrings[CS_WORLD])) {
-        map_registered = false;
-        map_load_announced = false;
-        loading_complete_displayed = false;
-        loading_settle_frames = 0;
-        world_loaded = false;
-        begin_sent = false;
-        snprintf(registered_map, sizeof(registered_map), "%s", cl.configstrings[CS_WORLD]);
-    }
-
-    total_assets = 1 +
-                   CL_CountConfigstrings(CS_MODELS, MAX_MODELS) +
-                   CL_CountConfigstrings(CS_IMAGES, MAX_IMAGES) +
-                   CL_CountConfigstrings(CS_FONTS, MAX_FONTSTYLES);
-    loaded_assets = (map_registered ? 1 : 0) +
-                    CL_CountLoadedConfigstrings(CS_MODELS, MAX_MODELS, (HANDLE const *)cl.models) +
-                    CL_CountLoadedConfigstrings(CS_IMAGES, MAX_IMAGES, (HANDLE const *)cl.pics) +
-                    CL_CountLoadedConfigstrings(CS_FONTS, MAX_FONTSTYLES, (HANDLE const *)cl.fonts);
-
-    if (loaded_assets < total_assets) {
-        loading_complete_displayed = false;
-        loading_settle_frames = 0;
-    }
-    
-    if (!map_registered) {
-        if (!map_load_announced) {
-            CL_UpdateAssetLoadingProgress("Loading world", loaded_assets, total_assets);
-            map_load_announced = true;
-            return;
-        }
+    if (!world_loaded) {
         if (!CM_IsMapLoaded(cl.configstrings[CS_WORLD])) {
             CM_LoadMap(cl.configstrings[CS_WORLD]);
         }
         re.RegisterMap(cl.configstrings[CS_WORLD]);
-        map_registered = true;
         world_loaded = true;
-        CL_UpdateAssetLoadingProgress("Loading world", loaded_assets + 1, total_assets);
-        return;
     }
 
 #ifdef SC2
@@ -584,7 +400,6 @@ void CL_PrepRefresh(void) {
         sc2MapCamera_t map_camera;
         viewCamera_t camera = { 0 };
 
-        cls.state = ca_active;
         SC2_MapDefaultCamera(&map_camera);
         camera.origin = map_camera.target;
         camera.viewangles = (VECTOR3){ map_camera.pitch, map_camera.yaw, 0.0f };
@@ -600,24 +415,8 @@ void CL_PrepRefresh(void) {
         cl.playerstate.viewangles = camera.viewangles;
         cl.playerstate.viewquat = Quaternion_fromEuler(&camera.viewangles, ROTATE_ZYX);
     }
-
-    if (world_loaded && !begin_sent) {
-        CL_LoadingUpdate("Starting game", 1.0f);
-        CL_SendBegin();
-        begin_sent = true;
-        loading_complete_displayed = false;
-        loading_settle_frames = 0;
-        return;
-    }
-
-    if (world_loaded && cl.playerstate.client_ui_state == CLIENT_UI_LOADING) {
-        CL_LoadingUpdate("Entering game", 1.0f);
-        cl.playerstate.client_ui_state = CLIENT_UI_GAME;
-        CL_SetGameplayInput();
-    }
 #endif
-    
-    DWORD loaded_models_this_frame = 0;
+
     for (DWORD i = 1; i < MAX_MODELS; i++) {
         if (!*cl.configstrings[CS_MODELS + i])
             continue;
@@ -640,28 +439,16 @@ void CL_PrepRefresh(void) {
         if (portrait[0] && FS_FileExists(portrait)) {
             cl.portraits[i] = re.LoadModel(portrait);
         }
-        loaded_assets++;
-        loaded_models_this_frame++;
-        if (loaded_models_this_frame >= CL_MODEL_LOADS_PER_FRAME) {
-            CL_UpdateAssetLoadingProgress("Loading models", loaded_assets, total_assets);
-            return;
-        }
     }
-    if (loaded_models_this_frame > 0) {
-        CL_UpdateAssetLoadingProgress("Loading models", loaded_assets, total_assets);
-        return;
-    }
-    
+
     for (DWORD i = 1; i < MAX_IMAGES; i++) {
         if (!*cl.configstrings[CS_IMAGES + i])
             continue;
         if (cl.pics[i])
             continue;
         cl.pics[i] = re.LoadTexture(cl.configstrings[CS_IMAGES + i]);
-        CL_UpdateAssetLoadingProgress("Loading textures", loaded_assets + 1, total_assets);
-        return;
     }
-    
+
     for (DWORD i = 1; i < MAX_FONTSTYLES; i++) {
         if (!*cl.configstrings[CS_FONTS + i])
             continue;
@@ -677,40 +464,19 @@ void CL_PrepRefresh(void) {
         } else {
             cl.fonts[i] = re.LoadFont(cl.configstrings[CS_FONTS + i], 16);
         }
-        CL_UpdateAssetLoadingProgress("Loading fonts", loaded_assets + 1, total_assets);
-        return;
     }
 
-    /* Quake II sends "begin" after the client finishes precache. */
     if (world_loaded && !begin_sent) {
-        CL_LoadingUpdate("Starting game", 1.0f);
         CL_SendBegin();
         begin_sent = true;
-        loading_complete_displayed = false;
-        loading_settle_frames = 0;
-        return;
     }
 
-    if (world_loaded && cls.state == ca_active &&
-        cl.playerstate.client_ui_state == CLIENT_UI_LOADING) {
-        if (!loading_complete_displayed) {
-            CL_LoadingUpdate("Finishing", 1.0f);
-            loading_complete_displayed = true;
-            return;
-        }
-        if (loading_settle_frames < 3) {
-            loading_settle_frames++;
-            return;
-        }
-        CL_LoadingUpdate("Entering game", 1.0f);
-        cl.playerstate.client_ui_state = CLIENT_UI_GAME;
-        CL_SetGameplayInput();
+    if (world_loaded && !cl.refresh_prepped) {
+        cl.refresh_prepped = true;
     }
 }
 
 void V_RenderView(void) {
-    BOOL loading_screen = cl.playerstate.client_ui_state == CLIENT_UI_LOADING;
-
 #ifdef DEBUG_PATHFINDING
     extern LPCOLOR32 pathDebug;
     if (pathDebug)
@@ -718,7 +484,7 @@ void V_RenderView(void) {
 #endif
     
     static DWORD lastTime = 0;
-    if (!world_loaded || cls.state != ca_active || loading_screen) {
+    if (!world_loaded || cls.state != ca_active) {
         VECTOR3 target = { 0, 0, 90 };
 
         cl.viewDef.viewport = (RECT) { 0, 0, 1, 1 };

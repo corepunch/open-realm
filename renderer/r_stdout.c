@@ -278,18 +278,26 @@ static void RStd_DrawImageEx(LPCDRAWIMAGE drawImage) {
     }
     printf("draw_image texture=%u", drawImage->texture ? drawImage->texture->texid : 0);
     RStd_PrintName("name", RStd_HandleName(drawImage->texture));
-    printf(" shader=%u blend=%u rotate=%d angle=%.3f glow=%.3f",
+    printf(" shader=%u blend=%u angle=%.3f glow=%.3f",
            drawImage->shader,
            drawImage->alphamode,
-           drawImage->rotate,
            drawImage->angle,
            drawImage->uActiveGlow);
     RStd_PrintRect("screen", &drawImage->screen);
     RStd_PrintRect("uv", &drawImage->uv);
-    if (drawImage->hasClip) {
+    if (drawImage->flags & DRAW_CLIP) {
         RStd_PrintRect("clip", &drawImage->clip);
     }
     RStd_PrintColor(drawImage->color);
+    printf("\n");
+}
+
+static void RStd_DrawBackdrop(LPCDRAWBACKDROP db) {
+    if (!db) return;
+    printf("draw_backdrop screen=");
+    RStd_PrintRect("", &db->screen);
+    if (db->bg.texture) printf(" bg=%s", RStd_HandleName(db->bg.texture));
+    if (db->edge.texture) printf(" edge=%s", RStd_HandleName(db->edge.texture));
     printf("\n");
 }
 
@@ -316,19 +324,21 @@ static void RStd_DrawLoadingIndicator(LPCRECT rect, DWORD time, COLOR32 color) {
     printf("\n");
 }
 
-static void RStd_DrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim) {
-    printf("draw_portrait");
-    RStd_PrintName("model", RStd_HandleName((HANDLE)model));
-    RStd_PrintName("anim", anim);
-    RStd_PrintRect("viewport", viewport);
-    printf("\n");
-}
-
 static void RStd_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
     printf("draw_sprite");
     RStd_PrintName("model", RStd_HandleName((HANDLE)model));
     RStd_PrintName("anim", anim);
     printf(" x=%.6f y=%.6f\n", x, y);
+}
+
+static bool RStd_SetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
+    (void)model;
+    (void)anim;
+    if (!entity) {
+        return false;
+    }
+    entity->frame = 0; entity->oldframe = 0;
+    return true;
 }
 
 static DWORD RStd_VisibleTextLength(LPCSTR text) {
@@ -357,7 +367,7 @@ static VECTOR2 RStd_GetTextSize(LPCDRAWTEXT drawText) {
     FLOAT width = RStd_VisibleTextLength(drawText ? drawText->text : "") * size * 0.52f;
     FLOAT height = size;
 
-    if (drawText && drawText->wordWrap && drawText->textWidth > 0 && width > drawText->textWidth) {
+    if (drawText && (drawText->flags & DRAW_WORD_WRAP) && drawText->textWidth > 0 && width > drawText->textWidth) {
         DWORD lines = (DWORD)ceilf(width / drawText->textWidth);
         width = drawText->textWidth;
         height *= MAX(1, lines) * (drawText->lineHeight > 0 ? drawText->lineHeight : 1.0f);
@@ -381,9 +391,9 @@ static void RStd_DrawText(LPCDRAWTEXT drawText) {
                size.y,
                drawText->halign,
                drawText->valign,
-               drawText->wordWrap);
+               (drawText->flags & DRAW_WORD_WRAP) != 0);
         RStd_PrintRect("rect", &drawText->rect);
-        if (drawText->hasClip) {
+        if (drawText->flags & DRAW_CLIP) {
             RStd_PrintRect("clip", &drawText->clip);
         }
         RStd_PrintColor(drawText->color);
@@ -464,10 +474,11 @@ refExport_t R_StdoutGetAPI(refImport_t imp) {
         .DrawPic = RStd_DrawPic,
         .DrawImage = RStd_DrawImage,
         .DrawImageEx = RStd_DrawImageEx,
+        .DrawBackdrop = RStd_DrawBackdrop,
         .DrawMinimap = RStd_DrawMinimap,
         .DrawLoadingIndicator = RStd_DrawLoadingIndicator,
-        .DrawPortrait = RStd_DrawPortrait,
         .DrawSprite = RStd_DrawSprite,
+        .SetEntityAnimFrame = RStd_SetEntityAnimFrame,
         .DrawText = RStd_DrawText,
         .GetTextSize = RStd_GetTextSize,
         .GetModelInfo = RStd_GetModelInfo,

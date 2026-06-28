@@ -31,15 +31,12 @@ static VECTOR2 fake_text_size;
 static HANDLE test_mpq_archive;
 static BOOL hide_expansion_campaign_file;
 static BOOL test_fs_expansion;
+static VECTOR2 test_mouse_pos;
+static PLAYERSTATE test_player_state;
 
 static int fake_image_index(LPCSTR name) {
     captured_image_path = name;
     return (name && *name) ? 123 : 0;
-}
-
-static int fake_model_index(LPCSTR name) {
-    captured_model_path = name;
-    return (name && *name) ? 456 : 0;
 }
 
 static void parse_fdf(const char *name, const char *src) {
@@ -108,10 +105,6 @@ static int test_image_index(LPCSTR name) {
     return (name && *name) ? 123 : 0;
 }
 
-static int test_model_index(LPCSTR name) {
-    return (name && *name) ? 456 : 0;
-}
-
 static LPTEXTURE test_load_texture(LPCSTR name) {
     LPTEXTURE texture = (LPTEXTURE)(uintptr_t)(++fake_texture_id);
 
@@ -138,12 +131,23 @@ static VECTOR2 test_get_text_size(LPCDRAWTEXT draw_text) {
     return fake_text_size;
 }
 
+static VECTOR2 test_ui_get_mouse_fdf(void) {
+    return test_mouse_pos;
+}
+
 static void test_draw_text(LPCDRAWTEXT draw_text) {
     if (captured_text_draws < sizeof(captured_text_rects) / sizeof(captured_text_rects[0]) &&
         draw_text) {
         captured_text_rects[captured_text_draws] = draw_text->rect;
     }
     captured_text_draws++;
+}
+
+static void test_draw_backdrop(LPCDRAWBACKDROP draw_backdrop) {
+    captured_draw_calls++;
+    if (draw_backdrop && draw_backdrop->bg.texture == hover_texture) {
+        captured_hover_draws++;
+    }
 }
 
 static void test_draw_image_ex(LPCDRAWIMAGE draw_image) {
@@ -182,6 +186,7 @@ static LPRENDERER test_get_renderer(void) {
         .LoadFont = test_load_font,
         .GetWindowSize = test_get_window_size,
         .DrawImageEx = test_draw_image_ex,
+        .DrawBackdrop = test_draw_backdrop,
         .DrawText = test_draw_text,
         .DrawSprite = test_draw_sprite,
         .GetTextSize = test_get_text_size,
@@ -226,6 +231,10 @@ static LPCSTR test_cvar_string(LPCSTR name, LPCSTR fallback) {
     return fallback;
 }
 
+static LPCPLAYER test_get_player_state(void) {
+    return (LPCPLAYER)&test_player_state;
+}
+
 static void load_ui_file(LPCSTR file_name) {
     uiImport_t saved = uiimport;
 
@@ -236,10 +245,10 @@ static void load_ui_file(LPCSTR file_name) {
     uiimport.MemAlloc = test_ui_mem_alloc;
     uiimport.MemFree = test_ui_mem_free;
     uiimport.ImageIndex = test_image_index;
-    uiimport.ModelIndex = test_model_index;
     uiimport.FontIndex = test_font_index;
+    uiimport.GetPlayerState = test_get_player_state;
+    uiimport.GetRenderer = test_get_renderer;
     uiimport.Printf = test_ui_printf;
-    uiimport.Error = test_ui_printf;
     UI_ParseFDF(file_name);
     uiimport = saved;
 }
@@ -254,10 +263,10 @@ static void load_ui_files(LPCSTR const *file_names, size_t count) {
     uiimport.MemAlloc = test_ui_mem_alloc;
     uiimport.MemFree = test_ui_mem_free;
     uiimport.ImageIndex = test_image_index;
-    uiimport.ModelIndex = test_model_index;
     uiimport.FontIndex = test_font_index;
+    uiimport.GetPlayerState = test_get_player_state;
+    uiimport.GetRenderer = test_get_renderer;
     uiimport.Printf = test_ui_printf;
-    uiimport.Error = test_ui_printf;
     for (size_t i = 0; i < count; i++) {
         UI_ParseFDF(file_names[i]);
     }
@@ -281,16 +290,20 @@ static void reset_ui_state(void) {
     captured_hover_draws = 0;
     memset(captured_text_rects, 0, sizeof(captured_text_rects));
     fake_text_size = MAKE(VECTOR2, 0.050f, 0.016f);
-    memset(&ui_mouse, 0, sizeof(ui_mouse));
+    test_mouse_pos = MAKE(VECTOR2, 0, 0);
+    memset(&test_player_state, 0, sizeof(test_player_state));
     UI_ClearEditFocus();
+    /* UI_MouseEventLocal returns early unless the UI is marked active. */
+    UI_SetActive(true);
     uiimport.MemAlloc = test_ui_mem_alloc;
     uiimport.MemFree = test_ui_mem_free;
+    uiimport.FS_ReadFile = test_fs_read_file;
+    uiimport.FS_FreeFile = test_fs_free_file;
     uiimport.ImageIndex = fake_image_index;
-    uiimport.ModelIndex = fake_model_index;
     uiimport.FontIndex = test_font_index;
     uiimport.GetRenderer = test_get_renderer;
+    uiimport.GetPlayerState = test_get_player_state;
     uiimport.Printf = test_ui_printf;
-    uiimport.Error = test_ui_printf;
 }
 
 static void test_parse_single_frame_definition(void) {
@@ -1249,19 +1262,54 @@ static void test_glue_checkbox_toggles_and_draws_check_highlight(void) {
     ASSERT(!checkbox->CheckBox.Checked);
     ASSERT_EQ_INT(captured_draw_calls, 1);
 
-    ui_mouse.x = 130;
-    ui_mouse.y = 130;
-    ui_mouse.event = UI_MOUSE_LEFT_UP;
+    test_mouse_pos.x = 130;
+    test_mouse_pos.y = 130;
+    UI_MouseEventLocal(UI_MOUSE_UP, 130, 130, 1);
     captured_draw_calls = 0;
     UI_DrawFrame(root);
     ASSERT(checkbox->CheckBox.Checked);
     ASSERT_EQ_INT(captured_draw_calls, 2);
 
-    ui_mouse.event = UI_MOUSE_LEFT_UP;
+    UI_MouseEventLocal(UI_MOUSE_UP, 130, 130, 1);
     captured_draw_calls = 0;
     UI_DrawFrame(root);
     ASSERT(!checkbox->CheckBox.Checked);
     ASSERT_EQ_INT(captured_draw_calls, 1);
+}
+
+static void test_popup_menu_hover_sets_flag_on_middle_row(void) {
+    LPFRAMEDEF root;
+    LPFRAMEDEF popup;
+
+    reset_ui_state();
+    parse_fdf("popup_hover.fdf",
+              "Frame \"FRAME\" \"Root\" {"
+              " Width 0.8, Height 0.6,"
+              " Frame \"POPUPMENU\" \"GameMenu\" {"
+              "  Width 0.18, Height 0.025,"
+              "  SetPoint TOPLEFT, \"Root\", TOPLEFT, 0.1, 0.1,"
+              " }"
+              "}");
+
+    root = UI_FindFrame("Root");
+    popup = UI_FindFrame("GameMenu");
+    if (!require_not_null(root)) return;
+    if (!require_not_null(popup)) return;
+
+    /* Draw once to populate layout rects */
+    UI_DrawFrame(root);
+
+    /* The popup is at (0.1, 0.1) with size (0.18, 0.025) in FDF coords.
+     * Window is 1000x750, scene is (0,0,0.8,0.6).
+     * pixel = fdf * (1000/0.8, 750/0.6). */
+    FLOAT mid_x = 0.1f + 0.18f * 0.5f;  /* 0.19 */
+    FLOAT mid_y = 0.1f + 0.025f * 0.5f; /* 0.1125 */
+    int px = (int)(mid_x / 0.8f * 1000.0f);
+    int py = (int)(mid_y / 0.6f * 750.0f);
+
+    UI_MouseEventLocal(UI_MOUSE_MOVE, px, py, 0);
+
+    ASSERT(popup->ui_flags & UIFLAG_HOVERED);
 }
 
 static void test_button1_dropdown_backdrop_gets_hover_highlight(void) {
@@ -1291,8 +1339,9 @@ static void test_button1_dropdown_backdrop_gets_hover_highlight(void) {
     if (!require_not_null(root)) return;
     ASSERT_NOT_NULL(hover_texture);
 
-    ui_mouse.x = 130;
-    ui_mouse.y = 130;
+    test_mouse_pos.x = 130;
+    test_mouse_pos.y = 130;
+    UI_MouseEventLocal(UI_MOUSE_MOVE, 130, 130, 0);
     captured_hover_draws = 0;
     UI_DrawFrame(root);
 
@@ -1340,11 +1389,9 @@ static void test_editbox_without_text_frame_click_focus_accepts_text_input(void)
     if (!require_not_null(root)) return;
     if (!require_not_null(editbox)) return;
 
-    ui_mouse.x = 130;
-    ui_mouse.y = 130;
-    ui_mouse.event = UI_MOUSE_LEFT_DOWN;
-    ui_mouse.button = 1;
-    ui_mouse.down = true;
+    test_mouse_pos.x = 130;
+    test_mouse_pos.y = 130;
+    UI_MouseEventLocal(UI_MOUSE_DOWN, 130, 130, 1);
     UI_DrawFrame(root);
 
     ASSERT(UI_EditHasFocus(editbox));
@@ -1368,6 +1415,7 @@ static void test_options_game_port_enter_applies_and_blurs(void) {
     memset(&uiimport, 0, sizeof(uiimport));
     uiimport.Printf = test_ui_printf;
     uiimport.GetRenderer = test_get_renderer;
+    uiimport.GetPlayerState = test_get_player_state;
     uiimport.Cmd_ExecuteText = test_cmd_execute_text;
     uiimport.Cvar_String = test_cvar_string;
     captured_command[0] = '\0';
@@ -1387,11 +1435,9 @@ static void test_options_game_port_enter_applies_and_blurs(void) {
     }
 
     UI_SetEditValue(editbox, "27911");
-    ui_mouse.x = 130;
-    ui_mouse.y = 130;
-    ui_mouse.event = UI_MOUSE_LEFT_DOWN;
-    ui_mouse.button = 1;
-    ui_mouse.down = true;
+    test_mouse_pos.x = 130;
+    test_mouse_pos.y = 130;
+    UI_MouseEventLocal(UI_MOUSE_DOWN, 130, 130, 1);
     UI_DrawFrame(root);
     ASSERT(UI_EditHasFocus(editbox));
 
@@ -1542,6 +1588,7 @@ static void test_main_menu_quit_dialog_commands_quit(void) {
     memset(&uiimport, 0, sizeof(uiimport));
     uiimport.Printf = test_ui_printf;
     uiimport.GetRenderer = test_get_renderer;
+    uiimport.GetPlayerState = test_get_player_state;
     uiimport.Cmd_ExecuteText = test_cmd_execute_text;
     captured_command[0] = '\0';
 
@@ -1649,6 +1696,7 @@ static void test_main_menu_realm_select_uses_realm_panel_anim(void) {
     memset(&uiimport, 0, sizeof(uiimport));
     uiimport.Printf = test_ui_printf;
     uiimport.GetRenderer = test_get_renderer;
+    uiimport.GetPlayerState = test_get_player_state;
 
     ASSERT(mainMenuScreen.load());
     mainMenuScreen.init();
@@ -1683,6 +1731,7 @@ static void test_single_player_campaign_profile(BOOL tft) {
     memset(&uiimport, 0, sizeof(uiimport));
     uiimport.Printf = test_ui_printf;
     uiimport.GetRenderer = test_get_renderer;
+    uiimport.GetPlayerState = test_get_player_state;
     uiimport.Cmd_ExecuteText = test_cmd_execute_text;
     uiimport.Cvar_String = test_cvar_string;
     uiimport.FS_ReadFile = test_fs_read_file;
@@ -1802,10 +1851,8 @@ static void test_utf16le_fdf_is_parsed_correctly(void) {
     uiimport.MemAlloc = test_ui_mem_alloc;
     uiimport.MemFree = test_ui_mem_free;
     uiimport.ImageIndex = fake_image_index;
-    uiimport.ModelIndex = fake_model_index;
     uiimport.FontIndex = test_font_index;
     uiimport.Printf = test_ui_printf;
-    uiimport.Error = test_ui_printf;
 
     UI_ParseFDF("utf16le_test.fdf");
     uiimport = saved;
@@ -1861,6 +1908,7 @@ BEGIN_SUITE(ui_fdf)
     RUN_TEST(test_single_line_text_auto_height_uses_fdf_font_size);
     RUN_TEST(test_glue_checkbox_toggles_and_draws_check_highlight);
     RUN_TEST(test_button1_dropdown_backdrop_gets_hover_highlight);
+    RUN_TEST(test_popup_menu_hover_sets_flag_on_middle_row);
     RUN_TEST(test_backdrop_edge_without_corner_size_logs_error);
     RUN_TEST(test_editbox_without_text_frame_click_focus_accepts_text_input);
     RUN_TEST(test_esc_menu_confirm_quit_panel_is_available);

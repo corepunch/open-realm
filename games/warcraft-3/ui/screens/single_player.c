@@ -253,7 +253,7 @@ static BOOL SinglePlayer_LoadCampaignFile(LPCSTR file_name) {
     void *buffer = NULL;
     UINAME section = "";
     singlePlayerCampaign_t *campaign = NULL;
-    int size = uiimport.FS_ReadFile ? uiimport.FS_ReadFile(file_name, &buffer) : -1;
+    int size = uiimport.FS_ReadFile(file_name, &buffer);
     if (size <= 0 || !buffer) {
         return false;
     }
@@ -331,7 +331,7 @@ static void SinglePlayer_FinalizeCampaignOrder(void) {
 }
 
 static BOOL SinglePlayer_ExpansionEnabled(void) {
-    LPCSTR value = uiimport.Cvar_String ? uiimport.Cvar_String("fs_expansion", "0") : "0";
+    LPCSTR value = uiimport.Cvar_String("fs_expansion", "0");
     return value && atoi(value) != 0;
 }
 
@@ -414,12 +414,23 @@ static void SinglePlayer_SetCampaignBackdrop(singlePlayerCampaign_t const *campa
 }
 
 static void SinglePlayer_DrawCampaignBackdrop(void) {
-    LPRENDERER renderer = uiimport.GetRenderer ? uiimport.GetRenderer() : NULL;
+    LPRENDERER renderer = uiimport.GetRenderer();
     LPCMODEL model = UI_GetModel(campaign_background_model);
-    RECT viewport = { 0, 0, 1, 1 };
 
-    if (renderer && renderer->DrawPortrait && model) {
-        renderer->DrawPortrait(model, &viewport, "Stand");
+    if (renderer && renderer->RenderFrame && model) {
+        renderEntity_t entity = {0};
+        entity.model = model;
+        entity.scale = 1.0f;
+        entity.flags = RF_NO_SHADOW | RF_NO_FOGOFWAR | RF_PORTRAIT_LIGHTING;
+        renderer->SetEntityAnimFrame(model, "Stand", &entity);
+
+        viewDef_t viewdef = {0};
+        viewdef.viewport = (RECT){0, 0, 1, 1};
+        viewdef.rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL | RDF_NOFOG | RDF_USE_ENTITY_CAMERA;
+        viewdef.num_entities = 1;
+        viewdef.entities = &entity;
+
+        renderer->RenderFrame(&viewdef);
     }
 }
 
@@ -583,12 +594,6 @@ static void SinglePlayerMenu_KeyEvent(int key, BOOL down) {
     (void)down;
 }
 
-static void SinglePlayerMenu_MouseEvent(int x, int y, int buttons) {
-    (void)x;
-    (void)y;
-    (void)buttons;
-}
-
 void SinglePlayerMenu_ShowMain(void) {
     SinglePlayer_SetView(SINGLE_PLAYER_VIEW_MAIN);
 }
@@ -626,5 +631,4 @@ uiScreen_t singlePlayerMenuScreen = {
     .refresh = SinglePlayerMenu_Refresh,
     .draw = SinglePlayerMenu_Draw,
     .key_event = SinglePlayerMenu_KeyEvent,
-    .mouse_event = SinglePlayerMenu_MouseEvent,
 };

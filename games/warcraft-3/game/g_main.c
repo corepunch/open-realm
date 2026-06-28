@@ -172,6 +172,8 @@ static void G_InitGame(void) {
     game.config.uberSplats = FS_ParseSLK("Splats\\UberSplatData.slk");
     game.config.abilities = FS_ParseSLK("Units\\AbilityData.slk");
     game.config.items = FS_ParseSLK("Units\\ItemData.slk");
+    game.config.unitAckSounds = FS_ParseSLK("UI\\SoundInfo\\UnitAckSounds.slk");
+    game.config.unitCombatSounds = FS_ParseSLK("UI\\SoundInfo\\UnitCombatSounds.slk");
     InitConstants();
     InitUnitData();
     InitAbilities();
@@ -273,6 +275,17 @@ static void G_RunClients(void) {
             client->ps.fov = client->camera.state.fov;
             client->ps.distance = client->camera.state.target_distance;
         }
+        /* Auto-clear cinematic scene when its duration expires.
+         * Blizzard.j TransmissionFromUnitWithNameBJ never calls
+         * EndCinematicScene; the original WC3 engine times out via the
+         * sceneDuration parameter of SetCinematicScene. */
+        if (client->cinematic_end_time && gi.GetTime() >= client->cinematic_end_time) {
+            client->ps.texts[PLAYERTEXT_SPEAKER] = "";
+            client->ps.texts[PLAYERTEXT_DIALOGUE] = "";
+            client->ps.cinematic_portrait = 0;
+            client->cinematic_end_time = 0;
+            UI_WriteCinematicLayer(G_GetPlayerEntityByNumber(client->ps.number));
+        }
         client->ps.cinefade = cinefade;
     }
 }
@@ -306,6 +319,7 @@ static void G_RunFrame(void) {
     G_RunEntities();
 
     G_UpdateClientInfoPanels();
+    G_UpdateClientResourceBars();
 
     G_SolveCollisions();
     G_FowUpdate();

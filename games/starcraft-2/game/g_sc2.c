@@ -2,7 +2,9 @@
 #include "games/starcraft-2/common/sc2_map.h"
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 #include <strings.h>
+#include <math.h>
 
 #define SC2_MOVE_SPEED  6.0f
 #define SC2_MOVE_CLOSE  4.0f
@@ -27,9 +29,8 @@ typedef struct {
 static sc2MoveState_t sc2_move[SC2_MAX_EDICTS];
 
 static BOOL SC2_ObjectIsMobile(sc2MapObject_t const *object) {
-    if (!object || object->type != SC2_OBJECT_UNIT) {
+    if (!object || object->type != SC2_OBJECT_UNIT)
         return false;
-    }
     if (object->mover[0]) {
         return strcasecmp(object->mover, "None") &&
                strcasecmp(object->mover, "Stationary");
@@ -37,9 +38,8 @@ static BOOL SC2_ObjectIsMobile(sc2MapObject_t const *object) {
     if (object->unit_flags & SC2_UNIT_FLAG_MOVABLE) {
         return true;
     }
-    if (strstr(object->name, "CommandCenter") || strstr(object->model, "CommandCenter")) {
+    if (strstr(object->name, "CommandCenter") || strstr(object->model, "CommandCenter"))
         return false;
-    }
     return true;
 }
 
@@ -354,9 +354,11 @@ static void SC2_SpawnEntities(void) {
         ent->s.player = object->player;
         ent->s.model = G_RegisterModel(object->model);
         ent->collision = SC2_ObjectCollisionRadius(object, ent->s.radius);
-        if (SC2_ObjectIsMobile(object)) {
+        ent->mobile = SC2_ObjectIsMobile(object);
+        ent->move_speed = SC2_MOVE_SPEED;
+        ent->move_last_distance = -1;
+        if (ent->mobile)
             ent->svflags |= SVF_MONSTER;
-        }
         number = (DWORD)(ent - sc2_edicts);
         sc2_move[number].mobile = (ent->svflags & SVF_MONSTER) != 0;
         sc2_move[number].speed = SC2_MOVE_SPEED;

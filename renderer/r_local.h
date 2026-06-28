@@ -146,6 +146,7 @@ enum {
     TEX_FONT,
     TEX_WHITE,
     TEX_BLACK,
+    TEX_PLACEHOLDER,
     TEX_BLOB_SHADOW,
     TEX_LOADING_INDICATOR,
     TEX_TERRAIN_SHADOW,
@@ -214,10 +215,11 @@ void R_DrawTerrainShadows(void);
 bool MDLX_TraceModel(renderEntity_t const *edict, LPCLINE3 line);
 void R_ReleaseVertexArrayObject(LPBUFFER buffer);
 LPCTEXTURE R_FindTextureByID(DWORD textureID);
-void R_DrawPortrait(LPCMODEL model, LPCRECT viewport, LPCSTR anim);
 void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y);
+bool R_SetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity);
 void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture, LPCSHADER shader, COLOR32 color);
 void R_DrawHealthBars(void);
+void R_DrawBackdrop(LPCDRAWBACKDROP drawBackdrop);
 void R_RenderRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, LPCSHADER shader, COLOR32 color);
 void R_RenderFlatRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, FLOAT z, LPCTEXTURE texture, LPCSHADER shader, COLOR32 color);
 
@@ -245,6 +247,7 @@ LPMODEL R_LoadModel(LPCSTR modelFilename);
 void R_ReleaseModel(LPMODEL model);
 
 size2_t R_GetWindowSize(void);
+size2_t R_GetTextureSize(LPCTEXTURE texture);
 
 // r_buffer.c
 VERTEX *R_AddQuad(VERTEX *buffer, LPCRECT screen, LPCRECT uv, COLOR32 color, float z);
@@ -286,6 +289,7 @@ void R_InitFogOfWar(DWORD width, DWORD height);
 void R_ShutdownFogOfWar(void);
 void R_RenderFogOfWar(void);
 DWORD R_GetFogOfWarTexture(void);
+DWORD R_GetMinimapFogOfWarTexture(void);
 void R_SetFogOfWarData(DWORD width, DWORD height, BYTE const *data);
 
 // r_particles.c

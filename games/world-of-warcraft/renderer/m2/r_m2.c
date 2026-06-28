@@ -1,4 +1,5 @@
 #include "renderer/r_local.h"
+#include <stdlib.h>
 #include <strings.h>
 
 #define M2_MAX_BONES_PER_BATCH 64
@@ -113,6 +114,26 @@ typedef struct {
 } m2AttachmentClassic_t;
 
 typedef struct {
+    DWORD camera_id;
+    FLOAT fov, far_clip, near_clip;
+    m2Track_t position_track;
+    VECTOR3 position_pivot;
+    m2Track_t target_track;
+    VECTOR3 target_pivot;
+    m2Track_t roll_track;
+} m2CameraModern_t;
+
+typedef struct {
+    DWORD camera_id;
+    FLOAT fov, far_clip, near_clip;
+    m2TrackClassic_t position_track;
+    VECTOR3 position_pivot;
+    m2TrackClassic_t target_track;
+    VECTOR3 target_pivot;
+    m2TrackClassic_t roll_track;
+} m2CameraClassic_t;
+
+typedef struct {
     DWORD bone_id;
     DWORD flags;
     WORD parent_index;
@@ -143,6 +164,9 @@ typedef struct {
     m2Array_t sequence_times;
     m2Array_t sequence_keys;
 } m2TrackView_t;
+
+static m2TrackView_t M2_ModernTrackView(m2Track_t const *track);
+static m2TrackView_t M2_ClassicTrackView(m2TrackClassic_t const *track);
 
 typedef struct {
     DWORD magic;
@@ -176,6 +200,13 @@ typedef struct {
     m2Array_t collision_normals;
     m2Array_t attachments;
     m2Array_t attachment_lookup;
+    m2Array_t events;
+    m2Array_t lights;
+    m2Array_t cameras;
+    m2Array_t camera_lookup;
+    m2Array_t ribbons;
+    m2Array_t particles;
+    m2Array_t texture_combiner_combos;
 } m2Header_t;
 
 typedef struct {
@@ -212,6 +243,12 @@ typedef struct {
     m2Array_t collision_normals;
     m2Array_t attachments;
     m2Array_t attachment_lookup;
+    m2Array_t events;
+    m2Array_t lights;
+    m2Array_t cameras;
+    m2Array_t camera_lookup;
+    m2Array_t ribbons;
+    m2Array_t particles;
 } m2HeaderLegacy_t;
 
 typedef struct {
@@ -303,16 +340,25 @@ typedef struct m2ModelBatch_s {
     WORD bone_count;
     WORD bone_combo_index;
     WORD section_id;
+    WORD geoset_index;
     BYTE character_texture_slot;
     BOOL character_texture_loaded;
     struct m2ModelBatch_s *next;
 } m2ModelBatch_t;
 
+#define M2_NUM_GEOSET_GROUPS 16
+
 typedef struct {
     LPCSTR texture[M2_CHAR_TEX_COUNT];
-    DWORD geoset_group[3];
+    DWORD geoset[M2_NUM_GEOSET_GROUPS];
     DWORD flags;
 } m2CharacterOutfit_t;
+
+enum { M2_COMPOSITE_CACHE_SIZE = 4 };
+typedef struct {
+    LPTEXTURE texture;
+    DWORD key;
+} m2CompositeCacheEntry_t;
 
 struct m2Model_s {
     m2ModelBatch_t *batches;
@@ -322,8 +368,8 @@ struct m2Model_s {
     BOX3 geometry_bounds;
     BOOL has_geometry_bounds;
     BOOL character_model;
-    LPTEXTURE character_composite;
-    DWORD character_composite_key;
+    m2CompositeCacheEntry_t composite_cache[M2_COMPOSITE_CACHE_SIZE];
+    DWORD composite_cache_lru;
     m2CharacterOutfit_t character_outfit;
     DWORD character_outfit_appearance;
     DWORD character_outfit_equipment;
@@ -347,6 +393,10 @@ struct m2Model_s {
     m2Array_t attachment_lookup;
     DWORD attachment_stride;
     BOOL classic_attachments;
+    BYTE *cameras;
+    DWORD camera_count;
+    DWORD camera_stride;
+    BOOL classic_cameras;
     MATRIX4 *bone_matrices;
 };
 
@@ -372,8 +422,7 @@ static LPCSTR m2_vs =
 #endif
 "out vec2 v_texcoord;\n"
 "out vec2 v_texcoord2;\n"
-"out vec3 v_normal;\n"
-"out vec3 v_lightDir;\n"
+"out float v_light;\n"
 "out vec4 v_color;\n"
 "uniform mat4 uViewProjectionMatrix;\n"
 "uniform mat4 uTextureMatrix;\n"
@@ -404,12 +453,13 @@ static LPCSTR m2_vs =
 "    vec4 pos = uModelMatrix * local;\n"
 "    v_texcoord = i_texcoord;\n"
 "    v_texcoord2 = (uTextureMatrix * pos).xy;\n"
-"    v_normal = normalize(uNormalMatrix * skin_normal(vec4(i_normal, 0.0)));\n"
+"    vec3 normal = normalize(uNormalMatrix * skin_normal(vec4(i_normal, 0.0)));\n"
+"    vec3 lightDir = -normalize(vec3(uLightMatrix[0][2], uLightMatrix[1][2], uLightMatrix[2][2]))*1.2;\n"
+"    v_light = clamp(dot(normal, lightDir), 0.0, 1.0);\n"
 #ifdef USE_SHADOWMAPS
 "    v_shadow = uLightMatrix * pos;\n"
 #endif
 "    v_color = i_color;\n"
-"    v_lightDir = -normalize(vec3(uLightMatrix[0][2], uLightMatrix[1][2], uLightMatrix[2][2]))*1.2;\n"
 "    gl_Position = uViewProjectionMatrix * pos;\n"
 "}\n";
 
@@ -420,18 +470,14 @@ static LPCSTR m2_fs =
 #ifdef USE_SHADOWMAPS
 "in vec4 v_shadow;\n"
 #endif
-"in vec3 v_normal;\n"
+"in float v_light;\n"
 "in vec4 v_color;\n"
-"in vec3 v_lightDir;\n"
 "out vec4 o_color;\n"
 "uniform sampler2D uTexture;\n"
 #if defined(USE_SHADOWMAPS) || defined(DEBUG_PATHFINDING)
 "uniform sampler2D uShadowmap;\n"
 #endif
 "uniform sampler2D uFogOfWar;\n"
-"float get_light() {\n"
-"    return clamp(dot(v_normal, v_lightDir), 0.0, 1.0);\n"
-"}\n"
 #ifdef USE_SHADOWMAPS
 "float get_shadow() {\n"
 "    float depth = texture(uShadowmap, vec2(v_shadow.x + 1.0, v_shadow.y + 1.0) * 0.5).r;\n"
@@ -440,9 +486,9 @@ static LPCSTR m2_fs =
 #endif
 "float get_lighting() {\n"
 #ifdef USE_SHADOWMAPS
-"    return mix(0.5, 1.0, get_shadow() * get_light());"
+"    return mix(0.5, 1.0, get_shadow() * v_light);"
 #else
-"    return mix(0.5, 1.0, get_light());"
+"    return mix(0.5, 1.0, v_light);"
 #endif
 "}\n"
 "float get_fogofwar() {\n"
@@ -594,6 +640,7 @@ typedef struct {
 
 static m2Dbc_t m2_char_start_outfit_dbc;
 static m2Dbc_t m2_item_display_info_dbc;
+static m2Dbc_t m2_char_sections_dbc;
 
 static DWORD M2_Read32(BYTE const *p) {
     return ((DWORD)p[0]) | ((DWORD)p[1] << 8) | ((DWORD)p[2] << 16) | ((DWORD)p[3] << 24);
@@ -753,7 +800,39 @@ static DWORD M2_ItemDisplayInfoFlagsField(m2Dbc_t const *dbc) {
     return dbc->fields >= 25 ? 10 : 9;
 }
 
-static void M2_AddDisplayInfoToOutfit(m2CharacterOutfit_t *outfit, DWORD display_id) {
+enum {
+    M2_SLOT_NONE,
+    M2_SLOT_HEAD,
+    M2_SLOT_SHOULDERS,
+    M2_SLOT_CHEST,
+    M2_SLOT_SHIRT,
+    M2_SLOT_BELT,
+    M2_SLOT_LEGS,
+    M2_SLOT_BOOTS,
+    M2_SLOT_GLOVES,
+    M2_SLOT_TABARD,
+    M2_SLOT_CAPE,
+    M2_SLOT_COUNT
+};
+
+// Maps (slot, geosetFieldIndex) → M2 section group number.
+// geosetFieldIndex 0/1/2 correspond to geosetGroup[0]/[1]/[2] from ItemDisplayInfo.dbc.
+// Group 0 means "no group mapping" for that field.
+static DWORD const slot_geoset_group_map[M2_SLOT_COUNT][3] = {
+    /* NONE */      { 0, 0, 0 },
+    /* HEAD */      { 0, 0, 0 },
+    /* SHOULDERS */ { 0, 0, 0 },
+    /* CHEST */     { 8, 0, 12 },
+    /* SHIRT */     { 8, 0, 0 },
+    /* BELT */      { 0, 0, 0 },
+    /* LEGS */      { 0, 9, 13 },
+    /* BOOTS */     { 5, 0, 0 },
+    /* GLOVES */    { 4, 0, 0 },
+    /* TABARD */    { 0, 0, 0 },
+    /* CAPE */      { 15, 0, 0 },
+};
+
+static void M2_AddDisplayInfoToOutfit(m2CharacterOutfit_t *outfit, DWORD display_id, DWORD slot) {
     BYTE const *record;
     DWORD texture_base;
     DWORD geoset_base;
@@ -774,9 +853,12 @@ static void M2_AddDisplayInfoToOutfit(m2CharacterOutfit_t *outfit, DWORD display
     flags_field = M2_ItemDisplayInfoFlagsField(&m2_item_display_info_dbc);
 
     FOR_LOOP(i, 3) {
-        DWORD geoset_group = M2_DbcField(&m2_item_display_info_dbc, record, geoset_base + i);
-        if (geoset_group) {
-            outfit->geoset_group[i] = geoset_group;
+        DWORD group = (slot < M2_SLOT_COUNT) ? slot_geoset_group_map[slot][i] : 0;
+        if (group) {
+            DWORD geoset_val = M2_DbcField(&m2_item_display_info_dbc, record, geoset_base + i);
+            if (geoset_val) {
+                outfit->geoset[group] = geoset_val;
+            }
         }
     }
     outfit->flags |= M2_DbcField(&m2_item_display_info_dbc, record, flags_field);
@@ -790,10 +872,11 @@ static void M2_AddDisplayInfoToOutfit(m2CharacterOutfit_t *outfit, DWORD display
 }
 
 static void M2_AddDisplayInfoListToOutfit(m2CharacterOutfit_t *outfit,
-                                          DWORD const *display_ids,
-                                          DWORD display_count) {
+                                           DWORD const *display_ids,
+                                           DWORD display_count,
+                                           DWORD slot) {
     FOR_LOOP(i, display_count) {
-        M2_AddDisplayInfoToOutfit(outfit, display_ids[i]);
+        M2_AddDisplayInfoToOutfit(outfit, display_ids[i], slot);
     }
 }
 
@@ -825,7 +908,8 @@ static void M2_AddEquipmentItemToOutfit(m2CharacterOutfit_t *outfit,
                                         DWORD list_count,
                                         DWORD race_id,
                                         DWORD gender_id,
-                                        BYTE item_index) {
+                                        BYTE item_index,
+                                        DWORD slot) {
     m2EquipmentItem_t const *item = M2_EquipmentSlotItem(lists, list_count, race_id, gender_id, item_index);
 
     if (!outfit || !item) {
@@ -833,7 +917,8 @@ static void M2_AddEquipmentItemToOutfit(m2CharacterOutfit_t *outfit,
     }
     M2_AddDisplayInfoListToOutfit(outfit,
                                   item->display_ids,
-                                  sizeof(item->display_ids) / sizeof(item->display_ids[0]));
+                                  sizeof(item->display_ids) / sizeof(item->display_ids[0]),
+                                  slot);
 }
 
 static void M2_ApplyEquipmentItems(m2CharacterOutfit_t *outfit,
@@ -856,16 +941,16 @@ static void M2_ApplyEquipmentItems(m2CharacterOutfit_t *outfit,
 
     M2_AddEquipmentItemToOutfit(outfit, upper_body_items,
                                 sizeof(upper_body_items) / sizeof(upper_body_items[0]),
-                                race_id, gender_id, items.upperBodyItem);
+                                race_id, gender_id, items.upperBodyItem, M2_SLOT_CHEST);
     M2_AddEquipmentItemToOutfit(outfit, lower_body_items,
                                 sizeof(lower_body_items) / sizeof(lower_body_items[0]),
-                                race_id, gender_id, items.lowerBodyItem);
+                                race_id, gender_id, items.lowerBodyItem, M2_SLOT_LEGS);
     M2_AddEquipmentItemToOutfit(outfit, hand_items,
                                 sizeof(hand_items) / sizeof(hand_items[0]),
-                                race_id, gender_id, items.handItem);
+                                race_id, gender_id, items.handItem, M2_SLOT_GLOVES);
     M2_AddEquipmentItemToOutfit(outfit, foot_items,
                                 sizeof(foot_items) / sizeof(foot_items[0]),
-                                race_id, gender_id, items.footItem);
+                                race_id, gender_id, items.footItem, M2_SLOT_BOOTS);
 }
 
 static BOOL M2_CharacterStartOutfit(LPCSTR model_path,
@@ -895,8 +980,16 @@ static BOOL M2_CharacterStartOutfit(LPCSTR model_path,
         if (record_race != race_id || record_class != class_id || record_gender != gender_id) {
             continue;
         }
+        // CharStartOutfit.dbc fields 14-25 map to equipment slots in order:
+        // head, shoulders, chest, shirt, belt, legs, boots, gloves, tabard, cape, unused, unused
+        static DWORD const start_outfit_slot_map[12] = {
+            M2_SLOT_HEAD, M2_SLOT_SHOULDERS, M2_SLOT_CHEST, M2_SLOT_SHIRT,
+            M2_SLOT_BELT, M2_SLOT_LEGS, M2_SLOT_BOOTS, M2_SLOT_GLOVES,
+            M2_SLOT_TABARD, M2_SLOT_CAPE, M2_SLOT_NONE, M2_SLOT_NONE
+        };
         FOR_LOOP(i, 12) {
-            M2_AddDisplayInfoToOutfit(outfit, M2_DbcField(&m2_char_start_outfit_dbc, record, 14 + i));
+            M2_AddDisplayInfoToOutfit(outfit, M2_DbcField(&m2_char_start_outfit_dbc, record, 14 + i),
+                                      start_outfit_slot_map[i]);
         }
         return true;
     }
@@ -962,6 +1055,66 @@ static BYTE M2_CharacterTextureSlotForSection(WORD section_id) {
             return M2_CHAR_TEX_UPPER_LEG;
         default:
             return M2_CHARACTER_TEXTURE_NONE;
+    }
+}
+
+static BOOL M2_CharacterVariationTexturePath(LPCSTR model_path,
+                                             DWORD section_index,
+                                             DWORD variation_index,
+                                             DWORD color_index,
+                                             DWORD texture_index,
+                                             LPSTR out,
+                                             DWORD out_size) {
+    /* Classic CharSections.dbc: 10 fields, textures not contiguous.
+       0=ID 1=race 2=sex 3=section 4=tex[0] 5=variation
+       6=tex[1] 7=tex[2] 8=tex[3] 9=color */
+    DWORD race_id, gender_id;
+
+    if (!out || out_size == 0 ||
+        !M2_CharacterRaceGender(model_path, &race_id, &gender_id) ||
+        !M2_DbcLoad(&m2_char_sections_dbc, "DBFilesClient\\CharSections.dbc")) {
+        return false;
+    }
+
+    FOR_LOOP(i, m2_char_sections_dbc.records) {
+        BYTE const *record = m2_char_sections_dbc.records_base + i * m2_char_sections_dbc.record_size;
+        LPCSTR texture;
+
+        if (M2_DbcField(&m2_char_sections_dbc, record, 1) != race_id ||
+            M2_DbcField(&m2_char_sections_dbc, record, 2) != gender_id ||
+            M2_DbcField(&m2_char_sections_dbc, record, 3) != section_index ||
+            M2_DbcField(&m2_char_sections_dbc, record, 5) != variation_index ||
+            M2_DbcField(&m2_char_sections_dbc, record, 9) != color_index) {
+            continue;
+        }
+        if (texture_index >= 3)
+            return false;
+        texture = M2_DbcString(&m2_char_sections_dbc, M2_DbcField(&m2_char_sections_dbc, record, 6 + texture_index));
+        if (!texture || !*texture)
+            continue;
+        snprintf(out, out_size, "%s", texture);
+        return true;
+    }
+    return false;
+}
+
+static BOOL M2_CharacterTexturePathForType(LPCSTR model_path,
+                                           DWORD appearance,
+                                           DWORD texture_type,
+                                           LPSTR out,
+                                           DWORD out_size) {
+    wowAppearance_t unpacked = Wow_UnpackAppearance(appearance);
+    switch (texture_type) {
+        case 1:
+            return M2_CharacterVariationTexturePath(model_path, 0, 0, unpacked.skinColorID, 0, out, out_size);
+        case 2:
+            return M2_CharacterVariationTexturePath(model_path, 4, 0, unpacked.skinColorID, 0, out, out_size);
+        case 6:
+            return M2_CharacterVariationTexturePath(model_path, 3, unpacked.hairStyleID, unpacked.hairColorID, 0, out, out_size);
+        case 8:
+            return M2_CharacterVariationTexturePath(model_path, 0, 0, unpacked.skinColorID, 1, out, out_size);
+        default:
+            return false;
     }
 }
 
@@ -1137,6 +1290,52 @@ static void M2_PasteOutfitComponent(LPCOLOR32 pixels,
     R_ReleaseTexture(texture);
 }
 
+/* Paste a CharSections variation (e.g. face or facial hair) into the head
+   regions of the composite.  section_id: 1=face, 2=facial_hair.
+   HEAD_UPPER = (0,320,256,64), HEAD_LOWER = (0,384,256,128) in the 512 atlas. */
+static void M2_PasteHeadVariation(LPCOLOR32 pixels,
+                                  DWORD width,
+                                  DWORD height,
+                                  LPCSTR model_path,
+                                  DWORD section_id,
+                                  DWORD variation_index,
+                                  DWORD color_index) {
+    enum { atlas = 512 };
+    static DWORD const head_rects[2][4] = {
+        { 0, 320, 256, 64  }, /* HEAD_UPPER, texture_index 1 */
+        { 0, 384, 256, 128 }, /* HEAD_LOWER, texture_index 0 */
+    };
+    /* upper first (tex 1), then lower (tex 0) */
+    static DWORD const tex_indices[2] = { 1, 0 };
+
+    for (int i = 0; i < 2; i++) {
+        PATHSTR path;
+        LPTEXTURE tex;
+        LPCOLOR32 src = NULL;
+        DWORD dx, dy, dw, dh;
+
+        if (!M2_CharacterVariationTexturePath(model_path, section_id,
+                                              variation_index, color_index,
+                                              tex_indices[i],
+                                              path, sizeof(path))) {
+            continue;
+        }
+        tex = R_LoadTexture(path);
+        if (!tex || !M2_TexturePixels(tex, &src)) {
+            SAFE_DELETE(tex, R_ReleaseTexture);
+            continue;
+        }
+        dx = head_rects[i][0] * width  / atlas;
+        dy = head_rects[i][1] * height / atlas;
+        dw = MAX(1u, head_rects[i][2] * width  / atlas);
+        dh = MAX(1u, head_rects[i][3] * height / atlas);
+        M2_PasteComponent(pixels, width, height, src, tex->width, tex->height,
+                          dx, dy, dw, dh);
+        ri.MemFree(src);
+        R_ReleaseTexture(tex);
+    }
+}
+
 static BOOL M2_DefaultCharacterTexturePath(LPCSTR model_path,
                                            DWORD texture_type,
                                            LPSTR out,
@@ -1204,18 +1403,8 @@ static BOOL M2_DefaultCharacterTexturePath(LPCSTR model_path,
     model_buf[len] = '\0';
 
     switch (texture_type) {
-        case 1:
-            snprintf(out, out_size, "Character\\%s\\%s\\%sSkin00_00.blp", race_buf, gender_buf, model_buf);
-            return true;
-        case 2:
-            snprintf(out, out_size, "Character\\%s\\%s\\%sNakedPelvisSkin00_00.blp", race_buf, gender_buf, model_buf);
-            return true;
         case 6:
-            snprintf(out, out_size, "Character\\%s\\Hair00_00.blp", race_buf);
-            return true;
-        case 8:
-            snprintf(out, out_size, "Character\\%s\\%s\\%sSkin00_100.blp", race_buf, gender_buf, model_buf);
-            return true;
+            return M2_CharacterVariationTexturePath(model_path, 3, 0, 0, 0, out, out_size);
         default:
             return false;
     }
@@ -1373,6 +1562,58 @@ static DWORD M2_SequenceFlags(m2Model_t const *model, DWORD sequence_index) {
     }
 }
 
+static WORD M2_SequenceAnimId(m2Model_t const *model, DWORD sequence_index) {
+    BYTE const *sequence;
+
+    if (!model || !model->sequences || sequence_index >= model->sequence_count)
+        return 0;
+    sequence = model->sequences + sequence_index * model->sequence_stride;
+    if (model->classic_sequences)
+        return ((m2SequenceClassic_t const *)sequence)->animation_id;
+    return ((m2SequenceModern_t const *)sequence)->animation_id;
+}
+
+/* Lua SetSequence passes Blizzard animation IDs, not raw M2 sequence row indices. */
+static BOOL M2_FindSequenceByAnimId(m2Model_t const *model, DWORD anim_id, LPDWORD sequence_index) {
+    if (!model || !sequence_index)
+        return false;
+    FOR_LOOP(i, model->sequence_count) {
+        if (M2_SequenceAnimId(model, i) == anim_id) {
+            *sequence_index = i;
+            return true;
+        }
+    }
+    return false;
+}
+
+#define M2_FRAME_SEQUENCE_FLAG  0x80000000u
+#define M2_FRAME_SEQUENCE_SHIFT 21
+#define M2_FRAME_SEQUENCE_MASK  0x3ffu
+#define M2_FRAME_TIME_MASK      0x1fffffu
+
+BOOL M2_SetEntitySequenceFrame(m2Model_t const *model, LPCSTR anim, renderEntity_t *entity) {
+    char *end = NULL;
+    DWORD anim_id;
+    DWORD sequence_index;
+
+    if (!model || !entity)
+        return false;
+    anim_id = anim && *anim ? (DWORD)strtoul(anim, &end, 10) : 0;
+    if (anim && *anim && (!end || *end))
+        return false;
+    if (!M2_FindSequenceByAnimId(model, anim_id, &sequence_index))
+        sequence_index = anim_id;
+    if (model->sequence_count > 0 && sequence_index >= model->sequence_count)
+        return false;
+    entity->frame = M2_FRAME_SEQUENCE_FLAG |
+                    ((anim_id & M2_FRAME_SEQUENCE_MASK) << M2_FRAME_SEQUENCE_SHIFT) |
+                    (entity->frame & M2_FRAME_TIME_MASK);
+    entity->oldframe = M2_FRAME_SEQUENCE_FLAG |
+                       ((anim_id & M2_FRAME_SEQUENCE_MASK) << M2_FRAME_SEQUENCE_SHIFT) |
+                       (entity->oldframe & M2_FRAME_TIME_MASK);
+    return true;
+}
+
 typedef struct {
     DWORD sequence_index;
     DWORD sequence_time;
@@ -1387,6 +1628,24 @@ static BOOL M2_FrameToPoseTime(m2Model_t const *model, DWORD frame, m2PoseTime_t
     }
     if (!model || !model->sequences || model->sequence_count == 0 || !pose) {
         return false;
+    }
+
+    if (frame & M2_FRAME_SEQUENCE_FLAG) {
+        DWORD anim_id = (frame >> M2_FRAME_SEQUENCE_SHIFT) & M2_FRAME_SEQUENCE_MASK;
+        DWORD sequence;
+        DWORD local_time = frame & M2_FRAME_TIME_MASK;
+        DWORD duration;
+
+        if (!M2_FindSequenceByAnimId(model, anim_id, &sequence))
+            sequence = anim_id;
+        if (sequence >= model->sequence_count)
+            sequence = 0;
+        duration = M2_SequenceDuration(model, sequence);
+        pose->sequence_index = sequence;
+        pose->sequence_time = duration
+            ? M2_SequenceStart(model, sequence) + (local_time % duration)
+            : M2_SequenceStart(model, sequence);
+        return true;
     }
 
     FOR_LOOP(i, model->sequence_count) {
@@ -1584,6 +1843,69 @@ static VECTOR3 M2_EvaluateVectorTrack(m2Model_t const *model,
         return *(VECTOR3 const *)left;
     }
     return Vector3_lerp((LPCVECTOR3)left, (LPCVECTOR3)right, ratio);
+}
+
+BOOL M2_CameraView(m2Model_t const *model,
+                   DWORD camera_index,
+                   LPVECTOR3 eye,
+                   LPVECTOR3 target,
+                   LPFLOAT fov_degrees,
+                   LPFLOAT znear,
+                   LPFLOAT zfar) {
+    m2PoseTime_t pose;
+    m2TrackView_t position_track;
+    m2TrackView_t target_track;
+    VECTOR3 position_value;
+    VECTOR3 target_value;
+    VECTOR3 position_pivot;
+    VECTOR3 target_pivot;
+    FLOAT fov;
+    FLOAT far_clip;
+    FLOAT near_clip;
+
+    if (!model || !model->cameras || camera_index >= model->camera_count || !eye || !target) {
+        return false;
+    }
+
+    if (model->classic_cameras) {
+        BYTE const *record = model->cameras + camera_index * model->camera_stride;
+        m2CameraClassic_t const *camera = (m2CameraClassic_t const *)record;
+
+        position_track = M2_ClassicTrackView(&camera->position_track);
+        target_track = M2_ClassicTrackView(&camera->target_track);
+        position_pivot = camera->position_pivot;
+        target_pivot = camera->target_pivot;
+        fov = camera->fov; near_clip = camera->near_clip; far_clip = camera->far_clip;
+    } else {
+        BYTE const *record = model->cameras + camera_index * model->camera_stride;
+        m2CameraModern_t const *camera = (m2CameraModern_t const *)record;
+
+        position_track = M2_ModernTrackView(&camera->position_track);
+        target_track = M2_ModernTrackView(&camera->target_track);
+        position_pivot = camera->position_pivot;
+        target_pivot = camera->target_pivot;
+        fov = camera->fov; near_clip = camera->near_clip; far_clip = camera->far_clip;
+    }
+    M2_FrameToPoseTime(model, tr.viewDef.time, &pose);
+    position_value = M2_EvaluateVectorTrack(model,
+                                            &position_track,
+                                            pose.sequence_index,
+                                            pose.sequence_time,
+                                            (VECTOR3){ 0.0f, 0.0f, 0.0f });
+    target_value = M2_EvaluateVectorTrack(model,
+                                          &target_track,
+                                          pose.sequence_index,
+                                          pose.sequence_time,
+                                          (VECTOR3){ 0.0f, 0.0f, 0.0f });
+    *eye = Vector3_add(&position_pivot, &position_value);
+    *target = Vector3_add(&target_pivot, &target_value);
+    if (fov_degrees)
+        *fov_degrees = fov > 0.0f ? fov * 0.6f * 180.0f / (FLOAT)M_PI : 35.0f;
+    if (znear)
+        *znear = near_clip > 0.0f ? near_clip : 1.0f;
+    if (zfar)
+        *zfar = far_clip > near_clip ? far_clip : 4000.0f;
+    return true;
 }
 
 static QUATERNION M2_DecodeCompQuat(m2CompQuat_t const *source) {
@@ -2049,6 +2371,7 @@ static void M2_AddBatch(m2Model_t *model,
     render_batch->bone_count = bone_count;
     render_batch->bone_combo_index = bone_combo_index;
     render_batch->section_id = section_id;
+    render_batch->geoset_index = batch->geoset_index;
     render_batch->character_texture_slot = M2_CharacterTextureSlotForSection(section_id);
     ADD_TO_LIST(render_batch, model->batches);
     model->num_batches++;
@@ -2187,8 +2510,8 @@ static BOOL M2_IsCharacterModelPath(LPCSTR model_path) {
 }
 
 static BOOL M2_CharacterGeosetVisible(m2Model_t const *model,
-                                      m2CharacterOutfit_t const *outfit,
-                                      WORD section_id) {
+                                       m2CharacterOutfit_t const *outfit,
+                                       WORD section_id) {
     if (!model || !model->character_model || section_id < 400) {
         return true;
     }
@@ -2196,33 +2519,29 @@ static BOOL M2_CharacterGeosetVisible(m2Model_t const *model,
         return section_id == 401 || section_id == 702 || section_id == 1501;
     }
 
-    switch (section_id / 100) {
-        case 4:
-            return section_id == 401;
-        case 5:
-            return section_id == 501;
-        case 7:
-            return section_id == 702;
-        case 8:
-            return section_id == 802;
-        case 9:
-            return section_id == 902;
-        case 10:
-            return false;
-        case 11:
-            return false;
-        case 12:
-            return false;
+    DWORD group = section_id / 100;
+    DWORD geoset = (group < M2_NUM_GEOSET_GROUPS) ? outfit->geoset[group] : 0;
+    WORD expected;
+
+    switch (group) {
+        case 4:  expected = 401 + geoset; break;
+        case 5:  expected = 501 + geoset; break;
+        case 7:  expected = 702; break;
+        case 8:  expected = 800 + geoset; break;
+        case 9:  expected = 900 + geoset; break;
+        case 10: return false;
+        case 11: return false;
+        case 12: return false;
         case 13:
             if (outfit->flags & 0x4) {
                 return false;
             }
-            return section_id == 1301;
-        case 15:
-            return section_id == 1501;
-        default:
-            return false;
+            expected = 1301 + geoset;
+            break;
+        case 15: expected = 1501; break;
+        default: return false;
     }
+    return section_id == expected;
 }
 
 static void M2_FreeModelData(m2Model_t *model) {
@@ -2243,6 +2562,7 @@ static BOOL M2_CopyModelData(m2Model_t *model, BYTE const *m2_base, DWORD m2_siz
     m2Array_t bones;
     m2Array_t sequences;
     m2Array_t bone_lookup_table;
+    m2Array_t cameras;
 
     if (!model || !m2_base || m2_size < sizeof(m2Header_t)) {
         return false;
@@ -2261,6 +2581,8 @@ static BOOL M2_CopyModelData(m2Model_t *model, BYTE const *m2_base, DWORD m2_siz
     model->bone_stride = model->classic_bones ? sizeof(m2CompBoneClassic_t) : sizeof(m2CompBoneModern_t);
     model->classic_attachments = model->header->version <= 263;
     model->attachment_stride = model->classic_attachments ? sizeof(m2AttachmentClassic_t) : sizeof(m2AttachmentModern_t);
+    model->classic_cameras = model->header->version <= 263;
+    model->camera_stride = model->classic_cameras ? sizeof(m2CameraClassic_t) : sizeof(m2CameraModern_t);
 
     if (legacy_header) {
         m2HeaderLegacy_t *legacy = (m2HeaderLegacy_t *)model->data;
@@ -2270,6 +2592,7 @@ static BOOL M2_CopyModelData(m2Model_t *model, BYTE const *m2_base, DWORD m2_siz
         bone_lookup_table = legacy->bone_lookup_table;
         model->attachments = legacy->attachments;
         model->attachment_lookup = legacy->attachment_lookup;
+        cameras = legacy->cameras;
     } else {
         model->global_loops = model->header->global_loops;
         bones = model->header->bones;
@@ -2277,14 +2600,17 @@ static BOOL M2_CopyModelData(m2Model_t *model, BYTE const *m2_base, DWORD m2_siz
         bone_lookup_table = model->header->bone_lookup_table;
         model->attachments = model->header->attachments;
         model->attachment_lookup = model->header->attachment_lookup;
+        cameras = model->header->cameras;
     }
 
     model->bones = M2_ModelArrayPtr(model, bones, model->bone_stride);
     model->sequences = M2_ModelArrayPtr(model, sequences, model->sequence_stride);
     model->bone_lookup_table = M2_ModelArrayPtr(model, bone_lookup_table, sizeof(*model->bone_lookup_table));
+    model->cameras = M2_ModelArrayPtr(model, cameras, model->camera_stride);
     model->bone_count = model->bones ? (DWORD)bones.size : 0;
     model->sequence_count = model->sequences ? (DWORD)sequences.size : 0;
     model->bone_lookup_count = model->bone_lookup_table ? (DWORD)bone_lookup_table.size : 0;
+    model->camera_count = model->cameras ? (DWORD)cameras.size : 0;
 
     if (model->bone_count) {
         model->bone_matrices = ri.MemAlloc(sizeof(*model->bone_matrices) * model->bone_count);
@@ -2485,33 +2811,78 @@ static LPTEXTURE M2_CharacterTextureForBatch(m2Model_t const *model,
                                              m2CharacterOutfit_t const *outfit) {
     m2Model_t *mutable_model;
     DWORD key;
+    DWORD victim;
+    PATHSTR texture_path;
+    BOOL has_base_path;
     LPCOLOR32 pixels = NULL;
     LPTEXTURE base_texture = NULL;
 
-    if (!model || !entity || !batch || !model->character_model || batch->texture_type != 1) {
+    if (!model || !entity || !batch || !model->character_model) {
         return batch ? batch->texture : tr.texture[TEX_WHITE];
+    }
+    has_base_path = M2_CharacterTexturePathForType(model->filename,
+                                                  entity->appearance,
+                                                  batch->texture_type,
+                                                  texture_path,
+                                                  sizeof(texture_path));
+    if (batch->texture_type != 1) {
+        if (has_base_path) {
+            key = entity->appearance ^ (entity->equipment * 16777619u);
+            if (batch->character_texture && batch->character_texture_key == key) {
+                return batch->character_texture;
+            }
+            if (batch->character_texture) {
+                R_ReleaseTexture(batch->character_texture);
+            }
+            batch->character_texture = R_LoadTexture(texture_path);
+            batch->character_texture_key = key;
+            return batch->character_texture;
+        }
+        return batch->texture;
     }
 
     mutable_model = (m2Model_t *)model;
     key = entity->appearance ^ (entity->equipment * 16777619u);
-    if (mutable_model->character_composite && mutable_model->character_composite_key == key) {
-        return mutable_model->character_composite;
-    }
 
-    if (mutable_model->character_composite) {
-        R_ReleaseTexture(mutable_model->character_composite);
+    /* Look up composite cache — find existing or LRU victim */
+    {
+        DWORD lru = mutable_model->composite_cache_lru;
+        victim = 0;
+        for (DWORD i = 0; i < M2_COMPOSITE_CACHE_SIZE; i++) {
+            if (mutable_model->composite_cache[i].texture &&
+                mutable_model->composite_cache[i].key == key) {
+                mutable_model->composite_cache_lru = lru | (1u << i);
+                return mutable_model->composite_cache[i].texture;
+            }
+            if (!mutable_model->composite_cache[i].texture) {
+                victim = i;
+                break;
+            }
+            if (!(lru & (1u << i))) {
+                victim = i;
+            }
+        }
+        /* Evict victim if occupied */
+        if (mutable_model->composite_cache[victim].texture) {
+            R_ReleaseTexture(mutable_model->composite_cache[victim].texture);
+        }
+        mutable_model->composite_cache[victim].texture = NULL;
+        mutable_model->composite_cache[victim].key = key;
+        mutable_model->composite_cache_lru = lru | (1u << victim);
     }
-    mutable_model->character_composite = NULL;
-    mutable_model->character_composite_key = key;
 
     if (!outfit) {
         return batch->texture;
     }
 
-    for (m2ModelBatch_t *it = mutable_model->batches; it; it = it->next) {
-        if (it->texture_type == 1 && it->texture) {
-            base_texture = it->texture;
-            break;
+    if (has_base_path) {
+        base_texture = R_LoadTexture(texture_path);
+    } else {
+        for (m2ModelBatch_t *it = mutable_model->batches; it; it = it->next) {
+            if (it->texture_type == 1 && it->texture) {
+                base_texture = it->texture;
+                break;
+            }
         }
     }
     if (!base_texture || !M2_TexturePixels(base_texture, &pixels)) {
@@ -2527,14 +2898,23 @@ static LPTEXTURE M2_CharacterTextureForBatch(m2Model_t const *model,
                                 (BYTE)slot);
     }
 
-    mutable_model->character_composite = R_AllocateTexture(base_texture->width, base_texture->height);
-    R_LoadTextureMipLevel(mutable_model->character_composite,
-                          0,
-                          pixels,
-                          base_texture->width,
-                          base_texture->height);
-    ri.MemFree(pixels);
-    return mutable_model->character_composite ? mutable_model->character_composite : batch->texture;
+    {
+        wowAppearance_t unpacked = Wow_UnpackAppearance(entity->appearance);
+        M2_PasteHeadVariation(pixels, base_texture->width, base_texture->height,
+                              model->filename, 1,
+                              unpacked.faceID, unpacked.skinColorID);
+        M2_PasteHeadVariation(pixels, base_texture->width, base_texture->height,
+                              model->filename, 2,
+                              unpacked.facialHairStyleID, unpacked.hairColorID);
+    }
+
+    {
+        LPTEXTURE comp = R_AllocateTexture(base_texture->width, base_texture->height);
+        R_LoadTextureMipLevel(comp, 0, pixels, base_texture->width, base_texture->height);
+        ri.MemFree(pixels);
+        mutable_model->composite_cache[victim].texture = comp;
+        return comp ? comp : batch->texture;
+    }
 }
 
 void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMATRIX4 transform) {
@@ -2647,6 +3027,8 @@ FLOAT M2_GroundOffset(m2Model_t const *model) {
     return -model->geometry_bounds.min.z;
 }
 
+BOOL M2_IsCharacterModel(m2Model_t const *model) { return model && model->character_model; }
+
 void M2_Release(m2Model_t *model) {
     m2ModelBatch_t *batch;
 
@@ -2663,8 +3045,10 @@ void M2_Release(m2Model_t *model) {
         ri.MemFree(batch);
         batch = next;
     }
-    if (model->character_composite) {
-        R_ReleaseTexture(model->character_composite);
+    for (DWORD i = 0; i < M2_COMPOSITE_CACHE_SIZE; i++) {
+        if (model->composite_cache[i].texture) {
+            R_ReleaseTexture(model->composite_cache[i].texture);
+        }
     }
     M2_FreeModelData(model);
     ri.MemFree(model);
@@ -2673,4 +3057,5 @@ void M2_Release(m2Model_t *model) {
 void M2_Shutdown(void) {
     M2_DbcShutdown(&m2_char_start_outfit_dbc);
     M2_DbcShutdown(&m2_item_display_info_dbc);
+    M2_DbcShutdown(&m2_char_sections_dbc);
 }

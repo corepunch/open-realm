@@ -266,6 +266,12 @@ static void test_apply_lobby_settings(LPMAPINFO info) {
     ASSERT_NOT_NULL(info);
 }
 
+static void test_configstring(DWORD index, LPCSTR string) { (void)index; (void)string; }
+
+static LPCSTR test_get_configstring(DWORD index) { (void)index; return ""; }
+
+static LPCSTR test_cvar_string(LPCSTR name, LPCSTR fallback) { (void)name; return fallback; }
+
 static void test_error(LPCSTR fmt, ...) {
     va_list args;
 
@@ -327,6 +333,9 @@ static struct game_import test_import(void) {
     import.Write = test_write;
     import.unicast = test_unicast;
     import.error = test_error;
+    import.configstring = test_configstring;
+    import.GetConfigstring = test_get_configstring;
+    import.CvarString = test_cvar_string;
     return import;
 }
 
@@ -455,6 +464,8 @@ static void assert_player_spawned_at_safe_loc(LPEDICT player) {
     ASSERT(matched);
 }
 
+void UI_WriteWowHud(LPEDICT ent) { (void)ent; }
+
 static void test_wow_load_map_initializes_player_state(void) {
     struct game_export *game = init_game();
     LPEDICT player;
@@ -474,7 +485,8 @@ static void test_wow_load_map_initializes_player_state(void) {
     assert_player_spawned_at_safe_loc(player);
     ASSERT_EQ_FLOAT(player->client->ps.origin.x, player->s.origin.x, 0.001f);
     ASSERT_EQ_FLOAT(player->client->ps.origin.y, player->s.origin.y, 0.001f);
-    ASSERT_EQ_INT((int)player->client->ps.client_ui_state, CLIENT_UI_GAME);
+    /* After LoadMap, the player is in loading state — ClientBegin transitions to GAME. */
+    ASSERT_EQ_INT((int)player->client->ps.client_ui_state, CLIENT_UI_LOADING);
     ASSERT_STR_EQ(player->client->ps.name, "Thrall");
     ASSERT_EQ_INT((int)player->client->ps.stats[WOW_STAT_HEALTH], 100);
     ASSERT_EQ_INT((int)player->client->ps.stats[WOW_STAT_HEALTH_MAX], 100);

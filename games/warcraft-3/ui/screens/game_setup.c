@@ -170,7 +170,7 @@ static void GameSetup_SetTextIfPresent(LPFRAMEDEF frame, LPCSTR format, ...) {
 }
 
 static BOOL GameSetup_IsHost(void) {
-    LPCSTR connect = uiimport.Cvar_String ? uiimport.Cvar_String("connect", "") : "";
+    LPCSTR connect = uiimport.Cvar_String("connect", "");
 
     return !connect || !connect[0];
 }
@@ -569,14 +569,8 @@ static void GameSetup_ResolveMapString(LPCSTR raw, LPSTR out, DWORD out_size) {
     if (!raw || !raw[0]) {
         return;
     }
-    if (uiimport.ResolveMapInfoString) {
-        uiimport.ResolveMapInfoString(&setup.map_info, raw, out, out_size);
-    } else {
-        snprintf(out, out_size, "%s", raw);
-    }
-    if (uiimport.SanitizeMapInfoText) {
-        uiimport.SanitizeMapInfoText(out);
-    }
+    UI_ResolveMapInfoString(&setup.map_info, raw, out, out_size);
+    UI_SanitizeMapInfoText(out);
 }
 
 static void GameSetup_UseResolvedMapTitle(void) {
@@ -603,7 +597,7 @@ static void GameSetup_SlotName(LPCMAPPLAYER player, BOOL first_human, LPSTR out,
         return;
     }
     if (player->playerType == kPlayerTypeHuman && first_human) {
-        name = uiimport.Cvar_String ? uiimport.Cvar_String("name", "Player") : "Player";
+        name = uiimport.Cvar_String("name", "Player");
         snprintf(out, out_size, "%s", name && name[0] ? name : "Player");
         return;
     }
@@ -799,32 +793,32 @@ static void GameSetup_UpdateMapInfo(void) {
     GameSetup_SetTextIfPresent(setup.map_info_pane.MaxPlayersValue, "%u", (unsigned)GameSetup_CountPlayers(&setup.map_info));
     GameSetup_SetTextIfPresent(setup.map_info_pane.MapNameValue, "%s", setup.map_name[0] ? setup.map_name : setup.map_path);
 
-    uiimport.ResolveMapInfoString(&setup.map_info,
+    UI_ResolveMapInfoString(&setup.map_info,
                                   setup.map_info.playersRecommended,
                                   value,
                                   sizeof(value));
-    uiimport.SanitizeMapInfoText(value);
+    UI_SanitizeMapInfoText(value);
     GameSetup_SetTextIfPresent(setup.map_info_pane.SuggestedPlayersValue, "%s", value);
 
     GameSetup_SetTextIfPresent(setup.map_info_pane.MapSizeValue,
                                "%s",
-                               uiimport.MapSizeName(setup.map_info.playableArea.width,
+                               UI_MapSizeName(setup.map_info.playableArea.width,
                                                     setup.map_info.playableArea.height));
 
-    tileset = uiimport.MapTilesetName((BYTE)setup.map_info.mainGroundType);
+    tileset = UI_MapTilesetName((BYTE)setup.map_info.mainGroundType);
     GameSetup_SetTextIfPresent(setup.map_info_pane.MapTilesetValue, "%s", tileset ? tileset : UI_GetString("UNKNOWNMAP_TILESET"));
 
-    uiimport.ResolveMapInfoString(&setup.map_info,
+    UI_ResolveMapInfoString(&setup.map_info,
                                   setup.map_info.mapDescription,
                                   value,
                                   sizeof(value));
-    uiimport.SanitizeMapInfoText(value);
+    UI_SanitizeMapInfoText(value);
     GameSetup_SetTextIfPresent(setup.map_info_pane.MapDescValue, "%s", value[0] ? value : UI_GetString("UNKNOWNMAP_DESCRIPTION"));
 
-    if (setup.map_info_pane.MinimapImage && uiimport.FindMapPreviewTexture) {
+    if (setup.map_info_pane.MinimapImage) {
         PATHSTR preview;
 
-        if (uiimport.FindMapPreviewTexture(setup.map_path, preview, sizeof(preview))) {
+        if (UI_FindMapPreviewTexture(setup.map_path, preview, sizeof(preview))) {
             UI_SetTexture(setup.map_info_pane.MinimapImage, preview, false);
             UI_SetHidden(setup.map_info_pane.MinimapImage, false);
         } else {
@@ -839,7 +833,7 @@ static void GameSetup_LoadSelectedMap(void) {
     LPCSTR debug_path = NULL;
 
     if (setup.have_map_info) {
-        uiimport.FreeMapInfo(&setup.map_info);
+        UI_FreeMapInfo(&setup.map_info);
         setup.have_map_info = false;
     }
     setup.map_path[0] = '\0';
@@ -860,8 +854,8 @@ static void GameSetup_LoadSelectedMap(void) {
         }
     }
 
-    if (setup.map_path[0] && uiimport.ReadMapInfo) {
-        setup.have_map_info = uiimport.ReadMapInfo(setup.map_path, &setup.map_info);
+    if (setup.map_path[0]) {
+        setup.have_map_info = UI_ReadMapInfo(setup.map_path, &setup.map_info);
         GameSetup_UseResolvedMapTitle();
     }
 }
@@ -872,15 +866,13 @@ void GameSetup_LoadMap(LPCSTR map_path) {
     }
 
     if (setup.have_map_info) {
-        uiimport.FreeMapInfo(&setup.map_info);
+        UI_FreeMapInfo(&setup.map_info);
         setup.have_map_info = false;
     }
     snprintf(setup.map_path, sizeof(setup.map_path), "%s", map_path);
     snprintf(setup.map_name, sizeof(setup.map_name), "%s", GameSetup_BaseName(map_path));
-    if (uiimport.ReadMapInfo) {
-        setup.have_map_info = uiimport.ReadMapInfo(setup.map_path, &setup.map_info);
-        GameSetup_UseResolvedMapTitle();
-    }
+    setup.have_map_info = UI_ReadMapInfo(setup.map_path, &setup.map_info);
+    GameSetup_UseResolvedMapTitle();
     GameSetup_SetTextIfPresent(setup.game_name, "%s", setup.map_name[0] ? setup.map_name : "Local Game");
     GameSetup_UpdateMapInfo();
     GameSetup_PopulateSlots();
@@ -950,12 +942,6 @@ static void GameSetup_KeyEvent(int key, BOOL down) {
     if (key == SDLK_RETURN || key == SDLK_KP_ENTER) {
         GameSetup_SubmitChat();
     }
-}
-
-static void GameSetup_MouseEvent(int x, int y, int buttons) {
-    (void)x;
-    (void)y;
-    (void)buttons;
 }
 
 BOOL GameSetup_StartGame(void) {
@@ -1075,5 +1061,4 @@ uiScreen_t gameSetupScreen = {
     .refresh = GameSetup_Refresh,
     .draw = GameSetup_Draw,
     .key_event = GameSetup_KeyEvent,
-    .mouse_event = GameSetup_MouseEvent,
 };

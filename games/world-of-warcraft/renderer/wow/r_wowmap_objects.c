@@ -18,18 +18,17 @@ void Wow_InstanceMatrix(wowMapObjDef_t const *def, LPMATRIX4 matrix) {
 
     Matrix4_identity(&basis);
     basis.v[0] = 0.0f;
-    basis.v[1] = -1.0f;
+    basis.v[1] = 1.0f;
     basis.v[2] = 0.0f;
     basis.v[4] = 0.0f;
     basis.v[5] = 0.0f;
     basis.v[6] = 1.0f;
-    basis.v[8] = -1.0f;
+    basis.v[8] = 1.0f;
     basis.v[9] = 0.0f;
     basis.v[10] = 0.0f;
     Matrix4_multiply(matrix, &basis, &tmp);
     *matrix = tmp;
 
-    Matrix4_scale(matrix, &(VECTOR3){ -1.0f, 1.0f, -1.0f });
     Matrix4_rotate(matrix, &(VECTOR3){ 0.0f, def->rotation.y - 270.0f, 0.0f }, ROTATE_XYZ);
     Matrix4_rotate(matrix, &(VECTOR3){ 0.0f, 0.0f, -def->rotation.x }, ROTATE_XYZ);
     Matrix4_rotate(matrix, &(VECTOR3){ def->rotation.z - 90.0f, 0.0f, 0.0f }, ROTATE_XYZ);

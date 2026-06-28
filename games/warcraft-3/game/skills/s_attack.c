@@ -93,6 +93,38 @@ static BOOL can_attack(LPCEDICT ent) {
     return false;
 }
 
+/* WC3 damage multiplier table: attack_type x defense_type.
+ * Row = attackType_t index, column = defense_type index (small/medium/large/fort/normal/hero/divine/none). */
+static FLOAT const attack_damage_mod[8][8] = {
+    { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f }, /* none   */
+    { 1.0f, 1.5f, 1.0f, 0.7f, 1.0f, 0.75f, 0.7f, 1.0f }, /* normal */
+    { 2.0f, 0.75f, 1.0f, 0.35f, 1.0f, 0.5f, 0.35f, 1.0f }, /* pierce */
+    { 1.0f, 0.5f, 1.0f, 1.5f, 1.0f, 0.5f, 0.35f, 1.0f }, /* siege  */
+    { 1.0f, 0.75f, 1.0f, 0.5f, 1.0f, 0.5f, 0.5f, 1.0f }, /* spells */
+    { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f }, /* chaos  */
+    { 0.6f, 0.75f, 2.0f, 0.5f, 1.0f, 0.5f, 0.5f, 1.0f }, /* magic  */
+    { 1.0f, 0.75f, 1.0f, 0.5f, 1.0f, 0.5f, 0.35f, 1.0f }, /* hero   */
+};
+
+/* Compute damage after attack-type and armor modifiers.
+ * Returns the raw damage number (before applying to health) so callers
+ * can display prediction, log, or apply it.  Clamped to minimum 1. */
+int G_AttackDamage(LPEDICT attacker, LPEDICT target, int base) {
+    if (base < 1) base = 1;
+    int atk_idx = (int)attacker->attack1.type;
+    int def_idx = (int)target->defense_type;
+    if (atk_idx < 0 || atk_idx >= 8) atk_idx = 0;
+    if (def_idx < 0 || def_idx >= 8) def_idx = 4; /* default to normal */
+    FLOAT dmg = base * attack_damage_mod[atk_idx][def_idx];
+    FLOAT armor = target->armor_value;
+    if (armor >= 0)
+        dmg /= (1.0 + 0.06 * armor);
+    else
+        dmg *= (2.0 - 1.0 / (1.0 + 0.06 * (-armor)));
+    int result = (int)dmg;
+    return result < 1 ? 1 : result;
+}
+
 /* Apply damage to target from attacker.
  * If the hit is lethal, the target's die() callback is invoked and the
  * attacker returns to its stand (idle) state.  Otherwise, if the target is
@@ -121,131 +153,15 @@ void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
     }
 }
 
-/* WC3 1.29 attack-type x defense-type damage multiplier table (verified from
- * MiscGame.txt). Rows = attack1.type (none,normal,pierce,siege,spells,chaos,
- * magic,hero); cols = defense_type (small,medium,large,fort,normal,hero,divine,
- * none). */
-static const FLOAT g_damage_table[8][8] = {
-    /* small  medium large  fort   normal hero   divine none  */
-    { 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f }, /* none   */
-    { 1.00f, 1.50f, 1.00f, 0.70f, 1.00f, 1.00f, 0.05f, 1.00f }, /* normal */
-    { 2.00f, 0.75f, 1.00f, 0.35f, 1.00f, 0.50f, 0.05f, 1.50f }, /* pierce */
-    { 1.00f, 0.50f, 1.00f, 1.50f, 1.00f, 0.50f, 0.05f, 1.50f }, /* siege  */
-    { 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 0.70f, 0.05f, 1.00f }, /* spells */
-    { 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f }, /* chaos  */
-    { 1.25f, 0.75f, 2.00f, 0.35f, 1.00f, 0.50f, 0.05f, 1.00f }, /* magic  */
-    { 1.00f, 1.00f, 1.00f, 0.50f, 1.00f, 1.00f, 0.05f, 1.00f }, /* hero   */
-};
-
-/* Apply WC3 damage reduction: attack/defense type multiplier, then armor value
- * (0.06 coefficient). Used on the physical-attack path only; spells/triggers
- * call T_Damage directly with their own (already-typed) damage. */
-int G_AttackDamage(LPEDICT attacker, LPEDICT target, int base) {
-    if (!attacker || !target || base <= 0) {
-        return base;
-    }
-    DWORD at = attacker->attack1.type;
-    DWORD dt = target->defense_type;
-    if (at >= 8) at = 0;
-    if (dt >= 8) dt = 7;
-    FLOAT dmg = (FLOAT)base * g_damage_table[at][dt];
-    FLOAT const armor = target->armor_value;
-    if (armor >= 0.0f) {
-        dmg /= (1.0f + armor * 0.06f);
-    } else {
-        dmg *= (2.0f - 1.0f / (1.0f + (-armor) * 0.06f));
-    }
-    int out = (int)(dmg + 0.5f);
-    return out < 1 ? 1 : out;
-}
-
-/* Splash damage: full damage within areaFull of the impact, factorMedium within
- * areaMedium, factorSmall within areaSmall (WC3 area-of-effect attacks). The
- * type/armor multiplier is applied per target. Returns true if splash applied. */
-static BOOL apply_splash(LPEDICT attacker, LPCVECTOR2 impact, int base) {
-    FLOAT const rf = attacker->attack1.areaFull;
-    FLOAT const rm = attacker->attack1.areaMedium;
-    FLOAT const rs = attacker->attack1.areaSmall;
-    FLOAT const fm = attacker->attack1.factorMedium;
-    FLOAT const fs = attacker->attack1.factorSmall;
-    FLOAT const rmax = MAX(rf, MAX(rm, rs));
-
-    if (rmax <= 0.0f) {
-        return false; /* not a splash attack */
-    }
-    FILTER_EDICTS(target, target->inuse && target != attacker) {
-        if (!S_SpellIsAliveTarget(target) || !S_SpellIsEnemy(attacker, target)) {
-            continue;
-        }
-        FLOAT const d = Vector2_distance(&target->s.origin2, impact);
-        FLOAT factor;
-        if (rf > 0.0f && d <= rf)      factor = 1.0f;
-        else if (rm > 0.0f && d <= rm) factor = fm;
-        else if (rs > 0.0f && d <= rs) factor = fs;
-        else continue;
-        int dmg = G_AttackDamage(attacker, target, (int)(base * factor + 0.5f));
-        if (dmg > 0) {
-            T_Damage(target, attacker, dmg);
-        }
-    }
-    return true;
-}
-
-/* Bounce attack (e.g. Huntress moonglaive): hit the primary, then chain to the
- * nearest not-yet-hit enemies, losing damageLoss of the damage each bounce. */
-#define BOUNCE_RANGE 300.0f
-static BOOL apply_bounce(LPEDICT attacker, LPEDICT primary, int base) {
-    if (attacker->attack1.weapon != WPN_MBOUNCE || attacker->attack1.maxTargets <= 1) {
-        return false;
-    }
-    DWORD const max = attacker->attack1.maxTargets;
-    FLOAT const loss = attacker->attack1.damageLoss;
-    LPEDICT hit[16];
-    DWORD nhit = 0;
-    FLOAT factor = 1.0f;
-    LPEDICT from = primary;
-
-    T_Damage(primary, attacker, G_AttackDamage(attacker, primary, base));
-    hit[nhit++] = primary;
-
-    while (nhit < max && nhit < 16) {
-        LPEDICT best = NULL;
-        FLOAT best_d = BOUNCE_RANGE;
-        FILTER_EDICTS(target, target->inuse && target != attacker) {
-            if (!S_SpellIsAliveTarget(target) || !S_SpellIsEnemy(attacker, target)) {
-                continue;
-            }
-            BOOL already = false;
-            FOR_LOOP(i, nhit) if (hit[i] == target) { already = true; break; }
-            if (already) continue;
-            FLOAT const d = Vector2_distance(&target->s.origin2, &from->s.origin2);
-            if (d < best_d) { best_d = d; best = target; }
-        }
-        if (!best) break;
-        factor *= (1.0f - loss);
-        int dmg = G_AttackDamage(attacker, best, (int)(base * factor + 0.5f));
-        if (dmg > 0) T_Damage(best, attacker, dmg);
-        hit[nhit++] = best;
-        from = best;
-    }
-    return true;
-}
-
 static void damage_target(LPEDICT ent) {
     LPEDICT other = ent->goalentity;
-    int base = ai_rolldamage1(ent, 1);
-    if (apply_splash(ent, &other->s.origin2, base)) {
-        return; /* splash already hit the primary target (at distance 0) */
-    }
-    if (apply_bounce(ent, other, base)) {
-        return;
-    }
-    T_Damage(other, ent, G_AttackDamage(ent, other, base));
+    DWORD damage = ai_rolldamage1(ent, 1);
+    T_Damage(other, ent, damage);
 }
 
 static void throw_missile(LPEDICT ent) {
     LPEDICT other = ent->goalentity;
-    DWORD damage = G_AttackDamage(ent, other, ai_rolldamage1(ent, 1));
+    DWORD damage = ai_rolldamage1(ent, 1);
     MATRIX4 matrix;
     M_GetEntityMatrix(&ent->s, &matrix);
     VECTOR3 origin = Matrix4_multiply_vector3(&matrix, &ent->attack1.origin);
@@ -321,43 +237,34 @@ void order_attack(LPEDICT self, LPEDICT target) {
     attack_walk(self);
 }
 
-/* Post-swing recovery before the next attack.  WC3's "Cooldown Time" (ua1c) is
- * the total time *between* attacks, and the damage point is the windup *within*
- * that window — so the full cycle (windup + recovery) must equal the cooldown,
- * i.e. recovery = cooldown - damagePoint.  (Previously recovery was the full
- * cooldown, making the cycle cooldown+damagePoint and every unit attack too
- * slowly, the more so the larger its damage point.) */
-/* Increased attack speed divisor: a hero's Agility speeds up its whole attack
- * (windup + recovery) by AgiAttackSpeedBonus per point (WC3 MiscGame, 0.02 =
- * +2% attack speed per Agility).  hero.agi is 0 on non-heroes -> divisor 1.0. */
-#define AGI_ATTACKSPEED_BONUS 0.02f
+/* Hero Agility increases attack speed (+2%/point), scaling both the
+ * post-swing cooldown (recovery) and the pre-swing windup. */
 static FLOAT attack_speed_factor(LPCEDICT self) {
-    return 1.0f + (FLOAT)self->hero.agi * AGI_ATTACKSPEED_BONUS;
-}
-
-static FLOAT attack_recovery(LPCEDICT self) {
-    FLOAT const recovery = self->attack1.cooldown - self->attack1.damagePoint;
-    return (recovery > 0.0f ? recovery : 0.0f) / attack_speed_factor(self);
+    return 1.0f + self->hero.agi * 0.02f;
 }
 
 void attack_melee_cooldown(LPEDICT self) {
+    FLOAT recovery = self->attack1.cooldown - self->attack1.damagePoint;
     unit_setmove(self, &attack_move_melee_cooldown);
-    self->wait = attack_recovery(self);
+    self->wait = recovery > 0.0f ? recovery / attack_speed_factor(self) : 0.0f;
 }
 
 void attack_melee(LPEDICT self) {
     unit_setmove(self, &attack_move_melee);
     self->wait = self->attack1.damagePoint / attack_speed_factor(self);
+    if (self->sound_attack) { self->s.event = EV_ATTACK; self->s.sound = self->sound_attack; }
 }
 
 void attack_ranged_cooldown(LPEDICT self) {
+    FLOAT recovery = self->attack1.cooldown - self->attack1.damagePoint;
     unit_setmove(self, &attack_move_ranged_cooldown);
-    self->wait = attack_recovery(self);
+    self->wait = recovery > 0.0f ? recovery / attack_speed_factor(self) : 0.0f;
 }
 
 void attack_ranged(LPEDICT self) {
     unit_setmove(self, &attack_move_ranged);
     self->wait = self->attack1.damagePoint / attack_speed_factor(self);
+    if (self->sound_attack) { self->s.event = EV_ATTACK; self->s.sound = self->sound_attack; }
 }
 
 BOOL attack_menu_selecttarget(LPEDICT ent, LPEDICT target) {

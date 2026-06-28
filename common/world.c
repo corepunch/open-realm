@@ -28,6 +28,7 @@ DWORD SFileReadStringLength(HANDLE file) {
     return stringLength;
 }
 
+#ifdef GAME_WORLD
 void SFileReadString(HANDLE file, LPSTR *lppString) {
     DWORD stringLength = SFileReadStringLength(file);
     *lppString = MemAlloc(stringLength);
@@ -232,7 +233,6 @@ static BOOL CM_ReadInfoInto(HANDLE archive, LPMAPINFO info, BOOL setup_only) {
     return true;
 }
 
-#ifdef GAME_WORLD
 static void CM_ReadInfo(HANDLE archive) {
     CM_ReadInfoInto(archive, &world.info, false);
 }
@@ -289,14 +289,6 @@ static void MapInfo_Release(LPMAPINFO mapInfo) {
         string = next;
     }
     SAFE_DELETE(mapInfo->mapscript, MemFree);
-}
-
-void CM_FreeMapInfo(LPMAPINFO mapInfo) {
-    if (!mapInfo) {
-        return;
-    }
-    MapInfo_Release(mapInfo);
-    memset(mapInfo, 0, sizeof(*mapInfo));
 }
 
 #define CM_PLACEMENT_ROC_VERSION 7
@@ -914,205 +906,6 @@ static void CM_ReadStringsInto(HANDLE archive, LPMAPINFO info) {
 
 void CM_ReadStrings(HANDLE archive) {
     CM_ReadStringsInto(archive, &world.info);
-}
-
-BOOL CM_ReadMapInfo(LPCSTR mapFilename, LPMAPINFO info) {
-    HANDLE mapArchive;
-    HANDLE mapData;
-    DWORD mapSize = 0;
-
-    if (!mapFilename || !info) {
-        return false;
-    }
-
-    memset(info, 0, sizeof(*info));
-    mapData = FS_ReadFile(mapFilename, &mapSize);
-    if (!mapData || mapSize == 0) {
-        return false;
-    }
-    if (!SFileOpenArchiveFromMemory(mapData, mapSize, 0, &mapArchive)) {
-        MemFree(mapData);
-        return false;
-    }
-
-    if (!CM_ReadInfoInto(mapArchive, info, true)) {
-        SFileCloseArchive(mapArchive);
-        MemFree(mapData);
-        return false;
-    }
-    CM_ReadStringsInto(mapArchive, info);
-
-    SFileCloseArchive(mapArchive);
-    MemFree(mapData);
-    return true;
-}
-
-BOOL CM_FindMapPreviewTexture(LPCSTR mapFilename, LPSTR out, DWORD out_size) {
-    static LPCSTR candidates[] = {
-        "war3mapPreview.tga",
-        "war3mapMap.blp",
-        "war3mapMap.tga",
-        NULL,
-    };
-    HANDLE mapArchive;
-    HANDLE mapData;
-    DWORD mapSize = 0;
-    BOOL found = false;
-
-    if (!mapFilename || !out || out_size == 0) {
-        return false;
-    }
-    out[0] = '\0';
-
-    mapData = FS_ReadFile(mapFilename, &mapSize);
-    if (!mapData || mapSize == 0) {
-        return false;
-    }
-    if (!SFileOpenArchiveFromMemory(mapData, mapSize, 0, &mapArchive)) {
-        MemFree(mapData);
-        return false;
-    }
-
-    for (DWORD i = 0; candidates[i]; i++) {
-        HANDLE file;
-
-        if (!SFileOpenFileEx(mapArchive, candidates[i], SFILE_OPEN_FROM_MPQ, &file)) {
-            continue;
-        }
-        SFileCloseFile(file);
-        snprintf(out, out_size, "%s\\%s", mapFilename, candidates[i]);
-        found = true;
-        break;
-    }
-
-    SFileCloseArchive(mapArchive);
-    MemFree(mapData);
-    return found;
-}
-
-static LPCSTR CM_PathBaseFileName(LPCSTR path) {
-    LPCSTR base = path ? path : "";
-
-    for (LPCSTR p = base; *p; p++) {
-        if (*p == '\\' || *p == '/') {
-            base = p + 1;
-        }
-    }
-    return base;
-}
-
-void CM_DefaultMapName(LPCSTR path, LPSTR out, DWORD out_size) {
-    DWORD len;
-
-    if (!out || out_size == 0) {
-        return;
-    }
-    snprintf(out, out_size, "%s", CM_PathBaseFileName(path));
-    len = (DWORD)strlen(out);
-    if (len > 4 && out[len - 4] == '.') {
-        out[len - 4] = '\0';
-    }
-}
-
-void CM_ResolveMapInfoString(LPCMAPINFO info, LPCSTR text, LPSTR out, DWORD out_size) {
-    DWORD id;
-
-    if (!out || out_size == 0) {
-        return;
-    }
-    if (!text) {
-        out[0] = '\0';
-        return;
-    }
-    if (strncmp(text, "TRIGSTR_", 8)) {
-        snprintf(out, out_size, "%s", text);
-        return;
-    }
-    id = (DWORD)strtoul(text + 8, NULL, 10);
-    for (mapTrigStr_t const *string = info ? info->strings : NULL; string; string = string->next) {
-        if (string->id == id) {
-            snprintf(out, out_size, "%s", string->text);
-            return;
-        }
-    }
-    snprintf(out, out_size, "%s", text);
-}
-
-BOOL CM_MapNameMatchesFile(LPCSTR name, LPCSTR path) {
-    PATHSTR base;
-    size_t len;
-
-    if (!name || !path || !*name) {
-        return false;
-    }
-    snprintf(base, sizeof(base), "%s", CM_PathBaseFileName(path));
-    len = strlen(base);
-    if (len > 4 && (!strcasecmp(base + len - 4, ".w3m") ||
-                    !strcasecmp(base + len - 4, ".w3x"))) {
-        base[len - 4] = '\0';
-    }
-    return !strcasecmp(name, base);
-}
-
-LPCSTR CM_TilesetName(BYTE tileset) {
-    switch (tileset) {
-        case 'A': return "Ashenvale";
-        case 'B': return "Barrens";
-        case 'C': return "Felwood";
-        case 'D': return "Dungeon";
-        case 'F': return "Lordaeron Fall";
-        case 'G': return "Underground";
-        case 'I': return "Icecrown Glacier";
-        case 'J': return "Dalaran";
-        case 'K': return "Black Citadel";
-        case 'L': return "Lordaeron Summer";
-        case 'N': return "Northrend";
-        case 'O': return "Outland";
-        case 'Q': return "Village Fall";
-        case 'V': return "Village";
-        case 'W': return "Lordaeron Winter";
-        case 'X': return "Dalaran Ruins";
-        case 'Y': return "Cityscape";
-        case 'Z': return "Sunken Ruins";
-        default: return NULL;
-    }
-}
-
-LPCSTR CM_MapSizeName(DWORD width, DWORD height) {
-    DWORD largest = MAX(width, height);
-
-    if (largest <= 96) {
-        return "Small";
-    }
-    if (largest <= 128) {
-        return "Medium";
-    }
-    if (largest <= 160) {
-        return "Large";
-    }
-    return "Huge";
-}
-
-void CM_SanitizeMapListField(LPSTR text) {
-    if (!text) {
-        return;
-    }
-    for (LPSTR p = text; *p; p++) {
-        if (*p == '\n' || *p == '\r' || *p == '\t') {
-            *p = ' ';
-        }
-    }
-}
-
-void CM_SanitizeMapInfoText(LPSTR text) {
-    if (!text) {
-        return;
-    }
-    for (LPSTR p = text; *p; p++) {
-        if (*p == '\t') {
-            *p = ' ';
-        }
-    }
 }
 
 void CM_ReadMapScript(HANDLE archive) {

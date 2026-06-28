@@ -68,7 +68,7 @@ struct tCliffTexture {
     struct tCliffTexture *next;
 };
 
-static struct tCliffTexture *g_cliff_textures = NULL;
+static struct tCliffTexture *g_cliff_textures = NULL; /* TODO: verify if still needed — R_LoadTexture doesn't cache by path, so this avoids redundant file reads for the same cliff texture across map segments */
 
 // HELPERS
 

@@ -107,8 +107,11 @@ static void UI_WriteProxyFrame(LPUIFRAME frame, HANDLE data, DWORD data_size) {
     frame->number = ui_next_frame_number++;
     frame->parent = 0;
     frame->color = frame->color.a ? frame->color : COLOR32_WHITE;
-    frame->tex.coord[1] = 0xff;
-    frame->tex.coord[3] = 0xff;
+    /* Set default full-UV only when caller left coords zeroed */
+    if (!frame->tex.coord[1] && !frame->tex.coord[3]) {
+        frame->tex.coord[1] = 0xff;
+        frame->tex.coord[3] = 0xff;
+    }
     frame->buffer.data = data;
     frame->buffer.size = data_size;
     gi.Write(PF_UIFRAME, frame);
@@ -283,14 +286,104 @@ static LPCSTR UI_FormatMessageText(LPCSTR text) {
     return out;
 }
 
-static void UI_WriteServerConsoleShell(LPEDICT ent) {
-    if (!ent) {
-        return;
+/* ConsoleUI backdrop parts — from the hardcoded table in ui_main.c.
+ * uv: {u_min, u_max, v_min, v_max} as bytes 0-255 (coord[] encoding). */
+typedef struct { LPCSTR key; RECT screen; BYTE uv[4]; } consoleBackdropPart_t;
+static consoleBackdropPart_t const console_backdrop[] = {
+    /* top strip */
+    { "ConsoleTexture01", { 0.000f, 0.000f, 0.256f, 0.032f }, { 0,   255,  0,  32 } },
+    { "ConsoleTexture02", { 0.256f, 0.000f, 0.087f, 0.032f }, { 0,    87,  0,  32 } },
+    { "ConsoleTexture02", { 0.459f, 0.000f, 0.053f, 0.032f }, { 202, 255,  0,  32 } },
+    { "ConsoleTexture03", { 0.512f, 0.000f, 0.256f, 0.032f }, { 0,   255,  0,  32 } },
+    { "ConsoleTexture04", { 0.768f, 0.000f, 0.032f, 0.032f }, { 0,   255,  0,  32 } },
+    /* bottom panel */
+    { "ConsoleTexture01", { 0.000f, 0.424f, 0.256f, 0.176f }, { 0,   255,  80, 255 } },
+    { "ConsoleTexture02", { 0.256f, 0.450f, 0.256f, 0.150f }, { 0,   255, 106, 255 } },
+    { "ConsoleTexture03", { 0.512f, 0.424f, 0.256f, 0.176f }, { 0,   255,  80, 255 } },
+    { "ConsoleTexture04", { 0.768f, 0.424f, 0.032f, 0.176f }, { 0,   255,  80, 255 } },
+};
+
+/* Write the ConsoleUI backdrop nine-part image mosaic as FT_TEXTURE frames. */
+static void UI_WriteConsoleBackdrop(void) {
+    FOR_LOOP(i, sizeof(console_backdrop) / sizeof(console_backdrop[0])) {
+        consoleBackdropPart_t const *p = &console_backdrop[i];
+        uiFrame_t frame;
+
+        memset(&frame, 0, sizeof(frame));
+        frame.flags.type = FT_TEXTURE;
+        frame.color = COLOR32_WHITE;
+        frame.tex.index = gi.ImageIndex(Theme_String(p->key, p->key));
+        frame.tex.coord[0] = p->uv[0];
+        frame.tex.coord[1] = p->uv[1];
+        frame.tex.coord[2] = p->uv[2];
+        frame.tex.coord[3] = p->uv[3];
+        UI_SetFrameRect(&frame, p->screen.x, p->screen.y, p->screen.w, p->screen.h);
+        UI_WriteProxyFrame(&frame, NULL, 0);
     }
+}
+
+/* Minimap viewport — FT_MINIMAP; client calls DrawMinimap() for this rect. */
+static void UI_WriteMinimapFrame(void) {
+    uiFrame_t frame;
+
+    memset(&frame, 0, sizeof(frame));
+    frame.flags.type = FT_MINIMAP;
+    frame.color = COLOR32_WHITE;
+    UI_SetFrameRect(&frame, 0.0070f, 0.4525f, 0.1395f, 0.1395f);
+    UI_WriteProxyFrame(&frame, NULL, 0);
+}
+
+/* ResourceBar icon images — theme keys match ResourceBar.fdf DecorateFileNames entries. */
+static void UI_WriteResourceBarIcons(void) {
+    static struct { LPCSTR key; FLOAT x; } icons[] = {
+        { "GoldIcon",   0.66171875f },
+        { "LumberIcon", 0.74765625f },
+        { "SupplyIcon", 0.83437500f },
+    };
+    static FLOAT const icon_y = 0.003125f, icon_size = 0.01640625f;
+
+    FOR_LOOP(i, 3) {
+        uiFrame_t frame;
+
+        memset(&frame, 0, sizeof(frame));
+        frame.flags.type = FT_TEXTURE;
+        frame.color = COLOR32_WHITE;
+        frame.tex.index = gi.ImageIndex(Theme_String(icons[i].key, icons[i].key));
+        frame.tex.coord[1] = 0xff;
+        frame.tex.coord[3] = 0xff;
+        UI_SetFrameRect(&frame, icons[i].x, icon_y, icon_size, icon_size);
+        UI_WriteProxyFrame(&frame, NULL, 0);
+    }
+}
+
+/* Resource value text frames — right-justified into anchors from ResourceBar.fdf.
+ * Font: MasterFont at size 0.01 (10px via UI_FontPixelSize). */
+static void UI_WriteResourceText(LPCSTR text, FLOAT right_anchor) {
+    static FLOAT const text_w = 0.065f, text_y = 0.003125f, text_h = 0.01640625f;
+    UI_WriteTextFrameSized(right_anchor - text_w, text_y, text_w, text_h,
+                           text, COLOR32_WHITE, FONT_JUSTIFYRIGHT,
+                           /* MasterFont 0.01 → 10px */ 10);
+}
+
+/* Send the full LAYER_CONSOLE payload: backdrop + minimap + resource icons +
+ * resource text values + top-bar buttons + tooltip. */
+static void UI_SendConsoleLayer(LPEDICT ent, LONG gold, LONG lumber, LONG food_used, LONG food_cap) {
+    char gold_buf[16], lumber_buf[16], supply_buf[16];
+
+    snprintf(gold_buf,   sizeof(gold_buf),   "%ld", (long)gold);
+    snprintf(lumber_buf, sizeof(lumber_buf), "%ld", (long)lumber);
+    snprintf(supply_buf, sizeof(supply_buf), "%ld/%ld", (long)food_used, (long)food_cap);
 
     gi.Write(PF_BYTE, &(LONG){svc_layout});
     gi.Write(PF_BYTE, &(LONG){LAYER_CONSOLE});
     ui_next_frame_number = 1;
+
+    UI_WriteConsoleBackdrop();
+    UI_WriteMinimapFrame();
+    UI_WriteResourceBarIcons();
+    UI_WriteResourceText(gold_buf,   0.73515625f);
+    UI_WriteResourceText(lumber_buf, 0.82187500f);
+    UI_WriteResourceText(supply_buf, 0.90859375f);
 
     UI_WriteCommandTextFrame(0.004f, 0.006f, 0.085f, 0.014f, "Quests (F9)", "quests",
                              COLOR32_WHITE, FONT_JUSTIFYCENTER, HUD_FONT_SIZE);
@@ -303,6 +396,24 @@ static void UI_WriteServerConsoleShell(LPEDICT ent) {
     gi.Write(PF_LONG, &(LONG){0});
     gi.Write(PF_SHORT, &(LONG){0});
     gi.unicast(ent);
+}
+
+static void UI_WriteServerConsoleShell(LPEDICT ent) {
+    LPPLAYER ps = ent && ent->client ? &ent->client->ps : NULL;
+    LONG gold    = ps ? (LONG)ps->stats[PLAYERSTATE_RESOURCE_GOLD]      : 0;
+    LONG lumber  = ps ? (LONG)ps->stats[PLAYERSTATE_RESOURCE_LUMBER]    : 0;
+    LONG food_u  = ps ? (LONG)ps->stats[PLAYERSTATE_RESOURCE_FOOD_USED] : 0;
+    LONG food_c  = ps ? (LONG)ps->stats[PLAYERSTATE_RESOURCE_FOOD_CAP]  : 0;
+
+    if (!ent)
+        return;
+    UI_SendConsoleLayer(ent, gold, lumber, food_u, food_c);
+    if (ent->client) {
+        ent->client->resourcebar.gold      = gold;
+        ent->client->resourcebar.lumber    = lumber;
+        ent->client->resourcebar.food_used = food_u;
+        ent->client->resourcebar.food_cap  = food_c;
+    }
 }
 
 static void UI_WritePortraitFrame(LPEDICT ent) {
@@ -794,6 +905,40 @@ void G_UpdateClientInfoPanels(void) {
     }
 }
 
+/* Re-send LAYER_CONSOLE for one player only when a resource value changed. */
+void G_RefreshResourceBar(LPEDICT ent) {
+    LPPLAYER ps;
+    LONG gold, lumber, food_u, food_c;
+
+    if (!ent || !ent->client)
+        return;
+    ps     = &ent->client->ps;
+    gold   = (LONG)ps->stats[PLAYERSTATE_RESOURCE_GOLD];
+    lumber = (LONG)ps->stats[PLAYERSTATE_RESOURCE_LUMBER];
+    food_u = (LONG)ps->stats[PLAYERSTATE_RESOURCE_FOOD_USED];
+    food_c = (LONG)ps->stats[PLAYERSTATE_RESOURCE_FOOD_CAP];
+
+    if (gold   == ent->client->resourcebar.gold   &&
+        lumber == ent->client->resourcebar.lumber  &&
+        food_u == ent->client->resourcebar.food_used &&
+        food_c == ent->client->resourcebar.food_cap)
+        return;
+
+    UI_SendConsoleLayer(ent, gold, lumber, food_u, food_c);
+    ent->client->resourcebar.gold      = gold;
+    ent->client->resourcebar.lumber    = lumber;
+    ent->client->resourcebar.food_used = food_u;
+    ent->client->resourcebar.food_cap  = food_c;
+}
+
+void G_UpdateClientResourceBars(void) {
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT ent = g_edicts + i;
+        if (ent->inuse && ent->client)
+            G_RefreshResourceBar(ent);
+    }
+}
+
 static DWORD UI_QuestIndex(LPCQUEST quest) {
     DWORD index = 0;
 
@@ -980,10 +1125,19 @@ void UI_HideQuests(LPEDICT ent) {
     UI_ClearLayer(ent, LAYER_QUESTDIALOG);
 }
 void UI_Init(void) {}
-void UI_ShowInterface(LPEDICT ent, BOOL show, FLOAT duration) { (void)ent; (void)show; (void)duration; }
+void UI_ShowInterface(LPEDICT ent, BOOL flag, FLOAT duration) {
+    (void)duration;
+    if (!ent || !ent->client) return;
+    ent->client->ps.client_ui_state = flag ? CLIENT_UI_GAME : CLIENT_UI_CINEMATIC;
+    if (flag)
+        ent->client->ps.uiflags = 1 << LAYER_CINEMATIC;
+    else
+        ent->client->ps.uiflags = ~(1u << LAYER_CINEMATIC);
+}
 void UI_ShowMainMenu(LPEDICT ent) { (void)ent; }
 void UI_ShowGameInterface(LPEDICT ent) {
     UI_WriteServerConsoleShell(ent);
+    UI_WriteCinematicLayer(ent);  /* Match old G_ClientBegin: send cinematic layout once */
 }
 void UI_ShowText(LPEDICT ent, LPCVECTOR2 pos, LPCSTR text, FLOAT duration) {
     FLOAT x = pos ? pos->x : 0.0500f;
@@ -1059,6 +1213,105 @@ void UI_WriteStart(DWORD layer) {
     gi.Write(PF_BYTE, &(LONG){svc_layout});
     gi.Write(PF_BYTE, &(LONG){layer});
     ui_next_frame_number = 1;
+}
+
+
+
+void UI_WriteCinematicLayer(LPEDICT ent) {
+    LPPLAYER ps;
+
+    if (!ent || !ent->client) return;
+    ps = &ent->client->ps;
+
+    FLOAT const bot_h = 0.14f, top_h = 0.0275f;
+    FLOAT const bot_y = UI_BASE_HEIGHT - bot_h;
+    FLOAT const pp_x = 0.014f, pp_y = bot_y + 0.014f, pp_w = 0.116f, pp_h = 0.116f;
+    FLOAT const pc_x = pp_x - 0.014f, pc_y = pp_y - 0.014f, pc_w = pp_w + 0.028f, pc_h = pp_h + 0.028f;
+    FLOAT const t_x = pc_x + pc_w + 0.015f, t_y = pp_y + 0.005f;
+    FLOAT const t_w = UI_BASE_WIDTH - t_x - 0.010f;
+
+    gi.Write(PF_BYTE, &(LONG){svc_layout});
+    gi.Write(PF_BYTE, &(LONG){LAYER_CINEMATIC});
+    ui_next_frame_number = 1;
+
+    /* Bottom border bar (edge-only, no bg — CinematicBorder provides the 9-slice decoration) */
+    {
+        uiFrame_t frame; uiBackdrop_t bd;
+        memset(&frame, 0, sizeof(frame)); memset(&bd, 0, sizeof(bd));
+        frame.flags.type = FT_BACKDROP; frame.color = COLOR32_WHITE;
+        bd.EdgeFile = gi.ImageIndex(Theme_String("CinematicBorder", "CinematicBorder"));
+        bd.CornerFlags = (1<<0)|(1<<2)|(1<<1); bd.CornerSize = 0.04f;
+        bd.BackgroundSize = 0.256f; bd.BackgroundInsets[1] = 0.01f;
+        bd.TileBackground = true; bd.BlendAll = true;
+        UI_SetFrameRect(&frame, 0.0f, bot_y, UI_BASE_WIDTH, bot_h);
+        UI_WriteProxyFrame(&frame, &bd, sizeof(bd));
+    }
+
+    /* Top border bar */
+    {
+        uiFrame_t frame; uiBackdrop_t bd;
+        memset(&frame, 0, sizeof(frame)); memset(&bd, 0, sizeof(bd));
+        frame.flags.type = FT_BACKDROP; frame.color = COLOR32_WHITE;
+        bd.EdgeFile = gi.ImageIndex(Theme_String("CinematicBorder", "CinematicBorder"));
+        bd.CornerFlags = (1<<6)|(1<<8)|(1<<7); bd.CornerSize = 0.04f;
+        bd.BackgroundSize = 0.256f; bd.BackgroundInsets[2] = 0.01f;
+        bd.TileBackground = true; bd.BlendAll = true;
+        UI_SetFrameRect(&frame, 0.0f, 0.0f, UI_BASE_WIDTH, top_h);
+        UI_WriteProxyFrame(&frame, &bd, sizeof(bd));
+    }
+
+    /* Portrait cover — backdrop border around the portrait (sent whenever portrait is sent) */
+    if (ps->cinematic_portrait) {
+        uiFrame_t f; uiBackdrop_t bd;
+        memset(&f, 0, sizeof(f)); memset(&bd, 0, sizeof(bd));
+        f.flags.type = FT_BACKDROP; f.color = COLOR32_WHITE;
+        bd.Background = gi.ImageIndex("UI\\Widgets\\EscMenu\\Human\\blank-background.blp");
+        bd.EdgeFile = gi.ImageIndex("UI\\Widgets\\EscMenu\\Human\\human-options-menu-border.blp");
+        bd.CornerFlags = 0x1ff; bd.CornerSize = 0.048f; bd.BackgroundSize = 0.256f;
+        FOR_LOOP(i, 4) bd.BackgroundInsets[i] = 0.01f;
+        bd.TileBackground = true; bd.BlendAll = true;
+        UI_SetFrameRect(&f, pc_x, pc_y, pc_w, pc_h);
+        UI_WriteProxyFrame(&f, &bd, sizeof(bd));
+
+    /* Portrait model */
+        uiFrame_t frame;
+        memset(&frame, 0, sizeof(frame));
+        frame.flags.type = FT_PORTRAIT;
+        frame.color = COLOR32_WHITE;
+        frame.tex.index = ps->cinematic_portrait;
+        frame.text = "Portrait";
+        UI_SetFrameRect(&frame, pp_x, pp_y, pp_w, pp_h);
+        UI_WriteProxyFrame(&frame, NULL, 0);
+    }
+
+    /* Speaker text — golden yellow (EscMenuTitleTextTemplate FontColor 0.99 0.827 0.0705), 15px */
+    if (ps->texts[PLAYERTEXT_SPEAKER] && ps->texts[PLAYERTEXT_SPEAKER][0]) {
+        uiFrame_t frame; uiLabel_t label;
+        memset(&frame, 0, sizeof(frame)); memset(&label, 0, sizeof(label));
+        frame.flags.type = FT_STRING;
+        frame.color = MAKE(COLOR32, 252, 211, 18, 255);
+        frame.stat = MAX_STATS + PLAYERTEXT_SPEAKER;
+        label.font = gi.FontIndex("Fonts\\FRIZQT__.TTF", 15);
+        label.textalignx = FONT_JUSTIFYLEFT; label.textaligny = FONT_JUSTIFYTOP;
+        UI_SetFrameRect(&frame, t_x, t_y, t_w, 0.020f);
+        UI_WriteProxyFrame(&frame, &label, sizeof(label));
+    }
+
+    /* Dialogue text — white, 15px */
+    if (ps->texts[PLAYERTEXT_DIALOGUE] && ps->texts[PLAYERTEXT_DIALOGUE][0]) {
+        uiFrame_t frame; uiTextArea_t textarea;
+        memset(&frame, 0, sizeof(frame)); memset(&textarea, 0, sizeof(textarea));
+        frame.flags.type = FT_TEXTAREA; frame.color = COLOR32_WHITE;
+        frame.stat = MAX_STATS + PLAYERTEXT_DIALOGUE;
+        textarea.font = gi.FontIndex("Fonts\\FRIZQT__.TTF", 15);
+        textarea.inset = 0.005f;
+        UI_SetFrameRect(&frame, t_x, t_y + 0.024f, t_w, bot_h - 0.050f);
+        UI_WriteProxyFrame(&frame, &textarea, sizeof(textarea));
+    }
+
+    gi.Write(PF_LONG, &(LONG){0});
+    gi.Write(PF_SHORT, &(LONG){0});
+    gi.unicast(ent);
 }
 
 static void UI_ClearCursorSplat(LPEDICT ent) {

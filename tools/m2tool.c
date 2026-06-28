@@ -387,6 +387,22 @@ enum {
     M2TOOL_CHAR_TEX_COUNT
 };
 
+enum {
+    M2TOOL_SLOT_HEAD,
+    M2TOOL_SLOT_SHOULDERS,
+    M2TOOL_SLOT_CHEST,
+    M2TOOL_SLOT_SHIRT,
+    M2TOOL_SLOT_BELT,
+    M2TOOL_SLOT_LEGS,
+    M2TOOL_SLOT_BOOTS,
+    M2TOOL_SLOT_GLOVES,
+    M2TOOL_SLOT_TABARD,
+    M2TOOL_SLOT_CAPE,
+    M2TOOL_SLOT_COUNT
+};
+
+#define M2TOOL_NUM_GEOSET_GROUPS 16
+
 typedef struct {
     LPBYTE data;
     DWORD size;
@@ -400,7 +416,7 @@ typedef struct {
 
 typedef struct {
     LPCSTR texture[M2TOOL_CHAR_TEX_COUNT];
-    DWORD geoset_group[3];
+    DWORD geoset[M2TOOL_NUM_GEOSET_GROUPS];
     DWORD flags;
     DWORD display_ids[16];
     DWORD display_count;
@@ -554,7 +570,20 @@ static DWORD ItemDisplayInfoFlagsField(m2ToolDbc_t const *dbc) {
 
 static void AddDisplayInfoToOutfit(m2ToolWowOutfit_t *outfit,
                                    m2ToolDbc_t const *item_display_info,
-                                   DWORD display_id) {
+                                   DWORD display_id,
+                                   DWORD slot) {
+    static DWORD const slot_geoset_group_map[M2TOOL_SLOT_COUNT][3] = {
+        /* HEAD */      { 0, 0, 0 },
+        /* SHOULDERS */ { 0, 0, 0 },
+        /* CHEST */     { 8, 0, 12 },
+        /* SHIRT */     { 0, 0, 0 },
+        /* BELT */      { 0, 0, 0 },
+        /* LEGS */      { 0, 9, 13 },
+        /* BOOTS */     { 5, 0, 0 },
+        /* GLOVES */    { 4, 0, 0 },
+        /* TABARD */    { 0, 0, 0 },
+        /* CAPE */      { 15, 0, 0 },
+    };
     BYTE const *record;
     DWORD texture_base;
     DWORD geoset_base;
@@ -576,8 +605,11 @@ static void AddDisplayInfoToOutfit(m2ToolWowOutfit_t *outfit,
     flags_field = ItemDisplayInfoFlagsField(item_display_info);
     FOR_LOOP(i, 3) {
         DWORD geoset_group = DbcField(item_display_info, record, geoset_base + i);
-        if (geoset_group) {
-            outfit->geoset_group[i] = geoset_group;
+        if (geoset_group && slot < M2TOOL_SLOT_COUNT) {
+            DWORD group = slot_geoset_group_map[slot][i];
+            if (group && group < M2TOOL_NUM_GEOSET_GROUPS) {
+                outfit->geoset[group] = geoset_group;
+            }
         }
     }
     outfit->flags |= DbcField(item_display_info, record, flags_field);
@@ -592,9 +624,10 @@ static void AddDisplayInfoToOutfit(m2ToolWowOutfit_t *outfit,
 static void AddDisplayInfoListToOutfit(m2ToolWowOutfit_t *outfit,
                                        m2ToolDbc_t const *item_display_info,
                                        DWORD const *display_ids,
-                                       DWORD display_count) {
+                                       DWORD display_count,
+                                       DWORD slot) {
     FOR_LOOP(i, display_count) {
-        AddDisplayInfoToOutfit(outfit, item_display_info, display_ids[i]);
+        AddDisplayInfoToOutfit(outfit, item_display_info, display_ids[i], slot);
     }
 }
 
@@ -627,7 +660,8 @@ static void AddEquipmentItemToOutfit(m2ToolWowOutfit_t *outfit,
                                      DWORD list_count,
                                      DWORD race_id,
                                      DWORD gender_id,
-                                     BYTE item_index) {
+                                     BYTE item_index,
+                                     DWORD slot) {
     m2ToolEquipmentItem_t const *item = EquipmentSlotItem(lists, list_count, race_id, gender_id, item_index);
 
     if (!outfit || !item_display_info || !item) {
@@ -636,7 +670,8 @@ static void AddEquipmentItemToOutfit(m2ToolWowOutfit_t *outfit,
     AddDisplayInfoListToOutfit(outfit,
                                item_display_info,
                                item->display_ids,
-                               sizeof(item->display_ids) / sizeof(item->display_ids[0]));
+                               sizeof(item->display_ids) / sizeof(item->display_ids[0]),
+                               slot);
 }
 
 static void ApplyEquipmentItems(m2ToolWowOutfit_t *outfit,
@@ -660,16 +695,16 @@ static void ApplyEquipmentItems(m2ToolWowOutfit_t *outfit,
 
     AddEquipmentItemToOutfit(outfit, item_display_info, upper_body_items,
                              sizeof(upper_body_items) / sizeof(upper_body_items[0]),
-                             race_id, gender_id, items.upperBodyItem);
+                             race_id, gender_id, items.upperBodyItem, M2TOOL_SLOT_CHEST);
     AddEquipmentItemToOutfit(outfit, item_display_info, lower_body_items,
                              sizeof(lower_body_items) / sizeof(lower_body_items[0]),
-                             race_id, gender_id, items.lowerBodyItem);
+                             race_id, gender_id, items.lowerBodyItem, M2TOOL_SLOT_LEGS);
     AddEquipmentItemToOutfit(outfit, item_display_info, hand_items,
                              sizeof(hand_items) / sizeof(hand_items[0]),
-                             race_id, gender_id, items.handItem);
+                             race_id, gender_id, items.handItem, M2TOOL_SLOT_GLOVES);
     AddEquipmentItemToOutfit(outfit, item_display_info, foot_items,
                              sizeof(foot_items) / sizeof(foot_items[0]),
-                             race_id, gender_id, items.footItem);
+                             race_id, gender_id, items.footItem, M2TOOL_SLOT_BOOTS);
 }
 
 static BOOL LoadWowStartOutfit(LPCSTR model_path,
@@ -705,8 +740,14 @@ static BOOL LoadWowStartOutfit(LPCSTR model_path,
         if (record_race != race_id || record_class != class_id || record_gender != gender_id) {
             continue;
         }
+        static DWORD const start_outfit_slot_map[12] = {
+            M2TOOL_SLOT_HEAD, M2TOOL_SLOT_SHOULDERS, M2TOOL_SLOT_CHEST, M2TOOL_SLOT_SHIRT,
+            M2TOOL_SLOT_BELT, M2TOOL_SLOT_LEGS, M2TOOL_SLOT_BOOTS, M2TOOL_SLOT_GLOVES,
+            M2TOOL_SLOT_TABARD, M2TOOL_SLOT_CAPE, M2TOOL_SLOT_COUNT, M2TOOL_SLOT_COUNT
+        };
         FOR_LOOP(display, 12) {
-            AddDisplayInfoToOutfit(outfit, &item, DbcField(&start, record, 14 + display));
+            AddDisplayInfoToOutfit(outfit, &item, DbcField(&start, record, 14 + display),
+                                   start_outfit_slot_map[display]);
         }
         ApplyEquipmentItems(outfit, &item, race_id, gender_id, equipment);
         found = true;
@@ -756,25 +797,37 @@ static BOOL ComponentTexturePath(LPCSTR stem, BYTE slot, LPCSTR model_path, LPST
 }
 
 static BOOL WowVisibleSection(WORD section_id, m2ToolWowOutfit_t const *outfit) {
+    DWORD group, geoset, expected;
+
     if (section_id < 400) {
         return true;
     }
     if (!outfit) {
         return section_id == 401 || section_id == 702 || section_id == 1501;
     }
-    switch (section_id / 100) {
-        case 4: return section_id == 401;
-        case 5: return section_id == 501;
-        case 7: return section_id == 702;
-        case 8: return section_id == 802;
-        case 9: return section_id == 902;
+
+    group = section_id / 100;
+    geoset = (group < M2TOOL_NUM_GEOSET_GROUPS) ? outfit->geoset[group] : 0;
+
+    switch (group) {
+        case 4:  expected = 401 + geoset; break;
+        case 5:  expected = 501 + geoset; break;
+        case 7:  expected = 702; break;
+        case 8:  expected = 800 + geoset; break;
+        case 9:  expected = 900 + geoset; break;
         case 10: return false;
         case 11: return false;
         case 12: return false;
-        case 13: return (outfit->flags & 0x4) ? false : section_id == 1301;
-        case 15: return section_id == 1501;
+        case 13:
+            if (outfit->flags & 0x4) {
+                return false;
+            }
+            expected = 1301 + geoset;
+            break;
+        case 15: expected = 1501; break;
         default: return false;
     }
+    return section_id == expected;
 }
 
 static BOOL TagEquals(BYTE const *tag, DWORD fourcc) {
@@ -1046,6 +1099,36 @@ static void PrintAttachments(BYTE const *data, DWORD size, m2HeaderInfo_t const 
     printf("attachment_lookup:\n");
     FOR_LOOP(i, (DWORD)header->attachment_lookup.count) {
         printf("  [%03u] -> %u\n", (unsigned)i, (unsigned)lookup[i]);
+    }
+}
+
+static void PrintEvents(BYTE const *data, DWORD size, m2HeaderInfo_t const *header) {
+    /* Both modern and legacy event structs are 44 bytes:
+     *   4(id) + 4(data) + 2(bone) + 2(pad) + 12(pos) + 20(track) = 44
+     * Track is M2TrackBase: 2+2 header + two M2Arrays (16 bytes). */
+    BYTE const *events;
+
+    if (header->events.count <= 0) {
+        return;
+    }
+    events = ArrayPtr(data, size, header->events, 44);
+    if (!events) {
+        return;
+    }
+
+    printf("events:\n");
+    FOR_LOOP(i, (DWORD)header->events.count) {
+        BYTE const *ev = events + i * 44;
+        char id_str[5];
+        DWORD event_data;
+        WORD bone;
+        memcpy(id_str, ev + 0, 4);
+        id_str[4] = '\0';
+        memcpy(&event_data, ev + 4, sizeof(DWORD));
+        memcpy(&bone, ev + 8, sizeof(WORD));
+        printf("  [%03u] id=%.4s data=%u bone=%u\n",
+               (unsigned)i, id_str,
+               (unsigned)event_data, (unsigned)bone);
     }
 }
 
@@ -1821,11 +1904,14 @@ static void PrintWowPlayerConfig(BYTE const *m2_data, DWORD m2_size, m2HeaderInf
         printf(" %u", (unsigned)outfit.display_ids[i]);
     }
     printf("\n");
-    printf("  item_flags=0x%08x geoset_groups=%u,%u,%u\n",
-           (unsigned)outfit.flags,
-           (unsigned)outfit.geoset_group[0],
-           (unsigned)outfit.geoset_group[1],
-           (unsigned)outfit.geoset_group[2]);
+    printf("  item_flags=0x%08x\n", (unsigned)outfit.flags);
+    printf("  geoset_groups:");
+    FOR_LOOP(i, M2TOOL_NUM_GEOSET_GROUPS) {
+        if (outfit.geoset[i]) {
+            printf(" [%u]=%u", i, (unsigned)outfit.geoset[i]);
+        }
+    }
+    printf("\n");
     printf("  component_textures:\n");
     FOR_LOOP(i, M2TOOL_CHAR_TEX_COUNT) {
         PATHSTR path;
@@ -1980,6 +2066,7 @@ static void InspectModel(void) {
 
         PrintHeaderArrays(&header);
         PrintAttachments(payload, payload_size, &header);
+        PrintEvents(payload, payload_size, &header);
         PrintTextures(payload, payload_size, &header);
         PrintTextureLookup(payload, payload_size, &header);
         PrintSkinInfo(resolved, payload, payload_size, &header);

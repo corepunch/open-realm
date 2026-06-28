@@ -9,6 +9,11 @@
 #define WOW_PLAYER_MODEL "Character\\Orc\\Male\\OrcMale.m2"
 #define WOW_PLAYER_WEAPON_MODEL "Item\\ObjectComponents\\Weapon\\Axe_1H_Horde_A_01.m2"
 #define WOW_CLASS_WARRIOR 1
+
+/* CS_GENERAL slot used to pass selected character data from UI to game module.
+   Set by the UI via a single userinfo-style cvar before map load, read by
+   Wow_Init.  Format: \race\Human\sex\Male\class\1\appearance\12345 */
+#define WOW_CS_PLAYERINFO 0
 #define WOW_MOVE_FORWARD 1
 #define WOW_MOVE_BACK 2
 #define WOW_MOVE_LEFT 4
@@ -117,5 +122,6 @@ BOOL Wow_SetCombatReadyAnimation(LPEDICT ent);
 void Wow_AIRunFrame(LPEDICT ent);
 void Wow_SpawnAmbientCreatures(LPCVECTOR2 origin);
 void Wow_RunCreatureFrame(LPEDICT ent);
+void UI_WriteWowHud(LPEDICT ent);
 
 #endif

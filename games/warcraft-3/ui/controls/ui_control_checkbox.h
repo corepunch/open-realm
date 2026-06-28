@@ -2,15 +2,14 @@
 #define UI_CONTROL_CHECKBOX_H
 
 static BOOL UI_CheckBoxEnabled(LPCFRAMEDEF frame) {
-    return frame && !frame->disabled;
+    return frame && !(frame->ui_flags & UIFLAG_DISABLED);
 }
 
 static BOOL UI_CheckBoxIsPushed(LPCFRAMEDEF frame, LPCRECT rect) {
+    (void)rect;
     return UI_CheckBoxEnabled(frame) &&
            !UI_PointerBlockedByPopup(frame) &&
-           UI_MouseContains(rect) &&
-           ui_mouse.button == 1 &&
-           ui_mouse.down;
+           (frame->ui_flags & UIFLAG_PRESSED);
 }
 
 static LPCFRAMEDEF UI_CheckBoxBackdrop(LPCFRAMEDEF frame, LPCRECT rect) {
@@ -41,31 +40,6 @@ static LPCFRAMEDEF UI_CheckBoxCheckHighlight(LPCFRAMEDEF frame) {
     return UI_FindFrameNear(frame, highlight_name);
 }
 
-static void UI_DrawCheckBox(LPCFRAMEDEF frame, LPCRECT rect) {
-    LPCFRAMEDEF backdrop;
-    LPCFRAMEDEF check_highlight;
-
-    if (!frame || !rect) {
-        return;
-    }
-
-    if (!UI_PointerBlockedByPopup(frame) &&
-        UI_MouseContains(rect) &&
-        ui_mouse.event == UI_MOUSE_LEFT_UP) {
-        ((LPFRAMEDEF)frame)->CheckBox.Checked = !frame->CheckBox.Checked;
-        if (frame->OnClick[0]) {
-            UI_MenuCommandLocal(frame->OnClick);
-        }
-    }
-
-    backdrop = UI_CheckBoxBackdrop(frame, rect);
-    UI_DrawBackdropWithColor(backdrop, rect, frame->Color);
-    UI_DrawTexture(frame, rect);
-
-    check_highlight = UI_CheckBoxCheckHighlight(frame);
-    UI_DrawHighlightFrame(check_highlight, rect);
-}
-
 static void UI_DrawCheckBoxMouseOverHighlight(LPCFRAMEDEF frame) {
     LPCRECT rect;
 
@@ -73,7 +47,7 @@ static void UI_DrawCheckBoxMouseOverHighlight(LPCFRAMEDEF frame) {
         return;
     }
     rect = UI_LayoutRect(frame);
-    if (!rect || !UI_MouseContains(rect)) {
+    if (!rect || !(frame->ui_flags & UIFLAG_HOVERED)) {
         return;
     }
     UI_DrawHighlightFrame(UI_ButtonMouseOverHighlight(frame), rect);

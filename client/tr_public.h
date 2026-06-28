@@ -28,6 +28,15 @@ typedef enum {
     SHADER_COUNT,
 } SHADERTYPE;
 
+/* Shared flags for draw structs */
+enum {
+    DRAW_CLIP      = 1 << 0,
+    DRAW_WORD_WRAP = 1 << 1,
+    DRAW_TILE      = 1 << 2,
+    DRAW_MIRRORED  = 1 << 3,
+    DRAW_EDGE_2X2  = 1 << 4, /* edge texture uses WoW 2×2 quadrant UV layout */
+};
+
 /* Text drawing parameters */
 typedef struct drawText_s {
     LPCFONT font;
@@ -36,11 +45,10 @@ typedef struct drawText_s {
     COLOR32 color;
     FLOAT textWidth;
     FLOAT lineHeight;
-    BOOL wordWrap;
+    BYTE flags;
     uiFontJustificationH_t halign;
     uiFontJustificationV_t valign;
     LPCTEXTURE *icons;
-    BOOL hasClip;
     RECT clip;
 } drawText_t;
 
@@ -52,16 +60,25 @@ typedef struct drawImage_s {
     RECT screen;
     RECT uv;
     COLOR32 color;
-    BOOL rotate;
     FLOAT angle;
     FLOAT uActiveGlow;
-    BOOL hasClip;
+    BYTE flags;
     RECT clip;
 } drawImage_t;
+
+/* Backdrop drawing parameters (9-slice border + tiled background) */
+typedef struct drawBackdrop_s {
+    RECT screen;
+    struct { LPCTEXTURE texture; COLOR32 color; } bg, edge;
+    struct { SHORT flags; FLOAT size; } corner;
+    struct { FLOAT right, top, bottom, left; } insets;
+    BYTE flags;
+} drawBackdrop_t;
 
 /* Standard pointer typedefs */
 typedef drawText_t const *LPCDRAWTEXT;
 typedef drawImage_t const *LPCDRAWIMAGE;
+typedef drawBackdrop_t const *LPCDRAWBACKDROP;
 
 typedef struct {
     // Quake 3-style file API: renderer is archive-agnostic
@@ -109,15 +126,12 @@ typedef struct {
     DWORD frame;
     DWORD oldframe;
     DWORD flags;
-    float angle;
-    VECTOR3 rotation;
+    float angle;        /* 1D yaw for dynamic actors (units, players); grounded Warcraft III entities use this */
+    VECTOR3 rotation;   /* 3D rotation for renderer-only static objects (WoW map objects, doodads) */
     float scale;
     float radius;
     float splatsize;
-    float shadow_x;
-    float shadow_y;
-    float shadow_w;
-    float shadow_h;
+    RECT shadow_rect;
     BYTE health;   /* current HP fraction, 0-255 (0 = dead/no bar) */
     BYTE mana;     /* current mana fraction, 0-255 (0 = no mana bar) */
 } renderEntity_t;
@@ -183,10 +197,11 @@ typedef struct {
     void (*DrawPic)(LPCTEXTURE texture, float x, float y);
     void (*DrawImage)(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color);
     void (*DrawImageEx)(LPCDRAWIMAGE drawImage);
+    void (*DrawBackdrop)(LPCDRAWBACKDROP drawBackdrop);
     void (*DrawMinimap)(LPCRECT screen);
     void (*DrawLoadingIndicator)(LPCRECT rect, DWORD time, COLOR32 color);
-    void (*DrawPortrait)(LPCMODEL model, LPCRECT viewport, LPCSTR anim);
     void (*DrawSprite)(LPCMODEL model, LPCSTR anim, float x, float y);
+    bool (*SetEntityAnimFrame)(LPCMODEL model, LPCSTR anim, renderEntity_t *entity);
     void (*DrawText)(LPCDRAWTEXT drawText);
     VECTOR2 (*GetTextSize)(LPCDRAWTEXT drawText);
     bool (*GetModelInfo)(LPMODEL model, LPMODELINFO info);

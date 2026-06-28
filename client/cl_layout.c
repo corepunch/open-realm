@@ -36,24 +36,6 @@ static RECT SCR_GetUISceneRect(void) {
                 scene_h);
 }
 
-VECTOR2 SCR_MouseToFdf(void) {
-    size2_t window = re.GetWindowSize();
-    RECT scene = SCR_GetUISceneRect();
-    FLOAT nx = 0;
-    FLOAT ny = 0;
-
-    if (window.width > 0) {
-        nx = (FLOAT)mouse.origin.x / (FLOAT)window.width;
-    }
-    if (window.height > 0) {
-        ny = (FLOAT)mouse.origin.y / (FLOAT)window.height;
-    }
-
-    return MAKE(VECTOR2,
-                scene.x + nx * scene.w,
-                scene.y + ny * scene.h);
-}
-
 VECTOR2 get_x(LPCRECT rect) {
     return (VECTOR2) { rect->x, rect->x + rect->w };
 }
@@ -173,7 +155,7 @@ drawText_t SCR_GetDrawText(LPCUIFRAME frame,
                 .valign = label->textaligny,
                 .icons = cl.pics,
                 .lineHeight = 1.33,
-                .wordWrap = true,
+                .flags = DRAW_WORD_WRAP,
                 .textWidth = avl_width);
 }
 

@@ -136,7 +136,7 @@ static void OptionsMenu_SetPopupItems(LPFRAMEDEF popup,
 }
 
 static int OptionsMenu_CvarInteger(LPCSTR name, int fallback) {
-    LPCSTR value = uiimport.Cvar_String ? uiimport.Cvar_String(name, NULL) : NULL;
+    LPCSTR value = uiimport.Cvar_String(name, NULL);
 
     return value && *value ? atoi(value) : fallback;
 }
@@ -157,7 +157,7 @@ static void OptionsMenu_SetPopupCvar(LPFRAMEDEF menu, LPCSTR name) {
 }
 
 static void OptionsMenu_InitGamePortEditBox(void) {
-    LPCSTR port = uiimport.Cvar_String ? uiimport.Cvar_String("game_port", "") : "";
+    LPCSTR port = uiimport.Cvar_String("game_port", "");
 
     if (options_menu.GamePortEditBox) {
         options_menu.GamePortEditBox->Edit.MaxChars = 5;
@@ -373,12 +373,6 @@ static void OptionsMenu_KeyEvent(int key, BOOL down) {
     }
 }
 
-static void OptionsMenu_MouseEvent(int x, int y, int buttons) {
-    (void)x;
-    (void)y;
-    (void)buttons;
-}
-
 void OptionsMenu_ShowGameplay(void) {
     OptionsMenu_SetPanel(OPTIONS_PANEL_GAMEPLAY);
 }
@@ -407,5 +401,4 @@ uiScreen_t optionsMenuScreen = {
     .refresh = OptionsMenu_Refresh,
     .draw = OptionsMenu_Draw,
     .key_event = OptionsMenu_KeyEvent,
-    .mouse_event = OptionsMenu_MouseEvent,
 };
