@@ -20,6 +20,17 @@
 #define WOW_UI_MAX_TEXTURES 256
 #define WOW_UI_MAX_FONTS    16
 
+typedef enum {
+    WOW_UI_TEX_BACKGROUND = 0,
+    WOW_UI_TEX_COUNT
+} uiWowTexId_t;
+
+typedef enum {
+    WOW_UI_FONT_TITLE = 0,
+    WOW_UI_FONT_STATUS,
+    WOW_UI_FONT_COUNT
+} uiWowFontId_t;
+
 #define WOW_UI_WARN_FLAG(x) (1u << (x))
 
 #define WOW_UI_WARN_NO_RENDERER            WOW_UI_WARN_FLAG(0)
@@ -60,19 +71,13 @@ typedef struct {
     lua_State *lua;
     BOOL game_mode;
     DWORD warn_once_mask;
-    uiWowTexture_t textures[WOW_UI_MAX_TEXTURES];
+    uiWowTexture_t tex_cache[WOW_UI_MAX_TEXTURES];
     DWORD texture_recycle_index;
-    uiWowFont_t fonts[WOW_UI_MAX_FONTS];
+    uiWowFont_t font_cache[WOW_UI_MAX_FONTS];
     uiWowIcon_t inventory[WOW_UI_INVENTORY_SLOTS];
     uiWowIcon_t actions[WOW_UI_ACTION_SLOTS];
-    LPTEXTURE background;
-    LPTEXTURE bar_background;
-    LPTEXTURE bar_border;
-    LPTEXTURE bar_fill;
-    LPTEXTURE bar_glass;
-    LPTEXTURE bar_glow;
-    LPCFONT font_title;
-    LPCFONT font_status;
+    LPTEXTURE textures[WOW_UI_TEX_COUNT];
+    LPCFONT fonts[WOW_UI_FONT_COUNT];
     PATHSTR active_map;
     PATHSTR current_menu;
     int model_frame_idx;      /* frame index for SetCharSelectModelFrame */

@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<Desc>
+    <Include path="UI/Layout/TestConstants.SC2Layout"/>
+    <Include path="UI/Layout/TestIncluded.SC2Layout"/>
+    <Include path="UI/Layout/TestTemplates.SC2Layout"/>
+
+    <!-- Root game UI frame -->
+    <Frame type="GameUI" name="TestGameUI">
+        <Anchor relative="$parent"/>
+
+        <!-- Test included frame -->
+        <Frame type="Frame" name="IncludedPanel" template="TestIncluded/IncludedFrame">
+            <Anchor side="Bottom" relative="$parent" pos="Max" offset="0"/>
+        </Frame>
+
+        <!-- Test template inheritance with override -->
+        <Frame type="Button" name="ActionButton01" template="TestTemplates/TestButtonTemplate">
+            <Anchor side="Top" relative="$parent" pos="Min" offset="#TestGap"/>
+            <Anchor side="Left" relative="$parent" pos="Min" offset="#TestGap"/>
+        </Frame>
+
+        <!-- Test template with nested children -->
+        <Frame type="Frame" name="InfoPanel" template="TestTemplates/TestContainerTemplate">
+            <Anchor side="Left" relative="$parent" pos="Min" offset="0"/>
+            <Anchor side="Bottom" relative="$parent" pos="Max" offset="-200"/>
+        </Frame>
+
+        <!-- Test deeply nested inline children -->
+        <Frame type="Frame" name="CommandArea">
+            <Width val="450"/>
+            <Height val="300"/>
+            <Anchor side="Bottom" relative="$parent" pos="Max" offset="0"/>
+            <Anchor side="Right" relative="$parent" pos="Max" offset="0"/>
+
+            <Frame type="Image" name="CommandBackground">
+                <Anchor relative="$parent"/>
+                <Texture val="@@Test/CommandBG" layer="0"/>
+            </Frame>
+
+            <Frame type="Button" name="Cmd01">
+                <Width val="76"/>
+                <Height val="76"/>
+                <Anchor side="Top" relative="$parent" pos="Min" offset="4"/>
+                <Anchor side="Left" relative="$parent" pos="Min" offset="4"/>
+            </Frame>
+
+            <Frame type="Button" name="Cmd02">
+                <Width val="76"/>
+                <Height val="76"/>
+                <Anchor side="Top" relative="$parent/Cmd01" pos="Min" offset="0"/>
+                <Anchor side="Left" relative="$parent/Cmd01" pos="Max" offset="1"/>
+            </Frame>
+
+            <Frame type="Label" name="UnitName">
+                <Width val="200"/>
+                <Height val="20"/>
+                <Anchor side="Top" relative="$parent" pos="Min" offset="84"/>
+                <Anchor side="Left" relative="$parent" pos="Min" offset="4"/>
+            </Frame>
+        </Frame>
+    </Frame>
+</Desc>

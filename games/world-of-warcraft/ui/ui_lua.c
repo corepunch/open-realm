@@ -344,8 +344,8 @@ static int UIWow_LuaDrawLoadingBackground(lua_State *L) {
 
     (void)L;
     UIWow_EnsureRenderer();
-    if (wow_ui.renderer && wow_ui.background) {
-        wow_ui.renderer->DrawImage(wow_ui.background, &full, &full, COLOR32_WHITE);
+    if (wow_ui.renderer && wow_ui.textures[WOW_UI_TEX_BACKGROUND]) {
+        wow_ui.renderer->DrawImage(wow_ui.textures[WOW_UI_TEX_BACKGROUND], &full, &full, COLOR32_WHITE);
     }
     return 0;
 }

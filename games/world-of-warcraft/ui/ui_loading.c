@@ -14,11 +14,11 @@ void UIWow_LoadStaticAssets(void) {
     if (!wow_ui.renderer) {
         return;
     }
-    if (!wow_ui.font_title) {
-        wow_ui.font_title = wow_ui.renderer->LoadFont("Fonts\\FRIZQT__.TTF", 22);
+    if (!wow_ui.fonts[WOW_UI_FONT_TITLE]) {
+        wow_ui.fonts[WOW_UI_FONT_TITLE] = wow_ui.renderer->LoadFont("Fonts\\FRIZQT__.TTF", 22);
     }
-    if (!wow_ui.font_status) {
-        wow_ui.font_status = wow_ui.renderer->LoadFont("Fonts\\FRIZQT__.TTF", 16);
+    if (!wow_ui.fonts[WOW_UI_FONT_STATUS]) {
+        wow_ui.fonts[WOW_UI_FONT_STATUS] = wow_ui.renderer->LoadFont("Fonts\\FRIZQT__.TTF", 16);
     }
 }
 
@@ -47,12 +47,12 @@ void UIWow_UpdateMapBackground(LPCPLAYER ps) {
         return;
     }
 
-    SAFE_DELETE(wow_ui.background, wow_ui.renderer->ReleaseTexture);
-    wow_ui.background = wow_ui.renderer->LoadTexture(screen_path);
-    if (!wow_ui.background) {
+    SAFE_DELETE(wow_ui.textures[WOW_UI_TEX_BACKGROUND], wow_ui.renderer->ReleaseTexture);
+    wow_ui.textures[WOW_UI_TEX_BACKGROUND] = wow_ui.renderer->LoadTexture(screen_path);
+    if (!wow_ui.textures[WOW_UI_TEX_BACKGROUND]) {
         UIWow_Printf("UIWow: failed loading map background '%s', trying default\n", screen_path);
-        wow_ui.background = wow_ui.renderer->LoadTexture(default_bg);
-        if (!wow_ui.background) {
+        wow_ui.textures[WOW_UI_TEX_BACKGROUND] = wow_ui.renderer->LoadTexture(default_bg);
+        if (!wow_ui.textures[WOW_UI_TEX_BACKGROUND]) {
             UIWow_WarnOnce(WOW_UI_WARN_NO_LOAD_BACKGROUND,
                            "UIWow: failed loading default loading background '%s'\n",
                            default_bg);
@@ -85,17 +85,17 @@ void UIWow_DrawLoadingScreenC(LPCSTR map, LPCSTR status, FLOAT progress) {
         return;
     }
 
-    if (wow_ui.background) {
-        wow_ui.renderer->DrawImage(wow_ui.background, &full, &uv, COLOR32_WHITE);
+    if (wow_ui.textures[WOW_UI_TEX_BACKGROUND]) {
+        wow_ui.renderer->DrawImage(wow_ui.textures[WOW_UI_TEX_BACKGROUND], &full, &uv, COLOR32_WHITE);
     }
 
     if (!map_title || !*map_title) {
         map_title = "";
     }
 
-    if (wow_ui.font_title && map_title && *map_title) {
+    if (wow_ui.fonts[WOW_UI_FONT_TITLE] && map_title && *map_title) {
         wow_ui.renderer->DrawText(&MAKE(drawText_t,
-                                        .font = wow_ui.font_title,
+                                        .font = wow_ui.fonts[WOW_UI_FONT_TITLE],
                                         .text = map_title,
                                         .rect = title_rect,
                                         .color = MAKE(COLOR32, 235, 210, 160, 255),

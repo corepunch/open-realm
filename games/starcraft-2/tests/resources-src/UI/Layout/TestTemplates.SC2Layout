@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<Desc>
+    <!-- Base template: a simple 200x100 frame -->
+    <Frame type="Frame" name="TestBaseTemplate">
+        <Width val="200"/>
+        <Height val="100"/>
+        <Visible val="true"/>
+        <Anchor side="Top" relative="$parent" pos="Min" offset="0"/>
+        <Anchor side="Left" relative="$parent" pos="Min" offset="0"/>
+    </Frame>
+
+    <!-- Template that inherits from TestBaseTemplate and overrides size -->
+    <Frame type="Button" name="TestButtonTemplate" template="TestTemplates/TestBaseTemplate">
+        <Width val="300"/>
+        <Height val="75"/>
+        <Anchor side="Right" relative="$parent" pos="Max" offset="-10"/>
+    </Frame>
+
+    <!-- Template with nested children -->
+    <Frame type="Frame" name="TestContainerTemplate">
+        <Width val="400"/>
+        <Height val="300"/>
+        <Frame type="Image" name="Background">
+            <Anchor relative="$parent"/>
+            <Texture val="@@Test/Background" layer="0"/>
+        </Frame>
+        <Frame type="Label" name="TitleLabel">
+            <Anchor side="Top" relative="$parent" pos="Min" offset="10"/>
+            <Anchor side="Left" relative="$parent" pos="Min" offset="10"/>
+            <Width val="380"/>
+            <Height val="30"/>
+        </Frame>
+    </Frame>
+
+    <!-- Template with constants -->
+    <Frame type="Image" name="TestColorBox">
+        <Width val="32"/>
+        <Height val="32"/>
+    </Frame>
+</Desc>

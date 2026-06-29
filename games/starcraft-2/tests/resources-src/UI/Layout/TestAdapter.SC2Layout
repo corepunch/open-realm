@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<Desc>
+    <!-- Constants for offset/size testing -->
+    <Constant name="HUDMargin" val="8"/>
+    <Constant name="PanelWidth" val="200"/>
+
+    <!-- Root container with all 4 anchor sides -->
+    <Frame type="GameUI" name="ConsoleUI">
+        <Anchor relative="$parent"/>
+
+        <!-- Bottom-left panel: tests Left+Bottom anchors -->
+        <Frame type="Frame" name="ResourcePanel">
+            <Width val="200"/>
+            <Height val="40"/>
+            <Anchor side="Left" relative="$parent" pos="Min" offset="#HUDMargin"/>
+            <Anchor side="Bottom" relative="$parent" pos="Max" offset="-40"/>
+            <Anchor side="Top" relative="$parent" pos="Max" offset="-80"/>
+            <Visible val="true"/>
+            <Color val="255,255,255,200"/>
+
+            <Frame type="Image" name="MineralIcon">
+                <Width val="32"/>
+                <Height val="32"/>
+                <Anchor side="Left" relative="$parent" pos="Min" offset="4"/>
+                <Anchor side="Top" relative="$parent" pos="Min" offset="4"/>
+                <Texture val="@@UI/MineralIcon" layer="0"/>
+            </Frame>
+
+            <Frame type="Label" name="MineralCount">
+                <Width val="80"/>
+                <Height val="20"/>
+                <Anchor side="Left" relative="$parent/MineralIcon" pos="Max" offset="4"/>
+                <Anchor side="Top" relative="$parent" pos="Min" offset="8"/>
+                <Visible val="true"/>
+            </Frame>
+        </Frame>
+
+        <!-- Top-right panel: tests Right+Top anchors with stretch -->
+        <Frame type="Frame" name="InfoPanel">
+            <Width val="250"/>
+            <Height val="120"/>
+            <Anchor side="Right" relative="$parent" pos="Max" offset="-8"/>
+            <Anchor side="Top" relative="$parent" pos="Min" offset="8"/>
+            <Visible val="true"/>
+
+            <Frame type="Label" name="UnitName">
+                <Width val="200"/>
+                <Height val="20"/>
+                <Anchor side="Left" relative="$parent" pos="Min" offset="8"/>
+                <Anchor side="Top" relative="$parent" pos="Min" offset="8"/>
+            </Frame>
+
+            <Frame type="Image" name="Portrait">
+                <Width val="96"/>
+                <Height val="96"/>
+                <Anchor side="Right" relative="$parent" pos="Max" offset="-8"/>
+                <Anchor side="Top" relative="$parent" pos="Min" offset="32"/>
+                <Texture val="@@UI/Portrait" layer="0"/>
+            </Frame>
+        </Frame>
+
+        <!-- Command grid: tests Right+Bottom with child grid layout -->
+        <Frame type="Frame" name="CommandArea">
+            <Width val="308"/>
+            <Height val="154"/>
+            <Anchor side="Right" relative="$parent" pos="Max" offset="0"/>
+            <Anchor side="Bottom" relative="$parent" pos="Max" offset="0"/>
+
+            <Frame type="CommandButton" name="Cmd01">
+                <Width val="76"/>
+                <Height val="76"/>
+                <Anchor side="Left" relative="$parent" pos="Min" offset="0"/>
+                <Anchor side="Top" relative="$parent" pos="Min" offset="0"/>
+                <Texture val="@@UI/ButtonNormal" layer="0"/>
+            </Frame>
+
+            <Frame type="CommandButton" name="Cmd02">
+                <Width val="76"/>
+                <Height val="76"/>
+                <Anchor side="Left" relative="$parent/Cmd01" pos="Max" offset="0"/>
+                <Anchor side="Top" relative="$parent" pos="Min" offset="0"/>
+            </Frame>
+
+            <Frame type="CommandButton" name="Cmd03">
+                <Width val="76"/>
+                <Height val="76"/>
+                <Anchor side="Left" relative="$parent/Cmd02" pos="Max" offset="0"/>
+                <Anchor side="Top" relative="$parent" pos="Min" offset="0"/>
+            </Frame>
+        </Frame>
+
+        <!-- Center label: tests Mid anchor -->
+        <Frame type="Label" name="CenterAlert">
+            <Width val="300"/>
+            <Height val="40"/>
+            <Anchor side="Left" relative="$parent" pos="Mid" offset="0"/>
+            <Anchor side="Top" relative="$parent" pos="Mid" offset="0"/>
+            <Visible val="false"/>
+        </Frame>
+
+        <!-- Hidden panel: tests visibility in hierarchy -->
+        <Frame type="Frame" name="HiddenPanel">
+            <Width val="100"/>
+            <Height val="100"/>
+            <Anchor side="Left" relative="$parent" pos="Min" offset="0"/>
+            <Anchor side="Top" relative="$parent" pos="Min" offset="0"/>
+            <Visible val="false"/>
+
+            <Frame type="Label" name="HiddenChild">
+                <Width val="50"/>
+                <Height val="20"/>
+                <Anchor side="Left" relative="$parent" pos="Min" offset="0"/>
+                <Anchor side="Top" relative="$parent" pos="Min" offset="0"/>
+            </Frame>
+        </Frame>
+    </Frame>
+</Desc>

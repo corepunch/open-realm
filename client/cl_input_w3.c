@@ -258,6 +258,7 @@ void CL_InputModeFrame(void) {
     }
 
     /* Screen-edge scrolling (only while the cursor is inside the window). */
+#ifndef SC2
     size2_t win = re.GetWindowSize();
     float mx = mouse.origin.x, my = mouse.origin.y;
     if (win.width > 0 && win.height > 0 &&
@@ -267,6 +268,7 @@ void CL_InputModeFrame(void) {
         if (my <= CL_CAMERA_EDGE_MARGIN)               dy += 1.0f; /* top of screen = north */
         if (my >= (float)win.height - 1 - CL_CAMERA_EDGE_MARGIN) dy -= 1.0f;
     }
+#endif
 
     if (dx == 0.0f && dy == 0.0f) {
         return;

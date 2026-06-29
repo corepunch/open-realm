@@ -84,7 +84,7 @@ WOW_UI_CFLAGS := $(WOW_CFLAGS) $(LUA_CFLAGS) $(WOW_XML_CFLAGS)
 SC2_XML_CFLAGS := $(shell pkg-config --cflags libxml-2.0 2>/dev/null || xml2-config --cflags 2>/dev/null) -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/libxml2
 SC2_XML_LIBS := $(shell pkg-config --libs libxml-2.0 2>/dev/null || xml2-config --libs 2>/dev/null)
 SC2_CFLAGS   := $(CFLAGS) -I$(SC2_DIR) -DSC2 -DOW3_LOAD_ALL_MPQS -Wno-unused-function $(SC2_XML_CFLAGS)
-SC2_TEST_CFLAGS := $(SC2_CFLAGS) -Itests -Icommon -DTEST_SC2_MPQ=\"build/tests/test-sc2.SC2Maps\"
+SC2_TEST_CFLAGS := $(SC2_CFLAGS) -I. -Itests -Icommon -DTEST_SC2_MPQ=\"build/tests/test-sc2.SC2Maps\"
 
 TOOL_SRCS := $(shell find tools -maxdepth 1 -name '*.c' ! -name 'jass.c' | sort)
 TOOL_NAMES := $(patsubst tools/%.c,%,$(TOOL_SRCS))
@@ -273,7 +273,7 @@ $(eval $(call unity_lib_schema,$(GAME_WOW_LIB),$(GAME_BASE_DEPS) common/world.c 
 $(eval $(call unity_lib_schema,$(GAME_SC2_LIB),$(GAME_BASE_DEPS) $(WORLD_CORE_SRCS) $(SC2_COMMON_SRCS) $(call CSRC,$(SC2_DIR)/game),game-sc2,$(SC2_DIR)/game,,$(SC2_CFLAGS),common/mpq.c,-lshared $(LIBS) -lm -lz $(SC2_XML_LIBS)))
 
 $(eval $(call unity_lib_schema,$(UI_WOW_LIB),$(UI_BASE_DEPS) client/ui.h $(call CSRC,$(WOW_DIR)/ui),ui-wow,$(WOW_DIR)/ui,,$(WOW_UI_CFLAGS),,-lshared $(LUA_LIBS) $(WOW_XML_LIBS)))
-$(eval $(call unity_lib_schema,$(UI_SC2_LIB),$(UI_BASE_DEPS) client/ui.h $(call CSRC,$(SC2_DIR)/ui),ui-sc2,$(SC2_DIR)/ui,,$(SC2_CFLAGS),,-lshared))
+$(eval $(call unity_lib_schema,$(UI_SC2_LIB),$(UI_BASE_DEPS) client/ui.h $(call CSRC,$(SC2_DIR)/ui),ui-sc2,$(SC2_DIR)/ui,,$(SC2_CFLAGS),,-lshared $(SC2_XML_LIBS)))
 
 $(eval $(call app_schema,$(WOW_BINARY),$(SHARED_LIB) $(SHEET_LIB) $(GAME_WOW_LIB) $(RENDERER_WOW_LIB) $(UI_WOW_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS),openwow,$(WOW_CFLAGS),-lsheet -lshared -lgame-wow -lrenderer-wow -lui-wow $(LIBS) -lz))
 $(eval $(call app_schema,$(SC2_BINARY),$(SHARED_LIB) $(SHEET_LIB) $(GAME_SC2_LIB) $(RENDERER_SC2_LIB) $(UI_SC2_LIB) $(APP_SRCS) $(CLIENT_HEADERS),opensc2,$(SC2_CFLAGS),-lsheet -lshared -lgame-sc2 -lrenderer-sc2 -lui-sc2 $(LIBS) -lz))
@@ -292,7 +292,7 @@ $(eval $(call test_schema,test-wow-appearance,,$(WOW_TEST_CFLAGS),$(BIN_DIR)/tes
 $(eval $(call test_schema,test-wow-combat,,$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_combat$(EXE_EXT),$(WOW_TEST_DIR)/test_wow_combat.c $(WOW_DIR)/game/g_ai.c $(call CSRC,shared),-lm,))
 $(eval $(call test_schema,test-wow-game,,$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_game$(EXE_EXT),$(WOW_TEST_DIR)/test_wow_game.c $(WOW_DIR)/game/g_wow.c $(WOW_DIR)/game/g_world.c $(WOW_DIR)/game/g_ai.c $(WOW_DIR)/game/m_creature.c common/mpq.c $(call CSRC,shared),-lm -lz,))
 $(eval $(call test_schema,test-wow-ui,test-wow-assets,$(WOW_UI_TEST_CFLAGS),$(BIN_DIR)/test_wow_ui$(EXE_EXT),$(WOW_TEST_DIR)/test_wow_ui.c $(WOW_DIR)/ui/ui_main.c $(WOW_DIR)/ui/ui_lua.c $(WOW_DIR)/ui/ui_dbc.c $(WOW_DIR)/ui/ui_loading.c $(WOW_DIR)/ui/ui_xml.c common/mpq.c,-lshared $(LUA_LIBS) $(WOW_XML_LIBS) -lz,))
-$(eval $(call test_schema,test-sc2,test-sc2-assets $(SHARED_LIB) $(SHEET_LIB),$(SC2_TEST_CFLAGS),$(BIN_DIR)/test_sc2$(EXE_EXT),$(SC2_TEST_DIR)/test_sc2_main.c $(SC2_TEST_DIR)/test_sc2_map.c $(SC2_DIR)/common/sc2_map.c common/common.c common/cmd.c common/cvar.c common/msg.c common/net.c common/mpq.c,-lsheet -lshared -lm -lz $(SC2_XML_LIBS),))
+$(eval $(call test_schema,test-sc2,test-sc2-assets $(SHARED_LIB) $(SHEET_LIB),$(SC2_TEST_CFLAGS),$(BIN_DIR)/test_sc2$(EXE_EXT),$(SC2_TEST_DIR)/test_sc2_main.c $(SC2_TEST_DIR)/test_sc2_map.c $(SC2_TEST_DIR)/test_sc2_layout.c $(SC2_TEST_DIR)/test_sc2_consoleui.c $(SC2_DIR)/common/sc2_map.c $(SC2_DIR)/ui/sc2_layout.c common/common.c common/cmd.c common/cvar.c common/msg.c common/net.c common/mpq.c,-lsheet -lshared -lm -lz $(SC2_XML_LIBS),))
 
 test-sc2-assets: sc2fixturegen mpqtool sc2map | $(TESTS_DIR)
 	@echo "[test-sc2-assets] generating SC2 terrain fixtures"
