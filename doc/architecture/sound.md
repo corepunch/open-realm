@@ -25,7 +25,7 @@ Unit sounds (attack, death, movement) are delivered through `entityState_t.event
 
 ### WC3 Sound Registration
 
-At map load, `G_RegisterUnitSounds` reads the unit's `usnd` label from `unitUI.slk`, looks up the label in `UI/SoundInfo/UnitAckSounds.slk`, and registers the first matching WAV file as a configstring via `gi.SoundIndex`. See `doc/games/warcraft-3/docs/sounds.md` for the full SLK schema.
+At map load, `G_RegisterUnitSounds` reads the unit's `usnd` label from `unitUI.slk`, looks up the label in `UI/SoundInfo/UnitAckSounds.slk`, and registers the first matching WAV file as a configstring via `gi.SoundIndex`. See `games/warcraft-3/docs/sounds.md` for the full SLK schema.
 
 ### Key Files
 
