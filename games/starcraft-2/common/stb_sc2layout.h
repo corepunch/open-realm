@@ -165,10 +165,10 @@ struct sc2FrameDef_s {
 /* -------------------------------------------------------------------------- */
 /* UI flags                                                                    */
 /* -------------------------------------------------------------------------- */
-#define SC2_UIF_HIDDEN   (1 << 0)
-#define SC2_UIF_DISABLED (1 << 1)
-#define SC2_UIF_PRESSED  (1 << 2)
-#define SC2_UIF_HOVERED  (1 << 3)
+#define SC2_UIF_HIDDEN   (1 << 10)   /* bit 10+ to avoid overlap with uiFrame_t.flags.type (0-7) and alphaMode (8-9) */
+#define SC2_UIF_DISABLED (1 << 11)
+#define SC2_UIF_PRESSED  (1 << 12)
+#define SC2_UIF_HOVERED  (1 << 13)
 
 /* -------------------------------------------------------------------------- */
 /* Bind macros                                                                 */
@@ -196,11 +196,11 @@ struct sc2FrameDef_s {
 /* -------------------------------------------------------------------------- */
 /* Host service declarations (provided by host module)                         */
 /* -------------------------------------------------------------------------- */
-HANDLE SC2_FdfAlloc(long size);
-void   SC2_FdfFree(HANDLE ptr);
-DWORD  SC2_FdfFontIndex(LPCSTR name, DWORD size);
-int    SC2_FdfReadFile(LPCSTR name, HANDLE *out);
-void   SC2_FdfFreeFile(HANDLE buf);
+HANDLE SC2_Alloc(long size);
+void   SC2_Free(HANDLE ptr);
+DWORD  SC2_FontIndex(LPCSTR name, DWORD size);
+int    SC2_ReadFile(LPCSTR name, HANDLE *out);
+void   SC2_FreeFile(HANDLE buf);
 
 /* -------------------------------------------------------------------------- */
 /* API declarations                                                           */
@@ -210,7 +210,7 @@ LPSC2FRAMEDEF  SC2_FindFrame(LPCSTR name);
 LPSC2FRAMEDEF  SC2_FindChildFrame(LPCSC2FRAMEDEF parent, LPCSTR name);
 LPSC2FRAMEDEF  SC2_FindFrameByNumber(DWORD number);
 void         SC2_InitFrame(LPSC2FRAMEDEF frame, FRAMETYPE type);
-void         SC2_SetPoint(LPSC2FRAMEDEF frame, uiFramePointPos_t framePoint, LPCSC2FRAMEDEF other, uiFramePointPos_t otherPoint, FLOAT x, FLOAT y);
+void         SC2_SetPoint(LPSC2FRAMEDEF frame, uiFramePointPos_t framePointX, uiFramePointPos_t framePointY, LPCSC2FRAMEDEF other, uiFramePointPos_t otherPoint, FLOAT x, FLOAT y);
 void         SC2_SetAllPoints(LPSC2FRAMEDEF frame);
 void         SC2_SetParent(LPSC2FRAMEDEF frame, LPCSC2FRAMEDEF parent);
 void         SC2_SetSize(LPSC2FRAMEDEF frame, FLOAT width, FLOAT height);

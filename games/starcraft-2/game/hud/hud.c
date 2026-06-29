@@ -10,19 +10,22 @@
 
 #include "hud_local.h"
 #include <libxml/parser.h>
+#include <string.h>
+#include <stdarg.h>
+#include <stdio.h>
 
 /* ---------------------------------------------------------------
  * Host services — game module implementations using gi
  * --------------------------------------------------------------- */
-HANDLE SC2_FdfAlloc(long size) { return gi.MemAlloc(size); }
-void   SC2_FdfFree(HANDLE ptr) { gi.MemFree(ptr); }
-DWORD  SC2_FdfFontIndex(LPCSTR name, DWORD size) { return gi.FontIndex(name, size); }
-int    SC2_FdfReadFile(LPCSTR name, HANDLE *out) {
+HANDLE SC2_Alloc(long size) { return gi.MemAlloc(size); }
+void   SC2_Free(HANDLE ptr) { gi.MemFree(ptr); }
+DWORD  SC2_FontIndex(LPCSTR name, DWORD size) { return gi.FontIndex(name, size); }
+int    SC2_ReadFile(LPCSTR name, HANDLE *out) {
     DWORD size = 0;
     *out = gi.ReadFile(name, &size);
     return *out ? (int)size : -1;
 }
-void   SC2_FdfFreeFile(HANDLE buf) { gi.MemFree(buf); }
+void   SC2_FreeFile(HANDLE buf) { gi.MemFree(buf); }
 
 /* ---------------------------------------------------------------
  * Frame storage
@@ -62,8 +65,7 @@ static void CopyFrameBase(LPUIFRAME dest, LPCSC2FRAMEDEF src) {
         dest->points.y[i].offset = (SHORT)(src->Points.y[i].offset * 1000.0f);
     }
 
-    dest->number = (src->resolved_index > 0) ? (DWORD)src->resolved_index : 1;
-    dest->parent = src->Parent ? (src->Parent->resolved_index > 0 ? (DWORD)src->Parent->resolved_index : 1) : 0;
+    dest->parent = src->Parent ? (DWORD)src->Parent->resolved_index : 0;
     dest->color = src->Color;
     dest->size.width = src->Width;
     dest->size.height = src->Height;
@@ -71,6 +73,8 @@ static void CopyFrameBase(LPUIFRAME dest, LPCSC2FRAMEDEF src) {
     dest->text = src->Text;
     dest->onclick = src->OnClick;
     dest->stat = src->Stat;
+    dest->color.a = src->Alpha * 255.0f;
+    /* hidden handled by SC2_WriteFrameWithChildren tree skip; disabled not in wire format */
 
     if (src->num_textures > 0 && src->textures[0].image)
         dest->tex.index = (USHORT)src->textures[0].image;
@@ -139,7 +143,7 @@ static BOOL BuildFrameForWrite(LPCSC2FRAMEDEF frame, LPUIFRAME out,
 /* ---------------------------------------------------------------
  * Frame tree serialization
  * --------------------------------------------------------------- */
-void SC2_WriteFrame(LPCSC2FRAMEDEF frame) {
+void SC2_WriteFrame(LPSC2FRAMEDEF frame) {
     uiFrame_t tmp;
     BYTE typedata[256];
     char textbuf[256];
@@ -148,21 +152,21 @@ void SC2_WriteFrame(LPCSC2FRAMEDEF frame) {
         return;
 
     tmp.number = ++ui_next_frame_number;
-    ((LPSC2FRAMEDEF)frame)->resolved_index = (int)tmp.number;
+    frame->resolved_index = (int)tmp.number;
     gi.Write(PF_UIFRAME, &tmp);
 }
 
-void SC2_WriteFrameWithChildren(LPCSC2FRAMEDEF frame) {
+void SC2_WriteFrameWithChildren(LPSC2FRAMEDEF frame) {
     if (!frame) return;
     SC2_WriteFrame(frame);
     FOR_LOOP(i, sc2_num_frames) {
-        LPCSC2FRAMEDEF child = &sc2_frames[i];
+        LPSC2FRAMEDEF child = &sc2_frames[i];
         if (child->Parent == frame && !child->hidden)
             SC2_WriteFrameWithChildren(child);
     }
 }
 
-void SC2_WriteLayout(LPEDICT ent, LPCSC2FRAMEDEF root, DWORD layer) {
+void SC2_WriteLayout(LPEDICT ent, LPSC2FRAMEDEF root, DWORD layer) {
     SC2_WriteStart(layer);
     SC2_WriteFrameWithChildren(root);
     SC2_WriteEnd(ent);
@@ -210,14 +214,16 @@ static int ParseIntAttr(xmlNode *node, LPCSTR name, int def) {
     return r;
 }
 
-static LPCSTR ParseStrAttr(xmlNode *node, LPCSTR name, LPCSTR def) {
+static void ParseStrAttr(xmlNode *node, LPCSTR name, LPCSTR def, LPSTR out, DWORD out_size) {
     xmlChar *val = xmlGetProp(node, (xmlChar *)name);
-    if (!val) return def;
-    static char buf[256];
-    strncpy(buf, (char *)val, sizeof(buf) - 1);
-    buf[sizeof(buf) - 1] = '\0';
+    if (!val) {
+        strncpy(out, def, out_size - 1);
+        out[out_size - 1] = '\0';
+        return;
+    }
+    strncpy(out, (char *)val, out_size - 1);
+    out[out_size - 1] = '\0';
     xmlFree(val);
-    return buf;
 }
 
 static DWORD ResolveTexture(LPCSTR resource) {
@@ -229,9 +235,10 @@ static DWORD ResolveTexture(LPCSTR resource) {
 }
 
 static void ParseAnchorNode(xmlNode *xml_anchor, LPSC2FRAMEDEF frame, LPCSC2FRAMEDEF parent) {
-    LPCSTR sideStr = ParseStrAttr(xml_anchor, "side", "Left");
-    LPCSTR posStr = ParseStrAttr(xml_anchor, "pos", "Min");
-    LPCSTR relStr = ParseStrAttr(xml_anchor, "relative", "$parent");
+    char sideStr[32], posStr[32], relStr[64];
+    ParseStrAttr(xml_anchor, "side", "Left", sideStr, sizeof(sideStr));
+    ParseStrAttr(xml_anchor, "pos", "Min", posStr, sizeof(posStr));
+    ParseStrAttr(xml_anchor, "relative", "$parent", relStr, sizeof(relStr));
     int offset = ParseIntAttr(xml_anchor, "offset", 0);
 
     int axis = (!strcasecmp(sideStr, "Top") || !strcasecmp(sideStr, "Bottom")) ? 1 : 0;
@@ -277,9 +284,10 @@ static void ParseFrameNode(xmlNode *xml_frame, LPCSC2FRAMEDEF parent) {
     LPSC2FRAMEDEF frame = AddFrame(parent);
     if (!frame) return;
 
-    LPCSTR typeStr = ParseStrAttr(xml_frame, "type", "Frame");
-    LPCSTR nameStr = ParseStrAttr(xml_frame, "name", "");
-    LPCSTR templateStr = ParseStrAttr(xml_frame, "template", "");
+    char typeStr[64], nameStr[256], templateStr[256];
+    ParseStrAttr(xml_frame, "type", "Frame", typeStr, sizeof(typeStr));
+    ParseStrAttr(xml_frame, "name", "", nameStr, sizeof(nameStr));
+    ParseStrAttr(xml_frame, "template", "", templateStr, sizeof(templateStr));
     strncpy(frame->Name, nameStr, sizeof(frame->Name) - 1);
     strncpy(frame->template_path, templateStr, sizeof(frame->template_path) - 1);
     frame->Type = TypeFromSC2String(typeStr);
@@ -295,7 +303,8 @@ static void ParseFrameNode(xmlNode *xml_frame, LPCSC2FRAMEDEF parent) {
         else if (!strcasecmp(tag, "Visible"))
             frame->hidden = !ParseIntAttr(child, "val", 1);
         else if (!strcasecmp(tag, "Color")) {
-            LPCSTR val = ParseStrAttr(child, "val", "255,255,255,255");
+            char val[64];
+            ParseStrAttr(child, "val", "255,255,255,255", val, sizeof(val));
             int r = 255, g = 255, b = 255, a = 255;
             sscanf(val, "%d,%d,%d,%d", &r, &g, &b, &a);
             frame->Color = (COLOR32){ (BYTE)r, (BYTE)g, (BYTE)b, (BYTE)a };
@@ -304,22 +313,33 @@ static void ParseFrameNode(xmlNode *xml_frame, LPCSC2FRAMEDEF parent) {
         else if (!strcasecmp(tag, "Anchor"))
             ParseAnchorNode(child, frame, parent);
         else if (!strcasecmp(tag, "Texture")) {
-            LPCSTR val = ParseStrAttr(child, "val", "");
+            char texVal[256];
+            ParseStrAttr(child, "val", "", texVal, sizeof(texVal));
             int layer = ParseIntAttr(child, "layer", 0);
             if (frame->num_textures < 4) {
                 sc2Texture_t *tex = &frame->textures[frame->num_textures++];
-                strncpy(tex->resource, val, sizeof(tex->resource) - 1);
+                strncpy(tex->resource, texVal, sizeof(tex->resource) - 1);
                 tex->layer = layer;
-                tex->has_texture = (*val != '\0');
-                tex->image = ResolveTexture(val);
+                tex->has_texture = (*texVal != '\0');
+                tex->image = ResolveTexture(texVal);
             }
         } else if (!strcasecmp(tag, "Frame"))
             ParseFrameNode(child, frame);
     }
 }
 
+/* Track loaded layouts to prevent double-loading */
+#define MAX_LOADED_LAYOUTS 16
+static LPSTR loaded_layouts[MAX_LOADED_LAYOUTS];
+static int num_loaded_layouts;
+
 BOOL SC2_EnsureLayout(LPCSTR filename) {
     if (!filename || !*filename) return false;
+
+    FOR_LOOP(i, num_loaded_layouts) {
+        if (!strcasecmp(loaded_layouts[i], filename))
+            return true;
+    }
 
     DWORD size = 0;
     void *buf = gi.ReadFile(filename, &size);
@@ -350,6 +370,11 @@ BOOL SC2_EnsureLayout(LPCSTR filename) {
 
     xmlFreeDoc(doc);
     fprintf(stderr, "SC2_Layout: loaded '%s' -> %u frames\n", filename, (unsigned)sc2_num_frames);
+
+    if (num_loaded_layouts < MAX_LOADED_LAYOUTS) {
+        LPSTR copy = SC2_Alloc(strlen(filename) + 1);
+        if (copy) { strcpy(copy, filename); loaded_layouts[num_loaded_layouts++] = copy; }
+    }
     return true;
 }
 
@@ -389,24 +414,23 @@ void SC2_InitFrame(LPSC2FRAMEDEF frame, FRAMETYPE type) {
     frame->Alpha = 1.0f;
 }
 
-void SC2_SetPoint(LPSC2FRAMEDEF frame, uiFramePointPos_t framePoint,
-                  LPCSC2FRAMEDEF other, uiFramePointPos_t otherPoint,
-                  FLOAT x, FLOAT y) {
+void SC2_SetPoint(LPSC2FRAMEDEF frame, uiFramePointPos_t framePointX, uiFramePointPos_t framePointY,
+                  LPCSC2FRAMEDEF other, uiFramePointPos_t otherPoint, FLOAT x, FLOAT y) {
     if (!frame) return;
-    frame->Points.x[framePoint].used = true;
-    frame->Points.x[framePoint].targetPos = otherPoint;
-    frame->Points.x[framePoint].relativeTo = other;
-    frame->Points.x[framePoint].offset = x;
-    frame->Points.y[framePoint].used = true;
-    frame->Points.y[framePoint].targetPos = otherPoint;
-    frame->Points.y[framePoint].relativeTo = other;
-    frame->Points.y[framePoint].offset = y;
+    frame->Points.x[framePointX].used = true;
+    frame->Points.x[framePointX].targetPos = otherPoint;
+    frame->Points.x[framePointX].relativeTo = other;
+    frame->Points.x[framePointX].offset = x;
+    frame->Points.y[framePointY].used = true;
+    frame->Points.y[framePointY].targetPos = otherPoint;
+    frame->Points.y[framePointY].relativeTo = other;
+    frame->Points.y[framePointY].offset = y;
 }
 
 void SC2_SetAllPoints(LPSC2FRAMEDEF frame) {
     if (!frame) return;
-    SC2_SetPoint(frame, FPP_MIN, NULL, FPP_MIN, 0.0f, 0.0f);
-    SC2_SetPoint(frame, FPP_MAX, NULL, FPP_MAX, 0.0f, 0.0f);
+    SC2_SetPoint(frame, FPP_MIN, FPP_MIN, NULL, FPP_MIN, 0.0f, 0.0f);
+    SC2_SetPoint(frame, FPP_MAX, FPP_MAX, NULL, FPP_MAX, 0.0f, 0.0f);
 }
 
 void SC2_SetParent(LPSC2FRAMEDEF frame, LPCSC2FRAMEDEF parent) {
@@ -429,12 +453,15 @@ void SC2_SetEnabled(LPSC2FRAMEDEF frame, BOOL enabled) {
 
 void SC2_SetText(LPSC2FRAMEDEF frame, LPCSTR format, ...) {
     if (!frame || !format) return;
-    static char text[1024];
+    static char buf[1024];
     va_list argptr;
     va_start(argptr, format);
-    vsnprintf(text, sizeof(text), format, argptr);
+    vsnprintf(buf, sizeof(buf), format, argptr);
     va_end(argptr);
-    frame->Text = text;
+    if (frame->DynamicText) { gi.MemFree(frame->DynamicText); frame->DynamicText = NULL; frame->DynamicTextCapacity = 0; }
+    size_t len = strlen(buf);
+    frame->DynamicText = gi.MemAlloc(len + 1);
+    if (frame->DynamicText) { memcpy(frame->DynamicText, buf, len + 1); frame->DynamicTextCapacity = (DWORD)(len + 1); frame->Text = frame->DynamicText; }
 }
 
 /* Init / shutdown */
@@ -444,6 +471,17 @@ void SC2_HudInit(void) {
 }
 
 void SC2_HudShutdown(void) {
+    FOR_LOOP(i, num_loaded_layouts) {
+        if (loaded_layouts[i]) SC2_Free(loaded_layouts[i]);
+    }
+    num_loaded_layouts = 0;
+    FOR_LOOP(i, sc2_num_frames) {
+        if (sc2_frames[i].DynamicText) {
+            gi.MemFree(sc2_frames[i].DynamicText);
+            sc2_frames[i].DynamicText = NULL;
+            sc2_frames[i].DynamicTextCapacity = 0;
+        }
+    }
     sc2_num_frames = 0;
     memset(sc2_frames, 0, sizeof(sc2_frames));
 }
