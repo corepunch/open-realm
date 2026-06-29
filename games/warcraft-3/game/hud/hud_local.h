@@ -90,6 +90,8 @@ void UI_AppendMessageText(LPSTR out, DWORD out_size, LPCSTR text);
 LPCSTR UI_FormatMessageText(LPCSTR text);
 LPCSTR UI_LevelStringSafe(LPCSTR text);
 void UI_WriteStart(DWORD layer);
+void UI_WriteEnd(LPEDICT ent);
+void UI_ResetFrameWriteList(void);
 
 /* Theme (hud_write.c) */
 LPCSTR Theme_String(LPCSTR key, LPCSTR def);

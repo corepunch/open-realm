@@ -293,10 +293,10 @@ void CL_ParseLayout(LPSIZEBUF msg) {
             break;
         }
         MSG_ReadDeltaUIFrame(msg, &ent, nument, bits);
-        if (msg->readcount + sizeof(WORD) > msg->cursize) {
+        if (msg->readcount + sizeof(BYTE) > msg->cursize) {
             break;
         }
-        ent.buffer.size = MSG_ReadShort(msg);
+        ent.buffer.size = MSG_ReadByte(msg);
         if (msg->readcount > msg->cursize ||
             ent.buffer.size > msg->cursize - msg->readcount) {
             break;
