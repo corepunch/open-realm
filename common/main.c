@@ -33,6 +33,7 @@
 #define USAGE \
 "Usage:\n" \
 "  openwarcraft3 -data <folder> +map <map>       (listen server + local client)\n" \
+"  openwarcraft3 -data <folder> +dedicated 1 +map <map>  (dedicated server, no client)\n" \
 "  openwarcraft3 -data <folder>                 (client menu)\n" \
 "  openwarcraft3 -data <folder> -connect <host>  (remote client, default port " \
                                                     PORT_SERVER_STRING ")\n" \
@@ -41,6 +42,7 @@
 "\n" \
 "Examples:\n" \
 "  openwarcraft3 -data /home/user/Warcraft3 +map Maps\\\\Campaign\\\\Human02.w3m\n" \
+"  openwarcraft3 -data /home/user/Warcraft3 +dedicated 1 +map Maps\\\\Campaign\\\\Human02.w3m\n" \
 "  openwarcraft3 -data /home/user/Warcraft3 -tft +menu_single_player_campaign\n" \
 "  openwarcraft3 -data /home/user/Warcraft3 -connect 192.168.1.10\n" \
 "\n" \
@@ -49,7 +51,8 @@
 "  - Expansion MPQs are skipped by default; use -tft or +fs_expansion 1 to mount them.\n" \
 "  - The data folder may also be saved as data in the generated per-build config.\n" \
 "  - The map path uses the internal MPQ path format; use +map to launch one.\n" \
-"  - Remote clients still need the game data for asset loading.\n"
+"  - Remote clients still need the game data for asset loading.\n" \
+"  - Dedicated mode runs the server headless without renderer, sound, or UI.\n"
 
 extern LPTEXTURE Texture;
 
@@ -119,32 +122,45 @@ int main(int argc, LPSTR argv[]) {
         }
         map = resolved_map;
     }
-    cls.key_dest = menu_mode ? key_menu : key_game;
+    bool dedicated = Cvar_Integer("dedicated", 0) != 0;
+
+    cls.key_dest = dedicated ? key_game : (menu_mode ? key_menu : key_game);
     cls.state = ca_disconnected;
 
     NET_Init();
 
-    if (!menu_mode) {
+    if (dedicated) {
+        // Dedicated server mode: no client stack, no SDL window.
+        if (!has_map) {
+            fprintf(stderr, "Dedicated server requires +map <map>\n");
+            return 1;
+        }
         SV_Init();
-    }
-    CL_Init();
-    Cbuf_AddLateCommands();
-    Cbuf_Execute();
-
-    if (has_connect_addr) {
-        // Remote-client mode: skip the local server, connect over UDP.
-        CL_Connect(connect_addr, game_port);
-    } else if (listen_server_mode) {
-        // Listen-server mode: show the client loading screen before the
-        // synchronous server map load, mirroring Quake's loading plaque flow.
-        if (!svs.initialized) {
+        fprintf(stderr, "Dedicated server starting on map: %s\n", map);
+        SV_Map(map);
+    } else {
+        if (!menu_mode) {
             SV_Init();
         }
-        CL_BeginLoadingMap(map);
-        SCR_UpdateScreen(0);
-        SV_Map(map);
+        CL_Init();
+        Cbuf_AddLateCommands();
+        Cbuf_Execute();
+
+        if (has_connect_addr) {
+            // Remote-client mode: skip the local server, connect over UDP.
+            CL_Connect(connect_addr, game_port);
+        } else if (listen_server_mode) {
+            // Listen-server mode: show the client loading screen before the
+            // synchronous server map load, mirroring Quake's loading plaque flow.
+            if (!svs.initialized) {
+                SV_Init();
+            }
+            CL_BeginLoadingMap(map);
+            SCR_UpdateScreen(0);
+            SV_Map(map);
+        }
+        // Menu mode: UI runs client-side, no server connection needed (Quake 3 pattern)
     }
-    // Menu mode: UI runs client-side, no server connection needed (Quake 3 pattern)
 
     fprintf(stderr, "OpenWarcraft3 initialized.\n\n");
 
@@ -156,7 +172,9 @@ int main(int argc, LPSTR argv[]) {
         if (!has_connect_addr && (sv.state == ss_lobby || sv.state == ss_game)) {
             SV_Frame(msec);
         }
-        CL_Frame(msec);
+        if (!dedicated) {
+            CL_Frame(msec);
+        }
         startTime = currentTime;
         frameCount++;
         if (Cvar_Integer("com_frame_limit", 0) > 0 &&
