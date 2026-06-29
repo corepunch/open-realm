@@ -98,10 +98,8 @@ LPCSTR Theme_String(LPCSTR key, LPCSTR def);
 FLOAT Theme_Float(LPCSTR key, LPCSTR def);
 
 /* Console (hud_console.c) */
-void UI_WriteConsoleBackdrop(void);
-void UI_WriteConsoleAnchor(void);
+void UI_WriteConsoleBackdrop(LONG);
 void UI_WriteMinimapFrame(void);
-void UI_WriteResourceBar(LONG food_used);
 
 /* Command buttons (hud_commands.c) */
 RECT UI_CommandButtonRect(BYTE x, BYTE y);

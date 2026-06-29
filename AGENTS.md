@@ -72,6 +72,9 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 
 ## Test Discipline
 
+- Verify every Warcraft III data/UI change in both ROC (default archives) and TFT (`-tft`). TFT archives override ROC
+  paths and may replace whole FDF/string/data files rather than extending them, so confirm both variants explicitly.
+
 - **Every structural change must include or update tests.** When you add a function, change a behavior path, fix a bug, or modify a struct/API contract, check whether existing tests cover the change.
 - **New code paths need new tests.** If you add an `if` branch, a new function, a new field, or a new cache/state machine, write a test for the new path and its inverse.
 - **Cache/state-machine changes double-test.** Test both cache hit and cache miss paths, and verify performance counters where tracked.

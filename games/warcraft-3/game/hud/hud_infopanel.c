@@ -13,6 +13,7 @@
 
 static InfoPanelUnitDetail_t unit_panel;
 static InfoPanelBuildingDetail_t building_panel;
+static FRAMEDEF bottom_panel;
 static BOOL infopanel_loaded;
 
 static void InfoPanelEnsureLoaded(void) {
@@ -20,6 +21,9 @@ static void InfoPanelEnsureLoaded(void) {
     infopanel_loaded = true;
     InfoPanelUnitDetail_Load(&unit_panel);
     InfoPanelBuildingDetail_Load(&building_panel);
+    UI_InitFrame(&bottom_panel, FT_SIMPLEFRAME);
+    UI_SetSize(&bottom_panel, INFO_PANEL_W, 0.120f);
+    UI_SetPoint(&bottom_panel, FRAMEPOINT_BOTTOM, NULL, FRAMEPOINT_BOTTOM, 0.0f, 0.0f);
 }
 
 void UI_WriteSingleInfo(LPEDICT ent) {
@@ -34,6 +38,8 @@ void UI_WriteSingleInfo(LPEDICT ent) {
     LONG dice = ent->attack1.numberOfDice;
     LONG min_damage = dice ? (LONG)(ent->attack1.damageBase + dice) : 0;
     LONG max_damage = dice ? (LONG)(ent->attack1.damageBase + dice * ent->attack1.sidesPerDie) : 0;
+    LONG dice2 = UNIT_ATTACK2_DAMAGE_NUMBER_OF_DICE(ent->class_id);
+    BOOL has_attack2 = UI_HasSecondAttack(dice2);
 
     if (!name || !*name) {
         name = unit_name ? unit_name : GetClassName(ent->class_id);
@@ -49,9 +55,26 @@ void UI_WriteSingleInfo(LPEDICT ent) {
     snprintf(buffer, sizeof(buffer), "%d - %d", (int)min_damage, (int)max_damage);
     UI_SetText(unit_panel.AttackValue1, "%s", buffer);
 
+    UI_SetText(unit_panel.AttackLabel2, "Damage:");
+    snprintf(buffer, sizeof(buffer), "%d - %d",
+             (int)(UNIT_ATTACK2_DAMAGE_BASE(ent->class_id) + dice2),
+             (int)(UNIT_ATTACK2_DAMAGE_BASE(ent->class_id) + dice2 * UNIT_ATTACK2_DAMAGE_SIDES_PER_DIE(ent->class_id)));
+    UI_SetText(unit_panel.AttackValue2, "%s", buffer);
+    UI_SetHidden(unit_panel.AttackLabel2, !has_attack2);
+    UI_SetHidden(unit_panel.AttackValue2, !has_attack2);
+
     UI_SetText(unit_panel.DefenseLabel, "Armor:");
     snprintf(buffer, sizeof(buffer), "%d", (int)(ent->armor_value + 0.5f));
     UI_SetText(unit_panel.DefenseValue, "%s", buffer);
+
+    UI_SetText(unit_panel.SpeedTitle, "Speed:");
+    UI_SetText(unit_panel.SpeedValue, "%d", (int)(ent->unitinfo.MoveSpeed + 0.5f));
+    UI_SetText(unit_panel.RangeTitle1, "Range:");
+    UI_SetText(unit_panel.RangeValue1, "%d", (int)(ent->attack1.range + 0.5f));
+    UI_SetText(unit_panel.RangeTitle2, "Range:");
+    UI_SetText(unit_panel.RangeValue2, "%d", (int)(UNIT_ATTACK2_RANGE(ent->class_id) + 0.5f));
+    UI_SetHidden(unit_panel.RangeTitle2, !has_attack2);
+    UI_SetHidden(unit_panel.RangeValue2, !has_attack2);
 
     if (is_hero) {
         LPCSTR const prim = UNIT_PRIMARY_ATTRIBUTE(ent->class_id);
@@ -60,17 +83,12 @@ void UI_WriteSingleInfo(LPEDICT ent) {
             { "Agi:", "AGI", ent->hero.agi },
             { "Int:", "INT", ent->hero.intel },
         };
-        LPFRAMEDEF icon_backdrops[3] = { unit_panel.IconBackdrop1, unit_panel.IconBackdrop2, unit_panel.IconBackdrop3 };
         LPFRAMEDEF icon_values[3] = { unit_panel.IconValue1, unit_panel.IconValue2, unit_panel.IconValue3 };
-        LPCSTR icon_art[3] = { "HeroStrengthIcon", "HeroAgilityIcon", "HeroIntelligenceIcon" };
 
         FOR_LOOP(a, 3) {
             BOOL const isprim = prim && !strcmp(prim, attrs[a].code);
             UI_SetText(icon_values[a], "%lu", (unsigned long)attrs[a].val);
             icon_values[a]->Font.Color = isprim ? MAKE(COLOR32, 120, 230, 120, 255) : COLOR32_WHITE;
-            if (icon_backdrops[a]) {
-                icon_backdrops[a]->Texture.Image = gi.ImageIndex(icon_art[a]);
-            }
         }
 
         DWORD const need = G_HeroXPForLevel(level + 1);
@@ -84,7 +102,9 @@ void UI_WriteSingleInfo(LPEDICT ent) {
         }
     }
 
-    UI_WriteFrameWithChildren(unit_panel.InfoPanelUnitDetail, NULL);
+    /* InfoPanelUnitDetail uses SetAllPoints and must fill the old bottom-center panel, not the whole scene. */
+    UI_WriteFrame(&bottom_panel);
+    UI_WriteFrameWithChildren(unit_panel.InfoPanelUnitDetail, &bottom_panel);
 }
 
 void UI_WriteMultiselect(LPEDICT *ents, DWORD count) {
@@ -127,7 +147,6 @@ void UI_SeedInfoPanelCache(LPEDICT ent, LPEDICT *selected, DWORD count) {
 
 void UI_SendInfoPanel(LPEDICT ent, LPEDICT *selected, DWORD count) {
     UI_WriteStart(LAYER_INFOPANEL);
-    UI_WriteConsoleAnchor();
     if (count == 1) {
         if (selected[0]->build) {
             UI_WriteBuildQueue(selected[0]);
@@ -269,9 +288,8 @@ void G_RefreshResourceBar(LPEDICT ent) {
         return;
 
     UI_WriteStart(LAYER_CONSOLE);
-    UI_WriteConsoleBackdrop();
+    UI_WriteConsoleBackdrop(food_u);
     UI_WriteMinimapFrame();
-    UI_WriteResourceBar(food_u);
     UI_WriteEnd(ent);
 
     ent->client->resourcebar.gold      = gold;

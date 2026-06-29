@@ -7,6 +7,7 @@
  */
 
 #include "hud_local.h"
+#include "hud_utils.h"
 #include "../generated/cinematic_panel.h"
 
 static CinematicPanel_t cin;
@@ -77,8 +78,8 @@ void UI_WriteCinematicLayer(LPEDICT ent) {
     UI_SetHidden(cin.CinematicPortraitCover, !has_portrait);
 
     if (has_portrait) {
-        cin.CinematicPortrait->Type = FT_PORTRAIT;
-        cin.CinematicPortrait->Texture.Image = ps->cinematic_portrait;
+        /* FT_PORTRAIT serialization reads Portrait.model; Texture.Image left the transmitted model at zero. */
+        UI_SetPortraitFrameModel(cin.CinematicPortrait, ps->cinematic_portrait);
         cin.CinematicPortrait->Text = "Portrait";
     }
 

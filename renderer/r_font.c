@@ -1,4 +1,5 @@
 #include "r_local.h"
+#include "r_font_utils.h"
 #ifndef _WIN32
 #include <strings.h>
 #endif
@@ -223,7 +224,8 @@ BOOL will_word_fit(LPCSTR text, FLOAT width, LPCFONT font) {
         stbtt_bakedchar *g = &set->glyphs[codepoint & 0xff];
         width -= INV_SCALE(g->xadvance);
     }
-    return width > 0;
+    /* Measurement and drawing subtract the same advances in different orders; tolerate sub-pixel residue. */
+    return R_TextFitsWidth(width);
 }
 
 static VECTOR2 get_position(LPCDRAWTEXT arg) {
