@@ -352,6 +352,7 @@ void UI_FdfFreeFile(HANDLE buf) { gi.MemFree(buf); }
 /* Game module doesn't handle UI events or themes — stub these */
 void UI_WireFrameTypeFunctions(LPFRAMEDEF frame) { (void)frame; }
 void UI_ClearTheme(void) {}
+void UI_ClearTextures(void) {}
 
 /* Game module doesn't load 3D models for UI — stub */
 DWORD UI_LoadModel(LPCSTR file, BOOL decorate) { (void)file; (void)decorate; return 0; }

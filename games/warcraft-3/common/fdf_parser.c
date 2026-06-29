@@ -17,11 +17,7 @@ FRAMEDEF frames[MAX_UI_CLASSES] = { 0 };
 
 extern void UI_WireFrameTypeFunctions(LPFRAMEDEF frame);
 extern void UI_ClearTheme(void);
-
-extern LPCSTR parse_token(LPPARSER p);
-extern LPCSTR parse_segment(LPPARSER p);
-extern LPCSTR parse_segment2(LPPARSER p);
-
+extern void UI_ClearTextures(void);
 #define UINAME_FMT "\"%79[^\"]\""
 #define PATHSTR_FMT "\"%255[^\"]\""
 
@@ -155,6 +151,7 @@ void UI_ClearTemplates(void) {
     memset(ui_loaded_fdfs, 0, sizeof(ui_loaded_fdfs));
     ui_num_loaded_fdfs = 0;
     UI_ClearTheme();
+    UI_ClearTextures();
 }
 
 LPFRAMEDEF UI_Spawn(FRAMETYPE type, LPFRAMEDEF parent) {

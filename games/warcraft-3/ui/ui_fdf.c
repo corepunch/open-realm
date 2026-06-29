@@ -26,6 +26,15 @@ static BOOL ui_texture_decorated[MAX_IMAGES] = { 0 };
 static LPCMODEL ui_models[MAX_MODELS] = { 0 };
 static PATHSTR ui_model_names[MAX_MODELS] = { 0 };
 
+void UI_ClearTextures(void) {
+    memset(ui_textures, 0, sizeof(ui_textures));
+    memset(ui_texture_names, 0, sizeof(ui_texture_names));
+    memset(ui_texture_keys, 0, sizeof(ui_texture_keys));
+    memset(ui_texture_decorated, 0, sizeof(ui_texture_decorated));
+    memset(ui_models, 0, sizeof(ui_models));
+    memset(ui_model_names, 0, sizeof(ui_model_names));
+}
+
 static BOOL UI_HasKnownTextureExtension(LPCSTR file) {
     LPCSTR dot = file ? strrchr(file, '.') : NULL;
     return dot && (!strcasecmp(dot, ".blp") ||

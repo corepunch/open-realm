@@ -485,12 +485,14 @@ struct word_extractor {
 };
 #endif
 
+#ifndef STB_FDF_IMPLEMENTATION
 LPCSTR parse_token(LPPARSER p);
 LPCSTR parse_segment(LPPARSER p);
 LPCSTR parse_segment2(LPPARSER p);
 LPCSTR peek_token(LPPARSER p);
 BOOL eat_token(LPPARSER p, LPCSTR value);
 void parser_error(LPPARSER parser);
+#endif
 
 /* -------------------------------------------------------------------------- */
 /* Pure frame helpers — extern declarations for non-implementation TUs          */
@@ -546,7 +548,7 @@ static void parser_rtrim(LPSTR s) {
     while (end > s && isspace((unsigned char)end[-1])) *--end = '\0';
 }
 
-LPCSTR parse_token(LPPARSER p) {
+static LPCSTR parse_token(LPPARSER p) {
     static char word[PARSER_MAX_SEGMENT];
     parser_skip_ws(p);
     if (*p->buffer == '"') {
@@ -571,19 +573,19 @@ LPCSTR parse_token(LPPARSER p) {
     }
 }
 
-LPCSTR peek_token(LPPARSER p) {
+static LPCSTR peek_token(LPPARSER p) {
     PARSER tmp = *p;
     LPCSTR tok = parse_token(p);
     *p = tmp;
     return tok;
 }
 
-BOOL eat_token(LPPARSER p, LPCSTR value) {
+static BOOL eat_token(LPPARSER p, LPCSTR value) {
     if (!strcmp(peek_token(p), value)) { parse_token(p); return true; }
     return false;
 }
 
-LPCSTR parse_segment(LPPARSER p) {
+static LPCSTR parse_segment(LPPARSER p) {
     static char seg[PARSER_MAX_SEGMENT];
     memset(seg, 0, PARSER_MAX_SEGMENT);
     if (*p->buffer == '\0') return NULL;
@@ -611,7 +613,7 @@ LPCSTR parse_segment(LPPARSER p) {
     return seg;
 }
 
-LPCSTR parse_segment2(LPPARSER p) {
+static LPCSTR parse_segment2(LPPARSER p) {
     static char seg[PARSER_MAX_SEGMENT];
     LPSTR out = seg;
     BOOL quoted = false, have = false;
@@ -643,9 +645,9 @@ LPCSTR parse_segment2(LPPARSER p) {
     return seg;
 }
 
-void parser_error(LPPARSER parser) { parser->error = true; }
+static void parser_error(LPPARSER parser) { parser->error = true; }
 
-void *find_in_array(void const *array, long sizeofelem, LPCSTR name) {
+static void *find_in_array(void const *array, long sizeofelem, LPCSTR name) {
     LPSTR str = (LPSTR)array;
     while (*(LPCSTR *)str) {
         if (!strcmp(*(LPCSTR *)str, name)) return str;

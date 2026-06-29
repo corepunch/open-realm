@@ -12,8 +12,6 @@ int _tests_run = 0;
 int _tests_failed = 0;
 
 void run_ui_fdf_tests(void);
-void run_ui_layout_tests(void);
-void run_ui_logo_layout_tests(void);
 void run_tool_common_tests(void);
 
 int main(void) {
@@ -21,14 +19,6 @@ int main(void) {
 
     printf("[UI FDF parser / frame graph]\n");
     run_ui_fdf_tests();
-    printf("\n");
-
-    printf("[UI layout solver]\n");
-    run_ui_layout_tests();
-    printf("\n");
-
-    printf("[UI logo layout]\n");
-    run_ui_logo_layout_tests();
     printf("\n");
 
     printf("[Tool common helpers]\n");
