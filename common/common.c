@@ -1144,7 +1144,9 @@ void Com_Quit(void) {
     if (Cvar_Integer("com_frame_limit", 0) <= 0) {
         Cvar_WriteConfig(Cvar_String("config", ""));
     }
-    CL_Shutdown();
+    if (!Cvar_Integer("dedicated", 0)) {
+        CL_Shutdown();
+    }
     SV_Shutdown();
     NET_Shutdown();
     FS_Shutdown();
