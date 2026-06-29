@@ -59,4 +59,48 @@ build/bin/opensc2 -data data/StarCraft2 +map TRaynor01
 
 This target expects locally supplied StarCraft II data for real asset experiments. Original assets, names, and game data belong to Blizzard Entertainment. The directory is here so the engine can grow beyond one asset format without pretending the SC2 game is already built.
 
-Map-format research notes live in [docs/readme.md](docs/readme.md).
+## Documentation
+
+Public reverse-engineering and modding references for how StarCraft II maps are stored, opened, and rendered. Not Blizzard documentation and not a complete implementation spec — a map for loader and renderer work.
+
+### Documents
+
+- [Map Storage And Loading](docs/map-storage-and-loading.md) — container format, component folders, dependency/XML loading behavior, and cache/download context.
+- [Embedded Map Files](docs/embedded-map-files.md) — full binary specs for all known files inside `.SC2Map` archives.
+- [Map, Model, And Unit Data](docs/map-model-unit-data.md) — practical path from placed objects through catalog XML to M3 models.
+- [Parser Notes](docs/parser-notes.md) — practical loading order and implementation guidance.
+- [References](docs/references.md) — all public sources, tools, and GitHub repos used.
+- [Sounds](docs/sounds.md)
+
+### File Format Details
+
+- [MapInfo](docs/file-formats/mapinfo.md) — complete `MapInfo` binary struct with all fields and player slot layout.
+- [PlacedObjects](docs/file-formats/objects.md) — complete `<PlacedObjects>` XML schema.
+- [Actors And Models](docs/file-formats/actors-and-models.md) — actor system, `CActorUnit` key fields, `CModel` catalog fields.
+- [M3 Model Format](docs/file-formats/m3.md) — M3 binary model format: reference table, geometry, skeleton, animations, materials.
+
+### Short Version
+
+`.SC2Map`, `.SC2Mod`, `.SC2Archive`, and `.s2ma` files are MPQ archives. A map contains metadata, terrain/pathing binary layers, placed-object XML, minimap/loading assets, localized strings, trigger/Galaxy code, and map-local game-data XML.
+
+### Implementation Status
+
+| Area | Status |
+| --- | --- |
+| MPQ loading | done |
+| `MapInfo` | done |
+| `Objects` (units, doodads) | done |
+| `t3Terrain.xml` (cliff sets, cells, textures) | done |
+| `t3HeightMap` | done |
+| `t3SyncHeightMap` (fine height detail) | done |
+| `t3SyncCliffLevel` | done |
+| `t3CellFlags` | done |
+| `t3TextureMasks` | done |
+| Terrain rendering (ground + cliff walls) | done |
+| Cliff config canonicalization | done |
+| `t3SyncPathingInfo` (pathing) | **not started** |
+| `t3Water` | **not started** |
+| `t3FluffDoodad` | **not started** |
+| Catalog-driven unit → model resolution | **not started** (currently uses path guessing) |
+| `.m3a` animation supplements | **not started** |
+| Team-color texture swapping | **not started** |
