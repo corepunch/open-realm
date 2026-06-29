@@ -3,6 +3,9 @@
 
 #include <SDL2/SDL.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <sys/select.h>
+#include <unistd.h>
 
 #if defined(__APPLE__)
 #define BZ_PLATFORM "Darwin"
@@ -74,6 +77,43 @@ void Sys_Quit(void) {
     exit(0);
 }
 
+/* Read a line from stdin for dedicated server console input.
+ * Returns NULL if no input is available (non-blocking check). */
+static LPSTR Sys_ConsoleInput(void) {
+    static char line[256];
+    static char *pos = line;
+    fd_set fds;
+    struct timeval tv;
+    int ch;
+
+    if (!Cvar_Integer("dedicated", 0)) {
+        return NULL;
+    }
+    /* Non-blocking check: is there data on stdin? */
+    FD_ZERO(&fds);
+    FD_SET(STDIN_FILENO, &fds);
+    tv.tv_sec = 0;
+    tv.tv_usec = 0;
+    if (select(STDIN_FILENO + 1, &fds, NULL, NULL, &tv) <= 0) {
+        return NULL;
+    }
+    while (1) {
+        ch = fgetc(stdin);
+        if (ch == EOF) {
+            pos = line;
+            return NULL;
+        }
+        if (ch == '\n') {
+            *pos = '\0';
+            pos = line;
+            return line;
+        }
+        if (pos < line + sizeof(line) - 1) {
+            *pos++ = (char)ch;
+        }
+    }
+}
+
 int main(int argc, LPSTR argv[]) {
     BOOL data = 0;
 
@@ -124,6 +164,11 @@ int main(int argc, LPSTR argv[]) {
     }
     bool dedicated = Cvar_Integer("dedicated", 0) != 0;
 
+    /* Dedicated server mode: follow the Quake 2 convention of running the
+     * server without the client stack.  Unlike Quake 2 which uses a
+     * compile-time cl_null.c stub, we use runtime checks here because the
+     * codebase is not yet structured for a separate dedicated target and
+     * runtime branching keeps a single binary for both modes. */
     cls.key_dest = dedicated ? key_game : (menu_mode ? key_menu : key_game);
     cls.state = ca_disconnected;
 
@@ -137,6 +182,9 @@ int main(int argc, LPSTR argv[]) {
         }
         SV_Init();
         fprintf(stderr, "Dedicated server starting on map: %s\n", map);
+        /* Call SV_Map directly instead of routing through the 'map' command,
+         * because Com_Map_f -> MenuAction -> CL_BeginLoadingMap requires the
+         * client stack which is not initialized in dedicated mode. */
         SV_Map(map);
     } else {
         if (!menu_mode) {
@@ -169,11 +217,19 @@ int main(int argc, LPSTR argv[]) {
     while (true) {
         DWORD currentTime = SDL_GetTicks();
         DWORD msec = currentTime - startTime;
-        if (!has_connect_addr && (sv.state == ss_lobby || sv.state == ss_game)) {
+        if (svs.initialized && (sv.state == ss_lobby || sv.state == ss_game)) {
             SV_Frame(msec);
         }
         if (!dedicated) {
             CL_Frame(msec);
+        } else {
+            /* Dedicated server: read console commands from stdin. */
+            LPSTR cmd = Sys_ConsoleInput();
+            if (cmd && *cmd) {
+                Cbuf_AddText(cmd);
+                Cbuf_AddText("\n");
+                Cbuf_Execute();
+            }
         }
         startTime = currentTime;
         frameCount++;
