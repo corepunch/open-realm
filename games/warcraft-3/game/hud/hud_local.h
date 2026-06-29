@@ -99,6 +99,7 @@ FLOAT Theme_Float(LPCSTR key, LPCSTR def);
 
 /* Console (hud_console.c) */
 void UI_WriteConsoleBackdrop(void);
+void UI_WriteConsoleAnchor(void);
 void UI_WriteMinimapFrame(void);
 void UI_WriteResourceBar(LONG food_used);
 

@@ -67,8 +67,14 @@ void UI_WriteCinematicLayer(LPEDICT ent) {
     BOOL has_portrait = ps->cinematic_portrait != 0;
     BOOL has_speaker = ps->texts[PLAYERTEXT_SPEAKER] && ps->texts[PLAYERTEXT_SPEAKER][0];
     BOOL has_dialogue = ps->texts[PLAYERTEXT_DIALOGUE] && ps->texts[PLAYERTEXT_DIALOGUE][0];
+    BOOL has_scene = has_portrait || has_speaker || has_dialogue;
 
-    UI_SetHidden(cin.CinematicScenePanel, !has_portrait);
+    /* Hide the whole scene panel only when there's nothing to show. */
+    UI_SetHidden(cin.CinematicScenePanel, !has_scene);
+    /* Hide portrait sub-frames individually when there's no portrait. */
+    UI_SetHidden(cin.CinematicPortraitBackground, !has_portrait);
+    UI_SetHidden(cin.CinematicPortrait, !has_portrait);
+    UI_SetHidden(cin.CinematicPortraitCover, !has_portrait);
 
     if (has_portrait) {
         cin.CinematicPortrait->Type = FT_PORTRAIT;
@@ -83,6 +89,7 @@ void UI_WriteCinematicLayer(LPEDICT ent) {
 
     if (has_dialogue) {
         cin.CinematicDialogueText->Stat = MAX_STATS + PLAYERTEXT_DIALOGUE;
+        cin.CinematicDialogueText->Font.Color = COLOR32_WHITE;
     }
 
     UI_WriteLayout(ent, cin.CinematicPanel, LAYER_CINEMATIC);

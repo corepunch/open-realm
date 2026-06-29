@@ -41,6 +41,9 @@ static inline BOOL CinematicPanel_Bind(CinematicPanel_t *out, LPFRAMEDEF bind_ro
 
 static inline BOOL CinematicPanel_Load(CinematicPanel_t *out) {
     return out &&
+           UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf") &&
+           UI_EnsureFDF("UI\\FrameDef\\UI\\EscMenuTemplates.fdf") &&
+           UI_EnsureFDF("UI\\FrameDef\\UI\\CinematicPanel.fdf") &&
            CinematicPanel_Bind(out, UI_FindFrame("CinematicPanel"));
 }
 

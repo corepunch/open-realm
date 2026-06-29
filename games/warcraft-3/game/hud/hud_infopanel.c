@@ -127,6 +127,7 @@ void UI_SeedInfoPanelCache(LPEDICT ent, LPEDICT *selected, DWORD count) {
 
 void UI_SendInfoPanel(LPEDICT ent, LPEDICT *selected, DWORD count) {
     UI_WriteStart(LAYER_INFOPANEL);
+    UI_WriteConsoleAnchor();
     if (count == 1) {
         if (selected[0]->build) {
             UI_WriteBuildQueue(selected[0]);
