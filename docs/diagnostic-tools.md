@@ -43,6 +43,72 @@ Agent guidance:
 - Use `--front-ortho` for glue sprites, panel layers, logos, and other flat UI-facing models.
 - Use `--use-model-camera` only when the model actually contains a useful embedded camera.
 
+## DBC Inspection (dbctool)
+
+- Use `build/bin/dbctool` to inspect or create WoW DBC files without writing C code or running the game.
+- DBCs live inside WoW MPQ archives under `DBFilesClient\`. You can also pass a raw extracted file with `-file`.
+- CLI synopsis:
+    - `build/bin/dbctool -mpq <archive.mpq> info <DBFilesClient\File.dbc>`
+    - `build/bin/dbctool -mpq <archive.mpq> dump <DBFilesClient\File.dbc> [max-rows]`
+    - `build/bin/dbctool -mpq <archive.mpq> get  <DBFilesClient\File.dbc> <row> <field>`
+    - `build/bin/dbctool -mpq <archive.mpq> str  <DBFilesClient\File.dbc> <row> <field>`
+    - `build/bin/dbctool -file <file.dbc>   info|dump|get|str ...`
+
+Commands:
+- `info` — print header: record count, field count, record size, string block size.
+- `dump` — print all (or up to `max-rows`) records as tab-separated uint32 columns, one row per line.
+- `get  r f` — print field `f` of row `r` (0-based) as a uint32. Use for ID, flags, or integer columns.
+- `str  r f` — resolve field `f` of row `r` as a string-block offset and print the string. Use for name/filename columns.
+
+Examples:
+```
+build/bin/dbctool -mpq data/world-of-warcraft/Data/patch.mpq info DBFilesClient\\ChrRaces.dbc
+build/bin/dbctool -mpq data/world-of-warcraft/Data/patch.mpq dump DBFilesClient\\ChrClasses.dbc 10
+build/bin/dbctool -mpq data/world-of-warcraft/Data/patch.mpq get  DBFilesClient\\ChrRaces.dbc 0 0
+build/bin/dbctool -mpq data/world-of-warcraft/Data/patch.mpq str  DBFilesClient\\ChrRaces.dbc 0 17
+build/bin/dbctool -file /tmp/ChrRaces.dbc dump
+```
+
+### Writing DBC files for tests
+
+Use `create`, `set`, `setstr`, and `save` to build fixture DBCs for unit tests. No `-mpq` or `-file` prefix needed.
+
+- `create <out.dbc> <fields> <record_size>` — create an empty DBC (record_size must be 4× fields).
+- `set <file.dbc> <row> <field> <value>` — set a uint32 field. Row is auto-created.
+- `setstr <file.dbc> <row> <field> <string>` — set a string field (value stored in string block).
+- `save <file.dbc>` — write the in-memory DBC to disk and clean up.
+
+Example:
+```
+build/bin/dbctool create /tmp/test.dbc 3 12
+build/bin/dbctool set /tmp/test.dbc 0 0 1
+build/bin/dbctool setstr /tmp/test.dbc 0 1 "Hello"
+build/bin/dbctool set /tmp/test.dbc 0 2 42
+build/bin/dbctool save /tmp/test.dbc
+build/bin/dbctool -file /tmp/test.dbc dump
+```
+
+Agent guidance:
+- Always use this tool when investigating a DBC layout mismatch or verifying field indices in `ui_dbc.c`.
+- Do not hardcode field indices in C code without first confirming them with `dbctool info` and `dbctool dump`.
+- Before hardcoding any race/class/faction/item/display ID or name in C or Lua: confirm the real value from the authoritative DBC.
+- Prefer `info` first, then `str` for named fields, then `dump` when you need the full picture.
+- Pipe `dump` output through `grep`, `awk`, or `cut` for quick filtering.
+- Use `create`/`set`/`setstr`/`save` to generate minimal DBC fixtures for tests that exercise DBC-dependent code paths.
+
+## MDX Animation Reference (WarsmashModEngine)
+
+The `data/WarsmashModEngine/` directory contains a Java port of the mdx-m3-viewer used as reference for MDX animation behaviour. Key differences from the C implementation:
+
+- **Keyframe wrapping** (`SdSequence.getValue` in `AnimatedObject.java`): when the animation frame exceeds the last keyframe within the sequence interval, the game interpolates from the last keyframe's value back toward the first keyframe's value — it does NOT clamp to the last pose.
+- **Per-sequence keyframe filtering**: Warsmash builds a separate filtered keyframe list for each sequence at load time (`SdSequence` constructor), selecting keyframes with `start <= frame <= end` (inclusive). Our code filters at evaluation time with exclusive upper bound.
+
+When investigating animation crop/truncation bugs, the relevant source files are:
+- `data/WarsmashModEngine/.../mdx/AnimatedObject.java`
+- `data/WarsmashModEngine/.../mdx/SdSequence.java`
+- `data/WarsmashModEngine/.../mdx/Sd.java`
+- `data/WarsmashModEngine/.../mdx/MdxComplexInstance.java` (updateAnimations method)
+
 ## UI Text Renderer
 
 - Use `make run-ui-text` to inspect client-side UI rendering without opening a window.

@@ -33,6 +33,14 @@ void UI_WriteConsoleBackdrop(void) {
     UI_WriteFrameWithChildren(console_ui.ConsoleUI, NULL);
 }
 
+/* Write ConsoleUI as a frame-number anchor without its children.
+ * Call this first in any layer that contains frames whose SetPoint is
+ * relative to ConsoleUI (e.g. InfoPanelUnitDetail). */
+void UI_WriteConsoleAnchor(void) {
+    ConsoleEnsureLoaded();
+    UI_WriteFrame(console_ui.ConsoleUI);
+}
+
 void UI_WriteMinimapFrame(void) {
     uiFrame_t frame;
 

@@ -416,6 +416,8 @@ static void G_ClientBegin(LPEDICT edict) {
         client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] += UNIT_FOOD_MADE(ent->class_id);
         client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] += UNIT_FOOD_USED(ent->class_id);
     }
+    /* Invalidate cache so the initial resource bar write always fires. */
+    client->resourcebar.gold = -1;
     G_RefreshResourceBar(edict);
     Get_Portrait_f(edict);
     Get_Commands_f(edict);
