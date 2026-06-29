@@ -392,8 +392,10 @@ sheetRow_t *parse_slk_string(const char *slk_text) {
 
         if (line[0] != 'C' && line[0] != 'F') continue;
 
-        /* Tokenise by ';'. */
-        char tokens[MAX_SLK_LINE];
+        /* Tokenise by ';'.  Zero-init so the token walker's final
+         * tok += strlen(tok) + 1 lands on a NUL byte instead of
+         * reading uninitialized stack memory past the last token. */
+        char tokens[MAX_SLK_LINE] = {0};
         memcpy(tokens, line, len + 1);
         for (int i = 0; tokens[i]; i++)
             if (tokens[i] == ';') tokens[i] = '\0';
