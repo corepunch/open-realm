@@ -256,7 +256,7 @@ static HANDLE sc2_source_read(sc2MapSource_t *source, LPCSTR filename, LPDWORD s
     data = sc2_read_file(wide_path, size);
     if (!data) {
         snprintf(wide_path, sizeof(wide_path), "%s\\%s", source->base, filename);
-        data = sc2_read_file(path, size);
+        data = sc2_read_file(wide_path, size);
     }
     return data;
 }
@@ -366,20 +366,23 @@ static xmlDocPtr sc2_read_catalog_xml_from_archive(LPCSTR archive_name, LPCSTR f
 
 static xmlDocPtr sc2_read_catalog_xml(LPCSTR root, LPCSTR filename) {
     PATHSTR path;
+    PATHSTR archive_path;
     xmlDocPtr doc;
     LPCSTR data_dir;
 
     if (!root || !*root) return sc2_read_global_xml(filename);
-    snprintf(path, sizeof(path), "%s/%s", root, filename);
+    /* All catalog game data files live under Base.SC2Data/ inside each mod/archive */
+    snprintf(path, sizeof(path), "%s/Base.SC2Data/%s", root, filename);
     doc = sc2_read_global_xml(path);
     if (doc)
         return doc;
     data_dir = sc2_host.cvar_string ? sc2_host.cvar_string("data", "") : "";
     if (data_dir && *data_dir) {
-        snprintf(path, sizeof(path), "%s/%s", data_dir, root);
-        return sc2_read_catalog_xml_from_archive(path, filename);
+        snprintf(archive_path, sizeof(archive_path), "%s/%s/Base.SC2Data", data_dir, root);
+        return sc2_read_catalog_xml_from_archive(archive_path, filename);
     }
-    return sc2_read_catalog_xml_from_archive(root, filename);
+    snprintf(archive_path, sizeof(archive_path), "%s/Base.SC2Data", root);
+    return sc2_read_catalog_xml_from_archive(archive_path, filename);
 }
 
 static xmlDocPtr sc2_read_map_catalog_xml(sc2MapSource_t *source, LPCSTR filename) {
