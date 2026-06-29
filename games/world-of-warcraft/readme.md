@@ -60,4 +60,22 @@ build/bin/openwow -data data/world-of-warcraft +map World/Maps/Azeroth/Azeroth.w
 
 This target expects locally supplied World of Warcraft client data. Original assets, names, and game data belong to Blizzard Entertainment. Nothing in this directory should be read as a promise of full MMO behavior; it is a renderer/runtime exploration branch that shares the engine with the rest of OpenWarcraft3.
 
-Game-specific documentation lives in [docs/readme.md](docs/readme.md).
+## Documentation
+
+What the World of Warcraft target currently knows how to load and render.
+
+### Documents
+
+- [Data Loading](docs/data-loading.md): MPQ data layout, WDT/ADT map entry, DBC helpers, and tool commands.
+- [File Formats](docs/file-formats.md): collected reverse-engineered format notes for MPQ/CASC, WDT/ADT/WDL, WMO, M2/SKIN/ANIM, BLP, DBC/DB2, WDB, and related files.
+- [Terrain And World Rendering](docs/terrain-and-world-rendering.md): WDT tiles, ADT chunks, splats, alpha maps, doodads, WMOs, and height queries.
+- [M2 And Character Display](docs/m2-and-character-display.md): M2 loading, skin files, DBC-backed outfit data, geosets, and component texture rules.
+- [Grass Rendering System](docs/grass-rendering-system.md): terrain-advertent grass rendering.
+- [References](docs/references.md): public schema references and local source/tool entry points.
+- [Sounds](docs/sounds.md)
+
+### Short Version
+
+`openwow` mounts locally supplied WoW client data, opens a WDT path such as `World/Maps/Azeroth/Azeroth.wdt`, loads nearby ADT tiles, renders terrain chunks and splat layers, and uses M2 models for creatures/player-style actors. Character appearance is data-driven by packed appearance/equipment values, DBC records, M2 skin section IDs, and composed body textures.
+
+The important rule for future work: keep WoW-specific policy under `games/world-of-warcraft/`. Engine modules should stay format-agnostic and receive generic renderer/game data through the selected-game boundary.

@@ -74,4 +74,34 @@ make test-jass
 
 This target expects a legitimate Warcraft III data folder. Original assets, names, and game data belong to Blizzard Entertainment. The repository contains code, fixtures, and generated test assets, not the retail game data.
 
-Game-specific documentation lives in [docs/readme.md](docs/readme.md).
+## Documentation
+
+File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used by this target. Engine-wide client, server, networking, and runtime-module docs still live under the top-level `doc/architecture/` tree.
+
+### File Formats
+
+- [Warcraft III Map Format](docs/file-formats/map.md)
+- [Warcraft III MDX Model Format](docs/file-formats/mdx.md)
+- [SLK Spreadsheet Format](docs/file-formats/slk.md)
+- [UI Frame Definition File](docs/file-formats/fdf.md)
+
+### Detailed File Notes
+
+- [Warcraft III File Format Specifications](docs/file-docs/readme.md)
+- [MPQ Archive Format](docs/file-docs/mpq.md)
+- [W3M / W3X Map Container](docs/file-docs/w3x-w3m.md)
+- [war3map.w3e Terrain](docs/file-docs/w3e.md)
+- [war3map.doo Doodads](docs/file-docs/doo.md)
+- [war3map.shd / war3map.wpm](docs/file-docs/shd-wpm.md)
+- [Warcraft III FDF Reference](docs/file-docs/fdf.md)
+
+### Implementation Notes
+
+- [Warcraft III UI System](docs/architecture/ui.md)
+- [UI Flow](docs/architecture/ui-flow.md)
+- [UI Quick Reference](docs/architecture/ui-quick-reference.md)
+- [Map Renderer](docs/architecture/map-renderer.md)
+- [Ability Coverage](docs/architecture/ability-coverage.md)
+- [ROC Ability Checklist](docs/architecture/roc-ability-checklist.md)
+- [Cinematics](docs/cinematics.md)
+- [Sounds](docs/sounds.md)
