@@ -22,7 +22,7 @@
 static LPCFRAMEDEF framesWritten[MAX_FRAMES_WRITE];
 static LPCFRAMEDEF *frameptr;
 
-static void UI_ResetFrameWriteList(void) {
+void UI_ResetFrameWriteList(void) {
     frameptr = framesWritten;
 }
 
@@ -187,64 +187,6 @@ BOOL UI_BuildFrameForWrite(LPCFRAMEDEF frame,
             } else { buf.overflowed = true; }
             break;
         }
-        case FT_EDITBOX:
-        case FT_GLUEEDITBOX:
-        case FT_SLASHCHATBOX: {
-            LPFRAMEDEF Backdrop = UI_FindFrameNear(frame, frame->Control.Backdrop.Normal);
-            LPFRAMEDEF TextFrame = UI_FindFrameNear(frame, frame->Edit.TextFrame);
-            COLOR32 text_color = frame->Edit.TextColor.a ? frame->Edit.TextColor :
-                                 TextFrame && TextFrame->Font.Color.a ? TextFrame->Font.Color :
-                                 frame->Font.Color;
-            COLOR32 cursor_color = frame->Edit.CursorColor.a ? frame->Edit.CursorColor : COLOR32_WHITE;
-            uiEditBox_t data = {
-                .background = MakeBackdrop(Backdrop),
-                .font = TextFrame ? TextFrame->Font.Index : frame->Font.Index,
-                .borderSize = frame->Edit.BorderSize,
-                .textColor = text_color.a ? text_color : COLOR32_WHITE,
-                .cursorColor = cursor_color,
-                .maxChars = frame->Edit.MaxChars,
-            };
-            if (frame->Edit.Text[0]) out->text = frame->Edit.Text;
-            else if (!out->text || !*out->text) out->text = "";
-            if (buf.cursize + sizeof(data) <= buf.maxsize) {
-                memcpy(buf.data + buf.cursize, &data, sizeof(data));
-                buf.cursize += sizeof(data);
-            } else { buf.overflowed = true; }
-            break;
-        }
-        case FT_LISTBOX: {
-            LPFRAMEDEF Backdrop = UI_FindFrameNear(frame, frame->Control.Backdrop.Normal);
-            uiListBox_t data = {
-                .background = MakeBackdrop(Backdrop),
-                .text = MakeLabel(frame),
-                .border = frame->ListBox.Border,
-                .itemHeight = frame->Menu.Item.Height,
-                .selectedIndex = -1,
-            };
-            snprintf(data.id, sizeof(data.id), "%s", frame->Name);
-            snprintf(data.fetchCommand, sizeof(data.fetchCommand), "%s", frame->ListBox.FetchCommand);
-            if (buf.cursize + sizeof(data) <= buf.maxsize) {
-                memcpy(buf.data + buf.cursize, &data, sizeof(data));
-                buf.cursize += sizeof(data);
-            } else { buf.overflowed = true; }
-            break;
-        }
-        case FT_SCROLLBAR: {
-            LPFRAMEDEF incButton = UI_FindFrameNear(frame, frame->Slider.IncButtonFrame);
-            LPFRAMEDEF decButton = UI_FindFrameNear(frame, frame->Slider.DecButtonFrame);
-            LPFRAMEDEF thumbButton = UI_FindFrameNear(frame, frame->Slider.ThumbButtonFrame);
-            uiScrollBar_t data = {
-                .background = MakeBackdrop(UI_FindFrameNear(frame, frame->Control.Backdrop.Normal)),
-                .incButton = MakeBackdrop(incButton),
-                .decButton = MakeBackdrop(decButton),
-                .thumbButton = MakeBackdrop(thumbButton),
-            };
-            if (buf.cursize + sizeof(data) <= buf.maxsize) {
-                memcpy(buf.data + buf.cursize, &data, sizeof(data));
-                buf.cursize += sizeof(data);
-            } else { buf.overflowed = true; }
-            break;
-        }
         case FT_MODEL:
         case FT_SPRITE:
         case FT_PORTRAIT:
@@ -316,19 +258,15 @@ void UI_WriteFrameWithChildrenWithTriggers(LPEDICT ent, LPCFRAMEDEF frame, LPCFR
 }
 
 void UI_WriteLayout(LPEDICT ent, LPCFRAMEDEF root, DWORD layer) {
-    UI_ResetFrameWriteList();
     UI_WriteStart(layer);
     UI_WriteFrameWithChildren(root, NULL);
-    gi.Write(PF_LONG, &(LONG){0});
-    gi.unicast(ent);
+    UI_WriteEnd(ent);
 }
 
 void UI_WriteWithTriggers(LPEDICT ent, LPCFRAMEDEF root, DWORD layer, uiTrigger_t const *triggers) {
-    UI_ResetFrameWriteList();
     UI_WriteStart(layer);
     UI_WriteFrameWithChildrenWithTriggers(ent, root, NULL, triggers);
-    gi.Write(PF_LONG, &(LONG){0});
-    gi.unicast(ent);
+    UI_WriteEnd(ent);
 }
 
 /* Stubbed UI framework functions */

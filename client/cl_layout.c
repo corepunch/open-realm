@@ -246,10 +246,10 @@ LPCUIFRAME SCR_Clear(HANDLE data) {
         ent->tex.coord[1] = 0xff;
         ent->tex.coord[3] = 0xff;
         MSG_ReadDeltaUIFrame(&msg, ent, nument, bits);
-        if (msg.readcount + sizeof(WORD) > msg.cursize) {
+        if (msg.readcount + sizeof(BYTE) > msg.cursize) {
             break;
         }
-        ent->buffer.size = MSG_ReadShort(&msg);
+        ent->buffer.size = MSG_ReadByte(&msg);
         if (msg.readcount + ent->buffer.size > msg.cursize) {
             break;
         }

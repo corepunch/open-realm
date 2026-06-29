@@ -125,9 +125,6 @@ void UI_ShowQuests(LPEDICT ent) {
 
 void UI_HideQuests(LPEDICT ent) {
     if (!ent) return;
-    gi.Write(PF_BYTE, &(LONG){svc_layout});
-    gi.Write(PF_BYTE, &(LONG){LAYER_QUESTDIALOG});
-    gi.Write(PF_LONG, &(LONG){0});
-    gi.Write(PF_SHORT, &(LONG){0});
-    gi.unicast(ent);
+    UI_WriteStart(LAYER_QUESTDIALOG);
+    UI_WriteEnd(ent);
 }

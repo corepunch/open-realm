@@ -84,10 +84,11 @@ void UI_WriteSingleInfo(LPEDICT ent) {
         }
     }
 
-    UI_WriteLayout(ent, unit_panel.InfoPanelUnitDetail, LAYER_INFOPANEL);
+    UI_WriteFrameWithChildren(unit_panel.InfoPanelUnitDetail, NULL);
 }
 
 void UI_WriteMultiselect(LPEDICT *ents, DWORD count) {
+    if (count > 12) count = 12;
     DWORD size = sizeof(uiMultiselect_t) + sizeof(uiMultiselectItem_t) * count;
     LPBYTE buffer = gi.MemAlloc(size);
     uiMultiselect_t *multi = (uiMultiselect_t *)buffer;
@@ -125,9 +126,7 @@ void UI_SeedInfoPanelCache(LPEDICT ent, LPEDICT *selected, DWORD count) {
 }
 
 void UI_SendInfoPanel(LPEDICT ent, LPEDICT *selected, DWORD count) {
-    gi.Write(PF_BYTE, &(LONG){svc_layout});
-    gi.Write(PF_BYTE, &(LONG){LAYER_INFOPANEL});
-    ui_next_frame_number = 1;
+    UI_WriteStart(LAYER_INFOPANEL);
     if (count == 1) {
         if (selected[0]->build) {
             UI_WriteBuildQueue(selected[0]);
@@ -137,9 +136,7 @@ void UI_SendInfoPanel(LPEDICT ent, LPEDICT *selected, DWORD count) {
     } else if (count > 1) {
         UI_WriteMultiselect(selected, count);
     }
-    gi.Write(PF_LONG, &(LONG){0});
-    gi.Write(PF_SHORT, &(LONG){0});
-    gi.unicast(ent);
+    UI_WriteEnd(ent);
     UI_SeedInfoPanelCache(ent, selected, count);
 }
 
@@ -164,16 +161,12 @@ void Get_Commands_f(LPEDICT ent) {
     }
     memset(&ent->client->menu, 0, sizeof(ent->client->menu));
 
-    gi.Write(PF_BYTE, &(LONG){svc_layout});
-    gi.Write(PF_BYTE, &(LONG){LAYER_COMMANDBAR});
-    ui_next_frame_number = 1;
+    UI_WriteStart(LAYER_COMMANDBAR);
     count = G_GetCommandButtons(selected, buttons, 12);
     FOR_LOOP(i, count) {
         UI_WriteCommandButtonFrame(&buttons[i]);
     }
-    gi.Write(PF_LONG, &(LONG){0});
-    gi.Write(PF_SHORT, &(LONG){0});
-    gi.unicast(ent);
+    UI_WriteEnd(ent);
 }
 
 static void WritePortraitFrame(LPEDICT ent) {
@@ -213,23 +206,15 @@ void Get_Portrait_f(LPEDICT ent) {
     if (!ent || !ent->client) return;
     count = SelectedUnits(ent->client, selected, MAX_SELECTED_ENTITIES);
 
-    gi.Write(PF_BYTE, &(LONG){svc_layout});
-    gi.Write(PF_BYTE, &(LONG){LAYER_PORTRAIT});
-    ui_next_frame_number = 1;
+    UI_WriteStart(LAYER_PORTRAIT);
     if (count == 1) WritePortraitFrame(selected[0]);
-    gi.Write(PF_LONG, &(LONG){0});
-    gi.Write(PF_SHORT, &(LONG){0});
-    gi.unicast(ent);
+    UI_WriteEnd(ent);
 
     UI_SendInfoPanel(ent, selected, count);
 
-    gi.Write(PF_BYTE, &(LONG){svc_layout});
-    gi.Write(PF_BYTE, &(LONG){LAYER_INVENTORY});
-    ui_next_frame_number = 1;
+    UI_WriteStart(LAYER_INVENTORY);
     if (count == 1) WriteInventory(selected[0]);
-    gi.Write(PF_LONG, &(LONG){0});
-    gi.Write(PF_SHORT, &(LONG){0});
-    gi.unicast(ent);
+    UI_WriteEnd(ent);
 }
 
 /* Re-send LAYER_INFOPANEL only when HP, mana, or XP of the selected unit changed. */
@@ -282,15 +267,11 @@ void G_RefreshResourceBar(LPEDICT ent) {
         food_c == ent->client->resourcebar.food_cap)
         return;
 
-    gi.Write(PF_BYTE, &(LONG){svc_layout});
-    gi.Write(PF_BYTE, &(LONG){LAYER_CONSOLE});
-    ui_next_frame_number = 1;
+    UI_WriteStart(LAYER_CONSOLE);
     UI_WriteConsoleBackdrop();
     UI_WriteMinimapFrame();
     UI_WriteResourceBar(food_u);
-    gi.Write(PF_LONG, &(LONG){0});
-    gi.Write(PF_SHORT, &(LONG){0});
-    gi.unicast(ent);
+    UI_WriteEnd(ent);
 
     ent->client->resourcebar.gold      = gold;
     ent->client->resourcebar.lumber    = lumber;

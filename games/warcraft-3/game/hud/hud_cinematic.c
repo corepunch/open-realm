@@ -20,11 +20,8 @@ static void CinematicEnsureLoaded(void) {
 
 void UI_ClearLayer(LPEDICT ent, DWORD layer) {
     if (!ent) return;
-    gi.Write(PF_BYTE, &(LONG){svc_layout});
-    gi.Write(PF_BYTE, &(LONG){layer});
-    gi.Write(PF_LONG, &(LONG){0});
-    gi.Write(PF_SHORT, &(LONG){0});
-    gi.unicast(ent);
+    UI_WriteStart(layer);
+    UI_WriteEnd(ent);
 }
 
 void UI_ShowInterface(LPEDICT ent, BOOL flag, FLOAT duration) {
@@ -52,15 +49,11 @@ void UI_ShowText(LPEDICT ent, LPCVECTOR2 pos, LPCSTR text, FLOAT duration) {
     if (!ent) return;
     if (x < 0.0f || x > UI_BASE_WIDTH) x = 0.0500f;
 
-    gi.Write(PF_BYTE, &(LONG){svc_layout});
-    gi.Write(PF_BYTE, &(LONG){LAYER_MESSAGE});
-    ui_next_frame_number = 1;
+    UI_WriteStart(LAYER_MESSAGE);
     message = UI_FormatMessageText(UI_LevelStringSafe(text));
     UI_WriteTextAreaFrame(x, y, QUEST_MESSAGE_W, QUEST_MESSAGE_H,
                           message, COLOR32_WHITE, HUD_FONT_SIZE, 0.0f);
-    gi.Write(PF_LONG, &(LONG){0});
-    gi.Write(PF_SHORT, &(LONG){0});
-    gi.unicast(ent);
+    UI_WriteEnd(ent);
 }
 
 void UI_WriteCinematicLayer(LPEDICT ent) {

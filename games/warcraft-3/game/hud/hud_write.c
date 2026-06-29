@@ -261,7 +261,13 @@ FLOAT Theme_Float(LPCSTR key, LPCSTR def) {
 }
 
 void UI_WriteStart(DWORD layer) {
+    UI_ResetFrameWriteList();
     gi.Write(PF_BYTE, &(LONG){svc_layout});
     gi.Write(PF_BYTE, &(LONG){layer});
     ui_next_frame_number = 1;
+}
+
+void UI_WriteEnd(LPEDICT ent) {
+    gi.Write(PF_LONG, &(LONG){0});
+    gi.unicast(ent);
 }

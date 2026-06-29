@@ -189,8 +189,6 @@ void UI_AddCancelButton(LPEDICT ent) {
     UI_SetCurrentClient(ent ? ent->client : NULL);
     UI_WriteStart(LAYER_COMMANDBAR);
     UI_AddCommandButton(STR_CmdCancel);
-    gi.Write(PF_LONG, &(LONG){0});
-    gi.Write(PF_SHORT, &(LONG){0});
-    gi.unicast(ent);
+    UI_WriteEnd(ent);
     UI_SetCurrentClient(NULL);
 }
