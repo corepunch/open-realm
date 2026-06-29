@@ -6,6 +6,7 @@
  */
 
 #include "hud_local.h"
+#include "hud_utils.h"
 
 DWORD ui_next_frame_number;
 LPGAMECLIENT ui_current_client;
@@ -244,7 +245,8 @@ LPCSTR UI_FormatMessageText(LPCSTR text) {
 
 DWORD UI_LoadTexture(LPCSTR path, BOOL forcewrap) {
     (void)forcewrap;
-    return gi.ImageIndex(path);
+    /* The shipped Hero*Icon skin entries name absent files; register WC3's matching infocard assets instead. */
+    return gi.ImageIndex(UI_ResolveTextureAlias(path));
 }
 
 LPCSTR Theme_String(LPCSTR key, LPCSTR def) {

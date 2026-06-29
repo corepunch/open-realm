@@ -15,6 +15,7 @@
  */
 
 #include "hud_local.h"
+#include "hud_utils.h"
 
 /* frames[] is defined in fdf_parser.c (common/) */
 
@@ -215,6 +216,8 @@ void UI_WriteFrame(LPCFRAMEDEF frame) {
     if (!UI_BuildFrameForWrite(frame, &tmp, typedata, sizeof(typedata), textbuf, sizeof(textbuf))) {
         return;
     }
+    /* FDF frames and proxy frames share one wire namespace; previously the first proxy overwrote frame 1. */
+    ui_next_frame_number = UI_NextProxyFrameNumber(ui_next_frame_number, tmp.number);
     gi.Write(PF_UIFRAME, &tmp);
 }
 

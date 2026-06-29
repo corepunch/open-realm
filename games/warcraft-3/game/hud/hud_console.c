@@ -22,23 +22,15 @@ static void ConsoleEnsureLoaded(void) {
     if (hud_console_loaded) return;
     hud_console_loaded = true;
     ConsoleUI_Load(&console_ui);
+    /* ConsoleUI.fdf omits its root anchors; the original UI stretched it to the scene. */
+    UI_SetAllPoints(console_ui.ConsoleUI);
     ResourceBar_Load(&res);
+    /* ResourceBar.fdf omits placement because game code owns its top-right ConsoleUI anchor. */
+    UI_SetParent(res.ResourceBarFrame, console_ui.ConsoleUI);
+    UI_SetPoint(res.ResourceBarFrame, FRAMEPOINT_TOPRIGHT, console_ui.ConsoleUI, FRAMEPOINT_TOPRIGHT, 0.0f, 0.0f);
     res.ResourceBarGoldText->Stat = PLAYERSTATE_RESOURCE_GOLD;
     res.ResourceBarLumberText->Stat = PLAYERSTATE_RESOURCE_LUMBER;
     res.ResourceBarSupplyText->Stat = PLAYERSTATE_RESOURCE_FOOD_USED;
-}
-
-void UI_WriteConsoleBackdrop(void) {
-    ConsoleEnsureLoaded();
-    UI_WriteFrameWithChildren(console_ui.ConsoleUI, NULL);
-}
-
-/* Write ConsoleUI as a frame-number anchor without its children.
- * Call this first in any layer that contains frames whose SetPoint is
- * relative to ConsoleUI (e.g. InfoPanelUnitDetail). */
-void UI_WriteConsoleAnchor(void) {
-    ConsoleEnsureLoaded();
-    UI_WriteFrame(console_ui.ConsoleUI);
 }
 
 void UI_WriteMinimapFrame(void) {
@@ -51,7 +43,7 @@ void UI_WriteMinimapFrame(void) {
     UI_WriteProxyFrame(&frame, NULL, 0);
 }
 
-void UI_WriteResourceBar(LONG food_used) {
+void UI_WriteConsoleBackdrop(LONG food_used) {
     LPCSTR upkeep_text;
     COLOR32 upkeep_color;
 
@@ -64,5 +56,6 @@ void UI_WriteResourceBar(LONG food_used) {
     UI_SetText(res.ResourceBarUpkeepText, "%s", upkeep_text);
     res.ResourceBarUpkeepText->Font.Color = upkeep_color;
 
-    UI_WriteFrameWithChildren(res.ResourceBarFrame, NULL);
+    /* ResourceBarFrame is a ConsoleUI child, so serialize the combined tree exactly once. */
+    UI_WriteFrameWithChildren(console_ui.ConsoleUI, NULL);
 }

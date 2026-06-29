@@ -18,6 +18,8 @@
 
 #include "test_framework.h"
 #include "test_harness.h"
+#include "../game/hud/hud_utils.h"
+#include "../../../renderer/r_font_utils.h"
 
 /* Forward declarations for internal functions not exposed in any header. */
 BOOL  M_IsDead(LPEDICT ent);
@@ -42,6 +44,38 @@ static LPEDICT make_test_unit(void) {
     ent->movetype         = MOVETYPE_STEP;
     unit_stand(ent);
     return ent;
+}
+
+/* =========================================================================
+ * HUD frame numbering
+ * ========================================================================= */
+
+static void test_hud_proxy_number_advances_past_fdf_frame(void) {
+    ASSERT_EQ_INT(UI_NextProxyFrameNumber(1, 10), 11);
+}
+
+static void test_hud_proxy_number_never_moves_backwards(void) {
+    ASSERT_EQ_INT(UI_NextProxyFrameNumber(12, 10), 12);
+}
+
+static void test_text_exact_width_fits(void) { ASSERT(R_TextFitsWidth(0.0f)); }
+static void test_text_subpixel_residue_fits(void) { ASSERT(R_TextFitsWidth(-0.0000005f)); }
+static void test_text_real_overflow_does_not_fit(void) { ASSERT(!R_TextFitsWidth(-0.00001f)); }
+static void test_hud_stale_attribute_texture_uses_infocard_asset(void) {
+    ASSERT_STR_EQ(UI_ResolveTextureAlias("HeroStrengthIcon"),
+                  "UI\\Widgets\\Console\\Human\\infocard-heroattributes-str.blp");
+}
+static void test_hud_valid_texture_path_is_unchanged(void) {
+    ASSERT_STR_EQ(UI_ResolveTextureAlias("UI\\Feedback\\Resources\\ResourceGold.blp"),
+                  "UI\\Feedback\\Resources\\ResourceGold.blp");
+}
+static void test_hud_second_attack_present_with_dice(void) { ASSERT(UI_HasSecondAttack(1)); }
+static void test_hud_second_attack_absent_without_dice(void) { ASSERT(!UI_HasSecondAttack(0)); }
+static void test_hud_portrait_model_uses_serialized_field(void) {
+    FRAMEDEF frame = { 0 };
+    UI_SetPortraitFrameModel(&frame, 42);
+    ASSERT_EQ_INT(frame.Type, FT_PORTRAIT);
+    ASSERT_EQ_INT(frame.Portrait.model, 42);
 }
 
 /* =========================================================================
@@ -482,6 +516,17 @@ static void test_fow_full_sync_marks_player_connected(void) {
  * ========================================================================= */
 
 BEGIN_SUITE(game)
+    RUN_TEST(test_hud_proxy_number_advances_past_fdf_frame);
+    RUN_TEST(test_hud_proxy_number_never_moves_backwards);
+    RUN_TEST(test_text_exact_width_fits);
+    RUN_TEST(test_text_subpixel_residue_fits);
+    RUN_TEST(test_text_real_overflow_does_not_fit);
+    RUN_TEST(test_hud_stale_attribute_texture_uses_infocard_asset);
+    RUN_TEST(test_hud_valid_texture_path_is_unchanged);
+    RUN_TEST(test_hud_second_attack_present_with_dice);
+    RUN_TEST(test_hud_second_attack_absent_without_dice);
+    RUN_TEST(test_hud_portrait_model_uses_serialized_field);
+
     /* G_RegionContains */
     RUN_TEST(test_region_contains_empty_region_false);
     RUN_TEST(test_region_contains_point_inside);
