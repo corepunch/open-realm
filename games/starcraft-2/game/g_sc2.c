@@ -381,8 +381,7 @@ static void SC2_RunFrame(void) {
         LPEDICT ent = &sc2_edicts[i];
         if (!ent->inuse || !ent->client) continue;
 
-        SC2_WriteResourcePanel(ent);
-        SC2_WriteMinimapFrame(ent);
+        SC2_WriteConsoleLayout(ent);
     }
 }
 

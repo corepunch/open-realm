@@ -17,6 +17,5 @@ void         G_FreeModels(void);
 /* HUD (hud/hud.c) */
 void SC2_HudInit(void);
 void SC2_HudShutdown(void);
-void SC2_WriteResourcePanel(LPEDICT ent);
-void SC2_WriteMinimapFrame(LPEDICT ent);
+void SC2_WriteConsoleLayout(LPEDICT ent);
 #endif

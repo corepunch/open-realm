@@ -47,6 +47,12 @@ void R_ReleaseTexture(LPTEXTURE texture) {
     if (!texture) {
         return;
     }
+    FOR_LOOP(i, TEX_COUNT) {
+        /* Missing assets share renderer-owned placeholders; cache eviction must not free a built-in
+           used by other slots. */
+        if (texture == tr.texture[i])
+            return;
+    }
     R_Call(glDeleteTextures, 1, &texture->texid);
     texture->texid = 0;
     ri.MemFree(texture);

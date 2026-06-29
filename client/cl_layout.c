@@ -179,9 +179,16 @@ LPCRECT SCR_LayoutRect(LPCUIFRAME frame) {
             break;
         case FT_TEXTURE:
         case FT_SIMPLESTATUSBAR:
-            imagesize = re.GetTextureSize(cl.pics[frame->tex.index]);
-            elemsize.x = imagesize.width * 8;
-            elemsize.y = imagesize.height * 6;
+            /* Prefer the frame's authored size; fall back to the texture's
+               native size only when no explicit size was provided. */
+            if (frame->size.width > 0 && frame->size.height > 0) {
+                elemsize.x = frame->size.width;
+                elemsize.y = frame->size.height;
+            } else {
+                imagesize = re.GetTextureSize(cl.pics[frame->tex.index]);
+                elemsize.x = imagesize.width * 8;
+                elemsize.y = imagesize.height * 6;
+            }
             break;
         default:
             break;

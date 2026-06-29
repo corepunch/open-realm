@@ -35,6 +35,9 @@ DWORD ui_next_frame_number;
 static SC2FRAMEDEF sc2_frames[MAX_FRAMES_SC2];
 static DWORD sc2_num_frames;
 
+static FLOAT SC2_NormX(int px);
+static FLOAT SC2_NormY(int py);
+
 /* ---------------------------------------------------------------
  * SVG layout protocol helpers
  * --------------------------------------------------------------- */
@@ -78,6 +81,30 @@ static void CopyFrameBase(LPUIFRAME dest, LPCSC2FRAMEDEF src) {
 
     if (src->num_textures > 0 && src->textures[0].image)
         dest->tex.index = (USHORT)src->textures[0].image;
+
+    FOR_LOOP(i, FPP_COUNT) {
+        LPCSC2FRAMEDEF relX = src->Points.x[i].relativeTo;
+        LPCSC2FRAMEDEF relY = src->Points.y[i].relativeTo;
+        if (relX == NULL) {
+            dest->points.x[i].relativeTo = 0;
+        } else if (relX == src->Parent) {
+            dest->points.x[i].relativeTo = UI_PARENT;
+        } else if (relX->resolved_index > 0) {
+            dest->points.x[i].relativeTo = (BYTE)relX->resolved_index;
+        } else {
+            /* Relative frame not written yet; anchor to parent as fallback. */
+            dest->points.x[i].relativeTo = UI_PARENT;
+        }
+        if (relY == NULL) {
+            dest->points.y[i].relativeTo = 0;
+        } else if (relY == src->Parent) {
+            dest->points.y[i].relativeTo = UI_PARENT;
+        } else if (relY->resolved_index > 0) {
+            dest->points.y[i].relativeTo = (BYTE)relY->resolved_index;
+        } else {
+            dest->points.y[i].relativeTo = UI_PARENT;
+        }
+    }
 }
 
 static BOOL BuildFrameForWrite(LPCSC2FRAMEDEF frame, LPUIFRAME out,
@@ -124,6 +151,18 @@ static BOOL BuildFrameForWrite(LPCSC2FRAMEDEF frame, LPUIFRAME out,
                 out->points.y[FPP_MID].used = 1;
             }
             out->color = frame->font.color;
+
+            uiLabel_t label = {
+                .textalignx = frame->font.justify.horizontal,
+                .textaligny = frame->font.justify.vertical,
+                .offsetx = (SHORT)(frame->font.justify.offset.x * 1000.0f),
+                .offsety = (SHORT)(frame->font.justify.offset.y * 1000.0f),
+                .font = (RESOURCE)frame->font.index,
+            };
+            if (buf.cursize + sizeof(label) <= buf.maxsize) {
+                memcpy(buf.data + buf.cursize, &label, sizeof(label));
+                buf.cursize += (DWORD)sizeof(label);
+            } else { buf.overflowed = true; }
             break;
         }
         default:
@@ -172,6 +211,51 @@ void SC2_WriteLayout(LPEDICT ent, LPSC2FRAMEDEF root, DWORD layer) {
     SC2_WriteEnd(ent);
 }
 
+/* -------------------------------------------------------------
+ * Combined console HUD layout.
+ *
+ * The client replaces an entire layer on each svc_layout message,
+ * so the resource panel and minimap must be sent in a single message.
+ * ------------------------------------------------------------- */
+static void SC2_WriteConsoleBackdrop(void) {
+    static DWORD black_tex;
+    if (!black_tex) black_tex = (DWORD)gi.ImageIndex("Assets/Textures/black.dds");
+
+    SC2FRAMEDEF bg;
+    SC2_InitFrame(&bg, FT_TEXTURE);
+    bg.Color = (COLOR32){ 255, 255, 255, 255 };
+    bg.Alpha = 0.65f;
+    bg.num_textures = 1;
+    bg.textures[0].image = black_tex;
+    bg.textures[0].has_texture = (black_tex != 0);
+    /* Full width, anchored to the bottom of the screen, 260px tall.
+       SC2_SetPoint uses a single otherPoint for both axes, so set the
+       mixed Min/Max anchors manually. */
+    bg.Points.x[FPP_MIN].used = true;
+    bg.Points.x[FPP_MIN].targetPos = FPP_MIN;
+    bg.Points.x[FPP_MIN].relativeTo = NULL;
+    bg.Points.x[FPP_MIN].offset = 0.0f;
+    bg.Points.x[FPP_MAX].used = true;
+    bg.Points.x[FPP_MAX].targetPos = FPP_MAX;
+    bg.Points.x[FPP_MAX].relativeTo = NULL;
+    bg.Points.x[FPP_MAX].offset = 0.0f;
+    bg.Points.y[FPP_MAX].used = true;
+    bg.Points.y[FPP_MAX].targetPos = FPP_MAX;
+    bg.Points.y[FPP_MAX].relativeTo = NULL;
+    bg.Points.y[FPP_MAX].offset = 0.0f;
+    bg.Height = SC2_NormY(260);
+    SC2_WriteFrame(&bg);
+}
+
+void SC2_WriteConsoleLayout(LPEDICT ent) {
+    SC2_WriteStart(LAYER_CONSOLE);
+
+    SC2_WriteConsoleBackdrop();
+    SC2_WriteResourcePanelFrames();
+    SC2_WriteMinimapFrame();
+    SC2_WriteEnd(ent);
+}
+
 /* ---------------------------------------------------------------
  * SC2Layout XML parser (game-side, using libxml2 + gi)
  * --------------------------------------------------------------- */
@@ -189,14 +273,14 @@ static FRAMETYPE TypeFromSC2String(LPCSTR typeStr) {
     if (!typeStr) return FT_FRAME;
     if (!strcasecmp(typeStr, "Image")) return FT_TEXTURE;
     if (!strcasecmp(typeStr, "Button") || !strcasecmp(typeStr, "CommandButton")) return FT_COMMANDBUTTON;
-    if (!strcasecmp(typeStr, "Label")) return FT_TEXT;
+    if (!strcasecmp(typeStr, "Label") || !strcasecmp(typeStr, "CountdownLabel")) return FT_TEXT;
     if (!strcasecmp(typeStr, "EditBox")) return FT_EDITBOX;
     if (!strcasecmp(typeStr, "Model")) return FT_PORTRAIT;
     return FT_FRAME;
 }
 
-static FLOAT SC2_NormX(int px) { return (FLOAT)px / SC2_VIRT_W; }
-static FLOAT SC2_NormY(int py) { return (FLOAT)py / SC2_VIRT_H; }
+static FLOAT SC2_NormX(int px) { return ((FLOAT)px / SC2_VIRT_W) * SC2_UI_BASE_W; }
+static FLOAT SC2_NormY(int py) { return ((FLOAT)py / SC2_VIRT_H) * SC2_UI_BASE_H; }
 
 static FLOAT ParseFloatAttr(xmlNode *node, LPCSTR name, FLOAT def) {
     xmlChar *val = xmlGetProp(node, (xmlChar *)name);
@@ -231,7 +315,30 @@ static DWORD ResolveTexture(LPCSTR resource) {
     LPCSTR path = resource;
     if (path[0] == '@' && path[1] == '@') path += 2;
     else if (path[0] == '@') path += 1;
+
+    /* SC2Layout resource icons are referenced by logical UI names; map them
+       to the actual texture assets in the MPQ archives. */
+    static struct { LPCSTR logical; LPCSTR physical; } const map[] = {
+        { "UI/ResourceIcon0",       "Assets/Textures/icon-mineral.dds" },
+        { "UI/ResourceIcon1",       "Assets/Textures/icon-gas.dds" },
+        { "UI/ResourceIcon2",       "Assets/Textures/icon-highyieldmineral.dds" },
+        { "UI/ResourceIcon3",       "Assets/Textures/icon-mineral.dds" },
+        { "UI/ResourceIconSupply",  "Assets/Textures/icon-supply.dds" },
+        { "UI/ResourceIconPlayer",  "Assets/Textures/ui_ingame_resourcesharing_playericon.dds" },
+    };
+    FOR_LOOP(i, sizeof(map) / sizeof(map[0])) {
+        if (!strcasecmp(path, map[i].logical))
+            path = map[i].physical;
+    }
     return (DWORD)gi.ImageIndex(path);
+}
+
+static LPCSC2FRAMEDEF ResolveRelativeFrame(LPCSC2FRAMEDEF parent, LPCSTR relStr) {
+    if (!relStr || !*relStr) return NULL;
+    if (!strcasecmp(relStr, "$parent")) return parent;
+    if (parent && !strncasecmp(relStr, "$parent/", 8))
+        return SC2_FindChildFrame(parent, relStr + 8);
+    return NULL;
 }
 
 static void ParseAnchorNode(xmlNode *xml_anchor, LPSC2FRAMEDEF frame, LPCSC2FRAMEDEF parent) {
@@ -245,17 +352,18 @@ static void ParseAnchorNode(xmlNode *xml_anchor, LPSC2FRAMEDEF frame, LPCSC2FRAM
     SC2ANCHORPOS pos = (!strcasecmp(posStr, "Max")) ? SC2_APOS_MAX :
                       (!strcasecmp(posStr, "Mid")) ? SC2_APOS_MID : SC2_APOS_MIN;
 
-    /* Convert side+pos to FPP_* positions */
+    /* Both SC2Layout and the engine use screen coordinates with Y increasing
+       downward: FPP_MIN is left/top, FPP_MAX is right/bottom. */
     uiFramePointPos_t fpp = FPP_MID;
     if (axis == 0) {
-        fpp = (!strcasecmp(sideStr, "Left")) ? FPP_MIN :
+        fpp = (!strcasecmp(sideStr, "Left"))  ? FPP_MIN :
               (!strcasecmp(sideStr, "Right")) ? FPP_MAX : FPP_MID;
     } else {
-        fpp = (!strcasecmp(sideStr, "Top")) ? FPP_MIN :
+        fpp = (!strcasecmp(sideStr, "Top"))    ? FPP_MIN :
               (!strcasecmp(sideStr, "Bottom")) ? FPP_MAX : FPP_MID;
     }
 
-    uiFramePointPos_t tgt = fpp;
+    uiFramePointPos_t tgt = FPP_MID;
     switch (pos) {
         case SC2_APOS_MAX: tgt = FPP_MAX; break;
         case SC2_APOS_MID: tgt = FPP_MID; break;
@@ -263,7 +371,10 @@ static void ParseAnchorNode(xmlNode *xml_anchor, LPSC2FRAMEDEF frame, LPCSC2FRAM
     }
 
     FLOAT norm_offset = (axis == 0) ? SC2_NormX(offset) : SC2_NormY(offset);
-    LPCSC2FRAMEDEF rel = (!strcasecmp(relStr, "$parent")) ? parent : NULL;
+    /* Engine layout code negates Y offsets, so store the inverse of the SC2
+       offset so that positive SC2 pixels still move down the screen. */
+    if (axis == 1) norm_offset = -norm_offset;
+    LPCSC2FRAMEDEF rel = ResolveRelativeFrame(parent, relStr);
 
     if (axis == 0) {
         frame->Points.x[fpp].used = true;
@@ -328,6 +439,38 @@ static void ParseFrameNode(xmlNode *xml_frame, LPCSC2FRAMEDEF parent) {
     }
 }
 
+/* Resolve template="Path/Name" references after all frames are parsed.
+   SC2 templates can be referenced by name only; we look up the last path
+   component.  Only Width/Height/Type are copied here because the resource
+   panel templates only need those properties. */
+static LPSC2FRAMEDEF FindTemplate(LPCSTR path) {
+    if (!path || !*path) return NULL;
+    LPCSTR name = path;
+    LPCSTR slash = strrchr(path, '/');
+    if (slash) name = slash + 1;
+    return SC2_FindFrame(name);
+}
+
+static void ApplyTemplate(LPSC2FRAMEDEF frame, LPCSC2FRAMEDEF tmpl) {
+    if (!frame || !tmpl) return;
+    if (frame->Width == 0.0f && frame->Height == 0.0f) {
+        frame->Width = tmpl->Width;
+        frame->Height = tmpl->Height;
+    }
+    if (frame->Type == FT_FRAME && tmpl->Type != FT_FRAME)
+        frame->Type = tmpl->Type;
+}
+
+static void ResolveTemplates(void) {
+    FOR_LOOP(i, sc2_num_frames) {
+        LPSC2FRAMEDEF f = &sc2_frames[i];
+        if (f->template_path[0]) {
+            LPSC2FRAMEDEF tmpl = FindTemplate(f->template_path);
+            if (tmpl) ApplyTemplate(f, tmpl);
+        }
+    }
+}
+
 /* Track loaded layouts to prevent double-loading */
 #define MAX_LOADED_LAYOUTS 16
 static LPSTR loaded_layouts[MAX_LOADED_LAYOUTS];
@@ -367,6 +510,8 @@ BOOL SC2_EnsureLayout(LPCSTR filename) {
         if (!strcasecmp((char *)child->name, "Frame"))
             ParseFrameNode(child, NULL);
     }
+
+    ResolveTemplates();
 
     xmlFreeDoc(doc);
     fprintf(stderr, "SC2_Layout: loaded '%s' -> %u frames\n", filename, (unsigned)sc2_num_frames);

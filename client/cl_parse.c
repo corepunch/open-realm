@@ -9,6 +9,8 @@
  * are applied on top of the previous frame's state.  Player state, UI layout,
  * config strings and temporary effects each have their own message types.
  */
+#include <stdlib.h>
+
 #include "client.h"
 #include "ui_layout.h"
 #ifdef SC2
@@ -156,6 +158,21 @@ static void CL_ParseConfigString(LPSIZEBUF msg) {
         }
         if (cl.configstrings[index][0])
             cl.pics[pic] = re.LoadTexture(cl.configstrings[index]);
+    }
+    if (index > CS_FONTS && index < CS_FONTS + MAX_FONTSTYLES) {
+        DWORD font = index - CS_FONTS;
+        if (cl.configstrings[index][0] && !cl.fonts[font]) {
+            LPCSTR fontspec = cl.configstrings[index];
+            LPCSTR split = strstr(fontspec, ",");
+            if (split) {
+                PATHSTR filename = {0};
+                memcpy(filename, fontspec, split - fontspec);
+                DWORD fontsize = atoi(split + 1);
+                cl.fonts[font] = re.LoadFont(filename, fontsize);
+            } else {
+                cl.fonts[font] = re.LoadFont(fontspec, 16);
+            }
+        }
     }
     if (index == CS_WORLD && cl.configstrings[index][0] &&
         strcmp(last_world, cl.configstrings[index])) {

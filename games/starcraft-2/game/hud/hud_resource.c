@@ -1,15 +1,14 @@
 /*
  * hud_resource.c — Resource panel (minerals, vespene gas, supply).
  *
- * Loads layout from ResourcePanel.SC2Layout (via SC2_EnsureLayout),
- * sets stat bindings for dynamic data, and sends via svc_layout.
- * Falls back to a programmatic layout if the .SC2Layout file is unavailable.
+ * Loads UI/Layout/UI/ResourcePanel.SC2Layout at runtime and wires the
+ * dynamic labels to player-state stats.  No hand-written/generated binding
+ * struct is required: frames are looked up by name after parsing.
  */
 
 #include "hud_local.h"
-#include "../generated/resource_panel.h"
 
-static ResourcePanel_t res;
+static LPSC2FRAMEDEF root;
 static BOOL res_loaded;
 static BOOL res_from_layout;
 static SC2FRAMEDEF fallback_resource_frame;
@@ -18,92 +17,115 @@ static SC2FRAMEDEF fallback_minerals_text;
 static SC2FRAMEDEF fallback_gas_icon;
 static SC2FRAMEDEF fallback_gas_text;
 static SC2FRAMEDEF fallback_supply_text;
-static SC2FRAMEDEF fallback_supply_max_text;
-static SC2FRAMEDEF fallback_supply_icon;
+
+static DWORD hud_font_index;
+
+static void SetupTextLabel(LPSC2FRAMEDEF frame) {
+    if (!frame) return;
+    if (!hud_font_index)
+        hud_font_index = SC2_FontIndex("UI/Fonts/EurostileExt-Med.otf", 16);
+    frame->font.index = hud_font_index;
+    frame->font.color = COLOR32_WHITE;
+    frame->font.justify.vertical = FONT_JUSTIFYMIDDLE;
+}
+
+static LPSC2FRAMEDEF GetChild(LPCSC2FRAMEDEF parent, LPCSTR name) {
+    LPSC2FRAMEDEF child = SC2_FindChildFrame(parent, name);
+    if (!child) fprintf(stderr, "SC2_HUD: missing frame '%s' under ResourcePanel\n", name);
+    return child;
+}
 
 static void ResourceEnsureLoaded(void) {
     if (res_loaded) return;
     res_loaded = true;
 
-    if (ResourcePanel_Load(&res)) {
+    if (SC2_EnsureLayout("UI/Layout/UI/ResourcePanel.SC2Layout")) {
         res_from_layout = true;
-        if (res.MineralsText) res.MineralsText->Stat = PLAYERSTATE_RESOURCE_GOLD;
-        if (res.GasText)      res.GasText->Stat = PLAYERSTATE_RESOURCE_LUMBER;
-        if (res.SupplyText)   res.SupplyText->Stat = PLAYERSTATE_RESOURCE_FOOD_USED;
-        if (res.SupplyMaxText) res.SupplyMaxText->Stat = PLAYERSTATE_RESOURCE_FOOD_CAP;
+        root = SC2_FindFrame("ResourcePanelTemplate");
+        if (!root) {
+            fprintf(stderr, "SC2_HUD: ResourcePanelTemplate not found\n");
+            res_from_layout = false;
+            goto fallback;
+        }
+        /* Root has no explicit anchors in the .SC2Layout template; fill the
+           scene so children can anchor against it predictably. */
+        SC2_SetAllPoints(root);
+
+        LPSC2FRAMEDEF label0 = GetChild(root, "ResourceLabel0");
+        LPSC2FRAMEDEF label1 = GetChild(root, "ResourceLabel1");
+        LPSC2FRAMEDEF label2 = GetChild(root, "ResourceLabel2");
+        LPSC2FRAMEDEF label3 = GetChild(root, "ResourceLabel3");
+        LPSC2FRAMEDEF supply = GetChild(root, "SupplyLabel");
+
+        if (label0) { label0->Stat = PLAYERSTATE_RESOURCE_GOLD;          SetupTextLabel(label0); }
+        if (label1) { label1->Stat = PLAYERSTATE_RESOURCE_LUMBER;        SetupTextLabel(label1); }
+        if (label2) { label2->Stat = PLAYERSTATE_RESOURCE_HERO_TOKENS;   SetupTextLabel(label2); }
+        if (label3) { label3->Stat = 0; label3->Text = "";               SetupTextLabel(label3); }
+        if (supply) { supply->Stat = PLAYERSTATE_RESOURCE_FOOD_USED;     SetupTextLabel(supply); }
         return;
     }
 
+fallback:
     res_from_layout = false;
     fprintf(stderr, "SC2_HUD: ResourcePanel.SC2Layout not found, using fallback\n");
 
-    /* Point the ResourcePanel_t pointers at static fallback storage so SC2_* calls
-       receive a valid (non-NULL) LPSC2FRAMEDEF. */
-    res.ResourcePanelFrame = &fallback_resource_frame;
-    res.MineralsIcon       = &fallback_minerals_icon;
-    res.MineralsText       = &fallback_minerals_text;
-    res.GasIcon            = &fallback_gas_icon;
-    res.GasText            = &fallback_gas_text;
-    res.SupplyText         = &fallback_supply_text;
-    res.SupplyMaxText      = &fallback_supply_max_text;
-    res.SupplyIcon         = &fallback_supply_icon;
+    root                      = &fallback_resource_frame;
+    LPSC2FRAMEDEF icon0       = &fallback_minerals_icon;
+    LPSC2FRAMEDEF text0       = &fallback_minerals_text;
+    LPSC2FRAMEDEF icon1       = &fallback_gas_icon;
+    LPSC2FRAMEDEF text1       = &fallback_gas_text;
+    LPSC2FRAMEDEF supply_text = &fallback_supply_text;
 
-    SC2_InitFrame(res.ResourcePanelFrame, FT_FRAME);
-    SC2_SetPoint(res.ResourcePanelFrame, FPP_MIN, FPP_MIN, NULL, FPP_MIN, 0.375f, 0.0f);
-    SC2_SetSize(res.ResourcePanelFrame, 0.25f, 0.025f);
+    SC2_InitFrame(root, FT_FRAME);
+    SC2_SetAllPoints(root);
 
-    SC2_InitFrame(res.MineralsIcon, FT_TEXTURE);
-    SC2_SetParent(res.MineralsIcon, res.ResourcePanelFrame);
-    SC2_SetPoint(res.MineralsIcon, FPP_MIN, FPP_MIN, res.ResourcePanelFrame, FPP_MIN, 0.0f, 0.0f);
-    SC2_SetSize(res.MineralsIcon, 0.02f, 0.02f);
+    SC2_InitFrame(icon0, FT_TEXTURE);
+    SC2_SetParent(icon0, root);
+    SC2_SetPoint(icon0, FPP_MIN, FPP_MIN, root, FPP_MIN, 0.01f, 0.01f);
+    SC2_SetSize(icon0, 0.02f, 0.02f);
 
-    SC2_InitFrame(res.MineralsText, FT_TEXT);
-    SC2_SetParent(res.MineralsText, res.ResourcePanelFrame);
-    SC2_SetPoint(res.MineralsText, FPP_MIN, FPP_MIN, res.MineralsIcon, FPP_MAX, 0.002f, 0.0f);
-    SC2_SetSize(res.MineralsText, 0.04f, 0.02f);
+    SC2_InitFrame(text0, FT_TEXT);
+    SC2_SetParent(text0, root);
+    SC2_SetPoint(text0, FPP_MIN, FPP_MIN, icon0, FPP_MAX, 0.002f, 0.0f);
+    SC2_SetSize(text0, 0.04f, 0.02f);
 
-    SC2_InitFrame(res.GasIcon, FT_TEXTURE);
-    SC2_SetParent(res.GasIcon, res.ResourcePanelFrame);
-    SC2_SetPoint(res.GasIcon, FPP_MIN, FPP_MIN, res.MineralsText, FPP_MAX, 0.01f, 0.0f);
-    SC2_SetSize(res.GasIcon, 0.02f, 0.02f);
+    SC2_InitFrame(icon1, FT_TEXTURE);
+    SC2_SetParent(icon1, root);
+    SC2_SetPoint(icon1, FPP_MIN, FPP_MIN, text0, FPP_MAX, 0.01f, 0.0f);
+    SC2_SetSize(icon1, 0.02f, 0.02f);
 
-    SC2_InitFrame(res.GasText, FT_TEXT);
-    SC2_SetParent(res.GasText, res.ResourcePanelFrame);
-    SC2_SetPoint(res.GasText, FPP_MIN, FPP_MIN, res.GasIcon, FPP_MAX, 0.002f, 0.0f);
-    SC2_SetSize(res.GasText, 0.04f, 0.02f);
+    SC2_InitFrame(text1, FT_TEXT);
+    SC2_SetParent(text1, root);
+    SC2_SetPoint(text1, FPP_MIN, FPP_MIN, icon1, FPP_MAX, 0.002f, 0.0f);
+    SC2_SetSize(text1, 0.04f, 0.02f);
 
-    SC2_InitFrame(res.SupplyText, FT_TEXT);
-    SC2_SetParent(res.SupplyText, res.ResourcePanelFrame);
-    SC2_SetPoint(res.SupplyText, FPP_MIN, FPP_MIN, res.GasText, FPP_MAX, 0.015f, 0.0f);
-    SC2_SetSize(res.SupplyText, 0.04f, 0.02f);
+    SC2_InitFrame(supply_text, FT_TEXT);
+    SC2_SetParent(supply_text, root);
+    SC2_SetPoint(supply_text, FPP_MAX, FPP_MIN, root, FPP_MAX, -0.01f, 0.01f);
+    SC2_SetSize(supply_text, 0.04f, 0.02f);
 
-    SC2_InitFrame(res.SupplyMaxText, FT_TEXT);
-    SC2_SetParent(res.SupplyMaxText, res.ResourcePanelFrame);
-    SC2_SetPoint(res.SupplyMaxText, FPP_MIN, FPP_MIN, res.SupplyText, FPP_MAX, 0.002f, 0.0f);
-    SC2_SetSize(res.SupplyMaxText, 0.04f, 0.02f);
-
-    res.MineralsText->Stat = PLAYERSTATE_RESOURCE_GOLD;
-    res.GasText->Stat = PLAYERSTATE_RESOURCE_LUMBER;
-    res.SupplyText->Stat = PLAYERSTATE_RESOURCE_FOOD_USED;
-    res.SupplyMaxText->Stat = PLAYERSTATE_RESOURCE_FOOD_CAP;
+    text0->Stat      = PLAYERSTATE_RESOURCE_GOLD;
+    text1->Stat      = PLAYERSTATE_RESOURCE_LUMBER;
+    supply_text->Stat = PLAYERSTATE_RESOURCE_FOOD_USED;
+    SetupTextLabel(text0);
+    SetupTextLabel(text1);
+    SetupTextLabel(supply_text);
 }
 
-void SC2_WriteResourcePanel(LPEDICT ent) {
+/* Write resource panel frames into the current svc_layout message.
+   Caller must have already called SC2_WriteStart(). */
+void SC2_WriteResourcePanelFrames(void) {
     ResourceEnsureLoaded();
-    if (!res.ResourcePanelFrame) return;
+    if (!root) return;
 
     if (res_from_layout) {
-        SC2_WriteLayout(ent, res.ResourcePanelFrame, LAYER_CONSOLE);
+        SC2_WriteFrameWithChildren(root);
     } else {
-        SC2_WriteStart(LAYER_CONSOLE);
-        SC2_WriteFrame(res.ResourcePanelFrame);
-        SC2_WriteFrame(res.MineralsIcon);
-        SC2_WriteFrame(res.MineralsText);
-        SC2_WriteFrame(res.GasIcon);
-        SC2_WriteFrame(res.GasText);
-        SC2_WriteFrame(res.SupplyText);
-        SC2_WriteFrame(res.SupplyMaxText);
-        SC2_WriteFrame(res.SupplyIcon);
-        SC2_WriteEnd(ent);
+        SC2_WriteFrame(root);
+        SC2_WriteFrame(&fallback_minerals_icon);
+        SC2_WriteFrame(&fallback_minerals_text);
+        SC2_WriteFrame(&fallback_gas_icon);
+        SC2_WriteFrame(&fallback_gas_text);
+        SC2_WriteFrame(&fallback_supply_text);
     }
 }
