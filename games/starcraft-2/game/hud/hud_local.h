@@ -12,9 +12,9 @@ extern DWORD ui_next_frame_number;
 
 void SC2_WriteStart(DWORD layer);
 void SC2_WriteEnd(LPEDICT ent);
-void SC2_WriteFrame(LPCSC2FRAMEDEF frame);
-void SC2_WriteFrameWithChildren(LPCSC2FRAMEDEF frame);
-void SC2_WriteLayout(LPEDICT ent, LPCSC2FRAMEDEF root, DWORD layer);
+void SC2_WriteFrame(LPSC2FRAMEDEF frame);
+void SC2_WriteFrameWithChildren(LPSC2FRAMEDEF frame);
+void SC2_WriteLayout(LPEDICT ent, LPSC2FRAMEDEF root, DWORD layer);
 
 /* Panel modules */
 void SC2_WriteResourcePanel(LPEDICT ent);
