@@ -10,7 +10,7 @@ WC3_SHEET_DIR := $(WC3_DIR)/sheet
 WC3_TEST_DIR := $(WC3_DIR)/tests
 
 WC3_CFLAGS := $(CFLAGS) -I$(WC3_DIR) -I$(WC3_DIR)/common
-WC3_FDF_CFLAGS := $(WC3_CFLAGS) -DSTB_FDF_IMPLEMENTATION
+WC3_FDF_CFLAGS := $(WC3_CFLAGS) -DSTB_FDF_IMPLEMENTATION -DSTB_FDF_GLOBALS
 WC3_COMMON_SRCS := $(shell find $(WC3_DIR)/common -name '*.c' 2>/dev/null | sort)
 WC3_UI_HEADERS := $(shell find $(WC3_DIR)/ui -name '*.h' | sort) client/ui.h
 
@@ -131,7 +131,7 @@ TEST_SRCS := \
 	tests/test_tool_common.c
 
 TEST_CFLAGS := $(WC3_CFLAGS) -DTOOL_COMMON_NO_MPQ -Itests -I$(WC3_TEST_DIR) -Ishared/types -I$(WC3_DIR)/game -Iserver -Icommon -Iclient -I$(WC3_DIR)/game/skills
-TEST_UI_CFLAGS := $(TEST_CFLAGS) -DSTB_FDF_IMPLEMENTATION
+TEST_UI_CFLAGS := $(TEST_CFLAGS)
 
 TEST_UI_SRCS := \
 	$(WC3_TEST_DIR)/test_main_ui.c \
@@ -139,6 +139,7 @@ TEST_UI_SRCS := \
 	$(WC3_TEST_DIR)/test_client_stubs.c \
 	$(WC3_TEST_DIR)/test_server_net.c \
 	$(WC3_TEST_DIR)/test_jass.c \
+	$(WC3_TEST_DIR)/stb_fdf_impl.c \
 	tests/test_tool_common.c \
 	$(shell find $(WC3_TEST_DIR) -maxdepth 1 -name 'test_ui_*.c' \
 		! -name 'test_ui_oracle.c' | sort)
@@ -158,7 +159,7 @@ test: test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) | $(BIN_DIR)
 
 $(eval $(call test_schema,test-commands,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_commands$(EXE_EXT),$(WC3_TEST_DIR)/test_commands_main.c $(WC3_TEST_DIR)/test_commands.c common/common.c common/cmd.c common/cvar.c common/msg.c common/net.c common/mpq.c,-lsheet -lshared -lm -lz,))
 $(eval $(call test_schema,test-jass,$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_jass$(EXE_EXT),$(WC3_TEST_DIR)/test_jass_main.c $(WC3_TEST_DIR)/test_jass.c $(WC3_TEST_DIR)/test_harness.c $(WC3_TEST_DIR)/test_client_stubs.c $(WC3_DIR)/game/g_metadata.c common/msg.c,-lsheet -lshared -ljass -lm,))
-$(eval $(call test_schema,test-ui,test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB),$(TEST_UI_CFLAGS),$(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT),$(TEST_UI_SRCS) $(TEST_GAME_SRCS) common/mpq.c $(WC3_DIR)/common/fdf_parser.c $(call CSRC,$(WC3_DIR)/ui),-lsheet -lshared -ljass -lm -lz,))
+$(eval $(call test_schema,test-ui,test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB),$(TEST_UI_CFLAGS),$(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT),$(TEST_UI_SRCS) $(TEST_GAME_SRCS) common/mpq.c $(call CSRC,$(WC3_DIR)/ui),-lsheet -lshared -ljass -lm -lz,))
 
 test-mpq-compat: mpqtool $(MPQ_TEST)
 	@$(MPQ_TEST) -mpq=$(MPQ)

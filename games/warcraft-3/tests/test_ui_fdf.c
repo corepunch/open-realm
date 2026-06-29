@@ -275,6 +275,7 @@ static void load_ui_files(LPCSTR const *file_names, size_t count) {
 
 static void reset_ui_state(void) {
     UI_ClearTemplates();
+    UI_ClearTextures();
     captured_image_path = NULL;
     captured_model_path = NULL;
     captured_command[0] = '\0';
