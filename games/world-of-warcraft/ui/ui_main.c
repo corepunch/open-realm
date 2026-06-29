@@ -131,7 +131,7 @@ LPTEXTURE UIWow_LoadTexture(LPCSTR name) {
     }
     /* Fast path: input name already cached — skip MPQ resolution entirely. */
     FOR_LOOP(i, WOW_UI_MAX_TEXTURES) {
-        uiWowTexture_t *entry = &wow_ui.textures[i];
+        uiWowTexture_t *entry = &wow_ui.tex_cache[i];
 
         if (entry->input_name[0] && !strcasecmp(entry->input_name, name)) {
             return entry->texture;
@@ -143,7 +143,7 @@ LPTEXTURE UIWow_LoadTexture(LPCSTR name) {
     /* Slow path: resolve once (MPQ probe), then store both names in the slot. */
     UIWow_ResolveTexturePath(name, resolved, sizeof(resolved));
     if (empty_slot >= 0) {
-        uiWowTexture_t *entry = &wow_ui.textures[empty_slot];
+        uiWowTexture_t *entry = &wow_ui.tex_cache[empty_slot];
 
         snprintf(entry->input_name, sizeof(entry->input_name), "%s", name);
         snprintf(entry->name, sizeof(entry->name), "%s", resolved);
@@ -155,7 +155,7 @@ LPTEXTURE UIWow_LoadTexture(LPCSTR name) {
     }
 
     {
-        uiWowTexture_t *entry = &wow_ui.textures[wow_ui.texture_recycle_index % WOW_UI_MAX_TEXTURES];
+        uiWowTexture_t *entry = &wow_ui.tex_cache[wow_ui.texture_recycle_index % WOW_UI_MAX_TEXTURES];
 
         wow_ui.texture_recycle_index = (wow_ui.texture_recycle_index + 1) % WOW_UI_MAX_TEXTURES;
         SAFE_DELETE(entry->texture, wow_ui.renderer->ReleaseTexture);
@@ -175,7 +175,7 @@ LPCFONT UIWow_LoadFont(DWORD size) {
         return NULL;
     }
     FOR_LOOP(i, WOW_UI_MAX_FONTS) {
-        uiWowFont_t *entry = &wow_ui.fonts[i];
+        uiWowFont_t *entry = &wow_ui.font_cache[i];
 
         if (entry->font && entry->size == size) {
             return entry->font;
@@ -218,14 +218,11 @@ static void UIWow_Shutdown(void) {
     UIWow_ShutdownLua();
     if (wow_ui.renderer) {
         FOR_LOOP(i, WOW_UI_MAX_TEXTURES) {
-            SAFE_DELETE(wow_ui.textures[i].texture, wow_ui.renderer->ReleaseTexture);
+            SAFE_DELETE(wow_ui.tex_cache[i].texture, wow_ui.renderer->ReleaseTexture);
         }
-        SAFE_DELETE(wow_ui.background, wow_ui.renderer->ReleaseTexture);
-        SAFE_DELETE(wow_ui.bar_background, wow_ui.renderer->ReleaseTexture);
-        SAFE_DELETE(wow_ui.bar_border, wow_ui.renderer->ReleaseTexture);
-        SAFE_DELETE(wow_ui.bar_fill, wow_ui.renderer->ReleaseTexture);
-        SAFE_DELETE(wow_ui.bar_glass, wow_ui.renderer->ReleaseTexture);
-        SAFE_DELETE(wow_ui.bar_glow, wow_ui.renderer->ReleaseTexture);
+        FOR_LOOP(i, WOW_UI_TEX_COUNT) {
+            SAFE_DELETE(wow_ui.textures[i], wow_ui.renderer->ReleaseTexture);
+        }
     }
     memset(&wow_ui, 0, sizeof(wow_ui));
 }
@@ -261,15 +258,17 @@ static void UIWow_ReleaseScreenAssets(void) {
     }
 
     FOR_LOOP(i, WOW_UI_MAX_TEXTURES) {
-        SAFE_DELETE(wow_ui.textures[i].texture, wow_ui.renderer->ReleaseTexture);
-        wow_ui.textures[i].input_name[0] = '\0';
-        wow_ui.textures[i].name[0] = '\0';
+        SAFE_DELETE(wow_ui.tex_cache[i].texture, wow_ui.renderer->ReleaseTexture);
+        wow_ui.tex_cache[i].input_name[0] = '\0';
+        wow_ui.tex_cache[i].name[0] = '\0';
     }
     FOR_LOOP(i, WOW_UI_MAX_FONTS) {
-        wow_ui.fonts[i].font = NULL;
-        wow_ui.fonts[i].size = 0;
+        wow_ui.font_cache[i].font = NULL;
+        wow_ui.font_cache[i].size = 0;
     }
-    SAFE_DELETE(wow_ui.background, wow_ui.renderer->ReleaseTexture);
+    FOR_LOOP(i, WOW_UI_TEX_COUNT) {
+        SAFE_DELETE(wow_ui.textures[i], wow_ui.renderer->ReleaseTexture);
+    }
     wow_ui.texture_recycle_index = 0;
 }
 
