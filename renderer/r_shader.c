@@ -183,6 +183,7 @@ static LPCSTR model_vs =
 "uniform vec3 uLightColor;\n"
 "uniform vec3 uLightAmbient;\n"
 "uniform int uLightCount;\n"
+"uniform float uFirstBoneLookupIndex;\n"
 "uniform mat4 uLights[8];\n"
 "const int MODEL_LIGHT_OMNI = 0;\n"
 "const int MODEL_LIGHT_DIRECT = 1;\n"
@@ -223,8 +224,9 @@ static LPCSTR model_vs =
 "    vec4 position = vec4(0.0);\n"
 "    vec4 normal = vec4(0.0);\n"
 "    for (int i = 0; i < 4; ++i) {\n"
-"        position += uBones[int(i_skin1[i])] * pos4 * i_boneWeight1[i];\n"
-"        normal += uBones[int(i_skin1[i])] * norm4 * i_boneWeight1[i];\n"
+"        int boneIdx = int(i_skin1[i]) + int(uFirstBoneLookupIndex);\n"
+"        position += uBones[boneIdx] * pos4 * i_boneWeight1[i];\n"
+"        normal += uBones[boneIdx] * norm4 * i_boneWeight1[i];\n"
 "    }\n"
 "    position.w = 1.0;\n"
 "    v_color = i_color;\n"
@@ -408,6 +410,7 @@ LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
     R_RegisterUniform(program, uFogEnable);
     R_RegisterUniform(program, uFogColor);
     R_RegisterUniform(program, uFogParams);
+    R_RegisterUniform(program, uFirstBoneLookupIndex);
 
     R_Call(glUniform1i, program->uTexture, 0);
 #if defined(USE_SHADOWMAPS) || defined(DEBUG_PATHFINDING)

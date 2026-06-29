@@ -118,6 +118,7 @@ struct shader_program {
     DWORD uFogEnable;
     DWORD uFogColor;
     DWORD uFogParams;
+    DWORD uFirstBoneLookupIndex;
 };
 
 struct render_target {

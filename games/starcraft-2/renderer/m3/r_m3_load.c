@@ -681,6 +681,7 @@ static void M3_DrawRegionMaterial(m3Region_t const *region, m3Material_t const *
         R_Call(glUniform1i, m3.shader->uUseDiscard, cutoff >= 0.0f ? 1 : 0);
         R_Call(glUniform1f, m3.shader->uAlphaCutoff, cutoff >= 0.0f ? cutoff : 0.5f);
     }
+    R_Call(glUniform1f, m3.shader->uFirstBoneLookupIndex, (FLOAT)region->firstBoneLookupIndex);
 
     R_Call(glActiveTexture, GL_TEXTURE0);
     R_Call(glBindTexture, GL_TEXTURE_2D, diffuse->texid);
@@ -884,6 +885,7 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
     R_Call(glUniform1f, m3.shader->uAlphaCutoff, 0.5f);
     R_Call(glUniform1i, m3.shader->uUnshaded, 0);
     R_Call(glUniform1f, m3.shader->uFogEnable, 0);
+    R_Call(glUniform1f, m3.shader->uFirstBoneLookupIndex, 0.0f);
     R_Call(glBindVertexArray, model->renbuf->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, model->renbuf->vbo);
     

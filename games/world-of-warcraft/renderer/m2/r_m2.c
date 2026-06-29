@@ -2873,6 +2873,7 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
     R_Call(glUniform1i, shader->uUseDiscard, 0);
     R_Call(glUniform1i, shader->uUnshaded, 0);
     R_Call(glUniform1f, shader->uFogEnable, 0);
+    R_Call(glUniform1f, shader->uFirstBoneLookupIndex, 0.0f);
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_TRUE);
     R_Call(glDisable, GL_BLEND);

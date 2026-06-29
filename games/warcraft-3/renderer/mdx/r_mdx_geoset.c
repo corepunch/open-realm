@@ -796,6 +796,7 @@ void MDX_RenderModel(renderEntity_t const *entity,
     R_Call(glUniformMatrix4fv, shader->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
     R_Call(glUniform1i, shader->uUnshaded, (entity->flags & RF_NO_LIGHTING) != 0);
     R_Call(glUniform1i, shader->uFogEnable, tr.viewDef.fogEnable ? 1 : 0);
+    R_Call(glUniform1f, shader->uFirstBoneLookupIndex, 0.0f);
     if (tr.viewDef.fogEnable) {
         R_Call(glUniform3f, shader->uFogColor,
                tr.viewDef.fogColor.x, tr.viewDef.fogColor.y, tr.viewDef.fogColor.z);
