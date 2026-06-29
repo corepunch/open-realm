@@ -1,1 +1,0 @@
-../../../games/world-of-warcraft/readme.md

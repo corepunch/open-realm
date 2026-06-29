@@ -475,9 +475,9 @@ Unit sounds fire via a one-shot event mechanism mirroring Quake 2/3's `s.event` 
 - Use `build/bin/mpqtool` to inspect: `cat "UI/SoundInfo/UnitAckSounds.slk"` and grep for the label.
 
 See per-game sound documentation in:
-- `doc/games/warcraft-3/docs/sounds.md`
-- `doc/games/starcraft-2/docs/sounds.md`
-- `doc/games/world-of-warcraft/docs/sounds.md`
+- `games/warcraft-3/docs/sounds.md`
+- `games/starcraft-2/docs/sounds.md`
+- `games/world-of-warcraft/docs/sounds.md`
 
 ## Documentation Discipline
 
