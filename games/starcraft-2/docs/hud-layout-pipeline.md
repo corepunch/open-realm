@@ -22,7 +22,7 @@ SC2_HUD_BuildFrameForWrite()  [game/hud/hud.c]
 gi.Write(PF_UIFRAME, &frame) × N  [svc_layout wire format]
     │
     ▼
-cl_unit_layout.c renders generically
+cl_unit_layout.c renders generically (SCR_Clear → SCR_LayoutDrawOverlay)
 ```
 
 ## Key files
@@ -30,7 +30,7 @@ cl_unit_layout.c renders generically
 | File | Role |
 |------|------|
 | `games/starcraft-2/ui/sc2_layout.c` + `.h` | Parser: XML → `sc2BaseFrame_t[]` |
-| `games/starcraft-2/game/hud/hud.c` | Bridge: `sc2BaseFrame_t` → `uiFrame_t` + svc_layout framing |
+| `games/starcraft-2/game/hud/hud.c` | Bridge: `sc2BaseFrame_t` → `uiFrame_t` + fallback frames + svc_layout framing |
 | `games/starcraft-2/game/hud/hud_resource.c` | Resource panel (minerals/vespene/supply) |
 | `games/starcraft-2/game/hud/hud_console.c` | Console panel (menu bar, chat) |
 | `games/starcraft-2/game/hud/hud_command.c` | Command card (ability buttons) |
@@ -93,21 +93,88 @@ Each `SV layout` line reports the layer, encoded byte count, frame count, nonzer
 | Vespene gas | `PLAYERSTATE_RESOURCE_LUMBER` |
 | Supply used | `PLAYERSTATE_RESOURCE_FOOD_USED` |
 
-## Per-panel ensure-loaded pattern
+## Shared layout load (one call for all panels)
 
-Each panel module has a static `*_ensure_loaded()` guard:
+All panel writers call `SC2_HUD_EnsureLayout()` which loads `SC2_LayoutBuildGameUI()` exactly once. Previously each panel had its own `*_ensure_loaded` guard that would `SC2_LayoutInit()` and wipe the previous load — each panel would get an empty frame array. The shared load is assigned from `SC2_Init` before clients connect:
+
 ```c
-static BOOL resource_loaded;
-static sc2BaseFrame_t *resource_root;
+/* g_sc2.c :: SC2_Init */
+SC2_HUD_EnsureLayout(NULL);
+```
 
-static void resource_ensure_loaded(void) {
-    if (resource_loaded) return;
-    resource_loaded = true;
-    SC2_LayoutInit();
-    SC2_LayoutBuildGameUI();
-    resource_root  = SC2_LayoutFindFrameByType(SC2_FRAMETYPE_RESOURCE_PANEL);
-    SC2_LayoutGetFrames(&resource_count);
+`SC2_HUD_EnsureLayout` returns the frame array or a programmatic fallback when the XML layout can't be parsed (no SC2 data available):
+
+```c
+sc2BaseFrame_t *SC2_HUD_EnsureLayout(DWORD *count) {
+    if (!layout_loaded) {
+        layout_loaded = true;
+        layout_ok = SC2_LayoutBuildGameUI();
+    }
+    if (layout_ok) {
+        if (count) *count = (DWORD)sc2_layout.num_frames;
+        return sc2_layout.frames;
+    }
+    /* Fallback when SC2 data is unavailable */
+    if (SC2_HUD_BuildFallbackLayout()) {
+        if (count) *count = sc2_fb_count;
+        return sc2_fb_frames;
+    }
+    if (count) *count = 0;
+    return NULL;
 }
 ```
 
-Because these are in the same unity translation unit, all static function names must be unique across panel files (`resource_ensure_loaded`, `console_ensure_loaded`, etc.).
+## Programmatic fallback frames
+
+When `SC2_LayoutBuildGameUI()` fails (SC2 data missing), `SC2_HUD_BuildFallbackLayout()` builds a hardcoded `sc2BaseFrame_t[]` with:
+
+| Index | Frame | Type | Parent |
+|-------|-------|------|--------|
+| 0 | GameUI root | FT_FRAME | −1 (scene) |
+| 1 | ConsolePanel | FT_FRAME | 0 |
+| 2 | Console background texture | FT_SPRITE | 1 |
+| 3 | Minimap | FT_MINIMAP | 1 |
+| 4 | ResourcePanel | FT_FRAME | 0 |
+| 5 | Gold label | FT_TEXT | 4 |
+| 6 | Vespene label | FT_TEXT | 4 |
+| 7 | Supply label | FT_TEXT | 4 |
+
+Panel writers try `SC2_LayoutFindFrameByType()` first, falling back to `SC2_HUD_FindFallbackFrameByType()` which walks the fallback array by mapped `FRAMETYPE`.
+
+## Shorthand anchor: `<Anchor relative="$parent"/>`
+
+SC2 layout files use a shorthand form with no `side`/`pos` attributes to mean "fill all four sides of the parent":
+
+```xml
+<Frame type="ConsolePanel" name="ConsolePanel" template="ConsolePanel/ConsolePanelTemplate">
+    <Anchor relative="$parent"/>
+</Frame>
+```
+
+The parser's `SC2_ParseAnchor()` in `sc2_layout.c` handles this by expanding the shorthand into four anchors when `!side_str && !pos_str && relative`:
+
+| Side | Pos |
+|------|-----|
+| Top | Min |
+| Bottom | Max |
+| Left | Min |
+| Right | Max |
+
+Before this fix, missing `side`/`pos` was treated as malformed input and the parser returned without adding any anchors — every panel root frame had a computed rect of `(0,0,0,0)` and was invisible.
+
+## Frame lookup by SC2 type
+
+`SC2_LayoutFindFrameType()` iterates parsed `templates[]` comparing `sc2FrameType` enum values, then returns the corresponding flattened frame via `resolved_index`. Only templates that were visited during flattening (children of the `GameUI` root) have `resolved_index >= 0`. Panel root frames like `ConsolePanel`, `ResourcePanel`, `CommandPanel`, and `InfoPanel` are children of the `GameUI` frame in `GameUI.SC2Layout` and are always flattened.
+
+```c
+sc2BaseFrame_t *SC2_LayoutFindFrameByType(sc2FrameType type) {
+    for (int i = 0; i < sc2_layout.num_templates; i++) {
+        sc2Frame_t *tmpl = &sc2_layout.templates[i];
+        if (tmpl->type == type && tmpl->resolved_index >= 0)
+            return &sc2_layout.frames[tmpl->resolved_index];
+    }
+    return NULL;
+}
+```
+
+Because templates and frames are in separate arrays, a two-step lookup is needed: find the template by type, then use its `resolved_index` to access the flattened frame. This contrasts with `SC2_LayoutFindFrameByName()` which iterates the flattened `frames[]` array directly.
