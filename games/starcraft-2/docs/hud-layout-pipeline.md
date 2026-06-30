@@ -37,6 +37,20 @@ cl_unit_layout.c renders generically (SCR_Clear → SCR_LayoutDrawOverlay)
 | `games/starcraft-2/game/hud/hud_infopanel.c` | Info panel (selected unit stats) |
 | `common/shared.h` `UILAYOUTLAYER` | reuses `LAYER_CONSOLE/BACKGROUND/COMMANDBAR/INFOPANEL` |
 
+## Send-on-connect pattern
+
+HUD is sent once per client on connect (in `SC2_ClientBegin`), not every frame. The client retains the last received layout per layer and renders it each frame via `SCR_DrawLayout`. This mirrors WC3's approach where `G_RefreshResourceBar` caches resource values and only resends on change.
+
+```c
+/* g_sc2.c :: SC2_ClientBegin */
+SC2_HUD_WriteResourcePanel(ent);
+SC2_HUD_WriteConsolePanel(ent);
+SC2_HUD_WriteCommandPanel(ent);
+SC2_HUD_WriteInfoPanel(ent);
+```
+
+The `SC2_RunFrame` loop does NOT resend HUD — static panels never change, and dynamic panels (command/info) will be sent on selection change when that system is wired up.
+
 ## Layout parser in the game module
 
 `sc2_layout.c` normally lives in `ui/` and links against `libui-sc2`. The game module can't link `libui-sc2` directly. Instead, `hud.c` `#include`s `sc2_layout.c` directly (one extra translation unit in the unity build). A `uiImport_t uiimport` stub in `hud.c` bridges `gi.ReadFile`/`gi.MemFree` to the parser's file I/O. Renderer callbacks (`GetRenderer`, `GetTexture`) are left NULL — the parsing path never calls them.

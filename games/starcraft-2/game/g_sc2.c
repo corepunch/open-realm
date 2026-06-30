@@ -377,15 +377,9 @@ static void SC2_RunFrame(void) {
     }
     SC2_SolveCollisions();
 
-    /* Send server-authored HUD to each active client */
-    FOR_LOOP(i, SC2_MAX_CLIENTS) {
-        LPEDICT ent = &sc2_edicts[i];
-        if (!ent->inuse || !ent->client) continue;
-        SC2_HUD_WriteResourcePanel(ent);
-        SC2_HUD_WriteConsolePanel(ent);
-        SC2_HUD_WriteCommandPanel(ent);
-        SC2_HUD_WriteInfoPanel(ent);
-    }
+    /* HUD is sent on client connect only — static panels never change.
+     * Dynamic panels (command/info) will be sent on selection change
+     * when that system is wired up. */
 }
 
 static void SC2_ClientBegin(LPEDICT ent) {
@@ -397,6 +391,14 @@ static void SC2_ClientBegin(LPEDICT ent) {
     }
     ent->client = &sc2_clients[number];
     ent->client->ps.client_ui_state = CLIENT_UI_GAME;
+
+    /* Send initial static HUD — console backdrop, resource bar,
+     * command panel, info panel.  The client retains the last
+     * received layout per layer and renders it every frame. */
+    SC2_HUD_WriteResourcePanel(ent);
+    SC2_HUD_WriteConsolePanel(ent);
+    SC2_HUD_WriteCommandPanel(ent);
+    SC2_HUD_WriteInfoPanel(ent);
 }
 
 static void SC2_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
