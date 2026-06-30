@@ -80,6 +80,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 - **New code paths need new tests.** If you add an `if` branch, a new function, a new field, or a new cache/state machine, write a test for the new path and its inverse.
 - **Cache/state-machine changes double-test.** Test both cache hit and cache miss paths, and verify performance counters where tracked.
 - **Run `make test` before committing.** The WC3 test binary (`test_openwarcraft3`) includes all unit tests.
+- **Compile and run tests before finishing any work.** Run `make run-sc2` to verify the build compiles, then `make test` to confirm all tests pass. Never mark work complete without a green test run.
 - **`git blame` before changing existing struct/API fields.** Understand why a field exists and what trade-offs were made before changing it.
 - **Do not disable a failing test.** Fix the code or fix the test — do not comment it out, add `SKIP`, or reduce its coverage.
 
