@@ -1,6 +1,6 @@
 #include "g_sc2_local.h"
 #include "games/starcraft-2/common/sc2_map.h"
-#include "hud/hud_local.h"
+#include "games/starcraft-2/game/hud/hud.h"
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
@@ -294,13 +294,12 @@ static void SC2_Init(void) {
     globals.max_edicts = SC2_MAX_EDICTS;
     globals.max_clients = SC2_MAX_CLIENTS;
     SC2_InitClients();
-    SC2_HudInit();
+    SC2_HUD_InitLayoutHost();
 }
 
 static void SC2_Shutdown(void) {
     G_FreeModels();
     SC2_MapShutdown();
-    SC2_HudShutdown();
 }
 
 static void SC2_SpawnEntities(void);
@@ -376,12 +375,14 @@ static void SC2_RunFrame(void) {
     }
     SC2_SolveCollisions();
 
-    /* Send HUD to each connected client */
-    FOR_LOOP(i, globals.max_clients) {
+    /* Send server-authored HUD to each active client */
+    FOR_LOOP(i, SC2_MAX_CLIENTS) {
         LPEDICT ent = &sc2_edicts[i];
         if (!ent->inuse || !ent->client) continue;
-
-        SC2_WriteConsoleLayout(ent);
+        SC2_HUD_WriteResourcePanel(ent);
+        SC2_HUD_WriteConsolePanel(ent);
+        SC2_HUD_WriteCommandPanel(ent);
+        SC2_HUD_WriteInfoPanel(ent);
     }
 }
 
