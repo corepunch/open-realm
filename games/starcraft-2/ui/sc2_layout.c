@@ -446,6 +446,26 @@ static void SC2_ParseAnchor(xmlNode *node, sc2Frame_t *frame) {
     LPCSTR pos_str = SC2_XmlGetProp(node,"pos");
     LPCSTR relative = SC2_XmlGetProp(node,"relative");
 
+    /* Shorthand: <Anchor relative="$parent"/> — fill all four sides */
+    if ((!side_str || !pos_str) && relative) {
+        static struct { LPCSTR side; LPCSTR pos; } const sides[] = {
+            { "Top", "Min" }, { "Bottom", "Max" }, { "Left", "Min" }, { "Right", "Max" },
+        };
+        for (int i = 0; i < 4 && frame->num_anchors < SC2_MAX_ANCHORS; i++) {
+            sc2Anchor_t *a = &frame->anchors[frame->num_anchors];
+            a->side = SC2_LookupSide(sides[i].side);
+            a->pos = SC2_LookupPos(sides[i].pos);
+            a->offset = (int16_t)SC2_ResolveAttrInt(node, "offset", 0);
+            SC2_Strncpyz(a->relative, relative, sizeof(a->relative));
+            a->flags |= SC2_ANCHOR_HAS;
+            frame->num_anchors++;
+        }
+        if (side_str) SC2_XmlFree(side_str);
+        if (pos_str) SC2_XmlFree(pos_str);
+        SC2_XmlFree(relative);
+        return;
+    }
+
     if (!side_str || !pos_str) {
         if (side_str) SC2_XmlFree(side_str);
         if (pos_str) SC2_XmlFree(pos_str);

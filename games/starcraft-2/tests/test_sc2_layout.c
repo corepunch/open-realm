@@ -222,6 +222,38 @@ static void test_layout_nested_children(void) {
     SC2_LayoutShutdown();
 }
 
+/* ---- Test: shorthand <Anchor relative="$parent"/> fills all sides ---- */
+static void test_layout_shorthand_anchor(void) {
+    setup_sc2_layout_tests();
+    SC2_LayoutInit();
+    ASSERT(SC2_LayoutParseFile("UI/Layout/TestTemplates.SC2Layout"));
+
+    /* Look for a template that uses the shorthand anchor.
+     * TestContainerTemplate's child Background has <Anchor relative="$parent"/>. */
+    sc2Frame_t *container = SC2_LayoutFindTemplate("TestContainerTemplate");
+    ASSERT_NOT_NULL(container);
+    sc2Frame_t *bg = container->children[0];
+    ASSERT_NOT_NULL(bg);
+    /* If shorthand was parsed, it should have 4 anchors (Top/Min, Bottom/Max, Left/Min, Right/Max) */
+    ASSERT_EQ_INT(bg->num_anchors, 4);
+
+    /* Verify the four anchors */
+    int found_top = 0, found_bottom = 0, found_left = 0, found_right = 0;
+    for (int i = 0; i < bg->num_anchors; i++) {
+        if (bg->anchors[i].side == SC2_SIDE_TOP)    found_top    = 1;
+        if (bg->anchors[i].side == SC2_SIDE_BOTTOM) found_bottom = 1;
+        if (bg->anchors[i].side == SC2_SIDE_LEFT)   found_left   = 1;
+        if (bg->anchors[i].side == SC2_SIDE_RIGHT)  found_right  = 1;
+        ASSERT_STR_EQ(bg->anchors[i].relative, "$parent");
+    }
+    ASSERT(found_top);
+    ASSERT(found_bottom);
+    ASSERT(found_left);
+    ASSERT(found_right);
+
+    SC2_LayoutShutdown();
+}
+
 /* ---- Test: anchor parsing ---- */
 static void test_layout_anchors_parsed(void) {
     setup_sc2_layout_tests();
@@ -427,4 +459,5 @@ void run_sc2_layout_tests(void) {
     RUN_TEST(test_layout_texture_layers);
     RUN_TEST(test_layout_flattened_frames_hierarchy);
     RUN_TEST(test_layout_find_by_type);
+    RUN_TEST(test_layout_shorthand_anchor);
 }
