@@ -47,6 +47,10 @@ void SC2_HUD_InitLayoutHost(void);
  * global, so each independent call would wipe the previous load. */
 sc2BaseFrame_t *SC2_HUD_EnsureLayout(DWORD *count);
 
+/* Fallback frame lookup — used when SC2 layout data is unavailable.
+ * Searches the programmatic fallback frame array by mapped FRAMETYPE. */
+sc2BaseFrame_t *SC2_HUD_FindFallbackFrameByType(sc2FrameType type);
+
 /* Per-frame HUD writers called from G_RunFrame */
 void SC2_HUD_WriteResourcePanel(LPEDICT ent);
 void SC2_HUD_WriteConsolePanel(LPEDICT ent);

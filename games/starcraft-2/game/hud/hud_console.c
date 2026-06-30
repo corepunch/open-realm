@@ -8,20 +8,17 @@
 
 #include "hud.h"
 
-static sc2BaseFrame_t *console_root;
-static BOOL console_root_found;
-
-static void console_find_root(void) {
-    if (console_root_found) return;
-    console_root_found = true;
-    console_root = SC2_LayoutFindFrameByType(SC2_FRAMETYPE_CONSOLE_PANEL);
+static sc2BaseFrame_t *console_find(void) {
+    sc2BaseFrame_t *r = SC2_LayoutFindFrameByType(SC2_FRAMETYPE_CONSOLE_PANEL);
+    if (r) return r;
+    return SC2_HUD_FindFallbackFrameByType(SC2_FRAMETYPE_CONSOLE_PANEL);
 }
 
 void SC2_HUD_WriteConsolePanel(LPEDICT ent) {
     DWORD count = 0;
     sc2BaseFrame_t *frames = SC2_HUD_EnsureLayout(&count);
     if (!frames) return;
-    console_find_root();
-    if (!console_root) return;
-    SC2_HUD_WriteLayout(ent, frames, count, console_root, LAYER_BACKGROUND);
+    sc2BaseFrame_t *root = console_find();
+    if (!root) return;
+    SC2_HUD_WriteLayout(ent, frames, count, root, LAYER_BACKGROUND);
 }

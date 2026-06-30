@@ -365,6 +365,51 @@ static void test_layout_texture_layers(void) {
     SC2_LayoutShutdown();
 }
 
+/* ---- Test: flattened frames from test fixture have valid parent structure ---- */
+static void test_layout_flattened_frames_hierarchy(void) {
+    setup_sc2_layout_tests();
+    SC2_LayoutInit();
+    ASSERT(SC2_LayoutParseFile("UI/Layout/TestGameUI.SC2Layout"));
+    ASSERT(SC2_LayoutFlatten("TestGameUI"));
+
+    DWORD count = 0;
+    sc2BaseFrame_t *frames = SC2_LayoutGetFrames(&count);
+    ASSERT(count >= 5);
+
+    /* Root: parent_index == -1 */
+    ASSERT_EQ_INT(frames[0].parent_index, (DWORD)-1);
+
+    /* All non-root frames must have a valid parent_index */
+    for (DWORD i = 1; i < count; i++)
+        ASSERT(frames[i].parent_index < count);
+
+    SC2_LayoutShutdown();
+}
+
+/* ---- Test: SC2_LayoutFindFrameByType returns correct root types ---- */
+static void test_layout_find_by_type(void) {
+    setup_sc2_layout_tests();
+    SC2_LayoutInit();
+    ASSERT(SC2_LayoutParseFile("UI/Layout/TestGameUI.SC2Layout"));
+    ASSERT(SC2_LayoutFlatten("TestGameUI"));
+
+    /* GameUI root should be findable */
+    sc2BaseFrame_t *gameui = SC2_LayoutFindFrameByType(SC2_FRAMETYPE_GAME_UI);
+    ASSERT_NOT_NULL(gameui);
+    ASSERT_EQ_INT(gameui->parent_index, (DWORD)-1);
+
+    /* TestGameUI fixture has a GameUI type root; child panels may not exist
+     * since TestGameUI.SC2Layout doesn't define ConsolePanel/ResourcePanel. */
+    sc2BaseFrame_t *console = SC2_LayoutFindFrameByType(SC2_FRAMETYPE_CONSOLE_PANEL);
+    sc2BaseFrame_t *resource = SC2_LayoutFindFrameByType(SC2_FRAMETYPE_RESOURCE_PANEL);
+    /* These are allowed to be NULL since the test fixture doesn't define them.
+     * The important thing is they don't crash and return the expected type when present. */
+    if (console) ASSERT(console->parent_index != (DWORD)-1);
+    if (resource) ASSERT(resource->parent_index != (DWORD)-1);
+
+    SC2_LayoutShutdown();
+}
+
 void run_sc2_layout_tests(void) {
     RUN_TEST(test_layout_constants_parsed);
     RUN_TEST(test_layout_unknown_constant_returns_null);
@@ -380,4 +425,6 @@ void run_sc2_layout_tests(void) {
     RUN_TEST(test_layout_reinit_clears);
     RUN_TEST(test_layout_constant_offset);
     RUN_TEST(test_layout_texture_layers);
+    RUN_TEST(test_layout_flattened_frames_hierarchy);
+    RUN_TEST(test_layout_find_by_type);
 }
