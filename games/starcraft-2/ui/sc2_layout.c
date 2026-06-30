@@ -58,6 +58,13 @@ static void SC2_XmlFree(LPCSTR s) {
 /* Global layout state */
 static sc2Layout_t sc2_layout;
 
+/* SC2 virtual screen resolution and UI base scale for offset normalization.
+   Anchors use SC2 virtual pixels; the engine uses FDF-normalized coords. */
+#define SC2_VIRT_W  1600.0f
+#define SC2_VIRT_H  1200.0f
+#define SC2_UI_BASE_W 0.8f
+#define SC2_UI_BASE_H 0.6f
+
 /* Frame type name → sc2FrameType mapping table */
 static struct { LPCSTR name; sc2FrameType type; } sc2_frame_types[] = {
     { "Frame",                  SC2_FRAMETYPE_FRAME },
@@ -340,7 +347,8 @@ static void SC2_ResolveTemplate(sc2Frame_t *frame, sc2Frame_t *tmpl) {
         sc2Frame_t *clone = SC2_AddTemplate();
         if (!clone) break;
         *clone = *tmpl->children[i];
-        /* Clear child pointers to avoid double-free; re-parent later */
+        /* Clear child pointers to avoid double-free */
+        clone->template_path[0] = '\0';  /* children already resolved via template */
         clone->parent = frame;
         clone->resolved_index = -1;
         frame->children[frame->num_children++] = clone;
@@ -756,8 +764,13 @@ static void SC2_ParseDescNode(xmlNode *node) {
 
     /* Pass 4: resolve template inheritance for all frames parsed in this file.
      * Deferring to after all frames are parsed ensures same-file templates
-     * are fully populated before being used as bases. */
-    for (int i = templates_before; i < sc2_layout.num_templates; i++) {
+     * are fully populated before being used as bases.
+     * Save end bound before resolution because SC2_ResolveTemplate clones
+     * children via SC2_AddTemplate, which grows num_templates.  Without a
+     * fixed bound, the loop would re-process clone frames that inherited
+     * template_path from their source, producing spurious "not found" errors. */
+    int templates_end = sc2_layout.num_templates;
+    for (int i = templates_before; i < templates_end; i++) {
         sc2Frame_t *frame = &sc2_layout.templates[i];
         if (frame->template_path[0]) {
             sc2Frame_t *tmpl = SC2_ResolveTemplatePath(frame->template_path);
@@ -903,7 +916,8 @@ static void SC2_ResolveAnchors(sc2Frame_t *src, sc2BaseFrame_t *dst) {
         sc2BaseFramePoint_t *p = is_x ? &dst->points.x[point_idx] : &dst->points.y[point_idx];
         p->used = true;
         p->targetPos = (uiFramePointPos_t)target_idx;
-        p->offset = is_x ? (FLOAT)a->offset : -(FLOAT)a->offset;
+        p->offset = is_x ? ((FLOAT)a->offset / SC2_VIRT_W) * SC2_UI_BASE_W
+                         : -((FLOAT)a->offset / SC2_VIRT_H) * SC2_UI_BASE_H;
 
         LPCSTR resolved_name = SC2_ParseRelativeName(a->relative, parent_name);
         if (!resolved_name || !strcasecmp(resolved_name, parent_name)) {
