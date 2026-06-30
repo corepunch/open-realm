@@ -35,10 +35,28 @@ static int sc2_hud_read_file(LPCSTR filename, void **buf) {
 
 static void sc2_hud_free_file(void *buf) { gi.MemFree(buf); }
 
+/* SC2 layout resources are catalog keys; resolve the subset backed by the current asset loader. */
+static int sc2_hud_image_index(LPCSTR resource) {
+    static struct { LPCSTR logical, physical; } const paths[] = {
+        { "UI/ResourceIcon0", "Assets/Textures/icon-mineral.dds" },
+        { "UI/ResourceIcon1", "Assets/Textures/icon-gas.dds" },
+        { "UI/ResourceIcon2", "Assets/Textures/icon-highyieldmineral.dds" },
+        { "UI/ResourceIcon3", "Assets/Textures/icon-mineral.dds" },
+        { "UI/ResourceIconSupply", "Assets/Textures/icon-supply.dds" },
+        { "UI/ResourceIconPlayer", "Assets/Textures/ui_ingame_resourcesharing_playericon.dds" },
+    };
+    while (*resource == '@') resource++;
+    FOR_LOOP(i, sizeof(paths) / sizeof(*paths))
+        if (!strcasecmp(resource, paths[i].logical)) return gi.ImageIndex(paths[i].physical);
+    return gi.ImageIndex(resource);
+}
+
 void SC2_HUD_InitLayoutHost(void) {
     memset(&uiimport, 0, sizeof(uiimport));
     uiimport.FS_ReadFile = sc2_hud_read_file;
     uiimport.FS_FreeFile = sc2_hud_free_file;
+    uiimport.ImageIndex = sc2_hud_image_index;
+    uiimport.FontIndex = gi.FontIndex;
 }
 
 /* ------------------------------------------------------------------ */
@@ -102,12 +120,17 @@ BOOL SC2_HUD_BuildFrameForWrite(LPCSC2BASEFRAME frame, uiFrame_t *out) {
                   ? lookup_number(frame->parent_index)
                   : 0;
     out->color       = frame->color;
+    out->color.a     = (BYTE)(out->color.a * frame->alpha);
     out->size.width  = frame->size.width;
     out->size.height = frame->size.height;
     out->tex.index   = (USHORT)frame->image;
     out->flags.type  = frame->type;
-    out->stat        = 0; /* dynamic panels override this */
+    out->stat        = frame->stat;
     out->text        = frame->text;
+    if (frame->type == FT_TEXT) {
+        out->buffer.size = sizeof(frame->label);
+        out->buffer.data = (HANDLE)&frame->label;
+    }
     copy_points(out, frame);
     return true;
 }

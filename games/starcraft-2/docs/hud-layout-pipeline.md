@@ -72,6 +72,19 @@ SC2 anchors use `SC2_SIDE_{LEFT,RIGHT,TOP,BOTTOM}` + `SC2_POS_{MIN,MID,MAX}` map
 
 Wire frame numbers are assigned sequentially as frames are written in a given layer (reset per `SC2_HUD_WriteStart`). `parent_index == (DWORD)-1` means root; the wire `parent` field is 0.
 
+## Dedicated-server wire diagnostics
+
+Run a bounded headless session with `+sv_debug_layout 1` to summarize each `svc_layout` immediately before the server
+puts it on the client netchan:
+
+```sh
+build/bin/opensc2 -data data/StarCraft2 +dedicated 1 +map TRaynor01 \
+  +set sv_debug_layout 1 +com_frame_limit 3
+```
+
+Each `SV layout` line reports the layer, encoded byte count, frame count, nonzero texture handles, and live stat bindings.
+`frames > 0` with `textured=0 stats=0` means the game sent a structurally valid but visually empty HUD.
+
 ## Dynamic stat bindings (SC2 → engine stats)
 
 | SC2 concept | Engine `PLAYERSTATE_*` |

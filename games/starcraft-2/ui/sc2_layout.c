@@ -880,8 +880,8 @@ static LPCSTR SC2_ParseRelativeName(LPCSTR relative, LPCSTR parent_name) {
 }
 
 static void SC2_ResolveAnchors(sc2Frame_t *src, sc2BaseFrame_t *dst) {
-    if (src->flags & SC2_FRAME_HAS_WIDTH) dst->size.width = src->width;
-    if (src->flags & SC2_FRAME_HAS_HEIGHT) dst->size.height = src->height;
+    if (src->flags & SC2_FRAME_HAS_WIDTH) dst->size.width = src->width / SC2_VIRT_W * SC2_UI_BASE_W;
+    if (src->flags & SC2_FRAME_HAS_HEIGHT) dst->size.height = src->height / SC2_VIRT_H * SC2_UI_BASE_H;
 
     sc2Frame_t *parent = NULL;
     if (dst->parent_index != (DWORD)-1) {
@@ -1033,12 +1033,18 @@ static void SC2_FlattenFrame(sc2Frame_t *frame, int parent_index) {
 
     dst->number = (DWORD)index;
     dst->type = SC2_MapFrameType(frame->type);
+    dst->name = frame->name;
     dst->parent_index = (parent_index >= 0) ? (DWORD)parent_index : (DWORD)-1;
 
     switch (dst->type) {
         case FT_SPRITE: dst->on_draw = SC2_DrawImage;  break;
         case FT_BUTTON: dst->on_draw = SC2_DrawButton; break;
-        case FT_TEXT:   dst->on_draw = SC2_DrawText;   break;
+        case FT_TEXT:
+            dst->on_draw = SC2_DrawText;
+            if (uiimport.FontIndex)
+                dst->label.font = (RESOURCE)uiimport.FontIndex("UI/Fonts/EurostileExt-Med.otf", 16);
+            dst->label.textaligny = FONT_JUSTIFYMIDDLE;
+            break;
         default:        dst->on_draw = NULL;            break;
     }
     dst->color = (frame->flags & SC2_FRAME_HAS_COLOR) ? frame->color : (COLOR32){255, 255, 255, 255};
@@ -1054,8 +1060,7 @@ static void SC2_FlattenFrame(sc2Frame_t *frame, int parent_index) {
 
     /* Resolve first texture as primary image */
     if (frame->num_textures > 0 && frame->textures[0].flags & SC2_TEX_HAS_TEXTURE) {
-        /* Store raw reference hash — resolved at render time */
-        dst->image = 0; /* TODO: resolve @@UI/Name to image index */
+        dst->image = uiimport.ImageIndex ? (DWORD)uiimport.ImageIndex(frame->textures[0].resource) : 0;
     }
 
     /* Backdrop: first tiled texture as background, border textures as edge */
@@ -1212,6 +1217,13 @@ sc2BaseFrame_t *SC2_LayoutFindFrameByType(sc2FrameType type) {
         if (tmpl->type == type && tmpl->resolved_index >= 0)
             return &sc2_layout.frames[tmpl->resolved_index];
     }
+    return NULL;
+}
+
+/* Dynamic HUD bindings address the flattened instance, not its unflattened template. */
+sc2BaseFrame_t *SC2_LayoutFindFrameByName(LPCSTR name) {
+    for (int i = 0; i < sc2_layout.num_frames; i++)
+        if (sc2_layout.frames[i].name && !strcasecmp(sc2_layout.frames[i].name, name)) return &sc2_layout.frames[i];
     return NULL;
 }
 

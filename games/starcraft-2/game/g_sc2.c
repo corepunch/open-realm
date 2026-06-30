@@ -295,6 +295,8 @@ static void SC2_Init(void) {
     globals.max_clients = SC2_MAX_CLIENTS;
     SC2_InitClients();
     SC2_HUD_InitLayoutHost();
+    /* Register HUD configstrings before clients connect; RunFrame happens after the initial handshake. */
+    SC2_HUD_EnsureLayout(NULL);
 }
 
 static void SC2_Shutdown(void) {

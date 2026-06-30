@@ -14,9 +14,23 @@ static sc2BaseFrame_t *resource_root;
 static BOOL resource_root_found;
 
 static void resource_find_root(void) {
+    static struct { LPCSTR name; DWORD stat; } const bindings[] = {
+        { "ResourceLabel0", PLAYERSTATE_RESOURCE_GOLD },
+        { "ResourceLabel1", PLAYERSTATE_RESOURCE_LUMBER },
+        { "ResourceLabel2", PLAYERSTATE_RESOURCE_HERO_TOKENS },
+        { "SupplyLabel", PLAYERSTATE_RESOURCE_FOOD_USED },
+    };
     if (resource_root_found) return;
     resource_root_found = true;
     resource_root = SC2_LayoutFindFrameByType(SC2_FRAMETYPE_RESOURCE_PANEL);
+    FOR_LOOP(i, sizeof(bindings) / sizeof(*bindings)) {
+        sc2BaseFrame_t *label = SC2_LayoutFindFrameByName(bindings[i].name);
+        if (!label) {
+            fprintf(stderr, "SC2_HUD: missing resource label '%s'\n", bindings[i].name);
+            continue;
+        }
+        label->stat = bindings[i].stat;
+    }
 }
 
 void SC2_HUD_WriteResourcePanel(LPEDICT ent) {

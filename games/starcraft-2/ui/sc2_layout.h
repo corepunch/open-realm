@@ -65,6 +65,7 @@ struct sc2BaseFrame_s;
 typedef struct sc2BaseFrame_s {
     DWORD number;
     FRAMETYPE type;
+    LPCSTR name;                     /* points into persistent parsed template storage */
     void *parent;                   /* game resolves: pointer or index */
     DWORD parent_index;             /* index into frames array, -1 = root */
     struct { sc2BaseFramePoints_t x, y; } points;
@@ -75,6 +76,8 @@ typedef struct sc2BaseFrame_s {
     DWORD image;                    /* primary texture/resource index */
     RECT texcoord;                  /* texture UV rect */
     LPCSTR text;
+    DWORD stat;                     /* live player-state value for server-authored labels */
+    uiLabel_t label;                /* wire payload required by FT_TEXT */
     COLOR32 text_color;
     struct {                        /* backdrop */
         DWORD bg;
@@ -290,6 +293,7 @@ sc2Frame_t *SC2_LayoutFindTemplate(LPCSTR name);
 
 /* Find the first resolved sc2BaseFrame_t with the given SC2 frame type */
 sc2BaseFrame_t *SC2_LayoutFindFrameByType(sc2FrameType type);
+sc2BaseFrame_t *SC2_LayoutFindFrameByName(LPCSTR name);
 
 /* Template accessors for iteration */
 int SC2_LayoutNumTemplates(void);
