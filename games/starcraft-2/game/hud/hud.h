@@ -40,6 +40,13 @@ void SC2_HUD_WriteLayout(LPEDICT ent, LPCSC2BASEFRAME frames, DWORD count,
 /* Wire gi file I/O into the layout parser — call once from SC2_Init. */
 void SC2_HUD_InitLayoutHost(void);
 
+/* Load the game UI layout exactly once (idempotent after first call).
+ * Returns the flat frame array and sets *count.  Both return NULL/0 if
+ * loading failed.  All panel modules must call this instead of invoking
+ * SC2_LayoutBuildGameUI() directly — there is one shared sc2_layout
+ * global, so each independent call would wipe the previous load. */
+sc2BaseFrame_t *SC2_HUD_EnsureLayout(DWORD *count);
+
 /* Per-frame HUD writers called from G_RunFrame */
 void SC2_HUD_WriteResourcePanel(LPEDICT ent);
 void SC2_HUD_WriteConsolePanel(LPEDICT ent);

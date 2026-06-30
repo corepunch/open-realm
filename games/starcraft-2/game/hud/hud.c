@@ -129,6 +129,26 @@ void SC2_HUD_WriteFrameWithChildren(LPCSC2BASEFRAME frames, DWORD count,
     }
 }
 
+/* ------------------------------------------------------------------ */
+/* Shared layout load — one SC2_LayoutBuildGameUI() for all panels */
+
+static BOOL layout_loaded;
+static BOOL layout_ok;
+
+sc2BaseFrame_t *SC2_HUD_EnsureLayout(DWORD *count) {
+    if (!layout_loaded) {
+        layout_loaded = true;
+        layout_ok = SC2_LayoutBuildGameUI();
+    }
+    if (!layout_ok) {
+        if (count) *count = 0;
+        return NULL;
+    }
+    return SC2_LayoutGetFrames(count);
+}
+
+/* ------------------------------------------------------------------ */
+
 void SC2_HUD_WriteStart(DWORD layer) {
     reset_frame_write();
     gi.Write(PF_BYTE, &(LONG){ svc_layout });

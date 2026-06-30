@@ -8,24 +8,20 @@
 
 #include "hud.h"
 
-static BOOL command_loaded;
 static sc2BaseFrame_t *command_root;
+static BOOL command_root_found;
 
-static void command_ensure_loaded(void) {
-    if (command_loaded) return;
-    command_loaded = true;
-
-    SC2_LayoutInit();
-    if (!SC2_LayoutBuildGameUI()) return;
+static void command_find_root(void) {
+    if (command_root_found) return;
+    command_root_found = true;
     command_root = SC2_LayoutFindFrameByType(SC2_FRAMETYPE_COMMAND_PANEL);
 }
 
 void SC2_HUD_WriteCommandPanel(LPEDICT ent) {
     DWORD count = 0;
-    sc2BaseFrame_t *frames;
-
-    command_ensure_loaded();
-    frames = SC2_LayoutGetFrames(&count);
-    if (!frames || !command_root) return;
+    sc2BaseFrame_t *frames = SC2_HUD_EnsureLayout(&count);
+    if (!frames) return;
+    command_find_root();
+    if (!command_root) return;
     SC2_HUD_WriteLayout(ent, frames, count, command_root, LAYER_COMMANDBAR);
 }
