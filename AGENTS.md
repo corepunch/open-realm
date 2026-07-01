@@ -62,6 +62,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 
 ## What to Avoid
 
+- **Do not patch loaded UI layout in code.** SC2Layout and FDF files define the correct layout. When a panel's anchors seem wrong (e.g. off-screen positioning from a cross-panel reference), fix the anchor resolution in the layout system so it handles the case correctly — don't override anchors per-panel in game code. The layout data is authoritative; code must apply it faithfully.
 - Do not introduce helper variables just to name an intermediate result if the expression is already readable inline.
 - Do not add blank lines between short, related statements.
 - Do not split a declaration and its first assignment onto separate lines.
@@ -81,6 +82,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 - **Cache/state-machine changes double-test.** Test both cache hit and cache miss paths, and verify performance counters where tracked.
 - **Run `make test` before committing.** The WC3 test binary (`test_openwarcraft3`) includes all unit tests.
 - **Compile and run tests before finishing any work.** Run `make run-sc2` to verify the build compiles, then `make test` to confirm all tests pass. Never mark work complete without a green test run.
+- **Auto-quit the app with `+com_frame_limit N`.** When running the binary for verification, pass `+com_frame_limit 100` (or similar) so the process exits after N frames without manual intervention. Example: `make run-sc2 ARGS="+com_frame_limit 100"`
 - **`git blame` before changing existing struct/API fields.** Understand why a field exists and what trade-offs were made before changing it.
 - **Do not disable a failing test.** Fix the code or fix the test — do not comment it out, add `SKIP`, or reduce its coverage.
 

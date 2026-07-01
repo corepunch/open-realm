@@ -197,12 +197,8 @@ Because templates and frames are in separate arrays, a two-step lookup is needed
 
 `SC2_FRAMETYPE_IMAGE` (the `<Frame type="Image">` SC2 element) maps to `FT_TEXTURE` in the engine, not `FT_SPRITE`. `FT_SPRITE` is reserved for `SC2_FRAMETYPE_MODEL` (3D scene models). `SCR_LayoutDrawTexture` handles `FT_TEXTURE` (2D images); `SCR_LayoutDrawSprite` handles `FT_SPRITE` (3D models via `re.DrawSprite`).
 
-## Cross-panel anchor override (ResourcePanel)
+## Cross-panel anchor (ResourcePanel)
 
-The ResourcePanel in `GameUI.SC2Layout` uses `<Anchor side="Right" pos="Min" relative="$parent/CashPanel"/>` — its right edge is anchored to the left edge of CashPanel. CashPanel is not rendered in our subset. Without the fix, `lookup_number(CashPanel_flat_idx) = 0` (scene), and `targetPos=FPP_MIN` on the scene's x-axis gives `right_edge = scene.left + offset = 0 − 0.008 = −0.008`, placing the panel off-screen left.
+The ResourcePanel in `GameUI.SC2Layout` uses `<Anchor side="Right" pos="Min" relative="$parent/CashPanel"/>` — its right edge is anchored to the left edge of CashPanel. CashPanel is parsed from `CashPanel.SC2Layout` (loaded as a core file) and exists in the flattened frame tree. `SC2_ResolveNamedRelatives()` resolves this anchor to CashPanel's flat index at flatten time.
 
-`resource_fix_anchor()` in `hud_resource.c` replaces the ResourcePanel root's anchors before writing:
-- x: `Right/Max` relative to parent (scene), offset −16 px → top-right of screen
-- y: `Top/Min` relative to parent (scene), offset +4 px → near the top
-
-This matches the SC2 default layout when all sibling panels are absent.
+Do not override cross-panel anchors in game code. The layout data is authoritative; code must apply it faithfully.
