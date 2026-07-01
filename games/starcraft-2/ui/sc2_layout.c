@@ -58,12 +58,9 @@ static void SC2_XmlFree(LPCSTR s) {
 /* Global layout state */
 static sc2Layout_t sc2_layout;
 
-/* SC2 virtual screen resolution and UI base scale for offset normalization.
-   Anchors use SC2 virtual pixels; the engine uses FDF-normalized coords. */
+/* SC2 virtual screen resolution — native layout coordinate space. */
 #define SC2_VIRT_W  1600.0f
 #define SC2_VIRT_H  1200.0f
-#define SC2_UI_BASE_W 0.8f
-#define SC2_UI_BASE_H 0.6f
 
 /* Frame type name → sc2FrameType mapping table */
 static struct { LPCSTR name; sc2FrameType type; } sc2_frame_types[] = {
@@ -901,9 +898,9 @@ static LPCSTR SC2_ParseRelativeName(LPCSTR relative, LPCSTR parent_name) {
 }
 
 static void SC2_ResolveAnchors(sc2Frame_t *src, sc2BaseFrame_t *dst) {
-    if (src->flags & SC2_FRAME_HAS_WIDTH) dst->size.width = src->width / SC2_VIRT_W * SC2_UI_BASE_W;
-    if (src->flags & SC2_FRAME_HAS_HEIGHT) dst->size.height = src->height / SC2_VIRT_H * SC2_UI_BASE_H;
-
+    /* Store native SC2 pixel values — conversion to engine coords happens at write time. */
+    if (src->flags & SC2_FRAME_HAS_WIDTH) dst->size.width = src->width;
+    if (src->flags & SC2_FRAME_HAS_HEIGHT) dst->size.height = src->height;
 
     sc2Frame_t *parent = NULL;
     if (dst->parent_index != (DWORD)-1) {
@@ -938,8 +935,7 @@ static void SC2_ResolveAnchors(sc2Frame_t *src, sc2BaseFrame_t *dst) {
         sc2BaseFramePoint_t *p = is_x ? &dst->points.x[point_idx] : &dst->points.y[point_idx];
         p->used = true;
         p->targetPos = (uiFramePointPos_t)target_idx;
-        p->offset = is_x ? ((FLOAT)a->offset / SC2_VIRT_W) * SC2_UI_BASE_W
-                         : -((FLOAT)a->offset / SC2_VIRT_H) * SC2_UI_BASE_H;
+        p->offset = is_x ? (FLOAT)a->offset : -(FLOAT)a->offset;
 
         LPCSTR resolved_name = SC2_ParseRelativeName(a->relative, parent_name);
         if (!resolved_name || !strcasecmp(resolved_name, parent_name)) {

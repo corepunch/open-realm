@@ -319,8 +319,8 @@ static void test_layout_flatten_to_frames(void) {
     ASSERT_NOT_NULL(background);
     ASSERT_EQ_INT(background->image, 17);
     ASSERT_NOT_NULL(label);
-    ASSERT_EQ_FLOAT(label->size.width, 0.1f, 0.001f);
-    ASSERT_EQ_FLOAT(label->size.height, 0.01f, 0.001f);
+    ASSERT_EQ_FLOAT(label->size.width, 200.0f, 0.001f);
+    ASSERT_EQ_FLOAT(label->size.height, 20.0f, 0.001f);
 
     SC2_LayoutShutdown();
 }

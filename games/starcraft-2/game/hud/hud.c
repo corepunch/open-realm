@@ -82,6 +82,11 @@ static DWORD lookup_number(DWORD index) {
 }
 
 /* ------------------------------------------------------------------ */
+/* SC2 native pixels → engine normalized coords (0.8×0.6) */
+
+static FLOAT sc2_to_engine_x(FLOAT px) { return px / SC2_VIRT_W * 0.8f; }
+static FLOAT sc2_to_engine_y(FLOAT py) { return py / SC2_VIRT_H * 0.6f; }
+
 /* Anchor → uiFramePoint_t conversion */
 
 static void copy_points(uiFrame_t *out, LPCSC2BASEFRAME frame) {
@@ -94,7 +99,7 @@ static void copy_points(uiFrame_t *out, LPCSC2BASEFRAME frame) {
             out->points.x[i].relativeTo = (px->relative_index != (DWORD)-1)
                                           ? (BYTE)lookup_number(px->relative_index)
                                           : UI_PARENT;
-            out->points.x[i].offset = (int16_t)(px->offset * UI_FRAMEPOINT_SCALE);
+            out->points.x[i].offset = (int16_t)(sc2_to_engine_x(px->offset) * UI_FRAMEPOINT_SCALE);
         }
         /* Y axis */
         sc2BaseFramePoint_t const *py = &frame->points.y[i];
@@ -104,7 +109,7 @@ static void copy_points(uiFrame_t *out, LPCSC2BASEFRAME frame) {
             out->points.y[i].relativeTo = (py->relative_index != (DWORD)-1)
                                           ? (BYTE)lookup_number(py->relative_index)
                                           : UI_PARENT;
-            out->points.y[i].offset = (int16_t)(py->offset * UI_FRAMEPOINT_SCALE);
+            out->points.y[i].offset = (int16_t)(sc2_to_engine_y(py->offset) * UI_FRAMEPOINT_SCALE);
         }
     }
 }
@@ -121,8 +126,8 @@ BOOL SC2_HUD_BuildFrameForWrite(LPCSC2BASEFRAME frame, uiFrame_t *out) {
                   : 0;
     out->color       = frame->color;
     out->color.a     = (BYTE)(out->color.a * frame->alpha);
-    out->size.width  = frame->size.width;
-    out->size.height = frame->size.height;
+    out->size.width  = sc2_to_engine_x(frame->size.width);
+    out->size.height = sc2_to_engine_y(frame->size.height);
     out->tex.index   = (USHORT)frame->image;
     out->flags.type  = frame->type;
     out->stat        = frame->stat;
@@ -166,10 +171,7 @@ static sc2BaseFrame_t sc2_fb_frames[SC2_FB_MAX];
 static DWORD sc2_fb_count;
 static BOOL sc2_fb_built;
 
-/* Normalize SC2 pixel coords to FDF space (SC2 virtscreen 1600×1200 → 0.8×0.6) */
-static FLOAT fb_norm_x(int px) { return (FLOAT)px / SC2_VIRT_W * SC2_UI_BASE_W; }
-static FLOAT fb_norm_y(int py) { return (FLOAT)py / SC2_VIRT_H * SC2_UI_BASE_H; }
-
+/* Fallback builder uses native SC2 pixel coords (1600×1200). */
 static sc2BaseFrame_t *fb_add(DWORD parent_index, sc2FrameType sc2_type) {
     if (sc2_fb_count >= SC2_FB_MAX) return NULL;
     sc2BaseFrame_t *f = &sc2_fb_frames[sc2_fb_count];
@@ -192,10 +194,9 @@ static void fb_anchor(sc2BaseFrame_t *f, BOOL is_x, int side, int target, int of
     p->used = 1;
     p->targetPos = (uiFramePointPos_t)target;
     p->relative_index = (DWORD)-1;
-    p->offset = is_x ? fb_norm_x(offset_px) : -fb_norm_y(offset_px);
+    p->offset = is_x ? (FLOAT)offset_px : -(FLOAT)offset_px;
 }
 
-/* Doubles as a compile-check that SC2_VIRT_W/H are visible here: */
 static BOOL SC2_HUD_BuildFallbackLayout(void) {
     if (sc2_fb_built) return true;
     sc2_fb_built = true;
@@ -212,8 +213,8 @@ static BOOL SC2_HUD_BuildFallbackLayout(void) {
     /* Frame 1: console backdrop — full-width bar at bottom */
     sc2BaseFrame_t *console = fb_add(0, SC2_FRAMETYPE_CONSOLE_PANEL);
     if (!console) return false;
-    console->size.width  = SC2_UI_BASE_W;
-    console->size.height = fb_norm_y(260);
+    console->size.width  = 1600;
+    console->size.height = 260;
     fb_anchor(console, 1, FPP_MIN, FPP_MIN, 0);
     fb_anchor(console, 1, FPP_MAX, FPP_MAX, 0);
     fb_anchor(console, 0, FPP_MAX, FPP_MAX, 0);
@@ -222,8 +223,8 @@ static BOOL SC2_HUD_BuildFallbackLayout(void) {
     /* Frame 2: console background texture */
     sc2BaseFrame_t *bg = fb_add(1, SC2_FRAMETYPE_IMAGE);
     if (!bg) return false;
-    bg->size.width  = SC2_UI_BASE_W;
-    bg->size.height = fb_norm_y(260);
+    bg->size.width  = 1600;
+    bg->size.height = 260;
     bg->alpha = 0.65f;
     fb_anchor(bg, 1, FPP_MIN, FPP_MIN, 0);
     fb_anchor(bg, 1, FPP_MAX, FPP_MAX, 0);
@@ -234,16 +235,16 @@ static BOOL SC2_HUD_BuildFallbackLayout(void) {
     sc2BaseFrame_t *mm = fb_add(1, SC2_FRAMETYPE_MINIMAP);
     if (!mm) return false;
     mm->type = FT_MINIMAP;
-    mm->size.width  = fb_norm_x(240);
-    mm->size.height = fb_norm_y(240);
+    mm->size.width  = 240;
+    mm->size.height = 240;
     fb_anchor(mm, 1, FPP_MIN, FPP_MIN, 0);
     fb_anchor(mm, 0, FPP_MAX, FPP_MAX, 0);
 
     /* Frame 4: resource panel container (top-right) */
     sc2BaseFrame_t *res = fb_add(0, SC2_FRAMETYPE_RESOURCE_PANEL);
     if (!res) return false;
-    res->size.width  = fb_norm_x(400);
-    res->size.height = fb_norm_y(40);
+    res->size.width  = 400;
+    res->size.height = 40;
     fb_anchor(res, 1, FPP_MAX, FPP_MAX, -16);
     fb_anchor(res, 0, FPP_MIN, FPP_MIN, 16);
 
@@ -253,8 +254,8 @@ static BOOL SC2_HUD_BuildFallbackLayout(void) {
     gold->type = FT_TEXT;
     gold->stat = PLAYERSTATE_RESOURCE_GOLD;
     gold->text = "0";
-    gold->size.width  = fb_norm_x(80);
-    gold->size.height = fb_norm_y(20);
+    gold->size.width  = 80;
+    gold->size.height = 20;
     gold->label.textalignx = FONT_JUSTIFYRIGHT;
     fb_anchor(gold, 1, FPP_MAX, FPP_MAX, -4);
     fb_anchor(gold, 0, FPP_MIN, FPP_MIN, 4);
@@ -265,8 +266,8 @@ static BOOL SC2_HUD_BuildFallbackLayout(void) {
     gas->type = FT_TEXT;
     gas->stat = PLAYERSTATE_RESOURCE_LUMBER;
     gas->text = "0";
-    gas->size.width  = fb_norm_x(80);
-    gas->size.height = fb_norm_y(20);
+    gas->size.width  = 80;
+    gas->size.height = 20;
     gas->label.textalignx = FONT_JUSTIFYRIGHT;
     fb_anchor(gas, 1, FPP_MAX, FPP_MAX, -4);
     fb_anchor(gas, 0, FPP_MIN, FPP_MIN, 24);
@@ -277,8 +278,8 @@ static BOOL SC2_HUD_BuildFallbackLayout(void) {
     supply->type = FT_TEXT;
     supply->stat = PLAYERSTATE_RESOURCE_FOOD_USED;
     supply->text = "0/0";
-    supply->size.width  = fb_norm_x(80);
-    supply->size.height = fb_norm_y(20);
+    supply->size.width  = 80;
+    supply->size.height = 20;
     supply->label.textalignx = FONT_JUSTIFYRIGHT;
     fb_anchor(supply, 1, FPP_MAX, FPP_MAX, -4);
     fb_anchor(supply, 0, FPP_MIN, FPP_MIN, 44);

@@ -21,13 +21,9 @@
 /* -------------------------------------------------------------------------- */
 /* Constants                                                                   */
 /* -------------------------------------------------------------------------- */
+/* SC2 virtual screen resolution — native layout coordinate space. */
 #define SC2_VIRT_W 1600.0f
 #define SC2_VIRT_H 1200.0f
-/* The generic layout renderer uses a 0.8x0.6 (4:3) coordinate space for
-   non-WoW games.  SC2's virtual canvas is 1600x1200 (also 4:3), so map it
-   onto the renderer's base space rather than normalizing to 1.0x1.0. */
-#define SC2_UI_BASE_W 0.8f
-#define SC2_UI_BASE_H 0.6f
 
 /* -------------------------------------------------------------------------- */
 /* Forward declarations                                                        */
