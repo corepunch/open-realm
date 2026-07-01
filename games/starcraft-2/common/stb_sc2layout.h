@@ -315,7 +315,11 @@ extern uiImport_t uiimport;
 #define CLAMP(x, lo, hi) ((x) < (lo) ? (lo) : (x) > (hi) ? (hi) : (x))
 #endif
 
-static sc2Layout_t sc2_layout;
+#ifndef STB_SC2LAYOUT_GLOBALS
+extern sc2Layout_t sc2_layout;
+#else
+sc2Layout_t sc2_layout = { 0 };
+#endif
 
 static void SC2_Strncpyz(char *dst, LPCSTR src, size_t dst_size) {
     if (!dst || dst_size == 0) return;

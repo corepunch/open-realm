@@ -12,7 +12,6 @@
  */
 
 /* Pull in the SC2 layout parser (single-header library). */
-#define STB_SC2LAYOUT_IMPLEMENTATION
 #include "games/starcraft-2/common/stb_sc2layout.h"
 
 #include "hud.h"
