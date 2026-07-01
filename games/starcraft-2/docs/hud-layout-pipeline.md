@@ -192,3 +192,17 @@ sc2BaseFrame_t *SC2_LayoutFindFrameByType(sc2FrameType type) {
 ```
 
 Because templates and frames are in separate arrays, a two-step lookup is needed: find the template by type, then use its `resolved_index` to access the flattened frame. This contrasts with `SC2_LayoutFindFrameByName()` which iterates the flattened `frames[]` array directly.
+
+## SC2 Image frames → FT_TEXTURE not FT_SPRITE
+
+`SC2_FRAMETYPE_IMAGE` (the `<Frame type="Image">` SC2 element) maps to `FT_TEXTURE` in the engine, not `FT_SPRITE`. `FT_SPRITE` is reserved for `SC2_FRAMETYPE_MODEL` (3D scene models). `SCR_LayoutDrawTexture` handles `FT_TEXTURE` (2D images); `SCR_LayoutDrawSprite` handles `FT_SPRITE` (3D models via `re.DrawSprite`).
+
+## Cross-panel anchor override (ResourcePanel)
+
+The ResourcePanel in `GameUI.SC2Layout` uses `<Anchor side="Right" pos="Min" relative="$parent/CashPanel"/>` — its right edge is anchored to the left edge of CashPanel. CashPanel is not rendered in our subset. Without the fix, `lookup_number(CashPanel_flat_idx) = 0` (scene), and `targetPos=FPP_MIN` on the scene's x-axis gives `right_edge = scene.left + offset = 0 − 0.008 = −0.008`, placing the panel off-screen left.
+
+`resource_fix_anchor()` in `hud_resource.c` replaces the ResourcePanel root's anchors before writing:
+- x: `Right/Max` relative to parent (scene), offset −16 px → top-right of screen
+- y: `Top/Min` relative to parent (scene), offset +4 px → near the top
+
+This matches the SC2 default layout when all sibling panels are absent.

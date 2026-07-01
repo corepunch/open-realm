@@ -65,6 +65,7 @@ struct sc2BaseFrame_s;
 typedef struct sc2BaseFrame_s {
     DWORD number;
     FRAMETYPE type;
+    DWORD sc2_type;                  /* sc2FrameType — original SC2 type before FRAMETYPE mapping */
     LPCSTR name;                     /* points into persistent parsed template storage */
     void *parent;                   /* game resolves: pointer or index */
     DWORD parent_index;             /* index into frames array, -1 = root */

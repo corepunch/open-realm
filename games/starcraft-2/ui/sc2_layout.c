@@ -853,8 +853,9 @@ static FRAMETYPE SC2_MapFrameType(sc2FrameType sc2_type) {
     case SC2_FRAMETYPE_LEROY_BUTTON:
         return FT_BUTTON;
     case SC2_FRAMETYPE_IMAGE:
+        return FT_TEXTURE;  /* 2D image, drawn by SCR_LayoutDrawTexture */
     case SC2_FRAMETYPE_MODEL:
-        return FT_SPRITE;
+        return FT_SPRITE;   /* 3D model, drawn by SCR_LayoutDrawSprite */
     case SC2_FRAMETYPE_LABEL:
     case SC2_FRAMETYPE_COUNTDOWN_LABEL:
         return FT_TEXT;
@@ -902,6 +903,7 @@ static LPCSTR SC2_ParseRelativeName(LPCSTR relative, LPCSTR parent_name) {
 static void SC2_ResolveAnchors(sc2Frame_t *src, sc2BaseFrame_t *dst) {
     if (src->flags & SC2_FRAME_HAS_WIDTH) dst->size.width = src->width / SC2_VIRT_W * SC2_UI_BASE_W;
     if (src->flags & SC2_FRAME_HAS_HEIGHT) dst->size.height = src->height / SC2_VIRT_H * SC2_UI_BASE_H;
+
 
     sc2Frame_t *parent = NULL;
     if (dst->parent_index != (DWORD)-1) {
@@ -1053,6 +1055,7 @@ static void SC2_FlattenFrame(sc2Frame_t *frame, int parent_index) {
 
     dst->number = (DWORD)index;
     dst->type = SC2_MapFrameType(frame->type);
+    dst->sc2_type = frame->type;
     dst->name = frame->name;
     dst->parent_index = (parent_index >= 0) ? (DWORD)parent_index : (DWORD)-1;
 

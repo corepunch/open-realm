@@ -176,6 +176,7 @@ static sc2BaseFrame_t *fb_add(DWORD parent_index, sc2FrameType sc2_type) {
     memset(f, 0, sizeof(*f));
     f->number = sc2_fb_count;
     f->type = SC2_MapFrameType(sc2_type);
+    f->sc2_type = sc2_type;
     f->parent_index = parent_index;
     f->color = (COLOR32){ 255, 255, 255, 255 };
     f->alpha = 1.0f;
@@ -287,9 +288,8 @@ static BOOL SC2_HUD_BuildFallbackLayout(void) {
 }
 
 sc2BaseFrame_t *SC2_HUD_FindFallbackFrameByType(sc2FrameType type) {
-    FRAMETYPE mapped = SC2_MapFrameType(type);
     for (DWORD i = 0; i < sc2_fb_count; i++)
-        if (sc2_fb_frames[i].type == mapped) return &sc2_fb_frames[i];
+        if (sc2_fb_frames[i].sc2_type == type) return &sc2_fb_frames[i];
     return NULL;
 }
 
