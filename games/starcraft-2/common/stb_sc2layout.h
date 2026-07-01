@@ -936,9 +936,6 @@ static void SC2_ParseDescNode(void *node) {
             sc2Frame_t *tmpl = SC2_ResolveTemplatePath(frame->template_path);
             if (tmpl) {
                 SC2_ResolveTemplate(frame, tmpl);
-            } else {
-                fprintf(stderr, "SC2_Layout: template '%s' not found for frame '%s'\n",
-                        frame->template_path, frame->name);
             }
         }
     }
@@ -1277,12 +1274,24 @@ BOOL SC2_LayoutBuildGameUI(void) {
         "UI/Layout/UI/TimePanel.SC2Layout",
         "UI/Layout/UI/ConversationPanel.SC2Layout",
         "UI/Layout/UI/SubtitlePanel.SC2Layout",
+        "UI/Layout/UI/CashPanel.SC2Layout",
         "UI/Layout/UI/GameUI.SC2Layout",
         NULL,
     };
     for (int i = 0; core_files[i]; i++)
         if (!SC2_LayoutParseFile(core_files[i]))
             fprintf(stderr, "SC2_Layout: failed to load core file '%s'\n", core_files[i]);
+    int resolve_end = sc2_layout.num_templates;
+    for (int i = 0; i < resolve_end; i++) {
+        sc2Frame_t *frame = &sc2_layout.templates[i];
+        if (frame->template_path[0]) {
+            sc2Frame_t *tmpl = SC2_ResolveTemplatePath(frame->template_path);
+            if (tmpl) {
+                SC2_ResolveTemplate(frame, tmpl);
+                frame->template_path[0] = '\0';
+            }
+        }
+    }
     return SC2_LayoutFlatten("GameUI");
 }
 

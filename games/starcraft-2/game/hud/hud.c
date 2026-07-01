@@ -138,8 +138,29 @@ BOOL SC2_HUD_BuildFrameForWrite(LPCSC2BASEFRAME frame, uiFrame_t *out) {
 
 void SC2_HUD_WriteFrame(LPCSC2BASEFRAME frame) {
     uiFrame_t tmp;
-    if (SC2_HUD_BuildFrameForWrite(frame, &tmp))
+    if (SC2_HUD_BuildFrameForWrite(frame, &tmp)) {
+        static int log_writes;
+        if (!log_writes && frame->sc2_type == SC2_FRAMETYPE_RESOURCE_PANEL) {
+            log_writes = 1;
+            fprintf(stderr, "SC2_HUD_WriteFrame: uiFrame_t for ResourcePanel root:\n");
+            fprintf(stderr, "  number=%u parent=%u type=%d stat=%u\n",
+                    tmp.number, tmp.parent, tmp.flags.type, tmp.stat);
+            fprintf(stderr, "  size=(%.4f,%.4f) color=(%d,%d,%d,%d)\n",
+                    tmp.size.width, tmp.size.height,
+                    tmp.color.r, tmp.color.g, tmp.color.b, tmp.color.a);
+            for (int axis = 0; axis < 2; axis++) {
+                for (int j = 0; j < FPP_COUNT; j++) {
+                    uiFramePoint_t const *p = axis == 0 ? &tmp.points.x[j] : &tmp.points.y[j];
+                    if (p->used) {
+                        fprintf(stderr, "  %c[%d]: target=%d relative=%d offset=%d\n",
+                                axis == 0 ? 'x' : 'y', j,
+                                p->targetPos, p->relativeTo, p->offset);
+                    }
+                }
+            }
+        }
         gi.Write(PF_UIFRAME, &tmp);
+    }
 }
 
 void SC2_HUD_WriteFrameWithChildren(LPCSC2BASEFRAME frames, DWORD count,
