@@ -36,7 +36,8 @@ void SC2_HUD_WriteResourcePanel(LPEDICT ent) {
     DWORD count = 0;
     sc2BaseFrame_t *frames = SC2_HUD_EnsureLayout(&count);
     if (!frames) return;
-    sc2BaseFrame_t *root = resource_find();
-    if (!root) return;
-    SC2_HUD_WriteLayout(ent, frames, count, root, LAYER_CONSOLE);
+    resource_find();  /* ensure label -> stat binding */
+    /* Write the full GameUI tree so all cross-panel anchors resolve — the
+     * referenced panel must be in the same wire set (ResourcePanel → CashPanel). */
+    SC2_HUD_WriteLayout(ent, frames, count, &frames[0], LAYER_CONSOLE);
 }

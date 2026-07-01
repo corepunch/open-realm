@@ -44,7 +44,7 @@ static sc2BaseFrame_t *find_frame(sc2BaseFrame_t *frames, DWORD count, LPCSTR na
     for (DWORD i = 0; i < count; i++) {
         for (int j = 0; j < SC2_LayoutNumTemplates(); j++) {
             sc2Frame_t *tmpl = SC2_LayoutGetTemplate(j);
-            if (tmpl && tmpl->resolved_index == (int)i && !strcasecmp(tmpl->name, name))
+            if (tmpl && tmpl->resolved_frame == &frames[i] && !strcasecmp(tmpl->name, name))
                 return &frames[i];
         }
     }

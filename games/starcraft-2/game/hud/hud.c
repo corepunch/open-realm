@@ -56,25 +56,27 @@ void SC2_HUD_InitLayoutHost(void) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Frame numbering — mirrors WC3 UI_ResetFrameWriteList pattern */
+/* Frame numbering — flat wire[] map, (DWORD)-1 = unassigned */
 
 #define SC2_MAX_FRAMES_WRITE 512
-static DWORD frame_numbers[SC2_MAX_FRAMES_WRITE]; /* frame_numbers[i] = wire# for sc2BaseFrame[i] */
+static DWORD frame_to_wire[SC2_MAX_FRAMES_WRITE];
 static DWORD num_frames_written;
 
 static void reset_frame_write(void) {
-    memset(frame_numbers, 0, sizeof(frame_numbers));
+    for (int i = 0; i < SC2_MAX_FRAMES_WRITE; i++)
+        frame_to_wire[i] = (DWORD)-1;
     num_frames_written = 0;
 }
 
-static DWORD assign_number(DWORD index) {
-    if (index < SC2_MAX_FRAMES_WRITE && !frame_numbers[index])
-        frame_numbers[index] = ++num_frames_written;
-    return index < SC2_MAX_FRAMES_WRITE ? frame_numbers[index] : 0;
+static DWORD get_wire(DWORD index) {
+    return (index < SC2_MAX_FRAMES_WRITE && frame_to_wire[index] != (DWORD)-1)
+           ? frame_to_wire[index] : 0;
 }
 
-static DWORD lookup_number(DWORD index) {
-    return (index != (DWORD)-1 && index < SC2_MAX_FRAMES_WRITE) ? frame_numbers[index] : 0;
+static DWORD assign_number(DWORD index) {
+    if (index < SC2_MAX_FRAMES_WRITE && frame_to_wire[index] == (DWORD)-1)
+        frame_to_wire[index] = ++num_frames_written;
+    return get_wire(index);
 }
 
 /* ------------------------------------------------------------------ */
@@ -93,7 +95,7 @@ static void copy_points(uiFrame_t *out, LPCSC2BASEFRAME frame) {
             out->points.x[i].used      = 1;
             out->points.x[i].targetPos = px->targetPos;
             out->points.x[i].relativeTo = (px->relative_index != (DWORD)-1)
-                                          ? (BYTE)lookup_number(px->relative_index)
+                                          ? (BYTE)get_wire(px->relative_index)
                                           : UI_PARENT;
             out->points.x[i].offset = (int16_t)(sc2_to_engine_x(px->offset) * UI_FRAMEPOINT_SCALE);
         }
@@ -103,7 +105,7 @@ static void copy_points(uiFrame_t *out, LPCSC2BASEFRAME frame) {
             out->points.y[i].used      = 1;
             out->points.y[i].targetPos = py->targetPos;
             out->points.y[i].relativeTo = (py->relative_index != (DWORD)-1)
-                                          ? (BYTE)lookup_number(py->relative_index)
+                                          ? (BYTE)get_wire(py->relative_index)
                                           : UI_PARENT;
             out->points.y[i].offset = (int16_t)(sc2_to_engine_y(py->offset) * UI_FRAMEPOINT_SCALE);
         }
@@ -118,7 +120,7 @@ BOOL SC2_HUD_BuildFrameForWrite(LPCSC2BASEFRAME frame, uiFrame_t *out) {
     memset(out, 0, sizeof(*out));
     out->number = assign_number(frame->number);
     out->parent = (frame->parent_index != (DWORD)-1)
-                  ? lookup_number(frame->parent_index)
+                  ? get_wire(frame->parent_index)
                   : 0;
     out->color       = frame->color;
     out->color.a     = (BYTE)(out->color.a * frame->alpha);
@@ -138,29 +140,8 @@ BOOL SC2_HUD_BuildFrameForWrite(LPCSC2BASEFRAME frame, uiFrame_t *out) {
 
 void SC2_HUD_WriteFrame(LPCSC2BASEFRAME frame) {
     uiFrame_t tmp;
-    if (SC2_HUD_BuildFrameForWrite(frame, &tmp)) {
-        static int log_writes;
-        if (!log_writes && frame->sc2_type == SC2_FRAMETYPE_RESOURCE_PANEL) {
-            log_writes = 1;
-            fprintf(stderr, "SC2_HUD_WriteFrame: uiFrame_t for ResourcePanel root:\n");
-            fprintf(stderr, "  number=%u parent=%u type=%d stat=%u\n",
-                    tmp.number, tmp.parent, tmp.flags.type, tmp.stat);
-            fprintf(stderr, "  size=(%.4f,%.4f) color=(%d,%d,%d,%d)\n",
-                    tmp.size.width, tmp.size.height,
-                    tmp.color.r, tmp.color.g, tmp.color.b, tmp.color.a);
-            for (int axis = 0; axis < 2; axis++) {
-                for (int j = 0; j < FPP_COUNT; j++) {
-                    uiFramePoint_t const *p = axis == 0 ? &tmp.points.x[j] : &tmp.points.y[j];
-                    if (p->used) {
-                        fprintf(stderr, "  %c[%d]: target=%d relative=%d offset=%d\n",
-                                axis == 0 ? 'x' : 'y', j,
-                                p->targetPos, p->relativeTo, p->offset);
-                    }
-                }
-            }
-        }
+    if (SC2_HUD_BuildFrameForWrite(frame, &tmp))
         gi.Write(PF_UIFRAME, &tmp);
-    }
 }
 
 void SC2_HUD_WriteFrameWithChildren(LPCSC2BASEFRAME frames, DWORD count,

@@ -178,20 +178,20 @@ Before this fix, missing `side`/`pos` was treated as malformed input and the par
 
 ## Frame lookup by SC2 type
 
-`SC2_LayoutFindFrameType()` iterates parsed `templates[]` comparing `sc2FrameType` enum values, then returns the corresponding flattened frame via `resolved_index`. Only templates that were visited during flattening (children of the `GameUI` root) have `resolved_index >= 0`. Panel root frames like `ConsolePanel`, `ResourcePanel`, `CommandPanel`, and `InfoPanel` are children of the `GameUI` frame in `GameUI.SC2Layout` and are always flattened.
+`SC2_LayoutFindFrameType()` iterates parsed `templates[]` comparing `sc2FrameType` enum values, then returns the corresponding flattened frame via `resolved_frame` pointer. Only templates that were visited during flattening (children of the `GameUI` root) have `resolved_frame != NULL`. Panel root frames like `ConsolePanel`, `ResourcePanel`, `CommandPanel`, and `InfoPanel` are children of the `GameUI` frame in `GameUI.SC2Layout` and are always flattened.
 
 ```c
 sc2BaseFrame_t *SC2_LayoutFindFrameByType(sc2FrameType type) {
     for (int i = 0; i < sc2_layout.num_templates; i++) {
         sc2Frame_t *tmpl = &sc2_layout.templates[i];
-        if (tmpl->type == type && tmpl->resolved_index >= 0)
-            return &sc2_layout.frames[tmpl->resolved_index];
+        if (tmpl->type == type && tmpl->resolved_frame)
+            return tmpl->resolved_frame;
     }
     return NULL;
 }
 ```
 
-Because templates and frames are in separate arrays, a two-step lookup is needed: find the template by type, then use its `resolved_index` to access the flattened frame. This contrasts with `SC2_LayoutFindFrameByName()` which iterates the flattened `frames[]` array directly.
+Templates store a direct pointer to their flattened frame via `resolved_frame`, avoiding index-based lookups between the two arrays. This contrasts with `SC2_LayoutFindFrameByName()` which iterates the flattened `frames[]` array directly.
 
 ## SC2 Image frames → FT_TEXTURE not FT_SPRITE
 

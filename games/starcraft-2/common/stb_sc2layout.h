@@ -170,6 +170,7 @@ typedef struct {
     BOOL used;
     DWORD relative_index;
     FLOAT offset;
+    LPCSTR relative_name;   /* non-NULL = unresolved named-relative (pending post-pass) */
 } sc2BaseFramePoint_t;
 
 typedef sc2BaseFramePoint_t sc2BaseFramePoints_t[FPP_COUNT];
@@ -245,7 +246,7 @@ typedef struct sc2Frame_s {
     struct sc2Frame_s *children[SC2_MAX_CHILDREN];
     int num_children;
     struct sc2Frame_s *parent;
-    int resolved_index;
+    sc2BaseFrame_t *resolved_frame;
     PATHSTR source_file;
 } sc2Frame_t;
 
@@ -585,7 +586,7 @@ static void SC2_ResolveTemplate(sc2Frame_t *frame, sc2Frame_t *tmpl) {
         *clone = *tmpl->children[i];
         clone->template_path[0] = '\0';
         clone->parent = frame;
-        clone->resolved_index = -1;
+        clone->resolved_frame = NULL;
         frame->children[frame->num_children++] = clone;
     }
 }
@@ -766,7 +767,7 @@ static void SC2_ParseFrameAttrs(void *node, sc2Frame_t *frame) {
         SC2_XmlFree(image);
     }
 
-    frame->resolved_index = -1;
+    frame->resolved_frame = NULL;
 }
 
 static void SC2_ParseFrameChildren(void *node, sc2Frame_t *frame) {
@@ -1018,15 +1019,7 @@ static void SC2_ResolveAnchors(sc2Frame_t *src, sc2BaseFrame_t *dst) {
     if (src->flags & SC2_FRAME_HAS_WIDTH) dst->size.width = src->width;
     if (src->flags & SC2_FRAME_HAS_HEIGHT) dst->size.height = src->height;
 
-    sc2Frame_t *parent = NULL;
-    if (dst->parent_index != (DWORD)-1) {
-        for (int i = 0; i < sc2_layout.num_templates; i++) {
-            if (sc2_layout.templates[i].resolved_index == (int)dst->parent_index) {
-                parent = &sc2_layout.templates[i];
-                break;
-            }
-        }
-    }
+    sc2Frame_t *parent = src->parent;
     LPCSTR parent_name = parent ? parent->name : NULL;
 
     for (int i = 0; i < src->num_anchors; i++) {
@@ -1057,7 +1050,7 @@ static void SC2_ResolveAnchors(sc2Frame_t *src, sc2BaseFrame_t *dst) {
         } else if (!strcasecmp(a->relative, "$root")) {
             p->relative_index = 0;
         } else {
-            p->relative_index = (DWORD)-2;
+            p->relative_name = resolved_name;
         }
     }
 }
@@ -1068,40 +1061,15 @@ static void SC2_ResolveNamedRelatives(void) {
         for (int axis = 0; axis < 2; axis++) {
             sc2BaseFramePoint_t *pts = axis == 0 ? dst->points.x : dst->points.y;
             for (int j = 0; j < FPP_COUNT; j++) {
-                if (pts[j].relative_index != (DWORD)-2) continue;
-                sc2Frame_t *src = NULL;
-                for (int k = 0; k < sc2_layout.num_templates; k++) {
-                    if (sc2_layout.templates[k].resolved_index == (int)i) {
-                        src = &sc2_layout.templates[k];
+                LPCSTR look_name = pts[j].relative_name;
+                if (!look_name) continue;
+                for (DWORD m = 0; m < (DWORD)sc2_layout.num_frames; m++) {
+                    if (sc2_layout.frames[m].name && !strcasecmp(sc2_layout.frames[m].name, look_name)) {
+                        pts[j].relative_index = m;
                         break;
                     }
                 }
-                if (!src) continue;
-                for (int k = 0; k < src->num_anchors; k++) {
-                    sc2ParsedAnchor_t *a = &src->anchors[k];
-                    if (!(a->flags & SC2_ANCHOR_HAS)) continue;
-                    BOOL is_x_axis = (a->side == SC2_SIDE_LEFT || a->side == SC2_SIDE_RIGHT);
-                    if ((axis == 0) != is_x_axis) continue;
-                    int a_point = (a->side == SC2_SIDE_LEFT || a->side == SC2_SIDE_TOP) ? FPP_MIN :
-                                  (a->side == SC2_SIDE_RIGHT || a->side == SC2_SIDE_BOTTOM) ? FPP_MAX : FPP_MID;
-                    if (a_point != j) continue;
-                    LPCSTR look_name = a->relative;
-                    if (!strncasecmp(look_name, "$parent/", 8)) look_name += 8;
-                    for (DWORD m = 0; m < (DWORD)sc2_layout.num_frames; m++) {
-                        sc2Frame_t *f = NULL;
-                        for (int n = 0; n < sc2_layout.num_templates; n++) {
-                            if (sc2_layout.templates[n].resolved_index == (int)m) {
-                                f = &sc2_layout.templates[n];
-                                break;
-                            }
-                        }
-                        if (f && !strcasecmp(f->name, look_name)) {
-                            pts[j].relative_index = m;
-                            break;
-                        }
-                    }
-                    break;
-                }
+                pts[j].relative_name = NULL;
             }
         }
     }
@@ -1195,7 +1163,7 @@ static void SC2_FlattenFrame(sc2Frame_t *frame, int parent_index) {
         }
     }
 
-    frame->resolved_index = index;
+    frame->resolved_frame = dst;
 
     for (int i = 0; i < frame->num_children; i++)
         SC2_FlattenFrame(frame->children[i], index);
@@ -1204,7 +1172,7 @@ static void SC2_FlattenFrame(sc2Frame_t *frame, int parent_index) {
 void SC2_LayoutInit(void) {
     memset(&sc2_layout, 0, sizeof(sc2_layout));
     for (int i = 0; i < SC2_MAX_TEMPLATES; i++)
-        sc2_layout.templates[i].resolved_index = -1;
+        sc2_layout.templates[i].resolved_frame = NULL;
 }
 
 void SC2_LayoutShutdown(void) {
@@ -1321,8 +1289,8 @@ sc2Frame_t *SC2_LayoutFindTemplate(LPCSTR name) {
 sc2BaseFrame_t *SC2_LayoutFindFrameByType(sc2FrameType type) {
     for (int i = 0; i < sc2_layout.num_templates; i++) {
         sc2Frame_t *tmpl = &sc2_layout.templates[i];
-        if (tmpl->type == type && tmpl->resolved_index >= 0)
-            return &sc2_layout.frames[tmpl->resolved_index];
+        if (tmpl->type == type && tmpl->resolved_frame)
+            return tmpl->resolved_frame;
     }
     return NULL;
 }
