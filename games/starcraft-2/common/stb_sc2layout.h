@@ -219,4 +219,75 @@ void         SC2_SetHidden(LPSC2FRAMEDEF frame, BOOL value);
 void         SC2_SetEnabled(LPSC2FRAMEDEF frame, BOOL enabled);
 void         SC2_SetText(LPSC2FRAMEDEF frame, LPCSTR format, ...);
 
+/* -------------------------------------------------------------------------- */
+/* Pure frame helpers — extern declarations for non-implementation TUs          */
+/* -------------------------------------------------------------------------- */
+#ifndef STB_SC2LAYOUT_IMPLEMENTATION
+void SC2_InitFrame(LPSC2FRAMEDEF frame, FRAMETYPE type);
+void SC2_SetPoint(LPSC2FRAMEDEF frame, uiFramePointPos_t framePointX, uiFramePointPos_t framePointY, LPCSC2FRAMEDEF other, uiFramePointPos_t otherPoint, FLOAT x, FLOAT y);
+void SC2_SetAllPoints(LPSC2FRAMEDEF frame);
+void SC2_SetParent(LPSC2FRAMEDEF frame, LPCSC2FRAMEDEF parent);
+void SC2_SetSize(LPSC2FRAMEDEF frame, FLOAT width, FLOAT height);
+void SC2_SetHidden(LPSC2FRAMEDEF frame, BOOL value);
+void SC2_SetEnabled(LPSC2FRAMEDEF frame, BOOL enabled);
+void SC2_SetText(LPSC2FRAMEDEF frame, LPCSTR format, ...);
+#endif /* !STB_SC2LAYOUT_IMPLEMENTATION */
+
+#ifdef STB_SC2LAYOUT_IMPLEMENTATION
+
+static void SC2_InitFrame(LPSC2FRAMEDEF frame, FRAMETYPE type) {
+    memset(frame, 0, sizeof(*frame));
+    frame->Type = type;
+    frame->Alpha = 1.0f;
+    frame->Color = (COLOR32){255, 255, 255, 255};
+    FOR_LOOP(i, FPP_COUNT) {
+        frame->Points.x[i].targetPos = (uiFramePointPos_t)i;
+        frame->Points.y[i].targetPos = (uiFramePointPos_t)i;
+    }
+}
+
+static void SC2_SetPoint(LPSC2FRAMEDEF frame, uiFramePointPos_t fpx, uiFramePointPos_t fpy, LPCSC2FRAMEDEF other, uiFramePointPos_t otherPoint, FLOAT x, FLOAT y) {
+    frame->Points.x[fpx].used = true;
+    frame->Points.x[fpx].targetPos = otherPoint;
+    frame->Points.x[fpx].relativeTo = other;
+    frame->Points.x[fpx].offset = x;
+    frame->Points.y[fpy].used = true;
+    frame->Points.y[fpy].targetPos = otherPoint;
+    frame->Points.y[fpy].relativeTo = other;
+    frame->Points.y[fpy].offset = y;
+}
+
+static void SC2_SetAllPoints(LPSC2FRAMEDEF frame) {
+    SC2_SetPoint(frame, FPP_MIN, FPP_MIN, frame->Parent, FPP_MIN, 0, 0);
+    SC2_SetPoint(frame, FPP_MAX, FPP_MAX, frame->Parent, FPP_MAX, 0, 0);
+}
+
+static void SC2_SetParent(LPSC2FRAMEDEF frame, LPCSC2FRAMEDEF parent) {
+    frame->Parent = parent;
+}
+
+static void SC2_SetSize(LPSC2FRAMEDEF frame, FLOAT width, FLOAT height) {
+    frame->Width = width;
+    frame->Height = height;
+}
+
+static void SC2_SetHidden(LPSC2FRAMEDEF frame, BOOL value) {
+    frame->hidden = value;
+}
+
+static void SC2_SetEnabled(LPSC2FRAMEDEF frame, BOOL enabled) {
+    frame->disabled = !enabled;
+}
+
+static void SC2_SetText(LPSC2FRAMEDEF frame, LPCSTR format, ...) {
+    va_list args;
+    va_start(args, format);
+    vsnprintf(frame->DynamicText, frame->DynamicTextCapacity, format, args);
+    va_end(args);
+    frame->TextLength = (DWORD)strlen(frame->DynamicText);
+    frame->Text = frame->DynamicText;
+}
+
+#endif /* STB_SC2LAYOUT_IMPLEMENTATION */
+
 #endif /* stb_sc2layout_h */
