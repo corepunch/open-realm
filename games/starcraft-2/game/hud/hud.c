@@ -11,16 +11,13 @@
  * parent_index == (DWORD)-1 means the frame is a root (parent = 0).
  */
 
+/* Pull in the SC2 layout parser (single-header library). */
+#define STB_SC2LAYOUT_IMPLEMENTATION
+#include "games/starcraft-2/common/stb_sc2layout.h"
+
 #include "hud.h"
 #include "client/ui.h"
 #include <string.h>
-
-/* Pull in the SC2 layout parser directly (it lives in the UI module but the
- * game module needs it for server-side parsing).  Unity build would only pick
- * up files under $(SC2_DIR)/game; including the .c here is the correct way to
- * bring in a single out-of-tree translation unit without polluting the ui/
- * directory listing. */
-#include "games/starcraft-2/ui/sc2_layout.c"
 
 /* uiimport — host services for sc2_layout.c when compiled into the game module.
  * gi.ReadFile signature (HANDLE, LPDWORD) differs from uiimport.FS_ReadFile
@@ -300,8 +297,7 @@ sc2BaseFrame_t *SC2_HUD_EnsureLayout(DWORD *count) {
         layout_ok = SC2_LayoutBuildGameUI();
     }
     if (layout_ok) {
-        if (count) *count = (DWORD)sc2_layout.num_frames;
-        return sc2_layout.frames;
+        return SC2_LayoutGetFrames(count);
     }
     /* Fallback when SC2 data is unavailable */
     if (SC2_HUD_BuildFallbackLayout()) {
