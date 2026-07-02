@@ -25,11 +25,8 @@ static sc2BaseFrame_t *resource_find(void) {
             { "SupplyLabel", PLAYERSTATE_RESOURCE_FOOD_USED },
         };
         FOR_LOOP(i, sizeof(bindings) / sizeof(*bindings)) {
-            sc2BaseFrame_t *label = SC2_LayoutFindFrameByName(bindings[i].name);
-            if (!label) {
-                fprintf(stderr, "SC2_HUD: missing resource label '%s'\n", bindings[i].name);
-                continue;
-            }
+            sc2BaseFrame_t *label = SC2_LayoutFindChildFrame(root, bindings[i].name);
+            if (!label) continue;
             label->stat = bindings[i].stat;
         }
         return root;

@@ -295,8 +295,6 @@ static void SC2_Init(void) {
     globals.max_clients = SC2_MAX_CLIENTS;
     SC2_InitClients();
     SC2_HUD_InitLayoutHost();
-    /* Register HUD configstrings before clients connect; RunFrame happens after the initial handshake. */
-    SC2_HUD_EnsureLayout(NULL);
 }
 
 static void SC2_Shutdown(void) {
@@ -317,6 +315,11 @@ static bool SC2_LoadMap(LPCSTR mapFilename) {
         gi.ClearWorld();
     }
     SC2_SpawnEntities();
+    /* Register HUD configstrings after memset(&sv,...) in SV_Map wipes them.
+     * SC2_Init sets up uiimport callbacks; the actual configstring registration
+     * (layout parse → FontIndex → SV_FindIndex) must happen here, after the
+     * server struct has been zeroed and ge->LoadMap has run. */
+    SC2_HUD_EnsureLayout(NULL);
     return true;
 }
 
