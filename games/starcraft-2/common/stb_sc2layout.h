@@ -989,6 +989,8 @@ FRAMETYPE SC2_MapFrameType(sc2FrameType sc2_type) {
         return FT_BUTTON;
     case SC2_FRAMETYPE_IMAGE:
         return FT_TEXTURE;
+    case SC2_FRAMETYPE_MINIMAP:
+        return FT_MINIMAP;
     case SC2_FRAMETYPE_MODEL:
         return FT_SPRITE;
     case SC2_FRAMETYPE_LABEL:

@@ -94,9 +94,9 @@ static void copy_points(uiFrame_t *out, LPCSC2BASEFRAME frame) {
         if (px->used) {
             out->points.x[i].used      = 1;
             out->points.x[i].targetPos = px->targetPos;
-            out->points.x[i].relativeTo = (px->relative_index != (DWORD)-1)
-                                          ? (BYTE)get_wire(px->relative_index)
-                                          : UI_PARENT;
+            out->points.x[i].relativeTo = (BYTE)((px->relative_index != (DWORD)-1)
+                                          ? get_wire(px->relative_index)
+                                          : UI_PARENT);
             out->points.x[i].offset = (int16_t)(sc2_to_engine_x(px->offset) * UI_FRAMEPOINT_SCALE);
         }
         /* Y axis */
@@ -104,9 +104,9 @@ static void copy_points(uiFrame_t *out, LPCSC2BASEFRAME frame) {
         if (py->used) {
             out->points.y[i].used      = 1;
             out->points.y[i].targetPos = py->targetPos;
-            out->points.y[i].relativeTo = (py->relative_index != (DWORD)-1)
-                                          ? (BYTE)get_wire(py->relative_index)
-                                          : UI_PARENT;
+            out->points.y[i].relativeTo = (BYTE)((py->relative_index != (DWORD)-1)
+                                          ? get_wire(py->relative_index)
+                                          : UI_PARENT);
             out->points.y[i].offset = (int16_t)(sc2_to_engine_y(py->offset) * UI_FRAMEPOINT_SCALE);
         }
     }
@@ -153,6 +153,18 @@ void SC2_HUD_WriteFrameWithChildren(LPCSC2BASEFRAME frames, DWORD count,
             !(frames[i].ui_flags & SC2_UIFLAG_HIDDEN))
             SC2_HUD_WriteFrameWithChildren(frames, count, &frames[i]);
     }
+}
+
+/* Walk the parent chain of 'frame' to the root and write each ancestor
+ * once (root first), so every parent has a smaller wire number than its
+ * children.  Already-assigned frames are silently skipped by assign_number. */
+void SC2_HUD_WriteAncestors(LPCSC2BASEFRAME frames, DWORD count,
+                             LPCSC2BASEFRAME frame) {
+    if (!frame || frame->parent_index == (DWORD)-1) return;
+    LPCSC2BASEFRAME parent = &frames[frame->parent_index];
+    SC2_HUD_WriteAncestors(frames, count, parent);
+    if (!(parent->ui_flags & SC2_UIFLAG_HIDDEN))
+        SC2_HUD_WriteFrame(parent);
 }
 
 /* ------------------------------------------------------------------ */
@@ -325,7 +337,7 @@ void SC2_HUD_WriteEnd(LPEDICT ent) {
 
 void SC2_HUD_WriteLayout(LPEDICT ent, LPCSC2BASEFRAME frames, DWORD count,
                          LPCSC2BASEFRAME root, DWORD layer) {
-    SC2_HUD_WriteStart(layer);
+    SC2_HUD_WriteStart(layer);   /* resets num_frames_written to 0 */
     SC2_HUD_WriteFrameWithChildren(frames, count, root);
     SC2_HUD_WriteEnd(ent);
 }

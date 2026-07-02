@@ -23,6 +23,12 @@ BOOL SC2_HUD_BuildFrameForWrite(LPCSC2BASEFRAME frame, uiFrame_t *out);
 /* Write one frame (calls SC2_HUD_BuildFrameForWrite + gi.Write). */
 void SC2_HUD_WriteFrame(LPCSC2BASEFRAME frame);
 
+/* Write the parent chain of 'frame' up to the root, root first, skipping
+ * already-assigned frames.  Ensures all ancestor wire numbers exist before
+ * children reference them. */
+void SC2_HUD_WriteAncestors(LPCSC2BASEFRAME frames, DWORD count,
+                             LPCSC2BASEFRAME frame);
+
 /* Write frame tree rooted at 'frame' recursively (depth-first, skip hidden). */
 void SC2_HUD_WriteFrameWithChildren(LPCSC2BASEFRAME frames, DWORD count,
                                     LPCSC2BASEFRAME frame);
