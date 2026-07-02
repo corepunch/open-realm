@@ -1648,7 +1648,6 @@ static void UIWow_XMLDrawBackdrop(uiWowXmlElem_t const *e, LPCRECT r) {
     db.insets.bottom = e->backdrop_insets[WOW_XML_BACKDROP_BOTTOM];
     db.insets.left = e->backdrop_insets[WOW_XML_BACKDROP_LEFT];
     if (e->flags & EF_BACKDROP_TILE) db.flags |= DRAW_TILE;
-    db.flags |= DRAW_EDGE_2X2;
 
     wow_ui.renderer->DrawBackdrop(&db);
 }

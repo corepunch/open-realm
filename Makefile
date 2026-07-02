@@ -150,7 +150,7 @@ font:       $(FONT_HEADER)
 $(TOOL_NAMES): %: $(BIN_DIR)/%$(EXE_EXT)
 
 run-wow: $(WOW_BINARY)
-	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +map World/Maps/Azeroth/Azeroth.wdt $(ARGS)
+	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) $(ARGS)
 
 build-run-wow: openwow
 	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR)
