@@ -147,8 +147,9 @@ drawText_t SCR_GetDrawText(LPCUIFRAME frame,
                       LPCSTR text,
                       uiLabel_t const *label)
 {
+    LPCFONT font = cl.fonts[label->font];
     return MAKE(drawText_t,
-                .font = cl.fonts[label->font],
+                .font = font,
                 .text = text,
                 .color = frame->color,
                 .halign = label->textalignx,

@@ -361,14 +361,15 @@ bool R_TraceMinimap(float x, float y, LPVECTOR2 outWorld) {
 }
 
 void R_DrawMinimap(LPCRECT screen) {
-    if (!tr.minimap || !screen) {
+    if (!screen) {
         return;
     }
 
     tr.minimapRect = *screen;
     tr.hasMinimap = true;
 
-    R_DrawImage(tr.minimap, screen, &MAKE(RECT, 0, 0, 1, 1), COLOR32_WHITE);
+    LPCTEXTURE tex = tr.minimap ? tr.minimap : tr.texture[TEX_WHITE];
+    R_DrawImage(tex, screen, &MAKE(RECT, 0, 0, 1, 1), COLOR32_WHITE);
 
     if (tr.world && tr.shader[SHADER_MINIMAP_FOG]) {
         DWORD const fow_texid = R_GetMinimapFogOfWarTexture();

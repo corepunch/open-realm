@@ -1,6 +1,6 @@
 #include "g_sc2_local.h"
 #include "games/starcraft-2/common/sc2_map.h"
-#include "hud/hud_local.h"
+#include "games/starcraft-2/game/hud/hud.h"
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
@@ -294,13 +294,12 @@ static void SC2_Init(void) {
     globals.max_edicts = SC2_MAX_EDICTS;
     globals.max_clients = SC2_MAX_CLIENTS;
     SC2_InitClients();
-    SC2_HudInit();
+    SC2_HUD_InitLayoutHost();
 }
 
 static void SC2_Shutdown(void) {
     G_FreeModels();
     SC2_MapShutdown();
-    SC2_HudShutdown();
 }
 
 static void SC2_SpawnEntities(void);
@@ -316,6 +315,11 @@ static bool SC2_LoadMap(LPCSTR mapFilename) {
         gi.ClearWorld();
     }
     SC2_SpawnEntities();
+    /* Register HUD configstrings after memset(&sv,...) in SV_Map wipes them.
+     * SC2_Init sets up uiimport callbacks; the actual configstring registration
+     * (layout parse → FontIndex → SV_FindIndex) must happen here, after the
+     * server struct has been zeroed and ge->LoadMap has run. */
+    SC2_HUD_EnsureLayout(NULL);
     return true;
 }
 
@@ -376,13 +380,9 @@ static void SC2_RunFrame(void) {
     }
     SC2_SolveCollisions();
 
-    /* Send HUD to each connected client */
-    FOR_LOOP(i, globals.max_clients) {
-        LPEDICT ent = &sc2_edicts[i];
-        if (!ent->inuse || !ent->client) continue;
-
-        SC2_WriteConsoleLayout(ent);
-    }
+    /* HUD is sent on client connect only — static panels never change.
+     * Dynamic panels (command/info) will be sent on selection change
+     * when that system is wired up. */
 }
 
 static void SC2_ClientBegin(LPEDICT ent) {
@@ -394,6 +394,14 @@ static void SC2_ClientBegin(LPEDICT ent) {
     }
     ent->client = &sc2_clients[number];
     ent->client->ps.client_ui_state = CLIENT_UI_GAME;
+
+    /* Send initial static HUD — console backdrop, resource bar,
+     * command panel, info panel.  The client retains the last
+     * received layout per layer and renders it every frame. */
+    SC2_HUD_WriteResourcePanel(ent);
+    SC2_HUD_WriteConsolePanel(ent);
+    SC2_HUD_WriteCommandPanel(ent);
+    SC2_HUD_WriteInfoPanel(ent);
 }
 
 static void SC2_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {

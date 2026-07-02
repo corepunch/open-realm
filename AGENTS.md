@@ -15,6 +15,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WoW character display, DBC/skin-section/component-texture rules | [docs/wow-character.md](docs/wow-character.md) |
 | Entity sound architecture | [doc/architecture/sound.md](doc/architecture/sound.md) |
 | WC3 data model (SLK, unit stats, combat) | [docs/wc3-data-model.md](docs/wc3-data-model.md) |
+| SC2 HUD layout pipeline (sc2BaseFrame_t → uiFrame_t, layer IDs, stat bindings) | [games/starcraft-2/docs/hud-layout-pipeline.md](games/starcraft-2/docs/hud-layout-pipeline.md) |
 
 ## Coding Style
 
@@ -61,6 +62,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 
 ## What to Avoid
 
+- **Do not patch loaded UI layout in code.** SC2Layout and FDF files define the correct layout. When a panel's anchors seem wrong (e.g. off-screen positioning from a cross-panel reference), fix the anchor resolution in the layout system so it handles the case correctly — don't override anchors per-panel in game code. The layout data is authoritative; code must apply it faithfully.
 - Do not introduce helper variables just to name an intermediate result if the expression is already readable inline.
 - Do not add blank lines between short, related statements.
 - Do not split a declaration and its first assignment onto separate lines.
@@ -79,6 +81,8 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 - **New code paths need new tests.** If you add an `if` branch, a new function, a new field, or a new cache/state machine, write a test for the new path and its inverse.
 - **Cache/state-machine changes double-test.** Test both cache hit and cache miss paths, and verify performance counters where tracked.
 - **Run `make test` before committing.** The WC3 test binary (`test_openwarcraft3`) includes all unit tests.
+- **Compile and run tests before finishing any work.** Run `make run-sc2` to verify the build compiles, then `make test` to confirm all tests pass. Never mark work complete without a green test run.
+- **Auto-quit the app with `+com_frame_limit N`.** When running the binary for verification, pass `+com_frame_limit 100` (or similar) so the process exits after N frames without manual intervention. Example: `make run-sc2 ARGS="+com_frame_limit 100"`
 - **`git blame` before changing existing struct/API fields.** Understand why a field exists and what trade-offs were made before changing it.
 - **Do not disable a failing test.** Fix the code or fix the test — do not comment it out, add `SKIP`, or reduce its coverage.
 
@@ -137,6 +141,7 @@ Follow Quake 2's pattern. Never fail silently, never crash, never log per-frame.
 - Update the relevant dedicated file in `docs/` or `doc/architecture/` rather than adding large blocks here.
 - Keep AGENTS.md as a concise index and rule set. Detailed workflows and reference material belong in dedicated files.
 - Keep documentation concise and actionable — prefer command examples and file paths over prose.
+- **Populate docs as you go.** Any fact that required research — a lookup in GitHub issues, a `gh issue view`, an API signature dug up from source, a format quirk discovered during parsing — belongs in the relevant `docs/` file immediately after you discover it. Do not leave findings only in conversation context. If no doc file exists for the subsystem yet, create one. Future agents (and future you) must be able to answer the same question from docs without repeating the research.
 
 ## GitHub Issues
 

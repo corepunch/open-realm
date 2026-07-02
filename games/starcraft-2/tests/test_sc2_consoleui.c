@@ -44,7 +44,7 @@ static sc2BaseFrame_t *find_frame(sc2BaseFrame_t *frames, DWORD count, LPCSTR na
     for (DWORD i = 0; i < count; i++) {
         for (int j = 0; j < SC2_LayoutNumTemplates(); j++) {
             sc2Frame_t *tmpl = SC2_LayoutGetTemplate(j);
-            if (tmpl && tmpl->resolved_index == (int)i && !strcasecmp(tmpl->name, name))
+            if (tmpl && tmpl->resolved_frame == &frames[i] && !strcasecmp(tmpl->name, name))
                 return &frames[i];
         }
     }
@@ -296,20 +296,20 @@ static void test_adapter_flatten_types_mapped(void) {
     ASSERT_NOT_NULL(cmd);
     ASSERT_EQ_INT(cmd->type, FT_BUTTON);
 
-    /* MineralIcon (Image) → FT_SPRITE */
+    /* MineralIcon (Image) → FT_TEXTURE (2D image, not a 3D model sprite) */
     sc2BaseFrame_t *icon = find_frame(frames, count, "MineralIcon");
     ASSERT_NOT_NULL(icon);
-    ASSERT_EQ_INT(icon->type, FT_SPRITE);
+    ASSERT_EQ_INT(icon->type, FT_TEXTURE);
 
     /* MineralCount (Label) → FT_TEXT */
     sc2BaseFrame_t *label = find_frame(frames, count, "MineralCount");
     ASSERT_NOT_NULL(label);
     ASSERT_EQ_INT(label->type, FT_TEXT);
 
-    /* Portrait (Image) → FT_SPRITE */
+    /* Portrait (Image) → FT_TEXTURE (2D image, not a 3D model sprite) */
     sc2BaseFrame_t *portrait = find_frame(frames, count, "Portrait");
     ASSERT_NOT_NULL(portrait);
-    ASSERT_EQ_INT(portrait->type, FT_SPRITE);
+    ASSERT_EQ_INT(portrait->type, FT_TEXTURE);
 
     SC2_LayoutShutdown();
 }
@@ -406,6 +406,15 @@ static void test_adapter_cross_frame_relative_index(void) {
     ASSERT_NOT_NULL(cmd02);
     ASSERT_EQ_INT(cmd03->points.x[FPP_MIN].relative_index, cmd02->number);
 
+    /* MineralCount references $parent/MineralIcon — critical for correct label positioning.
+     * If this relative_index is wrong, the label renders at the scene edge instead of
+     * next to the icon, making text appear "not drawn" in the resource bar. */
+    sc2BaseFrame_t *label = find_frame(frames, count, "MineralCount");
+    sc2BaseFrame_t *icon  = find_frame(frames, count, "MineralIcon");
+    ASSERT_NOT_NULL(label);
+    ASSERT_NOT_NULL(icon);
+    ASSERT_EQ_INT(label->points.x[FPP_MIN].relative_index, icon->number);
+
     SC2_LayoutShutdown();
 }
 
@@ -434,6 +443,54 @@ static void test_adapter_hidden_flagged_for_skip(void) {
     SC2_LayoutShutdown();
 }
 
+/* sc2_type is set on flattened frames so fallback lookup by SC2 type works */
+static void test_adapter_sc2_type_preserved(void) {
+    setup_sc2_consoleui_tests();
+    SC2_LayoutInit();
+    ASSERT(SC2_LayoutParseFile("UI/Layout/TestAdapter.SC2Layout"));
+    ASSERT(SC2_LayoutFlatten("ConsoleUI"));
+
+    DWORD count = 0;
+    sc2BaseFrame_t *frames = SC2_LayoutGetFrames(&count);
+
+    sc2BaseFrame_t *label = find_frame(frames, count, "MineralCount");
+    ASSERT_NOT_NULL(label);
+    ASSERT_EQ_INT(label->type, FT_TEXT);
+    ASSERT_EQ_INT((int)label->sc2_type, (int)SC2_FRAMETYPE_LABEL);
+
+    sc2BaseFrame_t *panel = find_frame(frames, count, "ResourcePanel");
+    ASSERT_NOT_NULL(panel);
+    ASSERT_EQ_INT(panel->type, FT_FRAME);
+    ASSERT_EQ_INT((int)panel->sc2_type, (int)SC2_FRAMETYPE_FRAME);
+
+    SC2_LayoutShutdown();
+}
+
+static int test_stub_font_index(LPCSTR name, DWORD size) {
+    (void)name; (void)size;
+    return 7; /* sentinel: any non-zero value */
+}
+
+/* label.font is non-zero when a FontIndex callback is wired up */
+static void test_adapter_label_font_set_when_fontindex_wired(void) {
+    setup_sc2_consoleui_tests();
+    SC2_LayoutInit();
+    uiimport.FontIndex = test_stub_font_index;
+
+    ASSERT(SC2_LayoutParseFile("UI/Layout/TestAdapter.SC2Layout"));
+    ASSERT(SC2_LayoutFlatten("ConsoleUI"));
+
+    DWORD count = 0;
+    sc2BaseFrame_t *frames = SC2_LayoutGetFrames(&count);
+    sc2BaseFrame_t *label = find_frame(frames, count, "MineralCount");
+    ASSERT_NOT_NULL(label);
+    ASSERT_EQ_INT(label->type, FT_TEXT);
+    ASSERT_EQ_INT((int)label->label.font, 7);
+
+    uiimport.FontIndex = NULL;
+    SC2_LayoutShutdown();
+}
+
 /* =====================================================================
  * Test runner
  * ===================================================================== */
@@ -457,6 +514,8 @@ void run_sc2_consoleui_tests(void) {
     RUN_TEST(test_adapter_flatten_types_mapped);
     RUN_TEST(test_adapter_flatten_hidden_flags);
     RUN_TEST(test_adapter_flatten_color_alpha);
+    RUN_TEST(test_adapter_sc2_type_preserved);
+    RUN_TEST(test_adapter_label_font_set_when_fontindex_wired);
 
     /* Group 4: Screen rect pipeline */
     RUN_TEST(test_adapter_root_parent_is_scene);

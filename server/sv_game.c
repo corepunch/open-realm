@@ -6,6 +6,32 @@
 /* UI layout byte tracking (legacy - now handled client-side) */
 DWORD layoutBytesWritten = 0;
 
+/* Dedicated servers can inspect the exact svc_layout payload before it enters the netchan. */
+static void SV_DebugLayoutMessage(sizeBuf_t const *source) {
+    sizeBuf_t msg = *source;
+    DWORD frames = 0, textured = 0, stats = 0;
+
+    msg.readcount = 0;
+    if (MSG_ReadByte(&msg) != svc_layout) return;
+    DWORD layer = MSG_ReadByte(&msg);
+    while (msg.readcount + sizeof(DWORD) + sizeof(WORD) <= msg.cursize) {
+        UIFRAME frame = { 0 };
+        DWORD bits, number = MSG_ReadEntityBits(&msg, &bits);
+        if (!number && !bits) break;
+        MSG_ReadDeltaUIFrame(&msg, &frame, number, bits);
+        if (msg.readcount >= msg.cursize) break;
+        DWORD payload = MSG_ReadByte(&msg);
+        if (payload > msg.cursize - msg.readcount) break;
+        msg.readcount += payload;
+        frames++;
+        textured += frame.tex.index != 0;
+        stats += frame.stat != 0;
+    }
+    fprintf(stderr, "SV layout: layer=%u bytes=%u frames=%u textured=%u stats=%u\n",
+            (unsigned)layer, (unsigned)source->cursize, (unsigned)frames,
+            (unsigned)textured, (unsigned)stats);
+}
+
 void PF_Write(pfWriteType_t type, void const *value) {
     switch (type) {
         case PF_BYTE:
@@ -108,6 +134,7 @@ void PF_Multicast(LPCVECTOR3 origin, multicast_t to) {
 }
 
 void PF_Unicast(edict_t *ent) {
+    if (Cvar_Integer("sv_debug_layout", 0)) SV_DebugLayoutMessage(&sv.multicast);
     if (!ent) {
         SZ_Clear(&sv.multicast);
         return;
