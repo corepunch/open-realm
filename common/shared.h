@@ -605,7 +605,6 @@ typedef enum {
     FONT_JUSTIFYBOTTOM,
 } uiFontJustificationV_t;
 
-#define UI_FRAMEPOINT_SCALE 32767.0
 #define UI_PARENT 255
 
 typedef struct { // serialized as 4 bytes

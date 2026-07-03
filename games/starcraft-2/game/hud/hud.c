@@ -13,6 +13,7 @@
 
 /* Pull in the SC2 layout parser (single-header library). */
 #include "games/starcraft-2/common/stb_sc2layout.h"
+#include "common/ui_constants.h"
 
 #include "hud.h"
 #include "client/ui.h"
@@ -80,11 +81,6 @@ static DWORD assign_number(DWORD index) {
 }
 
 /* ------------------------------------------------------------------ */
-/* SC2 native pixels → engine normalized coords (0.8×0.6) */
-
-static FLOAT sc2_to_engine_x(FLOAT px) { return px / SC2_VIRT_W * 0.8f; }
-static FLOAT sc2_to_engine_y(FLOAT py) { return py / SC2_VIRT_H * 0.6f; }
-
 /* Anchor → uiFramePoint_t conversion */
 
 static void copy_points(uiFrame_t *out, LPCSC2BASEFRAME frame) {
@@ -97,7 +93,7 @@ static void copy_points(uiFrame_t *out, LPCSC2BASEFRAME frame) {
             out->points.x[i].relativeTo = (BYTE)((px->relative_index != (DWORD)-1)
                                           ? get_wire(px->relative_index)
                                           : UI_PARENT);
-            out->points.x[i].offset = (int16_t)(sc2_to_engine_x(px->offset) * UI_FRAMEPOINT_SCALE);
+            out->points.x[i].offset = (int16_t)(px->offset * UI_FRAMEPOINT_SCALE);
         }
         /* Y axis */
         sc2BaseFramePoint_t const *py = &frame->points.y[i];
@@ -107,7 +103,7 @@ static void copy_points(uiFrame_t *out, LPCSC2BASEFRAME frame) {
             out->points.y[i].relativeTo = (BYTE)((py->relative_index != (DWORD)-1)
                                           ? get_wire(py->relative_index)
                                           : UI_PARENT);
-            out->points.y[i].offset = (int16_t)(sc2_to_engine_y(py->offset) * UI_FRAMEPOINT_SCALE);
+            out->points.y[i].offset = (int16_t)(py->offset * UI_FRAMEPOINT_SCALE);
         }
     }
 }
@@ -124,8 +120,8 @@ BOOL SC2_HUD_BuildFrameForWrite(LPCSC2BASEFRAME frame, uiFrame_t *out) {
                   : 0;
     out->color       = frame->color;
     out->color.a     = (BYTE)(out->color.a * frame->alpha);
-    out->size.width  = sc2_to_engine_x(frame->size.width);
-    out->size.height = sc2_to_engine_y(frame->size.height);
+    out->size.width  = frame->size.width;
+    out->size.height = frame->size.height;
     out->tex.index   = (USHORT)frame->image;
     out->flags.type  = frame->type;
     out->stat        = frame->stat;

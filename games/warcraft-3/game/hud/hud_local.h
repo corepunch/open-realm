@@ -9,8 +9,7 @@
 #define HUD_TITLE_FONT_SIZE 12
 
 /* Layout constants */
-#define UI_BASE_WIDTH 0.8f
-#define UI_BASE_HEIGHT 0.6f
+#include "common/ui_constants.h"
 
 #define INFO_PANEL_X 0.310f
 #define INFO_PANEL_Y 0.486f

@@ -1,0 +1,9 @@
+#ifndef UI_CONSTANTS_H
+#define UI_CONSTANTS_H
+
+#define UI_BASE_WIDTH  1600.0f
+#define UI_BASE_HEIGHT 1200.0f
+#define UI_MIN_ASPECT  (4.0f / 3.0f)
+#define UI_FRAMEPOINT_SCALE (32767.0 / 1600.0)
+
+#endif

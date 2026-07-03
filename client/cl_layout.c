@@ -194,10 +194,10 @@ LPCRECT SCR_LayoutRect(LPCUIFRAME frame) {
         default:
             break;
     }
-    if (frame->size.width == 0) {
+    if (frame->size.width == 0 && !(frame->points.x[FPP_MIN].used && frame->points.x[FPP_MAX].used)) {
         ((LPUIFRAME )frame)->size.width = elemsize.x;
     }
-    if (frame->size.height == 0) {
+    if (frame->size.height == 0 && !(frame->points.y[FPP_MIN].used && frame->points.y[FPP_MAX].used)) {
         ((LPUIFRAME )frame)->size.height = elemsize.y;
     }
     VECTOR2 const rect[] = {

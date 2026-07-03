@@ -94,6 +94,7 @@ Key principles inline:
 - Runtime modules communicate through function tables (`R_GetAPI`, `UI_GetAPI`, game imports/exports).
 - The server controls what the client draws via state bits in `playerState_t`. The client just reads them.
 - Never hardcode game-specific asset names, animation names, or franchise-specific literals in engine code.
+- Never use `#ifdef SC2`/`#ifdef WOW` to vary constants in shared engine code. Per-game constants live in `games/*/common/ui_constants.h` and resolve via the per-game `-I` include path. Each game defines its native coordinate space (`UI_BASE_WIDTH`, `UI_BASE_HEIGHT`, `UI_FRAMEPOINT_SCALE`) — no conversion functions between game-native coords and "engine coords". The engine operates in whatever coordinate space the game header declares.
 
 ## Server-Authoring Pattern (Quake 2 STAT_LAYOUTS)
 

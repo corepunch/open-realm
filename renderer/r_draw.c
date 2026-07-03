@@ -1,14 +1,10 @@
 #include "r_local.h"
 #include "r_game.h"
 
-#ifdef WOW
-#define R_UI_BASE_WIDTH  1.0f
-#define R_UI_BASE_HEIGHT 1.0f
-#else
-#define R_UI_BASE_WIDTH  0.8f
-#define R_UI_BASE_HEIGHT 0.6f
-#endif
-#define R_UI_MIN_ASPECT  (4.0f / 3.0f)
+#include "common/ui_constants.h"
+#define R_UI_BASE_WIDTH  UI_BASE_WIDTH
+#define R_UI_BASE_HEIGHT UI_BASE_HEIGHT
+#define R_UI_MIN_ASPECT  UI_MIN_ASPECT
 
 RECT R_UISceneRect(void) {
     size2_t window = R_GetWindowSize();
