@@ -343,4 +343,18 @@ test-wow-assets: blpgen mpqtool | $(TESTS_DIR)
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_TEST_MPQ) cat Interface/Test/LuaPanel.blp | head -c4 | grep -q "BLP2" && echo "  cat panel OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_TEST_MPQ) cat Interface/FrameXML/GameHUD.lua | grep -q "wow_lua_test" && echo "  cat lua OK"
 
-.PHONY: default build shared tools font $(TOOL_NAMES) diag clean download renderer-wow game-wow ui-wow openwow renderer-sc2 game-sc2 opensc2 run run-sc2 build-run-sc2 m2tool-wow-orcmale-player install-wow test-wow-appearance test-wow-combat test-wow-game test-wow-ui test-wow-assets test-sc2 test-sc2-assets $(WC3_PHONY)
+SC2_HUD_LIVE_BIN := $(BIN_DIR)/test_sc2_hud_live$(EXE_EXT)
+SC2_HUD_LIVE_SRC := $(SC2_TEST_DIR)/test_sc2_hud_live.c
+
+$(SC2_HUD_LIVE_BIN): $(SC2_HUD_LIVE_SRC) | $(BIN_DIR)
+	$(CC) $(CFLAGS) -I. -Itests -DSC2_BINARY=\"$(SC2_BINARY)\" -DSC2_DATA=\"data/StarCraft2\" \
+	    -o $@ $(SC2_HUD_LIVE_SRC) -lm
+
+# Requires Blizzard SC2 archives under data/StarCraft2/ — local-only.
+test-sc2-live: opensc2 $(SC2_HUD_LIVE_BIN)
+	@if [ ! -d data/StarCraft2 ]; then \
+	    echo "SKIP test-sc2-live: data/StarCraft2 not found"; exit 0; \
+	fi
+	$(SC2_HUD_LIVE_BIN)
+
+.PHONY: default build shared tools font $(TOOL_NAMES) diag clean download renderer-wow game-wow ui-wow openwow renderer-sc2 game-sc2 opensc2 run run-sc2 build-run-sc2 m2tool-wow-orcmale-player install-wow test-wow-appearance test-wow-combat test-wow-game test-wow-ui test-wow-assets test-sc2 test-sc2-assets test-sc2-live $(WC3_PHONY)

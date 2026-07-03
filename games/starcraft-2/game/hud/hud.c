@@ -42,6 +42,19 @@ static void sc2_hud_free_file(void *buf) { gi.MemFree(buf); }
 #define SC2_ASSETS_MAX 2048
 static struct { char key[80]; char val[128]; } *assets_catalog;
 static int assets_catalog_count;
+static char missing_ui_keys[512][80];
+static int missing_ui_key_count;
+
+static BOOL sc2_hud_missing_ui_seen(LPCSTR key) {
+    for (int i = 0; i < missing_ui_key_count; i++)
+        if (!strcasecmp(missing_ui_keys[i], key)) return true;
+    if (missing_ui_key_count < (int)(sizeof(missing_ui_keys) / sizeof(*missing_ui_keys))) {
+        strncpy(missing_ui_keys[missing_ui_key_count], key, sizeof(missing_ui_keys[0]) - 1);
+        missing_ui_keys[missing_ui_key_count][sizeof(missing_ui_keys[0]) - 1] = '\0';
+        missing_ui_key_count++;
+    }
+    return false;
+}
 
 static void sc2_hud_load_assets_txt(LPCSTR path) {
     void *buf = NULL;
@@ -132,7 +145,8 @@ static int sc2_hud_image_index(LPCSTR resource) {
             return gi.ImageIndex(assets_catalog[i].val);
     }
     if (!strncasecmp(resource, "UI/", 3)) {
-        fprintf(stderr, "SC2_HUD: unresolved UI resource '%s'\n", resource);
+        if (!sc2_hud_missing_ui_seen(resource))
+            fprintf(stderr, "SC2_HUD: unresolved UI resource '%s'\n", resource);
         return 0;
     }
     return gi.ImageIndex(resource);
@@ -261,6 +275,22 @@ void SC2_HUD_WriteAncestors(LPCSC2BASEFRAME frames, DWORD count,
 
 static BOOL layout_loaded;
 static BOOL layout_ok;
+
+static void sc2_hud_hide_optional_panels(void) {
+    static LPCSTR hide_names[] = {
+        "PausePanel", "ConversationPanel", "TalkerPanel",
+        "ResourceRequestAlertPanel", "HeroPanel", "InventoryPanel",
+        "CreditsPanel", "TipAlertMovingFrame", "TipAlertPanel",
+        "RevealPanel", "AlliancePanel", "TeamResourcePanel",
+        "LeaderPanel", "ChatBar", "SystemAlertPanel",
+        NULL,
+    };
+
+    for (int i = 0; hide_names[i]; i++) {
+        sc2BaseFrame_t *f = SC2_LayoutFindFrameByName(hide_names[i]);
+        if (f) f->ui_flags |= SC2_UIFLAG_HIDDEN;
+    }
+}
 
 /* ------------------------------------------------------------------ */
 /* Fallback frame builder — used when no SC2 layout data is available */
@@ -397,6 +427,14 @@ sc2BaseFrame_t *SC2_HUD_EnsureLayout(DWORD *count) {
     if (!layout_loaded) {
         layout_loaded = true;
         layout_ok = SC2_LayoutBuildGameUI();
+        if (layout_ok) {
+            sc2_hud_hide_optional_panels();
+            /* PortraitPanel is hidden by default; shown only on unit select.
+             * Without this, hud_console.c WriteFrameWithChildren renders the
+             * blank portrait background rectangle in the center of the screen. */
+            sc2BaseFrame_t *portrait = SC2_LayoutFindFrameByType(SC2_FRAMETYPE_PORTRAIT_PANEL);
+            if (portrait) portrait->ui_flags |= SC2_UIFLAG_HIDDEN;
+        }
     }
     if (layout_ok) {
         return SC2_LayoutGetFrames(count);

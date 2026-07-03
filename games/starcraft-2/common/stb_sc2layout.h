@@ -25,7 +25,7 @@
 /* Constants                                                                   */
 /* -------------------------------------------------------------------------- */
 #define SC2_MAX_FRAMES     4096
-#define SC2_MAX_TEMPLATES  1024
+#define SC2_MAX_TEMPLATES  4096
 #define SC2_MAX_INCLUDES   128
 #define SC2_MAX_ANCHORS    4
 #define SC2_MAX_CONSTANTS  256
@@ -1247,9 +1247,32 @@ BOOL SC2_LayoutBuildGameUI(void) {
         "UI/Layout/UI/PortraitPanel.SC2Layout",    /* leaf: no game-file deps */
         "UI/Layout/UI/MinimapPanel.SC2Layout",     /* leaf: self-contained */
         "UI/Layout/UI/ResourcePanel.SC2Layout",    /* leaf: self-contained */
+        "UI/Layout/UI/BehaviorBar.SC2Layout",      /* InfoPanel child template */
+        "UI/Layout/UI/UnitButton.SC2Layout",       /* UnitWireframe base template */
+        "UI/Layout/UI/UnitWireframe.SC2Layout",    /* InfoPanel child template */
+        "UI/Layout/UI/AIFrames.SC2Layout",         /* InfoPanelAI* + CommandPanelAI */
+        "UI/Layout/UI/InfoPaneUnit.SC2Layout",     /* InfoPanel subpane */
+        "UI/Layout/UI/InfoPaneHero.SC2Layout",     /* InfoPanel subpane */
+        "UI/Layout/UI/InfoPaneQueue.SC2Layout",    /* InfoPanel subpane */
+        "UI/Layout/UI/InfoPaneProgress.SC2Layout", /* InfoPanel subpane */
+        "UI/Layout/UI/InfoPaneCargo.SC2Layout",    /* InfoPanel subpane */
+        "UI/Layout/UI/InfoPaneGroup.SC2Layout",    /* InfoPanel subpane */
         "UI/Layout/UI/CommandPanel.SC2Layout",     /* needs CommandButton */
         "UI/Layout/UI/ConsolePanel.SC2Layout",     /* needs PortraitPanel */
         "UI/Layout/UI/InfoPanel.SC2Layout",
+        "UI/Layout/UI/PausePanel.SC2Layout",
+        "UI/Layout/UI/ResourceRequestAlertPanel.SC2Layout",
+        "UI/Layout/UI/HeroPanel.SC2Layout",
+        "UI/Layout/UI/InventoryPanel.SC2Layout",
+        "UI/Layout/UI/TipAlertPanel.SC2Layout",
+        "UI/Layout/UI/RevealPanel.SC2Layout",
+        "UI/Layout/UI/AlliancePanel.SC2Layout",
+        "UI/Layout/UI/TeamResourcePanel.SC2Layout",
+        "UI/Layout/UI/LeaderPanel.SC2Layout",
+        "UI/Layout/UI/ChatBar.SC2Layout",
+        "UI/Layout/UI/SystemAlertPanel.SC2Layout",
+        "UI/Layout/Glue/TalkerPanel.SC2Layout",    /* GameUI references Glue template */
+        "UI/Layout/Glue/CreditsPanel.SC2Layout",   /* GameUI references Glue template */
         "UI/Layout/UI/MenuBar.SC2Layout",
         "UI/Layout/UI/ControlGroupPanel.SC2Layout",
         "UI/Layout/UI/AlertPanel.SC2Layout",

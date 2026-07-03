@@ -18,14 +18,24 @@
 static sc2BaseFrame_t *resource_find(void) {
     sc2BaseFrame_t *root = SC2_LayoutFindFrameByType(SC2_FRAMETYPE_RESOURCE_PANEL);
     if (root) {
+        /* ResourcePanel layout (right-to-left after SupplyLabel):
+         *   ResourceLabel3 = primary mineral display  → GOLD
+         *   ResourceLabel2 = high-yield mineral slot  → HERO_TOKENS (maps to 0)
+         *   ResourceLabel1 = gas (vespene)            → LUMBER
+         *   ResourceLabel0 = secondary mineral slot   → GOLD
+         * ResourceLabel3 was previously unbound, causing "text N" fallback. */
         static struct { LPCSTR name; DWORD stat; } const bindings[] = {
             { "ResourceLabel0", PLAYERSTATE_RESOURCE_GOLD },
             { "ResourceLabel1", PLAYERSTATE_RESOURCE_LUMBER },
             { "ResourceLabel2", PLAYERSTATE_RESOURCE_HERO_TOKENS },
+            { "ResourceLabel3", PLAYERSTATE_RESOURCE_GOLD },
             { "SupplyLabel", PLAYERSTATE_RESOURCE_FOOD_USED },
         };
         FOR_LOOP(i, sizeof(bindings) / sizeof(*bindings)) {
-            sc2BaseFrame_t *label = SC2_LayoutFindChildFrame(root, bindings[i].name);
+            /* FindFrameByName scans the full flat array; FindChildFrame's
+             * parent_index match can miss when template clone parent chain
+             * has an unexpected intermediate level. Names are globally unique. */
+            sc2BaseFrame_t *label = SC2_LayoutFindFrameByName(bindings[i].name);
             if (!label) continue;
             label->stat = bindings[i].stat;
         }
