@@ -46,13 +46,21 @@ static int sc2_hud_image_index(LPCSTR resource) {
         { "UI/ResourceIconPlayer", "Assets/Textures/ui_ingame_resourcesharing_playericon.dds" },
     };
     while (*resource == '@') resource++;
-    FOR_LOOP(i, sizeof(paths) / sizeof(*paths))
-        if (!strcasecmp(resource, paths[i].logical)) return gi.ImageIndex(paths[i].physical);
+    FOR_LOOP(i, sizeof(paths) / sizeof(*paths)) {
+        if (!strcasecmp(resource, paths[i].logical)) {
+            int idx = gi.ImageIndex(paths[i].physical);
+            fprintf(stderr, "SC2_HUD: mapped '%s' -> '%s' (index %d)\n",
+                    resource, paths[i].physical, idx);
+            return idx;
+        }
+    }
     if (!strncasecmp(resource, "UI/", 3)) {
         fprintf(stderr, "SC2_HUD: unresolved UI resource '%s'\n", resource);
         return 0;
     }
-    return gi.ImageIndex(resource);
+    int idx = gi.ImageIndex(resource);
+    fprintf(stderr, "SC2_HUD: resolved '%s' -> index %d\n", resource, idx);
+    return idx;
 }
 
 void SC2_HUD_InitLayoutHost(void) {
