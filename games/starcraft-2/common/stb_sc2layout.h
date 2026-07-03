@@ -927,6 +927,11 @@ static void SC2_ParseDescNode(void *node) {
             SC2_ParseTopLevelFrame(cur);
     }
 
+    /* Per-file resolution: resolve templates whose definitions were already
+     * parsed (same-file or earlier-included files).  Clear template_path on
+     * success so the global post-pass in SC2_LayoutBuildGameUI won't re-resolve
+     * them and double the child list.  Leave template_path set on NOT FOUND so
+     * the global pass can retry after all files are loaded (handles forward refs). */
     int templates_end = sc2_layout.num_templates;
     for (int i = templates_before; i < templates_end; i++) {
         sc2Frame_t *frame = &sc2_layout.templates[i];
@@ -934,6 +939,7 @@ static void SC2_ParseDescNode(void *node) {
             sc2Frame_t *tmpl = SC2_ResolveTemplatePath(frame->template_path);
             if (tmpl) {
                 SC2_ResolveTemplate(frame, tmpl);
+                frame->template_path[0] = '\0';
             }
         }
     }
@@ -1221,18 +1227,28 @@ BOOL SC2_LayoutBuildMainMenu(void) {
 
 BOOL SC2_LayoutBuildGameUI(void) {
     SC2_LayoutInit();
+    /* Files must be ordered leaf-to-root: templates must be parsed (and thus
+     * indexed lower in sc2_layout.templates[]) before any file that instantiates
+     * them.  The global resolution pass iterates in index order, so a template
+     * must be fully expanded before the consumer template is processed.
+     *
+     * Key constraints:
+     *   CommandButton.SC2Layout  < CommandPanel.SC2Layout
+     *   PortraitPanel.SC2Layout  < ConsolePanel.SC2Layout
+     *   GameButton.SC2Layout     < CommandButton.SC2Layout  (already satisfied)
+     *   GameUI.SC2Layout         last (instantiates all top-level panels) */
     static LPCSTR core_files[] = {
         "UI/Layout/Common/StandardConstants.SC2Layout",
         "UI/Layout/UI/GameButton.SC2Layout",
         "UI/Layout/Common/StandardTemplates.SC2Layout",
         "UI/Layout/Common/StandardTooltip.SC2Layout",
         "UI/Layout/Common/StandardDialog.SC2Layout",
-        "UI/Layout/UI/ConsolePanel.SC2Layout",
-        "UI/Layout/UI/CommandPanel.SC2Layout",
-        "UI/Layout/UI/CommandButton.SC2Layout",
-        "UI/Layout/UI/ResourcePanel.SC2Layout",
-        "UI/Layout/UI/MinimapPanel.SC2Layout",
-        "UI/Layout/UI/PortraitPanel.SC2Layout",
+        "UI/Layout/UI/CommandButton.SC2Layout",    /* leaf: needs GameButton only */
+        "UI/Layout/UI/PortraitPanel.SC2Layout",    /* leaf: no game-file deps */
+        "UI/Layout/UI/MinimapPanel.SC2Layout",     /* leaf: self-contained */
+        "UI/Layout/UI/ResourcePanel.SC2Layout",    /* leaf: self-contained */
+        "UI/Layout/UI/CommandPanel.SC2Layout",     /* needs CommandButton */
+        "UI/Layout/UI/ConsolePanel.SC2Layout",     /* needs PortraitPanel */
         "UI/Layout/UI/InfoPanel.SC2Layout",
         "UI/Layout/UI/MenuBar.SC2Layout",
         "UI/Layout/UI/ControlGroupPanel.SC2Layout",
@@ -1242,7 +1258,7 @@ BOOL SC2_LayoutBuildGameUI(void) {
         "UI/Layout/UI/ConversationPanel.SC2Layout",
         "UI/Layout/UI/SubtitlePanel.SC2Layout",
         "UI/Layout/UI/CashPanel.SC2Layout",
-        "UI/Layout/UI/GameUI.SC2Layout",
+        "UI/Layout/UI/GameUI.SC2Layout",           /* root: instantiates everything */
         NULL,
     };
     for (int i = 0; core_files[i]; i++)
@@ -1256,6 +1272,9 @@ BOOL SC2_LayoutBuildGameUI(void) {
             if (tmpl) {
                 SC2_ResolveTemplate(frame, tmpl);
                 frame->template_path[0] = '\0';
+            } else {
+                fprintf(stderr, "SC2_Layout: unresolved template '%s' for frame '%s'\n",
+                        frame->template_path, frame->name);
             }
         }
     }

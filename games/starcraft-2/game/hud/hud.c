@@ -124,28 +124,18 @@ static int sc2_hud_image_index(LPCSTR resource) {
     };
     while (*resource == '@') resource++;
     FOR_LOOP(i, sizeof(paths) / sizeof(*paths)) {
-        if (!strcasecmp(resource, paths[i].logical)) {
-            int idx = gi.ImageIndex(paths[i].physical);
-            fprintf(stderr, "SC2_HUD: mapped '%s' -> '%s' (index %d)\n",
-                    resource, paths[i].physical, idx);
-            return idx;
-        }
+        if (!strcasecmp(resource, paths[i].logical))
+            return gi.ImageIndex(paths[i].physical);
     }
     for (int i = 0; i < assets_catalog_count; i++) {
-        if (!strcasecmp(resource, assets_catalog[i].key)) {
-            int idx = gi.ImageIndex(assets_catalog[i].val);
-            fprintf(stderr, "SC2_HUD: mapped '%s' -> '%s' (index %d)\n",
-                    resource, assets_catalog[i].val, idx);
-            return idx;
-        }
+        if (!strcasecmp(resource, assets_catalog[i].key))
+            return gi.ImageIndex(assets_catalog[i].val);
     }
     if (!strncasecmp(resource, "UI/", 3)) {
         fprintf(stderr, "SC2_HUD: unresolved UI resource '%s'\n", resource);
         return 0;
     }
-    int idx = gi.ImageIndex(resource);
-    fprintf(stderr, "SC2_HUD: resolved '%s' -> index %d\n", resource, idx);
-    return idx;
+    return gi.ImageIndex(resource);
 }
 
 void SC2_HUD_InitLayoutHost(void) {
@@ -239,8 +229,8 @@ BOOL SC2_HUD_BuildFrameForWrite(LPCSC2BASEFRAME frame, uiFrame_t *out) {
 
 void SC2_HUD_WriteFrame(LPCSC2BASEFRAME frame) {
     uiFrame_t tmp;
-    if (SC2_HUD_BuildFrameForWrite(frame, &tmp))
-        gi.Write(PF_UIFRAME, &tmp);
+    if (!SC2_HUD_BuildFrameForWrite(frame, &tmp)) return;
+    gi.Write(PF_UIFRAME, &tmp);
 }
 
 void SC2_HUD_WriteFrameWithChildren(LPCSC2BASEFRAME frames, DWORD count,

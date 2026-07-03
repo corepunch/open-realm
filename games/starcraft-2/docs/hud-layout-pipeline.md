@@ -222,3 +222,41 @@ Templates store a direct pointer to their flattened frame via `resolved_frame`, 
 The ResourcePanel in `GameUI.SC2Layout` uses `<Anchor side="Right" pos="Min" relative="$parent/CashPanel"/>` — its right edge is anchored to the left edge of CashPanel. CashPanel is parsed from `CashPanel.SC2Layout` (loaded as a core file) and exists in the flattened frame tree. `SC2_ResolveNamedRelatives()` resolves this anchor to CashPanel's flat index at flatten time.
 
 Do not override cross-panel anchors in game code. The layout data is authoritative; code must apply it faithfully.
+
+## Template resolution: two-pass design
+
+Template resolution runs in two passes inside `stb_sc2layout.h`:
+
+**Pass 1 — per-file pass** (inside `SC2_ParseDescNode`): immediately after each file's top-level frames are parsed, the parser resolves templates for frames added by that file. This covers same-file templates and forward references from earlier-included files. On success, `template_path[0]` is cleared so the global pass won't re-resolve. On NOT FOUND (cross-file forward reference), `template_path` is left set for the global pass to retry.
+
+**Pass 2 — global pass** (inside `SC2_LayoutBuildGameUI`): runs after all core files are loaded. Handles any remaining unresolved templates (forward references not caught per-file). Also clears `template_path[0]` on success. Logs a warning for templates still not found after all files are loaded.
+
+The per-file pass without clearing caused doubling: per-file resolved and left `template_path` set; global pass then re-resolved, cloning children a second time. The fix is to clear `template_path[0]` in the per-file pass on success.
+
+### File ordering constraint
+
+`core_files[]` in `SC2_LayoutBuildGameUI` must be ordered leaf-to-root so that each template's dependencies are parsed before it is instantiated:
+
+```
+GameButton.SC2Layout        ← base button template (no deps)
+CommandButton.SC2Layout     ← needs GameButton
+PortraitPanel.SC2Layout     ← no game-file deps
+MinimapPanel.SC2Layout      ← no game-file deps
+ResourcePanel.SC2Layout     ← no game-file deps
+CommandPanel.SC2Layout      ← needs CommandButton
+ConsolePanel.SC2Layout      ← needs PortraitPanel
+...
+GameUI.SC2Layout            ← instantiates all panels (must be last)
+```
+
+Violating this order causes per-file pass "NOT FOUND" for cross-file refs, leaving them for the global pass. The global pass still handles them correctly, but it's cleaner and tests rely on per-file resolution working.
+
+## SC2 button frames → FT_FRAME not FT_BUTTON
+
+`SC2_FRAMETYPE_BUTTON` and `SC2_FRAMETYPE_COMMAND_BUTTON` map to `FT_FRAME`, not `FT_BUTTON`. SC2 buttons are containers — their visual appearance comes from child `NormalImage`/`HoverImage` frames (`FT_TEXTURE`). The client's `SCR_LayoutGlueTextButton` (called for `FT_BUTTON`) expects a `uiGlueTextButton_t` buffer that SC2 buttons don't carry; using `FT_FRAME` avoids the crash.
+
+## BACKGROUND layer: only ConsolePanel + MinimapPanel
+
+`hud_console.c` intentionally omits `CommandPanel` and `InfoPanel` from `LAYER_BACKGROUND`. Those panels are written by `hud_command.c` and `hud_infopanel.c` on their own dedicated layers. Writing them on `LAYER_BACKGROUND` would double-render them and bloat the background layer with 100+ command-card frames.
+
+The `ConsoleUIContainer` frame is written as a bare container (no children) on `LAYER_BACKGROUND` so that children on other layers can use it as their parent reference.

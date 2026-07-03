@@ -291,10 +291,13 @@ static void test_adapter_flatten_types_mapped(void) {
     ASSERT_NOT_NULL(root);
     ASSERT_EQ_INT(root->type, FT_FRAME);
 
-    /* Cmd01 (CommandButton) → FT_BUTTON */
+    /* Cmd01 (CommandButton) → FT_FRAME: SC2 buttons are containers; their visual
+     * appearance comes from child NormalImage/HoverImage frames (FT_TEXTURE).
+     * FT_BUTTON on the client calls SCR_LayoutGlueTextButton which expects a
+     * uiGlueTextButton_t buffer that SC2 buttons don't carry. */
     sc2BaseFrame_t *cmd = find_frame(frames, count, "Cmd01");
     ASSERT_NOT_NULL(cmd);
-    ASSERT_EQ_INT(cmd->type, FT_BUTTON);
+    ASSERT_EQ_INT(cmd->type, FT_FRAME);
 
     /* MineralIcon (Image) → FT_TEXTURE (2D image, not a 3D model sprite) */
     sc2BaseFrame_t *icon = find_frame(frames, count, "MineralIcon");
