@@ -32,7 +32,10 @@ static int sc2_hud_read_file(LPCSTR filename, void **buf) {
 
 static void sc2_hud_free_file(void *buf) { gi.MemFree(buf); }
 
-/* SC2 layout resources are catalog keys; resolve the subset backed by the current asset loader. */
+/* SC2 layout resources are CTexture catalog keys.  The file-backed subset
+ * uses the default CTexture convention: Assets/Textures/##id##.dds.
+ * Resources prefixed UI/ are engine-internal (dynamic render targets, atlas
+ * regions, skin textures) — return 0 for unresolved entries. */
 static int sc2_hud_image_index(LPCSTR resource) {
     static struct { LPCSTR logical, physical; } const paths[] = {
         { "UI/ResourceIcon0", "Assets/Textures/icon-mineral.dds" },
@@ -45,6 +48,7 @@ static int sc2_hud_image_index(LPCSTR resource) {
     while (*resource == '@') resource++;
     FOR_LOOP(i, sizeof(paths) / sizeof(*paths))
         if (!strcasecmp(resource, paths[i].logical)) return gi.ImageIndex(paths[i].physical);
+    if (!strncasecmp(resource, "UI/", 3)) return 0;
     return gi.ImageIndex(resource);
 }
 
