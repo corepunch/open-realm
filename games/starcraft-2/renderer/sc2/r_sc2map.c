@@ -1390,6 +1390,17 @@ static void r_sc2_draw_ground_layer(LPCMAPSEGMENT segment) {
     r_sc2_draw_terrain_indexed(layer);
 }
 
+static void r_sc2_load_minimap(LPCSTR mapFileName) {
+    static LPCSTR const candidates[] = { "Minimap.tga", "Minimap.dds", NULL };
+    PATHSTR path;
+    SAFE_DELETE(tr.minimap, R_ReleaseTexture);
+    for (int i = 0; candidates[i]; i++) {
+        snprintf(path, sizeof(path), "%s\\%s", mapFileName, candidates[i]);
+        tr.minimap = R_LoadTexture(path);
+        if (tr.minimap) return;
+    }
+}
+
 void R_SC2RegisterMap(LPCSTR mapFileName) {
     SC2_MapSetHost(&(sc2MapHost_t){
         .read_file = r_sc2_read_file,
@@ -1400,6 +1411,7 @@ void R_SC2RegisterMap(LPCSTR mapFileName) {
     });
     SC2_MapLoad(mapFileName);
     r_sc2_build_terrain(SC2_MapCurrent());
+    r_sc2_load_minimap(mapFileName);
 }
 
 static void r_sc2_draw_cliff_layer(LPCMAPSEGMENT segment) {

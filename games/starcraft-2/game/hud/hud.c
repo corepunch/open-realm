@@ -48,7 +48,10 @@ static int sc2_hud_image_index(LPCSTR resource) {
     while (*resource == '@') resource++;
     FOR_LOOP(i, sizeof(paths) / sizeof(*paths))
         if (!strcasecmp(resource, paths[i].logical)) return gi.ImageIndex(paths[i].physical);
-    if (!strncasecmp(resource, "UI/", 3)) return 0;
+    if (!strncasecmp(resource, "UI/", 3)) {
+        fprintf(stderr, "SC2_HUD: unresolved UI resource '%s'\n", resource);
+        return 0;
+    }
     return gi.ImageIndex(resource);
 }
 
