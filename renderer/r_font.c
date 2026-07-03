@@ -1,5 +1,6 @@
 #include "r_local.h"
 #include "r_font_utils.h"
+#include "common/ui_constants.h"
 #ifndef _WIN32
 #include <strings.h>
 #endif
@@ -10,7 +11,7 @@
 #define MAX_GLYPHSET 256
 #define MAX_CACHED_FONTS 64
 #define FONT_SCALE 2
-#define INV_SCALE(x) ((x) / (FONT_SCALE * 1000.f))
+#define INV_SCALE(x) ((x) / (FONT_SCALE * UI_FONT_COORD_SCALE))
 #define TEXT_BATCH_VERTICES 1020
 
 typedef struct {

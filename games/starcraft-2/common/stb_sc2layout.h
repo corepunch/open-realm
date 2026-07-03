@@ -1147,7 +1147,7 @@ static void SC2_FlattenFrame(sc2Frame_t *frame, int parent_index) {
 
     SC2_ResolveAnchors(frame, dst);
 
-    if (frame->num_textures > 0 && frame->textures[0].flags & SC2_TEX_HAS_TEXTURE)
+    if (frame->type != SC2_FRAMETYPE_MODEL && frame->num_textures > 0 && frame->textures[0].flags & SC2_TEX_HAS_TEXTURE)
         dst->image = uiimport.ImageIndex ? (DWORD)uiimport.ImageIndex(frame->textures[0].resource) : 0;
 
     for (int i = 0; i < frame->num_textures; i++) {
