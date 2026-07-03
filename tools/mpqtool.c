@@ -31,12 +31,14 @@ static void usage(void) {
         "  mpqtool -mpq <archive.mpq> cat <file>\n"
         "  mpqtool -mpq <archive.mpq> info <file>\n"
         "  mpqtool -mpq <archive.mpq> imginfo <file>\n"
+        "  mpqtool -mpq <archive.mpq> grep <text> [path]\n"
     "  mpqtool -mpq <archive.mpq> create [max-files]\n"
     "  mpqtool -mpq <archive.mpq> pack <src> <archive-file> [<src> <archive-file> ...]\n"
     "  mpqtool wow-install [-strip-data-prefix] <output-dir> <disc1.mpq> <disc2.mpq> <disc3.mpq> <disc4.mpq>\n"
         "\n"
         "Notes:\n"
         "  create, pack, and wow-install create new archives, overwriting existing targets.\n"
+        "  grep searches text content of archive files (case-insensitive); skips binary files.\n"
         "\n"
         "Examples:\n"
         "  mpqtool -mpq War3.mpq ls\n"
@@ -45,7 +47,8 @@ static void usage(void) {
     "  mpqtool -mpq War3.mpq info Maps/Campaign/Human02.w3m\n"
     "  mpqtool -mpq tests.mpq pack ./basic.fdf TestUI/Frames/basic.fdf ./checker.blp TestUI/Textures/checker.blp\n"
     "  mpqtool wow-install data/world-of-warcraft/installed data/world-of-warcraft/WoWDisc1.mpq data/world-of-warcraft/WoWDisc2.mpq data/world-of-warcraft/WoWDisc3.mpq data/world-of-warcraft/WoWDisc4.mpq\n"
-    "  mpqtool -mpq War3.mpq imginfo UI/Widgets/Glues/GlueScreen-Button1-Border.blp\n");
+    "  mpqtool -mpq War3.mpq imginfo UI/Widgets/Glues/GlueScreen-Button1-Border.blp\n"
+    "  mpqtool -mpq data/StarCraft2/Mods/Core.SC2Mod/Base.SC2Data grep UI/MenuBarButtonNormal GameData\n");
 }
 
 static unsigned short rd_u16le(const unsigned char *p) {
@@ -316,6 +319,103 @@ static int cmd_info(HANDLE archive, const char *file_path) {
     printf("single_unit=%s\n", (fd.dwFileFlags & 0x01000000u) ? "yes" : "no");
     printf("exists=%s\n", (fd.dwFileFlags & 0x80000000u) ? "yes" : "no");
     return 0;
+}
+
+static const char *mpq_strcasestr(const char *hay, const char *needle) {
+    size_t nlen = strlen(needle);
+    if (!nlen) return hay;
+    for (; *hay; hay++)
+        if (strncasecmp(hay, needle, nlen) == 0)
+            return hay;
+    return NULL;
+}
+
+static bool is_binary_ext(const char *filename) {
+    static const char *const exts[] = {
+        ".dds", ".blp", ".wav", ".ogg", ".mp3", ".m3", ".m3a",
+        ".png", ".jpg", ".jpeg", ".tga", ".bmp", NULL,
+    };
+    const char *ext = Tool_PathExt(filename);
+    for (int i = 0; exts[i]; i++)
+        if (strcasecmp(ext, exts[i] + 1) == 0)
+            return true;
+    return false;
+}
+
+static int cmd_grep(HANDLE archive, const char *pattern, const char *path_prefix) {
+    SFILE_FIND_DATA fd;
+    HANDLE hfind;
+    char prefix[512] = {0};
+    size_t prefix_len = 0;
+    int matches = 0;
+
+    if (path_prefix && *path_prefix) {
+        strncpy(prefix, path_prefix, sizeof(prefix) - 1);
+        Tool_NormalizeSlashes(prefix, '\\');
+        Tool_TrimEdgeSlashes(prefix);
+        prefix_len = strlen(prefix);
+    }
+
+    hfind = SFileFindFirstFile(archive, "*", &fd, NULL);
+    if (!hfind) {
+        fprintf(stderr, "Unable to enumerate archive contents\n");
+        return 1;
+    }
+
+    do {
+        const char *full = fd.cFileName;
+        HANDLE file;
+        DWORD file_size, read_bytes;
+        char *buf;
+
+        if (prefix_len && !starts_with_ci(full, prefix))
+            continue;
+        if (is_binary_ext(full))
+            continue;
+
+        if (!SFileOpenFileEx(archive, full, SFILE_OPEN_FROM_MPQ, &file))
+            continue;
+
+        file_size = SFileGetFileSize(file, NULL);
+        if (file_size == 0 || file_size > 8 * 1024 * 1024) {
+            SFileCloseFile(file);
+            continue;
+        }
+
+        buf = malloc(file_size + 1);
+        if (!buf) { SFileCloseFile(file); continue; }
+
+        if (SFileReadFile(file, buf, file_size, &read_bytes, NULL) && read_bytes > 0) {
+            buf[read_bytes] = '\0';
+            char display[512];
+            strncpy(display, full, sizeof(display) - 1);
+            display[sizeof(display) - 1] = '\0';
+            Tool_NormalizeSlashes(display, '/');
+
+            char *line = buf;
+            int line_num = 1;
+            while (*line) {
+                char *nl = strchr(line, '\n');
+                size_t llen = nl ? (size_t)(nl - line) : strlen(line);
+                char saved = line[llen];
+                line[llen] = '\0';
+                if (mpq_strcasestr(line, pattern)) {
+                    printf("%s:%d:%s\n", display, line_num, line);
+                    matches++;
+                }
+                line[llen] = saved;
+                if (!nl) break;
+                line = nl + 1;
+                line_num++;
+            }
+        }
+
+        free(buf);
+        SFileCloseFile(file);
+    } while (SFileFindNextFile(hfind, &fd));
+
+    SFileFindClose(hfind);
+    return matches > 0 ? 0 : 1;
 }
 
 static int cmd_ls(HANDLE archive, const char *path) {
@@ -887,7 +987,10 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    if (strcmp(cmd, "ls") == 0) {
+    if (strcmp(cmd, "grep") == 0) {
+        if (!arg) { usage(); SFileCloseArchive(archive); return 1; }
+        rc = cmd_grep(archive, arg, extra && extra_count > 0 ? extra[0] : NULL);
+    } else if (strcmp(cmd, "ls") == 0) {
         rc = cmd_ls(archive, arg ? arg : "");
     } else if (strcmp(cmd, "cat") == 0) {
         char path[512];

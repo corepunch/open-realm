@@ -18,6 +18,7 @@
 #include "hud.h"
 #include "client/ui.h"
 #include <string.h>
+#include <stdlib.h>
 
 /* uiimport — host services for sc2_layout.c when compiled into the game module.
  * gi.ReadFile signature (HANDLE, LPDWORD) differs from uiimport.FS_ReadFile
@@ -32,18 +33,94 @@ static int sc2_hud_read_file(LPCSTR filename, void **buf) {
 
 static void sc2_hud_free_file(void *buf) { gi.MemFree(buf); }
 
-/* SC2 layout resources are CTexture catalog keys.  The file-backed subset
- * uses the default CTexture convention: Assets/Textures/##id##.dds.
- * Resources prefixed UI/ are engine-internal (dynamic render targets, atlas
- * regions, skin textures) — return 0 for unresolved entries. */
+/* ------------------------------------------------------------------ */
+/* GameData/Assets.txt catalog: loaded at init, supplements paths[].
+ * Format: UI/LogicalName=Assets\Textures\file.dds  (one per line)
+ * The VFS returns the highest-priority archive's copy (Liberty.SC2Mod),
+ * which covers Liberty-specific entries; paths[] covers Core.SC2Mod entries. */
+
+#define SC2_ASSETS_MAX 2048
+static struct { char key[80]; char val[128]; } *assets_catalog;
+static int assets_catalog_count;
+
+static void sc2_hud_load_assets_txt(LPCSTR path) {
+    void *buf = NULL;
+    int len = sc2_hud_read_file(path, &buf);
+    if (len < 0 || !buf) return;
+
+    if (!assets_catalog) {
+        assets_catalog = malloc(SC2_ASSETS_MAX * sizeof(*assets_catalog));
+        if (!assets_catalog) { sc2_hud_free_file(buf); return; }
+    }
+
+    const char *p = (const char *)buf;
+    const char *end = p + len;
+    while (p < end) {
+        const char *nl = memchr(p, '\n', (size_t)(end - p));
+        size_t llen = nl ? (size_t)(nl - p) : (size_t)(end - p);
+        while (llen > 0 && (p[llen - 1] == '\r' || p[llen - 1] == '\n')) llen--;
+
+        const char *eq = memchr(p, '=', llen);
+        if (eq) {
+            size_t klen = (size_t)(eq - p);
+            size_t vlen = llen - klen - 1;
+            if (klen >= 3 && p[0] == 'U' && p[1] == 'I' && p[2] == '/' &&
+                klen < sizeof(assets_catalog[0].key) &&
+                vlen < sizeof(assets_catalog[0].val) &&
+                assets_catalog_count < SC2_ASSETS_MAX) {
+                memcpy(assets_catalog[assets_catalog_count].key, p, klen);
+                assets_catalog[assets_catalog_count].key[klen] = '\0';
+                memcpy(assets_catalog[assets_catalog_count].val, eq + 1, vlen);
+                assets_catalog[assets_catalog_count].val[vlen] = '\0';
+                for (char *s = assets_catalog[assets_catalog_count].val; *s; s++)
+                    if (*s == '\\') *s = '/';
+                assets_catalog_count++;
+            }
+        }
+        p = nl ? nl + 1 : end;
+    }
+    sc2_hud_free_file(buf);
+    fprintf(stderr, "SC2_HUD: loaded %d UI/ entries from '%s'\n",
+            assets_catalog_count, path);
+}
+
+/* ------------------------------------------------------------------ */
+/* SC2 layout resources are CTexture catalog keys sourced from
+ * GameData/Assets.txt in the SC2 mod archives (the SC2 equivalent of
+ * war3skins.txt).  paths[] covers Core.SC2Mod entries; assets_catalog
+ * covers Liberty.SC2Mod entries loaded at runtime. */
 static int sc2_hud_image_index(LPCSTR resource) {
     static struct { LPCSTR logical, physical; } const paths[] = {
-        { "UI/ResourceIcon0", "Assets/Textures/icon-mineral.dds" },
-        { "UI/ResourceIcon1", "Assets/Textures/icon-gas.dds" },
-        { "UI/ResourceIcon2", "Assets/Textures/icon-highyieldmineral.dds" },
-        { "UI/ResourceIcon3", "Assets/Textures/icon-mineral.dds" },
-        { "UI/ResourceIconSupply", "Assets/Textures/icon-supply.dds" },
-        { "UI/ResourceIconPlayer", "Assets/Textures/ui_ingame_resourcesharing_playericon.dds" },
+        { "UI/ResourceIcon0",    "Assets/Textures/icon-mineral.dds" },
+        { "UI/ResourceIcon1",    "Assets/Textures/icon-gas.dds" },
+        { "UI/ResourceIcon2",    "Assets/Textures/icon-highyieldmineral.dds" },
+        { "UI/ResourceIcon3",    "Assets/Textures/icon-mineral.dds" },
+        { "UI/ResourceIconSupply",  "Assets/Textures/icon-supply.dds" },
+        { "UI/ResourceIconPlayer",  "Assets/Textures/ui_ingame_resourcesharing_playericon.dds" },
+        { "UI/BlankPortraitBackground", "Assets/Textures/terranblankportrait_static.dds" },
+        { "UI/StandardGameTooltip",  "Assets/Textures/ui_battlenet_tooltip_outline.dds" },
+        { "UI/TechGlossarySmallButtonNormal", "Assets/Textures/ui_glossary_strongagainst_terran_normalandpressed.dds" },
+        { "UI/TechGlossarySmallButtonHover",  "Assets/Textures/ui_glossary_strongagainst_terran_normaloverandpressedover.dds" },
+        { "UI/IdleButtonNormal", "Assets/Textures/ui_idlepeon_normalpressed_terran.dds" },
+        { "UI/IdleButtonHover",  "Assets/Textures/ui_idlepeon_normaloverpressedover_terran.dds" },
+        { "UI/AIButton",         "Assets/Textures/ai_avatar.dds" },
+        { "UI/WarpButtonNormal", "Assets/Textures/ui_warpin_normalpressed.dds" },
+        { "UI/WarpButtonHover",  "Assets/Textures/ui_warpin_normaloverpressedover.dds" },
+        { "UI/CharacterSheetToggleButtonNormal", "Assets/Textures/ui_techlist_button_normalpressed.dds" },
+        { "UI/CharacterSheetToggleButtonHover",  "Assets/Textures/ui_techlist_button_normaloverpressedover.dds" },
+        { "UI/AllianceToggleButtonNormal", "Assets/Textures/ui_alliance_button_normalpressed.dds" },
+        { "UI/AllianceToggleButtonHover",  "Assets/Textures/ui_alliance_button_normaloverpressedover.dds" },
+        { "UI/TeamResourceToggleButtonNormal", "Assets/Textures/ui_resourcesharing_button_normalpressed.dds" },
+        { "UI/TeamResourceToggleButtonHover",  "Assets/Textures/ui_resourcesharing_button_normaloverpressedover.dds" },
+        { "UI/CreditsPanelBackground_Left",   "Assets/Textures/ui_credit_frame_l.dds" },
+        { "UI/CreditsPanelBackground_Right",  "Assets/Textures/ui_credit_frame_r.dds" },
+        { "UI/CreditsPanelBackground_Middle", "Assets/Textures/ui_credit_frame_m.dds" },
+        { "UI/ObjectivePanelCategoryBackground", "Assets/Textures/ui_objectives_frame_title.dds" },
+        { "UI/MenuBarButtonNormal", "Assets/Textures/ui_gamemenu_topbuttons_normalpressed.dds" },
+        { "UI/MenuBarButtonHover",  "Assets/Textures/ui_gamemenu_topbuttons_normaloverpressedover.dds" },
+        { "UI/SubtitleBorder",      "Assets/Textures/ui_storymode_subtitle_frame.dds" },
+        { "UI/BattleBuddyFriendsFrame",    "Assets/Textures/ui_battlebuddy_frame_terran.dds" },
+        { "UI/BattleBuddyMicrophoneFrame", "Assets/Textures/ui_battlemic_terran.dds" },
     };
     while (*resource == '@') resource++;
     FOR_LOOP(i, sizeof(paths) / sizeof(*paths)) {
@@ -51,6 +128,14 @@ static int sc2_hud_image_index(LPCSTR resource) {
             int idx = gi.ImageIndex(paths[i].physical);
             fprintf(stderr, "SC2_HUD: mapped '%s' -> '%s' (index %d)\n",
                     resource, paths[i].physical, idx);
+            return idx;
+        }
+    }
+    for (int i = 0; i < assets_catalog_count; i++) {
+        if (!strcasecmp(resource, assets_catalog[i].key)) {
+            int idx = gi.ImageIndex(assets_catalog[i].val);
+            fprintf(stderr, "SC2_HUD: mapped '%s' -> '%s' (index %d)\n",
+                    resource, assets_catalog[i].val, idx);
             return idx;
         }
     }
@@ -69,6 +154,7 @@ void SC2_HUD_InitLayoutHost(void) {
     uiimport.FS_FreeFile = sc2_hud_free_file;
     uiimport.ImageIndex = sc2_hud_image_index;
     uiimport.FontIndex = gi.FontIndex;
+    sc2_hud_load_assets_txt("GameData/Assets.txt");
 }
 
 /* ------------------------------------------------------------------ */

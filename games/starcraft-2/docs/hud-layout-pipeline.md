@@ -51,6 +51,26 @@ SC2_HUD_WriteInfoPanel(ent);
 
 The `SC2_RunFrame` loop does NOT resend HUD — static panels never change, and dynamic panels (command/info) will be sent on selection change when that system is wired up.
 
+## UI texture resolution
+
+SC2 layout files reference textures as logical `UI/` keys (`<Texture val="@UI/MenuBarButtonNormal"/>`). These keys are defined in `GameData/Assets.txt` inside each mod archive — the SC2 equivalent of WC3's `war3skins.txt`. See [assets-txt.md](file-formats/assets-txt.md) for the format.
+
+`sc2_hud_image_index()` in `hud.c` resolves a key to a `gi.ImageIndex` handle using two tiers:
+
+1. **Static `paths[]`** — hardcoded entries for Core.SC2Mod keys that the VFS cannot reach, because `Liberty.SC2Mod/Base.SC2Data` has higher archive priority and its `GameData/Assets.txt` shadows Core's. Covers ~30 HUD entries (menu bar, portrait, panels, etc.).
+
+2. **Runtime `assets_catalog[]`** — parsed from `gi.ReadFile("GameData/Assets.txt")` at `SC2_HUD_InitLayoutHost()`. Returns the Liberty.SC2Mod version, which covers minimap buttons, autocast overlay, bordered white, and other Liberty-specific entries.
+
+```c
+/* Lookup order in sc2_hud_image_index() */
+while (*resource == '@') resource++;   /* strip leading @ */
+// 1. static paths[]
+// 2. assets_catalog[] (from Assets.txt)
+// 3. return 0 and log "unresolved" for any UI/ key still not found
+```
+
+**VFS priority note:** `FS_OpenFile` searches archives from last-loaded to first-loaded (index `MAX_ARCHIVES-1` → `0`). The archive load order in `g_sc2.c` puts `Liberty.SC2Mod/Base.SC2Data` at a higher index than `Core.SC2Mod/Base.SC2Data`, so `gi.ReadFile("GameData/Assets.txt")` always returns Liberty's copy. Core entries that Liberty does not repeat must live in the static table.
+
 ## Layout parser in the game module
 
 `sc2_layout.c` normally lives in `ui/` and links against `libui-sc2`. The game module can't link `libui-sc2` directly. Instead, `hud.c` `#include`s `sc2_layout.c` directly (one extra translation unit in the unity build). A `uiImport_t uiimport` stub in `hud.c` bridges `gi.ReadFile`/`gi.MemFree` to the parser's file I/O. Renderer callbacks (`GetRenderer`, `GetTexture`) are left NULL — the parsing path never calls them.

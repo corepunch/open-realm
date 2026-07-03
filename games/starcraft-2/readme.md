@@ -69,6 +69,7 @@ Public reverse-engineering and modding references for how StarCraft II maps are 
 - [Embedded Map Files](docs/embedded-map-files.md) — full binary specs for all known files inside `.SC2Map` archives.
 - [Map, Model, And Unit Data](docs/map-model-unit-data.md) — practical path from placed objects through catalog XML to M3 models.
 - [Parser Notes](docs/parser-notes.md) — practical loading order and implementation guidance.
+- [HUD Layout Pipeline](docs/hud-layout-pipeline.md) — `.SC2Layout` → `sc2BaseFrame_t` → `uiFrame_t` → `svc_layout` pipeline; UI texture resolution via Assets.txt.
 - [References](docs/references.md) — all public sources, tools, and GitHub repos used.
 - [Sounds](docs/sounds.md)
 
@@ -78,6 +79,7 @@ Public reverse-engineering and modding references for how StarCraft II maps are 
 - [PlacedObjects](docs/file-formats/objects.md) — complete `<PlacedObjects>` XML schema.
 - [Actors And Models](docs/file-formats/actors-and-models.md) — actor system, `CActorUnit` key fields, `CModel` catalog fields.
 - [M3 Model Format](docs/file-formats/m3.md) — M3 binary model format: reference table, geometry, skeleton, animations, materials.
+- [Assets.txt (UI Texture Catalog)](docs/file-formats/assets-txt.md) — `GameData/Assets.txt` skin format (`UI/Key=path`), archive priority, and how `hud.c` loads it.
 
 ### Short Version
 

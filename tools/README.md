@@ -20,7 +20,9 @@ Commands:
 
 - `ls [path]` list archive entries under a path
 - `cat <file>` print a file to stdout
+- `info <file>` show file size, flags, and compression state
 - `imginfo <file>` inspect texture metadata
+- `grep <text> [path]` search file contents for a string (case-insensitive, skips binary files, prints `file:line:content`)
 - `create [max-files]` create a new archive
 - `pack <src> <archive-file> [<src> <archive-file> ...]` add files to an archive
 - `wow-install [-strip-data-prefix] <output-dir> <disc1.mpq> <disc2.mpq> <disc3.mpq> <disc4.mpq>` rebuild vanilla WoW runtime MPQ archives from installer tomes; `-strip-data-prefix` writes manifest containers such as `Data\terrain.MPQ` directly as `<output-dir>/terrain.MPQ`
@@ -32,6 +34,13 @@ build/bin/mpqtool -mpq "data/Warcraft III/War3.mpq" ls UI/FrameDef
 build/bin/mpqtool -mpq "data/Warcraft III/War3.mpq" cat UI/FrameDef/Glue/MainMenu.fdf
 build/bin/mpqtool -mpq "data/Warcraft III/War3.mpq" imginfo UI/Widgets/Glues/GlueScreen-Button1-Border.blp
 build/bin/mpqtool wow-install -strip-data-prefix "data/world-of-warcraft" "build/wow-install/WoWDisc1/Installer Tome.mpq" "build/wow-install/WoWDisc2/Installer Tome 2.mpq" "build/wow-install/WoWDisc3/Installer Tome 3.mpq" "build/wow-install/WoWDisc4/Installer Tome 4.mpq"
+
+# Find which archive file defines a given SC2 skin texture key:
+build/bin/mpqtool -mpq "data/StarCraft2/Mods/Core.SC2Mod/Base.SC2Data" grep "MenuBarButtonNormal" GameData
+# → GameData/Assets.txt:567:UI/MenuBarButtonNormal=Assets\Textures\ui_gamemenu_topbuttons_normalpressed.dds
+
+# Scan the Liberty mod for all minimap button definitions:
+build/bin/mpqtool -mpq "data/StarCraft2/Mods/Liberty.SC2Mod/Base.SC2Data" grep "UI/Minimap" GameData
 ```
 
 The Makefile shortcut extracts all four WoW disc ISOs into build scratch space
