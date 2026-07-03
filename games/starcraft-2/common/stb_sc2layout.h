@@ -983,7 +983,7 @@ FRAMETYPE SC2_MapFrameType(sc2FrameType sc2_type) {
     case SC2_FRAMETYPE_AI_BUTTON:
     case SC2_FRAMETYPE_PYLON_BUTTON:
     case SC2_FRAMETYPE_LEROY_BUTTON:
-        return FT_BUTTON;
+        return FT_FRAME;
     case SC2_FRAMETYPE_IMAGE:
         return FT_TEXTURE;
     case SC2_FRAMETYPE_MINIMAP:

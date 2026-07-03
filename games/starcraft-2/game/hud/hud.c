@@ -127,6 +127,8 @@ BOOL SC2_HUD_BuildFrameForWrite(LPCSC2BASEFRAME frame, uiFrame_t *out) {
     out->size.width  = frame->size.width;
     out->size.height = frame->size.height;
     out->tex.index   = (USHORT)frame->image;
+    out->tex.coord[1] = 0xff;
+    out->tex.coord[3] = 0xff;
     out->flags.type  = frame->type;
     out->stat        = frame->stat;
     out->text        = frame->text;
