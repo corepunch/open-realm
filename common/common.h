@@ -166,6 +166,7 @@ HANDLE FS_ReadLooseFile(LPCSTR filename, LPDWORD size, DWORD extraBytes);
 bool FS_ExtractFile(LPCSTR toExtract, LPCSTR extracted);
 bool FS_FileExists(LPCSTR fileName);
 HANDLE FS_ReadFile(LPCSTR filename, LPDWORD size);
+void FS_ReadFileAll(LPCSTR filename, void (*callback)(HANDLE buf, DWORD size, void *ud), void *ud);
 
 // Quake 3-style file API (returns file size, allocates buffer)
 int FS_ReadFileQ3(LPCSTR filename, void **buf);

@@ -34,12 +34,15 @@ static int sc2_hud_read_file(LPCSTR filename, void **buf) {
 static void sc2_hud_free_file(void *buf) { gi.MemFree(buf); }
 
 /* ------------------------------------------------------------------ */
-/* GameData/Assets.txt catalog: loaded at init, supplements paths[].
- * Format: UI/LogicalName=Assets\Textures\file.dds  (one per line)
- * The VFS returns the highest-priority archive's copy (Liberty.SC2Mod),
- * which covers Liberty-specific entries; paths[] covers Core.SC2Mod entries. */
+/* GameData/Assets.txt catalog: merged from every archive copy, lowest
+ * priority first so higher-priority overrides win.  Format:
+ *   UI/LogicalName=Assets\Textures\file.dds   (one entry per line)
+ * This is the SC2 equivalent of WC3's war3skins.txt.  Multiple archives
+ * each have their own Assets.txt (Core.SC2Mod, Liberty.SC2Mod, …);
+ * gi.ReadFile returns only the highest-priority copy, so we use
+ * gi.ReadFileAll to collect and merge all copies. */
 
-#define SC2_ASSETS_MAX 2048
+#define SC2_ASSETS_MAX 4096
 static struct { char key[80]; char val[128]; } *assets_catalog;
 static int assets_catalog_count;
 static char missing_ui_keys[512][80];
@@ -56,16 +59,18 @@ static BOOL sc2_hud_missing_ui_seen(LPCSTR key) {
     return false;
 }
 
-static void sc2_hud_load_assets_txt(LPCSTR path) {
-    void *buf = NULL;
-    int len = sc2_hud_read_file(path, &buf);
-    if (len < 0 || !buf) return;
-
+/* Parse one Assets.txt buffer into assets_catalog.  Called by ReadFileAll
+ * callback lowest-priority first; later archives overwrite earlier entries
+ * for the same key, so Liberty beats Core where they conflict. */
+static void sc2_hud_parse_assets_txt(HANDLE buf, DWORD len, void *ud) {
+    (void)ud;
+    if (!buf || !len) return;
     if (!assets_catalog) {
         assets_catalog = malloc(SC2_ASSETS_MAX * sizeof(*assets_catalog));
-        if (!assets_catalog) { sc2_hud_free_file(buf); return; }
+        if (!assets_catalog) return;
     }
 
+    int before = assets_catalog_count;
     const char *p = (const char *)buf;
     const char *end = p + len;
     while (p < end) {
@@ -79,22 +84,31 @@ static void sc2_hud_load_assets_txt(LPCSTR path) {
             size_t vlen = llen - klen - 1;
             if (klen >= 3 && p[0] == 'U' && p[1] == 'I' && p[2] == '/' &&
                 klen < sizeof(assets_catalog[0].key) &&
-                vlen < sizeof(assets_catalog[0].val) &&
-                assets_catalog_count < SC2_ASSETS_MAX) {
-                memcpy(assets_catalog[assets_catalog_count].key, p, klen);
-                assets_catalog[assets_catalog_count].key[klen] = '\0';
-                memcpy(assets_catalog[assets_catalog_count].val, eq + 1, vlen);
-                assets_catalog[assets_catalog_count].val[vlen] = '\0';
-                for (char *s = assets_catalog[assets_catalog_count].val; *s; s++)
-                    if (*s == '\\') *s = '/';
-                assets_catalog_count++;
+                vlen < sizeof(assets_catalog[0].val)) {
+                /* Update existing entry if key already present (override). */
+                int found = -1;
+                for (int i = 0; i < assets_catalog_count; i++) {
+                    if (!strncasecmp(assets_catalog[i].key, p, klen) &&
+                        assets_catalog[i].key[klen] == '\0') {
+                        found = i; break;
+                    }
+                }
+                int slot = (found >= 0) ? found :
+                           (assets_catalog_count < SC2_ASSETS_MAX ? assets_catalog_count++ : -1);
+                if (slot >= 0) {
+                    memcpy(assets_catalog[slot].key, p, klen);
+                    assets_catalog[slot].key[klen] = '\0';
+                    memcpy(assets_catalog[slot].val, eq + 1, vlen);
+                    assets_catalog[slot].val[vlen] = '\0';
+                    for (char *s = assets_catalog[slot].val; *s; s++)
+                        if (*s == '\\') *s = '/';
+                }
             }
         }
         p = nl ? nl + 1 : end;
     }
-    sc2_hud_free_file(buf);
-    fprintf(stderr, "SC2_HUD: loaded %d UI/ entries from '%s'\n",
-            assets_catalog_count, path);
+    fprintf(stderr, "SC2_HUD: merged Assets.txt — total %d UI/ entries (+%d new)\n",
+            assets_catalog_count, assets_catalog_count - before);
 }
 
 /* ------------------------------------------------------------------ */
@@ -158,7 +172,7 @@ void SC2_HUD_InitLayoutHost(void) {
     uiimport.FS_FreeFile = sc2_hud_free_file;
     uiimport.ImageIndex = sc2_hud_image_index;
     uiimport.FontIndex = gi.FontIndex;
-    sc2_hud_load_assets_txt("GameData/Assets.txt");
+    gi.ReadFileAll("GameData/Assets.txt", sc2_hud_parse_assets_txt, NULL);
 }
 
 /* ------------------------------------------------------------------ */

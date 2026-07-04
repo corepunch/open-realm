@@ -50,6 +50,9 @@ struct game_import {
     void (*MenuAction)(LPCSTR action, LPCSTR arg);
     void (*ClearWorld)(void);
     HANDLE (*ReadFile)(LPCSTR filename, LPDWORD size);
+    /* Calls callback for every archive copy of filename, lowest priority first.
+     * Useful for merging layered data files (e.g. GameData/Assets.txt). */
+    void (*ReadFileAll)(LPCSTR filename, void (*callback)(HANDLE buf, DWORD size, void *ud), void *ud);
     DWORD (*GetTime)(void);
     void (*multicast)(LPCVECTOR3 origin, multicast_t to);
     void (*unicast)(edict_t *ent);

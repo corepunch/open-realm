@@ -184,6 +184,7 @@ void SV_InitGameProgs(void) {
     import.FontIndex = SV_FontIndex;
     import.GetTime = SV_GetTime;
     import.ReadFile = FS_ReadFile;
+    import.ReadFileAll = FS_ReadFileAll;
     import.error = PF_error;
     import.LinkEntity = SV_LinkEntity;
     import.UnlinkEntity = SV_UnlinkEntity;
