@@ -215,6 +215,7 @@ void SCR_LayoutDrawStatusbar(LPCUIFRAME frame, LPCRECT screen) {
 }
 
 void SCR_LayoutDrawTexture(LPCUIFRAME frame, LPCRECT screen) {
+    if (!frame->tex.index) return;  /* unresolved texture — skip to avoid drawing cl.pics[0] */
     LPCTEXTURE tex = cl.pics[frame->tex.index];
     if (frame->stat >= MAX_STATS && frame->stat - MAX_STATS < MAX_STATS) {
         LPCSTR resource = cl.playerstate.texts[frame->stat - MAX_STATS];
@@ -712,16 +713,6 @@ void SCR_DrawLayout(void) {
         COLOR32 color = COLOR32_BLACK;
         color.a = 255 * cl.playerstate.cinefade;
         re.DrawImage(cl.pics[0], &MAKE(RECT,0,0,1,1), &MAKE(RECT,0,0,1,1), color);
-    }
-
-    FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
-        DWORD flags = cl.playerstate.uiflags;
-        if ((1 << layer) & flags) continue;
-        HANDLE layout = layout_layers[layer];
-        if (layout) {
-            SCR_Clear(layout);
-            SCR_LayoutUpdateTooltip(layout);
-        }
     }
 
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {

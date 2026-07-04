@@ -32,9 +32,6 @@ static sc2BaseFrame_t *resource_find(void) {
             { "SupplyLabel", PLAYERSTATE_RESOURCE_FOOD_USED },
         };
         FOR_LOOP(i, sizeof(bindings) / sizeof(*bindings)) {
-            /* FindFrameByName scans the full flat array; FindChildFrame's
-             * parent_index match can miss when template clone parent chain
-             * has an unexpected intermediate level. Names are globally unique. */
             sc2BaseFrame_t *label = SC2_LayoutFindFrameByName(bindings[i].name);
             if (!label) continue;
             label->stat = bindings[i].stat;

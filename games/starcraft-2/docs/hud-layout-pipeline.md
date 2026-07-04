@@ -260,3 +260,30 @@ Violating this order causes per-file pass "NOT FOUND" for cross-file refs, leavi
 `hud_console.c` intentionally omits `CommandPanel` and `InfoPanel` from `LAYER_BACKGROUND`. Those panels are written by `hud_command.c` and `hud_infopanel.c` on their own dedicated layers. Writing them on `LAYER_BACKGROUND` would double-render them and bloat the background layer with 100+ command-card frames.
 
 The `ConsoleUIContainer` frame is written as a bare container (no children) on `LAYER_BACKGROUND` so that children on other layers can use it as their parent reference.
+
+## ConsolePanel Model children (3D console chrome)
+
+`ConsolePanel.SC2Layout` contains three `<Frame type="Model">` children (`InfopanelModel`, `MinimapModel`, `CommandPanelModel`) that render the 3D console backdrop in the real SC2 engine. These map to `FT_SPRITE` but our `R_GameDrawSprite` for SC2 is a no-op (no .m3 model renderer). They are hidden in `sc2_hud_hide_optional_panels()` to prevent null-model draw calls.
+
+## NormalImage / HoverImage button children (fill-parent semantics)
+
+SC2 `GameButton` template defines `NormalImage` and `HoverImage` child Image frames with **no explicit anchors and no size**. In the real SC2 engine these implicitly fill the parent button bounds. In our renderer (`cl_layout.c::SCR_LayoutRect`):
+
+- When a `FT_TEXTURE` frame has `size.width == 0 && size.height == 0` AND no both-side anchor pair to derive size from, we use the parent frame's rect dimensions as the element size.
+- This correctly fills `NormalImage` / `HoverImage` to the enclosing button.
+
+**Note:** `<DescFlags val="Internal"/>` on these frames is a metadata marker indicating they are internal template implementation details. `<CollapseLayout val="true"/>` on icon/image frames is a hint that they don't contribute to layout collapse — parsed and stored but not acted on by our renderer.
+
+## Container height inference: pmax-only FT_FRAME panels
+
+SC2 layout panels (`CommandPanel`, `InfoPanel`, etc.) commonly define only a **Bottom anchor + Width** without an explicit Height. The real SC2 engine derives height from the button grid. Our engine handles this in `SCR_InferContainerHeights` (`cl_layout.c`), called after each `SCR_Clear` frame-wire parse:
+
+1. For every `FT_FRAME` with `size.height == 0` and **only** `pmax_y` set (Bottom-anchored, no Top/Mid):
+2. Walk all descendants in the frame list; for each with a known `size.height`, compute its y-offset relative to the container top using `scr_frame_abs_y()` — a recursive anchor-chain walker that treats the container as y=0.
+3. Take the maximum `(y_offset + child_height)` as the container's height.
+
+This allows rows of buttons (row N anchors to `row(N-1).Max + gap`) to correctly determine CommandPanel's height (~230px for 3 rows of 76×76 buttons).
+
+## Unresolved FT_TEXTURE frames (tex.index == 0)
+
+When a SC2 Image frame's `@@UI/...` texture key is not found in `Assets.txt` or the static `paths[]` table, `gi.ImageIndex` returns 0. `SCR_LayoutDrawTexture` in `cl_scrn.c` skips drawing when `frame->tex.index == 0` to avoid drawing `cl.pics[0]` (the first registered image) as a visual artifact.

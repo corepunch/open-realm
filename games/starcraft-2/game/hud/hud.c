@@ -283,6 +283,10 @@ static void sc2_hud_hide_optional_panels(void) {
         "CreditsPanel", "TipAlertMovingFrame", "TipAlertPanel",
         "RevealPanel", "AlliancePanel", "TeamResourcePanel",
         "LeaderPanel", "ChatBar", "SystemAlertPanel",
+        /* ConsolePanel 3D model children — these are SC2 .m3 models that
+         * require a full SC2 model renderer; we can't render them, so hide
+         * them to prevent FT_SPRITE draw calls on null model handles. */
+        "InfopanelModel", "MinimapModel", "CommandPanelModel",
         NULL,
     };
 
