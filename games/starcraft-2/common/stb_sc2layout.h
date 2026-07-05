@@ -59,6 +59,7 @@
 /* SC2 texture flags */
 #define SC2_TEX_TILED                   (1 << 0)
 #define SC2_TEX_HAS_TEXTURE             (1 << 1)
+#define SC2_TEX_LAYER_HIDDEN            (1 << 2)
 
 /* SC2 anchor flags */
 #define SC2_ANCHOR_HAS                  (1 << 0)
@@ -800,6 +801,18 @@ static void SC2_ParseFrameChildren(void *node, sc2Frame_t *frame) {
             if (xmlGetAttrInt(cur, "val", &val)) {
                 if (val > frame->num_textures) frame->num_textures = val;
             }
+        } else if (!strcasecmp(tag, "LayerVisible")) {
+            LPCSTR val = SC2_XmlGetProp(cur, "val");
+            int layer = 0;
+            xmlGetAttrInt(cur, "layer", &layer);
+            if (val && layer >= 0 && layer < SC2_MAX_TEXTURES) {
+                if (layer >= frame->num_textures) frame->num_textures = layer + 1;
+                if (!strcasecmp(val, "false") || !strcasecmp(val, "0"))
+                    frame->textures[layer].flags |= SC2_TEX_LAYER_HIDDEN;
+                else
+                    frame->textures[layer].flags &= ~SC2_TEX_LAYER_HIDDEN;
+            }
+            if (val) SC2_XmlFree(val);
         } else if (!strcasecmp(tag, "Visible")) {
             LPCSTR val = SC2_XmlGetProp(cur, "val");
             if (val) {
@@ -1148,6 +1161,19 @@ static void SC2_FlattenFrame(sc2Frame_t *frame, int parent_index) {
     dst->ui_flags = 0;
     if (frame->flags & SC2_FRAME_HAS_VISIBLE) {
         if (!(frame->flags & SC2_FRAME_VISIBLE))
+            dst->ui_flags |= SC2_UIFLAG_HIDDEN | SC2_UIFLAG_HIDDEN_IN_HIERARCHY;
+    }
+    /* If the frame has at least one texture layer and ALL layers are marked
+     * LayerVisible=false, the frame is invisible at startup (e.g. AutoCastImage,
+     * cooldown overlays).  Hide it so it doesn't render on top of the icon. */
+    if (frame->num_textures > 0 && !(dst->ui_flags & SC2_UIFLAG_HIDDEN)) {
+        int all_hidden = 1;
+        for (int i = 0; i < frame->num_textures; i++) {
+            if (!(frame->textures[i].flags & SC2_TEX_LAYER_HIDDEN)) {
+                all_hidden = 0; break;
+            }
+        }
+        if (all_hidden)
             dst->ui_flags |= SC2_UIFLAG_HIDDEN | SC2_UIFLAG_HIDDEN_IN_HIERARCHY;
     }
 
