@@ -26,9 +26,7 @@
 #ifndef MAX_UI_CLASSES
 #define MAX_UI_CLASSES 4096
 #endif
-#define UI_BASE_WIDTH 0.8f
-#define UI_BASE_HEIGHT 0.6f
-#define UI_MIN_ASPECT (4.0f / 3.0f)
+#include "ui_constants.h"
 #define UI_MAX_MAP_LIST_ITEMS 1024
 #define UI_MAX_MENU_ITEMS 32
 

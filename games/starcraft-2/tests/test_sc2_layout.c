@@ -21,6 +21,7 @@ uiImport_t uiimport;
 #endif
 
 static BOOL sc2_layout_tests_initialized;
+static int test_image_index(LPCSTR name) { return name && *name ? 17 : 0; }
 
 static void setup_sc2_layout_tests(void) {
     if (sc2_layout_tests_initialized) return;
@@ -33,6 +34,7 @@ static void setup_sc2_layout_tests(void) {
     memset(&uiimport, 0, sizeof(uiimport));
     uiimport.FS_ReadFile = FS_ReadFileQ3;
     uiimport.FS_FreeFile = FS_FreeFile;
+    uiimport.ImageIndex = test_image_index;
     uiimport.Printf = (void (*)(LPCSTR, ...))printf;
 
     sc2_layout_tests_initialized = true;
@@ -220,6 +222,38 @@ static void test_layout_nested_children(void) {
     SC2_LayoutShutdown();
 }
 
+/* ---- Test: shorthand <Anchor relative="$parent"/> fills all sides ---- */
+static void test_layout_shorthand_anchor(void) {
+    setup_sc2_layout_tests();
+    SC2_LayoutInit();
+    ASSERT(SC2_LayoutParseFile("UI/Layout/TestTemplates.SC2Layout"));
+
+    /* Look for a template that uses the shorthand anchor.
+     * TestContainerTemplate's child Background has <Anchor relative="$parent"/>. */
+    sc2Frame_t *container = SC2_LayoutFindTemplate("TestContainerTemplate");
+    ASSERT_NOT_NULL(container);
+    sc2Frame_t *bg = container->children[0];
+    ASSERT_NOT_NULL(bg);
+    /* If shorthand was parsed, it should have 4 anchors (Top/Min, Bottom/Max, Left/Min, Right/Max) */
+    ASSERT_EQ_INT(bg->num_anchors, 4);
+
+    /* Verify the four anchors */
+    int found_top = 0, found_bottom = 0, found_left = 0, found_right = 0;
+    for (int i = 0; i < bg->num_anchors; i++) {
+        if (bg->anchors[i].side == SC2_SIDE_TOP)    found_top    = 1;
+        if (bg->anchors[i].side == SC2_SIDE_BOTTOM) found_bottom = 1;
+        if (bg->anchors[i].side == SC2_SIDE_LEFT)   found_left   = 1;
+        if (bg->anchors[i].side == SC2_SIDE_RIGHT)  found_right  = 1;
+        ASSERT_STR_EQ(bg->anchors[i].relative, "$parent");
+    }
+    ASSERT(found_top);
+    ASSERT(found_bottom);
+    ASSERT(found_left);
+    ASSERT(found_right);
+
+    SC2_LayoutShutdown();
+}
+
 /* ---- Test: anchor parsing ---- */
 static void test_layout_anchors_parsed(void) {
     setup_sc2_layout_tests();
@@ -280,6 +314,13 @@ static void test_layout_flatten_to_frames(void) {
     ASSERT_EQ_INT(frames[0].type, FT_FRAME);
     ASSERT(frames[0].size.width > 0 || frames[0].size.height > 0 ||
            frames[0].parent_index == (DWORD)-1);
+    sc2BaseFrame_t *background = SC2_LayoutFindFrameByName("CommandBackground");
+    sc2BaseFrame_t *label = SC2_LayoutFindFrameByName("UnitName");
+    ASSERT_NOT_NULL(background);
+    ASSERT_EQ_INT(background->image, 17);
+    ASSERT_NOT_NULL(label);
+    ASSERT_EQ_FLOAT(label->size.width, 200.0f, 0.001f);
+    ASSERT_EQ_FLOAT(label->size.height, 20.0f, 0.001f);
 
     SC2_LayoutShutdown();
 }
@@ -356,6 +397,51 @@ static void test_layout_texture_layers(void) {
     SC2_LayoutShutdown();
 }
 
+/* ---- Test: flattened frames from test fixture have valid parent structure ---- */
+static void test_layout_flattened_frames_hierarchy(void) {
+    setup_sc2_layout_tests();
+    SC2_LayoutInit();
+    ASSERT(SC2_LayoutParseFile("UI/Layout/TestGameUI.SC2Layout"));
+    ASSERT(SC2_LayoutFlatten("TestGameUI"));
+
+    DWORD count = 0;
+    sc2BaseFrame_t *frames = SC2_LayoutGetFrames(&count);
+    ASSERT(count >= 5);
+
+    /* Root: parent_index == -1 */
+    ASSERT_EQ_INT(frames[0].parent_index, (DWORD)-1);
+
+    /* All non-root frames must have a valid parent_index */
+    for (DWORD i = 1; i < count; i++)
+        ASSERT(frames[i].parent_index < count);
+
+    SC2_LayoutShutdown();
+}
+
+/* ---- Test: SC2_LayoutFindFrameByType returns correct root types ---- */
+static void test_layout_find_by_type(void) {
+    setup_sc2_layout_tests();
+    SC2_LayoutInit();
+    ASSERT(SC2_LayoutParseFile("UI/Layout/TestGameUI.SC2Layout"));
+    ASSERT(SC2_LayoutFlatten("TestGameUI"));
+
+    /* GameUI root should be findable */
+    sc2BaseFrame_t *gameui = SC2_LayoutFindFrameByType(SC2_FRAMETYPE_GAME_UI);
+    ASSERT_NOT_NULL(gameui);
+    ASSERT_EQ_INT(gameui->parent_index, (DWORD)-1);
+
+    /* TestGameUI fixture has a GameUI type root; child panels may not exist
+     * since TestGameUI.SC2Layout doesn't define ConsolePanel/ResourcePanel. */
+    sc2BaseFrame_t *console = SC2_LayoutFindFrameByType(SC2_FRAMETYPE_CONSOLE_PANEL);
+    sc2BaseFrame_t *resource = SC2_LayoutFindFrameByType(SC2_FRAMETYPE_RESOURCE_PANEL);
+    /* These are allowed to be NULL since the test fixture doesn't define them.
+     * The important thing is they don't crash and return the expected type when present. */
+    if (console) ASSERT(console->parent_index != (DWORD)-1);
+    if (resource) ASSERT(resource->parent_index != (DWORD)-1);
+
+    SC2_LayoutShutdown();
+}
+
 void run_sc2_layout_tests(void) {
     RUN_TEST(test_layout_constants_parsed);
     RUN_TEST(test_layout_unknown_constant_returns_null);
@@ -371,4 +457,7 @@ void run_sc2_layout_tests(void) {
     RUN_TEST(test_layout_reinit_clears);
     RUN_TEST(test_layout_constant_offset);
     RUN_TEST(test_layout_texture_layers);
+    RUN_TEST(test_layout_flattened_frames_hierarchy);
+    RUN_TEST(test_layout_find_by_type);
+    RUN_TEST(test_layout_shorthand_anchor);
 }

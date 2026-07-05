@@ -843,6 +843,26 @@ void FS_FreeFile(void *buf) {
     MemFree(buf);
 }
 
+/* Read every copy of 'filename' across all loaded archives, lowest priority
+ * first (so later calls override earlier ones when merging key=value data).
+ * callback receives a NUL-terminated buffer + its byte length; it must NOT
+ * free the buffer — the caller owns it and frees after the callback returns. */
+void FS_ReadFileAll(LPCSTR filename, void (*callback)(HANDLE buf, DWORD size, void *ud), void *ud) {
+    if (!filename || !*filename || !callback) return;
+    for (int i = 0; i < MAX_ARCHIVES; i++) {
+        HANDLE file;
+        if (!archives[i]) continue;
+        if (!SFileOpenFileEx(archives[i], filename, SFILE_OPEN_FROM_MPQ, &file)) continue;
+        DWORD sz = SFileGetFileSize(file, NULL);
+        LPSTR buf = MemAlloc(sz + 1);
+        SFileReadFile(file, buf, sz, NULL, NULL);
+        buf[sz] = '\0';
+        SFileCloseFile(file);
+        callback(buf, sz, ud);
+        MemFree(buf);
+    }
+}
+
 static BOOL FS_FindAdvance(fsFind_t *find, SFILE_FIND_DATA *findData) {
     if (find && findData && find->looseIndex < find->looseCount) {
         LPCSTR name = find->looseFiles[find->looseIndex++];

@@ -32,6 +32,38 @@ static inline const char *Tool_PathExt(const char *path);
 #include "../common/mpq.h"
 #include "../common/mpq.c"
 
+#include <dirent.h>
+#include <sys/stat.h>
+
+/* Recursively walk 'dir', calling cb(archive_path, ud) for every file
+ * whose extension is a recognised archive type (.mpq / .SC2Assets /
+ * .SC2Data / .SC2Maps).  Caller collects paths, sorts, then opens. */
+static inline void Tool_ForEachArchive(const char *dir,
+                                       void (*cb)(const char *path, void *ud),
+                                       void *ud) {
+    DIR *d = opendir(dir);
+    if (!d) return;
+    struct dirent *e;
+    while ((e = readdir(d)) != NULL) {
+        if (!strcmp(e->d_name, ".") || !strcmp(e->d_name, "..")) continue;
+        char path[1024];
+        snprintf(path, sizeof(path), "%s/%s", dir, e->d_name);
+        struct stat st;
+        if (stat(path, &st) != 0) continue;
+        if (S_ISDIR(st.st_mode)) {
+            Tool_ForEachArchive(path, cb, ud);
+        } else if (S_ISREG(st.st_mode)) {
+            const char *ext = Tool_PathExt(e->d_name);
+            if (!strcasecmp(ext, "mpq") ||
+                !strcasecmp(ext, "SC2Assets") ||
+                !strcasecmp(ext, "SC2Data") ||
+                !strcasecmp(ext, "SC2Maps"))
+                cb(path, ud);
+        }
+    }
+    closedir(d);
+}
+
 static inline HANDLE Tool_AddArchive(HANDLE *archives, size_t count, LPCSTR filename) {
     for (size_t i = 0; i < count; i++) {
         if (archives[i]) {

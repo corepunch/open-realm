@@ -3,6 +3,7 @@
 
 #include "server/server.h"
 #include "common/wow_ui_shared.h"
+#include "common/ui_constants.h"
 
 #define WOW_MAX_CLIENTS 1
 #define WOW_MAX_EDICTS 128

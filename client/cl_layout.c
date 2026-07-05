@@ -137,7 +137,7 @@ LPCSTR SCR_GetStringValue(LPCUIFRAME frame) {
     } else if (frame->text) {
         return frame->text;
     } else {
-        sprintf(text, "text %d", frame->number);
+        text[0] = '\0';
     }
     return text;
 }
@@ -147,8 +147,9 @@ drawText_t SCR_GetDrawText(LPCUIFRAME frame,
                       LPCSTR text,
                       uiLabel_t const *label)
 {
+    LPCFONT font = cl.fonts[label->font];
     return MAKE(drawText_t,
-                .font = cl.fonts[label->font],
+                .font = font,
                 .text = text,
                 .color = frame->color,
                 .halign = label->textalignx,
@@ -164,10 +165,9 @@ LPCRECT SCR_LayoutRect(LPCUIFRAME frame) {
     } else {
         runtimes[frame->number].calculated = true; // done here to avoid recursion
     }
-    VECTOR2 elemsize;
-    size2_t imagesize;
+    VECTOR2 elemsize = {0};
     FLOAT avl_space = runtimes[0].rect.w;
-    drawText_t drawtext;
+    drawText_t drawtext = {0};
     switch (frame->flags.type) {
         case FT_STRING:
         case FT_TEXT:
@@ -178,25 +178,36 @@ LPCRECT SCR_LayoutRect(LPCUIFRAME frame) {
             elemsize = re.GetTextSize(&drawtext);
             break;
         case FT_TEXTURE:
-        case FT_SIMPLESTATUSBAR:
-            /* Prefer the frame's authored size; fall back to the texture's
-               native size only when no explicit size was provided. */
+        case FT_SIMPLESTATUSBAR: {
+            /* NormalImage/HoverImage semantics: when the frame has no explicit
+               size AND no anchors on either axis, it fills the parent rect
+               completely (SC2 button image fill-parent behaviour). */
+            BOOL has_x_anchor = frame->points.x[FPP_MIN].used || frame->points.x[FPP_MID].used || frame->points.x[FPP_MAX].used;
+            BOOL has_y_anchor = frame->points.y[FPP_MIN].used || frame->points.y[FPP_MID].used || frame->points.y[FPP_MAX].used;
+            BOOL no_explicit_size = frame->size.width == 0 && frame->size.height == 0;
+            if (no_explicit_size && !has_x_anchor && !has_y_anchor) {
+                /* Fill parent: copy parent rect directly. */
+                LPCRECT pr = SCR_LayoutRect(frames + frame->parent);
+                runtimes[frame->number].rect = *pr;
+                return &runtimes[frame->number].rect;
+            }
             if (frame->size.width > 0 && frame->size.height > 0) {
                 elemsize.x = frame->size.width;
                 elemsize.y = frame->size.height;
             } else {
-                imagesize = re.GetTextureSize(cl.pics[frame->tex.index]);
-                elemsize.x = imagesize.width * 8;
-                elemsize.y = imagesize.height * 6;
+                LPCRECT pr = SCR_LayoutRect(frames + frame->parent);
+                elemsize.x = pr->w;
+                elemsize.y = pr->h;
             }
             break;
+        }
         default:
             break;
     }
-    if (frame->size.width == 0) {
+    if (frame->size.width == 0 && !(frame->points.x[FPP_MIN].used && frame->points.x[FPP_MAX].used)) {
         ((LPUIFRAME )frame)->size.width = elemsize.x;
     }
-    if (frame->size.height == 0) {
+    if (frame->size.height == 0 && !(frame->points.y[FPP_MIN].used && frame->points.y[FPP_MAX].used)) {
         ((LPUIFRAME )frame)->size.height = elemsize.y;
     }
     VECTOR2 const rect[] = {
@@ -210,6 +221,58 @@ LPCRECT SCR_LayoutRect(LPCUIFRAME frame) {
         .h = rect[1].y,
     };
     return &runtimes[frame->number].rect;
+}
+
+/* Resolve the y-coordinate of frame 'idx' relative to a pmax-only container's
+ * implicit top (which we treat as 0).  Follows pmin_y anchor chains, resolving
+ * FPP_MAX target to (ref_y + ref_h).  Used only by SCR_InferContainerHeights
+ * before runtimes[] are populated — never reads runtimes[]. */
+static FLOAT scr_frame_abs_y(DWORD idx) {
+    if (idx == 0 || idx >= num_frames) return 0;
+    LPCUIFRAME f = &frames[idx];
+    uiFramePoint_t const *pmin_y = &f->points.y[FPP_MIN];
+    if (!pmin_y->used) return 0;
+    DWORD rel = pmin_y->relativeTo;
+    FLOAT parent_y = (rel == UI_PARENT) ? scr_frame_abs_y(f->parent) :
+                     (rel < num_frames) ? scr_frame_abs_y(rel) : 0;
+    FLOAT off = -((FLOAT)pmin_y->offset / UI_FRAMEPOINT_SCALE);
+    if (pmin_y->targetPos == FPP_MAX) {
+        FLOAT parent_h = (rel == UI_PARENT) ? frames[f->parent].size.height :
+                         (rel < num_frames) ? frames[rel].size.height : 0;
+        return parent_y + parent_h + off;
+    }
+    return parent_y + off;
+}
+
+/* SC2 panels (CommandPanel, InfoPanel, etc.) often have only a Bottom anchor and
+ * no explicit Height.  After wire parsing, for any FT_FRAME with size.height==0
+ * and only pmax_y set, infer height from the max y-extent of all descendants. */
+static void SCR_InferContainerHeights(void) {
+    for (DWORD p = num_frames; p-- > 1; ) {
+        LPCUIFRAME f = &frames[p];
+        if (f->size.height > 0) continue;
+        if (f->flags.type != FT_FRAME) continue;
+        if (f->points.y[FPP_MIN].used || f->points.y[FPP_MID].used) continue;
+        if (!f->points.y[FPP_MAX].used) continue;
+
+        /* Container top = 0 in relative coords (pmax-only frame has no pmin). */
+        FLOAT container_y = scr_frame_abs_y(p);
+
+        /* Scan ALL descendants for max y-extent relative to this container. */
+        FLOAT max_extent = 0;
+        for (DWORD c = 1; c < num_frames; c++) {
+            if (frames[c].size.height == 0) continue;
+            /* Walk parent chain to see if this frame is a descendant of p. */
+            DWORD anc = c;
+            while (anc > 0 && anc < num_frames && anc != p) anc = frames[anc].parent;
+            if (anc != p) continue;
+            FLOAT abs_y = scr_frame_abs_y(c);
+            FLOAT extent = (abs_y - container_y) + frames[c].size.height;
+            if (extent > max_extent) max_extent = extent;
+        }
+        if (max_extent > 0)
+            ((LPUIFRAME)f)->size.height = max_extent;
+    }
 }
 
 LPCUIFRAME SCR_Clear(HANDLE data) {
@@ -263,6 +326,7 @@ LPCUIFRAME SCR_Clear(HANDLE data) {
         msg.readcount += ent->buffer.size;
         num_frames = MAX(num_frames, nument+1);
     }
+    SCR_InferContainerHeights();
     return frames;
 }
 

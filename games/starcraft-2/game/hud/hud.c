@@ -1,632 +1,488 @@
 /*
- * hud.c — SC2Layout → uiframe serialization bridge.
+ * hud.c — SC2 sc2BaseFrame_t → uiFrame_t serialization bridge.
  *
- * Converts parsed SC2FRAMEDEF trees (from stb_sc2layout.h) into uiFrame_t
- * wire format for transmission via svc_layout.  These functions need gi for
- * network writes, so they live in the game module rather than the UI module.
+ * SC2 anchor model → uiFramePoint_t:
+ *   SC2_SIDE_LEFT/RIGHT → x axis, SC2_SIDE_TOP/BOTTOM → y axis.
+ *   SC2_POS_MIN/MID/MAX → FPP_MIN/FPP_MID/FPP_MAX targetPos.
+ *   offset is stored in int16 scaled by UI_FRAMEPOINT_SCALE.
  *
- * Also provides the game-side .SC2Layout XML parser using libxml2 + gi.ReadFile.
+ * Frame numbers are assigned sequentially as frames are written
+ * (matching the WC3 pattern in hud.c / UI_ResetFrameWriteList).
+ * parent_index == (DWORD)-1 means the frame is a root (parent = 0).
  */
 
-#include "hud_local.h"
-#include <libxml/parser.h>
+/* Pull in the SC2 layout parser (single-header library). */
+#include "games/starcraft-2/common/stb_sc2layout.h"
+#include "common/ui_constants.h"
+
+#include "hud.h"
+#include "client/ui.h"
 #include <string.h>
-#include <stdarg.h>
-#include <stdio.h>
+#include <stdlib.h>
 
-/* ---------------------------------------------------------------
- * Host services — game module implementations using gi
- * --------------------------------------------------------------- */
-HANDLE SC2_Alloc(long size) { return gi.MemAlloc(size); }
-void   SC2_Free(HANDLE ptr) { gi.MemFree(ptr); }
-DWORD  SC2_FontIndex(LPCSTR name, DWORD size) { return gi.FontIndex(name, size); }
-int    SC2_ReadFile(LPCSTR name, HANDLE *out) {
+/* uiimport — host services for sc2_layout.c when compiled into the game module.
+ * gi.ReadFile signature (HANDLE, LPDWORD) differs from uiimport.FS_ReadFile
+ * (int, void**), so we wrap it. */
+uiImport_t uiimport;
+
+static int sc2_hud_read_file(LPCSTR filename, void **buf) {
     DWORD size = 0;
-    *out = gi.ReadFile(name, &size);
-    return *out ? (int)size : -1;
-}
-void   SC2_FreeFile(HANDLE buf) { gi.MemFree(buf); }
-
-/* ---------------------------------------------------------------
- * Frame storage
- * --------------------------------------------------------------- */
-DWORD ui_next_frame_number;
-#define MAX_FRAMES_SC2 1024
-static SC2FRAMEDEF sc2_frames[MAX_FRAMES_SC2];
-static DWORD sc2_num_frames;
-
-static FLOAT SC2_NormX(int px);
-static FLOAT SC2_NormY(int py);
-
-/* ---------------------------------------------------------------
- * SVG layout protocol helpers
- * --------------------------------------------------------------- */
-void SC2_WriteStart(DWORD layer) {
-    gi.Write(PF_BYTE, &(LONG){svc_layout});
-    gi.Write(PF_BYTE, &(LONG){layer});
-    ui_next_frame_number = 1;
+    *buf = gi.ReadFile(filename, &size);
+    return *buf ? (int)size : -1;
 }
 
-void SC2_WriteEnd(LPEDICT ent) {
-    gi.Write(PF_LONG, &(LONG){0});  /* terminator */
-    gi.Write(PF_SHORT, &(LONG){0});
-    gi.unicast(ent);
+static void sc2_hud_free_file(void *buf) { gi.MemFree(buf); }
+
+/* ------------------------------------------------------------------ */
+/* GameData/Assets.txt catalog: merged from every archive copy, lowest
+ * priority first so higher-priority overrides win.  Format:
+ *   UI/LogicalName=Assets\Textures\file.dds   (one entry per line)
+ * This is the SC2 equivalent of WC3's war3skins.txt.  Multiple archives
+ * each have their own Assets.txt (Core.SC2Mod, Liberty.SC2Mod, …);
+ * gi.ReadFile returns only the highest-priority copy, so we use
+ * gi.ReadFileAll to collect and merge all copies. */
+
+#define SC2_ASSETS_MAX 4096
+static struct { char key[80]; char val[128]; } *assets_catalog;
+static int assets_catalog_count;
+static char missing_ui_keys[512][80];
+static int missing_ui_key_count;
+
+static BOOL sc2_hud_missing_ui_seen(LPCSTR key) {
+    for (int i = 0; i < missing_ui_key_count; i++)
+        if (!strcasecmp(missing_ui_keys[i], key)) return true;
+    if (missing_ui_key_count < (int)(sizeof(missing_ui_keys) / sizeof(*missing_ui_keys))) {
+        strncpy(missing_ui_keys[missing_ui_key_count], key, sizeof(missing_ui_keys[0]) - 1);
+        missing_ui_keys[missing_ui_key_count][sizeof(missing_ui_keys[0]) - 1] = '\0';
+        missing_ui_key_count++;
+    }
+    return false;
 }
 
-/* ---------------------------------------------------------------
- * FRAMEDEF → uiFrame_t conversion
- * --------------------------------------------------------------- */
-static void CopyFrameBase(LPUIFRAME dest, LPCSC2FRAMEDEF src) {
-    FOR_LOOP(i, FPP_COUNT) {
-        dest->points.x[i].targetPos = src->Points.x[i].targetPos;
-        dest->points.x[i].used = src->Points.x[i].used;
-        dest->points.x[i].relativeTo = src->Points.x[i].relativeTo ? UI_PARENT : 0;
-        dest->points.x[i].offset = (SHORT)(src->Points.x[i].offset * 1000.0f);
-        dest->points.y[i].targetPos = src->Points.y[i].targetPos;
-        dest->points.y[i].used = src->Points.y[i].used;
-        dest->points.y[i].relativeTo = src->Points.y[i].relativeTo ? UI_PARENT : 0;
-        dest->points.y[i].offset = (SHORT)(src->Points.y[i].offset * 1000.0f);
+/* Parse one Assets.txt buffer into assets_catalog.  Called by ReadFileAll
+ * callback lowest-priority first; later archives overwrite earlier entries
+ * for the same key, so Liberty beats Core where they conflict. */
+static void sc2_hud_parse_assets_txt(HANDLE buf, DWORD len, void *ud) {
+    (void)ud;
+    if (!buf || !len) return;
+    if (!assets_catalog) {
+        assets_catalog = malloc(SC2_ASSETS_MAX * sizeof(*assets_catalog));
+        if (!assets_catalog) return;
     }
 
-    dest->parent = src->Parent ? (DWORD)src->Parent->resolved_index : 0;
-    dest->color = src->Color;
-    dest->size.width = src->Width;
-    dest->size.height = src->Height;
-    dest->flags.type = src->Type;
-    dest->text = src->Text;
-    dest->onclick = src->OnClick;
-    dest->stat = src->Stat;
-    dest->color.a = src->Alpha * 255.0f;
-    /* hidden handled by SC2_WriteFrameWithChildren tree skip; disabled not in wire format */
+    int before = assets_catalog_count;
+    const char *p = (const char *)buf;
+    const char *end = p + len;
+    while (p < end) {
+        const char *nl = memchr(p, '\n', (size_t)(end - p));
+        size_t llen = nl ? (size_t)(nl - p) : (size_t)(end - p);
+        while (llen > 0 && (p[llen - 1] == '\r' || p[llen - 1] == '\n')) llen--;
 
-    if (src->num_textures > 0 && src->textures[0].image)
-        dest->tex.index = (USHORT)src->textures[0].image;
-
-    FOR_LOOP(i, FPP_COUNT) {
-        LPCSC2FRAMEDEF relX = src->Points.x[i].relativeTo;
-        LPCSC2FRAMEDEF relY = src->Points.y[i].relativeTo;
-        if (relX == NULL) {
-            dest->points.x[i].relativeTo = 0;
-        } else if (relX == src->Parent) {
-            dest->points.x[i].relativeTo = UI_PARENT;
-        } else if (relX->resolved_index > 0) {
-            dest->points.x[i].relativeTo = (BYTE)relX->resolved_index;
-        } else {
-            /* Relative frame not written yet; anchor to parent as fallback. */
-            dest->points.x[i].relativeTo = UI_PARENT;
+        const char *eq = memchr(p, '=', llen);
+        if (eq) {
+            size_t klen = (size_t)(eq - p);
+            size_t vlen = llen - klen - 1;
+            if (klen >= 3 && p[0] == 'U' && p[1] == 'I' && p[2] == '/' &&
+                klen < sizeof(assets_catalog[0].key) &&
+                vlen < sizeof(assets_catalog[0].val)) {
+                /* Update existing entry if key already present (override). */
+                int found = -1;
+                for (int i = 0; i < assets_catalog_count; i++) {
+                    if (!strncasecmp(assets_catalog[i].key, p, klen) &&
+                        assets_catalog[i].key[klen] == '\0') {
+                        found = i; break;
+                    }
+                }
+                int slot = (found >= 0) ? found :
+                           (assets_catalog_count < SC2_ASSETS_MAX ? assets_catalog_count++ : -1);
+                if (slot >= 0) {
+                    memcpy(assets_catalog[slot].key, p, klen);
+                    assets_catalog[slot].key[klen] = '\0';
+                    memcpy(assets_catalog[slot].val, eq + 1, vlen);
+                    assets_catalog[slot].val[vlen] = '\0';
+                    for (char *s = assets_catalog[slot].val; *s; s++)
+                        if (*s == '\\') *s = '/';
+                }
+            }
         }
-        if (relY == NULL) {
-            dest->points.y[i].relativeTo = 0;
-        } else if (relY == src->Parent) {
-            dest->points.y[i].relativeTo = UI_PARENT;
-        } else if (relY->resolved_index > 0) {
-            dest->points.y[i].relativeTo = (BYTE)relY->resolved_index;
-        } else {
-            dest->points.y[i].relativeTo = UI_PARENT;
+        p = nl ? nl + 1 : end;
+    }
+    fprintf(stderr, "SC2_HUD: merged Assets.txt — total %d UI/ entries (+%d new)\n",
+            assets_catalog_count, assets_catalog_count - before);
+}
+
+/* ------------------------------------------------------------------ */
+/* SC2 layout resources are CTexture catalog keys sourced from
+ * GameData/Assets.txt in the SC2 mod archives (the SC2 equivalent of
+ * war3skins.txt).  paths[] covers Core.SC2Mod entries; assets_catalog
+ * covers Liberty.SC2Mod entries loaded at runtime. */
+static int sc2_hud_image_index(LPCSTR resource) {
+    static struct { LPCSTR logical, physical; } const paths[] = {
+        { "UI/ResourceIcon0",    "Assets/Textures/icon-mineral.dds" },
+        { "UI/ResourceIcon1",    "Assets/Textures/icon-gas.dds" },
+        { "UI/ResourceIcon2",    "Assets/Textures/icon-highyieldmineral.dds" },
+        { "UI/ResourceIcon3",    "Assets/Textures/icon-mineral.dds" },
+        { "UI/ResourceIconSupply",  "Assets/Textures/icon-supply.dds" },
+        { "UI/ResourceIconPlayer",  "Assets/Textures/ui_ingame_resourcesharing_playericon.dds" },
+        { "UI/BlankPortraitBackground", "Assets/Textures/terranblankportrait_static.dds" },
+        { "UI/StandardGameTooltip",  "Assets/Textures/ui_battlenet_tooltip_outline.dds" },
+        { "UI/TechGlossarySmallButtonNormal", "Assets/Textures/ui_glossary_strongagainst_terran_normalandpressed.dds" },
+        { "UI/TechGlossarySmallButtonHover",  "Assets/Textures/ui_glossary_strongagainst_terran_normaloverandpressedover.dds" },
+        { "UI/IdleButtonNormal", "Assets/Textures/ui_idlepeon_normalpressed_terran.dds" },
+        { "UI/IdleButtonHover",  "Assets/Textures/ui_idlepeon_normaloverpressedover_terran.dds" },
+        { "UI/AIButton",         "Assets/Textures/ai_avatar.dds" },
+        { "UI/WarpButtonNormal", "Assets/Textures/ui_warpin_normalpressed.dds" },
+        { "UI/WarpButtonHover",  "Assets/Textures/ui_warpin_normaloverpressedover.dds" },
+        { "UI/CharacterSheetToggleButtonNormal", "Assets/Textures/ui_techlist_button_normalpressed.dds" },
+        { "UI/CharacterSheetToggleButtonHover",  "Assets/Textures/ui_techlist_button_normaloverpressedover.dds" },
+        { "UI/AllianceToggleButtonNormal", "Assets/Textures/ui_alliance_button_normalpressed.dds" },
+        { "UI/AllianceToggleButtonHover",  "Assets/Textures/ui_alliance_button_normaloverpressedover.dds" },
+        { "UI/TeamResourceToggleButtonNormal", "Assets/Textures/ui_resourcesharing_button_normalpressed.dds" },
+        { "UI/TeamResourceToggleButtonHover",  "Assets/Textures/ui_resourcesharing_button_normaloverpressedover.dds" },
+        { "UI/CreditsPanelBackground_Left",   "Assets/Textures/ui_credit_frame_l.dds" },
+        { "UI/CreditsPanelBackground_Right",  "Assets/Textures/ui_credit_frame_r.dds" },
+        { "UI/CreditsPanelBackground_Middle", "Assets/Textures/ui_credit_frame_m.dds" },
+        { "UI/ObjectivePanelCategoryBackground", "Assets/Textures/ui_objectives_frame_title.dds" },
+        { "UI/MenuBarButtonNormal", "Assets/Textures/ui_gamemenu_topbuttons_normalpressed.dds" },
+        { "UI/MenuBarButtonHover",  "Assets/Textures/ui_gamemenu_topbuttons_normaloverpressedover.dds" },
+        { "UI/SubtitleBorder",      "Assets/Textures/ui_storymode_subtitle_frame.dds" },
+        { "UI/BattleBuddyFriendsFrame",    "Assets/Textures/ui_battlebuddy_frame_terran.dds" },
+        { "UI/BattleBuddyMicrophoneFrame", "Assets/Textures/ui_battlemic_terran.dds" },
+    };
+    while (*resource == '@') resource++;
+    FOR_LOOP(i, sizeof(paths) / sizeof(*paths)) {
+        if (!strcasecmp(resource, paths[i].logical))
+            return gi.ImageIndex(paths[i].physical);
+    }
+    for (int i = 0; i < assets_catalog_count; i++) {
+        if (!strcasecmp(resource, assets_catalog[i].key))
+            return gi.ImageIndex(assets_catalog[i].val);
+    }
+    if (!strncasecmp(resource, "UI/", 3)) {
+        if (!sc2_hud_missing_ui_seen(resource))
+            fprintf(stderr, "SC2_HUD: unresolved UI resource '%s'\n", resource);
+        return 0;
+    }
+    return gi.ImageIndex(resource);
+}
+
+void SC2_HUD_InitLayoutHost(void) {
+    memset(&uiimport, 0, sizeof(uiimport));
+    uiimport.FS_ReadFile = sc2_hud_read_file;
+    uiimport.FS_FreeFile = sc2_hud_free_file;
+    uiimport.ImageIndex = sc2_hud_image_index;
+    uiimport.FontIndex = gi.FontIndex;
+    gi.ReadFileAll("GameData/Assets.txt", sc2_hud_parse_assets_txt, NULL);
+}
+
+/* ------------------------------------------------------------------ */
+/* Frame numbering — flat wire[] map, (DWORD)-1 = unassigned */
+
+#define SC2_MAX_FRAMES_WRITE 512
+static DWORD frame_to_wire[SC2_MAX_FRAMES_WRITE];
+static DWORD num_frames_written;
+
+static void reset_frame_write(void) {
+    for (int i = 0; i < SC2_MAX_FRAMES_WRITE; i++)
+        frame_to_wire[i] = (DWORD)-1;
+    num_frames_written = 0;
+}
+
+static DWORD get_wire(DWORD index) {
+    return (index < SC2_MAX_FRAMES_WRITE && frame_to_wire[index] != (DWORD)-1)
+           ? frame_to_wire[index] : 0;
+}
+
+static DWORD assign_number(DWORD index) {
+    if (index < SC2_MAX_FRAMES_WRITE && frame_to_wire[index] == (DWORD)-1)
+        frame_to_wire[index] = ++num_frames_written;
+    return get_wire(index);
+}
+
+/* ------------------------------------------------------------------ */
+/* Anchor → uiFramePoint_t conversion */
+
+static void copy_points(uiFrame_t *out, LPCSC2BASEFRAME frame) {
+    for (int i = 0; i < FPP_COUNT; i++) {
+        /* X axis */
+        sc2BaseFramePoint_t const *px = &frame->points.x[i];
+        if (px->used) {
+            out->points.x[i].used      = 1;
+            out->points.x[i].targetPos = px->targetPos;
+            out->points.x[i].relativeTo = (BYTE)((px->relative_index != (DWORD)-1)
+                                          ? get_wire(px->relative_index)
+                                          : UI_PARENT);
+            out->points.x[i].offset = (int16_t)(px->offset * UI_FRAMEPOINT_SCALE);
+        }
+        /* Y axis */
+        sc2BaseFramePoint_t const *py = &frame->points.y[i];
+        if (py->used) {
+            out->points.y[i].used      = 1;
+            out->points.y[i].targetPos = py->targetPos;
+            out->points.y[i].relativeTo = (BYTE)((py->relative_index != (DWORD)-1)
+                                          ? get_wire(py->relative_index)
+                                          : UI_PARENT);
+            out->points.y[i].offset = (int16_t)(py->offset * UI_FRAMEPOINT_SCALE);
         }
     }
 }
 
-static BOOL BuildFrameForWrite(LPCSC2FRAMEDEF frame, LPUIFRAME out,
-                                LPBYTE typedata, DWORD typedata_max,
-                                LPSTR textbuf, DWORD textbuf_max) {
-    if (!frame || !out || !typedata || typedata_max == 0)
-        return false;
+/* ------------------------------------------------------------------ */
+
+BOOL SC2_HUD_BuildFrameForWrite(LPCSC2BASEFRAME frame, uiFrame_t *out) {
+    if (!frame || !out) return false;
 
     memset(out, 0, sizeof(*out));
-    memset(typedata, 0, typedata_max);
-    if (textbuf && textbuf_max > 0)
-        memset(textbuf, 0, textbuf_max);
-
-    CopyFrameBase(out, frame);
-
-    struct { LPBYTE data; DWORD maxsize; DWORD cursize; BOOL overflowed; } buf = {
-        .data = typedata, .maxsize = typedata_max,
-    };
-
-    switch (frame->Type) {
-        case FT_BACKDROP: {
-            struct { DWORD bg, edge, tile; FLOAT insets[4]; } data;
-            memset(&data, 0, sizeof(data));
-            data.bg = frame->backdrop.bg;
-            data.edge = frame->backdrop.edge;
-            data.tile = frame->backdrop.tile;
-            memcpy(data.insets, frame->backdrop.insets, sizeof(data.insets));
-            if (buf.cursize + sizeof(data) <= buf.maxsize) {
-                memcpy(buf.data + buf.cursize, &data, sizeof(data));
-                buf.cursize += (DWORD)sizeof(data);
-            } else { buf.overflowed = true; }
-            break;
-        }
-        case FT_TEXT:
-        case FT_STRING: {
-            if (!out->points.x[FPP_MIN].used && !out->points.x[FPP_MID].used && !out->points.x[FPP_MAX].used) {
-                out->points.x[FPP_MID].targetPos = FPP_MID;
-                out->points.x[FPP_MID].relativeTo = UI_PARENT;
-                out->points.x[FPP_MID].used = 1;
-            }
-            if (!out->points.y[FPP_MIN].used && !out->points.y[FPP_MID].used && !out->points.y[FPP_MAX].used) {
-                out->points.y[FPP_MID].targetPos = FPP_MID;
-                out->points.y[FPP_MID].relativeTo = UI_PARENT;
-                out->points.y[FPP_MID].used = 1;
-            }
-            out->color = frame->font.color;
-
-            uiLabel_t label = {
-                .textalignx = frame->font.justify.horizontal,
-                .textaligny = frame->font.justify.vertical,
-                .offsetx = (SHORT)(frame->font.justify.offset.x * 1000.0f),
-                .offsety = (SHORT)(frame->font.justify.offset.y * 1000.0f),
-                .font = (RESOURCE)frame->font.index,
-            };
-            if (buf.cursize + sizeof(label) <= buf.maxsize) {
-                memcpy(buf.data + buf.cursize, &label, sizeof(label));
-                buf.cursize += (DWORD)sizeof(label);
-            } else { buf.overflowed = true; }
-            break;
-        }
-        default:
-            break;
+    out->number = assign_number(frame->number);
+    out->parent = (frame->parent_index != (DWORD)-1)
+                  ? get_wire(frame->parent_index)
+                  : 0;
+    out->color       = frame->color;
+    out->color.a     = (BYTE)(out->color.a * frame->alpha);
+    out->size.width  = frame->size.width;
+    out->size.height = frame->size.height;
+    out->tex.index   = (USHORT)frame->image;
+    out->tex.coord[1] = 0xff;
+    out->tex.coord[3] = 0xff;
+    out->flags.type  = frame->type;
+    out->stat        = frame->stat;
+    out->text        = frame->text;
+    if (frame->type == FT_TEXT) {
+        out->buffer.size = sizeof(frame->label);
+        out->buffer.data = (HANDLE)&frame->label;
     }
-
-    if (buf.overflowed) {
-        out->buffer.size = 0;
-        out->buffer.data = NULL;
-        return false;
-    }
-    out->buffer.size = buf.cursize;
-    out->buffer.data = buf.data;
+    copy_points(out, frame);
     return true;
 }
 
-/* ---------------------------------------------------------------
- * Frame tree serialization
- * --------------------------------------------------------------- */
-void SC2_WriteFrame(LPSC2FRAMEDEF frame) {
+void SC2_HUD_WriteFrame(LPCSC2BASEFRAME frame) {
     uiFrame_t tmp;
-    BYTE typedata[256];
-    char textbuf[256];
-
-    if (!BuildFrameForWrite(frame, &tmp, typedata, sizeof(typedata), textbuf, sizeof(textbuf)))
-        return;
-
-    tmp.number = ++ui_next_frame_number;
-    frame->resolved_index = (int)tmp.number;
+    if (!SC2_HUD_BuildFrameForWrite(frame, &tmp)) return;
     gi.Write(PF_UIFRAME, &tmp);
 }
 
-void SC2_WriteFrameWithChildren(LPSC2FRAMEDEF frame) {
-    if (!frame) return;
-    SC2_WriteFrame(frame);
-    FOR_LOOP(i, sc2_num_frames) {
-        LPSC2FRAMEDEF child = &sc2_frames[i];
-        if (child->Parent == frame && !child->hidden)
-            SC2_WriteFrameWithChildren(child);
+void SC2_HUD_WriteFrameWithChildren(LPCSC2BASEFRAME frames, DWORD count,
+                                    LPCSC2BASEFRAME frame) {
+    if (!frame || (frame->ui_flags & SC2_UIFLAG_HIDDEN)) return;
+    SC2_HUD_WriteFrame(frame);
+    for (DWORD i = 0; i < count; i++) {
+        if (frames[i].parent_index == frame->number &&
+            !(frames[i].ui_flags & SC2_UIFLAG_HIDDEN))
+            SC2_HUD_WriteFrameWithChildren(frames, count, &frames[i]);
     }
 }
 
-void SC2_WriteLayout(LPEDICT ent, LPSC2FRAMEDEF root, DWORD layer) {
-    SC2_WriteStart(layer);
-    SC2_WriteFrameWithChildren(root);
-    SC2_WriteEnd(ent);
+/* Walk the parent chain of 'frame' to the root and write each ancestor
+ * once (root first), so every parent has a smaller wire number than its
+ * children.  Already-assigned frames are silently skipped by assign_number. */
+void SC2_HUD_WriteAncestors(LPCSC2BASEFRAME frames, DWORD count,
+                             LPCSC2BASEFRAME frame) {
+    if (!frame || frame->parent_index == (DWORD)-1) return;
+    LPCSC2BASEFRAME parent = &frames[frame->parent_index];
+    SC2_HUD_WriteAncestors(frames, count, parent);
+    if (!(parent->ui_flags & SC2_UIFLAG_HIDDEN))
+        SC2_HUD_WriteFrame(parent);
 }
 
-/* -------------------------------------------------------------
- * Combined console HUD layout.
- *
- * The client replaces an entire layer on each svc_layout message,
- * so the resource panel and minimap must be sent in a single message.
- * ------------------------------------------------------------- */
-static void SC2_WriteConsoleBackdrop(void) {
-    static DWORD black_tex;
-    if (!black_tex) black_tex = (DWORD)gi.ImageIndex("Assets/Textures/black.dds");
+/* ------------------------------------------------------------------ */
+/* Shared layout load — one SC2_LayoutBuildGameUI() for all panels */
 
-    SC2FRAMEDEF bg;
-    SC2_InitFrame(&bg, FT_TEXTURE);
-    bg.Color = (COLOR32){ 255, 255, 255, 255 };
-    bg.Alpha = 0.65f;
-    bg.num_textures = 1;
-    bg.textures[0].image = black_tex;
-    bg.textures[0].has_texture = (black_tex != 0);
-    /* Full width, anchored to the bottom of the screen, 260px tall.
-       SC2_SetPoint uses a single otherPoint for both axes, so set the
-       mixed Min/Max anchors manually. */
-    bg.Points.x[FPP_MIN].used = true;
-    bg.Points.x[FPP_MIN].targetPos = FPP_MIN;
-    bg.Points.x[FPP_MIN].relativeTo = NULL;
-    bg.Points.x[FPP_MIN].offset = 0.0f;
-    bg.Points.x[FPP_MAX].used = true;
-    bg.Points.x[FPP_MAX].targetPos = FPP_MAX;
-    bg.Points.x[FPP_MAX].relativeTo = NULL;
-    bg.Points.x[FPP_MAX].offset = 0.0f;
-    bg.Points.y[FPP_MAX].used = true;
-    bg.Points.y[FPP_MAX].targetPos = FPP_MAX;
-    bg.Points.y[FPP_MAX].relativeTo = NULL;
-    bg.Points.y[FPP_MAX].offset = 0.0f;
-    bg.Height = SC2_NormY(260);
-    SC2_WriteFrame(&bg);
+static BOOL layout_loaded;
+static BOOL layout_ok;
+
+static void sc2_hud_hide_optional_panels(void) {
+    static LPCSTR hide_names[] = {
+        "PausePanel", "ConversationPanel", "TalkerPanel",
+        "ResourceRequestAlertPanel", "HeroPanel", "InventoryPanel",
+        "CreditsPanel", "TipAlertMovingFrame", "TipAlertPanel",
+        "RevealPanel", "AlliancePanel", "TeamResourcePanel",
+        "LeaderPanel", "ChatBar", "SystemAlertPanel",
+        /* ConsolePanel 3D model children — these are SC2 .m3 models that
+         * require a full SC2 model renderer; we can't render them, so hide
+         * them to prevent FT_SPRITE draw calls on null model handles. */
+        "InfopanelModel", "MinimapModel", "CommandPanelModel",
+        NULL,
+    };
+
+    for (int i = 0; hide_names[i]; i++) {
+        sc2BaseFrame_t *f = SC2_LayoutFindFrameByName(hide_names[i]);
+        if (f) f->ui_flags |= SC2_UIFLAG_HIDDEN;
+    }
 }
 
-void SC2_WriteConsoleLayout(LPEDICT ent) {
-    SC2_WriteStart(LAYER_CONSOLE);
+/* ------------------------------------------------------------------ */
+/* Fallback frame builder — used when no SC2 layout data is available */
 
-    SC2_WriteConsoleBackdrop();
-    SC2_WriteResourcePanelFrames();
-    SC2_WriteMinimapFrame();
-    SC2_WriteEnd(ent);
-}
+#define SC2_FB_MAX 64
+static sc2BaseFrame_t sc2_fb_frames[SC2_FB_MAX];
+static DWORD sc2_fb_count;
+static BOOL sc2_fb_built;
 
-/* ---------------------------------------------------------------
- * SC2Layout XML parser (game-side, using libxml2 + gi)
- * --------------------------------------------------------------- */
-static SC2FRAMEDEF *AddFrame(LPCSC2FRAMEDEF parent) {
-    if (sc2_num_frames >= MAX_FRAMES_SC2) return NULL;
-    LPSC2FRAMEDEF f = &sc2_frames[sc2_num_frames++];
+/* Fallback builder uses native SC2 pixel coords (1600×1200). */
+static sc2BaseFrame_t *fb_add(DWORD parent_index, sc2FrameType sc2_type) {
+    if (sc2_fb_count >= SC2_FB_MAX) return NULL;
+    sc2BaseFrame_t *f = &sc2_fb_frames[sc2_fb_count];
     memset(f, 0, sizeof(*f));
-    f->Parent = parent;
-    f->Color = (COLOR32){ 255, 255, 255, 255 };
-    f->Alpha = 1.0f;
+    f->number = sc2_fb_count;
+    f->type = SC2_MapFrameType(sc2_type);
+    f->sc2_type = sc2_type;
+    f->parent_index = parent_index;
+    f->color = (COLOR32){ 255, 255, 255, 255 };
+    f->alpha = 1.0f;
+    f->label.textaligny = FONT_JUSTIFYMIDDLE;
+    if (uiimport.FontIndex)
+        f->label.font = (RESOURCE)uiimport.FontIndex("UI/Fonts/EurostileExt-Med.otf", 16);
+    sc2_fb_count++;
     return f;
 }
 
-static FRAMETYPE TypeFromSC2String(LPCSTR typeStr) {
-    if (!typeStr) return FT_FRAME;
-    if (!strcasecmp(typeStr, "Image")) return FT_TEXTURE;
-    if (!strcasecmp(typeStr, "Button") || !strcasecmp(typeStr, "CommandButton")) return FT_COMMANDBUTTON;
-    if (!strcasecmp(typeStr, "Label") || !strcasecmp(typeStr, "CountdownLabel")) return FT_TEXT;
-    if (!strcasecmp(typeStr, "EditBox")) return FT_EDITBOX;
-    if (!strcasecmp(typeStr, "Model")) return FT_PORTRAIT;
-    return FT_FRAME;
+static void fb_anchor(sc2BaseFrame_t *f, BOOL is_x, int side, int target, int offset_px) {
+    sc2BaseFramePoint_t *p = is_x ? &f->points.x[side] : &f->points.y[side];
+    p->used = 1;
+    p->targetPos = (uiFramePointPos_t)target;
+    p->relative_index = (DWORD)-1;
+    p->offset = is_x ? (FLOAT)offset_px : -(FLOAT)offset_px;
 }
 
-static FLOAT SC2_NormX(int px) { return ((FLOAT)px / SC2_VIRT_W) * SC2_UI_BASE_W; }
-static FLOAT SC2_NormY(int py) { return ((FLOAT)py / SC2_VIRT_H) * SC2_UI_BASE_H; }
+static BOOL SC2_HUD_BuildFallbackLayout(void) {
+    if (sc2_fb_built) return true;
+    sc2_fb_built = true;
+    sc2_fb_count = 0;
 
-static FLOAT ParseFloatAttr(xmlNode *node, LPCSTR name, FLOAT def) {
-    xmlChar *val = xmlGetProp(node, (xmlChar *)name);
-    if (!val) return def;
-    FLOAT r = (FLOAT)atof((char *)val);
-    xmlFree(val);
-    return r;
-}
+    /* Frame 0: root (fills scene) */
+    sc2BaseFrame_t *root = fb_add((DWORD)-1, SC2_FRAMETYPE_GAME_UI);
+    if (!root) return false;
+    fb_anchor(root, 1, FPP_MIN, FPP_MIN, 0);
+    fb_anchor(root, 1, FPP_MAX, FPP_MAX, 0);
+    fb_anchor(root, 0, FPP_MIN, FPP_MIN, 0);
+    fb_anchor(root, 0, FPP_MAX, FPP_MAX, 0);
 
-static int ParseIntAttr(xmlNode *node, LPCSTR name, int def) {
-    xmlChar *val = xmlGetProp(node, (xmlChar *)name);
-    if (!val) return def;
-    int r = atoi((char *)val);
-    xmlFree(val);
-    return r;
-}
+    /* Frame 1: console backdrop — full-width bar at bottom */
+    sc2BaseFrame_t *console = fb_add(0, SC2_FRAMETYPE_CONSOLE_PANEL);
+    if (!console) return false;
+    console->size.width  = 1600;
+    console->size.height = 260;
+    fb_anchor(console, 1, FPP_MIN, FPP_MIN, 0);
+    fb_anchor(console, 1, FPP_MAX, FPP_MAX, 0);
+    fb_anchor(console, 0, FPP_MAX, FPP_MAX, 0);
+    console->points.y[FPP_MIN].used = 0;
 
-static void ParseStrAttr(xmlNode *node, LPCSTR name, LPCSTR def, LPSTR out, DWORD out_size) {
-    xmlChar *val = xmlGetProp(node, (xmlChar *)name);
-    if (!val) {
-        strncpy(out, def, out_size - 1);
-        out[out_size - 1] = '\0';
-        return;
-    }
-    strncpy(out, (char *)val, out_size - 1);
-    out[out_size - 1] = '\0';
-    xmlFree(val);
-}
+    /* Frame 2: console background texture */
+    sc2BaseFrame_t *bg = fb_add(1, SC2_FRAMETYPE_IMAGE);
+    if (!bg) return false;
+    bg->size.width  = 1600;
+    bg->size.height = 260;
+    bg->alpha = 0.65f;
+    fb_anchor(bg, 1, FPP_MIN, FPP_MIN, 0);
+    fb_anchor(bg, 1, FPP_MAX, FPP_MAX, 0);
+    fb_anchor(bg, 0, FPP_MIN, FPP_MIN, 0);
+    fb_anchor(bg, 0, FPP_MAX, FPP_MAX, 0);
 
-static DWORD ResolveTexture(LPCSTR resource) {
-    if (!resource || !*resource) return 0;
-    LPCSTR path = resource;
-    if (path[0] == '@' && path[1] == '@') path += 2;
-    else if (path[0] == '@') path += 1;
+    /* Frame 3: minimap */
+    sc2BaseFrame_t *mm = fb_add(1, SC2_FRAMETYPE_MINIMAP);
+    if (!mm) return false;
+    mm->type = FT_MINIMAP;
+    mm->size.width  = 240;
+    mm->size.height = 240;
+    fb_anchor(mm, 1, FPP_MIN, FPP_MIN, 0);
+    fb_anchor(mm, 0, FPP_MAX, FPP_MAX, 0);
 
-    /* SC2Layout resource icons are referenced by logical UI names; map them
-       to the actual texture assets in the MPQ archives. */
-    static struct { LPCSTR logical; LPCSTR physical; } const map[] = {
-        { "UI/ResourceIcon0",       "Assets/Textures/icon-mineral.dds" },
-        { "UI/ResourceIcon1",       "Assets/Textures/icon-gas.dds" },
-        { "UI/ResourceIcon2",       "Assets/Textures/icon-highyieldmineral.dds" },
-        { "UI/ResourceIcon3",       "Assets/Textures/icon-mineral.dds" },
-        { "UI/ResourceIconSupply",  "Assets/Textures/icon-supply.dds" },
-        { "UI/ResourceIconPlayer",  "Assets/Textures/ui_ingame_resourcesharing_playericon.dds" },
-    };
-    FOR_LOOP(i, sizeof(map) / sizeof(map[0])) {
-        if (!strcasecmp(path, map[i].logical))
-            path = map[i].physical;
-    }
-    return (DWORD)gi.ImageIndex(path);
-}
+    /* Frame 4: resource panel container (top-right) */
+    sc2BaseFrame_t *res = fb_add(0, SC2_FRAMETYPE_RESOURCE_PANEL);
+    if (!res) return false;
+    res->size.width  = 400;
+    res->size.height = 40;
+    fb_anchor(res, 1, FPP_MAX, FPP_MAX, -16);
+    fb_anchor(res, 0, FPP_MIN, FPP_MIN, 16);
 
-static LPCSC2FRAMEDEF ResolveRelativeFrame(LPCSC2FRAMEDEF parent, LPCSTR relStr) {
-    if (!relStr || !*relStr) return NULL;
-    if (!strcasecmp(relStr, "$parent")) return parent;
-    if (parent && !strncasecmp(relStr, "$parent/", 8))
-        return SC2_FindChildFrame(parent, relStr + 8);
-    return NULL;
-}
+    /* Frame 5: mineral label — PLAYERSTATE_RESOURCE_GOLD = 2 */
+    sc2BaseFrame_t *gold = fb_add(4, SC2_FRAMETYPE_LABEL);
+    if (!gold) return false;
+    gold->type = FT_TEXT;
+    gold->stat = PLAYERSTATE_RESOURCE_GOLD;
+    gold->text = "0";
+    gold->size.width  = 80;
+    gold->size.height = 20;
+    gold->label.textalignx = FONT_JUSTIFYRIGHT;
+    fb_anchor(gold, 1, FPP_MAX, FPP_MAX, -4);
+    fb_anchor(gold, 0, FPP_MIN, FPP_MIN, 4);
 
-static void ParseAnchorNode(xmlNode *xml_anchor, LPSC2FRAMEDEF frame, LPCSC2FRAMEDEF parent) {
-    char sideStr[32], posStr[32], relStr[64];
-    ParseStrAttr(xml_anchor, "side", "Left", sideStr, sizeof(sideStr));
-    ParseStrAttr(xml_anchor, "pos", "Min", posStr, sizeof(posStr));
-    ParseStrAttr(xml_anchor, "relative", "$parent", relStr, sizeof(relStr));
-    int offset = ParseIntAttr(xml_anchor, "offset", 0);
+    /* Frame 6: vespene label — PLAYERSTATE_RESOURCE_LUMBER = 3 */
+    sc2BaseFrame_t *gas = fb_add(4, SC2_FRAMETYPE_LABEL);
+    if (!gas) return false;
+    gas->type = FT_TEXT;
+    gas->stat = PLAYERSTATE_RESOURCE_LUMBER;
+    gas->text = "0";
+    gas->size.width  = 80;
+    gas->size.height = 20;
+    gas->label.textalignx = FONT_JUSTIFYRIGHT;
+    fb_anchor(gas, 1, FPP_MAX, FPP_MAX, -4);
+    fb_anchor(gas, 0, FPP_MIN, FPP_MIN, 24);
 
-    int axis = (!strcasecmp(sideStr, "Top") || !strcasecmp(sideStr, "Bottom")) ? 1 : 0;
-    SC2ANCHORPOS pos = (!strcasecmp(posStr, "Max")) ? SC2_APOS_MAX :
-                      (!strcasecmp(posStr, "Mid")) ? SC2_APOS_MID : SC2_APOS_MIN;
+    /* Frame 7: supply label — PLAYERSTATE_RESOURCE_FOOD_USED = 5 */
+    sc2BaseFrame_t *supply = fb_add(4, SC2_FRAMETYPE_LABEL);
+    if (!supply) return false;
+    supply->type = FT_TEXT;
+    supply->stat = PLAYERSTATE_RESOURCE_FOOD_USED;
+    supply->text = "0/0";
+    supply->size.width  = 80;
+    supply->size.height = 20;
+    supply->label.textalignx = FONT_JUSTIFYRIGHT;
+    fb_anchor(supply, 1, FPP_MAX, FPP_MAX, -4);
+    fb_anchor(supply, 0, FPP_MIN, FPP_MIN, 44);
 
-    /* Both SC2Layout and the engine use screen coordinates with Y increasing
-       downward: FPP_MIN is left/top, FPP_MAX is right/bottom. */
-    uiFramePointPos_t fpp = FPP_MID;
-    if (axis == 0) {
-        fpp = (!strcasecmp(sideStr, "Left"))  ? FPP_MIN :
-              (!strcasecmp(sideStr, "Right")) ? FPP_MAX : FPP_MID;
-    } else {
-        fpp = (!strcasecmp(sideStr, "Top"))    ? FPP_MIN :
-              (!strcasecmp(sideStr, "Bottom")) ? FPP_MAX : FPP_MID;
-    }
-
-    uiFramePointPos_t tgt = FPP_MID;
-    switch (pos) {
-        case SC2_APOS_MAX: tgt = FPP_MAX; break;
-        case SC2_APOS_MID: tgt = FPP_MID; break;
-        default:           tgt = FPP_MIN; break;
-    }
-
-    FLOAT norm_offset = (axis == 0) ? SC2_NormX(offset) : SC2_NormY(offset);
-    /* Engine layout code negates Y offsets, so store the inverse of the SC2
-       offset so that positive SC2 pixels still move down the screen. */
-    if (axis == 1) norm_offset = -norm_offset;
-    LPCSC2FRAMEDEF rel = ResolveRelativeFrame(parent, relStr);
-
-    if (axis == 0) {
-        frame->Points.x[fpp].used = true;
-        frame->Points.x[fpp].targetPos = tgt;
-        frame->Points.x[fpp].relativeTo = rel;
-        frame->Points.x[fpp].offset = norm_offset;
-    } else {
-        frame->Points.y[fpp].used = true;
-        frame->Points.y[fpp].targetPos = tgt;
-        frame->Points.y[fpp].relativeTo = rel;
-        frame->Points.y[fpp].offset = norm_offset;
-    }
-}
-
-static void ParseFrameNode(xmlNode *xml_frame, LPCSC2FRAMEDEF parent) {
-    if (!xml_frame || xml_frame->type != XML_ELEMENT_NODE) return;
-
-    LPSC2FRAMEDEF frame = AddFrame(parent);
-    if (!frame) return;
-
-    char typeStr[64], nameStr[256], templateStr[256];
-    ParseStrAttr(xml_frame, "type", "Frame", typeStr, sizeof(typeStr));
-    ParseStrAttr(xml_frame, "name", "", nameStr, sizeof(nameStr));
-    ParseStrAttr(xml_frame, "template", "", templateStr, sizeof(templateStr));
-    strncpy(frame->Name, nameStr, sizeof(frame->Name) - 1);
-    strncpy(frame->template_path, templateStr, sizeof(frame->template_path) - 1);
-    frame->Type = TypeFromSC2String(typeStr);
-
-    for (xmlNode *child = xml_frame->children; child; child = child->next) {
-        if (child->type != XML_ELEMENT_NODE) continue;
-        LPCSTR tag = (LPCSTR)child->name;
-
-        if (!strcasecmp(tag, "Width"))
-            frame->Width = SC2_NormX(ParseIntAttr(child, "val", 0));
-        else if (!strcasecmp(tag, "Height"))
-            frame->Height = SC2_NormY(ParseIntAttr(child, "val", 0));
-        else if (!strcasecmp(tag, "Visible"))
-            frame->hidden = !ParseIntAttr(child, "val", 1);
-        else if (!strcasecmp(tag, "Color")) {
-            char val[64];
-            ParseStrAttr(child, "val", "255,255,255,255", val, sizeof(val));
-            int r = 255, g = 255, b = 255, a = 255;
-            sscanf(val, "%d,%d,%d,%d", &r, &g, &b, &a);
-            frame->Color = (COLOR32){ (BYTE)r, (BYTE)g, (BYTE)b, (BYTE)a };
-        } else if (!strcasecmp(tag, "Alpha"))
-            frame->Alpha = ParseFloatAttr(child, "val", 1.0f);
-        else if (!strcasecmp(tag, "Anchor"))
-            ParseAnchorNode(child, frame, parent);
-        else if (!strcasecmp(tag, "Texture")) {
-            char texVal[256];
-            ParseStrAttr(child, "val", "", texVal, sizeof(texVal));
-            int layer = ParseIntAttr(child, "layer", 0);
-            if (frame->num_textures < 4) {
-                sc2Texture_t *tex = &frame->textures[frame->num_textures++];
-                strncpy(tex->resource, texVal, sizeof(tex->resource) - 1);
-                tex->layer = layer;
-                tex->has_texture = (*texVal != '\0');
-                tex->image = ResolveTexture(texVal);
-            }
-        } else if (!strcasecmp(tag, "Frame"))
-            ParseFrameNode(child, frame);
-    }
-}
-
-/* Resolve template="Path/Name" references after all frames are parsed.
-   SC2 templates can be referenced by name only; we look up the last path
-   component.  Only Width/Height/Type are copied here because the resource
-   panel templates only need those properties. */
-static LPSC2FRAMEDEF FindTemplate(LPCSTR path) {
-    if (!path || !*path) return NULL;
-    LPCSTR name = path;
-    LPCSTR slash = strrchr(path, '/');
-    if (slash) name = slash + 1;
-    return SC2_FindFrame(name);
-}
-
-static void ApplyTemplate(LPSC2FRAMEDEF frame, LPCSC2FRAMEDEF tmpl) {
-    if (!frame || !tmpl) return;
-    if (frame->Width == 0.0f && frame->Height == 0.0f) {
-        frame->Width = tmpl->Width;
-        frame->Height = tmpl->Height;
-    }
-    if (frame->Type == FT_FRAME && tmpl->Type != FT_FRAME)
-        frame->Type = tmpl->Type;
-}
-
-static void ResolveTemplates(void) {
-    FOR_LOOP(i, sc2_num_frames) {
-        LPSC2FRAMEDEF f = &sc2_frames[i];
-        if (f->template_path[0]) {
-            LPSC2FRAMEDEF tmpl = FindTemplate(f->template_path);
-            if (tmpl) ApplyTemplate(f, tmpl);
-        }
-    }
-}
-
-/* Track loaded layouts to prevent double-loading */
-#define MAX_LOADED_LAYOUTS 16
-static LPSTR loaded_layouts[MAX_LOADED_LAYOUTS];
-static int num_loaded_layouts;
-
-BOOL SC2_EnsureLayout(LPCSTR filename) {
-    if (!filename || !*filename) return false;
-
-    FOR_LOOP(i, num_loaded_layouts) {
-        if (!strcasecmp(loaded_layouts[i], filename))
-            return true;
-    }
-
-    DWORD size = 0;
-    void *buf = gi.ReadFile(filename, &size);
-    if (!buf || size == 0) {
-        fprintf(stderr, "SC2_Layout: failed to read '%s'\n", filename);
-        return false;
-    }
-
-    xmlDocPtr doc = xmlParseMemory(buf, (int)size);
-    gi.MemFree(buf);
-    if (!doc) {
-        fprintf(stderr, "SC2_Layout: failed to parse '%s'\n", filename);
-        return false;
-    }
-
-    xmlNode *root = xmlDocGetRootElement(doc);
-    if (!root || strcasecmp((char *)root->name, "Desc")) {
-        fprintf(stderr, "SC2_Layout: root not <Desc> in '%s'\n", filename);
-        xmlFreeDoc(doc);
-        return false;
-    }
-
-    for (xmlNode *child = root->children; child; child = child->next) {
-        if (child->type != XML_ELEMENT_NODE) continue;
-        if (!strcasecmp((char *)child->name, "Frame"))
-            ParseFrameNode(child, NULL);
-    }
-
-    ResolveTemplates();
-
-    xmlFreeDoc(doc);
-    fprintf(stderr, "SC2_Layout: loaded '%s' -> %u frames\n", filename, (unsigned)sc2_num_frames);
-
-    if (num_loaded_layouts < MAX_LOADED_LAYOUTS) {
-        LPSTR copy = SC2_Alloc(strlen(filename) + 1);
-        if (copy) { strcpy(copy, filename); loaded_layouts[num_loaded_layouts++] = copy; }
-    }
+    fprintf(stderr, "SC2_HUD: built %u fallback frames\n", (unsigned)sc2_fb_count);
     return true;
 }
 
-/* Frame lookup */
-LPSC2FRAMEDEF SC2_FindFrame(LPCSTR name) {
-    if (!name || !*name) return NULL;
-    FOR_LOOP(i, sc2_num_frames) {
-        if (!strcasecmp(sc2_frames[i].Name, name))
-            return &sc2_frames[i];
-    }
+sc2BaseFrame_t *SC2_HUD_FindFallbackFrameByType(sc2FrameType type) {
+    for (DWORD i = 0; i < sc2_fb_count; i++)
+        if (sc2_fb_frames[i].sc2_type == type) return &sc2_fb_frames[i];
     return NULL;
 }
 
-LPSC2FRAMEDEF SC2_FindChildFrame(LPCSC2FRAMEDEF parent, LPCSTR name) {
-    if (!parent || !name || !*name) return NULL;
-    FOR_LOOP(i, sc2_num_frames) {
-        if (sc2_frames[i].Parent == parent && !strcasecmp(sc2_frames[i].Name, name))
-            return &sc2_frames[i];
-    }
-    return NULL;
-}
-
-LPSC2FRAMEDEF SC2_FindFrameByNumber(DWORD number) {
-    FOR_LOOP(i, sc2_num_frames) {
-        if ((DWORD)sc2_frames[i].resolved_index == number)
-            return &sc2_frames[i];
-    }
-    return NULL;
-}
-
-/* Frame helpers */
-void SC2_InitFrame(LPSC2FRAMEDEF frame, FRAMETYPE type) {
-    if (!frame) return;
-    memset(frame, 0, sizeof(*frame));
-    frame->Type = type;
-    frame->Color = (COLOR32){ 255, 255, 255, 255 };
-    frame->Alpha = 1.0f;
-}
-
-void SC2_SetPoint(LPSC2FRAMEDEF frame, uiFramePointPos_t framePointX, uiFramePointPos_t framePointY,
-                  LPCSC2FRAMEDEF other, uiFramePointPos_t otherPoint, FLOAT x, FLOAT y) {
-    if (!frame) return;
-    frame->Points.x[framePointX].used = true;
-    frame->Points.x[framePointX].targetPos = otherPoint;
-    frame->Points.x[framePointX].relativeTo = other;
-    frame->Points.x[framePointX].offset = x;
-    frame->Points.y[framePointY].used = true;
-    frame->Points.y[framePointY].targetPos = otherPoint;
-    frame->Points.y[framePointY].relativeTo = other;
-    frame->Points.y[framePointY].offset = y;
-}
-
-void SC2_SetAllPoints(LPSC2FRAMEDEF frame) {
-    if (!frame) return;
-    SC2_SetPoint(frame, FPP_MIN, FPP_MIN, NULL, FPP_MIN, 0.0f, 0.0f);
-    SC2_SetPoint(frame, FPP_MAX, FPP_MAX, NULL, FPP_MAX, 0.0f, 0.0f);
-}
-
-void SC2_SetParent(LPSC2FRAMEDEF frame, LPCSC2FRAMEDEF parent) {
-    if (frame) frame->Parent = parent;
-}
-
-void SC2_SetSize(LPSC2FRAMEDEF frame, FLOAT width, FLOAT height) {
-    if (!frame) return;
-    frame->Width = width;
-    frame->Height = height;
-}
-
-void SC2_SetHidden(LPSC2FRAMEDEF frame, BOOL value) {
-    if (frame) frame->hidden = value;
-}
-
-void SC2_SetEnabled(LPSC2FRAMEDEF frame, BOOL enabled) {
-    if (frame) frame->disabled = !enabled;
-}
-
-void SC2_SetText(LPSC2FRAMEDEF frame, LPCSTR format, ...) {
-    if (!frame || !format) return;
-    static char buf[1024];
-    va_list argptr;
-    va_start(argptr, format);
-    vsnprintf(buf, sizeof(buf), format, argptr);
-    va_end(argptr);
-    if (frame->DynamicText) { gi.MemFree(frame->DynamicText); frame->DynamicText = NULL; frame->DynamicTextCapacity = 0; }
-    size_t len = strlen(buf);
-    frame->DynamicText = gi.MemAlloc(len + 1);
-    if (frame->DynamicText) { memcpy(frame->DynamicText, buf, len + 1); frame->DynamicTextCapacity = (DWORD)(len + 1); frame->Text = frame->DynamicText; }
-}
-
-/* Init / shutdown */
-void SC2_HudInit(void) {
-    sc2_num_frames = 0;
-    memset(sc2_frames, 0, sizeof(sc2_frames));
-}
-
-void SC2_HudShutdown(void) {
-    FOR_LOOP(i, num_loaded_layouts) {
-        if (loaded_layouts[i]) SC2_Free(loaded_layouts[i]);
-    }
-    num_loaded_layouts = 0;
-    FOR_LOOP(i, sc2_num_frames) {
-        if (sc2_frames[i].DynamicText) {
-            gi.MemFree(sc2_frames[i].DynamicText);
-            sc2_frames[i].DynamicText = NULL;
-            sc2_frames[i].DynamicTextCapacity = 0;
+sc2BaseFrame_t *SC2_HUD_EnsureLayout(DWORD *count) {
+    if (!layout_loaded) {
+        layout_loaded = true;
+        layout_ok = SC2_LayoutBuildGameUI();
+        if (layout_ok) {
+            sc2_hud_hide_optional_panels();
+            /* PortraitPanel is hidden by default; shown only on unit select.
+             * Without this, hud_console.c WriteFrameWithChildren renders the
+             * blank portrait background rectangle in the center of the screen. */
+            sc2BaseFrame_t *portrait = SC2_LayoutFindFrameByType(SC2_FRAMETYPE_PORTRAIT_PANEL);
+            if (portrait) portrait->ui_flags |= SC2_UIFLAG_HIDDEN;
         }
     }
-    sc2_num_frames = 0;
-    memset(sc2_frames, 0, sizeof(sc2_frames));
+    if (layout_ok) {
+        return SC2_LayoutGetFrames(count);
+    }
+    /* Fallback when SC2 data is unavailable */
+    if (SC2_HUD_BuildFallbackLayout()) {
+        if (count) *count = sc2_fb_count;
+        return sc2_fb_frames;
+    }
+    if (count) *count = 0;
+    return NULL;
+}
+
+/* ------------------------------------------------------------------ */
+
+void SC2_HUD_WriteStart(DWORD layer) {
+    reset_frame_write();
+    gi.Write(PF_BYTE, &(LONG){ svc_layout });
+    gi.Write(PF_BYTE, &(LONG){ layer });
+}
+
+void SC2_HUD_WriteEnd(LPEDICT ent) {
+    gi.Write(PF_LONG,  &(LONG){ 0 });  /* bits=0  — frame terminator */
+    gi.Write(PF_SHORT, &(LONG){ 0 });  /* number=0 */
+    gi.unicast(ent);
+}
+
+void SC2_HUD_WriteLayout(LPEDICT ent, LPCSC2BASEFRAME frames, DWORD count,
+                         LPCSC2BASEFRAME root, DWORD layer) {
+    SC2_HUD_WriteStart(layer);   /* resets num_frames_written to 0 */
+    SC2_HUD_WriteFrameWithChildren(frames, count, root);
+    SC2_HUD_WriteEnd(ent);
 }

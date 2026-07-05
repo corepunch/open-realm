@@ -31,21 +31,33 @@ static void usage(void) {
         "  mpqtool -mpq <archive.mpq> cat <file>\n"
         "  mpqtool -mpq <archive.mpq> info <file>\n"
         "  mpqtool -mpq <archive.mpq> imginfo <file>\n"
-    "  mpqtool -mpq <archive.mpq> create [max-files]\n"
-    "  mpqtool -mpq <archive.mpq> pack <src> <archive-file> [<src> <archive-file> ...]\n"
-    "  mpqtool wow-install [-strip-data-prefix] <output-dir> <disc1.mpq> <disc2.mpq> <disc3.mpq> <disc4.mpq>\n"
+        "  mpqtool -mpq <archive.mpq> grep <text> [path]\n"
+        "  mpqtool -data <dir> grep <text> [path]\n"
+        "  mpqtool -data <dir> cat <file>\n"
+        "  mpqtool -mpq <archive.mpq> create [max-files]\n"
+        "  mpqtool -mpq <archive.mpq> pack <src> <archive-file> [<src> <archive-file> ...]\n"
+        "  mpqtool wow-install [-strip-data-prefix] <output-dir> <disc1.mpq> <disc2.mpq> <disc3.mpq> <disc4.mpq>\n"
         "\n"
         "Notes:\n"
+        "  -mpq operates on a single archive.\n"
+        "  -data loads all archives under a data directory (like the engine does),\n"
+        "  then grep/cat search across every archive, reporting which archive each\n"
+        "  match comes from.  Higher-priority archives are searched last so their\n"
+        "  results appear at the bottom.\n"
         "  create, pack, and wow-install create new archives, overwriting existing targets.\n"
+        "  grep searches text content of archive files (case-insensitive); skips binary files.\n"
         "\n"
         "Examples:\n"
         "  mpqtool -mpq War3.mpq ls\n"
         "  mpqtool -mpq War3.mpq ls Units\n"
         "  mpqtool -mpq War3.mpq cat Units/UnitData.slk\n"
-    "  mpqtool -mpq War3.mpq info Maps/Campaign/Human02.w3m\n"
-    "  mpqtool -mpq tests.mpq pack ./basic.fdf TestUI/Frames/basic.fdf ./checker.blp TestUI/Textures/checker.blp\n"
-    "  mpqtool wow-install data/world-of-warcraft/installed data/world-of-warcraft/WoWDisc1.mpq data/world-of-warcraft/WoWDisc2.mpq data/world-of-warcraft/WoWDisc3.mpq data/world-of-warcraft/WoWDisc4.mpq\n"
-    "  mpqtool -mpq War3.mpq imginfo UI/Widgets/Glues/GlueScreen-Button1-Border.blp\n");
+        "  mpqtool -mpq War3.mpq info Maps/Campaign/Human02.w3m\n"
+        "  mpqtool -mpq tests.mpq pack ./basic.fdf TestUI/Frames/basic.fdf ./checker.blp TestUI/Textures/checker.blp\n"
+        "  mpqtool wow-install data/world-of-warcraft/installed data/world-of-warcraft/WoWDisc1.mpq data/world-of-warcraft/WoWDisc2.mpq data/world-of-warcraft/WoWDisc3.mpq data/world-of-warcraft/WoWDisc4.mpq\n"
+        "  mpqtool -mpq War3.mpq imginfo UI/Widgets/Glues/GlueScreen-Button1-Border.blp\n"
+        "  mpqtool -mpq data/StarCraft2/Mods/Core.SC2Mod/Base.SC2Data grep UI/MenuBarButtonNormal GameData\n"
+        "  mpqtool -data data/StarCraft2 grep UI/ResourceIconMinerals\n"
+        "  mpqtool -data data/StarCraft2 cat GameData/Assets.txt\n");
 }
 
 static unsigned short rd_u16le(const unsigned char *p) {
@@ -316,6 +328,103 @@ static int cmd_info(HANDLE archive, const char *file_path) {
     printf("single_unit=%s\n", (fd.dwFileFlags & 0x01000000u) ? "yes" : "no");
     printf("exists=%s\n", (fd.dwFileFlags & 0x80000000u) ? "yes" : "no");
     return 0;
+}
+
+static const char *mpq_strcasestr(const char *hay, const char *needle) {
+    size_t nlen = strlen(needle);
+    if (!nlen) return hay;
+    for (; *hay; hay++)
+        if (strncasecmp(hay, needle, nlen) == 0)
+            return hay;
+    return NULL;
+}
+
+static bool is_binary_ext(const char *filename) {
+    static const char *const exts[] = {
+        ".dds", ".blp", ".wav", ".ogg", ".mp3", ".m3", ".m3a",
+        ".png", ".jpg", ".jpeg", ".tga", ".bmp", NULL,
+    };
+    const char *ext = Tool_PathExt(filename);
+    for (int i = 0; exts[i]; i++)
+        if (strcasecmp(ext, exts[i] + 1) == 0)
+            return true;
+    return false;
+}
+
+static int cmd_grep(HANDLE archive, const char *pattern, const char *path_prefix) {
+    SFILE_FIND_DATA fd;
+    HANDLE hfind;
+    char prefix[512] = {0};
+    size_t prefix_len = 0;
+    int matches = 0;
+
+    if (path_prefix && *path_prefix) {
+        strncpy(prefix, path_prefix, sizeof(prefix) - 1);
+        Tool_NormalizeSlashes(prefix, '\\');
+        Tool_TrimEdgeSlashes(prefix);
+        prefix_len = strlen(prefix);
+    }
+
+    hfind = SFileFindFirstFile(archive, "*", &fd, NULL);
+    if (!hfind) {
+        fprintf(stderr, "Unable to enumerate archive contents\n");
+        return 1;
+    }
+
+    do {
+        const char *full = fd.cFileName;
+        HANDLE file;
+        DWORD file_size, read_bytes;
+        char *buf;
+
+        if (prefix_len && !starts_with_ci(full, prefix))
+            continue;
+        if (is_binary_ext(full))
+            continue;
+
+        if (!SFileOpenFileEx(archive, full, SFILE_OPEN_FROM_MPQ, &file))
+            continue;
+
+        file_size = SFileGetFileSize(file, NULL);
+        if (file_size == 0 || file_size > 8 * 1024 * 1024) {
+            SFileCloseFile(file);
+            continue;
+        }
+
+        buf = malloc(file_size + 1);
+        if (!buf) { SFileCloseFile(file); continue; }
+
+        if (SFileReadFile(file, buf, file_size, &read_bytes, NULL) && read_bytes > 0) {
+            buf[read_bytes] = '\0';
+            char display[512];
+            strncpy(display, full, sizeof(display) - 1);
+            display[sizeof(display) - 1] = '\0';
+            Tool_NormalizeSlashes(display, '/');
+
+            char *line = buf;
+            int line_num = 1;
+            while (*line) {
+                char *nl = strchr(line, '\n');
+                size_t llen = nl ? (size_t)(nl - line) : strlen(line);
+                char saved = line[llen];
+                line[llen] = '\0';
+                if (mpq_strcasestr(line, pattern)) {
+                    printf("%s:%d:%s\n", display, line_num, line);
+                    matches++;
+                }
+                line[llen] = saved;
+                if (!nl) break;
+                line = nl + 1;
+                line_num++;
+            }
+        }
+
+        free(buf);
+        SFileCloseFile(file);
+    } while (SFileFindNextFile(hfind, &fd));
+
+    SFileFindClose(hfind);
+    return matches > 0 ? 0 : 1;
 }
 
 static int cmd_ls(HANDLE archive, const char *path) {
@@ -805,8 +914,175 @@ done:
     return rc;
 }
 
+/* ------------------------------------------------------------------ */
+/* -data mode: scan a game data directory for all archives (same order
+ * as the engine), open them, then grep/cat across all of them.
+ * Archives are searched lowest-priority first so results from
+ * higher-priority archives appear later and are easiest to spot. */
+
+#define DATA_MAX_ARCHIVES 64
+
+static HANDLE data_archives[DATA_MAX_ARCHIVES];
+static char   data_archive_paths[DATA_MAX_ARCHIVES][512];
+static int    data_archive_count;
+
+static void data_collect_archive(LPCSTR path, void *ud) {
+    (void)ud;
+    if (data_archive_count >= DATA_MAX_ARCHIVES) return;
+    strncpy(data_archive_paths[data_archive_count], path,
+            sizeof(data_archive_paths[0]) - 1);
+    data_archive_count++;
+}
+
+static int data_path_cmp(const void *a, const void *b) {
+    return strcasecmp((const char *)a, (const char *)b);
+}
+
+static bool data_open_archives(const char *data_dir) {
+    /* Collect all archive paths under data_dir. */
+    Tool_ForEachArchive(data_dir, data_collect_archive, NULL);
+    /* Sort so the engine's deterministic priority order is preserved. */
+    qsort(data_archive_paths, (size_t)data_archive_count,
+          sizeof(data_archive_paths[0]), data_path_cmp);
+    /* Open them in sorted order (index 0 = lowest priority). */
+    for (int i = 0; i < data_archive_count; i++) {
+        if (!SFileOpenArchive(data_archive_paths[i], 0, 0, &data_archives[i])) {
+            fprintf(stderr, "Cannot open archive: %s\n", data_archive_paths[i]);
+            data_archives[i] = NULL;
+        }
+    }
+    return data_archive_count > 0;
+}
+
+static void data_close_archives(void) {
+    for (int i = 0; i < data_archive_count; i++) {
+        if (data_archives[i]) {
+            SFileCloseArchive(data_archives[i]);
+            data_archives[i] = NULL;
+        }
+    }
+}
+
+/* grep one archive, tagging each match with the archive path. */
+static int grep_one_archive(HANDLE archive, const char *archive_label,
+                             const char *pattern, const char *path_prefix) {
+    SFILE_FIND_DATA fd;
+    HANDLE hfind;
+    char prefix[512] = {0};
+    size_t prefix_len = 0;
+    int matches = 0;
+
+    if (path_prefix && *path_prefix) {
+        strncpy(prefix, path_prefix, sizeof(prefix) - 1);
+        Tool_NormalizeSlashes(prefix, '\\');
+        Tool_TrimEdgeSlashes(prefix);
+        prefix_len = strlen(prefix);
+    }
+
+    hfind = SFileFindFirstFile(archive, "*", &fd, NULL);
+    if (!hfind) return 0;
+
+    do {
+        const char *full = fd.cFileName;
+        HANDLE file;
+        DWORD file_size, read_bytes;
+        char *buf;
+
+        if (prefix_len && !starts_with_ci(full, prefix)) continue;
+        if (is_binary_ext(full)) continue;
+        if (!SFileOpenFileEx(archive, full, SFILE_OPEN_FROM_MPQ, &file)) continue;
+
+        file_size = SFileGetFileSize(file, NULL);
+        if (file_size == 0 || file_size > 8 * 1024 * 1024) {
+            SFileCloseFile(file); continue;
+        }
+        buf = malloc(file_size + 1);
+        if (!buf) { SFileCloseFile(file); continue; }
+
+        if (SFileReadFile(file, buf, file_size, &read_bytes, NULL) && read_bytes > 0) {
+            buf[read_bytes] = '\0';
+            char display[512];
+            strncpy(display, full, sizeof(display) - 1);
+            display[sizeof(display) - 1] = '\0';
+            Tool_NormalizeSlashes(display, '/');
+
+            char *line = buf;
+            int line_num = 1;
+            while (*line) {
+                char *nl = strchr(line, '\n');
+                size_t llen = nl ? (size_t)(nl - line) : strlen(line);
+                char saved = line[llen];
+                line[llen] = '\0';
+                if (mpq_strcasestr(line, pattern)) {
+                    printf("[%s] %s:%d:%s\n", archive_label, display, line_num, line);
+                    matches++;
+                }
+                line[llen] = saved;
+                if (!nl) break;
+                line = nl + 1;
+                line_num++;
+            }
+        }
+        free(buf);
+        SFileCloseFile(file);
+    } while (SFileFindNextFile(hfind, &fd));
+
+    SFileFindClose(hfind);
+    return matches;
+}
+
+static int cmd_grep_data(const char *pattern, const char *path_prefix) {
+    int total = 0;
+    for (int i = 0; i < data_archive_count; i++) {
+        if (!data_archives[i]) continue;
+        /* Label is the last two path components for readability. */
+        const char *label = data_archive_paths[i];
+        const char *slash = strrchr(label, '/');
+        if (slash) {
+            const char *prev = slash - 1;
+            while (prev > label && *prev != '/') prev--;
+            if (*prev == '/') label = prev + 1;
+        }
+        total += grep_one_archive(data_archives[i], label, pattern, path_prefix);
+    }
+    return total > 0 ? 0 : 1;
+}
+
+static int cmd_cat_data(const char *file_path) {
+    char path[512];
+    strncpy(path, file_path, sizeof(path) - 1);
+    path[sizeof(path) - 1] = '\0';
+    Tool_NormalizeSlashes(path, '\\');
+    Tool_TrimEdgeSlashes(path);
+
+    /* Read from every archive that has this file (lowest priority first). */
+    int found = 0;
+    for (int i = 0; i < data_archive_count; i++) {
+        HANDLE file;
+        if (!data_archives[i]) continue;
+        if (!SFileOpenFileEx(data_archives[i], path, SFILE_OPEN_FROM_MPQ, &file)) continue;
+        DWORD sz = SFileGetFileSize(file, NULL);
+        char *buf = malloc(sz + 1);
+        if (!buf) { SFileCloseFile(file); continue; }
+        DWORD rb = 0;
+        SFileReadFile(file, buf, sz, &rb, NULL);
+        SFileCloseFile(file);
+        buf[rb] = '\0';
+        fprintf(stderr, "--- %s ---\n", data_archive_paths[i]);
+        fwrite(buf, 1, rb, stdout);
+        free(buf);
+        found++;
+    }
+    if (!found) {
+        fprintf(stderr, "Cannot find file in any archive: %s\n", path);
+        return 1;
+    }
+    return 0;
+}
+
 int main(int argc, char **argv) {
     const char *mpq = NULL;
+    const char *data = NULL;
     const char *cmd = NULL;
     const char *arg = NULL;
     char **extra = NULL;
@@ -839,11 +1115,11 @@ int main(int argc, char **argv) {
 
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-mpq") == 0) {
-            if (i + 1 >= argc) {
-                usage();
-                return 1;
-            }
+            if (i + 1 >= argc) { usage(); return 1; }
             mpq = argv[++i];
+        } else if (strcmp(argv[i], "-data") == 0) {
+            if (i + 1 >= argc) { usage(); return 1; }
+            data = argv[++i];
         } else if (!cmd) {
             cmd = argv[i];
         } else if (!arg) {
@@ -855,9 +1131,29 @@ int main(int argc, char **argv) {
         }
     }
 
-    if (!mpq || !cmd) {
+    if ((!mpq && !data) || !cmd) {
         usage();
         return 1;
+    }
+
+    /* -data mode: scan data directory, open all archives, then dispatch. */
+    if (data) {
+        if (!data_open_archives(data)) {
+            fprintf(stderr, "No archives found under: %s\n", data);
+            return 1;
+        }
+        if (strcmp(cmd, "grep") == 0) {
+            if (!arg) { usage(); data_close_archives(); return 1; }
+            rc = cmd_grep_data(arg, extra && extra_count > 0 ? extra[0] : NULL);
+        } else if (strcmp(cmd, "cat") == 0) {
+            if (!arg) { usage(); data_close_archives(); return 1; }
+            rc = cmd_cat_data(arg);
+        } else {
+            fprintf(stderr, "With -data only grep and cat are supported\n");
+            rc = 1;
+        }
+        data_close_archives();
+        return rc;
     }
 
     if (strcmp(cmd, "create") == 0) {
@@ -887,7 +1183,10 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    if (strcmp(cmd, "ls") == 0) {
+    if (strcmp(cmd, "grep") == 0) {
+        if (!arg) { usage(); SFileCloseArchive(archive); return 1; }
+        rc = cmd_grep(archive, arg, extra && extra_count > 0 ? extra[0] : NULL);
+    } else if (strcmp(cmd, "ls") == 0) {
         rc = cmd_ls(archive, arg ? arg : "");
     } else if (strcmp(cmd, "cat") == 0) {
         char path[512];
