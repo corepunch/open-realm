@@ -7,6 +7,9 @@
 DWORD NAME##Num; \
 m3##TYPE##_t *NAME;
 
+#define M3_FOR_EACH(TYPE, VAR, LIST) \
+for (m3##TYPE##_t const *VAR = LIST; VAR && VAR < LIST + LIST##Num; VAR++)
+
 typedef USHORT m3Face_t;
 typedef char m3Char_t;
 typedef float m3Float32_t;

@@ -121,6 +121,7 @@ typedef struct {
     
     /* Asset indexing (for textures, models, fonts) */
     int (*ImageIndex)(LPCSTR imageName);
+    int (*ModelIndex)(LPCSTR modelName);
     int (*FontIndex)(LPCSTR fontName, DWORD fontSize);
     
     /* Command execution (following Quake 3 pattern)

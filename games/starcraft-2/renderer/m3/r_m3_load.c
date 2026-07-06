@@ -4,8 +4,6 @@
 
 #define M3_MAX_NODES 128
 
-#define M3_FOR_EACH(TYPE, VAR, LIST) \
-for (m3##TYPE##_t const *VAR = LIST; VAR && VAR < LIST + LIST##Num; VAR++)
 
 #define M3_READ(BUFFER, VAR, VERSION) \
 if ((BUFFER)->ent.version > VERSION || VERSION == 0) M3_Read(BUFFER, &VAR, sizeof(VAR));

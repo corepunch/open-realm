@@ -63,4 +63,12 @@ void SC2_HUD_WriteConsolePanel(LPEDICT ent);
 void SC2_HUD_WriteCommandPanel(LPEDICT ent);
 void SC2_HUD_WriteInfoPanel(LPEDICT ent);
 
+/* Portrait panel — show the selected unit's 3D model.
+ * model_index is a gi.ModelIndex() slot; pass 0 to hide. */
+void SC2_HUD_WritePortraitPanel(LPEDICT ent, int model_index);
+
+/* Placeholder bottom-center unit card sent on LAYER_INFOPANEL when a unit is
+ * selected.  model_index is the gi.ModelIndex() slot; unit_name may be NULL. */
+void SC2_HUD_WriteSelectedUnitUI(LPEDICT ent, int model_index, LPCSTR unit_name);
+
 #endif /* SC2_HUD_H */

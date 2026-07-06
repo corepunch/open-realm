@@ -171,6 +171,7 @@ void SC2_HUD_InitLayoutHost(void) {
     uiimport.FS_ReadFile = sc2_hud_read_file;
     uiimport.FS_FreeFile = sc2_hud_free_file;
     uiimport.ImageIndex = sc2_hud_image_index;
+    uiimport.ModelIndex = gi.ModelIndex;
     uiimport.FontIndex = gi.FontIndex;
     gi.ReadFileAll("GameData/Assets.txt", sc2_hud_parse_assets_txt, NULL);
 }
@@ -297,10 +298,8 @@ static void sc2_hud_hide_optional_panels(void) {
         "CreditsPanel", "TipAlertMovingFrame", "TipAlertPanel",
         "RevealPanel", "AlliancePanel", "TeamResourcePanel",
         "LeaderPanel", "ChatBar", "SystemAlertPanel",
-        /* ConsolePanel 3D model children — these are SC2 .m3 models that
-         * require a full SC2 model renderer; we can't render them, so hide
-         * them to prevent FT_SPRITE draw calls on null model handles. */
-        "InfopanelModel", "MinimapModel", "CommandPanelModel",
+        /* InfopanelModel, MinimapModel, CommandPanelModel are now FT_PORTRAIT
+         * and rendered via SCR_LayoutDrawPortrait — no longer hidden. */
         NULL,
     };
 

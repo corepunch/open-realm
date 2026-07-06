@@ -1008,7 +1008,7 @@ FRAMETYPE SC2_MapFrameType(sc2FrameType sc2_type) {
     case SC2_FRAMETYPE_MINIMAP:
         return FT_MINIMAP;
     case SC2_FRAMETYPE_MODEL:
-        return FT_SPRITE;
+        return FT_PORTRAIT;
     case SC2_FRAMETYPE_LABEL:
     case SC2_FRAMETYPE_COUNTDOWN_LABEL:
         return FT_TEXT;
@@ -1146,15 +1146,16 @@ static void SC2_FlattenFrame(sc2Frame_t *frame, int parent_index) {
     dst->parent_index = (parent_index >= 0) ? (DWORD)parent_index : (DWORD)-1;
 
     switch (dst->type) {
-        case FT_SPRITE: dst->on_draw = SC2_DrawImage;  break;
-        case FT_BUTTON: dst->on_draw = SC2_DrawButton; break;
+        case FT_SPRITE:   dst->on_draw = SC2_DrawImage;  break;
+        case FT_PORTRAIT: dst->on_draw = NULL;           break;  /* rendered by SCR_LayoutDrawPortrait */
+        case FT_BUTTON:   dst->on_draw = SC2_DrawButton; break;
         case FT_TEXT:
             dst->on_draw = SC2_DrawText;
             if (uiimport.FontIndex)
                 dst->label.font = (RESOURCE)uiimport.FontIndex("UI/Fonts/EurostileExt-Med.otf", 16);
             dst->label.textaligny = FONT_JUSTIFYMIDDLE;
             break;
-        default:        dst->on_draw = NULL;            break;
+        default:          dst->on_draw = NULL;           break;
     }
     dst->color = (frame->flags & SC2_FRAME_HAS_COLOR) ? frame->color : (COLOR32){255, 255, 255, 255};
     dst->alpha = (frame->flags & SC2_FRAME_HAS_ALPHA) ? frame->alpha : 1.0f;
@@ -1179,8 +1180,16 @@ static void SC2_FlattenFrame(sc2Frame_t *frame, int parent_index) {
 
     SC2_ResolveAnchors(frame, dst);
 
-    if (frame->type != SC2_FRAMETYPE_MODEL && frame->num_textures > 0 && frame->textures[0].flags & SC2_TEX_HAS_TEXTURE)
+    if (frame->type == SC2_FRAMETYPE_MODEL) {
+        /* Register the model so the client loads it into cl.models[].
+         * tex.index is used by SCR_LayoutDrawPortrait as the model slot. */
+        if (frame->num_textures > 0 && (frame->textures[0].flags & SC2_TEX_HAS_TEXTURE) &&
+            uiimport.ModelIndex) {
+            dst->image = (DWORD)uiimport.ModelIndex(frame->textures[0].resource);
+        }
+    } else if (frame->num_textures > 0 && frame->textures[0].flags & SC2_TEX_HAS_TEXTURE) {
         dst->image = uiimport.ImageIndex ? (DWORD)uiimport.ImageIndex(frame->textures[0].resource) : 0;
+    }
 
     for (int i = 0; i < frame->num_textures; i++) {
         sc2ParsedTexture_t *tex = &frame->textures[i];

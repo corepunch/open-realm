@@ -2,6 +2,7 @@
 #include "m3/r_m3.h"
 #include "games/starcraft-2/common/sc2_map.h"
 #include "sc2/r_sc2map.h"
+#include <strings.h>
 
 void M3_Init(void);
 void M3_Shutdown(void);
@@ -331,16 +332,54 @@ bool R_GameGetModelInfo(LPMODEL model, LPMODELINFO info) {
 }
 
 bool R_GameExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t *viewdef) {
-    (void)entity;
-    (void)aspect;
-    (void)viewdef;
-    return false;
+    if (!entity || !entity->model || entity->model->modeltype != ID_43DM ||
+        !entity->model->m3 || !viewdef) {
+        return false;
+    }
+    m3Model_t const *m3 = entity->model->m3;
+
+    /* Use the model bounding sphere to place a portrait camera.
+     * M3 cameras are raw Reference data without a parsed position track,
+     * so we synthesize a fixed view from the bounds center + radius. */
+    VECTOR3 const center = m3->boundings.min;
+    float const radius = m3->boundings.radius > 0.0f ? m3->boundings.radius : 1.0f;
+
+    float const dist  = radius * 2.5f;
+    VECTOR3 const eye = { center.x, center.y - dist, center.z };
+    VECTOR3 const dir = { 0.0f, 0.0f, 1.0f };
+
+    MATRIX4 view, proj, vp;
+    Matrix4_lookAt(&view, &eye, &center, &dir);
+    Matrix4_perspective(&proj, 30.0f, aspect, radius * 0.01f, dist * 4.0f);
+    Matrix4_multiply(&proj, &view, &vp);
+    viewdef->viewProjectionMatrix = vp;
+    Matrix4_identity(&viewdef->textureMatrix);
+    Matrix4_identity(&viewdef->lightMatrix);
+    return true;
 }
 
 bool R_GameSetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
-    (void)model;
-    (void)anim;
-    (void)entity;
+    if (!model || !entity || model->modeltype != ID_43DM || !model->m3) {
+        return false;
+    }
+    m3Model_t const *m3 = model->m3;
+    DWORD total = 0;
+    M3_FOR_EACH(Sequence, seq, m3->sequences) {
+        if (anim && *anim && seq->name && !strcasecmp(seq->name, anim)) {
+            entity->frame    = total + seq->interval[0];
+            entity->oldframe = total + seq->interval[0];
+            entity->scale    = entity->scale > 0.0f ? entity->scale : 1.0f;
+            return true;
+        }
+        total += seq->interval[1];
+    }
+    /* Fallback: use first sequence if name not found */
+    if (m3->sequencesNum > 0) {
+        entity->frame    = m3->sequences[0].interval[0];
+        entity->oldframe = m3->sequences[0].interval[0];
+        entity->scale    = entity->scale > 0.0f ? entity->scale : 1.0f;
+        return true;
+    }
     return false;
 }
 

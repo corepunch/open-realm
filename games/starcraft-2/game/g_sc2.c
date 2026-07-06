@@ -123,6 +123,17 @@ static void SC2_Select(LPEDICT clent, DWORD argc, LPCSTR argv[]) {
         }
         sc2_edicts[number].selected |= 1 << player;
     }
+
+    /* Send portrait and unit card for the first selected unit. */
+    int portrait_model = 0;
+    FOR_LOOP(i, globals.num_edicts) {
+        if ((sc2_edicts[i].selected & (1 << player)) && sc2_edicts[i].s.model) {
+            portrait_model = (int)sc2_edicts[i].s.model;
+            break;
+        }
+    }
+    SC2_HUD_WritePortraitPanel(clent, portrait_model);
+    SC2_HUD_WriteSelectedUnitUI(clent, portrait_model, NULL);
 }
 
 static void SC2_StopUnit(LPEDICT ent) {
