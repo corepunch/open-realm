@@ -1,6 +1,8 @@
 #include "r_war3map.h"
 
 LPCWAR3MAPVERTEX GetWar3MapVertex(LPCWAR3MAP war3Map, DWORD x, DWORD y) {
+    x = MIN(x, war3Map->width - 1);
+    y = MIN(y, war3Map->height - 1);
     int const index = x + y * war3Map->width;
     char const *ptr = ((char const *)war3Map->vertices) + index * sizeof(WAR3MAPVERTEX);
     return (LPCWAR3MAPVERTEX)ptr;
