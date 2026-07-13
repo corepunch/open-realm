@@ -5,13 +5,6 @@
 #define WOW_MOVE_BACK 2
 #define WOW_MOVE_LEFT 4
 #define WOW_MOVE_RIGHT 8
-#define WOW_CAMERA_MIN_PITCH 300.0f
-#define WOW_CAMERA_MAX_PITCH 350.0f
-#define WOW_CAMERA_MIN_DISTANCE 3.0f
-#define WOW_CAMERA_MAX_DISTANCE 35.0f
-#define WOW_CAMERA_TURN_SPEED 135.0f
-#define WOW_MOUSE_TURN_SPEED 0.18f
-#define WOW_CLICK_THRESHOLD 10  /* px movement before a click becomes a drag */
 
 static struct {
     BOOL initialized;
@@ -56,12 +49,23 @@ static void CL_WowInitInputState(void) {
     wow_input.cursor_crosshair = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_CROSSHAIR);
     wow_input.cursor_hand = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_HAND);
     wow_input.last_hover_entity = 0;
+    /* Register tunable cvars with defaults. Config file values take
+     * precedence because Cvar_Get only sets the default when the cvar
+     * does not yet exist (config files are loaded before input init). */
+    Cvar_Get("wow_mouse_speed", "0.18", CVAR_ARCHIVE);
+    Cvar_Get("wow_camera_min_pitch", "300.0", 0);
+    Cvar_Get("wow_camera_max_pitch", "350.0", 0);
+    Cvar_Get("wow_camera_min_distance", "3.0", 0);
+    Cvar_Get("wow_camera_max_distance", "35.0", 0);
+    Cvar_Get("wow_zoom_speed", "1.0", CVAR_ARCHIVE);
+    Cvar_Get("wow_click_threshold", "10", 0);
 }
 
 static BOOL CL_WowMouseMovedPast(VECTOR2 const *a, VECTOR2 const *b) {
+    FLOAT threshold = Cvar_Value("wow_click_threshold", 10.0f);
     FLOAT dx = a->x - b->x;
     FLOAT dy = a->y - b->y;
-    return (dx * dx + dy * dy) > (WOW_CLICK_THRESHOLD * WOW_CLICK_THRESHOLD);
+    return (dx * dx + dy * dy) > (threshold * threshold);
 }
 
 static void CL_WowSendSelect(DWORD entity_number) {
@@ -128,14 +132,13 @@ static void IN_WowLeftUp(void) {
     CL_WowLmbUp();
 }
 
-static void IN_AttackDown(void) {
-    /* Bound to +attack key — legacy path, treat same as LMB down. */
+static void IN_WowSelectDown(void) {
     wow_input.left_mouse = true;
     wow_input.lmb_down = true;
     wow_input.lmb_down_pos = mouse.origin;
 }
 
-static void IN_AttackUp(void) {
+static void IN_WowSelectUp(void) {
     CL_WowLmbUp();
 }
 
@@ -186,10 +189,8 @@ static void IN_MoveRightUp(void) {
 void CL_InputModeInit(void) {
     Cmd_AddCommand("+wowleft", IN_WowLeftDown);
     Cmd_AddCommand("-wowleft", IN_WowLeftUp);
-    Cmd_AddCommand("+attack", IN_AttackDown);
-    Cmd_AddCommand("-attack", IN_AttackUp);
-    Cmd_AddCommand("+wowattack", IN_AttackDown);
-    Cmd_AddCommand("-wowattack", IN_AttackUp);
+    Cmd_AddCommand("+wowselect", IN_WowSelectDown);
+    Cmd_AddCommand("-wowselect", IN_WowSelectUp);
     Cmd_AddCommand("+look", IN_LookDown);
     Cmd_AddCommand("-look", IN_LookUp);
     Cmd_AddCommand("+forward", IN_ForwardDown);
@@ -222,10 +223,13 @@ void CL_InputModeMouseMotion(SDL_MouseMotionEvent const *motion) {
     }
     /* Camera rotation while RMB held. */
     if (wow_input.right_mouse) {
-        wow_input.yaw -= motion->xrel * WOW_MOUSE_TURN_SPEED;
-        wow_input.pitch = CL_WowClamp(wow_input.pitch - motion->yrel * WOW_MOUSE_TURN_SPEED,
-                                      WOW_CAMERA_MIN_PITCH,
-                                      WOW_CAMERA_MAX_PITCH);
+        FLOAT speed = Cvar_Value("wow_mouse_speed", 0.18f);
+        FLOAT min_pitch = Cvar_Value("wow_camera_min_pitch", 300.0f);
+        FLOAT max_pitch = Cvar_Value("wow_camera_max_pitch", 350.0f);
+
+        wow_input.yaw -= motion->xrel * speed;
+        wow_input.pitch = CL_WowClamp(wow_input.pitch - motion->yrel * speed,
+                                      min_pitch, max_pitch);
     }
     /* Hover detection: trace entity under cursor every motion. */
     if (!CL_GameplayInputReady() || CL_MouseOverGameplayUI()) {
@@ -246,7 +250,6 @@ void CL_InputModeMouseMotion(SDL_MouseMotionEvent const *motion) {
         if (cl.hover_entity == 0) {
             SDL_SetCursor(wow_input.cursor_arrow);
         } else {
-            /* Find the render entity to check RF_HOSTILE. */
             BOOL hostile = false;
             FOR_LOOP(i, cl.viewDef.num_entities) {
                 if (cl.viewDef.entities[i].number == cl.hover_entity) {
@@ -263,9 +266,14 @@ BOOL CL_InputModeMouseWheel(SDL_MouseWheelEvent const *wheel) {
     if (!wheel) {
         return false;
     }
-    wow_input.distance = CL_WowClamp(wow_input.distance - wheel->y * 1.0f,
-                                     WOW_CAMERA_MIN_DISTANCE,
-                                     WOW_CAMERA_MAX_DISTANCE);
+    {
+        FLOAT zoom_speed = Cvar_Value("wow_zoom_speed", 1.0f);
+        FLOAT min_dist = Cvar_Value("wow_camera_min_distance", 3.0f);
+        FLOAT max_dist = Cvar_Value("wow_camera_max_distance", 35.0f);
+
+        wow_input.distance = CL_WowClamp(wow_input.distance - wheel->y * zoom_speed,
+                                         min_dist, max_dist);
+    }
     return true;
 }
 
@@ -292,7 +300,6 @@ void CL_InputModeFrame(void) {
     if (wow_input.move_back) {
         flags |= WOW_MOVE_BACK;
     }
-    /* A/D always strafe (modern WoW). */
     if (wow_input.move_left) {
         flags |= WOW_MOVE_LEFT;
     }
@@ -309,7 +316,6 @@ void CL_InputModeFrame(void) {
               (double)wow_input.distance);
 }
 
-/* No minimap or control groups in the WoW input mode. */
 BOOL CL_TryMinimapClick(float x, float y) { (void)x; (void)y; return false; }
 void CL_EndMinimapDrag(void) {}
 BOOL CL_HandleGameKey(int sym, Uint16 mod) { (void)sym; (void)mod; return false; }
