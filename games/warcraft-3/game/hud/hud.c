@@ -279,21 +279,23 @@ void UI_AddCreateGameSlot(DWORD slot, LPCSTR name, LPCSTR race, LPCSTR color, DW
     (void)slot; (void)name; (void)race; (void)color; (void)team;
 }
 
+#define BZ_HOST_HIDDEN __attribute__((visibility("hidden")))
+
 /* FDF host services — game module implementations using gi */
-HANDLE UI_FdfAlloc(long size) { return gi.MemAlloc(size); }
-void UI_FdfFree(HANDLE ptr) { gi.MemFree(ptr); }
-DWORD UI_FdfFontIndex(LPCSTR name, DWORD size) { return gi.FontIndex(name, size); }
-int UI_FdfReadFile(LPCSTR name, HANDLE *out) {
+BZ_HOST_HIDDEN HANDLE UI_FdfAlloc(long size) { return gi.MemAlloc(size); }
+BZ_HOST_HIDDEN void UI_FdfFree(HANDLE ptr) { gi.MemFree(ptr); }
+BZ_HOST_HIDDEN DWORD UI_FdfFontIndex(LPCSTR name, DWORD size) { return gi.FontIndex(name, size); }
+BZ_HOST_HIDDEN int UI_FdfReadFile(LPCSTR name, HANDLE *out) {
     DWORD size = 0;
     *out = gi.ReadFile(name, &size);
     return *out ? (int)size : -1;
 }
-void UI_FdfFreeFile(HANDLE buf) { gi.MemFree(buf); }
+BZ_HOST_HIDDEN void UI_FdfFreeFile(HANDLE buf) { gi.MemFree(buf); }
 
 /* Game module doesn't handle UI events or themes — stub these */
 void UI_WireFrameTypeFunctions(LPFRAMEDEF frame) { (void)frame; }
 void UI_ClearTheme(void) {}
-void UI_ClearTextures(void) {}
+BZ_HOST_HIDDEN void UI_ClearTextures(void) {}
 
 /* Game module doesn't load 3D models for UI — stub */
-DWORD UI_LoadModel(LPCSTR file, BOOL decorate) { (void)file; (void)decorate; return 0; }
+BZ_HOST_HIDDEN DWORD UI_LoadModel(LPCSTR file, BOOL decorate) { (void)file; (void)decorate; return 0; }
