@@ -492,7 +492,8 @@ void V_RenderView(void) {
         cl.viewDef.time = cl.time;
         cl.viewDef.deltaTime = cl.time - lastTime;
         cl.viewDef.rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL | RDF_NOFOG;
-        cl.viewDef.player = cl.playerstate.number;
+    cl.viewDef.player = cl.playerstate.number;
+    cl.viewDef.hover_entity = cl.hover_entity;
 
         V_ClearScene();
         Matrix4_getPreviewCameraMatrix(&target, &cl.viewDef.viewProjectionMatrix);

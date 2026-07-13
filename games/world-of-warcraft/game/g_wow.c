@@ -714,6 +714,7 @@ static void Wow_InitPlayer(LPEDICT ent) {
     if (local) {
         memset(local, 0, sizeof(*local));
         local->kind = WOW_ENTITY_PLAYER;
+        local->hostile = false;
         local->home = wow_spawn_origin;
         local->yaw = wow_move.yaw;
         local->health = 100;
@@ -994,6 +995,16 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
         wow_move.yaw = (FLOAT)atof(argv[2]);
         wow_move.pitch = Wow_Clamp((FLOAT)atof(argv[3]), WOW_CAMERA_MIN_PITCH, WOW_CAMERA_MAX_PITCH);
         wow_move.distance = Wow_Clamp((FLOAT)atof(argv[4]), WOW_CAMERA_MIN_DISTANCE, WOW_CAMERA_MAX_DISTANCE);
+    } else if (argc >= 1 && (!strcasecmp(argv[0], "select"))) {
+        LPEDICT target = argc >= 2
+            ? Wow_EdictByNumber((DWORD)strtoul(argv[1], NULL, 10))
+            : NULL;
+
+        if (target && target != ent && target->inuse) {
+            ent->client->ps.selected_entity = target->s.number;
+        } else {
+            ent->client->ps.selected_entity = 0;
+        }
     } else if (argc >= 1 && (!strcasecmp(argv[0], "attack") || !strcasecmp(argv[0], "wowattack"))) {
         LPEDICT target = argc >= 2
             ? Wow_EdictByNumber((DWORD)strtoul(argv[1], NULL, 10))

@@ -57,6 +57,7 @@ typedef struct {
     DWORD death_time;
     BOOL attack_damage_done;
     BOOL dead;
+    BOOL hostile;
     LPEDICT enemy;
 } wowEntityLocal_t;
 

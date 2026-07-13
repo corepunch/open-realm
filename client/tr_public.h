@@ -159,6 +159,7 @@ typedef struct {
     MATRIX4 textureMatrix;
     DWORD player;
     DWORD rdflags;
+    DWORD hover_entity;     /* entity under mouse cursor (0 = none) */
     FRUSTUM3 frustum;
     /* Linear scene fog (matches the original's fixed-function glFog* setup:
      * GL_FOG_MODE=LINEAR, GL_FOG_START/END, GL_FOG_COLOR).  Used by the glue
