@@ -580,7 +580,7 @@ static void UI_CheckBoxDraw(LPCFRAMEDEF frame, LPCRECT rect) {
 }
 
 /* Wire per-type event handler and draw function pointers */
-void UI_WireFrameTypeFunctions(LPFRAMEDEF frame) {
+__attribute__((visibility("hidden"))) void UI_WireFrameTypeFunctions(LPFRAMEDEF frame) {
     if (!frame) {
         return;
     }

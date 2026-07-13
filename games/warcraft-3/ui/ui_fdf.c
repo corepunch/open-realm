@@ -53,7 +53,7 @@ static LPCSTR EnsureExtension(LPCSTR file, LPCSTR ext) {
     return file;
 }
 
-DWORD UI_LoadTexture(LPCSTR file, BOOL decorate) {
+BZ_HOST_HIDDEN DWORD UI_LoadTexture(LPCSTR file, BOOL decorate) {
     LPRENDERER renderer;
     LPCSTR resolved;
     DWORD index;

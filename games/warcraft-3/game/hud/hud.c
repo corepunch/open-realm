@@ -293,8 +293,8 @@ BZ_HOST_HIDDEN int UI_FdfReadFile(LPCSTR name, HANDLE *out) {
 BZ_HOST_HIDDEN void UI_FdfFreeFile(HANDLE buf) { gi.MemFree(buf); }
 
 /* Game module doesn't handle UI events or themes — stub these */
-void UI_WireFrameTypeFunctions(LPFRAMEDEF frame) { (void)frame; }
-void UI_ClearTheme(void) {}
+BZ_HOST_HIDDEN void UI_WireFrameTypeFunctions(LPFRAMEDEF frame) { (void)frame; }
+BZ_HOST_HIDDEN void UI_ClearTheme(void) {}
 BZ_HOST_HIDDEN void UI_ClearTextures(void) {}
 
 /* Game module doesn't load 3D models for UI — stub */
