@@ -35,7 +35,7 @@ void UI_ShowInterface(LPEDICT ent, BOOL flag, FLOAT duration) {
         ent->client->ps.uiflags = ~(1u << LAYER_CINEMATIC);
 }
 
-void UI_ShowMainMenu(LPEDICT ent) { (void)ent; }
+__attribute__((visibility("hidden"))) void UI_ShowMainMenu(LPEDICT ent) { (void)ent; }
 
 void UI_ShowGameInterface(LPEDICT ent) {
     UI_WriteCinematicLayer(ent);
