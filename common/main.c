@@ -13,6 +13,8 @@
 #define BZ_PLATFORM "Windows"
 #elif defined(__linux__)
 #define BZ_PLATFORM "Linux"
+#elif defined(__OpenBSD__)
+#define BZ_PLATFORM "OpenBSD"
 #else
 #define BZ_PLATFORM "Unknown"
 #endif

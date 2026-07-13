@@ -13,7 +13,7 @@
 #else
 #include <OpenGLES/ES3/gl.h>
 #endif
-#elif __linux__
+#elif __linux__ || defined(__OpenBSD__)
 #define GL_GLEXT_PROTOTYPES 1
 #include <GL/gl.h>
 #include <GL/glext.h>
