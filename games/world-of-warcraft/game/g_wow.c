@@ -468,6 +468,150 @@ void Wow_AdvanceEntityFrame(LPEDICT ent) {
     }
 }
 
+/* ---- Projectile system (WC3-style homing missiles) ---- */
+
+/* Forward declarations for functions defined later in this file. */
+static LPEDICT Wow_EdictByNumber(DWORD number);
+static LPEDICT Wow_FindNearestAttackTarget(LPEDICT ent);
+
+#define WOW_FIREBOLT_SPEED 25.0f
+#define WOW_FIREBOLT_DAMAGE 2
+#define WOW_FIREBOLT_RANGE 30.0f
+#define WOW_HEALING_TOUCH_HEAL 2
+
+static DWORD Wow_FireboltModel(void) {
+    static DWORD model = 0;
+    static BOOL resolved = false;
+    if (!resolved) {
+        resolved = true;
+        LPCSTR const paths[] = {
+            "Spells\\Fireball\\FireballMissile.m2",
+            "Spells\\Fireball\\Fireball.m2",
+            "Spells\\Fire\\FireBolt.m2",
+            NULL
+        };
+        for (LPCSTR const *p = paths; *p; p++) {
+            model = G_RegisterModel(*p);
+            if (model) break;
+        }
+    }
+    return model;
+}
+
+/* Each frame: advance active projectile toward its target. */
+static void Wow_RunProjectile(LPEDICT ent) {
+    wowEntityLocal_t *local = Wow_EntityLocal(ent);
+    LPEDICT target;
+
+    if (!ent || !local || local->kind != WOW_ENTITY_PROJECTILE || !ent->inuse) {
+        return;
+    }
+    target = Wow_EdictByNumber(local->projectile_target);
+    if (!target || !target->inuse) {
+        ent->inuse = false;
+        return;
+    }
+    {
+        VECTOR2 const t2 = (VECTOR2){ target->s.origin.x, target->s.origin.y };
+        VECTOR2 const p2 = (VECTOR2){ ent->s.origin.x, ent->s.origin.y };
+        VECTOR2 delta = Vector2_sub(&t2, &p2);
+        FLOAT dist = sqrtf(delta.x * delta.x + delta.y * delta.y);
+        FLOAT step = local->projectile_speed * ((FLOAT)FRAMETIME / 1000.0f);
+
+        if (dist <= step) {
+            /* Hit the target — apply damage. */
+            wowEntityLocal_t *target_local = Wow_EntityLocal(target);
+            if (target_local && !target_local->dead) {
+                if (target_local->health <= local->projectile_damage) {
+                    Wow_AIDie(target, ent);
+                } else {
+                    target_local->health -= local->projectile_damage;
+                    if (target->pain) target->pain(target);
+                }
+            }
+            ent->inuse = false;
+            return;
+        }
+        /* Move toward target (homing). */
+        ent->s.origin.x += delta.x * step / dist;
+        ent->s.origin.y += delta.y * step / dist;
+        ent->s.origin.z = Wow_TerrainHeight(ent->s.origin.x, ent->s.origin.y) + 3.0f;
+        ent->s.angle = (FLOAT)DEG2RAD(local->projectile_yaw);
+    }
+}
+
+static void Wow_FireFirebolt(LPEDICT caster, LPEDICT target) {
+    wowEntityLocal_t *caster_local;
+    wowEntityLocal_t *pl;
+    LPEDICT proj;
+    FLOAT yaw;
+
+    if (!caster || !target || caster == target || !target->inuse) {
+        return;
+    }
+    caster_local = Wow_EntityLocal(caster);
+    if (!caster_local || caster_local->dead) {
+        return;
+    }
+    proj = Wow_Spawn();
+    if (!proj) return;
+
+    pl = Wow_EntityLocal(proj);
+    if (!pl) return;
+
+    pl->kind = WOW_ENTITY_PROJECTILE;
+    {
+        VECTOR2 delta = Vector2_sub(&(VECTOR2){ target->s.origin.x, target->s.origin.y },
+                                    &(VECTOR2){ caster->s.origin.x, caster->s.origin.y });
+        yaw = (FLOAT)RAD2DEG(atan2f(delta.y, delta.x));
+    }
+    pl->projectile_target = target->s.number;
+    pl->projectile_caster = caster->s.number;
+    pl->projectile_speed = WOW_FIREBOLT_SPEED;
+    pl->projectile_damage = WOW_FIREBOLT_DAMAGE;
+    pl->projectile_yaw = yaw;
+    pl->projectile_pitch = 0.0f;
+
+    proj->s.origin = (VECTOR3){ caster->s.origin.x, caster->s.origin.y,
+                                Wow_TerrainHeight(caster->s.origin.x, caster->s.origin.y) + 3.0f };
+    proj->s.origin2 = (VECTOR2){ proj->s.origin.x, proj->s.origin.y };
+    proj->s.angle = (FLOAT)DEG2RAD(yaw);
+    proj->s.model = Wow_FireboltModel();
+    proj->s.scale = 0.8f;
+    proj->s.radius = 0.5f;
+    proj->s.player = caster->s.player;
+    /* Caster targets the enemy for combat tracking. */
+    caster_local->enemy = target;
+}
+
+static void Wow_HealingTouch(LPEDICT caster) {
+    wowEntityLocal_t *local;
+
+    if (!caster) return;
+    local = Wow_EntityLocal(caster);
+    if (!local || local->dead) return;
+
+    local->health = MIN(local->health + WOW_HEALING_TOUCH_HEAL, 100);
+    /* Play a cast animation if available. */
+    static LPCSTR const heal_anims[] = { "SpellCastOmni", "Cast", "Attack1H", NULL };
+    Wow_SetEntityMoveFirstAnimation(caster, NULL, heal_anims);
+}
+
+/* Find a target in range for the firebolt spell.  Prefers current selection,
+   then nearest enemy. */
+static LPEDICT Wow_FindSpellTarget(LPEDICT ent, FLOAT range) {
+    if (ent && ent->client && ent->client->ps.selected_entity) {
+        LPEDICT t = Wow_EdictByNumber(ent->client->ps.selected_entity);
+        if (t && t != ent && t->inuse) {
+            VECTOR2 delta = Vector2_sub(&t->s.origin2, &ent->s.origin2);
+            if (sqrtf(delta.x * delta.x + delta.y * delta.y) <= range) {
+                return t;
+            }
+        }
+    }
+    return Wow_FindNearestAttackTarget(ent);
+}
+
 static void Wow_UpdateCamera(LPEDICT ent) {
     if (!ent || !ent->client) {
         return;
@@ -979,8 +1123,14 @@ static void Wow_RunFrame(void) {
     Wow_UpdatePlayerHud(ent);
 
     for (DWORD i = WOW_MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
-        if (wow_edicts[i].inuse) {
-            Wow_RunCreatureFrame(&wow_edicts[i]);
+        LPEDICT e = &wow_edicts[i];
+        if (e->inuse) {
+            wowEntityLocal_t *el = Wow_EntityLocal(e);
+            if (el && el->kind == WOW_ENTITY_PROJECTILE) {
+                Wow_RunProjectile(e);
+            } else {
+                Wow_RunCreatureFrame(e);
+            }
         }
     }
 }
@@ -1029,6 +1179,25 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
         }
         if (!local || !local->dead) {
             Wow_SetStandMove(ent);
+        }
+    } else if (argc >= 2 && !strcasecmp(argv[0], "wow_action")) {
+        DWORD slot = (DWORD)strtoul(argv[1], NULL, 10);
+
+        switch (slot) {
+            case 3: /* Healing Touch */
+                Wow_HealingTouch(ent);
+                break;
+            case 4: /* Firebolt */
+                {
+                    LPEDICT target = Wow_FindSpellTarget(ent, WOW_FIREBOLT_RANGE);
+                    if (target) {
+                        Wow_FireFirebolt(ent, target);
+                    }
+                }
+                break;
+            default:
+                fprintf(stderr, "WoW: unhandled action slot %u\n", (unsigned)slot);
+                break;
         }
     }
 }

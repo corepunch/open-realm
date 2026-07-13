@@ -29,6 +29,7 @@ typedef enum {
     WOW_ENTITY_NONE,
     WOW_ENTITY_PLAYER,
     WOW_ENTITY_CREATURE,
+    WOW_ENTITY_PROJECTILE,
 } wowEntityKind_t;
 
 typedef struct wowMove_s {
@@ -59,6 +60,13 @@ typedef struct {
     BOOL dead;
     BOOL hostile;
     LPEDICT enemy;
+    /* Projectile fields (valid when kind == WOW_ENTITY_PROJECTILE) */
+    DWORD projectile_target;
+    DWORD projectile_caster;
+    FLOAT projectile_speed;
+    DWORD projectile_damage;
+    FLOAT projectile_yaw;
+    FLOAT projectile_pitch;
 } wowEntityLocal_t;
 
 typedef struct {
