@@ -86,6 +86,7 @@ void UI_WriteCommandButtonFrame(gameCommandButton_t const *button) {
     frame.tex.index = gi.ImageIndex(button->art);
     frame.stat = button->active;
     frame.value = button->cooldown;
+    frame.hotkey = (BYTE)button->hotkey;
     UI_FormatTooltip(button->command, button->tooltip, button->ubertip, tooltip, sizeof(tooltip));
     frame.tooltip = tooltip;
     snprintf(onclick, sizeof(onclick), "%s %s", button->research ? "research" : "button", button->command);

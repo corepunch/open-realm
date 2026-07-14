@@ -151,6 +151,7 @@ void Key_Event(keyCode_t key, bool down, DWORD time) {
     char cmd[1024];
 
     if (!kb || !*kb) {
+        if (down) SCR_LayoutKeyEvent(key);
         return;
     }
     
