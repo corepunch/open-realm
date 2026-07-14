@@ -583,28 +583,14 @@ void UI_KeyEventLocal(int key, BOOL down, DWORD time) {
 static VECTOR2 UI_PixelToFdf(int px, int py) {
     LPRENDERER renderer = uiimport.GetRenderer();
     size2_t window = renderer && renderer->GetWindowSize ? renderer->GetWindowSize() : MAKE(size2_t, 0, 0);
-    FLOAT window_aspect = UI_MIN_ASPECT;
-    FLOAT x_scale = 1.0f;
-    FLOAT y_scale = 1.0f;
-    RECT scene;
     FLOAT nx = 0;
     FLOAT ny = 0;
 
     if (window.width > 0 && window.height > 0) {
-        window_aspect = (FLOAT)window.width / (FLOAT)window.height;
         nx = (FLOAT)px / (FLOAT)window.width;
         ny = (FLOAT)py / (FLOAT)window.height;
     }
-    if (window_aspect > UI_MIN_ASPECT) {
-        x_scale = window_aspect / UI_MIN_ASPECT;
-    } else if (window_aspect < UI_MIN_ASPECT) {
-        y_scale = UI_MIN_ASPECT / window_aspect;
-    }
-    scene.w = UI_BASE_WIDTH * x_scale;
-    scene.h = UI_BASE_HEIGHT * y_scale;
-    scene.x = (UI_BASE_WIDTH - scene.w) * 0.5f;
-    scene.y = (UI_BASE_HEIGHT - scene.h) * 0.5f;
-    return MAKE(VECTOR2, scene.x + nx * scene.w, scene.y + ny * scene.h);
+    return MAKE(VECTOR2, nx * UI_BASE_WIDTH, ny * UI_BASE_HEIGHT);
 }
 
 /* All UI mouse work starts here so draw code only consumes event-updated state. */

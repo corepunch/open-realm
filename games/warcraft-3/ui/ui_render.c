@@ -148,39 +148,7 @@ static RECT UI_GetSceneRect(void) {
     if (scene_rect_valid) {
         return scene_rect;
     }
-    
-    LPRENDERER renderer = uiimport.GetRenderer();
-    size2_t window;
-    FLOAT window_aspect = UI_MIN_ASPECT;
-    FLOAT x_scale = 1.0f;
-    FLOAT y_scale = 1.0f;
-
-    if (!renderer || !renderer->GetWindowSize) {
-        return (RECT) { 0, 0, UI_BASE_WIDTH, UI_BASE_HEIGHT };
-    }
-
-    window = renderer->GetWindowSize();
-
-    if (window.width > 0 && window.height > 0) {
-        window_aspect = (FLOAT)window.width / (FLOAT)window.height;
-    }
-
-    if (window_aspect > UI_MIN_ASPECT) {
-        x_scale = window_aspect / UI_MIN_ASPECT;
-    } else if (window_aspect < UI_MIN_ASPECT) {
-        y_scale = UI_MIN_ASPECT / window_aspect;
-    }
-
-    FLOAT scene_w = UI_BASE_WIDTH * x_scale;
-    FLOAT scene_h = UI_BASE_HEIGHT * y_scale;
-    
-    scene_rect = (RECT) {
-        .x = (UI_BASE_WIDTH - scene_w) * 0.5f,
-        .y = (UI_BASE_HEIGHT - scene_h) * 0.5f,
-        .w = scene_w,
-        .h = scene_h
-    };
-    
+    scene_rect = (RECT) { 0, 0, UI_BASE_WIDTH, UI_BASE_HEIGHT };
     scene_rect_valid = TRUE;
     return scene_rect;
 }

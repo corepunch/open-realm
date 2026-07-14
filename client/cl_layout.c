@@ -11,29 +11,12 @@ struct {
     bool calculated;
 } runtimes[MAX_LAYOUT_OBJECTS];
 
+/* Fixed 0.8x0.6 canvas regardless of window aspect: the final FDF->pixel
+ * conversion already stretches this to fill the window, so HUD panels
+ * anchored to different edges stay flush against each other instead of
+ * drifting apart on non-4:3 resolutions. */
 static RECT SCR_GetUISceneRect(void) {
-    size2_t window = re.GetWindowSize();
-    FLOAT window_aspect = UI_MIN_ASPECT;
-    FLOAT x_scale = 1.0f;
-    FLOAT y_scale = 1.0f;
-
-    if (window.width > 0 && window.height > 0) {
-        window_aspect = (FLOAT)window.width / (FLOAT)window.height;
-    }
-
-    if (window_aspect > UI_MIN_ASPECT) {
-        x_scale = window_aspect / UI_MIN_ASPECT;
-    } else if (window_aspect < UI_MIN_ASPECT) {
-        y_scale = UI_MIN_ASPECT / window_aspect;
-    }
-
-    FLOAT scene_w = UI_BASE_WIDTH * x_scale;
-    FLOAT scene_h = UI_BASE_HEIGHT * y_scale;
-    return MAKE(RECT,
-                (UI_BASE_WIDTH - scene_w) * 0.5f,
-                (UI_BASE_HEIGHT - scene_h) * 0.5f,
-                scene_w,
-                scene_h);
+    return MAKE(RECT, 0, 0, UI_BASE_WIDTH, UI_BASE_HEIGHT);
 }
 
 VECTOR2 get_x(LPCRECT rect) {
