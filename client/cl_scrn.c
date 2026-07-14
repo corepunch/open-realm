@@ -1,5 +1,6 @@
 #include "client.h"
 #include "ui_layout.h"
+#include <ctype.h>
 #include <stdlib.h>  /* getenv (BZ_FPS_LOG diagnostic) */
 #include <SDL2/SDL.h>
 
@@ -765,6 +766,30 @@ void SCR_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
             }
         }
     }
+}
+
+/* Dispatch a command-button hotkey the same way a mouse click on that */
+BOOL SCR_LayoutKeyEvent(int key) {
+    int const upper = toupper(key);
+
+    FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
+        HANDLE layout = layout_layers[layer];
+        DWORD flags = cl.playerstate.uiflags;
+        if (!layout || (1 << layer) & flags) continue;
+        SCR_Clear(layout);
+        for (DWORD i = SCR_NumFrames(); i > 0; i--) {
+            LPCUIFRAME frame = SCR_Frame(i - 1);
+            if (!frame || !frame->hotkey || !SCR_LayoutFrameHasClickCommand(frame)) continue;
+            if (toupper(frame->hotkey) == upper) {
+                char command[CMDARG_LEN * 2];
+                SCR_LayoutFormatOnClickCommand(frame->onclick, command, sizeof(command));
+                MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+                SZ_Printf(&cls.netchan.message, "%s", command);
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 BOOL SCR_LayoutHitTest(int x, int y) {

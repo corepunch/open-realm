@@ -106,6 +106,7 @@ netField_t uiFrameFields[] = {
     { NETF(uiFrame_t, text), NFT_TEXT },
     { NETF(uiFrame_t, tooltip), NFT_TEXT },
     { NETF(uiFrame_t, onclick), NFT_TEXT },
+    { NETF(uiFrame_t, hotkey), NFT_BYTE },
     { NULL }
 };
 

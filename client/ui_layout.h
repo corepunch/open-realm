@@ -21,5 +21,6 @@ void SCR_ClearLayoutLayer(DWORD layer);
 BOOL SCR_LayoutHitTest(int x, int y);
 void SCR_DrawLayout(void);
 void SCR_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param);
+BOOL SCR_LayoutKeyEvent(int key);
 
 #endif /* ui_layout_h */
