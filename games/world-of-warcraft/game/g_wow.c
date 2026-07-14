@@ -479,7 +479,7 @@ static LPEDICT Wow_FindNearestAttackTarget(LPEDICT ent);
 #define WOW_FIREBOLT_RANGE 30.0f
 #define WOW_HEALING_TOUCH_HEAL 2
 
-static DWORD Wow_FireboltModel(void) {
+DWORD Wow_FireboltModel(void) {
     static DWORD model = 0;
     static BOOL resolved = false;
     if (!resolved) {
@@ -499,7 +499,7 @@ static DWORD Wow_FireboltModel(void) {
 }
 
 /* Each frame: advance active projectile toward its target. */
-static void Wow_RunProjectile(LPEDICT ent) {
+void Wow_RunProjectile(LPEDICT ent) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
     LPEDICT target;
 
@@ -540,7 +540,7 @@ static void Wow_RunProjectile(LPEDICT ent) {
     }
 }
 
-static void Wow_FireFirebolt(LPEDICT caster, LPEDICT target) {
+void Wow_FireFirebolt(LPEDICT caster, LPEDICT target) {
     wowEntityLocal_t *caster_local;
     wowEntityLocal_t *pl;
     LPEDICT proj;
@@ -548,6 +548,12 @@ static void Wow_FireFirebolt(LPEDICT caster, LPEDICT target) {
 
     if (!caster || !target || caster == target || !target->inuse) {
         return;
+    }
+    {
+        wowEntityLocal_t *target_local = Wow_EntityLocal(target);
+        if (target_local && target_local->dead) {
+            return;
+        }
     }
     caster_local = Wow_EntityLocal(caster);
     if (!caster_local || caster_local->dead) {
@@ -584,7 +590,7 @@ static void Wow_FireFirebolt(LPEDICT caster, LPEDICT target) {
     caster_local->enemy = target;
 }
 
-static void Wow_HealingTouch(LPEDICT caster) {
+void Wow_HealingTouch(LPEDICT caster) {
     wowEntityLocal_t *local;
 
     if (!caster) return;
@@ -599,7 +605,7 @@ static void Wow_HealingTouch(LPEDICT caster) {
 
 /* Find a target in range for the firebolt spell.  Prefers current selection,
    then nearest enemy. */
-static LPEDICT Wow_FindSpellTarget(LPEDICT ent, FLOAT range) {
+LPEDICT Wow_FindSpellTarget(LPEDICT ent, FLOAT range) {
     if (ent && ent->client && ent->client->ps.selected_entity) {
         LPEDICT t = Wow_EdictByNumber(ent->client->ps.selected_entity);
         if (t && t != ent && t->inuse) {

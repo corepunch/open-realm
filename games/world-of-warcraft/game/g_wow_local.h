@@ -134,4 +134,11 @@ void Wow_SpawnAmbientCreatures(LPCVECTOR2 origin);
 void Wow_RunCreatureFrame(LPEDICT ent);
 void UI_WriteWowHud(LPEDICT ent);
 
+/* Ability/projectile system */
+DWORD      Wow_FireboltModel(void);
+void       Wow_RunProjectile(LPEDICT ent);
+void       Wow_FireFirebolt(LPEDICT caster, LPEDICT target);
+void       Wow_HealingTouch(LPEDICT caster);
+LPEDICT    Wow_FindSpellTarget(LPEDICT ent, FLOAT range);
+
 #endif
