@@ -618,7 +618,11 @@ void CL_Init(void) {
     CL_SetMenuBindings();
     cls.state = ca_disconnected;
     scr_initialized = true;
+#ifdef WOW
     CL_MenuCommand("menu_login");
+#else
+    CL_MenuCommand("menu_main");
+#endif
 }
 
 void CL_ConnectionlessPacket(const netadr_t *from, LPSIZEBUF msg) {
