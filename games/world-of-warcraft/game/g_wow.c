@@ -604,7 +604,7 @@ void Wow_HealingTouch(LPEDICT caster) {
 }
 
 /* Find a target in range for the firebolt spell.  Prefers current selection,
-   then nearest enemy. */
+   then the current melee enemy, then nearest enemy. */
 LPEDICT Wow_FindSpellTarget(LPEDICT ent, FLOAT range) {
     if (ent && ent->client && ent->client->ps.selected_entity) {
         LPEDICT t = Wow_EdictByNumber(ent->client->ps.selected_entity);
@@ -612,6 +612,15 @@ LPEDICT Wow_FindSpellTarget(LPEDICT ent, FLOAT range) {
             VECTOR2 delta = Vector2_sub(&t->s.origin2, &ent->s.origin2);
             if (sqrtf(delta.x * delta.x + delta.y * delta.y) <= range) {
                 return t;
+            }
+        }
+    }
+    {
+        wowEntityLocal_t *local = Wow_EntityLocal(ent);
+        if (local && local->enemy && local->enemy != ent && local->enemy->inuse) {
+            VECTOR2 delta = Vector2_sub(&local->enemy->s.origin2, &ent->s.origin2);
+            if (sqrtf(delta.x * delta.x + delta.y * delta.y) <= range) {
+                return local->enemy;
             }
         }
     }
@@ -1173,6 +1182,7 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
             return;
         }
         local->enemy = target && target != ent ? target : NULL;
+        ent->client->ps.selected_entity = target && target != ent ? target->s.number : 0;
         ent->attack(ent);
     } else if (argc >= 1 && (!strcasecmp(argv[0], "stopattack") || !strcasecmp(argv[0], "wowstopattack"))) {
         wowEntityLocal_t *local = Wow_EntityLocal(ent);
@@ -1200,6 +1210,8 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
                     LPEDICT target = Wow_FindSpellTarget(ent, WOW_FIREBOLT_RANGE);
                     if (target) {
                         Wow_FireFirebolt(ent, target);
+                    } else {
+                        fprintf(stderr, "WoW: Firebolt — no target in range %.1f\n", WOW_FIREBOLT_RANGE);
                     }
                 }
                 break;
