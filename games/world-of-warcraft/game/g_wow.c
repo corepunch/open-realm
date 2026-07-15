@@ -589,8 +589,8 @@ void Wow_FireFirebolt(LPEDICT caster, LPEDICT target) {
     pl->projectile_yaw = yaw;
     pl->projectile_pitch = 0.0f;
 
-    proj->s.origin = (VECTOR3){ caster->s.origin.x, caster->s.origin.y,
-                                Wow_TerrainHeight(caster->s.origin.x, caster->s.origin.y) + 3.0f };
+	proj->s.origin = (VECTOR3){ caster->s.origin.x, caster->s.origin.y,
+	                            caster->s.origin.z + 1.6f };
     proj->s.origin2 = (VECTOR2){ proj->s.origin.x, proj->s.origin.y };
     proj->s.angle = (FLOAT)DEG2RAD(yaw);
     proj->s.model = Wow_FireboltModel();
