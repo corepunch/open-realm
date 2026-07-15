@@ -31,7 +31,7 @@ static void CL_SendBegin(void) {
     MSG_WriteString(&cls.netchan.message, "begin");
 }
 
-void Matrix4_fromViewAngles(LPCVECTOR3 target, LPCVECTOR3 angles, FLOAT distance, LPMATRIX4 output) {
+static void Matrix4_fromViewAngles(LPCVECTOR3 target, LPCVECTOR3 angles, FLOAT distance, LPMATRIX4 output) {
     VECTOR3 const vieworg = Vector3_unm(target);
     Matrix4_identity(output);
     Matrix4_translate(output, &(VECTOR3){0, 0, -distance});
@@ -123,7 +123,7 @@ static void Matrix4_getSc2CameraMatrix(LPCVECTOR3 origin,
 }
 #endif
 
-void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, FLOAT scale, LPMATRIX4 output) {
+static void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, FLOAT scale, LPMATRIX4 output) {
     MATRIX4 proj, view, tmp1, tmp2;
     viewCamera_t const *a = cl.viewDef.camerastate+1;
     viewCamera_t const *b = cl.viewDef.camerastate+0;
