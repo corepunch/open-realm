@@ -111,7 +111,7 @@ uiScreen_t *UI_GetCurrentScreen(void) {
     return ui_current_screen;
 }
 
-void UI_ShowMainMenu(void) {
+__attribute__((visibility("hidden"))) void UI_ShowMainMenu(void) {
     UI_SetScreen(&mainMenuScreen);
     MainMenu_ShowMainPanel();
 }

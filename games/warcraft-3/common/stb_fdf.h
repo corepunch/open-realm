@@ -523,6 +523,8 @@ void UI_MenuAddItem(LPFRAMEDEF frame, LPCSTR text, LONG value);
 #include <strings.h>
 #endif
 
+#pragma GCC visibility push(hidden)
+
 /* ---- Tokenizer (merged from parser.c) ------------------------------------ */
 
 #define PARSER_MAX_SEGMENT 1024
@@ -1924,6 +1926,8 @@ void UI_SetTexture(LPFRAMEDEF frame, LPCSTR name, BOOL decorate) {
 void UI_SetTexture2(LPFRAMEDEF frame, LPCSTR name, BOOL decorate) {
     frame->Texture.Image2 = UI_LoadTexture(name, decorate);
 }
+
+#pragma GCC visibility pop
 
 #endif /* STB_FDF_IMPLEMENTATION */
 

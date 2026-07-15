@@ -243,13 +243,15 @@ LPCSTR UI_FormatMessageText(LPCSTR text) {
     return out;
 }
 
-DWORD UI_LoadTexture(LPCSTR path, BOOL forcewrap) {
+#define BZ_HOST_HIDDEN __attribute__((visibility("hidden")))
+
+BZ_HOST_HIDDEN DWORD UI_LoadTexture(LPCSTR path, BOOL forcewrap) {
     (void)forcewrap;
     /* The shipped Hero*Icon skin entries name absent files; register WC3's matching infocard assets instead. */
     return gi.ImageIndex(UI_ResolveTextureAlias(path));
 }
 
-LPCSTR Theme_String(LPCSTR key, LPCSTR def) {
+BZ_HOST_HIDDEN LPCSTR Theme_String(LPCSTR key, LPCSTR def) {
     LPCSTR value = NULL;
     if (key && !strstr(key, "\\") && game.config.theme) {
         value = FS_FindSheetCell(game.config.theme, "Default", key);
@@ -257,7 +259,7 @@ LPCSTR Theme_String(LPCSTR key, LPCSTR def) {
     return value ? value : def;
 }
 
-FLOAT Theme_Float(LPCSTR key, LPCSTR def) {
+BZ_HOST_HIDDEN FLOAT Theme_Float(LPCSTR key, LPCSTR def) {
     (void)key;
     return def ? atof(def) : 0.0f;
 }

@@ -8,6 +8,8 @@
 
 #define MAX_THEME_ENTRIES 1024
 
+#define BZ_HOST_HIDDEN __attribute__((visibility("hidden")))
+
 typedef struct {
     UINAME category;
     UINAME key;
@@ -24,7 +26,7 @@ static char *UI_ThemeTrim(char *text) {
     return text;
 }
 
-void UI_ClearTheme(void) {
+BZ_HOST_HIDDEN void UI_ClearTheme(void) {
     memset(theme_entries, 0, sizeof(theme_entries));
     theme_count = 0;
 }
@@ -133,7 +135,7 @@ static LPCSTR UI_ThemeEffectiveCategory(LPCSTR category) {
     return player_category ? player_category : category;
 }
 
-LPCSTR Theme_String(LPCSTR entry, LPCSTR category) {
+BZ_HOST_HIDDEN LPCSTR Theme_String(LPCSTR entry, LPCSTR category) {
     LPCSTR filename = NULL;
     char versioned[128];
     LPCSTR fallback = "Default";
@@ -173,7 +175,7 @@ LPCSTR Theme_String(LPCSTR entry, LPCSTR category) {
     return entry;
 }
 
-FLOAT Theme_Float(LPCSTR entry, LPCSTR category) {
+BZ_HOST_HIDDEN FLOAT Theme_Float(LPCSTR entry, LPCSTR category) {
     return atof(Theme_String(entry, category));
 }
 

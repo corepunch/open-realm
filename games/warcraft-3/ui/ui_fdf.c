@@ -17,6 +17,8 @@
 #define MAX_IMAGES  1024
 #define MAX_MODELS  256
 
+#define BZ_HOST_HIDDEN __attribute__((visibility("hidden")))
+
 /* ---- Texture/model cache (UI-module specific) ----------------------------- */
 
 static LPCTEXTURE ui_textures[MAX_IMAGES] = { 0 };
@@ -26,7 +28,7 @@ static BOOL ui_texture_decorated[MAX_IMAGES] = { 0 };
 static LPCMODEL ui_models[MAX_MODELS] = { 0 };
 static PATHSTR ui_model_names[MAX_MODELS] = { 0 };
 
-void UI_ClearTextures(void) {
+BZ_HOST_HIDDEN void UI_ClearTextures(void) {
     memset(ui_textures, 0, sizeof(ui_textures));
     memset(ui_texture_names, 0, sizeof(ui_texture_names));
     memset(ui_texture_keys, 0, sizeof(ui_texture_keys));
@@ -51,7 +53,7 @@ static LPCSTR EnsureExtension(LPCSTR file, LPCSTR ext) {
     return file;
 }
 
-DWORD UI_LoadTexture(LPCSTR file, BOOL decorate) {
+BZ_HOST_HIDDEN DWORD UI_LoadTexture(LPCSTR file, BOOL decorate) {
     LPRENDERER renderer;
     LPCSTR resolved;
     DWORD index;
@@ -116,7 +118,7 @@ LPCMODEL UI_GetModel(DWORD index) {
     return ui_models[index];
 }
 
-DWORD UI_LoadModel(LPCSTR file, BOOL decorate) {
+BZ_HOST_HIDDEN DWORD UI_LoadModel(LPCSTR file, BOOL decorate) {
     LPRENDERER renderer = NULL;
     DWORD modelIndex = 0;
     LPCSTR model = file;
@@ -145,14 +147,14 @@ DWORD UI_GetTime(void) { return 0; /* TODO: implement via client time */ }
 
 /* ---- FDF host services (UI module) ---------------------------------------- */
 
-HANDLE UI_FdfAlloc(long size) { return uiimport.MemAlloc(size); }
-void UI_FdfFree(HANDLE ptr) { uiimport.MemFree(ptr); }
-DWORD UI_FdfFontIndex(LPCSTR name, DWORD size) { return uiimport.FontIndex(name, size); }
-int UI_FdfReadFile(LPCSTR name, HANDLE *out) {
+BZ_HOST_HIDDEN HANDLE UI_FdfAlloc(long size) { return uiimport.MemAlloc(size); }
+BZ_HOST_HIDDEN void UI_FdfFree(HANDLE ptr) { uiimport.MemFree(ptr); }
+BZ_HOST_HIDDEN DWORD UI_FdfFontIndex(LPCSTR name, DWORD size) { return uiimport.FontIndex(name, size); }
+BZ_HOST_HIDDEN int UI_FdfReadFile(LPCSTR name, HANDLE *out) {
     int size = uiimport.FS_ReadFile(name, out);
     return size;
 }
-void UI_FdfFreeFile(HANDLE buf) { uiimport.FS_FreeFile(buf); }
+BZ_HOST_HIDDEN void UI_FdfFreeFile(HANDLE buf) { uiimport.FS_FreeFile(buf); }
 
 /* ---- UI_BindMapList (UI-module specific) ----------------------------------- */
 
