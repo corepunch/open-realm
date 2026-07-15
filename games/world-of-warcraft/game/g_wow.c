@@ -19,6 +19,7 @@ enum {
     WOW_PLAYER_EQUIPMENT_HANDS = 1,
     WOW_PLAYER_EQUIPMENT_FEET = 1
 };
+static wowMove_t wow_move_cast = { "SpellCastOmni", NULL, NULL };
 static struct {
     DWORD flags;
     FLOAT yaw;
@@ -498,7 +499,7 @@ DWORD Wow_FireboltModel(void) {
             }
         }
         if (!model)
-            fprintf(stderr, "WoW: no firebolt model found — tried: Spells\\Fireball\\FireballMissile.m2, Spells\\Fireball\\Fireball.m2, Spells\\Fire\\FireBolt.m2\n");
+            fprintf(stderr, "WoW: firebolt model not loadable from MPQ — extract Spells\\Fireball\\FireballMissile.m2 from WoW\n");
     }
     return model;
 }
@@ -596,7 +597,7 @@ void Wow_FireFirebolt(LPEDICT caster, LPEDICT target) {
      * damage is dealt when the timer expires. */
     {
         static LPCSTR const cast_anims[] = { "SpellCastOmni", "Cast", "Attack1H", NULL };
-        Wow_SetEntityMoveFirstAnimation(caster, NULL, cast_anims);
+        Wow_SetEntityMoveFirstAnimation(caster, &wow_move_cast, cast_anims);
         caster_local->attack_damage_time = 400;
         caster_local->attack_backswing_time = 100;
         caster_local->attack_time = 500;
@@ -615,7 +616,7 @@ void Wow_HealingTouch(LPEDICT caster) {
     local->health = MIN(local->health + WOW_HEALING_TOUCH_HEAL, 100);
     /* Play a cast animation if available. */
     static LPCSTR const heal_anims[] = { "SpellCastOmni", "Cast", "Attack1H", NULL };
-    Wow_SetEntityMoveFirstAnimation(caster, NULL, heal_anims);
+    Wow_SetEntityMoveFirstAnimation(caster, &wow_move_cast, heal_anims);
 }
 
 /* Find a target in range for the firebolt spell.  Prefers current selection,
