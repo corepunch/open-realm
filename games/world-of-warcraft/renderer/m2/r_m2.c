@@ -331,19 +331,20 @@ typedef struct {
 } m2Batch_t;
 
 typedef struct m2ModelBatch_s {
-    LPBUFFER buffer;
-    LPTEXTURE texture;
-    LPTEXTURE character_texture;
-    DWORD character_texture_key;
-    DWORD num_vertices;
-    DWORD texture_type;
-    WORD bone_count;
-    WORD bone_combo_index;
-    WORD section_id;
-    WORD geoset_index;
-    BYTE character_texture_slot;
-    BOOL character_texture_loaded;
-    struct m2ModelBatch_s *next;
+	LPBUFFER buffer;
+	LPTEXTURE texture;
+	LPTEXTURE character_texture;
+	DWORD character_texture_key;
+	DWORD num_vertices;
+	DWORD texture_type;
+	WORD bone_count;
+	WORD bone_combo_index;
+	WORD section_id;
+	WORD geoset_index;
+	BYTE alphamode;
+	BYTE character_texture_slot;
+	BOOL character_texture_loaded;
+	struct m2ModelBatch_s *next;
 } m2ModelBatch_t;
 
 #define M2_NUM_GEOSET_GROUPS 16
@@ -367,8 +368,10 @@ struct m2Model_s {
     BOX3 bounds;
     BOX3 geometry_bounds;
     BOOL has_geometry_bounds;
-    BOOL character_model;
-    m2CompositeCacheEntry_t composite_cache[M2_COMPOSITE_CACHE_SIZE];
+	BOOL character_model;
+	BYTE *material_blend_modes;
+	DWORD num_materials;
+	m2CompositeCacheEntry_t composite_cache[M2_COMPOSITE_CACHE_SIZE];
     DWORD composite_cache_lru;
     m2CharacterOutfit_t character_outfit;
     DWORD character_outfit_appearance;
@@ -2279,9 +2282,11 @@ static void M2_AddBatch(m2Model_t *model,
     render_batch->bone_count = bone_count;
     render_batch->bone_combo_index = bone_combo_index;
     render_batch->section_id = section_id;
-    render_batch->geoset_index = batch->geoset_index;
-    render_batch->character_texture_slot = M2_CharacterTextureSlotForSection(section_id);
-    ADD_TO_LIST(render_batch, model->batches);
+	render_batch->geoset_index = batch->geoset_index;
+	render_batch->character_texture_slot = M2_CharacterTextureSlotForSection(section_id);
+	render_batch->alphamode = (model->material_blend_modes && batch->material_index < model->num_materials) ?
+		model->material_blend_modes[batch->material_index] : 0;
+	ADD_TO_LIST(render_batch, model->batches);
     model->num_batches++;
     ri.MemFree(vertices);
 }
@@ -2453,17 +2458,21 @@ static BOOL M2_CharacterGeosetVisible(m2Model_t const *model,
 }
 
 static void M2_FreeModelData(m2Model_t *model) {
-    if (!model) {
-        return;
-    }
-    if (model->bone_matrices) {
-        ri.MemFree(model->bone_matrices);
-        model->bone_matrices = NULL;
-    }
-    if (model->data) {
-        ri.MemFree(model->data);
-        model->data = NULL;
-    }
+	if (!model) {
+		return;
+	}
+	if (model->bone_matrices) {
+		ri.MemFree(model->bone_matrices);
+		model->bone_matrices = NULL;
+	}
+	if (model->material_blend_modes) {
+		ri.MemFree(model->material_blend_modes);
+		model->material_blend_modes = NULL;
+	}
+	if (model->data) {
+		ri.MemFree(model->data);
+		model->data = NULL;
+	}
 }
 
 static BOOL M2_CopyModelData(m2Model_t *model, BYTE const *m2_base, DWORD m2_size, BOOL legacy_header) {
@@ -2664,8 +2673,40 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size) {
         return M2_CreateFallbackModel(modelFilename, "failed to copy animation data");
     }
 
-    FOR_LOOP(i, batch_count) {
-        m2Batch_t const *batch = &batches[i];
+	/* Parse material blend modes from the M2 header (modern format only).
+	 * Each material entry starts with uint16_t flags + uint16_t blending_mode.
+	 * Map WoW blend modes to the engine's BLEND_MODE enum. */
+	{
+		static BYTE const wow_blend_to_blend[] = {
+			0, /* 0 = Opaque       -> BLEND_MODE_NONE */
+			5, /* 1 = Mod          -> BLEND_MODE_MODULATE */
+			3, /* 2 = Add          -> BLEND_MODE_ADD */
+			6, /* 3 = Mod2x        -> BLEND_MODE_MODULATE_2X */
+			1, /* 4 = Alpha Key    -> BLEND_MODE_ALPHAKEY */
+			2, /* 5 = Transparent  -> BLEND_MODE_BLEND */
+			4, /* 6 = AddAlpha     -> BLEND_MODE_ADDALPHA */
+		};
+		m2Array_t material_array = model->header->materials;
+
+		if (!model->classic_sequences && material_array.size > 0) {
+			BYTE const *materials_data = M2_ArrayPtr(model->data, model->data_size, material_array, 4);
+			if (materials_data) {
+				model->num_materials = (DWORD)material_array.size;
+				model->material_blend_modes = ri.MemAlloc(model->num_materials);
+				if (model->material_blend_modes) {
+					DWORD const blend_count = sizeof(wow_blend_to_blend) / sizeof(wow_blend_to_blend[0]);
+					FOR_LOOP(i, model->num_materials) {
+						WORD wow_blend = ((WORD const *)materials_data)[i * 2 + 1];
+						model->material_blend_modes[i] = (wow_blend < blend_count) ?
+							wow_blend_to_blend[wow_blend] : 0;
+					}
+				}
+			}
+		}
+	}
+
+	FOR_LOOP(i, batch_count) {
+		m2Batch_t const *batch = &batches[i];
         DWORD index_start;
         DWORD index_count;
         WORD bone_count;
@@ -2878,21 +2919,46 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
     R_Call(glDepthMask, GL_TRUE);
     R_Call(glDisable, GL_BLEND);
 
-    for (batch = model->batches; batch; batch = batch->next) {
-        LPTEXTURE texture;
+	for (batch = model->batches; batch; batch = batch->next) {
+		LPTEXTURE texture;
 
-        if (!M2_CharacterGeosetVisible(model, outfit, batch->section_id)) {
-            continue;
-        }
-        texture = M2_CharacterTextureForBatch(model, entity, batch, outfit);
-        M2_UploadBatchBones(model, batch, shader);
-        R_BindTexture(texture ? texture : tr.texture[TEX_WHITE], 0);
+		if (!M2_CharacterGeosetVisible(model, outfit, batch->section_id)) {
+			continue;
+		}
+		if (batch->alphamode == BLEND_MODE_NONE) {
+			R_Call(glDisable, GL_BLEND);
+			R_Call(glDepthMask, GL_TRUE);
+		} else {
+			R_Call(glEnable, GL_BLEND);
+			R_Call(glDepthMask, GL_FALSE);
+			switch (batch->alphamode) {
+			case BLEND_MODE_ADD:
+				R_Call(glBlendFunc, GL_ONE, GL_ONE);
+				break;
+			case BLEND_MODE_ADDALPHA:
+				R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE);
+				break;
+			case BLEND_MODE_BLEND:
+				R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+				break;
+			case BLEND_MODE_ALPHAKEY:
+				R_Call(glDisable, GL_BLEND);
+				R_Call(glDepthMask, GL_TRUE);
+				break;
+			default:
+				R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+				break;
+			}
+		}
+		texture = M2_CharacterTextureForBatch(model, entity, batch, outfit);
+		M2_UploadBatchBones(model, batch, shader);
+		R_BindTexture(texture ? texture : tr.texture[TEX_WHITE], 0);
 #ifdef USE_SHADOWMAPS
-        R_BindTexture(tr.texture[TEX_SHADOWMAP], 1);
+		R_BindTexture(tr.texture[TEX_SHADOWMAP], 1);
 #endif
-        R_BindTexture(tr.texture[TEX_WHITE], 2);
-        R_DrawBuffer(batch->buffer, batch->num_vertices);
-    }
+		R_BindTexture(tr.texture[TEX_WHITE], 2);
+		R_DrawBuffer(batch->buffer, batch->num_vertices);
+	}
 }
 
 BOOL M2_AttachmentMatrix(m2Model_t const *model,

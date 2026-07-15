@@ -569,6 +569,13 @@ static void test_wow_load_map_spawns_and_runs_creature_state(void) {
 
     game->ClientCommand(player, 2, attack_argv);
     ASSERT_EQ_INT((int)(player_local->enemy ? player_local->enemy->s.number : 0), 1);
+    ASSERT_EQ_INT((int)player->client->ps.selected_entity, 1);
+
+    /* Run frames until the player chases into melee range and starts swinging. */
+    for (int i = 0; i < 300; i++) {
+        game->RunFrame();
+        if (player_local->attack_damage_time > 0) break;
+    }
     ASSERT(player_local->attack_damage_time > 0);
     ASSERT(player_local->attack_backswing_time > 0);
     ASSERT_NOT_NULL(player_local->animation);

@@ -1162,7 +1162,10 @@ void MemFree(HANDLE mem) {
 
 void Com_Quit(void) {
     if (Cvar_Integer("com_frame_limit", 0) <= 0) {
-        Cvar_WriteConfig(Cvar_String("config", ""));
+        /* TODO: re-enable when config-overwrite-on-exit is acceptable during dev.
+         * Currently disabled because developer-run config changes (e.g. bind
+         * experiments, debug cvars) clobber hand-edited openwow-config.cfg. */
+        /* Cvar_WriteConfig(Cvar_String("config", "")); */
     }
     if (!Cvar_Integer("dedicated", 0)) {
         CL_Shutdown();

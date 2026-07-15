@@ -246,6 +246,16 @@ void Wow_AIAttack(LPEDICT ent) {
     }
 
     Wow_FaceTarget(ent, target);
+
+    /* Don't start the swing animation if out of melee range — the per-frame
+     * chase logic in Wow_RunFrame will close the gap automatically. */
+    {
+        VECTOR2 delta = Vector2_sub(&target->s.origin2, &ent->s.origin2);
+        if (Vector2_len(&delta) > WOW_MELEE_RANGE) {
+            return;
+        }
+    }
+
     if (!Wow_SetEntityMoveFirstAnimation(ent, &wow_move_attack, attack_animations)) {
         return;
     }
@@ -365,6 +375,7 @@ BOOL Wow_AIAdvanceLockedFrame(LPEDICT ent) {
             local->attack_damage_done = false;
             if (Wow_EntityAffectingCombat(ent)) {
                 Wow_SetCombatReadyAnimation(ent);
+                ent->attack(ent); /* auto-reattack after each swing */
             } else {
                 Wow_SetStandMove(ent);
             }

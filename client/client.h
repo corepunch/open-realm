@@ -95,6 +95,7 @@ struct client_state {
         DWORD image;
         FLOAT radius;
     } cursor_splat;
+    DWORD hover_entity;     /* entity number under mouse cursor (0 = none) */
     LPCMODEL moveConfirmation;
     DWORD num_entities;
     DWORD time;

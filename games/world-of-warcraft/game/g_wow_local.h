@@ -20,6 +20,7 @@
 #define WOW_MOVE_LEFT 4
 #define WOW_MOVE_RIGHT 8
 #define WOW_WALK_SPEED 7.0f
+#define WOW_MELEE_RANGE 5.0f
 #define WOW_CAMERA_MIN_PITCH 300.0f
 #define WOW_CAMERA_MAX_PITCH 350.0f
 #define WOW_CAMERA_MIN_DISTANCE 3.0f
@@ -29,6 +30,7 @@ typedef enum {
     WOW_ENTITY_NONE,
     WOW_ENTITY_PLAYER,
     WOW_ENTITY_CREATURE,
+    WOW_ENTITY_PROJECTILE,
 } wowEntityKind_t;
 
 typedef struct wowMove_s {
@@ -57,7 +59,15 @@ typedef struct {
     DWORD death_time;
     BOOL attack_damage_done;
     BOOL dead;
+    BOOL hostile;
     LPEDICT enemy;
+    /* Projectile fields (valid when kind == WOW_ENTITY_PROJECTILE) */
+    DWORD projectile_target;
+    DWORD projectile_caster;
+    FLOAT projectile_speed;
+    DWORD projectile_damage;
+    FLOAT projectile_yaw;
+    FLOAT projectile_pitch;
 } wowEntityLocal_t;
 
 typedef struct {
@@ -124,5 +134,12 @@ void Wow_AIRunFrame(LPEDICT ent);
 void Wow_SpawnAmbientCreatures(LPCVECTOR2 origin);
 void Wow_RunCreatureFrame(LPEDICT ent);
 void UI_WriteWowHud(LPEDICT ent);
+
+/* Ability/projectile system */
+DWORD      Wow_FireboltModel(void);
+void       Wow_RunProjectile(LPEDICT ent);
+void       Wow_FireFirebolt(LPEDICT caster, LPEDICT target);
+void       Wow_HealingTouch(LPEDICT caster);
+LPEDICT    Wow_FindSpellTarget(LPEDICT ent, FLOAT range);
 
 #endif

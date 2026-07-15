@@ -308,8 +308,8 @@ void R_DrawHealthBars(void) {
     FLOAT const h = scene.h * 0.008f;
     FOR_LOOP(i, tr.viewDef.num_entities) {
         renderEntity_t const *e = tr.viewDef.entities + i;
-        /* Always for the current selection; for every unit while ALT is held. */
-        if (e->health == 0 || (!show_all && !(e->flags & RF_SELECTED))) {
+        /* Always for the current selection; for hovered entity; for every unit while ALT is held. */
+        if (e->health == 0 || (!show_all && !(e->flags & RF_SELECTED) && e->number != tr.viewDef.hover_entity)) {
             continue;
         }
         VECTOR3 top = e->origin;
@@ -329,6 +329,28 @@ void R_DrawHealthBars(void) {
             R_DrawStatusBar(x, uy + h + scene.h * 0.0015f, w, h,
                             e->mana / 255.0f, MAKE(COLOR32, 60, 90, 235, 255));
         }
+    }
+}
+
+/* Subtle highlight circle for the entity under the mouse cursor. */
+static void R_RenderHoverHighlight(renderEntity_t const *entity) {
+    if (entity->number != tr.viewDef.hover_entity || entity->number == 0) {
+        return;
+    }
+    if (entity->flags & RF_SELECTED) {
+        return; /* selection circle already visible, skip hover */
+    }
+    COLOR32 color = (entity->flags & RF_HOSTILE)
+        ? MAKE(COLOR32, 255, 80, 80, 160)   /* red for hostile */
+        : MAKE(COLOR32, 80, 200, 80, 160);   /* green for friendly */
+    float radius = entity->radius;
+    FOR_LOOP(i, NUM_SELECTION_CIRCLES) {
+        if ((radius * 2) > selCircles[i])
+            continue;
+        R_RenderSplat(&(VECTOR2){ entity->origin.x, entity->origin.y },
+                      radius, tr.texture[TEX_SELECTION_CIRCLE+i],
+                      tr.shader[SHADER_SPLAT], color);
+        break;
     }
 }
 
@@ -358,4 +380,5 @@ void R_RenderModel(renderEntity_t const *entity) {
 #endif
 
     R_RenderSelectedCircle(entity, (LPCVECTOR2)&entity->origin);
+    R_RenderHoverHighlight(entity);
 }

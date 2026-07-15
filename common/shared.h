@@ -132,6 +132,8 @@ enum {
     FLAG(RF_FOW_BLOCKER, 10),
     FLAG(RF_PORTRAIT_LIGHTING, 11),
     FLAG(RF_FOW_REVEALER, 12),
+    FLAG(RF_HOSTILE, 13),
+    FLAG(RF_HOVERED, 14),
 };
 
 enum {
@@ -358,6 +360,7 @@ struct playerState_s {
     LPSTR name;     // player display name (set from mapplayer or by script)
     LONG  start_location; // start location index assigned to this player (-1 = none)
     FLOAT cinefade;
+    DWORD selected_entity;  /* entity number this player has targeted (0 = none) */
     USHORT stats[MAX_STATS];
     LPCSTR texts[MAX_STATS];
 };
