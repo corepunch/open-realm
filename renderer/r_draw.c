@@ -7,16 +7,7 @@
 #define R_UI_MIN_ASPECT  UI_MIN_ASPECT
 
 RECT R_UISceneRect(void) {
-    size2_t window = R_GetWindowSize();
-    float aspect = (float)window.width / (float)window.height;
-    float x_scale = aspect > R_UI_MIN_ASPECT ? aspect / R_UI_MIN_ASPECT : 1.0f;
-    float y_scale = aspect < R_UI_MIN_ASPECT ? R_UI_MIN_ASPECT / aspect : 1.0f;
-    float scene_w = R_UI_BASE_WIDTH  * x_scale;
-    float scene_h = R_UI_BASE_HEIGHT * y_scale;
-    return MAKE(RECT,
-                (R_UI_BASE_WIDTH  - scene_w) * 0.5f,
-                (R_UI_BASE_HEIGHT - scene_h) * 0.5f,
-                scene_w, scene_h);
+    return MAKE(RECT, 0, 0, R_UI_BASE_WIDTH, R_UI_BASE_HEIGHT);
 }
 
 void R_DrawChar(int x, int y, int c) {

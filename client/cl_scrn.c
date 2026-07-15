@@ -142,25 +142,13 @@ static RECT Rect_inset(LPCRECT r, FLOAT inset) {
 static VECTOR2 SCR_LayoutScreenToFdf(int x, int y) {
     LPRENDERER renderer = &re;
     size2_t window = renderer->GetWindowSize();
-    FLOAT x_scale = 1.0f, y_scale = 1.0f;
     FLOAT nx = 0, ny = 0;
-    FLOAT window_aspect = UI_MIN_ASPECT;
 
     if (window.width > 0 && window.height > 0) {
-        window_aspect = (FLOAT)window.width / (FLOAT)window.height;
         nx = (FLOAT)x / (FLOAT)window.width;
         ny = (FLOAT)y / (FLOAT)window.height;
     }
-    if      (window_aspect > UI_MIN_ASPECT) x_scale = window_aspect / UI_MIN_ASPECT;
-    else if (window_aspect < UI_MIN_ASPECT) y_scale = UI_MIN_ASPECT / window_aspect;
-
-    RECT scene = {
-        .w = UI_BASE_WIDTH  * x_scale,
-        .h = UI_BASE_HEIGHT * y_scale,
-    };
-    scene.x = (UI_BASE_WIDTH  - scene.w) * 0.5f;
-    scene.y = (UI_BASE_HEIGHT - scene.h) * 0.5f;
-    return MAKE(VECTOR2, scene.x + nx * scene.w, scene.y + ny * scene.h);
+    return MAKE(VECTOR2, nx * UI_BASE_WIDTH, ny * UI_BASE_HEIGHT);
 }
 
 static RECT get_uvrect(uint8_t const *tc) {
