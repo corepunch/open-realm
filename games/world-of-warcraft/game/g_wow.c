@@ -1121,8 +1121,34 @@ static void Wow_RunFrame(void) {
         ent->s.origin.x += dir.x * step;
         ent->s.origin.y += dir.y * step;
     }
+    /* Auto-chase enemy when in combat and not pressing WASD. */
+    if (!moving && Wow_EntityAffectingCombat(ent)) {
+        wowEntityLocal_t *local = Wow_EntityLocal(ent);
+        LPEDICT enemy = local->enemy;
+        if (enemy) {
+            VECTOR2 delta = Vector2_sub(&enemy->s.origin2, &ent->s.origin2);
+            FLOAT dist = Vector2_len(&delta);
+            if (dist > WOW_MELEE_RANGE) {
+                FLOAT step = MIN(WOW_WALK_SPEED * ((FLOAT)FRAMETIME / 1000.0f), dist - WOW_MELEE_RANGE);
+                ent->s.origin.x += delta.x * step / dist;
+                ent->s.origin.y += delta.y * step / dist;
+                ent->s.origin2 = (VECTOR2){ ent->s.origin.x, ent->s.origin.y };
+                moving = true;
+            }
+        }
+    }
     ent->s.origin.z = Wow_TerrainHeight(ent->s.origin.x, ent->s.origin.y);
     locked = Wow_AIAdvanceLockedFrame(ent);
+    if (!locked && Wow_EntityAffectingCombat(ent)) {
+        ent->attack(ent);
+        /* If the attack started, treat as locked so the Run animation below
+         * doesn't overwrite the swing. */
+        {
+            wowEntityLocal_t *l = Wow_EntityLocal(ent);
+            if (l && (l->attack_damage_time > 0 || l->attack_backswing_time > 0))
+                locked = true;
+        }
+    }
     if (locked) {
         Wow_UpdateCamera(ent);
     } else if (moving
