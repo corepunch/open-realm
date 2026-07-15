@@ -902,6 +902,8 @@ static void Wow_InitPlayer(LPEDICT ent) {
     snprintf(wow_clients[0].name, sizeof(wow_clients[0].name), "%s", "Thrall");
     memcpy(wow_clients[0].inventory, wow_start_inventory, sizeof(wow_start_inventory));
     memcpy(wow_clients[0].actions, wow_start_actions, sizeof(wow_start_actions));
+    fprintf(stderr, "WoW: action bar initialized — slot 4 (key 5) = %s\n",
+            wow_start_actions[4].name[0] ? wow_start_actions[4].name : "(empty)");
 #ifdef WOW
     ps->origin = wow_spawn_origin;
     ps->viewangles = (VECTOR3){ Wow_ViewPitch(wow_move.pitch), wow_move.yaw, 0.0f };
