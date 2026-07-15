@@ -142,6 +142,27 @@ static void IN_WowSelectUp(void) {
     CL_WowLmbUp();
 }
 
+/* +attack/-attack: Left-click attack. Bound via `bind MOUSE1 "+attack"` in config. */
+static void IN_AttackDown(void) {
+    wow_input.left_mouse = true;
+    wow_input.lmb_down = true;
+    wow_input.lmb_down_pos = mouse.origin;
+}
+
+static void IN_AttackUp(void) {
+    DWORD entnum;
+    wow_input.left_mouse = false;
+    wow_input.lmb_down = false;
+    if (!CL_GameplayInputReady())
+        return;
+    if (CL_WowMouseMovedPast(&mouse.origin, &wow_input.lmb_down_pos))
+        return; /* was a drag, not a click */
+    if (CL_MouseOverGameplayUI())
+        return;
+    if (re.TraceEntity(&cl.viewDef, mouse.origin.x, mouse.origin.y, &entnum))
+        CL_WowSendAttack(entnum);
+}
+
 static void IN_LookDown(void) {
     wow_input.right_mouse = true;
     wow_input.rmb_down_pos = mouse.origin;
@@ -191,6 +212,8 @@ void CL_InputModeInit(void) {
     Cmd_AddCommand("-wowleft", IN_WowLeftUp);
     Cmd_AddCommand("+wowselect", IN_WowSelectDown);
     Cmd_AddCommand("-wowselect", IN_WowSelectUp);
+    Cmd_AddCommand("+attack", IN_AttackDown);
+    Cmd_AddCommand("-attack", IN_AttackUp);
     Cmd_AddCommand("+look", IN_LookDown);
     Cmd_AddCommand("-look", IN_LookUp);
     Cmd_AddCommand("+forward", IN_ForwardDown);
