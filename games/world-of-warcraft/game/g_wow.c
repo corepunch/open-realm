@@ -492,8 +492,13 @@ DWORD Wow_FireboltModel(void) {
         };
         for (LPCSTR const *p = paths; *p; p++) {
             model = G_RegisterModel(*p);
-            if (model) break;
+            if (model) {
+                fprintf(stderr, "WoW: firebolt model found at %s (idx %u)\n", *p, (unsigned)model);
+                break;
+            }
         }
+        if (!model)
+            fprintf(stderr, "WoW: no firebolt model found — tried: Spells\\Fireball\\FireballMissile.m2, Spells\\Fireball\\Fireball.m2, Spells\\Fire\\FireBolt.m2\n");
     }
     return model;
 }
@@ -586,7 +591,17 @@ void Wow_FireFirebolt(LPEDICT caster, LPEDICT target) {
     proj->s.scale = 0.8f;
     proj->s.radius = 0.5f;
     proj->s.player = caster->s.player;
-    /* Caster targets the enemy for combat tracking. */
+    /* Play cast animation and set a cast timer so the animation plays through
+     * without chase overriding it.  attack_damage_done is pre-set so no melee
+     * damage is dealt when the timer expires. */
+    {
+        static LPCSTR const cast_anims[] = { "SpellCastOmni", "Cast", "Attack1H", NULL };
+        Wow_SetEntityMoveFirstAnimation(caster, NULL, cast_anims);
+        caster_local->attack_damage_time = 400;
+        caster_local->attack_backswing_time = 100;
+        caster_local->attack_time = 500;
+        caster_local->attack_damage_done = true;
+    }
     caster_local->enemy = target;
 }
 
@@ -1121,8 +1136,13 @@ static void Wow_RunFrame(void) {
         ent->s.origin.x += dir.x * step;
         ent->s.origin.y += dir.y * step;
     }
-    /* Auto-chase enemy when in combat and not pressing WASD. */
-    if (!moving && Wow_EntityAffectingCombat(ent)) {
+    ent->s.origin.z = Wow_TerrainHeight(ent->s.origin.x, ent->s.origin.y);
+    locked = Wow_AIAdvanceLockedFrame(ent);
+    /* Auto-chase: move toward enemy when in combat, not pressing WASD, and
+     * not locked in an animation (attack/cast/pain).  This comes after
+     * Wow_AIAdvanceLockedFrame so a spell-cast timer prevents chase from
+     * overriding the cast animation. */
+    if (!locked && !moving && Wow_EntityAffectingCombat(ent)) {
         wowEntityLocal_t *local = Wow_EntityLocal(ent);
         LPEDICT enemy = local->enemy;
         if (enemy) {
@@ -1137,8 +1157,6 @@ static void Wow_RunFrame(void) {
             }
         }
     }
-    ent->s.origin.z = Wow_TerrainHeight(ent->s.origin.x, ent->s.origin.y);
-    locked = Wow_AIAdvanceLockedFrame(ent);
     if (!locked && Wow_EntityAffectingCombat(ent)) {
         ent->attack(ent);
         /* If the attack started, treat as locked so the Run animation below
