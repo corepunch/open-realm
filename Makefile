@@ -53,8 +53,7 @@ else
 		CFLAGS    += -DGL_SILENCE_DEPRECATION -I$(HOMEBREW_PREFIX)/include -arch $(ARCH)
 		LDFLAGS   := -L$(LIB_DIR) -L$(HOMEBREW_PREFIX)/lib -arch $(ARCH)
 		LIBS      := -lSDL2 -framework AppKit -framework OpenGL
-    else
-        # Linux
+    else ifeq ($(UNAME_S),Linux)
         LIB_EXT   := .so
         LIB_FLAGS := -shared -fPIC
         INSTALL_NAME =
@@ -62,6 +61,20 @@ else
         CFLAGS    += -fPIC
         LDFLAGS   := -L$(LIB_DIR) -Wl,-z,defs
 		LIBS      := -lSDL2 -lEGL -lGL -lm
+    else ifeq ($(UNAME_S),OpenBSD)
+        # BSD (OpenBSD): /usr/X11R6 for Mesa GL, clang as default CC
+        ifeq ($(filter command line environment,$(origin CC)),)
+            CC := clang
+        else
+        endif
+        LIB_EXT   := .so
+        LIB_FLAGS := -shared -fPIC
+        INSTALL_NAME =
+        # $ORIGIN doesn't work in RPATH/RUNPATH on OpenBSD
+        RPATH     := -Wl,-rpath,$(abspath $(LIB_DIR))
+        CFLAGS    += -fPIC -I/usr/local/include -I/usr/X11R6/include
+        LDFLAGS   := -L$(LIB_DIR) -L/usr/local/lib -L/usr/X11R6/lib
+		LIBS      := -lSDL2 -lGL -lm
     endif
 endif
 
