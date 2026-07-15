@@ -485,21 +485,26 @@ DWORD Wow_FireboltModel(void) {
     static BOOL resolved = false;
     if (!resolved) {
         resolved = true;
+        /* WoW stores spell models flat under Spells\ — not in per-spell
+         * subdirectories.  Verify each path exists in the MPQ before using it. */
         LPCSTR const paths[] = {
-            "Spells\\Fireball\\FireballMissile.m2",
-            "Spells\\Fireball\\Fireball.m2",
-            "Spells\\Fire\\FireBolt.m2",
+            "Spells\\Fireball_Missile_High.m2",
+            "Spells\\Fireball_Missile_Low.m2",
+            "Spells\\FireBolt_Missile_Low.m2",
+            "Spells\\FireShot_Missile.m2",
             NULL
         };
         for (LPCSTR const *p = paths; *p; p++) {
-            model = G_RegisterModel(*p);
-            if (model) {
-                fprintf(stderr, "WoW: firebolt model found at %s (idx %u)\n", *p, (unsigned)model);
+            DWORD sz;
+            HANDLE buf = gi.ReadFile ? gi.ReadFile(*p, &sz) : NULL;
+            if (buf) {
+                model = G_RegisterModel(*p);
+                fprintf(stderr, "WoW: firebolt model loaded: %s (idx %u)\n", *p, (unsigned)model);
                 break;
             }
         }
         if (!model)
-            fprintf(stderr, "WoW: firebolt model not loadable from MPQ — extract Spells\\Fireball\\FireballMissile.m2 from WoW\n");
+            fprintf(stderr, "WoW: no firebolt model in MPQ\n");
     }
     return model;
 }
