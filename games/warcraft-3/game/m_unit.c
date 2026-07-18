@@ -75,9 +75,15 @@ BOOL unit_affectingcombat(LPEDICT self) {
 }
 
 void unit_stand(LPEDICT self) {
-    unit_setmove(self, unit_affectingcombat(self)
-        ? &unit_move_stand_ready
-        : &unit_move_stand);
+    if (self->holding_position) {
+        unit_setmove(self, unit_affectingcombat(self)
+            ? &holdpos_move_stand_ready
+            : &holdpos_move_stand);
+    } else {
+        unit_setmove(self, unit_affectingcombat(self)
+            ? &unit_move_stand_ready
+            : &unit_move_stand);
+    }
     self->build = NULL;
     self->s.renderfx &= ~RF_NO_UBERSPLAT;
     self->s.ability = 0;

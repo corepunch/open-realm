@@ -555,6 +555,7 @@ struct edict_s {
     FLOAT move_group_speed;  // slowest member's speed for a group move (0 = no cap), keeps the group together
     FLOAT move_heading;      // avoidance-resolved heading chosen this tick by unit_changeangle; movement follows it
     LPEDICT attackmove_waypoint;  // non-NULL while attack-moving: resume walking toward it after a kill
+    BOOL holding_position;  // never moves to engage; only fires on enemies already in attack range
     EDICTSTAT health;
     EDICTSTAT mana;
     MOVETYPE movetype;
@@ -940,6 +941,9 @@ void order_attack(LPEDICT, LPEDICT);
 void order_move(LPEDICT, LPEDICT);
 void order_stop(LPEDICT);
 void order_attackmove(LPEDICT, LPEDICT);
+extern umove_t holdpos_move_stand;
+extern umove_t holdpos_move_stand_ready;
+void unit_stand(LPEDICT);
 BOOL G_ActorHasSkill(LPEDICT, LPCSTR);
 void harvest_start(LPEDICT, LPEDICT);
 void harvest_gold_start(LPEDICT, LPEDICT);
