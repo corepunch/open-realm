@@ -99,6 +99,7 @@ TEST_GAME_SRCS := \
 	$(WC3_DIR)/game/skills/s_area_spell.c \
 	$(WC3_DIR)/game/skills/s_move.c \
 	$(WC3_DIR)/game/skills/s_item.c \
+	$(WC3_DIR)/game/skills/s_patrol.c \
 	$(WC3_DIR)/game/skills/s_skills.c \
 	$(WC3_DIR)/game/skills/s_spell.c \
 	$(WC3_DIR)/game/skills/s_stop.c \
