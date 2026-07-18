@@ -105,7 +105,7 @@ RECT UI_CommandButtonRect(BYTE x, BYTE y);
 RECT UI_InventoryButtonRect(BYTE slot);
 void UI_WriteCommandButton(LPCSTR code, BOOL research, DWORD level);
 void UI_WriteCommandButtonFrame(gameCommandButton_t const *button);
-void UI_FormatTooltip(LPCSTR code, LPCSTR tip, LPCSTR ubertip, LPSTR out, DWORD out_size);
+void UI_FormatTooltip(LPCSTR code, LPCSTR tip, LPCSTR ubertip, FLOAT manacost, LPSTR out, DWORD out_size);
 DWORD UI_ClassIdFromCode(LPCSTR code);
 void UI_WriteBuildQueue(LPEDICT ent);
 void UI_AddCancelButton(LPEDICT ent);

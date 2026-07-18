@@ -109,6 +109,7 @@ void ui_builds(LPGAMECLIENT client) {
         UI_AddCommandButton(build);
     }
     UI_AddCommandButton(STR_CmdCancel);
+    UI_WriteTooltipFrame();
 }
 
 void build_command(LPEDICT edict) {

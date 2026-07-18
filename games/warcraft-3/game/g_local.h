@@ -823,6 +823,7 @@ void G_UpdateClientResourceBars(void);
 void UI_AddCancelButton(LPEDICT);
 void UI_AddCommandButton(LPCSTR);
 void UI_AddCommandButtonExtended(LPCSTR code, BOOL research, DWORD level);
+void UI_WriteTooltipFrame(void);
 void UI_SetCurrentClient(LPGAMECLIENT client);
 void UI_ShowInterface(LPEDICT, BOOL, FLOAT);
 void UI_ShowText(LPEDICT, LPCVECTOR2, LPCSTR, FLOAT);
