@@ -779,8 +779,9 @@ BOOL SCR_LayoutKeyEvent(int key) {
         SCR_Clear(layout);
         for (DWORD i = SCR_NumFrames(); i > 0; i--) {
             LPCUIFRAME frame = SCR_Frame(i - 1);
-            if (!frame || !frame->hotkey || !SCR_LayoutFrameHasClickCommand(frame)) continue;
-            if (toupper(frame->hotkey) == upper) {
+            if (!frame || !SCR_LayoutFrameHasClickCommand(frame)) continue;
+            BOOL const is_cancel = key == K_ESCAPE && !strcmp(frame->onclick, "button CmdCancel");
+            if (is_cancel || (frame->hotkey && toupper(frame->hotkey) == upper)) {
                 char command[CMDARG_LEN * 2];
                 SCR_LayoutFormatOnClickCommand(frame->onclick, command, sizeof(command));
                 MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
