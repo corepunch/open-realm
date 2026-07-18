@@ -139,5 +139,5 @@ DWORD GetAbilityIndex(ability_t const *ability) {
             return i;
         }
     }
-    return 0;
+    return 255;
 }

@@ -130,7 +130,7 @@ void G_RunEntity(LPEDICT ent) {
     if (ent->currentmove) {
         ent->s.ability = GetAbilityIndex(ent->currentmove->ability);
     } else {
-        ent->s.ability = 0;
+        ent->s.ability = 255;
     }
     ent->s.class_id = ent->class_id;
 }
