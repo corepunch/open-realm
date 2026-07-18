@@ -148,6 +148,8 @@ void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
         target->die(target, attacker);
         if (attacker->attackmove_waypoint) {
             order_attackmove(attacker, attacker->attackmove_waypoint);
+        } else if (attacker->patrol_a) {
+            order_patrol_resume(attacker);
         } else {
             attacker->stand(attacker);
         }
@@ -284,6 +286,8 @@ BOOL attack_menu_selecttarget(LPEDICT ent, LPEDICT target) {
     }
     FOR_SELECTED_UNITS(ent->client, e) {
         e->attackmove_waypoint = NULL;
+        e->holding_position = false;
+        e->patrol_a = NULL;
         order_attack(e, target);
     }
     return true;
@@ -324,6 +328,8 @@ static umove_t attackmove_move_walk = { "walk", ai_attackmove_walk, NULL, &a_att
 /* Begin (or resume, after a kill) attack-moving toward a waypoint. */
 void order_attackmove(LPEDICT self, LPEDICT waypoint) {
     self->attackmove_waypoint = waypoint;
+    self->holding_position = false;
+    self->patrol_a = NULL;
     self->goalentity = waypoint;
     move_reset_progress(self);
     unit_setmove(self, &attackmove_move_walk);
