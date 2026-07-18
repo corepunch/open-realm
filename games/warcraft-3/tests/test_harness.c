@@ -598,9 +598,9 @@ LPEDICT G_GetMainSelectedUnit(LPGAMECLIENT client) {
 /* Stubs for abilities defined in skill files not included in the test binary.
  * s_skills.c references all of these via its abilitylist[] table.
  * (a_attack is the real symbol from s_attack.c, a_stop/a_move from their
- * respective .c files — only the remaining abilities need stubs here.) */
+ * respective .c files, a_holdpos from s_holdpos.c — only the remaining
+ * abilities need stubs here.) */
 ability_t a_build       = {0};
-ability_t a_holdpos     = {0};
 ability_t a_patrol      = {0};
 ability_t a_cancel      = {0};
 ability_t a_selectskill = {0};
