@@ -1,6 +1,7 @@
 #include "r_war3map.h"
 
 LPMAPSEGMENT g_mapSegments = NULL;
+LPMAPLAYER g_groundLayers = NULL;
 
 #ifdef DEBUG_PATHFINDING
 LPCTEXTURE pathTexture = NULL;
@@ -52,14 +53,18 @@ static LPMAPSEGMENT R_BuildMapSegment(LPCWAR3MAP map, DWORD sx, DWORD sy) {
             ADD_TO_LIST(mapLayer, mapSegment->layers);
         }
     }
-    for (DWORD layer = map->num_grounds; layer > 0; layer--) {
-        if ((mapLayer = R_BuildMapSegmentLayer(map, sx, sy, layer - 1))) {
-            ADD_TO_LIST(mapLayer, mapSegment->layers);
-        }
-    }
     mapSegment->bbox.min = MAKE(VECTOR3, FLT_MAX, FLT_MAX, FLT_MAX);
     mapSegment->bbox.max = MAKE(VECTOR3, -FLT_MAX, -FLT_MAX, -FLT_MAX);
     return mapSegment;
+}
+
+static void R_BuildGroundLayers(LPCWAR3MAP map) {
+    for (DWORD layer = map->num_grounds; layer > 0; layer--) {
+        LPMAPLAYER mapLayer = R_BuildGroundLayerGlobal(map, layer - 1);
+        if (mapLayer) {
+            ADD_TO_LIST(mapLayer, g_groundLayers);
+        }
+    }
 }
 
 static VECTOR3 R_GetMapVertexPoint(LPCWAR3MAP map, DWORD x, DWORD y) {
@@ -241,6 +246,7 @@ void R_RegisterMap(char const *mapFilename) {
     tr.world = map;
 
     R_LoadMapSegments(map);
+    R_BuildGroundLayers(map);
 }
 
 void R_DrawTerrainShadows(void) {
@@ -271,9 +277,22 @@ void R_DrawWorld(void) {
 #ifdef DEBUG_PATHFINDING
     R_BindTexture(pathTexture, 1);
 #endif
-    
+
+    FOR_EACH_LIST(MAPLAYER, layer, g_groundLayers) {
+        if (layer == g_groundLayers) {
+            R_Call(glDisable, GL_BLEND);
+        } else {
+            R_Call(glEnable, GL_BLEND);
+            R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        }
+        R_BindTexture(layer->texture, 0);
+        R_DrawBuffer(layer->buffer, layer->num_vertices);
+    }
+
+    R_Call(glEnable, GL_BLEND);
+    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     FOR_EACH_LIST(MAPSEGMENT, segment, g_mapSegments) {
-        R_DrawTerrainSegment(segment, (1 << MAPLAYERTYPE_GROUND) | (1 << MAPLAYERTYPE_CLIFF));
+        R_DrawTerrainSegment(segment, (1 << MAPLAYERTYPE_CLIFF));
     }
 }
 

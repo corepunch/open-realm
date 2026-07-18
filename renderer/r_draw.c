@@ -38,7 +38,7 @@ void R_DrawChar(int x, int y, int c) {
     R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
-    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(simp), simp, GL_STATIC_DRAW);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(simp), simp, GL_DYNAMIC_DRAW);
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
     
     R_BindTexture(tr.texture[TEX_FONT], 0);
@@ -64,7 +64,7 @@ void R_DrawFill(LPCRECT rect, COLOR32 color) {
     R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
-    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(simp), simp, GL_STATIC_DRAW);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(simp), simp, GL_DYNAMIC_DRAW);
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
 
     R_BindTexture(tr.texture[TEX_WHITE], 0);
@@ -147,7 +147,7 @@ void R_DrawImageBatch(LPCTEXTURE texture,
     R_Call(glUniform1f , shader->uActiveGlow, uActiveGlow);
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
-    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VERTEX) * num_vertices, vertices, GL_STATIC_DRAW);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VERTEX) * num_vertices, vertices, GL_DYNAMIC_DRAW);
     R_Call(glDisable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_FALSE);
     R_Call(glEnable, GL_BLEND);
@@ -308,7 +308,7 @@ static void R_DrawMinimapCameraRect(LPCRECT screen) {
     R_BindTexture(tr.texture[TEX_WHITE], 0);
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
-    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
     R_Call(glDrawArrays, GL_LINE_STRIP, 0, 5);
 }
 
@@ -416,7 +416,7 @@ void R_DrawWireRect(LPCRECT rect, COLOR32 color) {
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
-    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(simp), simp, GL_STATIC_DRAW);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(simp), simp, GL_DYNAMIC_DRAW);
     
     R_BindTexture(tr.texture[TEX_WHITE], 0);
     
@@ -459,7 +459,7 @@ void R_DrawBoundingBox(LPCBOX3 box, LPCMATRIX4 modelMatrix, LPCMATRIX4 vpMatrix,
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uModelMatrix, 1, GL_FALSE, modelMatrix->v);
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
-    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(simp), simp, GL_STATIC_DRAW);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(simp), simp, GL_DYNAMIC_DRAW);
 
     R_BindTexture(tr.texture[TEX_WHITE], 0);
 

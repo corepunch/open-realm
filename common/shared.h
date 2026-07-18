@@ -21,7 +21,7 @@
 #define MAX_SELECTED_ENTITIES 64
 #define TOKEN_LEN 1024
 #define FRAMETIME 100
-#define MAX_LAYOUT_OBJECTS 0xffff
+#define MAX_LAYOUT_OBJECTS 1024
 #define MAX_LIST_FETCH_TEXT 2048
 #define MAX_LIST_FETCH_ROWS 32
 #define MIN(x, y) (((x)<(y))?(x):(y))

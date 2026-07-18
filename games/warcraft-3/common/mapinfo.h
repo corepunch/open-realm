@@ -4,7 +4,7 @@
 #include "common/shared.h"
 
 #define TILE_SIZE 128
-#define SEGMENT_SIZE 8
+#define SEGMENT_SIZE 32
 //#define AREA_SIZE (TILE_SIZE * SEGMENT_SIZE)
 #define PLAYER_NEUTRAL_PASSIVE 12
 #define PLAYER_NEUTRAL_VICTIM 13

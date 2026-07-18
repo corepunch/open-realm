@@ -154,7 +154,7 @@ COLOR32 FX_BlendColor(cparticle_t const *p) {
 static void R_FlushParticles(LPCTEXTURE texture, LPCMATRIX4 matrix, particleVertex_t *pv) {
     R_Call(glBindVertexArray, particles_resources.particles->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, particles_resources.particles->vbo);
-    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(particleVertex_t) * (pv - particles_resources.vertices), particles_resources.vertices, GL_STATIC_DRAW);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(particleVertex_t) * (pv - particles_resources.vertices), particles_resources.vertices, GL_DYNAMIC_DRAW);
     R_Call(glUseProgram, particles_resources.shader->progid);
     R_Call(glUniformMatrix4fv, particles_resources.shader->uModelMatrix, 1, GL_FALSE, matrix->v);
     R_Call(glUniformMatrix4fv, particles_resources.shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);

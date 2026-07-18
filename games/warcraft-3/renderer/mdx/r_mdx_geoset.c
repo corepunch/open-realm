@@ -1,6 +1,7 @@
 #include "r_mdx.h"
 #include "renderer/r_local.h"
 #include <stdlib.h>
+#include <string.h>
 
 #ifdef USE_SHADOWMAPS
 extern bool is_rendering_lights;
@@ -789,18 +790,49 @@ void MDX_RenderModel(renderEntity_t const *entity,
         tr.viewDef.viewProjectionMatrix.v;
     Matrix3_normal(&normalMatrix, transform);
     R_Call(glUseProgram, shader->progid);
-    R_Call(glUniformMatrix4fv, shader->uViewProjectionMatrix, 1, GL_FALSE, viewProjectionMatrix);
     R_Call(glUniformMatrix4fv, shader->uModelMatrix, 1, GL_FALSE, transform->v);
     R_Call(glUniformMatrix3fv, shader->uNormalMatrix, 1, GL_TRUE, normalMatrix.v);
-    R_Call(glUniformMatrix4fv, shader->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
-    R_Call(glUniformMatrix4fv, shader->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
     R_Call(glUniform1i, shader->uUnshaded, (entity->flags & RF_NO_LIGHTING) != 0);
-    R_Call(glUniform1i, shader->uFogEnable, tr.viewDef.fogEnable ? 1 : 0);
-    R_Call(glUniform1f, shader->uFirstBoneLookupIndex, 0.0f);
-    if (tr.viewDef.fogEnable) {
-        R_Call(glUniform3f, shader->uFogColor,
-               tr.viewDef.fogColor.x, tr.viewDef.fogColor.y, tr.viewDef.fogColor.z);
-        R_Call(glUniform2f, shader->uFogParams, tr.viewDef.fogStart, tr.viewDef.fogEnd);
+
+    /* uViewProjectionMatrix/uTextureMatrix/uLightMatrix/fog uniforms are the
+       same for every entity drawn within one R_DrawEntities pass (one view).
+       Re-uploading them per-instance was pure overhead; skip when unchanged. */
+    static struct {
+        GLfloat vp[16];
+        MATRIX4 tex, light;
+        BOOL fogEnable;
+        VECTOR3 fogColor;
+        FLOAT fogStart, fogEnd;
+    } last;
+    static BOOL last_valid = false;
+    BOOL const view_changed = !last_valid
+        || memcmp(last.vp, viewProjectionMatrix, sizeof(last.vp)) != 0
+        || memcmp(&last.tex, &tr.viewDef.textureMatrix, sizeof(last.tex)) != 0
+        || memcmp(&last.light, &tr.viewDef.lightMatrix, sizeof(last.light)) != 0
+        || last.fogEnable != tr.viewDef.fogEnable
+        || (tr.viewDef.fogEnable &&
+            (memcmp(&last.fogColor, &tr.viewDef.fogColor, sizeof(last.fogColor)) != 0
+             || last.fogStart != tr.viewDef.fogStart
+             || last.fogEnd != tr.viewDef.fogEnd));
+    if (view_changed) {
+        R_Call(glUniformMatrix4fv, shader->uViewProjectionMatrix, 1, GL_FALSE, viewProjectionMatrix);
+        R_Call(glUniformMatrix4fv, shader->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
+        R_Call(glUniformMatrix4fv, shader->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
+        R_Call(glUniform1i, shader->uFogEnable, tr.viewDef.fogEnable ? 1 : 0);
+        R_Call(glUniform1f, shader->uFirstBoneLookupIndex, 0.0f);
+        if (tr.viewDef.fogEnable) {
+            R_Call(glUniform3f, shader->uFogColor,
+                   tr.viewDef.fogColor.x, tr.viewDef.fogColor.y, tr.viewDef.fogColor.z);
+            R_Call(glUniform2f, shader->uFogParams, tr.viewDef.fogStart, tr.viewDef.fogEnd);
+        }
+        memcpy(last.vp, viewProjectionMatrix, sizeof(last.vp));
+        last.tex = tr.viewDef.textureMatrix;
+        last.light = tr.viewDef.lightMatrix;
+        last.fogEnable = tr.viewDef.fogEnable;
+        last.fogColor = tr.viewDef.fogColor;
+        last.fogStart = tr.viewDef.fogStart;
+        last.fogEnd = tr.viewDef.fogEnd;
+        last_valid = true;
     }
     MDLX_BindBoneMatrices(model, transform, entity->frame, entity->oldframe);
     mdxCollectedLight_t lights[MDX_SHADER_MAX_LIGHTS];
