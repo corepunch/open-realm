@@ -97,6 +97,7 @@ TEST_GAME_SRCS := \
 	$(WC3_DIR)/game/m_unit.c \
 	$(WC3_DIR)/game/skills/s_attack.c \
 	$(WC3_DIR)/game/skills/s_area_spell.c \
+	$(WC3_DIR)/game/skills/s_holdpos.c \
 	$(WC3_DIR)/game/skills/s_move.c \
 	$(WC3_DIR)/game/skills/s_item.c \
 	$(WC3_DIR)/game/skills/s_skills.c \
