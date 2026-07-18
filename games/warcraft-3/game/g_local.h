@@ -554,6 +554,9 @@ struct edict_s {
     DWORD move_blocked_frames;
     FLOAT move_group_speed;  // slowest member's speed for a group move (0 = no cap), keeps the group together
     FLOAT move_heading;      // avoidance-resolved heading chosen this tick by unit_changeangle; movement follows it
+    LPEDICT patrol_a;        // non-NULL while patrolling: the two endpoints cycled between
+    LPEDICT patrol_b;
+    LPEDICT patrol_target;   // whichever of patrol_a/patrol_b is the current leg; survives combat detours
     EDICTSTAT health;
     EDICTSTAT mana;
     MOVETYPE movetype;
@@ -938,6 +941,14 @@ void G_ReviveHero(LPEDICT, FLOAT x, FLOAT y);
 void order_attack(LPEDICT, LPEDICT);
 void order_move(LPEDICT, LPEDICT);
 void order_stop(LPEDICT);
+void order_patrol(LPEDICT, LPEDICT);
+void order_patrol_resume(LPEDICT);
+LPEDICT G_FindNearestEnemy(LPEDICT, FLOAT);
+FLOAT G_AcquisitionRange(LPCEDICT);
+BOOL G_ShouldAcquireThisFrame(LPCEDICT);
+BOOL move_should_arrive(LPEDICT, FLOAT);
+BOOL move_is_blocked(LPEDICT, FLOAT, FLOAT);
+void move_reset_progress(LPEDICT);
 BOOL G_ActorHasSkill(LPEDICT, LPCSTR);
 void harvest_start(LPEDICT, LPEDICT);
 void harvest_gold_start(LPEDICT, LPEDICT);

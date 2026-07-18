@@ -162,7 +162,7 @@ static DWORD move_collect_selected(LPGAMECLIENT client,
     return count;
 }
 
-static void move_reset_progress(LPEDICT self) {
+void move_reset_progress(LPEDICT self) {
     self->move_last_origin = self->s.origin2;
     self->move_last_distance = -1;
     self->move_blocked_frames = 0;
@@ -186,7 +186,7 @@ static FLOAT move_group_speed(LPEDICT const *units, DWORD count) {
     return slowest;
 }
 
-static BOOL move_should_arrive(LPEDICT ent, FLOAT move_distance) {
+BOOL move_should_arrive(LPEDICT ent, FLOAT move_distance) {
     VECTOR2 to_goal = Vector2_sub(&ent->goalentity->s.origin2, &ent->s.origin2);
     FLOAT distance = Vector2_len(&to_goal);
 
@@ -210,7 +210,7 @@ static BOOL move_should_arrive(LPEDICT ent, FLOAT move_distance) {
     return lateral <= MAX(MOVE_ARRIVE_TOLERANCE, ent->collision + MOVE_SLOT_MARGIN);
 }
 
-static BOOL move_is_blocked(LPEDICT ent, FLOAT distance, FLOAT move_distance) {
+BOOL move_is_blocked(LPEDICT ent, FLOAT distance, FLOAT move_distance) {
     FLOAT const settle_distance = move_distance + ent->collision + MOVE_SLOT_MARGIN;
     if (ent->move_last_distance >= 0) {
         /* move_last_distance is the *closest* the unit has come to its goal (a
@@ -275,6 +275,7 @@ static umove_t move_move_walk = { "walk", ai_move_walk, NULL, &a_move };
  * goalentity must be a waypoint or any entity whose origin is the destination. */
 void order_move(LPEDICT self, LPEDICT target) {
     self->goalentity = target;
+    self->patrol_a = NULL;
     move_reset_progress(self);
     unit_setmove(self, &move_move_walk);
 }

@@ -146,7 +146,11 @@ void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
         unit_leavecombat(target);
         unit_leavecombat(attacker);
         target->die(target, attacker);
-        attacker->stand(attacker);
+        if (attacker->patrol_a) {
+            order_patrol_resume(attacker);
+        } else {
+            attacker->stand(attacker);
+        }
         return;
     } else {
         target->health.value -= damage;

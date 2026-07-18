@@ -330,9 +330,44 @@ static BOOL unit_has_attack(LPCEDICT self) {
            (self->attack1.damageBase > 0 || self->attack1.numberOfDice > 0);
 }
 
-/* Throttle target re-acquisition: idle units scan only a few times per second,
+/* Throttle target re-acquisition: units scan only a few times per second,
  * staggered by entity index, instead of every sim tick. */
 #define AI_ACQUIRE_INTERVAL 300 /* ms */
+
+BOOL G_ShouldAcquireThisFrame(LPCEDICT self) {
+    DWORD const stagger = (DWORD)(self - g_edicts) % AI_ACQUIRE_INTERVAL;
+    return ((level.time + stagger) % AI_ACQUIRE_INTERVAL) < (DWORD)FRAMETIME;
+}
+
+FLOAT G_AcquisitionRange(LPCEDICT self) {
+    FLOAT const sight = self->balance.sight_radius.day;
+    FLOAT acquire = UNIT_ACQUISITION_RANGE(self->class_id);
+    if (acquire <= 0.0f)
+        acquire = sight * 0.5f;
+    if (sight > 0.0f && acquire > sight)
+        acquire = sight;
+    return acquire;
+}
+
+LPEDICT G_FindNearestEnemy(LPEDICT self, FLOAT radius) {
+    ai_current_entity = self;
+    BOX2 const sightbox = {
+        { self->s.origin2.x - radius, self->s.origin2.y - radius },
+        { self->s.origin2.x + radius, self->s.origin2.y + radius },
+    };
+    DWORD numents = gi.BoxEdicts(&sightbox, sight_entities, MAX_SIGHT_ENTITIES, filter_sight);
+    LPEDICT best = NULL;
+    FLOAT best_dist = radius;
+    FOR_LOOP(i, numents) {
+        LPEDICT ent = sight_entities[i];
+        FLOAT const d = Vector2_distance(&ent->s.origin2, &self->s.origin2);
+        if (d < best_dist) {
+            best_dist = d;
+            best = ent;
+        }
+    }
+    return best;
+}
 
 void ai_stand(LPEDICT self) {
     if (!(self->svflags & SVF_MONSTER))
@@ -350,32 +385,10 @@ void ai_stand(LPEDICT self) {
         if (pt != kPlayerTypeComputer && pt != kPlayerTypeHuman)
             return;
     }
-    DWORD const stagger = (DWORD)(self - g_edicts) % AI_ACQUIRE_INTERVAL;
-    if (((level.time + stagger) % AI_ACQUIRE_INTERVAL) >= (DWORD)FRAMETIME)
+    if (!G_ShouldAcquireThisFrame(self))
         return;
 
-    ai_current_entity = self;
-    FLOAT const sight = self->balance.sight_radius.day;
-    FLOAT acquire = UNIT_ACQUISITION_RANGE(self->class_id);
-    if (acquire <= 0.0f)
-        acquire = sight * 0.5f;
-    if (sight > 0.0f && acquire > sight)
-        acquire = sight; /* cannot acquire beyond sight */
-    BOX2 const sightbox = {
-        { self->s.origin2.x - acquire, self->s.origin2.y - acquire },
-        { self->s.origin2.x + acquire, self->s.origin2.y + acquire },
-    };
-    DWORD numents = gi.BoxEdicts(&sightbox, sight_entities, MAX_SIGHT_ENTITIES, filter_sight);
-    LPEDICT best = NULL;
-    FLOAT best_dist = acquire;
-    FOR_LOOP(i, numents) {
-        LPEDICT ent = sight_entities[i];
-        FLOAT const d = Vector2_distance(&ent->s.origin2, &self->s.origin2);
-        if (d < best_dist) {
-            best_dist = d;
-            best = ent;
-        }
-    }
+    LPEDICT best = G_FindNearestEnemy(self, G_AcquisitionRange(self));
     if (best) {
         order_attack(self, best);
     }
