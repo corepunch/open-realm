@@ -154,7 +154,11 @@ void Key_Event(keyCode_t key, bool down, DWORD time) {
         if (down) SCR_LayoutKeyEvent(key);
         return;
     }
-    
+
+    if (key == K_ESCAPE && down && SCR_LayoutKeyEvent(key)) {
+        return;
+    }
+
     if (!down) {
         if (*kb == '+') {
             snprintf(cmd, sizeof(cmd), "-%s %i %i\n", kb+1, key, time);
