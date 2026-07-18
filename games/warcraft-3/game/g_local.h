@@ -554,6 +554,7 @@ struct edict_s {
     DWORD move_blocked_frames;
     FLOAT move_group_speed;  // slowest member's speed for a group move (0 = no cap), keeps the group together
     FLOAT move_heading;      // avoidance-resolved heading chosen this tick by unit_changeangle; movement follows it
+    LPEDICT attackmove_waypoint;  // non-NULL while attack-moving: resume walking toward it after a kill
     EDICTSTAT health;
     EDICTSTAT mana;
     MOVETYPE movetype;
@@ -938,10 +939,17 @@ void G_ReviveHero(LPEDICT, FLOAT x, FLOAT y);
 void order_attack(LPEDICT, LPEDICT);
 void order_move(LPEDICT, LPEDICT);
 void order_stop(LPEDICT);
+void order_attackmove(LPEDICT, LPEDICT);
 BOOL G_ActorHasSkill(LPEDICT, LPCSTR);
 void harvest_start(LPEDICT, LPEDICT);
 void harvest_gold_start(LPEDICT, LPEDICT);
 BOOL move_selectlocation(LPEDICT, LPCVECTOR2);
+BOOL move_should_arrive(LPEDICT, FLOAT);
+BOOL move_is_blocked(LPEDICT, FLOAT, FLOAT);
+void move_reset_progress(LPEDICT);
+LPEDICT G_FindNearestEnemy(LPEDICT, FLOAT);
+FLOAT G_AcquisitionRange(LPCEDICT);
+BOOL G_ShouldAcquireThisFrame(LPCEDICT);
 
 // p_jass.c
 LPJASS jass_newstate(void);
