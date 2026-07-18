@@ -86,7 +86,7 @@ void unit_stand(LPEDICT self) {
     }
     self->build = NULL;
     self->s.renderfx &= ~RF_NO_UBERSPLAT;
-    self->s.ability = 0;
+    self->s.ability = 255;
     self->move_last_distance = 0;
     self->move_blocked_frames = 0;
     
