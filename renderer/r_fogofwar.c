@@ -196,7 +196,7 @@ static DWORD R_AddCastersToBuffer(LPCBUFFER buffer,
 upload:
     R_Call(glBindVertexArray, buffer->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, buffer->vbo);
-    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(castervertex_t) * (caster_writer - casters), casters, GL_STATIC_DRAW);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(castervertex_t) * (caster_writer - casters), casters, GL_DYNAMIC_DRAW);
     return (DWORD)(caster_writer - casters);
 }
 
@@ -207,7 +207,7 @@ static DWORD R_PushRectToBuffer(DWORD buffer_id, LPCRECT value, float alpha) {
     R_AddQuad(rect, value, &uv, white, 0);
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
-    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(vertex_t) * NUM_RECT_VERTICES, rect, GL_STATIC_DRAW);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(vertex_t) * NUM_RECT_VERTICES, rect, GL_DYNAMIC_DRAW);
     return NUM_RECT_VERTICES;
 }
 

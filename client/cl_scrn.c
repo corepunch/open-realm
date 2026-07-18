@@ -1,6 +1,6 @@
 #include "client.h"
 #include "ui_layout.h"
-#include <stdlib.h>  /* getenv (BZ_FPS_LOG diagnostic) */
+#include <ctype.h>
 #include <SDL2/SDL.h>
 
 BOOL scr_initialized;
@@ -32,7 +32,6 @@ static void SCR_DrawFPS(DWORD msec) {
         fps = frames_drawn * 1000 / elapsed;
         elapsed = 0;
         frames_drawn = 0;
-        if (getenv("BZ_FPS_LOG")) fprintf(stderr, "BZ_FPS %u\n", (unsigned)fps);
     } else if (!fps && msec > 0) {
         fps = 1000 / msec;
     }
@@ -90,7 +89,6 @@ void SCR_DrawScreenField(DWORD msec) {
     if (Cvar_Integer("scr_showfps", 0)) {
         SCR_DrawFPS(msec);
     }
-
     re.EndFrame();
 }
 

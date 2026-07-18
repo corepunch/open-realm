@@ -6,7 +6,7 @@ MakeColor(color[INDEX], LerpNumber(color[INDEX], 1, 0.25f), LerpNumber(color[IND
 
 LPCTEXTURE g_groundTextures[MAX_MAP_LAYERS] = { NULL };
 
-#define GROUND_VERTEX_BUFFER_CAPACITY 4096
+#define GROUND_VERTEX_BUFFER_CAPACITY (SEGMENT_SIZE * SEGMENT_SIZE * 6)
 
 static VERTEX ground_vertex_buffer[GROUND_VERTEX_BUFFER_CAPACITY];
 static LPVERTEX ground_current_vertex = NULL;
@@ -198,6 +198,49 @@ LPMAPLAYER R_BuildMapSegmentLayer(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD laye
     }
     mapLayer->num_vertices = (DWORD)(ground_current_vertex - ground_vertex_buffer);
     mapLayer->buffer = R_MakeVertexArrayObject(ground_vertex_buffer, mapLayer->num_vertices);
+    return mapLayer;
+}
+
+LPMAPLAYER R_BuildGroundLayerGlobal(LPCWAR3MAP map, DWORD layer) {
+    static LPVERTEX whole_map_buffer = NULL;
+    static DWORD whole_map_capacity = 0;
+    LPMAPLAYER mapLayer;
+    PATHSTR zBuffer;
+    DWORD needed;
+
+    if (g_groundTextures[layer] == NULL) {
+        char groundID[5] = { 0 };
+        memcpy(groundID, &map->grounds[layer], 4);
+        LPCSTR dir = ri.FindSheetCell(tr.sheet[SHEET_TERRAIN], groundID, "dir");
+        LPCSTR file = ri.FindSheetCell(tr.sheet[SHEET_TERRAIN], groundID, "file");
+        if (file && dir) {
+            sprintf(zBuffer, "%s\\%s.blp", dir, file);
+            g_groundTextures[layer] = R_LoadTexture(zBuffer);
+        } else {
+            return NULL;
+        }
+    }
+
+    needed = map->width * map->height * 6;
+    if (needed > whole_map_capacity) {
+        whole_map_buffer = ri.MemAlloc(sizeof(VERTEX) * needed);
+        whole_map_capacity = needed;
+    }
+
+    mapLayer = ri.MemAlloc(sizeof(MAPLAYER));
+    mapLayer->texture = g_groundTextures[layer];
+    mapLayer->type = MAPLAYERTYPE_GROUND;
+    ground_current_vertex = whole_map_buffer;
+    for (DWORD x = 0; x < map->width - 1; x++) {
+        for (DWORD y = 0; y < map->height - 1; y++) {
+            R_MakeTile(map, x, y, layer, mapLayer->texture);
+        }
+    }
+    mapLayer->num_vertices = (DWORD)(ground_current_vertex - whole_map_buffer);
+    if (mapLayer->num_vertices == 0) {
+        return NULL;
+    }
+    mapLayer->buffer = R_MakeVertexArrayObject(whole_map_buffer, mapLayer->num_vertices);
     return mapLayer;
 }
 
