@@ -647,6 +647,7 @@ typedef struct uiFrame_s {
     LPCSTR tooltip;
     LPCSTR onclick;
     FLOAT value;
+    BYTE hotkey;
 } uiFrame_t;
 
 typedef USHORT RESOURCE;
