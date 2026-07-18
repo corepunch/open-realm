@@ -18,6 +18,9 @@ static BOOL holylight_selecttarget(LPEDICT clent, LPEDICT target) {
     FLOAT range = S_SpellRange(code, level);
     LPCSTR race;
 
+    if (target == caster) {
+        return false;
+    }
     if (!S_SpellIsAliveTarget(target)) {
         return false;
     }
