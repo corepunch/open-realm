@@ -146,7 +146,11 @@ void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
         unit_leavecombat(target);
         unit_leavecombat(attacker);
         target->die(target, attacker);
-        attacker->stand(attacker);
+        if (attacker->attackmove_waypoint) {
+            order_attackmove(attacker, attacker->attackmove_waypoint);
+        } else {
+            attacker->stand(attacker);
+        }
         return;
     } else {
         target->health.value -= damage;
@@ -275,19 +279,77 @@ void attack_ranged(LPEDICT self) {
 }
 
 BOOL attack_menu_selecttarget(LPEDICT ent, LPEDICT target) {
-    if (target->targtype == TARG_GROUND) {
-        FOR_SELECTED_UNITS(ent->client, e) {
-            order_attack(e, target);
-        }
-        return true;
-    } else {
+    if (!S_SpellIsAliveTarget(target) || !S_SpellIsEnemy(ent, target)) {
         return false;
     }
+    FOR_SELECTED_UNITS(ent->client, e) {
+        e->attackmove_waypoint = NULL;
+        order_attack(e, target);
+    }
+    return true;
+}
+
+/* Attack-move: walk toward the goal, but each tick prefer engaging the
+ * nearest enemy within acquisition range over continuing to walk. */
+static void ai_attackmove_walk(LPEDICT ent) {
+    if (G_ShouldAcquireThisFrame(ent)) {
+        LPEDICT enemy = G_FindNearestEnemy(ent, G_AcquisitionRange(ent));
+        if (enemy) {
+            order_attack(ent, enemy);
+            return;
+        }
+    }
+
+    FLOAT distance = M_DistanceToGoal(ent);
+    FLOAT move_distance = unit_movedistance(ent);
+
+    if (move_should_arrive(ent, move_distance)) {
+        if (M_MoveIsValid(ent, &ent->goalentity->s.origin2)) {
+            ent->s.origin2 = ent->goalentity->s.origin2;
+            gi.LinkEntity(ent);
+        }
+        ent->attackmove_waypoint = NULL;
+        ent->stand(ent);
+    } else if (move_is_blocked(ent, distance, move_distance)) {
+        ent->attackmove_waypoint = NULL;
+        ent->stand(ent);
+    } else {
+        unit_changeangle(ent);
+        unit_moveindirection(ent);
+    }
+}
+
+static umove_t attackmove_move_walk = { "walk", ai_attackmove_walk, NULL, &a_attack };
+
+/* Begin (or resume, after a kill) attack-moving toward a waypoint. */
+void order_attackmove(LPEDICT self, LPEDICT waypoint) {
+    self->attackmove_waypoint = waypoint;
+    self->goalentity = waypoint;
+    move_reset_progress(self);
+    unit_setmove(self, &attackmove_move_walk);
+}
+
+static BOOL attackmove_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
+    LPEDICT waypoint;
+    BOOL any = false;
+
+    FOR_SELECTED_UNITS(clent->client, ent) {
+        if (UNIT_IS_BUILDING(ent->class_id) || UNIT_SPEED(ent->class_id) <= 0) {
+            continue;
+        }
+        if (!any) {
+            waypoint = Waypoint_add(location);
+            any = true;
+        }
+        order_attackmove(ent, waypoint);
+    }
+    return any;
 }
 
 void attack_command(LPEDICT ent) {
     UI_AddCancelButton(ent);
     ent->client->menu.on_entity_selected = attack_menu_selecttarget;
+    ent->client->menu.on_location_selected = attackmove_selectlocation;
 }
 
 ability_t a_attack = {
