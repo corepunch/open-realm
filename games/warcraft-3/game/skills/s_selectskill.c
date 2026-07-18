@@ -20,6 +20,7 @@ void ui_selectskill(LPGAMECLIENT client) {
         UI_AddCommandButtonExtended(abil, true, 1);
     }
     UI_AddCommandButton(STR_CmdCancel);
+    UI_WriteTooltipFrame();
 }
 
 void selectskill_command(LPEDICT edict) {

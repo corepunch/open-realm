@@ -33,13 +33,15 @@ DWORD UI_ClassIdFromCode(LPCSTR code) {
     return class_id;
 }
 
-void UI_FormatTooltip(LPCSTR code, LPCSTR tip, LPCSTR ubertip, LPSTR out, DWORD out_size) {
+void UI_FormatTooltip(LPCSTR code, LPCSTR tip, LPCSTR ubertip, FLOAT manacost, LPSTR out, DWORD out_size) {
     DWORD class_id = UI_ClassIdFromCode(code);
     DWORD gold_cost = class_id ? UNIT_GOLD_COST(class_id) : 0;
     DWORD lumber_cost = class_id ? UNIT_LUMBER_COST(class_id) : 0;
     DWORD food_cost = class_id ? UNIT_FOOD_USED(class_id) : 0;
+    DWORD mana_cost = (DWORD)(manacost + 0.5f);
     DWORD gold_icon = 0;
     DWORD lumber_icon = 0;
+    DWORD mana_icon = 0;
     DWORD supply_icon = 0;
 
     if (!out || out_size == 0) {
@@ -47,9 +49,10 @@ void UI_FormatTooltip(LPCSTR code, LPCSTR tip, LPCSTR ubertip, LPSTR out, DWORD 
     }
     out[0] = '\0';
     snprintf(out, out_size, "%s", tip && *tip ? tip : " ");
-    if (gold_cost || lumber_cost || food_cost) {
+    if (gold_cost || lumber_cost || mana_cost || food_cost) {
         gold_icon = gi.ImageIndex(Theme_String("ToolTipGoldIcon", "ToolTipGoldIcon"));
         lumber_icon = gi.ImageIndex(Theme_String("ToolTipLumberIcon", "ToolTipLumberIcon"));
+        mana_icon = gi.ImageIndex(Theme_String("ToolTipManaIcon", "ToolTipManaIcon"));
         supply_icon = gi.ImageIndex(Theme_String("ToolTipSupplyIcon", "ToolTipSupplyIcon"));
         snprintf(out + strlen(out), out_size - strlen(out), "|n");
         if (gold_cost) {
@@ -59,6 +62,10 @@ void UI_FormatTooltip(LPCSTR code, LPCSTR tip, LPCSTR ubertip, LPSTR out, DWORD 
         if (lumber_cost) {
             snprintf(out + strlen(out), out_size - strlen(out), "<Icon,%u> %u   ",
                      (unsigned)lumber_icon, (unsigned)lumber_cost);
+        }
+        if (mana_cost) {
+            snprintf(out + strlen(out), out_size - strlen(out), "<Icon,%u> %u   ",
+                     (unsigned)mana_icon, (unsigned)mana_cost);
         }
         if (food_cost) {
             snprintf(out + strlen(out), out_size - strlen(out), "<Icon,%u> %u   ",
@@ -87,7 +94,7 @@ void UI_WriteCommandButtonFrame(gameCommandButton_t const *button) {
     frame.stat = button->active;
     frame.value = button->cooldown;
     frame.hotkey = (BYTE)button->hotkey;
-    UI_FormatTooltip(button->command, button->tooltip, button->ubertip, tooltip, sizeof(tooltip));
+    UI_FormatTooltip(button->command, button->tooltip, button->ubertip, button->manacost, tooltip, sizeof(tooltip));
     frame.tooltip = tooltip;
     snprintf(onclick, sizeof(onclick), "%s %s", button->research ? "research" : "button", button->command);
     frame.onclick = onclick;

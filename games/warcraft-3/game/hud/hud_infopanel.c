@@ -186,6 +186,7 @@ void Get_Commands_f(LPEDICT ent) {
     FOR_LOOP(i, count) {
         UI_WriteCommandButtonFrame(&buttons[i]);
     }
+    if (count) UI_WriteTooltipFrame();
     UI_WriteEnd(ent);
 }
 
@@ -217,6 +218,7 @@ static void WriteInventory(LPEDICT ent) {
         UI_SetFrameRect(&frame, rect.x, rect.y, rect.w, rect.h);
         UI_WriteProxyFrame(&frame, NULL, 0);
     }
+    if (count) UI_WriteTooltipFrame();
 }
 
 void Get_Portrait_f(LPEDICT ent) {

@@ -132,6 +132,8 @@ static char layout_dynamic_pic_names[MAX_DYNAMIC_IMAGES][512];
 static DWORD layout_dynamic_pic_cursor;
 static BOOL layout_left_down;
 static DWORD layout_hovered_number;
+static DWORD layout_hovered_layer;
+static DWORD layout_current_layer;
 
 static RECT Rect_inset(LPCRECT r, FLOAT inset) {
     return MAKE(RECT, r->x+inset, r->y+inset, r->w-inset*2, r->h-inset*2);
@@ -320,7 +322,7 @@ static BOOL SCR_LayoutGlueTextButtonIsPushed(LPCUIFRAME frame) {
     return layout_left_down && SCR_LayoutFrameHasClickCommand(frame);
 }
 static BOOL SCR_LayoutFrameIsHovered(LPCUIFRAME frame) {
-    return frame && frame->number == layout_hovered_number;
+    return frame && frame->number == layout_hovered_number && layout_current_layer == layout_hovered_layer;
 }
 
 static void SCR_LayoutFormatOnClickCommand(LPCSTR src, LPSTR dst, DWORD dsz) {
@@ -706,6 +708,7 @@ void SCR_DrawLayout(void) {
         if ((1 << layer) & flags) continue;
         HANDLE layout = layout_layers[layer];
         if (layout) {
+            layout_current_layer = layer;
             SCR_Clear(layout);
             SCR_LayoutUpdateTooltip(layout);
             SCR_LayoutDrawOverlay(layout);
@@ -734,7 +737,9 @@ void SCR_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
             LPCUIFRAME frame = SCR_Frame(i - 1);
             if (!frame || !SCR_LayoutFrameHasClickCommand(frame)) continue;
             if (Rect_contains(SCR_LayoutRect(frame), &point)) {
-                layout_hovered_number = frame->number; break;
+                layout_hovered_number = frame->number;
+                layout_hovered_layer = layer;
+                break;
             }
         }
         if (layout_hovered_number) break;

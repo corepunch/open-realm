@@ -9,6 +9,9 @@
  * used to shade the command-card button while it recharges. */
 FLOAT S_SpellCooldownFraction(LPEDICT caster, DWORD code, DWORD level);
 
+/* Defined in skills/s_spell.c — reads a per-level ability data field, e.g. "Cost". */
+FLOAT S_SpellNumber(DWORD code, LPCSTR field, DWORD level);
+
 static void G_CopyString(LPSTR out, DWORD out_size, LPCSTR text) {
     if (!out || out_size == 0) {
         return;
@@ -139,7 +142,6 @@ BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, 
     DWORD x = UINT_MAX;
     DWORD y = UINT_MAX;
 
-    (void)level;
     if (!ent || !code || !*code || !button) {
         return false;
     }
@@ -170,6 +172,10 @@ BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, 
     button->y = y == UINT_MAX ? 255 : (BYTE)MIN(y, 2);
     button->research = research ? 1 : 0;
     button->active = (BYTE)FindAbilityIndex(base_code);
+    if (strlen(base_code) >= 4) {
+        button->manacost = S_SpellNumber(MAKEFOURCC(base_code[0], base_code[1], base_code[2], base_code[3]),
+                                         "Cost", level);
+    }
     if (!button->art[0]) {
         fprintf(stderr,
                 "G_BuildCommandButton: skipping missing art unit=%.4s code=%s art_code=%s raw_art=%s\n",
