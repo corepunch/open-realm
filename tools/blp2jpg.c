@@ -432,6 +432,7 @@ static char *output_path_for(char const *input, char const *outdir, bool from_mp
     return path;
 }
 
+#ifdef __APPLE__
 static rgba8_t checker_color(uint32_t x, uint32_t y) {
     uint8_t v = (((x / 8) + (y / 8)) & 1) ? 72 : 32;
     return (rgba8_t) { v, v, v, 255 };
@@ -462,6 +463,7 @@ static rgba8_t *composite_and_scale(image_t const *image, int scale, size_t *out
     *out_size = sizeof(*out) * out_w * out_h;
     return out;
 }
+#endif
 
 static bool write_jpeg(char const *path, image_t const *image, int scale) {
 #ifdef __APPLE__

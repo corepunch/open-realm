@@ -14,19 +14,19 @@
 #endif
 #include "ui_local.h"
 
-#define MAX_IMAGES  1024
-#define MAX_MODELS  256
+#define UI_MAX_TEXTURES  1024
+#define UI_MAX_MODELS    256
 
 #define BZ_HOST_HIDDEN __attribute__((visibility("hidden")))
 
 /* ---- Texture/model cache (UI-module specific) ----------------------------- */
 
-static LPCTEXTURE ui_textures[MAX_IMAGES] = { 0 };
-static PATHSTR ui_texture_names[MAX_IMAGES] = { 0 };
-static PATHSTR ui_texture_keys[MAX_IMAGES] = { 0 };
-static BOOL ui_texture_decorated[MAX_IMAGES] = { 0 };
-static LPCMODEL ui_models[MAX_MODELS] = { 0 };
-static PATHSTR ui_model_names[MAX_MODELS] = { 0 };
+static LPCTEXTURE ui_textures[UI_MAX_TEXTURES] = { 0 };
+static PATHSTR ui_texture_names[UI_MAX_TEXTURES] = { 0 };
+static PATHSTR ui_texture_keys[UI_MAX_TEXTURES] = { 0 };
+static BOOL ui_texture_decorated[UI_MAX_TEXTURES] = { 0 };
+static LPCMODEL ui_models[UI_MAX_MODELS] = { 0 };
+static PATHSTR ui_model_names[UI_MAX_MODELS] = { 0 };
 
 BZ_HOST_HIDDEN void UI_ClearTextures(void) {
     memset(ui_textures, 0, sizeof(ui_textures));
@@ -63,7 +63,7 @@ BZ_HOST_HIDDEN DWORD UI_LoadTexture(LPCSTR file, BOOL decorate) {
     resolved = decorate ? Theme_String(file, "Default") : file;
     resolved = EnsureExtension(resolved, ".blp");
 
-    FOR_LOOP(i, MAX_IMAGES) {
+    FOR_LOOP(i, UI_MAX_TEXTURES) {
         if (!ui_texture_names[i][0]) continue;
         if (decorate) {
             if (ui_texture_decorated[i] && !strcmp(ui_texture_keys[i], file))
@@ -74,7 +74,7 @@ BZ_HOST_HIDDEN DWORD UI_LoadTexture(LPCSTR file, BOOL decorate) {
     }
 
     index = 0;
-    for (DWORD i = 1; i < MAX_IMAGES; i++) {
+    for (DWORD i = 1; i < UI_MAX_TEXTURES; i++) {
         if (!ui_texture_names[i][0]) { index = i; break; }
     }
     if (!index || !uiimport.GetRenderer) return 0;
@@ -89,7 +89,7 @@ BZ_HOST_HIDDEN DWORD UI_LoadTexture(LPCSTR file, BOOL decorate) {
 }
 
 LPCSTR UI_TextureName(DWORD index) {
-    if (!index || index >= MAX_IMAGES) return NULL;
+    if (!index || index >= UI_MAX_TEXTURES) return NULL;
     return ui_texture_names[index][0] ? ui_texture_names[index] : NULL;
 }
 
@@ -97,7 +97,7 @@ LPCTEXTURE UI_GetTexture(DWORD index) {
     LPRENDERER renderer;
     LPCSTR resolved;
 
-    if (!index || index >= MAX_IMAGES) return NULL;
+    if (!index || index >= UI_MAX_TEXTURES) return NULL;
     if (ui_texture_decorated[index] && ui_texture_keys[index][0]) {
         resolved = EnsureExtension(Theme_String(ui_texture_keys[index], "Default"), ".blp");
         if (strcmp(ui_texture_names[index], resolved)) {
@@ -114,7 +114,7 @@ LPCTEXTURE UI_GetTexture(DWORD index) {
 }
 
 LPCMODEL UI_GetModel(DWORD index) {
-    if (!index || index >= MAX_MODELS) return NULL;
+    if (!index || index >= UI_MAX_MODELS) return NULL;
     return ui_models[index];
 }
 
@@ -126,12 +126,12 @@ BZ_HOST_HIDDEN DWORD UI_LoadModel(LPCSTR file, BOOL decorate) {
     if (!model || !*model) return 0;
 
     model = decorate ? Theme_String(model, "Default") : model;
-    FOR_LOOP(i, MAX_MODELS) {
+    FOR_LOOP(i, UI_MAX_MODELS) {
         if (ui_model_names[i][0] && !strcmp(ui_model_names[i], model))
             return i;
     }
 
-    for (DWORD i = 1; i < MAX_MODELS; i++) {
+    for (DWORD i = 1; i < UI_MAX_MODELS; i++) {
         if (!ui_model_names[i][0]) { modelIndex = i; break; }
     }
     if (!modelIndex || !uiimport.GetRenderer) return 0;

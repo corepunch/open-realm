@@ -44,7 +44,6 @@ LPTEXTURE R_LoadTextureDDS(HANDLE data, DWORD filesize) {
     DWORD flags, fourcc, rgbBitCount, rMask, gMask, bMask, aMask;
     DDS_ParsePixelFormat(buf, &flags, &fourcc, &rgbBitCount, &rMask, &gMask, &bMask, &aMask);
 
-    BOOL const hasAlpha = (flags & 0x1) != 0;
     BOOL const isFourCC = (flags & 0x4) != 0;
     BOOL const isRGB    = (flags & 0x40) != 0;
 
