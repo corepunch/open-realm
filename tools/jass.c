@@ -178,8 +178,8 @@ static int do_repl(LPJASS j) {
             in_block = 0;
             continue;
         }
-        strcat(block, line);
-        strcat(block, "\n");
+        strlcat(block, line, sizeof(block));
+        strlcat(block, "\n", sizeof(block));
     }
 
     return 0;

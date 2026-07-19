@@ -182,7 +182,7 @@ void SV_ExecuteUserCommand(LPSIZEBUF msg, LPCLIENT client) {
     p.tok = p.token;
     p.str = command;
     for (LPCSTR tok = ParserGetToken(&p); tok && argc < MAX_CMDARGS; tok = ParserGetToken(&p)) {
-        strcpy(args[argc], tok);
+        strlcpy(args[argc], tok, sizeof(args[argc]));
         argv[argc] = args[argc];
         argc++;
     }

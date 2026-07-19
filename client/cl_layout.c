@@ -107,16 +107,16 @@ LPCSTR SCR_GetStringValue(LPCUIFRAME frame) {
     static char text[1024] = { 0 };
     if (frame->stat >= MAX_STATS) {
         if (cl.playerstate.texts[frame->stat - MAX_STATS]) {
-            strcpy(text, cl.playerstate.texts[frame->stat - MAX_STATS]);
+            strlcpy(text, cl.playerstate.texts[frame->stat - MAX_STATS], sizeof(text));
         } else {
             memset(text, 0, sizeof(text));
         }
     } else if (frame->stat == PLAYERSTATE_RESOURCE_FOOD_USED) {
         DWORD food_used = cl.playerstate.stats[PLAYERSTATE_RESOURCE_FOOD_USED];
         DWORD food_made = cl.playerstate.stats[PLAYERSTATE_RESOURCE_FOOD_CAP];
-        sprintf(text, "%d/%d", food_used, food_made);
+        snprintf(text, sizeof(text), "%d/%d", food_used, food_made);
     } else if (frame->stat > 0) {
-        sprintf(text, "%d", cl.playerstate.stats[frame->stat]);
+        snprintf(text, sizeof(text), "%d", cl.playerstate.stats[frame->stat]);
     } else if (frame->text) {
         return frame->text;
     } else {

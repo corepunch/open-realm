@@ -182,7 +182,7 @@ LPMAPLAYER R_BuildMapSegmentLayer(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD laye
         LPCSTR dir = ri.FindSheetCell(tr.sheet[SHEET_TERRAIN], groundID, "dir");
         LPCSTR file = ri.FindSheetCell(tr.sheet[SHEET_TERRAIN], groundID, "file");
         if (file && dir) {
-            sprintf(zBuffer, "%s\\%s.blp", dir, file);
+            snprintf(zBuffer, sizeof(zBuffer), "%s\\%s.blp", dir, file);
             g_groundTextures[layer] = R_LoadTexture(zBuffer);
         } else {
             return NULL;

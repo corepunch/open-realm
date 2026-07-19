@@ -23,7 +23,7 @@ bool CM_LoadMapFormat(LPCSTR mapFilename) {
     world.map->height = height + 1;
     world.map->center = map->origin;
     world.info.mapName = MemAlloc(strlen(map->map_name) + 1);
-    strcpy(world.info.mapName, map->map_name);
+    memcpy(world.info.mapName, map->map_name, strlen(map->map_name) + 1);
     world.info.playableArea.width = width;
     world.info.playableArea.height = height;
     world.info.players[0].used = true;

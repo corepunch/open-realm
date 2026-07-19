@@ -120,7 +120,7 @@ int SV_ModelIndex(LPCSTR name) {
     LPCSTR slash;
     LPSTR ext;
 
-    strcpy(model_filename, name);
+    strlcpy(model_filename, name, sizeof(model_filename));
     base = model_filename;
     slash = strrchr(base, '\\');
     if (slash) {
@@ -132,10 +132,12 @@ int SV_ModelIndex(LPCSTR name) {
     }
     ext = strrchr((LPSTR)base, '.');
     if (!ext) {
-        ext = model_filename + strlen(model_filename);
-        strcpy(ext, ".mdx");
+        size_t len = strlen(model_filename);
+        if (len + 5 <= sizeof(model_filename)) {
+            memcpy(model_filename + len, ".mdx", 5);
+        }
     } else if (!strcasecmp(ext, ".mdl")) {
-        strcpy(ext, ".mdx");
+        memcpy(ext, ".mdx", 5);
     }
     int modelindex = SV_FindIndex(model_filename, CS_MODELS, MAX_MODELS, true);
     return modelindex;
@@ -151,7 +153,7 @@ int SV_ImageIndex(LPCSTR name) {
 
 int SV_FontIndex(LPCSTR name, DWORD fontSize) {
     PATHSTR fontspec;
-    sprintf(fontspec, "%s,%d", name, fontSize);
+    snprintf(fontspec, sizeof(fontspec), "%s,%d", name, fontSize);
     return SV_FindIndex(fontspec, CS_FONTS, MAX_FONTSTYLES, true);
 }
 

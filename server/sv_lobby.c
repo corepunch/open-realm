@@ -449,7 +449,7 @@ void SV_ApplyLobbySettings(LPMAPINFO info) {
         if (slot->name[0]) {
             SAFE_DELETE(player->playerName, MemFree);
             player->playerName = MemAlloc(strlen(slot->name) + 1);
-            strcpy(player->playerName, slot->name);
+            memcpy(player->playerName, slot->name, strlen(slot->name) + 1);
         }
         if (type == kPlayerTypeNone) {
             SV_LobbyClearPlayerTeams(info, slot->map_player);

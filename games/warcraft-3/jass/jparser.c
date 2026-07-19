@@ -173,7 +173,7 @@ LPTOKEN alloc_ident_token(LPPARSER p, TOKENTYPE tt) {
 
 LPTOKEN parse_operator_token(LPPARSER p) {
     UINAME op = { 0 };
-    strcpy(op, parse_token(p));
+    strlcpy(op, parse_token(p), sizeof(op));
     if (eat_token(p, "=")) {
         op[1] = '=';
     }

@@ -170,15 +170,16 @@ static void strip_iso_version(char *name) {
     }
 }
 
-static void sanitize_name(char *name) {
+static void sanitize_name(char *name, size_t name_size) {
     for (char *p = name; *p; p++) {
         unsigned char c = (unsigned char)*p;
         if (c < 32 || *p == '/' || *p == '\\' || *p == ':') {
             *p = '_';
         }
     }
-    if (!name[0]) {
-        strcpy(name, "_");
+    if (!name[0] && name_size >= 2) {
+        name[0] = '_';
+        name[1] = 0;
     }
 }
 
@@ -201,7 +202,7 @@ static bool decode_name(unsigned char const *in, unsigned len, bool joliet, char
     }
 
     strip_iso_version(out);
-    sanitize_name(out);
+    sanitize_name(out, out_size);
     return true;
 }
 
@@ -330,7 +331,7 @@ static bool mkdir_p(char const *path) {
         fprintf(stderr, "isoextract: path too long: %s\n", path);
         return false;
     }
-    strcpy(tmp, path);
+    strlcpy(tmp, path, sizeof(tmp));
 
     while (len > 1 && (tmp[len - 1] == '/' || tmp[len - 1] == '\\')) {
         tmp[--len] = 0;

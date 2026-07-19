@@ -92,9 +92,13 @@ LPMODEL R_GameLoadModel(LPCSTR modelFilename) {
     if ((fileSize < 0 || !buffer) && R_GamePathHasExtension(modelFilename, ".mdx")) {
         PATHSTR tempFileName = { 0 };
         LPSTR ext = strstr(modelFilename, ".mdx");
+        size_t stemLen = (size_t)(ext - modelFilename);
 
-        strncpy(tempFileName, modelFilename, ext - modelFilename);
-        strcpy(tempFileName + strlen(tempFileName), ".m2");
+        if (stemLen > sizeof(tempFileName) - 4) {
+            stemLen = sizeof(tempFileName) - 4;
+        }
+        memcpy(tempFileName, modelFilename, stemLen);
+        memcpy(tempFileName + stemLen, ".m2", 4);
         fileSize = ri.FS_ReadFile(tempFileName, &buffer);
         if (fileSize >= 0 && buffer) {
             snprintf(load_name, sizeof(load_name), "%s", tempFileName);

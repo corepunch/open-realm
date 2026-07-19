@@ -48,13 +48,13 @@ static void CL_ApplySelection(DWORD const *ids, DWORD n) {
     char buffer[1024];
     if (n == 0) return;
     if (n > MAX_SELECTED_ENTITIES) n = MAX_SELECTED_ENTITIES;
-    strcpy(buffer, "select");
+    strlcpy(buffer, "select", sizeof(buffer));
     FOR_LOOP(i, n) {
         size_t used = strlen(buffer);
         snprintf(buffer + used, sizeof(buffer) - used, " %d", ids[i]);
     }
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-    SZ_Printf(&cls.netchan.message, buffer);
+    SZ_Printf(&cls.netchan.message, "%s", buffer);
     cl.selection.num_selected = n;
     memcpy(cl.selection.entity_nums, ids, sizeof(DWORD) * n);
     CL_RequestUnitUI(n, cl.selection.entity_nums);

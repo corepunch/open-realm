@@ -8,7 +8,7 @@ DWORD CreateSound(LPJASS j) {
     LPCSTR eaxSetting = jass_checkstring(j, 7);
     (void)eaxSetting;
     API_ALLOC(gsound_t, sound);
-    strcpy(sound->fileName, fileName);
+    strlcpy(sound->fileName, fileName, sizeof(sound->fileName));
     sound->looping = looping;
     sound->is3D = is3D;
     sound->stopwhenoutofrange = stopwhenoutofrange;
