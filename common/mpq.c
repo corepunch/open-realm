@@ -309,7 +309,7 @@ static void CacheBlockLookup(MPQ_ARCHIVE *mpq, const char *fileName, DWORD block
         free(entry);
         return;
     }
-    strcpy(entry->name, key);
+    memcpy(entry->name, key, strlen(key) + 1);
     entry->block_index = block_index;
     entry->next = mpq->lookup_cache[hash & (mpq->lookup_cache_size - 1)];
     mpq->lookup_cache[hash & (mpq->lookup_cache_size - 1)] = entry;
@@ -632,7 +632,7 @@ static BOOL WriterAddData(MPQ_ARCHIVE *mpq, const char *archivedName, const BYTE
         mpq->write_count--;
         return FALSE;
     }
-    strcpy(entry->name, path);
+    memcpy(entry->name, path, strlen(path) + 1);
     entry->offset = (DWORD)pos;
     entry->block_size = write_size;
     entry->file_size = size;
@@ -1760,7 +1760,7 @@ static void PreloadListfileCache(MPQ_ARCHIVE *mpq)
         if (!entries[i].name) {
             break;
         }
-        strcpy(entries[i].name, line);
+        memcpy(entries[i].name, line, strlen(line) + 1);
         CanonicalizeMpqKey(entries[i].name, entries[i].name, strlen(entries[i].name) + 1);
         entries[i].hash1 = HashString(entries[i].name, MPQ_HASH_NAME_A);
         entries[i].hash2 = HashString(entries[i].name, MPQ_HASH_NAME_B);
@@ -1989,7 +1989,7 @@ static BOOL AppendFindListEntry(MPQ_FIND *find, const char *name)
         return FALSE;
     }
 
-    strcpy(copy, name);
+    memcpy(copy, name, strlen(name) + 1);
     find->files = next;
     find->files[find->file_count++] = copy;
     return TRUE;

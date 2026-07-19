@@ -96,6 +96,9 @@ void PF_Confignstring(DWORD index, LPCSTR value, DWORD len) {
         return;
     }
     
+    if (len > sizeof(sv.configstrings[index]) - 1) {
+        len = sizeof(sv.configstrings[index]) - 1;
+    }
     memset(sv.configstrings[index], 0, sizeof(sv.configstrings[index]));
     memcpy(sv.configstrings[index], value, len);
     
@@ -116,7 +119,6 @@ void PF_Configstring(DWORD index, LPCSTR value) {
     }
 
     PF_Confignstring(index, value, (DWORD)(strlen(value) + 1));
-    strcpy(sv.configstrings[index], value);
 }
 
 LPCSTR PF_GetConfigstring(DWORD index) {
@@ -158,7 +160,7 @@ void PF_error(LPCSTR fmt, ...) {
     char msg[1024];
     va_list argptr;
     va_start(argptr,fmt);
-    vsprintf(msg, fmt, argptr);
+    vsnprintf(msg, sizeof(msg), fmt, argptr);
     va_end(argptr);
     fprintf(stderr, "Game Error: %s\n", msg);
 }

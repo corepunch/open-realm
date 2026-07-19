@@ -59,8 +59,8 @@ void R_GameLoadAssets(void) {
     }
     FOR_LOOP(team, MAX_TEAMS) {
         PATHSTR glowFilename, colorFilename;
-        sprintf(glowFilename, "ReplaceableTextures\\TeamGlow\\TeamGlow%02d.blp", team);
-        sprintf(colorFilename, "ReplaceableTextures\\TeamColor\\TeamColor%02d.blp", team);
+        snprintf(glowFilename, sizeof(glowFilename), "ReplaceableTextures\\TeamGlow\\TeamGlow%02d.blp", team);
+        snprintf(colorFilename, sizeof(colorFilename), "ReplaceableTextures\\TeamColor\\TeamColor%02d.blp", team);
         tr.texture[TEX_TEAM_GLOW + team] = R_LoadTexture(glowFilename);
         tr.texture[TEX_TEAM_COLOR + team] = R_LoadTexture(colorFilename);
     }
@@ -125,8 +125,11 @@ LPMODEL R_GameLoadModel(LPCSTR modelFilename) {
         PATHSTR tempFileName = { 0 };
         size_t stemLen = strlen(modelFilename) - 4; /* ".mdl" = 4 chars */
 
-        strncpy(tempFileName, modelFilename, stemLen);
-        strcpy(tempFileName + stemLen, ".mdx");
+        if (stemLen > sizeof(tempFileName) - 5) {
+            stemLen = sizeof(tempFileName) - 5;
+        }
+        memcpy(tempFileName, modelFilename, stemLen);
+        memcpy(tempFileName + stemLen, ".mdx", 5);
         fileSize = ri.FS_ReadFile(tempFileName, &buffer);
     }
     if (fileSize < 0) {
@@ -140,8 +143,11 @@ LPMODEL R_GameLoadModel(LPCSTR modelFilename) {
                 end--;
             }
             stemLen = (size_t)(end - modelFilename);
-            strncpy(tempFileName, modelFilename, stemLen);
-            strcpy(tempFileName + stemLen, ".mdx");
+            if (stemLen > sizeof(tempFileName) - 5) {
+                stemLen = sizeof(tempFileName) - 5;
+            }
+            memcpy(tempFileName, modelFilename, stemLen);
+            memcpy(tempFileName + stemLen, ".mdx", 5);
             fileSize = ri.FS_ReadFile(tempFileName, &buffer);
         }
     }
@@ -157,8 +163,11 @@ LPMODEL R_GameLoadModel(LPCSTR modelFilename) {
         PATHSTR tempFileName = { 0 };
         size_t stemLen = strlen(modelFilename) - 4;
 
-        strncpy(tempFileName, modelFilename, stemLen);
-        strcpy(tempFileName + stemLen, ".mdx");
+        if (stemLen > sizeof(tempFileName) - 5) {
+            stemLen = sizeof(tempFileName) - 5;
+        }
+        memcpy(tempFileName, modelFilename, stemLen);
+        memcpy(tempFileName + stemLen, ".mdx", 5);
         ri.FS_FreeFile(buffer);
         return R_LoadModel(tempFileName);
     } else {

@@ -416,12 +416,10 @@ static char *output_path_for(char const *input, char const *outdir, bool from_mp
     path = from_mpq || outdir ? Tool_PathJoin(outdir ? outdir : "", input) : Tool_XStrdup(input);
     Tool_NormalizeSlashes(path, '/');
     dot = strrchr(path, '.');
-    if (dot) {
-        strcpy(dot, ".jpg");
-    } else {
-        size_t len = strlen(path);
-        path = Tool_XRealloc(path, len + 5);
-        strcpy(path + len, ".jpg");
+    {
+        size_t base_len = dot ? (size_t)(dot - path) : strlen(path);
+        path = Tool_XRealloc(path, base_len + 5);
+        memcpy(path + base_len, ".jpg", 5);
     }
 
     parent = Tool_PathParent(path);

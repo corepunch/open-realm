@@ -19,7 +19,7 @@ static void ConvertMDLXAnimationName(LPANIMATION seq) {
     char buffer[80];
     char *last_char = buffer;
     memset(buffer, 0, sizeof(buffer));
-    strcpy(buffer, seq->name);
+    strlcpy(buffer, seq->name, sizeof(buffer));
     for (char *ch = buffer; *ch; ch++) {
         if (isdigit(*ch) || *ch == '-') {
             while (*(++last_char)) {
@@ -214,7 +214,7 @@ static BYTE *ReadModelFile(LPCSTR filename, DWORD *out_size) {
         size_t len = strlen(filename);
         if (len == 0 || len >= sizeof(path))
             return NULL;
-        strcpy(path, filename);
+        memcpy(path, filename, len + 1);
         path[len - 1] = 'x';
         data = gi.ReadFile(path, out_size);
     }

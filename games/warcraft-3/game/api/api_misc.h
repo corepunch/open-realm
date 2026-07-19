@@ -107,13 +107,13 @@ MATH_FUNC(S2R, atoi, string, number);
 DWORD I2S(LPJASS j) {
     LONG i = jass_checkinteger(j, 1);
     char buffer[64] = { 0 };
-    sprintf(buffer, "%d", i);
+    snprintf(buffer, sizeof(buffer), "%d", i);
     return jass_pushstring(j, buffer);
 }
 DWORD R2S(LPJASS j) {
     FLOAT r = jass_checknumber(j, 1);
     char buffer[64] = { 0 };
-    sprintf(buffer, "%f", r);
+    snprintf(buffer, sizeof(buffer), "%f", r);
     return jass_pushstring(j, buffer);
 }
 DWORD R2SW(LPJASS j) {
@@ -769,7 +769,7 @@ DWORD DialogDisplay(LPJASS j) {
 DWORD InitGameCache(LPJASS j) {
     API_ALLOC(ggamecache_t, gamecache);
     LPCSTR campaignFile = jass_checkstring(j, 1);
-    strcpy(gamecache->campaign, campaignFile);
+    strlcpy(gamecache->campaign, campaignFile, sizeof(gamecache->campaign));
     return 1;
 }
 DWORD SaveGameCache(LPJASS j) {

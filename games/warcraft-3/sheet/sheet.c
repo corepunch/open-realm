@@ -115,7 +115,7 @@ static void SheetCacheStore(LPCSTR fileName, sheetRow_t *rows, sheetRow_t *tail)
         free(entry);
         return;
     }
-    strcpy(entry->name, key);
+    memcpy(entry->name, key, strlen(key) + 1);
     entry->rows = rows;
     entry->tail = tail ? tail : rows;
     entry->next = sheet_cache;

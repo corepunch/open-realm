@@ -302,13 +302,13 @@ void IN_SelectUp(void) {
             num = mn;
             memcpy(selected, merged, sizeof(DWORD) * mn);
         }
-        strcpy(buffer, "select");
+        strlcpy(buffer, "select", sizeof(buffer));
         FOR_LOOP(i, num) {
             size_t used = strlen(buffer);
             snprintf(buffer + used, sizeof(buffer) - used, " %d", selected[i]);
         }
         MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-        SZ_Printf(&cls.netchan.message, buffer);
+        SZ_Printf(&cls.netchan.message, "%s", buffer);
         
         /* Store selected entities and request UI data (Phase 8.6) */
         cl.selection.num_selected = num;
@@ -320,7 +320,7 @@ void IN_SelectUp(void) {
 void CL_ForwardToServer_f(void) {
     extern LPCSTR current_command;
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
-    SZ_Printf(&cls.netchan.message, current_command+4);
+    SZ_Printf(&cls.netchan.message, "%s", current_command+4);
 }
 
 void CL_InitInput(void) {

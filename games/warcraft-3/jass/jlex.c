@@ -62,16 +62,27 @@ LPCSTR parse_segment(LPPARSER p) {
     if (*p->buffer == '\"') {
         ++start;
         p->buffer = strchr(start, '\"');
-        memcpy(segment, start, p->buffer - start);
-        segment[p->buffer - start] = '\0';
+        if (!p->buffer) {
+            p->buffer = start + strlen(start);
+        }
+        size_t seglen = (size_t)(p->buffer - start);
+        if (seglen >= MAX_SEGMENT_SIZE) {
+            seglen = MAX_SEGMENT_SIZE - 1;
+        }
+        memcpy(segment, start, seglen);
+        segment[seglen] = '\0';
         p->buffer = strchr(p->buffer, ',');
     } else {
         p->buffer = strchr(p->buffer, ',');
         if (p->buffer) {
-            memcpy(segment, start, p->buffer - start);
-            segment[p->buffer - start] = '\0'; // Null-terminate the segment
+            size_t seglen = (size_t)(p->buffer - start);
+            if (seglen >= MAX_SEGMENT_SIZE) {
+                seglen = MAX_SEGMENT_SIZE - 1;
+            }
+            memcpy(segment, start, seglen);
+            segment[seglen] = '\0'; // Null-terminate the segment
         } else {
-            strcpy(segment, start);
+            strlcpy(segment, start, MAX_SEGMENT_SIZE);
             p->buffer = start + strlen(start);
             return segment;
         }
@@ -88,15 +99,20 @@ LPCSTR parse_segment2(LPPARSER p) {
     while (isspace(*p->buffer))
         ++p->buffer;
     DWORD num_quotes = 0;
-    for (LPSTR out = segment; *p->buffer; ++p->buffer, ++out) {
+    LPSTR out = segment;
+    LPSTR const out_end = segment + MAX_SEGMENT_SIZE - 1;
+    for (; *p->buffer; ++p->buffer) {
         if (*p->buffer == ',' && (num_quotes & 1) == 0) {
             ++p->buffer;
             break;
         }
         if (*p->buffer == '"')
             ++num_quotes;
-        *out = *p->buffer;
+        if (out < out_end) {
+            *out++ = *p->buffer;
+        }
     }
+    *out = '\0';
     return segment;
 }
 

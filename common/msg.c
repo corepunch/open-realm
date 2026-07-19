@@ -437,9 +437,26 @@ void MSG_ReadDeltaPlayerState(LPSIZEBUF msg,
 
 void SZ_Printf(LPSIZEBUF msg, LPCSTR fmt, ...) {
     va_list argptr;
+    int written;
+
+    if (msg->cursize >= msg->maxsize) {
+        msg->overflowed = true;
+        return;
+    }
+
     va_start(argptr, fmt);
-    msg->cursize += vsprintf((LPSTR)(msg->data + msg->cursize), fmt, argptr) + 1;
+    written = vsnprintf((LPSTR)(msg->data + msg->cursize), msg->maxsize - msg->cursize, fmt, argptr);
     va_end(argptr);
+
+    if (written < 0 || (DWORD)written >= msg->maxsize - msg->cursize) {
+        fprintf(stderr,
+                "Write buffer overflow (msg): maxsize=%u cursize=%u\n",
+                (unsigned)msg->maxsize,
+                (unsigned)msg->cursize);
+        msg->overflowed = true;
+        return;
+    }
+    msg->cursize += written + 1;
 }
 
 void MSG_WriteEntityBits(LPSIZEBUF buf, DWORD bits, DWORD number) {

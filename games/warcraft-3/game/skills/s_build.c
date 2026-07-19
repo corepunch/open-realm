@@ -36,7 +36,7 @@ static void FillUnitData(LPENTITYSTATE ent, DWORD unit_id, LPCSTR anim) {
     LPCSTR model_filename = UNIT_MODEL(unit_id);
     if (!model_filename)
         return;
-    sprintf(buffer, "%s.mdx", model_filename);
+    snprintf(buffer, sizeof(buffer), "%s.mdx", model_filename);
     memset(ent, 0, sizeof(entityState_t));
     ent->class_id = unit_id;
     ent->model = G_RegisterModel(buffer);

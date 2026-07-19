@@ -187,7 +187,7 @@ void SV_Map(LPCSTR mapFilename) {
     SV_InitGame();
     memset(&sv, 0, sizeof(struct server));
     sv.state = ss_loading;
-    strcpy(sv.configstrings[CS_WORLD], mapFilename);
+    strlcpy(sv.configstrings[CS_WORLD], mapFilename, sizeof(sv.configstrings[CS_WORLD]));
     SZ_Init(&sv.multicast, sv.multicast_buf, MAX_MSGLEN);
     if (!ge->LoadMap(mapFilename)) {
         fprintf(stderr, "SV_Map: map load failed\n");

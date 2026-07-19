@@ -1396,7 +1396,7 @@ void Com_Error(errorCode_t code, LPCSTR fmt, ...) {
     recursive = true;
 
     va_start(argptr,fmt);
-    vsprintf(msg,fmt,argptr);
+    vsnprintf(msg,sizeof(msg),fmt,argptr);
     va_end(argptr);
     
     switch (code) {

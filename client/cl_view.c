@@ -426,8 +426,13 @@ void CL_PrepRefresh(void) {
         PATHSTR portrait = { 0 };
         LPCSTR ext = strstr(filename, ".m");
         if (ext) {
-            memcpy(portrait, filename, ext - filename);
-            sprintf(portrait + strlen(portrait), "_Portrait%s", ext);
+            size_t base_len = (size_t)(ext - filename);
+            if (base_len >= sizeof(portrait)) {
+                base_len = sizeof(portrait) - 1;
+            }
+            memcpy(portrait, filename, base_len);
+            portrait[base_len] = '\0';
+            snprintf(portrait + base_len, sizeof(portrait) - base_len, "_Portrait%s", ext);
         }
         cl.models[i] = re.LoadModel(filename);
         if (!cl.models[i]) {

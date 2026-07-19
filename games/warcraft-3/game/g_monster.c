@@ -398,7 +398,7 @@ void SP_SpawnUnit(LPEDICT self) {
     PATHSTR model_filename;
     LPCSTR uber_splat = UNIT_UBER_SPLAT(self->class_id);
     LPCSTR path_tex = UNIT_PATH_TEX(self->class_id);
-    sprintf(model_filename, "%s.mdx", UNIT_MODEL(self->class_id));
+    snprintf(model_filename, sizeof(model_filename), "%s.mdx", UNIT_MODEL(self->class_id));
     self->s.model = G_RegisterModel(model_filename);
     self->s.splat = M_LoadUberSplat(uber_splat);
     if (UNIT_IS_BUILDING(self->class_id)) {

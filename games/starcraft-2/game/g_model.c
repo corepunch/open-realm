@@ -158,10 +158,10 @@ static BYTE *ReadModelFile(LPCSTR filename, DWORD *out_size) {
 
         if (len == 0 || len >= sizeof(path))
             return NULL;
-        strcpy(path, filename);
+        memcpy(path, filename, len + 1);
         ext = strstr(path, ".m3");
-        if (ext && ext[3] == '\0') {
-            strcpy(ext, ".m3x");
+        if (ext && ext[3] == '\0' && (size_t)(ext - path) + 5 <= sizeof(path)) {
+            memcpy(ext, ".m3x", 5);
             data = gi.ReadFile(path, out_size);
         }
     }

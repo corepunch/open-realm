@@ -135,7 +135,7 @@ static LPCMODEL R_LoadCliffModel(cliffData_t const *data, char const *ccfg, bool
     }
     struct tCliff *cliff = ri.MemAlloc(sizeof(struct tCliff));
     cliff->cliffid = cliffid;
-    sprintf(zBuffer, "Doodads\\Terrain\\%s\\%s%s0.mdx", dir, dir, ccfg);
+    snprintf(zBuffer, sizeof(zBuffer), "Doodads\\Terrain\\%s\\%s%s0.mdx", dir, dir, ccfg);
     cliff->model = R_LoadModel(zBuffer);
     ADD_TO_LIST(cliff, g_cliffs);
     return cliff->model;
@@ -154,13 +154,13 @@ static LPCTEXTURE R_LoadCliffTexture(DWORD cliffID, char tileset, cliffData_t co
     entry->cliffid = cliffID;
     entry->tileset = tileset;
 
-    sprintf(buffer, "%s\\%c_%s.blp", data->texDir, tileset, data->texFile);
+    snprintf(buffer, sizeof(buffer), "%s\\%c_%s.blp", data->texDir, tileset, data->texFile);
     void *testbuf = NULL;
     if (ri.FS_ReadFile(buffer, &testbuf) >= 0) {
         ri.FS_FreeFile(testbuf);
         entry->texture = R_LoadTexture(buffer);
     } else {
-        sprintf(buffer, "%s\\%s.blp", data->texDir, data->texFile);
+        snprintf(buffer, sizeof(buffer), "%s\\%s.blp", data->texDir, data->texFile);
         entry->texture = R_LoadTexture(buffer);
     }
 
