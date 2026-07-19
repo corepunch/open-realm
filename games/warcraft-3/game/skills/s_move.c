@@ -248,6 +248,17 @@ static BOOL move_is_blocked(LPEDICT ent, FLOAT distance, FLOAT move_distance) {
         : ent->move_blocked_frames >= MOVE_BLOCKED_FRAMES;
 }
 
+static umove_t move_move_hold = { "stand", NULL, NULL, &a_move };
+
+static void move_hold(LPEDICT ent) {
+    ent->build = NULL;
+    ent->s.renderfx &= ~RF_NO_UBERSPLAT;
+    ent->s.ability = 0;
+    ent->move_last_distance = 0;
+    ent->move_blocked_frames = 0;
+    unit_setmove(ent, &move_move_hold);
+}
+
 static void ai_move_walk(LPEDICT ent) {
     FLOAT distance = M_DistanceToGoal(ent);
     FLOAT move_distance = unit_movedistance(ent);
@@ -262,7 +273,7 @@ static void ai_move_walk(LPEDICT ent) {
         }
         ent->stand(ent);
     } else if (move_is_blocked(ent, distance, move_distance)) {
-        ent->stand(ent);
+        move_hold(ent);
     } else {
         unit_changeangle(ent);
         unit_moveindirection(ent);

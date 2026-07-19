@@ -15,7 +15,7 @@ static FLOAT angle_wrap(FLOAT a) {
 extern ability_t a_move;
 
 /* A unit is actively executing a ground move order (right-click move). */
-static BOOL unit_is_walking(LPCEDICT ent) {
+BOOL unit_is_walking(LPCEDICT ent) {
     return ent->currentmove && ent->currentmove->ability == &a_move;
 }
 

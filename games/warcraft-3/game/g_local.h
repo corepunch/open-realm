@@ -768,6 +768,7 @@ void unit_moveindirection(LPEDICT);
 void unit_changeangle(LPEDICT);
 BOOL M_MoveIsValid(LPEDICT self, LPCVECTOR2 pos);
 BOOL M_CheckAttack(LPEDICT);
+BOOL unit_is_walking(LPCEDICT);
 void unit_setanimation(LPEDICT, LPCSTR);
 void unit_setmove(LPEDICT, umove_t *);
 void M_MoveFrame(LPEDICT);
