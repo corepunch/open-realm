@@ -401,8 +401,26 @@ DWORD ForceEnumEnemies(LPJASS j) {
     return 0;
 }
 DWORD ForForce(LPJASS j) {
-    //LPDWORD whichForce = jass_checkhandle(j, 1, "force");
-    //LPCJASSFUNC callback = jass_checkcode(j, 2);
+    extern LPPLAYER currentenumplayer;
+    LPDWORD whichForce = jass_checkhandle(j, 1, "force");
+    LPCJASSFUNC callback = jass_checkcode(j, 2);
+    LPPLAYER previous = currentenumplayer;
+
+    if (!whichForce || !callback) {
+        return 0;
+    }
+    FOR_LOOP(i, MAX_PLAYERS) {
+        if (!(*whichForce & (1 << i))) {
+            continue;
+        }
+        currentenumplayer = G_GetPlayerByNumber(i);
+        if (!currentenumplayer) {
+            continue;
+        }
+        jass_pushfunction(j, callback);
+        jass_call(j, 0);
+    }
+    currentenumplayer = previous;
     return 0;
 }
 DWORD IsUnitInRegion(LPJASS j) {
@@ -442,7 +460,8 @@ DWORD GetFilterPlayer(LPJASS j) {
     return jass_pushnullhandle(j, "player");
 }
 DWORD GetEnumPlayer(LPJASS j) {
-    return jass_pushnullhandle(j, "player");
+    extern LPPLAYER currentenumplayer;
+    return jass_pushlighthandle(j, currentenumplayer, "player");
 }
 DWORD ExecuteFunc(LPJASS j) {
     LPCSTR funcName = jass_checkstring(j, 1);
@@ -1212,8 +1231,9 @@ DWORD SetCinematicScene(LPJASS j) {
     //FLOAT voiceoverDuration = jass_checknumber(j, 6);
     if (G_SkipCutscene()) return 0;
     if (currentplayer) {
-        currentplayer->texts[PLAYERTEXT_SPEAKER] = G_LevelString(speakerTitle);
-        currentplayer->texts[PLAYERTEXT_DIALOGUE] = G_LevelString(text);
+        LPGAMECLIENT gc = PLAYER_CLIENT(currentplayer);
+        G_SetPlayerText(gc, PLAYERTEXT_SPEAKER, G_LevelString(speakerTitle));
+        G_SetPlayerText(gc, PLAYERTEXT_DIALOGUE, G_LevelString(text));
         currentplayer->cinematic_portrait = 0;
         if (portraitUnitId) {
             LPCSTR model = UNIT_MODEL((DWORD)portraitUnitId);
@@ -1223,19 +1243,18 @@ DWORD SetCinematicScene(LPJASS j) {
                 currentplayer->cinematic_portrait = G_RegisterModel(mf);
             }
         }
-        if (sceneDuration > 0) {
-            LPGAMECLIENT gc = PLAYER_CLIENT(currentplayer);
-            if (gc) gc->cinematic_end_time = gi.GetTime() + (DWORD)(sceneDuration * 1000.0f);
-        }
+        if (gc) gc->cinematic_end_time = sceneDuration > 0 ? gi.GetTime() + (DWORD)(sceneDuration * 1000.0f) : 0;
         UI_WriteCinematicLayer(PLAYER_ENT(currentplayer));
     }
     return 0;
 }
 DWORD EndCinematicScene(LPJASS j) {
     if (currentplayer) {
-        currentplayer->texts[PLAYERTEXT_SPEAKER] = "";
-        currentplayer->texts[PLAYERTEXT_DIALOGUE] = "";
+        LPGAMECLIENT gc = PLAYER_CLIENT(currentplayer);
+        G_SetPlayerText(gc, PLAYERTEXT_SPEAKER, "");
+        G_SetPlayerText(gc, PLAYERTEXT_DIALOGUE, "");
         currentplayer->cinematic_portrait = 0;
+        if (gc) gc->cinematic_end_time = 0;
         UI_WriteCinematicLayer(PLAYER_ENT(currentplayer));
     }
     return 0;

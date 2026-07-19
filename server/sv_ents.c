@@ -89,7 +89,21 @@ static void SV_AddVisibleEntityCandidate(visibleEntityCandidate_t *candidates,
         }
     }
     if (score >= candidates[worst].score) {
+        if (Cvar_Integer("sv_debug_entities", 0)) {
+            fprintf(stderr,
+                    "SV entity candidate overflow: ent=%d score=%.1f dropped, worst kept ent=%d score=%.1f (%d/%d slots full)\n",
+                    edict->s.number, score,
+                    candidates[worst].edict->s.number, candidates[worst].score,
+                    *num_candidates, MAX_PACKET_ENTITIES);
+        }
         return;
+    }
+    if (Cvar_Integer("sv_debug_entities", 0)) {
+        fprintf(stderr,
+                "SV entity candidate overflow: ent=%d score=%.1f evicts ent=%d score=%.1f (%d/%d slots full)\n",
+                edict->s.number, score,
+                candidates[worst].edict->s.number, candidates[worst].score,
+                *num_candidates, MAX_PACKET_ENTITIES);
     }
     candidates[worst] = (visibleEntityCandidate_t){ edict, score };
 }

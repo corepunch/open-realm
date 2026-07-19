@@ -280,8 +280,8 @@ static void G_RunClients(void) {
          * EndCinematicScene; the original WC3 engine times out via the
          * sceneDuration parameter of SetCinematicScene. */
         if (client->cinematic_end_time && gi.GetTime() >= client->cinematic_end_time) {
-            client->ps.texts[PLAYERTEXT_SPEAKER] = "";
-            client->ps.texts[PLAYERTEXT_DIALOGUE] = "";
+            G_SetPlayerText(client, PLAYERTEXT_SPEAKER, "");
+            G_SetPlayerText(client, PLAYERTEXT_DIALOGUE, "");
             client->ps.cinematic_portrait = 0;
             client->cinematic_end_time = 0;
             UI_WriteCinematicLayer(G_GetPlayerEntityByNumber(client->ps.number));

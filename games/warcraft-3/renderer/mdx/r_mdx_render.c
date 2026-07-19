@@ -121,7 +121,8 @@ static mdxSequence_t const *R_SelectUISequence(mdxModel_t const *mdx, LPCSTR ani
             seq = MDLX_FindSequenceByName(mdx, anim);
         }
     }
-    if (!seq && mdx->cameras && anim && (!strcmp(anim, "Stand") || !strcmp(anim, "Portrait"))) {
+    if (!seq && mdx->cameras && anim &&
+        (!strcmp(anim, "Stand") || !strcmp(anim, "Portrait") || !strcmp(anim, "Portrait Talk"))) {
         FOR_LOOP(i, mdx->num_sequences) {
             LPCSTR name = mdx->sequences[i].name;
             size_t len = strlen("Portrait");

@@ -66,6 +66,7 @@ DWORD NAME(LPJASS j) { \
 
 LPPLAYER currentplayer = NULL;
 LPEDICT currentunit = NULL;
+LPPLAYER currentenumplayer = NULL;
 
 LPCSTR keywords[] = {
     "elseif", "else", "endif", "set", "endfunction", "local", "then", NULL

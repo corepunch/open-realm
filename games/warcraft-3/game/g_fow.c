@@ -831,6 +831,7 @@ static BOOL G_FowPlayerFogDisabled(DWORD player) {
 
 BOOL G_FowPlayerCanSeeEntity(DWORD player, LPCEDICT ent) {
     DWORD x, y, index;
+    fowPlayerGrid_t const *grid;
 
     if (!ent || player >= MAX_PLAYERS || !G_FowReady()) {
         return true;
@@ -847,8 +848,13 @@ BOOL G_FowPlayerCanSeeEntity(DWORD player, LPCEDICT ent) {
         return false;
     }
     index = y * level.fow.width + x;
-    return level.fow.players[player].visible &&
-           level.fow.players[player].visible[index] != 0;
+    grid = &level.fow.players[player];
+    /* Static structures stay rendered (shrouded) once explored, matching
+     * authentic WC3 fog-of-war; only mobile units require current vision. */
+    if (UNIT_IS_BUILDING(ent->class_id)) {
+        return grid->explored && grid->explored[index] != 0;
+    }
+    return grid->visible && grid->visible[index] != 0;
 }
 
 static BYTE *G_FowPlaneForFlags(fowPlayerGrid_t *grid, DWORD flags, DWORD plane) {
