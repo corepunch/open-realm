@@ -86,9 +86,13 @@ static void CL_ReadPacketEntities(LPSIZEBUF msg) {
                         old.origin.y,
                         old.origin.z);
             }
-            memset(ent, 0, sizeof(centity_t));
+            memset(&ent->current, 0, sizeof(ent->current));
+            memset(&ent->prev, 0, sizeof(ent->prev));
             removed++;
             continue;
+        }
+        if (!old.model) {
+            ent->current = ent->baseline;
         }
         ent->prev = ent->current;
         MSG_ReadDeltaEntity(msg, &ent->current, nument, bits);
