@@ -89,21 +89,7 @@ static void SV_AddVisibleEntityCandidate(visibleEntityCandidate_t *candidates,
         }
     }
     if (score >= candidates[worst].score) {
-        if (Cvar_Integer("sv_debug_entities", 0)) {
-            fprintf(stderr,
-                    "SV entity candidate overflow: ent=%d score=%.1f dropped, worst kept ent=%d score=%.1f (%d/%d slots full)\n",
-                    edict->s.number, score,
-                    candidates[worst].edict->s.number, candidates[worst].score,
-                    *num_candidates, MAX_PACKET_ENTITIES);
-        }
         return;
-    }
-    if (Cvar_Integer("sv_debug_entities", 0)) {
-        fprintf(stderr,
-                "SV entity candidate overflow: ent=%d score=%.1f evicts ent=%d score=%.1f (%d/%d slots full)\n",
-                edict->s.number, score,
-                candidates[worst].edict->s.number, candidates[worst].score,
-                *num_candidates, MAX_PACKET_ENTITIES);
     }
     candidates[worst] = (visibleEntityCandidate_t){ edict, score };
 }
@@ -119,7 +105,9 @@ LPENTITYSTATE SV_NextClientEntity(void) {
 void SV_BuildClientFrame(LPCLIENT client) {
     edict_t *clent = client->edict;
     LPCLIENTFRAME frame = &client->frames[sv.framenum & UPDATE_MASK];
-    visibleEntityCandidate_t candidates[MAX_PACKET_ENTITIES];
+    /* MAX_PACKET_ENTITIES (16384) makes this array too large for the stack
+     * (~256KB per call, every client, every frame) - keep it static instead. */
+    static visibleEntityCandidate_t candidates[MAX_PACKET_ENTITIES];
     int num_candidates = 0;
 #ifdef WOW
     int first_entity = 0;
