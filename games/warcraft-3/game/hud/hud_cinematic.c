@@ -80,7 +80,7 @@ void UI_WriteCinematicLayer(LPEDICT ent) {
     if (has_portrait) {
         /* FT_PORTRAIT serialization reads Portrait.model; Texture.Image left the transmitted model at zero. */
         UI_SetPortraitFrameModel(cin.CinematicPortrait, ps->cinematic_portrait);
-        cin.CinematicPortrait->Text = "Portrait";
+        cin.CinematicPortrait->Text = has_dialogue ? "Portrait Talk" : "Portrait";
     }
 
     if (has_speaker) {
