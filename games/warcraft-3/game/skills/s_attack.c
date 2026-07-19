@@ -151,7 +151,7 @@ void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
     } else {
         target->health.value -= damage;
     }
-    if (can_attack(target)) {
+    if (can_attack(target) && !unit_is_walking(target)) {
         order_attack(target, attacker);
     } else if (target->pain) {
         target->pain(target);
