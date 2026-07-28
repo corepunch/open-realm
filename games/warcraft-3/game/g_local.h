@@ -763,6 +763,7 @@ void ai_stand(LPEDICT);
 void ai_pain(LPEDICT);
 void ai_idle(LPEDICT);
 void unit_runwait(LPEDICT, void (*callback)(LPEDICT ));
+void unit_stand(LPEDICT);
 void unit_entercombat(LPEDICT, LPEDICT);
 void unit_leavecombat(LPEDICT);
 BOOL unit_affectingcombat(LPEDICT);
