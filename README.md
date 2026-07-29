@@ -4,6 +4,8 @@
 
 **OpenRealm** is an open-source implementation of Warcraft III that uses SDL2 and runs on Windows, Linux, and macOS.
 
+[![Discord](https://img.shields.io/discord/5W66nrcaB?label=Discord&logo=discord)](https://discord.gg/5W66nrcaB)
+
 It was developed using War3.mpq from Warcraft III v1.0 as reference, with ongoing support for version 1.29b.
 
 <a href="https://corepunch.github.io/open-realm/">📖 Documentation</a> · <a href="https://youtu.be/vg7Jm046vcI">▶ Watch the demo on YouTube</a> · see screenshots below
