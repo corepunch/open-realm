@@ -8,6 +8,8 @@ It was developed using War3.mpq from Warcraft III v1.0 as reference, with ongoin
 
 <a href="https://corepunch.github.io/open-realm/">📖 Documentation</a> · <a href="https://youtu.be/vg7Jm046vcI">▶ Watch the demo on YouTube</a> · see screenshots below
 
+<a href="https://discord.gg/5W66nrcaB">Discord server</a> for questions
+
 ## Download
 
 Pre-built binaries for Linux and macOS are available on the [Releases page](https://github.com/corepunch/open-realm/releases/latest).
