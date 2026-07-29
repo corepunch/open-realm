@@ -8,7 +8,9 @@ It was developed using War3.mpq from Warcraft III v1.0 as reference, with ongoin
 
 <a href="https://corepunch.github.io/open-realm/">📖 Documentation</a> · <a href="https://youtu.be/vg7Jm046vcI">▶ Watch the demo on YouTube</a> · see screenshots below
 
-<a href="https://discord.gg/5W66nrcaB">Discord server</a> for questions
+## Community
+
+Join the <a href="https://discord.gg/5W66nrcaB">Discord server</a> to discuss development, ask questions, share screenshots, and contribute:
 
 ## Download
 
