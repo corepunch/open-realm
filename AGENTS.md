@@ -13,6 +13,9 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | Diagnostic tools (mpqtool, dbctool, mdxtool, text renderer, profiler) | [docs/diagnostic-tools.md](docs/diagnostic-tools.md) |
 | UI screen authoring, FDF conventions, ConsoleUI, stb_fdf.h | [docs/ui-authoring.md](docs/ui-authoring.md) |
 | WoW character display, DBC/skin-section/component-texture rules | [docs/wow-character.md](docs/wow-character.md) |
+| WoW magic schools, damage types, buffs/debuffs, CC, status effects | [games/world-of-warcraft/docs/magic-and-effects.md](games/world-of-warcraft/docs/magic-and-effects.md) |
+| WoW creature types, classifications, difficulty, aggro/threat | [games/world-of-warcraft/docs/enemies-and-creatures.md](games/world-of-warcraft/docs/enemies-and-creatures.md) |
+| WoW weapons, classes, combat roles, specializations | [games/world-of-warcraft/docs/weapons-and-classes.md](games/world-of-warcraft/docs/weapons-and-classes.md) |
 | Entity sound architecture | [doc/architecture/sound.md](doc/architecture/sound.md) |
 | WC3 data model (SLK, unit stats, combat) | [docs/wc3-data-model.md](docs/wc3-data-model.md) |
 | SC2 HUD layout pipeline (sc2BaseFrame_t → uiFrame_t, layer IDs, stat bindings) | [games/starcraft-2/docs/hud-layout-pipeline.md](games/starcraft-2/docs/hud-layout-pipeline.md) |

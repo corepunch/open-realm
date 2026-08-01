@@ -66,6 +66,25 @@
 - mangos classic M2 notes mirror: https://github-wiki-see.page/m/Marzec737/mangos-classic/wiki/M2-files
 - Archival `World of Warcraft Formats` PDF mirror: https://lasatmanstanding.wordpress.com/wp-content/uploads/2010/05/wow-formats-2.pdf
 
+## Combat and Game Design References
+
+- `games/world-of-warcraft/docs/magic-and-effects.md`: Magic schools, damage types, multi-school system, buffs/debuffs, DoT/HoT, crowd control, status effects.
+- `games/world-of-warcraft/docs/enemies-and-creatures.md`: Creature types/taxonomy, classifications (normal/elite/rare/boss), difficulty tiers, aggro/threat, NPC AI roles.
+- `games/world-of-warcraft/docs/weapons-and-classes.md`: Weapon types, class weapon access, combat roles (tank/healer/DPS), all class specializations, primary/secondary stats.
+
+### External Combat References
+
+- Warcraft Wiki — Magic schools: https://warcraft.wiki.gg/wiki/Magic_schools
+- Warcraft Wiki — Creature: https://warcraft.wiki.gg/wiki/Creature
+- Warcraft Wiki — Weapon: https://warcraft.wiki.gg/wiki/Weapon
+- Warcraft Wiki — Class role: https://warcraft.wiki.gg/wiki/Class_role
+- Warcraft Wiki — Crowd control: https://warcraft.wiki.gg/wiki/Crowd_control
+- Warcraft Wiki — Debuff: https://warcraft.wiki.gg/wiki/Debuff
+- Warcraft Wiki — Threat: https://warcraft.wiki.gg/wiki/Threat
+- Maxroll — Magic Schools: https://maxroll.gg/wow/resources/magic-schools
+- Maxroll — Stats and Attributes: https://maxroll.gg/wow/resources/stats-and-attributes
+- Liquipedia — Diminishing Returns: https://liquipedia.net/worldofwarcraft/Diminishing_Returns
+
 ## Grass Rendering References
 
 - NVIDIA GPU Gems, `Rendering Countless Blades of Waving Grass`: https://developer.nvidia.com/gpugems/gpugems/part-i-natural-effects/chapter-7-rendering-countless-blades-waving-grass

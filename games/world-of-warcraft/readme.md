@@ -73,6 +73,9 @@ What the World of Warcraft target currently knows how to load and render.
 - [Grass Rendering System](docs/grass-rendering-system.md): terrain-advertent grass rendering.
 - [References](docs/references.md): public schema references and local source/tool entry points.
 - [Sounds](docs/sounds.md)
+- [Magic And Effects](docs/magic-and-effects.md): magic schools, damage types, multi-school system, buffs/debuffs, DoT/HoT, crowd control, status effects.
+- [Enemies And Creatures](docs/enemies-and-creatures.md): creature types/taxonomy, classifications (normal/elite/rare/boss), difficulty tiers, aggro/threat, NPC AI roles.
+- [Weapons And Classes](docs/weapons-and-classes.md): weapon types, class weapon access, combat roles (tank/healer/DPS), all class specializations, primary/secondary stats.
 
 ### Short Version
 
