@@ -951,6 +951,7 @@ void order_patrol(LPEDICT, LPEDICT);
 void order_patrol_resume(LPEDICT);
 extern umove_t holdpos_move_stand;
 extern umove_t holdpos_move_stand_ready;
+void unit_stand(LPEDICT);
 BOOL G_ActorHasSkill(LPEDICT, LPCSTR);
 void harvest_start(LPEDICT, LPEDICT);
 void harvest_gold_start(LPEDICT, LPEDICT);
