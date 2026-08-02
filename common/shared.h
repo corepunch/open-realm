@@ -528,6 +528,8 @@ typedef enum {
     TE_BLOOD,
     TE_MOVE_CONFIRMATION,
     TE_MISSILE,
+    TE_FIREBOLT_IMPACT,    /* WoW: fire explosion — payload: POSITION, model SHORT */
+    TE_FROSTBOLT_IMPACT,   /* WoW: frost burst — payload: POSITION, model SHORT */
 } tempEvent_t;
 
 typedef enum {

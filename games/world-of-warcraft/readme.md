@@ -82,3 +82,11 @@ What the World of Warcraft target currently knows how to load and render.
 `openwow` mounts locally supplied WoW client data, opens a WDT path such as `World/Maps/Azeroth/Azeroth.wdt`, loads nearby ADT tiles, renders terrain chunks and splat layers, and uses M2 models for creatures/player-style actors. Character appearance is data-driven by packed appearance/equipment values, DBC records, M2 skin section IDs, and composed body textures.
 
 The important rule for future work: keep WoW-specific policy under `games/world-of-warcraft/`. Engine modules should stay format-agnostic and receive generic renderer/game data through the selected-game boundary.
+
+### Related Projects
+
+- [whoahq/whoa](https://github.com/whoahq/whoa) — open-source WoW 3.3.5a client in C++11 (Windows/macOS/Linux), launches against extracted client data
+- [Kelsidavis/WoWee](https://github.com/Kelsidavis/WoWee) — custom WoW client with Warden emulation, SDL2+Vulkan+OpenGL, Linux-native, most active reimplementation
+- [Reinisch/Warcraft-Arena-Unity](https://github.com/Reinisch/Warcraft-Arena-Unity) — arena combat engine in Unity, data-driven spells/auras/effects, AI behavior graphs
+- [TrinityCore](https://github.com/TrinityCore/TrinityCore) — reference WoW server emulator, spell system and combat mechanics
+- [wowemulation-dev/warcraft-rs](https://github.com/wowemulation-dev/warcraft-rs) — Rust crates for BLP/M2/ADT/WDT/WMO parsing

@@ -62,6 +62,8 @@ static animation_t test_animations[] = {
     { .name = "Ready1H",      .interval = { 0, 1000 } },
     { .name = "ReadyUnarmed", .interval = { 0, 1000 } },
     { .name = "Attack1H",     .interval = { 0, 1000 } },
+    { .name = "ReadySpellDirected", .interval = { 0, 1000 } },
+    { .name = "SpellCastDirected",  .interval = { 0, 1000 } },
     { .name = "Pain",         .interval = { 0,  450 } },
     { .name = "Death",        .interval = { 0, 1200 } },
 };
@@ -389,6 +391,12 @@ LPCANIMATION G_GetAnimation(DWORD modelindex, LPCSTR animname) {
 void G_FreeModels(void) {
 }
 
+FLOAT G_GetAttachmentZ(DWORD modelindex, int aid) {
+    (void)modelindex;
+    (void)aid;
+    return 0.0f;
+}
+
 void PF_TextRemoveComments(LPSTR buffer) {
     (void)buffer;
 }
@@ -434,6 +442,7 @@ static void assert_player_ui_payload(void) {
         FOR_LOOP(j, 4) {
             cursor += (DWORD)strlen((LPCSTR)test_last_unicast_buf + cursor) + 1;
         }
+        if (i == 9) ASSERT_EQ_INT(test_last_unicast_buf[cursor], '0');
         cursor++;
     }
     num_inventory = test_last_unicast_buf[cursor++];
@@ -510,7 +519,7 @@ static void test_wow_load_map_initializes_player_state(void) {
     ASSERT_STR_EQ(player->client->ps.name, "Thrall");
     ASSERT_EQ_INT((int)player->client->ps.stats[WOW_STAT_HEALTH], 100);
     ASSERT_EQ_INT((int)player->client->ps.stats[WOW_STAT_HEALTH_MAX], 100);
-    ASSERT_EQ_INT((int)player->client->ps.stats[WOW_STAT_POWER], 42);
+    ASSERT_EQ_INT((int)player->client->ps.stats[WOW_STAT_POWER], 100);
     ASSERT_EQ_INT((int)test_num_images, 0);
     ASSERT_EQ_INT((int)test_unicast_calls, 0);
     ASSERT_NOT_NULL(game->ClientBegin);
@@ -586,8 +595,89 @@ static void test_wow_load_map_spawns_and_runs_creature_state(void) {
     }
 }
 
+/* A cast must replace an active melee swing, hold the ready pose, then launch with the release pose. */
+static void test_wow_fireball_cast_interrupts_melee_and_launches(void) {
+    struct game_export *game = init_game();
+    LPEDICT player, creature, projectile = NULL;
+    wowEntityLocal_t *local;
+    LPCSTR action_argv[] = { "wow_action", "4" };
+
+    ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    player = &wow_edicts[0];
+    creature = first_creature();
+    local = Wow_EntityLocal(player);
+    ASSERT_NOT_NULL(creature);
+    creature->s.origin = (VECTOR3){ player->s.origin.x + 10.0f, player->s.origin.y, player->s.origin.z };
+    creature->s.origin2 = (VECTOR2){ creature->s.origin.x, creature->s.origin.y };
+    player->client->ps.selected_entity = creature->s.number;
+    local->enemy = creature;
+    local->attack_time = local->attack_damage_time = 500;
+    local->attack_backswing_time = 500;
+
+    game->ClientCommand(player, 2, action_argv);
+    ASSERT(local->cast_spell != 0);
+    ASSERT_EQ_INT((int)local->attack_time, 0);
+    ASSERT_STR_EQ(local->animation->name, "ReadySpellDirected");
+    ASSERT_EQ_INT((int)local->gcd_time, 1500);
+
+    for (int i = 0; i < 15; i++) game->RunFrame();
+    ASSERT_EQ_INT((int)local->cast_spell, 0);
+    ASSERT_EQ_INT((int)local->mana, 90);
+    ASSERT_EQ_INT((int)local->gcd_time, 0);
+    ASSERT(local->cast_release_time > 0);
+    ASSERT_STR_EQ(local->animation->name, "SpellCastDirected");
+    FOR_LOOP(i, (DWORD)globals.num_edicts) {
+        wowEntityLocal_t *candidate = Wow_EntityLocal(&wow_edicts[i]);
+        if (wow_edicts[i].inuse && candidate && candidate->kind == WOW_ENTITY_PROJECTILE) {
+            projectile = &wow_edicts[i];
+            break;
+        }
+    }
+    ASSERT_NOT_NULL(projectile);
+    ASSERT_EQ_INT((int)player->client->ps.stats[WOW_STAT_CAST_MAX], 0);
+    if (game->Shutdown) game->Shutdown();
+}
+
+/* Moving after cast start interrupts without spending mana or creating a projectile. */
+static void test_wow_fireball_movement_cancels(void) {
+    struct game_export *game = init_game();
+    LPEDICT player, creature;
+    wowEntityLocal_t *local;
+    LPCSTR action_argv[] = { "wow_action", "4" };
+    LPCSTR move_argv[] = { "move", "1", "0", "328", "8.5" };
+    LPCSTR stop_argv[] = { "move", "0", "0", "328", "8.5" };
+
+    ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    player = &wow_edicts[0];
+    creature = first_creature();
+    local = Wow_EntityLocal(player);
+    ASSERT_NOT_NULL(creature);
+    creature->s.origin = (VECTOR3){ player->s.origin.x + 10.0f, player->s.origin.y, player->s.origin.z };
+    creature->s.origin2 = (VECTOR2){ creature->s.origin.x, creature->s.origin.y };
+    player->client->ps.selected_entity = creature->s.number;
+    game->ClientCommand(player, 5, move_argv);
+    game->ClientCommand(player, 2, action_argv);
+    ASSERT_EQ_INT((int)local->cast_spell, 0);
+    ASSERT_EQ_INT((int)local->gcd_time, 0);
+    game->ClientCommand(player, 5, stop_argv);
+    game->ClientCommand(player, 2, action_argv);
+    game->ClientCommand(player, 5, move_argv);
+    game->RunFrame();
+
+    ASSERT_EQ_INT((int)local->cast_spell, 0);
+    ASSERT_EQ_INT((int)local->mana, 100);
+    ASSERT_EQ_INT((int)player->client->ps.stats[WOW_STAT_CAST_MAX], 0);
+    FOR_LOOP(i, (DWORD)globals.num_edicts) {
+        wowEntityLocal_t *candidate = Wow_EntityLocal(&wow_edicts[i]);
+        ASSERT(!wow_edicts[i].inuse || !candidate || candidate->kind != WOW_ENTITY_PROJECTILE);
+    }
+    if (game->Shutdown) game->Shutdown();
+}
+
 int main(void) {
     RUN_TEST(test_wow_load_map_initializes_player_state);
     RUN_TEST(test_wow_load_map_spawns_and_runs_creature_state);
+    RUN_TEST(test_wow_fireball_cast_interrupts_melee_and_launches);
+    RUN_TEST(test_wow_fireball_movement_cancels);
     TEST_RESULTS();
 }

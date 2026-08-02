@@ -1,113 +1,129 @@
-# WoW Ability System
+# WoW Ability and Casting System
 
-Read this when adding new action bar abilities, modifying the projectile system,
-or working with spell targeting.
+Read this before changing action-bar input, casts, projectiles, spell animation, or spell UI.
 
-## Overview
+## Player Flow
 
-Abilities are dispatched through the `wow_action N` client command, where N is
-the action bar slot index (0-based). The dispatch lives in
-`Wow_ClientCommand()` in `games/world-of-warcraft/game/g_wow.c:1183`.
+Action commands use zero-based slots; keyboard labels are one-based. To cast the current Fireball prototype:
 
-## Action Slots
+1. Select a living hostile target with left mouse button.
+2. Press `5`, which sends `wow_action 4`.
+3. Remain stationary until the cast bar completes. Starting while moving is rejected; moving afterward cancels without
+   spending mana. Escape sends `stopattack`, which cancels an active cast and clears combat targeting.
+4. At completion the server spends mana, launches the missile, and starts the release animation.
 
-| Slot | Command | Ability | Description |
-|------|---------|---------|-------------|
-| 0 | `wow_action 0` | Attack | Melee attack nearest enemy |
-| 1 | `wow_action 1` | Charge | (placeholder) |
-| 2 | `wow_action 2` | Battle Shout | (placeholder) |
-| 3 | `wow_action 3` | Healing Touch | Instant self-heal +2 HP (cap 100) |
-| 4 | `wow_action 4` | Firebolt | Launches homing projectile at target |
+`6` sends `wow_action 5` for Frostbolt. The Mage action-bar payload exposes these icons; the current command handler does
+not yet validate the character's spellbook/class, so class authorization remains required work.
 
-Slots are defined in `wow_start_actions[]` at `g_wow.c:41`.
+## Implemented Prototype Spells
 
-## Projectile System (WC3-style homing missiles)
+| Key / slot | Current name | Cast | Mana | Projectile | Effect | Status |
+|---|---|---:|---:|---:|---|---|
+| `4` / 3 | Healing Touch | instant | 8 | none | self-heal 2 | Prototype; not DBC-driven |
+| `5` / 4 | Fireball | 1.5 s | 10 | 25 units/s | 2 fire damage | Cast, GCD, homing missile, impact event |
+| `6` / 5 | Frostbolt | 2.5 s | 15 | 20 units/s | 3 frost damage, 50% slow for 2 s | Cast, GCD, homing missile, impact event |
 
-### Architecture
+These are engine prototypes, not exact WoW ranks. In the installed `Spell.dbc`, spell 133 is `Fireball (Rank 1)` and spell
+116 is `Frostbolt (Rank 1)`, but `g_wow.c` does not consume either record yet. The Fireball code retains legacy internal
+`firebolt` function/field names; do not describe its hardcoded numbers as an exact Classic rank. The next data-model step
+is a spell definition table populated from `Spell.dbc`,
+`SpellCastTimes.dbc`, `SpellRange.dbc`, and spell visual data.
 
-Projectiles are server-side entities with kind `WOW_ENTITY_PROJECTILE`.
-They move each frame via `Wow_RunProjectile()` toward their tracked target.
-When they reach the target, they apply damage and self-remove.
+Useful local checks:
 
-### Projectile Fields (`wowEntityLocal_t`)
-
-| Field | Purpose |
-|-------|---------|
-| `projectile_target` | Entity number of the tracked target |
-| `projectile_caster` | Entity number of the firing entity |
-| `projectile_speed` | Units/sec movement speed |
-| `projectile_damage` | Damage applied on hit |
-| `projectile_yaw` | Initial heading (radians, set at spawn) |
-| `projectile_pitch` | (reserved) |
-
-### Hit Detection
-
-`Wow_RunProjectile()` computes `step = speed * (FRAMETIME / 1000.0)` each frame.
-If the remaining distance to the target is ≤ step, the projectile hits:
-- Deals `projectile_damage` to `target_local->health`
-- Calls `target->pain(target)` if damage > 0
-- Calls `Wow_AIDie(target, projectile)` if lethal
-- Sets `ent->inuse = false`
-
-If the target dies or is removed mid-flight, the projectile self-destructs.
-
-### Spawning a Projectile
-
-Use `Wow_FireFirebolt(caster, target)` as a reference pattern:
-
-```c
-proj = Wow_Spawn();
-pl = Wow_EntityLocal(proj);
-pl->kind = WOW_ENTITY_PROJECTILE;
-pl->projectile_target = target->s.number;
-pl->projectile_speed = MY_SPEED;
-pl->projectile_damage = MY_DAMAGE;
-proj->s.origin = caster->s.origin;
-proj->s.model = G_RegisterModel("Spells\\MySpell\\MyMissile.m2");
+```sh
+build/bin/dbctool -mpq data/world-of-warcraft/dbc.MPQ dump 'DBFilesClient\Spell.dbc' 16332
+build/bin/dbctool -mpq data/world-of-warcraft/dbc.MPQ str 'DBFilesClient\Spell.dbc' 74 112  # Fireball
+build/bin/dbctool -mpq data/world-of-warcraft/dbc.MPQ str 'DBFilesClient\Spell.dbc' 64 112  # Frostbolt
 ```
 
-All projectile entities run during `Wow_RunFrame()` at `g_wow.c:1125-1135`.
+## Server Cast Contract
 
-## Targeting
+`wowEntityLocal_t` owns the authoritative state:
 
-`Wow_FindSpellTarget(ent, range)` provides the targeting logic:
-1. If `ent->client->ps.selected_entity` is set and within range, use that
-2. Otherwise fall back to `Wow_FindNearestAttackTarget(ent)` (6-unit radius)
+- `cast_spell`, `cast_duration`, `cast_remaining`, `cast_target`, and `cast_origin` describe preparation.
+- `cast_release_time` locks the short post-launch release sequence.
+- `gcd_time` begins when a valid cast begins. A cast longer than 1.5 seconds therefore finishes after its GCD expires.
+- Mana is validated at begin and spent only at completion.
+- Movement or target death cancels preparation. An accepted spell interrupts an active melee swing.
+- `WOW_STAT_CAST_PROGRESS` and `WOW_STAT_CAST_MAX` replicate display state; zero max hides the bar.
 
-## Adding a New Ability
+The transition is:
 
-1. Add the icon entry in `wow_start_actions[]` in `g_wow.c`
-2. Add a `case` in the `wow_action` switch in `Wow_ClientCommand()` (`g_wow.c:1186`)
-3. Write the ability function (static in `g_wow.c`)
-4. Add unit tests in `tests/test_wow_abilities.c`
-5. Run `make test-wow-abilities` to verify
+```text
+idle -> ReadySpellDirected -> launch + SpellCastDirected -> idle/combat
+              | movement, invalid/dead target
+              +-----------------------------------------> idle
+```
 
-## Healing Touch
+The release sequence is deliberately distinct from preparation. Do not use `Attack1H` as a spell fallback and do not let
+auto-chase overwrite the release animation on the launch frame.
 
-`Wow_HealingTouch(caster)` — instant self-heal:
-- Adds `WOW_HEALING_TOUCH_HEAL` (2 HP) to `local->health`, capped at 100
-- Attempts to play `SpellCastOmni` animation (or `Cast`/`Attack1H` fallback)
-- Animated via `Wow_SetEntityMoveFirstAnimation()`
+## Animation IDs and Release Timing
 
-## Firebolt
+WoW character M2 sequence IDs used here are:
 
-`Wow_FireFirebolt(caster, target)` — ranged damage:
-- Fires a homing projectile at `WOW_FIREBOLT_SPEED` (25 units/sec)
-- Deals `WOW_FIREBOLT_DAMAGE` (2) on impact
-- Range for targeting: `WOW_FIREBOLT_RANGE` (30 units)
-- Model resolved via `Wow_FireboltModel()` (tries `FireballMissile.m2`,
-  `Fireball.m2`, `FireBolt.m2`)
-- Caster's `enemy` set to target for combat tracking
+| ID | Loader name | Use |
+|---:|---|---|
+| 53 | `ReadySpellDirected` | looping preparation for a unit-targeted spell |
+| 54 | `ReadySpellOmni` | looping preparation without a direction |
+| 55 | `SpellCastDirected` | unit-targeted launch/release |
+| 56 | `SpellCastOmni` | non-directed launch/release |
 
-See `g_wow.c:482` and `g_wow.c:543`.
+The OrcMale archive proves sequences 53 and 55 exist. Inspect another character with:
 
-## Key Constants
+```sh
+build/bin/m2tool -mpq data/world-of-warcraft/model.MPQ \
+  -model 'Character\Orc\Male\OrcMale.m2' --dump-all
+```
 
-| Constant | Value | File |
-|----------|-------|------|
-| `WOW_FIREBOLT_SPEED` | 25.0 | `g_wow.c:477` |
-| `WOW_FIREBOLT_DAMAGE` | 2 | `g_wow.c:478` |
-| `WOW_FIREBOLT_RANGE` | 30.0 | `g_wow.c:479` |
-| `WOW_HEALING_TOUCH_HEAL` | 2 | `g_wow.c:480` |
-| `WOW_MAX_CLIENTS` | 1 | `g_wow_local.h:8` |
-| `WOW_MAX_EDICTS` | 128 | `g_wow_local.h:9` |
+The authoritative projectile launches when `cast_remaining` reaches zero—the start of `SpellCastDirected`. M2 animation
+events may later refine client-only hand glow or sound timing, but must not delay authoritative damage/spawn semantics.
+
+## Projectile Source and Destination
+
+`data/whoa-master/src/component/Types.hpp` defines M2 attachment 1 as right hand and 2 as left hand. Attachment 11 is the
+head; using it produced the visibly high Fireball launch. The current server seeds Z from right-hand attachment 1's local
+position and falls back to the caster gameplay radius. It targets `target.origin.z + target.radius`.
+
+This is only the server/gameplay approximation. Exact visuals require the renderer's animated attachment matrix:
+
+1. At launch, evaluate `M2_AttachmentMatrix(..., 1, ...)` for the caster's current release frame.
+2. Seed the client projectile visual from that world-space hand transform.
+3. Aim at a renderer-owned impact/chest tag on the target and update that destination while homing.
+4. Keep server hit testing in gameplay space; renderer bone matrices must not cross into the game module.
+
+Warcraft-Arena-Unity uses the same separation: `Projectile.DeterminePositioning()` resolves a configured launch tag from
+the caster renderer, while `SpellVisualProjectile.UpdateDestination()` tracks the target's `Impact` tag. Its default launch
+tag is a hand, not a hardcoded world-height offset.
+
+## Cast Bar UI
+
+The current bar in `game/g_ui.c` fills from `1 - remaining / duration` and hides when max is zero. A complete WoW-style bar
+still needs replicated spell identity so it can show the spell name and icon, plus explicit completed/interrupted outcomes.
+Warcraft-Arena-Unity's `CastFramePresenter` is the reference pattern: visibility follows casting state, progress is derived
+from remaining/total time, and spell identity selects localized label and icon.
+
+Do not infer casting from the local key press. The server's replicated cast state is authoritative, so rejected casts never
+show a false bar and remote-unit cast bars can use the same contract.
+
+## References to Copy Deliberately
+
+- [TrinityCore spell lifecycle](https://github.com/TrinityCore/TrinityCore/tree/master/src/server/game/Spells): validation,
+  preparation, launch, effects, power costs, interrupts, and cooldown ownership.
+- [AzerothCore WotLK DBC schema](https://github.com/azerothcore/azerothcore-wotlk/blob/master/src/server/shared/DataStores/DBCStructure.h):
+  `SpellEntry` and `SpellCastTimesEntry`; verify the installed client build before copying field offsets.
+- [Warcraft-Arena-Unity Spell.cs](https://github.com/Reinisch/Warcraft-Arena-Unity/blob/master/Assets/Scripts/Core/Spells/Spell.cs):
+  cast validation, movement interrupt threshold, launch transition, delayed processing, and costs.
+- [Warcraft-Arena-Unity SpellCast.cs](https://github.com/Reinisch/Warcraft-Arena-Unity/blob/master/Assets/Scripts/Core/Spells/Spell%20Processing/Cast/SpellCast.cs):
+  authoritative versus replicated display cast state.
+- [Warcraft-Arena-Unity Projectile.cs](https://github.com/Reinisch/Warcraft-Arena-Unity/blob/master/Assets/Scripts/Client/Projectiles/Projectile.cs):
+  renderer launch tags, projectile movement, hit scan, and impact handoff.
+- [Warcraft-Arena-Unity cast UI](https://github.com/Reinisch/Warcraft-Arena-Unity/blob/master/Assets/Scripts/Client/UI/Panels/Battle/Unit%20Frames/CastFramePresenter.cs):
+  bar visibility/progress and spell name/icon binding.
+
+## Required Tests
+
+Every cast change must cover successful completion and cancellation. Changes to targeting or resources must additionally
+cover dead/invalid targets, insufficient mana, GCD rejection, and melee interruption. Projectile changes must cover spawn,
+homing, hit, target removal, source height, and both Fire/Frost effect paths.

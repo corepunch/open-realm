@@ -19,6 +19,8 @@ typedef enum {
     WOW_STAT_XP = 5,
     WOW_STAT_XP_MAX = 6,
     WOW_STAT_COPPER = 7,
+    WOW_STAT_CAST_PROGRESS = 8,   /* ms remaining on current cast (0 = idle) */
+    WOW_STAT_CAST_MAX = 9,        /* total cast duration in ms; client computes ratio */
 } wowPlayerStat_t;
 
 #endif

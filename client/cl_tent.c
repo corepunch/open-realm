@@ -1,6 +1,8 @@
 #include "client.h"
 
 #define MAX_MISSILES 64
+#define MAX_SPELL_IMPACTS 32
+#define SPELL_IMPACT_LIFETIME 800  /* ms — one-shot birth animation duration */
 
 typedef struct  {
     VECTOR3 origin;
@@ -22,12 +24,31 @@ typedef struct {
     DWORD killtime;
 } missile_t;
 
+typedef struct {
+    BOOL active;
+    VECTOR3 origin;
+    DWORD model;       /* configstring model index */
+    DWORD starttime;
+    DWORD lifetime;    /* ms */
+} spellImpact_t;
+
 struct {
     missile_t missiles[MAX_MISSILES];
+    spellImpact_t impacts[MAX_SPELL_IMPACTS];
 } tents = { 0 };
 
 moveConfirmation_t cl_confs[MAX_CONFIRMATION_OBJECTS] = { 0 };
 DWORD cl_confcounter = 0;
+
+/* Keep impact bursts bounded; overwrite the oldest only when every slot is active. */
+static spellImpact_t *CL_AllocSpellImpact(void) {
+    spellImpact_t *oldest = &tents.impacts[0];
+    FOR_LOOP(i, MAX_SPELL_IMPACTS) {
+        if (!tents.impacts[i].active) return &tents.impacts[i];
+        if (tents.impacts[i].starttime < oldest->starttime) oldest = &tents.impacts[i];
+    }
+    return oldest;
+}
 
 missile_t *CL_AllocMissile(void) {
     FOR_LOOP(i, MAX_MISSILES) {
@@ -62,6 +83,17 @@ void CL_ParseTEnt(LPSIZEBUF msg) {
             missile->angle = MSG_ReadAngle(msg);
             missile->starttime = cl.time;
             missile->type = MISSILE_NORMAL;
+            break;
+        case TE_FIREBOLT_IMPACT:
+        case TE_FROSTBOLT_IMPACT:
+            {
+                spellImpact_t *imp = CL_AllocSpellImpact();
+                MSG_ReadPos(msg, &imp->origin);
+                imp->model     = MSG_ReadShort(msg);
+                imp->starttime = cl.time;
+                imp->lifetime  = SPELL_IMPACT_LIFETIME;
+                imp->active    = true;
+            }
             break;
         default:
             Com_Error(ERR_DROP, "CL_ParseTEnt: bad type %d", evt);
@@ -119,6 +151,24 @@ void CL_AddMissiles(void) {
     }
 }
 
+static void CL_AddSpellImpacts(void) {
+    FOR_LOOP(i, MAX_SPELL_IMPACTS) {
+        spellImpact_t *imp = &tents.impacts[i];
+        if (!imp->active) continue;
+        DWORD age = cl.time - imp->starttime;
+        if (age >= imp->lifetime) { imp->active = false; continue; }
+        renderEntity_t ent;
+        memset(&ent, 0, sizeof(ent));
+        ent.origin    = imp->origin;
+        ent.scale     = 1.0f;
+        ent.frame     = age;
+        ent.oldframe  = age;
+        ent.model     = cl.models[imp->model];
+        ent.flags     = RF_GROUND_ANCHOR | RF_NO_SHADOW | RF_NO_FOGOFWAR;
+        V_AddEntity(&ent);
+    }
+}
+
 void CL_ClearTEnts(void) {
     memset(&tents, 0, sizeof(tents));
     memset(cl_confs, 0, sizeof(cl_confs));
@@ -127,4 +177,5 @@ void CL_ClearTEnts(void) {
 void CL_AddTEnts(void) {
     CL_AddConfirmations();
     CL_AddMissiles();
+    CL_AddSpellImpacts();
 }

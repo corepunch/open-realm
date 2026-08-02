@@ -31,6 +31,12 @@ LPCANIMATION G_GetAnimation(DWORD modelindex, LPCSTR animname) {
 void G_FreeModels(void) {
 }
 
+FLOAT G_GetAttachmentZ(DWORD modelindex, int aid) {
+    (void)modelindex;
+    (void)aid;
+    return 0.0f;
+}
+
 void PF_TextRemoveComments(LPSTR buffer) {
     (void)buffer;
 }
@@ -140,9 +146,8 @@ static void test_mem_free(HANDLE mem) {
 }
 
 static HANDLE test_read_file(LPCSTR filename, LPDWORD size) {
-    (void)filename;
-    if (size) *size = 0;
-    return NULL;
+    if (size) *size = 1;
+    return strstr(filename, "Missile") ? calloc(1, 1) : NULL;
 }
 
 void UI_WriteWowHud(LPEDICT ent) {
@@ -169,6 +174,7 @@ static struct game_import test_import(void) {
 }
 
 static void reset_state(void) {
+    gi = test_import();
     memset(wow_edicts, 0, sizeof(wow_edicts));
     memset(wow_entity_locals, 0, sizeof(wow_entity_locals));
     memset(wow_clients, 0, sizeof(wow_clients));
@@ -202,6 +208,7 @@ static LPEDICT make_player(void) {
         ent->inuse = true;
         local->kind = WOW_ENTITY_PLAYER;
         local->health = 50;
+        local->mana = 100;
         local->hostile = false;
         local->attack_damage_point = 250;
         local->attack_backswing = 450;
@@ -302,6 +309,42 @@ static void test_firebolt_homing_moves_toward_target(void) {
         Wow_RunProjectile(proj);
     }
     ASSERT(!proj->inuse);
+}
+
+static void test_firebolt_z_height_interpolates_correctly(void) {
+    LPEDICT caster = make_player();
+    LPEDICT target = make_creature(10.0f, 0.0f);
+    LPEDICT proj;
+    wowEntityLocal_t *pl;
+
+    ASSERT_NOT_NULL(caster);
+    ASSERT_NOT_NULL(target);
+    caster->s.origin.z = 0.0f;
+    target->s.origin.z = 0.0f;
+
+    Wow_FireFirebolt(caster, target);
+    proj = &wow_edicts[2];
+    pl = Wow_EntityLocal(proj);
+    ASSERT(proj->inuse);
+    ASSERT_NOT_NULL(pl);
+
+    /* Without renderer bone matrices, the server uses the caster's gameplay radius. */
+    ASSERT_EQ_FLOAT(proj->s.origin.z, 1.0f, 0.001f);
+
+    /* After one frame, Z should still be ~1.6 (not jumping to terrain+3.0) */
+    Wow_RunProjectile(proj);
+    ASSERT(proj->inuse);
+    ASSERT(proj->s.origin.z < 2.0f); /* must not spike to 3+ */
+    ASSERT(proj->s.origin.z >= 1.0f); /* must stay above ground */
+
+    /* Mid-flight Z should be between spawn and target height */
+    while (proj->inuse) {
+        Wow_RunProjectile(proj);
+        if (proj->inuse) {
+            ASSERT(proj->s.origin.z < 2.5f);
+            ASSERT(proj->s.origin.z > 0.5f);
+        }
+    }
 }
 
 static void test_firebolt_applies_damage_on_hit(void) {
@@ -535,6 +578,7 @@ static void test_find_spell_target_returns_null_when_out_of_range(void) {
 int main(void) {
     RUN_TEST(test_firebolt_spawns_projectile);
     RUN_TEST(test_firebolt_homing_moves_toward_target);
+    RUN_TEST(test_firebolt_z_height_interpolates_correctly);
     RUN_TEST(test_firebolt_applies_damage_on_hit);
     RUN_TEST(test_firebolt_lethal_kills_target);
     RUN_TEST(test_firebolt_at_dead_caster_does_nothing);

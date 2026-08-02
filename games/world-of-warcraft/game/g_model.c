@@ -411,6 +411,10 @@ static void M2AnimationName(WORD id, LPSTR out, DWORD out_size) {
         case 40: name = "Fall";           break;
         case 41: name = "SwimIdle";       break;
         case 42: name = "Swim";           break;
+        case 53: name = "ReadySpellDirected"; break;
+        case 54: name = "ReadySpellOmni";     break;
+        case 55: name = "SpellCastDirected";  break;
+        case 56: name = "SpellCastOmni";      break;
         default: break;
     }
     if (name)
@@ -583,6 +587,7 @@ static animation_t *LoadModelM2(BYTE const *data, DWORD read_size, DWORD *out_co
 typedef struct {
     animation_t *animations;
     DWORD        num_animations;
+    FLOAT        attach_hand_z;   /* attachment id=1 (right hand) local Z, 0 if missing */
     char         filename[MAX_PATHLEN];
 } g_cmodel_t;
 
@@ -645,6 +650,44 @@ static g_cmodel_t *LoadModel(LPCSTR filename) {
         case ID_MD21:
         case ID_12DM:
             model->animations = LoadModelM2(data, data_size, &model->num_animations);
+            /* Parse the M2 right-hand attachment for the server's launch-height approximation. */
+            {
+                BYTE const *payload = NULL;
+                DWORD payload_size = 0;
+                if (M2FindPayload(data, data_size, &payload, &payload_size)
+                    && payload_size >= sizeof(svM2Header_t)) {
+                    svM2Header_t const *hdr = (svM2Header_t const *)payload;
+                    BOOL classic = hdr->version <= 263;
+                    /* Empirically verified: classic attachments at 0x104, modern at 0xF0 */
+                    DWORD attach_offset = classic ? 0x104 : 0x0F0;
+                    DWORD lookup_offset = classic ? 0x10C : 0x0F8;
+                    svM2Array_t attach_arr, lookup_arr;
+                    if (attach_offset + sizeof(svM2Array_t) <= payload_size
+                        && lookup_offset + sizeof(svM2Array_t) <= payload_size) {
+                        memcpy(&attach_arr, payload + attach_offset, sizeof(svM2Array_t));
+                        memcpy(&lookup_arr, payload + lookup_offset, sizeof(svM2Array_t));
+                        /* Each attachment entry: id(4) + bone(2) + unk(2) + pos(12) + track(28) = 48 */
+                        static const DWORD ATTACH_STRIDE = 48;
+                        DWORD off, bytes;
+                        if (M2ArrayRange(attach_arr, ATTACH_STRIDE, payload_size, &off, &bytes)) {
+                            BYTE const *attach_base = payload + off;
+                            DWORD attach_count = bytes / ATTACH_STRIDE;
+                            WORD const *lookup = (WORD const *)M2ArrayAt((BYTE *)payload, payload_size,
+                                                                        lookup_arr, sizeof(WORD));
+                            { /* whoa GEOCOMPONENTLINKS: id=1 is the right hand; id=11 is the head. */
+                                WORD idx = (lookup && 1 < (int)lookup_arr.size) ? lookup[1] : 0xFFFF;
+                                if (idx != 0xFFFF && (DWORD)idx < attach_count) {
+                                    BYTE const *entry = attach_base + idx * ATTACH_STRIDE;
+                                    if (*(DWORD const *)entry == 1) {
+                                        FLOAT z; memcpy(&z, entry + 16, sizeof(FLOAT));
+                                        model->attach_hand_z = z;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             break;
         default:
             break;
@@ -663,6 +706,7 @@ static g_cmodel_t *GetModel(DWORD modelindex) {
             return NULL;
         entry->animations     = m->animations;
         entry->num_animations = m->num_animations;
+        entry->attach_hand_z  = m->attach_hand_z;
         gi.MemFree(m);
     }
     return entry->animations ? entry : NULL;
@@ -689,5 +733,17 @@ void G_FreeModels(void) {
         if (g_models[i].animations)
             gi.MemFree(g_models[i].animations);
         memset(&g_models[i], 0, sizeof(g_models[i]));
+    }
+}
+
+/* Return the model-local Z of attachment `aid` for the given model.
+ * Returns 0 if the model or attachment is not found.
+ * Attachment id 1 is the right hand; the animated world transform remains renderer-owned. */
+FLOAT G_GetAttachmentZ(DWORD modelindex, int aid) {
+    g_cmodel_t *model = GetModel(modelindex);
+    if (!model) return 0;
+    switch (aid) {
+        case 1: return model->attach_hand_z;
+        default: return 0;
     }
 }

@@ -156,7 +156,7 @@ bool R_GameEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
     }
 
     origin = entity->origin;
-    if (entity->flags & RF_GROUND_ANCHOR) {
+    if ((entity->flags & RF_GROUND_ANCHOR) && M2_IsCharacterModel(entity->model->m2)) {
         origin.z += M2_GroundOffset(entity->model->m2) * entity->scale;
     }
 

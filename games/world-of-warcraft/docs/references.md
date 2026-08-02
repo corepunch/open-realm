@@ -24,6 +24,20 @@
 - `data/whoa-master/src/model/M2Data.hpp`: M2 arrays, tracks, materials, batches, cameras, bones, and related structures.
 - `data/whoa-master/src/world/map/*`: map, chunk, doodad, object, liquid, and WMO-facing scaffolding.
 
+## Open-Source Client Implementations
+
+- [whoahq/whoa](https://github.com/whoahq/whoa) — unofficial open-source WoW 3.3.5a (build 12340) client in C++11. Targets Windows 10+, macOS 10.14+, Linux. Launches against extracted client data files (no live MPQ reading).
+- [Kelsidavis/WoWee](https://github.com/Kelsidavis/WoWee) — custom open-source WoW client with Warden anti-cheat (Unicorn x86), SDL2, Vulkan, GLM, StormLib, OpenGL renderer, Native Linux. Covers Vanilla, TBC, WotLK. Most active client reimplementation.
+- [Reinisch/Warcraft-Arena-Unity](https://github.com/Reinisch/Warcraft-Arena-Unity) — WoW client-server combat/arena engine in Unity. Data-driven spells/auras/effects, unit frames, action bars, floating combat text, AI behavior graphs. Non-commercial educational fan project.
+
+## Server Emulators
+
+- [TrinityCore](https://github.com/TrinityCore/TrinityCore) — the most active WoW server emulator (WotLK-focused), reference implementation for spell system, combat mechanics, auras, movement.
+- [AzerothCore](https://github.com/AzerothCore/AzerothCore) — modular WoW server emulator (WotLK 3.3.5a), derived from SunwellCore/TrinityCore.
+- [MaNGOS](https://github.com/cmangos) — lineage of server emulators (Zero for Vanilla, One for TBC, Two for WotLK, Three for Cataclysm).
+- [wowemulation-dev/wow-patcher](https://github.com/wowemulation-dev/wow-patcher) — Rust patcher that redirects vanilla WoW client login/cert-verification to private servers.
+- [wowemulation-dev/warcraft-rs](https://github.com/wowemulation-dev/warcraft-rs) — Rust crates for BLP, M2, ADT, WDT, WMO parsing.
+
 ## Format References
 
 - WoWDev wiki home: https://wowdev.wiki/

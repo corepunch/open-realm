@@ -207,5 +207,82 @@ DR categories: **Stuns, Silences, Disarms, Knockbacks, Roots, Disorients, Incapa
 - Warcraft Wiki — Crowd control: https://warcraft.wiki.gg/wiki/Crowd_control
 - Warcraft Wiki — Stun: https://warcraft.wiki.gg/wiki/Stun
 - Warcraft Wiki — Incapacitate: https://warcraft.wiki.gg/wiki/Incapacitate
+- Warcraft Wiki — Fireball: https://warcraft.wiki.gg/wiki/Fireball
+- Warcraft Wiki — Cast time: https://warcraft.wiki.gg/wiki/Cast_time
+- Warcraft Wiki — Casting speed: https://warcraft.wiki.gg/wiki/Casting_speed
+- Warcraft Wiki — Ability types: https://warcraft.wiki.gg/wiki/Ability
 - Maxroll — Magic Schools: https://maxroll.gg/wow/resources/magic-schools
 - Liquipedia — Diminishing Returns: https://liquipedia.net/worldofwarcraft/Diminishing_Returns
+- TrinityCore spell system: https://github.com/TrinityCore/TrinityCore (reference for spell/aura/combat mechanics)
+- Reinisch/Warcraft-Arena-Unity: https://github.com/Reinisch/Warcraft-Arena-Unity (data-driven spells/auras/effects)
+
+## Casting System Status
+
+The concrete implementation and reference map now lives in [`docs/wow-abilities.md`](../../../docs/wow-abilities.md).
+That file records the implemented prototype spells, exact M2 animation/attachment IDs, input flow, cast-bar contract, and
+the TrinityCore/Arena-Unity source paths to use for the next stages.
+
+### How WoW Casting Actually Works
+
+1. Player selects target (click/Tab) and presses spell hotkey
+2. Player must be stationary; the character faces the target
+3. A **cast bar** appears and fills over the cast duration
+4. Character plays a **spell cast animation** (both arms raised, hand glow particles)
+5. If the player moves, jumps, or presses Escape → **cast is cancelled** (no mana cost, no effect)
+6. If damage is taken during cast → **pushback** extends the cast duration (not cancels it)
+7. On cast completion: **mana is consumed**, projectile spawns from hand attachment, flies to target
+
+The current prototype implements preparation, movement cancellation, server-authored cast progress, completion-time mana
+spend, launch, and a 1.5 second GCD. Spell identity, DBC-driven definitions, cast pushback, school lockouts, hand-glow
+visuals, and action-icon GCD presentation remain incomplete.
+
+### Remaining Components
+
+#### 1. Data-driven Spell Definitions
+
+Replace hardcoded Firebolt/Frostbolt constants with verified records from the installed client DBCs.
+
+#### 2. Cast Outcomes and Pushback
+
+Replicate completed/interrupted outcomes, implement damage pushback where the selected ruleset requires it, and add school
+lockouts for interrupt abilities.
+
+#### 3. Cast Bar Identity and GCD UI
+
+Replicate spell identity for the label/icon and render action-button GCD state. Progress already uses
+`WOW_STAT_CAST_PROGRESS` and `WOW_STAT_CAST_MAX`.
+
+#### 4. Renderer Attachment Sync
+
+The server now uses `ReadySpellDirected` then `SpellCastDirected`. The renderer still needs to start the missile at animated
+right-hand attachment 1 on the release frame and home toward a target impact tag.
+
+#### 5. Cooldowns
+
+- GCD displayed as a swipe animation on the action bar icon (client-side, cosmetic for v1)
+- Spell-specific cooldowns tracked server-side:
+  - Fireball: no cooldown (spammable via cast time)
+  - Fire Blast: 8s cooldown, instant cast
+  - Frost Nova: 25s cooldown, instant cast
+
+#### 6. Spell Particles (Future)
+
+M2 models have `particle_emitters` data — the struct fields exist in `r_m2.c` but no rendering code handles them yet. Spell cast visuals need:
+- Hand glow particles during cast (from M2 spell visual kit or hardcoded)
+- Projectile travel particles (trail)
+- Impact explosion particles (from existing TE_FIREBOLT_IMPACT + particle emitter)
+
+#### 7. Target Validation Loop
+
+While casting, the caster must:
+- Face the target (auto-rotate if target moves slightly)
+- Validate target is still alive, in range, and in line of sight
+- If target dies/goes out of range: cancel cast (no mana cost)
+
+### Next Implementation Order
+
+1. **DBC spell definitions** — replace prototype constants with spell/rank data
+2. **Replicated spell identity/outcomes** — cast-bar icon/name and interrupt feedback
+3. **Animated attachment launch** — renderer-owned hand and impact tags
+4. **Range/LOS revalidation and pushback** — complete authoritative cast rules
+5. **Particle renderer** — hand glow, missile trail, and impact visuals

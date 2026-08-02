@@ -266,6 +266,40 @@ void UI_WriteWowHud(LPEDICT ent) {
     UI_WriteTextFrame(PX(816), PY(704), PW(150), PH(20),
                       copper_buf, MAKE(COLOR32, 255, 210, 100, 255), FONT_JUSTIFYRIGHT);
 
+    /* Cast bar — centered above action bar, shown during spell casts */
+    {
+        USHORT progress = ps->stats[WOW_STAT_CAST_PROGRESS];
+        USHORT max_val = ps->stats[WOW_STAT_CAST_MAX];
+        if (max_val > 0) {
+            char text[64];
+            snprintf(text, sizeof(text), "%.1f s",
+                     (FLOAT)progress / 1000.0f);
+            /* Background */
+            UI_WriteColorRect(PX(262), PY(690), PW(500), PH(28),
+                              MAKE(COLOR32, 0, 0, 0, 192));
+            /* Fill bar: width * (1 - progress/max) since progress counts down */
+            {
+                FLOAT ratio = (FLOAT)(max_val - progress) / (FLOAT)max_val;
+                UI_WriteColorBar(PX(263), PY(691),
+                                 PW(498), PH(26),
+                                 ratio, 1.0f,
+                                 MAKE(COLOR32, 255, 200, 50, 255));
+            }
+            /* Border */
+            UI_WriteColorRect(PX(262), PY(690), PW(500), PH(1),
+                              COLOR32_WHITE);
+            UI_WriteColorRect(PX(262), PY(717), PW(500), PH(1),
+                              COLOR32_WHITE);
+            UI_WriteColorRect(PX(262), PY(691), PW(1), PH(27),
+                              COLOR32_WHITE);
+            UI_WriteColorRect(PX(761), PY(691), PW(1), PH(27),
+                              COLOR32_WHITE);
+            /* Time text */
+            UI_WriteTextFrame(PX(462), PY(695), PW(100), PH(20),
+                              text, COLOR32_WHITE, FONT_JUSTIFYCENTER);
+        }
+    }
+
     gi.Write(PF_LONG, &(LONG){0});
     gi.Write(PF_SHORT, &(LONG){0});
     gi.unicast(ent);

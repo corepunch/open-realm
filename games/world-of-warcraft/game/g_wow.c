@@ -11,6 +11,9 @@ wowEntityLocal_t wow_entity_locals[WOW_MAX_EDICTS];
 wowClient_t wow_clients[WOW_MAX_CLIENTS];
 static VECTOR2 wow_spawn_origin = { 0.0f, 0.0f };
 static LONG wow_spawn_location = -1;
+/* Configstring model indices for spell impact visuals; set during map load. */
+static int wow_firebolt_impact_model = 0;
+static int wow_frostbolt_impact_model = 0;
 static char wow_loading_texture[MAX_PATHLEN] = "Interface\\Glues\\LoadingScreens\\LoadScreenEnviroment.blp";
 static char wow_loading_title[128] = "World of Warcraft";
 enum {
@@ -19,7 +22,7 @@ enum {
     WOW_PLAYER_EQUIPMENT_HANDS = 1,
     WOW_PLAYER_EQUIPMENT_FEET = 1
 };
-static wowMove_t wow_move_cast = { "SpellCastOmni", NULL, NULL };
+static wowMove_t wow_move_cast = { "SpellCastDirected", NULL, NULL };
 static struct {
     DWORD flags;
     FLOAT yaw;
@@ -39,19 +42,36 @@ static wowHudIcon_t const wow_start_inventory[WOW_UI_INVENTORY_SLOTS] = {
     { "Interface\\Icons\\INV_Misc_Coin_01.blp", "Coin", 12 },
 };
 
-static wowHudIcon_t const wow_start_actions[WOW_UI_ACTION_SLOTS] = {
-    { "Interface\\Icons\\Ability_Warrior_Cleave.blp", "Attack", 1 },
-    { "Interface\\Icons\\Ability_Warrior_Charge.blp", "Charge", 1 },
-    { "Interface\\Icons\\Ability_Warrior_BattleShout.blp", "Battle Shout", 1 },
-    { "Interface\\Icons\\Spell_Nature_HealingTouch.blp", "Healing Touch", 1 },
-    { "Interface\\Icons\\Spell_Fire_FireBolt02.blp", "Firebolt", 1 },
-    { "Interface\\Icons\\Spell_Frost_FrostBolt02.blp", "Frostbolt", 1 },
-    { "Interface\\Icons\\INV_Weapon_ShortBlade_05.blp", "Short Blade", 1 },
-    { "Interface\\Icons\\INV_Misc_Food_24.blp", "Food", 5 },
-    { "Interface\\Icons\\INV_Potion_51.blp", "Healing Potion", 2 },
-    { "Interface\\Icons\\INV_Misc_Bag_08.blp", "Backpack", 1 },
-    { "Interface\\Icons\\Spell_Holy_MagicalSentry.blp", "Sentry", 1 },
-    { "Interface\\Icons\\INV_Misc_Coin_01.blp", "Coin", 12 },
+/* Warrior: melee abilities in slots 0-2, healing in 3, no ranged spells. */
+static wowHudIcon_t const wow_actions_warrior[WOW_UI_ACTION_SLOTS] = {
+    { "Interface\\Icons\\Ability_Warrior_Cleave.blp",      "Attack",        1 },
+    { "Interface\\Icons\\Ability_Warrior_Charge.blp",      "Charge",        1 },
+    { "Interface\\Icons\\Ability_Warrior_BattleShout.blp", "Battle Shout",  1 },
+    { "Interface\\Icons\\Spell_Nature_HealingTouch.blp",   "Healing Touch", 1 },
+    { "",                                                   "",              0 },
+    { "",                                                   "",              0 },
+    { "Interface\\Icons\\INV_Weapon_ShortBlade_05.blp",    "Short Blade",   1 },
+    { "Interface\\Icons\\INV_Misc_Food_24.blp",            "Food",          5 },
+    { "Interface\\Icons\\INV_Potion_51.blp",               "Healing Potion",2 },
+    { "Interface\\Icons\\INV_Misc_Bag_08.blp",             "Backpack",      1 },
+    { "",                                                   "",              0 },
+    { "Interface\\Icons\\INV_Misc_Coin_01.blp",            "Coin",          12 },
+};
+
+/* Mage prototype: healing plus fire/frost spells in slots 3-5. */
+static wowHudIcon_t const wow_actions_mage[WOW_UI_ACTION_SLOTS] = {
+    { "Interface\\Icons\\Ability_Warrior_Cleave.blp",      "Attack",        1 },
+    { "",                                                   "",              0 },
+    { "",                                                   "",              0 },
+    { "Interface\\Icons\\Spell_Nature_HealingTouch.blp",   "Healing Touch", 1 },
+    { "Interface\\Icons\\Spell_Fire_FireBolt02.blp",       "Fireball",      1 },
+    { "Interface\\Icons\\Spell_Frost_FrostBolt02.blp",     "Frostbolt",     1 },
+    { "Interface\\Icons\\INV_Weapon_ShortBlade_05.blp",    "Short Blade",   1 },
+    { "Interface\\Icons\\INV_Misc_Food_24.blp",            "Food",          5 },
+    { "Interface\\Icons\\INV_Potion_51.blp",               "Healing Potion",2 },
+    { "Interface\\Icons\\INV_Misc_Bag_08.blp",             "Backpack",      1 },
+    { "Interface\\Icons\\Spell_Holy_MagicalSentry.blp",    "Sentry",        1 },
+    { "Interface\\Icons\\INV_Misc_Coin_01.blp",            "Coin",          12 },
 };
 
 #define WOW_MISSING_ANIMATION_LOG_SLOTS 128
@@ -473,12 +493,31 @@ void Wow_AdvanceEntityFrame(LPEDICT ent) {
 
 /* Forward declarations for functions defined later in this file. */
 static LPEDICT Wow_EdictByNumber(DWORD number);
-static LPEDICT Wow_FindNearestAttackTarget(LPEDICT ent);
+static LPEDICT Wow_FindNearestAttackTarget(LPEDICT ent, FLOAT range);
 
-#define WOW_FIREBOLT_SPEED 25.0f
-#define WOW_FIREBOLT_DAMAGE 2
-#define WOW_FIREBOLT_RANGE 30.0f
-#define WOW_HEALING_TOUCH_HEAL 2
+#define WOW_FIREBOLT_SPEED      25.0f
+#define WOW_FIREBOLT_DAMAGE     2
+#define WOW_FIREBOLT_RANGE      30.0f
+#define WOW_FIREBOLT_MANA_COST  10
+#define WOW_FIREBOLT_CAST_TIME  1500  /* 1.5s cast time (Classic Fireball) */
+#define WOW_FROSTBOLT_SPEED     20.0f
+#define WOW_FROSTBOLT_DAMAGE    3
+#define WOW_FROSTBOLT_RANGE     30.0f
+#define WOW_FROSTBOLT_MANA_COST 15
+#define WOW_FROSTBOLT_SLOW_MS   2000
+#define WOW_FROSTBOLT_CAST_TIME 2500  /* 2.5s cast time (Classic Frostbolt) */
+#define WOW_HEALING_TOUCH_HEAL  2
+#define WOW_HEALING_TOUCH_MANA_COST 8
+#define WOW_GCD_MS              1500  /* 1.5s global cooldown */
+#define WOW_MANA_MAX            100
+#define WOW_MANA_REGEN_PER_SEC  3
+
+enum {
+    SPELL_NONE = 0,
+    SPELL_FIREBOLT,
+    SPELL_FROSTBOLT,
+    SPELL_HEALING_TOUCH,
+};
 
 DWORD Wow_FireboltModel(void) {
     static DWORD model = 0;
@@ -499,6 +538,7 @@ DWORD Wow_FireboltModel(void) {
             HANDLE buf = gi.ReadFile ? gi.ReadFile(*p, &sz) : NULL;
             if (buf) {
                 model = G_RegisterModel(*p);
+                gi.MemFree(buf);
                 fprintf(stderr, "WoW: firebolt model loaded: %s (idx %u)\n", *p, (unsigned)model);
                 break;
             }
@@ -507,6 +547,105 @@ DWORD Wow_FireboltModel(void) {
             fprintf(stderr, "WoW: no firebolt model in MPQ\n");
     }
     return model;
+}
+
+/* ---- Cast State Machine ---- */
+
+static void Wow_BeginSpellCast(LPEDICT caster, DWORD spell_id, DWORD duration, DWORD target_num) {
+    wowEntityLocal_t *cl = Wow_EntityLocal(caster);
+    LPEDICT target = Wow_EdictByNumber(target_num);
+    if (!cl) return;
+    /* Cancel any pending melee attack; spell cast takes priority */
+    cl->attack_damage_time = 0;
+    cl->attack_backswing_time = 0;
+    cl->attack_time = 0;
+    cl->cast_spell     = spell_id;
+    cl->cast_duration  = duration;
+    cl->cast_remaining = duration;
+    cl->cast_target    = target_num;
+    cl->cast_origin    = (VECTOR2){ caster->s.origin.x, caster->s.origin.y };
+    cl->cast_release_time = 0;
+    /* Directed spells hold their ready loop until launch; attack animations are not valid fallbacks. */
+    static LPCSTR const ready_anims[] = { "ReadySpellDirected", "ReadySpellOmni", "Spell", NULL };
+    static wowMove_t s_move_ready = { "ReadySpellDirected", NULL, NULL };
+    Wow_SetEntityMoveFirstAnimation(caster, &s_move_ready, ready_anims);
+    if (target) Wow_FaceTarget(caster, target);
+    cl->gcd_time = WOW_GCD_MS; /* WoW starts the GCD when a successful cast begins, not when it finishes. */
+}
+
+static void Wow_CancelSpellCast(LPEDICT caster) {
+    wowEntityLocal_t *cl = Wow_EntityLocal(caster);
+    if (!cl) return;
+    cl->cast_spell = SPELL_NONE;
+    cl->cast_duration = cl->cast_remaining = cl->cast_target = cl->cast_release_time = 0;
+    Wow_SetStandMove(caster);
+    /* Mana is NOT consumed on cancel; movement/interrupt refunds the cost */
+}
+
+static void Wow_CompleteSpellCast(LPEDICT caster) {
+    wowEntityLocal_t *cl = Wow_EntityLocal(caster);
+    if (!cl || cl->cast_spell == SPELL_NONE) return;
+    LPEDICT target = Wow_EdictByNumber(cl->cast_target);
+    DWORD spell = cl->cast_spell;
+    cl->cast_spell = SPELL_NONE;
+    cl->cast_duration = cl->cast_remaining = 0;
+    /* The projectile launches at cast completion while the character plays the non-looping release sequence. */
+    {
+        static LPCSTR const release_anims[] = { "SpellCastDirected", "SpellCastOmni", "Spell", NULL };
+        if (Wow_SetEntityMoveFirstAnimation(caster, &wow_move_cast, release_anims) && cl->animation)
+            cl->cast_release_time = cl->animation->interval[1] - cl->animation->interval[0];
+    }
+    /* Mana consumed on completion; no cost if interrupted or cancelled */
+    switch (spell) {
+        case SPELL_FIREBOLT:
+            cl->mana = cl->mana >= WOW_FIREBOLT_MANA_COST ? cl->mana - WOW_FIREBOLT_MANA_COST : 0;
+            if (target && target->inuse) Wow_FireFirebolt(caster, target);
+            break;
+        case SPELL_FROSTBOLT:
+            cl->mana = cl->mana >= WOW_FROSTBOLT_MANA_COST ? cl->mana - WOW_FROSTBOLT_MANA_COST : 0;
+            if (target && target->inuse) Wow_FireFrostbolt(caster, target);
+            break;
+        case SPELL_HEALING_TOUCH:
+            Wow_HealingTouch(caster);
+            break;
+    }
+    cl->cast_target = 0;
+}
+
+/* Per-frame cast progress. Returns TRUE while entity is casting (locked). */
+static BOOL Wow_RunSpellCast(LPEDICT ent) {
+    wowEntityLocal_t *cl = Wow_EntityLocal(ent);
+    if (!cl) return false;
+    if (cl->cast_release_time > 0) {
+        cl->cast_release_time -= cl->cast_release_time > FRAMETIME ? FRAMETIME : cl->cast_release_time;
+        if (cl->cast_release_time == 0) Wow_SetStandMove(ent);
+        return true;
+    }
+    if (cl->cast_spell == SPELL_NONE) return false;
+
+    /* Movement interrupt: if caster moved from cast-start position, cancel cast */
+    if (fabsf(ent->s.origin.x - cl->cast_origin.x) > 0.1f ||
+        fabsf(ent->s.origin.y - cl->cast_origin.y) > 0.1f) {
+        Wow_CancelSpellCast(ent);
+        return false;
+    }
+
+    /* Target validation: if target dies/vanishes, cancel cast */
+    if (cl->cast_target) {
+        LPEDICT target = Wow_EdictByNumber(cl->cast_target);
+        wowEntityLocal_t *target_local = target ? Wow_EntityLocal(target) : NULL;
+        if (!target || !target->inuse || (target_local && target_local->dead)) {
+            Wow_CancelSpellCast(ent);
+            return false;
+        }
+    }
+
+    cl->cast_remaining -= cl->cast_remaining > FRAMETIME ? FRAMETIME : cl->cast_remaining;
+    if (cl->cast_remaining == 0) {
+        Wow_CompleteSpellCast(ent);
+        return cl->cast_release_time > 0;
+    }
+    return true; /* still casting */
 }
 
 /* Each frame: advance active projectile toward its target. */
@@ -530,7 +669,7 @@ void Wow_RunProjectile(LPEDICT ent) {
         FLOAT step = local->projectile_speed * ((FLOAT)FRAMETIME / 1000.0f);
 
         if (dist <= step) {
-            /* Hit the target — apply damage. */
+            /* Hit the target — apply damage and optional slow debuff. */
             wowEntityLocal_t *target_local = Wow_EntityLocal(target);
             if (target_local && !target_local->dead) {
                 if (target_local->health <= local->projectile_damage) {
@@ -539,14 +678,34 @@ void Wow_RunProjectile(LPEDICT ent) {
                     target_local->health -= local->projectile_damage;
                     if (target->pain) target->pain(target);
                 }
+                /* slow_timer on the projectile encodes the debuff duration to apply. */
+                if (local->slow_timer > 0)
+                    target_local->slow_timer = MAX(target_local->slow_timer, local->slow_timer);
+            }
+            /* Broadcast a client-side impact effect to all nearby observers. */
+            {
+                BOOL is_frost = local->slow_timer > 0;
+                int impact_model = is_frost ? wow_frostbolt_impact_model : wow_firebolt_impact_model;
+                tempEvent_t te = is_frost ? TE_FROSTBOLT_IMPACT : TE_FIREBOLT_IMPACT;
+                if (impact_model > 0) {
+                    gi.Write(PF_BYTE, &(LONG){ svc_temp_entity });
+                    gi.Write(PF_BYTE, &(LONG){ te });
+                    gi.Write(PF_POSITION, &ent->s.origin);
+                    gi.Write(PF_SHORT, &(LONG){ impact_model });
+                    gi.multicast(&ent->s.origin, MULTICAST_PVS);
+                }
             }
             ent->inuse = false;
             return;
         }
-        /* Move toward target (homing). */
+        /* Move toward the target's gameplay center; exact animated impact tags are renderer-owned. */
         ent->s.origin.x += delta.x * step / dist;
         ent->s.origin.y += delta.y * step / dist;
-        ent->s.origin.z = Wow_TerrainHeight(ent->s.origin.x, ent->s.origin.y) + 3.0f;
+        {
+            FLOAT target_z = target->s.origin.z + target->s.radius;
+            ent->s.origin.z += (target_z - ent->s.origin.z) * step / dist;
+        }
+        local->projectile_yaw = (FLOAT)RAD2DEG(atan2f(delta.y, delta.x));
         ent->s.angle = (FLOAT)DEG2RAD(local->projectile_yaw);
     }
 }
@@ -567,9 +726,7 @@ void Wow_FireFirebolt(LPEDICT caster, LPEDICT target) {
         }
     }
     caster_local = Wow_EntityLocal(caster);
-    if (!caster_local || caster_local->dead) {
-        return;
-    }
+    if (!caster_local || caster_local->dead) return;
     proj = Wow_Spawn();
     if (!proj) return;
 
@@ -588,26 +745,104 @@ void Wow_FireFirebolt(LPEDICT caster, LPEDICT target) {
     pl->projectile_damage = WOW_FIREBOLT_DAMAGE;
     pl->projectile_yaw = yaw;
     pl->projectile_pitch = 0.0f;
+    {
+        FLOAT hand_z = G_GetAttachmentZ(caster->s.model, 1);
+        /* TODO: the renderer must eventually seed the visual from M2_AttachmentMatrix at the release frame. */
+        if (hand_z <= 0) hand_z = caster->s.radius;
+        proj->s.origin.z = caster->s.origin.z + hand_z * caster->s.scale;
+    }
 
-	proj->s.origin = (VECTOR3){ caster->s.origin.x, caster->s.origin.y,
-	                            caster->s.origin.z + 1.6f };
+    proj->s.origin.x = caster->s.origin.x;
+    proj->s.origin.y = caster->s.origin.y;
     proj->s.origin2 = (VECTOR2){ proj->s.origin.x, proj->s.origin.y };
-    proj->s.angle = (FLOAT)DEG2RAD(yaw);
-    proj->s.model = Wow_FireboltModel();
-    proj->s.scale = 0.8f;
+    proj->s.angle  = (FLOAT)DEG2RAD(yaw);
+    proj->s.model  = Wow_FireboltModel();
+    proj->s.scale  = 0.8f;
     proj->s.radius = 0.5f;
     proj->s.player = caster->s.player;
-    /* Play cast animation and set a cast timer so the animation plays through
-     * without chase overriding it.  attack_damage_done is pre-set so no melee
-     * damage is dealt when the timer expires. */
-    {
-        static LPCSTR const cast_anims[] = { "SpellCastOmni", "Cast", "Attack1H", NULL };
-        Wow_SetEntityMoveFirstAnimation(caster, &wow_move_cast, cast_anims);
-        caster_local->attack_damage_time = 400;
-        caster_local->attack_backswing_time = 100;
-        caster_local->attack_time = 500;
-        caster_local->attack_damage_done = true;
+    /* EF_GROUND_ANCHOR routes the renderer through the grounded-actor matrix path
+     * (yaw-only around Z), which is correct for spell projectiles.  Without it
+     * R_GameEntityMatrix applies the doodad Euler angles (rotation.y-90, rotation.z-90)
+     * to a zero-rotation entity, which lifts the mesh far above the origin. */
+    proj->s.flags  = EF_GROUND_ANCHOR;
+    caster_local->enemy = target;
+}
+
+DWORD Wow_FrostboltModel(void) {
+    static DWORD model = 0;
+    static BOOL resolved = false;
+    if (!resolved) {
+        resolved = true;
+        LPCSTR const paths[] = {
+            "Spells\\FrostBolt_Missile_Low.m2",
+            "Spells\\Frostbolt_Missile.m2",
+            "Spells\\FrostShot_Missile.m2",
+            NULL
+        };
+        for (LPCSTR const *p = paths; *p; p++) {
+            DWORD sz;
+            HANDLE buf = gi.ReadFile ? gi.ReadFile(*p, &sz) : NULL;
+            if (buf) {
+                model = G_RegisterModel(*p);
+                gi.MemFree(buf);
+                fprintf(stderr, "WoW: frostbolt model loaded: %s (idx %u)\n", *p, (unsigned)model);
+                break;
+            }
+        }
+        if (!model) fprintf(stderr, "WoW: no frostbolt model in MPQ\n");
     }
+    return model;
+}
+
+/* Fire a Frostbolt: like Firebolt but slower, hits harder, and slows the target. */
+void Wow_FireFrostbolt(LPEDICT caster, LPEDICT target) {
+    wowEntityLocal_t *caster_local, *pl;
+    LPEDICT proj;
+    FLOAT yaw;
+
+    if (!caster || !target || caster == target || !target->inuse) return;
+    {
+        wowEntityLocal_t *tl = Wow_EntityLocal(target);
+        if (tl && tl->dead) return;
+    }
+    caster_local = Wow_EntityLocal(caster);
+    if (!caster_local || caster_local->dead) return;
+    proj = Wow_Spawn();
+    if (!proj) return;
+    pl = Wow_EntityLocal(proj);
+    if (!pl) return;
+
+    pl->kind = WOW_ENTITY_PROJECTILE;
+    {
+        VECTOR2 delta = Vector2_sub(&(VECTOR2){ target->s.origin.x, target->s.origin.y },
+                                    &(VECTOR2){ caster->s.origin.x, caster->s.origin.y });
+        yaw = (FLOAT)RAD2DEG(atan2f(delta.y, delta.x));
+    }
+    pl->projectile_target = target->s.number;
+    pl->projectile_caster = caster->s.number;
+    pl->projectile_speed  = WOW_FROSTBOLT_SPEED;
+    pl->projectile_damage = WOW_FROSTBOLT_DAMAGE;
+    pl->projectile_yaw    = yaw;
+    pl->projectile_pitch  = 0.0f;
+    {
+        FLOAT hand_z = G_GetAttachmentZ(caster->s.model, 1);
+        /* TODO: the renderer must eventually seed the visual from M2_AttachmentMatrix at the release frame. */
+        if (hand_z <= 0) hand_z = caster->s.radius;
+        proj->s.origin.z = caster->s.origin.z + hand_z * caster->s.scale;
+    }
+    /* Reuse slow_timer field to signal that this projectile applies a slow on hit.
+     * A non-zero value in the projectile local means "apply slow on impact". */
+    pl->slow_timer = WOW_FROSTBOLT_SLOW_MS;
+
+    proj->s.origin.x = caster->s.origin.x;
+    proj->s.origin.y = caster->s.origin.y;
+    proj->s.origin2 = (VECTOR2){ proj->s.origin.x, proj->s.origin.y };
+    proj->s.angle   = (FLOAT)DEG2RAD(yaw);
+    proj->s.model   = Wow_FrostboltModel();
+    proj->s.scale   = 0.8f;
+    proj->s.radius  = 0.5f;
+    proj->s.player  = caster->s.player;
+    proj->s.flags   = EF_GROUND_ANCHOR; /* see Wow_FireFirebolt for rationale */
     caster_local->enemy = target;
 }
 
@@ -618,6 +853,8 @@ void Wow_HealingTouch(LPEDICT caster) {
     local = Wow_EntityLocal(caster);
     if (!local || local->dead) return;
 
+    if (local->mana < WOW_HEALING_TOUCH_MANA_COST) return;
+    local->mana -= WOW_HEALING_TOUCH_MANA_COST;
     local->health = MIN(local->health + WOW_HEALING_TOUCH_HEAL, 100);
     /* Play a cast animation if available. */
     static LPCSTR const heal_anims[] = { "SpellCastOmni", "Cast", "Attack1H", NULL };
@@ -645,7 +882,7 @@ LPEDICT Wow_FindSpellTarget(LPEDICT ent, FLOAT range) {
             }
         }
     }
-    return Wow_FindNearestAttackTarget(ent);
+    return Wow_FindNearestAttackTarget(ent, range);
 }
 
 static void Wow_UpdateCamera(LPEDICT ent) {
@@ -669,12 +906,15 @@ static void Wow_UpdatePlayerHud(LPEDICT ent) {
     ps = &ent->client->ps;
     ps->stats[WOW_STAT_HEALTH] = (USHORT)local->health;
     ps->stats[WOW_STAT_HEALTH_MAX] = 100;
-    ps->stats[WOW_STAT_POWER] = 42;
-    ps->stats[WOW_STAT_POWER_MAX] = 100;
+    ps->stats[WOW_STAT_POWER] = (USHORT)local->mana;
+    ps->stats[WOW_STAT_POWER_MAX] = WOW_MANA_MAX;
     ps->stats[WOW_STAT_LEVEL] = 1;
     ps->stats[WOW_STAT_XP] = 120;
     ps->stats[WOW_STAT_XP_MAX] = 400;
     ps->stats[WOW_STAT_COPPER] = 1234;
+    /* Cast progress: remaining ms and total ms for client-side cast bar */
+    ps->stats[WOW_STAT_CAST_PROGRESS] = (USHORT)(local->cast_spell ? local->cast_remaining : 0);
+    ps->stats[WOW_STAT_CAST_MAX] = (USHORT)(local->cast_spell ? local->cast_duration : 0);
 }
 
 static void Wow_WriteHudIcon(wowHudIcon_t const *icon, DWORD slot) {
@@ -687,7 +927,7 @@ static void Wow_WriteHudIcon(wowHudIcon_t const *icon, DWORD slot) {
     gi.Write(PF_STRING, icon->name);
     gi.Write(PF_STRING, count);
     gi.Write(PF_STRING, command);
-    gi.Write(PF_BYTE, &(LONG){ slot < 10 ? '1' + (LONG)slot : 0 });
+    gi.Write(PF_BYTE, &(LONG){ slot < 9 ? '1' + (LONG)slot : slot == 9 ? '0' : 0 });
 }
 
 static void Wow_WriteInventoryIcon(wowHudIcon_t const *icon, DWORD slot) {
@@ -735,9 +975,9 @@ static LPEDICT Wow_EdictByNumber(DWORD number) {
     return &wow_edicts[number];
 }
 
-static LPEDICT Wow_FindNearestAttackTarget(LPEDICT ent) {
+static LPEDICT Wow_FindNearestAttackTarget(LPEDICT ent, FLOAT range) {
     LPEDICT best = NULL;
-    FLOAT best_dist2 = 6.0f * 6.0f;
+    FLOAT best_dist2 = range * range;
 
     if (!ent) {
         return NULL;
@@ -898,6 +1138,7 @@ static void Wow_InitPlayer(LPEDICT ent) {
         local->home = wow_spawn_origin;
         local->yaw = wow_move.yaw;
         local->health = 100;
+        local->mana = WOW_MANA_MAX;
         local->attack_damage_point = 250;
         local->attack_backswing = 450;
     }
@@ -930,10 +1171,13 @@ static void Wow_InitPlayer(LPEDICT ent) {
     ps->number = 0;
     ps->start_location = wow_spawn_location;
     snprintf(wow_clients[0].name, sizeof(wow_clients[0].name), "%s", "Thrall");
-    memcpy(wow_clients[0].inventory, wow_start_inventory, sizeof(wow_start_inventory));
-    memcpy(wow_clients[0].actions, wow_start_actions, sizeof(wow_start_actions));
-    fprintf(stderr, "WoW: action bar initialized — slot 4 (key 5) = %s\n",
-            wow_start_actions[4].name[0] ? wow_start_actions[4].name : "(empty)");
+    {
+        wowHudIcon_t const *actions = (class_id == WOW_CLASS_MAGE)
+            ? wow_actions_mage : wow_actions_warrior;
+        memcpy(wow_clients[0].inventory, wow_start_inventory, sizeof(wow_start_inventory));
+        memcpy(wow_clients[0].actions, actions, WOW_UI_ACTION_SLOTS * sizeof(actions[0]));
+        fprintf(stderr, "WoW: action bar initialized for class %u\n", (unsigned)class_id);
+    }
 #ifdef WOW
     ps->origin = wow_spawn_origin;
     ps->viewangles = (VECTOR3){ Wow_ViewPitch(wow_move.pitch), wow_move.yaw, 0.0f };
@@ -1099,6 +1343,34 @@ static void Wow_SpawnEntities(void) {
     Wow_InitPlayer(&wow_edicts[0]);
     globals.num_edicts = WOW_MAX_CLIENTS;
     Wow_SpawnAmbientCreatures(&wow_spawn_origin);
+    /* Register spell impact models so the client can load them before the first
+     * svc_temp_entity arrives.  Try several known WoW MPQ paths in preference order. */
+    {
+        static LPCSTR const fire_paths[] = {
+            "Spells\\FireBolt_ImpactDD_Med_Chest.m2",
+            "Spells\\Fire_ImpactDD_Med_Chest.m2",
+            NULL
+        };
+        static LPCSTR const frost_paths[] = {
+            "Spells\\Ice_ImpactDD_Med_Chest.m2",
+            "Spells\\Ice_ImpactDD_Low_Chest.m2",
+            NULL
+        };
+        wow_firebolt_impact_model = 0;
+        for (LPCSTR const *p = fire_paths; *p; p++) {
+            DWORD sz;
+            HANDLE buf = gi.ReadFile ? gi.ReadFile(*p, &sz) : NULL;
+            if (buf) { wow_firebolt_impact_model = gi.ModelIndex(*p); gi.MemFree(buf); break; }
+        }
+        wow_frostbolt_impact_model = 0;
+        for (LPCSTR const *p = frost_paths; *p; p++) {
+            DWORD sz;
+            HANDLE buf = gi.ReadFile ? gi.ReadFile(*p, &sz) : NULL;
+            if (buf) { wow_frostbolt_impact_model = gi.ModelIndex(*p); gi.MemFree(buf); break; }
+        }
+        fprintf(stderr, "WoW: impact models — fire=%d frost=%d\n",
+                wow_firebolt_impact_model, wow_frostbolt_impact_model);
+    }
     fprintf(stderr, "WoW doodads: static ADT doodads are renderer-owned and not synced as entities\n");
 }
 
@@ -1143,6 +1415,21 @@ static void Wow_RunFrame(void) {
         ent->s.origin.y += dir.y * step;
     }
     ent->s.origin.z = Wow_TerrainHeight(ent->s.origin.x, ent->s.origin.y);
+    /* Run spell cast state machine before entity lock check.
+     * Cast animation plays via Wow_AdvanceEntityFrame; cooldowns tick down. */
+    {
+        wowEntityLocal_t *cl = Wow_EntityLocal(ent);
+        if (cl && cl->gcd_time > 0)
+            cl->gcd_time -= cl->gcd_time > FRAMETIME ? FRAMETIME : cl->gcd_time;
+    }
+    BOOL casting = Wow_RunSpellCast(ent);
+    if (casting) {
+        Wow_AdvanceEntityFrame(ent);
+        Wow_UpdateCamera(ent);
+        Wow_UpdatePlayerHud(ent);  /* expose cast progress to client */
+        /* Skip the rest: no movement/chase/attack during cast */
+        goto process_entities;
+    }
     locked = Wow_AIAdvanceLockedFrame(ent);
     /* Auto-chase: move toward enemy when in combat, not pressing WASD, and
      * not locked in an animation (attack/cast/pain).  This comes after
@@ -1187,8 +1474,23 @@ static void Wow_RunFrame(void) {
         ent->s.angle = (FLOAT)DEG2RAD(wow_move.yaw);
         Wow_UpdateCamera(ent);
     }
+    /* Regen mana every frame: WOW_MANA_REGEN_PER_SEC / (1000/FRAMETIME) per tick. */
+    {
+        wowEntityLocal_t *pl = Wow_EntityLocal(ent);
+        if (pl && pl->mana < WOW_MANA_MAX) {
+            /* Use integer accumulation scaled by FRAMETIME to avoid per-frame float drift. */
+            static DWORD mana_accum = 0;
+            mana_accum += (DWORD)(WOW_MANA_REGEN_PER_SEC * FRAMETIME);
+            if (mana_accum >= 1000) {
+                DWORD ticks = mana_accum / 1000;
+                mana_accum %= 1000;
+                pl->mana = MIN(pl->mana + ticks, WOW_MANA_MAX);
+            }
+        }
+    }
     Wow_UpdatePlayerHud(ent);
 
+process_entities:
     for (DWORD i = WOW_MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
         LPEDICT e = &wow_edicts[i];
         if (e->inuse) {
@@ -1196,6 +1498,8 @@ static void Wow_RunFrame(void) {
             if (el && el->kind == WOW_ENTITY_PROJECTILE) {
                 Wow_RunProjectile(e);
             } else {
+                if (el && el->slow_timer > 0)
+                    el->slow_timer = el->slow_timer > FRAMETIME ? el->slow_timer - FRAMETIME : 0;
                 Wow_RunCreatureFrame(e);
             }
         }
@@ -1205,6 +1509,8 @@ static void Wow_RunFrame(void) {
 static LPCSTR Wow_GetThemeValue(LPCSTR filename) {
     return filename ? filename : "";
 }
+
+static BOOL Wow_PlayerIsMoving(void) { return wow_move.flags & BZ_WOW_MOVE_MASK; }
 
 static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
     if (argc >= 5 && (!strcasecmp(argv[0], "move") || !strcasecmp(argv[0], "wowmove"))) {
@@ -1225,7 +1531,7 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
     } else if (argc >= 1 && (!strcasecmp(argv[0], "attack") || !strcasecmp(argv[0], "wowattack"))) {
         LPEDICT target = argc >= 2
             ? Wow_EdictByNumber((DWORD)strtoul(argv[1], NULL, 10))
-            : Wow_FindNearestAttackTarget(ent);
+            : Wow_FindNearestAttackTarget(ent, WOW_MELEE_RANGE);
         wowEntityLocal_t *local = Wow_EntityLocal(ent);
 
         if (!ent || !local || local->dead || !ent->attack) {
@@ -1238,6 +1544,7 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
         wowEntityLocal_t *local = Wow_EntityLocal(ent);
 
         if (local) {
+            Wow_CancelSpellCast(ent);  /* interrupt any active cast */
             local->enemy = NULL;
             local->attack_time = 0;
             local->attack_damage_time = 0;
@@ -1252,17 +1559,50 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
         DWORD slot = (DWORD)strtoul(argv[1], NULL, 10);
 
         switch (slot) {
-            case 3: /* Healing Touch */
-                Wow_HealingTouch(ent);
-                break;
-            case 4: /* Firebolt */
+            case 3: /* Healing Touch — instant cast */
                 {
-                    LPEDICT target = Wow_FindSpellTarget(ent, WOW_FIREBOLT_RANGE);
-                    if (target) {
-                        Wow_FireFirebolt(ent, target);
-                    } else {
-                        fprintf(stderr, "WoW: Firebolt — no target in range %.1f\n", WOW_FIREBOLT_RANGE);
+                    wowEntityLocal_t *cl = Wow_EntityLocal(ent);
+                    if (cl && (cl->cast_spell || cl->cast_release_time || cl->gcd_time > 0)) break;
+                    if (cl->mana < WOW_HEALING_TOUCH_MANA_COST) {
+                        fprintf(stderr, "WoW: Healing Touch — not enough mana\n");
+                        break;
                     }
+                    Wow_HealingTouch(ent);
+                    cl->gcd_time = WOW_GCD_MS;
+                }
+                break;
+            case 4: /* Fireball prototype — 1.5s cast time */
+                {
+                    wowEntityLocal_t *cl = Wow_EntityLocal(ent);
+                    if (cl && (cl->cast_spell || cl->cast_release_time || cl->gcd_time > 0)) break;
+                    if (Wow_PlayerIsMoving()) {
+                        fprintf(stderr, "WoW: Fireball — cannot cast while moving\n");
+                        break;
+                    }
+                    LPEDICT target = Wow_FindSpellTarget(ent, WOW_FIREBOLT_RANGE);
+                    if (!target) { fprintf(stderr, "WoW: Fireball — no target in range\n"); break; }
+                    if (cl->mana < WOW_FIREBOLT_MANA_COST) {
+                        fprintf(stderr, "WoW: Fireball — not enough mana\n");
+                        break;
+                    }
+                    Wow_BeginSpellCast(ent, SPELL_FIREBOLT, WOW_FIREBOLT_CAST_TIME, target->s.number);
+                }
+                break;
+            case 5: /* Frostbolt — 2.5s cast time */
+                {
+                    wowEntityLocal_t *cl = Wow_EntityLocal(ent);
+                    if (cl && (cl->cast_spell || cl->cast_release_time || cl->gcd_time > 0)) break;
+                    if (Wow_PlayerIsMoving()) {
+                        fprintf(stderr, "WoW: Frostbolt — cannot cast while moving\n");
+                        break;
+                    }
+                    LPEDICT target = Wow_FindSpellTarget(ent, WOW_FROSTBOLT_RANGE);
+                    if (!target) { fprintf(stderr, "WoW: Frostbolt — no target in range\n"); break; }
+                    if (cl->mana < WOW_FROSTBOLT_MANA_COST) {
+                        fprintf(stderr, "WoW: Frostbolt — not enough mana\n");
+                        break;
+                    }
+                    Wow_BeginSpellCast(ent, SPELL_FROSTBOLT, WOW_FROSTBOLT_CAST_TIME, target->s.number);
                 }
                 break;
             default:

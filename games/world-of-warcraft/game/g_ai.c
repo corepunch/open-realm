@@ -14,7 +14,7 @@ static wowMove_t wow_move_death = { "Death", NULL, NULL };
 #define WOW_DEFAULT_PAIN_TIME 450
 #define WOW_DEFAULT_DEATH_TIME 1200
 
-static void Wow_FaceTarget(LPEDICT ent, LPEDICT target) {
+void Wow_FaceTarget(LPEDICT ent, LPEDICT target) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
     VECTOR2 delta;
 
@@ -208,7 +208,9 @@ void Wow_AIMove(LPEDICT ent) {
         return;
     }
 
-    step = MIN(local->walk_speed * ((FLOAT)FRAMETIME / 1000.0f), len);
+    /* Frostbolt slow: halve movement speed while the debuff is active. */
+    FLOAT effective_speed = local->slow_timer > 0 ? local->walk_speed * 0.5f : local->walk_speed;
+    step = MIN(effective_speed * ((FLOAT)FRAMETIME / 1000.0f), len);
     ent->s.origin.x += delta.x * step / len;
     ent->s.origin.y += delta.y * step / len;
     ent->s.origin2 = (VECTOR2){ ent->s.origin.x, ent->s.origin.y };

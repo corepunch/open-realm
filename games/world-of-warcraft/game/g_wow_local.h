@@ -7,9 +7,11 @@
 
 #define WOW_MAX_CLIENTS 1
 #define WOW_MAX_EDICTS 128
+#define BZ_WOW_MOVE_MASK (WOW_MOVE_FORWARD | WOW_MOVE_BACK | WOW_MOVE_LEFT | WOW_MOVE_RIGHT)
 #define WOW_PLAYER_MODEL "Character\\Orc\\Male\\OrcMale.m2"
 #define WOW_PLAYER_WEAPON_MODEL "Item\\ObjectComponents\\Weapon\\Axe_1H_Horde_A_01.m2"
 #define WOW_CLASS_WARRIOR 1
+#define WOW_CLASS_MAGE    8
 
 /* CS_GENERAL slot used to pass selected character data from UI to game module.
    Set by the UI via a single userinfo-style cvar before map load, read by
@@ -50,6 +52,7 @@ typedef struct {
     FLOAT patrol_phase;
     FLOAT walk_speed;
     DWORD health;
+    DWORD mana;
     DWORD attack_damage_point;
     DWORD attack_backswing;
     DWORD attack_time;
@@ -60,7 +63,16 @@ typedef struct {
     BOOL attack_damage_done;
     BOOL dead;
     BOOL hostile;
+    DWORD slow_timer;   /* ms remaining on movement-slow debuff (Frostbolt) */
     LPEDICT enemy;
+    /* Cast state (SpellCast) — WoW-format cast time system */
+    DWORD cast_spell;        /* spell id being cast (0 = idle) */
+    DWORD cast_duration;     /* total cast duration (ms) */
+    DWORD cast_remaining;    /* ms remaining until cast completes */
+    DWORD cast_target;       /* entity number of target */
+    VECTOR2 cast_origin;     /* XY position when cast began (movement cancels) */
+    DWORD cast_release_time; /* ms remaining in the post-launch release animation */
+    DWORD gcd_time;          /* ms remaining on global cooldown */
     /* Projectile fields (valid when kind == WOW_ENTITY_PROJECTILE) */
     DWORD projectile_target;
     DWORD projectile_caster;
@@ -91,6 +103,7 @@ extern wowClient_t wow_clients[WOW_MAX_CLIENTS];
 
 int          G_RegisterModel(LPCSTR filename);
 LPCANIMATION G_GetAnimation(DWORD modelindex, LPCSTR animname);
+FLOAT        G_GetAttachmentZ(DWORD modelindex, int aid);
 void         G_FreeModels(void);
 
 FLOAT Wow_Clamp(FLOAT value, FLOAT min_value, FLOAT max_value);
@@ -121,6 +134,7 @@ void Wow_AdvanceEntityFrame(LPEDICT ent);
 LPEDICT Wow_Spawn(void);
 void Wow_AIIdle(LPEDICT ent);
 void Wow_AIMove(LPEDICT ent);
+void Wow_FaceTarget(LPEDICT ent, LPEDICT target);
 void Wow_AIAttack(LPEDICT ent);
 void Wow_AIPain(LPEDICT ent);
 void Wow_AIDie(LPEDICT ent, LPEDICT attacker);
@@ -137,8 +151,10 @@ void UI_WriteWowHud(LPEDICT ent);
 
 /* Ability/projectile system */
 DWORD      Wow_FireboltModel(void);
+DWORD      Wow_FrostboltModel(void);
 void       Wow_RunProjectile(LPEDICT ent);
 void       Wow_FireFirebolt(LPEDICT caster, LPEDICT target);
+void       Wow_FireFrostbolt(LPEDICT caster, LPEDICT target);
 void       Wow_HealingTouch(LPEDICT caster);
 LPEDICT    Wow_FindSpellTarget(LPEDICT ent, FLOAT range);
 
