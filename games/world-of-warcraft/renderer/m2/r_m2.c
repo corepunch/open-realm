@@ -1,4 +1,5 @@
 #include "renderer/r_local.h"
+#include "renderer/r_emit.h"
 #include <stdlib.h>
 #include <strings.h>
 
@@ -45,6 +46,13 @@ typedef struct {
     m2Array_t times;
     m2Array_t keys;
 } m2TrackClassic_t;
+
+typedef SHORT m2Fixed16_t;
+
+typedef struct {
+    m2Array_t times;
+    m2Array_t values;
+} m2PartTrack_t;
 
 typedef struct {
     m2Array_t times;
@@ -132,6 +140,82 @@ typedef struct {
     VECTOR3 target_pivot;
     m2TrackClassic_t roll_track;
 } m2CameraClassic_t;
+
+typedef struct {
+    DWORD particle_id;
+    DWORD flags;
+    VECTOR3 position;
+    WORD bone_index;
+    WORD texture_index;
+    m2Array_t geometry_mdl;
+    m2Array_t recursion_mdl;
+    BYTE blend_mode;
+    BYTE emitter_type;
+    WORD color_index;
+    WORD pad;
+    SHORT priority_plane;
+    WORD rows;
+    WORD cols;
+    m2Track_t speed_track;
+    m2Track_t variation_track;
+    m2Track_t latitude_track;
+    m2Track_t longitude_track;
+    m2Track_t gravity_track;
+    m2Track_t life_track;
+    FLOAT life_variation;
+    m2Track_t emission_rate_track;
+    FLOAT emission_rate_variation;
+    m2Track_t width_track;
+    m2Track_t length_track;
+    m2Track_t zsource_track;
+    m2PartTrack_t color_track;
+    m2PartTrack_t alpha_track;
+    m2PartTrack_t scale_track;
+    VECTOR2 scale_variation;
+    m2PartTrack_t head_cell_track;
+    m2PartTrack_t tail_cell_track;
+    FLOAT tail_length;
+    FLOAT twinkle_fps;
+    FLOAT twinkle_onoff;
+    FLOAT twinkle_scale[2];
+    FLOAT ivel_scale;
+    FLOAT drag;
+    FLOAT initial_spin;
+    FLOAT initial_spin_variation;
+    FLOAT spin;
+    FLOAT spin_variation;
+    m2Box_t tumble;
+    VECTOR3 wind_vector;
+    FLOAT wind_time;
+    FLOAT follow_speed1;
+    FLOAT follow_scale1;
+    FLOAT follow_speed2;
+    FLOAT follow_scale2;
+    m2Array_t spline;
+    m2Track_t visibility_track;
+} m2Particle_t;
+
+typedef struct {
+    DWORD ribbon_id;
+    WORD bone_index;
+    WORD pad0;
+    VECTOR3 position;
+    m2Array_t texture_indices;
+    m2Array_t material_indices;
+    m2Track_t color_track;
+    m2Track_t alpha_track;
+    m2Track_t height_above_track;
+    m2Track_t height_below_track;
+    FLOAT edges_per_second;
+    FLOAT edge_lifetime;
+    FLOAT gravity;
+    WORD texture_rows;
+    WORD texture_cols;
+    m2Track_t texture_slot_track;
+    m2Track_t visibility_track;
+    SHORT priority_plane;
+    WORD pad1;
+} m2Ribbon_t;
 
 typedef struct {
     DWORD bone_id;
@@ -400,6 +484,10 @@ struct m2Model_s {
     DWORD camera_count;
     DWORD camera_stride;
     BOOL classic_cameras;
+    m2Array_t textures;
+    m2Array_t texture_lookup_table;
+    m2Array_t ribbons;
+    m2Array_t particles;
     MATRIX4 *bone_matrices;
 };
 
@@ -1756,6 +1844,25 @@ static VECTOR3 M2_EvaluateVectorTrack(m2Model_t const *model,
     return Vector3_lerp((LPCVECTOR3)left, (LPCVECTOR3)right, ratio);
 }
 
+static FLOAT M2_EvaluateFloatTrack(m2Model_t const *model,
+                                   m2TrackView_t const *track,
+                                   DWORD sequence_index,
+                                   DWORD sequence_time,
+                                   FLOAT default_value) {
+    void const *left;
+    void const *right;
+    float ratio;
+    DWORD track_time = M2_TrackTime(model, track, sequence_index, sequence_time);
+
+    if (!M2_FindTrackKeys(model, track, sequence_index, track_time, sizeof(FLOAT), &left, &right, &ratio)) {
+        return default_value;
+    }
+    if (left == right) {
+        return *(FLOAT const *)left;
+    }
+    return LerpNumber(*(FLOAT const *)left, *(FLOAT const *)right, ratio);
+}
+
 BOOL M2_CameraView(m2Model_t const *model,
                    DWORD camera_index,
                    LPVECTOR3 eye,
@@ -1993,6 +2100,203 @@ static m2TrackView_t M2_BoneScaleTrack(m2Model_t const *model, DWORD bone_index)
         return M2_ClassicTrackView(&((m2CompBoneClassic_t const *)bone)->scale_track);
     }
     return M2_ModernTrackView(&((m2CompBoneModern_t const *)bone)->scale_track);
+}
+
+static float m2_fixed16_to_float(SHORT v) { return (float)v / 32767.0f; }
+
+static BOOL m2_is_visible(m2Model_t const *model, m2TrackView_t *track,
+                          DWORD seq_idx, DWORD seq_time) {
+	if (!M2_TrackHasKeys(track)) return true;
+	void const *left, *right; float ratio;
+	DWORD t = M2_TrackTime(model, track, seq_idx, seq_time);
+	if (!M2_FindTrackKeys(model, track, seq_idx, t, sizeof(BYTE), &left, &right, &ratio))
+		return true;
+	BYTE b = *(BYTE const *)left;
+	if (left != right) b = (BYTE)LerpNumber((FLOAT)*(BYTE const *)left, (FLOAT)*(BYTE const *)right, ratio);
+	return b != 0;
+}
+
+static void m2_sample_part_track(m2Model_t const *model, m2PartTrack_t const *track,
+                                 float progress, DWORD elem_size, void *out) {
+	SHORT const *times = M2_ModelArrayPtr(model, track->times, sizeof(SHORT));
+	BYTE const *vals = M2_ModelArrayPtr(model, track->values, elem_size);
+	DWORD count = (DWORD)track->times.size;
+	if (!times || !vals || count == 0 || count != (DWORD)track->values.size) {
+		memset(out, 0, elem_size); return;
+	}
+	progress = MAX(0.0f, MIN(1.0f, progress));
+	if (count == 1 || progress <= m2_fixed16_to_float(times[0])) {
+		memcpy(out, vals, elem_size); return;
+	}
+	FOR_LOOP(i, count) {
+		if (i == 0) continue;
+		float fi = m2_fixed16_to_float(times[i]), fi1 = m2_fixed16_to_float(times[i - 1]);
+		if (progress <= fi || i == count - 1) {
+			float ratio = fi > fi1 ? (progress - fi1) / (fi - fi1) : 0.0f;
+			BYTE const *a = vals + (i - 1) * elem_size, *b = vals + i * elem_size;
+			if (elem_size == sizeof(SHORT))
+				*(SHORT *)out = (SHORT)LerpNumber((FLOAT)*(SHORT *)a, (FLOAT)*(SHORT *)b, ratio);
+			else if (elem_size == sizeof(VECTOR2))
+				*(VECTOR2 *)out = Vector2_lerp((LPCVECTOR2)a, (LPCVECTOR2)b, ratio);
+			else if (elem_size == sizeof(VECTOR3))
+				*(VECTOR3 *)out = Vector3_lerp((LPCVECTOR3)a, (LPCVECTOR3)b, ratio);
+			else memcpy(out, a, elem_size);
+			return;
+		}
+	}
+	memcpy(out, vals + (count - 1) * elem_size, elem_size);
+}
+
+static LPTEXTURE m2_particle_texture(m2Model_t const *model, m2Particle_t const *p) {
+	m2TextureDisk_t const *tex; LPCSTR path;
+	if (!model || !p || !model->textures.size || p->texture_index >= (WORD)model->textures.size)
+		return tr.texture[TEX_WHITE];
+	tex = M2_ModelArrayPtr(model, model->textures, sizeof(*tex));
+	if (!tex || p->texture_index >= (DWORD)model->textures.size) return tr.texture[TEX_WHITE];
+	path = M2_StringPtr(model->data, model->data_size, tex[p->texture_index].filename);
+	return path && *path ? R_LoadTexture(path) : tr.texture[TEX_WHITE];
+}
+
+static LPTEXTURE m2_ribbon_texture(m2Model_t const *model, m2Ribbon_t const *r, DWORD slot) {
+	WORD const *indices; m2TextureDisk_t const *tex; DWORD idx; LPCSTR path;
+	if (!model || !r || !model->textures.size) return tr.texture[TEX_WHITE];
+	indices = M2_ModelArrayPtr(model, r->texture_indices, sizeof(WORD));
+	tex = M2_ModelArrayPtr(model, model->textures, sizeof(*tex));
+	if (!indices || !tex || slot >= (DWORD)r->texture_indices.size) return tr.texture[TEX_WHITE];
+	idx = indices[slot];
+	if (idx >= (DWORD)model->textures.size) return tr.texture[TEX_WHITE];
+	path = M2_StringPtr(model->data, model->data_size, tex[idx].filename);
+	return path && *path ? R_LoadTexture(path) : tr.texture[TEX_WHITE];
+}
+
+#define M2_C32(v,a) (COLOR32){ (BYTE)((v).x < 0 ? 0 : (v).x > 1 ? 255 : (BYTE)((v).x*255+.5f)), \
+                               (BYTE)((v).y < 0 ? 0 : (v).y > 1 ? 255 : (BYTE)((v).y*255+.5f)), \
+                               (BYTE)((v).z < 0 ? 0 : (v).z > 1 ? 255 : (BYTE)((v).z*255+.5f)), \
+                               (BYTE)((a) < 0 ? 0 : (a) > 1 ? 255 : (BYTE)((a)*255+.5f)) }
+
+typedef struct {
+	FLOAT speed, varia, lat, lon, grav, life, life_var, zsource;
+	FLOAT alpha[3]; VECTOR2 scale[3]; VECTOR3 color[3];
+	LPTEXTURE texture;
+	m2Model_t const *model; m2Particle_t const *p; LPCMATRIX4 model_matrix;
+} m2_pctx_t;
+
+static void m2_spawn_particle(void *raw) {
+	m2_pctx_t *ctx = (m2_pctx_t *)raw;
+	cparticle_t *fx = R_SpawnParticle(); if (!fx) return;
+	FLOAT r = (FLOAT)rand() / (FLOAT)RAND_MAX;
+	VECTOR3 local_origin = ctx->p->position;
+	local_origin.z += ctx->zsource;
+	VECTOR3 org = Matrix4_multiply_vector3(ctx->model_matrix, &local_origin);
+	VECTOR3 dir = {
+		cosf(ctx->lon + (r - 0.5f) * 6.2831853f) * cosf(ctx->lat),
+		sinf(ctx->lon + (r - 0.5f) * 6.2831853f) * cosf(ctx->lat),
+		sinf(ctx->lat + (r - 0.5f) * 0.5f),
+	};
+	VECTOR3 w_dir = Matrix4_multiply_vector3(ctx->model_matrix, &dir);
+	VECTOR3 w_zero = Matrix4_multiply_vector3(ctx->model_matrix, &(VECTOR3){ 0, 0, 0 });
+	dir = Vector3_sub(&w_dir, &w_zero);
+	Vector3_normalize(&dir);
+	fx->texture = ctx->texture;
+	fx->org = org;
+	fx->vel = Vector3_scale(&dir, MAX(0.0f, ctx->speed + (r - 0.5f) * ctx->varia));
+	fx->accel = (VECTOR3){ 0, 0, -ctx->grav };
+	fx->color[0] = M2_C32(ctx->color[0], ctx->alpha[0]);
+	fx->color[1] = M2_C32(ctx->color[1], ctx->alpha[1]);
+	fx->color[2] = M2_C32(ctx->color[2], ctx->alpha[2]);
+	FLOAT s[3] = { MAX(ctx->scale[0].x, ctx->scale[0].y), MAX(ctx->scale[1].x, ctx->scale[1].y), MAX(ctx->scale[2].x, ctx->scale[2].y) };
+	fx->size[0] = (BYTE)MIN(255, (int)(s[0] + 0.5f));
+	fx->size[1] = (BYTE)MIN(255, (int)(s[1] + 0.5f));
+	fx->size[2] = (BYTE)MIN(255, (int)(s[2] + 0.5f));
+	fx->midtime = 0x80; fx->columns = MAX(1, ctx->p->cols); fx->rows = MAX(1, ctx->p->rows);
+	fx->time = 0.0f; fx->lifespan = MAX(0.05f, ctx->life + (r - 0.5f) * ctx->life_var);
+}
+
+static void M2_DrawParticles(m2Model_t const *model, renderEntity_t const *entity, LPCMATRIX4 model_matrix) {
+	if (!model || !entity || !model->particles.size) return;
+	m2Particle_t const *ps = M2_ModelArrayPtr(model, model->particles, sizeof(m2Particle_t));
+	if (!ps) return;
+	DWORD seq_idx, seq_time = M2_AnimationTime(model, entity, &seq_idx);
+	FOR_LOOP(i, (DWORD)model->particles.size) {
+		m2Particle_t const *p = &ps[i];
+		m2TrackView_t vis = M2_ModernTrackView(&p->visibility_track);
+		if (!m2_is_visible(model, &vis, seq_idx, seq_time)) continue;
+		m2TrackView_t rate_t = M2_ModernTrackView(&p->emission_rate_track);
+		FLOAT rate = M2_EvaluateFloatTrack(model, &rate_t, seq_idx, seq_time, 0.0f);
+		if (rate <= 0.0f) continue;
+		m2_pctx_t ctx = { .model = model, .p = p, .model_matrix = model_matrix };
+		{ m2TrackView_t t = M2_ModernTrackView(&p->speed_track); ctx.speed = M2_EvaluateFloatTrack(model, &t, seq_idx, seq_time, 0.0f); }
+		{ m2TrackView_t t = M2_ModernTrackView(&p->variation_track); ctx.varia = M2_EvaluateFloatTrack(model, &t, seq_idx, seq_time, 0.0f); }
+		{ m2TrackView_t t = M2_ModernTrackView(&p->latitude_track); ctx.lat = M2_EvaluateFloatTrack(model, &t, seq_idx, seq_time, 0.0f); }
+		{ m2TrackView_t t = M2_ModernTrackView(&p->longitude_track); ctx.lon = M2_EvaluateFloatTrack(model, &t, seq_idx, seq_time, 0.0f); }
+		{ m2TrackView_t t = M2_ModernTrackView(&p->gravity_track); ctx.grav = M2_EvaluateFloatTrack(model, &t, seq_idx, seq_time, 0.0f); }
+		{ m2TrackView_t t = M2_ModernTrackView(&p->life_track); ctx.life = MAX(0.05f, M2_EvaluateFloatTrack(model, &t, seq_idx, seq_time, 0.5f)); }
+		ctx.life_var = p->life_variation;
+		{ m2TrackView_t t = M2_ModernTrackView(&p->zsource_track); ctx.zsource = M2_EvaluateFloatTrack(model, &t, seq_idx, seq_time, 0.0f); }
+		{ SHORT raw; m2_sample_part_track(model, &p->alpha_track, 0.0f, sizeof(raw), &raw); ctx.alpha[0] = m2_fixed16_to_float(raw);
+		           m2_sample_part_track(model, &p->alpha_track, 0.5f, sizeof(raw), &raw); ctx.alpha[1] = m2_fixed16_to_float(raw);
+		           m2_sample_part_track(model, &p->alpha_track, 1.0f, sizeof(raw), &raw); ctx.alpha[2] = m2_fixed16_to_float(raw); }
+		m2_sample_part_track(model, &p->scale_track, 0.0f, sizeof(VECTOR2), &ctx.scale[0]);
+		m2_sample_part_track(model, &p->scale_track, 0.5f, sizeof(VECTOR2), &ctx.scale[1]);
+		m2_sample_part_track(model, &p->scale_track, 1.0f, sizeof(VECTOR2), &ctx.scale[2]);
+		m2_sample_part_track(model, &p->color_track, 0.0f, sizeof(VECTOR3), &ctx.color[0]);
+		m2_sample_part_track(model, &p->color_track, 0.5f, sizeof(VECTOR3), &ctx.color[1]);
+		m2_sample_part_track(model, &p->color_track, 1.0f, sizeof(VECTOR3), &ctx.color[2]);
+		ctx.texture = m2_particle_texture(model, p);
+		R_EmitParticles(rate, tr.viewDef.time, tr.viewDef.deltaTime, m2_spawn_particle, &ctx);
+	}
+}
+
+static void M2_DrawRibbons(m2Model_t const *model, renderEntity_t const *entity, LPCMATRIX4 model_matrix) {
+	if (!model || !entity || !model->ribbons.size) return;
+	m2Ribbon_t const *rs = M2_ModelArrayPtr(model, model->ribbons, sizeof(m2Ribbon_t));
+	if (!rs) return;
+	DWORD seq_idx, seq_time = M2_AnimationTime(model, entity, &seq_idx);
+	FOR_LOOP(i, (DWORD)model->ribbons.size) {
+		m2Ribbon_t const *r = &rs[i];
+		m2TrackView_t vis = M2_ModernTrackView(&r->visibility_track);
+		if (!m2_is_visible(model, &vis, seq_idx, seq_time)) continue;
+		FLOAT rate = MAX(0.0f, r->edges_per_second);
+		if (rate <= 0.0f) continue;
+		m2TrackView_t color_t = M2_ModernTrackView(&r->color_track);
+		VECTOR3 color = M2_EvaluateVectorTrack(model, &color_t, seq_idx, seq_time, (VECTOR3){ 1, 1, 1 });
+		m2TrackView_t alpha_t = M2_ModernTrackView(&r->alpha_track);
+		void const *la, *ra; float rta;
+		DWORD tt = M2_TrackTime(model, &alpha_t, seq_idx, seq_time);
+		FLOAT alpha = 1.0f;
+		if (M2_FindTrackKeys(model, &alpha_t, seq_idx, tt, sizeof(SHORT), &la, &ra, &rta)) {
+			FLOAT al = m2_fixed16_to_float(*(SHORT const *)la);
+			FLOAT ar = la == ra ? al : m2_fixed16_to_float(*(SHORT const *)ra);
+			alpha = LerpNumber(al, ar, rta);
+		}
+		m2TrackView_t above_t = M2_ModernTrackView(&r->height_above_track);
+		m2TrackView_t below_t = M2_ModernTrackView(&r->height_below_track);
+		FLOAT above = MAX(0.0f, M2_EvaluateFloatTrack(model, &above_t, seq_idx, seq_time, 0.0f));
+		FLOAT below = MAX(0.0f, M2_EvaluateFloatTrack(model, &below_t, seq_idx, seq_time, 0.0f));
+		FLOAT width = MAX(1.0f, above + below);
+		m2TrackView_t slot_t = M2_ModernTrackView(&r->texture_slot_track);
+		WORD slot = 0;
+		void const *ls, *rs; float rts;
+		DWORD tts = M2_TrackTime(model, &slot_t, seq_idx, seq_time);
+		if (M2_FindTrackKeys(model, &slot_t, seq_idx, tts, sizeof(WORD), &ls, &rs, &rts))
+			slot = (WORD)LerpNumber((FLOAT)*(WORD const *)ls, (FLOAT)*(WORD const *)rs, rts);
+		COLOR32 col = M2_C32(color, alpha);
+		BYTE size_b = (BYTE)MIN(255, (int)(width + 0.5f));
+		DWORD cols = MAX(1, r->texture_cols), rows = MAX(1, r->texture_rows);
+		LPTEXTURE tex = m2_ribbon_texture(model, r, slot);
+		DWORD start_ms = (tr.viewDef.time - tr.viewDef.deltaTime) / 1000 * 1000;
+		for (float t = (float)start_ms; t < (float)tr.viewDef.time; t += 1000.0f / rate)
+			if (t >= (float)(tr.viewDef.time - tr.viewDef.deltaTime)) {
+				cparticle_t *fx = R_SpawnParticle(); if (!fx) continue;
+				VECTOR3 org = Matrix4_multiply_vector3(model_matrix, &r->position);
+				fx->texture = tex; fx->org = org; fx->vel = (VECTOR3){ 0 };
+				fx->accel = (VECTOR3){ 0, 0, -MAX(0.0f, r->gravity) };
+				fx->color[0] = fx->color[1] = fx->color[2] = col;
+				fx->size[0] = fx->size[1] = fx->size[2] = size_b;
+				fx->midtime = 0x80; fx->columns = cols; fx->rows = rows;
+				fx->time = 0.0f; fx->lifespan = MAX(0.05f, r->edge_lifetime);
+			}
+	}
 }
 
 static void M2_CalculateBoneMatrices(m2Model_t const *model, renderEntity_t const *entity) {
@@ -2509,6 +2813,10 @@ static BOOL M2_CopyModelData(m2Model_t *model, BYTE const *m2_base, DWORD m2_siz
         bone_lookup_table = legacy->bone_lookup_table;
         model->attachments = legacy->attachments;
         model->attachment_lookup = legacy->attachment_lookup;
+        model->textures = legacy->textures;
+        model->texture_lookup_table = legacy->texture_lookup_table;
+        model->ribbons = legacy->ribbons;
+        model->particles = legacy->particles;
         cameras = legacy->cameras;
     } else {
         model->global_loops = model->header->global_loops;
@@ -2517,6 +2825,10 @@ static BOOL M2_CopyModelData(m2Model_t *model, BYTE const *m2_base, DWORD m2_siz
         bone_lookup_table = model->header->bone_lookup_table;
         model->attachments = model->header->attachments;
         model->attachment_lookup = model->header->attachment_lookup;
+        model->textures = model->header->textures;
+        model->texture_lookup_table = model->header->texture_lookup_table;
+        model->ribbons = model->header->ribbons;
+        model->particles = model->header->particles;
         cameras = model->header->cameras;
     }
 
@@ -2881,6 +3193,8 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
 
     shader = M2_Shader();
     M2_CalculateBoneMatrices(model, entity);
+    M2_DrawParticles(model, entity, transform);
+    M2_DrawRibbons(model, entity, transform);
     outfit = M2_CharacterOutfitForEntity(model, entity);
     Matrix3_normal(&normal_matrix, transform);
     R_Call(glUseProgram, shader->progid);

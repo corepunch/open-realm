@@ -286,3 +286,9 @@ While casting, the caster must:
 3. **Animated attachment launch** — renderer-owned hand and impact tags
 4. **Range/LOS revalidation and pushback** — complete authoritative cast rules
 5. **Particle renderer** — hand glow, missile trail, and impact visuals
+
+### Current Renderer Status
+
+The WoW M2 renderer now consumes the model `particles` and `ribbons` arrays and emits them into the shared billboard particle system during `M2_RenderModel()`. That means spell and impact models can drive hand glow, trails, and burst effects directly from their attachment/bone data instead of relying only on temp-entity model swaps.
+
+The current particle backend is still billboard-based and additive, so it is a good fit for fire, frost, and other bright spell effects. Ribbon data is approximated as short-lived ribbon trail billboards for now, which keeps the visual pipeline live without introducing a second mesh path.
