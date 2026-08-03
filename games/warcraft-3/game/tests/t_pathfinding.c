@@ -1,3 +1,4 @@
+#ifdef BZ_TESTS
 /*
  * test_pathfinding.c — Unit tests for routing.c (heatmap / flow-field).
  *
@@ -24,8 +25,14 @@
 
 #include <math.h>
 #include <string.h>
-#include "test_framework.h"
-#include "test_harness.h"
+#include "test.h"
+#include "../g_local.h"
+
+/* Helpers defined in t_utils.c */
+LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+void reset_entities(void);
+
+
 
 /* -----------------------------------------------------------------------
  * Symbols from routing.c / g_phys.c used directly by these tests.
@@ -34,12 +41,9 @@
 /* Defined in routing.c, only compiled for test builds. */
 void CM_SetupTestPathmap(DWORD width, DWORD height, BYTE const *cells);
 
-typedef struct routePerfStats_s {
-    DWORD cache_hits, cache_misses, heatmap_iterations, flow_cells_baked;
-} routePerfStats_t;
-
+struct routePerfStats_s;
 void CM_ResetTestPathPerfStats(void);
-routePerfStats_t CM_GetTestPathPerfStats(void);
+extern struct routePerfStats_s CM_GetTestPathPerfStats(void);
 
 /* Public API from routing.c. */
 DWORD  CM_BuildHeatmap(edict_t *goalentity);
@@ -133,13 +137,16 @@ static VECTOR2 flow_at_cell(float cell_x, float cell_y) {
  * s.model is set to 1 so the entity is not treated as IS_HOLLOW by
  * G_SolveCollisions (which skips entities with model == 0). */
 static LPEDICT make_unit_at(float x, float y) {
-    LPEDICT ent = alloc_test_unit(UNIT_ID("hpea"), x, y);
+    LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), x, y);
     ent->movetype  = MOVETYPE_STEP;
     ent->collision = 16.0f;
     ent->s.model   = 1;
     ent->stand     = unit_stand;
     unit_stand(ent);
-    gi.LinkEntity(ent); /* populate bounds for BoxEdicts queries */
+    ent->bounds.min.x = ent->s.origin2.x - ent->collision;
+    ent->bounds.min.y = ent->s.origin2.y - ent->collision;
+    ent->bounds.max.x = ent->s.origin2.x + ent->collision;
+    ent->bounds.max.y = ent->s.origin2.y + ent->collision;
     return ent;
 }
 
@@ -147,7 +154,7 @@ static LPEDICT make_unit_at(float x, float y) {
  * Cache tests
  * --------------------------------------------------------------------- */
 
-static void test_heatmap_cache_hit_same_goal(void) {
+TEST(wc3_pathfinding, heatmap_cache_hit_same_goal) {
     build_open_map();
     CM_SetupTestPathmap(MAP_W, MAP_H, open_map);
     reset_entities();
@@ -157,10 +164,10 @@ static void test_heatmap_cache_hit_same_goal(void) {
     DWORD gen2 = CM_BuildHeatmap(wp);
 
     /* Same goal: generation must be identical — no rebuild. */
-    ASSERT_EQ_INT(gen1, gen2);
+    T_EQ(gen1, gen2);
 }
 
-static void test_heatmap_cache_hit_same_target_different_waypoint(void) {
+TEST(wc3_pathfinding, heatmap_cache_hit_same_target_different_waypoint) {
     build_open_map();
     CM_SetupTestPathmap(MAP_W, MAP_H, open_map);
     reset_entities();
@@ -170,11 +177,11 @@ static void test_heatmap_cache_hit_same_target_different_waypoint(void) {
     DWORD gen1 = CM_BuildHeatmap(wp1);
     DWORD gen2 = CM_BuildHeatmap(wp2);
 
-    ASSERT(wp1 != wp2);
-    ASSERT_EQ_INT(gen1, gen2);
+    T_ASSERT(wp1 != wp2);
+    T_EQ(gen1, gen2);
 }
 
-static void test_heatmap_cache_perf_same_target_builds_once(void) {
+TEST(wc3_pathfinding, heatmap_cache_perf_same_target_builds_once) {
     build_open_map();
     CM_SetupTestPathmap(MAP_W, MAP_H, open_map);
     reset_entities();
@@ -185,14 +192,14 @@ static void test_heatmap_cache_perf_same_target_builds_once(void) {
     CM_BuildHeatmap(wp1);
     CM_BuildHeatmap(wp2);
 
-    routePerfStats_t stats = CM_GetTestPathPerfStats();
-    ASSERT_EQ_INT(stats.cache_misses, 1);
-    ASSERT_EQ_INT(stats.cache_hits, 1);
-    ASSERT_EQ_INT(stats.heatmap_iterations, MAP_W * MAP_H);
-    ASSERT_EQ_INT(stats.flow_cells_baked, MAP_W * MAP_H);
+    struct routePerfStats_s stats = CM_GetTestPathPerfStats();
+    T_EQ(stats.cache_misses, 1);
+    T_EQ(stats.cache_hits, 1);
+    T_EQ(stats.heatmap_iterations, MAP_W * MAP_H);
+    T_EQ(stats.flow_cells_baked, MAP_W * MAP_H);
 }
 
-static void test_heatmap_cache_miss_different_goal(void) {
+TEST(wc3_pathfinding, heatmap_cache_miss_different_goal) {
     build_open_map();
     CM_SetupTestPathmap(MAP_W, MAP_H, open_map);
     reset_entities();
@@ -203,10 +210,10 @@ static void test_heatmap_cache_miss_different_goal(void) {
     DWORD gen2 = CM_BuildHeatmap(wp2);
 
     /* Different goals must produce different generations. */
-    ASSERT(gen1 != gen2);
+    T_ASSERT(gen1 != gen2);
 }
 
-static void test_heatmap_generation_is_nonzero(void) {
+TEST(wc3_pathfinding, heatmap_generation_is_nonzero) {
     build_open_map();
     CM_SetupTestPathmap(MAP_W, MAP_H, open_map);
     reset_entities();
@@ -214,7 +221,7 @@ static void test_heatmap_generation_is_nonzero(void) {
     LPEDICT wp = make_waypoint(3.0f, 3.0f);
     DWORD gen = CM_BuildHeatmap(wp);
 
-    ASSERT(gen != 0);
+    T_ASSERT(gen != 0);
 }
 
 /* -----------------------------------------------------------------------
@@ -223,7 +230,7 @@ static void test_heatmap_generation_is_nonzero(void) {
  * generation.
  * --------------------------------------------------------------------- */
 
-static void test_multi_goal_cache_no_thrash(void) {
+TEST(wc3_pathfinding, multi_goal_cache_no_thrash) {
     /* Must call CM_SetupTestPathmap once only — it resets the cache. */
     build_open_map();
     CM_SetupTestPathmap(MAP_W, MAP_H, open_map);
@@ -233,24 +240,24 @@ static void test_multi_goal_cache_no_thrash(void) {
     LPEDICT wp_b = make_waypoint(8.0f, 8.0f);
 
     /* Verify the two waypoints are actually different pointers. */
-    ASSERT(wp_a != wp_b);
+    T_ASSERT(wp_a != wp_b);
 
     /* Build both goals once — they each occupy a cache slot. */
     DWORD gen_a1 = CM_BuildHeatmap(wp_a);
     DWORD gen_b1 = CM_BuildHeatmap(wp_b);
 
     /* Both goals are different so their generations must differ. */
-    ASSERT(gen_a1 != gen_b1);
+    T_ASSERT(gen_a1 != gen_b1);
 
     /* Switch back to each — both should hit the cache (same generation). */
     DWORD gen_a2 = CM_BuildHeatmap(wp_a);
     DWORD gen_b2 = CM_BuildHeatmap(wp_b);
 
-    ASSERT_EQ_INT(gen_a1, gen_a2);
-    ASSERT_EQ_INT(gen_b1, gen_b2);
+    T_EQ(gen_a1, gen_a2);
+    T_EQ(gen_b1, gen_b2);
 }
 
-static void test_heatmap_cache_ignores_stale_dynamic_pathmap_stamps(void) {
+TEST(wc3_pathfinding, heatmap_cache_ignores_stale_dynamic_pathmap_stamps) {
     build_open_map();
     CM_SetupTestPathmap(MAP_W, MAP_H, open_map);
     reset_entities();
@@ -265,10 +272,10 @@ static void test_heatmap_cache_ignores_stale_dynamic_pathmap_stamps(void) {
     LPEDICT wp2 = make_waypoint(5.0f, 5.0f);
     DWORD gen2 = CM_BuildHeatmap(wp2);
 
-    ASSERT_EQ_INT(gen1, gen2);
+    T_EQ(gen1, gen2);
 }
 
-static void test_flow_bake_perf_skips_unreachable_half(void) {
+TEST(wc3_pathfinding, flow_bake_perf_skips_unreachable_half) {
     build_split_map();
     CM_SetupTestPathmap(MAP_W, MAP_H, split_map);
     reset_entities();
@@ -277,19 +284,19 @@ static void test_flow_bake_perf_skips_unreachable_half(void) {
     LPEDICT wp = make_waypoint(7.0f, 5.0f);
     CM_BuildHeatmap(wp);
 
-    routePerfStats_t stats = CM_GetTestPathPerfStats();
-    ASSERT_EQ_INT(stats.cache_misses, 1);
-    ASSERT_EQ_INT(stats.cache_hits, 0);
-    ASSERT_EQ_INT(stats.heatmap_iterations, (MAP_W - 6) * MAP_H);
-    ASSERT_EQ_INT(stats.flow_cells_baked, stats.heatmap_iterations);
-    ASSERT(stats.flow_cells_baked < MAP_W * MAP_H);
+    struct routePerfStats_s stats = CM_GetTestPathPerfStats();
+    T_EQ(stats.cache_misses, 1);
+    T_EQ(stats.cache_hits, 0);
+    T_EQ(stats.heatmap_iterations, (MAP_W - 6) * MAP_H);
+    T_EQ(stats.flow_cells_baked, stats.heatmap_iterations);
+    T_ASSERT(stats.flow_cells_baked < MAP_W * MAP_H);
 }
 
 /* -----------------------------------------------------------------------
  * Static obstacle tests
  * --------------------------------------------------------------------- */
 
-static void test_wall_routes_flow_around_obstacle(void) {
+TEST(wc3_pathfinding, wall_routes_flow_around_obstacle) {
     build_wall_map();
     CM_SetupTestPathmap(MAP_W, MAP_H, wall_map);
     reset_entities();
@@ -307,15 +314,15 @@ static void test_wall_routes_flow_around_obstacle(void) {
      * Flow at (8, 5) — right side, open — should point toward the goal
      * i.e. leftward (-x component). */
     VECTOR2 dir_right = flow_at_cell(8.0f, 5.0f);
-    ASSERT(dir_right.x < 0.0f);
+    T_ASSERT(dir_right.x < 0.0f);
 
     /* Flow at (3, 5) — left of wall — must have a non-zero y component
      * to route around the wall (can't go straight right). */
     VECTOR2 dir_left = flow_at_cell(3.0f, 5.0f);
-    ASSERT(dir_left.y != 0.0f || dir_left.x != 0.0f);
+    T_ASSERT(dir_left.y != 0.0f || dir_left.x != 0.0f);
 }
 
-static void test_flow_direction_points_toward_goal_open(void) {
+TEST(wc3_pathfinding, flow_direction_points_toward_goal_open) {
     build_open_map();
     CM_SetupTestPathmap(MAP_W, MAP_H, open_map);
     reset_entities();
@@ -326,7 +333,7 @@ static void test_flow_direction_points_toward_goal_open(void) {
 
     /* At cell (2, 5), flow should point roughly rightward (+x). */
     VECTOR2 dir = flow_at_cell(2.0f, 5.0f);
-    ASSERT(dir.x > 0.0f);
+    T_ASSERT(dir.x > 0.0f);
 }
 
 /* -----------------------------------------------------------------------
@@ -337,7 +344,7 @@ static void test_flow_direction_points_toward_goal_open(void) {
  * CM_BuildHeatmap twice with a unit present returns the same generation.
  * --------------------------------------------------------------------- */
 
-static void test_unit_presence_does_not_invalidate_heatmap_cache(void) {
+TEST(wc3_pathfinding, unit_presence_does_not_invalidate_heatmap_cache) {
     build_open_map();
     CM_SetupTestPathmap(MAP_W, MAP_H, open_map);
     reset_entities();
@@ -349,7 +356,7 @@ static void test_unit_presence_does_not_invalidate_heatmap_cache(void) {
     DWORD gen1 = CM_BuildHeatmap(wp);
     DWORD gen2 = CM_BuildHeatmap(wp);
 
-    ASSERT_EQ_INT(gen1, gen2);
+    T_EQ(gen1, gen2);
 }
 
 /* -----------------------------------------------------------------------
@@ -360,7 +367,7 @@ static void test_unit_presence_does_not_invalidate_heatmap_cache(void) {
  * harness (same convention as make_waypoint).
  * --------------------------------------------------------------------- */
 
-static void test_point_pathable_rejects_wall_accepts_open(void) {
+TEST(wc3_pathfinding, point_pathable_rejects_wall_accepts_open) {
     build_wall_map();
     CM_SetupTestPathmap(MAP_W, MAP_H, wall_map);
     reset_entities();
@@ -368,15 +375,15 @@ static void test_point_pathable_rejects_wall_accepts_open(void) {
     VECTOR2 wall_pt = { 5.0f / (float)MAP_W, 5.0f / (float)MAP_H }; /* on the wall column */
     VECTOR2 open_pt = { 2.0f / (float)MAP_W, 5.0f / (float)MAP_H }; /* clear ground */
 
-    ASSERT(!CM_PointIsPathableForRadius(&wall_pt, 0.0f));
-    ASSERT(CM_PointIsPathableForRadius(&open_pt, 0.0f));
+    T_ASSERT(!CM_PointIsPathableForRadius(&wall_pt, 0.0f));
+    T_ASSERT(CM_PointIsPathableForRadius(&open_pt, 0.0f));
 }
 
 /* The flood and the flow must not cut diagonally through a wall corner: with
  * walls at (1,0) and (0,1), the cell (0,0) is boxed off from a goal at (1,1)
  * (squeezing the corner is not a legal move), so its flow is zero, not a
  * diagonal pointing into the corner. */
-static void test_no_diagonal_corner_cutting(void) {
+TEST(wc3_pathfinding, no_diagonal_corner_cutting) {
     BYTE corner_map[MAP_W * MAP_H];
     memset(corner_map, 0, sizeof(corner_map));
     corner_map[0 * MAP_W + 1] = 2;  /* wall at (1,0) */
@@ -388,8 +395,8 @@ static void test_no_diagonal_corner_cutting(void) {
     build_flow(wp);
 
     VECTOR2 flow = flow_at_cell(0.0f, 0.0f);
-    ASSERT_EQ_FLOAT(flow.x, 0.0f, 0.001f);
-    ASSERT_EQ_FLOAT(flow.y, 0.0f, 0.001f);
+    T_FEQ(flow.x, 0.0f, 0.001f);
+    T_FEQ(flow.y, 0.0f, 0.001f);
 }
 
 /* -----------------------------------------------------------------------
@@ -400,7 +407,7 @@ static void test_no_diagonal_corner_cutting(void) {
  * pre-baked flow field is stored correctly and survives a cache lookup.
  * --------------------------------------------------------------------- */
 
-static void test_flow_cache_consistent_after_hit(void) {
+TEST(wc3_pathfinding, flow_cache_consistent_after_hit) {
     build_open_map();
     CM_SetupTestPathmap(MAP_W, MAP_H, open_map);
 
@@ -412,8 +419,8 @@ static void test_flow_cache_consistent_after_hit(void) {
     build_flow(wp);
     VECTOR2 dir2 = flow_at_cell(2.0f, 5.0f);
 
-    ASSERT_EQ_FLOAT(dir1.x, dir2.x, 0.001f);
-    ASSERT_EQ_FLOAT(dir1.y, dir2.y, 0.001f);
+    T_FEQ(dir1.x, dir2.x, 0.001f);
+    T_FEQ(dir1.y, dir2.y, 0.001f);
 }
 
 /* -----------------------------------------------------------------------
@@ -423,7 +430,7 @@ static void test_flow_cache_consistent_after_hit(void) {
  * is consistent — switching between cached goals doesn't corrupt directions.
  * --------------------------------------------------------------------- */
 
-static void test_flow_consistent_across_goal_switches(void) {
+TEST(wc3_pathfinding, flow_consistent_across_goal_switches) {
     build_open_map();
     CM_SetupTestPathmap(MAP_W, MAP_H, open_map);
 
@@ -442,10 +449,10 @@ static void test_flow_consistent_across_goal_switches(void) {
     VECTOR2 flow_right2 = flow_at_cell(5.0f, 5.0f);
 
     /* Flow directions must be in opposite x halves. */
-    ASSERT(flow_right.x > 0.0f);
-    ASSERT(flow_left.x < 0.0f);
+    T_ASSERT(flow_right.x > 0.0f);
+    T_ASSERT(flow_left.x < 0.0f);
     /* Cached right goal must match original. */
-    ASSERT_EQ_FLOAT(flow_right.x, flow_right2.x, 0.001f);
+    T_FEQ(flow_right.x, flow_right2.x, 0.001f);
 }
 
 /* -----------------------------------------------------------------------
@@ -456,9 +463,9 @@ static void test_flow_consistent_across_goal_switches(void) {
  * gets a valid angle pointing toward the goal regardless.
  * --------------------------------------------------------------------- */
 
-#define NAVI_THRESHOLD 128.0f  /* must match g_ai.c */
+#define PF_NAVI_THRESHOLD 128.0f  /* must match g_ai.c */
 
-static void test_proximity_shortcut_gives_correct_angle(void) {
+TEST(wc3_pathfinding, proximity_shortcut_gives_correct_angle) {
     build_open_map();
     CM_SetupTestPathmap(MAP_W, MAP_H, open_map);
     reset_entities();
@@ -473,7 +480,7 @@ static void test_proximity_shortcut_gives_correct_angle(void) {
 
     /* Distance must be within threshold for the shortcut to apply. */
     FLOAT dist = M_DistanceToGoal(unit);
-    ASSERT(dist < NAVI_THRESHOLD);
+    T_ASSERT(dist < NAVI_THRESHOLD);
 
     /* Units now turn gradually (at their turn rate) toward the target facing
      * rather than snapping instantly, so step a few ticks to let the facing
@@ -485,28 +492,11 @@ static void test_proximity_shortcut_gives_correct_angle(void) {
     /* Angle must point from (0,0) toward the goal. */
     FLOAT expected = atan2f(wp->s.origin.y - unit->s.origin.y,
                             wp->s.origin.x - unit->s.origin.x);
-    ASSERT_EQ_FLOAT(unit->s.angle, expected, 0.01f);
+    T_FEQ(unit->s.angle, expected, 0.01f);
 }
 
 /* -----------------------------------------------------------------------
  * Suite runner
  * --------------------------------------------------------------------- */
 
-BEGIN_SUITE(pathfinding)
-    RUN_TEST(test_heatmap_cache_hit_same_goal);
-    RUN_TEST(test_heatmap_cache_hit_same_target_different_waypoint);
-    RUN_TEST(test_heatmap_cache_perf_same_target_builds_once);
-    RUN_TEST(test_heatmap_cache_miss_different_goal);
-    RUN_TEST(test_heatmap_generation_is_nonzero);
-    RUN_TEST(test_multi_goal_cache_no_thrash);
-    RUN_TEST(test_heatmap_cache_ignores_stale_dynamic_pathmap_stamps);
-    RUN_TEST(test_flow_bake_perf_skips_unreachable_half);
-    RUN_TEST(test_wall_routes_flow_around_obstacle);
-    RUN_TEST(test_flow_direction_points_toward_goal_open);
-    RUN_TEST(test_unit_presence_does_not_invalidate_heatmap_cache);
-    RUN_TEST(test_point_pathable_rejects_wall_accepts_open);
-    RUN_TEST(test_no_diagonal_corner_cutting);
-    RUN_TEST(test_flow_cache_consistent_after_hit);
-    RUN_TEST(test_flow_consistent_across_goal_switches);
-    RUN_TEST(test_proximity_shortcut_gives_correct_angle);
-END_SUITE()
+#endif /* BZ_TESTS */

@@ -1,6 +1,7 @@
 #include "common.h"
 
 #include "mpq.h"
+#include "test.h"
 #include <stdlib.h>
 
 #ifdef _WIN32
@@ -1345,6 +1346,14 @@ static void Com_Map_f(void) {
     MenuAction("map", Cmd_ArgsFrom(1));
 }
 
+/* Run the in-engine test registry and exit with the failure count.  Tests are
+ * compiled into the game module only when it is built with -DBZ_TESTS; in a
+ * production build the registry is empty and this reports zero tests. */
+static void Com_Test_f(void) {
+    int failures = Test_Run(Cmd_Argc() > 1 ? Cmd_Argv(1) : "*");
+    exit(failures ? 1 : 0);
+}
+
 void Com_Init(int argc, LPCSTR *argv) {
     COM_InitArgv(argc, argv);
     Cbuf_Init();
@@ -1360,6 +1369,7 @@ void Com_Init(int argc, LPCSTR *argv) {
     Cmd_AddCommand("maps", Com_Maps_f);
     Cmd_AddCommand("path", Com_Path_f);
     Cmd_AddCommand("dir", Com_Dir_f);
+    Cmd_AddCommand("test", Com_Test_f);
     Cvar_ApplyConfigCommandLine(argc, argv);
     Cbuf_AddEarlyCommands(false);
     Cbuf_Execute();

@@ -311,18 +311,41 @@ int main(int argc, LPSTR argv[]) {
 
     NET_Init();
 
+    /* Headless test mode: `+test <pattern>` runs the in-engine test registry
+     * without a map.  The game module is a link dependency, so its TEST()
+     * constructors have already registered by the time we get here. */
+    bool run_tests = false;
+    for (int i = 1; i < COM_Argc(); i++) {
+        if (!strcmp(COM_Argv(i), "+test")) { run_tests = true; break; }
+    }
+
     if (dedicated) {
         // Dedicated server mode: no client stack, no SDL window.
-        if (!has_map) {
+        if (!has_map && !run_tests) {
             fprintf(stderr, "Dedicated server requires +map <map>\n");
             return 1;
         }
         SV_Init();
-        fprintf(stderr, "Dedicated server starting on map: %s\n", map);
-        /* Call SV_Map directly instead of routing through the 'map' command,
-         * because Com_Map_f -> MenuAction -> CL_BeginLoadingMap requires the
-         * client stack which is not initialized in dedicated mode. */
-        SV_Map(map);
+        if (has_map) {
+            fprintf(stderr, "Dedicated server starting on map: %s\n", map);
+            /* Call SV_Map directly instead of routing through the 'map' command,
+             * because Com_Map_f -> MenuAction -> CL_BeginLoadingMap requires the
+             * client stack which is not initialized in dedicated mode. */
+            SV_Map(map);
+        }
+        if (run_tests) {
+            /* Bring up the real game module (gi + globals via GetGameAPI, then
+             * ge->Init) so in-engine tests exercise the actual server import
+             * table and can spawn entities / register models from the mounted
+             * archives.  When a map was loaded, SV_Map already did this. */
+            if (!has_map) {
+                SV_InitGameProgs();
+            }
+            /* Fire the queued `test` command; Com_Test_f exits with the
+             * failure count once the registry has run. */
+            Cbuf_AddLateCommands();
+            Cbuf_Execute();
+        }
     } else {
         if (!menu_mode) {
             SV_Init();

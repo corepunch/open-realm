@@ -1,3 +1,4 @@
+#ifdef BZ_TESTS
 /*
  * test_movement.c — Unit movement and pathfinding tests.
  *
@@ -22,8 +23,14 @@
  */
 
 #include <math.h>
-#include "test_framework.h"
-#include "test_harness.h"
+#include "test.h"
+#include "../g_local.h"
+
+/* Helpers defined in t_utils.c */
+LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+void reset_entities(void);
+
+
 
 /* NAVI_THRESHOLD is the distance below which ai_walk uses direct
  * vector math rather than the heatmap flow field.  It is defined as a
@@ -40,7 +47,7 @@
  * so each test starts from a clean slate. */
 static LPEDICT make_moving_unit(FLOAT x, FLOAT y) {
     reset_entities();
-    LPEDICT ent = alloc_test_unit(UNIT_ID("hpea"), x, y);
+    LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), x, y);
     ent->movetype  = MOVETYPE_STEP;
     ent->stand     = unit_stand;
     ent->birth     = unit_birth;
@@ -56,75 +63,75 @@ static LPEDICT make_moving_unit(FLOAT x, FLOAT y) {
  * order_move tests
  * --------------------------------------------------------------------- */
 
-static void test_order_move_sets_goalentity(void) {
+TEST(wc3_movement, order_move_sets_goalentity) {
     LPEDICT unit = make_moving_unit(0.0f, 0.0f);
     LPEDICT wp   = alloc_test_unit(0, 30.0f, 0.0f); /* reuse edict as waypoint */
     order_move(unit, wp);
-    ASSERT(unit->goalentity == wp);
+    T_ASSERT(unit->goalentity == wp);
 }
 
-static void test_order_move_sets_walk_animation(void) {
+TEST(wc3_movement, order_move_sets_walk_animation) {
     LPEDICT unit = make_moving_unit(0.0f, 0.0f);
     LPEDICT wp   = alloc_test_unit(0, 30.0f, 0.0f);
     order_move(unit, wp);
-    ASSERT_NOT_NULL(unit->currentmove);
-    ASSERT_ANIM(unit, "walk");
+    T_NOT_NULL(unit->currentmove);
+    T_STREQ(unit->currentmove->animation, "walk");
 }
 
 /* -----------------------------------------------------------------------
  * Waypoint_add tests
  * --------------------------------------------------------------------- */
 
-static void test_waypoint_add_sets_origin(void) {
+TEST(wc3_movement, waypoint_add_sets_origin) {
     VECTOR2 dest = {128.0f, 256.0f};
     LPEDICT wp = Waypoint_add(&dest);
-    ASSERT_NOT_NULL(wp);
-    ASSERT_EQ_FLOAT(wp->s.origin.x, 128.0f, 0.01f);
-    ASSERT_EQ_FLOAT(wp->s.origin.y, 256.0f, 0.01f);
+    T_NOT_NULL(wp);
+    T_FEQ(wp->s.origin.x, 128.0f, 0.01f);
+    T_FEQ(wp->s.origin.y, 256.0f, 0.01f);
 }
 
 /* -----------------------------------------------------------------------
  * unit_movedistance tests
  * --------------------------------------------------------------------- */
 
-static void test_unit_movedistance_matches_formula(void) {
+TEST(wc3_movement, unit_movedistance_matches_formula) {
     /* unit_movedistance = 10 * speed / FRAMETIME */
     LPEDICT unit = make_moving_unit(0.0f, 0.0f);
-    FLOAT expected = 10.0f * UNIT_SPEED(UNIT_ID("hpea")) / (FLOAT)FRAMETIME;
-    ASSERT_FLOAT_EQ(unit_movedistance(unit), expected);
+    FLOAT expected = 10.0f * UNIT_SPEED(MAKEFOURCC('h','p','e','a')) / (FLOAT)FRAMETIME;
+    T_FEQ(unit_movedistance(unit), expected, 0.01f);
 }
 
-static void test_unit_movedistance_uses_scripted_move_speed(void) {
+TEST(wc3_movement, unit_movedistance_uses_scripted_move_speed) {
     LPEDICT unit = make_moving_unit(0.0f, 0.0f);
     unit->unitinfo.MoveSpeed = 300.0f;
 
     FLOAT expected = 10.0f * 300.0f / (FLOAT)FRAMETIME;
-    ASSERT_FLOAT_EQ(unit_movedistance(unit), expected);
+    T_FEQ(unit_movedistance(unit), expected, 0.01f);
 }
 
 /* -----------------------------------------------------------------------
  * M_DistanceToGoal tests
  * --------------------------------------------------------------------- */
 
-static void test_distance_to_goal_along_x_axis(void) {
+TEST(wc3_movement, distance_to_goal_along_x_axis) {
     LPEDICT unit = make_moving_unit(0.0f, 0.0f);
     LPEDICT wp   = alloc_test_unit(0, 100.0f, 0.0f);
     unit->goalentity = wp;
-    ASSERT_FLOAT_EQ(M_DistanceToGoal(unit), 100.0f);
+    T_FEQ(M_DistanceToGoal(unit), 100.0f, 0.01f);
 }
 
-static void test_distance_to_goal_diagonal(void) {
+TEST(wc3_movement, distance_to_goal_diagonal) {
     LPEDICT unit = make_moving_unit(0.0f, 0.0f);
     LPEDICT wp   = alloc_test_unit(0, 30.0f, 40.0f); /* 3-4-5 right triangle → 50 */
     unit->goalentity = wp;
-    ASSERT_EQ_FLOAT(M_DistanceToGoal(unit), 50.0f, 0.1f);
+    T_FEQ(M_DistanceToGoal(unit), 50.0f, 0.1f);
 }
 
-static void test_distance_to_goal_zero_when_at_goal(void) {
+TEST(wc3_movement, distance_to_goal_zero_when_at_goal) {
     LPEDICT unit = make_moving_unit(10.0f, 10.0f);
     LPEDICT wp   = alloc_test_unit(0, 10.0f, 10.0f);
     unit->goalentity = wp;
-    ASSERT_FLOAT_EQ(M_DistanceToGoal(unit), 0.0f);
+    T_FEQ(M_DistanceToGoal(unit), 0.0f, 0.01f);
 }
 
 /* -----------------------------------------------------------------------
@@ -135,23 +142,23 @@ static void test_distance_to_goal_zero_when_at_goal(void) {
  * we invoke ent->currentmove->think() to simulate one game frame.
  * ===================================================================== */
 
-static void test_unit_moves_closer_to_goal_after_one_frame(void) {
+TEST(wc3_movement, unit_moves_closer_to_goal_after_one_frame) {
     LPEDICT unit = make_moving_unit(0.0f, 0.0f);
     /* Place waypoint within NAVI_THRESHOLD so direct vector math is used
      * and we don't need the heatmap mock to return a meaningful direction. */
     VECTOR2 dest = {40.0f, 0.0f};
     unit_issueorder(unit, "move", &dest);
-    ASSERT_NOT_NULL(unit->currentmove);
-    ASSERT_NOT_NULL(unit->currentmove->think);
+    T_NOT_NULL(unit->currentmove);
+    T_NOT_NULL(unit->currentmove->think);
 
     FLOAT dist_before = M_DistanceToGoal(unit);
     unit->currentmove->think(unit);
     FLOAT dist_after = M_DistanceToGoal(unit);
 
-    ASSERT(dist_after < dist_before);
+    T_ASSERT(dist_after < dist_before);
 }
 
-static void test_unit_reaches_goal_and_transitions_to_stand(void) {
+TEST(wc3_movement, unit_reaches_goal_and_transitions_to_stand) {
     LPEDICT unit = make_moving_unit(0.0f, 0.0f);
     /* Distance = 40, move_distance ≈ 27.  After two frames the unit
      * should have arrived (40 - 27 = 13 < 27) and called stand(). */
@@ -165,10 +172,10 @@ static void test_unit_reaches_goal_and_transitions_to_stand(void) {
         unit->currentmove->think(unit);
     }
 
-    ASSERT_ANIM(unit, "stand");
+    T_STREQ(unit->currentmove->animation, "stand");
 }
 
-static void test_unit_position_changes_after_move_frame(void) {
+TEST(wc3_movement, unit_position_changes_after_move_frame) {
     LPEDICT unit = make_moving_unit(0.0f, 0.0f);
     VECTOR2 dest = {40.0f, 0.0f};
     unit_issueorder(unit, "move", &dest);
@@ -177,10 +184,10 @@ static void test_unit_position_changes_after_move_frame(void) {
     unit->currentmove->think(unit);
 
     /* Unit must have moved in the X direction. */
-    ASSERT(unit->s.origin2.x > x0);
+    T_ASSERT(unit->s.origin2.x > x0);
 }
 
-static void test_unit_does_not_overshoot_goal(void) {
+TEST(wc3_movement, unit_does_not_overshoot_goal) {
     LPEDICT unit = make_moving_unit(0.0f, 0.0f);
     VECTOR2 dest = {40.0f, 0.0f};
     unit_issueorder(unit, "move", &dest);
@@ -195,17 +202,17 @@ static void test_unit_does_not_overshoot_goal(void) {
     /* After reaching the goal the unit should be exactly at the waypoint,
      * which keeps scripted cutscene units from visibly stopping short. */
     FLOAT dist = M_DistanceToGoal(unit);
-    ASSERT_EQ_FLOAT(dist, 0.0f, 0.01f);
+    T_FEQ(dist, 0.0f, 0.01f);
 }
 
-static void test_group_move_assigns_distinct_reserved_destinations(void) {
+TEST(wc3_movement, group_move_assigns_distinct_reserved_destinations) {
     reset_entities();
     LPEDICT clent = alloc_test_unit(0, 0.0f, 0.0f);
     clent->client = &game.clients[0];
 
-    LPEDICT a = alloc_test_unit(UNIT_ID("hpea"), 0.0f, 0.0f);
-    LPEDICT b = alloc_test_unit(UNIT_ID("hpea"), 20.0f, 0.0f);
-    LPEDICT c = alloc_test_unit(UNIT_ID("hpea"), 0.0f, 20.0f);
+    LPEDICT a = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    LPEDICT b = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 20.0f, 0.0f);
+    LPEDICT c = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 20.0f);
     LPEDICT units[] = { a, b, c };
 
     FOR_LOOP(i, 3) {
@@ -216,26 +223,26 @@ static void test_group_move_assigns_distinct_reserved_destinations(void) {
     }
 
     VECTOR2 dest = {100.0f, 100.0f};
-    ASSERT(move_selectlocation(clent, &dest));
+    T_ASSERT(move_selectlocation(clent, &dest));
 
-    ASSERT_NOT_NULL(a->goalentity);
-    ASSERT_NOT_NULL(b->goalentity);
-    ASSERT_NOT_NULL(c->goalentity);
-    ASSERT_NOT_NULL(a->goalentity->secondarygoal);
-    ASSERT(a->goalentity->secondarygoal == b->goalentity->secondarygoal);
-    ASSERT(a->goalentity->secondarygoal == c->goalentity->secondarygoal);
-    ASSERT(Vector2_distance(&a->goalentity->s.origin2, &b->goalentity->s.origin2) >= 32.0f);
-    ASSERT(Vector2_distance(&a->goalentity->s.origin2, &c->goalentity->s.origin2) >= 32.0f);
-    ASSERT(Vector2_distance(&b->goalentity->s.origin2, &c->goalentity->s.origin2) >= 32.0f);
+    T_NOT_NULL(a->goalentity);
+    T_NOT_NULL(b->goalentity);
+    T_NOT_NULL(c->goalentity);
+    T_NOT_NULL(a->goalentity->secondarygoal);
+    T_ASSERT(a->goalentity->secondarygoal == b->goalentity->secondarygoal);
+    T_ASSERT(a->goalentity->secondarygoal == c->goalentity->secondarygoal);
+    T_ASSERT(Vector2_distance(&a->goalentity->s.origin2, &b->goalentity->s.origin2) >= 32.0f);
+    T_ASSERT(Vector2_distance(&a->goalentity->s.origin2, &c->goalentity->s.origin2) >= 32.0f);
+    T_ASSERT(Vector2_distance(&b->goalentity->s.origin2, &c->goalentity->s.origin2) >= 32.0f);
 }
 
-static void test_group_move_ignores_selected_buildings(void) {
+TEST(wc3_movement, group_move_ignores_selected_buildings) {
     reset_entities();
     LPEDICT clent = alloc_test_unit(0, 0.0f, 0.0f);
     clent->client = &game.clients[0];
 
-    LPEDICT building = alloc_test_unit(UNIT_ID("hbar"), 0.0f, 0.0f);
-    LPEDICT peasant = alloc_test_unit(UNIT_ID("hpea"), 20.0f, 0.0f);
+    LPEDICT building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0.0f, 0.0f);
+    LPEDICT peasant = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 20.0f, 0.0f);
 
     building->collision = 64.0f;
     building->selected = 1 << clent->client->ps.number;
@@ -248,21 +255,21 @@ static void test_group_move_ignores_selected_buildings(void) {
     unit_stand(peasant);
 
     VECTOR2 dest = {100.0f, 100.0f};
-    ASSERT(move_selectlocation(clent, &dest));
+    T_ASSERT(move_selectlocation(clent, &dest));
 
-    ASSERT_NULL(building->goalentity);
-    ASSERT_NOT_NULL(peasant->goalentity);
+    T_NULL(building->goalentity);
+    T_NOT_NULL(peasant->goalentity);
 }
 
 /* A mixed-speed group travels at its slowest member's speed so it stays
  * together instead of stringing out (WC3 group movement). */
-static void test_group_move_travels_at_slowest_member_speed(void) {
+TEST(wc3_movement, group_move_travels_at_slowest_member_speed) {
     reset_entities();
     LPEDICT clent = alloc_test_unit(0, 0.0f, 0.0f);
     clent->client = &game.clients[0];
 
-    LPEDICT fast = alloc_test_unit(UNIT_ID("hpea"), 0.0f, 0.0f);
-    LPEDICT slow = alloc_test_unit(UNIT_ID("hpea"), 20.0f, 0.0f);
+    LPEDICT fast = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    LPEDICT slow = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 20.0f, 0.0f);
     fast->unitinfo.MoveSpeed = 300.0f;
     slow->unitinfo.MoveSpeed = 100.0f;
     LPEDICT units[] = { fast, slow };
@@ -274,27 +281,27 @@ static void test_group_move_travels_at_slowest_member_speed(void) {
     }
 
     VECTOR2 dest = {400.0f, 0.0f};
-    ASSERT(move_selectlocation(clent, &dest));
+    T_ASSERT(move_selectlocation(clent, &dest));
 
     /* Both units adopt the slowest member's speed for the group move... */
-    ASSERT_EQ_FLOAT(fast->move_group_speed, 100.0f, 0.01f);
-    ASSERT_EQ_FLOAT(slow->move_group_speed, 100.0f, 0.01f);
+    T_FEQ(fast->move_group_speed, 100.0f, 0.01f);
+    T_FEQ(slow->move_group_speed, 100.0f, 0.01f);
     /* ...so the fast unit's per-frame travel is capped to the slow speed. */
-    ASSERT_FLOAT_EQ(unit_movedistance(fast), 10.0f * 100.0f / (FLOAT)FRAMETIME);
+    T_FEQ(unit_movedistance(fast), 10.0f * 100.0f / (FLOAT)FRAMETIME, 0.01f);
 }
 
 /* A lone unit keeps its own speed (no group cap). */
-static void test_single_unit_move_keeps_own_speed(void) {
+TEST(wc3_movement, single_unit_move_keeps_own_speed) {
     LPEDICT unit = make_moving_unit(0.0f, 0.0f);
     unit->unitinfo.MoveSpeed = 300.0f;
     VECTOR2 dest = {200.0f, 0.0f};
     unit_issueorder(unit, "move", &dest);
 
-    ASSERT_EQ_FLOAT(unit->move_group_speed, 0.0f, 0.01f);
-    ASSERT_FLOAT_EQ(unit_movedistance(unit), 10.0f * 300.0f / (FLOAT)FRAMETIME);
+    T_FEQ(unit->move_group_speed, 0.0f, 0.01f);
+    T_FEQ(unit_movedistance(unit), 10.0f * 300.0f / (FLOAT)FRAMETIME, 0.01f);
 }
 
-static void test_blocked_move_stops_instead_of_walking_forever(void) {
+TEST(wc3_movement, blocked_move_stops_instead_of_walking_forever) {
     LPEDICT unit = make_moving_unit(0.0f, 0.0f);
     VECTOR2 origin = unit->s.origin2;
     VECTOR2 dest = {400.0f, 0.0f};
@@ -309,13 +316,16 @@ static void test_blocked_move_stops_instead_of_walking_forever(void) {
         unit->s.origin2 = origin;
         unit->s.origin.x = origin.x;
         unit->s.origin.y = origin.y;
-        gi.LinkEntity(unit);
+        unit->bounds.min.x = unit->s.origin2.x - unit->collision;
+    unit->bounds.min.y = unit->s.origin2.y - unit->collision;
+    unit->bounds.max.x = unit->s.origin2.x + unit->collision;
+    unit->bounds.max.y = unit->s.origin2.y + unit->collision;
     }
 
-    ASSERT_ANIM(unit, "stand");
+    T_STREQ(unit->currentmove->animation, "stand");
 }
 
-static void test_near_goal_jitter_settles_to_stand(void) {
+TEST(wc3_movement, near_goal_jitter_settles_to_stand) {
     LPEDICT unit = make_moving_unit(65.0f, 0.0f);
     VECTOR2 jitter = unit->s.origin2;
     VECTOR2 dest = {100.0f, 0.0f};
@@ -329,15 +339,18 @@ static void test_near_goal_jitter_settles_to_stand(void) {
         unit->s.origin2 = jitter;
         unit->s.origin.x = jitter.x;
         unit->s.origin.y = jitter.y;
-        gi.LinkEntity(unit);
+        unit->bounds.min.x = unit->s.origin2.x - unit->collision;
+    unit->bounds.min.y = unit->s.origin2.y - unit->collision;
+    unit->bounds.max.x = unit->s.origin2.x + unit->collision;
+    unit->bounds.max.y = unit->s.origin2.y + unit->collision;
     }
 
-    ASSERT_ANIM(unit, "stand");
+    T_STREQ(unit->currentmove->animation, "stand");
 }
 
-static void test_unit_stops_when_goal_is_occupied(void) {
+TEST(wc3_movement, unit_stops_when_goal_is_occupied) {
     LPEDICT unit = make_moving_unit(0.0f, 0.0f);
-    LPEDICT blocker = alloc_test_unit(UNIT_ID("hfoo"), 100.0f, 0.0f);
+    LPEDICT blocker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100.0f, 0.0f);
     VECTOR2 dest = {100.0f, 0.0f};
 
     unit->collision = 16.0f;
@@ -346,7 +359,10 @@ static void test_unit_stops_when_goal_is_occupied(void) {
     blocker->stand = unit_stand;
     blocker->movetype = MOVETYPE_NONE;
     unit_stand(blocker);
-    gi.LinkEntity(blocker);          /* refresh bounds to reflect collision */
+    blocker->bounds.min.x = blocker->s.origin2.x - blocker->collision;
+    blocker->bounds.min.y = blocker->s.origin2.y - blocker->collision;
+    blocker->bounds.max.x = blocker->s.origin2.x + blocker->collision;
+    blocker->bounds.max.y = blocker->s.origin2.y + blocker->collision;
 
     unit_issueorder(unit, "move", &dest);
 
@@ -366,33 +382,13 @@ static void test_unit_stops_when_goal_is_occupied(void) {
     }
 
     FLOAT combined = unit->collision + blocker->collision;
-    ASSERT_ANIM(unit, "stand");                                  /* settled, didn't walk forever */
-    ASSERT(min_goal_dist >= combined - 1.0f);                    /* never penetrated the blocker */
-    ASSERT(min_goal_dist <= combined + unit_movedistance(unit)); /* but reached right up to it */
+    T_STREQ(unit->currentmove->animation, "stand");/* settled, didn't walk forever */
+    T_ASSERT(min_goal_dist >= combined - 1.0f);                    /* never penetrated the blocker */
+    T_ASSERT(min_goal_dist <= combined + unit_movedistance(unit)); /* but reached right up to it */
 }
 
 /* -----------------------------------------------------------------------
  * Suite runner
  * --------------------------------------------------------------------- */
 
-BEGIN_SUITE(movement)
-    RUN_TEST(test_order_move_sets_goalentity);
-    RUN_TEST(test_order_move_sets_walk_animation);
-    RUN_TEST(test_waypoint_add_sets_origin);
-    RUN_TEST(test_unit_movedistance_matches_formula);
-    RUN_TEST(test_unit_movedistance_uses_scripted_move_speed);
-    RUN_TEST(test_distance_to_goal_along_x_axis);
-    RUN_TEST(test_distance_to_goal_diagonal);
-    RUN_TEST(test_distance_to_goal_zero_when_at_goal);
-    RUN_TEST(test_unit_moves_closer_to_goal_after_one_frame);
-    RUN_TEST(test_unit_reaches_goal_and_transitions_to_stand);
-    RUN_TEST(test_unit_position_changes_after_move_frame);
-    RUN_TEST(test_unit_does_not_overshoot_goal);
-    RUN_TEST(test_group_move_assigns_distinct_reserved_destinations);
-    RUN_TEST(test_group_move_ignores_selected_buildings);
-    RUN_TEST(test_group_move_travels_at_slowest_member_speed);
-    RUN_TEST(test_single_unit_move_keeps_own_speed);
-    RUN_TEST(test_blocked_move_stops_instead_of_walking_forever);
-    RUN_TEST(test_near_goal_jitter_settles_to_stand);
-    RUN_TEST(test_unit_stops_when_goal_is_occupied);
-END_SUITE()
+#endif /* BZ_TESTS */

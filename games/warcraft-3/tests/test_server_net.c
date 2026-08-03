@@ -5,7 +5,7 @@
 #include <sys/socket.h>
 #include <fcntl.h>
 
-#include "test_framework.h"
+#include "test.h"
 
 #include "common/shared.h"
 #include "../../../common/net.h"
@@ -15,7 +15,7 @@
 void test_client_stubs_init(void);
 void test_client_stubs_clear_cvars(void);
 void test_client_stubs_set_cvar(LPCSTR name, LPCSTR value);
-extern struct game_import gi;
+struct game_import gi;
 
 /* External symbols referenced by sv_init.c but unused in these tests. */
 void SV_InitGameProgs(void) {}
@@ -176,7 +176,7 @@ static void send_connect_oob(int sock, unsigned short server_port) {
         CONNECT_TEXT_SIZE = 7
     };
     BYTE datagram[MAX_CONNECT_DATAGRAM_SIZE];
-    DWORD msg_len = OOB_HEADER_SIZE + CONNECT_TEXT_SIZE; /* -1 + "connect" */
+    DWORD msg_len = OOB_HEADER_SIZE + CONNECT_TEXT_SIZE;
     int oob_marker = -1;
     memcpy(datagram, &oob_marker, sizeof(oob_marker));
     memcpy(datagram + 4, "connect", 7);
@@ -197,7 +197,7 @@ static void send_info_oob(int sock, unsigned short server_port) {
         INFO_TEXT_SIZE = 4
     };
     BYTE datagram[MAX_INFO_DATAGRAM_SIZE];
-    DWORD msg_len = OOB_HEADER_SIZE + INFO_TEXT_SIZE; /* -1 + "info" */
+    DWORD msg_len = OOB_HEADER_SIZE + INFO_TEXT_SIZE;
     int oob_marker = -1;
     memcpy(datagram, &oob_marker, sizeof(oob_marker));
     memcpy(datagram + 4, "info", 4);
@@ -239,7 +239,7 @@ static void pump_server_connects(void) {
         MAX_PACKETS_PER_PUMP = 64,
         MAX_EMPTY_POLLS = 40,
         RECV_POLL_DELAY_US = 5000,
-        MIN_CONNECT_MSG_SIZE = 11 /* -1 marker (4) + "connect" (7) */
+        MIN_CONNECT_MSG_SIZE = 11
     };
     BYTE msg_buf[MAX_MSGLEN];
     sizeBuf_t msg = { msg_buf, MAX_MSGLEN, 0, 0 };
@@ -328,34 +328,34 @@ static void drain_client_packets(void) {
     }
 }
 
-static void test_udp_multi_client_connects_register_distinct_slots(void) {
+TEST(server_net, udp_multi_client_connects_register_distinct_slots) {
     int c1 = open_client_socket();
     int c2 = open_client_socket();
-    ASSERT(c1 >= 0 && c2 >= 0);
-    ASSERT(bind_server_socket(PORT_SERVER + 9));
+    T_ASSERT(c1 >= 0 && c2 >= 0);
+    T_ASSERT(bind_server_socket(PORT_SERVER + 9));
     reset_server_state(8);
 
     send_connect_oob(c1, PORT_SERVER + 9);
     send_connect_oob(c2, PORT_SERVER + 9);
     pump_server_connects();
 
-    ASSERT_EQ_INT(svs.num_clients, 2);
-    ASSERT_EQ_INT(svs.clients[0].state, cs_connected);
-    ASSERT_EQ_INT(svs.clients[1].state, cs_connected);
-    ASSERT(recv_client_connect_oob(c1));
-    ASSERT(recv_client_connect_oob(c2));
+    T_EQ(svs.num_clients, 2);
+    T_EQ(svs.clients[0].state, cs_connected);
+    T_EQ(svs.clients[1].state, cs_connected);
+    T_ASSERT(recv_client_connect_oob(c1));
+    T_ASSERT(recv_client_connect_oob(c2));
 
     if (c1 >= 0) close(c1);
     if (c2 >= 0) close(c2);
     NET_Shutdown();
 }
 
-static void test_udp_connect_honors_ge_max_clients_limit(void) {
+TEST(server_net, udp_connect_honors_ge_max_clients_limit) {
     int c1 = open_client_socket();
     int c2 = open_client_socket();
     int c3 = open_client_socket();
-    ASSERT(c1 >= 0 && c2 >= 0 && c3 >= 0);
-    ASSERT(bind_server_socket(PORT_SERVER + 10));
+    T_ASSERT(c1 >= 0 && c2 >= 0 && c3 >= 0);
+    T_ASSERT(bind_server_socket(PORT_SERVER + 10));
     reset_server_state(2);
 
     send_connect_oob(c1, PORT_SERVER + 10);
@@ -363,10 +363,10 @@ static void test_udp_connect_honors_ge_max_clients_limit(void) {
     send_connect_oob(c3, PORT_SERVER + 10);
     pump_server_connects();
 
-    ASSERT_EQ_INT(svs.num_clients, 2);
-    ASSERT(recv_client_connect_oob(c1));
-    ASSERT(recv_client_connect_oob(c2));
-    ASSERT(!recv_client_connect_oob(c3));
+    T_EQ(svs.num_clients, 2);
+    T_ASSERT(recv_client_connect_oob(c1));
+    T_ASSERT(recv_client_connect_oob(c2));
+    T_ASSERT(!recv_client_connect_oob(c3));
 
     if (c1 >= 0) close(c1);
     if (c2 >= 0) close(c2);
@@ -374,11 +374,11 @@ static void test_udp_connect_honors_ge_max_clients_limit(void) {
     NET_Shutdown();
 }
 
-static void test_lan_info_query_returns_discoverable_server_metadata(void) {
+TEST(server_net, lan_info_query_returns_discoverable_server_metadata) {
     int c1 = open_client_socket();
     char info[512];
-    ASSERT(c1 >= 0);
-    ASSERT(bind_server_socket(PORT_SERVER + 11));
+    T_ASSERT(c1 >= 0);
+    T_ASSERT(bind_server_socket(PORT_SERVER + 11));
     reset_server_state(8);
     sv.state = ss_game;
     snprintf(sv.configstrings[CS_WORLD], sizeof(sv.configstrings[CS_WORLD]),
@@ -389,22 +389,22 @@ static void test_lan_info_query_returns_discoverable_server_metadata(void) {
     send_info_oob(c1, PORT_SERVER + 11);
     pump_server_connectionless();
 
-    ASSERT(recv_info_oob(c1, info, sizeof(info)));
-    ASSERT(strstr(info, "\\hostname\\OpenWarcraft3") != NULL);
-    ASSERT(strstr(info, "\\mapname\\Maps/Melee/TwinRivers.w3m") != NULL);
-    ASSERT(strstr(info, "\\players\\1") != NULL);
-    ASSERT(strstr(info, "\\maxplayers\\8") != NULL);
-    ASSERT(strstr(info, "\\speed\\2") != NULL);
+    T_ASSERT(recv_info_oob(c1, info, sizeof(info)));
+    T_ASSERT(strstr(info, "\\hostname\\OpenWarcraft3") != NULL);
+    T_ASSERT(strstr(info, "\\mapname\\Maps/Melee/TwinRivers.w3m") != NULL);
+    T_ASSERT(strstr(info, "\\players\\1") != NULL);
+    T_ASSERT(strstr(info, "\\maxplayers\\8") != NULL);
+    T_ASSERT(strstr(info, "\\speed\\2") != NULL);
 
     if (c1 >= 0) close(c1);
     NET_Shutdown();
 }
 
-static void test_lan_info_query_returns_lobby_metadata(void) {
+TEST(server_net, lan_info_query_returns_lobby_metadata) {
     int c1 = open_client_socket();
     char info[512];
-    ASSERT(c1 >= 0);
-    ASSERT(bind_server_socket(PORT_SERVER + 12));
+    T_ASSERT(c1 >= 0);
+    T_ASSERT(bind_server_socket(PORT_SERVER + 12));
     reset_server_state(8);
     sv.state = ss_lobby;
     snprintf(sv.configstrings[CS_WORLD], sizeof(sv.configstrings[CS_WORLD]),
@@ -415,15 +415,15 @@ static void test_lan_info_query_returns_lobby_metadata(void) {
     send_info_oob(c1, PORT_SERVER + 12);
     pump_server_connectionless();
 
-    ASSERT(recv_info_oob(c1, info, sizeof(info)));
-    ASSERT(strstr(info, "\\mapname\\Maps/Melee/TwinRivers.w3m") != NULL);
-    ASSERT(strstr(info, "\\players\\1") != NULL);
+    T_ASSERT(recv_info_oob(c1, info, sizeof(info)));
+    T_ASSERT(strstr(info, "\\mapname\\Maps/Melee/TwinRivers.w3m") != NULL);
+    T_ASSERT(strstr(info, "\\players\\1") != NULL);
 
     if (c1 >= 0) close(c1);
     NET_Shutdown();
 }
 
-static void test_lobby_team_selection_expands_map_forces(void) {
+TEST(server_net, lobby_team_selection_expands_map_forces) {
     MAPINFO info;
     lobbySlot_t slot;
 
@@ -467,22 +467,22 @@ static void test_lobby_team_selection_expands_map_forces(void) {
 
     SV_Map("Maps\\Melee\\Test.w3m");
 
-    ASSERT_EQ_INT(info.num_teams, 4);
-    ASSERT((info.teams[0].playerMasks & (1u << 0)) != 0);
-    ASSERT((info.teams[0].playerMasks & (1u << 1)) == 0);
-    ASSERT((info.teams[3].playerMasks & (1u << 1)) != 0);
-    ASSERT_EQ_INT(info.players[0].playerRace, kPlayerRaceOrc);
-    ASSERT_EQ_INT(info.players[1].playerType, kPlayerTypeComputer);
-    ASSERT_EQ_INT(info.players[1].playerRace, kPlayerRaceUndead);
-    ASSERT_EQ_INT(info.players[1].color, 7);
-    ASSERT_STR_EQ(info.players[0].playerName, "Host");
+    T_EQ(info.num_teams, 4);
+    T_ASSERT((info.teams[0].playerMasks & (1u << 0)) != 0);
+    T_ASSERT((info.teams[0].playerMasks & (1u << 1)) == 0);
+    T_ASSERT((info.teams[3].playerMasks & (1u << 1)) != 0);
+    T_EQ(info.players[0].playerRace, kPlayerRaceOrc);
+    T_EQ(info.players[1].playerType, kPlayerTypeComputer);
+    T_EQ(info.players[1].playerRace, kPlayerRaceUndead);
+    T_EQ(info.players[1].color, 7);
+    T_STREQ(info.players[0].playerName, "Host");
 
     SV_Shutdown();
     SAFE_DELETE(info.teams, MemFree);
     test_mapinfo = NULL;
 }
 
-static void test_local_map_uses_loopback_without_udp(void) {
+TEST(server_net, local_map_uses_loopback_without_udp) {
     MAPINFO info;
 
     NET_Shutdown();
@@ -492,17 +492,17 @@ static void test_local_map_uses_loopback_without_udp(void) {
 
     SV_Map("Maps\\Melee\\Test.w3m");
 
-    ASSERT_EQ_INT(sv.state, ss_game);
-    ASSERT_EQ_INT(svs.num_clients, 1);
-    ASSERT_EQ_INT(svs.clients[0].netchan.remote_address.type, NA_LOOPBACK);
-    ASSERT(!NET_IsConfigured(NS_CLIENT));
-    ASSERT(!NET_IsConfigured(NS_SERVER));
+    T_EQ(sv.state, ss_game);
+    T_EQ(svs.num_clients, 1);
+    T_EQ(svs.clients[0].netchan.remote_address.type, NA_LOOPBACK);
+    T_ASSERT(!NET_IsConfigured(NS_CLIENT));
+    T_ASSERT(!NET_IsConfigured(NS_SERVER));
 
     SV_Shutdown();
     test_mapinfo = NULL;
 }
 
-static void test_lobby_start_preserves_connected_clients(void) {
+TEST(server_net, lobby_start_preserves_connected_clients) {
     MAPINFO info;
     lobbySlot_t slot;
     netadr_t remote = { NA_IP, { 127, 0, 0, 1 }, { 0 }, htons(PORT_SERVER + 13) };
@@ -514,10 +514,10 @@ static void test_lobby_start_preserves_connected_clients(void) {
     test_mapinfo = &info;
 
     SV_StartLobby("Maps\\Melee\\Test.w3m");
-    ASSERT_EQ_INT(sv.state, ss_lobby);
-    ASSERT_EQ_INT(svs.num_clients, 1);
-    ASSERT(!NET_IsConfigured(NS_CLIENT));
-    ASSERT(NET_IsConfigured(NS_SERVER));
+    T_EQ(sv.state, ss_lobby);
+    T_EQ(svs.num_clients, 1);
+    T_ASSERT(!NET_IsConfigured(NS_CLIENT));
+    T_ASSERT(NET_IsConfigured(NS_SERVER));
     SV_LobbySetConfig(2, 2, "Test");
     memset(&slot, 0, sizeof(slot));
     slot.visible = true;
@@ -537,28 +537,28 @@ static void test_lobby_start_preserves_connected_clients(void) {
     snprintf(slot.name, sizeof(slot.name), "Open");
     SV_LobbySetSlot(1, &slot);
     SV_DirectConnect(&remote, "\\name\\Remote");
-    ASSERT_EQ_INT(svs.num_clients, 2);
-    ASSERT_EQ_INT(svs.clients[1].playernum, 1);
+    T_EQ(svs.num_clients, 2);
+    T_EQ(svs.clients[1].playernum, 1);
 
     SV_Map("Maps\\Melee\\Test.w3m");
 
-    ASSERT_EQ_INT(sv.state, ss_game);
-    ASSERT_EQ_INT(svs.num_clients, 2);
-    ASSERT_EQ_INT(test_game_shutdowns, 0);
-    ASSERT_EQ_INT(svs.clients[0].state, cs_connected);
-    ASSERT_EQ_INT(svs.clients[0].netchan.remote_address.type, NA_LOOPBACK);
-    ASSERT_EQ_INT(svs.clients[1].state, cs_connected);
-    ASSERT_EQ_INT(svs.clients[1].netchan.remote_address.type, NA_IP);
-    ASSERT_EQ_INT(svs.clients[1].netchan.remote_address.port, remote.port);
-    ASSERT_EQ_INT(svs.clients[1].playernum, 1);
-    ASSERT_STR_EQ(svs.clients[1].name, "Remote");
+    T_EQ(sv.state, ss_game);
+    T_EQ(svs.num_clients, 2);
+    T_EQ(test_game_shutdowns, 0);
+    T_EQ(svs.clients[0].state, cs_connected);
+    T_EQ(svs.clients[0].netchan.remote_address.type, NA_LOOPBACK);
+    T_EQ(svs.clients[1].state, cs_connected);
+    T_EQ(svs.clients[1].netchan.remote_address.type, NA_IP);
+    T_EQ(svs.clients[1].netchan.remote_address.port, remote.port);
+    T_EQ(svs.clients[1].playernum, 1);
+    T_STREQ(svs.clients[1].name, "Remote");
 
     SV_Shutdown();
     NET_Shutdown();
     test_mapinfo = NULL;
 }
 
-static void test_lobby_start_same_map_is_noop(void) {
+TEST(server_net, lobby_start_same_map_is_noop) {
     MAPINFO info;
     lobbySlot_t slot;
     netadr_t remote = { NA_IP, { 127, 0, 0, 1 }, { 0 }, htons(PORT_SERVER + 14) };
@@ -585,22 +585,22 @@ static void test_lobby_start_same_map_is_noop(void) {
     snprintf(slot.name, sizeof(slot.name), "Open");
     SV_LobbySetSlot(1, &slot);
     SV_DirectConnect(&remote, "\\name\\Remote");
-    ASSERT_EQ_INT(svs.num_clients, 2);
+    T_EQ(svs.num_clients, 2);
 
     SV_StartLobby("Maps\\Melee\\Test.w3m");
 
-    ASSERT_EQ_INT(sv.state, ss_lobby);
-    ASSERT_STR_EQ(sv.configstrings[CS_WORLD], "Maps\\Melee\\Test.w3m");
-    ASSERT_EQ_INT(svs.num_clients, 2);
-    ASSERT_EQ_INT(svs.clients[1].state, cs_connected);
-    ASSERT_EQ_INT(svs.clients[1].netchan.remote_address.port, remote.port);
+    T_EQ(sv.state, ss_lobby);
+    T_STREQ(sv.configstrings[CS_WORLD], "Maps\\Melee\\Test.w3m");
+    T_EQ(svs.num_clients, 2);
+    T_EQ(svs.clients[1].state, cs_connected);
+    T_EQ(svs.clients[1].netchan.remote_address.port, remote.port);
 
     SV_Shutdown();
     NET_Shutdown();
     test_mapinfo = NULL;
 }
 
-static void test_lobby_rejects_remote_when_slots_full(void) {
+TEST(server_net, lobby_rejects_remote_when_slots_full) {
     MAPINFO info;
     lobbySlot_t slot;
     netadr_t remote = { NA_IP, { 127, 0, 0, 1 }, { 0 }, htons(PORT_SERVER + 15) };
@@ -622,16 +622,16 @@ static void test_lobby_rejects_remote_when_slots_full(void) {
     snprintf(slot.name, sizeof(slot.name), "Host");
     SV_LobbySetSlot(0, &slot);
 
-    ASSERT_EQ_INT(svs.num_clients, 1);
+    T_EQ(svs.num_clients, 1);
     SV_DirectConnect(&remote, "\\name\\Remote");
-    ASSERT_EQ_INT(svs.num_clients, 1);
+    T_EQ(svs.num_clients, 1);
 
     SV_Shutdown();
     NET_Shutdown();
     test_mapinfo = NULL;
 }
 
-static void test_lobby_setup_message_round_trips_slot_table(void) {
+TEST(server_net, lobby_setup_message_round_trips_slot_table) {
     BYTE msg_buf[MAX_MSGLEN];
     sizeBuf_t msg = { msg_buf, MAX_MSGLEN, 0, 0 };
     LPCLIENT cl;
@@ -666,43 +666,43 @@ static void test_lobby_setup_message_round_trips_slot_table(void) {
     msg.cursize = cl->netchan.message.cursize;
     msg.readcount = 0;
 
-    ASSERT_EQ_INT(MSG_ReadByte(&msg), svc_gamecmd);
+    T_EQ(MSG_ReadByte(&msg), svc_gamecmd);
     MSG_ReadString(&msg, text);
-    ASSERT_STR_EQ(text, "lobby_setup");
-    ASSERT(MSG_ReadShort(&msg) > 0);
+    T_STREQ(text, "lobby_setup");
+    T_ASSERT(MSG_ReadShort(&msg) > 0);
     MSG_ReadString(&msg, text);
-    ASSERT_STR_EQ(text, "Maps\\Melee\\Test.w3m");
+    T_STREQ(text, "Maps\\Melee\\Test.w3m");
     MSG_ReadString(&msg, text);
-    ASSERT_STR_EQ(text, "Test Map");
-    ASSERT_EQ_INT(MSG_ReadByte(&msg), 3);
-    ASSERT_EQ_INT(MSG_ReadByte(&msg), 2);
-    ASSERT_EQ_INT(MSG_ReadByte(&msg), 1);
-    ASSERT_EQ_INT(MSG_ReadLong(&msg), 7);
+    T_STREQ(text, "Test Map");
+    T_EQ(MSG_ReadByte(&msg), 3);
+    T_EQ(MSG_ReadByte(&msg), 2);
+    T_EQ(MSG_ReadByte(&msg), 1);
+    T_EQ(MSG_ReadLong(&msg), 7);
     FOR_LOOP(i, 1) {
-        ASSERT_EQ_INT(MSG_ReadByte(&msg), 0);
-        ASSERT_EQ_INT(MSG_ReadByte(&msg), 0);
-        ASSERT_EQ_INT(MSG_ReadByte(&msg), -1);
-        ASSERT_EQ_INT(MSG_ReadByte(&msg), -1);
-        ASSERT_EQ_INT(MSG_ReadByte(&msg), 0);
-        ASSERT_EQ_INT(MSG_ReadByte(&msg), 0);
-        ASSERT_EQ_INT(MSG_ReadByte(&msg), 0);
-        ASSERT_EQ_INT(MSG_ReadByte(&msg), 0);
+        T_EQ(MSG_ReadByte(&msg), 0);
+        T_EQ(MSG_ReadByte(&msg), 0);
+        T_EQ(MSG_ReadByte(&msg), -1);
+        T_EQ(MSG_ReadByte(&msg), -1);
+        T_EQ(MSG_ReadByte(&msg), 0);
+        T_EQ(MSG_ReadByte(&msg), 0);
+        T_EQ(MSG_ReadByte(&msg), 0);
+        T_EQ(MSG_ReadByte(&msg), 0);
         MSG_ReadString(&msg, text);
-        ASSERT_STR_EQ(text, "");
+        T_STREQ(text, "");
     }
-    ASSERT_EQ_INT(MSG_ReadByte(&msg), 1);
-    ASSERT_EQ_INT(MSG_ReadByte(&msg), 1);
-    ASSERT_EQ_INT(MSG_ReadByte(&msg), 0);
-    ASSERT_EQ_INT(MSG_ReadByte(&msg), 4);
-    ASSERT_EQ_INT(MSG_ReadByte(&msg), LOBBY_SLOT_HUMAN);
-    ASSERT_EQ_INT(MSG_ReadByte(&msg), kPlayerRaceNightElf);
-    ASSERT_EQ_INT(MSG_ReadByte(&msg), 2);
-    ASSERT_EQ_INT(MSG_ReadByte(&msg), 6);
+    T_EQ(MSG_ReadByte(&msg), 1);
+    T_EQ(MSG_ReadByte(&msg), 1);
+    T_EQ(MSG_ReadByte(&msg), 0);
+    T_EQ(MSG_ReadByte(&msg), 4);
+    T_EQ(MSG_ReadByte(&msg), LOBBY_SLOT_HUMAN);
+    T_EQ(MSG_ReadByte(&msg), kPlayerRaceNightElf);
+    T_EQ(MSG_ReadByte(&msg), 2);
+    T_EQ(MSG_ReadByte(&msg), 6);
     MSG_ReadString(&msg, text);
-    ASSERT_STR_EQ(text, "Remote");
+    T_STREQ(text, "Remote");
 }
 
-static void test_multicast_syncs_updates_to_all_connected_clients(void) {
+TEST(server_net, multicast_syncs_updates_to_all_connected_clients) {
     BYTE payload[] = { 0x11, 0x22, 0x33, 0x44 };
     VECTOR3 origin = { 0, 0, 0 };
     reset_server_state(4);
@@ -717,13 +717,13 @@ static void test_multicast_syncs_updates_to_all_connected_clients(void) {
     SV_Multicast(&origin, MULTICAST_ALL_R);
 
     FOR_LOOP(i, 3) {
-        ASSERT_EQ_INT(svs.clients[i].netchan.message.cursize, (int)sizeof(payload));
-        ASSERT(memcmp(svs.clients[i].netchan.message.data, payload, sizeof(payload)) == 0);
+        T_EQ(svs.clients[i].netchan.message.cursize, (int)sizeof(payload));
+        T_ASSERT(memcmp(svs.clients[i].netchan.message.data, payload, sizeof(payload)) == 0);
     }
-    ASSERT_EQ_INT(sv.multicast.cursize, 0);
+    T_EQ(sv.multicast.cursize, 0);
 }
 
-static void test_lobby_chat_broadcasts_to_connected_clients(void) {
+TEST(server_net, lobby_chat_broadcasts_to_connected_clients) {
     BYTE msg_buf[MAX_MSGLEN];
     sizeBuf_t msg = { msg_buf, MAX_MSGLEN, 0, 0 };
     netadr_t from;
@@ -745,28 +745,13 @@ static void test_lobby_chat_broadcasts_to_connected_clients(void) {
     SV_LobbyBroadcastChatFrom(0, "Host", "hello team");
 
     FOR_LOOP(i, svs.num_clients) {
-        ASSERT(NET_GetPacket(NS_CLIENT, &from, &msg));
-        ASSERT_EQ_INT(MSG_ReadByte(&msg), svc_gamecmd);
+        T_ASSERT(NET_GetPacket(NS_CLIENT, &from, &msg));
+        T_EQ(MSG_ReadByte(&msg), svc_gamecmd);
         MSG_ReadString(&msg, text);
-        ASSERT_STR_EQ(text, "lobby_chat");
-        ASSERT(MSG_ReadShort(&msg) > 0);
-        ASSERT_EQ_INT(MSG_ReadByte(&msg), i == 0 ? 1 : 0);
+        T_STREQ(text, "lobby_chat");
+        T_ASSERT(MSG_ReadShort(&msg) > 0);
+        T_EQ(MSG_ReadByte(&msg), i == 0 ? 1 : 0);
         MSG_ReadString(&msg, text);
-        ASSERT_STR_EQ(text, "Host: hello team");
+        T_STREQ(text, "Host: hello team");
     }
-}
-
-void run_server_net_tests(void) {
-    RUN_TEST(test_udp_multi_client_connects_register_distinct_slots);
-    RUN_TEST(test_udp_connect_honors_ge_max_clients_limit);
-    RUN_TEST(test_lan_info_query_returns_discoverable_server_metadata);
-    RUN_TEST(test_lan_info_query_returns_lobby_metadata);
-    RUN_TEST(test_lobby_team_selection_expands_map_forces);
-    RUN_TEST(test_local_map_uses_loopback_without_udp);
-    RUN_TEST(test_lobby_start_preserves_connected_clients);
-    RUN_TEST(test_lobby_start_same_map_is_noop);
-    RUN_TEST(test_lobby_rejects_remote_when_slots_full);
-    RUN_TEST(test_lobby_setup_message_round_trips_slot_table);
-    RUN_TEST(test_multicast_syncs_updates_to_all_connected_clients);
-    RUN_TEST(test_lobby_chat_broadcasts_to_connected_clients);
 }

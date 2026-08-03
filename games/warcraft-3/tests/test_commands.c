@@ -6,7 +6,7 @@
 #include <string.h>
 
 #include "common.h"
-#include "test_framework.h"
+#include "test.h"
 
 static PATHSTR last_loading_map;
 static PATHSTR last_sv_map;
@@ -68,75 +68,75 @@ static void setup_command_tests(void) {
     LPCSTR argv[] = { "test_commands", "-config", "" };
 
     Com_Init(3, argv);
-    ASSERT(FS_AddArchive("build/tests/tests.mpq") != NULL);
+    T_ASSERT(FS_AddArchive("build/tests/tests.mpq") != NULL);
     reset_map_handoff();
     command_tests_initialized = true;
 }
 
-static void test_command_registration(void) {
+TEST(commands, command_registration) {
     setup_command_tests();
 
-    ASSERT(Cmd_Exists("cmdlist"));
-    ASSERT(Cmd_Exists("map"));
-    ASSERT(Cmd_Exists("maps"));
-    ASSERT(Cmd_Exists("dir"));
-    ASSERT(Cmd_Exists("path"));
+    T_ASSERT(Cmd_Exists("cmdlist"));
+    T_ASSERT(Cmd_Exists("map"));
+    T_ASSERT(Cmd_Exists("maps"));
+    T_ASSERT(Cmd_Exists("dir"));
+    T_ASSERT(Cmd_Exists("path"));
 }
 
-static void test_command_and_cvar_completion(void) {
+TEST(commands, command_and_cvar_completion) {
     char out[128];
 
     setup_command_tests();
 
-    ASSERT_EQ_INT(Cmd_CompleteCommand("cmdli", out, sizeof(out), false), 1);
-    ASSERT_STR_EQ(out, "cmdlist");
-    ASSERT_EQ_INT(Cmd_CompleteCommand("ma", out, sizeof(out), false), 2);
-    ASSERT_STR_EQ(out, "map");
-    ASSERT_EQ_INT(Cvar_CompleteVariable("scr_show", out, sizeof(out), false), 1);
-    ASSERT_STR_EQ(out, "scr_showfps");
-    ASSERT(Cvar_String("scr_showfps", NULL) != NULL);
+    T_EQ(Cmd_CompleteCommand("cmdli", out, sizeof(out), false), 1);
+    T_STREQ(out, "cmdlist");
+    T_EQ(Cmd_CompleteCommand("ma", out, sizeof(out), false), 2);
+    T_STREQ(out, "map");
+    T_EQ(Cvar_CompleteVariable("scr_show", out, sizeof(out), false), 1);
+    T_STREQ(out, "scr_showfps");
+    T_ASSERT(Cvar_String("scr_showfps", NULL) != NULL);
 }
 
-static void test_data_command_line_sets_data_cvar(void) {
+TEST(commands, data_command_line_sets_data_cvar) {
     LPCSTR argv[] = { "test_commands", "-data", "tests/data dir" };
 
     setup_command_tests();
     Cvar_ApplyCommandLine(3, argv);
 
-    ASSERT_STR_EQ(Cvar_String("data", NULL), "tests/data dir");
+    T_STREQ(Cvar_String("data", NULL), "tests/data dir");
 }
 
-static void test_tft_command_line_enables_expansion_archives(void) {
+TEST(commands, tft_command_line_enables_expansion_archives) {
     LPCSTR argv[] = { "test_commands", "-tft" };
 
     setup_command_tests();
     Cvar_Set("fs_expansion", "0");
     Cvar_ApplyCommandLine(2, argv);
 
-    ASSERT_STR_EQ(Cvar_String("fs_expansion", NULL), "1");
+    T_STREQ(Cvar_String("fs_expansion", NULL), "1");
 }
 
-static void test_roc_command_line_disables_expansion_archives(void) {
+TEST(commands, roc_command_line_disables_expansion_archives) {
     LPCSTR argv[] = { "test_commands", "-roc" };
 
     setup_command_tests();
     Cvar_Set("fs_expansion", "1");
     Cvar_ApplyCommandLine(2, argv);
 
-    ASSERT_STR_EQ(Cvar_String("fs_expansion", NULL), "0");
+    T_STREQ(Cvar_String("fs_expansion", NULL), "0");
 }
 
-static void test_dash_cvars_are_not_command_line_cvars(void) {
+TEST(commands, dash_cvars_are_not_command_line_cvars) {
     LPCSTR argv[] = { "test_commands", "-r_module=stdout" };
 
     setup_command_tests();
     Cvar_Set("r_module", "renderer");
     Cvar_ApplyCommandLine(2, argv);
 
-    ASSERT_STR_EQ(Cvar_String("r_module", NULL), "renderer");
+    T_STREQ(Cvar_String("r_module", NULL), "renderer");
 }
 
-static void test_plus_cvars_apply_immediately(void) {
+TEST(commands, plus_cvars_apply_immediately) {
     LPCSTR argv[] = { "test_commands", "+game_port", "28010", "+r_module", "stdout" };
 
     setup_command_tests();
@@ -145,11 +145,11 @@ static void test_plus_cvars_apply_immediately(void) {
     COM_InitArgv(5, argv);
     Cbuf_AddEarlyCommands(true);
 
-    ASSERT_STR_EQ(Cvar_String("game_port", NULL), "28010");
-    ASSERT_STR_EQ(Cvar_String("r_module", NULL), "stdout");
+    T_STREQ(Cvar_String("game_port", NULL), "28010");
+    T_STREQ(Cvar_String("r_module", NULL), "stdout");
 }
 
-static void test_plus_map_is_early_launch_selector(void) {
+TEST(commands, plus_map_is_early_launch_selector) {
     LPCSTR argv[] = { "test_commands", "+map", "Human02" };
 
     setup_command_tests();
@@ -160,12 +160,12 @@ static void test_plus_map_is_early_launch_selector(void) {
     Cbuf_AddLateCommands();
     Cbuf_Execute();
 
-    ASSERT_STR_EQ(Cvar_String("map", NULL), "Human02");
-    ASSERT_STR_EQ(last_loading_map, "");
-    ASSERT_STR_EQ(last_sv_map, "");
+    T_STREQ(Cvar_String("map", NULL), "Human02");
+    T_STREQ(last_loading_map, "");
+    T_STREQ(last_sv_map, "");
 }
 
-static void test_remaining_plus_commands_run_late(void) {
+TEST(commands, remaining_plus_commands_run_late) {
     LPCSTR argv[] = { "test_commands", "+test_late_command" };
 
     setup_command_tests();
@@ -178,7 +178,7 @@ static void test_remaining_plus_commands_run_late(void) {
     Cbuf_AddLateCommands();
     Cbuf_Execute();
 
-    ASSERT(late_command_called);
+    T_ASSERT(late_command_called);
 }
 
 typedef struct {
@@ -204,81 +204,63 @@ static void count_fixture_map(LPCSTR path, void *userData) {
     }
 }
 
-static void test_fixture_maps_are_listed_from_mpq(void) {
+TEST(commands, fixture_maps_are_listed_from_mpq) {
     mapListState_t state = { 0 };
 
     setup_command_tests();
 
-    ASSERT_EQ_INT(FS_ListMaps(count_fixture_map, &state), 4);
-    ASSERT_EQ_INT(state.count, 4);
-    ASSERT(state.human02);
-    ASSERT(state.orc01);
-    ASSERT(state.twin_w3m);
-    ASSERT(state.twin_w3x);
+    T_EQ(FS_ListMaps(count_fixture_map, &state), 4);
+    T_EQ(state.count, 4);
+    T_ASSERT(state.human02);
+    T_ASSERT(state.orc01);
+    T_ASSERT(state.twin_w3m);
+    T_ASSERT(state.twin_w3x);
 }
 
-static void test_short_map_name_resolves_from_fixture_mpq(void) {
+TEST(commands, short_map_name_resolves_from_fixture_mpq) {
     PATHSTR path;
 
     setup_command_tests();
 
-    ASSERT_EQ_INT(FS_ResolveMapPath("Human02", path, sizeof(path)), FS_MAP_RESOLVE_OK);
-    ASSERT_STR_EQ(path, "Maps\\Campaign\\Human02.w3m");
-    ASSERT_EQ_INT(FS_ResolveMapPath("orc01", path, sizeof(path)), FS_MAP_RESOLVE_OK);
-    ASSERT_STR_EQ(path, "Maps\\Campaign\\Orc01.w3m");
+    T_EQ(FS_ResolveMapPath("Human02", path, sizeof(path)), FS_MAP_RESOLVE_OK);
+    T_STREQ(path, "Maps\\Campaign\\Human02.w3m");
+    T_EQ(FS_ResolveMapPath("orc01", path, sizeof(path)), FS_MAP_RESOLVE_OK);
+    T_STREQ(path, "Maps\\Campaign\\Orc01.w3m");
 }
 
-static void test_explicit_map_path_still_resolves(void) {
+TEST(commands, explicit_map_path_still_resolves) {
     PATHSTR path;
 
     setup_command_tests();
 
-    ASSERT_EQ_INT(FS_ResolveMapPath("Maps/Campaign/Human02.w3m", path, sizeof(path)), FS_MAP_RESOLVE_OK);
-    ASSERT_STR_EQ(path, "Maps\\Campaign\\Human02.w3m");
+    T_EQ(FS_ResolveMapPath("Maps/Campaign/Human02.w3m", path, sizeof(path)), FS_MAP_RESOLVE_OK);
+    T_STREQ(path, "Maps\\Campaign\\Human02.w3m");
 }
 
-static void test_ambiguous_short_map_name_is_rejected(void) {
+TEST(commands, ambiguous_short_map_name_is_rejected) {
     PATHSTR path;
 
     setup_command_tests();
 
-    ASSERT_EQ_INT(FS_ResolveMapPath("TwinRivers", path, sizeof(path)), FS_MAP_RESOLVE_AMBIGUOUS);
+    T_EQ(FS_ResolveMapPath("TwinRivers", path, sizeof(path)), FS_MAP_RESOLVE_AMBIGUOUS);
 }
 
-static void test_map_command_uses_resolver(void) {
+TEST(commands, map_command_uses_resolver) {
     setup_command_tests();
     reset_map_handoff();
 
     Cmd_ExecuteString("map Human02");
 
-    ASSERT_STR_EQ(last_loading_map, "Maps\\Campaign\\Human02.w3m");
-    ASSERT_STR_EQ(last_sv_map, "Maps\\Campaign\\Human02.w3m");
+    T_STREQ(last_loading_map, "Maps\\Campaign\\Human02.w3m");
+    T_STREQ(last_sv_map, "Maps\\Campaign\\Human02.w3m");
 }
 
-static void test_map_command_rejects_ambiguous_short_name(void) {
+TEST(commands, map_command_rejects_ambiguous_short_name) {
     setup_command_tests();
     reset_map_handoff();
 
     Cmd_ExecuteString("map TwinRivers");
 
-    ASSERT_STR_EQ(last_loading_map, "");
-    ASSERT_STR_EQ(last_sv_map, "");
-}
-
-void run_command_tests(void) {
-    RUN_TEST(test_command_registration);
-    RUN_TEST(test_command_and_cvar_completion);
-    RUN_TEST(test_data_command_line_sets_data_cvar);
-    RUN_TEST(test_tft_command_line_enables_expansion_archives);
-    RUN_TEST(test_roc_command_line_disables_expansion_archives);
-    RUN_TEST(test_dash_cvars_are_not_command_line_cvars);
-    RUN_TEST(test_plus_cvars_apply_immediately);
-    RUN_TEST(test_plus_map_is_early_launch_selector);
-    RUN_TEST(test_remaining_plus_commands_run_late);
-    RUN_TEST(test_fixture_maps_are_listed_from_mpq);
-    RUN_TEST(test_short_map_name_resolves_from_fixture_mpq);
-    RUN_TEST(test_explicit_map_path_still_resolves);
-    RUN_TEST(test_ambiguous_short_map_name_is_rejected);
-    RUN_TEST(test_map_command_uses_resolver);
-    RUN_TEST(test_map_command_rejects_ambiguous_short_name);
+    T_STREQ(last_loading_map, "");
+    T_STREQ(last_sv_map, "");
 }

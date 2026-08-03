@@ -74,7 +74,7 @@ static int      heatmap_lru[HEATMAP_CACHE_SLOTS];
 static int      heatmap_lru_clock = 0;
 static VECTOR2 *active_flow = NULL; /* points into the current cache slot */
 
-#ifdef TOOL_COMMON_NO_MPQ
+#if defined(TOOL_COMMON_NO_MPQ) || defined(BZ_TESTS)
 /* Per-call perf counters; only tracked in test builds to avoid overhead. */
 static struct {
     DWORD cache_hits, cache_misses, heatmap_iterations, flow_cells_baked;
@@ -702,7 +702,7 @@ DWORD CM_BuildHeatmap(edict_t *goalentity) {
     return heatmap_cache[evict].generation;
 }
 
-#ifdef TOOL_COMMON_NO_MPQ
+#if defined(TOOL_COMMON_NO_MPQ) || defined(BZ_TESTS)
 /* Synthesize a pathmap from a raw byte array for unit tests.
  * Each byte is treated as a pathMapCell_t (bit 1 = nowalk).
  * The world coordinate system is set up so cell (x,y) maps to

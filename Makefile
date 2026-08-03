@@ -296,6 +296,30 @@ $(eval $(call unity_lib_schema,$(UI_SC2_LIB),$(UI_BASE_DEPS) client/ui.h $(call 
 $(eval $(call app_schema,$(WOW_BINARY),$(SHARED_LIB) $(SHEET_LIB) $(GAME_WOW_LIB) $(RENDERER_WOW_LIB) $(UI_WOW_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS),openwow,$(WOW_CFLAGS),-lsheet -lshared -lgame-wow -lrenderer-wow -lui-wow $(LIBS) -lz))
 $(eval $(call app_schema,$(SC2_BINARY),$(SHARED_LIB) $(SHEET_LIB) $(GAME_SC2_LIB) $(RENDERER_SC2_LIB) $(UI_SC2_LIB) $(APP_SRCS) $(CLIENT_HEADERS),opensc2,$(SC2_IMPL_CFLAGS),-lsheet -lshared -lgame-sc2 -lrenderer-sc2 -lui-sc2 $(LIBS) -lz))
 
+# ---------------------------------------------------------------------------
+# In-engine tests (see plans/lightweight-testing.md)
+#
+# The game module is rebuilt with -DBZ_TESTS so that TEST() blocks under
+# games/<game>/game/tests/ are compiled in and self-register.  A dedicated
+# openwow-tests binary links that variant and boots headless:
+#   openwow-tests +dedicated 1 +test '<pattern>'
+# The test registry lives in libshared, so the game module's constructors and
+# the engine's `test` command share one instance.  Production `make` never
+# defines BZ_TESTS, so the shipped game module contains no test code.
+# ---------------------------------------------------------------------------
+GAME_WOW_TEST_LIB := $(LIB_DIR)/libgame-wow-test$(LIB_EXT)
+WOW_TEST_BINARY   := $(BIN_DIR)/openwow-tests$(EXE_EXT)
+
+$(eval $(call unity_lib_schema,$(GAME_WOW_TEST_LIB),$(GAME_BASE_DEPS) common/world.c $(WOW_COMMON_SRCS) $(call CSRC,$(WOW_DIR)/game),game-wow-test,$(WOW_DIR)/game,,$(WOW_CFLAGS) -DBZ_TESTS,common/mpq.c,-lshared $(LIBS) -lm -lz))
+$(eval $(call app_schema,$(WOW_TEST_BINARY),$(SHARED_LIB) $(SHEET_LIB) $(GAME_WOW_TEST_LIB) $(RENDERER_WOW_LIB) $(UI_WOW_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS),openwow-tests,$(WOW_CFLAGS),-lsheet -lshared -lgame-wow-test -lrenderer-wow -lui-wow $(LIBS) -lz))
+
+openwow-tests: $(WOW_TEST_BINARY)
+
+# Run every in-engine WoW test headlessly.  Pass PATTERN=area.* to filter.
+PATTERN ?= *
+test-wow-engine: $(WOW_TEST_BINARY)
+	$(WOW_TEST_BINARY) -data $(WOW_INSTALL_DATA_DIR) +dedicated 1 +test '$(PATTERN)'
+
 download: $(ZIP_FILE)
 	mkdir -p $(DATA_DIR)
 	unzip -o $(ZIP_FILE) -d $(DATA_DIR)
@@ -307,7 +331,6 @@ clean:
 	rm -rf build
 
 $(eval $(call test_schema,test-wow-appearance,,$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_appearance$(EXE_EXT),$(WOW_TEST_DIR)/test_wow_appearance.c common/msg.c common/net.c $(call CSRC,shared),-lm $(NET_LIBS),))
-$(eval $(call test_schema,test-wow-combat,,$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_combat$(EXE_EXT),$(WOW_TEST_DIR)/test_wow_combat.c $(WOW_DIR)/game/g_ai.c $(call CSRC,shared),-lm,))
 $(eval $(call test_schema,test-wow-abilities,,$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_abilities$(EXE_EXT),$(WOW_TEST_DIR)/test_wow_abilities.c $(WOW_DIR)/game/g_wow.c $(WOW_DIR)/game/g_world.c $(WOW_DIR)/game/g_ai.c $(WOW_DIR)/game/m_creature.c $(WOW_DIR)/game/g_wow_gameobject.c common/mpq.c $(call CSRC,shared),-lm -lz,))
 $(eval $(call test_schema,test-wow-game,,$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_game$(EXE_EXT),$(WOW_TEST_DIR)/test_wow_game.c $(WOW_DIR)/game/g_wow.c $(WOW_DIR)/game/g_world.c $(WOW_DIR)/game/g_ai.c $(WOW_DIR)/game/m_creature.c $(WOW_DIR)/game/g_wow_gameobject.c common/mpq.c $(call CSRC,shared),-lm -lz,))
 $(eval $(call test_schema,test-wow-entities,,$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_entities$(EXE_EXT),$(WOW_TEST_DIR)/test_wow_entities.c $(WOW_DIR)/game/g_wow.c $(WOW_DIR)/game/g_world.c $(WOW_DIR)/game/g_ai.c $(WOW_DIR)/game/m_creature.c $(WOW_DIR)/game/g_wow_gameobject.c common/mpq.c $(call CSRC,shared),-lm -lz,))
@@ -376,4 +399,4 @@ test-sc2-live: opensc2 $(SC2_HUD_LIVE_BIN)
 	fi
 	$(SC2_HUD_LIVE_BIN)
 
-.PHONY: default build shared tools font $(TOOL_NAMES) diag clean download renderer-wow game-wow ui-wow openwow renderer-sc2 game-sc2 opensc2 run run-sc2 build-run-sc2 m2tool-wow-orcmale-player install-wow test-wow-appearance test-wow-combat test-wow-abilities test-wow-game test-wow-ui test-wow-assets test-sc2 test-sc2-assets test-sc2-live $(WC3_PHONY)
+.PHONY: default build shared tools font $(TOOL_NAMES) diag clean download renderer-wow game-wow ui-wow openwow openwow-tests test-wow-engine renderer-sc2 game-sc2 opensc2 run run-sc2 build-run-sc2 m2tool-wow-orcmale-player install-wow test-wow-appearance test-wow-abilities test-wow-game test-wow-ui test-wow-assets test-sc2 test-sc2-assets test-sc2-live $(WC3_PHONY)

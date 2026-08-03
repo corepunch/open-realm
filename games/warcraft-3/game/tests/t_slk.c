@@ -1,0 +1,340 @@
+/*
+ * t_slk.c — In-engine SLK data reading and unit-stat tests.
+ *
+ * Part 1 (pure functions): FS_FindSheetCell linked-list traversal tests.
+ * Part 2 (unit stats): real archive data for hpea/hfoo.
+ * Part 3 (custom metadata): G_SetConfigTable to test mana/armor edge cases.
+ */
+#ifdef BZ_TESTS
+
+#include "test.h"
+#include "../g_local.h"
+
+/* Defined in g_metadata.c; swaps the sheet backing one metadata table. */
+void G_SetConfigTable(sheetMetaData_t *metadatas, LPCSTR slk, sheetRow_t *table);
+
+/* parse_slk_string / free_slk_rows: defined in test_harness.c, reproduced
+ * here so t_slk.c is self-contained without the old harness. */
+#define MAX_SLK_COLS 64
+#define MAX_SLK_LINE 512
+
+sheetRow_t *parse_slk_string(const char *slk_text) {
+    if (!slk_text) return NULL;
+    typedef struct raw_cell { int x, y; char *text; struct raw_cell *next; } raw_cell_t;
+    raw_cell_t *cells = NULL, *cells_tail = NULL;
+    int max_row = 0, max_col = 0;
+    sheetRow_t *head = NULL, *tail = NULL;
+
+    const char *p = slk_text;
+    while (*p) {
+        char line[MAX_SLK_LINE];
+        int  len = 0;
+        while (*p && *p != '\n' && len < MAX_SLK_LINE - 1)
+            line[len++] = *p++;
+        if (*p == '\n') p++;
+        line[len] = '\0';
+
+        if (line[0] != 'C' && line[0] != 'F') continue;
+
+        char tokens[MAX_SLK_LINE] = {0};
+        memcpy(tokens, line, len + 1);
+        for (int i = 0; tokens[i]; i++)
+            if (tokens[i] == ';') tokens[i] = '\0';
+
+        int cx = 0, cy = 0;
+        char *kval = NULL;
+        const char *tok = tokens;
+        tok += strlen(tok) + 1;
+        while (*tok) {
+            if (*tok == 'X') cx = atoi(tok + 1);
+            else if (*tok == 'Y') cy = atoi(tok + 1);
+            else if (*tok == 'K') kval = (char *)(tok + 1);
+            tok += strlen(tok) + 1;
+        }
+        if (!kval) continue;
+
+        char text[MAX_SLK_LINE] = {0};
+        int ti = 0;
+        for (const char *c = kval; *c; c++) {
+            if (*c == '"' || *c == '\r' || *c == '\n') continue;
+            text[ti++] = *c;
+        }
+        text[ti] = '\0';
+
+        raw_cell_t *cell = malloc(sizeof(*cell));
+        cell->x    = cx;
+        cell->y    = cy;
+        cell->text = strdup(text);
+        cell->next = NULL;
+        if (!cells) cells = cell; else cells_tail->next = cell;
+        cells_tail = cell;
+
+        if (cy > max_row) max_row = cy;
+        if (cx > max_col) max_col = cx;
+    }
+    if (!cells || max_row < 2) goto cleanup;
+
+    char *col_names[MAX_SLK_COLS] = {NULL};
+    for (raw_cell_t *c = cells; c; c = c->next) {
+        if (c->y == 1 && c->x < MAX_SLK_COLS)
+            col_names[c->x] = c->text;
+    }
+
+    for (int row = 2; row <= max_row; row++) {
+        char *row_key = NULL;
+        for (raw_cell_t *c = cells; c; c = c->next) {
+            if (c->y == row && c->x == 1) { row_key = c->text; break; }
+        }
+        if (!row_key) continue;
+
+        sheetRow_t *sr = malloc(sizeof(*sr));
+        sr->name   = strdup(row_key);
+        sr->fields = NULL;
+        sr->next   = NULL;
+
+        for (raw_cell_t *c = cells; c; c = c->next) {
+            if (c->y != row || c->x <= 1 || c->x >= MAX_SLK_COLS) continue;
+            if (!col_names[c->x]) continue;
+            sheetField_t *sf = malloc(sizeof(*sf));
+            sf->name  = strdup(col_names[c->x]);
+            sf->value = strdup(c->text);
+            sf->next  = sr->fields;
+            sr->fields = sf;
+        }
+
+        if (!head) head = sr; else tail->next = sr;
+        tail = sr;
+    }
+
+cleanup:
+    for (raw_cell_t *c = cells; c; ) {
+        raw_cell_t *nx = c->next;
+        free(c->text);
+        free(c);
+        c = nx;
+    }
+    return head;
+}
+
+void free_slk_rows(sheetRow_t *rows) {
+    while (rows) {
+        sheetRow_t *next_row = rows->next;
+        free((void *)rows->name);
+        for (sheetField_t *f = rows->fields; f; ) {
+            sheetField_t *nf = f->next;
+            free((void *)f->name);
+            free((void *)f->value);
+            free(f);
+            f = nf;
+        }
+        free(rows);
+        rows = next_row;
+    }
+}
+
+/* -----------------------------------------------------------------------
+ * 1.  FS_FindSheetCell
+ * --------------------------------------------------------------------- */
+
+TEST(wc3_slk, find_cell_existing_row_and_column) {
+    sheetField_t f = {"spd", "270", NULL};
+    sheetRow_t   r = {"hpea", &f, NULL};
+    T_STREQ(FS_FindSheetCell(&r, "hpea", "spd"), "270");
+}
+
+TEST(wc3_slk, find_cell_missing_row_returns_null) {
+    sheetField_t f = {"spd", "270", NULL};
+    sheetRow_t   r = {"hpea", &f, NULL};
+    T_NULL(FS_FindSheetCell(&r, "hfoo", "spd"));
+}
+
+TEST(wc3_slk, find_cell_missing_column_returns_null) {
+    sheetField_t f = {"spd", "270", NULL};
+    sheetRow_t   r = {"hpea", &f, NULL};
+    T_NULL(FS_FindSheetCell(&r, "hpea", "hp"));
+}
+
+TEST(wc3_slk, find_cell_case_insensitive_column) {
+    sheetField_t f = {"RealHP", "250", NULL};
+    sheetRow_t   r = {"hpea", &f, NULL};
+    T_STREQ(FS_FindSheetCell(&r, "hpea", "realHP"), "250");
+    T_STREQ(FS_FindSheetCell(&r, "hpea", "REALHP"), "250");
+}
+
+TEST(wc3_slk, find_cell_multiple_rows) {
+    sheetField_t fa = {"spd", "270", NULL};
+    sheetField_t fb = {"spd", "300", NULL};
+    sheetRow_t   rb = {"hfoo", &fb, NULL};
+    sheetRow_t   ra = {"hpea", &fa, &rb};
+    T_STREQ(FS_FindSheetCell(&ra, "hpea", "spd"), "270");
+    T_STREQ(FS_FindSheetCell(&ra, "hfoo", "spd"), "300");
+}
+
+TEST(wc3_slk, find_cell_multiple_fields) {
+    sheetField_t fb = {"realHP", "250", NULL};
+    sheetField_t fa = {"spd",    "270", &fb};
+    sheetRow_t   r  = {"hpea", &fa, NULL};
+    T_STREQ(FS_FindSheetCell(&r, "hpea", "spd"),    "270");
+    T_STREQ(FS_FindSheetCell(&r, "hpea", "realHP"), "250");
+}
+
+TEST(wc3_slk, find_cell_null_sheet_returns_null) {
+    T_NULL(FS_FindSheetCell(NULL, "hpea", "spd"));
+}
+
+/* -----------------------------------------------------------------------
+ * 2.  In-memory SLK parsing (parse_slk_string)
+ * --------------------------------------------------------------------- */
+
+static const char slk_two_units[] =
+    "ID;PWXL;N;EBB;Y3;X4\n"
+    "C;Y1;X1;K\"unitBalanceID\"\n"
+    "C;Y1;X2;K\"spd\"\n"
+    "C;Y1;X3;K\"realHP\"\n"
+    "C;Y1;X4;K\"bldtm\"\n"
+    "C;Y2;X1;K\"hpea\"\n"
+    "C;Y2;X2;K\"270\"\n"
+    "C;Y2;X3;K\"250\"\n"
+    "C;Y2;X4;K\"45\"\n"
+    "C;Y3;X1;K\"hfoo\"\n"
+    "C;Y3;X2;K\"270\"\n"
+    "C;Y3;X3;K\"420\"\n"
+    "C;Y3;X4;K\"60\"\n"
+    "E\n";
+
+TEST(wc3_slk, parse_returns_non_null) {
+    sheetRow_t *rows = parse_slk_string(slk_two_units);
+    T_NOT_NULL(rows);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_slk, parse_row_names) {
+    sheetRow_t *rows = parse_slk_string(slk_two_units);
+    T_NOT_NULL(rows);
+    T_STREQ(rows->name, "hpea");
+    T_NOT_NULL(rows->next);
+    T_STREQ(rows->next->name, "hfoo");
+    free_slk_rows(rows);
+}
+
+TEST(wc3_slk, parse_field_values) {
+    sheetRow_t *rows = parse_slk_string(slk_two_units);
+    T_NOT_NULL(rows);
+    T_STREQ(FS_FindSheetCell(rows, "hpea", "spd"),    "270");
+    T_STREQ(FS_FindSheetCell(rows, "hpea", "realHP"), "250");
+    T_STREQ(FS_FindSheetCell(rows, "hpea", "bldtm"),  "45");
+    T_STREQ(FS_FindSheetCell(rows, "hfoo", "realHP"), "420");
+    T_STREQ(FS_FindSheetCell(rows, "hfoo", "bldtm"),  "60");
+    free_slk_rows(rows);
+}
+
+TEST(wc3_slk, parse_missing_cell_returns_null) {
+    sheetRow_t *rows = parse_slk_string(slk_two_units);
+    T_NOT_NULL(rows);
+    T_NULL(FS_FindSheetCell(rows, "hkni", "spd"));
+    T_NULL(FS_FindSheetCell(rows, "hpea", "armor"));
+    free_slk_rows(rows);
+}
+
+TEST(wc3_slk, parse_empty_string_returns_null) {
+    sheetRow_t *rows = parse_slk_string("ID;PWXL\nE\n");
+    T_NULL(rows);
+}
+
+/* -----------------------------------------------------------------------
+ * 3.  Unit stat accessors — real archive data
+ * --------------------------------------------------------------------- */
+
+TEST(wc3_slk, unit_speed_peasant) {
+    T_FEQ(UNIT_SPEED(MAKEFOURCC('h','p','e','a')), 270.0f, 0.01f);
+}
+
+TEST(wc3_slk, unit_speed_footman) {
+    T_FEQ(UNIT_SPEED(MAKEFOURCC('h','f','o','o')), 270.0f, 0.01f);
+}
+
+TEST(wc3_slk, unit_hp_peasant) {
+    T_FEQ(UNIT_HP(MAKEFOURCC('h','p','e','a')), 250.0f, 0.01f);
+}
+
+TEST(wc3_slk, unit_hp_footman) {
+    T_FEQ(UNIT_HP(MAKEFOURCC('h','f','o','o')), 420.0f, 0.01f);
+}
+
+TEST(wc3_slk, unit_build_time_peasant) {
+    T_EQ(UNIT_BUILD_TIME(MAKEFOURCC('h','p','e','a')), 45);
+}
+
+TEST(wc3_slk, unit_build_time_footman) {
+    T_EQ(UNIT_BUILD_TIME(MAKEFOURCC('h','f','o','o')), 60);
+}
+
+TEST(wc3_slk, unit_collision_peasant) {
+    T_EQ(UNIT_COLLISION(MAKEFOURCC('h','p','e','a')), 16);
+}
+
+TEST(wc3_slk, unit_unknown_id_returns_zero) {
+    T_FEQ(UNIT_SPEED(MAKEFOURCC('x','x','x','x')),      0.0f, 0.01f);
+    T_FEQ(UNIT_HP(MAKEFOURCC('x','x','x','x')),         0.0f, 0.01f);
+    T_EQ  (UNIT_BUILD_TIME(MAKEFOURCC('x','x','x','x')), 0);
+}
+
+/* -----------------------------------------------------------------------
+ * 4.  Mana / armor edge cases via G_SetConfigTable
+ * --------------------------------------------------------------------- */
+
+TEST(wc3_slk, mana_uses_realM_not_manaN) {
+    static const char slk_mana[] =
+        "ID;PWXL;N;EBB;Y3;X4\n"
+        "C;Y1;X1;K\"unitBalanceID\"\n"
+        "C;Y1;X2;K\"manaN\"\n"
+        "C;Y1;X3;K\"realM\"\n"
+        "C;Y1;X4;K\"mana0\"\n"
+        "C;Y2;X1;K\"Ewar\"\n"
+        "C;Y2;X2;K\"0\"\n"
+        "C;Y2;X3;K\"225\"\n"
+        "C;Y2;X4;K\"100\"\n"
+        "C;Y3;X1;K\"hsor\"\n"
+        "C;Y3;X2;K\"200\"\n"
+        "C;Y3;X3;K\"200\"\n"
+        "C;Y3;X4;K\"75\"\n"
+        "E\n";
+    sheetRow_t *rows = parse_slk_string(slk_mana);
+    T_NOT_NULL(rows);
+    G_SetConfigTable(UnitsMetaData, "UnitBalance", rows);
+
+    T_FEQ(UNIT_MANA_MAXIMUM(MAKEFOURCC('E','w','a','r')), 225.0f, 0.01f);
+    T_FEQ(UNIT_MANA_INITIAL(MAKEFOURCC('E','w','a','r')), 100.0f, 0.01f);
+    T_FEQ(UNIT_MANA_MAXIMUM(MAKEFOURCC('h','s','o','r')), 200.0f, 0.01f);
+    T_FEQ(UNIT_MANA_INITIAL(MAKEFOURCC('h','s','o','r')), 75.0f, 0.01f);
+
+    free_slk_rows(rows);
+}
+
+TEST(wc3_slk, armor_uses_realdef_not_def) {
+    static const char slk_armor[] =
+        "ID;PWXL;N;EBB;Y3;X4\n"
+        "C;Y1;X1;K\"unitBalanceID\"\n"
+        "C;Y1;X2;K\"def\"\n"
+        "C;Y1;X3;K\"realdef\"\n"
+        "C;Y1;X4;K\"spd\"\n"
+        "C;Y2;X1;K\"Ewar\"\n"
+        "C;Y2;X2;K\"0\"\n"
+        "C;Y2;X3;K\"4\"\n"
+        "C;Y2;X4;K\"270\"\n"
+        "C;Y3;X1;K\"hfoo\"\n"
+        "C;Y3;X2;K\"2\"\n"
+        "C;Y3;X3;K\"2\"\n"
+        "C;Y3;X4;K\"270\"\n"
+        "E\n";
+    sheetRow_t *rows = parse_slk_string(slk_armor);
+    T_NOT_NULL(rows);
+    G_SetConfigTable(UnitsMetaData, "UnitBalance", rows);
+
+    T_FEQ(UNIT_ARMOR_VALUE(MAKEFOURCC('E','w','a','r')), 4.0f, 0.01f);
+    T_FEQ(UNIT_ARMOR_VALUE(MAKEFOURCC('h','f','o','o')), 2.0f, 0.01f);
+
+    free_slk_rows(rows);
+}
+
+#endif /* BZ_TESTS */

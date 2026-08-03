@@ -23,7 +23,7 @@
 #include <string.h>
 #include <arpa/inet.h>
 
-#include "test_framework.h"
+#include "test.h"
 
 /* Pull in the net types + common types without game state. */
 #include "../client/client.h"
@@ -41,8 +41,6 @@ static void drain_loopback(NETSOURCE netsrc) {
     static BYTE   drain_buf[MAX_MSGLEN];
     static sizeBuf_t msg = { drain_buf, MAX_MSGLEN, 0, 0 };
     netadr_t from;
-    /* MAX_MSGLEN iterations is a generous upper bound; in practice the
-     * ring buffer can hold far fewer whole packets of that size. */
     for (int guard = 0; guard < 64; guard++) {
         if (!NET_GetPacket(netsrc, &from, &msg))
             break;
@@ -61,30 +59,30 @@ static netadr_t loopback_adr(void) {
  * SZ_Init / SZ_Clear
  * --------------------------------------------------------------------- */
 
-static void test_sz_init(void) {
+TEST(net, sz_init) {
     BYTE buf[64];
     sizeBuf_t sz;
     SZ_Init(&sz, buf, sizeof(buf));
-    ASSERT(sz.data == buf);
-    ASSERT_EQ_INT(sz.maxsize, 64);
-    ASSERT_EQ_INT(sz.cursize, 0);
-    ASSERT_EQ_INT(sz.readcount, 0);
+    T_ASSERT(sz.data == buf);
+    T_EQ(sz.maxsize, 64);
+    T_EQ(sz.cursize, 0);
+    T_EQ(sz.readcount, 0);
 }
 
-static void test_sz_clear(void) {
+TEST(net, sz_clear) {
     BYTE buf[32];
     sizeBuf_t sz;
     SZ_Init(&sz, buf, sizeof(buf));
     sz.cursize = 10;
     SZ_Clear(&sz);
-    ASSERT_EQ_INT(sz.cursize, 0);
+    T_EQ(sz.cursize, 0);
 }
 
 /* -----------------------------------------------------------------------
  * SZ_Write
  * --------------------------------------------------------------------- */
 
-static void test_sz_write_appends_data(void) {
+TEST(net, sz_write_appends_data) {
     BYTE buf[32];
     sizeBuf_t sz;
     SZ_Init(&sz, buf, sizeof(buf));
@@ -92,11 +90,11 @@ static void test_sz_write_appends_data(void) {
     const char payload[] = "hello";
     SZ_Write(&sz, payload, 5);
 
-    ASSERT_EQ_INT(sz.cursize, 5);
-    ASSERT(memcmp(buf, "hello", 5) == 0);
+    T_EQ(sz.cursize, 5);
+    T_ASSERT(memcmp(buf, "hello", 5) == 0);
 }
 
-static void test_sz_write_multiple(void) {
+TEST(net, sz_write_multiple) {
     BYTE buf[32];
     sizeBuf_t sz;
     SZ_Init(&sz, buf, sizeof(buf));
@@ -104,25 +102,25 @@ static void test_sz_write_multiple(void) {
     SZ_Write(&sz, "AB", 2);
     SZ_Write(&sz, "CD", 2);
 
-    ASSERT_EQ_INT(sz.cursize, 4);
-    ASSERT(buf[0] == 'A' && buf[1] == 'B' && buf[2] == 'C' && buf[3] == 'D');
+    T_EQ(sz.cursize, 4);
+    T_ASSERT(buf[0] == 'A' && buf[1] == 'B' && buf[2] == 'C' && buf[3] == 'D');
 }
 
 /* -----------------------------------------------------------------------
  * Loopback ring buffer
  * --------------------------------------------------------------------- */
 
-static void test_loopback_empty_returns_zero(void) {
+TEST(net, loopback_empty_returns_zero) {
     static BYTE   msg_buf[MAX_MSGLEN];
     static sizeBuf_t msg = { msg_buf, MAX_MSGLEN, 0, 0 };
     netadr_t from;
 
     drain_loopback(NS_SERVER);
     int r = NET_GetPacket(NS_SERVER, &from, &msg);
-    ASSERT_EQ_INT(r, 0);
+    T_EQ(r, 0);
 }
 
-static void test_loopback_round_trip(void) {
+TEST(net, loopback_round_trip) {
     static BYTE   msg_buf[MAX_MSGLEN];
     static sizeBuf_t msg = { msg_buf, MAX_MSGLEN, 0, 0 };
     netadr_t adr  = loopback_adr();
@@ -135,14 +133,13 @@ static void test_loopback_round_trip(void) {
 
     int r = NET_GetPacket(NS_SERVER, &from, &msg);
 
-    ASSERT_EQ_INT(r, (int)sizeof(payload));
-    ASSERT(memcmp(msg.data, payload, sizeof(payload)) == 0);
-    ASSERT_EQ_INT(from.type, NA_LOOPBACK);
-    /* Buffer should now be empty. */
-    ASSERT_EQ_INT(NET_GetPacket(NS_SERVER, &from, &msg), 0);
+    T_EQ(r, (int)sizeof(payload));
+    T_ASSERT(memcmp(msg.data, payload, sizeof(payload)) == 0);
+    T_EQ(from.type, NA_LOOPBACK);
+    T_EQ(NET_GetPacket(NS_SERVER, &from, &msg), 0);
 }
 
-static void test_loopback_multiple_packets_in_order(void) {
+TEST(net, loopback_multiple_packets_in_order) {
     static BYTE   msg_buf[MAX_MSGLEN];
     static sizeBuf_t msg = { msg_buf, MAX_MSGLEN, 0, 0 };
     netadr_t adr  = loopback_adr();
@@ -156,19 +153,17 @@ static void test_loopback_multiple_packets_in_order(void) {
     NET_SendPacket(NS_CLIENT, sizeof(pkt2), pkt2, adr);
 
     int r1 = NET_GetPacket(NS_SERVER, &from, &msg);
-    ASSERT_EQ_INT(r1, (int)sizeof(pkt1));
-    ASSERT(msg.data[0] == 'A' && msg.data[1] == 'B');
+    T_EQ(r1, (int)sizeof(pkt1));
+    T_ASSERT(msg.data[0] == 'A' && msg.data[1] == 'B');
 
     int r2 = NET_GetPacket(NS_SERVER, &from, &msg);
-    ASSERT_EQ_INT(r2, (int)sizeof(pkt2));
-    ASSERT(msg.data[0] == 'C' && msg.data[1] == 'D' && msg.data[2] == 'E');
+    T_EQ(r2, (int)sizeof(pkt2));
+    T_ASSERT(msg.data[0] == 'C' && msg.data[1] == 'D' && msg.data[2] == 'E');
 
-    ASSERT_EQ_INT(NET_GetPacket(NS_SERVER, &from, &msg), 0);
+    T_EQ(NET_GetPacket(NS_SERVER, &from, &msg), 0);
 }
 
-static void test_loopback_server_to_client(void) {
-    /* Server→client direction: server sends with NS_SERVER,
-     * client reads with NS_CLIENT (reads bufs[!NS_CLIENT] = bufs[NS_SERVER]). */
+TEST(net, loopback_server_to_client) {
     static BYTE   msg_buf[MAX_MSGLEN];
     static sizeBuf_t msg = { msg_buf, MAX_MSGLEN, 0, 0 };
     netadr_t adr  = loopback_adr();
@@ -180,14 +175,11 @@ static void test_loopback_server_to_client(void) {
     NET_SendPacket(NS_SERVER, sizeof(payload), payload, adr);
 
     int r = NET_GetPacket(NS_CLIENT, &from, &msg);
-    ASSERT_EQ_INT(r, (int)sizeof(payload));
-    ASSERT(msg.data[0] == 0xDE && msg.data[1] == 0xAD);
+    T_EQ(r, (int)sizeof(payload));
+    T_ASSERT(msg.data[0] == 0xDE && msg.data[1] == 0xAD);
 }
 
-static void test_loopback_na_ip_no_crash_without_socket(void) {
-    /* Sending to an NA_IP address when no UDP socket is open must be a
-     * silent no-op — it must not crash or write to an invalid fd.
-     * (udp_socket == -1 because NET_Init is never called in tests.) */
+TEST(net, loopback_na_ip_no_crash_without_socket) {
     static BYTE   msg_buf[MAX_MSGLEN];
     static sizeBuf_t msg = { msg_buf, MAX_MSGLEN, 0, 0 };
     netadr_t adr;
@@ -196,166 +188,150 @@ static void test_loopback_na_ip_no_crash_without_socket(void) {
     adr.ip[0]   = 127; adr.ip[1] = 0; adr.ip[2] = 0; adr.ip[3] = 1;
     adr.port    = htons(27910);
 
-    /* Should return without crashing; no packet appears on NS_SERVER. */
     const char payload[] = { 0x01 };
     NET_SendPacket(NS_CLIENT, sizeof(payload), payload, adr);
 
     netadr_t from;
     drain_loopback(NS_SERVER);
-    ASSERT_EQ_INT(NET_GetPacket(NS_SERVER, &from, &msg), 0);
+    T_EQ(NET_GetPacket(NS_SERVER, &from, &msg), 0);
 }
 
-static void test_net_config_opens_and_closes_udp_sockets(void) {
+TEST(net, net_config_opens_and_closes_udp_sockets) {
     test_client_stubs_set_cvar("game_port", "28030");
     NET_Init();
     NET_Config(false);
-    ASSERT(!NET_IsConfigured(NS_CLIENT));
-    ASSERT(!NET_IsConfigured(NS_SERVER));
+    T_ASSERT(!NET_IsConfigured(NS_CLIENT));
+    T_ASSERT(!NET_IsConfigured(NS_SERVER));
 
     NET_Config(true);
-    ASSERT(NET_IsConfigured(NS_CLIENT));
-    ASSERT(NET_IsConfigured(NS_SERVER));
+    T_ASSERT(NET_IsConfigured(NS_CLIENT));
+    T_ASSERT(NET_IsConfigured(NS_SERVER));
 
     NET_Config(false);
-    ASSERT(!NET_IsConfigured(NS_CLIENT));
-    ASSERT(!NET_IsConfigured(NS_SERVER));
+    T_ASSERT(!NET_IsConfigured(NS_CLIENT));
+    T_ASSERT(!NET_IsConfigured(NS_SERVER));
 }
 
-static void test_net_config_source_opens_one_udp_socket(void) {
+TEST(net, net_config_source_opens_one_udp_socket) {
     test_client_stubs_set_cvar("game_port", "28031");
     NET_Init();
     NET_Config(false);
 
     NET_ConfigSource(NS_CLIENT, true);
-    ASSERT(NET_IsConfigured(NS_CLIENT));
-    ASSERT(!NET_IsConfigured(NS_SERVER));
+    T_ASSERT(NET_IsConfigured(NS_CLIENT));
+    T_ASSERT(!NET_IsConfigured(NS_SERVER));
 
     NET_Config(false);
     NET_ConfigSource(NS_SERVER, true);
-    ASSERT(!NET_IsConfigured(NS_CLIENT));
-    ASSERT(NET_IsConfigured(NS_SERVER));
+    T_ASSERT(!NET_IsConfigured(NS_CLIENT));
+    T_ASSERT(NET_IsConfigured(NS_SERVER));
 
     NET_Config(false);
-    ASSERT(!NET_IsConfigured(NS_CLIENT));
-    ASSERT(!NET_IsConfigured(NS_SERVER));
+    T_ASSERT(!NET_IsConfigured(NS_CLIENT));
+    T_ASSERT(!NET_IsConfigured(NS_SERVER));
 }
 
 /* -----------------------------------------------------------------------
  * NET_StringToAdr
  * --------------------------------------------------------------------- */
 
-static void test_string_to_adr_ip_only(void) {
+TEST(net, string_to_adr_ip_only) {
     netadr_t adr;
     bool ok = NET_StringToAdr("10.0.0.1", 12345, &adr);
-    ASSERT(ok);
-    ASSERT_EQ_INT(adr.type, NA_IP);
-    ASSERT_EQ_INT(adr.ip[0], 10);
-    ASSERT_EQ_INT(adr.ip[1], 0);
-    ASSERT_EQ_INT(adr.ip[2], 0);
-    ASSERT_EQ_INT(adr.ip[3], 1);
-    /* Default port should be used (stored in network byte order). */
-    ASSERT_EQ_INT(ntohs(adr.port), 12345);
+    T_ASSERT(ok);
+    T_EQ(adr.type, NA_IP);
+    T_EQ(adr.ip[0], 10);
+    T_EQ(adr.ip[1], 0);
+    T_EQ(adr.ip[2], 0);
+    T_EQ(adr.ip[3], 1);
+    T_EQ(ntohs(adr.port), 12345);
 }
 
-static void test_string_to_adr_ip_with_port(void) {
+TEST(net, string_to_adr_ip_with_port) {
     netadr_t adr;
     bool ok = NET_StringToAdr("192.168.0.5:9000", 0, &adr);
-    ASSERT(ok);
-    ASSERT_EQ_INT(adr.type, NA_IP);
-    ASSERT_EQ_INT(adr.ip[0], 192);
-    ASSERT_EQ_INT(adr.ip[1], 168);
-    ASSERT_EQ_INT(adr.ip[2], 0);
-    ASSERT_EQ_INT(adr.ip[3], 5);
-    /* Port from string must override the default (0). */
-    ASSERT_EQ_INT(ntohs(adr.port), 9000);
+    T_ASSERT(ok);
+    T_EQ(adr.type, NA_IP);
+    T_EQ(adr.ip[0], 192);
+    T_EQ(adr.ip[1], 168);
+    T_EQ(adr.ip[2], 0);
+    T_EQ(adr.ip[3], 5);
+    T_EQ(ntohs(adr.port), 9000);
 }
 
-static void test_string_to_adr_port_overrides_default(void) {
+TEST(net, string_to_adr_port_overrides_default) {
     netadr_t adr;
-    /* Explicit port in string must take precedence over default_port. */
     bool ok = NET_StringToAdr("172.16.0.1:27910", 9999, &adr);
-    ASSERT(ok);
-    ASSERT_EQ_INT(ntohs(adr.port), 27910);
+    T_ASSERT(ok);
+    T_EQ(ntohs(adr.port), 27910);
 }
 
-static void test_string_to_adr_bad_address(void) {
+TEST(net, string_to_adr_bad_address) {
     netadr_t adr;
-    /* Non-resolvable hostname should return false in a CI environment
-     * where DNS may not resolve arbitrary names.  We test with an
-     * invalid dotted-decimal address instead. */
     bool ok = NET_StringToAdr("999.999.999.999", 0, &adr);
-    /* inet_pton fails; gethostbyname may also fail for this literal. */
-    /* We only assert that the call does not crash — the return value
-     * is implementation-defined for truly invalid addresses. */
     (void)ok;
-    ASSERT(1);   /* always passes — ensures no crash */
+    T_ASSERT(1);
 }
 
 /* -----------------------------------------------------------------------
  * MSG_Write* / MSG_Read* round-trips
  * --------------------------------------------------------------------- */
 
-/*
- * Helper: allocate a fresh size-buffer backed by a stack array and return it
- * ready for writing.  The read-position starts at 0.
- */
 static sizeBuf_t make_msg_buf(BYTE *buf, DWORD bufsz) {
     sizeBuf_t sb;
     SZ_Init(&sb, buf, bufsz);
     return sb;
 }
 
-static void test_msg_writebyte_readbyte_roundtrip(void) {
+TEST(net, msg_writebyte_readbyte_roundtrip) {
     BYTE buf[16];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
     MSG_WriteByte(&sb, 0xAB);
     sb.readcount = 0;
-    ASSERT_EQ_INT(MSG_ReadByte(&sb) & 0xFF, 0xAB);
+    T_EQ(MSG_ReadByte(&sb) & 0xFF, 0xAB);
 }
 
-static void test_msg_writeshort_readshort_roundtrip(void) {
+TEST(net, msg_writeshort_readshort_roundtrip) {
     BYTE buf[16];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
     MSG_WriteShort(&sb, 0x1234);
     sb.readcount = 0;
-    ASSERT_EQ_INT(MSG_ReadShort(&sb) & 0xFFFF, 0x1234);
+    T_EQ(MSG_ReadShort(&sb) & 0xFFFF, 0x1234);
 }
 
-static void test_msg_writelong_readlong_roundtrip(void) {
+TEST(net, msg_writelong_readlong_roundtrip) {
     BYTE buf[16];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
     MSG_WriteLong(&sb, (int)0xDEADBEEF);
     sb.readcount = 0;
-    ASSERT_EQ_INT((unsigned int)MSG_ReadLong(&sb), (unsigned int)0xDEADBEEF);
+    T_EQ((unsigned int)MSG_ReadLong(&sb), (unsigned int)0xDEADBEEF);
 }
 
-static void test_msg_writefloat_readfloat_roundtrip(void) {
+TEST(net, msg_writefloat_readfloat_roundtrip) {
     BYTE buf[16];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
     MSG_WriteFloat(&sb, 3.14f);
     sb.readcount = 0;
-    ASSERT_EQ_FLOAT(MSG_ReadFloat(&sb), 3.14f, 0.0001f);
+    T_FEQ(MSG_ReadFloat(&sb), 3.14f, 0.0001f);
 }
 
-static void test_msg_writestring_readstring_roundtrip(void) {
+TEST(net, msg_writestring_readstring_roundtrip) {
     BYTE buf[64];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
     MSG_WriteString(&sb, "hello");
     sb.readcount = 0;
     char out[32] = {0};
     MSG_ReadString(&sb, out);
-    ASSERT_STR_EQ(out, "hello");
+    T_STREQ(out, "hello");
 }
 
-static void test_msg_readbyte_past_end_returns_zero(void) {
-    /* An empty (cursize==0) buffer: any read must return 0, not crash. */
+TEST(net, msg_readbyte_past_end_returns_zero) {
     BYTE buf[8] = {0};
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
-    /* cursize stays 0 — nothing has been written. */
-    ASSERT_EQ_INT(MSG_ReadByte(&sb), 0);
+    T_EQ(MSG_ReadByte(&sb), 0);
 }
 
-static void test_msg_writepos_readpos_roundtrip(void) {
+TEST(net, msg_writepos_readpos_roundtrip) {
     BYTE buf[32];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
     VECTOR3 out = {0};
@@ -363,13 +339,12 @@ static void test_msg_writepos_readpos_roundtrip(void) {
     MSG_WritePos(&sb, &in);
     sb.readcount = 0;
     MSG_ReadPos(&sb, &out);
-    /* WritePos/ReadPos use MSG_WriteShort/MSG_ReadShort (lossy integer encoding). */
-    ASSERT_EQ_INT((int)out.x, (int)in.x);
-    ASSERT_EQ_INT((int)out.y, (int)in.y);
-    ASSERT_EQ_INT((int)out.z, (int)in.z);
+    T_EQ((int)out.x, (int)in.x);
+    T_EQ((int)out.y, (int)in.y);
+    T_EQ((int)out.z, (int)in.z);
 }
 
-static void test_msg_writedir_readdir_roundtrip(void) {
+TEST(net, msg_writedir_readdir_roundtrip) {
     BYTE buf[32];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
     VECTOR3 dir = {0.707f, 0.0f, -0.707f};
@@ -377,33 +352,31 @@ static void test_msg_writedir_readdir_roundtrip(void) {
     MSG_WriteDir(&sb, &dir);
     sb.readcount = 0;
     MSG_ReadDir(&sb, &out);
-    ASSERT_EQ_FLOAT(out.x, dir.x, 0.001f);
-    ASSERT_EQ_FLOAT(out.y, dir.y, 0.001f);
-    ASSERT_EQ_FLOAT(out.z, dir.z, 0.001f);
+    T_FEQ(out.x, dir.x, 0.001f);
+    T_FEQ(out.y, dir.y, 0.001f);
+    T_FEQ(out.z, dir.z, 0.001f);
 }
 
-static void test_msg_writeangle_readangle_roundtrip(void) {
+TEST(net, msg_writeangle_readangle_roundtrip) {
     BYTE buf[8];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
-    /* WriteAngle quantizes to 1/256th of a full revolution. */
-    float angle = 1.5f;   /* radians */
+    float angle = 1.5f;
     MSG_WriteAngle(&sb, angle);
     sb.readcount = 0;
     float out = MSG_ReadAngle(&sb);
-    /* Tolerance = one quantum = 2π/256 ≈ 0.025 */
-    ASSERT_EQ_FLOAT(out, angle, 0.025f);
+    T_FEQ(out, angle, 0.025f);
 }
 
-static void test_msg_multiple_types_sequential(void) {
+TEST(net, msg_multiple_types_sequential) {
     BYTE buf[64];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
     MSG_WriteByte(&sb,  42);
     MSG_WriteShort(&sb, 1000);
     MSG_WriteLong(&sb,  0x12345678);
     sb.readcount = 0;
-    ASSERT_EQ_INT(MSG_ReadByte(&sb)  & 0xFF,       42);
-    ASSERT_EQ_INT(MSG_ReadShort(&sb) & 0xFFFF, 1000);
-    ASSERT_EQ_INT((unsigned int)MSG_ReadLong(&sb), (unsigned int)0x12345678);
+    T_EQ(MSG_ReadByte(&sb)  & 0xFF,       42);
+    T_EQ(MSG_ReadShort(&sb) & 0xFFFF, 1000);
+    T_EQ((unsigned int)MSG_ReadLong(&sb), (unsigned int)0x12345678);
 }
 
 static uiUnitData_t test_unit_ui_last;
@@ -419,7 +392,7 @@ static void test_update_unit_ui(DWORD num_units, uiUnitData_t *units) {
     }
 }
 
-static void test_unit_ui_parser_preserves_distinct_strings(void) {
+TEST(net, unit_ui_parser_preserves_distinct_strings) {
     BYTE buf[512];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
 
@@ -447,18 +420,18 @@ static void test_unit_ui_parser_preserves_distinct_strings(void) {
 
     CL_ParseUnitUI(&sb);
 
-    ASSERT_EQ_INT((int)test_unit_ui_calls, 1);
-    ASSERT_EQ_INT((int)test_unit_ui_num_units, 1);
-    ASSERT_EQ_INT((int)test_unit_ui_last.entity_num, 7);
-    ASSERT_STR_EQ(test_unit_ui_last.buttons[0].art, "Interface\\Icons\\Ability_Warrior_Cleave.blp");
-    ASSERT_STR_EQ(test_unit_ui_last.buttons[0].tooltip, "Attack");
-    ASSERT_STR_EQ(test_unit_ui_last.buttons[0].ubertip, "1");
-    ASSERT_STR_EQ(test_unit_ui_last.buttons[0].command, "wow_action 0");
-    ASSERT_EQ_INT(test_unit_ui_last.buttons[0].hotkey, '1');
-    ASSERT_STR_EQ(test_unit_ui_last.inventory[0].art, "Interface\\Icons\\INV_Misc_Bag_08.blp");
-    ASSERT_STR_EQ(test_unit_ui_last.inventory[0].tooltip, "Backpack");
-    ASSERT_STR_EQ(test_unit_ui_last.inventory[0].ubertip, "2");
-    ASSERT_EQ_INT(test_unit_ui_last.inventory[0].slot, 4);
+    T_EQ((int)test_unit_ui_calls, 1);
+    T_EQ((int)test_unit_ui_num_units, 1);
+    T_EQ((int)test_unit_ui_last.entity_num, 7);
+    T_STREQ(test_unit_ui_last.buttons[0].art, "Interface\\Icons\\Ability_Warrior_Cleave.blp");
+    T_STREQ(test_unit_ui_last.buttons[0].tooltip, "Attack");
+    T_STREQ(test_unit_ui_last.buttons[0].ubertip, "1");
+    T_STREQ(test_unit_ui_last.buttons[0].command, "wow_action 0");
+    T_EQ(test_unit_ui_last.buttons[0].hotkey, '1');
+    T_STREQ(test_unit_ui_last.inventory[0].art, "Interface\\Icons\\INV_Misc_Bag_08.blp");
+    T_STREQ(test_unit_ui_last.inventory[0].tooltip, "Backpack");
+    T_STREQ(test_unit_ui_last.inventory[0].ubertip, "2");
+    T_EQ(test_unit_ui_last.inventory[0].slot, 4);
 }
 
 static void reset_fow_client_state(void) {
@@ -487,7 +460,7 @@ static void write_fow_message(sizeBuf_t *sb,
     MSG_Write(sb, payload, payload_bytes);
 }
 
-static void test_cursor_splat_message_sets_and_clears_state(void) {
+TEST(net, cursor_splat_message_sets_and_clears_state) {
     BYTE buf[32];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
 
@@ -496,8 +469,8 @@ static void test_cursor_splat_message_sets_and_clears_state(void) {
     MSG_WriteShort(&sb, 7);
     MSG_WriteFloat(&sb, 320.0f);
     CL_ParseServerMessage(&sb);
-    ASSERT_EQ_INT(cl.cursor_splat.image, 7);
-    ASSERT_EQ_FLOAT(cl.cursor_splat.radius, 320.0f, 0.0001f);
+    T_EQ(cl.cursor_splat.image, 7);
+    T_FEQ(cl.cursor_splat.radius, 320.0f, 0.0001f);
 
     SZ_Clear(&sb);
     sb.readcount = 0;
@@ -505,11 +478,11 @@ static void test_cursor_splat_message_sets_and_clears_state(void) {
     MSG_WriteShort(&sb, 0);
     MSG_WriteFloat(&sb, 0.0f);
     CL_ParseServerMessage(&sb);
-    ASSERT_EQ_INT(cl.cursor_splat.image, 0);
-    ASSERT_EQ_FLOAT(cl.cursor_splat.radius, 0.0f, 0.0001f);
+    T_EQ(cl.cursor_splat.image, 0);
+    T_FEQ(cl.cursor_splat.radius, 0.0f, 0.0001f);
 }
 
-static void test_playerinfo_game_state_switches_to_game_input_without_retargeting(void) {
+TEST(net, playerinfo_game_state_switches_to_game_input) {
     BYTE buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
     PLAYER from = { 0 };
@@ -529,14 +502,14 @@ static void test_playerinfo_game_state_switches_to_game_input_without_retargetin
 
     CL_ParseServerMessage(&sb);
 
-    ASSERT_EQ_INT(cls.key_dest, key_game);
-    ASSERT_EQ_INT(cls.netchan.remote_address.type, NA_IP);
-    ASSERT_EQ_INT(cl.playerstate.number, 1);
-    ASSERT_EQ_FLOAT(cl.viewDef.camerastate[0].origin.x, 128.0f, 0.0001f);
-    ASSERT_EQ_FLOAT(cl.viewDef.camerastate[0].origin.y, 256.0f, 0.0001f);
+    T_EQ(cls.key_dest, key_game);
+    T_EQ(cls.netchan.remote_address.type, NA_IP);
+    T_EQ(cl.playerstate.number, 1);
+    T_FEQ(cl.viewDef.camerastate[0].origin.x, 128.0f, 0.0001f);
+    T_FEQ(cl.viewDef.camerastate[0].origin.y, 256.0f, 0.0001f);
 }
 
-static void test_fow_full_message_unpacks_visible_and_explored_planes(void) {
+TEST(net, fow_full_message_unpacks_visible_and_explored_planes) {
     BYTE buf[64];
     BYTE payload[] = {
         1, 1, 15, 2, 14,
@@ -554,18 +527,18 @@ static void test_fow_full_message_unpacks_visible_and_explored_planes(void) {
                       sizeof(payload));
     CL_ParseServerMessage(&sb);
 
-    ASSERT_EQ_INT(cl.fow.width, 8);
-    ASSERT_EQ_INT(cl.fow.height, 2);
-    ASSERT(cl.fow.visible[0]);
-    ASSERT(!cl.fow.visible[1]);
-    ASSERT(cl.fow.explored[0]);
-    ASSERT(cl.fow.explored[1]);
-    ASSERT_EQ_INT(cl.fow.texture[0], 255);
-    ASSERT_EQ_INT(cl.fow.texture[1], 128);
+    T_EQ(cl.fow.width, 8);
+    T_EQ(cl.fow.height, 2);
+    T_ASSERT(cl.fow.visible[0]);
+    T_ASSERT(!cl.fow.visible[1]);
+    T_ASSERT(cl.fow.explored[0]);
+    T_ASSERT(cl.fow.explored[1]);
+    T_EQ(cl.fow.texture[0], 255);
+    T_EQ(cl.fow.texture[1], 128);
     reset_fow_client_state();
 }
 
-static void test_fow_row_delta_reconstructs_client_grid(void) {
+TEST(net, fow_row_delta_reconstructs_client_grid) {
     BYTE buf[64];
     BYTE full_payload[] = { 0, 16 };
     BYTE delta_payload[] = { 0, 4, 1, 3 };
@@ -590,13 +563,13 @@ static void test_fow_row_delta_reconstructs_client_grid(void) {
                       sizeof(delta_payload));
     CL_ParseServerMessage(&sb);
 
-    ASSERT(!cl.fow.visible[0]);
-    ASSERT(cl.fow.visible[1 * cl.fow.width + 4]);
-    ASSERT_EQ_INT(cl.fow.texture[1 * cl.fow.width + 4], 255);
+    T_ASSERT(!cl.fow.visible[0]);
+    T_ASSERT(cl.fow.visible[1 * cl.fow.width + 4]);
+    T_EQ(cl.fow.texture[1 * cl.fow.width + 4], 255);
     reset_fow_client_state();
 }
 
-static void test_fow_rle_255_continues_current_value(void) {
+TEST(net, fow_rle_255_continues_current_value) {
     BYTE buf[64];
     BYTE payload[] = { 1, 255, 16, 8 };
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
@@ -612,14 +585,14 @@ static void test_fow_rle_255_continues_current_value(void) {
                       sizeof(payload));
     CL_ParseServerMessage(&sb);
 
-    ASSERT(cl.fow.visible[0]);
-    ASSERT(cl.fow.visible[270]);
-    ASSERT(!cl.fow.visible[271]);
-    ASSERT(!cl.fow.visible[278]);
+    T_ASSERT(cl.fow.visible[0]);
+    T_ASSERT(cl.fow.visible[270]);
+    T_ASSERT(!cl.fow.visible[271]);
+    T_ASSERT(!cl.fow.visible[278]);
     reset_fow_client_state();
 }
 
-static void test_fow_rle_zero_length_flips_after_exact_255_run(void) {
+TEST(net, fow_rle_zero_length_flips_after_exact_255_run) {
     BYTE buf[64];
     BYTE payload[] = { 1, 255, 0, 8 };
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
@@ -635,13 +608,13 @@ static void test_fow_rle_zero_length_flips_after_exact_255_run(void) {
                       sizeof(payload));
     CL_ParseServerMessage(&sb);
 
-    ASSERT(cl.fow.visible[254]);
-    ASSERT(!cl.fow.visible[255]);
-    ASSERT(!cl.fow.visible[262]);
+    T_ASSERT(cl.fow.visible[254]);
+    T_ASSERT(!cl.fow.visible[255]);
+    T_ASSERT(!cl.fow.visible[262]);
     reset_fow_client_state();
 }
 
-static void test_fow_malformed_payload_does_not_overread(void) {
+TEST(net, fow_malformed_payload_does_not_overread) {
     BYTE buf[64];
     BYTE payload[] = { 1, 1 };
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
@@ -657,49 +630,7 @@ static void test_fow_malformed_payload_does_not_overread(void) {
                       sizeof(payload));
     CL_ParseServerMessage(&sb);
 
-    ASSERT_EQ_INT(sb.readcount, sb.cursize);
-    ASSERT_EQ_INT(cl.fow.width, 0);
+    T_EQ(sb.readcount, sb.cursize);
+    T_EQ(cl.fow.width, 0);
     reset_fow_client_state();
-}
-
-/* -----------------------------------------------------------------------
- * Suite entry point
- * --------------------------------------------------------------------- */
-
-void run_net_tests(void) {
-    /* No game state required — NET_* functions are self-contained. */
-    RUN_TEST(test_sz_init);
-    RUN_TEST(test_sz_clear);
-    RUN_TEST(test_sz_write_appends_data);
-    RUN_TEST(test_sz_write_multiple);
-    RUN_TEST(test_loopback_empty_returns_zero);
-    RUN_TEST(test_loopback_round_trip);
-    RUN_TEST(test_loopback_multiple_packets_in_order);
-    RUN_TEST(test_loopback_server_to_client);
-    RUN_TEST(test_loopback_na_ip_no_crash_without_socket);
-    RUN_TEST(test_net_config_opens_and_closes_udp_sockets);
-    RUN_TEST(test_net_config_source_opens_one_udp_socket);
-    RUN_TEST(test_string_to_adr_ip_only);
-    RUN_TEST(test_string_to_adr_ip_with_port);
-    RUN_TEST(test_string_to_adr_port_overrides_default);
-    RUN_TEST(test_string_to_adr_bad_address);
-    /* MSG read/write round-trips */
-    RUN_TEST(test_msg_writebyte_readbyte_roundtrip);
-    RUN_TEST(test_msg_writeshort_readshort_roundtrip);
-    RUN_TEST(test_msg_writelong_readlong_roundtrip);
-    RUN_TEST(test_msg_writefloat_readfloat_roundtrip);
-    RUN_TEST(test_msg_writestring_readstring_roundtrip);
-    RUN_TEST(test_msg_readbyte_past_end_returns_zero);
-    RUN_TEST(test_msg_writepos_readpos_roundtrip);
-    RUN_TEST(test_msg_writedir_readdir_roundtrip);
-    RUN_TEST(test_msg_writeangle_readangle_roundtrip);
-    RUN_TEST(test_msg_multiple_types_sequential);
-    RUN_TEST(test_unit_ui_parser_preserves_distinct_strings);
-    RUN_TEST(test_cursor_splat_message_sets_and_clears_state);
-    RUN_TEST(test_playerinfo_game_state_switches_to_game_input_without_retargeting);
-    RUN_TEST(test_fow_full_message_unpacks_visible_and_explored_planes);
-    RUN_TEST(test_fow_row_delta_reconstructs_client_grid);
-    RUN_TEST(test_fow_rle_255_continues_current_value);
-    RUN_TEST(test_fow_rle_zero_length_flips_after_exact_255_run);
-    RUN_TEST(test_fow_malformed_payload_does_not_overread);
 }
