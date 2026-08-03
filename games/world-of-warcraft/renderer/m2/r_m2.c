@@ -2293,6 +2293,9 @@ static void m2_spawn_particle(void *raw) {
 	dir = Vector3_sub(&w_dir, &w_zero);
 	Vector3_normalize(&dir);
 	fx->texture = ctx->texture;
+	fx->blend_mode = ctx->p->blend_mode == 1 ? BLEND_MODE_ALPHAKEY :
+		ctx->p->blend_mode == 2 ? BLEND_MODE_BLEND :
+		(ctx->p->blend_mode == 3 || ctx->p->blend_mode == 4) ? BLEND_MODE_ADD : BLEND_MODE_NONE;
 	fx->org = org;
 	fx->vel = Vector3_scale(&dir, MAX(0.0f, ctx->speed + (r - 0.5f) * ctx->varia));
 	fx->accel = (VECTOR3){ 0, 0, -ctx->grav };

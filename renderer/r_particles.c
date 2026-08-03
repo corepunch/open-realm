@@ -40,6 +40,7 @@ cparticle_t *R_SpawnParticle(void) {
     free_particles = p->next;
     p->next = active_particles;
     active_particles = p;
+    p->blend_mode = BLEND_MODE_ADD;
     return p;
 }
 
@@ -71,11 +72,14 @@ LPCSTR fs_particle =
 "in vec2 v_texcoord;\n"
 "out vec4 o_color;\n"
 "uniform sampler2D uTexture;\n"
+"uniform bool uUseDiscard;\n"
+"uniform float uAlphaCutoff;\n"
 "float crop_edges(vec2 tc) {\n"
 "   return step(abs(tc.x - 0.5), 0.5) * step(abs(tc.y - 0.5), 0.5);\n"
 "}\n"
 "void main() {\n"
 "    o_color = texture(uTexture, v_texcoord) * v_color;\n"
+"    if (uUseDiscard && o_color.a < uAlphaCutoff) discard;\n"
 "}\n";
 
 particleVertex_t *
@@ -151,7 +155,7 @@ COLOR32 FX_BlendColor(cparticle_t const *p) {
     }
 }
 
-static void R_FlushParticles(LPCTEXTURE texture, LPCMATRIX4 matrix, particleVertex_t *pv) {
+static void R_FlushParticles(LPCTEXTURE texture, LPCMATRIX4 matrix, particleVertex_t *pv, BLEND_MODE blend_mode) {
     R_Call(glBindVertexArray, particles_resources.particles->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, particles_resources.particles->vbo);
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(particleVertex_t) * (pv - particles_resources.vertices), particles_resources.vertices, GL_DYNAMIC_DRAW);
@@ -160,8 +164,27 @@ static void R_FlushParticles(LPCTEXTURE texture, LPCMATRIX4 matrix, particleVert
     R_Call(glUniformMatrix4fv, particles_resources.shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
     R_Call(glActiveTexture, GL_TEXTURE0);
     R_Call(glBindTexture, GL_TEXTURE_2D, (texture?texture:particles_resources.texture)->texid);
-    R_Call(glDepthMask, GL_FALSE);
-    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE);
+    R_Call(glUniform1i, particles_resources.shader->uUseDiscard, blend_mode == BLEND_MODE_ALPHAKEY);
+    R_Call(glUniform1f, particles_resources.shader->uAlphaCutoff, 0.5f);
+    if (blend_mode == BLEND_MODE_NONE || blend_mode == BLEND_MODE_ALPHAKEY) {
+        R_Call(glDisable, GL_BLEND);
+        R_Call(glDepthMask, GL_TRUE);
+        R_Call(glBlendFunc, GL_ONE, GL_ZERO);
+    } else {
+        R_Call(glEnable, GL_BLEND);
+        R_Call(glDepthMask, GL_FALSE);
+        switch (blend_mode) {
+        case BLEND_MODE_ADD:
+            R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE);
+            break;
+        case BLEND_MODE_ADDALPHA:
+            R_Call(glBlendFunc, GL_ONE, GL_ONE);
+            break;
+        default:
+            R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            break;
+        }
+    }
     R_Call(glDrawArrays, GL_TRIANGLES, 0, (GLsizei)(pv - particles_resources.vertices));
 }
 
@@ -193,14 +216,15 @@ void R_DrawParticles(void) {
 
     MATRIX4 matrix;
     LPCTEXTURE texture = active_particles->texture;
+    BLEND_MODE blend_mode = active_particles->blend_mode;
     particleVertex_t *pv = particles_resources.vertices;
     
     Matrix4_identity(&matrix);
     R_UpdateParticles();
     
     FOR_EACH_LIST(cparticle_t const, p, active_particles) {
-        if (p->texture != texture) {
-            R_FlushParticles(texture, &matrix, pv);
+        if (p->texture != texture || p->blend_mode != blend_mode) {
+            R_FlushParticles(texture, &matrix, pv, blend_mode);
             pv = particles_resources.vertices;
         }
         /* Kinematics: org = org0 + vel0*t + 1/2*accel*t^2. The original engine
@@ -212,11 +236,12 @@ void R_DrawParticles(void) {
         VECTOR3 org = Vector3_mad(&p->org, p->time, &vel);
         COLOR32 col = FX_BlendColor(p);
         float size = FX_BlendFloat(p->size, p->time, BYTE2FLOAT(p->midtime));
-        pv = R_AddParticle(pv, &org, FX_GetFrame(p), col, size * 2.0);
+        pv = R_AddParticle(pv, &org, FX_GetFrame(p), col, size);
         texture = p->texture;
+        blend_mode = p->blend_mode;
     }
     
-    R_FlushParticles(texture, &matrix, pv);
+    R_FlushParticles(texture, &matrix, pv, blend_mode);
 }
 
 static LPBUFFER R_MakeParticlesVertexArrayObject(void) {
