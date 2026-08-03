@@ -6,8 +6,6 @@ static wowMove_t wow_move_ready = { "Ready", NULL, NULL };
 static wowMove_t wow_move_walk = { "Walk", NULL, NULL };
 static wowMove_t wow_move_run = { "Run", NULL, NULL };
 static wowMove_t wow_move_back = { "WalkBackwards", NULL, NULL };
-static wowMove_t wow_move_strafe_left = { "ShuffleLeft", NULL, NULL };
-static wowMove_t wow_move_strafe_right = { "ShuffleRight", NULL, NULL };
 static wowMove_t wow_move_attack = { "Attack", NULL, NULL };
 static wowMove_t wow_move_pain = { "Pain", NULL, NULL };
 static wowMove_t wow_move_death = { "Death", NULL, NULL };
@@ -162,12 +160,7 @@ BOOL Wow_SetWalkMove(LPEDICT ent) {
 BOOL Wow_SetDirectionalMove(LPEDICT ent, DWORD flags) {
     if ((flags & WOW_MOVE_BACK) && !(flags & WOW_MOVE_FORWARD))
         return Wow_SetEntityMove(ent, &wow_move_back) || Wow_SetRunMove(ent);
-    if ((flags & WOW_MOVE_LEFT) && !(flags & WOW_MOVE_RIGHT) &&
-        !(flags & (WOW_MOVE_FORWARD | WOW_MOVE_BACK)))
-        return Wow_SetEntityMove(ent, &wow_move_strafe_left) || Wow_SetRunMove(ent);
-    if ((flags & WOW_MOVE_RIGHT) && !(flags & WOW_MOVE_LEFT) &&
-        !(flags & (WOW_MOVE_FORWARD | WOW_MOVE_BACK)))
-        return Wow_SetEntityMove(ent, &wow_move_strafe_right) || Wow_SetRunMove(ent);
+    /* A/D are lateral movement; ShuffleLeft/Right are turn animations, not strafe animations. */
     return Wow_SetRunMove(ent);
 }
 

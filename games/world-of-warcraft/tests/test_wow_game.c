@@ -679,8 +679,6 @@ static void test_wow_directional_movement_animations(void) {
     struct game_export *game = init_game();
     LPEDICT player = &wow_edicts[0];
     wowEntityLocal_t *local = Wow_EntityLocal(player);
-    LPCANIMATION left_animation;
-    LPCANIMATION right_animation;
     LPCANIMATION back_animation;
     LPCSTR left[] = { "move", "4", "0", "328", "8.5" };
     LPCSTR right[] = { "move", "8", "0", "328", "8.5" };
@@ -688,17 +686,15 @@ static void test_wow_directional_movement_animations(void) {
     FLOAT facing;
 
     ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
-    left_animation = G_GetAnimation(player->s.model, "ShuffleLeft");
-    right_animation = G_GetAnimation(player->s.model, "ShuffleRight");
     back_animation = G_GetAnimation(player->s.model, "WalkBackwards");
     facing = player->s.angle;
     game->ClientCommand(player, 5, left);
     game->RunFrame();
-    ASSERT_STR_EQ(local->animation->name, left_animation ? "ShuffleLeft" : "Run");
+    ASSERT_STR_EQ(local->animation->name, "Run");
     ASSERT_EQ_FLOAT(player->s.angle, facing, 0.001f);
     game->ClientCommand(player, 5, right);
     game->RunFrame();
-    ASSERT_STR_EQ(local->animation->name, right_animation ? "ShuffleRight" : "Run");
+    ASSERT_STR_EQ(local->animation->name, "Run");
     ASSERT_EQ_FLOAT(player->s.angle, facing, 0.001f);
     game->ClientCommand(player, 5, back);
     game->RunFrame();
