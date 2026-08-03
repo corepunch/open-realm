@@ -24,15 +24,9 @@
  */
 #include <stdarg.h>
 #include <stdlib.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <errno.h>
 #include <string.h>
 
+#include "net_platform.h"
 #include "common.h"
 
 #define LOOPBACK_SIZE (1024 * 1024 * 8)
@@ -99,40 +93,77 @@ int NET_GetLoopPacket(NETSOURCE netsrc, netadr_t *from, LPSIZEBUF msg) {
  * UDP socket
  * -------------------------------------------------------------------------*/
 
-static int udp_sockets[2] = { -1, -1 };
+static net_socket_t udp_sockets[2] = { NET_INVALID_SOCKET, NET_INVALID_SOCKET };
+
+#ifdef _WIN32
+static BOOL winsock_initialized;
+#endif
+
+static int NET_SocketError(void) {
+#ifdef _WIN32
+    return WSAGetLastError();
+#else
+    return errno;
+#endif
+}
+
+static BOOL NET_ErrorWouldBlock(int error) {
+#ifdef _WIN32
+    return error == WSAEWOULDBLOCK;
+#else
+    return error == EAGAIN || error == EWOULDBLOCK;
+#endif
+}
+
+static void NET_CloseSocket(net_socket_t socket_handle) {
+#ifdef _WIN32
+    closesocket(socket_handle);
+#else
+    close(socket_handle);
+#endif
+}
 
 static LPCSTR NET_SourceName(NETSOURCE netsrc) {
     return netsrc == NS_CLIENT ? "client" : "server";
 }
 
-static int NET_UDPSocket(unsigned short port) {
-    int newsocket;
+static net_socket_t NET_UDPSocket(unsigned short port) {
+    net_socket_t newsocket;
     int flag = 1;
     struct sockaddr_in addr;
 
     newsocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (newsocket < 0) {
-        fprintf(stderr, "NET_UDPSocket: socket creation failed: %s\n", strerror(errno));
-        return -1;
+    if (newsocket == NET_INVALID_SOCKET) {
+        fprintf(stderr, "NET_UDPSocket: socket creation failed: %d\n", NET_SocketError());
+        return NET_INVALID_SOCKET;
     }
 
-    setsockopt(newsocket, SOL_SOCKET, SO_BROADCAST, &flag, sizeof(flag));
+    setsockopt(newsocket, SOL_SOCKET, SO_BROADCAST, (const char *)&flag, sizeof(flag));
 
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
     addr.sin_port = htons(port);
 
-    if (bind(newsocket, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-        fprintf(stderr, "NET_UDPSocket: bind failed on port %u: %s\n", port, strerror(errno));
-        close(newsocket);
-        return -1;
+    if (bind(newsocket, (struct sockaddr *)&addr, sizeof(addr)) == SOCKET_ERROR) {
+        fprintf(stderr, "NET_UDPSocket: bind failed on port %u: %d\n", port, NET_SocketError());
+        NET_CloseSocket(newsocket);
+        return NET_INVALID_SOCKET;
     }
 
+#ifdef _WIN32
+    u_long nonblocking = 1;
+    if (ioctlsocket(newsocket, FIONBIO, &nonblocking) == SOCKET_ERROR) {
+        fprintf(stderr, "NET_UDPSocket: nonblocking mode failed: %d\n", NET_SocketError());
+        NET_CloseSocket(newsocket);
+        return NET_INVALID_SOCKET;
+    }
+#else
     flag = fcntl(newsocket, F_GETFL, 0);
     if (flag >= 0) {
         fcntl(newsocket, F_SETFL, flag | O_NONBLOCK);
     }
+#endif
 
     if (port) {
         fprintf(stderr, "NET_UDPSocket: bound UDP 0.0.0.0:%u\n", (unsigned)port);
@@ -156,21 +187,21 @@ static unsigned short NET_GamePort(void) {
 }
 
 static void NET_OpenIP(NETSOURCE netsrc) {
-    if (netsrc == NS_SERVER && udp_sockets[NS_SERVER] < 0) {
+    if (netsrc == NS_SERVER && udp_sockets[NS_SERVER] == NET_INVALID_SOCKET) {
         unsigned short port = NET_GamePort();
         fprintf(stderr, "NET_OpenIP: opening server socket on UDP port %u\n", (unsigned)port);
         udp_sockets[NS_SERVER] = NET_UDPSocket(port);
     }
-    if (netsrc == NS_CLIENT && udp_sockets[NS_CLIENT] < 0) {
+    if (netsrc == NS_CLIENT && udp_sockets[NS_CLIENT] == NET_INVALID_SOCKET) {
         fprintf(stderr, "NET_OpenIP: opening client socket on ephemeral UDP port\n");
         udp_sockets[NS_CLIENT] = NET_UDPSocket(0);
     }
 }
 
 static void NET_SendUDPPacket(NETSOURCE netsrc, int length, const void *data, netadr_t to) {
-    int sock = udp_sockets[netsrc];
+    net_socket_t sock = udp_sockets[netsrc];
 
-    if (sock < 0) {
+    if (sock == NET_INVALID_SOCKET) {
         fprintf(stderr,
                 "NET_SendUDPPacket: %s socket is closed, dropping packet to %s\n",
                 NET_SourceName(netsrc),
@@ -192,29 +223,30 @@ static void NET_SendUDPPacket(NETSOURCE netsrc, int length, const void *data, ne
     }
     addr.sin_port = to.port;    // already in network byte order
 
-    if (sendto(sock, data, length, 0,
-               (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+    if (sendto(sock, (const char *)data, length, 0,
+               (struct sockaddr *)&addr, sizeof(addr)) == SOCKET_ERROR) {
         fprintf(stderr,
-                "NET_SendUDPPacket: sendto %s failed: %s\n",
+                "NET_SendUDPPacket: sendto %s failed: %d\n",
                 NET_AdrToString(&to),
-                strerror(errno));
+                NET_SocketError());
     }
 }
 
 static int NET_GetUDPPacket(NETSOURCE netsrc, netadr_t *from, LPSIZEBUF msg) {
-    int sock = udp_sockets[netsrc];
+    net_socket_t sock = udp_sockets[netsrc];
 
-    if (sock < 0)
+    if (sock == NET_INVALID_SOCKET)
         return 0;
 
     struct sockaddr_in srcaddr;
-    socklen_t addrlen = sizeof(srcaddr);
+    net_socklen_t addrlen = sizeof(srcaddr);
 
-    int bytes = recvfrom(sock, msg->data, msg->maxsize, 0,
+    int bytes = recvfrom(sock, (char *)msg->data, msg->maxsize, 0,
                          (struct sockaddr *)&srcaddr, &addrlen);
-    if (bytes < 0) {
-        if (errno != EAGAIN && errno != EWOULDBLOCK)
-            fprintf(stderr, "NET_GetUDPPacket: recvfrom failed: %d\n", errno);
+    if (bytes == SOCKET_ERROR) {
+        int const error = NET_SocketError();
+        if (!NET_ErrorWouldBlock(error))
+            fprintf(stderr, "NET_GetUDPPacket: recvfrom failed: %d\n", error);
         return 0;
     }
     if (bytes == msg->maxsize) {
@@ -237,6 +269,17 @@ static int NET_GetUDPPacket(NETSOURCE netsrc, netadr_t *from, LPSIZEBUF msg) {
  * -------------------------------------------------------------------------*/
 
 void NET_Init(void) {
+#ifdef _WIN32
+    WSADATA winsock_data;
+    if (!winsock_initialized) {
+        int const result = WSAStartup(MAKEWORD(2, 2), &winsock_data);
+        if (result != 0) {
+            fprintf(stderr, "NET_Init: WSAStartup failed: %d\n", result);
+            return;
+        }
+        winsock_initialized = true;
+    }
+#endif
     memset(loopbufs, 0, sizeof(loopbufs));
 }
 
@@ -256,10 +299,10 @@ void NET_ConfigSource(NETSOURCE netsrc, BOOL open) {
         return;
     }
     if (!open) {
-        if (udp_sockets[netsrc] >= 0) {
+        if (udp_sockets[netsrc] != NET_INVALID_SOCKET) {
             fprintf(stderr, "NET_Config: closing %s UDP socket\n", NET_SourceName(netsrc));
-            close(udp_sockets[netsrc]);
-            udp_sockets[netsrc] = -1;
+            NET_CloseSocket(udp_sockets[netsrc]);
+            udp_sockets[netsrc] = NET_INVALID_SOCKET;
         }
         return;
     }
@@ -267,11 +310,17 @@ void NET_ConfigSource(NETSOURCE netsrc, BOOL open) {
 }
 
 BOOL NET_IsConfigured(NETSOURCE netsrc) {
-    return netsrc <= NS_SERVER && udp_sockets[netsrc] >= 0;
+    return netsrc <= NS_SERVER && udp_sockets[netsrc] != NET_INVALID_SOCKET;
 }
 
 void NET_Shutdown(void) {
     NET_Config(false);
+#ifdef _WIN32
+    if (winsock_initialized) {
+        WSACleanup();
+        winsock_initialized = false;
+    }
+#endif
 }
 
 bool NET_StringToAdr(LPCSTR s, unsigned short default_port, netadr_t *adr) {

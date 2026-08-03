@@ -1,6 +1,6 @@
 #include "server.h"
 
-#include <arpa/inet.h>
+#include "common/net_platform.h"
 #include <stdlib.h>
 
 static DWORD SV_LanPlayerCount(void) {

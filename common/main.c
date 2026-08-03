@@ -4,8 +4,13 @@
 #include <SDL2/SDL.h>
 #include <stdlib.h>
 #include <stdio.h>
+#ifdef _WIN32
+#include <conio.h>
+#include <direct.h>
+#else
 #include <sys/select.h>
 #include <unistd.h>
+#endif
 
 #if defined(__APPLE__)
 #define BZ_PLATFORM "Darwin"
@@ -61,6 +66,99 @@
 
 extern LPTEXTURE Texture;
 
+#ifdef _WIN32
+static BOOL Sys_FileExists(LPCSTR filename) {
+    FILE *file = fopen(filename, "rb");
+
+    if (!file) {
+        return false;
+    }
+    fclose(file);
+    return true;
+}
+
+static BOOL Sys_IsWarcraftDataDirectory(LPCSTR dirname) {
+    PATHSTR archive;
+
+    if (!dirname || !*dirname) {
+        return false;
+    }
+    snprintf(archive, sizeof(archive), "%s/war3.mpq", dirname);
+    return Sys_FileExists(archive);
+}
+
+static BOOL Sys_TryWarcraftDataDirectory(LPCSTR dirname,
+                                         LPSTR result,
+                                         size_t result_size) {
+    if (!Sys_IsWarcraftDataDirectory(dirname)) {
+        return false;
+    }
+    strlcpy(result, dirname, result_size);
+    return true;
+}
+
+static BOOL Sys_DiscoverWarcraftDataDirectory(LPSTR result, size_t result_size) {
+    static LPCSTR relative_candidates[] = {
+        ".",
+        "data",
+        "Warcraft III",
+        NULL
+    };
+    static LPCSTR drive_candidates[] = {
+        "%c:/Warcraft III",
+        "%c:/Games/Warcraft III",
+        "%c:/Program Files/Warcraft III",
+        "%c:/Program Files (x86)/Warcraft III",
+        NULL
+    };
+    LPCSTR environment_path = getenv("WARCRAFT_III_PATH");
+    LPSTR executable_path = SDL_GetBasePath();
+    unsigned long drives = _getdrives();
+    PATHSTR candidate;
+
+    if (Sys_TryWarcraftDataDirectory(environment_path, result, result_size)) {
+        SDL_free(executable_path);
+        return true;
+    }
+    if (executable_path) {
+        if (Sys_TryWarcraftDataDirectory(executable_path, result, result_size)) {
+            SDL_free(executable_path);
+            return true;
+        }
+        snprintf(candidate, sizeof(candidate), "%sdata", executable_path);
+        if (Sys_TryWarcraftDataDirectory(candidate, result, result_size)) {
+            SDL_free(executable_path);
+            return true;
+        }
+        SDL_free(executable_path);
+    }
+    for (LPCSTR *path = relative_candidates; *path; path++) {
+        if (Sys_TryWarcraftDataDirectory(*path, result, result_size)) {
+            return true;
+        }
+    }
+    for (int drive = 0; drive < 26; drive++) {
+        if (!(drives & (1UL << drive))) {
+            continue;
+        }
+        for (LPCSTR *format = drive_candidates; *format; format++) {
+            snprintf(candidate, sizeof(candidate), *format, 'A' + drive);
+            if (Sys_TryWarcraftDataDirectory(candidate, result, result_size)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+static void Sys_ShowStartupError(LPCSTR message) {
+    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,
+                             "OpenWarcraft3 could not start",
+                             message,
+                             NULL);
+}
+#endif
+
 static unsigned short Sys_GamePort(void) {
     int port = Cvar_Integer("game_port", PORT_SERVER);
 
@@ -84,14 +182,19 @@ void Sys_Quit(void) {
 static LPSTR Sys_ConsoleInput(void) {
     static char line[256];
     static char *pos = line;
-    fd_set fds;
-    struct timeval tv;
     int ch;
 
     if (!Cvar_Integer("dedicated", 0)) {
         return NULL;
     }
     /* Non-blocking check: is there data on stdin? */
+#ifdef _WIN32
+    if (!_kbhit()) {
+        return NULL;
+    }
+#else
+    fd_set fds;
+    struct timeval tv;
     FD_ZERO(&fds);
     FD_SET(STDIN_FILENO, &fds);
     tv.tv_sec = 0;
@@ -99,6 +202,7 @@ static LPSTR Sys_ConsoleInput(void) {
     if (select(STDIN_FILENO + 1, &fds, NULL, NULL, &tv) <= 0) {
         return NULL;
     }
+#endif
     while (1) {
         ch = fgetc(stdin);
         if (ch == EOF) {
@@ -118,6 +222,9 @@ static LPSTR Sys_ConsoleInput(void) {
 
 int main(int argc, LPSTR argv[]) {
     BOOL data = 0;
+#ifdef _WIN32
+    PATHSTR discovered_data_dir = { 0 };
+#endif
 
     fprintf(stderr,
             "\nOpenWarcraft3\n"
@@ -131,9 +238,29 @@ int main(int argc, LPSTR argv[]) {
     Com_Init(argc, (LPCSTR *)argv);
 
     LPCSTR data_dir = Cvar_String("data", "");
+#ifdef _WIN32
+    if ((!data_dir || !*data_dir) &&
+        Sys_DiscoverWarcraftDataDirectory(discovered_data_dir,
+                                          sizeof(discovered_data_dir))) {
+        Cvar_Set("data", discovered_data_dir);
+        /* The desktop entry point presents the Frozen Throne glue UI.  A
+         * first-run double-click therefore needs the expansion archives too;
+         * command-line launches retain their explicit -tft/-roc choice. */
+        Cvar_Set("fs_expansion", "1");
+        data_dir = Cvar_String("data", "");
+        fprintf(stderr, "Discovered Warcraft III data: %s\n", data_dir);
+    }
+#endif
     if (data_dir && *data_dir) {
         if (!FS_AddDataDirectory(data_dir)) {
             fprintf(stderr, "Failed to add data directory: %s\n", data_dir);
+#ifdef _WIN32
+            Sys_ShowStartupError(
+                "The configured Warcraft III folder is unavailable.\n\n"
+                "Start OpenWarcraft3 with:\n"
+                "  openwarcraft3.exe -data \"C:\\path\\to\\Warcraft III\"\n\n"
+                "The folder must contain war3.mpq.");
+#endif
             return 1;
         }
         data = 1;
@@ -146,6 +273,14 @@ int main(int argc, LPSTR argv[]) {
 
     if (!data) {
         printf(USAGE);
+#ifdef _WIN32
+        Sys_ShowStartupError(
+            "A compatible Warcraft III installation was not found.\n\n"
+            "Install Warcraft III Classic, put openwarcraft3.exe in its folder, "
+            "or start it with:\n"
+            "  openwarcraft3.exe -data \"C:\\path\\to\\Warcraft III\"\n\n"
+            "You can also set the WARCRAFT_III_PATH environment variable.");
+#endif
         return 1;
     }
 

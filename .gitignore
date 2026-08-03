@@ -1,4 +1,6 @@
 build/
+build-win*/
+build-win*.log
 data/
 src/DerivedData/
 StormLib-master/

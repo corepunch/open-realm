@@ -17,6 +17,11 @@
 #define GL_GLEXT_PROTOTYPES 1
 #include <GL/gl.h>
 #include <GL/glext.h>
+#elif defined(_WIN32)
+/* Windows' OpenGL 1.1 import library does not expose the modern functions
+ * used by the renderer.  Epoxy provides runtime dispatch without pulling in
+ * windows.h, whose DWORD/RECT names collide with the engine's public types. */
+#include <epoxy/gl.h>
 #endif
 
 #ifdef DIAG_OUTPUT
@@ -252,6 +257,7 @@ LPMODEL R_LoadModel(LPCSTR modelFilename);
 void R_ReleaseModel(LPMODEL model);
 
 size2_t R_GetWindowSize(void);
+void R_SetWindowSize(DWORD width, DWORD height);
 size2_t R_GetTextureSize(LPCTEXTURE texture);
 
 // r_buffer.c
