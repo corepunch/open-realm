@@ -1,4 +1,4 @@
-#include "test_framework.h"
+#include "test.h"
 
 #include <ctype.h>
 #include <math.h>
@@ -10,8 +10,6 @@
 
 #include "game/g_wow_local.h"
 
-int _tests_run = 0;
-int _tests_failed = 0;
 
 typedef struct {
     char name[MAX_PATHLEN];
@@ -166,7 +164,7 @@ static void test_mem_free(HANDLE m) { free(m); }
 static int test_model_index(LPCSTR name) {
     FOR_LOOP(i, test_num_models)
         if (!strcasecmp(test_models[i].name, name)) return test_models[i].index;
-    ASSERT(test_num_models < sizeof(test_models) / sizeof(test_models[0]));
+    T_ASSERT(test_num_models < sizeof(test_models) / sizeof(test_models[0]));
     strncpy(test_models[test_num_models].name, name, sizeof(test_models[0].name) - 1);
     test_models[test_num_models].index = (int)test_num_models + 1;
     test_num_models++;
@@ -175,7 +173,7 @@ static int test_model_index(LPCSTR name) {
 static int test_image_index(LPCSTR name) {
     FOR_LOOP(i, test_num_images)
         if (!strcasecmp(test_images[i].name, name)) return test_images[i].index;
-    ASSERT(test_num_images < sizeof(test_images) / sizeof(test_images[0]));
+    T_ASSERT(test_num_images < sizeof(test_images) / sizeof(test_images[0]));
     strncpy(test_images[test_num_images].name, name, sizeof(test_images[0].name) - 1);
     test_images[test_num_images].index = (int)test_num_images + 1;
     test_num_images++;
@@ -228,26 +226,27 @@ static struct game_export *init_game(void) {
     struct game_import import = test_import();
     reset_test_state();
     struct game_export *game = GetGameAPI(&import);
-    ASSERT_NOT_NULL(game);
-    ASSERT_NOT_NULL(game->Init);
-    ASSERT_NOT_NULL(game->LoadMap);
+    T_NOT_NULL(game);
+    T_NOT_NULL(game->Init);
+    T_NOT_NULL(game->LoadMap);
     game->Init();
     return game;
 }
 
-static LPEDICT first_of_kind(wowEntityKind_t kind) {
+/* Entities are identified by their think function pointer (Quake2 style); there
+ * is no kind tag.  These helpers find/count world entities (skipping the client
+ * slots) whose think pointer matches. */
+static LPEDICT first_with_think(void (*think)(LPEDICT)) {
     for (DWORD i = WOW_MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
-        wowEntityLocal_t *l = Wow_EntityLocal(&wow_edicts[i]);
-        if (wow_edicts[i].inuse && l && l->kind == kind) return &wow_edicts[i];
+        if (wow_edicts[i].inuse && wow_edicts[i].think == think) return &wow_edicts[i];
     }
     return NULL;
 }
 
-static DWORD count_of_kind(wowEntityKind_t kind) {
+static DWORD count_with_think(void (*think)(LPEDICT)) {
     DWORD count = 0;
     for (DWORD i = WOW_MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
-        wowEntityLocal_t *l = Wow_EntityLocal(&wow_edicts[i]);
-        if (wow_edicts[i].inuse && l && l->kind == kind) count++;
+        if (wow_edicts[i].inuse && wow_edicts[i].think == think) count++;
     }
     return count;
 }
@@ -256,79 +255,79 @@ static DWORD count_of_kind(wowEntityKind_t kind) {
  * Corpse tests
  * =================================================================== */
 
-static void test_corpse_spawned_on_creature_death(void) {
+TEST(wow_entities, corpse_spawned_on_creature_death) {
     struct game_export *game = init_game();
-    ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     game->RunFrame(); /* reset spawn budget */
 
-    LPEDICT creature = first_of_kind(WOW_ENTITY_UNIT);
-    ASSERT_NOT_NULL(creature);
+    LPEDICT creature = first_with_think(Wow_RunCreatureFrame);
+    T_NOT_NULL(creature);
     wowEntityLocal_t *cl = Wow_EntityLocal(creature);
 
     Wow_AIDie(creature, &wow_edicts[0]);
-    ASSERT(cl->dead);
+    T_ASSERT(cl->dead);
 
-    LPEDICT corpse = first_of_kind(WOW_ENTITY_CORPSE);
-    ASSERT_NOT_NULL(corpse);
+    LPEDICT corpse = first_with_think(Wow_RunCorpseFrame);
+    T_NOT_NULL(corpse);
     wowEntityLocal_t *col = Wow_EntityLocal(corpse);
-    ASSERT_EQ_INT((int)col->kind, WOW_ENTITY_CORPSE);
-    ASSERT_EQ_INT((int)col->corpse_owner, (int)creature->s.number);
-    ASSERT(col->corpse_timer > 0);
-    ASSERT_EQ_INT((int)corpse->s.model, (int)creature->s.model);
-    ASSERT_EQ_FLOAT(corpse->s.origin.x, creature->s.origin.x, 0.001f);
-    ASSERT_EQ_FLOAT(corpse->s.origin.y, creature->s.origin.y, 0.001f);
-    ASSERT_EQ_INT((int)corpse->s.flags & EF_GROUND_ANCHOR, (int)EF_GROUND_ANCHOR);
+    T_ASSERT(corpse->think == Wow_RunCorpseFrame);
+    T_EQ((int)col->corpse_owner, (int)creature->s.number);
+    T_ASSERT(col->corpse_timer > 0);
+    T_EQ((int)corpse->s.model, (int)creature->s.model);
+    T_FEQ(corpse->s.origin.x, creature->s.origin.x, 0.001f);
+    T_FEQ(corpse->s.origin.y, creature->s.origin.y, 0.001f);
+    T_EQ((int)corpse->s.flags & EF_GROUND_ANCHOR, (int)EF_GROUND_ANCHOR);
 
     if (game->Shutdown) game->Shutdown();
 }
 
-static void test_corpse_decays_over_time(void) {
+TEST(wow_entities, corpse_decays_over_time) {
     struct game_export *game = init_game();
-    ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     game->RunFrame();
 
-    LPEDICT creature = first_of_kind(WOW_ENTITY_UNIT);
-    ASSERT_NOT_NULL(creature);
+    LPEDICT creature = first_with_think(Wow_RunCreatureFrame);
+    T_NOT_NULL(creature);
     Wow_AIDie(creature, &wow_edicts[0]);
 
-    LPEDICT corpse = first_of_kind(WOW_ENTITY_CORPSE);
-    ASSERT_NOT_NULL(corpse);
+    LPEDICT corpse = first_with_think(Wow_RunCorpseFrame);
+    T_NOT_NULL(corpse);
     wowEntityLocal_t *col = Wow_EntityLocal(corpse);
     DWORD initial = col->corpse_timer;
 
     for (int i = 0; i < 10; i++) game->RunFrame();
-    ASSERT(col->corpse_timer < initial);
-    ASSERT(corpse->inuse);
+    T_ASSERT(col->corpse_timer < initial);
+    T_ASSERT(corpse->inuse);
 
     if (game->Shutdown) game->Shutdown();
 }
 
-static void test_corpse_removed_after_timer_expires(void) {
+TEST(wow_entities, corpse_removed_after_timer_expires) {
     struct game_export *game = init_game();
-    ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     game->RunFrame();
 
-    LPEDICT creature = first_of_kind(WOW_ENTITY_UNIT);
-    ASSERT_NOT_NULL(creature);
+    LPEDICT creature = first_with_think(Wow_RunCreatureFrame);
+    T_NOT_NULL(creature);
     Wow_AIDie(creature, &wow_edicts[0]);
 
-    LPEDICT corpse = first_of_kind(WOW_ENTITY_CORPSE);
-    ASSERT_NOT_NULL(corpse);
+    LPEDICT corpse = first_with_think(Wow_RunCorpseFrame);
+    T_NOT_NULL(corpse);
     wowEntityLocal_t *col = Wow_EntityLocal(corpse);
     col->corpse_timer = FRAMETIME;
 
     game->RunFrame();
-    ASSERT(!corpse->inuse);
+    T_ASSERT(!corpse->inuse);
 
     if (game->Shutdown) game->Shutdown();
 }
 
-static void test_corpse_not_spawned_for_null_entity(void) {
+TEST(wow_entities, corpse_not_spawned_for_null_entity) {
     struct game_export *game = init_game();
-    ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
 
     LPEDICT corpse = Wow_SpawnCorpse(NULL);
-    ASSERT_NULL(corpse);
+    T_NULL(corpse);
 
     if (game->Shutdown) game->Shutdown();
 }
@@ -337,80 +336,43 @@ static void test_corpse_not_spawned_for_null_entity(void) {
  * DynamicObject tests
  * =================================================================== */
 
-static void test_dynamic_object_spawn_and_properties(void) {
+TEST(wow_entities, dynamic_object_spawn_and_properties) {
     struct game_export *game = init_game();
-    ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     game->RunFrame();
 
     VECTOR2 origin = { 100.0f, 200.0f };
     LPEDICT dobj = Wow_SpawnDynamicObject(WOW_SPELL_FIREBOLT, &origin, 5000);
-    ASSERT_NOT_NULL(dobj);
+    T_NOT_NULL(dobj);
 
     wowEntityLocal_t *dl = Wow_EntityLocal(dobj);
-    ASSERT_EQ_INT((int)dl->kind, WOW_ENTITY_DYNAMICOBJECT);
-    ASSERT_EQ_INT((int)dl->dyn_spell_id, (int)WOW_SPELL_FIREBOLT);
-    ASSERT_EQ_INT((int)dl->dyn_duration, 5000);
-    ASSERT_EQ_INT((int)dl->dyn_radius, 2);
-    ASSERT_EQ_FLOAT(dobj->s.origin2.x, 100.0f, 0.001f);
-    ASSERT_EQ_FLOAT(dobj->s.origin2.y, 200.0f, 0.001f);
-    ASSERT_EQ_FLOAT(dobj->s.radius, 2.0f, 0.001f);
-    ASSERT_EQ_INT((int)dobj->s.flags & EF_GROUND_ANCHOR, (int)EF_GROUND_ANCHOR);
+    T_ASSERT(dobj->think == Wow_RunDynamicObjectFrame);
+    T_EQ((int)dl->dyn_spell_id, (int)WOW_SPELL_FIREBOLT);
+    T_EQ((int)dl->dyn_duration, 5000);
+    T_EQ((int)dl->dyn_radius, 2);
+    T_FEQ(dobj->s.origin2.x, 100.0f, 0.001f);
+    T_FEQ(dobj->s.origin2.y, 200.0f, 0.001f);
+    T_FEQ(dobj->s.radius, 2.0f, 0.001f);
+    T_EQ((int)dobj->s.flags & EF_GROUND_ANCHOR, (int)EF_GROUND_ANCHOR);
 
     DWORD initial = dl->dyn_duration;
     for (int i = 0; i < 10; i++) game->RunFrame();
-    ASSERT(dl->dyn_duration < initial);
+    T_ASSERT(dl->dyn_duration < initial);
 
     if (game->Shutdown) game->Shutdown();
 }
 
-static void test_dynamic_object_despawns_after_duration(void) {
+TEST(wow_entities, dynamic_object_despawns_after_duration) {
     struct game_export *game = init_game();
-    ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     game->RunFrame();
 
     VECTOR2 origin = { 0, 0 };
     LPEDICT dobj = Wow_SpawnDynamicObject(WOW_SPELL_FIREBOLT, &origin, FRAMETIME);
-    ASSERT_NOT_NULL(dobj);
+    T_NOT_NULL(dobj);
 
     game->RunFrame();
-    ASSERT(!dobj->inuse);
-
-    if (game->Shutdown) game->Shutdown();
-}
-
-/* ===================================================================
- * Entity handler dispatch tests
- * =================================================================== */
-
-static void test_entity_handler_table_complete(void) {
-    struct game_export *game = init_game();
-    ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
-
-    ASSERT_STR_EQ(wow_entity_handlers[WOW_ENTITY_NONE].name, "none");
-    ASSERT_STR_EQ(wow_entity_handlers[WOW_ENTITY_PLAYER].name, "player");
-    ASSERT_STR_EQ(wow_entity_handlers[WOW_ENTITY_UNIT].name, "unit");
-    ASSERT_STR_EQ(wow_entity_handlers[WOW_ENTITY_GAMEOBJECT].name, "gameobject");
-    ASSERT_STR_EQ(wow_entity_handlers[WOW_ENTITY_CORPSE].name, "corpse");
-    ASSERT_STR_EQ(wow_entity_handlers[WOW_ENTITY_PROJECTILE].name, "projectile");
-    ASSERT_STR_EQ(wow_entity_handlers[WOW_ENTITY_DYNAMICOBJECT].name, "dynamicobject");
-
-    ASSERT_NOT_NULL(wow_entity_handlers[WOW_ENTITY_UNIT].think);
-    ASSERT_NOT_NULL(wow_entity_handlers[WOW_ENTITY_PROJECTILE].think);
-    ASSERT_NOT_NULL(wow_entity_handlers[WOW_ENTITY_CORPSE].think);
-    ASSERT_NOT_NULL(wow_entity_handlers[WOW_ENTITY_DYNAMICOBJECT].think);
-    ASSERT_NULL(wow_entity_handlers[WOW_ENTITY_PLAYER].think);
-
-    if (game->Shutdown) game->Shutdown();
-}
-
-static void test_backward_compat_creature_equals_unit(void) {
-    ASSERT_EQ_INT((int)WOW_ENTITY_CREATURE, (int)WOW_ENTITY_UNIT);
-
-    struct game_export *game = init_game();
-    ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
-    LPEDICT creature = first_of_kind(WOW_ENTITY_CREATURE);
-    ASSERT_NOT_NULL(creature);
-    ASSERT_EQ_INT((int)Wow_EntityLocal(creature)->kind, (int)WOW_ENTITY_UNIT);
+    T_ASSERT(!dobj->inuse);
 
     if (game->Shutdown) game->Shutdown();
 }
@@ -419,21 +381,21 @@ static void test_backward_compat_creature_equals_unit(void) {
  * Creature info cache tests
  * =================================================================== */
 
-static void test_creature_info_cache_known_displays(void) {
+TEST(wow_entities, creature_info_cache_known_displays) {
     struct game_export *game = init_game();
-    ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
 
-    ASSERT_STR_EQ(Wow_CachedCreatureName(161), "Wolf");
-    ASSERT_STR_EQ(Wow_CachedCreatureName(193), "Boar");
-    ASSERT_STR_EQ(Wow_CachedCreatureName(163), "Kobold");
-    ASSERT_STR_EQ(Wow_CachedCreatureName(188), "Murloc");
-    ASSERT_STR_EQ(Wow_CachedCreatureName(99999), "Unknown");
+    T_STREQ(Wow_CachedCreatureName(161), "Wolf");
+    T_STREQ(Wow_CachedCreatureName(193), "Boar");
+    T_STREQ(Wow_CachedCreatureName(163), "Kobold");
+    T_STREQ(Wow_CachedCreatureName(188), "Murloc");
+    T_STREQ(Wow_CachedCreatureName(99999), "Unknown");
 
-    ASSERT_EQ_INT((int)Wow_CachedCreatureType(161), 1);
-    ASSERT_EQ_INT((int)Wow_CachedCreatureType(163), 7);
-    ASSERT_EQ_INT((int)Wow_CachedCreatureFamily(161), 1);
-    ASSERT_EQ_INT((int)Wow_CachedCreatureFamily(163), 0);
-    ASSERT_EQ_INT((int)Wow_CachedCreatureRank(161), 0);
+    T_EQ((int)Wow_CachedCreatureType(161), 1);
+    T_EQ((int)Wow_CachedCreatureType(163), 7);
+    T_EQ((int)Wow_CachedCreatureFamily(161), 1);
+    T_EQ((int)Wow_CachedCreatureFamily(163), 0);
+    T_EQ((int)Wow_CachedCreatureRank(161), 0);
 
     if (game->Shutdown) game->Shutdown();
 }
@@ -442,32 +404,31 @@ static void test_creature_info_cache_known_displays(void) {
  * Spawn budget tests
  * =================================================================== */
 
-static void test_spawn_budget_resets_per_frame(void) {
+TEST(wow_entities, spawn_budget_resets_per_frame) {
     struct game_export *game = init_game();
-    ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     game->RunFrame();
 
     VECTOR2 origin = { 0, 0 };
     LPEDICT d1 = Wow_SpawnDynamicObject(WOW_SPELL_FIREBOLT, &origin, 1000);
-    ASSERT_NOT_NULL(d1);
+    T_NOT_NULL(d1);
     game->RunFrame();
 
     LPEDICT d2 = Wow_SpawnDynamicObject(WOW_SPELL_FIREBOLT, &origin, 1000);
-    ASSERT_NOT_NULL(d2);
-    ASSERT(d1 != d2);
+    T_NOT_NULL(d2);
+    T_ASSERT(d1 != d2);
 
     if (game->Shutdown) game->Shutdown();
 }
 
-static void test_entity_counts_after_load(void) {
+TEST(wow_entities, entity_counts_after_load) {
     struct game_export *game = init_game();
-    ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
 
-    DWORD creatures = count_of_kind(WOW_ENTITY_UNIT);
-    ASSERT(creatures > 0);
-    ASSERT_EQ_INT((int)count_of_kind(WOW_ENTITY_PLAYER), 0);
-    ASSERT_EQ_INT((int)count_of_kind(WOW_ENTITY_CORPSE), 0);
-    ASSERT_EQ_INT((int)count_of_kind(WOW_ENTITY_PROJECTILE), 0);
+    DWORD creatures = count_with_think(Wow_RunCreatureFrame);
+    T_ASSERT(creatures > 0);
+    T_EQ((int)count_with_think(Wow_RunCorpseFrame), 0);
+    T_EQ((int)count_with_think(Wow_RunProjectile), 0);
 
     if (game->Shutdown) game->Shutdown();
 }
@@ -476,9 +437,9 @@ static void test_entity_counts_after_load(void) {
  * Spawn budget overflow test
  * =================================================================== */
 
-static void test_edict_limit_reached_returns_null(void) {
+TEST(wow_entities, edict_limit_reached_returns_null) {
     struct game_export *game = init_game();
-    ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     game->RunFrame();
 
     DWORD num = (DWORD)globals.num_edicts;
@@ -489,29 +450,14 @@ static void test_edict_limit_reached_returns_null(void) {
         memset(&wow_entity_locals[num - 1], 0, sizeof(wow_entity_locals[0]));
         e->inuse = true;
         e->s.number = num - 1;
-        wow_entity_locals[num - 1].kind = WOW_ENTITY_CORPSE;
+        e->think = Wow_RunCorpseFrame;
         globals.num_edicts = (int)num;
     }
 
     VECTOR2 origin = { 0, 0 };
     LPEDICT should_fail = Wow_SpawnDynamicObject(WOW_SPELL_FIREBOLT, &origin, 1000);
-    ASSERT_NULL(should_fail);
+    T_NULL(should_fail);
 
     if (game->Shutdown) game->Shutdown();
 }
 
-int main(void) {
-    RUN_TEST(test_corpse_spawned_on_creature_death);
-    RUN_TEST(test_corpse_decays_over_time);
-    RUN_TEST(test_corpse_removed_after_timer_expires);
-    RUN_TEST(test_corpse_not_spawned_for_null_entity);
-    RUN_TEST(test_dynamic_object_spawn_and_properties);
-    RUN_TEST(test_dynamic_object_despawns_after_duration);
-    RUN_TEST(test_entity_handler_table_complete);
-    RUN_TEST(test_backward_compat_creature_equals_unit);
-    RUN_TEST(test_creature_info_cache_known_displays);
-    RUN_TEST(test_spawn_budget_resets_per_frame);
-    RUN_TEST(test_entity_counts_after_load);
-    RUN_TEST(test_edict_limit_reached_returns_null);
-    TEST_RESULTS();
-}

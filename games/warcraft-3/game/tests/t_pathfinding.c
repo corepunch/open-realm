@@ -31,6 +31,7 @@
 /* Helpers defined in t_utils.c */
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
 void reset_entities(void);
+void setup_test_world(void);
 
 
 
@@ -143,10 +144,6 @@ static LPEDICT make_unit_at(float x, float y) {
     ent->s.model   = 1;
     ent->stand     = unit_stand;
     unit_stand(ent);
-    ent->bounds.min.x = ent->s.origin2.x - ent->collision;
-    ent->bounds.min.y = ent->s.origin2.y - ent->collision;
-    ent->bounds.max.x = ent->s.origin2.x + ent->collision;
-    ent->bounds.max.y = ent->s.origin2.y + ent->collision;
     return ent;
 }
 

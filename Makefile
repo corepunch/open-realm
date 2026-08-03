@@ -92,7 +92,7 @@ UI_SC2_LIB       := $(LIB_DIR)/libui-sc2$(LIB_EXT)
 WOW_BINARY   := $(BIN_DIR)/openwow$(EXE_EXT)
 SC2_BINARY   := $(BIN_DIR)/opensc2$(EXE_EXT)
 WOW_CFLAGS   := $(CFLAGS) -I$(WOW_DIR) -DWOW -DOW3_LOAD_ALL_MPQS -Wno-unused-function
-WOW_TEST_CFLAGS := $(WOW_CFLAGS) -DTOOL_COMMON_NO_MPQ -Itests
+WOW_TEST_CFLAGS := $(WOW_CFLAGS) -DTOOL_COMMON_NO_MPQ -Itests -Ishared
 LUA_CFLAGS   := $(shell pkg-config --cflags lua5.4 2>/dev/null || pkg-config --cflags lua 2>/dev/null)
 LUA_LIBS     := $(shell pkg-config --libs lua5.4 2>/dev/null || pkg-config --libs lua 2>/dev/null)
 WOW_XML_CFLAGS := $(shell pkg-config --cflags libxml-2.0 2>/dev/null || xml2-config --cflags 2>/dev/null) -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/libxml2
@@ -102,7 +102,7 @@ SC2_XML_CFLAGS := $(shell pkg-config --cflags libxml-2.0 2>/dev/null || xml2-con
 SC2_XML_LIBS := $(shell pkg-config --libs libxml-2.0 2>/dev/null || xml2-config --libs 2>/dev/null)
 SC2_CFLAGS   := $(CFLAGS) -I$(SC2_DIR) -DSC2 -DOW3_LOAD_ALL_MPQS -Wno-unused-function $(SC2_XML_CFLAGS)
 SC2_IMPL_CFLAGS := $(SC2_CFLAGS) -DSTB_SC2LAYOUT_IMPLEMENTATION -DSTB_SC2LAYOUT_GLOBALS
-SC2_TEST_CFLAGS := $(SC2_CFLAGS) -I. -Itests -Icommon -DTEST_SC2_MPQ=\"build/tests/test-sc2.SC2Maps\"
+SC2_TEST_CFLAGS := $(SC2_CFLAGS) -I. -Itests -Icommon -Ishared -DTEST_SC2_MPQ=\"build/tests/test-sc2.SC2Maps\"
 
 TOOL_SRCS := $(shell find tools -maxdepth 1 -name '*.c' ! -name 'jass.c' | sort)
 TOOL_NAMES := $(patsubst tools/%.c,%,$(TOOL_SRCS))
@@ -330,12 +330,12 @@ $(ZIP_FILE):
 clean:
 	rm -rf build
 
-$(eval $(call test_schema,test-wow-appearance,,$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_appearance$(EXE_EXT),$(WOW_TEST_DIR)/test_wow_appearance.c common/msg.c common/net.c $(call CSRC,shared),-lm $(NET_LIBS),))
-$(eval $(call test_schema,test-wow-abilities,,$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_abilities$(EXE_EXT),$(WOW_TEST_DIR)/test_wow_abilities.c $(WOW_DIR)/game/g_wow.c $(WOW_DIR)/game/g_world.c $(WOW_DIR)/game/g_ai.c $(WOW_DIR)/game/m_creature.c $(WOW_DIR)/game/g_wow_gameobject.c common/mpq.c $(call CSRC,shared),-lm -lz,))
-$(eval $(call test_schema,test-wow-game,,$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_game$(EXE_EXT),$(WOW_TEST_DIR)/test_wow_game.c $(WOW_DIR)/game/g_wow.c $(WOW_DIR)/game/g_world.c $(WOW_DIR)/game/g_ai.c $(WOW_DIR)/game/m_creature.c $(WOW_DIR)/game/g_wow_gameobject.c common/mpq.c $(call CSRC,shared),-lm -lz,))
-$(eval $(call test_schema,test-wow-entities,,$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_entities$(EXE_EXT),$(WOW_TEST_DIR)/test_wow_entities.c $(WOW_DIR)/game/g_wow.c $(WOW_DIR)/game/g_world.c $(WOW_DIR)/game/g_ai.c $(WOW_DIR)/game/m_creature.c $(WOW_DIR)/game/g_wow_gameobject.c common/mpq.c $(call CSRC,shared),-lm -lz,))
-$(eval $(call test_schema,test-wow-ui,test-wow-assets,$(WOW_UI_TEST_CFLAGS),$(BIN_DIR)/test_wow_ui$(EXE_EXT),$(WOW_TEST_DIR)/test_wow_ui.c $(WOW_DIR)/ui/ui_main.c $(WOW_DIR)/ui/ui_lua.c $(WOW_DIR)/ui/ui_dbc.c $(WOW_DIR)/ui/ui_loading.c $(WOW_DIR)/ui/ui_xml.c common/mpq.c,-lshared $(LUA_LIBS) $(WOW_XML_LIBS) -lz,))
-$(eval $(call test_schema,test-sc2,test-sc2-assets $(SHARED_LIB) $(SHEET_LIB),$(SC2_TEST_CFLAGS),$(BIN_DIR)/test_sc2$(EXE_EXT),$(SC2_TEST_DIR)/test_sc2_main.c $(SC2_TEST_DIR)/test_sc2_map.c $(SC2_TEST_DIR)/test_sc2_layout.c $(SC2_TEST_DIR)/test_sc2_consoleui.c $(SC2_TEST_DIR)/stb_sc2layout_impl.c $(SC2_DIR)/common/sc2_map.c common/common.c common/cmd.c common/cvar.c common/msg.c common/net.c common/mpq.c,-lsheet -lshared -lm -lz $(SC2_XML_LIBS) $(NET_LIBS),))
+$(eval $(call test_schema,test-wow-appearance,,$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_appearance$(EXE_EXT),tests/test_runner.c $(WOW_TEST_DIR)/test_wow_appearance.c common/msg.c common/net.c $(call CSRC,shared),-lm $(NET_LIBS),))
+$(eval $(call test_schema,test-wow-abilities,,$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_abilities$(EXE_EXT),tests/test_runner.c $(WOW_TEST_DIR)/test_wow_abilities.c $(WOW_DIR)/game/g_wow.c $(WOW_DIR)/game/g_world.c $(WOW_DIR)/game/g_ai.c $(WOW_DIR)/game/m_creature.c $(WOW_DIR)/game/g_wow_gameobject.c common/mpq.c $(call CSRC,shared),-lm -lz,))
+$(eval $(call test_schema,test-wow-game,,$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_game$(EXE_EXT),tests/test_runner.c $(WOW_TEST_DIR)/test_wow_game.c $(WOW_DIR)/game/g_wow.c $(WOW_DIR)/game/g_world.c $(WOW_DIR)/game/g_ai.c $(WOW_DIR)/game/m_creature.c $(WOW_DIR)/game/g_wow_gameobject.c common/mpq.c $(call CSRC,shared),-lm -lz,))
+$(eval $(call test_schema,test-wow-entities,,$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_entities$(EXE_EXT),tests/test_runner.c $(WOW_TEST_DIR)/test_wow_entities.c $(WOW_DIR)/game/g_wow.c $(WOW_DIR)/game/g_world.c $(WOW_DIR)/game/g_ai.c $(WOW_DIR)/game/m_creature.c $(WOW_DIR)/game/g_wow_gameobject.c common/mpq.c $(call CSRC,shared),-lm -lz,))
+$(eval $(call test_schema,test-wow-ui,test-wow-assets,$(WOW_UI_TEST_CFLAGS),$(BIN_DIR)/test_wow_ui$(EXE_EXT),tests/test_runner.c $(WOW_TEST_DIR)/test_wow_ui.c $(WOW_DIR)/ui/ui_main.c $(WOW_DIR)/ui/ui_lua.c $(WOW_DIR)/ui/ui_dbc.c $(WOW_DIR)/ui/ui_loading.c $(WOW_DIR)/ui/ui_xml.c common/mpq.c,-lshared $(LUA_LIBS) $(WOW_XML_LIBS) -lz,))
+$(eval $(call test_schema,test-sc2,test-sc2-assets $(SHARED_LIB) $(SHEET_LIB),$(SC2_TEST_CFLAGS),$(BIN_DIR)/test_sc2$(EXE_EXT),tests/test_runner.c $(SC2_TEST_DIR)/test_sc2_map.c $(SC2_TEST_DIR)/test_sc2_layout.c $(SC2_TEST_DIR)/test_sc2_consoleui.c $(SC2_TEST_DIR)/stb_sc2layout_impl.c $(SC2_DIR)/common/sc2_map.c common/common.c common/cmd.c common/cvar.c common/msg.c common/net.c common/mpq.c,-lsheet -lshared -lm -lz $(SC2_XML_LIBS) $(NET_LIBS),))
 
 test-sc2-assets: sc2fixturegen mpqtool sc2map | $(TESTS_DIR)
 	@echo "[test-sc2-assets] generating SC2 terrain fixtures"
@@ -386,7 +386,7 @@ test-wow-assets: blpgen mpqtool | $(TESTS_DIR)
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_TEST_MPQ) cat Interface/FrameXML/GameHUD.lua | grep -q "wow_lua_test" && echo "  cat lua OK"
 
 SC2_HUD_LIVE_BIN := $(BIN_DIR)/test_sc2_hud_live$(EXE_EXT)
-SC2_HUD_LIVE_SRC := $(SC2_TEST_DIR)/test_sc2_hud_live.c
+SC2_HUD_LIVE_SRC := tests/test_runner.c $(SC2_TEST_DIR)/test_sc2_hud_live.c
 
 $(SC2_HUD_LIVE_BIN): $(SC2_HUD_LIVE_SRC) | $(BIN_DIR)
 	$(CC) $(CFLAGS) -I. -Itests -DSC2_BINARY=\"$(SC2_BINARY)\" -DSC2_DATA=\"data/StarCraft2\" \

@@ -301,6 +301,8 @@ TEST(wc3_slk, mana_uses_realM_not_manaN) {
         "E\n";
     sheetRow_t *rows = parse_slk_string(slk_mana);
     T_NOT_NULL(rows);
+    sheetMetaData_t *md_mana = G_FindMetaData(UnitsMetaData, "UnitBalance");
+    sheetRow_t *saved_mana = md_mana ? md_mana->table : NULL;
     G_SetConfigTable(UnitsMetaData, "UnitBalance", rows);
 
     T_FEQ(UNIT_MANA_MAXIMUM(MAKEFOURCC('E','w','a','r')), 225.0f, 0.01f);
@@ -329,6 +331,8 @@ TEST(wc3_slk, armor_uses_realdef_not_def) {
         "E\n";
     sheetRow_t *rows = parse_slk_string(slk_armor);
     T_NOT_NULL(rows);
+    sheetMetaData_t *md_arm = G_FindMetaData(UnitsMetaData, "UnitBalance");
+    sheetRow_t *saved_arm = md_arm ? md_arm->table : NULL;
     G_SetConfigTable(UnitsMetaData, "UnitBalance", rows);
 
     T_FEQ(UNIT_ARMOR_VALUE(MAKEFOURCC('E','w','a','r')), 4.0f, 0.01f);

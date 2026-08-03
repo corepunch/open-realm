@@ -12,6 +12,7 @@
 /* Helpers defined in t_utils.c */
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
 void reset_entities(void);
+void setup_test_world(void);
 
 /* Forward declarations for functions in m_unit.c without a public header. */
 void unit_stand(LPEDICT self);

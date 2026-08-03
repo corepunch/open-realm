@@ -1,4 +1,4 @@
-#include "test_framework.h"
+#include "test.h"
 
 #include <ctype.h>
 #include <math.h>
@@ -10,8 +10,6 @@
 
 #include "game/g_wow_local.h"
 
-int _tests_run = 0;
-int _tests_failed = 0;
 
 typedef struct {
     char name[MAX_PATHLEN];
@@ -263,7 +261,7 @@ static int test_model_index(LPCSTR model_name) {
             return test_models[i].index;
         }
     }
-    ASSERT(test_num_models < sizeof(test_models) / sizeof(test_models[0]));
+    T_ASSERT(test_num_models < sizeof(test_models) / sizeof(test_models[0]));
     strncpy(test_models[test_num_models].name, model_name, sizeof(test_models[0].name) - 1);
     test_models[test_num_models].index = (int)test_num_models + 1;
     test_num_models++;
@@ -276,20 +274,20 @@ static int test_image_index(LPCSTR image_name) {
             return test_images[i].index;
         }
     }
-    ASSERT(test_num_images < sizeof(test_images) / sizeof(test_images[0]));
+    T_ASSERT(test_num_images < sizeof(test_images) / sizeof(test_images[0]));
     strncpy(test_images[test_num_images].name, image_name, sizeof(test_images[0].name) - 1);
     test_images[test_num_images].index = (int)test_num_images + 1;
     test_num_images++;
     return (int)test_num_images;
 }
 
-static void test_clear_world(void) {
+TEST(wow_game, clear_world) {
     test_clear_world_calls++;
 }
 
 static void test_apply_lobby_settings(LPMAPINFO info) {
     test_apply_lobby_calls++;
-    ASSERT_NOT_NULL(info);
+    T_NOT_NULL(info);
 }
 
 static void test_error(LPCSTR fmt, ...) {
@@ -365,9 +363,7 @@ static struct game_import test_import(void) {
 
 static LPEDICT first_creature(void) {
     for (DWORD i = WOW_MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
-        wowEntityLocal_t *local = Wow_EntityLocal(&wow_edicts[i]);
-
-        if (wow_edicts[i].inuse && local && local->kind == WOW_ENTITY_CREATURE) {
+        if (wow_edicts[i].inuse && wow_edicts[i].think == Wow_RunCreatureFrame) {
             return &wow_edicts[i];
         }
     }
@@ -422,38 +418,38 @@ static void assert_player_ui_payload(void) {
     int num_buttons;
     int num_inventory;
 
-    ASSERT(test_last_unicast_size > 0);
-    ASSERT_EQ_INT(test_last_unicast_buf[cursor++], svc_unit_ui);
-    ASSERT_EQ_INT(test_last_unicast_buf[cursor++], 1);
-    ASSERT_EQ_INT((SHORT)(test_last_unicast_buf[cursor] | (test_last_unicast_buf[cursor + 1] << 8)), 0);
+    T_ASSERT(test_last_unicast_size > 0);
+    T_EQ(test_last_unicast_buf[cursor++], svc_unit_ui);
+    T_EQ(test_last_unicast_buf[cursor++], 1);
+    T_EQ((SHORT)(test_last_unicast_buf[cursor] | (test_last_unicast_buf[cursor + 1] << 8)), 0);
     cursor += 2;
     num_buttons = test_last_unicast_buf[cursor++];
-    ASSERT_EQ_INT(num_buttons, WOW_UI_ACTION_SLOTS);
-    ASSERT_STR_EQ((LPCSTR)test_last_unicast_buf + cursor, "Interface\\Icons\\Ability_Warrior_Cleave.blp");
+    T_EQ(num_buttons, WOW_UI_ACTION_SLOTS);
+    T_STREQ((LPCSTR)test_last_unicast_buf + cursor, "Interface\\Icons\\Ability_Warrior_Cleave.blp");
     cursor += (DWORD)strlen((LPCSTR)test_last_unicast_buf + cursor) + 1;
-    ASSERT_STR_EQ((LPCSTR)test_last_unicast_buf + cursor, "Attack");
+    T_STREQ((LPCSTR)test_last_unicast_buf + cursor, "Attack");
     cursor += (DWORD)strlen((LPCSTR)test_last_unicast_buf + cursor) + 1;
-    ASSERT_STR_EQ((LPCSTR)test_last_unicast_buf + cursor, "1");
+    T_STREQ((LPCSTR)test_last_unicast_buf + cursor, "1");
     cursor += (DWORD)strlen((LPCSTR)test_last_unicast_buf + cursor) + 1;
-    ASSERT_STR_EQ((LPCSTR)test_last_unicast_buf + cursor, "wow_action 0");
+    T_STREQ((LPCSTR)test_last_unicast_buf + cursor, "wow_action 0");
     cursor += (DWORD)strlen((LPCSTR)test_last_unicast_buf + cursor) + 1;
-    ASSERT_EQ_INT(test_last_unicast_buf[cursor++], '1');
+    T_EQ(test_last_unicast_buf[cursor++], '1');
     for (int i = 1; i < num_buttons; i++) {
         FOR_LOOP(j, 4) {
             cursor += (DWORD)strlen((LPCSTR)test_last_unicast_buf + cursor) + 1;
         }
-        if (i == 9) ASSERT_EQ_INT(test_last_unicast_buf[cursor], '0');
+        if (i == 9) T_EQ(test_last_unicast_buf[cursor], '0');
         cursor++;
     }
     num_inventory = test_last_unicast_buf[cursor++];
-    ASSERT_EQ_INT(num_inventory, WOW_UI_INVENTORY_SLOTS);
-    ASSERT_STR_EQ((LPCSTR)test_last_unicast_buf + cursor, "Interface\\Icons\\INV_Misc_Bag_08.blp");
+    T_EQ(num_inventory, WOW_UI_INVENTORY_SLOTS);
+    T_STREQ((LPCSTR)test_last_unicast_buf + cursor, "Interface\\Icons\\INV_Misc_Bag_08.blp");
     cursor += (DWORD)strlen((LPCSTR)test_last_unicast_buf + cursor) + 1;
-    ASSERT_STR_EQ((LPCSTR)test_last_unicast_buf + cursor, "Backpack");
+    T_STREQ((LPCSTR)test_last_unicast_buf + cursor, "Backpack");
     cursor += (DWORD)strlen((LPCSTR)test_last_unicast_buf + cursor) + 1;
-    ASSERT_STR_EQ((LPCSTR)test_last_unicast_buf + cursor, "1");
+    T_STREQ((LPCSTR)test_last_unicast_buf + cursor, "1");
     cursor += (DWORD)strlen((LPCSTR)test_last_unicast_buf + cursor) + 1;
-    ASSERT_EQ_INT(test_last_unicast_buf[cursor++], 0);
+    T_EQ(test_last_unicast_buf[cursor++], 0);
 }
 
 static struct game_export *init_game(void) {
@@ -462,9 +458,9 @@ static struct game_export *init_game(void) {
 
     reset_test_state();
     game = GetGameAPI(&import);
-    ASSERT_NOT_NULL(game);
-    ASSERT_NOT_NULL(game->Init);
-    ASSERT_NOT_NULL(game->LoadMap);
+    T_NOT_NULL(game);
+    T_NOT_NULL(game->Init);
+    T_NOT_NULL(game->LoadMap);
     game->Init();
     return game;
 }
@@ -473,11 +469,11 @@ static void assert_player_spawned_at_safe_loc(LPEDICT player) {
     LPCMAPINFO info = CM_GetMapInfo();
     BOOL matched = false;
 
-    ASSERT_NOT_NULL(info);
-    ASSERT_STR_EQ(info->players[0].playerName, "Northshire");
-    ASSERT_STR_EQ(info->players[1].playerName, "Deathknell, Tirisfal");
-    ASSERT_EQ_INT((int)info->players[0].playerType, kPlayerTypeHuman);
-    ASSERT_EQ_INT((int)info->players[1].playerType, kPlayerTypeNone);
+    T_NOT_NULL(info);
+    T_STREQ(info->players[0].playerName, "Northshire");
+    T_STREQ(info->players[1].playerName, "Deathknell, Tirisfal");
+    T_EQ((int)info->players[0].playerType, kPlayerTypeHuman);
+    T_EQ((int)info->players[1].playerType, kPlayerTypeNone);
 
     FOR_LOOP(i, MAX_PLAYERS) {
         LPCMAPPLAYER spawn = &info->players[i];
@@ -487,55 +483,55 @@ static void assert_player_spawned_at_safe_loc(LPEDICT player) {
         if (fabsf(player->s.origin.x - spawn->startingPosition.x) > 0.001f ||
             fabsf(player->s.origin.y - spawn->startingPosition.y) > 0.001f)
             continue;
-        ASSERT_EQ_INT((int)player->client->ps.start_location, (int)i);
-        ASSERT_EQ_FLOAT(player->s.origin.z,
+        T_EQ((int)player->client->ps.start_location, (int)i);
+        T_FEQ(player->s.origin.z,
                         CM_GetHeightAtPoint(spawn->startingPosition.x, spawn->startingPosition.y),
                         0.001f);
         matched = true;
     }
-    ASSERT(matched);
+    T_ASSERT(matched);
 }
 
-static void test_wow_load_map_initializes_player_state(void) {
+TEST(wow_game, wow_load_map_initializes_player_state) {
     struct game_export *game = init_game();
     LPEDICT player;
     wowEntityLocal_t *local;
 
-    ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     player = &wow_edicts[0];
     local = Wow_EntityLocal(player);
 
-    ASSERT_EQ_INT((int)test_apply_lobby_calls, 1);
-    ASSERT_EQ_INT((int)test_clear_world_calls, 1);
-    ASSERT(player->inuse);
-    ASSERT_NOT_NULL(player->client);
-    ASSERT_NOT_NULL(local);
-    ASSERT_EQ_INT((int)local->kind, WOW_ENTITY_PLAYER);
-    ASSERT_EQ_INT((int)local->health, 100);
+    T_EQ((int)test_apply_lobby_calls, 1);
+    T_EQ((int)test_clear_world_calls, 1);
+    T_ASSERT(player->inuse);
+    T_NOT_NULL(player->client);
+    T_NOT_NULL(local);
+    T_NULL(player->think); /* the player is driven by client input, not a think fn */
+    T_EQ((int)local->health, 100);
     assert_player_spawned_at_safe_loc(player);
-    ASSERT_EQ_FLOAT(player->client->ps.origin.x, player->s.origin.x, 0.001f);
-    ASSERT_EQ_FLOAT(player->client->ps.origin.y, player->s.origin.y, 0.001f);
-    ASSERT_EQ_INT((int)player->client->ps.client_ui_state, CLIENT_UI_LOADING);
-    ASSERT_STR_EQ(player->client->ps.name, "Thrall");
-    ASSERT_EQ_INT((int)player->client->ps.stats[WOW_STAT_HEALTH], 100);
-    ASSERT_EQ_INT((int)player->client->ps.stats[WOW_STAT_HEALTH_MAX], 100);
-    ASSERT_EQ_INT((int)player->client->ps.stats[WOW_STAT_POWER], 100);
-    ASSERT_EQ_INT((int)test_num_images, 0);
-    ASSERT_EQ_INT((int)test_unicast_calls, 0);
-    ASSERT_NOT_NULL(game->ClientBegin);
+    T_FEQ(player->client->ps.origin.x, player->s.origin.x, 0.001f);
+    T_FEQ(player->client->ps.origin.y, player->s.origin.y, 0.001f);
+    T_EQ((int)player->client->ps.client_ui_state, CLIENT_UI_LOADING);
+    T_STREQ(player->client->ps.name, "Thrall");
+    T_EQ((int)player->client->ps.stats[WOW_STAT_HEALTH], 100);
+    T_EQ((int)player->client->ps.stats[WOW_STAT_HEALTH_MAX], 100);
+    T_EQ((int)player->client->ps.stats[WOW_STAT_POWER], 100);
+    T_EQ((int)test_num_images, 0);
+    T_EQ((int)test_unicast_calls, 0);
+    T_NOT_NULL(game->ClientBegin);
     game->ClientBegin(player);
-    ASSERT_EQ_INT((int)player->client->ps.client_ui_state, CLIENT_UI_GAME);
-    ASSERT(test_unicast_calls > 0);
+    T_EQ((int)player->client->ps.client_ui_state, CLIENT_UI_GAME);
+    T_ASSERT(test_unicast_calls > 0);
     assert_player_ui_payload();
-    ASSERT_STR_EQ(player->client->ps.texts[PLAYERTEXT_MAP_TITLE], "Elwynn Test");
-    ASSERT_STR_EQ(player->client->ps.texts[PLAYERTEXT_MAP_PREVIEW],
+    T_STREQ(player->client->ps.texts[PLAYERTEXT_MAP_TITLE], "Elwynn Test");
+    T_STREQ(player->client->ps.texts[PLAYERTEXT_MAP_PREVIEW],
                   "Interface\\Glues\\LoadingScreens\\LoadScreenTest.blp");
-    ASSERT(player->s.model > 0);
-    ASSERT(player->s.model2 > 0);
-    ASSERT_EQ_FLOAT(player->s.angle, 0.0f, 0.001f);
-    ASSERT_EQ_INT((int)player->s.appearance,
+    T_ASSERT(player->s.model > 0);
+    T_ASSERT(player->s.model2 > 0);
+    T_FEQ(player->s.angle, 0.0f, 0.001f);
+    T_EQ((int)player->s.appearance,
                   (int)Wow_PackAppearance(0, 0, 0, 0, 0, WOW_CLASS_WARRIOR, 0));
-    ASSERT_EQ_INT((int)player->s.equipment,
+    T_EQ((int)player->s.equipment,
                   (int)Wow_PackEquipment(1, 1, 1, 1));
 
     if (game->Shutdown) {
@@ -543,7 +539,7 @@ static void test_wow_load_map_initializes_player_state(void) {
     }
 }
 
-static void test_wow_load_map_spawns_and_runs_creature_state(void) {
+TEST(wow_game, wow_load_map_spawns_and_runs_creature_state) {
     struct game_export *game = init_game();
     LPEDICT player;
     LPEDICT creature;
@@ -552,43 +548,43 @@ static void test_wow_load_map_spawns_and_runs_creature_state(void) {
     VECTOR2 before;
     LPCSTR attack_argv[] = { "attack", "1" };
 
-    ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     player = &wow_edicts[0];
     creature = first_creature();
-    ASSERT_NOT_NULL(creature);
+    T_NOT_NULL(creature);
     creature_local = Wow_EntityLocal(creature);
     player_local = Wow_EntityLocal(player);
     before = creature->s.origin2;
 
-    ASSERT_EQ_INT((int)creature->s.number, 1);
-    ASSERT_EQ_INT((int)creature_local->kind, WOW_ENTITY_CREATURE);
-    ASSERT_EQ_INT((int)creature_local->display_id, 161);
-    ASSERT_EQ_INT((int)creature_local->health, 3);
-    ASSERT((creature->svflags & SVF_MONSTER) != 0);
-    ASSERT((creature->s.flags & EF_GROUND_ANCHOR) != 0);
-    ASSERT_EQ_INT((int)creature->s.player, 2);
-    ASSERT_EQ_FLOAT(creature->s.scale, 1.0f, 0.001f);
-    ASSERT_EQ_FLOAT(creature->s.radius, 1.5f, 0.001f);
-    ASSERT_NOT_NULL(creature_local->animation);
-    ASSERT_STR_EQ(creature_local->animation->name, "Walk");
+    T_EQ((int)creature->s.number, 1);
+    T_ASSERT(creature->think == Wow_RunCreatureFrame);
+    T_EQ((int)creature_local->display_id, 161);
+    T_EQ((int)creature_local->health, 3);
+    T_ASSERT((creature->svflags & SVF_MONSTER) != 0);
+    T_ASSERT((creature->s.flags & EF_GROUND_ANCHOR) != 0);
+    T_EQ((int)creature->s.player, 2);
+    T_FEQ(creature->s.scale, 1.0f, 0.001f);
+    T_FEQ(creature->s.radius, 1.5f, 0.001f);
+    T_NOT_NULL(creature_local->animation);
+    T_STREQ(creature_local->animation->name, "Walk");
 
     game->RunFrame();
-    ASSERT(fabsf(creature->s.origin2.x - before.x) > 0.001f ||
+    T_ASSERT(fabsf(creature->s.origin2.x - before.x) > 0.001f ||
            fabsf(creature->s.origin2.y - before.y) > 0.001f);
 
     game->ClientCommand(player, 2, attack_argv);
-    ASSERT_EQ_INT((int)(player_local->enemy ? player_local->enemy->s.number : 0), 1);
-    ASSERT_EQ_INT((int)player->client->ps.selected_entity, 1);
+    T_EQ((int)(player_local->enemy ? player_local->enemy->s.number : 0), 1);
+    T_EQ((int)player->client->ps.selected_entity, 1);
 
     /* Run frames until the player chases into melee range and starts swinging. */
     for (int i = 0; i < 300; i++) {
         game->RunFrame();
         if (player_local->attack_damage_time > 0) break;
     }
-    ASSERT(player_local->attack_damage_time > 0);
-    ASSERT(player_local->attack_backswing_time > 0);
-    ASSERT_NOT_NULL(player_local->animation);
-    ASSERT_STR_EQ(player_local->animation->name, "Attack1H");
+    T_ASSERT(player_local->attack_damage_time > 0);
+    T_ASSERT(player_local->attack_backswing_time > 0);
+    T_NOT_NULL(player_local->animation);
+    T_STREQ(player_local->animation->name, "Attack1H");
 
     if (game->Shutdown) {
         game->Shutdown();
@@ -596,17 +592,17 @@ static void test_wow_load_map_spawns_and_runs_creature_state(void) {
 }
 
 /* A cast must replace an active melee swing, hold the ready pose, then launch with the release pose. */
-static void test_wow_fireball_cast_interrupts_melee_and_launches(void) {
+TEST(wow_game, wow_fireball_cast_interrupts_melee_and_launches) {
     struct game_export *game = init_game();
     LPEDICT player, creature, projectile = NULL;
     wowEntityLocal_t *local;
     LPCSTR action_argv[] = { "wow_action", "4" };
 
-    ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     player = &wow_edicts[0];
     creature = first_creature();
     local = Wow_EntityLocal(player);
-    ASSERT_NOT_NULL(creature);
+    T_NOT_NULL(creature);
     creature->s.origin = (VECTOR3){ player->s.origin.x + 10.0f, player->s.origin.y, player->s.origin.z };
     creature->s.origin2 = (VECTOR2){ creature->s.origin.x, creature->s.origin.y };
     player->client->ps.selected_entity = creature->s.number;
@@ -615,31 +611,30 @@ static void test_wow_fireball_cast_interrupts_melee_and_launches(void) {
     local->attack_backswing_time = 500;
 
     game->ClientCommand(player, 2, action_argv);
-    ASSERT(local->cast_spell != 0);
-    ASSERT_EQ_INT((int)local->attack_time, 0);
-    ASSERT_STR_EQ(local->animation->name, "ReadySpellDirected");
-    ASSERT_EQ_INT((int)local->gcd_time, 1500);
+    T_ASSERT(local->cast_spell != 0);
+    T_EQ((int)local->attack_time, 0);
+    T_STREQ(local->animation->name, "ReadySpellDirected");
+    T_EQ((int)local->gcd_time, 1500);
 
     for (int i = 0; i < 15; i++) game->RunFrame();
-    ASSERT_EQ_INT((int)local->cast_spell, (int)SPELL_NONE);
-    ASSERT_EQ_INT((int)local->mana, 90);
-    ASSERT_EQ_INT((int)local->gcd_time, 0);
-    ASSERT(local->cast_release_time > 0);
-    ASSERT_STR_EQ(local->animation->name, "SpellCastDirected");
+    T_EQ((int)local->cast_spell, (int)SPELL_NONE);
+    T_EQ((int)local->mana, 90);
+    T_EQ((int)local->gcd_time, 0);
+    T_ASSERT(local->cast_release_time > 0);
+    T_STREQ(local->animation->name, "SpellCastDirected");
     FOR_LOOP(i, (DWORD)globals.num_edicts) {
-        wowEntityLocal_t *candidate = Wow_EntityLocal(&wow_edicts[i]);
-        if (wow_edicts[i].inuse && candidate && candidate->kind == WOW_ENTITY_PROJECTILE) {
+        if (wow_edicts[i].inuse && wow_edicts[i].think == Wow_RunProjectile) {
             projectile = &wow_edicts[i];
             break;
         }
     }
-    ASSERT_NOT_NULL(projectile);
-    ASSERT_EQ_INT((int)player->client->ps.stats[WOW_STAT_CAST_MAX], 0);
+    T_NOT_NULL(projectile);
+    T_EQ((int)player->client->ps.stats[WOW_STAT_CAST_MAX], 0);
     if (game->Shutdown) game->Shutdown();
 }
 
 /* Moving after cast start interrupts without spending mana or creating a projectile. */
-static void test_wow_fireball_movement_cancels(void) {
+TEST(wow_game, wow_fireball_movement_cancels) {
     struct game_export *game = init_game();
     LPEDICT player, creature;
     wowEntityLocal_t *local;
@@ -647,35 +642,34 @@ static void test_wow_fireball_movement_cancels(void) {
     LPCSTR move_argv[] = { "move", "1", "0", "328", "8.5" };
     LPCSTR stop_argv[] = { "move", "0", "0", "328", "8.5" };
 
-    ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     player = &wow_edicts[0];
     creature = first_creature();
     local = Wow_EntityLocal(player);
-    ASSERT_NOT_NULL(creature);
+    T_NOT_NULL(creature);
     creature->s.origin = (VECTOR3){ player->s.origin.x + 10.0f, player->s.origin.y, player->s.origin.z };
     creature->s.origin2 = (VECTOR2){ creature->s.origin.x, creature->s.origin.y };
     player->client->ps.selected_entity = creature->s.number;
     game->ClientCommand(player, 5, move_argv);
     game->ClientCommand(player, 2, action_argv);
-    ASSERT_EQ_INT((int)local->cast_spell, (int)SPELL_NONE);
-    ASSERT_EQ_INT((int)local->gcd_time, 0);
+    T_EQ((int)local->cast_spell, (int)SPELL_NONE);
+    T_EQ((int)local->gcd_time, 0);
     game->ClientCommand(player, 5, stop_argv);
     game->ClientCommand(player, 2, action_argv);
     game->ClientCommand(player, 5, move_argv);
     game->RunFrame();
 
-    ASSERT_EQ_INT((int)local->cast_spell, (int)SPELL_NONE);
-    ASSERT_EQ_INT((int)local->mana, 100);
-    ASSERT_EQ_INT((int)player->client->ps.stats[WOW_STAT_CAST_MAX], 0);
+    T_EQ((int)local->cast_spell, (int)SPELL_NONE);
+    T_EQ((int)local->mana, 100);
+    T_EQ((int)player->client->ps.stats[WOW_STAT_CAST_MAX], 0);
     FOR_LOOP(i, (DWORD)globals.num_edicts) {
-        wowEntityLocal_t *candidate = Wow_EntityLocal(&wow_edicts[i]);
-        ASSERT(!wow_edicts[i].inuse || !candidate || candidate->kind != WOW_ENTITY_PROJECTILE);
+        T_ASSERT(!wow_edicts[i].inuse || wow_edicts[i].think != Wow_RunProjectile);
     }
     if (game->Shutdown) game->Shutdown();
 }
 
 /* Strafe and backpedal preserve facing but select directional locomotion animations. */
-static void test_wow_directional_movement_animations(void) {
+TEST(wow_game, wow_directional_movement_animations) {
     struct game_export *game = init_game();
     LPEDICT player = &wow_edicts[0];
     wowEntityLocal_t *local = Wow_EntityLocal(player);
@@ -685,29 +679,21 @@ static void test_wow_directional_movement_animations(void) {
     LPCSTR back[] = { "move", "2", "0", "328", "8.5" };
     FLOAT facing;
 
-    ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     back_animation = G_GetAnimation(player->s.model, "WalkBackwards");
     facing = player->s.angle;
     game->ClientCommand(player, 5, left);
     game->RunFrame();
-    ASSERT_STR_EQ(local->animation->name, "Run");
-    ASSERT_EQ_FLOAT(player->s.angle, facing, 0.001f);
+    T_STREQ(local->animation->name, "Run");
+    T_FEQ(player->s.angle, facing, 0.001f);
     game->ClientCommand(player, 5, right);
     game->RunFrame();
-    ASSERT_STR_EQ(local->animation->name, "Run");
-    ASSERT_EQ_FLOAT(player->s.angle, facing, 0.001f);
+    T_STREQ(local->animation->name, "Run");
+    T_FEQ(player->s.angle, facing, 0.001f);
     game->ClientCommand(player, 5, back);
     game->RunFrame();
-    ASSERT_STR_EQ(local->animation->name, back_animation ? "WalkBackwards" : "Run");
-    ASSERT_EQ_FLOAT(player->s.angle, facing, 0.001f);
+    T_STREQ(local->animation->name, back_animation ? "WalkBackwards" : "Run");
+    T_FEQ(player->s.angle, facing, 0.001f);
     if (game->Shutdown) game->Shutdown();
 }
 
-int main(void) {
-    RUN_TEST(test_wow_load_map_initializes_player_state);
-    RUN_TEST(test_wow_load_map_spawns_and_runs_creature_state);
-    RUN_TEST(test_wow_fireball_cast_interrupts_melee_and_launches);
-    RUN_TEST(test_wow_fireball_movement_cancels);
-    RUN_TEST(test_wow_directional_movement_animations);
-    TEST_RESULTS();
-}

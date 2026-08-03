@@ -28,6 +28,7 @@
 /* Helpers defined in t_utils.c */
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
 void reset_entities(void);
+void setup_test_world(void);
 
 
 
@@ -47,10 +48,6 @@ static LPEDICT make_collision_unit(FLOAT x, FLOAT y, FLOAT radius) {
     ent->s.model   = 1;   /* IS_HOLLOW requires s.model != 0 */
     ent->stand     = unit_stand;
     unit_stand(ent);
-    ent->bounds.min.x = ent->s.origin2.x - ent->collision;
-    ent->bounds.min.y = ent->s.origin2.y - ent->collision;
-    ent->bounds.max.x = ent->s.origin2.x + ent->collision;
-    ent->bounds.max.y = ent->s.origin2.y + ent->collision;
     return ent;
 }
 
@@ -72,17 +69,10 @@ static FLOAT seg_dist(LPCVECTOR2 a, LPCVECTOR2 b, LPCVECTOR2 p) {
     return dist2(&c, p);
 }
 
-/* Defined in routing.c (test builds only). */
-void CM_SetupTestPathmap(DWORD width, DWORD height, BYTE const *cells);
-
-/* Reset the entity pool and clear any pathmap a previous suite left loaded so
- * these unit-vs-unit collision tests run with passthrough CM_* (no terrain).
- * The pathfinding suite loads a small synthetic pathmap; left in place it would
- * make the far-apart world coordinates used here resolve as unwalkable (and
- * routes CM_ClosestPathablePointForRadius through code that needs a live world). */
+/* Reset the entity pool and set up a default walkable test world.*/
 static void reset_collision_world(void) {
     reset_entities();
-    CM_SetupTestPathmap(0, 0, NULL);
+    setup_test_world();
 }
 
 /* -----------------------------------------------------------------------

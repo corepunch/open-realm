@@ -36,6 +36,7 @@ void free_slk_rows(sheetRow_t *rows);
 /* Helpers defined in t_utils.c */
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
 void reset_entities(void);
+void setup_test_world(void);
 
 
 #include "../game/skills/s_skills.h"

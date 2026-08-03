@@ -29,14 +29,13 @@
 /* Helpers defined in t_utils.c */
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
 void reset_entities(void);
+void setup_test_world(void);
 
 
 
 /* NAVI_THRESHOLD is the distance below which ai_walk uses direct
- * vector math rather than the heatmap flow field.  It is defined as a
- * #define in g_ai.c; we replicate the value here so test waypoints can
- * be placed within the threshold and avoid the BuildHeatmap mock path. */
-#define NAVI_THRESHOLD 50.0f
+ * vector math rather than the heatmap flow field.  It is defined in
+ * g_ai.c; the test helpers that place waypoints reference it. */
 
 /* -----------------------------------------------------------------------
  * Helpers
@@ -359,10 +358,6 @@ TEST(wc3_movement, unit_stops_when_goal_is_occupied) {
     blocker->stand = unit_stand;
     blocker->movetype = MOVETYPE_NONE;
     unit_stand(blocker);
-    blocker->bounds.min.x = blocker->s.origin2.x - blocker->collision;
-    blocker->bounds.min.y = blocker->s.origin2.y - blocker->collision;
-    blocker->bounds.max.x = blocker->s.origin2.x + blocker->collision;
-    blocker->bounds.max.y = blocker->s.origin2.y + blocker->collision;
 
     unit_issueorder(unit, "move", &dest);
 

@@ -19,7 +19,7 @@
  * provides find/count helpers used by every assertion.
  */
 
-#include "test_framework.h"
+#include "test.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -33,8 +33,6 @@
 #define SC2_DATA "data/StarCraft2"
 #endif
 
-int _tests_run    = 0;
-int _tests_failed = 0;
 
 /* ------------------------------------------------------------------ */
 /* Output capture                                                       */
@@ -165,10 +163,10 @@ static int not_found(const char *pattern) {
 /* Tests: binary available + output non-empty                          */
 /* ------------------------------------------------------------------ */
 
-static void test_binary_runs_and_emits_frames(void) {
+TEST(sc2_hud_live, binary_runs_and_emits_frames) {
     capture_output();
-    ASSERT(g_nlines > 0);
-    ASSERT(g_nframes >= 2); /* frame 1 = pre-map; frame 2 = first game frame */
+    T_ASSERT(g_nlines > 0);
+    T_ASSERT(g_nframes >= 2); /* frame 1 = pre-map; frame 2 = first game frame */
     ASSERT_LINE("begin_frame");
     ASSERT_LINE("end_frame");
 }
@@ -177,7 +175,7 @@ static void test_binary_runs_and_emits_frames(void) {
 /* Tests: font loading                                                  */
 /* ------------------------------------------------------------------ */
 
-static void test_hud_font_loaded(void) {
+TEST(sc2_hud_live, hud_font_loaded) {
     capture_output();
     /* SC2 HUD exclusively uses EurostileExt-Med for all label text. */
     ASSERT_LINE("load_font");
@@ -188,18 +186,18 @@ static void test_hud_font_loaded(void) {
 /* Tests: resource panel icons                                          */
 /* ------------------------------------------------------------------ */
 
-static void test_hud_mineral_icon_drawn(void) {
+TEST(sc2_hud_live, hud_mineral_icon_drawn) {
     capture_output();
     /* icon-mineral.dds must appear at least once in game frames. */
     ASSERT_LINE("icon-mineral.dds");
 }
 
-static void test_hud_gas_icon_drawn(void) {
+TEST(sc2_hud_live, hud_gas_icon_drawn) {
     capture_output();
     ASSERT_LINE("icon-gas.dds");
 }
 
-static void test_hud_supply_icon_drawn(void) {
+TEST(sc2_hud_live, hud_supply_icon_drawn) {
     capture_output();
     ASSERT_LINE("icon-supply.dds");
 }
@@ -208,14 +206,14 @@ static void test_hud_supply_icon_drawn(void) {
 /* Tests: resource label texts — must be stat-driven, not "text N"     */
 /* ------------------------------------------------------------------ */
 
-static void test_hud_supply_text_is_stat_driven(void) {
+TEST(sc2_hud_live, hud_supply_text_is_stat_driven) {
     capture_output();
     /* Supply label (SupplyLabel, stat=FOOD_USED/FOOD_CAP) must render
      * as "0/0", not "text N".  Both values start at zero on connect. */
     ASSERT_BOTH_IN_LINE("draw_text", "text=\"0/0\"");
 }
 
-static void test_hud_mineral_count_is_stat_driven(void) {
+TEST(sc2_hud_live, hud_mineral_count_is_stat_driven) {
     capture_output();
     /* ResourceLabel0 and ResourceLabel3 (minerals) must show "0",
      * not "text N". At least two mineral count draws are expected
@@ -226,10 +224,10 @@ static void test_hud_mineral_count_is_stat_driven(void) {
             mineral_text_count++;
     }
     /* At least one "0" label must be present in the resource bar. */
-    ASSERT(mineral_text_count >= 1);
+    T_ASSERT(mineral_text_count >= 1);
 }
 
-static void test_hud_no_unbound_resource_labels(void) {
+TEST(sc2_hud_live, hud_no_unbound_resource_labels) {
     capture_output();
     /* "text N" (where N >= 10) appearing in any draw_text at the
      * resource bar y-position (y:4.9) means a label has no stat binding.
@@ -258,7 +256,7 @@ static void test_hud_no_unbound_resource_labels(void) {
 /* Tests: minimap                                                       */
 /* ------------------------------------------------------------------ */
 
-static void test_hud_minimap_draws_with_positive_size(void) {
+TEST(sc2_hud_live, hud_minimap_draws_with_positive_size) {
     capture_output();
     /* draw_minimap must appear AND have w > 0. */
     ASSERT_LINE("draw_minimap");
@@ -273,20 +271,20 @@ static void test_hud_minimap_draws_with_positive_size(void) {
         sscanf(w + 2, "%f", &wval);
         if (wval > 0.0f) { found_positive_minimap = 1; break; }
     }
-    ASSERT(found_positive_minimap);
+    T_ASSERT(found_positive_minimap);
 }
 
 /* ------------------------------------------------------------------ */
 /* Tests: command panel                                                 */
 /* ------------------------------------------------------------------ */
 
-static void test_hud_command_panel_background_drawn(void) {
+TEST(sc2_hud_live, hud_command_panel_background_drawn) {
     capture_output();
     /* The command panel background texture must be loaded and drawn. */
     ASSERT_LINE("ui_commandcard_terranframe_normal.dds");
 }
 
-static void test_hud_command_button_icons_stamped(void) {
+TEST(sc2_hud_live, hud_command_button_icons_stamped) {
     capture_output();
     /* command_apply_icons stamps real textures onto the 15 command buttons
      * (2 image children each → 30 frames).  At least 10 non-null draws
@@ -305,10 +303,10 @@ static void test_hud_command_button_icons_stamped(void) {
         sscanf(yp + 3, "%f", &y);
         if (y > 700.0f) stamped_draws++;
     }
-    ASSERT(stamped_draws >= 10);
+    T_ASSERT(stamped_draws >= 10);
 }
 
-static void test_hud_no_null_texture_in_resource_bar(void) {
+TEST(sc2_hud_live, hud_no_null_texture_in_resource_bar) {
     capture_output();
     /* Resource bar icons (mineral, gas, supply) must render with real textures.
      * Specifically: any draw_image in the resource-bar y band (y < 50 in SC2
@@ -344,7 +342,7 @@ static void test_hud_no_null_texture_in_resource_bar(void) {
 /* Tests: hidden panels must not render                                 */
 /* ------------------------------------------------------------------ */
 
-static void test_hud_team_resource_panel_is_hidden(void) {
+TEST(sc2_hud_live, hud_team_resource_panel_is_hidden) {
     capture_output();
     /* TeamResourcePanel is an optional multiplayer overlay hidden at init.
      * Its background texture must NOT appear in draw calls. */
@@ -352,7 +350,7 @@ static void test_hud_team_resource_panel_is_hidden(void) {
     ASSERT_NO_LINE("TeamResourceHeaderBorder");
 }
 
-static void test_hud_pause_panel_is_hidden(void) {
+TEST(sc2_hud_live, hud_pause_panel_is_hidden) {
     capture_output();
     /* PausePanel must not be drawn in a running game. */
     ASSERT_NO_LINE("ui_pause_background");
@@ -362,7 +360,7 @@ static void test_hud_pause_panel_is_hidden(void) {
 /* Tests: no svc_layout frames show undefined text                      */
 /* ------------------------------------------------------------------ */
 
-static void test_hud_no_unbound_text_in_resource_bar(void) {
+TEST(sc2_hud_live, hud_no_unbound_text_in_resource_bar) {
     capture_output();
     /* In the resource bar (y in [4,10] in SC2 native 1600x1200 coords — the
      * top row used by icons/labels), every draw_text must be driven by a stat
@@ -397,52 +395,3 @@ static void test_hud_no_unbound_text_in_resource_bar(void) {
 /* Runner                                                               */
 /* ------------------------------------------------------------------ */
 
-int main(void) {
-    printf("=== SC2 HUD Live Integration Tests ===\n");
-    printf("Binary : %s\n", SC2_BINARY);
-    printf("Data   : %s\n\n", SC2_DATA);
-
-    printf("[binary runs + frames]\n");
-    RUN_TEST(test_binary_runs_and_emits_frames);
-    printf("\n");
-
-    printf("[font loading]\n");
-    RUN_TEST(test_hud_font_loaded);
-    printf("\n");
-
-    printf("[resource panel icons]\n");
-    RUN_TEST(test_hud_mineral_icon_drawn);
-    RUN_TEST(test_hud_gas_icon_drawn);
-    RUN_TEST(test_hud_supply_icon_drawn);
-    printf("\n");
-
-    printf("[resource label texts]\n");
-    RUN_TEST(test_hud_supply_text_is_stat_driven);
-    RUN_TEST(test_hud_mineral_count_is_stat_driven);
-    RUN_TEST(test_hud_no_unbound_resource_labels);
-    printf("\n");
-
-    printf("[minimap]\n");
-    RUN_TEST(test_hud_minimap_draws_with_positive_size);
-    printf("\n");
-
-    printf("[command panel]\n");
-    RUN_TEST(test_hud_command_panel_background_drawn);
-    RUN_TEST(test_hud_command_button_icons_stamped);
-    printf("\n");
-
-    printf("[null texture guard]\n");
-    RUN_TEST(test_hud_no_null_texture_in_resource_bar);
-    printf("\n");
-
-    printf("[hidden panel guard]\n");
-    RUN_TEST(test_hud_team_resource_panel_is_hidden);
-    RUN_TEST(test_hud_pause_panel_is_hidden);
-    printf("\n");
-
-    printf("[no fallback text in resource bar]\n");
-    RUN_TEST(test_hud_no_unbound_text_in_resource_bar);
-    printf("\n");
-
-    TEST_RESULTS();
-}
