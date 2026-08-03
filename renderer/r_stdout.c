@@ -124,6 +124,12 @@ static void RStd_Init(DWORD width, DWORD height) {
     printf(" window={w:%u,h:%u}\n", width, height);
 }
 
+static void RStd_SetWindowSize(DWORD width, DWORD height) {
+    stdout_window.width = width;
+    stdout_window.height = height;
+    printf("renderer_resize window={w:%u,h:%u}\n", width, height);
+}
+
 static void RStd_Shutdown(void) {
     while (stdout_fonts) {
         stdout_font_t *next = stdout_fonts->next;
@@ -463,6 +469,7 @@ refExport_t R_StdoutGetAPI(refImport_t imp) {
         .LoadModel = RStd_LoadModel,
         .LoadFont = RStd_LoadFont,
         .GetWindowSize = RStd_GetWindowSize,
+        .SetWindowSize = RStd_SetWindowSize,
         .GetTextureSize = RStd_GetTextureSize,
         .ReleaseTexture = RStd_ReleaseTexture,
         .ReleaseModel = RStd_ReleaseModel,

@@ -644,6 +644,25 @@ size2_t R_GetWindowSize(void) {
     };
 }
 
+void R_SetWindowSize(DWORD width, DWORD height) {
+    if (!window || width == 0 || height == 0) {
+        return;
+    }
+    SDL_SetWindowFullscreen(window, 0);
+    SDL_SetWindowSize(window, (int)width, (int)height);
+    SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+    SDL_GL_GetDrawableSize(window,
+                           (int *)&tr.drawableSize.width,
+                           (int *)&tr.drawableSize.height);
+    R_Call(glViewport, 0, 0, tr.drawableSize.width, tr.drawableSize.height);
+    fprintf(stderr,
+            "Video mode applied: %ux%u (drawable %ux%u)\n",
+            (unsigned)width,
+            (unsigned)height,
+            (unsigned)tr.drawableSize.width,
+            (unsigned)tr.drawableSize.height);
+}
+
 size2_t R_GetTextureSize(LPCTEXTURE texture) {
     if (!texture) {
         return (size2_t) { 0, 0 };
@@ -699,6 +718,7 @@ refExport_t R_GetAPI(refImport_t imp) {
         .DrawChar = R_DrawChar,
         .DrawFill = R_DrawFill,
         .GetWindowSize = R_GetWindowSize,
+        .SetWindowSize = R_SetWindowSize,
         .GetTextureSize = R_GetTextureSize,
         .DrawSprite = R_DrawSprite,
         .SetEntityAnimFrame = R_SetEntityAnimFrame,

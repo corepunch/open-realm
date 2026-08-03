@@ -1450,6 +1450,9 @@ static void test_options_game_port_enter_applies_and_blurs(void) {
     ASSERT_STR_EQ(captured_command, "seta game_port 27911\n");
     ASSERT(!UI_EditHasFocus(editbox));
 
+    OptionsMenu_Apply();
+    ASSERT_STR_EQ(captured_command, "vid_apply\nwriteconfig\n");
+
     uiimport = saved;
 }
 

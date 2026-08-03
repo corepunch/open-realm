@@ -1,5 +1,5 @@
 #include "server.h"
-#include <arpa/inet.h>
+#include "common/net_platform.h"
 
 static BOOL SV_EnsureServerPort(void) {
     NET_ConfigSource(NS_SERVER, true);

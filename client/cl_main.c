@@ -13,7 +13,7 @@
 #include "tr_public.h"
 #include "ui_layout.h"
 #include "sound/s_local.h"
-#include <arpa/inet.h>
+#include "common/net_platform.h"
 
 refExport_t re;
 uiExport_t ui;
@@ -548,6 +548,14 @@ static clVideoMode_t CL_VideoMode(void) {
     return cl_video_modes[mode];
 }
 
+static void CL_VideoApply_f(void) {
+    clVideoMode_t mode = CL_VideoMode();
+
+    if (re.SetWindowSize) {
+        re.SetWindowSize(mode.width, mode.height);
+    }
+}
+
 void CL_Init(void) {
     clVideoMode_t mode;
 
@@ -565,6 +573,8 @@ void CL_Init(void) {
         .CvarString = Cvar_String,
         .error = CON_printf,
     });
+
+    Cmd_AddCommand("vid_apply", CL_VideoApply_f);
     
     mode = CL_VideoMode();
     re.Init(mode.width, mode.height);

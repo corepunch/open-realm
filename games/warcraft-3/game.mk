@@ -159,7 +159,7 @@ test: test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) | $(BIN_DIR)
 	@$(MAKE) test-wow-ui
 	@$(MAKE) test-ui
 
-$(eval $(call test_schema,test-commands,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_commands$(EXE_EXT),$(WC3_TEST_DIR)/test_commands_main.c $(WC3_TEST_DIR)/test_commands.c common/common.c common/cmd.c common/cvar.c common/msg.c common/net.c common/mpq.c,-lsheet -lshared -lm -lz,))
+$(eval $(call test_schema,test-commands,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_commands$(EXE_EXT),$(WC3_TEST_DIR)/test_commands_main.c $(WC3_TEST_DIR)/test_commands.c common/common.c common/cmd.c common/cvar.c common/msg.c common/net.c common/mpq.c,-lsheet -lshared -lm -lz $(NET_LIBS),))
 $(eval $(call test_schema,test-jass,$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_jass$(EXE_EXT),$(WC3_TEST_DIR)/test_jass_main.c $(WC3_TEST_DIR)/test_jass.c $(WC3_TEST_DIR)/test_harness.c $(WC3_TEST_DIR)/test_client_stubs.c $(WC3_DIR)/game/g_metadata.c common/msg.c,-lsheet -lshared -ljass -lm,))
 $(eval $(call test_schema,test-ui,test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB),$(TEST_UI_CFLAGS),$(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT),$(TEST_UI_SRCS) $(TEST_GAME_SRCS) common/mpq.c $(call CSRC,$(WC3_DIR)/ui),-lsheet -lshared -ljass -lm -lz,))
 

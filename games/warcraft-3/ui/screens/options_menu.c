@@ -391,6 +391,9 @@ void OptionsMenu_ShowKeys(void) {
 
 void OptionsMenu_Apply(void) {
     OptionsMenu_ApplyGamePort();
+    if (uiimport.Cmd_ExecuteText) {
+        uiimport.Cmd_ExecuteText("vid_apply\nwriteconfig\n");
+    }
 }
 
 uiScreen_t optionsMenuScreen = {

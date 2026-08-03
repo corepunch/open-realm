@@ -8,6 +8,9 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#ifdef _WIN32
+#include <direct.h>
+#endif
 
 #ifndef PATHSTR
 #define PATHSTR char[512]
@@ -639,14 +642,22 @@ static int mkpath(const char *path)
     for (char *p = tmp + 1; *p; p++) {
         if (*p == '/') {
             *p = '\0';
+#ifdef _WIN32
+            if (_mkdir(tmp) != 0 && errno != EEXIST) {
+#else
             if (mkdir(tmp, 0777) != 0 && errno != EEXIST) {
+#endif
                 return 1;
             }
             *p = '/';
         }
     }
 
+#ifdef _WIN32
+    if (_mkdir(tmp) != 0 && errno != EEXIST) {
+#else
     if (mkdir(tmp, 0777) != 0 && errno != EEXIST) {
+#endif
         return 1;
     }
     return 0;
