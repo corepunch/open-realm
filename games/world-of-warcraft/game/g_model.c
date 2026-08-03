@@ -588,6 +588,7 @@ typedef struct {
     animation_t *animations;
     DWORD        num_animations;
     FLOAT        attach_hand_z;   /* attachment id=1 (right hand) local Z, 0 if missing */
+    FLOAT        attach_chest_z;  /* attachment id=20 (chest) local Z, 0 if missing */
     char         filename[MAX_PATHLEN];
 } g_cmodel_t;
 
@@ -674,13 +675,16 @@ static g_cmodel_t *LoadModel(LPCSTR filename) {
                             DWORD attach_count = bytes / ATTACH_STRIDE;
                             WORD const *lookup = (WORD const *)M2ArrayAt((BYTE *)payload, payload_size,
                                                                         lookup_arr, sizeof(WORD));
-                            { /* whoa GEOCOMPONENTLINKS: id=1 is the right hand; id=11 is the head. */
-                                WORD idx = (lookup && 1 < (int)lookup_arr.size) ? lookup[1] : 0xFFFF;
+                            FOR_LOOP(aid, 2) {
+                                DWORD attachment_id = aid ? 20 : 1;
+                                WORD idx = (lookup && attachment_id < (DWORD)lookup_arr.size)
+                                    ? lookup[attachment_id] : 0xFFFF;
                                 if (idx != 0xFFFF && (DWORD)idx < attach_count) {
                                     BYTE const *entry = attach_base + idx * ATTACH_STRIDE;
-                                    if (*(DWORD const *)entry == 1) {
+                                    if (*(DWORD const *)entry == attachment_id) {
                                         FLOAT z; memcpy(&z, entry + 16, sizeof(FLOAT));
-                                        model->attach_hand_z = z;
+                                        if (attachment_id == 1) model->attach_hand_z = z;
+                                        else model->attach_chest_z = z;
                                     }
                                 }
                             }
@@ -707,6 +711,7 @@ static g_cmodel_t *GetModel(DWORD modelindex) {
         entry->animations     = m->animations;
         entry->num_animations = m->num_animations;
         entry->attach_hand_z  = m->attach_hand_z;
+        entry->attach_chest_z = m->attach_chest_z;
         gi.MemFree(m);
     }
     return entry->animations ? entry : NULL;
@@ -738,12 +743,13 @@ void G_FreeModels(void) {
 
 /* Return the model-local Z of attachment `aid` for the given model.
  * Returns 0 if the model or attachment is not found.
- * Attachment id 1 is the right hand; the animated world transform remains renderer-owned. */
+ * Attachments 1/20 are the right hand/chest; the animated world transform remains renderer-owned. */
 FLOAT G_GetAttachmentZ(DWORD modelindex, int aid) {
     g_cmodel_t *model = GetModel(modelindex);
     if (!model) return 0;
     switch (aid) {
         case 1: return model->attach_hand_z;
+        case 20: return model->attach_chest_z;
         default: return 0;
     }
 }

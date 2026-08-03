@@ -195,6 +195,37 @@ typedef struct {
     m2Track_t visibility_track;
 } m2Particle_t;
 
+/* Classic (Vanilla/TBC) particle header and track block. The 0x1f8 record stores static
+   lifecycle values after ten 28-byte tracks; it does not contain modern FBlocks. */
+typedef struct {
+    DWORD particle_id;
+    DWORD flags;
+    VECTOR3 position;
+    WORD bone_index;
+    WORD texture_index;
+    m2Array_t geometry_mdl;
+    m2Array_t recursion_mdl;
+    BYTE blend_mode;
+    BYTE emitter_type;
+    WORD color_index;
+    WORD pad;
+    SHORT priority_plane;
+    WORD rows;
+    WORD cols;
+    /* 10 contiguous tracks — no float gaps, no zsource_track in TBC */
+    m2TrackClassic_t speed_track;
+    m2TrackClassic_t variation_track;
+    m2TrackClassic_t latitude_track;
+    m2TrackClassic_t longitude_track;
+    m2TrackClassic_t gravity_track;
+    m2TrackClassic_t life_track;
+    m2TrackClassic_t emission_rate_track;
+    m2TrackClassic_t width_track;
+    m2TrackClassic_t length_track;
+    m2TrackClassic_t visibility_track;
+    BYTE lifecycle_data[0x1f8 - 0x14c];
+} m2ParticleClassic_t;
+
 typedef struct {
     DWORD ribbon_id;
     WORD bone_index;
@@ -216,6 +247,29 @@ typedef struct {
     SHORT priority_plane;
     WORD pad1;
 } m2Ribbon_t;
+
+/* Classic (TBC, version <= 263) ribbon emitter — tracks are m2TrackClassic_t (24 bytes each). */
+typedef struct {
+    DWORD ribbon_id;
+    WORD bone_index;
+    WORD pad0;
+    VECTOR3 position;
+    m2Array_t texture_indices;
+    m2Array_t material_indices;
+    m2TrackClassic_t color_track;
+    m2TrackClassic_t alpha_track;
+    m2TrackClassic_t height_above_track;
+    m2TrackClassic_t height_below_track;
+    FLOAT edges_per_second;
+    FLOAT edge_lifetime;
+    FLOAT gravity;
+    WORD texture_rows;
+    WORD texture_cols;
+    m2TrackClassic_t texture_slot_track;
+    m2TrackClassic_t visibility_track;
+    SHORT priority_plane;
+    WORD pad1;
+} m2RibbonClassic_t;
 
 typedef struct {
     DWORD bone_id;
@@ -445,6 +499,23 @@ typedef struct {
     DWORD key;
 } m2CompositeCacheEntry_t;
 
+/* Ribbon edge state — persisted across frames so trails grow/shrink properly.
+   Each emitter produces a ring buffer of edges at the animated spine position.
+   Pattern derived from WoWee's M2Instance::RibbonEdge + updateRibbons. */
+#define MAX_RIBBON_EDGES 64
+typedef struct {
+    VECTOR3 world_pos;
+    VECTOR3 color;
+    float alpha, height_above, height_below, age;
+} m2RibbonEdge_t;
+
+typedef struct {
+    m2RibbonEdge_t edges[MAX_RIBBON_EDGES];
+    int head;       /* ring-buffer write index */
+    int count;      /* active edges, capped at MAX_RIBBON_EDGES */
+    float acc;      /* edge emission accumulator (rate * dt) */
+} m2RibbonEmitter_t;
+
 struct m2Model_s {
     m2ModelBatch_t *batches;
     DWORD num_batches;
@@ -488,7 +559,13 @@ struct m2Model_s {
     m2Array_t texture_lookup_table;
     m2Array_t ribbons;
     m2Array_t particles;
+    BOOL classic_particles;
+    DWORD particle_stride;
+    BOOL classic_ribbons;
+    DWORD ribbon_stride;
     MATRIX4 *bone_matrices;
+    FLOAT *emitter_accumulators;    /* per-particle-emitter accumulator (rate*dt), avoids time-anchoring */
+    m2RibbonEmitter_t *ribbon_emitters; /* per-ribbon-emitter persistent edge state */
 };
 
 typedef struct {
@@ -1752,9 +1829,15 @@ static BOOL M2_FindTrackKeys(m2Model_t const *model,
         m2Range_t const *ranges = M2_ModelArrayPtr(model, track->ranges, sizeof(*ranges));
         m2Range_t range;
 
+        /* TBC-era classic particles store tracks without per-animation ranges (ranges.size==0).
+           Fall back to reading times and keys as flat global arrays in that case. */
         if (!ranges || track->ranges.size == 0) {
-            return false;
-        }
+            times = M2_ModelArrayPtr(model, track->sequence_times, sizeof(DWORD));
+            keys = M2_ModelArrayPtr(model, track->sequence_keys, elem_size);
+            if (!times || !keys) return false;
+            count = MIN((DWORD)track->sequence_times.size, (DWORD)track->sequence_keys.size);
+            if (count == 0) return false;
+        } else {
         if (sequence_index >= (DWORD)track->ranges.size) {
             sequence_index = 0;
         }
@@ -1779,6 +1862,7 @@ static BOOL M2_FindTrackKeys(m2Model_t const *model,
         keys += range.start * elem_size;
         if (count == 0) {
             return false;
+        }
         }
     } else {
         m2SequenceTimes_t const *sequence_times = M2_ModelArrayPtr(model, track->sequence_times, sizeof(*sequence_times));
@@ -2177,27 +2261,41 @@ static LPTEXTURE m2_ribbon_texture(m2Model_t const *model, m2Ribbon_t const *r, 
 typedef struct {
 	FLOAT speed, varia, lat, lon, grav, life, life_var, zsource;
 	FLOAT alpha[3]; VECTOR2 scale[3]; VECTOR3 color[3];
-	LPTEXTURE texture;
+	LPTEXTURE texture; WORD bone_index;
 	m2Model_t const *model; m2Particle_t const *p; LPCMATRIX4 model_matrix;
 } m2_pctx_t;
+
+/* M2 emitter positions are local to their bone, not the model origin. */
+static void M2_EmitterMatrix(m2_pctx_t const *ctx, LPMATRIX4 out) {
+    if (ctx->model && ctx->bone_index < ctx->model->bone_count && ctx->model->bone_matrices) {
+        Matrix4_multiply(ctx->model_matrix, &ctx->model->bone_matrices[ctx->bone_index], out);
+        return;
+    }
+    *out = *ctx->model_matrix;
+}
 
 static void m2_spawn_particle(void *raw) {
 	m2_pctx_t *ctx = (m2_pctx_t *)raw;
 	cparticle_t *fx = R_SpawnParticle(); if (!fx) return;
 	FLOAT r = (FLOAT)rand() / (FLOAT)RAND_MAX;
+	MATRIX4 emitter_matrix;
+	M2_EmitterMatrix(ctx, &emitter_matrix);
 	VECTOR3 local_origin = ctx->p->position;
 	local_origin.z += ctx->zsource;
-	VECTOR3 org = Matrix4_multiply_vector3(ctx->model_matrix, &local_origin);
+	VECTOR3 org = Matrix4_multiply_vector3(&emitter_matrix, &local_origin);
 	VECTOR3 dir = {
 		cosf(ctx->lon + (r - 0.5f) * 6.2831853f) * cosf(ctx->lat),
 		sinf(ctx->lon + (r - 0.5f) * 6.2831853f) * cosf(ctx->lat),
 		sinf(ctx->lat + (r - 0.5f) * 0.5f),
 	};
-	VECTOR3 w_dir = Matrix4_multiply_vector3(ctx->model_matrix, &dir);
-	VECTOR3 w_zero = Matrix4_multiply_vector3(ctx->model_matrix, &(VECTOR3){ 0, 0, 0 });
+	VECTOR3 w_dir = Matrix4_multiply_vector3(&emitter_matrix, &dir);
+	VECTOR3 w_zero = Matrix4_multiply_vector3(&emitter_matrix, &(VECTOR3){ 0, 0, 0 });
 	dir = Vector3_sub(&w_dir, &w_zero);
 	Vector3_normalize(&dir);
 	fx->texture = ctx->texture;
+	fx->blend_mode = ctx->p->blend_mode == 1 ? BLEND_MODE_ALPHAKEY :
+		ctx->p->blend_mode == 2 ? BLEND_MODE_BLEND :
+		(ctx->p->blend_mode == 3 || ctx->p->blend_mode == 4) ? BLEND_MODE_ADD : BLEND_MODE_NONE;
 	fx->org = org;
 	fx->vel = Vector3_scale(&dir, MAX(0.0f, ctx->speed + (r - 0.5f) * ctx->varia));
 	fx->accel = (VECTOR3){ 0, 0, -ctx->grav };
@@ -2212,90 +2310,260 @@ static void m2_spawn_particle(void *raw) {
 	fx->time = 0.0f; fx->lifespan = MAX(0.05f, ctx->life + (r - 0.5f) * ctx->life_var);
 }
 
+/* Thin shim so the draw loop below can address modern and classic particles uniformly. */
+typedef struct {
+    /* points into the model data at the actual particle struct */
+    DWORD particle_id, flags; VECTOR3 position; WORD bone_index, texture_index;
+    m2Array_t geometry_mdl, recursion_mdl;
+    BYTE blend_mode, emitter_type; WORD color_index, pad; SHORT priority_plane; WORD rows, cols;
+    /* NOTE: tracks immediately follow — accessed via p_track_view() below via the raw pointer */
+} m2ParticleHdr_t;
+
+/* Track indices for particles.
+   Classic (TBC): 10 tracks contiguous, no float gaps, no zsource_track.
+   Modern (WotLK+): 11 tracks with life_variation/emitrate_variation floats between groups.
+   These enum values serve as logical track names; m2p_track_indexed maps them to byte offsets. */
+#define M2P_SPEED       0
+#define M2P_VARIATION   1
+#define M2P_LATITUDE    2
+#define M2P_LONGITUDE   3
+#define M2P_GRAVITY     4
+#define M2P_LIFE        5
+#define M2P_EMITRATE    6
+#define M2P_WIDTH       7
+#define M2P_LENGTH      8
+#define M2P_ZSOURCE     9   /* modern only — does not exist in classic */
+#define M2P_VISIBILITY 10   /* classic: 9 (zsource absent), modern: 10 */
+
+/* Return a track view for the k-th logical track index, accounting for version differences. */
+static m2TrackView_t m2p_track_indexed(m2Model_t const *model, BYTE const *raw, DWORD k) {
+    if (model->classic_particles) {
+        DWORD ts = (DWORD)sizeof(m2TrackClassic_t);
+        /* Classic: 10 contiguous tracks (speed=0..visibility=9), no zsource, no float gaps. */
+        DWORD phys_k = (k == M2P_VISIBILITY) ? 9 : (k > M2P_VISIBILITY ? k : k);
+        if (k == M2P_ZSOURCE) return M2_ClassicTrackView(NULL); /* not in classic */
+        return M2_ClassicTrackView((m2TrackClassic_t const *)(raw + 52 + phys_k * ts));
+    } else {
+        DWORD ts = (DWORD)sizeof(m2Track_t);
+        /* Modern: speed(0..5) + life_variation(4) + emitrate(6) + emitrate_variation(4) + width(7..9) + visibility(10) */
+        DWORD off;
+        if (k <= 5) off = 52 + k * ts;
+        else if (k == M2P_EMITRATE) off = 52 + 5 * ts + 4 + ts;              /* +life_variation(4) */
+        else if (k <= M2P_ZSOURCE)  off = 52 + 5 * ts + 4 + ts + 4 + (k - 6) * ts; /* +rate_variation(4) */
+        else                        off = 52 + 5 * ts + 4 + ts + 4 + 3 * ts; /* visibility = 10th track position */
+        return M2_ModernTrackView((m2Track_t const *)(raw + off));
+    }
+}
+
+/* Byte offset of the life_variation float (only exists in modern format, between life and emitrate tracks). */
+static FLOAT m2p_life_variation(m2Model_t const *model, BYTE const *raw) {
+    if (model->classic_particles) return 0.0f; /* no life_variation in TBC classic */
+    DWORD ts = (DWORD)sizeof(m2Track_t);
+    return *(FLOAT const *)(raw + 52 + 6 * ts); /* between life_track and emission_rate_track */
+}
+
+/* PartTrack base offset — follows the track block (different count and float gaps by version). */
+static DWORD m2p_part_track_base(m2Model_t const *model) {
+    if (model->classic_particles) {
+        /* Classic: fixed(52) + 10*28 = 332. No float gaps. */
+        return 52 + 10 * (DWORD)sizeof(m2TrackClassic_t);
+    }
+    /* Modern: fixed(52) + 6*20 + 4 + 20 + 4 + 3*20 = 260. Then PartTracks. */
+    DWORD ts = (DWORD)sizeof(m2Track_t);
+    return 52 + 5 * ts + 4 + ts + 4 + 3 * ts;
+}
+
+static m2PartTrack_t const *m2p_part_track(m2Model_t const *model, BYTE const *raw, DWORD n) {
+    return (m2PartTrack_t const *)(raw + m2p_part_track_base(model) + n * sizeof(m2PartTrack_t));
+}
+
+/* Vanilla/TBC stores three static BGRA lifecycle colors and three scalar scales. */
+static void m2p_sample_classic_data(BYTE const *raw, m2_pctx_t *ctx) {
+    FLOAT midpoint = *(FLOAT const *)(raw + 0x14c);
+    BOOL all_alpha_zero = true;
+    if (midpoint < 0.0f || midpoint > 1.0f) midpoint = 0.5f;
+    FOR_LOOP(i, 3) {
+        DWORD bgra = *(DWORD const *)(raw + 0x150 + i * 4);
+        ctx->color[i] = (VECTOR3){ ((bgra >> 16) & 0xff) / 255.0f, ((bgra >> 8) & 0xff) / 255.0f,
+                                   (bgra & 0xff) / 255.0f };
+        ctx->alpha[i] = ((bgra >> 24) & 0xff) / 255.0f;
+        ctx->scale[i] = (VECTOR2){ *(FLOAT const *)(raw + 0x15c + i * 4), 0.0f };
+        if (ctx->alpha[i] > 0.01f) all_alpha_zero = false;
+        if (ctx->scale[i].x < 0.001f || ctx->scale[i].x > 100.0f) ctx->scale[i].x = 1.0f;
+    }
+    if (all_alpha_zero) { ctx->alpha[0] = 1.0f; ctx->alpha[1] = 1.0f; ctx->alpha[2] = 0.0f; }
+    (void)midpoint;
+}
+
 static void M2_DrawParticles(m2Model_t const *model, renderEntity_t const *entity, LPCMATRIX4 model_matrix) {
 	if (!model || !entity || !model->particles.size) return;
-	m2Particle_t const *ps = M2_ModelArrayPtr(model, model->particles, sizeof(m2Particle_t));
-	if (!ps) return;
+	BYTE const *base = M2_ModelArrayPtr(model, model->particles, model->particle_stride);
+	if (!base) return;
 	DWORD seq_idx, seq_time = M2_AnimationTime(model, entity, &seq_idx);
 	FOR_LOOP(i, (DWORD)model->particles.size) {
-		m2Particle_t const *p = &ps[i];
-		m2TrackView_t vis = M2_ModernTrackView(&p->visibility_track);
+		BYTE const *raw = base + i * model->particle_stride;
+		m2Particle_t const *p = (m2Particle_t const *)raw;
+		m2TrackView_t vis = m2p_track_indexed(model, raw, M2P_VISIBILITY);
 		if (!m2_is_visible(model, &vis, seq_idx, seq_time)) continue;
-		m2TrackView_t rate_t = M2_ModernTrackView(&p->emission_rate_track);
+		m2TrackView_t rate_t = m2p_track_indexed(model, raw, M2P_EMITRATE);
 		FLOAT rate = M2_EvaluateFloatTrack(model, &rate_t, seq_idx, seq_time, 0.0f);
 		if (rate <= 0.0f) continue;
+		m2TrackView_t life_t = m2p_track_indexed(model, raw, M2P_LIFE);
+		FLOAT life = MAX(0.05f, M2_EvaluateFloatTrack(model, &life_t, seq_idx, seq_time, 0.5f));
+		/* WoWee §M2Renderer::emitParticles: a flame reads as a flame only when enough
+		   particles are alive at once.  Authored rates vary wildly (candle 40/s over 0.5s,
+		   chandelier 1/s over 6s).  Steady-state population is rate × lifespan, so floor
+		   the rate against lifespan to hold every fixture at a comparable density. */
+		if (rate > 0.0f && life > 0.0f) {
+			const float kMinLiveParticles = 15.0f;
+			rate = MAX(rate, kMinLiveParticles / MAX(life, 0.1f));
+		}
 		m2_pctx_t ctx = { .model = model, .p = p, .model_matrix = model_matrix };
-		{ m2TrackView_t t = M2_ModernTrackView(&p->speed_track); ctx.speed = M2_EvaluateFloatTrack(model, &t, seq_idx, seq_time, 0.0f); }
-		{ m2TrackView_t t = M2_ModernTrackView(&p->variation_track); ctx.varia = M2_EvaluateFloatTrack(model, &t, seq_idx, seq_time, 0.0f); }
-		{ m2TrackView_t t = M2_ModernTrackView(&p->latitude_track); ctx.lat = M2_EvaluateFloatTrack(model, &t, seq_idx, seq_time, 0.0f); }
-		{ m2TrackView_t t = M2_ModernTrackView(&p->longitude_track); ctx.lon = M2_EvaluateFloatTrack(model, &t, seq_idx, seq_time, 0.0f); }
-		{ m2TrackView_t t = M2_ModernTrackView(&p->gravity_track); ctx.grav = M2_EvaluateFloatTrack(model, &t, seq_idx, seq_time, 0.0f); }
-		{ m2TrackView_t t = M2_ModernTrackView(&p->life_track); ctx.life = MAX(0.05f, M2_EvaluateFloatTrack(model, &t, seq_idx, seq_time, 0.5f)); }
-		ctx.life_var = p->life_variation;
-		{ m2TrackView_t t = M2_ModernTrackView(&p->zsource_track); ctx.zsource = M2_EvaluateFloatTrack(model, &t, seq_idx, seq_time, 0.0f); }
-		{ SHORT raw; m2_sample_part_track(model, &p->alpha_track, 0.0f, sizeof(raw), &raw); ctx.alpha[0] = m2_fixed16_to_float(raw);
-		           m2_sample_part_track(model, &p->alpha_track, 0.5f, sizeof(raw), &raw); ctx.alpha[1] = m2_fixed16_to_float(raw);
-		           m2_sample_part_track(model, &p->alpha_track, 1.0f, sizeof(raw), &raw); ctx.alpha[2] = m2_fixed16_to_float(raw); }
-		m2_sample_part_track(model, &p->scale_track, 0.0f, sizeof(VECTOR2), &ctx.scale[0]);
-		m2_sample_part_track(model, &p->scale_track, 0.5f, sizeof(VECTOR2), &ctx.scale[1]);
-		m2_sample_part_track(model, &p->scale_track, 1.0f, sizeof(VECTOR2), &ctx.scale[2]);
-		m2_sample_part_track(model, &p->color_track, 0.0f, sizeof(VECTOR3), &ctx.color[0]);
-		m2_sample_part_track(model, &p->color_track, 0.5f, sizeof(VECTOR3), &ctx.color[1]);
-		m2_sample_part_track(model, &p->color_track, 1.0f, sizeof(VECTOR3), &ctx.color[2]);
+		{ m2TrackView_t t = m2p_track_indexed(model, raw, M2P_SPEED);     ctx.speed = M2_EvaluateFloatTrack(model, &t, seq_idx, seq_time, 0.0f); }
+		{ m2TrackView_t t = m2p_track_indexed(model, raw, M2P_VARIATION); ctx.varia = M2_EvaluateFloatTrack(model, &t, seq_idx, seq_time, 0.0f); }
+		{ m2TrackView_t t = m2p_track_indexed(model, raw, M2P_LATITUDE);  ctx.lat   = M2_EvaluateFloatTrack(model, &t, seq_idx, seq_time, 0.0f); }
+		{ m2TrackView_t t = m2p_track_indexed(model, raw, M2P_LONGITUDE); ctx.lon   = M2_EvaluateFloatTrack(model, &t, seq_idx, seq_time, 0.0f); }
+		{ m2TrackView_t t = m2p_track_indexed(model, raw, M2P_GRAVITY);   ctx.grav  = M2_EvaluateFloatTrack(model, &t, seq_idx, seq_time, 0.0f); }
+		ctx.life     = life;
+		ctx.life_var = m2p_life_variation(model, raw);
+		{ m2TrackView_t t = m2p_track_indexed(model, raw, M2P_ZSOURCE);   ctx.zsource = M2_EvaluateFloatTrack(model, &t, seq_idx, seq_time, 0.0f); }
+		if (model->classic_particles) m2p_sample_classic_data(raw, &ctx);
+		else {
+			m2PartTrack_t const *alpha_pt = m2p_part_track(model, raw, 1);
+			m2PartTrack_t const *scale_pt = m2p_part_track(model, raw, 2);
+			m2PartTrack_t const *color_pt = m2p_part_track(model, raw, 0);
+			{ SHORT raw2; m2_sample_part_track(model, alpha_pt, 0.0f, sizeof(raw2), &raw2); ctx.alpha[0] = m2_fixed16_to_float(raw2);
+			             m2_sample_part_track(model, alpha_pt, 0.5f, sizeof(raw2), &raw2); ctx.alpha[1] = m2_fixed16_to_float(raw2);
+			             m2_sample_part_track(model, alpha_pt, 1.0f, sizeof(raw2), &raw2); ctx.alpha[2] = m2_fixed16_to_float(raw2); }
+			m2_sample_part_track(model, scale_pt, 0.0f, sizeof(VECTOR2), &ctx.scale[0]);
+			m2_sample_part_track(model, scale_pt, 0.5f, sizeof(VECTOR2), &ctx.scale[1]);
+			m2_sample_part_track(model, scale_pt, 1.0f, sizeof(VECTOR2), &ctx.scale[2]);
+			m2_sample_part_track(model, color_pt, 0.0f, sizeof(VECTOR3), &ctx.color[0]);
+			m2_sample_part_track(model, color_pt, 0.5f, sizeof(VECTOR3), &ctx.color[1]);
+			m2_sample_part_track(model, color_pt, 1.0f, sizeof(VECTOR3), &ctx.color[2]);
+		}
 		ctx.texture = m2_particle_texture(model, p);
-		R_EmitParticles(rate, tr.viewDef.time, tr.viewDef.deltaTime, m2_spawn_particle, &ctx);
+		ctx.bone_index = p->bone_index;
+		R_EmitParticles(rate, &model->emitter_accumulators[i], tr.viewDef.deltaTime, m2_spawn_particle, &ctx);
 	}
 }
 
+/* Ribbon fixed header (same in both classic/modern): ribbon_id(4)+bone(2)+pad(2)+pos(12)+tex_idx_arr(8)+mat_idx_arr(8) = 36 */
+#define M2R_HDR_SIZE 36u
+/* Track indices for ribbon: color=0, alpha=1, height_above=2, height_below=3, tex_slot=4, visibility=5 */
+/* The ribbon has 4 scalar float fields + 2 WORD fields (12 bytes) between height_below_track and texture_slot_track. */
+static m2TrackView_t m2r_track(m2Model_t const *model, BYTE const *raw, DWORD k) {
+    DWORD ts = model->classic_ribbons ? (DWORD)sizeof(m2TrackClassic_t) : (DWORD)sizeof(m2Track_t);
+    DWORD off;
+    if (k <= 3) off = M2R_HDR_SIZE + k * ts;
+    else        off = M2R_HDR_SIZE + 4 * ts + 16 /* floats gap */ + (k - 4) * ts;
+    if (model->classic_ribbons) return M2_ClassicTrackView((m2TrackClassic_t const *)(raw + off));
+    return M2_ModernTrackView((m2Track_t const *)(raw + off));
+}
+/* Float scalars embedded in the ribbon struct after the first 4 tracks. */
+static FLOAT const *m2r_scalar(m2Model_t const *model, BYTE const *raw, DWORD field_idx) {
+    DWORD ts = model->classic_ribbons ? (DWORD)sizeof(m2TrackClassic_t) : (DWORD)sizeof(m2Track_t);
+    return (FLOAT const *)(raw + M2R_HDR_SIZE + 4 * ts + field_idx * 4);
+}
+static WORD m2r_word(m2Model_t const *model, BYTE const *raw, DWORD field_idx) {
+    DWORD ts = model->classic_ribbons ? (DWORD)sizeof(m2TrackClassic_t) : (DWORD)sizeof(m2Track_t);
+    return *(WORD const *)(raw + M2R_HDR_SIZE + 4 * ts + 12 + field_idx * 2);
+}
+
 static void M2_DrawRibbons(m2Model_t const *model, renderEntity_t const *entity, LPCMATRIX4 model_matrix) {
-	if (!model || !entity || !model->ribbons.size) return;
-	m2Ribbon_t const *rs = M2_ModelArrayPtr(model, model->ribbons, sizeof(m2Ribbon_t));
-	if (!rs) return;
+	if (!model || !entity || !model->ribbons.size || !model->ribbon_emitters) return;
+	BYTE const *base = M2_ModelArrayPtr(model, model->ribbons, model->ribbon_stride);
+	if (!base) return;
 	DWORD seq_idx, seq_time = M2_AnimationTime(model, entity, &seq_idx);
+	FLOAT dt = (FLOAT)tr.viewDef.deltaTime / 1000.0f;
 	FOR_LOOP(i, (DWORD)model->ribbons.size) {
-		m2Ribbon_t const *r = &rs[i];
-		m2TrackView_t vis = M2_ModernTrackView(&r->visibility_track);
+		BYTE const *raw = base + i * model->ribbon_stride;
+		m2Ribbon_t const *r = (m2Ribbon_t const *)raw;
+		m2RibbonEmitter_t *res = &model->ribbon_emitters[i];
+		m2TrackView_t vis = m2r_track(model, raw, 5);
 		if (!m2_is_visible(model, &vis, seq_idx, seq_time)) continue;
-		FLOAT rate = MAX(0.0f, r->edges_per_second);
-		if (rate <= 0.0f) continue;
-		m2TrackView_t color_t = M2_ModernTrackView(&r->color_track);
-		VECTOR3 color = M2_EvaluateVectorTrack(model, &color_t, seq_idx, seq_time, (VECTOR3){ 1, 1, 1 });
-		m2TrackView_t alpha_t = M2_ModernTrackView(&r->alpha_track);
+		FLOAT eps = MAX(0.0f, *m2r_scalar(model, raw, 0)); /* edges_per_second */
+		if (eps <= 0.0f) continue;
+		/* -- Age existing edges and drop expired ones -------------------- */
+		FLOAT edge_life = *m2r_scalar(model, raw, 1);
+		int write = res->head, alive = res->count;
+		for (int e = 0; e < alive; e++) {
+			int idx = (write - alive + e + MAX_RIBBON_EDGES) % MAX_RIBBON_EDGES;
+			res->edges[idx].age += dt;
+		}
+		while (alive > 0) {
+			int oldest = (write - alive + MAX_RIBBON_EDGES) % MAX_RIBBON_EDGES;
+			if (res->edges[oldest].age < edge_life) break;
+			alive--;
+		}
+		res->count = alive;
+		/* -- Evaluate animated tracks ------------------------------------ */
+		m2TrackView_t color_t = m2r_track(model, raw, 0);
+		VECTOR3 col = M2_EvaluateVectorTrack(model, &color_t, seq_idx, seq_time, (VECTOR3){ 1, 1, 1 });
+		m2TrackView_t alpha_t = m2r_track(model, raw, 1);
 		void const *la, *ra; float rta;
 		DWORD tt = M2_TrackTime(model, &alpha_t, seq_idx, seq_time);
-		FLOAT alpha = 1.0f;
+		FLOAT a = 1.0f;
 		if (M2_FindTrackKeys(model, &alpha_t, seq_idx, tt, sizeof(SHORT), &la, &ra, &rta)) {
 			FLOAT al = m2_fixed16_to_float(*(SHORT const *)la);
 			FLOAT ar = la == ra ? al : m2_fixed16_to_float(*(SHORT const *)ra);
-			alpha = LerpNumber(al, ar, rta);
+			a = LerpNumber(al, ar, rta);
 		}
-		m2TrackView_t above_t = M2_ModernTrackView(&r->height_above_track);
-		m2TrackView_t below_t = M2_ModernTrackView(&r->height_below_track);
-		FLOAT above = MAX(0.0f, M2_EvaluateFloatTrack(model, &above_t, seq_idx, seq_time, 0.0f));
-		FLOAT below = MAX(0.0f, M2_EvaluateFloatTrack(model, &below_t, seq_idx, seq_time, 0.0f));
-		FLOAT width = MAX(1.0f, above + below);
-		m2TrackView_t slot_t = M2_ModernTrackView(&r->texture_slot_track);
+		m2TrackView_t above_t = m2r_track(model, raw, 2);
+		m2TrackView_t below_t = m2r_track(model, raw, 3);
+		FLOAT h_above = MAX(0.0f, M2_EvaluateFloatTrack(model, &above_t, seq_idx, seq_time, 0.0f));
+		FLOAT h_below = MAX(0.0f, M2_EvaluateFloatTrack(model, &below_t, seq_idx, seq_time, 0.0f));
+		FLOAT w = MAX(1.0f, h_above + h_below) / 2.0f; /* half-width for billboard scale */
+		m2TrackView_t slot_t = m2r_track(model, raw, 4);
 		WORD slot = 0;
-		void const *ls, *rs; float rts;
+		void const *ls, *rs_; float rts;
 		DWORD tts = M2_TrackTime(model, &slot_t, seq_idx, seq_time);
-		if (M2_FindTrackKeys(model, &slot_t, seq_idx, tts, sizeof(WORD), &ls, &rs, &rts))
-			slot = (WORD)LerpNumber((FLOAT)*(WORD const *)ls, (FLOAT)*(WORD const *)rs, rts);
-		COLOR32 col = M2_C32(color, alpha);
-		BYTE size_b = (BYTE)MIN(255, (int)(width + 0.5f));
-		DWORD cols = MAX(1, r->texture_cols), rows = MAX(1, r->texture_rows);
+		if (M2_FindTrackKeys(model, &slot_t, seq_idx, tts, sizeof(WORD), &ls, &rs_, &rts))
+			slot = (WORD)LerpNumber((FLOAT)*(WORD const *)ls, (FLOAT)*(WORD const *)rs_, rts);
+		COLOR32 rgba = M2_C32(col, a);
+		BYTE size_b = (BYTE)MIN(255, (int)(w + 0.5f));
+		DWORD cols = MAX(1, m2r_word(model, raw, 1)), rows = MAX(1, m2r_word(model, raw, 0));
 		LPTEXTURE tex = m2_ribbon_texture(model, r, slot);
-		DWORD start_ms = (tr.viewDef.time - tr.viewDef.deltaTime) / 1000 * 1000;
-		for (float t = (float)start_ms; t < (float)tr.viewDef.time; t += 1000.0f / rate)
-			if (t >= (float)(tr.viewDef.time - tr.viewDef.deltaTime)) {
-				cparticle_t *fx = R_SpawnParticle(); if (!fx) continue;
-				VECTOR3 org = Matrix4_multiply_vector3(model_matrix, &r->position);
-				fx->texture = tex; fx->org = org; fx->vel = (VECTOR3){ 0 };
-				fx->accel = (VECTOR3){ 0, 0, -MAX(0.0f, r->gravity) };
-				fx->color[0] = fx->color[1] = fx->color[2] = col;
-				fx->size[0] = fx->size[1] = fx->size[2] = size_b;
-				fx->midtime = 0x80; fx->columns = cols; fx->rows = rows;
-				fx->time = 0.0f; fx->lifespan = MAX(0.05f, r->edge_lifetime);
+		FLOAT grav = *m2r_scalar(model, raw, 2);
+		/* -- Emit new edges at the animated spine position ---------------- */
+		MATRIX4 emitter_matrix = *model_matrix;
+		if (r->bone_index < model->bone_count && model->bone_matrices)
+			Matrix4_multiply(model_matrix, &model->bone_matrices[r->bone_index], &emitter_matrix);
+		VECTOR3 spine = Matrix4_multiply_vector3(&emitter_matrix, &r->position);
+		res->acc += eps * dt;
+		while (res->acc >= 1.0f) {
+			res->acc -= 1.0f;
+			if (alive >= MAX_RIBBON_EDGES) { /* drop oldest */
+				alive--;
 			}
+			m2RibbonEdge_t *e = &res->edges[write];
+			e->world_pos = spine;
+			e->color = col; e->alpha = a;
+			e->height_above = h_above; e->height_below = h_below;
+			e->age = 0.0f;
+			write = (write + 1) % MAX_RIBBON_EDGES;
+			alive++;
+		}
+		if (res->acc > 2.0f) res->acc = 0.0f;
+		res->head = write; res->count = alive;
+		/* -- Spawn one billboard particle per active edge ----------------- */
+		for (int e = 0; e < alive; e++) {
+			int idx = (write - alive + e + MAX_RIBBON_EDGES) % MAX_RIBBON_EDGES;
+			m2RibbonEdge_t *re = &res->edges[idx];
+			cparticle_t *fx = R_SpawnParticle(); if (!fx) break;
+			/* Apply gravity downward drift (semi-implicit: ½ g t² at draw time) */
+			re->world_pos.z -= MAX(0.0f, grav) * dt * dt * 0.5f;
+			fx->texture = tex; fx->org = re->world_pos;
+			fx->vel = (VECTOR3){ 0, 0, 0 };
+			fx->accel = (VECTOR3){ 0, 0, -MAX(0.0f, grav) };
+			FLOAT fade = 1.0f - MIN(1.0f, re->age / MAX(0.01f, edge_life));
+			COLOR32 fc = rgba;
+			fc.a = (BYTE)((FLOAT)fc.a * fade + 0.5f);
+			fx->color[0] = fx->color[1] = fx->color[2] = fc;
+			fx->size[0] = fx->size[1] = fx->size[2] = size_b;
+			fx->midtime = 0x80; fx->columns = cols; fx->rows = rows;
+			fx->time = 0.0f; fx->lifespan = MAX(0.05f, edge_life - re->age);
+		}
 	}
 }
 
@@ -2769,6 +3037,14 @@ static void M2_FreeModelData(m2Model_t *model) {
 		ri.MemFree(model->bone_matrices);
 		model->bone_matrices = NULL;
 	}
+	if (model->emitter_accumulators) {
+		ri.MemFree(model->emitter_accumulators);
+		model->emitter_accumulators = NULL;
+	}
+	if (model->ribbon_emitters) {
+		ri.MemFree(model->ribbon_emitters);
+		model->ribbon_emitters = NULL;
+	}
 	if (model->material_blend_modes) {
 		ri.MemFree(model->material_blend_modes);
 		model->material_blend_modes = NULL;
@@ -2804,6 +3080,10 @@ static BOOL M2_CopyModelData(m2Model_t *model, BYTE const *m2_base, DWORD m2_siz
     model->attachment_stride = model->classic_attachments ? sizeof(m2AttachmentClassic_t) : sizeof(m2AttachmentModern_t);
     model->classic_cameras = model->header->version <= 263;
     model->camera_stride = model->classic_cameras ? sizeof(m2CameraClassic_t) : sizeof(m2CameraModern_t);
+    model->classic_particles = model->header->version <= 263;
+    model->particle_stride = model->classic_particles ? sizeof(m2ParticleClassic_t) : sizeof(m2Particle_t);
+    model->classic_ribbons = model->header->version <= 263;
+    model->ribbon_stride = model->classic_ribbons ? sizeof(m2RibbonClassic_t) : sizeof(m2Ribbon_t);
 
     if (legacy_header) {
         m2HeaderLegacy_t *legacy = (m2HeaderLegacy_t *)model->data;
@@ -2850,6 +3130,17 @@ static BOOL M2_CopyModelData(m2Model_t *model, BYTE const *m2_base, DWORD m2_siz
         FOR_LOOP(i, model->bone_count) {
             Matrix4_identity(&model->bone_matrices[i]);
         }
+    }
+
+    if (model->particles.size) {
+        model->emitter_accumulators = ri.MemAlloc(sizeof(*model->emitter_accumulators) * (DWORD)model->particles.size);
+        if (!model->emitter_accumulators) { M2_FreeModelData(model); return false; }
+        memset(model->emitter_accumulators, 0, sizeof(*model->emitter_accumulators) * (DWORD)model->particles.size);
+    }
+    if (model->ribbons.size) {
+        model->ribbon_emitters = ri.MemAlloc(sizeof(*model->ribbon_emitters) * (DWORD)model->ribbons.size);
+        if (!model->ribbon_emitters) { M2_FreeModelData(model); return false; }
+        memset(model->ribbon_emitters, 0, sizeof(*model->ribbon_emitters) * (DWORD)model->ribbons.size);
     }
 
     return true;
@@ -3187,9 +3478,7 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
     if (!entity || !model || !transform) {
         return;
     }
-    if (!Frustum_ContainsBox(&tr.viewDef.frustum, &model->bounds, transform)) {
-        return;
-    }
+    if (!Frustum_ContainsBox(&tr.viewDef.frustum, &model->bounds, transform)) return;
 
     shader = M2_Shader();
     M2_CalculateBoneMatrices(model, entity);

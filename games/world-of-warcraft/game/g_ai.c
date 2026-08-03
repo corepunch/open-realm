@@ -5,6 +5,7 @@ static wowMove_t wow_move_stand = { "Stand", NULL, NULL };
 static wowMove_t wow_move_ready = { "Ready", NULL, NULL };
 static wowMove_t wow_move_walk = { "Walk", NULL, NULL };
 static wowMove_t wow_move_run = { "Run", NULL, NULL };
+static wowMove_t wow_move_back = { "WalkBackwards", NULL, NULL };
 static wowMove_t wow_move_attack = { "Attack", NULL, NULL };
 static wowMove_t wow_move_pain = { "Pain", NULL, NULL };
 static wowMove_t wow_move_death = { "Death", NULL, NULL };
@@ -153,6 +154,14 @@ BOOL Wow_SetRunMove(LPEDICT ent) {
 
 BOOL Wow_SetWalkMove(LPEDICT ent) {
     return Wow_SetEntityMove(ent, &wow_move_walk);
+}
+
+/* Preserve facing while selecting the M2 locomotion sequence that matches the input direction. */
+BOOL Wow_SetDirectionalMove(LPEDICT ent, DWORD flags) {
+    if ((flags & WOW_MOVE_BACK) && !(flags & WOW_MOVE_FORWARD))
+        return Wow_SetEntityMove(ent, &wow_move_back) || Wow_SetRunMove(ent);
+    /* A/D are lateral movement; ShuffleLeft/Right are turn animations, not strafe animations. */
+    return Wow_SetRunMove(ent);
 }
 
 BOOL Wow_SetCombatReadyAnimation(LPEDICT ent) {

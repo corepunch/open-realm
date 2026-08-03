@@ -23,12 +23,16 @@
 - `data/whoa-master/src/db/rec/*Rec.hpp`: DBC record layouts used by whoa-master.
 - `data/whoa-master/src/model/M2Data.hpp`: M2 arrays, tracks, materials, batches, cameras, bones, and related structures.
 - `data/whoa-master/src/world/map/*`: map, chunk, doodad, object, liquid, and WMO-facing scaffolding.
+- `data/WoWee/src/rendering/m2_renderer_particles.cpp`: Full particle/ribbon/smoke pipeline — `emitParticles`, `updateParticles`, `updateRibbons`, `renderM2Ribbons`, `renderM2Particles`, `renderSmokeParticles`. ~800 lines, no stubs. Includes model-specific tuning: floors emission rate against particle lifespan so flame emitters (torches, braziers, lanterns) don't visually disappear when authored M2 rates are too sparse. Interpolation helpers for `M2AnimationTrack`, `M2FBlock` (scalar, vec3).
+- `data/WoWee/src/rendering/m2_renderer_internal.h`: Particle/ribbon emitter GPU structs, `M2Instance` particle state (accumulators, edge buffers), per-emitter gravity caching.
+- `data/WoWee/assets/shaders/m2_particle.vert.glsl`, `m2_particle.frag.glsl`: Vulkan particle billboard shaders.
+- `data/WoWee/assets/shaders/m2_ribbon.vert.glsl`, `m2_ribbon.frag.glsl`: Vulkan ribbon trail shaders.
 
 ## Open-Source Client Implementations
 
 - [whoahq/whoa](https://github.com/whoahq/whoa) — unofficial open-source WoW 3.3.5a (build 12340) client in C++11. Targets Windows 10+, macOS 10.14+, Linux. Launches against extracted client data files (no live MPQ reading).
 - [Kelsidavis/WoWee](https://github.com/Kelsidavis/WoWee) — custom open-source WoW client with Warden anti-cheat (Unicorn x86), SDL2, Vulkan, GLM, StormLib, OpenGL renderer, Native Linux. Covers Vanilla, TBC, WotLK. Most active client reimplementation.
-- [Reinisch/Warcraft-Arena-Unity](https://github.com/Reinisch/Warcraft-Arena-Unity) — WoW client-server combat/arena engine in Unity. Data-driven spells/auras/effects, unit frames, action bars, floating combat text, AI behavior graphs. Non-commercial educational fan project.
+- [Reinisch/Warcraft-Arena-Unity](https://github.com/Reinisch/Warcraft-Arena-Unity) — WoW-style combat/arena engine in Unity. Built on original custom-authored content (Mage spell kit, ScriptableObject-driven spells/auras, Unity URP/Netcode/Zenject). Not a client reimplementation — spells and VFX are hand-authored rather than extracted from original M2 particle/ribbon data. Non-commercial educational fan project.
 
 ## Server Emulators
 
@@ -79,6 +83,15 @@
 - `wow.export`: https://github.com/Kruithne/wow.export
 - mangos classic M2 notes mirror: https://github-wiki-see.page/m/Marzec737/mangos-classic/wiki/M2-files
 - Archival `World of Warcraft Formats` PDF mirror: https://lasatmanstanding.wordpress.com/wp-content/uploads/2010/05/wow-formats-2.pdf
+
+## WoW to Unity Model Pipeline
+
+- [Kruithne/wow.export](https://github.com/Kruithne/wow.export) — current extraction/export tool (successor to Marlamin's WoW Export Tools). Extracts and converts WoW client or CDN files, supports Retail and Classic, previews M2/WMO models, exports OBJ/GLTF. Includes a Blender add-on for maps/models.
+- [briochie/wow.unity](https://github.com/briochie/wow.unity) — Unity-side companion to wow.export. Shaders, asset postprocessors, and tools that configure materials and parse wow.export metadata (including doodad placements) so exported models/prefabs drop into Unity scenes with ~80% in-game look fidelity (Built-In or URP).
+- [Selzier/wow.export.unity](https://github.com/Selzier/wow.export.unity) — fork of wow.export retargeted for exporting directly into the Unity Editor (Unity-aware export step, alternative to post-processing with wow.unity).
+- [cplushplush/unity-wow-map-importer](https://github.com/cplushplush/unity-wow-map-importer) — Unity plugin for importing map tiles (terrain/zones) exported by WoW exporters.
+
+Note: none of these tools export M2 particle/ribbon emitter data — they produce static geometry and textures. Particle/ribbon VFX must be reimplemented by hand on the target engine side.
 
 ## Combat and Game Design References
 

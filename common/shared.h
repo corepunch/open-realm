@@ -882,6 +882,7 @@ typedef struct particle_s {
     BYTE midtime;
     BYTE columns;
     BYTE rows;
+    BYTE blend_mode;
     FLOAT time;
     FLOAT lifespan;
 } cparticle_t;
