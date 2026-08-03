@@ -3528,6 +3528,9 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
 		if (!M2_CharacterGeosetVisible(model, outfit, batch->section_id)) {
 			continue;
 		}
+		/* Alpha-key batches use the shared shader's discard path; opaque and
+		 * blended batches must explicitly disable it after the previous batch. */
+		R_Call(glUniform1i, shader->uUseDiscard, batch->alphamode == BLEND_MODE_ALPHAKEY);
 		if (batch->alphamode == BLEND_MODE_NONE) {
 			R_Call(glDisable, GL_BLEND);
 			R_Call(glDepthMask, GL_TRUE);
