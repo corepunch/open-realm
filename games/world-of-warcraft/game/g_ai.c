@@ -323,6 +323,7 @@ void Wow_AIDie(LPEDICT ent, LPEDICT attacker) {
     } else {
         local->death_time = WOW_DEFAULT_DEATH_TIME;
     }
+    Wow_SpawnCorpse(ent);
 }
 
 BOOL Wow_AIAdvanceLockedFrame(LPEDICT ent) {

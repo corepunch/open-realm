@@ -33,6 +33,27 @@ static struct {
     .distance = 8.5f,
 };
 
+#define WOW_MAX_SPAWNS_PER_FRAME 64
+static DWORD wow_spawns_this_frame = 0;
+static BOOL wow_spawns_deferred = false;
+
+static void Wow_ThinkNone(LPEDICT ent) { (void)ent; }
+static void Wow_ThinkUnit(LPEDICT ent);
+static void Wow_ThinkProjectile(LPEDICT ent);
+static void Wow_ThinkDynamicObject(LPEDICT ent);
+
+wowEntityHandler_t wow_entity_handlers[WOW_ENTITY_COUNT] = {
+    [WOW_ENTITY_NONE]           = { "none",          Wow_ThinkNone },
+    [WOW_ENTITY_PLAYER]         = { "player",        NULL },
+    [WOW_ENTITY_UNIT]           = { "unit",          Wow_ThinkUnit },
+    [WOW_ENTITY_GAMEOBJECT]     = { "gameobject",    Wow_RunGameObjectFrame },
+    [WOW_ENTITY_CORPSE]         = { "corpse",        Wow_RunCorpseFrame },
+    [WOW_ENTITY_PROJECTILE]     = { "projectile",    Wow_ThinkProjectile },
+    [WOW_ENTITY_DYNAMICOBJECT]  = { "dynamicobject", Wow_RunDynamicObjectFrame },
+    [WOW_ENTITY_ITEM]           = { "item",          Wow_ThinkNone },
+    [WOW_ENTITY_CONTAINER]      = { "container",     Wow_ThinkNone },
+};
+
 static wowHudIcon_t const wow_start_inventory[WOW_UI_INVENTORY_SLOTS] = {
     { "Interface\\Icons\\INV_Misc_Bag_08.blp", "Backpack", 1 },
     { "Interface\\Icons\\INV_Weapon_ShortBlade_05.blp", "Short Blade", 1 },
@@ -512,12 +533,27 @@ static LPEDICT Wow_FindNearestAttackTarget(LPEDICT ent, FLOAT range);
 #define WOW_MANA_MAX            100
 #define WOW_MANA_REGEN_PER_SEC  3
 
-enum {
-    SPELL_NONE = 0,
-    SPELL_FIREBOLT,
-    SPELL_FROSTBOLT,
-    SPELL_HEALING_TOUCH,
+/* Spell definition table: each spell is a row with function pointers.
+ * Pattern follows Quake 2's gitem_t itemlist[] — data-driven, no enum switch. */
+
+static void Wow_SpellAttack(LPEDICT caster, LPEDICT target) {
+    wowEntityLocal_t *cl = Wow_EntityLocal(caster);
+    if (cl) cl->enemy = target;
+    if (caster->attack) caster->attack(caster);
+}
+static void Wow_SpellFireball(LPEDICT caster, LPEDICT target) { Wow_FireFirebolt(caster, target); }
+static void Wow_SpellFrostbolt(LPEDICT caster, LPEDICT target) { Wow_FireFrostbolt(caster, target); }
+static void Wow_SpellHealingTouch(LPEDICT caster, LPEDICT target) { (void)target; Wow_HealingTouch(caster); }
+
+wowSpellDef_t const wow_spells[] = {
+    [WOW_SPELL_ATTACK]        = { "Attack",        Wow_SpellAttack,           0,    0,  5.0f, NULL,                NULL },
+    [WOW_SPELL_FIREBOLT]      = { "Fireball",      Wow_SpellFireball,      1500,   10, 30.0f, "SpellCastDirected", "ReadySpellDirected" },
+    [WOW_SPELL_FROSTBOLT]     = { "Frostbolt",     Wow_SpellFrostbolt,     2500,   15, 30.0f, "SpellCastDirected", "ReadySpellDirected" },
+    [WOW_SPELL_HEALING_TOUCH] = { "Healing Touch", Wow_SpellHealingTouch,      0,   15,  0.0f, NULL,                NULL },
 };
+DWORD const wow_spell_count = sizeof(wow_spells) / sizeof(wow_spells[0]);
+
+/* SPELL_NONE / SPELL_FIREBOLT etc. defined in g_wow_local.h */
 
 DWORD Wow_FireboltModel(void) {
     static DWORD model = 0;
@@ -551,26 +587,25 @@ DWORD Wow_FireboltModel(void) {
 
 /* ---- Cast State Machine ---- */
 
-static void Wow_BeginSpellCast(LPEDICT caster, DWORD spell_id, DWORD duration, DWORD target_num) {
+static void Wow_BeginSpellCast(LPEDICT caster, DWORD spell_id, DWORD target_num) {
     wowEntityLocal_t *cl = Wow_EntityLocal(caster);
     LPEDICT target = Wow_EdictByNumber(target_num);
-    if (!cl) return;
-    /* Cancel any pending melee attack; spell cast takes priority */
-    cl->attack_damage_time = 0;
-    cl->attack_backswing_time = 0;
-    cl->attack_time = 0;
+    if (!cl || spell_id >= wow_spell_count) return;
+    wowSpellDef_t const *def = &wow_spells[spell_id];
+    cl->attack_damage_time = 0; cl->attack_backswing_time = 0; cl->attack_time = 0;
     cl->cast_spell     = spell_id;
-    cl->cast_duration  = duration;
-    cl->cast_remaining = duration;
+    cl->cast_duration  = def->cast_time;
+    cl->cast_remaining = def->cast_time;
     cl->cast_target    = target_num;
     cl->cast_origin    = (VECTOR2){ caster->s.origin.x, caster->s.origin.y };
     cl->cast_release_time = 0;
-    /* Directed spells hold their ready loop until launch; attack animations are not valid fallbacks. */
-    static LPCSTR const ready_anims[] = { "ReadySpellDirected", "ReadySpellOmni", "Spell", NULL };
-    static wowMove_t s_move_ready = { "ReadySpellDirected", NULL, NULL };
-    Wow_SetEntityMoveFirstAnimation(caster, &s_move_ready, ready_anims);
+    if (def->ready_anim) {
+        LPCSTR anim_names[] = { def->ready_anim, NULL };
+        wowMove_t ready_move = { def->ready_anim, NULL, NULL };
+        Wow_SetEntityMoveFirstAnimation(caster, &ready_move, anim_names);
+    }
     if (target) Wow_FaceTarget(caster, target);
-    cl->gcd_time = WOW_GCD_MS; /* WoW starts the GCD when a successful cast begins, not when it finishes. */
+    cl->gcd_time = WOW_GCD_MS;
 }
 
 static void Wow_CancelSpellCast(LPEDICT caster) {
@@ -596,18 +631,14 @@ static void Wow_CompleteSpellCast(LPEDICT caster) {
             cl->cast_release_time = cl->animation->interval[1] - cl->animation->interval[0];
     }
     /* Mana consumed on completion; no cost if interrupted or cancelled */
-    switch (spell) {
-        case SPELL_FIREBOLT:
-            cl->mana = cl->mana >= WOW_FIREBOLT_MANA_COST ? cl->mana - WOW_FIREBOLT_MANA_COST : 0;
-            if (target && target->inuse) Wow_FireFirebolt(caster, target);
-            break;
-        case SPELL_FROSTBOLT:
-            cl->mana = cl->mana >= WOW_FROSTBOLT_MANA_COST ? cl->mana - WOW_FROSTBOLT_MANA_COST : 0;
-            if (target && target->inuse) Wow_FireFrostbolt(caster, target);
-            break;
-        case SPELL_HEALING_TOUCH:
-            Wow_HealingTouch(caster);
-            break;
+    if (spell < wow_spell_count) {
+        wowSpellDef_t const *def = &wow_spells[spell];
+        if (def->mana_cost)
+            cl->mana = cl->mana >= def->mana_cost ? cl->mana - def->mana_cost : 0;
+        if (def->cast && target && target->inuse)
+            def->cast(caster, target);
+        else if (!target || def->range == 0.0f)
+            def->cast(caster, NULL);  /* self-targeted or instant */
     }
     cl->cast_target = 0;
 }
@@ -916,8 +947,8 @@ static void Wow_UpdatePlayerHud(LPEDICT ent) {
     ps->stats[WOW_STAT_XP_MAX] = 400;
     ps->stats[WOW_STAT_COPPER] = 1234;
     /* Cast progress: remaining ms and total ms for client-side cast bar */
-    ps->stats[WOW_STAT_CAST_PROGRESS] = (USHORT)(local->cast_spell ? local->cast_remaining : 0);
-    ps->stats[WOW_STAT_CAST_MAX] = (USHORT)(local->cast_spell ? local->cast_duration : 0);
+    ps->stats[WOW_STAT_CAST_PROGRESS] = (USHORT)(local->cast_spell != SPELL_NONE ? local->cast_remaining : 0);
+    ps->stats[WOW_STAT_CAST_MAX] = (USHORT)(local->cast_spell != SPELL_NONE ? local->cast_duration : 0);
 }
 
 static void Wow_WriteHudIcon(wowHudIcon_t const *icon, DWORD slot) {
@@ -1009,6 +1040,12 @@ static LPEDICT Wow_FindNearestAttackTarget(LPEDICT ent, FLOAT range) {
 LPEDICT Wow_Spawn(void) {
     LPEDICT ent = NULL;
     DWORD index;
+
+    if (wow_spawns_this_frame >= WOW_MAX_SPAWNS_PER_FRAME) {
+        wow_spawns_deferred = true;
+        return NULL;
+    }
+    wow_spawns_this_frame++;
 
     if (globals.num_edicts < globals.max_edicts) {
         index = globals.num_edicts++;
@@ -1137,6 +1174,7 @@ static void Wow_InitPlayer(LPEDICT ent) {
     if (local) {
         memset(local, 0, sizeof(*local));
         local->kind = WOW_ENTITY_PLAYER;
+        local->cast_spell = SPELL_NONE;
         local->hostile = false;
         local->home = wow_spawn_origin;
         local->yaw = wow_move.yaw;
@@ -1314,6 +1352,15 @@ static DWORD Wow_SelectRandomSpawnPoint(LPCMAPINFO mapinfo, LPEDICT ent) {
     return MAX_PLAYERS;
 }
 
+static void Wow_ThinkUnit(LPEDICT ent) {
+    wowEntityLocal_t *el = Wow_EntityLocal(ent);
+    if (el && el->slow_timer > 0)
+        el->slow_timer = el->slow_timer > FRAMETIME ? el->slow_timer - FRAMETIME : 0;
+    Wow_RunCreatureFrame(ent);
+}
+static void Wow_ThinkProjectile(LPEDICT ent) { Wow_RunProjectile(ent); }
+static void Wow_ThinkDynamicObject(LPEDICT ent) { Wow_RunDynamicObjectFrame(ent); }
+
 static void Wow_SpawnEntities(void) {
     LPCMAPINFO mapinfo = CM_GetMapInfo();
     DWORD spawn_location = Wow_SelectRandomSpawnPoint(mapinfo, &wow_edicts[0]);
@@ -1343,9 +1390,12 @@ static void Wow_SpawnEntities(void) {
     wow_move.yaw = 0.0f;
     wow_move.pitch = 328.0f;
     wow_move.distance = 8.5f;
+    wow_spawns_this_frame = 0;
+    wow_spawns_deferred = false;
     Wow_InitPlayer(&wow_edicts[0]);
     globals.num_edicts = WOW_MAX_CLIENTS;
     Wow_SpawnAmbientCreatures(&wow_spawn_origin);
+    Wow_SpawnGameObjects(&wow_spawn_origin);
     /* Register spell impact models so the client can load them before the first
      * svc_temp_entity arrives.  Try several known WoW MPQ paths in preference order. */
     {
@@ -1385,6 +1435,9 @@ static void Wow_RunFrame(void) {
     FLOAT len;
     BOOL moving;
     BOOL locked;
+
+    wow_spawns_this_frame = 0;
+    wow_spawns_deferred = false;
 
     if (!ent->inuse || !ent->client) {
         return;
@@ -1496,16 +1549,12 @@ static void Wow_RunFrame(void) {
 process_entities:
     for (DWORD i = WOW_MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
         LPEDICT e = &wow_edicts[i];
-        if (e->inuse) {
-            wowEntityLocal_t *el = Wow_EntityLocal(e);
-            if (el && el->kind == WOW_ENTITY_PROJECTILE) {
-                Wow_RunProjectile(e);
-            } else {
-                if (el && el->slow_timer > 0)
-                    el->slow_timer = el->slow_timer > FRAMETIME ? el->slow_timer - FRAMETIME : 0;
-                Wow_RunCreatureFrame(e);
-            }
-        }
+        if (!e->inuse) continue;
+        wowEntityLocal_t *el = Wow_EntityLocal(e);
+        if (!el) continue;
+        wowEntityHandler_t *handler = &wow_entity_handlers[el->kind];
+        if (handler->think)
+            handler->think(e);
     }
 }
 
@@ -1561,56 +1610,45 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
     } else if (argc >= 2 && !strcasecmp(argv[0], "wow_action")) {
         DWORD slot = (DWORD)strtoul(argv[1], NULL, 10);
 
-        switch (slot) {
-            case 3: /* Healing Touch — instant cast */
-                {
-                    wowEntityLocal_t *cl = Wow_EntityLocal(ent);
-                    if (cl && (cl->cast_spell || cl->cast_release_time || cl->gcd_time > 0)) break;
-                    if (cl->mana < WOW_HEALING_TOUCH_MANA_COST) {
-                        fprintf(stderr, "WoW: Healing Touch — not enough mana\n");
-                        break;
-                    }
-                    Wow_HealingTouch(ent);
-                    cl->gcd_time = WOW_GCD_MS;
-                }
-                break;
-            case 4: /* Fireball prototype — 1.5s cast time */
-                {
-                    wowEntityLocal_t *cl = Wow_EntityLocal(ent);
-                    if (cl && (cl->cast_spell || cl->cast_release_time || cl->gcd_time > 0)) break;
-                    if (Wow_PlayerIsMoving()) {
-                        fprintf(stderr, "WoW: Fireball — cannot cast while moving\n");
-                        break;
-                    }
-                    LPEDICT target = Wow_FindSpellTarget(ent, WOW_FIREBOLT_RANGE);
-                    if (!target) { fprintf(stderr, "WoW: Fireball — no target in range\n"); break; }
-                    if (cl->mana < WOW_FIREBOLT_MANA_COST) {
-                        fprintf(stderr, "WoW: Fireball — not enough mana\n");
-                        break;
-                    }
-                    Wow_BeginSpellCast(ent, SPELL_FIREBOLT, WOW_FIREBOLT_CAST_TIME, target->s.number);
-                }
-                break;
-            case 5: /* Frostbolt — 2.5s cast time */
-                {
-                    wowEntityLocal_t *cl = Wow_EntityLocal(ent);
-                    if (cl && (cl->cast_spell || cl->cast_release_time || cl->gcd_time > 0)) break;
-                    if (Wow_PlayerIsMoving()) {
-                        fprintf(stderr, "WoW: Frostbolt — cannot cast while moving\n");
-                        break;
-                    }
-                    LPEDICT target = Wow_FindSpellTarget(ent, WOW_FROSTBOLT_RANGE);
-                    if (!target) { fprintf(stderr, "WoW: Frostbolt — no target in range\n"); break; }
-                    if (cl->mana < WOW_FROSTBOLT_MANA_COST) {
-                        fprintf(stderr, "WoW: Frostbolt — not enough mana\n");
-                        break;
-                    }
-                    Wow_BeginSpellCast(ent, SPELL_FROSTBOLT, WOW_FROSTBOLT_CAST_TIME, target->s.number);
-                }
-                break;
-            default:
-                fprintf(stderr, "WoW: unhandled action slot %u\n", (unsigned)slot);
-                break;
+        /* Map action bar slots to spell indices.
+         * Slots 0-2 = melee, 3 = heal, 4 = fire, 5 = frost. */
+        static DWORD const slot_to_spell[] = {
+            [0] = WOW_SPELL_ATTACK,
+            [1] = WOW_SPELL_ATTACK,
+            [2] = WOW_SPELL_ATTACK,
+            [3] = WOW_SPELL_HEALING_TOUCH,
+            [4] = WOW_SPELL_FIREBOLT,
+            [5] = WOW_SPELL_FROSTBOLT,
+        };
+        if (slot >= sizeof(slot_to_spell) / sizeof(slot_to_spell[0])) return;
+        DWORD spell = slot_to_spell[slot];
+        if (spell >= wow_spell_count) return;
+        wowSpellDef_t const *def = &wow_spells[spell];
+        wowEntityLocal_t *cl = Wow_EntityLocal(ent);
+
+        if (!cl || (cl->cast_spell != SPELL_NONE) || cl->cast_release_time || cl->gcd_time > 0) return;
+
+        if (def->cast_time > 0 && Wow_PlayerIsMoving()) {
+            fprintf(stderr, "WoW: %s — cannot cast while moving\n", def->name);
+            return;
+        }
+
+        if (def->mana_cost > cl->mana) {
+            fprintf(stderr, "WoW: %s — not enough mana\n", def->name);
+            return;
+        }
+
+        LPEDICT target = def->range > 0 ? Wow_FindSpellTarget(ent, def->range) : NULL;
+        if (def->range > 0 && !target) {
+            fprintf(stderr, "WoW: %s — no target in range\n", def->name);
+            return;
+        }
+
+        if (def->cast_time > 0) {
+            Wow_BeginSpellCast(ent, spell, target ? target->s.number : 0);
+        } else {
+            cl->gcd_time = WOW_GCD_MS;
+            if (def->cast) def->cast(ent, target);
         }
     }
 }

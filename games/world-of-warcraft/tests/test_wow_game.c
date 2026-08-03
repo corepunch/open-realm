@@ -621,7 +621,7 @@ static void test_wow_fireball_cast_interrupts_melee_and_launches(void) {
     ASSERT_EQ_INT((int)local->gcd_time, 1500);
 
     for (int i = 0; i < 15; i++) game->RunFrame();
-    ASSERT_EQ_INT((int)local->cast_spell, 0);
+    ASSERT_EQ_INT((int)local->cast_spell, (int)SPELL_NONE);
     ASSERT_EQ_INT((int)local->mana, 90);
     ASSERT_EQ_INT((int)local->gcd_time, 0);
     ASSERT(local->cast_release_time > 0);
@@ -657,14 +657,14 @@ static void test_wow_fireball_movement_cancels(void) {
     player->client->ps.selected_entity = creature->s.number;
     game->ClientCommand(player, 5, move_argv);
     game->ClientCommand(player, 2, action_argv);
-    ASSERT_EQ_INT((int)local->cast_spell, 0);
+    ASSERT_EQ_INT((int)local->cast_spell, (int)SPELL_NONE);
     ASSERT_EQ_INT((int)local->gcd_time, 0);
     game->ClientCommand(player, 5, stop_argv);
     game->ClientCommand(player, 2, action_argv);
     game->ClientCommand(player, 5, move_argv);
     game->RunFrame();
 
-    ASSERT_EQ_INT((int)local->cast_spell, 0);
+    ASSERT_EQ_INT((int)local->cast_spell, (int)SPELL_NONE);
     ASSERT_EQ_INT((int)local->mana, 100);
     ASSERT_EQ_INT((int)player->client->ps.stats[WOW_STAT_CAST_MAX], 0);
     FOR_LOOP(i, (DWORD)globals.num_edicts) {

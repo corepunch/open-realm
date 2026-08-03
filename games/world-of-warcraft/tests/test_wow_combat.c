@@ -116,6 +116,11 @@ void Wow_AdvanceEntityFrame(LPEDICT ent) {
     }
 }
 
+LPEDICT Wow_SpawnCorpse(LPEDICT dead_entity) {
+    (void)dead_entity;
+    return NULL; /* stub: combat tests don't test corpse logic */
+}
+
 static void test_pain_stub(LPEDICT ent) {
     (void)ent;
     g_pain_calls++;

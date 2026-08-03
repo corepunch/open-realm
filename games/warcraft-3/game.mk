@@ -156,6 +156,8 @@ test: test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) | $(BIN_DIR)
 	@$(MAKE) test-wow-appearance
 	@$(MAKE) test-wow-combat
 	@$(MAKE) test-wow-game
+	@$(MAKE) test-wow-entities
+	@$(MAKE) test-wow-abilities
 	@$(MAKE) test-wow-ui
 	@$(MAKE) test-ui
 

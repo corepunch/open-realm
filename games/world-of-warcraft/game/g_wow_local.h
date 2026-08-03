@@ -31,9 +31,51 @@
 typedef enum {
     WOW_ENTITY_NONE,
     WOW_ENTITY_PLAYER,
-    WOW_ENTITY_CREATURE,
+    WOW_ENTITY_UNIT,
+    WOW_ENTITY_GAMEOBJECT,
+    WOW_ENTITY_CORPSE,
     WOW_ENTITY_PROJECTILE,
+    WOW_ENTITY_DYNAMICOBJECT,
+    WOW_ENTITY_ITEM,
+    WOW_ENTITY_CONTAINER,
+    WOW_ENTITY_COUNT
 } wowEntityKind_t;
+#define WOW_ENTITY_CREATURE WOW_ENTITY_UNIT /* backward compat */
+
+typedef struct wowSpellDef_s {
+    LPCSTR name;
+    void (*cast)(LPEDICT caster, LPEDICT target);
+    DWORD cast_time;     /* ms, 0 = instant */
+    DWORD mana_cost;
+    FLOAT range;         /* 0 = melee range / self */
+    LPCSTR cast_anim;    /* animation during cast channel */
+    LPCSTR ready_anim;   /* animation while waiting for cast */
+} wowSpellDef_t;
+
+extern wowSpellDef_t const wow_spells[];
+extern DWORD const wow_spell_count;
+
+#define WOW_SPELL_ATTACK        0
+#define WOW_SPELL_FIREBOLT      1
+#define WOW_SPELL_FROSTBOLT     2
+#define WOW_SPELL_HEALING_TOUCH 3
+
+#define SPELL_NONE ((DWORD)-1)  /* sentinel: no spell is casting */
+
+typedef struct wowEntityCreateParams_s {
+    VECTOR2 origin;
+    FLOAT yaw;
+    DWORD display_id;
+} wowEntityCreateParams_t;
+
+typedef void (*wowEntityThinkFn)(LPEDICT ent);
+
+typedef struct {
+    LPCSTR            name;
+    wowEntityThinkFn  think;
+} wowEntityHandler_t;
+
+extern wowEntityHandler_t wow_entity_handlers[WOW_ENTITY_COUNT];
 
 typedef struct wowMove_s {
     LPCSTR animation;
@@ -80,6 +122,20 @@ typedef struct {
     DWORD projectile_damage;
     FLOAT projectile_yaw;
     FLOAT projectile_pitch;
+    /* GameObject fields (kind == WOW_ENTITY_GAMEOBJECT) */
+    DWORD go_entry;
+    DWORD go_type;
+    DWORD go_state;   /* 0=ready, 1=active, 2=destroyed */
+    BOOL  go_interactive;
+    DWORD go_display_id;
+    /* Corpse fields (kind == WOW_ENTITY_CORPSE) */
+    DWORD corpse_owner;
+    DWORD corpse_timer;
+    /* DynamicObject fields (kind == WOW_ENTITY_DYNAMICOBJECT) */
+    DWORD dyn_spell_id;
+    DWORD dyn_caster;
+    DWORD dyn_radius;
+    DWORD dyn_duration;
 } wowEntityLocal_t;
 
 typedef struct {
@@ -148,6 +204,16 @@ BOOL Wow_SetCombatReadyAnimation(LPEDICT ent);
 void Wow_AIRunFrame(LPEDICT ent);
 void Wow_SpawnAmbientCreatures(LPCVECTOR2 origin);
 void Wow_RunCreatureFrame(LPEDICT ent);
+void Wow_SpawnGameObjects(LPCVECTOR2 origin);
+void Wow_RunGameObjectFrame(LPEDICT ent);
+LPEDICT Wow_SpawnCorpse(LPEDICT dead_entity);
+void Wow_RunCorpseFrame(LPEDICT ent);
+void Wow_RunDynamicObjectFrame(LPEDICT ent);
+LPEDICT Wow_SpawnDynamicObject(DWORD spell_id, LPCVECTOR2 origin, DWORD duration);
+LPCSTR Wow_CachedCreatureName(DWORD display_id);
+DWORD Wow_CachedCreatureType(DWORD display_id);
+DWORD Wow_CachedCreatureFamily(DWORD display_id);
+DWORD Wow_CachedCreatureRank(DWORD display_id);
 void UI_WriteWowHud(LPEDICT ent);
 
 /* Ability/projectile system */
