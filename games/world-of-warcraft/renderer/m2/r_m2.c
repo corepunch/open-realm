@@ -195,9 +195,8 @@ typedef struct {
     m2Track_t visibility_track;
 } m2Particle_t;
 
-/* Classic (TBC, version <= 263) particle emitter — tracks are m2TrackClassic_t (28 bytes each).
-   Key differences from modern: 10 tracks (no zsource), no life_variation/emission_rate_variation
-   float fields interspersed between tracks; all tracks are contiguous. */
+/* Classic (Vanilla/TBC) particle header and track block. The 0x1f8 record stores static
+   lifecycle values after ten 28-byte tracks; it does not contain modern FBlocks. */
 typedef struct {
     DWORD particle_id;
     DWORD flags;
@@ -224,30 +223,7 @@ typedef struct {
     m2TrackClassic_t width_track;
     m2TrackClassic_t length_track;
     m2TrackClassic_t visibility_track;
-    m2PartTrack_t color_track;
-    m2PartTrack_t alpha_track;
-    m2PartTrack_t scale_track;
-    VECTOR2 scale_variation;
-    m2PartTrack_t head_cell_track;
-    m2PartTrack_t tail_cell_track;
-    FLOAT tail_length;
-    FLOAT twinkle_fps;
-    FLOAT twinkle_onoff;
-    FLOAT twinkle_scale[2];
-    FLOAT ivel_scale;
-    FLOAT drag;
-    FLOAT initial_spin;
-    FLOAT initial_spin_variation;
-    FLOAT spin;
-    FLOAT spin_variation;
-    m2Box_t tumble;
-    VECTOR3 wind_vector;
-    FLOAT wind_time;
-    FLOAT follow_speed1;
-    FLOAT follow_scale1;
-    FLOAT follow_speed2;
-    FLOAT follow_scale2;
-    m2Array_t spline;
+    BYTE lifecycle_data[0x1f8 - 0x14c];
 } m2ParticleClassic_t;
 
 typedef struct {
@@ -2285,24 +2261,35 @@ static LPTEXTURE m2_ribbon_texture(m2Model_t const *model, m2Ribbon_t const *r, 
 typedef struct {
 	FLOAT speed, varia, lat, lon, grav, life, life_var, zsource;
 	FLOAT alpha[3]; VECTOR2 scale[3]; VECTOR3 color[3];
-	LPTEXTURE texture;
+	LPTEXTURE texture; WORD bone_index;
 	m2Model_t const *model; m2Particle_t const *p; LPCMATRIX4 model_matrix;
 } m2_pctx_t;
+
+/* M2 emitter positions are local to their bone, not the model origin. */
+static void M2_EmitterMatrix(m2_pctx_t const *ctx, LPMATRIX4 out) {
+    if (ctx->model && ctx->bone_index < ctx->model->bone_count && ctx->model->bone_matrices) {
+        Matrix4_multiply(ctx->model_matrix, &ctx->model->bone_matrices[ctx->bone_index], out);
+        return;
+    }
+    *out = *ctx->model_matrix;
+}
 
 static void m2_spawn_particle(void *raw) {
 	m2_pctx_t *ctx = (m2_pctx_t *)raw;
 	cparticle_t *fx = R_SpawnParticle(); if (!fx) return;
 	FLOAT r = (FLOAT)rand() / (FLOAT)RAND_MAX;
+	MATRIX4 emitter_matrix;
+	M2_EmitterMatrix(ctx, &emitter_matrix);
 	VECTOR3 local_origin = ctx->p->position;
 	local_origin.z += ctx->zsource;
-	VECTOR3 org = Matrix4_multiply_vector3(ctx->model_matrix, &local_origin);
+	VECTOR3 org = Matrix4_multiply_vector3(&emitter_matrix, &local_origin);
 	VECTOR3 dir = {
 		cosf(ctx->lon + (r - 0.5f) * 6.2831853f) * cosf(ctx->lat),
 		sinf(ctx->lon + (r - 0.5f) * 6.2831853f) * cosf(ctx->lat),
 		sinf(ctx->lat + (r - 0.5f) * 0.5f),
 	};
-	VECTOR3 w_dir = Matrix4_multiply_vector3(ctx->model_matrix, &dir);
-	VECTOR3 w_zero = Matrix4_multiply_vector3(ctx->model_matrix, &(VECTOR3){ 0, 0, 0 });
+	VECTOR3 w_dir = Matrix4_multiply_vector3(&emitter_matrix, &dir);
+	VECTOR3 w_zero = Matrix4_multiply_vector3(&emitter_matrix, &(VECTOR3){ 0, 0, 0 });
 	dir = Vector3_sub(&w_dir, &w_zero);
 	Vector3_normalize(&dir);
 	fx->texture = ctx->texture;
@@ -2387,6 +2374,24 @@ static m2PartTrack_t const *m2p_part_track(m2Model_t const *model, BYTE const *r
     return (m2PartTrack_t const *)(raw + m2p_part_track_base(model) + n * sizeof(m2PartTrack_t));
 }
 
+/* Vanilla/TBC stores three static BGRA lifecycle colors and three scalar scales. */
+static void m2p_sample_classic_data(BYTE const *raw, m2_pctx_t *ctx) {
+    FLOAT midpoint = *(FLOAT const *)(raw + 0x14c);
+    BOOL all_alpha_zero = true;
+    if (midpoint < 0.0f || midpoint > 1.0f) midpoint = 0.5f;
+    FOR_LOOP(i, 3) {
+        DWORD bgra = *(DWORD const *)(raw + 0x150 + i * 4);
+        ctx->color[i] = (VECTOR3){ ((bgra >> 16) & 0xff) / 255.0f, ((bgra >> 8) & 0xff) / 255.0f,
+                                   (bgra & 0xff) / 255.0f };
+        ctx->alpha[i] = ((bgra >> 24) & 0xff) / 255.0f;
+        ctx->scale[i] = (VECTOR2){ *(FLOAT const *)(raw + 0x15c + i * 4), 0.0f };
+        if (ctx->alpha[i] > 0.01f) all_alpha_zero = false;
+        if (ctx->scale[i].x < 0.001f || ctx->scale[i].x > 100.0f) ctx->scale[i].x = 1.0f;
+    }
+    if (all_alpha_zero) { ctx->alpha[0] = 1.0f; ctx->alpha[1] = 1.0f; ctx->alpha[2] = 0.0f; }
+    (void)midpoint;
+}
+
 static void M2_DrawParticles(m2Model_t const *model, renderEntity_t const *entity, LPCMATRIX4 model_matrix) {
 	if (!model || !entity || !model->particles.size) return;
 	BYTE const *base = M2_ModelArrayPtr(model, model->particles, model->particle_stride);
@@ -2419,19 +2424,23 @@ static void M2_DrawParticles(m2Model_t const *model, renderEntity_t const *entit
 		ctx.life     = life;
 		ctx.life_var = m2p_life_variation(model, raw);
 		{ m2TrackView_t t = m2p_track_indexed(model, raw, M2P_ZSOURCE);   ctx.zsource = M2_EvaluateFloatTrack(model, &t, seq_idx, seq_time, 0.0f); }
-		m2PartTrack_t const *alpha_pt  = m2p_part_track(model, raw, 1);
-		m2PartTrack_t const *scale_pt  = m2p_part_track(model, raw, 2);
-		m2PartTrack_t const *color_pt  = m2p_part_track(model, raw, 0);
-		{ SHORT raw2; m2_sample_part_track(model, alpha_pt, 0.0f, sizeof(raw2), &raw2); ctx.alpha[0] = m2_fixed16_to_float(raw2);
-		             m2_sample_part_track(model, alpha_pt, 0.5f, sizeof(raw2), &raw2); ctx.alpha[1] = m2_fixed16_to_float(raw2);
-		             m2_sample_part_track(model, alpha_pt, 1.0f, sizeof(raw2), &raw2); ctx.alpha[2] = m2_fixed16_to_float(raw2); }
-		m2_sample_part_track(model, scale_pt, 0.0f, sizeof(VECTOR2), &ctx.scale[0]);
-		m2_sample_part_track(model, scale_pt, 0.5f, sizeof(VECTOR2), &ctx.scale[1]);
-		m2_sample_part_track(model, scale_pt, 1.0f, sizeof(VECTOR2), &ctx.scale[2]);
-		m2_sample_part_track(model, color_pt, 0.0f, sizeof(VECTOR3), &ctx.color[0]);
-		m2_sample_part_track(model, color_pt, 0.5f, sizeof(VECTOR3), &ctx.color[1]);
-		m2_sample_part_track(model, color_pt, 1.0f, sizeof(VECTOR3), &ctx.color[2]);
+		if (model->classic_particles) m2p_sample_classic_data(raw, &ctx);
+		else {
+			m2PartTrack_t const *alpha_pt = m2p_part_track(model, raw, 1);
+			m2PartTrack_t const *scale_pt = m2p_part_track(model, raw, 2);
+			m2PartTrack_t const *color_pt = m2p_part_track(model, raw, 0);
+			{ SHORT raw2; m2_sample_part_track(model, alpha_pt, 0.0f, sizeof(raw2), &raw2); ctx.alpha[0] = m2_fixed16_to_float(raw2);
+			             m2_sample_part_track(model, alpha_pt, 0.5f, sizeof(raw2), &raw2); ctx.alpha[1] = m2_fixed16_to_float(raw2);
+			             m2_sample_part_track(model, alpha_pt, 1.0f, sizeof(raw2), &raw2); ctx.alpha[2] = m2_fixed16_to_float(raw2); }
+			m2_sample_part_track(model, scale_pt, 0.0f, sizeof(VECTOR2), &ctx.scale[0]);
+			m2_sample_part_track(model, scale_pt, 0.5f, sizeof(VECTOR2), &ctx.scale[1]);
+			m2_sample_part_track(model, scale_pt, 1.0f, sizeof(VECTOR2), &ctx.scale[2]);
+			m2_sample_part_track(model, color_pt, 0.0f, sizeof(VECTOR3), &ctx.color[0]);
+			m2_sample_part_track(model, color_pt, 0.5f, sizeof(VECTOR3), &ctx.color[1]);
+			m2_sample_part_track(model, color_pt, 1.0f, sizeof(VECTOR3), &ctx.color[2]);
+		}
 		ctx.texture = m2_particle_texture(model, p);
+		ctx.bone_index = p->bone_index;
 		R_EmitParticles(rate, &model->emitter_accumulators[i], tr.viewDef.deltaTime, m2_spawn_particle, &ctx);
 	}
 }
@@ -2514,7 +2523,10 @@ static void M2_DrawRibbons(m2Model_t const *model, renderEntity_t const *entity,
 		LPTEXTURE tex = m2_ribbon_texture(model, r, slot);
 		FLOAT grav = *m2r_scalar(model, raw, 2);
 		/* -- Emit new edges at the animated spine position ---------------- */
-		VECTOR3 spine = Matrix4_multiply_vector3(model_matrix, &r->position);
+		MATRIX4 emitter_matrix = *model_matrix;
+		if (r->bone_index < model->bone_count && model->bone_matrices)
+			Matrix4_multiply(model_matrix, &model->bone_matrices[r->bone_index], &emitter_matrix);
+		VECTOR3 spine = Matrix4_multiply_vector3(&emitter_matrix, &r->position);
 		res->acc += eps * dt;
 		while (res->acc >= 1.0f) {
 			res->acc -= 1.0f;
@@ -3463,9 +3475,7 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
     if (!entity || !model || !transform) {
         return;
     }
-    if (!Frustum_ContainsBox(&tr.viewDef.frustum, &model->bounds, transform)) {
-        return;
-    }
+    if (!Frustum_ContainsBox(&tr.viewDef.frustum, &model->bounds, transform)) return;
 
     shader = M2_Shader();
     M2_CalculateBoneMatrices(model, entity);

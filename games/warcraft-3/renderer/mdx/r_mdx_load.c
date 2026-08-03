@@ -555,6 +555,7 @@ void ReadParticleEmitter(LPSIZEBUF buffer, mdxParticleEmitter_t *pe) {
     MSG_READ(buffer, pe->Squirt);
     MSG_READ(buffer, pe->PriorityPlane);
     MSG_READ(buffer, pe->ReplaceableId);
+    pe->emitter_type = (pe->FrameFlags == 2) ? MODEL_EMITTER_TAIL : MODEL_EMITTER_HEAD;
     while (MSG_Read(buffer, &header, 4)) {
         switch (header) {
             case ID_KP2V: ReadKeyTrack(buffer, TDATA_FLOAT1, &pe->keytracks.Visibility); break;

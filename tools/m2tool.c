@@ -245,6 +245,77 @@ typedef struct {
     WORD texture_transform_combo_index;
 } m2Batch_t;
 
+typedef struct {
+    m2Array_t times;
+    m2Array_t values;
+} m2PartTrack_t;
+
+/* Modern (WotLK+) particle emitter binary layout — m2Track_t (20 bytes each). */
+typedef struct {
+    DWORD particle_id, flags; VECTOR3 position; WORD bone_index, texture_index;
+    m2Array_t geometry_mdl, recursion_mdl;
+    BYTE blend_mode, emitter_type; WORD color_index, pad; SHORT priority_plane; WORD rows, cols;
+    m2Track_t speed_track, variation_track, latitude_track, longitude_track, gravity_track, life_track;
+    FLOAT life_variation;
+    m2Track_t emission_rate_track;
+    FLOAT emission_rate_variation;
+    m2Track_t width_track, length_track, zsource_track;
+    m2PartTrack_t color_track, alpha_track, scale_track;
+    VECTOR2 scale_variation;
+    m2PartTrack_t head_cell_track, tail_cell_track;
+    FLOAT tail_length, twinkle_fps, twinkle_onoff, twinkle_scale[2];
+    FLOAT ivel_scale, drag, initial_spin, initial_spin_variation, spin, spin_variation;
+    VECTOR3 tumble_min, tumble_max;
+    VECTOR3 wind_vector; FLOAT wind_time;
+    FLOAT follow_speed1, follow_scale1, follow_speed2, follow_scale2;
+    m2Array_t spline;
+    m2Track_t visibility_track;
+} m2ParticleModern_t;
+
+/* Classic (TBC, version <= 263) particle emitter — m2TrackClassic_t (24 bytes each). */
+typedef struct {
+    DWORD particle_id, flags; VECTOR3 position; WORD bone_index, texture_index;
+    m2Array_t geometry_mdl, recursion_mdl;
+    BYTE blend_mode, emitter_type; WORD color_index, pad; SHORT priority_plane; WORD rows, cols;
+    m2TrackClassic_t speed_track, variation_track, latitude_track, longitude_track, gravity_track, life_track;
+    FLOAT life_variation;
+    m2TrackClassic_t emission_rate_track;
+    FLOAT emission_rate_variation;
+    m2TrackClassic_t width_track, length_track, zsource_track;
+    m2PartTrack_t color_track, alpha_track, scale_track;
+    VECTOR2 scale_variation;
+    m2PartTrack_t head_cell_track, tail_cell_track;
+    FLOAT tail_length, twinkle_fps, twinkle_onoff, twinkle_scale[2];
+    FLOAT ivel_scale, drag, initial_spin, initial_spin_variation, spin, spin_variation;
+    VECTOR3 tumble_min, tumble_max;
+    VECTOR3 wind_vector; FLOAT wind_time;
+    FLOAT follow_speed1, follow_scale1, follow_speed2, follow_scale2;
+    m2Array_t spline;
+    m2TrackClassic_t visibility_track;
+} m2ParticleClassic_t;
+
+/* Modern ribbon emitter — m2Track_t (20 bytes each). */
+typedef struct {
+    DWORD ribbon_id; WORD bone_index, pad0; VECTOR3 position;
+    m2Array_t texture_indices, material_indices;
+    m2Track_t color_track, alpha_track, height_above_track, height_below_track;
+    FLOAT edges_per_second, edge_lifetime, gravity;
+    WORD texture_rows, texture_cols;
+    m2Track_t texture_slot_track, visibility_track;
+    SHORT priority_plane; WORD pad1;
+} m2RibbonModern_t;
+
+/* Classic ribbon emitter — m2TrackClassic_t (24 bytes each). */
+typedef struct {
+    DWORD ribbon_id; WORD bone_index, pad0; VECTOR3 position;
+    m2Array_t texture_indices, material_indices;
+    m2TrackClassic_t color_track, alpha_track, height_above_track, height_below_track;
+    FLOAT edges_per_second, edge_lifetime, gravity;
+    WORD texture_rows, texture_cols;
+    m2TrackClassic_t texture_slot_track, visibility_track;
+    SHORT priority_plane; WORD pad1;
+} m2RibbonClassic_t;
+
 static HANDLE archives[64] = { 0 };
 static LPCSTR g_model_path = NULL;
 static LPCSTR g_skin_path = NULL;
@@ -1616,6 +1687,111 @@ static LPCSTR TextureTypeName(DWORD type) {
     }
 }
 
+static void PrintTrackInfo(LPCSTR label, BOOL classic, WORD type, DWORD keys_off, DWORD keys_n) {
+    static LPCSTR const track_names[] = { "none", "linear", "hermite", "bezier" };
+    LPCSTR tname = type < 4 ? track_names[type] : "?";
+    printf("    %-22s type=%s(%u) keys_off=%u keys_n=%u\n", label, tname, (unsigned)type,
+           (unsigned)keys_off, (unsigned)keys_n);
+}
+
+static void PrintParticleEmitters(BYTE const *data, DWORD size, m2HeaderInfo_t const *header) {
+    BOOL classic = header->version <= 263;
+    DWORD stride = classic ? sizeof(m2ParticleClassic_t) : sizeof(m2ParticleModern_t);
+    DWORD count = (DWORD)header->particle_emitters.count;
+    DWORD off = (DWORD)header->particle_emitters.offset;
+    if (!count) return;
+    if (off + count * stride > size) {
+        printf("particle_emitters: %u entries but data out of bounds (off=%u stride=%u size=%u)\n",
+               (unsigned)count, (unsigned)off, (unsigned)stride, (unsigned)size);
+        return;
+    }
+    printf("particle_emitters: %u (%s)\n", (unsigned)count, classic ? "classic/tbc" : "modern");
+    FOR_LOOP(i, count) {
+        BYTE const *raw = data + off + i * stride;
+        if (classic) {
+            m2ParticleClassic_t const *p = (m2ParticleClassic_t const *)raw;
+            printf("  [%u] id=0x%x flags=0x%x bone=%u tex=%u blend=%u etype=%u rows=%u cols=%u\n",
+                   (unsigned)i, (unsigned)p->particle_id, (unsigned)p->flags,
+                   (unsigned)p->bone_index, (unsigned)p->texture_index,
+                   (unsigned)p->blend_mode, (unsigned)p->emitter_type,
+                   (unsigned)p->rows, (unsigned)p->cols);
+            PrintTrackInfo("speed_track",         classic, p->speed_track.track_type,         p->speed_track.keys.offset,         p->speed_track.keys.count);
+            PrintTrackInfo("variation_track",      classic, p->variation_track.track_type,      p->variation_track.keys.offset,      p->variation_track.keys.count);
+            PrintTrackInfo("latitude_track",       classic, p->latitude_track.track_type,       p->latitude_track.keys.offset,       p->latitude_track.keys.count);
+            PrintTrackInfo("longitude_track",      classic, p->longitude_track.track_type,      p->longitude_track.keys.offset,      p->longitude_track.keys.count);
+            PrintTrackInfo("gravity_track",        classic, p->gravity_track.track_type,        p->gravity_track.keys.offset,        p->gravity_track.keys.count);
+            PrintTrackInfo("life_track",           classic, p->life_track.track_type,           p->life_track.keys.offset,           p->life_track.keys.count);
+            PrintTrackInfo("emission_rate_track",  classic, p->emission_rate_track.track_type,  p->emission_rate_track.keys.offset,  p->emission_rate_track.keys.count);
+            PrintTrackInfo("width_track",          classic, p->width_track.track_type,          p->width_track.keys.offset,          p->width_track.keys.count);
+            PrintTrackInfo("length_track",         classic, p->length_track.track_type,         p->length_track.keys.offset,         p->length_track.keys.count);
+            PrintTrackInfo("zsource_track",        classic, p->zsource_track.track_type,        p->zsource_track.keys.offset,        p->zsource_track.keys.count);
+            PrintTrackInfo("visibility_track",     classic, p->visibility_track.track_type,     p->visibility_track.keys.offset,     p->visibility_track.keys.count);
+        } else {
+            m2ParticleModern_t const *p = (m2ParticleModern_t const *)raw;
+            printf("  [%u] id=0x%x flags=0x%x bone=%u tex=%u blend=%u etype=%u rows=%u cols=%u\n",
+                   (unsigned)i, (unsigned)p->particle_id, (unsigned)p->flags,
+                   (unsigned)p->bone_index, (unsigned)p->texture_index,
+                   (unsigned)p->blend_mode, (unsigned)p->emitter_type,
+                   (unsigned)p->rows, (unsigned)p->cols);
+            PrintTrackInfo("speed_track",         classic, p->speed_track.track_type,         p->speed_track.sequence_keys.offset, p->speed_track.sequence_keys.count);
+            PrintTrackInfo("variation_track",      classic, p->variation_track.track_type,      p->variation_track.sequence_keys.offset, p->variation_track.sequence_keys.count);
+            PrintTrackInfo("latitude_track",       classic, p->latitude_track.track_type,       p->latitude_track.sequence_keys.offset, p->latitude_track.sequence_keys.count);
+            PrintTrackInfo("longitude_track",      classic, p->longitude_track.track_type,      p->longitude_track.sequence_keys.offset, p->longitude_track.sequence_keys.count);
+            PrintTrackInfo("gravity_track",        classic, p->gravity_track.track_type,        p->gravity_track.sequence_keys.offset,  p->gravity_track.sequence_keys.count);
+            PrintTrackInfo("life_track",           classic, p->life_track.track_type,           p->life_track.sequence_keys.offset,  p->life_track.sequence_keys.count);
+            PrintTrackInfo("emission_rate_track",  classic, p->emission_rate_track.track_type,  p->emission_rate_track.sequence_keys.offset, p->emission_rate_track.sequence_keys.count);
+            PrintTrackInfo("width_track",          classic, p->width_track.track_type,          p->width_track.sequence_keys.offset,  p->width_track.sequence_keys.count);
+            PrintTrackInfo("length_track",         classic, p->length_track.track_type,         p->length_track.sequence_keys.offset, p->length_track.sequence_keys.count);
+            PrintTrackInfo("zsource_track",        classic, p->zsource_track.track_type,        p->zsource_track.sequence_keys.offset, p->zsource_track.sequence_keys.count);
+            PrintTrackInfo("visibility_track",     classic, p->visibility_track.track_type,     p->visibility_track.sequence_keys.offset, p->visibility_track.sequence_keys.count);
+        }
+    }
+}
+
+static void PrintRibbonEmitters(BYTE const *data, DWORD size, m2HeaderInfo_t const *header) {
+    BOOL classic = header->version <= 263;
+    DWORD stride = classic ? sizeof(m2RibbonClassic_t) : sizeof(m2RibbonModern_t);
+    DWORD count = (DWORD)header->ribbon_emitters.count;
+    DWORD off = (DWORD)header->ribbon_emitters.offset;
+    if (!count) return;
+    if (off + count * stride > size) {
+        printf("ribbon_emitters: %u entries but data out of bounds (off=%u stride=%u size=%u)\n",
+               (unsigned)count, (unsigned)off, (unsigned)stride, (unsigned)size);
+        return;
+    }
+    printf("ribbon_emitters: %u (%s)\n", (unsigned)count, classic ? "classic/tbc" : "modern");
+    FOR_LOOP(i, count) {
+        BYTE const *raw = data + off + i * stride;
+        if (classic) {
+            m2RibbonClassic_t const *r = (m2RibbonClassic_t const *)raw;
+            printf("  [%u] id=0x%x bone=%u tex_n=%u mat_n=%u edges_per_sec=%.2f life=%.2f grav=%.2f rows=%u cols=%u\n",
+                   (unsigned)i, (unsigned)r->ribbon_id, (unsigned)r->bone_index,
+                   (unsigned)r->texture_indices.count, (unsigned)r->material_indices.count,
+                   r->edges_per_second, r->edge_lifetime, r->gravity,
+                   (unsigned)r->texture_rows, (unsigned)r->texture_cols);
+            PrintTrackInfo("color_track",        classic, r->color_track.track_type,        r->color_track.keys.offset,        r->color_track.keys.count);
+            PrintTrackInfo("alpha_track",        classic, r->alpha_track.track_type,        r->alpha_track.keys.offset,        r->alpha_track.keys.count);
+            PrintTrackInfo("height_above_track", classic, r->height_above_track.track_type, r->height_above_track.keys.offset, r->height_above_track.keys.count);
+            PrintTrackInfo("height_below_track", classic, r->height_below_track.track_type, r->height_below_track.keys.offset, r->height_below_track.keys.count);
+            PrintTrackInfo("texture_slot_track", classic, r->texture_slot_track.track_type, r->texture_slot_track.keys.offset, r->texture_slot_track.keys.count);
+            PrintTrackInfo("visibility_track",   classic, r->visibility_track.track_type,   r->visibility_track.keys.offset,   r->visibility_track.keys.count);
+        } else {
+            m2RibbonModern_t const *r = (m2RibbonModern_t const *)raw;
+            printf("  [%u] id=0x%x bone=%u tex_n=%u mat_n=%u edges_per_sec=%.2f life=%.2f grav=%.2f rows=%u cols=%u\n",
+                   (unsigned)i, (unsigned)r->ribbon_id, (unsigned)r->bone_index,
+                   (unsigned)r->texture_indices.count, (unsigned)r->material_indices.count,
+                   r->edges_per_second, r->edge_lifetime, r->gravity,
+                   (unsigned)r->texture_rows, (unsigned)r->texture_cols);
+            PrintTrackInfo("color_track",        classic, r->color_track.track_type,        r->color_track.sequence_keys.offset,        r->color_track.sequence_keys.count);
+            PrintTrackInfo("alpha_track",        classic, r->alpha_track.track_type,        r->alpha_track.sequence_keys.offset,        r->alpha_track.sequence_keys.count);
+            PrintTrackInfo("height_above_track", classic, r->height_above_track.track_type, r->height_above_track.sequence_keys.offset, r->height_above_track.sequence_keys.count);
+            PrintTrackInfo("height_below_track", classic, r->height_below_track.track_type, r->height_below_track.sequence_keys.offset, r->height_below_track.sequence_keys.count);
+            PrintTrackInfo("texture_slot_track", classic, r->texture_slot_track.track_type, r->texture_slot_track.sequence_keys.offset, r->texture_slot_track.sequence_keys.count);
+            PrintTrackInfo("visibility_track",   classic, r->visibility_track.track_type,   r->visibility_track.sequence_keys.offset,   r->visibility_track.sequence_keys.count);
+        }
+    }
+}
+
 static void PrintTextures(BYTE const *data, DWORD size, m2HeaderInfo_t const *header) {
     m2Texture_t const *textures = ArrayPtr(data, size, header->textures, sizeof(*textures));
 
@@ -2067,6 +2243,8 @@ static void InspectModel(void) {
         PrintHeaderArrays(&header);
         PrintAttachments(payload, payload_size, &header);
         PrintEvents(payload, payload_size, &header);
+        PrintParticleEmitters(payload, payload_size, &header);
+        PrintRibbonEmitters(payload, payload_size, &header);
         PrintTextures(payload, payload_size, &header);
         PrintTextureLookup(payload, payload_size, &header);
         PrintSkinInfo(resolved, payload, payload_size, &header);

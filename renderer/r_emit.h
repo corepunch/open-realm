@@ -11,6 +11,7 @@ static VECTOR3 FX_GenerateRandomDirection(float latitude) {
 	return (VECTOR3){ sinf(phi) * cosf(theta), sinf(phi) * sinf(theta), cosf(phi) };
 }
 
+__attribute__((unused))
 static VECTOR3 FX_GenerateRandomOrigin(float length, float width) {
 	return (VECTOR3){
 		(float)(((double)rand() / (double)RAND_MAX - 0.5) * length),

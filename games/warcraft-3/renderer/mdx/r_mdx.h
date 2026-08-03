@@ -2,6 +2,7 @@
 #define __r_mdx_h__
 
 #include "renderer/r_local.h"
+#include "renderer/r_trail.h"
 
 #define MODEL_ATTACHMENT_PATH_LENGTH 0x100
 #define MDX_TEXTURE_PATH_LENGTH 260
@@ -298,6 +299,11 @@ typedef struct mdxParticleEmitter_s {
     } keytracks;
     
     struct mdxParticleEmitter_s *next;
+
+    /* Frame-persistent state — zeroed at load time, survives across frames */
+    float accumulator;          /* emission rate accumulator for R_EmitParticles */
+    int emitter_type;           /* MODEL_EMITTER_HEAD (1) or MODEL_EMITTER_TAIL (2), set at load */
+    trailEmitter_t trail;       /* ring buffer for MODEL_EMITTER_TAIL */
 } mdxParticleEmitter_t;
 
 typedef struct mdxGeoset_s {

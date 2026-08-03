@@ -58,6 +58,14 @@ Current renderer code loads enough WMO root/group data to create visible batches
 | `.anim` | External animation data used by later client eras and some models. | Animation tracks split out from the base model. | [wowdev M2](https://wowdev.wiki/M2), [wow-m2 README](https://docs.rs/crate/wow-m2/latest/source/README.md). |
 | `.skel`, `.bone`, `.phys` | Later-era skeleton, bone, and physics companions. | Modern model support. | [pywowlib support table](https://github.com/wowdev/pywowlib), [wow-m2 docs.rs](https://docs.rs/wow-m2). |
 
+### M2 effect-emitter version split
+
+Classic/TBC (`MD20` version `<264`) particle records are `0x1f8` bytes: ten 28-byte vanilla tracks followed by static
+BGRA lifecycle colors and scalar scales. They are not the later WotLK record with FBlocks. The emitter position is local to
+its referenced bone, so particle and ribbon spines must be transformed by `model_matrix * bone_matrix` before emission.
+`data/WoWee/src/pipeline/m2_loader.cpp` is the local reference for these offsets; `data/WoWee/src/rendering/m2_renderer_particles.cpp`
+keeps the corresponding per-instance particle accumulators and ribbon edge state.
+
 Character-display specifics are scattered across model files and DBC tables. For our current classic-era work, the highest-value cross-checks are:
 
 - `data/whoa-master/src/component/CCharacterComponent.cpp` for item component texture creation and geoset visibility prep.
