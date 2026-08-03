@@ -702,7 +702,10 @@ void Wow_RunProjectile(LPEDICT ent) {
         ent->s.origin.x += delta.x * step / dist;
         ent->s.origin.y += delta.y * step / dist;
         {
-            FLOAT target_z = target->s.origin.z + target->s.radius;
+            FLOAT target_chest_z = G_GetAttachmentZ(target->s.model, 20);
+            /* WoW attachment 20 is the chest; server hit testing remains independent of renderer bones. */
+            if (target_chest_z <= 0) target_chest_z = target->s.radius * 2.0f;
+            FLOAT target_z = target->s.origin.z + target_chest_z * target->s.scale;
             ent->s.origin.z += (target_z - ent->s.origin.z) * step / dist;
         }
         local->projectile_yaw = (FLOAT)RAD2DEG(atan2f(delta.y, delta.x));
@@ -1463,7 +1466,7 @@ static void Wow_RunFrame(void) {
     if (locked) {
         Wow_UpdateCamera(ent);
     } else if (moving
-        ? Wow_SetRunMove(ent)
+        ? Wow_SetDirectionalMove(ent, wow_move.flags)
         : (Wow_EntityAffectingCombat(ent)
             ? Wow_SetCombatReadyAnimation(ent)
             : Wow_SetStandMove(ent))) {

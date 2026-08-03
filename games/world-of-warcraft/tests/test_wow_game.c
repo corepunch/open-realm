@@ -674,10 +674,44 @@ static void test_wow_fireball_movement_cancels(void) {
     if (game->Shutdown) game->Shutdown();
 }
 
+/* Strafe and backpedal preserve facing but select directional locomotion animations. */
+static void test_wow_directional_movement_animations(void) {
+    struct game_export *game = init_game();
+    LPEDICT player = &wow_edicts[0];
+    wowEntityLocal_t *local = Wow_EntityLocal(player);
+    LPCANIMATION left_animation;
+    LPCANIMATION right_animation;
+    LPCANIMATION back_animation;
+    LPCSTR left[] = { "move", "4", "0", "328", "8.5" };
+    LPCSTR right[] = { "move", "8", "0", "328", "8.5" };
+    LPCSTR back[] = { "move", "2", "0", "328", "8.5" };
+    FLOAT facing;
+
+    ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    left_animation = G_GetAnimation(player->s.model, "ShuffleLeft");
+    right_animation = G_GetAnimation(player->s.model, "ShuffleRight");
+    back_animation = G_GetAnimation(player->s.model, "WalkBackwards");
+    facing = player->s.angle;
+    game->ClientCommand(player, 5, left);
+    game->RunFrame();
+    ASSERT_STR_EQ(local->animation->name, left_animation ? "ShuffleLeft" : "Run");
+    ASSERT_EQ_FLOAT(player->s.angle, facing, 0.001f);
+    game->ClientCommand(player, 5, right);
+    game->RunFrame();
+    ASSERT_STR_EQ(local->animation->name, right_animation ? "ShuffleRight" : "Run");
+    ASSERT_EQ_FLOAT(player->s.angle, facing, 0.001f);
+    game->ClientCommand(player, 5, back);
+    game->RunFrame();
+    ASSERT_STR_EQ(local->animation->name, back_animation ? "WalkBackwards" : "Run");
+    ASSERT_EQ_FLOAT(player->s.angle, facing, 0.001f);
+    if (game->Shutdown) game->Shutdown();
+}
+
 int main(void) {
     RUN_TEST(test_wow_load_map_initializes_player_state);
     RUN_TEST(test_wow_load_map_spawns_and_runs_creature_state);
     RUN_TEST(test_wow_fireball_cast_interrupts_melee_and_launches);
     RUN_TEST(test_wow_fireball_movement_cancels);
+    RUN_TEST(test_wow_directional_movement_animations);
     TEST_RESULTS();
 }

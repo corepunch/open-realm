@@ -321,6 +321,7 @@ static void test_firebolt_z_height_interpolates_correctly(void) {
     ASSERT_NOT_NULL(target);
     caster->s.origin.z = 0.0f;
     target->s.origin.z = 0.0f;
+    target->s.radius = 2.0f;
 
     Wow_FireFirebolt(caster, target);
     proj = &wow_edicts[2];
@@ -328,12 +329,13 @@ static void test_firebolt_z_height_interpolates_correctly(void) {
     ASSERT(proj->inuse);
     ASSERT_NOT_NULL(pl);
 
-    /* Without renderer bone matrices, the server uses the caster's gameplay radius. */
+    /* Without renderer bone matrices, the server uses the caster's gameplay radius for launch. */
     ASSERT_EQ_FLOAT(proj->s.origin.z, 1.0f, 0.001f);
 
-    /* After one frame, Z should still be ~1.6 (not jumping to terrain+3.0) */
+    /* Flight should rise toward the target chest, not drop toward the ground. */
     Wow_RunProjectile(proj);
     ASSERT(proj->inuse);
+    ASSERT(proj->s.origin.z > 1.0f);
     ASSERT(proj->s.origin.z < 2.0f); /* must not spike to 3+ */
     ASSERT(proj->s.origin.z >= 1.0f); /* must stay above ground */
 
@@ -341,7 +343,7 @@ static void test_firebolt_z_height_interpolates_correctly(void) {
     while (proj->inuse) {
         Wow_RunProjectile(proj);
         if (proj->inuse) {
-            ASSERT(proj->s.origin.z < 2.5f);
+            ASSERT(proj->s.origin.z < 4.5f);
             ASSERT(proj->s.origin.z > 0.5f);
         }
     }

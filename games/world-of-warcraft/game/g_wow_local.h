@@ -143,6 +143,7 @@ BOOL Wow_EntityAffectingCombat(LPEDICT ent);
 BOOL Wow_SetStandMove(LPEDICT ent);
 BOOL Wow_SetRunMove(LPEDICT ent);
 BOOL Wow_SetWalkMove(LPEDICT ent);
+BOOL Wow_SetDirectionalMove(LPEDICT ent, DWORD flags);
 BOOL Wow_SetCombatReadyAnimation(LPEDICT ent);
 void Wow_AIRunFrame(LPEDICT ent);
 void Wow_SpawnAmbientCreatures(LPCVECTOR2 origin);

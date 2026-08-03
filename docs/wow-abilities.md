@@ -84,7 +84,8 @@ events may later refine client-only hand glow or sound timing, but must not dela
 
 `data/whoa-master/src/component/Types.hpp` defines M2 attachment 1 as right hand and 2 as left hand. Attachment 11 is the
 head; using it produced the visibly high Fireball launch. The current server seeds Z from right-hand attachment 1's local
-position and falls back to the caster gameplay radius. It targets `target.origin.z + target.radius`.
+position and falls back to the caster gameplay radius. It homes toward target attachment 20 (chest) when available, otherwise
+using twice the target gameplay radius as a gameplay-space chest approximation.
 
 This is only the server/gameplay approximation. Exact visuals require the renderer's animated attachment matrix:
 
@@ -106,6 +107,12 @@ from remaining/total time, and spell identity selects localized label and icon.
 
 Do not infer casting from the local key press. The server's replicated cast state is authoritative, so rejected casts never
 show a false bar and remote-unit cast bars can use the same contract.
+
+## Movement Facing and Directional Animation
+
+The player keeps its facing yaw while strafing or backpedaling, matching WoW's movement model. Pure A/D movement selects
+`ShuffleLeft`/`ShuffleRight`, pure S movement selects `WalkBackwards`, and forward or diagonal movement selects `Run`.
+Missing directional sequences are logged once and fall back to `Run`.
 
 ## References to Copy Deliberately
 
