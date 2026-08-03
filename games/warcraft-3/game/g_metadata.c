@@ -174,11 +174,9 @@ static void warn_unregistered_field(LPCSTR name) {
 }
 
 LPCSTR UnitStringField(sheetMetaData_t *metadatas, DWORD unit_id, LPCSTR name) {
-    if (level.mapinfo) {
-        FOR_LOOP(n, level.mapinfo->num_userCreatedUnits) {
-            if (level.mapinfo->userCreatedUnits[n].newUnitID == unit_id) {
-                unit_id = level.mapinfo->userCreatedUnits[n].originalUnitID;
-            }
+    FOR_LOOP(n, level.mapinfo->num_userCreatedUnits) {
+        if (level.mapinfo->userCreatedUnits[n].newUnitID == unit_id) {
+            unit_id = level.mapinfo->userCreatedUnits[n].originalUnitID;
         }
     }
     sheetMetaData_t *metadata = G_FindMetaData(metadatas, name);

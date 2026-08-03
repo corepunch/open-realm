@@ -10,6 +10,8 @@
 #include "test.h"
 #include "../g_local.h"
 
+void setup_test_world(void);
+
 /* Defined in g_metadata.c; swaps the sheet backing one metadata table. */
 void G_SetConfigTable(sheetMetaData_t *metadatas, LPCSTR slk, sheetRow_t *table);
 
@@ -246,6 +248,7 @@ TEST(wc3_slk, parse_empty_string_returns_null) {
  * --------------------------------------------------------------------- */
 
 TEST(wc3_slk, unit_speed_peasant) {
+    setup_test_world();
     T_FEQ(UNIT_SPEED(MAKEFOURCC('h','p','e','a')), 270.0f, 0.01f);
 }
 
