@@ -23,6 +23,7 @@ enum {
     WOW_PLAYER_EQUIPMENT_FEET = 1
 };
 static wowMove_t wow_move_cast = { "SpellCastDirected", NULL, NULL };
+
 static struct {
     DWORD flags;
     FLOAT yaw;
@@ -34,25 +35,8 @@ static struct {
 };
 
 #define WOW_MAX_SPAWNS_PER_FRAME 64
-static DWORD wow_spawns_this_frame = 0;
-static BOOL wow_spawns_deferred = false;
-
-static void Wow_ThinkNone(LPEDICT ent) { (void)ent; }
-static void Wow_ThinkUnit(LPEDICT ent);
-static void Wow_ThinkProjectile(LPEDICT ent);
-static void Wow_ThinkDynamicObject(LPEDICT ent);
-
-wowEntityHandler_t wow_entity_handlers[WOW_ENTITY_COUNT] = {
-    [WOW_ENTITY_NONE]           = { "none",          Wow_ThinkNone },
-    [WOW_ENTITY_PLAYER]         = { "player",        NULL },
-    [WOW_ENTITY_UNIT]           = { "unit",          Wow_ThinkUnit },
-    [WOW_ENTITY_GAMEOBJECT]     = { "gameobject",    Wow_RunGameObjectFrame },
-    [WOW_ENTITY_CORPSE]         = { "corpse",        Wow_RunCorpseFrame },
-    [WOW_ENTITY_PROJECTILE]     = { "projectile",    Wow_ThinkProjectile },
-    [WOW_ENTITY_DYNAMICOBJECT]  = { "dynamicobject", Wow_RunDynamicObjectFrame },
-    [WOW_ENTITY_ITEM]           = { "item",          Wow_ThinkNone },
-    [WOW_ENTITY_CONTAINER]      = { "container",     Wow_ThinkNone },
-};
+/* Per-frame spawn budget (declared extern in g_wow_local.h). */
+DWORD wow_spawns_this_frame = 0;
 
 static wowHudIcon_t const wow_start_inventory[WOW_UI_INVENTORY_SLOTS] = {
     { "Interface\\Icons\\INV_Misc_Bag_08.blp", "Backpack", 1 },
@@ -684,7 +668,7 @@ void Wow_RunProjectile(LPEDICT ent) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
     LPEDICT target;
 
-    if (!ent || !local || local->kind != WOW_ENTITY_PROJECTILE || !ent->inuse) {
+    if (!ent || !local || ent->think != Wow_RunProjectile || !ent->inuse) {
         return;
     }
     target = Wow_EdictByNumber(local->projectile_target);
@@ -767,7 +751,7 @@ void Wow_FireFirebolt(LPEDICT caster, LPEDICT target) {
     pl = Wow_EntityLocal(proj);
     if (!pl) return;
 
-    pl->kind = WOW_ENTITY_PROJECTILE;
+    proj->think = Wow_RunProjectile;
     {
         VECTOR2 delta = Vector2_sub(&(VECTOR2){ target->s.origin.x, target->s.origin.y },
                                     &(VECTOR2){ caster->s.origin.x, caster->s.origin.y });
@@ -775,7 +759,7 @@ void Wow_FireFirebolt(LPEDICT caster, LPEDICT target) {
     }
     pl->projectile_target = target->s.number;
     pl->projectile_caster = caster->s.number;
-    pl->projectile_speed = WOW_FIREBOLT_SPEED;
+    pl->projectile_speed  = WOW_FIREBOLT_SPEED;
     pl->projectile_damage = WOW_FIREBOLT_DAMAGE;
     pl->projectile_yaw = yaw;
     pl->projectile_pitch = 0.0f;
@@ -846,7 +830,7 @@ void Wow_FireFrostbolt(LPEDICT caster, LPEDICT target) {
     pl = Wow_EntityLocal(proj);
     if (!pl) return;
 
-    pl->kind = WOW_ENTITY_PROJECTILE;
+    proj->think = Wow_RunProjectile;
     {
         VECTOR2 delta = Vector2_sub(&(VECTOR2){ target->s.origin.x, target->s.origin.y },
                                     &(VECTOR2){ caster->s.origin.x, caster->s.origin.y });
@@ -1041,10 +1025,8 @@ LPEDICT Wow_Spawn(void) {
     LPEDICT ent = NULL;
     DWORD index;
 
-    if (wow_spawns_this_frame >= WOW_MAX_SPAWNS_PER_FRAME) {
-        wow_spawns_deferred = true;
+    if (wow_spawns_this_frame >= WOW_MAX_SPAWNS_PER_FRAME)
         return NULL;
-    }
     wow_spawns_this_frame++;
 
     if (globals.num_edicts < globals.max_edicts) {
@@ -1173,7 +1155,6 @@ static void Wow_InitPlayer(LPEDICT ent) {
     memset(ent, 0, sizeof(*ent));
     if (local) {
         memset(local, 0, sizeof(*local));
-        local->kind = WOW_ENTITY_PLAYER;
         local->cast_spell = SPELL_NONE;
         local->hostile = false;
         local->home = wow_spawn_origin;
@@ -1202,7 +1183,6 @@ static void Wow_InitPlayer(LPEDICT ent) {
     ent->s.flags = EF_GROUND_ANCHOR;
     ent->idle = Wow_AIIdle;
     ent->move = NULL;
-    ent->run = NULL;
     ent->attack = Wow_AIAttack;
     ent->pain = Wow_AIPain;
     Wow_SetStandMove(ent);
@@ -1391,7 +1371,6 @@ static void Wow_SpawnEntities(void) {
     wow_move.pitch = 328.0f;
     wow_move.distance = 8.5f;
     wow_spawns_this_frame = 0;
-    wow_spawns_deferred = false;
     Wow_InitPlayer(&wow_edicts[0]);
     globals.num_edicts = WOW_MAX_CLIENTS;
     Wow_SpawnAmbientCreatures(&wow_spawn_origin);
@@ -1437,7 +1416,6 @@ static void Wow_RunFrame(void) {
     BOOL locked;
 
     wow_spawns_this_frame = 0;
-    wow_spawns_deferred = false;
 
     if (!ent->inuse || !ent->client) {
         return;
@@ -1549,12 +1527,8 @@ static void Wow_RunFrame(void) {
 process_entities:
     for (DWORD i = WOW_MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
         LPEDICT e = &wow_edicts[i];
-        if (!e->inuse) continue;
-        wowEntityLocal_t *el = Wow_EntityLocal(e);
-        if (!el) continue;
-        wowEntityHandler_t *handler = &wow_entity_handlers[el->kind];
-        if (handler->think)
-            handler->think(e);
+        if (e->inuse && e->think)
+            e->think(e);
     }
 }
 

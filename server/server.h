@@ -51,7 +51,7 @@ struct edict_s {
     BOX2 areabounds;
     void (*idle)(LPEDICT);
     void (*move)(LPEDICT);
-    void (*run)(LPEDICT);
+    void (*think)(LPEDICT);
     void (*attack)(LPEDICT);
     void (*pain)(LPEDICT);
 };

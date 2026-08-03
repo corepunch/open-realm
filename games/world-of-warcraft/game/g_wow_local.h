@@ -28,20 +28,8 @@
 #define WOW_CAMERA_MIN_DISTANCE 3.0f
 #define WOW_CAMERA_MAX_DISTANCE 35.0f
 
-typedef enum {
-    WOW_ENTITY_NONE,
-    WOW_ENTITY_PLAYER,
-    WOW_ENTITY_UNIT,
-    WOW_ENTITY_GAMEOBJECT,
-    WOW_ENTITY_CORPSE,
-    WOW_ENTITY_PROJECTILE,
-    WOW_ENTITY_DYNAMICOBJECT,
-    WOW_ENTITY_ITEM,
-    WOW_ENTITY_CONTAINER,
-    WOW_ENTITY_COUNT
-} wowEntityKind_t;
-#define WOW_ENTITY_CREATURE WOW_ENTITY_UNIT /* backward compat */
-
+/* Spell definition table: Q2 g_items.c pattern — data-driven, function pointers per spell.
+   Spell indices double as the cast_spell value while a spell is being channeled. */
 typedef struct wowSpellDef_s {
     LPCSTR name;
     void (*cast)(LPEDICT caster, LPEDICT target);
@@ -62,29 +50,18 @@ extern DWORD const wow_spell_count;
 
 #define SPELL_NONE ((DWORD)-1)  /* sentinel: no spell is casting */
 
-typedef struct wowEntityCreateParams_s {
-    VECTOR2 origin;
-    FLOAT yaw;
-    DWORD display_id;
-} wowEntityCreateParams_t;
-
-typedef void (*wowEntityThinkFn)(LPEDICT ent);
-
-typedef struct {
-    LPCSTR            name;
-    wowEntityThinkFn  think;
-} wowEntityHandler_t;
-
-extern wowEntityHandler_t wow_entity_handlers[WOW_ENTITY_COUNT];
-
 typedef struct wowMove_s {
     LPCSTR animation;
     void (*think)(LPEDICT ent);
     void (*endfunc)(LPEDICT ent);
 } wowMove_t, *LPWOWMOVE;
 
+/* Per-frame entity spawn budget (reset each frame) */
+extern DWORD wow_spawns_this_frame;
+
+/* Per-entity game state.  Entity behaviour is driven entirely by the edict's
+ * think function pointer (Quake2 style); there is no type/kind tag. */
 typedef struct {
-    wowEntityKind_t kind;
     DWORD display_id;
     LPCANIMATION animation;
     LPWOWMOVE currentmove;
@@ -115,7 +92,7 @@ typedef struct {
     VECTOR2 cast_origin;     /* XY position when cast began (movement cancels) */
     DWORD cast_release_time; /* ms remaining in the post-launch release animation */
     DWORD gcd_time;          /* ms remaining on global cooldown */
-    /* Projectile fields (valid when kind == WOW_ENTITY_PROJECTILE) */
+    /* Projectile fields (valid when think == Wow_RunProjectile) */
     DWORD projectile_target;
     DWORD projectile_caster;
     FLOAT projectile_speed;

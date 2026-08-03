@@ -35,7 +35,7 @@ LPEDICT Wow_SpawnDynamicObject(DWORD spell_id, LPCVECTOR2 origin, DWORD duration
     if (!ent) return NULL;
 
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
-    local->kind = WOW_ENTITY_DYNAMICOBJECT;
+    ent->think = Wow_RunDynamicObjectFrame;
     local->dyn_spell_id = spell_id;
     local->dyn_duration = duration;
     local->dyn_radius = 2;
@@ -275,7 +275,7 @@ static void WowGo_SpawnDoodad(wowDoodadDef_t const *def, LPCSTR model_path) {
         return;
 
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
-    local->kind = WOW_ENTITY_GAMEOBJECT;
+    ent->think = NULL; /* static object */
     local->display_id = display_id;
     local->go_display_id = display_id;
     local->go_state = 0; /* GO_STATE_READY */
@@ -395,7 +395,7 @@ void Wow_RunGameObjectFrame(LPEDICT ent) {
 
 void Wow_RunCorpseFrame(LPEDICT ent) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
-    if (!local || local->kind != WOW_ENTITY_CORPSE)
+    if (!local || 0 /* trusted caller */)
         return;
 
     if (local->corpse_timer > FRAMETIME)
@@ -419,7 +419,7 @@ LPEDICT Wow_SpawnCorpse(LPEDICT dead_entity) {
         return NULL;
 
     local = Wow_EntityLocal(corpse);
-    local->kind = WOW_ENTITY_CORPSE;
+    corpse->think = Wow_RunCorpseFrame;
     local->corpse_owner = dead_entity->s.number;
     local->corpse_timer = 300000; /* 5 minutes */
     local->display_id = dl->display_id;
@@ -436,7 +436,7 @@ LPEDICT Wow_SpawnCorpse(LPEDICT dead_entity) {
 
 void Wow_RunDynamicObjectFrame(LPEDICT ent) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
-    if (!local || local->kind != WOW_ENTITY_DYNAMICOBJECT)
+    if (!local || 0 /* trusted caller */)
         return;
 
     if (local->dyn_duration > FRAMETIME)
