@@ -92,6 +92,7 @@ typedef struct {
     VECTOR2 cast_origin;     /* XY position when cast began (movement cancels) */
     DWORD cast_release_time; /* ms remaining in the post-launch release animation */
     DWORD gcd_time;          /* ms remaining on global cooldown */
+    DWORD selected_action_slot;  /* highlighted action bar slot (0-11, 255=none) */
     /* Projectile fields (valid when think == Wow_RunProjectile) */
     DWORD projectile_target;
     DWORD projectile_caster;
@@ -183,7 +184,6 @@ void Wow_SpawnAmbientCreatures(LPCVECTOR2 origin);
 void Wow_RunCreatureFrame(LPEDICT ent);
 void Wow_SpawnGameObjects(LPCVECTOR2 origin);
 void Wow_RunGameObjectFrame(LPEDICT ent);
-LPEDICT Wow_SpawnCorpse(LPEDICT dead_entity);
 void Wow_RunCorpseFrame(LPEDICT ent);
 void Wow_RunDynamicObjectFrame(LPEDICT ent);
 LPEDICT Wow_SpawnDynamicObject(DWORD spell_id, LPCVECTOR2 origin, DWORD duration);

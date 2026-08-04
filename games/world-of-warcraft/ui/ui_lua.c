@@ -291,6 +291,7 @@ static int UIWow_LuaPlayer(lua_State *L) {
     UIWow_LuaSetPlayerField(L, "xp",        WOW_STAT_XP);
     UIWow_LuaSetPlayerField(L, "xpMax",     WOW_STAT_XP_MAX);
     UIWow_LuaSetPlayerField(L, "copper",    WOW_STAT_COPPER);
+    UIWow_LuaSetPlayerField(L, "selectedActionSlot", WOW_STAT_SELECTED_ACTION);
     return 1;
 }
 

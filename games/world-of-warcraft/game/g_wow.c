@@ -933,6 +933,7 @@ static void Wow_UpdatePlayerHud(LPEDICT ent) {
     /* Cast progress: remaining ms and total ms for client-side cast bar */
     ps->stats[WOW_STAT_CAST_PROGRESS] = (USHORT)(local->cast_spell != SPELL_NONE ? local->cast_remaining : 0);
     ps->stats[WOW_STAT_CAST_MAX] = (USHORT)(local->cast_spell != SPELL_NONE ? local->cast_duration : 0);
+    ps->stats[WOW_STAT_SELECTED_ACTION] = (USHORT)local->selected_action_slot;
 }
 
 static void Wow_WriteHudIcon(wowHudIcon_t const *icon, DWORD slot) {
@@ -1282,6 +1283,42 @@ static DWORD Wow_CountSpawnPlayers(LPEDICT skip) {
     return count;
 }
 
+/* Map race name to the WorldSafeLocs area-name substring for that race's
+   starting zone.  Each entry is matched via strcasestr against the area name
+   stored in CM_WowCollectWorldSafeLocs playerName, so in-game naming like
+   "Deathknell, Tirisfal" matches "Deathknell".
+   TODO: drive this from ChrRaces.dbc (field 9 = expansion ID) + the map's
+   WorldSafeLocs entries, not hardcoded strings.  The race → zone association
+   should be derived from the DBC data itself. */
+static LPCSTR Wow_RaceZone(LPCSTR race) {
+	static struct { LPCSTR race; LPCSTR zone; } map[] = {
+		{ "Human",    "Northshire" },
+		{ "Dwarf",    "Coldridge Valley" },
+		{ "Gnome",    "Coldridge Valley" },
+		{ "NightElf", "Shadowglen" },
+		{ "Orc",      "Valley of Trials" },
+		{ "Troll",    "Valley of Trials" },
+		{ "Undead",   "Deathknell" },
+		{ "Scourge",  "Deathknell" },
+		{ "Tauren",   "Camp Narache" },
+	};
+	FOR_LOOP(i, sizeof(map) / sizeof(map[0]))
+		if (!strcasecmp(map[i].race, race)) return map[i].zone;
+	return NULL;
+}
+
+static DWORD Wow_SelectRaceSpawnPoint(LPCMAPINFO mapinfo, LPCSTR race) {
+	DWORD matches[MAX_PLAYERS], count = 0;
+	LPCSTR zone = Wow_RaceZone(race);
+	if (!mapinfo || !zone) return MAX_PLAYERS;
+	FOR_LOOP(i, MAX_PLAYERS) {
+		if (mapinfo->players[i].used && mapinfo->players[i].playerName &&
+			strcasestr(mapinfo->players[i].playerName, zone))
+			matches[count++] = i;
+	}
+	return count ? matches[rand() % count] : MAX_PLAYERS;
+}
+
 static DWORD Wow_SelectRandomSpawnPoint(LPCMAPINFO mapinfo, LPEDICT ent) {
     DWORD count = 0;
     DWORD player_count;
@@ -1343,7 +1380,16 @@ static void Wow_ThinkDynamicObject(LPEDICT ent) { Wow_RunDynamicObjectFrame(ent)
 
 static void Wow_SpawnEntities(void) {
     LPCMAPINFO mapinfo = CM_GetMapInfo();
-    DWORD spawn_location = Wow_SelectRandomSpawnPoint(mapinfo, &wow_edicts[0]);
+    char race[64], sex[64];
+    DWORD class_id, appearance, spawn_location;
+    char buf[MAX_PATHLEN];
+
+    /* Read race before spawn selection so the player starts in their race's
+       home zone (e.g. Orcs in Valley of Trials, not Northshire). */
+    Wow_ReadSelectedCharFromCvars(race, sizeof(race), sex, sizeof(sex), &class_id, &appearance);
+    spawn_location = Wow_SelectRaceSpawnPoint(mapinfo, race);
+    if (spawn_location >= MAX_PLAYERS)
+        spawn_location = Wow_SelectRandomSpawnPoint(mapinfo, &wow_edicts[0]);
 
     wow_spawn_location = -1;
     if (mapinfo && spawn_location < MAX_PLAYERS) {
@@ -1357,15 +1403,9 @@ static void Wow_SpawnEntities(void) {
     /* Re-populate the playerinfo configstring from cvars after SV_Map's
        memset cleared all configstrings (same pattern as Q3: game module
        re-sets configstrings after the server wipes them on map load). */
-    {
-        char race[64], sex[64];
-        DWORD class_id, appearance;
-        char buf[MAX_PATHLEN];
-        Wow_ReadSelectedCharFromCvars(race, sizeof(race), sex, sizeof(sex), &class_id, &appearance);
-        snprintf(buf, sizeof(buf), "\\race\\%s\\sex\\%s\\class\\%u\\appearance\\%u",
-                 race, sex, (unsigned)class_id, (unsigned)appearance);
-        gi.configstring(CS_GENERAL + WOW_CS_PLAYERINFO, buf);
-    }
+    snprintf(buf, sizeof(buf), "\\race\\%s\\sex\\%s\\class\\%u\\appearance\\%u",
+             race, sex, (unsigned)class_id, (unsigned)appearance);
+    gi.configstring(CS_GENERAL + WOW_CS_PLAYERINFO, buf);
     wow_move.flags = 0;
     wow_move.yaw = 0.0f;
     wow_move.pitch = 328.0f;
@@ -1638,11 +1678,19 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
         }
 
         LPEDICT target = def->range > 0 ? Wow_FindSpellTarget(ent, def->range) : NULL;
+        /* For instant melee spells, accept the selected target even when out of
+         * range — the auto-chase in Wow_RunFrame closes the gap automatically. */
+        if (!def->cast_time && !target && ent->client && ent->client->ps.selected_entity) {
+            LPEDICT t = Wow_EdictByNumber(ent->client->ps.selected_entity);
+            if (t && t != ent && t->inuse && (t->svflags & SVF_MONSTER))
+                target = t;
+        }
         if (def->range > 0 && !target) {
             fprintf(stderr, "WoW: %s — no target in range\n", def->name);
             return;
         }
 
+        cl->selected_action_slot = slot;
         if (def->cast_time > 0) {
             Wow_BeginSpellCast(ent, spell, target ? target->s.number : 0);
         } else {

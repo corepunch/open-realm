@@ -33,6 +33,14 @@ function ow3_update_hud(msec)
     W.command('wow_lua_test ' .. p.level .. ' ' .. elapsed)
 end
 
+local function action_highlight(slot)
+    local bx, by, bw, bh = 8 + slot * 42 - 14, 728 - 13, 64, 64
+    W.draw_color(bx / VW, by / VH, bw / VW, 2 / VH, 128, 255, 128, 180)
+    W.draw_color(bx / VW, (by + bh - 2) / VH, bw / VW, 2 / VH, 128, 255, 128, 180)
+    W.draw_color(bx / VW, by / VH, 2 / VW, bh / VH, 128, 255, 128, 180)
+    W.draw_color((bx + bw - 2) / VW, by / VH, 2 / VW, bh / VH, 128, 255, 128, 180)
+end
+
 function ow3_draw_hud()
     local p = W.player()
     local inv = W.inventory()
@@ -46,4 +54,9 @@ function ow3_draw_hud()
     text(p.name .. ':' .. p.health .. ':' .. elapsed, 0.210, 0.350, 0.400, 0.030,
          13, 255, 220, 120, 255, 'center')
     W.draw_minimap(896 / VW, 25 / VH, 91 / VW, 91 / VH)
+
+    local selected = p.selectedActionSlot
+    if selected and selected >= 0 and selected < 12 then
+        action_highlight(selected)
+    end
 end

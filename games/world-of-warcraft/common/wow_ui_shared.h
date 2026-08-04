@@ -21,6 +21,7 @@ typedef enum {
     WOW_STAT_COPPER = 7,
     WOW_STAT_CAST_PROGRESS = 8,   /* ms remaining on current cast (0 = idle) */
     WOW_STAT_CAST_MAX = 9,        /* total cast duration in ms; client computes ratio */
+    WOW_STAT_SELECTED_ACTION = 10, /* currently highlighted action bar slot (0-11, or 255=none) */
 } wowPlayerStat_t;
 
 #endif
