@@ -97,5 +97,10 @@ void S_SpellCodeString(DWORD code, LPSTR out);
 BOOL S_SpellIsChanneling(LPEDICT caster);
 void S_SpellCancelChannel(LPEDICT caster);
 void SP_ability_repair(LPCSTR classname, ability_t *self);
+void SP_ability_item_attack_bonus(LPCSTR classname, ability_t *self);
+void SP_ability_item_defense_bonus(LPCSTR classname, ability_t *self);
+void SP_ability_item_life_bonus(LPCSTR classname, ability_t *self);
+void SP_ability_item_mana_bonus(LPCSTR classname, ability_t *self);
+void SP_ability_item_stat_bonus(LPCSTR classname, ability_t *self);
 
 #endif

@@ -991,6 +991,9 @@ void G_RunEvents(void);
 
 // g_items.c
 void SP_SpawnItem(LPEDICT);
+BOOL G_PickupItem(LPEDICT unit, LPEDICT item);
+void G_DropItem(LPEDICT unit, DWORD slot);
+void G_UseItem(LPEDICT unit, DWORD slot);
 
 // ui_init
 void UI_Init(void);

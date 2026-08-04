@@ -38,12 +38,6 @@ ability_t a_repair_generic = {
     .cmd = stub_cancel_command,
 };
 
-ability_t a_inventory = {0};
-ability_t a_shop_purchase_item = {
-    .cmd = stub_cancel_command,
-};
-ability_t a_neutral_building = {0};
-ability_t a_shop_sharing = {0};
 ability_t a_couple_instant = {
     .cmd = stub_cancel_command,
 };
