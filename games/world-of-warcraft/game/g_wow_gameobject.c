@@ -406,34 +406,6 @@ void Wow_RunCorpseFrame(LPEDICT ent) {
     }
 }
 
-LPEDICT Wow_SpawnCorpse(LPEDICT dead_entity) {
-    wowEntityLocal_t *dl = Wow_EntityLocal(dead_entity);
-    LPEDICT corpse;
-    wowEntityLocal_t *local;
-
-    if (!dead_entity || !dl)
-        return NULL;
-
-    corpse = Wow_Spawn();
-    if (!corpse)
-        return NULL;
-
-    local = Wow_EntityLocal(corpse);
-    corpse->think = Wow_RunCorpseFrame;
-    local->corpse_owner = dead_entity->s.number;
-    local->corpse_timer = 300000; /* 5 minutes */
-    local->display_id = dl->display_id;
-
-    corpse->s.model = dead_entity->s.model;
-    corpse->s.origin = dead_entity->s.origin;
-    corpse->s.origin2 = dead_entity->s.origin2;
-    corpse->s.scale = dead_entity->s.scale;
-    corpse->s.radius = dead_entity->s.radius;
-    corpse->s.flags = EF_GROUND_ANCHOR;
-
-    return corpse;
-}
-
 void Wow_RunDynamicObjectFrame(LPEDICT ent) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
     if (!local || 0 /* trusted caller */)

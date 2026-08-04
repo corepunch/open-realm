@@ -1,12 +1,11 @@
 /*
- * t_combat.c — In-engine combat tests (see plans/lightweight-testing.md).
+ * t_combat.c — In-engine combat tests (see CONTRIBUTING.md).
  *
  * These run inside the real WoW game module.  The +test boot calls
  * SV_InitGameProgs, so gi/globals are live and G_RegisterModel resolves real
  * animations from the mounted archives (run via `make test-wow-engine`, which
- * passes -data).  Test entities occupy edicts [1..2]; globals.num_edicts is set
- * to 3 so a corpse spawned on death lands in a free slot instead of clobbering
- * a test edict.
+ * passes -data). Test entities occupy edicts [1..2], and death must keep that
+ * allocation count unchanged when the target becomes a corpse.
  */
 #ifdef BZ_TESTS
 
@@ -16,7 +15,7 @@
 #include <string.h>
 
 /* Register the player model once; it carries the Attack/Pain/Death animations
- * the AI code needs to start a swing and hold a death pose. */
+ * the AI code needs to start a swing and transition the same entity to a corpse. */
 static int combat_model(void) {
     static int model = -1;
     if (model < 0) model = G_RegisterModel(WOW_PLAYER_MODEL);
@@ -140,15 +139,20 @@ TEST(wow_combat, death_holds_terminal_frame) {
     LPEDICT attacker, target;
     wowEntityLocal_t *tl;
     DWORD terminal;
+    int num_edicts;
 
     combat_prepare(&attacker, &target);
     tl = Wow_EntityLocal(target);
+    num_edicts = globals.num_edicts;
     Wow_AIDie(target, attacker);
     T_NOT_NULL(tl->animation); /* real death animation resolved from the model */
     terminal = tl->animation->interval[1];
 
     for (int i = 0; i < 30; i++) Wow_AIAdvanceLockedFrame(target);
     T_EQ(target->s.frame, terminal - 1);
+    T_EQ(globals.num_edicts, num_edicts); /* death must not allocate a duplicate model */
+    T_ASSERT(target->think == Wow_RunCorpseFrame);
+    T_ASSERT(tl->corpse_timer > 0);
 }
 
 #endif /* BZ_TESTS */

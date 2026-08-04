@@ -154,9 +154,9 @@ The engine represents every in-world object as an `edict_t` with a `wowEntityLoc
 
 | Think function | Role |
 |---|---|
-| `Wow_RunCreatureFrame` | Ambient NPC (spawned from ADT creature data) |
+| `Wow_RunCreatureFrame` | Ambient NPC (currently spawned procedurally) |
 | `Wow_RunGameObjectFrame` | Doodad/interactive object (spawned from ADT MDDF, cross-referenced with `GameObjectDisplayInfo.dbc`) |
-| `Wow_RunCorpseFrame` | Corpse left by `Wow_AIDie`; timer-based decay then free |
+| `Wow_RunCorpseFrame` | Dying creature transitioned in place; timer-based decay then free |
 | `Wow_RunDynamicObjectFrame` | Timed area effect (spell AoE); spawned via `Wow_SpawnDynamicObject` |
 | `Wow_RunProjectile` | In-flight spell projectile (firebolt, frostbolt) |
 
@@ -180,7 +180,7 @@ Spells are data-driven via the `wowSpellDef_t` table (`wow_spells[]`) following 
 | File | Purpose |
 |---|---|
 | `games/world-of-warcraft/game/g_wow.c` | `Wow_RunFrame`, entity dispatch, player movement |
-| `games/world-of-warcraft/game/g_wow_gameobject.c` | `WOW_ENTITY_GAMEOBJECT` spawn/frame logic |
+| `games/world-of-warcraft/game/g_wow_gameobject.c` | Game-object spawn/frame callbacks; corpse and dynamic-object decay |
 | `games/world-of-warcraft/game/g_ai.c` | Creature AI (idle, move, attack, pain, die) |
 | `games/world-of-warcraft/game/m_creature.c` | Move tables and animation selectors |
 | `games/world-of-warcraft/game/g_wow_local.h` | All WoW-game types (`wowEntityLocal_t`, `wowSpellDef_t`, etc.) |

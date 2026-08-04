@@ -28,6 +28,7 @@ static DWORD test_multicast_size;
 static DWORD test_last_unicast_size;
 static DWORD test_unicast_calls;
 static char test_last_error[512];
+static char test_playerinfo[MAX_PATHLEN];
 
 /* ---- configstring stubs (game_import.configstring / GetConfigstring) ---- */
 #define TEST_CONFIGSTRINGS 128
@@ -49,8 +50,9 @@ static LPCSTR test_get_configstring(DWORD index) {
 
 /* ---- cvar stub ---- */
 static LPCSTR test_cvar_string(LPCSTR name, LPCSTR fallback) {
-    (void)name;
-    return fallback ? fallback : "";
+	if (!strcmp(name, WOW_CVAR_PLAYERINFO) && test_playerinfo[0])
+		return test_playerinfo;
+	return fallback ? fallback : "";
 }
 
 static animation_t test_animations[] = {
@@ -411,6 +413,7 @@ static void reset_test_state(void) {
     test_unicast_calls = 0;
     memset(test_last_error, 0, sizeof(test_last_error));
     memset(test_configstrings, 0, sizeof(test_configstrings));
+    test_playerinfo[0] = '\0';
 }
 
 static void assert_player_ui_payload(void) {
@@ -465,15 +468,17 @@ static struct game_export *init_game(void) {
     return game;
 }
 
-static void assert_player_spawned_at_safe_loc(LPEDICT player) {
+/* Verify the player spawned at the WorldSafeLocs entry matching their race's
+   home zone.  Default race is Orc → Valley of Trials (index 3). */
+static void assert_player_spawned_at_safe_loc(LPEDICT player, DWORD expected_index) {
     LPCMAPINFO info = CM_GetMapInfo();
     BOOL matched = false;
 
     T_NOT_NULL(info);
     T_STREQ(info->players[0].playerName, "Northshire");
     T_STREQ(info->players[1].playerName, "Deathknell, Tirisfal");
-    T_EQ((int)info->players[0].playerType, kPlayerTypeHuman);
-    T_EQ((int)info->players[1].playerType, kPlayerTypeNone);
+    T_STREQ(info->players[2].playerName, "Coldridge Valley");
+    T_STREQ(info->players[3].playerName, "Valley of Trials");
 
     FOR_LOOP(i, MAX_PLAYERS) {
         LPCMAPPLAYER spawn = &info->players[i];
@@ -487,6 +492,7 @@ static void assert_player_spawned_at_safe_loc(LPEDICT player) {
         T_FEQ(player->s.origin.z,
                         CM_GetHeightAtPoint(spawn->startingPosition.x, spawn->startingPosition.y),
                         0.001f);
+        T_EQ((int)i, (int)expected_index);
         matched = true;
     }
     T_ASSERT(matched);
@@ -508,7 +514,7 @@ TEST(wow_game, wow_load_map_initializes_player_state) {
     T_NOT_NULL(local);
     T_NULL(player->think); /* the player is driven by client input, not a think fn */
     T_EQ((int)local->health, 100);
-    assert_player_spawned_at_safe_loc(player);
+    assert_player_spawned_at_safe_loc(player, 3); /* default Orc → Valley of Trials */
     T_FEQ(player->client->ps.origin.x, player->s.origin.x, 0.001f);
     T_FEQ(player->client->ps.origin.y, player->s.origin.y, 0.001f);
     T_EQ((int)player->client->ps.client_ui_state, CLIENT_UI_LOADING);
@@ -537,6 +543,21 @@ TEST(wow_game, wow_load_map_initializes_player_state) {
     if (game->Shutdown) {
         game->Shutdown();
     }
+}
+
+/* Setting wow_playerinfo cvar to a different race places the player in that
+   race's starting zone (Human → Northshire, index 0). */
+TEST(wow_game, wow_load_map_spawns_at_race_zone_via_cvar) {
+    struct game_export *game;
+
+    game = init_game();
+    snprintf(test_playerinfo, sizeof(test_playerinfo),
+             "\\race\\Human\\sex\\Female\\class\\%u\\appearance\\0", (unsigned)WOW_CLASS_WARRIOR);
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    assert_player_spawned_at_safe_loc(&wow_edicts[0], 0); /* Human → Northshire */
+    T_STREQ(wow_edicts[0].client->ps.name, "Thrall");
+    T_EQ((int)wow_edicts[0].client->ps.start_location, 0);
+    if (game->Shutdown) game->Shutdown();
 }
 
 TEST(wow_game, wow_load_map_spawns_and_runs_creature_state) {

@@ -14,6 +14,7 @@ static wowMove_t wow_move_death = { "Death", NULL, NULL };
 #define WOW_DEFAULT_ATTACK_BACKSWING 450
 #define WOW_DEFAULT_PAIN_TIME 450
 #define WOW_DEFAULT_DEATH_TIME 1200
+#define BZ_WOW_CORPSE_TIME 300000
 
 void Wow_FaceTarget(LPEDICT ent, LPEDICT target) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
@@ -323,7 +324,6 @@ void Wow_AIDie(LPEDICT ent, LPEDICT attacker) {
     } else {
         local->death_time = WOW_DEFAULT_DEATH_TIME;
     }
-    Wow_SpawnCorpse(ent);
 }
 
 BOOL Wow_AIAdvanceLockedFrame(LPEDICT ent) {
@@ -346,6 +346,12 @@ BOOL Wow_AIAdvanceLockedFrame(LPEDICT ent) {
             if (finished) {
                 local->death_time = 0;
                 Wow_AdvanceDeathFrame(ent, local);
+                /* The dying creature is the corpse: replacing it used to leave the animated
+                 * original beside a frame-zero duplicate. */
+                local->corpse_owner = ent->s.number;
+                local->corpse_timer = BZ_WOW_CORPSE_TIME;
+                ent->svflags &= ~SVF_MONSTER;
+                ent->think = Wow_RunCorpseFrame;
             }
         } else {
             Wow_AdvanceDeathFrame(ent, local);

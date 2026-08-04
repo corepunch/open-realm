@@ -255,28 +255,32 @@ static DWORD count_with_think(void (*think)(LPEDICT)) {
  * Corpse tests
  * =================================================================== */
 
-TEST(wow_entities, corpse_spawned_on_creature_death) {
+TEST(wow_entities, dying_creature_becomes_corpse) {
     struct game_export *game = init_game();
+    DWORD num_edicts;
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     game->RunFrame(); /* reset spawn budget */
 
     LPEDICT creature = first_with_think(Wow_RunCreatureFrame);
     T_NOT_NULL(creature);
     wowEntityLocal_t *cl = Wow_EntityLocal(creature);
+    DWORD model = creature->s.model;
+    VECTOR3 origin = creature->s.origin;
+    num_edicts = (DWORD)globals.num_edicts;
 
     Wow_AIDie(creature, &wow_edicts[0]);
     T_ASSERT(cl->dead);
-
-    LPEDICT corpse = first_with_think(Wow_RunCorpseFrame);
-    T_NOT_NULL(corpse);
-    wowEntityLocal_t *col = Wow_EntityLocal(corpse);
-    T_ASSERT(corpse->think == Wow_RunCorpseFrame);
-    T_EQ((int)col->corpse_owner, (int)creature->s.number);
-    T_ASSERT(col->corpse_timer > 0);
-    T_EQ((int)corpse->s.model, (int)creature->s.model);
-    T_FEQ(corpse->s.origin.x, creature->s.origin.x, 0.001f);
-    T_FEQ(corpse->s.origin.y, creature->s.origin.y, 0.001f);
-    T_EQ((int)corpse->s.flags & EF_GROUND_ANCHOR, (int)EF_GROUND_ANCHOR);
+    T_EQ((int)globals.num_edicts, (int)num_edicts);
+    while (cl->death_time > 0) Wow_AIAdvanceLockedFrame(creature);
+    T_ASSERT(creature->think == Wow_RunCorpseFrame);
+    T_EQ((int)cl->corpse_owner, (int)creature->s.number);
+    T_ASSERT(cl->corpse_timer > 0);
+    T_EQ((int)creature->s.model, (int)model);
+    T_FEQ(creature->s.origin.x, origin.x, 0.001f);
+    T_FEQ(creature->s.origin.y, origin.y, 0.001f);
+    T_EQ((int)creature->s.flags & EF_GROUND_ANCHOR, (int)EF_GROUND_ANCHOR);
+    T_EQ((int)creature->svflags & SVF_MONSTER, 0);
+    T_ASSERT(creature->svflags & SVF_DEADMONSTER);
 
     if (game->Shutdown) game->Shutdown();
 }
@@ -289,15 +293,15 @@ TEST(wow_entities, corpse_decays_over_time) {
     LPEDICT creature = first_with_think(Wow_RunCreatureFrame);
     T_NOT_NULL(creature);
     Wow_AIDie(creature, &wow_edicts[0]);
+    while (Wow_EntityLocal(creature)->death_time > 0) Wow_AIAdvanceLockedFrame(creature);
 
-    LPEDICT corpse = first_with_think(Wow_RunCorpseFrame);
-    T_NOT_NULL(corpse);
-    wowEntityLocal_t *col = Wow_EntityLocal(corpse);
-    DWORD initial = col->corpse_timer;
+    T_ASSERT(creature->think == Wow_RunCorpseFrame);
+    wowEntityLocal_t *cl = Wow_EntityLocal(creature);
+    DWORD initial = cl->corpse_timer;
 
     for (int i = 0; i < 10; i++) game->RunFrame();
-    T_ASSERT(col->corpse_timer < initial);
-    T_ASSERT(corpse->inuse);
+    T_ASSERT(cl->corpse_timer < initial);
+    T_ASSERT(creature->inuse);
 
     if (game->Shutdown) game->Shutdown();
 }
@@ -310,24 +314,13 @@ TEST(wow_entities, corpse_removed_after_timer_expires) {
     LPEDICT creature = first_with_think(Wow_RunCreatureFrame);
     T_NOT_NULL(creature);
     Wow_AIDie(creature, &wow_edicts[0]);
+    while (Wow_EntityLocal(creature)->death_time > 0) Wow_AIAdvanceLockedFrame(creature);
 
-    LPEDICT corpse = first_with_think(Wow_RunCorpseFrame);
-    T_NOT_NULL(corpse);
-    wowEntityLocal_t *col = Wow_EntityLocal(corpse);
-    col->corpse_timer = FRAMETIME;
+    T_ASSERT(creature->think == Wow_RunCorpseFrame);
+    Wow_EntityLocal(creature)->corpse_timer = FRAMETIME;
 
     game->RunFrame();
-    T_ASSERT(!corpse->inuse);
-
-    if (game->Shutdown) game->Shutdown();
-}
-
-TEST(wow_entities, corpse_not_spawned_for_null_entity) {
-    struct game_export *game = init_game();
-    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
-
-    LPEDICT corpse = Wow_SpawnCorpse(NULL);
-    T_NULL(corpse);
+    T_ASSERT(!creature->inuse);
 
     if (game->Shutdown) game->Shutdown();
 }
@@ -460,4 +453,3 @@ TEST(wow_entities, edict_limit_reached_returns_null) {
 
     if (game->Shutdown) game->Shutdown();
 }
-

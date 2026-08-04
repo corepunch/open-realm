@@ -1,5 +1,5 @@
 /*
- * t_smoke.c — Proof-of-concept in-engine tests (see plans/lightweight-testing.md).
+ * t_smoke.c — In-engine smoke tests (see CONTRIBUTING.md).
  *
  * These run inside the REAL, fully-linked game module under a headless
  * dedicated server — no mock harness, no re-declared globals, no per-test

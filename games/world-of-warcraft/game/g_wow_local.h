@@ -100,16 +100,16 @@ typedef struct {
     DWORD projectile_damage;
     FLOAT projectile_yaw;
     FLOAT projectile_pitch;
-    /* GameObject fields (kind == WOW_ENTITY_GAMEOBJECT) */
+    /* Game-object fields (think == Wow_RunGameObjectFrame). */
     DWORD go_entry;
     DWORD go_type;
     DWORD go_state;   /* 0=ready, 1=active, 2=destroyed */
     BOOL  go_interactive;
     DWORD go_display_id;
-    /* Corpse fields (kind == WOW_ENTITY_CORPSE) */
+    /* Corpse fields (think == Wow_RunCorpseFrame). */
     DWORD corpse_owner;
     DWORD corpse_timer;
-    /* DynamicObject fields (kind == WOW_ENTITY_DYNAMICOBJECT) */
+    /* Dynamic-object fields (think == Wow_RunDynamicObjectFrame). */
     DWORD dyn_spell_id;
     DWORD dyn_caster;
     DWORD dyn_radius;
