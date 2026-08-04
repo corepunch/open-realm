@@ -103,6 +103,7 @@ Key principles inline:
 - The server controls what the client draws via state bits in `playerState_t`. The client just reads them.
 - Never hardcode game-specific asset names, animation names, or franchise-specific literals in engine code.
 - Never use `#ifdef SC2`/`#ifdef WOW` to vary constants in shared engine code. Per-game constants live in `games/*/common/ui_constants.h` and resolve via the per-game `-I` include path. Each game defines its native coordinate space (`UI_BASE_WIDTH`, `UI_BASE_HEIGHT`, `UI_FRAMEPOINT_SCALE`) — no conversion functions between game-native coords and "engine coords". The engine operates in whatever coordinate space the game header declares.
+- **Never widen `entityState_t` or `playerState_t` without asking.** These structs are network contracts — every byte change affects bandwidth, delta compression, and snapshot size. If you need more data in the entity state, discuss with the developer first. Use existing fields, renderer-side caches, or DBC lookups instead.
 
 ## Server-Authoring Pattern (Quake 2 STAT_LAYOUTS)
 
