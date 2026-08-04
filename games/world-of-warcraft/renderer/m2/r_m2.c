@@ -1687,7 +1687,7 @@ static LPTEXTURE m2_ribbon_texture(m2Model_t const *model, m2Ribbon_t const *r, 
                                (BYTE)((a) < 0 ? 0 : (a) > 1 ? 255 : (BYTE)((a)*255+.5f)) }
 
 typedef struct {
-	FLOAT speed, varia, lat, lon, grav, life, life_var, zsource;
+	FLOAT speed, varia, lat, lon, grav, life, life_var, zsource, midpoint;
 	FLOAT alpha[3]; VECTOR2 scale[3]; VECTOR3 color[3];
 	LPTEXTURE texture; WORD bone_index;
 	m2Model_t const *model; m2Particle_t const *p; LPCMATRIX4 model_matrix;
@@ -1711,18 +1711,15 @@ static void m2_spawn_particle(void *raw) {
 	VECTOR3 local_origin = ctx->p->position;
 	local_origin.z += ctx->zsource;
 	VECTOR3 org = Matrix4_multiply_vector3(&emitter_matrix, &local_origin);
-	/* M2 ranges spread the authored upward axis; the old spherical interpretation
-	 * turned a zero-range fire emitter sideways along +X. */
 	VECTOR3 dir = m2_particle_direction(ctx->lat, ctx->lon,
-		2.0f * (FLOAT)rand() / (FLOAT)RAND_MAX - 1.0f,
-		2.0f * (FLOAT)rand() / (FLOAT)RAND_MAX - 1.0f,
-		2.0f * (FLOAT)rand() / (FLOAT)RAND_MAX - 1.0f);
+		(VECTOR2){ 2.0f * (FLOAT)rand() / (FLOAT)RAND_MAX - 1.0f,
+		           2.0f * (FLOAT)rand() / (FLOAT)RAND_MAX - 1.0f });
 	VECTOR3 w_dir = Matrix4_multiply_vector3(&emitter_matrix, &dir);
 	VECTOR3 w_zero = Matrix4_multiply_vector3(&emitter_matrix, &(VECTOR3){ 0, 0, 0 });
 	dir = Vector3_sub(&w_dir, &w_zero);
 	Vector3_normalize(&dir);
 	fx->texture = ctx->texture;
-	fx->blend_mode = m2_blend_mode(ctx->p->blend_mode);
+	fx->blend_mode = m2_particle_blend_mode(ctx->p->blend_mode);
 	fx->org = org;
 	fx->vel = Vector3_scale(&dir, MAX(0.0f, ctx->speed + (r - 0.5f) * ctx->varia));
 	fx->accel = (VECTOR3){ 0, 0, -ctx->grav };
@@ -1730,11 +1727,9 @@ static void m2_spawn_particle(void *raw) {
 	fx->color[1] = M2_C32(ctx->color[1], ctx->alpha[1]);
 	fx->color[2] = M2_C32(ctx->color[2], ctx->alpha[2]);
 	FLOAT s[3] = { MAX(ctx->scale[0].x, ctx->scale[0].y), MAX(ctx->scale[1].x, ctx->scale[1].y), MAX(ctx->scale[2].x, ctx->scale[2].y) };
-	fx->size[0] = (BYTE)MIN(255, (int)(s[0] + 0.5f));
-	fx->size[1] = (BYTE)MIN(255, (int)(s[1] + 0.5f));
-	fx->size[2] = (BYTE)MIN(255, (int)(s[2] + 0.5f));
-	fx->midtime = 0x80; fx->columns = MAX(1, ctx->p->cols); fx->rows = MAX(1, ctx->p->rows);
 	fx->time = 0.0f; fx->lifespan = MAX(0.05f, ctx->life + (r - 0.5f) * ctx->life_var);
+	m2_particle_encode_curve(&(M2PARTICLECURVE){ { s[0], s[1], s[2] }, ctx->midpoint, fx->lifespan }, fx);
+	fx->columns = MAX(1, ctx->p->cols); fx->rows = MAX(1, ctx->p->rows);
 }
 
 
@@ -1751,10 +1746,9 @@ static void m2p_sample_classic_data(BYTE const *raw, m2_pctx_t *ctx) {
         ctx->alpha[i] = ((bgra >> 24) & 0xff) / 255.0f;
         ctx->scale[i] = (VECTOR2){ p->scales[i], 0.0f };
         if (ctx->alpha[i] > 0.01f) all_alpha_zero = false;
-        if (ctx->scale[i].x < 0.001f || ctx->scale[i].x > 100.0f) ctx->scale[i].x = 1.0f;
     }
     if (all_alpha_zero) { ctx->alpha[0] = 1.0f; ctx->alpha[1] = 1.0f; ctx->alpha[2] = 0.0f; }
-    (void)midpoint;
+    ctx->midpoint = midpoint;
 }
 
 static void M2_DrawParticles(m2Model_t const *model, renderEntity_t const *entity, LPCMATRIX4 model_matrix) {
@@ -1780,7 +1774,7 @@ static void M2_DrawParticles(m2Model_t const *model, renderEntity_t const *entit
 			const float kMinLiveParticles = 15.0f;
 			rate = MAX(rate, kMinLiveParticles / MAX(life, 0.1f));
 		}
-		m2_pctx_t ctx = { .model = model, .p = p, .model_matrix = model_matrix };
+		m2_pctx_t ctx = { .midpoint = 0.5f, .model = model, .p = p, .model_matrix = model_matrix };
 		{ m2TrackView_t t = m2_particle_track(model->format, raw, M2_PARTICLE_SPEED);
 		  ctx.speed = M2_EvaluateFloatTrack(model, &t, seq_idx, seq_time, 0.0f); }
 		{ m2TrackView_t t = m2_particle_track(model->format, raw, M2_PARTICLE_VARIATION);

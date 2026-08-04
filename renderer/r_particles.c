@@ -41,6 +41,7 @@ cparticle_t *R_SpawnParticle(void) {
     p->next = active_particles;
     active_particles = p;
     p->blend_mode = BLEND_MODE_ADD;
+    p->size_value_scale = p->size_time_scale = 1.0f;
     return p;
 }
 
@@ -235,7 +236,8 @@ void R_DrawParticles(void) {
         VECTOR3 vel = Vector3_add(&p->vel, &halfAccelT);
         VECTOR3 org = Vector3_mad(&p->org, p->time, &vel);
         COLOR32 col = FX_BlendColor(p);
-        float size = FX_BlendFloat(p->size, p->time, BYTE2FLOAT(p->midtime));
+        float size = p->size_value_scale * FX_BlendFloat(p->size, p->time * p->size_time_scale,
+                                                         BYTE2FLOAT(p->midtime));
         pv = R_AddParticle(pv, &org, FX_GetFrame(p), col, size);
         texture = p->texture;
         blend_mode = p->blend_mode;

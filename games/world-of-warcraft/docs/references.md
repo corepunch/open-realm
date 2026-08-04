@@ -24,6 +24,13 @@
 - `data/whoa-master/src/model/M2Data.hpp`: M2 arrays, tracks, materials, batches, cameras, bones, and related structures.
 - `data/whoa-master/src/world/map/*`: map, chunk, doodad, object, liquid, and WMO-facing scaffolding.
 - `data/WoWee/src/rendering/m2_renderer_particles.cpp`: Full particle/ribbon/smoke pipeline — `emitParticles`, `updateParticles`, `updateRibbons`, `renderM2Ribbons`, `renderM2Particles`, `renderSmokeParticles`. ~800 lines, no stubs. Includes model-specific tuning: floors emission rate against particle lifespan so flame emitters (torches, braziers, lanterns) don't visually disappear when authored M2 rates are too sparse. Interpolation helpers for `M2AnimationTrack`, `M2FBlock` (scalar, vec3).
+
+M2 particle scale curves are fractional and sampled over normalized particle life. Encode them through
+`m2_particle_encode_curve`; do not cast the authored values directly to the shared MDX byte curve. Near-zero classic
+scale endpoints are valid shrink targets, not corrupt-data sentinels. WoW particle blend modes 3/4 also need
+`m2_particle_blend_mode` because the shared legacy particle renderer's additive enum names have opposite semantics.
+Particle vertical/horizontal ranges are radians: vertical range is cone inclination from +Z and horizontal range is
+azimuth. A common torch value of `2π` means full rotation around the upward axis, not a linear XY spread magnitude.
 - `data/WoWee/src/rendering/m2_renderer_internal.h`: Particle/ribbon emitter GPU structs, `M2Instance` particle state (accumulators, edge buffers), per-emitter gravity caching.
 - `data/WoWee/assets/shaders/m2_particle.vert.glsl`, `m2_particle.frag.glsl`: Vulkan particle billboard shaders.
 - `data/WoWee/assets/shaders/m2_ribbon.vert.glsl`, `m2_ribbon.frag.glsl`: Vulkan ribbon trail shaders.

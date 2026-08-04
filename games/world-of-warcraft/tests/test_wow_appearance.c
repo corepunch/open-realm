@@ -34,18 +34,48 @@ TEST(wow_m2, legacy_materials_use_render_flags_array) {
     T_EQ(m2_blend_mode(3), BLEND_MODE_ADD);
     T_EQ(m2_blend_mode(4), BLEND_MODE_ADDALPHA);
     T_EQ(m2_blend_mode(99), BLEND_MODE_NONE);
+    T_EQ(m2_particle_blend_mode(3), BLEND_MODE_ADDALPHA);
+    T_EQ(m2_particle_blend_mode(4), BLEND_MODE_ADD);
+}
+
+TEST(wow_m2, particle_curve_preserves_fractional_scale_and_normalized_lifetime) {
+    M2PARTICLECURVE curve = { { 0.1388889f, 0.1666667f, 0.0000277778f }, 0.25f, 6.0f };
+    cparticle_t particle = { 0 };
+
+    m2_particle_encode_curve(&curve, &particle);
+
+    T_EQ(particle.size[0], 212);
+    T_EQ(particle.size[1], 255);
+    T_EQ(particle.size[2], 0);
+    T_ASSERT(fabsf(particle.size[0] * particle.size_value_scale - curve.value[0]) < 0.001f);
+    T_ASSERT(fabsf(particle.size[1] * particle.size_value_scale - curve.value[1]) < 0.001f);
+    T_ASSERT(fabsf(3.0f * particle.size_time_scale - 0.5f) < 0.0001f);
+    T_EQ(particle.midtime, 64);
+}
+
+TEST(wow_m2, zero_particle_curve_stays_zero) {
+    M2PARTICLECURVE curve = { { 0.0f, 0.0f, 0.0f }, 0.5f, 1.0f };
+    cparticle_t particle = { 0 };
+
+    m2_particle_encode_curve(&curve, &particle);
+
+    T_EQ(particle.size[0], 0); T_EQ(particle.size[1], 0); T_EQ(particle.size[2], 0);
+    T_ASSERT(fabsf(particle.size_value_scale - 1.0f) < 0.0001f);
+    T_ASSERT(fabsf(particle.size_time_scale - 1.0f) < 0.0001f);
 }
 
 TEST(wow_m2, particle_ranges_spread_an_upward_vector) {
-    VECTOR3 straight = m2_particle_direction(0.0f, 0.0f, 1.0f, -1.0f, 1.0f);
-    VECTOR3 spread = m2_particle_direction(0.5f, 0.25f, 1.0f, -1.0f, -1.0f);
+    VECTOR3 straight = m2_particle_direction(0.0f, 2.0f * (FLOAT)M_PI, (VECTOR2){ 1.0f, -1.0f });
+    VECTOR3 spread = m2_particle_direction(0.5f, 2.0f * (FLOAT)M_PI, (VECTOR2){ 1.0f, -0.5f });
+    VECTOR3 torch = m2_particle_direction(0.08726646f, 2.0f * (FLOAT)M_PI, (VECTOR2){ 1.0f, 1.0f });
 
     T_ASSERT(fabsf(straight.x) < 0.0001f);
     T_ASSERT(fabsf(straight.y) < 0.0001f);
     T_ASSERT(fabsf(straight.z - 1.0f) < 0.0001f);
-    T_ASSERT(spread.x > 0.0f);
+    T_ASSERT(fabsf(spread.x) < 0.0001f);
     T_ASSERT(spread.y < 0.0f);
     T_ASSERT(spread.z > 0.0f);
+    T_ASSERT(torch.z > 0.996f);
 }
 
 TEST(wow_m2, format_convention_selects_file_shaped_records) {

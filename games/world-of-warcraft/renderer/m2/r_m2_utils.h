@@ -2,6 +2,7 @@
 #define WOW_R_M2_UTILS_H
 
 #include "r_m2_format.h"
+#include <math.h>
 #include <string.h>
 #include <strings.h>
 
@@ -27,6 +28,23 @@ typedef struct {
     m2Format_t format;
     DWORD sequence_stride, bone_stride, attachment_stride, camera_stride, particle_stride, ribbon_stride;
 } m2FormatDef_t;
+
+typedef struct {
+    FLOAT value[3], midpoint, lifespan;
+} M2PARTICLECURVE;
+typedef M2PARTICLECURVE *LPM2PARTICLECURVE;
+typedef M2PARTICLECURVE const *LPCM2PARTICLECURVE;
+
+/* M2 uses fractional, lifetime-normalized scales; encode them without changing the legacy MDX byte/seconds contract. */
+static void m2_particle_encode_curve(LPCM2PARTICLECURVE curve, cparticle_t *particle) {
+    FLOAT max_value = MAX(curve->value[0], MAX(curve->value[1], curve->value[2]));
+    particle->size_value_scale = max_value > 0.0f ? max_value / 255.0f : 1.0f;
+    FOR_LOOP(i, 3)
+        particle->size[i] = max_value > 0.0f
+            ? (BYTE)MIN(255, MAX(0, (int)(curve->value[i] / max_value * 255.0f + 0.5f))) : 0;
+    particle->size_time_scale = 1.0f / MAX(curve->lifespan, 0.001f);
+    particle->midtime = (BYTE)MIN(254, MAX(1, (int)(curve->midpoint * 255.0f + 0.5f)));
+}
 
 /* One version convention controls every versioned record family. */
 static m2FormatDef_t const *m2_format_def(DWORD version) {
@@ -173,13 +191,18 @@ static BLEND_MODE m2_blend_mode(WORD wow_blend) {
     return wow_blend < sizeof(modes) / sizeof(modes[0]) ? modes[wow_blend] : BLEND_MODE_NONE;
 }
 
-/* M2 ranges spread an authored +Z launch vector; they are not spherical latitude/longitude angles. */
-static VECTOR3 m2_particle_direction(FLOAT vertical_range, FLOAT horizontal_range,
-                                     FLOAT random_x, FLOAT random_y, FLOAT random_z) {
-    VECTOR3 dir = { random_x * horizontal_range, random_y * horizontal_range,
-                    1.0f + random_z * vertical_range };
-    Vector3_normalize(&dir);
-    return dir;
+/* The shared particle renderer's legacy ADD names are opposite WoW's modes 3/4; adapt M2 without changing MDX. */
+static BLEND_MODE m2_particle_blend_mode(WORD wow_blend) {
+    BLEND_MODE mode = m2_blend_mode(wow_blend);
+    return mode == BLEND_MODE_ADD ? BLEND_MODE_ADDALPHA :
+           mode == BLEND_MODE_ADDALPHA ? BLEND_MODE_ADD : mode;
+}
+
+/* M2 stores cone inclination and azimuth ranges in radians around the authored +Z launch axis. */
+static VECTOR3 m2_particle_direction(FLOAT vertical_range, FLOAT horizontal_range, VECTOR2 random) {
+    FLOAT phi = (random.x + 1.0f) * 0.5f * MAX(0.0f, vertical_range);
+    FLOAT theta = random.y * 0.5f * horizontal_range;
+    return (VECTOR3){ sinf(phi) * cosf(theta), sinf(phi) * sinf(theta), cosf(phi) };
 }
 
 #endif
