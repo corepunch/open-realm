@@ -7,7 +7,7 @@ void unit_begin_decay(LPEDICT self);
 void unit_decay_think(LPEDICT self);
 void unit_cooldown(LPEDICT self);
 void unit_stand(LPEDICT self);
-static BOOL G_UnitIsHero(LPCEDICT ent);
+BOOL G_UnitIsHero(LPCEDICT ent);
 
 /* WC3 corpse lifetime: DecayTime (flesh, 2s) + BoneDecayTime (bone, 88s) = 90s
  * after the death animation, then the corpse is removed (MiscData.txt). */
@@ -279,6 +279,7 @@ void unit_addtimedstatus(LPEDICT ent, LPCSTR skill, DWORD level, FLOAT duration)
     DWORD code;
     DWORD now;
     heroabilitystatus_t *slot = NULL;
+    LPCSTR stacktype;
 
     if (!ent || !skill || !*skill || level == 0) {
         return;
@@ -286,11 +287,32 @@ void unit_addtimedstatus(LPEDICT ent, LPCSTR skill, DWORD level, FLOAT duration)
 
     code = *((DWORD const *)skill);
     now = gi.GetTime();
+    stacktype = S_SpellString(code, "BuffStackType", 0);
+
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t *status = ent->abilstatus + i;
         if (status->level && status->code == code) {
-            slot = status;
-            break;
+            /* Existing buff of same code found — apply stacking rule. */
+            if (stacktype && !strcmp(stacktype, "Stack")) {
+                status->level += level;
+                if (duration > 0) {
+                    status->timestamp = now + (DWORD)(duration * 1000.0f);
+                }
+            } else if (stacktype && !strcmp(stacktype, "Refresh")) {
+                if (duration > 0) {
+                    status->timestamp = now + (DWORD)(duration * 1000.0f);
+                }
+            } else {
+                /* "Replace" (default): overwrite level and timestamp. */
+                status->level = level;
+                if (duration > 0) {
+                    status->timestamp = now + (DWORD)(duration * 1000.0f);
+                } else {
+                    status->timestamp = 0;
+                }
+            }
+            unit_refreshstatusflags(ent);
+            return;
         }
         if (!status->level && !slot) {
             slot = status;
@@ -469,7 +491,7 @@ static FLOAT G_MiscListNum(LPCSTR key, DWORD n, FLOAT fallback) {
     return val;
 }
 
-static BOOL G_UnitIsHero(LPCEDICT ent) {
+BOOL G_UnitIsHero(LPCEDICT ent) {
     DWORD const cls = ent->class_id;
     return UNIT_STRENGTH(cls) > 0 || UNIT_AGILITY(cls) > 0 || UNIT_INTELLIGENCE(cls) > 0;
 }
