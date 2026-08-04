@@ -22,6 +22,7 @@
 #define MAX_ENTITIES MAX_GAME_ENTITIES
 #define MAX_REGION_SIZE 16
 #define MAX_INVENTORY 6
+#define MAX_CARGO 8
 #define MAX_HERO_ABILITIES 4
 #define MAX_UNIT_STATUSES 8
 #define PLAYER_TEXT_BACKUP 16
@@ -544,6 +545,9 @@ struct edict_s {
     DWORD resources;
     DWORD freetime;
     LPEDICT inventory[MAX_INVENTORY];
+    LPEDICT cargo_units[MAX_CARGO];
+    DWORD cargo_count;
+    DWORD cargo_capacity;
     FLOAT velocity;
     doodadHero_t hero;
     heroability_t heroabilities[MAX_HERO_ABILITIES];

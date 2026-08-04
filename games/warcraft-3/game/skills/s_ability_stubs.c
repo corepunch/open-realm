@@ -28,43 +28,13 @@ ability_t a_phoenix_fire = {0};
 ability_t a_cold_arrows = {0};
 ability_t a_invulnerable = {0};
 
-ability_t a_goldmine_overlayed = {0};
-ability_t a_blighted_goldmine = {0};
-ability_t a_blight = {0};
-ability_t a_acolyte_harvest = {
-    .cmd = stub_cancel_command,
-};
-ability_t a_return_resources = {
-    .cmd = stub_cancel_command,
-};
-ability_t a_wisp_harvest = {
-    .cmd = stub_cancel_command,
-};
 ability_t a_harvest_lumber = {
     .cmd = stub_cancel_command,
 };
+
+/* Aren/Arst share the same repair logic as Arep. */
 ability_t a_repair_generic = {
-    .cmd = stub_cancel_command,
-};
-
-ability_t a_entangle_goldmine = {
-    .cmd = stub_cancel_command,
-};
-ability_t a_entangled_mine = {0};
-
-ability_t a_cargo_hold = {0};
-ability_t a_cargo_hold_burrow = {0};
-ability_t a_cargo_hold_entangled_mine = {0};
-ability_t a_stand_down = {
-    .cmd = stub_cancel_command,
-};
-ability_t a_load = {
-    .cmd = stub_cancel_command,
-};
-ability_t a_drop = {
-    .cmd = stub_cancel_command,
-};
-ability_t a_drop_instant = {
+    .init = SP_ability_repair,
     .cmd = stub_cancel_command,
 };
 

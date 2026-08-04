@@ -15,7 +15,7 @@ void harvest_walk(LPEDICT ent);
 void harvest_start(LPEDICT self, LPEDICT target);
 void harvest_gold_start(LPEDICT self, LPEDICT target);
 LPEDICT find_townhall(LPEDICT unit);
-    
+
 static LPEDICT find_another_tree(LPEDICT ent) {
     FLOAT min_dist = HARVEST_SEARCH_RANGE;
     LPEDICT other = NULL;
@@ -145,8 +145,107 @@ void harvest_start(LPEDICT self, LPEDICT target) {
     harvest_walk(self);
 }
 
+/* ---- Wisp harvest: walk to tree, gather lumber, wisp dies ---------------- */
+static FLOAT wisp_lumber_per_interval;
+static DWORD wisp_interval_count;
+
+static void ai_wisp_mine(LPEDICT ent) {
+    unit_runwait(ent, NULL);
+    /* Wisp gathers lumber and is consumed. */
+    LPPLAYER player = G_GetPlayerByNumber(ent->s.player);
+    if (player) {
+        player->stats[PLAYERSTATE_RESOURCE_LUMBER] += (DWORD)wisp_lumber_per_interval;
+    }
+    ent->health.value = 0;
+    if (ent->die) {
+        ent->die(ent, ent);
+    }
+}
+
+static umove_t wisp_harvest_mine = { "stand", ai_wisp_mine, NULL, &a_wisp_harvest };
+
+static void ai_wisp_walktree(LPEDICT ent) {
+    if (M_DistanceToGoal(ent) > HARVEST_RANGE) {
+        unit_changeangle(ent);
+        unit_moveindirection(ent);
+    } else {
+        unit_setmove(ent, &wisp_harvest_mine);
+        ent->wait = 1.0f;
+    }
+}
+
+static umove_t wisp_harvest_walk = { "walk", ai_wisp_walktree, NULL, &a_wisp_harvest };
+
+void wisp_harvest_start(LPEDICT self, LPEDICT target) {
+    self->goalentity = target;
+    unit_setmove(self, &wisp_harvest_walk);
+}
+
+static BOOL wisp_harvest_selecttarget(LPEDICT clent, LPEDICT target) {
+    if (!target || target->targtype != TARG_TREE || M_IsDead(target)) {
+        return false;
+    }
+    FOR_SELECTED_UNITS(clent->client, ent) {
+        wisp_harvest_start(ent, target);
+    }
+    return true;
+}
+
+static void wisp_harvest_command(LPEDICT clent) {
+    UI_AddCancelButton(clent);
+    clent->client->menu.on_entity_selected = wisp_harvest_selecttarget;
+}
+
+static void SP_ability_wisp_harvest(LPCSTR classname, ability_t *self) {
+    wisp_lumber_per_interval = AB_Number(classname, "DataA1");
+    wisp_interval_count = (DWORD)AB_Number(classname, "DataB1");
+}
+
+ability_t a_wisp_harvest = {
+    .init = SP_ability_wisp_harvest,
+    .cmd = wisp_harvest_command,
+};
+
+/* ---- Acolyte harvest: target blighted gold mine ------------------------- */
+static BOOL acolyte_harvest_selecttarget(LPEDICT clent, LPEDICT target) {
+    if (!target || !G_ActorHasSkill(target, "Abgm")) {
+        return false;
+    }
+    FOR_SELECTED_UNITS(clent->client, ent) {
+        harvest_gold_start(ent, target);
+    }
+    return true;
+}
+
+static void acolyte_harvest_command(LPEDICT clent) {
+    UI_AddCancelButton(clent);
+    clent->client->menu.on_entity_selected = acolyte_harvest_selecttarget;
+}
+
+ability_t a_acolyte_harvest = {
+    .cmd = acolyte_harvest_command,
+};
+
+/* ---- Return Resources: standalone command to deposit carried resources --- */
+static void return_resources_command(LPEDICT clent) {
+    FOR_SELECTED_UNITS(clent->client, ent) {
+        if (ent->harvested_lumber > 0 || ent->harvested_gold > 0) {
+            harvest_walkback(ent);
+        }
+    }
+}
+
+ability_t a_return_resources = {
+    .cmd = return_resources_command,
+};
+
+/* ---- Harvest menu dispatch (extended for wisp/acolyte) ------------------ */
 BOOL harvest_menu_selecttarget(LPEDICT clent, LPEDICT target) {
     if (G_ActorHasSkill(target, "Agld")) {
+        FOR_SELECTED_UNITS(clent->client, ent) {
+            harvest_gold_start(ent, target);
+        }
+    } else if (G_ActorHasSkill(target, "Abgm")) {
         FOR_SELECTED_UNITS(clent->client, ent) {
             harvest_gold_start(ent, target);
         }
