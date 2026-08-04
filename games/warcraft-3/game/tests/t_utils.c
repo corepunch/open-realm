@@ -39,19 +39,34 @@ void CM_SetupTestPathmap(DWORD width, DWORD height, BYTE const *cells);
 #define TEST_PATHMAP_CELLS 64
 static BYTE test_pathmap_cells[TEST_PATHMAP_CELLS * TEST_PATHMAP_CELLS];
 static MAPINFO test_mapinfo;
+static WAR3MAP test_worldmap;
+static WAR3MAPVERTEX test_vertices[(TEST_PATHMAP_CELLS + 1) * (TEST_PATHMAP_CELLS + 1)];
 
 static BOOL test_world_ready;
 
 void setup_test_world(void) {
-    if (test_world_ready) return;
+	if (test_world_ready) return;
 
-    memset(&test_mapinfo, 0, sizeof(test_mapinfo));
-    level.mapinfo = &test_mapinfo;
+	memset(&test_mapinfo, 0, sizeof(test_mapinfo));
+	level.mapinfo = &test_mapinfo;
 
-    memset(test_pathmap_cells, 0, sizeof(test_pathmap_cells));
-    CM_SetupTestPathmap(TEST_PATHMAP_CELLS, TEST_PATHMAP_CELLS, test_pathmap_cells);
+	memset(&test_worldmap, 0, sizeof(test_worldmap));
+	test_worldmap.width = TEST_PATHMAP_CELLS;
+	test_worldmap.height = TEST_PATHMAP_CELLS;
+	memset(test_vertices, 0, sizeof(test_vertices));
+	for (int i = 0; i < (int)(sizeof(test_vertices) / sizeof(test_vertices[0])); i++)
+		test_vertices[i].accurate_height = 0x2000;
+	test_worldmap.vertices = test_vertices;
+	world.map = &test_worldmap;
 
-    test_world_ready = true;
+	memset(test_pathmap_cells, 0, sizeof(test_pathmap_cells));
+	CM_SetupTestPathmap(TEST_PATHMAP_CELLS, TEST_PATHMAP_CELLS, test_pathmap_cells);
+
+	/* Rebuild the area-node tree so spatial queries don't chase dangling entity
+	 * links left over from previous tests. */
+	if (gi.ClearWorld) gi.ClearWorld();
+
+	test_world_ready = true;
 }
 
 /* Run before any TEST() — other constructors depend on level.mapinfo being valid. */

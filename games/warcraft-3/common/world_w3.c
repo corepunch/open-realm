@@ -1,13 +1,15 @@
 #include "common/common.h"
 
 static LPCWAR3MAPVERTEX CM_GetWar3MapVertex(DWORD x, DWORD y) {
-    int const index = x + y * world.map->width;
-    char const *ptr = ((char const *)world.map->vertices) + index * sizeof(WAR3MAPVERTEX);
-    return (LPCWAR3MAPVERTEX)ptr;
+	if (!world.map || !world.map->vertices) return NULL;
+	int const index = x + y * world.map->width;
+	char const *ptr = ((char const *)world.map->vertices) + index * sizeof(WAR3MAPVERTEX);
+	return (LPCWAR3MAPVERTEX)ptr;
 }
 
 static FLOAT CM_GetWar3MapVertexHeight(LPCWAR3MAPVERTEX vert) {
-    return DECODE_HEIGHT(vert->accurate_height) + vert->level * TILE_SIZE - HEIGHT_COR;
+	if (!vert) return 0;
+	return DECODE_HEIGHT(vert->accurate_height) + vert->level * TILE_SIZE - HEIGHT_COR;
 }
 
 void CM_ReadPathMap(HANDLE archive);
@@ -49,7 +51,8 @@ bool CM_LoadMapFormat(LPCSTR mapFilename) {
 }
 
 FLOAT CM_GetHeightAtPoint(FLOAT sx, FLOAT sy) {
-    FLOAT x = (sx - world.map->center.x) / TILE_SIZE;
+	if (!world.map || !world.map->vertices) return 0;
+	FLOAT x = (sx - world.map->center.x) / TILE_SIZE;
     FLOAT y = (sy - world.map->center.y) / TILE_SIZE;
     FLOAT fx = floorf(x);
     FLOAT fy = floorf(y);
@@ -63,15 +66,17 @@ FLOAT CM_GetHeightAtPoint(FLOAT sx, FLOAT sy) {
 }
 
 VECTOR2 CM_GetNormalizedMapPosition(FLOAT x, FLOAT y) {
-    FLOAT _x = (x - world.map->center.x) / ((world.map->width - 1) * TILE_SIZE);
-    FLOAT _y = (y - world.map->center.y) / ((world.map->height - 1) * TILE_SIZE);
-    return (VECTOR2){ _x, _y };
+	if (!world.map) return (VECTOR2){0, 0};
+	FLOAT _x = (x - world.map->center.x) / ((world.map->width - 1) * TILE_SIZE);
+	FLOAT _y = (y - world.map->center.y) / ((world.map->height - 1) * TILE_SIZE);
+	return (VECTOR2){ _x, _y };
 }
 
 VECTOR2 CM_GetDenormalizedMapPosition(FLOAT x, FLOAT y) {
-    FLOAT _x = x * (world.map->width - 1) * TILE_SIZE + world.map->center.x;
-    FLOAT _y = y * (world.map->height - 1) * TILE_SIZE + world.map->center.y;
-    return (VECTOR2){ _x, _y };
+	if (!world.map) return (VECTOR2){0, 0};
+	FLOAT _x = x * (world.map->width - 1) * TILE_SIZE + world.map->center.x;
+	FLOAT _y = y * (world.map->height - 1) * TILE_SIZE + world.map->center.y;
+	return (VECTOR2){ _x, _y };
 }
 
 BOX2 CM_GetWorldBounds(void) {

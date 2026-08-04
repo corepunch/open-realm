@@ -19,6 +19,8 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | Entity sound architecture | [doc/architecture/sound.md](doc/architecture/sound.md) |
 | WC3 data model (SLK, unit stats, combat) | [docs/wc3-data-model.md](docs/wc3-data-model.md) |
 | SC2 HUD layout pipeline (sc2BaseFrame_t → uiFrame_t, layer IDs, stat bindings) | [games/starcraft-2/docs/hud-layout-pipeline.md](games/starcraft-2/docs/hud-layout-pipeline.md) |
+| FS / VFS / MPQ loading stack, SC2 vs WoW patterns, mmap ADT optimization | [docs/fs-loading-architecture.md](docs/fs-loading-architecture.md) |
+| Code patterns that work well (file-shaped structs, table-driven parsing, pointer-walk parsers) | [docs/code-patterns-that-work.md](docs/code-patterns-that-work.md) |
 
 ## Coding Style
 
@@ -90,6 +92,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 - **Auto-quit the app with `+com_frame_limit N`.** When running the binary for verification, pass `+com_frame_limit 100` (or similar) so the process exits after N frames without manual intervention. Example: `make run-sc2 ARGS="+com_frame_limit 100"`
 - **`git blame` before changing existing struct/API fields.** Understand why a field exists and what trade-offs were made before changing it.
 - **Do not disable a failing test.** Fix the code or fix the test — do not comment it out, add `SKIP`, or reduce its coverage.
+- **"Pre-existing" failures are not an excuse.** If `make test` shows failures, fix them. Remove dead dispatchers still calling old harness macros (e.g., `RUN_TEST` in migrated suites), unwrap mock callbacks accidentally wrapped in `TEST()`, and ensure test fixtures are complete (e.g., load GlobalStrings.fdf when tests resolve string-table keys).
 
 ## Architecture
 

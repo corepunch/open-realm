@@ -46,6 +46,7 @@ void setup_test_world(void);
  * so each test starts from a clean slate. */
 static LPEDICT make_moving_unit(FLOAT x, FLOAT y) {
     reset_entities();
+    setup_test_world();
     LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), x, y);
     ent->movetype  = MOVETYPE_STEP;
     ent->stand     = unit_stand;
