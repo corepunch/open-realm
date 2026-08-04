@@ -30,8 +30,8 @@ static struct {
     FLOAT pitch;
     FLOAT distance;
 } wow_move = {
-    .pitch = 328.0f,
-    .distance = 8.5f,
+    .pitch = 342.0f,
+    .distance = 5.5f,
 };
 
 #define WOW_MAX_SPAWNS_PER_FRAME 64

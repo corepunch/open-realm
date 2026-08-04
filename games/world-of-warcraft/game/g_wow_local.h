@@ -23,10 +23,10 @@
 #define WOW_MOVE_RIGHT 8
 #define WOW_WALK_SPEED 7.0f
 #define WOW_MELEE_RANGE 5.0f
-#define WOW_CAMERA_MIN_PITCH 300.0f
-#define WOW_CAMERA_MAX_PITCH 350.0f
-#define WOW_CAMERA_MIN_DISTANCE 3.0f
-#define WOW_CAMERA_MAX_DISTANCE 35.0f
+#define WOW_CAMERA_MIN_PITCH 305.0f
+#define WOW_CAMERA_MAX_PITCH 355.0f
+#define WOW_CAMERA_MIN_DISTANCE 2.5f
+#define WOW_CAMERA_MAX_DISTANCE 25.0f
 
 /* Spell definition table: Q2 g_items.c pattern — data-driven, function pointers per spell.
    Spell indices double as the cast_spell value while a spell is being channeled. */
