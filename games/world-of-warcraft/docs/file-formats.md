@@ -66,6 +66,22 @@ its referenced bone, so particle and ribbon spines must be transformed by `model
 `data/WoWee/src/pipeline/m2_loader.cpp` is the local reference for these offsets; `data/WoWee/src/rendering/m2_renderer_particles.cpp`
 keeps the corresponding per-instance particle accumulators and ribbon edge state.
 
+Vanilla v256 headers insert `playable_animation_lookup`, a full `views` array, and another array before `render_flags`.
+Read material records from `m2HeaderLegacy_t.render_flags`, not the modern `materials` offset. WoW blend IDs are
+`0=opaque`, `1=alpha-key`, `2=blend`, `3=add`, `4=add-alpha`, `5=mod`, and `6=mod2x`.
+
+Particle `verticalRange` and `horizontalRange` spread a model-space `+Z` launch vector. They are ranges, not spherical
+latitude/longitude angles; a zero range must therefore emit straight upward.
+
+### M2 renderer schema convention
+
+- Keep on-disk records in `renderer/m2/r_m2_format.h`; do not redeclare them in `r_m2.c`.
+- Add a `_Static_assert` for every known record size. Modern ribbons are `0xac`; Classic ribbons are `0xe0`.
+- Select all versioned record sizes through `m2_format_def(version)`, not subsystem-specific Classic booleans.
+- Access offset arrays through `m2_array_ptr`/`m2_string_ptr` and versioned tracks through the helpers in
+  `renderer/m2/r_m2_utils.h`. Do not add byte-offset walkers when the file record can name the field directly.
+- Keep `r_m2.c` for owned runtime state, animation evaluation, rendering, and character composition.
+
 Character-display specifics are scattered across model files and DBC tables. For our current classic-era work, the highest-value cross-checks are:
 
 - `data/whoa-master/src/component/CCharacterComponent.cpp` for item component texture creation and geoset visibility prep.
