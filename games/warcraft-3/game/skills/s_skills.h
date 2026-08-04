@@ -70,6 +70,8 @@ extern ability_t a_item_figurine_summon;
 extern ability_t a_item_permanent_life_gain;
 extern ability_t a_item_experience_gain;
 extern ability_t a_item_level_gain;
+extern ability_t a_flame_strike;
+extern ability_t a_siphon_mana;
 
 FLOAT AB_Number(LPCSTR classname, LPCSTR field);
 DWORD S_SpellCurrentCode(LPEDICT clent, DWORD fallback);
@@ -96,6 +98,12 @@ void S_SpellCursorSplat(LPEDICT clent, FLOAT radius);
 void S_SpellCodeString(DWORD code, LPSTR out);
 BOOL S_SpellIsChanneling(LPEDICT caster);
 void S_SpellCancelChannel(LPEDICT caster);
+
+/* Unified spell pipeline — replaces per-spell command boilerplate.
+ * Single entry point for all spell abilities; handles target setup,
+ * validation, and execution via the spell_info_t attached to ability_t. */
+void spell_cmd(LPEDICT clent);
+void spell_run_frame(LPEDICT ent);
 void SP_ability_repair(LPCSTR classname, ability_t *self);
 void SP_ability_item_attack_bonus(LPCSTR classname, ability_t *self);
 void SP_ability_item_defense_bonus(LPCSTR classname, ability_t *self);

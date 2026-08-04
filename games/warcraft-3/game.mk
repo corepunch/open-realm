@@ -76,7 +76,7 @@ $(eval $(call unity_lib_schema,$(UI_LIB),$(UI_BASE_DEPS) $(WC3_UI_HEADERS) commo
 $(eval $(call app_schema,$(BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_LIB) $(RENDERER_LIB) $(UI_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS),openwarcraft3,$(WC3_FDF_CFLAGS),-lsheet -lshared -ljass -lgame -lrenderer -lui $(LIBS) -lz))
 
 # ---------------------------------------------------------------------------
-# In-engine tests (see plans/lightweight-testing.md)
+# In-engine tests (see CONTRIBUTING.md)
 #
 # The game module is rebuilt with -DBZ_TESTS so that TEST() blocks under
 # games/warcraft-3/game/tests/ are compiled in and self-register.  A dedicated

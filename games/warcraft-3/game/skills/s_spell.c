@@ -6,6 +6,19 @@ static umove_t spell_effect_birth = { "birth", NULL, G_FreeEdict };
 
 #define DEFAULT_SPELL_AREA_CURSOR "ReplaceableTextures\\Selection\\SpellAreaOfEffect.blp"
 
+/* ---- Unified Spell Pipeline ----
+
+ * All hero/unit spells route through a single cmd entry point (spell_cmd) that
+ * reads the ability code, validates mana/cooldown, configures targeting, and
+ * dispatches to the spell_info_t::execute callback once a valid target is
+ * acquired.  channeled spells (SPELL_CHANNEL) set ent->channel_code and
+ * ent->cast_origin; spell_run_frame() enforces movement-cancel for them.
+ *
+ * Design mirrors:
+ *   - WarSmash: CAbilitySpellBase with target-type dispatch
+ *   - WoW: data-driven spell table + cast state machine (Wow_RunSpellCast)
+ *   - Quake2: ability_t → cmd function pointer dispatch */
+
 static LPCSTR S_SpellThemeString(LPCSTR key, LPCSTR def) {
     LPCSTR value = NULL;
 
@@ -336,5 +349,173 @@ void S_SpellCancelChannel(LPEDICT caster) {
     caster->channel_code = 0;
     if (caster->stand) {
         caster->stand(caster);
+    }
+}
+
+/* ---- Unified Spell Pipeline ---- */
+
+/* Per-frame channel enforcement: if the caster has moved from cast_origin,
+ * cancel the channel.  Called from G_RunEntity. */
+void spell_run_frame(LPEDICT ent) {
+    if (!ent->channel_code)
+        return;
+
+    /* Stun or death interrupts channel. */
+    if (ent->stunned || M_IsDead(ent)) {
+        S_SpellCancelChannel(ent);
+        return;
+    }
+
+    /* Movement cancel: caster moved from the position where channel began. */
+    if (fabsf(ent->s.origin.x - ent->cast_origin.x) > 0.5f ||
+        fabsf(ent->s.origin.y - ent->cast_origin.y) > 0.5f) {
+        S_SpellCancelChannel(ent);
+        return;
+    }
+}
+
+/* Shared validation for spell spells: mana, cooldown, and optional range check. */
+static BOOL spell_validate(LPEDICT caster, DWORD code, DWORD level, LPEDICT target, FLOAT range) {
+    if (!caster)
+        return false;
+    if (!S_SpellCooldownReady(caster, code))
+        return false;
+    if (!S_SpellCanPay(caster, code, level))
+        return false;
+    if (range > 0 && target && !S_SpellTargetInRange(caster, target, range))
+        return false;
+    return true;
+}
+
+/* Shared validation for point-target spells. */
+static BOOL spell_validate_point(LPEDICT caster, DWORD code, DWORD level, LPCVECTOR2 point, FLOAT range) {
+    if (!caster || !point)
+        return false;
+    if (!S_SpellCooldownReady(caster, code))
+        return false;
+    if (!S_SpellCanPay(caster, code, level))
+        return false;
+    if (range > 0 && Vector2_distance(&caster->s.origin2, point) > range)
+        return false;
+    return true;
+}
+
+/* Start channel: lock caster in place and record the origin for movement-cancel. */
+static void spell_begin_channel(LPEDICT caster, DWORD code) {
+    caster->channel_code = code;
+    caster->cast_origin = caster->s.origin2;
+}
+
+/* Pre-execute common work: spend mana, start cooldown. */
+static void spell_commit(LPEDICT caster, DWORD code, DWORD level) {
+    S_SpellSpendMana(caster, code, level);
+    S_SpellStartCooldown(caster, code, level);
+}
+
+/* ---- Per-target-type unified callbacks ---- */
+
+/* Called when user clicks a target entity for a UNIT-target spell. */
+static BOOL spell_unit_target_selected(LPEDICT clent, LPEDICT target) {
+    LPEDICT caster = G_GetMainSelectedUnit(clent->client);
+    DWORD code = S_SpellCurrentCode(clent, 0);
+    DWORD level = S_SpellLevel(caster, code);
+    FLOAT range = S_SpellRange(code, level);
+    ability_t const *abil = FindAbilityByClassname((LPCSTR)&code);
+    spell_info_t const *spell = abil ? abil->spell : NULL;
+
+    if (!spell) return false;
+    if (!spell_validate(caster, code, level, target, range)) return false;
+    if (!S_SpellAllowsTarget(code, caster, target)) return false;
+    if (!S_SpellIsAliveTarget(target)) return false;
+    spellTarget_t st = { .type = SPELL_TARGET_UNIT, .entity = target };
+    if (spell->validate && !spell->validate(caster, st)) return false;
+
+    spell_commit(caster, code, level);
+    if (spell->flags & SPELL_CHANNEL)
+        spell_begin_channel(caster, code);
+    spell->execute(caster, st, spell);
+    return true;
+}
+
+/* Called when user clicks a location for a POINT-target spell. */
+static BOOL spell_point_target_selected(LPEDICT clent, LPCVECTOR2 point) {
+    LPEDICT caster = G_GetMainSelectedUnit(clent->client);
+    DWORD code = S_SpellCurrentCode(clent, 0);
+    DWORD level = S_SpellLevel(caster, code);
+    FLOAT range = S_SpellRange(code, level);
+    ability_t const *abil = FindAbilityByClassname((LPCSTR)&code);
+    spell_info_t const *spell = abil ? abil->spell : NULL;
+
+    if (!spell) return false;
+    if (!spell_validate_point(caster, code, level, point, range))
+        return false;
+    spellTarget_t st = { .type = SPELL_TARGET_POINT, .point = *point };
+    if (spell->validate && !spell->validate(caster, st)) return false;
+
+    spell_commit(caster, code, level);
+    if (spell->flags & SPELL_CHANNEL)
+        spell_begin_channel(caster, code);
+    spell->execute(caster, st, spell);
+    S_SpellCursorSplat(clent, 0.0f);
+    return true;
+}
+
+/* No-target (self-cast / instant) execute in-place. */
+static void spell_no_target_execute(LPEDICT clent) {
+    LPEDICT caster = G_GetMainSelectedUnit(clent->client);
+    DWORD code = S_SpellCurrentCode(clent, 0);
+    DWORD level = S_SpellLevel(caster, code);
+    ability_t const *abil = FindAbilityByClassname((LPCSTR)&code);
+    spell_info_t const *spell = abil ? abil->spell : NULL;
+
+    if (!spell) return;
+    if (!S_SpellCooldownReady(caster, code)) return;
+    if (!S_SpellCanPay(caster, code, level)) return;
+    spellTarget_t st = { .type = SPELL_TARGET_NONE, .entity = NULL };
+    if (spell->validate && !spell->validate(caster, st)) return;
+
+    spell_commit(caster, code, level);
+    spell->execute(caster, st, spell);
+}
+
+/* Shared command entry point for all spell abilities.  Sets up the appropriate
+ * target-selection UI based on spell_info_t::target_type, or executes
+ * immediately for no-target spells. */
+void spell_cmd(LPEDICT clent) {
+    LPEDICT caster = G_GetMainSelectedUnit(clent->client);
+    DWORD code = S_SpellCurrentCode(clent, 0);
+    ability_t const *abil = FindAbilityByClassname((LPCSTR)&code);
+    spell_info_t const *spell = abil ? abil->spell : NULL;
+
+    if (!spell) {
+        fprintf(stderr, "spell_cmd: no spell_info for code '%.4s'\n", (LPCSTR)&code);
+        return;
+    }
+
+    /* Toggle abilities bypass the normal pipeline. */
+    if (spell->flags & SPELL_TOGGLE) {
+        spell->execute(caster, (spellTarget_t){ .type = SPELL_TARGET_NONE }, spell);
+        Get_Commands_f(clent);
+        return;
+    }
+
+    switch (spell->target_type) {
+    case SPELL_TARGET_NONE:
+        spell_no_target_execute(clent);
+        break;
+    case SPELL_TARGET_UNIT:
+        UI_AddCancelButton(clent);
+        clent->client->menu.on_entity_selected = spell_unit_target_selected;
+        break;
+    case SPELL_TARGET_POINT: {
+        UI_AddCancelButton(clent);
+        FLOAT area = S_SpellNumber(code, "Area", S_SpellLevel(caster, code));
+        S_SpellCursorSplat(clent, area > 0 ? area : 200.0f);
+        clent->client->menu.on_location_selected = spell_point_target_selected;
+        break;
+    }
+    case SPELL_TARGET_UNIT_OR_POINT:
+        spell_no_target_execute(clent); /* TODO: add unit-or-point fallback via smart-click */
+        break;
     }
 }

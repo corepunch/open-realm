@@ -26,6 +26,7 @@
 #define IS_MOVING(ent) (ent->currentmove && ent->currentmove->ability == &a_move)
 
 extern ability_t a_move;
+extern void spell_run_frame(LPEDICT ent);
 
 void G_PushEntity(LPEDICT ent, FLOAT distance, LPCVECTOR2 direction) {
     ent->s.origin2 = Vector2_mad(&ent->s.origin2, distance, direction);
@@ -89,6 +90,7 @@ static BOOL G_UnitRegeneratesHP(LPCEDICT ent) {
  * then calls the entity's think function, and finally compresses health/mana
  * into the 8-bit stat fields that are sent to clients. */
 void G_RunEntity(LPEDICT ent) {
+    spell_run_frame(ent);
     unit_updatestatuses(ent);
     SAFE_CALL(ent->prethink, ent);
     switch (ent->movetype) {

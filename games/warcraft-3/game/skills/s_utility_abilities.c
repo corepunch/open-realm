@@ -4,119 +4,127 @@
 #define ID_EAT_TREE MAKEFOURCC('A', 'e', 'a', 't')
 #define ID_MOON_WELL MAKEFOURCC('A', 'm', 'b', 't')
 
-static BOOL charm_selecttarget(LPEDICT clent, LPEDICT target) {
-    LPEDICT caster = G_GetMainSelectedUnit(clent->client);
-    DWORD code = S_SpellCurrentCode(clent, ID_CHARM);
-    DWORD level = S_SpellLevel(caster, code);
-    FLOAT range = S_SpellRange(code, level);
-    DWORD max_level = (DWORD)S_SpellData(code, level, 1);
+/* ---- Charm (ANch): transfer target ownership to caster -------------------- */
 
-    if (!S_SpellIsEnemy(caster, target) || !S_SpellAllowsTarget(code, caster, target)) {
-        return false;
-    }
-    if (!S_SpellTargetInRange(caster, target, range)) {
-        return false;
-    }
-    if (max_level && UNIT_LEVEL(target->class_id) > max_level) {
-        return false;
-    }
-    if (!S_SpellCooldownReady(caster, code) || !S_SpellSpendMana(caster, code, level)) {
-        return false;
-    }
-    S_SpellStartCooldown(caster, code, level);
+static BOOL charm_validate(LPEDICT caster, spellTarget_t st) {
+    LPEDICT target = st.entity;
+    DWORD level = S_SpellLevel(caster, ID_CHARM);
+    DWORD max_level = (DWORD)S_SpellData(ID_CHARM, level, 1);
+
+    if (!S_SpellIsEnemy(caster, target)) return false;
+    if (max_level && UNIT_LEVEL(target->class_id) > max_level) return false;
+    return true;
+}
+
+static void charm_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+    LPEDICT target = st.entity;
+    (void)spell;
+
     target->s.player = caster->s.player;
     target->owner = caster;
     target->combatentity = NULL;
-    if (target->stand) {
+    if (target->stand)
         target->stand(target);
-    }
+}
+
+static spell_info_t spell_charm = {
+    .code = ID_CHARM,
+    .name = "Charm",
+    .target_type = SPELL_TARGET_UNIT,
+    .validate = charm_validate,
+    .execute = charm_execute,
+};
+
+/* ---- Eat Tree (Aeat): consume a tree for healing ------------------------- */
+
+static BOOL eat_tree_validate(LPEDICT caster, spellTarget_t st) {
+    LPEDICT target = st.entity;
+    if (!target || target->targtype != TARG_TREE) return false;
     return true;
 }
 
-static void charm_command(LPEDICT clent) {
-    UI_AddCancelButton(clent);
-    clent->client->menu.on_entity_selected = charm_selecttarget;
-}
+static void eat_tree_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+    LPEDICT target = st.entity;
+    DWORD level = S_SpellLevel(caster, spell->code);
+    FLOAT heal = S_SpellData(spell->code, level, 3);
 
-static BOOL eat_tree_selecttarget(LPEDICT clent, LPEDICT target) {
-    LPEDICT caster = G_GetMainSelectedUnit(clent->client);
-    DWORD code = S_SpellCurrentCode(clent, ID_EAT_TREE);
-    DWORD level = S_SpellLevel(caster, code);
-    FLOAT range = S_SpellRange(code, level);
-    FLOAT heal = S_SpellData(code, level, 3);
-
-    if (!caster || !target || target->targtype != TARG_TREE) {
-        return false;
-    }
-    if (!S_SpellTargetInRange(caster, target, range)) {
-        return false;
-    }
-    if (!S_SpellCooldownReady(caster, code) || !S_SpellSpendMana(caster, code, level)) {
-        return false;
-    }
-    S_SpellStartCooldown(caster, code, level);
     S_SpellHeal(caster, heal);
     G_FreeEdict(target);
-    return true;
 }
 
-static void eat_tree_command(LPEDICT clent) {
-    UI_AddCancelButton(clent);
-    clent->client->menu.on_entity_selected = eat_tree_selecttarget;
-}
+static spell_info_t spell_eat_tree = {
+    .code = ID_EAT_TREE,
+    .name = "Eat Tree",
+    .target_type = SPELL_TARGET_UNIT,
+    .validate = eat_tree_validate,
+    .execute = eat_tree_execute,
+};
 
-static BOOL moon_well_selecttarget(LPEDICT clent, LPEDICT target) {
-    LPEDICT caster = G_GetMainSelectedUnit(clent->client);
-    DWORD code = S_SpellCurrentCode(clent, ID_MOON_WELL);
-    DWORD level = S_SpellLevel(caster, code);
-    FLOAT range = S_SpellRange(code, level);
-    FLOAT mana_cost_per_point = MAX(1.0f, S_SpellData(code, level, 1));
-    FLOAT health_gain = MAX(0.0f, S_SpellData(code, level, 2));
-    FLOAT missing;
-    FLOAT offered;
+/* ---- Moon Well (Ambt): transfer mana to health for a friendly unit -------- */
 
-    if (!S_SpellIsFriend(caster, target) || !S_SpellTargetInRange(caster, target, range)) {
-        return false;
-    }
+static BOOL moon_well_validate(LPEDICT caster, spellTarget_t st) {
+    LPEDICT target = st.entity;
+    LPEDICT well = caster;
+    DWORD level = S_SpellLevel(well, ID_MOON_WELL);
+    FLOAT mana_cost_per_point = MAX(1.0f, S_SpellData(ID_MOON_WELL, level, 1));
+    FLOAT health_gain = MAX(0.0f, S_SpellData(ID_MOON_WELL, level, 2));
+    FLOAT missing, offered;
+
+    if (!S_SpellIsFriend(caster, target)) return false;
     missing = MAX(0.0f, target->health.max_value - target->health.value);
     offered = MIN(missing, caster->mana.value / mana_cost_per_point);
     offered = MIN(offered, health_gain > 0 ? health_gain : offered);
-    if (offered <= 0) {
-        return false;
-    }
-    caster->mana.value -= offered * mana_cost_per_point;
-    S_SpellHeal(target, offered);
-    return true;
+    return offered > 0;
 }
 
-static void moon_well_command(LPEDICT clent) {
-    UI_AddCancelButton(clent);
-    clent->client->menu.on_entity_selected = moon_well_selecttarget;
+static void moon_well_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+    LPEDICT target = st.entity;
+    DWORD level = S_SpellLevel(caster, spell->code);
+    FLOAT mana_cost_per_point = MAX(1.0f, S_SpellData(spell->code, level, 1));
+    FLOAT health_gain = MAX(0.0f, S_SpellData(spell->code, level, 2));
+    FLOAT missing, offered;
+
+    missing = MAX(0.0f, target->health.max_value - target->health.value);
+    offered = MIN(missing, caster->mana.value / mana_cost_per_point);
+    offered = MIN(offered, health_gain > 0 ? health_gain : offered);
+    caster->mana.value -= offered * mana_cost_per_point;
+    S_SpellHeal(target, offered);
 }
+
+static spell_info_t spell_moon_well = {
+    .code = ID_MOON_WELL,
+    .name = "Moon Well",
+    .target_type = SPELL_TARGET_UNIT,
+    .validate = moon_well_validate,
+    .execute = moon_well_execute,
+};
+
+/* ---- Root (Aroo): toggle rooted state ------------------------------------ */
 
 static void root_command(LPEDICT clent) {
     LPEDICT caster = G_GetMainSelectedUnit(clent->client);
-
-    if (!caster) {
-        return;
-    }
+    if (!caster) return;
     caster->no_pathing = !caster->no_pathing;
     caster->movetype = caster->no_pathing ? MOVETYPE_NONE : MOVETYPE_STEP;
-    if (caster->stand) {
+    if (caster->stand)
         caster->stand(caster);
-    }
 }
 
+/* ---- Registration -------------------------------------------------------- */
+
 ability_t a_charm = {
-    .cmd = charm_command,
+    .cmd = spell_cmd,
+    .spell = &spell_charm,
 };
 
 ability_t a_eat_tree = {
-    .cmd = eat_tree_command,
+    .cmd = spell_cmd,
+    .spell = &spell_eat_tree,
 };
 
 ability_t a_moon_well = {
-    .cmd = moon_well_command,
+    .cmd = spell_cmd,
+    .spell = &spell_moon_well,
 };
 
 ability_t a_root = {

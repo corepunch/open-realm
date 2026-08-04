@@ -175,6 +175,30 @@ build-run-wow: openwow
 build-run-wow-map: openwow
 	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +map World/Maps/Azeroth/Azeroth.wdt
 
+build-run-wow-orc: openwow
+	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +map World/Maps/Azeroth/Azeroth.wdt +set wow_playerinfo '\race\Orc\sex\Male\class\1\appearance\0'
+
+build-run-wow-human: openwow
+	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +map World/Maps/Azeroth/Azeroth.wdt +set wow_playerinfo '\race\Human\sex\Male\class\1\appearance\0'
+
+build-run-wow-dwarf: openwow
+	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +map World/Maps/Azeroth/Azeroth.wdt +set wow_playerinfo '\race\Dwarf\sex\Male\class\1\appearance\0'
+
+build-run-wow-undead: openwow
+	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +map World/Maps/Azeroth/Azeroth.wdt +set wow_playerinfo '\race\Undead\sex\Male\class\1\appearance\0'
+
+build-run-wow-tauren: openwow
+	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +map World/Maps/Azeroth/Azeroth.wdt +set wow_playerinfo '\race\Tauren\sex\Male\class\1\appearance\0'
+
+build-run-wow-nightelf: openwow
+	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +map World/Maps/Azeroth/Azeroth.wdt +set wow_playerinfo '\race\NightElf\sex\Male\class\1\appearance\0'
+
+build-run-wow-gnome: openwow
+	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +map World/Maps/Azeroth/Azeroth.wdt +set wow_playerinfo '\race\Gnome\sex\Male\class\1\appearance\0'
+
+build-run-wow-troll: openwow
+	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +map World/Maps/Azeroth/Azeroth.wdt +set wow_playerinfo '\race\Troll\sex\Male\class\1\appearance\0'
+
 run-sc2: $(SC2_BINARY)
 	$(SC2_BINARY) -data data/StarCraft2 +map TRaynor01 $(ARGS)
 
@@ -297,7 +321,7 @@ $(eval $(call app_schema,$(WOW_BINARY),$(SHARED_LIB) $(SHEET_LIB) $(GAME_WOW_LIB
 $(eval $(call app_schema,$(SC2_BINARY),$(SHARED_LIB) $(SHEET_LIB) $(GAME_SC2_LIB) $(RENDERER_SC2_LIB) $(UI_SC2_LIB) $(APP_SRCS) $(CLIENT_HEADERS),opensc2,$(SC2_IMPL_CFLAGS),-lsheet -lshared -lgame-sc2 -lrenderer-sc2 -lui-sc2 $(LIBS) -lz))
 
 # ---------------------------------------------------------------------------
-# In-engine tests (see plans/lightweight-testing.md)
+# In-engine tests (see CONTRIBUTING.md)
 #
 # The game module is rebuilt with -DBZ_TESTS so that TEST() blocks under
 # games/<game>/game/tests/ are compiled in and self-register.  A dedicated
