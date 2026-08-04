@@ -1454,12 +1454,16 @@ TEST(ui_fdf, options_game_port_enter_applies_and_blurs) {
 }
 
 TEST(ui_fdf, esc_menu_confirm_quit_panel_is_available) {
+    LPCSTR files[] = {
+        "UI\\FrameDef\\GlobalStrings.fdf",
+        "UI\\FrameDef\\UI\\EscMenuMainPanel.fdf",
+    };
     LPFRAMEDEF panel;
     LPFRAMEDEF quit_button;
     LPFRAMEDEF cancel_button;
     LPFRAMEDEF message;
 
-    load_ui_file("UI\\FrameDef\\UI\\EscMenuMainPanel.fdf");
+    load_ui_files(files, sizeof(files) / sizeof(files[0]));
 
     panel = UI_FindFrame("ConfirmQuitPanel");
     quit_button = UI_FindFrame("ConfirmQuitQuitButton");
@@ -1473,7 +1477,7 @@ TEST(ui_fdf, esc_menu_confirm_quit_panel_is_available) {
 
     T_STREQ(quit_button->Text, "ConfirmQuitQuitButtonText");
     T_STREQ(cancel_button->Text, "ConfirmQuitCancelButtonText");
-    T_STREQ(message->Text, "CONFIRM_EXIT_MESSAGE");
+    T_STREQ(message->Text, "Are you sure you want to exit?");
 }
 
 TEST(ui_fdf, dialog_war3_supports_configurable_button_modes) {

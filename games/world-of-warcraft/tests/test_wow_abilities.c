@@ -110,7 +110,7 @@ static void test_error(LPCSTR fmt, ...) {
     va_end(args);
 }
 
-TEST(wow_abilities, clear_world) {
+static void test_clear_world(void) {
     test_clear_world_calls++;
 }
 

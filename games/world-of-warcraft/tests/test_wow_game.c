@@ -281,7 +281,7 @@ static int test_image_index(LPCSTR image_name) {
     return (int)test_num_images;
 }
 
-TEST(wow_game, clear_world) {
+static void test_clear_world(void) {
     test_clear_world_calls++;
 }
 

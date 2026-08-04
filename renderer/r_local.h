@@ -290,6 +290,8 @@ LPFONT R_LoadFont(LPCSTR filename, DWORD size);
 void R_ShutdownFonts(void);
 VECTOR2 R_GetTextSize(LPCDRAWTEXT drawText);
 void R_DrawText(LPCDRAWTEXT drawText);
+/* One thousandth of a pixel in normalized UI space is exact enough for glyph-fit decisions. */
+static BOOL R_TextFitsWidth(FLOAT remaining) { return remaining >= -0.000001f; }
 
 // r_image.c
 LPRENDERTARGET R_AllocateRenderTexture(GLsizei width, GLsizei height, GLenum format, GLenum type, GLenum attachment);

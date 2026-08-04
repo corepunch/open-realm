@@ -171,6 +171,9 @@ void FS_ReadFileAll(LPCSTR filename, void (*callback)(HANDLE buf, DWORD size, vo
 // Quake 3-style file API (returns file size, allocates buffer)
 int FS_ReadFileQ3(LPCSTR filename, void **buf);
 void FS_FreeFile(void *buf);
+// mmap-backed read for loose files (PROT_READ, MAP_PRIVATE); free with FS_MunmapFile
+void *FS_MmapFile(LPCSTR filename, LPDWORD out_size);
+void  FS_MunmapFile(void *ptr);
 HANDLE FS_FindFirstFile(LPCSTR mask, SFILE_FIND_DATA *findData);
 BOOL FS_FindNextFile(HANDLE find, SFILE_FIND_DATA *findData);
 BOOL FS_FindClose(HANDLE find);

@@ -84,6 +84,9 @@ typedef struct {
     // Quake 3-style file API: renderer is archive-agnostic
     int (*FS_ReadFile)(LPCSTR name, void **buf);  // Returns file size, allocates buf
     void (*FS_FreeFile)(void *buf);
+    // mmap-backed read for loose files; free with FS_MunmapFile (falls back to heap for MPQ/Windows)
+    void *(*FS_MmapFile)(LPCSTR name, DWORD *out_size);
+    void (*FS_MunmapFile)(void *ptr);
     bool (*FileExtract)(LPCSTR toExtract, LPCSTR extracted);
     
     HANDLE (*MemAlloc)(long size);

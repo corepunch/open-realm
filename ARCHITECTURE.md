@@ -40,6 +40,14 @@
 - When replacing a single existing line or macro call with a larger custom block, keep the original line commented out immediately above the replacement with a short comment explaining why.
 - Do not hardcode values that are likely to exist in source game data, map files, catalog XML/DBC/SLK/FDF/etc., or asset metadata. Inspect the data first. If a temporary literal is genuinely unavoidable, mark it with a `BZ_HARDCODED_DATA_FALLBACK` comment naming the expected source file/field and reason it is not parsed yet.
 
+## WoW Entity Model
+
+WoW game entities follow the Quake 2 think-function pattern: every `edict_t` has a `think` pointer; `Wow_RunFrame` calls it each frame with no type-tag dispatch. Entity behaviour is entirely expressed by which think function is assigned at spawn time — `Wow_RunCreatureFrame`, `Wow_RunGameObjectFrame`, `Wow_RunCorpseFrame`, `Wow_RunDynamicObjectFrame`, `Wow_RunProjectile`. This replaces the former `wowEntityKind_t` enum + `if`/`switch` chain.
+
+The spell system follows the same Q2 `g_items.c` data-table pattern: `wow_spells[]` maps spell index to `wowSpellDef_t` (cast fn, cast time, mana, range, animations). `BeginSpellCast`/`CompleteSpellCast` index directly into this table; the action bar uses `slot_to_spell[]` + common validation rather than per-spell branches.
+
+See [enemies-and-creatures.md](games/world-of-warcraft/docs/enemies-and-creatures.md) for the full entity-type reference and spawn budget details.
+
 ## UI Rendering
 
 The in-game HUD is drawn entirely client-side by `ui/screens/console_ui.c`, which loads FDF files from MPQ archives at runtime and renders through `UI_DrawFrames()`. Game state (player stats, unit selection) flows through `uiimport.GetPlayerState()` and the `update_unit_ui` callback.

@@ -672,16 +672,3 @@ TEST(sc2_map, sc2_map_rejects_huge_dimension_binary_terrain_layers) {
     use_sc2_fs_host();
 }
 
-void run_sc2_map_tests(void) {
-    RUN_TEST(test_sc2_fixture_archive_lists_map_root);
-    RUN_TEST(test_sc2_fixture_short_name_resolves);
-    RUN_TEST(test_sc2_map_loads_xml_objects_and_terrain);
-    RUN_TEST(test_sc2_map_loads_binary_terrain_layers);
-    RUN_TEST(test_sc2_map_loads_directory_fixture_without_generated_layers);
-    RUN_TEST(test_sc2_map_catalog_known_files_fallback_without_manifest);
-    RUN_TEST(test_sc2_map_rejects_short_binary_terrain_layers);
-    RUN_TEST(test_sc2_map_rejects_zero_dimension_binary_terrain_layers);
-    RUN_TEST(test_sc2_map_rejects_huge_dimension_binary_terrain_layers);
-    SC2_MapShutdown();
-    FS_Shutdown();
-}

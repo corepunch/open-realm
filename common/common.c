@@ -12,6 +12,11 @@
 #endif
 
 #include <sys/stat.h>
+#ifndef _WIN32
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <unistd.h>
+#endif
 
 extern void Key_Init(void);
 
@@ -843,6 +848,70 @@ HANDLE FS_ReadFile(LPCSTR filename, LPDWORD size) {
 void FS_FreeFile(void *buf) {
     MemFree(buf);
 }
+
+/* FS_MmapFile: map a loose disk file read-only. Falls back to FS_ReadLooseFile
+ * if mmap is unavailable (Windows) or the file only exists in an MPQ archive.
+ * The returned pointer must be released with FS_MunmapFile, NOT FS_FreeFile.
+ * Header layout: [size:DWORD][fd:int][flags:DWORD][padding][data...] so that
+ * FS_MunmapFile can munmap/close without a side-channel. */
+#ifndef _WIN32
+#define MMAP_HDR_SIZE  16   /* must be >= 4+4+4 and page-aligned-friendly */
+void *FS_MmapFile(LPCSTR filename, LPDWORD out_size) {
+    FOR_LOOP(i, MAX_GAME_DIRS) {
+        char path[MAX_PATHLEN * 2];
+        int fd;
+        struct stat st;
+        void *base;
+        BYTE *hdr;
+
+        if (!gameDirs[i][0]) continue;
+        FS_MakeDiskPath(gameDirs[i], filename, path, sizeof(path));
+        fd = open(path, O_RDONLY);
+        if (fd < 0) continue;
+        if (fstat(fd, &st) != 0 || st.st_size <= 0) { close(fd); continue; }
+
+        base = mmap(NULL, (size_t)st.st_size + MMAP_HDR_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        if (base == MAP_FAILED) { close(fd); continue; }
+
+        /* mmap the actual file data into the region just after the header */
+        hdr = (BYTE *)base;
+        if (mmap(hdr + MMAP_HDR_SIZE, (size_t)st.st_size, PROT_READ, MAP_PRIVATE | MAP_FIXED, fd, 0) == MAP_FAILED) {
+            munmap(base, (size_t)st.st_size + MMAP_HDR_SIZE);
+            close(fd);
+            continue;
+        }
+        close(fd);
+        *(DWORD *)(hdr + 0) = (DWORD)st.st_size;
+        *(int *)  (hdr + 4) = -1;   /* fd already closed */
+        *(DWORD *)(hdr + 8) = 1;    /* mmap flag */
+        if (out_size) *out_size = (DWORD)st.st_size;
+        return hdr + MMAP_HDR_SIZE;
+    }
+    /* File not found loose — fall back to heap read (e.g. from MPQ) */
+    return FS_ReadLooseFile(filename, out_size, 0);
+}
+
+void FS_MunmapFile(void *ptr) {
+    BYTE *hdr;
+    DWORD sz;
+    DWORD flags;
+
+    if (!ptr) return;
+    hdr = (BYTE *)ptr - MMAP_HDR_SIZE;
+    sz    = *(DWORD *)(hdr + 0);
+    flags = *(DWORD *)(hdr + 8);
+    if (flags & 1)
+        munmap(hdr, (size_t)sz + MMAP_HDR_SIZE);
+    else
+        MemFree(ptr);
+}
+#else
+/* Windows stub — fall through to heap read */
+void *FS_MmapFile(LPCSTR filename, LPDWORD out_size) {
+    return FS_ReadLooseFile(filename, out_size, 0);
+}
+void FS_MunmapFile(void *ptr) { MemFree(ptr); }
+#endif
 
 /* Read every copy of 'filename' across all loaded archives, lowest priority
  * first (so later calls override earlier ones when merging key=value data).

@@ -442,22 +442,3 @@ TEST(sc2_layout, layout_find_by_type) {
     SC2_LayoutShutdown();
 }
 
-void run_sc2_layout_tests(void) {
-    RUN_TEST(test_layout_constants_parsed);
-    RUN_TEST(test_layout_unknown_constant_returns_null);
-    RUN_TEST(test_layout_include_resolves);
-    RUN_TEST(test_layout_template_inheritance);
-    RUN_TEST(test_layout_template_children);
-    RUN_TEST(test_layout_gameui_full_parse);
-    RUN_TEST(test_layout_nested_children);
-    RUN_TEST(test_layout_anchors_parsed);
-    RUN_TEST(test_layout_textures_parsed);
-    RUN_TEST(test_layout_flatten_to_frames);
-    RUN_TEST(test_layout_multiple_parses);
-    RUN_TEST(test_layout_reinit_clears);
-    RUN_TEST(test_layout_constant_offset);
-    RUN_TEST(test_layout_texture_layers);
-    RUN_TEST(test_layout_flattened_frames_hierarchy);
-    RUN_TEST(test_layout_find_by_type);
-    RUN_TEST(test_layout_shorthand_anchor);
-}

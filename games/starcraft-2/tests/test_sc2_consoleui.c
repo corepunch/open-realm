@@ -498,30 +498,3 @@ TEST(sc2_consoleui, adapter_label_font_set_when_fontindex_wired) {
  * Test runner
  * ===================================================================== */
 
-void run_sc2_consoleui_tests(void) {
-    /* Group 1: Parser bug regression */
-    RUN_TEST(test_adapter_constant_hash_stripping);
-    RUN_TEST(test_adapter_constant_offset_resolves);
-    RUN_TEST(test_adapter_template_inheritance_ordering);
-    RUN_TEST(test_adapter_cross_file_template_inheritance);
-
-    /* Group 2: Anchor resolution */
-    RUN_TEST(test_adapter_single_anchor_left_min);
-    RUN_TEST(test_adapter_single_anchor_top_min);
-    RUN_TEST(test_adapter_dual_anchor_stretch);
-    RUN_TEST(test_adapter_mid_anchor);
-    RUN_TEST(test_adapter_cross_frame_relative);
-
-    /* Group 3: Flatten / frame population */
-    RUN_TEST(test_adapter_flatten_frame_count);
-    RUN_TEST(test_adapter_flatten_types_mapped);
-    RUN_TEST(test_adapter_flatten_hidden_flags);
-    RUN_TEST(test_adapter_flatten_color_alpha);
-    RUN_TEST(test_adapter_sc2_type_preserved);
-    RUN_TEST(test_adapter_label_font_set_when_fontindex_wired);
-
-    /* Group 4: Screen rect pipeline */
-    RUN_TEST(test_adapter_root_parent_is_scene);
-    RUN_TEST(test_adapter_cross_frame_relative_index);
-    RUN_TEST(test_adapter_hidden_flagged_for_skip);
-}

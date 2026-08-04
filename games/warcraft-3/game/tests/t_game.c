@@ -27,7 +27,7 @@ void setup_test_world(void);
 
 
 #include "../game/hud/hud_utils.h"
-#include "../../../renderer/r_font_utils.h"
+#include "../../../renderer/r_local.h"
 
 /* Forward declarations for internal functions not exposed in any header. */
 BOOL  M_IsDead(LPEDICT ent);
