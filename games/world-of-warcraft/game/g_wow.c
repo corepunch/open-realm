@@ -1538,6 +1538,20 @@ static LPCSTR Wow_GetThemeValue(LPCSTR filename) {
 
 static BOOL Wow_PlayerIsMoving(void) { return wow_move.flags & BZ_WOW_MOVE_MASK; }
 
+static void Wow_SelectEntity(LPEDICT ent, LPEDICT target) {
+    DWORD old = ent->client->ps.selected_entity;
+    LPEDICT old_target = old ? Wow_EdictByNumber(old) : NULL;
+
+    if (old_target && old_target != target)
+        old_target->selected &= ~(1 << ent->client->ps.number);
+    if (target && target != ent && target->inuse) {
+        target->selected |= (1 << ent->client->ps.number);
+        ent->client->ps.selected_entity = target->s.number;
+    } else {
+        ent->client->ps.selected_entity = 0;
+    }
+}
+
 static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
     if (argc >= 5 && (!strcasecmp(argv[0], "move") || !strcasecmp(argv[0], "wowmove"))) {
         wow_move.flags = (DWORD)strtoul(argv[1], NULL, 10);
@@ -1545,14 +1559,25 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
         wow_move.pitch = Wow_Clamp((FLOAT)atof(argv[3]), WOW_CAMERA_MIN_PITCH, WOW_CAMERA_MAX_PITCH);
         wow_move.distance = Wow_Clamp((FLOAT)atof(argv[4]), WOW_CAMERA_MIN_DISTANCE, WOW_CAMERA_MAX_DISTANCE);
     } else if (argc >= 1 && (!strcasecmp(argv[0], "select"))) {
-        LPEDICT target = argc >= 2
+        Wow_SelectEntity(ent, argc >= 2
             ? Wow_EdictByNumber((DWORD)strtoul(argv[1], NULL, 10))
-            : NULL;
-
-        if (target && target != ent && target->inuse) {
-            ent->client->ps.selected_entity = target->s.number;
-        } else {
-            ent->client->ps.selected_entity = 0;
+            : NULL);
+    } else if (argc >= 1 && (!strcasecmp(argv[0], "wow_cycle_target") || !strcasecmp(argv[0], "cycletarget"))) {
+        DWORD old = ent->client->ps.selected_entity;
+        DWORD start = old > 0 ? old + 1 : WOW_MAX_CLIENTS;
+        for (DWORD i = start; i < (DWORD)globals.num_edicts; i++) {
+            LPEDICT t = &wow_edicts[i];
+            if (t->inuse && t != ent && (t->svflags & SVF_MONSTER) && (t->s.renderfx & RF_HOSTILE)) {
+                Wow_SelectEntity(ent, t);
+                return;
+            }
+        }
+        for (DWORD i = WOW_MAX_CLIENTS; i < start && i < (DWORD)globals.num_edicts; i++) {
+            LPEDICT t = &wow_edicts[i];
+            if (t->inuse && t != ent && (t->svflags & SVF_MONSTER) && (t->s.renderfx & RF_HOSTILE)) {
+                Wow_SelectEntity(ent, t);
+                return;
+            }
         }
     } else if (argc >= 1 && (!strcasecmp(argv[0], "attack") || !strcasecmp(argv[0], "wowattack"))) {
         LPEDICT target = argc >= 2
@@ -1564,7 +1589,7 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
             return;
         }
         local->enemy = target && target != ent ? target : NULL;
-        ent->client->ps.selected_entity = target && target != ent ? target->s.number : 0;
+        Wow_SelectEntity(ent, target && target != ent ? target : NULL);
         ent->attack(ent);
     } else if (argc >= 1 && (!strcasecmp(argv[0], "stopattack") || !strcasecmp(argv[0], "wowstopattack"))) {
         wowEntityLocal_t *local = Wow_EntityLocal(ent);

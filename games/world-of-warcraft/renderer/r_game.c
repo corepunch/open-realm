@@ -1,4 +1,5 @@
 #include "renderer/r_game.h"
+#include "renderer/r_local.h"
 #include "wow/r_wowmap.h"
 
 void R_RegisterMap(LPCSTR mapFileName);
@@ -39,7 +40,15 @@ static BOOL R_GamePathHasExtension(LPCSTR path, LPCSTR extension) {
     return !strcasecmp(path + pathLen - extLen, extension);
 }
 
+static LPCSTR selCirclesNames[NUM_SELECTION_CIRCLES] = {
+    "ReplaceableTextures\\Selection\\SelectionCircleSmall.blp",
+    "ReplaceableTextures\\Selection\\SelectionCircleMed.blp",
+    "ReplaceableTextures\\Selection\\SelectionCircleLarge.blp",
+};
+
 void R_GameLoadAssets(void) {
+    FOR_LOOP(i, NUM_SELECTION_CIRCLES)
+        tr.texture[TEX_SELECTION_CIRCLE+i] = R_LoadTexture(selCirclesNames[i]);
 }
 
 void R_GameInit(void) {

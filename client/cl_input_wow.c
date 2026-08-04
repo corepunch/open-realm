@@ -352,6 +352,12 @@ BOOL CL_HandleGameKey(int sym, Uint16 mod) {
     if (!CL_GameplayInputReady())
         return false;
 
+    if (sym == SDLK_TAB) {
+        MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+        SZ_Printf(&cls.netchan.message, "wow_cycle_target");
+        return true;
+    }
+
     if (sym >= SDLK_1 && sym <= SDLK_9)
         slot = (DWORD)(sym - SDLK_1); /* 1→0, 2→1, ... 9→8 */
     else if (sym == SDLK_0)
