@@ -38,11 +38,14 @@ typedef struct m2ModelBatch_s {
 } m2ModelBatch_t;
 
 #define M2_NUM_GEOSET_GROUPS 16
+#define M2_CHAR_FLAG_KNEELENGTH 0x4u   /* chest item is a robe — hide pants geoset (group 13) */
+#define M2_CHAR_FLAG_HELM 0x100u
 
 typedef struct {
     LPCSTR texture[M2_CHAR_TEX_COUNT];
     DWORD geoset[M2_NUM_GEOSET_GROUPS];
-    DWORD flags;
+    DWORD flags;  /* low bits: DBC ItemDisplayInfo inventory type (e.g. 1=head, 3=chest);
+                     high bits: M2_CHAR_FLAG_* renderer-side flags */
 } m2CharacterOutfit_t;
 
 enum { M2_COMPOSITE_CACHE_SIZE = 4 };
@@ -430,7 +433,13 @@ static void M2_AddDisplayInfoToOutfit(m2CharacterOutfit_t *outfit, DWORD display
             }
         }
     }
-    outfit->flags |= M2_DbcField(&m2_item_display_info_dbc, record, flags_field);
+    {
+        DWORD item_flags = M2_DbcField(&m2_item_display_info_dbc, record, flags_field);
+        if (slot == M2_SLOT_HEAD && item_flags == 1) {
+            outfit->flags |= M2_CHAR_FLAG_HELM;
+        }
+        outfit->flags |= item_flags;
+    }
     FOR_LOOP(i, M2_CHAR_TEX_COUNT) {
         LPCSTR texture = M2_DbcString(&m2_item_display_info_dbc,
                                       M2_DbcField(&m2_item_display_info_dbc, record, texture_base + i));
@@ -504,6 +513,9 @@ static void M2_ApplyEquipmentItems(m2CharacterOutfit_t *outfit,
                                    DWORD race_id,
                                    DWORD gender_id,
                                    DWORD equipment) {
+    /* TODO: wowEquipment_t has no headItem — helmet detection happens purely via
+     * CharStartOutfit.dbc data in M2_CharacterStartOutfit. Extend the equipment
+     * protocol if dynamic head-slot changes need to toggle the helm flag. */
     static m2EquipmentSlotItems_t const upper_body_items[] = {
         { 2, 0, { [1] = { { 27274, 0, 0, 0 } } } }
     };
@@ -2361,7 +2373,14 @@ static BOOL M2_IsCharacterModelPath(LPCSTR model_path) {
 static BOOL M2_CharacterGeosetVisible(m2Model_t const *model,
                                        m2CharacterOutfit_t const *outfit,
                                        WORD section_id) {
-    if (!model || !model->character_model || section_id < 400) {
+    if (!model || !model->character_model) {
+        return true;
+    }
+    if (section_id < 400) {
+        /* Group 1 (100–199): hair geosets — helmet replaces hair with bald scalp (section 1). */
+        if (section_id >= 100 && outfit && (outfit->flags & M2_CHAR_FLAG_HELM)) {
+            return false;
+        }
         return true;
     }
     if (!outfit) {
@@ -2394,7 +2413,7 @@ static BOOL M2_CharacterGeosetVisible(m2Model_t const *model,
         case 11: expected = 1101 + geoset; break;
         case 12: expected = 1201 + geoset; break;
         case 13:
-            if (outfit->flags & 0x4) {
+            if (outfit->flags & M2_CHAR_FLAG_KNEELENGTH) {
                 return false;
             }
             expected = 1301 + geoset;
