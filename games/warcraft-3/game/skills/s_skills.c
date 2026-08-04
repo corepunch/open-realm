@@ -87,6 +87,10 @@ static abilityitem_t abilitylist[] = {
     { "AEbl", &a_blink },
     { "AEfk", &a_fan_of_knives },
     { "AEsh", &a_shadow_strike },
+
+    /* Additional hero spells. */
+    { "ANfs", &a_flame_strike },  /* Flame Strike (Pit Lord) */
+    { "ANdr", &a_siphon_mana },  /* Siphon Mana (Blood Mage) */
 };
 
 ability_t const *FindAbilityByClassname(LPCSTR classname) {

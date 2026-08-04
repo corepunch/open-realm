@@ -37,11 +37,14 @@ static void thunderbolt_projectile_hit(LPEDICT missile) {
     G_FreeEdict(missile);
 }
 
-static void thunderbolt_fire(LPEDICT caster, LPEDICT target, DWORD code, DWORD level) {
-    LPEDICT missile;
+static void thunderbolt_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+    LPEDICT target = st.entity;
+    DWORD code = spell->code;
+    DWORD level = S_SpellLevel(caster, code);
     LPCSTR art = bolt_missile_art(code);
     FLOAT speed = bolt_missile_speed(code);
     FLOAT duration = S_SpellDuration(code, level, UNIT_LEVEL(target->class_id) >= 5);
+    LPEDICT missile;
 
     unit_setmove(caster, &spell_cast_move);
     missile = G_Spawn();
@@ -57,36 +60,6 @@ static void thunderbolt_fire(LPEDICT caster, LPEDICT target, DWORD code, DWORD l
     missile->currentmove = code == ID_FIRE_BOLT ? &firebolt_projectile_move : &thunderbolt_projectile_move;
 }
 
-static BOOL thunderbolt_selecttarget(LPEDICT clent, LPEDICT target) {
-    LPEDICT caster = G_GetMainSelectedUnit(clent->client);
-    DWORD code = S_SpellCurrentCode(clent, ID_THUNDER_BOLT);
-    DWORD level = S_SpellLevel(caster, code);
-    FLOAT range = S_SpellRange(code, level);
-
-    if (!S_SpellIsAliveTarget(target) || !S_SpellIsEnemy(caster, target) ||
-        !S_SpellAllowsTarget(code, caster, target)) {
-        return false;
-    }
-    if (!S_SpellTargetInRange(caster, target, range)) {
-        return false;
-    }
-    if (!S_SpellCooldownReady(caster, code)) {
-        return false;
-    }
-    if (!S_SpellSpendMana(caster, code, level)) {
-        return false;
-    }
-
-    S_SpellStartCooldown(caster, code, level);
-    thunderbolt_fire(caster, target, code, level);
-    return true;
-}
-
-static void thunderbolt_command(LPEDICT clent) {
-    UI_AddCancelButton(clent);
-    clent->client->menu.on_entity_selected = thunderbolt_selecttarget;
-}
-
 static void SP_ability_thunderbolt(LPCSTR classname, ability_t *self) {
     (void)self;
     thunderbolt_missile_art = FindConfigValue(classname, "Missileart");
@@ -99,12 +72,28 @@ static void SP_ability_firebolt(LPCSTR classname, ability_t *self) {
     firebolt_missile_speed = AB_Number(classname, "Missilespeed");
 }
 
+static spell_info_t spell_thunderbolt = {
+    .code = ID_THUNDER_BOLT,
+    .name = "Thunder Bolt",
+    .target_type = SPELL_TARGET_UNIT,
+    .execute = thunderbolt_execute,
+};
+
+static spell_info_t spell_firebolt = {
+    .code = ID_FIRE_BOLT,
+    .name = "Fire Bolt",
+    .target_type = SPELL_TARGET_UNIT,
+    .execute = thunderbolt_execute,
+};
+
 ability_t a_thunderbolt = {
     .init = SP_ability_thunderbolt,
-    .cmd = thunderbolt_command,
+    .cmd = spell_cmd,
+    .spell = &spell_thunderbolt,
 };
 
 ability_t a_firebolt = {
     .init = SP_ability_firebolt,
-    .cmd = thunderbolt_command,
+    .cmd = spell_cmd,
+    .spell = &spell_firebolt,
 };

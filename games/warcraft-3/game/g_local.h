@@ -419,10 +419,44 @@ typedef struct {
 #define ABILITY_TOGGLE   (1 << 1)
 #define ABILITY_CHANNEL  (1 << 2)
 
+/* Spell target types: maps to WarSmash's unit-target / point-target / no-target
+ * base classes.  SPELL_TARGET_UNIT_OR_POINT allows either (e.g. Carrion Swarm). */
+typedef enum {
+    SPELL_TARGET_NONE,
+    SPELL_TARGET_UNIT,
+    SPELL_TARGET_POINT,
+    SPELL_TARGET_UNIT_OR_POINT,
+} spellTargetType_t;
+
+typedef struct spell_target_s {
+    spellTargetType_t type;
+    union {
+        LPEDICT entity;
+        VECTOR2 point;
+    };
+} spellTarget_t;
+
+/* Spell execution flags — mirrors the Quake2-style ability_t flags but scoped to
+ * the unified spell pipeline. */
+#define SPELL_CHANNEL    (1 << 0)  /* caster locked in place; movement cancels */
+#define SPELL_TOGGLE     (1 << 1)  /* toggle on/off like Immolation */
+#define SPELL_AUTOCAST   (1 << 2)  /* right-click toggles autocast (Cold Arrows) */
+#define SPELL_NO_SMART   (1 << 3)  /* skip smart-click auto-target (Charm) */
+
+typedef struct spell_info_s {
+    DWORD code;                    /* ability FourCC (must match abilitylist entry) */
+    LPCSTR name;                   /* debug / log identifier */
+    spellTargetType_t target_type;
+    DWORD flags;
+    BOOL (*validate)(LPEDICT caster, spellTarget_t target);  /* extra validation before mana/cooldown spend */
+    void (*execute)(LPEDICT caster, spellTarget_t target, struct spell_info_s const *spell);
+} spell_info_t;
+
 typedef struct ability_s {
     void (*init)(LPCSTR, struct ability_s *);
     void (*cmd)(LPEDICT);
     DWORD flags;
+    struct spell_info_s *spell;    /* non-NULL for spells using the unified pipeline */
 } ability_t;
 
 typedef struct {
@@ -557,6 +591,7 @@ struct edict_s {
     BOOL stunned;       // unit AI and movement suspended by timed status
     BOOL no_pathing;    // pathfinding disabled when true
     DWORD channel_code; // ability code being channeled (0 = none)
+    VECTOR2 cast_origin; // position when channel started (movement cancels channel)
     DWORD unit_color;   // explicit per-unit color override (0 = use owner color)
     VECTOR2 old_origin;
     VECTOR2 move_last_origin;

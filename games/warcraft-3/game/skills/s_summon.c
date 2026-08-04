@@ -9,9 +9,8 @@ static void summon_unit(LPEDICT caster, DWORD unit_id, DWORD index, DWORD count,
     FLOAT angle;
     LPEDICT summon;
 
-    if (!caster || !unit_id) {
+    if (!caster || !unit_id)
         return;
-    }
 
     angle = count > 0 ? (2.0f * (FLOAT)M_PI * (FLOAT)index) / (FLOAT)count : 0.0f;
     loc = caster->s.origin2;
@@ -20,54 +19,47 @@ static void summon_unit(LPEDICT caster, DWORD unit_id, DWORD index, DWORD count,
     SP_FindEmptySpaceAround(caster, unit_id, &loc, &angle);
 
     summon = SP_SpawnAtLocation(unit_id, caster->s.player, &loc);
-    if (!summon) {
+    if (!summon)
         return;
-    }
     summon->owner = caster;
-    if (summon->stand) {
+    if (summon->stand)
         summon->stand(summon);
-    }
-    if (duration > 0) {
+    if (duration > 0)
         unit_addtimedstatus(summon, ID_TIMED_LIFE, 1, duration);
-    }
 }
 
-static void summon_command_with_fallback(LPEDICT clent, DWORD fallback) {
-    LPEDICT caster = G_GetMainSelectedUnit(clent->client);
-    DWORD code = S_SpellCurrentCode(clent, fallback);
-    DWORD level = S_SpellLevel(caster, code);
-    DWORD unit_id = S_SpellUnitId(code, level);
-    DWORD count = (DWORD)S_SpellData(code, level, 2);
-    FLOAT duration = S_SpellDuration(code, level, false);
+static void summon_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
+    DWORD level = S_SpellLevel(caster, spell->code);
+    DWORD unit_id = S_SpellUnitId(spell->code, level);
+    DWORD count = (DWORD)S_SpellData(spell->code, level, 2);
+    FLOAT duration = S_SpellDuration(spell->code, level, false);
 
-    if (!caster || !unit_id) {
-        return;
-    }
-    if (!S_SpellCooldownReady(caster, code) || !S_SpellCanPay(caster, code, level)) {
-        return;
-    }
-    if (count == 0) {
-        count = 1;
-    }
-    S_SpellSpendMana(caster, code, level);
-    S_SpellStartCooldown(caster, code, level);
-    FOR_LOOP(i, count) {
+    if (!caster || !unit_id) return;
+    if (count == 0) count = 1;
+    FOR_LOOP(i, count)
         summon_unit(caster, unit_id, i, count, duration);
-    }
 }
 
-static void water_elemental_command(LPEDICT clent) {
-    summon_command_with_fallback(clent, ID_WATER_ELEMENTAL);
-}
+static spell_info_t spell_water_elemental = {
+    .code = ID_WATER_ELEMENTAL,
+    .name = "Water Elemental",
+    .target_type = SPELL_TARGET_NONE,
+    .execute = summon_execute,
+};
 
-static void feral_spirit_command(LPEDICT clent) {
-    summon_command_with_fallback(clent, ID_FERAL_SPIRIT);
-}
+static spell_info_t spell_feral_spirit = {
+    .code = ID_FERAL_SPIRIT,
+    .name = "Feral Spirit",
+    .target_type = SPELL_TARGET_NONE,
+    .execute = summon_execute,
+};
 
 ability_t a_water_elemental = {
-    .cmd = water_elemental_command,
+    .cmd = spell_cmd,
+    .spell = &spell_water_elemental,
 };
 
 ability_t a_feral_spirit = {
-    .cmd = feral_spirit_command,
+    .cmd = spell_cmd,
+    .spell = &spell_feral_spirit,
 };
