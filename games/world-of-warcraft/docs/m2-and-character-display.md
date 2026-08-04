@@ -83,6 +83,35 @@ M2 skin sections are grouped by hundreds. Character renderers should select one 
 
 Current default visibility in the renderer includes section IDs such as `401`, `702`, and `1501` when no outfit is available, and applies outfit flags/geoset rules when DBC data is present.
 
+### Geoset Group Conventions (from WoWee/AzerothCore)
+
+| Group | Purpose | Base Section | Bare Default | Notes |
+|-------|---------|--------------|--------------|-------|
+| 4 | Gloves | 401 | 401 (kGeosetBareForearms) | `401 + geoset` |
+| 5 | Boots | 501 | 501 (kGeosetBareShins) | `501 + geoset` |
+| 7 | Ears | 701 | 702 (helmet hides) | `700 + geoset` |
+| 8 | Sleeves | 801 | 801 (kGeosetBareSleeves) | `801 + geoset` |
+| 9 | Kneepads | 902 | 902 (kGeosetDefaultKneepads) | `902 + geoset` |
+| 10 | Eyes | 1001 | 1001 | `1001 + geoset` |
+| 11 | Eyebrows | 1101 | 1101 | `1101 + geoset` |
+| 12 | Hair | 1201 | 1201 | `1201 + geoset` |
+| 13 | Pants | 1301 | 1301 (kGeosetBarePants) | `1301 + geoset`; hidden by robe flag (0x4) |
+| 15 | Cloak | 1501 | 1501 (kGeosetNoCape) | `1501 + geoset`; 1502 = kGeosetWithCape |
+| 20 | Feet | 2002 | 2002 (kGeosetBareFeet) | Used by WoWee for bare feet mesh |
+
+The DBC `ItemDisplayInfo.dbc` provides geoset group values in fields 6-9 (classic layout) or 7-9 (TBC/Wrath). The renderer stores these in `m2CharacterOutfit_t.geoset[group]` and `M2_CharacterGeosetVisible` selects the correct section variant.
+
+### Cape Texture Resolution
+
+Cape textures are stored in `ItemDisplayInfo.dbc` field 3 (LeftModelTexture). Resolution follows WoWee's pattern:
+
+1. Read texture stem from field 3
+2. Try gender-suffix variants: `{stem}_M.blp`, `{stem}_F.blp`, `{stem}_U.blp`
+3. Try under `Item\ObjectComponents\Cape\` and `Item\TextureComponents\Cape\`
+4. Store in `m2CharacterOutfit_t.texture[M2_CHAR_TEX_CAPE]`
+
+The cape geoset (group 15) must be set to 1502 (kGeosetWithCape) for the cloak mesh to render.
+
 ## Grounded Actor Yaw
 
 Grounded WoW actors use the same one-dimensional yaw path as Warcraft III/OpenWarcraft3 entities:
