@@ -30,7 +30,7 @@ static struct {
     DWORD last_hover_entity;
 } wow_input = {
     .pitch = 342.0f,
-    .distance = 5.5f,
+    .distance = 8.0f,
 };
 
 static FLOAT CL_WowClamp(FLOAT value, FLOAT min_value, FLOAT max_value) {
@@ -44,7 +44,7 @@ static void CL_WowInitInputState(void) {
     wow_input.initialized = true;
     wow_input.last_time = SDL_GetTicks();
     wow_input.pitch = 342.0f;
-    wow_input.distance = 5.5f;
+    wow_input.distance = 8.0f;
     wow_input.cursor_arrow = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
     wow_input.cursor_crosshair = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_CROSSHAIR);
     wow_input.cursor_hand = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_HAND);
@@ -55,7 +55,7 @@ static void CL_WowInitInputState(void) {
     Cvar_Get("wow_mouse_speed", "0.18", CVAR_ARCHIVE);
     Cvar_Get("wow_camera_min_pitch", "305.0", 0);
     Cvar_Get("wow_camera_max_pitch", "355.0", 0);
-    Cvar_Get("wow_camera_min_distance", "2.5", 0);
+    Cvar_Get("wow_camera_min_distance", "5.5", 0);
     Cvar_Get("wow_camera_max_distance", "25.0", 0);
     Cvar_Get("wow_zoom_speed", "1.0", CVAR_ARCHIVE);
     Cvar_Get("wow_click_threshold", "10", 0);

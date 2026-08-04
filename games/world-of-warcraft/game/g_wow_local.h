@@ -25,7 +25,7 @@
 #define WOW_MELEE_RANGE 5.0f
 #define WOW_CAMERA_MIN_PITCH 305.0f
 #define WOW_CAMERA_MAX_PITCH 355.0f
-#define WOW_CAMERA_MIN_DISTANCE 2.5f
+#define WOW_CAMERA_MIN_DISTANCE 5.5f
 #define WOW_CAMERA_MAX_DISTANCE 25.0f
 
 /* Spell definition table: Q2 g_items.c pattern — data-driven, function pointers per spell.
