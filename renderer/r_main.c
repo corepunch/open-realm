@@ -722,6 +722,9 @@ refExport_t R_GetAPI(refImport_t imp) {
         .GetTextureSize = R_GetTextureSize,
         .DrawSprite = R_DrawSprite,
         .SetEntityAnimFrame = R_SetEntityAnimFrame,
+#ifdef WOW
+        .SetCharacterMenuEquipment = R_GameSetCharacterMenuEquipment,
+#endif
         .DrawText = R_DrawText,
         .GetTextSize = R_GetTextSize,
         .GetModelInfo = R_GetModelInfo,

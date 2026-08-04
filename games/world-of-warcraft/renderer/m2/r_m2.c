@@ -20,6 +20,21 @@ enum {
     M2_CHAR_TEX_COUNT
 };
 
+enum {
+    M2_SLOT_NONE,
+    M2_SLOT_HEAD,
+    M2_SLOT_SHOULDERS,
+    M2_SLOT_CHEST,
+    M2_SLOT_SHIRT,
+    M2_SLOT_BELT,
+    M2_SLOT_LEGS,
+    M2_SLOT_BOOTS,
+    M2_SLOT_GLOVES,
+    M2_SLOT_TABARD,
+    M2_SLOT_CAPE,
+    M2_SLOT_COUNT
+};
+
 typedef struct m2ModelBatch_s {
 	LPBUFFER buffer;
 	LPTEXTURE texture;
@@ -46,6 +61,7 @@ typedef struct {
     DWORD geoset[M2_NUM_GEOSET_GROUPS];
     DWORD flags;  /* low bits: DBC ItemDisplayInfo inventory type (e.g. 1=head, 3=chest);
                      high bits: M2_CHAR_FLAG_* renderer-side flags */
+    DWORD slot_display_id[M2_SLOT_COUNT];  /* resolved ItemDisplayInfo IDs per slot; 0 = unused */
 } m2CharacterOutfit_t;
 
 enum { M2_COMPOSITE_CACHE_SIZE = 4 };
@@ -88,6 +104,8 @@ struct m2Model_s {
     DWORD character_outfit_equipment;
     BOOL character_outfit_resolved;
     BOOL character_outfit_valid;
+    DWORD menu_equipment_display_id[M2_SLOT_COUNT];  /* menu-only full-slot equipment; 0 = no override */
+    BOOL menu_equipment_set;
     BYTE *data;
     DWORD data_size;
     m2Header_t *header;
@@ -372,21 +390,6 @@ static DWORD M2_ItemDisplayInfoCapeTextureField(m2Dbc_t const *dbc) {
     return 3;
 }
 
-enum {
-    M2_SLOT_NONE,
-    M2_SLOT_HEAD,
-    M2_SLOT_SHOULDERS,
-    M2_SLOT_CHEST,
-    M2_SLOT_SHIRT,
-    M2_SLOT_BELT,
-    M2_SLOT_LEGS,
-    M2_SLOT_BOOTS,
-    M2_SLOT_GLOVES,
-    M2_SLOT_TABARD,
-    M2_SLOT_CAPE,
-    M2_SLOT_COUNT
-};
-
 // Maps (slot, geosetFieldIndex) → M2 section group number.
 // geosetFieldIndex 0/1/2 correspond to geosetGroup[0]/[1]/[2] from ItemDisplayInfo.dbc.
 // Group 0 means "no group mapping" for that field.
@@ -513,9 +516,10 @@ static void M2_ApplyEquipmentItems(m2CharacterOutfit_t *outfit,
                                    DWORD race_id,
                                    DWORD gender_id,
                                    DWORD equipment) {
-    /* TODO: wowEquipment_t has no headItem — helmet detection happens purely via
-     * CharStartOutfit.dbc data in M2_CharacterStartOutfit. Extend the equipment
-     * protocol if dynamic head-slot changes need to toggle the helm flag. */
+    /* In-game entity equipment is limited to 4 slots (chest/legs/gloves/boots) packed in a single
+     * DWORD via wowEquipment_t. The full 12-slot outfit (head/shoulders/tabard/cape/belt etc.) is
+     * reserved for the character menu preview and uses M2_ApplyEquipmentFull instead.
+     * TODO: extend entityState_t equipment when full in-game outfit display is needed. */
     static m2EquipmentSlotItems_t const upper_body_items[] = {
         { 2, 0, { [1] = { { 27274, 0, 0, 0 } } } }
     };
@@ -542,6 +546,19 @@ static void M2_ApplyEquipmentItems(m2CharacterOutfit_t *outfit,
     M2_AddEquipmentItemToOutfit(outfit, foot_items,
                                 sizeof(foot_items) / sizeof(foot_items[0]),
                                 race_id, gender_id, items.footItem, M2_SLOT_BOOTS);
+}
+
+/* Menu-only full-slot equipment: accepts ItemDisplayInfo IDs for all 12 slots.
+ * Non-zero display IDs are resolved and applied to the outfit, overriding
+ * CharStartOutfit defaults.  Used by the character preview menu for showing
+ * full equipped character appearance without network protocol constraints. */
+static void M2_ApplyEquipmentFull(m2CharacterOutfit_t *outfit,
+                                  DWORD const *display_ids,
+                                  DWORD count) {
+    if (!outfit || !display_ids || !count) return;
+    FOR_LOOP(i, MIN(count, (DWORD)M2_SLOT_COUNT)) {
+        if (display_ids[i]) M2_AddDisplayInfoToOutfit(outfit, display_ids[i], i);
+    }
 }
 
 static BOOL M2_CharacterStartOutfit(LPCSTR model_path,
@@ -579,8 +596,9 @@ static BOOL M2_CharacterStartOutfit(LPCSTR model_path,
             M2_SLOT_TABARD, M2_SLOT_CAPE, M2_SLOT_NONE, M2_SLOT_NONE
         };
         FOR_LOOP(i, 12) {
-            M2_AddDisplayInfoToOutfit(outfit, M2_DbcField(&m2_char_start_outfit_dbc, record, 14 + i),
-                                      start_outfit_slot_map[i]);
+            DWORD display_id = M2_DbcField(&m2_char_start_outfit_dbc, record, 14 + i);
+            M2_AddDisplayInfoToOutfit(outfit, display_id, start_outfit_slot_map[i]);
+            outfit->slot_display_id[start_outfit_slot_map[i]] = display_id;
         }
         return true;
     }
@@ -601,9 +619,14 @@ static m2CharacterOutfit_t const *M2_CharacterOutfitForEntity(m2Model_t const *m
     }
 
     mutable_model = (m2Model_t *)model;
-    if (mutable_model->character_outfit_resolved &&
+    if (!mutable_model->menu_equipment_set &&
+        mutable_model->character_outfit_resolved &&
         mutable_model->character_outfit_appearance == entity->appearance &&
         mutable_model->character_outfit_equipment == entity->equipment) {
+        return mutable_model->character_outfit_valid ? &mutable_model->character_outfit : NULL;
+    }
+    if (mutable_model->menu_equipment_set && mutable_model->character_outfit_resolved &&
+        mutable_model->character_outfit_appearance == entity->appearance) {
         return mutable_model->character_outfit_valid ? &mutable_model->character_outfit : NULL;
     }
 
@@ -614,9 +637,32 @@ static m2CharacterOutfit_t const *M2_CharacterOutfitForEntity(m2Model_t const *m
     if (!M2_CharacterStartOutfit(model->filename, entity->appearance, &mutable_model->character_outfit)) {
         return NULL;
     }
-    M2_ApplyEquipmentItems(&mutable_model->character_outfit, race_id, gender_id, entity->equipment);
+    if (mutable_model->menu_equipment_set) {
+        M2_ApplyEquipmentFull(&mutable_model->character_outfit,
+                              mutable_model->menu_equipment_display_id,
+                              M2_SLOT_COUNT);
+    } else {
+        M2_ApplyEquipmentItems(&mutable_model->character_outfit, race_id, gender_id, entity->equipment);
+    }
     mutable_model->character_outfit_valid = true;
     return &mutable_model->character_outfit;
+}
+
+/* Set full-slot equipment display IDs for menu character preview.
+ * Resolves ItemDisplayInfo per slot, overriding CharStartOutfit defaults.
+ * Call before the render frame that draws the character model;
+ * set display_ids to NULL or count=0 to clear. */
+void M2_SetCharacterMenuEquipment(m2Model_t *model, DWORD const *display_ids, DWORD count) {
+    if (!model) return;
+    model->menu_equipment_set = true;
+    model->character_outfit_resolved = false;
+    if (display_ids && count) {
+        DWORD n = MIN(count, (DWORD)M2_SLOT_COUNT);
+        memcpy(model->menu_equipment_display_id, display_ids, n * sizeof(DWORD));
+        memset(model->menu_equipment_display_id + n, 0, (M2_SLOT_COUNT - n) * sizeof(DWORD));
+    } else {
+        memset(model->menu_equipment_display_id, 0, sizeof(model->menu_equipment_display_id));
+    }
 }
 
 static BYTE M2_CharacterTextureSlotForSection(WORD section_id) {
@@ -764,9 +810,13 @@ static BOOL M2_CharacterComponentTexturePath(LPCSTR stem,
         snprintf(out, out_size, "%s", candidate);
         return true;
     }
-    snprintf(out, out_size, "Item\\TextureComponents\\%s\\%s_%s.blp",
-             folders[slot], stem, gender_suffix);
-    return true;
+    snprintf(candidate, sizeof(candidate), "Item\\TextureComponents\\%s\\%s.blp",
+             folders[slot], stem);
+    if (M2_TextureExists(candidate)) {
+        snprintf(out, out_size, "%s", candidate);
+        return true;
+    }
+    return false;
 }
 
 static BOOL M2_TexturePixels(LPTEXTURE texture, LPCOLOR32 *pixels) {

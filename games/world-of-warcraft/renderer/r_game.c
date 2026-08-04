@@ -13,6 +13,7 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size);
 void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMATRIX4 transform);
 BOOL M2_AttachmentMatrix(m2Model_t const *model, DWORD attachment_id, LPCMATRIX4 model_matrix, LPMATRIX4 out);
 FLOAT M2_GroundOffset(m2Model_t const *model);
+void M2_SetCharacterMenuEquipment(m2Model_t *model, DWORD const *display_ids, DWORD count);
 BOOL M2_CameraView(m2Model_t const *model,
                    DWORD camera_index,
                    LPVECTOR3 eye,
@@ -250,6 +251,13 @@ void R_GameRenderModel(renderEntity_t const *entity) {
         M2_RenderModel(&attached_entity, attached_entity.model->m2, &attached_transform);
     }
 }
+
+#ifdef WOW
+void R_GameSetCharacterMenuEquipment(LPMODEL model, DWORD const *display_ids, DWORD count) {
+    if (!model || model->modeltype != ID_MD20 || !model->m2) return;
+    M2_SetCharacterMenuEquipment(model->m2, display_ids, count);
+}
+#endif
 
 bool R_GameTraceModel(renderEntity_t const *entity, LPCLINE3 line, LPFLOAT distance) {
     VECTOR3 ab;

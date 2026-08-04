@@ -1780,6 +1780,9 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
             if (e->model && wow_ui.renderer->RenderFrame) {
                 BOOL is_char_select = (i == wow_ui.char_select_frame_idx);
                 renderEntity_t entity = {0};
+
+                if (wow_ui.renderer->SetCharacterMenuEquipment)
+                    wow_ui.renderer->SetCharacterMenuEquipment(e->model, NULL, 0);
                 entity.model = e->model;
                 entity.attached_model = UIWow_XMLCharCustomizeModel(i);
                 entity.appearance = is_char_select ? UIWow_GetCharacterSelectAppearance()
