@@ -96,5 +96,6 @@ void S_SpellCursorSplat(LPEDICT clent, FLOAT radius);
 void S_SpellCodeString(DWORD code, LPSTR out);
 BOOL S_SpellIsChanneling(LPEDICT caster);
 void S_SpellCancelChannel(LPEDICT caster);
+void SP_ability_repair(LPCSTR classname, ability_t *self);
 
 #endif

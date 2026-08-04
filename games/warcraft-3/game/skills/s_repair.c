@@ -1,5 +1,7 @@
 #include "s_skills.h"
 
+static FLOAT repair_cost_factor;
+
 void repair_build(LPEDICT ent, LPEDICT building);
 
 static void ai_repair(LPEDICT ent) {
@@ -23,10 +25,34 @@ void repair_build(LPEDICT ent, LPEDICT building) {
     ent->s.origin2 = origin;
     ent->s.angle = angle - M_PI;
     ent->build = building;
-//    building->health.value = 0;
-//    building->build = building;
+}
+
+static BOOL repair_selecttarget(LPEDICT clent, LPEDICT target) {
+    if (!target || !UNIT_IS_BUILDING(target->class_id)) {
+        return false;
+    }
+    if (target->s.player != clent->client->ps.number) {
+        return false;
+    }
+    if (target->health.value >= target->health.max_value) {
+        return false;
+    }
+    FOR_SELECTED_UNITS(clent->client, ent) {
+        repair_build(ent, target);
+    }
+    return true;
+}
+
+static void repair_command(LPEDICT clent) {
+    UI_AddCancelButton(clent);
+    clent->client->menu.on_entity_selected = repair_selecttarget;
+}
+
+void SP_ability_repair(LPCSTR classname, ability_t *self) {
+    repair_cost_factor = AB_Number(classname, "DataA1");
 }
 
 ability_t a_repair = {
-//    .cmd = build_command,
+    .init = SP_ability_repair,
+    .cmd = repair_command,
 };

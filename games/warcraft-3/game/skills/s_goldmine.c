@@ -112,3 +112,59 @@ void SP_ability_goldmine(LPCSTR classname, ability_t *self) {
 ability_t a_goldmine = {
     .init = SP_ability_goldmine,
 };
+
+/* ---- Overlayed Gold Mine (Agl2): same as basic mine with overlay -------- */
+ability_t a_goldmine_overlayed = {
+    .init = SP_ability_goldmine,
+};
+
+/* ---- Entangle Gold Mine (Aent): NE transforms ownership of a mine ------- */
+static BOOL entangle_goldmine_selecttarget(LPEDICT clent, LPEDICT target) {
+    if (!target || !G_ActorHasSkill(target, "Agld")) {
+        return false;
+    }
+    LPEDICT caster = G_GetMainSelectedUnit(clent->client);
+    if (!caster) {
+        return false;
+    }
+    /* Transfer mine ownership to the caster's player. */
+    target->s.player = caster->s.player;
+    return true;
+}
+
+static void entangle_goldmine_command(LPEDICT clent) {
+    UI_AddCancelButton(clent);
+    clent->client->menu.on_entity_selected = entangle_goldmine_selecttarget;
+}
+
+ability_t a_entangle_goldmine = {
+    .cmd = entangle_goldmine_command,
+};
+
+/* ---- Entangled Mine (Aegm): passive marker on the mine unit ------------- */
+ability_t a_entangled_mine = {0};
+
+/* ---- Blighted Gold Mine (Abgm): interval-based income for Undead -------- */
+static FLOAT blight_gold_per_interval;
+static FLOAT blight_interval_duration;
+
+static void blight_mine_think(LPEDICT ent) {
+    DWORD now = gi.GetTime();
+    LPPLAYER player = G_GetPlayerByNumber(ent->s.player);
+
+    if (!player || ent->health.value <= 0) {
+        return;
+    }
+    /* Add gold income directly to the player. */
+    player->stats[PLAYERSTATE_RESOURCE_GOLD] += (DWORD)blight_gold_per_interval;
+    ent->freetime = now + (DWORD)(blight_interval_duration * 1000.0f);
+}
+
+static void SP_ability_blighted_goldmine(LPCSTR classname, ability_t *self) {
+    blight_gold_per_interval = AB_Number(classname, "DataA1");
+    blight_interval_duration = AB_Number(classname, "DataB1");
+}
+
+ability_t a_blighted_goldmine = {
+    .init = SP_ability_blighted_goldmine,
+};
