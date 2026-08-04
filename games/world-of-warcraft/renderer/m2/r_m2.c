@@ -38,6 +38,7 @@ typedef struct m2ModelBatch_s {
 } m2ModelBatch_t;
 
 #define M2_NUM_GEOSET_GROUPS 16
+#define M2_CHAR_FLAG_HELM 0x100u
 
 typedef struct {
     LPCSTR texture[M2_CHAR_TEX_COUNT];
@@ -430,7 +431,13 @@ static void M2_AddDisplayInfoToOutfit(m2CharacterOutfit_t *outfit, DWORD display
             }
         }
     }
-    outfit->flags |= M2_DbcField(&m2_item_display_info_dbc, record, flags_field);
+    {
+        DWORD item_flags = M2_DbcField(&m2_item_display_info_dbc, record, flags_field);
+        if (slot == M2_SLOT_HEAD && item_flags == 1) {
+            outfit->flags |= M2_CHAR_FLAG_HELM;
+        }
+        outfit->flags |= item_flags;
+    }
     FOR_LOOP(i, M2_CHAR_TEX_COUNT) {
         LPCSTR texture = M2_DbcString(&m2_item_display_info_dbc,
                                       M2_DbcField(&m2_item_display_info_dbc, record, texture_base + i));
@@ -2361,7 +2368,14 @@ static BOOL M2_IsCharacterModelPath(LPCSTR model_path) {
 static BOOL M2_CharacterGeosetVisible(m2Model_t const *model,
                                        m2CharacterOutfit_t const *outfit,
                                        WORD section_id) {
-    if (!model || !model->character_model || section_id < 400) {
+    if (!model || !model->character_model) {
+        return true;
+    }
+    if (section_id < 400) {
+        /* Group 1 (100–199): hair geosets — helmet replaces hair with bald scalp (section 1). */
+        if (section_id >= 100 && outfit && (outfit->flags & M2_CHAR_FLAG_HELM)) {
+            return false;
+        }
         return true;
     }
     if (!outfit) {
