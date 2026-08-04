@@ -385,218 +385,6 @@ static void Wow_SelectLoadingScreen(LPCSTR map_path) {
     gi.MemFree(data);
 }
 
-/* ---- Spell Visual DBC Chain ----
- * Resolves spell visual IDs to M2 model paths via the DBC chain:
- *   SpellVisual.dbc → SpellVisualKit.dbc → SpellVisualEffectName.dbc
- *
- * Pattern derived from WoWee's SpellVisualSystem::loadSpellVisualDbc().
- * The server loads these once at map start and caches the results. */
-
-#define WOW_MAX_SPELL_VISUALS 512
-#define WOW_MAX_SPELL_VISUAL_EFFECTS 1024
-
-typedef struct {
-    DWORD id;
-    DWORD filepath_offset;
-} wowSpellVisualEffectNameDbc_t;
-
-typedef struct {
-    DWORD id;
-    DWORD precast_kit;
-    DWORD cast_kit;
-    DWORD impact_kit;
-    DWORD missile_model;
-} wowSpellVisualDbc_t;
-
-typedef struct {
-    DWORD visual_id;
-    LPCSTR cast_path;
-    LPCSTR impact_path;
-    LPCSTR missile_path;
-} wowSpellVisual_t;
-
-static wowSpellVisual_t wow_spell_visuals[WOW_MAX_SPELL_VISUALS];
-static DWORD wow_spell_visual_count = 0;
-static BOOL wow_spell_visuals_loaded = false;
-
-/* Cached effect name paths: effect_name_id → M2 path */
-typedef struct {
-    DWORD id;
-    LPCSTR path;
-} wowSpellVisualEffect_t;
-
-static wowSpellVisualEffect_t wow_visual_effects[WOW_MAX_SPELL_VISUAL_EFFECTS];
-static DWORD wow_visual_effect_count = 0;
-
-static LPCSTR Wow_FindVisualEffectPath(DWORD effect_id) {
-    FOR_LOOP(i, wow_visual_effect_count) {
-        if (wow_visual_effects[i].id == effect_id) {
-            return wow_visual_effects[i].path;
-        }
-    }
-    return NULL;
-}
-
-/* Resolve a kit ID to the best M2 path by probing effect slots.
- * WoWee probes: SpecialEffect0 > BaseEffect > LeftHand > RightHand > Chest > Head > Breath */
-static LPCSTR Wow_ResolveKitPath(BYTE const *record, DWORD fields, DWORD record_size) {
-    /* Kit field offsets (classic layout, validated against WoWee):
-     *   field 3 = HeadEffect, 4 = ChestEffect, 5 = BaseEffect,
-     *   field 6 = LeftHandEffect, 7 = RightHandEffect, 8 = BreathEffect,
-     *   field 11 = SpecialEffect0, 12 = SpecialEffect1, 13 = SpecialEffect2
-     * Probe in priority order: SpecialEffect0, BaseEffect, LeftHand, RightHand, Chest, Head, Breath */
-    static DWORD const probe_fields[] = { 11, 5, 6, 7, 4, 3, 8 };
-    FOR_LOOP(i, sizeof(probe_fields) / sizeof(probe_fields[0])) {
-        if (probe_fields[i] < fields) {
-            DWORD eff_id = Wow_Read32(record + probe_fields[i] * sizeof(DWORD));
-            if (eff_id) {
-                LPCSTR path = Wow_FindVisualEffectPath(eff_id);
-                if (path && *path) return path;
-            }
-        }
-    }
-    return NULL;
-}
-
-static void Wow_LoadSpellVisualDbcs(void) {
-    LPBYTE fx_data = NULL, kit_data = NULL, sv_data = NULL;
-    DWORD fx_size = 0, kit_size = 0, sv_size = 0;
-    DWORD fx_records, fx_fields, fx_record_size, fx_string_size;
-    DWORD kit_records, kit_fields, kit_record_size, kit_string_size;
-    DWORD sv_records, sv_fields, sv_record_size, sv_string_size;
-
-    if (wow_spell_visuals_loaded) return;
-    wow_spell_visuals_loaded = true;
-
-    /* Phase 1: Load SpellVisualEffectName.dbc → effect ID → M2 path */
-    fx_data = gi.ReadFile ? gi.ReadFile("DBFilesClient\\SpellVisualEffectName.dbc", &fx_size) : NULL;
-    if (Wow_ValidDbc(fx_data, fx_size, &fx_records, &fx_fields, &fx_record_size, &fx_string_size) &&
-        fx_fields >= 3 && wow_visual_effect_count == 0) {
-        BYTE const *records_base = fx_data + 20;
-        BYTE const *strings_base = records_base + fx_records * fx_record_size;
-        FOR_LOOP(i, fx_records) {
-            if (wow_visual_effect_count >= WOW_MAX_SPELL_VISUAL_EFFECTS) break;
-            BYTE const *record = records_base + i * fx_record_size;
-            DWORD id = Wow_Read32(record);
-            DWORD path_offset = Wow_Read32(record + 2 * sizeof(DWORD));
-            LPCSTR path = Wow_DbcString(strings_base, fx_string_size, path_offset);
-            if (id && path && *path) {
-                /* Convert .mdx/.mdl extensions to .m2 (WoWee pattern) */
-                size_t len = strlen(path);
-                char *buf = gi.MemAlloc ? gi.MemAlloc(len + 1) : NULL;
-                if (buf) {
-                    memcpy(buf, path, len + 1);
-                    if (len > 4) {
-                        char *ext = buf + len - 4;
-                        if (!strcasecmp(ext, ".mdx") || !strcasecmp(ext, ".mdl")) {
-                            ext[1] = 'm'; ext[2] = '2'; ext[3] = '\0';
-                        }
-                    }
-                    wow_visual_effects[wow_visual_effect_count].id = id;
-                    wow_visual_effects[wow_visual_effect_count].path = buf;
-                    wow_visual_effect_count++;
-                }
-            }
-        }
-        fprintf(stderr, "WoW: loaded %u spell visual effects from SpellVisualEffectName.dbc\n",
-                (unsigned)wow_visual_effect_count);
-    }
-    SAFE_DELETE(fx_data, gi.MemFree);
-
-    /* Phase 2: Load SpellVisualKit.dbc → kit ID → best effect M2 path */
-    /* We don't need to cache kits; we resolve them inline when loading SpellVisual.dbc */
-    kit_data = gi.ReadFile ? gi.ReadFile("DBFilesClient\\SpellVisualKit.dbc", &kit_size) : NULL;
-    if (!Wow_ValidDbc(kit_data, kit_size, &kit_records, &kit_fields, &kit_record_size, &kit_string_size)) {
-        kit_records = 0;
-    }
-
-    /* Phase 3: Load SpellVisual.dbc → visual ID → cast/impact/missile paths */
-    sv_data = gi.ReadFile ? gi.ReadFile("DBFilesClient\\SpellVisual.dbc", &sv_size) : NULL;
-    if (Wow_ValidDbc(sv_data, sv_size, &sv_records, &sv_fields, &sv_record_size, &sv_string_size) &&
-        sv_fields >= 9 && wow_spell_visual_count == 0) {
-        BYTE const *sv_records_base = sv_data + 20;
-        BYTE const *kit_records_base = kit_data ? kit_data + 20 : NULL;
-
-        FOR_LOOP(i, sv_records) {
-            if (wow_spell_visual_count >= WOW_MAX_SPELL_VISUALS) break;
-            BYTE const *record = sv_records_base + i * sv_record_size;
-            DWORD id = Wow_Read32(record);
-            if (!id) continue;
-
-            /* SpellVisual.dbc fields (WoWee layout):
-             *   1=PrecastKit, 2=CastKit, 3=ImpactKit, 8=MissileModel */
-            DWORD precast_kit = (sv_fields > 1) ? Wow_Read32(record + 1 * sizeof(DWORD)) : 0;
-            DWORD cast_kit    = (sv_fields > 2) ? Wow_Read32(record + 2 * sizeof(DWORD)) : 0;
-            DWORD impact_kit  = (sv_fields > 3) ? Wow_Read32(record + 3 * sizeof(DWORD)) : 0;
-            DWORD missile_eff = (sv_fields > 8) ? Wow_Read32(record + 8 * sizeof(DWORD)) : 0;
-
-            LPCSTR cast_path = NULL, impact_path = NULL, missile_path = NULL;
-
-            /* Resolve cast kit → M2 path */
-            if (cast_kit && kit_records_base) {
-                FOR_LOOP(k, kit_records) {
-                    BYTE const *kr = kit_records_base + k * kit_record_size;
-                    if (Wow_Read32(kr) == cast_kit) {
-                        cast_path = Wow_ResolveKitPath(kr, kit_fields, kit_record_size);
-                        break;
-                    }
-                }
-            }
-            /* Fallback: use precast kit if cast kit produced nothing */
-            if (!cast_path && precast_kit && kit_records_base) {
-                FOR_LOOP(k, kit_records) {
-                    BYTE const *kr = kit_records_base + k * kit_record_size;
-                    if (Wow_Read32(kr) == precast_kit) {
-                        cast_path = Wow_ResolveKitPath(kr, kit_fields, kit_record_size);
-                        break;
-                    }
-                }
-            }
-
-            /* Resolve impact kit → M2 path */
-            if (impact_kit && kit_records_base) {
-                FOR_LOOP(k, kit_records) {
-                    BYTE const *kr = kit_records_base + k * kit_record_size;
-                    if (Wow_Read32(kr) == impact_kit) {
-                        impact_path = Wow_ResolveKitPath(kr, kit_fields, kit_record_size);
-                        break;
-                    }
-                }
-            }
-
-            /* Missile model: direct effect name reference */
-            if (missile_eff) {
-                missile_path = Wow_FindVisualEffectPath(missile_eff);
-            }
-
-            /* Store if we found at least one path */
-            if (cast_path || impact_path || missile_path) {
-                wowSpellVisual_t *sv = &wow_spell_visuals[wow_spell_visual_count++];
-                sv->visual_id = id;
-                sv->cast_path = cast_path;
-                sv->impact_path = impact_path;
-                sv->missile_path = missile_path;
-            }
-        }
-        fprintf(stderr, "WoW: loaded %u spell visuals from SpellVisual.dbc\n",
-                (unsigned)wow_spell_visual_count);
-    }
-
-    SAFE_DELETE(sv_data, gi.MemFree);
-    SAFE_DELETE(kit_data, gi.MemFree);
-}
-
-/* Look up the spell visual for a given visual ID.
- * Returns NULL if no visual is found. */
-static wowSpellVisual_t const *Wow_FindSpellVisual(DWORD visual_id) {
-    FOR_LOOP(i, wow_spell_visual_count) {
-        if (wow_spell_visuals[i].visual_id == visual_id) {
-            return &wow_spell_visuals[i];
-        }
-    }
-    return NULL;
-}
-
 FLOAT Wow_TerrainHeight(FLOAT x, FLOAT y) {
     return CM_GetHeightAtPoint(x, y);
 }
@@ -742,116 +530,22 @@ static void Wow_SpellFrostbolt(LPEDICT caster, LPEDICT target) { Wow_FireFrostbo
 static void Wow_SpellHealingTouch(LPEDICT caster, LPEDICT target) { (void)target; Wow_HealingTouch(caster); }
 
 wowSpellDef_t const wow_spells[] = {
-    [WOW_SPELL_ATTACK]        = { "Attack",        Wow_SpellAttack,           0,    0,  5.0f, NULL,                NULL,               0   },
-    [WOW_SPELL_FIREBOLT]      = { "Fireball",      Wow_SpellFireball,      1500,   10, 30.0f, "SpellCastDirected", "ReadySpellDirected", 133 },
-    [WOW_SPELL_FROSTBOLT]     = { "Frostbolt",     Wow_SpellFrostbolt,     2500,   15, 30.0f, "SpellCastDirected", "ReadySpellDirected", 116 },
-    [WOW_SPELL_HEALING_TOUCH] = { "Healing Touch", Wow_SpellHealingTouch,      0,   15,  0.0f, NULL,                NULL,               0   },
+    [WOW_SPELL_ATTACK]        = { "Attack",        Wow_SpellAttack,           0,    0,  5.0f, NULL,                NULL },
+    [WOW_SPELL_FIREBOLT]      = { "Fireball",      Wow_SpellFireball,      1500,   10, 30.0f, "SpellCastDirected", "ReadySpellDirected" },
+    [WOW_SPELL_FROSTBOLT]     = { "Frostbolt",     Wow_SpellFrostbolt,     2500,   15, 30.0f, "SpellCastDirected", "ReadySpellDirected" },
+    [WOW_SPELL_HEALING_TOUCH] = { "Healing Touch", Wow_SpellHealingTouch,      0,   15,  0.0f, NULL,                NULL },
 };
 DWORD const wow_spell_count = sizeof(wow_spells) / sizeof(wow_spells[0]);
 
 /* SPELL_NONE / SPELL_FIREBOLT etc. defined in g_wow_local.h */
-
-/* Spell.dbc: maps spell_dbc_id → SpellVisual ID.
- * Classic 1.12 layout: 148 fields, SpellVisualID at field 115. */
-#define WOW_MAX_SPELL_VISUAL_MAP 256
-static DWORD wow_spell_visual_map[WOW_MAX_SPELL_VISUAL_MAP]; /* index = spell_dbc_id, value = visual_id */
-static BOOL wow_spell_dbc_loaded = false;
-
-static void Wow_LoadSpellDbc(void) {
-    LPBYTE data = NULL;
-    DWORD size = 0, records, fields, record_size, string_size;
-    DWORD visual_field;
-
-    if (wow_spell_dbc_loaded) return;
-    wow_spell_dbc_loaded = true;
-    memset(wow_spell_visual_map, 0, sizeof(wow_spell_visual_map));
-
-    data = gi.ReadFile ? gi.ReadFile("DBFilesClient\\Spell.dbc", &size) : NULL;
-    if (!Wow_ValidDbc(data, size, &records, &fields, &record_size, &string_size)) {
-        SAFE_DELETE(data, gi.MemFree);
-        return;
-    }
-    /* Classic Spell.dbc has 148 fields with SpellVisualID at 115.
-     * WotLK has 234 fields with SpellVisual at 131. Pick the right field. */
-    visual_field = fields >= 200 ? 131 : 115;
-    if (visual_field >= fields) { SAFE_DELETE(data, gi.MemFree); return; }
-
-    {
-        BYTE const *records_base = data + 20;
-        FOR_LOOP(i, records) {
-            BYTE const *record = records_base + i * record_size;
-            DWORD id = Wow_Read32(record);
-            if (id < WOW_MAX_SPELL_VISUAL_MAP) {
-                wow_spell_visual_map[id] = Wow_Read32(record + visual_field * sizeof(DWORD));
-            }
-        }
-    }
-    fprintf(stderr, "WoW: loaded %u spells from Spell.dbc\n", (unsigned)records);
-    Wow_LoadSpellVisualDbcs();
-    SAFE_DELETE(data, gi.MemFree);
-}
-
-/* Resolve a spell's DBC spell ID → SpellVisual ID → missile M2 model.
- * Returns 0 if no DBC data is available. */
-DWORD Wow_SpellMissileModel(DWORD spell_dbc_id) {
-    static DWORD resolved_models[WOW_MAX_SPELL_VISUAL_MAP];
-    static BOOL model_resolved[WOW_MAX_SPELL_VISUAL_MAP];
-
-    if (spell_dbc_id == 0 || spell_dbc_id >= WOW_MAX_SPELL_VISUAL_MAP) return 0;
-    if (model_resolved[spell_dbc_id]) return resolved_models[spell_dbc_id];
-    model_resolved[spell_dbc_id] = true;
-
-    if (!wow_spell_dbc_loaded) Wow_LoadSpellDbc();
-    DWORD visual_id = wow_spell_visual_map[spell_dbc_id];
-    if (!visual_id) return 0;
-
-    wowSpellVisual_t const *sv = Wow_FindSpellVisual(visual_id);
-    if (!sv || !sv->missile_path) return 0;
-
-    DWORD sz;
-    HANDLE buf = gi.ReadFile ? gi.ReadFile(sv->missile_path, &sz) : NULL;
-    if (!buf) return 0;
-    resolved_models[spell_dbc_id] = G_RegisterModel(sv->missile_path);
-    gi.MemFree(buf);
-    fprintf(stderr, "WoW: DBC missile model for spell %u: %s (idx %u)\n",
-            (unsigned)spell_dbc_id, sv->missile_path, (unsigned)resolved_models[spell_dbc_id]);
-    return resolved_models[spell_dbc_id];
-}
-
-/* Resolve a spell's DBC spell ID → SpellVisual ID → impact M2 model configstring index. */
-DWORD Wow_SpellImpactModel(DWORD spell_dbc_id) {
-    static DWORD resolved_impacts[WOW_MAX_SPELL_VISUAL_MAP];
-    static BOOL impact_resolved[WOW_MAX_SPELL_VISUAL_MAP];
-
-    if (spell_dbc_id == 0 || spell_dbc_id >= WOW_MAX_SPELL_VISUAL_MAP) return 0;
-    if (impact_resolved[spell_dbc_id]) return resolved_impacts[spell_dbc_id];
-    impact_resolved[spell_dbc_id] = true;
-
-    if (!wow_spell_dbc_loaded) Wow_LoadSpellDbc();
-    DWORD visual_id = wow_spell_visual_map[spell_dbc_id];
-    if (!visual_id) return 0;
-
-    wowSpellVisual_t const *sv = Wow_FindSpellVisual(visual_id);
-    if (!sv || !sv->impact_path) return 0;
-
-    DWORD sz;
-    HANDLE buf = gi.ReadFile ? gi.ReadFile(sv->impact_path, &sz) : NULL;
-    if (!buf) return 0;
-    resolved_impacts[spell_dbc_id] = gi.ModelIndex(sv->impact_path);
-    gi.MemFree(buf);
-    fprintf(stderr, "WoW: DBC impact model for spell %u: %s (idx %u)\n",
-            (unsigned)spell_dbc_id, sv->impact_path, (unsigned)resolved_impacts[spell_dbc_id]);
-    return resolved_impacts[spell_dbc_id];
-}
 
 DWORD Wow_FireboltModel(void) {
     static DWORD model = 0;
     static BOOL resolved = false;
     if (!resolved) {
         resolved = true;
-        /* Try DBC-resolved missile path first, fall back to hardcoded paths. */
-        DWORD dbc_model = Wow_SpellMissileModel(133);
-        if (dbc_model) { model = dbc_model; return model; }
+        /* WoW stores spell models flat under Spells\ — not in per-spell
+         * subdirectories.  Verify each path exists in the MPQ before using it. */
         LPCSTR const paths[] = {
             "Spells\\Fireball_Missile_High.m2",
             "Spells\\Fireball_Missile_Low.m2",
@@ -1097,9 +791,6 @@ DWORD Wow_FrostboltModel(void) {
     static BOOL resolved = false;
     if (!resolved) {
         resolved = true;
-        /* Try DBC-resolved missile path first, fall back to hardcoded paths. */
-        DWORD dbc_model = Wow_SpellMissileModel(116);
-        if (dbc_model) { model = dbc_model; return model; }
         LPCSTR const paths[] = {
             "Spells\\FrostBolt_Missile_Low.m2",
             "Spells\\Frostbolt_Missile.m2",
@@ -1724,37 +1415,34 @@ static void Wow_SpawnEntities(void) {
     globals.num_edicts = WOW_MAX_CLIENTS;
     Wow_SpawnAmbientCreatures(&wow_spawn_origin);
     Wow_SpawnGameObjects(&wow_spawn_origin);
-    /* Register spell impact models via DBC SpellVisual chain.
-     * Falls back to hardcoded paths if DBC is unavailable. */
-    Wow_LoadSpellDbc();
-    wow_firebolt_impact_model = Wow_SpellImpactModel(133);
-    wow_frostbolt_impact_model = Wow_SpellImpactModel(116);
-    if (!wow_firebolt_impact_model) {
+    /* Register spell impact models so the client can load them before the first
+     * svc_temp_entity arrives.  Try several known WoW MPQ paths in preference order. */
+    {
         static LPCSTR const fire_paths[] = {
             "Spells\\FireBolt_ImpactDD_Med_Chest.m2",
             "Spells\\Fire_ImpactDD_Med_Chest.m2",
             NULL
         };
-        for (LPCSTR const *p = fire_paths; *p; p++) {
-            DWORD sz;
-            HANDLE buf = gi.ReadFile ? gi.ReadFile(*p, &sz) : NULL;
-            if (buf) { wow_firebolt_impact_model = gi.ModelIndex(*p); gi.MemFree(buf); break; }
-        }
-    }
-    if (!wow_frostbolt_impact_model) {
         static LPCSTR const frost_paths[] = {
             "Spells\\Ice_ImpactDD_Med_Chest.m2",
             "Spells\\Ice_ImpactDD_Low_Chest.m2",
             NULL
         };
+        wow_firebolt_impact_model = 0;
+        for (LPCSTR const *p = fire_paths; *p; p++) {
+            DWORD sz;
+            HANDLE buf = gi.ReadFile ? gi.ReadFile(*p, &sz) : NULL;
+            if (buf) { wow_firebolt_impact_model = gi.ModelIndex(*p); gi.MemFree(buf); break; }
+        }
+        wow_frostbolt_impact_model = 0;
         for (LPCSTR const *p = frost_paths; *p; p++) {
             DWORD sz;
             HANDLE buf = gi.ReadFile ? gi.ReadFile(*p, &sz) : NULL;
             if (buf) { wow_frostbolt_impact_model = gi.ModelIndex(*p); gi.MemFree(buf); break; }
         }
+        fprintf(stderr, "WoW: impact models — fire=%d frost=%d\n",
+                wow_firebolt_impact_model, wow_frostbolt_impact_model);
     }
-    fprintf(stderr, "WoW: impact models — fire=%d frost=%d\n",
-            wow_firebolt_impact_model, wow_frostbolt_impact_model);
     fprintf(stderr, "WoW doodads: static ADT doodads are renderer-owned and not synced as entities\n");
 }
 

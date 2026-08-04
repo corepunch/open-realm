@@ -38,7 +38,6 @@ typedef struct wowSpellDef_s {
     FLOAT range;         /* 0 = melee range / self */
     LPCSTR cast_anim;    /* animation during cast channel */
     LPCSTR ready_anim;   /* animation while waiting for cast */
-    DWORD spell_dbc_id;  /* Spell.dbc ID for DBC-driven visual resolution */
 } wowSpellDef_t;
 
 extern wowSpellDef_t const wow_spells[];
@@ -188,7 +187,6 @@ void Wow_RunGameObjectFrame(LPEDICT ent);
 void Wow_RunCorpseFrame(LPEDICT ent);
 void Wow_RunDynamicObjectFrame(LPEDICT ent);
 LPEDICT Wow_SpawnDynamicObject(DWORD spell_id, LPCVECTOR2 origin, DWORD duration);
-LPEDICT Wow_SpawnCorpse(LPEDICT dead_entity);
 LPCSTR Wow_CachedCreatureName(DWORD display_id);
 DWORD Wow_CachedCreatureType(DWORD display_id);
 DWORD Wow_CachedCreatureFamily(DWORD display_id);
@@ -198,8 +196,6 @@ void UI_WriteWowHud(LPEDICT ent);
 /* Ability/projectile system */
 DWORD      Wow_FireboltModel(void);
 DWORD      Wow_FrostboltModel(void);
-DWORD      Wow_SpellMissileModel(DWORD spell_dbc_id);
-DWORD      Wow_SpellImpactModel(DWORD spell_dbc_id);
 void       Wow_RunProjectile(LPEDICT ent);
 void       Wow_FireFirebolt(LPEDICT caster, LPEDICT target);
 void       Wow_FireFrostbolt(LPEDICT caster, LPEDICT target);

@@ -16,7 +16,6 @@ enum {
     M2_CHAR_TEX_UPPER_LEG,
     M2_CHAR_TEX_LOWER_LEG,
     M2_CHAR_TEX_FOOT,
-    M2_CHAR_TEX_CAPE,       /* cape texture from ItemDisplayInfo.dbc field 3 */
     M2_CHAR_TEX_COUNT
 };
 
@@ -362,13 +361,6 @@ static DWORD M2_ItemDisplayInfoFlagsField(m2Dbc_t const *dbc) {
     return dbc->fields >= 25 ? 10 : 9;
 }
 
-/* ItemDisplayInfo.dbc field 3 = LeftModelTexture (cape texture stem).
- * Classic (23-field) and TBC/Wrath (25-field) layouts both use field 3. */
-static DWORD M2_ItemDisplayInfoCapeTextureField(m2Dbc_t const *dbc) {
-    (void)dbc;
-    return 3;
-}
-
 enum {
     M2_SLOT_NONE,
     M2_SLOT_HEAD,
@@ -436,16 +428,6 @@ static void M2_AddDisplayInfoToOutfit(m2CharacterOutfit_t *outfit, DWORD display
                                       M2_DbcField(&m2_item_display_info_dbc, record, texture_base + i));
         if (texture && *texture) {
             outfit->texture[i] = texture;
-        }
-    }
-    /* Cape texture: ItemDisplayInfo.dbc field 3 = LeftModelTexture.
-     * WoWee reads this field for slot 10 (cape) and resolves gender variants. */
-    if (slot == M2_SLOT_CAPE) {
-        DWORD cape_field = M2_ItemDisplayInfoCapeTextureField(&m2_item_display_info_dbc);
-        LPCSTR cape_tex = M2_DbcString(&m2_item_display_info_dbc,
-                                       M2_DbcField(&m2_item_display_info_dbc, record, cape_field));
-        if (cape_tex && *cape_tex) {
-            outfit->texture[M2_CHAR_TEX_CAPE] = cape_tex;
         }
     }
 }
@@ -2365,7 +2347,6 @@ static BOOL M2_CharacterGeosetVisible(m2Model_t const *model,
         return true;
     }
     if (!outfit) {
-        /* Bare defaults: forearms (401), ears hidden (702), no cape (1501). */
         return section_id == 401 || section_id == 702 || section_id == 1501;
     }
 
@@ -2373,33 +2354,22 @@ static BOOL M2_CharacterGeosetVisible(m2Model_t const *model,
     DWORD geoset = (group < M2_NUM_GEOSET_GROUPS) ? outfit->geoset[group] : 0;
     WORD expected;
 
-    /* Geoset group → section ID mapping (from WoWee/AzerothCore conventions):
-     *   Group  4 (gloves):    base 401 = kGeosetBareForearms
-     *   Group  5 (boots):     base 501 = kGeosetBareShins
-     *   Group  7 (ears):      base 701, default 702 (helmet hides ears)
-     *   Group  8 (sleeves):   base 801 = kGeosetBareSleeves
-     *   Group  9 (kneepads):  base 902 = kGeosetDefaultKneepads
-     *   Group 10 (eyes):      base 1001
-     *   Group 11 (eyebrows):  base 1101
-     *   Group 12 (hair):      base 1201
-     *   Group 13 (pants):     base 1301 = kGeosetBarePants
-     *   Group 15 (cloak):     base 1501 = kGeosetNoCape, 1502 = kGeosetWithCape */
     switch (group) {
         case 4:  expected = 401 + geoset; break;
         case 5:  expected = 501 + geoset; break;
-        case 7:  expected = 700 + geoset; break;
-        case 8:  expected = 801 + geoset; break;
-        case 9:  expected = 902 + geoset; break;
-        case 10: expected = 1001 + geoset; break;
-        case 11: expected = 1101 + geoset; break;
-        case 12: expected = 1201 + geoset; break;
+        case 7:  expected = 702; break;
+        case 8:  expected = 800 + geoset; break;
+        case 9:  expected = 900 + geoset; break;
+        case 10: return false;
+        case 11: return false;
+        case 12: return false;
         case 13:
             if (outfit->flags & 0x4) {
                 return false;
             }
             expected = 1301 + geoset;
             break;
-        case 15: expected = 1501 + geoset; break;
+        case 15: expected = 1501; break;
         default: return false;
     }
     return section_id == expected;
