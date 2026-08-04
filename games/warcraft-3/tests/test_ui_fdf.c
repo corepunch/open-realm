@@ -4,14 +4,11 @@
 #include <stdint.h>
 #include <stdarg.h>
 
-#include "test_framework.h"
+#include "test.h"
 #include "../ui/ui_local.h"
 #include "../ui/ui_dialog.h"
 #include "../ui/ui_screen.h"
 #include "../../../common/mpq.h"
-
-static void setup_game(void) {}
-static void teardown_game(void) {}
 
 static const char *captured_image_path;
 static const char *captured_model_path;
@@ -39,7 +36,7 @@ static int fake_image_index(LPCSTR name) {
 
 static void parse_fdf(const char *name, const char *src) {
     char *buf = strdup(src);
-    ASSERT_NOT_NULL(buf);
+    T_NOT_NULL(buf);
     if (!buf) {
         return;
     }
@@ -48,7 +45,7 @@ static void parse_fdf(const char *name, const char *src) {
 }
 
 static int require_not_null(const void *ptr) {
-    ASSERT_NOT_NULL(ptr);
+    T_NOT_NULL(ptr);
     return ptr != NULL;
 }
 
@@ -303,7 +300,7 @@ static void reset_ui_state(void) {
     UI_SetActive(true);
 }
 
-static void test_parse_single_frame_definition(void) {
+TEST(ui_fdf, parse_single_frame_definition) {
     LPFRAMEDEF root;
 
     reset_ui_state();
@@ -312,13 +309,13 @@ static void test_parse_single_frame_definition(void) {
 
     root = UI_FindFrame("Root");
     if (!require_not_null(root)) return;
-    ASSERT_EQ_INT(root->Type, FT_FRAME);
-    ASSERT_FLOAT_EQ(root->Width, 0.5f);
-    ASSERT_FLOAT_EQ(root->Height, 0.25f);
-    ASSERT_NULL(root->Parent);
+    T_EQ(root->Type, FT_FRAME);
+    T_FEQ(root->Width, 0.5f, 0.01f);
+    T_FEQ(root->Height, 0.25f, 0.01f);
+    T_NULL(root->Parent);
 }
 
-static void test_parse_nested_parent_child_relationship(void) {
+TEST(ui_fdf, parse_nested_parent_child_relationship) {
     LPFRAMEDEF root;
     LPFRAMEDEF child;
 
@@ -332,12 +329,12 @@ static void test_parse_nested_parent_child_relationship(void) {
     child = UI_FindFrame("Child");
     if (!require_not_null(root)) return;
     if (!require_not_null(child)) return;
-    ASSERT_EQ_INT(child->Type, FT_TEXT);
-    ASSERT(child->Parent == root);
-    ASSERT_STR_EQ(child->Text, "Hello");
+    T_EQ(child->Type, FT_TEXT);
+    T_ASSERT(child->Parent == root);
+    T_STREQ(child->Text, "Hello");
 }
 
-static void test_inherits_copies_compatible_type_fields(void) {
+TEST(ui_fdf, inherits_copies_compatible_type_fields) {
     LPFRAMEDEF base;
     LPFRAMEDEF derived;
 
@@ -352,12 +349,12 @@ static void test_inherits_copies_compatible_type_fields(void) {
 
     if (!require_not_null(base)) return;
     if (!require_not_null(derived)) return;
-    ASSERT_FLOAT_EQ(derived->Width, base->Width);
-    ASSERT_FLOAT_EQ(derived->Height, base->Height);
-    ASSERT_EQ_INT(derived->Type, FT_FRAME);
+    T_FEQ(derived->Width, base->Width, 0.01f);
+    T_FEQ(derived->Height, base->Height, 0.01f);
+    T_EQ(derived->Type, FT_FRAME);
 }
 
-static void test_inherits_rejects_incompatible_type(void) {
+TEST(ui_fdf, inherits_rejects_incompatible_type) {
     LPFRAMEDEF base_text;
     LPFRAMEDEF derived_frame;
 
@@ -372,12 +369,12 @@ static void test_inherits_rejects_incompatible_type(void) {
 
     if (!require_not_null(base_text)) return;
     if (!require_not_null(derived_frame)) return;
-    ASSERT_FLOAT_EQ(base_text->Width, 0.77f);
-    ASSERT_FLOAT_EQ(derived_frame->Height, 0.25f);
-    ASSERT_FLOAT_EQ(derived_frame->Width, 0.0f);
+    T_FEQ(base_text->Width, 0.77f, 0.01f);
+    T_FEQ(derived_frame->Height, 0.25f, 0.01f);
+    T_FEQ(derived_frame->Width, 0.0f, 0.01f);
 }
 
-static void test_setpoint_top_left_sets_top_y_anchor(void) {
+TEST(ui_fdf, setpoint_top_left_sets_top_y_anchor) {
     LPFRAMEDEF root;
     LPFRAMEDEF child;
 
@@ -394,18 +391,18 @@ static void test_setpoint_top_left_sets_top_y_anchor(void) {
     if (!require_not_null(root)) return;
     if (!require_not_null(child)) return;
 
-    ASSERT_EQ_INT(child->Points.x[FPP_MIN].used, 1);
-    ASSERT_EQ_INT(child->Points.x[FPP_MIN].targetPos, FPP_MIN);
-    ASSERT_FLOAT_EQ(child->Points.x[FPP_MIN].offset, 0.01f);
-    ASSERT(child->Points.x[FPP_MIN].relativeTo == root);
+    T_EQ(child->Points.x[FPP_MIN].used, 1);
+    T_EQ(child->Points.x[FPP_MIN].targetPos, FPP_MIN);
+    T_FEQ(child->Points.x[FPP_MIN].offset, 0.01f, 0.01f);
+    T_ASSERT(child->Points.x[FPP_MIN].relativeTo == root);
 
-    ASSERT_EQ_INT(child->Points.y[FPP_MIN].used, 1);
-    ASSERT_EQ_INT(child->Points.y[FPP_MIN].targetPos, FPP_MIN);
-    ASSERT_FLOAT_EQ(child->Points.y[FPP_MIN].offset, -0.02f);
-    ASSERT(child->Points.y[FPP_MIN].relativeTo == root);
+    T_EQ(child->Points.y[FPP_MIN].used, 1);
+    T_EQ(child->Points.y[FPP_MIN].targetPos, FPP_MIN);
+    T_FEQ(child->Points.y[FPP_MIN].offset, -0.02f, 0.01f);
+    T_ASSERT(child->Points.y[FPP_MIN].relativeTo == root);
 }
 
-static void test_setallpoints_sets_min_and_max(void) {
+TEST(ui_fdf, setallpoints_sets_min_and_max) {
     LPFRAMEDEF child;
 
     reset_ui_state();
@@ -417,13 +414,13 @@ static void test_setallpoints_sets_min_and_max(void) {
     child = UI_FindFrame("Child");
     if (!require_not_null(child)) return;
 
-    ASSERT_EQ_INT(child->Points.x[FPP_MIN].used, 1);
-    ASSERT_EQ_INT(child->Points.x[FPP_MAX].used, 1);
-    ASSERT_EQ_INT(child->Points.y[FPP_MIN].used, 1);
-    ASSERT_EQ_INT(child->Points.y[FPP_MAX].used, 1);
+    T_EQ(child->Points.x[FPP_MIN].used, 1);
+    T_EQ(child->Points.x[FPP_MAX].used, 1);
+    T_EQ(child->Points.y[FPP_MIN].used, 1);
+    T_EQ(child->Points.y[FPP_MAX].used, 1);
 }
 
-static void test_anchor_translates_to_setpoint_state(void) {
+TEST(ui_fdf, anchor_translates_to_setpoint_state) {
     LPFRAMEDEF frame;
 
     reset_ui_state();
@@ -432,13 +429,13 @@ static void test_anchor_translates_to_setpoint_state(void) {
 
     frame = UI_FindFrame("Root");
     if (!require_not_null(frame)) return;
-    ASSERT_EQ_INT(frame->Points.x[FPP_MAX].used, 1);
-    ASSERT_EQ_INT(frame->Points.y[FPP_MAX].used, 1);
-    ASSERT_FLOAT_EQ(frame->Points.x[FPP_MAX].offset, -0.03f);
-    ASSERT_FLOAT_EQ(frame->Points.y[FPP_MAX].offset, 0.04f);
+    T_EQ(frame->Points.x[FPP_MAX].used, 1);
+    T_EQ(frame->Points.y[FPP_MAX].used, 1);
+    T_FEQ(frame->Points.x[FPP_MAX].offset, -0.03f, 0.01f);
+    T_FEQ(frame->Points.y[FPP_MAX].offset, 0.04f, 0.01f);
 }
 
-static void test_backdrop_flags_and_insets_are_parsed(void) {
+TEST(ui_fdf, backdrop_flags_and_insets_are_parsed) {
     LPFRAMEDEF frame;
 
     reset_ui_state();
@@ -452,16 +449,16 @@ static void test_backdrop_flags_and_insets_are_parsed(void) {
 
     frame = UI_FindFrame("BD");
     if (!require_not_null(frame)) return;
-    ASSERT_EQ_INT(frame->Type, FT_BACKDROP);
-    ASSERT_EQ_INT(frame->Backdrop.TileBackground, 1);
-    ASSERT_EQ_INT(frame->Backdrop.BlendAll, 1);
-    ASSERT_FLOAT_EQ(frame->Backdrop.BackgroundInsets[0], 0.1f);
-    ASSERT_FLOAT_EQ(frame->Backdrop.BackgroundInsets[1], 0.2f);
-    ASSERT_FLOAT_EQ(frame->Backdrop.BackgroundInsets[2], 0.3f);
-    ASSERT_FLOAT_EQ(frame->Backdrop.BackgroundInsets[3], 0.4f);
+    T_EQ(frame->Type, FT_BACKDROP);
+    T_EQ(frame->Backdrop.TileBackground, 1);
+    T_EQ(frame->Backdrop.BlendAll, 1);
+    T_FEQ(frame->Backdrop.BackgroundInsets[0], 0.1f, 0.01f);
+    T_FEQ(frame->Backdrop.BackgroundInsets[1], 0.2f, 0.01f);
+    T_FEQ(frame->Backdrop.BackgroundInsets[2], 0.3f, 0.01f);
+    T_FEQ(frame->Backdrop.BackgroundInsets[3], 0.4f, 0.01f);
 }
 
-static void test_vector_parser_accepts_f_suffixes(void) {
+TEST(ui_fdf, vector_parser_accepts_f_suffixes) {
     LPFRAMEDEF frame;
 
     reset_ui_state();
@@ -472,20 +469,20 @@ static void test_vector_parser_accepts_f_suffixes(void) {
 
     frame = UI_FindFrame("Button");
     if (!require_not_null(frame)) return;
-    ASSERT_FLOAT_EQ(frame->Button.PushedTextOffset.x, -0.002f);
-    ASSERT_FLOAT_EQ(frame->Button.PushedTextOffset.y, -0.003f);
+    T_FEQ(frame->Button.PushedTextOffset.x, -0.002f, 0.01f);
+    T_FEQ(frame->Button.PushedTextOffset.y, -0.003f, 0.01f);
 }
 
-static void test_chat_display_tokens_map_to_text_area(void) {
+TEST(ui_fdf, chat_display_tokens_map_to_text_area) {
     reset_ui_state();
     parse_fdf("chat_display.fdf", "Frame \"CHATDISPLAY\" \"Chat\" { ChatDisplayLineHeight 0.012, ChatDisplayBorderSize 0.034, }");
     LPFRAMEDEF frame = UI_FindFrame("Chat");
     if (!require_not_null(frame)) return;
-    ASSERT_FLOAT_EQ(frame->TextArea.LineHeight, 0.012f);
-    ASSERT_FLOAT_EQ(frame->TextArea.Inset, 0.034f);
+    T_FEQ(frame->TextArea.LineHeight, 0.012f, 0.01f);
+    T_FEQ(frame->TextArea.Inset, 0.034f, 0.01f);
 }
 
-static void test_comments_are_ignored_inside_frame_bodies(void) {
+TEST(ui_fdf, comments_are_ignored_inside_frame_bodies) {
     LPFRAMEDEF frame;
 
     reset_ui_state();
@@ -502,13 +499,13 @@ static void test_comments_are_ignored_inside_frame_bodies(void) {
 
     frame = UI_FindFrame("CommentedFrame");
     if (!require_not_null(frame)) return;
-    ASSERT_FLOAT_EQ(frame->Points.x[FPP_MIN].offset, 0.25f);
-    ASSERT_FLOAT_EQ(frame->Points.y[FPP_MIN].offset, -0.125f);
-    ASSERT_FLOAT_EQ(frame->Width, 0.5f);
-    ASSERT_FLOAT_EQ(frame->Height, 0.25f);
+    T_FEQ(frame->Points.x[FPP_MIN].offset, 0.25f, 0.01f);
+    T_FEQ(frame->Points.y[FPP_MIN].offset, -0.125f, 0.01f);
+    T_FEQ(frame->Width, 0.5f, 0.01f);
+    T_FEQ(frame->Height, 0.25f, 0.01f);
 }
 
-static void test_comments_are_ignored_between_setpoint_arguments(void) {
+TEST(ui_fdf, comments_are_ignored_between_setpoint_arguments) {
     LPFRAMEDEF root;
     LPFRAMEDEF child;
 
@@ -532,18 +529,18 @@ static void test_comments_are_ignored_between_setpoint_arguments(void) {
     if (!require_not_null(root)) return;
     if (!require_not_null(child)) return;
 
-    ASSERT_EQ_INT(child->Points.x[FPP_MIN].used, 1);
-    ASSERT_EQ_INT(child->Points.x[FPP_MIN].targetPos, FPP_MIN);
-    ASSERT_FLOAT_EQ(child->Points.x[FPP_MIN].offset, 0.125f);
-    ASSERT(child->Points.x[FPP_MIN].relativeTo == root);
+    T_EQ(child->Points.x[FPP_MIN].used, 1);
+    T_EQ(child->Points.x[FPP_MIN].targetPos, FPP_MIN);
+    T_FEQ(child->Points.x[FPP_MIN].offset, 0.125f, 0.01f);
+    T_ASSERT(child->Points.x[FPP_MIN].relativeTo == root);
 
-    ASSERT_EQ_INT(child->Points.y[FPP_MIN].used, 1);
-    ASSERT_EQ_INT(child->Points.y[FPP_MIN].targetPos, FPP_MIN);
-    ASSERT_FLOAT_EQ(child->Points.y[FPP_MIN].offset, -0.25f);
-    ASSERT(child->Points.y[FPP_MIN].relativeTo == root);
+    T_EQ(child->Points.y[FPP_MIN].used, 1);
+    T_EQ(child->Points.y[FPP_MIN].targetPos, FPP_MIN);
+    T_FEQ(child->Points.y[FPP_MIN].offset, -0.25f, 0.01f);
+    T_ASSERT(child->Points.y[FPP_MIN].relativeTo == root);
 }
 
-static void test_comment_markers_inside_quoted_strings_are_preserved(void) {
+TEST(ui_fdf, comment_markers_inside_quoted_strings_are_preserved) {
     LPFRAMEDEF text;
     LPFRAMEDEF more_text;
 
@@ -564,11 +561,11 @@ static void test_comment_markers_inside_quoted_strings_are_preserved(void) {
     more_text = UI_FindFrame("MoreText");
     if (!require_not_null(text)) return;
     if (!require_not_null(more_text)) return;
-    ASSERT_STR_EQ(text->Text, "literal // text and /* block marker */ text");
-    ASSERT_STR_EQ(more_text->Text, "more /* marker */ and // marker text");
+    T_STREQ(text->Text, "literal // text and /* block marker */ text");
+    T_STREQ(more_text->Text, "more /* marker */ and // marker text");
 }
 
-static void test_shipped_style_disabled_properties_do_not_escape_comments(void) {
+TEST(ui_fdf, shipped_style_disabled_properties_do_not_escape_comments) {
     LPFRAMEDEF root;
     LPFRAMEDEF icon;
     LPFRAMEDEF text;
@@ -601,20 +598,20 @@ static void test_shipped_style_disabled_properties_do_not_escape_comments(void) 
     if (!require_not_null(icon)) return;
     if (!require_not_null(text)) return;
 
-    ASSERT(icon->Parent == root);
-    ASSERT(text->Parent == root);
-    ASSERT_EQ_INT(icon->Type, FT_TEXTURE);
-    ASSERT_EQ_INT(text->Type, FT_STRING);
-    ASSERT_EQ_INT(icon->Points.x[FPP_MIN].used, 1);
-    ASSERT_FLOAT_EQ(icon->Points.x[FPP_MIN].offset, 0.010f);
-    ASSERT_EQ_INT(text->Points.x[FPP_MIN].used, 1);
-    ASSERT_FLOAT_EQ(text->Points.x[FPP_MIN].offset, 0.030f);
-    ASSERT(text->Points.x[FPP_MIN].relativeTo == icon);
-    ASSERT_STR_EQ(text->Text, "No Upkeep");
-    ASSERT_NOT_NULL(UI_FindFrame("AfterCommentText"));
+    T_ASSERT(icon->Parent == root);
+    T_ASSERT(text->Parent == root);
+    T_EQ(icon->Type, FT_TEXTURE);
+    T_EQ(text->Type, FT_STRING);
+    T_EQ(icon->Points.x[FPP_MIN].used, 1);
+    T_FEQ(icon->Points.x[FPP_MIN].offset, 0.010f, 0.01f);
+    T_EQ(text->Points.x[FPP_MIN].used, 1);
+    T_FEQ(text->Points.x[FPP_MIN].offset, 0.030f, 0.01f);
+    T_ASSERT(text->Points.x[FPP_MIN].relativeTo == icon);
+    T_STREQ(text->Text, "No Upkeep");
+    T_NOT_NULL(UI_FindFrame("AfterCommentText"));
 }
 
-static void test_backdrop_background_adds_blp_extension(void) {
+TEST(ui_fdf, backdrop_background_adds_blp_extension) {
     LPFRAMEDEF frame;
 
     reset_ui_state();
@@ -625,12 +622,12 @@ static void test_backdrop_background_adds_blp_extension(void) {
 
     frame = UI_FindFrame("BD");
     if (!require_not_null(frame)) return;
-    ASSERT_EQ_INT(frame->Backdrop.Background, 1);
-    ASSERT_NOT_NULL(captured_image_path);
-    ASSERT_STR_EQ(captured_image_path, "TestUI/Textures/checker_8x8.blp");
+    T_EQ(frame->Backdrop.Background, 1);
+    T_NOT_NULL(captured_image_path);
+    T_STREQ(captured_image_path, "TestUI/Textures/checker_8x8.blp");
 }
 
-static void test_background_art_uses_model_index(void) {
+TEST(ui_fdf, background_art_uses_model_index) {
     LPFRAMEDEF sprite;
 
     reset_ui_state();
@@ -641,13 +638,13 @@ static void test_background_art_uses_model_index(void) {
 
     sprite = UI_FindFrame("SpriteA");
     if (!require_not_null(sprite)) return;
-    ASSERT_EQ_INT(sprite->Type, FT_SPRITE);
-    ASSERT_EQ_INT(sprite->Portrait.model, 1);
-    ASSERT_NOT_NULL(captured_model_path);
-    ASSERT_STR_EQ(captured_model_path, "TestUI/Models/quad_sprite.mdx");
+    T_EQ(sprite->Type, FT_SPRITE);
+    T_EQ(sprite->Portrait.model, 1);
+    T_NOT_NULL(captured_model_path);
+    T_STREQ(captured_model_path, "TestUI/Models/quad_sprite.mdx");
 }
 
-static void test_collect_frame_tree_preorder_matches_writer_traversal(void) {
+TEST(ui_fdf, collect_frame_tree_preorder_matches_writer_traversal) {
     LPCFRAMEDEF out[8];
     DWORD count;
     LPFRAMEDEF root;
@@ -676,14 +673,14 @@ static void test_collect_frame_tree_preorder_matches_writer_traversal(void) {
     memset(out, 0, sizeof(out));
     count = UI_CollectFrameTree(root, out, 8);
 
-    ASSERT_EQ_INT((int)count, 4);
-    ASSERT(out[0] == root);
-    ASSERT(out[1] == child_a);
-    ASSERT(out[2] == grand);
-    ASSERT(out[3] == child_b);
+    T_EQ((int)count, 4);
+    T_ASSERT(out[0] == root);
+    T_ASSERT(out[1] == child_a);
+    T_ASSERT(out[2] == grand);
+    T_ASSERT(out[3] == child_b);
 }
 
-static void test_collect_frame_tree_skips_hidden_children(void) {
+TEST(ui_fdf, collect_frame_tree_skips_hidden_children) {
     LPCFRAMEDEF out[4];
     DWORD count;
     LPFRAMEDEF root;
@@ -709,12 +706,12 @@ static void test_collect_frame_tree_skips_hidden_children(void) {
     memset(out, 0, sizeof(out));
     count = UI_CollectFrameTree(root, out, 4);
 
-    ASSERT_EQ_INT((int)count, 2);
-    ASSERT(out[0] == root);
-    ASSERT(out[1] == visible);
+    T_EQ((int)count, 2);
+    T_ASSERT(out[0] == root);
+    T_ASSERT(out[1] == visible);
 }
 
-static void test_collect_frame_tree_skips_button_control_art(void) {
+TEST(ui_fdf, collect_frame_tree_skips_button_control_art) {
     LPCFRAMEDEF out[4];
     DWORD count;
     LPFRAMEDEF button;
@@ -742,12 +739,12 @@ static void test_collect_frame_tree_skips_button_control_art(void) {
     memset(out, 0, sizeof(out));
     count = UI_CollectFrameTree(button, out, 4);
 
-    ASSERT_EQ_INT((int)count, 2);
-    ASSERT(out[0] == button);
-    ASSERT(out[1] == text);
+    T_EQ((int)count, 2);
+    T_ASSERT(out[0] == button);
+    T_ASSERT(out[1] == text);
 }
 
-static void test_collect_frame_tree_skips_editbox_text_frame(void) {
+TEST(ui_fdf, collect_frame_tree_skips_editbox_text_frame) {
     LPCFRAMEDEF out[4];
     DWORD count;
     LPFRAMEDEF editbox;
@@ -765,11 +762,11 @@ static void test_collect_frame_tree_skips_editbox_text_frame(void) {
     memset(out, 0, sizeof(out));
     count = UI_CollectFrameTree(editbox, out, 4);
 
-    ASSERT_EQ_INT((int)count, 1);
-    ASSERT(out[0] == editbox);
+    T_EQ((int)count, 1);
+    T_ASSERT(out[0] == editbox);
 }
 
-static void test_collect_frame_tree_returns_total_when_truncated(void) {
+TEST(ui_fdf, collect_frame_tree_returns_total_when_truncated) {
     LPCFRAMEDEF out[2];
     DWORD count;
     LPFRAMEDEF root;
@@ -788,12 +785,12 @@ static void test_collect_frame_tree_returns_total_when_truncated(void) {
     memset(out, 0, sizeof(out));
     count = UI_CollectFrameTree(root, out, 2);
 
-    ASSERT_EQ_INT((int)count, 4);
-    ASSERT(out[0] == root);
-    ASSERT_NOT_NULL(out[1]);
+    T_EQ((int)count, 4);
+    T_ASSERT(out[0] == root);
+    T_NOT_NULL(out[1]);
 }
 
-static void test_find_child_frame_descends_recursively(void) {
+TEST(ui_fdf, find_child_frame_descends_recursively) {
     LPFRAMEDEF root;
     LPFRAMEDEF found;
 
@@ -810,10 +807,10 @@ static void test_find_child_frame_descends_recursively(void) {
 
     found = UI_FindChildFrame(root, "L2");
     if (!require_not_null(found)) return;
-    ASSERT_STR_EQ(found->Name, "L2");
+    T_STREQ(found->Name, "L2");
 }
 
-static void test_programmatic_setpoint_maps_to_points(void) {
+TEST(ui_fdf, programmatic_setpoint_maps_to_points) {
     FRAMEDEF root;
     FRAMEDEF child;
 
@@ -827,32 +824,32 @@ static void test_programmatic_setpoint_maps_to_points(void) {
 
     UI_SetPoint(&child, FRAMEPOINT_CENTER, &root, FRAMEPOINT_TOPLEFT, 0.11f, -0.22f);
 
-    ASSERT_EQ_INT(child.Points.x[FPP_MID].used, 1);
-    ASSERT_EQ_INT(child.Points.y[FPP_MID].used, 1);
-    ASSERT_EQ_INT(child.Points.x[FPP_MID].targetPos, FPP_MIN);
-    ASSERT_EQ_INT(child.Points.y[FPP_MID].targetPos, FPP_MIN);
-    ASSERT_FLOAT_EQ(child.Points.x[FPP_MID].offset, 0.11f);
-    ASSERT_FLOAT_EQ(child.Points.y[FPP_MID].offset, -0.22f);
-    ASSERT(child.Points.x[FPP_MID].relativeTo == &root);
-    ASSERT(child.Points.y[FPP_MID].relativeTo == &root);
+    T_EQ(child.Points.x[FPP_MID].used, 1);
+    T_EQ(child.Points.y[FPP_MID].used, 1);
+    T_EQ(child.Points.x[FPP_MID].targetPos, FPP_MIN);
+    T_EQ(child.Points.y[FPP_MID].targetPos, FPP_MIN);
+    T_FEQ(child.Points.x[FPP_MID].offset, 0.11f, 0.01f);
+    T_FEQ(child.Points.y[FPP_MID].offset, -0.22f, 0.01f);
+    T_ASSERT(child.Points.x[FPP_MID].relativeTo == &root);
+    T_ASSERT(child.Points.y[FPP_MID].relativeTo == &root);
 }
 
-static void test_programmatic_setallpoints_sets_both_axes(void) {
+TEST(ui_fdf, programmatic_setallpoints_sets_both_axes) {
     FRAMEDEF frame;
 
     reset_ui_state();
     UI_InitFrame(&frame, FT_FRAME);
     UI_SetAllPoints(&frame);
 
-    ASSERT_EQ_INT(frame.Points.x[FPP_MIN].used, 1);
-    ASSERT_EQ_INT(frame.Points.x[FPP_MAX].used, 1);
-    ASSERT_EQ_INT(frame.Points.y[FPP_MIN].used, 1);
-    ASSERT_EQ_INT(frame.Points.y[FPP_MAX].used, 1);
+    T_EQ(frame.Points.x[FPP_MIN].used, 1);
+    T_EQ(frame.Points.x[FPP_MAX].used, 1);
+    T_EQ(frame.Points.y[FPP_MIN].used, 1);
+    T_EQ(frame.Points.y[FPP_MAX].used, 1);
 }
 
 /* --- SetPoint: coverage for each FRAMEPOINT position --- */
 
-static void test_setpoint_top_maps_mid_x_max_y(void) {
+TEST(ui_fdf, setpoint_top_maps_mid_x_max_y) {
     LPFRAMEDEF child;
 
     reset_ui_state();
@@ -866,16 +863,16 @@ static void test_setpoint_top_maps_mid_x_max_y(void) {
     child = UI_FindFrame("Child");
     if (!require_not_null(child)) return;
 
-    ASSERT_EQ_INT(child->Points.x[FPP_MID].used, 1);
-    ASSERT_EQ_INT(child->Points.x[FPP_MID].targetPos, FPP_MID);
-    ASSERT_FLOAT_EQ(child->Points.x[FPP_MID].offset, 0.03f);
+    T_EQ(child->Points.x[FPP_MID].used, 1);
+    T_EQ(child->Points.x[FPP_MID].targetPos, FPP_MID);
+    T_FEQ(child->Points.x[FPP_MID].offset, 0.03f, 0.01f);
 
-    ASSERT_EQ_INT(child->Points.y[FPP_MIN].used, 1);
-    ASSERT_EQ_INT(child->Points.y[FPP_MIN].targetPos, FPP_MIN);
-    ASSERT_FLOAT_EQ(child->Points.y[FPP_MIN].offset, -0.07f);
+    T_EQ(child->Points.y[FPP_MIN].used, 1);
+    T_EQ(child->Points.y[FPP_MIN].targetPos, FPP_MIN);
+    T_FEQ(child->Points.y[FPP_MIN].offset, -0.07f, 0.01f);
 }
 
-static void test_setpoint_topright_maps_max_x_max_y(void) {
+TEST(ui_fdf, setpoint_topright_maps_max_x_max_y) {
     LPFRAMEDEF child;
 
     reset_ui_state();
@@ -889,16 +886,16 @@ static void test_setpoint_topright_maps_max_x_max_y(void) {
     child = UI_FindFrame("Child");
     if (!require_not_null(child)) return;
 
-    ASSERT_EQ_INT(child->Points.x[FPP_MAX].used, 1);
-    ASSERT_EQ_INT(child->Points.x[FPP_MAX].targetPos, FPP_MAX);
-    ASSERT_FLOAT_EQ(child->Points.x[FPP_MAX].offset, 0.05f);
+    T_EQ(child->Points.x[FPP_MAX].used, 1);
+    T_EQ(child->Points.x[FPP_MAX].targetPos, FPP_MAX);
+    T_FEQ(child->Points.x[FPP_MAX].offset, 0.05f, 0.01f);
 
-    ASSERT_EQ_INT(child->Points.y[FPP_MIN].used, 1);
-    ASSERT_EQ_INT(child->Points.y[FPP_MIN].targetPos, FPP_MIN);
-    ASSERT_FLOAT_EQ(child->Points.y[FPP_MIN].offset, -0.10f);
+    T_EQ(child->Points.y[FPP_MIN].used, 1);
+    T_EQ(child->Points.y[FPP_MIN].targetPos, FPP_MIN);
+    T_FEQ(child->Points.y[FPP_MIN].offset, -0.10f, 0.01f);
 }
 
-static void test_setpoint_left_maps_min_x_mid_y(void) {
+TEST(ui_fdf, setpoint_left_maps_min_x_mid_y) {
     LPFRAMEDEF child;
 
     reset_ui_state();
@@ -912,16 +909,16 @@ static void test_setpoint_left_maps_min_x_mid_y(void) {
     child = UI_FindFrame("Child");
     if (!require_not_null(child)) return;
 
-    ASSERT_EQ_INT(child->Points.x[FPP_MIN].used, 1);
-    ASSERT_EQ_INT(child->Points.x[FPP_MIN].targetPos, FPP_MIN);
-    ASSERT_FLOAT_EQ(child->Points.x[FPP_MIN].offset, 0.02f);
+    T_EQ(child->Points.x[FPP_MIN].used, 1);
+    T_EQ(child->Points.x[FPP_MIN].targetPos, FPP_MIN);
+    T_FEQ(child->Points.x[FPP_MIN].offset, 0.02f, 0.01f);
 
-    ASSERT_EQ_INT(child->Points.y[FPP_MID].used, 1);
-    ASSERT_EQ_INT(child->Points.y[FPP_MID].targetPos, FPP_MID);
-    ASSERT_FLOAT_EQ(child->Points.y[FPP_MID].offset, 0.04f);
+    T_EQ(child->Points.y[FPP_MID].used, 1);
+    T_EQ(child->Points.y[FPP_MID].targetPos, FPP_MID);
+    T_FEQ(child->Points.y[FPP_MID].offset, 0.04f, 0.01f);
 }
 
-static void test_setpoint_center_maps_mid_x_mid_y(void) {
+TEST(ui_fdf, setpoint_center_maps_mid_x_mid_y) {
     LPFRAMEDEF child;
 
     reset_ui_state();
@@ -935,16 +932,16 @@ static void test_setpoint_center_maps_mid_x_mid_y(void) {
     child = UI_FindFrame("Child");
     if (!require_not_null(child)) return;
 
-    ASSERT_EQ_INT(child->Points.x[FPP_MID].used, 1);
-    ASSERT_EQ_INT(child->Points.x[FPP_MID].targetPos, FPP_MID);
-    ASSERT_FLOAT_EQ(child->Points.x[FPP_MID].offset, 0.0f);
+    T_EQ(child->Points.x[FPP_MID].used, 1);
+    T_EQ(child->Points.x[FPP_MID].targetPos, FPP_MID);
+    T_FEQ(child->Points.x[FPP_MID].offset, 0.0f, 0.01f);
 
-    ASSERT_EQ_INT(child->Points.y[FPP_MID].used, 1);
-    ASSERT_EQ_INT(child->Points.y[FPP_MID].targetPos, FPP_MID);
-    ASSERT_FLOAT_EQ(child->Points.y[FPP_MID].offset, 0.0f);
+    T_EQ(child->Points.y[FPP_MID].used, 1);
+    T_EQ(child->Points.y[FPP_MID].targetPos, FPP_MID);
+    T_FEQ(child->Points.y[FPP_MID].offset, 0.0f, 0.01f);
 }
 
-static void test_setpoint_right_maps_max_x_mid_y(void) {
+TEST(ui_fdf, setpoint_right_maps_max_x_mid_y) {
     LPFRAMEDEF child;
 
     reset_ui_state();
@@ -958,16 +955,16 @@ static void test_setpoint_right_maps_max_x_mid_y(void) {
     child = UI_FindFrame("Child");
     if (!require_not_null(child)) return;
 
-    ASSERT_EQ_INT(child->Points.x[FPP_MAX].used, 1);
-    ASSERT_EQ_INT(child->Points.x[FPP_MAX].targetPos, FPP_MAX);
-    ASSERT_FLOAT_EQ(child->Points.x[FPP_MAX].offset, -0.06f);
+    T_EQ(child->Points.x[FPP_MAX].used, 1);
+    T_EQ(child->Points.x[FPP_MAX].targetPos, FPP_MAX);
+    T_FEQ(child->Points.x[FPP_MAX].offset, -0.06f, 0.01f);
 
-    ASSERT_EQ_INT(child->Points.y[FPP_MID].used, 1);
-    ASSERT_EQ_INT(child->Points.y[FPP_MID].targetPos, FPP_MID);
-    ASSERT_FLOAT_EQ(child->Points.y[FPP_MID].offset, 0.0f);
+    T_EQ(child->Points.y[FPP_MID].used, 1);
+    T_EQ(child->Points.y[FPP_MID].targetPos, FPP_MID);
+    T_FEQ(child->Points.y[FPP_MID].offset, 0.0f, 0.01f);
 }
 
-static void test_setpoint_bottomleft_maps_min_x_min_y(void) {
+TEST(ui_fdf, setpoint_bottomleft_maps_min_x_min_y) {
     LPFRAMEDEF child;
 
     reset_ui_state();
@@ -981,16 +978,16 @@ static void test_setpoint_bottomleft_maps_min_x_min_y(void) {
     child = UI_FindFrame("Child");
     if (!require_not_null(child)) return;
 
-    ASSERT_EQ_INT(child->Points.x[FPP_MIN].used, 1);
-    ASSERT_EQ_INT(child->Points.x[FPP_MIN].targetPos, FPP_MIN);
-    ASSERT_FLOAT_EQ(child->Points.x[FPP_MIN].offset, 0.01f);
+    T_EQ(child->Points.x[FPP_MIN].used, 1);
+    T_EQ(child->Points.x[FPP_MIN].targetPos, FPP_MIN);
+    T_FEQ(child->Points.x[FPP_MIN].offset, 0.01f, 0.01f);
 
-    ASSERT_EQ_INT(child->Points.y[FPP_MAX].used, 1);
-    ASSERT_EQ_INT(child->Points.y[FPP_MAX].targetPos, FPP_MAX);
-    ASSERT_FLOAT_EQ(child->Points.y[FPP_MAX].offset, 0.02f);
+    T_EQ(child->Points.y[FPP_MAX].used, 1);
+    T_EQ(child->Points.y[FPP_MAX].targetPos, FPP_MAX);
+    T_FEQ(child->Points.y[FPP_MAX].offset, 0.02f, 0.01f);
 }
 
-static void test_setpoint_bottom_maps_mid_x_min_y(void) {
+TEST(ui_fdf, setpoint_bottom_maps_mid_x_min_y) {
     LPFRAMEDEF child;
 
     reset_ui_state();
@@ -1004,16 +1001,16 @@ static void test_setpoint_bottom_maps_mid_x_min_y(void) {
     child = UI_FindFrame("Child");
     if (!require_not_null(child)) return;
 
-    ASSERT_EQ_INT(child->Points.x[FPP_MID].used, 1);
-    ASSERT_EQ_INT(child->Points.x[FPP_MID].targetPos, FPP_MID);
-    ASSERT_FLOAT_EQ(child->Points.x[FPP_MID].offset, 0.0f);
+    T_EQ(child->Points.x[FPP_MID].used, 1);
+    T_EQ(child->Points.x[FPP_MID].targetPos, FPP_MID);
+    T_FEQ(child->Points.x[FPP_MID].offset, 0.0f, 0.01f);
 
-    ASSERT_EQ_INT(child->Points.y[FPP_MAX].used, 1);
-    ASSERT_EQ_INT(child->Points.y[FPP_MAX].targetPos, FPP_MAX);
-    ASSERT_FLOAT_EQ(child->Points.y[FPP_MAX].offset, 0.08f);
+    T_EQ(child->Points.y[FPP_MAX].used, 1);
+    T_EQ(child->Points.y[FPP_MAX].targetPos, FPP_MAX);
+    T_FEQ(child->Points.y[FPP_MAX].offset, 0.08f, 0.01f);
 }
 
-static void test_setpoint_bottomright_maps_max_x_min_y(void) {
+TEST(ui_fdf, setpoint_bottomright_maps_max_x_min_y) {
     LPFRAMEDEF child;
 
     reset_ui_state();
@@ -1027,18 +1024,18 @@ static void test_setpoint_bottomright_maps_max_x_min_y(void) {
     child = UI_FindFrame("Child");
     if (!require_not_null(child)) return;
 
-    ASSERT_EQ_INT(child->Points.x[FPP_MAX].used, 1);
-    ASSERT_EQ_INT(child->Points.x[FPP_MAX].targetPos, FPP_MAX);
-    ASSERT_FLOAT_EQ(child->Points.x[FPP_MAX].offset, -0.04f);
+    T_EQ(child->Points.x[FPP_MAX].used, 1);
+    T_EQ(child->Points.x[FPP_MAX].targetPos, FPP_MAX);
+    T_FEQ(child->Points.x[FPP_MAX].offset, -0.04f, 0.01f);
 
-    ASSERT_EQ_INT(child->Points.y[FPP_MAX].used, 1);
-    ASSERT_EQ_INT(child->Points.y[FPP_MAX].targetPos, FPP_MAX);
-    ASSERT_FLOAT_EQ(child->Points.y[FPP_MAX].offset, 0.05f);
+    T_EQ(child->Points.y[FPP_MAX].used, 1);
+    T_EQ(child->Points.y[FPP_MAX].targetPos, FPP_MAX);
+    T_FEQ(child->Points.y[FPP_MAX].offset, 0.05f, 0.01f);
 }
 
 /* --- SetPoint: center-mutex behavior --- */
 
-static void test_setpoint_edge_overrides_and_clears_center(void) {
+TEST(ui_fdf, setpoint_edge_overrides_and_clears_center) {
     FRAMEDEF frame;
 
     reset_ui_state();
@@ -1046,18 +1043,18 @@ static void test_setpoint_edge_overrides_and_clears_center(void) {
 
     /* Set CENTER first — both mid slots occupied */
     UI_SetPoint(&frame, FRAMEPOINT_CENTER, NULL, FRAMEPOINT_CENTER, 0.5f, 0.5f);
-    ASSERT_EQ_INT(frame.Points.x[FPP_MID].used, 1);
-    ASSERT_EQ_INT(frame.Points.y[FPP_MID].used, 1);
+    T_EQ(frame.Points.x[FPP_MID].used, 1);
+    T_EQ(frame.Points.y[FPP_MID].used, 1);
 
     /* Set TOPLEFT — should clear x-mid and y-mid, then fill x-min and y-min */
     UI_SetPoint(&frame, FRAMEPOINT_TOPLEFT, NULL, FRAMEPOINT_TOPLEFT, 0.0f, 0.0f);
-    ASSERT_EQ_INT(frame.Points.x[FPP_MID].used, 0);
-    ASSERT_EQ_INT(frame.Points.x[FPP_MIN].used, 1);
-    ASSERT_EQ_INT(frame.Points.y[FPP_MID].used, 0);
-    ASSERT_EQ_INT(frame.Points.y[FPP_MIN].used, 1);
+    T_EQ(frame.Points.x[FPP_MID].used, 0);
+    T_EQ(frame.Points.x[FPP_MIN].used, 1);
+    T_EQ(frame.Points.y[FPP_MID].used, 0);
+    T_EQ(frame.Points.y[FPP_MIN].used, 1);
 }
 
-static void test_setpoint_center_ignored_when_edges_set(void) {
+TEST(ui_fdf, setpoint_center_ignored_when_edges_set) {
     FRAMEDEF frame;
 
     reset_ui_state();
@@ -1070,18 +1067,18 @@ static void test_setpoint_center_ignored_when_edges_set(void) {
     /* Attempt to set CENTER — should be ignored on both axes */
     UI_SetPoint(&frame, FRAMEPOINT_CENTER, NULL, FRAMEPOINT_CENTER, 0.5f, 0.5f);
 
-    ASSERT_EQ_INT(frame.Points.x[FPP_MID].used, 0);
-    ASSERT_EQ_INT(frame.Points.y[FPP_MID].used, 0);
+    T_EQ(frame.Points.x[FPP_MID].used, 0);
+    T_EQ(frame.Points.y[FPP_MID].used, 0);
     /* Edges must still be intact */
-    ASSERT_EQ_INT(frame.Points.x[FPP_MIN].used, 1);
-    ASSERT_EQ_INT(frame.Points.x[FPP_MAX].used, 1);
-    ASSERT_EQ_INT(frame.Points.y[FPP_MIN].used, 1);
-    ASSERT_EQ_INT(frame.Points.y[FPP_MAX].used, 1);
+    T_EQ(frame.Points.x[FPP_MIN].used, 1);
+    T_EQ(frame.Points.x[FPP_MAX].used, 1);
+    T_EQ(frame.Points.y[FPP_MIN].used, 1);
+    T_EQ(frame.Points.y[FPP_MAX].used, 1);
 }
 
 /* --- SetAllPoints: detailed field verification --- */
 
-static void test_setallpoints_zero_offsets_and_target_positions(void) {
+TEST(ui_fdf, setallpoints_zero_offsets_and_target_positions) {
     FRAMEDEF frame;
 
     reset_ui_state();
@@ -1089,29 +1086,29 @@ static void test_setallpoints_zero_offsets_and_target_positions(void) {
     UI_SetAllPoints(&frame);
 
     /* TOPLEFT anchor: x[MIN] left->left, y[MIN] top->top */
-    ASSERT_FLOAT_EQ(frame.Points.x[FPP_MIN].offset, 0.0f);
-    ASSERT_EQ_INT(frame.Points.x[FPP_MIN].targetPos, FPP_MIN);
-    ASSERT_NULL(frame.Points.x[FPP_MIN].relativeTo);
+    T_FEQ(frame.Points.x[FPP_MIN].offset, 0.0f, 0.01f);
+    T_EQ(frame.Points.x[FPP_MIN].targetPos, FPP_MIN);
+    T_NULL(frame.Points.x[FPP_MIN].relativeTo);
 
-    ASSERT_FLOAT_EQ(frame.Points.y[FPP_MIN].offset, 0.0f);
-    ASSERT_EQ_INT(frame.Points.y[FPP_MIN].targetPos, FPP_MIN);
-    ASSERT_NULL(frame.Points.y[FPP_MIN].relativeTo);
+    T_FEQ(frame.Points.y[FPP_MIN].offset, 0.0f, 0.01f);
+    T_EQ(frame.Points.y[FPP_MIN].targetPos, FPP_MIN);
+    T_NULL(frame.Points.y[FPP_MIN].relativeTo);
 
     /* BOTTOMRIGHT anchor: x[MAX] right->right, y[MAX] bottom->bottom */
-    ASSERT_FLOAT_EQ(frame.Points.x[FPP_MAX].offset, 0.0f);
-    ASSERT_EQ_INT(frame.Points.x[FPP_MAX].targetPos, FPP_MAX);
-    ASSERT_NULL(frame.Points.x[FPP_MAX].relativeTo);
+    T_FEQ(frame.Points.x[FPP_MAX].offset, 0.0f, 0.01f);
+    T_EQ(frame.Points.x[FPP_MAX].targetPos, FPP_MAX);
+    T_NULL(frame.Points.x[FPP_MAX].relativeTo);
 
-    ASSERT_FLOAT_EQ(frame.Points.y[FPP_MAX].offset, 0.0f);
-    ASSERT_EQ_INT(frame.Points.y[FPP_MAX].targetPos, FPP_MAX);
-    ASSERT_NULL(frame.Points.y[FPP_MAX].relativeTo);
+    T_FEQ(frame.Points.y[FPP_MAX].offset, 0.0f, 0.01f);
+    T_EQ(frame.Points.y[FPP_MAX].targetPos, FPP_MAX);
+    T_NULL(frame.Points.y[FPP_MAX].relativeTo);
 
     /* Center slot must remain unused */
-    ASSERT_EQ_INT(frame.Points.x[FPP_MID].used, 0);
-    ASSERT_EQ_INT(frame.Points.y[FPP_MID].used, 0);
+    T_EQ(frame.Points.x[FPP_MID].used, 0);
+    T_EQ(frame.Points.y[FPP_MID].used, 0);
 }
 
-static void test_setallpoints_with_relative_frame_propagates_to_both_anchors(void) {
+TEST(ui_fdf, setallpoints_with_relative_frame_propagates_to_both_anchors) {
     LPFRAMEDEF child;
 
     reset_ui_state();
@@ -1123,17 +1120,17 @@ static void test_setallpoints_with_relative_frame_propagates_to_both_anchors(voi
     if (!require_not_null(child)) return;
 
     /* SetAllPoints via FDF uses NULL relativeTo (resolved at layout time) */
-    ASSERT_EQ_INT(child->Points.x[FPP_MIN].used, 1);
-    ASSERT_EQ_INT(child->Points.x[FPP_MAX].used, 1);
-    ASSERT_EQ_INT(child->Points.y[FPP_MIN].used, 1);
-    ASSERT_EQ_INT(child->Points.y[FPP_MAX].used, 1);
-    ASSERT_FLOAT_EQ(child->Points.x[FPP_MIN].offset, 0.0f);
-    ASSERT_FLOAT_EQ(child->Points.x[FPP_MAX].offset, 0.0f);
-    ASSERT_FLOAT_EQ(child->Points.y[FPP_MIN].offset, 0.0f);
-    ASSERT_FLOAT_EQ(child->Points.y[FPP_MAX].offset, 0.0f);
+    T_EQ(child->Points.x[FPP_MIN].used, 1);
+    T_EQ(child->Points.x[FPP_MAX].used, 1);
+    T_EQ(child->Points.y[FPP_MIN].used, 1);
+    T_EQ(child->Points.y[FPP_MAX].used, 1);
+    T_FEQ(child->Points.x[FPP_MIN].offset, 0.0f, 0.01f);
+    T_FEQ(child->Points.x[FPP_MAX].offset, 0.0f, 0.01f);
+    T_FEQ(child->Points.y[FPP_MIN].offset, 0.0f, 0.01f);
+    T_FEQ(child->Points.y[FPP_MAX].offset, 0.0f, 0.01f);
 }
 
-static void test_text_uses_key_when_no_stringlist_entry_exists(void) {
+TEST(ui_fdf, text_uses_key_when_no_stringlist_entry_exists) {
     LPFRAMEDEF text;
 
     reset_ui_state();
@@ -1144,10 +1141,10 @@ static void test_text_uses_key_when_no_stringlist_entry_exists(void) {
 
     text = UI_FindFrame("TextA");
     if (!require_not_null(text)) return;
-    ASSERT_STR_EQ(text->Text, "TRIGSTR_999");
+    T_STREQ(text->Text, "TRIGSTR_999");
 }
 
-static void test_long_stringlist_text_uses_dynamic_storage(void) {
+TEST(ui_fdf, long_stringlist_text_uses_dynamic_storage) {
     LPFRAMEDEF text;
 
     reset_ui_state();
@@ -1162,13 +1159,13 @@ static void test_long_stringlist_text_uses_dynamic_storage(void) {
 
     text = UI_FindFrame("TextA");
     if (!require_not_null(text)) return;
-    ASSERT_EQ_INT(strlen(text->Text), 124);
-    ASSERT(text->Text != text->TextStorage);
-    ASSERT_NULL(text->Tip);
-    ASSERT_NULL(text->Ubertip);
+    T_EQ(strlen(text->Text), 124);
+    T_ASSERT(text->Text != text->TextStorage);
+    T_NULL(text->Tip);
+    T_NULL(text->Ubertip);
 }
 
-static void test_duplicate_name_prefers_first_template(void) {
+TEST(ui_fdf, duplicate_name_prefers_first_template) {
     LPFRAMEDEF found;
 
     reset_ui_state();
@@ -1178,10 +1175,10 @@ static void test_duplicate_name_prefers_first_template(void) {
 
     found = UI_FindFrame("Dup");
     if (!require_not_null(found)) return;
-    ASSERT_FLOAT_EQ(found->Width, 0.10f);
+    T_FEQ(found->Width, 0.10f, 0.01f);
 }
 
-static void test_unknown_token_does_not_crash_existing_definitions(void) {
+TEST(ui_fdf, unknown_token_does_not_crash_existing_definitions) {
     LPFRAMEDEF good;
 
     reset_ui_state();
@@ -1191,10 +1188,10 @@ static void test_unknown_token_does_not_crash_existing_definitions(void) {
 
     good = UI_FindFrame("Good");
     if (!require_not_null(good)) return;
-    ASSERT_FLOAT_EQ(good->Width, 0.5f);
+    T_FEQ(good->Width, 0.5f, 0.01f);
 }
 
-static void test_single_line_text_auto_height_uses_fdf_font_size(void) {
+TEST(ui_fdf, single_line_text_auto_height_uses_fdf_font_size) {
     LPFRAMEDEF root;
 
     reset_ui_state();
@@ -1220,12 +1217,12 @@ static void test_single_line_text_auto_height_uses_fdf_font_size(void) {
 
     UI_DrawFrame(root);
 
-    ASSERT_EQ_INT(captured_text_draws, 2);
-    ASSERT_EQ_FLOAT(captured_text_rects[0].h, 0.013f, 0.0001f);
-    ASSERT_EQ_FLOAT(captured_text_rects[1].h, 0.016f, 0.0001f);
+    T_EQ(captured_text_draws, 2);
+    T_FEQ(captured_text_rects[0].h, 0.013f, 0.0001f);
+    T_FEQ(captured_text_rects[1].h, 0.016f, 0.0001f);
 }
 
-static void test_glue_checkbox_toggles_and_draws_check_highlight(void) {
+TEST(ui_fdf, glue_checkbox_toggles_and_draws_check_highlight) {
     LPFRAMEDEF root;
     LPFRAMEDEF checkbox;
 
@@ -1256,25 +1253,25 @@ static void test_glue_checkbox_toggles_and_draws_check_highlight(void) {
 
     captured_draw_calls = 0;
     UI_DrawFrame(root);
-    ASSERT(!checkbox->CheckBox.Checked);
-    ASSERT_EQ_INT(captured_draw_calls, 1);
+    T_ASSERT(!checkbox->CheckBox.Checked);
+    T_EQ(captured_draw_calls, 1);
 
     test_mouse_pos.x = 130;
     test_mouse_pos.y = 130;
     UI_MouseEventLocal(UI_MOUSE_UP, 130, 130, 1);
     captured_draw_calls = 0;
     UI_DrawFrame(root);
-    ASSERT(checkbox->CheckBox.Checked);
-    ASSERT_EQ_INT(captured_draw_calls, 2);
+    T_ASSERT(checkbox->CheckBox.Checked);
+    T_EQ(captured_draw_calls, 2);
 
     UI_MouseEventLocal(UI_MOUSE_UP, 130, 130, 1);
     captured_draw_calls = 0;
     UI_DrawFrame(root);
-    ASSERT(!checkbox->CheckBox.Checked);
-    ASSERT_EQ_INT(captured_draw_calls, 1);
+    T_ASSERT(!checkbox->CheckBox.Checked);
+    T_EQ(captured_draw_calls, 1);
 }
 
-static void test_popup_menu_hover_sets_flag_on_middle_row(void) {
+TEST(ui_fdf, popup_menu_hover_sets_flag_on_middle_row) {
     LPFRAMEDEF root;
     LPFRAMEDEF popup;
 
@@ -1307,10 +1304,10 @@ static void test_popup_menu_hover_sets_flag_on_middle_row(void) {
 
     UI_MouseEventLocal(UI_MOUSE_MOVE, px, py, 0);
 
-    ASSERT(popup->ui_flags & UIFLAG_HOVERED);
+    T_ASSERT(popup->ui_flags & UIFLAG_HOVERED);
 }
 
-static void test_button1_dropdown_backdrop_gets_hover_highlight(void) {
+TEST(ui_fdf, button1_dropdown_backdrop_gets_hover_highlight) {
     LPFRAMEDEF root;
 
     reset_ui_state();
@@ -1335,7 +1332,7 @@ static void test_button1_dropdown_backdrop_gets_hover_highlight(void) {
 
     root = UI_FindFrame("Root");
     if (!require_not_null(root)) return;
-    ASSERT_NOT_NULL(hover_texture);
+    T_NOT_NULL(hover_texture);
 
     test_mouse_pos.x = 130;
     test_mouse_pos.y = 130;
@@ -1344,10 +1341,10 @@ static void test_button1_dropdown_backdrop_gets_hover_highlight(void) {
     captured_hover_draws = 0;
     UI_DrawFrame(root);
 
-    ASSERT_EQ_INT(captured_hover_draws, 1);
+    T_EQ(captured_hover_draws, 1);
 }
 
-static void test_backdrop_edge_without_corner_size_logs_error(void) {
+TEST(ui_fdf, backdrop_edge_without_corner_size_logs_error) {
     LPFRAMEDEF root;
 
     reset_ui_state();
@@ -1366,10 +1363,10 @@ static void test_backdrop_edge_without_corner_size_logs_error(void) {
     root = UI_FindFrame("Root");
     if (!require_not_null(root)) return;
     UI_DrawFrame(root);
-    ASSERT(strstr(captured_printf, "BackdropCornerSize is zero") != NULL);
+    T_ASSERT(strstr(captured_printf, "BackdropCornerSize is zero") != NULL);
 }
 
-static void test_editbox_without_text_frame_click_focus_accepts_text_input(void) {
+TEST(ui_fdf, editbox_without_text_frame_click_focus_accepts_text_input) {
     LPFRAMEDEF root;
     LPFRAMEDEF editbox;
 
@@ -1395,13 +1392,13 @@ static void test_editbox_without_text_frame_click_focus_accepts_text_input(void)
     captured_draw_calls = 0;
     UI_DrawFrame(root);
 
-    ASSERT(UI_EditHasFocus(editbox));
+    T_ASSERT(UI_EditHasFocus(editbox));
     UI_TextInputLocal("hello");
-    ASSERT_STR_EQ(UI_EditValue(editbox), "hello");
-    ASSERT(!UI_EditKey(13));
+    T_STREQ(UI_EditValue(editbox), "hello");
+    T_ASSERT(!UI_EditKey(13));
 }
 
-static void test_options_game_port_enter_applies_and_blurs(void) {
+TEST(ui_fdf, options_game_port_enter_applies_and_blurs) {
     LPCSTR files[] = {
         "UI\\FrameDef\\GlobalStrings.fdf",
         "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
@@ -1423,7 +1420,7 @@ static void test_options_game_port_enter_applies_and_blurs(void) {
     uiimport.GetPlayerState = test_get_player_state;
     captured_command[0] = '\0';
 
-    ASSERT(optionsMenuScreen.load());
+    T_ASSERT(optionsMenuScreen.load());
     optionsMenuScreen.init();
 
     root = UI_FindFrame("OptionsMenu");
@@ -1443,26 +1440,30 @@ static void test_options_game_port_enter_applies_and_blurs(void) {
     /* Event hit testing consumes the layout cache built by the preceding draw. */
     UI_DrawFrame(root);
     UI_MouseEventLocal(UI_MOUSE_DOWN, 130, 130, 1);
-    ASSERT(UI_EditHasFocus(editbox));
+    T_ASSERT(UI_EditHasFocus(editbox));
 
     optionsMenuScreen.key_event(13, true);
 
-    ASSERT_STR_EQ(captured_command, "seta game_port 27911\n");
-    ASSERT(!UI_EditHasFocus(editbox));
+    T_STREQ(captured_command, "seta game_port 27911\n");
+    T_ASSERT(!UI_EditHasFocus(editbox));
 
     OptionsMenu_Apply();
-    ASSERT_STR_EQ(captured_command, "vid_apply\nwriteconfig\n");
+    T_STREQ(captured_command, "vid_apply\nwriteconfig\n");
 
     uiimport = saved;
 }
 
-static void test_esc_menu_confirm_quit_panel_is_available(void) {
+TEST(ui_fdf, esc_menu_confirm_quit_panel_is_available) {
+    LPCSTR files[] = {
+        "UI\\FrameDef\\GlobalStrings.fdf",
+        "UI\\FrameDef\\UI\\EscMenuMainPanel.fdf",
+    };
     LPFRAMEDEF panel;
     LPFRAMEDEF quit_button;
     LPFRAMEDEF cancel_button;
     LPFRAMEDEF message;
 
-    load_ui_file("UI\\FrameDef\\UI\\EscMenuMainPanel.fdf");
+    load_ui_files(files, sizeof(files) / sizeof(files[0]));
 
     panel = UI_FindFrame("ConfirmQuitPanel");
     quit_button = UI_FindFrame("ConfirmQuitQuitButton");
@@ -1474,12 +1475,12 @@ static void test_esc_menu_confirm_quit_panel_is_available(void) {
     if (!require_not_null(cancel_button)) return;
     if (!require_not_null(message)) return;
 
-    ASSERT_STR_EQ(quit_button->Text, "ConfirmQuitQuitButtonText");
-    ASSERT_STR_EQ(cancel_button->Text, "ConfirmQuitCancelButtonText");
-    ASSERT_STR_EQ(message->Text, "CONFIRM_EXIT_MESSAGE");
+    T_STREQ(quit_button->Text, "ConfirmQuitQuitButtonText");
+    T_STREQ(cancel_button->Text, "ConfirmQuitCancelButtonText");
+    T_STREQ(message->Text, "Are you sure you want to exit?");
 }
 
-static void test_dialog_war3_supports_configurable_button_modes(void) {
+TEST(ui_fdf, dialog_war3_supports_configurable_button_modes) {
     LPCSTR files[] = {
         "UI\\FrameDef\\GlobalStrings.fdf",
         "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
@@ -1507,26 +1508,26 @@ static void test_dialog_war3_supports_configurable_button_modes(void) {
     snprintf(root->Name, sizeof(root->Name), "%s", "TestDialogRoot");
     UI_SetSize(root, UI_BASE_WIDTH, UI_BASE_HEIGHT);
 
-    ASSERT(UI_DialogWar3Init(&dialog, root, &init));
-    ASSERT(!UI_DialogWar3Visible(&dialog));
+    T_ASSERT(UI_DialogWar3Init(&dialog, root, &init));
+    T_ASSERT(!UI_DialogWar3Visible(&dialog));
 
     UI_DialogWar3Show(&dialog, &config);
-    ASSERT(UI_DialogWar3Visible(&dialog));
-    ASSERT(dialog.modal->Parent == NULL);
-    ASSERT_STR_EQ(dialog.frames.DialogWar3->DialogBackdropName, "DialogBackdrop");
-    ASSERT_NOT_NULL(UI_FindChildFrame(dialog.frames.DialogWar3, dialog.frames.DialogWar3->DialogBackdropName));
-    ASSERT_STR_EQ(dialog.frames.DialogText->Text, "Are you sure you want to exit?");
-    ASSERT(dialog.frames.DialogIcon->Backdrop.Background != 0);
-    ASSERT(!dialog.frames.DialogButtonOKBackdrop->hidden);
-    ASSERT(dialog.frames.DialogButtonNoBackdrop->hidden);
-    ASSERT(dialog.frames.DialogButtonYesBackdrop->hidden);
-    ASSERT_STR_EQ(dialog.frames.DialogButtonOK->OnClick, "menu_main");
+    T_ASSERT(UI_DialogWar3Visible(&dialog));
+    T_ASSERT(dialog.modal->Parent == NULL);
+    T_STREQ(dialog.frames.DialogWar3->DialogBackdropName, "DialogBackdrop");
+    T_NOT_NULL(UI_FindChildFrame(dialog.frames.DialogWar3, dialog.frames.DialogWar3->DialogBackdropName));
+    T_STREQ(dialog.frames.DialogText->Text, "Are you sure you want to exit?");
+    T_ASSERT(dialog.frames.DialogIcon->Backdrop.Background != 0);
+    T_ASSERT(!dialog.frames.DialogButtonOKBackdrop->hidden);
+    T_ASSERT(dialog.frames.DialogButtonNoBackdrop->hidden);
+    T_ASSERT(dialog.frames.DialogButtonYesBackdrop->hidden);
+    T_STREQ(dialog.frames.DialogButtonOK->OnClick, "menu_main");
 
     UI_DialogWar3Hide(&dialog);
-    ASSERT(!UI_DialogWar3Visible(&dialog));
+    T_ASSERT(!UI_DialogWar3Visible(&dialog));
 }
 
-static void test_dialog_supports_battlenet_template(void) {
+TEST(ui_fdf, dialog_supports_battlenet_template) {
     LPCSTR files[] = {
         "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
         "UI\\FrameDef\\Glue\\DialogWar3.fdf",
@@ -1552,23 +1553,23 @@ static void test_dialog_supports_battlenet_template(void) {
     if (!require_not_null(root)) return;
     UI_SetSize(root, UI_BASE_WIDTH, UI_BASE_HEIGHT);
 
-    ASSERT(UI_DialogWar3Init(&dialog, root, &init));
-    ASSERT(dialog.frame->Width > 0.5f);
-    ASSERT(dialog.frame->Height > 0.3f);
-    ASSERT(dialog.icon == NULL);
-    ASSERT_NOT_NULL(dialog.text);
-    ASSERT_NOT_NULL(dialog.ok_button);
-    ASSERT_NOT_NULL(dialog.frame->DialogBackdrop);
-    ASSERT(dialog.ok_backdrop == dialog.ok_button);
-    ASSERT(dialog.ok_button->Parent == dialog.frame);
+    T_ASSERT(UI_DialogWar3Init(&dialog, root, &init));
+    T_ASSERT(dialog.frame->Width > 0.5f);
+    T_ASSERT(dialog.frame->Height > 0.3f);
+    T_ASSERT(dialog.icon == NULL);
+    T_NOT_NULL(dialog.text);
+    T_NOT_NULL(dialog.ok_button);
+    T_NOT_NULL(dialog.frame->DialogBackdrop);
+    T_ASSERT(dialog.ok_backdrop == dialog.ok_button);
+    T_ASSERT(dialog.ok_button->Parent == dialog.frame);
 
     UI_DialogWar3Show(&dialog, &config);
-    ASSERT(UI_DialogWar3Visible(&dialog));
-    ASSERT_STR_EQ(dialog.text->Text, "OpenWarcraft3\nA larger dialog template.");
-    ASSERT_STR_EQ(dialog.ok_button->OnClick, "menu_main");
+    T_ASSERT(UI_DialogWar3Visible(&dialog));
+    T_STREQ(dialog.text->Text, "OpenWarcraft3\nA larger dialog template.");
+    T_STREQ(dialog.ok_button->OnClick, "menu_main");
 }
 
-static void test_main_menu_quit_dialog_commands_quit(void) {
+TEST(ui_fdf, main_menu_quit_dialog_commands_quit) {
     LPCSTR files[] = {
         "UI\\FrameDef\\GlobalStrings.fdf",
         "UI\\FrameDef\\UI\\EscMenuTemplates.fdf",
@@ -1601,7 +1602,7 @@ static void test_main_menu_quit_dialog_commands_quit(void) {
     uiimport.GetPlayerState = test_get_player_state;
     captured_command[0] = '\0';
 
-    ASSERT(mainMenuScreen.load());
+    T_ASSERT(mainMenuScreen.load());
     mainMenuScreen.init();
 
     global_exit_button = UI_FindFrame("ExitButton");
@@ -1610,31 +1611,31 @@ static void test_main_menu_quit_dialog_commands_quit(void) {
         uiimport = saved;
         return;
     }
-    ASSERT(global_exit_button != exit_button);
-    ASSERT(!exit_button->hidden);
-    ASSERT_STR_EQ(exit_button->OnClick, "menu_quit");
+    T_ASSERT(global_exit_button != exit_button);
+    T_ASSERT(!exit_button->hidden);
+    T_STREQ(exit_button->OnClick, "menu_quit");
 
     modal = UI_FindFrame("MainMenuQuitModal");
     if (!require_not_null(modal)) {
         uiimport = saved;
         return;
     }
-    ASSERT_EQ_INT(modal->Type, FT_DIALOG);
-    ASSERT(modal->Parent == NULL);
-    ASSERT(modal->hidden);
-    ASSERT(UI_FindChildFrame(modal, "MainMenuQuitModalCover") == NULL);
+    T_EQ(modal->Type, FT_DIALOG);
+    T_ASSERT(modal->Parent == NULL);
+    T_ASSERT(modal->hidden);
+    T_ASSERT(UI_FindChildFrame(modal, "MainMenuQuitModalCover") == NULL);
 
     dialog = UI_FindChildFrame(modal, "DialogWar3");
     if (!require_not_null(dialog)) {
         uiimport = saved;
         return;
     }
-    ASSERT_EQ_INT(dialog->Type, FT_DIALOG);
-    ASSERT(dialog->hidden);
+    T_EQ(dialog->Type, FT_DIALOG);
+    T_ASSERT(dialog->hidden);
 
     MainMenu_ShowQuitConfirm();
-    ASSERT(!modal->hidden);
-    ASSERT(!dialog->hidden);
+    T_ASSERT(!modal->hidden);
+    T_ASSERT(!dialog->hidden);
 
     message = UI_FindChildFrame(dialog, "DialogText");
     icon = UI_FindChildFrame(dialog, "DialogIcon");
@@ -1673,25 +1674,25 @@ static void test_main_menu_quit_dialog_commands_quit(void) {
         return;
     }
 
-    ASSERT_STR_EQ(message->Text, "Do you want to Quit?");
-    ASSERT(icon->Backdrop.Background != 0);
-    ASSERT(ok_backdrop->hidden);
-    ASSERT(!no_backdrop->hidden);
-    ASSERT(!yes_backdrop->hidden);
-    ASSERT_STR_EQ(no_button->OnClick, "menu_main");
-    ASSERT_STR_EQ(yes_button->OnClick, "quit");
+    T_STREQ(message->Text, "Do you want to Quit?");
+    T_ASSERT(icon->Backdrop.Background != 0);
+    T_ASSERT(ok_backdrop->hidden);
+    T_ASSERT(!no_backdrop->hidden);
+    T_ASSERT(!yes_backdrop->hidden);
+    T_STREQ(no_button->OnClick, "menu_main");
+    T_STREQ(yes_button->OnClick, "quit");
 
     UI_MenuCommandLocal(no_button->OnClick);
-    ASSERT(modal->hidden);
-    ASSERT(dialog->hidden);
+    T_ASSERT(modal->hidden);
+    T_ASSERT(dialog->hidden);
 
     UI_MenuCommandLocal(yes_button->OnClick);
-    ASSERT_STR_EQ(captured_command, "quit");
+    T_STREQ(captured_command, "quit");
 
     uiimport = saved;
 }
 
-static void test_main_menu_realm_select_uses_realm_panel_anim(void) {
+TEST(ui_fdf, main_menu_realm_select_uses_realm_panel_anim) {
     LPCSTR files[] = {
         "UI\\FrameDef\\GlobalStrings.fdf",
         "UI\\FrameDef\\UI\\EscMenuTemplates.fdf",
@@ -1709,14 +1710,14 @@ static void test_main_menu_realm_select_uses_realm_panel_anim(void) {
     uiimport.MemFree = test_ui_mem_free;
     uiimport.GetPlayerState = test_get_player_state;
 
-    ASSERT(mainMenuScreen.load());
+    T_ASSERT(mainMenuScreen.load());
     mainMenuScreen.init();
     MainMenu_ShowRealmSelect();
     captured_stand_sprites = 0;
     captured_realm_panel_sprites = 0;
     mainMenuScreen.draw();
-    ASSERT_EQ_INT(captured_stand_sprites, 0);
-    ASSERT_EQ_INT(captured_realm_panel_sprites, 2);
+    T_EQ(captured_stand_sprites, 0);
+    T_EQ(captured_realm_panel_sprites, 2);
     uiimport = saved;
 }
 
@@ -1751,7 +1752,7 @@ static void test_single_player_campaign_profile(BOOL tft) {
     uiimport.GetPlayerState = test_get_player_state;
 
     if (!singlePlayerMenuScreen.load()) {
-        ASSERT(false);
+        T_ASSERT(false);
         uiimport = saved;
         return;
     }
@@ -1773,9 +1774,9 @@ static void test_single_player_campaign_profile(BOOL tft) {
         uiimport = saved;
         return;
     }
-    ASSERT(!root->hidden);
-    ASSERT_STR_EQ(campaign_button->OnClick, "menu_single_player_campaign");
-    ASSERT_STR_EQ(cancel_button->OnClick, "menu_main");
+    T_ASSERT(!root->hidden);
+    T_STREQ(campaign_button->OnClick, "menu_single_player_campaign");
+    T_STREQ(cancel_button->OnClick, "menu_main");
 
     SinglePlayerMenu_ShowCampaign();
     campaign_select_frame = UI_FindFrame("CampaignSelectFrame");
@@ -1787,21 +1788,21 @@ static void test_single_player_campaign_profile(BOOL tft) {
         uiimport = saved;
         return;
     }
-    ASSERT(!campaign_list_box->hidden);
-    ASSERT(campaign_list_box->MapListControl.State != NULL);
-    ASSERT_EQ_INT((int)campaign_list_box->MapListControl.State->count, 4);
-    ASSERT_STR_EQ(campaign_list_box->MapListControl.State->items[0].name,
+    T_ASSERT(!campaign_list_box->hidden);
+    T_ASSERT(campaign_list_box->MapListControl.State != NULL);
+    T_EQ((int)campaign_list_box->MapListControl.State->count, 4);
+    T_STREQ(campaign_list_box->MapListControl.State->items[0].name,
                   tft
                       ? "Sentinels Campaign: Terror of the Tides"
                       : "Human Campaign: The Scourge of Lordaeron");
-    ASSERT_STR_EQ(campaign_list_box->MapListControl.State->items[1].path,
+    T_STREQ(campaign_list_box->MapListControl.State->items[1].path,
                   tft ? "Human" : "Undead");
-    ASSERT_STR_EQ(campaign_list_box->MapListControl.SelectCommand,
+    T_STREQ(campaign_list_box->MapListControl.SelectCommand,
                   "menu_single_player_campaign_select %u");
 
     captured_command[0] = '\0';
     SinglePlayerMenu_LaunchCampaignIndex(tft ? 1 : 0);
-    ASSERT_STR_EQ(captured_command,
+    T_STREQ(captured_command,
                   tft
                       ? "map \"Maps\\FrozenThrone\\Campaign\\HumanX01.w3x\""
                       : "map \"Maps\\Campaign\\Human01.w3m\"");
@@ -1811,11 +1812,11 @@ static void test_single_player_campaign_profile(BOOL tft) {
     uiimport = saved;
 }
 
-static void test_single_player_screen_loads_roc_campaigns(void) {
+TEST(ui_fdf, single_player_screen_loads_roc_campaigns) {
     test_single_player_campaign_profile(false);
 }
 
-static void test_single_player_screen_loads_tft_campaigns(void) {
+TEST(ui_fdf, single_player_screen_loads_tft_campaigns) {
     test_single_player_campaign_profile(true);
 }
 
@@ -1841,7 +1842,7 @@ static int utf16le_fs_read(LPCSTR file_name, void **buf) {
 
 static void utf16le_fs_free(void *buf) { free(buf); }
 
-static void test_utf16le_fdf_is_parsed_correctly(void) {
+TEST(ui_fdf, utf16le_fdf_is_parsed_correctly) {
     uiImport_t saved = uiimport;
     LPFRAMEDEF frame;
 
@@ -1870,65 +1871,9 @@ static void test_utf16le_fdf_is_parsed_correctly(void) {
 
     frame = UI_FindFrame("UTF16Frame");
     if (!require_not_null(frame)) return;
-    ASSERT_EQ_INT(frame->Type, FT_BACKDROP);
-    ASSERT_FLOAT_EQ(frame->Width, 0.75f);
-    ASSERT_FLOAT_EQ(frame->Height, 0.50f);
+    T_EQ(frame->Type, FT_BACKDROP);
+    T_FEQ(frame->Width, 0.75f, 0.01f);
+    T_FEQ(frame->Height, 0.50f, 0.01f);
 }
 
-BEGIN_SUITE(ui_fdf)
-    RUN_TEST(test_parse_single_frame_definition);
-    RUN_TEST(test_parse_nested_parent_child_relationship);
-    RUN_TEST(test_inherits_copies_compatible_type_fields);
-    RUN_TEST(test_inherits_rejects_incompatible_type);
-    RUN_TEST(test_setpoint_top_left_sets_top_y_anchor);
-    RUN_TEST(test_setallpoints_sets_min_and_max);
-    RUN_TEST(test_anchor_translates_to_setpoint_state);
-    RUN_TEST(test_backdrop_flags_and_insets_are_parsed);
-    RUN_TEST(test_vector_parser_accepts_f_suffixes);
-    RUN_TEST(test_chat_display_tokens_map_to_text_area);
-    RUN_TEST(test_comments_are_ignored_inside_frame_bodies);
-    RUN_TEST(test_comments_are_ignored_between_setpoint_arguments);
-    RUN_TEST(test_comment_markers_inside_quoted_strings_are_preserved);
-    RUN_TEST(test_shipped_style_disabled_properties_do_not_escape_comments);
-    RUN_TEST(test_backdrop_background_adds_blp_extension);
-    RUN_TEST(test_background_art_uses_model_index);
-    RUN_TEST(test_collect_frame_tree_preorder_matches_writer_traversal);
-    RUN_TEST(test_collect_frame_tree_skips_hidden_children);
-    RUN_TEST(test_collect_frame_tree_skips_button_control_art);
-    RUN_TEST(test_collect_frame_tree_skips_editbox_text_frame);
-    RUN_TEST(test_collect_frame_tree_returns_total_when_truncated);
-    RUN_TEST(test_find_child_frame_descends_recursively);
-    RUN_TEST(test_programmatic_setpoint_maps_to_points);
-    RUN_TEST(test_programmatic_setallpoints_sets_both_axes);
-    RUN_TEST(test_setpoint_top_maps_mid_x_max_y);
-    RUN_TEST(test_setpoint_topright_maps_max_x_max_y);
-    RUN_TEST(test_setpoint_left_maps_min_x_mid_y);
-    RUN_TEST(test_setpoint_center_maps_mid_x_mid_y);
-    RUN_TEST(test_setpoint_right_maps_max_x_mid_y);
-    RUN_TEST(test_setpoint_bottomleft_maps_min_x_min_y);
-    RUN_TEST(test_setpoint_bottom_maps_mid_x_min_y);
-    RUN_TEST(test_setpoint_bottomright_maps_max_x_min_y);
-    RUN_TEST(test_setpoint_edge_overrides_and_clears_center);
-    RUN_TEST(test_setpoint_center_ignored_when_edges_set);
-    RUN_TEST(test_setallpoints_zero_offsets_and_target_positions);
-    RUN_TEST(test_setallpoints_with_relative_frame_propagates_to_both_anchors);
-    RUN_TEST(test_text_uses_key_when_no_stringlist_entry_exists);
-    RUN_TEST(test_long_stringlist_text_uses_dynamic_storage);
-    RUN_TEST(test_duplicate_name_prefers_first_template);
-    RUN_TEST(test_unknown_token_does_not_crash_existing_definitions);
-    RUN_TEST(test_single_line_text_auto_height_uses_fdf_font_size);
-    RUN_TEST(test_glue_checkbox_toggles_and_draws_check_highlight);
-    RUN_TEST(test_button1_dropdown_backdrop_gets_hover_highlight);
-    RUN_TEST(test_popup_menu_hover_sets_flag_on_middle_row);
-    RUN_TEST(test_backdrop_edge_without_corner_size_logs_error);
-    RUN_TEST(test_editbox_without_text_frame_click_focus_accepts_text_input);
-    RUN_TEST(test_esc_menu_confirm_quit_panel_is_available);
-    RUN_TEST(test_options_game_port_enter_applies_and_blurs);
-    RUN_TEST(test_dialog_war3_supports_configurable_button_modes);
-    RUN_TEST(test_dialog_supports_battlenet_template);
-    RUN_TEST(test_main_menu_quit_dialog_commands_quit);
-    RUN_TEST(test_main_menu_realm_select_uses_realm_panel_anim);
-    RUN_TEST(test_single_player_screen_loads_roc_campaigns);
-    RUN_TEST(test_single_player_screen_loads_tft_campaigns);
-    RUN_TEST(test_utf16le_fdf_is_parsed_correctly);
-END_SUITE()
+

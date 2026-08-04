@@ -567,6 +567,8 @@ void CL_Init(void) {
         .MemFree = MemFree,
         .FS_ReadFile = FS_ReadFileQ3,
         .FS_FreeFile = FS_FreeFile,
+        .FS_MmapFile = FS_MmapFile,
+        .FS_MunmapFile = FS_MunmapFile,
         .FileExtract = FS_ExtractFile,
         .ReadSheet = FS_ParseSLK,
         .FindSheetCell = FS_FindSheetCell,

@@ -23,17 +23,32 @@
 #define WOW_MOVE_RIGHT 8
 #define WOW_WALK_SPEED 7.0f
 #define WOW_MELEE_RANGE 5.0f
-#define WOW_CAMERA_MIN_PITCH 300.0f
-#define WOW_CAMERA_MAX_PITCH 350.0f
-#define WOW_CAMERA_MIN_DISTANCE 3.0f
-#define WOW_CAMERA_MAX_DISTANCE 35.0f
+#define WOW_CAMERA_MIN_PITCH 305.0f
+#define WOW_CAMERA_MAX_PITCH 355.0f
+#define WOW_CAMERA_MIN_DISTANCE 5.5f
+#define WOW_CAMERA_MAX_DISTANCE 25.0f
 
-typedef enum {
-    WOW_ENTITY_NONE,
-    WOW_ENTITY_PLAYER,
-    WOW_ENTITY_CREATURE,
-    WOW_ENTITY_PROJECTILE,
-} wowEntityKind_t;
+/* Spell definition table: Q2 g_items.c pattern — data-driven, function pointers per spell.
+   Spell indices double as the cast_spell value while a spell is being channeled. */
+typedef struct wowSpellDef_s {
+    LPCSTR name;
+    void (*cast)(LPEDICT caster, LPEDICT target);
+    DWORD cast_time;     /* ms, 0 = instant */
+    DWORD mana_cost;
+    FLOAT range;         /* 0 = melee range / self */
+    LPCSTR cast_anim;    /* animation during cast channel */
+    LPCSTR ready_anim;   /* animation while waiting for cast */
+} wowSpellDef_t;
+
+extern wowSpellDef_t const wow_spells[];
+extern DWORD const wow_spell_count;
+
+#define WOW_SPELL_ATTACK        0
+#define WOW_SPELL_FIREBOLT      1
+#define WOW_SPELL_FROSTBOLT     2
+#define WOW_SPELL_HEALING_TOUCH 3
+
+#define SPELL_NONE ((DWORD)-1)  /* sentinel: no spell is casting */
 
 typedef struct wowMove_s {
     LPCSTR animation;
@@ -41,8 +56,12 @@ typedef struct wowMove_s {
     void (*endfunc)(LPEDICT ent);
 } wowMove_t, *LPWOWMOVE;
 
+/* Per-frame entity spawn budget (reset each frame) */
+extern DWORD wow_spawns_this_frame;
+
+/* Per-entity game state.  Entity behaviour is driven entirely by the edict's
+ * think function pointer (Quake2 style); there is no type/kind tag. */
 typedef struct {
-    wowEntityKind_t kind;
     DWORD display_id;
     LPCANIMATION animation;
     LPWOWMOVE currentmove;
@@ -73,13 +92,27 @@ typedef struct {
     VECTOR2 cast_origin;     /* XY position when cast began (movement cancels) */
     DWORD cast_release_time; /* ms remaining in the post-launch release animation */
     DWORD gcd_time;          /* ms remaining on global cooldown */
-    /* Projectile fields (valid when kind == WOW_ENTITY_PROJECTILE) */
+    /* Projectile fields (valid when think == Wow_RunProjectile) */
     DWORD projectile_target;
     DWORD projectile_caster;
     FLOAT projectile_speed;
     DWORD projectile_damage;
     FLOAT projectile_yaw;
     FLOAT projectile_pitch;
+    /* GameObject fields (kind == WOW_ENTITY_GAMEOBJECT) */
+    DWORD go_entry;
+    DWORD go_type;
+    DWORD go_state;   /* 0=ready, 1=active, 2=destroyed */
+    BOOL  go_interactive;
+    DWORD go_display_id;
+    /* Corpse fields (kind == WOW_ENTITY_CORPSE) */
+    DWORD corpse_owner;
+    DWORD corpse_timer;
+    /* DynamicObject fields (kind == WOW_ENTITY_DYNAMICOBJECT) */
+    DWORD dyn_spell_id;
+    DWORD dyn_caster;
+    DWORD dyn_radius;
+    DWORD dyn_duration;
 } wowEntityLocal_t;
 
 typedef struct {
@@ -148,6 +181,16 @@ BOOL Wow_SetCombatReadyAnimation(LPEDICT ent);
 void Wow_AIRunFrame(LPEDICT ent);
 void Wow_SpawnAmbientCreatures(LPCVECTOR2 origin);
 void Wow_RunCreatureFrame(LPEDICT ent);
+void Wow_SpawnGameObjects(LPCVECTOR2 origin);
+void Wow_RunGameObjectFrame(LPEDICT ent);
+LPEDICT Wow_SpawnCorpse(LPEDICT dead_entity);
+void Wow_RunCorpseFrame(LPEDICT ent);
+void Wow_RunDynamicObjectFrame(LPEDICT ent);
+LPEDICT Wow_SpawnDynamicObject(DWORD spell_id, LPCVECTOR2 origin, DWORD duration);
+LPCSTR Wow_CachedCreatureName(DWORD display_id);
+DWORD Wow_CachedCreatureType(DWORD display_id);
+DWORD Wow_CachedCreatureFamily(DWORD display_id);
+DWORD Wow_CachedCreatureRank(DWORD display_id);
 void UI_WriteWowHud(LPEDICT ent);
 
 /* Ability/projectile system */

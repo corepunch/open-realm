@@ -1,6 +1,7 @@
 #include "common.h"
 
 #include "mpq.h"
+#include "test.h"
 #include <stdlib.h>
 
 #ifdef _WIN32
@@ -11,6 +12,11 @@
 #endif
 
 #include <sys/stat.h>
+#ifndef _WIN32
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <unistd.h>
+#endif
 
 extern void Key_Init(void);
 
@@ -843,6 +849,70 @@ void FS_FreeFile(void *buf) {
     MemFree(buf);
 }
 
+/* FS_MmapFile: map a loose disk file read-only. Falls back to FS_ReadLooseFile
+ * if mmap is unavailable (Windows) or the file only exists in an MPQ archive.
+ * The returned pointer must be released with FS_MunmapFile, NOT FS_FreeFile.
+ * Header layout: [size:DWORD][fd:int][flags:DWORD][padding][data...] so that
+ * FS_MunmapFile can munmap/close without a side-channel. */
+#ifndef _WIN32
+#define MMAP_HDR_SIZE  16   /* must be >= 4+4+4 and page-aligned-friendly */
+void *FS_MmapFile(LPCSTR filename, LPDWORD out_size) {
+    FOR_LOOP(i, MAX_GAME_DIRS) {
+        char path[MAX_PATHLEN * 2];
+        int fd;
+        struct stat st;
+        void *base;
+        BYTE *hdr;
+
+        if (!gameDirs[i][0]) continue;
+        FS_MakeDiskPath(gameDirs[i], filename, path, sizeof(path));
+        fd = open(path, O_RDONLY);
+        if (fd < 0) continue;
+        if (fstat(fd, &st) != 0 || st.st_size <= 0) { close(fd); continue; }
+
+        base = mmap(NULL, (size_t)st.st_size + MMAP_HDR_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        if (base == MAP_FAILED) { close(fd); continue; }
+
+        /* mmap the actual file data into the region just after the header */
+        hdr = (BYTE *)base;
+        if (mmap(hdr + MMAP_HDR_SIZE, (size_t)st.st_size, PROT_READ, MAP_PRIVATE | MAP_FIXED, fd, 0) == MAP_FAILED) {
+            munmap(base, (size_t)st.st_size + MMAP_HDR_SIZE);
+            close(fd);
+            continue;
+        }
+        close(fd);
+        *(DWORD *)(hdr + 0) = (DWORD)st.st_size;
+        *(int *)  (hdr + 4) = -1;   /* fd already closed */
+        *(DWORD *)(hdr + 8) = 1;    /* mmap flag */
+        if (out_size) *out_size = (DWORD)st.st_size;
+        return hdr + MMAP_HDR_SIZE;
+    }
+    /* File not found loose — fall back to heap read (e.g. from MPQ) */
+    return FS_ReadLooseFile(filename, out_size, 0);
+}
+
+void FS_MunmapFile(void *ptr) {
+    BYTE *hdr;
+    DWORD sz;
+    DWORD flags;
+
+    if (!ptr) return;
+    hdr = (BYTE *)ptr - MMAP_HDR_SIZE;
+    sz    = *(DWORD *)(hdr + 0);
+    flags = *(DWORD *)(hdr + 8);
+    if (flags & 1)
+        munmap(hdr, (size_t)sz + MMAP_HDR_SIZE);
+    else
+        MemFree(ptr);
+}
+#else
+/* Windows stub — fall through to heap read */
+void *FS_MmapFile(LPCSTR filename, LPDWORD out_size) {
+    return FS_ReadLooseFile(filename, out_size, 0);
+}
+void FS_MunmapFile(void *ptr) { MemFree(ptr); }
+#endif
+
 /* Read every copy of 'filename' across all loaded archives, lowest priority
  * first (so later calls override earlier ones when merging key=value data).
  * callback receives a NUL-terminated buffer + its byte length; it must NOT
@@ -1345,6 +1415,14 @@ static void Com_Map_f(void) {
     MenuAction("map", Cmd_ArgsFrom(1));
 }
 
+/* Run the in-engine test registry and exit with the failure count.  Tests are
+ * compiled into the game module only when it is built with -DBZ_TESTS; in a
+ * production build the registry is empty and this reports zero tests. */
+static void Com_Test_f(void) {
+    int failures = Test_Run(Cmd_Argc() > 1 ? Cmd_Argv(1) : "*");
+    exit(failures ? 1 : 0);
+}
+
 void Com_Init(int argc, LPCSTR *argv) {
     COM_InitArgv(argc, argv);
     Cbuf_Init();
@@ -1360,6 +1438,7 @@ void Com_Init(int argc, LPCSTR *argv) {
     Cmd_AddCommand("maps", Com_Maps_f);
     Cmd_AddCommand("path", Com_Path_f);
     Cmd_AddCommand("dir", Com_Dir_f);
+    Cmd_AddCommand("test", Com_Test_f);
     Cvar_ApplyConfigCommandLine(argc, argv);
     Cbuf_AddEarlyCommands(false);
     Cbuf_Execute();

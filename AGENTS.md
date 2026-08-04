@@ -14,11 +14,13 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | UI screen authoring, FDF conventions, ConsoleUI, stb_fdf.h | [docs/ui-authoring.md](docs/ui-authoring.md) |
 | WoW character display, DBC/skin-section/component-texture rules | [docs/wow-character.md](docs/wow-character.md) |
 | WoW magic schools, damage types, buffs/debuffs, CC, status effects | [games/world-of-warcraft/docs/magic-and-effects.md](games/world-of-warcraft/docs/magic-and-effects.md) |
-| WoW creature types, classifications, difficulty, aggro/threat | [games/world-of-warcraft/docs/enemies-and-creatures.md](games/world-of-warcraft/docs/enemies-and-creatures.md) |
+| WoW creature types, classifications, difficulty, aggro/threat; entity architecture (think-fn dispatch, spell table, spawn budget) | [games/world-of-warcraft/docs/enemies-and-creatures.md](games/world-of-warcraft/docs/enemies-and-creatures.md) |
 | WoW weapons, classes, combat roles, specializations | [games/world-of-warcraft/docs/weapons-and-classes.md](games/world-of-warcraft/docs/weapons-and-classes.md) |
 | Entity sound architecture | [doc/architecture/sound.md](doc/architecture/sound.md) |
 | WC3 data model (SLK, unit stats, combat) | [docs/wc3-data-model.md](docs/wc3-data-model.md) |
 | SC2 HUD layout pipeline (sc2BaseFrame_t → uiFrame_t, layer IDs, stat bindings) | [games/starcraft-2/docs/hud-layout-pipeline.md](games/starcraft-2/docs/hud-layout-pipeline.md) |
+| FS / VFS / MPQ loading stack, SC2 vs WoW patterns, mmap ADT optimization | [docs/fs-loading-architecture.md](docs/fs-loading-architecture.md) |
+| Code patterns that work well (file-shaped structs, table-driven parsing, pointer-walk parsers) | [docs/code-patterns-that-work.md](docs/code-patterns-that-work.md) |
 
 ## Coding Style
 
@@ -35,7 +37,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 - Prefer format-driven parsing when the data has a fixed syntax. Use `sscanf(text, "%f,%f,%f", ...)` instead of hand-writing character walkers, separator loops, and ad hoc token logic.
 - Do not bury schema in long manual `if`/`else` or `switch` ladders when a compact table can describe the same work.
 - Do not use several booleans to represent mutually exclusive state. Define and pass an enum, then dispatch from that enum.
-- Put pure, reusable local helpers in a small nearby utils header (e.g. `sc2_utils.h`) as `static` functions. Keep subsystem-owned helpers that touch globals or runtime state in the `.c` file that owns that state.
+- Put pure, reusable local helpers in a small nearby utils header (e.g. `sc2_utils.h`) as `static` functions. Keep subsystem-owned helpers that touch globals or runtime state in the `.c` file that owns that state. Do not create a dedicated header for a single tiny helper — add it to the subsystem's existing shared header (e.g. `r_local.h`, `g_local.h`) instead.
 - Follow a strict DRY rule: do not duplicate logic or repeat the same data literal in multiple places.
 - Keep runtime structs concise. Group related fields; use anonymous structs for repeated shapes; prefer `DWORD flags` over many standalone `BOOL` fields.
 - Test flag membership with implicit bool conversion: `flags & FLAG` not `(flags & FLAG) != 0`.
@@ -83,11 +85,14 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 - **Every structural change must include or update tests.** When you add a function, change a behavior path, fix a bug, or modify a struct/API contract, check whether existing tests cover the change.
 - **New code paths need new tests.** If you add an `if` branch, a new function, a new field, or a new cache/state machine, write a test for the new path and its inverse.
 - **Cache/state-machine changes double-test.** Test both cache hit and cache miss paths, and verify performance counters where tracked.
-- **Run `make test` before committing.** The WC3 test binary (`test_openwarcraft3`) includes all unit tests.
+- **Run `make test` before committing.** This umbrella target runs all test binaries: `test_openwarcraft3` (net + tool_common), `test-commands`, `test-server-net`, `test-sc2`, `test-wow-*`, `test-ui`, and `test-wc3-engine` (in-engine WC3 tests).
+- **In-engine WC3 tests** live in `games/warcraft-3/game/tests/` and run inside the real game binary against live archives via `make test-wc3-engine` (or `+dedicated 1 +test '*'`). They cover 9 suites: `t_slk`, `t_unit`, `t_movement`, `t_pathfinding`, `t_collision`, `t_game`, `t_combat`, `t_api`, `t_smoke`.
+- **In-engine WoW tests** run headlessly via `make test-wow-engine` (or `$(openwow-tests) +dedicated 1 +test '*'`). Standalone WoW tests (no game deps) run via `make test-wow-appearances/abilities/game/entities/ui`.
 - **Compile and run tests before finishing any work.** Run `make run-sc2` to verify the build compiles, then `make test` to confirm all tests pass. Never mark work complete without a green test run.
 - **Auto-quit the app with `+com_frame_limit N`.** When running the binary for verification, pass `+com_frame_limit 100` (or similar) so the process exits after N frames without manual intervention. Example: `make run-sc2 ARGS="+com_frame_limit 100"`
 - **`git blame` before changing existing struct/API fields.** Understand why a field exists and what trade-offs were made before changing it.
 - **Do not disable a failing test.** Fix the code or fix the test — do not comment it out, add `SKIP`, or reduce its coverage.
+- **"Pre-existing" failures are not an excuse.** If `make test` shows failures, fix them. Remove dead dispatchers still calling old harness macros (e.g., `RUN_TEST` in migrated suites), unwrap mock callbacks accidentally wrapped in `TEST()`, and ensure test fixtures are complete (e.g., load GlobalStrings.fdf when tests resolve string-table keys).
 
 ## Architecture
 

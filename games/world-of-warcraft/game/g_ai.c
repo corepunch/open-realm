@@ -323,6 +323,7 @@ void Wow_AIDie(LPEDICT ent, LPEDICT attacker) {
     } else {
         local->death_time = WOW_DEFAULT_DEATH_TIME;
     }
+    Wow_SpawnCorpse(ent);
 }
 
 BOOL Wow_AIAdvanceLockedFrame(LPEDICT ent) {
@@ -448,10 +449,8 @@ void Wow_AIRunFrame(LPEDICT ent) {
 void Wow_RunCreatureFrame(LPEDICT ent) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
 
-    if (!ent || !local || local->kind != WOW_ENTITY_CREATURE) {
+    if (!ent || !local || !(ent->svflags & SVF_MONSTER)) {
         return;
     }
-    if (ent->run) {
-        ent->run(ent);
-    }
+    Wow_AIRunFrame(ent);
 }

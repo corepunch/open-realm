@@ -1,4 +1,4 @@
-#include "test_framework.h"
+#include "test.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -26,8 +26,6 @@ struct font {
     char name[256];
 };
 
-int _tests_run = 0;
-int _tests_failed = 0;
 
 static HANDLE test_archive;
 static PLAYER test_ps;
@@ -120,7 +118,7 @@ static void test_read_texture_size(LPCSTR name, LPTEXTURE texture) {
 static LPTEXTURE test_load_texture(LPCSTR name) {
     LPTEXTURE texture = calloc(1, sizeof(*texture));
 
-    ASSERT_NOT_NULL(texture);
+    T_NOT_NULL(texture);
     if (!texture) {
         return NULL;
     }
@@ -137,7 +135,7 @@ static LPTEXTURE test_load_texture(LPCSTR name) {
 static LPFONT test_load_font(LPCSTR name, DWORD size) {
     LPFONT font = calloc(1, sizeof(*font));
 
-    ASSERT_NOT_NULL(font);
+    T_NOT_NULL(font);
     if (!font) {
         return NULL;
     }
@@ -300,21 +298,21 @@ static uiExport_t init_ui(void) {
         .GetRenderer = test_get_renderer,
         .Printf = test_printf,
     });
-    ASSERT_NOT_NULL(ui.Init);
-    ASSERT_NOT_NULL(ui.Refresh);
-    ASSERT_NOT_NULL(ui.Shutdown);
+    T_NOT_NULL(ui.Init);
+    T_NOT_NULL(ui.Refresh);
+    T_NOT_NULL(ui.Shutdown);
     ui.Init();
     return ui;
 }
 
 extern BOOL UIWow_RunLuaString(LPCSTR name, LPCSTR script);
 
-static void test_wow_lua_ui_draws_from_generated_mpq(void) {
+TEST(wow_ui, wow_lua_ui_draws_from_generated_mpq) {
     uiExport_t ui;
     uiUnitData_t unit;
 
     reset_test_state();
-    ASSERT(SFileOpenArchive(TEST_WOW_MPQ, 0, 0, &test_archive));
+    T_ASSERT(SFileOpenArchive(TEST_WOW_MPQ, 0, 0, &test_archive));
 
     ui = init_ui();
     memset(&unit, 0, sizeof(unit));
@@ -326,19 +324,19 @@ static void test_wow_lua_ui_draws_from_generated_mpq(void) {
     ui.UpdateUnitUI(1, &unit);
     ui.Refresh(33);
 
-    ASSERT_EQ_INT((int)forbidden_texture_loads, 0);
-    ASSERT_EQ_INT((int)missing_textures, 0);
-    ASSERT_EQ_INT((int)draw_panel_count, 1);
-    ASSERT_EQ_INT((int)draw_inventory_count, 1);
-    ASSERT_EQ_INT((int)draw_fill_count, 1);
-    ASSERT_EQ_INT((int)draw_text_count, 1);
-    ASSERT_EQ_INT((int)draw_minimap_count, 1);
-    ASSERT_EQ_INT((int)last_panel_width, 16);
-    ASSERT_EQ_INT((int)last_panel_height, 8);
-    ASSERT_EQ_INT((int)last_inventory_width, 8);
-    ASSERT_EQ_INT((int)last_inventory_height, 8);
-    ASSERT_STR_EQ(last_draw_text, "LuaTester:77:33");
-    ASSERT_STR_EQ(last_server_command, "wow_lua_test 9 33");
+    T_EQ((int)forbidden_texture_loads, 0);
+    T_EQ((int)missing_textures, 0);
+    T_EQ((int)draw_panel_count, 1);
+    T_EQ((int)draw_inventory_count, 1);
+    T_EQ((int)draw_fill_count, 1);
+    T_EQ((int)draw_text_count, 1);
+    T_EQ((int)draw_minimap_count, 1);
+    T_EQ((int)last_panel_width, 16);
+    T_EQ((int)last_panel_height, 8);
+    T_EQ((int)last_inventory_width, 8);
+    T_EQ((int)last_inventory_height, 8);
+    T_STREQ(last_draw_text, "LuaTester:77:33");
+    T_STREQ(last_server_command, "wow_lua_test 9 33");
 
     ui.Shutdown();
     FOR_LOOP(i, MAX_IMAGES) {
@@ -351,7 +349,3 @@ static void test_wow_lua_ui_draws_from_generated_mpq(void) {
     test_archive = NULL;
 }
 
-int main(void) {
-    RUN_TEST(test_wow_lua_ui_draws_from_generated_mpq);
-    TEST_RESULTS();
-}

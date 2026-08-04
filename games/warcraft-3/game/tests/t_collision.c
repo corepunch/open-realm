@@ -1,3 +1,4 @@
+#ifdef BZ_TESTS
 /*
  * test_collision.c — Collision resolution and TGA pathfinding texture tests.
  *
@@ -21,8 +22,15 @@
 
 #include <math.h>
 #include <string.h>
-#include "test_framework.h"
-#include "test_harness.h"
+#include "test.h"
+#include "../g_local.h"
+
+/* Helpers defined in t_utils.c */
+LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+void reset_entities(void);
+void setup_test_world(void);
+
+
 
 /* -----------------------------------------------------------------------
  * Helpers
@@ -34,13 +42,12 @@
  * IS_HOLLOW() evaluates to false.
  */
 static LPEDICT make_collision_unit(FLOAT x, FLOAT y, FLOAT radius) {
-    LPEDICT ent   = alloc_test_unit(UNIT_ID("hpea"), x, y);
+    LPEDICT ent   = alloc_test_unit(MAKEFOURCC('h','p','e','a'), x, y);
     ent->movetype  = MOVETYPE_STEP;
     ent->collision = radius;
     ent->s.model   = 1;   /* IS_HOLLOW requires s.model != 0 */
     ent->stand     = unit_stand;
     unit_stand(ent);
-    gi.LinkEntity(ent);   /* update bounds after setting collision */
     return ent;
 }
 
@@ -62,38 +69,31 @@ static FLOAT seg_dist(LPCVECTOR2 a, LPCVECTOR2 b, LPCVECTOR2 p) {
     return dist2(&c, p);
 }
 
-/* Defined in routing.c (test builds only). */
-void CM_SetupTestPathmap(DWORD width, DWORD height, BYTE const *cells);
-
-/* Reset the entity pool and clear any pathmap a previous suite left loaded so
- * these unit-vs-unit collision tests run with passthrough CM_* (no terrain).
- * The pathfinding suite loads a small synthetic pathmap; left in place it would
- * make the far-apart world coordinates used here resolve as unwalkable (and
- * routes CM_ClosestPathablePointForRadius through code that needs a live world). */
+/* Reset the entity pool and set up a default walkable test world.*/
 static void reset_collision_world(void) {
     reset_entities();
-    CM_SetupTestPathmap(0, 0, NULL);
+    setup_test_world();
 }
 
 /* -----------------------------------------------------------------------
  * G_PushEntity tests
  * --------------------------------------------------------------------- */
 
-static void test_push_entity_moves_in_direction(void) {
+TEST(wc3_collision, push_entity_moves_in_direction) {
     reset_entities();
     LPEDICT ent = make_collision_unit(0.0f, 0.0f, 0.0f);
     VECTOR2 dir = {1.0f, 0.0f};
     G_PushEntity(ent, 50.0f, &dir);
-    ASSERT_EQ_FLOAT(ent->s.origin2.x, 50.0f, 0.01f);
-    ASSERT_EQ_FLOAT(ent->s.origin2.y,  0.0f, 0.01f);
+    T_FEQ(ent->s.origin2.x, 50.0f, 0.01f);
+    T_FEQ(ent->s.origin2.y,  0.0f, 0.01f);
 }
 
-static void test_push_entity_negative_distance_moves_back(void) {
+TEST(wc3_collision, push_entity_negative_distance_moves_back) {
     reset_entities();
     LPEDICT ent = make_collision_unit(100.0f, 0.0f, 0.0f);
     VECTOR2 dir = {1.0f, 0.0f};
     G_PushEntity(ent, -30.0f, &dir);
-    ASSERT_EQ_FLOAT(ent->s.origin2.x, 70.0f, 0.01f);
+    T_FEQ(ent->s.origin2.x, 70.0f, 0.01f);
 }
 
 /* Step a unit's move-order think loop for up to `frames`, stopping early once
@@ -125,7 +125,7 @@ static FLOAT run_move_tracking_min_dist(LPEDICT mover, LPEDICT other, int frames
 /* The headline regression guard: a stationary unit is a hard, immovable
  * obstacle.  A unit ordered straight into it never pushes it and never
  * penetrates its collision circle. */
-static void test_idle_unit_is_immovable_obstacle(void) {
+TEST(wc3_collision, idle_unit_is_immovable_obstacle) {
     reset_collision_world();
     LPEDICT blocker = make_collision_unit(50.0f, 0.0f, 16.0f);  /* idle */
     LPEDICT mover   = make_collision_unit( 0.0f, 0.0f, 16.0f);
@@ -136,16 +136,16 @@ static void test_idle_unit_is_immovable_obstacle(void) {
     FLOAT min_dist = run_move_tracking_min_dist(mover, blocker, 40);
 
     /* Blocker was never pushed. */
-    ASSERT_EQ_FLOAT(blocker->s.origin2.x, b0.x, 0.001f);
-    ASSERT_EQ_FLOAT(blocker->s.origin2.y, b0.y, 0.001f);
+    T_FEQ(blocker->s.origin2.x, b0.x, 0.001f);
+    T_FEQ(blocker->s.origin2.y, b0.y, 0.001f);
     /* Mover never overlapped the blocker. */
-    ASSERT(min_dist >= blocker->collision + mover->collision - 0.5f);
+    T_ASSERT(min_dist >= blocker->collision + mover->collision - 0.5f);
 }
 
 /* When an obstacle sits between a mover and its goal, the mover slides around
  * it (developing lateral motion) instead of pushing through — and reaches the
  * far side.  The obstacle stays put. */
-static void test_mover_slides_around_idle_unit(void) {
+TEST(wc3_collision, mover_slides_around_idle_unit) {
     reset_collision_world();
     LPEDICT blocker = make_collision_unit(60.0f, 0.0f, 16.0f);
     LPEDICT mover   = make_collision_unit( 0.0f, 0.0f, 16.0f);
@@ -160,16 +160,16 @@ static void test_mover_slides_around_idle_unit(void) {
         if (fabsf(mover->s.origin2.y) > 1.0f) went_lateral = true;
     }
 
-    ASSERT(went_lateral);                                  /* slid around */
-    ASSERT_EQ_FLOAT(blocker->s.origin2.x, 60.0f, 0.001f);  /* not pushed */
-    ASSERT_EQ_FLOAT(blocker->s.origin2.y,  0.0f, 0.001f);
-    ASSERT(mover->s.origin2.x > 60.0f);                    /* got past it */
+    T_ASSERT(went_lateral);                                  /* slid around */
+    T_FEQ(blocker->s.origin2.x, 60.0f, 0.001f);  /* not pushed */
+    T_FEQ(blocker->s.origin2.y,  0.0f, 0.001f);
+    T_ASSERT(mover->s.origin2.x > 60.0f);                    /* got past it */
 }
 
 /* Units that start overlapping (spawn / blink / a building dropped on them)
  * can still slide apart: the penetration rule allows a step that does not move
  * closer to the overlapped neighbour. */
-static void test_overlapped_units_separate_on_move(void) {
+TEST(wc3_collision, overlapped_units_separate_on_move) {
     reset_collision_world();
     LPEDICT a = make_collision_unit(0.0f,  0.0f, 16.0f);
     LPEDICT b = make_collision_unit(10.0f, 0.0f, 16.0f);  /* overlaps a (dist 10 < 32) */
@@ -182,13 +182,13 @@ static void test_overlapped_units_separate_on_move(void) {
         a->currentmove->think(a);
     }
 
-    ASSERT(dist2(&a->s.origin2, &b->s.origin2) > d0);  /* separated */
-    ASSERT_EQ_FLOAT(b->s.origin2.x, 10.0f, 0.001f);    /* idle b not pushed */
+    T_ASSERT(dist2(&a->s.origin2, &b->s.origin2) > d0);  /* separated */
+    T_FEQ(b->s.origin2.x, 10.0f, 0.001f);    /* idle b not pushed */
 }
 
 /* Air and ground are separate collision layers: a flyer passes straight over a
  * ground unit (no block, no slide) and never pushes it. */
-static void test_flyer_passes_over_ground_unit(void) {
+TEST(wc3_collision, flyer_passes_over_ground_unit) {
     reset_collision_world();
     LPEDICT ground = make_collision_unit(50.0f, 0.0f, 16.0f);  /* idle ground */
     LPEDICT flyer  = make_collision_unit( 0.0f, 0.0f, 16.0f);
@@ -198,13 +198,13 @@ static void test_flyer_passes_over_ground_unit(void) {
     unit_issueorder(flyer, "move", &dest);
     run_move_tracking_min_dist(flyer, NULL, 20);
 
-    ASSERT(flyer->s.origin2.x > 50.0f);                 /* not blocked */
-    ASSERT(fabsf(flyer->s.origin2.y) < 1.0f);           /* flew straight */
-    ASSERT_EQ_FLOAT(ground->s.origin2.x, 50.0f, 0.001f);/* not pushed */
+    T_ASSERT(flyer->s.origin2.x > 50.0f);                 /* not blocked */
+    T_ASSERT(fabsf(flyer->s.origin2.y) < 1.0f);           /* flew straight */
+    T_FEQ(ground->s.origin2.x, 50.0f, 0.001f);/* not pushed */
 }
 
 /* Hollow (dead/hidden) entities are not collision obstacles. */
-static void test_mover_passes_through_dead_unit(void) {
+TEST(wc3_collision, mover_passes_through_dead_unit) {
     reset_collision_world();
     LPEDICT dead  = make_collision_unit(50.0f, 0.0f, 16.0f);
     dead->svflags |= SVF_DEADMONSTER;  /* IS_HOLLOW == true */
@@ -214,8 +214,8 @@ static void test_mover_passes_through_dead_unit(void) {
     unit_issueorder(mover, "move", &dest);
     run_move_tracking_min_dist(mover, NULL, 20);
 
-    ASSERT(mover->s.origin2.x > 50.0f);        /* walked the straight line through */
-    ASSERT(fabsf(mover->s.origin2.y) < 1.0f);
+    T_ASSERT(mover->s.origin2.x > 50.0f);        /* walked the straight line through */
+    T_ASSERT(fabsf(mover->s.origin2.y) < 1.0f);
 }
 
 /* Order a mover east past a stationary *moving* blocker directly in its path and
@@ -244,17 +244,17 @@ static FLOAT peak_lateral_against_blocker(FLOAT mover_speed, FLOAT blocker_speed
 /* Speed-priority give-way (RE finding): the slower unit yields to the faster.
  * A faster mover holds its line (narrow slide) against a slower mover; a slower
  * mover swings wide to get around a faster one. */
-static void test_faster_unit_holds_line_slower_yields(void) {
+TEST(wc3_collision, faster_unit_holds_line_slower_yields) {
     FLOAT lateral_when_faster = peak_lateral_against_blocker(200.0f, 100.0f);
     FLOAT lateral_when_slower = peak_lateral_against_blocker(200.0f, 300.0f);
-    ASSERT(lateral_when_faster < lateral_when_slower);
+    T_ASSERT(lateral_when_faster < lateral_when_slower);
 }
 
 /* A very fast unit (per-tick step larger than a unit) ordered straight at a
  * stationary unit must NOT jump clean over it between ticks — the swept-circle
  * test blocks the path, not just the endpoint.  Assert the mover's per-tick
  * path never crosses the blocker's combined-radius circle. */
-static void test_fast_unit_cannot_jump_through(void) {
+TEST(wc3_collision, fast_unit_cannot_jump_through) {
     reset_collision_world();
     LPEDICT blocker = make_collision_unit(40.0f, 0.0f, 16.0f);
     LPEDICT mover   = make_collision_unit( 0.0f, 0.0f, 16.0f);
@@ -267,10 +267,10 @@ static void test_fast_unit_cannot_jump_through(void) {
     for (int i = 0; i < 10; i++) {
         if (!mover->currentmove || strcmp(mover->currentmove->animation, "walk") != 0) break;
         mover->currentmove->think(mover);
-        ASSERT(seg_dist(&prev, &mover->s.origin2, &blocker->s.origin2) >= rr - 1.0f);
+        T_ASSERT(seg_dist(&prev, &mover->s.origin2, &blocker->s.origin2) >= rr - 1.0f);
         prev = mover->s.origin2;
     }
-    ASSERT_EQ_FLOAT(blocker->s.origin2.x, 40.0f, 0.001f);  /* blocker never pushed */
+    T_FEQ(blocker->s.origin2.x, 40.0f, 0.001f);  /* blocker never pushed */
 }
 
 /* -----------------------------------------------------------------------
@@ -354,64 +354,64 @@ static size_t make_tga_grayscale_1x1_with_id(BYTE buf[static 64], BYTE gray, BYT
     return sizeof(hdr) + id_len + 1;
 }
 
-static void test_load_tga_grayscale_1x1_dimensions(void) {
+TEST(wc3_collision, load_tga_grayscale_1x1_dimensions) {
     BYTE buf[64];
     size_t sz = make_tga_grayscale_1x1(buf, 0xAB);
     pathTex_t *tex = LoadTGA(buf, sz);
-    ASSERT_NOT_NULL(tex);
-    ASSERT_EQ_INT(tex->width,  1);
-    ASSERT_EQ_INT(tex->height, 1);
+    T_NOT_NULL(tex);
+    T_EQ(tex->width,  1);
+    T_EQ(tex->height, 1);
     gi.MemFree(tex);
 }
 
-static void test_load_tga_grayscale_pixel_value(void) {
+TEST(wc3_collision, load_tga_grayscale_pixel_value) {
     BYTE buf[64];
     size_t sz = make_tga_grayscale_1x1(buf, 0xAB);
     pathTex_t *tex = LoadTGA(buf, sz);
-    ASSERT_NOT_NULL(tex);
+    T_NOT_NULL(tex);
     /* Grayscale pixel is replicated to R, G, B; alpha = 0xFF. */
-    ASSERT_EQ_INT(tex->map[0].r, 0xAB);
-    ASSERT_EQ_INT(tex->map[0].g, 0xAB);
-    ASSERT_EQ_INT(tex->map[0].b, 0xAB);
-    ASSERT_EQ_INT(tex->map[0].a, 0xFF);
+    T_EQ(tex->map[0].r, 0xAB);
+    T_EQ(tex->map[0].g, 0xAB);
+    T_EQ(tex->map[0].b, 0xAB);
+    T_EQ(tex->map[0].a, 0xFF);
     gi.MemFree(tex);
 }
 
-static void test_load_tga_rgb_2x2_dimensions(void) {
+TEST(wc3_collision, load_tga_rgb_2x2_dimensions) {
     BYTE buf[128];
     size_t sz = make_tga_rgb_2x2(buf);
     pathTex_t *tex = LoadTGA(buf, sz);
-    ASSERT_NOT_NULL(tex);
-    ASSERT_EQ_INT(tex->width,  2);
-    ASSERT_EQ_INT(tex->height, 2);
+    T_NOT_NULL(tex);
+    T_EQ(tex->width,  2);
+    T_EQ(tex->height, 2);
     gi.MemFree(tex);
 }
 
-static void test_load_tga_rgba_channel_order(void) {
+TEST(wc3_collision, load_tga_rgba_channel_order) {
     BYTE buf[64];
     size_t sz = make_tga_bgra_1x1(buf, 0x00, 0x00, 0xFF, 0x7A);
     pathTex_t *tex = LoadTGA(buf, sz);
-    ASSERT_NOT_NULL(tex);
+    T_NOT_NULL(tex);
     /* Loader does not remap BGRA bytes; WC3 pathing's file red (unwalkable) is read from COLOR32.b. */
-    ASSERT_EQ_INT(tex->map[0].r, 0x00);
-    ASSERT_EQ_INT(tex->map[0].g, 0x00);
-    ASSERT_EQ_INT(tex->map[0].b, 0xFF);
-    ASSERT_EQ_INT(tex->map[0].a, 0x7A);
+    T_EQ(tex->map[0].r, 0x00);
+    T_EQ(tex->map[0].g, 0x00);
+    T_EQ(tex->map[0].b, 0xFF);
+    T_EQ(tex->map[0].a, 0x7A);
     gi.MemFree(tex);
 }
 
-static void test_load_tga_grayscale_with_id_field_skips_id_bytes(void) {
+TEST(wc3_collision, load_tga_grayscale_with_id_field_skips_id_bytes) {
     BYTE buf[64];
     size_t sz = make_tga_grayscale_1x1_with_id(buf, 0x7C, 3);
     pathTex_t *tex = LoadTGA(buf, sz);
-    ASSERT_NOT_NULL(tex);
-    ASSERT_EQ_INT(tex->map[0].r, 0x7C);
-    ASSERT_EQ_INT(tex->map[0].g, 0x7C);
-    ASSERT_EQ_INT(tex->map[0].b, 0x7C);
+    T_NOT_NULL(tex);
+    T_EQ(tex->map[0].r, 0x7C);
+    T_EQ(tex->map[0].g, 0x7C);
+    T_EQ(tex->map[0].b, 0x7C);
     gi.MemFree(tex);
 }
 
-static void test_load_tga_colormap_not_supported_returns_null(void) {
+TEST(wc3_collision, load_tga_colormap_not_supported_returns_null) {
     BYTE buf[64] = {0};
     test_tga_hdr_t *hdr = (test_tga_hdr_t *)buf;
     hdr->image_type    = 2;
@@ -420,10 +420,10 @@ static void test_load_tga_colormap_not_supported_returns_null(void) {
     hdr->height        = 1;
     hdr->pixel_size    = 24;
     pathTex_t *tex = LoadTGA(buf, sizeof(buf));
-    ASSERT_NULL(tex);
+    T_NULL(tex);
 }
 
-static void test_load_tga_unsupported_type_returns_null(void) {
+TEST(wc3_collision, load_tga_unsupported_type_returns_null) {
     BYTE buf[64] = {0};
     test_tga_hdr_t *hdr = (test_tga_hdr_t *)buf;
     hdr->image_type = 10; /* RLE-compressed — not supported */
@@ -431,30 +431,11 @@ static void test_load_tga_unsupported_type_returns_null(void) {
     hdr->height     = 1;
     hdr->pixel_size = 8;
     pathTex_t *tex = LoadTGA(buf, sizeof(buf));
-    ASSERT_NULL(tex);
+    T_NULL(tex);
 }
 
 /* -----------------------------------------------------------------------
  * Suite runner
  * --------------------------------------------------------------------- */
 
-BEGIN_SUITE(collision)
-    RUN_TEST(test_push_entity_moves_in_direction);
-    RUN_TEST(test_push_entity_negative_distance_moves_back);
-
-    RUN_TEST(test_idle_unit_is_immovable_obstacle);
-    RUN_TEST(test_mover_slides_around_idle_unit);
-    RUN_TEST(test_overlapped_units_separate_on_move);
-    RUN_TEST(test_flyer_passes_over_ground_unit);
-    RUN_TEST(test_mover_passes_through_dead_unit);
-    RUN_TEST(test_faster_unit_holds_line_slower_yields);
-    RUN_TEST(test_fast_unit_cannot_jump_through);
-
-    RUN_TEST(test_load_tga_grayscale_1x1_dimensions);
-    RUN_TEST(test_load_tga_grayscale_pixel_value);
-    RUN_TEST(test_load_tga_rgb_2x2_dimensions);
-    RUN_TEST(test_load_tga_rgba_channel_order);
-    RUN_TEST(test_load_tga_grayscale_with_id_field_skips_id_bytes);
-    RUN_TEST(test_load_tga_colormap_not_supported_returns_null);
-    RUN_TEST(test_load_tga_unsupported_type_returns_null);
-END_SUITE()
+#endif /* BZ_TESTS */

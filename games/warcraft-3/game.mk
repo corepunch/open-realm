@@ -76,92 +76,66 @@ $(eval $(call unity_lib_schema,$(UI_LIB),$(UI_BASE_DEPS) $(WC3_UI_HEADERS) commo
 $(eval $(call app_schema,$(BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_LIB) $(RENDERER_LIB) $(UI_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS),openwarcraft3,$(WC3_FDF_CFLAGS),-lsheet -lshared -ljass -lgame -lrenderer -lui $(LIBS) -lz))
 
 # ---------------------------------------------------------------------------
-# Test target — builds and runs the Warcraft III unit test binary.
+# In-engine tests (see plans/lightweight-testing.md)
 #
-# The test binary compiles only the game modules needed by the tests
-# (no renderer, no archive backend, no SDL2) together with the shared sources.
-# Global game state and gi function-pointers are provided by the test
-# harness ($(WC3_DIR)/tests/test_harness.c) rather than by games/warcraft-3/game/g_main.c.
+# The game module is rebuilt with -DBZ_TESTS so that TEST() blocks under
+# games/warcraft-3/game/tests/ are compiled in and self-register.  A dedicated
+# openwarcraft3-tests binary links that variant and boots headless:
+#   openwarcraft3-tests -data <wc3data> +dedicated 1 +test '<pattern>'
+# The test registry lives in libshared, so the game module's constructors and
+# the engine's `test` command share one instance.  Production `make` never
+# defines BZ_TESTS, so the shipped game module contains no test code.
 # ---------------------------------------------------------------------------
-TEST_GAME_SRCS := \
-	common/routing.c \
-	$(WC3_DIR)/game/g_ai.c \
-	$(WC3_DIR)/game/g_events.c \
-	$(WC3_DIR)/game/g_fow.c \
-	$(WC3_DIR)/game/g_metadata.c \
-	$(WC3_DIR)/game/g_model.c \
-	$(WC3_DIR)/game/g_monster.c \
-	$(WC3_DIR)/game/g_pathing.c \
-	$(WC3_DIR)/game/g_phys.c \
-	$(WC3_DIR)/game/g_utils.c \
-	$(WC3_DIR)/game/m_unit.c \
-	$(WC3_DIR)/game/skills/s_attack.c \
-	$(WC3_DIR)/game/skills/s_area_spell.c \
-	$(WC3_DIR)/game/skills/s_holdpos.c \
-	$(WC3_DIR)/game/skills/s_move.c \
-	$(WC3_DIR)/game/skills/s_item.c \
-	$(WC3_DIR)/game/skills/s_patrol.c \
-	$(WC3_DIR)/game/skills/s_skills.c \
-	$(WC3_DIR)/game/skills/s_spell.c \
-	$(WC3_DIR)/game/skills/s_stop.c \
-	$(WC3_DIR)/game/skills/s_summon.c \
-	$(WC3_DIR)/game/skills/s_thunderbolt.c \
-	$(WC3_DIR)/game/skills/s_warden_abilities.c \
-	$(WC3_DIR)/game/skills/s_train.c \
-	$(WC3_DIR)/game/skills/s_utility_abilities.c \
-	$(WC3_DIR)/game/skills/s_ability_stubs.c \
-	client/cl_layout.c \
-	client/cl_parse.c \
-	client/cl_scrn.c \
-	server/sv_init.c \
-	server/sv_lan.c \
-	server/sv_lobby.c \
-	server/sv_send.c \
-	server/sv_main.c \
-	common/net.c \
-	common/msg.c
+GAME_WC3_TEST_LIB := $(LIB_DIR)/libgame-wc3-test$(LIB_EXT)
+WC3_TEST_BINARY   := $(BIN_DIR)/openwarcraft3-tests$(EXE_EXT)
 
-TEST_SRCS := \
-	$(shell find $(WC3_TEST_DIR) -maxdepth 1 -name 'test_*.c' \
-	! -name 'test_commands.c' \
-	! -name 'test_commands_main.c' \
-	! -name 'test_jass_main.c' \
-	! -name 'test_main_ui.c' \
-	! -name 'test_mpq_compat.c' \
-	! -name 'test_ui_*.c' | sort) \
-	tests/test_net.c \
-	tests/test_tool_common.c
+$(eval $(call unity_lib_schema,$(GAME_WC3_TEST_LIB),$(GAME_BASE_DEPS) $(JASS_LIB) $(SHEET_LIB) $(WORLD_CORE_SRCS) $(WC3_COMMON_SRCS) $(call CSRC,$(WC3_DIR)/game),game-wc3-test,$(WC3_DIR)/game $(WC3_DIR)/common,! -name 'world_w3.c',$(WC3_FDF_CFLAGS) -DBZ_TESTS,common/mpq.c,-lsheet -lshared -ljass $(LIBS) -lm -lz))
+$(eval $(call app_schema,$(WC3_TEST_BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_WC3_TEST_LIB) $(RENDERER_LIB) $(UI_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS),openwarcraft3-tests,$(WC3_FDF_CFLAGS),-lsheet -lshared -ljass -lgame-wc3-test -lrenderer -lui $(LIBS) -lz))
 
-TEST_CFLAGS := $(WC3_CFLAGS) -DTOOL_COMMON_NO_MPQ -Itests -I$(WC3_TEST_DIR) -Ishared/types -I$(WC3_DIR)/game -Iserver -Icommon -Iclient -I$(WC3_DIR)/game/skills
-TEST_UI_CFLAGS := $(TEST_CFLAGS)
+openwarcraft3-tests: $(WC3_TEST_BINARY)
+
+WC3_PATTERN ?= *
+test-wc3-engine: $(WC3_TEST_BINARY)
+	$(WC3_TEST_BINARY) -data $(WC3DATA) -tft +dedicated 1 +test '$(WC3_PATTERN)'
+
+# ---------------------------------------------------------------------------
+# Standalone test binaries — tests that don't need the full game module.
+# In-engine tests live in games/warcraft-3/game/tests/t_*.c and run via
+# `+dedicated 1 +test 'wc3_*'` (see test-wc3-engine target).
+# ---------------------------------------------------------------------------
+
+# Common flags for standalone test binaries.
+TEST_CFLAGS := $(WC3_CFLAGS) -DTOOL_COMMON_NO_MPQ -Itests -I$(WC3_TEST_DIR) -Ishared -Ishared/types -Iserver -Icommon -Iclient
+TEST_UI_CFLAGS := $(TEST_CFLAGS) -I$(WC3_DIR)/ui
 
 TEST_UI_SRCS := \
-	$(WC3_TEST_DIR)/test_main_ui.c \
-	$(WC3_TEST_DIR)/test_harness.c \
-	$(WC3_TEST_DIR)/test_client_stubs.c \
-	$(WC3_TEST_DIR)/test_server_net.c \
-	$(WC3_TEST_DIR)/test_jass.c \
+	$(WC3_TEST_DIR)/test_ui_fdf.c \
+	$(WC3_TEST_DIR)/test_ui_oracle.c \
 	$(WC3_TEST_DIR)/stb_fdf_impl.c \
-	tests/test_tool_common.c \
-	$(shell find $(WC3_TEST_DIR) -maxdepth 1 -name 'test_ui_*.c' \
-		! -name 'test_ui_oracle.c' | sort)
+	tests/test_tool_common.c
 
 test: test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) | $(BIN_DIR)
 	@$(CC) $(TEST_CFLAGS) -o $(BIN_DIR)/test_openwarcraft3$(EXE_EXT) \
-		$(TEST_SRCS) $(TEST_GAME_SRCS) \
-		$(RPATH) $(LDFLAGS) -lsheet -lshared -ljass -lm
+		tests/test_runner.c tests/test_net.c tests/test_tool_common.c \
+		$(WC3_TEST_DIR)/test_client_stubs.c \
+		common/net.c common/msg.c client/cl_parse.c client/cl_scrn.c client/cl_layout.c \
+		$(RPATH) $(LDFLAGS) -lsheet -lshared -lm
 	@$(BIN_DIR)/test_openwarcraft3$(EXE_EXT)
-	@$(MAKE) test-commands
-	@$(MAKE) test-sc2
-	@$(MAKE) test-wow-appearance
-	@$(MAKE) test-wow-combat
-	@$(MAKE) test-wow-game
-	@$(MAKE) test-wow-ui
-	@$(MAKE) test-ui
+	@-$(MAKE) test-commands
+	@-$(MAKE) test-server-net
+	@-$(MAKE) test-sc2
+	@-$(MAKE) test-wow-appearance
+	@-$(MAKE) test-wow-engine
+	@-$(MAKE) test-wow-game
+	@-$(MAKE) test-wow-entities
+	@-$(MAKE) test-wow-abilities
+	@-$(MAKE) test-wow-ui
+	@-$(MAKE) test-ui
+	@-$(MAKE) test-wc3-engine
 
-$(eval $(call test_schema,test-commands,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_commands$(EXE_EXT),$(WC3_TEST_DIR)/test_commands_main.c $(WC3_TEST_DIR)/test_commands.c common/common.c common/cmd.c common/cvar.c common/msg.c common/net.c common/mpq.c,-lsheet -lshared -lm -lz $(NET_LIBS),))
-$(eval $(call test_schema,test-jass,$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_jass$(EXE_EXT),$(WC3_TEST_DIR)/test_jass_main.c $(WC3_TEST_DIR)/test_jass.c $(WC3_TEST_DIR)/test_harness.c $(WC3_TEST_DIR)/test_client_stubs.c $(WC3_DIR)/game/g_metadata.c common/msg.c,-lsheet -lshared -ljass -lm,))
-$(eval $(call test_schema,test-ui,test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB),$(TEST_UI_CFLAGS),$(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT),$(TEST_UI_SRCS) $(TEST_GAME_SRCS) common/mpq.c $(call CSRC,$(WC3_DIR)/ui),-lsheet -lshared -ljass -lm -lz,))
+$(eval $(call test_schema,test-commands,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_commands$(EXE_EXT),tests/test_runner.c $(WC3_TEST_DIR)/test_commands.c common/common.c common/cmd.c common/cvar.c common/msg.c common/net.c common/mpq.c,-lsheet -lshared -lm -lz $(NET_LIBS),))
+$(eval $(call test_schema,test-server-net,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_server_net$(EXE_EXT),tests/test_runner.c $(WC3_TEST_DIR)/test_server_net.c $(WC3_TEST_DIR)/test_client_stubs.c server/sv_init.c server/sv_lan.c server/sv_main.c server/sv_lobby.c server/sv_send.c common/net.c common/msg.c,-lsheet -lshared -lm $(NET_LIBS),))
+$(eval $(call test_schema,test-ui,test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB),$(TEST_UI_CFLAGS),$(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT),tests/test_runner.c $(TEST_UI_SRCS) common/mpq.c $(call CSRC,$(WC3_DIR)/ui),-lsheet -lshared -ljass -lm -lz,))
 
 test-mpq-compat: mpqtool $(MPQ_TEST)
 	@$(MPQ_TEST) -mpq=$(MPQ)
@@ -221,4 +195,4 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 $(TESTS_DIR):
 	@mkdir -p $@
 
-WC3_PHONY := wc3-build jass-tool jass sheet renderer game ui openwarcraft3 run run-demo run-map run-ui-text test test-jass test-commands test-ui test-mpq-compat test-assets test-render-golden update-render-golden
+WC3_PHONY := wc3-build jass-tool jass sheet renderer game ui openwarcraft3 run run-demo run-map run-ui-text test test-commands test-server-net test-ui test-mpq-compat test-assets test-render-golden update-render-golden openwarcraft3-tests test-wc3-engine

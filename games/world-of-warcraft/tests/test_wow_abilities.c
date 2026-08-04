@@ -1,4 +1,4 @@
-#include "test_framework.h"
+#include "test.h"
 
 #include <math.h>
 #include <stdarg.h>
@@ -9,8 +9,6 @@
 
 #include "game/g_wow_local.h"
 
-int _tests_run = 0;
-int _tests_failed = 0;
 
 static DWORD test_clear_world_calls;
 static DWORD test_apply_lobby_calls;
@@ -55,7 +53,7 @@ static int test_model_index(LPCSTR model_name) {
             return test_models[i].index;
         }
     }
-    ASSERT(test_num_models < sizeof(test_models) / sizeof(test_models[0]));
+    T_ASSERT(test_num_models < sizeof(test_models) / sizeof(test_models[0]));
     strncpy(test_models[test_num_models].name, model_name, sizeof(test_models[0].name) - 1);
     test_models[test_num_models].index = (int)test_num_models + 1;
     test_num_models++;
@@ -118,7 +116,7 @@ static void test_clear_world(void) {
 
 static void test_apply_lobby_settings(LPMAPINFO info) {
     test_apply_lobby_calls++;
-    ASSERT_NOT_NULL(info);
+    T_NOT_NULL(info);
 }
 
 static LPCSTR test_cvar_string(LPCSTR name, LPCSTR fallback) {
@@ -206,7 +204,6 @@ static LPEDICT make_player(void) {
         ent->client = &wow_clients[0].client;
         ent->s.number = 0;
         ent->inuse = true;
-        local->kind = WOW_ENTITY_PLAYER;
         local->health = 50;
         local->mana = 100;
         local->hostile = false;
@@ -234,7 +231,7 @@ static LPEDICT make_creature(FLOAT x, FLOAT y) {
     {
         wowEntityLocal_t *local = Wow_EntityLocal(ent);
 
-        local->kind = WOW_ENTITY_CREATURE;
+        ent->think = Wow_RunCreatureFrame;
         local->health = 3;
         local->hostile = true;
         ent->idle = Wow_AIIdle;
@@ -252,13 +249,13 @@ static LPEDICT make_creature(FLOAT x, FLOAT y) {
 
 /* ---- Ability tests ---- */
 
-static void test_firebolt_spawns_projectile(void) {
+TEST(wow_abilities, firebolt_spawns_projectile) {
     LPEDICT caster = make_player();
     LPEDICT target = make_creature(10.0f, 0.0f);
 
-    ASSERT_NOT_NULL(caster);
-    ASSERT_NOT_NULL(target);
-    ASSERT_EQ_INT((int)target->s.number, 1);
+    T_NOT_NULL(caster);
+    T_NOT_NULL(target);
+    T_EQ((int)target->s.number, 1);
 
     Wow_FireFirebolt(caster, target);
 
@@ -267,58 +264,58 @@ static void test_firebolt_spawns_projectile(void) {
         LPEDICT proj = &wow_edicts[2];
         wowEntityLocal_t *pl = Wow_EntityLocal(proj);
 
-        ASSERT(proj->inuse);
-        ASSERT_NOT_NULL(pl);
-        ASSERT_EQ_INT((int)pl->kind, WOW_ENTITY_PROJECTILE);
-        ASSERT_EQ_INT((int)pl->projectile_target, 1);
-        ASSERT_EQ_INT((int)pl->projectile_caster, 0);
-        ASSERT_EQ_FLOAT(pl->projectile_speed, 25.0f, 0.001f);
-        ASSERT_EQ_INT((int)pl->projectile_damage, 2);
-        ASSERT_EQ_FLOAT(proj->s.origin.x, 0.0f, 0.001f);
-        ASSERT_EQ_FLOAT(proj->s.origin.y, 0.0f, 0.001f);
-        ASSERT_EQ_FLOAT(proj->s.scale, 0.8f, 0.001f);
-        ASSERT(proj->s.model > 0);
+        T_ASSERT(proj->inuse);
+        T_NOT_NULL(pl);
+        T_ASSERT(proj->think == Wow_RunProjectile);
+        T_EQ((int)pl->projectile_target, 1);
+        T_EQ((int)pl->projectile_caster, 0);
+        T_FEQ(pl->projectile_speed, 25.0f, 0.001f);
+        T_EQ((int)pl->projectile_damage, 2);
+        T_FEQ(proj->s.origin.x, 0.0f, 0.001f);
+        T_FEQ(proj->s.origin.y, 0.0f, 0.001f);
+        T_FEQ(proj->s.scale, 0.8f, 0.001f);
+        T_ASSERT(proj->s.model > 0);
     }
 }
 
-static void test_firebolt_homing_moves_toward_target(void) {
+TEST(wow_abilities, firebolt_homing_moves_toward_target) {
     LPEDICT caster = make_player();
     LPEDICT target = make_creature(10.0f, 0.0f);
     LPEDICT proj;
 
-    ASSERT_NOT_NULL(caster);
-    ASSERT_NOT_NULL(target);
+    T_NOT_NULL(caster);
+    T_NOT_NULL(target);
     Wow_FireFirebolt(caster, target);
 
     proj = &wow_edicts[2];
-    ASSERT(proj->inuse);
+    T_ASSERT(proj->inuse);
 
     /* Run a few projectile frames — should move toward target at x=10 */
     Wow_RunProjectile(proj);
-    ASSERT(proj->inuse);
-    ASSERT(proj->s.origin.x > 0.0f);
+    T_ASSERT(proj->inuse);
+    T_ASSERT(proj->s.origin.x > 0.0f);
     FLOAT first_x = proj->s.origin.x;
 
     Wow_RunProjectile(proj);
-    ASSERT(proj->inuse);
-    ASSERT(proj->s.origin.x > first_x);
+    T_ASSERT(proj->inuse);
+    T_ASSERT(proj->s.origin.x > first_x);
 
     /* Should eventually reach and be removed */
     DWORD max_steps = 200;
     while (proj->inuse && max_steps-- > 0) {
         Wow_RunProjectile(proj);
     }
-    ASSERT(!proj->inuse);
+    T_ASSERT(!proj->inuse);
 }
 
-static void test_firebolt_z_height_interpolates_correctly(void) {
+TEST(wow_abilities, firebolt_z_height_interpolates_correctly) {
     LPEDICT caster = make_player();
     LPEDICT target = make_creature(10.0f, 0.0f);
     LPEDICT proj;
     wowEntityLocal_t *pl;
 
-    ASSERT_NOT_NULL(caster);
-    ASSERT_NOT_NULL(target);
+    T_NOT_NULL(caster);
+    T_NOT_NULL(target);
     caster->s.origin.z = 0.0f;
     target->s.origin.z = 0.0f;
     target->s.radius = 2.0f;
@@ -326,38 +323,38 @@ static void test_firebolt_z_height_interpolates_correctly(void) {
     Wow_FireFirebolt(caster, target);
     proj = &wow_edicts[2];
     pl = Wow_EntityLocal(proj);
-    ASSERT(proj->inuse);
-    ASSERT_NOT_NULL(pl);
+    T_ASSERT(proj->inuse);
+    T_NOT_NULL(pl);
 
     /* Without renderer bone matrices, the server uses the caster's gameplay radius for launch. */
-    ASSERT_EQ_FLOAT(proj->s.origin.z, 1.0f, 0.001f);
+    T_FEQ(proj->s.origin.z, 1.0f, 0.001f);
 
     /* Flight should rise toward the target chest, not drop toward the ground. */
     Wow_RunProjectile(proj);
-    ASSERT(proj->inuse);
-    ASSERT(proj->s.origin.z > 1.0f);
-    ASSERT(proj->s.origin.z < 2.0f); /* must not spike to 3+ */
-    ASSERT(proj->s.origin.z >= 1.0f); /* must stay above ground */
+    T_ASSERT(proj->inuse);
+    T_ASSERT(proj->s.origin.z > 1.0f);
+    T_ASSERT(proj->s.origin.z < 2.0f); /* must not spike to 3+ */
+    T_ASSERT(proj->s.origin.z >= 1.0f); /* must stay above ground */
 
     /* Mid-flight Z should be between spawn and target height */
     while (proj->inuse) {
         Wow_RunProjectile(proj);
         if (proj->inuse) {
-            ASSERT(proj->s.origin.z < 4.5f);
-            ASSERT(proj->s.origin.z > 0.5f);
+            T_ASSERT(proj->s.origin.z < 4.5f);
+            T_ASSERT(proj->s.origin.z > 0.5f);
         }
     }
 }
 
-static void test_firebolt_applies_damage_on_hit(void) {
+TEST(wow_abilities, firebolt_applies_damage_on_hit) {
     LPEDICT caster = make_player();
     LPEDICT target = make_creature(3.0f, 0.0f); /* close range */
     wowEntityLocal_t *target_local;
 
-    ASSERT_NOT_NULL(caster);
-    ASSERT_NOT_NULL(target);
+    T_NOT_NULL(caster);
+    T_NOT_NULL(target);
     target_local = Wow_EntityLocal(target);
-    ASSERT_EQ_INT((int)target_local->health, 3);
+    T_EQ((int)target_local->health, 3);
 
     Wow_FireFirebolt(caster, target);
     {
@@ -368,18 +365,18 @@ static void test_firebolt_applies_damage_on_hit(void) {
         while (proj->inuse && max_steps-- > 0) {
             Wow_RunProjectile(proj);
         }
-        ASSERT(!proj->inuse);
+        T_ASSERT(!proj->inuse);
     }
-    ASSERT_EQ_INT((int)target_local->health, 1);
+    T_EQ((int)target_local->health, 1);
 }
 
-static void test_firebolt_lethal_kills_target(void) {
+TEST(wow_abilities, firebolt_lethal_kills_target) {
     LPEDICT caster = make_player();
     LPEDICT target = make_creature(3.0f, 0.0f);
     wowEntityLocal_t *target_local;
 
-    ASSERT_NOT_NULL(caster);
-    ASSERT_NOT_NULL(target);
+    T_NOT_NULL(caster);
+    T_NOT_NULL(target);
     target_local = Wow_EntityLocal(target);
     target_local->health = 1;
 
@@ -390,19 +387,19 @@ static void test_firebolt_lethal_kills_target(void) {
         while (proj->inuse && max_steps-- > 0) {
             Wow_RunProjectile(proj);
         }
-        ASSERT(!proj->inuse);
+        T_ASSERT(!proj->inuse);
     }
-    ASSERT(target_local->dead);
-    ASSERT_EQ_INT((int)target_local->health, 0);
+    T_ASSERT(target_local->dead);
+    T_EQ((int)target_local->health, 0);
 }
 
-static void test_firebolt_at_dead_caster_does_nothing(void) {
+TEST(wow_abilities, firebolt_at_dead_caster_does_nothing) {
     LPEDICT caster = make_player();
     LPEDICT target = make_creature(5.0f, 0.0f);
     wowEntityLocal_t *caster_local;
 
-    ASSERT_NOT_NULL(caster);
-    ASSERT_NOT_NULL(target);
+    T_NOT_NULL(caster);
+    T_NOT_NULL(target);
     caster_local = Wow_EntityLocal(caster);
     caster_local->dead = true;
 
@@ -410,20 +407,19 @@ static void test_firebolt_at_dead_caster_does_nothing(void) {
     /* No projectile should be spawned */
     for (DWORD i = WOW_MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
         LPEDICT e = &wow_edicts[i];
-        wowEntityLocal_t *el = Wow_EntityLocal(e);
-        if (e->inuse && el && el->kind == WOW_ENTITY_PROJECTILE) {
-            ASSERT(!"projectile was spawned despite dead caster");
+        if (e->inuse && e->think == Wow_RunProjectile) {
+            T_ASSERT(!"projectile was spawned despite dead caster");
         }
     }
 }
 
-static void test_firebolt_at_dead_target_does_nothing(void) {
+TEST(wow_abilities, firebolt_at_dead_target_does_nothing) {
     LPEDICT caster = make_player();
     LPEDICT target = make_creature(5.0f, 0.0f);
     wowEntityLocal_t *target_local;
 
-    ASSERT_NOT_NULL(caster);
-    ASSERT_NOT_NULL(target);
+    T_NOT_NULL(caster);
+    T_NOT_NULL(target);
     target_local = Wow_EntityLocal(target);
     target_local->dead = true;
 
@@ -431,168 +427,147 @@ static void test_firebolt_at_dead_target_does_nothing(void) {
     /* No projectile should be spawned */
     for (DWORD i = WOW_MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
         LPEDICT e = &wow_edicts[i];
-        wowEntityLocal_t *el = Wow_EntityLocal(e);
-        if (e->inuse && el && el->kind == WOW_ENTITY_PROJECTILE) {
-            ASSERT(!"projectile was spawned despite dead target");
+        if (e->inuse && e->think == Wow_RunProjectile) {
+            T_ASSERT(!"projectile was spawned despite dead target");
         }
     }
 }
 
-static void test_firebolt_self_cast_does_nothing(void) {
+TEST(wow_abilities, firebolt_self_cast_does_nothing) {
     LPEDICT caster = make_player();
 
-    ASSERT_NOT_NULL(caster);
+    T_NOT_NULL(caster);
     Wow_FireFirebolt(caster, caster);
     for (DWORD i = WOW_MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
         LPEDICT e = &wow_edicts[i];
-        wowEntityLocal_t *el = Wow_EntityLocal(e);
-        if (e->inuse && el && el->kind == WOW_ENTITY_PROJECTILE) {
-            ASSERT(!"projectile was spawned for self-cast");
+        if (e->inuse && e->think == Wow_RunProjectile) {
+            T_ASSERT(!"projectile was spawned for self-cast");
         }
     }
 }
 
-static void test_projectile_disappears_when_target_dies(void) {
+TEST(wow_abilities, projectile_disappears_when_target_dies) {
     LPEDICT caster = make_player();
     LPEDICT target = make_creature(8.0f, 0.0f);
     wowEntityLocal_t *target_local;
 
-    ASSERT_NOT_NULL(caster);
-    ASSERT_NOT_NULL(target);
+    T_NOT_NULL(caster);
+    T_NOT_NULL(target);
     target_local = Wow_EntityLocal(target);
 
     Wow_FireFirebolt(caster, target);
     {
         LPEDICT proj = &wow_edicts[2];
 
-        ASSERT(proj->inuse);
+        T_ASSERT(proj->inuse);
         /* Move a bit */
         Wow_RunProjectile(proj);
-        ASSERT(proj->inuse);
+        T_ASSERT(proj->inuse);
         /* Kill the target while projectile is in flight */
         target_local->dead = true;
         target->inuse = false;
         /* Next projectile run should detect target is gone and self-remove */
         Wow_RunProjectile(proj);
-        ASSERT(!proj->inuse);
+        T_ASSERT(!proj->inuse);
     }
 }
 
-static void test_healing_touch_heals_caster(void) {
+TEST(wow_abilities, healing_touch_heals_caster) {
     LPEDICT caster = make_player();
     wowEntityLocal_t *local;
 
-    ASSERT_NOT_NULL(caster);
+    T_NOT_NULL(caster);
     local = Wow_EntityLocal(caster);
     local->health = 30;
 
     Wow_HealingTouch(caster);
-    ASSERT_EQ_INT((int)local->health, 32); /* healed by 2 */
+    T_EQ((int)local->health, 32); /* healed by 2 */
 }
 
-static void test_healing_touch_caps_at_100(void) {
+TEST(wow_abilities, healing_touch_caps_at_100) {
     LPEDICT caster = make_player();
     wowEntityLocal_t *local;
 
-    ASSERT_NOT_NULL(caster);
+    T_NOT_NULL(caster);
     local = Wow_EntityLocal(caster);
     local->health = 99;
 
     Wow_HealingTouch(caster);
-    ASSERT_EQ_INT((int)local->health, 100); /* caps at 100 */
+    T_EQ((int)local->health, 100); /* caps at 100 */
 
     Wow_HealingTouch(caster);
-    ASSERT_EQ_INT((int)local->health, 100); /* stays at 100 */
+    T_EQ((int)local->health, 100); /* stays at 100 */
 }
 
-static void test_healing_touch_on_dead_does_nothing(void) {
+TEST(wow_abilities, healing_touch_on_dead_does_nothing) {
     LPEDICT caster = make_player();
     wowEntityLocal_t *local;
 
-    ASSERT_NOT_NULL(caster);
+    T_NOT_NULL(caster);
     local = Wow_EntityLocal(caster);
     local->health = 30;
     local->dead = true;
 
     Wow_HealingTouch(caster);
-    ASSERT_EQ_INT((int)local->health, 30); /* unchanged */
+    T_EQ((int)local->health, 30); /* unchanged */
 }
 
-static void test_healing_touch_plays_cast_animation(void) {
+TEST(wow_abilities, healing_touch_plays_cast_animation) {
     LPEDICT caster = make_player();
     wowEntityLocal_t *local;
-    ASSERT_NOT_NULL(caster);
+    T_NOT_NULL(caster);
     local = Wow_EntityLocal(caster);
     local->health = 30;
 
     Wow_HealingTouch(caster);
-    ASSERT_EQ_INT((int)local->health, 32);
+    T_EQ((int)local->health, 32);
 }
 
-static void test_find_spell_target_uses_selected_entity(void) {
+TEST(wow_abilities, find_spell_target_uses_selected_entity) {
     LPEDICT caster = make_player();
     LPEDICT target1 = make_creature(5.0f, 0.0f);
     LPEDICT target2 = make_creature(20.0f, 0.0f);
     /* target2 is farther but within range, target1 is closer */
     LPEDICT result;
 
-    ASSERT_NOT_NULL(caster);
-    ASSERT_NOT_NULL(target1);
-    ASSERT_NOT_NULL(target2);
+    T_NOT_NULL(caster);
+    T_NOT_NULL(target1);
+    T_NOT_NULL(target2);
 
     /* Set selected entity to the farther one */
     caster->client->ps.selected_entity = target2->s.number;
     result = Wow_FindSpellTarget(caster, 40.0f);
     /* Should prefer selected even though target1 is closer */
-    ASSERT_NOT_NULL(result);
-    ASSERT_EQ_INT((int)result->s.number, (int)target2->s.number);
+    T_NOT_NULL(result);
+    T_EQ((int)result->s.number, (int)target2->s.number);
 }
 
-static void test_find_spell_target_falls_back_to_nearest(void) {
+TEST(wow_abilities, find_spell_target_falls_back_to_nearest) {
     LPEDICT caster = make_player();
     LPEDICT target1 = make_creature(5.0f, 0.0f);
     LPEDICT target2 = make_creature(50.0f, 0.0f);
     LPEDICT result;
-    ASSERT_NOT_NULL(caster);
-    ASSERT_NOT_NULL(target1);
-    ASSERT_NOT_NULL(target2);
+    T_NOT_NULL(caster);
+    T_NOT_NULL(target1);
+    T_NOT_NULL(target2);
 
     /* No selected entity */
     caster->client->ps.selected_entity = 0;
     result = Wow_FindSpellTarget(caster, 40.0f);
     /* Should find the nearest (target1 at 5 units) */
-    ASSERT_NOT_NULL(result);
-    ASSERT_EQ_INT((int)result->s.number, (int)target1->s.number);
+    T_NOT_NULL(result);
+    T_EQ((int)result->s.number, (int)target1->s.number);
 }
 
-static void test_find_spell_target_returns_null_when_out_of_range(void) {
+TEST(wow_abilities, find_spell_target_returns_null_when_out_of_range) {
     LPEDICT caster = make_player();
     LPEDICT target = make_creature(100.0f, 0.0f);
     LPEDICT result;
 
-    ASSERT_NOT_NULL(caster);
-    ASSERT_NOT_NULL(target);
+    T_NOT_NULL(caster);
+    T_NOT_NULL(target);
     caster->client->ps.selected_entity = target->s.number;
     result = Wow_FindSpellTarget(caster, 10.0f);
-    ASSERT_NULL(result);
+    T_NULL(result);
 }
 
-int main(void) {
-    RUN_TEST(test_firebolt_spawns_projectile);
-    RUN_TEST(test_firebolt_homing_moves_toward_target);
-    RUN_TEST(test_firebolt_z_height_interpolates_correctly);
-    RUN_TEST(test_firebolt_applies_damage_on_hit);
-    RUN_TEST(test_firebolt_lethal_kills_target);
-    RUN_TEST(test_firebolt_at_dead_caster_does_nothing);
-    RUN_TEST(test_firebolt_at_dead_target_does_nothing);
-    RUN_TEST(test_firebolt_self_cast_does_nothing);
-    RUN_TEST(test_projectile_disappears_when_target_dies);
-    RUN_TEST(test_healing_touch_heals_caster);
-    RUN_TEST(test_healing_touch_caps_at_100);
-    RUN_TEST(test_healing_touch_on_dead_does_nothing);
-    RUN_TEST(test_healing_touch_plays_cast_animation);
-    RUN_TEST(test_find_spell_target_uses_selected_entity);
-    RUN_TEST(test_find_spell_target_falls_back_to_nearest);
-    RUN_TEST(test_find_spell_target_returns_null_when_out_of_range);
-    TEST_RESULTS();
-}

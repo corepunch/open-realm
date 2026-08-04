@@ -180,8 +180,8 @@ void Wow_LoadAdt(BYTE const *data, DWORD size, DWORD tile_x, DWORD tile_y) {
 
 void Wow_LoadAdtFile(DWORD tile_x, DWORD tile_y) {
     PATHSTR path;
-    LPBYTE data = NULL;
-    int size;
+    BYTE *data;
+    DWORD size = 0;
 
     snprintf(path,
              sizeof(path),
@@ -191,12 +191,20 @@ void Wow_LoadAdtFile(DWORD tile_x, DWORD tile_y) {
              (unsigned)tile_x,
              (unsigned)tile_y);
 
-    size = ri.FS_ReadFile(path, (void **)&data);
-    if (size <= 0 || !data) {
+    /* Prefer mmap for loose ADT files — avoids a full fread copy of 200-800 KB
+     * per tile and lets the OS evict pages under memory pressure. Falls back to
+     * a heap read automatically when the file comes from an MPQ archive. */
+    data = ri.FS_MmapFile ? ri.FS_MmapFile(path, &size) : NULL;
+    if (!data || !size) {
+        if (data) { if (ri.FS_MunmapFile) ri.FS_MunmapFile(data); }
+        int isize = ri.FS_ReadFile(path, (void **)&data);
+        if (isize <= 0 || !data) return;
+        Wow_LoadAdt(data, (DWORD)isize, tile_x, tile_y);
+        ri.FS_FreeFile(data);
         return;
     }
-    Wow_LoadAdt(data, (DWORD)size, tile_x, tile_y);
-    ri.FS_FreeFile(data);
+    Wow_LoadAdt(data, size, tile_x, tile_y);
+    if (ri.FS_MunmapFile) ri.FS_MunmapFile(data);
 }
 
 BYTE const *Wow_FindMainChunk(BYTE const *data, DWORD size, LPDWORD main_size) {

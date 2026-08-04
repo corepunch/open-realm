@@ -146,6 +146,45 @@ NPCs use abilities similar to player classes but without the same constraints:
 | **Dispellable debuff** | Negative effect that healers must remove |
 | **Positional requirement** | Must be behind/inside/outside certain areas |
 
+## Entity Architecture (Implementation)
+
+### Entity Types
+
+The engine represents every in-world object as an `edict_t` with a `wowEntityLocal_t` side-car. Behaviour is driven entirely by the entity's `think` function pointer (Quake 2 style) — there is no type/kind tag dispatched on at runtime.
+
+| Think function | Role |
+|---|---|
+| `Wow_RunCreatureFrame` | Ambient NPC (spawned from ADT creature data) |
+| `Wow_RunGameObjectFrame` | Doodad/interactive object (spawned from ADT MDDF, cross-referenced with `GameObjectDisplayInfo.dbc`) |
+| `Wow_RunCorpseFrame` | Corpse left by `Wow_AIDie`; timer-based decay then free |
+| `Wow_RunDynamicObjectFrame` | Timed area effect (spell AoE); spawned via `Wow_SpawnDynamicObject` |
+| `Wow_RunProjectile` | In-flight spell projectile (firebolt, frostbolt) |
+
+### Spell System
+
+Spells are data-driven via the `wowSpellDef_t` table (`wow_spells[]`) following the Q2 `g_items.c` pattern. Each row holds `cast`, `cast_time`, `mana_cost`, `range`, `cast_anim`, and `ready_anim`. Dispatch in `BeginSpellCast`/`CompleteSpellCast` indexes directly into this table.
+
+- `SPELL_NONE` sentinel is `(DWORD)-1` — not `0` — to avoid collision with `WOW_SPELL_ATTACK=0`.
+- Projectile impact visuals go through `svc_temp_entity` + `TE_FIREBOLT_IMPACT`/`TE_FROSTBOLT_IMPACT` (Q2 pattern); do not spawn `DynamicObject` entities for that path.
+
+### Per-Frame Spawn Budget
+
+`WOW_MAX_SPAWNS_PER_FRAME = 64` — the `wow_spawns_this_frame` counter is reset each frame. Spawning functions check this budget before allocating edicts to prevent burst stalls on large initial entity loads.
+
+### Creature Info Cache
+
+`Wow_CachedCreatureName/Type/Family/Rank(display_id)` provide lazily-loaded lookups into `CreatureDisplayInfo.dbc` / `CreatureModelData.dbc`. Results are memoized per `display_id`.
+
+### Key Files
+
+| File | Purpose |
+|---|---|
+| `games/world-of-warcraft/game/g_wow.c` | `Wow_RunFrame`, entity dispatch, player movement |
+| `games/world-of-warcraft/game/g_wow_gameobject.c` | `WOW_ENTITY_GAMEOBJECT` spawn/frame logic |
+| `games/world-of-warcraft/game/g_ai.c` | Creature AI (idle, move, attack, pain, die) |
+| `games/world-of-warcraft/game/m_creature.c` | Move tables and animation selectors |
+| `games/world-of-warcraft/game/g_wow_local.h` | All WoW-game types (`wowEntityLocal_t`, `wowSpellDef_t`, etc.) |
+
 ## References
 
 - Warcraft Wiki — Creature: https://warcraft.wiki.gg/wiki/Creature

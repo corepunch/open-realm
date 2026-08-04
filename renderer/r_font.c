@@ -1,5 +1,4 @@
 #include "r_local.h"
-#include "r_font_utils.h"
 #include "common/ui_constants.h"
 #ifndef _WIN32
 #include <strings.h>

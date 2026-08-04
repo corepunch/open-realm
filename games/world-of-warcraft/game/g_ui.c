@@ -244,9 +244,11 @@ void UI_WriteWowHud(LPEDICT ent) {
         UI_WriteActionButtonSlot(PX(8.0f + (FLOAT)i * 42.0f), PY(728), img, wc->actions[i].count);
     }
 
-    /* 4 empty button slots, right side */
-    FOR_LOOP(i, 4)
-        UI_WriteActionButtonSlot(PX(939.0f - (FLOAT)i * 42.0f), PY(728), 0, 0);
+    /* 6 inventory slots, right side (replaces empty placeholder slots) */
+    FOR_LOOP(i, 6) {
+        DWORD img = wc->inventory[i].icon[0] ? gi.ImageIndex(wc->inventory[i].icon) : 0;
+        UI_WriteActionButtonSlot(PX(939.0f - (FLOAT)i * 42.0f), PY(728), img, wc->inventory[i].count);
+    }
 
     /* Backpack */
     UI_WriteImage("Interface\\Buttons\\Button-Backpack-Up.blp",

@@ -187,8 +187,6 @@ static void Wow_MonsterStart(LPEDICT ent,
     if (!ent || !local) {
         return;
     }
-    local->kind = WOW_ENTITY_CREATURE;
-    local->hostile = true;
     local->display_id = display_id;
     local->home = home ? *home : ent->s.origin2;
     local->yaw = yaw;
@@ -202,7 +200,7 @@ static void Wow_MonsterStart(LPEDICT ent,
     ent->s.renderfx |= RF_HOSTILE;
     ent->idle = Wow_AIIdle;
     ent->move = Wow_AIMove;
-    ent->run = Wow_AIRunFrame;
+    ent->think = Wow_RunCreatureFrame;
     ent->attack = Wow_AIAttack;
     ent->pain = Wow_AIPain;
     ent->s.flags = EF_GROUND_ANCHOR;
