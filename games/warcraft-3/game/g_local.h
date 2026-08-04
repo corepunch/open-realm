@@ -414,9 +414,14 @@ typedef struct {
     struct ability_s *ability;
 } umove_t;
 
+#define ABILITY_PASSIVE  (1 << 0)
+#define ABILITY_TOGGLE   (1 << 1)
+#define ABILITY_CHANNEL  (1 << 2)
+
 typedef struct ability_s {
     void (*init)(LPCSTR, struct ability_s *);
     void (*cmd)(LPEDICT);
+    DWORD flags;
 } ability_t;
 
 typedef struct {
@@ -547,6 +552,7 @@ struct edict_s {
     BOOL paused;        // unit AI and movement suspended when true
     BOOL stunned;       // unit AI and movement suspended by timed status
     BOOL no_pathing;    // pathfinding disabled when true
+    DWORD channel_code; // ability code being channeled (0 = none)
     DWORD unit_color;   // explicit per-unit color override (0 = use owner color)
     VECTOR2 old_origin;
     VECTOR2 move_last_origin;
@@ -942,6 +948,9 @@ void G_HeroApplyLevel(LPEDICT, DWORD level);
 void G_HeroSetXP(LPEDICT, DWORD xp);
 void G_GrantKillXP(LPEDICT victim, LPEDICT killer);
 void G_ReviveHero(LPEDICT, FLOAT x, FLOAT y);
+BOOL G_UnitIsHero(LPCEDICT ent);
+BOOL S_SpellCooldownReady(LPEDICT caster, DWORD code);
+LPCSTR S_SpellString(DWORD code, LPCSTR field, DWORD level);
 
 void order_attack(LPEDICT, LPEDICT);
 void order_move(LPEDICT, LPEDICT);

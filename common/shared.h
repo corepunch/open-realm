@@ -829,6 +829,7 @@ typedef struct {
     DWORD intel;        // intelligence attribute
     DWORD xp;           // accumulated experience points
     BOOL  suspend_xp;   // when true, XP gains are suspended
+    DWORD skillpoints;  // available skill points for hero ability learning
 } doodadHero_t;
 
 typedef struct {

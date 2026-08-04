@@ -324,3 +324,17 @@ void S_SpellCursorSplat(LPEDICT clent, FLOAT radius) {
     gi.Write(PF_FLOAT, &radius);
     gi.unicast(clent);
 }
+
+BOOL S_SpellIsChanneling(LPEDICT caster) {
+    return caster && caster->channel_code != 0;
+}
+
+void S_SpellCancelChannel(LPEDICT caster) {
+    if (!caster || !caster->channel_code) {
+        return;
+    }
+    caster->channel_code = 0;
+    if (caster->stand) {
+        caster->stand(caster);
+    }
+}

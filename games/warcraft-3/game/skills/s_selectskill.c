@@ -1,14 +1,18 @@
 #include "s_skills.h"
 
-void selectskill_menu_selected(LPEDICT ent, DWORD building_id) {
-//    entityState_t cursor;
-//    FillUnitData(&cursor, building_id, "stand");
-//    UI_AddCancelButton(ent);
-//    gi.WriteByte(svc_cursor);
-//    gi.WriteEntity(&cursor);
-//    gi.unicast(ent);
-//    ent->client->menu.on_location_selected = build_menu_send_builder;
-//    ent->build_project = building_id;
+static void selectskill_menu_selected(LPEDICT clent, DWORD classname) {
+    LPEDICT ent = G_GetMainSelectedUnit(clent->client);
+    DWORD abilcode = classname;
+
+    if (!ent || !G_UnitIsHero(ent)) {
+        return;
+    }
+    if (ent->hero.skillpoints <= 0) {
+        return;
+    }
+    unit_learnability(ent, abilcode);
+    ent->hero.skillpoints--;
+    Get_Commands_f(clent);
 }
 
 void ui_selectskill(LPGAMECLIENT client) {
