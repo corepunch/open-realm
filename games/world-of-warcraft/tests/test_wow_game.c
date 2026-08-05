@@ -514,6 +514,7 @@ TEST(wow_game, wow_load_map_initializes_player_state) {
     T_NOT_NULL(local);
     T_NULL(player->think); /* the player is driven by client input, not a think fn */
     T_EQ((int)local->health, 100);
+    T_EQ((int)local->selected_action_slot, 255);
     assert_player_spawned_at_safe_loc(player, 3); /* default Orc → Valley of Trials */
     T_FEQ(player->client->ps.origin.x, player->s.origin.x, 0.001f);
     T_FEQ(player->client->ps.origin.y, player->s.origin.y, 0.001f);
@@ -522,6 +523,7 @@ TEST(wow_game, wow_load_map_initializes_player_state) {
     T_EQ((int)player->client->ps.stats[WOW_STAT_HEALTH], 100);
     T_EQ((int)player->client->ps.stats[WOW_STAT_HEALTH_MAX], 100);
     T_EQ((int)player->client->ps.stats[WOW_STAT_POWER], 100);
+    T_EQ((int)player->client->ps.stats[WOW_STAT_SELECTED_ACTION], 255);
     T_EQ((int)test_num_images, 0);
     T_EQ((int)test_unicast_calls, 0);
     T_NOT_NULL(game->ClientBegin);
@@ -717,4 +719,3 @@ TEST(wow_game, wow_directional_movement_animations) {
     T_FEQ(player->s.angle, facing, 0.001f);
     if (game->Shutdown) game->Shutdown();
 }
-

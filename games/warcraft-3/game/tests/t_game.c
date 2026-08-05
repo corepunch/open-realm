@@ -458,7 +458,9 @@ TEST(wc3_game, fow_blocker_stops_visibility_behind_it) {
     G_FowUpdate();
 
     DWORD blocker_index = G_FowWorldToCellY(96.0f) * level.fow.width + G_FowWorldToCellX(160.0f);
-    DWORD behind_index = G_FowWorldToCellY(96.0f) * level.fow.width + G_FowWorldToCellX(224.0f);
+    /* Trees without a path texture dilate one cell for their canopy; test the
+     * first cell behind that occluder, not a cell that is part of its visible rim. */
+    DWORD behind_index = G_FowWorldToCellY(96.0f) * level.fow.width + G_FowWorldToCellX(288.0f);
     T_ASSERT(level.fow.players[0].visible[blocker_index]);
     T_ASSERT(!level.fow.players[0].visible[behind_index]);
     G_FowShutdown();

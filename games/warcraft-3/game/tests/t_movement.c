@@ -326,9 +326,14 @@ TEST(wc3_movement, blocked_move_stops_instead_of_walking_forever) {
 }
 
 TEST(wc3_movement, near_goal_jitter_settles_to_stand) {
-    LPEDICT unit = make_moving_unit(65.0f, 0.0f);
-    VECTOR2 jitter = unit->s.origin2;
+    LPEDICT unit = make_moving_unit(0.0f, 0.0f);
     VECTOR2 dest = {100.0f, 0.0f};
+    /* Keep the fixture inside the settle band but beyond arrival tolerance for
+     * both ROC and TFT, whose archive-backed Peasant move speeds differ. */
+    unit->s.origin2.x = dest.x - unit_movedistance(unit) - 6.0f;
+    unit->s.origin.x = unit->s.origin2.x;
+    gi.LinkEntity(unit);
+    VECTOR2 jitter = unit->s.origin2;
     unit_issueorder(unit, "move", &dest);
 
     for (int i = 0; i < 10; i++) {
@@ -359,6 +364,9 @@ TEST(wc3_movement, unit_stops_when_goal_is_occupied) {
     blocker->stand = unit_stand;
     blocker->movetype = MOVETYPE_NONE;
     unit_stand(blocker);
+    /* Collision is assigned after allocation, so link both fixtures with their final radii. */
+    gi.LinkEntity(unit);
+    gi.LinkEntity(blocker);
 
     unit_issueorder(unit, "move", &dest);
 

@@ -48,6 +48,7 @@ static LPEDICT make_collision_unit(FLOAT x, FLOAT y, FLOAT radius) {
     ent->s.model   = 1;   /* IS_HOLLOW requires s.model != 0 */
     ent->stand     = unit_stand;
     unit_stand(ent);
+    gi.LinkEntity(ent);
     return ent;
 }
 

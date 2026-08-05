@@ -280,6 +280,7 @@ static void reset_test_state(void) {
     test_ps.stats[WOW_STAT_POWER] = 55;
     test_ps.stats[WOW_STAT_POWER_MAX] = 80;
     test_ps.stats[WOW_STAT_LEVEL] = 9;
+    test_ps.stats[WOW_STAT_SELECTED_ACTION] = 255;
 }
 
 static uiExport_t init_ui(void) {
@@ -348,4 +349,3 @@ TEST(wow_ui, wow_lua_ui_draws_from_generated_mpq) {
     SFileCloseArchive(test_archive);
     test_archive = NULL;
 }
-

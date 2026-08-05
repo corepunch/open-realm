@@ -15,6 +15,10 @@ int test_asserts = 0;
 int test_failures = 0;
 
 static test_t *test_head = NULL;
+static void (*test_before_each)(void);
+
+/* Modules with stateful in-engine tests register one reset hook for their binary. */
+void Test_SetBeforeEach(void (*fn)(void)) { test_before_each = fn; }
 
 /* Append preserves source/registration order for stable, readable output. */
 void Test_Register(test_t *t) {
@@ -55,6 +59,7 @@ int Test_Run(const char *pattern) {
         test_failures = 0;
         test_asserts = 0;
         before = total_failures;
+        if (test_before_each) test_before_each();
         t->fn();
         total_failures += test_failures;
         total_asserts += test_asserts;

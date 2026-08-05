@@ -160,7 +160,9 @@ sheetMetaData_t UnitsMetaData[] = {
     { "ulbd", "lumberbountydice", "UnitBalance" },
     { "ulba", "lumberbountyplus", "UnitBalance" },
     { "ulbs", "lumberbountysides", "UnitBalance" },
-    { "ucol", "collision", "UnitData" },
+    /* TFT owns collision in UnitBalance; ROC's fallback is UnitData (ucod). */
+    { "ucol", "collision", "UnitBalance" },
+    { "ucod", "collision", "UnitData" },
     { "udef", "def", "UnitBalance" },
     { "udfc", "realdef", "UnitBalance" },  /* computed armor (incl. hero AGI bonus), like uhpm->realHP */
     { "udty", "defType", "UnitBalance" },

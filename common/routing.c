@@ -386,6 +386,8 @@ static bool closest_pathable_node(LPCVECTOR2 location, FLOAT radius, point2_t *o
 
 BOOL CM_ClosestPathablePointForRadius(LPCVECTOR2 location, FLOAT radius, LPVECTOR2 out) {
     point2_t point;
+    VECTOR2 n;
+    int tx, ty, radius_cells;
 
     if (!location || !out) {
         return false;
@@ -397,6 +399,16 @@ BOOL CM_ClosestPathablePointForRadius(LPCVECTOR2 location, FLOAT radius, LPVECTO
 
     reset_pathmap_data();
     apply_dynamic_obstacles(NULL);
+    n = CM_GetNormalizedMapPosition(location->x, location->y);
+    tx = (int)floorf(n.x * pathmap.width);
+    ty = (int)floorf(n.y * pathmap.height);
+    radius_cells = (int)ceilf(MAX(0.f, radius) / pathmap_cell_world_size());
+    /* A legal click is already the most accurate destination; the old code snapped every
+     * valid point to its cell center, changing straight orders into diagonal movement. */
+    if (is_pathable_node_for_radius_cells(tx, ty, radius_cells)) {
+        *out = *location;
+        return true;
+    }
     if (!closest_pathable_node(location, radius, &point)) {
         return false;
     }

@@ -205,6 +205,12 @@ FLOAT UnitRealField(sheetMetaData_t *metadatas, DWORD unit_id, LPCSTR name) {
     return str ? atof(str) : 0;
 }
 
+/* ROC and TFT place collision in different SLKs; prefer TFT's UnitBalance field, then ROC's UnitData. */
+LONG UnitCollisionField(DWORD unit_id) {
+    LPCSTR value = UnitStringField(UnitsMetaData, unit_id, "ucol");
+    return value ? atoi(value) : UnitIntegerField(UnitsMetaData, unit_id, "ucod");
+}
+
 
 void InitUnitData(void) {
     sheetRow_t *Profile = NULL;

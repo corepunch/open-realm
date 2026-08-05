@@ -69,7 +69,7 @@ All reads go through `UnitIntegerField` / `UnitRealField` / `UnitBooleanField` /
 |---|---|---|
 | `UNIT_SPEED` | `umvs` | movement speed |
 | `UNIT_TURN_RATE` | `umvr` | radians/sec turn rate |
-| `UNIT_COLLISION` | `ucol` | collision radius for unit-vs-unit separation (e.g. Peasant=16). Buildings use pathing texture footprint instead (their collisionSize is ~0) |
+| `UNIT_COLLISION` | `ucol` | collision radius for unit-vs-unit separation (e.g. Peasant=16). TFT stores it in `UnitBalance.slk`; ROC stores it in `UnitData.slk`. Buildings use pathing texture footprint instead (their collisionSize is ~0) |
 | `UNIT_MOVE_TYPE_NAME` | `umvt` | **string** enum: `"foot"/"fly"/"hover"/"float"/"amph"/"horse"` — use `_NAME` variant |
 | `UNIT_SIGHT_RADIUS` | `usid` | daytime sight range |
 | `UNIT_SIGHT_RADIUS_NIGHT` | `usin` | nighttime sight range |
@@ -160,7 +160,7 @@ Stats are precomputed at base attributes; deltas are applied live on attribute c
 ### XP on Kill (from MiscGame.txt)
 Key constants (WC3 1.29 defaults):
 - `HeroExpRange` = 1200 (XP-share radius)
-- `GrantNormalXP` = 25, `GrantNormalXPFormulaB` = 5/level (base XP by victim level)
+- `GrantNormalXP` = 25; `GrantNormalXPFormulaB` is 0 in ROC and 5/level in TFT.
 - `GrantHeroXP` list = 100,120,160,220,300 (for hero kills)
 - `HeroFactorXP` list = 80,70,60,50,0 (% when hero outlevels victim by N levels)
 - `BuildingKillsGiveExp` = 0
@@ -210,6 +210,6 @@ Read via `FS_FindSheetCell(game.config.misc, "Misc", key)`. Never hardcode defau
 | `MaxHeroLevel` | 10 | hero level cap |
 | `HeroExpRange` | 1200 | XP-share radius |
 | `GrantNormalXP` | 25 | base XP for killing a creep |
-| `GrantNormalXPFormulaB` | 5 | XP per victim level |
+| `GrantNormalXPFormulaB` | ROC 0 / TFT 5 | XP per victim level |
 | `HeroExpRange` | 1200 | |
 | `BuildingKillsGiveExp` | 0 | |

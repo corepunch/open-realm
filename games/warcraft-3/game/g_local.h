@@ -942,6 +942,7 @@ LPCSTR UnitStringField(sheetMetaData_t *, DWORD, LPCSTR);
 LONG UnitIntegerField(sheetMetaData_t *, DWORD, LPCSTR);
 BOOL UnitBooleanField(sheetMetaData_t *, DWORD, LPCSTR);
 FLOAT UnitRealField(sheetMetaData_t *, DWORD, LPCSTR);
+LONG UnitCollisionField(DWORD);
 
 void InitUnitData(void);
 void ShutdownUnitData(void);

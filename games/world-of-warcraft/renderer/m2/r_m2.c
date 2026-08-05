@@ -61,7 +61,6 @@ typedef struct {
     DWORD geoset[M2_NUM_GEOSET_GROUPS];
     DWORD flags;  /* low bits: DBC ItemDisplayInfo inventory type (e.g. 1=head, 3=chest);
                      high bits: M2_CHAR_FLAG_* renderer-side flags */
-    DWORD slot_display_id[M2_SLOT_COUNT];  /* resolved ItemDisplayInfo IDs per slot; 0 = unused */
 } m2CharacterOutfit_t;
 
 enum { M2_COMPOSITE_CACHE_SIZE = 4 };
@@ -598,7 +597,6 @@ static BOOL M2_CharacterStartOutfit(LPCSTR model_path,
         FOR_LOOP(i, 12) {
             DWORD display_id = M2_DbcField(&m2_char_start_outfit_dbc, record, 14 + i);
             M2_AddDisplayInfoToOutfit(outfit, display_id, start_outfit_slot_map[i]);
-            outfit->slot_display_id[start_outfit_slot_map[i]] = display_id;
         }
         return true;
     }
@@ -648,21 +646,18 @@ static m2CharacterOutfit_t const *M2_CharacterOutfitForEntity(m2Model_t const *m
     return &mutable_model->character_outfit;
 }
 
-/* Set full-slot equipment display IDs for menu character preview.
- * Resolves ItemDisplayInfo per slot, overriding CharStartOutfit defaults.
- * Call before the render frame that draws the character model;
- * set display_ids to NULL or count=0 to clear. */
+/* Set full-slot equipment display IDs for menu character preview. NULL enables
+ * the archive-backed CharStartOutfit defaults without slot overrides. */
 void M2_SetCharacterMenuEquipment(m2Model_t *model, DWORD const *display_ids, DWORD count) {
+    DWORD next[M2_SLOT_COUNT] = {0};
     if (!model) return;
+    if (display_ids && count)
+        memcpy(next, display_ids, MIN(count, (DWORD)M2_SLOT_COUNT) * sizeof(DWORD));
+    /* UI models submit this state every draw; preserve the resolved composite when it is unchanged. */
+    if (model->menu_equipment_set && !memcmp(model->menu_equipment_display_id, next, sizeof(next))) return;
     model->menu_equipment_set = true;
     model->character_outfit_resolved = false;
-    if (display_ids && count) {
-        DWORD n = MIN(count, (DWORD)M2_SLOT_COUNT);
-        memcpy(model->menu_equipment_display_id, display_ids, n * sizeof(DWORD));
-        memset(model->menu_equipment_display_id + n, 0, (M2_SLOT_COUNT - n) * sizeof(DWORD));
-    } else {
-        memset(model->menu_equipment_display_id, 0, sizeof(model->menu_equipment_display_id));
-    }
+    memcpy(model->menu_equipment_display_id, next, sizeof(next));
 }
 
 static BYTE M2_CharacterTextureSlotForSection(WORD section_id) {

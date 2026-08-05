@@ -33,7 +33,7 @@
 #define UNIT_LUMBER_BOUNTY_AWARDED_BASE(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "ulba")
 #define UNIT_LUMBER_BOUNTY_AWARDED_SIDES_PER_DIE(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "ulbs")
 #define UNIT_LEVEL(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "ulev")
-#define UNIT_COLLISION(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "ucol")
+#define UNIT_COLLISION(UNIT) UnitCollisionField(UNIT)
 #define UNIT_FORMATION_RANK(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "ufor")
 #define UNIT_ORIENTATION_INTERPOLATION(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "uori")
 #define UNIT_ELEVATION_SAMPLE_POINTS(UNIT) UnitIntegerField(UnitsMetaData, UNIT, "uept")

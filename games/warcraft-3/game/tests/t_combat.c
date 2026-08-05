@@ -280,7 +280,8 @@ TEST(wc3_combat, runentity_hp_regen_always) {
 
     G_RunEntity(ent);
 
-    T_FEQ(ent->health.value, 200.0f + 0.5f * (FRAMETIME / 1000.0f), 0.0001f);
+    T_FEQ(ent->health.value, 200.0f + UNIT_HIT_POINTS_REGENERATION_RATE(ent->class_id) *
+          (FRAMETIME / 1000.0f), 0.0001f);
 }
 
 TEST(wc3_combat, runentity_hp_regen_caps_at_max) {
@@ -357,7 +358,8 @@ TEST(wc3_combat, hero_strength_hp_regen_bonus) {
 
     G_RunEntity(h);
 
-    T_FEQ(h->health.value, 600.0f + 22 * 0.05f * (FRAMETIME / 1000.0f), 0.001f);
+    T_FEQ(h->health.value, 600.0f + (UNIT_HIT_POINTS_REGENERATION_RATE(h->class_id) + 22 * 0.05f) *
+          (FRAMETIME / 1000.0f), 0.001f);
 }
 
 TEST(wc3_combat, hero_intelligence_mana_regen_bonus) {
@@ -448,9 +450,8 @@ TEST(wc3_combat, hero_setxp_levels_up) {
     T_FEQ(h->health.max_value, 775.0f, 0.01f);
 }
 
-/* XP-on-kill (G_GrantKillXP).  With no map misc overrides the WC3 defaults
- * apply: GrantNormalXP 25, HeroExpRange 1200.  A level-1 hero killing a level-1
- * normal unit in range gains the full 25 XP; out of range gains nothing. */
+/* XP-on-kill (G_GrantKillXP). Mounted ROC/TFT data supplies the victim level;
+ * a victim outside HeroExpRange awards nothing. */
 TEST(wc3_combat, grant_kill_xp_awards_base) {
     LPEDICT killer = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
     killer->s.player = 0; killer->hero.level = 1; killer->hero.xp = 0;
@@ -459,7 +460,7 @@ TEST(wc3_combat, grant_kill_xp_awards_base) {
 
     G_GrantKillXP(victim, killer);
 
-    T_EQ((int)killer->hero.xp, 25);
+    T_ASSERT(killer->hero.xp == 25 || killer->hero.xp == 30); /* ROC / TFT MiscData formulas */
 }
 
 TEST(wc3_combat, grant_kill_xp_out_of_range) {
@@ -832,20 +833,19 @@ TEST(wc3_combat, timed_life_status_kills_unit) {
  * player_pay
  * ========================================================================== */
 
-/* Test unit data provides:
- *   hpea — goldcost=75,  lumbercost=0
- *   hfoo — goldcost=135, lumbercost=20
- * These are registered in setup_test_unit_data() via the UnitBalance table. */
+/* Costs come from the mounted ROC/TFT UnitBalance table. */
 
 TEST(wc3_combat, player_pay_deducts_gold) {
     LPPLAYER p = &game.clients[0].ps;
     p->stats[PLAYERSTATE_RESOURCE_GOLD]   = 200;
     p->stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
 
-    BOOL ok = player_pay(p, MAKEFOURCC('h','p','e','a')); /* costs 75 gold, 0 lumber */
+    DWORD unit = MAKEFOURCC('h','p','e','a');
+    LONG gold = UNIT_GOLD_COST(unit);
+    BOOL ok = player_pay(p, unit);
 
     T_ASSERT(ok);
-    T_EQ((int)p->stats[PLAYERSTATE_RESOURCE_GOLD], 125);
+    T_EQ((int)p->stats[PLAYERSTATE_RESOURCE_GOLD], 200 - gold);
 }
 
 TEST(wc3_combat, player_pay_insufficient_gold_fails) {
@@ -861,14 +861,17 @@ TEST(wc3_combat, player_pay_insufficient_gold_fails) {
 
 TEST(wc3_combat, player_pay_insufficient_lumber_fails) {
     LPPLAYER p = &game.clients[0].ps;
-    p->stats[PLAYERSTATE_RESOURCE_GOLD]   = 200; /* enough for 135 */
-    p->stats[PLAYERSTATE_RESOURCE_LUMBER] = 10;  /* need 20 */
+    DWORD project = MAKEFOURCC('h','b','a','r');
+    LONG gold = UNIT_GOLD_COST(project), lumber = UNIT_LUMBER_COST(project);
+    T_ASSERT(gold > 0 && lumber > 0);
+    p->stats[PLAYERSTATE_RESOURCE_GOLD]   = gold;
+    p->stats[PLAYERSTATE_RESOURCE_LUMBER] = lumber - 1;
 
-    BOOL ok = player_pay(p, MAKEFOURCC('h','f','o','o')); /* costs 135 gold, 20 lumber */
+    BOOL ok = player_pay(p, project);
 
     T_ASSERT(!ok);
-    T_EQ((int)p->stats[PLAYERSTATE_RESOURCE_GOLD],   200); /* unchanged */
-    T_EQ((int)p->stats[PLAYERSTATE_RESOURCE_LUMBER],  10); /* unchanged */
+    T_EQ((int)p->stats[PLAYERSTATE_RESOURCE_GOLD], gold);
+    T_EQ((int)p->stats[PLAYERSTATE_RESOURCE_LUMBER], lumber - 1);
 }
 
 TEST(wc3_combat, player_pay_null_player_fails) {

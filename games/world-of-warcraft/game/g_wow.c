@@ -1466,6 +1466,8 @@ static void Wow_InitPlayer(LPEDICT ent) {
     if (local) {
         memset(local, 0, sizeof(*local));
         local->cast_spell = SPELL_NONE;
+        /* 255 is the wire/UI sentinel for no selected action; zero would highlight slot 0 at spawn. */
+        local->selected_action_slot = 255;
         local->hostile = false;
         local->home = wow_spawn_origin;
         local->yaw = wow_move.yaw;

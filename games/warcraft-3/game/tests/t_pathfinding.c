@@ -2,7 +2,7 @@
 /*
  * test_pathfinding.c — Unit tests for routing.c (heatmap / flow-field).
  *
- * Uses CM_SetupTestPathmap() to build synthetic pathmaps without an MPQ
+ * Uses setup_test_pathmap() to build synthetic pathmaps without an MPQ
  * archive, then calls CM_BuildHeatmap() and get_flow_direction() directly.
  *
  * Test areas:
@@ -40,7 +40,7 @@ void setup_test_world(void);
  * --------------------------------------------------------------------- */
 
 /* Defined in routing.c, only compiled for test builds. */
-void CM_SetupTestPathmap(DWORD width, DWORD height, BYTE const *cells);
+void setup_test_pathmap(DWORD width, DWORD height, BYTE const *cells);
 
 struct routePerfStats_s;
 void CM_ResetTestPathPerfStats(void);
@@ -107,13 +107,9 @@ static void build_split_map(void) {
     }
 }
 
-/* Place a waypoint at pathmap cell (cx, cy).
- * CM_GetNormalizedMapPosition returns (x,y) unchanged in test builds, so
- * routing.c multiplies by pathmap.width/height to get the cell index.
- * We therefore pass pre-divided coordinates: cell_x / MAP_W, cell_y / MAP_H,
- * so after the multiply we land at the intended cell. */
+/* The test world maps one world unit to one pathmap cell. */
 static LPEDICT make_waypoint(float cell_x, float cell_y) {
-    VECTOR2 pos = { cell_x / (float)MAP_W, cell_y / (float)MAP_H };
+    VECTOR2 pos = { cell_x, cell_y };
     return Waypoint_add(&pos);
 }
 
@@ -126,12 +122,9 @@ static DWORD build_flow(LPEDICT goal) {
     return g_flow_gen;
 }
 
-/* Query flow direction at cell (cx, cy), compensating for the identity
- * CM_GetNormalizedMapPosition stub the same way make_waypoint does. */
+/* Query flow direction at a cell in the one-unit-per-cell test world. */
 static VECTOR2 flow_at_cell(float cell_x, float cell_y) {
-    return get_flow_direction(g_flow_gen,
-        cell_x / (float)MAP_W,
-        cell_y / (float)MAP_H);
+    return get_flow_direction(g_flow_gen, cell_x, cell_y);
 }
 
 /* Make a minimal unit that looks "stopped" (no currentmove).
@@ -153,7 +146,7 @@ static LPEDICT make_unit_at(float x, float y) {
 
 TEST(wc3_pathfinding, heatmap_cache_hit_same_goal) {
     build_open_map();
-    CM_SetupTestPathmap(MAP_W, MAP_H, open_map);
+    setup_test_pathmap(MAP_W, MAP_H, open_map);
     reset_entities();
 
     LPEDICT wp = make_waypoint(5.0f, 5.0f);
@@ -166,7 +159,7 @@ TEST(wc3_pathfinding, heatmap_cache_hit_same_goal) {
 
 TEST(wc3_pathfinding, heatmap_cache_hit_same_target_different_waypoint) {
     build_open_map();
-    CM_SetupTestPathmap(MAP_W, MAP_H, open_map);
+    setup_test_pathmap(MAP_W, MAP_H, open_map);
     reset_entities();
 
     LPEDICT wp1 = make_waypoint(5.0f, 5.0f);
@@ -180,7 +173,7 @@ TEST(wc3_pathfinding, heatmap_cache_hit_same_target_different_waypoint) {
 
 TEST(wc3_pathfinding, heatmap_cache_perf_same_target_builds_once) {
     build_open_map();
-    CM_SetupTestPathmap(MAP_W, MAP_H, open_map);
+    setup_test_pathmap(MAP_W, MAP_H, open_map);
     reset_entities();
     CM_ResetTestPathPerfStats();
 
@@ -198,7 +191,7 @@ TEST(wc3_pathfinding, heatmap_cache_perf_same_target_builds_once) {
 
 TEST(wc3_pathfinding, heatmap_cache_miss_different_goal) {
     build_open_map();
-    CM_SetupTestPathmap(MAP_W, MAP_H, open_map);
+    setup_test_pathmap(MAP_W, MAP_H, open_map);
     reset_entities();
 
     LPEDICT wp1 = make_waypoint(2.0f, 2.0f);
@@ -212,7 +205,7 @@ TEST(wc3_pathfinding, heatmap_cache_miss_different_goal) {
 
 TEST(wc3_pathfinding, heatmap_generation_is_nonzero) {
     build_open_map();
-    CM_SetupTestPathmap(MAP_W, MAP_H, open_map);
+    setup_test_pathmap(MAP_W, MAP_H, open_map);
     reset_entities();
 
     LPEDICT wp = make_waypoint(3.0f, 3.0f);
@@ -228,9 +221,9 @@ TEST(wc3_pathfinding, heatmap_generation_is_nonzero) {
  * --------------------------------------------------------------------- */
 
 TEST(wc3_pathfinding, multi_goal_cache_no_thrash) {
-    /* Must call CM_SetupTestPathmap once only — it resets the cache. */
+    /* Must call setup_test_pathmap once only — it resets the cache. */
     build_open_map();
-    CM_SetupTestPathmap(MAP_W, MAP_H, open_map);
+    setup_test_pathmap(MAP_W, MAP_H, open_map);
 
     /* Use distinct waypoint slots from the global pool so pointers differ. */
     LPEDICT wp_a = make_waypoint(1.0f, 1.0f);
@@ -256,7 +249,7 @@ TEST(wc3_pathfinding, multi_goal_cache_no_thrash) {
 
 TEST(wc3_pathfinding, heatmap_cache_ignores_stale_dynamic_pathmap_stamps) {
     build_open_map();
-    CM_SetupTestPathmap(MAP_W, MAP_H, open_map);
+    setup_test_pathmap(MAP_W, MAP_H, open_map);
     reset_entities();
 
     LPEDICT wp1 = make_waypoint(5.0f, 5.0f);
@@ -274,7 +267,7 @@ TEST(wc3_pathfinding, heatmap_cache_ignores_stale_dynamic_pathmap_stamps) {
 
 TEST(wc3_pathfinding, flow_bake_perf_skips_unreachable_half) {
     build_split_map();
-    CM_SetupTestPathmap(MAP_W, MAP_H, split_map);
+    setup_test_pathmap(MAP_W, MAP_H, split_map);
     reset_entities();
     CM_ResetTestPathPerfStats();
 
@@ -295,7 +288,7 @@ TEST(wc3_pathfinding, flow_bake_perf_skips_unreachable_half) {
 
 TEST(wc3_pathfinding, wall_routes_flow_around_obstacle) {
     build_wall_map();
-    CM_SetupTestPathmap(MAP_W, MAP_H, wall_map);
+    setup_test_pathmap(MAP_W, MAP_H, wall_map);
     reset_entities();
 
     /* Goal on the right side of the wall at (7, 5), reachable only through
@@ -321,7 +314,7 @@ TEST(wc3_pathfinding, wall_routes_flow_around_obstacle) {
 
 TEST(wc3_pathfinding, flow_direction_points_toward_goal_open) {
     build_open_map();
-    CM_SetupTestPathmap(MAP_W, MAP_H, open_map);
+    setup_test_pathmap(MAP_W, MAP_H, open_map);
     reset_entities();
 
     /* Goal at right edge; sample from left side. */
@@ -343,7 +336,7 @@ TEST(wc3_pathfinding, flow_direction_points_toward_goal_open) {
 
 TEST(wc3_pathfinding, unit_presence_does_not_invalidate_heatmap_cache) {
     build_open_map();
-    CM_SetupTestPathmap(MAP_W, MAP_H, open_map);
+    setup_test_pathmap(MAP_W, MAP_H, open_map);
     reset_entities();
 
     LPEDICT wp   = make_waypoint(7.0f, 5.0f);
@@ -366,14 +359,23 @@ TEST(wc3_pathfinding, unit_presence_does_not_invalidate_heatmap_cache) {
 
 TEST(wc3_pathfinding, point_pathable_rejects_wall_accepts_open) {
     build_wall_map();
-    CM_SetupTestPathmap(MAP_W, MAP_H, wall_map);
+    setup_test_pathmap(MAP_W, MAP_H, wall_map);
     reset_entities();
 
-    VECTOR2 wall_pt = { 5.0f / (float)MAP_W, 5.0f / (float)MAP_H }; /* on the wall column */
-    VECTOR2 open_pt = { 2.0f / (float)MAP_W, 5.0f / (float)MAP_H }; /* clear ground */
+    VECTOR2 wall_pt = { 5.0f, 5.0f }; /* on the wall column */
+    VECTOR2 open_pt = { 2.0f, 5.0f }; /* clear ground */
 
     T_ASSERT(!CM_PointIsPathableForRadius(&wall_pt, 0.0f));
     T_ASSERT(CM_PointIsPathableForRadius(&open_pt, 0.0f));
+}
+
+TEST(wc3_pathfinding, closest_pathable_keeps_exact_open_point) {
+    VECTOR2 point = { 2.25f, 5.75f }, out = {0};
+    build_open_map();
+    setup_test_pathmap(MAP_W, MAP_H, open_map);
+    T_ASSERT(CM_ClosestPathablePointForRadius(&point, 0, &out));
+    T_FEQ(out.x, point.x, 0.001f);
+    T_FEQ(out.y, point.y, 0.001f);
 }
 
 /* The flood and the flow must not cut diagonally through a wall corner: with
@@ -385,7 +387,7 @@ TEST(wc3_pathfinding, no_diagonal_corner_cutting) {
     memset(corner_map, 0, sizeof(corner_map));
     corner_map[0 * MAP_W + 1] = 2;  /* wall at (1,0) */
     corner_map[1 * MAP_W + 0] = 2;  /* wall at (0,1) */
-    CM_SetupTestPathmap(MAP_W, MAP_H, corner_map);
+    setup_test_pathmap(MAP_W, MAP_H, corner_map);
     reset_entities();
 
     LPEDICT wp = make_waypoint(1.0f, 1.0f);  /* goal at cell (1,1) */
@@ -406,7 +408,7 @@ TEST(wc3_pathfinding, no_diagonal_corner_cutting) {
 
 TEST(wc3_pathfinding, flow_cache_consistent_after_hit) {
     build_open_map();
-    CM_SetupTestPathmap(MAP_W, MAP_H, open_map);
+    setup_test_pathmap(MAP_W, MAP_H, open_map);
 
     LPEDICT wp = make_waypoint(9.0f, 5.0f);
     build_flow(wp);
@@ -429,7 +431,7 @@ TEST(wc3_pathfinding, flow_cache_consistent_after_hit) {
 
 TEST(wc3_pathfinding, flow_consistent_across_goal_switches) {
     build_open_map();
-    CM_SetupTestPathmap(MAP_W, MAP_H, open_map);
+    setup_test_pathmap(MAP_W, MAP_H, open_map);
 
     LPEDICT wp_left  = make_waypoint(1.0f, 5.0f);
     LPEDICT wp_right = make_waypoint(9.0f, 5.0f);
@@ -464,7 +466,7 @@ TEST(wc3_pathfinding, flow_consistent_across_goal_switches) {
 
 TEST(wc3_pathfinding, proximity_shortcut_gives_correct_angle) {
     build_open_map();
-    CM_SetupTestPathmap(MAP_W, MAP_H, open_map);
+    setup_test_pathmap(MAP_W, MAP_H, open_map);
     reset_entities();
 
     /* Place unit close to goal (within NAVI_THRESHOLD). */

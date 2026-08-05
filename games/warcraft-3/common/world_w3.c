@@ -1,5 +1,15 @@
 #include "common/common.h"
 
+#ifdef BZ_TESTS
+static BOX2 test_world_bounds;
+static BOOL test_world_bounds_set;
+
+void CM_SetupTestWorldBounds(LPCBOX2 bounds) {
+	test_world_bounds_set = bounds != NULL;
+	if (bounds) test_world_bounds = *bounds;
+}
+#endif
+
 static LPCWAR3MAPVERTEX CM_GetWar3MapVertex(DWORD x, DWORD y) {
 	if (!world.map || !world.map->vertices) return NULL;
 	int const index = x + y * world.map->width;
@@ -66,6 +76,14 @@ FLOAT CM_GetHeightAtPoint(FLOAT sx, FLOAT sy) {
 }
 
 VECTOR2 CM_GetNormalizedMapPosition(FLOAT x, FLOAT y) {
+#ifdef BZ_TESTS
+	if (test_world_bounds_set) {
+		FLOAT width = test_world_bounds.max.x - test_world_bounds.min.x;
+		FLOAT height = test_world_bounds.max.y - test_world_bounds.min.y;
+		return (VECTOR2){ width ? (x - test_world_bounds.min.x) / width : 0,
+		                  height ? (y - test_world_bounds.min.y) / height : 0 };
+	}
+#endif
 	if (!world.map) return (VECTOR2){0, 0};
 	FLOAT _x = (x - world.map->center.x) / ((world.map->width - 1) * TILE_SIZE);
 	FLOAT _y = (y - world.map->center.y) / ((world.map->height - 1) * TILE_SIZE);
@@ -73,6 +91,11 @@ VECTOR2 CM_GetNormalizedMapPosition(FLOAT x, FLOAT y) {
 }
 
 VECTOR2 CM_GetDenormalizedMapPosition(FLOAT x, FLOAT y) {
+#ifdef BZ_TESTS
+	if (test_world_bounds_set)
+		return (VECTOR2){ x * (test_world_bounds.max.x - test_world_bounds.min.x) + test_world_bounds.min.x,
+		                  y * (test_world_bounds.max.y - test_world_bounds.min.y) + test_world_bounds.min.y };
+#endif
 	if (!world.map) return (VECTOR2){0, 0};
 	FLOAT _x = x * (world.map->width - 1) * TILE_SIZE + world.map->center.x;
 	FLOAT _y = y * (world.map->height - 1) * TILE_SIZE + world.map->center.y;
@@ -80,6 +103,9 @@ VECTOR2 CM_GetDenormalizedMapPosition(FLOAT x, FLOAT y) {
 }
 
 BOX2 CM_GetWorldBounds(void) {
+#ifdef BZ_TESTS
+    if (test_world_bounds_set) return test_world_bounds;
+#endif
     return MAKE(BOX2,
         .min = world.map->center,
         .max = {
