@@ -341,8 +341,8 @@ openwow-tests: $(WOW_TEST_BINARY)
 
 # Run every in-engine WoW test headlessly.  Pass PATTERN=area.* to filter.
 PATTERN ?= *
-test-wow-engine: $(WOW_TEST_BINARY)
-	$(WOW_TEST_BINARY) -data $(WOW_INSTALL_DATA_DIR) +dedicated 1 +test '$(PATTERN)'
+test-wow-engine: $(WOW_TEST_BINARY) | test-wow-engine-assets
+	$(WOW_TEST_BINARY) -data $(WOW_ENGINE_TEST_DIR) +dedicated 1 +test '$(PATTERN)'
 
 download: $(ZIP_FILE)
 	mkdir -p $(DATA_DIR)
@@ -409,6 +409,30 @@ test-wow-assets: blpgen mpqtool | $(TESTS_DIR)
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_TEST_MPQ) cat Interface/Test/LuaPanel.blp | head -c4 | grep -q "BLP2" && echo "  cat panel OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_TEST_MPQ) cat Interface/FrameXML/GameHUD.lua | grep -q "wow_lua_test" && echo "  cat lua OK"
 
+# ---------------------------------------------------------------------------
+# test-wow-engine-assets — generate a minimal M2 model for in-engine WoW tests
+# ---------------------------------------------------------------------------
+WOW_ENGINE_TEST_DIR  := $(TESTS_DIR)/wow-engine-data
+WOW_ENGINE_TEST_MPQ  := $(WOW_ENGINE_TEST_DIR)/test-wow-engine.mpq
+WOW_ENGINE_MODEL_DIR := $(WOW_ENGINE_TEST_DIR)/Character/Orc/Male
+WOW_ENGINE_MODEL_M2  := $(WOW_ENGINE_MODEL_DIR)/OrcMale.m2
+
+test-wow-engine-assets: m2gen mpqtool | $(TESTS_DIR)
+	@echo "[test-wow-engine-assets] generating minimal M2 model"
+	@mkdir -p $(WOW_ENGINE_MODEL_DIR)
+	@$(BIN_DIR)/m2gen$(EXE_EXT) $(WOW_ENGINE_MODEL_M2) \
+		Stand=0:0:1000 \
+		Death=1:1000:2600 \
+		Attack1H=17:2600:3600
+	@echo "[test-wow-engine-assets] packing test-wow-engine.mpq"
+	@set --; \
+	for f in $$(find $(WOW_ENGINE_TEST_DIR) -type f ! -name '*.mpq' | sort); do \
+		rel=$${f#$(WOW_ENGINE_TEST_DIR)/}; set -- "$$@" "$$f" "$$rel"; \
+	done; \
+	$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_ENGINE_TEST_MPQ) pack "$$@"
+	@echo "[test-wow-engine-assets] verifying archive"
+	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_ENGINE_TEST_MPQ) cat Character/Orc/Male/OrcMale.m2 | head -c4 | grep -q "MD20" && echo "  cat M2 OK"
+
 SC2_HUD_LIVE_BIN := $(BIN_DIR)/test_sc2_hud_live$(EXE_EXT)
 SC2_HUD_LIVE_SRC := tests/test_runner.c $(SC2_TEST_DIR)/test_sc2_hud_live.c
 
@@ -423,4 +447,4 @@ test-sc2-live: opensc2 $(SC2_HUD_LIVE_BIN)
 	fi
 	$(SC2_HUD_LIVE_BIN)
 
-.PHONY: default build shared tools font $(TOOL_NAMES) diag clean download renderer-wow game-wow ui-wow openwow openwow-tests test-wow-engine renderer-sc2 game-sc2 opensc2 run run-sc2 build-run-sc2 m2tool-wow-orcmale-player install-wow test-wow-appearance test-wow-abilities test-wow-game test-wow-ui test-wow-assets test-sc2 test-sc2-assets test-sc2-live $(WC3_PHONY)
+.PHONY: default build shared tools font $(TOOL_NAMES) diag clean download renderer-wow game-wow ui-wow openwow openwow-tests test-wow-engine test-wow-engine-assets renderer-sc2 game-sc2 opensc2 run run-sc2 build-run-sc2 m2tool-wow-orcmale-player install-wow test-wow-appearance test-wow-abilities test-wow-game test-wow-ui test-wow-assets test-sc2 test-sc2-assets test-sc2-live $(WC3_PHONY)
