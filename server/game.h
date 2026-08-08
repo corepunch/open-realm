@@ -56,6 +56,7 @@ struct game_import {
     DWORD (*GetTime)(void);
     void (*multicast)(LPCVECTOR3 origin, multicast_t to);
     void (*unicast)(edict_t *ent);
+    void (*GameCommand)(LPCSTR command, LPCSTR payload, DWORD payload_size);
     void (*Write)(pfWriteType_t type, void const *value);
 
     void (*configstring)(DWORD index, LPCSTR string);

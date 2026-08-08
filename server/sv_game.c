@@ -174,11 +174,24 @@ void PF_Sleep(DWORD msec) {
     usleep(msec * 1000);
 }
 
+void PF_GameCommand(LPCSTR command, LPCSTR payload, DWORD payload_size) {
+    if (!command) return;
+    if (!svs.num_clients) return;
+    sizeBuf_t payload_buf;
+    payload_buf.data = (LPBYTE)(payload ? payload : "");
+    payload_buf.cursize = payload_size;
+    payload_buf.maxsize = payload_size;
+    payload_buf.readcount = 0;
+    SV_WriteGameCommand(&svs.clients[0].netchan.message, command, &payload_buf);
+    Netchan_Transmit(NS_SERVER, &svs.clients[0].netchan);
+}
+
 void SV_InitGameProgs(void) {
     struct game_import import = { 0 };
     
     import.multicast = PF_Multicast;
     import.unicast = PF_Unicast;
+    import.GameCommand = PF_GameCommand;
         
     import.MemAlloc = MemAlloc;
     import.MemFree = MemFree;

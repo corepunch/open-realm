@@ -164,6 +164,15 @@ void SCR_UpdateScreen(DWORD msec);
 void SCR_BeginLoadingPlaque(void);
 void SCR_EndLoadingPlaque(void);
 
+// cl_screenshot.c
+extern BOOL cl_screenshot_pending;
+void CL_Screenshot_f(void);
+void CL_ScreenshotCapture(void);
+#ifdef WOW
+void CL_WoweeScreenshot(LPCSTR name);
+void CL_WoweeTour_f(void);
+#endif
+
 // cl_input.c
 void CL_Input(void);
 void CL_InitInput(void);
