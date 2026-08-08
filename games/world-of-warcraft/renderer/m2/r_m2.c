@@ -224,10 +224,6 @@ static m2Dbc_t m2_char_start_outfit_dbc;
 static m2Dbc_t m2_item_display_info_dbc;
 static m2Dbc_t m2_char_sections_dbc;
 
-static DWORD M2_Read32(BYTE const *p) {
-    return ((DWORD)p[0]) | ((DWORD)p[1] << 8) | ((DWORD)p[2] << 16) | ((DWORD)p[3] << 24);
-}
-
 static BOOL M2_DbcLoad(m2Dbc_t *dbc, LPCSTR filename) {
     int size;
 
@@ -246,10 +242,10 @@ static BOOL M2_DbcLoad(m2Dbc_t *dbc, LPCSTR filename) {
     }
 
     dbc->size = (DWORD)size;
-    dbc->records = M2_Read32(dbc->data + 4);
-    dbc->fields = M2_Read32(dbc->data + 8);
-    dbc->record_size = M2_Read32(dbc->data + 12);
-    dbc->string_size = M2_Read32(dbc->data + 16);
+    dbc->records = m2_read32(dbc->data + 4);
+    dbc->fields = m2_read32(dbc->data + 8);
+    dbc->record_size = m2_read32(dbc->data + 12);
+    dbc->string_size = m2_read32(dbc->data + 16);
     if (dbc->fields == 0 || dbc->record_size < sizeof(DWORD) ||
         20 + dbc->records * dbc->record_size + dbc->string_size > dbc->size) {
         SAFE_DELETE(dbc->data, ri.FS_FreeFile);
@@ -276,7 +272,7 @@ static DWORD M2_DbcField(m2Dbc_t const *dbc, BYTE const *record, DWORD field) {
     if (!dbc || !record || field >= dbc->fields || field * sizeof(DWORD) + sizeof(DWORD) > dbc->record_size) {
         return 0;
     }
-    return M2_Read32(record + field * sizeof(DWORD));
+    return m2_read32(record + field * sizeof(DWORD));
 }
 
 static LPCSTR M2_DbcString(m2Dbc_t const *dbc, DWORD offset) {
@@ -831,48 +827,6 @@ static BOOL M2_TexturePixels(LPTEXTURE texture, LPCOLOR32 *pixels) {
     return true;
 }
 
-static void M2_BlendPixel(LPCOLOR32 dst, COLOR32 src) {
-    DWORD inv;
-
-    if (src.a == 0) {
-        return;
-    }
-    if (src.a >= 250) {
-        *dst = src;
-        return;
-    }
-    inv = 255 - src.a;
-    dst->b = (BYTE)((src.b * src.a + dst->b * inv) / 255);
-    dst->g = (BYTE)((src.g * src.a + dst->g * inv) / 255);
-    dst->r = (BYTE)((src.r * src.a + dst->r * inv) / 255);
-    dst->a = (BYTE)MIN(255, src.a + (dst->a * inv) / 255);
-}
-
-static void M2_PasteComponent(LPCOLOR32 dst,
-                              DWORD dst_width,
-                              DWORD dst_height,
-                              LPCOLOR32 src,
-                              DWORD src_width,
-                              DWORD src_height,
-                              DWORD x,
-                              DWORD y,
-                              DWORD w,
-                              DWORD h) {
-    if (!dst || !src || !dst_width || !dst_height || !src_width || !src_height ||
-        x >= dst_width || y >= dst_height) {
-        return;
-    }
-    w = MIN(w, dst_width - x);
-    h = MIN(h, dst_height - y);
-    FOR_LOOP(row, h) {
-        DWORD src_y = row * src_height / h;
-        FOR_LOOP(col, w) {
-            DWORD src_x = col * src_width / w;
-            M2_BlendPixel(&dst[(y + row) * dst_width + x + col],
-                          src[src_y * src_width + src_x]);
-        }
-    }
-}
 
 static void M2_PasteOutfitComponent(LPCOLOR32 pixels,
                                     DWORD width,
@@ -912,16 +866,8 @@ static void M2_PasteOutfitComponent(LPCOLOR32 pixels,
     dst_y = rects[slot][1] * height / character_component_atlas_size;
     dst_w = MAX(1u, rects[slot][2] * width / character_component_atlas_size);
     dst_h = MAX(1u, rects[slot][3] * height / character_component_atlas_size);
-    M2_PasteComponent(pixels,
-                      width,
-                      height,
-                      component_pixels,
-                      texture->width,
-                      texture->height,
-                      dst_x,
-                      dst_y,
-                      dst_w,
-                      dst_h);
+    m2_paste_component(pixels, width, height, component_pixels,
+                       texture->width, texture->height, dst_x, dst_y, dst_w, dst_h);
     ri.MemFree(component_pixels);
     R_ReleaseTexture(texture);
 }
@@ -965,7 +911,7 @@ static void M2_PasteHeadVariation(LPCOLOR32 pixels,
         dy = head_rects[i][1] * height / atlas;
         dw = MAX(1u, head_rects[i][2] * width  / atlas);
         dh = MAX(1u, head_rects[i][3] * height / atlas);
-        M2_PasteComponent(pixels, width, height, src, tex->width, tex->height,
+        m2_paste_component(pixels, width, height, src, tex->width, tex->height,
                           dx, dy, dw, dh);
         ri.MemFree(src);
         R_ReleaseTexture(tex);
