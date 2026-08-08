@@ -15,6 +15,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WoW character display, DBC/skin-section/component-texture rules | [docs/wow-character.md](docs/wow-character.md) |
 | WoW magic schools, damage types, buffs/debuffs, CC, status effects | [games/world-of-warcraft/docs/magic-and-effects.md](games/world-of-warcraft/docs/magic-and-effects.md) |
 | WoW creature types, classifications, difficulty, aggro/threat; entity architecture (think-fn dispatch, spell table, spawn budget) | [games/world-of-warcraft/docs/enemies-and-creatures.md](games/world-of-warcraft/docs/enemies-and-creatures.md) |
+| WoW spawn system, WorldSafeLocs DBC, per-race selection, server→client game commands | [games/world-of-warcraft/docs/spawn-and-teleport.md](games/world-of-warcraft/docs/spawn-and-teleport.md) |
 | WoW weapons, classes, combat roles, specializations | [games/world-of-warcraft/docs/weapons-and-classes.md](games/world-of-warcraft/docs/weapons-and-classes.md) |
 | Entity sound architecture | [doc/architecture/sound.md](doc/architecture/sound.md) |
 | WC3 data model (SLK, unit stats, combat) | [docs/wc3-data-model.md](docs/wc3-data-model.md) |

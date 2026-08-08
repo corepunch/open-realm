@@ -34,9 +34,6 @@ static struct {
     .distance = 8.0f,
 };
 
-static struct { BOOL active; int index; int phase; } wow_tour;
-static void Wow_TourFrame(LPEDICT ent);
-
 #define WOW_MAX_SPAWNS_PER_FRAME 64
 
 #define WOW_MAX_SPAWNS_PER_FRAME 64
@@ -1761,11 +1758,6 @@ static void Wow_RunFrame(void) {
         return;
     }
 
-    if (wow_tour.active) {
-        Wow_TourFrame(ent);
-        return;
-    }
-
     Wow_AngleVectors(wow_move.yaw, &forward, &right);
 
     if (wow_move.flags & WOW_MOVE_FORWARD) {
@@ -1897,50 +1889,20 @@ static void Wow_SelectEntity(LPEDICT ent, LPEDICT target) {
     }
 }
 
-/* Server-driven landmark screenshot tour using shared WorldSafeLocs data.
- * Frame 0: teleport player, set camera.
- * Frame 1: send svc_gamecmd "screenshot <name>" to client, advance. */
-static void Wow_TourFrame(LPEDICT ent) {
-	DWORD total = CM_WowGetAllSpawnCount();
-	if (wow_tour.index >= (int)total) {
-		wow_tour.active = false;
-		gi.Write(PF_BYTE, &(LONG){ svc_gamecmd });
-		gi.Write(PF_STRING, "tour_done");
-		gi.Write(PF_SHORT, &(LONG){ 0 });
-		gi.unicast(ent);
-		return;
-	}
-	LPCVECTOR3 sp = CM_WowGetSpawnPos((DWORD)wow_tour.index);
-	LPCSTR raw_name = CM_WowGetSpawnName((DWORD)wow_tour.index);
-	VECTOR2 pos = { sp->x, sp->y };
-	if (wow_tour.phase == 0) {
-		ent->s.origin = (VECTOR3){ pos.x, pos.y, Wow_TerrainHeight(pos.x, pos.y) };
-		ent->s.origin2 = pos;
-		ent->client->ps.origin = pos;
-		wow_tour.phase = 1;
-	} else {
-		char name[256]; int pi = 0;
-		if (raw_name)
-			for (const char *c = raw_name; *c && pi < 255; c++)
-				name[pi++] = (*c == ' ' || *c == ',' || *c == '\'' || *c == '/') ? '_' : *c;
-		name[pi] = '\0';
-		int len = (int)strlen(name) + 1;
-		gi.Write(PF_BYTE, &(LONG){ svc_gamecmd });
-		gi.Write(PF_STRING, "screenshot");
-		gi.Write(PF_SHORT, &(LONG){ len });
-		for (int i = 0; i < len; i++)
-			gi.Write(PF_BYTE, &(LONG){ (unsigned char)name[i] });
-		gi.unicast(ent);
-		wow_tour.index++;
-		wow_tour.phase = 0;
-	}
-}
-
 static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
-    if (argc >= 1 && !strcasecmp(argv[0], "wowee_tour")) {
-        DWORD total = CM_WowGetAllSpawnCount();
-        fprintf(stderr, "WoW: wowee_tour started, %u WorldSafeLocs\n", total);
-        wow_tour.active = true; wow_tour.index = 0; wow_tour.phase = 0;
+    if (argc >= 1 && !strcasecmp(argv[0], "respawn")) {
+        char race[64], sex[64]; DWORD class_id, appearance;
+        Wow_ReadSelectedCharFromCvars(race, sizeof(race), sex, sizeof(sex), &class_id, &appearance);
+        DWORD idx = Wow_SelectRaceSpawnPoint(NULL, race);
+        if (idx == ~0u) idx = Wow_SelectRandomSpawnPoint(NULL, ent);
+        if (idx != ~0u) {
+            LPCVECTOR3 sp = CM_WowGetSpawnPos(idx);
+            ent->s.origin = (VECTOR3){ sp->x, sp->y, Wow_TerrainHeight(sp->x, sp->y) };
+            ent->s.origin2 = (VECTOR2){ sp->x, sp->y };
+            ent->client->ps.origin = (VECTOR2){ sp->x, sp->y };
+            fprintf(stderr, "WoW: respawned at %s (index %u)\n",
+                    CM_WowGetSpawnName(idx) ? CM_WowGetSpawnName(idx) : "?", idx);
+        }
     } else if (argc >= 5 && (!strcasecmp(argv[0], "move") || !strcasecmp(argv[0], "wowmove"))) {
         wow_move.flags = (DWORD)strtoul(argv[1], NULL, 10);
         wow_move.yaw = (FLOAT)atof(argv[2]);

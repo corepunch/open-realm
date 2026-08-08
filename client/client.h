@@ -170,7 +170,6 @@ void CL_Screenshot_f(void);
 void CL_ScreenshotCapture(void);
 #ifdef WOW
 void CL_WoweeScreenshot(LPCSTR name);
-void CL_WoweeTour_f(void);
 #endif
 
 // cl_input.c
