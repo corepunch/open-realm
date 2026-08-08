@@ -586,6 +586,150 @@ TEST(wow_game, quest_hud_is_server_authored_on_quest_layer) {
         T_ASSERT(test_ui_frames[i].layer != LAYER_QUESTDIALOG);
 }
 
+TEST(wow_game, quest_detail_has_full_text_and_rewards) {
+    LPCWOWQUESTDETAIL detail = Wow_QuestDetail(7);
+
+    T_NOT_NULL(detail);
+    T_STREQ(detail->title, "Kobold Camp Cleanup");
+    T_ASSERT(detail->description && strlen(detail->description) > 10);
+    T_ASSERT(detail->objectives_text && strlen(detail->objectives_text) > 5);
+    T_ASSERT(detail->reward_text && strlen(detail->reward_text) > 5);
+    T_EQ((int)detail->reward_xp, 340);
+    T_EQ((int)detail->reward_gold, 50);
+    T_EQ((int)detail->min_level, 1);
+    T_EQ((int)detail->prev_quest, 0);
+    T_EQ((int)detail->reward_items[0], 0);
+}
+
+TEST(wow_game, quest_accept_adds_to_quest_log) {
+    struct game_export *game = init_game();
+    LPEDICT player;
+    LPCSTR accept_command[] = { "quest_accept", "7" };
+    wowClient_t *wc;
+
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    player = &wow_edicts[0];
+    game->ClientBegin(player);
+    wc = (wowClient_t *)player->client;
+    T_EQ((int)wc->quest_count, 0);
+
+    game->ClientCommand(player, 2, accept_command);
+    T_EQ((int)wc->quest_count, 1);
+    T_EQ((int)wc->quests[0].quest_id, 7);
+    T_EQ((int)wc->quests[0].status, WOW_QUEST_ACCEPTED);
+}
+
+TEST(wow_game, quest_prerequisite_blocks_accept) {
+    struct game_export *game = init_game();
+    LPEDICT player;
+    LPCSTR accept13[] = { "quest_accept", "13" };
+    LPCSTR accept12[] = { "quest_accept", "12" };
+    wowClient_t *wc;
+
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    player = &wow_edicts[0];
+    game->ClientBegin(player);
+    wc = (wowClient_t *)player->client;
+
+    game->ClientCommand(player, 2, accept13);
+    T_EQ((int)wc->quest_count, 0);
+
+    game->ClientCommand(player, 2, accept12);
+    T_EQ((int)wc->quest_count, 1);
+    T_EQ((int)wc->quests[0].quest_id, 12);
+
+    game->ClientCommand(player, 2, accept13);
+    T_EQ((int)wc->quest_count, 2);
+    T_EQ((int)wc->quests[1].quest_id, 13);
+}
+
+TEST(wow_game, quest_complete_delivers_rewards) {
+    struct game_export *game = init_game();
+    LPEDICT player;
+    LPCSTR accept_command[] = { "quest_accept", "7" };
+    LPCSTR complete_command[] = { "quest_complete", "7" };
+    LPPLAYER ps;
+
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    player = &wow_edicts[0];
+    game->ClientBegin(player);
+    ps = &player->client->ps;
+    ps->stats[WOW_STAT_XP] = 0;
+    ps->stats[WOW_STAT_COPPER] = 0;
+
+    game->ClientCommand(player, 2, accept_command);
+    T_EQ((int)ps->stats[WOW_STAT_XP], 0);
+    T_EQ((int)ps->stats[WOW_STAT_COPPER], 0);
+
+    game->ClientCommand(player, 2, complete_command);
+    T_EQ((int)ps->stats[WOW_STAT_XP], 340);
+    T_EQ((int)ps->stats[WOW_STAT_COPPER], 50);
+}
+
+TEST(wow_game, quest_turn_in_flow_accept_complete_reward) {
+    struct game_export *game = init_game();
+    LPEDICT player;
+    LPCSTR accept7[] = { "quest_accept", "7" };
+    LPCSTR open7[] = { "quest", "7" };
+    LPPLAYER ps;
+    BOOL found_complete = false;
+
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    player = &wow_edicts[0];
+    game->ClientBegin(player);
+    ps = &player->client->ps;
+    ps->stats[WOW_STAT_XP] = 0;
+    ps->stats[WOW_STAT_COPPER] = 0;
+
+    game->ClientCommand(player, 2, accept7);
+    game->ClientCommand(player, 2, open7);
+    /* Dialog shows accepted quest — no accept button, but close button exists */
+    FOR_LOOP(i, test_ui_frame_count) {
+        if (test_ui_frames[i].layer == LAYER_QUESTDIALOG &&
+            !strcmp(test_ui_frames[i].onclick, "quest_close")) found_complete = true;
+    }
+    T_ASSERT(found_complete);
+
+    test_ui_frame_count = 0;
+    memset(test_layout_seen, 0, sizeof(test_layout_seen));
+    game->ClientCommand(player, 2, (LPCSTR[]){"quest_complete", "7"});
+    T_EQ((int)ps->stats[WOW_STAT_XP], 340);
+    T_EQ((int)ps->stats[WOW_STAT_COPPER], 50);
+}
+
+TEST(wow_game, quest_log_shows_active_and_complete_quests) {
+    struct game_export *game = init_game();
+    LPEDICT player;
+    LPCSTR accept7[] = { "quest_accept", "7" };
+    LPCSTR questlog_cmd[] = { "questlog" };
+    BOOL found_header = false, found_title = false;
+
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    player = &wow_edicts[0];
+    game->ClientBegin(player);
+    game->ClientCommand(player, 2, accept7);
+
+    test_ui_frame_count = 0;
+    memset(test_layout_seen, 0, sizeof(test_layout_seen));
+    game->ClientCommand(player, 1, questlog_cmd);
+    T_ASSERT(test_layout_seen[LAYER_QUESTDIALOG]);
+    FOR_LOOP(i, test_ui_frame_count) {
+        testUiFrame_t const *frame = &test_ui_frames[i];
+        if (frame->layer != LAYER_QUESTDIALOG) continue;
+        if (!strcmp(frame->text, "Quest Log")) found_header = true;
+        if (!strncmp(frame->text, "Kobold Camp Cleanup", 19)) found_title = true;
+    }
+    T_ASSERT(found_header);
+    T_ASSERT(found_title);
+
+    test_ui_frame_count = 0;
+    memset(test_layout_seen, 0, sizeof(test_layout_seen));
+    game->ClientCommand(player, 1, (LPCSTR[]){"quest_close"});
+    T_ASSERT(test_layout_seen[LAYER_QUESTDIALOG]);
+    FOR_LOOP(i, test_ui_frame_count)
+        T_ASSERT(test_ui_frames[i].layer != LAYER_QUESTDIALOG);
+}
+
 TEST(wow_game, wow_load_map_initializes_player_state) {
     struct game_export *game = init_game();
     LPEDICT player;
