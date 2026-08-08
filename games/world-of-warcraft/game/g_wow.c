@@ -1566,102 +1566,6 @@ static bool Wow_LoadMap(LPCSTR mapFilename) {
     return true;
 }
 
-static FLOAT Wow_PlayersRangeFromSpawn(LPCVECTOR2 spot, LPEDICT skip) {
-    FLOAT best_dist2 = 999999999.0f;
-
-    FOR_LOOP(i, WOW_MAX_CLIENTS) {
-        LPEDICT ent = &wow_edicts[i];
-        VECTOR2 delta;
-        FLOAT dist2;
-
-        if (ent == skip || !ent->inuse || !ent->client)
-            continue;
-        delta = Vector2_sub(spot, &ent->s.origin2);
-        dist2 = delta.x * delta.x + delta.y * delta.y;
-        if (dist2 < best_dist2)
-            best_dist2 = dist2;
-    }
-    return best_dist2;
-}
-
-static DWORD Wow_CountSpawnPlayers(LPEDICT skip) {
-    DWORD count = 0;
-
-    FOR_LOOP(i, WOW_MAX_CLIENTS) {
-        LPEDICT ent = &wow_edicts[i];
-
-        if (ent != skip && ent->inuse && ent->client)
-            count++;
-    }
-    return count;
-}
-
-/* Map race name to the WorldSafeLocs area-name substring for that race's
-   starting zone.  Each entry is matched via strcasestr against the area name
-   stored in CM_WowCollectWorldSafeLocs playerName, so in-game naming like
-   "Deathknell, Tirisfal" matches "Deathknell".
-   TODO: drive this from ChrRaces.dbc (field 9 = expansion ID) + the map's
-   WorldSafeLocs entries, not hardcoded strings.  The race → zone association
-   should be derived from the DBC data itself. */
-static LPCSTR Wow_RaceZone(LPCSTR race) {
-	static struct { LPCSTR race; LPCSTR zone; } map[] = {
-		{ "Human",    "Northshire" },
-		{ "Dwarf",    "Anvilmar" },
-		{ "Gnome",    "Anvilmar" },
-		{ "NightElf", "Shadowglen" },
-		{ "Orc",      "Valley of Trials" },
-		{ "Troll",    "Valley of Trials" },
-		{ "Undead",   "Deathknell" },
-		{ "Scourge",  "Deathknell" },
-		{ "Tauren",   "Camp Narache" },
-	};
-	FOR_LOOP(i, sizeof(map) / sizeof(map[0]))
-		if (!strcasecmp(map[i].race, race)) return map[i].zone;
-	return NULL;
-}
-
-static DWORD Wow_SelectRaceSpawnPoint(LPCMAPINFO mapinfo, LPCSTR race) {
-	DWORD total = CM_WowGetAllSpawnCount();
-	DWORD matches[256], count = 0;
-	LPCSTR zone = Wow_RaceZone(race);
-	if (!zone) return ~0u;
-	FOR_LOOP(i, total) {
-		LPCSTR name = CM_WowGetSpawnName(i);
-		if (name && strcasestr(name, zone))
-			matches[count++] = i;
-	}
-	return count ? matches[rand() % count] : ~0u;
-}
-
-static DWORD Wow_SelectRandomSpawnPoint(LPCMAPINFO mapinfo, LPEDICT ent) {
-	DWORD total = CM_WowGetAllSpawnCount();
-	DWORD avoid1 = ~0u, avoid2 = ~0u;
-	FLOAT range1 = 999999999.0f, range2 = 999999999.0f;
-	DWORD player_count = Wow_CountSpawnPlayers(ent);
-	DWORD count = total;
-	if (!total) return ~0u;
-	if (player_count > 0 && total > 2) {
-		FOR_LOOP(i, total) {
-			LPCVECTOR3 pos = CM_WowGetSpawnPos(i);
-			VECTOR2 p = { pos->x, pos->y };
-			FLOAT range = Wow_PlayersRangeFromSpawn(&p, ent);
-			if (avoid1 == ~0u || range < range1) {
-				range2 = range1; avoid2 = avoid1;
-				range1 = range; avoid1 = i;
-			} else if (avoid2 == ~0u || range < range2) {
-				range2 = range; avoid2 = i;
-			}
-		}
-		if (total <= 2) { avoid1 = ~0u; avoid2 = ~0u; }
-		else count = total - 2;
-	}
-	DWORD selection = (DWORD)(rand() % count);
-	FOR_LOOP(i, total) {
-		if (i == avoid1 || i == avoid2) continue;
-		if (selection-- == 0) return i;
-	}
-	return ~0u;
-}
 
 static void Wow_ThinkUnit(LPEDICT ent) {
     wowEntityLocal_t *el = Wow_EntityLocal(ent);
@@ -1681,17 +1585,18 @@ static void Wow_SpawnEntities(void) {
     /* Read race before spawn selection so the player starts in their race's
        home zone (e.g. Orcs in Valley of Trials, not Northshire). */
     Wow_ReadSelectedCharFromCvars(race, sizeof(race), sex, sizeof(sex), &class_id, &appearance);
-    spawn_location = Wow_SelectRaceSpawnPoint(mapinfo, race);
-    if (spawn_location == ~0u)
-        spawn_location = Wow_SelectRandomSpawnPoint(mapinfo, &wow_edicts[0]);
+    spawn_location = Wow_SelectSpawnPoint(race, &wow_edicts[0]);
 
     if (spawn_location != ~0u) {
-        LPCVECTOR3 sp = CM_WowGetSpawnPos(spawn_location);
-        wow_spawn_origin = (VECTOR2){ sp->x, sp->y };
-        wow_spawn_location = (LONG)spawn_location;
-        fprintf(stderr, "WoW: spawn race=%s at %s (index %u, %.1f %.1f)\n",
-                race, CM_WowGetSpawnName(spawn_location),
-                spawn_location, sp->x, sp->y);
+        LPCVECTOR3 sp = Wow_GetSpawnPos(spawn_location);
+        if (sp) {
+            wow_spawn_origin = (VECTOR2){ sp->x, sp->y };
+            wow_spawn_location = (LONG)spawn_location;
+            fprintf(stderr, "WoW: spawn race=%s at (%.1f %.1f)\n", race, sp->x, sp->y);
+        } else {
+            wow_spawn_origin = (VECTOR2){ 0.0f, 0.0f };
+            wow_spawn_location = -1;
+        }
     } else {
         wow_spawn_origin = (VECTOR2){ 0.0f, 0.0f };
         wow_spawn_location = -1;
@@ -1897,16 +1802,8 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
     if (argc >= 1 && !strcasecmp(argv[0], "respawn")) {
         char race[64], sex[64]; DWORD class_id, appearance;
         Wow_ReadSelectedCharFromCvars(race, sizeof(race), sex, sizeof(sex), &class_id, &appearance);
-        DWORD idx = Wow_SelectRaceSpawnPoint(NULL, race);
-        if (idx == ~0u) idx = Wow_SelectRandomSpawnPoint(NULL, ent);
-        if (idx != ~0u) {
-            LPCVECTOR3 sp = CM_WowGetSpawnPos(idx);
-            ent->s.origin = (VECTOR3){ sp->x, sp->y, Wow_TerrainHeight(sp->x, sp->y) };
-            ent->s.origin2 = (VECTOR2){ sp->x, sp->y };
-            ent->client->ps.origin = (VECTOR2){ sp->x, sp->y };
-            fprintf(stderr, "WoW: respawned at %s (index %u)\n",
-                    CM_WowGetSpawnName(idx) ? CM_WowGetSpawnName(idx) : "?", idx);
-        }
+        DWORD idx = Wow_SelectSpawnPoint(race, ent);
+        if (idx != ~0u) Wow_TeleportPlayer(ent, idx);
     } else if (argc >= 5 && (!strcasecmp(argv[0], "move") || !strcasecmp(argv[0], "wowmove"))) {
         wow_move.flags = (DWORD)strtoul(argv[1], NULL, 10);
         wow_move.yaw = (FLOAT)atof(argv[2]);
