@@ -37,70 +37,7 @@ static struct {
 static struct { BOOL active; int index; int phase; } wow_tour;
 static void Wow_TourFrame(LPEDICT ent);
 
-/* Collect all WorldSafeLocs entries for the current map into a
- * malloc'd array.  Returns count (0 on failure); caller calls
- * SAFE_DELETE on the pointer when done. */
-typedef struct { VECTOR3 pos; LPCSTR name; } wowTourSpawn_t;
-static wowTourSpawn_t *wow_tour_spawns = NULL;
-static int wow_tour_spawn_count = 0;
-
-static int Wow_TourCollectSpawns(DWORD map_id) {
-    LPBYTE data = NULL;
-    DWORD size = 0, records, fields, record_size, string_size;
-    BYTE const *records_base, *strings_base;
-    int count = 0;
-
-    SAFE_DELETE(wow_tour_spawns, gi.MemFree);
-    wow_tour_spawn_count = 0;
-
-    data = gi.ReadFile("DBFilesClient\\WorldSafeLocs.dbc", &size);
-    if (!Wow_ValidDbc(data, size, &records, &fields, &record_size, &string_size) ||
-        fields < 5 || record_size < 5 * sizeof(DWORD)) {
-        SAFE_DELETE(data, gi.MemFree);
-        return 0;
-    }
-    records_base = data + 20;
-    strings_base = records_base + records * record_size;
-
-    /* first pass: count matching entries */
-    FOR_LOOP(i, records) {
-        BYTE const *record = records_base + i * record_size;
-        if (Wow_Read32(record + sizeof(DWORD)) != map_id) continue;
-        count++;
-    }
-    if (!count) { SAFE_DELETE(data, gi.MemFree); return 0; }
-
-    wow_tour_spawns = gi.MemAlloc((DWORD)count * sizeof(wowTourSpawn_t));
-    if (!wow_tour_spawns) { SAFE_DELETE(data, gi.MemFree); return 0; }
-
-    /* second pass: store */
-    int idx = 0;
-    FOR_LOOP(i, records) {
-        BYTE const *record = records_base + i * record_size;
-        if (Wow_Read32(record + sizeof(DWORD)) != map_id) continue;
-        wow_tour_spawns[idx].pos.x = Wow_ReadFloat(record + 2 * sizeof(DWORD));
-        wow_tour_spawns[idx].pos.y = Wow_ReadFloat(record + 3 * sizeof(DWORD));
-        wow_tour_spawns[idx].pos.z = Wow_ReadFloat(record + 4 * sizeof(DWORD));
-        LPCSTR raw = NULL;
-        for (DWORD fi = 5; fi < fields; fi++) {
-            LPCSTR s = Wow_DbcString(strings_base, string_size,
-                                     Wow_Read32(record + fi * sizeof(DWORD)));
-            if (s && *s) { raw = s; break; }
-        }
-        char *name = gi.MemAlloc(256);
-        if (name && raw) {
-            int pi = 0;
-            for (const char *c = raw; *c && pi < 255; c++)
-                name[pi++] = (*c == ' ' || *c == ',' || *c == '\'' || *c == '/') ? '_' : *c;
-            name[pi] = '\0';
-        }
-        wow_tour_spawns[idx].name = name;
-        idx++;
-    }
-    wow_tour_spawn_count = count;
-    SAFE_DELETE(data, gi.MemFree);
-    return count;
-}
+#define WOW_MAX_SPAWNS_PER_FRAME 64
 
 #define WOW_MAX_SPAWNS_PER_FRAME 64
 /* Per-frame spawn budget (declared extern in g_wow_local.h). */
@@ -1687,65 +1624,46 @@ static LPCSTR Wow_RaceZone(LPCSTR race) {
 }
 
 static DWORD Wow_SelectRaceSpawnPoint(LPCMAPINFO mapinfo, LPCSTR race) {
-	DWORD matches[MAX_PLAYERS], count = 0;
+	DWORD total = CM_WowGetAllSpawnCount();
+	DWORD matches[256], count = 0;
 	LPCSTR zone = Wow_RaceZone(race);
-	if (!mapinfo || !zone) return MAX_PLAYERS;
-	FOR_LOOP(i, MAX_PLAYERS) {
-		if (mapinfo->players[i].used && mapinfo->players[i].playerName &&
-			strcasestr(mapinfo->players[i].playerName, zone))
+	if (!zone) return ~0u;
+	FOR_LOOP(i, total) {
+		LPCSTR name = CM_WowGetSpawnName(i);
+		if (name && strcasestr(name, zone))
 			matches[count++] = i;
 	}
-	return count ? matches[rand() % count] : MAX_PLAYERS;
+	return count ? matches[rand() % count] : ~0u;
 }
 
 static DWORD Wow_SelectRandomSpawnPoint(LPCMAPINFO mapinfo, LPEDICT ent) {
-    DWORD count = 0;
-    DWORD player_count;
-    DWORD avoid1 = MAX_PLAYERS;
-    DWORD avoid2 = MAX_PLAYERS;
-    FLOAT range1 = 999999999.0f;
-    FLOAT range2 = 999999999.0f;
-    DWORD selection;
-
-    if (!mapinfo)
-        return MAX_PLAYERS;
-
-    player_count = Wow_CountSpawnPlayers(ent);
-    FOR_LOOP(i, MAX_PLAYERS) {
-        FLOAT range;
-
-        if (!mapinfo->players[i].used)
-            continue;
-        count++;
-        if (player_count == 0)
-            continue;
-        range = Wow_PlayersRangeFromSpawn(&mapinfo->players[i].startingPosition, ent);
-        if (avoid1 == MAX_PLAYERS || range < range1) {
-            range2 = range1;
-            avoid2 = avoid1;
-            range1 = range;
-            avoid1 = i;
-        } else if (avoid2 == MAX_PLAYERS || range < range2) {
-            range2 = range;
-            avoid2 = i;
-        }
-    }
-    if (count == 0)
-        return MAX_PLAYERS;
-    if (count <= 2 || player_count == 0) {
-        avoid1 = MAX_PLAYERS;
-        avoid2 = MAX_PLAYERS;
-    } else {
-        count -= 2;
-    }
-    selection = (DWORD)(rand() % count);
-    FOR_LOOP(i, MAX_PLAYERS) {
-        if (!mapinfo->players[i].used || i == avoid1 || i == avoid2)
-            continue;
-        if (selection-- == 0)
-            return i;
-    }
-    return MAX_PLAYERS;
+	DWORD total = CM_WowGetAllSpawnCount();
+	DWORD avoid1 = ~0u, avoid2 = ~0u;
+	FLOAT range1 = 999999999.0f, range2 = 999999999.0f;
+	DWORD player_count = Wow_CountSpawnPlayers(ent);
+	DWORD count = total;
+	if (!total) return ~0u;
+	if (player_count > 0 && total > 2) {
+		FOR_LOOP(i, total) {
+			LPCVECTOR3 pos = CM_WowGetSpawnPos(i);
+			VECTOR2 p = { pos->x, pos->y };
+			FLOAT range = Wow_PlayersRangeFromSpawn(&p, ent);
+			if (avoid1 == ~0u || range < range1) {
+				range2 = range1; avoid2 = avoid1;
+				range1 = range; avoid1 = i;
+			} else if (avoid2 == ~0u || range < range2) {
+				range2 = range; avoid2 = i;
+			}
+		}
+		if (total <= 2) { avoid1 = ~0u; avoid2 = ~0u; }
+		else count = total - 2;
+	}
+	DWORD selection = (DWORD)(rand() % count);
+	FOR_LOOP(i, total) {
+		if (i == avoid1 || i == avoid2) continue;
+		if (selection-- == 0) return i;
+	}
+	return ~0u;
 }
 
 static void Wow_ThinkUnit(LPEDICT ent) {
@@ -1767,16 +1685,16 @@ static void Wow_SpawnEntities(void) {
        home zone (e.g. Orcs in Valley of Trials, not Northshire). */
     Wow_ReadSelectedCharFromCvars(race, sizeof(race), sex, sizeof(sex), &class_id, &appearance);
     spawn_location = Wow_SelectRaceSpawnPoint(mapinfo, race);
-    if (spawn_location >= MAX_PLAYERS)
+    if (spawn_location == ~0u)
         spawn_location = Wow_SelectRandomSpawnPoint(mapinfo, &wow_edicts[0]);
 
-    wow_spawn_location = -1;
-    if (mapinfo && spawn_location < MAX_PLAYERS) {
-        wow_spawn_origin = mapinfo->players[spawn_location].startingPosition;
+    if (spawn_location != ~0u) {
+        LPCVECTOR3 sp = CM_WowGetSpawnPos(spawn_location);
+        wow_spawn_origin = (VECTOR2){ sp->x, sp->y };
         wow_spawn_location = (LONG)spawn_location;
-    } else if (mapinfo && mapinfo->players[0].used) {
-        wow_spawn_origin = mapinfo->players[0].startingPosition;
-        wow_spawn_location = 0;
+    } else {
+        wow_spawn_origin = (VECTOR2){ 0.0f, 0.0f };
+        wow_spawn_location = -1;
     }
     Wow_SelectLoadingScreen(mapinfo ? mapinfo->mapName : NULL);
     /* Re-populate the playerinfo configstring from cvars after SV_Map's
@@ -1979,28 +1897,33 @@ static void Wow_SelectEntity(LPEDICT ent, LPEDICT target) {
     }
 }
 
-/* Server-driven landmark screenshot tour.
- * Frame 0: teleport player to landmark, set camera.
+/* Server-driven landmark screenshot tour using shared WorldSafeLocs data.
+ * Frame 0: teleport player, set camera.
  * Frame 1: send svc_gamecmd "screenshot <name>" to client, advance. */
 static void Wow_TourFrame(LPEDICT ent) {
-	if (!wow_tour_spawns || wow_tour.index >= wow_tour_spawn_count) {
+	DWORD total = CM_WowGetAllSpawnCount();
+	if (wow_tour.index >= (int)total) {
 		wow_tour.active = false;
-		SAFE_DELETE(wow_tour_spawns, gi.MemFree);
 		gi.Write(PF_BYTE, &(LONG){ svc_gamecmd });
 		gi.Write(PF_STRING, "tour_done");
 		gi.Write(PF_SHORT, &(LONG){ 0 });
 		gi.unicast(ent);
 		return;
 	}
-	wowTourSpawn_t *sp = &wow_tour_spawns[wow_tour.index];
-	VECTOR2 pos = { sp->pos.x, sp->pos.y };
+	LPCVECTOR3 sp = CM_WowGetSpawnPos((DWORD)wow_tour.index);
+	LPCSTR raw_name = CM_WowGetSpawnName((DWORD)wow_tour.index);
+	VECTOR2 pos = { sp->x, sp->y };
 	if (wow_tour.phase == 0) {
 		ent->s.origin = (VECTOR3){ pos.x, pos.y, Wow_TerrainHeight(pos.x, pos.y) };
 		ent->s.origin2 = pos;
 		ent->client->ps.origin = pos;
 		wow_tour.phase = 1;
 	} else {
-		LPCSTR name = sp->name ? sp->name : "";
+		char name[256]; int pi = 0;
+		if (raw_name)
+			for (const char *c = raw_name; *c && pi < 255; c++)
+				name[pi++] = (*c == ' ' || *c == ',' || *c == '\'' || *c == '/') ? '_' : *c;
+		name[pi] = '\0';
 		int len = (int)strlen(name) + 1;
 		gi.Write(PF_BYTE, &(LONG){ svc_gamecmd });
 		gi.Write(PF_STRING, "screenshot");
@@ -2015,9 +1938,8 @@ static void Wow_TourFrame(LPEDICT ent) {
 
 static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
     if (argc >= 1 && !strcasecmp(argv[0], "wowee_tour")) {
-        DWORD map_id = 0;
-        int total = Wow_TourCollectSpawns(map_id);
-        fprintf(stderr, "WoW: wowee_tour started, %d WorldSafeLocs for map %u\n", total, map_id);
+        DWORD total = CM_WowGetAllSpawnCount();
+        fprintf(stderr, "WoW: wowee_tour started, %u WorldSafeLocs\n", total);
         wow_tour.active = true; wow_tour.index = 0; wow_tour.phase = 0;
     } else if (argc >= 5 && (!strcasecmp(argv[0], "move") || !strcasecmp(argv[0], "wowmove"))) {
         wow_move.flags = (DWORD)strtoul(argv[1], NULL, 10);
