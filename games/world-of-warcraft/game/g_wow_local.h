@@ -206,4 +206,9 @@ void       Wow_FireFrostbolt(LPEDICT caster, LPEDICT target);
 void       Wow_HealingTouch(LPEDICT caster);
 LPEDICT    Wow_FindSpellTarget(LPEDICT ent, FLOAT range);
 
+/* g_spawn.c — race→spawn-point selection and teleport */
+DWORD      Wow_SelectSpawnPoint(LPCSTR race, LPEDICT ent);
+LPCVECTOR3 Wow_GetSpawnPos(DWORD idx);
+void       Wow_TeleportPlayer(LPEDICT ent, DWORD spawn_index);
+
 #endif
