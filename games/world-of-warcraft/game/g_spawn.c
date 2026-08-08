@@ -2,23 +2,16 @@
 #include <string.h>
 
 /*
- *  Spawn-point selection — compiled from AC's playercreateinfo SQL.
+ *  Spawn-point selection — compiled from AzerothCore's playercreateinfo data.
  *
- *  The MPQ files provide positions (WorldSafeLocs.dbc) and race/class
- *  metadata (ChrRaces.dbc, ChrClasses.dbc) but NO mapping between them.
- *  Neither DBC carries a race→spawn-point association.
+ *  AzerothCore (https://github.com/azerothcore/azerothcore-wotlk)
+ *  reverse-engineered these coordinates by packet-sniffing the retail client
+ *  at character creation time.  The (race, class) → (map, x, y, z) mapping
+ *  exists nowhere in the MPQ/DBC files — Blizzard hardcodes it in wow.exe.
+ *  We compile the same data directly as a C table.
  *
- *  AzerothCore bridges this gap with the `playercreateinfo` SQL table:
- *    SELECT race, class, map, zone, position_x, position_y, position_z,
- *           orientation FROM playercreateinfo
- *
- *  We compile that same data as a C table below.  Each (race, class)
- *  pair gets exactly one spawn position with map ID, coordinates, and
- *  facing angle.  This is the authoritative single source — no fuzzy
- *  zone-name matching, no WorldSafeLocs string search.
- *
- *  Source: AC playercreateinfo.sql, filtered for classic races (1-8)
- *  and classes (1,2,3,4,5,7,8,9,11 — no DK in 1.12).
+ *  Source: AC data/sql/base/db_world/playercreateinfo.sql,
+ *  filtered for classic races (1-8) and classes (1,2,3,4,5,7,8,9,11).
  */
 
 typedef struct {
@@ -84,11 +77,11 @@ static DWORD Wow_RaceNumber(LPCSTR race) {
     return 0;
 }
 
-DWORD Wow_SelectSpawnPoint(LPCSTR race, LPEDICT ent) {
+DWORD Wow_SelectSpawnPoint(LPCSTR race, DWORD class_id) {
     DWORD race_num = Wow_RaceNumber(race);
     if (!race_num) return ~0u;
     FOR_LOOP(i, SPAWN_TABLE_COUNT)
-        if (spawn_table[i].race == race_num && spawn_table[i].cls == 1)
+        if (spawn_table[i].race == race_num && spawn_table[i].cls == class_id)
             return i;
     return ~0u;
 }
@@ -102,6 +95,10 @@ LPCVECTOR3 Wow_GetSpawnPos(DWORD idx) {
     return &v;
 }
 
+FLOAT Wow_GetSpawnFacing(DWORD idx) {
+    return idx < (DWORD)SPAWN_TABLE_COUNT ? spawn_table[idx].facing : 0.0f;
+}
+
 void Wow_TeleportPlayer(LPEDICT ent, DWORD idx) {
     if (idx >= (DWORD)SPAWN_TABLE_COUNT) return;
     const player_create_info_t *sp = &spawn_table[idx];
@@ -109,6 +106,7 @@ void Wow_TeleportPlayer(LPEDICT ent, DWORD idx) {
     if (z == 0.0f) z = sp->z;
     ent->s.origin = (VECTOR3){ sp->x, sp->y, z };
     ent->s.origin2 = (VECTOR2){ sp->x, sp->y };
+    ent->s.angle = sp->facing;
     ent->client->ps.origin = (VECTOR2){ sp->x, sp->y };
     fprintf(stderr, "WoW: respawned at map=%u (%.1f %.1f %.1f)\n",
             sp->map, sp->x, sp->y, sp->z);
