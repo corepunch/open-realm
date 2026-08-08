@@ -54,6 +54,14 @@ WoW weapons are divided into melee and ranged categories. Each weapon type has a
 - Two-handed weapons have roughly double the bonuses of comparable one-handed weapons.
 - Weapons are generally chosen for their stat bonuses and effects, not raw damage.
 
+### Runtime server data
+
+The initial WoW game module now consumes AzerothCore weapon damage data from
+`serverdata/world-of-warcraft/weapons.csv`. Entry 37 (`Worn Axe`) is the
+current player starter weapon; melee damage is rolled from its imported
+1–3 damage range instead of using a hard-coded value. The table also retains
+the starter shortsword, mace, and staff rows for the next equipment pass.
+
 ## Class Weapon Proficiencies
 
 Each class can use specific weapon types. Warriors are the most versatile (all except Wands).

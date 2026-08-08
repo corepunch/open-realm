@@ -1477,6 +1477,7 @@ static void Wow_InitPlayer(LPEDICT ent) {
         local->mana = WOW_MANA_MAX;
         local->attack_damage_point = 250;
         local->attack_backswing = 450;
+        local->weapon_entry = WOW_START_WEAPON_ENTRY;
     }
     ent->client = &wow_clients[0].client;
     ent->inuse = true;
@@ -1585,7 +1586,12 @@ static void Wow_SpawnEntities(void) {
     /* Read race before spawn selection so the player starts in their race's
        home zone (e.g. Orcs in Valley of Trials, not Northshire). */
     Wow_ReadSelectedCharFromCvars(race, sizeof(race), sex, sizeof(sex), &class_id, &appearance);
-    spawn_location = Wow_SelectSpawnPoint(race, &wow_edicts[0]);
+    spawn_location = Wow_SelectSpawnPoint(race, class_id);
+    if (spawn_location == ~0u) {
+        fprintf(stderr, "WoW: no spawn for race=%s class=%u; using Orc Warrior spawn\n",
+                race, (unsigned)class_id);
+        spawn_location = Wow_SelectSpawnPoint("Orc", WOW_CLASS_WARRIOR);
+    }
 
     if (spawn_location != ~0u) {
         LPCVECTOR3 sp = Wow_GetSpawnPos(spawn_location);
@@ -1600,7 +1606,8 @@ static void Wow_SpawnEntities(void) {
     } else {
         wow_spawn_origin = (VECTOR2){ 0.0f, 0.0f };
         wow_spawn_location = -1;
-        fprintf(stderr, "WoW: spawn race=%s — no match, fallback to (0,0)\n", race);
+        fprintf(stderr, "WoW: no fallback spawn is available for race=%s class=%u\n",
+                race, (unsigned)class_id);
     }
     Wow_SelectLoadingScreen(mapinfo ? mapinfo->mapName : NULL);
     /* Re-populate the playerinfo configstring from cvars after SV_Map's
@@ -1617,6 +1624,10 @@ static void Wow_SpawnEntities(void) {
     Wow_InitPlayer(&wow_edicts[0]);
     globals.num_edicts = WOW_MAX_CLIENTS;
     Wow_SpawnAmbientCreatures(&wow_spawn_origin);
+    /* Initial world population is intentionally split into budgets so the
+     * imported quest anchors do not starve ambient creatures or vice versa. */
+    wow_spawns_this_frame = 0;
+    Wow_SpawnQuestLocations(&wow_spawn_origin);
     Wow_SpawnGameObjects(&wow_spawn_origin);
     /* Register spell impact models via DBC SpellVisual chain.
      * Falls back to hardcoded paths if DBC is unavailable. */
@@ -1802,7 +1813,12 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
     if (argc >= 1 && !strcasecmp(argv[0], "respawn")) {
         char race[64], sex[64]; DWORD class_id, appearance;
         Wow_ReadSelectedCharFromCvars(race, sizeof(race), sex, sizeof(sex), &class_id, &appearance);
-        DWORD idx = Wow_SelectSpawnPoint(race, ent);
+        DWORD idx = Wow_SelectSpawnPoint(race, class_id);
+        if (idx == ~0u) {
+            fprintf(stderr, "WoW: no respawn for race=%s class=%u; using Orc Warrior spawn\n",
+                    race, (unsigned)class_id);
+            idx = Wow_SelectSpawnPoint("Orc", WOW_CLASS_WARRIOR);
+        }
         if (idx != ~0u) Wow_TeleportPlayer(ent, idx);
     } else if (argc >= 5 && (!strcasecmp(argv[0], "move") || !strcasecmp(argv[0], "wowmove"))) {
         wow_move.flags = (DWORD)strtoul(argv[1], NULL, 10);

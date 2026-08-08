@@ -474,6 +474,35 @@ static void assert_player_spawned(LPEDICT player) {
     T_ASSERT(player->s.origin.x != 0.0f || player->s.origin.y != 0.0f);
 }
 
+TEST(wow_game, starter_weapon_damage_comes_from_serverdata) {
+    LPCWOWWEAPON weapon = Wow_WeaponByEntry(WOW_START_WEAPON_ENTRY);
+    DWORD damage;
+
+    T_NOT_NULL(weapon);
+    T_STREQ(weapon->name, "Worn Axe");
+    T_FEQ(weapon->damage_min, 1.0f, 0.001f);
+    T_FEQ(weapon->damage_max, 3.0f, 0.001f);
+    T_EQ((int)weapon->delay, 2000);
+    damage = Wow_RollWeaponDamage(WOW_START_WEAPON_ENTRY);
+    T_ASSERT(damage >= 1 && damage <= 3);
+}
+
+TEST(wow_game, quest_serverdata_contains_givers_and_objective_locations) {
+    LPCWOWQUESTGIVER giver = Wow_QuestGiver(2);
+    LPCWOWQUESTOBJECTIVE objective = Wow_QuestObjective(1);
+
+    T_EQ((int)Wow_QuestGiverCount(), 17);
+    T_EQ((int)giver->quest_id, 7);
+    T_EQ((int)giver->creature_entry, 197);
+    T_EQ((int)giver->display_id, 1859);
+    T_FEQ(giver->position.x, -8902.59f, 0.01f);
+    T_FEQ(giver->position.y, -162.606f, 0.01f);
+    T_EQ((int)Wow_QuestObjectiveCount(), 26);
+    T_EQ((int)objective->quest_id, 6);
+    T_FEQ(objective->position.x, -9056.0f, 0.01f);
+    T_FEQ(objective->position.y, -461.0f, 0.01f);
+}
+
 TEST(wow_game, wow_load_map_initializes_player_state) {
     struct game_export *game = init_game();
     LPEDICT player;

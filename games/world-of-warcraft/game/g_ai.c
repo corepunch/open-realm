@@ -373,7 +373,7 @@ BOOL Wow_AIAdvanceLockedFrame(LPEDICT ent) {
 
             local->attack_damage_done = true;
             if (target) {
-                Wow_ApplyDamage(target, ent, 1);
+                Wow_ApplyDamage(target, ent, Wow_RollWeaponDamage(local->weapon_entry));
             }
         }
         return true;
