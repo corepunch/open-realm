@@ -1,25 +1,21 @@
 # Spawn & Teleport System
 
-## Data Source: WorldSafeLocs.dbc
+## Data Source
 
-WoW player spawn points come from `DBFilesClient\WorldSafeLocs.dbc` (WDBC
-format).  The engine loads this during `CM_LoadMap` → `CM_WowChooseSpawn` →
-`CM_WowCollectWorldSafeLocs`.
+### playercreateinfo (AzerothCore)
 
-### DBC Record Layout (file-shaped struct)
+WoW player spawn coordinates come from **AzerothCore** (`playercreateinfo` SQL table),
+not from any MPQ/DBC file.  Blizzard hardcodes the `(race, class) → (map, x, y, z)`
+mapping in wow.exe — neither `ChrRaces.dbc` nor `WorldSafeLocs.dbc` carries race/class
+associations.  AzerothCore reverse-engineered these coordinates by packet-sniffing
+the retail client during character creation.
 
+We compile the same data into `g_spawn.c` as a C table:
 ```c
-typedef struct {
-    DWORD  id;        // field 0: WorldSafeLocs ID
-    DWORD  map_id;    // field 1: Map ID (0=Eastern Kingdoms, 1=Kalimdor, ...)
-    VECTOR3 position; // fields 2-4: X, Y, Z (three floats)
-    // fields 5+:  string offsets into the DBC string block (area name, etc.)
-} cmWowWorldSafeLoc_t;
+typedef struct { DWORD race, cls, map; FLOAT x, y, z, facing; } player_create_info_t;
 ```
 
-Area names live in the DBC string block starting at field 5.
-`CM_WowWorldSafeLocName()` scans fields 5+ for the first non-empty string
-(e.g. `"Northshire Valley, Elwynn Forest"`, `"Deathknell, Tirisfal Glades"`).
+Credit: [AzerothCore](https://github.com/azerothcore/azerothcore-wotlk).
 
 ### Loading Pipeline
 
