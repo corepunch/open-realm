@@ -1810,7 +1810,27 @@ static void Wow_SelectEntity(LPEDICT ent, LPEDICT target) {
 }
 
 static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
-    if (argc >= 1 && !strcasecmp(argv[0], "respawn")) {
+    if (argc >= 1 && !strcasecmp(argv[0], "quest")) {
+        wowClient_t *client = (wowClient_t *)ent->client;
+        DWORD quest_id = argc >= 2 ? (DWORD)strtoul(argv[1], NULL, 10) : 0;
+        LPEDICT selected = ent->client->ps.selected_entity
+            ? Wow_EdictByNumber(ent->client->ps.selected_entity) : NULL;
+        wowEntityLocal_t *selected_local = selected ? Wow_EntityLocal(selected) : NULL;
+
+        if (!quest_id && selected_local)
+            quest_id = selected_local->quest_id;
+        if (quest_id && Wow_QuestDetail(quest_id)) {
+            client->quest_id = quest_id;
+            client->quest_open = true;
+            UI_WriteWowHud(ent);
+        } else {
+            fprintf(stderr, "WoW: quest UI has no server data for quest %u\n", (unsigned)quest_id);
+        }
+    } else if (argc >= 1 && (!strcasecmp(argv[0], "quest_close") || !strcasecmp(argv[0], "quest_accept"))) {
+        wowClient_t *client = (wowClient_t *)ent->client;
+        client->quest_open = false;
+        UI_WriteWowHud(ent);
+    } else if (argc >= 1 && !strcasecmp(argv[0], "respawn")) {
         char race[64], sex[64]; DWORD class_id, appearance;
         Wow_ReadSelectedCharFromCvars(race, sizeof(race), sex, sizeof(sex), &class_id, &appearance);
         DWORD idx = Wow_SelectSpawnPoint(race, class_id);

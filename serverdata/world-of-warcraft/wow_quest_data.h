@@ -16,8 +16,14 @@ typedef struct {
     VECTOR2 position;
 } WOWQUESTOBJECTIVE;
 
+typedef struct {
+    DWORD quest_id;
+    LPCSTR title;
+} WOWQUESTDETAIL;
+
 typedef const WOWQUESTGIVER *LPCWOWQUESTGIVER;
 typedef const WOWQUESTOBJECTIVE *LPCWOWQUESTOBJECTIVE;
+typedef const WOWQUESTDETAIL *LPCWOWQUESTDETAIL;
 
 #define WOW_QUEST_OBJECTIVE_ANCHOR 0x51504F49
 
@@ -25,5 +31,6 @@ DWORD Wow_QuestGiverCount(void);
 LPCWOWQUESTGIVER Wow_QuestGiver(DWORD index);
 DWORD Wow_QuestObjectiveCount(void);
 LPCWOWQUESTOBJECTIVE Wow_QuestObjective(DWORD index);
+LPCWOWQUESTDETAIL Wow_QuestDetail(DWORD quest_id);
 
 #endif

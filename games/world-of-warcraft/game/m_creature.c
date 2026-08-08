@@ -285,6 +285,7 @@ void Wow_SpawnQuestLocations(LPCVECTOR2 origin) {
         }
         local = Wow_EntityLocal(ent);
         local->display_id = data->display_id;
+        local->quest_id = data->quest_id;
         local->home = position;
         local->yaw = (FLOAT)RAD2DEG(data->orientation);
         local->health = 1;

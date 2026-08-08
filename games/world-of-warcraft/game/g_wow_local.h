@@ -111,6 +111,7 @@ typedef struct {
     DWORD go_state;   /* 0=ready, 1=active, 2=destroyed */
     BOOL  go_interactive;
     DWORD go_display_id;
+    DWORD quest_id;
     /* Corpse fields (think == Wow_RunCorpseFrame). */
     DWORD corpse_owner;
     DWORD corpse_timer;
@@ -132,6 +133,8 @@ typedef struct {
     UINAME name;
     wowHudIcon_t inventory[WOW_UI_INVENTORY_SLOTS];
     wowHudIcon_t actions[WOW_UI_ACTION_SLOTS];
+    BOOL quest_open;
+    DWORD quest_id;
 } wowClient_t;
 
 extern struct game_import gi;

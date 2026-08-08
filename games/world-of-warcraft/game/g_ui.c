@@ -19,6 +19,8 @@
 
 static DWORD ui_next_frame_number;
 
+static void UI_WriteImage(LPCSTR path, FLOAT x, FLOAT y, FLOAT w, FLOAT h, COLOR32 color);
+
 static void UI_SetFramePoint(uiFramePoint_t *point, uiFramePointPos_t target, DWORD relative, FLOAT offset, BOOL y_axis) {
     point->used = 1;
     point->targetPos = target;
@@ -61,6 +63,92 @@ static void UI_WriteTextFrame(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR text, C
     label.textaligny = FONT_JUSTIFYTOP;
     UI_SetFrameRect(&frame, x, y, w, h);
     UI_WriteProxyFrame(&frame, &label, sizeof(label));
+}
+
+static void UI_WriteTextArea(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR text, COLOR32 color) {
+    uiFrame_t frame;
+    uiTextArea_t area;
+
+    memset(&frame, 0, sizeof(frame));
+    memset(&area, 0, sizeof(area));
+    frame.flags.type = FT_TEXTAREA;
+    frame.text = text ? text : "";
+    frame.color = color;
+    area.font = gi.FontIndex("Fonts\\FRIZQT__.TTF", 10);
+    area.inset = PW(8);
+    UI_SetFrameRect(&frame, x, y, w, h);
+    UI_WriteProxyFrame(&frame, &area, sizeof(area));
+}
+
+static void UI_WriteClickRegion(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR command) {
+    uiFrame_t frame;
+    uiLabel_t label;
+
+    memset(&frame, 0, sizeof(frame));
+    memset(&label, 0, sizeof(label));
+    frame.flags.type = FT_STRING;
+    frame.text = "";
+    frame.onclick = command;
+    label.font = gi.FontIndex("Fonts\\FRIZQT__.TTF", HUD_FONT_SIZE);
+    UI_SetFrameRect(&frame, x, y, w, h);
+    UI_WriteProxyFrame(&frame, &label, sizeof(label));
+}
+
+static void UI_WriteSimpleButton(FLOAT x, FLOAT y, FLOAT w, FLOAT h,
+                                 LPCSTR text, LPCSTR command) {
+    uiFrame_t frame;
+    uiSimpleButton_t button;
+    RESOURCE texture = gi.ImageIndex("Interface\\Buttons\\UI-Panel-Button-Up.blp");
+    RESOURCE font = gi.FontIndex("Fonts\\FRIZQT__.TTF", HUD_FONT_SIZE);
+
+    memset(&frame, 0, sizeof(frame));
+    memset(&button, 0, sizeof(button));
+    frame.flags.type = FT_SIMPLEBUTTON;
+    frame.text = text;
+    frame.onclick = command;
+    button.normal.texture = texture;
+    button.normal.font = font;
+    button.normal.texcoord[1] = 0xff;
+    button.normal.texcoord[3] = 0xff;
+    button.normal.fontcolor = COLOR32_WHITE;
+    button.pushed = button.normal;
+    button.disabled = button.normal;
+    button.highlight = button.normal;
+    UI_SetFrameRect(&frame, x, y, w, h);
+    UI_WriteProxyFrame(&frame, &button, sizeof(button));
+}
+
+/* The client ships QuestFrame.xml/Lua, but WoW game mode suppresses client UI
+ * scripts. Recreate the classic 384x512 dialog on the server quest layer. */
+static void UI_WriteQuestDialog(LPEDICT ent) {
+    wowClient_t *wc = (wowClient_t *)ent->client;
+    LPCWOWQUESTDETAIL detail = Wow_QuestDetail(wc->quest_id);
+    char command[64];
+    char objective[128];
+    char title[128];
+    FLOAT x = PX(24), y = PY(104);
+
+    gi.Write(PF_BYTE, &(LONG){svc_layout});
+    gi.Write(PF_BYTE, &(LONG){LAYER_QUESTDIALOG});
+    ui_next_frame_number = 1;
+    if (wc->quest_open) {
+        UI_WriteImage("Interface\\QuestFrame\\UI-QuestGreeting-TopLeft.blp", x, y, PW(256), PH(256), COLOR32_WHITE);
+        UI_WriteImage("Interface\\QuestFrame\\UI-QuestGreeting-TopRight.blp", x + PW(256), y, PW(128), PH(256), COLOR32_WHITE);
+        UI_WriteImage("Interface\\QuestFrame\\UI-QuestGreeting-BotLeft.blp", x, y + PH(256), PW(256), PH(256), COLOR32_WHITE);
+        UI_WriteImage("Interface\\QuestFrame\\UI-QuestGreeting-BotRight.blp", x + PW(256), y + PH(256), PW(128), PH(256), COLOR32_WHITE);
+        snprintf(title, sizeof(title), "%s", detail ? detail->title : "Quest");
+        snprintf(objective, sizeof(objective), "Quest ID %u\\n\\nObjective location is marked by the server.",
+                 (unsigned)wc->quest_id);
+        UI_WriteTextFrame(x + PW(42), y + PH(18), PW(280), PH(22), title,
+                          MAKE(COLOR32, 255, 215, 120, 255), FONT_JUSTIFYCENTER);
+        UI_WriteTextArea(x + PW(28), y + PH(82), PW(328), PH(320), objective,
+                         MAKE(COLOR32, 240, 230, 205, 255));
+        snprintf(command, sizeof(command), "quest_accept %u", (unsigned)wc->quest_id);
+        UI_WriteSimpleButton(x + PW(22), y + PH(420), PW(120), PH(28), "Accept", command);
+        UI_WriteSimpleButton(x + PW(250), y + PH(420), PW(90), PH(28), "Close", "quest_close");
+    }
+    gi.Write(PF_LONG, &(LONG){0});
+    gi.Write(PF_SHORT, &(LONG){0});
 }
 
 /* Write an FT_TEXTURE frame with float-precision UV (supports l>r or t>b for flips). */
@@ -262,6 +350,7 @@ void UI_WriteWowHud(LPEDICT ent) {
                   PX(840), PY(162), PW(32), PH(32), COLOR32_WHITE);
     UI_WriteTextFrame(PX(876), PY(164), PW(110), PH(20),
                       "Quests", MAKE(COLOR32, 255, 215, 120, 255), FONT_JUSTIFYLEFT);
+    UI_WriteClickRegion(PX(834), PY(156), PW(154), PH(44), "quest");
 
     /* Copper display */
     snprintf(copper_buf, sizeof(copper_buf), "Copper %d", (int)ps->stats[WOW_STAT_COPPER]);
@@ -304,5 +393,6 @@ void UI_WriteWowHud(LPEDICT ent) {
 
     gi.Write(PF_LONG, &(LONG){0});
     gi.Write(PF_SHORT, &(LONG){0});
+    UI_WriteQuestDialog(ent);
     gi.unicast(ent);
 }

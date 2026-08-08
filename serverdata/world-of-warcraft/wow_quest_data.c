@@ -36,6 +36,22 @@ static const WOWQUESTOBJECTIVE wow_quest_objectives[] = {
     { 39, { -9466.0f, 74.0f } }, { 40, { -9466.0f, 74.0f } },
 };
 
+static const WOWQUESTDETAIL wow_quest_details[] = {
+    { 5, "Jitters: Growling Gut" }, { 6, "Bounty on Garrick Padfoot" },
+    { 7, "Kobold Camp Cleanup" }, { 8, "A Rogue's Deal" },
+    { 9, "The Killing Fields" }, { 11, "Riverpaw Gnoll Bounty" },
+    { 12, "The People's Militia" }, { 13, "The People's Militia" },
+    { 14, "The People's Militia" }, { 15, "Investigate Echo Ridge" },
+    { 16, "Give Gerard a Drink" }, { 17, "Uldaman Reagent Run" },
+    { 18, "Brotherhood of Thieves" }, { 19, "Tharil'zun" },
+    { 20, "Blackrock Menace" }, { 21, "Skirmish at Echo Ridge" },
+    { 22, "Goretusk Liver Pie" }, { 33, "Wolves Across the Border" },
+    { 34, "An Unwelcome Guest" }, { 35, "Further Concerns" },
+    { 36, "Westfall Stew" }, { 37, "Find the Lost Guards" },
+    { 38, "Westfall Stew" }, { 39, "Deliver Thomas' Report" },
+    { 40, "A Fishy Peril" },
+};
+
 DWORD Wow_QuestGiverCount(void) { return sizeof(wow_quest_givers) / sizeof(wow_quest_givers[0]); }
 LPCWOWQUESTGIVER Wow_QuestGiver(DWORD index) {
     return index < Wow_QuestGiverCount() ? &wow_quest_givers[index] : NULL;
@@ -45,4 +61,9 @@ DWORD Wow_QuestObjectiveCount(void) {
 }
 LPCWOWQUESTOBJECTIVE Wow_QuestObjective(DWORD index) {
     return index < Wow_QuestObjectiveCount() ? &wow_quest_objectives[index] : NULL;
+}
+LPCWOWQUESTDETAIL Wow_QuestDetail(DWORD quest_id) {
+    FOR_LOOP(i, sizeof(wow_quest_details) / sizeof(wow_quest_details[0]))
+        if (wow_quest_details[i].quest_id == quest_id) return &wow_quest_details[i];
+    return NULL;
 }
