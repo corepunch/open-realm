@@ -207,13 +207,6 @@ build-run-wow-gnome: openwow
 build-run-wow-troll: openwow
 	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +map World/Maps/Azeroth/Azeroth.wdt +set wow_playerinfo '\race\Troll\sex\Male\class\1\appearance\0'
 
-# Landmark screenshot tour — runs the WoW binary with +wowee_tour.
-# Reads all WorldSafeLocs.dbc entries for the Azeroth map and screenshots each.
-# Outputs to screenshots/.
-run-wow-landmarks: openwow
-	rm -rf screenshots
-	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +map World/Maps/Azeroth/Azeroth.wdt +wowee_tour
-
 run-sc2: $(SC2_BINARY)
 	$(SC2_BINARY) -data data/StarCraft2 +map TRaynor01 $(ARGS)
 

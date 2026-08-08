@@ -32,6 +32,26 @@ static char                 cm_wow_map_dir[PATH_MAX]  = { 0 };
 static char                 cm_wow_map_name[128]      = { 0 };
 static cmWowAdtHeightCache_t cm_wow_height_cache      = { 0 };
 
+typedef struct {
+    VECTOR3 pos;
+    LPCSTR  name;
+} cmWowSpawnEntry_t;
+static cmWowSpawnEntry_t *cm_wow_all_spawns = NULL;
+static DWORD cm_wow_all_spawn_count = 0;
+
+void CM_WowFreeAllSpawns(void) {
+    if (cm_wow_all_spawns) {
+        for (DWORD i = 0; i < cm_wow_all_spawn_count; i++)
+            SAFE_DELETE(cm_wow_all_spawns[i].name, MemFree);
+        SAFE_DELETE(cm_wow_all_spawns, MemFree);
+        cm_wow_all_spawn_count = 0;
+    }
+}
+
+DWORD CM_WowGetAllSpawnCount(void) { return cm_wow_all_spawn_count; }
+LPCVECTOR3 CM_WowGetSpawnPos(DWORD index) { return index < cm_wow_all_spawn_count ? &cm_wow_all_spawns[index].pos : NULL; }
+LPCSTR CM_WowGetSpawnName(DWORD index) { return index < cm_wow_all_spawn_count ? cm_wow_all_spawns[index].name : NULL; }
+
 static DWORD CM_WowRead32(BYTE const *p) {
     return ((DWORD)p[0]) | ((DWORD)p[1] << 8) | ((DWORD)p[2] << 16) | ((DWORD)p[3] << 24);
 }
@@ -375,6 +395,35 @@ static DWORD CM_WowCollectWorldSafeLocs(DWORD map_id, LPVECTOR3 first_spawn,
         count++;
     }
     FS_FreeFile(data);
+
+    /* store ALL entries (not just 16) for game-module spawn selection */
+    CM_WowFreeAllSpawns();
+    cm_wow_all_spawn_count = count;
+    if (count) {
+        cm_wow_all_spawns = MemAlloc(count * sizeof(cmWowSpawnEntry_t));
+        if (cm_wow_all_spawns) {
+            DWORD idx = 0;
+            memset(cm_wow_all_spawns, 0, count * sizeof(cmWowSpawnEntry_t));
+            /* re-scan to fill the public array (avoid holding the raw DBC buffer) */
+            data = FS_ReadFile("DBFilesClient\\WorldSafeLocs.dbc", &size);
+            if (CM_WowValidDbc(data, size, &records, &fields, &record_size, &string_size) &&
+                fields >= 5 && record_size >= 5 * sizeof(DWORD)) {
+                records_base = data + 20;
+                strings_base = records_base + records * record_size;
+                FOR_LOOP(ri, records) {
+                    BYTE const *r = records_base + ri * record_size;
+                    if (CM_WowRead32(r + sizeof(DWORD)) != map_id) continue;
+                    cm_wow_all_spawns[idx].pos.x = *(FLOAT *)(r + 2 * sizeof(DWORD));
+                    cm_wow_all_spawns[idx].pos.y = *(FLOAT *)(r + 3 * sizeof(DWORD));
+                    cm_wow_all_spawns[idx].pos.z = *(FLOAT *)(r + 4 * sizeof(DWORD));
+                    LPCSTR raw = CM_WowWorldSafeLocName(r, fields, strings_base, string_size);
+                    cm_wow_all_spawns[idx].name = raw ? CM_WowCopyString(raw) : NULL;
+                    idx++;
+                }
+                FS_FreeFile(data);
+            }
+        }
+    }
     return count;
 }
 

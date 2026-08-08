@@ -47,6 +47,12 @@ BOOL CM_ClosestPathablePointForRadius(LPCVECTOR2 location, FLOAT radius, LPVECTO
 BOOL CM_PointIsPathableForRadius(LPCVECTOR2 location, FLOAT radius);
 BOOL CM_LineIsWalkable(LPCVECTOR2 a, LPCVECTOR2 b);
 BOX2 CM_GetWorldBounds(void);
+
+/* WoW-only: all WorldSafeLocs entries for the current map.  Populated during
+ * CM_LoadMap; null until a WoW map is loaded.  Callers must not free. */
+DWORD CM_WowGetAllSpawnCount(void);
+LPCVECTOR3 CM_WowGetSpawnPos(DWORD index);
+LPCSTR CM_WowGetSpawnName(DWORD index);
 void CM_BakeStaticObstacles(void);
 void CM_InvalidatePathCache(void);
 void CM_SetupPathMap(DWORD width, DWORD height, BYTE const *cells);
