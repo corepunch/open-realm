@@ -317,6 +317,7 @@ void Wow_AIDie(LPEDICT ent, LPEDICT attacker) {
     local->attack_backswing_time = 0;
     local->attack_damage_done = false;
     local->pain_time = 0;
+    Wow_QuestAwardKillCredit(attacker, local->display_id);
 
     ent->svflags |= SVF_DEADMONSTER;
     if (Wow_SetEntityMoveFirstAnimation(ent, &wow_move_death, death_animations) && local->animation) {
