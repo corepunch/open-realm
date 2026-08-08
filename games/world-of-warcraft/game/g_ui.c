@@ -143,13 +143,24 @@ static void UI_WriteQuestDialog(LPEDICT ent) {
                           MAKE(COLOR32, 255, 215, 120, 255), FONT_JUSTIFYCENTER);
 
         if (detail) {
+            int off = 0;
             if (is_complete)
-                snprintf(text, sizeof(text), "%s\\n\\nRewards:\\n%d XP  |  %u copper",
-                         detail->reward_text,
-                         (int)detail->reward_xp, (unsigned)detail->reward_gold);
-            else
-                snprintf(text, sizeof(text), "%s\\n\\n%s",
-                         detail->description, detail->objectives_text);
+                off = snprintf(text, sizeof(text), "%s\\n\\nRewards:\\n%d XP  |  %u copper",
+                               detail->reward_text, (int)detail->reward_xp, (unsigned)detail->reward_gold);
+            else {
+                off = snprintf(text, sizeof(text), "%s\\n\\n%s",
+                               detail->description, detail->objectives_text);
+                if (is_accepted && detail->kill_objective_count) {
+                    off += snprintf(text + off, sizeof(text) - off, "\\n\\nProgress:");
+                    FOR_LOOP(j, detail->kill_objective_count) {
+                        LPCSTR name = Wow_CachedCreatureName(detail->kill_objectives[j].display_id);
+                        off += snprintf(text + off, sizeof(text) - off, "\\n  %s: %u/%u",
+                                        name ? name : "Creature",
+                                        (unsigned)(state ? state->kill_progress[j] : 0),
+                                        (unsigned)detail->kill_objectives[j].required_count);
+                    }
+                }
+            }
         } else {
             snprintf(text, sizeof(text), "Quest data not available.");
         }
@@ -199,16 +210,9 @@ static void UI_WriteQuestLog(LPEDICT ent) {
     } else FOR_LOOP(i, wc->quest_count) {
         wowQuestState_t *qs = &wc->quests[i];
         LPCWOWQUESTDETAIL detail = Wow_QuestDetail(qs->quest_id);
-        COLOR32 color;
         LPCSTR status;
 
-        if (qs->status == WOW_QUEST_COMPLETE) {
-            color = MAKE(COLOR32, 120, 255, 120, 255);
-            status = " (Complete)";
-        } else {
-            color = MAKE(COLOR32, 255, 215, 120, 255);
-            status = "";
-        }
+        status = qs->status == WOW_QUEST_COMPLETE ? " (Complete)" : "";
         snprintf(buf, sizeof(buf), "%s%s", detail ? detail->title : "Unknown Quest", status);
         snprintf(cmd, sizeof(cmd), "quest %u", (unsigned)qs->quest_id);
         UI_WriteSimpleButton(x + PW(28), line_y, PW(308), PH(22), buf, cmd);

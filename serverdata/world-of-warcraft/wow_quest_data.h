@@ -18,6 +18,12 @@ typedef struct {
 
 #define WOW_QUEST_MAX_OBJECTIVE_TEXT 4
 #define WOW_QUEST_MAX_REWARD_ITEMS   2
+#define WOW_QUEST_MAX_KILL_OBJECTIVES 4
+
+typedef struct {
+    DWORD display_id;       /* CreatureDisplayInfo.dbc ID to kill */
+    DWORD required_count;
+} WOWQUESTKILLOBJECTIVE;
 
 typedef struct {
     DWORD quest_id;
@@ -28,8 +34,10 @@ typedef struct {
     DWORD reward_xp;
     DWORD reward_gold;
     DWORD reward_items[WOW_QUEST_MAX_REWARD_ITEMS];
-    DWORD prev_quest;           /* prerequisite quest ID, 0 = none */
+    DWORD prev_quest;
     DWORD min_level;
+    WOWQUESTKILLOBJECTIVE kill_objectives[WOW_QUEST_MAX_KILL_OBJECTIVES];
+    DWORD kill_objective_count;
 } WOWQUESTDETAIL;
 
 typedef enum {
@@ -42,6 +50,7 @@ typedef enum {
 typedef struct {
     DWORD quest_id;
     wowQuestStatus_t status;
+    DWORD kill_progress[WOW_QUEST_MAX_KILL_OBJECTIVES];
 } wowQuestState_t;
 
 #define WOW_MAX_QUEST_LOG 16

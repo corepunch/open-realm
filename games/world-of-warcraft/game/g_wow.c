@@ -1809,6 +1809,36 @@ static void Wow_SelectEntity(LPEDICT ent, LPEDICT target) {
     }
 }
 
+void Wow_QuestAwardKillCredit(LPEDICT attacker, DWORD display_id) {
+    wowClient_t *wc;
+
+    if (!attacker || !attacker->client) return;
+    wc = (wowClient_t *)attacker->client;
+    FOR_LOOP(i, wc->quest_count) {
+        wowQuestState_t *qs = &wc->quests[i];
+        LPCWOWQUESTDETAIL detail;
+        BOOL all_done;
+
+        if (qs->status != WOW_QUEST_ACCEPTED) continue;
+        detail = Wow_QuestDetail(qs->quest_id);
+        if (!detail || !detail->kill_objective_count) continue;
+        all_done = true;
+        FOR_LOOP(j, detail->kill_objective_count) {
+            if (detail->kill_objectives[j].display_id != display_id) {
+                if (qs->kill_progress[j] < detail->kill_objectives[j].required_count)
+                    all_done = false;
+                continue;
+            }
+            if (qs->kill_progress[j] < detail->kill_objectives[j].required_count)
+                qs->kill_progress[j]++;
+            if (qs->kill_progress[j] < detail->kill_objectives[j].required_count)
+                all_done = false;
+        }
+        if (all_done)
+            qs->status = WOW_QUEST_COMPLETE;
+    }
+}
+
 wowQuestState_t *Wow_FindQuestState(wowClient_t *client, DWORD quest_id) {
     FOR_LOOP(i, client->quest_count)
         if (client->quests[i].quest_id == quest_id) return &client->quests[i];

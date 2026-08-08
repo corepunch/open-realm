@@ -730,6 +730,77 @@ TEST(wow_game, quest_log_shows_active_and_complete_quests) {
         T_ASSERT(test_ui_frames[i].layer != LAYER_QUESTDIALOG);
 }
 
+TEST(wow_game, quest_kill_progress_increments_and_auto_completes) {
+    struct game_export *game = init_game();
+    LPEDICT player;
+    LPCSTR accept7[] = { "quest_accept", "7" };
+    wowClient_t *wc;
+    wowQuestState_t *state;
+
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    player = &wow_edicts[0];
+    game->ClientBegin(player);
+    wc = (wowClient_t *)player->client;
+
+    game->ClientCommand(player, 2, accept7);
+    state = Wow_FindQuestState(wc, 7);
+    T_NOT_NULL(state);
+    T_EQ((int)state->status, WOW_QUEST_ACCEPTED);
+    T_EQ((int)state->kill_progress[0], 0);
+
+    FOR_LOOP(i, 5) Wow_QuestAwardKillCredit(player, 163);
+    T_EQ((int)state->kill_progress[0], 5);
+    T_EQ((int)state->status, WOW_QUEST_ACCEPTED);
+
+    FOR_LOOP(i, 5) Wow_QuestAwardKillCredit(player, 163);
+    T_EQ((int)state->kill_progress[0], 10);
+    T_EQ((int)state->status, WOW_QUEST_COMPLETE);
+}
+
+TEST(wow_game, quest_kill_credit_only_on_accepted_quest) {
+    struct game_export *game = init_game();
+    LPEDICT player;
+    wowClient_t *wc;
+
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    player = &wow_edicts[0];
+    game->ClientBegin(player);
+    wc = (wowClient_t *)player->client;
+
+    Wow_QuestAwardKillCredit(player, 163);
+    T_EQ((int)wc->quest_count, 0);
+
+    game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "7"});
+    game->ClientCommand(player, 2, (LPCSTR[]){"quest_complete", "7"});
+    T_EQ((int)wc->quests[0].kill_progress[0], 0);
+    Wow_QuestAwardKillCredit(player, 163);
+    T_EQ((int)wc->quests[0].kill_progress[0], 0);
+}
+
+TEST(wow_game, quest_kill_credit_wrong_creature_no_progress) {
+    struct game_export *game = init_game();
+    LPEDICT player;
+    LPCSTR accept33[] = { "quest_accept", "33" };
+    wowClient_t *wc;
+    wowQuestState_t *state;
+
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    player = &wow_edicts[0];
+    game->ClientBegin(player);
+    wc = (wowClient_t *)player->client;
+
+    game->ClientCommand(player, 2, accept33);
+    state = Wow_FindQuestState(wc, 33);
+    T_NOT_NULL(state);
+    T_EQ((int)state->kill_progress[0], 0);
+
+    Wow_QuestAwardKillCredit(player, 163);
+    T_EQ((int)state->kill_progress[0], 0);
+
+    Wow_QuestAwardKillCredit(player, 161);
+    T_EQ((int)state->kill_progress[0], 1);
+}
+
 TEST(wow_game, wow_load_map_initializes_player_state) {
     struct game_export *game = init_game();
     LPEDICT player;
