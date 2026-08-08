@@ -95,8 +95,8 @@ $(eval $(call app_schema,$(WC3_TEST_BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LI
 openwarcraft3-tests: $(WC3_TEST_BINARY)
 
 WC3_PATTERN ?= *
-test-wc3-engine: $(WC3_TEST_BINARY)
-	$(WC3_TEST_BINARY) -data $(WC3DATA) -tft +dedicated 1 +test '$(WC3_PATTERN)'
+test-wc3-engine: $(WC3_TEST_BINARY) | test-wc3-engine-assets
+	$(WC3_TEST_BINARY) -data $(WC3_ENGINE_TEST_DIR) -tft +dedicated 1 +test '$(WC3_PATTERN)'
 
 # ---------------------------------------------------------------------------
 # Standalone test binaries — tests that don't need the full game module.
