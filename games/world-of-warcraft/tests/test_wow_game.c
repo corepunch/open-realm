@@ -501,6 +501,8 @@ TEST(wow_game, quest_serverdata_contains_givers_and_objective_locations) {
     T_EQ((int)objective->quest_id, 6);
     T_FEQ(objective->position.x, -9056.0f, 0.01f);
     T_FEQ(objective->position.y, -461.0f, 0.01f);
+    T_STREQ(Wow_QuestDetail(7)->title, "Kobold Camp Cleanup");
+    T_ASSERT(Wow_QuestDetail(999) == NULL);
 }
 
 TEST(wow_game, wow_load_map_initializes_player_state) {
