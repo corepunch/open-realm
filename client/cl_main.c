@@ -36,6 +36,21 @@ void Cmd_ForwardToServer(LPCSTR text) {
     SZ_Printf(&cls.netchan.message, "%s", text);
 }
 
+#ifdef WOW
+/* wowee_tour: defers until ca_active so the server is connected,
+ * then forwards to the game module's ClientCommand handler. */
+static BOOL wowee_tour_queued = false;
+
+void CL_WoweeTour_f(void) {
+    if (cls.state <= ca_connected) {
+        wowee_tour_queued = true;
+        return;
+    }
+    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+    SZ_Printf(&cls.netchan.message, "wowee_tour");
+}
+#endif
+
 LPCSTR CL_GetConfigString(DWORD index) {
     return cl.configstrings[index];
 }
@@ -623,6 +638,10 @@ void CL_Init(void) {
     CL_ClearState();
 
     Cmd_AddCommand("quit", Com_Quit);
+    Cmd_AddCommand("screenshot", CL_Screenshot_f);
+#ifdef WOW
+    Cmd_AddCommand("wowee_tour", CL_WoweeTour_f);
+#endif
 
     CON_Init();
     CL_InitInput();
@@ -806,14 +825,14 @@ void CL_Frame(DWORD msec) {
     if (cls.state == ca_connected && !cl.refresh_prepped) {
         CL_PrepRefresh();
     } else if (cls.state == ca_active) {
-        /* Keep calling CL_PrepRefresh every frame during gameplay so that models
-         * and images registered by JASS triggers after map-load (e.g. the Arthas
-         * hero created by the LoadArthas trigger on Human02) get loaded as soon as
-         * their configstring arrives.  CL_PrepRefresh skips already-loaded slots, so
-         * this is a cheap array scan on frames where nothing new was registered.
-         * Original behaviour: the old codebase called CL_PrepRefresh unconditionally
-         * every frame with no state gate at all. */
         CL_PrepRefresh();
+#ifdef WOW
+        if (wowee_tour_queued) {
+            wowee_tour_queued = false;
+            MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+            SZ_Printf(&cls.netchan.message, "wowee_tour");
+        }
+#endif
     }
     SCR_UpdateScreen(msec);
 }

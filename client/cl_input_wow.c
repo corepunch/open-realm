@@ -339,6 +339,7 @@ void CL_InputModeFrame(void) {
               (double)wow_input.distance);
 }
 
+
 BOOL CL_TryMinimapClick(float x, float y) { (void)x; (void)y; return false; }
 void CL_EndMinimapDrag(void) {}
 

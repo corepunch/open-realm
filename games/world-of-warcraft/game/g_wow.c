@@ -34,6 +34,35 @@ static struct {
     .distance = 8.0f,
 };
 
+static struct { BOOL active; int index; int phase; } wow_tour;
+static void Wow_TourFrame(LPEDICT ent);
+
+#ifdef LANDMARKS
+typedef struct { LPCSTR name; FLOAT x, y, z; } woweeLandmark_t;
+static const woweeLandmark_t wowee_landmarks[] = {
+	{ "StormwindCity", -8836.0f, 626.0f, 94.0f },
+	{ "Ironforge", -4925.0f, -956.0f, 502.0f },
+	{ "Goldshire", -9460.0f, 53.0f, 56.0f },
+	{ "NorthshireAbbey", -8949.95f, -132.49f, 83.53f },
+	{ "ColdridgeValley", -6240.32f, 331.03f, 382.76f },
+	{ "SentinelHill", -10620.0f, 1067.0f, 53.0f },
+	{ "Orgrimmar", 1665.0f, -4326.0f, 60.0f },
+	{ "ValleyOfTrials", -618.51f, -4251.67f, 38.71f },
+	{ "ThunderBluff", -1290.0f, 161.0f, 130.0f },
+	{ "CampNarache", -2917.58f, -257.98f, 52.99f },
+	{ "Deathknell", 1676.71f, 1677.45f, 121.67f },
+	{ "Undercity", 1633.0f, 240.0f, -50.0f },
+	{ "RazorHill", 345.0f, -4710.0f, 16.0f },
+	{ "BloodhoofVillage", -2370.0f, -370.0f, -10.0f },
+	{ "Kharanos", -5605.0f, -480.0f, 400.0f },
+	{ "Brill", 2266.0f, 286.0f, 35.0f },
+	{ "SunstriderIsle", 10349.60f, -6357.29f, 33.43f },
+	{ "AmmenVale", -3961.64f, -13931.20f, 100.61f },
+	{ "Darnassus", 9947.0f, 2516.0f, 1330.0f },
+};
+#define WOWEE_LANDMARK_COUNT (int)(sizeof(wowee_landmarks) / sizeof(wowee_landmarks[0]))
+#endif
+
 #define WOW_MAX_SPAWNS_PER_FRAME 64
 /* Per-frame spawn budget (declared extern in g_wow_local.h). */
 DWORD wow_spawns_this_frame = 0;
@@ -1775,6 +1804,11 @@ static void Wow_RunFrame(void) {
         return;
     }
 
+    if (wow_tour.active) {
+        Wow_TourFrame(ent);
+        return;
+    }
+
     Wow_AngleVectors(wow_move.yaw, &forward, &right);
 
     if (wow_move.flags & WOW_MOVE_FORWARD) {
@@ -1906,8 +1940,97 @@ static void Wow_SelectEntity(LPEDICT ent, LPEDICT target) {
     }
 }
 
+/* Server-driven landmark screenshot tour.
+ * Frame 0: teleport player to landmark, set camera.
+ * Frame 1: send svc_gamecmd "screenshot <name>" to client, advance. */
+static void Wow_TourFrame(LPEDICT ent) {
+#ifdef LANDMARKS
+	if (wow_tour.index >= WOWEE_LANDMARK_COUNT) {
+		wow_tour.active = false;
+		gi.Write(PF_BYTE, &(LONG){ svc_gamecmd });
+		gi.Write(PF_STRING, "tour_done");
+		gi.Write(PF_SHORT, &(LONG){ 0 });
+		gi.unicast(ent);
+		return;
+	}
+	const woweeLandmark_t *lm = &wowee_landmarks[wow_tour.index];
+	VECTOR2 pos = { lm->x, lm->y };
+	FLOAT z = Wow_TerrainHeight(pos.x, pos.y);
+	if (wow_tour.phase == 0) {
+		ent->s.origin = (VECTOR3){ pos.x, pos.y, z };
+		ent->s.origin2 = pos;
+		ent->client->ps.origin = pos;
+	} else {
+		gi.Write(PF_BYTE, &(LONG){ svc_gamecmd });
+		gi.Write(PF_STRING, "screenshot");
+		int len = (int)strlen(lm->name) + 1;
+		gi.Write(PF_SHORT, &(LONG){ len });
+		for (int i = 0; i < len; i++)
+			gi.Write(PF_BYTE, &(LONG){ (unsigned char)lm->name[i] });
+		gi.unicast(ent);
+		wow_tour.index++;
+		wow_tour.phase = 0;
+		return;
+	}
+	wow_tour.phase = 1;
+#else
+	LPCMAPINFO mapinfo = CM_GetMapInfo();
+	if (!mapinfo)
+		return;
+	int slot = -1, count = 0;
+	for (int i = 0; i < MAX_PLAYERS; i++) {
+		if (!mapinfo->players[i].used) continue;
+		if (count == wow_tour.index) { slot = i; break; }
+		count++;
+	}
+	if (slot < 0) {
+		wow_tour.active = false;
+		gi.Write(PF_BYTE, &(LONG){ svc_gamecmd });
+		gi.Write(PF_STRING, "tour_done");
+		gi.Write(PF_SHORT, &(LONG){ 0 });
+		gi.unicast(ent);
+		return;
+	}
+	VECTOR2 pos = mapinfo->players[slot].startingPosition;
+	FLOAT z = Wow_TerrainHeight(pos.x, pos.y);
+	LPCSTR name = mapinfo->players[slot].playerName ? mapinfo->players[slot].playerName : "unknown";
+	if (wow_tour.phase == 0) {
+		ent->s.origin = (VECTOR3){ pos.x, pos.y, z };
+		ent->s.origin2 = pos;
+		ent->client->ps.origin = pos;
+	} else {
+		char payload[256];
+		int pi = 0;
+		for (const char *c = name; *c && pi < (int)sizeof(payload) - 1; c++)
+			payload[pi++] = (*c == ' ' || *c == ',' || *c == '\'' || *c == '/') ? '_' : *c;
+		payload[pi] = '\0';
+		gi.Write(PF_BYTE, &(LONG){ svc_gamecmd });
+		gi.Write(PF_STRING, "screenshot");
+		gi.Write(PF_SHORT, &(LONG){ pi + 1 });
+		for (int i = 0; i <= pi; i++)
+			gi.Write(PF_BYTE, &(LONG){ (unsigned char)payload[i] });
+		gi.unicast(ent);
+		wow_tour.index++;
+		wow_tour.phase = 0;
+		return;
+	}
+	wow_tour.phase = 1;
+#endif
+}
+
 static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
-    if (argc >= 5 && (!strcasecmp(argv[0], "move") || !strcasecmp(argv[0], "wowmove"))) {
+    if (argc >= 1 && !strcasecmp(argv[0], "wowee_tour")) {
+#ifdef LANDMARKS
+        wow_tour.active = true; wow_tour.index = 0; wow_tour.phase = 0;
+        fprintf(stderr, "WoW: wowee_tour started, %d hardcoded landmarks\n", WOWEE_LANDMARK_COUNT);
+#else
+        LPCMAPINFO mapinfo = CM_GetMapInfo();
+        int total = 0;
+        if (mapinfo) for (int i = 0; i < MAX_PLAYERS; i++) total += mapinfo->players[i].used ? 1 : 0;
+        wow_tour.active = true; wow_tour.index = 0; wow_tour.phase = 0;
+        fprintf(stderr, "WoW: wowee_tour started, %d WorldSafeLocs\n", total);
+#endif
+    } else if (argc >= 5 && (!strcasecmp(argv[0], "move") || !strcasecmp(argv[0], "wowmove"))) {
         wow_move.flags = (DWORD)strtoul(argv[1], NULL, 10);
         wow_move.yaw = (FLOAT)atof(argv[2]);
         wow_move.pitch = Wow_Clamp((FLOAT)atof(argv[3]), WOW_CAMERA_MIN_PITCH, WOW_CAMERA_MAX_PITCH);
