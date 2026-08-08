@@ -89,6 +89,10 @@ void SCR_DrawScreenField(DWORD msec) {
     if (Cvar_Integer("scr_showfps", 0)) {
         SCR_DrawFPS(msec);
     }
+#ifndef BZ_TESTS
+    if (cl_screenshot_pending)
+        CL_ScreenshotCapture();
+#endif
     re.EndFrame();
 }
 

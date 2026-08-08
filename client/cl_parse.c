@@ -651,6 +651,12 @@ static void CL_ParseGameCommand(LPSIZEBUF msg) {
         CL_ParseLobbySetup(&payload);
     } else if (!strcmp(command, "lobby_chat")) {
         CL_ParseLobbyChat(&payload);
+#ifdef WOW
+    } else if (!strcmp(command, "screenshot")) {
+        char name[256] = { 0 };
+        MSG_ReadStringN(&payload, name, sizeof(name));
+        CL_WoweeScreenshot(name);
+#endif
     }
 
     msg->readcount = payload_start + (DWORD)payload_size;

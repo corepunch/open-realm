@@ -114,8 +114,8 @@ TEST_UI_SRCS := \
 	$(WC3_TEST_DIR)/stb_fdf_impl.c \
 	tests/test_tool_common.c
 
-test: test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) | $(BIN_DIR)
-	@$(CC) $(TEST_CFLAGS) -o $(BIN_DIR)/test_openwarcraft3$(EXE_EXT) \
+ test: test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) | $(BIN_DIR)
+	@$(CC) $(TEST_CFLAGS) -DBZ_TESTS -o $(BIN_DIR)/test_openwarcraft3$(EXE_EXT) \
 		tests/test_runner.c tests/test_net.c tests/test_tool_common.c \
 		$(WC3_TEST_DIR)/test_client_stubs.c \
 		common/net.c common/msg.c client/cl_parse.c client/cl_scrn.c client/cl_layout.c \

@@ -623,6 +623,7 @@ void CL_Init(void) {
     CL_ClearState();
 
     Cmd_AddCommand("quit", Com_Quit);
+    Cmd_AddCommand("screenshot", CL_Screenshot_f);
 
     CON_Init();
     CL_InitInput();
@@ -806,13 +807,6 @@ void CL_Frame(DWORD msec) {
     if (cls.state == ca_connected && !cl.refresh_prepped) {
         CL_PrepRefresh();
     } else if (cls.state == ca_active) {
-        /* Keep calling CL_PrepRefresh every frame during gameplay so that models
-         * and images registered by JASS triggers after map-load (e.g. the Arthas
-         * hero created by the LoadArthas trigger on Human02) get loaded as soon as
-         * their configstring arrives.  CL_PrepRefresh skips already-loaded slots, so
-         * this is a cheap array scan on frames where nothing new was registered.
-         * Original behaviour: the old codebase called CL_PrepRefresh unconditionally
-         * every frame with no state gate at all. */
         CL_PrepRefresh();
     }
     SCR_UpdateScreen(msec);
