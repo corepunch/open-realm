@@ -9,6 +9,7 @@
 #include <strings.h>
 
 #include "game/g_wow_local.h"
+#include "client/ui.h"
 
 
 typedef struct {
@@ -29,6 +30,19 @@ static DWORD test_last_unicast_size;
 static DWORD test_unicast_calls;
 static char test_last_error[512];
 static char test_playerinfo[MAX_PATHLEN];
+
+typedef struct {
+    BYTE layer;
+    FRAMETYPE type;
+    char text[128];
+    char onclick[128];
+} testUiFrame_t;
+
+static testUiFrame_t test_ui_frames[256];
+static DWORD test_ui_frame_count;
+static BOOL test_expect_layout_layer;
+static BYTE test_layout_layer;
+static BOOL test_layout_seen[MAX_LAYOUT_LAYERS];
 
 /* ---- configstring stubs (game_import.configstring / GetConfigstring) ---- */
 #define TEST_CONFIGSTRINGS 128
@@ -283,6 +297,11 @@ static int test_image_index(LPCSTR image_name) {
     return (int)test_num_images;
 }
 
+static int test_font_index(LPCSTR font_name, DWORD font_size) {
+    (void)font_name;
+    return (int)font_size;
+}
+
 static void test_clear_world(void) {
     test_clear_world_calls++;
 }
@@ -298,10 +317,6 @@ static void test_error(LPCSTR fmt, ...) {
     va_start(args, fmt);
     vsnprintf(test_last_error, sizeof(test_last_error), fmt, args);
     va_end(args);
-}
-
-void UI_WriteWowHud(LPEDICT ent) {
-    (void)ent;
 }
 
 static void test_write_data(void const *data, DWORD size) {
@@ -320,6 +335,12 @@ static void test_write(pfWriteType_t type, void const *value) {
     switch (type) {
         case PF_BYTE:
             b = (BYTE)*(LONG const *)value;
+            if (b == svc_layout) test_expect_layout_layer = true;
+            else if (test_expect_layout_layer) {
+                test_layout_layer = b;
+                test_expect_layout_layer = false;
+                if (b < MAX_LAYOUT_LAYERS) test_layout_seen[b] = true;
+            }
             test_write_data(&b, sizeof(b));
             break;
         case PF_SHORT:
@@ -330,6 +351,18 @@ static void test_write(pfWriteType_t type, void const *value) {
             text = value ? (LPCSTR)value : "";
             test_write_data(text, (DWORD)strlen(text) + 1);
             break;
+        case PF_UIFRAME: {
+            LPCUIFRAME frame = (LPCUIFRAME)value;
+            testUiFrame_t *capture;
+            if (!frame || test_ui_frame_count >= sizeof(test_ui_frames) / sizeof(test_ui_frames[0])) break;
+            capture = &test_ui_frames[test_ui_frame_count++];
+            capture->layer = test_layout_layer;
+            capture->type = frame->flags.type;
+            snprintf(capture->text, sizeof(capture->text), "%s", frame->text ? frame->text : "");
+            snprintf(capture->onclick, sizeof(capture->onclick), "%s",
+                     frame->onclick ? frame->onclick : "");
+            break;
+        }
         default:
             break;
     }
@@ -338,8 +371,11 @@ static void test_write(pfWriteType_t type, void const *value) {
 static void test_unicast(LPEDICT ent) {
     (void)ent;
     test_unicast_calls++;
-    test_last_unicast_size = test_multicast_size;
-    memcpy(test_last_unicast_buf, test_multicast_buf, test_last_unicast_size);
+    /* Keep the gameplay payload available: server-authored layout packets are separate messages. */
+    if (test_multicast_size && test_multicast_buf[0] == svc_unit_ui) {
+        test_last_unicast_size = test_multicast_size;
+        memcpy(test_last_unicast_buf, test_multicast_buf, test_last_unicast_size);
+    }
     test_multicast_size = 0;
 }
 
@@ -351,6 +387,7 @@ static struct game_import test_import(void) {
     import.MemFree = test_mem_free;
     import.ModelIndex = test_model_index;
     import.ImageIndex = test_image_index;
+    import.FontIndex = test_font_index;
     import.ReadFile = test_read_file;
     import.ClearWorld = test_clear_world;
     import.ApplyLobbySettings = test_apply_lobby_settings;
@@ -414,6 +451,11 @@ static void reset_test_state(void) {
     memset(test_last_error, 0, sizeof(test_last_error));
     memset(test_configstrings, 0, sizeof(test_configstrings));
     test_playerinfo[0] = '\0';
+    memset(test_ui_frames, 0, sizeof(test_ui_frames));
+    test_ui_frame_count = 0;
+    test_expect_layout_layer = false;
+    test_layout_layer = 0;
+    memset(test_layout_seen, 0, sizeof(test_layout_seen));
 }
 
 static void assert_player_ui_payload(void) {
@@ -503,6 +545,45 @@ TEST(wow_game, quest_serverdata_contains_givers_and_objective_locations) {
     T_FEQ(objective->position.y, -461.0f, 0.01f);
     T_STREQ(Wow_QuestDetail(7)->title, "Kobold Camp Cleanup");
     T_ASSERT(Wow_QuestDetail(999) == NULL);
+}
+
+TEST(wow_game, quest_hud_is_server_authored_on_quest_layer) {
+    struct game_export *game = init_game();
+    LPEDICT player;
+    LPCSTR open_command[] = { "quest", "7" };
+    LPCSTR close_command[] = { "quest_close" };
+    BOOL found_quest_button = false;
+    BOOL found_quest_title = false;
+    BOOL found_accept = false;
+
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    player = &wow_edicts[0];
+    game->ClientBegin(player);
+    FOR_LOOP(i, test_ui_frame_count) {
+        testUiFrame_t const *frame = &test_ui_frames[i];
+        if (frame->layer == LAYER_CONSOLE && !strcmp(frame->onclick, "quest")) found_quest_button = true;
+    }
+    T_ASSERT(found_quest_button);
+
+    test_ui_frame_count = 0;
+    memset(test_layout_seen, 0, sizeof(test_layout_seen));
+    game->ClientCommand(player, 2, open_command);
+    T_ASSERT(test_layout_seen[LAYER_QUESTDIALOG]);
+    FOR_LOOP(i, test_ui_frame_count) {
+        testUiFrame_t const *frame = &test_ui_frames[i];
+        if (frame->layer != LAYER_QUESTDIALOG) continue;
+        if (!strcmp(frame->text, "Kobold Camp Cleanup")) found_quest_title = true;
+        if (!strncmp(frame->onclick, "quest_accept 7", 14)) found_accept = true;
+    }
+    T_ASSERT(found_quest_title);
+    T_ASSERT(found_accept);
+
+    test_ui_frame_count = 0;
+    memset(test_layout_seen, 0, sizeof(test_layout_seen));
+    game->ClientCommand(player, 1, close_command);
+    T_ASSERT(test_layout_seen[LAYER_QUESTDIALOG]);
+    FOR_LOOP(i, test_ui_frame_count)
+        T_ASSERT(test_ui_frames[i].layer != LAYER_QUESTDIALOG);
 }
 
 TEST(wow_game, wow_load_map_initializes_player_state) {
