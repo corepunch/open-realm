@@ -656,9 +656,6 @@ static void CL_ParseGameCommand(LPSIZEBUF msg) {
         char name[256] = { 0 };
         MSG_ReadStringN(&payload, name, sizeof(name));
         CL_WoweeScreenshot(name);
-    } else if (!strcmp(command, "tour_done")) {
-        CON_printf("Landmark tour complete, screenshots saved to %s/\n", "screenshots");
-        Cbuf_AddText("quit\n");
 #endif
     }
 
