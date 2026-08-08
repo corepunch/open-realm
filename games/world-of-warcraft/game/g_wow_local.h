@@ -4,6 +4,8 @@
 #include "server/server.h"
 #include "common/wow_ui_shared.h"
 #include "common/ui_constants.h"
+#include "serverdata/world-of-warcraft/wow_weapon_data.h"
+#include "serverdata/world-of-warcraft/wow_quest_data.h"
 
 #define WOW_MAX_CLIENTS 1
 #define WOW_MAX_EDICTS 128
@@ -12,6 +14,7 @@
 #define WOW_PLAYER_WEAPON_MODEL "Item\\ObjectComponents\\Weapon\\Axe_1H_Horde_A_01.m2"
 #define WOW_CLASS_WARRIOR 1
 #define WOW_CLASS_MAGE    8
+#define WOW_START_WEAPON_ENTRY 37
 
 /* CS_GENERAL slot used to pass selected character data from UI to game module.
    Set by the UI via a single userinfo-style cvar before map load, read by
@@ -81,6 +84,7 @@ typedef struct {
     DWORD pain_time;
     DWORD death_time;
     BOOL attack_damage_done;
+    DWORD weapon_entry;
     BOOL dead;
     BOOL hostile;
     DWORD slow_timer;   /* ms remaining on movement-slow debuff (Frostbolt) */
@@ -182,6 +186,7 @@ BOOL Wow_SetDirectionalMove(LPEDICT ent, DWORD flags);
 BOOL Wow_SetCombatReadyAnimation(LPEDICT ent);
 void Wow_AIRunFrame(LPEDICT ent);
 void Wow_SpawnAmbientCreatures(LPCVECTOR2 origin);
+void Wow_SpawnQuestLocations(LPCVECTOR2 origin);
 void Wow_RunCreatureFrame(LPEDICT ent);
 void Wow_SpawnGameObjects(LPCVECTOR2 origin);
 void Wow_RunGameObjectFrame(LPEDICT ent);
@@ -207,7 +212,7 @@ void       Wow_HealingTouch(LPEDICT caster);
 LPEDICT    Wow_FindSpellTarget(LPEDICT ent, FLOAT range);
 
 /* g_spawn.c — race→spawn-point selection and teleport */
-DWORD      Wow_SelectSpawnPoint(LPCSTR race, LPEDICT ent);
+DWORD      Wow_SelectSpawnPoint(LPCSTR race, DWORD class_id);
 LPCVECTOR3 Wow_GetSpawnPos(DWORD idx);
 void       Wow_TeleportPlayer(LPEDICT ent, DWORD spawn_index);
 

@@ -249,6 +249,83 @@ static LPEDICT Wow_SpawnCreature(DWORD display_id,
     return ent;
 }
 
+/* Spawn non-hostile quest NPCs and server-side objective anchors from the
+ * imported world database, limited to the player's nearby starting area. */
+void Wow_SpawnQuestLocations(LPCVECTOR2 origin) {
+    DWORD givers = 0;
+    DWORD objectives = 0;
+    FLOAT const spawn_radius = 6500.0f;
+    FLOAT const spawn_radius2 = spawn_radius * spawn_radius;
+
+    if (!origin)
+        return;
+
+    FOR_LOOP(i, Wow_QuestGiverCount()) {
+        LPCWOWQUESTGIVER data = Wow_QuestGiver(i);
+        PATHSTR model_path;
+        FLOAT scale = 1.0f;
+        FLOAT radius = 1.0f;
+        VECTOR2 position;
+        VECTOR2 delta;
+        LPEDICT ent;
+        wowEntityLocal_t *local;
+
+        position = (VECTOR2){ data->position.x, data->position.y };
+        delta = Vector2_sub(&position, origin);
+        if (delta.x * delta.x + delta.y * delta.y > spawn_radius2 ||
+            !Wow_CachedCreatureModel(data->display_id, model_path, sizeof(model_path), &scale, &radius))
+            continue;
+        ent = Wow_Spawn();
+        if (!ent)
+            break;
+        ent->s.model = G_RegisterModel(model_path);
+        if (!ent->s.model) {
+            ent->inuse = false;
+            continue;
+        }
+        local = Wow_EntityLocal(ent);
+        local->display_id = data->display_id;
+        local->home = position;
+        local->yaw = (FLOAT)RAD2DEG(data->orientation);
+        local->health = 1;
+        ent->s.origin = data->position;
+        ent->s.origin2 = position;
+        ent->s.scale = scale;
+        ent->s.radius = radius;
+        ent->s.player = 2;
+        ent->s.angle = data->orientation;
+        ent->s.flags = EF_GROUND_ANCHOR;
+        givers++;
+    }
+
+    FOR_LOOP(i, Wow_QuestObjectiveCount()) {
+        LPCWOWQUESTOBJECTIVE data = Wow_QuestObjective(i);
+        VECTOR2 position = data->position;
+        VECTOR2 delta = Vector2_sub(&position, origin);
+        LPEDICT ent;
+        wowEntityLocal_t *local;
+
+        if (delta.x * delta.x + delta.y * delta.y > spawn_radius2)
+            continue;
+        ent = Wow_Spawn();
+        if (!ent)
+            break;
+        local = Wow_EntityLocal(ent);
+        local->go_entry = data->quest_id;
+        local->go_type = WOW_QUEST_OBJECTIVE_ANCHOR;
+        local->go_state = 0;
+        ent->think = Wow_RunGameObjectFrame;
+        ent->s.origin = (VECTOR3){ position.x, position.y, Wow_TerrainHeight(position.x, position.y) };
+        ent->s.origin2 = position;
+        ent->s.radius = 1.0f;
+        ent->s.flags = EF_GROUND_ANCHOR;
+        objectives++;
+    }
+
+    fprintf(stderr, "WoW: spawned %u quest givers and %u objective anchors\n",
+            (unsigned)givers, (unsigned)objectives);
+}
+
 void Wow_SpawnAmbientCreatures(LPCVECTOR2 origin) {
     VECTOR2 creature_origin;
     DWORD spawned = 0;
