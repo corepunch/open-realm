@@ -1606,8 +1606,8 @@ static DWORD Wow_CountSpawnPlayers(LPEDICT skip) {
 static LPCSTR Wow_RaceZone(LPCSTR race) {
 	static struct { LPCSTR race; LPCSTR zone; } map[] = {
 		{ "Human",    "Northshire" },
-		{ "Dwarf",    "Coldridge Valley" },
-		{ "Gnome",    "Coldridge Valley" },
+		{ "Dwarf",    "Anvilmar" },
+		{ "Gnome",    "Anvilmar" },
 		{ "NightElf", "Shadowglen" },
 		{ "Orc",      "Valley of Trials" },
 		{ "Troll",    "Valley of Trials" },
@@ -1689,9 +1689,13 @@ static void Wow_SpawnEntities(void) {
         LPCVECTOR3 sp = CM_WowGetSpawnPos(spawn_location);
         wow_spawn_origin = (VECTOR2){ sp->x, sp->y };
         wow_spawn_location = (LONG)spawn_location;
+        fprintf(stderr, "WoW: spawn race=%s at %s (index %u, %.1f %.1f)\n",
+                race, CM_WowGetSpawnName(spawn_location),
+                spawn_location, sp->x, sp->y);
     } else {
         wow_spawn_origin = (VECTOR2){ 0.0f, 0.0f };
         wow_spawn_location = -1;
+        fprintf(stderr, "WoW: spawn race=%s — no match, fallback to (0,0)\n", race);
     }
     Wow_SelectLoadingScreen(mapinfo ? mapinfo->mapName : NULL);
     /* Re-populate the playerinfo configstring from cvars after SV_Map's
