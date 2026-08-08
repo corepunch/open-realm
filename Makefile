@@ -32,6 +32,7 @@ ifeq ($(OS),Windows_NT)
     EXE_EXT   := .exe
     INSTALL_NAME =
     RPATH     :=
+    LIB_RPATH :=
     LDFLAGS   := -L$(LIB_DIR)
 	LIBS      := -lmingw32 -mwindows -lSDL2main -lSDL2 -lm -lepoxy -lopengl32 -lgdi32 -lws2_32
 	NET_LIBS  := -lws2_32
@@ -51,6 +52,7 @@ else
         # resolves it via the @executable_path/../lib rpath, not a build path.
         INSTALL_NAME = -Wl,-install_name,@rpath/$(notdir $@)
         RPATH     := -Wl,-rpath,@executable_path/../lib
+        LIB_RPATH := -Wl,-rpath,@loader_path
 		CFLAGS    += -DGL_SILENCE_DEPRECATION -I$(HOMEBREW_PREFIX)/include -arch $(ARCH)
 		LDFLAGS   := -L$(LIB_DIR) -L$(HOMEBREW_PREFIX)/lib -arch $(ARCH)
 		LIBS      := -lSDL2 -framework AppKit -framework OpenGL
@@ -59,7 +61,12 @@ else
         LIB_EXT   := .so
         LIB_FLAGS := -shared -fPIC
         INSTALL_NAME =
+        # Executables resolve direct shared-lib deps via $ORIGIN/../lib. Shared
+        # libraries need their own RUNPATH ($ORIGIN == this lib's dir) because
+        # glibc does NOT inherit the executable's RUNPATH when resolving a
+        # library's transitive deps (e.g. libgame.so -> libjass.so).
         RPATH     := -Wl,-rpath,'$$ORIGIN/../lib'
+        LIB_RPATH := -Wl,-rpath,'$$ORIGIN'
         CFLAGS    += -fPIC
         LDFLAGS   := -L$(LIB_DIR) -Wl,-z,defs
 		LIBS      := -lSDL2 -lEGL -lGL -lm
@@ -75,6 +82,7 @@ else
         INSTALL_NAME =
         # $ORIGIN doesn't work in RPATH/RUNPATH on OpenBSD
         RPATH     := -Wl,-rpath,$(abspath $(LIB_DIR))
+        LIB_RPATH := -Wl,-rpath,$(abspath $(LIB_DIR))
         CFLAGS    += -fPIC -I/usr/local/include -I/usr/X11R6/include
         LDFLAGS   := -L$(LIB_DIR) -L/usr/local/lib -L/usr/X11R6/lib
 		LIBS      := -lSDL2 -lGL -lm
@@ -128,13 +136,13 @@ define unity_lib_schema
 $(1): $(2) | $$(LIB_DIR)
 	@echo "[$(3)]"
 	@$$(call UNITY,$(4),$(5)) | \
-		$$(CC) $(6) $$(LIB_FLAGS) $$(INSTALL_NAME) -x c -o $$@ - $(7) $$(LDFLAGS) $(8)
+		$$(CC) $(6) $$(LIB_FLAGS) $$(INSTALL_NAME) $$(LIB_RPATH) -x c -o $$@ - $(7) $$(LDFLAGS) $(8)
 endef
 
 define src_lib_schema
 $(1): $(2) | $$(LIB_DIR)
 	@echo "[$(3)]"
-	@$$(CC) $(4) $$(LIB_FLAGS) $$(INSTALL_NAME) -x c -o $$@ $(5) $$(LDFLAGS) $(6)
+	@$$(CC) $(4) $$(LIB_FLAGS) $$(INSTALL_NAME) $$(LIB_RPATH) -x c -o $$@ $(5) $$(LDFLAGS) $(6)
 endef
 
 define app_schema
