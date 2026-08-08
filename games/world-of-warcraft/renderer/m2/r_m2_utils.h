@@ -205,4 +205,35 @@ static VECTOR3 m2_particle_direction(FLOAT vertical_range, FLOAT horizontal_rang
     return (VECTOR3){ sinf(phi) * cosf(theta), sinf(phi) * sinf(theta), cosf(phi) };
 }
 
+static DWORD m2_read32(BYTE const *p) {
+    return ((DWORD)p[0]) | ((DWORD)p[1] << 8) | ((DWORD)p[2] << 16) | ((DWORD)p[3] << 24);
+}
+
+static void m2_blend_pixel(LPCOLOR32 dst, COLOR32 src) {
+    DWORD inv;
+    if (src.a == 0) return;
+    if (src.a >= 250) { *dst = src; return; }
+    inv = 255 - src.a;
+    dst->b = (BYTE)((src.b * src.a + dst->b * inv) / 255);
+    dst->g = (BYTE)((src.g * src.a + dst->g * inv) / 255);
+    dst->r = (BYTE)((src.r * src.a + dst->r * inv) / 255);
+    dst->a = (BYTE)MIN(255, src.a + (dst->a * inv) / 255);
+}
+
+static void m2_paste_component(LPCOLOR32 dst, DWORD dst_width, DWORD dst_height,
+                               LPCOLOR32 src, DWORD src_width, DWORD src_height,
+                               DWORD x, DWORD y, DWORD w, DWORD h) {
+    if (!dst || !src || !dst_width || !dst_height || !src_width || !src_height ||
+        x >= dst_width || y >= dst_height) return;
+    w = MIN(w, dst_width - x);
+    h = MIN(h, dst_height - y);
+    FOR_LOOP(row, h) {
+        DWORD src_y = row * src_height / h;
+        FOR_LOOP(col, w) {
+            DWORD src_x = col * src_width / w;
+            m2_blend_pixel(&dst[(y + row) * dst_width + x + col], src[src_y * src_width + src_x]);
+        }
+    }
+}
+
 #endif
