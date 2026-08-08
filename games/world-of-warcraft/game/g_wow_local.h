@@ -135,6 +135,9 @@ typedef struct {
     wowHudIcon_t actions[WOW_UI_ACTION_SLOTS];
     BOOL quest_open;
     DWORD quest_id;
+    wowQuestState_t quests[WOW_MAX_QUEST_LOG];
+    DWORD quest_count;
+    DWORD questlog_open;
 } wowClient_t;
 
 extern struct game_import gi;
@@ -202,6 +205,7 @@ DWORD Wow_CachedCreatureType(DWORD display_id);
 DWORD Wow_CachedCreatureFamily(DWORD display_id);
 DWORD Wow_CachedCreatureRank(DWORD display_id);
 void UI_WriteWowHud(LPEDICT ent);
+wowQuestState_t *Wow_FindQuestState(wowClient_t *client, DWORD quest_id);
 
 /* Ability/projectile system */
 DWORD      Wow_FireboltModel(void);

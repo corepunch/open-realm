@@ -37,19 +37,157 @@ static const WOWQUESTOBJECTIVE wow_quest_objectives[] = {
 };
 
 static const WOWQUESTDETAIL wow_quest_details[] = {
-    { 5, "Jitters: Growling Gut" }, { 6, "Bounty on Garrick Padfoot" },
-    { 7, "Kobold Camp Cleanup" }, { 8, "A Rogue's Deal" },
-    { 9, "The Killing Fields" }, { 11, "Riverpaw Gnoll Bounty" },
-    { 12, "The People's Militia" }, { 13, "The People's Militia" },
-    { 14, "The People's Militia" }, { 15, "Investigate Echo Ridge" },
-    { 16, "Give Gerard a Drink" }, { 17, "Uldaman Reagent Run" },
-    { 18, "Brotherhood of Thieves" }, { 19, "Tharil'zun" },
-    { 20, "Blackrock Menace" }, { 21, "Skirmish at Echo Ridge" },
-    { 22, "Goretusk Liver Pie" }, { 33, "Wolves Across the Border" },
-    { 34, "An Unwelcome Guest" }, { 35, "Further Concerns" },
-    { 36, "Westfall Stew" }, { 37, "Find the Lost Guards" },
-    { 38, "Westfall Stew" }, { 39, "Deliver Thomas' Report" },
-    { 40, "A Fishy Peril" },
+    {
+        5, "Jitters: Growling Gut",
+        "Jitters the goblin wants me to collect 5 pieces of Goretusk Snout meat from the boars outside of Stormwind.",
+        "Collect 5 Goretusk Snouts for Jitters.",
+        "Thanks for the snouts! Here's a little something for your trouble.",
+        250, 35, {0, 0}, 0, 1
+    }, {
+        6, "Bounty on Garrick Padfoot",
+        "Deputy Willem has posted a bounty on Garrick Padfoot, the leader of the Riverpaw gnolls. Bring me his paw as proof.",
+        "Kill Garrick Padfoot and bring his paw to Deputy Willem.",
+        "You did it! Garrick Padfoot won't be troubling us anymore. Here's your reward.",
+        340, 50, {0, 0}, 0, 1
+    }, {
+        7, "Kobold Camp Cleanup",
+        "Marshal McBride wants me to clear out the kobold vermin from the Echo Ridge Mine. Kill 10 kobold vermin.",
+        "Kill 10 Kobold Vermin for Marshal McBride.",
+        "The kobolds have been driven back. The mine is safe again, thanks to you.",
+        340, 50, {0, 0}, 0, 1
+    }, {
+        8, "A Rogue's Deal",
+        "A rogue in the Den wants me to collect some supplies from the dwarven outpost.",
+        "Deliver the rogue's package to the dwarven outpost.",
+        "Well done. The deal is sealed. Take this for your trouble.",
+        180, 25, {0, 0}, 0, 2
+    }, {
+        9, "The Killing Fields",
+        "Farmer Saldean needs help protecting his fields from the mechanical harvesters running wild.",
+        "Destroy 8 Harvest Watchers in the fields west of Sentinel Hill.",
+        "The fields are safe for now. Thank you, adventurer.",
+        560, 75, {0, 0}, 0, 5
+    }, {
+        11, "Riverpaw Gnoll Bounty",
+        "Marshal Dughan has offered a bounty on Riverpaw gnolls. Bring me their painted gnoll armbands.",
+        "Collect 8 Painted Gnoll Armbands from Riverpaw gnolls.",
+        "These armbands prove your service to Stormwind. Well fought.",
+        450, 60, {0, 0}, 0, 4
+    }, {
+        12, "The People's Militia",
+        "Gryan Stoutmantle is recruiting able-bodied adventurers for the People's Militia. Speak with him in Westfall.",
+        "Report to Gryan Stoutmantle at Sentinel Hill in Westfall.",
+        "Welcome to the People's Militia. We need every hand we can get.",
+        170, 15, {0, 0}, 0, 3
+    }, {
+        13, "The People's Militia",
+        "Gryan Stoutmantle wants me to help the people of Westfall. Kill 12 Defias bandits.",
+        "Kill 12 Defias bandits for the People's Militia.",
+        "Good work. But the Defias are still a threat.",
+        620, 80, {0, 0}, 12, 7
+    }, {
+        14, "The People's Militia",
+        "Gryan Stoutmantle wants me to kill 15 Defias Trappers and 15 Defias Smugglers.",
+        "Kill 15 Defias Trappers and 15 Defias Smugglers in Westfall.",
+        "Excellent! These victories will be remembered.",
+        780, 100, {0, 0}, 13, 9
+    }, {
+        15, "Investigate Echo Ridge",
+        "Marshal McBride wants me to investigate Echo Ridge Mine and report back on the kobold infestation.",
+        "Investigate Echo Ridge Mine and return to Marshal McBride.",
+        "So the kobolds have infested the entire mine. This is worse than I thought.",
+        170, 15, {0, 0}, 0, 2
+    }, {
+        16, "Give Gerard a Drink",
+        "A thirsty guard named Gerard needs a drink. Bring him some water from the well.",
+        "Bring a water skin to Guard Gerard.",
+        "Ahh, that hits the spot. Thanks friend.",
+        85, 10, {0, 0}, 0, 1
+    }, {
+        17, "Uldaman Reagent Run",
+        "A dwarven alchemist needs reagents from the Uldaman excavation. Collect 5 samples.",
+        "Collect 5 dig-site reagent samples from the Uldaman excavation.",
+        "These reagents are perfect! My experiments can continue.",
+        1250, 250, {0, 0}, 0, 30
+    }, {
+        18, "Brotherhood of Thieves",
+        "Marshal Gryan wants me to recover stolen goods from the Defias Brotherhood.",
+        "Recover 8 Stolen Supply Sacks from Defias bandits.",
+        "These supplies will be returned to their rightful owners.",
+        510, 65, {0, 0}, 0, 8
+    }, {
+        19, "Tharil'zun",
+        "Marshal Gryan has a special assignment — find and eliminate the orc warlord Tharil'zun.",
+        "Kill Tharil'zun and return to Marshal Gryan at Sentinel Hill.",
+        "Tharil'zun is dead! You've done Stormwind a great service.",
+        875, 125, {0, 0}, 0, 12
+    }, {
+        20, "Blackrock Menace",
+        "Marshal Gryan is concerned about the Blackrock orcs in Redridge. Investigate their presence.",
+        "Investigate the Blackrock orc presence in Redridge and report back.",
+        "The Blackrock orcs in Redridge? This is troubling news indeed.",
+        390, 45, {0, 0}, 0, 8
+    }, {
+        21, "Skirmish at Echo Ridge",
+        "Marshal McBride wants me to help secure Echo Ridge from the kobold threat.",
+        "Help defend Echo Ridge against the kobolds.",
+        "Echo Ridge is secure. For now.",
+        250, 35, {0, 0}, 15, 3
+    }, {
+        22, "Goretusk Liver Pie",
+        "Salma Saldean wants me to collect 8 Goretusk Livers for her famous pies.",
+        "Collect 8 Goretusk Livers for Salma Saldean.",
+        "These livers will make excellent pies! Here's your share.",
+        450, 60, {0, 0}, 0, 3
+    }, {
+        33, "Wolves Across the Border",
+        "Eagan Peltskinner wants me to thin the wolf population outside Northshire. Kill 8 wolves.",
+        "Kill 8 Young Wolves for Eagan Peltskinner.",
+        "The wolf population is under control now. Good hunting.",
+        210, 25, {0, 0}, 0, 2
+    }, {
+        34, "An Unwelcome Guest",
+        "Deputy Feldon needs me to deal with an unwelcome guest at the vineyard.",
+        "Drive off the unwelcome guest at the vineyard.",
+        "The vineyard is safe again. Thank you.",
+        310, 40, {0, 0}, 0, 4
+    }, {
+        35, "Further Concerns",
+        "Marshal McBride has further concerns about the kobold threat. Kill 12 more kobolds.",
+        "Kill 12 more Kobold Vermin for Marshal McBride.",
+        "Excellent work! Perhaps the kobolds will think twice now.",
+        410, 55, {0, 0}, 7, 3
+    }, {
+        36, "Westfall Stew",
+        "Farmer Saldean needs ingredients for his famous Westfall Stew.",
+        "Collect stew ingredients: Stringy Vulture Meat, Murloc Eyes, Okra, and Goretusk Snouts.",
+        "This stew will feed the whole militia! Thank you.",
+        560, 75, {0, 0}, 0, 6
+    }, {
+        37, "Find the Lost Guards",
+        "Marshal Gryan sent guards to investigate the Jangolode Mine and they haven't returned.",
+        "Locate the lost guards near the Jangolode Mine.",
+        "So they're dead. At least we know what happened. This information is valuable.",
+        680, 85, {0, 0}, 0, 8
+    }, {
+        38, "Westfall Stew",
+        "Farmer Saldean needs more ingredients for a larger batch of Westfall Stew.",
+        "Collect additional stew ingredients for Farmer Saldean.",
+        "More stew for the lads! You're a lifesaver.",
+        390, 50, {0, 0}, 36, 8
+    }, {
+        39, "Deliver Thomas' Report",
+        "Deliver Guard Thomas' report to Marshal Dughan in Goldshire.",
+        "Deliver the report to Marshal Dughan in Goldshire.",
+        "Thank you for delivering this report. The information is crucial.",
+        120, 15, {0, 0}, 0, 2
+    }, {
+        40, "A Fishy Peril",
+        "Marshal Dughan has received reports of murlocs along the river. Investigate the threat.",
+        "Investigate the murloc threat along the Elwynn River.",
+        "Murlocs in the river! I'll mobilize the guards at once.",
+        210, 25, {0, 0}, 0, 3
+    },
 };
 
 DWORD Wow_QuestGiverCount(void) { return sizeof(wow_quest_givers) / sizeof(wow_quest_givers[0]); }

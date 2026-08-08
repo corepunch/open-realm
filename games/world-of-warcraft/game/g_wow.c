@@ -1809,6 +1809,34 @@ static void Wow_SelectEntity(LPEDICT ent, LPEDICT target) {
     }
 }
 
+wowQuestState_t *Wow_FindQuestState(wowClient_t *client, DWORD quest_id) {
+    FOR_LOOP(i, client->quest_count)
+        if (client->quests[i].quest_id == quest_id) return &client->quests[i];
+    return NULL;
+}
+
+static BOOL Wow_AddQuest(wowClient_t *client, DWORD quest_id) {
+    LPCWOWQUESTDETAIL detail = Wow_QuestDetail(quest_id);
+    if (!detail || client->quest_count >= WOW_MAX_QUEST_LOG) return false;
+    if (Wow_FindQuestState(client, quest_id)) return false;
+    if (detail->prev_quest && !Wow_FindQuestState(client, detail->prev_quest)) return false;
+    client->quests[client->quest_count].quest_id = quest_id;
+    client->quests[client->quest_count].status = WOW_QUEST_ACCEPTED;
+    client->quest_count++;
+    return true;
+}
+
+static void Wow_CompleteQuest(wowClient_t *client, DWORD quest_id) {
+    wowQuestState_t *state = Wow_FindQuestState(client, quest_id);
+    LPCWOWQUESTDETAIL detail;
+    if (!state || state->status != WOW_QUEST_ACCEPTED) return;
+    detail = Wow_QuestDetail(quest_id);
+    if (!detail) return;
+    state->status = WOW_QUEST_COMPLETE;
+    client->client.ps.stats[WOW_STAT_XP] += detail->reward_xp;
+    client->client.ps.stats[WOW_STAT_COPPER] += detail->reward_gold;
+}
+
 static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
     if (argc >= 1 && !strcasecmp(argv[0], "quest")) {
         wowClient_t *client = (wowClient_t *)ent->client;
@@ -1816,18 +1844,48 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
         LPEDICT selected = ent->client->ps.selected_entity
             ? Wow_EdictByNumber(ent->client->ps.selected_entity) : NULL;
         wowEntityLocal_t *selected_local = selected ? Wow_EntityLocal(selected) : NULL;
+        wowQuestState_t *existing;
 
         if (!quest_id && selected_local)
             quest_id = selected_local->quest_id;
-        if (quest_id && Wow_QuestDetail(quest_id)) {
-            client->quest_id = quest_id;
-            client->quest_open = true;
-            UI_WriteWowHud(ent);
-        } else {
+        if (!quest_id || !Wow_QuestDetail(quest_id)) {
             fprintf(stderr, "WoW: quest UI has no server data for quest %u\n", (unsigned)quest_id);
+            return;
         }
-    } else if (argc >= 1 && (!strcasecmp(argv[0], "quest_close") || !strcasecmp(argv[0], "quest_accept"))) {
+        existing = Wow_FindQuestState(client, quest_id);
+        if (existing && existing->status == WOW_QUEST_COMPLETE) {
+            Wow_CompleteQuest(client, quest_id);
+            client->quest_open = false;
+            UI_WriteWowHud(ent);
+            fprintf(stderr, "WoW: quest %u rewarded — XP=%u gold=%u\n",
+                    (unsigned)quest_id,
+                    (unsigned)Wow_QuestDetail(quest_id)->reward_xp,
+                    (unsigned)Wow_QuestDetail(quest_id)->reward_gold);
+            return;
+        }
+        client->quest_id = quest_id;
+        client->quest_open = true;
+        UI_WriteWowHud(ent);
+    } else if (argc >= 1 && !strcasecmp(argv[0], "quest_close")) {
         wowClient_t *client = (wowClient_t *)ent->client;
+        client->quest_open = false;
+        client->questlog_open = false;
+        UI_WriteWowHud(ent);
+    } else if (argc >= 1 && !strcasecmp(argv[0], "quest_accept")) {
+        wowClient_t *client = (wowClient_t *)ent->client;
+        DWORD quest_id = argc >= 2 ? (DWORD)strtoul(argv[1], NULL, 10) : client->quest_id;
+        if (quest_id && Wow_QuestDetail(quest_id)) Wow_AddQuest(client, quest_id);
+        client->quest_open = false;
+        UI_WriteWowHud(ent);
+    } else if (argc >= 1 && !strcasecmp(argv[0], "quest_complete")) {
+        wowClient_t *client = (wowClient_t *)ent->client;
+        DWORD quest_id = argc >= 2 ? (DWORD)strtoul(argv[1], NULL, 10) : client->quest_id;
+        Wow_CompleteQuest(client, quest_id);
+        client->quest_open = false;
+        UI_WriteWowHud(ent);
+    } else if (argc >= 1 && !strcasecmp(argv[0], "questlog")) {
+        wowClient_t *client = (wowClient_t *)ent->client;
+        client->questlog_open = !client->questlog_open;
         client->quest_open = false;
         UI_WriteWowHud(ent);
     } else if (argc >= 1 && !strcasecmp(argv[0], "respawn")) {
