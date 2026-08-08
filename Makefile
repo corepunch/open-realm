@@ -441,6 +441,24 @@ test-wow-engine-assets: m2gen mpqtool | $(TESTS_DIR)
 	@echo "[test-wow-engine-assets] verifying archive"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_ENGINE_TEST_MPQ) cat Character/Orc/Male/OrcMale.m2 | head -c4 | grep -q "MD20" && echo "  cat M2 OK"
 
+# ---------------------------------------------------------------------------
+# test-wc3-engine-assets — pack minimal SLK fixture for in-engine WC3 tests
+# ---------------------------------------------------------------------------
+WC3_ENGINE_TEST_DIR     := $(TESTS_DIR)/wc3-engine-data
+WC3_ENGINE_TEST_MPQ     := $(WC3_ENGINE_TEST_DIR)/test-wc3.mpq
+WC3_ENGINE_FIXTURE_DIR  := tests/wc3-engine-data
+
+test-wc3-engine-assets: mpqtool | $(TESTS_DIR)
+	@echo "[test-wc3-engine-assets] packing test-wc3.mpq"
+	@mkdir -p $(WC3_ENGINE_TEST_DIR)
+	@set --; \
+	for f in $$(find $(WC3_ENGINE_FIXTURE_DIR) -type f | sort); do \
+		rel=$${f#$(WC3_ENGINE_FIXTURE_DIR)/}; set -- "$$@" "$$f" "$$rel"; \
+	done; \
+	$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WC3_ENGINE_TEST_MPQ) pack "$$@"
+	@echo "[test-wc3-engine-assets] verifying archive"
+	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WC3_ENGINE_TEST_MPQ) cat Units/UnitBalance.slk | grep -q "hpea" && echo "  cat SLK OK"
+
 SC2_HUD_LIVE_BIN := $(BIN_DIR)/test_sc2_hud_live$(EXE_EXT)
 SC2_HUD_LIVE_SRC := tests/test_runner.c $(SC2_TEST_DIR)/test_sc2_hud_live.c
 
@@ -455,4 +473,4 @@ test-sc2-live: opensc2 $(SC2_HUD_LIVE_BIN)
 	fi
 	$(SC2_HUD_LIVE_BIN)
 
-.PHONY: default build shared tools font $(TOOL_NAMES) diag clean download renderer-wow game-wow ui-wow openwow openwow-tests test-wow-engine test-wow-engine-assets renderer-sc2 game-sc2 opensc2 run run-sc2 build-run-sc2 m2tool-wow-orcmale-player install-wow test-wow-appearance test-wow-abilities test-wow-game test-wow-ui test-wow-assets test-sc2 test-sc2-assets test-sc2-live $(WC3_PHONY)
+.PHONY: default build shared tools font $(TOOL_NAMES) diag clean download renderer-wow game-wow ui-wow openwow openwow-tests test-wow-engine test-wow-engine-assets renderer-sc2 game-sc2 opensc2 run run-sc2 build-run-sc2 m2tool-wow-orcmale-player install-wow test-wow-appearance test-wow-abilities test-wow-game test-wow-ui test-wow-assets test-sc2 test-sc2-assets test-sc2-live test-wc3-engine-assets $(WC3_PHONY)
