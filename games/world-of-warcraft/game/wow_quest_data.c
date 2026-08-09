@@ -1,4 +1,4 @@
-#include "wow_quest_data.h"
+#include "g_wow_local.h"
 
 static const WOWQUESTGIVER wow_quest_givers[] = {
     { 5, 288, 4325, { -10731.4000f, 337.138f, 38.4686f }, 0.28830f },

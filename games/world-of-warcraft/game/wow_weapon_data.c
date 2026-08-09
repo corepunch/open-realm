@@ -1,4 +1,4 @@
-#include "wow_weapon_data.h"
+#include "g_wow_local.h"
 #include <stdio.h>
 #include <stdlib.h>
 
