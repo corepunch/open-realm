@@ -1874,23 +1874,10 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
         LPEDICT selected = ent->client->ps.selected_entity
             ? Wow_EdictByNumber(ent->client->ps.selected_entity) : NULL;
         wowEntityLocal_t *selected_local = selected ? Wow_EntityLocal(selected) : NULL;
-        wowQuestState_t *existing;
-
         if (!quest_id && selected_local)
             quest_id = selected_local->quest_id;
         if (!quest_id || !Wow_QuestDetail(quest_id)) {
             fprintf(stderr, "WoW: quest UI has no server data for quest %u\n", (unsigned)quest_id);
-            return;
-        }
-        existing = Wow_FindQuestState(client, quest_id);
-        if (existing && existing->status == WOW_QUEST_COMPLETE) {
-            Wow_CompleteQuest(client, quest_id);
-            client->quest_open = false;
-            UI_WriteWowHud(ent);
-            fprintf(stderr, "WoW: quest %u rewarded — XP=%u gold=%u\n",
-                    (unsigned)quest_id,
-                    (unsigned)Wow_QuestDetail(quest_id)->reward_xp,
-                    (unsigned)Wow_QuestDetail(quest_id)->reward_gold);
             return;
         }
         client->quest_id = quest_id;

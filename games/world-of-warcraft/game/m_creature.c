@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 #define WOW_AMBIENT_CREATURE_COUNT 64
+#define WOW_QUEST_LOCATION_BUDGET  32
 #define WOW_CREATURE_DISPLAY_WOLF 161
 #define WOW_CREATURE_DISPLAY_BOAR 193
 #define WOW_CREATURE_DISPLAY_KOBOLD 163
@@ -254,6 +255,7 @@ static LPEDICT Wow_SpawnCreature(DWORD display_id,
 void Wow_SpawnQuestLocations(LPCVECTOR2 origin) {
     DWORD givers = 0;
     DWORD objectives = 0;
+    DWORD budget = WOW_QUEST_LOCATION_BUDGET;
     FLOAT const spawn_radius = 6500.0f;
     FLOAT const spawn_radius2 = spawn_radius * spawn_radius;
 
@@ -270,6 +272,8 @@ void Wow_SpawnQuestLocations(LPCVECTOR2 origin) {
         LPEDICT ent;
         wowEntityLocal_t *local;
 
+        if (!budget)
+            break;
         position = (VECTOR2){ data->position.x, data->position.y };
         delta = Vector2_sub(&position, origin);
         if (delta.x * delta.x + delta.y * delta.y > spawn_radius2 ||
@@ -297,6 +301,7 @@ void Wow_SpawnQuestLocations(LPCVECTOR2 origin) {
         ent->s.angle = data->orientation;
         ent->s.flags = EF_GROUND_ANCHOR;
         givers++;
+        budget--;
     }
 
     FOR_LOOP(i, Wow_QuestObjectiveCount()) {
@@ -306,6 +311,8 @@ void Wow_SpawnQuestLocations(LPCVECTOR2 origin) {
         LPEDICT ent;
         wowEntityLocal_t *local;
 
+        if (!budget)
+            break;
         if (delta.x * delta.x + delta.y * delta.y > spawn_radius2)
             continue;
         ent = Wow_Spawn();
@@ -321,6 +328,7 @@ void Wow_SpawnQuestLocations(LPCVECTOR2 origin) {
         ent->s.radius = 1.0f;
         ent->s.flags = EF_GROUND_ANCHOR;
         objectives++;
+        budget--;
     }
 
     fprintf(stderr, "WoW: spawned %u quest givers and %u objective anchors\n",

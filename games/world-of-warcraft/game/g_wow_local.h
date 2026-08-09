@@ -4,8 +4,8 @@
 #include "server/server.h"
 #include "common/wow_ui_shared.h"
 #include "common/ui_constants.h"
-#include "serverdata/world-of-warcraft/wow_weapon_data.h"
-#include "serverdata/world-of-warcraft/wow_quest_data.h"
+#include "serverdata/wow_weapon_data.h"
+#include "serverdata/wow_quest_data.h"
 
 #define WOW_MAX_CLIENTS 1
 #define WOW_MAX_EDICTS 128

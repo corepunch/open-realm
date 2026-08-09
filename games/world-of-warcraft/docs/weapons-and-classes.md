@@ -57,7 +57,7 @@ WoW weapons are divided into melee and ranged categories. Each weapon type has a
 ### Runtime server data
 
 The initial WoW game module now consumes AzerothCore weapon damage data from
-`serverdata/world-of-warcraft/weapons.csv`. Entry 37 (`Worn Axe`) is the
+`games/world-of-warcraft/serverdata/weapons.csv`. Entry 37 (`Worn Axe`) is the
 current player starter weapon; melee damage is rolled from its imported
 1–3 damage range instead of using a hard-coded value. The table also retains
 the starter shortsword, mace, and staff rows for the next equipment pass.
