@@ -75,11 +75,3 @@ void CL_ScreenshotCapture(void) {
 void CL_Screenshot_f(void) {
 	cl_screenshot_pending = true;
 }
-
-#ifdef WOW
-/* Called by CL_ParseGameCommand when server sends "screenshot <name>". */
-void CL_WoweeScreenshot(LPCSTR name) {
-	snprintf(cl_screenshot_name, sizeof(cl_screenshot_name), "wowee_%s", name);
-	cl_screenshot_pending = true;
-}
-#endif
