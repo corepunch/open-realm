@@ -1,40 +1,138 @@
-# Quest UI
+# Quest UI & Server Data
 
-WoW game mode keeps in-game UI server-authored. The client-side reference
-assets are loaded from the installed client data:
+WoW game mode keeps in-game UI server-authored (Quake 2 `svc_layout` pattern).
+The client never runs quest Lua scripts while `game_mode` is active.
 
-- `Interface\\FrameXML\\QuestFrame.xml` — classic panel dimensions, anchors,
-  child positions, and button layout.
-- `Interface\\FrameXML\\QuestFrame.lua` — quest greeting/detail/progress/
-  reward state transitions and button event names.
-- `Interface\\QuestFrame\\UI-QuestGreeting-*` — the four 256/128-pixel panel
-  art pieces used by the server layout.
+## Architecture
 
-The live implementation is `game/g_ui.c`. It sends `svc_layout` frames on
-`LAYER_QUESTDIALOG`; this is layer 8 in `common/shared.h`. The client stores
-and draws that layer through the normal layout renderer, so the WoW UI module
-does not run quest Lua while `game_mode` is active.
+```
+AzerothCore SQL dumps                extract_quest_data.py
+ ├─ quest_template.sql          ──►  games/world-of-warcraft/serverdata/
+ ├─ quest_template_addon.sql         ├─ wow_quest_data.h   (structs + API)
+ ├─ quest_offer_reward.sql           ├─ wow_quest_data.c   (static tables)
+ ├─ creature_queststarter.sql        └─ quest_spawns.csv   (reference)
+ ├─ creature_template_model.sql
+ ├─ creature.sql (positions)
+ └─ quest_poi_points.sql
 
-## Positioning
+games/world-of-warcraft/serverdata/ ──►  game/g_wow.c (quest logic)
+                                         game/g_ui.c  (quest dialog rendering)
+                                         game/m_creature.c (quest giver spawning)
+```
 
-The server layout uses the WoW normalized 1.0×1.0 UI canvas. `g_ui.c` keeps a
-1024×768 reference canvas (`PX`, `PY`, `PW`, and `PH` helpers). The current
-quest panel is 384×512, positioned at `(24, 104)` in that canvas. These values
-correspond to the classic QuestFrame dimensions while leaving the server HUD
-target frame visible.
+## Data Structures
 
-## Server flow
+Defined in `games/world-of-warcraft/serverdata/wow_quest_data.h`:
 
-- The HUD quest icon is a server-generated clickable region sending `quest`.
-- Selecting a spawned quest giver and issuing `quest` opens that giver's
-  server-data quest. `quest <id>` can open a known quest directly.
-- `quest_close` hides the layer; `quest_accept <id>` currently closes the
-  dialog and is the hook for persistent quest state and rewards.
-- The server sends an empty `LAYER_QUESTDIALOG` layout whenever the dialog is
-  closed, preventing stale client frames.
+| Struct | Purpose |
+|--------|---------|
+| `WOWQUESTGIVER` | quest_id → creature entry, display_id, world position |
+| `WOWQUESTOBJECTIVE` | quest_id → 2D objective position (server-side anchor) |
+| `WOWQUESTKILLOBJECTIVE` | creature display_id + required kill count |
+| `WOWQUESTDETAIL` | Full quest: title, description, objectives, reward text, XP, gold, prerequisites, kill objectives |
+| `wowQuestState_t` | Per-player: quest_id, status enum, kill_progress[4] |
 
-Quest placement and titles are imported under
-`serverdata/world-of-warcraft/`; quest progress, rewards, and full text are
-the next server-data additions. WoWee is useful as a client/reference project
-for the broader quest protocol and FrameXML behavior, but this codebase keeps
-the in-game presentation on the server layout channel.
+Quest status enum: `NONE → ACCEPTED → COMPLETE → REWARDED`
+
+## Server Commands
+
+| Command | Effect |
+|---------|--------|
+| `quest [id]` | Opens quest dialog. Without ID, uses selected NPC's quest_id. |
+| `quest_accept <id>` | Adds quest to log (checks prerequisites, max 16 slots). Closes dialog. |
+| `quest_complete <id>` | Awards XP + gold if quest status is ACCEPTED. Closes dialog. |
+| `quest_close` | Hides dialog and quest log. |
+| `questlog` | Toggles quest log panel. |
+
+## Quest Dialog UI
+
+The dialog is rendered on `LAYER_QUESTDIALOG` using classic QuestFrame textures:
+- `Interface\QuestFrame\UI-QuestGreeting-{TopLeft,TopRight,BotLeft,BotRight}.blp`
+- 384×512 panel at canvas position (24, 104) on a 1024×768 reference grid.
+
+Buttons depend on quest state:
+- **New quest** (not in log): "Accept" button → `quest_accept <id>`
+- **In progress** (ACCEPTED, objectives incomplete): no action buttons
+- **Complete** (all objectives done): "Complete Quest" → `quest_complete <id>`
+- **Always**: "Close" button → `quest_close`
+
+Kill progress is shown as `"Creature: 5/10"` text when the quest has
+kill objectives and the player's progress is tracked.
+
+## Quest Logic (g_wow.c)
+
+- `Wow_AddQuest(client, id)` — validates detail exists, log not full, not
+  already accepted, prerequisite chain met (`prev_quest` must be in log).
+- `Wow_CompleteQuest(client, id)` — only awards if `status == ACCEPTED`;
+  adds `reward_xp` to `WOW_STAT_XP`, `reward_gold` to `WOW_STAT_COPPER`.
+- `Wow_QuestAwardKillCredit(attacker, display_id)` — called from AI death
+  handler; iterates all ACCEPTED quests, matches display_id against kill
+  objectives, increments progress, auto-transitions to COMPLETE when all
+  objectives are met.
+- `Wow_FindQuestState(client, id)` — linear search of the quest log.
+
+## Quest Spawning (m_creature.c)
+
+`Wow_SpawnQuestLocations(origin)` spawns:
+1. **Quest givers** — non-hostile NPCs with display model from DBC, positioned
+   from the `wow_quest_givers[]` table. Their `quest_id` field is set so the
+   `quest` command can read it from the selected entity.
+2. **Objective anchors** — invisible server-side entities at POI positions,
+   identified by `go_entry = quest_id`. Only entities within 6500 units of
+   the player spawn are created.
+
+## Extraction Tools
+
+Two-stage pipeline: SQL → CSV → C.
+
+### Stage 1: SQL → CSV (`extract_server_data.py`)
+
+Extracts all level≤20 content from AzerothCore SQL into CSV files:
+
+```sh
+python3 data/WoWee/tools/extract_server_data.py              # default (level ≤ 20)
+python3 data/WoWee/tools/extract_server_data.py --max-level 40  # more content
+```
+
+Produces: `weapons.csv` (1289), `quests.csv` (2737), `quest_spawns.csv` (741+2558),
+`creatures.csv` (5642), `creature_spawns.csv` (13729).
+
+### Stage 2: CSV → C (`gen_serverdata_c.py`)
+
+Converts CSV into static C arrays compiled into the binary:
+
+```sh
+python3 data/WoWee/tools/gen_serverdata_c.py
+```
+
+The compiled C (`wow_quest_data.c`, `wow_weapon_data.c`) is a curated subset —
+hand-tuned for gameplay and testability. When adding new content, pull rows from
+the extracted CSV and adapt them.
+
+**Caveat:** AzerothCore's `RequiredNpcOrGo` field contains creature *entries*,
+mapped to display IDs via `creature_template_model`. Item-collection quests
+(`RequiredItemId`) need manual mapping to kill objectives.
+
+## Client-Side References (WoWee)
+
+The installed client FrameXML provides reference layout/dimensions:
+- `Interface\FrameXML\QuestFrame.xml` — panel dimensions, anchors, child positions
+- `Interface\FrameXML\QuestFrame.lua` — greeting/detail/progress/reward states
+- `Interface\QuestFrame\UI-QuestGreeting-*` — 256/128-pixel panel art textures
+
+These are NOT executed at runtime. They serve as reference for the server-authored
+layout pixel positions and asset paths.
+
+## Test Coverage
+
+`tests/test_wow_game.c` covers:
+- Server data integrity (giver count, positions, quest details)
+- Quest HUD presence on correct layer
+- Accept/reject/prerequisite flow
+- Kill progress tracking and auto-complete
+- Wrong creature / overflow / double-reward protection
+- Quest log open/close toggle
+- Complete button visibility based on status
+- NPC interaction → dialog opening
+- Quest chain unlock (12→13→14)
+- Progress text in dialog textarea

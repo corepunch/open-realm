@@ -125,6 +125,24 @@ Agent guidance:
 	- `build/bin/openwarcraft3 -data data/Warcraft\ III +menu_main`
 	- `make run-ui-text UI_CMD=menu_single_player_campaign`
 
+## AzerothCore SQL Extraction (extract_quest_data.py)
+
+- Use `data/WoWee/tools/extract_quest_data.py` to generate WoW server data from AzerothCore SQL dumps.
+- Source: `data/azerothcore-wotlk/data/sql/base/db_world/` (quest_template, creature, etc.)
+- Output: `games/world-of-warcraft/serverdata/wow_quest_data.c` and `quest_spawns.csv`
+
+```sh
+python3 data/WoWee/tools/extract_quest_data.py                        # regenerate from existing IDs
+python3 data/WoWee/tools/extract_quest_data.py --quest-ids 5,6,7,8,9  # specific quests
+python3 data/WoWee/tools/extract_quest_data.py --dry-run              # preview only
+```
+
+Agent guidance:
+- Use this tool when adding new quests or refreshing quest data from upstream SQL.
+- Item-collection quests (`RequiredItemId` in SQL) need manual mapping to kill objectives.
+- The tool resolves creature entries → display IDs via `creature_template_model` for kill objectives.
+- After regenerating, run `make test-wow-game` to verify data integrity.
+
 ## Time Profiler (macOS)
 
 - For runtime CPU profiling on macOS, prefer Instruments `xctrace` with the local `xctraceprof` parser.

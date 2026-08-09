@@ -168,7 +168,7 @@ static void UI_WriteQuestDialog(LPEDICT ent) {
                          MAKE(COLOR32, 240, 230, 205, 255));
 
         if (is_complete) {
-            snprintf(command, sizeof(command), "quest %u", (unsigned)wc->quest_id);
+            snprintf(command, sizeof(command), "quest_complete %u", (unsigned)wc->quest_id);
             UI_WriteSimpleButton(x + PW(22), y + PH(420), PW(180), PH(28),
                                  "Complete Quest", command);
         } else if (!is_accepted) {
