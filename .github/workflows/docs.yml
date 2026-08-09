@@ -6,6 +6,7 @@ on:
     paths:
       - "README.md"
       - "doc/**"
+      - "games/**"
       - "mkdocs.yml"
       - ".github/workflows/docs.yml"
   workflow_dispatch:

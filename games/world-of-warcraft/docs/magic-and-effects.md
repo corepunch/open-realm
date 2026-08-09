@@ -218,7 +218,7 @@ DR categories: **Stuns, Silences, Disarms, Knockbacks, Roots, Disorients, Incapa
 
 ## Casting System Status
 
-The concrete implementation and reference map now lives in [`docs/wow-abilities.md`](../../../docs/wow-abilities.md).
+The concrete implementation and reference map now lives in `docs/wow-abilities.md` (source tree, not in doc site).
 That file records the implemented prototype spells, exact M2 animation/attachment IDs, input flow, cast-bar contract, and
 the TrinityCore/Arena-Unity source paths to use for the next stages.
 

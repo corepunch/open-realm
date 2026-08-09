@@ -26,7 +26,6 @@ nav:
   - Games:
     - Warcraft III:
       - Overview: games/warcraft-3/readme.md
-      - Docs Index: games/warcraft-3/docs/readme.md
       - File Formats:
         - 'Map (W3M/W3X)': games/warcraft-3/docs/file-formats/map.md
         - 'Model (MDX)': games/warcraft-3/docs/file-formats/mdx.md
@@ -47,29 +46,48 @@ nav:
         - Map Renderer: games/warcraft-3/docs/architecture/map-renderer.md
         - Ability Coverage: games/warcraft-3/docs/architecture/ability-coverage.md
         - ROC Ability Checklist: games/warcraft-3/docs/architecture/roc-ability-checklist.md
+        - Cinematics: games/warcraft-3/docs/cinematics.md
+        - Sounds: games/warcraft-3/docs/sounds.md
     - World of Warcraft:
       - Overview: games/world-of-warcraft/readme.md
-      - Docs Index: games/world-of-warcraft/docs/readme.md
       - Data Loading: games/world-of-warcraft/docs/data-loading.md
       - File Formats: games/world-of-warcraft/docs/file-formats.md
       - Terrain And World Rendering: games/world-of-warcraft/docs/terrain-and-world-rendering.md
       - M2 And Character Display: games/world-of-warcraft/docs/m2-and-character-display.md
       - References: games/world-of-warcraft/docs/references.md
+      - Gameplay:
+        - Enemies And Creatures: games/world-of-warcraft/docs/enemies-and-creatures.md
+        - Magic And Effects: games/world-of-warcraft/docs/magic-and-effects.md
+        - Weapons And Classes: games/world-of-warcraft/docs/weapons-and-classes.md
+        - Spawn And Teleport: games/world-of-warcraft/docs/spawn-and-teleport.md
+        - Quest UI: games/world-of-warcraft/docs/quest-ui.md
+      - Rendering:
+        - Grass Rendering System: games/world-of-warcraft/docs/grass-rendering-system.md
+        - Sounds: games/world-of-warcraft/docs/sounds.md
     - StarCraft II:
       - Overview: games/starcraft-2/readme.md
-      - Docs Index: games/starcraft-2/docs/readme.md
       - Model Format (M3): games/starcraft-2/docs/file-formats/m3.md
       - Map Storage And Loading: games/starcraft-2/docs/map-storage-and-loading.md
       - Embedded Map Files: games/starcraft-2/docs/embedded-map-files.md
       - Map, Model, And Unit Data: games/starcraft-2/docs/map-model-unit-data.md
       - Parser Notes: games/starcraft-2/docs/parser-notes.md
+      - HUD Layout Pipeline: games/starcraft-2/docs/hud-layout-pipeline.md
       - References: games/starcraft-2/docs/references.md
+      - Sounds: games/starcraft-2/docs/sounds.md
+      - File Format Details:
+        - MapInfo: games/starcraft-2/docs/file-formats/mapinfo.md
+        - PlacedObjects: games/starcraft-2/docs/file-formats/objects.md
+        - Actors And Models: games/starcraft-2/docs/file-formats/actors-and-models.md
+        - Assets.txt: games/starcraft-2/docs/file-formats/assets-txt.md
   - Architecture:
     - Client: architecture/client.md
     - Server: architecture/server.md
     - Network: architecture/network.md
     - Runtime Modules and Cvars: architecture/runtime.md
+    - UI System: architecture/ui-system.md
+    - Sound: architecture/sound.md
     - Fog of War Algorithms: architecture/fog-of-war-algorithms.md
+  - Renderer Backend: renderer-backend.md
 
 markdown_extensions:
   - tables
