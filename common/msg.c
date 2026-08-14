@@ -46,7 +46,8 @@ netField_t entityStateFields[] = {
     { NETF(entityState_t, image), NFT_SHORT },
     { NETF(entityState_t, player), NFT_BYTE },
     { NETF(entityState_t, flags), NFT_LONG },
-    { NETF(entityState_t, radius), NFT_ROUND },
+    /* WoW creature radii can be 0.5; integer rounding serialized those as zero and erased selection splats. */
+    { NETF(entityState_t, radius), NFT_PACKED_FLOAT },
     { NETF(entityState_t, splat), NFT_LONG },
     { NETF(entityState_t, shadow), NFT_SHORT },
     { NETF(entityState_t, shadow_rect), NFT_LONG },

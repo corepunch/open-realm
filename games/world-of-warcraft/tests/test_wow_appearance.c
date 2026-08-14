@@ -135,3 +135,19 @@ TEST(wow_appearance, wow_entity_delta_preserves_appearance_and_equipment) {
     T_EQ(out.appearance, to.appearance);
     T_EQ(out.equipment, to.equipment);
 }
+
+TEST(wow_appearance, wow_entity_delta_preserves_fractional_radius) {
+    BYTE buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    entityState_t from = { 0 }, to = { .number = 8, .model = 3, .radius = 0.5f }, out = { 0 };
+    DWORD bits = 0;
+    int number;
+
+    MSG_WriteDeltaEntity(&sb, &from, &to, true);
+    sb.readcount = 0;
+    number = MSG_ReadEntityBits(&sb, &bits);
+    MSG_ReadDeltaEntity(&sb, &out, number, bits);
+
+    T_EQ(number, 8);
+    T_FEQ(out.radius, 0.5f, 0.001f);
+}
