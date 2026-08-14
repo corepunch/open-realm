@@ -1091,7 +1091,9 @@ void Wow_FireFirebolt(LPEDICT caster, LPEDICT target) {
      * R_GameEntityMatrix applies the doodad Euler angles (rotation.y-90, rotation.z-90)
      * to a zero-rotation entity, which lifts the mesh far above the origin. */
     proj->s.flags  = EF_GROUND_ANCHOR;
-    caster_local->enemy = target;
+    /* Ranged spells use the selected target, not the melee combat target; leaving
+     * this field set would make the generic frame loop chase after launch. */
+    caster_local->enemy = NULL;
 }
 
 DWORD Wow_FrostboltModel(void) {
@@ -1172,7 +1174,9 @@ void Wow_FireFrostbolt(LPEDICT caster, LPEDICT target) {
     proj->s.radius  = 0.5f;
     proj->s.player  = caster->s.player;
     proj->s.flags   = EF_GROUND_ANCHOR; /* see Wow_FireFirebolt for rationale */
-    caster_local->enemy = target;
+    /* Ranged spells use the selected target, not the melee combat target; leaving
+     * this field set would make the generic frame loop chase after launch. */
+    caster_local->enemy = NULL;
 }
 
 void Wow_HealingTouch(LPEDICT caster) {
