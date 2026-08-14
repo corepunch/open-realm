@@ -77,6 +77,7 @@ void SCR_DrawScreenField(DWORD msec) {
     case ca_active:
         V_RenderView();
         SCR_DrawLayout();
+        if (ui.DrawGameOverlay) ui.DrawGameOverlay();
         /* TODO: research whether to replace key_dest enum with a keyCatchers bitmask
         * like Q3 — multiple input consumers can be active simultaneously. */
         if (cls.key_dest == key_menu) {

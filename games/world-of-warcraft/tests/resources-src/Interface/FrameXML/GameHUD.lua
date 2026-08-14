@@ -1,6 +1,7 @@
 local W = ow3
 local VW, VH = 1024, 768
 local elapsed = 0
+open_message = nil
 
 local function px(x, y, w, h) return x / VW, y / VH, w / VW, h / VH end
 local function image(path, x, y, w, h) W.draw_image(path, px(x, y, w, h)) end
@@ -44,6 +45,7 @@ end
 function ow3_draw_hud()
     local p = W.player()
     local inv = W.inventory()
+    local messages = W.messages()
 
     W.draw_image('Interface\\Test\\LuaPanel.blp', 0.100, 0.200, 0.300, 0.050)
     local first_inv = inv[1]
@@ -58,5 +60,21 @@ function ow3_draw_hud()
     local selected = p.selectedActionSlot
     if selected and selected >= 0 and selected < 12 then
         action_highlight(selected)
+    end
+
+    -- Message layout is client-owned: the server supplies records, not pixels.
+    local unread = 0
+    for i, message in ipairs(messages) do
+        if message.flags % 2 == 1 then
+            local x = 360 + unread * 42
+            W.draw_color(x / VW, 680 / VH, 32 / VW, 32 / VH, 90, 45, 20, 245)
+            text('!', x / 1, 686, 32, 24, 18, 255, 220, 100, 255, 'center')
+            unread = unread + 1
+        end
+    end
+    if open_message then
+        W.draw_color(0.25, 0.25, 0.50, 0.22, 10, 8, 5, 245)
+        text(open_message.title, 270, 205, 484, 28, 16, 255, 215, 120, 255, 'center')
+        text(open_message.body, 290, 245, 404, 180, 12, 240, 230, 205, 255, 'left')
     end
 end

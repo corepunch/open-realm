@@ -150,6 +150,80 @@ CLIENTCOMMAND(Research) {
     Get_Commands_f(clent);
 }
 
+static BOOL G_CheatsEnabled(void) {
+    return gi.CvarString && atoi(gi.CvarString("sv_cheats", "0")) != 0;
+}
+
+static LPEDICT G_GiveItem(LPEDICT unit, DWORD item_code) {
+    LPEDICT item = SP_SpawnAtLocation(item_code, unit->s.player, &unit->s.origin2);
+    if (!item || !G_PickupItem(unit, item)) {
+        if (item) G_FreeEdict(item);
+        return NULL;
+    }
+    return item;
+}
+
+CLIENTCOMMAND(Give) {
+    LPGAMECLIENT client = clent->client;
+    LPEDICT unit = G_GetMainSelectedUnit(client);
+    DWORD code;
+
+    if (!G_CheatsEnabled()) {
+        fprintf(stderr, "WC3: cheats are disabled; set sv_cheats 1\n");
+        return;
+    }
+    if (!unit || argc < 2) {
+        fprintf(stderr, "WC3: cheats: give item <rawcode> [count] | ability <rawcode> | xp <amount>\n");
+        return;
+    }
+    if (argc < 3) {
+        fprintf(stderr, "WC3: give requires a target and value\n");
+        return;
+    }
+    if (strcasecmp(argv[1], "xp") && strlen(argv[2]) < 4) {
+        fprintf(stderr, "WC3: rawcode must contain four characters\n");
+        return;
+    }
+    if (!strcasecmp(argv[1], "item")) {
+        code = *(DWORD const *)argv[2];
+        if (!G_GiveItem(unit, code)) {
+            fprintf(stderr, "WC3: could not give item %.4s to selected unit\n", argv[2]);
+            return;
+        }
+    } else if (!strcasecmp(argv[1], "ability")) {
+        code = *(DWORD const *)argv[2];
+        unit_learnability(unit, code);
+    } else if (!strcasecmp(argv[1], "xp")) {
+        if (!G_UnitIsHero(unit)) {
+            fprintf(stderr, "WC3: selected unit is not a hero\n");
+            return;
+        }
+        G_HeroSetXP(unit, unit->hero.xp + (DWORD)strtoul(argv[2], NULL, 10));
+    } else {
+        fprintf(stderr, "WC3: unsupported give target '%s'\n", argv[1]);
+        return;
+    }
+    Get_Commands_f(clent);
+    Get_Portrait_f(clent);
+}
+
+CLIENTCOMMAND(God) {
+    if (!G_CheatsEnabled()) {
+        fprintf(stderr, "WC3: cheats are disabled; set sv_cheats 1\n");
+        return;
+    }
+    clent->invulnerable = !clent->invulnerable;
+    fprintf(stderr, "WC3: god %s\n", clent->invulnerable ? "on" : "off");
+}
+
+CLIENTCOMMAND(Kill) {
+    if (!G_CheatsEnabled()) {
+        fprintf(stderr, "WC3: cheats are disabled; set sv_cheats 1\n");
+        return;
+    }
+    clent->health.value = 0;
+}
+
 CLIENTCOMMAND(Inventory) {
     LPGAMECLIENT client = clent->client;
     LPEDICT ent;
@@ -323,6 +397,9 @@ typedef struct {
 } clientCommand_t;
 
 clientCommand_t clientCommands[] = {
+    { "give", CMD_Give },
+    { "god", CMD_God },
+    { "kill", CMD_Kill },
     { "button", CMD_Button },
     { "research", CMD_Research },
     { "inventory", CMD_Inventory },

@@ -1865,6 +1865,35 @@ static BOOL Wow_AddQuest(wowClient_t *client, DWORD quest_id) {
     return true;
 }
 
+/* Serialize the complete bounded inbox so reconnects and repeated reward
+ * commands converge on the same client-side message state. */
+void Wow_SendInbox(LPEDICT ent) {
+    wowClient_t *client;
+    BYTE payload[2 + WOW_UI_MAX_MESSAGES * (4 + 1 + 1 + 4 + WOW_UI_MESSAGE_TITLE + WOW_UI_MESSAGE_BODY)];
+    DWORD cursor = 0;
+
+    if (!ent || !ent->client || !gi.GameCommand) return;
+    client = (wowClient_t *)ent->client;
+    payload[cursor++] = 1;
+    payload[cursor++] = (BYTE)client->message_count;
+    FOR_LOOP(i, client->message_count) {
+        wowUiMessage_t const *message = &client->messages[i];
+        payload[cursor++] = (BYTE)message->message_id;
+        payload[cursor++] = (BYTE)(message->message_id >> 8);
+        payload[cursor++] = (BYTE)(message->message_id >> 16);
+        payload[cursor++] = (BYTE)(message->message_id >> 24);
+        payload[cursor++] = message->kind;
+        payload[cursor++] = message->flags;
+        payload[cursor++] = (BYTE)message->quest_id;
+        payload[cursor++] = (BYTE)(message->quest_id >> 8);
+        payload[cursor++] = (BYTE)(message->quest_id >> 16);
+        payload[cursor++] = (BYTE)(message->quest_id >> 24);
+        memcpy(payload + cursor, message->title, WOW_UI_MESSAGE_TITLE); cursor += WOW_UI_MESSAGE_TITLE;
+        memcpy(payload + cursor, message->body, WOW_UI_MESSAGE_BODY); cursor += WOW_UI_MESSAGE_BODY;
+    }
+    gi.GameCommand(ent, "wow_inbox", payload, cursor);
+}
+
 static void Wow_CompleteQuest(wowClient_t *client, DWORD quest_id) {
     wowQuestState_t *state = Wow_FindQuestState(client, quest_id);
     LPCWOWQUESTDETAIL detail;
@@ -1874,10 +1903,85 @@ static void Wow_CompleteQuest(wowClient_t *client, DWORD quest_id) {
     state->status = WOW_QUEST_COMPLETE;
     client->client.ps.stats[WOW_STAT_XP] += detail->reward_xp;
     client->client.ps.stats[WOW_STAT_COPPER] += detail->reward_gold;
+    if (client->message_count < WOW_UI_MAX_MESSAGES) {
+        wowUiMessage_t *message = &client->messages[client->message_count++];
+        memset(message, 0, sizeof(*message));
+        message->message_id = quest_id;
+        message->kind = WOW_UI_MESSAGE_QUEST_REWARD;
+        message->flags = WOW_UI_MESSAGE_UNREAD;
+        message->quest_id = quest_id;
+        snprintf(message->title, sizeof(message->title), "Quest complete");
+        snprintf(message->body, sizeof(message->body), "%s\n\n%s",
+                 detail->title, detail->reward_text);
+    }
+}
+
+static BOOL Wow_CheatsEnabled(void) {
+    return gi.CvarString && atoi(gi.CvarString("sv_cheats", "0")) != 0;
+}
+
+static void Wow_CheatHelp(void) {
+    fprintf(stderr, "WoW: cheats: give all|health [amount]|mana [amount]|gold [amount]|xp [amount]; god; kill\n");
+}
+
+static void Wow_GiveCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
+    wowEntityLocal_t *local = Wow_EntityLocal(ent);
+    DWORD amount;
+
+    if (!Wow_CheatsEnabled()) {
+        fprintf(stderr, "WoW: cheats are disabled; set sv_cheats 1\n");
+        return;
+    }
+    if (!local || argc < 2) {
+        Wow_CheatHelp();
+        return;
+    }
+    amount = argc >= 3 ? (DWORD)strtoul(argv[2], NULL, 10) : 0;
+    if (!strcasecmp(argv[1], "all")) {
+        local->health = 100;
+        local->mana = WOW_MANA_MAX;
+        ent->client->ps.stats[WOW_STAT_XP] = ent->client->ps.stats[WOW_STAT_XP_MAX];
+        ent->client->ps.stats[WOW_STAT_COPPER] += 100000;
+    } else if (!strcasecmp(argv[1], "health")) {
+        local->health = MIN(100, amount ? amount : 100);
+    } else if (!strcasecmp(argv[1], "mana")) {
+        local->mana = MIN(WOW_MANA_MAX, amount ? amount : WOW_MANA_MAX);
+    } else if (!strcasecmp(argv[1], "gold")) {
+        ent->client->ps.stats[WOW_STAT_COPPER] += amount;
+    } else if (!strcasecmp(argv[1], "xp")) {
+        ent->client->ps.stats[WOW_STAT_XP] += amount;
+    } else {
+        fprintf(stderr, "WoW: unsupported give target '%s'\n", argv[1]);
+        Wow_CheatHelp();
+        return;
+    }
+    UI_WriteWowHud(ent);
+}
+
+static void Wow_CheatCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
+    wowEntityLocal_t *local = Wow_EntityLocal(ent);
+
+    if (!Wow_CheatsEnabled()) {
+        fprintf(stderr, "WoW: cheats are disabled; set sv_cheats 1\n");
+        return;
+    }
+    if (!local || !strcasecmp(argv[0], "god")) {
+        if (local) local->godmode = !local->godmode;
+        fprintf(stderr, "WoW: god %s\n", local && local->godmode ? "on" : "off");
+    } else if (!strcasecmp(argv[0], "kill")) {
+        Wow_AIDie(ent, NULL);
+    } else {
+        (void)argc;
+        fprintf(stderr, "WoW: unsupported cheat command '%s'\n", argv[0]);
+    }
 }
 
 static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
-    if (argc >= 1 && !strcasecmp(argv[0], "quest")) {
+    if (argc >= 1 && !strcasecmp(argv[0], "give")) {
+        Wow_GiveCommand(ent, argc, argv);
+    } else if (argc >= 1 && (!strcasecmp(argv[0], "god") || !strcasecmp(argv[0], "kill"))) {
+        Wow_CheatCommand(ent, argc, argv);
+    } else if (argc >= 1 && !strcasecmp(argv[0], "quest")) {
         wowClient_t *client = (wowClient_t *)ent->client;
         DWORD quest_id = argc >= 2 ? (DWORD)strtoul(argv[1], NULL, 10) : 0;
         LPEDICT selected = ent->client->ps.selected_entity
@@ -1907,6 +2011,7 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
         wowClient_t *client = (wowClient_t *)ent->client;
         DWORD quest_id = argc >= 2 ? (DWORD)strtoul(argv[1], NULL, 10) : client->quest_id;
         Wow_CompleteQuest(client, quest_id);
+        Wow_SendInbox(ent);
         client->quest_open = false;
         UI_WriteWowHud(ent);
     } else if (argc >= 1 && !strcasecmp(argv[0], "questlog")) {
@@ -1914,6 +2019,15 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
         client->questlog_open = !client->questlog_open;
         client->quest_open = false;
         UI_WriteWowHud(ent);
+    } else if (argc >= 2 && !strcasecmp(argv[0], "message_read")) {
+        wowClient_t *client = (wowClient_t *)ent->client;
+        DWORD message_id = (DWORD)strtoul(argv[1], NULL, 10);
+        FOR_LOOP(i, client->message_count) {
+            if (client->messages[i].message_id != message_id) continue;
+            client->messages[i].flags &= (BYTE)~WOW_UI_MESSAGE_UNREAD;
+            Wow_SendInbox(ent);
+            break;
+        }
     } else if (argc >= 1 && !strcasecmp(argv[0], "respawn")) {
         char race[64], sex[64]; DWORD class_id, appearance;
         Wow_ReadSelectedCharFromCvars(race, sizeof(race), sex, sizeof(sex), &class_id, &appearance);
@@ -2045,6 +2159,7 @@ static void Wow_ClientBegin(LPEDICT ent) {
     ent->client = &wow_clients[0].client;
     ent->client->ps.client_ui_state = CLIENT_UI_GAME;
     Wow_SendPlayerUi(ent);
+    Wow_SendInbox(ent);
     UI_WriteWowHud(ent);
 }
 

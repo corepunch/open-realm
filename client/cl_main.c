@@ -25,9 +25,31 @@ struct client_state cl;
 
 static DWORD cl_last_packet_time = 0;
 static DWORD cl_realtime = 0;
+static char cl_pending_game_commands[8][256];
+static DWORD cl_pending_game_command_count;
+
+static BOOL CL_IsDeferredGameCommand(LPCSTR text) {
+    return text && (!strncmp(text, "give ", 5) || !strcmp(text, "give") ||
+                    !strncmp(text, "god", 3) || !strncmp(text, "kill", 4) ||
+                    !strncmp(text, "research ", 9));
+}
+
+static void CL_FlushPendingGameCommands(void) {
+    FOR_LOOP(i, cl_pending_game_command_count) {
+        MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+        SZ_Printf(&cls.netchan.message, "%s", cl_pending_game_commands[i]);
+    }
+    cl_pending_game_command_count = 0;
+}
 
 void Cmd_ForwardToServer(LPCSTR text) {
     if (cls.state <= ca_connected || *text == '-' || *text == '+') {
+        if (cls.state <= ca_connected && CL_IsDeferredGameCommand(text) &&
+            cl_pending_game_command_count < 8) {
+            snprintf(cl_pending_game_commands[cl_pending_game_command_count++],
+                     sizeof(cl_pending_game_commands[0]), "%s", text);
+            return;
+        }
         fprintf(stderr, "Unknown command \"%s\"\n", text);
         CON_printf("Unknown command \"%s\"", text);
         return;
@@ -808,6 +830,9 @@ void CL_Frame(DWORD msec) {
         CL_PrepRefresh();
     } else if (cls.state == ca_active) {
         CL_PrepRefresh();
+        if (cl_pending_game_command_count) {
+            CL_FlushPendingGameCommands();
+        }
     }
     SCR_UpdateScreen(msec);
 }

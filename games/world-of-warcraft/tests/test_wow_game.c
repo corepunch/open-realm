@@ -28,6 +28,9 @@ static BYTE test_last_unicast_buf[MAX_MSGLEN];
 static DWORD test_multicast_size;
 static DWORD test_last_unicast_size;
 static DWORD test_unicast_calls;
+static char test_last_game_command[64];
+static BYTE test_last_game_payload[MAX_MSGLEN];
+static DWORD test_last_game_payload_size;
 static char test_last_error[512];
 static char test_playerinfo[MAX_PATHLEN];
 
@@ -379,6 +382,13 @@ static void test_unicast(LPEDICT ent) {
     test_multicast_size = 0;
 }
 
+static void test_game_command(LPEDICT ent, LPCSTR command, void const *data, DWORD size) {
+    (void)ent;
+    snprintf(test_last_game_command, sizeof(test_last_game_command), "%s", command ? command : "");
+    test_last_game_payload_size = MIN(size, (DWORD)sizeof(test_last_game_payload));
+    if (test_last_game_payload_size) memcpy(test_last_game_payload, data, test_last_game_payload_size);
+}
+
 static struct game_import test_import(void) {
     struct game_import import;
 
@@ -396,6 +406,7 @@ static struct game_import test_import(void) {
     import.CvarString = test_cvar_string;
     import.Write = test_write;
     import.unicast = test_unicast;
+    import.GameCommand = test_game_command;
     import.error = test_error;
     return import;
 }
@@ -448,6 +459,9 @@ static void reset_test_state(void) {
     memset(test_last_unicast_buf, 0, sizeof(test_last_unicast_buf));
     test_last_unicast_size = 0;
     test_unicast_calls = 0;
+    test_last_game_command[0] = '\0';
+    memset(test_last_game_payload, 0, sizeof(test_last_game_payload));
+    test_last_game_payload_size = 0;
     memset(test_last_error, 0, sizeof(test_last_error));
     memset(test_configstrings, 0, sizeof(test_configstrings));
     test_playerinfo[0] = '\0';
@@ -685,6 +699,49 @@ TEST(wow_game, quest_complete_delivers_rewards) {
     game->ClientCommand(player, 2, complete_command);
     T_EQ((int)ps->stats[WOW_STAT_XP], 1020);
     T_EQ((int)ps->stats[WOW_STAT_COPPER], 0);
+}
+
+TEST(wow_game, quest_completion_delivers_client_inbox_snapshot) {
+    struct game_export *game = init_game();
+    LPEDICT player;
+    LPCSTR accept_command[] = { "quest_accept", "788" };
+    LPCSTR complete_command[] = { "quest_complete", "788" };
+    BYTE const *payload;
+
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    player = &wow_edicts[0];
+    game->ClientBegin(player);
+    test_last_game_command[0] = '\0';
+    test_last_game_payload_size = 0;
+    game->ClientCommand(player, 2, accept_command);
+    game->ClientCommand(player, 2, complete_command);
+    T_STREQ(test_last_game_command, "wow_inbox");
+    T_ASSERT(test_last_game_payload_size >= 2 + 4 + 1 + 1 + 4 + WOW_UI_MESSAGE_TITLE + WOW_UI_MESSAGE_BODY);
+    payload = test_last_game_payload;
+    T_EQ(payload[0], 1);
+    T_EQ(payload[1], 1);
+    T_EQ((int)(payload[2] | (payload[3] << 8) | (payload[4] << 16) | (payload[5] << 24)), 788);
+    T_EQ(payload[6], WOW_UI_MESSAGE_QUEST_REWARD);
+    T_EQ(payload[7], WOW_UI_MESSAGE_UNREAD);
+    T_STREQ((LPCSTR)payload + 12, "Quest complete");
+}
+
+TEST(wow_game, message_read_requires_owned_id_and_clears_unread) {
+    struct game_export *game = init_game();
+    LPEDICT player;
+    LPCSTR accept_command[] = { "quest_accept", "788" };
+    LPCSTR complete_command[] = { "quest_complete", "788" };
+    LPCSTR read_command[] = { "message_read", "788" };
+
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    player = &wow_edicts[0];
+    game->ClientBegin(player);
+    game->ClientCommand(player, 2, accept_command);
+    game->ClientCommand(player, 2, complete_command);
+    game->ClientCommand(player, 2, read_command);
+    T_STREQ(test_last_game_command, "wow_inbox");
+    T_EQ(test_last_game_payload[1], 1);
+    T_EQ(test_last_game_payload[7], 0);
 }
 
 TEST(wow_game, quest_turn_in_flow_accept_complete_reward) {

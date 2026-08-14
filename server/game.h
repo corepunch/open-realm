@@ -57,6 +57,7 @@ struct game_import {
     void (*multicast)(LPCVECTOR3 origin, multicast_t to);
     void (*unicast)(edict_t *ent);
     void (*Write)(pfWriteType_t type, void const *value);
+    void (*GameCommand)(edict_t *ent, LPCSTR command, void const *data, DWORD size);
 
     void (*configstring)(DWORD index, LPCSTR string);
     void (*confignstring)(DWORD index, LPCSTR string, DWORD len);

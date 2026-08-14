@@ -276,6 +276,7 @@ typedef struct {
     DWORD dyn_caster;
     DWORD dyn_radius;
     DWORD dyn_duration;
+    BOOL godmode;
 } wowEntityLocal_t;
 
 typedef struct {
@@ -294,6 +295,8 @@ typedef struct {
     wowQuestState_t quests[WOW_MAX_QUEST_LOG];
     DWORD quest_count;
     DWORD questlog_open;
+    wowUiMessage_t messages[WOW_UI_MAX_MESSAGES];
+    DWORD message_count;
 } wowClient_t;
 
 extern struct game_import gi;
@@ -363,6 +366,7 @@ DWORD Wow_CachedCreatureRank(DWORD display_id);
 void UI_WriteWowHud(LPEDICT ent);
 wowQuestState_t *Wow_FindQuestState(wowClient_t *client, DWORD quest_id);
 void Wow_QuestAwardKillCredit(LPEDICT attacker, DWORD display_id);
+void Wow_SendInbox(LPEDICT ent);
 
 /* Ability/projectile system */
 DWORD      Wow_FireboltModel(void);
