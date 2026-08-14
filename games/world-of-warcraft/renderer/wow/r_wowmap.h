@@ -26,6 +26,9 @@
 #define WOW_DOODAD_BUCKETS 272
 #define WOW_WORLD_COORD_OFFSET (32.0f * WOW_ADT_SIZE)
 #define WOW_SPLAT_MAX_SUBDIVISIONS 16
+#define WOW_SPLAT_MIN_SUBDIVISIONS 4
+#define WOW_SPLAT_BATCHES 8
+#define WOW_SPLAT_BATCH_VERTICES 4096
 #define WOW_SPLAT_Z_BIAS 0.05f
 #define WOW_SPLAT_MAX_HEIGHT_DELTA 3.0f
 #define WOW_GRASS_DRAW_DISTANCE 220.0f
@@ -277,6 +280,7 @@ void Wow_AddTerrainCell(VERTEX *vertices, LPDWORD index, wowVec3_t pos, float co
 BOOL Wow_BarycentricHeight(float px, float py, float ax, float ay, float ah, float bx, float by, float bh, float cx, float cy, float ch, float *height);
 BOOL Wow_HeightInCell(float const *heights, int row, int col, float fx, float fy, float *height);
 BOOL Wow_TerrainHeightAtPoint(float sx, float sy, float *height);
+void Wow_FlushSplats(void);
 DWORD Wow_PredictedLayer(WORD const pred_tex[8], DWORD layer_count, int x, int y);
 DWORD Wow_AlphaSlotForTexture(DWORD unique_texture_ids[4], DWORD *unique_count, DWORD texture_id);
 DWORD Wow_BuildUniqueTextureSlots(wowLayer_t const *layers, DWORD layer_count, DWORD slot_texture_ids[4]);

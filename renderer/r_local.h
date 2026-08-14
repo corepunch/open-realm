@@ -213,6 +213,7 @@ void R_RenderFrame(viewDef_t const *viewDef);
 LPTEXTURE R_AllocateTexture(DWORD width, DWORD height);
 LPTEXTURE R_MakeSysFontTexture(void);
 LPTEXTURE R_MakeLoadingIndicatorTexture(void);
+LPTEXTURE R_MakeSelectionCircleTexture(void);
 BOOL R_IsTexturePCX(HANDLE data, DWORD filesize);
 LPTEXTURE R_LoadTexturePCX(HANDLE data, DWORD filesize);
 void R_LoadTextureMipLevel(LPCTEXTURE pTexture, DWORD level, LPCCOLOR32 pPixels, DWORD width, DWORD height);

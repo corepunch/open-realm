@@ -255,10 +255,12 @@ static void R_RenderShadow(const renderEntity_t *entity, LPCVECTOR2 origin) {
 static void R_RenderSelectedCircle(const renderEntity_t *entity, LPCVECTOR2 origin) {
     if (entity->flags & RF_SELECTED) {
         COLOR32 color = { 0, 255, 0, 255 };
-        float radius = entity->radius;
+        /* Fractional WoW collision radii need a minimum visual footprint around the model. */
+        float radius = MAX(entity->radius * MAX(entity->scale, 1.0f), 1.0f);
         FOR_LOOP(i, NUM_SELECTION_CIRCLES) {
             if ((radius * 2) > selCircles[i])
                 continue;
+            /* A flat actor-Z quad intersects sloped terrain; the splat path fits the ring to terrain samples. */
             R_RenderSplat(origin, radius, tr.texture[TEX_SELECTION_CIRCLE+i], tr.shader[SHADER_SPLAT], color);
             break;
         }

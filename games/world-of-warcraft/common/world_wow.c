@@ -34,7 +34,7 @@ static cmWowAdtHeightCache_t cm_wow_height_cache      = { 0 };
 
 typedef struct {
     VECTOR3 pos;
-    LPCSTR  name;
+    LPSTR   name;
 } cmWowSpawnEntry_t;
 static cmWowSpawnEntry_t *cm_wow_all_spawns = NULL;
 static DWORD cm_wow_all_spawn_count = 0;

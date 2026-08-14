@@ -41,15 +41,10 @@ static BOOL R_GamePathHasExtension(LPCSTR path, LPCSTR extension) {
     return !strcasecmp(path + pathLen - extLen, extension);
 }
 
-static LPCSTR selCirclesNames[NUM_SELECTION_CIRCLES] = {
-    "ReplaceableTextures\\Selection\\SelectionCircleSmall.blp",
-    "ReplaceableTextures\\Selection\\SelectionCircleMed.blp",
-    "ReplaceableTextures\\Selection\\SelectionCircleLarge.blp",
-};
-
 void R_GameLoadAssets(void) {
+    /* WoW has no WC3 selection-circle BLPs; generate the ring locally. */
     FOR_LOOP(i, NUM_SELECTION_CIRCLES)
-        tr.texture[TEX_SELECTION_CIRCLE+i] = R_LoadTexture(selCirclesNames[i]);
+        tr.texture[TEX_SELECTION_CIRCLE+i] = R_MakeSelectionCircleTexture();
 }
 
 void R_GameInit(void) {
@@ -77,6 +72,7 @@ void R_GameDrawTerrainShadows(void) {
 }
 
 void R_GameDrawAlphaSurfaces(void) {
+    Wow_FlushSplats();
     R_DrawAlphaSurfaces();
 }
 
