@@ -21,6 +21,9 @@ static bool renderer_shutdown = false;
 LPTEXTURE R_LoadTextureBLP1(HANDLE data, DWORD filesize);
 LPTEXTURE R_LoadTextureBLP2(HANDLE data, DWORD filesize);
 LPTEXTURE R_LoadTextureDDS(HANDLE data, DWORD filesize);
+
+LPTEXTURE R_FindLoadedTexture(LPCSTR name);
+void R_CacheLoadedTexture(LPCSTR name, LPTEXTURE texture);
 BOOL R_IsTexturePCX(HANDLE data, DWORD filesize);
 LPTEXTURE R_LoadTexturePCX(HANDLE data, DWORD filesize);
 
@@ -200,6 +203,8 @@ LPTEXTURE R_LoadTexture(LPCSTR textureFilename) {
     void *buffer = NULL;
     PATHSTR blp_fallback;
     LPCSTR load_path = textureFilename;
+    texture = R_FindLoadedTexture(textureFilename);
+    if (texture) return texture;
     int fileSize = ri.FS_ReadFile(load_path, &buffer);
     /* WC3 war3skins.txt paths omit .blp — try appending it before giving up. */
     if ((fileSize < 0 || !buffer) && !R_HasImageExtension(load_path)) {
@@ -238,6 +243,7 @@ LPTEXTURE R_LoadTexture(LPCSTR textureFilename) {
             break;
     }
     ri.FS_FreeFile(buffer);
+    if (texture) R_CacheLoadedTexture(textureFilename, texture);
     return texture;
 }
 
@@ -507,6 +513,7 @@ void R_Shutdown(void) {
     R_ShutdownFogOfWar();
     R_ShutdownParticles();
     SAFE_DELETE(tr.minimap, R_ReleaseTexture);
+    R_ShutdownTextureCache();
     
     SDL_GL_DeleteContext(context);
     SDL_DestroyWindow(window);

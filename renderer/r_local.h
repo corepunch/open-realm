@@ -206,6 +206,7 @@ void R_RegisterMap(LPCSTR mapFileName);
 int R_RegisterTextureFile(LPCSTR textureFileName);
 LPTEXTURE R_LoadTexture(LPCSTR textureFileName);
 void R_ReleaseTexture(LPTEXTURE texture);
+void R_ShutdownTextureCache(void);
 void R_DrawWorld(void);
 void R_DrawDecals(void);
 void R_DrawAlphaSurfaces(void);
