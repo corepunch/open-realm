@@ -95,7 +95,7 @@ python3 data/WoWee/tools/extract_server_data.py --max-level 40  # more content
 ```
 
 Produces: `weapons.csv` (1289), `quests.csv` (2737), `quest_spawns.csv` (741+2558),
-`creatures.csv` (5642), `creature_spawns.csv` (13729).
+`creatures.csv` (29947 templates / 40213 model rows), `creature_spawns.csv` (13729).
 
 ### Stage 2: CSV → C (`gen_serverdata_c.py`)
 

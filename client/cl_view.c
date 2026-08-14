@@ -242,6 +242,8 @@ static void V_AddClientEntity(centity_t const *ent) {
     re.skin = cl.pics[ent->current.image];
     re.team = ent->current.player;
 #ifdef WOW
+    /* WoW reuses the existing snapshot class ID for the DBC creature display ID. */
+    re.display_id = ent->current.class_id;
     re.appearance = ent->current.appearance;
     re.equipment = ent->current.equipment;
 #endif

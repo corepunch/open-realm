@@ -53,15 +53,27 @@ typedef struct m2ModelBatch_s {
 } m2ModelBatch_t;
 
 #define M2_NUM_GEOSET_GROUPS 16
+#define M2_CHAR_TEX_PRIORITIES 7
 #define M2_CHAR_FLAG_KNEELENGTH 0x4u   /* chest item is a robe — hide pants geoset (group 13) */
 #define M2_CHAR_FLAG_HELM 0x100u
 
 typedef struct {
-    LPCSTR texture[M2_CHAR_TEX_COUNT];
+    LPCSTR texture[M2_CHAR_TEX_CAPE][M2_CHAR_TEX_PRIORITIES];
+    LPCSTR cape_texture;
     DWORD geoset[M2_NUM_GEOSET_GROUPS];
     DWORD flags;  /* low bits: DBC ItemDisplayInfo inventory type (e.g. 1=head, 3=chest);
                      high bits: M2_CHAR_FLAG_* renderer-side flags */
 } m2CharacterOutfit_t;
+
+#define M2_OUTFIT_CACHE_SIZE 32
+typedef struct {
+    m2CharacterOutfit_t outfit;
+    DWORD display_id;
+    DWORD appearance;
+    DWORD equipment;
+    BOOL occupied;
+    BOOL valid;
+} m2CharacterOutfitCache_t;
 
 enum { M2_COMPOSITE_CACHE_SIZE = 4 };
 typedef struct {
@@ -98,7 +110,9 @@ struct m2Model_s {
 	DWORD num_materials;
 	m2CompositeCacheEntry_t composite_cache[M2_COMPOSITE_CACHE_SIZE];
     DWORD composite_cache_lru;
+    m2CharacterOutfitCache_t character_outfit_cache[M2_OUTFIT_CACHE_SIZE];
     m2CharacterOutfit_t character_outfit;
+    DWORD character_outfit_display_id;
     DWORD character_outfit_appearance;
     DWORD character_outfit_equipment;
     BOOL character_outfit_resolved;
@@ -223,6 +237,8 @@ typedef struct {
 static m2Dbc_t m2_char_start_outfit_dbc;
 static m2Dbc_t m2_item_display_info_dbc;
 static m2Dbc_t m2_char_sections_dbc;
+static m2Dbc_t m2_creature_display_info_dbc;
+static m2Dbc_t m2_creature_display_info_extra_dbc;
 
 static BOOL M2_DbcLoad(m2Dbc_t *dbc, LPCSTR filename) {
     int size;
@@ -293,6 +309,61 @@ static BYTE const *M2_DbcFindID(m2Dbc_t *dbc, LPCSTR filename, DWORD wanted_id) 
         }
     }
     return NULL;
+}
+
+typedef struct {
+    BYTE const *extra;
+    DWORD appearance;
+    LPCSTR baked_texture;
+} m2CreatureAppearance_t;
+
+typedef struct {
+    m2CreatureAppearance_t appearance;
+    DWORD display_id;
+    BOOL resolved;
+    BOOL valid;
+} m2CreatureAppearanceCache_t;
+
+#define M2_CREATURE_APPEARANCE_CACHE_SIZE 256
+static m2CreatureAppearanceCache_t m2_creature_appearance_cache[M2_CREATURE_APPEARANCE_CACHE_SIZE];
+
+/* Character-model creatures use their display ID as the stable snapshot key;
+ * the client DBCs own all customization, equipment, and baked-texture details. */
+static BOOL M2_ResolveCreatureAppearance(DWORD display_id, m2CreatureAppearance_t *out) {
+    m2CreatureAppearanceCache_t *cached;
+    BYTE const *display;
+    BYTE const *extra;
+    DWORD extra_id;
+
+    if (!display_id || !out) return false;
+    cached = &m2_creature_appearance_cache[display_id % M2_CREATURE_APPEARANCE_CACHE_SIZE];
+    if (cached->resolved && cached->display_id == display_id) {
+        if (cached->valid) *out = cached->appearance;
+        return cached->valid;
+    }
+    memset(cached, 0, sizeof(*cached));
+    cached->display_id = display_id;
+    cached->resolved = true;
+    memset(out, 0, sizeof(*out));
+    display = M2_DbcFindID(&m2_creature_display_info_dbc,
+                           "DBFilesClient\\CreatureDisplayInfo.dbc", display_id);
+    if (!display || m2_creature_display_info_dbc.fields < 4) return false;
+    extra_id = M2_DbcField(&m2_creature_display_info_dbc, display, 3);
+    if (!extra_id) return false;
+    extra = M2_DbcFindID(&m2_creature_display_info_extra_dbc,
+                         "DBFilesClient\\CreatureDisplayInfoExtra.dbc", extra_id);
+    if (!extra || m2_creature_display_info_extra_dbc.fields < 19) return false;
+    out->extra = extra;
+    out->appearance = Wow_PackAppearance((BYTE)M2_DbcField(&m2_creature_display_info_extra_dbc, extra, 3),
+                                         (BYTE)M2_DbcField(&m2_creature_display_info_extra_dbc, extra, 4),
+                                         (BYTE)M2_DbcField(&m2_creature_display_info_extra_dbc, extra, 5),
+                                         (BYTE)M2_DbcField(&m2_creature_display_info_extra_dbc, extra, 6),
+                                         (BYTE)M2_DbcField(&m2_creature_display_info_extra_dbc, extra, 7), 1, 0);
+    out->baked_texture = M2_DbcString(&m2_creature_display_info_extra_dbc,
+                                      M2_DbcField(&m2_creature_display_info_extra_dbc, extra, 18));
+    cached->appearance = *out;
+    cached->valid = true;
+    return true;
 }
 
 static BOOL M2_CharacterRaceGender(LPCSTR model_path, DWORD *race_id, DWORD *gender_id) {
@@ -368,14 +439,14 @@ static DWORD M2_ItemDisplayInfoGeosetBase(m2Dbc_t const *dbc) {
     if (!dbc) {
         return 0;
     }
-    return dbc->fields >= 25 ? 7 : 6;
+    return dbc->fields >= 22 ? 7 : 0;
 }
 
 static DWORD M2_ItemDisplayInfoFlagsField(m2Dbc_t const *dbc) {
     if (!dbc) {
         return 0;
     }
-    return dbc->fields >= 25 ? 10 : 9;
+    return dbc->fields >= 22 ? 10 : 0;
 }
 
 /* ItemDisplayInfo.dbc field 3 = LeftModelTexture (cape texture stem).
@@ -392,10 +463,10 @@ static DWORD const slot_geoset_group_map[M2_SLOT_COUNT][3] = {
     /* NONE */      { 0, 0, 0 },
     /* HEAD */      { 0, 0, 0 },
     /* SHOULDERS */ { 0, 0, 0 },
-    /* CHEST */     { 8, 0, 12 },
+    /* CHEST */     { 8, 0, 13 },
     /* SHIRT */     { 8, 0, 0 },
     /* BELT */      { 0, 0, 0 },
-    /* LEGS */      { 0, 9, 13 },
+    /* LEGS */      { 13, 0, 0 },
     /* BOOTS */     { 5, 0, 0 },
     /* GLOVES */    { 4, 0, 0 },
     /* TABARD */    { 0, 0, 0 },
@@ -417,6 +488,7 @@ static void M2_AddDisplayInfoToOutfit(m2CharacterOutfit_t *outfit, DWORD display
     if (!record) {
         return;
     }
+    if (slot == M2_SLOT_NONE || slot >= M2_SLOT_COUNT) return;
 
     texture_base = M2_ItemDisplayInfoTextureBase(&m2_item_display_info_dbc);
     geoset_base = M2_ItemDisplayInfoGeosetBase(&m2_item_display_info_dbc);
@@ -438,12 +510,11 @@ static void M2_AddDisplayInfoToOutfit(m2CharacterOutfit_t *outfit, DWORD display
         }
         outfit->flags |= item_flags;
     }
-    FOR_LOOP(i, M2_CHAR_TEX_COUNT) {
+    FOR_LOOP(i, M2_CHAR_TEX_CAPE) {
         LPCSTR texture = M2_DbcString(&m2_item_display_info_dbc,
                                       M2_DbcField(&m2_item_display_info_dbc, record, texture_base + i));
-        if (texture && *texture) {
-            outfit->texture[i] = texture;
-        }
+        signed char priority = Wow_CharacterTexturePriority(slot, i);
+        if (texture && *texture && priority >= 0) outfit->texture[i][priority] = texture;
     }
     /* Cape texture: ItemDisplayInfo.dbc field 3 = LeftModelTexture.
      * WoWee reads this field for slot 10 (cape) and resolves gender variants. */
@@ -452,7 +523,7 @@ static void M2_AddDisplayInfoToOutfit(m2CharacterOutfit_t *outfit, DWORD display
         LPCSTR cape_tex = M2_DbcString(&m2_item_display_info_dbc,
                                        M2_DbcField(&m2_item_display_info_dbc, record, cape_field));
         if (cape_tex && *cape_tex) {
-            outfit->texture[M2_CHAR_TEX_CAPE] = cape_tex;
+            outfit->cape_texture = cape_tex;
         }
     }
 }
@@ -583,16 +654,13 @@ static BOOL M2_CharacterStartOutfit(LPCSTR model_path,
         if (record_race != race_id || record_class != class_id || record_gender != gender_id) {
             continue;
         }
-        // CharStartOutfit.dbc fields 14-25 map to equipment slots in order:
-        // head, shoulders, chest, shirt, belt, legs, boots, gloves, tabard, cape, unused, unused
-        static DWORD const start_outfit_slot_map[12] = {
-            M2_SLOT_HEAD, M2_SLOT_SHOULDERS, M2_SLOT_CHEST, M2_SLOT_SHIRT,
-            M2_SLOT_BELT, M2_SLOT_LEGS, M2_SLOT_BOOTS, M2_SLOT_GLOVES,
-            M2_SLOT_TABARD, M2_SLOT_CAPE, M2_SLOT_NONE, M2_SLOT_NONE
-        };
+        /* Classic CharStartOutfit fields 14-25 are display IDs and 26-37 are
+         * their parallel InventoryTypes. Empty backpack entries must not be
+         * interpreted as equipped head/shoulder/chest items. */
         FOR_LOOP(i, 12) {
             DWORD display_id = M2_DbcField(&m2_char_start_outfit_dbc, record, 14 + i);
-            M2_AddDisplayInfoToOutfit(outfit, display_id, start_outfit_slot_map[i]);
+            DWORD slot = Wow_CharacterSlotForInventoryType(M2_DbcField(&m2_char_start_outfit_dbc, record, 26 + i));
+            M2_AddDisplayInfoToOutfit(outfit, display_id, slot);
         }
         return true;
     }
@@ -600,8 +668,10 @@ static BOOL M2_CharacterStartOutfit(LPCSTR model_path,
 }
 
 static m2CharacterOutfit_t const *M2_CharacterOutfitForEntity(m2Model_t const *model,
-                                                              renderEntity_t const *entity) {
+                                                              renderEntity_t const *entity,
+                                                              m2CreatureAppearance_t const *creature) {
     m2Model_t *mutable_model;
+    m2CharacterOutfitCache_t *cached;
     DWORD race_id;
     DWORD gender_id;
 
@@ -613,31 +683,46 @@ static m2CharacterOutfit_t const *M2_CharacterOutfitForEntity(m2Model_t const *m
     }
 
     mutable_model = (m2Model_t *)model;
-    if (!mutable_model->menu_equipment_set &&
-        mutable_model->character_outfit_resolved &&
-        mutable_model->character_outfit_appearance == entity->appearance &&
-        mutable_model->character_outfit_equipment == entity->equipment) {
-        return mutable_model->character_outfit_valid ? &mutable_model->character_outfit : NULL;
+    if (!mutable_model->menu_equipment_set) {
+        FOR_LOOP(i, M2_OUTFIT_CACHE_SIZE) {
+            cached = &mutable_model->character_outfit_cache[i];
+            if (cached->occupied && cached->display_id == entity->display_id &&
+                cached->appearance == entity->appearance && cached->equipment == entity->equipment)
+                return cached->valid ? &cached->outfit : NULL;
+        }
+        cached = &mutable_model->character_outfit_cache[
+            (entity->display_id ^ entity->appearance ^ entity->equipment) % M2_OUTFIT_CACHE_SIZE];
+        memset(cached, 0, sizeof(*cached));
+        cached->occupied = true;
+        cached->display_id = entity->display_id;
+        cached->appearance = entity->appearance;
+        cached->equipment = entity->equipment;
+        if (creature && creature->extra) {
+            FOR_LOOP(i, 9)
+                M2_AddDisplayInfoToOutfit(&cached->outfit,
+                                          M2_DbcField(&m2_creature_display_info_extra_dbc,
+                                                      creature->extra, 8 + i),
+                                          Wow_CharacterCreatureItemSlot(i));
+        } else if (!M2_CharacterStartOutfit(model->filename, entity->appearance, &cached->outfit)) return NULL;
+        if (!creature) M2_ApplyEquipmentItems(&cached->outfit, race_id, gender_id, entity->equipment);
+        cached->valid = true;
+        return &cached->outfit;
     }
-    if (mutable_model->menu_equipment_set && mutable_model->character_outfit_resolved &&
+    if (mutable_model->character_outfit_resolved &&
+        mutable_model->character_outfit_display_id == entity->display_id &&
         mutable_model->character_outfit_appearance == entity->appearance) {
         return mutable_model->character_outfit_valid ? &mutable_model->character_outfit : NULL;
     }
 
+    mutable_model->character_outfit_display_id = entity->display_id;
     mutable_model->character_outfit_appearance = entity->appearance;
     mutable_model->character_outfit_equipment = entity->equipment;
     mutable_model->character_outfit_resolved = true;
     mutable_model->character_outfit_valid = false;
-    if (!M2_CharacterStartOutfit(model->filename, entity->appearance, &mutable_model->character_outfit)) {
-        return NULL;
-    }
-    if (mutable_model->menu_equipment_set) {
-        M2_ApplyEquipmentFull(&mutable_model->character_outfit,
-                              mutable_model->menu_equipment_display_id,
-                              M2_SLOT_COUNT);
-    } else {
-        M2_ApplyEquipmentItems(&mutable_model->character_outfit, race_id, gender_id, entity->equipment);
-    }
+    if (!M2_CharacterStartOutfit(model->filename, entity->appearance,
+                                 &mutable_model->character_outfit)) return NULL;
+    M2_ApplyEquipmentFull(&mutable_model->character_outfit,
+                          mutable_model->menu_equipment_display_id, M2_SLOT_COUNT);
     mutable_model->character_outfit_valid = true;
     return &mutable_model->character_outfit;
 }
@@ -769,7 +854,7 @@ static BOOL M2_CharacterComponentTexturePath(LPCSTR stem,
                                              LPCSTR model_path,
                                              LPSTR out,
                                              DWORD out_size) {
-    static LPCSTR const folders[M2_CHAR_TEX_COUNT] = {
+    static LPCSTR const folders[M2_CHAR_TEX_CAPE] = {
         "ArmUpperTexture",
         "ArmLowerTexture",
         "HandTexture",
@@ -784,7 +869,7 @@ static BOOL M2_CharacterComponentTexturePath(LPCSTR stem,
     LPCSTR gender_suffix;
     PATHSTR candidate;
 
-    if (!stem || !*stem || slot >= M2_CHAR_TEX_COUNT || !out || out_size == 0) {
+    if (!stem || !*stem || slot >= M2_CHAR_TEX_CAPE || !out || out_size == 0) {
         return false;
     }
     gender_suffix = M2_CharacterRaceGender(model_path, &race_id, &gender_id) && gender_id ? "F" : "M";
@@ -832,10 +917,10 @@ static void M2_PasteOutfitComponent(LPCOLOR32 pixels,
                                     DWORD width,
                                     DWORD height,
                                     LPCSTR model_path,
-                                    m2CharacterOutfit_t const *outfit,
+                                    LPCSTR stem,
                                     BYTE slot) {
     enum { character_component_atlas_size = 512 };
-    static DWORD const rects[M2_CHAR_TEX_COUNT][4] = {
+    static DWORD const rects[M2_CHAR_TEX_CAPE][4] = {
         { 0,   0,   256, 128 },
         { 0,   128, 256, 128 },
         { 0,   256, 256, 64  },
@@ -853,8 +938,8 @@ static void M2_PasteOutfitComponent(LPCOLOR32 pixels,
     DWORD dst_w;
     DWORD dst_h;
 
-    if (!outfit || slot >= M2_CHAR_TEX_COUNT ||
-        !M2_CharacterComponentTexturePath(outfit->texture[slot], slot, model_path, texture_path, sizeof(texture_path))) {
+    if (!stem || slot >= M2_CHAR_TEX_CAPE ||
+        !M2_CharacterComponentTexturePath(stem, slot, model_path, texture_path, sizeof(texture_path))) {
         return;
     }
     texture = R_LoadTexture(texture_path);
@@ -2382,24 +2467,31 @@ static BOOL M2_CharacterGeosetVisible(m2Model_t const *model,
     DWORD group = section_id / 100;
     DWORD geoset = (group < M2_NUM_GEOSET_GROUPS) ? outfit->geoset[group] : 0;
     WORD expected;
+    WORD available[64];
+    DWORD available_count = 0;
 
     /* Geoset group → section ID mapping (from WoWee/AzerothCore conventions):
      *   Group  4 (gloves):    base 401 = kGeosetBareForearms
      *   Group  5 (boots):     base 501 = kGeosetBareShins
      *   Group  7 (ears):      base 701, default 702 (helmet hides ears)
      *   Group  8 (sleeves):   base 801 = kGeosetBareSleeves
-     *   Group  9 (kneepads):  base 902 = kGeosetDefaultKneepads
+     *   Group  9 (kneepads):  default 903; 902 is the flared lower-leg mesh
      *   Group 10 (eyes):      base 1001
      *   Group 11 (eyebrows):  base 1101
      *   Group 12 (hair):      base 1201
      *   Group 13 (pants):     base 1301 = kGeosetBarePants
      *   Group 15 (cloak):     base 1501 = kGeosetNoCape, 1502 = kGeosetWithCape */
+    for (m2ModelBatch_t const *batch = model->batches;
+         batch && available_count < sizeof(available) / sizeof(available[0]); batch = batch->next)
+        available[available_count++] = batch->section_id;
     switch (group) {
         case 4:  expected = 401 + geoset; break;
-        case 5:  expected = 501 + geoset; break;
-        case 7:  expected = 700 + geoset; break;
+        case 5:  expected = Wow_CharacterGeosetPick(available, available_count, 5, 501 + geoset, 501); break;
+        case 7:  expected = geoset ? 700 + geoset : 702; break;
         case 8:  expected = 801 + geoset; break;
-        case 9:  expected = 902 + geoset; break;
+        /* The start outfit needs the narrow knee mesh; 902 caused flared calves on every classic race. */
+        case 9:  expected = Wow_CharacterGeosetPick(available, available_count, 9,
+                                                    geoset ? 902 + geoset : 903, 902); break;
         case 10: expected = 1001 + geoset; break;
         case 11: expected = 1101 + geoset; break;
         case 12: expected = 1201 + geoset; break;
@@ -2407,7 +2499,7 @@ static BOOL M2_CharacterGeosetVisible(m2Model_t const *model,
             if (outfit->flags & M2_CHAR_FLAG_KNEELENGTH) {
                 return false;
             }
-            expected = 1301 + geoset;
+            expected = Wow_CharacterGeosetPick(available, available_count, 13, 1301 + geoset, 1301);
             break;
         case 15: expected = 1501 + geoset; break;
         default: return false;
@@ -2721,10 +2813,15 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size) {
     return model;
 }
 
+static DWORD M2_CharacterTextureKey(renderEntity_t const *entity) {
+    return entity->appearance ^ (entity->equipment * 16777619u) ^ (entity->display_id * 2166136261u);
+}
+
 static LPTEXTURE M2_CharacterTextureForBatch(m2Model_t const *model,
                                              renderEntity_t const *entity,
                                              m2ModelBatch_t *batch,
-                                             m2CharacterOutfit_t const *outfit) {
+                                             m2CharacterOutfit_t const *outfit,
+                                             m2CreatureAppearance_t const *creature) {
     m2Model_t *mutable_model;
     DWORD key;
     DWORD victim;
@@ -2736,6 +2833,16 @@ static LPTEXTURE M2_CharacterTextureForBatch(m2Model_t const *model,
     if (!model || !entity || !batch || !model->character_model) {
         return batch ? batch->texture : tr.texture[TEX_WHITE];
     }
+    key = M2_CharacterTextureKey(entity);
+    if (batch->texture_type == 1 && creature && creature->baked_texture && *creature->baked_texture) {
+        if (batch->character_texture && batch->character_texture_key == key) return batch->character_texture;
+        if (batch->character_texture) R_ReleaseTexture(batch->character_texture);
+        snprintf(texture_path, sizeof(texture_path), "Textures\\BakedNpcTextures\\%s",
+                 creature->baked_texture);
+        batch->character_texture = R_LoadTexture(texture_path);
+        batch->character_texture_key = key;
+        return batch->character_texture;
+    }
     has_base_path = M2_CharacterTexturePathForType(model->filename,
                                                   entity->appearance,
                                                   batch->texture_type,
@@ -2743,7 +2850,6 @@ static LPTEXTURE M2_CharacterTextureForBatch(m2Model_t const *model,
                                                   sizeof(texture_path));
     if (batch->texture_type != 1) {
         if (has_base_path) {
-            key = entity->appearance ^ (entity->equipment * 16777619u);
             if (batch->character_texture && batch->character_texture_key == key) {
                 return batch->character_texture;
             }
@@ -2758,8 +2864,6 @@ static LPTEXTURE M2_CharacterTextureForBatch(m2Model_t const *model,
     }
 
     mutable_model = (m2Model_t *)model;
-    key = entity->appearance ^ (entity->equipment * 16777619u);
-
     /* Look up composite cache — find existing or LRU victim */
     {
         DWORD lru = mutable_model->composite_cache_lru;
@@ -2805,14 +2909,10 @@ static LPTEXTURE M2_CharacterTextureForBatch(m2Model_t const *model,
         return batch->texture;
     }
 
-    FOR_LOOP(slot, M2_CHAR_TEX_COUNT) {
-        M2_PasteOutfitComponent(pixels,
-                                base_texture->width,
-                                base_texture->height,
-                                model->filename,
-                                outfit,
-                                (BYTE)slot);
-    }
+    FOR_LOOP(priority, M2_CHAR_TEX_PRIORITIES)
+        FOR_LOOP(slot, M2_CHAR_TEX_CAPE)
+            M2_PasteOutfitComponent(pixels, base_texture->width, base_texture->height,
+                                    model->filename, outfit->texture[slot][priority], (BYTE)slot);
 
     {
         wowAppearance_t unpacked = Wow_UnpackAppearance(entity->appearance);
@@ -2834,6 +2934,10 @@ static LPTEXTURE M2_CharacterTextureForBatch(m2Model_t const *model,
 }
 
 void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMATRIX4 transform) {
+    renderEntity_t resolved_entity;
+    renderEntity_t const *draw_entity = entity;
+    m2CreatureAppearance_t creature = { 0 };
+    m2CreatureAppearance_t const *creature_ptr = NULL;
     MATRIX3 normal_matrix;
     m2CharacterOutfit_t const *outfit = NULL;
     m2ModelBatch_t *batch;
@@ -2844,11 +2948,18 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
     }
     if (!Frustum_ContainsBox(&tr.viewDef.frustum, &model->bounds, transform)) return;
 
+    if (model->character_model && M2_ResolveCreatureAppearance(entity->display_id, &creature)) {
+        resolved_entity = *entity;
+        resolved_entity.appearance = creature.appearance;
+        draw_entity = &resolved_entity;
+        creature_ptr = &creature;
+    }
+
     shader = M2_Shader();
-    M2_CalculateBoneMatrices(model, entity);
-    M2_DrawParticles(model, entity, transform);
-    M2_DrawRibbons(model, entity, transform);
-    outfit = M2_CharacterOutfitForEntity(model, entity);
+    M2_CalculateBoneMatrices(model, draw_entity);
+    M2_DrawParticles(model, draw_entity, transform);
+    M2_DrawRibbons(model, draw_entity, transform);
+    outfit = M2_CharacterOutfitForEntity(model, draw_entity, creature_ptr);
     Matrix3_normal(&normal_matrix, transform);
     R_Call(glUseProgram, shader->progid);
     R_Call(glUniform1i, shader->uLightCount, 0);
@@ -2920,7 +3031,7 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
 				break;
 			}
 		}
-		texture = M2_CharacterTextureForBatch(model, entity, batch, outfit);
+		texture = M2_CharacterTextureForBatch(model, draw_entity, batch, outfit, creature_ptr);
 		M2_UploadBatchBones(model, batch, shader);
 		R_BindTexture(texture ? texture : tr.texture[TEX_WHITE], 0);
 #ifdef USE_SHADOWMAPS
@@ -3028,4 +3139,7 @@ void M2_Shutdown(void) {
     M2_DbcShutdown(&m2_char_start_outfit_dbc);
     M2_DbcShutdown(&m2_item_display_info_dbc);
     M2_DbcShutdown(&m2_char_sections_dbc);
+    M2_DbcShutdown(&m2_creature_display_info_dbc);
+    M2_DbcShutdown(&m2_creature_display_info_extra_dbc);
+    memset(m2_creature_appearance_cache, 0, sizeof(m2_creature_appearance_cache));
 }

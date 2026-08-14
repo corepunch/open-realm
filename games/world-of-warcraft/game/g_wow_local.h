@@ -23,6 +23,82 @@ typedef const WOWWEAPON *LPCWOWWEAPON;
 LPCWOWWEAPON Wow_WeaponByEntry(DWORD entry);
 DWORD Wow_RollWeaponDamage(DWORD entry);
 
+#define WOW_CREATURE_MODEL_COUNT 4
+
+typedef struct WOWCREATUREMODEL {
+    DWORD index;
+    DWORD display_id;
+    FLOAT display_scale;
+    FLOAT probability;
+    LONG verified_build;
+} WOWCREATUREMODEL;
+
+typedef const WOWCREATUREMODEL *LPCWOWCREATUREMODEL;
+
+/* File-shaped AzerothCore creature_template row plus every creature_template_model
+ * variant. The generated table deliberately retains fields not consumed yet. */
+typedef struct WOWCREATURE {
+    DWORD entry;
+    DWORD difficulty_entry[3];
+    DWORD kill_credit[2];
+    LPCSTR name;
+    LPCSTR subname;
+    LPCSTR icon_name;
+    DWORD gossip_menu_id;
+    DWORD min_level;
+    DWORD max_level;
+    LONG expansion;
+    DWORD faction;
+    DWORD npc_flags;
+    FLOAT speed_walk;
+    FLOAT speed_run;
+    FLOAT speed_swim;
+    FLOAT speed_flight;
+    FLOAT detection_range;
+    DWORD rank;
+    LONG damage_school;
+    FLOAT damage_modifier;
+    DWORD base_attack_time;
+    DWORD range_attack_time;
+    FLOAT base_variance;
+    FLOAT range_variance;
+    DWORD unit_class;
+    DWORD unit_flags;
+    DWORD unit_flags2;
+    DWORD dynamic_flags;
+    LONG family;
+    DWORD type;
+    DWORD type_flags;
+    DWORD loot_id;
+    DWORD pickpocket_loot_id;
+    DWORD skin_loot_id;
+    DWORD pet_spell_data_id;
+    DWORD vehicle_id;
+    DWORD min_gold;
+    DWORD max_gold;
+    LPCSTR ai_name;
+    DWORD movement_type;
+    FLOAT hover_height;
+    FLOAT health_modifier;
+    FLOAT mana_modifier;
+    FLOAT armor_modifier;
+    FLOAT experience_modifier;
+    DWORD racial_leader;
+    DWORD movement_id;
+    DWORD regen_health;
+    LONG creature_immunities_id;
+    DWORD flags_extra;
+    LPCSTR script_name;
+    LONG verified_build;
+    WOWCREATUREMODEL models[WOW_CREATURE_MODEL_COUNT];
+    DWORD model_count;
+} WOWCREATURE;
+
+typedef const WOWCREATURE *LPCWOWCREATURE;
+
+DWORD Wow_CreatureCount(void);
+LPCWOWCREATURE Wow_CreatureByEntry(DWORD entry);
+
 typedef struct {
     DWORD quest_id;
     DWORD creature_entry;

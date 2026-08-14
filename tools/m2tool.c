@@ -1,5 +1,6 @@
 #include "tools/viewer_common.h"
 #include "client/tr_public.h"
+#include "games/world-of-warcraft/common/wow_character_utils.h"
 
 #include <ctype.h>
 #include <stdarg.h>
@@ -459,6 +460,7 @@ enum {
 };
 
 enum {
+    M2TOOL_SLOT_NONE,
     M2TOOL_SLOT_HEAD,
     M2TOOL_SLOT_SHOULDERS,
     M2TOOL_SLOT_CHEST,
@@ -486,7 +488,7 @@ typedef struct {
 } m2ToolDbc_t;
 
 typedef struct {
-    LPCSTR texture[M2TOOL_CHAR_TEX_COUNT];
+    LPCSTR texture[M2TOOL_CHAR_TEX_COUNT][7];
     DWORD geoset[M2TOOL_NUM_GEOSET_GROUPS];
     DWORD flags;
     DWORD display_ids[16];
@@ -632,11 +634,11 @@ static DWORD ItemDisplayInfoTextureBase(m2ToolDbc_t const *dbc) {
 }
 
 static DWORD ItemDisplayInfoGeosetBase(m2ToolDbc_t const *dbc) {
-    return dbc && dbc->fields >= 25 ? 7 : 6;
+    return dbc && dbc->fields >= 22 ? 7 : 0;
 }
 
 static DWORD ItemDisplayInfoFlagsField(m2ToolDbc_t const *dbc) {
-    return dbc && dbc->fields >= 25 ? 10 : 9;
+    return dbc && dbc->fields >= 22 ? 10 : 0;
 }
 
 static void AddDisplayInfoToOutfit(m2ToolWowOutfit_t *outfit,
@@ -644,12 +646,13 @@ static void AddDisplayInfoToOutfit(m2ToolWowOutfit_t *outfit,
                                    DWORD display_id,
                                    DWORD slot) {
     static DWORD const slot_geoset_group_map[M2TOOL_SLOT_COUNT][3] = {
+        /* NONE */      { 0, 0, 0 },
         /* HEAD */      { 0, 0, 0 },
         /* SHOULDERS */ { 0, 0, 0 },
-        /* CHEST */     { 8, 0, 12 },
-        /* SHIRT */     { 0, 0, 0 },
+        /* CHEST */     { 8, 0, 13 },
+        /* SHIRT */     { 8, 0, 0 },
         /* BELT */      { 0, 0, 0 },
-        /* LEGS */      { 0, 9, 13 },
+        /* LEGS */      { 13, 0, 0 },
         /* BOOTS */     { 5, 0, 0 },
         /* GLOVES */    { 4, 0, 0 },
         /* TABARD */    { 0, 0, 0 },
@@ -667,6 +670,7 @@ static void AddDisplayInfoToOutfit(m2ToolWowOutfit_t *outfit,
     if (!record) {
         return;
     }
+    if (slot == M2TOOL_SLOT_NONE || slot >= M2TOOL_SLOT_COUNT) return;
     if (outfit->display_count < sizeof(outfit->display_ids) / sizeof(outfit->display_ids[0])) {
         outfit->display_ids[outfit->display_count++] = display_id;
     }
@@ -686,9 +690,8 @@ static void AddDisplayInfoToOutfit(m2ToolWowOutfit_t *outfit,
     outfit->flags |= DbcField(item_display_info, record, flags_field);
     FOR_LOOP(i, M2TOOL_CHAR_TEX_COUNT) {
         LPCSTR texture = DbcString(item_display_info, DbcField(item_display_info, record, texture_base + i));
-        if (texture && *texture) {
-            outfit->texture[i] = texture;
-        }
+        signed char priority = Wow_CharacterTexturePriority(slot, i);
+        if (texture && *texture && priority >= 0) outfit->texture[i][priority] = texture;
     }
 }
 
@@ -811,14 +814,9 @@ static BOOL LoadWowStartOutfit(LPCSTR model_path,
         if (record_race != race_id || record_class != class_id || record_gender != gender_id) {
             continue;
         }
-        static DWORD const start_outfit_slot_map[12] = {
-            M2TOOL_SLOT_HEAD, M2TOOL_SLOT_SHOULDERS, M2TOOL_SLOT_CHEST, M2TOOL_SLOT_SHIRT,
-            M2TOOL_SLOT_BELT, M2TOOL_SLOT_LEGS, M2TOOL_SLOT_BOOTS, M2TOOL_SLOT_GLOVES,
-            M2TOOL_SLOT_TABARD, M2TOOL_SLOT_CAPE, M2TOOL_SLOT_COUNT, M2TOOL_SLOT_COUNT
-        };
         FOR_LOOP(display, 12) {
             AddDisplayInfoToOutfit(outfit, &item, DbcField(&start, record, 14 + display),
-                                   start_outfit_slot_map[display]);
+                                   Wow_CharacterSlotForInventoryType(DbcField(&start, record, 26 + display)));
         }
         ApplyEquipmentItems(outfit, &item, race_id, gender_id, equipment);
         found = true;
@@ -867,7 +865,8 @@ static BOOL ComponentTexturePath(LPCSTR stem, BYTE slot, LPCSTR model_path, LPST
     return true;
 }
 
-static BOOL WowVisibleSection(WORD section_id, m2ToolWowOutfit_t const *outfit) {
+static BOOL WowVisibleSection(WORD section_id, m2ToolWowOutfit_t const *outfit,
+                              WORD const *available, DWORD available_count) {
     DWORD group, geoset, expected;
 
     if (section_id < 400) {
@@ -882,10 +881,11 @@ static BOOL WowVisibleSection(WORD section_id, m2ToolWowOutfit_t const *outfit) 
 
     switch (group) {
         case 4:  expected = 401 + geoset; break;
-        case 5:  expected = 501 + geoset; break;
-        case 7:  expected = 702; break;
-        case 8:  expected = 800 + geoset; break;
-        case 9:  expected = 900 + geoset; break;
+        case 5:  expected = Wow_CharacterGeosetPick(available, available_count, 5, 501 + geoset, 501); break;
+        case 7:  expected = geoset ? 700 + geoset : 702; break;
+        case 8:  expected = 801 + geoset; break;
+        case 9:  expected = Wow_CharacterGeosetPick(available, available_count, 9,
+                                                    geoset ? 902 + geoset : 903, 902); break;
         case 10: return false;
         case 11: return false;
         case 12: return false;
@@ -893,7 +893,7 @@ static BOOL WowVisibleSection(WORD section_id, m2ToolWowOutfit_t const *outfit) 
             if (outfit->flags & 0x4) {
                 return false;
             }
-            expected = 1301 + geoset;
+            expected = Wow_CharacterGeosetPick(available, available_count, 13, 1301 + geoset, 1301);
             break;
         case 15: expected = 1501; break;
         default: return false;
@@ -1837,11 +1837,15 @@ static void PrintBatches(BYTE const *m2_data,
                          m2HeaderInfo_t const *header,
                          BYTE const *skin_data,
                          DWORD skin_size,
+                         m2Array_t vertex_lookup_array,
+                         m2Array_t indices_array,
                          m2Array_t sections_array,
                          m2Array_t batches_array,
                          BOOL legacy_sections,
                          LPCSTR label) {
     m2Batch_t const *batches;
+    m2Vertex_t const *vertices;
+    WORD const *vertex_lookup, *indices;
     SHORT const *texture_lookup;
 
     if (!g_dump_all || !header || batches_array.count <= 0) {
@@ -1855,11 +1859,17 @@ static void PrintBatches(BYTE const *m2_data,
     }
 
     texture_lookup = ArrayPtr(m2_data, m2_size, header->texture_lookup_table, sizeof(*texture_lookup));
+    vertices = ArrayPtr(m2_data, m2_size, header->vertices, sizeof(*vertices));
+    vertex_lookup = ArrayPtr(skin_data, skin_size, vertex_lookup_array, sizeof(*vertex_lookup));
+    indices = ArrayPtr(skin_data, skin_size, indices_array, sizeof(*indices));
     printf("%s.batches detail:\n", label);
     FOR_LOOP(i, (DWORD)batches_array.count) {
         m2Batch_t const *batch = batches + i;
         SHORT texture_index = -1;
         WORD skin_section_id = 0xffff;
+        DWORD index_start = 0, index_count = 0;
+        BOX3 bounds = { 0 };
+        BOOL has_bounds = false;
         if (texture_lookup && batch->texture_combo_index < (WORD)header->texture_lookup_table.count) {
             texture_index = texture_lookup[batch->texture_combo_index];
         }
@@ -1871,6 +1881,8 @@ static void PrintBatches(BYTE const *m2_data,
                                                                  sizeof(*sections));
                 if (sections) {
                     skin_section_id = sections[batch->skin_section_index].skin_section_id;
+                    index_start = sections[batch->skin_section_index].index_start;
+                    index_count = sections[batch->skin_section_index].index_count;
                 }
             } else {
                 m2SkinSection_t const *sections = ArrayPtr(skin_data,
@@ -1879,9 +1891,19 @@ static void PrintBatches(BYTE const *m2_data,
                                                           sizeof(*sections));
                 if (sections) {
                     skin_section_id = sections[batch->skin_section_index].skin_section_id;
+                    index_start = sections[batch->skin_section_index].index_start;
+                    index_count = sections[batch->skin_section_index].index_count;
                 }
             }
         }
+        if (vertices && vertex_lookup && indices)
+            FOR_LOOP(j, index_count) {
+                DWORD skin_index = index_start + j;
+                if (skin_index >= (DWORD)indices_array.count || indices[skin_index] >= (WORD)vertex_lookup_array.count)
+                    continue;
+                if (vertex_lookup[indices[skin_index]] >= (WORD)header->vertices.count) continue;
+                UpdateBounds(&bounds, vertices[vertex_lookup[indices[skin_index]]].pos, &has_bounds);
+            }
         printf("  [%03u] section=%u section_id=%u geoset=%u material=%u layer=%u tex_count=%u tex_combo=%u tex_index=%d coord=%u weight=%u transform=%u flags=0x%02x shader=0x%04x\n",
                (unsigned)i,
                (unsigned)batch->skin_section_index,
@@ -1897,6 +1919,9 @@ static void PrintBatches(BYTE const *m2_data,
                (unsigned)batch->texture_transform_combo_index,
                (unsigned)batch->flags,
                (unsigned)batch->shader_id);
+        if (has_bounds)
+            printf("        bounds min=%.4f %.4f %.4f max=%.4f %.4f %.4f\n",
+                   bounds.min.x, bounds.min.y, bounds.min.z, bounds.max.x, bounds.max.y, bounds.max.z);
     }
 }
 
@@ -1925,7 +1950,8 @@ static void PrintEmbeddedSkinInfo(BYTE const *data, DWORD size, m2HeaderInfo_t c
         PrintArray("view.sections", view->sections, false);
         PrintArray("view.batches", view->batches, false);
         printf("  %-28s %u\n", "view.bone_count_max", (unsigned)view->bone_count_max);
-        PrintBatches(data, size, header, data, size, view->sections, view->batches, true, "view");
+        PrintBatches(data, size, header, data, size, view->vertices, view->indices,
+                     view->sections, view->batches, true, "view");
     }
 }
 
@@ -1963,7 +1989,8 @@ static void PrintSkinInfo(LPCSTR model_path, BYTE const *m2_data, DWORD m2_size,
         PrintArray("skin.sections", skin->sections, false);
         PrintArray("skin.batches", skin->batches, false);
         printf("  %-28s %u\n", "bone_count_max", (unsigned)skin->bone_count_max);
-        PrintBatches(m2_data, m2_size, header, data, size, skin->sections, skin->batches, false, "skin");
+        PrintBatches(m2_data, m2_size, header, data, size, skin->vertices, skin->indices,
+                     skin->sections, skin->batches, false, "skin");
     } else {
         printf("skin: %s has unexpected magic %.4s\n", resolved, (char const *)&skin->magic);
     }
@@ -2090,12 +2117,11 @@ static void PrintWowPlayerConfig(BYTE const *m2_data, DWORD m2_size, m2HeaderInf
     printf("\n");
     printf("  component_textures:\n");
     FOR_LOOP(i, M2TOOL_CHAR_TEX_COUNT) {
-        PATHSTR path;
-        if (ComponentTexturePath(outfit.texture[i], (BYTE)i, g_model_path, path, sizeof(path))) {
-            printf("    %-11s stem=%s path=%s %s\n",
-                   slot_names[i],
-                   outfit.texture[i],
-                   path,
+        FOR_LOOP(priority, 7) {
+            PATHSTR path;
+            LPCSTR stem = outfit.texture[i][priority];
+            if (!ComponentTexturePath(stem, (BYTE)i, g_model_path, path, sizeof(path))) continue;
+            printf("    %-11s priority=%u stem=%s path=%s %s\n", slot_names[i], (unsigned)priority, stem, path,
                    Tool_FileExists(archives, sizeof(archives) / sizeof(archives[0]), path) ? "exists" : "missing");
         }
     }
@@ -2104,14 +2130,14 @@ static void PrintWowPlayerConfig(BYTE const *m2_data, DWORD m2_size, m2HeaderInf
     SortSections(sections, section_count);
     printf("  visible_section_ids:");
     FOR_LOOP(i, section_count) {
-        if (WowVisibleSection(sections[i], &outfit)) {
+        if (WowVisibleSection(sections[i], &outfit, sections, section_count)) {
             printf(" %u", (unsigned)sections[i]);
         }
     }
     printf("\n");
     printf("  hidden_section_ids:");
     FOR_LOOP(i, section_count) {
-        if (!WowVisibleSection(sections[i], &outfit)) {
+        if (!WowVisibleSection(sections[i], &outfit, sections, section_count)) {
             printf(" %u", (unsigned)sections[i]);
         }
     }

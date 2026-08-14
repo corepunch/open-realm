@@ -7,19 +7,16 @@ games/world-of-warcraft/serverdata/
 ├── weapons.csv            ← 1289 weapons (level ≤ 20) from AzerothCore
 ├── quests.csv             ← 2737 quests (min_level ≤ 20) with full text/rewards
 ├── quest_spawns.csv       ← 741 quest giver positions + 2558 objective POIs
-├── creatures.csv          ← 5642 creature templates (level ≤ 20)
+├── creatures.csv          ← all 29947 creature templates / 40213 model rows
 ├── creature_spawns.csv    ← 13729 creature world positions on map 0
-├── wow_weapon_data.h      ← C struct + API (compiled into binary)
-├── wow_weapon_data.c      ← generated from weapons.csv (do not edit by hand)
-├── wow_quest_data.h       ← C struct + API (compiled into binary)
-└── wow_quest_data.c       ← generated from quests.csv + quest_spawns.csv (do not edit by hand)
+└── README.md
 ```
 
-**CSV files** are the full authoritative extraction from AzerothCore SQL — the
-complete dataset for all starter-zone content (level ≤ 20).
+**CSV files** are authoritative AzerothCore extractions. Weapons and quests are
+level-scoped; creature templates and model variants are complete and unfiltered.
 
-**C files** are generated from the CSVs by `gen_serverdata_c.py`. Do not edit
-them by hand — re-run the script instead.
+**C files** under `game/g_{weapons,quests,creatures}.c` are generated from the
+CSVs by `gen_serverdata_c.py`. Do not edit them by hand.
 
 ## CSV sources
 
@@ -40,8 +37,12 @@ using `data/WoWee/tools/extract_server_data.py`:
 # Full extraction from SQL → CSV (≈30 seconds):
 python3 data/WoWee/tools/extract_server_data.py
 
-# Custom level cap:
+# Custom weapon/quest level cap (creatures always remain complete):
 python3 data/WoWee/tools/extract_server_data.py --max-level 40
+
+# Refresh the complete creature pipeline only:
+python3 data/WoWee/tools/extract_server_data.py --only creatures
+python3 data/WoWee/tools/gen_serverdata_c.py --only creatures
 
 # Generate C from CSV (optional — for regenerating the compiled arrays):
 python3 data/WoWee/tools/gen_serverdata_c.py
@@ -71,9 +72,14 @@ kind, quest_id, creature_entry, display_id, x, y, z, orientation
 
 ### creatures.csv
 ```
-entry, name, display_id, minlevel, maxlevel, faction, npcflag, type, rank,
-unit_class, speed_walk, speed_run, base_attack_time, damage_modifier, health_modifier
+All 55 `creature_template` columns, followed by:
+
+model_idx, display_id, display_scale, model_probability, model_verified_build
 ```
+
+There is one joined CSV row per `creature_template_model` variant. Creatures
+without a model retain one row with `\N` model fields. SQL `NULL` is preserved
+as `\N`; empty strings remain empty strings.
 
 ### creature_spawns.csv
 ```
