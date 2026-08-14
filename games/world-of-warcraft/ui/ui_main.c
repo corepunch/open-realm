@@ -18,6 +18,7 @@ uiImport_t uiimport;
 uiWowState_t wow_ui;
 
 static BOOL uiWow_menu_commands_registered;
+static BOOL UIWow_GameOverlayMouseDown(int x, int y);
 
 /* -------------------------------------------------------------------------
  * Shared helpers used by ui_lua.c and ui_loading.c
@@ -358,9 +359,8 @@ static void UIWow_TextInput(LPCSTR text) {
 
 static BOOL UIWow_MouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
     VECTOR2 mouse_pos;
-    if (wow_ui.game_mode) {
-        return false;
-    }
+    if (wow_ui.game_mode)
+        return event == UI_MOUSE_DOWN && UIWow_GameOverlayMouseDown(x, y);
     if (UIWow_XMLMouseEvent(event, x, y, param)) {
         return true;
     }
@@ -506,6 +506,106 @@ static void UIWow_UpdateUnitUI(DWORD num_units, uiUnitData_t *units) {
     }
 }
 
+/* Route reliable server payloads to the WoW UI data model; gameplay handlers
+ * must validate and mutate state on the server instead of in this callback. */
+static void UIWow_GameCommand(LPCSTR command, void const *data, DWORD size) {
+    BYTE const *payload = data;
+    DWORD cursor = 0;
+    DWORD count;
+
+    if (!command || !*command) {
+        fprintf(stderr, "UIWow: received game command with no command name\n");
+        return;
+    }
+    if (!data && size) {
+        fprintf(stderr, "UIWow: received game command '%s' with NULL payload\n", command);
+        return;
+    }
+    if (!strcmp(command, "wow_inbox")) {
+        if (size < 2 || payload[0] != 1) {
+            UIWow_Printf("UIWow: invalid wow_inbox header (%u bytes)\n", (unsigned)size);
+            return;
+        }
+        count = payload[1]; cursor = 2;
+        if (count > WOW_UI_MAX_MESSAGES ||
+            size < 2 + count * (4 + 1 + 1 + 4 + WOW_UI_MESSAGE_TITLE + WOW_UI_MESSAGE_BODY)) {
+            UIWow_Printf("UIWow: invalid wow_inbox count=%u size=%u\n", (unsigned)count, (unsigned)size);
+            return;
+        }
+        memset(wow_ui.messages, 0, sizeof(wow_ui.messages));
+        wow_ui.message_count = count;
+        FOR_LOOP(i, count) {
+            wowUiMessage_t *message = &wow_ui.messages[i];
+            message->message_id = (DWORD)payload[cursor] | ((DWORD)payload[cursor + 1] << 8) |
+                                   ((DWORD)payload[cursor + 2] << 16) | ((DWORD)payload[cursor + 3] << 24); cursor += 4;
+            message->kind = payload[cursor++]; message->flags = payload[cursor++];
+            message->quest_id = (DWORD)payload[cursor] | ((DWORD)payload[cursor + 1] << 8) |
+                                ((DWORD)payload[cursor + 2] << 16) | ((DWORD)payload[cursor + 3] << 24); cursor += 4;
+            memcpy(message->title, payload + cursor, WOW_UI_MESSAGE_TITLE); cursor += WOW_UI_MESSAGE_TITLE;
+            memcpy(message->body, payload + cursor, WOW_UI_MESSAGE_BODY); cursor += WOW_UI_MESSAGE_BODY;
+            message->title[WOW_UI_MESSAGE_TITLE - 1] = '\0';
+            message->body[WOW_UI_MESSAGE_BODY - 1] = '\0';
+        }
+        return;
+    }
+    if (!strncasecmp(command, "wow_", 4))
+        UIWow_Printf("UIWow: unsupported game command '%s' (%u bytes)\n",
+                     command, (unsigned)size);
+}
+
+static BOOL UIWow_GameOverlayMouseDown(int x, int y) {
+    VECTOR2 pos = UIWow_MouseFdf(x, y);
+    DWORD unread = 0;
+
+    FOR_LOOP(i, wow_ui.message_count) {
+        wowUiMessage_t *message = &wow_ui.messages[i];
+        FLOAT icon_x;
+        if (!(message->flags & WOW_UI_MESSAGE_UNREAD)) continue;
+        icon_x = 0.35f + unread++ * 0.041f;
+        if (pos.x < icon_x || pos.x > icon_x + 0.031f || pos.y < 0.88f || pos.y > 0.922f) continue;
+        wow_ui.open_message_id = message->message_id;
+        if (uiimport.ServerCommand) {
+            char command[64];
+            snprintf(command, sizeof(command), "message_read %u", (unsigned)message->message_id);
+            uiimport.ServerCommand(command);
+        }
+        return true;
+    }
+    return false;
+}
+
+/* Draw client-owned inbox notifications over the active game view. */
+static void UIWow_DrawGameOverlay(void) {
+    RECT rect;
+    DWORD unread = 0;
+    wowUiMessage_t const *open = NULL;
+
+    UIWow_EnsureRenderer();
+    if (!wow_ui.renderer || !wow_ui.renderer->DrawFill || !wow_ui.renderer->DrawText) return;
+    FOR_LOOP(i, wow_ui.message_count) {
+        wowUiMessage_t const *message = &wow_ui.messages[i];
+        if (message->message_id == wow_ui.open_message_id) open = message;
+        if (!(message->flags & WOW_UI_MESSAGE_UNREAD)) continue;
+        rect = MAKE(RECT, 0.35f + unread++ * 0.041f, 0.88f, 0.031f, 0.042f);
+        wow_ui.renderer->DrawFill(&rect, MAKE(COLOR32, 90, 45, 20, 245));
+        wow_ui.renderer->DrawText(&MAKE(drawText_t,
+            .font = UIWow_LoadFont(18), .text = "!", .rect = rect,
+            .color = MAKE(COLOR32, 255, 220, 100, 255), .textWidth = rect.w,
+            .lineHeight = rect.h, .halign = FONT_JUSTIFYCENTER, .valign = FONT_JUSTIFYMIDDLE));
+    }
+    if (!open) return;
+    rect = MAKE(RECT, 0.25f, 0.25f, 0.50f, 0.22f);
+    wow_ui.renderer->DrawFill(&rect, MAKE(COLOR32, 10, 8, 5, 245));
+    wow_ui.renderer->DrawText(&MAKE(drawText_t,
+        .font = UIWow_LoadFont(16), .text = open->title, .rect = MAKE(RECT, 0.27f, 0.27f, 0.46f, 0.04f),
+        .color = MAKE(COLOR32, 255, 215, 120, 255), .textWidth = 0.46f, .lineHeight = 0.04f,
+        .halign = FONT_JUSTIFYCENTER, .valign = FONT_JUSTIFYMIDDLE));
+    wow_ui.renderer->DrawText(&MAKE(drawText_t,
+        .font = UIWow_LoadFont(12), .text = open->body, .rect = MAKE(RECT, 0.28f, 0.32f, 0.44f, 0.13f),
+        .color = MAKE(COLOR32, 240, 230, 205, 255), .textWidth = 0.44f, .lineHeight = 0.13f,
+        .halign = FONT_JUSTIFYLEFT, .valign = FONT_JUSTIFYTOP));
+}
+
 /* -------------------------------------------------------------------------
  * Entry point
  * ---------------------------------------------------------------------- */
@@ -524,5 +624,7 @@ uiExport_t UI_GetAPI(uiImport_t import) {
         .MouseEvent       = UIWow_MouseEvent,
         .UpdateUnitUI     = UIWow_UpdateUnitUI,
         .UpdateLobbySetup = UIWow_UpdateLobbySetup,
+        .GameCommand      = UIWow_GameCommand,
+        .DrawGameOverlay  = UIWow_DrawGameOverlay,
     };
 }

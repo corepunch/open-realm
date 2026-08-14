@@ -156,6 +156,8 @@ typedef struct {
     void (*PlaySoundByName)(LPCSTR name);
 } uiImport_t;
 
+typedef void (*uiGameCommand_t)(LPCSTR command, void const *data, DWORD size);
+
 /* Function table exported by the UI library to the client. */
 typedef struct {
     /* Initialization and shutdown */
@@ -173,6 +175,8 @@ typedef struct {
     /* Unit UI data updates (Phase 8: HUD migration) */
     void (*UpdateUnitUI)(DWORD num_units, uiUnitData_t *units);
     void (*UpdateLobbySetup)(lobbyState_t const *state);
+    uiGameCommand_t GameCommand;
+    void (*DrawGameOverlay)(void);
 } uiExport_t;
 
 /* Entry point called by the client to get the UI function table.

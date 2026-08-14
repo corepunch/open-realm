@@ -76,6 +76,9 @@ typedef struct {
     uiWowFont_t font_cache[WOW_UI_MAX_FONTS];
     uiWowIcon_t inventory[WOW_UI_INVENTORY_SLOTS];
     uiWowIcon_t actions[WOW_UI_ACTION_SLOTS];
+    wowUiMessage_t messages[WOW_UI_MAX_MESSAGES];
+    DWORD message_count;
+    DWORD open_message_id;
     LPTEXTURE textures[WOW_UI_TEX_COUNT];
     LPCFONT fonts[WOW_UI_FONT_COUNT];
     PATHSTR active_map;

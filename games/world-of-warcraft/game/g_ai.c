@@ -96,7 +96,7 @@ static void Wow_ApplyDamage(LPEDICT target, LPEDICT attacker, DWORD damage) {
     }
 
     target_local = Wow_EntityLocal(target);
-    if (!target_local || target_local->dead || target_local->health == 0) {
+    if (!target_local || target_local->dead || target_local->health == 0 || target_local->godmode) {
         return;
     }
 

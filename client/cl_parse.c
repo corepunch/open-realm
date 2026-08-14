@@ -233,7 +233,8 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
     FLOAT zfar;
     MSG_ReadDeltaPlayerState(msg, &cl.playerstate, plnum, bits);
     VECTOR2 server_origin = cl.playerstate.origin;
-    if (cl.playerstate.client_ui_state == CLIENT_UI_GAME) {
+    if (cl.playerstate.client_ui_state == CLIENT_UI_GAME &&
+        cls.key_dest != key_console && cls.key_dest != key_menu) {
         CL_SetGameplayInput();
     }
     znear = cl.viewDef.camerastate[0].znear > 0 ? cl.viewDef.camerastate[0].znear : 100;
@@ -647,6 +648,9 @@ static void CL_ParseGameCommand(LPSIZEBUF msg) {
     payload.cursize = (DWORD)payload_size;
     payload.readcount = 0;
 
+    if (ui.GameCommand) {
+        ui.GameCommand(command, payload.data, payload.cursize);
+    }
     if (!strcmp(command, "lobby_setup")) {
         CL_ParseLobbySetup(&payload);
     } else if (!strcmp(command, "lobby_chat")) {

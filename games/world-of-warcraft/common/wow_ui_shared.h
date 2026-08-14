@@ -3,6 +3,21 @@
 
 #define WOW_UI_INVENTORY_SLOTS 6
 #define WOW_UI_ACTION_SLOTS 12
+#define WOW_UI_MAX_MESSAGES 8
+#define WOW_UI_MESSAGE_TITLE 128
+#define WOW_UI_MESSAGE_BODY 512
+
+typedef struct {
+    DWORD message_id;
+    BYTE kind;
+    BYTE flags;
+    DWORD quest_id;
+    char title[WOW_UI_MESSAGE_TITLE];
+    char body[WOW_UI_MESSAGE_BODY];
+} wowUiMessage_t;
+
+#define WOW_UI_MESSAGE_UNREAD 1
+#define WOW_UI_MESSAGE_QUEST_REWARD 1
 
 /* Single userinfo-style cvar used to pass selected character data from UI to
    game module.  Format: \race\Human\sex\Male\class\1\appearance\12345

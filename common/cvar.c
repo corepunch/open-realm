@@ -424,6 +424,7 @@ void Cvar_Init(void) {
     Cvar_Get("game_port", PORT_SERVER_STRING, CVAR_ARCHIVE);
     Cvar_Get("name", "Player", CVAR_ARCHIVE);
     Cvar_Get("sv_hostname", "OpenWarcraft3", CVAR_ARCHIVE);
+    Cvar_Get("sv_cheats", "0", 0);
     Cvar_Get("com_frame_limit", "0", 0);
     Cvar_Get("scr_showfps", "1", CVAR_ARCHIVE);
     Cvar_Get("skip_cutscene", "0", 0);

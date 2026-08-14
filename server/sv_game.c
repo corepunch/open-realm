@@ -158,6 +158,32 @@ void PF_Unicast(edict_t *ent) {
     Netchan_Transmit(NS_SERVER, &client->netchan);
 }
 
+/* Send a bounded typed payload through the same reliable per-client channel as
+ * layout and lobby game commands, without exposing netchan state to game DLLs. */
+void SV_GameCommand(edict_t *ent, LPCSTR command, void const *data, DWORD size) {
+    BYTE payload_buf[MAX_MSGLEN];
+    sizeBuf_t payload;
+    DWORD p;
+    LPCLIENT client;
+
+    if (!ent || !command || (!data && size) || size > sizeof(payload_buf)) {
+        fprintf(stderr, "SV_GameCommand: rejected command=%s size=%u\n",
+                command ? command : "(null)", (unsigned)size);
+        return;
+    }
+    p = NUM_FOR_EDICT(ent);
+    client = p >= 1 && p <= ge->max_clients && p <= svs.num_clients
+        ? svs.clients + (p - 1) : svs.num_clients == 1 ? svs.clients : NULL;
+    if (!client) {
+        fprintf(stderr, "SV_GameCommand: no client for command=%s\n", command);
+        return;
+    }
+    SZ_Init(&payload, payload_buf, sizeof(payload_buf));
+    if (size) SZ_Write(&payload, data, size);
+    SV_WriteGameCommand(&client->netchan.message, command, &payload);
+    Netchan_Transmit(NS_SERVER, &client->netchan);
+}
+
 void PF_error(LPCSTR fmt, ...) {
     char msg[1024];
     va_list argptr;
@@ -179,6 +205,7 @@ void SV_InitGameProgs(void) {
     
     import.multicast = PF_Multicast;
     import.unicast = PF_Unicast;
+    import.GameCommand = SV_GameCommand;
         
     import.MemAlloc = MemAlloc;
     import.MemFree = MemFree;

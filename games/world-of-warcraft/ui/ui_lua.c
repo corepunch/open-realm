@@ -325,6 +325,22 @@ static int UIWow_LuaActions(lua_State *L) {
     return 1;
 }
 
+static int UIWow_LuaMessages(lua_State *L) {
+    lua_newtable(L);
+    FOR_LOOP(i, wow_ui.message_count) {
+        wowUiMessage_t const *message = &wow_ui.messages[i];
+        lua_newtable(L);
+        lua_pushinteger(L, message->message_id); lua_setfield(L, -2, "id");
+        lua_pushinteger(L, message->kind); lua_setfield(L, -2, "kind");
+        lua_pushinteger(L, message->flags); lua_setfield(L, -2, "flags");
+        lua_pushinteger(L, message->quest_id); lua_setfield(L, -2, "quest");
+        lua_pushstring(L, message->title); lua_setfield(L, -2, "title");
+        lua_pushstring(L, message->body); lua_setfield(L, -2, "body");
+        lua_rawseti(L, -2, (lua_Integer)i + 1);
+    }
+    return 1;
+}
+
 static int UIWow_LuaTime(lua_State *L) {
     lua_pushinteger(L, wow_ui.time);
     return 1;
@@ -590,6 +606,7 @@ static luaL_Reg const wow_lua_funcs[] = {
     { "player",           UIWow_LuaPlayer },
     { "inventory",        UIWow_LuaInventory },
     { "actions",          UIWow_LuaActions },
+    { "messages",         UIWow_LuaMessages },
     { "time",             UIWow_LuaTime },
     { "command",          UIWow_LuaCommand },
     { "load_map",         UIWow_LuaLoadMap },

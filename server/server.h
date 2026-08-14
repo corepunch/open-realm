@@ -134,6 +134,7 @@ int SV_FontIndex(LPCSTR name, DWORD fontSize);
 
 // sv_game.c
 void SV_WriteGameCommand(LPSIZEBUF msg, LPCSTR command, sizeBuf_t const *payload);
+void SV_GameCommand(edict_t *ent, LPCSTR command, void const *data, DWORD size);
 void SV_Multicast(LPCVECTOR3 origin, multicast_t to);
 void SV_InitGameProgs(void);
 
