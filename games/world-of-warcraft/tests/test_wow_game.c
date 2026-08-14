@@ -547,6 +547,27 @@ TEST(wow_game, quest_serverdata_contains_givers_and_objective_locations) {
     T_ASSERT(Wow_QuestDetail(0xFFFFFFFF) == NULL);
 }
 
+TEST(wow_game, creature_serverdata_preserves_templates_and_all_models) {
+    LPCWOWCREATURE marshal = Wow_CreatureByEntry(197);
+    LPCWOWCREATURE deputy = Wow_CreatureByEntry(823);
+    LPCWOWCREATURE defias = Wow_CreatureByEntry(824);
+    LPCWOWCREATURE sparse = Wow_CreatureByEntry(34166);
+
+    T_EQ((int)Wow_CreatureCount(), 29947);
+    T_NOT_NULL(marshal); T_STREQ(marshal->name, "Marshal McBride");
+    T_EQ((int)marshal->gossip_menu_id, 4048); T_EQ((int)marshal->npc_flags, 3);
+    T_EQ((int)marshal->models[0].display_id, 1859);
+    T_FEQ(marshal->models[0].display_scale, 1.0f, 0.001f);
+    T_EQ((int)marshal->models[0].verified_build, 12340);
+    T_NOT_NULL(deputy); T_EQ((int)deputy->models[0].display_id, 2072);
+    T_NOT_NULL(defias); T_EQ((int)defias->model_count, 2);
+    T_EQ((int)defias->models[0].display_id, 2441);
+    T_EQ((int)defias->models[1].display_id, 556);
+    T_NOT_NULL(sparse); T_EQ((int)sparse->models[0].display_id, 0);
+    T_EQ((int)sparse->models[1].display_id, 25501);
+    T_ASSERT(Wow_CreatureByEntry(0xffffffffu) == NULL);
+}
+
 TEST(wow_game, quest_hud_is_server_authored_on_quest_layer) {
     struct game_export *game = init_game();
     LPEDICT player;
@@ -889,6 +910,7 @@ TEST(wow_game, wow_load_map_spawns_and_runs_creature_state) {
     T_ASSERT((creature->svflags & SVF_MONSTER) != 0);
     T_ASSERT((creature->s.flags & EF_GROUND_ANCHOR) != 0);
     T_EQ((int)creature->s.player, 2);
+    T_EQ((int)creature->s.class_id, 161);
     T_FEQ(creature->s.scale, 1.0f, 0.001f);
     T_FEQ(creature->s.radius, 1.5f, 0.001f);
     T_NOT_NULL(creature_local->animation);

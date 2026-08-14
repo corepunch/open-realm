@@ -105,6 +105,52 @@ TEST(wow_m2, file_arrays_are_bounds_checked) {
     T_ASSERT(m2_array_ptr(data, sizeof(data), negative, 1) == NULL);
 }
 
+TEST(wow_m2, character_geoset_selection_uses_model_fallbacks) {
+    WORD available[] = { 501, 505, 902, 903, 1301, 1302 };
+    WORD tauren[] = { 501, 903, 1301 }, legacy[] = { 501, 902, 1301 };
+    DWORD count = sizeof(available) / sizeof(available[0]);
+
+    T_EQ(Wow_CharacterGeosetPick(available, count, 5, 501, 501), 501);
+    T_EQ(Wow_CharacterGeosetPick(available, count, 5, 503, 501), 501);
+    T_EQ(Wow_CharacterGeosetPick(available, count, 5, 504, 501), 501);
+    T_EQ(Wow_CharacterGeosetPick(available, count, 9, 903, 902), 903);
+    T_EQ(Wow_CharacterGeosetPick(tauren, 3, 9, 903, 902), 903);
+    T_EQ(Wow_CharacterGeosetPick(legacy, 3, 9, 903, 902), 902);
+    T_EQ(Wow_CharacterGeosetPick(available, count, 13, 1302, 1301), 1302);
+    T_EQ(Wow_CharacterGeosetPick(available, count, 13, 1303, 1301), 1301);
+}
+
+TEST(wow_m2, start_outfit_inventory_types_select_equipped_slots) {
+    T_EQ(Wow_CharacterSlotForInventoryType(4), 4);  /* shirt */
+    T_EQ(Wow_CharacterSlotForInventoryType(7), 6);  /* legs */
+    T_EQ(Wow_CharacterSlotForInventoryType(8), 7);  /* boots */
+    T_EQ(Wow_CharacterSlotForInventoryType(0), 0);  /* backpack/non-equipment */
+    T_EQ(Wow_CharacterSlotForInventoryType(14), 0); /* shield attachment, not body texture */
+}
+
+TEST(wow_m2, creature_extra_items_select_classic_npc_slots) {
+    BYTE expected[] = { 1, 2, 4, 3, 5, 6, 7, 0, 8 };
+
+    FOR_LOOP(i, sizeof(expected)) T_EQ(Wow_CharacterCreatureItemSlot(i), expected[i]);
+    T_EQ(Wow_CharacterCreatureItemSlot(9), 0);
+}
+
+TEST(wow_m2, pants_remain_below_transparent_boot_texture) {
+    COLOR32 atlas = { 0, 0, 0, 255 };
+    COLOR32 pants = { 10, 20, 30, 255 };
+    COLOR32 transparent_boot = { 90, 80, 70, 0 };
+    COLOR32 opaque_boot = { 90, 80, 70, 255 };
+
+    T_EQ(Wow_CharacterTexturePriority(6, 6), 0);
+    T_EQ(Wow_CharacterTexturePriority(7, 6), 2);
+    T_EQ(Wow_CharacterTexturePriority(7, 5), -1);
+    m2_paste_component(&atlas, 1, 1, &pants, 1, 1, 0, 0, 1, 1);
+    m2_paste_component(&atlas, 1, 1, &transparent_boot, 1, 1, 0, 0, 1, 1);
+    T_EQ(atlas.r, pants.r); T_EQ(atlas.g, pants.g); T_EQ(atlas.b, pants.b);
+    m2_paste_component(&atlas, 1, 1, &opaque_boot, 1, 1, 0, 0, 1, 1);
+    T_EQ(atlas.r, opaque_boot.r); T_EQ(atlas.g, opaque_boot.g); T_EQ(atlas.b, opaque_boot.b);
+}
+
 /* The appearance/equipment pack/unpack unit tests live in-engine
  * (games/world-of-warcraft/game/tests/t_appearance.c).  This standalone binary
  * covers entity-state delta (de)serialization, which links common/msg.c +

@@ -2,6 +2,7 @@
 #define WOW_R_M2_UTILS_H
 
 #include "r_m2_format.h"
+#include "games/world-of-warcraft/common/wow_character_utils.h"
 #include <math.h>
 #include <string.h>
 #include <strings.h>

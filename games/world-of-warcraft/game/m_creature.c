@@ -52,6 +52,15 @@ static wowAmbientCreatureType_t const wow_ambient_creature_types[] = {
 static wowCreatureModelCache_t wow_creature_model_cache[sizeof(wow_ambient_creature_types) /
                                                         sizeof(wow_ambient_creature_types[0])];
 
+/* A few AzerothCore rows begin above index zero; primary means the lowest
+ * populated model index, not blindly models[0]. */
+static LPCWOWCREATUREMODEL Wow_CreaturePrimaryModel(LPCWOWCREATURE creature) {
+    if (!creature) return NULL;
+    FOR_LOOP(i, WOW_CREATURE_MODEL_COUNT)
+        if (creature->models[i].display_id) return &creature->models[i];
+    return NULL;
+}
+
 static BOOL Wow_ResolveCreatureModel(DWORD display_id,
                                      LPSTR model_path,
                                      DWORD model_path_size,
@@ -246,6 +255,7 @@ static LPEDICT Wow_SpawnCreature(DWORD display_id,
     ent->s.scale = scale;
     ent->s.radius = radius;
     ent->s.player = 2;
+    ent->s.class_id = display_id;
     Wow_MonsterStart(ent, display_id, origin, yaw, patrol_radius, walk_speed);
     return ent;
 }
@@ -264,6 +274,8 @@ void Wow_SpawnQuestLocations(LPCVECTOR2 origin) {
 
     FOR_LOOP(i, Wow_QuestGiverCount()) {
         LPCWOWQUESTGIVER data = Wow_QuestGiver(i);
+        LPCWOWCREATURE creature = Wow_CreatureByEntry(data->creature_entry);
+        LPCWOWCREATUREMODEL creature_model;
         PATHSTR model_path;
         FLOAT scale = 1.0f;
         FLOAT radius = 1.0f;
@@ -274,10 +286,20 @@ void Wow_SpawnQuestLocations(LPCVECTOR2 origin) {
 
         if (!budget)
             break;
+        creature_model = Wow_CreaturePrimaryModel(creature);
+        if (!creature_model) {
+            fprintf(stderr, "WoW: quest giver creature %u has no primary server model\n",
+                    (unsigned)data->creature_entry);
+            continue;
+        }
+        if (data->display_id != creature_model->display_id)
+            fprintf(stderr, "WoW: quest giver creature %u display %u disagrees with primary model %u\n",
+                    (unsigned)data->creature_entry, (unsigned)data->display_id,
+                    (unsigned)creature_model->display_id);
         position = (VECTOR2){ data->position.x, data->position.y };
         delta = Vector2_sub(&position, origin);
         if (delta.x * delta.x + delta.y * delta.y > spawn_radius2 ||
-            !Wow_CachedCreatureModel(data->display_id, model_path, sizeof(model_path), &scale, &radius))
+            !Wow_CachedCreatureModel(creature_model->display_id, model_path, sizeof(model_path), &scale, &radius))
             continue;
         ent = Wow_Spawn();
         if (!ent)
@@ -288,16 +310,17 @@ void Wow_SpawnQuestLocations(LPCVECTOR2 origin) {
             continue;
         }
         local = Wow_EntityLocal(ent);
-        local->display_id = data->display_id;
+        local->display_id = creature_model->display_id;
         local->quest_id = data->quest_id;
         local->home = position;
         local->yaw = (FLOAT)RAD2DEG(data->orientation);
         local->health = 1;
         ent->s.origin = data->position;
         ent->s.origin2 = position;
-        ent->s.scale = scale;
+        ent->s.scale = scale * creature_model->display_scale;
         ent->s.radius = radius;
         ent->s.player = 2;
+        ent->s.class_id = creature_model->display_id;
         ent->s.angle = data->orientation;
         ent->s.flags = EF_GROUND_ANCHOR;
         givers++;

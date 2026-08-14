@@ -31,6 +31,8 @@ Do not widen entity or player state just to preview more gear. Keep the packed v
 
 Character display work currently uses:
 
+- `CreatureDisplayInfo.dbc`
+- `CreatureDisplayInfoExtra.dbc`
 - `CharStartOutfit.dbc`
 - `ItemDisplayInfo.dbc`
 - `CharSections.dbc`
@@ -39,6 +41,13 @@ Character display work currently uses:
 - `HelmetGeosetVisData.dbc`
 
 `CharStartOutfit.dbc` maps race/class/gender to starter display IDs. `ItemDisplayInfo.dbc` carries item model names/textures, geoset groups, flags, helmet visibility, and texture component stems.
+
+Character-model NPCs keep their AzerothCore `CreatureDisplayID` in the existing
+snapshot `class_id` field. The renderer follows that ID through
+`CreatureDisplayInfo.ExtendedDisplayInfoID`, packs the extra record's skin,
+face, hair, and facial-hair fields, applies all nine classic NPC item-display
+slots, and uses `Textures\BakedNpcTextures\<BakeName>` for the body atlas.
+Non-character creatures have no extra record and retain their ordinary M2 path.
 
 Classic-era local data has a 23-field `ItemDisplayInfo.dbc` layout where texture components start at field 14. Documented TBC/Wrath-style 25-field layouts start components at field 15. Code should pick offsets from the actual field layout and validate each access against `record_size`.
 
@@ -91,7 +100,7 @@ Current default visibility in the renderer includes section IDs such as `401`, `
 | 5 | Boots | 501 | 501 (kGeosetBareShins) | `501 + geoset` |
 | 7 | Ears | 701 | 702 (helmet hides) | `700 + geoset` |
 | 8 | Sleeves | 801 | 801 (kGeosetBareSleeves) | `801 + geoset` |
-| 9 | Kneepads | 902 | 902 (kGeosetDefaultKneepads) | `902 + geoset` |
+| 9 | Kneepads | 903 | 903 (narrow knees); 902 fallback | model-aware `903`, then `902` |
 | 10 | Eyes | 1001 | 1001 | `1001 + geoset` |
 | 11 | Eyebrows | 1101 | 1101 | `1101 + geoset` |
 | 12 | Hair | 1201 | 1201 | `1201 + geoset` |
@@ -99,8 +108,15 @@ Current default visibility in the renderer includes section IDs such as `401`, `
 | 15 | Cloak | 1501 | 1501 (kGeosetNoCape) | `1501 + geoset`; 1502 = kGeosetWithCape |
 | 20 | Feet | 2002 | 2002 (kGeosetBareFeet) | Used by WoWee for bare feet mesh |
 
-The DBC `ItemDisplayInfo.dbc` provides geoset group values in fields 6-9 (classic layout) or 7-9 (TBC/Wrath). The renderer stores these in `m2CharacterOutfit_t.geoset[group]` and `M2_CharacterGeosetVisible` selects the correct section variant.
+The local classic/TBC `ItemDisplayInfo.dbc` layouts provide `GeosetGroup[0..2]` in fields 7–9. The renderer stores these in `m2CharacterOutfit_t.geoset[group]` and `M2_CharacterGeosetVisible` selects the correct section variant.
 
+For equipment, WoWee's local expansion layouts place `GeosetGroup[0..2]` at DBC fields 7–9 and item flags at field 10 (including the classic 23-field layout). `GeosetGroup[0]` is the primary mesh variant: pants use it for group 13, boots use it for group 5, and chest/shirt sleeves use it for group 8. `GeosetGroup[2]` is the robe/kilt variant for chest items. No verified equipment path changes group 9.
+
+The shipped character models identify `903` as the narrow knee mesh and `902` as the wider mesh extending down the calf. The renderer therefore defaults group 9 to `903`, falls back to `902` only when a model lacks `903`, and otherwise resolves requested variants against the sections actually present in that race/gender model. Human, Orc, Dwarf, Night Elf, Gnome, and Troll models contain both forms; Tauren contains `903`; Scourge uses its legacy sub-400 section layout. Component texture presence never selects a clothing geoset.
+
+Classic `CharStartOutfit.dbc` does not store one display ID per fixed equipment slot. Fields 14–25 are a display-ID array and fields 26–37 are its parallel `InventoryType` array. Resolve each display through its inventory type; values with type 0 are backpack/non-equipment entries and must not affect the character body.
+
+Body component textures are ordered layers, not one final stem per atlas region. Follow whoa's `s_itemPriority`: for `LegLower`, pants occupy priority 0 and boots priority 2. Composite pants first, then boots; transparent pixels in the boot texture intentionally reveal the pants kneepad texture below. Collapsing the region to the last stem produces bare knees.
 ### Cape Texture Resolution
 
 Cape textures are stored in `ItemDisplayInfo.dbc` field 3 (LeftModelTexture). Resolution follows WoWee's pattern:
@@ -108,7 +124,7 @@ Cape textures are stored in `ItemDisplayInfo.dbc` field 3 (LeftModelTexture). Re
 1. Read texture stem from field 3
 2. Try gender-suffix variants: `{stem}_M.blp`, `{stem}_F.blp`, `{stem}_U.blp`
 3. Try under `Item\ObjectComponents\Cape\` and `Item\TextureComponents\Cape\`
-4. Store in `m2CharacterOutfit_t.texture[M2_CHAR_TEX_CAPE]`
+4. Store separately from the layered body component textures
 
 The cape geoset (group 15) must be set to 1502 (kGeosetWithCape) for the cloak mesh to render.
 
@@ -121,4 +137,3 @@ Grounded WoW actors use the same one-dimensional yaw path as Warcraft III/OpenWa
 - M2 rendering consumes `renderEntity_t.angle`.
 
 Do not put player/creature yaw back into `entityState_t.rotation`; that vector is reserved for static object/model transforms that genuinely need three axes.
-

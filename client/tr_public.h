@@ -123,6 +123,7 @@ typedef struct {
     DWORD number;
     DWORD team;
 #ifdef WOW
+    DWORD display_id;
     DWORD appearance;
     DWORD equipment;
 #endif
