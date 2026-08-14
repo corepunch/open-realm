@@ -2,10 +2,50 @@
 
 static LPTEXTURE g_textures = NULL;
 
+typedef struct rImageCacheEntry_s {
+    char *name;
+    LPTEXTURE texture;
+    struct rImageCacheEntry_s *next;
+} rImageCacheEntry_t;
+
+static rImageCacheEntry_t *r_image_cache;
+
+LPTEXTURE R_FindLoadedTexture(LPCSTR name) {
+    rImageCacheEntry_t *entry;
+
+    for (entry = r_image_cache; entry; entry = entry->next)
+        if (!strcasecmp(entry->name, name)) return entry->texture;
+    return NULL;
+}
+
+void R_CacheLoadedTexture(LPCSTR name, LPTEXTURE texture) {
+    rImageCacheEntry_t *entry;
+
+    if (!name || !*name || !texture || R_FindLoadedTexture(name)) return;
+    entry = ri.MemAlloc(sizeof(*entry));
+    entry->name = ri.MemAlloc(strlen(name) + 1);
+    strcpy(entry->name, name);
+    entry->texture = texture;
+    entry->next = r_image_cache;
+    r_image_cache = entry;
+}
+
+void R_ShutdownTextureCache(void) {
+    rImageCacheEntry_t *entry;
+
+    while ((entry = r_image_cache) != NULL) {
+        r_image_cache = entry->next;
+        R_Call(glDeleteTextures, 1, &entry->texture->texid);
+        ri.MemFree(entry->texture);
+        ri.MemFree(entry->name);
+        ri.MemFree(entry);
+    }
+}
+
 int R_RegisterTextureFile(char const *textureFileName) {
     LPTEXTURE tex = (LPTEXTURE)R_LoadTexture(textureFileName);
     if (tex) {
-        ADD_TO_LIST(tex, g_textures);
+        if (!R_FindTextureByID(tex->texid)) ADD_TO_LIST(tex, g_textures);
         return tex->texid;
     } else {
         return -1;
@@ -44,9 +84,13 @@ LPTEXTURE R_AllocateTexture(DWORD width, DWORD height) {
 }
 
 void R_ReleaseTexture(LPTEXTURE texture) {
+    rImageCacheEntry_t *entry;
+
     if (!texture) {
         return;
     }
+    for (entry = r_image_cache; entry; entry = entry->next)
+        if (entry->texture == texture) return;
     FOR_LOOP(i, TEX_COUNT) {
         /* Missing assets share renderer-owned placeholders; cache eviction must not free a built-in
            used by other slots. */

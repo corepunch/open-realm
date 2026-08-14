@@ -2868,6 +2868,8 @@ static LPTEXTURE M2_CharacterTextureForBatch(m2Model_t const *model,
     {
         DWORD lru = mutable_model->composite_cache_lru;
         victim = 0;
+        if (lru == (1u << M2_COMPOSITE_CACHE_SIZE) - 1)
+            lru = mutable_model->composite_cache_lru = 0;
         for (DWORD i = 0; i < M2_COMPOSITE_CACHE_SIZE; i++) {
             if (mutable_model->composite_cache[i].texture &&
                 mutable_model->composite_cache[i].key == key) {
@@ -2890,7 +2892,6 @@ static LPTEXTURE M2_CharacterTextureForBatch(m2Model_t const *model,
         mutable_model->composite_cache[victim].key = key;
         mutable_model->composite_cache_lru = lru | (1u << victim);
     }
-
     if (!outfit) {
         return batch->texture;
     }
