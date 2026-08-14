@@ -149,6 +149,25 @@ LPTEXTURE R_MakeLoadingIndicatorTexture(void) {
     return texture;
 }
 
+/* WoW archives do not contain Warcraft III's selection-circle assets. */
+LPTEXTURE R_MakeSelectionCircleTexture(void) {
+    enum { TEXTURE_SIZE = 128 };
+    COLOR32 pixels[TEXTURE_SIZE * TEXTURE_SIZE];
+    LPTEXTURE texture = R_AllocateTexture(TEXTURE_SIZE, TEXTURE_SIZE);
+
+    FOR_LOOP(y, TEXTURE_SIZE) FOR_LOOP(x, TEXTURE_SIZE) {
+        FLOAT fx = ((FLOAT)x + 0.5f) / TEXTURE_SIZE * 2.0f - 1.0f;
+        FLOAT fy = ((FLOAT)y + 0.5f) / TEXTURE_SIZE * 2.0f - 1.0f;
+        FLOAT distance = sqrtf(fx * fx + fy * fy);
+        FLOAT outer = 0.92f, inner = 0.78f, edge = 0.035f;
+        FLOAT ring = R_SmoothStep(inner - edge, inner, distance) *
+                     (1.0f - R_SmoothStep(outer, outer + edge, distance));
+        pixels[y * TEXTURE_SIZE + x] = MAKE(COLOR32, 255, 255, 255, (BYTE)(ring * 255.0f));
+    }
+    R_LoadTextureMipLevel(texture, 0, pixels, TEXTURE_SIZE, TEXTURE_SIZE);
+    return texture;
+}
+
 static LPTEXTURE R_MakeBlobShadowTexture(void) {
     enum { TEXTURE_SIZE = 64 };
     COLOR32 pixels[TEXTURE_SIZE * TEXTURE_SIZE];

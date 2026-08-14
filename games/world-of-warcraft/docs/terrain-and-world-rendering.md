@@ -51,7 +51,24 @@ Each ADT chunk can carry up to four texture layers. The renderer stores:
 - optional normals,
 - bounds for culling.
 
-The splat path has a small Z bias and height-delta guard to keep layer geometry close to terrain without exploding across sharp height changes.
+The splat path has a small Z bias, polygon offset, and height-delta guard to keep decal geometry close to terrain without exploding across sharp height changes. If the camera's ADT window has not produced terrain samples yet, it emits a flat quad instead of dropping the draw.
+
+### Dynamic Splat Batching
+
+WoW splats use top-down rectangular projection, matching the terrain-decal model used by modern large-world renderers. Terrain-conforming splats sample one shared `(cols + 1) x (rows + 1)` height lattice and reuse those vertices between adjacent cells; the old cell-local loop queried four corners per cell. Small splats use at least a 4x4 fitted grid (96 triangle vertices and 25 shared height samples), so selection rings follow local ADT deformation instead of intersecting it as a single flat quad.
+
+Both paths queue vertices into fixed material batches keyed by texture and shader. `R_GameDrawAlphaSurfaces()` flushes each occupied batch with one `GL_STREAM_DRAW` buffer re-specification and one draw call. Re-specifying the complete streaming buffer permits driver-side buffer orphaning and avoids overwriting storage still consumed by the GPU, so extra terrain-fit triangles do not create extra draw calls.
+
+Creature selection depends on the replicated `entityState.radius`. WoW model collision radii may be `0.5`, so this field uses the existing two-byte `NFT_PACKED_FLOAT` encoding; `NFT_ROUND` truncated such radii to zero and caused the renderer to reject the resulting zero-area circle.
+
+WoWee instead builds a flat 48-segment procedural disc, floor-snaps its center periodically, raises it by `0.17`, and disables depth testing. That avoids terrain clipping cheaply, but permits the ring to show through intervening geometry. OpenWarcraft keeps depth testing and fits the batched mesh to terrain; polygon offset plus the small world-space bias handle coplanar depth precision.
+
+References:
+
+- [Khronos: Buffer Object Streaming](https://wikis.khronos.org/opengl/Buffer_Object_Streaming)
+- [Khronos: Basics of Polygon Offset](https://wikis.khronos.org/opengl/Basics_Of_Polygon_Offset)
+- [GameDev StackExchange: fitted-mesh terrain decals](https://gamedev.stackexchange.com/questions/32095/decal-implementation)
+- [Activision: Large Scale Terrain Rendering, decal rendering](https://advances.realtimerendering.com/s2023/Etienne%28ATVI%29-Large%20Scale%20Terrain%20Rendering%20with%20notes%20%28Advances%202023%29.pdf)
 
 ## Grass
 
