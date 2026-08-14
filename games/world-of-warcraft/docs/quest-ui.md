@@ -8,8 +8,8 @@ The client never runs quest Lua scripts while `game_mode` is active.
 ```
 AzerothCore SQL dumps                extract_quest_data.py
  ├─ quest_template.sql          ──►  games/world-of-warcraft/serverdata/
- ├─ quest_template_addon.sql         ├─ wow_quest_data.h   (structs + API)
- ├─ quest_offer_reward.sql           ├─ wow_quest_data.c   (static tables)
+ ├─ quest_template_addon.sql         ├─ g_wow_local.h   (structs + API)
+ ├─ quest_offer_reward.sql           ├─ build/generated/g_quests.c   (static tables)
  ├─ creature_queststarter.sql        └─ quest_spawns.csv   (reference)
  ├─ creature_template_model.sql
  ├─ creature.sql (positions)
@@ -22,7 +22,7 @@ games/world-of-warcraft/serverdata/ ──►  game/g_wow.c (quest logic)
 
 ## Data Structures
 
-Defined in `games/world-of-warcraft/serverdata/wow_quest_data.h`:
+Defined in `games/world-of-warcraft/game/g_wow_local.h`:
 
 | Struct | Purpose |
 |--------|---------|
@@ -97,17 +97,16 @@ python3 data/WoWee/tools/extract_server_data.py --max-level 40  # more content
 Produces: `weapons.csv` (1289), `quests.csv` (2737), `quest_spawns.csv` (741+2558),
 `creatures.csv` (29947 templates / 40213 model rows), `creature_spawns.csv` (13729).
 
-### Stage 2: CSV → C (`gen_serverdata_c.py`)
+### Stage 2: CSV → C (`serverdata/gen_serverdata_c.py`)
 
 Converts CSV into static C arrays compiled into the binary:
 
 ```sh
-python3 data/WoWee/tools/gen_serverdata_c.py
+python3 games/world-of-warcraft/serverdata/gen_serverdata_c.py --output-dir build/generated
 ```
 
-The compiled C (`wow_quest_data.c`, `wow_weapon_data.c`) is a curated subset —
-hand-tuned for gameplay and testability. When adding new content, pull rows from
-the extracted CSV and adapt them.
+The generated C tables are included by `game/g_wow.c` from `build/generated/`.
+When adding new content, update the extracted CSV and rebuild.
 
 **Caveat:** AzerothCore's `RequiredNpcOrGo` field contains creature *entries*,
 mapped to display IDs via `creature_template_model`. Item-collection quests

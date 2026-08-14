@@ -129,7 +129,7 @@ Agent guidance:
 
 - Use `data/WoWee/tools/extract_quest_data.py` to generate WoW server data from AzerothCore SQL dumps.
 - Source: `data/azerothcore-wotlk/data/sql/base/db_world/` (quest_template, creature, etc.)
-- Output: `games/world-of-warcraft/serverdata/wow_quest_data.c` and `quest_spawns.csv`
+- Output: `build/generated/g_quests.c` and `quest_spawns.csv`
 
 ```sh
 python3 data/WoWee/tools/extract_quest_data.py                        # regenerate from existing IDs

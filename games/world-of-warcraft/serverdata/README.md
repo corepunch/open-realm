@@ -15,8 +15,37 @@ games/world-of-warcraft/serverdata/
 **CSV files** are authoritative AzerothCore extractions. Weapons and quests are
 level-scoped; creature templates and model variants are complete and unfiltered.
 
-**C files** under `game/g_{weapons,quests,creatures}.c` are generated from the
-CSVs by `gen_serverdata_c.py`. Do not edit them by hand.
+The C tables are generated into `build/generated/` from the CSVs by
+`serverdata/gen_serverdata_c.py` during WoW builds. Do not edit them by hand.
+
+## Build workflow
+
+The CSV files and `gen_serverdata_c.py` are source files; the generated C files
+are build artifacts. The Makefile declares each generated file as a prerequisite
+of the WoW game library and WoW game tests:
+
+1. `make game-wow` or a WoW test checks the CSV and generator timestamps.
+2. Missing or stale tables are regenerated into `build/generated/`.
+3. `game/g_wow.c` includes `g_creatures.c`, `g_quests.c`, and `g_weapons.c`
+   from that directory, so the tables are compiled into the game module.
+4. `make clean` removes the generated tables with the rest of `build/`.
+
+To force a clean regeneration:
+
+```sh
+make clean
+make game-wow
+```
+
+To regenerate manually without compiling:
+
+```sh
+python3 games/world-of-warcraft/serverdata/gen_serverdata_c.py \
+    --output-dir build/generated
+```
+
+Do not add generated C files under `games/world-of-warcraft/game/` or edit files
+under `build/generated/` by hand.
 
 ## CSV sources
 
@@ -42,10 +71,10 @@ python3 data/WoWee/tools/extract_server_data.py --max-level 40
 
 # Refresh the complete creature pipeline only:
 python3 data/WoWee/tools/extract_server_data.py --only creatures
-python3 data/WoWee/tools/gen_serverdata_c.py --only creatures
+python3 games/world-of-warcraft/serverdata/gen_serverdata_c.py --only creatures
 
-# Generate C from CSV (optional — for regenerating the compiled arrays):
-python3 data/WoWee/tools/gen_serverdata_c.py
+# Generate C from CSV manually (the build does this automatically):
+python3 games/world-of-warcraft/serverdata/gen_serverdata_c.py --output-dir build/generated
 ```
 
 ## CSV column reference
