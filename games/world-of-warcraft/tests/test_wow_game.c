@@ -917,6 +917,33 @@ TEST(wow_game, wow_load_map_spawns_and_runs_creature_state) {
     }
 }
 
+/* Target selection is state-only; combat begins only from an explicit attack or action-bar command. */
+TEST(wow_game, selecting_target_does_not_start_combat_or_chase) {
+    struct game_export *game = init_game();
+    LPEDICT player, creature;
+    wowEntityLocal_t *local;
+    VECTOR2 before;
+    LPCSTR select_argv[] = { "select", "1" };
+
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    player = &wow_edicts[0];
+    creature = first_creature();
+    local = Wow_EntityLocal(player);
+    before = player->s.origin2;
+
+    game->ClientCommand(player, 2, select_argv);
+    game->RunFrame();
+
+    T_EQ((int)player->client->ps.selected_entity, (int)creature->s.number);
+    T_NULL(local->enemy);
+    T_EQ((int)local->attack_time, 0);
+    T_EQ((int)local->attack_damage_time, 0);
+    T_EQ((int)local->attack_backswing_time, 0);
+    T_FEQ(player->s.origin2.x, before.x, 0.001f);
+    T_FEQ(player->s.origin2.y, before.y, 0.001f);
+    if (game->Shutdown) game->Shutdown();
+}
+
 /* A cast must replace an active melee swing, hold the ready pose, then launch with the release pose. */
 TEST(wow_game, wow_fireball_cast_interrupts_melee_and_launches) {
     struct game_export *game = init_game();
@@ -947,6 +974,7 @@ TEST(wow_game, wow_fireball_cast_interrupts_melee_and_launches) {
     T_EQ((int)local->mana, 90);
     T_EQ((int)local->gcd_time, 0);
     T_ASSERT(local->cast_release_time > 0);
+    T_NULL(local->enemy); /* Fireball is a one-shot ranged cast, not a melee engage. */
     T_STREQ(local->animation->name, "SpellCastDirected");
     FOR_LOOP(i, (DWORD)globals.num_edicts) {
         if (wow_edicts[i].inuse && wow_edicts[i].think == Wow_RunProjectile) {
