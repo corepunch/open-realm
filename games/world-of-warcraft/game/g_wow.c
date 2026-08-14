@@ -4,6 +4,11 @@
 #include <stdio.h>
 #include <strings.h>
 
+/* Generated server tables are included here so the unity source tree contains no generated files. */
+#include "build/generated/g_creatures.c"
+#include "build/generated/g_quests.c"
+#include "build/generated/g_weapons.c"
+
 struct game_import gi;
 struct game_export globals;
 edict_t wow_edicts[WOW_MAX_EDICTS];
