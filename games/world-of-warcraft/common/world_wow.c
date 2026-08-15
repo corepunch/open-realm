@@ -279,8 +279,7 @@ static BOOL CM_WowTerrainHeightAtPoint(FLOAT sx, FLOAT sy, FLOAT *height) {
             cell_col  = (int)floorf(MIN(local_col, 7.9999f));
             if (cell_row < 0 || cell_row >= 8 || cell_col < 0 || cell_col >= 8)
                 continue;
-            if (CM_WowHeightInCell(ch->heights, cell_row, cell_col,
-                                   local_row - cell_row, local_col - cell_col, &cell_height)) {
+            if (CM_WowHeightInCell(ch->heights, cell_row, cell_col, local_row - cell_row, local_col - cell_col, &cell_height)) {
                 *height = ch->position.z + cell_height;
                 return true;
             }
@@ -442,33 +441,23 @@ static void CM_WowChooseSpawn(LPCSTR mapFilename) {
 
     if (!CM_WowExtractMapName(mapFilename, map_name, sizeof(map_name))) {
         world.info.players[0].startingPosition = (VECTOR2){ cm_wow_spawn_position.x, cm_wow_spawn_position.y };
-        fprintf(stderr, "CM_LoadMap: WoW spawn fallback at %.3f %.3f %.3f (no map name)\n",
-                cm_wow_spawn_position.x, cm_wow_spawn_position.y, cm_wow_spawn_position.z);
+        fprintf(stderr, "CM_LoadMap: WoW spawn fallback at %.3f %.3f %.3f (no map name)\n", cm_wow_spawn_position.x, cm_wow_spawn_position.y, cm_wow_spawn_position.z);
         return;
     }
 
     has_map_id   = CM_WowFindMapId(map_name, &map_id);
     if (has_map_id)
-        safe_loc_count = CM_WowCollectWorldSafeLocs(map_id, &cm_wow_spawn_position,
-                                                    safe_loc_name, sizeof(safe_loc_name));
+        safe_loc_count = CM_WowCollectWorldSafeLocs(map_id, &cm_wow_spawn_position, safe_loc_name, sizeof(safe_loc_name));
     has_safe_locs = safe_loc_count > 0;
     if (!has_safe_locs)
         world.info.players[0].startingPosition = (VECTOR2){ cm_wow_spawn_position.x, cm_wow_spawn_position.y };
 
     if (has_safe_locs)
-        fprintf(stderr, "CM_LoadMap: WoW map %s id=%u loaded %u WorldSafeLocs spawn candidates, first%s%s at %.3f %.3f %.3f\n",
-                map_name, (unsigned)map_id,
-                (unsigned)safe_loc_count,
-                safe_loc_name[0] ? " " : "", safe_loc_name,
-                cm_wow_spawn_position.x, cm_wow_spawn_position.y, cm_wow_spawn_position.z);
+        fprintf(stderr, "CM_LoadMap: WoW map %s id=%u loaded %u WorldSafeLocs spawn candidates, first%s%s at %.3f %.3f %.3f\n", map_name, (unsigned)map_id, (unsigned)safe_loc_count, safe_loc_name[0] ? " " : "", safe_loc_name, cm_wow_spawn_position.x, cm_wow_spawn_position.y, cm_wow_spawn_position.z);
     else if (has_map_id)
-        fprintf(stderr, "CM_LoadMap: WoW map %s id=%u has no WorldSafeLocs entry, spawn fallback at %.3f %.3f %.3f\n",
-                map_name, (unsigned)map_id,
-                cm_wow_spawn_position.x, cm_wow_spawn_position.y, cm_wow_spawn_position.z);
+        fprintf(stderr, "CM_LoadMap: WoW map %s id=%u has no WorldSafeLocs entry, spawn fallback at %.3f %.3f %.3f\n", map_name, (unsigned)map_id, cm_wow_spawn_position.x, cm_wow_spawn_position.y, cm_wow_spawn_position.z);
     else
-        fprintf(stderr, "CM_LoadMap: WoW map %s has no Map.dbc entry, spawn fallback at %.3f %.3f %.3f\n",
-                map_name,
-                cm_wow_spawn_position.x, cm_wow_spawn_position.y, cm_wow_spawn_position.z);
+        fprintf(stderr, "CM_LoadMap: WoW map %s has no Map.dbc entry, spawn fallback at %.3f %.3f %.3f\n", map_name, cm_wow_spawn_position.x, cm_wow_spawn_position.y, cm_wow_spawn_position.z);
 }
 
 /* ---- public API ---- */

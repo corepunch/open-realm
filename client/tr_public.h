@@ -197,6 +197,7 @@ typedef struct {
     void (*ReleaseModel)(LPMODEL model);
     void (*BeginFrame)(void);
     void (*EndFrame)(void);
+    void (*Screenshot)(void);
     void (*DrawChar)(int x, int y, int c);
     void (*DrawFill)(LPCRECT rect, COLOR32 color);
     void (*DrawSelectionRect)(LPCRECT rect, COLOR32 color);

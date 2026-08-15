@@ -14,13 +14,7 @@ void M2_Init(void);
 void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMATRIX4 transform);
 BOOL M2_AttachmentMatrix(m2Model_t const *model, DWORD attachment_id, LPCMATRIX4 model_matrix, LPMATRIX4 out);
 FLOAT M2_GroundOffset(m2Model_t const *model);
-BOOL M2_CameraView(m2Model_t const *model,
-                   DWORD camera_index,
-                   LPVECTOR3 eye,
-                   LPVECTOR3 target,
-                   LPFLOAT fov_degrees,
-                   LPFLOAT znear,
-                   LPFLOAT zfar);
+BOOL M2_CameraView(m2Model_t const *model, DWORD camera_index, LPVECTOR3 eye, LPVECTOR3 target, LPFLOAT fov_degrees, LPFLOAT znear, LPFLOAT zfar);
 BOOL M2_IsCharacterModel(m2Model_t const *model);
 BOOL M2_SetEntitySequenceFrame(m2Model_t const *model, LPCSTR anim, renderEntity_t *entity);
 void M2_Release(m2Model_t *model);
@@ -110,10 +104,7 @@ LPMODEL R_GameLoadModel(LPCSTR modelFilename) {
         if (fileSize >= 0 && buffer) {
             snprintf(load_name, sizeof(load_name), "%s", tempFileName);
         } else {
-            fprintf(stderr,
-                    "R_LoadModel: missing WoW glue model %s and converted path %s\n",
-                    modelFilename,
-                    tempFileName);
+            fprintf(stderr, "R_LoadModel: missing WoW glue model %s and converted path %s\n", modelFilename, tempFileName);
         }
     }
     if ((fileSize < 0 || !buffer) &&
@@ -233,9 +224,7 @@ void R_GameRenderModel(renderEntity_t const *entity) {
 #endif
         M2_AttachmentMatrix(entity->model->m2, attachment_id, &transform, &attached_transform)) {
         if (tr.viewDef.rdflags & RDF_USE_ENTITY_CAMERA) {
-            Matrix4_rotate(&attached_transform,
-                           &(VECTOR3){ 0.0f, 0.0f, entity->angle * 180.0f / (FLOAT)M_PI },
-                           ROTATE_XYZ);
+            Matrix4_rotate(&attached_transform, &(VECTOR3){ 0.0f, 0.0f, entity->angle * 180.0f / (FLOAT)M_PI }, ROTATE_XYZ);
         }
         attached_entity = *entity;
         attached_entity.model = entity->attached_model;

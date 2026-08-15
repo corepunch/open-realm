@@ -314,20 +314,8 @@ FLOAT Wow_Clamp(FLOAT value, FLOAT min_value, FLOAT max_value);
 DWORD Wow_Read32(BYTE const *p);
 FLOAT Wow_ReadFloat(BYTE const *p);
 LPCSTR Wow_DbcString(BYTE const *string_block, DWORD string_size, DWORD offset);
-BOOL Wow_ValidDbc(BYTE const *data,
-                  DWORD size,
-                  DWORD *records,
-                  DWORD *fields,
-                  DWORD *record_size,
-                  DWORD *string_size);
-BOOL Wow_FindDbcRecord(LPCSTR filename,
-                       DWORD wanted_id,
-                       LPBYTE *data_out,
-                       DWORD *fields_out,
-                       DWORD *record_size_out,
-                       BYTE const **record_out,
-                       BYTE const **strings_out,
-                       DWORD *string_size_out);
+BOOL Wow_ValidDbc(BYTE const *data, DWORD size, DWORD *records, DWORD *fields, DWORD *record_size, DWORD *string_size);
+BOOL Wow_FindDbcRecord(LPCSTR filename, DWORD wanted_id, LPBYTE *data_out, DWORD *fields_out, DWORD *record_size_out, BYTE const **record_out, BYTE const **strings_out, DWORD *string_size_out);
 FLOAT Wow_TerrainHeight(FLOAT x, FLOAT y);
 DWORD Wow_EntityIndex(LPCEDICT ent);
 wowEntityLocal_t *Wow_EntityLocal(LPCEDICT ent);

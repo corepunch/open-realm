@@ -29,16 +29,7 @@ void Wow_EnsureAlphaAtlasTexture(void) {
 
     wow_world.alpha_atlas_texture = R_AllocateTexture(WOW_ALPHA_ATLAS_SIZE, WOW_ALPHA_ATLAS_SIZE);
     R_Call(glBindTexture, GL_TEXTURE_2D, wow_world.alpha_atlas_texture->texid);
-    R_Call(glTexImage2D,
-           GL_TEXTURE_2D,
-           0,
-           GL_RGBA,
-           WOW_ALPHA_ATLAS_SIZE,
-           WOW_ALPHA_ATLAS_SIZE,
-           0,
-           GL_RGBA,
-           GL_UNSIGNED_BYTE,
-           NULL);
+    R_Call(glTexImage2D, GL_TEXTURE_2D, 0, GL_RGBA, WOW_ALPHA_ATLAS_SIZE, WOW_ALPHA_ATLAS_SIZE, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
@@ -63,16 +54,7 @@ void Wow_UploadAlphaAtlasChunk(DWORD index_x, DWORD index_y, BYTE const alpha[4]
     }
 
     R_Call(glBindTexture, GL_TEXTURE_2D, wow_world.alpha_atlas_texture->texid);
-    R_Call(glTexSubImage2D,
-           GL_TEXTURE_2D,
-           0,
-           index_x * WOW_ALPHA_CHUNK_SIZE,
-           index_y * WOW_ALPHA_CHUNK_SIZE,
-           WOW_ALPHA_CHUNK_SIZE,
-           WOW_ALPHA_CHUNK_SIZE,
-           GL_RGBA,
-           GL_UNSIGNED_BYTE,
-           pixels);
+    R_Call(glTexSubImage2D, GL_TEXTURE_2D, 0, index_x * WOW_ALPHA_CHUNK_SIZE, index_y * WOW_ALPHA_CHUNK_SIZE, WOW_ALPHA_CHUNK_SIZE, WOW_ALPHA_CHUNK_SIZE, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
 }
 
 

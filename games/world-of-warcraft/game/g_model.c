@@ -133,8 +133,7 @@ static animation_t *LoadModelMD34(BYTE const *data, DWORD data_size, DWORD *out_
         *out_count = 0;
         return NULL;
     }
-    ent = (struct md34ReferenceEntry const *)ModelDataAt(data, data_size, hdr->ofsRefs,
-        sizeof(struct md34ReferenceEntry) * hdr->nRefs);
+    ent = (struct md34ReferenceEntry const *)ModelDataAt(data, data_size, hdr->ofsRefs, sizeof(struct md34ReferenceEntry) * hdr->nRefs);
     if (!ent) {
         *out_count = 0;
         return NULL;
@@ -144,8 +143,7 @@ static animation_t *LoadModelMD34(BYTE const *data, DWORD data_size, DWORD *out_
         struct md34ReferenceEntry const *re = ent + i;
         if (re->id != MAKEFOURCC('S','Q','E','S'))
             continue;
-        struct md34Sequence const *seq = (struct md34Sequence const *)ModelDataAt(data, data_size, re->offset,
-            re->nEntries * sizeof(struct md34Sequence));
+        struct md34Sequence const *seq = (struct md34Sequence const *)ModelDataAt(data, data_size, re->offset, re->nEntries * sizeof(struct md34Sequence));
         if (!seq)
             continue;
         animations = gi.MemAlloc(sizeof(animation_t) * re->nEntries);
@@ -499,8 +497,7 @@ static animation_t *LoadModelM2(BYTE const *data, DWORD read_size, DWORD *out_co
     BOOL classic = header->version <= 263;
     DWORD stride = classic ? sizeof(svM2SequenceClassic_t) : sizeof(svM2SequenceModern_t);
     DWORD sequences_offset, sequences_bytes;
-    if (!M2ArrayRange(header->sequences, stride, payload_size,
-                      &sequences_offset, &sequences_bytes)) {
+    if (!M2ArrayRange(header->sequences, stride, payload_size, &sequences_offset, &sequences_bytes)) {
         *out_count = 0;
         return NULL;
     }
@@ -519,8 +516,7 @@ static animation_t *LoadModelM2(BYTE const *data, DWORD read_size, DWORD *out_co
 
         DWORD event_stride = classic ? sizeof(svM2EventClassic_t) : sizeof(svM2EventModern_t);
         DWORD event_offset, event_bytes;
-        if (M2ArrayRange(events_array, event_stride, payload_size,
-                         &event_offset, &event_bytes)) {
+        if (M2ArrayRange(events_array, event_stride, payload_size, &event_offset, &event_bytes)) {
             BYTE const *events = payload + event_offset;
             DWORD event_count = event_bytes / event_stride;
             FOR_LOOP(e, event_count) {
@@ -673,8 +669,7 @@ static g_cmodel_t *LoadModel(LPCSTR filename) {
                         if (M2ArrayRange(attach_arr, ATTACH_STRIDE, payload_size, &off, &bytes)) {
                             BYTE const *attach_base = payload + off;
                             DWORD attach_count = bytes / ATTACH_STRIDE;
-                            WORD const *lookup = (WORD const *)M2ArrayAt((BYTE *)payload, payload_size,
-                                                                        lookup_arr, sizeof(WORD));
+                            WORD const *lookup = (WORD const *)M2ArrayAt((BYTE *)payload, payload_size, lookup_arr, sizeof(WORD));
                             FOR_LOOP(aid, 2) {
                                 DWORD attachment_id = aid ? 20 : 1;
                                 WORD idx = (lookup && attachment_id < (DWORD)lookup_arr.size)

@@ -53,6 +53,9 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 
 - Minimize vertical space. Prefer fewer, denser lines over many short ones.
 - Keep C source lines at or under 120 characters.
+- Keep function calls on one physical line; never split their argument lists across lines. Keep arguments short enough to make this practical, accepting a line longer than 120 characters when necessary.
+- Prefer variable and field names of 8 characters or fewer; use a shorter 4-character name when it remains clear (`cur`, `old`, `rot`, `scl`). Preserve externally defined API and on-disk schema names when the spelling is part of that contract.
+- When adjacent declarations share a type and can be packed without obscuring initialization, declare them on one line (`m2PoseTime_t cur, old;`).
 - Single-statement functions go on one line: `int f(void) { return 0; }`
 - Omit braces for single-statement `if`/`else`/`while` bodies.
 - Keep control-flow keywords at the start of their own line. Do not write chained forms like `...; if (...)` on the same physical line.

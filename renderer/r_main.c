@@ -1,8 +1,11 @@
 #include "r_local.h"
 #include "r_game.h"
 #include "stb/stb_image.h"
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb/stb_image_write.h"
 
 #include <SDL2/SDL.h>
+#include <sys/stat.h>
 #ifndef __APPLE__
 #include <SDL2/SDL_opengl.h>
 #endif
@@ -17,6 +20,41 @@ SDL_GLContext context;
 bool is_rendering_lights = false;
 #endif
 static bool renderer_shutdown = false;
+
+/* Capture the physical GL drawable; SDL window dimensions are logical points on Retina. */
+static void R_Screenshot(void) {
+    GLint viewport[4];
+    DWORD width, height;
+    int slot;
+    char path[512];
+    BYTE *pixels;
+
+    R_Call(glGetIntegerv, GL_VIEWPORT, viewport);
+    width = viewport[2] > 0 ? (DWORD)viewport[2] : 0;
+    height = viewport[3] > 0 ? (DWORD)viewport[3] : 0;
+    if (!width || !height) return;
+#ifndef _WIN32
+    mkdir("screenshots", 0777);
+#else
+    _mkdir("screenshots");
+#endif
+    for (slot = 0; slot <= 9999; slot++) {
+        snprintf(path, sizeof(path), "screenshots/shot%04d.png", slot);
+        FILE *file = fopen(path, "rb");
+        if (!file) break;
+        fclose(file);
+    }
+    if (slot > 9999) { fprintf(stderr, "Screenshot: no free slot (max 10000)\n"); return; }
+    pixels = ri.MemAlloc((long)((size_t)width * height * 4));
+    if (!pixels) { fprintf(stderr, "Screenshot: alloc failed\n"); return; }
+    R_Call(glReadPixels, 0, 0, (GLsizei)width, (GLsizei)height, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+    stbi_flip_vertically_on_write(1);
+    if (stbi_write_png(path, (int)width, (int)height, 4, pixels, (int)width * 4))
+        fprintf(stderr, "Wrote %s (%ux%u drawable pixels)\n", path, width, height);
+    else
+        fprintf(stderr, "Screenshot: write failed for %s\n", path);
+    ri.MemFree(pixels);
+}
 
 LPTEXTURE R_LoadTextureBLP1(HANDLE data, DWORD filesize);
 LPTEXTURE R_LoadTextureBLP2(HANDLE data, DWORD filesize);
@@ -713,6 +751,7 @@ refExport_t R_GetAPI(refImport_t imp) {
         .Shutdown = R_Shutdown,
         .BeginFrame = R_BeginFrame,
         .EndFrame = R_EndFrame,
+        .Screenshot = R_Screenshot,
         .DrawPic = R_DrawPic,
         .DrawImage = R_DrawImage,
         .DrawImageEx = R_DrawImageEx,

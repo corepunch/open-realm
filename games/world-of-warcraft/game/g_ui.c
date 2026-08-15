@@ -138,43 +138,33 @@ static void UI_WriteQuestDialog(LPEDICT ent) {
         UI_WriteImage("Interface\\QuestFrame\\UI-QuestGreeting-BotLeft.blp", x, y + PH(256), PW(256), PH(256), COLOR32_WHITE);
         UI_WriteImage("Interface\\QuestFrame\\UI-QuestGreeting-BotRight.blp", x + PW(256), y + PH(256), PW(128), PH(256), COLOR32_WHITE);
 
-        UI_WriteTextFrame(x + PW(42), y + PH(18), PW(280), PH(22),
-                          detail ? detail->title : "Quest",
-                          MAKE(COLOR32, 255, 215, 120, 255), FONT_JUSTIFYCENTER);
+        UI_WriteTextFrame(x + PW(42), y + PH(18), PW(280), PH(22), detail ? detail->title : "Quest", MAKE(COLOR32, 255, 215, 120, 255), FONT_JUSTIFYCENTER);
 
         if (detail) {
             int off = 0;
             if (is_complete)
-                off = snprintf(text, sizeof(text), "%s\\n\\nRewards:\\n%d XP  |  %u copper",
-                               detail->reward_text, (int)detail->reward_xp, (unsigned)detail->reward_gold);
+                off = snprintf(text, sizeof(text), "%s\\n\\nRewards:\\n%d XP  |  %u copper", detail->reward_text, (int)detail->reward_xp, (unsigned)detail->reward_gold);
             else {
-                off = snprintf(text, sizeof(text), "%s\\n\\n%s",
-                               detail->description, detail->objectives_text);
+                off = snprintf(text, sizeof(text), "%s\\n\\n%s", detail->description, detail->objectives_text);
                 if (is_accepted && detail->kill_objective_count) {
                     off += snprintf(text + off, sizeof(text) - off, "\\n\\nProgress:");
                     FOR_LOOP(j, detail->kill_objective_count) {
                         LPCSTR name = Wow_CachedCreatureName(detail->kill_objectives[j].display_id);
-                        off += snprintf(text + off, sizeof(text) - off, "\\n  %s: %u/%u",
-                                        name ? name : "Creature",
-                                        (unsigned)(state ? state->kill_progress[j] : 0),
-                                        (unsigned)detail->kill_objectives[j].required_count);
+                        off += snprintf(text + off, sizeof(text) - off, "\\n  %s: %u/%u", name ? name : "Creature", (unsigned)(state ? state->kill_progress[j] : 0), (unsigned)detail->kill_objectives[j].required_count);
                     }
                 }
             }
         } else {
             snprintf(text, sizeof(text), "Quest data not available.");
         }
-        UI_WriteTextArea(x + PW(28), y + PH(82), PW(328), PH(320), text,
-                         MAKE(COLOR32, 240, 230, 205, 255));
+        UI_WriteTextArea(x + PW(28), y + PH(82), PW(328), PH(320), text, MAKE(COLOR32, 240, 230, 205, 255));
 
         if (is_complete) {
             snprintf(command, sizeof(command), "quest_complete %u", (unsigned)wc->quest_id);
-            UI_WriteSimpleButton(x + PW(22), y + PH(420), PW(180), PH(28),
-                                 "Complete Quest", command);
+            UI_WriteSimpleButton(x + PW(22), y + PH(420), PW(180), PH(28), "Complete Quest", command);
         } else if (!is_accepted) {
             snprintf(command, sizeof(command), "quest_accept %u", (unsigned)wc->quest_id);
-            UI_WriteSimpleButton(x + PW(22), y + PH(420), PW(120), PH(28),
-                                 "Accept", command);
+            UI_WriteSimpleButton(x + PW(22), y + PH(420), PW(120), PH(28), "Accept", command);
         }
         UI_WriteSimpleButton(x + PW(250), y + PH(420), PW(90), PH(28), "Close", "quest_close");
     }
@@ -199,13 +189,10 @@ static void UI_WriteQuestLog(LPEDICT ent) {
     UI_WriteImage("Interface\\QuestFrame\\UI-QuestGreeting-BotLeft.blp", x, y + PH(256), PW(256), PH(256), COLOR32_WHITE);
     UI_WriteImage("Interface\\QuestFrame\\UI-QuestGreeting-BotRight.blp", x + PW(256), y + PH(256), PW(128), PH(256), COLOR32_WHITE);
 
-    UI_WriteTextFrame(x + PW(42), y + PH(12), PW(280), PH(22), "Quest Log",
-                      MAKE(COLOR32, 255, 215, 120, 255), FONT_JUSTIFYCENTER);
+    UI_WriteTextFrame(x + PW(42), y + PH(12), PW(280), PH(22), "Quest Log", MAKE(COLOR32, 255, 215, 120, 255), FONT_JUSTIFYCENTER);
 
     if (!wc->quest_count) {
-        UI_WriteTextFrame(x + PW(42), line_y, PW(280), PH(22),
-                          "No active quests.",
-                          MAKE(COLOR32, 160, 150, 140, 255), FONT_JUSTIFYCENTER);
+        UI_WriteTextFrame(x + PW(42), line_y, PW(280), PH(22), "No active quests.", MAKE(COLOR32, 160, 150, 140, 255), FONT_JUSTIFYCENTER);
         line_y += PH(28);
     } else FOR_LOOP(i, wc->quest_count) {
         wowQuestState_t *qs = &wc->quests[i];
@@ -280,8 +267,7 @@ static void UI_WriteMinimapFrames(void) {
     uiFrame_t minimap;
 
     /* Minimap border overlay */
-    UI_WriteImage("Interface\\Minimap\\UI-Minimap-Border.blp",
-                  PX(879), PY(8), PW(128), PH(128), COLOR32_WHITE);
+    UI_WriteImage("Interface\\Minimap\\UI-Minimap-Border.blp", PX(879), PY(8), PW(128), PH(128), COLOR32_WHITE);
 
     /* Minimap viewport — FT_MINIMAP; client calls DrawMinimap() for this rect. */
     memset(&minimap, 0, sizeof(minimap));
@@ -305,16 +291,12 @@ static void UI_WriteActionBar(void) {
     };
 
     FOR_LOOP(i, 4)
-        UI_WriteImageUV(bar,
-                        PX((FLOAT)(i * 256)), PY(715), PW(256), PH(53),
-                        strips[i][0], strips[i][1], strips[i][2], strips[i][3],
-                        COLOR32_WHITE);
+        UI_WriteImageUV(bar, PX((FLOAT)(i * 256)), PY(715), PW(256), PH(53), strips[i][0], strips[i][1], strips[i][2], strips[i][3], COLOR32_WHITE);
 
     /* Left end-cap (normal orientation) */
     UI_WriteImage(cap, PX(-96), PY(640), PW(128), PH(128), COLOR32_WHITE);
     /* Right end-cap (horizontally flipped: l=1, r=0) */
-    UI_WriteImageUV(cap, PX(992), PY(640), PW(128), PH(128),
-                    1.0f, 0.0f, 0.0f, 1.0f, COLOR32_WHITE);
+    UI_WriteImageUV(cap, PX(992), PY(640), PW(128), PH(128), 1.0f, 0.0f, 0.0f, 1.0f, COLOR32_WHITE);
 }
 
 /* Action button slot at grid position i (0..11 = left row, 12..15 = right empty slots) */
@@ -322,8 +304,7 @@ static void UI_WriteActionButtonSlot(FLOAT x, FLOAT y, DWORD image_index, DWORD 
     char count_buf[16];
 
     /* Slot frame */
-    UI_WriteImage("Interface\\Buttons\\UI-Quickslot2.blp",
-                  x + PX(-14), y + PY(-13), PW(64), PH(64), COLOR32_WHITE);
+    UI_WriteImage("Interface\\Buttons\\UI-Quickslot2.blp", x + PX(-14), y + PY(-13), PW(64), PH(64), COLOR32_WHITE);
     /* Icon (may be 0 = empty slot, renderer draws nothing for index 0) */
     if (image_index) {
         uiFrame_t icon;
@@ -340,8 +321,7 @@ static void UI_WriteActionButtonSlot(FLOAT x, FLOAT y, DWORD image_index, DWORD 
      * the server-authored HUD visually identical by writing the same overlay. */
     if (count > 1) {
         snprintf(count_buf, sizeof(count_buf), "%u", (unsigned)count);
-        UI_WriteTextFrame(x + PX(2), y + PY(23), PW(32), PH(10),
-                          count_buf, COLOR32_WHITE, FONT_JUSTIFYRIGHT);
+        UI_WriteTextFrame(x + PX(2), y + PY(23), PW(32), PH(10), count_buf, COLOR32_WHITE, FONT_JUSTIFYRIGHT);
     }
 }
 
@@ -351,34 +331,24 @@ static void UI_WriteTargetingFrame(LPEDICT ent) {
     char name_buf[64], level_buf[32];
 
     /* Character frame backdrop — drawn with a slight tint matching the original */
-    UI_WriteImageUV("Interface\\TargetingFrame\\UI-TargetingFrame.blp",
-                    PX(-19), PY(4), PW(232), PH(100),
-                    1.0f, 0.09375f, 0.0f, 0.78125f,
-                    MAKE(COLOR32, 96, 92, 84, 230));
+    UI_WriteImageUV("Interface\\TargetingFrame\\UI-TargetingFrame.blp", PX(-19), PY(4), PW(232), PH(100), 1.0f, 0.09375f, 0.0f, 0.78125f, MAKE(COLOR32, 96, 92, 84, 230));
 
     /* Dark name area */
     UI_WriteColorRect(PX(87), PY(22), PW(119), PH(41), MAKE(COLOR32, 0, 0, 0, 128));
 
     /* Name */
-    snprintf(name_buf, sizeof(name_buf), "%s",
-             ps->name && *ps->name ? ps->name : "Player");
-    UI_WriteTextFrame(PX(72), PY(18), PW(100), PH(12),
-                      name_buf, MAKE(COLOR32, 255, 215, 120, 255), FONT_JUSTIFYCENTER);
+    snprintf(name_buf, sizeof(name_buf), "%s", ps->name && *ps->name ? ps->name : "Player");
+    UI_WriteTextFrame(PX(72), PY(18), PW(100), PH(12), name_buf, MAKE(COLOR32, 255, 215, 120, 255), FONT_JUSTIFYCENTER);
 
     /* Level */
     snprintf(level_buf, sizeof(level_buf), "Lvl %d", (int)ps->stats[WOW_STAT_LEVEL]);
-    UI_WriteTextFrame(PX(24), PY(58), PW(42), PH(12),
-                      level_buf, MAKE(COLOR32, 235, 225, 190, 255), FONT_JUSTIFYCENTER);
+    UI_WriteTextFrame(PX(24), PY(58), PW(42), PH(12), level_buf, MAKE(COLOR32, 235, 225, 190, 255), FONT_JUSTIFYCENTER);
 
     /* Health bar */
-    UI_WriteColorBar(PX(105), PY(41), PW(119), PH(12),
-                     (FLOAT)ps->stats[WOW_STAT_HEALTH], (FLOAT)ps->stats[WOW_STAT_HEALTH_MAX],
-                     MAKE(COLOR32, 20, 178, 48, 235));
+    UI_WriteColorBar(PX(105), PY(41), PW(119), PH(12), (FLOAT)ps->stats[WOW_STAT_HEALTH], (FLOAT)ps->stats[WOW_STAT_HEALTH_MAX], MAKE(COLOR32, 20, 178, 48, 235));
 
     /* Mana/power bar */
-    UI_WriteColorBar(PX(105), PY(54), PW(119), PH(11),
-                     (FLOAT)ps->stats[WOW_STAT_POWER], (FLOAT)ps->stats[WOW_STAT_POWER_MAX],
-                     MAKE(COLOR32, 26, 82, 210, 235));
+    UI_WriteColorBar(PX(105), PY(54), PW(119), PH(11), (FLOAT)ps->stats[WOW_STAT_POWER], (FLOAT)ps->stats[WOW_STAT_POWER_MAX], MAKE(COLOR32, 26, 82, 210, 235));
 }
 
 /* Build and unicast the WoW HUD layer for a player */
@@ -415,24 +385,20 @@ void UI_WriteWowHud(LPEDICT ent) {
     }
 
     /* Backpack */
-    UI_WriteImage("Interface\\Buttons\\Button-Backpack-Up.blp",
-                  PX(981), PY(729), PW(37), PH(37), COLOR32_WHITE);
+    UI_WriteImage("Interface\\Buttons\\Button-Backpack-Up.blp", PX(981), PY(729), PW(37), PH(37), COLOR32_WHITE);
 
     /* Minimap border + viewport */
     UI_WriteMinimapFrames();
 
     /* Quest log icon + label */
-    UI_WriteImage("Interface\\QuestFrame\\UI-QuestLog-BookIcon.blp",
-                  PX(840), PY(162), PW(32), PH(32), COLOR32_WHITE);
-    UI_WriteTextFrame(PX(876), PY(164), PW(110), PH(20),
-                      "Quests", MAKE(COLOR32, 255, 215, 120, 255), FONT_JUSTIFYLEFT);
+    UI_WriteImage("Interface\\QuestFrame\\UI-QuestLog-BookIcon.blp", PX(840), PY(162), PW(32), PH(32), COLOR32_WHITE);
+    UI_WriteTextFrame(PX(876), PY(164), PW(110), PH(20), "Quests", MAKE(COLOR32, 255, 215, 120, 255), FONT_JUSTIFYLEFT);
     UI_WriteClickRegion(PX(834), PY(156), PW(72), PH(44), "quest");
     UI_WriteClickRegion(PX(910), PY(156), PW(78), PH(44), "questlog");
 
     /* Copper display */
     snprintf(copper_buf, sizeof(copper_buf), "Copper %d", (int)ps->stats[WOW_STAT_COPPER]);
-    UI_WriteTextFrame(PX(816), PY(704), PW(150), PH(20),
-                      copper_buf, MAKE(COLOR32, 255, 210, 100, 255), FONT_JUSTIFYRIGHT);
+    UI_WriteTextFrame(PX(816), PY(704), PW(150), PH(20), copper_buf, MAKE(COLOR32, 255, 210, 100, 255), FONT_JUSTIFYRIGHT);
 
     /* Cast bar — centered above action bar, shown during spell casts */
     {
@@ -440,31 +406,21 @@ void UI_WriteWowHud(LPEDICT ent) {
         USHORT max_val = ps->stats[WOW_STAT_CAST_MAX];
         if (max_val > 0) {
             char text[64];
-            snprintf(text, sizeof(text), "%.1f s",
-                     (FLOAT)progress / 1000.0f);
+            snprintf(text, sizeof(text), "%.1f s", (FLOAT)progress / 1000.0f);
             /* Background */
-            UI_WriteColorRect(PX(262), PY(690), PW(500), PH(28),
-                              MAKE(COLOR32, 0, 0, 0, 192));
+            UI_WriteColorRect(PX(262), PY(690), PW(500), PH(28), MAKE(COLOR32, 0, 0, 0, 192));
             /* Fill bar: width * (1 - progress/max) since progress counts down */
             {
                 FLOAT ratio = (FLOAT)(max_val - progress) / (FLOAT)max_val;
-                UI_WriteColorBar(PX(263), PY(691),
-                                 PW(498), PH(26),
-                                 ratio, 1.0f,
-                                 MAKE(COLOR32, 255, 200, 50, 255));
+                UI_WriteColorBar(PX(263), PY(691), PW(498), PH(26), ratio, 1.0f, MAKE(COLOR32, 255, 200, 50, 255));
             }
             /* Border */
-            UI_WriteColorRect(PX(262), PY(690), PW(500), PH(1),
-                              COLOR32_WHITE);
-            UI_WriteColorRect(PX(262), PY(717), PW(500), PH(1),
-                              COLOR32_WHITE);
-            UI_WriteColorRect(PX(262), PY(691), PW(1), PH(27),
-                              COLOR32_WHITE);
-            UI_WriteColorRect(PX(761), PY(691), PW(1), PH(27),
-                              COLOR32_WHITE);
+            UI_WriteColorRect(PX(262), PY(690), PW(500), PH(1), COLOR32_WHITE);
+            UI_WriteColorRect(PX(262), PY(717), PW(500), PH(1), COLOR32_WHITE);
+            UI_WriteColorRect(PX(262), PY(691), PW(1), PH(27), COLOR32_WHITE);
+            UI_WriteColorRect(PX(761), PY(691), PW(1), PH(27), COLOR32_WHITE);
             /* Time text */
-            UI_WriteTextFrame(PX(462), PY(695), PW(100), PH(20),
-                              text, COLOR32_WHITE, FONT_JUSTIFYCENTER);
+            UI_WriteTextFrame(PX(462), PY(695), PW(100), PH(20), text, COLOR32_WHITE, FONT_JUSTIFYCENTER);
         }
     }
 

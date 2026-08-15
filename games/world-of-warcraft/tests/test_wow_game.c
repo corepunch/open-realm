@@ -362,8 +362,7 @@ static void test_write(pfWriteType_t type, void const *value) {
             capture->layer = test_layout_layer;
             capture->type = frame->flags.type;
             snprintf(capture->text, sizeof(capture->text), "%s", frame->text ? frame->text : "");
-            snprintf(capture->onclick, sizeof(capture->onclick), "%s",
-                     frame->onclick ? frame->onclick : "");
+            snprintf(capture->onclick, sizeof(capture->onclick), "%s", frame->onclick ? frame->onclick : "");
             break;
         }
         default:
@@ -913,15 +912,12 @@ TEST(wow_game, wow_load_map_initializes_player_state) {
     T_ASSERT(test_unicast_calls > 0);
     assert_player_ui_payload();
     T_STREQ(player->client->ps.texts[PLAYERTEXT_MAP_TITLE], "Elwynn Test");
-    T_STREQ(player->client->ps.texts[PLAYERTEXT_MAP_PREVIEW],
-                  "Interface\\Glues\\LoadingScreens\\LoadScreenTest.blp");
+    T_STREQ(player->client->ps.texts[PLAYERTEXT_MAP_PREVIEW], "Interface\\Glues\\LoadingScreens\\LoadScreenTest.blp");
     T_ASSERT(player->s.model > 0);
     T_ASSERT(player->s.model2 > 0);
     T_FEQ(player->s.angle, 0.0f, 0.001f);
-    T_EQ((int)player->s.appearance,
-                  (int)Wow_PackAppearance(0, 0, 0, 0, 0, WOW_CLASS_WARRIOR, 0));
-    T_EQ((int)player->s.equipment,
-                  (int)Wow_PackEquipment(1, 1, 1, 1));
+    T_EQ((int)player->s.appearance, (int)Wow_PackAppearance(0, 0, 0, 0, 0, WOW_CLASS_WARRIOR, 0));
+    T_EQ((int)player->s.equipment, (int)Wow_PackEquipment(1, 1, 1, 1));
 
     if (game->Shutdown) {
         game->Shutdown();
@@ -934,8 +930,7 @@ TEST(wow_game, wow_load_map_spawns_at_race_zone_via_cvar) {
     struct game_export *game;
 
     game = init_game();
-    snprintf(test_playerinfo, sizeof(test_playerinfo),
-             "\\race\\Human\\sex\\Female\\class\\%u\\appearance\\0", (unsigned)WOW_CLASS_WARRIOR);
+    snprintf(test_playerinfo, sizeof(test_playerinfo), "\\race\\Human\\sex\\Female\\class\\%u\\appearance\\0", (unsigned)WOW_CLASS_WARRIOR);
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     assert_player_spawned(&wow_edicts[0]);
     T_STREQ(wow_edicts[0].client->ps.name, "Thrall");
@@ -974,8 +969,7 @@ TEST(wow_game, wow_load_map_spawns_and_runs_creature_state) {
     T_STREQ(creature_local->animation->name, "Walk");
 
     game->RunFrame();
-    T_ASSERT(fabsf(creature->s.origin2.x - before.x) > 0.001f ||
-           fabsf(creature->s.origin2.y - before.y) > 0.001f);
+    T_ASSERT(fabsf(creature->s.origin2.x - before.x) > 0.001f || fabsf(creature->s.origin2.y - before.y) > 0.001f);
 
     game->ClientCommand(player, 2, attack_argv);
     T_EQ((int)(player_local->enemy ? player_local->enemy->s.number : 0), 1);

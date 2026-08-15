@@ -181,9 +181,7 @@ BOOL Wow_SetCombatReadyAnimation(LPEDICT ent) {
         NULL,
     };
 
-    if (Wow_SetEntityMoveFirstAnimation(ent,
-        &wow_move_ready,
-        ent && ent->s.model2 ? weapon_ready_animations : unarmed_ready_animations)) {
+    if (Wow_SetEntityMoveFirstAnimation(ent, &wow_move_ready, ent && ent->s.model2 ? weapon_ready_animations : unarmed_ready_animations)) {
         return true;
     }
     return Wow_SetStandMove(ent);

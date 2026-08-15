@@ -164,11 +164,7 @@ static BOOL Wow_CachedCreatureModel(DWORD display_id,
             cache->display_id = display_id;
             cache->scale = 1.0f;
             cache->radius = 1.0f;
-            if (!Wow_ResolveCreatureModel(display_id,
-                                          cache->model_path,
-                                          sizeof(cache->model_path),
-                                          &cache->scale,
-                                          &cache->radius)) {
+            if (!Wow_ResolveCreatureModel(display_id, cache->model_path, sizeof(cache->model_path), &cache->scale, &cache->radius)) {
                 cache->failed = true;
                 return false;
             }
@@ -245,9 +241,7 @@ static LPEDICT Wow_SpawnCreature(DWORD display_id,
     ent->s.model = G_RegisterModel(model_path);
     if (!ent->s.model) {
         ent->inuse = false;
-        fprintf(stderr, "WoW creature display %u skipped: model %s could not be indexed\n",
-                (unsigned)display_id,
-                model_path);
+        fprintf(stderr, "WoW creature display %u skipped: model %s could not be indexed\n", (unsigned)display_id, model_path);
         return NULL;
     }
     ent->s.origin = (VECTOR3){ origin->x, origin->y, Wow_TerrainHeight(origin->x, origin->y) };
@@ -288,14 +282,11 @@ void Wow_SpawnQuestLocations(LPCVECTOR2 origin) {
             break;
         creature_model = Wow_CreaturePrimaryModel(creature);
         if (!creature_model) {
-            fprintf(stderr, "WoW: quest giver creature %u has no primary server model\n",
-                    (unsigned)data->creature_entry);
+            fprintf(stderr, "WoW: quest giver creature %u has no primary server model\n", (unsigned)data->creature_entry);
             continue;
         }
         if (data->display_id != creature_model->display_id)
-            fprintf(stderr, "WoW: quest giver creature %u display %u disagrees with primary model %u\n",
-                    (unsigned)data->creature_entry, (unsigned)data->display_id,
-                    (unsigned)creature_model->display_id);
+            fprintf(stderr, "WoW: quest giver creature %u display %u disagrees with primary model %u\n", (unsigned)data->creature_entry, (unsigned)data->display_id, (unsigned)creature_model->display_id);
         position = (VECTOR2){ data->position.x, data->position.y };
         delta = Vector2_sub(&position, origin);
         if (delta.x * delta.x + delta.y * delta.y > spawn_radius2 ||
@@ -354,8 +345,7 @@ void Wow_SpawnQuestLocations(LPCVECTOR2 origin) {
         budget--;
     }
 
-    fprintf(stderr, "WoW: spawned %u quest givers and %u objective anchors\n",
-            (unsigned)givers, (unsigned)objectives);
+    fprintf(stderr, "WoW: spawned %u quest givers and %u objective anchors\n", (unsigned)givers, (unsigned)objectives);
 }
 
 void Wow_SpawnAmbientCreatures(LPCVECTOR2 origin) {
@@ -381,17 +371,10 @@ void Wow_SpawnAmbientCreatures(LPCVECTOR2 origin) {
             origin->x + cosf(angle) * radius,
             origin->y + sinf(angle) * radius,
         };
-        if (Wow_SpawnCreature(type->display_id,
-                              &creature_origin,
-                              (FLOAT)RAD2DEG(angle) + 180.0f,
-                              patrol_radius,
-                              type->walk_speed)) {
+        if (Wow_SpawnCreature(type->display_id, &creature_origin, (FLOAT)RAD2DEG(angle) + 180.0f, patrol_radius, type->walk_speed)) {
             spawned++;
         }
     }
 
-    fprintf(stderr,
-            "WoW spawned %u ambient creatures from %u DBC display types\n",
-            (unsigned)spawned,
-            (unsigned)(sizeof(wow_ambient_creature_types) / sizeof(wow_ambient_creature_types[0])));
+    fprintf(stderr, "WoW spawned %u ambient creatures from %u DBC display types\n", (unsigned)spawned, (unsigned)(sizeof(wow_ambient_creature_types) / sizeof(wow_ambient_creature_types[0])));
 }

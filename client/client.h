@@ -167,7 +167,6 @@ void SCR_EndLoadingPlaque(void);
 // cl_screenshot.c
 extern BOOL cl_screenshot_pending;
 void CL_Screenshot_f(void);
-void CL_ScreenshotCapture(void);
 
 // cl_input.c
 void CL_Input(void);

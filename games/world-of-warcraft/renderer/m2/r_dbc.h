@@ -37,13 +37,10 @@ typedef M2CREATUREAPPEARANCE *LPM2CREATUREAPPEARANCE;
 typedef M2CREATUREAPPEARANCE const *LPCM2CREATUREAPPEARANCE;
 
 BOOL M2_DbcResolveCreatureAppearance(DWORD display_id, LPM2CREATUREAPPEARANCE out);
-BOOL M2_DbcCharacterOutfit(LPCSTR model_path, DWORD appearance, DWORD equipment,
-                           LPCM2CREATUREAPPEARANCE creature, LPM2CHARACTEROUTFIT outfit);
+BOOL M2_DbcCharacterOutfit(LPCSTR model_path, DWORD appearance, DWORD equipment, LPCM2CREATUREAPPEARANCE creature, LPM2CHARACTEROUTFIT outfit);
 BOOL M2_DbcCharacterRaceGender(LPCSTR model_path, LPDWORD race_id, LPDWORD gender_id);
-BOOL M2_DbcCharacterVariationTexturePath(LPCSTR model_path, DWORD section_index, DWORD variation_index,
-                                         DWORD color_index, DWORD texture_index, LPSTR out, DWORD out_size);
-BOOL M2_DbcCharacterTexturePathForType(LPCSTR model_path, DWORD appearance, DWORD texture_type,
-                                      LPSTR out, DWORD out_size);
+BOOL M2_DbcCharacterVariationTexturePath(LPCSTR model_path, DWORD section_index, DWORD variation_index, DWORD color_index, DWORD texture_index, LPSTR out, DWORD out_size);
+BOOL M2_DbcCharacterTexturePathForType(LPCSTR model_path, DWORD appearance, DWORD texture_type, LPSTR out, DWORD out_size);
 void M2_DbcShutdown(void);
 
 #endif

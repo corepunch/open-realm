@@ -50,41 +50,22 @@ void Wow_LoadAdt(BYTE const *data, DWORD size, DWORD tile_x, DWORD tile_y) {
             DWORD count = chunk_size / sizeof(wowDoodadDef_t);
             wow_world.num_doodads += count;
 #if WOW_DEBUG_DOODAD_ERROR_MESHES
-            object_vertices = Wow_AppendDoodadErrorMarkers(object_vertices,
-                                                           &object_vertex_count,
-                                                           chunk,
-                                                           chunk_size);
+            object_vertices = Wow_AppendDoodadErrorMarkers(object_vertices, &object_vertex_count, chunk, chunk_size);
 #else
             FOR_LOOP(i, count) {
                 wowDoodadDef_t const *def = (wowDoodadDef_t const *)(chunk + i * sizeof(*def));
-                LPCSTR model_path = Wow_StringRefFromOffsets(doodad_names,
-                                                              doodad_names_size,
-                                                              doodad_offsets,
-                                                              doodad_offset_count,
-                                                              def->name_id);
+                LPCSTR model_path = Wow_StringRefFromOffsets(doodad_names, doodad_names_size, doodad_offsets, doodad_offset_count, def->name_id);
                 Wow_AddDoodadInstance(model_path, def);
             }
 #endif
         } else if (Wow_TagEquals(tag, "FDOM")) {
 #if WOW_DEBUG_OBJECT_MARKERS
-            object_vertices = Wow_AppendMarkers(object_vertices,
-                                                &object_vertex_count,
-                                                chunk,
-                                                chunk_size,
-                                                wmo_names,
-                                                wmo_names_size,
-                                                wmo_offsets,
-                                                wmo_offset_count,
-                                                true);
+            object_vertices = Wow_AppendMarkers(object_vertices, &object_vertex_count, chunk, chunk_size, wmo_names, wmo_names_size, wmo_offsets, wmo_offset_count, true);
 #else
             DWORD count = chunk_size / sizeof(wowMapObjDef_t);
             FOR_LOOP(i, count) {
                 wowMapObjDef_t const *def = (wowMapObjDef_t const *)(chunk + i * sizeof(*def));
-                LPCSTR wmo_path = Wow_StringRefFromOffsets(wmo_names,
-                                                           wmo_names_size,
-                                                           wmo_offsets,
-                                                           wmo_offset_count,
-                                                           def->name_id);
+                LPCSTR wmo_path = Wow_StringRefFromOffsets(wmo_names, wmo_names_size, wmo_offsets, wmo_offset_count, def->name_id);
                 Wow_AddWmoInstance(wmo_path, def);
             }
 #endif
@@ -183,13 +164,7 @@ void Wow_LoadAdtFile(DWORD tile_x, DWORD tile_y) {
     BYTE *data;
     DWORD size = 0;
 
-    snprintf(path,
-             sizeof(path),
-             "%s/%s_%u_%u.adt",
-             wow_world.map_dir,
-             wow_world.map_name,
-             (unsigned)tile_x,
-             (unsigned)tile_y);
+    snprintf(path, sizeof(path), "%s/%s_%u_%u.adt", wow_world.map_dir, wow_world.map_name, (unsigned)tile_x, (unsigned)tile_y);
 
     /* Prefer mmap for loose ADT files — avoids a full fread copy of 200-800 KB
      * per tile and lets the OS evict pages under memory pressure. Falls back to
@@ -365,16 +340,7 @@ void Wow_LoadNearbyAdts(int center_x, int center_y) {
             }
         }
     }
-    fprintf(stderr,
-            "R_DrawWorld: WoW ADT window centered on camera tile %d,%d radius=%d chunks=%u doodads=%u rendered_doodads=%u wmos=%u wmo_batches=%u\n",
-            center_x,
-            center_y,
-            WOW_ADT_RADIUS,
-            (unsigned)wow_world.num_chunks,
-            (unsigned)wow_world.num_doodads,
-            (unsigned)wow_world.num_doodad_instances,
-            (unsigned)wow_world.num_wmos,
-            (unsigned)wow_world.num_wmo_batches);
+    fprintf(stderr, "R_DrawWorld: WoW ADT window centered on camera tile %d,%d radius=%d chunks=%u doodads=%u rendered_doodads=%u wmos=%u wmo_batches=%u\n", center_x, center_y, WOW_ADT_RADIUS, (unsigned)wow_world.num_chunks, (unsigned)wow_world.num_doodads, (unsigned)wow_world.num_doodad_instances, (unsigned)wow_world.num_wmos, (unsigned)wow_world.num_wmo_batches);
 }
 
 void Wow_LoadCameraAdts(void) {
@@ -384,12 +350,7 @@ void Wow_LoadCameraAdts(void) {
     if (center_x < 0 || center_x >= WOW_WDT_TILES || center_y < 0 || center_y >= WOW_WDT_TILES) {
         static BOOL logged_outside = false;
         if (!logged_outside) {
-            fprintf(stderr,
-                    "R_DrawWorld: camera native position %.3f %.3f is outside WoW ADT range -> tile %d,%d\n",
-                    tr.viewDef.camerastate[0].origin.x,
-                    tr.viewDef.camerastate[0].origin.y,
-                    center_x,
-                    center_y);
+            fprintf(stderr, "R_DrawWorld: camera native position %.3f %.3f is outside WoW ADT range -> tile %d,%d\n", tr.viewDef.camerastate[0].origin.x, tr.viewDef.camerastate[0].origin.y, center_x, center_y);
             logged_outside = true;
         }
         return;

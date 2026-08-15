@@ -42,8 +42,7 @@ void UIWow_UpdateMapBackground(LPCPLAYER ps) {
     screen_path = map_path;
 
     if (!wow_ui.renderer) {
-        UIWow_WarnOnce(WOW_UI_WARN_NO_RENDERER,
-                       "UIWow: loading background update skipped because renderer is unavailable\n");
+        UIWow_WarnOnce(WOW_UI_WARN_NO_RENDERER, "UIWow: loading background update skipped because renderer is unavailable\n");
         return;
     }
 
@@ -53,15 +52,11 @@ void UIWow_UpdateMapBackground(LPCPLAYER ps) {
         UIWow_Printf("UIWow: failed loading map background '%s', trying default\n", screen_path);
         wow_ui.textures[WOW_UI_TEX_BACKGROUND] = wow_ui.renderer->LoadTexture(default_bg);
         if (!wow_ui.textures[WOW_UI_TEX_BACKGROUND]) {
-            UIWow_WarnOnce(WOW_UI_WARN_NO_LOAD_BACKGROUND,
-                           "UIWow: failed loading default loading background '%s'\n",
-                           default_bg);
+            UIWow_WarnOnce(WOW_UI_WARN_NO_LOAD_BACKGROUND, "UIWow: failed loading default loading background '%s'\n", default_bg);
         }
     }
 
-    UIWow_Printf("UIWow: loading screen map=%s background=%s\n",
-                 wow_ui.active_map[0] ? wow_ui.active_map : "<none>",
-                 screen_path);
+    UIWow_Printf("UIWow: loading screen map=%s background=%s\n", wow_ui.active_map[0] ? wow_ui.active_map : "<none>", screen_path);
 }
 
 /* -------------------------------------------------------------------------
@@ -94,14 +89,6 @@ void UIWow_DrawLoadingScreenC(LPCSTR map, LPCSTR status, FLOAT progress) {
     }
 
     if (wow_ui.fonts[WOW_UI_FONT_TITLE] && map_title && *map_title) {
-        wow_ui.renderer->DrawText(&MAKE(drawText_t,
-                                        .font = wow_ui.fonts[WOW_UI_FONT_TITLE],
-                                        .text = map_title,
-                                        .rect = title_rect,
-                                        .color = MAKE(COLOR32, 235, 210, 160, 255),
-                                        .textWidth = title_rect.w,
-                                         .lineHeight = title_rect.h,
-                                         .halign = FONT_JUSTIFYCENTER,
-                                        .valign = FONT_JUSTIFYMIDDLE));
+        wow_ui.renderer->DrawText(&MAKE(drawText_t, .font = wow_ui.fonts[WOW_UI_FONT_TITLE], .text = map_title, .rect = title_rect, .color = MAKE(COLOR32, 235, 210, 160, 255), .textWidth = title_rect.w, .lineHeight = title_rect.h, .halign = FONT_JUSTIFYCENTER, .valign = FONT_JUSTIFYMIDDLE));
     }
 }

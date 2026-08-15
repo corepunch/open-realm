@@ -32,20 +32,7 @@ void R_RegisterMap(LPCSTR mapFileName) {
         return;
     }
 
-    fprintf(stderr,
-            "R_RegisterMap: WoW map %s loaded chunks=%u doodads=%u rendered_doodads=%u doodad_models=%u missing_doodad_models=%u wmos=%u wmo_models=%u wmo_batches=%u missing_wmos=%u weighted_blend=%d doodad_error_meshes=%d\n",
-            path,
-            (unsigned)wow_world.num_chunks,
-            (unsigned)wow_world.num_doodads,
-            (unsigned)wow_world.num_doodad_instances,
-            (unsigned)wow_world.num_doodad_models,
-            (unsigned)wow_world.num_missing_doodad_models,
-            (unsigned)wow_world.num_wmos,
-            (unsigned)wow_world.num_wmo_models,
-            (unsigned)wow_world.num_wmo_batches,
-            (unsigned)wow_world.num_missing_wmos,
-            wow_world.use_weighted_blend ? 1 : 0,
-            WOW_DEBUG_DOODAD_ERROR_MESHES ? 1 : 0);
+    fprintf(stderr, "R_RegisterMap: WoW map %s loaded chunks=%u doodads=%u rendered_doodads=%u doodad_models=%u missing_doodad_models=%u wmos=%u wmo_models=%u wmo_batches=%u missing_wmos=%u weighted_blend=%d doodad_error_meshes=%d\n", path, (unsigned)wow_world.num_chunks, (unsigned)wow_world.num_doodads, (unsigned)wow_world.num_doodad_instances, (unsigned)wow_world.num_doodad_models, (unsigned)wow_world.num_missing_doodad_models, (unsigned)wow_world.num_wmos, (unsigned)wow_world.num_wmo_models, (unsigned)wow_world.num_wmo_batches, (unsigned)wow_world.num_missing_wmos, wow_world.use_weighted_blend ? 1 : 0, WOW_DEBUG_DOODAD_ERROR_MESHES ? 1 : 0);
     ri.FS_FreeFile(data);
 }
 
@@ -196,25 +183,9 @@ void R_DrawWorld(void) {
         if (logged_x != wow_world.adt_center_x || logged_y != wow_world.adt_center_y) {
             logged_x = wow_world.adt_center_x;
             logged_y = wow_world.adt_center_y;
-            fprintf(stderr,
-                    "R_DrawWorld: terrain chunks=%u/%u considered=%u vertices=%u texture_binds=%u\n",
-                    (unsigned)drawn_chunks,
-                    (unsigned)wow_world.num_chunks,
-                    (unsigned)terrain_considered,
-                    (unsigned)terrain_vertices,
-                    (unsigned)texture_binds);
-            fprintf(stderr,
-                    "R_DrawWorld: doodads buckets=%u candidates=%u visible=%u/%u draw_distance=%.0f\n",
-                    (unsigned)doodad_bucket_count,
-                    (unsigned)doodad_candidates,
-                    (unsigned)drawn_doodads,
-                    (unsigned)wow_world.num_doodad_instances,
-                    (double)WOW_DOODAD_DRAW_DISTANCE);
-            fprintf(stderr,
-                    "R_DrawWorld: visible WMO groups=%u batches=%u of total batches=%u\n",
-                    (unsigned)drawn_wmo_groups,
-                    (unsigned)drawn_wmo_batches,
-                    (unsigned)wow_world.num_wmo_batches);
+            fprintf(stderr, "R_DrawWorld: terrain chunks=%u/%u considered=%u vertices=%u texture_binds=%u\n", (unsigned)drawn_chunks, (unsigned)wow_world.num_chunks, (unsigned)terrain_considered, (unsigned)terrain_vertices, (unsigned)texture_binds);
+            fprintf(stderr, "R_DrawWorld: doodads buckets=%u candidates=%u visible=%u/%u draw_distance=%.0f\n", (unsigned)doodad_bucket_count, (unsigned)doodad_candidates, (unsigned)drawn_doodads, (unsigned)wow_world.num_doodad_instances, (double)WOW_DOODAD_DRAW_DISTANCE);
+            fprintf(stderr, "R_DrawWorld: visible WMO groups=%u batches=%u of total batches=%u\n", (unsigned)drawn_wmo_groups, (unsigned)drawn_wmo_batches, (unsigned)wow_world.num_wmo_batches);
         }
     }
 
