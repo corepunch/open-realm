@@ -257,6 +257,8 @@ FLOAT R_GetHeightAtPoint(FLOAT x, FLOAT y);
 // r_model.c
 LPMODEL R_LoadModel(LPCSTR modelFilename);
 void R_ReleaseModel(LPMODEL model);
+void R_RegisterMapAssets(LPCSTR mapFileName);
+void R_ShutdownModels(void);
 
 size2_t R_GetWindowSize(void);
 void R_SetWindowSize(DWORD width, DWORD height);

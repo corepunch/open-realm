@@ -36,4 +36,18 @@ static void R_EmitParticles(float rate, float *accum, DWORD delta_ms,
 	if (*accum > 2.0f) *accum = 0.0f;
 }
 
+/* File-mapped effects have no runtime accumulator; derive emissions from the shared render clock. */
+__attribute__((unused))
+static void R_EmitParticlesAtTime(float rate, DWORD now_ms, DWORD delta_ms,
+                                  void (*spawn)(void *), void *ctx) {
+	DWORD last_ms, start_ms;
+	float interval_ms;
+	if (rate <= 0.0f || delta_ms == 0) return;
+	interval_ms = 1000.0f / rate;
+	last_ms = now_ms - delta_ms;
+	start_ms = last_ms - last_ms % 1000;
+	for (float t = (float)start_ms; t < (float)now_ms; t += interval_ms)
+		if (t >= (float)last_ms) spawn(ctx);
+}
+
 #endif

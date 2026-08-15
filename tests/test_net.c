@@ -482,7 +482,7 @@ TEST(net, cursor_splat_message_sets_and_clears_state) {
     T_FEQ(cl.cursor_splat.radius, 0.0f, 0.0001f);
 }
 
-TEST(net, playerinfo_game_state_switches_to_game_input) {
+TEST(net, playerinfo_game_state_preserves_open_menu_input) {
     BYTE buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
     PLAYER from = { 0 };
@@ -502,7 +502,8 @@ TEST(net, playerinfo_game_state_switches_to_game_input) {
 
     CL_ParseServerMessage(&sb);
 
-    T_EQ(cls.key_dest, key_game);
+    /* Player snapshots must not close a menu; only the explicit loading-to-game transition owns that switch. */
+    T_EQ(cls.key_dest, key_menu);
     T_EQ(cls.netchan.remote_address.type, NA_IP);
     T_EQ(cl.playerstate.number, 1);
     T_FEQ(cl.viewDef.camerastate[0].origin.x, 128.0f, 0.0001f);

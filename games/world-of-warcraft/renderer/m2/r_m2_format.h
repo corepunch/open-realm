@@ -124,6 +124,12 @@ typedef struct {
     m2Array_t events, lights, cameras, camera_lookup, ribbons, particles;
 } m2HeaderLegacy_t;
 
+/* A resident M2 remains one file-shaped allocation; the version selects the active header view. */
+typedef union {
+    m2Header_t modern;
+    m2HeaderLegacy_t classic;
+} m2File_t;
+
 typedef struct {
     VECTOR3 pos;
     BYTE bone_weights[4], bone_indices[4];

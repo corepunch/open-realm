@@ -9,11 +9,11 @@ void R_DrawAlphaSurfaces(void);
 bool R_TraceLocation(viewDef_t const *viewdef, FLOAT x, FLOAT y, LPVECTOR3 output);
 float GetAccurateHeightAtPoint(float sx, float sy);
 
-m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size);
+m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size, BOOL *buffer_owned);
+void M2_Init(void);
 void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMATRIX4 transform);
 BOOL M2_AttachmentMatrix(m2Model_t const *model, DWORD attachment_id, LPCMATRIX4 model_matrix, LPMATRIX4 out);
 FLOAT M2_GroundOffset(m2Model_t const *model);
-void M2_SetCharacterMenuEquipment(m2Model_t *model, DWORD const *display_ids, DWORD count);
 BOOL M2_CameraView(m2Model_t const *model,
                    DWORD camera_index,
                    LPVECTOR3 eye,
@@ -48,6 +48,7 @@ void R_GameLoadAssets(void) {
 }
 
 void R_GameInit(void) {
+    M2_Init();
 }
 
 void R_GameShutdown(void) {
@@ -121,7 +122,7 @@ LPMODEL R_GameLoadModel(LPCSTR modelFilename) {
         fprintf(stderr, "R_LoadModel: missing WoW model %s, using fallback\n", modelFilename);
         model = ri.MemAlloc(sizeof(model_t));
         memset(model, 0, sizeof(*model));
-        model->m2 = R_LoadModelM2(modelFilename, NULL, 0);
+        model->m2 = R_LoadModelM2(modelFilename, NULL, 0, NULL);
         model->modeltype = ID_MD20;
         return model;
     }
@@ -135,13 +136,14 @@ LPMODEL R_GameLoadModel(LPCSTR modelFilename) {
     }
 
     model = ri.MemAlloc(sizeof(model_t));
-    model->m2 = R_LoadModelM2(load_name, buffer, fileSize);
+    BOOL buffer_owned = false;
+    model->m2 = R_LoadModelM2(load_name, buffer, fileSize, &buffer_owned);
     model->modeltype = ID_MD20;
     if (!model->m2) {
         ri.MemFree(model);
         model = NULL;
     }
-    ri.FS_FreeFile(buffer);
+    if (!buffer_owned) ri.FS_FreeFile(buffer);
     return model;
 }
 
@@ -247,13 +249,6 @@ void R_GameRenderModel(renderEntity_t const *entity) {
         M2_RenderModel(&attached_entity, attached_entity.model->m2, &attached_transform);
     }
 }
-
-#ifdef WOW
-void R_GameSetCharacterMenuEquipment(LPMODEL model, DWORD const *display_ids, DWORD count) {
-    if (!model || model->modeltype != ID_MD20 || !model->m2) return;
-    M2_SetCharacterMenuEquipment(model->m2, display_ids, count);
-}
-#endif
 
 bool R_GameTraceModel(renderEntity_t const *entity, LPCLINE3 line, LPFLOAT distance) {
     VECTOR3 ab;

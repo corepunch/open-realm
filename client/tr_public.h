@@ -208,7 +208,6 @@ typedef struct {
     void (*DrawLoadingIndicator)(LPCRECT rect, DWORD time, COLOR32 color);
     void (*DrawSprite)(LPCMODEL model, LPCSTR anim, float x, float y);
     bool (*SetEntityAnimFrame)(LPCMODEL model, LPCSTR anim, renderEntity_t *entity);
-    void (*SetCharacterMenuEquipment)(LPMODEL model, DWORD const *display_ids, DWORD count);
     void (*DrawText)(LPCDRAWTEXT drawText);
     VECTOR2 (*GetTextSize)(LPCDRAWTEXT drawText);
     bool (*GetModelInfo)(LPMODEL model, LPMODELINFO info);
