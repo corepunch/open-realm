@@ -16,10 +16,7 @@ BOOL Wow_EntityInView(renderEntity_t const *entity) {
     }
 
     radius = MAX(entity->radius * MAX(entity->scale, 1.0f), 16.0f);
-    return Frustum_ContainsSphere(&tr.viewDef.frustum, &(SPHERE3){
-        .center = entity->origin,
-        .radius = radius,
-    });
+    return Frustum_ContainsSphere(&tr.viewDef.frustum, &(SPHERE3){ .center = entity->origin, .radius = radius, });
 }
 
 BOOL Wow_TerrainChunkInRange(wowAdtChunk_t const *chunk) {
@@ -63,10 +60,7 @@ BOOL Wow_TerrainChunkInRange(wowAdtChunk_t const *chunk) {
         chunk->bounds.max.z - center.z,
     };
     radius = MAX(Vector3_len(&extents), WOW_ADT_CHUNK_SIZE);
-    return Frustum_ContainsSphere(&tr.viewDef.frustum, &(SPHERE3){
-        .center = center,
-        .radius = radius,
-    });
+    return Frustum_ContainsSphere(&tr.viewDef.frustum, &(SPHERE3){ .center = center, .radius = radius, });
 }
 
 BOOL Wow_WmoGroupInView(wowWmoGroup_t const *group, LPCMATRIX4 matrix) {
@@ -92,10 +86,7 @@ BOOL Wow_WmoGroupInView(wowWmoGroup_t const *group, LPCMATRIX4 matrix) {
     world_center = Matrix4_multiply_vector3(matrix, &center);
     radius = Vector3_len(&extents) * 2.0f;
 
-    return Frustum_ContainsSphere(&tr.viewDef.frustum, &(SPHERE3){
-        .center = world_center,
-        .radius = MAX(radius, 16.0f),
-    });
+    return Frustum_ContainsSphere(&tr.viewDef.frustum, &(SPHERE3){ .center = world_center, .radius = MAX(radius, 16.0f), });
 }
 
 void Wow_BindWorldTexture(LPCTEXTURE texture, DWORD unit, LPCTEXTURE bound[5], LPDWORD binds) {

@@ -286,19 +286,7 @@ static void reset_test_state(void) {
 static uiExport_t init_ui(void) {
     uiExport_t ui;
 
-    ui = UI_GetAPI((uiImport_t) {
-        .FS_ReadFile = test_fs_read_file,
-        .FS_FreeFile = test_fs_free_file,
-        .MemAlloc = test_mem_alloc,
-        .MemFree = test_mem_free,
-        .Cmd_ExecuteText = test_cmd_execute_text,
-        .ImageIndex = test_image_index,
-        .ServerCommand = test_server_command,
-        .GetPlayerState = test_get_player_state,
-        .GetTexture = test_get_texture,
-        .GetRenderer = test_get_renderer,
-        .Printf = test_printf,
-    });
+    ui = UI_GetAPI((uiImport_t) { .FS_ReadFile = test_fs_read_file, .FS_FreeFile = test_fs_free_file, .MemAlloc = test_mem_alloc, .MemFree = test_mem_free, .Cmd_ExecuteText = test_cmd_execute_text, .ImageIndex = test_image_index, .ServerCommand = test_server_command, .GetPlayerState = test_get_player_state, .GetTexture = test_get_texture, .GetRenderer = test_get_renderer, .Printf = test_printf, });
     T_NOT_NULL(ui.Init);
     T_NOT_NULL(ui.Refresh);
     T_NOT_NULL(ui.Shutdown);

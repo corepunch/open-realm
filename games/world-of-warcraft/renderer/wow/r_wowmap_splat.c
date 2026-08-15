@@ -18,8 +18,7 @@ static void Wow_DrawSplatVertices(LPCTEXTURE texture, LPCSHADER shader,
     Matrix4_identity(&model_matrix);
     R_BindTexture(texture, 0);
     R_Call(glUseProgram, shader->progid);
-    R_Call(glUniformMatrix4fv, shader->uViewProjectionMatrix, 1, GL_FALSE,
-           tr.viewDef.viewProjectionMatrix.v);
+    R_Call(glUniformMatrix4fv, shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
     R_Call(glUniformMatrix4fv, shader->uModelMatrix, 1, GL_FALSE, model_matrix.v);
     R_Call(glEnable, GL_BLEND);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -92,12 +91,7 @@ BOOL Wow_MakeSplatVertex(float x,
         return false;
     }
 
-    *vertex = Wow_Vertex(x,
-                         y,
-                         z + WOW_SPLAT_Z_BIAS,
-                         (x - mins->x) / width,
-                         1.0f - (y - mins->y) / height,
-                         color);
+    *vertex = Wow_Vertex(x, y, z + WOW_SPLAT_Z_BIAS, (x - mins->x) / width, 1.0f - (y - mins->y) / height, color);
     return true;
 }
 
@@ -162,10 +156,8 @@ void R_RenderRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, LPC
     }
 
     /* Small selection rings need enough fitted triangles to follow an ADT slope instead of cutting through it. */
-    cols = MAX(WOW_SPLAT_MIN_SUBDIVISIONS,
-               MIN(WOW_SPLAT_MAX_SUBDIVISIONS, (int)ceilf(width / (WOW_ADT_UNIT_SIZE * 0.5f))));
-    rows = MAX(WOW_SPLAT_MIN_SUBDIVISIONS,
-               MIN(WOW_SPLAT_MAX_SUBDIVISIONS, (int)ceilf(height / (WOW_ADT_UNIT_SIZE * 0.5f))));
+    cols = MAX(WOW_SPLAT_MIN_SUBDIVISIONS, MIN(WOW_SPLAT_MAX_SUBDIVISIONS, (int)ceilf(width / (WOW_ADT_UNIT_SIZE * 0.5f))));
+    rows = MAX(WOW_SPLAT_MIN_SUBDIVISIONS, MIN(WOW_SPLAT_MAX_SUBDIVISIONS, (int)ceilf(height / (WOW_ADT_UNIT_SIZE * 0.5f))));
     max_vertices = (DWORD)(cols * rows * 6);
     vertices = max_vertices <= sizeof(stack_vertices) / sizeof(stack_vertices[0])
         ? stack_vertices : ri.MemAlloc(sizeof(*vertices) * max_vertices);
@@ -218,14 +210,10 @@ void R_RenderRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, LPC
                     fprintf(stderr, "WoW splat: terrain edge sample missing; using center sample\n");
                     warned_missing_sample = true;
                 }
-                v00 = Wow_Vertex(x0, y0, center_z + WOW_SPLAT_Z_BIAS, (x0 - mins->x) / width,
-                                 1.0f - (y0 - mins->y) / height, color);
-                v10 = Wow_Vertex(x1, y0, center_z + WOW_SPLAT_Z_BIAS, (x1 - mins->x) / width,
-                                 1.0f - (y0 - mins->y) / height, color);
-                v11 = Wow_Vertex(x1, y1, center_z + WOW_SPLAT_Z_BIAS, (x1 - mins->x) / width,
-                                 1.0f - (y1 - mins->y) / height, color);
-                v01 = Wow_Vertex(x0, y1, center_z + WOW_SPLAT_Z_BIAS, (x0 - mins->x) / width,
-                                 1.0f - (y1 - mins->y) / height, color);
+                v00 = Wow_Vertex(x0, y0, center_z + WOW_SPLAT_Z_BIAS, (x0 - mins->x) / width, 1.0f - (y0 - mins->y) / height, color);
+                v10 = Wow_Vertex(x1, y0, center_z + WOW_SPLAT_Z_BIAS, (x1 - mins->x) / width, 1.0f - (y0 - mins->y) / height, color);
+                v11 = Wow_Vertex(x1, y1, center_z + WOW_SPLAT_Z_BIAS, (x1 - mins->x) / width, 1.0f - (y1 - mins->y) / height, color);
+                v01 = Wow_Vertex(x0, y1, center_z + WOW_SPLAT_Z_BIAS, (x0 - mins->x) / width, 1.0f - (y1 - mins->y) / height, color);
                 Wow_AddSplatTriangle(vertices, &num_vertices, v00, v10, v11, max_height_delta);
                 Wow_AddSplatTriangle(vertices, &num_vertices, v00, v11, v01, max_height_delta);
             }

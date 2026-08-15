@@ -108,6 +108,5 @@ void Wow_TeleportPlayer(LPEDICT ent, DWORD idx) {
     ent->s.origin2 = (VECTOR2){ sp->x, sp->y };
     ent->s.angle = sp->facing;
     ent->client->ps.origin = (VECTOR2){ sp->x, sp->y };
-    fprintf(stderr, "WoW: respawned at map=%u (%.1f %.1f %.1f)\n",
-            sp->map, sp->x, sp->y, sp->z);
+    fprintf(stderr, "WoW: respawned at map=%u (%.1f %.1f %.1f)\n", sp->map, sp->x, sp->y, sp->z);
 }

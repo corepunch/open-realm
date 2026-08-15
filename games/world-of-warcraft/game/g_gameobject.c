@@ -230,8 +230,7 @@ static void WowGo_LoadModelMap(void) {
         snprintf(entry->model_path, sizeof(entry->model_path), "%s", stem_buf);
     }
     gi.MemFree(data);
-    fprintf(stderr, "WoW: loaded %u GameObjectDisplayInfo model mappings\n",
-            (unsigned)wow_go_model_map_count);
+    fprintf(stderr, "WoW: loaded %u GameObjectDisplayInfo model mappings\n", (unsigned)wow_go_model_map_count);
 }
 
 /* Cross-reference a doodad M2 path against our model map.  Returns the
@@ -347,9 +346,7 @@ static void WowGo_SpawnFromTile(int tile_x, int tile_y) {
                 if (!model_path || !*model_path)
                     continue;
 
-                VECTOR2 world = WowGo_WorldPos(tile_x, tile_y,
-                                                def->position[2],
-                                                def->position[0]);
+                VECTOR2 world = WowGo_WorldPos(tile_x, tile_y, def->position[2], def->position[0]);
                 /* Mutate the def's position temporarily for the spawn call */
                 wowDoodadDef_t local_def = *def;
                 local_def.position[0] = world.x;
@@ -382,9 +379,7 @@ void Wow_SpawnGameObjects(LPCVECTOR2 origin) {
         }
     }
 
-    fprintf(stderr, "WoW: spawned %u game objects from ADT doodads (%u interactive)\n",
-            (unsigned)(globals.num_edicts - spawned_before),
-            (unsigned)(globals.num_edicts - spawned_before));
+    fprintf(stderr, "WoW: spawned %u game objects from ADT doodads (%u interactive)\n", (unsigned)(globals.num_edicts - spawned_before), (unsigned)(globals.num_edicts - spawned_before));
 }
 
 void Wow_RunGameObjectFrame(LPEDICT ent) {

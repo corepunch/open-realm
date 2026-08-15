@@ -1187,6 +1187,7 @@ static BOOL SFileOpenFileDirect(HANDLE archive, LPCSTR fileName, DWORD searchSco
 {
     MPQ_ARCHIVE *mpq = (MPQ_ARCHIVE *)archive;
     MPQ_FILE *mpqfile;
+    char canonical_name[1024];
     DWORD hash1, hash2;
     DWORD block_index;
 
@@ -1194,12 +1195,18 @@ static BOOL SFileOpenFileDirect(HANDLE archive, LPCSTR fileName, DWORD searchSco
         return FALSE;
     }
 
-    // Calculate file name hashes
-    hash1 = HashString(fileName, MPQ_HASH_NAME_A);
-    hash2 = HashString(fileName, MPQ_HASH_NAME_B);
+    /* MPQ names are case-insensitive and use backslashes; normalize every lookup before hashing. */
+    CanonicalizeMpqKey(fileName, canonical_name, sizeof(canonical_name));
+    if (!canonical_name[0]) {
+        return FALSE;
+    }
 
-    if (!LookupCachedBlock(mpq, fileName, &block_index)) {
-        if (!FindBlockIndex(mpq, fileName, hash1, hash2, &block_index)) {
+    // Calculate file name hashes
+    hash1 = HashString(canonical_name, MPQ_HASH_NAME_A);
+    hash2 = HashString(canonical_name, MPQ_HASH_NAME_B);
+
+    if (!LookupCachedBlock(mpq, canonical_name, &block_index)) {
+        if (!FindBlockIndex(mpq, canonical_name, hash1, hash2, &block_index)) {
             return FALSE;
         }
     }
@@ -1225,7 +1232,7 @@ static BOOL SFileOpenFileDirect(HANDLE archive, LPCSTR fileName, DWORD searchSco
     mpqfile->sector_offsets = NULL;
 
     if (mpqfile->flags & MPQ_FILE_ENCRYPTED) {
-        mpqfile->file_key = HashString(BaseNamePtr(fileName), MPQ_HASH_FILE_KEY);
+        mpqfile->file_key = HashString(BaseNamePtr(canonical_name), MPQ_HASH_FILE_KEY);
         if (mpqfile->flags & MPQ_FILE_KEY_V2) {
             mpqfile->file_key = (mpqfile->file_key + mpq->blocktable[block_index].dwBlockOffset) ^ mpqfile->file_size;
         }

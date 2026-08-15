@@ -63,11 +63,7 @@ static void M2_LogFallback(LPCSTR modelFilename, LPCSTR reason) {
 
     fallback_count++;
     if (fallback_count <= 64 || (fallback_count % 100) == 0) {
-        fprintf(stderr,
-                "M2 fallback: %s model=%s count=%u\n",
-                reason ? reason : "unknown",
-                modelFilename ? modelFilename : "<null>",
-                fallback_count);
+        fprintf(stderr, "M2 fallback: %s model=%s count=%u\n", reason ? reason : "unknown", modelFilename ? modelFilename : "<null>", fallback_count);
     }
 }
 
@@ -196,20 +192,17 @@ static BOOL M2_CharacterComponentTexturePath(LPCSTR stem,
     }
     gender_suffix = M2_DbcCharacterRaceGender(model_path, &race_id, &gender_id) && gender_id ? "F" : "M";
 
-    snprintf(candidate, sizeof(candidate), "Item\\TextureComponents\\%s\\%s_%s.blp",
-             folders[slot], stem, gender_suffix);
+    snprintf(candidate, sizeof(candidate), "Item\\TextureComponents\\%s\\%s_%s.blp", folders[slot], stem, gender_suffix);
     if (M2_TextureExists(candidate)) {
         snprintf(out, out_size, "%s", candidate);
         return true;
     }
-    snprintf(candidate, sizeof(candidate), "Item\\TextureComponents\\%s\\%s_U.blp",
-             folders[slot], stem);
+    snprintf(candidate, sizeof(candidate), "Item\\TextureComponents\\%s\\%s_U.blp", folders[slot], stem);
     if (M2_TextureExists(candidate)) {
         snprintf(out, out_size, "%s", candidate);
         return true;
     }
-    snprintf(candidate, sizeof(candidate), "Item\\TextureComponents\\%s\\%s.blp",
-             folders[slot], stem);
+    snprintf(candidate, sizeof(candidate), "Item\\TextureComponents\\%s\\%s.blp", folders[slot], stem);
     if (M2_TextureExists(candidate)) {
         snprintf(out, out_size, "%s", candidate);
         return true;
@@ -333,8 +326,8 @@ static WORD const *M2_BoneLookup(m2Model_t const *model) {
     return M2_ModelArrayPtr(model, M2_BoneLookupArray(model), sizeof(WORD));
 }
 
-static DWORD M2_SequenceStart(m2Model_t const *model, DWORD sequence_index) {
-    BYTE const *sequence = M2_Sequence(model, sequence_index);
+static DWORD M2_SequenceStart(m2Model_t const *model, DWORD seq) {
+    BYTE const *sequence = M2_Sequence(model, seq);
     if (!sequence) return 0;
     if (model->format->format == M2_FORMAT_CLASSIC) {
         return ((m2SequenceClassic_t const *)sequence)->start_timestamp;
@@ -342,8 +335,8 @@ static DWORD M2_SequenceStart(m2Model_t const *model, DWORD sequence_index) {
     return 0;
 }
 
-static DWORD M2_SequenceDuration(m2Model_t const *model, DWORD sequence_index) {
-    BYTE const *sequence = M2_Sequence(model, sequence_index);
+static DWORD M2_SequenceDuration(m2Model_t const *model, DWORD seq) {
+    BYTE const *sequence = M2_Sequence(model, seq);
     if (!sequence) return 0;
     if (model->format->format == M2_FORMAT_CLASSIC) {
         m2SequenceClassic_t const *classic = (m2SequenceClassic_t const *)sequence;
@@ -355,17 +348,17 @@ static DWORD M2_SequenceDuration(m2Model_t const *model, DWORD sequence_index) {
     }
 }
 
-static DWORD M2_SequenceFlags(m2Model_t const *model, DWORD sequence_index) {
-    BYTE const *sequence = M2_Sequence(model, sequence_index);
+static DWORD M2_SequenceFlags(m2Model_t const *model, DWORD seq) {
+    BYTE const *sequence = M2_Sequence(model, seq);
     if (!sequence) return 0;
     return model->format->format == M2_FORMAT_CLASSIC ? ((m2SequenceClassic_t const *)sequence)->flags
                                                        : ((m2SequenceModern_t const *)sequence)->flags;
 }
 
-static WORD M2_SequenceAnimId(m2Model_t const *model, DWORD sequence_index) {
+static WORD M2_SequenceAnimId(m2Model_t const *model, DWORD seq) {
     BYTE const *sequence;
 
-    sequence = M2_Sequence(model, sequence_index);
+    sequence = M2_Sequence(model, seq);
     if (!sequence) return 0;
     if (model->format->format == M2_FORMAT_CLASSIC)
         return ((m2SequenceClassic_t const *)sequence)->animation_id;
@@ -373,12 +366,12 @@ static WORD M2_SequenceAnimId(m2Model_t const *model, DWORD sequence_index) {
 }
 
 /* Lua SetSequence passes Blizzard animation IDs, not raw M2 sequence row indices. */
-static BOOL M2_FindSequenceByAnimId(m2Model_t const *model, DWORD anim_id, LPDWORD sequence_index) {
-    if (!model || !sequence_index)
+static BOOL M2_FindSequenceByAnimId(m2Model_t const *model, DWORD anim_id, LPDWORD seq) {
+    if (!model || !seq)
         return false;
     FOR_LOOP(i, M2_SequenceCount(model)) {
         if (M2_SequenceAnimId(model, i) == anim_id) {
-            *sequence_index = i;
+            *seq = i;
             return true;
         }
     }
@@ -393,16 +386,16 @@ static BOOL M2_FindSequenceByAnimId(m2Model_t const *model, DWORD anim_id, LPDWO
 BOOL M2_SetEntitySequenceFrame(m2Model_t const *model, LPCSTR anim, renderEntity_t *entity) {
     char *end = NULL;
     DWORD anim_id;
-    DWORD sequence_index;
+    DWORD seq;
 
     if (!model || !entity)
         return false;
     anim_id = anim && *anim ? (DWORD)strtoul(anim, &end, 10) : 0;
     if (anim && *anim && (!end || *end))
         return false;
-    if (!M2_FindSequenceByAnimId(model, anim_id, &sequence_index))
-        sequence_index = anim_id;
-    if (M2_SequenceCount(model) && sequence_index >= M2_SequenceCount(model))
+    if (!M2_FindSequenceByAnimId(model, anim_id, &seq))
+        seq = anim_id;
+    if (M2_SequenceCount(model) && seq >= M2_SequenceCount(model))
         return false;
     entity->frame = M2_FRAME_SEQUENCE_FLAG |
                     ((anim_id & M2_FRAME_SEQUENCE_MASK) << M2_FRAME_SEQUENCE_SHIFT) |
@@ -414,16 +407,16 @@ BOOL M2_SetEntitySequenceFrame(m2Model_t const *model, LPCSTR anim, renderEntity
 }
 
 typedef struct {
-    DWORD sequence_index;
-    DWORD sequence_time;
+    DWORD seq;
+    DWORD tim;
 } m2PoseTime_t;
 
 static BOOL M2_FrameToPoseTime(m2Model_t const *model, DWORD frame, m2PoseTime_t *pose) {
     DWORD range_start = 0;
 
     if (pose) {
-        pose->sequence_index = 0;
-        pose->sequence_time = frame;
+        pose->seq = 0;
+        pose->tim = frame;
     }
     if (!model || !M2_SequenceCount(model) || !pose) {
         return false;
@@ -440,8 +433,8 @@ static BOOL M2_FrameToPoseTime(m2Model_t const *model, DWORD frame, m2PoseTime_t
         if (sequence >= M2_SequenceCount(model))
             sequence = 0;
         duration = M2_SequenceDuration(model, sequence);
-        pose->sequence_index = sequence;
-        pose->sequence_time = duration
+        pose->seq = sequence;
+        pose->tim = duration
             ? M2_SequenceStart(model, sequence) + (local_time % duration)
             : M2_SequenceStart(model, sequence);
         return true;
@@ -454,8 +447,8 @@ static BOOL M2_FrameToPoseTime(m2Model_t const *model, DWORD frame, m2PoseTime_t
         if (frame >= range_start && frame < range_start + range_length) {
             DWORD local_time = frame - range_start;
 
-            pose->sequence_index = i;
-            pose->sequence_time = duration
+            pose->seq = i;
+            pose->tim = duration
                 ? M2_SequenceStart(model, i) + (local_time % duration)
                 : M2_SequenceStart(model, i);
             return true;
@@ -466,8 +459,8 @@ static BOOL M2_FrameToPoseTime(m2Model_t const *model, DWORD frame, m2PoseTime_t
     if (M2_SequenceCount(model)) {
         DWORD duration = M2_SequenceDuration(model, 0);
 
-        pose->sequence_index = 0;
-        pose->sequence_time = duration
+        pose->seq = 0;
+        pose->tim = duration
             ? M2_SequenceStart(model, 0) + (frame % duration)
             : M2_SequenceStart(model, 0);
         return true;
@@ -475,13 +468,12 @@ static BOOL M2_FrameToPoseTime(m2Model_t const *model, DWORD frame, m2PoseTime_t
     return false;
 }
 
-static DWORD M2_AnimationTime(m2Model_t const *model, renderEntity_t const *entity, DWORD *sequence_index) {
+static DWORD M2_AnimationTime(m2Model_t const *model, renderEntity_t const *entity, DWORD *seq) {
     DWORD frame = entity ? entity->frame : tr.viewDef.time;
-    m2PoseTime_t pose;
-    m2PoseTime_t old_pose;
+    m2PoseTime_t pose, old_pose;
 
-    if (sequence_index) {
-        *sequence_index = 0;
+    if (seq) {
+        *seq = 0;
     }
     if (!M2_FrameToPoseTime(model, frame, &pose)) {
         return frame;
@@ -489,55 +481,55 @@ static DWORD M2_AnimationTime(m2Model_t const *model, renderEntity_t const *enti
 
     if (entity &&
         M2_FrameToPoseTime(model, entity->oldframe, &old_pose) &&
-        old_pose.sequence_index == pose.sequence_index) {
-        DWORD duration = M2_SequenceDuration(model, pose.sequence_index);
-        DWORD start_time = M2_SequenceStart(model, pose.sequence_index);
-        DWORD old_time = old_pose.sequence_time - start_time;
-        DWORD local_time = pose.sequence_time - start_time;
+        old_pose.seq == pose.seq) {
+        DWORD duration = M2_SequenceDuration(model, pose.seq);
+        DWORD start_time = M2_SequenceStart(model, pose.seq);
+        DWORD old_time = old_pose.tim - start_time;
+        DWORD local_time = pose.tim - start_time;
         FLOAT end_time = (FLOAT)local_time;
         FLOAT lerped;
 
-        if (duration > 0 && old_time > local_time && !(M2_SequenceFlags(model, pose.sequence_index) & 0x1)) {
+        if (duration > 0 && old_time > local_time && !(M2_SequenceFlags(model, pose.seq) & 0x1)) {
             end_time += (FLOAT)duration;
         }
         lerped = LerpNumber((FLOAT)old_time, end_time, tr.viewDef.lerpfrac);
         if (duration > 0 && lerped >= (FLOAT)duration) {
             lerped -= (FLOAT)duration * floorf(lerped / (FLOAT)duration);
         }
-        pose.sequence_time = start_time + (DWORD)MAX(0.0f, lerped);
+        pose.tim = start_time + (DWORD)MAX(0.0f, lerped);
     }
 
-    if (sequence_index) {
-        *sequence_index = pose.sequence_index;
+    if (seq) {
+        *seq = pose.seq;
     }
-    return pose.sequence_time;
+    return pose.tim;
 }
 
 static DWORD M2_TrackTime(m2Model_t const *model,
                           m2TrackView_t const *track,
-                          DWORD sequence_index,
-                          DWORD sequence_time) {
+                          DWORD seq,
+                          DWORD tim) {
     DWORD const *loops;
     m2Array_t global_loops;
 
     if (!model || !track || !model->file || track->loop_index == 0xFFFF) {
-        return sequence_time;
+        return tim;
     }
 
     global_loops = M2_GlobalLoopsArray(model);
     loops = M2_ModelArrayPtr(model, global_loops, sizeof(DWORD));
     if (!loops || track->loop_index >= (WORD)global_loops.size || loops[track->loop_index] == 0) {
-        return sequence_time;
+        return tim;
     }
 
-    (void)sequence_index;
+    (void)seq;
     return tr.viewDef.time % loops[track->loop_index];
 }
 
 static BOOL M2_FindTrackKeys(m2Model_t const *model,
                              m2TrackView_t const *track,
-                             DWORD sequence_index,
-                             DWORD sequence_time,
+                             DWORD seq,
+                             DWORD tim,
                              DWORD elem_size,
                              void const **left,
                              void const **right,
@@ -563,11 +555,11 @@ static BOOL M2_FindTrackKeys(m2Model_t const *model,
             count = MIN((DWORD)track->sequence_times.size, (DWORD)track->sequence_keys.size);
             if (count == 0) return false;
         } else {
-        if (sequence_index >= (DWORD)track->ranges.size) {
-            sequence_index = 0;
+        if (seq >= (DWORD)track->ranges.size) {
+            seq = 0;
         }
 
-        range = ranges[sequence_index];
+        range = ranges[seq];
         if (range.end < range.start) {
             return false;
         }
@@ -590,25 +582,25 @@ static BOOL M2_FindTrackKeys(m2Model_t const *model,
         }
         }
     } else {
-        m2SequenceTimes_t const *sequence_times = M2_ModelArrayPtr(model, track->sequence_times, sizeof(*sequence_times));
-        m2SequenceKeys_t const *sequence_keys = M2_ModelArrayPtr(model, track->sequence_keys, sizeof(*sequence_keys));
-        if (!sequence_times || !sequence_keys || track->sequence_times.size == 0 || track->sequence_keys.size == 0) {
+        m2SequenceTimes_t const *stms = M2_ModelArrayPtr(model, track->sequence_times, sizeof(*stms));
+        m2SequenceKeys_t const *skeys = M2_ModelArrayPtr(model, track->sequence_keys, sizeof(*skeys));
+        if (!stms || !skeys || track->sequence_times.size == 0 || track->sequence_keys.size == 0) {
             return false;
         }
 
-        if (sequence_index >= (DWORD)track->sequence_times.size || sequence_index >= (DWORD)track->sequence_keys.size) {
-            sequence_index = 0;
+        if (seq >= (DWORD)track->sequence_times.size || seq >= (DWORD)track->sequence_keys.size) {
+            seq = 0;
         }
 
-        times = M2_ModelArrayPtr(model, sequence_times[sequence_index].times, sizeof(DWORD));
-        keys = M2_ModelArrayPtr(model, sequence_keys[sequence_index].keys, elem_size);
-        count = MIN((DWORD)sequence_times[sequence_index].times.size, (DWORD)sequence_keys[sequence_index].keys.size);
+        times = M2_ModelArrayPtr(model, stms[seq].times, sizeof(DWORD));
+        keys = M2_ModelArrayPtr(model, skeys[seq].keys, elem_size);
+        count = MIN((DWORD)stms[seq].times.size, (DWORD)skeys[seq].keys.size);
         if (!times || !keys || count == 0) {
             return false;
         }
     }
 
-    if (count == 1 || track->track_type == TRACK_NO_INTERP || sequence_time <= times[0]) {
+    if (count == 1 || track->track_type == TRACK_NO_INTERP || tim <= times[0]) {
         *left = keys;
         *right = keys;
         *ratio = 0.0f;
@@ -616,13 +608,13 @@ static BOOL M2_FindTrackKeys(m2Model_t const *model,
     }
 
     for (DWORD i = 1; i < count; i++) {
-        if (sequence_time <= times[i]) {
+        if (tim <= times[i]) {
             DWORD left_time = times[i - 1];
             DWORD right_time = times[i];
             *left = keys + ((i - 1) * elem_size);
             *right = keys + (i * elem_size);
             *ratio = right_time > left_time
-                ? (float)(sequence_time - left_time) / (float)(right_time - left_time)
+                ? (float)(tim - left_time) / (float)(right_time - left_time)
                 : 0.0f;
             return true;
         }
@@ -636,15 +628,15 @@ static BOOL M2_FindTrackKeys(m2Model_t const *model,
 
 static VECTOR3 M2_EvaluateVectorTrack(m2Model_t const *model,
                                       m2TrackView_t const *track,
-                                      DWORD sequence_index,
-                                      DWORD sequence_time,
+                                      DWORD seq,
+                                      DWORD tim,
                                       VECTOR3 default_value) {
     void const *left;
     void const *right;
     float ratio;
-    DWORD track_time = M2_TrackTime(model, track, sequence_index, sequence_time);
+    DWORD track_time = M2_TrackTime(model, track, seq, tim);
 
-    if (!M2_FindTrackKeys(model, track, sequence_index, track_time, sizeof(VECTOR3), &left, &right, &ratio)) {
+    if (!M2_FindTrackKeys(model, track, seq, track_time, sizeof(VECTOR3), &left, &right, &ratio)) {
         return default_value;
     }
     if (left == right) {
@@ -655,15 +647,15 @@ static VECTOR3 M2_EvaluateVectorTrack(m2Model_t const *model,
 
 static FLOAT M2_EvaluateFloatTrack(m2Model_t const *model,
                                    m2TrackView_t const *track,
-                                   DWORD sequence_index,
-                                   DWORD sequence_time,
+                                   DWORD seq,
+                                   DWORD tim,
                                    FLOAT default_value) {
     void const *left;
     void const *right;
     float ratio;
-    DWORD track_time = M2_TrackTime(model, track, sequence_index, sequence_time);
+    DWORD track_time = M2_TrackTime(model, track, seq, tim);
 
-    if (!M2_FindTrackKeys(model, track, sequence_index, track_time, sizeof(FLOAT), &left, &right, &ratio)) {
+    if (!M2_FindTrackKeys(model, track, seq, track_time, sizeof(FLOAT), &left, &right, &ratio)) {
         return default_value;
     }
     if (left == right) {
@@ -717,16 +709,8 @@ BOOL M2_CameraView(m2Model_t const *model,
         fov = camera->fov; near_clip = camera->near_clip; far_clip = camera->far_clip;
     }
     M2_FrameToPoseTime(model, tr.viewDef.time, &pose);
-    position_value = M2_EvaluateVectorTrack(model,
-                                            &position_track,
-                                            pose.sequence_index,
-                                            pose.sequence_time,
-                                            (VECTOR3){ 0.0f, 0.0f, 0.0f });
-    target_value = M2_EvaluateVectorTrack(model,
-                                          &target_track,
-                                          pose.sequence_index,
-                                          pose.sequence_time,
-                                          (VECTOR3){ 0.0f, 0.0f, 0.0f });
+    position_value = M2_EvaluateVectorTrack(model, &position_track, pose.seq, pose.tim, (VECTOR3){ 0.0f, 0.0f, 0.0f });
+    target_value = M2_EvaluateVectorTrack(model, &target_track, pose.seq, pose.tim, (VECTOR3){ 0.0f, 0.0f, 0.0f });
     *eye = Vector3_add(&position_pivot, &position_value);
     *target = Vector3_add(&target_pivot, &target_value);
     if (fov_degrees)
@@ -773,16 +757,16 @@ static QUATERNION M2_QuaternionNlerp(LPCQUATERNION q1, LPCQUATERNION q2, float r
 
 static QUATERNION M2_EvaluateRotationTrack(m2Model_t const *model,
                                            m2TrackView_t const *track,
-                                           DWORD sequence_index,
-                                           DWORD sequence_time,
+                                           DWORD seq,
+                                           DWORD tim,
                                            QUATERNION default_value) {
     void const *left;
     void const *right;
     float ratio;
-    DWORD track_time = M2_TrackTime(model, track, sequence_index, sequence_time);
+    DWORD track_time = M2_TrackTime(model, track, seq, tim);
     DWORD elem_size = track && track->classic ? sizeof(QUATERNION) : sizeof(m2CompQuat_t);
 
-    if (!M2_FindTrackKeys(model, track, sequence_index, track_time, elem_size, &left, &right, &ratio)) {
+    if (!M2_FindTrackKeys(model, track, seq, track_time, elem_size, &left, &right, &ratio)) {
         return default_value;
     }
     if (track->classic) {
@@ -992,9 +976,7 @@ static void m2_spawn_particle(void *raw) {
 	VECTOR3 local_origin = ctx->p->position;
 	local_origin.z += ctx->zsource;
 	VECTOR3 org = Matrix4_multiply_vector3(&emitter_matrix, &local_origin);
-	VECTOR3 dir = m2_particle_direction(ctx->lat, ctx->lon,
-		(VECTOR2){ 2.0f * (FLOAT)rand() / (FLOAT)RAND_MAX - 1.0f,
-		           2.0f * (FLOAT)rand() / (FLOAT)RAND_MAX - 1.0f });
+	VECTOR3 dir = m2_particle_direction(ctx->lat, ctx->lon, (VECTOR2){ 2.0f * (FLOAT)rand() / (FLOAT)RAND_MAX - 1.0f, 2.0f * (FLOAT)rand() / (FLOAT)RAND_MAX - 1.0f });
 	VECTOR3 w_dir = Matrix4_multiply_vector3(&emitter_matrix, &dir);
 	VECTOR3 w_zero = Matrix4_multiply_vector3(&emitter_matrix, &(VECTOR3){ 0, 0, 0 });
 	dir = Vector3_sub(&w_dir, &w_zero);
@@ -1167,8 +1149,7 @@ static void M2_DrawRibbons(m2Model_t const *model, renderEntity_t const *entity,
 
 static void M2_CalculateBoneMatrices(m2Model_t const *model, renderEntity_t const *entity) {
     MATRIX4 identity;
-    m2PoseTime_t current_pose;
-    m2PoseTime_t old_pose;
+    m2PoseTime_t cur, old;
     FLOAT pose_lerp = 1.0f;
     DWORD bone_count;
 
@@ -1176,28 +1157,26 @@ static void M2_CalculateBoneMatrices(m2Model_t const *model, renderEntity_t cons
     bone_count = (DWORD)M2_BonesArray(model).size;
 
     Matrix4_identity(&identity);
-    M2_FrameToPoseTime(model, entity ? entity->frame : tr.viewDef.time, &current_pose);
-    old_pose = current_pose;
+    M2_FrameToPoseTime(model, entity ? entity->frame : tr.viewDef.time, &cur);
+    old = cur;
     if (entity &&
         entity->oldframe != entity->frame &&
-        M2_FrameToPoseTime(model, entity->oldframe, &old_pose) &&
-        old_pose.sequence_index != current_pose.sequence_index) {
+        M2_FrameToPoseTime(model, entity->oldframe, &old) &&
+        old.seq != cur.seq) {
         pose_lerp = MAX(0.0f, MIN(1.0f, tr.viewDef.lerpfrac));
     } else {
-        current_pose.sequence_time = M2_AnimationTime(model, entity, &current_pose.sequence_index);
-        old_pose = current_pose;
+        cur.tim = M2_AnimationTime(model, entity, &cur.seq);
+        old = cur;
     }
 
     FOR_LOOP(i, bone_count) {
         WORD parent_index = M2_BoneParentIndex(model, i);
         DWORD flags = M2_BoneFlags(model, i);
         VECTOR3 pivot = M2_BonePivot(model, i);
-        m2TrackView_t translation_track = M2_BoneTranslationTrack(model, i);
-        m2TrackView_t rotation_track = M2_BoneRotationTrack(model, i);
-        m2TrackView_t scale_track = M2_BoneScaleTrack(model, i);
-        BOOL has_keys = M2_TrackHasKeys(&translation_track) ||
-                        M2_TrackHasKeys(&rotation_track) ||
-                        M2_TrackHasKeys(&scale_track);
+        m2TrackView_t ttrk = M2_BoneTranslationTrack(model, i);
+        m2TrackView_t rtrk = M2_BoneRotationTrack(model, i);
+        m2TrackView_t strk = M2_BoneScaleTrack(model, i);
+        BOOL has_keys = M2_TrackHasKeys(&ttrk) || M2_TrackHasKeys(&rtrk) || M2_TrackHasKeys(&strk);
         LPCMATRIX4 parent = &identity;
 
         if (parent_index != 0xFFFF && parent_index < i) {
@@ -1206,49 +1185,21 @@ static void M2_CalculateBoneMatrices(m2Model_t const *model, renderEntity_t cons
 
         if ((flags & (0x80 | 0x200)) || has_keys) {
             MATRIX4 local;
-            VECTOR3 translation = M2_EvaluateVectorTrack(model,
-                                                         &translation_track,
-                                                         current_pose.sequence_index,
-                                                         current_pose.sequence_time,
-                                                         (VECTOR3){ 0.0f, 0.0f, 0.0f });
-            QUATERNION rotation = M2_EvaluateRotationTrack(model,
-                                                           &rotation_track,
-                                                           current_pose.sequence_index,
-                                                           current_pose.sequence_time,
-                                                           (QUATERNION){ 0.0f, 0.0f, 0.0f, 1.0f });
-            VECTOR3 scale = M2_EvaluateVectorTrack(model,
-                                                   &scale_track,
-                                                   current_pose.sequence_index,
-                                                   current_pose.sequence_time,
-                                                   (VECTOR3){ 1.0f, 1.0f, 1.0f });
+            VECTOR3 tran = M2_EvaluateVectorTrack(model, &ttrk, cur.seq, cur.tim, (VECTOR3){ 0.0f, 0.0f, 0.0f });
+            QUATERNION rot = M2_EvaluateRotationTrack(model, &rtrk, cur.seq, cur.tim, (QUATERNION){ 0.0f, 0.0f, 0.0f, 1.0f });
+            VECTOR3 scl = M2_EvaluateVectorTrack(model, &strk, cur.seq, cur.tim, (VECTOR3){ 1.0f, 1.0f, 1.0f });
 
             if (pose_lerp < 1.0f) {
-                VECTOR3 old_translation = M2_EvaluateVectorTrack(model,
-                                                                 &translation_track,
-                                                                 old_pose.sequence_index,
-                                                                 old_pose.sequence_time,
-                                                                 (VECTOR3){ 0.0f, 0.0f, 0.0f });
-                QUATERNION old_rotation = M2_EvaluateRotationTrack(model,
-                                                                   &rotation_track,
-                                                                   old_pose.sequence_index,
-                                                                   old_pose.sequence_time,
-                                                                   (QUATERNION){ 0.0f, 0.0f, 0.0f, 1.0f });
-                VECTOR3 old_scale = M2_EvaluateVectorTrack(model,
-                                                           &scale_track,
-                                                           old_pose.sequence_index,
-                                                           old_pose.sequence_time,
-                                                           (VECTOR3){ 1.0f, 1.0f, 1.0f });
+                VECTOR3 otrn = M2_EvaluateVectorTrack(model, &ttrk, old.seq, old.tim, (VECTOR3){ 0.0f, 0.0f, 0.0f });
+                QUATERNION orot = M2_EvaluateRotationTrack(model, &rtrk, old.seq, old.tim, (QUATERNION){ 0.0f, 0.0f, 0.0f, 1.0f });
+                VECTOR3 oscl = M2_EvaluateVectorTrack(model, &strk, old.seq, old.tim, (VECTOR3){ 1.0f, 1.0f, 1.0f });
 
-                translation = Vector3_lerp(&old_translation, &translation, pose_lerp);
-                rotation = Quaternion_slerp(&old_rotation, &rotation, pose_lerp);
-                scale = Vector3_lerp(&old_scale, &scale, pose_lerp);
+                tran = Vector3_lerp(&otrn, &tran, pose_lerp);
+                rot = Quaternion_slerp(&orot, &rot, pose_lerp);
+                scl = Vector3_lerp(&oscl, &scl, pose_lerp);
             }
 
-            Matrix4_from_rotation_translation_scale_origin(&local,
-                                                           &rotation,
-                                                           &translation,
-                                                           &scale,
-                                                           &pivot);
+            Matrix4_from_rotation_translation_scale_origin(&local, &rot, &tran, &scl, &pivot);
             Matrix4_multiply(parent, &local, &m2_bone_matrices[i]);
         } else {
             m2_bone_matrices[i] = *parent;
@@ -1259,8 +1210,8 @@ static void M2_CalculateBoneMatrices(m2Model_t const *model, renderEntity_t cons
 static void M2_UploadBatchBones(m2Model_t const *model, m2ModelBatch_t const *batch, LPSHADER shader) {
     MATRIX4 palette[M2_MAX_BONES_PER_BATCH];
     WORD const *bone_lookup = model ? M2_BoneLookup(model) : NULL;
-    DWORD bone_lookup_count = model ? (DWORD)M2_BoneLookupArray(model).size : 0;
-    DWORD bone_count = model ? (DWORD)M2_BonesArray(model).size : 0;
+    DWORD nlook = model ? (DWORD)M2_BoneLookupArray(model).size : 0;
+    DWORD nbone = model ? (DWORD)M2_BonesArray(model).size : 0;
 
     FOR_LOOP(i, M2_MAX_BONES_PER_BATCH) {
         Matrix4_identity(&palette[i]);
@@ -1270,10 +1221,10 @@ static void M2_UploadBatchBones(m2Model_t const *model, m2ModelBatch_t const *ba
         DWORD count = MIN((DWORD)batch->bone_count, (DWORD)M2_MAX_BONES_PER_BATCH);
         FOR_LOOP(i, count) {
             DWORD lookup = (DWORD)batch->bone_combo_index + i;
-            if (lookup < bone_lookup_count) {
-                WORD bone_index = bone_lookup[lookup];
-                if (bone_index < bone_count) {
-                    palette[i] = m2_bone_matrices[bone_index];
+            if (lookup < nlook) {
+                WORD bidx = bone_lookup[lookup];
+                if (bidx < nbone) {
+                    palette[i] = m2_bone_matrices[bidx];
                 }
             }
         }
@@ -1289,11 +1240,11 @@ static LPTEXTURE M2_TextureForBatch(BYTE const *m2_data,
                                     LPCSTR modelFilename,
                                     BOOL use_texture_lookup,
                                     DWORD *texture_type_out) {
-    SHORT const *texture_lookup;
-    m2TextureDisk_t const *texture;
-    SHORT texture_index;
-    LPCSTR texture_path;
-    PATHSTR replacement_path;
+    SHORT const *lookup;
+    m2TextureDisk_t const *tex;
+    SHORT idx;
+    LPCSTR path;
+    PATHSTR repl;
 
     if (!geom || !batch || batch->texture_count == 0) {
         if (texture_type_out) {
@@ -1303,47 +1254,46 @@ static LPTEXTURE M2_TextureForBatch(BYTE const *m2_data,
     }
 
     if (use_texture_lookup) {
-        texture_lookup = m2_array_ptr(m2_data, m2_size, geom->texture_lookup_table, sizeof(SHORT));
-        if (!texture_lookup || batch->texture_combo_index >= (WORD)geom->texture_lookup_table.size) {
+        lookup = m2_array_ptr(m2_data, m2_size, geom->texture_lookup_table, sizeof(SHORT));
+        if (!lookup || batch->texture_combo_index >= (WORD)geom->texture_lookup_table.size) {
             return tr.texture[TEX_WHITE];
         }
-        texture_index = texture_lookup[batch->texture_combo_index];
+        idx = lookup[batch->texture_combo_index];
     } else {
-        texture_index = (SHORT)batch->texture_combo_index;
+        idx = (SHORT)batch->texture_combo_index;
     }
-    if (texture_index < 0 || texture_index >= geom->textures.size) {
+    if (idx < 0 || idx >= geom->textures.size) {
         if (texture_type_out) {
             *texture_type_out = 0;
         }
         return tr.texture[TEX_WHITE];
     }
 
-    texture = m2_array_ptr(m2_data, m2_size, geom->textures, sizeof(*texture));
-    if (!texture) {
+    tex = m2_array_ptr(m2_data, m2_size, geom->textures, sizeof(*tex));
+    if (!tex) {
         if (texture_type_out) {
             *texture_type_out = 0;
         }
         return tr.texture[TEX_WHITE];
     }
     if (texture_type_out) {
-        *texture_type_out = texture[texture_index].type;
+        *texture_type_out = tex[idx].type;
     }
 
-    texture_path = m2_string_ptr(m2_data, m2_size, texture[texture_index].filename);
-    if (!texture_path || !*texture_path) {
-        if (M2_DbcCharacterTexturePathForType(modelFilename, 0, texture[texture_index].type,
-                                              replacement_path, sizeof(replacement_path))) {
-            return R_LoadTexture(replacement_path);
+    path = m2_string_ptr(m2_data, m2_size, tex[idx].filename);
+    if (!path || !*path) {
+        if (M2_DbcCharacterTexturePathForType(modelFilename, 0, tex[idx].type, repl, sizeof(repl))) {
+            return R_LoadTexture(repl);
         }
-        if (M2_DefaultObjectComponentTexturePath(modelFilename, texture[texture_index].type, replacement_path, sizeof(replacement_path))) {
-            return R_LoadTexture(replacement_path);
+        if (M2_DefaultObjectComponentTexturePath(modelFilename, tex[idx].type, repl, sizeof(repl))) {
+            return R_LoadTexture(repl);
         }
-        if (M2_DefaultCreatureTexturePath(modelFilename, texture[texture_index].type, replacement_path, sizeof(replacement_path))) {
-            return R_LoadTexture(replacement_path);
+        if (M2_DefaultCreatureTexturePath(modelFilename, tex[idx].type, repl, sizeof(repl))) {
+            return R_LoadTexture(repl);
         }
         return tr.texture[TEX_WHITE];
     }
-    return R_LoadTexture(texture_path);
+    return R_LoadTexture(path);
 }
 
 static BOOL M2_SkinPath(LPCSTR model_path, LPSTR out, DWORD out_size) {
@@ -1365,15 +1315,15 @@ static VERTEX M2_MakeVertex(m2VertexDisk_t const *src) {
     return out;
 }
 
-static BOOL M2_CalculateGeometryBounds(m2VertexDisk_t const *vertices, DWORD num_vertices, BOX3 *bounds) {
-    if (!vertices || !num_vertices || !bounds) {
+static BOOL M2_CalculateGeometryBounds(m2VertexDisk_t const *verts, DWORD nverts, BOX3 *bounds) {
+    if (!verts || !nverts || !bounds) {
         return false;
     }
 
-    bounds->min = vertices[0].pos;
-    bounds->max = vertices[0].pos;
-    for (DWORD i = 1; i < num_vertices; i++) {
-        VECTOR3 p = vertices[i].pos;
+    bounds->min = verts[0].pos;
+    bounds->max = verts[0].pos;
+    for (DWORD i = 1; i < nverts; i++) {
+        VECTOR3 p = verts[i].pos;
         bounds->min.x = MIN(bounds->min.x, p.x);
         bounds->min.y = MIN(bounds->min.y, p.y);
         bounds->min.z = MIN(bounds->min.z, p.z);
@@ -1384,96 +1334,30 @@ static BOOL M2_CalculateGeometryBounds(m2VertexDisk_t const *vertices, DWORD num
     return true;
 }
 
-static void M2_AddBatch(m2Model_t *model,
-                        BYTE const *m2_data,
-                        DWORD m2_size,
-                        m2GeometryInfo_t const *geom,
-                        m2VertexDisk_t const *m2_vertices,
-                        WORD const *skin_vertices,
-                        DWORD skin_vertex_count,
-                        WORD const *skin_indices,
-                        DWORD skin_index_count,
-                        m2Ubyte4_t const *skin_bones,
-                        DWORD index_start,
-                        DWORD index_count,
-                        WORD bone_count,
-                        WORD bone_combo_index,
-                        m2Batch_t const *batch,
-                        WORD section_id,
-                        BYTE alphamode,
-                        LPCSTR modelFilename,
-                        BOOL use_texture_lookup) {
-    VERTEX *vertices;
-    m2ModelBatch_t *render_batch;
-
-    if (!geom || !batch || index_count == 0) {
-        return;
-    }
-    if (!m2_validate_skin_vertex_range(skin_vertices, skin_vertex_count, skin_indices, skin_index_count,
-                                       (DWORD)geom->vertices.size, index_start, index_count)) {
-        fprintf(stderr, "M2: section %u has an invalid skin index/vertex range\n", section_id);
-        return;
-    }
-
-    vertices = ri.MemAlloc(sizeof(*vertices) * index_count);
-    if (!vertices) {
-        return;
-    }
-
-    FOR_LOOP(i, index_count) {
-        DWORD vertex_lookup = skin_indices[index_start + i];
-        DWORD vertex_index = skin_vertices[vertex_lookup];
-        vertices[i] = M2_MakeVertex(&m2_vertices[vertex_index]);
-        if (skin_bones) {
-            memcpy(vertices[i].skin, skin_bones[vertex_lookup].v, sizeof(skin_bones[vertex_lookup].v));
-        }
-    }
-
-    render_batch = ri.MemAlloc(sizeof(*render_batch));
-    memset(render_batch, 0, sizeof(*render_batch));
-    render_batch->buffer = R_MakeVertexArrayObject(vertices, index_count);
-    render_batch->texture = M2_TextureForBatch(m2_data,
-                                               m2_size,
-                                               geom,
-                                               batch,
-                                               modelFilename,
-                                               use_texture_lookup,
-                                               &render_batch->texture_type);
-    render_batch->num_vertices = index_count;
-    render_batch->bone_count = bone_count;
-    render_batch->bone_combo_index = bone_combo_index;
-    render_batch->section_id = section_id;
-	render_batch->geoset_index = batch->geoset_index;
-	render_batch->character_texture_slot = M2_CharacterTextureSlotForSection(section_id);
-	render_batch->alphamode = alphamode;
-	ADD_TO_LIST(render_batch, model->batches);
-    model->num_batches++;
-    ri.MemFree(vertices);
-}
 
 static BOOL M2_LoadSkinData(LPCSTR modelFilename,
                             LPBYTE *skin_data,
                             DWORD *skin_size,
                             PATHSTR skin_path) {
-    int read_size;
+    int nread;
 
     if (!skin_data || !skin_size || !M2_SkinPath(modelFilename, skin_path, sizeof(PATHSTR))) {
         return false;
     }
 
-    read_size = ri.FS_ReadFile(skin_path, (void **)skin_data);
-    if (read_size <= 0 && m2_path_has_extension(modelFilename, ".mdx")) {
+    nread = ri.FS_ReadFile(skin_path, (void **)skin_data);
+    if (nread <= 0 && m2_path_has_extension(modelFilename, ".mdx")) {
         PATHSTR m2_path;
         if (m2_copy_with_extension(modelFilename, ".m2", m2_path, sizeof(m2_path)) &&
             M2_SkinPath(m2_path, skin_path, sizeof(PATHSTR))) {
-            read_size = ri.FS_ReadFile(skin_path, (void **)skin_data);
+            nread = ri.FS_ReadFile(skin_path, (void **)skin_data);
         }
     }
-    if (read_size <= 0 || !*skin_data) {
+    if (nread <= 0 || !*skin_data) {
         *skin_size = 0;
         return false;
     }
-    *skin_size = (DWORD)read_size;
+    *skin_size = (DWORD)nread;
     return true;
 }
 
@@ -1519,39 +1403,6 @@ static BOOL M2_InitModernGeometry(BYTE const *m2_base,
     return true;
 }
 
-static BOOL M2_GetSectionRange(void const *sections,
-                               BOOL legacy_sections,
-                               DWORD section_count,
-                               WORD section_index,
-                               WORD *section_id,
-                               DWORD *index_start,
-                               DWORD *index_count,
-                               WORD *bone_count,
-                               WORD *bone_combo_index) {
-    if (!sections || !index_start || !index_count || !bone_count || !bone_combo_index || section_index >= section_count) {
-        return false;
-    }
-    if (legacy_sections) {
-        m2SkinSectionLegacy_t const *section = &((m2SkinSectionLegacy_t const *)sections)[section_index];
-        if (section_id) {
-            *section_id = section->skin_section_id;
-        }
-        *index_start = section->index_start;
-        *index_count = section->index_count;
-        *bone_count = section->bone_count;
-        *bone_combo_index = section->bone_combo_index;
-    } else {
-        m2SkinSection_t const *section = &((m2SkinSection_t const *)sections)[section_index];
-        if (section_id) {
-            *section_id = section->skin_section_id;
-        }
-        *index_start = section->index_start;
-        *index_count = section->index_count;
-        *bone_count = section->bone_count;
-        *bone_combo_index = section->bone_combo_index;
-    }
-    return true;
-}
 
 static BOOL M2_IsCharacterModelPath(LPCSTR model_path) {
     LPCSTR character;
@@ -1626,8 +1477,7 @@ static BOOL M2_CharacterGeosetVisible(m2Model_t const *model,
         case 7:  expected = geoset ? 700 + geoset : 702; break;
         case 8:  expected = 801 + geoset; break;
         /* The start outfit needs the narrow knee mesh; 902 caused flared calves on every classic race. */
-        case 9:  expected = Wow_CharacterGeosetPick(available, available_count, 9,
-                                                    geoset ? 902 + geoset : 903, 902); break;
+        case 9:  expected = Wow_CharacterGeosetPick(available, available_count, 9, geoset ? 902 + geoset : 903, 902); break;
         case 10: expected = 1001 + geoset; break;
         case 11: expected = 1101 + geoset; break;
         case 12: expected = 1201 + geoset; break;
@@ -1686,8 +1536,7 @@ static BOOL M2_LoadFileImage(m2Model_t *model, BYTE *file_image, DWORD file_imag
         return false;
     }
     if ((DWORD)bones.size > M2_MAX_BONES) {
-        fprintf(stderr, "M2: %s has %d bones; renderer limit is %u\n",
-                model->filename, bones.size, M2_MAX_BONES);
+        fprintf(stderr, "M2: %s has %d bones; renderer limit is %u\n", model->filename, bones.size, M2_MAX_BONES);
         M2_FreeModelData(model);
         return false;
     }
@@ -1789,8 +1638,7 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size, BOOL *b
         if (skin_data) {
             ri.FS_FreeFile(skin_data);
         }
-        return M2_CreateFallbackModel(modelFilename,
-                                      using_legacy_view ? "invalid legacy embedded view" : "missing skin profile");
+        return M2_CreateFallbackModel(modelFilename, using_legacy_view ? "invalid legacy embedded view" : "missing skin profile");
     }
 
     model = ri.MemAlloc(sizeof(*model));
@@ -1812,9 +1660,7 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size, BOOL *b
 
 	/* Vanilla stores the same material records in render_flags, at a different header offset. */
 	{
-		m2Array_t material_array = m2_material_array(model->file->modern.materials,
-			model->file->classic.render_flags,
-			model->format->format == M2_FORMAT_CLASSIC);
+        m2Array_t material_array = m2_material_array(model->file->modern.materials, model->file->classic.render_flags, model->format->format == M2_FORMAT_CLASSIC);
 
 		if (material_array.size > 0) {
 			BYTE const *materials_data = M2_ModelArrayPtr(model, material_array, 4);
@@ -1830,36 +1676,61 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size, BOOL *b
         WORD bone_count;
         WORD bone_combo_index;
         WORD section_id = 0;
-        if (!M2_GetSectionRange(sections,
-                                using_legacy_view,
-                                section_count,
-                                batch->skin_section_index,
-                                &section_id,
-                                &index_start,
-                                &index_count,
-                                &bone_count,
-                                &bone_combo_index)) {
+        VERTEX *verts;
+        m2ModelBatch_t *out;
+        BYTE alphamode;
+        if (batch->skin_section_index >= section_count) {
             continue;
         }
-        M2_AddBatch(model,
-                    m2_base,
-                    m2_size,
-                    &geom,
-                    m2_vertices,
-                    skin_vertices,
-                    skin_vertex_count,
-                    skin_indices,
-                    skin_index_count,
-                    skin_bones,
-                    index_start,
-                    index_count,
-                    bone_count,
-                    bone_combo_index,
-                    batch,
-                    section_id,
-                    batch->material_index < material_count ? m2_blend_mode(materials[batch->material_index * 2 + 1]) : 0,
-                    modelFilename,
-                    true);
+        if (using_legacy_view) {
+            m2SkinSectionLegacy_t const *section = &((m2SkinSectionLegacy_t const *)sections)[batch->skin_section_index];
+            section_id = section->skin_section_id;
+            index_start = section->index_start;
+            index_count = section->index_count;
+            bone_count = section->bone_count;
+            bone_combo_index = section->bone_combo_index;
+        } else {
+            m2SkinSection_t const *section = &((m2SkinSection_t const *)sections)[batch->skin_section_index];
+            section_id = section->skin_section_id;
+            index_start = section->index_start;
+            index_count = section->index_count;
+            bone_count = section->bone_count;
+            bone_combo_index = section->bone_combo_index;
+        }
+        if (index_count == 0) {
+            continue;
+        }
+        if (!m2_validate_skin_vertex_range(skin_vertices, skin_vertex_count, skin_indices, skin_index_count, (DWORD)geom.vertices.size, index_start, index_count)) {
+            fprintf(stderr, "M2: section %u has an invalid skin index/vertex range\n", section_id);
+            continue;
+        }
+        verts = ri.MemAlloc(sizeof(*verts) * index_count);
+        if (!verts) {
+            continue;
+        }
+        FOR_LOOP(j, index_count) {
+            DWORD sidx = skin_indices[index_start + j];
+            DWORD vidx = skin_vertices[sidx];
+            verts[j] = M2_MakeVertex(&m2_vertices[vidx]);
+            if (skin_bones) {
+                memcpy(verts[j].skin, skin_bones[sidx].v, sizeof(skin_bones[sidx].v));
+            }
+        }
+        alphamode = batch->material_index < material_count ? m2_blend_mode(materials[batch->material_index * 2 + 1]) : 0;
+        out = ri.MemAlloc(sizeof(*out));
+        memset(out, 0, sizeof(*out));
+        out->buffer = R_MakeVertexArrayObject(verts, index_count);
+        out->texture = M2_TextureForBatch(m2_base, m2_size, &geom, batch, modelFilename, true, &out->texture_type);
+        out->num_vertices = index_count;
+        out->bone_count = bone_count;
+        out->bone_combo_index = bone_combo_index;
+        out->section_id = section_id;
+        out->geoset_index = batch->geoset_index;
+        out->character_texture_slot = M2_CharacterTextureSlotForSection(section_id);
+        out->alphamode = alphamode;
+        ADD_TO_LIST(out, model->batches);
+        model->num_batches++;
+        ri.MemFree(verts);
     }
 
     if (skin_data) {
@@ -1892,8 +1763,7 @@ static void M2_DrawCompositeQuad(LPTEXTURE texture, LPCRECT screen, BOOL blend) 
 
     R_AddQuad(vertices, screen, &uv, COLOR32_WHITE, 0);
     Matrix4_identity(&identity);
-    Matrix4_ortho(&projection, 0, M2_CHARACTER_COMPOSITE_RESOLUTION,
-                  M2_CHARACTER_COMPOSITE_RESOLUTION, 0, 0, 100);
+    Matrix4_ortho(&projection, 0, M2_CHARACTER_COMPOSITE_RESOLUTION, M2_CHARACTER_COMPOSITE_RESOLUTION, 0, 0, 100);
     R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
@@ -1931,11 +1801,9 @@ static void M2_DrawCompositeHeadVariation(LPCSTR model_path, DWORD section_id,
         PATHSTR path;
         LPTEXTURE texture;
 
-        if (!M2_DbcCharacterVariationTexturePath(model_path, section_id, variation_index, color_index,
-                                                 texture_indices[i], path, sizeof(path))) continue;
+        if (!M2_DbcCharacterVariationTexturePath(model_path, section_id, variation_index, color_index, texture_indices[i], path, sizeof(path))) continue;
         texture = R_LoadTexture(path);
-        if (texture) M2_DrawCompositeQuad(texture, &(RECT){ rects[i][0], rects[i][1],
-                                                           rects[i][2], rects[i][3] }, true);
+        if (texture) M2_DrawCompositeQuad(texture, &(RECT){ rects[i][0], rects[i][1], rects[i][2], rects[i][3] }, true);
     }
 }
 
@@ -1952,11 +1820,13 @@ static LPTEXTURE M2_PrepareCharacterTexture(m2Model_t const *model,
     BOOL has_base_path;
     GLint old_framebuffer;
     GLint old_viewport[4];
+    GLboolean old_depth, old_cull, old_blend;
+    GLboolean old_scissor;
+    GLint old_scissor_box[4];
 
     if (!model || !entity || !m2_character_composite_target ||
         !M2_CharacterTextureModified(outfit, entity->appearance)) return NULL;
-    has_base_path = M2_DbcCharacterTexturePathForType(model->filename, entity->appearance, 1,
-                                                      base_path, sizeof(base_path));
+    has_base_path = M2_DbcCharacterTexturePathForType(model->filename, entity->appearance, 1, base_path, sizeof(base_path));
     base = has_base_path ? R_LoadTexture(base_path) : NULL;
     if (!base) {
         for (m2ModelBatch_t *it = model->batches; it; it = it->next)
@@ -1966,20 +1836,25 @@ static LPTEXTURE M2_PrepareCharacterTexture(m2Model_t const *model,
 
     R_Call(glGetIntegerv, GL_DRAW_FRAMEBUFFER_BINDING, &old_framebuffer);
     R_Call(glGetIntegerv, GL_VIEWPORT, old_viewport);
+    old_depth = R_Call(glIsEnabled, GL_DEPTH_TEST);
+    old_cull = R_Call(glIsEnabled, GL_CULL_FACE);
+    old_blend = R_Call(glIsEnabled, GL_BLEND);
+    old_scissor = R_Call(glIsEnabled, GL_SCISSOR_TEST);
+    R_Call(glGetIntegerv, GL_SCISSOR_BOX, old_scissor_box);
     R_Call(glBindFramebuffer, GL_FRAMEBUFFER, m2_character_composite_target->buffer);
     R_Call(glViewport, 0, 0, M2_CHARACTER_COMPOSITE_RESOLUTION, M2_CHARACTER_COMPOSITE_RESOLUTION);
+    /* The view scissor is in window coordinates; it would clip this 256x256 target. */
+    R_Call(glDisable, GL_SCISSOR_TEST);
     R_Call(glDisable, GL_DEPTH_TEST);
     R_Call(glDisable, GL_CULL_FACE);
     R_Call(glClearColor, 0, 0, 0, 0);
     R_Call(glClear, GL_COLOR_BUFFER_BIT);
-    M2_DrawCompositeQuad(base, &(RECT){ 0, 0, M2_CHARACTER_COMPOSITE_RESOLUTION,
-                                        M2_CHARACTER_COMPOSITE_RESOLUTION }, false);
+    M2_DrawCompositeQuad(base, &(RECT){ 0, 0, M2_CHARACTER_COMPOSITE_RESOLUTION, M2_CHARACTER_COMPOSITE_RESOLUTION }, false);
     FOR_LOOP(priority, M2_CHAR_TEX_PRIORITIES)
         FOR_LOOP(slot, M2_CHAR_TEX_COMPONENT_COUNT)
-            if (outfit && outfit->texture[slot][priority])
-                M2_DrawCompositeComponent(outfit->texture[slot][priority], (BYTE)slot,
-                                          model->filename, rects[slot][0], rects[slot][1],
-                                          rects[slot][2], rects[slot][3]);
+            if (outfit && outfit->texture[slot][priority]) {
+                M2_DrawCompositeComponent(outfit->texture[slot][priority], (BYTE)slot, model->filename, rects[slot][0], rects[slot][1], rects[slot][2], rects[slot][3]);
+            }
     {
         wowAppearance_t unpacked = Wow_UnpackAppearance(entity->appearance);
         M2_DrawCompositeHeadVariation(model->filename, 1, unpacked.faceID, unpacked.skinColorID);
@@ -1987,6 +1862,11 @@ static LPTEXTURE M2_PrepareCharacterTexture(m2Model_t const *model,
     }
     R_Call(glBindFramebuffer, GL_FRAMEBUFFER, old_framebuffer);
     R_Call(glViewport, old_viewport[0], old_viewport[1], old_viewport[2], old_viewport[3]);
+    if (old_depth) { R_Call(glEnable, GL_DEPTH_TEST); } else { R_Call(glDisable, GL_DEPTH_TEST); }
+    if (old_cull) { R_Call(glEnable, GL_CULL_FACE); } else { R_Call(glDisable, GL_CULL_FACE); }
+    if (old_blend) { R_Call(glEnable, GL_BLEND); } else { R_Call(glDisable, GL_BLEND); }
+    R_Call(glScissor, old_scissor_box[0], old_scissor_box[1], old_scissor_box[2], old_scissor_box[3]);
+    if (old_scissor) { R_Call(glEnable, GL_SCISSOR_TEST); } else { R_Call(glDisable, GL_SCISSOR_TEST); }
     m2_character_composite_texture.texid = m2_character_composite_target->texture;
     m2_character_composite_texture.width = M2_CHARACTER_COMPOSITE_RESOLUTION;
     m2_character_composite_texture.height = M2_CHARACTER_COMPOSITE_RESOLUTION;
@@ -2000,8 +1880,7 @@ static LPTEXTURE M2_CharacterTextureForBatch(m2Model_t const *model,
 
     if (!model || !entity || !batch || !(model->flags & M2_MODEL_CHARACTER))
         return batch ? batch->texture : tr.texture[TEX_WHITE];
-    if (M2_DbcCharacterTexturePathForType(model->filename, entity->appearance, batch->texture_type,
-                                          texture_path, sizeof(texture_path)))
+    if (M2_DbcCharacterTexturePathForType(model->filename, entity->appearance, batch->texture_type, texture_path, sizeof(texture_path)))
         return R_LoadTexture(texture_path);
     return batch->texture;
 }
@@ -2035,8 +1914,7 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
     M2_DrawParticles(model, draw_entity, transform);
     M2_DrawRibbons(model, draw_entity, transform);
     if ((model->flags & M2_MODEL_CHARACTER) &&
-        M2_DbcCharacterOutfit(model->filename, draw_entity->appearance, draw_entity->equipment,
-                              creature_ptr, &outfit_data))
+        M2_DbcCharacterOutfit(model->filename, draw_entity->appearance, draw_entity->equipment, creature_ptr, &outfit_data))
         outfit = &outfit_data;
     character_texture = M2_PrepareCharacterTexture(model, draw_entity, outfit);
     Matrix3_normal(&normal_matrix, transform);
@@ -2208,10 +2086,7 @@ void M2_Release(m2Model_t *model) {
 }
 
 void M2_Init(void) {
-    m2_character_composite_target = R_AllocateRenderTexture(M2_CHARACTER_COMPOSITE_RESOLUTION,
-                                                            M2_CHARACTER_COMPOSITE_RESOLUTION,
-                                                            GL_RGBA, GL_UNSIGNED_BYTE,
-                                                            GL_COLOR_ATTACHMENT0);
+    m2_character_composite_target = R_AllocateRenderTexture(M2_CHARACTER_COMPOSITE_RESOLUTION, M2_CHARACTER_COMPOSITE_RESOLUTION, GL_RGBA, GL_UNSIGNED_BYTE, GL_COLOR_ATTACHMENT0);
 }
 
 void M2_Shutdown(void) {

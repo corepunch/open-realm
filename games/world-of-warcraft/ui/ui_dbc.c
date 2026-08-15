@@ -168,10 +168,7 @@ static void CharList_Save(void) {
     pos += snprintf(xml + pos, sizeof(xml) - (size_t)pos, "<Characters>\n");
     for (int i = 0; i < wow_charlist.count; i++) {
         wowCharEntry_t *e = &wow_charlist.entries[i];
-        pos += snprintf(xml + pos, sizeof(xml) - (size_t)pos,
-                        "  <Character name=\"%s\" race=\"%u\" sex=\"%u\""
-                        " class=\"%u\" appearance=\"%u\" />\n",
-                        e->name, e->race_id, e->sex_id, e->class_id, e->appearance);
+        pos += snprintf(xml + pos, sizeof(xml) - (size_t)pos, "  <Character name=\"%s\" race=\"%u\" sex=\"%u\"" " class=\"%u\" appearance=\"%u\" />\n", e->name, e->race_id, e->sex_id, e->class_id, e->appearance);
     }
     pos += snprintf(xml + pos, sizeof(xml) - (size_t)pos, "</Characters>\n");
     uiimport.FS_WriteFile(WOW_CHARACTERS_FILE, xml, pos);
@@ -617,13 +614,7 @@ void UIWow_GetCharacterCreateModelPath(LPSTR out, size_t out_size) {
 
 DWORD UIWow_GetCharacterCreateAppearance(void) {
     UIWow_LoadCharCreateDbc();
-    return Wow_PackAppearance(wow_charcreate.skin,
-                              wow_charcreate.face,
-                              wow_charcreate.hair_style,
-                              wow_charcreate.hair_color,
-                              wow_charcreate.facial_hair,
-                              (BYTE)wow_charcreate.sel_class,
-                              0);
+    return Wow_PackAppearance(wow_charcreate.skin, wow_charcreate.face, wow_charcreate.hair_style, wow_charcreate.hair_color, wow_charcreate.facial_hair, (BYTE)wow_charcreate.sel_class, 0);
 }
 
 FLOAT UIWow_GetCharacterCreateFacing(void) {
@@ -686,8 +677,7 @@ void UIWow_SetSelectedCharCvars(void) {
             break;
         }
     }
-    snprintf(userinfo, sizeof(userinfo), "\\race\\%s\\sex\\%s\\class\\%u\\appearance\\%u",
-             race, sex, (unsigned)e->class_id, (unsigned)e->appearance);
+    snprintf(userinfo, sizeof(userinfo), "\\race\\%s\\sex\\%s\\class\\%u\\appearance\\%u", race, sex, (unsigned)e->class_id, (unsigned)e->appearance);
     uiimport.Cvar_Set(WOW_CVAR_PLAYERINFO, userinfo);
 }
 

@@ -159,11 +159,7 @@ BOOL M2_DbcResolveCreatureAppearance(DWORD display_id, LPM2CREATUREAPPEARANCE ou
     extra = extra_id ? M2_DbcFindID(&creature_display_info_extra_dbc,
                                     "DBFilesClient\\CreatureDisplayInfoExtra.dbc", extra_id) : NULL;
     if (!extra || creature_display_info_extra_dbc.fields < 19) return false;
-    out->appearance = Wow_PackAppearance((BYTE)M2_DbcField(&creature_display_info_extra_dbc, extra, 3),
-                                         (BYTE)M2_DbcField(&creature_display_info_extra_dbc, extra, 4),
-                                         (BYTE)M2_DbcField(&creature_display_info_extra_dbc, extra, 5),
-                                         (BYTE)M2_DbcField(&creature_display_info_extra_dbc, extra, 6),
-                                         (BYTE)M2_DbcField(&creature_display_info_extra_dbc, extra, 7), 1, 0);
+    out->appearance = Wow_PackAppearance((BYTE)M2_DbcField(&creature_display_info_extra_dbc, extra, 3), (BYTE)M2_DbcField(&creature_display_info_extra_dbc, extra, 4), (BYTE)M2_DbcField(&creature_display_info_extra_dbc, extra, 5), (BYTE)M2_DbcField(&creature_display_info_extra_dbc, extra, 6), (BYTE)M2_DbcField(&creature_display_info_extra_dbc, extra, 7), 1, 0);
     FOR_LOOP(i, 9) out->display_ids[i] = M2_DbcField(&creature_display_info_extra_dbc, extra, 8 + i);
     return true;
 }
@@ -194,8 +190,7 @@ static void M2_DbcAddDisplayInfo(LPM2CHARACTEROUTFIT outfit, DWORD display_id, D
         outfit->flags |= flags;
     }
     FOR_LOOP(i, M2_CHAR_TEX_COMPONENT_COUNT) {
-        LPCSTR texture = M2_DbcString(&item_display_info_dbc,
-                                      M2_DbcField(&item_display_info_dbc, record, texture_base + i));
+        LPCSTR texture = M2_DbcString(&item_display_info_dbc, M2_DbcField(&item_display_info_dbc, record, texture_base + i));
         signed char priority = Wow_CharacterTexturePriority(slot, i);
         if (texture && *texture && priority >= 0) outfit->texture[i][priority] = texture;
     }
@@ -288,8 +283,7 @@ BOOL M2_DbcCharacterTexturePathForType(LPCSTR model_path, DWORD appearance, DWOR
         case 1: return M2_DbcCharacterVariationTexturePath(model_path, 0, 0, a.skinColorID, 0, out, out_size);
         case 2: return M2_DbcCharacterVariationTexturePath(model_path, 4, 0, a.skinColorID, 0, out, out_size);
         case 6:
-            return M2_DbcCharacterVariationTexturePath(model_path, 3, a.hairStyleID, a.hairColorID,
-                                                       0, out, out_size);
+            return M2_DbcCharacterVariationTexturePath(model_path, 3, a.hairStyleID, a.hairColorID, 0, out, out_size);
         case 8: return M2_DbcCharacterVariationTexturePath(model_path, 0, 0, a.skinColorID, 1, out, out_size);
         default: return false;
     }

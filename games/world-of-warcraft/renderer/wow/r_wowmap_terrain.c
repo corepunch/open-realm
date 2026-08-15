@@ -56,10 +56,7 @@ VECTOR2 Wow_McvtCoords(int index) {
 VECTOR3 Wow_McvtPoint(wowVec3_t pos, float const *heights, int index) {
     VECTOR2 coords = Wow_McvtCoords(index);
 
-    return Wow_WorldPoint(
-        pos.x - coords.y,
-        pos.y - coords.x,
-        pos.z + heights[index]);
+    return Wow_WorldPoint( pos.x - coords.y, pos.y - coords.x, pos.z + heights[index]);
 }
 
 VECTOR3 Wow_TerrainFaceNormal(LPCVECTOR3 a, LPCVECTOR3 b, LPCVECTOR3 c) {
@@ -257,12 +254,7 @@ BOOL Wow_TerrainHeightAtPoint(float sx, float sy, float *height) {
         if (cell_row < 0 || cell_row >= 8 || cell_col < 0 || cell_col >= 8) {
             continue;
         }
-        if (Wow_HeightInCell(chunk->heights,
-                             cell_row,
-                             cell_col,
-                             local_row - cell_row,
-                             local_col - cell_col,
-                             &cell_height)) {
+        if (Wow_HeightInCell(chunk->heights, cell_row, cell_col, local_row - cell_row, local_col - cell_col, &cell_height)) {
             *height = chunk->position.z + cell_height;
             return true;
         }

@@ -59,8 +59,7 @@ void UIWow_EnsureRenderer(void) {
         wow_ui.renderer = uiimport.GetRenderer();
     }
     if (!wow_ui.renderer) {
-        UIWow_WarnOnce(WOW_UI_WARN_NO_RENDERER,
-                       "UIWow: renderer is unavailable (GetRenderer returned NULL)\n");
+        UIWow_WarnOnce(WOW_UI_WARN_NO_RENDERER, "UIWow: renderer is unavailable (GetRenderer returned NULL)\n");
     }
 }
 
@@ -122,8 +121,7 @@ LPTEXTURE UIWow_LoadTexture(LPCSTR name) {
     PATHSTR resolved;
 
     if (!name || !*name) {
-        UIWow_WarnOnce(WOW_UI_WARN_NO_LOAD_BACKGROUND,
-                       "UIWow: attempted to load texture with empty name\n");
+        UIWow_WarnOnce(WOW_UI_WARN_NO_LOAD_BACKGROUND, "UIWow: attempted to load texture with empty name\n");
         return NULL;
     }
     UIWow_EnsureRenderer();
@@ -185,8 +183,7 @@ LPCFONT UIWow_LoadFont(DWORD size) {
             entry->size = size;
             entry->font = wow_ui.renderer->LoadFont("Fonts\\FRIZQT__.TTF", size);
             if (!entry->font) {
-                UIWow_Printf("UIWow: renderer failed to load font '%s' size=%u\n",
-                             "Fonts\\FRIZQT__.TTF", size);
+                UIWow_Printf("UIWow: renderer failed to load font '%s' size=%u\n", "Fonts\\FRIZQT__.TTF", size);
             }
             return entry->font;
         }
@@ -194,8 +191,7 @@ LPCFONT UIWow_LoadFont(DWORD size) {
     {
         LPCFONT font = wow_ui.renderer->LoadFont("Fonts\\FRIZQT__.TTF", size);
         if (!font) {
-            UIWow_Printf("UIWow: renderer failed to load font '%s' size=%u\n",
-                         "Fonts\\FRIZQT__.TTF", size);
+            UIWow_Printf("UIWow: renderer failed to load font '%s' size=%u\n", "Fonts\\FRIZQT__.TTF", size);
         }
         return font;
     }
@@ -282,9 +278,7 @@ static void UIWow_RecreateLuaStateForMenu(LPCSTR menu_name) {
     }
 
     if (wow_ui.lua) {
-        UIWow_Printf("UIWow: switching menu '%s' -> '%s'; recreating Lua state\n",
-                     wow_ui.current_menu[0] ? wow_ui.current_menu : "<none>",
-                     menu_name);
+        UIWow_Printf("UIWow: switching menu '%s' -> '%s'; recreating Lua state\n", wow_ui.current_menu[0] ? wow_ui.current_menu : "<none>", menu_name);
         UIWow_ShutdownLua();
     } else {
         UIWow_Printf("UIWow: creating Lua state for menu '%s'\n", menu_name);
@@ -303,8 +297,7 @@ VECTOR2 UIWow_MouseFdf(int x, int y) {
 static void UIWow_LuaMouseMove(int x, int y) {
     VECTOR2 mouse_pos = UIWow_MouseFdf(x, y);
     if (!wow_ui.lua) {
-        UIWow_WarnOnce(WOW_UI_WARN_NO_LUA_STATE,
-                       "UIWow: Lua state is not initialized; mouse hover ignored\n");
+        UIWow_WarnOnce(WOW_UI_WARN_NO_LUA_STATE, "UIWow: Lua state is not initialized; mouse hover ignored\n");
         return;
     }
     lua_getglobal(wow_ui.lua, "ow3_handle_mouse_move");
@@ -314,8 +307,7 @@ static void UIWow_LuaMouseMove(int x, int y) {
         UIWow_LuaPCall(2);
     } else {
         lua_pop(wow_ui.lua, 1);
-        UIWow_WarnOnce(WOW_UI_WARN_NO_MOUSEMOVE_HANDLER,
-                       "UIWow: missing Lua function 'ow3_handle_mouse_move'\n");
+        UIWow_WarnOnce(WOW_UI_WARN_NO_MOUSEMOVE_HANDLER, "UIWow: missing Lua function 'ow3_handle_mouse_move'\n");
     }
 }
 
@@ -341,16 +333,14 @@ static void UIWow_TextInput(LPCSTR text) {
     }
     if (!wow_ui.lua || !text) {
         if (!wow_ui.lua) {
-            UIWow_WarnOnce(WOW_UI_WARN_NO_LUA_STATE,
-                           "UIWow: Lua state is not initialized; text input ignored\n");
+            UIWow_WarnOnce(WOW_UI_WARN_NO_LUA_STATE, "UIWow: Lua state is not initialized; text input ignored\n");
         }
         return;
     }
     lua_getglobal(wow_ui.lua, "ow3_handle_text_input");
     if (!lua_isfunction(wow_ui.lua, -1)) {
         lua_pop(wow_ui.lua, 1);
-        UIWow_WarnOnce(WOW_UI_WARN_NO_TEXT_HANDLER,
-                       "UIWow: missing Lua function 'ow3_handle_text_input'\n");
+        UIWow_WarnOnce(WOW_UI_WARN_NO_TEXT_HANDLER, "UIWow: missing Lua function 'ow3_handle_text_input'\n");
         return;
     }
     lua_pushstring(wow_ui.lua, text);
@@ -370,16 +360,14 @@ static BOOL UIWow_MouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) 
     }
     if (!wow_ui.lua || event != UI_MOUSE_DOWN) {
         if (!wow_ui.lua && event == UI_MOUSE_DOWN) {
-            UIWow_WarnOnce(WOW_UI_WARN_NO_LUA_STATE,
-                           "UIWow: Lua state is not initialized; mouse click ignored\n");
+            UIWow_WarnOnce(WOW_UI_WARN_NO_LUA_STATE, "UIWow: Lua state is not initialized; mouse click ignored\n");
         }
         return false;
     }
     lua_getglobal(wow_ui.lua, "ow3_handle_mouse_click");
     if (!lua_isfunction(wow_ui.lua, -1)) {
         lua_pop(wow_ui.lua, 1);
-        UIWow_WarnOnce(WOW_UI_WARN_NO_MOUSE_HANDLER,
-                       "UIWow: missing Lua function 'ow3_handle_mouse_click'\n");
+        UIWow_WarnOnce(WOW_UI_WARN_NO_MOUSE_HANDLER, "UIWow: missing Lua function 'ow3_handle_mouse_click'\n");
         return false;
     }
     mouse_pos = UIWow_MouseFdf(x, y);
@@ -398,9 +386,7 @@ static void UIWow_CallLuaShow(LPCSTR menu_name, LPCSTR lua_func, LPCSTR glue_scr
     UIWow_RecreateLuaStateForMenu(menu_name);
     snprintf(wow_ui.current_menu, sizeof(wow_ui.current_menu), "%s", menu_name);
     if (!wow_ui.lua) {
-        UIWow_WarnOnce(WOW_UI_WARN_NO_LUA_STATE,
-                       "UIWow: Lua state is not initialized; menu command '%s' ignored\n",
-                       menu_name ? menu_name : "<unknown>");
+        UIWow_WarnOnce(WOW_UI_WARN_NO_LUA_STATE, "UIWow: Lua state is not initialized; menu command '%s' ignored\n", menu_name ? menu_name : "<unknown>");
         return;
     }
 
@@ -412,17 +398,13 @@ static void UIWow_CallLuaShow(LPCSTR menu_name, LPCSTR lua_func, LPCSTR glue_scr
     lua_pop(wow_ui.lua, 1);
 
     if (!glue_screen || !*glue_screen) {
-        UIWow_WarnOnce(WOW_UI_WARN_NO_MENU_HANDLER,
-                       "UIWow: missing Lua handler '%s' and no Glue fallback for menu '%s'\n",
-                       lua_func ? lua_func : "<unknown>", menu_name ? menu_name : "<unknown>");
+        UIWow_WarnOnce(WOW_UI_WARN_NO_MENU_HANDLER, "UIWow: missing Lua handler '%s' and no Glue fallback for menu '%s'\n", lua_func ? lua_func : "<unknown>", menu_name ? menu_name : "<unknown>");
         return;
     }
     lua_getglobal(wow_ui.lua, "SetGlueScreen");
     if (!lua_isfunction(wow_ui.lua, -1)) {
         lua_pop(wow_ui.lua, 1);
-        UIWow_WarnOnce(WOW_UI_WARN_NO_SETGLUESCREEN,
-                       "UIWow: missing Lua function 'SetGlueScreen' for menu '%s' fallback '%s'\n",
-                       menu_name ? menu_name : "<unknown>", glue_screen);
+        UIWow_WarnOnce(WOW_UI_WARN_NO_SETGLUESCREEN, "UIWow: missing Lua function 'SetGlueScreen' for menu '%s' fallback '%s'\n", menu_name ? menu_name : "<unknown>", glue_screen);
         return;
     }
     lua_pushstring(wow_ui.lua, glue_screen);
@@ -549,8 +531,7 @@ static void UIWow_GameCommand(LPCSTR command, void const *data, DWORD size) {
         return;
     }
     if (!strncasecmp(command, "wow_", 4))
-        UIWow_Printf("UIWow: unsupported game command '%s' (%u bytes)\n",
-                     command, (unsigned)size);
+        UIWow_Printf("UIWow: unsupported game command '%s' (%u bytes)\n", command, (unsigned)size);
 }
 
 static BOOL UIWow_GameOverlayMouseDown(int x, int y) {
@@ -588,22 +569,13 @@ static void UIWow_DrawGameOverlay(void) {
         if (!(message->flags & WOW_UI_MESSAGE_UNREAD)) continue;
         rect = MAKE(RECT, 0.35f + unread++ * 0.041f, 0.88f, 0.031f, 0.042f);
         wow_ui.renderer->DrawFill(&rect, MAKE(COLOR32, 90, 45, 20, 245));
-        wow_ui.renderer->DrawText(&MAKE(drawText_t,
-            .font = UIWow_LoadFont(18), .text = "!", .rect = rect,
-            .color = MAKE(COLOR32, 255, 220, 100, 255), .textWidth = rect.w,
-            .lineHeight = rect.h, .halign = FONT_JUSTIFYCENTER, .valign = FONT_JUSTIFYMIDDLE));
+        wow_ui.renderer->DrawText(&MAKE(drawText_t, .font = UIWow_LoadFont(18), .text = "!", .rect = rect, .color = MAKE(COLOR32, 255, 220, 100, 255), .textWidth = rect.w, .lineHeight = rect.h, .halign = FONT_JUSTIFYCENTER, .valign = FONT_JUSTIFYMIDDLE));
     }
     if (!open) return;
     rect = MAKE(RECT, 0.25f, 0.25f, 0.50f, 0.22f);
     wow_ui.renderer->DrawFill(&rect, MAKE(COLOR32, 10, 8, 5, 245));
-    wow_ui.renderer->DrawText(&MAKE(drawText_t,
-        .font = UIWow_LoadFont(16), .text = open->title, .rect = MAKE(RECT, 0.27f, 0.27f, 0.46f, 0.04f),
-        .color = MAKE(COLOR32, 255, 215, 120, 255), .textWidth = 0.46f, .lineHeight = 0.04f,
-        .halign = FONT_JUSTIFYCENTER, .valign = FONT_JUSTIFYMIDDLE));
-    wow_ui.renderer->DrawText(&MAKE(drawText_t,
-        .font = UIWow_LoadFont(12), .text = open->body, .rect = MAKE(RECT, 0.28f, 0.32f, 0.44f, 0.13f),
-        .color = MAKE(COLOR32, 240, 230, 205, 255), .textWidth = 0.44f, .lineHeight = 0.13f,
-        .halign = FONT_JUSTIFYLEFT, .valign = FONT_JUSTIFYTOP));
+    wow_ui.renderer->DrawText(&MAKE(drawText_t, .font = UIWow_LoadFont(16), .text = open->title, .rect = MAKE(RECT, 0.27f, 0.27f, 0.46f, 0.04f), .color = MAKE(COLOR32, 255, 215, 120, 255), .textWidth = 0.46f, .lineHeight = 0.04f, .halign = FONT_JUSTIFYCENTER, .valign = FONT_JUSTIFYMIDDLE));
+    wow_ui.renderer->DrawText(&MAKE(drawText_t, .font = UIWow_LoadFont(12), .text = open->body, .rect = MAKE(RECT, 0.28f, 0.32f, 0.44f, 0.13f), .color = MAKE(COLOR32, 240, 230, 205, 255), .textWidth = 0.44f, .lineHeight = 0.13f, .halign = FONT_JUSTIFYLEFT, .valign = FONT_JUSTIFYTOP));
 }
 
 /* -------------------------------------------------------------------------

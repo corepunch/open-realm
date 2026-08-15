@@ -862,8 +862,7 @@ static void UIWow_XmlResolveRelativeTo(uiWowXmlElem_t *e, LPCSTR raw, LPCSTR par
     char resolved[256];
     LPCSTR dollar = raw ? strstr(raw, "$parent") : NULL;
     if (dollar && parent_name && *parent_name) {
-        snprintf(resolved, sizeof(resolved), "%.*s%s%s",
-                 (int)(dollar - raw), raw, parent_name, dollar + 7);
+        snprintf(resolved, sizeof(resolved), "%.*s%s%s", (int)(dollar - raw), raw, parent_name, dollar + 7);
         UIWow_ElemSetStr(e, ELEM_RELATIVE_NAME, resolved);
     } else if (raw && *raw) {
         UIWow_ElemSetStr(e, ELEM_RELATIVE_NAME, raw);
@@ -916,9 +915,7 @@ static void UIWow_XmlReadAnchor(uiWowXmlElem_t *e, xmlNodePtr node) {
                     char resolved2[256];
                     LPCSTR dollar2 = strstr((char const *)relative_to, "$parent");
                     if (dollar2 && parent_name && *parent_name)
-                        snprintf(resolved2, sizeof(resolved2), "%.*s%s%s",
-                                 (int)(dollar2 - (char const *)relative_to), (char const *)relative_to,
-                                 parent_name, dollar2 + 7);
+                        snprintf(resolved2, sizeof(resolved2), "%.*s%s%s", (int)(dollar2 - (char const *)relative_to), (char const *)relative_to, parent_name, dollar2 + 7);
                     else
                         snprintf(resolved2, sizeof(resolved2), "%s", (char const *)relative_to);
                     free(e->relative_name2); e->relative_name2 = strdup(resolved2);
@@ -1187,8 +1184,7 @@ static void UIWow_XmlCloneTemplateChildren(LPCSTR inherits, int dst, LPCSTR dst_
             if (src_name && *src_name) {
                 LPCSTR dollar = strstr(src_name, "$parent");
                 if (dollar)
-                    snprintf(child_name, sizeof(child_name), "%.*s%s%s",
-                             (int)(dollar - src_name), src_name, dst_name, dollar + 7);
+                    snprintf(child_name, sizeof(child_name), "%.*s%s%s", (int)(dollar - src_name), src_name, dst_name, dollar + 7);
                 else if (tmpl_len > 0 && strncmp(src_name, tmpl_name, tmpl_len) == 0)
                     snprintf(child_name, sizeof(child_name), "%s%s", dst_name, src_name + tmpl_len);
                 else
@@ -1282,8 +1278,7 @@ static void UIWow_XmlParseNode(xmlNodePtr node, int parent, int draw_layer) {
         LPCSTR raw = (char const *)name_attr;
         LPCSTR dollar = strstr(raw, "$parent");
         if (dollar && pname && *pname) {
-            snprintf(resolved_name, sizeof(resolved_name), "%.*s%s%s",
-                     (int)(dollar - raw), raw, pname, dollar + 7);
+            snprintf(resolved_name, sizeof(resolved_name), "%.*s%s%s", (int)(dollar - raw), raw, pname, dollar + 7);
         } else {
             snprintf(resolved_name, sizeof(resolved_name), "%s", raw);
         }
@@ -1514,11 +1509,9 @@ static void UIWow_XMLRunFrameScript(int idx, LPCSTR script, LPCSTR event_name) {
     lua_getglobal(wow_ui.lua, name ? name : ""); lua_setglobal(wow_ui.lua, "this");
     lua_pushstring(wow_ui.lua, event_name ? event_name : ""); lua_setglobal(wow_ui.lua, "event");
     if (src_file)
-        snprintf(chunk, sizeof(chunk), "=%s:%s (%s)",
-                 name && name[0] ? name : "<anon>", event_name ? event_name : "Script", src_file);
+        snprintf(chunk, sizeof(chunk), "=%s:%s (%s)", name && name[0] ? name : "<anon>", event_name ? event_name : "Script", src_file);
     else
-        snprintf(chunk, sizeof(chunk), "=%s:%s",
-                 name && name[0] ? name : "<anon>", event_name ? event_name : "Script");
+        snprintf(chunk, sizeof(chunk), "=%s:%s", name && name[0] ? name : "<anon>", event_name ? event_name : "Script");
     if (luaL_loadbuffer(wow_ui.lua, script, strlen(script), chunk) != LUA_OK) {
         UIWow_Printf("UIWow Lua load: %s\n", lua_tostring(wow_ui.lua, -1)); lua_pop(wow_ui.lua, 1);
     } else {
@@ -1601,15 +1594,7 @@ static void UIWow_XMLComputeScrollRanges(void) {
 static void UIWow_XMLDrawImage(LPTEXTURE tex, LPCRECT screen, LPCRECT uv, COLOR32 color, BLEND_MODE mode) {
     if (!wow_ui.renderer || !tex) return;
     if (wow_ui.renderer->DrawImageEx) {
-        wow_ui.renderer->DrawImageEx(&MAKE(drawImage_t,
-                                           .texture = tex,
-                                           .shader = SHADER_UI,
-                                           .alphamode = mode,
-                                           .screen = *screen,
-                                           .uv = *uv,
-                                           .color = color,
-                                           .flags = s_has_scroll_clip ? DRAW_CLIP : 0,
-                                           .clip = s_scroll_clip));
+        wow_ui.renderer->DrawImageEx(&MAKE(drawImage_t, .texture = tex, .shader = SHADER_UI, .alphamode = mode, .screen = *screen, .uv = *uv, .color = color, .flags = s_has_scroll_clip ? DRAW_CLIP : 0, .clip = s_scroll_clip));
     } else if (wow_ui.renderer->DrawImage) {
         wow_ui.renderer->DrawImage(tex, screen, uv, color);
     }
@@ -1705,8 +1690,7 @@ static LPMODEL UIWow_XMLCharCustomizeModel(int i) {
         wow_ui.char_customize_model = wow_ui.renderer->LoadModel(path);
         snprintf(wow_ui.char_customize_model_path, sizeof(wow_ui.char_customize_model_path), "%s", path);
         if (!wow_ui.char_customize_model)
-            UIWow_WarnOnce(WOW_UI_WARN_NO_CHAR_MODEL,
-                           "UIWow: failed to load character model %s\n", path);
+            UIWow_WarnOnce(WOW_UI_WARN_NO_CHAR_MODEL, "UIWow: failed to load character model %s\n", path);
     }
     return wow_ui.char_customize_model;
 }
@@ -1808,11 +1792,9 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
                 wow_ui.renderer->RenderFrame(&viewdef);
             }
             else if (!wow_ui.renderer->LoadModel)
-                UIWow_WarnOnce(WOW_UI_WARN_NO_MODEL_LOADER,
-                               "UIWow: renderer has no model loader; XML model frames skipped\n");
+                UIWow_WarnOnce(WOW_UI_WARN_NO_MODEL_LOADER, "UIWow: renderer has no model loader; XML model frames skipped\n");
             else if (!wow_ui.renderer->RenderFrame)
-                UIWow_WarnOnce(WOW_UI_WARN_NO_MODEL_LOADER,
-                               "UIWow: renderer has no frame renderer; XML model frames skipped\n");
+                UIWow_WarnOnce(WOW_UI_WARN_NO_MODEL_LOADER, "UIWow: renderer has no frame renderer; XML model frames skipped\n");
         }
         if ((file && file[0] && e->type == WOW_XML_TEXTURE) || (e->type == WOW_XML_BUTTON && ((normal_file && normal_file[0]) || (file && file[0])))) {
             LPCSTR src = (e->type == WOW_XML_BUTTON && pressed && pushed_file && pushed_file[0]) ? pushed_file :
@@ -1837,15 +1819,7 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
                 }
             }
             if (t) {
-                UIWow_XMLDrawImage(t,
-                                   &r,
-                                   &uv,
-                                   MAKE(COLOR32,
-                                        e->colors[ELEM_COLOR_VERTEX].r,
-                                        e->colors[ELEM_COLOR_VERTEX].g,
-                                        e->colors[ELEM_COLOR_VERTEX].b,
-                                        (BYTE)(e->colors[ELEM_COLOR_VERTEX].a * e->alpha)),
-                                   BLEND_MODE_BLEND);
+                UIWow_XMLDrawImage(t, &r, &uv, MAKE(COLOR32, e->colors[ELEM_COLOR_VERTEX].r, e->colors[ELEM_COLOR_VERTEX].g, e->colors[ELEM_COLOR_VERTEX].b, (BYTE)(e->colors[ELEM_COLOR_VERTEX].a * e->alpha)), BLEND_MODE_BLEND);
             }
             if (e->type == WOW_XML_BUTTON && hovered && highlight_file && highlight_file[0]) {
                 LPTEXTURE ht = UIWow_LoadTexture(highlight_file);
@@ -1861,39 +1835,16 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
                sibling FontStrings anchored to BOTTOMLEFT of this one are positioned correctly. */
             if (f && e->type == WOW_XML_FONTSTRING && e->size.h == 0 && wow_ui.renderer->GetTextSize) {
                 LPCSTR display = UIWow_XMLDisplayText(e, text, sizeof(text));
-                VECTOR2 sz = wow_ui.renderer->GetTextSize(&MAKE(drawText_t,
-                                                               .font = f, .text = display,
-                                                               .rect = r, .textWidth = r.w,
-                                                               .lineHeight = 1.33f,
-                                                               .flags = (e->flags & EF_WORD_WRAP) ? DRAW_WORD_WRAP : 0));
+                VECTOR2 sz = wow_ui.renderer->GetTextSize(&MAKE(drawText_t, .font = f, .text = display, .rect = r, .textWidth = r.w, .lineHeight = 1.33f, .flags = (e->flags & EF_WORD_WRAP) ? DRAW_WORD_WRAP : 0));
                 e->measured_h = sz.y;
                 /* Recompute r now that measured_h is known, so tr below uses the updated height. */
                 r = UIWow_XmlComputeRect(i);
                 r.y -= scroll_off_y;
             }
-            RECT tr = MAKE(RECT,
-                           r.x + e->text_inset.w + e->text_off.x,
-                           r.y + e->text_off.y,
-                           r.w - e->text_inset.w,
-                           r.h - e->text_inset.h);
+            RECT tr = MAKE(RECT, r.x + e->text_inset.w + e->text_off.x, r.y + e->text_off.y, r.w - e->text_inset.w, r.h - e->text_inset.h);
             LPCSTR display = UIWow_XMLDisplayText(e, text, sizeof(text));
             if (f) {
-                drawText_t dt = MAKE(drawText_t,
-                                     .font = f,
-                                     .text = display,
-                                     .rect = tr,
-                                     .color = MAKE(COLOR32,
-                                                   text_color.r,
-                                                   text_color.g,
-                                                   text_color.b,
-                                                   (BYTE)(text_color.a * e->alpha)),
-                                     .textWidth = tr.w,
-                                     .lineHeight = 1.33f,
-                                     .flags = ((e->flags & EF_WORD_WRAP) ? DRAW_WORD_WRAP : 0)
-                                            | (has_clip ? DRAW_CLIP : 0),
-                                     .halign = e->type == WOW_XML_EDITBOX ? FONT_JUSTIFYLEFT : e->halign,
-                                     .valign = e->valign,
-                                     .clip = clip_rect);
+                drawText_t dt = MAKE(drawText_t, .font = f, .text = display, .rect = tr, .color = MAKE(COLOR32, text_color.r, text_color.g, text_color.b, (BYTE)(text_color.a * e->alpha)), .textWidth = tr.w, .lineHeight = 1.33f, .flags = ((e->flags & EF_WORD_WRAP) ? DRAW_WORD_WRAP : 0) | (has_clip ? DRAW_CLIP : 0), .halign = e->type == WOW_XML_EDITBOX ? FONT_JUSTIFYLEFT : e->halign, .valign = e->valign, .clip = clip_rect);
                 wow_ui.renderer->DrawText(&dt);
                 if (e->type == WOW_XML_EDITBOX && wow_xml.focus == i)
                     UI_DrawTextInputCursor(wow_ui.renderer, &dt, display, wow_xml.text_input.cursor, text_color);
@@ -2048,21 +1999,14 @@ BOOL UIWow_XMLMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
         if (param == 1 && pressed >= 0 && hit == pressed && wow_xml.elems[pressed].type == WOW_XML_BUTTON &&
             (wow_xml.elems[pressed].flags & EF_ENABLED) && wow_ui.lua &&
             UIWow_ElemStr(&wow_xml.elems[pressed], ELEM_ON_CLICK)) {
-            UIWow_Printf("UIWow: OnClick dispatch idx=%d name='%s' checkbtn=%d checked=%d\n",
-                         pressed, wow_xml.elems[pressed].texts[ELEM_NAME] ? wow_xml.elems[pressed].texts[ELEM_NAME] : "?",
-                         !!(wow_xml.elems[pressed].flags & EF_CHECKBUTTON),
-                         !!(wow_xml.elems[pressed].flags & EF_CHECKED));
+            UIWow_Printf("UIWow: OnClick dispatch idx=%d name='%s' checkbtn=%d checked=%d\n", pressed, wow_xml.elems[pressed].texts[ELEM_NAME] ? wow_xml.elems[pressed].texts[ELEM_NAME] : "?", !!(wow_xml.elems[pressed].flags & EF_CHECKBUTTON), !!(wow_xml.elems[pressed].flags & EF_CHECKED));
             if (wow_xml.elems[pressed].flags & EF_CHECKBUTTON)
                 wow_xml.elems[pressed].flags ^= EF_CHECKED;
             UIWow_XMLRunFrameScript(pressed, wow_xml.elems[pressed].texts[ELEM_ON_CLICK], "OnClick");
             return true;
         }
         if (param == 1 && pressed >= 0 && hit == pressed) {
-            UIWow_Printf("UIWow: OnClick MISS idx=%d name='%s' type=%d enabled=%d has_onclick=%d\n",
-                         pressed, wow_xml.elems[pressed].texts[ELEM_NAME] ? wow_xml.elems[pressed].texts[ELEM_NAME] : "?",
-                         wow_xml.elems[pressed].type,
-                         !!(wow_xml.elems[pressed].flags & EF_ENABLED),
-                         !!UIWow_ElemStr(&wow_xml.elems[pressed], ELEM_ON_CLICK));
+            UIWow_Printf("UIWow: OnClick MISS idx=%d name='%s' type=%d enabled=%d has_onclick=%d\n", pressed, wow_xml.elems[pressed].texts[ELEM_NAME] ? wow_xml.elems[pressed].texts[ELEM_NAME] : "?", wow_xml.elems[pressed].type, !!(wow_xml.elems[pressed].flags & EF_ENABLED), !!UIWow_ElemStr(&wow_xml.elems[pressed], ELEM_ON_CLICK));
         }
         return hit >= 0 || pressed >= 0;
     }

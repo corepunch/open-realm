@@ -215,6 +215,8 @@ static size2_t RStd_GetWindowSize(void) {
     return stdout_window;
 }
 
+static void RStd_Screenshot(void) { printf("screenshot unsupported by stdout renderer\n"); }
+
 static size2_t RStd_GetTextureSize(LPCTEXTURE texture) {
     if (!texture) {
         return MAKE(size2_t, 0, 0);
@@ -475,6 +477,7 @@ refExport_t R_StdoutGetAPI(refImport_t imp) {
         .ReleaseModel = RStd_ReleaseModel,
         .BeginFrame = RStd_BeginFrame,
         .EndFrame = RStd_EndFrame,
+        .Screenshot = RStd_Screenshot,
         .DrawChar = RStd_DrawChar,
         .DrawFill = RStd_DrawFill,
         .DrawSelectionRect = RStd_DrawSelectionRect,

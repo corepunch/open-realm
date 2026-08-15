@@ -124,22 +124,12 @@ static void Wow_LogMissingAnimation(LPEDICT ent, LPCSTR animation_name, BOOL inv
         if (entry->model == 0) {
             entry->model = model;
             strncpy(entry->name, animation_name, sizeof(entry->name) - 1);
-            fprintf(stderr,
-                    "WoW missing animation: entity=%u model=%u animation=%s%s\n",
-                    (unsigned)ent->s.number,
-                    (unsigned)model,
-                    animation_name,
-                    invalid_interval ? " invalid-interval" : "");
+            fprintf(stderr, "WoW missing animation: entity=%u model=%u animation=%s%s\n", (unsigned)ent->s.number, (unsigned)model, animation_name, invalid_interval ? " invalid-interval" : "");
             return;
         }
     }
 
-    fprintf(stderr,
-            "WoW missing animation: entity=%u model=%u animation=%s%s\n",
-            (unsigned)ent->s.number,
-            (unsigned)model,
-            animation_name,
-            invalid_interval ? " invalid-interval" : "");
+    fprintf(stderr, "WoW missing animation: entity=%u model=%u animation=%s%s\n", (unsigned)ent->s.number, (unsigned)model, animation_name, invalid_interval ? " invalid-interval" : "");
 }
 
 FLOAT Wow_Clamp(FLOAT value, FLOAT min_value, FLOAT max_value) {
@@ -327,10 +317,7 @@ static void Wow_SelectLoadingScreen(LPCSTR map_path) {
     BYTE const *strings_base;
     char map_name[128] = { 0 };
 
-    snprintf(wow_loading_texture,
-             sizeof(wow_loading_texture),
-             "%s",
-             "Interface\\Glues\\LoadingScreens\\LoadScreenEnviroment.blp");
+    snprintf(wow_loading_texture, sizeof(wow_loading_texture), "%s", "Interface\\Glues\\LoadingScreens\\LoadScreenEnviroment.blp");
     snprintf(wow_loading_title, sizeof(wow_loading_title), "%s", "World of Warcraft");
 
     if (!map_path || !*map_path) {
@@ -369,21 +356,12 @@ static void Wow_SelectLoadingScreen(LPCSTR map_path) {
             snprintf(wow_loading_title, sizeof(wow_loading_title), "%s", map_name);
         }
 
-        if (!Wow_ResolveLoadingScreenById(loading_screen_id,
-                                          wow_loading_texture,
-                                          sizeof(wow_loading_texture))) {
-            snprintf(wow_loading_texture,
-                     sizeof(wow_loading_texture),
-                     "%s",
-                     "Interface\\Glues\\LoadingScreens\\LoadScreenEnviroment.blp");
+        if (!Wow_ResolveLoadingScreenById(loading_screen_id, wow_loading_texture, sizeof(wow_loading_texture))) {
+            snprintf(wow_loading_texture, sizeof(wow_loading_texture), "%s", "Interface\\Glues\\LoadingScreens\\LoadScreenEnviroment.blp");
         }
 
         if (gi.error) {
-            gi.error("Wow_SelectLoadingScreen: map=%s title=%s loadingId=%u texture=%s\n",
-                     map_name,
-                     wow_loading_title,
-                     (unsigned)loading_screen_id,
-                     wow_loading_texture);
+            gi.error("Wow_SelectLoadingScreen: map=%s title=%s loadingId=%u texture=%s\n", map_name, wow_loading_title, (unsigned)loading_screen_id, wow_loading_texture);
         }
         gi.MemFree(data);
         return;
@@ -505,8 +483,7 @@ static void Wow_LoadSpellVisualDbcs(void) {
                 }
             }
         }
-        fprintf(stderr, "WoW: loaded %u spell visual effects from SpellVisualEffectName.dbc\n",
-                (unsigned)wow_visual_effect_count);
+        fprintf(stderr, "WoW: loaded %u spell visual effects from SpellVisualEffectName.dbc\n", (unsigned)wow_visual_effect_count);
     }
     SAFE_DELETE(fx_data, gi.MemFree);
 
@@ -585,8 +562,7 @@ static void Wow_LoadSpellVisualDbcs(void) {
                 sv->missile_path = missile_path;
             }
         }
-        fprintf(stderr, "WoW: loaded %u spell visuals from SpellVisual.dbc\n",
-                (unsigned)wow_spell_visual_count);
+        fprintf(stderr, "WoW: loaded %u spell visuals from SpellVisual.dbc\n", (unsigned)wow_spell_visual_count);
     }
 
     SAFE_DELETE(sv_data, gi.MemFree);
@@ -820,8 +796,7 @@ DWORD Wow_SpellMissileModel(DWORD spell_dbc_id) {
     if (!buf) return 0;
     resolved_models[spell_dbc_id] = G_RegisterModel(sv->missile_path);
     gi.MemFree(buf);
-    fprintf(stderr, "WoW: DBC missile model for spell %u: %s (idx %u)\n",
-            (unsigned)spell_dbc_id, sv->missile_path, (unsigned)resolved_models[spell_dbc_id]);
+    fprintf(stderr, "WoW: DBC missile model for spell %u: %s (idx %u)\n", (unsigned)spell_dbc_id, sv->missile_path, (unsigned)resolved_models[spell_dbc_id]);
     return resolved_models[spell_dbc_id];
 }
 
@@ -846,8 +821,7 @@ DWORD Wow_SpellImpactModel(DWORD spell_dbc_id) {
     if (!buf) return 0;
     resolved_impacts[spell_dbc_id] = gi.ModelIndex(sv->impact_path);
     gi.MemFree(buf);
-    fprintf(stderr, "WoW: DBC impact model for spell %u: %s (idx %u)\n",
-            (unsigned)spell_dbc_id, sv->impact_path, (unsigned)resolved_impacts[spell_dbc_id]);
+    fprintf(stderr, "WoW: DBC impact model for spell %u: %s (idx %u)\n", (unsigned)spell_dbc_id, sv->impact_path, (unsigned)resolved_impacts[spell_dbc_id]);
     return resolved_impacts[spell_dbc_id];
 }
 
@@ -1066,8 +1040,7 @@ void Wow_FireFirebolt(LPEDICT caster, LPEDICT target) {
 
     proj->think = Wow_RunProjectile;
     {
-        VECTOR2 delta = Vector2_sub(&(VECTOR2){ target->s.origin.x, target->s.origin.y },
-                                    &(VECTOR2){ caster->s.origin.x, caster->s.origin.y });
+        VECTOR2 delta = Vector2_sub(&(VECTOR2){ target->s.origin.x, target->s.origin.y }, &(VECTOR2){ caster->s.origin.x, caster->s.origin.y });
         yaw = (FLOAT)RAD2DEG(atan2f(delta.y, delta.x));
     }
     pl->projectile_target = target->s.number;
@@ -1150,8 +1123,7 @@ void Wow_FireFrostbolt(LPEDICT caster, LPEDICT target) {
 
     proj->think = Wow_RunProjectile;
     {
-        VECTOR2 delta = Vector2_sub(&(VECTOR2){ target->s.origin.x, target->s.origin.y },
-                                    &(VECTOR2){ caster->s.origin.x, caster->s.origin.y });
+        VECTOR2 delta = Vector2_sub(&(VECTOR2){ target->s.origin.x, target->s.origin.y }, &(VECTOR2){ caster->s.origin.x, caster->s.origin.y });
         yaw = (FLOAT)RAD2DEG(atan2f(delta.y, delta.x));
     }
     pl->projectile_target = target->s.number;
@@ -1495,10 +1467,7 @@ static void Wow_InitPlayer(LPEDICT ent) {
     ent->s.model = G_RegisterModel(model_path);
     ent->s.model2 = G_RegisterModel(WOW_PLAYER_WEAPON_MODEL);
     ent->s.appearance = appearance;
-    ent->s.equipment = Wow_PackEquipment(WOW_PLAYER_EQUIPMENT_UPPER_BODY,
-                                         WOW_PLAYER_EQUIPMENT_LOWER_BODY,
-                                         WOW_PLAYER_EQUIPMENT_HANDS,
-                                         WOW_PLAYER_EQUIPMENT_FEET);
+    ent->s.equipment = Wow_PackEquipment(WOW_PLAYER_EQUIPMENT_UPPER_BODY, WOW_PLAYER_EQUIPMENT_LOWER_BODY, WOW_PLAYER_EQUIPMENT_HANDS, WOW_PLAYER_EQUIPMENT_FEET);
     ent->s.origin = (VECTOR3){ wow_spawn_origin.x, wow_spawn_origin.y, height };
     ent->s.origin2 = (VECTOR2){ ent->s.origin.x, ent->s.origin.y };
     ent->s.angle = (FLOAT)DEG2RAD(wow_move.yaw);
@@ -1597,8 +1566,7 @@ static void Wow_SpawnEntities(void) {
     Wow_ReadSelectedCharFromCvars(race, sizeof(race), sex, sizeof(sex), &class_id, &appearance);
     spawn_location = Wow_SelectSpawnPoint(race, class_id);
     if (spawn_location == ~0u) {
-        fprintf(stderr, "WoW: no spawn for race=%s class=%u; using Orc Warrior spawn\n",
-                race, (unsigned)class_id);
+        fprintf(stderr, "WoW: no spawn for race=%s class=%u; using Orc Warrior spawn\n", race, (unsigned)class_id);
         spawn_location = Wow_SelectSpawnPoint("Orc", WOW_CLASS_WARRIOR);
     }
 
@@ -1615,15 +1583,13 @@ static void Wow_SpawnEntities(void) {
     } else {
         wow_spawn_origin = (VECTOR2){ 0.0f, 0.0f };
         wow_spawn_location = -1;
-        fprintf(stderr, "WoW: no fallback spawn is available for race=%s class=%u\n",
-                race, (unsigned)class_id);
+        fprintf(stderr, "WoW: no fallback spawn is available for race=%s class=%u\n", race, (unsigned)class_id);
     }
     Wow_SelectLoadingScreen(mapinfo ? mapinfo->mapName : NULL);
     /* Re-populate the playerinfo configstring from cvars after SV_Map's
        memset cleared all configstrings (same pattern as Q3: game module
        re-sets configstrings after the server wipes them on map load). */
-    snprintf(buf, sizeof(buf), "\\race\\%s\\sex\\%s\\class\\%u\\appearance\\%u",
-             race, sex, (unsigned)class_id, (unsigned)appearance);
+    snprintf(buf, sizeof(buf), "\\race\\%s\\sex\\%s\\class\\%u\\appearance\\%u", race, sex, (unsigned)class_id, (unsigned)appearance);
     gi.configstring(CS_GENERAL + WOW_CS_PLAYERINFO, buf);
     wow_move.flags = 0;
     wow_move.yaw = 0.0f;
@@ -1667,8 +1633,7 @@ static void Wow_SpawnEntities(void) {
             if (buf) { wow_frostbolt_impact_model = gi.ModelIndex(*p); gi.MemFree(buf); break; }
         }
     }
-    fprintf(stderr, "WoW: impact models — fire=%d frost=%d\n",
-            wow_firebolt_impact_model, wow_frostbolt_impact_model);
+    fprintf(stderr, "WoW: impact models — fire=%d frost=%d\n", wow_firebolt_impact_model, wow_frostbolt_impact_model);
     fprintf(stderr, "WoW doodads: static ADT doodads are renderer-owned and not synced as entities\n");
 }
 
@@ -1911,8 +1876,7 @@ static void Wow_CompleteQuest(wowClient_t *client, DWORD quest_id) {
         message->flags = WOW_UI_MESSAGE_UNREAD;
         message->quest_id = quest_id;
         snprintf(message->title, sizeof(message->title), "Quest complete");
-        snprintf(message->body, sizeof(message->body), "%s\n\n%s",
-                 detail->title, detail->reward_text);
+        snprintf(message->body, sizeof(message->body), "%s\n\n%s", detail->title, detail->reward_text);
     }
 }
 
@@ -2033,8 +1997,7 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
         Wow_ReadSelectedCharFromCvars(race, sizeof(race), sex, sizeof(sex), &class_id, &appearance);
         DWORD idx = Wow_SelectSpawnPoint(race, class_id);
         if (idx == ~0u) {
-            fprintf(stderr, "WoW: no respawn for race=%s class=%u; using Orc Warrior spawn\n",
-                    race, (unsigned)class_id);
+            fprintf(stderr, "WoW: no respawn for race=%s class=%u; using Orc Warrior spawn\n", race, (unsigned)class_id);
             idx = Wow_SelectSpawnPoint("Orc", WOW_CLASS_WARRIOR);
         }
         if (idx != ~0u) Wow_TeleportPlayer(ent, idx);
@@ -2044,9 +2007,7 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
         wow_move.pitch = Wow_Clamp((FLOAT)atof(argv[3]), WOW_CAMERA_MIN_PITCH, WOW_CAMERA_MAX_PITCH);
         wow_move.distance = Wow_Clamp((FLOAT)atof(argv[4]), WOW_CAMERA_MIN_DISTANCE, WOW_CAMERA_MAX_DISTANCE);
     } else if (argc >= 1 && (!strcasecmp(argv[0], "select"))) {
-        Wow_SelectEntity(ent, argc >= 2
-            ? Wow_EdictByNumber((DWORD)strtoul(argv[1], NULL, 10))
-            : NULL);
+        Wow_SelectEntity(ent, argc >= 2 ? Wow_EdictByNumber((DWORD)strtoul(argv[1], NULL, 10)) : NULL);
     } else if (argc >= 1 && (!strcasecmp(argv[0], "wow_cycle_target") || !strcasecmp(argv[0], "cycletarget"))) {
         DWORD old = ent->client->ps.selected_entity;
         DWORD start = old > 0 ? old + 1 : WOW_MAX_CLIENTS;

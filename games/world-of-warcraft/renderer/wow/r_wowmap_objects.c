@@ -1,10 +1,7 @@
 #include "r_wowmap.h"
 
 VECTOR3 Wow_ObjectPoint(wowVec3_t p) {
-    return Wow_WorldPoint(
-        32.0f * WOW_ADT_SIZE - p.z,
-        32.0f * WOW_ADT_SIZE - p.x,
-        p.y);
+    return Wow_WorldPoint( 32.0f * WOW_ADT_SIZE - p.z, 32.0f * WOW_ADT_SIZE - p.x, p.y);
 }
 
 void Wow_InstanceMatrix(wowMapObjDef_t const *def, LPMATRIX4 matrix) {
@@ -507,11 +504,7 @@ VERTEX *Wow_AppendDoodadErrorMarkers(VERTEX *old_vertices,
             wow_world.num_filedata_doodads++;
             continue;
         }
-        Wow_AddMarker(vertices,
-                      old_count,
-                      Wow_ObjectPoint(def->position),
-                      6.0f,
-                      Wow_Color(255, 255, 255, 255));
+        Wow_AddMarker(vertices, old_count, Wow_ObjectPoint(def->position), 6.0f, Wow_Color(255, 255, 255, 255));
         wow_world.num_doodad_instances++;
     }
 

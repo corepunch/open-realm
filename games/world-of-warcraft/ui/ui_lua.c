@@ -40,19 +40,11 @@ static BYTE UIWow_LuaColorByte(lua_State *L, int index, BYTE fallback) {
 }
 
 static COLOR32 UIWow_LuaColor(lua_State *L, int first, COLOR32 fallback) {
-    return MAKE(COLOR32,
-                UIWow_LuaColorByte(L, first,     fallback.r),
-                UIWow_LuaColorByte(L, first + 1, fallback.g),
-                UIWow_LuaColorByte(L, first + 2, fallback.b),
-                UIWow_LuaColorByte(L, first + 3, fallback.a));
+    return MAKE(COLOR32, UIWow_LuaColorByte(L, first,     fallback.r), UIWow_LuaColorByte(L, first + 1, fallback.g), UIWow_LuaColorByte(L, first + 2, fallback.b), UIWow_LuaColorByte(L, first + 3, fallback.a));
 }
 
 static RECT UIWow_LuaRect(lua_State *L, int first) {
-    return MAKE(RECT,
-                (FLOAT)luaL_checknumber(L, first),
-                (FLOAT)luaL_checknumber(L, first + 1),
-                (FLOAT)luaL_checknumber(L, first + 2),
-                (FLOAT)luaL_checknumber(L, first + 3));
+    return MAKE(RECT, (FLOAT)luaL_checknumber(L, first), (FLOAT)luaL_checknumber(L, first + 1), (FLOAT)luaL_checknumber(L, first + 2), (FLOAT)luaL_checknumber(L, first + 3));
 }
 
 /* -------------------------------------------------------------------------
@@ -143,8 +135,7 @@ static int UIWow_LuaDrawBackdrop(lua_State *L) {
     if (bg_path && *bg_path) {
         LPTEXTURE bg = UIWow_LoadTexture(bg_path);
         if (bg) {
-            RECT inner = MAKE(RECT, sc.x + e, sc.y + e,
-                              sc.w - e * 2.0f, sc.h - e * 2.0f);
+            RECT inner = MAKE(RECT, sc.x + e, sc.y + e, sc.w - e * 2.0f, sc.h - e * 2.0f);
             wow_ui.renderer->DrawImage(bg, &inner, &fuv, COLOR32_WHITE);
         }
     }
@@ -221,15 +212,7 @@ static int UIWow_LuaDrawText(lua_State *L) {
     }
 
     if (wow_ui.renderer && font) {
-        wow_ui.renderer->DrawText(&MAKE(drawText_t,
-                                        .font = font,
-                                        .text = text,
-                                        .rect = screen,
-                                        .color = color,
-                                        .textWidth = screen.w,
-                                         .lineHeight = screen.h,
-                                         .halign = halign,
-                                        .valign = FONT_JUSTIFYMIDDLE));
+        wow_ui.renderer->DrawText(&MAKE(drawText_t, .font = font, .text = text, .rect = screen, .color = color, .textWidth = screen.w, .lineHeight = screen.h, .halign = halign, .valign = FONT_JUSTIFYMIDDLE));
     }
     return 0;
 }
@@ -376,13 +359,7 @@ static int UIWow_LuaDrawImageAdditive(lua_State *L) {
     LPTEXTURE texture = UIWow_LoadTexture(name);
 
     if (wow_ui.renderer && texture) {
-        wow_ui.renderer->DrawImageEx(&MAKE(drawImage_t,
-                                           .texture   = texture,
-                                           .screen    = screen,
-                                           .uv        = uv,
-                                           .color     = color,
-                                           .shader    = SHADER_UI,
-                                           .alphamode = BLEND_MODE_ADD));
+        wow_ui.renderer->DrawImageEx(&MAKE(drawImage_t, .texture   = texture, .screen    = screen, .uv        = uv, .color     = color, .shader    = SHADER_UI, .alphamode = BLEND_MODE_ADD));
     }
     lua_pushboolean(L, texture != NULL);
     return 1;
@@ -861,8 +838,7 @@ BOOL UIWow_LoadLuaFile(LPCSTR path, BOOL noisy_missing) {
     int size;
 
     if (!uiimport.FS_ReadFile || !uiimport.FS_FreeFile || !path) {
-        UIWow_WarnOnce(WOW_UI_WARN_NO_INPUT_FS,
-                       "UIWow: FS_ReadFile/FS_FreeFile unavailable; cannot load Lua files\n");
+        UIWow_WarnOnce(WOW_UI_WARN_NO_INPUT_FS, "UIWow: FS_ReadFile/FS_FreeFile unavailable; cannot load Lua files\n");
         return false;
     }
     size = uiimport.FS_ReadFile(path, &buf);
@@ -876,8 +852,7 @@ BOOL UIWow_LoadLuaFile(LPCSTR path, BOOL noisy_missing) {
     compat = UIWow_LuaCompatBuffer(buf, (size_t)size);
     script = compat ? compat : (char *)buf;
     compat_varargs = UIWow_LuaCompatVarargs(script, compat ? strlen(compat) : (size_t)size);
-    UIWow_RunLuaBuffer(path, compat_varargs ? compat_varargs : script,
-                       compat_varargs ? strlen(compat_varargs) : (compat ? strlen(compat) : (size_t)size));
+    UIWow_RunLuaBuffer(path, compat_varargs ? compat_varargs : script, compat_varargs ? strlen(compat_varargs) : (compat ? strlen(compat) : (size_t)size));
     SAFE_DELETE(compat, free);
     SAFE_DELETE(compat_varargs, free);
     uiimport.FS_FreeFile(buf);
@@ -889,8 +864,7 @@ static BOOL UIWow_HasArchiveFile(LPCSTR path) {
     int size;
 
     if (!uiimport.FS_ReadFile || !uiimport.FS_FreeFile || !path) {
-        UIWow_WarnOnce(WOW_UI_WARN_NO_INPUT_FS,
-                       "UIWow: FS_ReadFile/FS_FreeFile unavailable; cannot probe archive files\n");
+        UIWow_WarnOnce(WOW_UI_WARN_NO_INPUT_FS, "UIWow: FS_ReadFile/FS_FreeFile unavailable; cannot probe archive files\n");
         return false;
     }
     size = uiimport.FS_ReadFile(path, &buf);
@@ -969,8 +943,7 @@ void UIWow_InitLua(void) {
             UIWow_LuaPCall(1);
         } else {
             lua_pop(L, 1);
-            UIWow_WarnOnce(WOW_UI_WARN_NO_GLUE_BOOTSTRAP,
-                           "UIWow: Glue bootstrap missing 'SetGlueScreen'\n");
+            UIWow_WarnOnce(WOW_UI_WARN_NO_GLUE_BOOTSTRAP, "UIWow: Glue bootstrap missing 'SetGlueScreen'\n");
         }
         snprintf(wow_ui.current_menu, sizeof(wow_ui.current_menu), "%s", "login");
     } else {
@@ -992,15 +965,13 @@ void UIWow_ShutdownLua(void) {
 
 void UIWow_CallLuaDraw(void) {
     if (!wow_ui.lua) {
-        UIWow_WarnOnce(WOW_UI_WARN_NO_LUA_STATE,
-                       "UIWow: Lua state is not initialized; draw callback skipped\n");
+        UIWow_WarnOnce(WOW_UI_WARN_NO_LUA_STATE, "UIWow: Lua state is not initialized; draw callback skipped\n");
         return;
     }
     lua_getglobal(wow_ui.lua, "ow3_draw");
     if (!lua_isfunction(wow_ui.lua, -1)) {
         lua_pop(wow_ui.lua, 1);
-        UIWow_WarnOnce(WOW_UI_WARN_NO_DRAW_HANDLER,
-                       "UIWow: missing Lua function 'ow3_draw'\n");
+        UIWow_WarnOnce(WOW_UI_WARN_NO_DRAW_HANDLER, "UIWow: missing Lua function 'ow3_draw'\n");
         return;
     }
     UIWow_LuaPCall(0);
@@ -1011,16 +982,14 @@ void UIWow_CallLuaUpdate(DWORD msec) {
 
     if (!wow_ui.lua || !ps || ps->client_ui_state != CLIENT_UI_GAME) {
         if (!wow_ui.lua) {
-            UIWow_WarnOnce(WOW_UI_WARN_NO_LUA_STATE,
-                           "UIWow: Lua state is not initialized; update callback skipped\n");
+            UIWow_WarnOnce(WOW_UI_WARN_NO_LUA_STATE, "UIWow: Lua state is not initialized; update callback skipped\n");
         }
         return;
     }
     lua_getglobal(wow_ui.lua, "ow3_update");
     if (!lua_isfunction(wow_ui.lua, -1)) {
         lua_pop(wow_ui.lua, 1);
-        UIWow_WarnOnce(WOW_UI_WARN_NO_UPDATE_HANDLER,
-                       "UIWow: missing Lua function 'ow3_update'\n");
+        UIWow_WarnOnce(WOW_UI_WARN_NO_UPDATE_HANDLER, "UIWow: missing Lua function 'ow3_update'\n");
         return;
     }
     lua_pushinteger(wow_ui.lua, msec);

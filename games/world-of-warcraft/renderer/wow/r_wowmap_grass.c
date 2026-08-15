@@ -67,8 +67,7 @@ void Wow_LoadGroundEffectDBCs(void) {
             records = header->records;
             record_size = header->record_size;
 
-            fprintf(stderr, "[GRASS] WDBC: records=%u record_size=%u\n",
-                    (unsigned)records, (unsigned)record_size);
+            fprintf(stderr, "[GRASS] WDBC: records=%u record_size=%u\n", (unsigned)records, (unsigned)record_size);
 
             if (records > 0 && record_size == sizeof(*wow_ground_effect_textures) &&
                 sizeof(*header) + (uint64_t)records * (uint64_t)record_size + header->string_size <= (uint64_t)size) {
@@ -76,25 +75,20 @@ void Wow_LoadGroundEffectDBCs(void) {
                 records_to_copy = records;
                 wow_ground_effect_textures = ri.MemAlloc(sizeof(*wow_ground_effect_textures) * records_to_copy);
                 if (!wow_ground_effect_textures) {
-                    fprintf(stderr, "[GRASS] allocation failed for %u GroundEffectTexture rows\n",
-                            (unsigned)records_to_copy);
+                    fprintf(stderr, "[GRASS] allocation failed for %u GroundEffectTexture rows\n", (unsigned)records_to_copy);
                     ri.FS_FreeFile(data);
                     wow_ground_effect_doodads_loaded = true;
                     return;
                 }
 
                 fprintf(stderr, "[GRASS] Copying %u records...\n", (unsigned)records_to_copy);
-                memcpy(wow_ground_effect_textures,
-                       records_base,
-                       sizeof(*wow_ground_effect_textures) * records_to_copy);
+                memcpy(wow_ground_effect_textures, records_base, sizeof(*wow_ground_effect_textures) * records_to_copy);
 
                 wow_ground_effect_texture_count = records_to_copy;
                 wow_ground_effect_textures_loaded = true;
-                fprintf(stderr, "[GRASS] Successfully loaded %u GroundEffectTexture records\n",
-                        (unsigned)records);
+                fprintf(stderr, "[GRASS] Successfully loaded %u GroundEffectTexture records\n", (unsigned)records);
             } else {
-                fprintf(stderr, "[GRASS] WDBC validation failed: record_size=%u records=%u size=%u\n",
-                        (unsigned)record_size, (unsigned)records, (unsigned)size);
+                fprintf(stderr, "[GRASS] WDBC validation failed: record_size=%u records=%u size=%u\n", (unsigned)record_size, (unsigned)records, (unsigned)size);
             }
         } else {
             fprintf(stderr, "[GRASS] WDBC magic check failed\n");
@@ -296,12 +290,7 @@ void Wow_BuildGrassForChunk(wowAdtChunk_t *chunk,
                 col_jitter = Wow_GrassClamp(col_jitter, 0.001f, 7.999f);
                 cell_row = (int)floorf(row_jitter);
                 cell_col = (int)floorf(col_jitter);
-                if (!Wow_HeightInCell(chunk->heights,
-                                      cell_row,
-                                      cell_col,
-                                      row_jitter - cell_row,
-                                      col_jitter - cell_col,
-                                      &height)) {
+                if (!Wow_HeightInCell(chunk->heights, cell_row, cell_col, row_jitter - cell_row, col_jitter - cell_col, &height)) {
                     continue;
                 }
 
@@ -461,10 +450,7 @@ BOOL Wow_GrassChunkInRange(wowAdtChunk_t const *chunk) {
         (chunk->grass_bounds.min.y + chunk->grass_bounds.max.y) * 0.5f,
         (chunk->grass_bounds.min.z + chunk->grass_bounds.max.z) * 0.5f,
     };
-    return Frustum_ContainsSphere(&tr.viewDef.frustum, &(SPHERE3){
-        .center = center,
-        .radius = WOW_ADT_CHUNK_SIZE,
-    });
+    return Frustum_ContainsSphere(&tr.viewDef.frustum, &(SPHERE3){ .center = center, .radius = WOW_ADT_CHUNK_SIZE, });
 }
 
 void Wow_DrawGrass(void) {
@@ -517,13 +503,7 @@ void Wow_DrawGrass(void) {
         if (logged_x != wow_world.adt_center_x || logged_y != wow_world.adt_center_y) {
             logged_x = wow_world.adt_center_x;
             logged_y = wow_world.adt_center_y;
-            fprintf(stderr,
-                    "R_DrawWorld: grass chunks=%u/%u vertices=%u/%u draw_distance=%.0f\n",
-                    (unsigned)drawn_chunks,
-                    (unsigned)wow_world.num_grass_chunks,
-                    (unsigned)drawn_vertices,
-                    (unsigned)wow_world.num_grass_vertices,
-                    (double)draw_distance);
+            fprintf(stderr, "R_DrawWorld: grass chunks=%u/%u vertices=%u/%u draw_distance=%.0f\n", (unsigned)drawn_chunks, (unsigned)wow_world.num_grass_chunks, (unsigned)drawn_vertices, (unsigned)wow_world.num_grass_vertices, (double)draw_distance);
         }
     }
 }
