@@ -66,6 +66,19 @@ static BOOL m2_path_has_extension(LPCSTR path, LPCSTR extension) {
     return path_len >= ext_len && !strcasecmp(path + path_len - ext_len, extension);
 }
 
+/* Validate the complete indirect skin range before the renderer's vertex copy loop starts. */
+static BOOL m2_validate_skin_vertex_range(WORD const *skin_vertices, DWORD skin_vertex_count,
+                                          WORD const *skin_indices, DWORD skin_index_count,
+                                          DWORD vertex_count, DWORD index_start, DWORD index_count) {
+    if (!skin_vertices || !skin_indices || index_start > skin_index_count ||
+        index_count > skin_index_count - index_start) return false;
+    FOR_LOOP(i, index_count) {
+        DWORD vertex_lookup = skin_indices[index_start + i];
+        if (vertex_lookup >= skin_vertex_count || skin_vertices[vertex_lookup] >= vertex_count) return false;
+    }
+    return true;
+}
+
 static BYTE const *m2_find_chunk(BYTE const *data, DWORD size, LPCSTR tag, LPDWORD chunk_size) {
     DWORD offset = 0;
     while (offset + 8 <= size) {

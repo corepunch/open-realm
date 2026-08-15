@@ -247,28 +247,6 @@ LPTEXTURE R_LoadTexture(LPCSTR textureFilename) {
     return texture;
 }
 
-static LPMODEL R_LoadEmptyModel(LPCSTR modelFilename, LPCSTR reason) {
-    static LPCSTR last_missing = NULL;
-
-    if (modelFilename != last_missing) {
-        fprintf(stderr, "R_LoadModel: %s: %s, using empty model\n", reason, modelFilename);
-        last_missing = modelFilename;
-    }
-    return ri.MemAlloc(sizeof(model_t));
-}
-
-LPMODEL R_LoadModel(LPCSTR modelFilename) {
-    LPMODEL model = R_GameLoadModel(modelFilename);
-    return model ? model : R_LoadEmptyModel(modelFilename, "not found");
-}
-
-void R_ReleaseModel(LPMODEL model) {
-    if (!model) {
-        return;
-    }
-    R_GameReleaseModel(model);
-}
-
 LPRENDERTARGET
 R_AllocateRenderTexture(GLsizei width,
                         GLsizei height,
@@ -506,6 +484,7 @@ void R_Shutdown(void) {
         return;
     }
     renderer_shutdown = true;
+    R_ShutdownModels();
     R_GameShutdown();
     R_ShutdownModelShader();
     R_ShutdownFonts();
@@ -723,7 +702,7 @@ refExport_t R_GetAPI(refImport_t imp) {
     ri = imp;
     return (refExport_t) {
         .Init = R_Init,
-        .RegisterMap = R_GameRegisterMap,
+        .RegisterMap = R_RegisterMapAssets,
         .LoadTexture = R_LoadTexture,
         .LoadModel = R_LoadModel,
         .LoadFont = R_LoadFont,
@@ -748,9 +727,6 @@ refExport_t R_GetAPI(refImport_t imp) {
         .GetTextureSize = R_GetTextureSize,
         .DrawSprite = R_DrawSprite,
         .SetEntityAnimFrame = R_SetEntityAnimFrame,
-#ifdef WOW
-        .SetCharacterMenuEquipment = R_GameSetCharacterMenuEquipment,
-#endif
         .DrawText = R_DrawText,
         .GetTextSize = R_GetTextSize,
         .GetModelInfo = R_GetModelInfo,

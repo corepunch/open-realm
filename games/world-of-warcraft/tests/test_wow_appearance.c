@@ -5,8 +5,11 @@
 
 #include "common/shared.h"
 #include "common/net.h"
+#include "client/tr_public.h"
+#include "renderer/m2/r_dbc.h"
 #include "renderer/m2/r_m2_utils.h"
 
+refImport_t ri;
 
 void MemFree(HANDLE mem) {
     free(mem);
@@ -36,6 +39,16 @@ TEST(wow_m2, legacy_materials_use_render_flags_array) {
     T_EQ(m2_blend_mode(99), BLEND_MODE_NONE);
     T_EQ(m2_particle_blend_mode(3), BLEND_MODE_ADDALPHA);
     T_EQ(m2_particle_blend_mode(4), BLEND_MODE_ADD);
+}
+
+TEST(wow_m2, dbc_character_path_resolves_race_and_gender) {
+    DWORD race, gender;
+
+    T_ASSERT(M2_DbcCharacterRaceGender("Character\\Orc\\Male\\OrcMale.m2", &race, &gender));
+    T_EQ(race, 2); T_EQ(gender, 0);
+    T_ASSERT(M2_DbcCharacterRaceGender("Character/NightElf/Female/NightElfFemale.m2", &race, &gender));
+    T_EQ(race, 4); T_EQ(gender, 1);
+    T_ASSERT(!M2_DbcCharacterRaceGender("Creature\\Wolf\\Wolf.m2", &race, &gender));
 }
 
 TEST(wow_m2, particle_curve_preserves_fractional_scale_and_normalized_lifetime) {
@@ -103,6 +116,16 @@ TEST(wow_m2, file_arrays_are_bounds_checked) {
     T_ASSERT(m2_array_ptr(data, sizeof(data), valid, sizeof(DWORD)) == data + 4);
     T_ASSERT(m2_array_ptr(data, sizeof(data), overflow, sizeof(DWORD)) == NULL);
     T_ASSERT(m2_array_ptr(data, sizeof(data), negative, 1) == NULL);
+}
+
+TEST(wow_m2, skin_vertex_range_is_prevalidated_before_copy) {
+    WORD vertices[] = { 2, 0, 1 };
+    WORD indices[] = { 0, 2 };
+
+    T_ASSERT(m2_validate_skin_vertex_range(vertices, 3, indices, 2, 3, 0, 2));
+    T_ASSERT(!m2_validate_skin_vertex_range(vertices, 3, indices, 2, 2, 0, 2));
+    T_ASSERT(!m2_validate_skin_vertex_range(vertices, 3, indices, 1, 3, 0, 2));
+    T_ASSERT(!m2_validate_skin_vertex_range(vertices, 3, indices, 2, 3, 2, 1));
 }
 
 TEST(wow_m2, character_geoset_selection_uses_model_fallbacks) {

@@ -1,45 +1,17 @@
 #include "renderer/r_local.h"
 #include "renderer/r_emit.h"
+#include "r_dbc.h"
 #include "r_m2_utils.h"
 #include <stdlib.h>
 #include <strings.h>
 
 #define M2_MAX_BONES_PER_BATCH 128
+#define M2_MAX_BONES 1024
 #define M2_CHARACTER_TEXTURE_NONE 0xff
-
-enum {
-    M2_CHAR_TEX_UPPER_ARM,
-    M2_CHAR_TEX_LOWER_ARM,
-    M2_CHAR_TEX_HAND,
-    M2_CHAR_TEX_UPPER_TORSO,
-    M2_CHAR_TEX_LOWER_TORSO,
-    M2_CHAR_TEX_UPPER_LEG,
-    M2_CHAR_TEX_LOWER_LEG,
-    M2_CHAR_TEX_FOOT,
-    M2_CHAR_TEX_CAPE,       /* cape texture from ItemDisplayInfo.dbc field 3 */
-    M2_CHAR_TEX_COUNT
-};
-
-enum {
-    M2_SLOT_NONE,
-    M2_SLOT_HEAD,
-    M2_SLOT_SHOULDERS,
-    M2_SLOT_CHEST,
-    M2_SLOT_SHIRT,
-    M2_SLOT_BELT,
-    M2_SLOT_LEGS,
-    M2_SLOT_BOOTS,
-    M2_SLOT_GLOVES,
-    M2_SLOT_TABARD,
-    M2_SLOT_CAPE,
-    M2_SLOT_COUNT
-};
 
 typedef struct m2ModelBatch_s {
 	LPBUFFER buffer;
 	LPTEXTURE texture;
-	LPTEXTURE character_texture;
-	DWORD character_texture_key;
 	DWORD num_vertices;
 	DWORD texture_type;
 	WORD bone_count;
@@ -48,100 +20,26 @@ typedef struct m2ModelBatch_s {
 	WORD geoset_index;
 	BYTE alphamode;
 	BYTE character_texture_slot;
-	BOOL character_texture_loaded;
 	struct m2ModelBatch_s *next;
 } m2ModelBatch_t;
 
-#define M2_NUM_GEOSET_GROUPS 16
-#define M2_CHAR_TEX_PRIORITIES 7
-#define M2_CHAR_FLAG_KNEELENGTH 0x4u   /* chest item is a robe — hide pants geoset (group 13) */
-#define M2_CHAR_FLAG_HELM 0x100u
-
-typedef struct {
-    LPCSTR texture[M2_CHAR_TEX_CAPE][M2_CHAR_TEX_PRIORITIES];
-    LPCSTR cape_texture;
-    DWORD geoset[M2_NUM_GEOSET_GROUPS];
-    DWORD flags;  /* low bits: DBC ItemDisplayInfo inventory type (e.g. 1=head, 3=chest);
-                     high bits: M2_CHAR_FLAG_* renderer-side flags */
-} m2CharacterOutfit_t;
-
-#define M2_OUTFIT_CACHE_SIZE 32
-typedef struct {
-    m2CharacterOutfit_t outfit;
-    DWORD display_id;
-    DWORD appearance;
-    DWORD equipment;
-    BOOL occupied;
-    BOOL valid;
-} m2CharacterOutfitCache_t;
-
-enum { M2_COMPOSITE_CACHE_SIZE = 4 };
-typedef struct {
-    LPTEXTURE texture;
-    DWORD key;
-} m2CompositeCacheEntry_t;
-
-/* Ribbon edge state — persisted across frames so trails grow/shrink properly.
-   Each emitter produces a ring buffer of edges at the animated spine position.
-   Pattern derived from WoWee's M2Instance::RibbonEdge + updateRibbons. */
-#define MAX_RIBBON_EDGES 64
-typedef struct {
-    VECTOR3 world_pos;
-    VECTOR3 color;
-    float alpha, height_above, height_below, age;
-} m2RibbonEdge_t;
-
-typedef struct {
-    m2RibbonEdge_t edges[MAX_RIBBON_EDGES];
-    int head;       /* ring-buffer write index */
-    int count;      /* active edges, capped at MAX_RIBBON_EDGES */
-    float acc;      /* edge emission accumulator (rate * dt) */
-} m2RibbonEmitter_t;
-
 struct m2Model_s {
-    m2ModelBatch_t *batches;
-    DWORD num_batches;
+    m2File_t *file;
+    BYTE *file_image;
+    DWORD file_image_size;
+    DWORD base_offset;
+    DWORD file_size;
+    m2FormatDef_t const *format;
     PATHSTR filename;
     BOX3 bounds;
     BOX3 geometry_bounds;
-    BOOL has_geometry_bounds;
-	BOOL character_model;
-	BYTE *material_blend_modes;
-	DWORD num_materials;
-	m2CompositeCacheEntry_t composite_cache[M2_COMPOSITE_CACHE_SIZE];
-    DWORD composite_cache_lru;
-    m2CharacterOutfitCache_t character_outfit_cache[M2_OUTFIT_CACHE_SIZE];
-    m2CharacterOutfit_t character_outfit;
-    DWORD character_outfit_display_id;
-    DWORD character_outfit_appearance;
-    DWORD character_outfit_equipment;
-    BOOL character_outfit_resolved;
-    BOOL character_outfit_valid;
-    DWORD menu_equipment_display_id[M2_SLOT_COUNT];  /* menu-only full-slot equipment; 0 = no override */
-    BOOL menu_equipment_set;
-    BYTE *data;
-    DWORD data_size;
-    m2Header_t *header;
-    m2FormatDef_t const *format;
-    BYTE *bones;
-    BYTE *sequences;
-    WORD *bone_lookup_table;
-    m2Array_t global_loops;
-    DWORD bone_count;
-    DWORD sequence_count;
-    DWORD bone_lookup_count;
-    m2Array_t attachments;
-    m2Array_t attachment_lookup;
-    BYTE *cameras;
-    DWORD camera_count;
-    m2Array_t textures;
-    m2Array_t texture_lookup_table;
-    m2Array_t ribbons;
-    m2Array_t particles;
-    MATRIX4 *bone_matrices;
-    FLOAT *emitter_accumulators;    /* per-particle-emitter accumulator (rate*dt), avoids time-anchoring */
-    m2RibbonEmitter_t *ribbon_emitters; /* per-ribbon-emitter persistent edge state */
+    DWORD flags;
+    /* Renderer-owned state that has no representation in the M2 file. */
+    m2ModelBatch_t *batches;
+    DWORD num_batches;
 };
+
+#define M2_MODEL_CHARACTER 0x00000001u
 
 typedef struct {
     m2Array_t vertices;
@@ -151,6 +49,7 @@ typedef struct {
 } m2GeometryInfo_t;
 
 static LPSHADER m2_shader;
+static MATRIX4 m2_bone_matrices[M2_MAX_BONES];
 
 static LPSHADER M2_Shader(void) {
     if (!m2_shader) {
@@ -210,7 +109,6 @@ static m2Model_t *M2_CreateFallbackModel(LPCSTR modelFilename, LPCSTR reason) {
         .max = { 14.0f, 14.0f, 42.0f },
     };
     model->geometry_bounds = model->bounds;
-    model->has_geometry_bounds = true;
     batch = ri.MemAlloc(sizeof(*batch));
     memset(batch, 0, sizeof(*batch));
     batch->buffer = R_MakeVertexArrayObject(vertices, 12);
@@ -221,526 +119,10 @@ static m2Model_t *M2_CreateFallbackModel(LPCSTR modelFilename, LPCSTR reason) {
     return model;
 }
 
-typedef struct {
-    LPBYTE data;
-    DWORD size;
-    DWORD records;
-    DWORD fields;
-    DWORD record_size;
-    DWORD string_size;
-    BYTE const *records_base;
-    BYTE const *strings_base;
-    BOOL tried;
-    BOOL valid;
-} m2Dbc_t;
-
-static m2Dbc_t m2_char_start_outfit_dbc;
-static m2Dbc_t m2_item_display_info_dbc;
-static m2Dbc_t m2_char_sections_dbc;
-static m2Dbc_t m2_creature_display_info_dbc;
-static m2Dbc_t m2_creature_display_info_extra_dbc;
-
-static BOOL M2_DbcLoad(m2Dbc_t *dbc, LPCSTR filename) {
-    int size;
-
-    if (!dbc || !filename) {
-        return false;
-    }
-    if (dbc->tried) {
-        return dbc->valid;
-    }
-    dbc->tried = true;
-
-    size = ri.FS_ReadFile(filename, (void **)&dbc->data);
-    if (size <= 20 || !dbc->data || memcmp(dbc->data, "WDBC", 4)) {
-        SAFE_DELETE(dbc->data, ri.FS_FreeFile);
-        return false;
-    }
-
-    dbc->size = (DWORD)size;
-    dbc->records = m2_read32(dbc->data + 4);
-    dbc->fields = m2_read32(dbc->data + 8);
-    dbc->record_size = m2_read32(dbc->data + 12);
-    dbc->string_size = m2_read32(dbc->data + 16);
-    if (dbc->fields == 0 || dbc->record_size < sizeof(DWORD) ||
-        20 + dbc->records * dbc->record_size + dbc->string_size > dbc->size) {
-        SAFE_DELETE(dbc->data, ri.FS_FreeFile);
-        memset(dbc, 0, sizeof(*dbc));
-        dbc->tried = true;
-        return false;
-    }
-
-    dbc->records_base = dbc->data + 20;
-    dbc->strings_base = dbc->records_base + dbc->records * dbc->record_size;
-    dbc->valid = true;
-    return true;
-}
-
-static void M2_DbcShutdown(m2Dbc_t *dbc) {
-    if (!dbc) {
-        return;
-    }
-    SAFE_DELETE(dbc->data, ri.FS_FreeFile);
-    memset(dbc, 0, sizeof(*dbc));
-}
-
-static DWORD M2_DbcField(m2Dbc_t const *dbc, BYTE const *record, DWORD field) {
-    if (!dbc || !record || field >= dbc->fields || field * sizeof(DWORD) + sizeof(DWORD) > dbc->record_size) {
-        return 0;
-    }
-    return m2_read32(record + field * sizeof(DWORD));
-}
-
-static LPCSTR M2_DbcString(m2Dbc_t const *dbc, DWORD offset) {
-    if (!dbc || !dbc->valid || offset == 0 || offset >= dbc->string_size) {
-        return NULL;
-    }
-    return (LPCSTR)(dbc->strings_base + offset);
-}
-
-static BYTE const *M2_DbcFindID(m2Dbc_t *dbc, LPCSTR filename, DWORD wanted_id) {
-    if (!M2_DbcLoad(dbc, filename)) {
-        return NULL;
-    }
-    FOR_LOOP(i, dbc->records) {
-        BYTE const *record = dbc->records_base + i * dbc->record_size;
-        if (M2_DbcField(dbc, record, 0) == wanted_id) {
-            return record;
-        }
-    }
-    return NULL;
-}
-
-typedef struct {
-    BYTE const *extra;
-    DWORD appearance;
-    LPCSTR baked_texture;
-} m2CreatureAppearance_t;
-
-typedef struct {
-    m2CreatureAppearance_t appearance;
-    DWORD display_id;
-    BOOL resolved;
-    BOOL valid;
-} m2CreatureAppearanceCache_t;
-
-#define M2_CREATURE_APPEARANCE_CACHE_SIZE 256
-static m2CreatureAppearanceCache_t m2_creature_appearance_cache[M2_CREATURE_APPEARANCE_CACHE_SIZE];
-
-/* Character-model creatures use their display ID as the stable snapshot key;
- * the client DBCs own all customization, equipment, and baked-texture details. */
-static BOOL M2_ResolveCreatureAppearance(DWORD display_id, m2CreatureAppearance_t *out) {
-    m2CreatureAppearanceCache_t *cached;
-    BYTE const *display;
-    BYTE const *extra;
-    DWORD extra_id;
-
-    if (!display_id || !out) return false;
-    cached = &m2_creature_appearance_cache[display_id % M2_CREATURE_APPEARANCE_CACHE_SIZE];
-    if (cached->resolved && cached->display_id == display_id) {
-        if (cached->valid) *out = cached->appearance;
-        return cached->valid;
-    }
-    memset(cached, 0, sizeof(*cached));
-    cached->display_id = display_id;
-    cached->resolved = true;
-    memset(out, 0, sizeof(*out));
-    display = M2_DbcFindID(&m2_creature_display_info_dbc,
-                           "DBFilesClient\\CreatureDisplayInfo.dbc", display_id);
-    if (!display || m2_creature_display_info_dbc.fields < 4) return false;
-    extra_id = M2_DbcField(&m2_creature_display_info_dbc, display, 3);
-    if (!extra_id) return false;
-    extra = M2_DbcFindID(&m2_creature_display_info_extra_dbc,
-                         "DBFilesClient\\CreatureDisplayInfoExtra.dbc", extra_id);
-    if (!extra || m2_creature_display_info_extra_dbc.fields < 19) return false;
-    out->extra = extra;
-    out->appearance = Wow_PackAppearance((BYTE)M2_DbcField(&m2_creature_display_info_extra_dbc, extra, 3),
-                                         (BYTE)M2_DbcField(&m2_creature_display_info_extra_dbc, extra, 4),
-                                         (BYTE)M2_DbcField(&m2_creature_display_info_extra_dbc, extra, 5),
-                                         (BYTE)M2_DbcField(&m2_creature_display_info_extra_dbc, extra, 6),
-                                         (BYTE)M2_DbcField(&m2_creature_display_info_extra_dbc, extra, 7), 1, 0);
-    out->baked_texture = M2_DbcString(&m2_creature_display_info_extra_dbc,
-                                      M2_DbcField(&m2_creature_display_info_extra_dbc, extra, 18));
-    cached->appearance = *out;
-    cached->valid = true;
-    return true;
-}
-
-static BOOL M2_CharacterRaceGender(LPCSTR model_path, DWORD *race_id, DWORD *gender_id) {
-    LPCSTR character;
-    LPCSTR race;
-    LPCSTR gender;
-    char race_buf[64];
-    char gender_buf[64];
-    size_t len;
-
-    if (!model_path || !race_id || !gender_id) {
-        return false;
-    }
-    character = strcasestr(model_path, "Character\\");
-    if (!character) {
-        character = strcasestr(model_path, "Character/");
-    }
-    if (!character) {
-        return false;
-    }
-    race = character + strlen("Character\\");
-    gender = strpbrk(race, "\\/");
-    if (!gender) {
-        return false;
-    }
-    len = (size_t)(gender - race);
-    if (len == 0 || len >= sizeof(race_buf)) {
-        return false;
-    }
-    memcpy(race_buf, race, len);
-    race_buf[len] = '\0';
-
-    gender++;
-    len = strcspn(gender, "\\/.");
-    if (len == 0 || len >= sizeof(gender_buf)) {
-        return false;
-    }
-    memcpy(gender_buf, gender, len);
-    gender_buf[len] = '\0';
-
-    if (!strcasecmp(race_buf, "Human")) *race_id = 1;
-    else if (!strcasecmp(race_buf, "Orc")) *race_id = 2;
-    else if (!strcasecmp(race_buf, "Dwarf")) *race_id = 3;
-    else if (!strcasecmp(race_buf, "NightElf")) *race_id = 4;
-    else if (!strcasecmp(race_buf, "Scourge") || !strcasecmp(race_buf, "Undead")) *race_id = 5;
-    else if (!strcasecmp(race_buf, "Tauren")) *race_id = 6;
-    else if (!strcasecmp(race_buf, "Gnome")) *race_id = 7;
-    else if (!strcasecmp(race_buf, "Troll")) *race_id = 8;
-    else if (!strcasecmp(race_buf, "BloodElf")) *race_id = 10;
-    else if (!strcasecmp(race_buf, "Draenei")) *race_id = 11;
-    else return false;
-
-    if (!strcasecmp(gender_buf, "Male")) *gender_id = 0;
-    else if (!strcasecmp(gender_buf, "Female")) *gender_id = 1;
-    else return false;
-    return true;
-}
-
-static DWORD M2_ItemDisplayInfoTextureBase(m2Dbc_t const *dbc) {
-    if (!dbc) {
-        return 0;
-    }
-    if (dbc->fields >= 25) {
-        return 15;
-    }
-    if (dbc->fields >= 22) {
-        return 14;
-    }
-    return 0;
-}
-
-static DWORD M2_ItemDisplayInfoGeosetBase(m2Dbc_t const *dbc) {
-    if (!dbc) {
-        return 0;
-    }
-    return dbc->fields >= 22 ? 7 : 0;
-}
-
-static DWORD M2_ItemDisplayInfoFlagsField(m2Dbc_t const *dbc) {
-    if (!dbc) {
-        return 0;
-    }
-    return dbc->fields >= 22 ? 10 : 0;
-}
-
-/* ItemDisplayInfo.dbc field 3 = LeftModelTexture (cape texture stem).
- * Classic (23-field) and TBC/Wrath (25-field) layouts both use field 3. */
-static DWORD M2_ItemDisplayInfoCapeTextureField(m2Dbc_t const *dbc) {
-    (void)dbc;
-    return 3;
-}
-
-// Maps (slot, geosetFieldIndex) → M2 section group number.
-// geosetFieldIndex 0/1/2 correspond to geosetGroup[0]/[1]/[2] from ItemDisplayInfo.dbc.
-// Group 0 means "no group mapping" for that field.
-static DWORD const slot_geoset_group_map[M2_SLOT_COUNT][3] = {
-    /* NONE */      { 0, 0, 0 },
-    /* HEAD */      { 0, 0, 0 },
-    /* SHOULDERS */ { 0, 0, 0 },
-    /* CHEST */     { 8, 0, 13 },
-    /* SHIRT */     { 8, 0, 0 },
-    /* BELT */      { 0, 0, 0 },
-    /* LEGS */      { 13, 0, 0 },
-    /* BOOTS */     { 5, 0, 0 },
-    /* GLOVES */    { 4, 0, 0 },
-    /* TABARD */    { 0, 0, 0 },
-    /* CAPE */      { 15, 0, 0 },
-};
-
-static void M2_AddDisplayInfoToOutfit(m2CharacterOutfit_t *outfit, DWORD display_id, DWORD slot) {
-    BYTE const *record;
-    DWORD texture_base;
-    DWORD geoset_base;
-    DWORD flags_field;
-
-    if (!outfit || display_id == 0 || display_id == 0xffffffffu) {
-        return;
-    }
-    record = M2_DbcFindID(&m2_item_display_info_dbc,
-                          "DBFilesClient\\ItemDisplayInfo.dbc",
-                          display_id);
-    if (!record) {
-        return;
-    }
-    if (slot == M2_SLOT_NONE || slot >= M2_SLOT_COUNT) return;
-
-    texture_base = M2_ItemDisplayInfoTextureBase(&m2_item_display_info_dbc);
-    geoset_base = M2_ItemDisplayInfoGeosetBase(&m2_item_display_info_dbc);
-    flags_field = M2_ItemDisplayInfoFlagsField(&m2_item_display_info_dbc);
-
-    FOR_LOOP(i, 3) {
-        DWORD group = (slot < M2_SLOT_COUNT) ? slot_geoset_group_map[slot][i] : 0;
-        if (group) {
-            DWORD geoset_val = M2_DbcField(&m2_item_display_info_dbc, record, geoset_base + i);
-            if (geoset_val) {
-                outfit->geoset[group] = geoset_val;
-            }
-        }
-    }
-    {
-        DWORD item_flags = M2_DbcField(&m2_item_display_info_dbc, record, flags_field);
-        if (slot == M2_SLOT_HEAD && item_flags == 1) {
-            outfit->flags |= M2_CHAR_FLAG_HELM;
-        }
-        outfit->flags |= item_flags;
-    }
-    FOR_LOOP(i, M2_CHAR_TEX_CAPE) {
-        LPCSTR texture = M2_DbcString(&m2_item_display_info_dbc,
-                                      M2_DbcField(&m2_item_display_info_dbc, record, texture_base + i));
-        signed char priority = Wow_CharacterTexturePriority(slot, i);
-        if (texture && *texture && priority >= 0) outfit->texture[i][priority] = texture;
-    }
-    /* Cape texture: ItemDisplayInfo.dbc field 3 = LeftModelTexture.
-     * WoWee reads this field for slot 10 (cape) and resolves gender variants. */
-    if (slot == M2_SLOT_CAPE) {
-        DWORD cape_field = M2_ItemDisplayInfoCapeTextureField(&m2_item_display_info_dbc);
-        LPCSTR cape_tex = M2_DbcString(&m2_item_display_info_dbc,
-                                       M2_DbcField(&m2_item_display_info_dbc, record, cape_field));
-        if (cape_tex && *cape_tex) {
-            outfit->cape_texture = cape_tex;
-        }
-    }
-}
-
-static void M2_AddDisplayInfoListToOutfit(m2CharacterOutfit_t *outfit,
-                                           DWORD const *display_ids,
-                                           DWORD display_count,
-                                           DWORD slot) {
-    FOR_LOOP(i, display_count) {
-        M2_AddDisplayInfoToOutfit(outfit, display_ids[i], slot);
-    }
-}
-
-typedef struct {
-    DWORD display_ids[4];
-} m2EquipmentItem_t;
-
-typedef struct {
-    DWORD race_id;
-    DWORD gender_id;
-    m2EquipmentItem_t items[256];
-} m2EquipmentSlotItems_t;
-
-static m2EquipmentItem_t const *M2_EquipmentSlotItem(m2EquipmentSlotItems_t const *lists,
-                                                    DWORD list_count,
-                                                    DWORD race_id,
-                                                    DWORD gender_id,
-                                                    BYTE item_index) {
-    FOR_LOOP(i, list_count) {
-        if (lists[i].race_id == race_id && lists[i].gender_id == gender_id) {
-            return &lists[i].items[item_index];
-        }
-    }
-    return NULL;
-}
-
-static void M2_AddEquipmentItemToOutfit(m2CharacterOutfit_t *outfit,
-                                        m2EquipmentSlotItems_t const *lists,
-                                        DWORD list_count,
-                                        DWORD race_id,
-                                        DWORD gender_id,
-                                        BYTE item_index,
-                                        DWORD slot) {
-    m2EquipmentItem_t const *item = M2_EquipmentSlotItem(lists, list_count, race_id, gender_id, item_index);
-
-    if (!outfit || !item) {
-        return;
-    }
-    M2_AddDisplayInfoListToOutfit(outfit,
-                                  item->display_ids,
-                                  sizeof(item->display_ids) / sizeof(item->display_ids[0]),
-                                  slot);
-}
-
-static void M2_ApplyEquipmentItems(m2CharacterOutfit_t *outfit,
-                                   DWORD race_id,
-                                   DWORD gender_id,
-                                   DWORD equipment) {
-    /* In-game entity equipment is limited to 4 slots (chest/legs/gloves/boots) packed in a single
-     * DWORD via wowEquipment_t. The full 12-slot outfit (head/shoulders/tabard/cape/belt etc.) is
-     * reserved for the character menu preview and uses M2_ApplyEquipmentFull instead.
-     * TODO: extend entityState_t equipment when full in-game outfit display is needed. */
-    static m2EquipmentSlotItems_t const upper_body_items[] = {
-        { 2, 0, { [1] = { { 27274, 0, 0, 0 } } } }
-    };
-    static m2EquipmentSlotItems_t const lower_body_items[] = {
-        { 2, 0, { [1] = { { 27275, 0, 0, 0 } } } }
-    };
-    static m2EquipmentSlotItems_t const hand_items[] = {
-        { 2, 0, { [1] = { { 27271, 0, 0, 0 } } } }
-    };
-    static m2EquipmentSlotItems_t const foot_items[] = {
-        { 2, 0, { [1] = { { 27270, 0, 0, 0 } } } }
-    };
-    wowEquipment_t items = Wow_UnpackEquipment(equipment);
-
-    M2_AddEquipmentItemToOutfit(outfit, upper_body_items,
-                                sizeof(upper_body_items) / sizeof(upper_body_items[0]),
-                                race_id, gender_id, items.upperBodyItem, M2_SLOT_CHEST);
-    M2_AddEquipmentItemToOutfit(outfit, lower_body_items,
-                                sizeof(lower_body_items) / sizeof(lower_body_items[0]),
-                                race_id, gender_id, items.lowerBodyItem, M2_SLOT_LEGS);
-    M2_AddEquipmentItemToOutfit(outfit, hand_items,
-                                sizeof(hand_items) / sizeof(hand_items[0]),
-                                race_id, gender_id, items.handItem, M2_SLOT_GLOVES);
-    M2_AddEquipmentItemToOutfit(outfit, foot_items,
-                                sizeof(foot_items) / sizeof(foot_items[0]),
-                                race_id, gender_id, items.footItem, M2_SLOT_BOOTS);
-}
-
-/* Menu-only full-slot equipment: accepts ItemDisplayInfo IDs for all 12 slots.
- * Non-zero display IDs are resolved and applied to the outfit, overriding
- * CharStartOutfit defaults.  Used by the character preview menu for showing
- * full equipped character appearance without network protocol constraints. */
-static void M2_ApplyEquipmentFull(m2CharacterOutfit_t *outfit,
-                                  DWORD const *display_ids,
-                                  DWORD count) {
-    if (!outfit || !display_ids || !count) return;
-    FOR_LOOP(i, MIN(count, (DWORD)M2_SLOT_COUNT)) {
-        if (display_ids[i]) M2_AddDisplayInfoToOutfit(outfit, display_ids[i], i);
-    }
-}
-
-static BOOL M2_CharacterStartOutfit(LPCSTR model_path,
-                                    DWORD appearance,
-                                    m2CharacterOutfit_t *outfit) {
-    DWORD race_id;
-    DWORD gender_id;
-    DWORD class_id;
-    wowAppearance_t unpacked;
-
-    if (!outfit || !M2_CharacterRaceGender(model_path, &race_id, &gender_id) ||
-        !M2_DbcLoad(&m2_char_start_outfit_dbc, "DBFilesClient\\CharStartOutfit.dbc")) {
-        return false;
-    }
-
-    memset(outfit, 0, sizeof(*outfit));
-    unpacked = Wow_UnpackAppearance(appearance);
-    class_id = unpacked.classID ? unpacked.classID : 1;
-
-    FOR_LOOP(record_index, m2_char_start_outfit_dbc.records) {
-        BYTE const *record = m2_char_start_outfit_dbc.records_base + record_index * m2_char_start_outfit_dbc.record_size;
-        DWORD race_class_gender = M2_DbcField(&m2_char_start_outfit_dbc, record, 1);
-        DWORD record_race = race_class_gender & 0xff;
-        DWORD record_class = (race_class_gender >> 8) & 0xff;
-        DWORD record_gender = (race_class_gender >> 16) & 0xff;
-
-        if (record_race != race_id || record_class != class_id || record_gender != gender_id) {
-            continue;
-        }
-        /* Classic CharStartOutfit fields 14-25 are display IDs and 26-37 are
-         * their parallel InventoryTypes. Empty backpack entries must not be
-         * interpreted as equipped head/shoulder/chest items. */
-        FOR_LOOP(i, 12) {
-            DWORD display_id = M2_DbcField(&m2_char_start_outfit_dbc, record, 14 + i);
-            DWORD slot = Wow_CharacterSlotForInventoryType(M2_DbcField(&m2_char_start_outfit_dbc, record, 26 + i));
-            M2_AddDisplayInfoToOutfit(outfit, display_id, slot);
-        }
-        return true;
-    }
-    return false;
-}
-
-static m2CharacterOutfit_t const *M2_CharacterOutfitForEntity(m2Model_t const *model,
-                                                              renderEntity_t const *entity,
-                                                              m2CreatureAppearance_t const *creature) {
-    m2Model_t *mutable_model;
-    m2CharacterOutfitCache_t *cached;
-    DWORD race_id;
-    DWORD gender_id;
-
-    if (!model || !entity || !model->character_model) {
-        return NULL;
-    }
-    if (!M2_CharacterRaceGender(model->filename, &race_id, &gender_id)) {
-        return NULL;
-    }
-
-    mutable_model = (m2Model_t *)model;
-    if (!mutable_model->menu_equipment_set) {
-        FOR_LOOP(i, M2_OUTFIT_CACHE_SIZE) {
-            cached = &mutable_model->character_outfit_cache[i];
-            if (cached->occupied && cached->display_id == entity->display_id &&
-                cached->appearance == entity->appearance && cached->equipment == entity->equipment)
-                return cached->valid ? &cached->outfit : NULL;
-        }
-        cached = &mutable_model->character_outfit_cache[
-            (entity->display_id ^ entity->appearance ^ entity->equipment) % M2_OUTFIT_CACHE_SIZE];
-        memset(cached, 0, sizeof(*cached));
-        cached->occupied = true;
-        cached->display_id = entity->display_id;
-        cached->appearance = entity->appearance;
-        cached->equipment = entity->equipment;
-        if (creature && creature->extra) {
-            FOR_LOOP(i, 9)
-                M2_AddDisplayInfoToOutfit(&cached->outfit,
-                                          M2_DbcField(&m2_creature_display_info_extra_dbc,
-                                                      creature->extra, 8 + i),
-                                          Wow_CharacterCreatureItemSlot(i));
-        } else if (!M2_CharacterStartOutfit(model->filename, entity->appearance, &cached->outfit)) return NULL;
-        if (!creature) M2_ApplyEquipmentItems(&cached->outfit, race_id, gender_id, entity->equipment);
-        cached->valid = true;
-        return &cached->outfit;
-    }
-    if (mutable_model->character_outfit_resolved &&
-        mutable_model->character_outfit_display_id == entity->display_id &&
-        mutable_model->character_outfit_appearance == entity->appearance) {
-        return mutable_model->character_outfit_valid ? &mutable_model->character_outfit : NULL;
-    }
-
-    mutable_model->character_outfit_display_id = entity->display_id;
-    mutable_model->character_outfit_appearance = entity->appearance;
-    mutable_model->character_outfit_equipment = entity->equipment;
-    mutable_model->character_outfit_resolved = true;
-    mutable_model->character_outfit_valid = false;
-    if (!M2_CharacterStartOutfit(model->filename, entity->appearance,
-                                 &mutable_model->character_outfit)) return NULL;
-    M2_ApplyEquipmentFull(&mutable_model->character_outfit,
-                          mutable_model->menu_equipment_display_id, M2_SLOT_COUNT);
-    mutable_model->character_outfit_valid = true;
-    return &mutable_model->character_outfit;
-}
-
-/* Set full-slot equipment display IDs for menu character preview. NULL enables
- * the archive-backed CharStartOutfit defaults without slot overrides. */
-void M2_SetCharacterMenuEquipment(m2Model_t *model, DWORD const *display_ids, DWORD count) {
-    DWORD next[M2_SLOT_COUNT] = {0};
-    if (!model) return;
-    if (display_ids && count)
-        memcpy(next, display_ids, MIN(count, (DWORD)M2_SLOT_COUNT) * sizeof(DWORD));
-    /* UI models submit this state every draw; preserve the resolved composite when it is unchanged. */
-    if (model->menu_equipment_set && !memcmp(model->menu_equipment_display_id, next, sizeof(next))) return;
-    model->menu_equipment_set = true;
-    model->character_outfit_resolved = false;
-    memcpy(model->menu_equipment_display_id, next, sizeof(next));
-}
-
+/* Modified character atlases are rendered into this shared scratch target. */
+#define M2_CHARACTER_COMPOSITE_RESOLUTION 256
+static LPRENDERTARGET m2_character_composite_target;
+static TEXTURE m2_character_composite_texture;
 static BYTE M2_CharacterTextureSlotForSection(WORD section_id) {
     switch (section_id) {
         case 401:
@@ -771,66 +153,6 @@ static BYTE M2_CharacterTextureSlotForSection(WORD section_id) {
     }
 }
 
-static BOOL M2_CharacterVariationTexturePath(LPCSTR model_path,
-                                             DWORD section_index,
-                                             DWORD variation_index,
-                                             DWORD color_index,
-                                             DWORD texture_index,
-                                             LPSTR out,
-                                             DWORD out_size) {
-    /* Classic CharSections.dbc: 10 fields, textures not contiguous.
-       0=ID 1=race 2=sex 3=section 4=tex[0] 5=variation
-       6=tex[1] 7=tex[2] 8=tex[3] 9=color */
-    DWORD race_id, gender_id;
-
-    if (!out || out_size == 0 ||
-        !M2_CharacterRaceGender(model_path, &race_id, &gender_id) ||
-        !M2_DbcLoad(&m2_char_sections_dbc, "DBFilesClient\\CharSections.dbc")) {
-        return false;
-    }
-
-    FOR_LOOP(i, m2_char_sections_dbc.records) {
-        BYTE const *record = m2_char_sections_dbc.records_base + i * m2_char_sections_dbc.record_size;
-        LPCSTR texture;
-
-        if (M2_DbcField(&m2_char_sections_dbc, record, 1) != race_id ||
-            M2_DbcField(&m2_char_sections_dbc, record, 2) != gender_id ||
-            M2_DbcField(&m2_char_sections_dbc, record, 3) != section_index ||
-            M2_DbcField(&m2_char_sections_dbc, record, 5) != variation_index ||
-            M2_DbcField(&m2_char_sections_dbc, record, 9) != color_index) {
-            continue;
-        }
-        if (texture_index >= 3)
-            return false;
-        texture = M2_DbcString(&m2_char_sections_dbc, M2_DbcField(&m2_char_sections_dbc, record, 6 + texture_index));
-        if (!texture || !*texture)
-            continue;
-        snprintf(out, out_size, "%s", texture);
-        return true;
-    }
-    return false;
-}
-
-static BOOL M2_CharacterTexturePathForType(LPCSTR model_path,
-                                           DWORD appearance,
-                                           DWORD texture_type,
-                                           LPSTR out,
-                                           DWORD out_size) {
-    wowAppearance_t unpacked = Wow_UnpackAppearance(appearance);
-    switch (texture_type) {
-        case 1:
-            return M2_CharacterVariationTexturePath(model_path, 0, 0, unpacked.skinColorID, 0, out, out_size);
-        case 2:
-            return M2_CharacterVariationTexturePath(model_path, 4, 0, unpacked.skinColorID, 0, out, out_size);
-        case 6:
-            return M2_CharacterVariationTexturePath(model_path, 3, unpacked.hairStyleID, unpacked.hairColorID, 0, out, out_size);
-        case 8:
-            return M2_CharacterVariationTexturePath(model_path, 0, 0, unpacked.skinColorID, 1, out, out_size);
-        default:
-            return false;
-    }
-}
-
 static BOOL M2_TextureExists(LPCSTR path) {
     LPBYTE data = NULL;
     int size;
@@ -854,7 +176,7 @@ static BOOL M2_CharacterComponentTexturePath(LPCSTR stem,
                                              LPCSTR model_path,
                                              LPSTR out,
                                              DWORD out_size) {
-    static LPCSTR const folders[M2_CHAR_TEX_CAPE] = {
+    static LPCSTR const folders[M2_CHAR_TEX_COMPONENT_COUNT] = {
         "ArmUpperTexture",
         "ArmLowerTexture",
         "HandTexture",
@@ -869,10 +191,10 @@ static BOOL M2_CharacterComponentTexturePath(LPCSTR stem,
     LPCSTR gender_suffix;
     PATHSTR candidate;
 
-    if (!stem || !*stem || slot >= M2_CHAR_TEX_CAPE || !out || out_size == 0) {
+    if (!stem || !*stem || slot >= M2_CHAR_TEX_COMPONENT_COUNT || !out || out_size == 0) {
         return false;
     }
-    gender_suffix = M2_CharacterRaceGender(model_path, &race_id, &gender_id) && gender_id ? "F" : "M";
+    gender_suffix = M2_DbcCharacterRaceGender(model_path, &race_id, &gender_id) && gender_id ? "F" : "M";
 
     snprintf(candidate, sizeof(candidate), "Item\\TextureComponents\\%s\\%s_%s.blp",
              folders[slot], stem, gender_suffix);
@@ -893,188 +215,6 @@ static BOOL M2_CharacterComponentTexturePath(LPCSTR stem,
         return true;
     }
     return false;
-}
-
-static BOOL M2_TexturePixels(LPTEXTURE texture, LPCOLOR32 *pixels) {
-    if (!texture || !texture->texid || !texture->width || !texture->height || !pixels) {
-        return false;
-    }
-    *pixels = ri.MemAlloc(sizeof(COLOR32) * texture->width * texture->height);
-    if (!*pixels) {
-        return false;
-    }
-    R_Call(glBindTexture, GL_TEXTURE_2D, texture->texid);
-#if __linux__
-    R_Call(glGetTexImage, GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, *pixels);
-#else
-    R_Call(glGetTexImage, GL_TEXTURE_2D, 0, GL_BGRA, GL_UNSIGNED_BYTE, *pixels);
-#endif
-    return true;
-}
-
-
-static void M2_PasteOutfitComponent(LPCOLOR32 pixels,
-                                    DWORD width,
-                                    DWORD height,
-                                    LPCSTR model_path,
-                                    LPCSTR stem,
-                                    BYTE slot) {
-    enum { character_component_atlas_size = 512 };
-    static DWORD const rects[M2_CHAR_TEX_CAPE][4] = {
-        { 0,   0,   256, 128 },
-        { 0,   128, 256, 128 },
-        { 0,   256, 256, 64  },
-        { 256, 0,   256, 128 },
-        { 256, 128, 256, 64  },
-        { 256, 192, 256, 128 },
-        { 256, 320, 256, 128 },
-        { 256, 448, 256, 64  }
-    };
-    PATHSTR texture_path;
-    LPTEXTURE texture;
-    LPCOLOR32 component_pixels = NULL;
-    DWORD dst_x;
-    DWORD dst_y;
-    DWORD dst_w;
-    DWORD dst_h;
-
-    if (!stem || slot >= M2_CHAR_TEX_CAPE ||
-        !M2_CharacterComponentTexturePath(stem, slot, model_path, texture_path, sizeof(texture_path))) {
-        return;
-    }
-    texture = R_LoadTexture(texture_path);
-    if (!texture || !M2_TexturePixels(texture, &component_pixels)) {
-        SAFE_DELETE(texture, R_ReleaseTexture);
-        return;
-    }
-    dst_x = rects[slot][0] * width / character_component_atlas_size;
-    dst_y = rects[slot][1] * height / character_component_atlas_size;
-    dst_w = MAX(1u, rects[slot][2] * width / character_component_atlas_size);
-    dst_h = MAX(1u, rects[slot][3] * height / character_component_atlas_size);
-    m2_paste_component(pixels, width, height, component_pixels,
-                       texture->width, texture->height, dst_x, dst_y, dst_w, dst_h);
-    ri.MemFree(component_pixels);
-    R_ReleaseTexture(texture);
-}
-
-/* Paste a CharSections variation (e.g. face or facial hair) into the head
-   regions of the composite.  section_id: 1=face, 2=facial_hair.
-   HEAD_UPPER = (0,320,256,64), HEAD_LOWER = (0,384,256,128) in the 512 atlas. */
-static void M2_PasteHeadVariation(LPCOLOR32 pixels,
-                                  DWORD width,
-                                  DWORD height,
-                                  LPCSTR model_path,
-                                  DWORD section_id,
-                                  DWORD variation_index,
-                                  DWORD color_index) {
-    enum { atlas = 512 };
-    static DWORD const head_rects[2][4] = {
-        { 0, 320, 256, 64  }, /* HEAD_UPPER, texture_index 1 */
-        { 0, 384, 256, 128 }, /* HEAD_LOWER, texture_index 0 */
-    };
-    /* upper first (tex 1), then lower (tex 0) */
-    static DWORD const tex_indices[2] = { 1, 0 };
-
-    for (int i = 0; i < 2; i++) {
-        PATHSTR path;
-        LPTEXTURE tex;
-        LPCOLOR32 src = NULL;
-        DWORD dx, dy, dw, dh;
-
-        if (!M2_CharacterVariationTexturePath(model_path, section_id,
-                                              variation_index, color_index,
-                                              tex_indices[i],
-                                              path, sizeof(path))) {
-            continue;
-        }
-        tex = R_LoadTexture(path);
-        if (!tex || !M2_TexturePixels(tex, &src)) {
-            SAFE_DELETE(tex, R_ReleaseTexture);
-            continue;
-        }
-        dx = head_rects[i][0] * width  / atlas;
-        dy = head_rects[i][1] * height / atlas;
-        dw = MAX(1u, head_rects[i][2] * width  / atlas);
-        dh = MAX(1u, head_rects[i][3] * height / atlas);
-        m2_paste_component(pixels, width, height, src, tex->width, tex->height,
-                          dx, dy, dw, dh);
-        ri.MemFree(src);
-        R_ReleaseTexture(tex);
-    }
-}
-
-static BOOL M2_DefaultCharacterTexturePath(LPCSTR model_path,
-                                           DWORD texture_type,
-                                           LPSTR out,
-                                           DWORD out_size) {
-    LPCSTR character;
-    LPCSTR race;
-    LPCSTR gender;
-    LPCSTR model_name;
-    char race_buf[64];
-    char gender_buf[64];
-    char model_buf[64];
-    size_t len;
-
-    if (!model_path || !out || out_size == 0) {
-        return false;
-    }
-    character = strcasestr(model_path, "Character\\");
-    if (!character) {
-        character = strcasestr(model_path, "Character/");
-    }
-    if (!character) {
-        return false;
-    }
-    race = character + strlen("Character\\");
-    gender = strpbrk(race, "\\/");
-    if (!gender) {
-        return false;
-    }
-    len = (size_t)(gender - race);
-    if (len == 0 || len >= sizeof(race_buf)) {
-        return false;
-    }
-    memcpy(race_buf, race, len);
-    race_buf[len] = '\0';
-
-    gender++;
-    model_name = strpbrk(gender, "\\/");
-    if (!model_name) {
-        model_name = strrchr(gender, '.');
-        if (!model_name) {
-            return false;
-        }
-        len = (size_t)(model_name - gender);
-        if (len == 0 || len >= sizeof(gender_buf)) {
-            return false;
-        }
-        memcpy(gender_buf, gender, len);
-        gender_buf[len] = '\0';
-        model_name = gender;
-    } else {
-        len = (size_t)(model_name - gender);
-        if (len == 0 || len >= sizeof(gender_buf)) {
-            return false;
-        }
-        memcpy(gender_buf, gender, len);
-        gender_buf[len] = '\0';
-        model_name++;
-    }
-
-    len = strcspn(model_name, ".");
-    if (len == 0 || len >= sizeof(model_buf)) {
-        return false;
-    }
-    memcpy(model_buf, model_name, len);
-    model_buf[len] = '\0';
-
-    switch (texture_type) {
-        case 6:
-            return M2_CharacterVariationTexturePath(model_path, 3, 0, 0, 0, out, out_size);
-        default:
-            return false;
-    }
 }
 
 static BOOL M2_DefaultObjectComponentTexturePath(LPCSTR model_path,
@@ -1149,57 +289,84 @@ static BOOL M2_DefaultCreatureTexturePath(LPCSTR model_path,
 }
 
 static void *M2_ModelArrayPtr(m2Model_t const *model, m2Array_t array, DWORD elem_size) {
-    if (!model || !model->data) {
+    if (!model || !model->file) {
         return NULL;
     }
-    return m2_array_ptr(model->data, model->data_size, array, elem_size);
+    return m2_array_ptr((BYTE const *)model->file, model->file_size, array, elem_size);
+}
+
+/* Classic and modern headers are both file images; access their arrays without copying schema into runtime state. */
+#define BZ_M2_ARRAY_ACCESSOR(name, field) \
+static m2Array_t name(m2Model_t const *model) { \
+    return model->format->format == M2_FORMAT_CLASSIC ? \
+        model->file->classic.field : model->file->modern.field; \
+}
+BZ_M2_ARRAY_ACCESSOR(M2_GlobalLoopsArray, global_loops)
+BZ_M2_ARRAY_ACCESSOR(M2_SequencesArray, sequences)
+BZ_M2_ARRAY_ACCESSOR(M2_BonesArray, bones)
+BZ_M2_ARRAY_ACCESSOR(M2_BoneLookupArray, bone_lookup_table)
+BZ_M2_ARRAY_ACCESSOR(M2_AttachmentsArray, attachments)
+BZ_M2_ARRAY_ACCESSOR(M2_AttachmentLookupArray, attachment_lookup)
+BZ_M2_ARRAY_ACCESSOR(M2_CamerasArray, cameras)
+BZ_M2_ARRAY_ACCESSOR(M2_TexturesArray, textures)
+BZ_M2_ARRAY_ACCESSOR(M2_TextureLookupArray, texture_lookup_table)
+BZ_M2_ARRAY_ACCESSOR(M2_RibbonsArray, ribbons)
+BZ_M2_ARRAY_ACCESSOR(M2_ParticlesArray, particles)
+#undef BZ_M2_ARRAY_ACCESSOR
+
+static BYTE const *M2_Sequences(m2Model_t const *model) {
+    return M2_ModelArrayPtr(model, M2_SequencesArray(model), model->format->sequence_stride);
+}
+
+static DWORD M2_SequenceCount(m2Model_t const *model) { return model ? (DWORD)M2_SequencesArray(model).size : 0; }
+
+static BYTE const *M2_Sequence(m2Model_t const *model, DWORD index) {
+    BYTE const *sequences = model ? M2_Sequences(model) : NULL;
+    return sequences && index < M2_SequenceCount(model) ? sequences + index * model->format->sequence_stride : NULL;
+}
+
+static BYTE const *M2_Bones(m2Model_t const *model) {
+    return M2_ModelArrayPtr(model, M2_BonesArray(model), model->format->bone_stride);
+}
+
+static WORD const *M2_BoneLookup(m2Model_t const *model) {
+    return M2_ModelArrayPtr(model, M2_BoneLookupArray(model), sizeof(WORD));
 }
 
 static DWORD M2_SequenceStart(m2Model_t const *model, DWORD sequence_index) {
-    if (!model || !model->sequences || sequence_index >= model->sequence_count) {
-        return 0;
-    }
+    BYTE const *sequence = M2_Sequence(model, sequence_index);
+    if (!sequence) return 0;
     if (model->format->format == M2_FORMAT_CLASSIC) {
-        m2SequenceClassic_t const *sequence = (m2SequenceClassic_t const *)(model->sequences + sequence_index * model->format->sequence_stride);
-        return sequence->start_timestamp;
+        return ((m2SequenceClassic_t const *)sequence)->start_timestamp;
     }
     return 0;
 }
 
 static DWORD M2_SequenceDuration(m2Model_t const *model, DWORD sequence_index) {
-    if (!model || !model->sequences || sequence_index >= model->sequence_count) {
-        return 0;
-    }
+    BYTE const *sequence = M2_Sequence(model, sequence_index);
+    if (!sequence) return 0;
     if (model->format->format == M2_FORMAT_CLASSIC) {
-        m2SequenceClassic_t const *sequence = (m2SequenceClassic_t const *)(model->sequences + sequence_index * model->format->sequence_stride);
-        return sequence->end_timestamp > sequence->start_timestamp
-            ? sequence->end_timestamp - sequence->start_timestamp
+        m2SequenceClassic_t const *classic = (m2SequenceClassic_t const *)sequence;
+        return classic->end_timestamp > classic->start_timestamp
+            ? classic->end_timestamp - classic->start_timestamp
             : 0;
     } else {
-        m2SequenceModern_t const *sequence = (m2SequenceModern_t const *)(model->sequences + sequence_index * model->format->sequence_stride);
-        return sequence->duration;
+        return ((m2SequenceModern_t const *)sequence)->duration;
     }
 }
 
 static DWORD M2_SequenceFlags(m2Model_t const *model, DWORD sequence_index) {
-    if (!model || !model->sequences || sequence_index >= model->sequence_count) {
-        return 0;
-    }
-    if (model->format->format == M2_FORMAT_CLASSIC) {
-        m2SequenceClassic_t const *sequence = (m2SequenceClassic_t const *)(model->sequences + sequence_index * model->format->sequence_stride);
-        return sequence->flags;
-    } else {
-        m2SequenceModern_t const *sequence = (m2SequenceModern_t const *)(model->sequences + sequence_index * model->format->sequence_stride);
-        return sequence->flags;
-    }
+    BYTE const *sequence = M2_Sequence(model, sequence_index);
+    if (!sequence) return 0;
+    return model->format->format == M2_FORMAT_CLASSIC ? ((m2SequenceClassic_t const *)sequence)->flags
+                                                       : ((m2SequenceModern_t const *)sequence)->flags;
 }
 
 static WORD M2_SequenceAnimId(m2Model_t const *model, DWORD sequence_index) {
     BYTE const *sequence;
 
-    if (!model || !model->sequences || sequence_index >= model->sequence_count)
-        return 0;
-    sequence = model->sequences + sequence_index * model->format->sequence_stride;
+    sequence = M2_Sequence(model, sequence_index);
+    if (!sequence) return 0;
     if (model->format->format == M2_FORMAT_CLASSIC)
         return ((m2SequenceClassic_t const *)sequence)->animation_id;
     return ((m2SequenceModern_t const *)sequence)->animation_id;
@@ -1209,7 +376,7 @@ static WORD M2_SequenceAnimId(m2Model_t const *model, DWORD sequence_index) {
 static BOOL M2_FindSequenceByAnimId(m2Model_t const *model, DWORD anim_id, LPDWORD sequence_index) {
     if (!model || !sequence_index)
         return false;
-    FOR_LOOP(i, model->sequence_count) {
+    FOR_LOOP(i, M2_SequenceCount(model)) {
         if (M2_SequenceAnimId(model, i) == anim_id) {
             *sequence_index = i;
             return true;
@@ -1235,7 +402,7 @@ BOOL M2_SetEntitySequenceFrame(m2Model_t const *model, LPCSTR anim, renderEntity
         return false;
     if (!M2_FindSequenceByAnimId(model, anim_id, &sequence_index))
         sequence_index = anim_id;
-    if (model->sequence_count > 0 && sequence_index >= model->sequence_count)
+    if (M2_SequenceCount(model) && sequence_index >= M2_SequenceCount(model))
         return false;
     entity->frame = M2_FRAME_SEQUENCE_FLAG |
                     ((anim_id & M2_FRAME_SEQUENCE_MASK) << M2_FRAME_SEQUENCE_SHIFT) |
@@ -1258,7 +425,7 @@ static BOOL M2_FrameToPoseTime(m2Model_t const *model, DWORD frame, m2PoseTime_t
         pose->sequence_index = 0;
         pose->sequence_time = frame;
     }
-    if (!model || !model->sequences || model->sequence_count == 0 || !pose) {
+    if (!model || !M2_SequenceCount(model) || !pose) {
         return false;
     }
 
@@ -1270,7 +437,7 @@ static BOOL M2_FrameToPoseTime(m2Model_t const *model, DWORD frame, m2PoseTime_t
 
         if (!M2_FindSequenceByAnimId(model, anim_id, &sequence))
             sequence = anim_id;
-        if (sequence >= model->sequence_count)
+        if (sequence >= M2_SequenceCount(model))
             sequence = 0;
         duration = M2_SequenceDuration(model, sequence);
         pose->sequence_index = sequence;
@@ -1280,7 +447,7 @@ static BOOL M2_FrameToPoseTime(m2Model_t const *model, DWORD frame, m2PoseTime_t
         return true;
     }
 
-    FOR_LOOP(i, model->sequence_count) {
+    FOR_LOOP(i, M2_SequenceCount(model)) {
         DWORD duration = M2_SequenceDuration(model, i);
         DWORD range_length = MAX(duration, 1);
 
@@ -1296,7 +463,7 @@ static BOOL M2_FrameToPoseTime(m2Model_t const *model, DWORD frame, m2PoseTime_t
         range_start += range_length;
     }
 
-    if (model->sequence_count > 0) {
+    if (M2_SequenceCount(model)) {
         DWORD duration = M2_SequenceDuration(model, 0);
 
         pose->sequence_index = 0;
@@ -1351,13 +518,15 @@ static DWORD M2_TrackTime(m2Model_t const *model,
                           DWORD sequence_index,
                           DWORD sequence_time) {
     DWORD const *loops;
+    m2Array_t global_loops;
 
-    if (!model || !track || !model->header || track->loop_index == 0xFFFF) {
+    if (!model || !track || !model->file || track->loop_index == 0xFFFF) {
         return sequence_time;
     }
 
-    loops = M2_ModelArrayPtr(model, model->global_loops, sizeof(DWORD));
-    if (!loops || track->loop_index >= (WORD)model->global_loops.size || loops[track->loop_index] == 0) {
+    global_loops = M2_GlobalLoopsArray(model);
+    loops = M2_ModelArrayPtr(model, global_loops, sizeof(DWORD));
+    if (!loops || track->loop_index >= (WORD)global_loops.size || loops[track->loop_index] == 0) {
         return sequence_time;
     }
 
@@ -1520,13 +689,16 @@ BOOL M2_CameraView(m2Model_t const *model,
     FLOAT fov;
     FLOAT far_clip;
     FLOAT near_clip;
+    m2Array_t cameras;
+    BYTE const *camera_data;
 
-    if (!model || !model->cameras || camera_index >= model->camera_count || !eye || !target) {
-        return false;
-    }
+    if (!model || !eye || !target) return false;
+    cameras = M2_CamerasArray(model);
+    camera_data = M2_ModelArrayPtr(model, cameras, model->format->camera_stride);
+    if (!camera_data || camera_index >= (DWORD)cameras.size) return false;
 
     if (model->format->format == M2_FORMAT_CLASSIC) {
-        BYTE const *record = model->cameras + camera_index * model->format->camera_stride;
+        BYTE const *record = camera_data + camera_index * model->format->camera_stride;
         m2CameraClassic_t const *camera = (m2CameraClassic_t const *)record;
 
         position_track = m2_classic_track(&camera->position_track);
@@ -1535,7 +707,7 @@ BOOL M2_CameraView(m2Model_t const *model,
         target_pivot = camera->target_pivot;
         fov = camera->fov; near_clip = camera->near_clip; far_clip = camera->far_clip;
     } else {
-        BYTE const *record = model->cameras + camera_index * model->format->camera_stride;
+        BYTE const *record = camera_data + camera_index * model->format->camera_stride;
         m2CameraModern_t const *camera = (m2CameraModern_t const *)record;
 
         position_track = m2_modern_track(&camera->position_track);
@@ -1642,10 +814,9 @@ static BOOL M2_TrackHasKeys(m2TrackView_t const *track) {
 }
 
 static void const *M2_BonePtr(m2Model_t const *model, DWORD bone_index) {
-    if (!model || !model->bones || bone_index >= model->bone_count || model->format->bone_stride == 0) {
-        return NULL;
-    }
-    return model->bones + (bone_index * model->format->bone_stride);
+    BYTE const *bones = model ? M2_Bones(model) : NULL;
+    if (!bones || bone_index >= (DWORD)M2_BonesArray(model).size || !model->format->bone_stride) return NULL;
+    return bones + bone_index * model->format->bone_stride;
 }
 
 static DWORD M2_BoneFlags(m2Model_t const *model, DWORD bone_index) {
@@ -1766,24 +937,28 @@ static void m2_sample_part_track(m2Model_t const *model, m2PartTrack_t const *tr
 }
 
 static LPTEXTURE m2_particle_texture(m2Model_t const *model, m2Particle_t const *p) {
-	m2TextureDisk_t const *tex; LPCSTR path;
-	if (!model || !p || !model->textures.size || p->texture_index >= (WORD)model->textures.size)
+	m2TextureDisk_t const *tex; LPCSTR path; m2Array_t textures;
+	if (!model || !p) return tr.texture[TEX_WHITE];
+	textures = M2_TexturesArray(model);
+	if (!textures.size || p->texture_index >= (WORD)textures.size)
 		return tr.texture[TEX_WHITE];
-	tex = M2_ModelArrayPtr(model, model->textures, sizeof(*tex));
-	if (!tex || p->texture_index >= (DWORD)model->textures.size) return tr.texture[TEX_WHITE];
-	path = m2_string_ptr(model->data, model->data_size, tex[p->texture_index].filename);
+	tex = M2_ModelArrayPtr(model, textures, sizeof(*tex));
+	if (!tex || p->texture_index >= (DWORD)textures.size) return tr.texture[TEX_WHITE];
+	path = m2_string_ptr((BYTE const *)model->file, model->file_size, tex[p->texture_index].filename);
 	return path && *path ? R_LoadTexture(path) : tr.texture[TEX_WHITE];
 }
 
 static LPTEXTURE m2_ribbon_texture(m2Model_t const *model, m2Ribbon_t const *r, DWORD slot) {
-	WORD const *indices; m2TextureDisk_t const *tex; DWORD idx; LPCSTR path;
-	if (!model || !r || !model->textures.size) return tr.texture[TEX_WHITE];
+	WORD const *indices; m2TextureDisk_t const *tex; DWORD idx; LPCSTR path; m2Array_t textures;
+	if (!model || !r) return tr.texture[TEX_WHITE];
+	textures = M2_TexturesArray(model);
+	if (!textures.size) return tr.texture[TEX_WHITE];
 	indices = M2_ModelArrayPtr(model, r->texture_indices, sizeof(WORD));
-	tex = M2_ModelArrayPtr(model, model->textures, sizeof(*tex));
+	tex = M2_ModelArrayPtr(model, textures, sizeof(*tex));
 	if (!indices || !tex || slot >= (DWORD)r->texture_indices.size) return tr.texture[TEX_WHITE];
 	idx = indices[slot];
-	if (idx >= (DWORD)model->textures.size) return tr.texture[TEX_WHITE];
-	path = m2_string_ptr(model->data, model->data_size, tex[idx].filename);
+	if (idx >= (DWORD)textures.size) return tr.texture[TEX_WHITE];
+	path = m2_string_ptr((BYTE const *)model->file, model->file_size, tex[idx].filename);
 	return path && *path ? R_LoadTexture(path) : tr.texture[TEX_WHITE];
 }
 
@@ -1801,8 +976,8 @@ typedef struct {
 
 /* M2 emitter positions are local to their bone, not the model origin. */
 static void M2_EmitterMatrix(m2_pctx_t const *ctx, LPMATRIX4 out) {
-    if (ctx->model && ctx->bone_index < ctx->model->bone_count && ctx->model->bone_matrices) {
-        Matrix4_multiply(ctx->model_matrix, &ctx->model->bone_matrices[ctx->bone_index], out);
+    if (ctx->model && ctx->bone_index < (DWORD)M2_BonesArray(ctx->model).size) {
+        Matrix4_multiply(ctx->model_matrix, &m2_bone_matrices[ctx->bone_index], out);
         return;
     }
     *out = *ctx->model_matrix;
@@ -1858,11 +1033,14 @@ static void m2p_sample_classic_data(BYTE const *raw, m2_pctx_t *ctx) {
 }
 
 static void M2_DrawParticles(m2Model_t const *model, renderEntity_t const *entity, LPCMATRIX4 model_matrix) {
-	if (!model || !entity || !model->particles.size) return;
-	BYTE const *base = M2_ModelArrayPtr(model, model->particles, model->format->particle_stride);
+	m2Array_t particles;
+	if (!model || !entity) return;
+	particles = M2_ParticlesArray(model);
+	if (!particles.size) return;
+	BYTE const *base = M2_ModelArrayPtr(model, particles, model->format->particle_stride);
 	if (!base) return;
 	DWORD seq_idx, seq_time = M2_AnimationTime(model, entity, &seq_idx);
-	FOR_LOOP(i, (DWORD)model->particles.size) {
+	FOR_LOOP(i, (DWORD)particles.size) {
 		BYTE const *raw = base + i * model->format->particle_stride;
 		m2Particle_t const *p = (m2Particle_t const *)raw;
 		m2TrackView_t vis = m2_particle_track(model->format, raw, M2_PARTICLE_VISIBILITY);
@@ -1916,39 +1094,27 @@ static void M2_DrawParticles(m2Model_t const *model, renderEntity_t const *entit
 		}
 		ctx.texture = m2_particle_texture(model, p);
 		ctx.bone_index = p->bone_index;
-		R_EmitParticles(rate, &model->emitter_accumulators[i], tr.viewDef.deltaTime, m2_spawn_particle, &ctx);
+		R_EmitParticlesAtTime(rate, tr.viewDef.time, tr.viewDef.deltaTime, m2_spawn_particle, &ctx);
 	}
 }
 
 
 static void M2_DrawRibbons(m2Model_t const *model, renderEntity_t const *entity, LPCMATRIX4 model_matrix) {
-	if (!model || !entity || !model->ribbons.size || !model->ribbon_emitters) return;
-	BYTE const *base = M2_ModelArrayPtr(model, model->ribbons, model->format->ribbon_stride);
+	m2Array_t ribbons;
+	if (!model || !entity) return;
+	ribbons = M2_RibbonsArray(model);
+	if (!ribbons.size) return;
+	BYTE const *base = M2_ModelArrayPtr(model, ribbons, model->format->ribbon_stride);
 	if (!base) return;
 	DWORD seq_idx, seq_time = M2_AnimationTime(model, entity, &seq_idx);
-	FLOAT dt = (FLOAT)tr.viewDef.deltaTime / 1000.0f;
-	FOR_LOOP(i, (DWORD)model->ribbons.size) {
+	FOR_LOOP(i, (DWORD)ribbons.size) {
 		BYTE const *raw = base + i * model->format->ribbon_stride;
 		m2Ribbon_t const *r = (m2Ribbon_t const *)raw;
-		m2RibbonEmitter_t *res = &model->ribbon_emitters[i];
 		m2TrackView_t vis = m2_ribbon_track(model->format, raw, M2_RIBBON_VISIBILITY);
 		if (!m2_is_visible(model, &vis, seq_idx, seq_time)) continue;
 		FLOAT eps = MAX(0.0f, m2_ribbon_edges_per_second(model->format, raw));
 		if (eps <= 0.0f) continue;
-		/* -- Age existing edges and drop expired ones -------------------- */
 		FLOAT edge_life = m2_ribbon_edge_lifetime(model->format, raw);
-		int write = res->head, alive = res->count;
-		for (int e = 0; e < alive; e++) {
-			int idx = (write - alive + e + MAX_RIBBON_EDGES) % MAX_RIBBON_EDGES;
-			res->edges[idx].age += dt;
-		}
-		while (alive > 0) {
-			int oldest = (write - alive + MAX_RIBBON_EDGES) % MAX_RIBBON_EDGES;
-			if (res->edges[oldest].age < edge_life) break;
-			alive--;
-		}
-		res->count = alive;
-		/* -- Evaluate animated tracks ------------------------------------ */
 		m2TrackView_t color_t = m2_ribbon_track(model->format, raw, M2_RIBBON_COLOR);
 		VECTOR3 col = M2_EvaluateVectorTrack(model, &color_t, seq_idx, seq_time, (VECTOR3){ 1, 1, 1 });
 		m2TrackView_t alpha_t = m2_ribbon_track(model->format, raw, M2_RIBBON_ALPHA);
@@ -1977,44 +1143,24 @@ static void M2_DrawRibbons(m2Model_t const *model, renderEntity_t const *entity,
 		DWORD rows = MAX(1, m2_ribbon_rows(model->format, raw));
 		LPTEXTURE tex = m2_ribbon_texture(model, r, slot);
 		FLOAT grav = m2_ribbon_gravity(model->format, raw);
-		/* -- Emit new edges at the animated spine position ---------------- */
 		MATRIX4 emitter_matrix = *model_matrix;
-		if (r->bone_index < model->bone_count && model->bone_matrices)
-			Matrix4_multiply(model_matrix, &model->bone_matrices[r->bone_index], &emitter_matrix);
+		if (r->bone_index < (DWORD)M2_BonesArray(model).size)
+			Matrix4_multiply(model_matrix, &m2_bone_matrices[r->bone_index], &emitter_matrix);
 		VECTOR3 spine = Matrix4_multiply_vector3(&emitter_matrix, &r->position);
-		res->acc += eps * dt;
-		while (res->acc >= 1.0f) {
-			res->acc -= 1.0f;
-			if (alive >= MAX_RIBBON_EDGES) { /* drop oldest */
-				alive--;
-			}
-			m2RibbonEdge_t *e = &res->edges[write];
-			e->world_pos = spine;
-			e->color = col; e->alpha = a;
-			e->height_above = h_above; e->height_below = h_below;
-			e->age = 0.0f;
-			write = (write + 1) % MAX_RIBBON_EDGES;
-			alive++;
-		}
-		if (res->acc > 2.0f) res->acc = 0.0f;
-		res->head = write; res->count = alive;
-		/* -- Spawn one billboard particle per active edge ----------------- */
-		for (int e = 0; e < alive; e++) {
-			int idx = (write - alive + e + MAX_RIBBON_EDGES) % MAX_RIBBON_EDGES;
-			m2RibbonEdge_t *re = &res->edges[idx];
-			cparticle_t *fx = R_SpawnParticle(); if (!fx) break;
-			/* Apply gravity downward drift (semi-implicit: ½ g t² at draw time) */
-			re->world_pos.z -= MAX(0.0f, grav) * dt * dt * 0.5f;
-			fx->texture = tex; fx->org = re->world_pos;
+		DWORD last_ms = tr.viewDef.time - tr.viewDef.deltaTime;
+		DWORD start_ms = last_ms - last_ms % 1000;
+		for (FLOAT t = (FLOAT)start_ms; t < (FLOAT)tr.viewDef.time; t += 1000.0f / eps) {
+			cparticle_t *fx;
+			if (t < (FLOAT)last_ms) continue;
+			fx = R_SpawnParticle();
+			if (!fx) break;
+			fx->texture = tex; fx->org = spine;
 			fx->vel = (VECTOR3){ 0, 0, 0 };
 			fx->accel = (VECTOR3){ 0, 0, -MAX(0.0f, grav) };
-			FLOAT fade = 1.0f - MIN(1.0f, re->age / MAX(0.01f, edge_life));
-			COLOR32 fc = rgba;
-			fc.a = (BYTE)((FLOAT)fc.a * fade + 0.5f);
-			fx->color[0] = fx->color[1] = fx->color[2] = fc;
+			fx->color[0] = fx->color[1] = fx->color[2] = rgba;
 			fx->size[0] = fx->size[1] = fx->size[2] = size_b;
 			fx->midtime = 0x80; fx->columns = cols; fx->rows = rows;
-			fx->time = 0.0f; fx->lifespan = MAX(0.05f, edge_life - re->age);
+			fx->time = 0.0f; fx->lifespan = MAX(0.05f, edge_life);
 		}
 	}
 }
@@ -2024,10 +1170,10 @@ static void M2_CalculateBoneMatrices(m2Model_t const *model, renderEntity_t cons
     m2PoseTime_t current_pose;
     m2PoseTime_t old_pose;
     FLOAT pose_lerp = 1.0f;
+    DWORD bone_count;
 
-    if (!model || !model->bone_matrices || !model->bones) {
-        return;
-    }
+    if (!model || !M2_Bones(model)) return;
+    bone_count = (DWORD)M2_BonesArray(model).size;
 
     Matrix4_identity(&identity);
     M2_FrameToPoseTime(model, entity ? entity->frame : tr.viewDef.time, &current_pose);
@@ -2042,7 +1188,7 @@ static void M2_CalculateBoneMatrices(m2Model_t const *model, renderEntity_t cons
         old_pose = current_pose;
     }
 
-    FOR_LOOP(i, model->bone_count) {
+    FOR_LOOP(i, bone_count) {
         WORD parent_index = M2_BoneParentIndex(model, i);
         DWORD flags = M2_BoneFlags(model, i);
         VECTOR3 pivot = M2_BonePivot(model, i);
@@ -2055,7 +1201,7 @@ static void M2_CalculateBoneMatrices(m2Model_t const *model, renderEntity_t cons
         LPCMATRIX4 parent = &identity;
 
         if (parent_index != 0xFFFF && parent_index < i) {
-            parent = &model->bone_matrices[parent_index];
+            parent = &m2_bone_matrices[parent_index];
         }
 
         if ((flags & (0x80 | 0x200)) || has_keys) {
@@ -2103,28 +1249,31 @@ static void M2_CalculateBoneMatrices(m2Model_t const *model, renderEntity_t cons
                                                            &translation,
                                                            &scale,
                                                            &pivot);
-            Matrix4_multiply(parent, &local, &model->bone_matrices[i]);
+            Matrix4_multiply(parent, &local, &m2_bone_matrices[i]);
         } else {
-            model->bone_matrices[i] = *parent;
+            m2_bone_matrices[i] = *parent;
         }
     }
 }
 
 static void M2_UploadBatchBones(m2Model_t const *model, m2ModelBatch_t const *batch, LPSHADER shader) {
     MATRIX4 palette[M2_MAX_BONES_PER_BATCH];
+    WORD const *bone_lookup = model ? M2_BoneLookup(model) : NULL;
+    DWORD bone_lookup_count = model ? (DWORD)M2_BoneLookupArray(model).size : 0;
+    DWORD bone_count = model ? (DWORD)M2_BonesArray(model).size : 0;
 
     FOR_LOOP(i, M2_MAX_BONES_PER_BATCH) {
         Matrix4_identity(&palette[i]);
     }
 
-    if (model && batch && model->bone_matrices && model->bone_lookup_table) {
+    if (model && batch && bone_lookup) {
         DWORD count = MIN((DWORD)batch->bone_count, (DWORD)M2_MAX_BONES_PER_BATCH);
         FOR_LOOP(i, count) {
             DWORD lookup = (DWORD)batch->bone_combo_index + i;
-            if (lookup < model->bone_lookup_count) {
-                WORD bone_index = model->bone_lookup_table[lookup];
-                if (bone_index < model->bone_count) {
-                    palette[i] = model->bone_matrices[bone_index];
+            if (lookup < bone_lookup_count) {
+                WORD bone_index = bone_lookup[lookup];
+                if (bone_index < bone_count) {
+                    palette[i] = m2_bone_matrices[bone_index];
                 }
             }
         }
@@ -2182,7 +1331,8 @@ static LPTEXTURE M2_TextureForBatch(BYTE const *m2_data,
 
     texture_path = m2_string_ptr(m2_data, m2_size, texture[texture_index].filename);
     if (!texture_path || !*texture_path) {
-        if (M2_DefaultCharacterTexturePath(modelFilename, texture[texture_index].type, replacement_path, sizeof(replacement_path))) {
+        if (M2_DbcCharacterTexturePathForType(modelFilename, 0, texture[texture_index].type,
+                                              replacement_path, sizeof(replacement_path))) {
             return R_LoadTexture(replacement_path);
         }
         if (M2_DefaultObjectComponentTexturePath(modelFilename, texture[texture_index].type, replacement_path, sizeof(replacement_path))) {
@@ -2250,12 +1400,18 @@ static void M2_AddBatch(m2Model_t *model,
                         WORD bone_combo_index,
                         m2Batch_t const *batch,
                         WORD section_id,
+                        BYTE alphamode,
                         LPCSTR modelFilename,
                         BOOL use_texture_lookup) {
     VERTEX *vertices;
     m2ModelBatch_t *render_batch;
 
     if (!geom || !batch || index_count == 0) {
+        return;
+    }
+    if (!m2_validate_skin_vertex_range(skin_vertices, skin_vertex_count, skin_indices, skin_index_count,
+                                       (DWORD)geom->vertices.size, index_start, index_count)) {
+        fprintf(stderr, "M2: section %u has an invalid skin index/vertex range\n", section_id);
         return;
     }
 
@@ -2265,27 +1421,8 @@ static void M2_AddBatch(m2Model_t *model,
     }
 
     FOR_LOOP(i, index_count) {
-        DWORD skin_index = index_start + i;
-        DWORD vertex_lookup;
-        DWORD vertex_index;
-
-        if (skin_index >= skin_index_count) {
-            memset(&vertices[i], 0, sizeof(vertices[i]));
-            vertices[i].color = COLOR32_WHITE;
-            continue;
-        }
-        vertex_lookup = skin_indices[skin_index];
-        if (vertex_lookup >= skin_vertex_count) {
-            memset(&vertices[i], 0, sizeof(vertices[i]));
-            vertices[i].color = COLOR32_WHITE;
-            continue;
-        }
-        vertex_index = skin_vertices[vertex_lookup];
-        if (vertex_index >= (DWORD)geom->vertices.size) {
-            memset(&vertices[i], 0, sizeof(vertices[i]));
-            vertices[i].color = COLOR32_WHITE;
-            continue;
-        }
+        DWORD vertex_lookup = skin_indices[index_start + i];
+        DWORD vertex_index = skin_vertices[vertex_lookup];
         vertices[i] = M2_MakeVertex(&m2_vertices[vertex_index]);
         if (skin_bones) {
             memcpy(vertices[i].skin, skin_bones[vertex_lookup].v, sizeof(skin_bones[vertex_lookup].v));
@@ -2308,8 +1445,7 @@ static void M2_AddBatch(m2Model_t *model,
     render_batch->section_id = section_id;
 	render_batch->geoset_index = batch->geoset_index;
 	render_batch->character_texture_slot = M2_CharacterTextureSlotForSection(section_id);
-	render_batch->alphamode = (model->material_blend_modes && batch->material_index < model->num_materials) ?
-		model->material_blend_modes[batch->material_index] : 0;
+	render_batch->alphamode = alphamode;
 	ADD_TO_LIST(render_batch, model->batches);
     model->num_batches++;
     ri.MemFree(vertices);
@@ -2447,9 +1583,9 @@ static BOOL M2_IsCharacterModelPath(LPCSTR model_path) {
 }
 
 static BOOL M2_CharacterGeosetVisible(m2Model_t const *model,
-                                       m2CharacterOutfit_t const *outfit,
+                                       LPCM2CHARACTEROUTFIT outfit,
                                        WORD section_id) {
-    if (!model || !model->character_model) {
+    if (!model || !(model->flags & M2_MODEL_CHARACTER)) {
         return true;
     }
     if (section_id < 400) {
@@ -2508,113 +1644,57 @@ static BOOL M2_CharacterGeosetVisible(m2Model_t const *model,
 }
 
 static void M2_FreeModelData(m2Model_t *model) {
-	if (!model) {
-		return;
-	}
-	if (model->bone_matrices) {
-		ri.MemFree(model->bone_matrices);
-		model->bone_matrices = NULL;
-	}
-	if (model->emitter_accumulators) {
-		ri.MemFree(model->emitter_accumulators);
-		model->emitter_accumulators = NULL;
-	}
-	if (model->ribbon_emitters) {
-		ri.MemFree(model->ribbon_emitters);
-		model->ribbon_emitters = NULL;
-	}
-	if (model->material_blend_modes) {
-		ri.MemFree(model->material_blend_modes);
-		model->material_blend_modes = NULL;
-	}
-	if (model->data) {
-		ri.MemFree(model->data);
-		model->data = NULL;
-	}
+	if (!model || !model->file_image) return;
+	ri.MemFree(model->file_image);
+	model->file = NULL; model->file_image = NULL; model->file_image_size = 0;
+    model->base_offset = 0; model->file_size = 0;
 }
 
-static BOOL M2_CopyModelData(m2Model_t *model, BYTE const *m2_base, DWORD m2_size, BOOL legacy_header) {
-    m2Array_t bones;
-    m2Array_t sequences;
-    m2Array_t bone_lookup_table;
-    m2Array_t cameras;
+/* Keep the validated M2 as a typed view into the owned source image. */
+static BOOL M2_LoadFileImage(m2Model_t *model, BYTE *file_image, DWORD file_image_size,
+                             DWORD base_offset, DWORD m2_size) {
+    m2Array_t bones, particles, ribbons;
+    DWORD version;
 
-    if (!model || !m2_base || m2_size < sizeof(m2Header_t)) {
+    BYTE const *m2_base;
+    if (!model || !file_image || base_offset > file_image_size || m2_size < sizeof(DWORD) * 2 ||
+        m2_size > file_image_size - base_offset) {
+        if (file_image) ri.FS_FreeFile(file_image);
         return false;
     }
-
-    model->data = ri.MemAlloc(m2_size);
-    if (!model->data) {
+    m2_base = file_image + base_offset;
+    version = m2_read32(m2_base + sizeof(DWORD));
+    model->format = m2_format_def(version);
+    if ((model->format->format == M2_FORMAT_CLASSIC && m2_size < sizeof(m2HeaderLegacy_t)) ||
+        (model->format->format == M2_FORMAT_MODERN && m2_size < sizeof(m2Header_t))) {
+        ri.FS_FreeFile(file_image);
         return false;
     }
-    memcpy(model->data, m2_base, m2_size);
-    model->data_size = m2_size;
-    model->header = (m2Header_t *)model->data;
-    model->format = m2_format_def(model->header->version);
-
-    if (legacy_header) {
-        m2HeaderLegacy_t *legacy = (m2HeaderLegacy_t *)model->data;
-        model->global_loops = legacy->global_loops;
-        bones = legacy->bones;
-        sequences = legacy->sequences;
-        bone_lookup_table = legacy->bone_lookup_table;
-        model->attachments = legacy->attachments;
-        model->attachment_lookup = legacy->attachment_lookup;
-        model->textures = legacy->textures;
-        model->texture_lookup_table = legacy->texture_lookup_table;
-        model->ribbons = legacy->ribbons;
-        model->particles = legacy->particles;
-        cameras = legacy->cameras;
-    } else {
-        model->global_loops = model->header->global_loops;
-        bones = model->header->bones;
-        sequences = model->header->sequences;
-        bone_lookup_table = model->header->bone_lookup_table;
-        model->attachments = model->header->attachments;
-        model->attachment_lookup = model->header->attachment_lookup;
-        model->textures = model->header->textures;
-        model->texture_lookup_table = model->header->texture_lookup_table;
-        model->ribbons = model->header->ribbons;
-        model->particles = model->header->particles;
-        cameras = model->header->cameras;
+    model->file_image = file_image;
+    model->file_image_size = file_image_size;
+    model->base_offset = base_offset;
+    model->file = (m2File_t *)(file_image + base_offset);
+    model->file_size = m2_size;
+    bones = M2_BonesArray(model);
+    particles = M2_ParticlesArray(model);
+    ribbons = M2_RibbonsArray(model);
+    if ((bones.size && !M2_Bones(model)) ||
+        (particles.size && !M2_ModelArrayPtr(model, particles, model->format->particle_stride)) ||
+        (ribbons.size && !M2_ModelArrayPtr(model, ribbons, model->format->ribbon_stride))) {
+        fprintf(stderr, "M2: file array extends beyond model data\n");
+        M2_FreeModelData(model);
+        return false;
     }
-
-    model->bones = M2_ModelArrayPtr(model, bones, model->format->bone_stride);
-    model->sequences = M2_ModelArrayPtr(model, sequences, model->format->sequence_stride);
-    model->bone_lookup_table = M2_ModelArrayPtr(model, bone_lookup_table, sizeof(*model->bone_lookup_table));
-    model->cameras = M2_ModelArrayPtr(model, cameras, model->format->camera_stride);
-    model->bone_count = model->bones ? (DWORD)bones.size : 0;
-    model->sequence_count = model->sequences ? (DWORD)sequences.size : 0;
-    model->bone_lookup_count = model->bone_lookup_table ? (DWORD)bone_lookup_table.size : 0;
-    model->camera_count = model->cameras ? (DWORD)cameras.size : 0;
-
-    if (model->bone_count) {
-        model->bone_matrices = ri.MemAlloc(sizeof(*model->bone_matrices) * model->bone_count);
-        if (!model->bone_matrices) {
-            M2_FreeModelData(model);
-            return false;
-        }
-        FOR_LOOP(i, model->bone_count) {
-            Matrix4_identity(&model->bone_matrices[i]);
-        }
+    if ((DWORD)bones.size > M2_MAX_BONES) {
+        fprintf(stderr, "M2: %s has %d bones; renderer limit is %u\n",
+                model->filename, bones.size, M2_MAX_BONES);
+        M2_FreeModelData(model);
+        return false;
     }
-
-    if (model->particles.size) {
-        model->emitter_accumulators = ri.MemAlloc(sizeof(*model->emitter_accumulators) * (DWORD)model->particles.size);
-        if (!model->emitter_accumulators) { M2_FreeModelData(model); return false; }
-        memset(model->emitter_accumulators, 0, sizeof(*model->emitter_accumulators) * (DWORD)model->particles.size);
-    }
-    if (model->ribbons.size) {
-        model->ribbon_emitters = ri.MemAlloc(sizeof(*model->ribbon_emitters) * (DWORD)model->ribbons.size);
-        if (!model->ribbon_emitters) { M2_FreeModelData(model); return false; }
-        memset(model->ribbon_emitters, 0, sizeof(*model->ribbon_emitters) * (DWORD)model->ribbons.size);
-    }
-
     return true;
 }
 
-m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size) {
-    m2Header_t const *modern_header = NULL;
+m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size, BOOL *buffer_owned) {
     m2GeometryInfo_t geom;
     BYTE const *m2_base = buffer;
     DWORD m2_size = size;
@@ -2635,7 +1715,13 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size) {
     DWORD skin_vertex_count;
     DWORD skin_index_count;
     BOOL using_legacy_view = false;
-    BOOL character_model;
+    WORD const *materials = NULL;
+    DWORD material_count = 0;
+    DWORD version;
+    m2FormatDef_t const *format;
+    DWORD base_offset = 0;
+
+    if (buffer_owned) *buffer_owned = false;
 
     if (!buffer || size < sizeof(DWORD)) {
         return M2_CreateFallbackModel(modelFilename, "missing model data");
@@ -2650,6 +1736,7 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size) {
     } else if (*(DWORD *)buffer == ID_12DM) {
         m2_base = m2_find_chunk(buffer, size, "12DM", &m2_size);
     }
+    if (m2_base) base_offset = (DWORD)(m2_base - (BYTE *)buffer);
     if (!m2_base || m2_size < sizeof(DWORD) * 2) {
         return M2_CreateFallbackModel(modelFilename, "truncated header");
     }
@@ -2658,61 +1745,42 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size) {
         return M2_CreateFallbackModel(modelFilename, "bad MD20 header");
     }
 
-    if (!M2_InitModernGeometry(m2_base, m2_size, &geom, &modern_header)) {
-        return M2_CreateFallbackModel(modelFilename, "invalid modern header");
-    }
-
-    if (M2_LoadSkinData(modelFilename, &skin_data, &skin_size, skin_path) &&
-        skin_size >= sizeof(*skin)) {
-        skin = (m2SkinHeader_t const *)skin_data;
-        if (skin->magic == MAKEFOURCC('S', 'K', 'I', 'N')) {
-            skin_vertices = m2_array_ptr(skin_data, skin_size, skin->vertices, sizeof(*skin_vertices));
-            skin_indices = m2_array_ptr(skin_data, skin_size, skin->indices, sizeof(*skin_indices));
-            skin_bones = m2_array_ptr(skin_data, skin_size, skin->bones, sizeof(*skin_bones));
-            sections = m2_array_ptr(skin_data, skin_size, skin->sections, sizeof(m2SkinSection_t));
-            batches = m2_array_ptr(skin_data, skin_size, skin->batches, sizeof(*batches));
-            batch_count = (DWORD)skin->batches.size;
-            section_count = (DWORD)skin->sections.size;
-            skin_vertex_count = (DWORD)skin->vertices.size;
-            skin_index_count = (DWORD)skin->indices.size;
-        } else {
-            M2_LogFallback(modelFilename, "bad skin magic; trying legacy embedded view");
-            ri.FS_FreeFile(skin_data);
-            skin_data = NULL;
-            skin_vertices = NULL;
-            skin_indices = NULL;
-            skin_bones = NULL;
-            sections = NULL;
-            batches = NULL;
-            batch_count = section_count = skin_vertex_count = skin_index_count = 0;
-        }
+    version = m2_read32(m2_base + sizeof(DWORD));
+    format = m2_format_def(version);
+    skin_vertices = NULL; skin_indices = NULL; skin_bones = NULL;
+    sections = NULL; batches = NULL;
+    batch_count = section_count = skin_vertex_count = skin_index_count = 0;
+    if (format->format == M2_FORMAT_CLASSIC) {
+        if (!M2_InitLegacyGeometry(m2_base, m2_size, &geom, &legacy_view))
+            return M2_CreateFallbackModel(modelFilename, "invalid classic header or embedded view");
+        skin_vertices = m2_array_ptr(m2_base, m2_size, legacy_view->vertices, sizeof(*skin_vertices));
+        skin_indices = m2_array_ptr(m2_base, m2_size, legacy_view->indices, sizeof(*skin_indices));
+        skin_bones = m2_array_ptr(m2_base, m2_size, legacy_view->bones, sizeof(*skin_bones));
+        sections = m2_array_ptr(m2_base, m2_size, legacy_view->sections, sizeof(m2SkinSectionLegacy_t));
+        batches = m2_array_ptr(m2_base, m2_size, legacy_view->batches, sizeof(*batches));
+        batch_count = (DWORD)legacy_view->batches.size; section_count = (DWORD)legacy_view->sections.size;
+        skin_vertex_count = (DWORD)legacy_view->vertices.size; skin_index_count = (DWORD)legacy_view->indices.size;
+        using_legacy_view = true;
     } else {
-        if (skin_data) {
-            ri.FS_FreeFile(skin_data);
-            skin_data = NULL;
-        }
-        skin_vertices = NULL;
-        skin_indices = NULL;
-        skin_bones = NULL;
-        sections = NULL;
-        batches = NULL;
-        batch_count = section_count = skin_vertex_count = skin_index_count = 0;
-    }
-
-    if (!skin_vertices || !skin_indices || !sections || !batches) {
-        DWORD version = modern_header ? modern_header->version : 0;
-
-        if (version <= 260 && M2_InitLegacyGeometry(m2_base, m2_size, &geom, &legacy_view)) {
-            skin_vertices = m2_array_ptr(m2_base, m2_size, legacy_view->vertices, sizeof(*skin_vertices));
-            skin_indices = m2_array_ptr(m2_base, m2_size, legacy_view->indices, sizeof(*skin_indices));
-            skin_bones = m2_array_ptr(m2_base, m2_size, legacy_view->bones, sizeof(*skin_bones));
-            sections = m2_array_ptr(m2_base, m2_size, legacy_view->sections, sizeof(m2SkinSectionLegacy_t));
-            batches = m2_array_ptr(m2_base, m2_size, legacy_view->batches, sizeof(*batches));
-            batch_count = (DWORD)legacy_view->batches.size;
-            section_count = (DWORD)legacy_view->sections.size;
-            skin_vertex_count = (DWORD)legacy_view->vertices.size;
-            skin_index_count = (DWORD)legacy_view->indices.size;
-            using_legacy_view = true;
+        m2Header_t const *modern_header;
+        if (!M2_InitModernGeometry(m2_base, m2_size, &geom, &modern_header))
+            return M2_CreateFallbackModel(modelFilename, "invalid modern header");
+        if (M2_LoadSkinData(modelFilename, &skin_data, &skin_size, skin_path) && skin_size >= sizeof(*skin)) {
+            skin = (m2SkinHeader_t const *)skin_data;
+            if (skin->magic == MAKEFOURCC('S', 'K', 'I', 'N')) {
+                skin_vertices = m2_array_ptr(skin_data, skin_size, skin->vertices, sizeof(*skin_vertices));
+                skin_indices = m2_array_ptr(skin_data, skin_size, skin->indices, sizeof(*skin_indices));
+                skin_bones = m2_array_ptr(skin_data, skin_size, skin->bones, sizeof(*skin_bones));
+                sections = m2_array_ptr(skin_data, skin_size, skin->sections, sizeof(m2SkinSection_t));
+                batches = m2_array_ptr(skin_data, skin_size, skin->batches, sizeof(*batches));
+                batch_count = (DWORD)skin->batches.size; section_count = (DWORD)skin->sections.size;
+                skin_vertex_count = (DWORD)skin->vertices.size; skin_index_count = (DWORD)skin->indices.size;
+            } else {
+                M2_LogFallback(modelFilename, "bad skin magic");
+                ri.FS_FreeFile(skin_data); skin_data = NULL;
+            }
+        } else if (skin_data) {
+            ri.FS_FreeFile(skin_data); skin_data = NULL;
         }
     }
 
@@ -2729,12 +1797,11 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size) {
     memset(model, 0, sizeof(*model));
     snprintf(model->filename, sizeof(model->filename), "%s", modelFilename ? modelFilename : "");
     model->bounds = (BOX3){ geom.bounding_box.min, geom.bounding_box.max };
-    model->has_geometry_bounds = M2_CalculateGeometryBounds(m2_vertices,
-                                                            (DWORD)geom.vertices.size,
-                                                            &model->geometry_bounds);
-    character_model = M2_IsCharacterModelPath(modelFilename);
-    model->character_model = character_model;
-    if (!M2_CopyModelData(model, m2_base, m2_size, using_legacy_view)) {
+    if (!M2_CalculateGeometryBounds(m2_vertices, (DWORD)geom.vertices.size, &model->geometry_bounds))
+        model->geometry_bounds = model->bounds;
+    if (M2_IsCharacterModelPath(modelFilename)) model->flags |= M2_MODEL_CHARACTER;
+    if (buffer_owned) *buffer_owned = true;
+    if (!M2_LoadFileImage(model, (BYTE *)buffer, size, base_offset, m2_size)) {
         if (skin_data) {
             ri.FS_FreeFile(skin_data);
         }
@@ -2745,22 +1812,14 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size) {
 
 	/* Vanilla stores the same material records in render_flags, at a different header offset. */
 	{
-		m2HeaderLegacy_t const *legacy = (m2HeaderLegacy_t const *)model->data;
-		m2Array_t material_array = m2_material_array(model->header->materials, legacy->render_flags,
-			using_legacy_view);
+		m2Array_t material_array = m2_material_array(model->file->modern.materials,
+			model->file->classic.render_flags,
+			model->format->format == M2_FORMAT_CLASSIC);
 
 		if (material_array.size > 0) {
-			BYTE const *materials_data = m2_array_ptr(model->data, model->data_size, material_array, 4);
-			if (materials_data) {
-				model->num_materials = (DWORD)material_array.size;
-				model->material_blend_modes = ri.MemAlloc(model->num_materials);
-				if (model->material_blend_modes) {
-					FOR_LOOP(i, model->num_materials) {
-						WORD wow_blend = ((WORD const *)materials_data)[i * 2 + 1];
-						model->material_blend_modes[i] = m2_blend_mode(wow_blend);
-					}
-				}
-			}
+			BYTE const *materials_data = M2_ModelArrayPtr(model, material_array, 4);
+			materials = (WORD const *)materials_data;
+			material_count = materials_data ? (DWORD)material_array.size : 0;
 		}
 	}
 
@@ -2798,6 +1857,7 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size) {
                     bone_combo_index,
                     batch,
                     section_id,
+                    batch->material_index < material_count ? m2_blend_mode(materials[batch->material_index * 2 + 1]) : 0,
                     modelFilename,
                     true);
     }
@@ -2813,134 +1873,148 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size) {
     return model;
 }
 
-static DWORD M2_CharacterTextureKey(renderEntity_t const *entity) {
-    return entity->appearance ^ (entity->equipment * 16777619u) ^ (entity->display_id * 2166136261u);
+static BOOL M2_CharacterTextureModified(LPCM2CHARACTEROUTFIT outfit, DWORD appearance) {
+    wowAppearance_t unpacked = Wow_UnpackAppearance(appearance);
+
+    if (unpacked.faceID || unpacked.facialHairStyleID) return true;
+    if (!outfit) return false;
+    FOR_LOOP(priority, M2_CHAR_TEX_PRIORITIES)
+        FOR_LOOP(slot, M2_CHAR_TEX_COMPONENT_COUNT)
+            if (outfit->texture[slot][priority] && *outfit->texture[slot][priority]) return true;
+    return false;
+}
+
+static void M2_DrawCompositeQuad(LPTEXTURE texture, LPCRECT screen, BOOL blend) {
+    VERTEX vertices[6];
+    MATRIX4 projection;
+    MATRIX4 identity;
+    RECT uv = { 0, 0, 1, 1 };
+
+    R_AddQuad(vertices, screen, &uv, COLOR32_WHITE, 0);
+    Matrix4_identity(&identity);
+    Matrix4_ortho(&projection, 0, M2_CHARACTER_COMPOSITE_RESOLUTION,
+                  M2_CHARACTER_COMPOSITE_RESOLUTION, 0, 0, 100);
+    R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
+    R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
+    R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STREAM_DRAW);
+    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, projection.v);
+    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uModelMatrix, 1, GL_FALSE, identity.v);
+    R_BindTexture(texture, 0);
+    if (blend) {
+        R_Call(glEnable, GL_BLEND);
+        R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    } else {
+        R_Call(glDisable, GL_BLEND);
+    }
+    R_Call(glDrawArrays, GL_TRIANGLES, 0, 6);
+}
+
+static void M2_DrawCompositeComponent(LPCSTR stem, BYTE slot, LPCSTR model_path,
+                                      DWORD x, DWORD y, DWORD w, DWORD h) {
+    if (stem && *stem) {
+        PATHSTR resolved;
+        LPTEXTURE texture;
+
+        if (!M2_CharacterComponentTexturePath(stem, slot, model_path, resolved, sizeof(resolved))) return;
+        texture = R_LoadTexture(resolved);
+        if (texture) M2_DrawCompositeQuad(texture, &(RECT){ x, y, w, h }, true);
+    }
+}
+
+static void M2_DrawCompositeHeadVariation(LPCSTR model_path, DWORD section_id,
+                                          DWORD variation_index, DWORD color_index) {
+    static DWORD const rects[2][4] = { { 0, 160, 128, 32 }, { 0, 192, 128, 64 } };
+    static DWORD const texture_indices[2] = { 1, 0 };
+
+    FOR_LOOP(i, 2) {
+        PATHSTR path;
+        LPTEXTURE texture;
+
+        if (!M2_DbcCharacterVariationTexturePath(model_path, section_id, variation_index, color_index,
+                                                 texture_indices[i], path, sizeof(path))) continue;
+        texture = R_LoadTexture(path);
+        if (texture) M2_DrawCompositeQuad(texture, &(RECT){ rects[i][0], rects[i][1],
+                                                           rects[i][2], rects[i][3] }, true);
+    }
+}
+
+static LPTEXTURE M2_PrepareCharacterTexture(m2Model_t const *model,
+                                            renderEntity_t const *entity,
+                                            LPCM2CHARACTEROUTFIT outfit) {
+    static DWORD const rects[M2_CHAR_TEX_COMPONENT_COUNT][4] = {
+        { 0, 0, 128, 64 }, { 0, 64, 128, 64 }, { 0, 128, 128, 32 },
+        { 128, 0, 128, 64 }, { 128, 64, 128, 32 }, { 128, 96, 128, 64 },
+        { 128, 160, 128, 64 }, { 128, 224, 128, 32 }
+    };
+    PATHSTR base_path;
+    LPTEXTURE base;
+    BOOL has_base_path;
+    GLint old_framebuffer;
+    GLint old_viewport[4];
+
+    if (!model || !entity || !m2_character_composite_target ||
+        !M2_CharacterTextureModified(outfit, entity->appearance)) return NULL;
+    has_base_path = M2_DbcCharacterTexturePathForType(model->filename, entity->appearance, 1,
+                                                      base_path, sizeof(base_path));
+    base = has_base_path ? R_LoadTexture(base_path) : NULL;
+    if (!base) {
+        for (m2ModelBatch_t *it = model->batches; it; it = it->next)
+            if (it->texture_type == 1 && it->texture) { base = it->texture; break; }
+    }
+    if (!base) return NULL;
+
+    R_Call(glGetIntegerv, GL_DRAW_FRAMEBUFFER_BINDING, &old_framebuffer);
+    R_Call(glGetIntegerv, GL_VIEWPORT, old_viewport);
+    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, m2_character_composite_target->buffer);
+    R_Call(glViewport, 0, 0, M2_CHARACTER_COMPOSITE_RESOLUTION, M2_CHARACTER_COMPOSITE_RESOLUTION);
+    R_Call(glDisable, GL_DEPTH_TEST);
+    R_Call(glDisable, GL_CULL_FACE);
+    R_Call(glClearColor, 0, 0, 0, 0);
+    R_Call(glClear, GL_COLOR_BUFFER_BIT);
+    M2_DrawCompositeQuad(base, &(RECT){ 0, 0, M2_CHARACTER_COMPOSITE_RESOLUTION,
+                                        M2_CHARACTER_COMPOSITE_RESOLUTION }, false);
+    FOR_LOOP(priority, M2_CHAR_TEX_PRIORITIES)
+        FOR_LOOP(slot, M2_CHAR_TEX_COMPONENT_COUNT)
+            if (outfit && outfit->texture[slot][priority])
+                M2_DrawCompositeComponent(outfit->texture[slot][priority], (BYTE)slot,
+                                          model->filename, rects[slot][0], rects[slot][1],
+                                          rects[slot][2], rects[slot][3]);
+    {
+        wowAppearance_t unpacked = Wow_UnpackAppearance(entity->appearance);
+        M2_DrawCompositeHeadVariation(model->filename, 1, unpacked.faceID, unpacked.skinColorID);
+        M2_DrawCompositeHeadVariation(model->filename, 2, unpacked.facialHairStyleID, unpacked.hairColorID);
+    }
+    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, old_framebuffer);
+    R_Call(glViewport, old_viewport[0], old_viewport[1], old_viewport[2], old_viewport[3]);
+    m2_character_composite_texture.texid = m2_character_composite_target->texture;
+    m2_character_composite_texture.width = M2_CHARACTER_COMPOSITE_RESOLUTION;
+    m2_character_composite_texture.height = M2_CHARACTER_COMPOSITE_RESOLUTION;
+    return &m2_character_composite_texture;
 }
 
 static LPTEXTURE M2_CharacterTextureForBatch(m2Model_t const *model,
                                              renderEntity_t const *entity,
-                                             m2ModelBatch_t *batch,
-                                             m2CharacterOutfit_t const *outfit,
-                                             m2CreatureAppearance_t const *creature) {
-    m2Model_t *mutable_model;
-    DWORD key;
-    DWORD victim;
+                                             m2ModelBatch_t *batch) {
     PATHSTR texture_path;
-    BOOL has_base_path;
-    LPCOLOR32 pixels = NULL;
-    LPTEXTURE base_texture = NULL;
 
-    if (!model || !entity || !batch || !model->character_model) {
+    if (!model || !entity || !batch || !(model->flags & M2_MODEL_CHARACTER))
         return batch ? batch->texture : tr.texture[TEX_WHITE];
-    }
-    key = M2_CharacterTextureKey(entity);
-    if (batch->texture_type == 1 && creature && creature->baked_texture && *creature->baked_texture) {
-        if (batch->character_texture && batch->character_texture_key == key) return batch->character_texture;
-        if (batch->character_texture) R_ReleaseTexture(batch->character_texture);
-        snprintf(texture_path, sizeof(texture_path), "Textures\\BakedNpcTextures\\%s",
-                 creature->baked_texture);
-        batch->character_texture = R_LoadTexture(texture_path);
-        batch->character_texture_key = key;
-        return batch->character_texture;
-    }
-    has_base_path = M2_CharacterTexturePathForType(model->filename,
-                                                  entity->appearance,
-                                                  batch->texture_type,
-                                                  texture_path,
-                                                  sizeof(texture_path));
-    if (batch->texture_type != 1) {
-        if (has_base_path) {
-            if (batch->character_texture && batch->character_texture_key == key) {
-                return batch->character_texture;
-            }
-            if (batch->character_texture) {
-                R_ReleaseTexture(batch->character_texture);
-            }
-            batch->character_texture = R_LoadTexture(texture_path);
-            batch->character_texture_key = key;
-            return batch->character_texture;
-        }
-        return batch->texture;
-    }
-
-    mutable_model = (m2Model_t *)model;
-    /* Look up composite cache — find existing or LRU victim */
-    {
-        DWORD lru = mutable_model->composite_cache_lru;
-        victim = 0;
-        if (lru == (1u << M2_COMPOSITE_CACHE_SIZE) - 1)
-            lru = mutable_model->composite_cache_lru = 0;
-        for (DWORD i = 0; i < M2_COMPOSITE_CACHE_SIZE; i++) {
-            if (mutable_model->composite_cache[i].texture &&
-                mutable_model->composite_cache[i].key == key) {
-                mutable_model->composite_cache_lru = lru | (1u << i);
-                return mutable_model->composite_cache[i].texture;
-            }
-            if (!mutable_model->composite_cache[i].texture) {
-                victim = i;
-                break;
-            }
-            if (!(lru & (1u << i))) {
-                victim = i;
-            }
-        }
-        /* Evict victim if occupied */
-        if (mutable_model->composite_cache[victim].texture) {
-            R_ReleaseTexture(mutable_model->composite_cache[victim].texture);
-        }
-        mutable_model->composite_cache[victim].texture = NULL;
-        mutable_model->composite_cache[victim].key = key;
-        mutable_model->composite_cache_lru = lru | (1u << victim);
-    }
-    if (!outfit) {
-        return batch->texture;
-    }
-
-    if (has_base_path) {
-        base_texture = R_LoadTexture(texture_path);
-    } else {
-        for (m2ModelBatch_t *it = mutable_model->batches; it; it = it->next) {
-            if (it->texture_type == 1 && it->texture) {
-                base_texture = it->texture;
-                break;
-            }
-        }
-    }
-    if (!base_texture || !M2_TexturePixels(base_texture, &pixels)) {
-        return batch->texture;
-    }
-
-    FOR_LOOP(priority, M2_CHAR_TEX_PRIORITIES)
-        FOR_LOOP(slot, M2_CHAR_TEX_CAPE)
-            M2_PasteOutfitComponent(pixels, base_texture->width, base_texture->height,
-                                    model->filename, outfit->texture[slot][priority], (BYTE)slot);
-
-    {
-        wowAppearance_t unpacked = Wow_UnpackAppearance(entity->appearance);
-        M2_PasteHeadVariation(pixels, base_texture->width, base_texture->height,
-                              model->filename, 1,
-                              unpacked.faceID, unpacked.skinColorID);
-        M2_PasteHeadVariation(pixels, base_texture->width, base_texture->height,
-                              model->filename, 2,
-                              unpacked.facialHairStyleID, unpacked.hairColorID);
-    }
-
-    {
-        LPTEXTURE comp = R_AllocateTexture(base_texture->width, base_texture->height);
-        R_LoadTextureMipLevel(comp, 0, pixels, base_texture->width, base_texture->height);
-        ri.MemFree(pixels);
-        mutable_model->composite_cache[victim].texture = comp;
-        return comp ? comp : batch->texture;
-    }
+    if (M2_DbcCharacterTexturePathForType(model->filename, entity->appearance, batch->texture_type,
+                                          texture_path, sizeof(texture_path)))
+        return R_LoadTexture(texture_path);
+    return batch->texture;
 }
 
 void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMATRIX4 transform) {
     renderEntity_t resolved_entity;
     renderEntity_t const *draw_entity = entity;
-    m2CreatureAppearance_t creature = { 0 };
-    m2CreatureAppearance_t const *creature_ptr = NULL;
+    M2CREATUREAPPEARANCE creature = { 0 };
+    LPCM2CREATUREAPPEARANCE creature_ptr = NULL;
     MATRIX3 normal_matrix;
-    m2CharacterOutfit_t const *outfit = NULL;
+    M2CHARACTEROUTFIT outfit_data;
+    LPCM2CHARACTEROUTFIT outfit = NULL;
+    LPTEXTURE character_texture = NULL;
     m2ModelBatch_t *batch;
     LPSHADER shader;
 
@@ -2949,7 +2023,7 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
     }
     if (!Frustum_ContainsBox(&tr.viewDef.frustum, &model->bounds, transform)) return;
 
-    if (model->character_model && M2_ResolveCreatureAppearance(entity->display_id, &creature)) {
+    if ((model->flags & M2_MODEL_CHARACTER) && M2_DbcResolveCreatureAppearance(entity->display_id, &creature)) {
         resolved_entity = *entity;
         resolved_entity.appearance = creature.appearance;
         draw_entity = &resolved_entity;
@@ -2960,7 +2034,11 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
     M2_CalculateBoneMatrices(model, draw_entity);
     M2_DrawParticles(model, draw_entity, transform);
     M2_DrawRibbons(model, draw_entity, transform);
-    outfit = M2_CharacterOutfitForEntity(model, draw_entity, creature_ptr);
+    if ((model->flags & M2_MODEL_CHARACTER) &&
+        M2_DbcCharacterOutfit(model->filename, draw_entity->appearance, draw_entity->equipment,
+                              creature_ptr, &outfit_data))
+        outfit = &outfit_data;
+    character_texture = M2_PrepareCharacterTexture(model, draw_entity, outfit);
     Matrix3_normal(&normal_matrix, transform);
     R_Call(glUseProgram, shader->progid);
     R_Call(glUniform1i, shader->uLightCount, 0);
@@ -3032,7 +2110,8 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
 				break;
 			}
 		}
-		texture = M2_CharacterTextureForBatch(model, draw_entity, batch, outfit, creature_ptr);
+		texture = batch->texture_type == 1 && character_texture ? character_texture :
+                  M2_CharacterTextureForBatch(model, draw_entity, batch);
 		M2_UploadBatchBones(model, batch, shader);
 		R_BindTexture(texture ? texture : tr.texture[TEX_WHITE], 0);
 #ifdef USE_SHADOWMAPS
@@ -3053,22 +2132,22 @@ BOOL M2_AttachmentMatrix(m2Model_t const *model,
     WORD bone_index;
     VECTOR3 position;
     MATRIX4 local;
+    m2Array_t attachment_array;
+    m2Array_t lookup_array;
 
-    if (!model || !model_matrix || !out || !model->bone_matrices || !model->bones) {
-        return false;
-    }
+    if (!model || !model_matrix || !out || !M2_Bones(model)) return false;
 
-    attachments = M2_ModelArrayPtr(model, model->attachments, model->format->attachment_stride);
-    if (!attachments || model->attachments.size <= 0) {
-        return false;
-    }
+    attachment_array = M2_AttachmentsArray(model);
+    lookup_array = M2_AttachmentLookupArray(model);
+    attachments = M2_ModelArrayPtr(model, attachment_array, model->format->attachment_stride);
+    if (!attachments || attachment_array.size <= 0) return false;
 
-    lookup = M2_ModelArrayPtr(model, model->attachment_lookup, sizeof(*lookup));
-    if (lookup && attachment_id < (DWORD)model->attachment_lookup.size) {
+    lookup = M2_ModelArrayPtr(model, lookup_array, sizeof(*lookup));
+    if (lookup && attachment_id < (DWORD)lookup_array.size) {
         attachment_index = lookup[attachment_id];
     }
-    if (attachment_index >= (DWORD)model->attachments.size) {
-        FOR_LOOP(i, (DWORD)model->attachments.size) {
+    if (attachment_index >= (DWORD)attachment_array.size) {
+        FOR_LOOP(i, (DWORD)attachment_array.size) {
             DWORD id = model->format->format == M2_FORMAT_CLASSIC
                 ? ((m2AttachmentClassic_t const *)(attachments + i * model->format->attachment_stride))->attachment_id
                 : ((m2AttachmentModern_t const *)(attachments + i * model->format->attachment_stride))->attachment_id;
@@ -3078,7 +2157,7 @@ BOOL M2_AttachmentMatrix(m2Model_t const *model,
             }
         }
     }
-    if (attachment_index >= (DWORD)model->attachments.size) {
+    if (attachment_index >= (DWORD)attachment_array.size) {
         return false;
     }
 
@@ -3092,24 +2171,24 @@ BOOL M2_AttachmentMatrix(m2Model_t const *model,
         position = attachment->position;
     }
 
-    if (bone_index >= model->bone_count) {
+    if (bone_index >= (DWORD)M2_BonesArray(model).size) {
         return false;
     }
 
-    local = model->bone_matrices[bone_index];
+    local = m2_bone_matrices[bone_index];
     Matrix4_translate(&local, &position);
     Matrix4_multiply(model_matrix, &local, out);
     return true;
 }
 
 FLOAT M2_GroundOffset(m2Model_t const *model) {
-    if (!model || !model->has_geometry_bounds || model->geometry_bounds.min.z >= 0.0f) {
+    if (!model || model->geometry_bounds.min.z >= 0.0f) {
         return 0.0f;
     }
     return -model->geometry_bounds.min.z;
 }
 
-BOOL M2_IsCharacterModel(m2Model_t const *model) { return model && model->character_model; }
+BOOL M2_IsCharacterModel(m2Model_t const *model) { return model && (model->flags & M2_MODEL_CHARACTER); }
 
 void M2_Release(m2Model_t *model) {
     m2ModelBatch_t *batch;
@@ -3121,26 +2200,22 @@ void M2_Release(m2Model_t *model) {
     while (batch) {
         m2ModelBatch_t *next = batch->next;
         R_ReleaseVertexArrayObject(batch->buffer);
-        if (batch->character_texture) {
-            R_ReleaseTexture(batch->character_texture);
-        }
         ri.MemFree(batch);
         batch = next;
-    }
-    for (DWORD i = 0; i < M2_COMPOSITE_CACHE_SIZE; i++) {
-        if (model->composite_cache[i].texture) {
-            R_ReleaseTexture(model->composite_cache[i].texture);
-        }
     }
     M2_FreeModelData(model);
     ri.MemFree(model);
 }
 
+void M2_Init(void) {
+    m2_character_composite_target = R_AllocateRenderTexture(M2_CHARACTER_COMPOSITE_RESOLUTION,
+                                                            M2_CHARACTER_COMPOSITE_RESOLUTION,
+                                                            GL_RGBA, GL_UNSIGNED_BYTE,
+                                                            GL_COLOR_ATTACHMENT0);
+}
+
 void M2_Shutdown(void) {
-    M2_DbcShutdown(&m2_char_start_outfit_dbc);
-    M2_DbcShutdown(&m2_item_display_info_dbc);
-    M2_DbcShutdown(&m2_char_sections_dbc);
-    M2_DbcShutdown(&m2_creature_display_info_dbc);
-    M2_DbcShutdown(&m2_creature_display_info_extra_dbc);
-    memset(m2_creature_appearance_cache, 0, sizeof(m2_creature_appearance_cache));
+    R_ReleaseRenderTexture(m2_character_composite_target);
+    m2_character_composite_target = NULL;
+    M2_DbcShutdown();
 }

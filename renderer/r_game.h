@@ -28,8 +28,4 @@ bool R_GameExtractEntityCamera(renderEntity_t const *entity, float aspect, viewD
 bool R_GameSetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity);
 void R_GameDrawSprite(LPCMODEL model, LPCSTR anim, float x, float y);
 
-#ifdef WOW
-void R_GameSetCharacterMenuEquipment(LPMODEL model, DWORD const *display_ids, DWORD count);
-#endif
-
 #endif

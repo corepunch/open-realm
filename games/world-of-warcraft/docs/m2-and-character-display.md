@@ -2,7 +2,8 @@
 
 ## M2 Loading
 
-The WoW renderer loads M2 models through `games/world-of-warcraft/renderer/m2/r_m2.c`. It handles classic and modern-ish header/view differences enough for current experiments:
+The WoW renderer loads M2 models through `games/world-of-warcraft/renderer/m2/r_m2.c`. DBC ownership and character-data
+resolution live separately in `games/world-of-warcraft/renderer/m2/r_dbc.c`. The M2 loader handles:
 
 - `MD20` / `MD21` payload lookup.
 - M2 arrays for sequences, bones, vertices, textures, materials, attachments, and lookup tables.
@@ -12,6 +13,17 @@ The WoW renderer loads M2 models through `games/world-of-warcraft/renderer/m2/r_
 - Fallback model creation when data is missing or malformed.
 
 The game side also reads M2 sequence metadata in `games/world-of-warcraft/game/g_model.c` so entity movement can select animation names through the game module.
+
+`m2Model_t` owns the `FS_ReadFile` image directly and stores a typed `m2File_t` view plus `base_offset`; MD21/12DM containers point
+the view into their payload without copying it. The version is read before selecting and validating the classic or modern header.
+Header array descriptors remain file offsets and are resolved through bounds-checked accessors when consumed; the loader does not
+copy file arrays or duplicate their counts into runtime fields. The model adds only renderer resources absent from the file: draw
+batches, bounds, and flags. Batch index/vertex indirection is prevalidated once before the tight vertex upload loop. Bone matrices use module-static frame scratch like MDX;
+particles and ribbons emit into the renderer's global particle pool from the shared render clock, so neither needs per-model state.
+
+Generic renderer model registration lives in `renderer/r_model.c`. It is the only model cache: case-insensitive filename lookup returns
+the resident model or cached missing-model placeholder, reference release leaves the image resident, and registration-sequence cleanup
+reclaims unreferenced models not touched by the current map registration. Textures remain separately registered renderer resources.
 
 ## Character State Packing
 
@@ -25,9 +37,17 @@ DWORD equipment = Wow_PackEquipment(upper_body, lower_body, hands, feet);
 
 `appearance` stores small race/gender/model-local customization IDs plus class. `equipment` stores local slot item indices, not raw item IDs. Index `0` means empty; nonzero indices resolve through WoW-owned equipment lists and DBC-backed `ItemDisplayInfo` display IDs.
 
-Do not widen entity or player state just to preview more gear. Keep the packed values and resolve display data inside the WoW renderer/tool path.
+Do not widen entity or player state just to preview more gear. A menu that needs additional equipment owns that preview state and
+draws the character/equipment pieces separately; persistent menu overrides do not belong in `m2Model_t` or the renderer API.
 
 ## DBC-Backed Outfit Data
+
+`r_dbc.c` owns each resident WDBC image and its immutable open-addressed index. FNV-1a32
+hashes the lookup key and each slot stores one `int` source record number, not a
+copied outfit or texture. Index capacity is a power of two sized at least
+twice the record count, so outfit resolution can use stack-local state without
+an appearance-result cache. `r_m2.c` consumes only resolved appearance, item-display IDs,
+outfits, and texture paths; it never accesses DBC records directly.
 
 Character display work currently uses:
 
@@ -45,8 +65,9 @@ Character display work currently uses:
 Character-model NPCs keep their AzerothCore `CreatureDisplayID` in the existing
 snapshot `class_id` field. The renderer follows that ID through
 `CreatureDisplayInfo.ExtendedDisplayInfoID`, packs the extra record's skin,
-face, hair, and facial-hair fields, applies all nine classic NPC item-display
-slots, and uses `Textures\BakedNpcTextures\<BakeName>` for the body atlas.
+face, hair, and facial-hair fields, and applies all nine classic NPC
+item-display slots. Creature textures follow the same direct-or-composed path
+as player characters; there is no baked-texture shortcut.
 Non-character creatures have no extra record and retain their ordinary M2 path.
 
 Classic-era local data has a 23-field `ItemDisplayInfo.dbc` layout where texture components start at field 14. Documented TBC/Wrath-style 25-field layouts start components at field 15. Code should pick offsets from the actual field layout and validate each access against `record_size`.
@@ -78,17 +99,27 @@ Use the gender suffix that matches the character model, then universal as fallba
 
 ## Composed Character Texture
 
-The renderer composes outfit components onto the base body texture for character models. The composition key is derived from `entity->appearance` and `entity->equipment`.
+The renderer uses two paths for character body textures:
+
+- An unmodified body renders its filename-cached source texture directly.
+- A modified body is composed on the GPU into one shared temporary atlas, then
+  rendered immediately with that atlas. The temporary target is
+  `M2_CHARACTER_COMPOSITE_RESOLUTION` (256x256).
+
+The temporary atlas is reused sequentially; it is valid only until the current
+model draw finishes. It is not a per-appearance cache and must not be retained
+by an entity or model.
 
 Important constraints:
 
 - The base body texture is not always 512x512. Classic body skins such as `Character\Orc\Male\OrcMaleSkin00_00.blp` may be 256x256.
-- Component paste rectangles documented in 512x512 atlas space must scale to the actual destination body texture size.
+- Component rectangles are authored in 512x512 atlas space and scale to the 256x256 temporary target.
 - Do not infer visible geosets from non-empty component textures. WoW keeps many default geosets visible unless item geoset groups override them.
 
 ## Skin Section IDs And Geosets
 
-M2 skin sections are grouped by hundreds. Character renderers should select one visible variant per relevant group at draw time or through an appearance/equipment keyed cache. Do not throw away sections at model-load time; loading all batches preserves future per-entity equipment changes.
+M2 skin sections are grouped by hundreds. Character renderers select one visible variant per relevant group from the current draw's
+stack-local outfit. Do not throw away sections at model-load time; loading all batches preserves per-entity equipment changes.
 
 Current default visibility in the renderer includes section IDs such as `401`, `702`, and `1501` when no outfit is available, and applies outfit flags/geoset rules when DBC data is present.
 

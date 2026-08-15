@@ -38,6 +38,18 @@ for (i = 0; i < MCNK_COUNT; i++) {
 }
 ```
 
+## Quake-style resident model registration
+
+`renderer/r_model.c` owns the filename-to-model registry. A cache miss asks the active game renderer to load one file-shaped model;
+a case-insensitive hit returns that same resident pointer. Missing-model placeholders are cached too. Individual release calls drop
+caller ownership, while registration sequence marks and shutdown provide the actual release points. Model formats do not add a second
+appearance, outfit, or decoded-array cache; textures remain separately registered by filename.
+
+## Keep file-format owners separate
+
+WoW M2 geometry and animation remain in `renderer/m2/r_m2.c`; WDBC file images, indexes, schema offsets, and character-data
+resolution remain in `renderer/m2/r_dbc.c`. The boundary passes resolved value structs and texture paths, never raw DBC records.
+
 ## Hidden-header allocation for free-function dispatch
 
 `FS_MmapFile` stores metadata (size, flags) in 16 bytes before the returned pointer. The free function reads this header to decide which deallocation strategy to use (munmap vs MemFree). This keeps the API surface clean — one allocate function, one free function, no side-channel.
