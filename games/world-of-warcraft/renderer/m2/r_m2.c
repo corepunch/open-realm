@@ -1433,64 +1433,54 @@ static BOOL M2_IsCharacterModelPath(LPCSTR model_path) {
            (gender_len == 6 && !strncasecmp(gender, "Female", 6));
 }
 
+/* Geoset group → section ID scheme (wowdev Character_Customization):
+ *   section_id = group * 100 + variant, variant 0 → DNE (nothing shown).
+ *   Groups 5 and 13 need a fallback scan because some items request a
+ *   variant absent from certain race/gender models (retail fallback behavior).
+ *   All other groups are pure GROUP*100+variant arithmetic. */
 static BOOL M2_CharacterGeosetVisible(m2Model_t const *model,
                                        LPCM2CHARACTEROUTFIT outfit,
                                        WORD section_id) {
-    if (!model || !(model->flags & M2_MODEL_CHARACTER)) {
-        return true;
-    }
-    if (section_id < 400) {
-        /* Group 1 (100–199): hair geosets — helmet replaces hair with bald scalp (section 1). */
-        if (section_id >= 100 && outfit && (outfit->flags & M2_CHAR_FLAG_HELM)) {
-            return false;
-        }
-        return true;
-    }
-    if (!outfit) {
-        /* Bare defaults: forearms (401), ears hidden (702), no cape (1501). */
-        return section_id == 401 || section_id == 702 || section_id == 1501;
-    }
-
-    DWORD group = section_id / 100;
-    DWORD geoset = (group < M2_NUM_GEOSET_GROUPS) ? outfit->geoset[group] : 0;
-    WORD expected;
+    DWORD group, geoset, n;
     WORD available[64];
-    DWORD available_count = 0;
+    m2ModelBatch_t const *b;
+    if (!model || !(model->flags & M2_MODEL_CHARACTER)) return true;
+    if (section_id < 400) {
+        /* Hair geosets (100–199): helmet hides them. */
+        if (section_id >= 100 && outfit && (outfit->flags & M2_CHAR_FLAG_HELM)) return false;
+        return true;
+    }
+    if (!outfit)
+        return section_id == 401 || section_id == 702 || section_id == 1501;
 
-    /* Geoset group → section ID mapping (from WoWee/AzerothCore conventions):
-     *   Group  4 (gloves):    base 401 = kGeosetBareForearms
-     *   Group  5 (boots):     base 501 = kGeosetBareShins
-     *   Group  7 (ears):      base 701, default 702 (helmet hides ears)
-     *   Group  8 (sleeves):   base 801 = kGeosetBareSleeves
-     *   Group  9 (kneepads):  default 903; 902 is the flared lower-leg mesh
-     *   Group 10 (eyes):      base 1001
-     *   Group 11 (eyebrows):  base 1101
-     *   Group 12 (hair):      base 1201
-     *   Group 13 (pants):     base 1301 = kGeosetBarePants
-     *   Group 15 (cloak):     base 1501 = kGeosetNoCape, 1502 = kGeosetWithCape */
-    for (m2ModelBatch_t const *batch = model->batches;
-         batch && available_count < sizeof(available) / sizeof(available[0]); batch = batch->next)
-        available[available_count++] = batch->section_id;
+    group  = section_id / 100;
+    geoset = (group < M2_NUM_GEOSET_GROUPS) ? outfit->geoset[group] : 0;
+
+    if (group == 5 || group == 13) {
+        if (group == 13 && (outfit->flags & M2_CHAR_FLAG_KNEELENGTH)) return false;
+        for (b = model->batches, n = 0; b && n < 64; b = b->next) available[n++] = b->section_id;
+        if (group == 13)
+            return section_id == Wow_CharacterGeosetPick(available, n, 13, (WORD)(1301 + geoset), 1301);
+        return section_id == Wow_CharacterGeosetPick(available, n, 5, (WORD)(501 + geoset), 501);
+    }
     switch (group) {
-        case 4:  expected = 401 + geoset; break;
-        case 5:  expected = Wow_CharacterGeosetPick(available, available_count, 5, 501 + geoset, 501); break;
-        case 7:  expected = geoset ? 700 + geoset : 702; break;
-        case 8:  expected = 801 + geoset; break;
-        /* The start outfit needs the narrow knee mesh; 902 caused flared calves on every classic race. */
-        case 9:  expected = Wow_CharacterGeosetPick(available, available_count, 9, geoset ? 902 + geoset : 903, 902); break;
-        case 10: expected = 1001 + geoset; break;
-        case 11: expected = 1101 + geoset; break;
-        case 12: expected = 1201 + geoset; break;
-        case 13:
-            if (outfit->flags & M2_CHAR_FLAG_KNEELENGTH) {
-                return false;
-            }
-            expected = Wow_CharacterGeosetPick(available, available_count, 13, 1301 + geoset, 1301);
-            break;
-        case 15: expected = 1501 + geoset; break;
+        /* Groups 4/7/8/10/11/12/15 use base+1 offset: geoset=0 selects the bare/default
+         * variant (forearms, ears, sleeves, eyes, brows, hair, no-cape) which exists in
+         * every shipped model. Group 7 keeps its bare-ears ternary until M2_DbcStartOutfit
+         * seeds geoset[7]=2 explicitly — TODO.
+         * Group 9 (kneepads) is the exception: variant 1 (901) is DNE per wowdev
+         * {1:none, 2:long, 3:short}; geoset=0 → 900 (DNE) correctly shows nothing.
+         * geoset[9] is driven by geosetGroup[1] of the equipped pants item. */
+        case 4:  return section_id == (WORD)(401 + geoset);
+        case 7:  return section_id == (geoset ? (WORD)(700 + geoset) : 702);
+        case 8:  return section_id == (WORD)(801 + geoset);
+        case 9:  return section_id == (WORD)(900 + geoset);
+        case 10: return section_id == (WORD)(1001 + geoset);
+        case 11: return section_id == (WORD)(1101 + geoset);
+        case 12: return section_id == (WORD)(1201 + geoset);
+        case 15: return section_id == (WORD)(1501 + geoset);
         default: return false;
     }
-    return section_id == expected;
 }
 
 static void M2_FreeModelData(m2Model_t *model) {
