@@ -1763,7 +1763,7 @@ static void M2_DrawCompositeQuad(LPTEXTURE texture, LPCRECT screen, BOOL blend) 
 
     R_AddQuad(vertices, screen, &uv, COLOR32_WHITE, 0);
     Matrix4_identity(&identity);
-    Matrix4_ortho(&projection, 0, M2_CHARACTER_COMPOSITE_RESOLUTION, M2_CHARACTER_COMPOSITE_RESOLUTION, 0, 0, 100);
+    Matrix4_ortho(&projection, 0, M2_CHARACTER_COMPOSITE_RESOLUTION, 0, M2_CHARACTER_COMPOSITE_RESOLUTION, 0, 100);
     R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
@@ -1817,7 +1817,6 @@ static LPTEXTURE M2_PrepareCharacterTexture(m2Model_t const *model,
     };
     PATHSTR base_path;
     LPTEXTURE base;
-    BOOL has_base_path;
     GLint old_framebuffer;
     GLint old_viewport[4];
     GLboolean old_depth, old_cull, old_blend;
@@ -1826,12 +1825,9 @@ static LPTEXTURE M2_PrepareCharacterTexture(m2Model_t const *model,
 
     if (!model || !entity || !m2_character_composite_target ||
         !M2_CharacterTextureModified(outfit, entity->appearance)) return NULL;
-    has_base_path = M2_DbcCharacterTexturePathForType(model->filename, entity->appearance, 1, base_path, sizeof(base_path));
-    base = has_base_path ? R_LoadTexture(base_path) : NULL;
-    if (!base) {
-        for (m2ModelBatch_t *it = model->batches; it; it = it->next)
-            if (it->texture_type == 1 && it->texture) { base = it->texture; break; }
-    }
+    if (!M2_DbcCharacterTexturePathForType(model->filename, entity->appearance, 1, base_path, sizeof(base_path)))
+        return NULL;
+    base = R_LoadTexture(base_path);
     if (!base) return NULL;
 
     R_Call(glGetIntegerv, GL_DRAW_FRAMEBUFFER_BINDING, &old_framebuffer);
