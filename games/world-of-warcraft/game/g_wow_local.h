@@ -359,6 +359,8 @@ void Wow_SendInbox(LPEDICT ent);
 /* Ability/projectile system */
 DWORD      Wow_FireboltModel(void);
 DWORD      Wow_FrostboltModel(void);
+DWORD      Wow_FireboltImpactModel(void);
+DWORD      Wow_FrostboltImpactModel(void);
 DWORD      Wow_SpellMissileModel(DWORD spell_dbc_id);
 DWORD      Wow_SpellImpactModel(DWORD spell_dbc_id);
 void       Wow_RunProjectile(LPEDICT ent);

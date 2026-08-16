@@ -14,8 +14,6 @@ struct game_export globals;
 edict_t wow_edicts[WOW_MAX_EDICTS];
 wowEntityLocal_t wow_entity_locals[WOW_MAX_EDICTS];
 wowClient_t wow_clients[WOW_MAX_CLIENTS];
-static VECTOR2 wow_spawn_origin = { 0.0f, 0.0f };
-static LONG wow_spawn_location = -1;
 /* Configstring model indices for spell impact visuals; set during map load. */
 static int wow_firebolt_impact_model = 0;
 static int wow_frostbolt_impact_model = 0;
@@ -1103,6 +1101,62 @@ DWORD Wow_FrostboltModel(void) {
     return model;
 }
 
+/* Firebolt impact burst: DBC SpellVisual chain first, hardcoded paths as fallback. */
+DWORD Wow_FireboltImpactModel(void) {
+    static DWORD model = 0;
+    static BOOL resolved = false;
+    if (!resolved) {
+        resolved = true;
+        DWORD dbc_model = Wow_SpellImpactModel(133);
+        if (dbc_model) { model = dbc_model; return model; }
+        LPCSTR const paths[] = {
+            "Spells\\FireBolt_ImpactDD_Med_Chest.m2",
+            "Spells\\Fire_ImpactDD_Med_Chest.m2",
+            NULL
+        };
+        for (LPCSTR const *p = paths; *p; p++) {
+            DWORD sz;
+            HANDLE buf = gi.ReadFile ? gi.ReadFile(*p, &sz) : NULL;
+            if (buf) {
+                model = gi.ModelIndex(*p);
+                gi.MemFree(buf);
+                fprintf(stderr, "WoW: firebolt impact model loaded: %s (idx %u)\n", *p, (unsigned)model);
+                break;
+            }
+        }
+        if (!model) fprintf(stderr, "WoW: no firebolt impact model in MPQ\n");
+    }
+    return model;
+}
+
+/* Frostbolt impact burst: DBC SpellVisual chain first, hardcoded paths as fallback. */
+DWORD Wow_FrostboltImpactModel(void) {
+    static DWORD model = 0;
+    static BOOL resolved = false;
+    if (!resolved) {
+        resolved = true;
+        DWORD dbc_model = Wow_SpellImpactModel(116);
+        if (dbc_model) { model = dbc_model; return model; }
+        LPCSTR const paths[] = {
+            "Spells\\Ice_ImpactDD_Med_Chest.m2",
+            "Spells\\Ice_ImpactDD_Low_Chest.m2",
+            NULL
+        };
+        for (LPCSTR const *p = paths; *p; p++) {
+            DWORD sz;
+            HANDLE buf = gi.ReadFile ? gi.ReadFile(*p, &sz) : NULL;
+            if (buf) {
+                model = gi.ModelIndex(*p);
+                gi.MemFree(buf);
+                fprintf(stderr, "WoW: frostbolt impact model loaded: %s (idx %u)\n", *p, (unsigned)model);
+                break;
+            }
+        }
+        if (!model) fprintf(stderr, "WoW: no frostbolt impact model in MPQ\n");
+    }
+    return model;
+}
+
 /* Fire a Frostbolt: like Firebolt but slower, hits harder, and slows the target. */
 void Wow_FireFrostbolt(LPEDICT caster, LPEDICT target) {
     wowEntityLocal_t *caster_local, *pl;
@@ -1434,10 +1488,10 @@ static void Wow_ReadSelectedCharFromCS(char *race, size_t race_sz, char *sex, si
     }
 }
 
-static void Wow_InitPlayer(LPEDICT ent) {
+static void Wow_InitPlayer(LPEDICT ent, VECTOR2 spawn_origin, LONG spawn_location) {
     LPPLAYER ps;
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
-    FLOAT height = Wow_TerrainHeight(wow_spawn_origin.x, wow_spawn_origin.y);
+    FLOAT height = Wow_TerrainHeight(spawn_origin.x, spawn_origin.y);
     char race[64], sex[64];
     DWORD class_id, appearance;
     char model_path[MAX_PATHLEN * 2];
@@ -1452,7 +1506,7 @@ static void Wow_InitPlayer(LPEDICT ent) {
         /* 255 is the wire/UI sentinel for no selected action; zero would highlight slot 0 at spawn. */
         local->selected_action_slot = 255;
         local->hostile = false;
-        local->home = wow_spawn_origin;
+        local->home = spawn_origin;
         local->yaw = wow_move.yaw;
         local->health = 100;
         local->mana = WOW_MANA_MAX;
@@ -1468,7 +1522,7 @@ static void Wow_InitPlayer(LPEDICT ent) {
     ent->s.model2 = G_RegisterModel(WOW_PLAYER_WEAPON_MODEL);
     ent->s.appearance = appearance;
     ent->s.equipment = Wow_PackEquipment(WOW_PLAYER_EQUIPMENT_UPPER_BODY, WOW_PLAYER_EQUIPMENT_LOWER_BODY, WOW_PLAYER_EQUIPMENT_HANDS, WOW_PLAYER_EQUIPMENT_FEET);
-    ent->s.origin = (VECTOR3){ wow_spawn_origin.x, wow_spawn_origin.y, height };
+    ent->s.origin = (VECTOR3){ spawn_origin.x, spawn_origin.y, height };
     ent->s.origin2 = (VECTOR2){ ent->s.origin.x, ent->s.origin.y };
     ent->s.angle = (FLOAT)DEG2RAD(wow_move.yaw);
     ent->s.scale = 1.0f;
@@ -1483,7 +1537,7 @@ static void Wow_InitPlayer(LPEDICT ent) {
     ps = &ent->client->ps;
     memset(ps, 0, sizeof(*ps));
     ps->number = 0;
-    ps->start_location = wow_spawn_location;
+    ps->start_location = spawn_location;
     snprintf(wow_clients[0].name, sizeof(wow_clients[0].name), "%s", "Thrall");
     {
         wowHudIcon_t const *actions = (class_id == WOW_CLASS_MAGE)
@@ -1493,13 +1547,13 @@ static void Wow_InitPlayer(LPEDICT ent) {
         fprintf(stderr, "WoW: action bar initialized for class %u\n", (unsigned)class_id);
     }
 #ifdef WOW
-    ps->origin = wow_spawn_origin;
+    ps->origin = spawn_origin;
     ps->viewangles = (VECTOR3){ Wow_ViewPitch(wow_move.pitch), wow_move.yaw, 0.0f };
     ps->viewquat = Quaternion_fromEuler(&MAKE(VECTOR3, wow_move.pitch, 0.0f, wow_move.yaw), ROTATE_ZYX);
     ps->fov = 45;
     ps->distance = wow_move.distance;
 #else
-    ps->origin = wow_spawn_origin;
+    ps->origin = spawn_origin;
     ps->viewquat = Quaternion_fromEuler(&MAKE(VECTOR3, 326.0f, 0.0f, 0.0f), ROTATE_ZYX);
     ps->fov = 54;
     ps->distance = 250.0f;
@@ -1558,31 +1612,28 @@ static void Wow_ThinkDynamicObject(LPEDICT ent) { Wow_RunDynamicObjectFrame(ent)
 static void Wow_SpawnEntities(void) {
     LPCMAPINFO mapinfo = CM_GetMapInfo();
     char race[64], sex[64];
-    DWORD class_id, appearance, spawn_location;
+    DWORD class_id, appearance, spawn_index;
+    LONG spawn_location = -1;
+    VECTOR2 spawn_origin = { 0.0f, 0.0f };
     char buf[MAX_PATHLEN];
 
     /* Read race before spawn selection so the player starts in their race's
        home zone (e.g. Orcs in Valley of Trials, not Northshire). */
     Wow_ReadSelectedCharFromCvars(race, sizeof(race), sex, sizeof(sex), &class_id, &appearance);
-    spawn_location = Wow_SelectSpawnPoint(race, class_id);
-    if (spawn_location == ~0u) {
+    spawn_index = Wow_SelectSpawnPoint(race, class_id);
+    if (spawn_index == ~0u) {
         fprintf(stderr, "WoW: no spawn for race=%s class=%u; using Orc Warrior spawn\n", race, (unsigned)class_id);
-        spawn_location = Wow_SelectSpawnPoint("Orc", WOW_CLASS_WARRIOR);
+        spawn_index = Wow_SelectSpawnPoint("Orc", WOW_CLASS_WARRIOR);
     }
 
-    if (spawn_location != ~0u) {
-        LPCVECTOR3 sp = Wow_GetSpawnPos(spawn_location);
+    if (spawn_index != ~0u) {
+        LPCVECTOR3 sp = Wow_GetSpawnPos(spawn_index);
         if (sp) {
-            wow_spawn_origin = (VECTOR2){ sp->x, sp->y };
-            wow_spawn_location = (LONG)spawn_location;
+            spawn_origin = (VECTOR2){ sp->x, sp->y };
+            spawn_location = (LONG)spawn_index;
             fprintf(stderr, "WoW: spawn race=%s at (%.1f %.1f)\n", race, sp->x, sp->y);
-        } else {
-            wow_spawn_origin = (VECTOR2){ 0.0f, 0.0f };
-            wow_spawn_location = -1;
         }
     } else {
-        wow_spawn_origin = (VECTOR2){ 0.0f, 0.0f };
-        wow_spawn_location = -1;
         fprintf(stderr, "WoW: no fallback spawn is available for race=%s class=%u\n", race, (unsigned)class_id);
     }
     Wow_SelectLoadingScreen(mapinfo ? mapinfo->mapName : NULL);
@@ -1596,43 +1647,19 @@ static void Wow_SpawnEntities(void) {
     wow_move.pitch = 328.0f;
     wow_move.distance = 8.5f;
     wow_spawns_this_frame = 0;
-    Wow_InitPlayer(&wow_edicts[0]);
+    Wow_InitPlayer(&wow_edicts[0], spawn_origin, spawn_location);
     globals.num_edicts = WOW_MAX_CLIENTS;
-    Wow_SpawnAmbientCreatures(&wow_spawn_origin);
+    Wow_SpawnAmbientCreatures(&spawn_origin);
     /* Initial world population is intentionally split into budgets so the
      * imported quest anchors do not starve ambient creatures or vice versa. */
     wow_spawns_this_frame = 0;
-    Wow_SpawnQuestLocations(&wow_spawn_origin);
-    Wow_SpawnGameObjects(&wow_spawn_origin);
+    Wow_SpawnQuestLocations(&spawn_origin);
+    Wow_SpawnGameObjects(&spawn_origin);
     /* Register spell impact models via DBC SpellVisual chain.
      * Falls back to hardcoded paths if DBC is unavailable. */
     Wow_LoadSpellDbc();
-    wow_firebolt_impact_model = Wow_SpellImpactModel(133);
-    wow_frostbolt_impact_model = Wow_SpellImpactModel(116);
-    if (!wow_firebolt_impact_model) {
-        static LPCSTR const fire_paths[] = {
-            "Spells\\FireBolt_ImpactDD_Med_Chest.m2",
-            "Spells\\Fire_ImpactDD_Med_Chest.m2",
-            NULL
-        };
-        for (LPCSTR const *p = fire_paths; *p; p++) {
-            DWORD sz;
-            HANDLE buf = gi.ReadFile ? gi.ReadFile(*p, &sz) : NULL;
-            if (buf) { wow_firebolt_impact_model = gi.ModelIndex(*p); gi.MemFree(buf); break; }
-        }
-    }
-    if (!wow_frostbolt_impact_model) {
-        static LPCSTR const frost_paths[] = {
-            "Spells\\Ice_ImpactDD_Med_Chest.m2",
-            "Spells\\Ice_ImpactDD_Low_Chest.m2",
-            NULL
-        };
-        for (LPCSTR const *p = frost_paths; *p; p++) {
-            DWORD sz;
-            HANDLE buf = gi.ReadFile ? gi.ReadFile(*p, &sz) : NULL;
-            if (buf) { wow_frostbolt_impact_model = gi.ModelIndex(*p); gi.MemFree(buf); break; }
-        }
-    }
+    wow_firebolt_impact_model = Wow_FireboltImpactModel();
+    wow_frostbolt_impact_model = Wow_FrostboltImpactModel();
     fprintf(stderr, "WoW: impact models — fire=%d frost=%d\n", wow_firebolt_impact_model, wow_frostbolt_impact_model);
     fprintf(stderr, "WoW doodads: static ADT doodads are renderer-owned and not synced as entities\n");
 }
