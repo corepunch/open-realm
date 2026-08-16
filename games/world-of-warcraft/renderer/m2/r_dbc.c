@@ -164,9 +164,12 @@ BOOL M2_DbcResolveCreatureAppearance(DWORD display_id, LPM2CREATUREAPPEARANCE ou
     return true;
 }
 
+/* Per wowdev DB:ItemDisplayInfo — for each slot, the three geosetGroup DBC fields
+ * (indices 0/1/2 at fields 7/8/9) map to these geoset groups:
+ *   LEGS: geosetGroup[0] → group 13 (trouser mesh), geosetGroup[1] → group 9 (kneepads) */
 static DWORD const slot_geoset_group_map[M2_SLOT_COUNT][3] = {
     { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 }, { 8, 0, 13 }, { 8, 0, 0 }, { 0, 0, 0 },
-    { 13, 0, 0 }, { 5, 0, 0 }, { 4, 0, 0 }, { 0, 0, 0 }, { 15, 0, 0 },
+    { 13, 9, 0 }, { 5, 0, 0 }, { 4, 0, 0 }, { 0, 0, 0 }, { 15, 0, 0 },
 };
 
 static void M2_DbcAddDisplayInfo(LPM2CHARACTEROUTFIT outfit, DWORD display_id, DWORD slot) {
