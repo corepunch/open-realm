@@ -23,6 +23,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | SC2 HUD layout pipeline (sc2BaseFrame_t → uiFrame_t, layer IDs, stat bindings) | [games/starcraft-2/docs/hud-layout-pipeline.md](games/starcraft-2/docs/hud-layout-pipeline.md) |
 | FS / VFS / MPQ loading stack, SC2 vs WoW patterns, mmap ADT optimization | [docs/fs-loading-architecture.md](docs/fs-loading-architecture.md) |
 | Code patterns that work well (file-shaped structs, table-driven parsing, pointer-walk parsers) | [docs/code-patterns-that-work.md](docs/code-patterns-that-work.md) |
+| Launching UI/model scenes from the command line without a game session | [docs/rendering-scene-workflow.md](docs/rendering-scene-workflow.md) |
 
 ## Coding Style
 
@@ -145,6 +146,7 @@ Follow Quake 2's pattern. Never fail silently, never crash, never log per-frame.
 
 - The `+` prefix (e.g. `+map`, `+menu_main`) is for **command-line arguments only**. It tells `Cbuf_AddLateCommands` to strip the `+` and queue the command for startup execution.
 - In code, use the bare command name when calling `Cbuf_AddText` or `uiimport.Cmd_ExecuteText`: `"map ..."` not `"+map ..."`.
+- **Launch UI scenes directly** with a `+menu_<scene>` late command — there is no `+ui` command. Scene names come from the `menu_*` commands each game registers via `Cmd_AddCommand` in its `ui_main.c`: WC3 (`menu_main`, `menu_options`, ...) and WoW (`menu_login`, `menu_character_select`, `menu_character_create`, `menu_ingame`). Examples: `build/bin/openwarcraft3 -data 'data/Warcraft III' +menu_main`, `build/bin/openwow -data data/world-of-warcraft +menu_character_create`. See [docs/rendering-scene-workflow.md](docs/rendering-scene-workflow.md).
 
 ## Domain
 
