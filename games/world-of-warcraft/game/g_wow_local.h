@@ -4,6 +4,7 @@
 #include "server/server.h"
 #include "common/wow_ui_shared.h"
 #include "common/ui_constants.h"
+
 typedef struct WOWWEAPON {
     DWORD entry;
     LPCSTR name;
@@ -299,6 +300,14 @@ typedef struct {
     DWORD message_count;
 } wowClient_t;
 
+typedef struct WOWDOODADDEF {
+    DWORD name_id, unique_id;
+    FLOAT position[3], rotation[3];
+    WORD scale, flags;
+} WOWDOODADDEF;
+typedef struct WOWDOODADDEF *LPWOWDOODADDEF;
+typedef const struct WOWDOODADDEF *LPCWOWDOODADDEF;
+
 extern struct game_import gi;
 extern struct game_export globals;
 extern edict_t wow_edicts[WOW_MAX_EDICTS];
@@ -330,6 +339,7 @@ void Wow_FaceTarget(LPEDICT ent, LPEDICT target);
 void Wow_AIAttack(LPEDICT ent);
 void Wow_AIPain(LPEDICT ent);
 void Wow_AIDie(LPEDICT ent, LPEDICT attacker);
+void Wow_ApplyDamage(LPEDICT target, LPEDICT attacker, DWORD damage);
 BOOL Wow_AIAdvanceLockedFrame(LPEDICT ent);
 BOOL Wow_EntityAffectingCombat(LPEDICT ent);
 BOOL Wow_SetStandMove(LPEDICT ent);
@@ -342,6 +352,7 @@ void Wow_SpawnAmbientCreatures(LPCVECTOR2 origin);
 void Wow_SpawnQuestLocations(LPCVECTOR2 origin);
 void Wow_RunCreatureFrame(LPEDICT ent);
 void Wow_SpawnGameObjects(LPCVECTOR2 origin);
+void WowGo_SetDoodadTransform(LPCWOWDOODADDEF def, LPENTITYSTATE state);
 void Wow_RunGameObjectFrame(LPEDICT ent);
 void Wow_RunCorpseFrame(LPEDICT ent);
 void Wow_RunDynamicObjectFrame(LPEDICT ent);
@@ -372,6 +383,7 @@ LPEDICT    Wow_FindSpellTarget(LPEDICT ent, FLOAT range);
 
 /* g_spawn.c — race→spawn-point selection and teleport */
 DWORD      Wow_SelectSpawnPoint(LPCSTR race, DWORD class_id);
+DWORD      Wow_PlayerCreateMap(LPCSTR race, DWORD class_id);
 LPCVECTOR3 Wow_GetSpawnPos(DWORD idx);
 void       Wow_TeleportPlayer(LPEDICT ent, DWORD spawn_index);
 

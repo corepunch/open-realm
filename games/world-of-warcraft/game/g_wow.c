@@ -969,19 +969,13 @@ void Wow_RunProjectile(LPEDICT ent) {
         FLOAT step = local->projectile_speed * ((FLOAT)FRAMETIME / 1000.0f);
 
         if (dist <= step) {
-            /* Hit the target — apply damage and optional slow debuff. */
+            /* Hit the target — delegate damage to the shared combat path (Q2 T_Damage analog). */
+            LPEDICT caster = Wow_EdictByNumber(local->projectile_caster);
             wowEntityLocal_t *target_local = Wow_EntityLocal(target);
-            if (target_local && !target_local->dead) {
-                if (target_local->health <= local->projectile_damage) {
-                    Wow_AIDie(target, ent);
-                } else {
-                    target_local->health -= local->projectile_damage;
-                    if (target->pain) target->pain(target);
-                }
-                /* slow_timer on the projectile encodes the debuff duration to apply. */
-                if (local->slow_timer > 0)
-                    target_local->slow_timer = MAX(target_local->slow_timer, local->slow_timer);
-            }
+            Wow_ApplyDamage(target, caster, local->projectile_damage);
+            /* slow_timer on the projectile encodes the debuff duration to apply. */
+            if (target_local && !target_local->dead && local->slow_timer > 0)
+                target_local->slow_timer = MAX(target_local->slow_timer, local->slow_timer);
             /* Broadcast a client-side impact effect to all nearby observers. */
             {
                 BOOL is_frost = local->slow_timer > 0;
@@ -1464,6 +1458,17 @@ static void Wow_ReadSelectedCharFromCvars(char *race, size_t race_sz, char *sex,
     }
 }
 
+/* Map selection happens before LoadMap, but remains authored by the server playercreateinfo table. */
+static DWORD Wow_SelectedPlayerCreateMap(void) {
+    char race[64], sex[64];
+    DWORD class_id, appearance;
+
+    if (!gi.CvarString(WOW_CVAR_PLAYERINFO, "")[0])
+        return ~0u;
+    Wow_ReadSelectedCharFromCvars(race, sizeof(race), sex, sizeof(sex), &class_id, &appearance);
+    return Wow_PlayerCreateMap(race, class_id);
+}
+
 /* Read the selected character's race/sex from the CS_GENERAL configstring for
    server-authored UI (unit-frame portrait).  Fallback matches Wow_InitPlayer. */
 void Wow_GetPlayerRaceSex(char *race, size_t race_sz, char *sex, size_t sex_sz) {
@@ -1598,7 +1603,7 @@ static void Wow_Shutdown(void) {
     globals.num_edicts = 0;
 }
 
-static void Wow_SpawnEntities(void);
+static bool Wow_SpawnEntities(void);
 
 static bool Wow_LoadMap(LPCSTR mapFilename) {
     if (!CM_LoadMap(mapFilename)) {
@@ -1610,8 +1615,7 @@ static bool Wow_LoadMap(LPCSTR mapFilename) {
     if (gi.ClearWorld) {
         gi.ClearWorld();
     }
-    Wow_SpawnEntities();
-    return true;
+    return Wow_SpawnEntities();
 }
 
 
@@ -1624,7 +1628,7 @@ static void Wow_ThinkUnit(LPEDICT ent) {
 static void Wow_ThinkProjectile(LPEDICT ent) { Wow_RunProjectile(ent); }
 static void Wow_ThinkDynamicObject(LPEDICT ent) { Wow_RunDynamicObjectFrame(ent); }
 
-static void Wow_SpawnEntities(void) {
+static bool Wow_SpawnEntities(void) {
     LPCMAPINFO mapinfo = CM_GetMapInfo();
     char race[64], sex[64];
     DWORD class_id, appearance, spawn_index;
@@ -1637,8 +1641,10 @@ static void Wow_SpawnEntities(void) {
     Wow_ReadSelectedCharFromCvars(race, sizeof(race), sex, sizeof(sex), &class_id, &appearance);
     spawn_index = Wow_SelectSpawnPoint(race, class_id);
     if (spawn_index == ~0u) {
-        fprintf(stderr, "WoW: no spawn for race=%s class=%u; using Orc Warrior spawn\n", race, (unsigned)class_id);
-        spawn_index = Wow_SelectSpawnPoint("Orc", WOW_CLASS_WARRIOR);
+        /* A mismatched map is a lifecycle error; substituting a WorldSafeLoc caused Orcs to appear in Northshire. */
+        fprintf(stderr, "WoW: no playercreateinfo spawn for race=%s class=%u on loaded map=%u\n",
+                race, (unsigned)class_id, (unsigned)CM_WowGetMapId());
+        return false;
     }
 
     if (spawn_index != ~0u) {
@@ -1648,8 +1654,6 @@ static void Wow_SpawnEntities(void) {
             spawn_location = (LONG)spawn_index;
             fprintf(stderr, "WoW: spawn race=%s at (%.1f %.1f)\n", race, sp->x, sp->y);
         }
-    } else {
-        fprintf(stderr, "WoW: no fallback spawn is available for race=%s class=%u\n", race, (unsigned)class_id);
     }
     Wow_SelectLoadingScreen(mapinfo ? mapinfo->mapName : NULL);
     /* Re-populate the playerinfo configstring from cvars after SV_Map's
@@ -1677,6 +1681,7 @@ static void Wow_SpawnEntities(void) {
     wow_frostbolt_impact_model = Wow_FrostboltImpactModel();
     fprintf(stderr, "WoW: impact models — fire=%d frost=%d\n", wow_firebolt_impact_model, wow_frostbolt_impact_model);
     fprintf(stderr, "WoW doodads: static ADT doodads are renderer-owned and not synced as entities\n");
+    return true;
 }
 
 static void Wow_RunFrame(void) {
@@ -2178,6 +2183,7 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.ClientSetCameraPosition = Wow_ClientSetCameraPosition;
     globals.ClientBegin = Wow_ClientBegin;
     globals.CanSeeEntity = NULL;
+    globals.PlayerCreateMap = Wow_SelectedPlayerCreateMap;
     globals.LoadMap = Wow_LoadMap;
     globals.GetWorldBounds = CM_GetWorldBounds;
     globals.max_edicts = WOW_MAX_EDICTS;

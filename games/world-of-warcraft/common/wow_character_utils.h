@@ -13,9 +13,9 @@ static BYTE Wow_CharacterSlotForInventoryType(DWORD inventory_type) {
     }
 }
 
-/* Classic CreatureDisplayInfoExtra NPCItemDisplay[9] slot order. */
+/* Classic CreatureDisplayInfoExtra NPCItemDisplay slot order. */
 static BYTE Wow_CharacterCreatureItemSlot(DWORD index) {
-    static BYTE const slots[] = { 1, 2, 4, 3, 5, 6, 7, 0, 8 };
+    static BYTE const slots[] = { 1, 2, 4, 3, 5, 6, 7, 0, 8, 9, 10 };
     return index < sizeof(slots) ? slots[index] : 0;
 }
 

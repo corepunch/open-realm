@@ -184,31 +184,31 @@ build-run-wow: openwow
 	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR)
 
 build-run-wow-map: openwow
-	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +map World/Maps/Azeroth/Azeroth.wdt
+	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +map 1
 
 build-run-wow-orc: openwow
-	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +map World/Maps/Azeroth/Azeroth.wdt +set wow_playerinfo '\race\Orc\sex\Male\class\1\appearance\0'
+	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +set wow_playerinfo '\race\Orc\sex\Male\class\1\appearance\0' +map playercreate
 
 build-run-wow-human: openwow
-	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +map World/Maps/Azeroth/Azeroth.wdt +set wow_playerinfo '\race\Human\sex\Male\class\1\appearance\0'
+	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +set wow_playerinfo '\race\Human\sex\Male\class\1\appearance\0' +map playercreate
 
 build-run-wow-dwarf: openwow
-	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +map World/Maps/Azeroth/Azeroth.wdt +set wow_playerinfo '\race\Dwarf\sex\Male\class\1\appearance\0'
+	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +set wow_playerinfo '\race\Dwarf\sex\Male\class\1\appearance\0' +map playercreate
 
 build-run-wow-undead: openwow
-	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +map World/Maps/Azeroth/Azeroth.wdt +set wow_playerinfo '\race\Undead\sex\Male\class\1\appearance\0'
+	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +set wow_playerinfo '\race\Undead\sex\Male\class\1\appearance\0' +map playercreate
 
 build-run-wow-tauren: openwow
-	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +map World/Maps/Azeroth/Azeroth.wdt +set wow_playerinfo '\race\Tauren\sex\Male\class\1\appearance\0'
+	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +set wow_playerinfo '\race\Tauren\sex\Male\class\1\appearance\0' +map playercreate
 
 build-run-wow-nightelf: openwow
-	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +map World/Maps/Azeroth/Azeroth.wdt +set wow_playerinfo '\race\NightElf\sex\Male\class\1\appearance\0'
+	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +set wow_playerinfo '\race\NightElf\sex\Male\class\1\appearance\0' +map playercreate
 
 build-run-wow-gnome: openwow
-	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +map World/Maps/Azeroth/Azeroth.wdt +set wow_playerinfo '\race\Gnome\sex\Male\class\1\appearance\0'
+	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +set wow_playerinfo '\race\Gnome\sex\Male\class\1\appearance\0' +map playercreate
 
 build-run-wow-troll: openwow
-	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +map World/Maps/Azeroth/Azeroth.wdt +set wow_playerinfo '\race\Troll\sex\Male\class\1\appearance\0'
+	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +set wow_playerinfo '\race\Troll\sex\Male\class\1\appearance\0' +map playercreate
 
 run-sc2: $(SC2_BINARY)
 	$(SC2_BINARY) -data data/StarCraft2 +map TRaynor01 $(ARGS)

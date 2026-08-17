@@ -948,17 +948,14 @@ TEST(wow_game, wow_load_map_initializes_player_state) {
     }
 }
 
-/* Setting wow_playerinfo cvar to a different race places the player in that
-   race's starting zone (Human → Northshire, index 0). */
-TEST(wow_game, wow_load_map_spawns_at_race_zone_via_cvar) {
+/* A direct race/map mismatch must fail instead of silently moving the player to a WorldSafeLoc. */
+TEST(wow_game, wow_load_map_rejects_mismatched_playercreate_map) {
     struct game_export *game;
 
     game = init_game();
     snprintf(test_playerinfo, sizeof(test_playerinfo), "\\race\\Human\\sex\\Female\\class\\%u\\appearance\\0", (unsigned)WOW_CLASS_WARRIOR);
-    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
-    assert_player_spawned(&wow_edicts[0]);
-    T_STREQ(wow_edicts[0].client->ps.name, "Thrall");
-    T_EQ((int)wow_edicts[0].client->ps.start_location, 0);
+    T_ASSERT(!game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    T_ASSERT(!wow_edicts[0].inuse);
     if (game->Shutdown) game->Shutdown();
 }
 
@@ -1466,4 +1463,37 @@ TEST(wow_game, wow_directional_movement_animations) {
     T_STREQ(local->animation->name, back_animation ? "WalkBackwards" : "Run");
     T_FEQ(player->s.angle, facing, 0.001f);
     if (game->Shutdown) game->Shutdown();
+}
+
+TEST(wow_game, playercreate_map_comes_from_spawn_table) {
+    struct game_export *game = init_game();
+
+    T_EQ(Wow_PlayerCreateMap("Human", WOW_CLASS_WARRIOR), 0u);
+    T_EQ(Wow_PlayerCreateMap("Orc", WOW_CLASS_WARRIOR), 1u);
+    T_EQ(Wow_PlayerCreateMap("NightElf", 11), 1u);
+    T_EQ(Wow_PlayerCreateMap("Unknown", WOW_CLASS_WARRIOR), ~0u);
+    T_NOT_NULL(game->PlayerCreateMap);
+    T_EQ(game->PlayerCreateMap(), ~0u);
+    snprintf(test_playerinfo, sizeof(test_playerinfo), "\\race\\Orc\\sex\\Male\\class\\1\\appearance\\0");
+    T_EQ(game->PlayerCreateMap(), 1u);
+    if (game->Shutdown) game->Shutdown();
+}
+
+TEST(wow_game, game_object_uses_authored_mddf_transform) {
+    WOWDOODADDEF def = {
+        .position = { 17598.289f, 90.646f, 14467.403f },
+        .rotation = { 0.0f, 138.5f, 0.0f },
+        .scale = 1863,
+    };
+    entityState_t state = { 0 };
+
+    WowGo_SetDoodadTransform(&def, &state);
+    T_FEQ(state.origin.x, 32.0f * WOW_ADT_SIZE - def.position[2], 0.001f);
+    T_FEQ(state.origin.y, 32.0f * WOW_ADT_SIZE - def.position[0], 0.001f);
+    T_FEQ(state.origin.z, def.position[1], 0.001f);
+    T_FEQ(state.rotation.x, def.rotation[0], 0.001f);
+    T_FEQ(state.rotation.y, def.rotation[1], 0.001f);
+    T_FEQ(state.rotation.z, def.rotation[2], 0.001f);
+    T_FEQ(state.scale, def.scale / 1024.0f, 0.001f);
+    T_EQ(state.flags & EF_GROUND_ANCHOR, 0);
 }

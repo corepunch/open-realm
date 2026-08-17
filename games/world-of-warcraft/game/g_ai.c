@@ -88,7 +88,7 @@ static void Wow_AdvanceDeathFrame(LPEDICT ent, wowEntityLocal_t *local) {
     }
 }
 
-static void Wow_ApplyDamage(LPEDICT target, LPEDICT attacker, DWORD damage) {
+void Wow_ApplyDamage(LPEDICT target, LPEDICT attacker, DWORD damage) {
     wowEntityLocal_t *target_local;
 
     if (!target || damage == 0) {
@@ -221,6 +221,8 @@ void Wow_AIMove(LPEDICT ent) {
     step = MIN(effective_speed * ((FLOAT)FRAMETIME / 1000.0f), len);
     ent->s.origin.x += delta.x * step / len;
     ent->s.origin.y += delta.y * step / len;
+    /* Quake2 M_CheckGround: re-anchor Z to the terrain as the creature walks. */
+    ent->s.origin.z = Wow_TerrainHeight(ent->s.origin.x, ent->s.origin.y);
     ent->s.origin2 = (VECTOR2){ ent->s.origin.x, ent->s.origin.y };
     local->yaw = (FLOAT)RAD2DEG(atan2f(delta.y, delta.x));
     ent->s.angle = (FLOAT)DEG2RAD(local->yaw);

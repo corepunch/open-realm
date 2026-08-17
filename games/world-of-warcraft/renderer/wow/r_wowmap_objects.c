@@ -1,7 +1,7 @@
 #include "r_wowmap.h"
 
 VECTOR3 Wow_ObjectPoint(wowVec3_t p) {
-    return Wow_WorldPoint( 32.0f * WOW_ADT_SIZE - p.z, 32.0f * WOW_ADT_SIZE - p.x, p.y);
+    return CM_WowObjectPoint(p.x, p.y, p.z);
 }
 
 void Wow_InstanceMatrix(wowMapObjDef_t const *def, LPMATRIX4 matrix) {
@@ -339,7 +339,7 @@ LPMODEL Wow_LoadDoodadModel(LPCSTR path) {
     }
     for (entry = wow_world.doodad_models; entry; entry = entry->next) {
         if (!strcasecmp(entry->path, path)) {
-            return entry->model;
+            return entry->model && entry->model->m2 ? entry->model : NULL;
         }
     }
 
@@ -350,8 +350,9 @@ LPMODEL Wow_LoadDoodadModel(LPCSTR path) {
     entry->next = wow_world.doodad_models;
     wow_world.doodad_models = entry;
     wow_world.num_doodad_models++;
-    if (!entry->model) {
+    if (!entry->model || !entry->model->m2) {
         wow_world.num_missing_doodad_models++;
+        return NULL;
     }
     return entry->model;
 }
@@ -393,7 +394,6 @@ void Wow_AddDoodadInstance(LPCSTR model_path, wowDoodadDef_t const *def) {
         wow_world.num_filedata_doodads++;
         return;
     }
-
     model = Wow_LoadDoodadModel(model_path);
     if (!model) {
         return;
@@ -407,6 +407,29 @@ void Wow_AddDoodadInstance(LPCSTR model_path, wowDoodadDef_t const *def) {
     instance->entity.model = model;
     instance->entity.radius = 32.0f;
     instance->entity.flags = RF_NO_SHADOW;
+    instance->next = wow_world.doodads;
+    wow_world.doodads = instance;
+    Wow_BucketDoodadInstance(instance);
+    wow_world.num_doodad_instances++;
+}
+
+/* Ground-effect M2s already contain the authoritative geometry and material paths from the MPQ. */
+void Wow_AddGroundEffectInstance(LPCSTR model_path, VECTOR3 origin, float angle) {
+    wowDoodadInstance_t *instance;
+    LPMODEL model;
+
+    model = Wow_LoadDoodadModel(model_path);
+    if (!model) {
+        return;
+    }
+    instance = ri.MemAlloc(sizeof(*instance));
+    memset(instance, 0, sizeof(*instance));
+    instance->entity.origin = origin;
+    instance->entity.rotation = (VECTOR3){ 0.0f, 0.0f, angle };
+    instance->entity.scale = 1.0f;
+    instance->entity.model = model;
+    instance->entity.radius = WOW_DOODAD_BUCKET_SIZE * 0.25f;
+    instance->entity.flags = RF_NO_SHADOW | RF_GROUND_EFFECT;
     instance->next = wow_world.doodads;
     wow_world.doodads = instance;
     Wow_BucketDoodadInstance(instance);

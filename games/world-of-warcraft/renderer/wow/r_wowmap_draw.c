@@ -11,7 +11,7 @@ BOOL Wow_EntityInView(renderEntity_t const *entity) {
 
     camera_origin = tr.viewDef.camerastate[0].origin;
     delta = Vector3_sub(&entity->origin, &camera_origin);
-    if (Vector3_len(&delta) > WOW_DOODAD_DRAW_DISTANCE) {
+    if (Vector3_len(&delta) > ((entity->flags & RF_GROUND_EFFECT) ? WOW_GRASS_DRAW_DISTANCE : WOW_DOODAD_DRAW_DISTANCE)) {
         return false;
     }
 

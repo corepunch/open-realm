@@ -198,6 +198,7 @@ void Wow_ShutdownWorldShaders(void) {
     wow_uGrassTime = -1;
     wow_uGrassCameraOrigin = -1;
     wow_uGrassDrawDistance = -1;
+    wow_uGrassFadeStartDistance = -1;
 }
 
 LPTEXTURE Wow_LoadTexture(LPCSTR path) {

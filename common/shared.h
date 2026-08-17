@@ -147,6 +147,7 @@ enum {
     FLAG(RF_FOW_REVEALER, 12),
     FLAG(RF_HOSTILE, 13),
     FLAG(RF_HOVERED, 14),
+    FLAG(RF_GROUND_EFFECT, 15),
 };
 
 enum {

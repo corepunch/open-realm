@@ -10,7 +10,6 @@
 #define WOW_WDT_TILES 64
 #define WOW_MCVT_COUNT (9 * 9 + 8 * 8)
 #define WOW_ADT_RADIUS 1
-#define WOW_ADT_SIZE 533.333313f
 #define WOW_ADT_CHUNK_SIZE (WOW_ADT_SIZE / 16.0f)
 #define WOW_ADT_UNIT_SIZE (WOW_ADT_CHUNK_SIZE / 8.0f)
 #define WOW_ALPHA_TEXELS (64 * 64)
@@ -34,9 +33,41 @@
 #define WOW_SPLAT_Z_BIAS 0.05f
 #define WOW_SPLAT_MAX_HEIGHT_DELTA 3.0f
 #define WOW_GRASS_DRAW_DISTANCE 220.0f
-#define WOW_GRASS_DENSITY 1.0f
-#define WOW_GRASS_CELL_STEP 2
+#define WOW_GRASS_FADE_START_DISTANCE 160.0f
+#define WOW_GRASS_ROAD_COVERAGE_MIN 24
+#define WOW_GRASS_CELL_STEP 1
+#define WOW_GRASS_CELLS_PER_AXIS 8
+#define WOW_GRASS_MAX_PLACEMENTS_PER_SAMPLE 8
+#define WOW_GRASS_COVERAGE_MIN 32
+#define WOW_GRASS_ALPHA_AXIS 8
+#define WOW_GRASS_ALPHA_MAX 63
+#define WOW_GRASS_ALPHA_TEXEL_MAX 255.0f
+#define WOW_GRASS_DBC_DENSITY_MAX 16
+#define WOW_GRASS_DBC_FIELD_COUNT 11
+#define WOW_GRASS_DOODAD_FIELD_COUNT 3
+#define WOW_GRASS_TEXTURE_LEGACY_DOODAD_FIELD 5
+#define WOW_GRASS_TEXTURE_MODERN_DOODAD_FIELD 1
+#define WOW_GRASS_TEXTURE_WEIGHT_FIELD 5
+#define WOW_GRASS_TEXTURE_DENSITY_FIELD 9
+#define WOW_GRASS_DOODAD_MODEL_FIELD 2
+#define WOW_GRASS_DOODAD_LOGGED_IDS 65536
+#define WOW_GRASS_DOODAD_SLOTS 4
+#define WOW_GRASS_INVALID_DOODAD 0xFFFFFFFFU
 #define WOW_GRASS_VERTICES_PER_CLUMP 12
+#define WOW_GRASS_CELL_OFFSET 0.20f
+#define WOW_GRASS_CELL_MARGIN 0.40f
+#define WOW_GRASS_CLUMP_JITTER 0.45f
+#define WOW_GRASS_COORD_EPSILON 0.001f
+#define WOW_GRASS_Z_BIAS 0.02f
+#define WOW_GRASS_FULL_CIRCLE 6.2831853f
+#define WOW_GRASS_BLADE_HEIGHT_MIN 0.55f
+#define WOW_GRASS_BLADE_HEIGHT_VARIATION 0.45f
+#define WOW_GRASS_BLADE_WIDTH_MIN 0.30f
+#define WOW_GRASS_BLADE_WIDTH_VARIATION 0.20f
+#define WOW_GRASS_CROSS_ANGLE 1.5707963f
+#define WOW_GRASS_CROSS_WIDTH_SCALE 0.85f
+#define WOW_GRASS_CROSS_HEIGHT_SCALE 0.90f
+#define WOW_GRASS_NORMAL_Z 0.10f
 
 typedef struct wowWdtTile_s {
     BOOL present;
@@ -218,16 +249,20 @@ typedef struct {
 
 typedef struct {
     DWORD id;
-    DWORD doodad_id[4];
-    DWORD weight[4];
-    DWORD amount_and_coverage;
-    DWORD terrain_type_id;
+    DWORD date_stamp;
+    DWORD continent_id;
+    DWORD zone_id;
+    DWORD texture_id;
+    DWORD doodad_id[WOW_GRASS_DOODAD_SLOTS];
+    DWORD weight[WOW_GRASS_DOODAD_SLOTS];
+    DWORD density;
+    DWORD sound;
 } wowGroundEffectTexture_t;
 
 typedef struct {
     DWORD id;
-    DWORD name_id;
-    DWORD model_id;
+    DWORD legacy_field;
+    PATHSTR model_path;
 } wowGroundEffectDoodad_t;
 
 extern wowMap_t wow_world;
@@ -244,6 +279,7 @@ extern GLint wow_uAlphaAtlasChunks;
 extern GLint wow_uGrassTime;
 extern GLint wow_uGrassCameraOrigin;
 extern GLint wow_uGrassDrawDistance;
+extern GLint wow_uGrassFadeStartDistance;
 
 BOOL Wow_PathHasExtension(LPCSTR path, LPCSTR extension);
 void Wow_NormalizeMapPath(LPCSTR mapFileName, LPSTR out, DWORD out_size);
@@ -304,6 +340,7 @@ LPMODEL Wow_LoadDoodadModel(LPCSTR path);
 int Wow_DoodadBucketIndex(float coord);
 void Wow_BucketDoodadInstance(wowDoodadInstance_t *instance);
 void Wow_AddDoodadInstance(LPCSTR model_path, wowDoodadDef_t const *def);
+void Wow_AddGroundEffectInstance(LPCSTR model_path, VECTOR3 origin, float angle);
 void Wow_AddMarker(VERTEX *vertices, LPDWORD index, VECTOR3 p, float size, COLOR32 color);
 VERTEX *Wow_AppendMarkers(VERTEX *old_vertices, LPDWORD old_count, BYTE const *chunk, DWORD size, BYTE const *name_blob, DWORD name_blob_size, DWORD const *name_offsets, DWORD name_offset_count, BOOL wmo);
 VERTEX *Wow_AppendDoodadErrorMarkers(VERTEX *old_vertices, LPDWORD old_count, BYTE const *chunk, DWORD size);
@@ -319,7 +356,7 @@ void Wow_LoadGroundEffectDBCs(void);
 void Wow_LoadNearbyAdts(int center_x, int center_y);
 void Wow_LoadCameraAdts(void);
 void Wow_InitGrassShader(void);
-void Wow_BuildGrassForChunk(wowAdtChunk_t *chunk, BYTE const alpha[4][WOW_ALPHA_TEXELS], wowLayer_t const *layers, DWORD layer_count);
+void Wow_BuildGrassForChunk(wowAdtChunk_t *chunk, BYTE const alpha[4][WOW_ALPHA_TEXELS], wowLayer_t const *layers, DWORD layer_count, char **textures, DWORD num_textures);
 BOOL Wow_GrassChunkInRange(wowAdtChunk_t const *chunk);
 void Wow_DrawGrass(void);
 BOOL Wow_EntityInView(renderEntity_t const *entity);

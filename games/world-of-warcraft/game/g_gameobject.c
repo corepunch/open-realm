@@ -135,16 +135,6 @@ static wowGoModelMap_t wow_go_model_map[WOW_MAX_GO_MODEL_MAP];
 static DWORD wow_go_model_map_count = 0;
 static BOOL wow_go_model_map_loaded = false;
 
-/* Doodad definition as found in MDDF chunks (same layout as wowDoodadDef_t). */
-typedef struct {
-    DWORD   name_id;
-    DWORD   unique_id;
-    FLOAT   position[3];
-    FLOAT   rotation[3];
-    WORD    scale;
-    WORD    flags;
-} wowDoodadDef_t;
-
 #pragma pack(push, 1)
 typedef struct {
     FLOAT position[3];
@@ -263,8 +253,17 @@ static BOOL WowGo_IsInteractive(DWORD display_id) {
     return true; /* placeholder: all DBC-matched doodads are interactive */
 }
 
-/* Spawn a single game object entity from a doodad placement. */
-static void WowGo_SpawnDoodad(wowDoodadDef_t const *def, LPCSTR model_path) {
+/* Keep server-authored interactive entities coincident with renderer-owned MDDF doodads. */
+void WowGo_SetDoodadTransform(LPCWOWDOODADDEF def, LPENTITYSTATE state) {
+    /* MDDF positions are absolute map coordinates; the old tile offset and terrain projection destroyed authored Z. */
+    state->origin = CM_WowObjectPoint(def->position[0], def->position[1], def->position[2]);
+    state->origin2 = (VECTOR2){ state->origin.x, state->origin.y };
+    state->rotation = (VECTOR3){ def->rotation[0], def->rotation[1], def->rotation[2] };
+    state->scale = def->scale / 1024.0f;
+}
+
+/* Spawn a game object with the exact authored MDDF transform. */
+static void WowGo_SpawnDoodad(LPCWOWDOODADDEF def, LPCSTR model_path) {
     DWORD display_id = WowGo_LookupDisplayId(model_path);
     if (!display_id || !WowGo_IsInteractive(display_id))
         return;
@@ -280,33 +279,9 @@ static void WowGo_SpawnDoodad(wowDoodadDef_t const *def, LPCSTR model_path) {
     local->go_state = 0; /* GO_STATE_READY */
     local->go_interactive = true;
 
-    /* Convert ADT coords to world space: X=East, Y=North (from ADT tile offsets) */
     ent->s.model = G_RegisterModel(model_path);
-    ent->s.origin = (VECTOR3){
-        def->position[2],  /* ADT Z = world X */
-        def->position[0],  /* ADT X = world Y (flipped later) */
-        0.0f
-    };
-    ent->s.origin2 = (VECTOR2){ ent->s.origin.x, ent->s.origin.y };
-    ent->s.origin.z = Wow_TerrainHeight(ent->s.origin.x, ent->s.origin.y);
-
-    FLOAT scale = def->scale / 1024.0f;
-    ent->s.scale = MAX(0.1f, scale);
+    WowGo_SetDoodadTransform(def, &ent->s);
     ent->s.radius = 1.0f;
-    ent->s.flags = EF_GROUND_ANCHOR;
-}
-
-/* Convert ADT tile coords to absolute world coords.  ADT coords are
- * relative to tile (tile_x, tile_y); a full map is 64×64 tiles
- * with each tile being 533.333f world units. */
-#define WOW_ADT_SIZE 533.333313f
-#define WOW_ADT_TILES 64
-
-static VECTOR2 WowGo_WorldPos(int tile_x, int tile_y, FLOAT x, FLOAT y) {
-    return (VECTOR2){
-        (FLOAT)(WOW_ADT_TILES / 2 - tile_y) * WOW_ADT_SIZE + x,
-        (FLOAT)(WOW_ADT_TILES / 2 - tile_x) * WOW_ADT_SIZE + y,
-    };
 }
 
 /* Spawn game objects from a single ADT tile's MDDF/MODF chunks. */
@@ -317,7 +292,10 @@ static void WowGo_SpawnFromTile(int tile_x, int tile_y) {
     LPBYTE mdnm_data = NULL;
     DWORD mdnm_size = 0;
 
-    snprintf(path, sizeof(path), "World/Maps/Azeroth/Azeroth_%d_%d.adt", tile_x, tile_y);
+    if (!CM_WowAdtPath(tile_x, tile_y, path, sizeof(path))) {
+        fprintf(stderr, "WoW: current map has no ADT path for game-object tile %d,%d\n", tile_x, tile_y);
+        return;
+    }
     data = (LPBYTE)gi.ReadFile(path, &size);
     if (!data || !size)
         return;
@@ -337,21 +315,16 @@ static void WowGo_SpawnFromTile(int tile_x, int tile_y) {
             mdnm_size = chunk_size;
         } else if (WowGo_DbcTagEquals(tag, "FDMM") && mdnm_data && mdnm_size) {
             /* MDDF: M2 doodad placements */
-            DWORD count = chunk_size / sizeof(wowDoodadDef_t);
+            DWORD count = chunk_size / sizeof(WOWDOODADDEF);
             for (DWORD i = 0; i < count; i++) {
-                wowDoodadDef_t const *def = (wowDoodadDef_t const *)(chunk + i * sizeof(*def));
+                LPCWOWDOODADDEF def = (LPCWOWDOODADDEF)(chunk + i * sizeof(*def));
                 if (def->name_id >= mdnm_size)
                     continue;
                 LPCSTR model_path = (LPCSTR)(mdnm_data + def->name_id);
                 if (!model_path || !*model_path)
                     continue;
 
-                VECTOR2 world = WowGo_WorldPos(tile_x, tile_y, def->position[2], def->position[0]);
-                /* Mutate the def's position temporarily for the spawn call */
-                wowDoodadDef_t local_def = *def;
-                local_def.position[0] = world.x;
-                local_def.position[2] = world.y;
-                WowGo_SpawnDoodad(&local_def, model_path);
+                WowGo_SpawnDoodad(def, model_path);
             }
         } else if (WowGo_DbcTagEquals(tag, "FDOMM")) {
             /* MODF: WMO placements — skip for now */

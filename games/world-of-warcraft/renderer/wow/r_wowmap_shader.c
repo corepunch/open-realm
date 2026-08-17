@@ -13,6 +13,7 @@ GLint wow_uAlphaAtlasChunks = -1;
 GLint wow_uGrassTime = -1;
 GLint wow_uGrassCameraOrigin = -1;
 GLint wow_uGrassDrawDistance = -1;
+GLint wow_uGrassFadeStartDistance = -1;
 
 void Wow_InitTerrainShader(void) {
     static LPCSTR vs_wow_terrain =
@@ -141,9 +142,10 @@ void Wow_InitGrassShader(void) {
     "out vec4 o_color;\n"
     "uniform vec3 uGrassCameraOrigin;\n"
     "uniform float uGrassDrawDistance;\n"
+    "uniform float uGrassFadeStartDistance;\n"
     "void main() {\n"
     "    float d = distance(v_world.xy, uGrassCameraOrigin.xy);\n"
-    "    float fade = 1.0 - smoothstep(uGrassDrawDistance * 0.72, uGrassDrawDistance, d);\n"
+    "    float fade = 1.0 - smoothstep(uGrassFadeStartDistance, uGrassDrawDistance, d);\n"
     "    float width = 1.0 - abs(v_uv.x * 2.0 - 1.0);\n"
     "    float edge = smoothstep(0.24, 0.46, width);\n"
     "    float root = smoothstep(0.02, 0.14, v_uv.y);\n"
@@ -166,4 +168,5 @@ void Wow_InitGrassShader(void) {
     wow_uGrassTime = glGetUniformLocation(wow_grass_shader->progid, "uGrassTime");
     wow_uGrassCameraOrigin = glGetUniformLocation(wow_grass_shader->progid, "uGrassCameraOrigin");
     wow_uGrassDrawDistance = glGetUniformLocation(wow_grass_shader->progid, "uGrassDrawDistance");
+    wow_uGrassFadeStartDistance = glGetUniformLocation(wow_grass_shader->progid, "uGrassFadeStartDistance");
 }

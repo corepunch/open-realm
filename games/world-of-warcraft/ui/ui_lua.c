@@ -508,18 +508,12 @@ static int UIWow_LuaSelectCharacter(lua_State *L) {
 }
 
 static int UIWow_LuaEnterWorld(lua_State *L) {
-    LPCSTR map_name = luaL_optstring(L, 1, "Azeroth");
-    PATHSTR resolved;
-    char cmd[512];
-
-    if (!map_name || !*map_name)
-        map_name = "Azeroth";
-    Wow_ResolveMapPath(map_name, resolved, sizeof(resolved));
+    (void)L;
     UIWow_EnterGameMode();
     UIWow_SetSelectedCharCvars();
-    snprintf(cmd, sizeof(cmd), "map %s", resolved);
+    /* The server playercreateinfo table owns race/class -> map; Map.dbc then resolves its client directory. */
     if (uiimport.Cmd_ExecuteText)
-        uiimport.Cmd_ExecuteText(cmd);
+        uiimport.Cmd_ExecuteText("map playercreate");
     return 0;
 }
 

@@ -337,3 +337,16 @@ TEST(wow_ui, wow_lua_ui_draws_from_generated_mpq) {
     SFileCloseArchive(test_archive);
     test_archive = NULL;
 }
+
+TEST(wow_ui, enter_world_delegates_map_selection_to_server_playercreateinfo) {
+    uiExport_t ui;
+
+    reset_test_state();
+    T_ASSERT(SFileOpenArchive(TEST_WOW_MPQ, 0, 0, &test_archive));
+    ui = init_ui();
+    T_ASSERT(UIWow_RunLuaString("enter_world_test", "EnterWorld()"));
+    T_STREQ(last_cmd_execute_text, "map playercreate");
+    ui.Shutdown();
+    SFileCloseArchive(test_archive);
+    test_archive = NULL;
+}

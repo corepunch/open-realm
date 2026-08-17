@@ -5,6 +5,7 @@
 #define CM_WOW_ADT_SIZE       533.333313f
 #define CM_WOW_ADT_UNIT_SIZE  (CM_WOW_ADT_SIZE / 16.0f / 8.0f)
 #define CM_WOW_MCVT_COUNT     (9 * 9 + 8 * 8)
+#define CM_WOW_HEIGHT_CACHE_TILES 16
 
 typedef struct {
     BOOL    has_heights;
@@ -17,6 +18,7 @@ typedef struct {
     BOOL              valid;
     int               tile_x;
     int               tile_y;
+    DWORD             use_stamp;
     cmWowChunkHeight_t chunks[16][16];
 } cmWowAdtHeightCache_t;
 
@@ -27,10 +29,12 @@ typedef struct {
 } cmWowWorldSafeLoc_t;
 
 static VECTOR3              cm_wow_spawn_position = { 0.0f, 0.0f, 0.0f };
+static DWORD                cm_wow_map_id = ~0u;
 static FLOAT                cm_wow_spawn_heights[MAX_PLAYERS];
 static char                 cm_wow_map_dir[PATH_MAX]  = { 0 };
 static char                 cm_wow_map_name[128]      = { 0 };
-static cmWowAdtHeightCache_t cm_wow_height_cache      = { 0 };
+static cmWowAdtHeightCache_t cm_wow_height_cache[CM_WOW_HEIGHT_CACHE_TILES];
+static DWORD                 cm_wow_height_cache_stamp;
 
 typedef struct {
     VECTOR3 pos;
@@ -51,6 +55,7 @@ void CM_WowFreeAllSpawns(void) {
 DWORD CM_WowGetAllSpawnCount(void) { return cm_wow_all_spawn_count; }
 LPCVECTOR3 CM_WowGetSpawnPos(DWORD index) { return index < cm_wow_all_spawn_count ? &cm_wow_all_spawns[index].pos : NULL; }
 LPCSTR CM_WowGetSpawnName(DWORD index) { return index < cm_wow_all_spawn_count ? cm_wow_all_spawns[index].name : NULL; }
+DWORD CM_WowGetMapId(void) { return cm_wow_map_id; }
 
 static DWORD CM_WowRead32(BYTE const *p) {
     return ((DWORD)p[0]) | ((DWORD)p[1] << 8) | ((DWORD)p[2] << 16) | ((DWORD)p[3] << 24);
@@ -113,7 +118,8 @@ static void CM_WowSetMapPath(LPCSTR mapFilename) {
     LPCSTR base;
     size_t dir_len, name_len;
 
-    memset(&cm_wow_height_cache, 0, sizeof(cm_wow_height_cache));
+    memset(cm_wow_height_cache, 0, sizeof(cm_wow_height_cache));
+    cm_wow_height_cache_stamp = 0;
     cm_wow_map_dir[0]  = '\0';
     cm_wow_map_name[0] = '\0';
 
@@ -146,7 +152,7 @@ static int CM_WowAdtIndexForWorldCoord(float coord) {
     return (int)floorf(32.0f - coord / CM_WOW_ADT_SIZE);
 }
 
-static LPCSTR CM_WowAdtPath(int tile_x, int tile_y, LPSTR out, DWORD out_size) {
+LPCSTR CM_WowAdtPath(int tile_x, int tile_y, LPSTR out, DWORD out_size) {
     if (!cm_wow_map_dir[0] || !cm_wow_map_name[0] || !out || !out_size)
         return NULL;
     snprintf(out, out_size, "%s/%s_%d_%d.adt", cm_wow_map_dir, cm_wow_map_name, tile_x, tile_y);
@@ -154,14 +160,28 @@ static LPCSTR CM_WowAdtPath(int tile_x, int tile_y, LPSTR out, DWORD out_size) {
 }
 
 static void CM_WowLoadAdtHeights(int tile_x, int tile_y) {
+    cmWowAdtHeightCache_t *cache = NULL, *oldest = NULL;
     PATHSTR path;
     LPBYTE data;
     DWORD size = 0, offset = 0;
 
-    memset(&cm_wow_height_cache, 0, sizeof(cm_wow_height_cache));
-    cm_wow_height_cache.loaded = true;
-    cm_wow_height_cache.tile_x = tile_x;
-    cm_wow_height_cache.tile_y = tile_y;
+    FOR_LOOP(i, CM_WOW_HEIGHT_CACHE_TILES) {
+        if (cm_wow_height_cache[i].loaded && cm_wow_height_cache[i].tile_x == tile_x && cm_wow_height_cache[i].tile_y == tile_y) {
+            cm_wow_height_cache[i].use_stamp = ++cm_wow_height_cache_stamp;
+            return;
+        }
+        if (!cm_wow_height_cache[i].loaded)
+            cache = &cm_wow_height_cache[i];
+        else if (!oldest || cm_wow_height_cache[i].use_stamp < oldest->use_stamp)
+            oldest = &cm_wow_height_cache[i];
+    }
+    if (!cache)
+        cache = oldest;
+    memset(cache, 0, sizeof(*cache));
+    cache->loaded = true;
+    cache->tile_x = tile_x;
+    cache->tile_y = tile_y;
+    cache->use_stamp = ++cm_wow_height_cache_stamp;
 
     if (!CM_WowAdtPath(tile_x, tile_y, path, sizeof(path)))
         return;
@@ -188,7 +208,7 @@ static void CM_WowLoadAdtHeights(int tile_x, int tile_y) {
             cmWowChunkHeight_t *height_chunk = NULL;
 
             if (index_x < 16 && index_y < 16) {
-                height_chunk = &cm_wow_height_cache.chunks[index_y][index_x];
+                height_chunk = &cache->chunks[index_y][index_x];
                 memcpy(&height_chunk->position, chunk + 0x68, sizeof(height_chunk->position));
             }
 
@@ -204,7 +224,7 @@ static void CM_WowLoadAdtHeights(int tile_x, int tile_y) {
                 if (CM_WowTagEquals(subtag, "TVCM") && sub_size >= sizeof(height_chunk->heights)) {
                     memcpy(height_chunk->heights, subchunk, sizeof(height_chunk->heights));
                     height_chunk->has_heights    = true;
-                    cm_wow_height_cache.valid    = true;
+                    cache->valid                 = true;
                 }
                 sub += sub_size;
                 if (is_mcnr && sub_size == 145 * 3 && sub + 13 <= chunk_size)
@@ -248,21 +268,31 @@ static BOOL CM_WowHeightInCell(float const *heights, int row, int col, float fx,
 }
 
 static BOOL CM_WowTerrainHeightAtPoint(FLOAT sx, FLOAT sy, FLOAT *height) {
+    cmWowAdtHeightCache_t *cache = NULL;
     int tile_x = CM_WowAdtIndexForWorldCoord(sy);
     int tile_y = CM_WowAdtIndexForWorldCoord(sx);
 
     if (!height || tile_x < 0 || tile_x >= 64 || tile_y < 0 || tile_y >= 64)
         return false;
-    if (!cm_wow_height_cache.loaded ||
-        cm_wow_height_cache.tile_x != tile_x ||
-        cm_wow_height_cache.tile_y != tile_y)
+    FOR_LOOP(i, CM_WOW_HEIGHT_CACHE_TILES)
+        if (cm_wow_height_cache[i].loaded && cm_wow_height_cache[i].tile_x == tile_x && cm_wow_height_cache[i].tile_y == tile_y) {
+            cache = &cm_wow_height_cache[i];
+            break;
+        }
+    if (!cache)
         CM_WowLoadAdtHeights(tile_x, tile_y);
-    if (!cm_wow_height_cache.valid)
+    FOR_LOOP(i, CM_WOW_HEIGHT_CACHE_TILES)
+        if (cm_wow_height_cache[i].loaded && cm_wow_height_cache[i].tile_x == tile_x && cm_wow_height_cache[i].tile_y == tile_y) {
+            cache = &cm_wow_height_cache[i];
+            break;
+        }
+    if (!cache || !cache->valid)
         return false;
+    cache->use_stamp = ++cm_wow_height_cache_stamp;
 
     FOR_LOOP(row, 16) {
         FOR_LOOP(col, 16) {
-            cmWowChunkHeight_t const *ch = &cm_wow_height_cache.chunks[row][col];
+            cmWowChunkHeight_t const *ch = &cache->chunks[row][col];
             float local_row, local_col, cell_height;
             int   cell_row, cell_col;
 
@@ -434,6 +464,7 @@ static void CM_WowChooseSpawn(LPCSTR mapFilename) {
     BOOL has_map_id, has_safe_locs;
 
     cm_wow_spawn_position = (VECTOR3){ 0.0f, 0.0f, 0.0f };
+    cm_wow_map_id = ~0u;
     memset(cm_wow_spawn_heights, 0, sizeof(cm_wow_spawn_heights));
     world.info.players[0].used       = true;
     world.info.players[0].playerType = kPlayerTypeHuman;
@@ -446,6 +477,8 @@ static void CM_WowChooseSpawn(LPCSTR mapFilename) {
     }
 
     has_map_id   = CM_WowFindMapId(map_name, &map_id);
+    if (has_map_id)
+        cm_wow_map_id = map_id;
     if (has_map_id)
         safe_loc_count = CM_WowCollectWorldSafeLocs(map_id, &cm_wow_spawn_position, safe_loc_name, sizeof(safe_loc_name));
     has_safe_locs = safe_loc_count > 0;

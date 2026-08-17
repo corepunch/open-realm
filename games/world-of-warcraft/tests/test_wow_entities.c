@@ -325,6 +325,27 @@ TEST(wow_entities, corpse_removed_after_timer_expires) {
     if (game->Shutdown) game->Shutdown();
 }
 
+TEST(wow_entities, walking_creature_reanchors_to_terrain) {
+    struct game_export *game = init_game();
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    game->RunFrame();
+
+    LPEDICT creature = first_with_think(Wow_RunCreatureFrame);
+    T_NOT_NULL(creature);
+    wowEntityLocal_t *cl = Wow_EntityLocal(creature);
+    T_ASSERT(cl->patrol_radius > 0.0f && cl->walk_speed > 0.0f);
+
+    /* Simulate walking onto a different elevation: corrupt Z, then a walk step
+     * must re-anchor it to the terrain (Quake2 M_CheckGround behaviour). */
+    creature->s.origin.z = 99999.0f;
+    Wow_AIMove(creature);
+
+    T_NE(creature->s.origin.z, 99999.0f);
+    T_FEQ(creature->s.origin.z, Wow_TerrainHeight(creature->s.origin.x, creature->s.origin.y), 0.001f);
+
+    if (game->Shutdown) game->Shutdown();
+}
+
 /* ===================================================================
  * DynamicObject tests
  * =================================================================== */

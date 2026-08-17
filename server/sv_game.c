@@ -232,3 +232,12 @@ void SV_InitGameProgs(void) {
     ge = GetGameAPI(&import);
     ge->Init();
 }
+
+#ifdef WOW
+/* Character creation data is server-owned; initialize the game module before asking it for the selected spawn map. */
+DWORD SV_PlayerCreateMap(void) {
+    if (!ge)
+        SV_InitGameProgs();
+    return ge && ge->PlayerCreateMap ? ge->PlayerCreateMap() : ~0u;
+}
+#endif

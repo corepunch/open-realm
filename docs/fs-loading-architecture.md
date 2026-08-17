@@ -61,6 +61,10 @@ Every `FS_MmapFile` result has a 16-byte header before the returned pointer:
 
 `Wow_LoadAdt` takes `BYTE const *data` and pointer-walks the chunk tree — zero secondary heap allocations during parse. The mmap pointer works identically to a heap pointer.
 
+`CM_WowTerrainHeightAtPoint` keeps a bounded 16-tile LRU of parsed heightfields. Height queries therefore reuse the decompressed `MCVT` data while retaining a fixed memory budget; a tile is evicted only when the active query set exceeds that budget. M2 character-component texture existence probes use a session cache (`m2_known_textures`) so failed and successful candidate paths are each read from MPQ at most once.
+
+These are resident metadata/data caches, not an instruction to decompress every MPQ asset at startup. Textures and models remain lazy and use the renderer's loaded-resource cache; only assets that are actually referenced become resident.
+
 ## Key invariants
 
 - Never pass an `FS_MmapFile` result to `FS_FreeFile` — will `MemFree` an mmap'd address.

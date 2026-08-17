@@ -2,12 +2,21 @@
 #include "renderer/r_emit.h"
 #include "r_dbc.h"
 #include "r_m2_utils.h"
+#include "../wow/r_wowmap.h"
 #include <stdlib.h>
 #include <strings.h>
 
 #define M2_MAX_BONES_PER_BATCH 128
 #define M2_MAX_BONES 1024
 #define M2_CHARACTER_TEXTURE_NONE 0xff
+
+typedef struct m2KnownTexture_s {
+    PATHSTR path;
+    BOOL exists;
+    struct m2KnownTexture_s *next;
+} m2KnownTexture_t;
+
+static m2KnownTexture_t *m2_known_textures;
 
 typedef struct m2ModelBatch_s {
 	LPBUFFER buffer;
@@ -150,21 +159,24 @@ static BYTE M2_CharacterTextureSlotForSection(WORD section_id) {
 }
 
 static BOOL M2_TextureExists(LPCSTR path) {
+    m2KnownTexture_t *known;
     LPBYTE data = NULL;
     int size;
 
     if (!path || !*path) {
         return false;
     }
+    for (known = m2_known_textures; known; known = known->next)
+        if (!strcasecmp(known->path, path)) return known->exists;
     size = ri.FS_ReadFile(path, (void **)&data);
-    if (size <= 0 || !data) {
-        if (data) {
-            ri.FS_FreeFile(data);
-        }
-        return false;
-    }
-    ri.FS_FreeFile(data);
-    return true;
+    known = ri.MemAlloc(sizeof(*known));
+    memset(known, 0, sizeof(*known));
+    snprintf(known->path, sizeof(known->path), "%s", path);
+    known->exists = size > 0 && data != NULL;
+    known->next = m2_known_textures;
+    m2_known_textures = known;
+    if (data) ri.FS_FreeFile(data);
+    return known->exists;
 }
 
 static BOOL M2_CharacterComponentTexturePath(LPCSTR stem,
@@ -1032,14 +1044,6 @@ static void M2_DrawParticles(m2Model_t const *model, renderEntity_t const *entit
 		if (rate <= 0.0f) continue;
 		m2TrackView_t life_t = m2_particle_track(model->format, raw, M2_PARTICLE_LIFE);
 		FLOAT life = MAX(0.05f, M2_EvaluateFloatTrack(model, &life_t, seq_idx, seq_time, 0.5f));
-		/* WoWee §M2Renderer::emitParticles: a flame reads as a flame only when enough
-		   particles are alive at once.  Authored rates vary wildly (candle 40/s over 0.5s,
-		   chandelier 1/s over 6s).  Steady-state population is rate × lifespan, so floor
-		   the rate against lifespan to hold every fixture at a comparable density. */
-		if (rate > 0.0f && life > 0.0f) {
-			const float kMinLiveParticles = 15.0f;
-			rate = MAX(rate, kMinLiveParticles / MAX(life, 0.1f));
-		}
 		m2_pctx_t ctx = { .midpoint = 0.5f, .model = model, .p = p, .model_matrix = model_matrix };
 		{ m2TrackView_t t = m2_particle_track(model->format, raw, M2_PARTICLE_SPEED);
 		  ctx.speed = M2_EvaluateFloatTrack(model, &t, seq_idx, seq_time, 0.0f); }
@@ -1882,11 +1886,21 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
     LPTEXTURE character_texture = NULL;
     m2ModelBatch_t *batch;
     LPSHADER shader;
+    BOOL ground_effect;
+    FLOAT ground_alpha = 1.0f;
 
     if (!entity || !model || !transform) {
         return;
     }
     if (!Frustum_ContainsBox(&tr.viewDef.frustum, &model->bounds, transform)) return;
+
+    ground_effect = entity->flags & RF_GROUND_EFFECT;
+    if (ground_effect) {
+        VECTOR3 delta = Vector3_sub(&entity->origin, &tr.viewDef.camerastate[0].origin);
+        FLOAT distance = Vector3_len(&delta);
+        FLOAT fade_range = WOW_GRASS_DRAW_DISTANCE - WOW_GRASS_FADE_START_DISTANCE;
+        ground_alpha = 1.0f - MAX(0.0f, MIN(1.0f, (distance - WOW_GRASS_FADE_START_DISTANCE) / fade_range));
+    }
 
     if ((model->flags & M2_MODEL_CHARACTER) && M2_DbcResolveCreatureAppearance(entity->display_id, &creature)) {
         resolved_entity = *entity;
@@ -1927,7 +1941,7 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
     /* The unified model shader transforms UVs through quat_transform using
      * uUvRot (default (0,0) collapses all UVs to 0.5).  Set identity defaults
      * for all UV/color/layer uniforms that M2 does not animate. */
-    R_Call(glUniform4f, shader->uGeosetColor, 1.0f, 1.0f, 1.0f, 1.0f);
+    R_Call(glUniform4f, shader->uGeosetColor, 1.0f, 1.0f, 1.0f, ground_alpha);
     R_Call(glUniform1f, shader->uLayerAlpha, 1.0f);
     R_Call(glUniform2f, shader->uUvTrans, 0.0f, 0.0f);
     R_Call(glUniform2f, shader->uUvRot, 0.0f, 1.0f);  /* identity quaternion */
@@ -1973,6 +1987,11 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
 				R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 				break;
 			}
+		}
+		if (ground_effect) {
+			R_Call(glEnable, GL_BLEND);
+			R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			R_Call(glDepthMask, GL_FALSE);
 		}
 		texture = batch->texture_type == 1 && character_texture ? character_texture :
                   M2_CharacterTextureForBatch(model, draw_entity, batch);
@@ -2076,7 +2095,12 @@ void M2_Init(void) {
 }
 
 void M2_Shutdown(void) {
+    m2KnownTexture_t *known;
     R_ReleaseRenderTexture(m2_character_composite_target);
     m2_character_composite_target = NULL;
+    while ((known = m2_known_textures) != NULL) {
+        m2_known_textures = known->next;
+        ri.MemFree(known);
+    }
     M2_DbcShutdown();
 }
