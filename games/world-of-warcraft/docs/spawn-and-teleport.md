@@ -10,9 +10,10 @@ mapping in wow.exe — neither `ChrRaces.dbc` nor `WorldSafeLocs.dbc` carries ra
 associations.  AzerothCore reverse-engineered these coordinates by packet-sniffing
 the retail client during character creation.
 
-We compile the same data into `g_spawn.c` as a C table:
+We store the same data as `serverdata/playercreateinfo.csv`, compiled into
+`build/generated/g_playercreateinfo.c` by `gen_serverdata_c.py`:
 ```c
-typedef struct { DWORD race, cls, map; FLOAT x, y, z, facing; } player_create_info_t;
+typedef struct { DWORD race; DWORD cls; DWORD map; FLOAT x, y, z; FLOAT facing; } WOWSPAWNPOINT;
 ```
 
 Credit: [AzerothCore](https://github.com/azerothcore/azerothcore-wotlk).
@@ -45,7 +46,8 @@ Game module uses these for spawn selection and the `respawn` command.
 
 ## Per-Race Spawn Selection
 
-`spawn_table` is the compiled AzerothCore `playercreateinfo` table. `Wow_PlayerCreateMap`
+`wow_spawn_points` (generated from `playercreateinfo.csv`) is the compiled
+AzerothCore `playercreateinfo` table. `Wow_PlayerCreateMap`
 selects its numeric map before world loading; after the map is loaded,
 `Wow_SelectSpawnPoint` requires the same map ID and returns the authored position.
 There is no race-name or zone-name heuristic.
@@ -57,7 +59,7 @@ The ownership and implementation points are fixed:
 
 | Question | Source of truth | Local implementation |
 | --- | --- | --- |
-| Which map/position does a race and class use? | AzerothCore `playercreateinfo` | `games/world-of-warcraft/game/g_spawn.c` |
+| Which map/position does a race and class use? | AzerothCore `playercreateinfo` | `serverdata/playercreateinfo.csv` → `build/generated/g_playercreateinfo.c` |
 | What directory belongs to numeric map ID N? | Client `DBFilesClient\Map.dbc`, fields 0 and 1 | `Com_WowMapPathForId` in `common/common.c` |
 | Which map is currently loaded? | WDT path resolved through `Map.dbc` | `CM_WowGetMapId` in `common/world_wow.c` |
 | What does Enter World request? | Selected-character cvars plus server table | `map playercreate` in `ui/ui_lua.c` |
@@ -76,7 +78,7 @@ the four ownership points above before expanding the search.
 
 ## Race → Map Mismatch (root cause of "Orc spawns in Northshire")
 
-`spawn_table` in `g_spawn.c` is byte-for-byte identical to AzerothCore's
+`playercreateinfo.csv` is byte-for-byte identical to AzerothCore's
 `playercreateinfo` (verified against `data/azerothcore-wotlk/data/sql/base/db_world/playercreateinfo.sql`):
 
 | Race | map | zone | position |
@@ -88,7 +90,7 @@ the four ownership points above before expanding the search.
 | Dwarf / Gnome | 0 (EK) | 1 (Dun Morogh) | -6240.32, 331.033, 382.758 |
 | Undead | 0 (EK) | 85 (Tirisfal) | 1676.71, 1678.31, 121.67 |
 
-`Wow_SelectSpawnPoint` only matches when `spawn_table[i].map == CM_WowGetMapId()`.
+`Wow_SelectSpawnPoint` only matches when `wow_spawn_points[i].map == CM_WowGetMapId()`.
 Previously every Make target loaded `World/Maps/Azeroth/Azeroth.wdt` (Eastern
 Kingdoms, `Map.dbc` id 0), so Horde/Kalimdor entries (`map == 1`) never matched
 and the player fell back to `CM_WowGetSpawnPos(0)` — the first WorldSafeLoc of
@@ -119,6 +121,24 @@ The race-specific Make targets use `+map playercreate`. `build-run-wow-map`
 intentionally uses `+map 1` as the explicit Kalimdor world-rendering fixture.
 
 The first-login camera flyby is documented separately in [cinematics.md](cinematics.md).
+
+## Entity Spawn Dispatch (why g_spawn.c is small)
+
+`games/world-of-warcraft/game/g_spawn.c` is tiny compared to Quake 2's and
+Warcraft III's `g_spawn.c`, and that is intentional. Q2 and WC3 are large
+because both parse an authored entity lump from the map (BSP entity text /
+`war3map.doo`) and dispatch each placement through a classname→spawn-function
+table (`spawns[]` in Q2, `SP_CallSpawn` in WC3). WoW has no such lump: ADT
+terrain and static doodads/WMOs are renderer-owned (never game entities), and
+dynamic content arrives from AzerothCore CSVs + DBC lookups.
+
+Instead of a classname table, each WoW spawner sets the entity's `think` pointer
+directly — there is no central type dispatcher (see
+[enemies-and-creatures.md](enemies-and-creatures.md)). That is fine at the
+current five think-types, but if the entity taxonomy grows (triggers, doors,
+varied NPC behaviour), a `SP_CallSpawn`-style dispatcher hub belongs in
+`g_spawn.c`, mirroring WC3's `games/warcraft-3/game/g_spawn.c`. Not a bug — the
+natural growth point.
 
 ## Server Commands
 

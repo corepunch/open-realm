@@ -150,7 +150,7 @@ NPCs use abilities similar to player classes but without the same constraints:
 
 ### Entity Types
 
-The engine represents every in-world object as an `edict_t` with a `wowEntityLocal_t` side-car. Behaviour is driven entirely by the entity's `think` function pointer (Quake 2 style) — there is no type/kind tag dispatched on at runtime.
+The engine represents every in-world object as an `edict_t` with a `wowEntityLocal_t` side-car. Behaviour is driven entirely by the entity's `think` function pointer (Quake 2 style) — there is no type/kind tag dispatched on at runtime. Unlike Q2's `spawns[]` table and WC3's `SP_CallSpawn`, WoW has no central entity-type dispatcher; if the taxonomy grows, the hub belongs in `g_spawn.c` (see [spawn-and-teleport.md](spawn-and-teleport.md)).
 
 | Think function | Role |
 |---|---|
@@ -180,7 +180,8 @@ Spells are data-driven via the `wowSpellDef_t` table (`wow_spells[]`) following 
 | File | Purpose |
 |---|---|
 | `games/world-of-warcraft/game/g_wow.c` | `Wow_RunFrame`, entity dispatch, player movement |
-| `games/world-of-warcraft/game/g_wow_gameobject.c` | Game-object spawn/frame callbacks; corpse and dynamic-object decay |
+| `games/world-of-warcraft/game/g_gameobject.c` | Game-object spawn/frame callbacks; corpse and dynamic-object decay |
+| `games/world-of-warcraft/game/g_spawn.c` | Player spawn teleport; designated home for a future `SP_CallSpawn`-style dispatcher |
 | `games/world-of-warcraft/game/g_ai.c` | Creature AI (idle, move, attack, pain, die) |
 | `games/world-of-warcraft/game/m_creature.c` | Move tables and animation selectors |
 | `games/world-of-warcraft/game/g_wow_local.h` | All WoW-game types (`wowEntityLocal_t`, `wowSpellDef_t`, etc.) |
