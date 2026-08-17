@@ -5,6 +5,7 @@
 
 #include "common/shared.h"
 #include "common/net.h"
+#include "common/stb_dbc.h"
 #include "client/tr_public.h"
 #include "renderer/m2/r_dbc.h"
 #include "renderer/m2/r_m2_utils.h"
@@ -185,6 +186,60 @@ TEST(wow_m2, creature_extra_items_select_classic_npc_slots) {
     BYTE expected[] = { 1, 2, 4, 3, 5, 6, 7, 0, 8, 9, 10 };
 
     FOR_LOOP(i, sizeof(expected)) T_EQ(Wow_CharacterCreatureItemSlot(i), expected[i]);
+}
+
+TEST(wow_m2, race_number_resolves_from_shared_config_table) {
+    T_EQ(Wow_RaceNumber("Human"), 1);
+    T_EQ(Wow_RaceNumber("Orc"), 2);
+    T_EQ(Wow_RaceNumber("Dwarf"), 3);
+    T_EQ(Wow_RaceNumber("NightElf"), 4);
+    T_EQ(Wow_RaceNumber("Scourge"), 5);
+    T_EQ(Wow_RaceNumber("Undead"), 5);
+    T_EQ(Wow_RaceNumber("Tauren"), 6);
+    T_EQ(Wow_RaceNumber("Gnome"), 7);
+    T_EQ(Wow_RaceNumber("Troll"), 8);
+    T_EQ(Wow_RaceNumber("BloodElf"), 10);
+    T_EQ(Wow_RaceNumber("Draenei"), 11);
+    T_EQ(Wow_RaceNumber("unknown"), 0);
+    T_EQ(Wow_RaceNumber(NULL), 0);
+}
+
+TEST(wow_dbc, table_parser_fills_struct_from_columns) {
+    typedef struct { DWORD id, flags; LPCSTR name; } rec_t;
+    static stbDbcField_t const schema[] = {
+        { 0, offsetof(rec_t, id),    STB_DBC_U32 },
+        { 1, offsetof(rec_t, flags), STB_DBC_U32 },
+        { 2, offsetof(rec_t, name),  STB_DBC_STR },
+    };
+    BYTE records[2 * 12];
+    BYTE strings[] = { 0, 'H', 'u', 'm', 'a', 'n', 0, 'O', 'r', 'c', 0 }; /* offset 0 is the null string */
+    rec_t out[2];
+    DWORD v;
+    memset(records, 0, sizeof(records));
+    v = 1; memcpy(records + 0, &v, 4); v = 7; memcpy(records + 4, &v, 4); v = 1; memcpy(records + 8, &v, 4);
+    v = 2; memcpy(records + 12, &v, 4); v = 8; memcpy(records + 16, &v, 4); v = 7; memcpy(records + 20, &v, 4);
+
+    Stb_DbcParseRows(records, 2, 12, strings, sizeof(strings), schema, 3, out, sizeof(out[0]));
+
+    T_EQ(out[0].id, 1); T_EQ(out[0].flags, 7); T_STREQ(out[0].name, "Human");
+    T_EQ(out[1].id, 2); T_EQ(out[1].flags, 8); T_STREQ(out[1].name, "Orc");
+}
+
+TEST(wow_dbc, table_parser_bounds_checks_columns_outside_record) {
+    typedef struct { DWORD id, flags; LPCSTR name; } rec_t;
+    static stbDbcField_t const schema[] = {
+        { 0, offsetof(rec_t, id),    STB_DBC_U32 },
+        { 1, offsetof(rec_t, flags), STB_DBC_U32 },
+        { 4, offsetof(rec_t, name),  STB_DBC_STR }, /* column 4 is past a 3-column record */
+    };
+    BYTE records[12] = { 0 };
+    rec_t out = { .id = 0xdead, .flags = 0xbeef, .name = (LPCSTR)0x1 };
+    DWORD v = 9;
+    memcpy(records + 0, &v, 4);
+
+    Stb_DbcParseRows(records, 1, 12, NULL, 0, schema, 3, &out, sizeof(out));
+
+    T_EQ(out.id, 9); T_EQ(out.flags, 0); T_EQ(out.name, (LPCSTR)0x1); /* out-of-range column untouched */
 }
 
 TEST(wow_m2, helmet_hide_mask_bits_match_geoset_groups) {

@@ -2,6 +2,7 @@
 #define WOW_CHARACTER_UTILS_H
 
 #include "common/shared.h"
+#include <strings.h>
 
 /* Renderer and m2tool slot enums share this order (none, head, shoulders,
  * chest, shirt, belt, legs, boots, gloves, tabard, cape). */
@@ -30,6 +31,21 @@ static signed char Wow_CharacterTexturePriority(DWORD slot, DWORD region) {
         { -1, -1, -1, -1, -1, -1, -1, -1 },
     };
     return slot < 11 && region < 8 ? priorities[slot][region] : -1;
+}
+
+/* Race name → ChrRaces.dbc numeric ID. One config table, not a strcmp ladder;
+ * the classic client-file prefix for undead is "Scourge", so both spellings
+ * resolve to 5. Shared by renderer (model-path parse) and game (spawn select). */
+static DWORD Wow_RaceNumber(LPCSTR name) {
+    static struct { LPCSTR name; DWORD id; } const races[] = {
+        { "Human", 1 }, { "Orc", 2 }, { "Dwarf", 3 }, { "NightElf", 4 },
+        { "Scourge", 5 }, { "Undead", 5 }, { "Tauren", 6 }, { "Gnome", 7 },
+        { "Troll", 8 }, { "BloodElf", 10 }, { "Draenei", 11 },
+    };
+    if (!name) return 0;
+    FOR_LOOP(i, sizeof(races) / sizeof(races[0]))
+        if (!strcasecmp(races[i].name, name)) return races[i].id;
+    return 0;
 }
 
 /* Character models omit some race-specific variants; choose only IDs present in the loaded model. */

@@ -6,6 +6,7 @@
 #include <strings.h>
 
 /* Generated server tables are included here so the unity source tree contains no generated files. */
+#include "build/generated/g_playercreateinfo.c"
 #include "build/generated/g_creatures.c"
 #include "build/generated/g_quests.c"
 #include "build/generated/g_weapons.c"

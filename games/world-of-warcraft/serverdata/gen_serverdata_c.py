@@ -59,6 +59,62 @@ def c_long(value):
 
 
 # ============================================================================
+# PLAYERCREATEINFO (race/class spawn points)
+# ============================================================================
+
+def gen_playercreateinfo(output_dir):
+    """Generate build/generated/g_playercreateinfo.c from playercreateinfo.csv."""
+    rows = read_csv("playercreateinfo.csv")
+    print(f"  playercreateinfo.csv: {len(rows)} rows")
+
+    lines = ['#include "g_wow_local.h"', '#include "common/wow_character_utils.h"', '']
+    lines.append('static const WOWSPAWNPOINT wow_spawn_points[] = {')
+    for r in rows:
+        race, cls, map_id, x, y, z, facing = r[:7]
+        lines.append(f'    {{ {race}, {cls}, {map_id}, {c_float(x)}, {c_float(y)}, {c_float(z)}, {c_float(facing)} }},')
+    lines.extend([
+        '};', '',
+        'DWORD Wow_SpawnCount(void) { return sizeof(wow_spawn_points) / sizeof(wow_spawn_points[0]); }', '',
+        'LPCWOWSPAWNPOINT Wow_SpawnByIndex(DWORD index) {',
+        '    return index < Wow_SpawnCount() ? &wow_spawn_points[index] : NULL;',
+        '}', '',
+        '/* Race string + class -> spawn index on the currently loaded map, or ~0u. */',
+        'DWORD Wow_SelectSpawnPoint(LPCSTR race, DWORD class_id) {',
+        '    DWORD race_num = Wow_RaceNumber(race);',
+        '    DWORD map_id = CM_WowGetMapId();',
+        '    if (!race_num) return ~0u;',
+        '    FOR_LOOP(i, Wow_SpawnCount())',
+        '        if (wow_spawn_points[i].race == race_num && wow_spawn_points[i].cls == class_id &&',
+        '            wow_spawn_points[i].map == map_id)',
+        '            return i;',
+        '    return ~0u;',
+        '}', '',
+        '/* Race string + class -> map id, or ~0u. */',
+        'DWORD Wow_PlayerCreateMap(LPCSTR race, DWORD class_id) {',
+        '    DWORD race_num = Wow_RaceNumber(race);',
+        '    if (!race_num) return ~0u;',
+        '    FOR_LOOP(i, Wow_SpawnCount())',
+        '        if (wow_spawn_points[i].race == race_num && wow_spawn_points[i].cls == class_id)',
+        '            return wow_spawn_points[i].map;',
+        '    return ~0u;',
+        '}', '',
+        'LPCVECTOR3 Wow_GetSpawnPos(DWORD idx) {',
+        '    static VECTOR3 v;',
+        '    if (idx >= Wow_SpawnCount()) return NULL;',
+        '    v.x = wow_spawn_points[idx].x;',
+        '    v.y = wow_spawn_points[idx].y;',
+        '    v.z = wow_spawn_points[idx].z;',
+        '    return &v;',
+        '}', '',
+    ])
+
+    path = os.path.join(output_dir, "g_playercreateinfo.c")
+    with open(path, 'w') as f:
+        f.write('\n'.join(lines))
+    print(f"  Wrote {path}")
+
+
+# ============================================================================
 # WEAPONS
 # ============================================================================
 
@@ -263,11 +319,12 @@ def gen_creatures(output_dir):
 
 def main():
     parser = argparse.ArgumentParser(description="Generate compiled WoW server-data tables")
-    parser.add_argument('--only', choices=['weapons', 'quests', 'creatures'])
+    parser.add_argument('--only', choices=['playercreateinfo', 'weapons', 'quests', 'creatures'])
     parser.add_argument('--output-dir', default=DEFAULT_OUTPUT_DIR)
     args = parser.parse_args()
     os.makedirs(args.output_dir, exist_ok=True)
     print("=== Generating C from CSV ===\n")
+    if args.only in (None, 'playercreateinfo'): gen_playercreateinfo(args.output_dir)
     if args.only in (None, 'weapons'): gen_weapons(args.output_dir)
     if args.only in (None, 'quests'): gen_quests(args.output_dir)
     if args.only in (None, 'creatures'): gen_creatures(args.output_dir)

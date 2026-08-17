@@ -10,7 +10,7 @@ WOW_DIR := games/world-of-warcraft
 WOW_TEST_DIR := $(WOW_DIR)/tests
 WOW_DATA_DIR := data/world-of-warcraft
 WOW_GENERATED_DIR := build/generated
-WOW_GENERATED_SRCS := $(WOW_GENERATED_DIR)/g_creatures.c $(WOW_GENERATED_DIR)/g_quests.c $(WOW_GENERATED_DIR)/g_weapons.c
+WOW_GENERATED_SRCS := $(WOW_GENERATED_DIR)/g_creatures.c $(WOW_GENERATED_DIR)/g_quests.c $(WOW_GENERATED_DIR)/g_weapons.c $(WOW_GENERATED_DIR)/g_playercreateinfo.c
 WOW_GENERATOR := $(WOW_DIR)/serverdata/gen_serverdata_c.py
 WOW_ISO_DIR ?= $(ISO_DIR)
 WOW_ISO_EXTRACT_DIR ?= build/wow-install
@@ -330,6 +330,10 @@ $(WOW_GENERATED_DIR)/g_quests.c: $(WOW_GENERATOR) $(WOW_DIR)/serverdata/quests.c
 $(WOW_GENERATED_DIR)/g_weapons.c: $(WOW_GENERATOR) $(WOW_DIR)/serverdata/weapons.csv
 	@mkdir -p $(@D)
 	@python3 $(WOW_GENERATOR) --only weapons --output-dir $(WOW_GENERATED_DIR)
+
+$(WOW_GENERATED_DIR)/g_playercreateinfo.c: $(WOW_GENERATOR) $(WOW_DIR)/serverdata/playercreateinfo.csv
+	@mkdir -p $(@D)
+	@python3 $(WOW_GENERATOR) --only playercreateinfo --output-dir $(WOW_GENERATED_DIR)
 
 $(eval $(call unity_lib_schema,$(RENDERER_WOW_LIB),$(RENDERER_BASE_DEPS) $(call CSRC,renderer $(WOW_DIR)/renderer),renderer-wow,renderer $(WOW_DIR)/renderer,,$(WOW_CFLAGS),common/mpq.c,$(RENDERER_SHARED_LIBS)))
 $(eval $(call unity_lib_schema,$(RENDERER_SC2_LIB),$(RENDERER_BASE_DEPS) $(call CSRC,renderer $(SC2_DIR)/renderer) $(SC2_COMMON_SRCS),renderer-sc2,renderer $(SC2_DIR)/renderer,,$(SC2_CFLAGS),common/mpq.c,$(RENDERER_SHARED_LIBS) $(SC2_XML_LIBS)))

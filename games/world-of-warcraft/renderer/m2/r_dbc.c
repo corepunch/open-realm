@@ -129,17 +129,7 @@ BOOL M2_DbcCharacterRaceGender(LPCSTR model_path, LPDWORD race_id, LPDWORD gende
     gender++; length = strcspn(gender, "\\/.");
     if (!length || length >= sizeof(gender_name)) return false;
     memcpy(gender_name, gender, length); gender_name[length] = '\0';
-    if (!strcasecmp(race_name, "Human")) *race_id = 1;
-    else if (!strcasecmp(race_name, "Orc")) *race_id = 2;
-    else if (!strcasecmp(race_name, "Dwarf")) *race_id = 3;
-    else if (!strcasecmp(race_name, "NightElf")) *race_id = 4;
-    else if (!strcasecmp(race_name, "Scourge") || !strcasecmp(race_name, "Undead")) *race_id = 5;
-    else if (!strcasecmp(race_name, "Tauren")) *race_id = 6;
-    else if (!strcasecmp(race_name, "Gnome")) *race_id = 7;
-    else if (!strcasecmp(race_name, "Troll")) *race_id = 8;
-    else if (!strcasecmp(race_name, "BloodElf")) *race_id = 10;
-    else if (!strcasecmp(race_name, "Draenei")) *race_id = 11;
-    else return false;
+    if (!(*race_id = Wow_RaceNumber(race_name))) return false;
     if (!strcasecmp(gender_name, "Male")) *gender_id = 0;
     else if (!strcasecmp(gender_name, "Female")) *gender_id = 1;
     else return false;

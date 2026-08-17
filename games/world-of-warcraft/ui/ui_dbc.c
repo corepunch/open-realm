@@ -17,15 +17,46 @@
  * ---------------------------------------------------------------------- */
 
 typedef struct {
-    DWORD id; DWORD faction_id; DWORD flags; DWORD male_id; DWORD female_id;
-    LPCSTR client_prefix; LPCSTR client_file; LPCSTR name; LPCSTR name_female;
-    LPCSTR hair_custom; LPCSTR facial_custom[2]; DWORD required_exp;
+    DWORD id, flags, faction_id, male_id, female_id;
+    LPCSTR client_file, name, hair_custom, facial_custom[2];
 } wowRaceRec_t;
 
-typedef struct { DWORD id; LPCSTR name; LPCSTR filename; DWORD required_exp; } wowClassRec_t;
-typedef struct { BYTE race_id; BYTE class_id; } wowCharBaseInfoRec_t;
-typedef struct { DWORD id; DWORD faction; DWORD flags; DWORD faction_group; } wowFactionTemplateRec_t;
-typedef struct { DWORD id; DWORD mask_id; LPCSTR internal_name; LPCSTR name; } wowFactionGroupRec_t;
+typedef struct { DWORD id; LPCSTR name, filename; } wowClassRec_t;
+typedef struct { BYTE race_id, class_id; } wowCharBaseInfoRec_t;
+typedef struct { DWORD id, faction, flags, faction_group; } wowFactionTemplateRec_t;
+typedef struct { DWORD id, mask_id; LPCSTR internal_name, name; } wowFactionGroupRec_t;
+
+/* Column→field schemas. The DBC stays a table of columns; the struct matches the
+ * consumed subset of a row, and Stb_DbcParseRows fills it index by index. */
+static stbDbcField_t const race_schema[] = {
+    {  0, offsetof(wowRaceRec_t, id),              STB_DBC_U32 },
+    {  1, offsetof(wowRaceRec_t, flags),           STB_DBC_U32 },
+    {  2, offsetof(wowRaceRec_t, faction_id),      STB_DBC_U32 },
+    {  4, offsetof(wowRaceRec_t, male_id),         STB_DBC_U32 },
+    {  5, offsetof(wowRaceRec_t, female_id),       STB_DBC_U32 },
+    { 15, offsetof(wowRaceRec_t, client_file),     STB_DBC_STR },
+    { 17, offsetof(wowRaceRec_t, name),            STB_DBC_STR },
+    { 26, offsetof(wowRaceRec_t, hair_custom),     STB_DBC_STR },
+    { 27, offsetof(wowRaceRec_t, facial_custom[0]), STB_DBC_STR },
+    { 28, offsetof(wowRaceRec_t, facial_custom[1]), STB_DBC_STR },
+};
+static stbDbcField_t const class_schema[] = {
+    {  0, offsetof(wowClassRec_t, id),       STB_DBC_U32 },
+    {  5, offsetof(wowClassRec_t, name),     STB_DBC_STR },
+    { 14, offsetof(wowClassRec_t, filename), STB_DBC_STR },
+};
+static stbDbcField_t const faction_tpl_schema[] = {
+    { 0, offsetof(wowFactionTemplateRec_t, id),            STB_DBC_U32 },
+    { 1, offsetof(wowFactionTemplateRec_t, faction),       STB_DBC_U32 },
+    { 2, offsetof(wowFactionTemplateRec_t, flags),         STB_DBC_U32 },
+    { 3, offsetof(wowFactionTemplateRec_t, faction_group), STB_DBC_U32 },
+};
+static stbDbcField_t const faction_grp_schema[] = {
+    { 0, offsetof(wowFactionGroupRec_t, id),            STB_DBC_U32 },
+    { 1, offsetof(wowFactionGroupRec_t, mask_id),       STB_DBC_U32 },
+    { 2, offsetof(wowFactionGroupRec_t, internal_name), STB_DBC_STR },
+    { 3, offsetof(wowFactionGroupRec_t, name),          STB_DBC_STR },
+};
 
 #define WOW_MAX_DBC_RACES   16
 #define WOW_MAX_DBC_CLASSES 16
@@ -179,14 +210,26 @@ static void CharList_Save(void) {
  * DBC read helpers
  * ---------------------------------------------------------------------- */
 
-static DWORD UIWow_DbcU32(BYTE const *rec, int field) {
-    return Stb_DbcRead32(rec + field * 4);
+/* Read + validate a DBC into a resident buffer; false on any failure. */
+static BOOL UIWow_ReadDbc(LPCSTR filename, void **buf, stbDbc_t *h) {
+    int size;
+    *buf = NULL;
+    if (!uiimport.FS_ReadFile) return false;
+    size = uiimport.FS_ReadFile(filename, buf);
+    if (size <= 0 || !*buf) return false;
+    if (Stb_DbcValid(*buf, (DWORD)size, h)) return true;
+    uiimport.FS_FreeFile(*buf); *buf = NULL;
+    return false;
 }
 
-/* UI consumers index [0] directly, so the null-string offset 0 becomes "". */
-static LPCSTR UIWow_DbcStr(BYTE const *strings, DWORD ssize, DWORD off) {
-    LPCSTR s = Stb_DbcString(strings, ssize, off);
-    return s ? s : "";
+/* UI consumers index [0] directly, so unresolved string offsets become "". */
+static void UIWow_NormalizeStrings(void *rows, DWORD count, DWORD stride,
+                                   stbDbcField_t const *schema, DWORD schema_count) {
+    FOR_LOOP(f, schema_count) if (schema[f].type == STB_DBC_STR)
+        FOR_LOOP(i, count) {
+            LPCSTR *p = (LPCSTR *)((BYTE *)rows + i * stride + schema[f].offset);
+            if (!*p) *p = "";
+        }
 }
 
 /* -------------------------------------------------------------------------
@@ -197,113 +240,76 @@ static void UIWow_LoadCharCreateDbc(void) {
     if (wow_charcreate.loaded) return;
     wow_charcreate.loaded = true;
 
-    DWORD records, fields, rsize, ssize;
-    BYTE *data; BYTE const *rb, *sb;
+    void *data;
+    stbDbc_t h;
 
-    /* ChrRaces (29-field 1.x layout verified against live DBC)
-       0=id, 1=flags, 2=factionID, 3=explorationSnd, 4=maleDID, 5=femaleDID,
-       6..14=various ints, 15=clientFileString(str), 16=unused(str),
-       17=name(str), 18..25=unused, 26=hairCustom(str),
-       27=facialHairCustom0(str), 28=facialHairCustom1(str) */
-    { void *_b = NULL; if (uiimport.FS_ReadFile) uiimport.FS_ReadFile("DBFilesClient\\ChrRaces.dbc", &_b); data = (BYTE*)_b; }
-    if (data) {
-        records = UIWow_DbcU32(data,1); fields = UIWow_DbcU32(data,2);
-        rsize   = UIWow_DbcU32(data,3); ssize  = UIWow_DbcU32(data,4);
-        rb = data + 20; sb = rb + records * rsize;
+    /* ChrRaces (29-field 1.x) */
+    if (UIWow_ReadDbc("DBFilesClient\\ChrRaces.dbc", &data, &h)) {
+        DWORD count = MIN(h.records, WOW_MAX_DBC_RACES);
+        wowRaceRec_t rows[WOW_MAX_DBC_RACES];
+        Stb_DbcParseRows(Stb_DbcRecords(data), count, h.record_size, Stb_DbcStrings(data, &h), h.string_size,
+                         race_schema, sizeof(race_schema) / sizeof(race_schema[0]), rows, sizeof(rows[0]));
+        UIWow_NormalizeStrings(rows, count, sizeof(rows[0]), race_schema, sizeof(race_schema) / sizeof(race_schema[0]));
         wow_charcreate.races_buf = data;
-        FOR_LOOP(i, (int)records) {
+        FOR_LOOP(i, count) {
+            if (rows[i].flags & 0x1) continue; /* NPC-only */
             if (wow_charcreate.num_races >= WOW_MAX_DBC_RACES) break;
-            BYTE const *r = rb + i * rsize;
-            if (fields < 28) continue;
-            DWORD flags = UIWow_DbcU32(r, 1);
-            if (flags & 0x1) continue; /* NPC-only */
-            wowRaceRec_t *rec = &wow_charcreate.races[wow_charcreate.num_races++];
-            rec->id              = UIWow_DbcU32(r, 0);
-            rec->flags           = flags;
-            rec->faction_id      = UIWow_DbcU32(r, 2);
-            rec->male_id         = UIWow_DbcU32(r, 4);
-            rec->female_id       = UIWow_DbcU32(r, 5);
-            rec->client_file     = UIWow_DbcStr(sb, ssize, UIWow_DbcU32(r, 15));
-            rec->name            = UIWow_DbcStr(sb, ssize, UIWow_DbcU32(r, 17));
-            rec->name_female     = UIWow_DbcStr(sb, ssize, UIWow_DbcU32(r, 17));
-            rec->hair_custom     = UIWow_DbcStr(sb, ssize, UIWow_DbcU32(r, 26));
-            rec->facial_custom[0]= UIWow_DbcStr(sb, ssize, UIWow_DbcU32(r, 27));
-            rec->facial_custom[1]= UIWow_DbcStr(sb, ssize, UIWow_DbcU32(r, 28));
-            rec->required_exp    = 0;
+            wow_charcreate.races[wow_charcreate.num_races++] = rows[i];
         }
     }
 
-    /* ChrClasses (16-field 1.x layout verified against live DBC)
-       0=id, ..., 5=name(str), ..., 14=filename(str) e.g. "WARRIOR" */
-    { void *_b = NULL; if (uiimport.FS_ReadFile) uiimport.FS_ReadFile("DBFilesClient\\ChrClasses.dbc", &_b); data = (BYTE*)_b; }
-    if (data) {
-        records = UIWow_DbcU32(data,1); fields = UIWow_DbcU32(data,2);
-        rsize   = UIWow_DbcU32(data,3); ssize  = UIWow_DbcU32(data,4);
-        rb = data + 20; sb = rb + records * rsize;
+    /* ChrClasses (16-field 1.x): 0=id, 5=name(str), 14=filename(str) */
+    if (UIWow_ReadDbc("DBFilesClient\\ChrClasses.dbc", &data, &h)) {
+        DWORD count = MIN(h.records, WOW_MAX_DBC_CLASSES);
         wow_charcreate.classes_buf = data;
-        FOR_LOOP(i, (int)records) {
-            if (wow_charcreate.num_classes >= WOW_MAX_DBC_CLASSES) break;
-            BYTE const *r = rb + i * rsize;
-            if (fields < 15) continue;
-            wowClassRec_t *rec = &wow_charcreate.classes[wow_charcreate.num_classes++];
-            rec->id           = UIWow_DbcU32(r, 0);
-            rec->name         = UIWow_DbcStr(sb, ssize, UIWow_DbcU32(r,  5));
-            rec->filename     = UIWow_DbcStr(sb, ssize, UIWow_DbcU32(r, 14));
-            rec->required_exp = 0;
+        Stb_DbcParseRows(Stb_DbcRecords(data), count, h.record_size, Stb_DbcStrings(data, &h), h.string_size,
+                         class_schema, sizeof(class_schema) / sizeof(class_schema[0]),
+                         wow_charcreate.classes, sizeof(wow_charcreate.classes[0]));
+        UIWow_NormalizeStrings(wow_charcreate.classes, count, sizeof(wow_charcreate.classes[0]),
+                               class_schema, sizeof(class_schema) / sizeof(class_schema[0]));
+        wow_charcreate.num_classes = (int)count;
+    }
+
+    /* CharBaseInfo — 2-byte records: raceID (byte), classID (byte). record_size
+     * 2 < 4 fails Stb_DbcValid's envelope floor, so decode it directly. */
+    {
+        int size = 0;
+        data = NULL;
+        if (uiimport.FS_ReadFile) size = uiimport.FS_ReadFile("DBFilesClient\\CharBaseInfo.dbc", &data);
+        if (data && size >= 20) {
+            BYTE const *rb = (BYTE const *)data + 20;
+            DWORD count = MIN(Stb_DbcRead32((BYTE const *)data + 4), WOW_MAX_CHAR_BASE);
+            wow_charcreate.base_buf = data;
+            FOR_LOOP(i, count) {
+                wow_charcreate.base_info[wow_charcreate.num_base_info].race_id  = rb[i * 2];
+                wow_charcreate.base_info[wow_charcreate.num_base_info].class_id = rb[i * 2 + 1];
+                wow_charcreate.num_base_info++;
+            }
+        } else if (data) {
+            uiimport.FS_FreeFile(data);
         }
     }
 
-    /* CharBaseInfo — 2-byte records: raceID (byte), classID (byte) */
-    { void *_b = NULL; if (uiimport.FS_ReadFile) uiimport.FS_ReadFile("DBFilesClient\\CharBaseInfo.dbc", &_b); data = (BYTE*)_b; }
-    if (data) {
-        wow_charcreate.base_buf = data;
-        records = UIWow_DbcU32(data,1);
-        rb = data + 20;
-        FOR_LOOP(i, (int)records) {
-            if (wow_charcreate.num_base_info >= WOW_MAX_CHAR_BASE) break;
-            BYTE const *r = rb + i * 2;
-            wow_charcreate.base_info[wow_charcreate.num_base_info].race_id  = r[0];
-            wow_charcreate.base_info[wow_charcreate.num_base_info].class_id = r[1];
-            wow_charcreate.num_base_info++;
-        }
-    }
-
-    /* FactionTemplate — 0=id, 1=faction, 2=flags, 3=factionGroup, ... */
-    { void *_b = NULL; if (uiimport.FS_ReadFile) uiimport.FS_ReadFile("DBFilesClient\\FactionTemplate.dbc", &_b); data = (BYTE*)_b; }
-    if (data) {
-        records = UIWow_DbcU32(data,1); fields = UIWow_DbcU32(data,2);
-        rsize   = UIWow_DbcU32(data,3);
-        rb = data + 20;
+    /* FactionTemplate: 0=id, 1=faction, 2=flags, 3=factionGroup */
+    if (UIWow_ReadDbc("DBFilesClient\\FactionTemplate.dbc", &data, &h)) {
+        DWORD count = MIN(h.records, WOW_MAX_FACTION_TPL);
         wow_charcreate.ftpl_buf = data;
-        FOR_LOOP(i, (int)records) {
-            if (wow_charcreate.num_ftpl >= WOW_MAX_FACTION_TPL) break;
-            BYTE const *r = rb + i * rsize;
-            if (fields < 4) continue;
-            wowFactionTemplateRec_t *rec = &wow_charcreate.ftpl[wow_charcreate.num_ftpl++];
-            rec->id            = UIWow_DbcU32(r, 0);
-            rec->faction       = UIWow_DbcU32(r, 1);
-            rec->flags         = UIWow_DbcU32(r, 2);
-            rec->faction_group = UIWow_DbcU32(r, 3);
-        }
+        Stb_DbcParseRows(Stb_DbcRecords(data), count, h.record_size, Stb_DbcStrings(data, &h), h.string_size,
+                         faction_tpl_schema, sizeof(faction_tpl_schema) / sizeof(faction_tpl_schema[0]),
+                         wow_charcreate.ftpl, sizeof(wow_charcreate.ftpl[0]));
+        wow_charcreate.num_ftpl = (int)count;
     }
 
-    /* FactionGroup — 0=id, 1=maskID, 2=internalName(str), 3=name(str) */
-    { void *_b = NULL; if (uiimport.FS_ReadFile) uiimport.FS_ReadFile("DBFilesClient\\FactionGroup.dbc", &_b); data = (BYTE*)_b; }
-    if (data) {
-        records = UIWow_DbcU32(data,1); fields = UIWow_DbcU32(data,2);
-        rsize   = UIWow_DbcU32(data,3); ssize  = UIWow_DbcU32(data,4);
-        rb = data + 20; sb = rb + records * rsize;
+    /* FactionGroup: 0=id, 1=maskID, 2=internalName(str), 3=name(str) */
+    if (UIWow_ReadDbc("DBFilesClient\\FactionGroup.dbc", &data, &h)) {
+        DWORD count = MIN(h.records, WOW_MAX_FACTION_GRP);
         wow_charcreate.fgrp_buf = data;
-        FOR_LOOP(i, (int)records) {
-            if (wow_charcreate.num_fgrp >= WOW_MAX_FACTION_GRP) break;
-            BYTE const *r = rb + i * rsize;
-            if (fields < 4) continue;
-            wowFactionGroupRec_t *rec = &wow_charcreate.fgrp[wow_charcreate.num_fgrp++];
-            rec->id            = UIWow_DbcU32(r, 0);
-            rec->mask_id       = UIWow_DbcU32(r, 1);
-            rec->internal_name = UIWow_DbcStr(sb, ssize, UIWow_DbcU32(r, 2));
-            rec->name          = UIWow_DbcStr(sb, ssize, UIWow_DbcU32(r, 3));
-        }
+        Stb_DbcParseRows(Stb_DbcRecords(data), count, h.record_size, Stb_DbcStrings(data, &h), h.string_size,
+                         faction_grp_schema, sizeof(faction_grp_schema) / sizeof(faction_grp_schema[0]),
+                         wow_charcreate.fgrp, sizeof(wow_charcreate.fgrp[0]));
+        UIWow_NormalizeStrings(wow_charcreate.fgrp, count, sizeof(wow_charcreate.fgrp[0]),
+                               faction_grp_schema, sizeof(faction_grp_schema) / sizeof(faction_grp_schema[0]));
+        wow_charcreate.num_fgrp = (int)count;
     }
 
     /* Build playable race list: Alliance first, then Horde */
@@ -397,7 +403,7 @@ int UIWow_LuaGetAvailableRaces(lua_State *L) {
     }
     FOR_LOOP(i, wow_charcreate.num_playable) {
         wowRaceRec_t const *r = &wow_charcreate.races[wow_charcreate.playable[i]];
-        LPCSTR name = (wow_charcreate.sel_sex == 1) ? r->name : (r->name_female[0] ? r->name_female : r->name);
+        LPCSTR name = r->name;
         lua_pushstring(L, name[0] ? name : r->client_file);
         lua_pushstring(L, r->client_file);
     }
@@ -470,7 +476,7 @@ int UIWow_LuaGetNameForRace(lua_State *L) {
     }
     if (pi < 0 || pi >= wow_charcreate.num_playable) { lua_pushstring(L, ""); lua_pushstring(L, ""); return 2; }
     wowRaceRec_t const *r = &wow_charcreate.races[wow_charcreate.playable[pi]];
-    LPCSTR name = (wow_charcreate.sel_sex == 1) ? r->name : (r->name_female[0] ? r->name_female : r->name);
+    LPCSTR name = r->name;
     lua_pushstring(L, name[0] ? name : r->client_file);
     lua_pushstring(L, r->client_file);
     return 2;
@@ -838,8 +844,7 @@ int UIWow_LuaGetCharacterInfo(lua_State *L) {
     FOR_LOOP(ri, wow_charcreate.num_races) {
         if (wow_charcreate.races[ri].id == e->race_id) {
             race = &wow_charcreate.races[ri];
-            race_name = (e->sex_id == 2 && race->name_female[0])
-                            ? race->name_female : race->name;
+            race_name = race->name;
             race_file = race->client_file ? race->client_file : "";
             break;
         }
