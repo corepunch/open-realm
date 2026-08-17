@@ -1,5 +1,16 @@
 # M2 And Character Display
 
+## Contents
+
+- [M2 Loading](#m2-loading)
+- [Character State Packing](#character-state-packing)
+- [Creation And Selection Data Flow](#creation-and-selection-data-flow)
+- [DBC-Backed Outfit Data](#dbc-backed-outfit-data)
+- [Component Texture Slots](#component-texture-slots)
+- [Composed Character Texture](#composed-character-texture)
+- [Skin Section IDs And Geosets](#skin-section-ids-and-geosets)
+- [Grounded Actor Yaw](#grounded-actor-yaw)
+
 ## M2 Loading
 
 The WoW renderer loads M2 models through `games/world-of-warcraft/renderer/m2/r_m2.c`. DBC ownership and character-data
@@ -37,8 +48,35 @@ DWORD equipment = Wow_PackEquipment(upper_body, lower_body, hands, feet);
 
 `appearance` stores small race/gender/model-local customization IDs plus class. `equipment` stores local slot item indices, not raw item IDs. Index `0` means empty; nonzero indices resolve through WoW-owned equipment lists and DBC-backed `ItemDisplayInfo` display IDs.
 
+The local Classic DBC maxima fit this 32-bit appearance contract. Face needs four bits (maximum `14`), while facial features need
+five (maximum `16`), so facial-feature bit 4 uses the otherwise unused fifth face bit. Do not widen `entityState_t` merely to make menu
+customization convenient; enumerate menu choices from DBC data and keep preview-only state outside snapshots if a future client format
+exceeds the packed gameplay budget. See [`docs/wow-character.md`](../../../docs/wow-character.md#packed-appearance-width).
+
 Do not widen entity or player state just to preview more gear. A menu that needs additional equipment owns that preview state and
 draws the character/equipment pieces separately; persistent menu overrides do not belong in `m2Model_t` or the renderer API.
+
+## Creation And Selection Data Flow
+
+The creation preview and saved-character preview converge on the same renderer-owned DBC lookup:
+
+```text
+ui_dbc.c selection or share/characters.xml
+    -> packed appearance (customization + class)
+    -> ui_xml.c renderEntity_t
+    -> r_m2.c character draw
+    -> r_dbc.c race/gender/class starter-outfit key
+    -> CharStartOutfit display IDs + inventory types
+    -> ItemDisplayInfo components/geosets
+    -> composed character texture and visible M2 sections
+```
+
+Customization index zero is a real first variation, not a request for a bare body. Starter clothing is selected independently by the
+race/class/gender key. Consequently, a valid base skin with no clothing should be investigated after the UI packing boundary: confirm
+the starter record, display IDs, `ItemDisplayInfo` schema, and component composition in that order.
+
+The XML save stores both `class` and packed `appearance`; keep their class values consistent. See
+[`docs/wow-character.md`](../../../docs/wow-character.md) for exact local values, diagnostic commands, and bounded creation/select runs.
 
 ## DBC-Backed Outfit Data
 
@@ -65,12 +103,25 @@ Character display work currently uses:
 Character-model NPCs keep their AzerothCore `CreatureDisplayID` in the existing
 snapshot `class_id` field. The renderer follows that ID through
 `CreatureDisplayInfo.ExtendedDisplayInfoID`, packs the extra record's skin,
-face, hair, and facial-hair fields, and applies all nine classic NPC
+face, hair, and facial-hair fields, and applies all ten local Classic NPC
 item-display slots. Creature textures follow the same direct-or-composed path
 as player characters; there is no baked-texture shortcut.
 Non-character creatures have no extra record and retain their ordinary M2 path.
 
-Classic-era local data has a 23-field `ItemDisplayInfo.dbc` layout where texture components start at field 14. Documented TBC/Wrath-style 25-field layouts start components at field 15. Code should pick offsets from the actual field layout and validate each access against `record_size`.
+The server CSV intentionally stops at `CreatureDisplayID`. `CreatureDisplayInfoExtra` is client-version appearance data and must not
+be copied into `creatures.csv`; mounting client data and resolving the display's extra record keeps the model and its configuration
+from the same authoritative version. In the local 19-field Classic schema, fields 8–17 are ten `NPCItemDisplay` values and field 18 is
+the baked texture string offset, not an eleventh item.
+
+Deputy Willem (creature `823`) is a useful end-to-end oracle: CSV display `2072` selects extra record `675`, whose appearance and item
+displays resolve the Human Male model plus Stormwind plate component textures. If he is nude while this chain resolves, the failure is
+downstream in `CharSections` base-skin lookup, `ItemDisplayInfo` field selection, or composition, not missing configuration in server
+data. His nonzero skin color (`4`) specifically catches code that mistakes Classic's field 5 color for stock Wrath's field 9 color.
+
+`CharSections.dbc` has two incompatible field orderings (Classic/TBC vs. stock Wrath); detect by sampling
+field 4. Classic-era `ItemDisplayInfo.dbc` is 23 fields with texture components at field 14; TBC/Wrath layouts
+use field 15. Full schemas and field-by-field layouts are in
+[`dbc-reference.md`](dbc-reference.md#character-and-creature-tables).
 
 ## Component Texture Slots
 
@@ -122,128 +173,22 @@ M2 skin sections are grouped by hundreds: `section_id = group * 100 + variant`. 
 
 When no outfit is available the bare defaults are sections `401` (forearms), `702` (ears), and `1501` (no-cape back).
 
-### ItemDisplayInfo.dbc Field Layout (classic 23-field)
-
-| Field | Content |
-|-------|---------|
-| 0 | Record ID |
-| 1–2 | Model name string offsets (male, female) |
-| 3 | Cape texture string offset |
-| 4–6 | HelmGeosetVisData[0–2] |
-| **7** | **GeosetGroup[0]** — primary mesh variant |
-| **8** | **GeosetGroup[1]** — secondary mesh variant |
-| **9** | **GeosetGroup[2]** — robe/kilt leg variant |
-| 10 | Flags (bit 0 = helm hides hair; bit 2 = kneelength/robe hides pants) |
-| 11 | SpellVisualID |
-| 12–13 | Additional IDs |
-| 14–21 | Eight component texture string offsets (upper arm → foot) |
-| 22 | Extra field |
-
-### Slot → Geoset Group Mapping (`slot_geoset_group_map`)
-
-For each equipment slot, the three DBC GeosetGroup fields drive these character geoset groups. All findings verified against the full 23 852-record classic DBC.
-
-| Slot | InvType(s) | field 7 → group | field 8 → group | field 9 → group |
-|------|-----------|----------------|----------------|----------------|
-| 0 none | — | — | — | — |
-| 1 head | 1 | — | — | — |
-| 2 shoulder | 3 | — | — | — |
-| **3 chest** | 5, 20 | **8 (sleeves)** | — | **13 (robe leg coverage)** |
-| **4 shirt** | 4 | **8 (sleeves)** | — | — |
-| 5 belt | 6 | — | — | — |
-| **6 legs** | 7 | **13 (pants mesh)** | **9 (kneepads)** | — |
-| **7 boots** | 8 | **5 (boot mesh)** | — | — |
-| **8 gloves** | 10 | **4 (glove mesh)** | — | — |
-| 9 tabard | 19 | — | — | — |
-| **10 cape** | 16 | **15 (cape mesh)** | — | — |
-
-### Geoset Group Variant Tables
-
-All variants verified by exhaustive DBC scan. `section = group * 100 + variant` throughout.
-
-#### Group 4 — Gloves (`401 + geoset`, driven by legs field 7)
-
-| geoset | section | mesh |
-|--------|---------|------|
-| 0 | 401 | bare forearms — default, texture painted on |
-| 1 | 402 | glove mesh variant 1 |
-| 2 | 403 | glove mesh variant 2 |
-| 3 | 404 | glove mesh variant 3 |
-
-**Classic DBC:** all 23 852 glove-slot items have field 7 = 0. Gloves are texture-only in Classic; sections 402–404 exist in models but are unreachable through `ItemDisplayInfo`.
-
-#### Group 5 — Boots (`Wow_CharacterGeosetPick(501 + geoset, fallback 501)`, driven by boots field 7)
-
-| geoset | section | mesh |
-|--------|---------|------|
-| 0 | 501 | bare shins — default, texture painted on |
-| 1 | 502 | boot mesh variant 1 |
-| 2 | 503 | boot mesh variant 2 |
-| 3 | 504 | boot mesh variant 3 |
-
-Fallback scan used because some boot mesh variants are absent from certain race/gender models. **Classic DBC:** all boot-slot items (including hardcoded display 27270) have field 7 = 0. Boots are texture-only in Classic.
-
-#### Group 8 — Sleeves (`801 + geoset`, driven by chest/shirt field 7)
-
-| geoset | section | mesh |
-|--------|---------|------|
-| 0 | 801 | bare forearms — default |
-| 1 | 802 | short sleeve mesh |
-| 2 | 803 | long sleeve mesh |
-
-Classic chest items with visible sleeves set field 7 = 1 (288 records). Shirt items (slot 4) also drive this group via field 7.
-
-#### Group 9 — Kneepads (`900 + geoset`, driven by legs field 8)
-
-| geoset | section | mesh |
-|--------|---------|------|
-| 0 | 900 | DNE — no kneepads (default) |
-| 1 | 901 | DNE — no kneepads (explicit none) |
-| 2 | 902 | long kneepads |
-| 3 | 903 | short kneepads |
-
-**Important:** variant 0 and variant 1 are both DNE. `900 + geoset` is correct; `901 + geoset` would mis-map variant 2 → 903 (short instead of long).
-
-**Classic DBC:** 809 legs items set field 8 = 1 (→ 901 DNE = no kneepads). Zero items set field 8 = 2 or 3. Sections 902/903 exist in all shipped human/orc/etc. models but no Classic `ItemDisplayInfo` record activates them. The renderer default `geoset = 0 → 900 (DNE)` is therefore correct for all Classic content.
-
-#### Group 13 — Pants (`Wow_CharacterGeosetPick(1301 + geoset, fallback 1301)`, driven by legs field 7 or chest field 9)
-
-| geoset | section | mesh |
-|--------|---------|------|
-| 0 | 1301 | short pants — default/fallback |
-| 1 | 1302 | standard trousers |
-| 2 | 1303 | robe/full-length leg coverage |
-
-Fallback scan used because some pants variants are absent from certain race/gender models. Hidden entirely when `M2_CHAR_FLAG_KNEELENGTH` (DBC field 10 bit 2) is set.
-
-**Classic DBC:** 288 legs items set field 7 = 1 (→ 1302); 21 set field 7 = 2 (→ 1303). Robe chest items (InvType 20) drive this group via field 9 (e.g. display 12646, Orc Warlock robe: field 9 = 2 → 1303). Starter pants such as display 9892 have field 7 = 0, falling back to section 1301.
-
-#### Group 15 — Cape (`1501 + geoset`, driven by cape field 7)
-
-| geoset | section | mesh |
-|--------|---------|------|
-| 0 | 1501 | no-cape bare back — default |
-| 1 | 1502 | cape geometry |
-
-**Classic DBC:** all 7 701 cape records have field 7 = 0. `geoset[15]` is never set from `ItemDisplayInfo`. Cape geometry (section 1502) must be enabled by deriving `geoset[15] = 1` from `outfit->cape_texture != NULL` in `M2_DbcAddDisplayInfo` — **not yet implemented** (TODO).
-
-### Classic `CharStartOutfit.dbc`
-
-Fields 14–25 are a display-ID array; fields 26–37 are the parallel `InventoryType` array. Resolve each display through its inventory type; entries with type 0 are non-equipment and must not affect the character body. No starter record includes InvType 10 (gloves) or InvType 16 (cape).
+For the complete `ItemDisplayInfo.dbc` field layout, the slot → geoset-group mapping, and per-group variant
+tables (groups 4, 5, 8, 9, 13, 15), see
+[`dbc-reference.md — ItemDisplayInfo.dbc`](dbc-reference.md#itemdisplayinfodbc).
 
 ### Component Texture Layering
 
-Body component textures are ordered layers. Follow the `s_itemPriority` table: for `LegLower`, pants are priority 0 and boots are priority 2. Composite pants first, then boots; transparent pixels in the boot texture reveal the pants texture below. Collapsing the region to the last stem produces bare knees. Component texture presence never selects a clothing geoset.
+Body component textures are ordered layers. For `LegLower`, pants are priority 0 and boots are priority 2.
+Composite pants first, then boots; transparent pixels in the boot texture reveal the pants texture below.
+Collapsing the region to the last stem produces bare knees. Component texture presence never selects a geoset.
+
 ### Cape Texture Resolution
 
-Cape textures are stored in `ItemDisplayInfo.dbc` field 3 (LeftModelTexture). Resolution follows WoWee's pattern:
-
-1. Read texture stem from field 3
-2. Try gender-suffix variants: `{stem}_M.blp`, `{stem}_F.blp`, `{stem}_U.blp`
-3. Try under `Item\ObjectComponents\Cape\` and `Item\TextureComponents\Cape\`
-4. Store separately from the layered body component textures
-
-The cape geoset (group 15) must be set to 1502 (kGeosetWithCape) for the cloak mesh to render.
+Read the cape texture stem from `ItemDisplayInfo.dbc` field 3, try `_M` / `_F` / `_U` suffixes, and search
+under `Item\ObjectComponents\Cape\` then `Item\TextureComponents\Cape\`. Store separately from body component
+textures. Activating the cape mesh (section 1502) requires setting `geoset[15] = 1` from
+`outfit->cape_texture != NULL` — **not yet implemented** (TODO).
 
 ## Grounded Actor Yaw
 

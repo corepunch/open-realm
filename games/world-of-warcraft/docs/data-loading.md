@@ -83,6 +83,8 @@ Known useful files:
 
 Classic-era DBCs can report a logical field count larger than `record_size / 4`. Do not reject the whole file for that alone; validate the envelope and check each accessed field against `record_size`.
 
+See [`docs/dbc-reference.md`](dbc-reference.md) for the WDBC container layout, the per-table field offsets, and the packed appearance/equipment bitfields.
+
 ## Tools
 
 Inspect MPQs:

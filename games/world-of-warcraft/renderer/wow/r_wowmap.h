@@ -159,6 +159,7 @@ typedef struct wowMap_s {
     wowDoodadModel_t *doodad_models;
     wowDoodadInstance_t *doodads;
     wowDoodadInstance_t *doodad_buckets[WOW_DOODAD_BUCKETS][WOW_DOODAD_BUCKETS];
+    wowDoodadInstance_t *ground_effects;
     wowWmoModel_t *wmo_models;
     wowWmoInstance_t *wmos;
     LPTEXTURE alpha_atlas_texture;
@@ -170,6 +171,7 @@ typedef struct wowMap_s {
     DWORD num_grass_vertices;
     DWORD num_doodads;
     DWORD num_doodad_instances;
+    DWORD num_ground_effects;
     DWORD num_doodad_models;
     DWORD num_missing_doodad_models;
     DWORD num_filedata_doodads;
@@ -357,7 +359,6 @@ void Wow_LoadNearbyAdts(int center_x, int center_y);
 void Wow_LoadCameraAdts(void);
 void Wow_InitGrassShader(void);
 void Wow_BuildGrassForChunk(wowAdtChunk_t *chunk, BYTE const alpha[4][WOW_ALPHA_TEXELS], wowLayer_t const *layers, DWORD layer_count, char **textures, DWORD num_textures);
-BOOL Wow_GrassChunkInRange(wowAdtChunk_t const *chunk);
 void Wow_DrawGrass(void);
 BOOL Wow_EntityInView(renderEntity_t const *entity);
 BOOL Wow_TerrainChunkInRange(wowAdtChunk_t const *chunk);

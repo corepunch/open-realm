@@ -446,10 +446,11 @@ static inline DWORD Wow_PackAppearance(BYTE skinColorID,
                                        BYTE classID,
                                        BYTE flags) {
     return ((DWORD)(skinColorID & 0x1f)) |
-           ((DWORD)(faceID & 0x1f) << 5) |
+           ((DWORD)(faceID & 0x0f) << 5) |
            ((DWORD)(hairStyleID & 0x1f) << 10) |
            ((DWORD)(hairColorID & 0x0f) << 15) |
            ((DWORD)(facialHairStyleID & 0x0f) << 19) |
+           ((DWORD)(facialHairStyleID & 0x10) << 5) |
            ((DWORD)(classID & 0x0f) << 23) |
            ((DWORD)(flags & 0x1f) << 27);
 }
@@ -457,10 +458,11 @@ static inline DWORD Wow_PackAppearance(BYTE skinColorID,
 static inline wowAppearance_t Wow_UnpackAppearance(DWORD appearance) {
     wowAppearance_t unpacked = {
         .skinColorID = (BYTE)(appearance & 0x1f),
-        .faceID = (BYTE)((appearance >> 5) & 0x1f),
+        .faceID = (BYTE)((appearance >> 5) & 0x0f),
         .hairStyleID = (BYTE)((appearance >> 10) & 0x1f),
         .hairColorID = (BYTE)((appearance >> 15) & 0x0f),
-        .facialHairStyleID = (BYTE)((appearance >> 19) & 0x0f),
+        /* Classic face IDs stop at 14, so its spare fifth bit carries facial-feature ID bit 4. */
+        .facialHairStyleID = (BYTE)(((appearance >> 19) & 0x0f) | ((appearance >> 5) & 0x10)),
         .classID = (BYTE)((appearance >> 23) & 0x0f),
         .flags = (BYTE)((appearance >> 27) & 0x1f),
     };

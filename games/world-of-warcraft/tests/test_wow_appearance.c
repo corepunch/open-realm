@@ -51,6 +51,16 @@ TEST(wow_m2, dbc_character_path_resolves_race_and_gender) {
     T_ASSERT(!M2_DbcCharacterRaceGender("Creature\\Wolf\\Wolf.m2", &race, &gender));
 }
 
+TEST(wow_m2, classic_male_hair_path_uses_dbc_color) {
+    PATHSTR path;
+
+    T_ASSERT(m2_classic_hair_texture_path("Character\\Human\\Male\\HumanMale.m2", 0, path));
+    T_STREQ(path, "Character\\Human\\Hair00_00.blp");
+    T_ASSERT(m2_classic_hair_texture_path("Character/Orc/Male/OrcMale.m2", 7, path));
+    T_STREQ(path, "Character\\Orc\\Hair00_07.blp");
+    T_ASSERT(!m2_classic_hair_texture_path("Creature\\Wolf\\Wolf.m2", 0, path));
+}
+
 TEST(wow_m2, particle_curve_preserves_fractional_scale_and_normalized_lifetime) {
     M2PARTICLECURVE curve = { { 0.1388889f, 0.1666667f, 0.0000277778f }, 0.25f, 6.0f };
     cparticle_t particle = { 0 };
@@ -149,6 +159,26 @@ TEST(wow_m2, start_outfit_inventory_types_select_equipped_slots) {
     T_EQ(Wow_CharacterSlotForInventoryType(8), 7);  /* boots */
     T_EQ(Wow_CharacterSlotForInventoryType(0), 0);  /* backpack/non-equipment */
     T_EQ(Wow_CharacterSlotForInventoryType(14), 0); /* shield attachment, not body texture */
+}
+
+TEST(wow_m2, item_display_texture_base_matches_dbc_schema) {
+    T_EQ(m2_item_display_texture_base(21), 0);
+    T_EQ(m2_item_display_texture_base(22), 14);
+    T_EQ(m2_item_display_texture_base(23), 14);
+    T_EQ(m2_item_display_texture_base(24), 14);
+    T_EQ(m2_item_display_texture_base(25), 15);
+}
+
+TEST(wow_m2, char_sections_layout_matches_mounted_dbc_schema) {
+    DWORD classic[20][10] = { 0 }, wrath[20][10] = { 0 };
+
+    FOR_LOOP(i, 20) {
+        classic[i][4] = i % 4; classic[i][5] = i % 10; classic[i][6] = 100 + i;
+        wrath[i][4] = 100 + i; wrath[i][8] = i % 4; wrath[i][9] = i % 10;
+    }
+    T_EQ(m2_char_sections_layout((BYTE const *)classic, 20, sizeof(classic[0])), M2_CHAR_SECTIONS_VARIATION_FIRST);
+    T_EQ(m2_char_sections_layout((BYTE const *)wrath, 20, sizeof(wrath[0])), M2_CHAR_SECTIONS_TEXTURE_FIRST);
+    T_EQ(m2_char_sections_layout(NULL, 0, 0), M2_CHAR_SECTIONS_INVALID);
 }
 
 TEST(wow_m2, creature_extra_items_select_classic_npc_slots) {

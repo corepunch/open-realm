@@ -430,10 +430,9 @@ void Wow_AddGroundEffectInstance(LPCSTR model_path, VECTOR3 origin, float angle)
     instance->entity.model = model;
     instance->entity.radius = WOW_DOODAD_BUCKET_SIZE * 0.25f;
     instance->entity.flags = RF_NO_SHADOW | RF_GROUND_EFFECT;
-    instance->next = wow_world.doodads;
-    wow_world.doodads = instance;
-    Wow_BucketDoodadInstance(instance);
-    wow_world.num_doodad_instances++;
+    instance->next = wow_world.ground_effects;
+    wow_world.ground_effects = instance;
+    wow_world.num_ground_effects++;
 }
 
 void Wow_AddMarker(VERTEX *vertices, LPDWORD index, VECTOR3 p, float size, COLOR32 color) {

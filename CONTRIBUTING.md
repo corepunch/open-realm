@@ -1,5 +1,12 @@
 # Contributing
 
+## Developer Documentation
+
+Investigation findings are part of the contribution. Follow the
+[Documentation Guide For Agents](docs/documentation-guide.md) whenever implementation work requires reconstructing behavior from
+code, game data, runtime logs, history, issues, or external references. Add focused documents to the nearest subsystem index so the
+next contributor can find the answer without repeating the lookup.
+
 ## Test Fixtures and MPQ Assets
 
 - Tests must not depend on a developer's local Warcraft III data or `War3.mpq`. Add any archive fixtures under `tests/resources-src`, pack them into the generated `build/tests/tests.mpq` through `make test-assets`, and point tests at that fixture MPQ instead.

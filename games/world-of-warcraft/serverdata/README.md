@@ -110,6 +110,12 @@ There is one joined CSV row per `creature_template_model` variant. Creatures
 without a model retain one row with `\N` model fields. SQL `NULL` is preserved
 as `\N`; empty strings remain empty strings.
 
+`display_id` selects a client `CreatureDisplayInfo.dbc` record. For player-race
+character models, skin/hair and NPC equipment are resolved client-side through
+`CreatureDisplayInfoExtra.dbc` and `ItemDisplayInfo.dbc`; do not duplicate those
+version-specific fields in this server CSV. See
+[`docs/wow-character.md`](../../../docs/wow-character.md#creature-character-models).
+
 ### creature_spawns.csv
 ```
 entry, map, zone, area, x, y, z, orientation, wander_distance

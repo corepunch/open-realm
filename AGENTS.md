@@ -10,6 +10,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 |-------|------|
 | Architecture, engine boundaries, struct/API discipline, network contracts | [ARCHITECTURE.md](ARCHITECTURE.md) |
 | Test discipline, build & linking rules, MPQ fixture rules | [CONTRIBUTING.md](CONTRIBUTING.md) |
+| Agent documentation capture, placement, templates, and indexing | [docs/documentation-guide.md](docs/documentation-guide.md) |
 | Diagnostic tools (mpqtool, dbctool, mdxtool, text renderer, profiler) | [docs/diagnostic-tools.md](docs/diagnostic-tools.md) |
 | UI screen authoring, FDF conventions, ConsoleUI, stb_fdf.h | [docs/ui-authoring.md](docs/ui-authoring.md) |
 | WoW character display, DBC/skin-section/component-texture rules | [docs/wow-character.md](docs/wow-character.md) |
@@ -157,11 +158,20 @@ Follow Quake 2's pattern. Never fail silently, never crash, never log per-frame.
 
 ## Documentation Discipline
 
-- When implementing or changing a feature, add or adjust agent-friendly documentation if the change introduces a new workflow, tool, convention, or subsystem.
-- Update the relevant dedicated file in `docs/` or `doc/architecture/` rather than adding large blocks here.
+- **Documentation is part of the task, not optional cleanup.** Any fact that required looking through code, authoritative game data,
+  runtime logs, history, issues/PRs, or external references must be written into reusable agent-facing documentation before finishing.
+- Capture the answer a future agent would otherwise have to reconstruct: ownership and data flow, schema/field meanings, defaults and
+  sentinels, lookup chains, version differences, exact diagnostic commands, confirmed root cause, and misleading approaches to avoid.
+- When implementing or changing a feature, add or adjust agent-friendly documentation if the change introduces a new workflow, tool,
+  convention, subsystem, or non-obvious constraint.
+- Update the relevant dedicated file in `docs/`, `doc/architecture/`, or `games/<game>/docs/` rather than adding large blocks here.
 - Keep AGENTS.md as a concise index and rule set. Detailed workflows and reference material belong in dedicated files.
 - Keep documentation concise and actionable — prefer command examples and file paths over prose.
-- **Populate docs as you go.** Any fact that required research — a lookup in GitHub issues, a `gh issue view`, an API signature dug up from source, a format quirk discovered during parsing — belongs in the relevant `docs/` file immediately after you discover it. Do not leave findings only in conversation context. If no doc file exists for the subsystem yet, create one. Future agents (and future you) must be able to answer the same question from docs without repeating the research.
+- **Populate docs as you go.** Do not leave findings only in conversation context, terminal output, or code comments. If no document
+  exists for the subsystem, create one.
+- Add every new dedicated document to the nearest table of contents (`AGENTS.md`, a game `readme.md`, or an architecture index) and add
+  cross-links from adjacent workflow/reference documents when that makes the knowledge easier to find.
+- Follow [docs/documentation-guide.md](docs/documentation-guide.md) for what to capture, where to put it, and the completion checklist.
 
 ## GitHub Issues
 

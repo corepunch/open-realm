@@ -237,6 +237,7 @@ void R_RenderFlatRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, FLOAT z, LPCTEXTURE
 LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default);
 void R_ReleaseShader(LPSHADER shader);
 LPSHADER R_ModelShader(void);
+LPSHADER R_ModelShaderInstanced(void);
 void R_ShutdownModelShader(void);
 
 // r_main.c
@@ -275,6 +276,7 @@ LPBUFFER R_MakeVertexArrayObject(LPCVERTEX vertices, DWORD size);
 LPBUFFER R_MakeIndexedVertexArrayObject(LPCVERTEX vertices, DWORD num_vertices, DWORD const *indices, DWORD num_indices);
 void R_DrawBuffer(LPCBUFFER buffer, DWORD num_vertices);
 void R_DrawIndexedBuffer(LPCBUFFER buffer, DWORD num_indices);
+void R_DrawBufferInstanced(LPCBUFFER buffer, DWORD num_vertices, LPCMATRIX4 matrices, DWORD num_instances);
 
 // r_draw.c
 void R_DrawChar(int x, int y, int c);

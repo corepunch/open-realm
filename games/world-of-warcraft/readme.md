@@ -67,9 +67,11 @@ What the World of Warcraft target currently knows how to load and render.
 ### Documents
 
 - [Data Loading](docs/data-loading.md): MPQ data layout, WDT/ADT map entry, DBC helpers, and tool commands.
+- [DBC Reference](docs/dbc-reference.md): WDBC binary format, packed appearance/equipment values, and per-table field layouts for character/creature/UI DBCs.
 - [File Formats](docs/file-formats.md): collected reverse-engineered format notes for MPQ/CASC, WDT/ADT/WDL, WMO, M2/SKIN/ANIM, BLP, DBC/DB2, WDB, and related files.
 - [Terrain And World Rendering](docs/terrain-and-world-rendering.md): WDT tiles, ADT chunks, splats, alpha maps, doodads, WMOs, and height queries.
-- [M2 And Character Display](docs/m2-and-character-display.md): M2 loading, skin files, DBC-backed outfit data, geosets, and component texture rules.
+- [M2 And Character Display](docs/m2-and-character-display.md): M2 loading, creation/select data flow, packed defaults, DBC-backed outfit data, geosets, and component texture rules.
+- [WoW Character Display Quick Reference](../../docs/wow-character.md): authoritative DBCs, saved appearance values, common pitfalls, and bounded diagnostic commands.
 - [Grass Rendering System](docs/grass-rendering-system.md): terrain-advertent grass rendering.
 - [References](docs/references.md): public schema references and local source/tool entry points.
 - [Sounds](docs/sounds.md)

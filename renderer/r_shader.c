@@ -311,6 +311,108 @@ LPSHADER R_ModelShader(void) {
     return model_shader ? model_shader : tr.shader[SHADER_DEFAULT];
 }
 
+/* Instanced model shader for static meshes (ground-effect clutter). Identical
+   skinning/lighting to model_vs, but the per-instance world transform is a
+   vertex attribute instead of uModelMatrix so thousands of instances share one
+   draw call. */
+static LPCSTR instanced_vs =
+"#version 140\n"
+"in vec3 i_position;\n"
+"in vec4 i_color;\n"
+"in vec2 i_texcoord;\n"
+"in vec3 i_normal;\n"
+"in vec4 i_skin1;\n"
+"in vec4 i_boneWeight1;\n"
+"in vec4 i_instance0;\n"
+"in vec4 i_instance1;\n"
+"in vec4 i_instance2;\n"
+"in vec4 i_instance3;\n"
+"out vec4 v_color;\n"
+#ifdef USE_SHADOWMAPS
+"out vec4 v_shadow;\n"
+#endif
+"out vec2 v_texcoord;\n"
+"out vec2 v_texcoord2;\n"
+"out vec3 v_lighting;\n"
+"uniform mat4 uBones[128];\n"
+"uniform mat4 uViewProjectionMatrix;\n"
+"uniform mat4 uLightMatrix;\n"
+"uniform mat4 uTextureMatrix;\n"
+"uniform vec3 uLightDir;\n"
+"uniform vec3 uLightColor;\n"
+"uniform vec3 uLightAmbient;\n"
+"uniform int uLightCount;\n"
+"uniform float uFirstBoneLookupIndex;\n"
+"uniform mat4 uLights[8];\n"
+"const int MODEL_LIGHT_OMNI = 0;\n"
+"const int MODEL_LIGHT_DIRECT = 1;\n"
+"const int MODEL_LIGHT_AMBIENT = 2;\n"
+"vec3 vertex_lighting(vec3 normal, vec3 worldPos) {\n"
+"    vec3 n = normalize(normal);\n"
+"    if (uLightCount == 0)\n"
+"        return uLightAmbient + uLightColor * max(dot(n, normalize(uLightDir)), 0.0);\n"
+"    vec3 lighting = uLightAmbient;\n"
+"    for (int i = 0; i < 8; ++i) {\n"
+"        if (i >= uLightCount) break;\n"
+"        vec4 positionType = uLights[i][0];\n"
+"        vec4 direction = uLights[i][1];\n"
+"        vec4 colorIntensity = uLights[i][2];\n"
+"        vec4 ambientIntensity = uLights[i][3];\n"
+"        int type = int(positionType.w + 0.5);\n"
+"        vec3 color = colorIntensity.rgb * colorIntensity.a;\n"
+"        vec3 ambient = ambientIntensity.rgb * ambientIntensity.a;\n"
+"        if (type == MODEL_LIGHT_AMBIENT) {\n"
+"            lighting += color + ambient;\n"
+"        } else if (type == MODEL_LIGHT_DIRECT) {\n"
+"            vec3 l = normalize(-direction.xyz);\n"
+"            lighting += clamp(color * max(dot(n, l), 0.0), vec3(0.0), vec3(1.0)) + ambient;\n"
+"        } else {\n"
+"            vec3 delta = positionType.xyz - worldPos;\n"
+"            vec3 l = normalize(delta);\n"
+"            float dist = length(delta) / 64.0 + 1.0;\n"
+"            float atten = 1.0 / (dist * dist);\n"
+"            lighting += clamp(color * atten * max(dot(n, l), 0.0), vec3(0.0), vec3(1.0));\n"
+"            lighting += ambient * atten;\n"
+"        }\n"
+"    }\n"
+"    return min(lighting, vec3(1.0));\n"
+"}\n"
+"void main() {\n"
+"    vec4 pos4 = vec4(i_position, 1.0);\n"
+"    vec4 norm4 = vec4(i_normal, 0.0);\n"
+"    vec4 position = vec4(0.0);\n"
+"    vec4 normal = vec4(0.0);\n"
+"    for (int i = 0; i < 4; ++i) {\n"
+"        int boneIdx = int(i_skin1[i]) + int(uFirstBoneLookupIndex);\n"
+"        position += uBones[boneIdx] * pos4 * i_boneWeight1[i];\n"
+"        normal += uBones[boneIdx] * norm4 * i_boneWeight1[i];\n"
+"    }\n"
+"    position.w = 1.0;\n"
+"    mat4 i_instance = mat4(i_instance0, i_instance1, i_instance2, i_instance3);\n"
+"    vec4 worldPos = i_instance * position;\n"
+"    v_color = i_color;\n"
+"    v_texcoord = i_texcoord;\n"
+"    v_texcoord2 = (uTextureMatrix * worldPos).xy;\n"
+"    v_lighting = vertex_lighting(normalize(mat3(i_instance) * normal.xyz), worldPos.xyz);\n"
+#ifdef USE_SHADOWMAPS
+"    v_shadow = uLightMatrix * worldPos;\n"
+#endif
+"    gl_Position = uViewProjectionMatrix * worldPos;\n"
+"}\n";
+
+static LPSHADER instanced_shader;
+
+LPSHADER R_ModelShaderInstanced(void) {
+    if (!instanced_shader) {
+        instanced_shader = R_InitShader(instanced_vs, model_fs);
+        if (instanced_shader) {
+            R_Call(glUseProgram, instanced_shader->progid);
+            R_Call(glUniform1f, instanced_shader->uAlphaCutoff, 0.5f);
+        }
+    }
+    return instanced_shader;
+}
+
 LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
     GLuint vs = R_Call(glCreateShader, GL_VERTEX_SHADER);
     GLuint fs = R_Call(glCreateShader, GL_FRAGMENT_SHADER);
@@ -375,6 +477,10 @@ LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
     R_Call(glBindAttribLocation, program->progid, attrib_boneWeight1, "i_boneWeight1");
     R_Call(glBindAttribLocation, program->progid, attrib_particleSize, "i_size");
     R_Call(glBindAttribLocation, program->progid, attrib_particleAxis, "i_axis");
+    R_Call(glBindAttribLocation, program->progid, attrib_instance0, "i_instance0");
+    R_Call(glBindAttribLocation, program->progid, attrib_instance1, "i_instance1");
+    R_Call(glBindAttribLocation, program->progid, attrib_instance2, "i_instance2");
+    R_Call(glBindAttribLocation, program->progid, attrib_instance3, "i_instance3");
 
     R_Call(glLinkProgram, program->progid);
     R_Call(glUseProgram, program->progid);
@@ -427,4 +533,5 @@ void R_ReleaseShader(LPSHADER shader) {
 
 void R_ShutdownModelShader(void) {
     SAFE_DELETE(model_shader, R_ReleaseShader);
+    SAFE_DELETE(instanced_shader, R_ReleaseShader);
 }

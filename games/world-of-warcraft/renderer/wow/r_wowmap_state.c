@@ -135,6 +135,13 @@ void Wow_FreeDoodadInstances(void) {
         doodad = next;
     }
     wow_world.doodads = NULL;
+    doodad = wow_world.ground_effects;
+    while (doodad) {
+        wowDoodadInstance_t *next = doodad->next;
+        ri.MemFree(doodad);
+        doodad = next;
+    }
+    wow_world.ground_effects = NULL;
     memset(wow_world.doodad_buckets, 0, sizeof(wow_world.doodad_buckets));
 }
 
@@ -147,6 +154,7 @@ void Wow_ClearLoadedAdts(void) {
     wow_world.num_chunks = 0;
     wow_world.num_doodads = 0;
     wow_world.num_doodad_instances = 0;
+    wow_world.num_ground_effects = 0;
     wow_world.num_wmos = 0;
     wow_world.num_wmo_models = 0;
     wow_world.num_wmo_batches = 0;
