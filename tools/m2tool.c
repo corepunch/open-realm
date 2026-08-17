@@ -879,8 +879,7 @@ static BOOL WowVisibleSection(WORD section_id, m2ToolWowOutfit_t const *outfit,
         case 5:  expected = Wow_CharacterGeosetPick(available, available_count, 5, 501 + geoset, 501); break;
         case 7:  expected = geoset ? 700 + geoset : 702; break;
         case 8:  expected = 801 + geoset; break;
-        case 9:  expected = Wow_CharacterGeosetPick(available, available_count, 9,
-                                                    geoset ? 900 + geoset : 903, 902); break;
+        case 9:  expected = 901 + geoset; break;
         case 10: return false;
         case 11: return false;
         case 12: expected = 1200 + geoset; break;
