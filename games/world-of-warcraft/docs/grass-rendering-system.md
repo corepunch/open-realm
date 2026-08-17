@@ -27,6 +27,9 @@ call per clump (which produced ~47k draw calls and dropped the frame rate by 10x
   no doodad bucketing).
 - `Wow_DrawGrass` (`r_wowmap_grass.c`) culls by squared distance and frustum, groups visible
   instances by their `model`, and collects one `MATRIX4` per instance via `R_GetEntityMatrix`.
+  `R_GameEntityMatrix` short-circuits `RF_GROUND_EFFECT` entities through a direct 1-sin/1-cos
+  matrix build (`T(origin) * B * Ry(-90) * Rx(rotation.z - 90)` folded) instead of the full
+  basis-multiply + 3-Euler-rotate pipeline, which was the dominant CPU cost per clump.
 - `R_GameRenderModelInstanced` → `M2_RenderInstanced` (`r_m2.c`) renders each model batch once
   with `R_DrawBufferInstanced`, passing the whole matrix array to `glDrawArraysInstanced`.
 - `R_ModelShaderInstanced` (`r_shader.c`) is a copy of the model vertex shader with a per-instance

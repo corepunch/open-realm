@@ -192,12 +192,12 @@ static HANDLE make_world_safe_locs_dbc(LPDWORD size_out) {
 }
 
 static HANDLE make_creature_display_info_dbc(LPDWORD size_out) {
-    DWORD displays[] = { 161, 193, 163, 188 };
+    DWORD displays[] = { 161, 193, 163, 188, 2072 }; /* 2072 = Deputy Willem (quest giver) */
     DWORD size;
-    LPBYTE data = alloc_dbc(4, 5, 1, &size);
+    LPBYTE data = alloc_dbc(5, 5, 1, &size);
     LPBYTE records = data + 20;
 
-    FOR_LOOP(i, 4) {
+    FOR_LOOP(i, 5) {
         LPBYTE record = records + i * 5 * sizeof(DWORD);
 
         putfield(record, 0, displays[i]);
@@ -210,12 +210,12 @@ static HANDLE make_creature_display_info_dbc(LPDWORD size_out) {
 
 static HANDLE make_creature_model_data_dbc(LPDWORD size_out) {
     DWORD size;
-    LPBYTE data = alloc_dbc(4, 15, 160, &size);
+    LPBYTE data = alloc_dbc(5, 15, 160, &size);
     LPBYTE records = data + 20;
-    LPBYTE strings = records + 4 * 15 * sizeof(DWORD);
+    LPBYTE strings = records + 5 * 15 * sizeof(DWORD);
     DWORD cursor = 1;
 
-    FOR_LOOP(i, 4) {
+    FOR_LOOP(i, 5) {
         LPBYTE record = records + i * 15 * sizeof(DWORD);
         char model_name[64];
         DWORD model_offset;
@@ -581,6 +581,32 @@ TEST(wow_game, creature_serverdata_preserves_templates_and_all_models) {
     T_NOT_NULL(sparse); T_EQ((int)sparse->models[0].display_id, 0);
     T_EQ((int)sparse->models[1].display_id, 25501);
     T_ASSERT(Wow_CreatureByEntry(0xffffffffu) == NULL);
+}
+
+TEST(wow_game, quest_givers_receive_creature_frame_for_idle_animation) {
+    struct game_export *game = init_game();
+    VECTOR2 origin = { -8947.64f, -132.319f }; /* Deputy Willem (entry 823, display 2072) */
+    BOOL found = false;
+
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    game->RunFrame(); /* reset spawn budget */
+
+    Wow_SpawnQuestLocations(&origin);
+
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT e = &wow_edicts[i];
+        if (!e->inuse || e->s.class_id != 2072) continue;
+        wowEntityLocal_t *local = Wow_EntityLocal(e);
+        found = true;
+        T_ASSERT(e->think == Wow_RunCreatureFrame);
+        T_ASSERT(e->idle == Wow_AIIdle);
+        T_ASSERT(e->svflags & SVF_MONSTER);
+        T_NOT_NULL(local->animation);
+        if (local->animation) T_STREQ(local->animation->name, "Stand");
+        break;
+    }
+    T_ASSERT(found);
+    if (game->Shutdown) game->Shutdown();
 }
 
 static LPCSTR test_image_name(DWORD index) {
