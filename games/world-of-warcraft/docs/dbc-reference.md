@@ -1,9 +1,18 @@
 # WoW DBC Reference
 
 This is the single reference for how `openwow` reads classic-era client databases (`.dbc` / `WDBC` files) and what each
-character/creature table contains. It documents the binary container, the packed appearance/equipment values, and the
-per-table field layouts as actually consumed by the code. It is not a list of every field Blizzard authored — only the
-fields the current target reads, plus the layout hints needed to extend that set safely.
+table contains. It documents the binary container, the packed appearance/equipment values, the lookup chains, and every
+DBC file the codebase or its references touch — populated where a field layout is verified and marked **TODO** where a
+table is known to exist but not yet read or mapped.
+
+Sources are distinguished:
+
+- **code** — field offsets actually read by `games/world-of-warcraft/` (or the shared `sound/` module). Authoritative for
+  what `openwow` currently consumes.
+- **WoWee** — `data/WoWee/Data/expansions/{classic,tbc,wotlk,turtle}/dbc_layouts.json`, the local client reimplementation's
+  field-name → column maps. Classic is the primary reference; TBC/Wrath noted for version deltas.
+- **wotlkdev** — https://wotlkdev.github.io/wiki/dbc/ (3.3.5 auto-generated schema). Used for tables `openwow` does not
+  yet read (sound/cinematic/hair) and for Wrath-era field shifts.
 
 The same information is split across several places; this file is the index of record:
 
@@ -19,8 +28,15 @@ The same information is split across several places; this file is the index of r
 - [Reader Ownership](#reader-ownership)
 - [Packed Values](#packed-values)
 - [Lookup Chains](#lookup-chains)
+- [DBC Inventory](#dbc-inventory)
 - [Character And Creature Tables](#character-and-creature-tables)
+- [Ground Effect / Terrain Tables](#ground-effect--terrain-tables)
+- [Spell / Visual Tables](#spell--visual-tables)
 - [UI And Metadata Tables](#ui-and-metadata-tables)
+- [Map / World Metadata Tables](#map--world-metadata-tables)
+- [Sound Tables](#sound-tables)
+- [Cinematic Tables](#cinematic-tables)
+- [Version Differences](#version-differences)
 - [Diagnostic Workflow](#diagnostic-workflow)
 - [Known Pitfalls](#known-pitfalls)
 
@@ -60,18 +76,24 @@ Critical rule — `field_count * 4` can exceed `record_size`. Classic `CharStart
 with 152-byte records. Validate the file envelope, then bounds-check each accessed field against `record_size`;
 never reject a whole file for that mismatch alone.
 
+Some tables are exceptions to the "32-bit fields" rule:
+
+- `CharBaseInfo.dbc` uses **2-byte records** (byte 0 = race, byte 1 = class), so the field-count math does not apply.
+- `CharStartOutfit.dbc` packs `race/class/sex/outfit` as four `int8` bytes inside field 1 (see its section).
+
 ## Reader Ownership
 
-Two independent readers exist; neither parses DB2:
+Several independent readers exist; none parses DB2:
 
 - **Renderer** — `renderer/m2/r_dbc.c` keeps each table as one resident `FS_ReadFile` image plus an FNV-1a integer
   hash index (`M2_DbcLoad` / `M2_DbcFindID` / `M2_DbcField` / `M2_DbcString`). Character/creature/outfit tables live
   here.
-- **Game** — `game/g_wow.c` exposes `Wow_FindDbcRecord` and `Wow_DbcString` for map metadata, loading screens, and the
-  creature model cache in `game/m_creature.c`.
-
-The UI (`ui/ui_dbc.c`) reads its own small set (`ChrRaces`, `ChrClasses`, `CharBaseInfo`, `FactionTemplate`,
-`FactionGroup`) for the character-create screen.
+- **Game** — `game/g_wow.c` exposes `Wow_FindDbcRecord` and `Wow_DbcString` for map metadata, loading screens, the
+  spell-visual chain, and the creature model cache in `game/m_creature.c`.
+- **Common world** — `common/world_wow.c` reads `Map.dbc` and `WorldSafeLocs.dbc` for spawn/map resolution.
+- **UI** — `ui/ui_dbc.c` reads `ChrRaces`, `ChrClasses`, `CharBaseInfo`, `FactionTemplate`, `FactionGroup` for the
+  character-create screen.
+- **Sound** — `sound/s_sound.c` loads `SoundEntries.dbc` for kit name/path lookup.
 
 ## Packed Values
 
@@ -132,13 +154,60 @@ customization indices from packed appearance
   -> CharSections.dbc (skin/face/hair textures) + CharHairGeosets.dbc (hair geosets)
 ```
 
+### Spell visual
+
+```text
+Spell.dbc .SpellVisualID
+  -> SpellVisual.dbc  (precast/cast/impact kits, missile effect)
+  -> SpellVisualKit.dbc -> effect slot probe order  (Special0 > Base > Left > Right > Chest > Head > Breath)
+  -> SpellVisualEffectName.dbc  -> M2 path (.mdx/.mdl normalized to .m2)
+```
+
+## DBC Inventory
+
+Status legend: **read** = field layout consumed by code; **partial** = only some fields known; **TODO** = known to
+exist but not read or unmapped.
+
+| DBC | Status | Consumer | Purpose |
+| --- | --- | --- | --- |
+| `CreatureDisplayInfo` | read | `r_dbc.c`, `m_creature.c`, `g_gameobject.c` | creature → model / extra / sound / skin |
+| `CreatureDisplayInfoExtra` | read | `r_dbc.c` | character-like NPC appearance + 11 item display IDs |
+| `CreatureModelData` | read | `m_creature.c`, `g_gameobject.c` | model path, scale, collision width |
+| `ItemDisplayInfo` | read | `r_dbc.c` | item model/texture stems, geoset groups, flags |
+| `CharSections` | read | `r_dbc.c` | skin/face/hair/facial-hair texture variants |
+| `CharStartOutfit` | read | `r_dbc.c` | starter item display IDs by race/class/gender |
+| `ChrRaces` | read | `ui_dbc.c`, `cinematics` | race records, cinematic sequence id |
+| `ChrClasses` | read | `ui_dbc.c` | class records |
+| `CharBaseInfo` | read | `ui_dbc.c` | valid race/class pairs (2-byte records) |
+| `FactionTemplate` | read | `ui_dbc.c` | faction membership/flags |
+| `FactionGroup` | read | `ui_dbc.c` | faction group names |
+| `Map` | read | `g_wow.c`, `world_wow.c` | map id ↔ directory ↔ title ↔ loading screen |
+| `WorldSafeLocs` | read | `world_wow.c`, `g_wow.c` | safe spawn locations + names |
+| `LoadingScreens` | read | `g_wow.c` | loading screen texture path |
+| `GameObjectDisplayInfo` | read | `g_gameobject.c` | game-object model path ↔ display id |
+| `GroundEffectTexture` | read | `r_wowmap_grass.c` | terrain effect → doodad ids + weights + density |
+| `GroundEffectDoodad` | read | `r_wowmap_grass.c` | doodad id → model path |
+| `Spell` | read | `g_wow.c` | spell id → SpellVisualID |
+| `SpellVisual` | read | `g_wow.c` | visual id → precast/cast/impact kits + missile |
+| `SpellVisualKit` | read | `g_wow.c` | kit id → effect slots |
+| `SpellVisualEffectName` | read | `g_wow.c` | effect id → M2 path |
+| `SoundEntries` | read | `sound/s_sound.c` | sound kit id → file paths |
+| `CharHairGeosets` | partial | — (WoWee map only) | hair style → geoset id |
+| `CharacterFacialHairStyles` | partial | — (WoWee map only) | facial-hair style → geoset ids |
+| `HelmetGeosetVisData` | partial | — (wotlkdev only) | helmet hide-geoset masks |
+| `CharHairTextures` | partial | — (wotlkdev only) | hair texture variants (obscure schema) |
+| `SoundEntriesAdvanced` | TODO | — | advanced sound kit fields |
+| `CreatureSoundData` | TODO | — | per-creature sound event slots |
+| `SpellCastTimes` | TODO | — | spell cast-time index (via `Spell.CastingTimeIndex`) |
+| `SpellRange` | partial | — | spell min/max range (via `Spell.RangeIndex`) |
+| `CinematicSequences` | TODO | — | race intro sequence → cameras |
+| `CinematicCamera` | TODO | — | flyby camera model + origin + facing |
+
 ## Character And Creature Tables
 
 Field numbers are zero-based. String fields are marked `(str)` and store string-block offsets.
 
 ### `CreatureDisplayInfo.dbc`
-
-Consumed by `game/m_creature.c` and `renderer/m2/r_dbc.c`.
 
 | Field | Content |
 |------:|---------|
@@ -147,10 +216,11 @@ Consumed by `game/m_creature.c` and `renderer/m2/r_dbc.c`.
 | 2 | sound id |
 | 3 | extended display info id → `CreatureDisplayInfoExtra.dbc` (0 = none) |
 | 4 | scale (float) |
+| 6–8 | skin texture ids 1–3 (WoWee `Skin1/2/3`) |
+
+`m_creature.c` reads 0–4; `r_dbc.c` reads field 3 to reach the extra record. WoWee classic confirms fields 1/3/6–8.
 
 ### `CreatureModelData.dbc`
-
-Consumed by `game/m_creature.c` (`wowCreatureModelDataDbc_t`).
 
 | Field | Content |
 |------:|---------|
@@ -164,204 +234,440 @@ Consumed by `game/m_creature.c` (`wowCreatureModelDataDbc_t`).
 
 ### `CreatureDisplayInfoExtra.dbc`
 
-Consumed by `renderer/m2/r_dbc.c` (`M2_DbcResolveCreatureAppearance`). Requires at least 19 fields.
-
 | Field | Content |
 |------:|---------|
 | 0 | id |
+| 1 | race id |
+| 2 | sex id |
 | 3 | skin color index |
 | 4 | face index |
 | 5 | hair style index |
 | 6 | hair color index |
 | 7 | facial hair style index |
-| 8–18 | NPC item display IDs (up to 11, one per classic slot) → `ItemDisplayInfo.dbc` |
+| 8–18 | NPC item display IDs (11, one per classic slot) → `ItemDisplayInfo.dbc` |
+| 20 | baked name (str, WoWee `BakeName`) |
 
-The 11 item slots map to shared outfit slots via `Wow_CharacterCreatureItemSlot`
-(`common/wow_character_utils.h`): `{ head, shoulder, shirt, chest, belt, legs, boots, none, gloves, tabard, cape }`.
+Fields 3–7 feed `Wow_PackAppearance`; `r_dbc.c` requires at least 19 fields. The 11 item slots map to shared outfit
+slots via `Wow_CharacterCreatureItemSlot` (`common/wow_character_utils.h`):
+`{ head, shoulder, shirt, chest, belt, legs, boots, none, gloves, tabard, cape }`.
 
 ### `ItemDisplayInfo.dbc`
 
-Consumed by `renderer/m2/r_dbc.c`. Classic local data is **23 fields** (record_size = 92).
-Component texture stems start at **field 14** (25-field TBC/Wrath layouts start at field 15 — pick from
-`record_size`, not a hardcoded base).
-
-#### Classic 23-field layout
+Classic local data is 23 fields; component texture stems start at **field 14** (25-field layouts start at field 15 —
+`m2_item_display_texture_base` in `renderer/m2/r_m2_utils.h`). Full classic layout (verified against the 23 852-record
+local DBC, documented in `m2-and-character-display.md`):
 
 | Field | Content |
 |------:|---------|
-| 0 | Record ID |
-| 1–2 | Model name string offsets (male, female) |
-| 3 | Cape texture string offset |
-| 4–6 | HelmGeosetVisData[0–2] |
-| **7** | **GeosetGroup[0]** — primary mesh variant |
-| **8** | **GeosetGroup[1]** — secondary mesh variant |
-| **9** | **GeosetGroup[2]** — robe/kilt leg variant |
-| 10 | Flags: bit 0 = helm hides hair; bit 2 = kneelength/robe hides pants group |
-| 11 | SpellVisualID |
-| 12–13 | Additional IDs |
-| 14–21 | Eight component texture string offsets (upper arm → foot) |
-| 22 | Extra field |
+| 0 | record ID |
+| 1–2 | model name stems (str) |
+| 3 | cape texture stem (str) |
+| 4–6 | HelmGeosetVisData[0..2] → `HelmetGeosetVisData.dbc` |
+| 7 | `GeosetGroup[0]` — primary mesh variant |
+| 8 | `GeosetGroup[1]` — secondary mesh variant |
+| 9 | `GeosetGroup[2]` — robe/kilt leg variant |
+| 10 | flags (bit 0 = helm hides hair; bit 2 = kneelength/robe hides pants) |
+| 11–13 | additional ids |
+| 14–21 | eight component texture stems (str): upper arm, lower arm, hand, upper torso, lower torso, upper leg, lower leg, foot |
 
-Cape texture (field 3) resolves under `Item\ObjectComponents\Cape\` and
-`Item\TextureComponents\Cape\` with `_M` / `_F` / `_U` suffixes.
-Body component stems (fields 14–21) resolve under `Item\TextureComponents\<slot>\` with the same suffixes.
+WoWee names fields 7/9 `GeosetGroup1/3` (field 8 unlabeled in their map but present); component texture slots match
+(`TextureArmUpper`=14 … `TextureFoot`=21). Texture stems resolve under `Item\TextureComponents\<slot>\` with `_M` /
+`_F` / `_U` suffixes.
 
-#### Slot → GeosetGroup field mapping
+#### Slot → Geoset Group Mapping (`slot_geoset_group_map`)
 
-For each equipment slot, the three DBC GeosetGroup fields drive these character geoset groups.
-All entries verified by exhaustive scan of all 23 852 classic records.
+For each equipment slot, the three DBC GeosetGroup fields (7/8/9) drive these character geoset groups. Verified against
+the full 23 852-record classic DBC.
 
 | Slot | InvType(s) | field 7 → group | field 8 → group | field 9 → group |
 |------|-----------|----------------|----------------|----------------|
 | 0 none | — | — | — | — |
 | 1 head | 1 | — | — | — |
 | 2 shoulder | 3 | — | — | — |
-| **3 chest** | 5, 20 | **8 (sleeves)** | — | **13 (robe leg coverage)** |
-| **4 shirt** | 4 | **8 (sleeves)** | — | — |
+| 3 chest | 5, 20 | 8 (sleeves) | — | 13 (robe leg coverage) |
+| 4 shirt | 4 | 8 (sleeves) | — | — |
 | 5 belt | 6 | — | — | — |
-| **6 legs** | 7 | **13 (pants mesh)** | **9 (kneepads)** | — |
-| **7 boots** | 8 | **5 (boot mesh)** | — | — |
-| **8 gloves** | 10 | **4 (glove mesh)** | — | — |
+| 6 legs | 7 | 13 (pants mesh) | 9 (kneepads) | — |
+| 7 boots | 8 | 5 (boot mesh) | — | — |
+| 8 gloves | 10 | 4 (glove mesh) | — | — |
 | 9 tabard | 19 | — | — | — |
-| **10 cape** | 16 | **15 (cape mesh)** | — | — |
+| 10 cape | 16 | 15 (cape mesh) | — | — |
 
-#### Geoset group variant tables
+#### Geoset Group Variant Tables
 
-Section IDs follow `group * 100 + variant` throughout. Variant 0 means the DBC field was not set by
-any item; variant 1 is the conventional "bare/default" mesh for most groups.
+`section = group * 100 + variant` throughout. All variants verified by exhaustive classic DBC scan.
 
-**Group 4 — Gloves** (`section = 401 + geoset`, driven by gloves field 7)
+**Group 4 — Gloves** (`401 + geoset`, driven by glove-slot field 7): `0→401` bare, `1→402`, `2→403`, `3→404`. All
+23 852 glove-slot items have field 7 = 0; gloves are texture-only in Classic (sections 402–404 exist but are unreachable
+through `ItemDisplayInfo`).
 
-| geoset | section | notes |
-|--------|---------|-------|
-| 0 | 401 | bare forearms — default; texture painted on |
-| 1 | 402 | glove mesh variant 1 |
-| 2 | 403 | glove mesh variant 2 |
-| 3 | 404 | glove mesh variant 3 |
+**Group 5 — Boots** (`Wow_CharacterGeosetPick(501 + geoset, fallback 501)`, driven by boot field 7): `0→501` bare,
+`1→502`, `2→503`, `3→504`. All boot-slot items (including hardcoded display 27270) have field 7 = 0; boots are
+texture-only in Classic.
 
-Classic: all glove-slot items have field 7 = 0 — texture-only; sections 402–404 unreachable.
+**Group 8 — Sleeves** (`801 + geoset`, driven by chest/shirt field 7): `0→801` bare, `1→802` short, `2→803` long.
+Chest items with visible sleeves set field 7 = 1 (288 records); shirt items also drive this group.
 
-**Group 5 — Boots** (`section = Wow_CharacterGeosetPick(501 + geoset, fallback 501)`, boots field 7)
+**Group 9 — Kneepads** (`900 + geoset`, driven by legs field 8): `0→900` DNE, `1→901` DNE, `2→902` long, `3→903`
+short. Variants 0 and 1 are both DNE, so `900 + geoset` is correct; `901 + geoset` would mis-map variant 2 → 903 (short
+instead of long). 809 legs items set field 8 = 1 (→ 901 DNE); none set 2 or 3. The renderer default `geoset = 0 → 900`
+is correct for all Classic content.
 
-| geoset | section | notes |
-|--------|---------|-------|
-| 0 | 501 | bare shins — default; texture painted on |
-| 1 | 502 | boot mesh variant 1 |
-| 2 | 503 | boot mesh variant 2 |
-| 3 | 504 | boot mesh variant 3 |
+**Group 13 — Pants** (`Wow_CharacterGeosetPick(1301 + geoset, fallback 1301)`, driven by legs field 7 or chest field 9):
+`0→1301` short, `1→1302` trousers, `2→1303` robe/full-length. Hidden when `M2_CHAR_FLAG_KNEELENGTH` (field 10 bit 2) is
+set. 288 legs items set field 7 = 1 (→ 1302); 21 set field 7 = 2 (→ 1303). Robe chest items (InvType 20) drive this group
+via field 9 (e.g. display 12646, Orc Warlock robe: field 9 = 2 → 1303). Starter pants such as display 9892 have field 7 = 0,
+falling back to 1301.
 
-Fallback scan because some variants are absent from certain race/gender models.
-Classic: all boot-slot items (including hardcoded display 27270) have field 7 = 0 — texture-only.
-
-**Group 8 — Sleeves** (`section = 801 + geoset`, chest/shirt field 7)
-
-| geoset | section | notes |
-|--------|---------|-------|
-| 0 | 801 | bare forearms — default |
-| 1 | 802 | short sleeve mesh |
-| 2 | 803 | long sleeve mesh |
-
-Classic: 288 chest items set field 7 = 1. Shirt items (slot 4) share the same group via field 7.
-
-**Group 9 — Kneepads** (`section = 900 + geoset`, legs field 8)
-
-| geoset | section | notes |
-|--------|---------|-------|
-| 0 | 900 | DNE — no kneepads (default) |
-| 1 | 901 | DNE — no kneepads (explicit none) |
-| 2 | 902 | long kneepads |
-| 3 | 903 | short kneepads |
-
-Variants 0 and 1 are both DNE (no mesh). Use `900 + geoset`, not `901 + geoset` — the latter would
-mis-map variant 2 → section 903 (short instead of long).
-Classic: 809 legs items set field 8 = 1 (→ 901 DNE = no kneepads); zero items set field 8 = 2 or 3.
-Sections 902/903 exist in shipped models but no Classic `ItemDisplayInfo` record activates them.
-
-**Group 13 — Pants** (`section = Wow_CharacterGeosetPick(1301 + geoset, fallback 1301)`, legs field 7 or chest field 9)
-
-| geoset | section | notes |
-|--------|---------|-------|
-| 0 | 1301 | short pants — default/fallback |
-| 1 | 1302 | standard trousers |
-| 2 | 1303 | robe/full-length leg coverage |
-
-Fallback scan because some variants are absent from certain race/gender models.
-Hidden entirely when `M2_CHAR_FLAG_KNEELENGTH` (field 10 bit 2) is set by a robe/kilt item.
-Classic: 288 legs items set field 7 = 1 (→ 1302); 21 set field 7 = 2 (→ 1303).
-Robe chest items (InvType 20) drive this group via field 9 (e.g. display 12646, field 9 = 2 → 1303).
-Starter pants (e.g. display 9892, Human Warrior) have field 7 = 0 — fall back to section 1301.
-
-**Group 15 — Cape** (`section = 1501 + geoset`, cape field 7)
-
-| geoset | section | notes |
-|--------|---------|-------|
-| 0 | 1501 | no-cape bare back — default |
-| 1 | 1502 | cape geometry visible |
-
-Classic: all 7 701 cape records have field 7 = 0. `geoset[15]` is never set from `ItemDisplayInfo`.
-Cape mesh (1502) requires deriving `geoset[15] = 1` from `outfit->cape_texture != NULL` in
-`M2_DbcAddDisplayInfo` — **not yet implemented** (TODO).
+**Group 15 — Cape** (`1501 + geoset`, driven by cape field 7): `0→1501` no-cape, `1→1502` cape geometry. All 7 701 cape
+records have field 7 = 0; `geoset[15]` is never set from `ItemDisplayInfo`. Cape geometry (1502) must be enabled by
+deriving `geoset[15] = 1` from `outfit->cape_texture != NULL` in `M2_DbcAddDisplayInfo` — **not yet implemented** (TODO).
 
 ### `CharSections.dbc`
 
-Consumed by `renderer/m2/r_dbc.c` (`M2_DbcCharacterVariationTexturePath`). Two schemas exist, detected by sampling
-field 4 (`m2_char_sections_layout` in `renderer/m2/r_m2_utils.h`):
+Two schemas exist, detected by sampling field 4 (`m2_char_sections_layout` in `renderer/m2/r_m2_utils.h`); WoWee
+`detectCharSectionsFields()` uses the same probe.
 
-| Layout | race | gender | section | variation | color | texture[0..2] |
-|--------|-----:|-------:|--------:|----------:|------:|--------------:|
-| variation-first (Classic/TBC, HD-texture Wrath) | 1 | 2 | 3 | 4 | 5 | 6–8 |
-| texture-first (stock Wrath) | 1 | 2 | 3 | 8 | 9 | 4–6 |
+| Layout | race | gender | section | variation | color | texture[0..2] | flags |
+|--------|-----:|-------:|--------:|----------:|------:|--------------:|------:|
+| variation-first (Classic/TBC, HD-texture Wrath) | 1 | 2 | 3 | 4 | 5 | 6–8 | 9 |
+| texture-first (stock Wrath) | 1 | 2 | 3 | 8 | 9 | 4–6 | 7 |
 
 ### `CharStartOutfit.dbc`
 
-Consumed by `renderer/m2/r_dbc.c` (`M2_DbcStartOutfit`).
+Classic layout (read by `r_dbc.c` `M2_DbcStartOutfit`):
 
 | Field | Content |
 |------:|---------|
 | 0 | id |
-| 1 | key = `race | (class << 8) | (gender << 16)` |
+| 1 | key = `race | (class << 8) | (gender << 16)` (four packed `int8`) |
 | 14–25 | 12 starter item display IDs → `ItemDisplayInfo.dbc` |
 | 26–37 | parallel `InventoryType` array (type 0 = non-equipment, skip) |
 
 The local Human Male Warrior key is `257`; its record holds shirt/legs/boots display IDs `9891`, `9892`, `10141`.
-No starter record includes InvType 10 (gloves) or InvType 16 (cape) — starter characters always show
-bare hands (section 401) and no cape (section 1501).
 
-### `CharHairGeosets.dbc` / `CharHairTextures.dbc` / `HelmetGeosetVisData.dbc`
+Later (3.3.5) layout grows to 24 slots: `ID`, `RaceID`/`ClassID`/`SexID`/`OutfitID` (four `int8` in field 1),
+`ItemID[24]`, `DisplayItemID[24]`, `InventoryType[24]`.
 
-Listed in the character/creature rule set (`docs/wow-character.md`); read the local schemas with `dbctool` before
-changing renderer policy. `HelmetGeosetVisData` feeds `ItemDisplayInfo` fields 4–6.
+### `CharHairGeosets.dbc` (partial — WoWee)
+
+| Field | Content |
+|------:|---------|
+| 0 | id |
+| 1 | race id |
+| 2 | sex id |
+| 3 | variation |
+| 4 | geoset id |
+
+Maps a hair-style variation to the M2 geoset that renders it. Listed in the character rule set
+(`docs/wow-character.md`); not yet read by `openwow`.
+
+### `CharHairTextures.dbc` (partial — wotlkdev)
+
+8 fields; `0=id`, `1=race`, `2=gender`, `3=maybe race mask`, `4=the X in hair_XY.blp`, `5–7` unclear. Even the
+wotlkdev auto-generated schema leaves these unlabeled. Treat as unmapped until inspected locally.
+
+### `HelmetGeosetVisData.dbc` (partial — wotlkdev)
+
+| Field | Content |
+|------:|---------|
+| 0 | id |
+| 1–7 | `HideGeoset[0..6]` — geoset hide masks |
+
+Referenced by `ItemDisplayInfo` fields 4–6. Not yet read by `openwow`.
+
+### `CharacterFacialHairStyles.dbc` (partial — WoWee)
+
+| Field | Content |
+|------:|---------|
+| 0 | race id |
+| 1 | sex id |
+| 2 | variation |
+| 6 | `Geoset100` |
+| 8 | `Geoset200` |
+| 7 | `Geoset300` |
+
+Maps a facial-hair variation to up to three geoset ids. Note `RaceID` sits at field 0 here (unlike `CharSections`).
+
+## Ground Effect / Terrain Tables
+
+### `GroundEffectTexture.dbc`
+
+Two 11-DWORD layouts are detected by resolving candidate doodad IDs through `GroundEffectDoodad.dbc`
+(`Wow_GroundEffectLayout` in `r_wowmap_grass.c`).
+
+| Field | legacy layout | modern weighted layout (wotlkdev) |
+|------:|---------------|-----------------------------------|
+| 0 | id | id |
+| 1 | date stamp | doodad id 0 |
+| 2 | continent id | doodad id 1 |
+| 3 | zone id | doodad id 2 |
+| 4 | texture id | doodad id 3 |
+| 5–8 | doodad id 0–3 | weight 0–3 |
+| 9 | density | density / coverage |
+| 10 | sound | sound |
+
+Field offsets in `r_wowmap.h`: legacy doodad field 5, modern doodad field 1, weight field 5, density field 9. Legacy
+rows get uniform weight `1` for valid slots and skip `0xffffffff`; modern rows keep stored weights. The wotlkdev schema
+(`ID`, `DoodadID[4]`, `DoodadWeight[4]`, `Density`, `Sound`) is the modern layout.
+
+### `GroundEffectDoodad.dbc`
+
+| Field | Content |
+|------:|---------|
+| 0 | id |
+| 1 | doodad path (str) |
+| 2 | flags |
+
+Model names resolve under `World\NoDXT\Detail\` and `.mdl` names normalize to `.m2`. `Wow_GroundEffectModelPath` probes
+field 2 then field 1; the canonical model string is field 1 (wotlkdev `Doodadpath`).
+
+## Spell / Visual Tables
+
+### `Spell.dbc`
+
+Read by `g_wow.c` for the `spell id → SpellVisualID` map only; the rest of the record is unmapped here but WoWee
+documents the key columns.
+
+| Field | Content (classic, 148 fields) |
+|------:|--------------------------------|
+| 0 | id |
+| 1 | school |
+| 4 | dispel type |
+| 13 | targets |
+| 15 | `CastingTimeIndex` → `SpellCastTimes.dbc` |
+| 28 | power type |
+| 29 | mana cost |
+| 33 | `RangeIndex` → `SpellRange.dbc` |
+| 40 | `DurationIndex` |
+| 71–73 | `Effect[0..2]` |
+| 80–82 | `EffectBasePoints[0..2]` |
+| 115 | `SpellVisualID` → `SpellVisual.dbc` |
+| 117 | icon id |
+| 120 | name (str) |
+| 129 | rank (str) |
+| 138 | description (str) |
+| 147 | tooltip (str) |
+
+Classic/Turtle `SpellVisualID` is field **115**; TBC is **122**; WotLK (234 fields) is **131**. `g_wow.c` picks
+`fields >= 200 ? 131 : 115`.
+
+### `SpellVisual.dbc`
+
+| Field | Content |
+|------:|---------|
+| 0 | id |
+| 1 | precast kit → `SpellVisualKit.dbc` |
+| 2 | cast kit → `SpellVisualKit.dbc` |
+| 3 | impact kit → `SpellVisualKit.dbc` |
+| 8 | missile effect → `SpellVisualEffectName.dbc` |
+
+### `SpellVisualKit.dbc`
+
+Effect slots (each references `SpellVisualEffectName.dbc`):
+
+| Field | Content |
+|------:|---------|
+| 0 | id |
+| 3 | head effect |
+| 4 | chest effect |
+| 5 | base effect |
+| 6 | left-hand effect |
+| 7 | right-hand effect |
+| 8 | breath effect |
+| 11–13 | special effect 0–2 |
+
+`Wow_ResolveKitPath` probes in priority order `{ 11, 5, 6, 7, 4, 3, 8 }` (Special0 > Base > Left > Right > Chest > Head
+> Breath).
+
+### `SpellVisualEffectName.dbc`
+
+| Field | Content |
+|------:|---------|
+| 0 | id |
+| 2 | file path (str) |
+
+`.mdx`/`.mdl` extensions are normalized to `.m2`.
+
+### `SpellRange.dbc` (partial)
+
+| Layout | MinRange | MaxRange |
+|--------|---------:|---------:|
+| classic/Turtle | 1 | 2 |
+| TBC/Wrath | 2 | 4 |
+
+Referenced by `Spell.RangeIndex`; not directly read by `openwow`.
+
+### `SpellCastTimes.dbc` (TODO)
+
+Referenced by `Spell.CastingTimeIndex`. Layout not yet mapped.
 
 ## UI And Metadata Tables
 
-Read by `ui/ui_dbc.c` (character-create) and `game/g_wow.c` (map metadata).
-
 ### `ChrRaces.dbc` (29 fields, 1.x)
 
-Field 0 id, 1 flags (bit 0 = NPC-only), 2 faction, 4 male display id, 5 female display id, 15 client file (str),
-17 name (str), 26 hair custom (str), 27–28 facial-hair custom (str).
+| Field | Content |
+|------:|---------|
+| 0 | id |
+| 1 | flags (bit 0 = NPC-only) |
+| 2 | faction id |
+| 4 | male display id |
+| 5 | female display id |
+| 15 | client file (str) |
+| 16 | cinematic sequence id → `CinematicSequences.dbc` |
+| 17 | name (str) |
+| 26 | hair custom (str) |
+| 27–28 | facial-hair custom (str) |
+
+Verified: 9 records; Human row 0 field 16 = sequence 81, Orc row 1 field 16 = sequence 21.
 
 ### `ChrClasses.dbc` (16 fields, 1.x)
 
-Field 0 id, 5 name (str), 14 filename (str, e.g. `WARRIOR`).
+| Field | Content |
+|------:|---------|
+| 0 | id |
+| 5 | name (str) |
+| 14 | filename (str, e.g. `WARRIOR`) |
 
 ### `CharBaseInfo.dbc`
 
-**2-byte records** (not 32-bit fields): byte 0 = race id, byte 1 = class id. `record_size == 2`, so field-count math in
-the WDBC header does not apply the usual way.
+**2-byte records** (not 32-bit fields): byte 0 = race id, byte 1 = class id. `record_size == 2`, so the usual field-count
+math does not apply.
 
 ### `FactionTemplate.dbc`
 
-Field 0 id, 1 faction, 2 flags, 3 faction group.
+| Field | Content |
+|------:|---------|
+| 0 | id |
+| 1 | faction |
+| 2 | flags |
+| 3 | faction group |
+| 5–9 | friend/enemy group masks (WoWee) |
+
+`ui_dbc.c` reads 0–3; WoWee additionally maps `FriendGroup`=4, `EnemyGroup`=5, `Enemy[0..3]`=6–9.
 
 ### `FactionGroup.dbc`
 
-Field 0 id, 1 mask id, 2 internal name (str), 3 name (str).
+| Field | Content |
+|------:|---------|
+| 0 | id |
+| 1 | mask id |
+| 2 | internal name (str) |
+| 3 | name (str) |
 
-### `Map.dbc` / `WorldSafeLocs.dbc`
+## Map / World Metadata Tables
 
-Read by `game/g_wow.c` for map directory/title resolution and spawn/safe-location lookup. See
-[`docs/spawn-and-teleport.md`](spawn-and-teleport.md) and [`docs/cinematics.md`](cinematics.md).
+### `Map.dbc`
+
+| Field | Content |
+|------:|---------|
+| 0 | id |
+| 1 | directory name (str, `0 → Azeroth`, `1 → Kalimdor` in 1.12) |
+| 3 | title (str) |
+| last | loading screen id → `LoadingScreens.dbc` |
+
+`g_wow.c` reads fields 0/1/3 plus the trailing field for the loading screen; `world_wow.c` uses field 1 for the map
+directory. The `(race, class) → map` mapping is **not** here — it is AzerothCore `playercreateinfo`
+(see `spawn-and-teleport.md`).
+
+### `WorldSafeLocs.dbc`
+
+| Field | Content |
+|------:|---------|
+| 0 | id |
+| 1 | map id |
+| 2–4 | position x/y/z (float) |
+| 5+ | area name (str) |
+
+`CM_WowWorldSafeLocName` scans fields 5+ for the first valid string. wotlkdev confirms `ID`, `Continent`, `Loc[3]`,
+`AreaName`.
+
+### `LoadingScreens.dbc`
+
+| Field | Content |
+|------:|---------|
+| 0 | id |
+| 1 | name (str) |
+| 2 | file name (str) — the texture path `openwow` uses |
+| 3 | has wide screen |
+
+### `GameObjectDisplayInfo.dbc`
+
+| Field | Content |
+|------:|---------|
+| 0 | id |
+| 1 | model name (str) |
+| 2–11 | sound ids |
+| 12–17 | bounding box (float[6]) |
+| 18 | object effect package id |
+
+Model names are stored without extension; `g_gameobject.c` matches on the filename stem.
+
+## Sound Tables
+
+### `SoundEntries.dbc` (29 fields, 116 bytes/record)
+
+| Field | Name | Type | Description |
+|-------|------|------|-------------|
+| 0 | ID | uint32 | primary key (kit id) |
+| 1 | type | uint32 | 1=Spell, 2=UI, 3=Footsteps, 4=PropAmbience, … |
+| 2 | name | string | display/lookup name |
+| 3–12 | file[0..9] | string | up to 10 WAV/MP3 paths |
+| 13–22 | freq[0..9] | uint32 | weight for random selection (0 = never play) |
+| 23 | directoryBase | string | path prefix prepended to each file |
+| 24 | volumeFloat | float | base playback volume |
+| 25 | flags | uint32 | playback flags |
+| 26 | minDistance | float | 3D min distance |
+| 27 | distanceCutoff | float | hard cutoff distance |
+| 28 | eaxdef | uint32 | EAX reverb preset index |
+| 29 | advancedID | uint32 | linked advanced sound entry |
+
+Full path = `directoryBase + "\" + file[n]`. `sound/s_sound.c` reads fields 3–12 for files and resolves
+`directoryBase + file[0]`.
+
+### `CreatureSoundData.dbc` (TODO)
+
+Per-creature sound event slots. Fields (wotlkdev): `SoundExertionID`, `SoundExertionCriticalID`, `SoundInjuryID`,
+`SoundInjuryCriticalID`, `SoundInjuryCrushingBlowID`, `SoundDeathID`, `SoundStunID`, `SoundStandID`, `SoundFootstepID`,
+`SoundAggroID`, `SoundWingFlapID`, `SoundWingGlideID`, `SoundAlertID`, `SoundFidget[5]`, `CustomAttack[4]`,
+`NPCSoundID`, `LoopSoundID`, `CreatureImpactType`, `SoundJumpStartID`, `SoundJumpEndID`, `SoundPetAttackID`,
+`SoundPetOrderID`, `SoundPetDismissID`, `FidgetDelaySecondsMin/Max`, `BirthSoundID`, `SpellCastDirectedSoundID`,
+`SubmergeSoundID`, `SubmergedSoundID`, `CreatureSoundDataIDPet`. Linked from `CreatureDisplayInfo` via `CreatureSoundData`
+(see `docs/sounds.md`). Not yet read by `openwow`.
+
+### `SoundEntriesAdvanced.dbc` (TODO)
+
+Referenced by `SoundEntries.advancedID`. Layout not yet mapped.
+
+## Cinematic Tables
+
+### `CinematicSequences.dbc` (TODO)
+
+10 fields: `ID`, `SoundID`, then 8 camera ids → `CinematicCamera.dbc`. Sequence 21 → camera 235 (Orc); sequence 81 →
+camera 142 (Human).
+
+### `CinematicCamera.dbc` (TODO)
+
+7 fields: `ID`, model path (str, e.g. `Cameras\FlybyOrc.mdx`), origin `x/y/z` (float), facing. DBC strings use the
+historical `.mdx` spelling; archive lookup resolves the corresponding `.m2`.
+
+## Version Differences
+
+Field shifts worth knowing when a new client archive is mounted (sources: WoWee `dbc_layouts.json`, wotlkdev):
+
+| Table / field | Classic / Turtle | TBC | WotLK (3.3.5) |
+| --- | ---: | ---: | ---: |
+| `Spell.SpellVisualID` | 115 | 122 | 131 |
+| `Spell` field count | 148 | ~? | 234 |
+| `SpellRange.MinRange` / `MaxRange` | 1 / 2 | 2 / 4 | 2 / 4 |
+| `ItemDisplayInfo` texture base | 14 (23 fields) | — | 15 (25 fields) |
+| `CharSections` schema | variation-first | variation-first | texture-first (stock) / variation-first (HD) |
+| `SpellItemEnchantment.Name` | 10 | 13 | 14 |
+| `SpellItemEnchantment.ItemVisual` | 19 | 30 | 31 |
+
+`CreatureDisplayInfo`, `CreatureDisplayInfoExtra`, `CharSections`, `ItemDisplayInfo`, `CharHairGeosets`,
+`CharacterFacialHairStyles`, and the spell-visual chain (`SpellVisual`/`Kit`/`EffectName`) keep identical field indices
+across Classic/TBC/Wrath in the WoWee maps.
 
 ## Diagnostic Workflow
 
@@ -372,6 +678,17 @@ build/bin/dbctool -mpq data/world-of-warcraft/dbc.MPQ dump 'DBFilesClient\CharSt
 build/bin/dbctool -mpq data/world-of-warcraft/dbc.MPQ info 'DBFilesClient\ItemDisplayInfo.dbc'
 build/bin/dbctool -mpq data/world-of-warcraft/dbc.MPQ dump 'DBFilesClient\ItemDisplayInfo.dbc' 3
 build/bin/dbctool -mpq data/world-of-warcraft/dbc.MPQ info 'DBFilesClient\CreatureDisplayInfo.dbc'
+build/bin/dbctool -mpq data/world-of-warcraft/dbc.MPQ dump 'DBFilesClient\GroundEffectTexture.dbc' 1
+```
+
+Cross-check a suspected field offset against the WoWee maps before changing code:
+
+```bash
+python3 - <<'PY'
+import json
+d = json.load(open('data/WoWee/Data/expansions/classic/dbc_layouts.json'))
+print(d['SpellVisual'])
+PY
 ```
 
 ## Known Pitfalls
@@ -381,6 +698,9 @@ build/bin/dbctool -mpq data/world-of-warcraft/dbc.MPQ info 'DBFilesClient\Creatu
   shifts every clothing component.
 - `CharSections` has two field orders; detect by sampling field 4 rather than assuming one schema.
 - `CharBaseInfo` uses 2-byte records, not 4-byte fields.
+- `GroundEffectTexture` has a legacy and a modern weighted layout; detect by resolving doodad IDs, not by field count.
 - `equipment` bytes are local slot indices, not raw item IDs; index 0 means empty.
 - Customization index 0 is a real variation; a zero `appearance` does not mean "no outfit".
 - String fields are offsets, not inline text; offset 0 means null.
+- DBC spell-visual/effect-name strings use `.mdx`/`.mdl`; normalize to `.m2` before archive lookup.
+- `Spell.SpellVisualID` column moves across expansions (115/122/131); key off `fields`, not a fixed column.

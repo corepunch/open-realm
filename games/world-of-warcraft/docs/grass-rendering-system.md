@@ -155,52 +155,10 @@ Real WoW uses a **doodad-based system** that instantiates actual game asset mode
 - **Rendering**: Standard entity renderer (same as other doodads/objects)
 - **Variety**: Up to 4 different grass/plant models per terrain type with weighted selection
 
-### GroundEffectTexture.dbc
+### GroundEffectTexture.dbc / GroundEffectDoodad.dbc
 
-**File Location:** `DBFilesClient\GroundEffectTexture.dbc`
-
-**Format:** WDBC (WoW DataBase Client format)
-
-**Structure (11 fields):**
-```
-Field 0:  ID (DWORD)                  - Unique identifier (referenced by MCLY.effect_id)
-Field 1:  EffectDoodad1 (DWORD)       - First doodad option (GroundEffectDoodad.dbc ID)
-Field 2:  EffectDoodad2 (DWORD)       - Second doodad option
-Field 3:  EffectDoodad3 (DWORD)       - Third doodad option
-Field 4:  EffectDoodad4 (DWORD)       - Fourth doodad option
-Field 5:  Weight1 (DWORD)             - Selection weight for doodad 1
-Field 6:  Weight2 (DWORD)             - Selection weight for doodad 2
-Field 7:  Weight3 (DWORD)             - Selection weight for doodad 3
-Field 8:  Weight4 (DWORD)             - Selection weight for doodad 4
-Field 9:  AmountAndCoverage (DWORD)   - Density/distribution factor
-Field 10: TerrainTypeId (DWORD)       - Terrain classification
-```
-
-**Example Entry:**
-
-Terrain effect_id=1 might have:
-```
-ID=1
-Doodads: [17, 18, 19, 20]  (4 different grass/plant models)
-Weights: [40, 30, 20, 10]  (weighted random selection)
-Coverage: 0xFF (full coverage possible)
-TerrainType: 1 (grass terrain)
-```
-
-This means: "For this terrain type, randomly pick one of 4 plant models with 40%, 30%, 20%, 10% probability, and place them at full alpha coverage."
-
-### GroundEffectDoodad.dbc
-
-**File Location:** `DBFilesClient\GroundEffectDoodad.dbc`
-
-**Structure (3-4 fields):**
-```
-Field 0: ID (DWORD)        - Unique identifier
-Field 1: NameID (DWORD)    - String reference to doodad name
-Field 2: ModelID (DWORD)   - M2 model file data ID
-```
-
-Maps logical doodad IDs to actual M2 model files.
+The two 11-DWORD `GroundEffectTexture.dbc` layouts (legacy vs. modern weighted) and the `GroundEffectDoodad.dbc`
+`id/doodad-path/flags` layout are documented in [`docs/dbc-reference.md`](dbc-reference.md#ground-effect--terrain-tables).
 
 ### Placement Algorithm
 

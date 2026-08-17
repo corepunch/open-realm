@@ -189,6 +189,7 @@ void Wow_FreeWorld(void) {
         doodad_model = next;
     }
     Wow_FreeDoodadInstances();
+    Wow_FreeGrassScratch();
     memset(&wow_world, 0, sizeof(wow_world));
 }
 

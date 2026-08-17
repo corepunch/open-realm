@@ -5,10 +5,12 @@
 
 typedef struct {
     LPCMODEL model;
-    MATRIX4 *matrices;
+    MATRIX4 *matrices;  /* slice of wow_grass_scratch, not owned */
     DWORD count;
-    DWORD capacity;
 } wowGrassGroup_t;
+
+static MATRIX4 *wow_grass_scratch;
+static DWORD wow_grass_scratch_cap;
 
 typedef struct {
     DWORD magic;
@@ -127,6 +129,12 @@ static DWORD Wow_GroundEffectLayout(BYTE const *records, DWORD count, DWORD reco
     fprintf(stderr, "[GRASS] GroundEffectTexture layout scores: legacy=%u/%u modern=%u/%u\n",
             (unsigned)rows[0], (unsigned)score[0], (unsigned)rows[1], (unsigned)score[1]);
     return rows[1] > rows[0] ? WOW_GRASS_TEXTURE_MODERN_DOODAD_FIELD : WOW_GRASS_TEXTURE_LEGACY_DOODAD_FIELD;
+}
+
+void Wow_FreeGrassScratch(void) {
+    ri.MemFree(wow_grass_scratch);
+    wow_grass_scratch = NULL;
+    wow_grass_scratch_cap = 0;
 }
 
 void Wow_LoadGroundEffectDBCs(void) {
@@ -424,7 +432,7 @@ void Wow_DrawGrass(void) {
     DWORD group_count = 0;
     DWORD drawn_instances = 0;
     VECTOR3 camera_origin;
-    float draw_distance;
+    float draw_distance_sq;
 
     if (!wow_world.ground_effects) {
         return;
@@ -432,20 +440,17 @@ void Wow_DrawGrass(void) {
 
     memset(groups, 0, sizeof(groups));
     camera_origin = tr.viewDef.camerastate[0].origin;
-    draw_distance = WOW_GRASS_DRAW_DISTANCE;
+    draw_distance_sq = WOW_GRASS_DRAW_DISTANCE * WOW_GRASS_DRAW_DISTANCE;
 
+    // Pass 1: count visible instances per model, no allocations
     for (inst = wow_world.ground_effects; inst; inst = inst->next) {
         wowGrassGroup_t *group = NULL;
         float dx = inst->entity.origin.x - camera_origin.x;
         float dy = inst->entity.origin.y - camera_origin.y;
-        MATRIX4 matrix;
 
-        if (dx * dx + dy * dy > draw_distance * draw_distance) {
-            continue;
-        }
-        if (!Wow_EntityInView(&inst->entity)) {
-            continue;
-        }
+        if (dx * dx + dy * dy > draw_distance_sq) continue;
+        if (!Wow_EntityInView(&inst->entity)) continue;
+
         FOR_LOOP(i, group_count) {
             if (groups[i].model == inst->entity.model) {
                 group = &groups[i];
@@ -453,30 +458,59 @@ void Wow_DrawGrass(void) {
             }
         }
         if (!group) {
-            if (group_count >= WOW_GRASS_MAX_MODELS) {
-                continue;
-            }
+            if (group_count >= WOW_GRASS_MAX_MODELS) continue;
             group = &groups[group_count++];
             group->model = inst->entity.model;
         }
-        if (group->count == group->capacity) {
-            DWORD new_capacity = MAX(group->capacity * 2, 64);
-            MATRIX4 *new_matrices = ri.MemAlloc(new_capacity * sizeof(MATRIX4));
-            if (group->count) {
-                memcpy(new_matrices, group->matrices, group->count * sizeof(MATRIX4));
-            }
-            ri.MemFree(group->matrices);
-            group->matrices = new_matrices;
-            group->capacity = new_capacity;
-        }
-        R_GetEntityMatrix(&inst->entity, &matrix);
-        group->matrices[group->count++] = matrix;
+        group->count++;
         drawn_instances++;
     }
 
-    FOR_LOOP(i, group_count) {
-        R_GameRenderModelInstanced(groups[i].model, groups[i].matrices, groups[i].count);
-        ri.MemFree(groups[i].matrices);
+    if (drawn_instances > 0) {
+        // Grow the persistent scratch buffer if needed; never frees within a frame
+        if (drawn_instances > wow_grass_scratch_cap) {
+            ri.MemFree(wow_grass_scratch);
+            wow_grass_scratch_cap = drawn_instances + 64;
+            wow_grass_scratch = ri.MemAlloc(wow_grass_scratch_cap * sizeof(MATRIX4));
+        }
+
+        if (wow_grass_scratch) {
+            // Assign contiguous scratch slices via prefix sums, reset count for fill pass
+            {
+                DWORD offset = 0;
+                FOR_LOOP(i, group_count) {
+                    groups[i].matrices = wow_grass_scratch + offset;
+                    offset += groups[i].count;
+                    groups[i].count = 0;
+                }
+            }
+
+            // Pass 2: fill matrices into pre-assigned scratch slices
+            for (inst = wow_world.ground_effects; inst; inst = inst->next) {
+                wowGrassGroup_t *group = NULL;
+                float dx = inst->entity.origin.x - camera_origin.x;
+                float dy = inst->entity.origin.y - camera_origin.y;
+                MATRIX4 matrix;
+
+                if (dx * dx + dy * dy > draw_distance_sq) continue;
+                if (!Wow_EntityInView(&inst->entity)) continue;
+
+                FOR_LOOP(i, group_count) {
+                    if (groups[i].model == inst->entity.model) {
+                        group = &groups[i];
+                        break;
+                    }
+                }
+                if (!group) continue;
+
+                R_GetEntityMatrix(&inst->entity, &matrix);
+                group->matrices[group->count++] = matrix;
+            }
+
+            FOR_LOOP(i, group_count) {
+                R_GameRenderModelInstanced(groups[i].model, groups[i].matrices, groups[i].count);
+            }
+        }
     }
 
     {
@@ -485,7 +519,9 @@ void Wow_DrawGrass(void) {
         if (logged_x != wow_world.adt_center_x || logged_y != wow_world.adt_center_y) {
             logged_x = wow_world.adt_center_x;
             logged_y = wow_world.adt_center_y;
-            fprintf(stderr, "R_DrawWorld: grass instances=%u/%u groups=%u draw_distance=%.0f\n", (unsigned)drawn_instances, (unsigned)wow_world.num_ground_effects, (unsigned)group_count, (double)draw_distance);
+            fprintf(stderr, "R_DrawWorld: grass instances=%u/%u groups=%u draw_distance=%.0f\n",
+                    (unsigned)drawn_instances, (unsigned)wow_world.num_ground_effects,
+                    (unsigned)group_count, (double)WOW_GRASS_DRAW_DISTANCE);
         }
     }
 }
