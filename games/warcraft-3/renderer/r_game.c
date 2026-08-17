@@ -85,6 +85,31 @@ void R_GameSetupTextureMatrix(void) {
     }
 }
 
+void R_GameDrawMinimap(LPCRECT screen) {
+    LPCTEXTURE tex = tr.minimap ? tr.minimap : tr.texture[TEX_WHITE];
+    R_DrawImage(tex, screen, &MAKE(RECT, 0, 0, 1, 1), COLOR32_WHITE);
+
+    if (tr.world && tr.shader[SHADER_MINIMAP_FOG]) {
+        DWORD const fow_texid = R_GetMinimapFogOfWarTexture();
+        if (fow_texid && (!tr.texture[TEX_WHITE] || fow_texid != tr.texture[TEX_WHITE]->texid)) {
+            TEXTURE fog_texture = {
+                .texid = fow_texid,
+                .width = (tr.world->width - 1) * 4,
+                .height = (tr.world->height - 1) * 4,
+            };
+            R_DrawImageEx(&MAKE(drawImage_t,
+                                .texture = &fog_texture,
+                                .screen = *screen,
+                                .uv = MAKE(RECT, 0, 0, 1, 1),
+                                .color = MAKE(COLOR32, 0, 0, 0, 230),
+                                .shader = SHADER_MINIMAP_FOG,
+                                .alphamode = BLEND_MODE_BLEND));
+        }
+    }
+
+    R_DrawMinimapCameraRect(screen);
+}
+
 void R_GameRegisterMap(LPCSTR mapFileName) {
     R_RegisterMap(mapFileName);
 }

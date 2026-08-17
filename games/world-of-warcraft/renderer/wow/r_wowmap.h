@@ -22,6 +22,8 @@
 #define WOW_DEBUG_DOODAD_ERROR_MESHES 0
 #define WOW_DOODAD_DRAW_DISTANCE 450.0f
 #define WOW_TERRAIN_DRAW_DISTANCE 700.0f
+#define WOW_MINIMAP_WORLD_RADIUS 160.0f
+#define WOW_MINIMAP_CAMERA_HEIGHT 4000.0f
 #define WOW_DOODAD_BUCKET_SIZE 128.0f
 #define WOW_DOODAD_BUCKETS 272
 #define WOW_WORLD_COORD_OFFSET (32.0f * WOW_ADT_SIZE)
@@ -324,6 +326,7 @@ BOOL Wow_EntityInView(renderEntity_t const *entity);
 BOOL Wow_TerrainChunkInRange(wowAdtChunk_t const *chunk);
 BOOL Wow_WmoGroupInView(wowWmoGroup_t const *group, LPCMATRIX4 matrix);
 void Wow_BindWorldTexture(LPCTEXTURE texture, DWORD unit, LPCTEXTURE bound[5], LPDWORD binds);
+void Wow_DrawMinimap(LPCRECT screen);
 BOOL Wow_MakeSplatVertex(float x, float y, LPCVECTOR2 mins, float width, float height, COLOR32 color, LPVERTEX vertex);
 void Wow_AddSplatTriangle(LPVERTEX vertices, LPDWORD count, VERTEX a, VERTEX b, VERTEX c, float max_height_delta);
 

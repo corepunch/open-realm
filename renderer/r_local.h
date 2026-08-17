@@ -244,6 +244,9 @@ void R_ShutdownModelShader(void);
 void R_RenderShadowMap(void);
 #endif
 void R_RenderView(void);
+void R_SetupViewport(LPCRECT r);
+void R_SetupScissor(LPCRECT r);
+void R_RevertSettings(void);
 
 // r_ents.c
 bool R_TraceEntity(viewDef_t const *viewdef, float x, float y, LPDWORD number);
@@ -281,6 +284,7 @@ void R_DrawImageEx(LPCDRAWIMAGE drawImage);
 void R_DrawImageBatch(LPCTEXTURE texture, SHADERTYPE shaderType, BLEND_MODE alphamode, FLOAT uActiveGlow, BOOL hasClip, LPCRECT clip, LPCVERTEX vertices, DWORD num_vertices, BOOL repeat);
 void R_DrawMinimap(LPCRECT screen);
 bool R_TraceMinimap(float x, float y, LPVECTOR2 outWorld);
+void R_DrawMinimapCameraRect(LPCRECT screen);
 void R_DrawLoadingIndicator(LPCRECT rect, DWORD time, COLOR32 color);
 void R_DrawPic(LPCTEXTURE texture, float x, float y);
 void R_DrawSelectionRect(LPCRECT rect, COLOR32 color);
