@@ -33,9 +33,90 @@ static DWORD Wow_GrassHash(DWORD value) {
     return value;
 }
 
+static BOOL Wow_GrassRoadTexture(LPCSTR path) {
+    return path && (strcasestr(path, "road") || strcasestr(path, "cobble") || strcasestr(path, "path") ||
+                    strcasestr(path, "street") || strcasestr(path, "pavement") || strcasestr(path, "brick"));
+}
+
 static float Wow_GrassRandom(LPDWORD seed) {
     *seed = Wow_GrassHash(*seed + 0x9e3779b9U);
     return (float)(*seed & 0xffff) / 65535.0f;
+}
+
+static wowGroundEffectDoodad_t *Wow_GetGroundEffectDoodad(DWORD doodad_id) {
+    FOR_LOOP(i, wow_ground_effect_doodad_count) {
+        if (wow_ground_effect_doodads[i].id == doodad_id) {
+            return &wow_ground_effect_doodads[i];
+        }
+    }
+    return NULL;
+}
+
+static void Wow_GroundEffectWeights(wowGroundEffectTexture_t const *effect, DWORD weights[WOW_GRASS_DOODAD_SLOTS]) {
+    memcpy(weights, effect->weight, sizeof(effect->weight));
+}
+
+static BOOL Wow_GroundEffectModelPath(DWORD const *record, BYTE const *strings, DWORD string_size, LPSTR out, DWORD out_size) {
+    DWORD fields[2] = { WOW_GRASS_DOODAD_MODEL_FIELD, 1 };
+    FOR_LOOP(i, 2) {
+        LPCSTR name = Wow_StringAt((LPCSTR)strings, string_size, record[fields[i]]);
+        LPBYTE data = NULL;
+        int size;
+        if (!name || !*name) continue;
+        snprintf(out, out_size, "World\\NoDXT\\Detail\\%s", name);
+        if (Wow_PathHasExtension(out, ".mdl")) {
+            char *ext = strrchr(out, '.');
+            snprintf(ext, 5, ".m2");
+        }
+        size = ri.FS_ReadFile(out, (void **)&data);
+        if (size >= 0 && data) {
+            ri.FS_FreeFile(data);
+            return true;
+        }
+    }
+    out[0] = '\0';
+    return false;
+}
+
+static void Wow_LoadGroundEffectDoodads(void) {
+    LPBYTE data = NULL;
+    int size = ri.FS_ReadFile("DBFilesClient\\GroundEffectDoodad.dbc", (void **)&data);
+    if (size >= (int)sizeof(wowDbcHeader_t)) {
+        wowDbcHeader_t const *header = (wowDbcHeader_t const *)data;
+        BYTE const *records = data + sizeof(*header);
+        BYTE const *strings = records + header->records * header->record_size;
+        DWORD count = MIN(header->records, WOW_MAX_GROUND_EFFECT_DOODADS);
+        if (header->magic == MAKEFOURCC('W', 'D', 'B', 'C') && header->record_size >= WOW_GRASS_DOODAD_FIELD_COUNT * sizeof(DWORD) &&
+            sizeof(*header) + (uint64_t)header->records * header->record_size + header->string_size <= (uint64_t)size) {
+            FOR_LOOP(i, count) {
+                DWORD const *record = (DWORD const *)(records + i * header->record_size);
+                wowGroundEffectDoodad_t *doodad = &wow_ground_effect_doodads[wow_ground_effect_doodad_count];
+                if (!Wow_GroundEffectModelPath(record, strings, header->string_size, doodad->model_path, sizeof(doodad->model_path))) continue;
+                doodad->id = record[0];
+                wow_ground_effect_doodad_count++;
+            }
+            wow_ground_effect_doodads_loaded = true;
+            fprintf(stderr, "[GRASS] Loaded %u GroundEffectDoodad records\n", (unsigned)wow_ground_effect_doodad_count);
+        }
+    }
+    if (data) ri.FS_FreeFile(data);
+}
+
+static DWORD Wow_GroundEffectLayout(BYTE const *records, DWORD count, DWORD record_size) {
+    DWORD score[2] = { 0, 0 }, rows[2] = { 0, 0 };
+    FOR_LOOP(i, count) {
+        DWORD const *record = (DWORD const *)(records + i * record_size);
+        DWORD valid[2] = { 0, 0 };
+        FOR_LOOP(slot, WOW_GRASS_DOODAD_SLOTS) {
+            if (Wow_GetGroundEffectDoodad(record[WOW_GRASS_TEXTURE_LEGACY_DOODAD_FIELD + slot])) valid[0]++;
+            if (Wow_GetGroundEffectDoodad(record[WOW_GRASS_TEXTURE_MODERN_DOODAD_FIELD + slot])) valid[1]++;
+        }
+        FOR_LOOP(layout, 2) if (valid[layout] >= 2) rows[layout]++;
+        score[0] += valid[0]; score[1] += valid[1];
+    }
+    fprintf(stderr, "[GRASS] GroundEffectTexture layout scores: legacy=%u/%u modern=%u/%u\n",
+            (unsigned)rows[0], (unsigned)score[0], (unsigned)rows[1], (unsigned)score[1]);
+    return rows[1] > rows[0] ? WOW_GRASS_TEXTURE_MODERN_DOODAD_FIELD : WOW_GRASS_TEXTURE_LEGACY_DOODAD_FIELD;
 }
 
 void Wow_LoadGroundEffectDBCs(void) {
@@ -51,6 +132,8 @@ void Wow_LoadGroundEffectDBCs(void) {
 
     fprintf(stderr, "[GRASS] Wow_LoadGroundEffectDBCs: Starting load\n");
     fflush(stderr);
+
+    Wow_LoadGroundEffectDoodads();
 
     // Load GroundEffectTexture.dbc
     fprintf(stderr, "[GRASS] Loading GroundEffectTexture.dbc...\n");
@@ -69,7 +152,7 @@ void Wow_LoadGroundEffectDBCs(void) {
 
             fprintf(stderr, "[GRASS] WDBC: records=%u record_size=%u\n", (unsigned)records, (unsigned)record_size);
 
-            if (records > 0 && record_size == sizeof(*wow_ground_effect_textures) &&
+            if (records > 0 && record_size == WOW_GRASS_DBC_FIELD_COUNT * sizeof(DWORD) &&
                 sizeof(*header) + (uint64_t)records * (uint64_t)record_size + header->string_size <= (uint64_t)size) {
                 records_base = data + sizeof(*header);
                 records_to_copy = records;
@@ -77,12 +160,24 @@ void Wow_LoadGroundEffectDBCs(void) {
                 if (!wow_ground_effect_textures) {
                     fprintf(stderr, "[GRASS] allocation failed for %u GroundEffectTexture rows\n", (unsigned)records_to_copy);
                     ri.FS_FreeFile(data);
-                    wow_ground_effect_doodads_loaded = true;
                     return;
                 }
 
                 fprintf(stderr, "[GRASS] Copying %u records...\n", (unsigned)records_to_copy);
-                memcpy(wow_ground_effect_textures, records_base, sizeof(*wow_ground_effect_textures) * records_to_copy);
+                DWORD doodad_field = Wow_GroundEffectLayout(records_base, records_to_copy, record_size);
+                FOR_LOOP(i, records_to_copy) {
+                    DWORD const *record = (DWORD const *)(records_base + i * record_size);
+                    wowGroundEffectTexture_t *effect = &wow_ground_effect_textures[i];
+                    memset(effect, 0, sizeof(*effect));
+                    effect->id = record[0];
+                    effect->density = record[WOW_GRASS_TEXTURE_DENSITY_FIELD];
+                    FOR_LOOP(slot, WOW_GRASS_DOODAD_SLOTS) {
+                        effect->doodad_id[slot] = record[doodad_field + slot];
+                        effect->weight[slot] = doodad_field == WOW_GRASS_TEXTURE_MODERN_DOODAD_FIELD ?
+                            record[WOW_GRASS_TEXTURE_WEIGHT_FIELD + slot] :
+                            (effect->doodad_id[slot] == WOW_GRASS_INVALID_DOODAD ? 0 : 1);
+                    }
+                }
 
                 wow_ground_effect_texture_count = records_to_copy;
                 wow_ground_effect_textures_loaded = true;
@@ -98,12 +193,6 @@ void Wow_LoadGroundEffectDBCs(void) {
         fprintf(stderr, "[GRASS] FS_ReadFile failed or invalid size\n");
     }
 
-    // Load GroundEffectDoodad.dbc (if needed)
-    // Note: GroundEffectDoodad.dbc contains ID, name_id, model_id
-    // For now, we just track that we would load it
-    // The actual doodad model paths come from the MMDX/MMID chunks in ADTs
-    wow_ground_effect_doodads_loaded = true;
-
     fprintf(stderr, "[GRASS] Wow_LoadGroundEffectDBCs: Complete\n");
     fflush(stderr);
 }
@@ -113,7 +202,7 @@ static wowGroundEffectTexture_t *Wow_GetGroundEffectTexture(DWORD effect_id) {
         Wow_LoadGroundEffectDBCs();
     }
 
-    if (!wow_ground_effect_textures_loaded || effect_id == 0 || effect_id == 0xFFFFFFFFU) {
+    if (!wow_ground_effect_textures_loaded || effect_id == 0 || effect_id == WOW_GRASS_INVALID_DOODAD) {
         return NULL;
     }
 
@@ -126,20 +215,19 @@ static wowGroundEffectTexture_t *Wow_GetGroundEffectTexture(DWORD effect_id) {
     return NULL;
 }
 
-static DWORD Wow_SelectDoodadFromWeights(DWORD const weights[4], LPDWORD seed) {
-    DWORD total_weight = weights[0] + weights[1] + weights[2] + weights[3];
+static DWORD Wow_SelectDoodadFromWeights(DWORD const weights[WOW_GRASS_DOODAD_SLOTS], LPDWORD seed) {
+    DWORD total_weight = 0;
     DWORD roll;
-    
+    FOR_LOOP(i, WOW_GRASS_DOODAD_SLOTS) total_weight += weights[i];
     if (total_weight == 0) {
         return 0; // No valid doodads
     }
-    
     roll = (DWORD)(Wow_GrassRandom(seed) * total_weight);
-    
-    if (roll < weights[0]) return 0;
-    if (roll < weights[0] + weights[1]) return 1;
-    if (roll < weights[0] + weights[1] + weights[2]) return 2;
-    return 3;
+    FOR_LOOP(i, WOW_GRASS_DOODAD_SLOTS) {
+        if (roll < weights[i]) return i;
+        roll -= weights[i];
+    }
+    return WOW_GRASS_DOODAD_SLOTS - 1;
 }
 
 static DWORD Wow_GrassLayerSlot(wowLayer_t const *layers, DWORD layer_count, DWORD wanted_layer) {
@@ -189,7 +277,7 @@ static BYTE Wow_GrassEffectCoverage(BYTE const alpha[4][WOW_ALPHA_TEXELS],
 
     FOR_LOOP(layer_index, MIN(layer_count, 4)) {
         BYTE coverage;
-        if (!layers[layer_index].effect_id || layers[layer_index].effect_id == 0xFFFFFFFFU) {
+        if (!layers[layer_index].effect_id || layers[layer_index].effect_id == WOW_GRASS_INVALID_DOODAD) {
             continue;
         }
         coverage = Wow_GrassLayerCoverage(alpha, layers, layer_count, layer_index, alpha_index);
@@ -214,7 +302,7 @@ static DWORD Wow_GrassEffectIdForCoverage(BYTE const alpha[4][WOW_ALPHA_TEXELS],
 
     FOR_LOOP(layer_index, MIN(layer_count, 4)) {
         BYTE coverage;
-        if (!layers[layer_index].effect_id || layers[layer_index].effect_id == 0xFFFFFFFFU) {
+        if (!layers[layer_index].effect_id || layers[layer_index].effect_id == WOW_GRASS_INVALID_DOODAD) {
             continue;
         }
         coverage = Wow_GrassLayerCoverage(alpha, layers, layer_count, layer_index, alpha_index);
@@ -226,21 +314,31 @@ static DWORD Wow_GrassEffectIdForCoverage(BYTE const alpha[4][WOW_ALPHA_TEXELS],
     return best_effect_id;
 }
 
+static BOOL Wow_GrassRoadAt(BYTE const alpha[4][WOW_ALPHA_TEXELS], wowLayer_t const *layers, DWORD layer_count,
+                            char **textures, DWORD num_textures, DWORD alpha_index) {
+    FOR_LOOP(layer_index, MIN(layer_count, 4)) {
+        if (layers[layer_index].texture_id < num_textures && Wow_GrassRoadTexture(textures[layers[layer_index].texture_id]) &&
+            Wow_GrassLayerCoverage(alpha, layers, layer_count, layer_index, alpha_index) >= WOW_GRASS_ROAD_COVERAGE_MIN)
+            return true;
+    }
+    return false;
+}
+
 void Wow_BuildGrassForChunk(wowAdtChunk_t *chunk,
                             BYTE const alpha[4][WOW_ALPHA_TEXELS],
                             wowLayer_t const *layers,
-                            DWORD layer_count) {
+                            DWORD layer_count,
+                            char **textures,
+                            DWORD num_textures) {
     enum {
-        WOW_GRASS_SAMPLES_PER_AXIS = 8 / WOW_GRASS_CELL_STEP,
-        WOW_GRASS_MAX_CLUMPS_PER_SAMPLE = 4,
+        WOW_GRASS_SAMPLES_PER_AXIS = WOW_GRASS_CELLS_PER_AXIS / WOW_GRASS_CELL_STEP,
         WOW_GRASS_MAX_VERTICES = WOW_GRASS_SAMPLES_PER_AXIS * WOW_GRASS_SAMPLES_PER_AXIS *
-                                 WOW_GRASS_MAX_CLUMPS_PER_SAMPLE * WOW_GRASS_VERTICES_PER_CLUMP,
+                                 WOW_GRASS_MAX_PLACEMENTS_PER_SAMPLE * WOW_GRASS_VERTICES_PER_CLUMP,
     };
     VERTEX *vertices;
     DWORD num_vertices = 0;
-    float density = Wow_GrassClamp(WOW_GRASS_DENSITY, 0.0f, 2.0f);
 
-    if (!chunk || !alpha || !layers || layer_count == 0 || density <= 0.0f) {
+    if (!chunk || !alpha || !layers || layer_count == 0) {
         return;
     }
 
@@ -250,35 +348,39 @@ void Wow_BuildGrassForChunk(wowAdtChunk_t *chunk,
     }
 
     chunk->grass_bounds = Wow_EmptyBounds();
-    for (int row = 0; row < 8; row += WOW_GRASS_CELL_STEP) {
-        for (int col = 0; col < 8; col += WOW_GRASS_CELL_STEP) {
+    for (int row = 0; row < WOW_GRASS_CELLS_PER_AXIS; row += WOW_GRASS_CELL_STEP) {
+        for (int col = 0; col < WOW_GRASS_CELLS_PER_AXIS; col += WOW_GRASS_CELL_STEP) {
             DWORD seed = (chunk->alpha_index_x * 73856093U) ^
                          (chunk->alpha_index_y * 19349663U) ^
                          ((DWORD)row * 83492791U) ^
                          ((DWORD)col * 2654435761U);
-            float local_row = row + 0.20f + Wow_GrassRandom(&seed) * (WOW_GRASS_CELL_STEP - 0.40f);
-            float local_col = col + 0.20f + Wow_GrassRandom(&seed) * (WOW_GRASS_CELL_STEP - 0.40f);
-            int cell_row = (int)floorf(MIN(local_row, 7.999f));
-            int cell_col = (int)floorf(MIN(local_col, 7.999f));
-            int alpha_x = MAX(0, MIN((int)(local_col * 8.0f), 63));
-            int alpha_y = MAX(0, MIN((int)(local_row * 8.0f), 63));
+            float local_row = row + WOW_GRASS_CELL_OFFSET + Wow_GrassRandom(&seed) * (WOW_GRASS_CELL_STEP - WOW_GRASS_CELL_MARGIN);
+            float local_col = col + WOW_GRASS_CELL_OFFSET + Wow_GrassRandom(&seed) * (WOW_GRASS_CELL_STEP - WOW_GRASS_CELL_MARGIN);
+            int cell_row = (int)floorf(MIN(local_row, WOW_GRASS_CELLS_PER_AXIS - WOW_GRASS_COORD_EPSILON));
+            int cell_col = (int)floorf(MIN(local_col, WOW_GRASS_CELLS_PER_AXIS - WOW_GRASS_COORD_EPSILON));
+            int alpha_x = MAX(0, MIN((int)(local_col * WOW_GRASS_ALPHA_AXIS), WOW_GRASS_ALPHA_MAX));
+            int alpha_y = MAX(0, MIN((int)(local_row * WOW_GRASS_ALPHA_AXIS), WOW_GRASS_ALPHA_MAX));
             DWORD effect_id = Wow_GrassEffectIdForCoverage(alpha, layers, layer_count, alpha_y * 64 + alpha_x);
             BYTE coverage = Wow_GrassEffectCoverage(alpha, layers, layer_count, alpha_y * 64 + alpha_x);
             int clumps;
             wowGroundEffectTexture_t *ground_effect = NULL;
 
-            if (coverage < 32 || !effect_id) {
+            if (Wow_GrassRoadAt(alpha, layers, layer_count, textures, num_textures, alpha_y * 64 + alpha_x) ||
+                coverage < WOW_GRASS_COVERAGE_MIN || !effect_id) {
+                continue;
+            }
+            // Look up the ground effect for this layer
+            ground_effect = Wow_GetGroundEffectTexture(effect_id);
+            if (!ground_effect || !ground_effect->density || !wow_ground_effect_doodads_loaded) {
                 continue;
             }
 
-            // Look up the ground effect for this layer
-            ground_effect = Wow_GetGroundEffectTexture(effect_id);
-
-            clumps = MAX(1, (int)ceilf(((float)coverage / 255.0f) * density * 4.0f));
-            clumps = MIN(clumps, WOW_GRASS_MAX_CLUMPS_PER_SAMPLE);
+            clumps = MAX(1, (int)ceilf((float)coverage / WOW_GRASS_ALPHA_TEXEL_MAX *
+                                       MIN(ground_effect->density, WOW_GRASS_DBC_DENSITY_MAX)));
+            clumps = MIN(clumps, WOW_GRASS_MAX_PLACEMENTS_PER_SAMPLE);
             FOR_LOOP(clump, clumps) {
-                float row_jitter = local_row + (Wow_GrassRandom(&seed) - 0.5f) * 0.45f;
-                float col_jitter = local_col + (Wow_GrassRandom(&seed) - 0.5f) * 0.45f;
+                float row_jitter = local_row + (Wow_GrassRandom(&seed) - 0.5f) * WOW_GRASS_CLUMP_JITTER;
+                float col_jitter = local_col + (Wow_GrassRandom(&seed) - 0.5f) * WOW_GRASS_CLUMP_JITTER;
                 float height;
                 VECTOR3 origin;
                 float angle;
@@ -297,11 +399,33 @@ void Wow_BuildGrassForChunk(wowAdtChunk_t *chunk,
                 origin = (VECTOR3){
                     chunk->position.x - row_jitter * WOW_ADT_UNIT_SIZE,
                     chunk->position.y - col_jitter * WOW_ADT_UNIT_SIZE,
-                    chunk->position.z + height + 0.02f,
+                    chunk->position.z + height + WOW_GRASS_Z_BIAS,
                 };
-                angle = Wow_GrassRandom(&seed) * 6.2831853f;
-                blade_height = 0.20f + Wow_GrassRandom(&seed) * 0.22f;
-                blade_width = 0.12f + Wow_GrassRandom(&seed) * 0.12f;
+                {
+                    DWORD weights[WOW_GRASS_DOODAD_SLOTS];
+                    Wow_GroundEffectWeights(ground_effect, weights);
+                    if (!weights[0] && !weights[1] && !weights[2] && !weights[3]) {
+                        continue;
+                    }
+                    DWORD doodad_index = Wow_SelectDoodadFromWeights(weights, &seed);
+                    wowGroundEffectDoodad_t *doodad = Wow_GetGroundEffectDoodad(ground_effect->doodad_id[doodad_index]);
+                    static BYTE missing_doodad_logged[WOW_GRASS_DOODAD_LOGGED_IDS];
+
+                    if (!doodad) {
+                        DWORD doodad_id = ground_effect->doodad_id[doodad_index];
+                        if (doodad_id < WOW_GRASS_DOODAD_LOGGED_IDS && !missing_doodad_logged[doodad_id]) {
+                            fprintf(stderr, "[GRASS] missing GroundEffectDoodad id=%u for effect=%u\n",
+                                    (unsigned)doodad_id, (unsigned)effect_id);
+                            missing_doodad_logged[doodad_id] = true;
+                        }
+                        continue;
+                    }
+                    Wow_AddGroundEffectInstance(doodad->model_path, origin, Wow_GrassRandom(&seed) * WOW_GRASS_FULL_CIRCLE);
+                }
+                continue;
+                angle = Wow_GrassRandom(&seed) * WOW_GRASS_FULL_CIRCLE;
+                blade_height = WOW_GRASS_BLADE_HEIGHT_MIN + Wow_GrassRandom(&seed) * WOW_GRASS_BLADE_HEIGHT_VARIATION;
+                blade_width = WOW_GRASS_BLADE_WIDTH_MIN + Wow_GrassRandom(&seed) * WOW_GRASS_BLADE_WIDTH_VARIATION;
                 
                 // Use proper WoW grass colors based on GroundEffect data
                 // If we have ground effect info, vary colors realistically
@@ -327,7 +451,7 @@ void Wow_BuildGrassForChunk(wowAdtChunk_t *chunk,
                 
                 // Emit two perpendicular quad cards (billboard-style grass clump).
                 VECTOR3 right = { cosf(angle) * blade_width, sinf(angle) * blade_width, 0.0f };
-                VECTOR3 normal = { -right.y, right.x, 0.10f };
+                VECTOR3 normal = { -right.y, right.x, WOW_GRASS_NORMAL_Z };
                 VECTOR3 base_left = { origin.x - right.x, origin.y - right.y, origin.z };
                 VECTOR3 base_right = { origin.x + right.x, origin.y + right.y, origin.z };
                 VECTOR3 top_left = { base_left.x, base_left.y, origin.z + blade_height };
@@ -365,13 +489,13 @@ void Wow_BuildGrassForChunk(wowAdtChunk_t *chunk,
                 v->normal = normal;
 
                 // Second quad (perpendicular, slightly shorter)
-                right = (VECTOR3){ cosf(angle + 1.5707963f) * blade_width * 0.85f, 
-                                   sinf(angle + 1.5707963f) * blade_width * 0.85f, 0.0f };
-                normal = (VECTOR3){ -right.y, right.x, 0.10f };
+                right = (VECTOR3){ cosf(angle + WOW_GRASS_CROSS_ANGLE) * blade_width * WOW_GRASS_CROSS_WIDTH_SCALE,
+                                   sinf(angle + WOW_GRASS_CROSS_ANGLE) * blade_width * WOW_GRASS_CROSS_WIDTH_SCALE, 0.0f };
+                normal = (VECTOR3){ -right.y, right.x, WOW_GRASS_NORMAL_Z };
                 base_left = (VECTOR3){ origin.x - right.x, origin.y - right.y, origin.z };
                 base_right = (VECTOR3){ origin.x + right.x, origin.y + right.y, origin.z };
-                top_left = (VECTOR3){ base_left.x, base_left.y, origin.z + blade_height * 0.90f };
-                top_right = (VECTOR3){ base_right.x, base_right.y, origin.z + blade_height * 0.90f };
+                top_left = (VECTOR3){ base_left.x, base_left.y, origin.z + blade_height * WOW_GRASS_CROSS_HEIGHT_SCALE };
+                top_right = (VECTOR3){ base_right.x, base_right.y, origin.z + blade_height * WOW_GRASS_CROSS_HEIGHT_SCALE };
 
                 if (Vector3_lengthsq(&normal) > 0.000001f) {
                     Vector3_normalize(&normal);
@@ -478,6 +602,7 @@ void Wow_DrawGrass(void) {
     R_Call(glUniform1f, wow_uGrassTime, (GLfloat)tr.viewDef.time * 0.001f);
     R_Call(glUniform3f, wow_uGrassCameraOrigin, camera_origin.x, camera_origin.y, camera_origin.z);
     R_Call(glUniform1f, wow_uGrassDrawDistance, draw_distance);
+    R_Call(glUniform1f, wow_uGrassFadeStartDistance, WOW_GRASS_FADE_START_DISTANCE);
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glDepthFunc, GL_LEQUAL);
     R_Call(glDisable, GL_CULL_FACE);

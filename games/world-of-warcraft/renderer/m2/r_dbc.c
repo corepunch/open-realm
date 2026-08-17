@@ -160,7 +160,9 @@ BOOL M2_DbcResolveCreatureAppearance(DWORD display_id, LPM2CREATUREAPPEARANCE ou
                                     "DBFilesClient\\CreatureDisplayInfoExtra.dbc", extra_id) : NULL;
     if (!extra || creature_display_info_extra_dbc.fields < 19) return false;
     out->appearance = Wow_PackAppearance((BYTE)M2_DbcField(&creature_display_info_extra_dbc, extra, 3), (BYTE)M2_DbcField(&creature_display_info_extra_dbc, extra, 4), (BYTE)M2_DbcField(&creature_display_info_extra_dbc, extra, 5), (BYTE)M2_DbcField(&creature_display_info_extra_dbc, extra, 6), (BYTE)M2_DbcField(&creature_display_info_extra_dbc, extra, 7), 1, 0);
-    FOR_LOOP(i, 9) out->display_ids[i] = M2_DbcField(&creature_display_info_extra_dbc, extra, 8 + i);
+    FOR_LOOP(i, sizeof(out->display_ids) / sizeof(out->display_ids[0])) out->display_ids[i] = 0;
+    FOR_LOOP(i, MIN((DWORD)(sizeof(out->display_ids) / sizeof(out->display_ids[0])), creature_display_info_extra_dbc.fields - 8 - 1))
+        out->display_ids[i] = M2_DbcField(&creature_display_info_extra_dbc, extra, 8 + i);
     return true;
 }
 
@@ -179,7 +181,7 @@ static void M2_DbcAddDisplayInfo(LPM2CHARACTEROUTFIT outfit, DWORD display_id, D
         return;
     record = M2_DbcFindID(&item_display_info_dbc, "DBFilesClient\\ItemDisplayInfo.dbc", display_id);
     if (!record) return;
-    texture_base = item_display_info_dbc.fields >= 25 ? 15 : item_display_info_dbc.fields >= 22 ? 14 : 0;
+    texture_base = item_display_info_dbc.fields >= 23 ? 15 : 0;
     geoset_base = item_display_info_dbc.fields >= 22 ? 7 : 0;
     flags_field = item_display_info_dbc.fields >= 22 ? 10 : 0;
     FOR_LOOP(i, 3) {
@@ -251,7 +253,8 @@ BOOL M2_DbcCharacterOutfit(LPCSTR model_path, DWORD appearance, DWORD equipment,
     if (!outfit || !M2_DbcCharacterRaceGender(model_path, &race_id, &gender_id)) return false;
     if (creature) {
         memset(outfit, 0, sizeof(*outfit));
-        FOR_LOOP(i, 9) M2_DbcAddDisplayInfo(outfit, creature->display_ids[i], Wow_CharacterCreatureItemSlot(i));
+        FOR_LOOP(i, sizeof(creature->display_ids) / sizeof(creature->display_ids[0]))
+            M2_DbcAddDisplayInfo(outfit, creature->display_ids[i], Wow_CharacterCreatureItemSlot(i));
         return true;
     }
     if (!M2_DbcStartOutfit(model_path, appearance, outfit)) return false;

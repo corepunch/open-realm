@@ -273,27 +273,20 @@ typedef struct {
     m2Track_t visibility_track;
 } m2ParticleModern_t;
 
-/* Classic (TBC, version <= 263) particle emitter — m2TrackClassic_t (24 bytes each). */
+/* Classic/TBC stores ten contiguous 28-byte tracks followed by static lifecycle values. */
 typedef struct {
     DWORD particle_id, flags; VECTOR3 position; WORD bone_index, texture_index;
     m2Array_t geometry_mdl, recursion_mdl;
     BYTE blend_mode, emitter_type; WORD color_index, pad; SHORT priority_plane; WORD rows, cols;
     m2TrackClassic_t speed_track, variation_track, latitude_track, longitude_track, gravity_track, life_track;
-    FLOAT life_variation;
-    m2TrackClassic_t emission_rate_track;
-    FLOAT emission_rate_variation;
-    m2TrackClassic_t width_track, length_track, zsource_track;
-    m2PartTrack_t color_track, alpha_track, scale_track;
-    VECTOR2 scale_variation;
-    m2PartTrack_t head_cell_track, tail_cell_track;
-    FLOAT tail_length, twinkle_fps, twinkle_onoff, twinkle_scale[2];
-    FLOAT ivel_scale, drag, initial_spin, initial_spin_variation, spin, spin_variation;
-    VECTOR3 tumble_min, tumble_max;
-    VECTOR3 wind_vector; FLOAT wind_time;
-    FLOAT follow_speed1, follow_scale1, follow_speed2, follow_scale2;
-    m2Array_t spline;
-    m2TrackClassic_t visibility_track;
+    m2TrackClassic_t emission_rate_track, width_track, length_track, visibility_track;
+    FLOAT midpoint;
+    DWORD colors[3];
+    FLOAT scales[3];
+    BYTE tail[0x1f8 - 0x168];
 } m2ParticleClassic_t;
+
+_Static_assert(sizeof(m2ParticleClassic_t) == 0x1f8, "classic M2 particles are 0x1f8 bytes");
 
 /* Modern ribbon emitter — m2Track_t (20 bytes each). */
 typedef struct {
@@ -1724,8 +1717,10 @@ static void PrintParticleEmitters(BYTE const *data, DWORD size, m2HeaderInfo_t c
             PrintTrackInfo("emission_rate_track",  classic, p->emission_rate_track.track_type,  p->emission_rate_track.keys.offset,  p->emission_rate_track.keys.count);
             PrintTrackInfo("width_track",          classic, p->width_track.track_type,          p->width_track.keys.offset,          p->width_track.keys.count);
             PrintTrackInfo("length_track",         classic, p->length_track.track_type,         p->length_track.keys.offset,         p->length_track.keys.count);
-            PrintTrackInfo("zsource_track",        classic, p->zsource_track.track_type,        p->zsource_track.keys.offset,        p->zsource_track.keys.count);
             PrintTrackInfo("visibility_track",     classic, p->visibility_track.track_type,     p->visibility_track.keys.offset,     p->visibility_track.keys.count);
+            printf("    lifecycle              midpoint=%.6f colors=%08x,%08x,%08x scales=%.6f,%.6f,%.6f\n",
+                   p->midpoint, (unsigned)p->colors[0], (unsigned)p->colors[1], (unsigned)p->colors[2],
+                   p->scales[0], p->scales[1], p->scales[2]);
         } else {
             m2ParticleModern_t const *p = (m2ParticleModern_t const *)raw;
             printf("  [%u] id=0x%x flags=0x%x bone=%u tex=%u blend=%u etype=%u rows=%u cols=%u\n",

@@ -354,7 +354,7 @@ void Wow_AddAdtChunk(wowVec3_t pos,
             chunk->textures[layer_index] = layer_index > 0 ? chunk->textures[0] : tr.texture[TEX_WHITE];
         }
     }
-    Wow_BuildGrassForChunk(chunk, alpha, layers, layer_count);
+    Wow_BuildGrassForChunk(chunk, alpha, layers, layer_count, textures, num_textures);
     ADD_TO_LIST(chunk, wow_world.chunks);
     wow_world.num_chunks++;
     wow_world.layer_histogram[MIN(effective_layers, 4)]++;

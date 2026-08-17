@@ -152,10 +152,9 @@ TEST(wow_m2, start_outfit_inventory_types_select_equipped_slots) {
 }
 
 TEST(wow_m2, creature_extra_items_select_classic_npc_slots) {
-    BYTE expected[] = { 1, 2, 4, 3, 5, 6, 7, 0, 8 };
+    BYTE expected[] = { 1, 2, 4, 3, 5, 6, 7, 0, 8, 9, 10 };
 
     FOR_LOOP(i, sizeof(expected)) T_EQ(Wow_CharacterCreatureItemSlot(i), expected[i]);
-    T_EQ(Wow_CharacterCreatureItemSlot(9), 0);
 }
 
 TEST(wow_m2, pants_remain_below_transparent_boot_texture) {

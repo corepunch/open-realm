@@ -2,19 +2,23 @@
 
 ## Overview
 
-This document describes the WoW grass rendering architecture, both the real game implementation and the OpenWarcraft3 approximation. It covers the procedural blade-based system currently used, its data-driven improvements, and the full doodad-based system used by the real World of Warcraft.
+This document describes the WoW ground-effect rendering architecture. OpenWarcraft3 resolves the same terrain effect and detail M2 data used by the WoW client, then reuses the normal M2 material path.
 
 ## Current OpenWarcraft3 Implementation
 
 ### Architecture
 
-OpenWarcraft3 uses a **procedurally-generated blade geometry approach** for grass rendering:
+OpenWarcraft3 resolves ground clutter from the WoW MPQ data:
 
-- **Placement**: Driven by ADT terrain layer alpha maps (MCAL) and layer effect IDs (MCLY.effectId)
-- **Geometry**: 2 crossed triangles per clump, tapered from base to tip
-- **Rendering**: Custom GLSL shader with wind animation and distance fade
-- **Draw Distance**: 220.0 units with fade-out to 159.6 units
-- **Density**: Configurable via `WOW_GRASS_DENSITY` constant (default 1.0)
+- `GroundEffectTexture.dbc` supplies terrain effects, doodad IDs, and amount/density; weighted layouts are version-dependent.
+- `GroundEffectDoodad.dbc` resolves each doodad ID to its model name; in the bundled archive the model string is field 2, and `.mdl` names are normalized to `.m2`.
+- Models are loaded from `World\\NoDXT\\Detail\\` and rendered through the normal M2 path, so embedded WoW material/texture references remain authoritative.
+- ADT alpha coverage and height samples control whether and where each ground-effect model is placed.
+- Placement randomness is deterministic per ADT chunk; renderer tuning and schema constants are named `WOW_GRASS_*` defines in `r_wowmap.h`.
+- Ground-effect M2 instances carry `RF_GROUND_EFFECT`, are culled at `WOW_GRASS_DRAW_DISTANCE`, and fade from `WOW_GRASS_FADE_START_DISTANCE`.
+- Road-like terrain layers are excluded when their sampled ADT coverage is at least `WOW_GRASS_ROAD_COVERAGE_MIN`; the heuristic follows WoWee's local layer-weight check.
+
+The loader supports both known 11-DWORD layouts. It detects the bundled legacy layout (ID, date stamp, continent, zone, texture ID, four doodad IDs, density, sound) versus the modern weighted layout (ID, four doodad IDs, four weights, amount/coverage, terrain type) by resolving the candidate doodad IDs through `GroundEffectDoodad.dbc`. Legacy rows receive uniform weights for valid slots and ignore `0xffffffff`; modern rows retain their stored weights. `dbctool info` remains the first check when adding another client archive.
 
 ### Key Components
 
@@ -30,16 +34,16 @@ void Wow_BuildGrassForChunk(wowAdtChunk_t *chunk,
 ```
 
 **Sampling Strategy:**
-- Samples at 2-unit intervals across the 8x8 chunk (default `WOW_GRASS_CELL_STEP = 2`)
-- Results in 16 sample locations per chunk (4x4 grid)
-- Each sample point spawns multiple blade clumps based on coverage
+- Samples the 8x8 chunk grid at `WOW_GRASS_CELL_STEP` intervals.
+- Each eligible sample selects weighted doodad models from the MPQ effect record.
+- Each placement uses the ADT height map and is registered as a renderer-owned doodad instance.
 
 **Placement Algorithm:**
-1. Sample alpha map at grid position to determine terrain coverage
-2. Calculate number of clumps: `clumps = ceil((coverage / 255) * density * 2)`
-3. Apply jitter (±0.45 unit) within cell to reduce tiling
-4. Sample height at jittered position
-5. Place blade clump at height with random orientation and size variation
+1. Sample the alpha map at a grid position to determine terrain coverage.
+2. Calculate attempts from the DBC amount/density field and alpha coverage.
+3. Select a valid doodad ID uniformly from the four slots in `GroundEffectTexture.dbc`.
+4. Resolve its model name through `GroundEffectDoodad.dbc`.
+5. Sample height at a jittered position and place the M2 at that terrain height.
 
 **Coloring:**
 - Base green: 105-175 (varies per clump)
@@ -74,7 +78,7 @@ Each clump consists of 2 perpendicular crossed triangles:
 - Maintains blade orientation while swaying
 
 **Fragment Shader:**
-- Distance-based fade: `smoothstep(72% * draw_distance, 100% * draw_distance)`
+- Distance-based fade: `smoothstep(WOW_GRASS_FADE_START_DISTANCE, WOW_GRASS_DRAW_DISTANCE)`
 - Lighting calculation: 0.55-1.0 range (never fully dark)
 - Alpha blending with back-to-front rendering
 

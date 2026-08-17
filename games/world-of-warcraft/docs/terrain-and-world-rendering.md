@@ -104,6 +104,52 @@ ADT object references are renderer-owned today:
 
 Game entities are not spawned for every ADT doodad. `games/world-of-warcraft/game/g_wow.c` logs that static ADT doodads are renderer-owned and not synchronized as entities.
 
+MDDF positions are absolute map coordinates, not tile-local coordinates. Both the
+renderer and the game-side interactive-object path use `CM_WowObjectPoint`:
+
+```text
+engine.x = 32 * WOW_ADT_SIZE - mddf.position.z
+engine.y = 32 * WOW_ADT_SIZE - mddf.position.x
+engine.z = mddf.position.y
+```
+
+The authored three-axis rotation and `scale / 1024` are preserved. Never replace
+MDDF Z with a terrain-height query: elevated statues, signs, and props are authored
+relative to platforms and WMO geometry. `CM_WowAdtPath` also derives each ADT path
+from the currently loaded WDT rather than assuming Azeroth.
+
+A bounded Northshire diagnostic reported zero game-side ADT game objects, so the
+observed crusader statue is a renderer-owned MDDF instance. Its client-authored
+record is elevated and rotated; the corrected game-side path prevents future
+interactive duplicates from disagreeing with that renderer placement, but does not
+rewrite the source MDDF placement.
+
+### Fast placement verification
+
+Do not assume that a visible doodad is a game entity. The two MDDF consumers are:
+
+| Consumer | Purpose | Transform path |
+| --- | --- | --- |
+| `renderer/wow/r_wowmap_objects.c` | All visible static doodads | `Wow_ObjectPoint` -> `CM_WowObjectPoint` |
+| `game/g_gameobject.c` | DBC-matched interactive entities | `WowGo_SetDoodadTransform` -> `CM_WowObjectPoint` |
+
+Check the existing startup line before changing either path:
+
+```text
+WoW: spawned N game objects from ADT doodads (N interactive)
+```
+
+If `N=0`, changing `WowGo_SpawnDoodad` cannot affect the visible object. The
+Northshire statue investigation produced `N=0` and this renderer-owned MDDF:
+
+```text
+model=world\dungeon\scarletmonastery\passivedoodads\statues\statuehmcrusader.mdx
+position=(17598.289, 90.646, 14467.403) rotation=(0, 138.5, 0) scale=1863
+```
+
+Compare that raw record, `CM_WowObjectPoint`, and its supporting WMO/platform.
+Do not terrain-snap its authored Z.
+
 ## Minimap
 
 WoW has no pre-baked minimap image (WC3 ships `war3mapMap.blp`; WoW does not). The minimap is therefore rendered live every frame from the loaded terrain. `Wow_DrawMinimap` (`r_wowmap.c`) builds a top-down orthographic camera centered on the player and re-runs the terrain+WMO draw pass (`Wow_DrawTerrainAndWmos`, shared with `R_DrawWorld`) into the minimap viewport rect.

@@ -109,6 +109,9 @@ extern struct game_export *ge;
 // sv_init.c
 void SV_StartLobby(LPCSTR mapFilename);
 void SV_Map(LPCSTR pFilename);
+#ifdef WOW
+DWORD SV_PlayerCreateMap(void);
+#endif
 void SV_ClientConnect(void);
 void SV_InitGame(void);
 LPCLIENT SV_FindClientByAddr(const netadr_t *from);

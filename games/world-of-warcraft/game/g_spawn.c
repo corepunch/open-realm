@@ -79,10 +79,22 @@ static DWORD Wow_RaceNumber(LPCSTR race) {
 
 DWORD Wow_SelectSpawnPoint(LPCSTR race, DWORD class_id) {
     DWORD race_num = Wow_RaceNumber(race);
+    DWORD map_id = CM_WowGetMapId();
+    if (!race_num) return ~0u;
+    FOR_LOOP(i, SPAWN_TABLE_COUNT)
+        if (spawn_table[i].race == race_num && spawn_table[i].cls == class_id &&
+            spawn_table[i].map == map_id)
+            return i;
+    return ~0u;
+}
+
+DWORD Wow_PlayerCreateMap(LPCSTR race, DWORD class_id) {
+    DWORD race_num = Wow_RaceNumber(race);
+
     if (!race_num) return ~0u;
     FOR_LOOP(i, SPAWN_TABLE_COUNT)
         if (spawn_table[i].race == race_num && spawn_table[i].cls == class_id)
-            return i;
+            return spawn_table[i].map;
     return ~0u;
 }
 

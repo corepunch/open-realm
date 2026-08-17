@@ -1304,9 +1304,81 @@ static void Com_PrintMapMatchCallback(LPCSTR path, void *userData) {
     matches->count++;
 }
 
+#ifdef WOW
+static DWORD Com_Read32(BYTE const *p) { DWORD value; memcpy(&value, p, sizeof(value)); return value; }
+
+/* AzerothCore supplies numeric map IDs; the client Map.dbc owns their MPQ directory names. */
+static bool Com_WowMapPathForId(DWORD map_id, LPSTR out, DWORD out_size) {
+    LPBYTE data;
+    DWORD size = 0, records, fields, record_size, string_size;
+    BYTE const *records_base, *strings_base;
+
+    if (!out || !out_size)
+        return false;
+    out[0] = '\0';
+    data = FS_ReadFile("DBFilesClient\\Map.dbc", &size);
+    if (!data || size < 20 || memcmp(data, "WDBC", 4)) {
+        SAFE_DELETE(data, FS_FreeFile);
+        return false;
+    }
+    records = Com_Read32(data + 4); fields = Com_Read32(data + 8);
+    record_size = Com_Read32(data + 12); string_size = Com_Read32(data + 16);
+    if (fields < 2 || record_size < fields * sizeof(DWORD) || 20 + records * record_size + string_size > size) {
+        FS_FreeFile(data);
+        return false;
+    }
+    records_base = data + 20;
+    strings_base = records_base + records * record_size;
+    FOR_LOOP(i, records) {
+        BYTE const *record = records_base + i * record_size;
+        DWORD string_offset;
+        LPCSTR dir;
+        int written;
+
+        if (Com_Read32(record) != map_id)
+            continue;
+        string_offset = Com_Read32(record + sizeof(DWORD));
+        if (string_offset >= string_size || !strings_base[string_offset]) {
+            FS_FreeFile(data);
+            return false;
+        }
+        dir = (LPCSTR)(strings_base + string_offset);
+        written = snprintf(out, out_size, "World/Maps/%s/%s.wdt", dir, dir);
+        FS_FreeFile(data);
+        return written > 0 && (DWORD)written < out_size;
+    }
+    FS_FreeFile(data);
+    return false;
+}
+#endif
+
 bool Com_ResolveMapArgument(LPCSTR arg, LPSTR out, DWORD out_size) {
     fsMapResolve_t status;
 
+#ifdef WOW
+    if (arg && !strcmp(arg, "playercreate")) {
+        DWORD map_id = SV_PlayerCreateMap();
+
+        if (map_id != ~0u && Com_WowMapPathForId(map_id, out, out_size))
+            return true;
+        fprintf(stderr, "Can't resolve selected character spawn map from playercreateinfo and Map.dbc\n");
+        return false;
+    }
+    if (arg && *arg) {
+        DWORD map_id = 0;
+        LPCSTR p = arg;
+
+        while (*p >= '0' && *p <= '9') {
+            DWORD digit = (DWORD)(*p++ - '0');
+            if (map_id > (~0u - digit) / 10)
+                break;
+            map_id = map_id * 10 + digit;
+        }
+        /* WoW server spawn data names maps by ID; Map.dbc owns the archive directory name. */
+        if (!*p && Com_WowMapPathForId(map_id, out, out_size))
+            return true;
+    }
+#endif
     status = FS_ResolveMapPath(arg, out, out_size);
     if (status == FS_MAP_RESOLVE_OK) {
         return true;

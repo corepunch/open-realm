@@ -212,6 +212,9 @@ void SV_Frame(DWORD msec);
 void SV_Shutdown(void);
 void SV_StartLobby(LPCSTR pFilename);
 void SV_Map(LPCSTR pFilename);
+#ifdef WOW
+DWORD SV_PlayerCreateMap(void);
+#endif
 void SV_LobbyBroadcastChat(LPCSTR sender, LPCSTR text);
 void SV_LobbyBroadcastChatFrom(DWORD sender_client, LPCSTR sender, LPCSTR text);
 void MenuAction(LPCSTR action, LPCSTR arg);
