@@ -166,12 +166,18 @@ void R_RenderRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, LPC
 
     /* TODO: move height projection to the vertex shader once terrain heights live in a GPU atlas. */
     max_height_delta = MAX(WOW_SPLAT_MAX_HEIGHT_DELTA, MIN(width, height) * 0.75f);
+    float fallback_z = 0.0f;
+    BOOL have_fallback = false;
     for (int y = 0; y <= rows; y++) {
         float sy = LerpNumber(mins->y, maxs->y, (float)y / (float)rows);
         for (int x = 0; x <= cols; x++) {
             float sx = LerpNumber(mins->x, maxs->x, (float)x / (float)cols);
             DWORD index = (DWORD)(y * (cols + 1) + x);
             valid[index] = Wow_MakeSplatVertex(sx, sy, mins, width, height, color, &samples[index]);
+            if (valid[index]) {
+                fallback_z = samples[index].position.z; /* already includes WOW_SPLAT_Z_BIAS */
+                have_fallback = true;
+            }
         }
     }
     for (int y = 0; y < rows; y++) {
@@ -194,26 +200,30 @@ void R_RenderRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, LPC
                 Wow_AddSplatTriangle(vertices, &num_vertices, v00, v10, v11, max_height_delta);
                 Wow_AddSplatTriangle(vertices, &num_vertices, v00, v11, v01, max_height_delta);
             } else {
-                float center_z;
+                float cell_z;
 
-                /* A missing edge sample must not erase a whole small splat; sample its center and keep it visible. */
-                if (!Wow_TerrainHeightAtPoint((x0 + x1) * 0.5f, (y0 + y1) * 0.5f, &center_z)) {
-                    if (!warned_missing_sample) {
-                        fprintf(stderr, "WoW splat: terrain center sample missing; drawing flat at z=0\n");
-                        warned_missing_sample = true;
+                /* A missing edge sample must not erase a whole small splat; sample the cell center, then fall
+                 * back to the nearest lattice height instead of flattening the whole ring to z=0. */
+                if (!Wow_TerrainHeightAtPoint((x0 + x1) * 0.5f, (y0 + y1) * 0.5f, &cell_z)) {
+                    if (!have_fallback) {
+                        if (!warned_missing_sample) {
+                            fprintf(stderr, "WoW splat: no terrain sample available; drawing flat at z=0\n");
+                            warned_missing_sample = true;
+                        }
+                        cell_z = 0.0f;
+                    } else {
+                        if (!warned_missing_sample) {
+                            fprintf(stderr, "WoW splat: terrain cell height missing; reusing lattice height\n");
+                            warned_missing_sample = true;
+                        }
+                        cell_z = fallback_z - WOW_SPLAT_Z_BIAS;
                     }
-                    R_RenderFlatRectSplat(mins, maxs, 0.0f, texture, shader, color);
-                    if (vertices_allocated) ri.MemFree(vertices);
-                    return;
                 }
-                if (!warned_missing_sample) {
-                    fprintf(stderr, "WoW splat: terrain edge sample missing; using center sample\n");
-                    warned_missing_sample = true;
-                }
-                v00 = Wow_Vertex(x0, y0, center_z + WOW_SPLAT_Z_BIAS, (x0 - mins->x) / width, 1.0f - (y0 - mins->y) / height, color);
-                v10 = Wow_Vertex(x1, y0, center_z + WOW_SPLAT_Z_BIAS, (x1 - mins->x) / width, 1.0f - (y0 - mins->y) / height, color);
-                v11 = Wow_Vertex(x1, y1, center_z + WOW_SPLAT_Z_BIAS, (x1 - mins->x) / width, 1.0f - (y1 - mins->y) / height, color);
-                v01 = Wow_Vertex(x0, y1, center_z + WOW_SPLAT_Z_BIAS, (x0 - mins->x) / width, 1.0f - (y1 - mins->y) / height, color);
+                cell_z += WOW_SPLAT_Z_BIAS;
+                v00 = Wow_Vertex(x0, y0, cell_z, (x0 - mins->x) / width, 1.0f - (y0 - mins->y) / height, color);
+                v10 = Wow_Vertex(x1, y0, cell_z, (x1 - mins->x) / width, 1.0f - (y0 - mins->y) / height, color);
+                v11 = Wow_Vertex(x1, y1, cell_z, (x1 - mins->x) / width, 1.0f - (y1 - mins->y) / height, color);
+                v01 = Wow_Vertex(x0, y1, cell_z, (x0 - mins->x) / width, 1.0f - (y1 - mins->y) / height, color);
                 Wow_AddSplatTriangle(vertices, &num_vertices, v00, v10, v11, max_height_delta);
                 Wow_AddSplatTriangle(vertices, &num_vertices, v00, v11, v01, max_height_delta);
             }

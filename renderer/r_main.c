@@ -531,6 +531,7 @@ void R_Shutdown(void) {
     R_ShutdownParticles();
     SAFE_DELETE(tr.minimap, R_ReleaseTexture);
     R_ShutdownTextureCache();
+    R_ShutdownDrawBufferInstanced();
     
     SDL_GL_DeleteContext(context);
     SDL_DestroyWindow(window);

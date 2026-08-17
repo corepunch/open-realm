@@ -37,9 +37,11 @@ static BOOL R_GamePathHasExtension(LPCSTR path, LPCSTR extension) {
 }
 
 void R_GameLoadAssets(void) {
-    /* WoW has no WC3 selection-circle BLPs; generate the ring locally. */
+    /* WoW has no WC3 selection-circle BLPs; generate one ring and share it across the size slots until
+     * distinct per-size variants exist. */
+    LPTEXTURE ring = R_MakeSelectionCircleTexture();
     FOR_LOOP(i, NUM_SELECTION_CIRCLES)
-        tr.texture[TEX_SELECTION_CIRCLE+i] = R_MakeSelectionCircleTexture();
+        tr.texture[TEX_SELECTION_CIRCLE+i] = ring;
 }
 
 void R_GameInit(void) {
@@ -368,6 +370,11 @@ bool R_GameRenderShadow(renderEntity_t const *entity, LPCVECTOR2 origin) {
         R_RenderRectSplat(&mins, &maxs, shadow, tr.shader[SHADER_SHADOWSPLAT], shadowColor);
     }
     return true;
+}
+
+FLOAT R_GameSelectionRadius(renderEntity_t const *entity) {
+    /* Fractional WoW collision radii need a minimum visual footprint around the model. */
+    return MAX(entity->radius * MAX(entity->scale, 1.0f), 1.0f);
 }
 
 bool R_GameGetModelInfo(LPMODEL model, LPMODELINFO info) {

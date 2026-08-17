@@ -277,6 +277,7 @@ LPBUFFER R_MakeIndexedVertexArrayObject(LPCVERTEX vertices, DWORD num_vertices, 
 void R_DrawBuffer(LPCBUFFER buffer, DWORD num_vertices);
 void R_DrawIndexedBuffer(LPCBUFFER buffer, DWORD num_indices);
 void R_DrawBufferInstanced(LPCBUFFER buffer, DWORD num_vertices, LPCMATRIX4 matrices, DWORD num_instances);
+void R_ShutdownDrawBufferInstanced(void);
 
 // r_draw.c
 void R_DrawChar(int x, int y, int c);

@@ -1961,9 +1961,13 @@ static void Wow_CheatCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
         fprintf(stderr, "WoW: cheats are disabled; set sv_cheats 1\n");
         return;
     }
-    if (!local || !strcasecmp(argv[0], "god")) {
-        if (local) local->godmode = !local->godmode;
-        fprintf(stderr, "WoW: god %s\n", local && local->godmode ? "on" : "off");
+    if (!local) {
+        fprintf(stderr, "WoW: cheat '%s' requires a player entity\n", argv[0]);
+        return;
+    }
+    if (!strcasecmp(argv[0], "god")) {
+        local->godmode = !local->godmode;
+        fprintf(stderr, "WoW: god %s\n", local->godmode ? "on" : "off");
     } else if (!strcasecmp(argv[0], "kill")) {
         Wow_AIDie(ent, NULL);
     } else {

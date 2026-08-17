@@ -271,6 +271,10 @@ bool R_GameRenderShadow(renderEntity_t const *entity, LPCVECTOR2 origin) {
     return false;
 }
 
+FLOAT R_GameSelectionRadius(renderEntity_t const *entity) {
+    return entity->radius;
+}
+
 static void R_GameTextureCacheAdd(LPCSTR path) {
     if (!path || !*path || model_texture_cache.count >= 256) {
         return;

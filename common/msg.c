@@ -46,8 +46,13 @@ netField_t entityStateFields[] = {
     { NETF(entityState_t, image), NFT_SHORT },
     { NETF(entityState_t, player), NFT_BYTE },
     { NETF(entityState_t, flags), NFT_LONG },
-    /* WoW creature radii can be 0.5; integer rounding serialized those as zero and erased selection splats. */
+#ifdef WOW
+    /* WoW creature radii can be 0.5; NFT_ROUND serialized those as zero. WoW radii stay < 65.5 so the packed-float
+     * range is ample. WC3 selection radii (buildings/destructables) exceed 65.5 and must keep NFT_ROUND. */
     { NETF(entityState_t, radius), NFT_PACKED_FLOAT },
+#else
+    { NETF(entityState_t, radius), NFT_ROUND },
+#endif
     { NETF(entityState_t, splat), NFT_LONG },
     { NETF(entityState_t, shadow), NFT_SHORT },
     { NETF(entityState_t, shadow_rect), NFT_LONG },
