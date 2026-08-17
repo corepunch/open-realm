@@ -1,4 +1,5 @@
 #include "g_wow_local.h"
+#include "common/stb_dbc.h"
 #include <math.h>
 #include <stdio.h>
 
@@ -175,31 +176,26 @@ static BOOL WowGo_DbcTagEquals(BYTE const *tag, LPCSTR reversed) {
  * Model paths are stored without extension in the DBC; we match on the
  * filename stem (before the .m2/.mdx extension). */
 static void WowGo_LoadModelMap(void) {
+    stbDbc_t h;
     LPBYTE data;
     DWORD sz;
-    DWORD records, fields, record_size, string_size;
     BYTE const *strings;
 
     wow_go_model_map_loaded = true;
 
     data = (LPBYTE)gi.ReadFile("DBFilesClient\\GameObjectDisplayInfo.dbc", &sz);
-    if (!data || sz < 20)
+    if (!Stb_DbcValid(data, sz, &h) || h.fields < 2 || h.record_size < sizeof(wowGoDisplayInfoDbc_t)) {
+        SAFE_DELETE(data, gi.MemFree);
         return;
+    }
 
-    records = WowGo_Read32(data);
-    fields = WowGo_Read32(data + 4);
-    record_size = WowGo_Read32(data + 8);
-    string_size = WowGo_Read32(data + 12);
-    strings = data + 20 + records * record_size;
-
-    BYTE const *rec_base = data + 20;
-    for (DWORD r = 0; r < records && wow_go_model_map_count < WOW_MAX_GO_MODEL_MAP; r++) {
-        BYTE const *rec = rec_base + r * record_size;
-        if (fields < 2 || record_size < 8)
-            break;
+    strings = Stb_DbcStrings(data, &h);
+    BYTE const *rec_base = Stb_DbcRecords(data);
+    for (DWORD r = 0; r < h.records && wow_go_model_map_count < WOW_MAX_GO_MODEL_MAP; r++) {
+        BYTE const *rec = rec_base + r * h.record_size;
 
         wowGoDisplayInfoDbc_t const *di = (wowGoDisplayInfoDbc_t const *)rec;
-        if (di->model_name_offset >= string_size)
+        if (di->model_name_offset >= h.string_size)
             continue;
 
         LPCSTR model_name = (LPCSTR)(strings + di->model_name_offset);

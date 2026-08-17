@@ -7,6 +7,7 @@
  * SDL audio callback.
  */
 #include "s_local.h"
+#include "games/world-of-warcraft/common/stb_dbc.h"
 
 #define STB_VORBIS_IMPLEMENTATION
 #include "stb_vorbis.c"
@@ -37,54 +38,33 @@ static void S_InsertHash(DWORD kit_id, LPCSTR name) {
     s.hash_buckets[bucket] = n;
 }
 
-/* Read a 32-bit little-endian field from a DBC record. */
-static DWORD S_DbcField(BYTE const *record, DWORD field) {
-    BYTE const *p = record + field * 4;
-    return (DWORD)p[0] | ((DWORD)p[1] << 8) | ((DWORD)p[2] << 16) | ((DWORD)p[3] << 24);
-}
-
-/* Resolve a DBC string offset to a pointer within the string block. */
-static LPCSTR S_DbcString(BYTE const *strings, DWORD str_size, DWORD offset) {
-    if (offset == 0 || offset >= str_size) return "";
-    return (LPCSTR)(strings + offset);
-}
-
-#define DBC_MAGIC 0x43424457u
-
 void S_LoadSoundEntries(void) {
+    stbDbc_t h;
     DWORD size = 0;
     BYTE *data = FS_ReadFile("DBFilesClient\\SoundEntries.dbc", &size);
-    if (!data || size <= 20 || memcmp(data, "WDBC", 4)) {
-        FS_FreeFile(data);
-        return;
-    }
-    DWORD nrec = *(DWORD *)(data + 4);
-    DWORD nflds = *(DWORD *)(data + 8);
-    DWORD recsz = *(DWORD *)(data + 12);
-    DWORD strsz = *(DWORD *)(data + 16);
-    if (nflds != SENTRY_FIELDS || recsz != SENTRY_RECORD_SIZE ||
-        20 + nrec * recsz + strsz > size) {
+    if (!Stb_DbcValid(data, (DWORD)size, &h) ||
+        h.fields != SENTRY_FIELDS || h.record_size != SENTRY_RECORD_SIZE) {
         FS_FreeFile(data);
         return;
     }
     BYTE *records = data + 20;
-    BYTE *strings = records + nrec * recsz;
+    BYTE *strings = records + h.records * h.record_size;
 
-    for (DWORD i = 0; i < nrec && i < S_MAX_KITS; i++) {
-        BYTE *rec = records + i * recsz;
-        DWORD id = S_DbcField(rec, 0);
+    for (DWORD i = 0; i < h.records && i < S_MAX_KITS; i++) {
+        BYTE *rec = records + i * h.record_size;
+        DWORD id = Stb_DbcField(&h, rec, 0);
         if (id >= S_MAX_KITS) continue;
         sSoundKit_t *k = &s.kits[id];
         k->id = id;
-        k->type = S_DbcField(rec, 1);
-        k->name = S_DbcString(strings, strsz, S_DbcField(rec, 2));
+        k->type = Stb_DbcField(&h, rec, 1);
+        k->name = Stb_DbcString(strings, h.string_size, Stb_DbcField(&h, rec, 2));
         for (DWORD j = 0; j < SENTRY_MAX_FILES; j++)
-            k->files[j] = S_DbcString(strings, strsz, S_DbcField(rec, 3 + j));
+            k->files[j] = Stb_DbcString(strings, h.string_size, Stb_DbcField(&h, rec, 3 + j));
         for (DWORD j = 0; j < SENTRY_MAX_FILES; j++)
-            k->freq[j] = S_DbcField(rec, 13 + j);
-        k->directoryBase = S_DbcString(strings, strsz, S_DbcField(rec, 23));
-        k->volume = *(float *)&(DWORD){S_DbcField(rec, 24)};
-        k->flags = S_DbcField(rec, 25);
+            k->freq[j] = Stb_DbcField(&h, rec, 13 + j);
+        k->directoryBase = Stb_DbcString(strings, h.string_size, Stb_DbcField(&h, rec, 23));
+        k->volume = Stb_DbcReadFloat(rec + 24 * sizeof(DWORD));
+        k->flags = Stb_DbcField(&h, rec, 25);
         if (k->id > s.kit_count) s.kit_count = k->id + 1;
         S_InsertHash(id, k->name);
     }

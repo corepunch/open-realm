@@ -1,4 +1,5 @@
 #include "common/common.h"
+#include "stb_dbc.h"
 #include <limits.h>
 #include <math.h>
 
@@ -69,12 +70,6 @@ static FLOAT CM_WowReadFloat(BYTE const *p) {
 
 static BOOL CM_WowTagEquals(BYTE const *tag, LPCSTR reversed) {
     return memcmp(tag, reversed, 4) == 0;
-}
-
-static LPCSTR CM_WowDbcString(BYTE const *string_block, DWORD string_size, DWORD offset) {
-    if (offset >= string_size)
-        return NULL;
-    return (LPCSTR)(string_block + offset);
 }
 
 static LPSTR CM_WowCopyString(LPCSTR value) {
@@ -318,41 +313,26 @@ static BOOL CM_WowTerrainHeightAtPoint(FLOAT sx, FLOAT sy, FLOAT *height) {
     return false;
 }
 
-static BOOL CM_WowValidDbc(BYTE const *data, DWORD size,
-                            DWORD *records, DWORD *fields,
-                            DWORD *record_size, DWORD *string_size) {
-    if (!data || size <= 20 || memcmp(data, "WDBC", 4) != 0)
-        return false;
-    *records     = CM_WowRead32(data + 4);
-    *fields      = CM_WowRead32(data + 8);
-    *record_size = CM_WowRead32(data + 12);
-    *string_size = CM_WowRead32(data + 16);
-    if (*fields == 0 || *record_size < *fields * sizeof(DWORD) ||
-        20 + *records * *record_size + *string_size > size)
-        return false;
-    return true;
-}
-
 static BOOL CM_WowFindMapId(LPCSTR map_name, DWORD *map_id) {
+    stbDbc_t h;
     LPBYTE data;
-    DWORD size = 0, records, fields, record_size, string_size;
+    DWORD size = 0;
     BYTE const *records_base, *strings_base;
 
     if (!map_name || !*map_name || !map_id)
         return false;
 
     data = FS_ReadFile("DBFilesClient\\Map.dbc", &size);
-    if (!CM_WowValidDbc(data, size, &records, &fields, &record_size, &string_size)) {
+    if (!Stb_DbcValid(data, size, &h)) {
         SAFE_DELETE(data, FS_FreeFile);
         return false;
     }
-    records_base = data + 20;
-    strings_base = records_base + records * record_size;
-    FOR_LOOP(record_index, records) {
-        BYTE const *record = records_base + record_index * record_size;
-        FOR_LOOP(field_index, fields) {
-            DWORD string_offset = CM_WowRead32(record + field_index * sizeof(DWORD));
-            LPCSTR value = CM_WowDbcString(strings_base, string_size, string_offset);
+    records_base = Stb_DbcRecords(data);
+    strings_base = Stb_DbcStrings(data, &h);
+    FOR_LOOP(record_index, h.records) {
+        BYTE const *record = records_base + record_index * h.record_size;
+        FOR_LOOP(field_index, h.fields) {
+            LPCSTR value = Stb_DbcString(strings_base, h.string_size, CM_WowRead32(record + field_index * sizeof(DWORD)));
             if (value && *value && !strcasecmp(value, map_name)) {
                 *map_id = CM_WowRead32(record);
                 FS_FreeFile(data);
@@ -368,7 +348,7 @@ static LPCSTR CM_WowWorldSafeLocName(BYTE const *record, DWORD fields,
                                       BYTE const *strings_base, DWORD string_size) {
     for (DWORD field_index = 5; field_index < fields; field_index++) {
         DWORD string_offset = CM_WowRead32(record + field_index * sizeof(DWORD));
-        LPCSTR value = CM_WowDbcString(strings_base, string_size, string_offset);
+        LPCSTR value = Stb_DbcString(strings_base, string_size, string_offset);
         if (value && *value)
             return value;
     }
@@ -377,8 +357,9 @@ static LPCSTR CM_WowWorldSafeLocName(BYTE const *record, DWORD fields,
 
 static DWORD CM_WowCollectWorldSafeLocs(DWORD map_id, LPVECTOR3 first_spawn,
                                         LPSTR first_name, size_t first_name_size) {
+    stbDbc_t h;
     LPBYTE data;
-    DWORD size = 0, records, fields, record_size, string_size;
+    DWORD size = 0;
     BYTE const *records_base, *strings_base;
     DWORD count = 0;
 
@@ -386,15 +367,15 @@ static DWORD CM_WowCollectWorldSafeLocs(DWORD map_id, LPVECTOR3 first_spawn,
         return 0;
 
     data = FS_ReadFile("DBFilesClient\\WorldSafeLocs.dbc", &size);
-    if (!CM_WowValidDbc(data, size, &records, &fields, &record_size, &string_size) ||
-        fields < 5 || record_size < 5 * sizeof(DWORD)) {
+    if (!Stb_DbcValid(data, size, &h) ||
+        h.fields < 5 || h.record_size < 5 * sizeof(DWORD)) {
         SAFE_DELETE(data, FS_FreeFile);
         return 0;
     }
-    records_base = data + 20;
-    strings_base = records_base + records * record_size;
-    FOR_LOOP(record_index, records) {
-        BYTE const *record = records_base + record_index * record_size;
+    records_base = Stb_DbcRecords(data);
+    strings_base = Stb_DbcStrings(data, &h);
+    FOR_LOOP(record_index, h.records) {
+        BYTE const *record = records_base + record_index * h.record_size;
         cmWowWorldSafeLoc_t const *safe_loc = (cmWowWorldSafeLoc_t const *)record;
         LPCSTR name;
         mapPlayer_t *player;
@@ -402,7 +383,7 @@ static DWORD CM_WowCollectWorldSafeLocs(DWORD map_id, LPVECTOR3 first_spawn,
         if (safe_loc->map_id != map_id)
             continue;
 
-        name = CM_WowWorldSafeLocName(record, fields, strings_base, string_size);
+        name = CM_WowWorldSafeLocName(record, h.fields, strings_base, h.string_size);
         if (count == 0) {
             memcpy(first_spawn, &safe_loc->position, sizeof(*first_spawn));
             if (first_name && first_name_size) {
@@ -435,17 +416,17 @@ static DWORD CM_WowCollectWorldSafeLocs(DWORD map_id, LPVECTOR3 first_spawn,
             memset(cm_wow_all_spawns, 0, count * sizeof(cmWowSpawnEntry_t));
             /* re-scan to fill the public array (avoid holding the raw DBC buffer) */
             data = FS_ReadFile("DBFilesClient\\WorldSafeLocs.dbc", &size);
-            if (CM_WowValidDbc(data, size, &records, &fields, &record_size, &string_size) &&
-                fields >= 5 && record_size >= 5 * sizeof(DWORD)) {
-                records_base = data + 20;
-                strings_base = records_base + records * record_size;
-                FOR_LOOP(ri, records) {
-                    BYTE const *r = records_base + ri * record_size;
+            if (Stb_DbcValid(data, size, &h) &&
+                h.fields >= 5 && h.record_size >= 5 * sizeof(DWORD)) {
+                records_base = Stb_DbcRecords(data);
+                strings_base = Stb_DbcStrings(data, &h);
+                FOR_LOOP(ri, h.records) {
+                    BYTE const *r = records_base + ri * h.record_size;
                     if (CM_WowRead32(r + sizeof(DWORD)) != map_id) continue;
                     cm_wow_all_spawns[idx].pos.x = *(FLOAT *)(r + 2 * sizeof(DWORD));
                     cm_wow_all_spawns[idx].pos.y = *(FLOAT *)(r + 3 * sizeof(DWORD));
                     cm_wow_all_spawns[idx].pos.z = *(FLOAT *)(r + 4 * sizeof(DWORD));
-                    LPCSTR raw = CM_WowWorldSafeLocName(r, fields, strings_base, string_size);
+                    LPCSTR raw = CM_WowWorldSafeLocName(r, h.fields, strings_base, h.string_size);
                     cm_wow_all_spawns[idx].name = raw ? CM_WowCopyString(raw) : NULL;
                     idx++;
                 }

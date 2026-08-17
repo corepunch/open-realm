@@ -1305,47 +1305,32 @@ static void Com_PrintMapMatchCallback(LPCSTR path, void *userData) {
 }
 
 #ifdef WOW
-static DWORD Com_Read32(BYTE const *p) { DWORD value; memcpy(&value, p, sizeof(value)); return value; }
+#include "games/world-of-warcraft/common/stb_dbc.h"
 
 /* AzerothCore supplies numeric map IDs; the client Map.dbc owns their MPQ directory names. */
 static bool Com_WowMapPathForId(DWORD map_id, LPSTR out, DWORD out_size) {
+    stbDbc_t h;
     LPBYTE data;
-    DWORD size = 0, records, fields, record_size, string_size;
-    BYTE const *records_base, *strings_base;
+    DWORD size = 0;
 
     if (!out || !out_size)
         return false;
     out[0] = '\0';
     data = FS_ReadFile("DBFilesClient\\Map.dbc", &size);
-    if (!data || size < 20 || memcmp(data, "WDBC", 4)) {
+    if (!Stb_DbcValid(data, size, &h) || h.fields < 2) {
         SAFE_DELETE(data, FS_FreeFile);
         return false;
     }
-    records = Com_Read32(data + 4); fields = Com_Read32(data + 8);
-    record_size = Com_Read32(data + 12); string_size = Com_Read32(data + 16);
-    if (fields < 2 || record_size < fields * sizeof(DWORD) || 20 + records * record_size + string_size > size) {
-        FS_FreeFile(data);
-        return false;
-    }
-    records_base = data + 20;
-    strings_base = records_base + records * record_size;
-    FOR_LOOP(i, records) {
-        BYTE const *record = records_base + i * record_size;
-        DWORD string_offset;
-        LPCSTR dir;
-        int written;
-
-        if (Com_Read32(record) != map_id)
-            continue;
-        string_offset = Com_Read32(record + sizeof(DWORD));
-        if (string_offset >= string_size || !strings_base[string_offset]) {
-            FS_FreeFile(data);
-            return false;
+    {
+        BYTE const *record = Stb_DbcFindID(data, &h, map_id);
+        if (record) {
+            LPCSTR dir = Stb_DbcString(Stb_DbcStrings(data, &h), h.string_size, Stb_DbcField(&h, record, 1));
+            if (dir && *dir) {
+                int written = snprintf(out, out_size, "World/Maps/%s/%s.wdt", dir, dir);
+                FS_FreeFile(data);
+                return written > 0 && (DWORD)written < out_size;
+            }
         }
-        dir = (LPCSTR)(strings_base + string_offset);
-        written = snprintf(out, out_size, "World/Maps/%s/%s.wdt", dir, dir);
-        FS_FreeFile(data);
-        return written > 0 && (DWORD)written < out_size;
     }
     FS_FreeFile(data);
     return false;
