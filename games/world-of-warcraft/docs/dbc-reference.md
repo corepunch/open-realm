@@ -83,17 +83,20 @@ Some tables are exceptions to the "32-bit fields" rule:
 
 ## Reader Ownership
 
-Several independent readers exist; none parses DB2:
+The shared primitives (header validation, little-endian reads, string/field access, ID lookup) live in
+`games/world-of-warcraft/common/stb_dbc.h` — a single-header `static inline` reader with no I/O or allocation,
+included by every DBC consumer. Callers read the file through their own FS/RI/gi handle and hand the resident
+buffer to `Stb_Dbc*`. None parses DB2:
 
 - **Renderer** — `renderer/m2/r_dbc.c` keeps each table as one resident `FS_ReadFile` image plus an FNV-1a integer
-  hash index (`M2_DbcLoad` / `M2_DbcFindID` / `M2_DbcField` / `M2_DbcString`). Character/creature/outfit tables live
-  here.
-- **Game** — `game/g_wow.c` exposes `Wow_FindDbcRecord` and `Wow_DbcString` for map metadata, loading screens, the
-  spell-visual chain, and the creature model cache in `game/m_creature.c`.
+  hash index (`M2_DbcLoad` / `M2_DbcFindID` / `M2_DbcField` / `M2_DbcString`) built on top of `stb_dbc.h`.
+- **Game** — `game/g_wow.c` exposes `Wow_FindDbcRecord` and `Wow_DbcString` (thin wrappers over `stb_dbc.h`) for
+  map metadata, loading screens, the spell-visual chain, and the creature model cache in `game/m_creature.c`.
 - **Common world** — `common/world_wow.c` reads `Map.dbc` and `WorldSafeLocs.dbc` for spawn/map resolution.
 - **UI** — `ui/ui_dbc.c` reads `ChrRaces`, `ChrClasses`, `CharBaseInfo`, `FactionTemplate`, `FactionGroup` for the
   character-create screen.
 - **Sound** — `sound/s_sound.c` loads `SoundEntries.dbc` for kit name/path lookup.
+- **Engine common** — `common/common.c` resolves numeric map IDs through `Map.dbc` (`Com_WowMapPathForId`, WOW-only).
 
 ## Packed Values
 
@@ -194,7 +197,7 @@ exist but not read or unmapped.
 | `SoundEntries` | read | `sound/s_sound.c` | sound kit id → file paths |
 | `CharHairGeosets` | partial | — (WoWee map only) | hair style → geoset id |
 | `CharacterFacialHairStyles` | partial | — (WoWee map only) | facial-hair style → geoset ids |
-| `HelmetGeosetVisData` | partial | — (wotlkdev only) | helmet hide-geoset masks |
+| `HelmetGeosetVisData` | read | `r_dbc.c` | per-race helmet hide-geoset masks |
 | `CharHairTextures` | partial | — (wotlkdev only) | hair texture variants (obscure schema) |
 | `SoundEntriesAdvanced` | TODO | — | advanced sound kit fields |
 | `CreatureSoundData` | TODO | — | per-creature sound event slots |
@@ -262,17 +265,26 @@ local DBC, documented in `m2-and-character-display.md`):
 | 0 | record ID |
 | 1–2 | model name stems (str) |
 | 3 | cape texture stem (str) |
-| 4–6 | HelmGeosetVisData[0..2] → `HelmetGeosetVisData.dbc` |
+| 4–6 | model texture / icon / ground-model ids |
 | 7 | `GeosetGroup[0]` — primary mesh variant |
 | 8 | `GeosetGroup[1]` — secondary mesh variant |
 | 9 | `GeosetGroup[2]` — robe/kilt leg variant |
 | 10 | flags (bit 0 = helm hides hair; bit 2 = kneelength/robe hides pants) |
-| 11–13 | additional ids |
+| 11–13 | spell-visual / sound / `HelmetGeosetVisData` (12 = male, 13 = female) → `HelmetGeosetVisData.dbc` |
 | 14–21 | eight component texture stems (str): upper arm, lower arm, hand, upper torso, lower torso, upper leg, lower leg, foot |
 
 WoWee names fields 7/9 `GeosetGroup1/3` (field 8 unlabeled in their map but present); component texture slots match
 (`TextureArmUpper`=14 … `TextureFoot`=21). Texture stems resolve under `Item\TextureComponents\<slot>\` with `_M` /
 `_F` / `_U` suffixes.
+
+#### Item Attachment Models
+
+`model name` stems (fields 1–2) are separate M2 attachments, not body geosets. The head slot reads field 1 as the
+helmet model and the shoulder slot reads fields 1/2 as the left/right shoulder models. `r_m2.c` resolves them to
+`Item\ObjectComponents\Head\<stem>_<race><gender>.m2` (per-race/gender) and
+`Item\ObjectComponents\Shoulder\<stem>.m2` (shared), then renders them at the character's helm (attachment id 11) and
+shoulder (ids 5/6) bones. Deputy Willem's Stormwind guard set is the oracle: head 14964 → `Helm_Plate_B_01Stormwind`,
+shoulder 7541 → `LShoulder_Plate_B_01` / `RShoulder_Plate_B_01`.
 
 #### Slot → Geoset Group Mapping (`slot_geoset_group_map`)
 
@@ -308,10 +320,13 @@ texture-only in Classic.
 **Group 8 — Sleeves** (`801 + geoset`, driven by chest/shirt field 7): `0→801` bare, `1→802` short, `2→803` long.
 Chest items with visible sleeves set field 7 = 1 (288 records); shirt items also drive this group.
 
-**Group 9 — Kneepads** (`900 + geoset`, driven by legs field 8): `0→900` DNE, `1→901` DNE, `2→902` long, `3→903`
-short. Variants 0 and 1 are both DNE, so `900 + geoset` is correct; `901 + geoset` would mis-map variant 2 → 903 (short
-instead of long). 809 legs items set field 8 = 1 (→ 901 DNE); none set 2 or 3. The renderer default `geoset = 0 → 900`
-is correct for all Classic content.
+**Group 9 — Legs** (`900 + geoset`, driven by legs field 8): `1→901` bare (DNE), `2→902` flared pant cuff, `3→903`
+knickers. A missing override (`geoset = 0`) keeps the base body's knickers `903`, falling back to `902` for
+race/gender models lacking that section. 809 legs items set field 8 = 1 (→ 901 DNE, bare legs); none set 2 or 3, so
+every Classic pants item either keeps the base knickers or hides the leg mesh.
+
+**Group 12 — Tabard** (`1200 + geoset`): `1→1201` DNE (no tabard), `2→1202` hanging tabard flap. The renderer sets
+`geoset[12] = 2` whenever a tabard slot item is present, so wearing any tabard shows the tabard mesh.
 
 **Group 13 — Pants** (`Wow_CharacterGeosetPick(1301 + geoset, fallback 1301)`, driven by legs field 7 or chest field 9):
 `0→1301` short, `1→1302` trousers, `2→1303` robe/full-length. Hidden when `M2_CHAR_FLAG_KNEELENGTH` (field 10 bit 2) is
@@ -367,14 +382,24 @@ Maps a hair-style variation to the M2 geoset that renders it. Listed in the char
 8 fields; `0=id`, `1=race`, `2=gender`, `3=maybe race mask`, `4=the X in hair_XY.blp`, `5–7` unclear. Even the
 wotlkdev auto-generated schema leaves these unlabeled. Treat as unmapped until inspected locally.
 
-### `HelmetGeosetVisData.dbc` (partial — wotlkdev)
+### `HelmetGeosetVisData.dbc`
+
+Classic layout (6 fields). Each flag is a race bitmask (`1 << race`); a set bit hides the matching geoset group for
+that race:
 
 | Field | Content |
 |------:|---------|
 | 0 | id |
-| 1–7 | `HideGeoset[0..6]` — geoset hide masks |
+| 1 | `hairFlags` → hide hair (group 100) |
+| 2 | `facialFlags[0]` → hide beard (group 200) |
+| 3 | `facialFlags[1]` → hide earrings (group 300) |
+| 4 | `facialFlags[2]` → "facial3" (no classic model group; ignored) |
+| 5 | `earsFlags` → hide ears (group 700) |
 
-Referenced by `ItemDisplayInfo` fields 4–6. Not yet read by `openwow`.
+Referenced by `ItemDisplayInfo` fields 12 (male) and 13 (female) in the classic 23-field schema. `r_dbc.c`
+(`M2_DbcHelmetHideMask`) resolves the record for the model's race/gender into `M2CHARACTEROUTFIT.helm_hide`, which
+`M2_CharacterGeosetVisible` applies per group instead of a blanket hair hide. Deputy Willem's Stormwind helm
+(display 14964 → record 248 for a Human male) hides hair, beard, earrings, and ears.
 
 ### `CharacterFacialHairStyles.dbc` (partial — WoWee)
 

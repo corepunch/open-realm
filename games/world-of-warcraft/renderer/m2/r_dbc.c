@@ -1,6 +1,7 @@
 #include "renderer/r_local.h"
 #include "r_dbc.h"
 #include "r_m2_utils.h"
+#include "common/stb_dbc.h"
 #include <strings.h>
 
 typedef struct {
@@ -25,30 +26,27 @@ static M2DBC item_display_info_dbc;
 static M2DBC char_sections_dbc;
 static M2DBC creature_display_info_dbc;
 static M2DBC creature_display_info_extra_dbc;
+static M2DBC helmet_geoset_vis_dbc;
 static m2CharSectionsLayout_t char_sections_layout;
 
 /* DBCs stay as one resident file image; only the integer lookup table is runtime state. */
 static BOOL M2_DbcLoad(M2DBC *dbc, LPCSTR filename) {
     int size;
+    stbDbc_t h;
     if (!dbc || !filename) return false;
     if (dbc->tried) return dbc->valid;
     dbc->tried = true;
     size = ri.FS_ReadFile(filename, (void **)&dbc->data);
-    if (size <= 20 || !dbc->data || memcmp(dbc->data, "WDBC", 4)) {
-        SAFE_DELETE(dbc->data, ri.FS_FreeFile);
-        return false;
-    }
-    dbc->size = (DWORD)size;
-    dbc->records = m2_read32(dbc->data + 4); dbc->fields = m2_read32(dbc->data + 8);
-    dbc->record_size = m2_read32(dbc->data + 12); dbc->string_size = m2_read32(dbc->data + 16);
-    if (!dbc->fields || dbc->record_size < sizeof(DWORD) ||
-        20 + dbc->records * dbc->record_size + dbc->string_size > dbc->size) {
+    if (size <= 20 || !Stb_DbcValid(dbc->data, (DWORD)size, &h)) {
         SAFE_DELETE(dbc->data, ri.FS_FreeFile);
         memset(dbc, 0, sizeof(*dbc)); dbc->tried = true;
         return false;
     }
-    dbc->records_base = dbc->data + 20;
-    dbc->strings_base = dbc->records_base + dbc->records * dbc->record_size;
+    dbc->size = (DWORD)size;
+    dbc->records = h.records; dbc->fields = h.fields;
+    dbc->record_size = h.record_size; dbc->string_size = h.string_size;
+    dbc->records_base = Stb_DbcRecords(dbc->data);
+    dbc->strings_base = Stb_DbcStrings(dbc->data, &h);
     dbc->valid = true;
     return true;
 }
@@ -66,7 +64,7 @@ static DWORD M2_DbcField(M2DBC const *dbc, BYTE const *record, DWORD field) {
 }
 
 static LPCSTR M2_DbcString(M2DBC const *dbc, DWORD offset) {
-    return dbc && dbc->valid && offset && offset < dbc->string_size ? (LPCSTR)(dbc->strings_base + offset) : NULL;
+    return Stb_DbcString(dbc->strings_base, dbc->string_size, offset);
 }
 
 static DWORD M2_Fnv1a32(DWORD key) {
@@ -193,9 +191,27 @@ static void M2_DbcAddDisplayInfo(LPM2CHARACTEROUTFIT outfit, DWORD display_id, D
     }
     {
         DWORD flags = M2_DbcField(&item_display_info_dbc, record, flags_field);
-        if (slot == M2_SLOT_HEAD && flags == 1) outfit->flags |= M2_CHAR_FLAG_HELM;
         outfit->flags |= flags;
     }
+    /* Head and shoulder items carry attachment model name stems (fields 1/2);
+     * these render as separate M2s at the character's helm/shoulder bones.
+     * The head slot also carries the per-race/gender HelmetGeosetVisData ids
+     * (fields 12/13 for the classic 23-field schema) that select which face
+     * geosets a worn helmet hides. */
+    if (slot == M2_SLOT_HEAD) {
+        outfit->helm_model = M2_DbcString(&item_display_info_dbc, M2_DbcField(&item_display_info_dbc, record, 1));
+        if (item_display_info_dbc.fields >= 22) {
+            DWORD vis_field = texture_base - 2;
+            outfit->helm_vis_id[0] = M2_DbcField(&item_display_info_dbc, record, vis_field);
+            outfit->helm_vis_id[1] = M2_DbcField(&item_display_info_dbc, record, vis_field + 1);
+        }
+    }
+    if (slot == M2_SLOT_SHOULDERS) {
+        outfit->shoulder_model[0] = M2_DbcString(&item_display_info_dbc, M2_DbcField(&item_display_info_dbc, record, 1));
+        outfit->shoulder_model[1] = M2_DbcString(&item_display_info_dbc, M2_DbcField(&item_display_info_dbc, record, 2));
+    }
+    /* A worn tabard activates the hanging tabard mesh (geoset group 12, section 1202). */
+    if (slot == M2_SLOT_TABARD) outfit->geoset[12] = 2;
     FOR_LOOP(i, M2_CHAR_TEX_COMPONENT_COUNT) {
         LPCSTR texture = M2_DbcString(&item_display_info_dbc, M2_DbcField(&item_display_info_dbc, record, texture_base + i));
         signed char priority = Wow_CharacterTexturePriority(slot, i);
@@ -249,6 +265,23 @@ static BOOL M2_DbcStartOutfit(LPCSTR model_path, DWORD appearance, LPM2CHARACTER
     return true;
 }
 
+/* Resolve a HelmetGeosetVisData record to the geoset-hide bitmask for a race.
+ * Classic stores hairFlags, facialFlags[0..2], earsFlags as race bitmasks; a set
+ * race bit hides that geoset group (hair 100, beard 200, earrings 300, ears 700).
+ * facialFlags[2] ("facial3") has no classic model group, so it is ignored. */
+static DWORD M2_DbcHelmetHideMask(DWORD vis_id, DWORD race_id) {
+    BYTE const *record;
+    DWORD mask = 0;
+    if (!vis_id) return 0;
+    record = M2_DbcFindID(&helmet_geoset_vis_dbc, "DBFilesClient\\HelmetGeosetVisData.dbc", vis_id);
+    if (!record || helmet_geoset_vis_dbc.fields < 6) return 0;
+    if (M2_DbcField(&helmet_geoset_vis_dbc, record, 1) & (1u << race_id)) mask |= M2_HELM_HIDE_HAIR;
+    if (M2_DbcField(&helmet_geoset_vis_dbc, record, 2) & (1u << race_id)) mask |= M2_HELM_HIDE_BEARD;
+    if (M2_DbcField(&helmet_geoset_vis_dbc, record, 3) & (1u << race_id)) mask |= M2_HELM_HIDE_EARRINGS;
+    if (M2_DbcField(&helmet_geoset_vis_dbc, record, 5) & (1u << race_id)) mask |= M2_HELM_HIDE_EARS;
+    return mask;
+}
+
 BOOL M2_DbcCharacterOutfit(LPCSTR model_path, DWORD appearance, DWORD equipment,
                            LPCM2CREATUREAPPEARANCE creature, LPM2CHARACTEROUTFIT outfit) {
     DWORD race_id, gender_id;
@@ -257,10 +290,12 @@ BOOL M2_DbcCharacterOutfit(LPCSTR model_path, DWORD appearance, DWORD equipment,
         memset(outfit, 0, sizeof(*outfit));
         FOR_LOOP(i, sizeof(creature->display_ids) / sizeof(creature->display_ids[0]))
             M2_DbcAddDisplayInfo(outfit, creature->display_ids[i], Wow_CharacterCreatureItemSlot(i));
+        outfit->helm_hide = M2_DbcHelmetHideMask(outfit->helm_vis_id[gender_id], race_id);
         return true;
     }
     if (!M2_DbcStartOutfit(model_path, appearance, outfit)) return false;
     M2_DbcApplyEquipment(outfit, race_id, gender_id, equipment);
+    outfit->helm_hide = M2_DbcHelmetHideMask(outfit->helm_vis_id[gender_id], race_id);
     return true;
 }
 
@@ -318,6 +353,6 @@ BOOL M2_DbcCharacterTexturePathForType(LPCSTR model_path, DWORD appearance, DWOR
 void M2_DbcShutdown(void) {
     M2_DbcFree(&char_start_outfit_dbc); M2_DbcFree(&item_display_info_dbc);
     M2_DbcFree(&char_sections_dbc); M2_DbcFree(&creature_display_info_dbc);
-    M2_DbcFree(&creature_display_info_extra_dbc);
+    M2_DbcFree(&creature_display_info_extra_dbc); M2_DbcFree(&helmet_geoset_vis_dbc);
     char_sections_layout = M2_CHAR_SECTIONS_UNKNOWN;
 }

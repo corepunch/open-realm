@@ -6,7 +6,12 @@
 #define M2_NUM_GEOSET_GROUPS 16
 #define M2_CHAR_TEX_PRIORITIES 7
 #define M2_CHAR_FLAG_KNEELENGTH 0x4u
-#define M2_CHAR_FLAG_HELM 0x100u
+
+/* HelmetGeosetVisData race-resolved hide bits, indexed by geoset group/100. */
+#define M2_HELM_HIDE_HAIR     0x02u   /* group 100 */
+#define M2_HELM_HIDE_BEARD    0x04u   /* group 200 */
+#define M2_HELM_HIDE_EARRINGS 0x08u   /* group 300 */
+#define M2_HELM_HIDE_EARS     0x80u   /* group 700 */
 
 enum {
     M2_CHAR_TEX_UPPER_ARM,
@@ -23,6 +28,10 @@ enum {
 typedef struct {
     LPCSTR texture[M2_CHAR_TEX_COMPONENT_COUNT][M2_CHAR_TEX_PRIORITIES];
     LPCSTR cape_texture;
+    LPCSTR helm_model;          /* ItemDisplayInfo model name stem (head slot) */
+    LPCSTR shoulder_model[2];   /* left / right shoulder model name stems */
+    DWORD helm_vis_id[2];       /* HelmetGeosetVisData ids (male, female) from ItemDisplayInfo */
+    DWORD helm_hide;            /* race-resolved geoset hide mask (M2_HELM_HIDE_*) */
     DWORD geoset[M2_NUM_GEOSET_GROUPS];
     DWORD flags;
 } M2CHARACTEROUTFIT;

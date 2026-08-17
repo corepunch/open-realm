@@ -1450,8 +1450,9 @@ static BOOL M2_CharacterGeosetVisible(m2Model_t const *model,
     m2ModelBatch_t const *b;
     if (!model || !(model->flags & M2_MODEL_CHARACTER)) return true;
     if (section_id < 400) {
-        /* Hair geosets (100–199): helmet hides them. */
-        if (section_id >= 100 && outfit && (outfit->flags & M2_CHAR_FLAG_HELM)) return false;
+        /* Hair/beard/earring geosets (100–399): hidden per the worn helmet's
+         * race-resolved HelmetGeosetVisData mask. */
+        if (section_id >= 100 && outfit && (outfit->helm_hide & (1u << (section_id / 100)))) return false;
         return true;
     }
     if (!outfit)
@@ -1460,11 +1461,17 @@ static BOOL M2_CharacterGeosetVisible(m2Model_t const *model,
     group  = section_id / 100;
     geoset = (group < M2_NUM_GEOSET_GROUPS) ? outfit->geoset[group] : 0;
 
-    if (group == 5 || group == 13) {
+    if (group == 5 || group == 9 || group == 13) {
         if (group == 13 && (outfit->flags & M2_CHAR_FLAG_KNEELENGTH)) return false;
         for (b = model->batches, n = 0; b && n < 64; b = b->next) available[n++] = b->section_id;
         if (group == 13)
             return section_id == Wow_CharacterGeosetPick(available, n, 13, (WORD)(1301 + geoset), 1301);
+        /* Group 9 (legs): an explicit item variant maps as 900 + value (1 = bare,
+         * 2 = flared pant cuff, 3 = knickers); a missing override keeps the base
+         * body's knickers (903), falling back to 902 for models without it. */
+        if (group == 9)
+            return geoset ? section_id == (WORD)(900 + geoset)
+                          : section_id == Wow_CharacterGeosetPick(available, n, 9, 903, 902);
         return section_id == Wow_CharacterGeosetPick(available, n, 5, (WORD)(501 + geoset), 501);
     }
     switch (group) {
@@ -1472,16 +1479,14 @@ static BOOL M2_CharacterGeosetVisible(m2Model_t const *model,
          * variant (forearms, ears, sleeves, eyes, brows, hair, no-cape) which exists in
          * every shipped model. Group 7 keeps its bare-ears ternary until M2_DbcStartOutfit
          * seeds geoset[7]=2 explicitly — TODO.
-         * Group 9 (kneepads) is the exception: variant 1 (901) is DNE per wowdev
-         * {1:none, 2:long, 3:short}; geoset=0 → 900 (DNE) correctly shows nothing.
          * geoset[9] is driven by geosetGroup[1] of the equipped pants item. */
         case 4:  return section_id == (WORD)(401 + geoset);
-        case 7:  return section_id == (geoset ? (WORD)(700 + geoset) : 702);
+        case 7:  return outfit->helm_hide & M2_HELM_HIDE_EARS ? false : section_id == (geoset ? (WORD)(700 + geoset) : 702);
         case 8:  return section_id == (WORD)(801 + geoset);
-        case 9:  return section_id == (WORD)(900 + geoset);
         case 10: return section_id == (WORD)(1001 + geoset);
         case 11: return section_id == (WORD)(1101 + geoset);
-        case 12: return section_id == (WORD)(1201 + geoset);
+        /* Tabard mesh: 1201 is DNE ("no tabard"); 1202 is the worn tabard flap. */
+        case 12: return section_id == (WORD)(1200 + geoset);
         case 15: return section_id == (WORD)(1501 + geoset);
         default: return false;
     }
@@ -1875,6 +1880,83 @@ static LPTEXTURE M2_CharacterTextureForBatch(m2Model_t const *model,
     return batch->texture;
 }
 
+BOOL M2_AttachmentMatrix(m2Model_t const *model, DWORD attachment_id, LPCMATRIX4 model_matrix, LPMATRIX4 out);
+void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMATRIX4 transform);
+
+/* Race abbreviation used by Item\ObjectComponents\Head\<name>_<race><gender>.m2. */
+static LPCSTR M2_RaceCode(DWORD race_id) {
+    switch (race_id) {
+        case 1: return "Hu"; case 2: return "Or"; case 3: return "Dw"; case 4: return "Ni";
+        case 5: return "Sc"; case 6: return "Ta"; case 7: return "Gn"; case 8: return "Tr";
+        default: return NULL;
+    }
+}
+
+/* Resolve an ItemDisplayInfo model-name stem to its archive path. Helmets are
+ * per-race/gender; shoulders are shared across races. */
+static BOOL M2_ItemAttachmentPath(LPCSTR character_path, LPCSTR model_name, BOOL helm, LPSTR out, DWORD out_size) {
+    DWORD race_id, gender_id;
+    LPCSTR code;
+    size_t stem;
+    if (!out || !out_size || !model_name || !*model_name) return false;
+    stem = strlen(model_name);
+    if (stem > 4 && (!strcasecmp(model_name + stem - 4, ".mdx") || !strcasecmp(model_name + stem - 4, ".mdl"))) stem -= 4;
+    if (helm) {
+        if (!M2_DbcCharacterRaceGender(character_path, &race_id, &gender_id) || !(code = M2_RaceCode(race_id))) return false;
+        snprintf(out, out_size, "Item\\ObjectComponents\\Head\\%.*s_%s%c.m2", (int)stem, model_name, code, gender_id ? 'F' : 'M');
+    } else {
+        snprintf(out, out_size, "Item\\ObjectComponents\\Shoulder\\%.*s.m2", (int)stem, model_name);
+    }
+    return true;
+}
+
+/* Item attachment models are loaded once per path and kept resident by their
+ * single R_LoadModel reference; the per-frame path would otherwise leak refs. */
+static LPCMODEL M2_ItemModel(LPCSTR path) {
+    static PATHSTR cached_path[64];
+    static LPCMODEL cached_model[64];
+    DWORD free_slot = 64;
+    if (!path || !*path) return NULL;
+    FOR_LOOP(i, 64) {
+        if (cached_model[i] && !strcasecmp(cached_path[i], path)) return cached_model[i];
+        if (!cached_model[i] && free_slot == 64) free_slot = i;
+    }
+    if (free_slot == 64) return NULL;
+    cached_model[free_slot] = R_LoadModel(path);
+    snprintf(cached_path[free_slot], sizeof(cached_path[0]), "%s", path);
+    return cached_model[free_slot];
+}
+
+/* Render the helmet and shoulder attachment M2s carried by a resolved character
+ * outfit. Attachment matrices are computed before any recursive render so the
+ * parent's bone scratch stays intact. */
+static void M2_RenderItemAttachments(renderEntity_t const *entity, m2Model_t const *model,
+                                     LPCMATRIX4 transform, LPCM2CHARACTEROUTFIT outfit) {
+    static DWORD const ids[3] = { 11, 6, 5 }; /* helm, shoulder-left, shoulder-right */
+    LPCMODEL models[3] = { NULL, NULL, NULL };
+    MATRIX4 matrices[3];
+    BOOL valid[3] = { false, false, false };
+    PATHSTR path;
+    if (!entity || !model || !transform || !outfit) return;
+    FOR_LOOP(i, 3) {
+        LPCSTR name = i == 0 ? outfit->helm_model : outfit->shoulder_model[i - 1];
+        if (!name || !*name) continue;
+        if (!M2_ItemAttachmentPath(model->filename, name, i == 0, path, sizeof(path))) continue;
+        models[i] = M2_ItemModel(path);
+        if (!models[i] || models[i]->modeltype != ID_MD20) continue;
+        valid[i] = M2_AttachmentMatrix(model, ids[i], transform, &matrices[i]);
+    }
+    FOR_LOOP(i, 3) {
+        renderEntity_t ae;
+        if (!valid[i]) continue;
+        ae = *entity;
+        ae.model = models[i];
+        ae.attached_model = NULL;
+        ae.flags &= ~RF_GROUND_ANCHOR;
+        M2_RenderModel(&ae, models[i]->m2, &matrices[i]);
+    }
+}
+
 void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMATRIX4 transform) {
     renderEntity_t resolved_entity;
     renderEntity_t const *draw_entity = entity;
@@ -2003,6 +2085,8 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
 		R_BindTexture(tr.texture[TEX_WHITE], 2);
 		R_DrawBuffer(batch->buffer, batch->num_vertices);
 	}
+	if (outfit)
+		M2_RenderItemAttachments(draw_entity, model, transform, outfit);
 }
 
 /* Static-mesh instanced path for ground-effect clutter. Renders `count` copies
