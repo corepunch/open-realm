@@ -31,6 +31,7 @@
 #define stb_dbc_h
 
 #include "common/shared.h"
+#include <stddef.h>
 
 /* -------------------------------------------------------------------------- */
 /* WDBC header (magic byte excluded)                                           */
@@ -135,6 +136,44 @@ static inline BYTE const *Stb_DbcFindID(BYTE const *data, stbDbc_t const *header
         }
     }
     return NULL;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Table-driven row decode                                                     */
+/* -------------------------------------------------------------------------- */
+/* Fill a caller's struct array from a DBC record block using a small schema
+ * table (the `{ name, offsetof(struct, field), type }` pattern from
+ * stb_fdf.h). Each entry maps a DBC column index to a struct field. The parser
+ * performs no I/O and no allocation; callers read the file and keep the buffer
+ * (and its string block) alive for the lifetime of the decoded rows. */
+typedef enum {
+    STB_DBC_U32,  /* 4-byte little-endian int column */
+    STB_DBC_STR,  /* 4-byte string-block offset, resolved to a pointer */
+} stbDbcFieldType_t;
+
+typedef struct {
+    DWORD column;       /* DBC column index (0-based); byte offset = column * 4 */
+    ptrdiff_t offset;   /* offsetof(Rec, field) */
+    stbDbcFieldType_t type;
+} stbDbcField_t;
+
+static inline void Stb_DbcParseRows(BYTE const *records, DWORD count, DWORD record_size,
+                                    BYTE const *strings, DWORD string_size,
+                                    stbDbcField_t const *schema, DWORD schema_count,
+                                    void *out, DWORD out_stride) {
+    FOR_LOOP(r, count) {
+        BYTE const *record = records + r * record_size;
+        BYTE *dest = (BYTE *)out + r * out_stride;
+        FOR_LOOP(f, schema_count) {
+            stbDbcField_t const *s = &schema[f];
+            DWORD byte_offset = s->column * sizeof(DWORD);
+            if (byte_offset + sizeof(DWORD) > record_size) continue;
+            if (s->type == STB_DBC_U32)
+                *(DWORD *)(dest + s->offset) = Stb_DbcRead32(record + byte_offset);
+            else
+                *(LPCSTR *)(dest + s->offset) = Stb_DbcString(strings, string_size, Stb_DbcRead32(record + byte_offset));
+        }
+    }
 }
 
 #endif /* stb_dbc_h */

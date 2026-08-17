@@ -9,6 +9,7 @@ games/world-of-warcraft/serverdata/
 ├── quest_spawns.csv       ← 741 quest giver positions + 2558 objective POIs
 ├── creatures.csv          ← all 29947 creature templates / 40213 model rows
 ├── creature_spawns.csv    ← 13729 creature world positions on map 0
+├── playercreateinfo.csv   ← 40 race/class spawn points (map, x, y, z, facing)
 └── README.md
 ```
 
@@ -59,6 +60,7 @@ using `data/WoWee/tools/extract_server_data.py`:
 | `quest_spawns.csv` | `creature` (giver positions), `quest_poi_points` (objectives) |
 | `creatures.csv` | `creature_template`, `creature_template_model` |
 | `creature_spawns.csv` | `creature` (map=0 positions for all extracted creatures) |
+| `playercreateinfo.csv` | `playercreateinfo` (race/class → map + spawn x/y/z/facing) |
 
 ## Extraction
 
@@ -120,6 +122,16 @@ version-specific fields in this server CSV. See
 ```
 entry, map, zone, area, x, y, z, orientation, wander_distance
 ```
+
+### playercreateinfo.csv
+```
+race, class, map, x, y, z, facing
+```
+
+The (race, class) → (map, x, y, z, facing) mapping does not exist in any MPQ/DBC —
+retail hardcodes it in `wow.exe`. AzerothCore packet-sniffs it into
+`playercreateinfo.sql`; we filter it to classic races (1-8) and classes
+(1,2,3,4,5,7,8,9,11) here.
 
 ## Notes
 

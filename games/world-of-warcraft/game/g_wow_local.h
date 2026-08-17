@@ -108,6 +108,16 @@ typedef struct {
     FLOAT orientation;
 } WOWQUESTGIVER;
 
+/* Race/class -> spawn point, generated from serverdata/playercreateinfo.csv. */
+typedef struct {
+    DWORD race;
+    DWORD cls;
+    DWORD map;
+    FLOAT x, y, z;
+    FLOAT facing;
+} WOWSPAWNPOINT;
+typedef const WOWSPAWNPOINT *LPCWOWSPAWNPOINT;
+
 typedef struct {
     DWORD quest_id;
     VECTOR2 position;
@@ -381,10 +391,13 @@ void       Wow_FireFrostbolt(LPEDICT caster, LPEDICT target);
 void       Wow_HealingTouch(LPEDICT caster);
 LPEDICT    Wow_FindSpellTarget(LPEDICT ent, FLOAT range);
 
-/* g_spawn.c — race→spawn-point selection and teleport */
-DWORD      Wow_SelectSpawnPoint(LPCSTR race, DWORD class_id);
-DWORD      Wow_PlayerCreateMap(LPCSTR race, DWORD class_id);
-LPCVECTOR3 Wow_GetSpawnPos(DWORD idx);
-void       Wow_TeleportPlayer(LPEDICT ent, DWORD spawn_index);
+/* g_playercreateinfo.c — generated from serverdata/playercreateinfo.csv */
+DWORD           Wow_SpawnCount(void);
+LPCWOWSPAWNPOINT Wow_SpawnByIndex(DWORD index);
+DWORD           Wow_SelectSpawnPoint(LPCSTR race, DWORD class_id);
+DWORD           Wow_PlayerCreateMap(LPCSTR race, DWORD class_id);
+LPCVECTOR3      Wow_GetSpawnPos(DWORD idx);
+/* g_spawn.c — teleport entity to a generated spawn point */
+void            Wow_TeleportPlayer(LPEDICT ent, DWORD spawn_index);
 
 #endif
