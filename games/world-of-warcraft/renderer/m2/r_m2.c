@@ -1450,9 +1450,10 @@ static BOOL M2_CharacterGeosetVisible(m2Model_t const *model,
     m2ModelBatch_t const *b;
     if (!model || !(model->flags & M2_MODEL_CHARACTER)) return true;
     if (section_id < 400) {
-        /* Hair/beard/earring geosets (100–399): hidden per the worn helmet's
-         * race-resolved HelmetGeosetVisData mask. */
-        if (section_id >= 100 && outfit && (outfit->helm_hide & (1u << (section_id / 100)))) return false;
+        /* Section 0 is the base skin; the head/hair (1–99) and facial geosets
+         * (100–399) are hidden per the worn helmet's race-resolved
+         * HelmetGeosetVisData mask (wowdev geoset groups 0–3). */
+        if (section_id > 0 && outfit && (outfit->helm_hide & (1u << (section_id / 100)))) return false;
         return true;
     }
     if (!outfit)
@@ -1461,17 +1462,11 @@ static BOOL M2_CharacterGeosetVisible(m2Model_t const *model,
     group  = section_id / 100;
     geoset = (group < M2_NUM_GEOSET_GROUPS) ? outfit->geoset[group] : 0;
 
-    if (group == 5 || group == 9 || group == 13) {
+    if (group == 5 || group == 13) {
         if (group == 13 && (outfit->flags & M2_CHAR_FLAG_KNEELENGTH)) return false;
         for (b = model->batches, n = 0; b && n < 64; b = b->next) available[n++] = b->section_id;
         if (group == 13)
             return section_id == Wow_CharacterGeosetPick(available, n, 13, (WORD)(1301 + geoset), 1301);
-        /* Group 9 (legs): an explicit item variant maps as 900 + value (1 = bare,
-         * 2 = flared pant cuff, 3 = knickers); a missing override keeps the base
-         * body's knickers (903), falling back to 902 for models without it. */
-        if (group == 9)
-            return geoset ? section_id == (WORD)(900 + geoset)
-                          : section_id == Wow_CharacterGeosetPick(available, n, 9, 903, 902);
         return section_id == Wow_CharacterGeosetPick(available, n, 5, (WORD)(501 + geoset), 501);
     }
     switch (group) {
@@ -1483,6 +1478,10 @@ static BOOL M2_CharacterGeosetVisible(m2Model_t const *model,
         case 4:  return section_id == (WORD)(401 + geoset);
         case 7:  return outfit->helm_hide & M2_HELM_HIDE_EARS ? false : section_id == (geoset ? (WORD)(700 + geoset) : 702);
         case 8:  return section_id == (WORD)(801 + geoset);
+        /* Group 9 (legs/kneepads): 901 is DNE (bare), 902 long, 903 short
+         * (wowdev "09**: Legs {1: none, 2: long, 3: short}"; the decompiled
+         * GeosRenderPrep uses 901 + geosetGroup[1]). */
+        case 9:  return section_id == (WORD)(901 + geoset);
         case 10: return section_id == (WORD)(1001 + geoset);
         case 11: return section_id == (WORD)(1101 + geoset);
         /* Tabard mesh: 1201 is DNE ("no tabard"); 1202 is the worn tabard flap. */
@@ -1927,24 +1926,41 @@ static LPCMODEL M2_ItemModel(LPCSTR path) {
     return cached_model[free_slot];
 }
 
+/* Resolve an ItemDisplayInfo model-texture stem (field 3/4) to its archive path.
+ * Item models use a replaceable object-skin texture (M2 texture type 2) that the
+ * client fills in from this stem: Item\ObjectComponents\{Head,Shoulder}\<stem>.blp. */
+static BOOL M2_ItemTexturePath(LPCSTR texture_name, BOOL helm, LPSTR out, DWORD out_size) {
+    size_t stem;
+    if (!out || !out_size || !texture_name || !*texture_name) return false;
+    stem = strlen(texture_name);
+    if (stem > 4 && (!strcasecmp(texture_name + stem - 4, ".blp") || !strcasecmp(texture_name + stem - 4, ".tga"))) stem -= 4;
+    snprintf(out, out_size, "Item\\ObjectComponents\\%s\\%.*s.blp", helm ? "Head" : "Shoulder", (int)stem, texture_name);
+    return true;
+}
+
 /* Render the helmet and shoulder attachment M2s carried by a resolved character
  * outfit. Attachment matrices are computed before any recursive render so the
- * parent's bone scratch stays intact. */
+ * parent's bone scratch stays intact. The item's model texture (ItemDisplayInfo
+ * field 3/4) overrides the attachment's replaceable object skin. */
 static void M2_RenderItemAttachments(renderEntity_t const *entity, m2Model_t const *model,
                                      LPCMATRIX4 transform, LPCM2CHARACTEROUTFIT outfit) {
     static DWORD const ids[3] = { 11, 6, 5 }; /* helm, shoulder-left, shoulder-right */
     LPCMODEL models[3] = { NULL, NULL, NULL };
+    LPTEXTURE textures[3] = { NULL, NULL, NULL };
     MATRIX4 matrices[3];
     BOOL valid[3] = { false, false, false };
     PATHSTR path;
     if (!entity || !model || !transform || !outfit) return;
     FOR_LOOP(i, 3) {
         LPCSTR name = i == 0 ? outfit->helm_model : outfit->shoulder_model[i - 1];
+        LPCSTR texname = i == 0 ? outfit->helm_texture : outfit->shoulder_texture[i - 1];
         if (!name || !*name) continue;
         if (!M2_ItemAttachmentPath(model->filename, name, i == 0, path, sizeof(path))) continue;
         models[i] = M2_ItemModel(path);
         if (!models[i] || models[i]->modeltype != ID_MD20) continue;
         valid[i] = M2_AttachmentMatrix(model, ids[i], transform, &matrices[i]);
+        if (texname && *texname && M2_ItemTexturePath(texname, i == 0, path, sizeof(path)))
+            textures[i] = R_LoadTexture(path);
     }
     FOR_LOOP(i, 3) {
         renderEntity_t ae;
@@ -1952,6 +1968,7 @@ static void M2_RenderItemAttachments(renderEntity_t const *entity, m2Model_t con
         ae = *entity;
         ae.model = models[i];
         ae.attached_model = NULL;
+        ae.skin = textures[i];
         ae.flags &= ~RF_GROUND_ANCHOR;
         M2_RenderModel(&ae, models[i]->m2, &matrices[i]);
     }
@@ -2037,7 +2054,7 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
     R_Call(glDisable, GL_BLEND);
 
 	for (batch = model->batches; batch; batch = batch->next) {
-		LPTEXTURE texture;
+		LPCTEXTURE texture;
 
 		if (!M2_CharacterGeosetVisible(model, outfit, batch->section_id)) {
 			continue;
@@ -2076,6 +2093,7 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
 			R_Call(glDepthMask, GL_FALSE);
 		}
 		texture = batch->texture_type == 1 && character_texture ? character_texture :
+                  draw_entity->skin ? draw_entity->skin :
                   M2_CharacterTextureForBatch(model, draw_entity, batch);
 		M2_UploadBatchBones(model, batch, shader);
 		R_BindTexture(texture ? texture : tr.texture[TEX_WHITE], 0);

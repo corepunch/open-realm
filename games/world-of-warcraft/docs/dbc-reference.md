@@ -286,6 +286,11 @@ helmet model and the shoulder slot reads fields 1/2 as the left/right shoulder m
 shoulder (ids 5/6) bones. Deputy Willem's Stormwind guard set is the oracle: head 14964 → `Helm_Plate_B_01Stormwind`,
 shoulder 7541 → `LShoulder_Plate_B_01` / `RShoulder_Plate_B_01`.
 
+Attachment M2s use a replaceable object-skin texture (M2 texture type 2) with an empty filename. The client fills it
+from the item's `model texture` stem (field 3 for head, fields 3/4 for shoulders), resolved to
+`Item\ObjectComponents\Head\<stem>.blp` / `Item\ObjectComponents\Shoulder\<stem>.blp`. `r_m2.c` stores those stems on
+the outfit and overrides the attachment's texture at render time via `renderEntity_t.skin`.
+
 #### Slot → Geoset Group Mapping (`slot_geoset_group_map`)
 
 For each equipment slot, the three DBC GeosetGroup fields (7/8/9) drive these character geoset groups. Verified against
@@ -320,10 +325,12 @@ texture-only in Classic.
 **Group 8 — Sleeves** (`801 + geoset`, driven by chest/shirt field 7): `0→801` bare, `1→802` short, `2→803` long.
 Chest items with visible sleeves set field 7 = 1 (288 records); shirt items also drive this group.
 
-**Group 9 — Legs** (`900 + geoset`, driven by legs field 8): `1→901` bare (DNE), `2→902` flared pant cuff, `3→903`
-knickers. A missing override (`geoset = 0`) keeps the base body's knickers `903`, falling back to `902` for
-race/gender models lacking that section. 809 legs items set field 8 = 1 (→ 901 DNE, bare legs); none set 2 or 3, so
-every Classic pants item either keeps the base knickers or hides the leg mesh.
+**Group 9 — Legs / Kneepads** (`901 + geoset`, driven by legs field 8): `0→901` DNE (bare), `1→902` long,
+`2→903` short. wowdev numbers these `09**: Legs {1: none (DNE), 2: long, 3: short}`; the decompiled `GeosRenderPrep`
+(TBC 2.4.3) selects `901 + geosetGroup[1]` and falls back to `901` when the pants item carries no value. 809 legs
+items set field 8 = 1 (→ 902 long); none set 2 or 3, so every Classic pants item either keeps the bare legs (no leg
+mesh) or shows the long legcuffs. The starter legs (display 9892) and Deputy Willem's plate legs (display 7225) both
+set field 8 = 0, so neither overrides the base leg mesh.
 
 **Group 12 — Tabard** (`1200 + geoset`): `1→1201` DNE (no tabard), `2→1202` hanging tabard flap. The renderer sets
 `geoset[12] = 2` whenever a tabard slot item is present, so wearing any tabard shows the tabard mesh.
@@ -385,21 +392,22 @@ wotlkdev auto-generated schema leaves these unlabeled. Treat as unmapped until i
 ### `HelmetGeosetVisData.dbc`
 
 Classic layout (6 fields). Each flag is a race bitmask (`1 << race`); a set bit hides the matching geoset group for
-that race:
+that race. Geoset groups follow wowdev `Character Customization` numbering (`group = section / 100`):
 
 | Field | Content |
 |------:|---------|
 | 0 | id |
-| 1 | `hairFlags` → hide hair (group 100) |
-| 2 | `facialFlags[0]` → hide beard (group 200) |
-| 3 | `facialFlags[1]` → hide earrings (group 300) |
-| 4 | `facialFlags[2]` → "facial3" (no classic model group; ignored) |
-| 5 | `earsFlags` → hide ears (group 700) |
+| 1 | `hairFlags` → hide hair/head (group 0, sections 1–99) |
+| 2 | `facialFlags[0]` → hide beard (group 1, sections 100–199) |
+| 3 | `facialFlags[1]` → hide sideburns/earrings (group 2, sections 200–299) |
+| 4 | `facialFlags[2]` → hide moustache (group 3, sections 300–399) |
+| 5 | `earsFlags` → hide ears (group 7, sections 700–799) |
 
-Referenced by `ItemDisplayInfo` fields 12 (male) and 13 (female) in the classic 23-field schema. `r_dbc.c`
-(`M2_DbcHelmetHideMask`) resolves the record for the model's race/gender into `M2CHARACTEROUTFIT.helm_hide`, which
-`M2_CharacterGeosetVisible` applies per group instead of a blanket hair hide. Deputy Willem's Stormwind helm
-(display 14964 → record 248 for a Human male) hides hair, beard, earrings, and ears.
+Section 0 (the base skin/face) is never hidden. Referenced by `ItemDisplayInfo` fields 12 (male) and 13 (female) in
+the classic 23-field schema. `r_dbc.c` (`M2_DbcHelmetHideMask`) resolves the record for the model's race/gender into
+`M2CHARACTEROUTFIT.helm_hide`, which `M2_CharacterGeosetVisible` applies per group instead of a blanket hair hide.
+Deputy Willem's Stormwind helm (display 14964 → record 248 for a Human male) hides hair, beard, sideburns, moustache,
+and ears (mask `0x8f`).
 
 ### `CharacterFacialHairStyles.dbc` (partial — WoWee)
 

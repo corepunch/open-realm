@@ -200,6 +200,7 @@ static void M2_DbcAddDisplayInfo(LPM2CHARACTEROUTFIT outfit, DWORD display_id, D
      * geosets a worn helmet hides. */
     if (slot == M2_SLOT_HEAD) {
         outfit->helm_model = M2_DbcString(&item_display_info_dbc, M2_DbcField(&item_display_info_dbc, record, 1));
+        outfit->helm_texture = M2_DbcString(&item_display_info_dbc, M2_DbcField(&item_display_info_dbc, record, 3));
         if (item_display_info_dbc.fields >= 22) {
             DWORD vis_field = texture_base - 2;
             outfit->helm_vis_id[0] = M2_DbcField(&item_display_info_dbc, record, vis_field);
@@ -209,6 +210,8 @@ static void M2_DbcAddDisplayInfo(LPM2CHARACTEROUTFIT outfit, DWORD display_id, D
     if (slot == M2_SLOT_SHOULDERS) {
         outfit->shoulder_model[0] = M2_DbcString(&item_display_info_dbc, M2_DbcField(&item_display_info_dbc, record, 1));
         outfit->shoulder_model[1] = M2_DbcString(&item_display_info_dbc, M2_DbcField(&item_display_info_dbc, record, 2));
+        outfit->shoulder_texture[0] = M2_DbcString(&item_display_info_dbc, M2_DbcField(&item_display_info_dbc, record, 3));
+        outfit->shoulder_texture[1] = M2_DbcString(&item_display_info_dbc, M2_DbcField(&item_display_info_dbc, record, 4));
     }
     /* A worn tabard activates the hanging tabard mesh (geoset group 12, section 1202). */
     if (slot == M2_SLOT_TABARD) outfit->geoset[12] = 2;
@@ -267,8 +270,8 @@ static BOOL M2_DbcStartOutfit(LPCSTR model_path, DWORD appearance, LPM2CHARACTER
 
 /* Resolve a HelmetGeosetVisData record to the geoset-hide bitmask for a race.
  * Classic stores hairFlags, facialFlags[0..2], earsFlags as race bitmasks; a set
- * race bit hides that geoset group (hair 100, beard 200, earrings 300, ears 700).
- * facialFlags[2] ("facial3") has no classic model group, so it is ignored. */
+ * race bit hides that geoset group (hair 0, beard 1, sideburns 2, moustache 3,
+ * ears 7 — wowdev "Character Customization" geoset numbering). */
 static DWORD M2_DbcHelmetHideMask(DWORD vis_id, DWORD race_id) {
     BYTE const *record;
     DWORD mask = 0;
@@ -277,7 +280,8 @@ static DWORD M2_DbcHelmetHideMask(DWORD vis_id, DWORD race_id) {
     if (!record || helmet_geoset_vis_dbc.fields < 6) return 0;
     if (M2_DbcField(&helmet_geoset_vis_dbc, record, 1) & (1u << race_id)) mask |= M2_HELM_HIDE_HAIR;
     if (M2_DbcField(&helmet_geoset_vis_dbc, record, 2) & (1u << race_id)) mask |= M2_HELM_HIDE_BEARD;
-    if (M2_DbcField(&helmet_geoset_vis_dbc, record, 3) & (1u << race_id)) mask |= M2_HELM_HIDE_EARRINGS;
+    if (M2_DbcField(&helmet_geoset_vis_dbc, record, 3) & (1u << race_id)) mask |= M2_HELM_HIDE_SIDEBURNS;
+    if (M2_DbcField(&helmet_geoset_vis_dbc, record, 4) & (1u << race_id)) mask |= M2_HELM_HIDE_MOUSTACHE;
     if (M2_DbcField(&helmet_geoset_vis_dbc, record, 5) & (1u << race_id)) mask |= M2_HELM_HIDE_EARS;
     return mask;
 }
