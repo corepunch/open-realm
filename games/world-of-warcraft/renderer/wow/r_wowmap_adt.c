@@ -1,4 +1,5 @@
 #include "r_wowmap.h"
+#include "common/stb_dbc.h"
 
 void Wow_LoadAdt(BYTE const *data, DWORD size, DWORD tile_x, DWORD tile_y) {
     DWORD offset = 0;
@@ -247,10 +248,7 @@ BOOL Wow_LoadWdtTiles(BYTE const *data, DWORD size) {
 }
 
 LPCSTR Wow_DbcString(BYTE const *string_block, DWORD string_size, DWORD offset) {
-    if (offset >= string_size) {
-        return NULL;
-    }
-    return (LPCSTR)(string_block + offset);
+    return Stb_DbcString(string_block, string_size, offset);
 }
 
 int Wow_AdtIndexForWorldCoord(float coord) {
@@ -258,46 +256,29 @@ int Wow_AdtIndexForWorldCoord(float coord) {
 }
 
 void Wow_LoadMapDbcFlags(void) {
+    stbDbc_t h;
     LPBYTE data = NULL;
     int size = ri.FS_ReadFile("DBFilesClient\\Map.dbc", (void **)&data);
-    DWORD records;
-    DWORD fields;
-    DWORD record_size;
-    DWORD string_size;
     BYTE const *records_base;
     BYTE const *strings_base;
 
     wow_world.use_weighted_blend = false;
-    if (size <= 20 || !data) {
+    if (!Stb_DbcValid(data, (DWORD)size, &h)) {
+        SAFE_DELETE(data, ri.FS_FreeFile);
         return;
     }
 
-    if (memcmp(data, "WDBC", 4) != 0) {
-        ri.FS_FreeFile(data);
-        return;
-    }
+    records_base = Stb_DbcRecords(data);
+    strings_base = Stb_DbcStrings(data, &h);
 
-    records = Wow_Read32(data + 4);
-    fields = Wow_Read32(data + 8);
-    record_size = Wow_Read32(data + 12);
-    string_size = Wow_Read32(data + 16);
-    records_base = data + 20;
-    strings_base = records_base + records * record_size;
-
-    if (fields == 0 || record_size < fields * sizeof(DWORD) ||
-        20 + records * record_size + string_size > (DWORD)size) {
-        ri.FS_FreeFile(data);
-        return;
-    }
-
-    FOR_LOOP(record_index, records) {
-        BYTE const *record = records_base + record_index * record_size;
+    FOR_LOOP(record_index, h.records) {
+        BYTE const *record = records_base + record_index * h.record_size;
         BOOL directory_matches = false;
-        DWORD flags0 = Wow_Read32(record + (fields - 1) * sizeof(DWORD));
+        DWORD flags0 = Wow_Read32(record + (h.fields - 1) * sizeof(DWORD));
 
-        FOR_LOOP(field_index, fields) {
+        FOR_LOOP(field_index, h.fields) {
             DWORD string_offset = Wow_Read32(record + field_index * sizeof(DWORD));
-            LPCSTR value = Wow_DbcString(strings_base, string_size, string_offset);
+            LPCSTR value = Wow_DbcString(strings_base, h.string_size, string_offset);
             if (value && *value && !strcasecmp(value, wow_world.map_name)) {
                 directory_matches = true;
                 break;

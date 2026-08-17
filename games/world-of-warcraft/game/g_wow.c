@@ -1,4 +1,5 @@
 #include "g_wow_local.h"
+#include "common/stb_dbc.h"
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -145,10 +146,7 @@ FLOAT Wow_ReadFloat(BYTE const *p) {
 }
 
 LPCSTR Wow_DbcString(BYTE const *string_block, DWORD string_size, DWORD offset) {
-    if (offset >= string_size) {
-        return NULL;
-    }
-    return (LPCSTR)(string_block + offset);
+    return Stb_DbcString(string_block, string_size, offset);
 }
 
 BOOL Wow_ValidDbc(BYTE const *data,
@@ -157,19 +155,14 @@ BOOL Wow_ValidDbc(BYTE const *data,
                   DWORD *fields,
                   DWORD *record_size,
                   DWORD *string_size) {
-    if (!data || size <= 20 || memcmp(data, "WDBC", 4) != 0) {
+    stbDbc_t h;
+    if (!Stb_DbcValid(data, size, &h)) {
         return false;
     }
-
-    *records = Wow_Read32(data + 4);
-    *fields = Wow_Read32(data + 8);
-    *record_size = Wow_Read32(data + 12);
-    *string_size = Wow_Read32(data + 16);
-
-    if (*fields == 0 || *record_size < *fields * sizeof(DWORD) ||
-        20 + *records * *record_size + *string_size > size) {
-        return false;
-    }
+    *records = h.records;
+    *fields = h.fields;
+    *record_size = h.record_size;
+    *string_size = h.string_size;
     return true;
 }
 
@@ -181,13 +174,10 @@ BOOL Wow_FindDbcRecord(LPCSTR filename,
                        BYTE const **record_out,
                        BYTE const **strings_out,
                        DWORD *string_size_out) {
+    stbDbc_t h;
     LPBYTE data;
     DWORD size = 0;
-    DWORD records;
-    DWORD fields;
-    DWORD record_size;
-    DWORD string_size;
-    BYTE const *records_base;
+    BYTE const *record;
 
     if (!filename || !data_out || !fields_out || !record_size_out ||
         !record_out || !strings_out || !string_size_out) {
@@ -195,30 +185,24 @@ BOOL Wow_FindDbcRecord(LPCSTR filename,
     }
 
     data = gi.ReadFile ? gi.ReadFile(filename, &size) : NULL;
-    if (!Wow_ValidDbc(data, size, &records, &fields, &record_size, &string_size) ||
-        fields < 1 || record_size < fields * sizeof(DWORD)) {
+    if (!Stb_DbcValid(data, size, &h) ||
+        h.fields < 1 || h.record_size < h.fields * sizeof(DWORD)) {
         SAFE_DELETE(data, gi.MemFree);
         return false;
     }
 
-    records_base = data + 20;
-    FOR_LOOP(record_index, records) {
-        BYTE const *record = records_base + record_index * record_size;
-        DWORD id = Wow_Read32(record);
-
-        if (id == wanted_id) {
-            *data_out = data;
-            *fields_out = fields;
-            *record_size_out = record_size;
-            *record_out = record;
-            *strings_out = records_base + records * record_size;
-            *string_size_out = string_size;
-            return true;
-        }
+    record = Stb_DbcFindID(data, &h, wanted_id);
+    if (!record) {
+        gi.MemFree(data);
+        return false;
     }
-
-    gi.MemFree(data);
-    return false;
+    *data_out = data;
+    *fields_out = h.fields;
+    *record_size_out = h.record_size;
+    *record_out = record;
+    *strings_out = Stb_DbcStrings(data, &h);
+    *string_size_out = h.string_size;
+    return true;
 }
 
 static LPCSTR Wow_PathBasename(LPCSTR path) {

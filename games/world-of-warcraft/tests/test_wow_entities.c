@@ -9,6 +9,7 @@
 #include <strings.h>
 
 #include "game/g_wow_local.h"
+#include "common/stb_dbc.h"
 
 
 typedef struct {
@@ -474,3 +475,79 @@ TEST(wow_entities, edict_limit_reached_returns_null) {
 
     if (game->Shutdown) game->Shutdown();
 }
+
+/* ===================================================================
+ * stb_dbc.h — shared WDBC reader primitives
+ * =================================================================== */
+
+TEST(wow_entities, stb_dbc_parses_header_and_fields) {
+    DWORD size;
+    LPBYTE data = alloc_dbc(2, 4, 128, &size);
+    LPBYTE r0 = data + 20, r1 = r0 + 4 * sizeof(DWORD);
+    LPBYTE strings = r1 + 4 * sizeof(DWORD);
+    DWORD cursor = 1;
+    stbDbc_t h;
+    BYTE const *found;
+
+    putfield(r0, 0, 7);
+    putfield(r0, 1, add_string(strings, &cursor, "Azeroth"));
+    putfield(r0, 2, 99);
+    putfield(r1, 0, 8);
+    putfield(r1, 1, add_string(strings, &cursor, "Kalimdor"));
+
+    /* Header validation fills records/fields/record_size/string_size. */
+    T_ASSERT(Stb_DbcValid(data, size, &h));
+    T_EQ((int)h.records, 2);
+    T_EQ((int)h.fields, 4);
+    T_EQ((int)h.record_size, 4 * (int)sizeof(DWORD));
+    T_EQ((int)h.string_size, 128);
+
+    /* Block pointers. */
+    T_ASSERT(Stb_DbcRecords(data) == data + 20);
+    T_ASSERT(Stb_DbcStrings(data, &h) == data + 20 + 2 * 4 * sizeof(DWORD));
+
+    /* Field access + bounds check. */
+    T_EQ((int)Stb_DbcField(&h, r0, 2), 99);
+    T_EQ((int)Stb_DbcField(&h, r0, 4), 0);       /* field >= fields -> 0 */
+    T_EQ((int)Stb_DbcField(&h, r0, 3), 0);       /* within fields, zero value */
+
+    /* String access: valid, offset 0 (null), out-of-range. */
+    T_STREQ(Stb_DbcString(Stb_DbcStrings(data, &h), h.string_size, Stb_DbcField(&h, r0, 1)), "Azeroth");
+    T_NULL(Stb_DbcString(Stb_DbcStrings(data, &h), h.string_size, 0));
+    T_NULL(Stb_DbcString(Stb_DbcStrings(data, &h), h.string_size, h.string_size));
+
+    /* ID lookup by field 0. */
+    found = Stb_DbcFindID(data, &h, 8);
+    T_ASSERT(found == r1);
+    T_EQ((int)Stb_DbcField(&h, found, 1), (int)Stb_DbcField(&h, r1, 1));
+    T_NULL(Stb_DbcFindID(data, &h, 42));
+
+    free(data);
+
+    /* Malformed envelope: block overflow, too-small record size, bad magic. */
+    LPBYTE bad = malloc(64);
+    memcpy(bad, "WDBC", 4);
+    put32(bad + 4, 10); put32(bad + 8, 1); put32(bad + 12, 4); put32(bad + 16, 0);
+    T_ASSERT(!Stb_DbcValid(bad, 32, &h)); /* 20 + 10*4 > 32 */
+    put32(bad + 12, 0);
+    T_ASSERT(!Stb_DbcValid(bad, 32, &h)); /* record_size < sizeof(DWORD) */
+    memcpy(bad, "XXXX", 4);
+    T_ASSERT(!Stb_DbcValid(bad, 32, &h)); /* bad magic */
+    free(bad);
+
+    /* Loose rule: logical field_count may exceed record_size/4 (classic CharStartOutfit),
+       but Stb_DbcField still bounds-checks against the physical record. */
+    LPBYTE wide = calloc(1, 20 + 8);
+    memcpy(wide, "WDBC", 4);
+    put32(wide + 4, 1); put32(wide + 8, 40); put32(wide + 12, 8); put32(wide + 16, 0);
+    T_ASSERT(Stb_DbcValid(wide, 20 + 8, &h));
+    T_EQ((int)h.fields, 40);
+    T_EQ((int)h.record_size, 8);
+    put32(wide + 20, 123); put32(wide + 24, 456);
+    T_EQ((int)Stb_DbcField(&h, wide + 20, 0), 123);
+    T_EQ((int)Stb_DbcField(&h, wide + 20, 1), 456);
+    T_EQ((int)Stb_DbcField(&h, wide + 20, 2), 0);   /* 2*4+4 > record_size */
+    T_EQ((int)Stb_DbcField(&h, wide + 20, 39), 0);  /* field >= fields */
+    free(wide);
+}
+

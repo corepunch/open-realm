@@ -7,6 +7,7 @@
  * because string pointers point directly into them.
  */
 #include "ui_dbc.h"
+#include "common/stb_dbc.h"
 
 #include <string.h>
 #include <time.h>
@@ -179,12 +180,13 @@ static void CharList_Save(void) {
  * ---------------------------------------------------------------------- */
 
 static DWORD UIWow_DbcU32(BYTE const *rec, int field) {
-    DWORD v; memcpy(&v, rec + field * 4, 4); return v;
+    return Stb_DbcRead32(rec + field * 4);
 }
 
+/* UI consumers index [0] directly, so the null-string offset 0 becomes "". */
 static LPCSTR UIWow_DbcStr(BYTE const *strings, DWORD ssize, DWORD off) {
-    if (off == 0 || off >= ssize) return "";
-    return (LPCSTR)strings + off;
+    LPCSTR s = Stb_DbcString(strings, ssize, off);
+    return s ? s : "";
 }
 
 /* -------------------------------------------------------------------------

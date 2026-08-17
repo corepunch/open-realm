@@ -1,5 +1,6 @@
 #include "r_wowmap.h"
 #include "renderer/r_game.h"
+#include "common/stb_dbc.h"
 
 #define WOW_GRASS_MAX_MODELS 64
 
@@ -11,14 +12,6 @@ typedef struct {
 
 static MATRIX4 *wow_grass_scratch;
 static DWORD wow_grass_scratch_cap;
-
-typedef struct {
-    DWORD magic;
-    DWORD records;
-    DWORD fields;
-    DWORD record_size;
-    DWORD string_size;
-} wowDbcHeader_t;
 
 // GroundEffectTexture.dbc cache: maps effect_id to doodad information
 static wowGroundEffectTexture_t *wow_ground_effect_textures = NULL;
@@ -91,25 +84,22 @@ static BOOL Wow_GroundEffectModelPath(DWORD const *record, BYTE const *strings, 
 }
 
 static void Wow_LoadGroundEffectDoodads(void) {
+    stbDbc_t h;
     LPBYTE data = NULL;
     int size = ri.FS_ReadFile("DBFilesClient\\GroundEffectDoodad.dbc", (void **)&data);
-    if (size >= (int)sizeof(wowDbcHeader_t)) {
-        wowDbcHeader_t const *header = (wowDbcHeader_t const *)data;
-        BYTE const *records = data + sizeof(*header);
-        BYTE const *strings = records + header->records * header->record_size;
-        DWORD count = MIN(header->records, WOW_MAX_GROUND_EFFECT_DOODADS);
-        if (header->magic == MAKEFOURCC('W', 'D', 'B', 'C') && header->record_size >= WOW_GRASS_DOODAD_FIELD_COUNT * sizeof(DWORD) &&
-            sizeof(*header) + (uint64_t)header->records * header->record_size + header->string_size <= (uint64_t)size) {
-            FOR_LOOP(i, count) {
-                DWORD const *record = (DWORD const *)(records + i * header->record_size);
-                wowGroundEffectDoodad_t *doodad = &wow_ground_effect_doodads[wow_ground_effect_doodad_count];
-                if (!Wow_GroundEffectModelPath(record, strings, header->string_size, doodad->model_path, sizeof(doodad->model_path))) continue;
-                doodad->id = record[0];
-                wow_ground_effect_doodad_count++;
-            }
-            wow_ground_effect_doodads_loaded = true;
-            fprintf(stderr, "[GRASS] Loaded %u GroundEffectDoodad records\n", (unsigned)wow_ground_effect_doodad_count);
+    if (Stb_DbcValid(data, (DWORD)size, &h) && h.record_size >= WOW_GRASS_DOODAD_FIELD_COUNT * sizeof(DWORD)) {
+        BYTE const *records = Stb_DbcRecords(data);
+        BYTE const *strings = Stb_DbcStrings(data, &h);
+        DWORD count = MIN(h.records, WOW_MAX_GROUND_EFFECT_DOODADS);
+        FOR_LOOP(i, count) {
+            DWORD const *record = (DWORD const *)(records + i * h.record_size);
+            wowGroundEffectDoodad_t *doodad = &wow_ground_effect_doodads[wow_ground_effect_doodad_count];
+            if (!Wow_GroundEffectModelPath(record, strings, h.string_size, doodad->model_path, sizeof(doodad->model_path))) continue;
+            doodad->id = record[0];
+            wow_ground_effect_doodad_count++;
         }
+        wow_ground_effect_doodads_loaded = true;
+        fprintf(stderr, "[GRASS] Loaded %u GroundEffectDoodad records\n", (unsigned)wow_ground_effect_doodad_count);
     }
     if (data) ri.FS_FreeFile(data);
 }
@@ -138,6 +128,7 @@ void Wow_FreeGrassScratch(void) {
 }
 
 void Wow_LoadGroundEffectDBCs(void) {
+    stbDbc_t h = { 0 };
     LPBYTE data;
     DWORD size = 0, records, record_size;
     DWORD records_to_copy = 0;
@@ -160,55 +151,41 @@ void Wow_LoadGroundEffectDBCs(void) {
     fprintf(stderr, "[GRASS] FS_ReadFile returned size=%u\n", (unsigned)size);
     fflush(stderr);
 
-    if (data && size >= sizeof(wowDbcHeader_t)) {
-        wowDbcHeader_t const *header = (wowDbcHeader_t const *)data;
-
-        fprintf(stderr, "[GRASS] Validating WDBC header...\n");
-        if (header->magic == MAKEFOURCC('W', 'D', 'B', 'C')) {
-            records = header->records;
-            record_size = header->record_size;
-
-            fprintf(stderr, "[GRASS] WDBC: records=%u record_size=%u\n", (unsigned)records, (unsigned)record_size);
-
-            if (records > 0 && record_size == WOW_GRASS_DBC_FIELD_COUNT * sizeof(DWORD) &&
-                sizeof(*header) + (uint64_t)records * (uint64_t)record_size + header->string_size <= (uint64_t)size) {
-                records_base = data + sizeof(*header);
-                records_to_copy = records;
-                wow_ground_effect_textures = ri.MemAlloc(sizeof(*wow_ground_effect_textures) * records_to_copy);
-                if (!wow_ground_effect_textures) {
-                    fprintf(stderr, "[GRASS] allocation failed for %u GroundEffectTexture rows\n", (unsigned)records_to_copy);
-                    ri.FS_FreeFile(data);
-                    return;
-                }
-
-                fprintf(stderr, "[GRASS] Copying %u records...\n", (unsigned)records_to_copy);
-                DWORD doodad_field = Wow_GroundEffectLayout(records_base, records_to_copy, record_size);
-                FOR_LOOP(i, records_to_copy) {
-                    DWORD const *record = (DWORD const *)(records_base + i * record_size);
-                    wowGroundEffectTexture_t *effect = &wow_ground_effect_textures[i];
-                    memset(effect, 0, sizeof(*effect));
-                    effect->id = record[0];
-                    effect->density = record[WOW_GRASS_TEXTURE_DENSITY_FIELD];
-                    FOR_LOOP(slot, WOW_GRASS_DOODAD_SLOTS) {
-                        effect->doodad_id[slot] = record[doodad_field + slot];
-                        effect->weight[slot] = doodad_field == WOW_GRASS_TEXTURE_MODERN_DOODAD_FIELD ?
-                            record[WOW_GRASS_TEXTURE_WEIGHT_FIELD + slot] :
-                            (effect->doodad_id[slot] == WOW_GRASS_INVALID_DOODAD ? 0 : 1);
-                    }
-                }
-
-                wow_ground_effect_texture_count = records_to_copy;
-                wow_ground_effect_textures_loaded = true;
-                fprintf(stderr, "[GRASS] Successfully loaded %u GroundEffectTexture records\n", (unsigned)records);
-            } else {
-                fprintf(stderr, "[GRASS] WDBC validation failed: record_size=%u records=%u size=%u\n", (unsigned)record_size, (unsigned)records, (unsigned)size);
-            }
-        } else {
-            fprintf(stderr, "[GRASS] WDBC magic check failed\n");
+    if (Stb_DbcValid(data, size, &h) && h.records > 0 && h.record_size == WOW_GRASS_DBC_FIELD_COUNT * sizeof(DWORD)) {
+        records = h.records;
+        record_size = h.record_size;
+        records_base = Stb_DbcRecords(data);
+        records_to_copy = records;
+        wow_ground_effect_textures = ri.MemAlloc(sizeof(*wow_ground_effect_textures) * records_to_copy);
+        if (!wow_ground_effect_textures) {
+            fprintf(stderr, "[GRASS] allocation failed for %u GroundEffectTexture rows\n", (unsigned)records_to_copy);
+            ri.FS_FreeFile(data);
+            return;
         }
+
+        fprintf(stderr, "[GRASS] Copying %u records...\n", (unsigned)records_to_copy);
+        DWORD doodad_field = Wow_GroundEffectLayout(records_base, records_to_copy, record_size);
+        FOR_LOOP(i, records_to_copy) {
+            DWORD const *record = (DWORD const *)(records_base + i * record_size);
+            wowGroundEffectTexture_t *effect = &wow_ground_effect_textures[i];
+            memset(effect, 0, sizeof(*effect));
+            effect->id = record[0];
+            effect->density = record[WOW_GRASS_TEXTURE_DENSITY_FIELD];
+            FOR_LOOP(slot, WOW_GRASS_DOODAD_SLOTS) {
+                effect->doodad_id[slot] = record[doodad_field + slot];
+                effect->weight[slot] = doodad_field == WOW_GRASS_TEXTURE_MODERN_DOODAD_FIELD ?
+                    record[WOW_GRASS_TEXTURE_WEIGHT_FIELD + slot] :
+                    (effect->doodad_id[slot] == WOW_GRASS_INVALID_DOODAD ? 0 : 1);
+            }
+        }
+
+        wow_ground_effect_texture_count = records_to_copy;
+        wow_ground_effect_textures_loaded = true;
+        fprintf(stderr, "[GRASS] Successfully loaded %u GroundEffectTexture records\n", (unsigned)records);
         ri.FS_FreeFile(data);
     } else {
-        fprintf(stderr, "[GRASS] FS_ReadFile failed or invalid size\n");
+        if (data) ri.FS_FreeFile(data);
+        fprintf(stderr, "[GRASS] WDBC validation failed: records=%u record_size=%u size=%u\n", (unsigned)h.records, (unsigned)h.record_size, (unsigned)size);
     }
 
     fprintf(stderr, "[GRASS] Wow_LoadGroundEffectDBCs: Complete\n");
