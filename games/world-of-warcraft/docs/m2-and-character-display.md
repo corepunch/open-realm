@@ -180,7 +180,7 @@ M2 skin sections are grouped by hundreds: `section_id = group * 100 + variant`. 
 When no outfit is available the bare defaults are sections `401` (forearms), `702` (ears), and `1501` (no-cape back).
 
 For the complete `ItemDisplayInfo.dbc` field layout, the slot → geoset-group mapping, and per-group variant
-tables (groups 4, 5, 8, 9, 13, 15), see
+tables (groups 4, 5, 8, 9, 12, 13, 15), see
 [`dbc-reference.md — ItemDisplayInfo.dbc`](dbc-reference.md#itemdisplayinfodbc).
 
 ### Component Texture Layering
@@ -195,6 +195,15 @@ Read the cape texture stem from `ItemDisplayInfo.dbc` field 3, try `_M` / `_F` /
 under `Item\ObjectComponents\Cape\` then `Item\TextureComponents\Cape\`. Store separately from body component
 textures. Activating the cape mesh (section 1502) requires setting `geoset[15] = 1` from
 `outfit->cape_texture != NULL` — **not yet implemented** (TODO).
+
+### Item Attachment Rendering
+
+Head and shoulder items carry separate attachment M2s in `ItemDisplayInfo` fields 1–2. `M2_DbcAddDisplayInfo` stores
+those stems on the outfit (`helm_model`, `shoulder_model[0..1]`); `M2_RenderItemAttachments` resolves them to archive
+paths, loads them once per path, and renders them at the character's helm (attachment id 11) and shoulder (ids 5/6)
+bones via `M2_AttachmentMatrix`. The parent's bone scratch is computed first, so all attachment matrices are resolved
+before any recursive render overwrites it. See
+[`dbc-reference.md — Item Attachment Models`](dbc-reference.md#item-attachment-models).
 
 ## Grounded Actor Yaw
 

@@ -187,6 +187,15 @@ TEST(wow_m2, creature_extra_items_select_classic_npc_slots) {
     FOR_LOOP(i, sizeof(expected)) T_EQ(Wow_CharacterCreatureItemSlot(i), expected[i]);
 }
 
+TEST(wow_m2, helmet_hide_mask_bits_match_geoset_groups) {
+    /* M2_CharacterGeosetVisible checks outfit->helm_hide & (1 << (section/100));
+     * the HelmetGeosetVisData hide constants must equal those group bits. */
+    T_EQ(M2_HELM_HIDE_HAIR, 1u << 1);      /* group 100 */
+    T_EQ(M2_HELM_HIDE_BEARD, 1u << 2);     /* group 200 */
+    T_EQ(M2_HELM_HIDE_EARRINGS, 1u << 3);  /* group 300 */
+    T_EQ(M2_HELM_HIDE_EARS, 1u << 7);      /* group 700 */
+}
+
 TEST(wow_m2, pants_remain_below_transparent_boot_texture) {
     COLOR32 atlas = { 0, 0, 0, 255 };
     COLOR32 pants = { 10, 20, 30, 255 };

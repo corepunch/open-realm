@@ -681,6 +681,8 @@ static void AddDisplayInfoToOutfit(m2ToolWowOutfit_t *outfit,
         }
     }
     outfit->flags |= DbcField(item_display_info, record, flags_field);
+    /* A worn tabard activates the hanging tabard mesh (geoset group 12). */
+    if (slot == M2TOOL_SLOT_TABARD) outfit->geoset[12] = 2;
     FOR_LOOP(i, M2TOOL_CHAR_TEX_COUNT) {
         LPCSTR texture = DbcString(item_display_info, DbcField(item_display_info, record, texture_base + i));
         signed char priority = Wow_CharacterTexturePriority(slot, i);
@@ -878,10 +880,10 @@ static BOOL WowVisibleSection(WORD section_id, m2ToolWowOutfit_t const *outfit,
         case 7:  expected = geoset ? 700 + geoset : 702; break;
         case 8:  expected = 801 + geoset; break;
         case 9:  expected = Wow_CharacterGeosetPick(available, available_count, 9,
-                                                    geoset ? 902 + geoset : 903, 902); break;
+                                                    geoset ? 900 + geoset : 903, 902); break;
         case 10: return false;
         case 11: return false;
-        case 12: return false;
+        case 12: expected = 1200 + geoset; break;
         case 13:
             if (outfit->flags & 0x4) {
                 return false;
