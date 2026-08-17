@@ -188,6 +188,11 @@ void R_GameSetupTextureMatrix(void) {
     }
 }
 
+void R_GameDrawMinimap(LPCRECT screen) {
+    LPCTEXTURE tex = tr.minimap ? tr.minimap : tr.texture[TEX_WHITE];
+    R_DrawImage(tex, screen, &MAKE(RECT, 0, 0, 1, 1), COLOR32_WHITE);
+}
+
 void R_GameRegisterMap(LPCSTR mapFileName) {
     R_SC2RegisterMap(mapFileName);
 }

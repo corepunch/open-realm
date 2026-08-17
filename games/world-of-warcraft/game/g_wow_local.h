@@ -352,6 +352,7 @@ DWORD Wow_CachedCreatureType(DWORD display_id);
 DWORD Wow_CachedCreatureFamily(DWORD display_id);
 DWORD Wow_CachedCreatureRank(DWORD display_id);
 void UI_WriteWowHud(LPEDICT ent);
+void Wow_GetPlayerRaceSex(char *race, size_t race_sz, char *sex, size_t sex_sz);
 wowQuestState_t *Wow_FindQuestState(wowClient_t *client, DWORD quest_id);
 void Wow_QuestAwardKillCredit(LPEDICT attacker, DWORD display_id);
 void Wow_SendInbox(LPEDICT ent);

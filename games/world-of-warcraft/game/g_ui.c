@@ -333,6 +333,14 @@ static void UI_WriteTargetingFrame(LPEDICT ent) {
     /* Character frame backdrop — drawn with a slight tint matching the original */
     UI_WriteImageUV("Interface\\TargetingFrame\\UI-TargetingFrame.blp", PX(-19), PY(4), PW(232), PH(100), 1.0f, 0.09375f, 0.0f, 0.78125f, MAKE(COLOR32, 96, 92, 84, 230));
 
+    /* Classic 1.12 unit-frame portraits are 2D per-race/sex textures, already oval-masked. */
+    {
+        char race[64], sex[64], path[256];
+        Wow_GetPlayerRaceSex(race, sizeof(race), sex, sizeof(sex));
+        snprintf(path, sizeof(path), "Interface\\CharacterFrame\\TemporaryPortrait-%s-%s.blp", sex, race);
+        UI_WriteImage(path, PX(23), PY(16), PW(64), PH(64), COLOR32_WHITE);
+    }
+
     /* Dark name area */
     UI_WriteColorRect(PX(87), PY(22), PW(119), PH(41), MAKE(COLOR32, 0, 0, 0, 128));
 

@@ -54,6 +54,10 @@ void R_GameSetupTextureMatrix(void) {
     Matrix4_identity(&tr.viewDef.textureMatrix);
 }
 
+void R_GameDrawMinimap(LPCRECT screen) {
+    Wow_DrawMinimap(screen);
+}
+
 void R_GameRegisterMap(LPCSTR mapFileName) {
     R_RegisterMap(mapFileName);
 }

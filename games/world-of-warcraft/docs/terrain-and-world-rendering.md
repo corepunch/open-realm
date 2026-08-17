@@ -104,6 +104,18 @@ ADT object references are renderer-owned today:
 
 Game entities are not spawned for every ADT doodad. `games/world-of-warcraft/game/g_wow.c` logs that static ADT doodads are renderer-owned and not synchronized as entities.
 
+## Minimap
+
+WoW has no pre-baked minimap image (WC3 ships `war3mapMap.blp`; WoW does not). The minimap is therefore rendered live every frame from the loaded terrain. `Wow_DrawMinimap` (`r_wowmap.c`) builds a top-down orthographic camera centered on the player and re-runs the terrain+WMO draw pass (`Wow_DrawTerrainAndWmos`, shared with `R_DrawWorld`) into the minimap viewport rect.
+
+Each game owns its minimap drawing via the `R_GameDrawMinimap(LPCRECT screen)` renderer hook, dispatched from the shared `R_DrawMinimap`:
+
+- WC3 draws the `war3mapMap` texture plus the fog-of-war overlay and camera view rect.
+- SC2 draws its map minimap texture.
+- WoW renders the live top-down terrain pass above.
+
+The circular frame is the existing `Interface\Minimap\UI-Minimap-Border.blp` overlay (a ring with a transparent center), not a stencil.
+
 ## Current Limits
 
 - Terrain rendering is the core focus.

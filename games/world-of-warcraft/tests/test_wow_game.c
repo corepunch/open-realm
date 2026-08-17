@@ -39,6 +39,7 @@ typedef struct {
     FRAMETYPE type;
     char text[512];
     char onclick[128];
+    DWORD image_index;
 } testUiFrame_t;
 
 static testUiFrame_t test_ui_frames[256];
@@ -363,6 +364,7 @@ static void test_write(pfWriteType_t type, void const *value) {
             capture->type = frame->flags.type;
             snprintf(capture->text, sizeof(capture->text), "%s", frame->text ? frame->text : "");
             snprintf(capture->onclick, sizeof(capture->onclick), "%s", frame->onclick ? frame->onclick : "");
+            capture->image_index = frame->tex.index;
             break;
         }
         default:
@@ -581,6 +583,10 @@ TEST(wow_game, creature_serverdata_preserves_templates_and_all_models) {
     T_ASSERT(Wow_CreatureByEntry(0xffffffffu) == NULL);
 }
 
+static LPCSTR test_image_name(DWORD index) {
+    return index >= 1 && index <= test_num_images ? test_images[index - 1].name : NULL;
+}
+
 TEST(wow_game, quest_hud_is_server_authored_on_quest_layer) {
     struct game_export *game = init_game();
     LPEDICT player;
@@ -618,6 +624,24 @@ TEST(wow_game, quest_hud_is_server_authored_on_quest_layer) {
     T_ASSERT(test_layout_seen[LAYER_QUESTDIALOG]);
     FOR_LOOP(i, test_ui_frame_count)
         T_ASSERT(test_ui_frames[i].layer != LAYER_QUESTDIALOG);
+}
+
+TEST(wow_game, hud_draws_race_portrait_on_console_layer) {
+    struct game_export *game = init_game();
+    LPEDICT player;
+    BOOL found_portrait = false;
+
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    player = &wow_edicts[0];
+    game->ClientBegin(player);
+    FOR_LOOP(i, test_ui_frame_count) {
+        testUiFrame_t const *frame = &test_ui_frames[i];
+        LPCSTR name;
+        if (frame->layer != LAYER_CONSOLE || frame->type != FT_TEXTURE) continue;
+        name = test_image_name(frame->image_index);
+        if (name && !strcmp(name, "Interface\\CharacterFrame\\TemporaryPortrait-Male-Orc.blp")) found_portrait = true;
+    }
+    T_ASSERT(found_portrait);
 }
 
 TEST(wow_game, quest_detail_has_full_text_and_rewards) {

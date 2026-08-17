@@ -8,6 +8,10 @@ void R_GameInit(void);
 void R_GameShutdown(void);
 void R_GameSetupTextureMatrix(void);
 
+/* Draw the game's minimap into the given UI-space rect. Each game owns its
+   minimap content (WC3 war3mapMap texture + fog, SC2 map texture, WoW terrain). */
+void R_GameDrawMinimap(LPCRECT screen);
+
 void R_GameRegisterMap(LPCSTR mapFileName);
 void R_GameDrawWorld(void);
 void R_GameDrawTerrainShadows(void);

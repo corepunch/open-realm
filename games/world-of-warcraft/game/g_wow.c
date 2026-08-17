@@ -1464,6 +1464,21 @@ static void Wow_ReadSelectedCharFromCvars(char *race, size_t race_sz, char *sex,
     }
 }
 
+/* Read the selected character's race/sex from the CS_GENERAL configstring for
+   server-authored UI (unit-frame portrait).  Fallback matches Wow_InitPlayer. */
+void Wow_GetPlayerRaceSex(char *race, size_t race_sz, char *sex, size_t sex_sz) {
+    LPCSTR val = gi.GetConfigstring(CS_GENERAL + WOW_CS_PLAYERINFO);
+
+    snprintf(race, race_sz, "Orc");
+    snprintf(sex, sex_sz, "Male");
+    if (val && val[0]) {
+        LPCSTR v = Wow_InfoValueForKey(val, "race", "");
+        if (v[0]) snprintf(race, race_sz, "%s", v);
+        v = Wow_InfoValueForKey(val, "sex", "");
+        if (v[0]) snprintf(sex, sex_sz, "%s", v);
+    }
+}
+
 /* Read selected character data from the single CS_GENERAL configstring set by
    Wow_Init.  Fallbacks to OrcMale Warrior when no character was selected. */
 static void Wow_ReadSelectedCharFromCS(char *race, size_t race_sz, char *sex, size_t sex_sz, DWORD *class_out, DWORD *appearance_out) {
