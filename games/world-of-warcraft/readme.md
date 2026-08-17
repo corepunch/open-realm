@@ -73,6 +73,7 @@ What the World of Warcraft target currently knows how to load and render.
 - [M2 And Character Display](docs/m2-and-character-display.md): M2 loading, creation/select data flow, packed defaults, DBC-backed outfit data, geosets, and component texture rules.
 - [WoW Character Display Quick Reference](../../docs/wow-character.md): authoritative DBCs, saved appearance values, common pitfalls, and bounded diagnostic commands.
 - [Grass Rendering System](docs/grass-rendering-system.md): terrain-advertent grass rendering.
+- [GPU Terrain Height Atlas And Static Grass Batches](docs/static-grass-and-height-atlas.md): exact MCVT atlas, static M2 instance batches, patch culling, alpha handling, and staged verification plan.
 - [References](docs/references.md): public schema references and local source/tool entry points.
 - [Sounds](docs/sounds.md)
 - [Magic And Effects](docs/magic-and-effects.md): magic schools, damage types, multi-school system, buffs/debuffs, DoT/HoT, crowd control, status effects.
