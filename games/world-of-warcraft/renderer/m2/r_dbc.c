@@ -25,6 +25,7 @@ static M2DBC item_display_info_dbc;
 static M2DBC char_sections_dbc;
 static M2DBC creature_display_info_dbc;
 static M2DBC creature_display_info_extra_dbc;
+static m2CharSectionsLayout_t char_sections_layout;
 
 /* DBCs stay as one resident file image; only the integer lookup table is runtime state. */
 static BOOL M2_DbcLoad(M2DBC *dbc, LPCSTR filename) {
@@ -181,7 +182,8 @@ static void M2_DbcAddDisplayInfo(LPM2CHARACTEROUTFIT outfit, DWORD display_id, D
         return;
     record = M2_DbcFindID(&item_display_info_dbc, "DBFilesClient\\ItemDisplayInfo.dbc", display_id);
     if (!record) return;
-    texture_base = item_display_info_dbc.fields >= 23 ? 15 : 0;
+    /* Classic's 23-field schema starts at 14; using the later offset shifted every starter clothing texture. */
+    texture_base = m2_item_display_texture_base(item_display_info_dbc.fields);
     geoset_base = item_display_info_dbc.fields >= 22 ? 7 : 0;
     flags_field = item_display_info_dbc.fields >= 22 ? 10 : 0;
     FOR_LOOP(i, 3) {
@@ -264,20 +266,38 @@ BOOL M2_DbcCharacterOutfit(LPCSTR model_path, DWORD appearance, DWORD equipment,
 
 BOOL M2_DbcCharacterVariationTexturePath(LPCSTR model_path, DWORD section_index, DWORD variation_index,
                                          DWORD color_index, DWORD texture_index, LPSTR out, DWORD out_size) {
-    DWORD race_id, gender_id;
+    DWORD race_id, gender_id, variation_field, color_field, texture_base;
     if (!out || !out_size || texture_index >= 3 ||
         !M2_DbcCharacterRaceGender(model_path, &race_id, &gender_id) ||
         !M2_DbcLoad(&char_sections_dbc, "DBFilesClient\\CharSections.dbc")) return false;
+    if (!char_sections_layout) {
+        char_sections_layout = char_sections_dbc.fields < 10 ? M2_CHAR_SECTIONS_INVALID : m2_char_sections_layout(char_sections_dbc.records_base, char_sections_dbc.records, char_sections_dbc.record_size);
+        if (char_sections_layout == M2_CHAR_SECTIONS_INVALID)
+            fprintf(stderr, "M2 DBC: unsupported CharSections schema (%u fields, %u-byte records)\n",
+                    char_sections_dbc.fields, char_sections_dbc.record_size);
+    }
+    if (char_sections_layout == M2_CHAR_SECTIONS_INVALID) return false;
+    /* Classic is variation-first; treating its color as Wrath's field 9 made nonzero skin colors fail lookup. */
+    variation_field = char_sections_layout == M2_CHAR_SECTIONS_TEXTURE_FIRST ? 8 : 4;
+    color_field = char_sections_layout == M2_CHAR_SECTIONS_TEXTURE_FIRST ? 9 : 5;
+    texture_base = char_sections_layout == M2_CHAR_SECTIONS_TEXTURE_FIRST ? 4 : 6;
     FOR_LOOP(i, char_sections_dbc.records) {
         BYTE const *record = char_sections_dbc.records_base + i * char_sections_dbc.record_size;
         LPCSTR texture;
         if (M2_DbcField(&char_sections_dbc, record, 1) != race_id ||
             M2_DbcField(&char_sections_dbc, record, 2) != gender_id ||
             M2_DbcField(&char_sections_dbc, record, 3) != section_index ||
-            M2_DbcField(&char_sections_dbc, record, 5) != variation_index ||
-            M2_DbcField(&char_sections_dbc, record, 9) != color_index) continue;
-        texture = M2_DbcString(&char_sections_dbc, M2_DbcField(&char_sections_dbc, record, 6 + texture_index));
+            M2_DbcField(&char_sections_dbc, record, variation_field) != variation_index ||
+            M2_DbcField(&char_sections_dbc, record, color_field) != color_index) continue;
+        texture = M2_DbcString(&char_sections_dbc, M2_DbcField(&char_sections_dbc, record, texture_base + texture_index));
         if (texture && *texture) { snprintf(out, out_size, "%s", texture); return true; }
+        /* Classic male hair rows intentionally omit strings; the archive naming contract supplies the DBC-selected color. */
+        if (section_index == 3 && gender_id == 0 && texture_index == 0) {
+            PATHSTR derived;
+            if (m2_classic_hair_texture_path(model_path, color_index, derived)) {
+                snprintf(out, out_size, "%s", derived); return true;
+            }
+        }
     }
     return false;
 }
@@ -299,4 +319,5 @@ void M2_DbcShutdown(void) {
     M2_DbcFree(&char_start_outfit_dbc); M2_DbcFree(&item_display_info_dbc);
     M2_DbcFree(&char_sections_dbc); M2_DbcFree(&creature_display_info_dbc);
     M2_DbcFree(&creature_display_info_extra_dbc);
+    char_sections_layout = M2_CHAR_SECTIONS_UNKNOWN;
 }

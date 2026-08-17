@@ -124,6 +124,9 @@ Current high-value DBCs for this target:
 
 Do not assume `field_count * 4 == record_size`. Some classic-era files have a logical field count larger than the physical number of 32-bit fields in each record. Validate the header envelope, then bounds-check each accessed field against `record_size`.
 
+Per-table field layouts and packed appearance/equipment values as consumed by `openwow` live in
+[`docs/dbc-reference.md`](dbc-reference.md).
+
 ## UI, Scripts, Audio, And Miscellaneous Files
 
 | Format | Role | References |

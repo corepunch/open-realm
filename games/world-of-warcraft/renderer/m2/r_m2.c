@@ -2005,6 +2005,69 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
 	}
 }
 
+/* Static-mesh instanced path for ground-effect clutter. Renders `count` copies
+   of the model in one draw call per batch, each placed by its own world matrix.
+   Ground-effect detail M2s are non-character, non-animated, alpha-blended. */
+void M2_RenderInstanced(m2Model_t const *model, LPCMATRIX4 transforms, DWORD count) {
+    renderEntity_t dummy;
+    m2ModelBatch_t *batch;
+    LPSHADER shader;
+
+    if (!model || !transforms || !count) return;
+
+    shader = R_ModelShaderInstanced();
+    if (!shader) {
+        static BOOL logged;
+        if (!logged) {
+            logged = true;
+            fprintf(stderr, "M2_RenderInstanced: instanced shader failed to compile\n");
+        }
+        return;
+    }
+    memset(&dummy, 0, sizeof(dummy));
+    M2_CalculateBoneMatrices(model, &dummy);
+
+    R_Call(glUseProgram, shader->progid);
+    R_Call(glUniform1i, shader->uLightCount, 0);
+    R_Call(glUniformMatrix4fv, shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
+    R_Call(glUniformMatrix4fv, shader->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
+    R_Call(glUniformMatrix4fv, shader->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
+    {
+        VECTOR3 lightDir = {
+            -tr.viewDef.lightMatrix.v[2],
+            -tr.viewDef.lightMatrix.v[6],
+            -tr.viewDef.lightMatrix.v[10],
+        };
+        R_Call(glUniform3f, shader->uLightDir, lightDir.x * 1.2f, lightDir.y * 1.2f, lightDir.z * 1.2f);
+        R_Call(glUniform3f, shader->uLightColor, 0.5f, 0.5f, 0.5f);
+        R_Call(glUniform3f, shader->uLightAmbient, 0.5f, 0.5f, 0.5f);
+    }
+    R_Call(glUniform4f, shader->uGeosetColor, 1.0f, 1.0f, 1.0f, 1.0f);
+    R_Call(glUniform1f, shader->uLayerAlpha, 1.0f);
+    R_Call(glUniform2f, shader->uUvTrans, 0.0f, 0.0f);
+    R_Call(glUniform2f, shader->uUvRot, 0.0f, 1.0f);
+    R_Call(glUniform2f, shader->uUvScale, 1.0f, 1.0f);
+    R_Call(glUniform1i, shader->uUseDiscard, 0);
+    R_Call(glUniform1i, shader->uUnshaded, 0);
+    R_Call(glUniform1f, shader->uFogEnable, 0);
+    R_Call(glUniform1f, shader->uFirstBoneLookupIndex, 0.0f);
+    R_Call(glEnable, GL_DEPTH_TEST);
+    R_Call(glDepthMask, GL_FALSE);
+    R_Call(glEnable, GL_BLEND);
+    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	for (batch = model->batches; batch; batch = batch->next) {
+		R_Call(glUniform1i, shader->uUseDiscard, batch->alphamode == BLEND_MODE_ALPHAKEY);
+		M2_UploadBatchBones(model, batch, shader);
+		R_BindTexture(batch->texture ? batch->texture : tr.texture[TEX_WHITE], 0);
+#ifdef USE_SHADOWMAPS
+		R_BindTexture(tr.texture[TEX_SHADOWMAP], 1);
+#endif
+		R_BindTexture(tr.texture[TEX_WHITE], 2);
+		R_DrawBufferInstanced(batch->buffer, batch->num_vertices, transforms, count);
+	}
+}
+
 BOOL M2_AttachmentMatrix(m2Model_t const *model,
                          DWORD attachment_id,
                          LPCMATRIX4 model_matrix,

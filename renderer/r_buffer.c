@@ -106,6 +106,51 @@ LPBUFFER R_MakeIndexedVertexArrayObject(LPCVERTEX vertices, DWORD num_vertices, 
     return buf;
 }
 
+/* Draw one static vertex buffer `num_instances` times, each with its own world
+   matrix. A single shared VAO is re-bound to `buffer->vbo` plus an instanced
+   mat4 attribute so thousands of identical meshes collapse into one draw call. */
+void R_DrawBufferInstanced(LPCBUFFER buffer, DWORD num_vertices, LPCMATRIX4 matrices, DWORD num_instances) {
+    static GLuint vao = 0;
+    static GLuint vbo = 0;
+
+    if (!buffer || !num_vertices || !matrices || !num_instances) {
+        return;
+    }
+    if (!vao) {
+        R_Call(glGenVertexArrays, 1, &vao);
+        R_Call(glGenBuffers, 1, &vbo);
+    }
+
+    R_Call(glBindVertexArray, vao);
+    R_Call(glBindBuffer, GL_ARRAY_BUFFER, buffer->vbo);
+    R_Call(glEnableVertexAttribArray, attrib_position);
+    R_Call(glEnableVertexAttribArray, attrib_color);
+    R_Call(glEnableVertexAttribArray, attrib_texcoord);
+    R_Call(glEnableVertexAttribArray, attrib_skin1);
+    R_Call(glEnableVertexAttribArray, attrib_boneWeight1);
+    R_Call(glEnableVertexAttribArray, attrib_normal);
+    R_Call(glVertexAttribPointer, attrib_color, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(struct vertex), FOFS(vertex, color));
+    R_Call(glVertexAttribPointer, attrib_position, 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex), FOFS(vertex, position));
+    R_Call(glVertexAttribPointer, attrib_texcoord, 2, GL_FLOAT, GL_FALSE, sizeof(struct vertex), FOFS(vertex, texcoord));
+    R_Call(glVertexAttribPointer, attrib_skin1, 4, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(struct vertex), FOFS(vertex, skin[0]));
+    R_Call(glVertexAttribPointer, attrib_boneWeight1, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(struct vertex), FOFS(vertex, boneWeight[0]));
+    R_Call(glVertexAttribPointer, attrib_normal, 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex), FOFS(vertex, normal));
+
+    R_Call(glBindBuffer, GL_ARRAY_BUFFER, vbo);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, num_instances * sizeof(MATRIX4), matrices, GL_DYNAMIC_DRAW);
+    for (int i = 0; i < 4; i++) {
+        R_Call(glEnableVertexAttribArray, attrib_instance0 + i);
+        R_Call(glVertexAttribPointer, attrib_instance0 + i, 4, GL_FLOAT, GL_FALSE, sizeof(MATRIX4), (void *)(i * 4 * sizeof(float)));
+        R_Call(glVertexAttribDivisor, attrib_instance0 + i, 1);
+    }
+
+    R_Call(glDrawArraysInstanced, GL_TRIANGLES, 0, num_vertices, num_instances);
+
+    for (int i = 0; i < 4; i++) {
+        R_Call(glVertexAttribDivisor, attrib_instance0 + i, 0);
+    }
+}
+
 void R_ReleaseVertexArrayObject(LPBUFFER buffer) {
     if (!buffer) {
         return;

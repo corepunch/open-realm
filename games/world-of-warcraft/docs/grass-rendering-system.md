@@ -15,8 +15,28 @@ OpenWarcraft3 resolves ground clutter from the WoW MPQ data:
 - Models are loaded from `World\\NoDXT\\Detail\\` and rendered through the normal M2 path, so embedded WoW material/texture references remain authoritative.
 - ADT alpha coverage and height samples control whether and where each ground-effect model is placed.
 - Placement randomness is deterministic per ADT chunk; renderer tuning and schema constants are named `WOW_GRASS_*` defines in `r_wowmap.h`.
-- Ground-effect M2 instances carry `RF_GROUND_EFFECT`, are culled at `WOW_GRASS_DRAW_DISTANCE`, and fade from `WOW_GRASS_FADE_START_DISTANCE`.
+- Ground-effect M2 instances carry `RF_GROUND_EFFECT` and are culled at `WOW_GRASS_DRAW_DISTANCE`.
 - Road-like terrain layers are excluded when their sampled ADT coverage is at least `WOW_GRASS_ROAD_COVERAGE_MIN`; the heuristic follows WoWee's local layer-weight check.
+
+### Instanced rendering
+
+Ground-effect instances are rendered with **GPU instancing**, not one full `M2_RenderModel`
+call per clump (which produced ~47k draw calls and dropped the frame rate by 10x):
+
+- `Wow_AddGroundEffectInstance` links each clump into `wow_world.ground_effects` (a flat list,
+  no doodad bucketing).
+- `Wow_DrawGrass` (`r_wowmap_grass.c`) culls by squared distance and frustum, groups visible
+  instances by their `model`, and collects one `MATRIX4` per instance via `R_GetEntityMatrix`.
+- `R_GameRenderModelInstanced` → `M2_RenderInstanced` (`r_m2.c`) renders each model batch once
+  with `R_DrawBufferInstanced`, passing the whole matrix array to `glDrawArraysInstanced`.
+- `R_ModelShaderInstanced` (`r_shader.c`) is a copy of the model vertex shader with a per-instance
+  `mat4 i_instance` attribute (4 vec4 columns, divisor 1) folded in instead of `uModelMatrix`; the
+  fragment shader is the shared `model_fs`.
+- `R_DrawBufferInstanced` (`r_buffer.c`) binds a shared VAO to the batch VBO plus an instanced
+  matrix VBO and draws `num_instances` copies in one call.
+
+The per-instance distance fade (`WOW_GRASS_FADE_START_DISTANCE`) is not yet applied because it
+would require an instanced alpha attribute; see Known Issues.
 
 The loader supports both known 11-DWORD layouts. It detects the bundled legacy layout (ID, date stamp, continent, zone, texture ID, four doodad IDs, density, sound) versus the modern weighted layout (ID, four doodad IDs, four weights, amount/coverage, terrain type) by resolving the candidate doodad IDs through `GroundEffectDoodad.dbc`. Legacy rows receive uniform weights for valid slots and ignore `0xffffffff`; modern rows retain their stored weights. `dbctool info` remains the first check when adding another client archive.
 
@@ -119,9 +139,9 @@ BOX3 grass_bounds;              // Bounding box for culling
 - **Memory per chunk: ~24 KB** (at 64 bytes per vertex)
 
 **Draw Call Strategy:**
-- All grass chunks rendered in single pass (front-to-back for early Z)
-- Culled by distance and chunk bounds before rendering
-- Batch rendered with same shader and wind parameters
+- All ground-effect instances are batched per model: one `glDrawArraysInstanced` per M2 batch, regardless of how many clumps use that model.
+- Culled by squared distance (`WOW_GRASS_DRAW_DISTANCE`) and frustum before grouping.
+- Typical visible cost: a handful of instanced draw calls (one per distinct model in view).
 
 ## Real World of Warcraft Implementation
 
@@ -260,14 +280,13 @@ Four 64×64 alpha textures per chunk:
    - Same placement algorithm
    - Backward compatible with missing DBCs
 
-### Phase 2: Full Doodad System (Future)
+### Phase 2: Full Doodad System (Implemented)
 
-**Planned improvements:**
+**Done in this session** (replacing the Phase 1 blade generation):
 
 1. **M2 Model Instantiation**
-   - Replace blade generation with `Wow_AddDoodadInstance()` calls
-   - Leverage existing doodad rendering infrastructure
-   - Use actual game asset models
+   - `Wow_AddGroundEffectInstance()` instantiates the resolved GroundEffectDoodad M2 per clump.
+   - Instances are rendered through GPU instancing (`M2_RenderInstanced`), not per-instance model draws.
 
 2. **Animation Support**
    - Real doodad models have wind, growth, decay animations
@@ -384,6 +403,12 @@ make run-ui-text UI_CMD=+map "Maps/Campaign/Orc01.w3m"
 1. **Missing DBC Fallback**
    - If GroundEffectTexture.dbc is missing, grass still renders with procedural colors
    - Graceful degradation maintained
+
+2. **No Per-Instance Distance Fade**
+   - `WOW_GRASS_FADE_START_DISTANCE` is not applied in the instanced path; ground-effect
+     clumps pop in/out at `WOW_GRASS_DRAW_DISTANCE` instead of fading.
+   - A proper fix needs an instanced alpha attribute (`i_instanceAlpha`) multiplied into
+     `v_color.a` in `instanced_vs`, plus the alpha packed into the instance buffer.
 
 2. **Color Variance Limited**
    - Procedural blade system can't capture full range of WoW grass appearance

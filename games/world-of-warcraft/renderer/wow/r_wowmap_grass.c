@@ -1,4 +1,14 @@
 #include "r_wowmap.h"
+#include "renderer/r_game.h"
+
+#define WOW_GRASS_MAX_MODELS 64
+
+typedef struct {
+    LPCMODEL model;
+    MATRIX4 *matrices;
+    DWORD count;
+    DWORD capacity;
+} wowGrassGroup_t;
 
 typedef struct {
     DWORD magic;
@@ -330,24 +340,10 @@ void Wow_BuildGrassForChunk(wowAdtChunk_t *chunk,
                             DWORD layer_count,
                             char **textures,
                             DWORD num_textures) {
-    enum {
-        WOW_GRASS_SAMPLES_PER_AXIS = WOW_GRASS_CELLS_PER_AXIS / WOW_GRASS_CELL_STEP,
-        WOW_GRASS_MAX_VERTICES = WOW_GRASS_SAMPLES_PER_AXIS * WOW_GRASS_SAMPLES_PER_AXIS *
-                                 WOW_GRASS_MAX_PLACEMENTS_PER_SAMPLE * WOW_GRASS_VERTICES_PER_CLUMP,
-    };
-    VERTEX *vertices;
-    DWORD num_vertices = 0;
-
     if (!chunk || !alpha || !layers || layer_count == 0) {
         return;
     }
 
-    vertices = ri.MemAlloc(sizeof(VERTEX) * WOW_GRASS_MAX_VERTICES);
-    if (!vertices) {
-        return;
-    }
-
-    chunk->grass_bounds = Wow_EmptyBounds();
     for (int row = 0; row < WOW_GRASS_CELLS_PER_AXIS; row += WOW_GRASS_CELL_STEP) {
         for (int col = 0; col < WOW_GRASS_CELLS_PER_AXIS; col += WOW_GRASS_CELL_STEP) {
             DWORD seed = (chunk->alpha_index_x * 73856093U) ^
@@ -363,13 +359,12 @@ void Wow_BuildGrassForChunk(wowAdtChunk_t *chunk,
             DWORD effect_id = Wow_GrassEffectIdForCoverage(alpha, layers, layer_count, alpha_y * 64 + alpha_x);
             BYTE coverage = Wow_GrassEffectCoverage(alpha, layers, layer_count, alpha_y * 64 + alpha_x);
             int clumps;
-            wowGroundEffectTexture_t *ground_effect = NULL;
+            wowGroundEffectTexture_t *ground_effect;
 
             if (Wow_GrassRoadAt(alpha, layers, layer_count, textures, num_textures, alpha_y * 64 + alpha_x) ||
                 coverage < WOW_GRASS_COVERAGE_MIN || !effect_id) {
                 continue;
             }
-            // Look up the ground effect for this layer
             ground_effect = Wow_GetGroundEffectTexture(effect_id);
             if (!ground_effect || !ground_effect->density || !wow_ground_effect_doodads_loaded) {
                 continue;
@@ -383,10 +378,6 @@ void Wow_BuildGrassForChunk(wowAdtChunk_t *chunk,
                 float col_jitter = local_col + (Wow_GrassRandom(&seed) - 0.5f) * WOW_GRASS_CLUMP_JITTER;
                 float height;
                 VECTOR3 origin;
-                float angle;
-                float blade_height;
-                float blade_width;
-                COLOR32 color;
 
                 row_jitter = Wow_GrassClamp(row_jitter, 0.001f, 7.999f);
                 col_jitter = Wow_GrassClamp(col_jitter, 0.001f, 7.999f);
@@ -422,205 +413,71 @@ void Wow_BuildGrassForChunk(wowAdtChunk_t *chunk,
                     }
                     Wow_AddGroundEffectInstance(doodad->model_path, origin, Wow_GrassRandom(&seed) * WOW_GRASS_FULL_CIRCLE);
                 }
-                continue;
-                angle = Wow_GrassRandom(&seed) * WOW_GRASS_FULL_CIRCLE;
-                blade_height = WOW_GRASS_BLADE_HEIGHT_MIN + Wow_GrassRandom(&seed) * WOW_GRASS_BLADE_HEIGHT_VARIATION;
-                blade_width = WOW_GRASS_BLADE_WIDTH_MIN + Wow_GrassRandom(&seed) * WOW_GRASS_BLADE_WIDTH_VARIATION;
-                
-                // Use proper WoW grass colors based on GroundEffect data
-                // If we have ground effect info, vary colors realistically
-                // Otherwise fall back to default green grass
-                if (ground_effect) {
-                    BYTE green = (BYTE)(105 + (Wow_GrassRandom(&seed) * 55.0f));
-                    BYTE red = (BYTE)(42 + (Wow_GrassRandom(&seed) * 32.0f));
-                    BYTE blue = (BYTE)(24 + (Wow_GrassRandom(&seed) * 24.0f));
-                    color = (COLOR32){ red, green, blue, 210 };
-                } else {
-                    BYTE green = (BYTE)(100 + Wow_GrassRandom(&seed) * 62.0f);
-                    color = (COLOR32){
-                        (BYTE)(40 + Wow_GrassRandom(&seed) * 26.0f),
-                        green,
-                        (BYTE)(26 + Wow_GrassRandom(&seed) * 20.0f),
-                        210,
-                    };
-                }
-
-                if (num_vertices + WOW_GRASS_VERTICES_PER_CLUMP > WOW_GRASS_MAX_VERTICES) {
-                    break;
-                }
-                
-                // Emit two perpendicular quad cards (billboard-style grass clump).
-                VECTOR3 right = { cosf(angle) * blade_width, sinf(angle) * blade_width, 0.0f };
-                VECTOR3 normal = { -right.y, right.x, WOW_GRASS_NORMAL_Z };
-                VECTOR3 base_left = { origin.x - right.x, origin.y - right.y, origin.z };
-                VECTOR3 base_right = { origin.x + right.x, origin.y + right.y, origin.z };
-                VECTOR3 top_left = { base_left.x, base_left.y, origin.z + blade_height };
-                VECTOR3 top_right = { base_right.x, base_right.y, origin.z + blade_height };
-
-                if (Vector3_lengthsq(&normal) > 0.000001f) {
-                    Vector3_normalize(&normal);
-                } else {
-                    normal = (VECTOR3){ 0.0f, 0.0f, 1.0f };
-                }
-
-                // First quad
-                VERTEX *v = &vertices[num_vertices++];
-                *v = Wow_Vertex(base_left.x, base_left.y, base_left.z, 0.0f, 0.0f, color);
-                v->normal = normal;
-
-                v = &vertices[num_vertices++];
-                *v = Wow_Vertex(base_right.x, base_right.y, base_right.z, 1.0f, 0.0f, color);
-                v->normal = normal;
-
-                v = &vertices[num_vertices++];
-                *v = Wow_Vertex(top_right.x, top_right.y, top_right.z, 1.0f, 1.0f, color);
-                v->normal = normal;
-
-                v = &vertices[num_vertices++];
-                *v = Wow_Vertex(base_left.x, base_left.y, base_left.z, 0.0f, 0.0f, color);
-                v->normal = normal;
-
-                v = &vertices[num_vertices++];
-                *v = Wow_Vertex(top_right.x, top_right.y, top_right.z, 1.0f, 1.0f, color);
-                v->normal = normal;
-
-                v = &vertices[num_vertices++];
-                *v = Wow_Vertex(top_left.x, top_left.y, top_left.z, 0.0f, 1.0f, color);
-                v->normal = normal;
-
-                // Second quad (perpendicular, slightly shorter)
-                right = (VECTOR3){ cosf(angle + WOW_GRASS_CROSS_ANGLE) * blade_width * WOW_GRASS_CROSS_WIDTH_SCALE,
-                                   sinf(angle + WOW_GRASS_CROSS_ANGLE) * blade_width * WOW_GRASS_CROSS_WIDTH_SCALE, 0.0f };
-                normal = (VECTOR3){ -right.y, right.x, WOW_GRASS_NORMAL_Z };
-                base_left = (VECTOR3){ origin.x - right.x, origin.y - right.y, origin.z };
-                base_right = (VECTOR3){ origin.x + right.x, origin.y + right.y, origin.z };
-                top_left = (VECTOR3){ base_left.x, base_left.y, origin.z + blade_height * WOW_GRASS_CROSS_HEIGHT_SCALE };
-                top_right = (VECTOR3){ base_right.x, base_right.y, origin.z + blade_height * WOW_GRASS_CROSS_HEIGHT_SCALE };
-
-                if (Vector3_lengthsq(&normal) > 0.000001f) {
-                    Vector3_normalize(&normal);
-                } else {
-                    normal = (VECTOR3){ 0.0f, 0.0f, 1.0f };
-                }
-
-                v = &vertices[num_vertices++];
-                *v = Wow_Vertex(base_left.x, base_left.y, base_left.z, 0.0f, 0.0f, color);
-                v->normal = normal;
-
-                v = &vertices[num_vertices++];
-                *v = Wow_Vertex(base_right.x, base_right.y, base_right.z, 1.0f, 0.0f, color);
-                v->normal = normal;
-
-                v = &vertices[num_vertices++];
-                *v = Wow_Vertex(top_right.x, top_right.y, top_right.z, 1.0f, 1.0f, color);
-                v->normal = normal;
-
-                v = &vertices[num_vertices++];
-                *v = Wow_Vertex(base_left.x, base_left.y, base_left.z, 0.0f, 0.0f, color);
-                v->normal = normal;
-
-                v = &vertices[num_vertices++];
-                *v = Wow_Vertex(top_right.x, top_right.y, top_right.z, 1.0f, 1.0f, color);
-                v->normal = normal;
-
-                v = &vertices[num_vertices++];
-                *v = Wow_Vertex(top_left.x, top_left.y, top_left.z, 0.0f, 1.0f, color);
-                v->normal = normal;
-
-                Wow_AddBoundsPoint(&chunk->grass_bounds, &origin);
-                origin.z += blade_height;
-                Wow_AddBoundsPoint(&chunk->grass_bounds, &origin);
             }
         }
     }
-
-    if (num_vertices) {
-        chunk->grass_buffer = R_MakeVertexArrayObject(vertices, num_vertices);
-        chunk->num_grass_vertices = num_vertices;
-        wow_world.num_grass_chunks++;
-        wow_world.num_grass_vertices += num_vertices;
-    }
-    ri.MemFree(vertices);
-}
-
-BOOL Wow_GrassChunkInRange(wowAdtChunk_t const *chunk) {
-    VECTOR3 camera_origin;
-    VECTOR3 center;
-    float dx = 0.0f;
-    float dy = 0.0f;
-    float draw_distance = WOW_GRASS_DRAW_DISTANCE;
-
-    if (!chunk || !chunk->grass_buffer || !chunk->num_grass_vertices || draw_distance <= 0.0f) {
-        return false;
-    }
-
-    camera_origin = tr.viewDef.camerastate[0].origin;
-    if (camera_origin.x < chunk->grass_bounds.min.x) {
-        dx = chunk->grass_bounds.min.x - camera_origin.x;
-    } else if (camera_origin.x > chunk->grass_bounds.max.x) {
-        dx = camera_origin.x - chunk->grass_bounds.max.x;
-    }
-    if (camera_origin.y < chunk->grass_bounds.min.y) {
-        dy = chunk->grass_bounds.min.y - camera_origin.y;
-    } else if (camera_origin.y > chunk->grass_bounds.max.y) {
-        dy = camera_origin.y - chunk->grass_bounds.max.y;
-    }
-    if (dx * dx + dy * dy > draw_distance * draw_distance) {
-        return false;
-    }
-
-    center = (VECTOR3){
-        (chunk->grass_bounds.min.x + chunk->grass_bounds.max.x) * 0.5f,
-        (chunk->grass_bounds.min.y + chunk->grass_bounds.max.y) * 0.5f,
-        (chunk->grass_bounds.min.z + chunk->grass_bounds.max.z) * 0.5f,
-    };
-    return Frustum_ContainsSphere(&tr.viewDef.frustum, &(SPHERE3){ .center = center, .radius = WOW_ADT_CHUNK_SIZE, });
 }
 
 void Wow_DrawGrass(void) {
-    wowAdtChunk_t *chunk;
+    wowDoodadInstance_t *inst;
+    wowGrassGroup_t groups[WOW_GRASS_MAX_MODELS];
+    DWORD group_count = 0;
+    DWORD drawn_instances = 0;
     VECTOR3 camera_origin;
-    DWORD drawn_chunks = 0;
-    DWORD drawn_vertices = 0;
     float draw_distance;
 
-    if (!wow_world.num_grass_vertices) {
+    if (!wow_world.ground_effects) {
         return;
     }
 
-    Wow_InitGrassShader();
-    if (!wow_grass_shader) {
-        return;
-    }
-
+    memset(groups, 0, sizeof(groups));
     camera_origin = tr.viewDef.camerastate[0].origin;
     draw_distance = WOW_GRASS_DRAW_DISTANCE;
 
-    R_Call(glUseProgram, wow_grass_shader->progid);
-    R_Call(glUniformMatrix4fv, wow_grass_shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
-    R_Call(glUniformMatrix4fv, wow_grass_shader->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
-    R_Call(glUniform1f, wow_uGrassTime, (GLfloat)tr.viewDef.time * 0.001f);
-    R_Call(glUniform3f, wow_uGrassCameraOrigin, camera_origin.x, camera_origin.y, camera_origin.z);
-    R_Call(glUniform1f, wow_uGrassDrawDistance, draw_distance);
-    R_Call(glUniform1f, wow_uGrassFadeStartDistance, WOW_GRASS_FADE_START_DISTANCE);
-    R_Call(glEnable, GL_DEPTH_TEST);
-    R_Call(glDepthFunc, GL_LEQUAL);
-    R_Call(glDisable, GL_CULL_FACE);
-    R_Call(glEnable, GL_BLEND);
-    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    R_Call(glDepthMask, GL_FALSE);
+    for (inst = wow_world.ground_effects; inst; inst = inst->next) {
+        wowGrassGroup_t *group = NULL;
+        float dx = inst->entity.origin.x - camera_origin.x;
+        float dy = inst->entity.origin.y - camera_origin.y;
+        MATRIX4 matrix;
 
-    for (chunk = wow_world.chunks; chunk; chunk = chunk->next) {
-        if (!Wow_GrassChunkInRange(chunk)) {
+        if (dx * dx + dy * dy > draw_distance * draw_distance) {
             continue;
         }
-        R_DrawBuffer(chunk->grass_buffer, chunk->num_grass_vertices);
-        drawn_chunks++;
-        drawn_vertices += chunk->num_grass_vertices;
+        if (!Wow_EntityInView(&inst->entity)) {
+            continue;
+        }
+        FOR_LOOP(i, group_count) {
+            if (groups[i].model == inst->entity.model) {
+                group = &groups[i];
+                break;
+            }
+        }
+        if (!group) {
+            if (group_count >= WOW_GRASS_MAX_MODELS) {
+                continue;
+            }
+            group = &groups[group_count++];
+            group->model = inst->entity.model;
+        }
+        if (group->count == group->capacity) {
+            DWORD new_capacity = MAX(group->capacity * 2, 64);
+            MATRIX4 *new_matrices = ri.MemAlloc(new_capacity * sizeof(MATRIX4));
+            if (group->count) {
+                memcpy(new_matrices, group->matrices, group->count * sizeof(MATRIX4));
+            }
+            ri.MemFree(group->matrices);
+            group->matrices = new_matrices;
+            group->capacity = new_capacity;
+        }
+        R_GetEntityMatrix(&inst->entity, &matrix);
+        group->matrices[group->count++] = matrix;
+        drawn_instances++;
     }
 
-    R_Call(glDepthMask, GL_TRUE);
-    R_Call(glDisable, GL_BLEND);
+    FOR_LOOP(i, group_count) {
+        R_GameRenderModelInstanced(groups[i].model, groups[i].matrices, groups[i].count);
+        ri.MemFree(groups[i].matrices);
+    }
 
     {
         static int logged_x = -1;
@@ -628,7 +485,7 @@ void Wow_DrawGrass(void) {
         if (logged_x != wow_world.adt_center_x || logged_y != wow_world.adt_center_y) {
             logged_x = wow_world.adt_center_x;
             logged_y = wow_world.adt_center_y;
-            fprintf(stderr, "R_DrawWorld: grass chunks=%u/%u vertices=%u/%u draw_distance=%.0f\n", (unsigned)drawn_chunks, (unsigned)wow_world.num_grass_chunks, (unsigned)drawn_vertices, (unsigned)wow_world.num_grass_vertices, (double)draw_distance);
+            fprintf(stderr, "R_DrawWorld: grass instances=%u/%u groups=%u draw_distance=%.0f\n", (unsigned)drawn_instances, (unsigned)wow_world.num_ground_effects, (unsigned)group_count, (double)draw_distance);
         }
     }
 }

@@ -25,6 +25,11 @@ typedef enum {
     M2_RIBBON_TEXTURE_SLOT, M2_RIBBON_VISIBILITY,
 } m2RibbonTrackType_t;
 
+typedef enum {
+    M2_CHAR_SECTIONS_UNKNOWN, M2_CHAR_SECTIONS_INVALID,
+    M2_CHAR_SECTIONS_VARIATION_FIRST, M2_CHAR_SECTIONS_TEXTURE_FIRST,
+} m2CharSectionsLayout_t;
+
 typedef struct {
     m2Format_t format;
     DWORD sequence_stride, bone_stride, attachment_stride, camera_stride, particle_stride, ribbon_stride;
@@ -64,6 +69,19 @@ static BOOL m2_path_has_extension(LPCSTR path, LPCSTR extension) {
     if (!path || !extension) return false;
     path_len = strlen(path); ext_len = strlen(extension);
     return path_len >= ext_len && !strcasecmp(path + path_len - ext_len, extension);
+}
+
+/* Classic male CharSections hair rows omit strings; their archive contract derives the color texture from the race directory. */
+static BOOL m2_classic_hair_texture_path(LPCSTR model_path, DWORD color, PATHSTR out) {
+    LPCSTR character, race, end;
+    if (!model_path || !out) return false;
+    character = strcasestr(model_path, "Character\\");
+    if (!character) character = strcasestr(model_path, "Character/");
+    if (!character) return false;
+    race = character + strlen("Character\\"); end = strpbrk(race, "\\/");
+    if (!end || end == race) return false;
+    snprintf(out, MAX_PATHLEN, "Character\\%.*s\\Hair00_%02u.blp", (int)(end - race), race, color);
+    return true;
 }
 
 /* Validate the complete indirect skin range before the renderer's vertex copy loop starts. */
@@ -222,6 +240,19 @@ static VECTOR3 m2_particle_direction(FLOAT vertical_range, FLOAT horizontal_rang
 static DWORD m2_read32(BYTE const *p) {
     return ((DWORD)p[0]) | ((DWORD)p[1] << 8) | ((DWORD)p[2] << 16) | ((DWORD)p[3] << 24);
 }
+
+/* CharSections keeps ten columns in both layouts, so field-4 values identify which schema the mounted DBC uses. */
+static m2CharSectionsLayout_t m2_char_sections_layout(BYTE const *records, DWORD count, DWORD stride) {
+    DWORD large = 0, small = 0;
+    if (!records || !count || stride < 10 * sizeof(DWORD)) return M2_CHAR_SECTIONS_INVALID;
+    FOR_LOOP(i, MIN(count, 20u))
+        if (m2_read32(records + i * stride + 4 * sizeof(DWORD)) > 50) large++;
+        else small++;
+    return large > small ? M2_CHAR_SECTIONS_TEXTURE_FIRST : M2_CHAR_SECTIONS_VARIATION_FIRST;
+}
+
+/* Classic and later ItemDisplayInfo schemas place component textures one field apart. */
+static DWORD m2_item_display_texture_base(DWORD fields) { return fields >= 25 ? 15 : fields >= 22 ? 14 : 0; }
 
 static void m2_blend_pixel(LPCOLOR32 dst, COLOR32 src) {
     DWORD inv;

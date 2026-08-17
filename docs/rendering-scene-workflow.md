@@ -37,6 +37,7 @@ build/bin/openwow -data data/world-of-warcraft \
 ```
 
 The character-create model is assembled in `games/world-of-warcraft/ui/ui_xml.c` and rendered through the M2 path in `games/world-of-warcraft/renderer/m2/r_m2.c`.
+For default appearance, starter-outfit, saved-character, and DBC diagnosis, see [WoW Character Display](wow-character.md).
 
 ## StarCraft II
 
