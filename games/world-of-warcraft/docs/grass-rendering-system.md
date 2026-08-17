@@ -4,6 +4,10 @@
 
 This document describes the WoW ground-effect rendering architecture. OpenWarcraft3 resolves the same terrain effect and detail M2 data used by the WoW client, then reuses the normal M2 material path.
 
+> **Note:** the entity/M2-instancing architecture below is being replaced by a single
+> static-mesh + vertex-shader design shared with a GPU height atlas — see
+> [static-grass-and-height-atlas.md](static-grass-and-height-atlas.md).
+
 ## Current OpenWarcraft3 Implementation
 
 ### Architecture
@@ -150,12 +154,13 @@ BOX3 grass_bounds;              // Bounding box for culling
 
 ### Architecture
 
-Real WoW uses a **doodad-based system** that instantiates actual game asset models:
+WoW's data defines a **doodad-based system** using actual game asset models:
 
 - **Data Source**: GroundEffectTexture.dbc maps terrain types to doodad models
-- **Placement**: Same ADT alpha map coverage + height calculation
+- **Placement**: MCNK carries an 8x8 two-bit layer map and a 64-bit no-effect-doodad
+  suppression map in addition to MCLY effects, MCAL coverage, and MCVT height
 - **Models**: M2 doodad files with full animations and LOD support
-- **Rendering**: Standard entity renderer (same as other doodads/objects)
+- **Rendering**: The public data establishes M2 inputs, not Blizzard's exact batching path
 - **Variety**: Up to 4 different grass/plant models per terrain type with weighted selection
 
 ### GroundEffectTexture.dbc / GroundEffectDoodad.dbc
@@ -165,17 +170,20 @@ The two 11-DWORD `GroundEffectTexture.dbc` layouts (legacy vs. modern weighted) 
 
 ### Placement Algorithm
 
-Real WoW uses the same placement algorithm as OpenWarcraft3:
+The exact original-client placement algorithm has not been established. The current
+OpenWarcraft3 implementation uses the following MCAL-derived approximation:
 
 1. **Determine grass layer**: Find layer with highest alpha coverage that has `effect_id != 0`
 2. **Look up GroundEffectTexture**: Query `GroundEffectTexture.dbc[effect_id]`
 3. **Select doodad**: Weighted random selection from 4 doodad options
 4. **Calculate density**: Use `AmountAndCoverage` field to determine how many instances to place
-5. **Sample placement**: Grid-based placement with jitter (same as procedural system)
+5. **Sample placement**: Grid-based placement with jitter
 6. **Sample height**: Use MCVT (height map) to place doodad on terrain surface
 7. **Instance model**: Call doodad renderer with calculated transform
 
-**Key Difference:** Instead of generating blade geometry, WoW instantiates actual M2 doodad models with full animation, materials, and LOD support.
+The redesign in [static-grass-and-height-atlas.md](static-grass-and-height-atlas.md)
+first parses the MCNK layer/suppression maps and validates their orientation instead of
+claiming the approximation is original-client behavior.
 
 ## ADT Chunk Format Integration
 
@@ -198,7 +206,9 @@ typedef struct {
 - Layer 1: Grass texture, effect_id=5 (look up GroundEffectTexture.dbc[5])
 - Layer 2: Snow texture, effect_id=0 (no grass)
 
-The alpha maps in MCAL determine coverage of each layer. Layer 1 with 80% alpha means "80% of this chunk is covered by grass texture + grass doodads."
+MCAL determines terrain texture coverage. Do not infer that its percentage is also the
+original client's ground-effect occupancy rule: MCNK has separate per-cell layer and
+no-effect-doodad maps that must be parsed and validated.
 
 ### Height Map (MCVT)
 
