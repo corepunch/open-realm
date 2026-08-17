@@ -159,6 +159,25 @@ bool R_GameEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
         return false;
     }
 
+    /* Ground-effect (grass) instances are yaw-only with unit scale and no ground
+     * anchor, so the general path below (B basis multiply + 3 Euler rotates + scale)
+     * reduces to M = T(origin) * B * Ry(-90) * Rx(rotation.z - 90), which folds into
+     * a single 1-sin/1-cos matrix.  This removes ~10 4x4 multiplies per clump, the
+     * dominant CPU cost in Wow_DrawGrass. */
+    if (entity->flags & RF_GROUND_EFFECT) {
+        float const DEG2RAD = 3.14159f / 180.0f;
+        float const rad = (entity->rotation.z - 90.0f) * DEG2RAD;
+        float const c = cosf(rad), s = sinf(rad);
+        matrix->v[0] = 1.0f;  matrix->v[1] = 0.0f; matrix->v[2] = 0.0f; matrix->v[3] = 0.0f;
+        matrix->v[4] = 0.0f;  matrix->v[5] = -s;    matrix->v[6] = c;    matrix->v[7] = 0.0f;
+        matrix->v[8] = 0.0f;  matrix->v[9] = -c;    matrix->v[10] = -s;  matrix->v[11] = 0.0f;
+        matrix->v[12] = entity->origin.x;
+        matrix->v[13] = entity->origin.y;
+        matrix->v[14] = entity->origin.z;
+        matrix->v[15] = 1.0f;
+        return true;
+    }
+
     origin = entity->origin;
     if ((entity->flags & RF_GROUND_ANCHOR) && M2_IsCharacterModel(entity->model->m2)) {
         origin.z += M2_GroundOffset(entity->model->m2) * entity->scale;

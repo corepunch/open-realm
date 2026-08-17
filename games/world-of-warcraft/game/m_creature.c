@@ -314,6 +314,13 @@ void Wow_SpawnQuestLocations(LPCVECTOR2 origin) {
         ent->s.class_id = creature_model->display_id;
         ent->s.angle = data->orientation;
         ent->s.flags = EF_GROUND_ANCHOR;
+        /* Non-hostile NPCs still need the creature frame for their idle (Stand)
+         * animation; without a think function the entity loop skips them and
+         * they render frozen at frame 0. */
+        ent->svflags |= SVF_MONSTER;
+        ent->idle = Wow_AIIdle;
+        ent->think = Wow_RunCreatureFrame;
+        Wow_SetStandMove(ent);
         givers++;
         budget--;
     }
