@@ -123,6 +123,12 @@ field 4. Classic-era `ItemDisplayInfo.dbc` is 23 fields with texture components 
 use field 15. Full schemas and field-by-field layouts are in
 [`dbc-reference.md`](dbc-reference.md#character-and-creature-tables).
 
+Classic male hair is an explicit exception to the usual `CharSections` texture-string path. Section 3 still authoritatively selects
+the race, gender, style, and color, but its texture fields are empty. Only after that exact row matches, derive replaceable texture
+type 6 as `Character\<Race>\Hair00_<color:02>.blp`, taking the race from the model path and the color from the row. The default Human
+Male color is therefore `Character\Human\Hair00_00.blp` (black), not the renderer's white initialization texture. Female hair rows
+normally carry explicit strings. `CharHairTextures.dbc` describes hair-geoset flags and is not a filename lookup table.
+
 ## Component Texture Slots
 
 Item component texture stems map to eight body slots:

@@ -108,6 +108,11 @@ resolve but clothing does not, inspect both versioned DBC schemas before changin
 - `CharSections.dbc` has two ten-field layouts. Classic/TBC and HD-texture Wrath store variation/color at fields 4/5 and textures at
   6–8; stock Wrath stores textures at 4–6 and variation/color at 8/9. Field count cannot distinguish them. Probe field 4 from the
   mounted data: predominantly small values (0–15) mean variation-first; string offsets (normally greater than 50) mean textures-first.
+- Local Classic male hair rows (`section = 3`) select style and color but deliberately leave all texture strings empty. After an exact
+  race/gender/style/color row match, resolve replaceable hair texture type 6 from the archive convention
+  `Character\<Race>\Hair00_<color:02>.blp`. Derive `<Race>` from the selected model path and `<color>` from the matched DBC row; do not
+  substitute a fixed race/color or leave the renderer's white initialization texture bound. Female rows generally provide explicit
+  strings. `CharHairTextures.dbc` contains hair-geoset flags, not replacement-texture filenames.
 - `ItemDisplayInfo.dbc` carries item model names/textures, geoset groups, flags, helmet visibility, and eight character texture component slots. In the local classic-era 23-field layout, texture components start at field 14; in the documented 25-field TBC/Wrath layout, they start at field 15. The component slots map to: upper arm, lower arm, hand, upper torso, lower torso, upper leg, lower leg, foot. See `games/world-of-warcraft/docs/m2-and-character-display.md` for the verified per-slot field→geoset-group mapping and variant tables for groups 4, 5, 8, 9, 13, and 15.
 - Do not choose the component base with a broad `fields >= 23` test: that maps the local 23-field Classic schema to the later field-15
   layout and shifts all eight clothing components. Use field 14 for layouts 22–24 and field 15 for layouts 25 and later.
@@ -161,9 +166,14 @@ For a saved-character/class test, update both `class` and `appearance` in `share
 2. Confirm `M2_DbcStartOutfit()` derives the expected race/gender/class key and finds a row.
 3. Print the row's display IDs and parallel inventory types (fields 14–25 and 26–37 in local Classic data).
 4. Confirm `CharSections` uses the detected variation-first or textures-first schema and resolves the selected base skin.
+   For Classic male hair, an exact section-3 match with empty texture fields must derive `Character\<Race>\Hair00_<color:02>.blp`;
+   verify that path with `mpqtool` before changing the selected color.
 5. Confirm each display ID exists in `ItemDisplayInfo.dbc` and select the component base from the actual schema.
 6. Confirm component paths resolve and the composite draw is selected.
 7. Remove temporary diagnostics after the bounded run and retain a regression test for the discovered schema/behavior.
+
+Screenshot QA must check each independently visible data path: base skin/face, hair and facial-hair color, starter clothing, and
+equipment geosets. Clothing appearing correctly does not prove that replaceable texture type 6 resolved; unresolved hair renders white.
 
 See [M2 And Character Display](../games/world-of-warcraft/docs/m2-and-character-display.md) for the full renderer pipeline and
 [Rendering Scene Workflow](rendering-scene-workflow.md) for general `+menu_*` and screenshot conventions.

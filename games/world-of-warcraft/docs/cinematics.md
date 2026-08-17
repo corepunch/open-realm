@@ -36,7 +36,8 @@ build/bin/dbctool -mpq data/world-of-warcraft/dbc.MPQ str 'DBFilesClient\Cinemat
 build/bin/m2tool -mpq data/world-of-warcraft/model.MPQ -model 'Cameras\FlybyOrc.m2' --info
 ```
 
-Verified 1.12 layouts/results:
+Verified 1.12 layouts/results (field layouts consolidated in
+[`docs/dbc-reference.md`](dbc-reference.md#cinematic-tables)):
 
 - `ChrRaces.dbc`: 9 records, 29 fields; Human row 0 field 16 is sequence 81,
   Orc row 1 field 16 is sequence 21.

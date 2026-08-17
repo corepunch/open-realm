@@ -2009,7 +2009,6 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
    of the model in one draw call per batch, each placed by its own world matrix.
    Ground-effect detail M2s are non-character, non-animated, alpha-blended. */
 void M2_RenderInstanced(m2Model_t const *model, LPCMATRIX4 transforms, DWORD count) {
-    renderEntity_t dummy;
     m2ModelBatch_t *batch;
     LPSHADER shader;
 
@@ -2024,8 +2023,7 @@ void M2_RenderInstanced(m2Model_t const *model, LPCMATRIX4 transforms, DWORD cou
         }
         return;
     }
-    memset(&dummy, 0, sizeof(dummy));
-    M2_CalculateBoneMatrices(model, &dummy);
+    M2_CalculateBoneMatrices(model, NULL);
 
     R_Call(glUseProgram, shader->progid);
     R_Call(glUniform1i, shader->uLightCount, 0);
@@ -2051,6 +2049,23 @@ void M2_RenderInstanced(m2Model_t const *model, LPCMATRIX4 transforms, DWORD cou
     R_Call(glUniform1i, shader->uUnshaded, 0);
     R_Call(glUniform1f, shader->uFogEnable, 0);
     R_Call(glUniform1f, shader->uFirstBoneLookupIndex, 0.0f);
+    {
+        static GLuint cached_progid;
+        static GLint loc_camera = -1;
+        static GLint loc_fade = -1;
+        if (shader->progid != cached_progid) {
+            cached_progid = shader->progid;
+            loc_camera = glGetUniformLocation(shader->progid, "uGrassCameraPos");
+            loc_fade = glGetUniformLocation(shader->progid, "uGrassFade");
+        }
+        if (loc_camera >= 0) {
+            VECTOR3 cam = tr.viewDef.camerastate[0].origin;
+            glUniform3f(loc_camera, cam.x, cam.y, cam.z);
+        }
+        if (loc_fade >= 0) {
+            glUniform2f(loc_fade, WOW_GRASS_FADE_START_DISTANCE, WOW_GRASS_DRAW_DISTANCE);
+        }
+    }
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_FALSE);
     R_Call(glEnable, GL_BLEND);

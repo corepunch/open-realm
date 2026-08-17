@@ -355,6 +355,7 @@ LPCSTR Wow_DbcString(BYTE const *string_block, DWORD string_size, DWORD offset);
 int Wow_AdtIndexForWorldCoord(float coord);
 void Wow_LoadMapDbcFlags(void);
 void Wow_LoadGroundEffectDBCs(void);
+void Wow_FreeGrassScratch(void);
 void Wow_LoadNearbyAdts(int center_x, int center_y);
 void Wow_LoadCameraAdts(void);
 void Wow_InitGrassShader(void);
