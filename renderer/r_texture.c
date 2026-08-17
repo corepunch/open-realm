@@ -1,6 +1,11 @@
 #include "r_local.h"
 
+/* texid -> texture index for model texture resolution; the cache below owns the texture memory. */
 static LPTEXTURE g_textures = NULL;
+
+/* Cap mirrors the model registry's MAX_MODELS * 4; past it textures are re-loaded per call instead of
+ * growing the cache without bound for the whole session. */
+#define R_MAX_LOADED_TEXTURES (MAX_IMAGES * 4)
 
 typedef struct rImageCacheEntry_s {
     char *name;
@@ -9,6 +14,7 @@ typedef struct rImageCacheEntry_s {
 } rImageCacheEntry_t;
 
 static rImageCacheEntry_t *r_image_cache;
+static DWORD r_image_cache_count;
 
 LPTEXTURE R_FindLoadedTexture(LPCSTR name) {
     rImageCacheEntry_t *entry;
@@ -22,12 +28,22 @@ void R_CacheLoadedTexture(LPCSTR name, LPTEXTURE texture) {
     rImageCacheEntry_t *entry;
 
     if (!name || !*name || !texture || R_FindLoadedTexture(name)) return;
+    if (r_image_cache_count >= R_MAX_LOADED_TEXTURES) {
+        static BOOL warned_cap;
+        if (!warned_cap) {
+            fprintf(stderr, "R_CacheLoadedTexture: cache full (%u); further textures are re-loaded per call\n",
+                    R_MAX_LOADED_TEXTURES);
+            warned_cap = true;
+        }
+        return;
+    }
     entry = ri.MemAlloc(sizeof(*entry));
     entry->name = ri.MemAlloc(strlen(name) + 1);
     strcpy(entry->name, name);
     entry->texture = texture;
     entry->next = r_image_cache;
     r_image_cache = entry;
+    r_image_cache_count++;
 }
 
 void R_ShutdownTextureCache(void) {
@@ -40,6 +56,9 @@ void R_ShutdownTextureCache(void) {
         ri.MemFree(entry->name);
         ri.MemFree(entry);
     }
+    r_image_cache_count = 0;
+    /* The cache owns every cached texture; g_textures only indexes them by texid, so it must not outlive the free. */
+    g_textures = NULL;
 }
 
 int R_RegisterTextureFile(char const *textureFileName) {

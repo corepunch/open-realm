@@ -255,8 +255,7 @@ static void R_RenderShadow(const renderEntity_t *entity, LPCVECTOR2 origin) {
 static void R_RenderSelectedCircle(const renderEntity_t *entity, LPCVECTOR2 origin) {
     if (entity->flags & RF_SELECTED) {
         COLOR32 color = { 0, 255, 0, 255 };
-        /* Fractional WoW collision radii need a minimum visual footprint around the model. */
-        float radius = MAX(entity->radius * MAX(entity->scale, 1.0f), 1.0f);
+        float radius = R_GameSelectionRadius(entity);
         FOR_LOOP(i, NUM_SELECTION_CIRCLES) {
             if ((radius * 2) > selCircles[i])
                 continue;
