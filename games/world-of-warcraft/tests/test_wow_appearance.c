@@ -242,6 +242,43 @@ TEST(wow_dbc, table_parser_bounds_checks_columns_outside_record) {
     T_EQ(out.id, 9); T_EQ(out.flags, 0); T_EQ(out.name, (LPCSTR)0x1); /* out-of-range column untouched */
 }
 
+TEST(wow_dbc, table_parser_fills_contiguous_array_from_columns) {
+    typedef struct { DWORD id; LPCSTR names[3]; } rec_t;
+    static stbDbcField_t const schema[] = {
+        { 0, offsetof(rec_t, id),    STB_DBC_U32 },
+        { 1, offsetof(rec_t, names), STB_DBC_STR, 3 },
+    };
+    BYTE records[16] = { 0 };
+    BYTE strings[] = { 0, 'H', 'u', 'm', 'a', 'n', 0, 'O', 'r', 'c', 0, 'D', 'w', 'f', 0 };
+    rec_t out = { 0 };
+    DWORD v;
+    v = 7; memcpy(records + 0, &v, 4);
+    v = 1; memcpy(records + 4, &v, 4);
+    v = 7; memcpy(records + 8, &v, 4);
+    v = 11; memcpy(records + 12, &v, 4);
+
+    Stb_DbcParseRows(records, 1, 16, strings, sizeof(strings), schema, 2, &out, sizeof(out));
+
+    T_EQ(out.id, 7);
+    T_STREQ(out.names[0], "Human"); T_STREQ(out.names[1], "Orc"); T_STREQ(out.names[2], "Dwf");
+}
+
+TEST(wow_dbc, table_parser_array_stops_at_record_boundary) {
+    typedef struct { LPCSTR names[3]; } rec_t;
+    static stbDbcField_t const schema[] = {
+        { 0, offsetof(rec_t, names), STB_DBC_STR, 3 },
+    };
+    BYTE records[8] = { 0 }; /* only columns 0-1 fit */
+    rec_t out = { .names[0] = (LPCSTR)0x1, .names[1] = (LPCSTR)0x2, .names[2] = (LPCSTR)0x3 };
+    DWORD v = 1;
+    memcpy(records + 0, &v, 4);
+    v = 7; memcpy(records + 4, &v, 4);
+
+    Stb_DbcParseRows(records, 1, 8, NULL, 0, schema, 1, &out, sizeof(out));
+
+    T_EQ(out.names[0], (LPCSTR)NULL); T_EQ(out.names[1], (LPCSTR)NULL); T_EQ(out.names[2], (LPCSTR)0x3);
+}
+
 TEST(wow_m2, helmet_hide_mask_bits_match_geoset_groups) {
     /* M2_CharacterGeosetVisible checks outfit->helm_hide & (1 << (section/100));
      * the HelmetGeosetVisData hide constants must equal those group bits. */

@@ -16,7 +16,7 @@ Sources are distinguished:
 
 The same information is split across several places; this file is the index of record:
 
-- Character pipeline and diagnostic workflow: [`docs/wow-character.md`](../../../docs/wow-character.md)
+- Character pipeline and diagnostic workflow: [`docs/wow-character.md`](../../wow-character.md)
 - M2 loader, geoset/component resolution: [`docs/m2-and-character-display.md`](m2-and-character-display.md)
 - Loading order and tool commands: [`docs/data-loading.md`](data-loading.md)
 - High-level format map and reference links: [`docs/file-formats.md`](file-formats.md)
@@ -89,7 +89,10 @@ included by every DBC consumer. Callers read the file through their own FS/RI/gi
 buffer to `Stb_Dbc*`. None parses DB2:
 
 - **Renderer** — `renderer/m2/r_dbc.c` keeps each table as one resident `FS_ReadFile` image plus an FNV-1a integer
-  hash index (`M2_DbcLoad` / `M2_DbcFindID` / `M2_DbcField` / `M2_DbcString`) built on top of `stb_dbc.h`.
+  hash index, then decodes every row into a file-shaped struct through a column→field schema table
+  (`stbDbcField_t` + `Stb_DbcParseRows`, the same convention-over-configuration pattern as `ui_dbc.c`). Schema entries
+  carry an optional `count` so a contiguous struct array maps to consecutive columns in one line
+  (`{ 8, offsetof(Rec, display_ids), STB_DBC_U32, 11 }`). Consumers read named struct fields, never raw column offsets.
 - **Game** — `game/g_wow.c` exposes `Wow_FindDbcRecord` and `Wow_DbcString` (thin wrappers over `stb_dbc.h`) for
   map metadata, loading screens, the spell-visual chain, and the creature model cache in `game/m_creature.c`.
 - **Common world** — `common/world_wow.c` reads `Map.dbc` and `WorldSafeLocs.dbc` for spawn/map resolution.
@@ -250,9 +253,10 @@ Field numbers are zero-based. String fields are marked `(str)` and store string-
 | 8–18 | NPC item display IDs (11, one per classic slot) → `ItemDisplayInfo.dbc` |
 | 20 | baked name (str, WoWee `BakeName`) |
 
-Fields 3–7 feed `Wow_PackAppearance`; `r_dbc.c` requires at least 19 fields. The 11 item slots map to shared outfit
-slots via `Wow_CharacterCreatureItemSlot` (`common/wow_character_utils.h`):
-`{ head, shoulder, shirt, chest, belt, legs, boots, none, gloves, tabard, cape }`.
+Fields 3–7 feed `Wow_PackAppearance`; the 11 item slots map to shared outfit slots via
+`Wow_CharacterCreatureItemSlot` (`common/wow_character_utils.h`):
+`{ head, shoulder, shirt, chest, belt, legs, boots, none, gloves, tabard, cape }`. All 11 columns (8–18) are decoded
+through the schema (the `display_ids[11]` array entry), so the cape slot (index 10) is populated too.
 
 ### `ItemDisplayInfo.dbc`
 

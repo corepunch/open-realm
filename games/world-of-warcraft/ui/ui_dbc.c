@@ -37,8 +37,7 @@ static stbDbcField_t const race_schema[] = {
     { 15, offsetof(wowRaceRec_t, client_file),     STB_DBC_STR },
     { 17, offsetof(wowRaceRec_t, name),            STB_DBC_STR },
     { 26, offsetof(wowRaceRec_t, hair_custom),     STB_DBC_STR },
-    { 27, offsetof(wowRaceRec_t, facial_custom[0]), STB_DBC_STR },
-    { 28, offsetof(wowRaceRec_t, facial_custom[1]), STB_DBC_STR },
+    { 27, offsetof(wowRaceRec_t, facial_custom),   STB_DBC_STR, 2 },
 };
 static stbDbcField_t const class_schema[] = {
     {  0, offsetof(wowClassRec_t, id),       STB_DBC_U32 },
@@ -225,11 +224,13 @@ static BOOL UIWow_ReadDbc(LPCSTR filename, void **buf, stbDbc_t *h) {
 /* UI consumers index [0] directly, so unresolved string offsets become "". */
 static void UIWow_NormalizeStrings(void *rows, DWORD count, DWORD stride,
                                    stbDbcField_t const *schema, DWORD schema_count) {
-    FOR_LOOP(f, schema_count) if (schema[f].type == STB_DBC_STR)
-        FOR_LOOP(i, count) {
-            LPCSTR *p = (LPCSTR *)((BYTE *)rows + i * stride + schema[f].offset);
+    FOR_LOOP(f, schema_count) if (schema[f].type == STB_DBC_STR) {
+        DWORD n = schema[f].count ? schema[f].count : 1;
+        FOR_LOOP(e, n) FOR_LOOP(i, count) {
+            LPCSTR *p = (LPCSTR *)((BYTE *)rows + i * stride + schema[f].offset + e * sizeof(LPCSTR));
             if (!*p) *p = "";
         }
+    }
 }
 
 /* -------------------------------------------------------------------------
