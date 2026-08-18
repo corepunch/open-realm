@@ -52,6 +52,10 @@ static void Wow_DrawTerrainAndWmos(DWORD *considered, DWORD *drawn_chunks, DWORD
     wowAdtChunk_t *chunk;
     LPCTEXTURE bound_textures[5] = { NULL, NULL, NULL, NULL, NULL };
     DWORD texture_binds = 0;
+    BOOL draw_terrain = R_CvarEnabled("r_terrain", "1");
+    BOOL draw_wmos = R_CvarEnabled("r_wmos", "1");
+
+    if (!draw_terrain && !draw_wmos) return;
 
     R_Call(glUseProgram, wow_terrain_shader->progid);
     Matrix3_normal(&normal_matrix, &identity);
@@ -60,13 +64,14 @@ static void Wow_DrawTerrainAndWmos(DWORD *considered, DWORD *drawn_chunks, DWORD
     R_Call(glUniformMatrix4fv, wow_terrain_shader->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
     R_Call(glUniformMatrix3fv, wow_terrain_shader->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
     R_Call(glUniform1i, wow_uUseWeightedBlend, wow_world.use_weighted_blend ? 1 : 0);
+    R_Call(glUniform1i, wow_uSingleTexture, 0);
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_TRUE);
     R_Call(glDepthFunc, GL_LEQUAL);
     R_Call(glDisable, GL_CULL_FACE);
     R_Call(glDisable, GL_BLEND);
 
-    for (chunk = wow_world.chunks; chunk; chunk = chunk->next) {
+    for (chunk = draw_terrain ? wow_world.chunks : NULL; chunk; chunk = chunk->next) {
         if (!chunk->buffer || !chunk->num_vertices) {
             continue;
         }
@@ -85,7 +90,9 @@ static void Wow_DrawTerrainAndWmos(DWORD *considered, DWORD *drawn_chunks, DWORD
         if (vertices) (*vertices) += chunk->num_vertices;
     }
 
-    for (wowWmoInstance_t *wmo = wow_world.wmos; wmo; wmo = wmo->next) {
+    /* WMO batches have one texture; do not churn four terrain samplers per material. */
+    R_Call(glUniform1i, wow_uSingleTexture, 1);
+    for (wowWmoInstance_t *wmo = draw_wmos ? wow_world.wmos : NULL; wmo; wmo = wmo->next) {
         if (!wmo->model || !wmo->model->groups) {
             continue;
         }
@@ -105,10 +112,6 @@ static void Wow_DrawTerrainAndWmos(DWORD *considered, DWORD *drawn_chunks, DWORD
                     continue;
                 }
                 Wow_BindWorldTexture(batch->texture ? batch->texture : tr.texture[TEX_WHITE], 0, bound_textures, &texture_binds);
-                Wow_BindWorldTexture(batch->texture ? batch->texture : tr.texture[TEX_WHITE], 1, bound_textures, &texture_binds);
-                Wow_BindWorldTexture(batch->texture ? batch->texture : tr.texture[TEX_WHITE], 2, bound_textures, &texture_binds);
-                Wow_BindWorldTexture(batch->texture ? batch->texture : tr.texture[TEX_WHITE], 3, bound_textures, &texture_binds);
-                Wow_BindWorldTexture(tr.texture[TEX_WHITE], 4, bound_textures, &texture_binds);
                 R_DrawBuffer(batch->buffer, batch->num_vertices);
                 if (wmo_batches) (*wmo_batches)++;
             }
@@ -118,6 +121,7 @@ static void Wow_DrawTerrainAndWmos(DWORD *considered, DWORD *drawn_chunks, DWORD
     R_Call(glUniformMatrix4fv, wow_terrain_shader->uModelMatrix, 1, GL_FALSE, identity.v);
     R_Call(glUniformMatrix3fv, wow_terrain_shader->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
     R_Call(glUniform1i, wow_uUseWeightedBlend, wow_world.use_weighted_blend ? 1 : 0);
+    R_Call(glUniform1i, wow_uSingleTexture, 0);
 }
 
 /* Live top-down terrain minimap: the classic client renders the minimap from the
@@ -129,7 +133,7 @@ void Wow_DrawMinimap(LPCRECT screen) {
     RECT scene;
     RECT vp_rect;
 
-    if (!screen || !wow_world.chunks || (tr.viewDef.rdflags & RDF_NOWORLDMODEL)) {
+    if (!R_CvarEnabled("r_minimap", "1") || !screen || !wow_world.chunks || (tr.viewDef.rdflags & RDF_NOWORLDMODEL)) {
         return;
     }
     Wow_InitTerrainShader();
@@ -201,9 +205,9 @@ void R_DrawWorld(void) {
 
     Wow_DrawTerrainAndWmos(&terrain_considered, &drawn_chunks, &terrain_vertices, &drawn_wmo_groups, &drawn_wmo_batches);
 
-    Wow_DrawGrass();
+    if (R_CvarEnabled("r_grass", "1")) Wow_DrawGrass();
 
-    {
+    if (R_CvarEnabled("r_doodads", "1")) {
         VECTOR3 camera_origin = tr.viewDef.camerastate[0].origin;
         int center_x = Wow_DoodadBucketIndex(camera_origin.x);
         int center_y = Wow_DoodadBucketIndex(camera_origin.y);
@@ -240,12 +244,22 @@ void R_DrawWorld(void) {
             fprintf(stderr, "R_DrawWorld: visible WMO groups=%u batches=%u of total batches=%u\n", (unsigned)drawn_wmo_groups, (unsigned)drawn_wmo_batches, (unsigned)wow_world.num_wmo_batches);
         }
     }
+    if (R_CvarEnabled("r_stats", "0")) {
+        static DWORD last_stats;
+        if (tr.viewDef.time - last_stats >= 1000) {
+            last_stats = tr.viewDef.time;
+            fprintf(stderr, "[WOW_STATS] terrain=%u/%u vertices=%u wmo_groups=%u wmo_draws=%u doodads=%u/%u\n",
+                    (unsigned)drawn_chunks, (unsigned)terrain_considered, (unsigned)terrain_vertices,
+                    (unsigned)drawn_wmo_groups, (unsigned)drawn_wmo_batches,
+                    (unsigned)drawn_doodads, (unsigned)doodad_candidates);
+        }
+    }
 
     R_Call(glDepthMask, GL_TRUE);
     R_Call(glDisable, GL_BLEND);
     R_Call(glEnable, GL_CULL_FACE);
 
-    if (wow_world.object_buffer && wow_world.num_object_vertices) {
+    if (R_CvarEnabled("r_doodads", "1") && wow_world.object_buffer && wow_world.num_object_vertices) {
         R_BindTexture(tr.texture[TEX_WHITE], 0);
         R_DrawBuffer(wow_world.object_buffer, wow_world.num_object_vertices);
     }

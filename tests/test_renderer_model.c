@@ -81,3 +81,22 @@ TEST(renderer_model, clock_emission_ignores_zero_rate_and_delta) {
     R_EmitParticlesAtTime(10.0f, 1050, 0, test_spawn, &spawn_count);
     T_EQ(spawn_count, 0);
 }
+
+TEST(renderer_alpha, msaa_request_normalizes_off_and_caps_driver_input) {
+    T_EQ(R_MsaaRequest(-1), 0); T_EQ(R_MsaaRequest(1), 0);
+    T_EQ(R_MsaaRequest(4), 4); T_EQ(R_MsaaRequest(64), BZ_MSAA_MAX);
+}
+
+TEST(renderer_alpha, active_samples_require_a_real_multisample_buffer) {
+    T_EQ(R_MsaaActiveSamples(0, 4), 0); T_EQ(R_MsaaActiveSamples(1, 1), 0);
+    T_EQ(R_MsaaActiveSamples(1, 4), 4);
+}
+
+TEST(renderer_instances, upload_size_uses_wide_arithmetic) {
+    T_EQ(R_InstanceBufferBytes(465524), (size_t)29793536);
+}
+
+TEST(renderer_stats, triangles_include_instanced_amplification) {
+    T_EQ(R_PrimitiveTriangles(GL_TRIANGLES, 12, 100), (uint64_t)400);
+    T_EQ(R_PrimitiveTriangles(GL_LINES, 12, 100), (uint64_t)0);
+}

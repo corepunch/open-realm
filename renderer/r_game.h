@@ -23,7 +23,7 @@ VECTOR2 R_GameWorldSize(void);
 LPMODEL R_GameLoadModel(LPCSTR modelFilename);
 void R_GameReleaseModel(LPMODEL model);
 void R_GameRenderModel(renderEntity_t const *entity);
-void R_GameRenderModelInstanced(LPCMODEL model, LPCMATRIX4 transforms, DWORD count);
+void R_GameRenderModelInstanced(LPCMODEL model, LPCINSTANCEBUFFER instances);
 bool R_GameTraceModel(renderEntity_t const *entity, LPCLINE3 line, LPFLOAT distance);
 bool R_GameGetModelInfo(LPMODEL model, LPMODELINFO info);
 bool R_GameEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix);

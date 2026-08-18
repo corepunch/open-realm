@@ -169,6 +169,7 @@ static void R_FlushSplatBatch(void) {
     }
 
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VERTEX) * num_vertices, ground_vertex_buffer, GL_STREAM_DRAW);
+    R_StatsDraw(GL_TRIANGLES, num_vertices, 1);
     R_Call(glDrawArrays, GL_TRIANGLES, 0, num_vertices);
     ground_current_vertex = ground_vertex_buffer;
 }
@@ -336,6 +337,7 @@ void R_RenderFlatRectSplat(LPCVECTOR2 mins,
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STREAM_DRAW);
+    R_StatsDraw(GL_TRIANGLES, sizeof(vertices) / sizeof(vertices[0]), 1);
     R_Call(glDrawArrays, GL_TRIANGLES, 0, sizeof(vertices) / sizeof(vertices[0]));
     R_Call(glDepthMask, GL_TRUE);
 }

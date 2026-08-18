@@ -28,6 +28,90 @@ Consequences:
 - State changes between consecutive identical surfaces are never skipped.
 - Game-specific renderers (WC3, SC2, WoW) duplicate the same boilerplate.
 
+## Alpha-key coverage contract
+
+The shared renderer requests 4x MSAA by default (`r_msaa 4`) before creating the SDL
+window. After context creation it logs both SDL's returned attributes and OpenGL's
+`GL_SAMPLE_BUFFERS`/`GL_SAMPLES`; the latter determine `tr.msaa_samples`. Context creation
+is retried without MSAA only when the requested multisample visual is unavailable, and
+that downgrade is logged.
+
+MDX, M2, M3, alpha-key particles, and WoW grass share one material contract:
+
+- the fragment shader remaps texture alpha around the authoritative cutoff with
+  `smoothstep`/`fwidth`; no renderer shader uses `discard`;
+- with a multisampled target, `R_SetAlphaKeyState(true)` disables blending, enables
+  `GL_SAMPLE_ALPHA_TO_COVERAGE`, and retains depth writes;
+- without MSAA, it logs the lack of coverage support at renderer initialization and uses
+  ordinary alpha blending with depth writes disabled, preserving visibility at reduced
+  overlap quality;
+- every non-alpha-key material path and frame start disables alpha-to-coverage so the
+  state cannot leak into true blended, additive, UI, or terrain passes.
+
+Alpha-to-coverage is for cutout coverage, not general order-independent transparency.
+True blended and additive material modes keep their existing blend/depth contracts.
+
+## Renderer profiling cvars
+
+Use `r_stats 1` to print one averaged line per second:
+
+```text
+[R_STATS] fps=... draws=... vertices=... triangles=... instances=...
+[WOW_STATS] terrain=drawn/considered vertices=... wmo_groups=... wmo_draws=... doodads=visible/candidates
+```
+
+`R_STATS` counts every renderer draw submission, including UI, minimap, fog, particles,
+models, terrain, and instanced amplification. `instances` is the sum of each draw's
+instance count; non-instanced draws contribute one. Use the WoW pass toggles to isolate
+view-dependent costs without changing asset loading or simulation:
+
+| Cvar | Default | Draws |
+|---|---:|---|
+| `r_grass` | 1 | GroundEffectDoodad instanced batches |
+| `r_doodads` | 1 | ADT doodad M2s and map-object debug geometry |
+| `r_wmos` | 1 | WMO groups in the world and live minimap |
+| `r_terrain` | 1 | ADT terrain in the world and live minimap |
+| `r_minimap` | 1 | Entire live terrain/WMO minimap pass |
+| `r_entities` | 1 | Snapshot entities |
+| `r_particles` | 1 | Particle batches |
+| `r_fogofwar` | 1 | Fog-of-war passes |
+
+For the Human start and left-facing slowdown, launch with `+set r_stats 1`, turn left, then
+toggle one pass at a time in the console, for example `set r_wmos 0`, `set r_doodads 0`,
+`set r_grass 0`, and `set r_minimap 0`. Compare both FPS and draw counts; restore each
+toggle before testing the next so effects do not overlap.
+
+Renderer cvars are registered during common initialization, so the shorter Quake-style
+console form is also valid: `r_grass 0`, `r_wmos 0`, and `r_stats 1`. `set` remains useful
+for creating an ad-hoc cvar; renderer controls must not rely on that side effect.
+
+### WoW Human-start checkpoint (2026-08-18)
+
+At 2048x1536 with 4x MSAA, the forward-facing Human start submits about 1,744 draws,
+6.84 million vertices, 2.28 million triangles, and 467,000 instances per frame. Its
+world pass contains 133 visible terrain chunks, 505 WMO batch draws, and 276 visible
+doodads. Isolating one pass at a time found:
+
+| Disabled pass | Draws/frame | FPS | Approximate draw reduction |
+|---|---:|---:|---:|
+| none | 1,744 | 94-95 | - |
+| live minimap | 1,378 | 94 | 367 |
+| WMO | 992 | 103 | 750 |
+| doodads | 1,430 | 104 | 315 |
+| grass | 1,731 | 92 | negligible |
+
+The FPS values are directional rather than additive because macOS Metal/OpenGL driver
+work varies between runs. The draw deltas are the useful isolation signal. Grass is 14
+persistent instanced batches and is not the draw-call bottleneck.
+
+The original WMO pass reused the four-layer terrain shader by binding every WMO texture
+to units 0-3 and white to unit 4 for every material. This matched profiler time in
+`glActiveTexture`, `glBindTexture`, sampler loading, and Metal pipeline preparation.
+The WMO single-texture shader branch now samples unit 0 only; the same scene improved
+from roughly 82-90 FPS to 94-95 FPS without changing draw count. The remaining scalable
+cost is the number of separately submitted WMO and doodad batches, plus the duplicate
+live-minimap world pass.
+
 ## Reference: Doom 3 Frontend/Backend Split
 
 Doom 3 (id Tech 4) solves this with a clean two-phase architecture:

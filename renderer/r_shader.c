@@ -261,7 +261,7 @@ static LPCSTR model_fs =
 "uniform vec2 uUvTrans;\n"
 "uniform vec2 uUvRot;\n"
 "uniform vec2 uUvScale;\n"
-"uniform bool uUseDiscard;\n"
+"uniform bool uAlphaKey;\n"
 "uniform float uAlphaCutoff;\n"
 "uniform bool uUnshaded;\n"
 "uniform bool uFogEnable;\n"
@@ -291,8 +291,11 @@ static LPCSTR model_fs =
 "            col.rgb = mix(uFogColor, col.rgb, fogFactor);\n"
 "        }\n"
 "    }\n"
+"    if (uAlphaKey) {\n"
+"        float edge = max(fwidth(col.a), 1.0 / 255.0);\n"
+"        col.a = smoothstep(uAlphaCutoff - edge, uAlphaCutoff + edge, col.a);\n"
+"    }\n"
 "    o_color = col;\n"
-"    if (o_color.a < uAlphaCutoff && uUseDiscard) discard;\n"
 "}\n";
 
 static LPSHADER model_shader;
@@ -346,6 +349,10 @@ static LPCSTR instanced_vs =
 "uniform mat4 uLights[8];\n"
 "uniform vec3 uGrassCameraPos;\n"
 "uniform vec2 uGrassFade;\n"
+"uniform float uGrassTime;\n"
+"uniform vec3 uGrassWind;\n"
+"uniform vec4 uGrassPhase;\n"
+"uniform vec2 uGrassHeight;\n"
 "const int MODEL_LIGHT_OMNI = 0;\n"
 "const int MODEL_LIGHT_DIRECT = 1;\n"
 "const int MODEL_LIGHT_AMBIENT = 2;\n"
@@ -391,6 +398,11 @@ static LPCSTR instanced_vs =
 "    }\n"
 "    position.w = 1.0;\n"
 "    mat4 i_instance = mat4(i_instance0, i_instance1, i_instance2, i_instance3);\n"
+"    float grassHeight = max(uGrassHeight.y - uGrassHeight.x, 0.001);\n"
+"    float grassTop = smoothstep(uGrassWind.z, 1.0, clamp((position.z - uGrassHeight.x) / grassHeight, 0.0, 1.0));\n"
+"    float grassPhase = dot(i_instance3.xy, uGrassPhase.xy);\n"
+"    float grassSway = sin(uGrassTime * uGrassWind.x + grassPhase) * uGrassWind.y * grassHeight * grassTop;\n"
+"    position.xy += uGrassPhase.zw * grassSway;\n"
 "    vec4 worldPos = i_instance * position;\n"
 "    v_color = i_color;\n"
 "    float fadeDist = length(worldPos.xy - uGrassCameraPos.xy);\n"
@@ -408,10 +420,15 @@ static LPSHADER instanced_shader;
 
 LPSHADER R_ModelShaderInstanced(void) {
     if (!instanced_shader) {
+        MATRIX4 bones[128];
+
         instanced_shader = R_InitShader(instanced_vs, model_fs);
         if (instanced_shader) {
+            FOR_LOOP(i, 128) Matrix4_identity(&bones[i]);
             R_Call(glUseProgram, instanced_shader->progid);
             R_Call(glUniform1f, instanced_shader->uAlphaCutoff, 0.5f);
+            /* Static grass has no keyed bones; install its identity palette once, not once per frame. */
+            R_Call(glUniformMatrix4fv, instanced_shader->uBones, 128, GL_FALSE, bones[0].v);
         }
     }
     return instanced_shader;
@@ -502,7 +519,7 @@ LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
 #endif
     R_RegisterUniform(program, uFogOfWar);
     R_RegisterUniform(program, uBones);
-    R_RegisterUniform(program, uUseDiscard);
+    R_RegisterUniform(program, uAlphaKey);
     R_RegisterUniform(program, uAlphaCutoff);
     R_RegisterUniform(program, uUnshaded);
     R_RegisterUniform(program, uLayerAlpha);

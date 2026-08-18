@@ -106,19 +106,31 @@ LPBUFFER R_MakeIndexedVertexArrayObject(LPCVERTEX vertices, DWORD num_vertices, 
     return buf;
 }
 
-/* Draw one static vertex buffer `num_instances` times, each with its own world
-   matrix. A single shared VAO is re-bound to `buffer->vbo` plus an instanced
-   mat4 attribute so thousands of identical meshes collapse into one draw call. */
+/* Static instance transforms are immutable until their ADT window is replaced. */
 static GLuint r_instanced_vao = 0;
-static GLuint r_instanced_vbo = 0;
 
-void R_DrawBufferInstanced(LPCBUFFER buffer, DWORD num_vertices, LPCMATRIX4 matrices, DWORD num_instances) {
-    if (!buffer || !num_vertices || !matrices || !num_instances) {
-        return;
-    }
+BOOL R_MakeInstanceBuffer(LPINSTANCEBUFFER buffer, LPCMATRIX4 matrices, DWORD count) {
+    if (!buffer || !matrices || !count) return false;
+    memset(buffer, 0, sizeof(*buffer));
+    R_Call(glGenBuffers, 1, &buffer->vbo);
+    if (!buffer->vbo) return false;
+    buffer->count = count;
+    R_Call(glBindBuffer, GL_ARRAY_BUFFER, buffer->vbo);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, R_InstanceBufferBytes(count), matrices, GL_STATIC_DRAW);
+    return true;
+}
+
+void R_ReleaseInstanceBuffer(LPINSTANCEBUFFER buffer) {
+    if (!buffer) return;
+    if (buffer->vbo) R_Call(glDeleteBuffers, 1, &buffer->vbo);
+    memset(buffer, 0, sizeof(*buffer));
+}
+
+/* Rebind one model batch and its persistent instance stream to the shared VAO. */
+void R_DrawBufferInstanced(LPCBUFFER buffer, DWORD num_vertices, LPCINSTANCEBUFFER instances) {
+    if (!buffer || !num_vertices || !instances || !instances->vbo || !instances->count) return;
     if (!r_instanced_vao) {
         R_Call(glGenVertexArrays, 1, &r_instanced_vao);
-        R_Call(glGenBuffers, 1, &r_instanced_vbo);
     }
 
     R_Call(glBindVertexArray, r_instanced_vao);
@@ -136,28 +148,27 @@ void R_DrawBufferInstanced(LPCBUFFER buffer, DWORD num_vertices, LPCMATRIX4 matr
     R_Call(glVertexAttribPointer, attrib_boneWeight1, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(struct vertex), FOFS(vertex, boneWeight[0]));
     R_Call(glVertexAttribPointer, attrib_normal, 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex), FOFS(vertex, normal));
 
-    R_Call(glBindBuffer, GL_ARRAY_BUFFER, r_instanced_vbo);
-    R_Call(glBufferData, GL_ARRAY_BUFFER, num_instances * sizeof(MATRIX4), matrices, GL_DYNAMIC_DRAW);
+    /* Instance matrices were uploaded once at ADT-window construction, not once per frame. */
+    R_Call(glBindBuffer, GL_ARRAY_BUFFER, instances->vbo);
     for (int i = 0; i < 4; i++) {
         R_Call(glEnableVertexAttribArray, attrib_instance0 + i);
         R_Call(glVertexAttribPointer, attrib_instance0 + i, 4, GL_FLOAT, GL_FALSE, sizeof(MATRIX4), (void *)(i * 4 * sizeof(float)));
         R_Call(glVertexAttribDivisor, attrib_instance0 + i, 1);
     }
 
-    R_Call(glDrawArraysInstanced, GL_TRIANGLES, 0, num_vertices, num_instances);
+    R_StatsDraw(GL_TRIANGLES, num_vertices, instances->count);
+    R_Call(glDrawArraysInstanced, GL_TRIANGLES, 0, num_vertices, instances->count);
 
     for (int i = 0; i < 4; i++) {
         R_Call(glVertexAttribDivisor, attrib_instance0 + i, 0);
     }
 }
 
-/* Free the lazily-created instanced VAO/VBO so renderer shutdown matches the other GL resources. */
+/* Free the lazily-created shared VAO; owners release their immutable instance VBOs. */
 void R_ShutdownDrawBufferInstanced(void) {
     if (r_instanced_vao) {
-        R_Call(glDeleteBuffers, 1, &r_instanced_vbo);
         R_Call(glDeleteVertexArrays, 1, &r_instanced_vao);
         r_instanced_vao = 0;
-        r_instanced_vbo = 0;
     }
 }
 

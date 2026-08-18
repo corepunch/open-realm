@@ -150,6 +150,7 @@ void Wow_FreeDoodadInstances(void) {
 }
 
 void Wow_ClearLoadedAdts(void) {
+    Wow_FreeGrassScratch();
     Wow_FreeChunks();
     Wow_FreeWmoInstances();
     Wow_FreeWmoModels();
@@ -207,6 +208,7 @@ void Wow_ShutdownWorldShaders(void) {
     wow_uTexture3 = -1;
     wow_uAlphaTexture = -1;
     wow_uUseWeightedBlend = -1;
+    wow_uSingleTexture = -1;
     wow_uAlphaOrigin = -1;
     wow_uAlphaAtlasChunks = -1;
     wow_uGrassTime = -1;
@@ -221,7 +223,7 @@ void Wow_ShutdownWorldShaders(void) {
     wow_uCtrlOriginWorld = -1;
     wow_uCtrlCellSize = -1;
     wow_uCameraXZ = -1;
-    wow_uGrassTileSize = -1;
+    wow_uGrassSlotSpacing = -1;
 }
 
 LPTEXTURE Wow_LoadTexture(LPCSTR path) {

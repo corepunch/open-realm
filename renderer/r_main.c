@@ -424,6 +424,7 @@ static void R_PrintDisplayModes(void) {
 void R_Init(DWORD width, DWORD height) {
     renderer_shutdown = false;
     BOOL gl_current = false;
+    int requested_msaa = R_MsaaRequest(atoi(ri.CvarString ? ri.CvarString("r_msaa", BZ_MSAA_DEFAULT_STRING) : BZ_MSAA_DEFAULT_STRING));
     SDL_version sdl_version;
 
     SDL_Init(SDL_INIT_VIDEO);
@@ -440,6 +441,8 @@ void R_Init(DWORD width, DWORD height) {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, requested_msaa ? 1 : 0);
+    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, requested_msaa);
 
     fprintf(stderr, "Video initialization.\n");
     SDL_GetVersion(&sdl_version);
@@ -454,7 +457,15 @@ void R_Init(DWORD width, DWORD height) {
     
     fprintf(stderr, "Refresher initialization.\n");
     window = SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI);
-    context = SDL_GL_CreateContext(window);
+    context = window ? SDL_GL_CreateContext(window) : NULL;
+    if (!context && requested_msaa) {
+        fprintf(stderr, "OpenGL: %dx MSAA context unavailable (%s); retrying without MSAA\n", requested_msaa, SDL_GetError());
+        if (window) SDL_DestroyWindow(window);
+        SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 0);
+        SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 0);
+        window = SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI);
+        context = window ? SDL_GL_CreateContext(window) : NULL;
+    }
     if (context && SDL_GL_MakeCurrent(window, context) == 0) {
         gl_current = true;
     } else {
@@ -466,11 +477,21 @@ void R_Init(DWORD width, DWORD height) {
     fprintf(stderr, "Client: OpenWarcraft3\n\n");
     fprintf(stderr, "Drawable size: %dx%d\n\n", tr.drawableSize.width, tr.drawableSize.height);
     if (gl_current) {
+        GLint sample_buffers = 0, samples = 0;
+        int sdl_buffers = 0, sdl_samples = 0;
+        SDL_GL_GetAttribute(SDL_GL_MULTISAMPLEBUFFERS, &sdl_buffers);
+        SDL_GL_GetAttribute(SDL_GL_MULTISAMPLESAMPLES, &sdl_samples);
+        R_Call(glGetIntegerv, GL_SAMPLE_BUFFERS, &sample_buffers);
+        R_Call(glGetIntegerv, GL_SAMPLES, &samples);
+        tr.msaa_samples = R_MsaaActiveSamples(sample_buffers, samples);
         fprintf(stderr, "OpenGL setting:\n");
         fprintf(stderr, "GL_VENDOR: %s\n", R_GLString(GL_VENDOR));
         fprintf(stderr, "GL_RENDERER: %s\n", R_GLString(GL_RENDERER));
         fprintf(stderr, "GL_VERSION: %s\n", R_GLString(GL_VERSION));
         fprintf(stderr, "GL_SHADING_LANGUAGE_VERSION: %s\n", R_GLString(GL_SHADING_LANGUAGE_VERSION));
+        fprintf(stderr, "MSAA: requested=%dx SDL=%d/%d GL=%d/%d active=%dx alpha-to-coverage=%s\n",
+                requested_msaa, sdl_buffers, sdl_samples, sample_buffers, samples, tr.msaa_samples,
+                tr.msaa_samples ? "yes" : "no (alpha-key blend fallback)");
         R_PrintGLExtensions();
     }
     
@@ -515,6 +536,35 @@ void R_Init(DWORD width, DWORD height) {
     R_InitParticles();
     R_GameInit();
     fprintf(stderr, "Refresher initialized.\n\n");
+}
+
+/* Alpha-key materials use sample coverage with depth writes; non-MSAA contexts retain a visible blended fallback. */
+void R_SetAlphaKeyState(BOOL enabled) {
+    if (!enabled) {
+        R_Call(glDisable, GL_SAMPLE_ALPHA_TO_COVERAGE);
+        return;
+    }
+#ifdef USE_SHADOWMAPS
+    if (is_rendering_lights) {
+        /* TODO: Single-sample shadow targets need multisample depth coverage before alpha-key shadows can use ATOC. */
+        R_Call(glDisable, GL_SAMPLE_ALPHA_TO_COVERAGE);
+        R_Call(glEnable, GL_BLEND);
+        R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        R_Call(glDepthMask, GL_FALSE);
+        return;
+    }
+#endif
+    if (tr.msaa_samples) {
+        R_Call(glDisable, GL_BLEND);
+        R_Call(glEnable, GL_SAMPLE_ALPHA_TO_COVERAGE);
+        R_Call(glDepthMask, GL_TRUE);
+        R_Call(glBlendFunc, GL_ONE, GL_ZERO);
+    } else {
+        R_Call(glDisable, GL_SAMPLE_ALPHA_TO_COVERAGE);
+        R_Call(glEnable, GL_BLEND);
+        R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        R_Call(glDepthMask, GL_FALSE);
+    }
 }
 
 void R_Shutdown(void) {
@@ -648,17 +698,63 @@ void R_RenderFrame(viewDef_t const *viewDef) {
 void R_DrawBuffer(LPCBUFFER buffer, DWORD num_vertices) {
     R_Call(glBindVertexArray, buffer->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, buffer->vbo);
+    R_StatsDraw(GL_TRIANGLES, num_vertices, 1);
     R_Call(glDrawArrays, GL_TRIANGLES, 0, num_vertices);
+}
+
+/* Static procedural batches need only gl_InstanceID; their shared VAO has no per-instance stream. */
+void R_DrawBufferCopies(LPCBUFFER buffer, DWORD num_vertices, DWORD num_instances) {
+    R_Call(glBindVertexArray, buffer->vao);
+    R_Call(glBindBuffer, GL_ARRAY_BUFFER, buffer->vbo);
+    R_StatsDraw(GL_TRIANGLES, num_vertices, num_instances);
+    R_Call(glDrawArraysInstanced, GL_TRIANGLES, 0, num_vertices, num_instances);
 }
 
 void R_DrawIndexedBuffer(LPCBUFFER buffer, DWORD num_indices) {
     R_Call(glBindVertexArray, buffer->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, buffer->vbo);
     R_Call(glBindBuffer, GL_ELEMENT_ARRAY_BUFFER, buffer->ibo);
+    R_StatsDraw(GL_TRIANGLES, num_indices, 1);
     R_Call(glDrawElements, GL_TRIANGLES, num_indices, GL_UNSIGNED_INT, NULL);
 }
 
+typedef struct {
+    uint64_t draws, vertices, triangles, instances;
+} RENDERSTATS;
+
+static RENDERSTATS r_frame_stats, r_stats_accum;
+static DWORD r_stats_frames, r_stats_start;
+
+/* Count submitted work at the renderer boundary, including instanced amplification. */
+void R_StatsDraw(GLenum mode, DWORD count, DWORD instances) {
+    r_frame_stats.draws++;
+    r_frame_stats.vertices += (uint64_t)count * instances;
+    r_frame_stats.triangles += R_PrimitiveTriangles(mode, count, instances);
+    r_frame_stats.instances += instances;
+}
+
+/* Emit one averaged line per second so profiling logs remain readable. */
+static void R_FinishFrameStats(void) {
+    DWORD now = SDL_GetTicks(), elapsed;
+
+    r_stats_accum.draws += r_frame_stats.draws; r_stats_accum.vertices += r_frame_stats.vertices;
+    r_stats_accum.triangles += r_frame_stats.triangles; r_stats_accum.instances += r_frame_stats.instances;
+    r_stats_frames++;
+    if (!r_stats_start) r_stats_start = now;
+    elapsed = now - r_stats_start;
+    if (elapsed < 1000) return;
+    if (R_CvarEnabled("r_stats", "0")) {
+        fprintf(stderr, "[R_STATS] fps=%.1f draws=%.1f vertices=%.0f triangles=%.0f instances=%.0f\n",
+                r_stats_frames * 1000.0 / elapsed, (double)r_stats_accum.draws / r_stats_frames,
+                (double)r_stats_accum.vertices / r_stats_frames, (double)r_stats_accum.triangles / r_stats_frames,
+                (double)r_stats_accum.instances / r_stats_frames);
+    }
+    memset(&r_stats_accum, 0, sizeof(r_stats_accum)); r_stats_frames = 0; r_stats_start = now;
+}
+
 void R_BeginFrame(void) {
+    memset(&r_frame_stats, 0, sizeof(r_frame_stats));
+    R_Call(glDisable, GL_SAMPLE_ALPHA_TO_COVERAGE);
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_TRUE);
     R_Call(glDepthFunc, GL_LEQUAL);
@@ -675,6 +771,7 @@ void R_EndFrame(void) {
 #ifdef SC2
     R_Call(glColorMask, GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 #endif
+    R_FinishFrameStats();
     SDL_GL_SwapWindow(window);
     SDL_Delay(1);
 }

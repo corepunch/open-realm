@@ -12,7 +12,7 @@ float GetAccurateHeightAtPoint(float sx, float sy);
 m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size, BOOL *buffer_owned);
 void M2_Init(void);
 void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMATRIX4 transform);
-void M2_RenderInstanced(m2Model_t const *model, LPCMATRIX4 transforms, DWORD count);
+void M2_RenderInstanced(m2Model_t const *model, LPCINSTANCEBUFFER instances);
 BOOL M2_AttachmentMatrix(m2Model_t const *model, DWORD attachment_id, LPCMATRIX4 model_matrix, LPMATRIX4 out);
 FLOAT M2_GroundOffset(m2Model_t const *model);
 BOOL M2_CameraView(m2Model_t const *model, DWORD camera_index, LPVECTOR3 eye, LPVECTOR3 target, LPFLOAT fov_degrees, LPFLOAT znear, LPFLOAT zfar);
@@ -265,11 +265,11 @@ void R_GameRenderModel(renderEntity_t const *entity) {
     }
 }
 
-void R_GameRenderModelInstanced(LPCMODEL model, LPCMATRIX4 transforms, DWORD count) {
+void R_GameRenderModelInstanced(LPCMODEL model, LPCINSTANCEBUFFER instances) {
     if (!model || model->modeltype != ID_MD20) {
         return;
     }
-    M2_RenderInstanced(model->m2, transforms, count);
+    M2_RenderInstanced(model->m2, instances);
 }
 
 bool R_GameTraceModel(renderEntity_t const *entity, LPCLINE3 line, LPFLOAT distance) {

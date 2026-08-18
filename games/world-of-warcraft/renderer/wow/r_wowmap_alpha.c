@@ -226,12 +226,17 @@ void Wow_DecodeAlphaMaps(BYTE const *mcal,
 
 /* Allocate the R32F height atlas covering the full ADT streaming window. */
 void Wow_EnsureHeightAtlas(void) {
+    float *clear;
     if (wow_world.height_atlas) return;
+    clear = ri.MemAlloc(sizeof(*clear) * WOW_HEIGHT_ATLAS_W * WOW_HEIGHT_ATLAS_H);
+    if (!clear) return;
+    memset(clear, 0, sizeof(*clear) * WOW_HEIGHT_ATLAS_W * WOW_HEIGHT_ATLAS_H);
     wow_world.height_atlas = R_AllocateTexture(WOW_HEIGHT_ATLAS_W, WOW_HEIGHT_ATLAS_H);
     R_Call(glBindTexture, GL_TEXTURE_2D, wow_world.height_atlas->texid);
     /* GL_R32F: exact float precision, no filtering bias near cell centers */
     R_Call(glTexImage2D, GL_TEXTURE_2D, 0, GL_R32F, WOW_HEIGHT_ATLAS_W, WOW_HEIGHT_ATLAS_H,
-           0, GL_RED, GL_FLOAT, NULL);
+           0, GL_RED, GL_FLOAT, clear);
+    ri.MemFree(clear);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
@@ -268,11 +273,17 @@ void Wow_UploadHeightAtlasChunk(DWORD ix, DWORD iy, float base_z, float const he
 
 /* Allocate the RGBA8 grass-control texture (one texel per 8x8 MCNK cell). */
 void Wow_EnsureGrassCtrlTexture(void) {
+    BYTE *clear;
     if (wow_world.grass_ctrl) return;
+    clear = ri.MemAlloc(WOW_GRASS_CTRL_SIZE * WOW_GRASS_CTRL_SIZE * 4);
+    if (!clear) return;
+    memset(clear, 0, WOW_GRASS_CTRL_SIZE * WOW_GRASS_CTRL_SIZE * 4);
+    for (DWORD i = 0; i < WOW_GRASS_CTRL_SIZE * WOW_GRASS_CTRL_SIZE; i++) clear[i * 4] = 255;
     wow_world.grass_ctrl = R_AllocateTexture(WOW_GRASS_CTRL_SIZE, WOW_GRASS_CTRL_SIZE);
     R_Call(glBindTexture, GL_TEXTURE_2D, wow_world.grass_ctrl->texid);
     R_Call(glTexImage2D, GL_TEXTURE_2D, 0, GL_RGBA, WOW_GRASS_CTRL_SIZE, WOW_GRASS_CTRL_SIZE,
-           0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+           0, GL_RGBA, GL_UNSIGNED_BYTE, clear);
+    ri.MemFree(clear);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
