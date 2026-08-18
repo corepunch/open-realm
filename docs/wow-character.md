@@ -103,7 +103,7 @@ resolve but clothing does not, inspect both versioned DBC schemas before changin
 ## DBC Parsing
 
 - Per-table field layouts, the WDBC container format, and the packed appearance/equipment bitfields are collected in
-  [DBC Reference](../games/world-of-warcraft/docs/dbc-reference.md).
+  [DBC Reference](games/world-of-warcraft/dbc-reference.md).
 - Some classic-era DBCs have a logical field count larger than `record_size / 4`; for example local `CharStartOutfit.dbc` reports 41 fields with 152-byte records. Parse DBC records by validating the file envelope and checking each accessed field against `record_size`, not by rejecting the whole file when `field_count * 4` exceeds `record_size`.
 - `CharSections.dbc` has two ten-field layouts. Classic/TBC and HD-texture Wrath store variation/color at fields 4/5 and textures at
   6–8; stock Wrath stores textures at 4–6 and variation/color at 8/9. Field count cannot distinguish them. Probe field 4 from the
@@ -113,7 +113,7 @@ resolve but clothing does not, inspect both versioned DBC schemas before changin
   `Character\<Race>\Hair00_<color:02>.blp`. Derive `<Race>` from the selected model path and `<color>` from the matched DBC row; do not
   substitute a fixed race/color or leave the renderer's white initialization texture bound. Female rows generally provide explicit
   strings. `CharHairTextures.dbc` contains hair-geoset flags, not replacement-texture filenames.
-- `ItemDisplayInfo.dbc` carries item model names/textures, geoset groups, flags, helmet visibility, and eight character texture component slots. In the local classic-era 23-field layout, texture components start at field 14; in the documented 25-field TBC/Wrath layout, they start at field 15. The component slots map to: upper arm, lower arm, hand, upper torso, lower torso, upper leg, lower leg, foot. See `games/world-of-warcraft/docs/m2-and-character-display.md` for the verified per-slot field→geoset-group mapping and variant tables for groups 4, 5, 8, 9, 13, and 15.
+- `ItemDisplayInfo.dbc` carries item model names/textures, geoset groups, flags, helmet visibility, and eight character texture component slots. In the local classic-era 23-field layout, texture components start at field 14; in the documented 25-field TBC/Wrath layout, they start at field 15. The component slots map to: upper arm, lower arm, hand, upper torso, lower torso, upper leg, lower leg, foot. See `docs/games/world-of-warcraft/m2-and-character-display.md` for the verified per-slot field→geoset-group mapping and variant tables for groups 4, 5, 8, 9, 13, and 15.
 - Do not choose the component base with a broad `fields >= 23` test: that maps the local 23-field Classic schema to the later field-15
   layout and shifts all eight clothing components. Use field 14 for layouts 22–24 and field 15 for layouts 25 and later.
 
@@ -175,7 +175,7 @@ For a saved-character/class test, update both `class` and `appearance` in `share
 Screenshot QA must check each independently visible data path: base skin/face, hair and facial-hair color, starter clothing, and
 equipment geosets. Clothing appearing correctly does not prove that replaceable texture type 6 resolved; unresolved hair renders white.
 
-See [M2 And Character Display](../games/world-of-warcraft/docs/m2-and-character-display.md) for the full renderer pipeline and
+See [M2 And Character Display](games/world-of-warcraft/m2-and-character-display.md) for the full renderer pipeline and
 [Rendering Scene Workflow](rendering-scene-workflow.md) for general `+menu_*` and screenshot conventions.
 
 ## Reference Links

@@ -95,9 +95,9 @@ Agent guidance:
 - Prefer `info` first, then `str` for named fields, then `dump` when you need the full picture.
 - Pipe `dump` output through `grep`, `awk`, or `cut` for quick filtering.
 - Use `create`/`set`/`setstr`/`save` to generate minimal DBC fixtures for tests that exercise DBC-dependent code paths.
-- For race spawn/map investigations, start with `games/world-of-warcraft/docs/spawn-and-teleport.md`; it records the server-table/Map.dbc ownership split and bounded launch commands.
-- For first-login camera investigations, start with `games/world-of-warcraft/docs/cinematics.md`; it records the verified row/field indices and camera-only M2 command.
-- For floating ADT objects, read `games/world-of-warcraft/docs/terrain-and-world-rendering.md` before changing game-object code; renderer MDDFs and interactive game entities are separate consumers.
+- For race spawn/map investigations, start with `docs/games/world-of-warcraft/spawn-and-teleport.md`; it records the server-table/Map.dbc ownership split and bounded launch commands.
+- For first-login camera investigations, start with `docs/games/world-of-warcraft/cinematics.md`; it records the verified row/field indices and camera-only M2 command.
+- For floating ADT objects, read `docs/games/world-of-warcraft/terrain-and-world-rendering.md` before changing game-object code; renderer MDDFs and interactive game entities are separate consumers.
 
 ## MDX Animation Reference (WarsmashModEngine)
 

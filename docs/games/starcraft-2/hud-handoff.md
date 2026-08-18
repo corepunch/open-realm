@@ -91,7 +91,7 @@ Since `SC2_HUD_WriteFrameWithChildren` already skips `SC2_UIFLAG_HIDDEN` frames 
 | `games/starcraft-2/game/hud/hud_command.c` | Writes LAYER_COMMANDBAR: CommandPanel ability grid. |
 | `games/starcraft-2/game/hud/hud_infopanel.c` | Writes LAYER_INFOPANEL: selected unit stats/portrait. |
 | `games/starcraft-2/tests/test_sc2_consoleui.c` | All adapter tests. |
-| `games/starcraft-2/docs/hud-layout-pipeline.md` | Design doc (up to date). |
+| `docs/games/starcraft-2/hud-layout-pipeline.md` | Design doc (up to date). |
 | `client/cl_layout.c` | `SCR_GetStringValue`: `stat > 0` → player stat, `text != NULL` → literal, else `"text %d"`. |
 
 ## How to run

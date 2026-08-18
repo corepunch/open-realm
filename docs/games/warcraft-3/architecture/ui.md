@@ -13,7 +13,7 @@ Phase 8 removed all server-side UI code. The game library now only provides **da
 **Looking for a specific topic?**
 
 - **Complete end-to-end flow** (client input → command/data update → rendering): See [UI Flow](ui-flow.md)
-- **Runtime cvars and stdout renderer**: See [Runtime Modules and Cvars](../../../../architecture/runtime.md)
+- **Runtime cvars and stdout renderer**: See [Runtime Modules and Cvars](../../../architecture/runtime.md)
 - **How to add a new UI element**: See [Adding a New UI Element](#adding-a-new-ui-element) below
 - **FDF file syntax**: See [FDF File Format](../file-formats/fdf.md)
 

@@ -66,19 +66,19 @@ What the World of Warcraft target currently knows how to load and render.
 
 ### Documents
 
-- [Data Loading](docs/data-loading.md): MPQ data layout, WDT/ADT map entry, DBC helpers, and tool commands.
-- [DBC Reference](docs/dbc-reference.md): WDBC binary format, packed appearance/equipment values, and per-table field layouts for character/creature/UI DBCs.
-- [File Formats](docs/file-formats.md): collected reverse-engineered format notes for MPQ/CASC, WDT/ADT/WDL, WMO, M2/SKIN/ANIM, BLP, DBC/DB2, WDB, and related files.
-- [Terrain And World Rendering](docs/terrain-and-world-rendering.md): WDT tiles, ADT chunks, splats, alpha maps, doodads, WMOs, and height queries.
-- [M2 And Character Display](docs/m2-and-character-display.md): M2 loading, creation/select data flow, packed defaults, DBC-backed outfit data, geosets, and component texture rules.
-- [WoW Character Display Quick Reference](../../docs/wow-character.md): authoritative DBCs, saved appearance values, common pitfalls, and bounded diagnostic commands.
-- [Grass Rendering System](docs/grass-rendering-system.md): terrain-advertent grass rendering.
-- [GPU Terrain Height Atlas And Static Grass Batches](docs/static-grass-and-height-atlas.md): exact MCVT atlas, static M2 instance batches, patch culling, alpha handling, and staged verification plan.
-- [References](docs/references.md): public schema references and local source/tool entry points.
-- [Sounds](docs/sounds.md)
-- [Magic And Effects](docs/magic-and-effects.md): magic schools, damage types, multi-school system, buffs/debuffs, DoT/HoT, crowd control, status effects.
-- [Enemies And Creatures](docs/enemies-and-creatures.md): creature types/taxonomy, classifications (normal/elite/rare/boss), difficulty tiers, aggro/threat, NPC AI roles.
-- [Weapons And Classes](docs/weapons-and-classes.md): weapon types, class weapon access, combat roles (tank/healer/DPS), all class specializations, primary/secondary stats.
+- [Data Loading](data-loading.md): MPQ data layout, WDT/ADT map entry, DBC helpers, and tool commands.
+- [DBC Reference](dbc-reference.md): WDBC binary format, packed appearance/equipment values, and per-table field layouts for character/creature/UI DBCs.
+- [File Formats](file-formats.md): collected reverse-engineered format notes for MPQ/CASC, WDT/ADT/WDL, WMO, M2/SKIN/ANIM, BLP, DBC/DB2, WDB, and related files.
+- [Terrain And World Rendering](terrain-and-world-rendering.md): WDT tiles, ADT chunks, splats, alpha maps, doodads, WMOs, and height queries.
+- [M2 And Character Display](m2-and-character-display.md): M2 loading, creation/select data flow, packed defaults, DBC-backed outfit data, geosets, and component texture rules.
+- [WoW Character Display Quick Reference](../../wow-character.md): authoritative DBCs, saved appearance values, common pitfalls, and bounded diagnostic commands.
+- [Grass Rendering System](grass-rendering-system.md): terrain-advertent grass rendering.
+- [GPU Terrain Height Atlas And Static Grass Batches](static-grass-and-height-atlas.md): exact MCVT atlas, static M2 instance batches, patch culling, alpha handling, and staged verification plan.
+- [References](references.md): public schema references and local source/tool entry points.
+- [Sounds](sounds.md)
+- [Magic And Effects](magic-and-effects.md): magic schools, damage types, multi-school system, buffs/debuffs, DoT/HoT, crowd control, status effects.
+- [Enemies And Creatures](enemies-and-creatures.md): creature types/taxonomy, classifications (normal/elite/rare/boss), difficulty tiers, aggro/threat, NPC AI roles.
+- [Weapons And Classes](weapons-and-classes.md): weapon types, class weapon access, combat roles (tank/healer/DPS), all class specializations, primary/secondary stats.
 
 ### Short Version
 

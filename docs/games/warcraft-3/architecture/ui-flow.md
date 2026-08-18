@@ -178,5 +178,5 @@ The HUD screen renders from this cache on later frames.
 
 - [UI System Architecture](./ui.md)
 - [UI Quick Reference](ui-quick-reference.md)
-- [Runtime Modules and Cvars](../../../../architecture/runtime.md)
+- [Runtime Modules and Cvars](../../../architecture/runtime.md)
 - [FDF File Format](../file-formats/fdf.md)

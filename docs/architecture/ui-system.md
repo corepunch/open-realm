@@ -324,5 +324,5 @@ Use this to verify layout rects, UVs, text translation, color codes, and screen 
 
 - [Client Architecture](client.md) — client main loop and scene rendering
 - [Runtime Modules and Cvars](runtime.md) — cvar system, config loading, stdout renderer
-- [Warcraft III UI System](../games/warcraft-3/docs/architecture/ui.md) — WC3-specific UI detail
+- [Warcraft III UI System](../games/warcraft-3/architecture/ui.md) — WC3-specific UI detail
 - `docs/ui-authoring.md` — FDF conventions and ConsoleUI controller (source tree only)
