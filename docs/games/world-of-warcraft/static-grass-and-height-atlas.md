@@ -1,8 +1,27 @@
 # GPU Terrain Height Atlas and Static Grass Batches
 
-Status: **implementation design; not yet implemented**. This replaces the per-instance
-draw architecture described in [grass-rendering-system.md](grass-rendering-system.md),
-while retaining WoW's ADT and DBC data as the source of truth.
+Status: **prototype implementation; visual/data parity remains**. The current renderer
+uploads absolute MCVT heights into an `R32F` atlas, uploads one RGBA8 grass-control
+texel per MCNK cell, and submits one immutable camera-following procedural cross mesh.
+The grass vertex shader mirrors `Wow_HeightInCell`'s four diamond triangles, rejects
+atlas/control lookups outside the streamed window, applies density/suppression, and
+does placement plus wind on the GPU. Atlas textures are recreated with each ADT window;
+the mesh persists until world teardown.
+
+The prototype does **not** yet bake the authoritative ground-effect M2 geometry or
+materials, decode `pred_tex`, upload MCNR, move terrain to a shared template, or provide
+the documented multi-bone fallback. Keep the implementation sequence below as the
+parity checklist rather than treating the current procedural blades as the final path.
+
+Bounded verification command (Human start is required so `playercreate` selects map 0):
+
+```sh
+make run-wow ARGS="+set wow_playerinfo '\\race\\Human\\sex\\Male\\class\\1\\appearance\\0' +map playercreate +com_frame_limit 100"
+```
+
+The 2026-08-18 checkpoint loaded 2,304 MCNKs, built 32,768 blade slots / 393,216
+vertices once, linked the terrain and grass shaders without an OpenGL error, and exited
+at the frame limit. `make run-sc2` compiled and `make test` passed.
 
 ## Decision
 
@@ -476,7 +495,7 @@ make test
 ```
 
 Use the `xctrace` / `xctraceprof` workflow in
-[`docs/diagnostic-tools.md`](../../../docs/diagnostic-tools.md) and focus on
+[`docs/diagnostic-tools.md`](../../diagnostic-tools.md) and focus on
 `Wow_DrawGrass`, `Wow_DrawTerrainAndWmos`, and the static M2 submission function. Add GPU
 timer queries around terrain and grass separately when diagnosing a CPU/GPU handoff.
 

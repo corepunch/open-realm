@@ -14,6 +14,54 @@ GLint wow_uGrassTime = -1;
 GLint wow_uGrassCameraOrigin = -1;
 GLint wow_uGrassDrawDistance = -1;
 GLint wow_uGrassFadeStartDistance = -1;
+GLint wow_uHeightAtlas = -1;
+GLint wow_uAtlasOriginWorld = -1;
+GLint wow_uAtlasChunkSize = -1;
+GLint wow_uAtlasUnitSize = -1;
+GLint wow_uGrassCtrl = -1;
+GLint wow_uCtrlOriginWorld = -1;
+GLint wow_uCtrlCellSize = -1;
+GLint wow_uCameraXZ = -1;
+GLint wow_uGrassTileSize = -1;
+
+/* Keep terrain and grass on the same exact MCVT diamond interpolation contract. */
+#define WOW_HEIGHT_ATLAS_GLSL \
+    "uniform sampler2D uHeightAtlas;\n" \
+    "uniform vec2 uAtlasOriginWorld;\n" \
+    "uniform float uAtlasChunkSize;\n" \
+    "uniform float uAtlasUnitSize;\n" \
+    "bool HeightAtlas_Coord(vec2 worldXY, out ivec2 tile, out vec2 cell) {\n" \
+    "    vec2 rel = (uAtlasOriginWorld - worldXY) / uAtlasChunkSize;\n" \
+    "    tile = ivec2(floor(rel.y), floor(rel.x));\n" \
+    "    cell = fract(rel) * (uAtlasChunkSize / uAtlasUnitSize);\n" \
+    "    ivec2 tiles = textureSize(uHeightAtlas, 0) / ivec2(17, 9);\n" \
+    "    return all(greaterThanEqual(tile, ivec2(0))) && all(lessThan(tile, tiles));\n" \
+    "}\n" \
+    "float HeightAtlas_Bary(vec2 p, vec2 a, float ah, vec2 b, float bh, vec2 c, float ch) {\n" \
+    "    float d = (b.y-c.y)*(a.x-c.x) + (c.x-b.x)*(a.y-c.y);\n" \
+    "    float wa = ((b.y-c.y)*(p.x-c.x) + (c.x-b.x)*(p.y-c.y)) / d;\n" \
+    "    float wb = ((c.y-a.y)*(p.x-c.x) + (a.x-c.x)*(p.y-c.y)) / d;\n" \
+    "    return wa*ah + wb*bh + (1.0-wa-wb)*ch;\n" \
+    "}\n" \
+    "float HeightAtlas_SampleDiamond(vec2 worldXY) {\n" \
+    "    ivec2 tile; vec2 local;\n" \
+    "    if (!HeightAtlas_Coord(worldXY, tile, local)) return 0.0;\n" \
+    "    ivec2 cell = ivec2(clamp(floor(local), vec2(0.0), vec2(7.0)));\n" \
+    "    vec2 p = clamp(local - vec2(cell), vec2(0.0), vec2(1.0));\n" \
+    "    ivec2 base = tile * ivec2(17, 9) + ivec2(cell.y, cell.x);\n" \
+    "    float tl = texelFetch(uHeightAtlas, base, 0).r;\n" \
+    "    float tr = texelFetch(uHeightAtlas, base + ivec2(1, 0), 0).r;\n" \
+    "    float bl = texelFetch(uHeightAtlas, base + ivec2(0, 1), 0).r;\n" \
+    "    float br = texelFetch(uHeightAtlas, base + ivec2(1, 1), 0).r;\n" \
+    "    float ct = texelFetch(uHeightAtlas, tile*ivec2(17, 9) + ivec2(9+cell.y, cell.x), 0).r;\n" \
+    "    if (p.y <= p.x && p.y <= 1.0-p.x)\n" \
+    "        return HeightAtlas_Bary(p, vec2(.5), ct, vec2(0), tl, vec2(1,0), bl);\n" \
+    "    if (p.x <= p.y && p.x <= 1.0-p.y)\n" \
+    "        return HeightAtlas_Bary(p, vec2(.5), ct, vec2(0,1), tr, vec2(0), tl);\n" \
+    "    if (p.y >= p.x && p.y >= 1.0-p.x)\n" \
+    "        return HeightAtlas_Bary(p, vec2(.5), ct, vec2(1), br, vec2(0,1), tr);\n" \
+    "    return HeightAtlas_Bary(p, vec2(.5), ct, vec2(1,0), bl, vec2(1), br);\n" \
+    "}\n"
 
 void Wow_InitTerrainShader(void) {
     static LPCSTR vs_wow_terrain =
@@ -29,6 +77,7 @@ void Wow_InitTerrainShader(void) {
     "uniform mat4 uModelMatrix;\n"
     "uniform mat4 uLightMatrix;\n"
     "uniform mat3 uNormalMatrix;\n"
+    WOW_HEIGHT_ATLAS_GLSL
     "void main() {\n"
     "    vec4 pos = uModelMatrix * vec4(i_position, 1.0);\n"
     "    v_texcoord = i_texcoord;\n"
@@ -120,16 +169,36 @@ void Wow_InitGrassShader(void) {
     "uniform mat4 uViewProjectionMatrix;\n"
     "uniform mat4 uLightMatrix;\n"
     "uniform float uGrassTime;\n"
+    "uniform sampler2D uGrassCtrl;\n"
+    "uniform vec2 uCtrlOriginWorld;\n"
+    "uniform float uCtrlCellSize;\n"
+    "uniform vec2 uCameraXZ;\n"
+    "uniform float uGrassTileSize;\n"
+    WOW_HEIGHT_ATLAS_GLSL
     "void main() {\n"
     "    float top = clamp(i_texcoord.y, 0.0, 1.0);\n"
-    "    vec3 pos = i_position;\n"
-    "    float wave = sin(uGrassTime * 1.7 + dot(pos.xy, vec2(0.071, 0.049))) * 0.22;\n"
-    "    pos.xy += vec2(wave, wave * 0.35) * top;\n"
+    "    vec2 tileOrigin = floor(uCameraXZ / uGrassTileSize) * uGrassTileSize;\n"
+    "    vec2 worldXY = tileOrigin + i_normal.xy;\n"
+    "    ivec2 htile; vec2 hcell;\n"
+    "    float keep = HeightAtlas_Coord(worldXY, htile, hcell) ? 1.0 : 0.0;\n"
+    "    vec2 crel = (uCtrlOriginWorld - worldXY) / uCtrlCellSize;\n"
+    "    ivec2 cc = ivec2(floor(crel.y), floor(crel.x));\n"
+    "    ivec2 csize = textureSize(uGrassCtrl, 0);\n"
+    "    bool cin = all(greaterThanEqual(cc, ivec2(0))) && all(lessThan(cc, csize));\n"
+    "    vec4 ctrl = cin ? texelFetch(uGrassCtrl, cc, 0) : vec4(1.0, 0.0, 0.0, 0.0);\n"
+    "    keep *= (1.0-step(0.5, ctrl.r)) * step(i_color.g, ctrl.g);\n"
+    "    float scale = 0.5 + i_color.r;\n"
+    "    float cy = cos(i_normal.z), sy = sin(i_normal.z);\n"
+    "    vec3 pos = vec3(cy*i_position.x-sy*i_position.z, sy*i_position.x+cy*i_position.z, i_position.y) * scale;\n"
+    "    float wave = sin(uGrassTime * 1.7 + i_color.g * 6.2831853) * 0.22 * top;\n"
+    "    pos.xy += vec2(wave, wave * 0.35);\n"
+    "    pos += vec3(worldXY, HeightAtlas_SampleDiamond(worldXY));\n"
+    "    pos *= keep;\n"
     "    v_world = pos;\n"
-    "    v_color = i_color;\n"
+    "    v_color = vec4(0.28, 0.62, 0.18, ctrl.g * keep);\n"
     "    v_uv = i_texcoord;\n"
     "    vec3 lightDir = normalize(vec3(uLightMatrix[0][2], uLightMatrix[1][2], uLightMatrix[2][2])) * 1.2;\n"
-    "    float light = abs(dot(normalize(i_normal), lightDir));\n"
+    "    float light = abs(dot(vec3(0.0, 0.0, 1.0), lightDir));\n"
     "    v_lighting = mix(0.55, 1.0, clamp(light, 0.0, 1.0));\n"
     "    gl_Position = uViewProjectionMatrix * vec4(pos, 1.0);\n"
     "}\n";
@@ -169,4 +238,13 @@ void Wow_InitGrassShader(void) {
     wow_uGrassCameraOrigin = glGetUniformLocation(wow_grass_shader->progid, "uGrassCameraOrigin");
     wow_uGrassDrawDistance = glGetUniformLocation(wow_grass_shader->progid, "uGrassDrawDistance");
     wow_uGrassFadeStartDistance = glGetUniformLocation(wow_grass_shader->progid, "uGrassFadeStartDistance");
+    wow_uHeightAtlas = glGetUniformLocation(wow_grass_shader->progid, "uHeightAtlas");
+    wow_uAtlasOriginWorld = glGetUniformLocation(wow_grass_shader->progid, "uAtlasOriginWorld");
+    wow_uAtlasChunkSize = glGetUniformLocation(wow_grass_shader->progid, "uAtlasChunkSize");
+    wow_uAtlasUnitSize = glGetUniformLocation(wow_grass_shader->progid, "uAtlasUnitSize");
+    wow_uGrassCtrl = glGetUniformLocation(wow_grass_shader->progid, "uGrassCtrl");
+    wow_uCtrlOriginWorld = glGetUniformLocation(wow_grass_shader->progid, "uCtrlOriginWorld");
+    wow_uCtrlCellSize = glGetUniformLocation(wow_grass_shader->progid, "uCtrlCellSize");
+    wow_uCameraXZ = glGetUniformLocation(wow_grass_shader->progid, "uCameraXZ");
+    wow_uGrassTileSize = glGetUniformLocation(wow_grass_shader->progid, "uGrassTileSize");
 }
