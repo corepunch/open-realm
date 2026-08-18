@@ -6,16 +6,22 @@ while retaining WoW's ADT and DBC data as the source of truth.
 
 ## Decision
 
-Move terrain elevation to an exact GPU height atlas and replace grass entities with
-renderer-owned, immutable instance batches. Cull grass once per MCNK-sized patch, never
-per clump. Keep the actual `GroundEffectDoodad` M2 geometry and materials first; a
-procedural crossed-blade renderer is an optional quality mode, not the primary design.
+Move terrain elevation to an exact GPU height atlas. Replace grass entities with a
+**camera-following static grass mesh**: an immutable VBO of blade slots, tiled and snapped
+to the camera in the vertex shader (Ghost of Tsushima pattern), with height sampled from
+the atlas and wind applied per-blade — zero CPU work per frame. WoW placement data
+(suppression, density, model layer) is encoded into a grass-control texture updated only
+on ADT loads, not every frame. Frustum culling is eliminated by construction; the mesh
+is always centered on the camera.
 
-Do **not** start with compute shaders, GPU indirect culling, a geometry clipmap, or a
-single expanded VBO containing every copied M2 vertex. The renderer currently targets
-OpenGL 3.1 / GLSL 1.40, and the streamed 3x3-ADT window is small enough for static
-templates, static instance buffers, and coarse CPU culling. Those changes remove the
-measured bottleneck without raising the renderer baseline.
+Keep the actual `GroundEffectDoodad` M2 geometry baked into the VBO. Use
+`GL_SAMPLE_ALPHA_TO_COVERAGE` for sub-pixel edge quality and order-independent distance
+fade without sorting.
+
+Fall back to per-patch static instanced draws (the original design) only for M2 models
+with more than one animation bone. Do **not** start with compute shaders, GPU indirect
+culling, or geometry clipmaps; the GL 3.1 baseline and the measured bottleneck do not
+require them.
 
 ## Evidence and Current Bottleneck
 
@@ -202,21 +208,61 @@ With the existing GL 3.1 baseline, static instanced attributes plus ordinary ins
 draws are sufficient. A future renderer backend may compact visible patches into an
 indirect buffer on the GPU, but compute + `MultiDrawIndirect` is not the first milestone.
 
-### Why not one camera-following grass mesh?
+### Camera-following static mesh: the GPU-native grass path
 
-The Angry Bots rain technique—an immutable volume of slots, wrapped around the camera
-and animated in a vertex shader—is excellent for visually interchangeable particles.
-Grass shares the useful ideas of immutable slots, deterministic world-space hashing,
-and shader animation. WoW ground effects add constraints rain does not have:
+The Angry Bots rain technique—an immutable VBO of slots, tiled around the camera and
+animated entirely in a vertex shader—eliminates every per-frame CPU cost and is the
+right primary pattern for grass. Adapted for WoW:
 
-- per-cell authoritative layer/suppression data;
-- up to four weighted, actual M2 models per effect;
-- model-specific materials, UVs, geometry, bounds, and animation;
-- a non-bilinear diamond height surface.
+1. Allocate a flat VBO of N slots. Each slot copies the M2 quad geometry (8 verts /
+   12 indices) and adds a per-blade local offset (local_x, local_z), yaw, scale, and a
+   deterministic seed. The mesh never changes.
+2. In the vertex shader, compute the current tile origin:
+   ```glsl
+   vec2 tileOrigin = floor(uCameraXZ / TILE_SIZE) * TILE_SIZE;
+   vec3 worldPos   = vec3(tileOrigin.x + blade.local_x, 0.0, tileOrigin.y + blade.local_z);
+   worldPos.y      = HeightAtlas_SampleDiamond(uHeightAtlas, worldPos.xz);
+   ```
+   As the camera moves, `tileOrigin` snaps discretely at TILE_SIZE-width steps, so the
+   mesh appears infinite without any CPU spawn/despawn logic. This is the core pattern
+   from the Ghost of Tsushima (GDC 2020) grass system.
+3. The height atlas (`R32F`, 17×9 tiles, exact MCVT samples) provides Z without any CPU
+   lookup per blade. The vertex shader calls the same diamond interpolation used for
+   terrain vertices.
+4. Wind and per-blade phase variation are entirely in the vertex shader.
+5. Frustum culling is not needed: the mesh is always centered on the camera by
+   construction. A single AABB covering the full tile extent is sufficient for GPU
+   occlusion; no per-blade or per-clump test runs on the CPU.
 
-Therefore use a static **descriptor mesh per streamed patch/model**, not one universal
-expanded mesh. A camera-following procedural crossed-blade mode can be added later for
-very distant grass, where replacing actual M2 silhouettes is an explicit LOD decision.
+**How WoW placement data fits in.** The MCNK cell-placement information (predicted layer
+map, suppression mask, density) must still be read from the authoritative DBC/ADT source.
+Encode it into a grass-control texture: one channel for suppression, one for density
+weight, one for layer/effect index. The vertex shader reads this texture at each blade's
+world XZ and moves suppressed blades to a degenerate position (all three verts at the
+same point) so the rasterizer skips them entirely at zero fragment cost. This is cheaper
+than branching on early-out because it avoids shader divergence.
+
+**Multiple M2 models.** Bake each weighted M2 variant as a separate model index in the
+slot data. The vertex shader selects the correct base vertex range or the fragment shader
+selects the correct texture from a small array. Keep the number of distinct M2 variants
+per patch small (GroundEffectTexture.dbc typically has 2–4 weighted models); each variant
+can be its own sub-mesh within the VBO to keep materials simple.
+
+**Bone animation.** The locally inspected Classic Elwynn grass M2s each have one bone.
+Bake the rest-pose transform from that bone at load time and apply it statically; the
+vertex shader then adds wind offset on top. If a genuine multi-bone animated M2 appears,
+handle it as an instanced draw (Phase 3 path) rather than the static grass mesh.
+
+### Limitations of the camera-following static mesh
+
+| Constraint | Implication |
+|---|---|
+| Tile snapping | At TILE_SIZE steps the grass grid visibly snaps. Smaller tiles reduce the jump magnitude but increase draw-call and VBO cost. A 16–32 m tile at typical grass scale is imperceptible while walking; validate at camera snap with a stationary scene. |
+| Single-tile density | Every slot in the VBO is evaluated every frame; suppressed blades cost vertex work but no fragment work. Budget VBO size against the ratio of suppressed blades in dense vs. sparse areas. |
+| Exact WoW cell boundaries | Camera-snapping produces a regular grid, not MCNK-aligned cells. Suppression via texture lookup reproduces WoW placement without exact cell boundaries in the mesh topology. |
+| Height atlas coverage | The blade must land inside the currently loaded height atlas. Blades near the atlas edge that fall outside should be suppressed in the vertex shader; add an atlas-bounds check to the tile origin logic. |
+| Bone animation (multi-bone M2s) | Pure static mesh cannot carry per-bone animation. Fall back to instanced draws (Phase 3 path) for any M2 with more than one effective bone. |
+| View-distance ring | The tile must be large enough to cover the desired grass radius. A radius larger than TILE_SIZE/2 requires a multi-tile strategy (e.g. 3×3 tiles) or a larger single tile. Fix this at design time from the target grass draw distance. |
 
 ## Alpha, Sorting, and Fade
 
@@ -237,10 +283,30 @@ translucency: discard transparent texels and retain depth testing/writes. NVIDIA
 vegetation chapters likewise identify sorting alpha-blended foliage as expensive and
 describe alpha-to-coverage as an edge-quality alternative under MSAA.
 
+**Alpha-to-coverage (ATOC).** With MSAA enabled, `GL_SAMPLE_ALPHA_TO_COVERAGE` converts
+each fragment's alpha value into a coverage bitmask applied at subpixel resolution. At
+4× MSAA, alpha=0.75 fills three of four samples; alpha=0.25 fills one of four. This gives
+sub-pixel transparency with depth writes enabled and no sorting, eliminating the harsh
+texel-edge aliasing of a plain discard. The mechanism is order-independent because each
+sample only ever has one alpha value. GPU Gems 3 chapter 4 (SpeedTree) documents this for
+foliage edges and wind animation; Ben Golus's "Anti-Aliased Alpha Test: The Esoteric Alpha
+To Coverage" (Medium, ~2018) is the most complete developer-level explanation and covers
+alpha scaling, mip bias, and depth-write safety. The DX9-era ATI whitepaper (ATI_ATOC.pdf)
+and NVIDIA's ATOC vendor extension (`MAKEFOURCC('A','T','O','C',0)`) are the original API
+references; the ATI document is offline but archived. In Unity ShaderLab the same feature
+is spelled `AlphaToMask On`. This is almost certainly the "alpha-to-fill" technique the
+user recalled: the "fills N of 4 samples" framing for MSAA is exactly how every
+practitioner describes it informally.
+
+This same technique applies to trees. Any alpha-cutout M2 asset rendered under MSAA
+benefits from enabling ATOC: it removes hard pixel-grid edges on leaves and branches
+without sorting and without disabling depth writes.
+
 Implement material handling per M2 batch; remove the blanket ground-effect blend
 override in `M2_RenderInstanced`. For distance fade:
 
-- with MSAA, test `GL_SAMPLE_ALPHA_TO_COVERAGE` and keep depth writes;
+- with MSAA, enable `GL_SAMPLE_ALPHA_TO_COVERAGE` and keep depth writes; modulate
+  alpha in the fragment shader for fade, not blending;
 - without MSAA, use a stable screen/world-space dither threshold before discard;
 - do not convert every alpha-key asset to smooth alpha blending merely to fade it;
 - if a real `BLEND_MODE_BLEND` ground-effect asset is found, sort **patches/batches**
@@ -254,24 +320,56 @@ tiny grass triangles it may cost more vertex/alpha work than it saves.
 
 ## Shader Work
 
-The grass vertex shader needs:
+### Grass vertex shader (camera-following static mesh path)
 
-- compact instance attributes (`local_xy`, yaw/scale, seed);
-- MCNK origin/base Z and height-atlas tile;
-- exact diamond height lookup;
-- deterministic variation and optional per-instance animation phase;
-- existing M2 bone animation followed by instance transform;
-- wind displacement bounded by the patch bounds;
-- distance fade value for alpha-to-coverage/dither.
+```glsl
+// Uniforms: uCameraXZ (vec2), uTileSize (float), uHeightAtlas (sampler2D),
+//           uGrassControl (sampler2D), uTime (float), uGrassDist (float)
+// Per-vertex: aModelPos (vec3), aUV (vec2)
+// Per-slot:   aLocalXZ (vec2), aYaw (float), aScale (float), aSeed (float)
 
-The fragment shader should keep each M2 batch's texture and blend semantics. Do not
-replace M2 textures with the orphaned procedural `fs_wow_grass` unless implementing the
-explicit procedural LOD.
+vec2 tileOrigin = floor(uCameraXZ / uTileSize) * uTileSize;
+vec2 worldXZ    = tileOrigin + aLocalXZ;
 
-The terrain vertex shader needs exact height/normal fetch, chunk/world transform,
-terrain UV, alpha-atlas coordinate, and cell-hole handling. Keep height lookup in one
-shared GLSL snippet or generated string used by terrain, grass, and eventually splats;
-duplicated coordinate math will drift.
+// Suppress blades outside atlas bounds or in no-effect cells
+vec4  ctrl      = texture(uGrassControl, worldXZ * uControlScale + 0.5);
+float suppress  = step(0.5, ctrl.r);                  // 1 = suppressed
+float distFade  = 1.0 - smoothstep(uGrassDist * 0.8, uGrassDist, length(worldXZ - uCameraXZ));
+
+// Degenerate suppressed blades at a single point (no rasterization cost)
+float keep      = (1.0 - suppress) * step(0.001, distFade);
+
+float worldY    = HeightAtlas_SampleDiamond(uHeightAtlas, worldXZ);
+
+// Rotate model vertex by yaw, then scale, then place in world
+float cy = cos(aYaw), sy = sin(aYaw);
+vec3  rot = vec3(cy * aModelPos.x - sy * aModelPos.z,
+                 aModelPos.y,
+                 sy * aModelPos.x + cy * aModelPos.z) * aScale;
+
+// Wind: sine-wave offset scaled by blade height and a per-slot phase
+float windPhase  = uTime * 1.3 + aSeed * 6.28318;
+float windBend   = sin(windPhase) * 0.07 * rot.y;     // only upper verts bend
+rot.x           += windBend;
+
+vec3 worldPos = vec3(worldXZ.x + rot.x, worldY + rot.y, worldXZ.y + rot.z) * keep;
+gl_Position   = uViewProj * vec4(worldPos, 1.0);
+
+vUV       = aUV;
+vAlpha    = distFade * ctrl.g;   // ctrl.g: density weight from GroundEffectTexture
+```
+
+The fragment shader keeps the M2 texture and alpha-key discard. With MSAA, enable
+`GL_SAMPLE_ALPHA_TO_COVERAGE` and use `vAlpha` to modulate the output alpha for distance
+fade rather than enabling blending. Without MSAA, use a stable dither.
+
+`HeightAtlas_SampleDiamond` must be a shared GLSL snippet (include or generated string)
+used by terrain, grass, and splat shaders. Duplicate coordinate math will drift.
+
+### Terrain vertex shader
+
+Needs: exact height/normal fetch, chunk/world transform, terrain UV, alpha-atlas
+coordinate, and cell-hole handling. Same `HeightAtlas_SampleDiamond` snippet as grass.
 
 ## Implementation Sequence
 
@@ -301,14 +399,23 @@ duplicated coordinate math will drift.
 - Move terrain to the shared static template, then compare seams, slopes, splats, normals,
   and holes before deleting per-chunk render VBOs.
 
-### Phase 3: eliminate grass entities and frame rebuilds
+### Phase 3: eliminate grass entities — camera-following static mesh
 
-- Introduce patch/model batch structs and static compact instance buffers.
-- Build once on MCNK load; free on world/window unload.
-- Add a static-instance M2 draw path that does not upload matrices each frame.
-- Enumerate nearby patches spatially, cull once per patch, and submit cached model groups.
-- Remove `wow_world.ground_effects`, `wow_grass_scratch`, `RF_GROUND_EFFECT` matrix logic,
-  and `Wow_AddGroundEffectInstance` only after visual and counter parity.
+- Introduce a flat grass VBO: N slots, each containing the M2 blade geometry and
+  per-slot attributes (local_xz, yaw, scale, seed). Allocate once; never modify.
+- Build a grass-control texture covering the loaded ADT window: one channel for
+  suppression (no-effect mask), one for density weight, one for layer/effect index.
+  Update this texture when an MCNK loads or unloads; do not update it every frame.
+- Implement the camera-snapping tile vertex shader: tileOrigin snap, heightmap Z,
+  suppression degenerate-collapse, wind, and ATOC distance fade.
+- A single draw call covers the entire grass tile with no per-frame CPU culling.
+  Remove `wow_world.ground_effects`, `wow_grass_scratch`, `RF_GROUND_EFFECT` matrix
+  logic, and `Wow_AddGroundEffectInstance` only after visual and counter parity.
+- If multiple M2 model types are needed in one tile, partition the VBO into
+  per-model sub-meshes, each drawn with its own material in one `glDrawArrays` call
+  per visible model type. Keep the call count small; 2–4 models per effect type is typical.
+- Fall back to per-patch instanced draw (original Phase 3 design) for any M2 with
+  more than one effective animation bone.
 
 ### Phase 4: fix materials and fade
 
@@ -375,13 +482,44 @@ timer queries around terrain and grass separately when diagnosing a CPU/GPU hand
 
 ## Research References
 
+### Grass geometry and CPU elimination
+
 - [GPU Gems: Rendering Countless Blades of Waving Grass](https://developer.nvidia.com/gpugems/gpugems/part-i-natural-effects/chapter-7-rendering-countless-blades-waving-grass)
-  discusses clustered grass geometry, block-level management, depth writes, and the
-  limitations of alpha-blended sorting.
+  — Kurt Pelzer (Piranha Bytes), 2004. Three-quad star clusters, wind via vertex shader
+  trig, alpha-blended sorting. Starting point for clustered grass geometry.
 - [GPU Gems 2: Toward Photorealism in Virtual Botany](https://developer.nvidia.com/gpugems/gpugems2/part-i-geometric-complexity/chapter-1-toward-photorealism-virtual-botany)
-  discusses deterministic procedural placement and why sorted alpha foliage is costly.
+  — David Whatley (Simutronics), 2005. Deterministic procedural placement, screen-door
+  alpha test, and why sorted alpha foliage is costly.
+- **"Procedural Grass in Ghost of Tsushima"** — François Malenfant (Sucker Punch), GDC
+  2020, session 1026991 on the GDC Vault. The canonical reference for camera-snapping
+  infinite tiling grass: a static per-tile VBO, vertex-shader tileOrigin snap, and
+  heightmap displacement — exactly the pattern described in the camera-following section
+  above. Not directly fetchable in all regions; search GDC Vault for the title.
+- **Unity AngryBots demo (2013)** — rain particles as a static immutable mesh animated
+  entirely in a vertex shader. The "generate the mesh once, loop it around the camera"
+  pattern originates here for game-engine practitioners. No formal publication; widely
+  referenced in Unity forum threads and the Unity sample project.
+
+### Alpha-to-coverage
+
 - [GPU Gems 3: Next-Generation SpeedTree Rendering](https://developer.nvidia.com/gpugems/gpugems3/part-i-geometry/chapter-4-next-generation-speedtree-rendering)
-  describes alpha-to-coverage for foliage edges.
+  — Kharlamov, Cantlay, Stepanenko (NVIDIA), 2008. First major book treatment of ATOC
+  for foliage edges; explains the subpixel-coverage mechanism and wind scintillation fix.
+- **"Anti-Aliased Alpha Test: The Esoteric Alpha To Coverage"** — Ben Golus (Unity
+  Technologies), Medium, ~2018. URL:
+  `bgolus.medium.com/anti-aliased-alpha-test-the-esoteric-alpha-to-coverage-8b177335ae4f`.
+  The best developer-level explanation of how ATOC fills N-of-4 MSAA samples, alpha
+  scaling, mip bias, and why depth writes stay enabled. The informal "alpha to fill"
+  description recalled by the user refers to this "fills N of 4 coverage samples"
+  mechanism; it is not a published term but a universal practitioner paraphrase.
+- **ATI ATOC whitepaper** (`ATI_ATOC.pdf`, ~2005–2008). The original AMD vendor
+  extension documentation enabling A2C in DX9 via `MAKEFOURCC('A','2','M','1')`. The
+  AMD developer page is offline; the document exists on web.archive.org. NVIDIA's
+  equivalent used `MAKEFOURCC('A','T','O','C',0)`. In Unity ShaderLab the same
+  feature is spelled `AlphaToMask On`; in OpenGL it is `GL_SAMPLE_ALPHA_TO_COVERAGE`.
+
+### Terrain height and sorting
+
 - [Khronos: Transparency Sorting](https://wikis.khronos.org/opengl/Transparency_Sorting)
   explains why cutouts use discard + depth writes without translucency sorting.
 - [Khronos: Early Fragment Test](https://wikis.khronos.org/opengl/Early_Depth_Test)
@@ -389,6 +527,9 @@ timer queries around terrain and grass separately when diagnosing a CPU/GPU hand
   some hardware.
 - [GPU Gems 2: Terrain Rendering Using GPU-Based Geometry Clipmaps](https://developer.nvidia.com/gpugems/gpugems2/part-i-geometric-complexity/chapter-2-terrain-rendering-using-gpu-based-geometry)
   is the reference for a later large-distance terrain LOD, not a prerequisite here.
+
+### WoW data
+
 - [wowdev/noggit3 ground-effects investigation](https://github.com/wowdev/noggit3/issues/87)
   documents the MCNK 8x8 two-bit layer map and 64-bit suppression map. Treat this as
   reverse-engineered evidence and validate orientation/version against local assets.
@@ -399,10 +540,19 @@ timer queries around terrain and grass separately when diagnosing a CPU/GPU hand
   visual validation are mandatory.
 - Some ground-effect M2s may use real blending or more complex animation/materials than
   the verified Elwynn set. Dispatch from material data rather than hardcoding alpha-key.
-- Patch merging can trade a solved CPU problem for GPU overdraw. Keep coarse-culling and
-  GPU timing counters visible while tuning.
-- A shader-clipped absent blade still consumes vertex work. Density rejection is better
-  resolved while building static descriptors than by filling a universal grid and moving
-  rejected vertices off-screen.
+- **Camera-snap pop.** The tileOrigin snaps in TILE_SIZE steps; at large tile sizes this
+  is a visible jump. Validate at snap distance with a slow-walking camera. If pop is
+  visible, halve TILE_SIZE or use a 2×2 tile grid centered on the camera.
+- **Degenerate-collapse overhead.** A suppressed blade is collapsed to a degenerate
+  point in the vertex shader, not removed from the VBO. In very sparse areas the vertex
+  shader still runs for every suppressed slot. If vertex throughput becomes the limit,
+  consider a two-level VBO: a coarse suppression-aware CPU pass that compacts into a
+  smaller active-slot VBO once per ADT load event (not per frame).
+- **Grass-control texture boundaries.** Blades near the atlas edge may fall outside the
+  loaded height or control texture. Add an explicit out-of-bounds guard in the vertex
+  shader; do not rely on GL clamp-to-edge producing a valid height or suppression value.
 - The CPU height copy remains required by collision/gameplay and by validation. The GPU
   atlas is a rendering representation, not a new source of truth.
+- **Multi-bone M2 fallback.** The static mesh path cannot animate multi-bone M2s.
+  Keep the per-patch instanced draw path compiling and tested so it remains a viable
+  fallback when such assets are encountered.
