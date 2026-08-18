@@ -252,6 +252,21 @@ void R_DrawParticles(void) {
     R_SetAlphaKeyState(false);
 }
 
+/* Draw a single camera-facing (billboarded) sprite at a world position, reusing the particle
+ * billboard pipeline. BLP textures are stored top-down and the particle shader maps a quad's top
+ * vertex to V=1, so the UV rect is V-flipped to keep the sprite upright (top of image at top of quad). */
+void R_DrawBillboardSprite(LPCTEXTURE texture, LPCVECTOR3 origin, float size, COLOR32 color) {
+    MATRIX4 matrix;
+    particleVertex_t *pv = particles_resources.vertices;
+    COLOR32 const uv = { 0, 255, 255, 0 };
+
+    if (!texture) texture = particles_resources.texture;
+    Matrix4_identity(&matrix);
+    pv = R_AddParticle(pv, origin, uv, color, size);
+    R_FlushParticles(texture, &matrix, pv, BLEND_MODE_BLEND);
+    R_SetAlphaKeyState(false);
+}
+
 static LPBUFFER R_MakeParticlesVertexArrayObject(void) {
     LPBUFFER buf = ri.MemAlloc(sizeof(BUFFER));
 

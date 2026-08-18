@@ -351,3 +351,19 @@ TEST(wow_appearance, wow_entity_delta_preserves_fractional_radius) {
     T_EQ(number, 8);
     T_FEQ(out.radius, 0.5f, 0.001f);
 }
+
+TEST(wow_appearance, wow_entity_delta_preserves_overhead_sprite) {
+    BYTE buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    entityState_t from = { 0 }, to = { .number = 9, .model = 3, .overhead_sprite = 42 }, out = { 0 };
+    DWORD bits = 0;
+    int number;
+
+    MSG_WriteDeltaEntity(&sb, &from, &to, true);
+    sb.readcount = 0;
+    number = MSG_ReadEntityBits(&sb, &bits);
+    MSG_ReadDeltaEntity(&sb, &out, number, bits);
+
+    T_EQ(number, 9);
+    T_EQ(out.overhead_sprite, 42);
+}

@@ -81,6 +81,26 @@ kill objectives and the player's progress is tracked.
    identified by `go_entry = quest_id`. Only entities within 6500 units of
    the player spawn are created.
 
+## Overhead Quest Marker
+
+Quest givers set `entityState_t.overhead_sprite` to the image index of
+`Interface\GossipFrame\AvailableQuestIcon.blp` (the yellow "!"). The client
+resolves it to a texture in `V_AddClientEntity` and the renderer draws it as a
+billboarded sprite above the entity head:
+
+- **Field**: `entityState_t.overhead_sprite` (`NFT_SHORT`, image index) → `renderEntity_t.overhead_sprite` (resolved `LPCTEXTURE`). 0/NULL means no sprite.
+- **Render**: `R_GameRenderModel` (`games/world-of-warcraft/renderer/r_game.c`) draws it after the model,
+  floating `M2_HeadHeight(model) * scale + 0.25` above the entity origin. `M2_HeadHeight`
+  (`renderer/m2/r_m2.c`) returns the model's animation-inclusive bounding-box top, so the
+  marker clears the head regardless of creature height. `R_DrawBillboardSprite`
+  (`renderer/r_particles.c`) draws the camera-facing quad, reusing the particle billboard
+  pipeline (Quake-style explosion billboard).
+
+The sprite is set unconditionally on quest givers for now. Per-player quest
+state (available "!" vs. turn-in "?" vs. nothing) is a follow-up: it requires
+the server to evaluate the player's quest log against each giver's `quest_id`
+when writing the snapshot.
+
 ## Extraction Tools
 
 Two-stage pipeline: SQL → CSV → C.
@@ -94,7 +114,7 @@ python3 data/WoWee/tools/extract_server_data.py              # default (level �
 python3 data/WoWee/tools/extract_server_data.py --max-level 40  # more content
 ```
 
-Produces: `weapons.csv` (1289), `quests.csv` (2737), `quest_spawns.csv` (741+2558),
+Produces: `weapons.csv` (1289), `quests.csv` (2737), `quest_spawns.csv` (1787+2558),
 `creatures.csv` (29947 templates / 40213 model rows), `creature_spawns.csv` (13729).
 
 ### Stage 2: CSV → C (`serverdata/gen_serverdata_c.py`)

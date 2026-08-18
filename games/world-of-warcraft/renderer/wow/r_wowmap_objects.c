@@ -9,7 +9,7 @@ typedef struct {
 typedef struct {
     LPTEXTURE const *materials;
     WOWWMOBUILD *builds;
-    DWORD material_count, build_count;
+    DWORD material_count, slot_count, build_count;
 } WOWWMOLOAD;
 
 static DWORD Wow_WmoMaterialSlot(DWORD material_id, LPTEXTURE const *materials, DWORD count) {
@@ -106,13 +106,17 @@ static BOOL Wow_LoadWmoGroup(wowWmoModel_t *model, DWORD group_index, WOWWMOLOAD
     DWORD index_count = 0;
     wowVec3_t const *vertices = NULL;
     DWORD vertex_count = 0;
+    wowVec3_t const *normals = NULL;
+    DWORD normal_count = 0;
+    BYTE const *colors = NULL;
+    DWORD color_count = 0;
     wowVec2_t const *uvs = NULL;
     DWORD uv_count = 0;
     wowWmoBatchDef_t const *batches = NULL;
     DWORD batch_count = 0;
     BOX3 group_bounds = Wow_EmptyBounds();
     BOOL group_has_bounds = false;
-    COLOR32 color = Wow_Color(127, 127, 127, 255);
+    BOOL indoor = false;
     WOWWMOBUILD *builds;
     DWORD build_count = load->build_count;
 
@@ -137,6 +141,7 @@ static BOOL Wow_LoadWmoGroup(wowWmoModel_t *model, DWORD group_index, WOWWMOLOAD
             if (chunk_size < sub) {
                 break;
             }
+            indoor = (Wow_Read32(chunk + 8) & 0x2000) != 0;
             while (sub + 8 <= chunk_size) {
                 BYTE const *subtag = chunk + sub;
                 DWORD sub_size = Wow_Read32(chunk + sub + 4);
@@ -154,12 +159,18 @@ static BOOL Wow_LoadWmoGroup(wowWmoModel_t *model, DWORD group_index, WOWWMOLOAD
                 } else if (Wow_TagEquals(subtag, "TVOM")) {
                     vertices = (wowVec3_t const *)subchunk;
                     vertex_count = sub_size / sizeof(wowVec3_t);
+                } else if (Wow_TagEquals(subtag, "RNOM")) {
+                    normals = (wowVec3_t const *)subchunk;
+                    normal_count = sub_size / sizeof(wowVec3_t);
                 } else if (Wow_TagEquals(subtag, "VTOM")) {
                     uvs = (wowVec2_t const *)subchunk;
                     uv_count = sub_size / sizeof(wowVec2_t);
                 } else if (Wow_TagEquals(subtag, "ABOM")) {
                     batches = (wowWmoBatchDef_t const *)subchunk;
                     batch_count = sub_size / sizeof(wowWmoBatchDef_t);
+                } else if (Wow_TagEquals(subtag, "VCOM")) {
+                    colors = subchunk;
+                    color_count = sub_size / sizeof(COLOR32);
                 }
                 sub += sub_size;
             }
@@ -180,8 +191,7 @@ static BOOL Wow_LoadWmoGroup(wowWmoModel_t *model, DWORD group_index, WOWWMOLOAD
         return false;
     }
     memset(builds, 0, build_count * sizeof(*builds));
-    FOR_LOOP(i, load->material_count) builds[i].texture = load->materials[i];
-    builds[load->material_count].texture = tr.texture[TEX_WHITE];
+    FOR_LOOP(i, build_count) builds[i].texture = i % load->slot_count < load->material_count ? load->materials[i % load->slot_count] : tr.texture[TEX_WHITE];
 
     if (batch_count) {
         FOR_LOOP(batch_index, batch_count) {
@@ -189,7 +199,7 @@ static BOOL Wow_LoadWmoGroup(wowWmoModel_t *model, DWORD group_index, WOWWMOLOAD
             DWORD first_index = batch->first_index;
             DWORD num_indices = batch->num_indices;
             DWORD material_id = batch->material_id;
-            DWORD slot = Wow_WmoMaterialSlot(material_id, load->materials, load->material_count);
+            DWORD slot = Wow_WmoMaterialSlot(material_id, load->materials, load->material_count) + (indoor ? load->slot_count : 0);
             WOWWMOBUILD *build = &builds[slot];
 
             if (first_index >= index_count || first_index + num_indices > index_count || !num_indices) {
@@ -206,7 +216,11 @@ static BOOL Wow_LoadWmoGroup(wowWmoModel_t *model, DWORD group_index, WOWWMOLOAD
                 if (uvs && vertex_index < uv_count) {
                     uv = uvs[vertex_index];
                 }
+                COLOR32 color = colors && vertex_index < color_count
+                    ? Wow_Color(colors[vertex_index * 4], colors[vertex_index * 4 + 1], colors[vertex_index * 4 + 2], 255)
+                    : Wow_Color(127, 127, 127, 255);
                 VERTEX vertex = Wow_Vertex(p.x, p.y, p.z, uv.u, uv.v, color);
+                if (normals && vertex_index < normal_count) vertex.normal = *(VECTOR3 const *)(normals + vertex_index);
                 if (!Wow_WmoBuildAppend(build, vertex) || !Wow_WmoBuildAppend(&load->builds[slot], vertex)) {
                     fprintf(stderr, "WoW WMO: failed to grow material geometry for %s\n", group_path);
                     Wow_WmoBuildFree(builds, build_count); ri.FS_FreeFile(data); return false;
@@ -229,13 +243,17 @@ static BOOL Wow_LoadWmoGroup(wowWmoModel_t *model, DWORD group_index, WOWWMOLOAD
             if (mopy && poly_index < mopy_count) {
                 material_id = ((wowWmoPoly_t const *)mopy)[poly_index].material_id;
             }
-            DWORD slot = Wow_WmoMaterialSlot(material_id, load->materials, load->material_count);
+            DWORD slot = Wow_WmoMaterialSlot(material_id, load->materials, load->material_count) + (indoor ? load->slot_count : 0);
             build = &builds[slot];
             p = vertices[vertex_index];
             if (uvs && vertex_index < uv_count) {
                 uv = uvs[vertex_index];
             }
+            COLOR32 color = colors && vertex_index < color_count
+                ? Wow_Color(colors[vertex_index * 4], colors[vertex_index * 4 + 1], colors[vertex_index * 4 + 2], 255)
+                : Wow_Color(127, 127, 127, 255);
             VERTEX vertex = Wow_Vertex(p.x, p.y, p.z, uv.u, uv.v, color);
+            if (normals && vertex_index < normal_count) vertex.normal = *(VECTOR3 const *)(normals + vertex_index);
             if (!Wow_WmoBuildAppend(build, vertex) || !Wow_WmoBuildAppend(&load->builds[slot], vertex)) {
                 fprintf(stderr, "WoW WMO: failed to grow material geometry for %s\n", group_path);
                 Wow_WmoBuildFree(builds, build_count); ri.FS_FreeFile(data); return false;
@@ -254,6 +272,7 @@ static BOOL Wow_LoadWmoGroup(wowWmoModel_t *model, DWORD group_index, WOWWMOLOAD
             out_batch->buffer = R_MakeVertexArrayObject(build->vertices, build->count);
             out_batch->num_vertices = build->count;
             out_batch->texture = build->texture;
+            out_batch->indoor = indoor;
             out_batch->next = model->groups[group_index].batches;
             model->groups[group_index].batches = out_batch;
             wow_world.num_wmo_batches++;
@@ -321,12 +340,11 @@ BOOL Wow_LoadWmoModel(wowWmoModel_t *model) {
         }
     }
 
-    load.materials = materials; load.material_count = material_count; load.build_count = material_count + 1;
+    load.materials = materials; load.material_count = material_count; load.slot_count = material_count + 1; load.build_count = load.slot_count * 2;
     load.builds = ri.MemAlloc(load.build_count * sizeof(*load.builds));
     if (!load.builds) { if (materials) ri.MemFree(materials); ri.FS_FreeFile(data); return false; }
     memset(load.builds, 0, load.build_count * sizeof(*load.builds));
-    FOR_LOOP(i, material_count) load.builds[i].texture = materials[i];
-    load.builds[material_count].texture = tr.texture[TEX_WHITE];
+    FOR_LOOP(i, load.build_count) load.builds[i].texture = i % load.slot_count < material_count ? materials[i % load.slot_count] : tr.texture[TEX_WHITE];
 
     model->groups = ri.MemAlloc(sizeof(*model->groups) * group_count);
     memset(model->groups, 0, sizeof(*model->groups) * group_count);
@@ -347,6 +365,7 @@ BOOL Wow_LoadWmoModel(wowWmoModel_t *model) {
             memset(batch, 0, sizeof(*batch));
             batch->buffer = R_MakeVertexArrayObject(build->vertices, build->count);
             batch->num_vertices = build->count; batch->texture = build->texture;
+            batch->indoor = i >= load.slot_count;
             batch->next = model->batches; model->batches = batch; model->num_batches++;
         }
     }

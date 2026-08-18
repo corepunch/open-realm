@@ -47,4 +47,13 @@ TEST(wow_smoke, wmo_floor_ray) {
     T_ASSERT(!CM_WowRayTriangle(&start, &end, &a, &b, &c, &fraction));
 }
 
+TEST(wow_smoke, wmo_bsp_traversal) {
+    VECTOR3 start = { 0.75f, 0.10f, 2.0f }, end = { 0.75f, 0.10f, -2.0f };
+    FLOAT fraction;
+    T_ASSERT(CM_WowTestBspRay(&start, &end, &fraction));
+    T_FEQ(fraction, 0.5f, 0.0001f);
+    start.x = end.x = 0.25f;
+    T_ASSERT(!CM_WowTestBspRay(&start, &end, &fraction));
+}
+
 #endif /* BZ_TESTS */
