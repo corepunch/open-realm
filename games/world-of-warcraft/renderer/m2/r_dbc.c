@@ -4,12 +4,17 @@
 #include "common/stb_dbc.h"
 #include <strings.h>
 
+#define M2_COUNT(a) (sizeof(a) / sizeof((a)[0]))
+#define DBC_ROW(dbc, T, idx) ((T const *)((BYTE const *)(dbc).rows + (size_t)(idx) * (dbc).row_stride))
+
 typedef struct {
     LPBYTE data;
     DWORD size, records, fields, record_size, string_size;
     BYTE const *records_base, *strings_base;
     int *index;
     DWORD index_capacity, index_field;
+    void *rows; /* decoded struct array (Stb_DbcParseRows output) */
+    DWORD row_stride;
     BOOL tried, valid;
 } M2DBC;
 
@@ -29,7 +34,120 @@ static M2DBC creature_display_info_extra_dbc;
 static M2DBC helmet_geoset_vis_dbc;
 static m2CharSectionsLayout_t char_sections_layout;
 
-/* DBCs stay as one resident file image; only the integer lookup table is runtime state. */
+/* Column→field schemas (field numbers in docs/dbc-reference.md). The struct mirrors
+ * the consumed subset of a DBC row; each entry maps a DBC column index to a struct
+ * field, and Stb_DbcParseRows fills the array with no per-field decode code. */
+
+/* CreatureDisplayInfo: 0 = id, 3 = extended display info id. */
+typedef struct { DWORD id, extra_id; } m2CreatureDisplayInfoRec_t;
+static stbDbcField_t const creature_display_info_schema[] = {
+    { 0, offsetof(m2CreatureDisplayInfoRec_t, id),       STB_DBC_U32 },
+    { 3, offsetof(m2CreatureDisplayInfoRec_t, extra_id), STB_DBC_U32 },
+};
+
+/* CreatureDisplayInfoExtra: 3-7 = skin/face/hair, 8-18 = 11 item display ids. */
+typedef struct { DWORD id, skin, face, hair_style, hair_color, facial_hair, display_ids[11]; } m2CreatureDisplayInfoExtraRec_t;
+static stbDbcField_t const creature_display_info_extra_schema[] = {
+    {  0, offsetof(m2CreatureDisplayInfoExtraRec_t, id),              STB_DBC_U32 },
+    {  3, offsetof(m2CreatureDisplayInfoExtraRec_t, skin),            STB_DBC_U32 },
+    {  4, offsetof(m2CreatureDisplayInfoExtraRec_t, face),            STB_DBC_U32 },
+    {  5, offsetof(m2CreatureDisplayInfoExtraRec_t, hair_style),      STB_DBC_U32 },
+    {  6, offsetof(m2CreatureDisplayInfoExtraRec_t, hair_color),      STB_DBC_U32 },
+    {  7, offsetof(m2CreatureDisplayInfoExtraRec_t, facial_hair),     STB_DBC_U32 },
+    {  8, offsetof(m2CreatureDisplayInfoExtraRec_t, display_ids),     STB_DBC_U32, 11 },
+};
+
+/* ItemDisplayInfo: model stems 1-2, model textures 3-4, geoset groups 7-9, flags 10,
+ * HelmetGeosetVis 12-13, component textures 14-21 (classic 23-field). The 25-field
+ * Wrath layout shifts the vis/texture block one column right. */
+typedef struct {
+    DWORD id;
+    LPCSTR model[2], model_texture[2];
+    DWORD geoset_group[3], flags, helm_vis[2];
+    LPCSTR component_texture[8];
+} m2ItemDisplayInfoRec_t;
+
+static stbDbcField_t const item_display_info_classic_schema[] = {
+    {  0, offsetof(m2ItemDisplayInfoRec_t, id),                   STB_DBC_U32 },
+    {  1, offsetof(m2ItemDisplayInfoRec_t, model),                STB_DBC_STR, 2 },
+    {  3, offsetof(m2ItemDisplayInfoRec_t, model_texture),        STB_DBC_STR, 2 },
+    {  7, offsetof(m2ItemDisplayInfoRec_t, geoset_group),         STB_DBC_U32, 3 },
+    { 10, offsetof(m2ItemDisplayInfoRec_t, flags),                STB_DBC_U32 },
+    { 12, offsetof(m2ItemDisplayInfoRec_t, helm_vis),             STB_DBC_U32, 2 },
+    { 14, offsetof(m2ItemDisplayInfoRec_t, component_texture),    STB_DBC_STR, 8 },
+};
+
+static stbDbcField_t const item_display_info_wrath_schema[] = {
+    {  0, offsetof(m2ItemDisplayInfoRec_t, id),                   STB_DBC_U32 },
+    {  1, offsetof(m2ItemDisplayInfoRec_t, model),                STB_DBC_STR, 2 },
+    {  3, offsetof(m2ItemDisplayInfoRec_t, model_texture),        STB_DBC_STR, 2 },
+    {  7, offsetof(m2ItemDisplayInfoRec_t, geoset_group),         STB_DBC_U32, 3 },
+    { 10, offsetof(m2ItemDisplayInfoRec_t, flags),                STB_DBC_U32 },
+    { 13, offsetof(m2ItemDisplayInfoRec_t, helm_vis),             STB_DBC_U32, 2 },
+    { 15, offsetof(m2ItemDisplayInfoRec_t, component_texture),    STB_DBC_STR, 8 },
+};
+
+/* Pre-23-field guard: the offsets the loader used before the classic layout was
+ * pinned (geoset 0-2, flags 0, textures 0-7). Unreachable for real archives. */
+static stbDbcField_t const item_display_info_legacy_schema[] = {
+    { 0, offsetof(m2ItemDisplayInfoRec_t, id),                   STB_DBC_U32 },
+    { 1, offsetof(m2ItemDisplayInfoRec_t, model),                STB_DBC_STR, 2 },
+    { 3, offsetof(m2ItemDisplayInfoRec_t, model_texture),        STB_DBC_STR, 2 },
+    { 0, offsetof(m2ItemDisplayInfoRec_t, geoset_group),         STB_DBC_U32, 3 },
+    { 0, offsetof(m2ItemDisplayInfoRec_t, flags),                STB_DBC_U32 },
+    { 0, offsetof(m2ItemDisplayInfoRec_t, component_texture),    STB_DBC_STR, 8 },
+};
+
+static stbDbcField_t const *item_display_info_schema(DWORD fields, LPDWORD count) {
+    switch (m2_item_display_texture_base(fields)) {
+        case 15: *count = M2_COUNT(item_display_info_wrath_schema);   return item_display_info_wrath_schema;
+        case 14: *count = M2_COUNT(item_display_info_classic_schema); return item_display_info_classic_schema;
+        default: *count = M2_COUNT(item_display_info_legacy_schema);  return item_display_info_legacy_schema;
+    }
+}
+
+/* CharSections: variation-first (classic) or texture-first (stock Wrath). */
+typedef struct { DWORD id, race_id, gender, section, variation, color; LPCSTR texture[3]; } m2CharSectionsRec_t;
+static stbDbcField_t const char_sections_variation_first_schema[] = {
+    { 0, offsetof(m2CharSectionsRec_t, id),         STB_DBC_U32 },
+    { 1, offsetof(m2CharSectionsRec_t, race_id),    STB_DBC_U32 },
+    { 2, offsetof(m2CharSectionsRec_t, gender),     STB_DBC_U32 },
+    { 3, offsetof(m2CharSectionsRec_t, section),    STB_DBC_U32 },
+    { 4, offsetof(m2CharSectionsRec_t, variation),  STB_DBC_U32 },
+    { 5, offsetof(m2CharSectionsRec_t, color),      STB_DBC_U32 },
+    { 6, offsetof(m2CharSectionsRec_t, texture),    STB_DBC_STR, 3 },
+};
+static stbDbcField_t const char_sections_texture_first_schema[] = {
+    { 0, offsetof(m2CharSectionsRec_t, id),         STB_DBC_U32 },
+    { 1, offsetof(m2CharSectionsRec_t, race_id),    STB_DBC_U32 },
+    { 2, offsetof(m2CharSectionsRec_t, gender),     STB_DBC_U32 },
+    { 3, offsetof(m2CharSectionsRec_t, section),    STB_DBC_U32 },
+    { 4, offsetof(m2CharSectionsRec_t, texture),    STB_DBC_STR, 3 },
+    { 8, offsetof(m2CharSectionsRec_t, variation),  STB_DBC_U32 },
+    { 9, offsetof(m2CharSectionsRec_t, color),      STB_DBC_U32 },
+};
+
+/* CharStartOutfit: field 1 = packed race|class<<8|gender<<16 key,
+ * 14-25 = display ids, 26-37 = inventory types (12 each). */
+typedef struct { DWORD id, key, display_id[12], inventory_type[12]; } m2CharStartOutfitRec_t;
+static stbDbcField_t const char_start_outfit_schema[] = {
+    {  0, offsetof(m2CharStartOutfitRec_t, id),             STB_DBC_U32 },
+    {  1, offsetof(m2CharStartOutfitRec_t, key),            STB_DBC_U32 },
+    { 14, offsetof(m2CharStartOutfitRec_t, display_id),     STB_DBC_U32, 12 },
+    { 26, offsetof(m2CharStartOutfitRec_t, inventory_type), STB_DBC_U32, 12 },
+};
+
+/* HelmetGeosetVisData: per-race hide bitmasks (hair/facial[0..2]/ears). */
+typedef struct { DWORD id, hair_flags, facial_flags[3], ears_flags; } m2HelmetGeosetVisRec_t;
+static stbDbcField_t const helmet_geoset_vis_schema[] = {
+    { 0, offsetof(m2HelmetGeosetVisRec_t, id),           STB_DBC_U32 },
+    { 1, offsetof(m2HelmetGeosetVisRec_t, hair_flags),   STB_DBC_U32 },
+    { 2, offsetof(m2HelmetGeosetVisRec_t, facial_flags), STB_DBC_U32, 3 },
+    { 5, offsetof(m2HelmetGeosetVisRec_t, ears_flags),   STB_DBC_U32 },
+};
+
+/* DBCs stay as one resident file image plus a decoded struct array and an FNV-1a
+ * integer index; both are built lazily on first lookup. */
 static BOOL M2_DbcLoad(M2DBC *dbc, LPCSTR filename) {
     int size;
     stbDbc_t h;
@@ -51,20 +169,32 @@ static BOOL M2_DbcLoad(M2DBC *dbc, LPCSTR filename) {
     return true;
 }
 
+static void M2_DbcDecode(M2DBC *dbc, stbDbcField_t const *schema, DWORD schema_count, DWORD row_stride) {
+    if (!dbc || !dbc->valid || dbc->rows) return;
+    dbc->rows = ri.MemAlloc((size_t)dbc->records * row_stride);
+    if (!dbc->rows) {
+        fprintf(stderr, "M2 DBC: unable to allocate %u decoded rows (%u-byte records)\n", dbc->records, row_stride);
+        return;
+    }
+    memset(dbc->rows, 0, (size_t)dbc->records * row_stride);
+    Stb_DbcParseRows(dbc->records_base, dbc->records, dbc->record_size, dbc->strings_base, dbc->string_size,
+                     schema, schema_count, dbc->rows, row_stride);
+    dbc->row_stride = row_stride;
+}
+
 static void M2_DbcFree(M2DBC *dbc) {
     SAFE_DELETE(dbc->data, ri.FS_FreeFile);
     SAFE_DELETE(dbc->index, ri.MemFree);
+    SAFE_DELETE(dbc->rows, ri.MemFree);
     memset(dbc, 0, sizeof(*dbc));
 }
 
+/* Raw field access is only used to build/query the FNV index; decoded consumers
+ * read struct fields filled by Stb_DbcParseRows. */
 static DWORD M2_DbcField(M2DBC const *dbc, BYTE const *record, DWORD field) {
     if (!dbc || !record || field >= dbc->fields || field * sizeof(DWORD) + sizeof(DWORD) > dbc->record_size)
         return 0;
     return m2_read32(record + field * sizeof(DWORD));
-}
-
-static LPCSTR M2_DbcString(M2DBC const *dbc, DWORD offset) {
-    return Stb_DbcString(dbc->strings_base, dbc->string_size, offset);
 }
 
 static DWORD M2_Fnv1a32(DWORD key) {
@@ -88,8 +218,7 @@ static BOOL M2_DbcBuildIndex(M2DBC *dbc, DWORD field) {
         BYTE const *record = dbc->records_base + i * dbc->record_size;
         DWORD key = M2_DbcField(dbc, record, field);
         DWORD slot = M2_Fnv1a32(key) & (capacity - 1);
-        while (index[slot] >= 0 && M2_DbcField(dbc, dbc->records_base + index[slot] * dbc->record_size,
-                                               field) != key)
+        while (index[slot] >= 0 && M2_DbcField(dbc, dbc->records_base + index[slot] * dbc->record_size, field) != key)
             slot = (slot + 1) & (capacity - 1);
         index[slot] = (int)i;
     }
@@ -97,22 +226,91 @@ static BOOL M2_DbcBuildIndex(M2DBC *dbc, DWORD field) {
     return true;
 }
 
-static BYTE const *M2_DbcFindKey(M2DBC *dbc, LPCSTR filename, DWORD field, DWORD key) {
+/* Return the row index for key (or -1); the caller must have loaded the DBC. */
+static int M2_DbcFindKey(M2DBC *dbc, DWORD field, DWORD key) {
     DWORD slot;
-    if (!M2_DbcLoad(dbc, filename)) return NULL;
-    if (!dbc->index && !M2_DbcBuildIndex(dbc, field)) return NULL;
-    if (dbc->index_field != field) return NULL;
+    if (!dbc || !dbc->valid || field >= dbc->fields) return -1;
+    if (!dbc->index && !M2_DbcBuildIndex(dbc, field)) return -1;
+    if (dbc->index_field != field) return -1;
     slot = M2_Fnv1a32(key) & (dbc->index_capacity - 1);
     while (dbc->index[slot] >= 0) {
         BYTE const *record = dbc->records_base + dbc->index[slot] * dbc->record_size;
-        if (M2_DbcField(dbc, record, field) == key) return record;
+        if (M2_DbcField(dbc, record, field) == key) return dbc->index[slot];
         slot = (slot + 1) & (dbc->index_capacity - 1);
     }
-    return NULL;
+    return -1;
 }
 
-static BYTE const *M2_DbcFindID(M2DBC *dbc, LPCSTR filename, DWORD id) {
-    return M2_DbcFindKey(dbc, filename, 0, id);
+static int M2_DbcFindID(M2DBC *dbc, DWORD id) { return M2_DbcFindKey(dbc, 0, id); }
+
+/* ---- typed record finders (load + decode + index lookup) ---- */
+
+static m2CreatureDisplayInfoRec_t const *M2_CreatureDisplayInfo(DWORD id) {
+    int idx;
+    if (!M2_DbcLoad(&creature_display_info_dbc, "DBFilesClient\\CreatureDisplayInfo.dbc")) return NULL;
+    M2_DbcDecode(&creature_display_info_dbc, creature_display_info_schema, M2_COUNT(creature_display_info_schema), sizeof(m2CreatureDisplayInfoRec_t));
+    idx = M2_DbcFindID(&creature_display_info_dbc, id);
+    return idx < 0 ? NULL : DBC_ROW(creature_display_info_dbc, m2CreatureDisplayInfoRec_t, idx);
+}
+
+static m2CreatureDisplayInfoExtraRec_t const *M2_CreatureDisplayInfoExtra(DWORD id) {
+    int idx;
+    if (!M2_DbcLoad(&creature_display_info_extra_dbc, "DBFilesClient\\CreatureDisplayInfoExtra.dbc")) return NULL;
+    M2_DbcDecode(&creature_display_info_extra_dbc, creature_display_info_extra_schema, M2_COUNT(creature_display_info_extra_schema), sizeof(m2CreatureDisplayInfoExtraRec_t));
+    idx = M2_DbcFindID(&creature_display_info_extra_dbc, id);
+    return idx < 0 ? NULL : DBC_ROW(creature_display_info_extra_dbc, m2CreatureDisplayInfoExtraRec_t, idx);
+}
+
+static m2ItemDisplayInfoRec_t const *M2_ItemDisplayInfo(DWORD id) {
+    DWORD count;
+    stbDbcField_t const *schema;
+    int idx;
+    if (!M2_DbcLoad(&item_display_info_dbc, "DBFilesClient\\ItemDisplayInfo.dbc")) return NULL;
+    if (!item_display_info_dbc.rows) {
+        schema = item_display_info_schema(item_display_info_dbc.fields, &count);
+        M2_DbcDecode(&item_display_info_dbc, schema, count, sizeof(m2ItemDisplayInfoRec_t));
+    }
+    idx = M2_DbcFindID(&item_display_info_dbc, id);
+    return idx < 0 ? NULL : DBC_ROW(item_display_info_dbc, m2ItemDisplayInfoRec_t, idx);
+}
+
+static m2CharStartOutfitRec_t const *M2_CharStartOutfit(DWORD key) {
+    int idx;
+    if (!M2_DbcLoad(&char_start_outfit_dbc, "DBFilesClient\\CharStartOutfit.dbc")) return NULL;
+    M2_DbcDecode(&char_start_outfit_dbc, char_start_outfit_schema, M2_COUNT(char_start_outfit_schema), sizeof(m2CharStartOutfitRec_t));
+    idx = M2_DbcFindKey(&char_start_outfit_dbc, 1, key);
+    return idx < 0 ? NULL : DBC_ROW(char_start_outfit_dbc, m2CharStartOutfitRec_t, idx);
+}
+
+static m2HelmetGeosetVisRec_t const *M2_HelmetGeosetVis(DWORD id) {
+    int idx;
+    if (!M2_DbcLoad(&helmet_geoset_vis_dbc, "DBFilesClient\\HelmetGeosetVisData.dbc")) return NULL;
+    M2_DbcDecode(&helmet_geoset_vis_dbc, helmet_geoset_vis_schema, M2_COUNT(helmet_geoset_vis_schema), sizeof(m2HelmetGeosetVisRec_t));
+    idx = M2_DbcFindID(&helmet_geoset_vis_dbc, id);
+    return idx < 0 ? NULL : DBC_ROW(helmet_geoset_vis_dbc, m2HelmetGeosetVisRec_t, idx);
+}
+
+/* Detect the CharSections layout from the raw records, then decode and return the
+ * row array; NULL when the mounted schema is unsupported. */
+static m2CharSectionsRec_t const *M2_CharSections(void) {
+    DWORD count;
+    stbDbcField_t const *schema;
+    if (!M2_DbcLoad(&char_sections_dbc, "DBFilesClient\\CharSections.dbc")) return NULL;
+    if (!char_sections_layout) {
+        char_sections_layout = char_sections_dbc.fields < 10 ? M2_CHAR_SECTIONS_INVALID
+            : m2_char_sections_layout(char_sections_dbc.records_base, char_sections_dbc.records, char_sections_dbc.record_size);
+        if (char_sections_layout == M2_CHAR_SECTIONS_INVALID)
+            fprintf(stderr, "M2 DBC: unsupported CharSections schema (%u fields, %u-byte records)\n",
+                    char_sections_dbc.fields, char_sections_dbc.record_size);
+    }
+    if (char_sections_layout == M2_CHAR_SECTIONS_INVALID) return NULL;
+    if (!char_sections_dbc.rows) {
+        schema = char_sections_layout == M2_CHAR_SECTIONS_TEXTURE_FIRST
+            ? (count = M2_COUNT(char_sections_texture_first_schema), char_sections_texture_first_schema)
+            : (count = M2_COUNT(char_sections_variation_first_schema), char_sections_variation_first_schema);
+        M2_DbcDecode(&char_sections_dbc, schema, count, sizeof(m2CharSectionsRec_t));
+    }
+    return char_sections_dbc.rows;
 }
 
 BOOL M2_DbcCharacterRaceGender(LPCSTR model_path, LPDWORD race_id, LPDWORD gender_id) {
@@ -138,20 +336,20 @@ BOOL M2_DbcCharacterRaceGender(LPCSTR model_path, LPDWORD race_id, LPDWORD gende
 
 /* CreatureDisplayInfoExtra is decoded once into stable appearance and item display IDs. */
 BOOL M2_DbcResolveCreatureAppearance(DWORD display_id, LPM2CREATUREAPPEARANCE out) {
-    BYTE const *display, *extra;
-    DWORD extra_id;
+    m2CreatureDisplayInfoRec_t const *display;
+    m2CreatureDisplayInfoExtraRec_t const *extra;
     if (!display_id || !out) return false;
     memset(out, 0, sizeof(*out));
-    display = M2_DbcFindID(&creature_display_info_dbc, "DBFilesClient\\CreatureDisplayInfo.dbc", display_id);
-    if (!display || creature_display_info_dbc.fields < 4) return false;
-    extra_id = M2_DbcField(&creature_display_info_dbc, display, 3);
-    extra = extra_id ? M2_DbcFindID(&creature_display_info_extra_dbc,
-                                    "DBFilesClient\\CreatureDisplayInfoExtra.dbc", extra_id) : NULL;
-    if (!extra || creature_display_info_extra_dbc.fields < 19) return false;
-    out->appearance = Wow_PackAppearance((BYTE)M2_DbcField(&creature_display_info_extra_dbc, extra, 3), (BYTE)M2_DbcField(&creature_display_info_extra_dbc, extra, 4), (BYTE)M2_DbcField(&creature_display_info_extra_dbc, extra, 5), (BYTE)M2_DbcField(&creature_display_info_extra_dbc, extra, 6), (BYTE)M2_DbcField(&creature_display_info_extra_dbc, extra, 7), 1, 0);
-    FOR_LOOP(i, sizeof(out->display_ids) / sizeof(out->display_ids[0])) out->display_ids[i] = 0;
-    FOR_LOOP(i, MIN((DWORD)(sizeof(out->display_ids) / sizeof(out->display_ids[0])), creature_display_info_extra_dbc.fields - 8 - 1))
-        out->display_ids[i] = M2_DbcField(&creature_display_info_extra_dbc, extra, 8 + i);
+    display = M2_CreatureDisplayInfo(display_id);
+    if (!display) return false;
+    extra = display->extra_id ? M2_CreatureDisplayInfoExtra(display->extra_id) : NULL;
+    if (!extra) return false;
+    out->appearance = Wow_PackAppearance((BYTE)extra->skin, (BYTE)extra->face, (BYTE)extra->hair_style,
+                                         (BYTE)extra->hair_color, (BYTE)extra->facial_hair, 1, 0);
+    /* All 11 NPC item display ids (columns 8-18) map to the classic slots; the
+     * previous bound read only 10, leaving the cape slot (index 10) empty. */
+    FOR_LOOP(i, sizeof(out->display_ids) / sizeof(out->display_ids[0]))
+        out->display_ids[i] = extra->display_ids[i];
     return true;
 }
 
@@ -164,54 +362,41 @@ static DWORD const slot_geoset_group_map[M2_SLOT_COUNT][3] = {
 };
 
 static void M2_DbcAddDisplayInfo(LPM2CHARACTEROUTFIT outfit, DWORD display_id, DWORD slot) {
-    BYTE const *record;
-    DWORD texture_base, geoset_base, flags_field;
+    m2ItemDisplayInfoRec_t const *record;
     if (!outfit || !display_id || display_id == 0xffffffffu || slot == M2_SLOT_NONE || slot >= M2_SLOT_COUNT)
         return;
-    record = M2_DbcFindID(&item_display_info_dbc, "DBFilesClient\\ItemDisplayInfo.dbc", display_id);
+    record = M2_ItemDisplayInfo(display_id);
     if (!record) return;
-    /* Classic's 23-field schema starts at 14; using the later offset shifted every starter clothing texture. */
-    texture_base = m2_item_display_texture_base(item_display_info_dbc.fields);
-    geoset_base = item_display_info_dbc.fields >= 22 ? 7 : 0;
-    flags_field = item_display_info_dbc.fields >= 22 ? 10 : 0;
     FOR_LOOP(i, 3) {
         DWORD group = slot_geoset_group_map[slot][i];
-        DWORD geoset = group ? M2_DbcField(&item_display_info_dbc, record, geoset_base + i) : 0;
+        DWORD geoset = group ? record->geoset_group[i] : 0;
         if (geoset) outfit->geoset[group] = geoset;
     }
-    {
-        DWORD flags = M2_DbcField(&item_display_info_dbc, record, flags_field);
-        outfit->flags |= flags;
-    }
-    /* Head and shoulder items carry attachment model name stems (fields 1/2);
-     * these render as separate M2s at the character's helm/shoulder bones.
-     * The head slot also carries the per-race/gender HelmetGeosetVisData ids
-     * (fields 12/13 for the classic 23-field schema) that select which face
-     * geosets a worn helmet hides. */
+    outfit->flags |= record->flags;
+    /* Head and shoulder items carry attachment model name stems (fields 1/2); these
+     * render as separate M2s at the character's helm/shoulder bones. The head slot
+     * also carries the per-race/gender HelmetGeosetVisData ids (fields 12/13). */
     if (slot == M2_SLOT_HEAD) {
-        outfit->helm_model = M2_DbcString(&item_display_info_dbc, M2_DbcField(&item_display_info_dbc, record, 1));
-        outfit->helm_texture = M2_DbcString(&item_display_info_dbc, M2_DbcField(&item_display_info_dbc, record, 3));
-        if (item_display_info_dbc.fields >= 22) {
-            DWORD vis_field = texture_base - 2;
-            outfit->helm_vis_id[0] = M2_DbcField(&item_display_info_dbc, record, vis_field);
-            outfit->helm_vis_id[1] = M2_DbcField(&item_display_info_dbc, record, vis_field + 1);
-        }
+        outfit->helm_model = record->model[0];
+        outfit->helm_texture = record->model_texture[0];
+        outfit->helm_vis_id[0] = record->helm_vis[0];
+        outfit->helm_vis_id[1] = record->helm_vis[1];
     }
     if (slot == M2_SLOT_SHOULDERS) {
-        outfit->shoulder_model[0] = M2_DbcString(&item_display_info_dbc, M2_DbcField(&item_display_info_dbc, record, 1));
-        outfit->shoulder_model[1] = M2_DbcString(&item_display_info_dbc, M2_DbcField(&item_display_info_dbc, record, 2));
-        outfit->shoulder_texture[0] = M2_DbcString(&item_display_info_dbc, M2_DbcField(&item_display_info_dbc, record, 3));
-        outfit->shoulder_texture[1] = M2_DbcString(&item_display_info_dbc, M2_DbcField(&item_display_info_dbc, record, 4));
+        outfit->shoulder_model[0] = record->model[0];
+        outfit->shoulder_model[1] = record->model[1];
+        outfit->shoulder_texture[0] = record->model_texture[0];
+        outfit->shoulder_texture[1] = record->model_texture[1];
     }
     /* A worn tabard activates the hanging tabard mesh (geoset group 12, section 1202). */
     if (slot == M2_SLOT_TABARD) outfit->geoset[12] = 2;
     FOR_LOOP(i, M2_CHAR_TEX_COMPONENT_COUNT) {
-        LPCSTR texture = M2_DbcString(&item_display_info_dbc, M2_DbcField(&item_display_info_dbc, record, texture_base + i));
+        LPCSTR texture = record->component_texture[i];
         signed char priority = Wow_CharacterTexturePriority(slot, i);
         if (texture && *texture && priority >= 0) outfit->texture[i][priority] = texture;
     }
     if (slot == M2_SLOT_CAPE)
-        outfit->cape_texture = M2_DbcString(&item_display_info_dbc, M2_DbcField(&item_display_info_dbc, record, 3));
+        outfit->cape_texture = record->model_texture[0];
 }
 
 static M2EQUIPMENTITEM const *M2_DbcEquipmentItem(M2EQUIPMENTSLOTITEMS const *lists, DWORD count,
@@ -242,17 +427,17 @@ static void M2_DbcApplyEquipment(LPM2CHARACTEROUTFIT outfit, DWORD race_id, DWOR
 
 static BOOL M2_DbcStartOutfit(LPCSTR model_path, DWORD appearance, LPM2CHARACTEROUTFIT outfit) {
     DWORD race_id, gender_id, class_id, key;
-    BYTE const *record;
+    m2CharStartOutfitRec_t const *record;
     wowAppearance_t unpacked;
     if (!outfit || !M2_DbcCharacterRaceGender(model_path, &race_id, &gender_id)) return false;
     unpacked = Wow_UnpackAppearance(appearance); class_id = unpacked.classID ? unpacked.classID : 1;
     key = race_id | (class_id << 8) | (gender_id << 16);
-    record = M2_DbcFindKey(&char_start_outfit_dbc, "DBFilesClient\\CharStartOutfit.dbc", 1, key);
+    record = M2_CharStartOutfit(key);
     if (!record) return false;
     memset(outfit, 0, sizeof(*outfit));
     FOR_LOOP(i, 12) {
-        DWORD display_id = M2_DbcField(&char_start_outfit_dbc, record, 14 + i);
-        DWORD slot = Wow_CharacterSlotForInventoryType(M2_DbcField(&char_start_outfit_dbc, record, 26 + i));
+        DWORD display_id = record->display_id[i];
+        DWORD slot = Wow_CharacterSlotForInventoryType(record->inventory_type[i]);
         M2_DbcAddDisplayInfo(outfit, display_id, slot);
     }
     return true;
@@ -263,16 +448,16 @@ static BOOL M2_DbcStartOutfit(LPCSTR model_path, DWORD appearance, LPM2CHARACTER
  * race bit hides that geoset group (hair 0, beard 1, sideburns 2, moustache 3,
  * ears 7 — wowdev "Character Customization" geoset numbering). */
 static DWORD M2_DbcHelmetHideMask(DWORD vis_id, DWORD race_id) {
-    BYTE const *record;
+    m2HelmetGeosetVisRec_t const *record;
     DWORD mask = 0;
     if (!vis_id) return 0;
-    record = M2_DbcFindID(&helmet_geoset_vis_dbc, "DBFilesClient\\HelmetGeosetVisData.dbc", vis_id);
-    if (!record || helmet_geoset_vis_dbc.fields < 6) return 0;
-    if (M2_DbcField(&helmet_geoset_vis_dbc, record, 1) & (1u << race_id)) mask |= M2_HELM_HIDE_HAIR;
-    if (M2_DbcField(&helmet_geoset_vis_dbc, record, 2) & (1u << race_id)) mask |= M2_HELM_HIDE_BEARD;
-    if (M2_DbcField(&helmet_geoset_vis_dbc, record, 3) & (1u << race_id)) mask |= M2_HELM_HIDE_SIDEBURNS;
-    if (M2_DbcField(&helmet_geoset_vis_dbc, record, 4) & (1u << race_id)) mask |= M2_HELM_HIDE_MOUSTACHE;
-    if (M2_DbcField(&helmet_geoset_vis_dbc, record, 5) & (1u << race_id)) mask |= M2_HELM_HIDE_EARS;
+    record = M2_HelmetGeosetVis(vis_id);
+    if (!record) return 0;
+    if (record->hair_flags & (1u << race_id)) mask |= M2_HELM_HIDE_HAIR;
+    if (record->facial_flags[0] & (1u << race_id)) mask |= M2_HELM_HIDE_BEARD;
+    if (record->facial_flags[1] & (1u << race_id)) mask |= M2_HELM_HIDE_SIDEBURNS;
+    if (record->facial_flags[2] & (1u << race_id)) mask |= M2_HELM_HIDE_MOUSTACHE;
+    if (record->ears_flags & (1u << race_id)) mask |= M2_HELM_HIDE_EARS;
     return mask;
 }
 
@@ -295,30 +480,18 @@ BOOL M2_DbcCharacterOutfit(LPCSTR model_path, DWORD appearance, DWORD equipment,
 
 BOOL M2_DbcCharacterVariationTexturePath(LPCSTR model_path, DWORD section_index, DWORD variation_index,
                                          DWORD color_index, DWORD texture_index, LPSTR out, DWORD out_size) {
-    DWORD race_id, gender_id, variation_field, color_field, texture_base;
+    DWORD race_id, gender_id;
+    m2CharSectionsRec_t const *rows;
     if (!out || !out_size || texture_index >= 3 ||
-        !M2_DbcCharacterRaceGender(model_path, &race_id, &gender_id) ||
-        !M2_DbcLoad(&char_sections_dbc, "DBFilesClient\\CharSections.dbc")) return false;
-    if (!char_sections_layout) {
-        char_sections_layout = char_sections_dbc.fields < 10 ? M2_CHAR_SECTIONS_INVALID : m2_char_sections_layout(char_sections_dbc.records_base, char_sections_dbc.records, char_sections_dbc.record_size);
-        if (char_sections_layout == M2_CHAR_SECTIONS_INVALID)
-            fprintf(stderr, "M2 DBC: unsupported CharSections schema (%u fields, %u-byte records)\n",
-                    char_sections_dbc.fields, char_sections_dbc.record_size);
-    }
-    if (char_sections_layout == M2_CHAR_SECTIONS_INVALID) return false;
-    /* Classic is variation-first; treating its color as Wrath's field 9 made nonzero skin colors fail lookup. */
-    variation_field = char_sections_layout == M2_CHAR_SECTIONS_TEXTURE_FIRST ? 8 : 4;
-    color_field = char_sections_layout == M2_CHAR_SECTIONS_TEXTURE_FIRST ? 9 : 5;
-    texture_base = char_sections_layout == M2_CHAR_SECTIONS_TEXTURE_FIRST ? 4 : 6;
+        !M2_DbcCharacterRaceGender(model_path, &race_id, &gender_id)) return false;
+    rows = M2_CharSections();
+    if (!rows) return false;
     FOR_LOOP(i, char_sections_dbc.records) {
-        BYTE const *record = char_sections_dbc.records_base + i * char_sections_dbc.record_size;
+        m2CharSectionsRec_t const *record = &rows[i];
         LPCSTR texture;
-        if (M2_DbcField(&char_sections_dbc, record, 1) != race_id ||
-            M2_DbcField(&char_sections_dbc, record, 2) != gender_id ||
-            M2_DbcField(&char_sections_dbc, record, 3) != section_index ||
-            M2_DbcField(&char_sections_dbc, record, variation_field) != variation_index ||
-            M2_DbcField(&char_sections_dbc, record, color_field) != color_index) continue;
-        texture = M2_DbcString(&char_sections_dbc, M2_DbcField(&char_sections_dbc, record, texture_base + texture_index));
+        if (record->race_id != race_id || record->gender != gender_id || record->section != section_index ||
+            record->variation != variation_index || record->color != color_index) continue;
+        texture = record->texture[texture_index];
         if (texture && *texture) { snprintf(out, out_size, "%s", texture); return true; }
         /* Classic male hair rows intentionally omit strings; the archive naming contract supplies the DBC-selected color. */
         if (section_index == 3 && gender_id == 0 && texture_index == 0) {
@@ -332,7 +505,7 @@ BOOL M2_DbcCharacterVariationTexturePath(LPCSTR model_path, DWORD section_index,
 }
 
 BOOL M2_DbcCharacterTexturePathForType(LPCSTR model_path, DWORD appearance, DWORD texture_type,
-                                      LPSTR out, DWORD out_size) {
+                                       LPSTR out, DWORD out_size) {
     wowAppearance_t a = Wow_UnpackAppearance(appearance);
     switch (texture_type) {
         case 1: return M2_DbcCharacterVariationTexturePath(model_path, 0, 0, a.skinColorID, 0, out, out_size);

@@ -142,19 +142,23 @@ static inline BYTE const *Stb_DbcFindID(BYTE const *data, stbDbc_t const *header
 /* Table-driven row decode                                                     */
 /* -------------------------------------------------------------------------- */
 /* Fill a caller's struct array from a DBC record block using a small schema
- * table (the `{ name, offsetof(struct, field), type }` pattern from
- * stb_fdf.h). Each entry maps a DBC column index to a struct field. The parser
- * performs no I/O and no allocation; callers read the file and keep the buffer
- * (and its string block) alive for the lifetime of the decoded rows. */
+ * table (the `{ column, offsetof(struct, field), type }` pattern from
+ * stb_fdf.h). Each entry maps one or more DBC columns to struct fields; the
+ * optional `count` fills a contiguous struct array from consecutive columns, so
+ * `{ 14, offsetof(Rec, texture), STB_DBC_STR, 8 }` decodes texture[0..7] from
+ * columns 14..21 without eight lines. The parser performs no I/O and no
+ * allocation; callers read the file and keep the buffer (and its string block)
+ * alive for the lifetime of the decoded rows. */
 typedef enum {
     STB_DBC_U32,  /* 4-byte little-endian int column */
     STB_DBC_STR,  /* 4-byte string-block offset, resolved to a pointer */
 } stbDbcFieldType_t;
 
 typedef struct {
-    DWORD column;       /* DBC column index (0-based); byte offset = column * 4 */
-    ptrdiff_t offset;   /* offsetof(Rec, field) */
+    DWORD column;       /* first DBC column index (0-based); byte offset = column * 4 */
+    ptrdiff_t offset;   /* offsetof(Rec, field); for an array, its base element */
     stbDbcFieldType_t type;
+    DWORD count;        /* consecutive columns mapped to consecutive array elements (0 = scalar) */
 } stbDbcField_t;
 
 static inline void Stb_DbcParseRows(BYTE const *records, DWORD count, DWORD record_size,
@@ -166,12 +170,17 @@ static inline void Stb_DbcParseRows(BYTE const *records, DWORD count, DWORD reco
         BYTE *dest = (BYTE *)out + r * out_stride;
         FOR_LOOP(f, schema_count) {
             stbDbcField_t const *s = &schema[f];
-            DWORD byte_offset = s->column * sizeof(DWORD);
-            if (byte_offset + sizeof(DWORD) > record_size) continue;
-            if (s->type == STB_DBC_U32)
-                *(DWORD *)(dest + s->offset) = Stb_DbcRead32(record + byte_offset);
-            else
-                *(LPCSTR *)(dest + s->offset) = Stb_DbcString(strings, string_size, Stb_DbcRead32(record + byte_offset));
+            DWORD n = s->count ? s->count : 1;
+            DWORD esize = s->type == STB_DBC_U32 ? sizeof(DWORD) : sizeof(LPCSTR);
+            FOR_LOOP(e, n) {
+                DWORD byte_offset = (s->column + e) * sizeof(DWORD);
+                if (byte_offset + sizeof(DWORD) > record_size) break;
+                if (s->type == STB_DBC_U32)
+                    *(DWORD *)(dest + s->offset + e * esize) = Stb_DbcRead32(record + byte_offset);
+                else
+                    *(LPCSTR *)(dest + s->offset + e * esize) =
+                        Stb_DbcString(strings, string_size, Stb_DbcRead32(record + byte_offset));
+            }
         }
     }
 }
