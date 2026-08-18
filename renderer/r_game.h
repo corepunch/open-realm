@@ -8,8 +8,7 @@ void R_GameInit(void);
 void R_GameShutdown(void);
 void R_GameSetupTextureMatrix(void);
 
-/* Draw the game's minimap into the given UI-space rect. Each game owns its
-   minimap content (WC3 war3mapMap texture + fog, SC2 map texture, WoW terrain). */
+/* Draw the game's minimap into the given UI-space rect. Each game owns its content. */
 void R_GameDrawMinimap(LPCRECT screen);
 
 void R_GameRegisterMap(LPCSTR mapFileName);
@@ -23,7 +22,8 @@ VECTOR2 R_GameWorldSize(void);
 LPMODEL R_GameLoadModel(LPCSTR modelFilename);
 void R_GameReleaseModel(LPMODEL model);
 void R_GameRenderModel(renderEntity_t const *entity);
-void R_GameRenderModelInstanced(LPCMODEL model, LPCINSTANCEBUFFER instances);
+void R_GameRenderModelInstanced(LPCMODEL model, LPCINSTANCEBUFFER instances, DWORD flags);
+bool R_GameModelCanStaticInstance(LPCMODEL model);
 bool R_GameTraceModel(renderEntity_t const *entity, LPCLINE3 line, LPFLOAT distance);
 bool R_GameGetModelInfo(LPMODEL model, LPMODELINFO info);
 bool R_GameEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix);

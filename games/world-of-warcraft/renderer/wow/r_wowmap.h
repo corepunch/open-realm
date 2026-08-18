@@ -2,6 +2,7 @@
 #define __r_wowmap_h__
 
 #include "renderer/r_local.h"
+#include "common/ui_constants.h"
 #include <strings.h>
 #include <stdlib.h>
 #include <float.h>
@@ -20,9 +21,10 @@
 #define WOW_DEBUG_OBJECT_MARKERS 0
 #define WOW_DEBUG_DOODAD_ERROR_MESHES 0
 #define WOW_DOODAD_DRAW_DISTANCE 450.0f
-#define WOW_TERRAIN_DRAW_DISTANCE 700.0f
+#define WOW_TERRAIN_DRAW_DISTANCE WOW_WORLD_FAR_CLIP
 #define WOW_MINIMAP_WORLD_RADIUS 160.0f
-#define WOW_MINIMAP_CAMERA_HEIGHT 4000.0f
+#define WOW_MINIMAP_HASH_LENGTH 32
+#define WOW_WMO_MODEL_BATCH_DIVISOR 2
 #define WOW_DOODAD_BUCKET_SIZE 128.0f
 #define WOW_DOODAD_BUCKETS 272
 #define WOW_WORLD_COORD_OFFSET (32.0f * WOW_ADT_SIZE)
@@ -126,11 +128,16 @@ typedef struct {
 typedef struct wowDoodadModel_s {
     PATHSTR path;
     LPMODEL model;
+    MATRIX4 *matrices;
+    INSTANCEBUFFER instances;
+    DWORD count, capacity;
+    BOOL can_instance;
     struct wowDoodadModel_s *next;
 } wowDoodadModel_t;
 
 typedef struct wowDoodadInstance_s {
     renderEntity_t entity;
+    wowDoodadModel_t *group;
     struct wowDoodadInstance_s *next;
     struct wowDoodadInstance_s *bucket_next;
 } wowDoodadInstance_t;
@@ -151,7 +158,9 @@ typedef struct wowWmoGroup_s {
 typedef struct wowWmoModel_s {
     PATHSTR path;
     wowWmoGroup_t *groups;
+    wowWmoBatch_t *batches;
     DWORD num_groups;
+    DWORD num_batches;
     BOOL loaded;
     struct wowWmoModel_s *next;
 } wowWmoModel_t;
@@ -225,6 +234,9 @@ typedef struct wowMap_s {
     int alpha_origin_y;
     PATHSTR map_dir;
     char map_name[128];
+    char minimap_hash[WOW_WDT_TILES][WOW_WDT_TILES][WOW_MINIMAP_HASH_LENGTH + 1];
+    LPTEXTURE minimap_tiles[WOW_WDT_TILES][WOW_WDT_TILES];
+    BYTE minimap_warned[WOW_WDT_TILES][WOW_WDT_TILES];
 } wowMap_t;
 
 typedef struct {
@@ -315,6 +327,10 @@ extern GLint wow_uUseWeightedBlend;
 extern GLint wow_uSingleTexture;
 extern GLint wow_uAlphaOrigin;
 extern GLint wow_uAlphaAtlasChunks;
+extern GLint wow_uFogEnable;
+extern GLint wow_uFogColor;
+extern GLint wow_uFogParams;
+extern GLint wow_uFogCamera;
 extern GLint wow_uGrassTime;
 extern GLint wow_uGrassCameraOrigin;
 extern GLint wow_uGrassDrawDistance;
@@ -335,6 +351,7 @@ extern GLint wow_uGrassSlotSpacing;
 BOOL Wow_PathHasExtension(LPCSTR path, LPCSTR extension);
 void Wow_NormalizeMapPath(LPCSTR mapFileName, LPSTR out, DWORD out_size);
 void Wow_SetMapNames(LPCSTR path);
+BOOL Wow_LoadMinimapTranslations(void);
 DWORD Wow_Read32(BYTE const *p);
 WORD Wow_Read16(BYTE const *p);
 BOOL Wow_TagEquals(BYTE const *tag, LPCSTR reversed);
@@ -383,7 +400,6 @@ VECTOR3 Wow_ObjectPoint(wowVec3_t p);
 void Wow_InstanceMatrix(wowMapObjDef_t const *def, LPMATRIX4 matrix);
 void Wow_GroupPath(LPCSTR root_path, DWORD group_index, LPSTR out, DWORD out_size);
 LPCSTR Wow_StringAt(LPCSTR blob, DWORD blob_size, DWORD offset);
-BOOL Wow_LoadWmoGroup(wowWmoModel_t *model, DWORD group_index, LPTEXTURE const *materials, DWORD material_count);
 BOOL Wow_LoadWmoModel(wowWmoModel_t *model);
 wowWmoModel_t *Wow_GetWmoModel(LPCSTR path);
 void Wow_AddWmoInstance(LPCSTR path, wowMapObjDef_t const *def);

@@ -96,6 +96,12 @@ TEST(renderer_instances, upload_size_uses_wide_arithmetic) {
     T_EQ(R_InstanceBufferBytes(465524), (size_t)29793536);
 }
 
+TEST(renderer_instances, dynamic_capacity_reuses_and_grows_power_of_two) {
+    T_EQ(R_InstanceBufferCapacity(0, 1), (DWORD)16);
+    T_EQ(R_InstanceBufferCapacity(16, 16), (DWORD)16);
+    T_EQ(R_InstanceBufferCapacity(16, 17), (DWORD)32);
+}
+
 TEST(renderer_stats, triangles_include_instanced_amplification) {
     T_EQ(R_PrimitiveTriangles(GL_TRIANGLES, 12, 100), (uint64_t)400);
     T_EQ(R_PrimitiveTriangles(GL_LINES, 12, 100), (uint64_t)0);

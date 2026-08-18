@@ -57,7 +57,7 @@ Use `r_stats 1` to print one averaged line per second:
 
 ```text
 [R_STATS] fps=... draws=... vertices=... triangles=... instances=...
-[WOW_STATS] terrain=drawn/considered vertices=... wmo_groups=... wmo_draws=... doodads=visible/candidates
+[WOW_STATS] terrain=drawn/considered ... wmo=instances/models groups=... draws=... textures=... model_batched=... doodads=visible/candidates ...
 ```
 
 `R_STATS` counts every renderer draw submission, including UI, minimap, fog, particles,
@@ -69,12 +69,16 @@ view-dependent costs without changing asset loading or simulation:
 |---|---:|---|
 | `r_grass` | 1 | GroundEffectDoodad instanced batches |
 | `r_doodads` | 1 | ADT doodad M2s and map-object debug geometry |
-| `r_wmos` | 1 | WMO groups in the world and live minimap |
-| `r_terrain` | 1 | ADT terrain in the world and live minimap |
-| `r_minimap` | 1 | Entire live terrain/WMO minimap pass |
+| `r_wmos` | 1 | WMO groups in the world |
+| `r_terrain` | 1 | ADT terrain in the world |
+| `r_minimap` | 1 | Blizzard minimap tiles (normally 1-4 draws) |
 | `r_entities` | 1 | Snapshot entities |
 | `r_particles` | 1 | Particle batches |
 | `r_fogofwar` | 1 | Fog-of-war passes |
+| `r_fog` | 1 | WoW distance fog (turning it off exposes the hard clip) |
+| `r_fog_start` | 500 | WoW outdoor fog start in world units |
+| `r_fog_end` | 650 | WoW fully opaque fog / WMO CPU-cull distance |
+| `r_swapinterval` | 1 | SDL/OpenGL presentation interval (`0` uncapped request, `1` display synchronized) |
 
 For the Human start and left-facing slowdown, launch with `+set r_stats 1`, turn left, then
 toggle one pass at a time in the console, for example `set r_wmos 0`, `set r_doodads 0`,
@@ -109,8 +113,19 @@ to units 0-3 and white to unit 4 for every material. This matched profiler time 
 `glActiveTexture`, `glBindTexture`, sampler loading, and Metal pipeline preparation.
 The WMO single-texture shader branch now samples unit 0 only; the same scene improved
 from roughly 82-90 FPS to 94-95 FPS without changing draw count. The remaining scalable
-cost is the number of separately submitted WMO and doodad batches, plus the duplicate
+cost was the number of separately submitted WMO and doodad batches, plus the duplicate
 live-minimap world pass.
+
+After static-doodad instancing, authoritative minimap tiles, and hybrid WMO material
+batching, the same forward Human-start view measured about 910 total draws at the 120
+FPS presentation ceiling. Its WMO work fell from 486 to 207 draws: 10 of 17 visible
+instances used model-wide material batches, while sparse instances retained per-group
+culling. The minimap fell from roughly 367 duplicated world draws to at most four UI
+quads. `r_swapinterval 0` is useful for requesting uncapped presentation, but macOS's
+OpenGL-on-Metal path may still present at the display's 120 Hz ceiling.
+
+The FPS overlay uses one batched system-font submission and displays
+`FPS ##  Drawcalls ##`; its draw count is captured before the overlay itself.
 
 ## Reference: Doom 3 Frontend/Backend Split
 

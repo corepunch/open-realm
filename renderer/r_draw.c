@@ -10,35 +10,28 @@ RECT R_UISceneRect(void) {
     return MAKE(RECT, 0, 0, R_UI_BASE_WIDTH, R_UI_BASE_HEIGHT);
 }
 
-void R_DrawChar(int x, int y, int c) {
-    VERTEX simp[6];
-    DWORD ch;
-    float fx;
-    float fy;
+void R_DrawString(int x, int y, LPCSTR text) {
+    VERTEX simp[6 * 128];
+    DWORD count = 0;
     size2_t window = R_GetWindowSize();
     MATRIX4 ui_matrix;
 
-    c &= 255;
-    if ((c & 127) == 32 || y <= -SYSFONT_DRAW_HEIGHT) {
-        return;
+    if (!text || y <= -SYSFONT_DRAW_HEIGHT) return;
+    for (DWORD i = 0; text[i] && i < 128; i++) {
+        DWORD ch = (BYTE)text[i];
+        float fx = ch & 15, fy = ch >> 4;
+        if ((ch & 127) == 32) continue;
+        R_AddQuad(simp + count, &(RECT){ x + i * SYSFONT_DRAW_WIDTH, y, SYSFONT_DRAW_WIDTH, SYSFONT_DRAW_HEIGHT }, &(RECT){ fx / SYSFONT_COLS, fy / SYSFONT_ROWS, 1.f / SYSFONT_COLS, 1.f / SYSFONT_ROWS }, COLOR32_WHITE, 0);
+        count += 6;
     }
-
-    ch = (DWORD)c;
-    fx = ch & 15;
-    fy = ch >> 4;
-
-    R_AddQuad(simp, &(RECT ) {
-        x, y, SYSFONT_DRAW_WIDTH, SYSFONT_DRAW_HEIGHT
-    }, &(RECT ) {
-        fx / SYSFONT_COLS, fy / SYSFONT_ROWS, 1.f / SYSFONT_COLS, 1.f / SYSFONT_ROWS
-    }, COLOR32_WHITE, 0);
+    if (!count) return;
 
     Matrix4_ortho(&ui_matrix, 0.0f, window.width, window.height, 0.0f, 0.0f, 100.0f);
     
     R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
-    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(simp), simp, GL_DYNAMIC_DRAW);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, count * sizeof(*simp), simp, GL_DYNAMIC_DRAW);
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
     
     R_BindTexture(tr.texture[TEX_FONT], 0);
@@ -46,9 +39,11 @@ void R_DrawChar(int x, int y, int c) {
     R_Call(glDisable, GL_CULL_FACE);
     R_Call(glEnable, GL_BLEND);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    R_StatsDraw(GL_TRIANGLES, 6, 1);
-    R_Call(glDrawArrays, GL_TRIANGLES, 0, 6);
+    R_StatsDraw(GL_TRIANGLES, count, 1);
+    R_Call(glDrawArrays, GL_TRIANGLES, 0, count);
 }
+
+void R_DrawChar(int x, int y, int c) { char text[2] = { (char)c, 0 }; R_DrawString(x, y, text); }
 
 void R_DrawFill(LPCRECT rect, COLOR32 color) {
     VERTEX simp[6];
@@ -359,8 +354,7 @@ void R_DrawMinimap(LPCRECT screen) {
     tr.minimapRect = *screen;
     tr.hasMinimap = true;
 
-    /* Each game owns its minimap content: WC3 war3mapMap + fog, SC2 map texture,
-       WoW top-down terrain. */
+    /* Each game owns its minimap content and authoritative texture source. */
     R_GameDrawMinimap(screen);
 }
 

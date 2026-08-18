@@ -191,6 +191,7 @@ typedef struct {
     LPMODEL (*LoadModel)(LPCSTR filename);
     LPFONT (*LoadFont)(LPCSTR filename, DWORD size);
     size2_t (*GetWindowSize)(void);
+    DWORD (*GetDrawCalls)(void);
     void (*SetWindowSize)(DWORD width, DWORD height);
     size2_t (*GetTextureSize)(LPCTEXTURE texture);
     void (*ReleaseTexture)(LPTEXTURE texture);
@@ -199,6 +200,7 @@ typedef struct {
     void (*EndFrame)(void);
     void (*Screenshot)(void);
     void (*DrawChar)(int x, int y, int c);
+    void (*DrawString)(int x, int y, LPCSTR text);
     void (*DrawFill)(LPCRECT rect, COLOR32 color);
     void (*DrawSelectionRect)(LPCRECT rect, COLOR32 color);
     void (*DrawPic)(LPCTEXTURE texture, float x, float y);

@@ -14,6 +14,10 @@ GLint wow_uUseWeightedBlend = -1;
 GLint wow_uSingleTexture = -1;
 GLint wow_uAlphaOrigin = -1;
 GLint wow_uAlphaAtlasChunks = -1;
+GLint wow_uFogEnable = -1;
+GLint wow_uFogColor = -1;
+GLint wow_uFogParams = -1;
+GLint wow_uFogCamera = -1;
 GLint wow_uGrassTime = -1;
 GLint wow_uGrassCameraOrigin = -1;
 GLint wow_uGrassDrawDistance = -1;
@@ -77,6 +81,7 @@ void Wow_InitTerrainShader(void) {
     "out vec2 v_texcoord;\n"
     "out vec4 v_color;\n"
     "out float v_lighting;\n"
+    "out vec3 v_world;\n"
     "uniform mat4 uViewProjectionMatrix;\n"
     "uniform mat4 uModelMatrix;\n"
     "uniform mat4 uLightMatrix;\n"
@@ -90,6 +95,7 @@ void Wow_InitTerrainShader(void) {
     "    float light = clamp(dot(normal, lightDir), 0.0, 1.0);\n"
     "    v_lighting = mix(0.5, 1.0, light);\n"
     "    v_color = i_color;\n"
+    "    v_world = pos.xyz;\n"
     "    gl_Position = uViewProjectionMatrix * pos;\n"
     "}\n";
     static LPCSTR fs_wow_terrain =
@@ -97,6 +103,7 @@ void Wow_InitTerrainShader(void) {
     "in vec2 v_texcoord;\n"
     "in vec4 v_color;\n"
     "in float v_lighting;\n"
+    "in vec3 v_world;\n"
     "out vec4 o_color;\n"
     "uniform sampler2D uTexture0;\n"
     "uniform sampler2D uTexture1;\n"
@@ -107,6 +114,10 @@ void Wow_InitTerrainShader(void) {
     "uniform int uSingleTexture;\n"
     "uniform vec2 uAlphaOrigin;\n"
     "uniform float uAlphaAtlasChunks;\n"
+    "uniform bool uFogEnable;\n"
+    "uniform vec3 uFogColor;\n"
+    "uniform vec2 uFogParams;\n"
+    "uniform vec3 uFogCamera;\n"
     "vec2 adtAlphaCoord(vec2 chunkCoord) {\n"
     "    const float alphaTexelsPerChunk = 64.0;\n"
     "    float alphaAtlasSize = alphaTexelsPerChunk * uAlphaAtlasChunks;\n"
@@ -134,6 +145,10 @@ void Wow_InitTerrainShader(void) {
     "        }\n"
     "    }\n"
     "    color.rgb *= 2.0 * v_color.rgb * v_lighting;\n"
+    "    if (uFogEnable) {\n"
+    "        float fog = clamp((uFogParams.y-distance(v_world, uFogCamera))/(uFogParams.y-uFogParams.x), 0.0, 1.0);\n"
+    "        color.rgb = mix(uFogColor, color.rgb, fog);\n"
+    "    }\n"
     "    color.a = 1.0;\n"
     "    o_color = color;\n"
     "}\n";
@@ -156,6 +171,10 @@ void Wow_InitTerrainShader(void) {
     wow_uSingleTexture = glGetUniformLocation(wow_terrain_shader->progid, "uSingleTexture");
     wow_uAlphaOrigin = glGetUniformLocation(wow_terrain_shader->progid, "uAlphaOrigin");
     wow_uAlphaAtlasChunks = glGetUniformLocation(wow_terrain_shader->progid, "uAlphaAtlasChunks");
+    wow_uFogEnable = glGetUniformLocation(wow_terrain_shader->progid, "uFogEnable");
+    wow_uFogColor = glGetUniformLocation(wow_terrain_shader->progid, "uFogColor");
+    wow_uFogParams = glGetUniformLocation(wow_terrain_shader->progid, "uFogParams");
+    wow_uFogCamera = glGetUniformLocation(wow_terrain_shader->progid, "uFogCamera");
     R_Call(glUseProgram, wow_terrain_shader->progid);
     R_Call(glUniform1i, wow_uTexture0, 0);
     R_Call(glUniform1i, wow_uTexture1, 1);
