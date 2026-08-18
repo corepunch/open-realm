@@ -73,14 +73,17 @@ LPCSTR fs_particle =
 "in vec2 v_texcoord;\n"
 "out vec4 o_color;\n"
 "uniform sampler2D uTexture;\n"
-"uniform bool uUseDiscard;\n"
+"uniform bool uAlphaKey;\n"
 "uniform float uAlphaCutoff;\n"
 "float crop_edges(vec2 tc) {\n"
 "   return step(abs(tc.x - 0.5), 0.5) * step(abs(tc.y - 0.5), 0.5);\n"
 "}\n"
 "void main() {\n"
 "    o_color = texture(uTexture, v_texcoord) * v_color;\n"
-"    if (uUseDiscard && o_color.a < uAlphaCutoff) discard;\n"
+"    if (uAlphaKey) {\n"
+"        float edge = max(fwidth(o_color.a), 1.0 / 255.0);\n"
+"        o_color.a = smoothstep(uAlphaCutoff - edge, uAlphaCutoff + edge, o_color.a);\n"
+"    }\n"
 "}\n";
 
 particleVertex_t *
@@ -165,13 +168,14 @@ static void R_FlushParticles(LPCTEXTURE texture, LPCMATRIX4 matrix, particleVert
     R_Call(glUniformMatrix4fv, particles_resources.shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
     R_Call(glActiveTexture, GL_TEXTURE0);
     R_Call(glBindTexture, GL_TEXTURE_2D, (texture?texture:particles_resources.texture)->texid);
-    R_Call(glUniform1i, particles_resources.shader->uUseDiscard, blend_mode == BLEND_MODE_ALPHAKEY);
+    R_Call(glUniform1i, particles_resources.shader->uAlphaKey, blend_mode == BLEND_MODE_ALPHAKEY);
     R_Call(glUniform1f, particles_resources.shader->uAlphaCutoff, 0.5f);
-    if (blend_mode == BLEND_MODE_NONE || blend_mode == BLEND_MODE_ALPHAKEY) {
+    R_SetAlphaKeyState(blend_mode == BLEND_MODE_ALPHAKEY);
+    if (blend_mode == BLEND_MODE_NONE) {
         R_Call(glDisable, GL_BLEND);
         R_Call(glDepthMask, GL_TRUE);
         R_Call(glBlendFunc, GL_ONE, GL_ZERO);
-    } else {
+    } else if (blend_mode != BLEND_MODE_ALPHAKEY) {
         R_Call(glEnable, GL_BLEND);
         R_Call(glDepthMask, GL_FALSE);
         switch (blend_mode) {
@@ -186,6 +190,7 @@ static void R_FlushParticles(LPCTEXTURE texture, LPCMATRIX4 matrix, particleVert
             break;
         }
     }
+    R_StatsDraw(GL_TRIANGLES, (DWORD)(pv - particles_resources.vertices), 1);
     R_Call(glDrawArrays, GL_TRIANGLES, 0, (GLsizei)(pv - particles_resources.vertices));
 }
 
@@ -212,13 +217,13 @@ static COLOR32 FX_GetFrame(const cparticle_t *p) {
 }
 
 void R_DrawParticles(void) {
-    if (!active_particles)
-        return;
-
     MATRIX4 matrix;
-    LPCTEXTURE texture = active_particles->texture;
-    BLEND_MODE blend_mode = active_particles->blend_mode;
     particleVertex_t *pv = particles_resources.vertices;
+    LPCTEXTURE texture;
+    BLEND_MODE blend_mode;
+
+    if (!R_CvarEnabled("r_particles", "1") || !active_particles) return;
+    texture = active_particles->texture; blend_mode = active_particles->blend_mode;
     
     Matrix4_identity(&matrix);
     R_UpdateParticles();
@@ -244,6 +249,7 @@ void R_DrawParticles(void) {
     }
     
     R_FlushParticles(texture, &matrix, pv, blend_mode);
+    R_SetAlphaKeyState(false);
 }
 
 static LPBUFFER R_MakeParticlesVertexArrayObject(void) {

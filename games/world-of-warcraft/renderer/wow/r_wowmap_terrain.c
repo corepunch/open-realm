@@ -344,10 +344,10 @@ void Wow_AddAdtChunk(wowVec3_t pos,
     chunk->alpha_index_y = alpha_index_y;
     /* Upload absolute world Z = pos.z + MCVT relative height into GPU atlas */
     Wow_UploadHeightAtlasChunk(alpha_index_x, alpha_index_y, pos.z, chunk->heights);
-    /* Record world origin of atlas tile (0,0) once for shader uniform */
-    if (!wow_world.has_atlas_origin && alpha_index_x == 0 && alpha_index_y == 0) {
-        wow_world.atlas_world_x = pos.x;   /* world pos.x of chunk at iy=0 */
-        wow_world.atlas_world_y = pos.y;   /* world pos.y of chunk at ix=0 */
+    /* Any resident chunk defines tile (0,0); waiting for that tile breaks sparse maps and world edges. */
+    if (!wow_world.has_atlas_origin) {
+        wow_world.atlas_world_x = pos.x + alpha_index_y * WOW_ADT_CHUNK_SIZE;
+        wow_world.atlas_world_y = pos.y + alpha_index_x * WOW_ADT_CHUNK_SIZE;
         wow_world.has_atlas_origin = true;
     }
     FOR_LOOP(layer_index, 4) {

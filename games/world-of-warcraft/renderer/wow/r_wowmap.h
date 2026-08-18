@@ -34,6 +34,13 @@
 #define WOW_SPLAT_MAX_HEIGHT_DELTA 3.0f
 #define WOW_GRASS_DRAW_DISTANCE 220.0f
 #define WOW_GRASS_FADE_START_DISTANCE 160.0f
+#define WOW_GRASS_WIND_SPEED 1.7f
+#define WOW_GRASS_WIND_AMPLITUDE 0.12f
+#define WOW_GRASS_WIND_ROOT_FRACTION 0.15f
+#define WOW_GRASS_WIND_PHASE_X 0.071f
+#define WOW_GRASS_WIND_PHASE_Y 0.113f
+#define WOW_GRASS_WIND_DIRECTION_X 0.86f
+#define WOW_GRASS_WIND_DIRECTION_Y 0.51f
 #define WOW_GRASS_ROAD_COVERAGE_MIN 24
 #define WOW_GRASS_CELL_STEP 1
 #define WOW_GRASS_CELLS_PER_AXIS 8
@@ -81,14 +88,15 @@
 #define WOW_GRASS_CTRL_CHUNKS    WOW_ALPHA_ATLAS_CHUNKS
 #define WOW_GRASS_CTRL_SIZE      (WOW_GRASS_CTRL_CELLS * WOW_GRASS_CTRL_CHUNKS)
 
-/* Camera-following static grass tile VBO */
-#define WOW_GRASS_TILE_SIZE      480.0f
-#define WOW_GRASS_BLADE_SLOTS    32768
+/* Camera-following world-cell grid: an odd side keeps one slot centered on the camera cell. */
+#define WOW_GRASS_GRID_SIDE      181
+#define WOW_GRASS_GRID_HALF      90
+#define WOW_GRASS_SLOT_SPACING   2.5f
+#define WOW_GRASS_BLADE_SLOTS    (WOW_GRASS_GRID_SIDE * WOW_GRASS_GRID_SIDE)
 #define WOW_GRASS_VERTS_PER_BLADE 12  /* triangle-list cross: 2 quads x 6 verts */
 
-/* Phase 3 enable flag: camera-following mesh replaces per-instance draw.
-   Set to 0 to fall back to the old Wow_AddGroundEffectInstance path. */
-#define WOW_GRASS_CAMERA_MESH 1
+/* The camera grid cannot preserve GroundEffectDoodad M2 geometry/material identity yet. */
+#define WOW_GRASS_CAMERA_MESH 0
 
 typedef struct wowWdtTile_s {
     BOOL present;
@@ -304,6 +312,7 @@ extern GLint wow_uTexture2;
 extern GLint wow_uTexture3;
 extern GLint wow_uAlphaTexture;
 extern GLint wow_uUseWeightedBlend;
+extern GLint wow_uSingleTexture;
 extern GLint wow_uAlphaOrigin;
 extern GLint wow_uAlphaAtlasChunks;
 extern GLint wow_uGrassTime;
@@ -321,7 +330,7 @@ extern GLint wow_uCtrlOriginWorld;
 extern GLint wow_uCtrlCellSize;
 /* Camera-following grass tile uniforms */
 extern GLint wow_uCameraXZ;
-extern GLint wow_uGrassTileSize;
+extern GLint wow_uGrassSlotSpacing;
 
 BOOL Wow_PathHasExtension(LPCSTR path, LPCSTR extension);
 void Wow_NormalizeMapPath(LPCSTR mapFileName, LPSTR out, DWORD out_size);

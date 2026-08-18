@@ -97,6 +97,13 @@ TEST(commands, command_and_cvar_completion) {
     T_ASSERT(Cvar_String("scr_showfps", NULL) != NULL);
 }
 
+TEST(commands, registered_renderer_cvar_accepts_bare_assignment) {
+    setup_command_tests();
+    Cvar_Set("r_stats", "0");
+    Cmd_ExecuteString("r_stats 1");
+    T_STREQ(Cvar_String("r_stats", NULL), "1");
+}
+
 TEST(commands, data_command_line_sets_data_cvar) {
     LPCSTR argv[] = { "test_commands", "-data", "tests/data dir" };
 

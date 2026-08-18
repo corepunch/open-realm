@@ -4,9 +4,9 @@
 
 This document describes the WoW ground-effect rendering architecture. OpenWarcraft3 resolves the same terrain effect and detail M2 data used by the WoW client, then reuses the normal M2 material path.
 
-> **Note:** the entity/M2-instancing architecture below is being replaced by a single
-> static-mesh + vertex-shader design shared with a GPU height atlas — see
-> [static-grass-and-height-atlas.md](static-grass-and-height-atlas.md).
+> **Note:** authoritative M2 instancing is the active path. The camera-grid/height-atlas
+> prototype remains disabled because it cannot yet preserve doodad geometry/material
+> identity; see [static-grass-and-height-atlas.md](static-grass-and-height-atlas.md).
 
 ## Current OpenWarcraft3 Implementation
 
@@ -19,7 +19,7 @@ OpenWarcraft3 resolves ground clutter from the WoW MPQ data:
 - Models are loaded from `World\\NoDXT\\Detail\\` and rendered through the normal M2 path, so embedded WoW material/texture references remain authoritative.
 - ADT alpha coverage and height samples control whether and where each ground-effect model is placed.
 - Placement randomness is deterministic per ADT chunk; renderer tuning and schema constants are named `WOW_GRASS_*` defines in `r_wowmap.h`.
-- Ground-effect M2 instances carry `RF_GROUND_EFFECT` and are culled at `WOW_GRASS_DRAW_DISTANCE`.
+- Ground-effect placements are compiled once per ADT window into persistent model groups.
 - Road-like terrain layers are excluded when their sampled ADT coverage is at least `WOW_GRASS_ROAD_COVERAGE_MIN`; the heuristic follows WoWee's local layer-weight check.
 
 ### Instanced rendering
@@ -27,27 +27,32 @@ OpenWarcraft3 resolves ground clutter from the WoW MPQ data:
 Ground-effect instances are rendered with **GPU instancing**, not one full `M2_RenderModel`
 call per clump (which produced ~47k draw calls and dropped the frame rate by 10x):
 
-- `Wow_AddGroundEffectInstance` links each clump into `wow_world.ground_effects` (a flat list,
-  no doodad bucketing).
-- `Wow_DrawGrass` (`r_wowmap_grass.c`) culls by squared distance and frustum, groups visible
-  instances by their `model`, and collects one `MATRIX4` per instance via `R_GetEntityMatrix`.
-  `R_GameEntityMatrix` short-circuits `RF_GROUND_EFFECT` entities through a direct 1-sin/1-cos
-  matrix build (`T(origin) * B * Ry(-90) * Rx(rotation.z - 90)` folded) instead of the full
-  basis-multiply + 3-Euler-rotate pipeline, which was the dominant CPU cost per clump.
+- `Wow_AddGroundEffectInstance` initially links each placement into
+  `wow_world.ground_effects`; the first `Wow_DrawGrass` groups it by model and builds each
+  `MATRIX4` once.
+- Each group uploads one `GL_STATIC_DRAW` instance VBO. The temporary matrices and linked
+  placement nodes are then freed; ADT-window replacement releases the VBOs.
 - `R_GameRenderModelInstanced` → `M2_RenderInstanced` (`r_m2.c`) renders each model batch once
-  with `R_DrawBufferInstanced`, passing the whole matrix array to `glDrawArraysInstanced`.
+  with `R_DrawBufferInstanced`, binding the persistent matrix VBO for `glDrawArraysInstanced`.
 - `R_ModelShaderInstanced` (`r_shader.c`) is a copy of the model vertex shader with a per-instance
   `mat4 i_instance` attribute (4 vec4 columns, divisor 1) folded in instead of `uModelMatrix`; the
-  fragment shader is the shared `model_fs`.
+  fragment shader is the shared `model_fs`. It performs distance fade and root-anchored wind.
 - `R_DrawBufferInstanced` (`r_buffer.c`) binds a shared VAO to the batch VBO plus an instanced
-  matrix VBO and draws `num_instances` copies in one call.
+  matrix VBO and draws all group instances without re-uploading them.
 
-The per-instance distance fade (`WOW_GRASS_FADE_START_DISTANCE`) is not yet applied because it
-would require an instanced alpha attribute; see Known Issues.
+The Classic detail assets inspected in Elwynn contain no keyed bone tracks. Wind is
+therefore procedural GPU deformation, scaled from each model's authored Z bounds and
+phased from the instance's world position; roots remain fixed.
 
 The loader supports both known 11-DWORD layouts. It detects the bundled legacy layout (ID, date stamp, continent, zone, texture ID, four doodad IDs, density, sound) versus the modern weighted layout (ID, four doodad IDs, four weights, amount/coverage, terrain type) by resolving the candidate doodad IDs through `GroundEffectDoodad.dbc`. Legacy rows receive uniform weights for valid slots and ignore `0xffffffff`; modern rows retain their stored weights. `dbctool info` remains the first check when adding another client archive.
 
-### Key Components
+### Retired procedural prototype (historical)
+
+The blade geometry, per-chunk grass buffers, procedural coloring, and budgets below
+describe the removed prototype. They are retained only to explain why authoritative M2
+instancing replaced it; they are not current renderer contracts. Current code uses the
+instanced-M2 architecture above and the implementation checklist in
+[static-grass-and-height-atlas.md](static-grass-and-height-atlas.md).
 
 #### 1. Blade Generation (`r_wowmap_grass.c`)
 
@@ -225,7 +230,7 @@ Four 64×64 alpha textures per chunk:
 
 ## Improvements in OpenWarcraft3
 
-### Phase 1: Data-Driven Integration (Current)
+### Phase 1: Data-Driven Integration (retired prototype)
 
 **Added in this session:**
 
@@ -241,15 +246,12 @@ Four 64×64 alpha textures per chunk:
    - `Wow_GrassEffectIdForCoverage(...)`: Find dominant grass layer
 
 3. **Data-Driven Coloring**
-   - Checks if GroundEffectTexture data exists for layer
-   - Varies grass colors based on terrain type data
-   - Falls back to procedural colors if DBC missing
+   - The retired prototype varied procedural blade colors from terrain data.
+   - This is not a fallback: current rendering requires authoritative DBC and M2 data.
 
-4. **Preserved Advantages**
-   - No API changes (still blade geometry)
-   - Same performance characteristics
-   - Same placement algorithm
-   - Backward compatible with missing DBCs
+4. **Reason it was replaced**
+   - Generic blade geometry could not preserve authored doodad shape or material identity.
+   - Treating missing DBC data as procedural grass hid asset/data failures.
 
 ### Phase 2: Full Doodad System (Implemented)
 
@@ -260,8 +262,8 @@ Four 64×64 alpha textures per chunk:
    - Instances are rendered through GPU instancing (`M2_RenderInstanced`), not per-instance model draws.
 
 2. **Animation Support**
-   - Real doodad models have wind, growth, decay animations
-   - Use M2 sequence system for seasonal variations
+   - Verified Classic doodad M2s have zero keyed bone tracks despite a nominal sequence
+   - The instanced vertex shader provides world-phased, root-anchored wind
 
 3. **Appearance Variation**
    - Same grass placement, different visual assets
@@ -269,9 +271,7 @@ Four 64×64 alpha textures per chunk:
    - Much richer visual variety
 
 4. **Material System**
-   - Real textures instead of procedural colors
-   - PBR support for grass materials
-   - Proper specular/normal mapping
+   - Uses each M2's authoritative textures and material flags through the normal M2 path.
 
 ## File Organization
 
@@ -352,51 +352,41 @@ Four 64×64 alpha textures per chunk:
 - `DBFilesClient\GroundEffectTexture.dbc` - Terrain-to-doodad mapping
 - `DBFilesClient\Map.dbc` - Map metadata
 - `DBFilesClient\WorldSafeLocs.dbc` - Safe spawns
-- ADT files with terrain chunks (`.w3m` maps in Warcraft III, `.wdt` in WoW)
+- `World\Maps\<map>\<map>.wdt` - WoW map tile index
+- `World\Maps\<map>\<map>_<x>_<y>.adt` - WoW terrain chunks and ground-effect layer IDs
 
 ### Validation Tools
 
 **MPQ Inspection:**
 ```bash
-build/bin/mpqtool -mpq "data/Warcraft III/War3.mpq" ls "DBFilesClient"
-build/bin/mpqtool -mpq "data/World of Warcraft/Data/enUS/patch.mpq" cat "DBFilesClient\GroundEffectTexture.dbc" | od -x | head
+build/bin/dbctool -mpq data/world-of-warcraft/dbc.MPQ info 'DBFilesClient\GroundEffectTexture.dbc'
+build/bin/dbctool -mpq data/world-of-warcraft/dbc.MPQ info 'DBFilesClient\GroundEffectDoodad.dbc'
+build/bin/mpqtool -mpq data/world-of-warcraft/terrain.MPQ ls 'World\Maps\Azeroth'
 ```
 
 **Rendering Inspection:**
 ```bash
-make run-ui-text UI_CMD=+map "Maps/Campaign/Orc01.w3m"
-# Add grass distance adjustment for testing:
-# con_set r_grass_distance 500
+make run-wow ARGS="+set wow_playerinfo '\race\Human\sex\Male\class\1\appearance\0' +map playercreate +set r_stats 1 +com_frame_limit 300"
+# At runtime, use `set r_grass 0` to isolate grass submission cost.
 ```
 
 ## Known Issues and Limitations
 
-1. **Missing DBC Fallback**
-   - If GroundEffectTexture.dbc is missing, grass still renders with procedural colors
-   - Graceful degradation maintained
+1. **Required DBC data**
+   - GroundEffectTexture and GroundEffectDoodad are authoritative; missing records are
+     logged and must be fixed rather than replaced with procedural colors or guessed models.
 
-2. **No Per-Instance Distance Fade**
-   - `WOW_GRASS_FADE_START_DISTANCE` is not applied in the instanced path; ground-effect
-     clumps pop in/out at `WOW_GRASS_DRAW_DISTANCE` instead of fading.
-   - A proper fix needs an instanced alpha attribute (`i_instanceAlpha`) multiplied into
-     `v_color.a` in `instanced_vs`, plus the alpha packed into the instance buffer.
+2. **Placement remains an approximation**
+   - The public data establishes layer effects, density, suppression, models, and terrain
+     height, but the exact original-client placement algorithm has not been confirmed.
 
-2. **Color Variance Limited**
-   - Procedural blade system can't capture full range of WoW grass appearance
-   - Real system uses material textures, not vertex colors
+3. **Animation source**
+   - The inspected Classic detail M2s have no keyed bone tracks. Current movement is
+     root-anchored GPU wind rather than nonexistent asset animation.
 
-3. **No Animation Variation**
-   - All grass uses same wind shader
-   - Real system has doodad-specific animations
-
-4. **Flat Blade Appearance**
-   - No multi-layer texturing
-   - No spectral detail or LOD
-   - Real system has full M2 complexity
-
-5. **Memory Pre-allocation**
-   - 384 vertices allocated per chunk even if fewer needed
-   - Could be optimized with dynamic allocation
+4. **No dedicated far LOD**
+   - All resident instances use their authored M2 geometry. Add a far representation only
+     if GPU vertex/fill profiling—not CPU submission—shows it is necessary.
 
 ## References
 
@@ -435,6 +425,8 @@ make run-ui-text UI_CMD=+map "Maps/Campaign/Orc01.w3m"
 
 ## Conclusion
 
-The WoW grass system represents a balance between visual fidelity and performance. The current OpenWarcraft3 implementation uses procedural blade geometry with data-driven coloring, providing good performance while maintaining authentic terrain appearance. Future improvements could add full M2 doodad instancing to match real WoW's visual complexity, leveraging the existing doodad rendering pipeline.
-
-The data-driven approach ensures that as new game data (DBCs, textures, models) becomes available, the grass system can be enhanced without engine changes—following the Quake 2/id Software philosophy that shapes this entire project.
+The current renderer resolves authoritative GroundEffect DBC records and M2 assets,
+compiles immutable placement matrices once per ADT window, and submits persistent
+instanced batches. Height placement is CPU work only during window construction;
+distance fade, alpha coverage, and wind are GPU work. The procedural camera-grid path
+remains disabled until it can preserve the same model and material identity.

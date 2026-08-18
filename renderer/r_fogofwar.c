@@ -225,10 +225,15 @@ static void R_BlitTexture(GLuint texid, float alpha) {
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, proj_matrix.v);
 
     R_Call(glBindTexture, GL_TEXTURE_2D, texid);
-    R_Call(glDrawArrays, GL_TRIANGLES, 0, R_PushRectToBuffer(RBUF_TEMP1, &uv, alpha));
+    {
+        DWORD count = R_PushRectToBuffer(RBUF_TEMP1, &uv, alpha);
+        R_StatsDraw(GL_TRIANGLES, count, 1);
+        R_Call(glDrawArrays, GL_TRIANGLES, 0, count);
+    }
 }
 
 void R_RenderFogOfWar(void) {
+    if (!R_CvarEnabled("r_fogofwar", "1")) return;
     if (fow_resources.network) {
         return;
     }
@@ -299,6 +304,7 @@ void R_RenderFogOfWar(void) {
         R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
         R_Call(glBindTexture, GL_TEXTURE_2D, fow_resources.sight->texid);
         R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
+        R_StatsDraw(GL_TRIANGLES, NUM_RECT_VERTICES, 1);
         R_Call(glDrawArrays, GL_TRIANGLES, 0, NUM_RECT_VERTICES);
 
         // Draw line of sight into dst alpha
@@ -307,6 +313,7 @@ void R_RenderFogOfWar(void) {
         R_Call(glBindVertexArray, fow_resources.casters->vao);
         R_Call(glBlendFunc, GL_DST_ALPHA, GL_ZERO);
         R_Call(glBindBuffer, GL_ARRAY_BUFFER, fow_resources.casters->vbo);
+        R_StatsDraw(GL_TRIANGLES, num_casters, 1);
         R_Call(glDrawArrays, GL_TRIANGLES, 0, num_casters);
         
         // Draw white rect using dst alpha
@@ -316,6 +323,7 @@ void R_RenderFogOfWar(void) {
         R_Call(glColorMask, GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
         R_Call(glBlendFunc, GL_DST_ALPHA, GL_ONE_MINUS_DST_ALPHA);
         R_Call(glBindTexture, GL_TEXTURE_2D, tr.texture[TEX_WHITE]->texid);
+        R_StatsDraw(GL_TRIANGLES, NUM_RECT_VERTICES, 1);
         R_Call(glDrawArrays, GL_TRIANGLES, 0, NUM_RECT_VERTICES);
     }
     

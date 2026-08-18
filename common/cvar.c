@@ -436,6 +436,18 @@ void Cvar_Init(void) {
     Cvar_Get("r_lights", "2", CVAR_ARCHIVE);
     Cvar_Get("r_unit_shadows", "1", CVAR_ARCHIVE);
     Cvar_Get("r_occlusion", "1", CVAR_ARCHIVE);
+    Cvar_Get("r_msaa", "4", CVAR_ARCHIVE);
+    Cvar_Get("r_stats", "0", 0);
+    Cvar_Get("r_entities", "1", 0);
+    Cvar_Get("r_fogofwar", "1", 0);
+#ifdef WOW
+    /* Bare Quake-style console assignment only works for cvars registered before command dispatch. */
+    Cvar_Get("r_grass", "1", 0);
+    Cvar_Get("r_doodads", "1", 0);
+    Cvar_Get("r_wmos", "1", 0);
+    Cvar_Get("r_terrain", "1", 0);
+    Cvar_Get("r_minimap", "1", 0);
+#endif
     Cvar_Get("ui_chat_support", "0", CVAR_ARCHIVE);
     Cvar_Get("s_provider", "1", CVAR_ARCHIVE);
 }

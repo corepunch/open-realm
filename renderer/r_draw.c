@@ -46,6 +46,7 @@ void R_DrawChar(int x, int y, int c) {
     R_Call(glDisable, GL_CULL_FACE);
     R_Call(glEnable, GL_BLEND);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    R_StatsDraw(GL_TRIANGLES, 6, 1);
     R_Call(glDrawArrays, GL_TRIANGLES, 0, 6);
 }
 
@@ -74,6 +75,7 @@ void R_DrawFill(LPCRECT rect, COLOR32 color) {
     R_Call(glDepthMask, GL_FALSE);
     R_Call(glEnable, GL_BLEND);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    R_StatsDraw(GL_TRIANGLES, 6, 1);
     R_Call(glDrawArrays, GL_TRIANGLES, 0, 6);
 }
 
@@ -171,6 +173,7 @@ void R_DrawImageBatch(LPCTEXTURE texture,
     if (hasClip) {
         R_SetUIClipScissor(clip);
     }
+    R_StatsDraw(GL_TRIANGLES, num_vertices, 1);
     R_Call(glDrawArrays, GL_TRIANGLES, 0, num_vertices);
     if (hasClip) {
         R_ResetUIScissor();
@@ -309,6 +312,7 @@ void R_DrawMinimapCameraRect(LPCRECT screen) {
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
+    R_StatsDraw(GL_LINE_STRIP, 5, 1);
     R_Call(glDrawArrays, GL_LINE_STRIP, 0, 5);
 }
 
@@ -403,6 +407,7 @@ void R_DrawWireRect(LPCRECT rect, COLOR32 color) {
     R_Call(glDisable, GL_CULL_FACE);
     R_Call(glEnable, GL_BLEND);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    R_StatsDraw(GL_LINE_STRIP, sizeof(simp) / sizeof(*simp), 1);
     R_Call(glDrawArrays, GL_LINE_STRIP, 0, sizeof(simp) / sizeof(*simp));
 }
 
@@ -447,6 +452,7 @@ void R_DrawBoundingBox(LPCBOX3 box, LPCMATRIX4 modelMatrix, LPCMATRIX4 vpMatrix,
     R_Call(glDisable, GL_DEPTH_TEST);
     R_Call(glEnable, GL_BLEND);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    R_StatsDraw(GL_LINES, 24, 1);
     R_Call(glDrawArrays, GL_LINES, 0, 24);
     R_Call(glEnable, GL_DEPTH_TEST);
 }

@@ -45,6 +45,7 @@ void R_DrawEntities(void) {
     DWORD drawn = 0;
     DWORD culled = 0;
 
+    if (!R_CvarEnabled("r_entities", "1")) return;
     if (debug_entities) {
         memset(state, 0, sizeof(state));
     } else {

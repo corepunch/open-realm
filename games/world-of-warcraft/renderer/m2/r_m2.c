@@ -1775,6 +1775,7 @@ static void M2_DrawCompositeQuad(LPTEXTURE texture, LPCRECT screen, BOOL blend) 
     } else {
         R_Call(glDisable, GL_BLEND);
     }
+    R_StatsDraw(GL_TRIANGLES, 6, 1);
     R_Call(glDrawArrays, GL_TRIANGLES, 0, 6);
 }
 
@@ -1974,6 +1975,22 @@ static void M2_RenderItemAttachments(renderEntity_t const *entity, m2Model_t con
     }
 }
 
+/* Keep ordinary and instanced M2 batches on the same material-state contract. */
+static void M2_SetBlendMode(LPSHADER shader, DWORD mode) {
+    R_Call(glUniform1i, shader->uAlphaKey, mode == BLEND_MODE_ALPHAKEY);
+    R_SetAlphaKeyState(mode == BLEND_MODE_ALPHAKEY);
+    if (mode == BLEND_MODE_NONE) {
+        R_Call(glDisable, GL_BLEND); R_Call(glDepthMask, GL_TRUE);
+    } else if (mode != BLEND_MODE_ALPHAKEY) {
+        R_Call(glEnable, GL_BLEND); R_Call(glDepthMask, GL_FALSE);
+        switch (mode) {
+        case BLEND_MODE_ADD: R_Call(glBlendFunc, GL_ONE, GL_ONE); break;
+        case BLEND_MODE_ADDALPHA: R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE); break;
+        default: R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); break;
+        }
+    }
+}
+
 void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMATRIX4 transform) {
     renderEntity_t resolved_entity;
     renderEntity_t const *draw_entity = entity;
@@ -2045,7 +2062,7 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
     R_Call(glUniform2f, shader->uUvTrans, 0.0f, 0.0f);
     R_Call(glUniform2f, shader->uUvRot, 0.0f, 1.0f);  /* identity quaternion */
     R_Call(glUniform2f, shader->uUvScale, 1.0f, 1.0f);
-    R_Call(glUniform1i, shader->uUseDiscard, 0);
+    R_Call(glUniform1i, shader->uAlphaKey, 0);
     R_Call(glUniform1i, shader->uUnshaded, 0);
     R_Call(glUniform1f, shader->uFogEnable, 0);
     R_Call(glUniform1f, shader->uFirstBoneLookupIndex, 0.0f);
@@ -2059,39 +2076,8 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
 		if (!M2_CharacterGeosetVisible(model, outfit, batch->section_id)) {
 			continue;
 		}
-		/* Alpha-key batches use the shared shader's discard path; opaque and
-		 * blended batches must explicitly disable it after the previous batch. */
-		R_Call(glUniform1i, shader->uUseDiscard, batch->alphamode == BLEND_MODE_ALPHAKEY);
-		if (batch->alphamode == BLEND_MODE_NONE) {
-			R_Call(glDisable, GL_BLEND);
-			R_Call(glDepthMask, GL_TRUE);
-		} else {
-			R_Call(glEnable, GL_BLEND);
-			R_Call(glDepthMask, GL_FALSE);
-			switch (batch->alphamode) {
-			case BLEND_MODE_ADD:
-				R_Call(glBlendFunc, GL_ONE, GL_ONE);
-				break;
-			case BLEND_MODE_ADDALPHA:
-				R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE);
-				break;
-			case BLEND_MODE_BLEND:
-				R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-				break;
-			case BLEND_MODE_ALPHAKEY:
-				R_Call(glDisable, GL_BLEND);
-				R_Call(glDepthMask, GL_TRUE);
-				break;
-			default:
-				R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-				break;
-			}
-		}
-		if (ground_effect) {
-			R_Call(glEnable, GL_BLEND);
-			R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-			R_Call(glDepthMask, GL_FALSE);
-		}
+		/* Alpha-key batches convert their remapped shader alpha into MSAA coverage. */
+        M2_SetBlendMode(shader, batch->alphamode);
 		texture = batch->texture_type == 1 && character_texture ? character_texture :
                   draw_entity->skin ? draw_entity->skin :
                   M2_CharacterTextureForBatch(model, draw_entity, batch);
@@ -2103,18 +2089,19 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
 		R_BindTexture(tr.texture[TEX_WHITE], 2);
 		R_DrawBuffer(batch->buffer, batch->num_vertices);
 	}
+	R_SetAlphaKeyState(false);
 	if (outfit)
 		M2_RenderItemAttachments(draw_entity, model, transform, outfit);
 }
 
 /* Static-mesh instanced path for ground-effect clutter. Renders `count` copies
-   of the model in one draw call per batch, each placed by its own world matrix.
-   Ground-effect detail M2s are non-character, non-animated, alpha-blended. */
-void M2_RenderInstanced(m2Model_t const *model, LPCMATRIX4 transforms, DWORD count) {
+   of the model in one draw call per batch. Classic detail M2s have no keyed bone
+   tracks, so this path adds root-anchored wind in the vertex shader. */
+void M2_RenderInstanced(m2Model_t const *model, LPCINSTANCEBUFFER instances) {
     m2ModelBatch_t *batch;
     LPSHADER shader;
 
-    if (!model || !transforms || !count) return;
+    if (!model || !instances || !instances->count) return;
 
     shader = R_ModelShaderInstanced();
     if (!shader) {
@@ -2125,8 +2112,6 @@ void M2_RenderInstanced(m2Model_t const *model, LPCMATRIX4 transforms, DWORD cou
         }
         return;
     }
-    M2_CalculateBoneMatrices(model, NULL);
-
     R_Call(glUseProgram, shader->progid);
     R_Call(glUniform1i, shader->uLightCount, 0);
     R_Call(glUniformMatrix4fv, shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
@@ -2147,18 +2132,21 @@ void M2_RenderInstanced(m2Model_t const *model, LPCMATRIX4 transforms, DWORD cou
     R_Call(glUniform2f, shader->uUvTrans, 0.0f, 0.0f);
     R_Call(glUniform2f, shader->uUvRot, 0.0f, 1.0f);
     R_Call(glUniform2f, shader->uUvScale, 1.0f, 1.0f);
-    R_Call(glUniform1i, shader->uUseDiscard, 0);
+    R_Call(glUniform1i, shader->uAlphaKey, 0);
     R_Call(glUniform1i, shader->uUnshaded, 0);
     R_Call(glUniform1f, shader->uFogEnable, 0);
     R_Call(glUniform1f, shader->uFirstBoneLookupIndex, 0.0f);
     {
         static GLuint cached_progid;
-        static GLint loc_camera = -1;
-        static GLint loc_fade = -1;
+        static GLint loc_camera = -1, loc_fade = -1, loc_time = -1, loc_wind = -1, loc_phase = -1, loc_height = -1;
         if (shader->progid != cached_progid) {
             cached_progid = shader->progid;
             loc_camera = glGetUniformLocation(shader->progid, "uGrassCameraPos");
             loc_fade = glGetUniformLocation(shader->progid, "uGrassFade");
+            loc_time = glGetUniformLocation(shader->progid, "uGrassTime");
+            loc_wind = glGetUniformLocation(shader->progid, "uGrassWind");
+            loc_phase = glGetUniformLocation(shader->progid, "uGrassPhase");
+            loc_height = glGetUniformLocation(shader->progid, "uGrassHeight");
         }
         if (loc_camera >= 0) {
             VECTOR3 cam = tr.viewDef.camerastate[0].origin;
@@ -2167,22 +2155,25 @@ void M2_RenderInstanced(m2Model_t const *model, LPCMATRIX4 transforms, DWORD cou
         if (loc_fade >= 0) {
             glUniform2f(loc_fade, WOW_GRASS_FADE_START_DISTANCE, WOW_GRASS_DRAW_DISTANCE);
         }
+        if (loc_time >= 0) glUniform1f(loc_time, tr.viewDef.time / 1000.0f);
+        if (loc_wind >= 0) glUniform3f(loc_wind, WOW_GRASS_WIND_SPEED, WOW_GRASS_WIND_AMPLITUDE, WOW_GRASS_WIND_ROOT_FRACTION);
+        if (loc_phase >= 0) glUniform4f(loc_phase, WOW_GRASS_WIND_PHASE_X, WOW_GRASS_WIND_PHASE_Y, WOW_GRASS_WIND_DIRECTION_X, WOW_GRASS_WIND_DIRECTION_Y);
+        if (loc_height >= 0) glUniform2f(loc_height, model->geometry_bounds.min.z, model->geometry_bounds.max.z);
     }
     R_Call(glEnable, GL_DEPTH_TEST);
-    R_Call(glDepthMask, GL_FALSE);
-    R_Call(glEnable, GL_BLEND);
-    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    R_Call(glDepthMask, GL_TRUE);
+    R_Call(glDisable, GL_BLEND);
 
 	for (batch = model->batches; batch; batch = batch->next) {
-		R_Call(glUniform1i, shader->uUseDiscard, batch->alphamode == BLEND_MODE_ALPHAKEY);
-		M2_UploadBatchBones(model, batch, shader);
+        M2_SetBlendMode(shader, batch->alphamode);
 		R_BindTexture(batch->texture ? batch->texture : tr.texture[TEX_WHITE], 0);
 #ifdef USE_SHADOWMAPS
 		R_BindTexture(tr.texture[TEX_SHADOWMAP], 1);
 #endif
 		R_BindTexture(tr.texture[TEX_WHITE], 2);
-		R_DrawBufferInstanced(batch->buffer, batch->num_vertices, transforms, count);
+		R_DrawBufferInstanced(batch->buffer, batch->num_vertices, instances);
 	}
+	R_SetAlphaKeyState(false);
 }
 
 BOOL M2_AttachmentMatrix(m2Model_t const *model,

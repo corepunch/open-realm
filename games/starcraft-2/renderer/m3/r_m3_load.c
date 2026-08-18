@@ -569,6 +569,7 @@ static COLOR32 M3_LayerColor(m3Layer_t const *layer) {
 }
 
 static BOOL M3_SetMaterialBlendMode(m3Material_t const *material) {
+    R_SetAlphaKeyState(false);
     switch (material ? material->blendMode : BLEND_MODE_NONE) {
         case BLEND_MODE_NONE:
         case BLEND_MODE_ALPHAKEY:
@@ -678,8 +679,10 @@ static void M3_DrawRegionMaterial(m3Region_t const *region, m3Material_t const *
            diffuse_color.a / 255.0f * alpha);
     {
         FLOAT cutoff = M3_MaterialAlphaCutoff(material);
-        R_Call(glUniform1i, m3.shader->uUseDiscard, cutoff >= 0.0f ? 1 : 0);
+        BOOL alpha_key = cutoff >= 0.0f;
+        R_Call(glUniform1i, m3.shader->uAlphaKey, alpha_key);
         R_Call(glUniform1f, m3.shader->uAlphaCutoff, cutoff >= 0.0f ? cutoff : 0.5f);
+        if (alpha_key && !M3_MaterialIsBlended(material)) R_SetAlphaKeyState(true);
     }
     R_Call(glUniform1f, m3.shader->uFirstBoneLookupIndex, (FLOAT)region->firstBoneLookupIndex);
 
@@ -690,6 +693,7 @@ static void M3_DrawRegionMaterial(m3Region_t const *region, m3Material_t const *
         if (!layer->texture)
             continue;
 #ifndef __linux__
+        R_StatsDraw(GL_TRIANGLES, num_indices, 1);
         R_Call(glDrawElementsBaseVertex, GL_TRIANGLES, num_indices, GL_UNSIGNED_SHORT, indices, first_vertex);
 #endif
     }
@@ -881,7 +885,7 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
     R_Call(glUniform2f, m3.shader->uUvTrans, 0.0f, 0.0f);
     R_Call(glUniform2f, m3.shader->uUvRot, 0.0f, 1.0f);
     R_Call(glUniform2f, m3.shader->uUvScale, 1.0f, 1.0f);
-    R_Call(glUniform1i, m3.shader->uUseDiscard, 0);
+    R_Call(glUniform1i, m3.shader->uAlphaKey, 0);
     R_Call(glUniform1f, m3.shader->uAlphaCutoff, 0.5f);
     R_Call(glUniform1i, m3.shader->uUnshaded, 0);
     R_Call(glUniform1f, m3.shader->uFogEnable, 0);
@@ -901,6 +905,7 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
     }
     
     R_Call(glActiveTexture, GL_TEXTURE0);
+    R_SetAlphaKeyState(false);
     R_Call(glDepthMask, GL_TRUE);
     R_Call(glEnable, GL_BLEND);
 }

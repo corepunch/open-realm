@@ -1,5 +1,8 @@
 #include "r_wowmap.h"
 
+#define BZ_WOW_STR_INNER(x) #x
+#define BZ_WOW_STR(x) BZ_WOW_STR_INNER(x)
+
 LPSHADER wow_terrain_shader;
 LPSHADER wow_grass_shader;
 GLint wow_uTexture0 = -1;
@@ -8,6 +11,7 @@ GLint wow_uTexture2 = -1;
 GLint wow_uTexture3 = -1;
 GLint wow_uAlphaTexture = -1;
 GLint wow_uUseWeightedBlend = -1;
+GLint wow_uSingleTexture = -1;
 GLint wow_uAlphaOrigin = -1;
 GLint wow_uAlphaAtlasChunks = -1;
 GLint wow_uGrassTime = -1;
@@ -22,7 +26,7 @@ GLint wow_uGrassCtrl = -1;
 GLint wow_uCtrlOriginWorld = -1;
 GLint wow_uCtrlCellSize = -1;
 GLint wow_uCameraXZ = -1;
-GLint wow_uGrassTileSize = -1;
+GLint wow_uGrassSlotSpacing = -1;
 
 /* Keep terrain and grass on the same exact MCVT diamond interpolation contract. */
 #define WOW_HEIGHT_ATLAS_GLSL \
@@ -100,6 +104,7 @@ void Wow_InitTerrainShader(void) {
     "uniform sampler2D uTexture3;\n"
     "uniform sampler2D uAlphaTexture;\n"
     "uniform int uUseWeightedBlend;\n"
+    "uniform int uSingleTexture;\n"
     "uniform vec2 uAlphaOrigin;\n"
     "uniform float uAlphaAtlasChunks;\n"
     "vec2 adtAlphaCoord(vec2 chunkCoord) {\n"
@@ -111,18 +116,22 @@ void Wow_InitTerrainShader(void) {
     "}\n"
     "void main() {\n"
     "    vec2 alphaCoord = adtAlphaCoord(v_texcoord * 0.125);\n"
-    "    vec3 alphaBlend = texture(uAlphaTexture, alphaCoord).gba;\n"
     "    vec4 tex1 = texture(uTexture0, v_texcoord);\n"
-    "    vec4 tex2 = texture(uTexture1, v_texcoord);\n"
-    "    vec4 tex3 = texture(uTexture2, v_texcoord);\n"
-    "    vec4 tex4 = texture(uTexture3, v_texcoord);\n"
     "    vec4 color;\n"
-    "    if (uUseWeightedBlend != 0) {\n"
-    "        float baseWeight = 1.0 - clamp(dot(alphaBlend, vec3(1.0)), 0.0, 1.0);\n"
-    "        vec4 weights = vec4(baseWeight, alphaBlend);\n"
-    "        color = tex1 * weights.r + tex2 * weights.g + tex3 * weights.b + tex4 * weights.a;\n"
+    "    if (uSingleTexture != 0) {\n"
+    "        color = tex1;\n"
     "    } else {\n"
-    "        color = mix(mix(mix(tex1, tex2, alphaBlend.r), tex3, alphaBlend.g), tex4, alphaBlend.b);\n"
+    "        vec3 alphaBlend = texture(uAlphaTexture, alphaCoord).gba;\n"
+    "        vec4 tex2 = texture(uTexture1, v_texcoord);\n"
+    "        vec4 tex3 = texture(uTexture2, v_texcoord);\n"
+    "        vec4 tex4 = texture(uTexture3, v_texcoord);\n"
+    "        if (uUseWeightedBlend != 0) {\n"
+    "            float baseWeight = 1.0 - clamp(dot(alphaBlend, vec3(1.0)), 0.0, 1.0);\n"
+    "            vec4 weights = vec4(baseWeight, alphaBlend);\n"
+    "            color = tex1 * weights.r + tex2 * weights.g + tex3 * weights.b + tex4 * weights.a;\n"
+    "        } else {\n"
+    "            color = mix(mix(mix(tex1, tex2, alphaBlend.r), tex3, alphaBlend.g), tex4, alphaBlend.b);\n"
+    "        }\n"
     "    }\n"
     "    color.rgb *= 2.0 * v_color.rgb * v_lighting;\n"
     "    color.a = 1.0;\n"
@@ -144,6 +153,7 @@ void Wow_InitTerrainShader(void) {
     wow_uTexture3 = glGetUniformLocation(wow_terrain_shader->progid, "uTexture3");
     wow_uAlphaTexture = glGetUniformLocation(wow_terrain_shader->progid, "uAlphaTexture");
     wow_uUseWeightedBlend = glGetUniformLocation(wow_terrain_shader->progid, "uUseWeightedBlend");
+    wow_uSingleTexture = glGetUniformLocation(wow_terrain_shader->progid, "uSingleTexture");
     wow_uAlphaOrigin = glGetUniformLocation(wow_terrain_shader->progid, "uAlphaOrigin");
     wow_uAlphaAtlasChunks = glGetUniformLocation(wow_terrain_shader->progid, "uAlphaAtlasChunks");
     R_Call(glUseProgram, wow_terrain_shader->progid);
@@ -153,6 +163,7 @@ void Wow_InitTerrainShader(void) {
     R_Call(glUniform1i, wow_uTexture3, 3);
     R_Call(glUniform1i, wow_uAlphaTexture, 4);
     R_Call(glUniform1f, wow_uAlphaAtlasChunks, (GLfloat)WOW_ALPHA_ATLAS_CHUNKS);
+    R_Call(glUniform1i, wow_uSingleTexture, 0);
 }
 
 void Wow_InitGrassShader(void) {
@@ -173,12 +184,16 @@ void Wow_InitGrassShader(void) {
     "uniform vec2 uCtrlOriginWorld;\n"
     "uniform float uCtrlCellSize;\n"
     "uniform vec2 uCameraXZ;\n"
-    "uniform float uGrassTileSize;\n"
+    "uniform float uGrassSlotSpacing;\n"
     WOW_HEIGHT_ATLAS_GLSL
+    "float GrassHash(vec2 p) { return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }\n"
     "void main() {\n"
     "    float top = clamp(i_texcoord.y, 0.0, 1.0);\n"
-    "    vec2 tileOrigin = floor(uCameraXZ / uGrassTileSize) * uGrassTileSize;\n"
-    "    vec2 worldXY = tileOrigin + i_normal.xy;\n"
+    "    int gx = gl_InstanceID % " BZ_WOW_STR(WOW_GRASS_GRID_SIDE) " - " BZ_WOW_STR(WOW_GRASS_GRID_HALF) ";\n"
+    "    int gy = gl_InstanceID / " BZ_WOW_STR(WOW_GRASS_GRID_SIDE) " - " BZ_WOW_STR(WOW_GRASS_GRID_HALF) ";\n"
+    "    vec2 cell = floor(uCameraXZ / uGrassSlotSpacing) + vec2(gx, gy);\n"
+    "    vec2 jitter = vec2(GrassHash(cell), GrassHash(cell + vec2(19.19,73.73))) - vec2(0.5);\n"
+    "    vec2 worldXY = (cell + jitter * 0.72) * uGrassSlotSpacing;\n"
     "    ivec2 htile; vec2 hcell;\n"
     "    float keep = HeightAtlas_Coord(worldXY, htile, hcell) ? 1.0 : 0.0;\n"
     "    vec2 crel = (uCtrlOriginWorld - worldXY) / uCtrlCellSize;\n"
@@ -186,16 +201,18 @@ void Wow_InitGrassShader(void) {
     "    ivec2 csize = textureSize(uGrassCtrl, 0);\n"
     "    bool cin = all(greaterThanEqual(cc, ivec2(0))) && all(lessThan(cc, csize));\n"
     "    vec4 ctrl = cin ? texelFetch(uGrassCtrl, cc, 0) : vec4(1.0, 0.0, 0.0, 0.0);\n"
-    "    keep *= (1.0-step(0.5, ctrl.r)) * step(i_color.g, ctrl.g);\n"
-    "    float scale = 0.5 + i_color.r;\n"
-    "    float cy = cos(i_normal.z), sy = sin(i_normal.z);\n"
+    "    float seed = GrassHash(cell + vec2(41.41,17.17));\n"
+    "    keep *= (1.0-step(0.5, ctrl.r)) * step(seed, ctrl.g);\n"
+    "    float scale = 0.65 + 0.7 * GrassHash(cell + vec2(5.13,91.7));\n"
+    "    float yaw = seed * 6.2831853;\n"
+    "    float cy = cos(yaw), sy = sin(yaw);\n"
     "    vec3 pos = vec3(cy*i_position.x-sy*i_position.z, sy*i_position.x+cy*i_position.z, i_position.y) * scale;\n"
-    "    float wave = sin(uGrassTime * 1.7 + i_color.g * 6.2831853) * 0.22 * top;\n"
+    "    float wave = sin(uGrassTime * 1.7 + seed * 6.2831853) * 0.22 * top;\n"
     "    pos.xy += vec2(wave, wave * 0.35);\n"
     "    pos += vec3(worldXY, HeightAtlas_SampleDiamond(worldXY));\n"
     "    pos *= keep;\n"
     "    v_world = pos;\n"
-    "    v_color = vec4(0.28, 0.62, 0.18, ctrl.g * keep);\n"
+    "    v_color = vec4(0.28, 0.62, 0.18, keep);\n"
     "    v_uv = i_texcoord;\n"
     "    vec3 lightDir = normalize(vec3(uLightMatrix[0][2], uLightMatrix[1][2], uLightMatrix[2][2])) * 1.2;\n"
     "    float light = abs(dot(vec3(0.0, 0.0, 1.0), lightDir));\n"
@@ -220,8 +237,7 @@ void Wow_InitGrassShader(void) {
     "    float root = smoothstep(0.02, 0.14, v_uv.y);\n"
     "    float tip = 1.0 - smoothstep(0.84, 1.00, v_uv.y);\n"
     "    float blade = edge * root * tip;\n"
-    "    float alpha = v_color.a * fade * blade * 0.55;\n"
-    "    if (alpha <= 0.02) discard;\n"
+    "    float alpha = v_color.a * fade * blade;\n"
     "    o_color = vec4(v_color.rgb * v_lighting, alpha);\n"
     "}\n";
 
@@ -246,5 +262,5 @@ void Wow_InitGrassShader(void) {
     wow_uCtrlOriginWorld = glGetUniformLocation(wow_grass_shader->progid, "uCtrlOriginWorld");
     wow_uCtrlCellSize = glGetUniformLocation(wow_grass_shader->progid, "uCtrlCellSize");
     wow_uCameraXZ = glGetUniformLocation(wow_grass_shader->progid, "uCameraXZ");
-    wow_uGrassTileSize = glGetUniformLocation(wow_grass_shader->progid, "uGrassTileSize");
+    wow_uGrassSlotSpacing = glGetUniformLocation(wow_grass_shader->progid, "uGrassSlotSpacing");
 }

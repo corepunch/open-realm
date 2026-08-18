@@ -156,6 +156,7 @@ static void MDLX_RenderTailEmitter(mdxModel_t const *model,
 }
 
 static bool MDLX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
+    R_SetAlphaKeyState(false);
     switch (layer->blendMode) {
         case BLEND_MODE_NONE:
             R_Call(glDisable, GL_BLEND);
@@ -167,10 +168,8 @@ static bool MDLX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
             R_Call(glDepthMask, GL_TRUE);
             break;
         case BLEND_MODE_ALPHAKEY:
-            R_Call(glDisable, GL_BLEND);
-            R_Call(glUniform1i, mdlx.shader->uUseDiscard, 1);
-            R_Call(glBlendFunc, GL_ONE, GL_ZERO);
-            R_Call(glDepthMask, GL_TRUE);
+            R_Call(glUniform1i, mdlx.shader->uAlphaKey, 1);
+            R_SetAlphaKeyState(true);
             break;
         case BLEND_MODE_BLEND:
 #ifdef USE_SHADOWMAPS
@@ -481,7 +480,7 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
             continue;
         }
         R_Call(glEnable, GL_DEPTH_TEST);
-        R_Call(glUniform1i, shader->uUseDiscard, 0);
+        R_Call(glUniform1i, shader->uAlphaKey, 0);
         if (force_two_sided) {
             R_Call(glDisable, GL_CULL_FACE);
         } else {
@@ -515,11 +514,13 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
         R_BindTexture(texture, 0);
         R_Call(glBindVertexArray, geoset->vertexArrayBuffer);
         R_Call(glBindBuffer, GL_ELEMENT_ARRAY_BUFFER, *geoset->buffer);
+        R_StatsDraw(GL_TRIANGLES, geoset->num_triangles, 1);
         R_Call(glDrawElements, GL_TRIANGLES, geoset->num_triangles, GL_UNSIGNED_SHORT, NULL);
     }
 
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glEnable, GL_CULL_FACE);
+    R_SetAlphaKeyState(false);
     R_Call(glCullFace, GL_BACK);
     R_Call(glDepthMask, GL_TRUE);
     R_Call(glUniform1i, shader->uUnshaded, forceUnshaded);

@@ -61,8 +61,14 @@
 
 #include "../common/common.h"
 #include "../client/tr_public.h"
+#include "r_alpha.h"
 
 extern refImport_t ri;
+
+static BOOL R_CvarEnabled(LPCSTR name, LPCSTR fallback) { return !ri.CvarString || atoi(ri.CvarString(name, fallback)); }
+static uint64_t R_PrimitiveTriangles(GLenum mode, DWORD count, DWORD instances) {
+    return mode == GL_TRIANGLES ? (uint64_t)(count / 3) * instances : 0;
+}
 
 
 KNOWN_AS(shader_program, SHADER);
@@ -92,6 +98,15 @@ struct render_buffer {
     DWORD ibo;
 };
 
+typedef struct INSTANCEBUFFER {
+    DWORD vbo;
+    DWORD count;
+} INSTANCEBUFFER;
+typedef struct INSTANCEBUFFER *LPINSTANCEBUFFER;
+typedef const struct INSTANCEBUFFER *LPCINSTANCEBUFFER;
+
+static size_t R_InstanceBufferBytes(DWORD count) { return (size_t)count * sizeof(MATRIX4); }
+
 struct shader_program {
     DWORD progid;
     DWORD uViewProjectionMatrix;
@@ -105,7 +120,7 @@ struct shader_program {
 #endif
     DWORD uFogOfWar;
     DWORD uBones;
-    DWORD uUseDiscard;
+    DWORD uAlphaKey;
     DWORD uAlphaCutoff;
     DWORD uUnshaded;
     DWORD uLayerAlpha;
@@ -197,6 +212,7 @@ struct render_globals {
     LPRENDERTARGET rt[RT_COUNT];
     sheetRow_t *sheet[SHEET_COUNT];
     size2_t drawableSize;
+    int msaa_samples;
     LPTEXTURE minimap;
     RECT minimapRect;   /* last UI-space rect the minimap was drawn at */
     BOOL hasMinimap;
@@ -248,6 +264,8 @@ void R_RenderView(void);
 void R_SetupViewport(LPCRECT r);
 void R_SetupScissor(LPCRECT r);
 void R_RevertSettings(void);
+void R_SetAlphaKeyState(BOOL enabled);
+void R_StatsDraw(GLenum mode, DWORD count, DWORD instances);
 
 // r_ents.c
 bool R_TraceEntity(viewDef_t const *viewdef, float x, float y, LPDWORD number);
@@ -275,8 +293,11 @@ VERTEX *R_AddWireBox(VERTEX *buffer, LPCBOX3 box, COLOR32 color);
 LPBUFFER R_MakeVertexArrayObject(LPCVERTEX vertices, DWORD size);
 LPBUFFER R_MakeIndexedVertexArrayObject(LPCVERTEX vertices, DWORD num_vertices, DWORD const *indices, DWORD num_indices);
 void R_DrawBuffer(LPCBUFFER buffer, DWORD num_vertices);
+void R_DrawBufferCopies(LPCBUFFER buffer, DWORD num_vertices, DWORD num_instances);
 void R_DrawIndexedBuffer(LPCBUFFER buffer, DWORD num_indices);
-void R_DrawBufferInstanced(LPCBUFFER buffer, DWORD num_vertices, LPCMATRIX4 matrices, DWORD num_instances);
+BOOL R_MakeInstanceBuffer(LPINSTANCEBUFFER buffer, LPCMATRIX4 matrices, DWORD count);
+void R_ReleaseInstanceBuffer(LPINSTANCEBUFFER buffer);
+void R_DrawBufferInstanced(LPCBUFFER buffer, DWORD num_vertices, LPCINSTANCEBUFFER instances);
 void R_ShutdownDrawBufferInstanced(void);
 
 // r_draw.c

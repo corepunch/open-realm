@@ -29,6 +29,7 @@ static void Wow_DrawSplatVertices(LPCTEXTURE texture, LPCSHADER shader,
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
     /* Re-specifying the whole stream buffer lets the driver orphan busy storage. */
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(*vertices) * num_vertices, vertices, GL_STREAM_DRAW);
+    R_StatsDraw(GL_TRIANGLES, num_vertices, 1);
     R_Call(glDrawArrays, GL_TRIANGLES, 0, num_vertices);
     R_Call(glDisable, GL_POLYGON_OFFSET_FILL);
     R_Call(glDepthMask, GL_TRUE);

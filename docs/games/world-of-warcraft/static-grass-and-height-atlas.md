@@ -1,17 +1,19 @@
 # GPU Terrain Height Atlas and Static Grass Batches
 
-Status: **prototype implementation; visual/data parity remains**. The current renderer
-uploads absolute MCVT heights into an `R32F` atlas, uploads one RGBA8 grass-control
-texel per MCNK cell, and submits one immutable camera-following procedural cross mesh.
-The grass vertex shader mirrors `Wow_HeightInCell`'s four diamond triangles, rejects
-atlas/control lookups outside the streamed window, applies density/suppression, and
-does placement plus wind on the GPU. Atlas textures are recreated with each ADT window;
-the mesh persists until world teardown.
+Status: **authoritative static M2 batches active; camera-grid prototype disabled**. ADT
+load resolves GroundEffectTexture/GroundEffectDoodad records, loads each MPQ-authored M2
+geometry/material, and compiles immutable transforms into one batch per resident model.
+Temporary placement entities are then freed. Per frame, `Wow_DrawGrass` only submits the
+resident model batches; the transform matrices live in `GL_STATIC_DRAW` instance VBOs,
+while wind, distance fade, alpha remapping, and alpha-to-coverage are GPU work. Rebuilding
+and uploading happen only when the ADT window changes.
 
-The prototype does **not** yet bake the authoritative ground-effect M2 geometry or
-materials, decode `pred_tex`, upload MCNR, move terrain to a shared template, or provide
-the documented multi-bone fallback. Keep the implementation sequence below as the
-parity checklist rather than treating the current procedural blades as the final path.
+The exact `R32F` height atlas and RGBA8 grass-control atlas remain available for the
+future camera-grid path. That prototype is deliberately disabled: its 12-vertex generic
+cross used hard-coded dimensions and constant green output, while its control texture
+stored no GroundEffectDoodad model/material identity. Enabling it therefore replaced
+the authoritative wider textured clumps with narrow untextured rectangles. Do not
+enable it until real M2 geometry and material selection are encoded and visually match.
 
 Bounded verification command (Human start is required so `playercreate` selects map 0):
 
@@ -19,32 +21,39 @@ Bounded verification command (Human start is required so `playercreate` selects 
 make run-wow ARGS="+set wow_playerinfo '\\race\\Human\\sex\\Male\\class\\1\\appearance\\0' +map playercreate +com_frame_limit 100"
 ```
 
-The 2026-08-18 checkpoint loaded 2,304 MCNKs, built 32,768 blade slots / 393,216
-vertices once, linked the terrain and grass shaders without an OpenGL error, and exited
-at the frame limit. `make run-sc2` compiled and `make test` passed.
+Add `+set r_stats 1` for averaged renderer draw/triangle/instance counts. Runtime isolation
+toggles are documented in [renderer-backend.md](../../renderer-backend.md); the primary
+ones here are `r_grass`, `r_doodads`, `r_wmos`, `r_terrain`, and `r_minimap`.
+
+The corrected 2026-08-18 checkpoint loaded 2,304 MCNKs and compiled 465,524 authored
+placements into 14 persistent M2 model batches. It obtained a verified 4x MSAA
+framebuffer, loaded the authored materials without missing-texture reports, and exited
+at the frame limit.
 
 ## Decision
 
-Move terrain elevation to an exact GPU height atlas. Replace grass entities with a
-**camera-following static grass mesh**: an immutable VBO of blade slots, tiled and snapped
-to the camera in the vertex shader (Ghost of Tsushima pattern), with height sampled from
-the atlas and wind applied per-blade — zero CPU work per frame. WoW placement data
-(suppression, density, model layer) is encoded into a grass-control texture updated only
-on ADT loads, not every frame. Frustum culling is eliminated by construction; the mesh
-is always centered on the camera.
+Keep the authoritative `GroundEffectDoodad` M2 geometry, materials, and placement
+matrices. Group placements once per resident ADT window, upload one immutable instance
+VBO per M2 model, and submit one instanced draw per M2 material batch. Use
+`GL_SAMPLE_ALPHA_TO_COVERAGE` for alpha-key edges and distance fade without sorting.
 
-Keep the actual `GroundEffectDoodad` M2 geometry baked into the VBO. Use
-`GL_SAMPLE_ALPHA_TO_COVERAGE` for sub-pixel edge quality and order-independent distance
-fade without sorting.
+The verified Classic detail M2s contain a nominal 3,333 ms sequence but no keyed bone
+tracks. Their movement therefore comes from root-anchored vertex-shader wind, phased by
+world position and scaled by each M2's authored geometry height. Do not add per-instance
+CPU animation.
 
-Fall back to per-patch static instanced draws (the original design) only for M2 models
-with more than one animation bone. Do **not** start with compute shaders, GPU indirect
-culling, or geometry clipmaps; the GL 3.1 baseline and the measured bottleneck do not
-require them.
+The instanced shader receives an identity bone palette once when it is created. The
+grass draw path does not evaluate M2 animation or rebuild/upload a 128-matrix palette per
+model; only the shader time uniform changes each frame.
+
+Retain the height/control atlas camera-grid experiment as a future option, but do not
+enable it until the control data preserves the exact doodad model/material identity.
+Do **not** start with compute shaders, GPU indirect culling, or geometry clipmaps; the
+GL 3.1 baseline does not require them yet.
 
 ## Evidence and Current Bottleneck
 
-The reported Time Profiler capture attributes 6.65 s to `Wow_DrawGrass`; 1.76 s is
+The original Time Profiler capture attributes 6.65 s to `Wow_DrawGrass`; 1.76 s is
 `Wow_EntityInView`, while only 170 ms is `R_GameRenderModelInstanced`. The draw itself is
 not the main problem. `Wow_DrawGrass` (`renderer/wow/r_wowmap_grass.c`) currently:
 
@@ -54,9 +63,18 @@ not the main problem. `Wow_DrawGrass` (`renderer/wow/r_wowmap_grass.c`) currentl
 4. rebuilds and copies a `MATRIX4` for every visible clump every frame;
 5. uploads those matrices again for instanced drawing.
 
-The direct ground-effect matrix path in `R_GameEntityMatrix` is a useful temporary
-optimization, but the remaining list traversal, duplicate culling, matrix construction,
-and uploads are all avoidable. Grass is immutable for the lifetime of a loaded ADT.
+The current path removes that work: it groups and builds matrices once per ADT window,
+uploads them to immutable instance VBOs, and releases the CPU arrays. There are no
+per-instance visibility tests, matrix constructions, allocations, copies, or uploads
+during a frame.
+
+A second 2026-08-18 bounded diagnostic explained the reported 60 fps capture. SDL's swap
+interval was already zero, so this was not a vsync cap. The old shared dynamic instance
+VBO called `glBufferData` for every group every frame: 465,524 matrices × 64 bytes =
+29,793,536 bytes copied per frame, directly matching `_platform_memmove` as the largest
+sample. Persistent per-group VBOs remove that traffic. The same run inspected all 14
+resident M2s: each had one bone and zero keyed translation/rotation/scale tracks, which
+is why recalculating M2 bones produced no visible animation.
 
 The current material state is also wrong for at least the locally verified Classic
 grass set. `M2_RenderInstanced` notices `BLEND_MODE_ALPHAKEY`, then unconditionally enables
@@ -233,18 +251,21 @@ The Angry Bots rain technique—an immutable VBO of slots, tiled around the came
 animated entirely in a vertex shader—eliminates every per-frame CPU cost and is the
 right primary pattern for grass. Adapted for WoW:
 
-1. Allocate a flat VBO of N slots. Each slot copies the M2 quad geometry (8 verts /
-   12 indices) and adds a per-blade local offset (local_x, local_z), yaw, scale, and a
-   deterministic seed. The mesh never changes.
-2. In the vertex shader, compute the current tile origin:
+1. Allocate one blade/M2 geometry buffer and submit it with `glDraw*Instanced`; do not
+   copy identical geometry into every slot.
+2. In the vertex shader, map `gl_InstanceID` to an odd camera-centered grid. Hash the
+   resulting integer world-cell coordinate for stable jitter, yaw, scale, density, and
+   wind phase:
    ```glsl
-   vec2 tileOrigin = floor(uCameraXZ / TILE_SIZE) * TILE_SIZE;
-   vec3 worldPos   = vec3(tileOrigin.x + blade.local_x, 0.0, tileOrigin.y + blade.local_z);
+   ivec2 offset    = instance_grid_offset(gl_InstanceID);
+   vec2 worldCell  = floor(uCameraXZ / SLOT_SPACING) + vec2(offset);
+   vec2 worldXZ    = (worldCell + stable_jitter(worldCell)) * SLOT_SPACING;
+   vec3 worldPos   = vec3(worldXZ, 0.0);
    worldPos.y      = HeightAtlas_SampleDiamond(uHeightAtlas, worldPos.xz);
    ```
-   As the camera moves, `tileOrigin` snaps discretely at TILE_SIZE-width steps, so the
-   mesh appears infinite without any CPU spawn/despawn logic. This is the core pattern
-   from the Ghost of Tsushima (GDC 2020) grass system.
+   Moving by one cell remaps overlapping instances to the same integer world cells, so
+   their generated positions do not slide or pop. The grid half-extent must exceed draw
+   distance plus one spacing/jitter margin.
 3. The height atlas (`R32F`, 17×9 tiles, exact MCVT samples) provides Z without any CPU
    lookup per blade. The vertex shader calls the same diamond interpolation used for
    terrain vertices.
@@ -261,7 +282,9 @@ world XZ and moves suppressed blades to a degenerate position (all three verts a
 same point) so the rasterizer skips them entirely at zero fragment cost. This is cheaper
 than branching on early-out because it avoids shader divergence.
 
-**Multiple M2 models.** Bake each weighted M2 variant as a separate model index in the
+**Multiple M2 models.** This is a hard correctness requirement, not optional polish.
+The disabled prototype lost textures because the control atlas carried no model/material
+identity. Bake each weighted M2 variant as a separate model index in the
 slot data. The vertex shader selects the correct base vertex range or the fragment shader
 selects the correct texture from a small array. Keep the number of distinct M2 variants
 per patch small (GroundEffectTexture.dbc typically has 2–4 weighted models); each variant
@@ -276,12 +299,12 @@ handle it as an instanced draw (Phase 3 path) rather than the static grass mesh.
 
 | Constraint | Implication |
 |---|---|
-| Tile snapping | At TILE_SIZE steps the grass grid visibly snaps. Smaller tiles reduce the jump magnitude but increase draw-call and VBO cost. A 16–32 m tile at typical grass scale is imperceptible while walking; validate at camera snap with a stationary scene. |
-| Single-tile density | Every slot in the VBO is evaluated every frame; suppressed blades cost vertex work but no fragment work. Budget VBO size against the ratio of suppressed blades in dense vs. sparse areas. |
+| Grid remap | Hash placement from integer world-cell coordinates. Hashing immutable slot IDs would slide the whole field whenever the camera crosses a cell. |
+| Grid density | Every instance is evaluated every frame; suppressed blades cost vertex work but no fragment work. Budget grid spacing against dense and sparse areas. |
 | Exact WoW cell boundaries | Camera-snapping produces a regular grid, not MCNK-aligned cells. Suppression via texture lookup reproduces WoW placement without exact cell boundaries in the mesh topology. |
 | Height atlas coverage | The blade must land inside the currently loaded height atlas. Blades near the atlas edge that fall outside should be suppressed in the vertex shader; add an atlas-bounds check to the tile origin logic. |
 | Bone animation (multi-bone M2s) | Pure static mesh cannot carry per-bone animation. Fall back to instanced draws (Phase 3 path) for any M2 with more than one effective bone. |
-| View-distance ring | The tile must be large enough to cover the desired grass radius. A radius larger than TILE_SIZE/2 requires a multi-tile strategy (e.g. 3×3 tiles) or a larger single tile. Fix this at design time from the target grass draw distance. |
+| View-distance ring | Grid half-extent must cover draw radius plus camera-within-cell and jitter margins. The current 181x181 grid at 2.5 m spacing covers the 220 m radius. |
 
 ## Alpha, Sorting, and Fade
 
@@ -291,7 +314,7 @@ authoritative blend mode:
 | Material | Blend | Depth write | Sorting |
 |---|---:|---:|---|
 | opaque | off | on | none |
-| alpha-key/cutout | off; shader discard | on | none |
+| alpha-key/cutout | off; alpha-to-coverage | on | none |
 | true alpha blend | `SRC_ALPHA, ONE_MINUS_SRC_ALPHA` | off | back-to-front or OIT |
 | additive | additive | normally off | usually order-independent |
 
@@ -305,9 +328,10 @@ describe alpha-to-coverage as an edge-quality alternative under MSAA.
 **Alpha-to-coverage (ATOC).** With MSAA enabled, `GL_SAMPLE_ALPHA_TO_COVERAGE` converts
 each fragment's alpha value into a coverage bitmask applied at subpixel resolution. At
 4× MSAA, alpha=0.75 fills three of four samples; alpha=0.25 fills one of four. This gives
-sub-pixel transparency with depth writes enabled and no sorting, eliminating the harsh
-texel-edge aliasing of a plain discard. The mechanism is order-independent because each
-sample only ever has one alpha value. GPU Gems 3 chapter 4 (SpeedTree) documents this for
+sub-pixel coverage with depth writes enabled and no per-blade sorting, eliminating the
+harsh texel-edge aliasing of an alpha test. This is not general order-independent
+transparency: differently coloured overlapping coverage can remain order-sensitive.
+GPU Gems 3 chapter 4 (SpeedTree) documents this for
 foliage edges and wind animation; Ben Golus's "Anti-Aliased Alpha Test: The Esoteric Alpha
 To Coverage" (Medium, ~2018) is the most complete developer-level explanation and covers
 alpha scaling, mip bias, and depth-write safety. The DX9-era ATI whitepaper (ATI_ATOC.pdf)
@@ -326,14 +350,15 @@ override in `M2_RenderInstanced`. For distance fade:
 
 - with MSAA, enable `GL_SAMPLE_ALPHA_TO_COVERAGE` and keep depth writes; modulate
   alpha in the fragment shader for fade, not blending;
-- without MSAA, use a stable screen/world-space dither threshold before discard;
+- without MSAA, the discard-free renderer uses a logged alpha-blended fallback with
+  depth writes disabled; expect weaker overlap quality than the MSAA path;
 - do not convert every alpha-key asset to smooth alpha blending merely to fade it;
 - if a real `BLEND_MODE_BLEND` ground-effect asset is found, sort **patches/batches**
   back-to-front first. Only add weighted blended OIT if visible artifacts and profiling
   justify it.
 
-Cutout/discard can inhibit early depth optimizations on some GPUs, so keep grass shaders
-small, draw terrain/opaque geometry first, render roughly front-to-back by patch, use
+Keep grass shaders small, draw terrain/opaque geometry first, render roughly
+front-to-back by patch, use
 good alpha mipmaps, and measure overdraw. Do not add a depth prepass automatically; for
 tiny grass triangles it may cost more vertex/alpha work than it saves.
 
@@ -342,13 +367,15 @@ tiny grass triangles it may cost more vertex/alpha work than it saves.
 ### Grass vertex shader (camera-following static mesh path)
 
 ```glsl
-// Uniforms: uCameraXZ (vec2), uTileSize (float), uHeightAtlas (sampler2D),
+// Uniforms: uCameraXZ (vec2), uSlotSpacing (float), uHeightAtlas (sampler2D),
 //           uGrassControl (sampler2D), uTime (float), uGrassDist (float)
 // Per-vertex: aModelPos (vec3), aUV (vec2)
-// Per-slot:   aLocalXZ (vec2), aYaw (float), aScale (float), aSeed (float)
+// Per-slot: gl_InstanceID maps to a centered integer grid coordinate.
 
-vec2 tileOrigin = floor(uCameraXZ / uTileSize) * uTileSize;
-vec2 worldXZ    = tileOrigin + aLocalXZ;
+ivec2 offset  = instance_grid_offset(gl_InstanceID);
+vec2 cell     = floor(uCameraXZ / uSlotSpacing) + vec2(offset);
+vec2 worldXZ  = (cell + stable_jitter(cell)) * uSlotSpacing;
+float seed    = stable_hash(cell);
 
 // Suppress blades outside atlas bounds or in no-effect cells
 vec4  ctrl      = texture(uGrassControl, worldXZ * uControlScale + 0.5);
@@ -361,13 +388,13 @@ float keep      = (1.0 - suppress) * step(0.001, distFade);
 float worldY    = HeightAtlas_SampleDiamond(uHeightAtlas, worldXZ);
 
 // Rotate model vertex by yaw, then scale, then place in world
-float cy = cos(aYaw), sy = sin(aYaw);
+float cy = cos(seed * 6.28318), sy = sin(seed * 6.28318);
 vec3  rot = vec3(cy * aModelPos.x - sy * aModelPos.z,
                  aModelPos.y,
-                 sy * aModelPos.x + cy * aModelPos.z) * aScale;
+                 sy * aModelPos.x + cy * aModelPos.z) * stable_scale(cell);
 
 // Wind: sine-wave offset scaled by blade height and a per-slot phase
-float windPhase  = uTime * 1.3 + aSeed * 6.28318;
+float windPhase  = uTime * 1.3 + seed * 6.28318;
 float windBend   = sin(windPhase) * 0.07 * rot.y;     // only upper verts bend
 rot.x           += windBend;
 
@@ -375,12 +402,13 @@ vec3 worldPos = vec3(worldXZ.x + rot.x, worldY + rot.y, worldXZ.y + rot.z) * kee
 gl_Position   = uViewProj * vec4(worldPos, 1.0);
 
 vUV       = aUV;
-vAlpha    = distFade * ctrl.g;   // ctrl.g: density weight from GroundEffectTexture
+vAlpha    = distFade * keep;
 ```
 
-The fragment shader keeps the M2 texture and alpha-key discard. With MSAA, enable
-`GL_SAMPLE_ALPHA_TO_COVERAGE` and use `vAlpha` to modulate the output alpha for distance
-fade rather than enabling blending. Without MSAA, use a stable dither.
+The fragment shader remaps M2 texture alpha around the material cutoff without
+`discard`. With MSAA, enable `GL_SAMPLE_ALPHA_TO_COVERAGE` and use `vAlpha` to modulate
+coverage for distance fade rather than enabling blending. Without MSAA, the shared
+renderer logs and uses its alpha-blended/depth-write-off fallback.
 
 `HeightAtlas_SampleDiamond` must be a shared GLSL snippet (include or generated string)
 used by terrain, grass, and splat shaders. Duplicate coordinate math will drift.
@@ -420,13 +448,13 @@ coordinate, and cell-hole handling. Same `HeightAtlas_SampleDiamond` snippet as 
 
 ### Phase 3: eliminate grass entities — camera-following static mesh
 
-- Introduce a flat grass VBO: N slots, each containing the M2 blade geometry and
-  per-slot attributes (local_xz, yaw, scale, seed). Allocate once; never modify.
+- Introduce one shared blade/M2 geometry buffer. Generate the camera-centered world-cell
+  grid from `gl_InstanceID`; do not duplicate the geometry or upload instance data.
 - Build a grass-control texture covering the loaded ADT window: one channel for
   suppression (no-effect mask), one for density weight, one for layer/effect index.
   Update this texture when an MCNK loads or unloads; do not update it every frame.
-- Implement the camera-snapping tile vertex shader: tileOrigin snap, heightmap Z,
-  suppression degenerate-collapse, wind, and ATOC distance fade.
+- Implement stable integer-world-cell placement, heightmap Z, suppression
+  degenerate-collapse, wind, and ATOC distance fade.
 - A single draw call covers the entire grass tile with no per-frame CPU culling.
   Remove `wow_world.ground_effects`, `wow_grass_scratch`, `RF_GROUND_EFFECT` matrix
   logic, and `Wow_AddGroundEffectInstance` only after visual and counter parity.
@@ -439,8 +467,10 @@ coordinate, and cell-hole handling. Same `HeightAtlas_SampleDiamond` snippet as 
 ### Phase 4: fix materials and fade
 
 - Honor opaque, alpha-key, blended, and additive M2 batch modes independently.
-- Verify alpha-key assets use discard + depth writes and require no sorting.
-- Implement alpha-to-coverage when MSAA is active and deterministic dither otherwise.
+- Verify alpha-key assets use remapped alpha coverage + depth writes and require no
+  per-blade sorting.
+- Keep the shared discard-free alpha-key contract: ATOC under MSAA and a logged blended
+  fallback otherwise.
 - Test intersecting clumps, camera rotation, fade band, mip distance, and patch seams.
 
 ### Phase 5: tune only from the new profile
@@ -463,7 +493,8 @@ coordinate, and cell-hole handling. Same `HeightAtlas_SampleDiamond` snippet as 
 - No grass appears in parsed no-effect cells or terrain holes.
 - Dense-field grass CPU time improves by at least an order of magnitude from the supplied
   profile; final frame and GPU times are recorded, not inferred from draw-call count.
-- `make run-sc2` still compiles the shared renderer and `make test` is green.
+- A bounded OpenWoW world run completes and `make test` is green. If a change also
+  modifies shared or another game's renderer path, build and run those affected targets.
 
 ## Diagnostic and Verification Commands
 
@@ -489,8 +520,7 @@ xxd -g 2 -s 2688 -l 4 /private/tmp/ElwGra01.m2  # 0400 0100: flags=4, blend=1
 Run a bounded world scene and tests:
 
 ```sh
-build/bin/openwow -data data/world-of-warcraft +map World/Maps/Azeroth/Azeroth.wdt +com_frame_limit 300
-make run-sc2 ARGS='+com_frame_limit 100'
+make run-wow ARGS="+set wow_playerinfo '\race\Human\sex\Male\class\1\appearance\0' +map playercreate +com_frame_limit 300"
 make test
 ```
 
@@ -559,9 +589,8 @@ timer queries around terrain and grass separately when diagnosing a CPU/GPU hand
   visual validation are mandatory.
 - Some ground-effect M2s may use real blending or more complex animation/materials than
   the verified Elwynn set. Dispatch from material data rather than hardcoding alpha-key.
-- **Camera-snap pop.** The tileOrigin snaps in TILE_SIZE steps; at large tile sizes this
-  is a visible jump. Validate at snap distance with a slow-walking camera. If pop is
-  visible, halve TILE_SIZE or use a 2×2 tile grid centered on the camera.
+- **World-cell stability.** Placement seeds must come from the integer world cell, not
+  `gl_InstanceID`; otherwise the entire field slides when the camera crosses a cell.
 - **Degenerate-collapse overhead.** A suppressed blade is collapsed to a degenerate
   point in the vertex shader, not removed from the VBO. In very sparse areas the vertex
   shader still runs for every suppressed slot. If vertex throughput becomes the limit,

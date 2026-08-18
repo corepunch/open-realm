@@ -99,8 +99,12 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 - **Run `make test` before committing.** This umbrella target runs all test binaries: `test_openwarcraft3` (net + tool_common), `test-commands`, `test-server-net`, `test-sc2`, `test-wow-*`, `test-ui`, and `test-wc3-engine` (in-engine WC3 tests).
 - **In-engine WC3 tests** live in `games/warcraft-3/game/tests/` and run inside the real game binary against live archives via `make test-wc3-engine` (or `+dedicated 1 +test '*'`). They cover 9 suites: `t_slk`, `t_unit`, `t_movement`, `t_pathfinding`, `t_collision`, `t_game`, `t_combat`, `t_api`, `t_smoke`.
 - **In-engine WoW tests** run headlessly via `make test-wow-engine` (or `$(openwow-tests) +dedicated 1 +test '*'`). Standalone WoW tests (no game deps) run via `make test-wow-appearances/abilities/game/entities/ui`.
-- **Compile and run tests before finishing any work.** Run `make run-sc2` to verify the build compiles, then `make test` to confirm all tests pass. Never mark work complete without a green test run.
-- **Auto-quit the app with `+com_frame_limit N`.** When running the binary for verification, pass `+com_frame_limit 100` (or similar) so the process exits after N frames without manual intervention. Example: `make run-sc2 ARGS="+com_frame_limit 100"`
+- **Compile and run tests before finishing any work.** Build and run the affected game target with a bounded frame limit
+  (`make run-wow` or `make run-sc2` as appropriate; for WC3 follow the ROC/TFT rule above), then run `make test`.
+  Shared-renderer changes must build and run every game whose renderer path changed. Never mark work complete without a
+  green test run.
+- **Auto-quit the app with `+com_frame_limit N`.** When running a game for verification, pass `+com_frame_limit 100`
+  (or similar) so it exits without manual intervention. Example: `make run-wow ARGS="+com_frame_limit 100"`.
 - **`git blame` before changing existing struct/API fields.** Understand why a field exists and what trade-offs were made before changing it.
 - **Do not disable a failing test.** Fix the code or fix the test — do not comment it out, add `SKIP`, or reduce its coverage.
 - **"Pre-existing" failures are not an excuse.** If `make test` shows failures, fix them. Remove dead dispatchers still calling old harness macros (e.g., `RUN_TEST` in migrated suites), unwrap mock callbacks accidentally wrapped in `TEST()`, and ensure test fixtures are complete (e.g., load GlobalStrings.fdf when tests resolve string-table keys).
