@@ -267,6 +267,7 @@ void Wow_AddAdtChunk(wowVec3_t pos,
                             DWORD alpha_index_x,
                             DWORD alpha_index_y,
                             WORD holes,
+                            uint64_t no_effect_mask,
                             BYTE const alpha[4][WOW_ALPHA_TEXELS],
                             wowLayer_t const *layers,
                             DWORD layer_count,
@@ -341,6 +342,14 @@ void Wow_AddAdtChunk(wowVec3_t pos,
     chunk->alpha_texture = wow_world.alpha_atlas_texture ? wow_world.alpha_atlas_texture : Wow_CreateAlphaTexture(alpha);
     chunk->alpha_index_x = alpha_index_x;
     chunk->alpha_index_y = alpha_index_y;
+    /* Upload absolute world Z = pos.z + MCVT relative height into GPU atlas */
+    Wow_UploadHeightAtlasChunk(alpha_index_x, alpha_index_y, pos.z, chunk->heights);
+    /* Record world origin of atlas tile (0,0) once for shader uniform */
+    if (!wow_world.has_atlas_origin && alpha_index_x == 0 && alpha_index_y == 0) {
+        wow_world.atlas_world_x = pos.x;   /* world pos.x of chunk at iy=0 */
+        wow_world.atlas_world_y = pos.y;   /* world pos.y of chunk at ix=0 */
+        wow_world.has_atlas_origin = true;
+    }
     FOR_LOOP(layer_index, 4) {
         DWORD texture_id = 0;
         if (layer_index < unique_layer_count) {
@@ -354,7 +363,7 @@ void Wow_AddAdtChunk(wowVec3_t pos,
             chunk->textures[layer_index] = layer_index > 0 ? chunk->textures[0] : tr.texture[TEX_WHITE];
         }
     }
-    Wow_BuildGrassForChunk(chunk, alpha, layers, layer_count, textures, num_textures);
+    Wow_BuildGrassForChunk(chunk, alpha, layers, layer_count, textures, num_textures, no_effect_mask);
     ADD_TO_LIST(chunk, wow_world.chunks);
     wow_world.num_chunks++;
     wow_world.layer_histogram[MIN(effective_layers, 4)]++;

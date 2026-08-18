@@ -88,6 +88,10 @@ void Wow_FreeChunks(void) {
         R_ReleaseTexture(wow_world.alpha_atlas_texture);
         wow_world.alpha_atlas_texture = NULL;
     }
+    SAFE_DELETE(wow_world.height_atlas, R_ReleaseTexture);
+    SAFE_DELETE(wow_world.grass_ctrl, R_ReleaseTexture);
+    wow_world.has_atlas_origin = false;
+    wow_world.atlas_world_x = wow_world.atlas_world_y = 0.0f;
     if (wow_world.object_buffer) {
         R_ReleaseVertexArrayObject(wow_world.object_buffer);
         wow_world.object_buffer = NULL;
@@ -190,6 +194,7 @@ void Wow_FreeWorld(void) {
     }
     Wow_FreeDoodadInstances();
     Wow_FreeGrassScratch();
+    Wow_FreeCameraGrassMesh();
     memset(&wow_world, 0, sizeof(wow_world));
 }
 
@@ -208,6 +213,15 @@ void Wow_ShutdownWorldShaders(void) {
     wow_uGrassCameraOrigin = -1;
     wow_uGrassDrawDistance = -1;
     wow_uGrassFadeStartDistance = -1;
+    wow_uHeightAtlas = -1;
+    wow_uAtlasOriginWorld = -1;
+    wow_uAtlasChunkSize = -1;
+    wow_uAtlasUnitSize = -1;
+    wow_uGrassCtrl = -1;
+    wow_uCtrlOriginWorld = -1;
+    wow_uCtrlCellSize = -1;
+    wow_uCameraXZ = -1;
+    wow_uGrassTileSize = -1;
 }
 
 LPTEXTURE Wow_LoadTexture(LPCSTR path) {

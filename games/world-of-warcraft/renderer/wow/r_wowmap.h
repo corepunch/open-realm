@@ -69,6 +69,27 @@
 #define WOW_GRASS_CROSS_HEIGHT_SCALE 0.90f
 #define WOW_GRASS_NORMAL_Z 0.10f
 
+/* Height atlas: 17x9 texel tiles packed into a GL_R32F atlas */
+#define WOW_HEIGHT_ATLAS_TILE_W  17
+#define WOW_HEIGHT_ATLAS_TILE_H  9
+#define WOW_HEIGHT_ATLAS_CHUNKS  WOW_ALPHA_ATLAS_CHUNKS
+#define WOW_HEIGHT_ATLAS_W       (WOW_HEIGHT_ATLAS_TILE_W * WOW_HEIGHT_ATLAS_CHUNKS)
+#define WOW_HEIGHT_ATLAS_H       (WOW_HEIGHT_ATLAS_TILE_H * WOW_HEIGHT_ATLAS_CHUNKS)
+
+/* Grass control texture: one RGBA8 texel per 8x8-grid cell (suppression, density, effect) */
+#define WOW_GRASS_CTRL_CELLS     8
+#define WOW_GRASS_CTRL_CHUNKS    WOW_ALPHA_ATLAS_CHUNKS
+#define WOW_GRASS_CTRL_SIZE      (WOW_GRASS_CTRL_CELLS * WOW_GRASS_CTRL_CHUNKS)
+
+/* Camera-following static grass tile VBO */
+#define WOW_GRASS_TILE_SIZE      480.0f
+#define WOW_GRASS_BLADE_SLOTS    32768
+#define WOW_GRASS_VERTS_PER_BLADE 12  /* triangle-list cross: 2 quads x 6 verts */
+
+/* Phase 3 enable flag: camera-following mesh replaces per-instance draw.
+   Set to 0 to fall back to the old Wow_AddGroundEffectInstance path. */
+#define WOW_GRASS_CAMERA_MESH 1
+
 typedef struct wowWdtTile_s {
     BOOL present;
 } wowWdtTile_t;
@@ -163,6 +184,13 @@ typedef struct wowMap_s {
     wowWmoModel_t *wmo_models;
     wowWmoInstance_t *wmos;
     LPTEXTURE alpha_atlas_texture;
+    LPTEXTURE height_atlas;      /* R32F 17x9-per-chunk height values */
+    LPTEXTURE grass_ctrl;        /* RGBA8 per-cell suppression/density/effect */
+    LPBUFFER  grass_tile_vbo;    /* immutable camera-following blade mesh */
+    DWORD     grass_tile_nverts;
+    float atlas_world_x;         /* world pos.x of atlas tile (iy=0) chunk */
+    float atlas_world_y;         /* world pos.y of atlas tile (ix=0) chunk */
+    BOOL  has_atlas_origin;
     LPBUFFER object_buffer;
     DWORD num_object_vertices;
     DWORD num_adts;
@@ -282,6 +310,18 @@ extern GLint wow_uGrassTime;
 extern GLint wow_uGrassCameraOrigin;
 extern GLint wow_uGrassDrawDistance;
 extern GLint wow_uGrassFadeStartDistance;
+/* Height atlas uniforms (terrain + grass) */
+extern GLint wow_uHeightAtlas;
+extern GLint wow_uAtlasOriginWorld;
+extern GLint wow_uAtlasChunkSize;
+extern GLint wow_uAtlasUnitSize;
+/* Grass control texture uniforms */
+extern GLint wow_uGrassCtrl;
+extern GLint wow_uCtrlOriginWorld;
+extern GLint wow_uCtrlCellSize;
+/* Camera-following grass tile uniforms */
+extern GLint wow_uCameraXZ;
+extern GLint wow_uGrassTileSize;
 
 BOOL Wow_PathHasExtension(LPCSTR path, LPCSTR extension);
 void Wow_NormalizeMapPath(LPCSTR mapFileName, LPSTR out, DWORD out_size);
@@ -326,7 +366,7 @@ DWORD Wow_AlphaSlotForTexture(DWORD unique_texture_ids[4], DWORD *unique_count, 
 DWORD Wow_BuildUniqueTextureSlots(wowLayer_t const *layers, DWORD layer_count, DWORD slot_texture_ids[4]);
 void Wow_DecodeAlphaLayer(BYTE const *src, BYTE const *src_end, DWORD flags, DWORD mcnk_flags, BOOL big_alpha, BYTE out[WOW_ALPHA_TEXELS]);
 void Wow_DecodeAlphaMaps(BYTE const *mcal, DWORD mcal_size, wowLayer_t const *layers, DWORD layer_count, DWORD mcnk_flags, BYTE alpha[4][WOW_ALPHA_TEXELS]);
-void Wow_AddAdtChunk(wowVec3_t pos, DWORD alpha_index_x, DWORD alpha_index_y, WORD holes, BYTE const alpha[4][WOW_ALPHA_TEXELS], wowLayer_t const *layers, DWORD layer_count, char **textures, DWORD num_textures, float const *heights, BYTE const *normals);
+void Wow_AddAdtChunk(wowVec3_t pos, DWORD alpha_index_x, DWORD alpha_index_y, WORD holes, uint64_t no_effect_mask, BYTE const alpha[4][WOW_ALPHA_TEXELS], wowLayer_t const *layers, DWORD layer_count, char **textures, DWORD num_textures, float const *heights, BYTE const *normals);
 void Wow_FreeStringList(char **strings, DWORD count);
 char **Wow_ParseStringBlock(BYTE const *data, DWORD size, LPDWORD out_count);
 LPCSTR Wow_StringRefFromOffsets(BYTE const *blob, DWORD blob_size, DWORD const *offsets, DWORD offset_count, DWORD id);
@@ -359,8 +399,14 @@ void Wow_FreeGrassScratch(void);
 void Wow_LoadNearbyAdts(int center_x, int center_y);
 void Wow_LoadCameraAdts(void);
 void Wow_InitGrassShader(void);
-void Wow_BuildGrassForChunk(wowAdtChunk_t *chunk, BYTE const alpha[4][WOW_ALPHA_TEXELS], wowLayer_t const *layers, DWORD layer_count, char **textures, DWORD num_textures);
+void Wow_BuildGrassForChunk(wowAdtChunk_t *chunk, BYTE const alpha[4][WOW_ALPHA_TEXELS], wowLayer_t const *layers, DWORD layer_count, char **textures, DWORD num_textures, uint64_t no_effect_mask);
 void Wow_DrawGrass(void);
+void Wow_EnsureHeightAtlas(void);
+void Wow_UploadHeightAtlasChunk(DWORD ix, DWORD iy, float base_z, float const heights[WOW_MCVT_COUNT]);
+void Wow_EnsureGrassCtrlTexture(void);
+void Wow_UpdateGrassCtrlForChunk(DWORD ix, DWORD iy, uint64_t no_effect_mask, BYTE const alpha[4][WOW_ALPHA_TEXELS], wowLayer_t const *layers, DWORD layer_count, char **textures, DWORD num_textures);
+void Wow_EnsureCameraGrassMesh(void);
+void Wow_FreeCameraGrassMesh(void);
 BOOL Wow_EntityInView(renderEntity_t const *entity);
 BOOL Wow_TerrainChunkInRange(wowAdtChunk_t const *chunk);
 BOOL Wow_WmoGroupInView(wowWmoGroup_t const *group, LPCMATRIX4 matrix);

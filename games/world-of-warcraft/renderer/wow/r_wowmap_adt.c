@@ -78,6 +78,7 @@ void Wow_LoadAdt(BYTE const *data, DWORD size, DWORD tile_x, DWORD tile_y) {
             DWORD chunk_flags;
             WORD holes;
             WORD pred_tex[8];
+            uint64_t no_effect_mask;
             BYTE alpha[4][WOW_ALPHA_TEXELS];
             wowLayer_t layers[4];
             DWORD layer_count = 0;
@@ -92,12 +93,17 @@ void Wow_LoadAdt(BYTE const *data, DWORD size, DWORD tile_x, DWORD tile_y) {
             memset(pred_tex, 0, sizeof(pred_tex));
             memset(layers, 0, sizeof(layers));
             memset(alpha, 0, sizeof(alpha));
+            no_effect_mask = 0;
             chunk_flags = Wow_Read32(chunk + 0x00);
             index_x = Wow_Read32(chunk + 0x04);
             index_y = Wow_Read32(chunk + 0x08);
             memcpy(&pos, chunk + 0x68, sizeof(pos));
             memcpy(&holes, chunk + 0x3c, sizeof(holes));
             memcpy(pred_tex, chunk + 0x40, sizeof(pred_tex));
+            /* No-effect-doodad mask: 64-bit field at MCNK header offset 0x50.
+               One bit per 8x8 cell (row-major); 1 = suppress grass. */
+            if (chunk_size >= 0x58)
+                memcpy(&no_effect_mask, chunk + 0x50, sizeof(no_effect_mask));
 
             while (sub + 8 <= chunk_size) {
                 BYTE const *subtag = chunk + sub;
@@ -130,10 +136,10 @@ void Wow_LoadAdt(BYTE const *data, DWORD size, DWORD tile_x, DWORD tile_y) {
             if (has_heights) {
                 DWORD atlas_index_x = (tile_x - wow_world.alpha_origin_x) * 16 + index_x;
                 DWORD atlas_index_y = (tile_y - wow_world.alpha_origin_y) * 16 + index_y;
-                (void)pred_tex;
+                (void)pred_tex;  /* TODO Phase 1: decode 2-bit per-cell layer map */
                 Wow_DecodeAlphaMaps(mcal, mcal_size, layers, layer_count, chunk_flags, alpha);
                 Wow_UploadAlphaAtlasChunk(atlas_index_x, atlas_index_y, alpha);
-                Wow_AddAdtChunk(pos, atlas_index_x, atlas_index_y, holes, alpha, layers, layer_count, textures, num_textures, heights, has_normals ? normals : NULL);
+                Wow_AddAdtChunk(pos, atlas_index_x, atlas_index_y, holes, no_effect_mask, alpha, layers, layer_count, textures, num_textures, heights, has_normals ? normals : NULL);
             }
         }
 
