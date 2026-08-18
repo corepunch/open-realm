@@ -95,7 +95,7 @@ Character-display specifics are scattered across model files and DBC tables. For
 | --- | --- | --- | --- |
 | `BLP1` | Earlier Blizzard texture format, mostly relevant to Warcraft III and older assets. | Header, palette/JPEG/raw variants. | [warcraft-rs BLP docs](https://warcraft-rs.readthedocs.io/en/latest/formats/graphics/blp.html), local `tools/blp2jpg.c`. |
 | `BLP2` | World of Warcraft texture format. | Header, up to 16 mipmaps, palette block, raw/paletted/BGRA and DXT1/DXT3/DXT5 style compression paths depending on header fields. | [Warcraft Wiki BLP files](https://warcraft.wiki.gg/wiki/BLP_files), [warcraft-rs BLP docs](https://warcraft-rs.readthedocs.io/en/latest/formats/graphics/blp.html), [AddOn Studio BLP file](https://addonstudio.org/wiki/WoW%3ABLP_file). |
-| Component textures | Item texture fragments pasted into character body atlases. | Slot folders under `Item\TextureComponents\...`, gender/universal suffixes, 512x512 reference rectangles that may need scaling to the actual body texture. | `data/whoa-master/src/component/CCharacterComponent.cpp`, `games/world-of-warcraft/docs/m2-and-character-display.md`. |
+| Component textures | Item texture fragments pasted into character body atlases. | Slot folders under `Item\TextureComponents\...`, gender/universal suffixes, 512x512 reference rectangles that may need scaling to the actual body texture. | `data/whoa-master/src/component/CCharacterComponent.cpp`, `docs/games/world-of-warcraft/m2-and-character-display.md`. |
 
 OpenWarcraft3 already has small BLP helpers in `tools/blp2jpg.c`, `tools/blpgen.c`, and `tools/mpqtool.c`. Prefer extending those with explicit header validation over open-coded texture parsing in renderer code.
 

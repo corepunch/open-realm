@@ -14,15 +14,15 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | Diagnostic tools (mpqtool, dbctool, mdxtool, text renderer, profiler) | [docs/diagnostic-tools.md](docs/diagnostic-tools.md) |
 | UI screen authoring, FDF conventions, ConsoleUI, stb_fdf.h | [docs/ui-authoring.md](docs/ui-authoring.md) |
 | WoW character display, DBC/skin-section/component-texture rules | [docs/wow-character.md](docs/wow-character.md) |
-| WoW magic schools, damage types, buffs/debuffs, CC, status effects | [games/world-of-warcraft/docs/magic-and-effects.md](games/world-of-warcraft/docs/magic-and-effects.md) |
-| WoW creature types, classifications, difficulty, aggro/threat; entity architecture (think-fn dispatch, spell table, spawn budget) | [games/world-of-warcraft/docs/enemies-and-creatures.md](games/world-of-warcraft/docs/enemies-and-creatures.md) |
-| WoW spawn system, WorldSafeLocs DBC, per-race selection, server→client game commands | [games/world-of-warcraft/docs/spawn-and-teleport.md](games/world-of-warcraft/docs/spawn-and-teleport.md) |
-| WoW first-login race cinematics, DBC chain, M2 camera playback lifecycle | [games/world-of-warcraft/docs/cinematics.md](games/world-of-warcraft/docs/cinematics.md) |
-| WoW quest system, server-authored dialog, AzerothCore SQL extraction, quest commands | [games/world-of-warcraft/docs/quest-ui.md](games/world-of-warcraft/docs/quest-ui.md) |
-| WoW weapons, classes, combat roles, specializations | [games/world-of-warcraft/docs/weapons-and-classes.md](games/world-of-warcraft/docs/weapons-and-classes.md) |
-| Entity sound architecture | [doc/architecture/sound.md](doc/architecture/sound.md) |
+| WoW magic schools, damage types, buffs/debuffs, CC, status effects | [docs/games/world-of-warcraft/magic-and-effects.md](docs/games/world-of-warcraft/magic-and-effects.md) |
+| WoW creature types, classifications, difficulty, aggro/threat; entity architecture (think-fn dispatch, spell table, spawn budget) | [docs/games/world-of-warcraft/enemies-and-creatures.md](docs/games/world-of-warcraft/enemies-and-creatures.md) |
+| WoW spawn system, WorldSafeLocs DBC, per-race selection, server→client game commands | [docs/games/world-of-warcraft/spawn-and-teleport.md](docs/games/world-of-warcraft/spawn-and-teleport.md) |
+| WoW first-login race cinematics, DBC chain, M2 camera playback lifecycle | [docs/games/world-of-warcraft/cinematics.md](docs/games/world-of-warcraft/cinematics.md) |
+| WoW quest system, server-authored dialog, AzerothCore SQL extraction, quest commands | [docs/games/world-of-warcraft/quest-ui.md](docs/games/world-of-warcraft/quest-ui.md) |
+| WoW weapons, classes, combat roles, specializations | [docs/games/world-of-warcraft/weapons-and-classes.md](docs/games/world-of-warcraft/weapons-and-classes.md) |
+| Entity sound architecture | [docs/architecture/sound.md](docs/architecture/sound.md) |
 | WC3 data model (SLK, unit stats, combat) | [docs/wc3-data-model.md](docs/wc3-data-model.md) |
-| SC2 HUD layout pipeline (sc2BaseFrame_t → uiFrame_t, layer IDs, stat bindings) | [games/starcraft-2/docs/hud-layout-pipeline.md](games/starcraft-2/docs/hud-layout-pipeline.md) |
+| SC2 HUD layout pipeline (sc2BaseFrame_t → uiFrame_t, layer IDs, stat bindings) | [docs/games/starcraft-2/hud-layout-pipeline.md](docs/games/starcraft-2/hud-layout-pipeline.md) |
 | FS / VFS / MPQ loading stack, SC2 vs WoW patterns, mmap ADT optimization | [docs/fs-loading-architecture.md](docs/fs-loading-architecture.md) |
 | Code patterns that work well (file-shaped structs, table-driven parsing, pointer-walk parsers) | [docs/code-patterns-that-work.md](docs/code-patterns-that-work.md) |
 | Launching UI/model scenes from the command line without a game session | [docs/rendering-scene-workflow.md](docs/rendering-scene-workflow.md) |
@@ -165,7 +165,7 @@ Follow Quake 2's pattern. Never fail silently, never crash, never log per-frame.
   sentinels, lookup chains, version differences, exact diagnostic commands, confirmed root cause, and misleading approaches to avoid.
 - When implementing or changing a feature, add or adjust agent-friendly documentation if the change introduces a new workflow, tool,
   convention, subsystem, or non-obvious constraint.
-- Update the relevant dedicated file in `docs/`, `doc/architecture/`, or `games/<game>/docs/` rather than adding large blocks here.
+- Put durable documentation under `docs/`: shared workflows at `docs/`, engine architecture at `docs/architecture/`, and game-specific material at `docs/games/<game>/`.
 - Keep AGENTS.md as a concise index and rule set. Detailed workflows and reference material belong in dedicated files.
 - Keep documentation concise and actionable — prefer command examples and file paths over prose.
 - **Populate docs as you go.** Do not leave findings only in conversation context, terminal output, or code comments. If no document

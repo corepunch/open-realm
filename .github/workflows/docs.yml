@@ -5,7 +5,7 @@ on:
     branches: ["main"]
     paths:
       - "README.md"
-      - "doc/**"
+      - "docs/**"
       - "games/**"
       - "mkdocs.yml"
       - ".github/workflows/docs.yml"
@@ -21,10 +21,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Copy README to doc/index.md
-        run: |
-          cp README.md doc/index.md
-          perl -0pi -e 's#doc/images/#images/#g' doc/index.md
       - name: Set up Python
         uses: actions/setup-python@v5
         with:

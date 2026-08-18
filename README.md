@@ -25,10 +25,10 @@ Pre-built binaries for Linux and macOS are available on the [Releases page](http
 You can also download the latest build artifact from the [CI workflow runs](https://github.com/corepunch/open-realm/actions/workflows/c-cpp.yml) (click the most recent successful run and download `open-realm-linux-x64`).
 
 <p align="center">
-  <img src="doc/images/screenshot1.jpg" width="31%" style="margin-right:2%;" />
-  <img src="doc/images/screenshot3.jpg" width="31%" style="margin-right:2%;" />
+  <img src="docs/images/screenshot1.jpg" width="31%" style="margin-right:2%;" />
+  <img src="docs/images/screenshot3.jpg" width="31%" style="margin-right:2%;" />
   <a href="https://youtu.be/EcuoDoOztjA">
-  <img src="doc/images/screenshot4.jpg" width="31%" />
+  <img src="docs/images/screenshot4.jpg" width="31%" />
   </a>
 </p>
 
@@ -249,7 +249,7 @@ SDL2 Input  →  Client (cl_main.c)  →  UDP socket  →  Server (sv_main.c)
                     └─────────── UDP socket ←──────────────┘
 ```
 
-See [Network Architecture](doc/architecture/network.md) for the full design, wire format, and CLI reference. See [Runtime Modules and Cvars](doc/architecture/runtime.md) for config files, module cvars, and stdout renderer diagnostics.
+See [Network Architecture](docs/architecture/network.md) for the full design, wire format, and CLI reference. See [Runtime Modules and Cvars](docs/architecture/runtime.md) for config files, module cvars, and stdout renderer diagnostics.
 
 ## Frame Syncing
 

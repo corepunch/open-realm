@@ -24,7 +24,7 @@ document guesses as facts; identify hypotheses and unresolved questions explicit
 ## Where Knowledge Belongs
 
 1. Extend the subsystem's existing dedicated document when one exists.
-2. Create a focused file under `docs/`, `doc/architecture/`, or `games/<game>/docs/` when the topic needs its own workflow or reference.
+2. Create a focused file under `docs/`; use `docs/architecture/` for engine architecture and `docs/games/<game>/` for game-specific material.
 3. Keep `AGENTS.md` to durable rules and a short Further Reading index. Do not put subsystem manuals there.
 4. Add the document to the nearest table of contents: `AGENTS.md`, a game `readme.md`, an architecture index, or another parent guide.
 5. Add reciprocal "See also" links when two documents cover adjacent entry points, so the knowledge is discoverable from either one.
@@ -69,4 +69,3 @@ Before finishing work that required investigation:
 - [ ] Adjacent workflow/reference documents cross-link it when useful.
 - [ ] Code comments explain only local constraints; broader context lives in documentation.
 - [ ] Documentation matches the final implementation and tests, not an abandoned hypothesis.
-

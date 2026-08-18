@@ -2,7 +2,7 @@
 
 ## Local Source
 
-- `games/world-of-warcraft/readme.md`: target status and build/run commands.
+- `docs/games/world-of-warcraft/readme.md`: target status and build/run commands.
 - `games/world-of-warcraft/common/world_wow.c`: WDT/ADT path setup, terrain height cache, DBC map/safe-location helpers.
 - `games/world-of-warcraft/renderer/wow/r_wowmap*.c`: ADT terrain, alpha maps, splats, doodads, WMOs, draw state.
 - `games/world-of-warcraft/renderer/m2/r_m2.c`: M2 loader, skin sections, animation evaluation, character composite textures.
@@ -102,9 +102,9 @@ Note: none of these tools export M2 particle/ribbon emitter data — they produc
 
 ## Combat and Game Design References
 
-- `games/world-of-warcraft/docs/magic-and-effects.md`: Magic schools, damage types, multi-school system, buffs/debuffs, DoT/HoT, crowd control, status effects.
-- `games/world-of-warcraft/docs/enemies-and-creatures.md`: Creature types/taxonomy, classifications (normal/elite/rare/boss), difficulty tiers, aggro/threat, NPC AI roles.
-- `games/world-of-warcraft/docs/weapons-and-classes.md`: Weapon types, class weapon access, combat roles (tank/healer/DPS), all class specializations, primary/secondary stats.
+- `docs/games/world-of-warcraft/magic-and-effects.md`: Magic schools, damage types, multi-school system, buffs/debuffs, DoT/HoT, crowd control, status effects.
+- `docs/games/world-of-warcraft/enemies-and-creatures.md`: Creature types/taxonomy, classifications (normal/elite/rare/boss), difficulty tiers, aggro/threat, NPC AI roles.
+- `docs/games/world-of-warcraft/weapons-and-classes.md`: Weapon types, class weapon access, combat roles (tank/healer/DPS), all class specializations, primary/secondary stats.
 
 ### External Combat References
 

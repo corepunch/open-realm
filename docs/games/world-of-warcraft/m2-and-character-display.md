@@ -51,7 +51,7 @@ DWORD equipment = Wow_PackEquipment(upper_body, lower_body, hands, feet);
 The local Classic DBC maxima fit this 32-bit appearance contract. Face needs four bits (maximum `14`), while facial features need
 five (maximum `16`), so facial-feature bit 4 uses the otherwise unused fifth face bit. Do not widen `entityState_t` merely to make menu
 customization convenient; enumerate menu choices from DBC data and keep preview-only state outside snapshots if a future client format
-exceeds the packed gameplay budget. See [`docs/wow-character.md`](../../../docs/wow-character.md#packed-appearance-width).
+exceeds the packed gameplay budget. See [`docs/wow-character.md`](../../wow-character.md#packed-appearance-width).
 
 Do not widen entity or player state just to preview more gear. A menu that needs additional equipment owns that preview state and
 draws the character/equipment pieces separately; persistent menu overrides do not belong in `m2Model_t` or the renderer API.
@@ -76,7 +76,7 @@ race/class/gender key. Consequently, a valid base skin with no clothing should b
 the starter record, display IDs, `ItemDisplayInfo` schema, and component composition in that order.
 
 The XML save stores both `class` and packed `appearance`; keep their class values consistent. See
-[`docs/wow-character.md`](../../../docs/wow-character.md) for exact local values, diagnostic commands, and bounded creation/select runs.
+[`docs/wow-character.md`](../../wow-character.md) for exact local values, diagnostic commands, and bounded creation/select runs.
 
 ## DBC-Backed Outfit Data
 

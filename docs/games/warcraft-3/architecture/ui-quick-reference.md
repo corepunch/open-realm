@@ -105,7 +105,7 @@ The client caches returned unit data and renders it on subsequent UI frames.
 | `ui_start_command` | Initial UI command |
 | `com_frame_limit` | Exit after N frames |
 
-See [Runtime Modules and Cvars](../../../../architecture/runtime.md) for the full config reference.
+See [Runtime Modules and Cvars](../../../architecture/runtime.md) for the full config reference.
 
 ## Debug Checklist
 
@@ -119,6 +119,6 @@ See [Runtime Modules and Cvars](../../../../architecture/runtime.md) for the ful
 ## See Also
 
 - [UI System Architecture](./ui.md)
-- [Runtime Modules and Cvars](../../../../architecture/runtime.md)
+- [Runtime Modules and Cvars](../../../architecture/runtime.md)
 - [UI Flow](ui-flow.md)
 - [FDF File Format](../file-formats/fdf.md)

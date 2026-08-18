@@ -46,7 +46,7 @@ WoW game entities follow the Quake 2 think-function pattern: every `edict_t` has
 
 The spell system follows the same Q2 `g_items.c` data-table pattern: `wow_spells[]` maps spell index to `wowSpellDef_t` (cast fn, cast time, mana, range, animations). `BeginSpellCast`/`CompleteSpellCast` index directly into this table; the action bar uses `slot_to_spell[]` + common validation rather than per-spell branches.
 
-See [enemies-and-creatures.md](games/world-of-warcraft/docs/enemies-and-creatures.md) for the full entity-type reference and spawn budget details.
+See [enemies-and-creatures.md](docs/games/world-of-warcraft/enemies-and-creatures.md) for the full entity-type reference and spawn budget details.
 
 ## UI Rendering
 
