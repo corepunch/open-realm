@@ -215,6 +215,8 @@ static size2_t RStd_GetWindowSize(void) {
     return stdout_window;
 }
 
+static DWORD RStd_GetDrawCalls(void) { return 0; }
+
 static void RStd_Screenshot(void) { printf("screenshot unsupported by stdout renderer\n"); }
 
 static size2_t RStd_GetTextureSize(LPCTEXTURE texture) {
@@ -259,6 +261,8 @@ static void RStd_EndFrame(void) {
 static void RStd_DrawChar(int x, int y, int c) {
     printf("draw_char x=%d y=%d c=%d\n", x, y, c & 255);
 }
+
+static void RStd_DrawString(int x, int y, LPCSTR text) { printf("draw_string x=%d y=%d text=%s\n", x, y, text); }
 
 static void RStd_DrawFill(LPCRECT rect, COLOR32 color) {
     printf("draw_fill");
@@ -471,6 +475,7 @@ refExport_t R_StdoutGetAPI(refImport_t imp) {
         .LoadModel = RStd_LoadModel,
         .LoadFont = RStd_LoadFont,
         .GetWindowSize = RStd_GetWindowSize,
+        .GetDrawCalls = RStd_GetDrawCalls,
         .SetWindowSize = RStd_SetWindowSize,
         .GetTextureSize = RStd_GetTextureSize,
         .ReleaseTexture = RStd_ReleaseTexture,
@@ -479,6 +484,7 @@ refExport_t R_StdoutGetAPI(refImport_t imp) {
         .EndFrame = RStd_EndFrame,
         .Screenshot = RStd_Screenshot,
         .DrawChar = RStd_DrawChar,
+        .DrawString = RStd_DrawString,
         .DrawFill = RStd_DrawFill,
         .DrawSelectionRect = RStd_DrawSelectionRect,
         .DrawPic = RStd_DrawPic,

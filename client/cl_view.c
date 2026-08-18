@@ -185,7 +185,8 @@ void Matrix4_getCameraMatrix(LPMATRIX4 output) {
     VECTOR3 offset;
     VECTOR3 eye;
 
-    origin.z = CM_GetHeightAtPoint(origin.x, origin.y) + 1.6f;
+    /* Follow the same WMO floor used by game movement instead of clipping down to ADT terrain indoors. */
+    origin.z = CM_WowFloorHeight(origin.x, origin.y, origin.z, 1.5f) + 1.6f;
     Wow_AngleVectors(&angles, &forward, NULL, NULL);
     offset = Vector3_scale(&forward, -distance);
     eye = Vector3_add(&origin, &offset);

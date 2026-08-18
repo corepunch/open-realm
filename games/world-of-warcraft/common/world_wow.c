@@ -7,6 +7,28 @@
 #define CM_WOW_ADT_UNIT_SIZE  (CM_WOW_ADT_SIZE / 16.0f / 8.0f)
 #define CM_WOW_MCVT_COUNT     (9 * 9 + 8 * 8)
 #define CM_WOW_HEIGHT_CACHE_TILES 16
+#define CM_WOW_WMO_NO_COLLIDE 0x04
+
+typedef struct {
+    VECTOR3 a, b, c;
+    BOX3 bounds;
+} cmWowWmoTri_t;
+
+typedef struct cmWowWmoModel_s {
+    PATHSTR path;
+    cmWowWmoTri_t *triangles;
+    DWORD count, capacity;
+    BOOL loaded, valid;
+    struct cmWowWmoModel_s *next;
+} cmWowWmoModel_t;
+
+typedef struct cmWowWmoInstance_s {
+    PATHSTR path;
+    MATRIX4 matrix, inverse;
+    BOX3 bounds;
+    cmWowWmoModel_t *model;
+    struct cmWowWmoInstance_s *next;
+} cmWowWmoInstance_t;
 
 typedef struct {
     BOOL    has_heights;
@@ -21,6 +43,7 @@ typedef struct {
     int               tile_y;
     DWORD             use_stamp;
     cmWowChunkHeight_t chunks[16][16];
+    cmWowWmoInstance_t *wmos;
 } cmWowAdtHeightCache_t;
 
 typedef struct {
@@ -36,6 +59,24 @@ static char                 cm_wow_map_dir[PATH_MAX]  = { 0 };
 static char                 cm_wow_map_name[128]      = { 0 };
 static cmWowAdtHeightCache_t cm_wow_height_cache[CM_WOW_HEIGHT_CACHE_TILES];
 static DWORD                 cm_wow_height_cache_stamp;
+static cmWowWmoModel_t       *cm_wow_wmo_models;
+
+static void CM_WowFreeWmos(void) {
+    cmWowWmoModel_t *model = cm_wow_wmo_models;
+    FOR_LOOP(i, CM_WOW_HEIGHT_CACHE_TILES) {
+        cmWowWmoInstance_t *instance = cm_wow_height_cache[i].wmos;
+        while (instance) {
+            cmWowWmoInstance_t *next = instance->next;
+            MemFree(instance); instance = next;
+        }
+    }
+    while (model) {
+        cmWowWmoModel_t *next = model->next;
+        SAFE_DELETE(model->triangles, MemFree);
+        MemFree(model); model = next;
+    }
+    cm_wow_wmo_models = NULL;
+}
 
 typedef struct {
     VECTOR3 pos;
@@ -113,6 +154,7 @@ static void CM_WowSetMapPath(LPCSTR mapFilename) {
     LPCSTR base;
     size_t dir_len, name_len;
 
+    CM_WowFreeWmos();
     memset(cm_wow_height_cache, 0, sizeof(cm_wow_height_cache));
     cm_wow_height_cache_stamp = 0;
     cm_wow_map_dir[0]  = '\0';
@@ -154,6 +196,178 @@ LPCSTR CM_WowAdtPath(int tile_x, int tile_y, LPSTR out, DWORD out_size) {
     return out;
 }
 
+typedef struct {
+    DWORD name_id, unique_id;
+    VECTOR3 position, rotation;
+    struct { VECTOR3 min, max; } extents;
+    WORD flags, doodad_set, name_set, scale;
+} cmWowWmoDef_t;
+
+/* MODF and WMO vertices use the same transform as the renderer; collision must agree bit-for-bit with visuals. */
+static void CM_WowWmoMatrix(cmWowWmoDef_t const *def, LPMATRIX4 matrix) {
+    MATRIX4 basis, tmp;
+    VECTOR3 origin = CM_WowObjectPoint(def->position.x, def->position.y, def->position.z);
+    Matrix4_identity(matrix); Matrix4_translate(matrix, &origin);
+    Matrix4_identity(&basis);
+    basis.v[0] = 0.0f; basis.v[1] = 1.0f; basis.v[2] = 0.0f;
+    basis.v[4] = 0.0f; basis.v[5] = 0.0f; basis.v[6] = 1.0f;
+    basis.v[8] = 1.0f; basis.v[9] = 0.0f; basis.v[10] = 0.0f;
+    Matrix4_multiply(matrix, &basis, &tmp); *matrix = tmp;
+    Matrix4_rotate(matrix, &(VECTOR3){ 0.0f, def->rotation.y - 270.0f, 0.0f }, ROTATE_XYZ);
+    Matrix4_rotate(matrix, &(VECTOR3){ 0.0f, 0.0f, -def->rotation.x }, ROTATE_XYZ);
+    Matrix4_rotate(matrix, &(VECTOR3){ def->rotation.z - 90.0f, 0.0f, 0.0f }, ROTATE_XYZ);
+    if (def->scale) {
+        float scale = def->scale / 1024.0f;
+        Matrix4_scale(matrix, &(VECTOR3){ scale, scale, scale });
+    }
+}
+
+static void CM_WowWmoGroupPath(LPCSTR root, DWORD index, LPSTR out, DWORD out_size) {
+    size_t len = strlen(root);
+    if (len > 4 && !strcasecmp(root + len - 4, ".wmo"))
+        snprintf(out, out_size, "%.*s_%03u.wmo", (int)(len - 4), root, (unsigned)index);
+    else
+        snprintf(out, out_size, "%s_%03u.wmo", root, (unsigned)index);
+}
+
+static BOOL CM_WowWmoAppendTriangle(cmWowWmoModel_t *model, LPCVECTOR3 a, LPCVECTOR3 b, LPCVECTOR3 c) {
+    cmWowWmoTri_t *tri;
+    if (model->count == model->capacity) {
+        DWORD capacity = model->capacity ? model->capacity * 2 : 1024;
+        cmWowWmoTri_t *triangles = MemAlloc(capacity * sizeof(*triangles));
+        if (!triangles) return false;
+        if (model->triangles) { memcpy(triangles, model->triangles, model->count * sizeof(*triangles)); MemFree(model->triangles); }
+        model->triangles = triangles; model->capacity = capacity;
+    }
+    tri = model->triangles + model->count++; tri->a = *a; tri->b = *b; tri->c = *c;
+    tri->bounds.min = (VECTOR3){ MIN(a->x, MIN(b->x, c->x)), MIN(a->y, MIN(b->y, c->y)), MIN(a->z, MIN(b->z, c->z)) };
+    tri->bounds.max = (VECTOR3){ MAX(a->x, MAX(b->x, c->x)), MAX(a->y, MAX(b->y, c->y)), MAX(a->z, MAX(b->z, c->z)) };
+    return true;
+}
+
+/* MOPY bit 0x04 marks detail/non-colliding faces; all other authored triangles are floor candidates. */
+static BOOL CM_WowLoadWmoGroup(cmWowWmoModel_t *model, DWORD group_index) {
+    PATHSTR path;
+    LPBYTE data;
+    DWORD size = 0, offset = 0, mopy_count = 0, index_count = 0, vertex_count = 0;
+    BYTE const *mopy = NULL;
+    WORD const *indices = NULL;
+    VECTOR3 const *vertices = NULL;
+    CM_WowWmoGroupPath(model->path, group_index, path, sizeof(path));
+    data = FS_ReadFile(path, &size);
+    if (!data || !size) { fprintf(stderr, "CM WoW WMO: missing group %s\n", path); SAFE_DELETE(data, FS_FreeFile); return false; }
+    while (offset + 8 <= size) {
+        BYTE const *tag = data + offset;
+        DWORD chunk_size = CM_WowRead32(data + offset + 4);
+        BYTE const *chunk = data + offset + 8;
+        offset += 8;
+        if (offset + chunk_size > size) break;
+        if (CM_WowTagEquals(tag, "PGOM") && chunk_size >= 0x44) {
+            DWORD sub = 0x44;
+            while (sub + 8 <= chunk_size) {
+                BYTE const *subtag = chunk + sub;
+                DWORD sub_size = CM_WowRead32(chunk + sub + 4);
+                BYTE const *subchunk = chunk + sub + 8;
+                sub += 8;
+                if (sub + sub_size > chunk_size) break;
+                if (CM_WowTagEquals(subtag, "YPOM")) { mopy = subchunk; mopy_count = sub_size / 2; }
+                else if (CM_WowTagEquals(subtag, "IVOM")) { indices = (WORD const *)subchunk; index_count = sub_size / 2; }
+                else if (CM_WowTagEquals(subtag, "TVOM")) { vertices = (VECTOR3 const *)subchunk; vertex_count = sub_size / sizeof(*vertices); }
+                sub += sub_size;
+            }
+        }
+        offset += chunk_size;
+    }
+    if (!vertices || !indices) { fprintf(stderr, "CM WoW WMO: group %s has no collision geometry\n", path); FS_FreeFile(data); return false; }
+    for (DWORD i = 0; i + 2 < index_count; i += 3) {
+        DWORD poly = i / 3;
+        if ((mopy && poly < mopy_count && (mopy[poly * 2] & CM_WOW_WMO_NO_COLLIDE)) ||
+            indices[i] >= vertex_count || indices[i + 1] >= vertex_count || indices[i + 2] >= vertex_count)
+            continue;
+        if (!CM_WowWmoAppendTriangle(model, vertices + indices[i], vertices + indices[i + 1], vertices + indices[i + 2])) {
+            FS_FreeFile(data); return false;
+        }
+    }
+    FS_FreeFile(data);
+    return true;
+}
+
+/* Models are shared by MODF instances and loaded only after the player enters an instance's authored bounds. */
+static cmWowWmoModel_t *CM_WowGetWmoModel(LPCSTR path) {
+    cmWowWmoModel_t *model;
+    LPBYTE data;
+    DWORD size = 0, offset = 0, group_count = 0;
+    for (model = cm_wow_wmo_models; model; model = model->next)
+        if (!strcasecmp(model->path, path)) return model->valid ? model : NULL;
+    model = MemAlloc(sizeof(*model)); memset(model, 0, sizeof(*model));
+    snprintf(model->path, sizeof(model->path), "%s", path); model->next = cm_wow_wmo_models; cm_wow_wmo_models = model;
+    data = FS_ReadFile(path, &size);
+    if (!data || !size) { fprintf(stderr, "CM WoW WMO: missing root %s\n", path); SAFE_DELETE(data, FS_FreeFile); model->loaded = true; return NULL; }
+    while (offset + 8 <= size) {
+        BYTE const *tag = data + offset;
+        DWORD chunk_size = CM_WowRead32(data + offset + 4);
+        BYTE const *chunk = data + offset + 8;
+        offset += 8;
+        if (offset + chunk_size > size) break;
+        if (CM_WowTagEquals(tag, "DHOM") && chunk_size >= 8) group_count = CM_WowRead32(chunk + 4);
+        offset += chunk_size;
+    }
+    FS_FreeFile(data);
+    FOR_LOOP(i, group_count)
+        if (!CM_WowLoadWmoGroup(model, i)) { model->loaded = true; return NULL; }
+    model->loaded = true; model->valid = model->count > 0;
+    fprintf(stderr, "CM WoW WMO: loaded %u collision triangles from %s\n", (unsigned)model->count, model->path);
+    return model->valid ? model : NULL;
+}
+
+static LPCSTR CM_WowStringAt(LPCSTR blob, DWORD size, DWORD offset) {
+    return blob && offset < size && memchr(blob + offset, '\0', size - offset) ? blob + offset : NULL;
+}
+
+static void CM_WowFreeAdtWmos(cmWowAdtHeightCache_t *cache) {
+    cmWowWmoInstance_t *instance = cache ? cache->wmos : NULL;
+    while (instance) {
+        cmWowWmoInstance_t *next = instance->next;
+        MemFree(instance); instance = next;
+    }
+    if (cache) cache->wmos = NULL;
+}
+
+/* Cache only lightweight MODF instances; collision geometry remains lazy until a query enters its authored bounds. */
+static void CM_WowLoadAdtWmos(cmWowAdtHeightCache_t *cache, BYTE const *data, DWORD size) {
+    LPCSTR names = NULL;
+    DWORD names_size = 0, offset = 0, name_count = 0, def_count = 0;
+    DWORD const *name_offsets = NULL;
+    cmWowWmoDef_t const *defs = NULL;
+    while (offset + 8 <= size) {
+        BYTE const *tag = data + offset;
+        DWORD chunk_size = CM_WowRead32(data + offset + 4);
+        BYTE const *chunk = data + offset + 8;
+        offset += 8;
+        if (offset + chunk_size > size) break;
+        if (CM_WowTagEquals(tag, "OMWM")) { names = (LPCSTR)chunk; names_size = chunk_size; }
+        else if (CM_WowTagEquals(tag, "DIWM")) { name_offsets = (DWORD const *)chunk; name_count = chunk_size / 4; }
+        else if (CM_WowTagEquals(tag, "FDOM")) { defs = (cmWowWmoDef_t const *)chunk; def_count = chunk_size / sizeof(*defs); }
+        offset += chunk_size;
+    }
+    if (!cache || !names || !name_offsets || !defs) return;
+    FOR_LOOP(i, def_count) {
+        cmWowWmoDef_t const *def = defs + i;
+        LPCSTR path = def->name_id < name_count ? CM_WowStringAt(names, names_size, name_offsets[def->name_id]) : NULL;
+        cmWowWmoInstance_t *instance;
+        VECTOR3 a, b;
+        if (!path) continue;
+        instance = MemAlloc(sizeof(*instance)); memset(instance, 0, sizeof(*instance));
+        snprintf(instance->path, sizeof(instance->path), "%s", path);
+        CM_WowWmoMatrix(def, &instance->matrix); Matrix4_inverse(&instance->matrix, &instance->inverse);
+        a = CM_WowObjectPoint(def->extents.min.x, def->extents.min.y, def->extents.min.z);
+        b = CM_WowObjectPoint(def->extents.max.x, def->extents.max.y, def->extents.max.z);
+        instance->bounds.min = (VECTOR3){ MIN(a.x,b.x), MIN(a.y,b.y), MIN(a.z,b.z) };
+        instance->bounds.max = (VECTOR3){ MAX(a.x,b.x), MAX(a.y,b.y), MAX(a.z,b.z) };
+        instance->next = cache->wmos; cache->wmos = instance;
+    }
+}
+
 static void CM_WowLoadAdtHeights(int tile_x, int tile_y) {
     cmWowAdtHeightCache_t *cache = NULL, *oldest = NULL;
     PATHSTR path;
@@ -172,6 +386,7 @@ static void CM_WowLoadAdtHeights(int tile_x, int tile_y) {
     }
     if (!cache)
         cache = oldest;
+    CM_WowFreeAdtWmos(cache);
     memset(cache, 0, sizeof(*cache));
     cache->loaded = true;
     cache->tile_x = tile_x;
@@ -228,7 +443,60 @@ static void CM_WowLoadAdtHeights(int tile_x, int tile_y) {
         }
         offset += chunk_size;
     }
+    CM_WowLoadAdtWmos(cache, data, size);
     FS_FreeFile(data);
+}
+
+/* Two-sided segment/triangle test: WMO winding differs between indoor and outdoor groups. */
+BOOL CM_WowRayTriangle(LPCVECTOR3 start, LPCVECTOR3 end, LPCVECTOR3 a, LPCVECTOR3 b, LPCVECTOR3 c, FLOAT *fraction) {
+    VECTOR3 dir = Vector3_sub(end, start), edge1 = Vector3_sub(b, a), edge2 = Vector3_sub(c, a);
+    VECTOR3 p = Vector3_cross(&dir, &edge2), t, q;
+    FLOAT det = Vector3_dot(&edge1, &p), inv, u, v, hit;
+    if (fabsf(det) < 0.000001f || !fraction) return false;
+    inv = 1.0f / det; t = Vector3_sub(start, a); u = Vector3_dot(&t, &p) * inv;
+    if (u < 0.0f || u > 1.0f) return false;
+    q = Vector3_cross(&t, &edge1); v = Vector3_dot(&dir, &q) * inv;
+    if (v < 0.0f || u + v > 1.0f) return false;
+    hit = Vector3_dot(&edge2, &q) * inv;
+    if (hit < 0.0f || hit > 1.0f) return false;
+    *fraction = hit; return true;
+}
+
+/* Select the highest authored surface reachable by a small upward step, just like a ground trace. */
+FLOAT CM_WowFloorHeight(FLOAT sx, FLOAT sy, FLOAT ref_z, FLOAT step_up) {
+    cmWowAdtHeightCache_t *cache = NULL;
+    FLOAT best = CM_GetHeightAtPoint(sx, sy), top = ref_z + MAX(step_up, 0.0f);
+    int tile_x = CM_WowAdtIndexForWorldCoord(sy), tile_y = CM_WowAdtIndexForWorldCoord(sx);
+    if (tile_x < 0 || tile_x >= 64 || tile_y < 0 || tile_y >= 64) return best;
+    CM_WowLoadAdtHeights(tile_x, tile_y);
+    FOR_LOOP(i, CM_WOW_HEIGHT_CACHE_TILES)
+        if (cm_wow_height_cache[i].loaded && cm_wow_height_cache[i].tile_x == tile_x && cm_wow_height_cache[i].tile_y == tile_y) { cache = cm_wow_height_cache + i; break; }
+    if (!cache) return best;
+    for (cmWowWmoInstance_t *instance = cache->wmos; instance; instance = instance->next) {
+        VECTOR3 world_start, world_end, start, finish, seg_min, seg_max;
+        if (sx < instance->bounds.min.x || sx > instance->bounds.max.x || sy < instance->bounds.min.y || sy > instance->bounds.max.y ||
+            top < instance->bounds.min.z || best > instance->bounds.max.z) continue;
+        if (!instance->model) instance->model = CM_WowGetWmoModel(instance->path);
+        if (!instance->model) continue;
+        world_start = (VECTOR3){ sx, sy, top };
+        world_end = (VECTOR3){ sx, sy, MIN(best, instance->bounds.min.z) - 1.0f };
+        start = Matrix4_multiply_vector3(&instance->inverse, &world_start);
+        finish = Matrix4_multiply_vector3(&instance->inverse, &world_end);
+        seg_min = (VECTOR3){ MIN(start.x,finish.x), MIN(start.y,finish.y), MIN(start.z,finish.z) };
+        seg_max = (VECTOR3){ MAX(start.x,finish.x), MAX(start.y,finish.y), MAX(start.z,finish.z) };
+        FOR_LOOP(i, instance->model->count) {
+            cmWowWmoTri_t const *tri = instance->model->triangles + i;
+            FLOAT fraction;
+            VECTOR3 local_hit, world_hit;
+            if (seg_max.x < tri->bounds.min.x || seg_min.x > tri->bounds.max.x || seg_max.y < tri->bounds.min.y ||
+                seg_min.y > tri->bounds.max.y || seg_max.z < tri->bounds.min.z || seg_min.z > tri->bounds.max.z ||
+                !CM_WowRayTriangle(&start, &finish, &tri->a, &tri->b, &tri->c, &fraction)) continue;
+            local_hit = Vector3_lerp(&start, &finish, fraction);
+            world_hit = Matrix4_multiply_vector3(&instance->matrix, &local_hit);
+            if (world_hit.z <= top + 0.001f && world_hit.z > best) best = world_hit.z;
+        }
+    }
+    return best;
 }
 
 static BOOL CM_WowBarycentricHeight(float px, float py,

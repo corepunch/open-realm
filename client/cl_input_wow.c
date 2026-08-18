@@ -227,9 +227,10 @@ void CL_InputModeInit(void) {
 }
 
 void CL_InputModeSetGameplay(void) {
-    cl.viewDef.camerastate[0].zfar = 16000;
+    /* WoW's hard clip belongs just behind fully opaque fog; 16000 defeated world culling and depth precision. */
+    cl.viewDef.camerastate[0].zfar = WOW_WORLD_FAR_CLIP;
     cl.viewDef.camerastate[0].znear = 1;
-    cl.viewDef.camerastate[1].zfar = 16000;
+    cl.viewDef.camerastate[1].zfar = WOW_WORLD_FAR_CLIP;
     cl.viewDef.camerastate[1].znear = 1;
 }
 

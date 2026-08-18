@@ -567,6 +567,8 @@ FLOAT Wow_TerrainHeight(FLOAT x, FLOAT y) {
     return CM_GetHeightAtPoint(x, y);
 }
 
+FLOAT Wow_FloorHeight(FLOAT x, FLOAT y, FLOAT z) { return CM_WowFloorHeight(x, y, z, 1.5f); }
+
 static FLOAT Wow_ViewPitch(FLOAT wrapped_pitch) {
     return wrapped_pitch > 180.0f ? 360.0f - wrapped_pitch : -wrapped_pitch;
 }
@@ -1711,7 +1713,8 @@ static void Wow_RunFrame(void) {
         ent->s.origin.x += dir.x * step;
         ent->s.origin.y += dir.y * step;
     }
-    ent->s.origin.z = Wow_TerrainHeight(ent->s.origin.x, ent->s.origin.y);
+    /* WMO floors, unlike ADT terrain, can sit above the outdoor ground inside buildings. */
+    ent->s.origin.z = Wow_FloorHeight(ent->s.origin.x, ent->s.origin.y, ent->s.origin.z);
     /* Run spell cast state machine before entity lock check.
      * Cast animation plays via Wow_AdvanceEntityFrame; cooldowns tick down. */
     {

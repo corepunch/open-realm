@@ -887,6 +887,19 @@ static m2TrackView_t M2_BoneScaleTrack(m2Model_t const *model, DWORD bone_index)
     return m2_modern_track(&((m2CompBoneModern_t const *)bone)->scale_track);
 }
 
+/* Identity-palette instancing is exact only for static M2s without emitter side effects. */
+BOOL M2_CanStaticInstance(m2Model_t const *model) {
+    if (!model || model->flags & M2_MODEL_CHARACTER || M2_ParticlesArray(model).size || M2_RibbonsArray(model).size)
+        return false;
+    FOR_LOOP(i, (DWORD)M2_BonesArray(model).size) {
+        m2TrackView_t pos = M2_BoneTranslationTrack(model, i);
+        m2TrackView_t rot = M2_BoneRotationTrack(model, i);
+        m2TrackView_t scl = M2_BoneScaleTrack(model, i);
+        if (M2_TrackHasKeys(&pos) || M2_TrackHasKeys(&rot) || M2_TrackHasKeys(&scl)) return false;
+    }
+    return true;
+}
+
 static float m2_fixed16_to_float(SHORT v) { return (float)v / 32767.0f; }
 
 static BOOL m2_is_visible(m2Model_t const *model, m2TrackView_t *track,
@@ -2064,7 +2077,9 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
     R_Call(glUniform2f, shader->uUvScale, 1.0f, 1.0f);
     R_Call(glUniform1i, shader->uAlphaKey, 0);
     R_Call(glUniform1i, shader->uUnshaded, 0);
-    R_Call(glUniform1f, shader->uFogEnable, 0);
+    R_Call(glUniform1f, shader->uFogEnable, tr.viewDef.fogEnable);
+    R_Call(glUniform3f, shader->uFogColor, tr.viewDef.fogColor.x, tr.viewDef.fogColor.y, tr.viewDef.fogColor.z);
+    R_Call(glUniform2f, shader->uFogParams, tr.viewDef.fogStart, tr.viewDef.fogEnd);
     R_Call(glUniform1f, shader->uFirstBoneLookupIndex, 0.0f);
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_TRUE);
@@ -2097,7 +2112,7 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
 /* Static-mesh instanced path for ground-effect clutter. Renders `count` copies
    of the model in one draw call per batch. Classic detail M2s have no keyed bone
    tracks, so this path adds root-anchored wind in the vertex shader. */
-void M2_RenderInstanced(m2Model_t const *model, LPCINSTANCEBUFFER instances) {
+void M2_RenderInstanced(m2Model_t const *model, LPCINSTANCEBUFFER instances, DWORD flags) {
     m2ModelBatch_t *batch;
     LPSHADER shader;
 
@@ -2134,11 +2149,13 @@ void M2_RenderInstanced(m2Model_t const *model, LPCINSTANCEBUFFER instances) {
     R_Call(glUniform2f, shader->uUvScale, 1.0f, 1.0f);
     R_Call(glUniform1i, shader->uAlphaKey, 0);
     R_Call(glUniform1i, shader->uUnshaded, 0);
-    R_Call(glUniform1f, shader->uFogEnable, 0);
+    R_Call(glUniform1f, shader->uFogEnable, tr.viewDef.fogEnable);
+    R_Call(glUniform3f, shader->uFogColor, tr.viewDef.fogColor.x, tr.viewDef.fogColor.y, tr.viewDef.fogColor.z);
+    R_Call(glUniform2f, shader->uFogParams, tr.viewDef.fogStart, tr.viewDef.fogEnd);
     R_Call(glUniform1f, shader->uFirstBoneLookupIndex, 0.0f);
     {
         static GLuint cached_progid;
-        static GLint loc_camera = -1, loc_fade = -1, loc_time = -1, loc_wind = -1, loc_phase = -1, loc_height = -1;
+        static GLint loc_camera = -1, loc_fade = -1, loc_time = -1, loc_wind = -1, loc_phase = -1, loc_height = -1, loc_ground = -1;
         if (shader->progid != cached_progid) {
             cached_progid = shader->progid;
             loc_camera = glGetUniformLocation(shader->progid, "uGrassCameraPos");
@@ -2147,7 +2164,9 @@ void M2_RenderInstanced(m2Model_t const *model, LPCINSTANCEBUFFER instances) {
             loc_wind = glGetUniformLocation(shader->progid, "uGrassWind");
             loc_phase = glGetUniformLocation(shader->progid, "uGrassPhase");
             loc_height = glGetUniformLocation(shader->progid, "uGrassHeight");
+            loc_ground = glGetUniformLocation(shader->progid, "uGroundEffect");
         }
+        if (loc_ground >= 0) glUniform1i(loc_ground, flags & RF_GROUND_EFFECT ? 1 : 0);
         if (loc_camera >= 0) {
             VECTOR3 cam = tr.viewDef.camerastate[0].origin;
             glUniform3f(loc_camera, cam.x, cam.y, cam.z);

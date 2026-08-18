@@ -421,8 +421,23 @@ static void R_PrintDisplayModes(void) {
     }
 }
 
+static int r_swapinterval = -999;
+
+/* Apply console changes without repeating the expensive Cocoa/Metal swap-interval call every frame. */
+static void R_UpdateSwapInterval(void) {
+    int requested = atoi(ri.CvarString ? ri.CvarString("r_swapinterval", "1") : "1");
+    requested = MAX(-1, MIN(1, requested));
+    if (requested == r_swapinterval) return;
+    r_swapinterval = requested;
+    if (SDL_GL_SetSwapInterval(requested) != 0)
+        fprintf(stderr, "OpenGL: r_swapinterval %d unavailable: %s\n", requested, SDL_GetError());
+    else
+        fprintf(stderr, "OpenGL: swap interval=%d\n", SDL_GL_GetSwapInterval());
+}
+
 void R_Init(DWORD width, DWORD height) {
     renderer_shutdown = false;
+    r_swapinterval = -999;
     BOOL gl_current = false;
     int requested_msaa = R_MsaaRequest(atoi(ri.CvarString ? ri.CvarString("r_msaa", BZ_MSAA_DEFAULT_STRING) : BZ_MSAA_DEFAULT_STRING));
     SDL_version sdl_version;
@@ -468,6 +483,7 @@ void R_Init(DWORD width, DWORD height) {
     }
     if (context && SDL_GL_MakeCurrent(window, context) == 0) {
         gl_current = true;
+        R_UpdateSwapInterval();
     } else {
         fprintf(stderr, "ref_gl::R_Init() - could not make GL context current: %s\n", SDL_GetError());
     }
@@ -725,6 +741,8 @@ typedef struct {
 static RENDERSTATS r_frame_stats, r_stats_accum;
 static DWORD r_stats_frames, r_stats_start;
 
+DWORD R_GetFrameDrawCalls(void) { return (DWORD)r_frame_stats.draws; }
+
 /* Count submitted work at the renderer boundary, including instanced amplification. */
 void R_StatsDraw(GLenum mode, DWORD count, DWORD instances) {
     r_frame_stats.draws++;
@@ -772,6 +790,7 @@ void R_EndFrame(void) {
     R_Call(glColorMask, GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 #endif
     R_FinishFrameStats();
+    R_UpdateSwapInterval();
     SDL_GL_SwapWindow(window);
     SDL_Delay(1);
 }
@@ -858,8 +877,10 @@ refExport_t R_GetAPI(refImport_t imp) {
         .DrawLoadingIndicator = R_DrawLoadingIndicator,
         .DrawSelectionRect = R_DrawSelectionRect,
         .DrawChar = R_DrawChar,
+        .DrawString = R_DrawString,
         .DrawFill = R_DrawFill,
         .GetWindowSize = R_GetWindowSize,
+        .GetDrawCalls = R_GetFrameDrawCalls,
         .SetWindowSize = R_SetWindowSize,
         .GetTextureSize = R_GetTextureSize,
         .DrawSprite = R_DrawSprite,

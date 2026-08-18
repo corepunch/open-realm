@@ -1,4 +1,5 @@
 #include "common.h"
+#include "common/ui_constants.h"
 
 #include <ctype.h>
 #include <stdlib.h>
@@ -437,11 +438,15 @@ void Cvar_Init(void) {
     Cvar_Get("r_unit_shadows", "1", CVAR_ARCHIVE);
     Cvar_Get("r_occlusion", "1", CVAR_ARCHIVE);
     Cvar_Get("r_msaa", "4", CVAR_ARCHIVE);
+    Cvar_Get("r_swapinterval", "1", CVAR_ARCHIVE);
     Cvar_Get("r_stats", "0", 0);
     Cvar_Get("r_entities", "1", 0);
     Cvar_Get("r_fogofwar", "1", 0);
 #ifdef WOW
     /* Bare Quake-style console assignment only works for cvars registered before command dispatch. */
+    Cvar_Get("r_fog", "1", CVAR_ARCHIVE);
+    Cvar_Get("r_fog_start", WOW_WORLD_FOG_START_STRING, CVAR_ARCHIVE);
+    Cvar_Get("r_fog_end", WOW_WORLD_FOG_END_STRING, CVAR_ARCHIVE);
     Cvar_Get("r_grass", "1", 0);
     Cvar_Get("r_doodads", "1", 0);
     Cvar_Get("r_wmos", "1", 0);

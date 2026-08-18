@@ -101,11 +101,17 @@ struct render_buffer {
 typedef struct INSTANCEBUFFER {
     DWORD vbo;
     DWORD count;
+    DWORD capacity;
 } INSTANCEBUFFER;
 typedef struct INSTANCEBUFFER *LPINSTANCEBUFFER;
 typedef const struct INSTANCEBUFFER *LPCINSTANCEBUFFER;
 
 static size_t R_InstanceBufferBytes(DWORD count) { return (size_t)count * sizeof(MATRIX4); }
+static DWORD R_InstanceBufferCapacity(DWORD capacity, DWORD count) {
+    if (capacity >= count) return capacity;
+    for (capacity = capacity ? capacity : 16; capacity < count; capacity *= 2) {}
+    return capacity;
+}
 
 struct shader_program {
     DWORD progid;
@@ -266,6 +272,7 @@ void R_SetupScissor(LPCRECT r);
 void R_RevertSettings(void);
 void R_SetAlphaKeyState(BOOL enabled);
 void R_StatsDraw(GLenum mode, DWORD count, DWORD instances);
+DWORD R_GetFrameDrawCalls(void);
 
 // r_ents.c
 bool R_TraceEntity(viewDef_t const *viewdef, float x, float y, LPDWORD number);
@@ -296,6 +303,7 @@ void R_DrawBuffer(LPCBUFFER buffer, DWORD num_vertices);
 void R_DrawBufferCopies(LPCBUFFER buffer, DWORD num_vertices, DWORD num_instances);
 void R_DrawIndexedBuffer(LPCBUFFER buffer, DWORD num_indices);
 BOOL R_MakeInstanceBuffer(LPINSTANCEBUFFER buffer, LPCMATRIX4 matrices, DWORD count);
+BOOL R_UpdateInstanceBuffer(LPINSTANCEBUFFER buffer, LPCMATRIX4 matrices, DWORD count);
 void R_ReleaseInstanceBuffer(LPINSTANCEBUFFER buffer);
 void R_DrawBufferInstanced(LPCBUFFER buffer, DWORD num_vertices, LPCINSTANCEBUFFER instances);
 void R_ShutdownDrawBufferInstanced(void);
@@ -322,6 +330,7 @@ LPFONT R_LoadFont(LPCSTR filename, DWORD size);
 void R_ShutdownFonts(void);
 VECTOR2 R_GetTextSize(LPCDRAWTEXT drawText);
 void R_DrawText(LPCDRAWTEXT drawText);
+void R_DrawString(int x, int y, LPCSTR text);
 /* One thousandth of a pixel in normalized UI space is exact enough for glyph-fit decisions. */
 static BOOL R_TextFitsWidth(FLOAT remaining) { return remaining >= -0.000001f; }
 

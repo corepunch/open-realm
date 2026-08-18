@@ -1,4 +1,5 @@
 #include "r_wowmap.h"
+#include <ctype.h>
 
 wowMap_t wow_world;
 
@@ -53,6 +54,37 @@ void Wow_SetMapNames(LPCSTR path) {
     wow_world.map_name[name_len] = '\0';
 }
 
+/* Resolve Blizzard's logical mapXX_YY names once; runtime tile draws then avoid filesystem work. */
+BOOL Wow_LoadMinimapTranslations(void) {
+    LPBYTE data = NULL;
+    int size = ri.FS_ReadFile("Textures/Minimap/md5translate.trs", (void **)&data);
+    DWORD found = 0;
+
+    if (size <= 0 || !data) {
+        fprintf(stderr, "Wow_LoadMinimapTranslations: missing Textures/Minimap/md5translate.trs\n");
+        return false;
+    }
+    for (int offset = 0; offset < size;) {
+        PATHSTR line; char dir[128], hash[WOW_MINIMAP_HASH_LENGTH + 1];
+        int start = offset, x, y;
+        while (offset < size && data[offset] != '\r' && data[offset] != '\n') offset++;
+        int len = MIN(offset - start, (int)sizeof(line) - 1);
+        memcpy(line, data + start, len); line[len] = '\0';
+        while (offset < size && (data[offset] == '\r' || data[offset] == '\n')) offset++;
+        if (sscanf(line, "%127[^\\]\\map%d_%d.blp\t%32s", dir, &x, &y, hash) != 4) continue;
+        if (strcasecmp(dir, wow_world.map_name) || x < 0 || x >= WOW_WDT_TILES || y < 0 || y >= WOW_WDT_TILES) continue;
+        if (strlen(hash) != WOW_MINIMAP_HASH_LENGTH) continue;
+        BOOL valid = true;
+        FOR_LOOP(i, WOW_MINIMAP_HASH_LENGTH) valid = valid && isxdigit((unsigned char)hash[i]);
+        if (!valid) continue;
+        memcpy(wow_world.minimap_hash[x][y], hash, sizeof(hash)); found++;
+    }
+    ri.FS_FreeFile(data);
+    if (!found) fprintf(stderr, "Wow_LoadMinimapTranslations: no tiles for map %s\n", wow_world.map_name);
+    else fprintf(stderr, "Wow_LoadMinimapTranslations: map=%s tiles=%u\n", wow_world.map_name, (unsigned)found);
+    return found != 0;
+}
+
 DWORD Wow_Read32(BYTE const *p) {
     DWORD v;
     memcpy(&v, p, sizeof(v));
@@ -103,6 +135,11 @@ void Wow_FreeWmoModels(void) {
     wowWmoModel_t *model = wow_world.wmo_models;
     while (model) {
         wowWmoModel_t *next_model = model->next;
+        wowWmoBatch_t *model_batch = model->batches;
+        while (model_batch) {
+            wowWmoBatch_t *next_batch = model_batch->next;
+            R_ReleaseVertexArrayObject(model_batch->buffer); ri.MemFree(model_batch); model_batch = next_batch;
+        }
         if (model->groups) {
             FOR_LOOP(i, model->num_groups) {
                 wowWmoBatch_t *batch = model->groups[i].batches;
@@ -189,6 +226,8 @@ void Wow_FreeWorld(void) {
     doodad_model = wow_world.doodad_models;
     while (doodad_model) {
         wowDoodadModel_t *next = doodad_model->next;
+        R_ReleaseInstanceBuffer(&doodad_model->instances);
+        if (doodad_model->matrices) ri.MemFree(doodad_model->matrices);
         SAFE_DELETE(doodad_model->model, R_ReleaseModel);
         ri.MemFree(doodad_model);
         doodad_model = next;

@@ -67,6 +67,7 @@ BOOL Wow_WmoGroupInView(wowWmoGroup_t const *group, LPCMATRIX4 matrix) {
     VECTOR3 center;
     VECTOR3 extents;
     VECTOR3 world_center;
+    VECTOR3 delta;
     float radius;
 
     if (!group || !matrix || !group->has_bounds) {
@@ -85,6 +86,10 @@ BOOL Wow_WmoGroupInView(wowWmoGroup_t const *group, LPCMATRIX4 matrix) {
     };
     world_center = Matrix4_multiply_vector3(matrix, &center);
     radius = Vector3_len(&extents) * 2.0f;
+
+    /* Fully fogged WMO geometry cannot contribute; preserve large buildings that cross the fog boundary. */
+    delta = Vector3_sub(&world_center, &tr.viewDef.camerastate[0].origin);
+    if (Vector3_len(&delta) - radius > tr.viewDef.fogEnd) return false;
 
     return Frustum_ContainsSphere(&tr.viewDef.frustum, &(SPHERE3){ .center = world_center, .radius = MAX(radius, 16.0f), });
 }

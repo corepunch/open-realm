@@ -9,19 +9,14 @@ BOOL scr_initialized;
 #define SCR_FPS_BOTTOM_MARGIN 4
 
 static void SCR_DrawString(int x, int y, LPCSTR string) {
-    if (!string) {
-        return;
-    }
-    for (DWORD i = 0; string[i]; i++) {
-        re.DrawChar(x + i * 8, y, (BYTE)string[i]);
-    }
+    if (string) re.DrawString(x, y, string);
 }
 
 static void SCR_DrawFPS(DWORD msec) {
     static DWORD elapsed = 0;
     static DWORD frames_drawn = 0;
     static DWORD fps = 0;
-    char text[32];
+    char text[64];
     size2_t window = re.GetWindowSize();
     DWORD inset = SCR_FPS_HEIGHT + SCR_FPS_BOTTOM_MARGIN;
     DWORD y = window.height > inset ? window.height - inset : 0;
@@ -37,9 +32,9 @@ static void SCR_DrawFPS(DWORD msec) {
     }
 
     if (fps) {
-        snprintf(text, sizeof(text), "FPS: %u", (unsigned)fps);
+        snprintf(text, sizeof(text), "FPS %u  Drawcalls %u", (unsigned)fps, (unsigned)re.GetDrawCalls());
     } else {
-        snprintf(text, sizeof(text), "FPS: --");
+        snprintf(text, sizeof(text), "FPS --  Drawcalls %u", (unsigned)re.GetDrawCalls());
     }
     SCR_DrawString(10, y, text);
 }

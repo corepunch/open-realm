@@ -221,8 +221,8 @@ void Wow_AIMove(LPEDICT ent) {
     step = MIN(effective_speed * ((FLOAT)FRAMETIME / 1000.0f), len);
     ent->s.origin.x += delta.x * step / len;
     ent->s.origin.y += delta.y * step / len;
-    /* Quake2 M_CheckGround: re-anchor Z to the terrain as the creature walks. */
-    ent->s.origin.z = Wow_TerrainHeight(ent->s.origin.x, ent->s.origin.y);
+    /* Quake2 M_CheckGround: re-anchor Z to the nearest authored terrain or WMO floor. */
+    ent->s.origin.z = Wow_FloorHeight(ent->s.origin.x, ent->s.origin.y, ent->s.origin.z);
     ent->s.origin2 = (VECTOR2){ ent->s.origin.x, ent->s.origin.y };
     local->yaw = (FLOAT)RAD2DEG(atan2f(delta.y, delta.x));
     ent->s.angle = (FLOAT)DEG2RAD(local->yaw);

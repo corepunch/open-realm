@@ -37,4 +37,14 @@ TEST(wow_smoke, read_float_roundtrip) {
     T_FEQ(Wow_ReadFloat(bytes), expected, 0.0f);
 }
 
+TEST(wow_smoke, wmo_floor_ray) {
+    VECTOR3 start = { 0.25f, 0.25f, 2.0f }, end = { 0.25f, 0.25f, -2.0f };
+    VECTOR3 a = { 0.0f, 0.0f, 0.0f }, b = { 1.0f, 0.0f, 0.0f }, c = { 0.0f, 1.0f, 0.0f };
+    FLOAT fraction = -1.0f;
+    T_ASSERT(CM_WowRayTriangle(&start, &end, &a, &b, &c, &fraction));
+    T_FEQ(fraction, 0.5f, 0.0001f);
+    start.x = end.x = 2.0f;
+    T_ASSERT(!CM_WowRayTriangle(&start, &end, &a, &b, &c, &fraction));
+}
+
 #endif /* BZ_TESTS */

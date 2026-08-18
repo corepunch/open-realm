@@ -114,9 +114,27 @@ BOOL R_MakeInstanceBuffer(LPINSTANCEBUFFER buffer, LPCMATRIX4 matrices, DWORD co
     memset(buffer, 0, sizeof(*buffer));
     R_Call(glGenBuffers, 1, &buffer->vbo);
     if (!buffer->vbo) return false;
-    buffer->count = count;
+    buffer->count = count; buffer->capacity = count;
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, buffer->vbo);
     R_Call(glBufferData, GL_ARRAY_BUFFER, R_InstanceBufferBytes(count), matrices, GL_STATIC_DRAW);
+    return true;
+}
+
+/* Visible static doodads regroup by model each frame; retain their VBO allocation across frames. */
+BOOL R_UpdateInstanceBuffer(LPINSTANCEBUFFER buffer, LPCMATRIX4 matrices, DWORD count) {
+    DWORD capacity;
+
+    if (!buffer || !matrices || !count) return false;
+    if (!buffer->vbo) R_Call(glGenBuffers, 1, &buffer->vbo);
+    if (!buffer->vbo) return false;
+    capacity = R_InstanceBufferCapacity(buffer->capacity, count);
+    R_Call(glBindBuffer, GL_ARRAY_BUFFER, buffer->vbo);
+    if (capacity != buffer->capacity) {
+        R_Call(glBufferData, GL_ARRAY_BUFFER, R_InstanceBufferBytes(capacity), NULL, GL_STREAM_DRAW);
+        buffer->capacity = capacity;
+    }
+    R_Call(glBufferSubData, GL_ARRAY_BUFFER, 0, R_InstanceBufferBytes(count), matrices);
+    buffer->count = count;
     return true;
 }
 
