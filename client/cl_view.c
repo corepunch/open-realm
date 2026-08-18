@@ -185,8 +185,8 @@ void Matrix4_getCameraMatrix(LPMATRIX4 output) {
     VECTOR3 offset;
     VECTOR3 eye;
 
-    /* Follow the same WMO floor used by game movement instead of clipping down to ADT terrain indoors. */
-    origin.z = CM_WowFloorHeight(origin.x, origin.y, origin.z, 1.5f) + 1.6f;
+    /* The authoritative entity already carries the game-side WMO floor; do not repeat collision in the client. */
+    origin.z = LerpNumber(cl.ents[0].prev.origin.z, cl.ents[0].current.origin.z, cl.viewDef.lerpfrac) + 1.6f;
     Wow_AngleVectors(&angles, &forward, NULL, NULL);
     offset = Vector3_scale(&forward, -distance);
     eye = Vector3_add(&origin, &offset);
@@ -265,6 +265,7 @@ static void V_AddClientEntity(centity_t const *ent) {
     re.splat = cl.pics[ent->current.splat & 0xffff];
     re.splatsize = ent->current.splat >> 16;
     re.shadow = cl.pics[ent->current.shadow];
+    re.overhead_sprite = cl.pics[ent->current.overhead_sprite];
     re.shadow_rect = MAKE(RECT,
                           ShadowUnpackRectComponent((BYTE)(ent->current.shadow_rect & 0xff)),
                           ShadowUnpackRectComponent((BYTE)((ent->current.shadow_rect >> 8) & 0xff)),

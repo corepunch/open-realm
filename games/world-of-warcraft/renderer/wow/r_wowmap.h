@@ -146,6 +146,7 @@ typedef struct wowWmoBatch_s {
     LPBUFFER buffer;
     LPTEXTURE texture;
     DWORD num_vertices;
+    BOOL indoor;
     struct wowWmoBatch_s *next;
 } wowWmoBatch_t;
 
@@ -325,6 +326,7 @@ extern GLint wow_uTexture3;
 extern GLint wow_uAlphaTexture;
 extern GLint wow_uUseWeightedBlend;
 extern GLint wow_uSingleTexture;
+extern GLint wow_uWmoIndoor;
 extern GLint wow_uAlphaOrigin;
 extern GLint wow_uAlphaAtlasChunks;
 extern GLint wow_uFogEnable;

@@ -63,6 +63,9 @@ LPCSTR CM_WowGetSpawnName(DWORD index);
 LPCSTR CM_WowAdtPath(int tile_x, int tile_y, LPSTR out, DWORD out_size);
 FLOAT CM_WowFloorHeight(FLOAT x, FLOAT y, FLOAT ref_z, FLOAT step_up);
 BOOL CM_WowRayTriangle(LPCVECTOR3 start, LPCVECTOR3 end, LPCVECTOR3 a, LPCVECTOR3 b, LPCVECTOR3 c, FLOAT *fraction);
+#ifdef BZ_TESTS
+BOOL CM_WowTestBspRay(LPCVECTOR3 start, LPCVECTOR3 end, FLOAT *fraction);
+#endif
 #endif
 void CM_BakeStaticObstacles(void);
 void CM_InvalidatePathCache(void);

@@ -120,6 +120,7 @@ typedef struct {
     LPCTEXTURE skin;
     LPCTEXTURE splat;
     LPCTEXTURE shadow;
+    LPCTEXTURE overhead_sprite; /* billboarded sprite drawn above the entity (NULL = none) */
     DWORD number;
     DWORD team;
 #ifdef WOW

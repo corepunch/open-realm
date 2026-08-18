@@ -16,6 +16,7 @@ void M2_RenderInstanced(m2Model_t const *model, LPCINSTANCEBUFFER instances, DWO
 BOOL M2_CanStaticInstance(m2Model_t const *model);
 BOOL M2_AttachmentMatrix(m2Model_t const *model, DWORD attachment_id, LPCMATRIX4 model_matrix, LPMATRIX4 out);
 FLOAT M2_GroundOffset(m2Model_t const *model);
+FLOAT M2_HeadHeight(m2Model_t const *model);
 BOOL M2_CameraView(m2Model_t const *model, DWORD camera_index, LPVECTOR3 eye, LPVECTOR3 target, LPFLOAT fov_degrees, LPFLOAT znear, LPFLOAT zfar);
 BOOL M2_IsCharacterModel(m2Model_t const *model);
 BOOL M2_SetEntitySequenceFrame(m2Model_t const *model, LPCSTR anim, renderEntity_t *entity);
@@ -243,6 +244,11 @@ void R_GameRenderModel(renderEntity_t const *entity) {
     }
     R_GetEntityMatrix(entity, &transform);
     M2_RenderModel(entity, entity->model->m2, &transform);
+    if (entity->overhead_sprite) {
+        VECTOR3 origin = entity->origin;
+        origin.z += M2_HeadHeight(entity->model->m2) * entity->scale + 0.25f; /* float just above the head */
+        R_DrawBillboardSprite(entity->overhead_sprite, &origin, 1.0f, COLOR32_WHITE);
+    }
     attachment_id = (tr.viewDef.rdflags & RDF_USE_ENTITY_CAMERA) ? 0 : 1;
     if (entity->attached_model &&
         entity->attached_model->modeltype == ID_MD20 &&

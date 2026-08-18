@@ -1,5 +1,6 @@
 #include "common/common.h"
 #include "stb_dbc.h"
+#include <float.h>
 #include <limits.h>
 #include <math.h>
 
@@ -7,17 +8,42 @@
 #define CM_WOW_ADT_UNIT_SIZE  (CM_WOW_ADT_SIZE / 16.0f / 8.0f)
 #define CM_WOW_MCVT_COUNT     (9 * 9 + 8 * 8)
 #define CM_WOW_HEIGHT_CACHE_TILES 16
-#define CM_WOW_WMO_NO_COLLIDE 0x04
+#define CM_WOW_WMO_DETAIL     0x04
+#define CM_WOW_WMO_COLLISION  0x08
+#define CM_WOW_WMO_RENDER     0x20
+#define CM_WOW_WMO_GRID 32
 
 typedef struct {
     VECTOR3 a, b, c;
     BOX3 bounds;
 } cmWowWmoTri_t;
 
+typedef struct {
+    WORD flags;
+    SHORT children[2];
+    WORD face_count;
+    DWORD first_face;
+    FLOAT distance;
+} cmWowWmoBspNode_t;
+
+_Static_assert(sizeof(cmWowWmoBspNode_t) == 16, "WMO MOBN node must match the on-disk 16-byte record");
+
+typedef struct {
+    BOX3 bounds;
+    cmWowWmoBspNode_t *nodes;
+    DWORD node_count, *triangles, triangle_count;
+} cmWowWmoGroup_t;
+
 typedef struct cmWowWmoModel_s {
     PATHSTR path;
     cmWowWmoTri_t *triangles;
     DWORD count, capacity;
+    BOX3 bounds;
+    DWORD cell_offsets[CM_WOW_WMO_GRID * CM_WOW_WMO_GRID + 1];
+    DWORD *cell_triangles;
+    cmWowWmoGroup_t *groups;
+    DWORD group_count;
+    BOOL missing_bsp;
     BOOL loaded, valid;
     struct cmWowWmoModel_s *next;
 } cmWowWmoModel_t;
@@ -73,6 +99,9 @@ static void CM_WowFreeWmos(void) {
     while (model) {
         cmWowWmoModel_t *next = model->next;
         SAFE_DELETE(model->triangles, MemFree);
+        SAFE_DELETE(model->cell_triangles, MemFree);
+        FOR_LOOP(i, model->group_count) { SAFE_DELETE(model->groups[i].nodes, MemFree); SAFE_DELETE(model->groups[i].triangles, MemFree); }
+        SAFE_DELETE(model->groups, MemFree);
         MemFree(model); model = next;
     }
     cm_wow_wmo_models = NULL;
@@ -250,9 +279,12 @@ static BOOL CM_WowLoadWmoGroup(cmWowWmoModel_t *model, DWORD group_index) {
     PATHSTR path;
     LPBYTE data;
     DWORD size = 0, offset = 0, mopy_count = 0, index_count = 0, vertex_count = 0;
-    BYTE const *mopy = NULL;
+    BYTE const *mopy = NULL, *mobn = NULL;
     WORD const *indices = NULL;
+    WORD const *mobr = NULL;
     VECTOR3 const *vertices = NULL;
+    DWORD mobn_size = 0, mobr_count = 0;
+    cmWowWmoGroup_t *group = model->groups + group_index;
     CM_WowWmoGroupPath(model->path, group_index, path, sizeof(path));
     data = FS_ReadFile(path, &size);
     if (!data || !size) { fprintf(stderr, "CM WoW WMO: missing group %s\n", path); SAFE_DELETE(data, FS_FreeFile); return false; }
@@ -264,6 +296,8 @@ static BOOL CM_WowLoadWmoGroup(cmWowWmoModel_t *model, DWORD group_index) {
         if (offset + chunk_size > size) break;
         if (CM_WowTagEquals(tag, "PGOM") && chunk_size >= 0x44) {
             DWORD sub = 0x44;
+            memcpy(&group->bounds.min, chunk + 0x0c, sizeof(VECTOR3));
+            memcpy(&group->bounds.max, chunk + 0x18, sizeof(VECTOR3));
             while (sub + 8 <= chunk_size) {
                 BYTE const *subtag = chunk + sub;
                 DWORD sub_size = CM_WowRead32(chunk + sub + 4);
@@ -273,22 +307,96 @@ static BOOL CM_WowLoadWmoGroup(cmWowWmoModel_t *model, DWORD group_index) {
                 if (CM_WowTagEquals(subtag, "YPOM")) { mopy = subchunk; mopy_count = sub_size / 2; }
                 else if (CM_WowTagEquals(subtag, "IVOM")) { indices = (WORD const *)subchunk; index_count = sub_size / 2; }
                 else if (CM_WowTagEquals(subtag, "TVOM")) { vertices = (VECTOR3 const *)subchunk; vertex_count = sub_size / sizeof(*vertices); }
+                else if (CM_WowTagEquals(subtag, "NBOM")) { mobn = subchunk; mobn_size = sub_size; }
+                else if (CM_WowTagEquals(subtag, "RBOM")) { mobr = (WORD const *)subchunk; mobr_count = sub_size / 2; }
                 sub += sub_size;
             }
         }
         offset += chunk_size;
     }
     if (!vertices || !indices) { fprintf(stderr, "CM WoW WMO: group %s has no collision geometry\n", path); FS_FreeFile(data); return false; }
-    for (DWORD i = 0; i + 2 < index_count; i += 3) {
-        DWORD poly = i / 3;
-        if ((mopy && poly < mopy_count && (mopy[poly * 2] & CM_WOW_WMO_NO_COLLIDE)) ||
-            indices[i] >= vertex_count || indices[i + 1] >= vertex_count || indices[i + 2] >= vertex_count)
-            continue;
-        if (!CM_WowWmoAppendTriangle(model, vertices + indices[i], vertices + indices[i + 1], vertices + indices[i + 2])) {
-            FS_FreeFile(data); return false;
+    DWORD poly_count = index_count / 3;
+    DWORD *poly_map = MemAlloc(poly_count * sizeof(*poly_map));
+    BYTE *poly_used = MemAlloc(poly_count);
+    if (!poly_map || !poly_used) { SAFE_DELETE(poly_map, MemFree); SAFE_DELETE(poly_used, MemFree); FS_FreeFile(data); return false; }
+    FOR_LOOP(i, poly_count) poly_map[i] = ~0u;
+    memset(poly_used, 0, poly_count);
+    /* MOBR is the authored collision face set. MOPY filtering is only a fallback when the BSP is absent. */
+    if (mobn && mobr && mobn_size % sizeof(cmWowWmoBspNode_t) == 0) {
+        FOR_LOOP(i, mobr_count) if (mobr[i] < poly_count) poly_used[mobr[i]] = true;
+    } else {
+        FOR_LOOP(i, poly_count) {
+            BYTE flags = mopy && i < mopy_count ? mopy[i * 2] : CM_WOW_WMO_RENDER;
+            BYTE material = mopy && i < mopy_count ? mopy[i * 2 + 1] : 0;
+            poly_used[i] = (flags & CM_WOW_WMO_COLLISION) || ((flags & CM_WOW_WMO_RENDER) && !(flags & CM_WOW_WMO_DETAIL)) || material == 0xff;
         }
     }
+    for (DWORD i = 0; i + 2 < index_count; i += 3) {
+        DWORD poly = i / 3;
+        if (!poly_used[poly] || indices[i] >= vertex_count || indices[i + 1] >= vertex_count || indices[i + 2] >= vertex_count)
+            continue;
+        if (!CM_WowWmoAppendTriangle(model, vertices + indices[i], vertices + indices[i + 1], vertices + indices[i + 2])) {
+            MemFree(poly_used); MemFree(poly_map); FS_FreeFile(data); return false;
+        }
+        poly_map[poly] = model->count - 1;
+    }
+    if (mobn && mobr && mobn_size % sizeof(cmWowWmoBspNode_t) == 0) {
+        group->node_count = mobn_size / sizeof(cmWowWmoBspNode_t);
+        group->nodes = MemAlloc(mobn_size); memcpy(group->nodes, mobn, mobn_size);
+        group->triangles = MemAlloc(mobr_count * sizeof(*group->triangles));
+        group->triangle_count = mobr_count;
+        FOR_LOOP(i, mobr_count) group->triangles[i] = mobr[i] < poly_count ? poly_map[mobr[i]] : ~0u;
+    } else {
+        model->missing_bsp = true;
+        fprintf(stderr, "CM WoW WMO: %s has no MOBN/MOBR collision BSP; using indexed mesh grid\n", path);
+    }
+    MemFree(poly_used);
+    MemFree(poly_map);
     FS_FreeFile(data);
+    return true;
+}
+
+static int CM_WowWmoCell(FLOAT value, FLOAT min, FLOAT max) {
+    if (max - min < 0.0001f) return 0;
+    return MAX(0, MIN(CM_WOW_WMO_GRID - 1, (int)((value - min) * CM_WOW_WMO_GRID / (max - min))));
+}
+
+/* A fixed local-XZ grid makes the common upright WMO floor ray inspect one small triangle bucket. */
+static BOOL CM_WowBuildWmoGrid(cmWowWmoModel_t *model) {
+    DWORD cells = CM_WOW_WMO_GRID * CM_WOW_WMO_GRID, *cursor;
+    model->bounds.min = (VECTOR3){ FLT_MAX, FLT_MAX, FLT_MAX };
+    model->bounds.max = (VECTOR3){ -FLT_MAX, -FLT_MAX, -FLT_MAX };
+    FOR_LOOP(i, model->count) {
+        cmWowWmoTri_t const *tri = model->triangles + i;
+        model->bounds.min.x = MIN(model->bounds.min.x, tri->bounds.min.x);
+        model->bounds.min.y = MIN(model->bounds.min.y, tri->bounds.min.y);
+        model->bounds.min.z = MIN(model->bounds.min.z, tri->bounds.min.z);
+        model->bounds.max.x = MAX(model->bounds.max.x, tri->bounds.max.x);
+        model->bounds.max.y = MAX(model->bounds.max.y, tri->bounds.max.y);
+        model->bounds.max.z = MAX(model->bounds.max.z, tri->bounds.max.z);
+    }
+    FOR_LOOP(i, model->count) {
+        cmWowWmoTri_t const *tri = model->triangles + i;
+        int x0 = CM_WowWmoCell(tri->bounds.min.x, model->bounds.min.x, model->bounds.max.x);
+        int x1 = CM_WowWmoCell(tri->bounds.max.x, model->bounds.min.x, model->bounds.max.x);
+        int z0 = CM_WowWmoCell(tri->bounds.min.z, model->bounds.min.z, model->bounds.max.z);
+        int z1 = CM_WowWmoCell(tri->bounds.max.z, model->bounds.min.z, model->bounds.max.z);
+        for (int z = z0; z <= z1; z++) for (int x = x0; x <= x1; x++) model->cell_offsets[z * CM_WOW_WMO_GRID + x + 1]++;
+    }
+    FOR_LOOP(i, cells) model->cell_offsets[i + 1] += model->cell_offsets[i];
+    model->cell_triangles = MemAlloc(model->cell_offsets[cells] * sizeof(*model->cell_triangles));
+    cursor = MemAlloc(cells * sizeof(*cursor));
+    if (!model->cell_triangles || !cursor) { SAFE_DELETE(cursor, MemFree); return false; }
+    memcpy(cursor, model->cell_offsets, cells * sizeof(*cursor));
+    FOR_LOOP(i, model->count) {
+        cmWowWmoTri_t const *tri = model->triangles + i;
+        int x0 = CM_WowWmoCell(tri->bounds.min.x, model->bounds.min.x, model->bounds.max.x);
+        int x1 = CM_WowWmoCell(tri->bounds.max.x, model->bounds.min.x, model->bounds.max.x);
+        int z0 = CM_WowWmoCell(tri->bounds.min.z, model->bounds.min.z, model->bounds.max.z);
+        int z1 = CM_WowWmoCell(tri->bounds.max.z, model->bounds.min.z, model->bounds.max.z);
+        for (int z = z0; z <= z1; z++) for (int x = x0; x <= x1; x++) model->cell_triangles[cursor[z * CM_WOW_WMO_GRID + x]++] = i;
+    }
+    MemFree(cursor);
     return true;
 }
 
@@ -313,9 +421,12 @@ static cmWowWmoModel_t *CM_WowGetWmoModel(LPCSTR path) {
         offset += chunk_size;
     }
     FS_FreeFile(data);
+    model->groups = MemAlloc(group_count * sizeof(*model->groups));
+    if (!model->groups) { model->loaded = true; return NULL; }
+    memset(model->groups, 0, group_count * sizeof(*model->groups)); model->group_count = group_count;
     FOR_LOOP(i, group_count)
         if (!CM_WowLoadWmoGroup(model, i)) { model->loaded = true; return NULL; }
-    model->loaded = true; model->valid = model->count > 0;
+    model->loaded = true; model->valid = model->count > 0 && (!model->missing_bsp || CM_WowBuildWmoGrid(model));
     fprintf(stderr, "CM WoW WMO: loaded %u collision triangles from %s\n", (unsigned)model->count, model->path);
     return model->valid ? model : NULL;
 }
@@ -462,6 +573,49 @@ BOOL CM_WowRayTriangle(LPCVECTOR3 start, LPCVECTOR3 end, LPCVECTOR3 a, LPCVECTOR
     *fraction = hit; return true;
 }
 
+/* Traverse the file-authored CAaBsp tree; MOBR leaves point back to MOVI triangles through the retained map. */
+static void CM_WowTraceWmoBsp(cmWowWmoModel_t const *model, cmWowWmoGroup_t const *group, LONG node_index,
+                              LPCVECTOR3 start, LPCVECTOR3 end, FLOAT *best, DWORD depth) {
+    cmWowWmoBspNode_t const *node;
+    FLOAT a, b;
+    int axis;
+    if (node_index < 0 || (DWORD)node_index >= group->node_count || depth > group->node_count) return;
+    node = group->nodes + node_index;
+    for (DWORD i = node->first_face; i < node->first_face + node->face_count && i < group->triangle_count; i++) {
+        DWORD index = group->triangles[i];
+        FLOAT hit;
+        if (index < model->count && CM_WowRayTriangle(start, end, &model->triangles[index].a,
+            &model->triangles[index].b, &model->triangles[index].c, &hit) && hit < *best) *best = hit;
+    }
+    if (node->flags & 0x04) return;
+    axis = node->flags & 0x03;
+    if (axis > 2) return;
+    a = ((FLOAT const *)start)[axis] - node->distance; b = ((FLOAT const *)end)[axis] - node->distance;
+    if (a <= 0.0f && b <= 0.0f) CM_WowTraceWmoBsp(model, group, node->children[0], start, end, best, depth + 1);
+    else if (a >= 0.0f && b >= 0.0f) CM_WowTraceWmoBsp(model, group, node->children[1], start, end, best, depth + 1);
+    else {
+        int near = a <= 0.0f ? 0 : 1;
+        CM_WowTraceWmoBsp(model, group, node->children[near], start, end, best, depth + 1);
+        CM_WowTraceWmoBsp(model, group, node->children[1 - near], start, end, best, depth + 1);
+    }
+}
+
+#ifdef BZ_TESTS
+BOOL CM_WowTestBspRay(LPCVECTOR3 start, LPCVECTOR3 end, FLOAT *fraction) {
+    cmWowWmoTri_t triangles[] = { { .a = { 0, 0, 0 }, .b = { 1, 0, 0 }, .c = { 0, 1, 0 } } };
+    cmWowWmoBspNode_t nodes[] = {
+        { .flags = 0, .children = { 1, 2 }, .distance = 0.5f },
+        { .flags = 4 },
+        { .flags = 4, .face_count = 1 },
+    };
+    DWORD refs[] = { 0 };
+    cmWowWmoModel_t model = { .triangles = triangles, .count = 1 };
+    cmWowWmoGroup_t group = { .nodes = nodes, .node_count = 3, .triangles = refs, .triangle_count = 1 };
+    *fraction = 2.0f; CM_WowTraceWmoBsp(&model, &group, 0, start, end, fraction, 0);
+    return *fraction <= 1.0f;
+}
+#endif
+
 /* Select the highest authored surface reachable by a small upward step, just like a ground trace. */
 FLOAT CM_WowFloorHeight(FLOAT sx, FLOAT sy, FLOAT ref_z, FLOAT step_up) {
     cmWowAdtHeightCache_t *cache = NULL;
@@ -484,16 +638,38 @@ FLOAT CM_WowFloorHeight(FLOAT sx, FLOAT sy, FLOAT ref_z, FLOAT step_up) {
         finish = Matrix4_multiply_vector3(&instance->inverse, &world_end);
         seg_min = (VECTOR3){ MIN(start.x,finish.x), MIN(start.y,finish.y), MIN(start.z,finish.z) };
         seg_max = (VECTOR3){ MAX(start.x,finish.x), MAX(start.y,finish.y), MAX(start.z,finish.z) };
-        FOR_LOOP(i, instance->model->count) {
-            cmWowWmoTri_t const *tri = instance->model->triangles + i;
-            FLOAT fraction;
-            VECTOR3 local_hit, world_hit;
-            if (seg_max.x < tri->bounds.min.x || seg_min.x > tri->bounds.max.x || seg_max.y < tri->bounds.min.y ||
-                seg_min.y > tri->bounds.max.y || seg_max.z < tri->bounds.min.z || seg_min.z > tri->bounds.max.z ||
-                !CM_WowRayTriangle(&start, &finish, &tri->a, &tri->b, &tri->c, &fraction)) continue;
-            local_hit = Vector3_lerp(&start, &finish, fraction);
-            world_hit = Matrix4_multiply_vector3(&instance->matrix, &local_hit);
-            if (world_hit.z <= top + 0.001f && world_hit.z > best) best = world_hit.z;
+        if (!instance->model->missing_bsp) {
+            FOR_LOOP(i, instance->model->group_count) {
+                cmWowWmoGroup_t const *group = instance->model->groups + i;
+                FLOAT fraction = 2.0f;
+                VECTOR3 local_hit, world_hit;
+                if (seg_max.x < group->bounds.min.x || seg_min.x > group->bounds.max.x || seg_max.y < group->bounds.min.y ||
+                    seg_min.y > group->bounds.max.y || seg_max.z < group->bounds.min.z || seg_min.z > group->bounds.max.z) continue;
+                CM_WowTraceWmoBsp(instance->model, group, 0, &start, &finish, &fraction, 0);
+                if (fraction > 1.0f) continue;
+                local_hit = Vector3_lerp(&start, &finish, fraction);
+                world_hit = Matrix4_multiply_vector3(&instance->matrix, &local_hit);
+                if (world_hit.z <= top + 0.001f && world_hit.z > best) best = world_hit.z;
+            }
+        } else {
+            int x0 = CM_WowWmoCell(seg_min.x, instance->model->bounds.min.x, instance->model->bounds.max.x);
+            int x1 = CM_WowWmoCell(seg_max.x, instance->model->bounds.min.x, instance->model->bounds.max.x);
+            int z0 = CM_WowWmoCell(seg_min.z, instance->model->bounds.min.z, instance->model->bounds.max.z);
+            int z1 = CM_WowWmoCell(seg_max.z, instance->model->bounds.min.z, instance->model->bounds.max.z);
+            for (int z = z0; z <= z1; z++) for (int x = x0; x <= x1; x++) {
+                DWORD cell = z * CM_WOW_WMO_GRID + x;
+                for (DWORD j = instance->model->cell_offsets[cell]; j < instance->model->cell_offsets[cell + 1]; j++) {
+                    cmWowWmoTri_t const *tri = instance->model->triangles + instance->model->cell_triangles[j];
+                    FLOAT fraction;
+                    VECTOR3 local_hit, world_hit;
+                    if (seg_max.x < tri->bounds.min.x || seg_min.x > tri->bounds.max.x || seg_max.y < tri->bounds.min.y ||
+                        seg_min.y > tri->bounds.max.y || seg_max.z < tri->bounds.min.z || seg_min.z > tri->bounds.max.z ||
+                        !CM_WowRayTriangle(&start, &finish, &tri->a, &tri->b, &tri->c, &fraction)) continue;
+                    local_hit = Vector3_lerp(&start, &finish, fraction);
+                    world_hit = Matrix4_multiply_vector3(&instance->matrix, &local_hit);
+                    if (world_hit.z <= top + 0.001f && world_hit.z > best) best = world_hit.z;
+                }
+            }
         }
     }
     return best;

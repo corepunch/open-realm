@@ -9,6 +9,9 @@
 #define WOW_CREATURE_DISPLAY_KOBOLD 163
 #define WOW_CREATURE_DISPLAY_MURLOC 188
 
+/* Yellow "!" billboard shown above quest givers with an available quest. */
+#define WOW_QUEST_AVAILABLE_ICON "Interface\\GossipFrame\\AvailableQuestIcon.blp"
+
 typedef struct {
     DWORD display_id;
     FLOAT min_radius;
@@ -312,6 +315,7 @@ void Wow_SpawnQuestLocations(LPCVECTOR2 origin) {
         ent->s.radius = radius;
         ent->s.player = 2;
         ent->s.class_id = creature_model->display_id;
+        ent->s.overhead_sprite = (DWORD)gi.ImageIndex(WOW_QUEST_AVAILABLE_ICON);
         ent->s.angle = data->orientation;
         ent->s.flags = EF_GROUND_ANCHOR;
         /* Non-hostile NPCs still need the creature frame for their idle (Stand)

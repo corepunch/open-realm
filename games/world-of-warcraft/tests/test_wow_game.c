@@ -548,7 +548,7 @@ TEST(wow_game, quest_serverdata_contains_givers_and_objective_locations) {
     LPCWOWQUESTGIVER giver = Wow_QuestGiver(2);
     LPCWOWQUESTOBJECTIVE objective = Wow_QuestObjective(1);
 
-    T_EQ((int)Wow_QuestGiverCount(), 741);
+    T_EQ((int)Wow_QuestGiverCount(), 1787);
     T_EQ((int)giver->quest_id, 7);
     T_EQ((int)giver->creature_entry, 197);
     T_EQ((int)giver->display_id, 1859);
@@ -602,6 +602,7 @@ TEST(wow_game, quest_givers_receive_creature_frame_for_idle_animation) {
         T_ASSERT(e->idle == Wow_AIIdle);
         T_ASSERT(e->svflags & SVF_MONSTER);
         T_NOT_NULL(local->animation);
+        T_ASSERT(e->s.overhead_sprite != 0); /* quest giver shows the available-quest marker */
         if (local->animation) T_STREQ(local->animation->name, "Stand");
         break;
     }

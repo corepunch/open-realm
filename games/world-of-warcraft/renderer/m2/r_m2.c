@@ -2261,6 +2261,11 @@ FLOAT M2_GroundOffset(m2Model_t const *model) {
     return -model->geometry_bounds.min.z;
 }
 
+/* Top of the model's animation-inclusive bounding box; anchors overhead sprites above the head. */
+FLOAT M2_HeadHeight(m2Model_t const *model) {
+    return model ? model->bounds.max.z : 0.0f;
+}
+
 BOOL M2_IsCharacterModel(m2Model_t const *model) { return model && (model->flags & M2_MODEL_CHARACTER); }
 
 void M2_Release(m2Model_t *model) {

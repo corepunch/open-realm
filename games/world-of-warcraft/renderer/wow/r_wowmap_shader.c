@@ -12,6 +12,7 @@ GLint wow_uTexture3 = -1;
 GLint wow_uAlphaTexture = -1;
 GLint wow_uUseWeightedBlend = -1;
 GLint wow_uSingleTexture = -1;
+GLint wow_uWmoIndoor = -1;
 GLint wow_uAlphaOrigin = -1;
 GLint wow_uAlphaAtlasChunks = -1;
 GLint wow_uFogEnable = -1;
@@ -112,6 +113,7 @@ void Wow_InitTerrainShader(void) {
     "uniform sampler2D uAlphaTexture;\n"
     "uniform int uUseWeightedBlend;\n"
     "uniform int uSingleTexture;\n"
+    "uniform int uWmoIndoor;\n"
     "uniform vec2 uAlphaOrigin;\n"
     "uniform float uAlphaAtlasChunks;\n"
     "uniform bool uFogEnable;\n"
@@ -144,7 +146,8 @@ void Wow_InitTerrainShader(void) {
     "            color = mix(mix(mix(tex1, tex2, alphaBlend.r), tex3, alphaBlend.g), tex4, alphaBlend.b);\n"
     "        }\n"
     "    }\n"
-    "    color.rgb *= 2.0 * v_color.rgb * v_lighting;\n"
+    /* Classic interior groups use baked MOCV instead of outdoor directional lighting. */
+    "    color.rgb *= 2.0 * v_color.rgb * (uSingleTexture != 0 && uWmoIndoor != 0 ? 1.0 : v_lighting);\n"
     "    if (uFogEnable) {\n"
     "        float fog = clamp((uFogParams.y-distance(v_world, uFogCamera))/(uFogParams.y-uFogParams.x), 0.0, 1.0);\n"
     "        color.rgb = mix(uFogColor, color.rgb, fog);\n"
@@ -169,6 +172,7 @@ void Wow_InitTerrainShader(void) {
     wow_uAlphaTexture = glGetUniformLocation(wow_terrain_shader->progid, "uAlphaTexture");
     wow_uUseWeightedBlend = glGetUniformLocation(wow_terrain_shader->progid, "uUseWeightedBlend");
     wow_uSingleTexture = glGetUniformLocation(wow_terrain_shader->progid, "uSingleTexture");
+    wow_uWmoIndoor = glGetUniformLocation(wow_terrain_shader->progid, "uWmoIndoor");
     wow_uAlphaOrigin = glGetUniformLocation(wow_terrain_shader->progid, "uAlphaOrigin");
     wow_uAlphaAtlasChunks = glGetUniformLocation(wow_terrain_shader->progid, "uAlphaAtlasChunks");
     wow_uFogEnable = glGetUniformLocation(wow_terrain_shader->progid, "uFogEnable");
@@ -183,6 +187,7 @@ void Wow_InitTerrainShader(void) {
     R_Call(glUniform1i, wow_uAlphaTexture, 4);
     R_Call(glUniform1f, wow_uAlphaAtlasChunks, (GLfloat)WOW_ALPHA_ATLAS_CHUNKS);
     R_Call(glUniform1i, wow_uSingleTexture, 0);
+    R_Call(glUniform1i, wow_uWmoIndoor, 0);
 }
 
 void Wow_InitGrassShader(void) {
