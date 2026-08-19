@@ -156,6 +156,21 @@ typedef struct wowWmoGroup_s {
     BOOL has_bounds;
 } wowWmoGroup_t;
 
+typedef struct {
+    char  name[20];  /* doodad set name, null-padded */
+    DWORD start;     /* first MODD index in this set */
+    DWORD count;     /* number of MODD entries */
+    DWORD pad;
+} wowWmoDoodadSet_t;  /* 32 bytes */
+
+typedef struct {
+    DWORD     name_flags;  /* bits 0-23 = byte offset into MODN blob; bits 24-31 = instance flags */
+    wowVec3_t position;    /* WMO local space */
+    float     quat[4];     /* (x, y, z, w) orientation in WMO local space */
+    float     scale;
+    COLOR32   color;       /* BGRA; color.a = MOLT index when flags bit 2 set */
+} wowWmoDoodadDef_t;  /* 40 bytes */
+
 typedef struct wowWmoModel_s {
     PATHSTR path;
     wowWmoGroup_t *groups;
@@ -166,12 +181,19 @@ typedef struct wowWmoModel_s {
     COLOR32 amb_color;   /* MOHD.ambColor: .r=R .g=G .b=B after BGRA swap */
     DWORD   mohd_flags;  /* bit 0x02=lighten_interiors, 0x04=skip_base_color */
     DWORD   n_lights;    /* MOHD.nLights, for MOLT */
+    wowWmoDoodadSet_t *doodad_sets;
+    DWORD              num_doodad_sets;
+    wowWmoDoodadDef_t *doodad_defs;
+    DWORD              num_doodad_defs;
+    char              *doodad_name_blob;   /* raw MODN chunk bytes, null-terminated */
+    DWORD              doodad_name_blob_size;
     struct wowWmoModel_s *next;
 } wowWmoModel_t;
 
 typedef struct wowWmoInstance_s {
     wowWmoModel_t *model;
     MATRIX4 matrix;
+    WORD doodad_set;  /* MODF.doodadSet index into model->doodad_sets */
     struct wowWmoInstance_s *next;
 } wowWmoInstance_t;
 
@@ -438,6 +460,12 @@ void Wow_EnsureGrassCtrlTexture(void);
 void Wow_UpdateGrassCtrlForChunk(DWORD ix, DWORD iy, uint64_t no_effect_mask, BYTE const alpha[4][WOW_ALPHA_TEXELS], wowLayer_t const *layers, DWORD layer_count, char **textures, DWORD num_textures);
 void Wow_EnsureCameraGrassMesh(void);
 void Wow_FreeCameraGrassMesh(void);
+void Wow_FixMocvAlpha(BYTE *colors, DWORD color_count,
+                      wowWmoBatchDef_t const *batches, DWORD batch_count,
+                      DWORD trans_batch_count,
+                      COLOR32 amb, DWORD mohd_flags, BOOL exterior);
+void Wow_WmoDoodadLocalMatrix(wowWmoDoodadDef_t const *def, LPMATRIX4 out);
+void Wow_QueueWmoDoodads(wowWmoInstance_t const *wmo);
 BOOL Wow_EntityInView(renderEntity_t const *entity);
 BOOL Wow_TerrainChunkInRange(wowAdtChunk_t const *chunk);
 BOOL Wow_WmoGroupInView(wowWmoGroup_t const *group, LPCMATRIX4 matrix);

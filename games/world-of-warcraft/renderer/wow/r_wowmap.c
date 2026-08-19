@@ -314,6 +314,10 @@ void R_DrawWorld(void) {
                 }
             }
         }
+        if (R_CvarEnabled("r_wmos", "1")) {
+            for (wowWmoInstance_t *wmo = wow_world.wmos; wmo; wmo = wmo->next)
+                Wow_QueueWmoDoodads(wmo);
+        }
         for (wowDoodadModel_t *group = wow_world.doodad_models; group; group = group->next) {
             if (!group->count) continue;
             if (!R_UpdateInstanceBuffer(&group->instances, group->matrices, group->count)) {

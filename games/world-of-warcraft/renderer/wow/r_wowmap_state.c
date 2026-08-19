@@ -152,6 +152,9 @@ void Wow_FreeWmoModels(void) {
             }
             ri.MemFree(model->groups);
         }
+        if (model->doodad_sets)     ri.MemFree(model->doodad_sets);
+        if (model->doodad_defs)     ri.MemFree(model->doodad_defs);
+        if (model->doodad_name_blob) ri.MemFree(model->doodad_name_blob);
         ri.MemFree(model);
         model = next_model;
     }

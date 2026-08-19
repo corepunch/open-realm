@@ -284,6 +284,9 @@ WOW_TEST_RES_DIR := $(TESTS_DIR)/wow-resources
 WOW_TEST_SRC_DIR := $(WOW_TEST_DIR)/resources-src
 WOW_TEST_MPQ     := $(TESTS_DIR)/test-wow.mpq
 WOW_UI_TEST_CFLAGS := $(WOW_TEST_CFLAGS) $(LUA_CFLAGS) $(WOW_XML_CFLAGS) -DTEST_WOW_MPQ=\"$(WOW_TEST_MPQ)\"
+WOW_WMO_TEST_DATA_DIR := $(TESTS_DIR)/wow-wmo-data
+WOW_WMO_TEST_MPQ  := $(TESTS_DIR)/test-wow-wmo.mpq
+WOW_WMO_TEST_CFLAGS := $(WOW_TEST_CFLAGS) -DTEST_WOW_WMO_MPQ=\"$(WOW_WMO_TEST_MPQ)\"
 SC2_TEST_RES_DIR := $(TESTS_DIR)/sc2-resources
 SC2_TEST_SRC_DIR := $(SC2_TEST_DIR)/resources-src
 SC2_TEST_MPQ     := $(TESTS_DIR)/test-sc2.SC2Maps
@@ -386,6 +389,7 @@ $(eval $(call test_schema,test-wow-abilities,$(WOW_GENERATED_SRCS),$(WOW_TEST_CF
 $(eval $(call test_schema,test-wow-game,$(WOW_GENERATED_SRCS),$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_game$(EXE_EXT),tests/test_runner.c $(WOW_TEST_DIR)/test_wow_game.c $(WOW_DIR)/game/g_wow.c $(WOW_DIR)/game/g_ui.c $(WOW_DIR)/game/g_world.c $(WOW_DIR)/game/g_ai.c $(WOW_DIR)/game/m_creature.c $(WOW_DIR)/game/g_gameobject.c $(WOW_DIR)/game/g_spawn.c common/mpq.c $(call CSRC,shared),-lm -lz,))
 $(eval $(call test_schema,test-wow-entities,$(WOW_GENERATED_SRCS),$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_entities$(EXE_EXT),tests/test_runner.c $(WOW_TEST_DIR)/test_wow_entities.c $(WOW_DIR)/game/g_wow.c $(WOW_DIR)/game/g_world.c $(WOW_DIR)/game/g_ai.c $(WOW_DIR)/game/m_creature.c $(WOW_DIR)/game/g_gameobject.c $(WOW_DIR)/game/g_spawn.c common/mpq.c $(call CSRC,shared),-lm -lz,))
 $(eval $(call test_schema,test-wow-ui,test-wow-assets,$(WOW_UI_TEST_CFLAGS),$(BIN_DIR)/test_wow_ui$(EXE_EXT),tests/test_runner.c $(WOW_TEST_DIR)/test_wow_ui.c $(WOW_DIR)/ui/ui_main.c $(WOW_DIR)/ui/ui_lua.c $(WOW_DIR)/ui/ui_dbc.c $(WOW_DIR)/ui/ui_loading.c $(WOW_DIR)/ui/ui_xml.c common/mpq.c,-lshared $(LUA_LIBS) $(WOW_XML_LIBS) -lz,))
+$(eval $(call test_schema,test-wow-wmo,test-wow-wmo-assets,$(WOW_WMO_TEST_CFLAGS),$(BIN_DIR)/test_wow_wmo$(EXE_EXT),tests/test_runner.c $(WOW_TEST_DIR)/test_wow_wmo.c $(call CSRC,shared),-lm,))
 $(eval $(call test_schema,test-sc2,test-sc2-assets $(SHARED_LIB) $(SHEET_LIB),$(SC2_TEST_CFLAGS),$(BIN_DIR)/test_sc2$(EXE_EXT),tests/test_runner.c $(SC2_TEST_DIR)/test_sc2_map.c $(SC2_TEST_DIR)/test_sc2_layout.c $(SC2_TEST_DIR)/test_sc2_consoleui.c $(SC2_TEST_DIR)/stb_sc2layout_impl.c $(SC2_DIR)/common/sc2_map.c common/common.c common/cmd.c common/cvar.c common/msg.c common/net.c common/mpq.c,-lsheet -lshared -lm -lz $(SC2_XML_LIBS) $(NET_LIBS),))
 
 test-sc2-assets: sc2fixturegen mpqtool sc2map | $(TESTS_DIR)
@@ -435,6 +439,33 @@ test-wow-assets: blpgen mpqtool | $(TESTS_DIR)
 	@echo "[test-wow-assets] verifying archive"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_TEST_MPQ) cat Interface/Test/LuaPanel.blp | head -c4 | grep -q "BLP2" && echo "  cat panel OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_TEST_MPQ) cat Interface/FrameXML/GameHUD.lua | grep -q "wow_lua_test" && echo "  cat lua OK"
+
+# ---------------------------------------------------------------------------
+# test-wow-wmo-assets — generate minimal WMO fixture files for WMO unit tests
+# ---------------------------------------------------------------------------
+WOW_WMO_FIXTURE := $(WOW_WMO_TEST_DATA_DIR)/World/wmo/test/TestBuilding.wmo
+
+test-wow-wmo-assets: wmogen mpqtool | $(TESTS_DIR)
+	@echo "[test-wow-wmo-assets] generating WMO fixtures"
+	@mkdir -p $(WOW_WMO_TEST_DATA_DIR)/World/wmo/test
+	@$(BIN_DIR)/wmogen$(EXE_EXT) $(WOW_WMO_FIXTURE) \
+		--amb 80 40 20 \
+		--flags 0x00 \
+		--mocv 100 200 150 255 \
+		--trans-batches 1 \
+		--doodad World/props/Barrel.mdx 1.0 2.0 0.5 0 0 0 1 1.5 \
+		--doodad World/props/Crate.mdx  -1.0 3.0 0.0 0 0.7071 0 0.7071 1.0
+	@echo "[test-wow-wmo-assets] packing $(WOW_WMO_TEST_MPQ)"
+	@set --; \
+	for f in $$(find $(WOW_WMO_TEST_DATA_DIR) -type f | sort); do \
+		rel=$${f#$(WOW_WMO_TEST_DATA_DIR)/}; set -- "$$@" "$$f" "$$rel"; \
+	done; \
+	$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_WMO_TEST_MPQ) pack "$$@"
+	@echo "[test-wow-wmo-assets] verifying archive"
+	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_WMO_TEST_MPQ) \
+		info World/wmo/test/TestBuilding.wmo | grep -q "size=" && echo "  root WMO OK"
+	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_WMO_TEST_MPQ) \
+		info World/wmo/test/TestBuilding_000.wmo | grep -q "size=" && echo "  group WMO OK"
 
 # ---------------------------------------------------------------------------
 # test-wow-engine-assets — generate a minimal M2 model for in-engine WoW tests
@@ -492,4 +523,4 @@ test-sc2-live: opensc2 $(SC2_HUD_LIVE_BIN)
 	fi
 	$(SC2_HUD_LIVE_BIN)
 
-.PHONY: default build shared tools font $(TOOL_NAMES) diag clean download renderer-wow game-wow ui-wow openwow openwow-tests test-wow-engine test-wow-engine-assets renderer-sc2 game-sc2 opensc2 run run-sc2 build-run-sc2 m2tool-wow-orcmale-player install-wow test-wow-appearance test-wow-abilities test-wow-game test-wow-ui test-wow-assets test-sc2 test-sc2-assets test-sc2-live test-wc3-engine-assets $(WC3_PHONY)
+.PHONY: default build shared tools font $(TOOL_NAMES) diag clean download renderer-wow game-wow ui-wow openwow openwow-tests test-wow-engine test-wow-engine-assets renderer-sc2 game-sc2 opensc2 run run-sc2 build-run-sc2 m2tool-wow-orcmale-player install-wow test-wow-appearance test-wow-abilities test-wow-game test-wow-ui test-wow-assets test-wow-wmo test-wow-wmo-assets test-sc2 test-sc2-assets test-sc2-live test-wc3-engine-assets $(WC3_PHONY)
