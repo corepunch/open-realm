@@ -445,9 +445,10 @@ test-wow-assets: blpgen mpqtool | $(TESTS_DIR)
 # ---------------------------------------------------------------------------
 WOW_WMO_FIXTURE := $(WOW_WMO_TEST_DATA_DIR)/World/wmo/test/TestBuilding.wmo
 
-test-wow-wmo-assets: wmogen mpqtool | $(TESTS_DIR)
+test-wow-wmo-assets: wmogen wdtgen mpqtool | $(TESTS_DIR)
 	@echo "[test-wow-wmo-assets] generating WMO fixtures"
-	@mkdir -p $(WOW_WMO_TEST_DATA_DIR)/World/wmo/test
+	@mkdir -p $(WOW_WMO_TEST_DATA_DIR)/World/wmo/test \
+	           $(WOW_WMO_TEST_DATA_DIR)/World/Maps/TestDungeon
 	@$(BIN_DIR)/wmogen$(EXE_EXT) $(WOW_WMO_FIXTURE) \
 		--amb 80 40 20 \
 		--flags 0x00 \
@@ -456,6 +457,8 @@ test-wow-wmo-assets: wmogen mpqtool | $(TESTS_DIR)
 		--doodad World/props/Barrel.mdx 1.0 2.0 0.5 0 0 0 1 1.5 \
 		--doodad World/props/Crate.mdx  -1.0 3.0 0.0 0 0.7071 0 0.7071 1.0 \
 		--light 0 0.0 0.0 3.0 200 180 255 1.2
+	@$(BIN_DIR)/wdtgen$(EXE_EXT) $(WOW_WMO_TEST_DATA_DIR)/World/Maps/TestDungeon/TestDungeon.wdt \
+		--global-wmo World/wmo/test/TestBuilding.wmo
 	@echo "[test-wow-wmo-assets] packing $(WOW_WMO_TEST_MPQ)"
 	@set --; \
 	for f in $$(find $(WOW_WMO_TEST_DATA_DIR) -type f | sort); do \
@@ -467,6 +470,8 @@ test-wow-wmo-assets: wmogen mpqtool | $(TESTS_DIR)
 		info World/wmo/test/TestBuilding.wmo | grep -q "size=" && echo "  root WMO OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_WMO_TEST_MPQ) \
 		info World/wmo/test/TestBuilding_000.wmo | grep -q "size=" && echo "  group WMO OK"
+	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WOW_WMO_TEST_MPQ) \
+		info World/Maps/TestDungeon/TestDungeon.wdt | grep -q "size=" && echo "  global WDT OK"
 
 # ---------------------------------------------------------------------------
 # test-wow-engine-assets — generate a minimal M2 model for in-engine WoW tests
