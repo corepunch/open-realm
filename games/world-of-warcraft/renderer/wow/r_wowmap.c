@@ -86,7 +86,7 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
     LPCTEXTURE bound_textures[5] = { NULL, NULL, NULL, NULL, NULL };
     DWORD texture_binds = 0;
     int bound_indoor = 0;
-    BOOL draw_terrain = R_CvarEnabled("r_terrain", "1");
+    BOOL draw_terrain = R_CvarEnabled("r_terrain", "1") && !(wow_world.wdt_flags & 0x01);
     BOOL draw_wmos = R_CvarEnabled("r_wmos", "1");
 
     if (!draw_terrain && !draw_wmos) return;

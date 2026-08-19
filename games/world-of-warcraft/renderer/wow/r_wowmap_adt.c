@@ -28,26 +28,26 @@ void Wow_LoadAdt(BYTE const *data, DWORD size, DWORD tile_x, DWORD tile_y) {
             break;
         }
 
-        if (Wow_TagEquals(tag, "XETM")) {
+        if (*(DWORD const *)tag == ID_XETM) {
             Wow_FreeStringList(textures, num_textures);
             textures = Wow_ParseStringBlock(chunk, chunk_size, &num_textures);
-        } else if (Wow_TagEquals(tag, "XDMM")) {
+        } else if (*(DWORD const *)tag == ID_XDMM) {
 #if !WOW_DEBUG_DOODAD_ERROR_MESHES
             doodad_names = chunk;
             doodad_names_size = chunk_size;
 #endif
-        } else if (Wow_TagEquals(tag, "DIMM")) {
+        } else if (*(DWORD const *)tag == ID_DIMM) {
 #if !WOW_DEBUG_DOODAD_ERROR_MESHES
             doodad_offsets = (DWORD const *)chunk;
             doodad_offset_count = chunk_size / sizeof(DWORD);
 #endif
-        } else if (Wow_TagEquals(tag, "OMWM")) {
+        } else if (*(DWORD const *)tag == ID_OMWM) {
             wmo_names = chunk;
             wmo_names_size = chunk_size;
-        } else if (Wow_TagEquals(tag, "DIWM")) {
+        } else if (*(DWORD const *)tag == ID_DIWM) {
             wmo_offsets = (DWORD const *)chunk;
             wmo_offset_count = chunk_size / sizeof(DWORD);
-        } else if (Wow_TagEquals(tag, "FDDM")) {
+        } else if (*(DWORD const *)tag == ID_FDDM) {
             DWORD count = chunk_size / sizeof(wowDoodadDef_t);
             wow_world.num_doodads += count;
 #if WOW_DEBUG_DOODAD_ERROR_MESHES
@@ -59,7 +59,7 @@ void Wow_LoadAdt(BYTE const *data, DWORD size, DWORD tile_x, DWORD tile_y) {
                 Wow_AddDoodadInstance(model_path, def);
             }
 #endif
-        } else if (Wow_TagEquals(tag, "FDOM")) {
+        } else if (*(DWORD const *)tag == ID_FDOM) {
 #if WOW_DEBUG_OBJECT_MARKERS
             object_vertices = Wow_AppendMarkers(object_vertices, &object_vertex_count, chunk, chunk_size, wmo_names, wmo_names_size, wmo_offsets, wmo_offset_count, true);
 #else
@@ -70,7 +70,7 @@ void Wow_LoadAdt(BYTE const *data, DWORD size, DWORD tile_x, DWORD tile_y) {
                 Wow_AddWmoInstance(wmo_path, def);
             }
 #endif
-        } else if (Wow_TagEquals(tag, "KNCM") && chunk_size >= 0x80) {
+        } else if (*(DWORD const *)tag == ID_KNCM && chunk_size >= 0x80) {
             DWORD sub = 0x80;
             wowVec3_t pos;
             DWORD index_x;
@@ -109,21 +109,21 @@ void Wow_LoadAdt(BYTE const *data, DWORD size, DWORD tile_x, DWORD tile_y) {
                 BYTE const *subtag = chunk + sub;
                 DWORD sub_size = Wow_Read32(chunk + sub + 4);
                 BYTE const *subchunk = chunk + sub + 8;
-                BOOL is_mcnr = Wow_TagEquals(subtag, "RNCM");
+                BOOL is_mcnr = *(DWORD const *)subtag == ID_RNCM;
                 sub += 8;
                 if (sub + sub_size > chunk_size) {
                     break;
                 }
-                if (Wow_TagEquals(subtag, "TVCM") && sub_size >= sizeof(heights)) {
+                if (*(DWORD const *)subtag == ID_TVCM && sub_size >= sizeof(heights)) {
                     memcpy(heights, subchunk, sizeof(heights));
                     has_heights = true;
                 } else if (is_mcnr && sub_size >= sizeof(normals)) {
                     memcpy(normals, subchunk, sizeof(normals));
                     has_normals = true;
-                } else if (Wow_TagEquals(subtag, "YLCM") && sub_size >= sizeof(wowLayer_t)) {
+                } else if (*(DWORD const *)subtag == ID_YLCM && sub_size >= sizeof(wowLayer_t)) {
                     layer_count = MIN(sub_size / sizeof(wowLayer_t), 4);
                     memcpy(layers, subchunk, sizeof(*layers) * layer_count);
-                } else if (Wow_TagEquals(subtag, "LACM")) {
+                } else if (*(DWORD const *)subtag == ID_LACM) {
                     mcal = subchunk;
                     mcal_size = sub_size;
                 }
@@ -199,7 +199,7 @@ BYTE const *Wow_FindMainChunk(BYTE const *data, DWORD size, LPDWORD main_size) {
         if (offset + chunk_size > size) {
             break;
         }
-        if (Wow_TagEquals(tag, "NIAM")) {
+        if (*(DWORD const *)tag == ID_NIAM) {
             *main_size = chunk_size;
             return data + offset;
         }
@@ -220,7 +220,7 @@ void Wow_LoadWdtFlags(BYTE const *data, DWORD size) {
         if (offset + chunk_size > size) {
             break;
         }
-        if (Wow_TagEquals(tag, "DHPM") && chunk_size >= sizeof(DWORD)) {
+        if (*(DWORD const *)tag == ID_DHPM && chunk_size >= sizeof(DWORD)) {
             wow_world.wdt_flags = Wow_Read32(chunk);
             return;
         }
@@ -232,6 +232,14 @@ BOOL Wow_LoadWdtTiles(BYTE const *data, DWORD size) {
     DWORD main_size = 0;
     BYTE const *main_chunk = Wow_FindMainChunk(data, size, &main_size);
     DWORD max_entries;
+    /* WDT-level WMO placement (global-WMO maps: dungeons, instances) */
+    LPCSTR wmo_name_blob = NULL;
+    DWORD  wmo_name_blob_size = 0;
+    DWORD const *wmo_offsets = NULL;
+    DWORD  wmo_offset_count = 0;
+    BYTE const *modf_chunk = NULL;
+    DWORD  modf_size = 0;
+    DWORD  offset2 = 0;
 
     if (!main_chunk || main_size < sizeof(wowWdtMainEntry_t)) {
         return false;
@@ -248,6 +256,43 @@ BOOL Wow_LoadWdtTiles(BYTE const *data, DWORD size) {
             }
             entry = (wowWdtMainEntry_t const *)(main_chunk + i * sizeof(*entry));
             wow_world.tiles[tile_x][tile_y].present = (entry->flags & 1) != 0;
+        }
+    }
+
+    /* Phase 5: for global-WMO maps (MPHD bit 0x01), parse WDT-level MWMO/MWID/MODF */
+    if (!(wow_world.wdt_flags & 0x01)) return true;
+
+    while (offset2 + 8 <= size) {
+        BYTE const *tag = data + offset2;
+        DWORD chunk_size = Wow_Read32(data + offset2 + 4);
+        BYTE const *chunk = data + offset2 + 8;
+        offset2 += 8;
+        if (offset2 + chunk_size > size) break;
+        if (Wow_TagEquals(tag, ID_OMWM) && chunk_size > 0) {
+            wmo_name_blob = (LPCSTR)chunk;
+            wmo_name_blob_size = chunk_size;
+        } else if (Wow_TagEquals(tag, ID_DIWM) && chunk_size >= sizeof(DWORD)) {
+            wmo_offsets = (DWORD const *)chunk;
+            wmo_offset_count = chunk_size / sizeof(DWORD);
+        } else if (Wow_TagEquals(tag, ID_FDOM) && chunk_size >= sizeof(wowMapObjDef_t)) {
+            modf_chunk = chunk;
+            modf_size  = chunk_size;
+        }
+        offset2 += chunk_size;
+    }
+
+    if (modf_chunk && modf_size >= sizeof(wowMapObjDef_t)) {
+        DWORD count = modf_size / sizeof(wowMapObjDef_t);
+        FOR_LOOP(i, count) {
+            wowMapObjDef_t const *def = (wowMapObjDef_t const *)(modf_chunk + i * sizeof(*def));
+            LPCSTR wmo_path = Wow_StringRefFromOffsets((BYTE const *)wmo_name_blob,
+                                                        wmo_name_blob_size,
+                                                        wmo_offsets, wmo_offset_count,
+                                                        def->name_id);
+            if (wmo_path && *wmo_path) {
+                Wow_AddWmoInstance(wmo_path, def);
+                fprintf(stderr, "WDT global WMO: %s\n", wmo_path);
+            }
         }
     }
     return true;

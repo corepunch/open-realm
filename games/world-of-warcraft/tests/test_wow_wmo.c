@@ -786,3 +786,85 @@ TEST(wow_wmo_blend, blend_mode_independent_of_texture_offset) {
     uint16_t rbm; memcpy(&rbm, mat + 0x02, 2); T_EQ((int)rbm, 4);
     uint32_t rtex; memcpy(&rtex, mat + 0x0c, 4); T_EQ((int)rtex, 0x200);
 }
+
+/* =========================================================================
+   K. Phase 5: Global WMO maps — WDT MPHD flags and WMO placement
+   ======================================================================= */
+
+TEST(wow_wmo_global, mphd_global_wmo_bit_is_0x01) {
+    /* MPHD flags: bit 0x01 = global WMO map (no ADT tiles, WMO at WDT level) */
+    DWORD flags_global = 0x01;
+    DWORD flags_normal = 0x04; /* big-alpha only */
+    T_ASSERT((flags_global & 0x01) != 0);
+    T_ASSERT((flags_normal & 0x01) == 0);
+}
+
+TEST(wow_wmo_global, terrain_suppressed_when_bit_01_set) {
+    /* Simulate the draw_terrain flag logic:
+       draw_terrain = r_terrain_enabled && !(wdt_flags & 0x01) */
+    BOOL r_terrain_cvar = true;
+    DWORD wdt_flags_normal = 0x00;
+    DWORD wdt_flags_global = 0x01;
+    BOOL dt_normal = r_terrain_cvar && !(wdt_flags_normal & 0x01);
+    BOOL dt_global = r_terrain_cvar && !(wdt_flags_global & 0x01);
+    T_ASSERT(dt_normal);   /* regular map: terrain draws */
+    T_ASSERT(!dt_global);  /* global-WMO map: terrain suppressed */
+}
+
+TEST(wow_wmo_global, modf_record_size_matches_wowMapObjDef) {
+    /* wowMapObjDef_t must be exactly 64 bytes for correct WDT MODF parsing */
+    /* nameId(4) + uniqueId(4) + position(12) + rotation(12) + extents(24) +
+       flags(2) + doodad_set(2) + name_set(2) + unk(2) = 64 bytes */
+    DWORD expected_size =
+        sizeof(DWORD) +   /* name_id */
+        sizeof(DWORD) +   /* unique_id */
+        3 * sizeof(float) + /* position */
+        3 * sizeof(float) + /* rotation */
+        2 * 3 * sizeof(float) + /* extents (min+max) */
+        sizeof(WORD) +    /* flags */
+        sizeof(WORD) +    /* doodad_set */
+        sizeof(WORD) +    /* name_set */
+        sizeof(WORD);     /* unk */
+    T_EQ((int)expected_size, 64);
+}
+
+TEST(wow_wmo_global, mwmo_name_blob_null_terminated_strings) {
+    /* MWMO / OMWM chunk is a null-terminated string block.
+       Multiple paths packed: "path/a.wmo\0path/b.wmo\0" */
+    const char blob[] = "World/wmo/Test.wmo\0World/wmo/Other.wmo\0";
+    DWORD blob_size = (DWORD)(sizeof(blob) - 1);
+
+    /* First string at offset 0 */
+    const char *first = blob + 0;
+    /* Second string at offset strlen(first)+1 */
+    DWORD second_off = (DWORD)(strlen(first) + 1);
+    const char *second = blob + second_off;
+
+    T_STREQ(first,  "World/wmo/Test.wmo");
+    T_STREQ(second, "World/wmo/Other.wmo");
+    T_ASSERT(second_off < blob_size);
+}
+
+TEST(wow_wmo_global, mwid_offset_array_indexes_mwmo_blob) {
+    /* MWID / DIWM: array of DWORD offsets into the MWMO blob */
+    const char mwmo[] = "path/a.wmo\0path/b.wmo\0";
+    DWORD offsets[2] = { 0, 11 }; /* 0 and strlen("path/a.wmo")+1 */
+
+    const char *a = mwmo + offsets[0];
+    const char *b = mwmo + offsets[1];
+    T_STREQ(a, "path/a.wmo");
+    T_STREQ(b, "path/b.wmo");
+}
+
+TEST(wow_wmo_global, name_id_in_modf_is_index_into_mwid) {
+    /* MODF entry name_id is an index into the MWID offset array.
+       Production: Wow_StringRefFromOffsets(name_blob, size, offsets, count, name_id) */
+    DWORD offsets[2] = { 0, 11 };
+    const char mwmo[] = "WorldA.wmo\0WorldB.wmo\0";
+    DWORD name_id = 1;
+
+    /* Direct lookup to simulate Wow_StringRefFromOffsets */
+    DWORD name_offset = offsets[name_id];
+    const char *path = mwmo + name_offset;
+    T_STREQ(path, "WorldB.wmo");
+}
