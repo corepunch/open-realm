@@ -3,6 +3,7 @@
 
 #include "renderer/r_local.h"
 #include "common/ui_constants.h"
+#include "common/wow_chunks.h"
 #include <strings.h>
 #include <stdlib.h>
 #include <float.h>
@@ -164,10 +165,25 @@ typedef struct wowWmoBatch_s {
     struct wowWmoBatch_s *next;
 } wowWmoBatch_t;
 
+typedef struct {
+    WORD  start_vertex; /* first vertex index in model->portal_vertices */
+    WORD  count;        /* number of vertices in this portal polygon */
+    float plane[4];     /* (nx, ny, nz, d) in WMO local space */
+} wowWmoPortal_t;  /* 20 bytes */
+
+typedef struct {
+    WORD  portal_index; /* index into model->portals */
+    WORD  group_index;  /* group this portal connects to */
+    int16_t side;       /* -1 or +1: which side the group is on */
+    WORD  pad;
+} wowWmoPortalRef_t;  /* 8 bytes */
+
 typedef struct wowWmoGroup_s {
     wowWmoBatch_t *batches;
     BOX3 bounds;
     BOOL has_bounds;
+    WORD portal_start;     /* MOGP +0x24: first entry in model->portal_refs */
+    WORD portal_count;     /* MOGP +0x26: number of portal_refs for this group */
     COLOR32 group_amb;       /* MOGP replacement_for_header_color (BGRA→RGB) */
     BOOL    has_group_amb;   /* true when replacement_for_header_color was non-zero */
 } wowWmoGroup_t;
@@ -205,6 +221,12 @@ typedef struct wowWmoModel_s {
     DWORD              doodad_name_blob_size;
     wowWmoLight_t     *lights;             /* MOLT light array */
     DWORD              num_lights_parsed;  /* actual parsed count (n_lights = from MOHD header) */
+    wowWmoPortal_t    *portals;            /* MOPT portal plane definitions */
+    DWORD              num_portals;
+    wowVec3_t         *portal_vertices;   /* MOPV portal polygon vertices */
+    DWORD              num_portal_vertices;
+    wowWmoPortalRef_t *portal_refs;       /* MOPR per-group portal references */
+    DWORD              num_portal_refs;
     struct wowWmoModel_s *next;
 } wowWmoModel_t;
 
@@ -401,7 +423,6 @@ void Wow_SetMapNames(LPCSTR path);
 BOOL Wow_LoadMinimapTranslations(void);
 DWORD Wow_Read32(BYTE const *p);
 WORD Wow_Read16(BYTE const *p);
-BOOL Wow_TagEquals(BYTE const *tag, LPCSTR reversed);
 void Wow_FreeChunks(void);
 void Wow_FreeWmoModels(void);
 void Wow_FreeWmoInstances(void);
@@ -488,6 +509,7 @@ void Wow_QueueWmoDoodads(wowWmoInstance_t const *wmo);
 BOOL Wow_EntityInView(renderEntity_t const *entity);
 BOOL Wow_TerrainChunkInRange(wowAdtChunk_t const *chunk);
 BOOL Wow_WmoGroupInView(wowWmoGroup_t const *group, LPCMATRIX4 matrix);
+BOOL Wow_WmoContainsPoint(wowWmoModel_t const *model, LPCMATRIX4 matrix, VECTOR3 point);
 void Wow_BindWorldTexture(LPCTEXTURE texture, DWORD unit, LPCTEXTURE bound[5], LPDWORD binds);
 void Wow_DrawMinimap(LPCRECT screen);
 BOOL Wow_MakeSplatVertex(float x, float y, LPCVECTOR2 mins, float width, float height, COLOR32 color, LPVERTEX vertex);

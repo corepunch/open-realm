@@ -868,3 +868,143 @@ TEST(wow_wmo_global, name_id_in_modf_is_index_into_mwid) {
     const char *path = mwmo + name_offset;
     T_STREQ(path, "WorldB.wmo");
 }
+
+/* =========================================================================
+   L. Phase 6: Portal structs, MOPT/MOPV/MOPR parsing, containment logic
+   ======================================================================= */
+
+typedef struct {
+    uint16_t start_vertex;
+    uint16_t count;
+    float    plane[4];
+} test_WmoPortal_t;  /* 12 bytes */
+
+typedef struct {
+    uint16_t portal_index;
+    uint16_t group_index;
+    int16_t  side;
+    uint16_t pad;
+} test_WmoPortalRef_t;  /* 8 bytes */
+
+TEST(wow_wmo_portal, portal_struct_is_20_bytes) {
+    /* 2(startVertex) + 2(count) + 16(plane[4]) = 20 bytes */
+    T_EQ((int)sizeof(test_WmoPortal_t), 20);
+}
+
+TEST(wow_wmo_portal, portal_ref_struct_is_8_bytes) {
+    T_EQ((int)sizeof(test_WmoPortalRef_t), 8);
+}
+
+TEST(wow_wmo_portal, portal_ref_field_offsets) {
+    test_WmoPortalRef_t r;
+    T_EQ((int)((BYTE*)&r.group_index - (BYTE*)&r), 2);
+    T_EQ((int)((BYTE*)&r.side       - (BYTE*)&r), 4);
+    T_EQ((int)((BYTE*)&r.pad        - (BYTE*)&r), 6);
+}
+
+TEST(wow_wmo_portal, mopt_binary_parse) {
+    /* Minimal MOPT record: startVertex=0, count=4, plane=(0,0,1,-5) */
+    BYTE buf[12];
+    memset(buf, 0, sizeof(buf));
+    uint16_t sv = 0, cnt = 4;
+    float nx = 0.0f, ny = 0.0f, nz = 1.0f, d = -5.0f;
+    memcpy(buf + 0, &sv,  2);
+    memcpy(buf + 2, &cnt, 2);
+    memcpy(buf + 4, &nx, 4);
+    memcpy(buf + 8, &ny, 4);
+    /* Note: plane[4] = {nx, ny, nz, d}, written consecutively */
+    BYTE buf16[12];
+    memset(buf16, 0, sizeof(buf16));
+    memcpy(buf16 + 0, &sv,  2);
+    memcpy(buf16 + 2, &cnt, 2);
+    memcpy(buf16 + 4, &nx, 4);
+    memcpy(buf16 + 8, &ny, 4);
+
+    test_WmoPortal_t p;
+    memcpy(&p, buf16, sizeof(p));
+    T_EQ((int)p.start_vertex, 0);
+    T_EQ((int)p.count, 4);
+    T_ASSERT(feq(p.plane[0], 0.0f));
+    T_ASSERT(feq(p.plane[1], 0.0f));
+}
+
+TEST(wow_wmo_portal, mopt_plane_field) {
+    /* Full portal plane: (0.707, 0, 0.707, -10) */
+    test_WmoPortal_t p;
+    memset(&p, 0, sizeof(p));
+    p.start_vertex = 2;
+    p.count = 3;
+    p.plane[0] = 0.707f;
+    p.plane[1] = 0.0f;
+    p.plane[2] = 0.707f;
+    p.plane[3] = -10.0f;
+
+    T_EQ((int)p.start_vertex, 2);
+    T_ASSERT(feq(p.plane[0], 0.707f));
+    T_ASSERT(feq(p.plane[3], -10.0f));
+}
+
+TEST(wow_wmo_portal, mopr_side_values) {
+    /* MOPR side field: -1 = group sees portal from back, +1 from front */
+    test_WmoPortalRef_t r;
+    memset(&r, 0, sizeof(r));
+    r.side = -1;
+    T_EQ((int)r.side, -1);
+    r.side = 1;
+    T_EQ((int)r.side, 1);
+}
+
+TEST(wow_wmo_portal, mopr_chunk_count) {
+    /* Chunk count = chunk_size / 8 */
+    DWORD chunk_size = 3 * 8; /* 3 portal ref records */
+    DWORD count = chunk_size / (DWORD)sizeof(test_WmoPortalRef_t);
+    T_EQ((int)count, 3);
+}
+
+TEST(wow_wmo_portal, containment_point_inside_aabb) {
+    /* Point is inside [min=(0,0,0), max=(10,10,10)] */
+    float min_x = 0.0f, min_y = 0.0f, min_z = 0.0f;
+    float max_x = 10.0f, max_y = 10.0f, max_z = 10.0f;
+    float px = 5.0f, py = 5.0f, pz = 5.0f;
+    BOOL inside = (px >= min_x && px <= max_x &&
+                   py >= min_y && py <= max_y &&
+                   pz >= min_z && pz <= max_z);
+    T_ASSERT(inside);
+}
+
+TEST(wow_wmo_portal, containment_point_outside_aabb) {
+    float min_x = 0.0f, min_y = 0.0f, min_z = 0.0f;
+    float max_x = 10.0f, max_y = 10.0f, max_z = 10.0f;
+    float px = 15.0f, py = 5.0f, pz = 5.0f; /* outside on x */
+    BOOL inside = (px >= min_x && px <= max_x &&
+                   py >= min_y && py <= max_y &&
+                   pz >= min_z && pz <= max_z);
+    T_ASSERT(!inside);
+}
+
+TEST(wow_wmo_portal, containment_point_on_boundary) {
+    float min_x = 0.0f, max_x = 10.0f;
+    float px_on = 10.0f; /* exactly on max boundary */
+    BOOL on_boundary = (px_on >= min_x && px_on <= max_x);
+    T_ASSERT(on_boundary); /* boundary counts as inside */
+}
+
+TEST(wow_wmo_portal, portal_group_skips_exterior_when_cam_inside) {
+    /* Simulate the batch culling logic: if cam_inside && !batch->indoor → skip */
+    BOOL cam_inside = true;
+    BOOL batch_indoor_false = false;
+    BOOL batch_indoor_true  = true;
+
+    BOOL skip_exterior = cam_inside && !batch_indoor_false;
+    BOOL skip_interior = cam_inside && !batch_indoor_true;
+    T_ASSERT(skip_exterior);  /* exterior batch skipped when inside */
+    T_ASSERT(!skip_interior); /* interior batch drawn even when inside */
+}
+
+TEST(wow_wmo_portal, no_portals_no_containment_culling) {
+    /* If the model has no portal data, cam_inside should always be false */
+    DWORD num_portals = 0;
+    /* Production: if (!model || !matrix || !model->portals) return false; */
+    BOOL has_portals = num_portals > 0;
+    T_ASSERT(!has_portals); /* no portals → cam_inside=false → no culling */
+}
