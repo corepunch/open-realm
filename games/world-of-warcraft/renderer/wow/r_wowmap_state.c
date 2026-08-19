@@ -254,6 +254,7 @@ void Wow_ShutdownWorldShaders(void) {
     wow_uSingleTexture = -1;
     wow_uWmoIndoor = -1;
     wow_uWmoAmbient = -1;
+    wow_uWmoBlendMode = -1;
     wow_uAlphaOrigin = -1;
     wow_uAlphaAtlasChunks = -1;
     wow_uGrassTime = -1;

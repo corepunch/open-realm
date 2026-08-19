@@ -129,50 +129,87 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
         stats->chunks++; stats->vertices += chunk->num_vertices;
     }
 
-    /* WMO batches have one texture; do not churn four terrain samplers per material. */
+    /* WMO batches have one texture; two passes: opaque first, alpha-blended second. */
     R_Call(glUniform1i, wow_uSingleTexture, 1);
-    for (wowWmoInstance_t *wmo = draw_wmos ? wow_world.wmos : NULL; wmo; wmo = wmo->next) {
-        DWORD visible_groups = 0;
-        BOOL model_batch;
-        if (!wmo->model || !wmo->model->groups) {
-            continue;
-        }
-        Matrix3_normal(&normal_matrix, &wmo->matrix);
-        R_Call(glUniformMatrix4fv, wow_terrain_shader->uModelMatrix, 1, GL_FALSE, wmo->matrix.v);
-        R_Call(glUniformMatrix3fv, wow_terrain_shader->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
-        R_Call(glUniform1i, wow_uUseWeightedBlend, 0);
-        R_Call(glUniform2f, wow_uAlphaOrigin, 0.0f, 0.0f);
-        R_Call(glUniform3f, wow_uWmoAmbient, wmo->model->amb_color.r / 255.0f,
-               wmo->model->amb_color.g / 255.0f, wmo->model->amb_color.b / 255.0f);
-        FOR_LOOP(group_index, wmo->model->num_groups)
-            if (Wow_WmoGroupInView(&wmo->model->groups[group_index], &wmo->matrix)) visible_groups++;
-        if (!visible_groups) continue;
-        stats->wmo_groups += visible_groups;
-        model_batch = wmo->model->batches && visible_groups * WOW_WMO_MODEL_BATCH_DIVISOR >= wmo->model->num_groups;
-        if (model_batch) {
-            for (wowWmoBatch_t *batch = wmo->model->batches; batch; batch = batch->next) {
-                if (!batch->buffer || !batch->num_vertices) continue;
-                if (bound_indoor != batch->indoor) { bound_indoor = batch->indoor; R_Call(glUniform1i, wow_uWmoIndoor, bound_indoor); }
-                Wow_BindWorldTexture(batch->texture ? batch->texture : tr.texture[TEX_WHITE], 0, bound_textures, &texture_binds);
-                R_DrawBuffer(batch->buffer, batch->num_vertices); stats->wmo_batches++;
-                if (stats->collect && Wow_StatPointer(batch->texture, stats->texture_hash, sizeof(stats->texture_hash) / sizeof(*stats->texture_hash))) stats->wmo_textures++;
+    R_Call(glUniform1i, wow_uWmoBlendMode, 0);
+    {
+        int bound_blend_mode = 0;
+        /* Iterate all WMOs once per pass to avoid per-batch branching on pass type. */
+        for (int wmo_pass = 0; wmo_pass < 2; wmo_pass++) {
+            if (wmo_pass == 1) {
+                R_Call(glEnable, GL_BLEND);
+                R_Call(glDepthMask, GL_FALSE);
+                R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                bound_blend_mode = 2;
             }
-            stats->wmo_batched++;
-        } else {
-            FOR_LOOP(group_index, wmo->model->num_groups) {
-                wowWmoGroup_t *group = &wmo->model->groups[group_index];
-                if (!Wow_WmoGroupInView(group, &wmo->matrix)) continue;
-                for (wowWmoBatch_t *batch = group->batches; batch; batch = batch->next) {
-                    if (!batch->buffer || !batch->num_vertices) continue;
-                    if (bound_indoor != batch->indoor) { bound_indoor = batch->indoor; R_Call(glUniform1i, wow_uWmoIndoor, bound_indoor); }
-                    Wow_BindWorldTexture(batch->texture ? batch->texture : tr.texture[TEX_WHITE], 0, bound_textures, &texture_binds);
-                    R_DrawBuffer(batch->buffer, batch->num_vertices); stats->wmo_batches++;
-                    if (stats->collect && Wow_StatPointer(batch->texture, stats->texture_hash, sizeof(stats->texture_hash) / sizeof(*stats->texture_hash))) stats->wmo_textures++;
+            for (wowWmoInstance_t *wmo = draw_wmos ? wow_world.wmos : NULL; wmo; wmo = wmo->next) {
+                DWORD visible_groups = 0;
+                BOOL model_batch;
+                if (!wmo->model || !wmo->model->groups) continue;
+                Matrix3_normal(&normal_matrix, &wmo->matrix);
+                R_Call(glUniformMatrix4fv, wow_terrain_shader->uModelMatrix, 1, GL_FALSE, wmo->matrix.v);
+                R_Call(glUniformMatrix3fv, wow_terrain_shader->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
+                R_Call(glUniform1i, wow_uUseWeightedBlend, 0);
+                R_Call(glUniform2f, wow_uAlphaOrigin, 0.0f, 0.0f);
+                R_Call(glUniform3f, wow_uWmoAmbient, wmo->model->amb_color.r / 255.0f,
+                       wmo->model->amb_color.g / 255.0f, wmo->model->amb_color.b / 255.0f);
+                FOR_LOOP(gi, wmo->model->num_groups)
+                    if (Wow_WmoGroupInView(&wmo->model->groups[gi], &wmo->matrix)) visible_groups++;
+                if (!visible_groups) continue;
+                if (!wmo_pass) { stats->wmo_groups += visible_groups; }
+                model_batch = wmo->model->batches && visible_groups * WOW_WMO_MODEL_BATCH_DIVISOR >= wmo->model->num_groups;
+                if (model_batch) {
+                    for (wowWmoBatch_t *batch = wmo->model->batches; batch; batch = batch->next) {
+                        if (!batch->buffer || !batch->num_vertices) continue;
+                        if ((int)batch->transparent != wmo_pass) continue;
+                        if (bound_indoor != batch->indoor) { bound_indoor = batch->indoor; R_Call(glUniform1i, wow_uWmoIndoor, bound_indoor); }
+                        if (bound_blend_mode != (int)batch->blend_mode) {
+                            bound_blend_mode = (int)batch->blend_mode;
+                            R_Call(glUniform1i, wow_uWmoBlendMode, bound_blend_mode);
+                            if (wmo_pass) {
+                                if (bound_blend_mode == 3)      { R_Call(glBlendFunc, GL_ONE, GL_ONE); }
+                                else if (bound_blend_mode == 4) { R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE); }
+                                else                             { R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); }
+                            }
+                        }
+                        Wow_BindWorldTexture(batch->texture ? batch->texture : tr.texture[TEX_WHITE], 0, bound_textures, &texture_binds);
+                        R_DrawBuffer(batch->buffer, batch->num_vertices); stats->wmo_batches++;
+                        if (stats->collect && Wow_StatPointer(batch->texture, stats->texture_hash, sizeof(stats->texture_hash) / sizeof(*stats->texture_hash))) stats->wmo_textures++;
+                    }
+                    if (!wmo_pass) stats->wmo_batched++;
+                } else {
+                    FOR_LOOP(gi2, wmo->model->num_groups) {
+                        wowWmoGroup_t *group = &wmo->model->groups[gi2];
+                        if (!Wow_WmoGroupInView(group, &wmo->matrix)) continue;
+                        for (wowWmoBatch_t *batch = group->batches; batch; batch = batch->next) {
+                            if (!batch->buffer || !batch->num_vertices) continue;
+                            if ((int)batch->transparent != wmo_pass) continue;
+                            if (bound_indoor != batch->indoor) { bound_indoor = batch->indoor; R_Call(glUniform1i, wow_uWmoIndoor, bound_indoor); }
+                            if (bound_blend_mode != (int)batch->blend_mode) {
+                                bound_blend_mode = (int)batch->blend_mode;
+                                R_Call(glUniform1i, wow_uWmoBlendMode, bound_blend_mode);
+                                if (wmo_pass) {
+                                    if (bound_blend_mode == 3)      { R_Call(glBlendFunc, GL_ONE, GL_ONE); }
+                                    else if (bound_blend_mode == 4) { R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE); }
+                                    else                             { R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); }
+                                }
+                            }
+                            Wow_BindWorldTexture(batch->texture ? batch->texture : tr.texture[TEX_WHITE], 0, bound_textures, &texture_binds);
+                            R_DrawBuffer(batch->buffer, batch->num_vertices); stats->wmo_batches++;
+                            if (stats->collect && Wow_StatPointer(batch->texture, stats->texture_hash, sizeof(stats->texture_hash) / sizeof(*stats->texture_hash))) stats->wmo_textures++;
+                        }
+                    }
+                }
+                if (!wmo_pass) {
+                    stats->wmo_instances++;
+                    if (stats->collect && Wow_StatPointer(wmo->model, stats->model_hash, sizeof(stats->model_hash) / sizeof(*stats->model_hash))) stats->wmo_models++;
                 }
             }
+            if (wmo_pass == 1) {
+                R_Call(glDisable, GL_BLEND);
+                R_Call(glDepthMask, GL_TRUE);
+            }
         }
-        stats->wmo_instances++;
-        if (stats->collect && Wow_StatPointer(wmo->model, stats->model_hash, sizeof(stats->model_hash) / sizeof(*stats->model_hash))) stats->wmo_models++;
     }
     Matrix3_normal(&normal_matrix, &identity);
     R_Call(glUniformMatrix4fv, wow_terrain_shader->uModelMatrix, 1, GL_FALSE, identity.v);
@@ -181,6 +218,7 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
     R_Call(glUniform1i, wow_uSingleTexture, 0);
     R_Call(glUniform1i, wow_uWmoIndoor, 0);
     R_Call(glUniform3f, wow_uWmoAmbient, 0.0f, 0.0f, 0.0f);
+    R_Call(glUniform1i, wow_uWmoBlendMode, 0);
 }
 
 /* Group the small visible set by static M2 so repeated trees/props share material draws. */

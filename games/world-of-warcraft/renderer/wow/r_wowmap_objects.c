@@ -8,6 +8,7 @@ typedef struct {
 
 typedef struct {
     LPTEXTURE const *materials;
+    BYTE const *mat_blend_modes;  /* blend_modes[material_id], 0-4, size=material_count */
     WOWWMOBUILD *builds;
     DWORD material_count, slot_count, build_count;
 } WOWWMOLOAD;
@@ -336,16 +337,21 @@ static BOOL Wow_LoadWmoGroup(wowWmoModel_t *model, DWORD group_index, WOWWMOLOAD
         }
     }
 
-    /* Same-texture triangles are opaque under the current WMO material contract, so one VBO preserves output. */
+    /* One VBO per material slot; blend mode comes from the slot's material. */
     FOR_LOOP(i, build_count) {
         WOWWMOBUILD *build = &builds[i];
         if (build->count) {
+            DWORD slot_index = (DWORD)i % load->slot_count;
+            BYTE blend_mode = (load->mat_blend_modes && slot_index < load->material_count)
+                              ? load->mat_blend_modes[slot_index] : 0;
             wowWmoBatch_t *out_batch = ri.MemAlloc(sizeof(*out_batch));
             memset(out_batch, 0, sizeof(*out_batch));
             out_batch->buffer = R_MakeVertexArrayObject(build->vertices, build->count);
             out_batch->num_vertices = build->count;
             out_batch->texture = build->texture;
             out_batch->indoor = indoor;
+            out_batch->blend_mode = blend_mode;
+            out_batch->transparent = (blend_mode >= 2);
             out_batch->next = model->groups[group_index].batches;
             model->groups[group_index].batches = out_batch;
             wow_world.num_wmo_batches++;
@@ -370,6 +376,7 @@ BOOL Wow_LoadWmoModel(wowWmoModel_t *model) {
     BYTE const *materials_blob = NULL;
     DWORD material_count = 0;
     LPTEXTURE *materials = NULL;
+    BYTE *mat_blend_modes = NULL;
     WOWWMOLOAD load = { 0 };
 
     size = ri.FS_ReadFile(model->path, (void **)&data);
@@ -441,17 +448,22 @@ BOOL Wow_LoadWmoModel(wowWmoModel_t *model) {
 
     if (material_count) {
         materials = ri.MemAlloc(sizeof(*materials) * material_count);
+        mat_blend_modes = ri.MemAlloc(material_count);
         memset(materials, 0, sizeof(*materials) * material_count);
+        memset(mat_blend_modes, 0, material_count);
         FOR_LOOP(i, material_count) {
             DWORD texture_offset = Wow_Read32(materials_blob + i * 64 + 0x0c);
+            WORD blend = Wow_Read16(materials_blob + i * 64 + 0x02);
             LPCSTR texture_path = Wow_StringAt(texture_blob, texture_blob_size, texture_offset);
             materials[i] = texture_path ? Wow_LoadTexture(texture_path) : tr.texture[TEX_WHITE];
+            mat_blend_modes[i] = (BYTE)(blend > 4 ? 0 : blend);
         }
     }
 
-    load.materials = materials; load.material_count = material_count; load.slot_count = material_count + 1; load.build_count = load.slot_count * 2;
+    load.materials = materials; load.mat_blend_modes = mat_blend_modes;
+    load.material_count = material_count; load.slot_count = material_count + 1; load.build_count = load.slot_count * 2;
     load.builds = ri.MemAlloc(load.build_count * sizeof(*load.builds));
-    if (!load.builds) { if (materials) ri.MemFree(materials); ri.FS_FreeFile(data); return false; }
+    if (!load.builds) { if (materials) ri.MemFree(materials); if (mat_blend_modes) ri.MemFree(mat_blend_modes); ri.FS_FreeFile(data); return false; }
     memset(load.builds, 0, load.build_count * sizeof(*load.builds));
     FOR_LOOP(i, load.build_count) load.builds[i].texture = i % load.slot_count < material_count ? materials[i % load.slot_count] : tr.texture[TEX_WHITE];
 
@@ -461,7 +473,8 @@ BOOL Wow_LoadWmoModel(wowWmoModel_t *model) {
     FOR_LOOP(i, group_count) {
         if (!Wow_LoadWmoGroup(model, i, &load)) {
             Wow_WmoBuildFree(load.builds, load.build_count);
-            if (materials) ri.MemFree(materials);
+            if (materials)       ri.MemFree(materials);
+            if (mat_blend_modes) ri.MemFree(mat_blend_modes);
             ri.FS_FreeFile(data);
             return false;
         }
@@ -470,19 +483,23 @@ BOOL Wow_LoadWmoModel(wowWmoModel_t *model) {
     FOR_LOOP(i, load.build_count) {
         WOWWMOBUILD *build = &load.builds[i];
         if (build->count) {
+            DWORD slot_index = (DWORD)i % load.slot_count;
+            BYTE blend_mode = (load.mat_blend_modes && slot_index < load.material_count)
+                              ? load.mat_blend_modes[slot_index] : 0;
             wowWmoBatch_t *batch = ri.MemAlloc(sizeof(*batch));
             memset(batch, 0, sizeof(*batch));
             batch->buffer = R_MakeVertexArrayObject(build->vertices, build->count);
             batch->num_vertices = build->count; batch->texture = build->texture;
             batch->indoor = i >= load.slot_count;
+            batch->blend_mode = blend_mode;
+            batch->transparent = (blend_mode >= 2);
             batch->next = model->batches; model->batches = batch; model->num_batches++;
         }
     }
     Wow_WmoBuildFree(load.builds, load.build_count);
 
-    if (materials) {
-        ri.MemFree(materials);
-    }
+    if (materials)       ri.MemFree(materials);
+    if (mat_blend_modes) ri.MemFree(mat_blend_modes);
     ri.FS_FreeFile(data);
     model->loaded = true;
     return true;
