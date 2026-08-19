@@ -65,7 +65,7 @@
 
 extern refImport_t ri;
 
-static BOOL R_CvarEnabled(LPCSTR name, LPCSTR fallback) { return !ri.CvarString || atoi(ri.CvarString(name, fallback)); }
+static inline BOOL R_CvarEnabled(LPCSTR name, LPCSTR fallback) { return !ri.CvarString || atoi(ri.CvarString(name, fallback)); }
 static uint64_t R_PrimitiveTriangles(GLenum mode, DWORD count, DWORD instances) {
     return mode == GL_TRIANGLES ? (uint64_t)(count / 3) * instances : 0;
 }
