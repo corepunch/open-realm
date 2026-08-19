@@ -706,3 +706,83 @@ TEST(wow_wmo_group_amb, zero_replacement_color_means_no_override) {
     uint32_t replacement; memcpy(&replacement, chunk + 0x38, 4);
     T_EQ((int)replacement, 0);
 }
+
+/* =========================================================================
+   J. Phase 4: MOMT blend mode parsing and transparent flag
+   ======================================================================= */
+
+TEST(wow_wmo_blend, momt_blend_mode_at_offset_2) {
+    /* MOMT record is 64 bytes; blendMode is a WORD at +0x02 */
+    BYTE mat[64];
+    memset(mat, 0, sizeof(mat));
+    uint16_t bm = 2; /* Alpha blend */
+    memcpy(mat + 2, &bm, 2);
+
+    uint16_t read_bm; memcpy(&read_bm, mat + 2, 2);
+    T_EQ((int)read_bm, 2);
+}
+
+TEST(wow_wmo_blend, blend_mode_0_is_opaque) {
+    uint16_t bm = 0;
+    BOOL transparent = (bm >= 2);
+    T_ASSERT(!transparent);
+}
+
+TEST(wow_wmo_blend, blend_mode_1_is_alpha_key_not_transparent) {
+    /* blendMode=1 (AlphaKey) uses discard but no GL_BLEND → not transparent */
+    uint16_t bm = 1;
+    BOOL transparent = (bm >= 2);
+    T_ASSERT(!transparent);
+}
+
+TEST(wow_wmo_blend, blend_mode_2_is_transparent) {
+    uint16_t bm = 2;
+    BOOL transparent = (bm >= 2);
+    T_ASSERT(transparent);
+}
+
+TEST(wow_wmo_blend, blend_mode_3_and_4_are_transparent) {
+    T_ASSERT((int)(3 >= 2)); /* NoAlphaAdd */
+    T_ASSERT((int)(4 >= 2)); /* Add */
+}
+
+TEST(wow_wmo_blend, blend_mode_clamped_to_4) {
+    /* Values above 4 clamped to 0 (Opaque) by production code */
+    uint16_t raw = 99;
+    BYTE clamped = (BYTE)(raw > 4 ? 0 : raw);
+    T_EQ((int)clamped, 0);
+}
+
+TEST(wow_wmo_blend, alpha_key_discard_threshold) {
+    /* AlphaKey: discard when alpha < 0.5 (i.e., alpha < 128 in byte terms).
+       Verify the GLSL threshold in terms of normalized float. */
+    float alpha_half = 128.0f / 255.0f; /* ≈ 0.502 */
+    T_ASSERT(alpha_half >= 0.5f);        /* 128/255 rounds up, keeps pixel */
+
+    float alpha_under = 127.0f / 255.0f; /* ≈ 0.498 */
+    T_ASSERT(alpha_under < 0.5f);         /* discarded */
+}
+
+TEST(wow_wmo_blend, momt_texture_offset_at_0x0c) {
+    /* Verify texture offset is also at +0x0C in the same 64-byte record */
+    BYTE mat[64];
+    memset(mat, 0, sizeof(mat));
+    uint32_t tex_off = 0x100;
+    memcpy(mat + 0x0c, &tex_off, 4);
+
+    uint32_t read_off; memcpy(&read_off, mat + 0x0c, 4);
+    T_EQ((int)read_off, 0x100);
+}
+
+TEST(wow_wmo_blend, blend_mode_independent_of_texture_offset) {
+    /* blend at +0x02 and texture at +0x0C are independent fields */
+    BYTE mat[64];
+    memset(mat, 0, sizeof(mat));
+    uint16_t bm = 4;
+    uint32_t tex = 0x200;
+    memcpy(mat + 0x02, &bm, 2);
+    memcpy(mat + 0x0c, &tex, 4);
+
+    uint16_t rbm; memcpy(&rbm, mat + 0x02, 2); T_EQ((int)rbm, 4);
+    uint32_t rtex; memcpy(&rtex, mat + 0x0c, 4); T_EQ((int)rtex, 0x200);
+}

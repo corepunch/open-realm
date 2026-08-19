@@ -14,6 +14,7 @@ GLint wow_uUseWeightedBlend = -1;
 GLint wow_uSingleTexture = -1;
 GLint wow_uWmoIndoor = -1;
 GLint wow_uWmoAmbient = -1;
+GLint wow_uWmoBlendMode = -1;
 GLint wow_uAlphaOrigin = -1;
 GLint wow_uAlphaAtlasChunks = -1;
 GLint wow_uFogEnable = -1;
@@ -116,6 +117,7 @@ void Wow_InitTerrainShader(void) {
     "uniform int uSingleTexture;\n"
     "uniform int uWmoIndoor;\n"
     "uniform vec3 uWmoAmbient;\n"
+    "uniform int uWmoBlendMode;\n"
     "uniform vec2 uAlphaOrigin;\n"
     "uniform float uAlphaAtlasChunks;\n"
     "uniform bool uFogEnable;\n"
@@ -160,7 +162,8 @@ void Wow_InitTerrainShader(void) {
     "        float fog = clamp((uFogParams.y-distance(v_world, uFogCamera))/(uFogParams.y-uFogParams.x), 0.0, 1.0);\n"
     "        color.rgb = mix(uFogColor, color.rgb, fog);\n"
     "    }\n"
-    "    color.a = 1.0;\n"
+    "    if (uSingleTexture != 0 && uWmoBlendMode == 1 && color.a < 0.5) discard;\n"
+    "    if (uSingleTexture == 0 || uWmoBlendMode < 2) color.a = 1.0;\n"
     "    o_color = color;\n"
     "}\n";
 
@@ -182,6 +185,7 @@ void Wow_InitTerrainShader(void) {
     wow_uSingleTexture = glGetUniformLocation(wow_terrain_shader->progid, "uSingleTexture");
     wow_uWmoIndoor = glGetUniformLocation(wow_terrain_shader->progid, "uWmoIndoor");
     wow_uWmoAmbient = glGetUniformLocation(wow_terrain_shader->progid, "uWmoAmbient");
+    wow_uWmoBlendMode = glGetUniformLocation(wow_terrain_shader->progid, "uWmoBlendMode");
     wow_uAlphaOrigin = glGetUniformLocation(wow_terrain_shader->progid, "uAlphaOrigin");
     wow_uAlphaAtlasChunks = glGetUniformLocation(wow_terrain_shader->progid, "uAlphaAtlasChunks");
     wow_uFogEnable = glGetUniformLocation(wow_terrain_shader->progid, "uFogEnable");
@@ -198,6 +202,7 @@ void Wow_InitTerrainShader(void) {
     R_Call(glUniform1i, wow_uSingleTexture, 0);
     R_Call(glUniform1i, wow_uWmoIndoor, 0);
     R_Call(glUniform3f, wow_uWmoAmbient, 0.0f, 0.0f, 0.0f);
+    R_Call(glUniform1i, wow_uWmoBlendMode, 0);
 }
 
 void Wow_InitGrassShader(void) {

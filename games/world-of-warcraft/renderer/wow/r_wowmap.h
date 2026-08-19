@@ -159,6 +159,8 @@ typedef struct wowWmoBatch_s {
     LPTEXTURE texture;
     DWORD num_vertices;
     BOOL indoor;
+    BYTE blend_mode;    /* MOMT blendMode: 0=Opaque 1=AlphaKey 2=Alpha 3=NoAlphaAdd 4=Add */
+    BOOL transparent;   /* true when blend_mode >= 2 (requires GL_BLEND pass) */
     struct wowWmoBatch_s *next;
 } wowWmoBatch_t;
 
@@ -369,6 +371,7 @@ extern GLint wow_uUseWeightedBlend;
 extern GLint wow_uSingleTexture;
 extern GLint wow_uWmoIndoor;
 extern GLint wow_uWmoAmbient;
+extern GLint wow_uWmoBlendMode;
 extern GLint wow_uAlphaOrigin;
 extern GLint wow_uAlphaAtlasChunks;
 extern GLint wow_uFogEnable;
