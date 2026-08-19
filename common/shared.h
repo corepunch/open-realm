@@ -211,6 +211,7 @@ enum {
 #define ID_BLP1 MAKEFOURCC('B','L','P','1')
 #define ID_BLP2 MAKEFOURCC('B','L','P','2')
 #define ID_DDS  MAKEFOURCC('D','D','S','\40')
+#define ID_WDBC MAKEFOURCC('W','D','B','C')
 
 typedef struct m3Model_s m3Model_t;
 typedef struct mdxModel_s mdxModel_t;

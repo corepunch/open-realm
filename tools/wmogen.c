@@ -25,6 +25,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "games/world-of-warcraft/common/wow_chunks.h"
+
 /* -------------------------------------------------------------------------
    Write-buffer helpers (same pattern as m2gen)
    ---------------------------------------------------------------------- */
@@ -48,12 +50,9 @@ static void wb_f32(wbuf_t *b, float    v) { wb_write(b, &v, 4); }
 static void wb_zero(wbuf_t *b, size_t n)  { wb_grow(b, n); memset(b->data + b->size, 0, n); b->size += n; }
 static void wb_free(wbuf_t *b) { free(b->data); b->data = NULL; b->size = b->cap = 0; }
 
-/* Write a chunk: 4-byte reversed tag, 4-byte size, then data already in b
-   starting at payload_start. */
-static void wb_chunk(wbuf_t *out, const char *tag, wbuf_t *payload) {
-    /* Reversed tag (WoW stores chunks reversed) */
-    out->data = out->data; /* silence unused warning */
-    wb_write(out, tag, 4);
+/* Write a chunk: reversed-tag FOURCC, 4-byte size, then payload. */
+static void wb_chunk(wbuf_t *out, uint32_t fourcc, wbuf_t *payload) {
+    wb_write(out, &fourcc, 4);
     wb_u32(out, (uint32_t)payload->size);
     wb_write(out, payload->data, payload->size);
 }
@@ -447,39 +446,39 @@ int main(int argc, char **argv) {
     {
         wbuf_t p = {0};
         write_mver(&p);
-        wb_chunk(&root, "REVM", &p); p.size = 0;
+        wb_chunk(&root, ID_REVM, &p); p.size = 0;
 
         write_mohd(&p, 1, (uint32_t)num_lights, num_doodads ? 1 : 0, (uint32_t)num_doodads,
                    amb_r, amb_g, amb_b, mohd_flags);
-        wb_chunk(&root, "DHOM", &p); p.size = 0;
+        wb_chunk(&root, ID_DHOM, &p); p.size = 0;
 
         write_motx_empty(&p);
-        wb_chunk(&root, "XTOM", &p); p.size = 0;
+        wb_chunk(&root, ID_XTOM, &p); p.size = 0;
 
         write_momt_one(&p);
-        wb_chunk(&root, "TMOM", &p); p.size = 0;
+        wb_chunk(&root, ID_TMOM, &p); p.size = 0;
 
         write_mogn(&p, "wmogen_group_000");
-        wb_chunk(&root, "NGOM", &p); p.size = 0;
+        wb_chunk(&root, ID_NGOM, &p); p.size = 0;
 
         /* Emit minimal portal geometry for Phase 6 testing */
-        write_mopv(&p); wb_chunk(&root, "VPOM", &p); p.size = 0;
-        write_mopt(&p); wb_chunk(&root, "TPOM", &p); p.size = 0;
-        write_mopr(&p); wb_chunk(&root, "RPOM", &p); p.size = 0;
+        write_mopv(&p); wb_chunk(&root, ID_VPOM, &p); p.size = 0;
+        write_mopt(&p); wb_chunk(&root, ID_TPOM, &p); p.size = 0;
+        write_mopr(&p); wb_chunk(&root, ID_RPOM, &p); p.size = 0;
 
         if (num_doodads > 0) {
             write_mods_one(&p, "Set_$DefaultGlobal", 0, (uint32_t)num_doodads);
-            wb_chunk(&root, "SDOM", &p); p.size = 0;
+            wb_chunk(&root, ID_SDOM, &p); p.size = 0;
 
             write_modn(&p, doodad_offsets);
-            wb_chunk(&root, "NDOM", &p); p.size = 0;
+            wb_chunk(&root, ID_NDOM, &p); p.size = 0;
 
             write_modd(&p, doodad_offsets);
-            wb_chunk(&root, "DDOM", &p); p.size = 0;
+            wb_chunk(&root, ID_DDOM, &p); p.size = 0;
         }
         if (num_lights > 0) {
             write_molt(&p);
-            wb_chunk(&root, "TLOM", &p); p.size = 0;
+            wb_chunk(&root, ID_TLOM, &p); p.size = 0;
         }
         wb_free(&p);
     }
@@ -491,7 +490,7 @@ int main(int argc, char **argv) {
     {
         wbuf_t p = {0};
         write_mver(&p);
-        wb_chunk(&grp, "REVM", &p); p.size = 0;
+        wb_chunk(&grp, ID_REVM, &p); p.size = 0;
 
         /* MOGP outer chunk: fixed header + subchunks */
         {
@@ -501,18 +500,18 @@ int main(int argc, char **argv) {
                                     trans_batches, 0, 0);
 
             wbuf_t sub = {0};
-            write_mopy(&sub, 0); wb_chunk(&mogp_payload, "YPOM", &sub); sub.size = 0;
-            write_movi(&sub);    wb_chunk(&mogp_payload, "IVOM", &sub); sub.size = 0;
-            write_movt(&sub);    wb_chunk(&mogp_payload, "TVOM", &sub); sub.size = 0;
-            write_monr(&sub);    wb_chunk(&mogp_payload, "RNOM", &sub); sub.size = 0;
-            write_motv(&sub);    wb_chunk(&mogp_payload, "VTOM", &sub); sub.size = 0;
+            write_mopy(&sub, 0); wb_chunk(&mogp_payload, ID_YPOM, &sub); sub.size = 0;
+            write_movi(&sub);    wb_chunk(&mogp_payload, ID_IVOM, &sub); sub.size = 0;
+            write_movt(&sub);    wb_chunk(&mogp_payload, ID_TVOM, &sub); sub.size = 0;
+            write_monr(&sub);    wb_chunk(&mogp_payload, ID_RNOM, &sub); sub.size = 0;
+            write_motv(&sub);    wb_chunk(&mogp_payload, ID_VTOM, &sub); sub.size = 0;
             write_moba(&sub, trans_batches, 0);
-            wb_chunk(&mogp_payload, "ABOM", &sub); sub.size = 0;
+            wb_chunk(&mogp_payload, ID_ABOM, &sub); sub.size = 0;
             write_mocv(&sub, mocv_b, mocv_g, mocv_r, mocv_a);
-            wb_chunk(&mogp_payload, "VCOM", &sub); sub.size = 0;
+            wb_chunk(&mogp_payload, ID_VCOM, &sub); sub.size = 0;
             wb_free(&sub);
 
-            wb_chunk(&grp, "PGOM", &mogp_payload);
+            wb_chunk(&grp, ID_PGOM, &mogp_payload);
             wb_free(&mogp_payload);
         }
         wb_free(&p);

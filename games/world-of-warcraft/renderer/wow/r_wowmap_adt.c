@@ -268,13 +268,13 @@ BOOL Wow_LoadWdtTiles(BYTE const *data, DWORD size) {
         BYTE const *chunk = data + offset2 + 8;
         offset2 += 8;
         if (offset2 + chunk_size > size) break;
-        if (Wow_TagEquals(tag, ID_OMWM) && chunk_size > 0) {
+        if (*(DWORD const *)tag == ID_OMWM && chunk_size > 0) {
             wmo_name_blob = (LPCSTR)chunk;
             wmo_name_blob_size = chunk_size;
-        } else if (Wow_TagEquals(tag, ID_DIWM) && chunk_size >= sizeof(DWORD)) {
+        } else if (*(DWORD const *)tag == ID_DIWM && chunk_size >= sizeof(DWORD)) {
             wmo_offsets = (DWORD const *)chunk;
             wmo_offset_count = chunk_size / sizeof(DWORD);
-        } else if (Wow_TagEquals(tag, ID_FDOM) && chunk_size >= sizeof(wowMapObjDef_t)) {
+        } else if (*(DWORD const *)tag == ID_FDOM && chunk_size >= sizeof(wowMapObjDef_t)) {
             modf_chunk = chunk;
             modf_size  = chunk_size;
         }

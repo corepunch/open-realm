@@ -1,5 +1,6 @@
 #include "g_wow_local.h"
 #include "common/stb_dbc.h"
+#include "common/wow_chunks.h"
 #include <math.h>
 #include <stdio.h>
 
@@ -157,12 +158,6 @@ static stbDbcField_t const game_object_display_info_schema[] = {
 };
 static stbDbcCache_t game_object_display_info_dbc;
 
-/* ADT chunk tags are stored reversed ("MDNM" = MMDX, "FDMM" = MDDF); memcmp the
- * raw fourcc against the reversed literal. */
-static BOOL WowGo_DbcTagEquals(BYTE const *tag, LPCSTR reversed) {
-    return memcmp(tag, reversed, 4) == 0;
-}
-
 /* Load GameObjectDisplayInfo.dbc → model path → display_id map.
  * Model paths are stored without extension in the DBC; we match on the
  * filename stem (before the .m2/.mdx extension). */
@@ -284,11 +279,11 @@ static void WowGo_SpawnFromTile(int tile_x, int tile_y) {
         if (offset + chunk_size > size)
             break;
 
-        if (WowGo_DbcTagEquals(tag, "NMDM")) {
+        if (*(DWORD const *)tag == ID_XDMM) {
             /* MMDX: M2 model filenames list (null-terminated blob) */
             mdnm_data = (LPBYTE)chunk;
             mdnm_size = chunk_size;
-        } else if (WowGo_DbcTagEquals(tag, "FDMM") && mdnm_data && mdnm_size) {
+        } else if (*(DWORD const *)tag == ID_FDDM && mdnm_data && mdnm_size) {
             /* MDDF: M2 doodad placements */
             DWORD count = chunk_size / sizeof(WOWDOODADDEF);
             for (DWORD i = 0; i < count; i++) {
@@ -301,7 +296,7 @@ static void WowGo_SpawnFromTile(int tile_x, int tile_y) {
 
                 WowGo_SpawnDoodad(def, model_path);
             }
-        } else if (WowGo_DbcTagEquals(tag, "FDOMM")) {
+        } else if (*(DWORD const *)tag == ID_FDOM) {
             /* MODF: WMO placements — skip for now */
         }
 

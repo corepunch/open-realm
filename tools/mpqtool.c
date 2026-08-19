@@ -110,7 +110,7 @@ static int cmd_imginfo(HANDLE archive, const char *file_path) {
     printf("file=%s\n", file_path);
     printf("size=%u\n", (unsigned)file_size);
 
-    if (read_bytes >= 4 && memcmp(header, "BLP1", 4) == 0) {
+    if (read_bytes >= 4 && rd_u32le(header) == ID_BLP1) {
         unsigned int content;
         unsigned int alpha_bits;
         unsigned int width;
@@ -157,7 +157,7 @@ static int cmd_imginfo(HANDLE archive, const char *file_path) {
             }
             printf("mip[%u].offset=%u mip[%u].size=%u\n", i, off, i, sz);
         }
-    } else if (read_bytes >= 4 && memcmp(header, "BLP2", 4) == 0) {
+    } else if (read_bytes >= 4 && rd_u32le(header) == ID_BLP2) {
         unsigned int version;
         unsigned int encoding;
         unsigned int alpha_bits;

@@ -303,6 +303,7 @@ static void *M2_ModelArrayPtr(m2Model_t const *model, m2Array_t array, DWORD ele
 /* Classic and modern headers are both file images; access their arrays without copying schema into runtime state. */
 #define BZ_M2_ARRAY_ACCESSOR(name, field) \
 static m2Array_t name(m2Model_t const *model) { \
+    if (!model || !model->file) return (m2Array_t){ 0 }; \
     return model->format->format == M2_FORMAT_CLASSIC ? \
         model->file->classic.field : model->file->modern.field; \
 }
@@ -889,7 +890,7 @@ static m2TrackView_t M2_BoneScaleTrack(m2Model_t const *model, DWORD bone_index)
 
 /* Identity-palette instancing is exact only for static M2s without emitter side effects. */
 BOOL M2_CanStaticInstance(m2Model_t const *model) {
-    if (!model || model->flags & M2_MODEL_CHARACTER || M2_ParticlesArray(model).size || M2_RibbonsArray(model).size)
+    if (!model || !model->file || model->flags & M2_MODEL_CHARACTER || M2_ParticlesArray(model).size || M2_RibbonsArray(model).size)
         return false;
     FOR_LOOP(i, (DWORD)M2_BonesArray(model).size) {
         m2TrackView_t pos = M2_BoneTranslationTrack(model, i);
@@ -1588,13 +1589,13 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size, BOOL *b
     }
 
     if (*(DWORD *)buffer == ID_MD21) {
-        m2_base = m2_find_chunk(buffer, size, "MD21", &m2_size);
+        m2_base = m2_find_chunk(buffer, size, ID_MD21, &m2_size);
         if (!m2_base) {
             m2_base = buffer;
             m2_size = size;
         }
     } else if (*(DWORD *)buffer == ID_12DM) {
-        m2_base = m2_find_chunk(buffer, size, "12DM", &m2_size);
+        m2_base = m2_find_chunk(buffer, size, ID_12DM, &m2_size);
     }
     if (m2_base) base_offset = (DWORD)(m2_base - (BYTE *)buffer);
     if (!m2_base || m2_size < sizeof(DWORD) * 2) {

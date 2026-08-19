@@ -46,15 +46,13 @@
 /* -------------------------------------------------------------------------- */
 /* WDBC header (magic byte excluded)                                           */
 /* -------------------------------------------------------------------------- */
+/* "WDBC" read back as a little-endian 32-bit word (see ID_WDBC in common/shared.h). */
 typedef struct {
     DWORD records;
     DWORD fields;
     DWORD record_size;
     DWORD string_size;
 } stbDbc_t;
-
-/* "WDBC" read back as a little-endian 32-bit word. */
-#define STB_DBC_MAGIC 0x43424457u
 
 /* -------------------------------------------------------------------------- */
 /* Scalar reads                                                                */
@@ -76,7 +74,7 @@ static inline FLOAT Stb_DbcReadFloat(BYTE const *p) {
  * logical field count larger than record_size / 4, so only record_size >= 4 is
  * required here; callers bounds-check each accessed field via Stb_DbcField. */
 static inline BOOL Stb_DbcValid(BYTE const *data, DWORD size, stbDbc_t *header) {
-    if (!data || !header || size <= 20 || memcmp(data, "WDBC", 4) != 0) {
+    if (!data || !header || size <= 20 || *(DWORD const *)data != ID_WDBC) {
         return false;
     }
     header->records = Stb_DbcRead32(data + 4);
