@@ -27,23 +27,26 @@ typedef struct {
     BOOL failed;
 } wowCreatureModelCache_t;
 
-typedef struct {
-    DWORD id;
-    DWORD model_id;
-    DWORD sound_id;
-    DWORD extended_display_info_id;
-    FLOAT scale;
-} wowCreatureDisplayInfoDbc_t;
+/* CreatureDisplayInfo / CreatureModelData decode into file-shaped structs via the
+ * shared schema table (common/stb_dbc.h); consumers read named fields, not raw
+ * column offsets. Scale/collision are FLOAT columns. */
+typedef struct { DWORD id, model_id; FLOAT scale; } gCreatureDisplayInfoRec_t;
+static stbDbcField_t const creature_display_info_schema[] = {
+    { 0, offsetof(gCreatureDisplayInfoRec_t, id),       STB_DBC_U32 },
+    { 1, offsetof(gCreatureDisplayInfoRec_t, model_id), STB_DBC_U32 },
+    { 4, offsetof(gCreatureDisplayInfoRec_t, scale),    STB_DBC_FLOAT },
+};
 
-typedef struct {
-    DWORD id;
-    DWORD flags;
-    DWORD model_name_offset;
-    DWORD size_class;
-    FLOAT model_scale;
-    DWORD unused[9];
-    FLOAT collision_width;
-} wowCreatureModelDataDbc_t;
+typedef struct { DWORD id; LPCSTR model_name; FLOAT model_scale, collision_width; } gCreatureModelDataRec_t;
+static stbDbcField_t const creature_model_data_schema[] = {
+    {  0, offsetof(gCreatureModelDataRec_t, id),              STB_DBC_U32 },
+    {  2, offsetof(gCreatureModelDataRec_t, model_name),      STB_DBC_STR },
+    {  4, offsetof(gCreatureModelDataRec_t, model_scale),     STB_DBC_FLOAT },
+    { 14, offsetof(gCreatureModelDataRec_t, collision_width), STB_DBC_FLOAT },
+};
+
+static stbDbcCache_t creature_display_info_dbc;
+static stbDbcCache_t creature_model_data_dbc;
 
 static wowAmbientCreatureType_t const wow_ambient_creature_types[] = {
     { WOW_CREATURE_DISPLAY_WOLF,   18.0f, 2.0f },
@@ -69,83 +72,38 @@ static BOOL Wow_ResolveCreatureModel(DWORD display_id,
                                      DWORD model_path_size,
                                      FLOAT *scale,
                                      FLOAT *radius) {
-    LPBYTE display_data = NULL;
-    LPBYTE model_data = NULL;
-    DWORD fields;
-    DWORD record_size;
-    DWORD string_size;
-    BYTE const *record;
-    BYTE const *strings;
-    DWORD model_id;
-    DWORD model_name_offset;
-    LPCSTR resolved_model;
-    FLOAT display_scale = 1.0f;
-    FLOAT model_scale = 1.0f;
-    FLOAT collision_width = 1.0f;
+    int idx;
+    gCreatureDisplayInfoRec_t const *display;
+    gCreatureModelDataRec_t const *model;
 
     if (!model_path || model_path_size == 0) {
         return false;
     }
     model_path[0] = '\0';
 
-    if (!Wow_FindDbcRecord("DBFilesClient\\CreatureDisplayInfo.dbc",
-                           display_id,
-                           &display_data,
-                           &fields,
-                           &record_size,
-                           &record,
-                           &strings,
-                           &string_size) ||
-        fields < 2) {
-        SAFE_DELETE(display_data, gi.MemFree);
-        return false;
-    }
+    if (!Stb_DbcCacheLoad(&creature_display_info_dbc, "DBFilesClient\\CreatureDisplayInfo.dbc", &g_dbc_io)) return false;
+    Stb_DbcCacheDecode(&creature_display_info_dbc, creature_display_info_schema, sizeof(creature_display_info_schema) / sizeof(creature_display_info_schema[0]),
+                       sizeof(gCreatureDisplayInfoRec_t), &g_dbc_io);
+    idx = Stb_DbcCacheFindID(&creature_display_info_dbc, display_id, &g_dbc_io);
+    if (idx < 0) return false;
+    display = STB_DBC_ROW(creature_display_info_dbc, gCreatureDisplayInfoRec_t, idx);
 
-    wowCreatureDisplayInfoDbc_t const *display = (wowCreatureDisplayInfoDbc_t const *)record;
+    if (!Stb_DbcCacheLoad(&creature_model_data_dbc, "DBFilesClient\\CreatureModelData.dbc", &g_dbc_io)) return false;
+    Stb_DbcCacheDecode(&creature_model_data_dbc, creature_model_data_schema, sizeof(creature_model_data_schema) / sizeof(creature_model_data_schema[0]),
+                       sizeof(gCreatureModelDataRec_t), &g_dbc_io);
+    idx = Stb_DbcCacheFindID(&creature_model_data_dbc, display->model_id, &g_dbc_io);
+    if (idx < 0) return false;
+    model = STB_DBC_ROW(creature_model_data_dbc, gCreatureModelDataRec_t, idx);
 
-    model_id = display->model_id;
-    if (record_size >= sizeof(*display)) {
-        display_scale = display->scale;
-    }
-    gi.MemFree(display_data);
+    if (!model->model_name || !*model->model_name) return false;
 
-    if (!Wow_FindDbcRecord("DBFilesClient\\CreatureModelData.dbc",
-                           model_id,
-                           &model_data,
-                           &fields,
-                           &record_size,
-                           &record,
-                           &strings,
-                           &string_size) ||
-        fields < 3) {
-        SAFE_DELETE(model_data, gi.MemFree);
-        return false;
-    }
-
-    wowCreatureModelDataDbc_t const *model = (wowCreatureModelDataDbc_t const *)record;
-
-    model_name_offset = model->model_name_offset;
-    resolved_model = Wow_DbcString(strings, string_size, model_name_offset);
-    if (!resolved_model || !*resolved_model) {
-        gi.MemFree(model_data);
-        return false;
-    }
-    if (record_size >= 5 * sizeof(DWORD)) {
-        model_scale = model->model_scale;
-    }
-    if (record_size >= sizeof(*model)) {
-        collision_width = model->collision_width;
-    }
-
-    snprintf(model_path, model_path_size, "%s", resolved_model);
+    snprintf(model_path, model_path_size, "%s", model->model_name);
     if (scale) {
-        *scale = MAX(0.1f, display_scale * model_scale);
+        *scale = MAX(0.1f, display->scale * model->model_scale);
     }
     if (radius) {
-        *radius = Wow_Clamp(collision_width * 0.5f, 0.5f, 4.0f);
+        *radius = Wow_Clamp(model->collision_width * 0.5f, 0.5f, 4.0f);
     }
-
-    gi.MemFree(model_data);
     return true;
 }
 

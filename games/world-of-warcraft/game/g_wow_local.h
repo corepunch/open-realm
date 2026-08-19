@@ -4,6 +4,7 @@
 #include "server/server.h"
 #include "common/wow_ui_shared.h"
 #include "common/ui_constants.h"
+#include "common/stb_dbc.h"
 
 typedef struct WOWWEAPON {
     DWORD entry;
@@ -324,17 +325,26 @@ extern edict_t wow_edicts[WOW_MAX_EDICTS];
 extern wowEntityLocal_t wow_entity_locals[WOW_MAX_EDICTS];
 extern wowClient_t wow_clients[WOW_MAX_CLIENTS];
 
+/* Game adapts gi.* onto stb_dbc.h's shared cache I/O table (see common/stb_dbc.h). */
+static inline void *G_DbcRead(LPCSTR filename, DWORD *size) {
+    DWORD s = 0;
+    void *data = gi.ReadFile ? gi.ReadFile(filename, &s) : NULL;
+    if (size) *size = s;
+    return data;
+}
+static inline void G_DbcFreeFile(void *p) { gi.MemFree(p); }
+static inline void *G_DbcAlloc(size_t n) { return gi.MemAlloc ? gi.MemAlloc((long)n) : NULL; }
+static inline void G_DbcFreeMem(void *p) { gi.MemFree(p); }
+
+/* Shared game I/O table (defined in g_wow.c) for stb_dbc.h's cache. */
+extern stbDbcIO_t const g_dbc_io;
+
 int          G_RegisterModel(LPCSTR filename);
 LPCANIMATION G_GetAnimation(DWORD modelindex, LPCSTR animname);
 FLOAT        G_GetAttachmentZ(DWORD modelindex, int aid);
 void         G_FreeModels(void);
 
 FLOAT Wow_Clamp(FLOAT value, FLOAT min_value, FLOAT max_value);
-DWORD Wow_Read32(BYTE const *p);
-FLOAT Wow_ReadFloat(BYTE const *p);
-LPCSTR Wow_DbcString(BYTE const *string_block, DWORD string_size, DWORD offset);
-BOOL Wow_ValidDbc(BYTE const *data, DWORD size, DWORD *records, DWORD *fields, DWORD *record_size, DWORD *string_size);
-BOOL Wow_FindDbcRecord(LPCSTR filename, DWORD wanted_id, LPBYTE *data_out, DWORD *fields_out, DWORD *record_size_out, BYTE const **record_out, BYTE const **strings_out, DWORD *string_size_out);
 FLOAT Wow_TerrainHeight(FLOAT x, FLOAT y);
 FLOAT Wow_FloorHeight(FLOAT x, FLOAT y, FLOAT z);
 DWORD Wow_EntityIndex(LPCEDICT ent);

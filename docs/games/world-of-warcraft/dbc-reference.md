@@ -26,6 +26,7 @@ The same information is split across several places; this file is the index of r
 - [Why DBCs Instead Of `legs=2 arms=3`](#why-dbcs-instead-of-legs2-arms3)
 - [WDBC Binary Format](#wdbc-binary-format)
 - [Reader Ownership](#reader-ownership)
+- [Reading A DBC — The Schema Pattern](#reading-a-dbc--the-schema-pattern)
 - [Packed Values](#packed-values)
 - [Lookup Chains](#lookup-chains)
 - [DBC Inventory](#dbc-inventory)
@@ -83,23 +84,102 @@ Some tables are exceptions to the "32-bit fields" rule:
 
 ## Reader Ownership
 
-The shared primitives (header validation, little-endian reads, string/field access, ID lookup) live in
-`games/world-of-warcraft/common/stb_dbc.h` — a single-header `static inline` reader with no I/O or allocation,
-included by every DBC consumer. Callers read the file through their own FS/RI/gi handle and hand the resident
-buffer to `Stb_Dbc*`. None parses DB2:
+`games/world-of-warcraft/common/stb_dbc.h` is the single-header `static inline` reader included by every DBC consumer.
+It has two layers: a **stateless parser** (`Stb_Dbc*` — header validation, little-endian reads, string/field access, ID
+lookup, no I/O and no allocation) and a **stateful cache** (`Stb_DbcCache*` — lazy load + decode + FNV-1a index). The
+cache takes a `stbDbcIO_t` function table so the header stays free of direct FS/allocator dependencies; each module
+adapts its own handle (`ri` / `gi` / `uiimport`). Callers that need a one-shot read hand a resident buffer to `Stb_Dbc*`
+directly; callers that need a decoded struct array go through `Stb_DbcCache*`. None parses DB2:
 
-- **Renderer** — `renderer/m2/r_dbc.c` keeps each table as one resident `FS_ReadFile` image plus an FNV-1a integer
-  hash index, then decodes every row into a file-shaped struct through a column→field schema table
-  (`stbDbcField_t` + `Stb_DbcParseRows`, the same convention-over-configuration pattern as `ui_dbc.c`). Schema entries
-  carry an optional `count` so a contiguous struct array maps to consecutive columns in one line
-  (`{ 8, offsetof(Rec, display_ids), STB_DBC_U32, 11 }`). Consumers read named struct fields, never raw column offsets.
-- **Game** — `game/g_wow.c` exposes `Wow_FindDbcRecord` and `Wow_DbcString` (thin wrappers over `stb_dbc.h`) for
-  map metadata, loading screens, the spell-visual chain, and the creature model cache in `game/m_creature.c`.
+- **Renderer** — `renderer/m2/r_dbc.c` holds only structs + column→field schemas + thin typed finders; the cache
+  (`m2_dbc_io` over `ri.*`) does the resident image, decode, and FNV index. Consumers read named struct fields, never
+  raw column offsets.
+- **Game** — `game/g_wow.c` decodes the spell-visual chain (`SpellVisual`/`Kit`/`EffectName`), `Map`, `LoadingScreens`,
+  and `Spell` through the shared cache/schemas; `game/m_creature.c` maps `CreatureDisplayInfo`/`CreatureModelData`;
+  `game/g_gameobject.c` maps `GameObjectDisplayInfo`. One shared `g_dbc_io` (`gi.*`) is exported from `g_wow_local.h`.
 - **Common world** — `common/world_wow.c` reads `Map.dbc` and `WorldSafeLocs.dbc` for spawn/map resolution.
-- **UI** — `ui/ui_dbc.c` reads `ChrRaces`, `ChrClasses`, `CharBaseInfo`, `FactionTemplate`, `FactionGroup` for the
-  character-create screen.
+- **UI** — `ui/ui_dbc.c` decodes `ChrRaces`, `ChrClasses`, `FactionTemplate`, `FactionGroup` through the cache
+  (`ui_dbc_io` over `uiimport.*`); `CharBaseInfo` stays a 2-byte-record special case.
 - **Sound** — `sound/s_sound.c` loads `SoundEntries.dbc` for kit name/path lookup.
 - **Engine common** — `common/common.c` resolves numeric map IDs through `Map.dbc` (`Com_WowMapPathForId`, WOW-only).
+
+## Reading A DBC — The Schema Pattern
+
+This is the **only accepted way** to add or extend a DBC reader. A file-shaped struct mirrors the consumed subset of a
+row, a `stbDbcField_t` schema table maps DBC columns to struct fields, and `Stb_DbcParseRows` (or the lazy
+`Stb_DbcCacheDecode`) fills the array. Consumers read named struct fields — never raw column offsets (`record + 14 * 4`,
+`Stb_DbcField(&h, rec, 14)`), never a hand-rolled decode loop, never a `strcmp`/`if` ladder over field names. The
+stateless `Stb_DbcField` / `Stb_DbcString` calls in [Reader Ownership](#reader-ownership) exist only for single-purpose
+reads of a handful of fields (`Map.dbc` directory in `common/common.c`, `SoundEntries.dbc` in `sound/s_sound.c`); every
+table read for structure — renderer, game, UI — goes through a schema.
+
+### The recipe
+
+1. Define a struct holding exactly the fields you consume; collapse a run of consecutive columns into one array field.
+2. Define one `static stbDbcField_t const schema[]`. Each entry is `{ column, offsetof(Rec, field), type, count }`;
+   `count` (default 1) maps consecutive columns to consecutive array elements, so eight component textures are one line
+   (`{ 14, offsetof(Rec, component_texture), STB_DBC_STR, 8 }`).
+3. Decode through the shared cache, look up by id (or by a named key column with `Stb_DbcCacheFindKey`), then read the row:
+
+```c
+typedef struct { DWORD id, geoset_group[3], flags; LPCSTR component_texture[8]; } m2ItemDisplayInfoRec_t;
+static stbDbcField_t const item_display_info_schema[] = {
+    {  0, offsetof(m2ItemDisplayInfoRec_t, id),                STB_DBC_U32 },
+    {  7, offsetof(m2ItemDisplayInfoRec_t, geoset_group),      STB_DBC_U32, 3 },
+    { 10, offsetof(m2ItemDisplayInfoRec_t, flags),             STB_DBC_U32 },
+    { 14, offsetof(m2ItemDisplayInfoRec_t, component_texture), STB_DBC_STR, 8 },
+};
+static m2ItemDisplayInfoRec_t const *M2_ItemDisplayInfo(DWORD id) {
+    int idx;
+    if (!Stb_DbcCacheLoad(&item_display_info_dbc, "DBFilesClient\\ItemDisplayInfo.dbc", &m2_dbc_io)) return NULL;
+    Stb_DbcCacheDecode(&item_display_info_dbc, item_display_info_schema, M2_COUNT(item_display_info_schema),
+                       sizeof(m2ItemDisplayInfoRec_t), &m2_dbc_io);
+    idx = Stb_DbcCacheFindID(&item_display_info_dbc, id, &m2_dbc_io);
+    return idx < 0 ? NULL : STB_DBC_ROW(item_display_info_dbc, m2ItemDisplayInfoRec_t, idx);
+}
+```
+
+The decode is idempotent (`Stb_DbcCacheDecode` returns early once `rows` is set), so callers can ask for a row without
+worrying about double-decoding; each typed finder guards with `if (!cache.rows)` only when the schema must be picked
+first (next section).
+
+### Version differences: one schema per layout, dispatch on the header
+
+When a table's layout shifts between client versions, keep **one schema per version** and a small dispatch function that
+returns the right one. Key the dispatch on the field count the header actually reports (or, when the count is not a
+reliable discriminator, probe a field like `CharSections` does with `m2_char_sections_layout`). Never use `#ifdef`,
+never assume the classic layout, never keep a parallel hardcoded id→offset table.
+
+`ItemDisplayInfo` shifts its vis/texture block one column right between the 23-field classic and 25-field Wrath layouts:
+
+```c
+static stbDbcField_t const item_display_info_classic_schema[] = { /* helm_vis @12, component_texture @14 */ };
+static stbDbcField_t const item_display_info_wrath_schema[]   = { /* helm_vis @13, component_texture @15 */ };
+/* Pre-23-field guard: pins every field to column 0 (id) so a malformed archive
+ * cannot feed out-of-range columns into the struct. Unreachable for real archives. */
+static stbDbcField_t const item_display_info_legacy_schema[]  = { /* all fields -> column 0 */ };
+
+static stbDbcField_t const *item_display_info_schema(DWORD fields, LPDWORD count) {
+    switch (m2_item_display_texture_base(fields)) {
+        case 15: *count = M2_COUNT(item_display_info_wrath_schema);   return item_display_info_wrath_schema;
+        case 14: *count = M2_COUNT(item_display_info_classic_schema); return item_display_info_classic_schema;
+        default: *count = M2_COUNT(item_display_info_legacy_schema);  return item_display_info_legacy_schema;
+    }
+}
+```
+
+`m2_item_display_texture_base` (`renderer/m2/r_m2_utils.h`) collapses the field count to the one discriminator column
+(`fields >= 25 ? 15 : fields >= 22 ? 14 : 0`). The schema is chosen once before the first decode and cached:
+`if (!cache.rows) { schema = item_display_info_schema(cache.fields, &count); Stb_DbcCacheDecode(&cache, schema, count, ...); }`.
+Consumers never see the version switch again.
+
+### Anti-patterns
+
+- Raw column reads in consumer code (`record + 14 * 4`, `Stb_DbcField(&h, rec, 14)` spread across a file).
+- Two decoders for the same table with different offsets (the layout must live in one schema).
+- A `strcmp`/`if` ladder to map field names or a hardcoded id→offset table — the schema table is the single source of
+  truth, so a client-version change is fixed in one spot and cross-checked against `dbctool dump` / WoWee
+  `dbc_layouts.json` (see [Diagnostic Workflow](#diagnostic-workflow)).
 
 ## Packed Values
 

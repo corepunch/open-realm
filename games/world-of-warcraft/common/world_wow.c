@@ -128,16 +128,6 @@ LPCVECTOR3 CM_WowGetSpawnPos(DWORD index) { return index < cm_wow_all_spawn_coun
 LPCSTR CM_WowGetSpawnName(DWORD index) { return index < cm_wow_all_spawn_count ? cm_wow_all_spawns[index].name : NULL; }
 DWORD CM_WowGetMapId(void) { return cm_wow_map_id; }
 
-static DWORD CM_WowRead32(BYTE const *p) {
-    return ((DWORD)p[0]) | ((DWORD)p[1] << 8) | ((DWORD)p[2] << 16) | ((DWORD)p[3] << 24);
-}
-
-static FLOAT CM_WowReadFloat(BYTE const *p) {
-    FLOAT value;
-    memcpy(&value, p, sizeof(value));
-    return value;
-}
-
 static BOOL CM_WowTagEquals(BYTE const *tag, LPCSTR reversed) {
     return memcmp(tag, reversed, 4) == 0;
 }
@@ -290,7 +280,7 @@ static BOOL CM_WowLoadWmoGroup(cmWowWmoModel_t *model, DWORD group_index) {
     if (!data || !size) { fprintf(stderr, "CM WoW WMO: missing group %s\n", path); SAFE_DELETE(data, FS_FreeFile); return false; }
     while (offset + 8 <= size) {
         BYTE const *tag = data + offset;
-        DWORD chunk_size = CM_WowRead32(data + offset + 4);
+        DWORD chunk_size = Stb_DbcRead32(data + offset + 4);
         BYTE const *chunk = data + offset + 8;
         offset += 8;
         if (offset + chunk_size > size) break;
@@ -300,7 +290,7 @@ static BOOL CM_WowLoadWmoGroup(cmWowWmoModel_t *model, DWORD group_index) {
             memcpy(&group->bounds.max, chunk + 0x18, sizeof(VECTOR3));
             while (sub + 8 <= chunk_size) {
                 BYTE const *subtag = chunk + sub;
-                DWORD sub_size = CM_WowRead32(chunk + sub + 4);
+                DWORD sub_size = Stb_DbcRead32(chunk + sub + 4);
                 BYTE const *subchunk = chunk + sub + 8;
                 sub += 8;
                 if (sub + sub_size > chunk_size) break;
@@ -413,11 +403,11 @@ static cmWowWmoModel_t *CM_WowGetWmoModel(LPCSTR path) {
     if (!data || !size) { fprintf(stderr, "CM WoW WMO: missing root %s\n", path); SAFE_DELETE(data, FS_FreeFile); model->loaded = true; return NULL; }
     while (offset + 8 <= size) {
         BYTE const *tag = data + offset;
-        DWORD chunk_size = CM_WowRead32(data + offset + 4);
+        DWORD chunk_size = Stb_DbcRead32(data + offset + 4);
         BYTE const *chunk = data + offset + 8;
         offset += 8;
         if (offset + chunk_size > size) break;
-        if (CM_WowTagEquals(tag, "DHOM") && chunk_size >= 8) group_count = CM_WowRead32(chunk + 4);
+        if (CM_WowTagEquals(tag, "DHOM") && chunk_size >= 8) group_count = Stb_DbcRead32(chunk + 4);
         offset += chunk_size;
     }
     FS_FreeFile(data);
@@ -452,7 +442,7 @@ static void CM_WowLoadAdtWmos(cmWowAdtHeightCache_t *cache, BYTE const *data, DW
     cmWowWmoDef_t const *defs = NULL;
     while (offset + 8 <= size) {
         BYTE const *tag = data + offset;
-        DWORD chunk_size = CM_WowRead32(data + offset + 4);
+        DWORD chunk_size = Stb_DbcRead32(data + offset + 4);
         BYTE const *chunk = data + offset + 8;
         offset += 8;
         if (offset + chunk_size > size) break;
@@ -515,7 +505,7 @@ static void CM_WowLoadAdtHeights(int tile_x, int tile_y) {
 
     while (offset + 8 <= size) {
         BYTE const *tag        = data + offset;
-        DWORD       chunk_size = CM_WowRead32(data + offset + 4);
+        DWORD       chunk_size = Stb_DbcRead32(data + offset + 4);
         BYTE const *chunk      = data + offset + 8;
 
         offset += 8;
@@ -524,8 +514,8 @@ static void CM_WowLoadAdtHeights(int tile_x, int tile_y) {
 
         if (CM_WowTagEquals(tag, "KNCM") && chunk_size >= 0x80) {
             DWORD sub     = 0x80;
-            DWORD index_x = CM_WowRead32(chunk + 0x04);
-            DWORD index_y = CM_WowRead32(chunk + 0x08);
+            DWORD index_x = Stb_DbcRead32(chunk + 0x04);
+            DWORD index_y = Stb_DbcRead32(chunk + 0x08);
             cmWowChunkHeight_t *height_chunk = NULL;
 
             if (index_x < 16 && index_y < 16) {
@@ -535,7 +525,7 @@ static void CM_WowLoadAdtHeights(int tile_x, int tile_y) {
 
             while (height_chunk && sub + 8 <= chunk_size) {
                 BYTE const *subtag  = chunk + sub;
-                DWORD       sub_size = CM_WowRead32(chunk + sub + 4);
+                DWORD       sub_size = Stb_DbcRead32(chunk + sub + 4);
                 BYTE const *subchunk = chunk + sub + 8;
                 BOOL        is_mcnr  = CM_WowTagEquals(subtag, "RNCM");
 
@@ -776,9 +766,9 @@ static BOOL CM_WowFindMapId(LPCSTR map_name, DWORD *map_id) {
     FOR_LOOP(record_index, h.records) {
         BYTE const *record = records_base + record_index * h.record_size;
         FOR_LOOP(field_index, h.fields) {
-            LPCSTR value = Stb_DbcString(strings_base, h.string_size, CM_WowRead32(record + field_index * sizeof(DWORD)));
+            LPCSTR value = Stb_DbcString(strings_base, h.string_size, Stb_DbcRead32(record + field_index * sizeof(DWORD)));
             if (value && *value && !strcasecmp(value, map_name)) {
-                *map_id = CM_WowRead32(record);
+                *map_id = Stb_DbcRead32(record);
                 FS_FreeFile(data);
                 return true;
             }
@@ -791,7 +781,7 @@ static BOOL CM_WowFindMapId(LPCSTR map_name, DWORD *map_id) {
 static LPCSTR CM_WowWorldSafeLocName(BYTE const *record, DWORD fields,
                                       BYTE const *strings_base, DWORD string_size) {
     for (DWORD field_index = 5; field_index < fields; field_index++) {
-        DWORD string_offset = CM_WowRead32(record + field_index * sizeof(DWORD));
+        DWORD string_offset = Stb_DbcRead32(record + field_index * sizeof(DWORD));
         LPCSTR value = Stb_DbcString(strings_base, string_size, string_offset);
         if (value && *value)
             return value;
@@ -866,7 +856,7 @@ static DWORD CM_WowCollectWorldSafeLocs(DWORD map_id, LPVECTOR3 first_spawn,
                 strings_base = Stb_DbcStrings(data, &h);
                 FOR_LOOP(ri, h.records) {
                     BYTE const *r = records_base + ri * h.record_size;
-                    if (CM_WowRead32(r + sizeof(DWORD)) != map_id) continue;
+                    if (Stb_DbcRead32(r + sizeof(DWORD)) != map_id) continue;
                     cm_wow_all_spawns[idx].pos.x = *(FLOAT *)(r + 2 * sizeof(DWORD));
                     cm_wow_all_spawns[idx].pos.y = *(FLOAT *)(r + 3 * sizeof(DWORD));
                     cm_wow_all_spawns[idx].pos.z = *(FLOAT *)(r + 4 * sizeof(DWORD));
