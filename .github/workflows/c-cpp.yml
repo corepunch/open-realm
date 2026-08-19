@@ -16,8 +16,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
+          sudo apt-get update -o Acquire::Retries=3 -o Acquire::http::Timeout=60
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
             libgles2-mesa-dev \
             libsdl2-dev \
             liblua5.4-dev \
@@ -35,8 +35,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
+          sudo apt-get update -o Acquire::Retries=3 -o Acquire::http::Timeout=60
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
             libgles2-mesa-dev \
             libsdl2-dev \
             libjpeg-dev \
