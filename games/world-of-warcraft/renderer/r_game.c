@@ -246,7 +246,7 @@ void R_GameRenderModel(renderEntity_t const *entity) {
     M2_RenderModel(entity, entity->model->m2, &transform);
     if (entity->overhead_sprite) {
         VECTOR3 origin = entity->origin;
-        origin.z += M2_HeadHeight(entity->model->m2) * entity->scale + 0.25f; /* float just above the head */
+        origin.z += (M2_GroundOffset(entity->model->m2) + M2_HeadHeight(entity->model->m2)) * entity->scale + 0.25f;
         R_DrawBillboardSprite(entity->overhead_sprite, &origin, 1.0f, COLOR32_WHITE);
     }
     attachment_id = (tr.viewDef.rdflags & RDF_USE_ENTITY_CAMERA) ? 0 : 1;

@@ -444,6 +444,7 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.ClientSetCameraPosition = G_ClientSetCameraPosition;
     globals.ClientBegin = G_ClientBegin;
     globals.CanSeeEntity = G_FowPlayerCanSeeEntity;
+    globals.CustomizeEntity = NULL;
     globals.GetThemeValue = G_GetThemeValue;
     globals.LoadMap = G_LoadMap;
     globals.GetWorldBounds = CM_GetWorldBounds;

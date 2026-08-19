@@ -109,6 +109,7 @@ struct game_export {
     void (*ClientSetCameraPosition)(LPEDICT ent, LPCVECTOR2 position);
     void (*ClientBegin)(LPEDICT ent);
     BOOL (*CanSeeEntity)(DWORD player, LPCEDICT ent);
+    void (*CustomizeEntity)(DWORD player, LPCEDICT ent, LPENTITYSTATE state);
     DWORD (*PlayerCreateMap)(void);
     bool (*LoadMap)(LPCSTR mapFilename);
     BOX2 (*GetWorldBounds)(void);
