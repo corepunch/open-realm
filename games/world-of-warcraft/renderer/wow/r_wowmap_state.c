@@ -97,10 +97,6 @@ WORD Wow_Read16(BYTE const *p) {
     return v;
 }
 
-BOOL Wow_TagEquals(BYTE const *tag, LPCSTR reversed) {
-    return memcmp(tag, reversed, 4) == 0;
-}
-
 void Wow_FreeChunks(void) {
     wowAdtChunk_t *chunk = wow_world.chunks;
     while (chunk) {
@@ -152,10 +148,13 @@ void Wow_FreeWmoModels(void) {
             }
             ri.MemFree(model->groups);
         }
-        if (model->doodad_sets)      ri.MemFree(model->doodad_sets);
-        if (model->doodad_defs)      ri.MemFree(model->doodad_defs);
-        if (model->doodad_name_blob) ri.MemFree(model->doodad_name_blob);
-        if (model->lights)           ri.MemFree(model->lights);
+        if (model->doodad_sets)       ri.MemFree(model->doodad_sets);
+        if (model->doodad_defs)       ri.MemFree(model->doodad_defs);
+        if (model->doodad_name_blob)  ri.MemFree(model->doodad_name_blob);
+        if (model->lights)            ri.MemFree(model->lights);
+        if (model->portals)           ri.MemFree(model->portals);
+        if (model->portal_vertices)   ri.MemFree(model->portal_vertices);
+        if (model->portal_refs)       ri.MemFree(model->portal_refs);
         ri.MemFree(model);
         model = next_model;
     }

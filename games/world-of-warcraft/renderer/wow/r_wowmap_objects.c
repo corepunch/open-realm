@@ -191,13 +191,15 @@ static BOOL Wow_LoadWmoGroup(wowWmoModel_t *model, DWORD group_index, WOWWMOLOAD
             break;
         }
 
-        if (Wow_TagEquals(tag, "PGOM")) {
+        if (*(DWORD const *)tag == ID_PGOM) {
             DWORD sub = 0x44;
             if (chunk_size < sub) {
                 break;
             }
             indoor = (Wow_Read32(chunk + 8) & 0x2000) != 0;
             trans_batch_count = Wow_Read16(chunk + 0x30);
+            model->groups[group_index].portal_start = Wow_Read16(chunk + 0x24);
+            model->groups[group_index].portal_count = Wow_Read16(chunk + 0x26);
             /* replacement_for_header_color at +0x38: overrides MOHD ambient for this group */
             if (chunk_size >= 0x3C && Wow_Read32(chunk + 0x38)) {
                 model->groups[group_index].group_amb.b = chunk[0x38];
@@ -214,25 +216,25 @@ static BOOL Wow_LoadWmoGroup(wowWmoModel_t *model, DWORD group_index, WOWWMOLOAD
                 if (sub + sub_size > chunk_size) {
                     break;
                 }
-                if (Wow_TagEquals(subtag, "YPOM")) {
+                if (*(DWORD const *)subtag == ID_YPOM) {
                     mopy = subchunk;
                     mopy_count = sub_size / sizeof(wowWmoPoly_t);
-                } else if (Wow_TagEquals(subtag, "IVOM")) {
+                } else if (*(DWORD const *)subtag == ID_IVOM) {
                     indices = (WORD const *)subchunk;
                     index_count = sub_size / sizeof(WORD);
-                } else if (Wow_TagEquals(subtag, "TVOM")) {
+                } else if (*(DWORD const *)subtag == ID_TVOM) {
                     vertices = (wowVec3_t const *)subchunk;
                     vertex_count = sub_size / sizeof(wowVec3_t);
-                } else if (Wow_TagEquals(subtag, "RNOM")) {
+                } else if (*(DWORD const *)subtag == ID_RNOM) {
                     normals = (wowVec3_t const *)subchunk;
                     normal_count = sub_size / sizeof(wowVec3_t);
-                } else if (Wow_TagEquals(subtag, "VTOM")) {
+                } else if (*(DWORD const *)subtag == ID_VTOM) {
                     uvs = (wowVec2_t const *)subchunk;
                     uv_count = sub_size / sizeof(wowVec2_t);
-                } else if (Wow_TagEquals(subtag, "ABOM")) {
+                } else if (*(DWORD const *)subtag == ID_ABOM) {
                     batches = (wowWmoBatchDef_t const *)subchunk;
                     batch_count = sub_size / sizeof(wowWmoBatchDef_t);
-                } else if (Wow_TagEquals(subtag, "VCOM")) {
+                } else if (*(DWORD const *)subtag == ID_VCOM) {
                     colors = subchunk;
                     color_count = sub_size / sizeof(COLOR32);
                 }
@@ -393,7 +395,7 @@ BOOL Wow_LoadWmoModel(wowWmoModel_t *model) {
         if (offset + chunk_size > (DWORD)size) {
             break;
         }
-        if (Wow_TagEquals(tag, "DHOM") && chunk_size >= 8) {
+        if (*(DWORD const *)tag == ID_DHOM && chunk_size >= 8) {
             group_count = Wow_Read32(chunk + 4);
             if (chunk_size >= 0x10) model->n_lights = Wow_Read32(chunk + 0x0C);
             if (chunk_size >= 0x20) {
@@ -404,13 +406,13 @@ BOOL Wow_LoadWmoModel(wowWmoModel_t *model) {
                 model->amb_color.a = chunk[0x1F];
             }
             if (chunk_size >= 0x32) model->mohd_flags = Wow_Read16(chunk + 0x30);
-        } else if (Wow_TagEquals(tag, "XTOM")) {
+        } else if (*(DWORD const *)tag == ID_XTOM) {
             texture_blob = (LPCSTR)chunk;
             texture_blob_size = chunk_size;
-        } else if (Wow_TagEquals(tag, "TMOM")) {
+        } else if (*(DWORD const *)tag == ID_TMOM) {
             materials_blob = chunk;
             material_count = chunk_size / 64;
-        } else if (Wow_TagEquals(tag, "NDOM") && chunk_size > 0) {
+        } else if (*(DWORD const *)tag == ID_NDOM && chunk_size > 0) {
             /* MODN: null-terminated doodad model filename blob */
             model->doodad_name_blob = ri.MemAlloc(chunk_size + 1);
             if (model->doodad_name_blob) {
@@ -418,24 +420,42 @@ BOOL Wow_LoadWmoModel(wowWmoModel_t *model) {
                 model->doodad_name_blob[chunk_size] = '\0';
                 model->doodad_name_blob_size = chunk_size;
             }
-        } else if (Wow_TagEquals(tag, "SDOM") && chunk_size >= sizeof(wowWmoDoodadSet_t)) {
+        } else if (*(DWORD const *)tag == ID_SDOM && chunk_size >= sizeof(wowWmoDoodadSet_t)) {
             /* MODS: doodad sets array */
             model->num_doodad_sets = chunk_size / sizeof(wowWmoDoodadSet_t);
             model->doodad_sets = ri.MemAlloc(model->num_doodad_sets * sizeof(wowWmoDoodadSet_t));
             if (model->doodad_sets)
                 memcpy(model->doodad_sets, chunk, model->num_doodad_sets * sizeof(wowWmoDoodadSet_t));
-        } else if (Wow_TagEquals(tag, "DDOM") && chunk_size >= sizeof(wowWmoDoodadDef_t)) {
+        } else if (*(DWORD const *)tag == ID_DDOM && chunk_size >= sizeof(wowWmoDoodadDef_t)) {
             /* MODD: doodad definitions array */
             model->num_doodad_defs = chunk_size / sizeof(wowWmoDoodadDef_t);
             model->doodad_defs = ri.MemAlloc(model->num_doodad_defs * sizeof(wowWmoDoodadDef_t));
             if (model->doodad_defs)
                 memcpy(model->doodad_defs, chunk, model->num_doodad_defs * sizeof(wowWmoDoodadDef_t));
-        } else if (Wow_TagEquals(tag, "TLOM") && chunk_size >= sizeof(wowWmoLight_t)) {
+        } else if (*(DWORD const *)tag == ID_TLOM && chunk_size >= sizeof(wowWmoLight_t)) {
             /* MOLT: light array (used for doodad directional lighting) */
             model->num_lights_parsed = chunk_size / sizeof(wowWmoLight_t);
             model->lights = ri.MemAlloc(model->num_lights_parsed * sizeof(wowWmoLight_t));
             if (model->lights)
                 memcpy(model->lights, chunk, model->num_lights_parsed * sizeof(wowWmoLight_t));
+        } else if (*(DWORD const *)tag == ID_TPOM && chunk_size >= sizeof(wowWmoPortal_t)) {
+            /* MOPT: portal plane definitions */
+            model->num_portals = chunk_size / sizeof(wowWmoPortal_t);
+            model->portals = ri.MemAlloc(model->num_portals * sizeof(wowWmoPortal_t));
+            if (model->portals)
+                memcpy(model->portals, chunk, model->num_portals * sizeof(wowWmoPortal_t));
+        } else if (*(DWORD const *)tag == ID_VPOM && chunk_size >= sizeof(wowVec3_t)) {
+            /* MOPV: portal polygon vertices */
+            model->num_portal_vertices = chunk_size / sizeof(wowVec3_t);
+            model->portal_vertices = ri.MemAlloc(model->num_portal_vertices * sizeof(wowVec3_t));
+            if (model->portal_vertices)
+                memcpy(model->portal_vertices, chunk, model->num_portal_vertices * sizeof(wowVec3_t));
+        } else if (*(DWORD const *)tag == ID_RPOM && chunk_size >= sizeof(wowWmoPortalRef_t)) {
+            /* MOPR: per-group portal references */
+            model->num_portal_refs = chunk_size / sizeof(wowWmoPortalRef_t);
+            model->portal_refs = ri.MemAlloc(model->num_portal_refs * sizeof(wowWmoPortalRef_t));
+            if (model->portal_refs)
+                memcpy(model->portal_refs, chunk, model->num_portal_refs * sizeof(wowWmoPortalRef_t));
         }
         offset += chunk_size;
     }

@@ -145,7 +145,12 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
             for (wowWmoInstance_t *wmo = draw_wmos ? wow_world.wmos : NULL; wmo; wmo = wmo->next) {
                 DWORD visible_groups = 0;
                 BOOL model_batch;
+                BOOL cam_inside;
                 if (!wmo->model || !wmo->model->groups) continue;
+                /* Portal culling: if camera is inside the WMO, suppress exterior geometry.
+                   This prevents seeing outdoor terrain through interior walls. */
+                cam_inside = Wow_WmoContainsPoint(wmo->model, &wmo->matrix,
+                                                   tr.viewDef.camerastate[0].origin);
                 Matrix3_normal(&normal_matrix, &wmo->matrix);
                 R_Call(glUniformMatrix4fv, wow_terrain_shader->uModelMatrix, 1, GL_FALSE, wmo->matrix.v);
                 R_Call(glUniformMatrix3fv, wow_terrain_shader->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
@@ -162,6 +167,7 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
                     for (wowWmoBatch_t *batch = wmo->model->batches; batch; batch = batch->next) {
                         if (!batch->buffer || !batch->num_vertices) continue;
                         if ((int)batch->transparent != wmo_pass) continue;
+                        if (cam_inside && !batch->indoor) continue; /* portal cull: skip exterior when inside */
                         if (bound_indoor != batch->indoor) { bound_indoor = batch->indoor; R_Call(glUniform1i, wow_uWmoIndoor, bound_indoor); }
                         if (bound_blend_mode != (int)batch->blend_mode) {
                             bound_blend_mode = (int)batch->blend_mode;
@@ -184,6 +190,7 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
                         for (wowWmoBatch_t *batch = group->batches; batch; batch = batch->next) {
                             if (!batch->buffer || !batch->num_vertices) continue;
                             if ((int)batch->transparent != wmo_pass) continue;
+                            if (cam_inside && !batch->indoor) continue; /* portal cull */
                             if (bound_indoor != batch->indoor) { bound_indoor = batch->indoor; R_Call(glUniform1i, wow_uWmoIndoor, bound_indoor); }
                             if (bound_blend_mode != (int)batch->blend_mode) {
                                 bound_blend_mode = (int)batch->blend_mode;

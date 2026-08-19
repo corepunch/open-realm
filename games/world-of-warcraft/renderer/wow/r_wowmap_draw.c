@@ -94,6 +94,36 @@ BOOL Wow_WmoGroupInView(wowWmoGroup_t const *group, LPCMATRIX4 matrix) {
     return Frustum_ContainsSphere(&tr.viewDef.frustum, &(SPHERE3){ .center = world_center, .radius = MAX(radius, 16.0f), });
 }
 
+/* Returns true if the world-space point lies within any interior group's AABB (in world space).
+   Each group's local AABB is conservatively transformed to world space by expanding over all 8
+   corners; this is correct for axis-aligned groups and conservative for rotated ones. */
+BOOL Wow_WmoContainsPoint(wowWmoModel_t const *model, LPCMATRIX4 matrix, VECTOR3 point) {
+    if (!model || !matrix || !model->portals) return false;
+    FOR_LOOP(i, model->num_groups) {
+        wowWmoGroup_t const *group = &model->groups[i];
+        BOX3 world;
+        float cx[2], cy[2], cz[2];
+        if (!group->has_bounds) continue;
+        /* Only interior groups contribute to containment */
+        if (!group->portal_count) continue;
+        world = Wow_EmptyBounds();
+        cx[0] = group->bounds.min.x; cx[1] = group->bounds.max.x;
+        cy[0] = group->bounds.min.y; cy[1] = group->bounds.max.y;
+        cz[0] = group->bounds.min.z; cz[1] = group->bounds.max.z;
+        FOR_LOOP(ix, 2) FOR_LOOP(iy, 2) FOR_LOOP(iz, 2) {
+            VECTOR3 corner = { cx[ix], cy[iy], cz[iz] };
+            VECTOR3 w = Matrix4_multiply_vector3(matrix, &corner);
+            Wow_AddBoundsPoint(&world, &w);
+        }
+        if (point.x < world.min.x || point.x > world.max.x ||
+            point.y < world.min.y || point.y > world.max.y ||
+            point.z < world.min.z || point.z > world.max.z)
+            continue;
+        return true;
+    }
+    return false;
+}
+
 void Wow_BindWorldTexture(LPCTEXTURE texture, DWORD unit, LPCTEXTURE bound[5], LPDWORD binds) {
     texture = texture ? texture : tr.texture[TEX_WHITE];
     if (unit >= 5 || bound[unit] == texture) {

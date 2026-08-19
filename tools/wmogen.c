@@ -140,6 +140,33 @@ static void write_motx_empty(wbuf_t *p) { wb_u8(p, 0); }
 /* MOMT chunk payload: one 64-byte material record (all zeros = opaque white) */
 static void write_momt_one(wbuf_t *p) { wb_zero(p, 64); }
 
+/* VPOM (MOPV) chunk payload: 4 portal vertices forming a quad entrance */
+static void write_mopv(wbuf_t *p) {
+    /* Quad portal at x=2: 4 vertices in YZ plane */
+    wb_f32(p,  2.0f); wb_f32(p, -1.5f); wb_f32(p, -1.5f);
+    wb_f32(p,  2.0f); wb_f32(p,  1.5f); wb_f32(p, -1.5f);
+    wb_f32(p,  2.0f); wb_f32(p,  1.5f); wb_f32(p,  1.5f);
+    wb_f32(p,  2.0f); wb_f32(p, -1.5f); wb_f32(p,  1.5f);
+}
+
+/* TPOM (MOPT) chunk payload: one 20-byte portal record
+   Layout: uint16 startVertex, uint16 count, float[4] plane = 2+2+16 = 20 bytes */
+static void write_mopt(wbuf_t *p) {
+    wb_u16(p, 0);    /* startVertex = 0 */
+    wb_u16(p, 4);    /* count = 4 vertices */
+    wb_f32(p, 1.0f); wb_f32(p, 0.0f); wb_f32(p, 0.0f); wb_f32(p, -2.0f); /* plane (1,0,0,-2) */
+}
+
+/* RPOM (MOPR) chunk payload: one 8-byte portal ref connecting group 0 to outside */
+static void write_mopr(wbuf_t *p) {
+    wb_u16(p, 0);   /* portal_index = 0 */
+    wb_u16(p, 0);   /* group_index = 0 (this group) */
+    /* side = 1 (group is on the positive side of the portal plane) */
+    int16_t side = 1;
+    wb_write(p, &side, 2);
+    wb_u16(p, 0);   /* pad */
+}
+
 /* MOGN chunk payload: null-terminated group name */
 static void write_mogn(wbuf_t *p, const char *name) {
     wb_write(p, name, strlen(name) + 1);
@@ -217,6 +244,7 @@ static void write_modd(wbuf_t *p, uint32_t const offsets[MAX_DOODADS]) {
      +0x30 WORD  transBatchCount
 */
 static void write_mogp_fixed_header(wbuf_t *p, uint32_t mogp_flags,
+                                     uint16_t portal_start, uint16_t portal_count,
                                      uint16_t trans_batch_count,
                                      uint16_t int_batch_count,
                                      uint16_t ext_batch_count) {
@@ -227,8 +255,8 @@ static void write_mogp_fixed_header(wbuf_t *p, uint32_t mogp_flags,
     wb_f32(p, -1.0f); wb_f32(p, -1.0f); wb_f32(p, 0.0f);
     wb_f32(p,  1.0f); wb_f32(p,  1.0f); wb_f32(p, 0.0f);
     /* +0x24 portal start/count */
-    wb_u16(p, 0); wb_u16(p, 0);
-    /* +0x28 to +0x2F: pad (portals counts etc in standard layout; zeros here) */
+    wb_u16(p, portal_start); wb_u16(p, portal_count);
+    /* +0x28 to +0x2F: zeros */
     wb_zero(p, 8);
     /* +0x30 batch counts as our parser expects them */
     wb_u16(p, trans_batch_count);  /* +0x30 transBatchCount */
@@ -434,6 +462,11 @@ int main(int argc, char **argv) {
         write_mogn(&p, "wmogen_group_000");
         wb_chunk(&root, "NGOM", &p); p.size = 0;
 
+        /* Emit minimal portal geometry for Phase 6 testing */
+        write_mopv(&p); wb_chunk(&root, "VPOM", &p); p.size = 0;
+        write_mopt(&p); wb_chunk(&root, "TPOM", &p); p.size = 0;
+        write_mopr(&p); wb_chunk(&root, "RPOM", &p); p.size = 0;
+
         if (num_doodads > 0) {
             write_mods_one(&p, "Set_$DefaultGlobal", 0, (uint32_t)num_doodads);
             wb_chunk(&root, "SDOM", &p); p.size = 0;
@@ -464,8 +497,8 @@ int main(int argc, char **argv) {
         {
             wbuf_t mogp_payload = {0};
             write_mogp_fixed_header(&mogp_payload, mogp_flags,
-                                    trans_batches, 0,
-                                    (uint16_t)(1 - (trans_batches > 0 ? 0 : 0)));
+                                    0 /*portal_start*/, 1 /*portal_count*/,
+                                    trans_batches, 0, 0);
 
             wbuf_t sub = {0};
             write_mopy(&sub, 0); wb_chunk(&mogp_payload, "YPOM", &sub); sub.size = 0;
