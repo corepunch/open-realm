@@ -2047,6 +2047,25 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
     }
 }
 
+/* Select a quest marker per recipient; entity state is shared between clients until this copy. */
+static void Wow_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
+    wowEntityLocal_t *local = Wow_EntityLocal(ent);
+    wowClient_t *client;
+    wowQuestState_t *quest;
+    LPCWOWQUESTDETAIL detail;
+
+    if (!local || !local->quest_id || player >= WOW_MAX_CLIENTS || !state->overhead_sprite)
+        return;
+    client = &wow_clients[player];
+    quest = Wow_FindQuestState(client, local->quest_id);
+    detail = Wow_QuestDetail(local->quest_id);
+    if (quest) { state->overhead_sprite = 0; return; }
+    if (detail && detail->prev_quest && !Wow_FindQuestState(client, detail->prev_quest))
+        state->overhead_sprite = 0;
+    else
+        state->overhead_sprite = local->quest_available_sprite;
+}
+
 static void Wow_ClientSetCameraPosition(LPEDICT ent, LPCVECTOR2 position) {
     if (!ent || !ent->client || !position) {
         return;
@@ -2077,6 +2096,7 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.ClientSetCameraPosition = Wow_ClientSetCameraPosition;
     globals.ClientBegin = Wow_ClientBegin;
     globals.CanSeeEntity = NULL;
+    globals.CustomizeEntity = Wow_CustomizeEntity;
     globals.PlayerCreateMap = Wow_SelectedPlayerCreateMap;
     globals.LoadMap = Wow_LoadMap;
     globals.GetWorldBounds = CM_GetWorldBounds;

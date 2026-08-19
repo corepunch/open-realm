@@ -462,6 +462,7 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.ClientCommand         = SC2_ClientCommand;
     globals.ClientSetCameraPosition = SC2_ClientSetCameraPosition;
     globals.CanSeeEntity          = SC2_CanSeeEntity;
+    globals.CustomizeEntity       = NULL;
     globals.GetThemeValue         = SC2_GetThemeValue;
     globals.LoadMap               = SC2_LoadMap;
     globals.GetWorldBounds        = CM_GetWorldBounds;

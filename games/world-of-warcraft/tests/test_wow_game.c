@@ -610,6 +610,34 @@ TEST(wow_game, quest_givers_receive_creature_frame_for_idle_animation) {
     if (game->Shutdown) game->Shutdown();
 }
 
+TEST(wow_game, quest_marker_is_hidden_after_quest_acceptance) {
+    struct game_export *game = init_game();
+    VECTOR2 origin = { -8947.64f, -132.319f };
+    LPEDICT giver = NULL;
+    entityState_t state;
+
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    game->RunFrame();
+    Wow_SpawnQuestLocations(&origin);
+    FOR_LOOP(i, globals.num_edicts) {
+        if (wow_edicts[i].inuse && Wow_EntityLocal(&wow_edicts[i])->quest_id == 783) {
+            giver = &wow_edicts[i];
+            break;
+        }
+    }
+    T_NOT_NULL(giver);
+    if (giver) {
+        state = giver->s;
+        game->CustomizeEntity(0, giver, &state);
+        T_ASSERT(state.overhead_sprite != 0);
+        game->ClientCommand(&wow_edicts[0], 2, (LPCSTR[]){ "quest_accept", "783" });
+        state = giver->s;
+        game->CustomizeEntity(0, giver, &state);
+        T_EQ((int)state.overhead_sprite, 0);
+    }
+    if (game->Shutdown) game->Shutdown();
+}
+
 static LPCSTR test_image_name(DWORD index) {
     return index >= 1 && index <= test_num_images ? test_images[index - 1].name : NULL;
 }

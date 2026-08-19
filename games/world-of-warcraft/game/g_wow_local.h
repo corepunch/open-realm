@@ -280,6 +280,7 @@ typedef struct {
     BOOL  go_interactive;
     DWORD go_display_id;
     DWORD quest_id;
+    DWORD quest_available_sprite;
     /* Corpse fields (think == Wow_RunCorpseFrame). */
     DWORD corpse_owner;
     DWORD corpse_timer;

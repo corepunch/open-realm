@@ -83,23 +83,25 @@ kill objectives and the player's progress is tracked.
 
 ## Overhead Quest Marker
 
-Quest givers set `entityState_t.overhead_sprite` to the image index of
-`Interface\GossipFrame\AvailableQuestIcon.blp` (the yellow "!"). The client
-resolves it to a texture in `V_AddClientEntity` and the renderer draws it as a
-billboarded sprite above the entity head:
+Quest givers retain the available-quest image index on the server entity. When
+building a snapshot, the server copies the entity state and customizes the
+marker for that recipient: the yellow "!" is sent only when the quest is
+available, while accepted, completed, or prerequisite-locked quests send no
+marker. The client resolves the image index in `V_AddClientEntity` and the
+renderer draws it as a billboarded sprite above the entity head:
 
 - **Field**: `entityState_t.overhead_sprite` (`NFT_SHORT`, image index) → `renderEntity_t.overhead_sprite` (resolved `LPCTEXTURE`). 0/NULL means no sprite.
 - **Render**: `R_GameRenderModel` (`games/world-of-warcraft/renderer/r_game.c`) draws it after the model,
-  floating `M2_HeadHeight(model) * scale + 0.25` above the entity origin. `M2_HeadHeight`
+  floating `(M2_GroundOffset(model) + M2_HeadHeight(model)) * scale + 0.25` above the entity origin. `M2_HeadHeight`
   (`renderer/m2/r_m2.c`) returns the model's animation-inclusive bounding-box top, so the
   marker clears the head regardless of creature height. `R_DrawBillboardSprite`
   (`renderer/r_particles.c`) draws the camera-facing quad, reusing the particle billboard
   pipeline (Quake-style explosion billboard).
 
-The sprite is set unconditionally on quest givers for now. Per-player quest
-state (available "!" vs. turn-in "?" vs. nothing) is a follow-up: it requires
-the server to evaluate the player's quest log against each giver's `quest_id`
-when writing the snapshot.
+Per-player marker selection is implemented by the WoW `CustomizeEntity` game
+callback from `SV_BuildClientFrame`; entity state remains shared until the
+per-client snapshot copy is made. Turn-in question marks are not emitted until
+the corresponding authoritative texture and marker state are added.
 
 ## Extraction Tools
 

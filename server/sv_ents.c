@@ -147,6 +147,7 @@ void SV_BuildClientFrame(LPCLIENT client) {
         edict_t *edict = candidates[index].edict;
         LPENTITYSTATE state = SV_NextClientEntity();
         *state = edict->s;
+        ge->CustomizeEntity(clent->client->ps.number, edict, state);
         if (edict->selected & (1 << clent->client->ps.number)) {
             state->renderfx |= RF_SELECTED;
         }

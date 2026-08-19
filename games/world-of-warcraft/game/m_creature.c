@@ -273,7 +273,8 @@ void Wow_SpawnQuestLocations(LPCVECTOR2 origin) {
         ent->s.radius = radius;
         ent->s.player = 2;
         ent->s.class_id = creature_model->display_id;
-        ent->s.overhead_sprite = (DWORD)gi.ImageIndex(WOW_QUEST_AVAILABLE_ICON);
+        local->quest_available_sprite = (DWORD)gi.ImageIndex(WOW_QUEST_AVAILABLE_ICON);
+        ent->s.overhead_sprite = local->quest_available_sprite;
         ent->s.angle = data->orientation;
         ent->s.flags = EF_GROUND_ANCHOR;
         /* Non-hostile NPCs still need the creature frame for their idle (Stand)
