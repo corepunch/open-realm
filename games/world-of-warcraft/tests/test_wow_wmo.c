@@ -1008,3 +1008,175 @@ TEST(wow_wmo_portal, no_portals_no_containment_culling) {
     BOOL has_portals = num_portals > 0;
     T_ASSERT(!has_portals); /* no portals → cam_inside=false → no culling */
 }
+
+/* =========================================================================
+   M. Material slot deduplication: blend mode included in slot key
+   Reference mirrors the updated Wow_WmoMaterialSlot using void* for texture.
+   ======================================================================= */
+
+static DWORD ref_wmo_material_slot(DWORD material_id, void * const *materials,
+                                    BYTE const *blend_modes, DWORD count) {
+    void *texture = material_id < count ? materials[material_id] : (void *)0;
+    BYTE blend = (blend_modes && material_id < count) ? blend_modes[material_id] : 0;
+    DWORD i;
+    for (i = 0; i < count; i++)
+        if (materials[i] == texture && (!blend_modes || blend_modes[i] == blend)) return i;
+    return count;
+}
+
+TEST(wow_wmo_mat_slot, same_texture_same_blend_deduplicates_to_first_slot) {
+    /* Materials 0 and 2 share a texture pointer with the same blend mode.
+       Deduplication should still work: both map to slot 0. */
+    void *tex_a = (void *)0x1000;
+    void *tex_b = (void *)0x2000;
+    void * const mats[3] = { tex_a, tex_b, tex_a };
+    BYTE blends[3] = { 0, 0, 0 };
+    T_EQ((int)ref_wmo_material_slot(0, mats, blends, 3), 0);
+    T_EQ((int)ref_wmo_material_slot(1, mats, blends, 3), 1);
+    T_EQ((int)ref_wmo_material_slot(2, mats, blends, 3), 0); /* deduplicates */
+}
+
+TEST(wow_wmo_mat_slot, same_texture_different_blend_stays_in_own_slot) {
+    /* Materials 0 and 2 share a texture pointer but have different blend modes.
+       They must NOT collapse to the same slot — material 2's blend would be lost. */
+    void *tex_a = (void *)0x1000;
+    void *tex_b = (void *)0x2000;
+    void * const mats[3] = { tex_a, tex_b, tex_a };
+    BYTE blends[3] = { 0, 0, 2 }; /* mat 0=Opaque, mat 2=Alpha blend */
+    T_EQ((int)ref_wmo_material_slot(0, mats, blends, 3), 0);
+    T_EQ((int)ref_wmo_material_slot(2, mats, blends, 3), 2); /* not deduped */
+}
+
+TEST(wow_wmo_mat_slot, out_of_range_material_id_returns_count) {
+    void *tex_a = (void *)0x1000;
+    void * const mats[1] = { tex_a };
+    BYTE blends[1] = { 0 };
+    T_EQ((int)ref_wmo_material_slot(99, mats, blends, 1), 1); /* fallback slot */
+}
+
+/* =========================================================================
+   N. Wow_ComputeMoltContribution algorithm
+   Reference takes pre-transformed world-space light positions to avoid
+   needing a matrix implementation in the test.
+   ======================================================================= */
+
+static void ref_molt_contribution(wowWmoLight_t const *lights, DWORD num_lights,
+                                   wowVec3_t const *world_positions,
+                                   wowVec3_t ref_pos, wowVec3_t *out) {
+    DWORD i;
+    out->x = out->y = out->z = 0.0f;
+    if (!lights || !num_lights) return;
+    for (i = 0; i < num_lights; i++) {
+        wowWmoLight_t const *lt = &lights[i];
+        float atten = 0.0f;
+        float contrib;
+        if (lt->type == 3) { /* AMBIENT */
+            atten = 1.0f;
+        } else if (lt->type == 0 || lt->type == 1) { /* OMNI / SPOT */
+            float dx = world_positions[i].x - ref_pos.x;
+            float dy = world_positions[i].y - ref_pos.y;
+            float dz = world_positions[i].z - ref_pos.z;
+            float dist = sqrtf(dx*dx + dy*dy + dz*dz);
+            if (lt->use_atten) {
+                if (dist <= lt->atten_start) {
+                    atten = 1.0f;
+                } else if (lt->atten_end > lt->atten_start && dist < lt->atten_end) {
+                    atten = 1.0f - (dist - lt->atten_start) / (lt->atten_end - lt->atten_start);
+                }
+            } else {
+                atten = 1.0f;
+            }
+        }
+        contrib = atten * lt->intensity;
+        out->x += contrib * lt->color.r / 255.0f;
+        out->y += contrib * lt->color.g / 255.0f;
+        out->z += contrib * lt->color.b / 255.0f;
+    }
+    if (out->x > 1.0f) out->x = 1.0f;
+    if (out->y > 1.0f) out->y = 1.0f;
+    if (out->z > 1.0f) out->z = 1.0f;
+}
+
+TEST(wow_wmo_molt_contrib, no_lights_returns_zero_vector) {
+    wowVec3_t out = {1.0f, 1.0f, 1.0f};
+    ref_molt_contribution(NULL, 0, NULL, (wowVec3_t){0,0,0}, &out);
+    T_ASSERT(feq(out.x, 0.0f) && feq(out.y, 0.0f) && feq(out.z, 0.0f));
+}
+
+TEST(wow_wmo_molt_contrib, omni_no_atten_full_contribution_regardless_of_distance) {
+    wowWmoLight_t lt; memset(&lt, 0, sizeof(lt));
+    lt.type = 0; lt.use_atten = 0; lt.intensity = 1.0f;
+    lt.color.r = 255; lt.color.g = 127; lt.color.b = 0;
+    wowVec3_t wpos = {0, 0, 0};
+    wowVec3_t ref  = {999, 0, 0}; /* far away, but no attenuation flag */
+    wowVec3_t out  = {0, 0, 0};
+    ref_molt_contribution(&lt, 1, &wpos, ref, &out);
+    T_ASSERT(feq(out.x, 1.0f));
+    T_ASSERT(feq(out.y, 127.0f / 255.0f));
+    T_ASSERT(feq(out.z, 0.0f));
+}
+
+TEST(wow_wmo_molt_contrib, omni_inside_atten_start_is_full) {
+    wowWmoLight_t lt; memset(&lt, 0, sizeof(lt));
+    lt.type = 0; lt.use_atten = 1; lt.intensity = 1.0f;
+    lt.atten_start = 10.0f; lt.atten_end = 50.0f;
+    lt.color.r = 255; lt.color.g = 255; lt.color.b = 255;
+    wowVec3_t wpos = {0, 0, 0};
+    wowVec3_t ref  = {5, 0, 0}; /* dist=5 < atten_start=10 */
+    wowVec3_t out  = {0, 0, 0};
+    ref_molt_contribution(&lt, 1, &wpos, ref, &out);
+    T_ASSERT(feq(out.x, 1.0f));
+}
+
+TEST(wow_wmo_molt_contrib, omni_beyond_atten_end_is_zero) {
+    wowWmoLight_t lt; memset(&lt, 0, sizeof(lt));
+    lt.type = 0; lt.use_atten = 1; lt.intensity = 1.0f;
+    lt.atten_start = 10.0f; lt.atten_end = 50.0f;
+    lt.color.r = 255; lt.color.g = 255; lt.color.b = 255;
+    wowVec3_t wpos = {0, 0, 0};
+    wowVec3_t ref  = {100, 0, 0}; /* dist=100 > atten_end=50 */
+    wowVec3_t out  = {1, 1, 1};
+    ref_molt_contribution(&lt, 1, &wpos, ref, &out);
+    T_ASSERT(feq(out.x, 0.0f) && feq(out.y, 0.0f) && feq(out.z, 0.0f));
+}
+
+TEST(wow_wmo_molt_contrib, linear_falloff_at_midpoint) {
+    wowWmoLight_t lt; memset(&lt, 0, sizeof(lt));
+    lt.type = 0; lt.use_atten = 1; lt.intensity = 1.0f;
+    lt.atten_start = 0.0f; lt.atten_end = 40.0f;
+    lt.color.r = 255; lt.color.g = 255; lt.color.b = 255;
+    wowVec3_t wpos = {0, 0, 0};
+    wowVec3_t ref  = {20, 0, 0}; /* dist=20, halfway → atten=0.5 */
+    wowVec3_t out  = {0, 0, 0};
+    ref_molt_contribution(&lt, 1, &wpos, ref, &out);
+    T_ASSERT(feq(out.x, 0.5f));
+}
+
+TEST(wow_wmo_molt_contrib, ambient_type_contributes_without_position) {
+    wowWmoLight_t lt; memset(&lt, 0, sizeof(lt));
+    lt.type = 3; /* AMBIENT */
+    lt.use_atten = 0; lt.intensity = 0.5f;
+    lt.color.r = 200; lt.color.g = 100; lt.color.b = 50;
+    wowVec3_t wpos = {0, 0, 0}; /* position irrelevant for ambient */
+    wowVec3_t ref  = {9999, 0, 0};
+    wowVec3_t out  = {0, 0, 0};
+    ref_molt_contribution(&lt, 1, &wpos, ref, &out);
+    T_ASSERT(feq(out.x, 0.5f * 200.0f / 255.0f));
+    T_ASSERT(feq(out.y, 0.5f * 100.0f / 255.0f));
+    T_ASSERT(feq(out.z, 0.5f * 50.0f / 255.0f));
+}
+
+TEST(wow_wmo_molt_contrib, multiple_lights_sum_clamped_to_one) {
+    wowWmoLight_t lts[2]; memset(lts, 0, sizeof(lts));
+    lts[0].type = 0; lts[0].use_atten = 0; lts[0].intensity = 0.7f;
+    lts[0].color.r = 255; lts[0].color.g = 0; lts[0].color.b = 0;
+    lts[1].type = 0; lts[1].use_atten = 0; lts[1].intensity = 0.8f;
+    lts[1].color.r = 255; lts[1].color.g = 0; lts[1].color.b = 0;
+    wowVec3_t wpos[2] = {{0,0,0}, {1,0,0}};
+    wowVec3_t ref = {0, 0, 0};
+    wowVec3_t out = {0, 0, 0};
+    ref_molt_contribution(lts, 2, wpos, ref, &out);
+    /* 0.7 + 0.8 = 1.5 on red → clamped to 1.0 */
+    T_ASSERT(feq(out.x, 1.0f));
+    T_ASSERT(feq(out.y, 0.0f));
+}

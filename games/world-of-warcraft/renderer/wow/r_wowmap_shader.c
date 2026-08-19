@@ -14,6 +14,7 @@ GLint wow_uUseWeightedBlend = -1;
 GLint wow_uSingleTexture = -1;
 GLint wow_uWmoIndoor = -1;
 GLint wow_uWmoAmbient = -1;
+GLint wow_uWmoLightAdd = -1;
 GLint wow_uWmoBlendMode = -1;
 GLint wow_uAlphaOrigin = -1;
 GLint wow_uAlphaAtlasChunks = -1;
@@ -117,6 +118,7 @@ void Wow_InitTerrainShader(void) {
     "uniform int uSingleTexture;\n"
     "uniform int uWmoIndoor;\n"
     "uniform vec3 uWmoAmbient;\n"
+    "uniform vec3 uWmoLightAdd;\n"
     "uniform int uWmoBlendMode;\n"
     "uniform vec2 uAlphaOrigin;\n"
     "uniform float uAlphaAtlasChunks;\n"
@@ -154,7 +156,7 @@ void Wow_InitTerrainShader(void) {
        Terrain path: MCVT vertex color is a full lighting multiplier. */
     "    if (uSingleTexture != 0) {\n"
     "        float extBlend = v_color.a;\n"
-    "        color.rgb *= 2.0 * (uWmoAmbient + v_color.rgb + v_lighting * extBlend);\n"
+    "        color.rgb *= 2.0 * (uWmoAmbient + uWmoLightAdd + v_color.rgb + v_lighting * extBlend);\n"
     "    } else {\n"
     "        color.rgb *= 2.0 * v_color.rgb * v_lighting;\n"
     "    }\n"
@@ -185,6 +187,7 @@ void Wow_InitTerrainShader(void) {
     wow_uSingleTexture = glGetUniformLocation(wow_terrain_shader->progid, "uSingleTexture");
     wow_uWmoIndoor = glGetUniformLocation(wow_terrain_shader->progid, "uWmoIndoor");
     wow_uWmoAmbient = glGetUniformLocation(wow_terrain_shader->progid, "uWmoAmbient");
+    wow_uWmoLightAdd = glGetUniformLocation(wow_terrain_shader->progid, "uWmoLightAdd");
     wow_uWmoBlendMode = glGetUniformLocation(wow_terrain_shader->progid, "uWmoBlendMode");
     wow_uAlphaOrigin = glGetUniformLocation(wow_terrain_shader->progid, "uAlphaOrigin");
     wow_uAlphaAtlasChunks = glGetUniformLocation(wow_terrain_shader->progid, "uAlphaAtlasChunks");
@@ -202,6 +205,7 @@ void Wow_InitTerrainShader(void) {
     R_Call(glUniform1i, wow_uSingleTexture, 0);
     R_Call(glUniform1i, wow_uWmoIndoor, 0);
     R_Call(glUniform3f, wow_uWmoAmbient, 0.0f, 0.0f, 0.0f);
+    R_Call(glUniform3f, wow_uWmoLightAdd, 0.0f, 0.0f, 0.0f);
     R_Call(glUniform1i, wow_uWmoBlendMode, 0);
 }
 
