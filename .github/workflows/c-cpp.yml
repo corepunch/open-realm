@@ -16,13 +16,20 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt-get update -o Acquire::Retries=3 -o Acquire::http::Timeout=60
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-            libgles2-mesa-dev \
-            libsdl2-dev \
-            liblua5.4-dev \
-            libjpeg-dev \
-            libxml2-dev
+          for attempt in 1 2 3 4 5; do
+            echo "apt attempt $attempt"
+            if timeout 180 sudo apt-get update && \
+               sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+                 libgles2-mesa-dev \
+                 libsdl2-dev \
+                 liblua5.4-dev \
+                 libjpeg-dev \
+                 libxml2-dev; then
+              exit 0
+            fi
+            sleep 15
+          done
+          exit 1
 
       - name: Run unit tests
         run: make test
@@ -35,12 +42,19 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt-get update -o Acquire::Retries=3 -o Acquire::http::Timeout=60
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-            libgles2-mesa-dev \
-            libsdl2-dev \
-            libjpeg-dev \
-            libxml2-dev
+          for attempt in 1 2 3 4 5; do
+            echo "apt attempt $attempt"
+            if timeout 180 sudo apt-get update && \
+               sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+                 libgles2-mesa-dev \
+                 libsdl2-dev \
+                 libjpeg-dev \
+                 libxml2-dev; then
+              exit 0
+            fi
+            sleep 15
+          done
+          exit 1
 
       - name: Build
         run: make
