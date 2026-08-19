@@ -364,7 +364,7 @@ $(eval $(call app_schema,$(SC2_BINARY),$(SHARED_LIB) $(SHEET_LIB) $(GAME_SC2_LIB
 GAME_WOW_TEST_LIB := $(LIB_DIR)/libgame-wow-test$(LIB_EXT)
 WOW_TEST_BINARY   := $(BIN_DIR)/openwow-tests$(EXE_EXT)
 
-$(eval $(call unity_lib_schema,$(GAME_WOW_TEST_LIB),$(GAME_BASE_DEPS) $(WOW_GENERATED_SRCS) common/world.c $(WOW_COMMON_SRCS) $(call CSRC,$(WOW_DIR)/game),game-wow-test,$(WOW_DIR)/game,,$(WOW_CFLAGS) -DBZ_TESTS,common/mpq.c,-lshared $(LIBS) -lm -lz))
+$(eval $(call unity_lib_schema,$(GAME_WOW_TEST_LIB),$(GAME_BASE_DEPS) $(WOW_GENERATED_SRCS) common/world.c $(WOW_COMMON_SRCS) $(call CSRC,$(WOW_DIR)/game) $(RENDERER_WOW_LIB),game-wow-test,$(WOW_DIR)/game,,$(WOW_CFLAGS) -DBZ_TESTS,common/mpq.c,-lshared -lrenderer-wow $(LIBS) -lm -lz))
 $(eval $(call app_schema,$(WOW_TEST_BINARY),$(SHARED_LIB) $(SHEET_LIB) $(GAME_WOW_TEST_LIB) $(RENDERER_WOW_LIB) $(UI_WOW_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS),openwow-tests,$(WOW_CFLAGS),-lsheet -lshared -lgame-wow-test -lrenderer-wow -lui-wow $(LIBS) -lz))
 
 openwow-tests: $(WOW_TEST_BINARY)
