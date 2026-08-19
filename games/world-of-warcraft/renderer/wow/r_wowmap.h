@@ -35,49 +35,49 @@
 #define WOW_SPLAT_BATCH_VERTICES 4096
 #define WOW_SPLAT_Z_BIAS 0.05f
 #define WOW_SPLAT_MAX_HEIGHT_DELTA 3.0f
-#define WOW_GRASS_DRAW_DISTANCE 220.0f
-#define WOW_GRASS_FADE_START_DISTANCE 160.0f
-#define WOW_GRASS_WIND_SPEED 1.7f
-#define WOW_GRASS_WIND_AMPLITUDE 0.12f
-#define WOW_GRASS_WIND_ROOT_FRACTION 0.15f
-#define WOW_GRASS_WIND_PHASE_X 0.071f
-#define WOW_GRASS_WIND_PHASE_Y 0.113f
-#define WOW_GRASS_WIND_DIRECTION_X 0.86f
-#define WOW_GRASS_WIND_DIRECTION_Y 0.51f
-#define WOW_GRASS_ROAD_COVERAGE_MIN 24
-#define WOW_GRASS_CELL_STEP 1
-#define WOW_GRASS_CELLS_PER_AXIS 8
-#define WOW_GRASS_MAX_PLACEMENTS_PER_SAMPLE 8
-#define WOW_GRASS_COVERAGE_MIN 32
-#define WOW_GRASS_ALPHA_AXIS 8
-#define WOW_GRASS_ALPHA_MAX 63
-#define WOW_GRASS_ALPHA_TEXEL_MAX 255.0f
-#define WOW_GRASS_DBC_DENSITY_MAX 16
-#define WOW_GRASS_DBC_FIELD_COUNT 11
-#define WOW_GRASS_DOODAD_FIELD_COUNT 3
-#define WOW_GRASS_TEXTURE_LEGACY_DOODAD_FIELD 5
-#define WOW_GRASS_TEXTURE_MODERN_DOODAD_FIELD 1
-#define WOW_GRASS_TEXTURE_WEIGHT_FIELD 5
-#define WOW_GRASS_TEXTURE_DENSITY_FIELD 9
-#define WOW_GRASS_DOODAD_MODEL_FIELD 2
-#define WOW_GRASS_DOODAD_LOGGED_IDS 65536
-#define WOW_GRASS_DOODAD_SLOTS 4
-#define WOW_GRASS_INVALID_DOODAD 0xFFFFFFFFU
-#define WOW_GRASS_VERTICES_PER_CLUMP 12
-#define WOW_GRASS_CELL_OFFSET 0.20f
-#define WOW_GRASS_CELL_MARGIN 0.40f
-#define WOW_GRASS_CLUMP_JITTER 0.45f
-#define WOW_GRASS_COORD_EPSILON 0.001f
-#define WOW_GRASS_Z_BIAS 0.02f
-#define WOW_GRASS_FULL_CIRCLE 6.2831853f
-#define WOW_GRASS_BLADE_HEIGHT_MIN 0.55f
-#define WOW_GRASS_BLADE_HEIGHT_VARIATION 0.45f
-#define WOW_GRASS_BLADE_WIDTH_MIN 0.30f
-#define WOW_GRASS_BLADE_WIDTH_VARIATION 0.20f
-#define WOW_GRASS_CROSS_ANGLE 1.5707963f
-#define WOW_GRASS_CROSS_WIDTH_SCALE 0.85f
-#define WOW_GRASS_CROSS_HEIGHT_SCALE 0.90f
-#define WOW_GRASS_NORMAL_Z 0.10f
+#define WOW_GRASS_DRAW_DISTANCE 220.0f          // world units; instances beyond this are discarded
+#define WOW_GRASS_FADE_START_DISTANCE 160.0f    // world units; alpha fade begins here and reaches 0 at DRAW_DISTANCE
+#define WOW_GRASS_WIND_SPEED 1.7f               // rad/s; angular frequency of the sway sin wave
+#define WOW_GRASS_WIND_AMPLITUDE 0.12f          // fraction of blade height; peak lateral displacement
+#define WOW_GRASS_WIND_ROOT_FRACTION 0.15f      // [0,1]; sway weight is 0 below this normalized blade height (root anchor)
+#define WOW_GRASS_WIND_PHASE_X 0.917f           // rad/world-unit in X; large enough that adjacent blades (~2.5 u apart) differ by ~131°
+#define WOW_GRASS_WIND_PHASE_Y 1.481f           // rad/world-unit in Y; ratio to PHASE_X ≈ φ² to prevent grid-aligned periodicity
+#define WOW_GRASS_WIND_DIRECTION_X 0.86f        // sway XY direction, X component; together with Y ≈ 30° off axis, length ≈ 1
+#define WOW_GRASS_WIND_DIRECTION_Y 0.51f        // sway XY direction, Y component; used as uGrassPhase.zw in the instanced shader
+#define WOW_GRASS_ROAD_COVERAGE_MIN 24          // alpha [0-255]; cells with a road-layer alpha above this suppress grass
+#define WOW_GRASS_CELL_STEP 1                   // stride over the 8×8 cell grid; 1 = every cell, 2 = every other (halves density)
+#define WOW_GRASS_CELLS_PER_AXIS 8              // cells per MCNK axis; matches WoW's fixed 8×8 sub-cell layout
+#define WOW_GRASS_MAX_PLACEMENTS_PER_SAMPLE 12  // max M2 instances per sampled cell; hard ceiling on the clumps formula
+#define WOW_GRASS_COVERAGE_MIN 32               // alpha [0-255]; minimum coverage to spawn any grass in a cell at all
+#define WOW_GRASS_ALPHA_AXIS 8                  // sample points per axis when mapping a cell coordinate to an alpha texel index
+#define WOW_GRASS_ALPHA_MAX 63                  // max alpha texel index (8×8 = 64 entries, 0-based)
+#define WOW_GRASS_ALPHA_TEXEL_MAX 255.0f        // float denominator to normalize a raw alpha byte to [0,1]
+#define WOW_GRASS_DBC_DENSITY_MAX 24            // cap on GroundEffectTexture.dbc density field; prevents over-spawning on high-density records
+#define WOW_GRASS_DBC_FIELD_COUNT 11            // total DWORD fields per GroundEffectTexture.dbc record
+#define WOW_GRASS_DOODAD_FIELD_COUNT 3          // total DWORD fields per GroundEffectDoodad.dbc record (id, legacy_field, model_path)
+#define WOW_GRASS_TEXTURE_LEGACY_DOODAD_FIELD 5 // field index of first doodad_id in the pre-TBC GroundEffectTexture layout
+#define WOW_GRASS_TEXTURE_MODERN_DOODAD_FIELD 1 // field index of first doodad_id in the TBC+ GroundEffectTexture layout
+#define WOW_GRASS_TEXTURE_WEIGHT_FIELD 5        // field index of first doodad weight in GroundEffectTexture (4 consecutive DWORDs)
+#define WOW_GRASS_TEXTURE_DENSITY_FIELD 9       // field index of the density value in a GroundEffectTexture.dbc record
+#define WOW_GRASS_DOODAD_MODEL_FIELD 2          // field index of the model path string in a GroundEffectDoodad.dbc record
+#define WOW_GRASS_DOODAD_LOGGED_IDS 65536       // size of the one-shot missing-ID log bitfield; covers the full 16-bit DBC id space
+#define WOW_GRASS_DOODAD_SLOTS 4                // weighted doodad variants per GroundEffectTexture record
+#define WOW_GRASS_INVALID_DOODAD 0xFFFFFFFFU    // sentinel value for an empty doodad slot in a GroundEffectTexture record
+#define WOW_GRASS_VERTICES_PER_CLUMP 12         // triangle-list cross blade: 2 quads × 6 verts (used by camera-mesh path)
+#define WOW_GRASS_CELL_OFFSET 0.20f             // [0,1] cell fraction; minimum inset from edge before jitter is applied
+#define WOW_GRASS_CELL_MARGIN 0.40f             // [0,1] cell fraction; caps the random jitter range to stay inside the cell
+#define WOW_GRASS_CLUMP_JITTER 0.45f            // cell units; scatter radius applied to each instance within a clump
+#define WOW_GRASS_COORD_EPSILON 0.001f          // safety margin when clamping local row/col to [0, CELLS_PER_AXIS − ε]
+#define WOW_GRASS_Z_BIAS 0.02f                  // world units; upward offset on all placements to avoid z-fighting with terrain
+#define WOW_GRASS_FULL_CIRCLE 6.2831853f        // 2π rad; full yaw rotation range for random blade orientation
+#define WOW_GRASS_BLADE_HEIGHT_MIN 0.55f        // world units; shortest possible blade before the random height variation is added
+#define WOW_GRASS_BLADE_HEIGHT_VARIATION 0.45f  // world units; random value in [0,1] × this is added to BLADE_HEIGHT_MIN
+#define WOW_GRASS_BLADE_WIDTH_MIN 0.30f         // world units; narrowest possible blade half-width
+#define WOW_GRASS_BLADE_WIDTH_VARIATION 0.20f   // world units; random value in [0,1] × this is added to BLADE_WIDTH_MIN
+#define WOW_GRASS_CROSS_ANGLE 1.5707963f        // π/2 rad; rotation between the two quads of a cross-blade mesh
+#define WOW_GRASS_CROSS_WIDTH_SCALE 0.85f       // scale factor applied to the second quad's width for visual variety
+#define WOW_GRASS_CROSS_HEIGHT_SCALE 0.90f      // scale factor applied to the second quad's height for visual variety
+#define WOW_GRASS_NORMAL_Z 0.10f               // Z component of the fake upward normal baked into blade vertices
 
 /* Height atlas: 17x9 texel tiles packed into a GL_R32F atlas */
 #define WOW_HEIGHT_ATLAS_TILE_W  17
