@@ -19,6 +19,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "games/world-of-warcraft/common/wow_chunks.h"
+
 typedef struct { uint8_t *data; size_t size, cap; } wbuf_t;
 
 static void wb_grow(wbuf_t *b, size_t need) {
@@ -39,8 +41,8 @@ static void wb_f32(wbuf_t *b, float    v) { wb_write(b, &v, 4); }
 static void wb_zero(wbuf_t *b, size_t n)  { wb_grow(b, n); memset(b->data + b->size, 0, n); b->size += n; }
 static void wb_free(wbuf_t *b) { free(b->data); b->data = NULL; b->size = b->cap = 0; }
 
-static void wb_chunk(wbuf_t *out, const char *tag, wbuf_t *payload) {
-    wb_write(out, tag, 4);
+static void wb_chunk(wbuf_t *out, uint32_t fourcc, wbuf_t *payload) {
+    wb_write(out, &fourcc, 4);
     wb_u32(out, (uint32_t)payload->size);
     wb_write(out, payload->data, payload->size);
 }
@@ -128,14 +130,14 @@ int main(int argc, char **argv) {
     wbuf_t out = {0};
     wbuf_t p = {0};
 
-    write_mver(&p); wb_chunk(&out, "REVM", &p); p.size = 0;
-    write_mphd(&p, mphd_flags); wb_chunk(&out, "DHPM", &p); p.size = 0;
-    write_main_empty(&p); wb_chunk(&out, "NIAM", &p); p.size = 0;
+    write_mver(&p); wb_chunk(&out, ID_REVM, &p); p.size = 0;
+    write_mphd(&p, mphd_flags); wb_chunk(&out, ID_DHPM, &p); p.size = 0;
+    write_main_empty(&p); wb_chunk(&out, ID_NIAM, &p); p.size = 0;
 
     if (global_wmo) {
-        write_mwmo(&p, global_wmo); wb_chunk(&out, "OMWM", &p); p.size = 0;
-        write_mwid(&p);             wb_chunk(&out, "DIWM", &p); p.size = 0;
-        write_modf_origin(&p);      wb_chunk(&out, "FDOM", &p); p.size = 0;
+        write_mwmo(&p, global_wmo); wb_chunk(&out, ID_OMWM, &p); p.size = 0;
+        write_mwid(&p);             wb_chunk(&out, ID_DIWM, &p); p.size = 0;
+        write_modf_origin(&p);      wb_chunk(&out, ID_FDOM, &p); p.size = 0;
     }
 
     wb_free(&p);

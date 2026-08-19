@@ -97,13 +97,13 @@ static BOOL m2_validate_skin_vertex_range(WORD const *skin_vertices, DWORD skin_
     return true;
 }
 
-static BYTE const *m2_find_chunk(BYTE const *data, DWORD size, LPCSTR tag, LPDWORD chunk_size) {
+static BYTE const *m2_find_chunk(BYTE const *data, DWORD size, DWORD fourcc, LPDWORD chunk_size) {
     DWORD offset = 0;
     while (offset + 8 <= size) {
         DWORD current_size;
         memcpy(&current_size, data + offset + 4, sizeof(current_size));
         if ((offset += 8) + current_size > size) break;
-        if (!memcmp(data + offset - 8, tag, 4)) { *chunk_size = current_size; return data + offset; }
+        if (*(DWORD const *)(data + offset - 8) == fourcc) { *chunk_size = current_size; return data + offset; }
         offset += current_size;
     }
     return NULL;

@@ -70,7 +70,7 @@ static HANDLE alloc_dbc(DWORD records, DWORD fields, DWORD string_size, LPDWORD 
     DWORD record_size = fields * sizeof(DWORD);
     DWORD size = 20 + records * record_size + string_size;
     LPBYTE data = calloc(1, size);
-    memcpy(data, "WDBC", 4);
+    *(DWORD *)data = ID_WDBC;
     put32(data + 4, records);
     put32(data + 8, fields);
     put32(data + 12, record_size);
@@ -526,7 +526,7 @@ TEST(wow_entities, stb_dbc_parses_header_and_fields) {
 
     /* Malformed envelope: block overflow, too-small record size, bad magic. */
     LPBYTE bad = malloc(64);
-    memcpy(bad, "WDBC", 4);
+    *(DWORD *)bad = ID_WDBC;
     put32(bad + 4, 10); put32(bad + 8, 1); put32(bad + 12, 4); put32(bad + 16, 0);
     T_ASSERT(!Stb_DbcValid(bad, 32, &h)); /* 20 + 10*4 > 32 */
     put32(bad + 12, 0);
@@ -538,7 +538,7 @@ TEST(wow_entities, stb_dbc_parses_header_and_fields) {
     /* Loose rule: logical field_count may exceed record_size/4 (classic CharStartOutfit),
        but Stb_DbcField still bounds-checks against the physical record. */
     LPBYTE wide = calloc(1, 20 + 8);
-    memcpy(wide, "WDBC", 4);
+    *(DWORD *)wide = ID_WDBC;
     put32(wide + 4, 1); put32(wide + 8, 40); put32(wide + 12, 8); put32(wide + 16, 0);
     T_ASSERT(Stb_DbcValid(wide, 20 + 8, &h));
     T_EQ((int)h.fields, 40);

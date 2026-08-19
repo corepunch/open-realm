@@ -1,5 +1,6 @@
 #include "common/common.h"
 #include "stb_dbc.h"
+#include "wow_chunks.h"
 #include <float.h>
 #include <limits.h>
 #include <math.h>
@@ -127,10 +128,6 @@ DWORD CM_WowGetAllSpawnCount(void) { return cm_wow_all_spawn_count; }
 LPCVECTOR3 CM_WowGetSpawnPos(DWORD index) { return index < cm_wow_all_spawn_count ? &cm_wow_all_spawns[index].pos : NULL; }
 LPCSTR CM_WowGetSpawnName(DWORD index) { return index < cm_wow_all_spawn_count ? cm_wow_all_spawns[index].name : NULL; }
 DWORD CM_WowGetMapId(void) { return cm_wow_map_id; }
-
-static BOOL CM_WowTagEquals(BYTE const *tag, LPCSTR reversed) {
-    return memcmp(tag, reversed, 4) == 0;
-}
 
 static LPSTR CM_WowCopyString(LPCSTR value) {
     size_t len;
@@ -284,7 +281,7 @@ static BOOL CM_WowLoadWmoGroup(cmWowWmoModel_t *model, DWORD group_index) {
         BYTE const *chunk = data + offset + 8;
         offset += 8;
         if (offset + chunk_size > size) break;
-        if (CM_WowTagEquals(tag, "PGOM") && chunk_size >= 0x44) {
+        if (*(DWORD const *)tag == ID_PGOM && chunk_size >= 0x44) {
             DWORD sub = 0x44;
             memcpy(&group->bounds.min, chunk + 0x0c, sizeof(VECTOR3));
             memcpy(&group->bounds.max, chunk + 0x18, sizeof(VECTOR3));
@@ -294,11 +291,11 @@ static BOOL CM_WowLoadWmoGroup(cmWowWmoModel_t *model, DWORD group_index) {
                 BYTE const *subchunk = chunk + sub + 8;
                 sub += 8;
                 if (sub + sub_size > chunk_size) break;
-                if (CM_WowTagEquals(subtag, "YPOM")) { mopy = subchunk; mopy_count = sub_size / 2; }
-                else if (CM_WowTagEquals(subtag, "IVOM")) { indices = (WORD const *)subchunk; index_count = sub_size / 2; }
-                else if (CM_WowTagEquals(subtag, "TVOM")) { vertices = (VECTOR3 const *)subchunk; vertex_count = sub_size / sizeof(*vertices); }
-                else if (CM_WowTagEquals(subtag, "NBOM")) { mobn = subchunk; mobn_size = sub_size; }
-                else if (CM_WowTagEquals(subtag, "RBOM")) { mobr = (WORD const *)subchunk; mobr_count = sub_size / 2; }
+                if (*(DWORD const *)subtag == ID_YPOM) { mopy = subchunk; mopy_count = sub_size / 2; }
+                else if (*(DWORD const *)subtag == ID_IVOM) { indices = (WORD const *)subchunk; index_count = sub_size / 2; }
+                else if (*(DWORD const *)subtag == ID_TVOM) { vertices = (VECTOR3 const *)subchunk; vertex_count = sub_size / sizeof(*vertices); }
+                else if (*(DWORD const *)subtag == ID_NBOM) { mobn = subchunk; mobn_size = sub_size; }
+                else if (*(DWORD const *)subtag == ID_RBOM) { mobr = (WORD const *)subchunk; mobr_count = sub_size / 2; }
                 sub += sub_size;
             }
         }
@@ -407,7 +404,7 @@ static cmWowWmoModel_t *CM_WowGetWmoModel(LPCSTR path) {
         BYTE const *chunk = data + offset + 8;
         offset += 8;
         if (offset + chunk_size > size) break;
-        if (CM_WowTagEquals(tag, "DHOM") && chunk_size >= 8) group_count = Stb_DbcRead32(chunk + 4);
+        if (*(DWORD const *)tag == ID_DHOM && chunk_size >= 8) group_count = Stb_DbcRead32(chunk + 4);
         offset += chunk_size;
     }
     FS_FreeFile(data);
@@ -446,9 +443,9 @@ static void CM_WowLoadAdtWmos(cmWowAdtHeightCache_t *cache, BYTE const *data, DW
         BYTE const *chunk = data + offset + 8;
         offset += 8;
         if (offset + chunk_size > size) break;
-        if (CM_WowTagEquals(tag, "OMWM")) { names = (LPCSTR)chunk; names_size = chunk_size; }
-        else if (CM_WowTagEquals(tag, "DIWM")) { name_offsets = (DWORD const *)chunk; name_count = chunk_size / 4; }
-        else if (CM_WowTagEquals(tag, "FDOM")) { defs = (cmWowWmoDef_t const *)chunk; def_count = chunk_size / sizeof(*defs); }
+        if (*(DWORD const *)tag == ID_OMWM) { names = (LPCSTR)chunk; names_size = chunk_size; }
+        else if (*(DWORD const *)tag == ID_DIWM) { name_offsets = (DWORD const *)chunk; name_count = chunk_size / 4; }
+        else if (*(DWORD const *)tag == ID_FDOM) { defs = (cmWowWmoDef_t const *)chunk; def_count = chunk_size / sizeof(*defs); }
         offset += chunk_size;
     }
     if (!cache || !names || !name_offsets || !defs) return;
@@ -512,7 +509,7 @@ static void CM_WowLoadAdtHeights(int tile_x, int tile_y) {
         if (offset + chunk_size > size)
             break;
 
-        if (CM_WowTagEquals(tag, "KNCM") && chunk_size >= 0x80) {
+        if (*(DWORD const *)tag == ID_KNCM && chunk_size >= 0x80) {
             DWORD sub     = 0x80;
             DWORD index_x = Stb_DbcRead32(chunk + 0x04);
             DWORD index_y = Stb_DbcRead32(chunk + 0x08);
@@ -527,12 +524,12 @@ static void CM_WowLoadAdtHeights(int tile_x, int tile_y) {
                 BYTE const *subtag  = chunk + sub;
                 DWORD       sub_size = Stb_DbcRead32(chunk + sub + 4);
                 BYTE const *subchunk = chunk + sub + 8;
-                BOOL        is_mcnr  = CM_WowTagEquals(subtag, "RNCM");
+                BOOL        is_mcnr  = *(DWORD const *)subtag == ID_RNCM;
 
                 sub += 8;
                 if (sub + sub_size > chunk_size)
                     break;
-                if (CM_WowTagEquals(subtag, "TVCM") && sub_size >= sizeof(height_chunk->heights)) {
+                if (*(DWORD const *)subtag == ID_TVCM && sub_size >= sizeof(height_chunk->heights)) {
                     memcpy(height_chunk->heights, subchunk, sizeof(height_chunk->heights));
                     height_chunk->has_heights    = true;
                     cache->valid                 = true;

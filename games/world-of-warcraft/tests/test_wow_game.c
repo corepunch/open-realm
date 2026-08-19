@@ -110,7 +110,7 @@ static HANDLE alloc_dbc(DWORD records, DWORD fields, DWORD string_size, LPDWORD 
     DWORD size = 20 + records * record_size + string_size;
     LPBYTE data = calloc(1, size);
 
-    memcpy(data, "WDBC", 4);
+    *(DWORD *)data = ID_WDBC;
     put32(data + 4, records);
     put32(data + 8, fields);
     put32(data + 12, record_size);

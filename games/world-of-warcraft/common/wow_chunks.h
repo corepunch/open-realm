@@ -9,6 +9,7 @@
  * raw memcpy of the tag bytes; the trailing comment gives the canonical tag. */
 
 /* WMO */
+#define ID_REVM MAKEFOURCC('R','E','V','M') /* MVER — version (WMO + WDT) */
 #define ID_PGOM MAKEFOURCC('P','G','O','M') /* MOGP */
 #define ID_YPOM MAKEFOURCC('Y','P','O','M') /* MOPY */
 #define ID_IVOM MAKEFOURCC('I','V','O','M') /* MOVI */
@@ -29,6 +30,7 @@
 #define ID_TPOM MAKEFOURCC('T','P','O','M') /* MOPT — portal plane definitions */
 #define ID_VPOM MAKEFOURCC('V','P','O','M') /* MOPV — portal vertex array */
 #define ID_RPOM MAKEFOURCC('R','P','O','M') /* MOPR — portal references per group */
+#define ID_NGOM MAKEFOURCC('N','G','O','M') /* MONG — group name */
 
 /* ADT */
 #define ID_XETM MAKEFOURCC('X','E','T','M') /* MTEX */

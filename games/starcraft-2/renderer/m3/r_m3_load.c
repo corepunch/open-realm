@@ -646,7 +646,7 @@ m3Model_t *R_LoadModelM3(void *data, DWORD size) {
     model->size = size;
     memcpy(model->buffer, data, size);
     model->head = model->buffer;
-    if (memcmp(model->head->id, "43DM", 4) ||
+    if (*(DWORD const *)model->head->id != ID_43DM ||
         model->head->ofsRefs >= model->size ||
         model->head->nRefs > (model->size - model->head->ofsRefs) / sizeof(struct ReferenceEntry) ||
         model->head->MODL.ref >= model->head->nRefs) {

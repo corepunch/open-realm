@@ -171,7 +171,7 @@ static bool dbc_cache_load(const char *target, dbc_mem_t *m) {
     size_t sz = 0;
     BYTE *data = load_file(path, &sz);
     if (!data) return false;
-    if (sz < 20 || memcmp(data, "WDBC", 4)) { free(data); return false; }
+    if (sz < 20 || *(DWORD const *)data != ID_WDBC) { free(data); return false; }
     memcpy(&m->hdr, data, 20);
     size_t body = (size_t)m->hdr.records * m->hdr.record_size;
     if (20 + body + m->hdr.string_size > sz) { free(data); return false; }
@@ -358,7 +358,7 @@ static int cmd_set(int argc, char **argv) {
         /* Try loading the actual DBC file */
         size_t sz = 0;
         BYTE *data = load_file(path, &sz);
-        if (data && sz >= 20 && memcmp(data, "WDBC", 4) == 0) {
+        if (data && sz >= 20 && *(DWORD const *)data == ID_WDBC) {
             dbc_header_t h; const BYTE *rb, *sb;
             if (dbc_parse(data, sz, &h, &rb, &sb)) {
                 dbc_mem_init(&m, h.fields, h.record_size);
@@ -401,7 +401,7 @@ static int cmd_setstr(int argc, char **argv) {
     if (!dbc_cache_load(path, &m)) {
         size_t sz = 0;
         BYTE *data = load_file(path, &sz);
-        if (data && sz >= 20 && memcmp(data, "WDBC", 4) == 0) {
+        if (data && sz >= 20 && *(DWORD const *)data == ID_WDBC) {
             dbc_header_t h; const BYTE *rb, *sb;
             if (dbc_parse(data, sz, &h, &rb, &sb)) {
                 dbc_mem_init(&m, h.fields, h.record_size);

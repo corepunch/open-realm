@@ -501,7 +501,7 @@ static BOOL LoadDbc(LPCSTR filename, m2ToolDbc_t *dbc) {
     }
     memset(dbc, 0, sizeof(*dbc));
     dbc->data = ReadWholeFile(filename, &size, resolved, sizeof(resolved));
-    if (!dbc->data || size <= 20 || memcmp(dbc->data, "WDBC", 4)) {
+    if (!dbc->data || size <= 20 || *(DWORD const *)dbc->data != ID_WDBC) {
         SAFE_DELETE(dbc->data, Tool_MemFree);
         return false;
     }
