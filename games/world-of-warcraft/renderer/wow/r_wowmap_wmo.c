@@ -13,10 +13,12 @@ typedef struct {
     DWORD material_count, slot_count, build_count;
 } WOWWMOLOAD;
 
-static DWORD Wow_WmoMaterialSlot(DWORD material_id, LPTEXTURE const *materials, DWORD count) {
+static DWORD Wow_WmoMaterialSlot(DWORD material_id, LPTEXTURE const *materials,
+                                   BYTE const *blend_modes, DWORD count) {
     LPTEXTURE texture = material_id < count ? materials[material_id] : tr.texture[TEX_WHITE];
+    BYTE blend = (blend_modes && material_id < count) ? blend_modes[material_id] : 0;
     FOR_LOOP(i, count)
-        if (materials[i] == texture) return i;
+        if (materials[i] == texture && (!blend_modes || blend_modes[i] == blend)) return i;
     return count;
 }
 
@@ -275,7 +277,7 @@ static BOOL Wow_LoadWmoGroup(wowWmoModel_t *model, DWORD group_index, WOWWMOLOAD
             DWORD first_index = batch->first_index;
             DWORD num_indices = batch->num_indices;
             DWORD material_id = batch->material_id;
-            DWORD slot = Wow_WmoMaterialSlot(material_id, load->materials, load->material_count) + (indoor ? load->slot_count : 0);
+            DWORD slot = Wow_WmoMaterialSlot(material_id, load->materials, load->mat_blend_modes, load->material_count) + (indoor ? load->slot_count : 0);
             WOWWMOBUILD *build = &builds[slot];
 
             if (first_index >= index_count || first_index + num_indices > index_count || !num_indices) {
@@ -319,7 +321,7 @@ static BOOL Wow_LoadWmoGroup(wowWmoModel_t *model, DWORD group_index, WOWWMOLOAD
             if (mopy && poly_index < mopy_count) {
                 material_id = ((wowWmoPoly_t const *)mopy)[poly_index].material_id;
             }
-            DWORD slot = Wow_WmoMaterialSlot(material_id, load->materials, load->material_count) + (indoor ? load->slot_count : 0);
+            DWORD slot = Wow_WmoMaterialSlot(material_id, load->materials, load->mat_blend_modes, load->material_count) + (indoor ? load->slot_count : 0);
             build = &builds[slot];
             p = vertices[vertex_index];
             if (uvs && vertex_index < uv_count) {
@@ -566,6 +568,47 @@ void Wow_AddWmoInstance(LPCSTR path, wowMapObjDef_t const *def) {
     Wow_InstanceMatrix(def, &instance->matrix);
     instance->next = wow_world.wmos;
     wow_world.wmos = instance;
+}
+
+/* Sum the MOLT point/ambient light contributions at ref_pos (world space).
+   Each OMNI/SPOT light's position is transformed from WMO local to world space via the
+   instance matrix. Linear attenuation from atten_start to atten_end is applied when
+   use_atten is set; AMBIENT lights (type 3) contribute fully regardless of distance.
+   The result is clamped to [0,1] per channel to prevent over-brightening. */
+void Wow_ComputeMoltContribution(wowWmoModel_t const *model, LPCMATRIX4 matrix,
+                                  VECTOR3 ref_pos, VECTOR3 *out) {
+    DWORD i;
+    out->x = out->y = out->z = 0.0f;
+    if (!model->lights || !model->num_lights_parsed) return;
+    for (i = 0; i < model->num_lights_parsed; i++) {
+        wowWmoLight_t const *lt = &model->lights[i];
+        float atten = 0.0f;
+        float contrib;
+        if (lt->type == 3) { /* AMBIENT: global contribution, no position needed */
+            atten = 1.0f;
+        } else if (lt->type == 0 || lt->type == 1) { /* OMNI / SPOT: distance falloff */
+            VECTOR3 local_pos = { lt->position.x, lt->position.y, lt->position.z };
+            VECTOR3 world_pos = Matrix4_multiply_vector3(matrix, &local_pos);
+            VECTOR3 delta = Vector3_sub(&world_pos, &ref_pos);
+            float dist = Vector3_len(&delta);
+            if (lt->use_atten) {
+                if (dist <= lt->atten_start) {
+                    atten = 1.0f;
+                } else if (lt->atten_end > lt->atten_start && dist < lt->atten_end) {
+                    atten = 1.0f - (dist - lt->atten_start) / (lt->atten_end - lt->atten_start);
+                }
+            } else {
+                atten = 1.0f;
+            }
+        }
+        contrib = atten * lt->intensity;
+        out->x += contrib * lt->color.r / 255.0f;
+        out->y += contrib * lt->color.g / 255.0f;
+        out->z += contrib * lt->color.b / 255.0f;
+    }
+    out->x = MIN(1.0f, out->x);
+    out->y = MIN(1.0f, out->y);
+    out->z = MIN(1.0f, out->z);
 }
 
 /* Build a column-major 4x4 matrix for a WMO doodad in WMO local space.

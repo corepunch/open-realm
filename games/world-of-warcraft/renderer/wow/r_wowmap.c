@@ -158,6 +158,12 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
                 R_Call(glUniform2f, wow_uAlphaOrigin, 0.0f, 0.0f);
                 R_Call(glUniform3f, wow_uWmoAmbient, wmo->model->amb_color.r / 255.0f,
                        wmo->model->amb_color.g / 255.0f, wmo->model->amb_color.b / 255.0f);
+                {
+                    VECTOR3 molt_add;
+                    Wow_ComputeMoltContribution(wmo->model, &wmo->matrix,
+                                                tr.viewDef.camerastate[0].origin, &molt_add);
+                    R_Call(glUniform3f, wow_uWmoLightAdd, molt_add.x, molt_add.y, molt_add.z);
+                }
                 FOR_LOOP(gi, wmo->model->num_groups)
                     if (Wow_WmoGroupInView(&wmo->model->groups[gi], &wmo->matrix)) visible_groups++;
                 if (!visible_groups) continue;
@@ -225,6 +231,7 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
     R_Call(glUniform1i, wow_uSingleTexture, 0);
     R_Call(glUniform1i, wow_uWmoIndoor, 0);
     R_Call(glUniform3f, wow_uWmoAmbient, 0.0f, 0.0f, 0.0f);
+    R_Call(glUniform3f, wow_uWmoLightAdd, 0.0f, 0.0f, 0.0f);
     R_Call(glUniform1i, wow_uWmoBlendMode, 0);
 }
 

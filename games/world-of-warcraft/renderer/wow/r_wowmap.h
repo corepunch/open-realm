@@ -393,6 +393,7 @@ extern GLint wow_uUseWeightedBlend;
 extern GLint wow_uSingleTexture;
 extern GLint wow_uWmoIndoor;
 extern GLint wow_uWmoAmbient;
+extern GLint wow_uWmoLightAdd;
 extern GLint wow_uWmoBlendMode;
 extern GLint wow_uAlphaOrigin;
 extern GLint wow_uAlphaAtlasChunks;
@@ -504,6 +505,7 @@ void Wow_FixMocvAlpha(BYTE *colors, DWORD color_count,
                       wowWmoBatchDef_t const *batches, DWORD batch_count,
                       DWORD trans_batch_count,
                       COLOR32 amb, DWORD mohd_flags, BOOL exterior);
+void Wow_ComputeMoltContribution(wowWmoModel_t const *model, LPCMATRIX4 matrix, VECTOR3 ref_pos, VECTOR3 *out);
 void Wow_WmoDoodadLocalMatrix(wowWmoDoodadDef_t const *def, LPMATRIX4 out);
 void Wow_QueueWmoDoodads(wowWmoInstance_t const *wmo);
 BOOL Wow_EntityInView(renderEntity_t const *entity);
