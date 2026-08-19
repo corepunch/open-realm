@@ -197,6 +197,14 @@ static BOOL Wow_LoadWmoGroup(wowWmoModel_t *model, DWORD group_index, WOWWMOLOAD
             }
             indoor = (Wow_Read32(chunk + 8) & 0x2000) != 0;
             trans_batch_count = Wow_Read16(chunk + 0x30);
+            /* replacement_for_header_color at +0x38: overrides MOHD ambient for this group */
+            if (chunk_size >= 0x3C && Wow_Read32(chunk + 0x38)) {
+                model->groups[group_index].group_amb.b = chunk[0x38];
+                model->groups[group_index].group_amb.g = chunk[0x39];
+                model->groups[group_index].group_amb.r = chunk[0x3A];
+                model->groups[group_index].group_amb.a = chunk[0x3B];
+                model->groups[group_index].has_group_amb = true;
+            }
             while (sub + 8 <= chunk_size) {
                 BYTE const *subtag = chunk + sub;
                 DWORD sub_size = Wow_Read32(chunk + sub + 4);
@@ -415,6 +423,12 @@ BOOL Wow_LoadWmoModel(wowWmoModel_t *model) {
             model->doodad_defs = ri.MemAlloc(model->num_doodad_defs * sizeof(wowWmoDoodadDef_t));
             if (model->doodad_defs)
                 memcpy(model->doodad_defs, chunk, model->num_doodad_defs * sizeof(wowWmoDoodadDef_t));
+        } else if (Wow_TagEquals(tag, "TLOM") && chunk_size >= sizeof(wowWmoLight_t)) {
+            /* MOLT: light array (used for doodad directional lighting) */
+            model->num_lights_parsed = chunk_size / sizeof(wowWmoLight_t);
+            model->lights = ri.MemAlloc(model->num_lights_parsed * sizeof(wowWmoLight_t));
+            if (model->lights)
+                memcpy(model->lights, chunk, model->num_lights_parsed * sizeof(wowWmoLight_t));
         }
         offset += chunk_size;
     }
@@ -668,6 +682,14 @@ void Wow_QueueWmoDoodads(wowWmoInstance_t const *wmo) {
 
         if (idx >= model->num_doodad_defs) continue;
         def = &model->doodad_defs[idx];
+        /* Phase 3.2: skip doodads that need a MOLT per-instance directional light.
+           Instanced rendering cannot vary the light direction per matrix.
+           These will be rendered correctly once per-entity MOLT lighting is added. */
+        {
+            BYTE inst_flags = (BYTE)(def->name_flags >> 24);
+            if ((inst_flags & 0x04) && def->color.a < model->num_lights_parsed)
+                continue;
+        }
         name_offset = def->name_flags & 0x00FFFFFF;
         model_path = Wow_StringAt(model->doodad_name_blob, model->doodad_name_blob_size, name_offset);
         if (!model_path || !*model_path) continue;
