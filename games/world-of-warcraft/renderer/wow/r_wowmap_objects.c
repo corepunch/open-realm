@@ -95,6 +95,58 @@ LPCSTR Wow_StringAt(LPCSTR blob, DWORD blob_size, DWORD offset) {
     return blob + offset;
 }
 
+/* MOCV fixup: pre-subtract ambient and bake interior/exterior flag into alpha.
+   Algorithm from WebWowViewerCpp (deamon87) and Noggit3 (wowdev). */
+static void Wow_FixMocvAlpha(BYTE *colors, DWORD color_count,
+                              wowWmoBatchDef_t const *batches, DWORD batch_count,
+                              DWORD trans_batch_count,
+                              COLOR32 amb, DWORD mohd_flags,
+                              BOOL exterior) {
+    BOOL skip_base = (mohd_flags & 0x04) != 0;
+    BOOL lighten   = (mohd_flags & 0x02) != 0;
+    BYTE ambR = skip_base ? 0 : amb.r;
+    BYTE ambG = skip_base ? 0 : amb.g;
+    BYTE ambB = skip_base ? 0 : amb.b;
+    int begin_second = 0;
+    DWORD i;
+
+    if (trans_batch_count > 0 && batch_count > 0) {
+        DWORD last_a = trans_batch_count - 1 < batch_count ? trans_batch_count - 1 : batch_count - 1;
+        begin_second = (int)batches[last_a].last_vertex + 1;
+    }
+
+    if (lighten) {
+        for (i = (DWORD)begin_second; i < color_count; i++)
+            colors[i * 4 + 3] = exterior ? 0xFF : 0x00;
+        return;
+    }
+
+    /* Batch-A (transparent) vertices: pre-multiply rgb by (1 - alpha), subtract ambient */
+    for (i = 0; i < (DWORD)begin_second && i < color_count; i++) {
+        float a = colors[i * 4 + 3] / 255.f;
+        int r = (int)colors[i * 4 + 2]; /* BGRA: +2 = R */
+        int g = (int)colors[i * 4 + 1];
+        int b = (int)colors[i * 4 + 0];
+        colors[i * 4 + 2] = (BYTE)MAX(0, (int)((r - ambR) * (1.f - a) / 2.f));
+        colors[i * 4 + 1] = (BYTE)MAX(0, (int)((g - ambG) * (1.f - a) / 2.f));
+        colors[i * 4 + 0] = (BYTE)MAX(0, (int)((b - ambB) * (1.f - a) / 2.f));
+        /* alpha left as authored for batch-A */
+    }
+
+    /* Batch-B/C vertices: additive ambient fixup + bake interior/exterior into alpha.
+       Shader multiplies by 2 to cancel the /2 here. */
+    for (i = (DWORD)begin_second; i < color_count; i++) {
+        float a = colors[i * 4 + 3] / 255.f;
+        int r = (int)colors[i * 4 + 2];
+        int g = (int)colors[i * 4 + 1];
+        int b = (int)colors[i * 4 + 0];
+        colors[i * 4 + 2] = (BYTE)MIN(255, MAX(0, (int)((r * a / 64.f + r - ambR) / 2.f)));
+        colors[i * 4 + 1] = (BYTE)MIN(255, MAX(0, (int)((g * a / 64.f + g - ambG) / 2.f)));
+        colors[i * 4 + 0] = (BYTE)MIN(255, MAX(0, (int)((b * a / 64.f + b - ambB) / 2.f)));
+        colors[i * 4 + 3] = exterior ? 0xFF : 0x00;
+    }
+}
+
 static BOOL Wow_LoadWmoGroup(wowWmoModel_t *model, DWORD group_index, WOWWMOLOAD *load) {
     PATHSTR group_path;
     LPBYTE data = NULL;
@@ -110,10 +162,12 @@ static BOOL Wow_LoadWmoGroup(wowWmoModel_t *model, DWORD group_index, WOWWMOLOAD
     DWORD normal_count = 0;
     BYTE const *colors = NULL;
     DWORD color_count = 0;
+    BYTE *colors_copy = NULL;
     wowVec2_t const *uvs = NULL;
     DWORD uv_count = 0;
     wowWmoBatchDef_t const *batches = NULL;
     DWORD batch_count = 0;
+    WORD trans_batch_count = 0;
     BOX3 group_bounds = Wow_EmptyBounds();
     BOOL group_has_bounds = false;
     BOOL indoor = false;
@@ -142,6 +196,7 @@ static BOOL Wow_LoadWmoGroup(wowWmoModel_t *model, DWORD group_index, WOWWMOLOAD
                 break;
             }
             indoor = (Wow_Read32(chunk + 8) & 0x2000) != 0;
+            trans_batch_count = Wow_Read16(chunk + 0x30);
             while (sub + 8 <= chunk_size) {
                 BYTE const *subtag = chunk + sub;
                 DWORD sub_size = Wow_Read32(chunk + sub + 4);
@@ -184,9 +239,19 @@ static BOOL Wow_LoadWmoGroup(wowWmoModel_t *model, DWORD group_index, WOWWMOLOAD
         return false;
     }
 
+    if (colors && color_count) {
+        colors_copy = ri.MemAlloc(color_count * 4);
+        if (colors_copy) {
+            memcpy(colors_copy, colors, color_count * 4);
+            Wow_FixMocvAlpha(colors_copy, color_count, batches, batch_count,
+                             trans_batch_count, model->amb_color, model->mohd_flags, !indoor);
+        }
+    }
+
     builds = ri.MemAlloc(build_count * sizeof(*builds));
     if (!builds) {
         fprintf(stderr, "WoW WMO: failed to allocate material builders for %s\n", group_path);
+        if (colors_copy) ri.MemFree(colors_copy);
         ri.FS_FreeFile(data);
         return false;
     }
@@ -216,14 +281,14 @@ static BOOL Wow_LoadWmoGroup(wowWmoModel_t *model, DWORD group_index, WOWWMOLOAD
                 if (uvs && vertex_index < uv_count) {
                     uv = uvs[vertex_index];
                 }
-                COLOR32 color = colors && vertex_index < color_count
-                    ? Wow_Color(colors[vertex_index * 4], colors[vertex_index * 4 + 1], colors[vertex_index * 4 + 2], 255)
-                    : Wow_Color(127, 127, 127, 255);
+                COLOR32 color = colors_copy && vertex_index < color_count
+                    ? Wow_Color(colors_copy[vertex_index * 4], colors_copy[vertex_index * 4 + 1], colors_copy[vertex_index * 4 + 2], colors_copy[vertex_index * 4 + 3])
+                    : Wow_Color(127, 127, 127, 0xFF);
                 VERTEX vertex = Wow_Vertex(p.x, p.y, p.z, uv.u, uv.v, color);
                 if (normals && vertex_index < normal_count) vertex.normal = *(VECTOR3 const *)(normals + vertex_index);
                 if (!Wow_WmoBuildAppend(build, vertex) || !Wow_WmoBuildAppend(&load->builds[slot], vertex)) {
                     fprintf(stderr, "WoW WMO: failed to grow material geometry for %s\n", group_path);
-                    Wow_WmoBuildFree(builds, build_count); ri.FS_FreeFile(data); return false;
+                    Wow_WmoBuildFree(builds, build_count); if (colors_copy) ri.MemFree(colors_copy); ri.FS_FreeFile(data); return false;
                 }
                 Wow_AddBoundsPoint(&group_bounds, &vertex.position);
                 group_has_bounds = true;
@@ -249,14 +314,14 @@ static BOOL Wow_LoadWmoGroup(wowWmoModel_t *model, DWORD group_index, WOWWMOLOAD
             if (uvs && vertex_index < uv_count) {
                 uv = uvs[vertex_index];
             }
-            COLOR32 color = colors && vertex_index < color_count
-                ? Wow_Color(colors[vertex_index * 4], colors[vertex_index * 4 + 1], colors[vertex_index * 4 + 2], 255)
-                : Wow_Color(127, 127, 127, 255);
+            COLOR32 color = colors_copy && vertex_index < color_count
+                ? Wow_Color(colors_copy[vertex_index * 4], colors_copy[vertex_index * 4 + 1], colors_copy[vertex_index * 4 + 2], colors_copy[vertex_index * 4 + 3])
+                : Wow_Color(127, 127, 127, 0xFF);
             VERTEX vertex = Wow_Vertex(p.x, p.y, p.z, uv.u, uv.v, color);
             if (normals && vertex_index < normal_count) vertex.normal = *(VECTOR3 const *)(normals + vertex_index);
             if (!Wow_WmoBuildAppend(build, vertex) || !Wow_WmoBuildAppend(&load->builds[slot], vertex)) {
                 fprintf(stderr, "WoW WMO: failed to grow material geometry for %s\n", group_path);
-                Wow_WmoBuildFree(builds, build_count); ri.FS_FreeFile(data); return false;
+                Wow_WmoBuildFree(builds, build_count); if (colors_copy) ri.MemFree(colors_copy); ri.FS_FreeFile(data); return false;
             }
             Wow_AddBoundsPoint(&group_bounds, &vertex.position);
             group_has_bounds = true;
@@ -279,6 +344,7 @@ static BOOL Wow_LoadWmoGroup(wowWmoModel_t *model, DWORD group_index, WOWWMOLOAD
         }
     }
     Wow_WmoBuildFree(builds, build_count);
+    if (colors_copy) ri.MemFree(colors_copy);
 
     model->groups[group_index].bounds = group_bounds;
     model->groups[group_index].has_bounds = group_has_bounds;
@@ -314,6 +380,15 @@ BOOL Wow_LoadWmoModel(wowWmoModel_t *model) {
         }
         if (Wow_TagEquals(tag, "DHOM") && chunk_size >= 8) {
             group_count = Wow_Read32(chunk + 4);
+            if (chunk_size >= 0x10) model->n_lights = Wow_Read32(chunk + 0x0C);
+            if (chunk_size >= 0x20) {
+                /* MOHD ambColor is BGRA in file; store with .r=R .g=G .b=B */
+                model->amb_color.r = chunk[0x1E];
+                model->amb_color.g = chunk[0x1D];
+                model->amb_color.b = chunk[0x1C];
+                model->amb_color.a = chunk[0x1F];
+            }
+            if (chunk_size >= 0x32) model->mohd_flags = Wow_Read16(chunk + 0x30);
         } else if (Wow_TagEquals(tag, "XTOM")) {
             texture_blob = (LPCSTR)chunk;
             texture_blob_size = chunk_size;

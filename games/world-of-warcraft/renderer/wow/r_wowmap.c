@@ -142,6 +142,8 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
         R_Call(glUniformMatrix3fv, wow_terrain_shader->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
         R_Call(glUniform1i, wow_uUseWeightedBlend, 0);
         R_Call(glUniform2f, wow_uAlphaOrigin, 0.0f, 0.0f);
+        R_Call(glUniform3f, wow_uWmoAmbient, wmo->model->amb_color.r / 255.0f,
+               wmo->model->amb_color.g / 255.0f, wmo->model->amb_color.b / 255.0f);
         FOR_LOOP(group_index, wmo->model->num_groups)
             if (Wow_WmoGroupInView(&wmo->model->groups[group_index], &wmo->matrix)) visible_groups++;
         if (!visible_groups) continue;
@@ -178,6 +180,7 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
     R_Call(glUniform1i, wow_uUseWeightedBlend, wow_world.use_weighted_blend ? 1 : 0);
     R_Call(glUniform1i, wow_uSingleTexture, 0);
     R_Call(glUniform1i, wow_uWmoIndoor, 0);
+    R_Call(glUniform3f, wow_uWmoAmbient, 0.0f, 0.0f, 0.0f);
 }
 
 /* Group the small visible set by static M2 so repeated trees/props share material draws. */

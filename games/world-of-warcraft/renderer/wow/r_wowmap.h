@@ -163,6 +163,9 @@ typedef struct wowWmoModel_s {
     DWORD num_groups;
     DWORD num_batches;
     BOOL loaded;
+    COLOR32 amb_color;   /* MOHD.ambColor: .r=R .g=G .b=B after BGRA swap */
+    DWORD   mohd_flags;  /* bit 0x02=lighten_interiors, 0x04=skip_base_color */
+    DWORD   n_lights;    /* MOHD.nLights, for MOLT */
     struct wowWmoModel_s *next;
 } wowWmoModel_t;
 
@@ -327,6 +330,7 @@ extern GLint wow_uAlphaTexture;
 extern GLint wow_uUseWeightedBlend;
 extern GLint wow_uSingleTexture;
 extern GLint wow_uWmoIndoor;
+extern GLint wow_uWmoAmbient;
 extern GLint wow_uAlphaOrigin;
 extern GLint wow_uAlphaAtlasChunks;
 extern GLint wow_uFogEnable;
