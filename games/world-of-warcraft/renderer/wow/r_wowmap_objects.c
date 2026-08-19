@@ -97,7 +97,7 @@ LPCSTR Wow_StringAt(LPCSTR blob, DWORD blob_size, DWORD offset) {
 
 /* MOCV fixup: pre-subtract ambient and bake interior/exterior flag into alpha.
    Algorithm from WebWowViewerCpp (deamon87) and Noggit3 (wowdev). */
-static void Wow_FixMocvAlpha(BYTE *colors, DWORD color_count,
+void Wow_FixMocvAlpha(BYTE *colors, DWORD color_count,
                               wowWmoBatchDef_t const *batches, DWORD batch_count,
                               DWORD trans_batch_count,
                               COLOR32 amb, DWORD mohd_flags,
@@ -395,6 +395,26 @@ BOOL Wow_LoadWmoModel(wowWmoModel_t *model) {
         } else if (Wow_TagEquals(tag, "TMOM")) {
             materials_blob = chunk;
             material_count = chunk_size / 64;
+        } else if (Wow_TagEquals(tag, "NDOM") && chunk_size > 0) {
+            /* MODN: null-terminated doodad model filename blob */
+            model->doodad_name_blob = ri.MemAlloc(chunk_size + 1);
+            if (model->doodad_name_blob) {
+                memcpy(model->doodad_name_blob, chunk, chunk_size);
+                model->doodad_name_blob[chunk_size] = '\0';
+                model->doodad_name_blob_size = chunk_size;
+            }
+        } else if (Wow_TagEquals(tag, "SDOM") && chunk_size >= sizeof(wowWmoDoodadSet_t)) {
+            /* MODS: doodad sets array */
+            model->num_doodad_sets = chunk_size / sizeof(wowWmoDoodadSet_t);
+            model->doodad_sets = ri.MemAlloc(model->num_doodad_sets * sizeof(wowWmoDoodadSet_t));
+            if (model->doodad_sets)
+                memcpy(model->doodad_sets, chunk, model->num_doodad_sets * sizeof(wowWmoDoodadSet_t));
+        } else if (Wow_TagEquals(tag, "DDOM") && chunk_size >= sizeof(wowWmoDoodadDef_t)) {
+            /* MODD: doodad definitions array */
+            model->num_doodad_defs = chunk_size / sizeof(wowWmoDoodadDef_t);
+            model->doodad_defs = ri.MemAlloc(model->num_doodad_defs * sizeof(wowWmoDoodadDef_t));
+            if (model->doodad_defs)
+                memcpy(model->doodad_defs, chunk, model->num_doodad_defs * sizeof(wowWmoDoodadDef_t));
         }
         offset += chunk_size;
     }
@@ -491,6 +511,7 @@ void Wow_AddWmoInstance(LPCSTR path, wowMapObjDef_t const *def) {
     instance = ri.MemAlloc(sizeof(*instance));
     memset(instance, 0, sizeof(*instance));
     instance->model = model;
+    instance->doodad_set = def->doodad_set;
     Wow_InstanceMatrix(def, &instance->matrix);
     instance->next = wow_world.wmos;
     wow_world.wmos = instance;
@@ -601,6 +622,79 @@ void Wow_AddGroundEffectInstance(LPCSTR model_path, VECTOR3 origin, float angle)
     instance->next = wow_world.ground_effects;
     wow_world.ground_effects = instance;
     wow_world.num_ground_effects++;
+}
+
+/* Build a column-major 4x4 matrix for a WMO doodad in WMO local space.
+   Combines position, quaternion rotation, and uniform scale into T*R*S. */
+void Wow_WmoDoodadLocalMatrix(wowWmoDoodadDef_t const *def, LPMATRIX4 m) {
+    float qx = def->quat[0], qy = def->quat[1], qz = def->quat[2], qw = def->quat[3];
+    float s = def->scale;
+    memset(m->v, 0, sizeof(m->v));
+    m->v[0]  = s * (1.0f - 2.0f*(qy*qy + qz*qz));
+    m->v[1]  = s * 2.0f*(qx*qy + qz*qw);
+    m->v[2]  = s * 2.0f*(qx*qz - qy*qw);
+    m->v[4]  = s * 2.0f*(qx*qy - qz*qw);
+    m->v[5]  = s * (1.0f - 2.0f*(qx*qx + qz*qz));
+    m->v[6]  = s * 2.0f*(qy*qz + qx*qw);
+    m->v[8]  = s * 2.0f*(qx*qz + qy*qw);
+    m->v[9]  = s * 2.0f*(qy*qz - qx*qw);
+    m->v[10] = s * (1.0f - 2.0f*(qx*qx + qy*qy));
+    m->v[12] = def->position.x;
+    m->v[13] = def->position.y;
+    m->v[14] = def->position.z;
+    m->v[15] = 1.0f;
+}
+
+/* Queue all doodads from the WMO's selected doodad set into instanced rendering.
+   Matrices are pre-composed in world/renderer space: wmo->matrix * doodad_local. */
+void Wow_QueueWmoDoodads(wowWmoInstance_t const *wmo) {
+    wowWmoModel_t const *model;
+    wowWmoDoodadSet_t const *ds;
+    DWORD i;
+
+    if (!wmo || !wmo->model) return;
+    model = wmo->model;
+    if (!model->doodad_sets || wmo->doodad_set >= model->num_doodad_sets) return;
+    ds = &model->doodad_sets[wmo->doodad_set];
+
+    for (i = 0; i < ds->count; i++) {
+        DWORD idx = ds->start + i;
+        wowWmoDoodadDef_t const *def;
+        DWORD name_offset;
+        LPCSTR model_path;
+        LPMODEL m;
+        wowDoodadModel_t *group;
+        MATRIX4 local, world;
+
+        if (idx >= model->num_doodad_defs) continue;
+        def = &model->doodad_defs[idx];
+        name_offset = def->name_flags & 0x00FFFFFF;
+        model_path = Wow_StringAt(model->doodad_name_blob, model->doodad_name_blob_size, name_offset);
+        if (!model_path || !*model_path) continue;
+
+        m = Wow_LoadDoodadModel(model_path);
+        if (!m) continue;
+
+        for (group = wow_world.doodad_models; group; group = group->next)
+            if (group->model == m) break;
+        if (!group || !group->can_instance) continue;
+
+        Wow_WmoDoodadLocalMatrix(def, &local);
+        Matrix4_multiply(&wmo->matrix, &local, &world);
+
+        if (group->count == group->capacity) {
+            DWORD capacity = group->capacity ? group->capacity * 2 : 16;
+            MATRIX4 *matrices = ri.MemAlloc(capacity * sizeof(*matrices));
+            if (!matrices) continue;
+            if (group->matrices) {
+                memcpy(matrices, group->matrices, group->count * sizeof(*matrices));
+                ri.MemFree(group->matrices);
+            }
+            group->matrices = matrices;
+            group->capacity = capacity;
+        }
+        group->matrices[group->count++] = world;
+    }
 }
 
 void Wow_AddMarker(VERTEX *vertices, LPDWORD index, VECTOR3 p, float size, COLOR32 color) {

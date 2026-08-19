@@ -132,6 +132,7 @@ TEST_UI_SRCS := \
 	@$(MAKE) test-wow-entities
 	@$(MAKE) test-wow-abilities
 	@$(MAKE) test-wow-ui
+	@$(MAKE) test-wow-wmo
 	@$(MAKE) test-ui
 	@$(MAKE) test-wc3-engine
 
@@ -198,4 +199,4 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 $(TESTS_DIR):
 	@mkdir -p $@
 
-WC3_PHONY := wc3-build jass-tool jass sheet renderer game ui openwarcraft3 run run-demo run-map run-ui-text test test-commands test-server-net test-renderer-model test-ui test-mpq-compat test-assets test-render-golden update-render-golden openwarcraft3-tests test-wc3-engine
+WC3_PHONY := wc3-build jass-tool jass sheet renderer game ui openwarcraft3 run run-demo run-map run-ui-text test test-commands test-server-net test-renderer-model test-ui test-mpq-compat test-assets test-render-golden update-render-golden openwarcraft3-tests test-wc3-engine test-wow-wmo test-wow-wmo-assets
