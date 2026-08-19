@@ -5,18 +5,18 @@
 #include <strings.h>
 
 #define M2_COUNT(a) (sizeof(a) / sizeof((a)[0]))
-#define DBC_ROW(dbc, T, idx) ((T const *)((BYTE const *)(dbc).rows + (size_t)(idx) * (dbc).row_stride))
 
-typedef struct {
-    LPBYTE data;
-    DWORD size, records, fields, record_size, string_size;
-    BYTE const *records_base, *strings_base;
-    int *index;
-    DWORD index_capacity, index_field;
-    void *rows; /* decoded struct array (Stb_DbcParseRows output) */
-    DWORD row_stride;
-    BOOL tried, valid;
-} M2DBC;
+/* Renderer adapts ri.* onto the shared cache's I/O table. */
+static void *M2_DbcRead(LPCSTR filename, DWORD *size) {
+    void *data = NULL;
+    int s = ri.FS_ReadFile(filename, &data);
+    if (size) *size = (DWORD)(s > 0 ? s : 0);
+    return s > 0 ? data : NULL;
+}
+static void M2_DbcFree(void *p) { ri.FS_FreeFile(p); }
+static void *M2_DbcAlloc(size_t n) { return ri.MemAlloc((long)n); }
+static void M2_DbcDealloc(void *p) { ri.MemFree(p); }
+static stbDbcIO_t const m2_dbc_io = { M2_DbcRead, M2_DbcFree, M2_DbcAlloc, M2_DbcDealloc };
 
 enum {
     M2_SLOT_NONE, M2_SLOT_HEAD, M2_SLOT_SHOULDERS, M2_SLOT_CHEST, M2_SLOT_SHIRT, M2_SLOT_BELT,
@@ -26,12 +26,12 @@ enum {
 typedef struct { DWORD display_ids[4]; } M2EQUIPMENTITEM;
 typedef struct { DWORD race_id, gender_id; M2EQUIPMENTITEM items[256]; } M2EQUIPMENTSLOTITEMS;
 
-static M2DBC char_start_outfit_dbc;
-static M2DBC item_display_info_dbc;
-static M2DBC char_sections_dbc;
-static M2DBC creature_display_info_dbc;
-static M2DBC creature_display_info_extra_dbc;
-static M2DBC helmet_geoset_vis_dbc;
+static stbDbcCache_t char_start_outfit_dbc;
+static stbDbcCache_t item_display_info_dbc;
+static stbDbcCache_t char_sections_dbc;
+static stbDbcCache_t creature_display_info_dbc;
+static stbDbcCache_t creature_display_info_extra_dbc;
+static stbDbcCache_t helmet_geoset_vis_dbc;
 static m2CharSectionsLayout_t char_sections_layout;
 
 /* Column→field schemas (field numbers in docs/dbc-reference.md). The struct mirrors
@@ -147,147 +147,53 @@ static stbDbcField_t const helmet_geoset_vis_schema[] = {
 };
 
 /* DBCs stay as one resident file image plus a decoded struct array and an FNV-1a
- * integer index; both are built lazily on first lookup. */
-static BOOL M2_DbcLoad(M2DBC *dbc, LPCSTR filename) {
-    int size;
-    stbDbc_t h;
-    if (!dbc || !filename) return false;
-    if (dbc->tried) return dbc->valid;
-    dbc->tried = true;
-    size = ri.FS_ReadFile(filename, (void **)&dbc->data);
-    if (size <= 20 || !Stb_DbcValid(dbc->data, (DWORD)size, &h)) {
-        SAFE_DELETE(dbc->data, ri.FS_FreeFile);
-        memset(dbc, 0, sizeof(*dbc)); dbc->tried = true;
-        return false;
-    }
-    dbc->size = (DWORD)size;
-    dbc->records = h.records; dbc->fields = h.fields;
-    dbc->record_size = h.record_size; dbc->string_size = h.string_size;
-    dbc->records_base = Stb_DbcRecords(dbc->data);
-    dbc->strings_base = Stb_DbcStrings(dbc->data, &h);
-    dbc->valid = true;
-    return true;
-}
-
-static void M2_DbcDecode(M2DBC *dbc, stbDbcField_t const *schema, DWORD schema_count, DWORD row_stride) {
-    if (!dbc || !dbc->valid || dbc->rows) return;
-    dbc->rows = ri.MemAlloc((size_t)dbc->records * row_stride);
-    if (!dbc->rows) {
-        fprintf(stderr, "M2 DBC: unable to allocate %u decoded rows (%u-byte records)\n", dbc->records, row_stride);
-        return;
-    }
-    memset(dbc->rows, 0, (size_t)dbc->records * row_stride);
-    Stb_DbcParseRows(dbc->records_base, dbc->records, dbc->record_size, dbc->strings_base, dbc->string_size,
-                     schema, schema_count, dbc->rows, row_stride);
-    dbc->row_stride = row_stride;
-}
-
-static void M2_DbcFree(M2DBC *dbc) {
-    SAFE_DELETE(dbc->data, ri.FS_FreeFile);
-    SAFE_DELETE(dbc->index, ri.MemFree);
-    SAFE_DELETE(dbc->rows, ri.MemFree);
-    memset(dbc, 0, sizeof(*dbc));
-}
-
-/* Raw field access is only used to build/query the FNV index; decoded consumers
- * read struct fields filled by Stb_DbcParseRows. */
-static DWORD M2_DbcField(M2DBC const *dbc, BYTE const *record, DWORD field) {
-    if (!dbc || !record || field >= dbc->fields || field * sizeof(DWORD) + sizeof(DWORD) > dbc->record_size)
-        return 0;
-    return m2_read32(record + field * sizeof(DWORD));
-}
-
-static DWORD M2_Fnv1a32(DWORD key) {
-    DWORD hash = 2166136261u;
-    FOR_LOOP(i, sizeof(key)) { hash ^= (key >> (i * 8)) & 0xffu; hash *= 16777619u; }
-    return hash;
-}
-
-static BOOL M2_DbcBuildIndex(M2DBC *dbc, DWORD field) {
-    DWORD capacity = 1;
-    int *index;
-    if (!dbc || !dbc->valid || field >= dbc->fields) return false;
-    while (capacity < dbc->records * 2u) capacity <<= 1;
-    index = ri.MemAlloc(capacity * sizeof(*index));
-    if (!index) {
-        fprintf(stderr, "M2 DBC: unable to allocate field %u index (%u entries)\n", field, dbc->records);
-        return false;
-    }
-    FOR_LOOP(i, capacity) index[i] = -1;
-    FOR_LOOP(i, dbc->records) {
-        BYTE const *record = dbc->records_base + i * dbc->record_size;
-        DWORD key = M2_DbcField(dbc, record, field);
-        DWORD slot = M2_Fnv1a32(key) & (capacity - 1);
-        while (index[slot] >= 0 && M2_DbcField(dbc, dbc->records_base + index[slot] * dbc->record_size, field) != key)
-            slot = (slot + 1) & (capacity - 1);
-        index[slot] = (int)i;
-    }
-    dbc->index = index; dbc->index_capacity = capacity; dbc->index_field = field;
-    return true;
-}
-
-/* Return the row index for key (or -1); the caller must have loaded the DBC. */
-static int M2_DbcFindKey(M2DBC *dbc, DWORD field, DWORD key) {
-    DWORD slot;
-    if (!dbc || !dbc->valid || field >= dbc->fields) return -1;
-    if (!dbc->index && !M2_DbcBuildIndex(dbc, field)) return -1;
-    if (dbc->index_field != field) return -1;
-    slot = M2_Fnv1a32(key) & (dbc->index_capacity - 1);
-    while (dbc->index[slot] >= 0) {
-        BYTE const *record = dbc->records_base + dbc->index[slot] * dbc->record_size;
-        if (M2_DbcField(dbc, record, field) == key) return dbc->index[slot];
-        slot = (slot + 1) & (dbc->index_capacity - 1);
-    }
-    return -1;
-}
-
-static int M2_DbcFindID(M2DBC *dbc, DWORD id) { return M2_DbcFindKey(dbc, 0, id); }
+ * integer index; both are built lazily on first lookup (see stb_dbc.h cache). */
 
 /* ---- typed record finders (load + decode + index lookup) ---- */
 
 static m2CreatureDisplayInfoRec_t const *M2_CreatureDisplayInfo(DWORD id) {
     int idx;
-    if (!M2_DbcLoad(&creature_display_info_dbc, "DBFilesClient\\CreatureDisplayInfo.dbc")) return NULL;
-    M2_DbcDecode(&creature_display_info_dbc, creature_display_info_schema, M2_COUNT(creature_display_info_schema), sizeof(m2CreatureDisplayInfoRec_t));
-    idx = M2_DbcFindID(&creature_display_info_dbc, id);
-    return idx < 0 ? NULL : DBC_ROW(creature_display_info_dbc, m2CreatureDisplayInfoRec_t, idx);
+    if (!Stb_DbcCacheLoad(&creature_display_info_dbc, "DBFilesClient\\CreatureDisplayInfo.dbc", &m2_dbc_io)) return NULL;
+    Stb_DbcCacheDecode(&creature_display_info_dbc, creature_display_info_schema, M2_COUNT(creature_display_info_schema), sizeof(m2CreatureDisplayInfoRec_t), &m2_dbc_io);
+    idx = Stb_DbcCacheFindID(&creature_display_info_dbc, id, &m2_dbc_io);
+    return idx < 0 ? NULL : STB_DBC_ROW(creature_display_info_dbc, m2CreatureDisplayInfoRec_t, idx);
 }
 
 static m2CreatureDisplayInfoExtraRec_t const *M2_CreatureDisplayInfoExtra(DWORD id) {
     int idx;
-    if (!M2_DbcLoad(&creature_display_info_extra_dbc, "DBFilesClient\\CreatureDisplayInfoExtra.dbc")) return NULL;
-    M2_DbcDecode(&creature_display_info_extra_dbc, creature_display_info_extra_schema, M2_COUNT(creature_display_info_extra_schema), sizeof(m2CreatureDisplayInfoExtraRec_t));
-    idx = M2_DbcFindID(&creature_display_info_extra_dbc, id);
-    return idx < 0 ? NULL : DBC_ROW(creature_display_info_extra_dbc, m2CreatureDisplayInfoExtraRec_t, idx);
+    if (!Stb_DbcCacheLoad(&creature_display_info_extra_dbc, "DBFilesClient\\CreatureDisplayInfoExtra.dbc", &m2_dbc_io)) return NULL;
+    Stb_DbcCacheDecode(&creature_display_info_extra_dbc, creature_display_info_extra_schema, M2_COUNT(creature_display_info_extra_schema), sizeof(m2CreatureDisplayInfoExtraRec_t), &m2_dbc_io);
+    idx = Stb_DbcCacheFindID(&creature_display_info_extra_dbc, id, &m2_dbc_io);
+    return idx < 0 ? NULL : STB_DBC_ROW(creature_display_info_extra_dbc, m2CreatureDisplayInfoExtraRec_t, idx);
 }
 
 static m2ItemDisplayInfoRec_t const *M2_ItemDisplayInfo(DWORD id) {
     DWORD count;
     stbDbcField_t const *schema;
     int idx;
-    if (!M2_DbcLoad(&item_display_info_dbc, "DBFilesClient\\ItemDisplayInfo.dbc")) return NULL;
+    if (!Stb_DbcCacheLoad(&item_display_info_dbc, "DBFilesClient\\ItemDisplayInfo.dbc", &m2_dbc_io)) return NULL;
     if (!item_display_info_dbc.rows) {
         schema = item_display_info_schema(item_display_info_dbc.fields, &count);
-        M2_DbcDecode(&item_display_info_dbc, schema, count, sizeof(m2ItemDisplayInfoRec_t));
+        Stb_DbcCacheDecode(&item_display_info_dbc, schema, count, sizeof(m2ItemDisplayInfoRec_t), &m2_dbc_io);
     }
-    idx = M2_DbcFindID(&item_display_info_dbc, id);
-    return idx < 0 ? NULL : DBC_ROW(item_display_info_dbc, m2ItemDisplayInfoRec_t, idx);
+    idx = Stb_DbcCacheFindID(&item_display_info_dbc, id, &m2_dbc_io);
+    return idx < 0 ? NULL : STB_DBC_ROW(item_display_info_dbc, m2ItemDisplayInfoRec_t, idx);
 }
 
 static m2CharStartOutfitRec_t const *M2_CharStartOutfit(DWORD key) {
     int idx;
-    if (!M2_DbcLoad(&char_start_outfit_dbc, "DBFilesClient\\CharStartOutfit.dbc")) return NULL;
-    M2_DbcDecode(&char_start_outfit_dbc, char_start_outfit_schema, M2_COUNT(char_start_outfit_schema), sizeof(m2CharStartOutfitRec_t));
-    idx = M2_DbcFindKey(&char_start_outfit_dbc, 1, key);
-    return idx < 0 ? NULL : DBC_ROW(char_start_outfit_dbc, m2CharStartOutfitRec_t, idx);
+    if (!Stb_DbcCacheLoad(&char_start_outfit_dbc, "DBFilesClient\\CharStartOutfit.dbc", &m2_dbc_io)) return NULL;
+    Stb_DbcCacheDecode(&char_start_outfit_dbc, char_start_outfit_schema, M2_COUNT(char_start_outfit_schema), sizeof(m2CharStartOutfitRec_t), &m2_dbc_io);
+    idx = Stb_DbcCacheFindKey(&char_start_outfit_dbc, 1, key, &m2_dbc_io);
+    return idx < 0 ? NULL : STB_DBC_ROW(char_start_outfit_dbc, m2CharStartOutfitRec_t, idx);
 }
 
 static m2HelmetGeosetVisRec_t const *M2_HelmetGeosetVis(DWORD id) {
     int idx;
-    if (!M2_DbcLoad(&helmet_geoset_vis_dbc, "DBFilesClient\\HelmetGeosetVisData.dbc")) return NULL;
-    M2_DbcDecode(&helmet_geoset_vis_dbc, helmet_geoset_vis_schema, M2_COUNT(helmet_geoset_vis_schema), sizeof(m2HelmetGeosetVisRec_t));
-    idx = M2_DbcFindID(&helmet_geoset_vis_dbc, id);
-    return idx < 0 ? NULL : DBC_ROW(helmet_geoset_vis_dbc, m2HelmetGeosetVisRec_t, idx);
+    if (!Stb_DbcCacheLoad(&helmet_geoset_vis_dbc, "DBFilesClient\\HelmetGeosetVisData.dbc", &m2_dbc_io)) return NULL;
+    Stb_DbcCacheDecode(&helmet_geoset_vis_dbc, helmet_geoset_vis_schema, M2_COUNT(helmet_geoset_vis_schema), sizeof(m2HelmetGeosetVisRec_t), &m2_dbc_io);
+    idx = Stb_DbcCacheFindID(&helmet_geoset_vis_dbc, id, &m2_dbc_io);
+    return idx < 0 ? NULL : STB_DBC_ROW(helmet_geoset_vis_dbc, m2HelmetGeosetVisRec_t, idx);
 }
 
 /* Detect the CharSections layout from the raw records, then decode and return the
@@ -295,7 +201,7 @@ static m2HelmetGeosetVisRec_t const *M2_HelmetGeosetVis(DWORD id) {
 static m2CharSectionsRec_t const *M2_CharSections(void) {
     DWORD count;
     stbDbcField_t const *schema;
-    if (!M2_DbcLoad(&char_sections_dbc, "DBFilesClient\\CharSections.dbc")) return NULL;
+    if (!Stb_DbcCacheLoad(&char_sections_dbc, "DBFilesClient\\CharSections.dbc", &m2_dbc_io)) return NULL;
     if (!char_sections_layout) {
         char_sections_layout = char_sections_dbc.fields < 10 ? M2_CHAR_SECTIONS_INVALID
             : m2_char_sections_layout(char_sections_dbc.records_base, char_sections_dbc.records, char_sections_dbc.record_size);
@@ -308,7 +214,7 @@ static m2CharSectionsRec_t const *M2_CharSections(void) {
         schema = char_sections_layout == M2_CHAR_SECTIONS_TEXTURE_FIRST
             ? (count = M2_COUNT(char_sections_texture_first_schema), char_sections_texture_first_schema)
             : (count = M2_COUNT(char_sections_variation_first_schema), char_sections_variation_first_schema);
-        M2_DbcDecode(&char_sections_dbc, schema, count, sizeof(m2CharSectionsRec_t));
+        Stb_DbcCacheDecode(&char_sections_dbc, schema, count, sizeof(m2CharSectionsRec_t), &m2_dbc_io);
     }
     return char_sections_dbc.rows;
 }
@@ -518,8 +424,11 @@ BOOL M2_DbcCharacterTexturePathForType(LPCSTR model_path, DWORD appearance, DWOR
 }
 
 void M2_DbcShutdown(void) {
-    M2_DbcFree(&char_start_outfit_dbc); M2_DbcFree(&item_display_info_dbc);
-    M2_DbcFree(&char_sections_dbc); M2_DbcFree(&creature_display_info_dbc);
-    M2_DbcFree(&creature_display_info_extra_dbc); M2_DbcFree(&helmet_geoset_vis_dbc);
+    Stb_DbcCacheFree(&char_start_outfit_dbc, &m2_dbc_io);
+    Stb_DbcCacheFree(&item_display_info_dbc, &m2_dbc_io);
+    Stb_DbcCacheFree(&char_sections_dbc, &m2_dbc_io);
+    Stb_DbcCacheFree(&creature_display_info_dbc, &m2_dbc_io);
+    Stb_DbcCacheFree(&creature_display_info_extra_dbc, &m2_dbc_io);
+    Stb_DbcCacheFree(&helmet_geoset_vis_dbc, &m2_dbc_io);
     char_sections_layout = M2_CHAR_SECTIONS_UNKNOWN;
 }
