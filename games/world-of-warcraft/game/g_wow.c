@@ -136,76 +136,6 @@ FLOAT Wow_Clamp(FLOAT value, FLOAT min_value, FLOAT max_value) {
     return MAX(min_value, MIN(value, max_value));
 }
 
-DWORD Wow_Read32(BYTE const *p) {
-    return ((DWORD)p[0]) | ((DWORD)p[1] << 8) | ((DWORD)p[2] << 16) | ((DWORD)p[3] << 24);
-}
-
-FLOAT Wow_ReadFloat(BYTE const *p) {
-    FLOAT value;
-    memcpy(&value, p, sizeof(value));
-    return value;
-}
-
-LPCSTR Wow_DbcString(BYTE const *string_block, DWORD string_size, DWORD offset) {
-    return Stb_DbcString(string_block, string_size, offset);
-}
-
-BOOL Wow_ValidDbc(BYTE const *data,
-                  DWORD size,
-                  DWORD *records,
-                  DWORD *fields,
-                  DWORD *record_size,
-                  DWORD *string_size) {
-    stbDbc_t h;
-    if (!Stb_DbcValid(data, size, &h)) {
-        return false;
-    }
-    *records = h.records;
-    *fields = h.fields;
-    *record_size = h.record_size;
-    *string_size = h.string_size;
-    return true;
-}
-
-BOOL Wow_FindDbcRecord(LPCSTR filename,
-                       DWORD wanted_id,
-                       LPBYTE *data_out,
-                       DWORD *fields_out,
-                       DWORD *record_size_out,
-                       BYTE const **record_out,
-                       BYTE const **strings_out,
-                       DWORD *string_size_out) {
-    stbDbc_t h;
-    LPBYTE data;
-    DWORD size = 0;
-    BYTE const *record;
-
-    if (!filename || !data_out || !fields_out || !record_size_out ||
-        !record_out || !strings_out || !string_size_out) {
-        return false;
-    }
-
-    data = gi.ReadFile ? gi.ReadFile(filename, &size) : NULL;
-    if (!Stb_DbcValid(data, size, &h) ||
-        h.fields < 1 || h.record_size < h.fields * sizeof(DWORD)) {
-        SAFE_DELETE(data, gi.MemFree);
-        return false;
-    }
-
-    record = Stb_DbcFindID(data, &h, wanted_id);
-    if (!record) {
-        gi.MemFree(data);
-        return false;
-    }
-    *data_out = data;
-    *fields_out = h.fields;
-    *record_size_out = h.record_size;
-    *record_out = record;
-    *strings_out = Stb_DbcStrings(data, &h);
-    *string_size_out = h.string_size;
-    return true;
-}
-
 static LPCSTR Wow_PathBasename(LPCSTR path) {
     LPCSTR slash = strrchr(path, '/');
     LPCSTR backslash = strrchr(path, '\\');
@@ -249,32 +179,26 @@ static void Wow_MapNameFromPath(LPCSTR path, LPSTR out, DWORD out_size) {
 static BOOL Wow_ResolveLoadingScreenById(DWORD loading_screen_id, LPSTR out, DWORD out_size) {
     LPBYTE data;
     DWORD size = 0;
-    DWORD records;
-    DWORD fields;
-    DWORD record_size;
-    DWORD string_size;
-    BYTE const *records_base;
-    BYTE const *strings_base;
+    stbDbc_t h;
 
     if (!out || out_size == 0) {
         return false;
     }
 
     data = gi.ReadFile ? gi.ReadFile("DBFilesClient\\LoadingScreens.dbc", &size) : NULL;
-    if (!Wow_ValidDbc(data, size, &records, &fields, &record_size, &string_size) ||
-        fields < 3 || record_size < sizeof(wowLoadingScreenDbc_t)) {
+    if (!Stb_DbcValid(data, size, &h) || h.fields < 3 || h.record_size < sizeof(wowLoadingScreenDbc_t)) {
         SAFE_DELETE(data, gi.MemFree);
         return false;
     }
 
-    records_base = data + 20;
-    strings_base = records_base + records * record_size;
-    FOR_LOOP(record_index, records) {
-        BYTE const *record = records_base + record_index * record_size;
+    BYTE const *records_base = Stb_DbcRecords(data);
+    BYTE const *strings_base = Stb_DbcStrings(data, &h);
+    FOR_LOOP(record_index, h.records) {
+        BYTE const *record = records_base + record_index * h.record_size;
         wowLoadingScreenDbc_t const *loading_screen = (wowLoadingScreenDbc_t const *)record;
 
         if (loading_screen->id == loading_screen_id) {
-            LPCSTR path = Wow_DbcString(strings_base, string_size, loading_screen->path_offset);
+            LPCSTR path = Stb_DbcString(strings_base, h.string_size, loading_screen->path_offset);
 
             if (path && *path) {
                 snprintf(out, out_size, "%s", path);
@@ -292,12 +216,7 @@ static BOOL Wow_ResolveLoadingScreenById(DWORD loading_screen_id, LPSTR out, DWO
 static void Wow_SelectLoadingScreen(LPCSTR map_path) {
     LPBYTE data;
     DWORD size = 0;
-    DWORD records;
-    DWORD fields;
-    DWORD record_size;
-    DWORD string_size;
-    BYTE const *records_base;
-    BYTE const *strings_base;
+    stbDbc_t h;
     char map_name[128] = { 0 };
 
     snprintf(wow_loading_texture, sizeof(wow_loading_texture), "%s", "Interface\\Glues\\LoadingScreens\\LoadScreenEnviroment.blp");
@@ -313,25 +232,24 @@ static void Wow_SelectLoadingScreen(LPCSTR map_path) {
     }
 
     data = gi.ReadFile ? gi.ReadFile("DBFilesClient\\Map.dbc", &size) : NULL;
-    if (!Wow_ValidDbc(data, size, &records, &fields, &record_size, &string_size) ||
-        fields < 4 || record_size < sizeof(wowMapDbc_t)) {
+    if (!Stb_DbcValid(data, size, &h) || h.fields < 4 || h.record_size < sizeof(wowMapDbc_t)) {
         SAFE_DELETE(data, gi.MemFree);
         return;
     }
 
-    records_base = data + 20;
-    strings_base = records_base + records * record_size;
-    FOR_LOOP(record_index, records) {
-        BYTE const *record = records_base + record_index * record_size;
+    BYTE const *records_base = Stb_DbcRecords(data);
+    BYTE const *strings_base = Stb_DbcStrings(data, &h);
+    FOR_LOOP(record_index, h.records) {
+        BYTE const *record = records_base + record_index * h.record_size;
         wowMapDbc_t const *map = (wowMapDbc_t const *)record;
-        LPCSTR map_dir = Wow_DbcString(strings_base, string_size, map->directory_offset);
+        LPCSTR map_dir = Stb_DbcString(strings_base, h.string_size, map->directory_offset);
 
         if (!map_dir || strcasecmp(map_dir, map_name)) {
             continue;
         }
 
-        DWORD loading_screen_id = Wow_Read32(record + (fields - 1) * sizeof(DWORD));
-        LPCSTR map_title = Wow_DbcString(strings_base, string_size, map->title_offset);
+        DWORD loading_screen_id = Stb_DbcRead32(record + (h.fields - 1) * sizeof(DWORD));
+        LPCSTR map_title = Stb_DbcString(strings_base, h.string_size, map->title_offset);
 
         if (map_title && *map_title) {
             snprintf(wow_loading_title, sizeof(wow_loading_title), "%s", map_title);
@@ -363,18 +281,36 @@ static void Wow_SelectLoadingScreen(LPCSTR map_path) {
 #define WOW_MAX_SPELL_VISUALS 512
 #define WOW_MAX_SPELL_VISUAL_EFFECTS 1024
 
-typedef struct {
-    DWORD id;
-    DWORD filepath_offset;
-} wowSpellVisualEffectNameDbc_t;
+/* SpellVisual chain record structs + column→field schemas. Consumers read named
+ * fields; Stb_DbcParseRows fills them from the DBC columns. */
+typedef struct { DWORD id; LPCSTR filepath; } gSpellVisualEffectNameRec_t;
+static stbDbcField_t const spell_visual_effect_name_schema[] = {
+    { 0, offsetof(gSpellVisualEffectNameRec_t, id),       STB_DBC_U32 },
+    { 2, offsetof(gSpellVisualEffectNameRec_t, filepath), STB_DBC_STR },
+};
 
-typedef struct {
-    DWORD id;
-    DWORD precast_kit;
-    DWORD cast_kit;
-    DWORD impact_kit;
-    DWORD missile_model;
-} wowSpellVisualDbc_t;
+/* Kit effect slots (classic layout, validated against WoWee): head 3, chest 4,
+ * base 5, left 6, right 7, breath 8, special 11-13. */
+typedef struct { DWORD id, head, chest, base, left, right, breath, special[3]; } gSpellVisualKitRec_t;
+static stbDbcField_t const spell_visual_kit_schema[] = {
+    {  0, offsetof(gSpellVisualKitRec_t, id),      STB_DBC_U32 },
+    {  3, offsetof(gSpellVisualKitRec_t, head),    STB_DBC_U32 },
+    {  4, offsetof(gSpellVisualKitRec_t, chest),   STB_DBC_U32 },
+    {  5, offsetof(gSpellVisualKitRec_t, base),    STB_DBC_U32 },
+    {  6, offsetof(gSpellVisualKitRec_t, left),    STB_DBC_U32 },
+    {  7, offsetof(gSpellVisualKitRec_t, right),   STB_DBC_U32 },
+    {  8, offsetof(gSpellVisualKitRec_t, breath),  STB_DBC_U32 },
+    { 11, offsetof(gSpellVisualKitRec_t, special), STB_DBC_U32, 3 },
+};
+
+typedef struct { DWORD id, precast_kit, cast_kit, impact_kit, missile_effect; } gSpellVisualRec_t;
+static stbDbcField_t const spell_visual_schema[] = {
+    { 0, offsetof(gSpellVisualRec_t, id),             STB_DBC_U32 },
+    { 1, offsetof(gSpellVisualRec_t, precast_kit),    STB_DBC_U32 },
+    { 2, offsetof(gSpellVisualRec_t, cast_kit),       STB_DBC_U32 },
+    { 3, offsetof(gSpellVisualRec_t, impact_kit),     STB_DBC_U32 },
+    { 8, offsetof(gSpellVisualRec_t, missile_effect), STB_DBC_U32 },
+};
 
 typedef struct {
     DWORD visual_id;
@@ -396,6 +332,8 @@ typedef struct {
 static wowSpellVisualEffect_t wow_visual_effects[WOW_MAX_SPELL_VISUAL_EFFECTS];
 static DWORD wow_visual_effect_count = 0;
 
+stbDbcIO_t const g_dbc_io = { G_DbcRead, G_DbcFreeFile, G_DbcAlloc, G_DbcFreeMem };
+
 static LPCSTR Wow_FindVisualEffectPath(DWORD effect_id) {
     FOR_LOOP(i, wow_visual_effect_count) {
         if (wow_visual_effects[i].id == effect_id) {
@@ -407,48 +345,45 @@ static LPCSTR Wow_FindVisualEffectPath(DWORD effect_id) {
 
 /* Resolve a kit ID to the best M2 path by probing effect slots.
  * WoWee probes: SpecialEffect0 > BaseEffect > LeftHand > RightHand > Chest > Head > Breath */
-static LPCSTR Wow_ResolveKitPath(BYTE const *record, DWORD fields, DWORD record_size) {
-    /* Kit field offsets (classic layout, validated against WoWee):
-     *   field 3 = HeadEffect, 4 = ChestEffect, 5 = BaseEffect,
-     *   field 6 = LeftHandEffect, 7 = RightHandEffect, 8 = BreathEffect,
-     *   field 11 = SpecialEffect0, 12 = SpecialEffect1, 13 = SpecialEffect2
-     * Probe in priority order: SpecialEffect0, BaseEffect, LeftHand, RightHand, Chest, Head, Breath */
-    static DWORD const probe_fields[] = { 11, 5, 6, 7, 4, 3, 8 };
-    FOR_LOOP(i, sizeof(probe_fields) / sizeof(probe_fields[0])) {
-        if (probe_fields[i] < fields) {
-            DWORD eff_id = Wow_Read32(record + probe_fields[i] * sizeof(DWORD));
-            if (eff_id) {
-                LPCSTR path = Wow_FindVisualEffectPath(eff_id);
-                if (path && *path) return path;
-            }
+static LPCSTR Wow_ResolveKitPath(gSpellVisualKitRec_t const *kit) {
+    /* Probe effect slots in priority order (WoWee): SpecialEffect0 > BaseEffect >
+     * LeftHand > RightHand > Chest > Head > Breath. */
+    static ptrdiff_t const probe[] = {
+        offsetof(gSpellVisualKitRec_t, special),
+        offsetof(gSpellVisualKitRec_t, base),
+        offsetof(gSpellVisualKitRec_t, left),
+        offsetof(gSpellVisualKitRec_t, right),
+        offsetof(gSpellVisualKitRec_t, chest),
+        offsetof(gSpellVisualKitRec_t, head),
+        offsetof(gSpellVisualKitRec_t, breath),
+    };
+    FOR_LOOP(i, sizeof(probe) / sizeof(probe[0])) {
+        DWORD eff_id = *(DWORD const *)((BYTE const *)kit + probe[i]);
+        if (eff_id) {
+            LPCSTR path = Wow_FindVisualEffectPath(eff_id);
+            if (path && *path) return path;
         }
     }
     return NULL;
 }
 
 static void Wow_LoadSpellVisualDbcs(void) {
-    LPBYTE fx_data = NULL, kit_data = NULL, sv_data = NULL;
-    DWORD fx_size = 0, kit_size = 0, sv_size = 0;
-    DWORD fx_records, fx_fields, fx_record_size, fx_string_size;
-    DWORD kit_records, kit_fields, kit_record_size, kit_string_size;
-    DWORD sv_records, sv_fields, sv_record_size, sv_string_size;
+    stbDbcCache_t fx = { 0 }, kit = { 0 }, sv = { 0 };
+    stbDbcIO_t const *io = &g_dbc_io;
 
     if (wow_spell_visuals_loaded) return;
     wow_spell_visuals_loaded = true;
 
-    /* Phase 1: Load SpellVisualEffectName.dbc → effect ID → M2 path */
-    fx_data = gi.ReadFile ? gi.ReadFile("DBFilesClient\\SpellVisualEffectName.dbc", &fx_size) : NULL;
-    if (Wow_ValidDbc(fx_data, fx_size, &fx_records, &fx_fields, &fx_record_size, &fx_string_size) &&
-        fx_fields >= 3 && wow_visual_effect_count == 0) {
-        BYTE const *records_base = fx_data + 20;
-        BYTE const *strings_base = records_base + fx_records * fx_record_size;
-        FOR_LOOP(i, fx_records) {
+    /* Phase 1: SpellVisualEffectName.dbc → effect ID → M2 path */
+    if (Stb_DbcCacheLoad(&fx, "DBFilesClient\\SpellVisualEffectName.dbc", io) &&
+        Stb_DbcCacheDecode(&fx, spell_visual_effect_name_schema, sizeof(spell_visual_effect_name_schema) / sizeof(spell_visual_effect_name_schema[0]),
+                           sizeof(gSpellVisualEffectNameRec_t), io) &&
+        wow_visual_effect_count == 0) {
+        FOR_LOOP(i, fx.records) {
             if (wow_visual_effect_count >= WOW_MAX_SPELL_VISUAL_EFFECTS) break;
-            BYTE const *record = records_base + i * fx_record_size;
-            DWORD id = Wow_Read32(record);
-            DWORD path_offset = Wow_Read32(record + 2 * sizeof(DWORD));
-            LPCSTR path = Wow_DbcString(strings_base, fx_string_size, path_offset);
-            if (id && path && *path) {
+            gSpellVisualEffectNameRec_t const *rec = STB_DBC_ROW(fx, gSpellVisualEffectNameRec_t, i);
+            LPCSTR path = rec->filepath;
+            if (rec->id && path && *path) {
                 /* Convert .mdx/.mdl extensions to .m2 (WoWee pattern) */
                 size_t len = strlen(path);
                 char *buf = gi.MemAlloc ? gi.MemAlloc(len + 1) : NULL;
@@ -460,7 +395,7 @@ static void Wow_LoadSpellVisualDbcs(void) {
                             ext[1] = 'm'; ext[2] = '2'; ext[3] = '\0';
                         }
                     }
-                    wow_visual_effects[wow_visual_effect_count].id = id;
+                    wow_visual_effects[wow_visual_effect_count].id = rec->id;
                     wow_visual_effects[wow_visual_effect_count].path = buf;
                     wow_visual_effect_count++;
                 }
@@ -468,88 +403,54 @@ static void Wow_LoadSpellVisualDbcs(void) {
         }
         fprintf(stderr, "WoW: loaded %u spell visual effects from SpellVisualEffectName.dbc\n", (unsigned)wow_visual_effect_count);
     }
-    SAFE_DELETE(fx_data, gi.MemFree);
+    Stb_DbcCacheFree(&fx, io);
 
-    /* Phase 2: Load SpellVisualKit.dbc → kit ID → best effect M2 path */
-    /* We don't need to cache kits; we resolve them inline when loading SpellVisual.dbc */
-    kit_data = gi.ReadFile ? gi.ReadFile("DBFilesClient\\SpellVisualKit.dbc", &kit_size) : NULL;
-    if (!Wow_ValidDbc(kit_data, kit_size, &kit_records, &kit_fields, &kit_record_size, &kit_string_size)) {
-        kit_records = 0;
-    }
+    /* Phase 2: SpellVisualKit.dbc → kit ID → effect slots (decoded once, resolved inline). */
+    Stb_DbcCacheLoad(&kit, "DBFilesClient\\SpellVisualKit.dbc", io);
+    Stb_DbcCacheDecode(&kit, spell_visual_kit_schema, sizeof(spell_visual_kit_schema) / sizeof(spell_visual_kit_schema[0]),
+                       sizeof(gSpellVisualKitRec_t), io);
 
-    /* Phase 3: Load SpellVisual.dbc → visual ID → cast/impact/missile paths */
-    sv_data = gi.ReadFile ? gi.ReadFile("DBFilesClient\\SpellVisual.dbc", &sv_size) : NULL;
-    if (Wow_ValidDbc(sv_data, sv_size, &sv_records, &sv_fields, &sv_record_size, &sv_string_size) &&
-        sv_fields >= 9 && wow_spell_visual_count == 0) {
-        BYTE const *sv_records_base = sv_data + 20;
-        BYTE const *kit_records_base = kit_data ? kit_data + 20 : NULL;
-
-        FOR_LOOP(i, sv_records) {
+    /* Phase 3: SpellVisual.dbc → visual ID → cast/impact/missile paths */
+    if (Stb_DbcCacheLoad(&sv, "DBFilesClient\\SpellVisual.dbc", io) &&
+        Stb_DbcCacheDecode(&sv, spell_visual_schema, sizeof(spell_visual_schema) / sizeof(spell_visual_schema[0]),
+                           sizeof(gSpellVisualRec_t), io) &&
+        wow_spell_visual_count == 0) {
+        FOR_LOOP(i, sv.records) {
             if (wow_spell_visual_count >= WOW_MAX_SPELL_VISUALS) break;
-            BYTE const *record = sv_records_base + i * sv_record_size;
-            DWORD id = Wow_Read32(record);
-            if (!id) continue;
-
-            /* SpellVisual.dbc fields (WoWee layout):
-             *   1=PrecastKit, 2=CastKit, 3=ImpactKit, 8=MissileModel */
-            DWORD precast_kit = (sv_fields > 1) ? Wow_Read32(record + 1 * sizeof(DWORD)) : 0;
-            DWORD cast_kit    = (sv_fields > 2) ? Wow_Read32(record + 2 * sizeof(DWORD)) : 0;
-            DWORD impact_kit  = (sv_fields > 3) ? Wow_Read32(record + 3 * sizeof(DWORD)) : 0;
-            DWORD missile_eff = (sv_fields > 8) ? Wow_Read32(record + 8 * sizeof(DWORD)) : 0;
+            gSpellVisualRec_t const *rec = STB_DBC_ROW(sv, gSpellVisualRec_t, i);
+            if (!rec->id) continue;
 
             LPCSTR cast_path = NULL, impact_path = NULL, missile_path = NULL;
+            int ki;
 
-            /* Resolve cast kit → M2 path */
-            if (cast_kit && kit_records_base) {
-                FOR_LOOP(k, kit_records) {
-                    BYTE const *kr = kit_records_base + k * kit_record_size;
-                    if (Wow_Read32(kr) == cast_kit) {
-                        cast_path = Wow_ResolveKitPath(kr, kit_fields, kit_record_size);
-                        break;
-                    }
-                }
-            }
-            /* Fallback: use precast kit if cast kit produced nothing */
-            if (!cast_path && precast_kit && kit_records_base) {
-                FOR_LOOP(k, kit_records) {
-                    BYTE const *kr = kit_records_base + k * kit_record_size;
-                    if (Wow_Read32(kr) == precast_kit) {
-                        cast_path = Wow_ResolveKitPath(kr, kit_fields, kit_record_size);
-                        break;
-                    }
-                }
-            }
+            /* Resolve cast kit → M2 path (fall back to precast kit) */
+            if (rec->cast_kit && kit.valid && (ki = Stb_DbcCacheFindID(&kit, rec->cast_kit, io)) >= 0)
+                cast_path = Wow_ResolveKitPath(STB_DBC_ROW(kit, gSpellVisualKitRec_t, ki));
+            if (!cast_path && rec->precast_kit && kit.valid && (ki = Stb_DbcCacheFindID(&kit, rec->precast_kit, io)) >= 0)
+                cast_path = Wow_ResolveKitPath(STB_DBC_ROW(kit, gSpellVisualKitRec_t, ki));
 
             /* Resolve impact kit → M2 path */
-            if (impact_kit && kit_records_base) {
-                FOR_LOOP(k, kit_records) {
-                    BYTE const *kr = kit_records_base + k * kit_record_size;
-                    if (Wow_Read32(kr) == impact_kit) {
-                        impact_path = Wow_ResolveKitPath(kr, kit_fields, kit_record_size);
-                        break;
-                    }
-                }
-            }
+            if (rec->impact_kit && kit.valid && (ki = Stb_DbcCacheFindID(&kit, rec->impact_kit, io)) >= 0)
+                impact_path = Wow_ResolveKitPath(STB_DBC_ROW(kit, gSpellVisualKitRec_t, ki));
 
             /* Missile model: direct effect name reference */
-            if (missile_eff) {
-                missile_path = Wow_FindVisualEffectPath(missile_eff);
-            }
+            if (rec->missile_effect)
+                missile_path = Wow_FindVisualEffectPath(rec->missile_effect);
 
             /* Store if we found at least one path */
             if (cast_path || impact_path || missile_path) {
-                wowSpellVisual_t *sv = &wow_spell_visuals[wow_spell_visual_count++];
-                sv->visual_id = id;
-                sv->cast_path = cast_path;
-                sv->impact_path = impact_path;
-                sv->missile_path = missile_path;
+                wowSpellVisual_t *spv = &wow_spell_visuals[wow_spell_visual_count++];
+                spv->visual_id = rec->id;
+                spv->cast_path = cast_path;
+                spv->impact_path = impact_path;
+                spv->missile_path = missile_path;
             }
         }
         fprintf(stderr, "WoW: loaded %u spell visuals from SpellVisual.dbc\n", (unsigned)wow_spell_visual_count);
     }
 
-    SAFE_DELETE(sv_data, gi.MemFree);
-    SAFE_DELETE(kit_data, gi.MemFree);
+    Stb_DbcCacheFree(&sv, io);
+    Stb_DbcCacheFree(&kit, io);
 }
 
 /* Look up the spell visual for a given visual ID.
@@ -727,7 +628,8 @@ static BOOL wow_spell_dbc_loaded = false;
 
 static void Wow_LoadSpellDbc(void) {
     LPBYTE data = NULL;
-    DWORD size = 0, records, fields, record_size, string_size;
+    DWORD size = 0;
+    stbDbc_t h;
     DWORD visual_field;
 
     if (wow_spell_dbc_loaded) return;
@@ -735,26 +637,26 @@ static void Wow_LoadSpellDbc(void) {
     memset(wow_spell_visual_map, 0, sizeof(wow_spell_visual_map));
 
     data = gi.ReadFile ? gi.ReadFile("DBFilesClient\\Spell.dbc", &size) : NULL;
-    if (!Wow_ValidDbc(data, size, &records, &fields, &record_size, &string_size)) {
+    if (!Stb_DbcValid(data, size, &h)) {
         SAFE_DELETE(data, gi.MemFree);
         return;
     }
     /* Classic Spell.dbc has 148 fields with SpellVisualID at 115.
      * WotLK has 234 fields with SpellVisual at 131. Pick the right field. */
-    visual_field = fields >= 200 ? 131 : 115;
-    if (visual_field >= fields) { SAFE_DELETE(data, gi.MemFree); return; }
+    visual_field = h.fields >= 200 ? 131 : 115;
+    if (visual_field >= h.fields) { SAFE_DELETE(data, gi.MemFree); return; }
 
     {
-        BYTE const *records_base = data + 20;
-        FOR_LOOP(i, records) {
-            BYTE const *record = records_base + i * record_size;
-            DWORD id = Wow_Read32(record);
+        BYTE const *records_base = Stb_DbcRecords(data);
+        FOR_LOOP(i, h.records) {
+            BYTE const *record = records_base + i * h.record_size;
+            DWORD id = Stb_DbcRead32(record);
             if (id < WOW_MAX_SPELL_VISUAL_MAP) {
-                wow_spell_visual_map[id] = Wow_Read32(record + visual_field * sizeof(DWORD));
+                wow_spell_visual_map[id] = Stb_DbcRead32(record + visual_field * sizeof(DWORD));
             }
         }
     }
-    fprintf(stderr, "WoW: loaded %u spells from Spell.dbc\n", (unsigned)records);
+    fprintf(stderr, "WoW: loaded %u spells from Spell.dbc\n", (unsigned)h.records);
     Wow_LoadSpellVisualDbcs();
     SAFE_DELETE(data, gi.MemFree);
 }

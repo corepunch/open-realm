@@ -16,6 +16,7 @@
 
 #include "test.h"
 #include "game/g_wow_local.h"
+#include "common/stb_dbc.h"
 
 /* Wow_Clamp is real production code (g_wow.c); testing it here proves the
  * runtime exercises the actual game module, not a copy. */
@@ -27,14 +28,14 @@ TEST(wow_smoke, clamp) {
 
 TEST(wow_smoke, read32_little_endian) {
     BYTE bytes[4] = { 0x78, 0x56, 0x34, 0x12 };
-    T_EQ(Wow_Read32(bytes), 0x12345678u);
+    T_EQ(Stb_DbcRead32(bytes), 0x12345678u);
 }
 
 TEST(wow_smoke, read_float_roundtrip) {
     FLOAT expected = 1.5f;
     BYTE bytes[4];
     memcpy(bytes, &expected, sizeof(bytes));
-    T_FEQ(Wow_ReadFloat(bytes), expected, 0.0f);
+    T_FEQ(Stb_DbcReadFloat(bytes), expected, 0.0f);
 }
 
 TEST(wow_smoke, wmo_floor_ray) {

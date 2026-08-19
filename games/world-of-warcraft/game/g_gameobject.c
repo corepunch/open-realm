@@ -148,26 +148,17 @@ typedef struct {
 } wowMapObjDef_t;
 #pragma pack(pop)
 
-/* DBC struct: GameObjectDisplayInfo.dbc */
-typedef struct {
-    DWORD id;
-    DWORD model_name_offset;
-    DWORD sound_ids[10];
-    FLOAT bounding_box[6];
-    DWORD object_effect_package_id;
-} wowGoDisplayInfoDbc_t;
+/* GameObjectDisplayInfo decode via the shared schema (common/stb_dbc.h); consumers
+ * read named fields, not raw column offsets. */
+typedef struct { DWORD id; LPCSTR model_name; } gGameObjectDisplayInfoRec_t;
+static stbDbcField_t const game_object_display_info_schema[] = {
+    { 0, offsetof(gGameObjectDisplayInfoRec_t, id),         STB_DBC_U32 },
+    { 1, offsetof(gGameObjectDisplayInfoRec_t, model_name), STB_DBC_STR },
+};
+static stbDbcCache_t game_object_display_info_dbc;
 
-/* Read 32-bit LE from a BYTE pointer. */
-static DWORD WowGo_Read32(BYTE const *p) {
-    return ((DWORD)p[0]) | ((DWORD)p[1] << 8) | ((DWORD)p[2] << 16) | ((DWORD)p[3] << 24);
-}
-
-static FLOAT WowGo_ReadFloat(BYTE const *p) {
-    FLOAT v;
-    memcpy(&v, p, sizeof(v));
-    return v;
-}
-
+/* ADT chunk tags are stored reversed ("MDNM" = MMDX, "FDMM" = MDDF); memcmp the
+ * raw fourcc against the reversed literal. */
 static BOOL WowGo_DbcTagEquals(BYTE const *tag, LPCSTR reversed) {
     return memcmp(tag, reversed, 4) == 0;
 }
@@ -176,31 +167,20 @@ static BOOL WowGo_DbcTagEquals(BYTE const *tag, LPCSTR reversed) {
  * Model paths are stored without extension in the DBC; we match on the
  * filename stem (before the .m2/.mdx extension). */
 static void WowGo_LoadModelMap(void) {
-    stbDbc_t h;
-    LPBYTE data;
-    DWORD sz;
-    BYTE const *strings;
-
     wow_go_model_map_loaded = true;
 
-    data = (LPBYTE)gi.ReadFile("DBFilesClient\\GameObjectDisplayInfo.dbc", &sz);
-    if (!Stb_DbcValid(data, sz, &h) || h.fields < 2 || h.record_size < sizeof(wowGoDisplayInfoDbc_t)) {
-        SAFE_DELETE(data, gi.MemFree);
+    if (!Stb_DbcCacheLoad(&game_object_display_info_dbc, "DBFilesClient\\GameObjectDisplayInfo.dbc", &g_dbc_io) ||
+        !Stb_DbcCacheDecode(&game_object_display_info_dbc, game_object_display_info_schema,
+                            sizeof(game_object_display_info_schema) / sizeof(game_object_display_info_schema[0]),
+                            sizeof(gGameObjectDisplayInfoRec_t), &g_dbc_io)) {
         return;
     }
 
-    strings = Stb_DbcStrings(data, &h);
-    BYTE const *rec_base = Stb_DbcRecords(data);
-    for (DWORD r = 0; r < h.records && wow_go_model_map_count < WOW_MAX_GO_MODEL_MAP; r++) {
-        BYTE const *rec = rec_base + r * h.record_size;
-
-        wowGoDisplayInfoDbc_t const *di = (wowGoDisplayInfoDbc_t const *)rec;
-        if (di->model_name_offset >= h.string_size)
-            continue;
-
-        LPCSTR model_name = (LPCSTR)(strings + di->model_name_offset);
-        if (!model_name || !*model_name)
-            continue;
+    FOR_LOOP(r, game_object_display_info_dbc.records) {
+        if (wow_go_model_map_count >= WOW_MAX_GO_MODEL_MAP) break;
+        gGameObjectDisplayInfoRec_t const *di = STB_DBC_ROW(game_object_display_info_dbc, gGameObjectDisplayInfoRec_t, r);
+        LPCSTR model_name = di->model_name;
+        if (!model_name || !*model_name) continue;
 
         /* Extract filename stem: strip path, strip extension */
         LPCSTR stem = strrchr(model_name, '\\');
@@ -215,7 +195,6 @@ static void WowGo_LoadModelMap(void) {
         entry->display_id = di->id;
         snprintf(entry->model_path, sizeof(entry->model_path), "%s", stem_buf);
     }
-    gi.MemFree(data);
     fprintf(stderr, "WoW: loaded %u GameObjectDisplayInfo model mappings\n", (unsigned)wow_go_model_map_count);
 }
 
@@ -298,7 +277,7 @@ static void WowGo_SpawnFromTile(int tile_x, int tile_y) {
 
     while (offset + 8 <= size) {
         BYTE const *tag = data + offset;
-        DWORD chunk_size = WowGo_Read32(data + offset + 4);
+        DWORD chunk_size = Stb_DbcRead32(data + offset + 4);
         BYTE const *chunk = data + offset + 8;
 
         offset += 8;
