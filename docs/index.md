@@ -8,6 +8,8 @@ contains build, installation, and project-overview information.
 
 - [Architecture](architecture/runtime.md): runtime modules, client/server boundaries,
   networking, rendering, sound, UI, and fog of war.
+- [Coordinate-System Contract](../AXIS.md): native game axes, current WoW conversions,
+  and the migration plan for axis-aware rendering.
 - [Warcraft III](games/warcraft-3/readme.md): target status, formats, renderer, UI,
   cinematics, sounds, and gameplay coverage.
 - [World of Warcraft](games/world-of-warcraft/readme.md): target status, ADT terrain,
