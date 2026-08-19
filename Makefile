@@ -454,7 +454,8 @@ test-wow-wmo-assets: wmogen mpqtool | $(TESTS_DIR)
 		--mocv 100 200 150 255 \
 		--trans-batches 1 \
 		--doodad World/props/Barrel.mdx 1.0 2.0 0.5 0 0 0 1 1.5 \
-		--doodad World/props/Crate.mdx  -1.0 3.0 0.0 0 0.7071 0 0.7071 1.0
+		--doodad World/props/Crate.mdx  -1.0 3.0 0.0 0 0.7071 0 0.7071 1.0 \
+		--light 0 0.0 0.0 3.0 200 180 255 1.2
 	@echo "[test-wow-wmo-assets] packing $(WOW_WMO_TEST_MPQ)"
 	@set --; \
 	for f in $$(find $(WOW_WMO_TEST_DATA_DIR) -type f | sort); do \

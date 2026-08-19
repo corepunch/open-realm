@@ -72,6 +72,20 @@ typedef struct {
 static Doodad doodads[MAX_DOODADS];
 static int    num_doodads;
 
+#define MAX_LIGHTS 16
+typedef struct {
+    uint8_t type;       /* 0=OMNI 1=SPOT 2=DIRECT 3=AMBIENT */
+    uint8_t use_atten;
+    uint8_t color_b, color_g, color_r, color_a;
+    float x, y, z;     /* WMO local position */
+    float intensity;
+    float atten_start;
+    float atten_end;
+} Light;
+
+static Light lights[MAX_LIGHTS];
+static int   num_lights;
+
 /* -------------------------------------------------------------------------
    Helpers: write fixed-size WMO structs into a wbuf_t
    ---------------------------------------------------------------------- */
@@ -129,6 +143,26 @@ static void write_momt_one(wbuf_t *p) { wb_zero(p, 64); }
 /* MOGN chunk payload: null-terminated group name */
 static void write_mogn(wbuf_t *p, const char *name) {
     wb_write(p, name, strlen(name) + 1);
+}
+
+/* TLOM chunk payload: array of 48-byte wowWmoLight_t records */
+static void write_molt(wbuf_t *p) {
+    for (int i = 0; i < num_lights; i++) {
+        Light *l = &lights[i];
+        wb_u8(p, l->type);
+        wb_u8(p, l->use_atten);
+        wb_u8(p, 0); wb_u8(p, 0); /* pad[2] */
+        /* color BGRA */
+        wb_u8(p, l->color_b); wb_u8(p, l->color_g);
+        wb_u8(p, l->color_r); wb_u8(p, l->color_a);
+        /* position */
+        wb_f32(p, l->x); wb_f32(p, l->y); wb_f32(p, l->z);
+        wb_f32(p, l->intensity);
+        wb_f32(p, l->atten_start);
+        wb_f32(p, l->atten_end);
+        /* unk[4] */
+        wb_zero(p, 16);
+    }
 }
 
 /* MODS chunk payload: one doodad set record (32 bytes) */
@@ -300,12 +334,14 @@ int main(int argc, char **argv) {
     if (argc < 2) {
         fprintf(stderr,
             "usage: wmogen <out.wmo>\n"
-            "   [--amb <R> <G> <B>]   ambient color (default 64 64 64)\n"
-            "   [--flags <HEX>]       MOHD flags (default 0)\n"
-            "   [--indoor]            group is interior (mogpFlags |= 0x2000)\n"
-            "   [--mocv <B> <G> <R> <A>] MOCV color in BGRA file order (default 128 128 128 255)\n"
-            "   [--trans-batches <N>] number of transparent (batch-A) batches (default 0)\n"
-            "   [--doodad <path> <x> <y> <z> <qx> <qy> <qz> <qw> <scale>]\n");
+            "   [--amb <R> <G> <B>]                  ambient color (default 64 64 64)\n"
+            "   [--flags <HEX>]                       MOHD flags (default 0)\n"
+            "   [--indoor]                            group is interior (mogpFlags |= 0x2000)\n"
+            "   [--mocv <B> <G> <R> <A>]              MOCV color BGRA file order (default 128 128 128 255)\n"
+            "   [--trans-batches <N>]                 transparent (batch-A) batches (default 0)\n"
+            "   [--doodad <path> <x> <y> <z> <qx> <qy> <qz> <qw> <scale>]\n"
+            "   [--light <type> <x> <y> <z> <B> <G> <R> <intensity>]\n"
+            "       type: 0=OMNI 1=SPOT 2=DIRECT 3=AMBIENT\n");
         return 1;
     }
 
@@ -337,6 +373,24 @@ int main(int argc, char **argv) {
         } else if (!strcmp(argv[i], "--trans-batches") && i + 1 < argc) {
             trans_batches = (uint16_t)atoi(argv[i+1]);
             i += 2;
+        } else if (!strcmp(argv[i], "--light") && i + 8 < argc) {
+            /* --light <type> <use_atten> <B> <G> <R> <A> <x> <y> <z> <intensity> ... */
+            /* Simplified: --light <type> <x> <y> <z> <B> <G> <R> <intensity> */
+            if (num_lights >= MAX_LIGHTS) { fprintf(stderr, "wmogen: too many lights\n"); return 1; }
+            Light *lt = &lights[num_lights++];
+            lt->type       = (uint8_t)atoi(argv[i+1]);
+            lt->use_atten  = 1;
+            lt->x = (float)atof(argv[i+2]);
+            lt->y = (float)atof(argv[i+3]);
+            lt->z = (float)atof(argv[i+4]);
+            lt->color_b = (uint8_t)atoi(argv[i+5]);
+            lt->color_g = (uint8_t)atoi(argv[i+6]);
+            lt->color_r = (uint8_t)atoi(argv[i+7]);
+            lt->color_a = 0xFF;
+            lt->intensity   = (float)atof(argv[i+8]);
+            lt->atten_start = 5.0f;
+            lt->atten_end   = 20.0f;
+            i += 9;
         } else if (!strcmp(argv[i], "--doodad") && i + 9 < argc) {
             if (num_doodads >= MAX_DOODADS) {
                 fprintf(stderr, "wmogen: too many doodads (max %d)\n", MAX_DOODADS);
@@ -367,7 +421,7 @@ int main(int argc, char **argv) {
         write_mver(&p);
         wb_chunk(&root, "REVM", &p); p.size = 0;
 
-        write_mohd(&p, 1, 0, num_doodads ? 1 : 0, (uint32_t)num_doodads,
+        write_mohd(&p, 1, (uint32_t)num_lights, num_doodads ? 1 : 0, (uint32_t)num_doodads,
                    amb_r, amb_g, amb_b, mohd_flags);
         wb_chunk(&root, "DHOM", &p); p.size = 0;
 
@@ -389,6 +443,10 @@ int main(int argc, char **argv) {
 
             write_modd(&p, doodad_offsets);
             wb_chunk(&root, "DDOM", &p); p.size = 0;
+        }
+        if (num_lights > 0) {
+            write_molt(&p);
+            wb_chunk(&root, "TLOM", &p); p.size = 0;
         }
         wb_free(&p);
     }

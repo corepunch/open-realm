@@ -33,6 +33,18 @@ typedef struct { BYTE b, g, r, a; } COLOR32;
 typedef struct { float x, y, z; } wowVec3_t;
 
 typedef struct {
+    BYTE      type;       /* 0=OMNI 1=SPOT 2=DIRECT 3=AMBIENT */
+    BYTE      use_atten;
+    BYTE      pad[2];
+    COLOR32   color;      /* BGRA */
+    wowVec3_t position;
+    float     intensity;
+    float     atten_start;
+    float     atten_end;
+    float     unk[4];
+} wowWmoLight_t;  /* 48 bytes */
+
+typedef struct {
     int16_t  box_min[3];
     int16_t  box_max[3];
     uint32_t first_index;
@@ -550,4 +562,147 @@ TEST(wow_wmo_mogp, replacement_color_at_0x38) {
     T_EQ((int)((v >> 16) & 0xFF), 0x80); /* R */
     T_EQ((int)((v >> 8)  & 0xFF), 0x40); /* G */
     T_EQ((int)(v & 0xFF),         0x20); /* B */
+}
+
+/* =========================================================================
+   G. Phase 3: MOLT (wowWmoLight_t) struct layout and flag tests
+   ======================================================================= */
+
+TEST(wow_wmo_molt, light_struct_is_48_bytes) {
+    T_EQ((int)sizeof(wowWmoLight_t), 48);
+}
+
+TEST(wow_wmo_molt, field_offsets) {
+    wowWmoLight_t lt;
+    T_EQ((int)((BYTE*)&lt.use_atten - (BYTE*)&lt), 1);
+    T_EQ((int)((BYTE*)&lt.pad      - (BYTE*)&lt), 2);
+    T_EQ((int)((BYTE*)&lt.color    - (BYTE*)&lt), 4);   /* after type+use_atten+pad[2] */
+    T_EQ((int)((BYTE*)&lt.position - (BYTE*)&lt), 8);   /* after color (4 bytes) */
+    T_EQ((int)((BYTE*)&lt.intensity   - (BYTE*)&lt), 20); /* after position (12 bytes) */
+    T_EQ((int)((BYTE*)&lt.atten_start - (BYTE*)&lt), 24);
+    T_EQ((int)((BYTE*)&lt.atten_end   - (BYTE*)&lt), 28);
+    T_EQ((int)((BYTE*)&lt.unk - (BYTE*)&lt), 32); /* unk[4] = 16 bytes → struct ends at 48 */
+}
+
+TEST(wow_wmo_molt, binary_parse_color_bgra) {
+    /* MOLT color in file is BGRA. Verify parsing a known buffer gives correct fields. */
+    BYTE buf[48];
+    memset(buf, 0, sizeof(buf));
+    buf[0] = 2;    /* type = DIRECT */
+    buf[1] = 1;    /* use_atten */
+    /* color at +4 (BGRA): B=10 G=20 R=30 A=40 */
+    buf[4] = 10; buf[5] = 20; buf[6] = 30; buf[7] = 40;
+
+    wowWmoLight_t lt;
+    memcpy(&lt, buf, sizeof(lt));
+    T_EQ((int)lt.type,      2);
+    T_EQ((int)lt.use_atten, 1);
+    T_EQ((int)lt.color.b,  10);
+    T_EQ((int)lt.color.g,  20);
+    T_EQ((int)lt.color.r,  30);
+    T_EQ((int)lt.color.a,  40);
+}
+
+TEST(wow_wmo_molt, intensity_and_atten_fields) {
+    BYTE buf[48];
+    memset(buf, 0, sizeof(buf));
+    float inten = 1.25f, as = 10.0f, ae = 50.0f;
+    memcpy(buf + 20, &inten, 4);
+    memcpy(buf + 24, &as,    4);
+    memcpy(buf + 28, &ae,    4);
+
+    wowWmoLight_t lt;
+    memcpy(&lt, buf, sizeof(lt));
+    T_ASSERT(feq(lt.intensity,   1.25f));
+    T_ASSERT(feq(lt.atten_start, 10.0f));
+    T_ASSERT(feq(lt.atten_end,   50.0f));
+}
+
+/* =========================================================================
+   H. Phase 3.2: MODD instance-flag MOLT check
+   ======================================================================= */
+
+TEST(wow_wmo_molt_flag, flag_04_in_upper_byte_triggers_molt) {
+    /* name_flags: bits 0-23 = name offset, bits 24-31 = instance flags */
+    uint32_t name_flags = (0x04u << 24) | 0x001234u; /* inst_flag=0x04, offset=0x1234 */
+
+    BYTE inst_flags = (BYTE)(name_flags >> 24);
+    T_EQ((int)(inst_flags & 0x04), 0x04);
+    T_EQ((int)(name_flags & 0x00FFFFFF), 0x1234);
+}
+
+TEST(wow_wmo_molt_flag, flag_00_does_not_trigger_molt) {
+    uint32_t name_flags = 0x00001234u; /* inst_flag=0, offset=0x1234 */
+    BYTE inst_flags = (BYTE)(name_flags >> 24);
+    T_EQ((int)(inst_flags & 0x04), 0x00);
+}
+
+TEST(wow_wmo_molt_flag, molt_index_in_color_alpha) {
+    /* color.a carries the MOLT light index when flag 0x04 is set */
+    BYTE buf[40];
+    memset(buf, 0, sizeof(buf));
+    buf[39] = 7; /* color.a = MOLT index 7 */
+
+    wowWmoDoodadDef_t d;
+    memcpy(&d, buf, sizeof(d));
+    T_EQ((int)d.color.a, 7);
+}
+
+TEST(wow_wmo_molt_flag, num_lights_bounds_check) {
+    /* Only skip doodad when inst_flag 0x04 is set AND color_a < num_lights_parsed */
+    uint32_t nf = 0x04000000u; /* flags=0x04, name_offset=0 */
+    BYTE inst_flags = (BYTE)(nf >> 24);
+    BYTE color_a = 5;
+
+    /* color_a=5 < num_lights=10 → MOLT applies → should skip */
+    DWORD num_lights_parsed = 10;
+    BOOL should_skip = ((inst_flags & 0x04) != 0) && (color_a < (BYTE)num_lights_parsed);
+    T_ASSERT(should_skip);
+
+    /* color_a=5 >= num_lights=4 → out of range → don't skip */
+    num_lights_parsed = 4;
+    should_skip = ((inst_flags & 0x04) != 0) && (color_a < (BYTE)num_lights_parsed);
+    T_ASSERT(!should_skip);
+
+    /* inst_flags = 0x00 → no MOLT regardless of bounds */
+    nf = 0x00001234u;
+    inst_flags = (BYTE)(nf >> 24);
+    num_lights_parsed = 10;
+    should_skip = ((inst_flags & 0x04) != 0) && (color_a < (BYTE)num_lights_parsed);
+    T_ASSERT(!should_skip);
+}
+
+/* =========================================================================
+   I. Phase 3.3: MOGP replacement_for_header_color decode
+   ======================================================================= */
+
+TEST(wow_wmo_group_amb, nonzero_replacement_color_decoded_as_bgra) {
+    /* replacement_for_header_color at +0x38 in MOGP header.
+       Byte layout in file: [0x38]=B [0x39]=G [0x3A]=R [0x3B]=A
+       Production code: group_amb.b = chunk[0x38], .g = [0x39], .r = [0x3A] */
+    BYTE chunk[0x44];
+    memset(chunk, 0, sizeof(chunk));
+    chunk[0x38] = 0x10; /* B */
+    chunk[0x39] = 0x20; /* G */
+    chunk[0x3A] = 0x30; /* R */
+    chunk[0x3B] = 0xFF; /* A */
+
+    /* Simulate what production code does */
+    uint32_t replacement; memcpy(&replacement, chunk + 0x38, 4);
+    T_ASSERT(replacement != 0); /* non-zero → has_group_amb = true */
+
+    BYTE b = chunk[0x38];
+    BYTE g = chunk[0x39];
+    BYTE r = chunk[0x3A];
+    T_EQ((int)b, 0x10);
+    T_EQ((int)g, 0x20);
+    T_EQ((int)r, 0x30);
+}
+
+TEST(wow_wmo_group_amb, zero_replacement_color_means_no_override) {
+    BYTE chunk[0x44];
+    memset(chunk, 0, sizeof(chunk));
+    /* All zeros at +0x38 → should NOT set has_group_amb */
+    uint32_t replacement; memcpy(&replacement, chunk + 0x38, 4);
+    T_EQ((int)replacement, 0);
 }

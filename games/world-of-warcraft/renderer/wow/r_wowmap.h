@@ -142,6 +142,18 @@ typedef struct wowDoodadInstance_s {
     struct wowDoodadInstance_s *bucket_next;
 } wowDoodadInstance_t;
 
+typedef struct {
+    BYTE      type;        /* 0=OMNI 1=SPOT 2=DIRECT 3=AMBIENT */
+    BYTE      use_atten;
+    BYTE      pad[2];
+    COLOR32   color;       /* BGRA in file */
+    wowVec3_t position;    /* WMO local space */
+    float     intensity;
+    float     atten_start;
+    float     atten_end;
+    float     unk[4];
+} wowWmoLight_t;  /* 48 bytes */
+
 typedef struct wowWmoBatch_s {
     LPBUFFER buffer;
     LPTEXTURE texture;
@@ -154,6 +166,8 @@ typedef struct wowWmoGroup_s {
     wowWmoBatch_t *batches;
     BOX3 bounds;
     BOOL has_bounds;
+    COLOR32 group_amb;       /* MOGP replacement_for_header_color (BGRA→RGB) */
+    BOOL    has_group_amb;   /* true when replacement_for_header_color was non-zero */
 } wowWmoGroup_t;
 
 typedef struct {
@@ -187,6 +201,8 @@ typedef struct wowWmoModel_s {
     DWORD              num_doodad_defs;
     char              *doodad_name_blob;   /* raw MODN chunk bytes, null-terminated */
     DWORD              doodad_name_blob_size;
+    wowWmoLight_t     *lights;             /* MOLT light array */
+    DWORD              num_lights_parsed;  /* actual parsed count (n_lights = from MOHD header) */
     struct wowWmoModel_s *next;
 } wowWmoModel_t;
 
