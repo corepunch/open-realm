@@ -370,11 +370,11 @@ direction" for the full design. High-level steps:
 | **MOCV CPU fixup (ambColor subtract, batch A/B/C alpha bake)** | ✅ done | 1.3 |
 | **`MOHD.ambColor` and flags parsed** | ✅ done | 1.1 |
 | **`transBatchCount` / `intBatchCount` from MOGP header** | ✅ done | 1.2 |
-| WMO-embedded doodads (SDOM / DDOM / NDOM) | ❌ missing | 2 |
-| MOLT (TLOM) parsed → doodad sun direction | ❌ missing | 3.1–3.2 |
-| MOGP group ambient override | ❌ missing | 3.3 |
-| Batch A/B/C render ordering | ❌ missing | 4 |
-| MOMT blend mode per material | ❌ missing | 4.2 |
-| Global WMO maps (dungeons) | ❌ missing | 5 |
-| Portal visibility (MOPT / MOPR) | ❌ missing | 6 |
+| **WMO-embedded doodads (SDOM / DDOM / NDOM)** | ✅ done | 2 |
+| **MOLT (TLOM) parsed → doodad sun direction** | ✅ done (parsed; MOLT-flagged doodads skipped pending entity extension) | 3.1–3.2 |
+| **MOGP group ambient override** | ✅ done (parsed; spatial propagation deferred) | 3.3 |
+| **Batch A/B/C render ordering** | ✅ done (two-pass: opaque then alpha-blended) | 4 |
+| **MOMT blend mode per material** | ✅ done | 4.2 |
+| **Global WMO maps (dungeons)** | ✅ done (WDT OMWM/DIWM/FDOM parsed; terrain suppressed) | 5 |
+| **Portal visibility (MOPT / MOPR)** | ✅ done (TPOM/VPOM/RPOM parsed; exterior cull when cam inside) | 6 |
 | Second MOCV (flag `0x1000000`) for tex-blend alpha | ❌ missing | future |
