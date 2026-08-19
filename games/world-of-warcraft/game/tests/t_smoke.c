@@ -16,6 +16,7 @@
 
 #include "test.h"
 #include "game/g_wow_local.h"
+#include "renderer/r_game.h"
 #include "common/stb_dbc.h"
 
 /* Wow_Clamp is real production code (g_wow.c); testing it here proves the
@@ -55,6 +56,15 @@ TEST(wow_smoke, wmo_bsp_traversal) {
     T_FEQ(fraction, 0.5f, 0.0001f);
     start.x = end.x = 0.25f;
     T_ASSERT(!CM_WowTestBspRay(&start, &end, &fraction));
+}
+
+TEST(wow_smoke, missing_m2_uses_fallback_model_and_disables_static_instancing) {
+    model_t model = { 0 };
+    struct { void *file; } fake = { NULL };
+
+    model.modeltype = ID_MD20;
+    model.m2 = (m2Model_t *)&fake;
+    T_ASSERT(!R_GameModelCanStaticInstance(&model));
 }
 
 #endif /* BZ_TESTS */
