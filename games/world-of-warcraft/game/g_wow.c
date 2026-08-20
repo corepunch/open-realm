@@ -1779,6 +1779,13 @@ static void Wow_RunFrame(void) {
                 locked = true;
         }
     }
+    /* When purely strafing (no forward/back), turn the model 90° to face the
+       direction of movement, matching retail WoW behaviour. */
+    FLOAT render_yaw = wow_move.yaw;
+    if (!(wow_move.flags & (WOW_MOVE_FORWARD | WOW_MOVE_BACK))) {
+        if (wow_move.flags & WOW_MOVE_LEFT)  render_yaw -= 90.0f;
+        if (wow_move.flags & WOW_MOVE_RIGHT) render_yaw += 90.0f;
+    }
     if (locked) {
         Wow_UpdateCamera(ent);
     } else if (moving
@@ -1786,11 +1793,11 @@ static void Wow_RunFrame(void) {
         : (Wow_EntityAffectingCombat(ent)
             ? Wow_SetCombatReadyAnimation(ent)
             : Wow_SetStandMove(ent))) {
-        ent->s.angle = (FLOAT)DEG2RAD(wow_move.yaw);
+        ent->s.angle = (FLOAT)DEG2RAD(render_yaw);
         Wow_MovePlayerFrame(ent);
         Wow_UpdateCamera(ent);
     } else {
-        ent->s.angle = (FLOAT)DEG2RAD(wow_move.yaw);
+        ent->s.angle = (FLOAT)DEG2RAD(render_yaw);
         Wow_UpdateCamera(ent);
     }
     /* Regen mana every frame: WOW_MANA_REGEN_PER_SEC / (1000/FRAMETIME) per tick. */
