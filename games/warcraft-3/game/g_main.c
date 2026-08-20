@@ -192,10 +192,7 @@ static void G_ShutdownGame(void) {
     globals.num_edicts = 0;
 
     ShutdownUnitData();
-    if (game.clients) {
-        gi.MemFree(game.clients);
-        game.clients = NULL;
-    }
+    SAFE_DELETE(game.clients, gi.MemFree);
 }
 
 FLOAT G_Cinefade(void) {

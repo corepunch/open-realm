@@ -51,6 +51,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 - Put pure, reusable local helpers in a small nearby utils header (e.g. `sc2_utils.h`) as `static` functions. Keep subsystem-owned helpers that touch globals or runtime state in the `.c` file that owns that state. Do not create a dedicated header for a single tiny helper — add it to the subsystem's existing shared header (e.g. `r_local.h`, `g_local.h`) instead.
 - Follow a strict DRY rule: do not duplicate logic or repeat the same data literal in multiple places.
 - Keep runtime structs concise. Group related fields; use anonymous structs for repeated shapes; prefer `DWORD flags` over many standalone `BOOL` fields.
+- Declare a pointer + element-count pair as one unit with `ARRAY(type, name)` (defines `type *name; DWORD name##_count;`). Access the count via `ARRAY_COUNT(name)` and iterate with `FOR_EACH_ARRAY(type, it, name)` — or `FOR_LOOP(i, ARRAY_COUNT(name))` when the index is needed — never read or write `name##_count` directly.
 - Test flag membership with implicit bool conversion: `flags & FLAG` not `(flags & FLAG) != 0`.
 - Use `snake_case` for functions and variables, `ALL_CAPS` for constants and macros, matching Quake 2 conventions.
 - Use the `BZ_` prefix for project-private compile-time macros, generated binding helpers, environment toggles, and namespaced constants.

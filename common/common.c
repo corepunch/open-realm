@@ -800,9 +800,7 @@ static HANDLE FS_OpenNestedLooseFile(LPCSTR filename) {
 
     outerData = FS_ReadLooseFile(outer, &outerSize, 0);
     if (!outerData || outerSize == 0) {
-        if (outerData) {
-            MemFree(outerData);
-        }
+        SAFE_DELETE(outerData, MemFree);
         return NULL;
     }
 

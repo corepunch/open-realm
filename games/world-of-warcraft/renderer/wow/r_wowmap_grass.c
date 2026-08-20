@@ -105,7 +105,7 @@ static void Wow_LoadGroundEffectDoodads(void) {
         wow_ground_effect_doodads_loaded = true;
         fprintf(stderr, "[GRASS] Loaded %u GroundEffectDoodad records\n", (unsigned)wow_ground_effect_doodad_count);
     }
-    if (data) ri.FS_FreeFile(data);
+    SAFE_DELETE(data, ri.FS_FreeFile);
 }
 
 static DWORD Wow_GroundEffectLayout(BYTE const *records, DWORD count, DWORD record_size) {
@@ -192,7 +192,7 @@ void Wow_LoadGroundEffectDBCs(void) {
         fprintf(stderr, "[GRASS] Successfully loaded %u GroundEffectTexture records\n", (unsigned)records);
         ri.FS_FreeFile(data);
     } else {
-        if (data) ri.FS_FreeFile(data);
+        SAFE_DELETE(data, ri.FS_FreeFile);
         fprintf(stderr, "[GRASS] WDBC validation failed: records=%u record_size=%u size=%u\n", (unsigned)h.records, (unsigned)h.record_size, (unsigned)size);
     }
 

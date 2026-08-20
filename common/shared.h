@@ -73,6 +73,15 @@ property = next, next = next ? next->next : NULL)
 #define FOR_EACH(type, property, array, num) \
 for (type *property = array; property - array < num; property++)
 
+/* ARRAY(type, name): declare a pointer and its element count as one unit.
+   Read the count with ARRAY_COUNT(name) and iterate with FOR_EACH_ARRAY
+   (or FOR_LOOP(i, ARRAY_COUNT(name)) when the index is needed) — never
+   touch name##_count directly. */
+#define ARRAY(type, name) type *name; DWORD name##_count
+#define ARRAY_COUNT(name) (name##_count)
+#define FOR_EACH_ARRAY(type, property, name) \
+for (type *property = name; property - name < ARRAY_COUNT(name); property++)
+
 #define MAKEFOURCC(ch0, ch1, ch2, ch3) ((int)(char)(ch0) | ((int)(char)(ch1) << 8) | ((int)(char)(ch2) << 16) | ((int)(char)(ch3) << 24))
 
 #define FOFS(type, x) (HANDLE)&(((struct type *)NULL)->x)

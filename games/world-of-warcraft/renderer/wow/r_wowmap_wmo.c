@@ -13,6 +13,83 @@ typedef struct {
     DWORD material_count, slot_count, build_count;
 } WOWWMOLOAD;
 
+/* Parsed MOGP subchunk payloads: each field is a pointer into the resident group
+   file image paired with its element count, filled by Wow_ParseGroupSubchunk. */
+typedef struct {
+    ARRAY(wowWmoPoly_t const, mopy);
+    ARRAY(WORD const, indices);
+    ARRAY(wowVec3_t const, vertices);
+    ARRAY(wowVec3_t const, normals);
+    ARRAY(BYTE const, colors);
+    ARRAY(wowVec2_t const, uvs);
+    ARRAY(wowWmoBatchDef_t const, batches);
+} wowWmoGroupChunks_t;
+
+/* Reversed MOGP subchunk tag -> (ptr field, count field, element size) it fills. */
+static const struct { DWORD tag; size_t ptr_off, count_off, elem_size; } kGroupSubchunks[] = {
+    { ID_YPOM, offsetof(wowWmoGroupChunks_t, mopy),     offsetof(wowWmoGroupChunks_t, mopy_count),     sizeof(wowWmoPoly_t) },
+    { ID_IVOM, offsetof(wowWmoGroupChunks_t, indices),   offsetof(wowWmoGroupChunks_t, indices_count),  sizeof(WORD) },
+    { ID_TVOM, offsetof(wowWmoGroupChunks_t, vertices),  offsetof(wowWmoGroupChunks_t, vertices_count), sizeof(wowVec3_t) },
+    { ID_RNOM, offsetof(wowWmoGroupChunks_t, normals),   offsetof(wowWmoGroupChunks_t, normals_count),  sizeof(wowVec3_t) },
+    { ID_VTOM, offsetof(wowWmoGroupChunks_t, uvs),       offsetof(wowWmoGroupChunks_t, uvs_count),      sizeof(wowVec2_t) },
+    { ID_ABOM, offsetof(wowWmoGroupChunks_t, batches),   offsetof(wowWmoGroupChunks_t, batches_count),  sizeof(wowWmoBatchDef_t) },
+    { ID_VCOM, offsetof(wowWmoGroupChunks_t, colors),    offsetof(wowWmoGroupChunks_t, colors_count),   sizeof(COLOR32) },
+};
+
+/* Fill a { pointer, count } pair at the given struct offsets from a raw subchunk.
+   Used by both the group-subchunk and root-chunk schema tables. */
+static void Wow_FillRef(void *base, BYTE const *chunk, DWORD chunk_size,
+                        size_t ptr_off, size_t count_off, size_t elem_size) {
+    *(BYTE const **)((BYTE *)base + ptr_off) = chunk;
+    *(DWORD *)((BYTE *)base + count_off) = (DWORD)(chunk_size / elem_size);
+}
+
+static void Wow_ParseGroupSubchunk(wowWmoGroupChunks_t *chunks, BYTE const *subtag, BYTE const *subchunk, DWORD sub_size) {
+    DWORD tag = *(DWORD const *)subtag;
+    FOR_LOOP(i, sizeof(kGroupSubchunks) / sizeof(*kGroupSubchunks))
+        if (tag == kGroupSubchunks[i].tag) {
+            Wow_FillRef(chunks, subchunk, sub_size, kGroupSubchunks[i].ptr_off, kGroupSubchunks[i].count_off, kGroupSubchunks[i].elem_size);
+            return;
+        }
+}
+
+/* Per-triangle MOPY material id for the batch-less MOVI path (index_pos is a MOVI index). */
+static DWORD Wow_WmoTriMaterialId(DWORD index_pos, wowWmoGroupChunks_t const *chunks) {
+    DWORD poly_index = index_pos / 3;
+    return (chunks->mopy && poly_index < ARRAY_COUNT(chunks->mopy)) ? chunks->mopy[poly_index].material_id : 0;
+}
+
+/* Parsed root-WMO chunk payloads: MOTX/MOMT are pointers into the resident file. */
+typedef struct {
+    LPCSTR texture_blob;        DWORD texture_blob_size;
+    BYTE const *materials_blob; DWORD material_count;
+} wowWmoRootChunks_t;
+
+/* Reversed root chunk tag -> (ptr field, count field, element size); elem_size 1 = raw bytes. */
+static const struct { DWORD tag; size_t ptr_off, count_off, elem_size; } kRootRefs[] = {
+    { ID_XTOM, offsetof(wowWmoRootChunks_t, texture_blob),   offsetof(wowWmoRootChunks_t, texture_blob_size), 1 },
+    { ID_TMOM, offsetof(wowWmoRootChunks_t, materials_blob), offsetof(wowWmoRootChunks_t, material_count),    64 },
+};
+
+/* Reversed root chunk tag -> (count field, array field, element size) memcpy'd into a fresh model array. */
+static const struct { DWORD tag; size_t count_off, ptr_off, elem_size; } kRootArrays[] = {
+    { ID_SDOM, offsetof(wowWmoModel_t, num_doodad_sets),     offsetof(wowWmoModel_t, doodad_sets),     sizeof(wowWmoDoodadSet_t) },
+    { ID_DDOM, offsetof(wowWmoModel_t, num_doodad_defs),     offsetof(wowWmoModel_t, doodad_defs),     sizeof(wowWmoDoodadDef_t) },
+    { ID_TLOM, offsetof(wowWmoModel_t, num_lights_parsed),   offsetof(wowWmoModel_t, lights),          sizeof(wowWmoLight_t) },
+    { ID_TPOM, offsetof(wowWmoModel_t, num_portals),         offsetof(wowWmoModel_t, portals),         sizeof(wowWmoPortal_t) },
+    { ID_VPOM, offsetof(wowWmoModel_t, num_portal_vertices), offsetof(wowWmoModel_t, portal_vertices), sizeof(wowVec3_t) },
+    { ID_RPOM, offsetof(wowWmoModel_t, num_portal_refs),     offsetof(wowWmoModel_t, portal_refs),     sizeof(wowWmoPortalRef_t) },
+};
+
+static void Wow_AllocWmoArray(wowWmoModel_t *model, BYTE const *chunk, DWORD chunk_size,
+                              size_t count_off, size_t ptr_off, size_t elem_size) {
+    DWORD *count = (DWORD *)((BYTE *)model + count_off);
+    void **ptr = (void **)((BYTE *)model + ptr_off);
+    *count = (DWORD)(chunk_size / elem_size);
+    *ptr = ri.MemAlloc(*count * elem_size);
+    if (*ptr) memcpy(*ptr, chunk, *count * elem_size);
+}
+
 static DWORD Wow_WmoMaterialSlot(DWORD material_id, LPTEXTURE const *materials,
                                    BYTE const *blend_modes, DWORD count) {
     LPTEXTURE texture = material_id < count ? materials[material_id] : tr.texture[TEX_WHITE];
@@ -155,27 +232,16 @@ static BOOL Wow_LoadWmoGroup(wowWmoModel_t *model, DWORD group_index, WOWWMOLOAD
     LPBYTE data = NULL;
     int size;
     DWORD offset = 0;
-    BYTE const *mopy = NULL;
-    DWORD mopy_count = 0;
-    WORD const *indices = NULL;
-    DWORD index_count = 0;
-    wowVec3_t const *vertices = NULL;
-    DWORD vertex_count = 0;
-    wowVec3_t const *normals = NULL;
-    DWORD normal_count = 0;
-    BYTE const *colors = NULL;
-    DWORD color_count = 0;
+    wowWmoGroupChunks_t chunks = { 0 };
     BYTE *colors_copy = NULL;
-    wowVec2_t const *uvs = NULL;
-    DWORD uv_count = 0;
-    wowWmoBatchDef_t const *batches = NULL;
-    DWORD batch_count = 0;
+    DWORD *material_ids = NULL;
     WORD trans_batch_count = 0;
     BOX3 group_bounds = Wow_EmptyBounds();
     BOOL group_has_bounds = false;
     BOOL indoor = false;
-    WOWWMOBUILD *builds;
+    WOWWMOBUILD *builds = NULL;
     DWORD build_count = load->build_count;
+    BOOL ok = false;
 
     Wow_GroupPath(model->path, group_index, group_path, sizeof(group_path));
     size = ri.FS_ReadFile(group_path, (void **)&data);
@@ -218,127 +284,81 @@ static BOOL Wow_LoadWmoGroup(wowWmoModel_t *model, DWORD group_index, WOWWMOLOAD
                 if (sub + sub_size > chunk_size) {
                     break;
                 }
-                if (*(DWORD const *)subtag == ID_YPOM) {
-                    mopy = subchunk;
-                    mopy_count = sub_size / sizeof(wowWmoPoly_t);
-                } else if (*(DWORD const *)subtag == ID_IVOM) {
-                    indices = (WORD const *)subchunk;
-                    index_count = sub_size / sizeof(WORD);
-                } else if (*(DWORD const *)subtag == ID_TVOM) {
-                    vertices = (wowVec3_t const *)subchunk;
-                    vertex_count = sub_size / sizeof(wowVec3_t);
-                } else if (*(DWORD const *)subtag == ID_RNOM) {
-                    normals = (wowVec3_t const *)subchunk;
-                    normal_count = sub_size / sizeof(wowVec3_t);
-                } else if (*(DWORD const *)subtag == ID_VTOM) {
-                    uvs = (wowVec2_t const *)subchunk;
-                    uv_count = sub_size / sizeof(wowVec2_t);
-                } else if (*(DWORD const *)subtag == ID_ABOM) {
-                    batches = (wowWmoBatchDef_t const *)subchunk;
-                    batch_count = sub_size / sizeof(wowWmoBatchDef_t);
-                } else if (*(DWORD const *)subtag == ID_VCOM) {
-                    colors = subchunk;
-                    color_count = sub_size / sizeof(COLOR32);
-                }
+                Wow_ParseGroupSubchunk(&chunks, subtag, subchunk, sub_size);
                 sub += sub_size;
             }
         }
         offset += chunk_size;
     }
 
-    if (!vertices || !indices || !vertex_count || !index_count) {
+    if (!chunks.vertices || !chunks.indices || !ARRAY_COUNT(chunks.vertices) || !ARRAY_COUNT(chunks.indices)) {
         fprintf(stderr, "WoW WMO: group %s has no drawable geometry\n", group_path);
-        ri.FS_FreeFile(data);
-        return false;
+        goto cleanup;
     }
 
-    if (colors && color_count) {
-        colors_copy = ri.MemAlloc(color_count * 4);
+    if (chunks.colors && ARRAY_COUNT(chunks.colors)) {
+        colors_copy = ri.MemAlloc(ARRAY_COUNT(chunks.colors) * 4);
         if (colors_copy) {
-            memcpy(colors_copy, colors, color_count * 4);
-            Wow_FixMocvAlpha(colors_copy, color_count, batches, batch_count,
+            memcpy(colors_copy, chunks.colors, ARRAY_COUNT(chunks.colors) * 4);
+            Wow_FixMocvAlpha(colors_copy, ARRAY_COUNT(chunks.colors), chunks.batches, ARRAY_COUNT(chunks.batches),
                              trans_batch_count, model->amb_color, model->mohd_flags, !indoor);
+        }
+    }
+
+    /* Expand MOBA batches into a per-MOVI-index material id table so the batch and
+       batch-less paths share one vertex-emit loop. Uncovered indices stay 0xFFFFFFFF
+       and are skipped, matching the original batch-range-only iteration. */
+    if (ARRAY_COUNT(chunks.batches)) {
+        material_ids = ri.MemAlloc(ARRAY_COUNT(chunks.indices) * sizeof(*material_ids));
+        if (!material_ids) {
+            fprintf(stderr, "WoW WMO: failed to allocate material ids for %s\n", group_path);
+            goto cleanup;
+        }
+        memset(material_ids, 0xFF, ARRAY_COUNT(chunks.indices) * sizeof(*material_ids));
+        FOR_EACH_ARRAY(wowWmoBatchDef_t const, batch, chunks.batches) {
+            if (batch->first_index >= ARRAY_COUNT(chunks.indices) || batch->first_index + batch->num_indices > ARRAY_COUNT(chunks.indices) || !batch->num_indices)
+                continue;
+            FOR_LOOP(j, batch->num_indices) material_ids[batch->first_index + j] = batch->material_id;
         }
     }
 
     builds = ri.MemAlloc(build_count * sizeof(*builds));
     if (!builds) {
         fprintf(stderr, "WoW WMO: failed to allocate material builders for %s\n", group_path);
-        if (colors_copy) ri.MemFree(colors_copy);
-        ri.FS_FreeFile(data);
-        return false;
+        goto cleanup;
     }
     memset(builds, 0, build_count * sizeof(*builds));
     FOR_LOOP(i, build_count) builds[i].texture = i % load->slot_count < load->material_count ? load->materials[i % load->slot_count] : tr.texture[TEX_WHITE];
 
-    if (batch_count) {
-        FOR_LOOP(batch_index, batch_count) {
-            wowWmoBatchDef_t const *batch = batches + batch_index;
-            DWORD first_index = batch->first_index;
-            DWORD num_indices = batch->num_indices;
-            DWORD material_id = batch->material_id;
-            DWORD slot = Wow_WmoMaterialSlot(material_id, load->materials, load->mat_blend_modes, load->material_count) + (indoor ? load->slot_count : 0);
-            WOWWMOBUILD *build = &builds[slot];
-
-            if (first_index >= index_count || first_index + num_indices > index_count || !num_indices) {
-                continue;
-            }
-            FOR_LOOP(i, num_indices) {
-                WORD vertex_index = indices[first_index + i];
-                wowVec3_t p;
-                wowVec2_t uv = { 0.0f, 0.0f };
-                if (vertex_index >= vertex_count) {
-                    continue;
-                }
-                p = vertices[vertex_index];
-                if (uvs && vertex_index < uv_count) {
-                    uv = uvs[vertex_index];
-                }
-                COLOR32 color = colors_copy && vertex_index < color_count
-                    ? Wow_Color(colors_copy[vertex_index * 4], colors_copy[vertex_index * 4 + 1], colors_copy[vertex_index * 4 + 2], colors_copy[vertex_index * 4 + 3])
-                    : Wow_Color(127, 127, 127, 0xFF);
-                VERTEX vertex = Wow_Vertex(p.x, p.y, p.z, uv.u, uv.v, color);
-                if (normals && vertex_index < normal_count) vertex.normal = *(VECTOR3 const *)(normals + vertex_index);
-                if (!Wow_WmoBuildAppend(build, vertex) || !Wow_WmoBuildAppend(&load->builds[slot], vertex)) {
-                    fprintf(stderr, "WoW WMO: failed to grow material geometry for %s\n", group_path);
-                    Wow_WmoBuildFree(builds, build_count); if (colors_copy) ri.MemFree(colors_copy); ri.FS_FreeFile(data); return false;
-                }
-                Wow_AddBoundsPoint(&group_bounds, &vertex.position);
-                group_has_bounds = true;
-            }
+    FOR_LOOP(i, ARRAY_COUNT(chunks.indices)) {
+        WORD vertex_index = chunks.indices[i];
+        DWORD material_id;
+        DWORD slot;
+        WOWWMOBUILD *build;
+        wowVec3_t p;
+        wowVec2_t uv = { 0.0f, 0.0f };
+        if (vertex_index >= ARRAY_COUNT(chunks.vertices)) continue;
+        if (ARRAY_COUNT(chunks.batches)) {
+            if (material_ids[i] == 0xFFFFFFFF) continue;
+            material_id = material_ids[i];
+        } else {
+            material_id = Wow_WmoTriMaterialId(i, &chunks);
         }
-    } else {
-        FOR_LOOP(i, index_count) {
-            WORD vertex_index = indices[i];
-            DWORD poly_index = i / 3;
-            DWORD material_id = 0;
-            WOWWMOBUILD *build;
-            wowVec3_t p;
-            wowVec2_t uv = { 0.0f, 0.0f };
-            if (vertex_index >= vertex_count) {
-                continue;
-            }
-            if (mopy && poly_index < mopy_count) {
-                material_id = ((wowWmoPoly_t const *)mopy)[poly_index].material_id;
-            }
-            DWORD slot = Wow_WmoMaterialSlot(material_id, load->materials, load->mat_blend_modes, load->material_count) + (indoor ? load->slot_count : 0);
-            build = &builds[slot];
-            p = vertices[vertex_index];
-            if (uvs && vertex_index < uv_count) {
-                uv = uvs[vertex_index];
-            }
-            COLOR32 color = colors_copy && vertex_index < color_count
-                ? Wow_Color(colors_copy[vertex_index * 4], colors_copy[vertex_index * 4 + 1], colors_copy[vertex_index * 4 + 2], colors_copy[vertex_index * 4 + 3])
-                : Wow_Color(127, 127, 127, 0xFF);
-            VERTEX vertex = Wow_Vertex(p.x, p.y, p.z, uv.u, uv.v, color);
-            if (normals && vertex_index < normal_count) vertex.normal = *(VECTOR3 const *)(normals + vertex_index);
-            if (!Wow_WmoBuildAppend(build, vertex) || !Wow_WmoBuildAppend(&load->builds[slot], vertex)) {
-                fprintf(stderr, "WoW WMO: failed to grow material geometry for %s\n", group_path);
-                Wow_WmoBuildFree(builds, build_count); if (colors_copy) ri.MemFree(colors_copy); ri.FS_FreeFile(data); return false;
-            }
-            Wow_AddBoundsPoint(&group_bounds, &vertex.position);
-            group_has_bounds = true;
+        slot = Wow_WmoMaterialSlot(material_id, load->materials, load->mat_blend_modes, load->material_count) + (indoor ? load->slot_count : 0);
+        build = &builds[slot];
+        p = chunks.vertices[vertex_index];
+        if (chunks.uvs && vertex_index < ARRAY_COUNT(chunks.uvs)) uv = chunks.uvs[vertex_index];
+        COLOR32 color = colors_copy && vertex_index < ARRAY_COUNT(chunks.colors)
+            ? Wow_Color(colors_copy[vertex_index * 4], colors_copy[vertex_index * 4 + 1], colors_copy[vertex_index * 4 + 2], colors_copy[vertex_index * 4 + 3])
+            : Wow_Color(127, 127, 127, 0xFF);
+        VERTEX vertex = Wow_Vertex(p.x, p.y, p.z, uv.u, uv.v, color);
+        if (chunks.normals && vertex_index < ARRAY_COUNT(chunks.normals)) vertex.normal = *(VECTOR3 const *)(chunks.normals + vertex_index);
+        if (!Wow_WmoBuildAppend(build, vertex) || !Wow_WmoBuildAppend(&load->builds[slot], vertex)) {
+            fprintf(stderr, "WoW WMO: failed to grow material geometry for %s\n", group_path);
+            goto cleanup;
         }
+        Wow_AddBoundsPoint(&group_bounds, &vertex.position);
+        group_has_bounds = true;
     }
 
     /* One VBO per material slot; blend mode comes from the slot's material. */
@@ -361,13 +381,17 @@ static BOOL Wow_LoadWmoGroup(wowWmoModel_t *model, DWORD group_index, WOWWMOLOAD
             wow_world.num_wmo_batches++;
         }
     }
-    Wow_WmoBuildFree(builds, build_count);
-    if (colors_copy) ri.MemFree(colors_copy);
 
     model->groups[group_index].bounds = group_bounds;
     model->groups[group_index].has_bounds = group_has_bounds;
+    ok = true;
+
+cleanup:
+    SAFE_DELETE(material_ids, ri.MemFree);
+    SAFE_DELETE(colors_copy, ri.MemFree);
+    if (builds) Wow_WmoBuildFree(builds, build_count);
     ri.FS_FreeFile(data);
-    return true;
+    return ok;
 }
 
 BOOL Wow_LoadWmoModel(wowWmoModel_t *model) {
@@ -375,13 +399,11 @@ BOOL Wow_LoadWmoModel(wowWmoModel_t *model) {
     int size;
     DWORD offset = 0;
     DWORD group_count = 0;
-    LPCSTR texture_blob = NULL;
-    DWORD texture_blob_size = 0;
-    BYTE const *materials_blob = NULL;
-    DWORD material_count = 0;
+    wowWmoRootChunks_t chunks = { 0 };
     LPTEXTURE *materials = NULL;
     BYTE *mat_blend_modes = NULL;
     WOWWMOLOAD load = { 0 };
+    BOOL ok = false;
 
     size = ri.FS_ReadFile(model->path, (void **)&data);
     if (size <= 0 || !data) {
@@ -408,12 +430,6 @@ BOOL Wow_LoadWmoModel(wowWmoModel_t *model) {
                 model->amb_color.a = chunk[0x1F];
             }
             if (chunk_size >= 0x32) model->mohd_flags = Wow_Read16(chunk + 0x30);
-        } else if (*(DWORD const *)tag == ID_XTOM) {
-            texture_blob = (LPCSTR)chunk;
-            texture_blob_size = chunk_size;
-        } else if (*(DWORD const *)tag == ID_TMOM) {
-            materials_blob = chunk;
-            material_count = chunk_size / 64;
         } else if (*(DWORD const *)tag == ID_NDOM && chunk_size > 0) {
             /* MODN: null-terminated doodad model filename blob */
             model->doodad_name_blob = ri.MemAlloc(chunk_size + 1);
@@ -422,85 +438,60 @@ BOOL Wow_LoadWmoModel(wowWmoModel_t *model) {
                 model->doodad_name_blob[chunk_size] = '\0';
                 model->doodad_name_blob_size = chunk_size;
             }
-        } else if (*(DWORD const *)tag == ID_SDOM && chunk_size >= sizeof(wowWmoDoodadSet_t)) {
-            /* MODS: doodad sets array */
-            model->num_doodad_sets = chunk_size / sizeof(wowWmoDoodadSet_t);
-            model->doodad_sets = ri.MemAlloc(model->num_doodad_sets * sizeof(wowWmoDoodadSet_t));
-            if (model->doodad_sets)
-                memcpy(model->doodad_sets, chunk, model->num_doodad_sets * sizeof(wowWmoDoodadSet_t));
-        } else if (*(DWORD const *)tag == ID_DDOM && chunk_size >= sizeof(wowWmoDoodadDef_t)) {
-            /* MODD: doodad definitions array */
-            model->num_doodad_defs = chunk_size / sizeof(wowWmoDoodadDef_t);
-            model->doodad_defs = ri.MemAlloc(model->num_doodad_defs * sizeof(wowWmoDoodadDef_t));
-            if (model->doodad_defs)
-                memcpy(model->doodad_defs, chunk, model->num_doodad_defs * sizeof(wowWmoDoodadDef_t));
-        } else if (*(DWORD const *)tag == ID_TLOM && chunk_size >= sizeof(wowWmoLight_t)) {
-            /* MOLT: light array (used for doodad directional lighting) */
-            model->num_lights_parsed = chunk_size / sizeof(wowWmoLight_t);
-            model->lights = ri.MemAlloc(model->num_lights_parsed * sizeof(wowWmoLight_t));
-            if (model->lights)
-                memcpy(model->lights, chunk, model->num_lights_parsed * sizeof(wowWmoLight_t));
-        } else if (*(DWORD const *)tag == ID_TPOM && chunk_size >= sizeof(wowWmoPortal_t)) {
-            /* MOPT: portal plane definitions */
-            model->num_portals = chunk_size / sizeof(wowWmoPortal_t);
-            model->portals = ri.MemAlloc(model->num_portals * sizeof(wowWmoPortal_t));
-            if (model->portals)
-                memcpy(model->portals, chunk, model->num_portals * sizeof(wowWmoPortal_t));
-        } else if (*(DWORD const *)tag == ID_VPOM && chunk_size >= sizeof(wowVec3_t)) {
-            /* MOPV: portal polygon vertices */
-            model->num_portal_vertices = chunk_size / sizeof(wowVec3_t);
-            model->portal_vertices = ri.MemAlloc(model->num_portal_vertices * sizeof(wowVec3_t));
-            if (model->portal_vertices)
-                memcpy(model->portal_vertices, chunk, model->num_portal_vertices * sizeof(wowVec3_t));
-        } else if (*(DWORD const *)tag == ID_RPOM && chunk_size >= sizeof(wowWmoPortalRef_t)) {
-            /* MOPR: per-group portal references */
-            model->num_portal_refs = chunk_size / sizeof(wowWmoPortalRef_t);
-            model->portal_refs = ri.MemAlloc(model->num_portal_refs * sizeof(wowWmoPortalRef_t));
-            if (model->portal_refs)
-                memcpy(model->portal_refs, chunk, model->num_portal_refs * sizeof(wowWmoPortalRef_t));
+        } else {
+            DWORD tag_id = *(DWORD const *)tag;
+            BOOL handled = false;
+            FOR_LOOP(i, sizeof(kRootRefs) / sizeof(*kRootRefs))
+                if (tag_id == kRootRefs[i].tag) {
+                    Wow_FillRef(&chunks, chunk, chunk_size, kRootRefs[i].ptr_off, kRootRefs[i].count_off, kRootRefs[i].elem_size);
+                    handled = true;
+                    break;
+                }
+            if (!handled)
+                FOR_LOOP(i, sizeof(kRootArrays) / sizeof(*kRootArrays))
+                    if (tag_id == kRootArrays[i].tag) {
+                        Wow_AllocWmoArray(model, chunk, chunk_size, kRootArrays[i].count_off, kRootArrays[i].ptr_off, kRootArrays[i].elem_size);
+                        break;
+                    }
         }
         offset += chunk_size;
     }
 
     if (!group_count) {
         fprintf(stderr, "WoW WMO: %s has no groups\n", model->path);
-        ri.FS_FreeFile(data);
-        return false;
+        goto cleanup;
     }
 
-    if (material_count) {
-        materials = ri.MemAlloc(sizeof(*materials) * material_count);
-        mat_blend_modes = ri.MemAlloc(material_count);
-        memset(materials, 0, sizeof(*materials) * material_count);
-        memset(mat_blend_modes, 0, material_count);
-        FOR_LOOP(i, material_count) {
-            DWORD texture_offset = Wow_Read32(materials_blob + i * 64 + 0x0c);
-            WORD blend = Wow_Read16(materials_blob + i * 64 + 0x02);
-            LPCSTR texture_path = Wow_StringAt(texture_blob, texture_blob_size, texture_offset);
+    if (chunks.material_count) {
+        materials = ri.MemAlloc(sizeof(*materials) * chunks.material_count);
+        mat_blend_modes = ri.MemAlloc(chunks.material_count);
+        memset(materials, 0, sizeof(*materials) * chunks.material_count);
+        memset(mat_blend_modes, 0, chunks.material_count);
+        FOR_LOOP(i, chunks.material_count) {
+            DWORD texture_offset = Wow_Read32(chunks.materials_blob + i * 64 + 0x0c);
+            WORD blend = Wow_Read16(chunks.materials_blob + i * 64 + 0x02);
+            LPCSTR texture_path = Wow_StringAt(chunks.texture_blob, chunks.texture_blob_size, texture_offset);
             materials[i] = texture_path ? Wow_LoadTexture(texture_path) : tr.texture[TEX_WHITE];
             mat_blend_modes[i] = (BYTE)(blend > 4 ? 0 : blend);
         }
     }
 
     load.materials = materials; load.mat_blend_modes = mat_blend_modes;
-    load.material_count = material_count; load.slot_count = material_count + 1; load.build_count = load.slot_count * 2;
+    load.material_count = chunks.material_count; load.slot_count = chunks.material_count + 1; load.build_count = load.slot_count * 2;
     load.builds = ri.MemAlloc(load.build_count * sizeof(*load.builds));
-    if (!load.builds) { if (materials) ri.MemFree(materials); if (mat_blend_modes) ri.MemFree(mat_blend_modes); ri.FS_FreeFile(data); return false; }
+    if (!load.builds) {
+        fprintf(stderr, "WoW WMO: failed to allocate group builders for %s\n", model->path);
+        goto cleanup;
+    }
     memset(load.builds, 0, load.build_count * sizeof(*load.builds));
-    FOR_LOOP(i, load.build_count) load.builds[i].texture = i % load.slot_count < material_count ? materials[i % load.slot_count] : tr.texture[TEX_WHITE];
+    FOR_LOOP(i, load.build_count) load.builds[i].texture = i % load.slot_count < chunks.material_count ? materials[i % load.slot_count] : tr.texture[TEX_WHITE];
 
     model->groups = ri.MemAlloc(sizeof(*model->groups) * group_count);
     memset(model->groups, 0, sizeof(*model->groups) * group_count);
     model->num_groups = group_count;
-    FOR_LOOP(i, group_count) {
-        if (!Wow_LoadWmoGroup(model, i, &load)) {
-            Wow_WmoBuildFree(load.builds, load.build_count);
-            if (materials)       ri.MemFree(materials);
-            if (mat_blend_modes) ri.MemFree(mat_blend_modes);
-            ri.FS_FreeFile(data);
-            return false;
-        }
-    }
+    FOR_LOOP(i, group_count)
+        if (!Wow_LoadWmoGroup(model, i, &load)) goto cleanup;
+
     /* Duplicate group geometry once on the GPU so dense views bind each material once per WMO instance. */
     FOR_LOOP(i, load.build_count) {
         WOWWMOBUILD *build = &load.builds[i];
@@ -518,13 +509,16 @@ BOOL Wow_LoadWmoModel(wowWmoModel_t *model) {
             batch->next = model->batches; model->batches = batch; model->num_batches++;
         }
     }
-    Wow_WmoBuildFree(load.builds, load.build_count);
 
-    if (materials)       ri.MemFree(materials);
-    if (mat_blend_modes) ri.MemFree(mat_blend_modes);
-    ri.FS_FreeFile(data);
     model->loaded = true;
-    return true;
+    ok = true;
+
+cleanup:
+    if (load.builds) Wow_WmoBuildFree(load.builds, load.build_count);
+    SAFE_DELETE(materials, ri.MemFree);
+    SAFE_DELETE(mat_blend_modes, ri.MemFree);
+    ri.FS_FreeFile(data);
+    return ok;
 }
 
 wowWmoModel_t *Wow_GetWmoModel(LPCSTR path) {
@@ -633,9 +627,11 @@ void Wow_WmoDoodadLocalMatrix(wowWmoDoodadDef_t const *def, LPMATRIX4 m) {
 }
 
 /* Queue all doodads from the WMO's selected doodad set into instanced rendering.
-   Matrices are pre-composed in world/renderer space: wmo->matrix * doodad_local. */
+   Matrices are pre-composed in world/renderer space: wmo->matrix * doodad_local.
+   def_groups[] is a per-def cache of group pointers filled on the first call to
+   eliminate the per-frame Wow_LoadDoodadModel O(n) strcasecmp lookup. */
 void Wow_QueueWmoDoodads(wowWmoInstance_t const *wmo) {
-    wowWmoModel_t const *model;
+    wowWmoModel_t *model;
     wowWmoDoodadSet_t const *ds;
     DWORD i;
 
@@ -644,35 +640,41 @@ void Wow_QueueWmoDoodads(wowWmoInstance_t const *wmo) {
     if (!model->doodad_sets || wmo->doodad_set >= model->num_doodad_sets) return;
     ds = &model->doodad_sets[wmo->doodad_set];
 
+    /* First call: build the def→group cache; subsequent frames skip the model lookup. */
+    if (!model->def_groups && model->num_doodad_defs) {
+        model->def_groups = ri.MemAlloc(model->num_doodad_defs * sizeof(*model->def_groups));
+        if (!model->def_groups) return;
+        FOR_LOOP(di, model->num_doodad_defs) {
+            wowWmoDoodadDef_t const *d = &model->doodad_defs[di];
+            DWORD name_off = d->name_flags & 0x00FFFFFF;
+            LPCSTR path = Wow_StringAt(model->doodad_name_blob, model->doodad_name_blob_size, name_off);
+            LPMODEL m; wowDoodadModel_t *g;
+            if (!path || !*path) { model->def_groups[di] = NULL; continue; }
+            m = Wow_LoadDoodadModel(path);
+            if (!m) { model->def_groups[di] = NULL; continue; }
+            for (g = wow_world.doodad_models; g; g = g->next)
+                if (g->model == m) break;
+            model->def_groups[di] = (g && g->can_instance) ? g : NULL;
+        }
+    }
+    if (!model->def_groups) return;
+
     for (i = 0; i < ds->count; i++) {
         DWORD idx = ds->start + i;
         wowWmoDoodadDef_t const *def;
-        DWORD name_offset;
-        LPCSTR model_path;
-        LPMODEL m;
         wowDoodadModel_t *group;
         MATRIX4 local, world;
 
         if (idx >= model->num_doodad_defs) continue;
         def = &model->doodad_defs[idx];
-        /* Phase 3.2: skip doodads that need a MOLT per-instance directional light.
-           Instanced rendering cannot vary the light direction per matrix.
-           These will be rendered correctly once per-entity MOLT lighting is added. */
+        /* Phase 3.2: skip doodads that need a MOLT per-instance directional light. */
         {
             BYTE inst_flags = (BYTE)(def->name_flags >> 24);
-            if ((inst_flags & 0x04) && def->color.a < model->num_lights_parsed)
-                continue;
+            if ((inst_flags & 0x04) && def->color.a < model->num_lights_parsed) continue;
         }
-        name_offset = def->name_flags & 0x00FFFFFF;
-        model_path = Wow_StringAt(model->doodad_name_blob, model->doodad_name_blob_size, name_offset);
-        if (!model_path || !*model_path) continue;
 
-        m = Wow_LoadDoodadModel(model_path);
-        if (!m) continue;
-
-        for (group = wow_world.doodad_models; group; group = group->next)
-            if (group->model == m) break;
-        if (!group || !group->can_instance) continue;
+        group = model->def_groups[idx];
+        if (!group) continue;
 
         Wow_WmoDoodadLocalMatrix(def, &local);
         Matrix4_multiply(&wmo->matrix, &local, &world);

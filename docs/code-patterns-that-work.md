@@ -121,6 +121,25 @@ if (flags & FLAG)       // not: if ((flags & FLAG) != 0)
 if (ent->flags & EF_DEAD) return;
 ```
 
+## Pointer + count arrays (ARRAY macro)
+
+A pointer and its element count are one unit, not two loose variables. Declare them with `ARRAY(type, name)`, then read the count and iterate through the macros — never touch `name##_count` directly:
+
+```c
+typedef struct { ARRAY(wowVec3_t const, vertices); ARRAY(WORD const, indices); } chunks_t;
+// expands to: wowVec3_t const *vertices; DWORD vertices_count; WORD const *indices; DWORD indices_count;
+
+FOR_EACH_ARRAY(WORD const, idx, chunks.indices)   // pointer loop
+    draw_vertex(chunks.vertices[*idx]);
+
+FOR_LOOP(i, ARRAY_COUNT(chunks.indices))          // index loop when i is needed
+    emit(chunks.indices[i], i / 3);
+
+ri.MemAlloc(ARRAY_COUNT(chunks.vertices) * sizeof(*chunks.vertices));
+```
+
+`ARRAY_COUNT(name)` reads the paired count; `FOR_EACH_ARRAY(type, it, name)` walks elements by pointer; `FOR_LOOP(i, ARRAY_COUNT(name))` covers index-based iteration. The macros live next to `FOR_LOOP`/`FOR_EACH` in `common/shared.h`.
+
 ## Enum over multiple booleans
 
 ```c

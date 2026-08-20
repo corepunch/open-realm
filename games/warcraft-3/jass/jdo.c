@@ -316,9 +316,7 @@ static LPJASS jass_root(LPJASS j) {
 
 static void jass_free_coroutine(LPJASSCOROUTINE co) {
     DELETE_LIST(JASSCOROUTINEFRAME, co->frames, jass_free);
-    if (co->state) {
-        jass_free(co->state);
-    }
+    SAFE_DELETE(co->state, jass_free);
     jass_free(co);
 }
 

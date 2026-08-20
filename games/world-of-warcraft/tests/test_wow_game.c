@@ -1003,14 +1003,17 @@ TEST(wow_game, wow_load_map_initializes_player_state) {
     }
 }
 
-/* A direct race/map mismatch must fail instead of silently moving the player to a WorldSafeLoc. */
-TEST(wow_game, wow_load_map_rejects_mismatched_playercreate_map) {
+/* A race/map mismatch falls back to any available spawn on the target map so that
+ * dev workflows (+map N +warp X with an off-map character) work without rejection.
+ * The spawn position is some map-valid location, not the character's racial home. */
+TEST(wow_game, wow_load_map_falls_back_on_mismatched_playercreate_map) {
     struct game_export *game;
 
     game = init_game();
     snprintf(test_playerinfo, sizeof(test_playerinfo), "\\race\\Human\\sex\\Female\\class\\%u\\appearance\\0", (unsigned)WOW_CLASS_WARRIOR);
-    T_ASSERT(!game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
-    T_ASSERT(!wow_edicts[0].inuse);
+    /* test DBC has map_id=1 (Kalimdor); Human Warrior home is map=0 — mismatch */
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt")); /* succeeds via fallback */
+    T_ASSERT(wow_edicts[0].inuse);                             /* player was spawned */
     if (game->Shutdown) game->Shutdown();
 }
 

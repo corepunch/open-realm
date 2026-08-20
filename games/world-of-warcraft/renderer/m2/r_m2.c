@@ -175,7 +175,7 @@ static BOOL M2_TextureExists(LPCSTR path) {
     known->exists = size > 0 && data != NULL;
     known->next = m2_known_textures;
     m2_known_textures = known;
-    if (data) ri.FS_FreeFile(data);
+    SAFE_DELETE(data, ri.FS_FreeFile);
     return known->exists;
 }
 
@@ -1521,7 +1521,7 @@ static BOOL M2_LoadFileImage(m2Model_t *model, BYTE *file_image, DWORD file_imag
     BYTE const *m2_base;
     if (!model || !file_image || base_offset > file_image_size || m2_size < sizeof(DWORD) * 2 ||
         m2_size > file_image_size - base_offset) {
-        if (file_image) ri.FS_FreeFile(file_image);
+        SAFE_DELETE(file_image, ri.FS_FreeFile);
         return false;
     }
     m2_base = file_image + base_offset;
@@ -1647,9 +1647,7 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size, BOOL *b
 
     m2_vertices = m2_array_ptr(m2_base, m2_size, geom.vertices, sizeof(*m2_vertices));
     if (!m2_vertices || !skin_vertices || !skin_indices || !sections || !batches) {
-        if (skin_data) {
-            ri.FS_FreeFile(skin_data);
-        }
+        SAFE_DELETE(skin_data, ri.FS_FreeFile);
         return M2_CreateFallbackModel(modelFilename, using_legacy_view ? "invalid legacy embedded view" : "missing skin profile");
     }
 
