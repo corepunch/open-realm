@@ -28,7 +28,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | SC2 HUD layout pipeline (sc2BaseFrame_t → uiFrame_t, layer IDs, stat bindings) | [docs/games/starcraft-2/hud-layout-pipeline.md](docs/games/starcraft-2/hud-layout-pipeline.md) |
 | FS / VFS / MPQ loading stack, SC2 vs WoW patterns, mmap ADT optimization | [docs/fs-loading-architecture.md](docs/fs-loading-architecture.md) |
 | Code patterns that work well (file-shaped structs, table-driven parsing, pointer-walk parsers) | [docs/code-patterns-that-work.md](docs/code-patterns-that-work.md) |
-| Launching UI/model scenes from the command line without a game session | [docs/rendering-scene-workflow.md](docs/rendering-scene-workflow.md) |
+| Launching UI/model scenes and maps from the command line; `make run-wow`, `make build-run-wow-*`, `make run-sc2` shortcuts | [docs/rendering-scene-workflow.md](docs/rendering-scene-workflow.md) |
 
 ## Coding Style
 
