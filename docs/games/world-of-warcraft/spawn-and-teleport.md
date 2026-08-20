@@ -122,6 +122,34 @@ intentionally uses `+map 1` as the explicit Kalimdor world-rendering fixture.
 
 The first-login camera flyby is documented separately in [cinematics.md](cinematics.md).
 
+### Fallback Spawn for Cross-Map Races
+
+The `+map 0 +warp stormwind` workflow (see [area-triggers.md](area-triggers.md) for the
+`+map N +warp X` pattern) breaks when the active character is an Orc: `Wow_SelectSpawnPoint`
+returns `~0u` because the Orc's `playercreateinfo` entry is on map 1 (Kalimdor), not map 0.
+Previously `Wow_SpawnEntities` returned false and `SV_Map` failed outright.
+
+The fix is in `Wow_SpawnEntities` (`games/world-of-warcraft/game/g_wow.c`): when
+`Wow_SelectSpawnPoint(race, class_id)` returns `~0u` **and**
+`Wow_HasSpawnForMap(map_id)` returns true (the map has spawns for at least one
+other race), the code calls `Wow_AnySpawnIndexForMap(map_id)` to obtain the first
+available spawn index for any race on this map. `Wow_AnySpawnIndexForMap` is a
+static helper in `g_wow.c` that iterates `Wow_SpawnCount()` entries and returns the
+index of the first entry where `Wow_SpawnByIndex(i)->map == map_id`. The player
+spawns at that position and a warning is logged:
+
+```
+WoW: race=%s class=%u has no spawn on map=%u; using fallback
+```
+
+The deferred `+warp` command then repositions the player to the intended destination.
+`Wow_HasSpawnForMap` returning false (e.g. `+map 36` for a dungeon) still reaches
+the areatrigger spawn path; that case is unchanged.
+
+The test covering this path was renamed from
+`wow_load_map_rejects_mismatched_playercreate_map` (expected failure) to
+`wow_load_map_falls_back_on_mismatched_playercreate_map` (expected success).
+
 ## Entity Spawn Dispatch (why g_spawn.c is small)
 
 `games/world-of-warcraft/game/g_spawn.c` is tiny compared to Quake 2's and
