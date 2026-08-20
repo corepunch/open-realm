@@ -106,6 +106,13 @@ def gen_playercreateinfo(output_dir):
         '    v.z = wow_spawn_points[idx].z;',
         '    return &v;',
         '}', '',
+        '/* True if playercreateinfo has ANY entry for map_id (any race/class). */',
+        '/* Used to distinguish a dungeon map (no entries at all) from a race mismatch. */',
+        'BOOL Wow_HasSpawnForMap(DWORD map_id) {',
+        '    FOR_LOOP(i, Wow_SpawnCount())',
+        '        if (wow_spawn_points[i].map == map_id) return true;',
+        '    return false;',
+        '}', '',
     ])
 
     path = os.path.join(output_dir, "g_playercreateinfo.c")
@@ -317,9 +324,63 @@ def gen_creatures(output_dir):
     print(f"  Wrote {path}")
 
 
+# ============================================================================
+# AREATRIGGER_TELEPORT (cross-map teleport destinations)
+# ============================================================================
+
+def gen_areatrigger_teleport(output_dir):
+    """Generate build/generated/g_areatrigger_teleport.c from areatrigger_teleport.csv."""
+    rows = read_csv("areatrigger_teleport.csv")
+    print(f"  areatrigger_teleport.csv: {len(rows)} rows")
+
+    lines = ['#include "g_wow_local.h"', '#include <string.h>', '']
+    lines.append('static const WOWAREATRIGTELEPORT wow_areatrig_teleports[] = {')
+    for r in rows:
+        id_, name, target_map, tx, ty, tz, to_ = r[:7]
+        lines.append(f'    {{ {id_}, "{escape_c(name)}", {target_map}, '
+                     f'{c_float(tx)}, {c_float(ty)}, {c_float(tz)}, {c_float(to_)} }},')
+    lines.extend([
+        '};', '',
+        'DWORD Wow_AreaTrigTeleportCount(void) {',
+        '    return sizeof(wow_areatrig_teleports) / sizeof(wow_areatrig_teleports[0]);',
+        '}', '',
+        'LPCWOWAREATRIGTELEPORT Wow_AreaTrigTeleportById(DWORD id) {',
+        '    FOR_LOOP(i, Wow_AreaTrigTeleportCount())',
+        '        if (wow_areatrig_teleports[i].id == id) return &wow_areatrig_teleports[i];',
+        '    return NULL;',
+        '}', '',
+        '/* Case-insensitive substring match — warp command entry point. */',
+        'LPCWOWAREATRIGTELEPORT Wow_AreaTrigTeleportByName(LPCSTR query) {',
+        '    DWORD qlen = (DWORD)strlen(query), j, nlen;',
+        '    FOR_LOOP(i, Wow_AreaTrigTeleportCount()) {',
+        '        nlen = (DWORD)strlen(wow_areatrig_teleports[i].name);',
+        '        if (nlen < qlen) continue;',
+        '        for (j = 0; j <= nlen - qlen; j++)',
+        '            if (!strncasecmp(wow_areatrig_teleports[i].name + j, query, qlen))',
+        '                return &wow_areatrig_teleports[i];',
+        '    }',
+        '    return NULL;',
+        '}', '',
+        '/* First areatrigger_teleport entry whose target_map matches map_id.',
+        ' * Used as spawn-position fallback when loading a dungeon directly. */',
+        'LPCWOWAREATRIGTELEPORT Wow_AreaTrigSpawnForMap(DWORD map_id) {',
+        '    FOR_LOOP(i, Wow_AreaTrigTeleportCount())',
+        '        if (wow_areatrig_teleports[i].target_map == map_id)',
+        '            return &wow_areatrig_teleports[i];',
+        '    return NULL;',
+        '}', '',
+    ])
+
+    path = os.path.join(output_dir, "g_areatrigger_teleport.c")
+    with open(path, 'w') as f:
+        f.write('\n'.join(lines))
+    print(f"  Wrote {path}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Generate compiled WoW server-data tables")
-    parser.add_argument('--only', choices=['playercreateinfo', 'weapons', 'quests', 'creatures'])
+    parser.add_argument('--only', choices=['playercreateinfo', 'weapons', 'quests', 'creatures',
+                                           'areatrigger_teleport'])
     parser.add_argument('--output-dir', default=DEFAULT_OUTPUT_DIR)
     args = parser.parse_args()
     os.makedirs(args.output_dir, exist_ok=True)
@@ -328,6 +389,7 @@ def main():
     if args.only in (None, 'weapons'): gen_weapons(args.output_dir)
     if args.only in (None, 'quests'): gen_quests(args.output_dir)
     if args.only in (None, 'creatures'): gen_creatures(args.output_dir)
+    if args.only in (None, 'areatrigger_teleport'): gen_areatrigger_teleport(args.output_dir)
     print("\n=== Done ===")
 
 

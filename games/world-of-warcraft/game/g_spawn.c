@@ -36,3 +36,16 @@ void Wow_TeleportPlayer(LPEDICT ent, DWORD idx) {
     ent->client->ps.origin = (VECTOR2){ sp->x, sp->y };
     fprintf(stderr, "WoW: respawned at map=%u (%.1f %.1f %.1f)\n", sp->map, sp->x, sp->y, sp->z);
 }
+
+/* Teleport to an explicit world position — used for area trigger destinations
+ * and warp-by-name where there is no playercreateinfo entry. */
+void Wow_TeleportPlayerToPos(LPEDICT ent, FLOAT x, FLOAT y, FLOAT z, FLOAT orientation) {
+    FLOAT tz = Wow_TerrainHeight(x, y);
+    /* SQL z is authoritative for dungeon interiors where terrain height is 0. */
+    if (tz != 0.0f) z = tz;
+    ent->s.origin = (VECTOR3){ x, y, z };
+    ent->s.origin2 = (VECTOR2){ x, y };
+    ent->s.angle = orientation;
+    ent->client->ps.origin = (VECTOR2){ x, y };
+    fprintf(stderr, "WoW: teleported to (%.1f %.1f %.1f)\n", x, y, z);
+}
