@@ -39,6 +39,34 @@ build/bin/openwow -data data/world-of-warcraft \
 The character-create model is assembled in `games/world-of-warcraft/ui/ui_xml.c` and rendered through the M2 path in `games/world-of-warcraft/renderer/m2/r_m2.c`.
 For default appearance, starter-outfit, saved-character, and DBC diagnosis, see [WoW Character Display](wow-character.md).
 
+### Make shortcuts
+
+Build and launch in one step:
+
+```bash
+make build-run-wow-map        # map ID 1 (Kalimdor)
+```
+
+If the binary is already built, skip the rebuild:
+
+```bash
+make run-wow                  # same map, no rebuild
+make run-wow ARGS="+map 0"    # pass extra args (e.g. Eastern Kingdoms)
+```
+
+Per-race playercreate spawns (build + run):
+
+```bash
+make build-run-wow-human
+make build-run-wow-orc
+make build-run-wow-dwarf
+make build-run-wow-undead
+make build-run-wow-tauren
+make build-run-wow-nightelf
+make build-run-wow-gnome
+make build-run-wow-troll
+```
+
 ## StarCraft II
 
 There is currently no character-create/model portrait scene registered for SC2. Use the HUD/map scene for renderer smoke tests:
@@ -49,6 +77,14 @@ build/bin/opensc2 -data data/StarCraft2 +map TRaynor01
 ```
 
 SC2 UI and map rendering are separate from the WoW character scene; do not use a WoW-style character command unless a future SC2 screen registers one.
+
+### Make shortcuts
+
+```bash
+make build-run-sc2            # build + launch TRaynor01
+make run-sc2                  # launch TRaynor01, no rebuild
+make run-sc2 ARGS="+map Foo"  # override map
+```
 
 ## Screenshots
 

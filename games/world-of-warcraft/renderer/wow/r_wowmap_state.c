@@ -196,6 +196,14 @@ void Wow_ClearLoadedAdts(void) {
     Wow_FreeWmoInstances();
     Wow_FreeWmoModels();
     Wow_FreeDoodadInstances();
+    /* WMO doodad persistent buffers must be rebuilt when new WMOs load */
+    wow_world.wmo_doodads_built = false;
+    for (wowDoodadModel_t *g = wow_world.doodad_models; g; g = g->next) {
+        SAFE_DELETE(g->wmo_matrices, ri.MemFree);
+        R_ReleaseInstanceBuffer(&g->wmo_instances);
+        g->wmo_count = 0;
+        g->wmo_capacity = 0;
+    }
     wow_world.num_adts = 0;
     wow_world.num_chunks = 0;
     wow_world.num_doodads = 0;
@@ -231,7 +239,9 @@ void Wow_FreeWorld(void) {
     while (doodad_model) {
         wowDoodadModel_t *next = doodad_model->next;
         R_ReleaseInstanceBuffer(&doodad_model->instances);
+        R_ReleaseInstanceBuffer(&doodad_model->wmo_instances);
         SAFE_DELETE(doodad_model->matrices, ri.MemFree);
+        SAFE_DELETE(doodad_model->wmo_matrices, ri.MemFree);
         SAFE_DELETE(doodad_model->model, R_ReleaseModel);
         ri.MemFree(doodad_model);
         doodad_model = next;

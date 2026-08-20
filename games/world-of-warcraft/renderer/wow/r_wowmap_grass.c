@@ -556,8 +556,17 @@ void Wow_DrawGrass(void) {
 
     if ((!wow_world.ground_effects && !wow_grass_group_count) || wow_grass_cache_failed) return;
     if (!wow_grass_group_count) {
+        /* Filter instances to within WOW_GRASS_CULL_RADIUS of the current camera position.
+         * Any instance farther than draw_dist + half_ADT can never be visible before an ADT reload. */
+        float cam_x = tr.viewDef.camerastate[0].origin.x;
+        float cam_y = tr.viewDef.camerastate[0].origin.y;
+        float cull_sq = WOW_GRASS_CULL_RADIUS * WOW_GRASS_CULL_RADIUS;
+        DWORD culled = 0;
         memset(wow_grass_groups, 0, sizeof(wow_grass_groups));
         for (inst = wow_world.ground_effects; inst; inst = inst->next) {
+            float dx = inst->entity.origin.x - cam_x;
+            float dy = inst->entity.origin.y - cam_y;
+            if (dx*dx + dy*dy > cull_sq) { culled++; continue; }
             wowGrassGroup_t *group = NULL;
             FOR_LOOP(i, wow_grass_group_count)
                 if (wow_grass_groups[i].model == inst->entity.model) { group = &wow_grass_groups[i]; break; }
@@ -567,6 +576,8 @@ void Wow_DrawGrass(void) {
             }
             group->count++; wow_grass_draw_count++;
         }
+        if (culled) fprintf(stderr, "[GRASS] culled %u/%u instances beyond %.0f yards\n",
+                            (unsigned)culled, (unsigned)(wow_grass_draw_count + culled), (double)WOW_GRASS_CULL_RADIUS);
         if (wow_grass_draw_count) {
             wow_grass_scratch_cap = wow_grass_draw_count;
             wow_grass_scratch = ri.MemAlloc(wow_grass_scratch_cap * sizeof(MATRIX4));
@@ -583,6 +594,9 @@ void Wow_DrawGrass(void) {
                 offset += wow_grass_groups[i].count; wow_grass_groups[i].count = 0;
             }
             for (inst = wow_world.ground_effects; inst; inst = inst->next) {
+                float dx = inst->entity.origin.x - cam_x;
+                float dy = inst->entity.origin.y - cam_y;
+                if (dx*dx + dy*dy > cull_sq) continue;
                 MATRIX4 matrix;
                 wowGrassGroup_t *group = NULL;
                 FOR_LOOP(i, wow_grass_group_count)

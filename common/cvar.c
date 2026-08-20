@@ -144,6 +144,17 @@ FLOAT Cvar_Value(LPCSTR name, FLOAT fallback) {
     return var ? var->value : fallback;
 }
 
+void Cvar_Describe(LPCSTR name, LPCSTR description) {
+    cvar_t *var = Cvar_FindVar(name);
+    if (var) var->description = description;
+}
+
+cvar_t *Cvar_GetD(LPCSTR name, LPCSTR value, DWORD flags, LPCSTR description) {
+    cvar_t *var = Cvar_Get(name, value, flags);
+    if (var) var->description = description;
+    return var;
+}
+
 void Cvar_ForEachVariable(cmdListFunc_t func, void *userData) {
     if (!func) {
         return;
@@ -167,7 +178,10 @@ int Cvar_CompleteVariable(LPCSTR partial, LPSTR out, DWORD out_size, bool print)
             continue;
         }
         if (print) {
-            fprintf(stderr, "%s\n", var->name);
+            if (var->description)
+                fprintf(stderr, "  %-28s — %s\n", var->name, var->description);
+            else
+                fprintf(stderr, "  %s\n", var->name);
         }
         Cvar_CommonPrefix(common, sizeof(common), var->name);
         matches++;
@@ -217,10 +231,14 @@ static void Cvar_List_f(void) {
     DWORD count = 0;
 
     FOR_EACH_LIST(cvar_t, var, cvar_vars) {
-        fprintf(stderr, "%c %s \"%s\"\n",
-                (var->flags & CVAR_ARCHIVE) ? '*' : ' ',
-                var->name,
-                var->string);
+        if (var->description)
+            fprintf(stderr, "%c %-28s \"%s\"  — %s\n",
+                    (var->flags & CVAR_ARCHIVE) ? '*' : ' ',
+                    var->name, var->string, var->description);
+        else
+            fprintf(stderr, "%c %s \"%s\"\n",
+                    (var->flags & CVAR_ARCHIVE) ? '*' : ' ',
+                    var->name, var->string);
         count++;
     }
     fprintf(stderr, "%u cvars\n", count);
@@ -233,7 +251,10 @@ bool Cvar_Command(void) {
         return false;
     }
     if (Cmd_Argc() == 1) {
-        fprintf(stderr, "\"%s\" is \"%s\"\n", var->name, var->string);
+        if (var->description)
+            fprintf(stderr, "\"%s\" is \"%s\"  — %s\n", var->name, var->string, var->description);
+        else
+            fprintf(stderr, "\"%s\" is \"%s\"\n", var->name, var->string);
     } else {
         Cvar_Set(var->name, Cmd_ArgsFrom(1));
     }
@@ -407,52 +428,52 @@ void Cvar_Init(void) {
     Cmd_AddCommand("writeconfig", Cvar_WriteConfig_f);
 
 #ifdef WOW
-    Cvar_Get("config", "share/openwow-config.cfg", CVAR_ARCHIVE);
+    Cvar_GetD("config", "share/openwow-config.cfg",       CVAR_ARCHIVE, "config file path; loaded/saved on startup");
 #else
-    Cvar_Get("config", "share/openwarcraft3-config.cfg", CVAR_ARCHIVE);
+    Cvar_GetD("config", "share/openwarcraft3-config.cfg", CVAR_ARCHIVE, "config file path; loaded/saved on startup");
 #endif
-    Cvar_Get("data", "", CVAR_ARCHIVE);
-    Cvar_Get("fs_expansion", "0", 0);
-    Cvar_Get("map", "", 0);
-    Cvar_Get("connect", "", 0);
-    Cvar_Get("cl_debug_entities", "0", 0);
-    Cvar_Get("sv_debug_entities", "0", 0);
-    Cvar_Get("r_debug_entities", "0", 0);
-    Cvar_Get("r_module", "renderer", CVAR_ARCHIVE);
-    Cvar_Get("ui_module", "ui", CVAR_ARCHIVE);
-    Cvar_Get("g_module", "game", CVAR_ARCHIVE);
-    Cvar_Get("ui_game_setup_map", "", 0);
-    Cvar_Get("game_port", PORT_SERVER_STRING, CVAR_ARCHIVE);
-    Cvar_Get("name", "Player", CVAR_ARCHIVE);
-    Cvar_Get("sv_hostname", "OpenWarcraft3", CVAR_ARCHIVE);
-    Cvar_Get("sv_cheats", "0", 0);
-    Cvar_Get("com_frame_limit", "0", 0);
-    Cvar_Get("scr_showfps", "1", CVAR_ARCHIVE);
-    Cvar_Get("skip_cutscene", "0", 0);
-    Cvar_Get("vid_mode", "2", CVAR_ARCHIVE);
-    Cvar_Get("r_model_detail", "2", CVAR_ARCHIVE);
-    Cvar_Get("r_anim_quality", "2", CVAR_ARCHIVE);
-    Cvar_Get("r_texture_quality", "2", CVAR_ARCHIVE);
-    Cvar_Get("r_particles", "2", CVAR_ARCHIVE);
-    Cvar_Get("r_lights", "2", CVAR_ARCHIVE);
-    Cvar_Get("r_unit_shadows", "1", CVAR_ARCHIVE);
-    Cvar_Get("r_occlusion", "1", CVAR_ARCHIVE);
-    Cvar_Get("r_msaa", "4", CVAR_ARCHIVE);
-    Cvar_Get("r_swapinterval", "1", CVAR_ARCHIVE);
-    Cvar_Get("r_stats", "0", 0);
-    Cvar_Get("r_entities", "1", 0);
-    Cvar_Get("r_fogofwar", "1", 0);
+    Cvar_GetD("data",             "",                  CVAR_ARCHIVE, "override game data directory path");
+    Cvar_GetD("fs_expansion",     "0",                 0,            "0=RoC data only, 1=include TFT expansion data");
+    Cvar_GetD("map",              "",                  0,            "map file to load at startup (e.g. Maps/HumanCampaign1.w3m)");
+    Cvar_GetD("connect",          "",                  0,            "server address to connect to at startup");
+    Cvar_GetD("cl_debug_entities","0",                 0,            "log client-side entity sync events");
+    Cvar_GetD("sv_debug_entities","0",                 0,            "log server-side entity sync events");
+    Cvar_GetD("r_debug_entities", "0",                 0,            "log renderer entity lifecycle events");
+    Cvar_GetD("r_module",         "renderer",          CVAR_ARCHIVE, "renderer shared library name");
+    Cvar_GetD("ui_module",        "ui",                CVAR_ARCHIVE, "UI shared library name");
+    Cvar_GetD("g_module",         "game",              CVAR_ARCHIVE, "game logic shared library name");
+    Cvar_GetD("ui_game_setup_map","",                  0,            "map pre-selected in game setup UI");
+    Cvar_GetD("game_port",        PORT_SERVER_STRING,  CVAR_ARCHIVE, "UDP port the game server listens on");
+    Cvar_GetD("name",             "Player",            CVAR_ARCHIVE, "player display name shown in lobbies");
+    Cvar_GetD("sv_hostname",      "OpenWarcraft3",     CVAR_ARCHIVE, "server name shown in lobby browser");
+    Cvar_GetD("sv_cheats",        "0",                 0,            "enable cheat commands on this server");
+    Cvar_GetD("com_frame_limit",  "0",                 0,            "cap frame rate in fps; 0=unlimited");
+    Cvar_GetD("scr_showfps",      "1",                 CVAR_ARCHIVE, "show FPS counter on screen");
+    Cvar_GetD("skip_cutscene",    "0",                 0,            "skip intro cutscene on startup");
+    Cvar_GetD("vid_mode",         "2",                 CVAR_ARCHIVE, "window mode: 0=windowed, 1=fullscreen, 2=borderless");
+    Cvar_GetD("r_model_detail",   "2",                 CVAR_ARCHIVE, "model LOD quality: 0=low, 1=medium, 2=high");
+    Cvar_GetD("r_anim_quality",   "2",                 CVAR_ARCHIVE, "animation interpolation quality: 0=off, 2=full");
+    Cvar_GetD("r_texture_quality","2",                 CVAR_ARCHIVE, "texture mip level: 0=low, 1=medium, 2=full");
+    Cvar_GetD("r_particles",      "2",                 CVAR_ARCHIVE, "particle effect density: 0=off, 1=reduced, 2=full");
+    Cvar_GetD("r_lights",         "2",                 CVAR_ARCHIVE, "dynamic light count: 0=off, 1=minimal, 2=max");
+    Cvar_GetD("r_unit_shadows",   "1",                 CVAR_ARCHIVE, "render blob shadows under units");
+    Cvar_GetD("r_occlusion",      "1",                 CVAR_ARCHIVE, "frustum-cull off-screen entities");
+    Cvar_GetD("r_msaa",           "4",                 CVAR_ARCHIVE, "multisample anti-aliasing samples: 0, 2, 4, or 8");
+    Cvar_GetD("r_vsync",          "0",                 CVAR_ARCHIVE, "vertical sync: 0=off (use for perf testing), 1=on");
+    Cvar_GetD("r_stats",          "0",                 0,            "print per-frame draw/world stats to console each second");
+    Cvar_GetD("r_entities",       "1",                 0,            "render game entities (units, buildings, etc.)");
+    Cvar_GetD("r_fogofwar",       "1",                 0,            "render fog-of-war overlay");
 #ifdef WOW
     /* Bare Quake-style console assignment only works for cvars registered before command dispatch. */
-    Cvar_Get("r_fog", "1", CVAR_ARCHIVE);
-    Cvar_Get("r_fog_start", WOW_WORLD_FOG_START_STRING, CVAR_ARCHIVE);
-    Cvar_Get("r_fog_end", WOW_WORLD_FOG_END_STRING, CVAR_ARCHIVE);
-    Cvar_Get("r_grass", "1", 0);
-    Cvar_Get("r_doodads", "1", 0);
-    Cvar_Get("r_wmos", "1", 0);
-    Cvar_Get("r_terrain", "1", 0);
-    Cvar_Get("r_minimap", "1", 0);
+    Cvar_GetD("r_fog",            "1",                 CVAR_ARCHIVE, "render world distance fog");
+    Cvar_GetD("r_fog_start",      WOW_WORLD_FOG_START_STRING, CVAR_ARCHIVE, "fog start distance in WoW yards");
+    Cvar_GetD("r_fog_end",        WOW_WORLD_FOG_END_STRING,   CVAR_ARCHIVE, "fog cutoff distance in WoW yards");
+    Cvar_GetD("r_grass",          "1",                 0,            "render ground-cover grass (14 M2 instanced draw calls when on)");
+    Cvar_GetD("r_doodads",        "1",                 0,            "render terrain and WMO doodad props");
+    Cvar_GetD("r_wmos",           "1",                 0,            "render WMO buildings and structures");
+    Cvar_GetD("r_terrain",        "1",                 0,            "render ADT terrain chunks");
+    Cvar_GetD("r_minimap",        "1",                 0,            "render minimap overlay in corner");
 #endif
-    Cvar_Get("ui_chat_support", "0", CVAR_ARCHIVE);
-    Cvar_Get("s_provider", "1", CVAR_ARCHIVE);
+    Cvar_GetD("ui_chat_support",  "0",                 CVAR_ARCHIVE, "enable in-game chat UI panel");
+    Cvar_GetD("s_provider",       "1",                 CVAR_ARCHIVE, "sound backend: 0=none, 1=OpenAL");
 }
