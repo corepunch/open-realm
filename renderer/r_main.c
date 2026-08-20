@@ -425,14 +425,14 @@ static int r_swapinterval = -999;
 
 /* Apply console changes without repeating the expensive Cocoa/Metal swap-interval call every frame. */
 static void R_UpdateSwapInterval(void) {
-    int requested = atoi(ri.CvarString ? ri.CvarString("r_swapinterval", "1") : "1");
-    requested = MAX(-1, MIN(1, requested));
+    int requested = atoi(ri.CvarString ? ri.CvarString("r_vsync", "0") : "0");
+    requested = MAX(0, MIN(1, requested));
     if (requested == r_swapinterval) return;
     r_swapinterval = requested;
     if (SDL_GL_SetSwapInterval(requested) != 0)
-        fprintf(stderr, "OpenGL: r_swapinterval %d unavailable: %s\n", requested, SDL_GetError());
+        fprintf(stderr, "OpenGL: r_vsync %d unavailable: %s\n", requested, SDL_GetError());
     else
-        fprintf(stderr, "OpenGL: swap interval=%d\n", SDL_GL_GetSwapInterval());
+        fprintf(stderr, "OpenGL: vsync=%d\n", SDL_GL_GetSwapInterval());
 }
 
 void R_Init(DWORD width, DWORD height) {

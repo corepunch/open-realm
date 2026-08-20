@@ -101,7 +101,7 @@ LPMODEL R_GameLoadModel(LPCSTR modelFilename) {
     snprintf(load_name, sizeof(load_name), "%s", modelFilename ? modelFilename : "");
     if ((fileSize < 0 || !buffer) && R_GamePathHasExtension(modelFilename, ".mdx")) {
         PATHSTR tempFileName = { 0 };
-        LPSTR ext = strstr(modelFilename, ".mdx");
+        LPSTR ext = strcasestr(modelFilename, ".mdx");
         size_t stemLen = (size_t)(ext - modelFilename);
 
         if (stemLen > sizeof(tempFileName) - 4) {

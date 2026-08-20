@@ -102,7 +102,22 @@ static void Wow_LoadMohd(wowWmoModel_t *model, BYTE const *chunk, DWORD chunk_si
         model->amb_color.b = chunk[0x1C];
         model->amb_color.a = chunk[0x1F];
     }
-    if (chunk_size >= 0x32) model->mohd_flags = Wow_Read16(chunk + 0x30);
+    /* MOHD layout: nTex(4)+nGrp(4)+nPrt(4)+nLt(4)+nDN(4)+nDD(4)+nDS(4)+ambColor(4)+wmoID(4)
+     * = 0x24; bounding_box.min(12)+max(12) = 0x24..0x3B; flags(2) = 0x3C */
+    if (chunk_size >= 0x3C) {
+        float bmin[3], bmax[3];
+        memcpy(bmin, chunk + 0x24, sizeof(bmin));
+        memcpy(bmax, chunk + 0x30, sizeof(bmax));
+        model->bounds_center.x = (bmin[0] + bmax[0]) * 0.5f;
+        model->bounds_center.y = (bmin[1] + bmax[1]) * 0.5f;
+        model->bounds_center.z = (bmin[2] + bmax[2]) * 0.5f;
+        VECTOR3 half = { bmax[0] - model->bounds_center.x,
+                         bmax[1] - model->bounds_center.y,
+                         bmax[2] - model->bounds_center.z };
+        model->bounds_radius = Vector3_len(&half);
+        model->has_bounds = true;
+    }
+    if (chunk_size >= 0x3E) model->mohd_flags = Wow_Read16(chunk + 0x3C);
 }
 
 static void Wow_LoadModn(wowWmoModel_t *model, BYTE const *chunk, DWORD chunk_size) {
@@ -675,17 +690,17 @@ void Wow_QueueWmoDoodads(wowWmoInstance_t const *wmo) {
         Wow_WmoDoodadLocalMatrix(def, &local);
         Matrix4_multiply(&wmo->matrix, &local, &world);
 
-        if (group->count == group->capacity) {
-            DWORD capacity = group->capacity ? group->capacity * 2 : 16;
+        if (group->wmo_count == group->wmo_capacity) {
+            DWORD capacity = group->wmo_capacity ? group->wmo_capacity * 2 : 16;
             MATRIX4 *matrices = ri.MemAlloc(capacity * sizeof(*matrices));
             if (!matrices) continue;
-            if (group->matrices) {
-                memcpy(matrices, group->matrices, group->count * sizeof(*matrices));
-                ri.MemFree(group->matrices);
+            if (group->wmo_matrices) {
+                memcpy(matrices, group->wmo_matrices, group->wmo_count * sizeof(*matrices));
+                ri.MemFree(group->wmo_matrices);
             }
-            group->matrices = matrices;
-            group->capacity = capacity;
+            group->wmo_matrices = matrices;
+            group->wmo_capacity = capacity;
         }
-        group->matrices[group->count++] = world;
+        group->wmo_matrices[group->wmo_count++] = world;
     }
 }

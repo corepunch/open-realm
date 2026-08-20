@@ -139,15 +139,27 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
     {
         /* Per-WMO pre-computed data. WMOs are static so this is stable across passes. */
         enum { WMO_CACHE_MAX = 256 };
-        struct { DWORD vis; BOOL inside, model_batch, has_trans; MATRIX3 nm; VECTOR3 molt; } wmo_cache[WMO_CACHE_MAX];
+        struct { DWORD vis; uint64_t vis_bits; BOOL inside, model_batch, has_trans; MATRIX3 nm; VECTOR3 molt; } wmo_cache[WMO_CACHE_MAX];
         wowWmoInstance_t *wmo_ptrs[WMO_CACHE_MAX];
         int wmo_n = 0;
         VECTOR3 cam = tr.viewDef.camerastate[0].origin;
         for (wowWmoInstance_t *wmo = draw_wmos ? wow_world.wmos : NULL; wmo && wmo_n < WMO_CACHE_MAX; wmo = wmo->next) {
-            DWORD vis = 0; BOOL mi, has_trans = false;
+            DWORD vis = 0; uint64_t vis_bits = 0; BOOL mi, has_trans = false;
             if (!wmo->model || !wmo->model->groups) { wmo_ptrs[wmo_n++] = NULL; continue; }
-            FOR_LOOP(gi, wmo->model->num_groups)
-                if (Wow_WmoGroupInView(&wmo->model->groups[gi], &wmo->matrix)) vis++;
+            /* Cheap whole-WMO distance reject before iterating all groups. */
+            if (wmo->model->has_bounds) {
+                VECTOR3 wc = Matrix4_multiply_vector3(&wmo->matrix, &wmo->model->bounds_center);
+                VECTOR3 d = Vector3_sub(&wc, &cam);
+                if (Vector3_len(&d) - wmo->model->bounds_radius > tr.viewDef.fogEnd) {
+                    wmo_ptrs[wmo_n++] = NULL; continue;
+                }
+            }
+            FOR_LOOP(gi, wmo->model->num_groups) {
+                if (Wow_WmoGroupInView(&wmo->model->groups[gi], &wmo->matrix)) {
+                    vis++;
+                    if (gi < 64) vis_bits |= ((uint64_t)1 << gi);
+                }
+            }
             if (!vis) { wmo_ptrs[wmo_n++] = NULL; continue; }
             mi = Wow_WmoContainsPoint(wmo->model, &wmo->matrix, cam);
             Matrix3_normal(&wmo_cache[wmo_n].nm, &wmo->matrix);
@@ -161,7 +173,7 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
                     for (wowWmoBatch_t *b = wmo->model->groups[gi].batches; b && !has_trans; b = b->next)
                         if (b->transparent) has_trans = true;
             }
-            wmo_cache[wmo_n].vis = vis; wmo_cache[wmo_n].inside = mi;
+            wmo_cache[wmo_n].vis = vis; wmo_cache[wmo_n].vis_bits = vis_bits; wmo_cache[wmo_n].inside = mi;
             wmo_cache[wmo_n].has_trans = has_trans;
             wmo_cache[wmo_n].model_batch = wmo->model->batches != NULL && vis * WOW_WMO_MODEL_BATCH_DIVISOR >= wmo->model->num_groups;
             wmo_ptrs[wmo_n++] = wmo;
@@ -215,7 +227,9 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
                 } else {
                     FOR_LOOP(gi2, wmo->model->num_groups) {
                         wowWmoGroup_t *group = &wmo->model->groups[gi2];
-                        if (!Wow_WmoGroupInView(group, &wmo->matrix)) continue;
+                        /* Use cached vis_bits for groups 0-63; fall back to live check for the rest. */
+                        if (gi2 < 64 ? !(wmo_cache[wi].vis_bits & ((uint64_t)1 << gi2))
+                                     : !Wow_WmoGroupInView(group, &wmo->matrix)) continue;
                         for (wowWmoBatch_t *batch = group->batches; batch; batch = batch->next) {
                             if (!batch->buffer || !batch->num_vertices) continue;
                             if ((int)batch->transparent != wmo_pass) continue;
@@ -386,8 +400,20 @@ void R_DrawWorld(void) {
             }
         }
         if (R_CvarEnabled("r_wmos", "1")) {
-            for (wowWmoInstance_t *wmo = wow_world.wmos; wmo; wmo = wmo->next)
-                Wow_QueueWmoDoodads(wmo);
+            if (!wow_world.wmo_doodads_built) {
+                /* First time after ADT load: queue all WMO doodads into wmo_matrices scratch */
+                for (wowWmoInstance_t *wmo = wow_world.wmos; wmo; wmo = wmo->next)
+                    Wow_QueueWmoDoodads(wmo);
+                /* Upload persistent GPU buffers; free CPU scratch */
+                for (wowDoodadModel_t *group = wow_world.doodad_models; group; group = group->next) {
+                    if (!group->wmo_count) continue;
+                    if (R_MakeInstanceBuffer(&group->wmo_instances, group->wmo_matrices, group->wmo_count)) {
+                        SAFE_DELETE(group->wmo_matrices, ri.MemFree);
+                        group->wmo_capacity = 0;
+                    }
+                }
+                wow_world.wmo_doodads_built = true;
+            }
         }
         for (wowDoodadModel_t *group = wow_world.doodad_models; group; group = group->next) {
             if (!group->count) continue;
@@ -399,6 +425,12 @@ void R_DrawWorld(void) {
                 continue;
             }
             R_GameRenderModelInstanced(group->model, &group->instances, 0); instanced_models++;
+        }
+        if (R_CvarEnabled("r_wmos", "1") && wow_world.wmo_doodads_built) {
+            for (wowDoodadModel_t *group = wow_world.doodad_models; group; group = group->next) {
+                if (!group->wmo_count) continue;
+                R_GameRenderModelInstanced(group->model, &group->wmo_instances, 0); instanced_models++;
+            }
         }
         doodad_draws = R_GetFrameDrawCalls() - draw_start;
     }

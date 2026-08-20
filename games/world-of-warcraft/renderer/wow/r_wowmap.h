@@ -36,6 +36,7 @@
 #define WOW_SPLAT_Z_BIAS 0.05f
 #define WOW_SPLAT_MAX_HEIGHT_DELTA 3.0f
 #define WOW_GRASS_DRAW_DISTANCE 220.0f          // world units; instances beyond this are discarded
+#define WOW_GRASS_CULL_RADIUS   487.0f          // build-time filter: draw_dist(220) + half-ADT(267); safe to discard beyond this
 #define WOW_GRASS_FADE_START_DISTANCE 160.0f    // world units; alpha fade begins here and reaches 0 at DRAW_DISTANCE
 #define WOW_GRASS_WIND_SPEED 1.7f               // rad/s; angular frequency of the sway sin wave
 #define WOW_GRASS_WIND_AMPLITUDE 0.12f          // fraction of blade height; peak lateral displacement
@@ -132,6 +133,10 @@ typedef struct wowDoodadModel_s {
     MATRIX4 *matrices;
     INSTANCEBUFFER instances;
     DWORD count, capacity;
+    /* WMO doodads are static — built once per ADT load into a persistent GPU buffer */
+    MATRIX4 *wmo_matrices;
+    INSTANCEBUFFER wmo_instances;
+    DWORD wmo_count, wmo_capacity;
     BOOL can_instance;
     struct wowDoodadModel_s *next;
 } wowDoodadModel_t;
@@ -230,6 +235,10 @@ typedef struct wowWmoModel_s {
     /* Per-doodad-def group pointer cache — filled once on first Wow_QueueWmoDoodads call
      * to avoid O(n) strcasecmp lookup on every render frame. num_doodad_defs entries. */
     wowDoodadModel_t **def_groups;
+    /* Model-space bounding sphere from MOHD; used for whole-WMO early-out in precompute. */
+    VECTOR3 bounds_center;
+    float   bounds_radius;
+    BOOL    has_bounds;
     struct wowWmoModel_s *next;
 } wowWmoModel_t;
 
@@ -306,6 +315,7 @@ typedef struct wowMap_s {
     char minimap_hash[WOW_WDT_TILES][WOW_WDT_TILES][WOW_MINIMAP_HASH_LENGTH + 1];
     LPTEXTURE minimap_tiles[WOW_WDT_TILES][WOW_WDT_TILES];
     BYTE minimap_warned[WOW_WDT_TILES][WOW_WDT_TILES];
+    BOOL wmo_doodads_built; /* WMO doodad persistent instance buffers are ready */
 } wowMap_t;
 
 typedef struct {

@@ -126,6 +126,7 @@ typedef struct cvar_s {
     int integer;
     DWORD flags;
     bool modified;
+    LPCSTR description; /* shown on tab-complete; set via Cvar_Describe */
 } cvar_t;
 
 enum {
@@ -288,6 +289,7 @@ void COM_ClearArgv(int arg);
 // cvar.c
 void Cvar_Init(void);
 cvar_t *Cvar_Get(LPCSTR name, LPCSTR value, DWORD flags);
+cvar_t *Cvar_GetD(LPCSTR name, LPCSTR value, DWORD flags, LPCSTR description);
 cvar_t *Cvar_Set(LPCSTR name, LPCSTR value);
 cvar_t *Cvar_SetValue(LPCSTR name, FLOAT value);
 LPCSTR Cvar_String(LPCSTR name, LPCSTR fallback);
@@ -300,6 +302,7 @@ void Cvar_ApplyCommandLine(int argc, LPCSTR *argv);
 bool Cvar_Command(void);
 void Cvar_ForEachVariable(cmdListFunc_t func, void *userData);
 int Cvar_CompleteVariable(LPCSTR partial, LPSTR out, DWORD out_size, bool print);
+void Cvar_Describe(LPCSTR name, LPCSTR description);
 
 #endif
 
