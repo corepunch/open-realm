@@ -207,8 +207,8 @@ void Wow_InstanceMatrix(wowMapObjDef_t const *def, LPMATRIX4 matrix) {
     Matrix4_rotate(matrix, &(VECTOR3){ 0.0f, def->rotation.y - 270.0f, 0.0f }, ROTATE_XYZ);
     Matrix4_rotate(matrix, &(VECTOR3){ 0.0f, 0.0f, -def->rotation.x }, ROTATE_XYZ);
     Matrix4_rotate(matrix, &(VECTOR3){ def->rotation.z - 90.0f, 0.0f, 0.0f }, ROTATE_XYZ);
-    if (def->unk) {
-        float scale = def->unk / 1024.0f;
+    if (def->scale) {
+        float scale = def->scale / 1024.0f;
         Matrix4_scale(matrix, &(VECTOR3){ scale, scale, scale });
     }
 }

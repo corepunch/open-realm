@@ -1,5 +1,25 @@
 #include "r_wowmap.h"
 
+/* Day-cycle fraction [0,1) from the engine frame clock. Classic has no
+   Light*.dbc / .lit, so there is no authored game-time source; the cycle is
+   synthesized over WOW_DAY_LENGTH_MS of engine time. */
+FLOAT Wow_DayFraction(void) {
+    return fmodf((FLOAT)tr.viewDef.time / WOW_DAY_LENGTH_MS, 1.0f);
+}
+
+/* Synthesized sun direction, pointing from the surface toward the sun (the
+   convention the model/terrain shaders expect for N.L). Classic ships no
+   Light*.dbc, so the authored sun path is unavailable; this is WoWee's
+   time-of-day directionalDir negated and Y-up→Z-up swapped to engine axes.
+   day_frac 0=midnight, 0.25=dawn(sun in -X), 0.5=noon(overhead), 0.75=dusk. */
+void Wow_SunDirection(FLOAT day_frac, LPVECTOR3 out) {
+    FLOAT a = day_frac * 6.283185307f; /* 2π over the day cycle */
+    out->x = -0.6f * sinf(a);
+    out->y = -0.6f * cosf(a);
+    out->z = 0.6f - 0.4f * cosf(a);
+    Vector3_normalize(out);
+}
+
 BOOL Wow_EntityInView(renderEntity_t const *entity) {
     VECTOR3 camera_origin;
     VECTOR3 delta;

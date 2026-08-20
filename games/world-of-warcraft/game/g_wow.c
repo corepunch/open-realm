@@ -105,12 +105,6 @@ typedef struct {
 
 typedef struct {
     DWORD id;
-    DWORD unused;
-    DWORD path_offset;
-} wowLoadingScreenDbc_t;
-
-typedef struct {
-    DWORD id;
     DWORD directory_offset;
     DWORD unused;
     DWORD title_offset;
@@ -186,41 +180,27 @@ static void Wow_MapNameFromPath(LPCSTR path, LPSTR out, DWORD out_size) {
     out[len] = '\0';
 }
 
+typedef struct { DWORD id; LPCSTR path; } gLoadingScreenRec_t;
+static stbDbcField_t const loading_screen_schema[] = {
+    { 0, offsetof(gLoadingScreenRec_t, id),   STB_DBC_U32 },
+    { 2, offsetof(gLoadingScreenRec_t, path), STB_DBC_STR },
+};
+static stbDbcCache_t loading_screen_dbc;
+
 static BOOL Wow_ResolveLoadingScreenById(DWORD loading_screen_id, LPSTR out, DWORD out_size) {
-    LPBYTE data;
-    DWORD size = 0;
-    stbDbc_t h;
-
-    if (!out || out_size == 0) {
-        return false;
-    }
-
-    data = gi.ReadFile ? gi.ReadFile("DBFilesClient\\LoadingScreens.dbc", &size) : NULL;
-    if (!Stb_DbcValid(data, size, &h) || h.fields < 3 || h.record_size < sizeof(wowLoadingScreenDbc_t)) {
-        SAFE_DELETE(data, gi.MemFree);
-        return false;
-    }
-
-    BYTE const *records_base = Stb_DbcRecords(data);
-    BYTE const *strings_base = Stb_DbcStrings(data, &h);
-    FOR_LOOP(record_index, h.records) {
-        BYTE const *record = records_base + record_index * h.record_size;
-        wowLoadingScreenDbc_t const *loading_screen = (wowLoadingScreenDbc_t const *)record;
-
-        if (loading_screen->id == loading_screen_id) {
-            LPCSTR path = Stb_DbcString(strings_base, h.string_size, loading_screen->path_offset);
-
-            if (path && *path) {
-                snprintf(out, out_size, "%s", path);
-                gi.MemFree(data);
-                return true;
-            }
-            break;
-        }
-    }
-
-    gi.MemFree(data);
-    return false;
+    int idx;
+    gLoadingScreenRec_t const *rec;
+    if (!out || out_size == 0) return false;
+    if (!Stb_DbcCacheLoad(&loading_screen_dbc, "DBFilesClient\\LoadingScreens.dbc", &g_dbc_io)) return false;
+    Stb_DbcCacheDecode(&loading_screen_dbc, loading_screen_schema,
+                       sizeof(loading_screen_schema) / sizeof(loading_screen_schema[0]),
+                       sizeof(gLoadingScreenRec_t), &g_dbc_io);
+    idx = Stb_DbcCacheFindID(&loading_screen_dbc, loading_screen_id, &g_dbc_io);
+    if (idx < 0) return false;
+    rec = STB_DBC_ROW(loading_screen_dbc, gLoadingScreenRec_t, idx);
+    if (!rec->path || !*rec->path) return false;
+    snprintf(out, out_size, "%s", rec->path);
+    return true;
 }
 
 static void Wow_SelectLoadingScreen(LPCSTR map_path) {

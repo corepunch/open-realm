@@ -1180,3 +1180,41 @@ TEST(wow_wmo_molt_contrib, multiple_lights_sum_clamped_to_one) {
     T_ASSERT(feq(out.x, 1.0f));
     T_ASSERT(feq(out.y, 0.0f));
 }
+
+/* =========================================================================
+   Sun direction (Wow_SunDirection) — synthesized time-of-day sun, Z-up.
+   Classic ships no Light*.dbc, so the authored sun path is unavailable; this
+   is WoWee's directionalDir negated and Y-up→Z-up swapped to engine axes.
+   day_frac: 0=midnight, 0.25=dawn(sun in -X), 0.5=noon, 0.75=dusk(sun in +X).
+   ======================================================================= */
+
+static void ref_sun_direction(float day_frac, float out[3]) {
+    float a = day_frac * 6.283185307f;
+    float x = -0.6f * sinf(a);
+    float y = -0.6f * cosf(a);
+    float z = 0.6f - 0.4f * cosf(a);
+    float len = sqrtf(x * x + y * y + z * z);
+    out[0] = x / len; out[1] = y / len; out[2] = z / len;
+}
+
+TEST(wow_sun_direction, unit_length_across_day) {
+    float d[3];
+    for (int i = 0; i < 32; i++) {
+        ref_sun_direction(i / 32.0f, d);
+        T_ASSERT(feq(sqrtf(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]), 1.0f));
+    }
+}
+
+TEST(wow_sun_direction, noon_points_up) {
+    float d[3];
+    ref_sun_direction(0.5f, d); /* noon: sun overhead, slightly +Y */
+    T_ASSERT(d[2] > 0.5f);
+}
+
+TEST(wow_sun_direction, dawn_west_dusk_east) {
+    float d[3];
+    ref_sun_direction(0.25f, d); /* dawn: sun in -X */
+    T_ASSERT(d[0] < -0.5f);
+    ref_sun_direction(0.75f, d); /* dusk: sun in +X */
+    T_ASSERT(d[0] > 0.5f);
+}

@@ -22,6 +22,9 @@ GLint wow_uFogEnable = -1;
 GLint wow_uFogColor = -1;
 GLint wow_uFogParams = -1;
 GLint wow_uFogCamera = -1;
+GLint wow_uSunDir = -1;
+GLint wow_uSunAmbient = -1;
+GLint wow_uSunDiffuse = -1;
 GLint wow_uGrassTime = -1;
 GLint wow_uGrassCameraOrigin = -1;
 GLint wow_uGrassDrawDistance = -1;
@@ -35,6 +38,9 @@ GLint wow_uCtrlOriginWorld = -1;
 GLint wow_uCtrlCellSize = -1;
 GLint wow_uCameraXZ = -1;
 GLint wow_uGrassSlotSpacing = -1;
+GLint wow_uGrassSunDir = -1;
+GLint wow_uGrassSunAmbient = -1;
+GLint wow_uGrassSunDiffuse = -1;
 
 /* Keep terrain and grass on the same exact MCVT diamond interpolation contract. */
 #define WOW_HEIGHT_ATLAS_GLSL \
@@ -84,20 +90,20 @@ void Wow_InitTerrainShader(void) {
     "in vec4 i_color;\n"
     "out vec2 v_texcoord;\n"
     "out vec4 v_color;\n"
-    "out float v_lighting;\n"
+    "out vec3 v_lighting;\n"
     "out vec3 v_world;\n"
     "uniform mat4 uViewProjectionMatrix;\n"
     "uniform mat4 uModelMatrix;\n"
-    "uniform mat4 uLightMatrix;\n"
     "uniform mat3 uNormalMatrix;\n"
+    "uniform vec3 uSunDir;\n"
+    "uniform vec3 uSunAmbient;\n"
+    "uniform vec3 uSunDiffuse;\n"
     WOW_HEIGHT_ATLAS_GLSL
     "void main() {\n"
     "    vec4 pos = uModelMatrix * vec4(i_position, 1.0);\n"
     "    v_texcoord = i_texcoord;\n"
     "    vec3 normal = normalize(uNormalMatrix * i_normal);\n"
-    "    vec3 lightDir = normalize(vec3(uLightMatrix[0][2], uLightMatrix[1][2], uLightMatrix[2][2])) * 1.2;\n"
-    "    float light = clamp(dot(normal, lightDir), 0.0, 1.0);\n"
-    "    v_lighting = mix(0.5, 1.0, light);\n"
+    "    v_lighting = uSunAmbient + uSunDiffuse * clamp(dot(normal, uSunDir), 0.0, 1.0);\n"
     "    v_color = i_color;\n"
     "    v_world = pos.xyz;\n"
     "    gl_Position = uViewProjectionMatrix * pos;\n"
@@ -106,7 +112,7 @@ void Wow_InitTerrainShader(void) {
     "#version 140\n"
     "in vec2 v_texcoord;\n"
     "in vec4 v_color;\n"
-    "in float v_lighting;\n"
+    "in vec3 v_lighting;\n"
     "in vec3 v_world;\n"
     "out vec4 o_color;\n"
     "uniform sampler2D uTexture0;\n"
@@ -155,13 +161,14 @@ void Wow_InitTerrainShader(void) {
     /* WMO path: MOCV was fixup-divided-by-2; multiply by 2 cancels that.
        Ambient/MOLT are ADDITIVE (not multiplicative) and only apply to indoor
        batches — exterior MOCV already has sun lighting pre-baked. v_lighting
-       (N·L) is for terrain only; WMO lighting is 100% baked into MOCV.
-       Terrain path: MCVT vertex color is a full lighting multiplier. */
+       (ambient + diffuse·N·L) is for terrain only; WMO lighting is baked into MOCV.
+       Terrain path: vertex color is white (vanilla has no MCCV) and the dynamic
+       sun carried by v_lighting supplies the diffuse term. */
     "    if (uSingleTexture != 0) {\n"
     "        float extBlend = v_color.a;\n"
     "        color.rgb = color.rgb * 2.0 * v_color.rgb + (uWmoAmbient + uWmoLightAdd) * (1.0 - extBlend);\n"
     "    } else {\n"
-    "        color.rgb *= 2.0 * v_color.rgb * v_lighting;\n"
+    "        color.rgb *= v_color.rgb * v_lighting;\n"
     "    }\n"
     "    if (uFogEnable) {\n"
     "        float fog = clamp((uFogParams.y-distance(v_world, uFogCamera))/(uFogParams.y-uFogParams.x), 0.0, 1.0);\n"
@@ -198,6 +205,9 @@ void Wow_InitTerrainShader(void) {
     wow_uFogColor = glGetUniformLocation(wow_terrain_shader->progid, "uFogColor");
     wow_uFogParams = glGetUniformLocation(wow_terrain_shader->progid, "uFogParams");
     wow_uFogCamera = glGetUniformLocation(wow_terrain_shader->progid, "uFogCamera");
+    wow_uSunDir = glGetUniformLocation(wow_terrain_shader->progid, "uSunDir");
+    wow_uSunAmbient = glGetUniformLocation(wow_terrain_shader->progid, "uSunAmbient");
+    wow_uSunDiffuse = glGetUniformLocation(wow_terrain_shader->progid, "uSunDiffuse");
     R_Call(glUseProgram, wow_terrain_shader->progid);
     R_Call(glUniform1i, wow_uTexture0, 0);
     R_Call(glUniform1i, wow_uTexture1, 1);
@@ -222,9 +232,11 @@ void Wow_InitGrassShader(void) {
     "out vec4 v_color;\n"
     "out vec2 v_uv;\n"
     "out vec3 v_world;\n"
-    "out float v_lighting;\n"
+    "out vec3 v_lighting;\n"
     "uniform mat4 uViewProjectionMatrix;\n"
-    "uniform mat4 uLightMatrix;\n"
+    "uniform vec3 uSunDir;\n"
+    "uniform vec3 uSunAmbient;\n"
+    "uniform vec3 uSunDiffuse;\n"
     "uniform float uGrassTime;\n"
     "uniform sampler2D uGrassCtrl;\n"
     "uniform vec2 uCtrlOriginWorld;\n"
@@ -261,9 +273,7 @@ void Wow_InitGrassShader(void) {
     "    v_world = pos;\n"
     "    v_color = vec4(0.28, 0.62, 0.18, keep);\n"
     "    v_uv = i_texcoord;\n"
-    "    vec3 lightDir = normalize(vec3(uLightMatrix[0][2], uLightMatrix[1][2], uLightMatrix[2][2])) * 1.2;\n"
-    "    float light = abs(dot(vec3(0.0, 0.0, 1.0), lightDir));\n"
-    "    v_lighting = mix(0.55, 1.0, clamp(light, 0.0, 1.0));\n"
+    "    v_lighting = uSunAmbient + uSunDiffuse * clamp(uSunDir.z, 0.0, 1.0);\n"
     "    gl_Position = uViewProjectionMatrix * vec4(pos, 1.0);\n"
     "}\n";
     static LPCSTR fs_wow_grass =
@@ -271,7 +281,7 @@ void Wow_InitGrassShader(void) {
     "in vec4 v_color;\n"
     "in vec2 v_uv;\n"
     "in vec3 v_world;\n"
-    "in float v_lighting;\n"
+    "in vec3 v_lighting;\n"
     "out vec4 o_color;\n"
     "uniform vec3 uGrassCameraOrigin;\n"
     "uniform float uGrassDrawDistance;\n"
@@ -310,4 +320,7 @@ void Wow_InitGrassShader(void) {
     wow_uCtrlCellSize = glGetUniformLocation(wow_grass_shader->progid, "uCtrlCellSize");
     wow_uCameraXZ = glGetUniformLocation(wow_grass_shader->progid, "uCameraXZ");
     wow_uGrassSlotSpacing = glGetUniformLocation(wow_grass_shader->progid, "uGrassSlotSpacing");
+    wow_uGrassSunDir = glGetUniformLocation(wow_grass_shader->progid, "uSunDir");
+    wow_uGrassSunAmbient = glGetUniformLocation(wow_grass_shader->progid, "uSunAmbient");
+    wow_uGrassSunDiffuse = glGetUniformLocation(wow_grass_shader->progid, "uSunDiffuse");
 }

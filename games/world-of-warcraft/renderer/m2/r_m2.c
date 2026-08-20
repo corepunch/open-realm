@@ -2050,17 +2050,14 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
     R_Call(glUniformMatrix4fv, shader->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
     R_Call(glUniformMatrix3fv, shader->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
     {
-        VECTOR3 lightDir = {
-            -tr.viewDef.lightMatrix.v[2],
-            -tr.viewDef.lightMatrix.v[6],
-            -tr.viewDef.lightMatrix.v[10],
-        };
-        /* Match the old M2 shader which mixed mix(0.5, 1.0, v_light), i.e.
-           0.5 ambient + 0.5 directional.  The unified shader uses
-           uLightAmbient + uLightColor * dot(normal, uLightDir). */
-        R_Call(glUniform3f, shader->uLightDir, lightDir.x * 1.2f, lightDir.y * 1.2f, lightDir.z * 1.2f);
-        R_Call(glUniform3f, shader->uLightColor, 0.5f, 0.5f, 0.5f);
-        R_Call(glUniform3f, shader->uLightAmbient, 0.5f, 0.5f, 0.5f);
+        VECTOR3 light_dir;
+        /* uLightDir points from the surface toward the sun; uLightAmbient +
+           uLightColor * N.L is the unified shader's diffuse model. Colors are
+           the classic no-DBC fallback (see ui_constants.h). */
+        Wow_SunDirection(Wow_DayFraction(), &light_dir);
+        R_Call(glUniform3f, shader->uLightDir, light_dir.x, light_dir.y, light_dir.z);
+        R_Call(glUniform3f, shader->uLightColor, WOW_LIGHT_DIFFUSE_R, WOW_LIGHT_DIFFUSE_G, WOW_LIGHT_DIFFUSE_B);
+        R_Call(glUniform3f, shader->uLightAmbient, WOW_LIGHT_AMBIENT_R, WOW_LIGHT_AMBIENT_G, WOW_LIGHT_AMBIENT_B);
     }
     /* The unified model shader transforms UVs through quat_transform using
      * uUvRot (default (0,0) collapses all UVs to 0.5).  Set identity defaults
@@ -2128,14 +2125,11 @@ void M2_RenderInstanced(m2Model_t const *model, LPCINSTANCEBUFFER instances, DWO
     R_Call(glUniformMatrix4fv, shader->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
     R_Call(glUniformMatrix4fv, shader->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
     {
-        VECTOR3 lightDir = {
-            -tr.viewDef.lightMatrix.v[2],
-            -tr.viewDef.lightMatrix.v[6],
-            -tr.viewDef.lightMatrix.v[10],
-        };
-        R_Call(glUniform3f, shader->uLightDir, lightDir.x * 1.2f, lightDir.y * 1.2f, lightDir.z * 1.2f);
-        R_Call(glUniform3f, shader->uLightColor, 0.5f, 0.5f, 0.5f);
-        R_Call(glUniform3f, shader->uLightAmbient, 0.5f, 0.5f, 0.5f);
+        VECTOR3 light_dir;
+        Wow_SunDirection(Wow_DayFraction(), &light_dir);
+        R_Call(glUniform3f, shader->uLightDir, light_dir.x, light_dir.y, light_dir.z);
+        R_Call(glUniform3f, shader->uLightColor, WOW_LIGHT_DIFFUSE_R, WOW_LIGHT_DIFFUSE_G, WOW_LIGHT_DIFFUSE_B);
+        R_Call(glUniform3f, shader->uLightAmbient, WOW_LIGHT_AMBIENT_R, WOW_LIGHT_AMBIENT_G, WOW_LIGHT_AMBIENT_B);
     }
     R_Call(glUniform4f, shader->uGeosetColor, 1.0f, 1.0f, 1.0f, 1.0f);
     R_Call(glUniform1f, shader->uLayerAlpha, 1.0f);
