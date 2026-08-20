@@ -1,13 +1,18 @@
 #include "r_wowmap.h"
 
 LPMODEL Wow_LoadDoodadModel(LPCSTR path) {
-    wowDoodadModel_t *entry;
+    wowDoodadModel_t *entry, *prev = NULL;
 
-    if (!path || !*path) {
-        return NULL;
-    }
-    for (entry = wow_world.doodad_models; entry; entry = entry->next) {
+    if (!path || !*path) return NULL;
+    /* Move-to-front: grass models are looked up 465K times across 14 unique paths;
+     * after the first hit, the hot model is at position 0 → O(1) on next call. */
+    for (entry = wow_world.doodad_models; entry; prev = entry, entry = entry->next) {
         if (!strcasecmp(entry->path, path)) {
+            if (prev) {                              /* move to front */
+                prev->next = entry->next;
+                entry->next = wow_world.doodad_models;
+                wow_world.doodad_models = entry;
+            }
             return entry->model && entry->model->m2 ? entry->model : NULL;
         }
     }

@@ -152,11 +152,14 @@ void Wow_InitTerrainShader(void) {
     "            color = mix(mix(mix(tex1, tex2, alphaBlend.r), tex3, alphaBlend.g), tex4, alphaBlend.b);\n"
     "        }\n"
     "    }\n"
-    /* WMO path: v_color.rgb is fixup-corrected MOCV; v_color.a baked as 0=interior/1=exterior.
+    /* WMO path: MOCV was fixup-divided-by-2; multiply by 2 cancels that.
+       Ambient/MOLT are ADDITIVE (not multiplicative) and only apply to indoor
+       batches — exterior MOCV already has sun lighting pre-baked. v_lighting
+       (N·L) is for terrain only; WMO lighting is 100% baked into MOCV.
        Terrain path: MCVT vertex color is a full lighting multiplier. */
     "    if (uSingleTexture != 0) {\n"
     "        float extBlend = v_color.a;\n"
-    "        color.rgb *= 2.0 * (uWmoAmbient + uWmoLightAdd + v_color.rgb + v_lighting * extBlend);\n"
+    "        color.rgb = color.rgb * 2.0 * v_color.rgb + (uWmoAmbient + uWmoLightAdd) * (1.0 - extBlend);\n"
     "    } else {\n"
     "        color.rgb *= 2.0 * v_color.rgb * v_lighting;\n"
     "    }\n"

@@ -148,13 +148,14 @@ void Wow_FreeWmoModels(void) {
             }
             ri.MemFree(model->groups);
         }
-        if (model->doodad_sets)       ri.MemFree(model->doodad_sets);
-        if (model->doodad_defs)       ri.MemFree(model->doodad_defs);
-        if (model->doodad_name_blob)  ri.MemFree(model->doodad_name_blob);
-        if (model->lights)            ri.MemFree(model->lights);
-        if (model->portals)           ri.MemFree(model->portals);
-        if (model->portal_vertices)   ri.MemFree(model->portal_vertices);
-        if (model->portal_refs)       ri.MemFree(model->portal_refs);
+        SAFE_DELETE(model->doodad_sets, ri.MemFree);
+        SAFE_DELETE(model->doodad_defs, ri.MemFree);
+        SAFE_DELETE(model->doodad_name_blob, ri.MemFree);
+        SAFE_DELETE(model->def_groups, ri.MemFree);
+        SAFE_DELETE(model->lights, ri.MemFree);
+        SAFE_DELETE(model->portals, ri.MemFree);
+        SAFE_DELETE(model->portal_vertices, ri.MemFree);
+        SAFE_DELETE(model->portal_refs, ri.MemFree);
         ri.MemFree(model);
         model = next_model;
     }
@@ -230,7 +231,7 @@ void Wow_FreeWorld(void) {
     while (doodad_model) {
         wowDoodadModel_t *next = doodad_model->next;
         R_ReleaseInstanceBuffer(&doodad_model->instances);
-        if (doodad_model->matrices) ri.MemFree(doodad_model->matrices);
+        SAFE_DELETE(doodad_model->matrices, ri.MemFree);
         SAFE_DELETE(doodad_model->model, R_ReleaseModel);
         ri.MemFree(doodad_model);
         doodad_model = next;

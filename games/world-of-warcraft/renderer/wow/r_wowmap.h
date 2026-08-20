@@ -227,6 +227,9 @@ typedef struct wowWmoModel_s {
     DWORD              num_portal_vertices;
     wowWmoPortalRef_t *portal_refs;       /* MOPR per-group portal references */
     DWORD              num_portal_refs;
+    /* Per-doodad-def group pointer cache — filled once on first Wow_QueueWmoDoodads call
+     * to avoid O(n) strcasecmp lookup on every render frame. num_doodad_defs entries. */
+    wowDoodadModel_t **def_groups;
     struct wowWmoModel_s *next;
 } wowWmoModel_t;
 

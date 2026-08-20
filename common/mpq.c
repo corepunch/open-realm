@@ -909,10 +909,10 @@ static void MpqFreeReadArchive(MPQ_ARCHIVE *mpq)
         }
         free(mpq->lookup_cache);
     }
-    if (mpq->hashtable) free(mpq->hashtable);
-    if (mpq->blocktable) free(mpq->blocktable);
-    if (mpq->sector_buffer) free(mpq->sector_buffer);
-    if (mpq->fp) fclose(mpq->fp);
+    SAFE_DELETE(mpq->hashtable, free);
+    SAFE_DELETE(mpq->blocktable, free);
+    SAFE_DELETE(mpq->sector_buffer, free);
+    SAFE_DELETE(mpq->fp, fclose);
     free(mpq);
 }
 
@@ -1173,7 +1173,7 @@ BOOL SFileCloseArchive(HANDLE archive)
     if (mpq->write_mode) {
         BOOL ok = FinalizeCreatedArchive(mpq);
         FreeWriterEntries(mpq);
-        if (mpq->fp) fclose(mpq->fp);
+        SAFE_DELETE(mpq->fp, fclose);
         free(mpq);
         return ok;
     }

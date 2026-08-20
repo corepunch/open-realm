@@ -271,9 +271,8 @@ static void Wow_SelectLoadingScreen(LPCSTR map_path) {
             snprintf(wow_loading_texture, sizeof(wow_loading_texture), "%s", "Interface\\Glues\\LoadingScreens\\LoadScreenEnviroment.blp");
         }
 
-        if (gi.error) {
-            gi.error("Wow_SelectLoadingScreen: map=%s title=%s loadingId=%u texture=%s\n", map_name, wow_loading_title, (unsigned)loading_screen_id, wow_loading_texture);
-        }
+        fprintf(stderr, "Wow_SelectLoadingScreen: map=%s title=%s loadingId=%u texture=%s\n",
+                map_name, wow_loading_title, (unsigned)loading_screen_id, wow_loading_texture);
         gi.MemFree(data);
         return;
     }
@@ -1605,6 +1604,17 @@ static void Wow_CheckAreaTriggers(LPEDICT ent) {
     }
 }
 
+/* First spawn point index on map_id regardless of race — used when the
+ * selected character's race has no playercreateinfo entry on the target map
+ * (e.g. loading map=0 with an Orc char before a +warp repositions the player). */
+static DWORD Wow_AnySpawnIndexForMap(DWORD map_id) {
+    FOR_LOOP(i, Wow_SpawnCount()) {
+        LPCWOWSPAWNPOINT sp = Wow_SpawnByIndex(i);
+        if (sp && sp->map == map_id) return i;
+    }
+    return ~0u;
+}
+
 static bool Wow_SpawnEntities(void) {
     LPCMAPINFO mapinfo = CM_GetMapInfo();
     char race[64], sex[64];
@@ -1627,11 +1637,16 @@ static bool Wow_SpawnEntities(void) {
         if (spawn_index == ~0u) {
             DWORD map_id = CM_WowGetMapId();
             if (Wow_HasSpawnForMap(map_id)) {
-                /* Outdoor map but wrong race/class for it — genuine mismatch, reject. */
-                fprintf(stderr, "WoW: no playercreateinfo spawn for race=%s class=%u on map=%u\n",
+                /* Race/class has no spawn on this map but other races do.
+                 * Fall back to any available spawn — a deferred +warp will
+                 * reposition the player; don't reject the whole map load. */
+                DWORD fb = Wow_AnySpawnIndexForMap(map_id);
+                fprintf(stderr, "WoW: race=%s class=%u has no spawn on map=%u; using fallback\n",
                         race, (unsigned)class_id, (unsigned)map_id);
-                return false;
-            }
+                if (fb == ~0u) return false;
+                LPCVECTOR3 fsp = Wow_GetSpawnPos(fb);
+                if (fsp) { spawn_origin = (VECTOR2){ fsp->x, fsp->y }; spawn_location = (LONG)fb; }
+            } else {
             /* No playercreateinfo for ANY race on this map — it's a dungeon/instance.
              * Fall back to the areatrigger_teleport destination for this map. */
             LPCWOWAREATRIGTELEPORT at = Wow_AreaTrigSpawnForMap(map_id);
@@ -1646,6 +1661,7 @@ static bool Wow_SpawnEntities(void) {
                         (unsigned)map_id);
                 return false;
             }
+            } /* end else-dungeon */
         } else {
             LPCVECTOR3 sp = Wow_GetSpawnPos(spawn_index);
             if (sp) {

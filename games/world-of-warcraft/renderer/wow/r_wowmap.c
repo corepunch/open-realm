@@ -129,12 +129,47 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
         stats->chunks++; stats->vertices += chunk->num_vertices;
     }
 
-    /* WMO batches have one texture; two passes: opaque first, alpha-blended second. */
+    /* WMO batches have one texture; two passes: opaque first, alpha-blended second.
+     * Pre-compute per-WMO visible_group count + cam_inside once; re-use across both passes
+     * so the expensive Matrix3_normal / MOLT / frustum checks don't run twice per WMO. */
     R_Call(glUniform1i, wow_uSingleTexture, 1);
     R_Call(glUniform1i, wow_uWmoBlendMode, 0);
+    R_Call(glUniform1i, wow_uUseWeightedBlend, 0);     /* constant: WMOs don't use weighted alpha blend */
+    R_Call(glUniform2f, wow_uAlphaOrigin, 0.0f, 0.0f); /* constant: WMOs use full-texture coords */
     {
+        /* Per-WMO pre-computed data. WMOs are static so this is stable across passes. */
+        enum { WMO_CACHE_MAX = 256 };
+        struct { DWORD vis; BOOL inside, model_batch, has_trans; MATRIX3 nm; VECTOR3 molt; } wmo_cache[WMO_CACHE_MAX];
+        wowWmoInstance_t *wmo_ptrs[WMO_CACHE_MAX];
+        int wmo_n = 0;
+        VECTOR3 cam = tr.viewDef.camerastate[0].origin;
+        for (wowWmoInstance_t *wmo = draw_wmos ? wow_world.wmos : NULL; wmo && wmo_n < WMO_CACHE_MAX; wmo = wmo->next) {
+            DWORD vis = 0; BOOL mi, has_trans = false;
+            if (!wmo->model || !wmo->model->groups) { wmo_ptrs[wmo_n++] = NULL; continue; }
+            FOR_LOOP(gi, wmo->model->num_groups)
+                if (Wow_WmoGroupInView(&wmo->model->groups[gi], &wmo->matrix)) vis++;
+            if (!vis) { wmo_ptrs[wmo_n++] = NULL; continue; }
+            mi = Wow_WmoContainsPoint(wmo->model, &wmo->matrix, cam);
+            Matrix3_normal(&wmo_cache[wmo_n].nm, &wmo->matrix);
+            Wow_ComputeMoltContribution(wmo->model, &wmo->matrix, cam, &wmo_cache[wmo_n].molt);
+            /* Check if this WMO has any transparent batches — skip pass 1 if not. */
+            if (wmo->model->batches) {
+                for (wowWmoBatch_t *b = wmo->model->batches; b && !has_trans; b = b->next)
+                    if (b->transparent) has_trans = true;
+            } else {
+                FOR_LOOP(gi, wmo->model->num_groups)
+                    for (wowWmoBatch_t *b = wmo->model->groups[gi].batches; b && !has_trans; b = b->next)
+                        if (b->transparent) has_trans = true;
+            }
+            wmo_cache[wmo_n].vis = vis; wmo_cache[wmo_n].inside = mi;
+            wmo_cache[wmo_n].has_trans = has_trans;
+            wmo_cache[wmo_n].model_batch = wmo->model->batches != NULL && vis * WOW_WMO_MODEL_BATCH_DIVISOR >= wmo->model->num_groups;
+            wmo_ptrs[wmo_n++] = wmo;
+            stats->wmo_instances++;
+            if (stats->collect && Wow_StatPointer(wmo->model, stats->model_hash, sizeof(stats->model_hash) / sizeof(*stats->model_hash))) stats->wmo_models++;
+            stats->wmo_groups += vis;
+        }
         int bound_blend_mode = 0;
-        /* Iterate all WMOs once per pass to avoid per-batch branching on pass type. */
         for (int wmo_pass = 0; wmo_pass < 2; wmo_pass++) {
             if (wmo_pass == 1) {
                 R_Call(glEnable, GL_BLEND);
@@ -142,33 +177,21 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
                 R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
                 bound_blend_mode = 2;
             }
-            for (wowWmoInstance_t *wmo = draw_wmos ? wow_world.wmos : NULL; wmo; wmo = wmo->next) {
-                DWORD visible_groups = 0;
+            for (int wi = 0; wi < wmo_n; wi++) {
+                wowWmoInstance_t *wmo = wmo_ptrs[wi];
                 BOOL model_batch;
                 BOOL cam_inside;
-                if (!wmo->model || !wmo->model->groups) continue;
-                /* Portal culling: if camera is inside the WMO, suppress exterior geometry.
-                   This prevents seeing outdoor terrain through interior walls. */
-                cam_inside = Wow_WmoContainsPoint(wmo->model, &wmo->matrix,
-                                                   tr.viewDef.camerastate[0].origin);
-                Matrix3_normal(&normal_matrix, &wmo->matrix);
+                if (!wmo) continue;
+                /* Skip pass 1 for WMOs that have no transparent batches — avoids uniform
+                 * uploads and batch iteration when there is nothing to draw. */
+                if (wmo_pass == 1 && !wmo_cache[wi].has_trans) continue;
+                cam_inside = wmo_cache[wi].inside;
+                model_batch = wmo_cache[wi].model_batch;
                 R_Call(glUniformMatrix4fv, wow_terrain_shader->uModelMatrix, 1, GL_FALSE, wmo->matrix.v);
-                R_Call(glUniformMatrix3fv, wow_terrain_shader->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
-                R_Call(glUniform1i, wow_uUseWeightedBlend, 0);
-                R_Call(glUniform2f, wow_uAlphaOrigin, 0.0f, 0.0f);
+                R_Call(glUniformMatrix3fv, wow_terrain_shader->uNormalMatrix, 1, GL_TRUE, wmo_cache[wi].nm.v);
                 R_Call(glUniform3f, wow_uWmoAmbient, wmo->model->amb_color.r / 255.0f,
                        wmo->model->amb_color.g / 255.0f, wmo->model->amb_color.b / 255.0f);
-                {
-                    VECTOR3 molt_add;
-                    Wow_ComputeMoltContribution(wmo->model, &wmo->matrix,
-                                                tr.viewDef.camerastate[0].origin, &molt_add);
-                    R_Call(glUniform3f, wow_uWmoLightAdd, molt_add.x, molt_add.y, molt_add.z);
-                }
-                FOR_LOOP(gi, wmo->model->num_groups)
-                    if (Wow_WmoGroupInView(&wmo->model->groups[gi], &wmo->matrix)) visible_groups++;
-                if (!visible_groups) continue;
-                if (!wmo_pass) { stats->wmo_groups += visible_groups; }
-                model_batch = wmo->model->batches && visible_groups * WOW_WMO_MODEL_BATCH_DIVISOR >= wmo->model->num_groups;
+                R_Call(glUniform3f, wow_uWmoLightAdd, wmo_cache[wi].molt.x, wmo_cache[wi].molt.y, wmo_cache[wi].molt.z);
                 if (model_batch) {
                     for (wowWmoBatch_t *batch = wmo->model->batches; batch; batch = batch->next) {
                         if (!batch->buffer || !batch->num_vertices) continue;
@@ -212,10 +235,6 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
                             if (stats->collect && Wow_StatPointer(batch->texture, stats->texture_hash, sizeof(stats->texture_hash) / sizeof(*stats->texture_hash))) stats->wmo_textures++;
                         }
                     }
-                }
-                if (!wmo_pass) {
-                    stats->wmo_instances++;
-                    if (stats->collect && Wow_StatPointer(wmo->model, stats->model_hash, sizeof(stats->model_hash) / sizeof(*stats->model_hash))) stats->wmo_models++;
                 }
             }
             if (wmo_pass == 1) {

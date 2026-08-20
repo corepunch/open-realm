@@ -315,28 +315,22 @@ void UI_FreeMapInfo(LPMAPINFO mapInfo) {
 
     if (!mapInfo)
         return;
-    FOR_LOOP(i, MAX_PLAYERS) {
-        if (mapInfo->players[i].playerName)
-            uiimport.MemFree(mapInfo->players[i].playerName);
-    }
-    FOR_LOOP(i, mapInfo->num_teams) {
-        if (mapInfo->teams[i].name)
-            uiimport.MemFree(mapInfo->teams[i].name);
-    }
-    if (mapInfo->mapName) uiimport.MemFree(mapInfo->mapName);
-    if (mapInfo->mapAuthor) uiimport.MemFree(mapInfo->mapAuthor);
-    if (mapInfo->mapDescription) uiimport.MemFree(mapInfo->mapDescription);
-    if (mapInfo->playersRecommended) uiimport.MemFree(mapInfo->playersRecommended);
-    if (mapInfo->loadingScreenModel) uiimport.MemFree(mapInfo->loadingScreenModel);
-    if (mapInfo->loadingScreenText) uiimport.MemFree(mapInfo->loadingScreenText);
-    if (mapInfo->loadingScreenTitle) uiimport.MemFree(mapInfo->loadingScreenTitle);
-    if (mapInfo->loadingScreenSubtitle) uiimport.MemFree(mapInfo->loadingScreenSubtitle);
-    if (mapInfo->prologueScreenModel) uiimport.MemFree(mapInfo->prologueScreenModel);
-    if (mapInfo->prologueScreenText) uiimport.MemFree(mapInfo->prologueScreenText);
-    if (mapInfo->prologueScreenTitle) uiimport.MemFree(mapInfo->prologueScreenTitle);
-    if (mapInfo->prologueScreenSubtitle) uiimport.MemFree(mapInfo->prologueScreenSubtitle);
-    if (mapInfo->soundEnvironment) uiimport.MemFree(mapInfo->soundEnvironment);
-    if (mapInfo->teams) uiimport.MemFree(mapInfo->teams);
+    FOR_LOOP(i, MAX_PLAYERS) SAFE_DELETE(mapInfo->players[i].playerName, uiimport.MemFree);
+    FOR_LOOP(i, mapInfo->num_teams) SAFE_DELETE(mapInfo->teams[i].name, uiimport.MemFree);
+    SAFE_DELETE(mapInfo->mapName, uiimport.MemFree);
+    SAFE_DELETE(mapInfo->mapAuthor, uiimport.MemFree);
+    SAFE_DELETE(mapInfo->mapDescription, uiimport.MemFree);
+    SAFE_DELETE(mapInfo->playersRecommended, uiimport.MemFree);
+    SAFE_DELETE(mapInfo->loadingScreenModel, uiimport.MemFree);
+    SAFE_DELETE(mapInfo->loadingScreenText, uiimport.MemFree);
+    SAFE_DELETE(mapInfo->loadingScreenTitle, uiimport.MemFree);
+    SAFE_DELETE(mapInfo->loadingScreenSubtitle, uiimport.MemFree);
+    SAFE_DELETE(mapInfo->prologueScreenModel, uiimport.MemFree);
+    SAFE_DELETE(mapInfo->prologueScreenText, uiimport.MemFree);
+    SAFE_DELETE(mapInfo->prologueScreenTitle, uiimport.MemFree);
+    SAFE_DELETE(mapInfo->prologueScreenSubtitle, uiimport.MemFree);
+    SAFE_DELETE(mapInfo->soundEnvironment, uiimport.MemFree);
+    SAFE_DELETE(mapInfo->teams, uiimport.MemFree);
     while (string) {
         mapTrigStr_t *next = string->next;
         uiimport.MemFree(string);
