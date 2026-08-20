@@ -119,6 +119,29 @@ typedef struct {
 } WOWSPAWNPOINT;
 typedef const WOWSPAWNPOINT *LPCWOWSPAWNPOINT;
 
+/* AreaTrigger.dbc record — 10 fields, no strings, WoW 1.12. Struct matches
+ * the raw 40-byte DBC record layout so records can be cast without decoding. */
+typedef struct {
+    DWORD id;
+    DWORD map_id;
+    FLOAT x, y, z;
+    FLOAT radius;               /* > 0 → sphere trigger; == 0 → use box fields */
+    FLOAT box_x, box_y, box_z; /* half-extents in local axes */
+    FLOAT box_orientation;     /* radians; rotates XY into box-local frame */
+} WOWAREATRIG;
+typedef const WOWAREATRIG *LPCWOWAREATRIG;
+
+/* areatrigger_teleport.csv record — cross-map destination for a trigger.
+ * Generated into build/generated/g_areatrigger_teleport.c. */
+typedef struct {
+    DWORD id;
+    LPCSTR name;               /* descriptive label, used for warp-by-name */
+    DWORD target_map;
+    FLOAT target_x, target_y, target_z;
+    FLOAT target_orientation;
+} WOWAREATRIGTELEPORT;
+typedef const WOWAREATRIGTELEPORT *LPCWOWAREATRIGTELEPORT;
+
 typedef struct {
     DWORD quest_id;
     VECTOR2 position;
@@ -409,7 +432,14 @@ LPCWOWSPAWNPOINT Wow_SpawnByIndex(DWORD index);
 DWORD           Wow_SelectSpawnPoint(LPCSTR race, DWORD class_id);
 DWORD           Wow_PlayerCreateMap(LPCSTR race, DWORD class_id);
 LPCVECTOR3      Wow_GetSpawnPos(DWORD idx);
-/* g_spawn.c — teleport entity to a generated spawn point */
+BOOL            Wow_HasSpawnForMap(DWORD map_id); /* true if ANY race spawns on map_id */
+/* g_areatrigger_teleport.c — generated from serverdata/areatrigger_teleport.csv */
+DWORD                 Wow_AreaTrigTeleportCount(void);
+LPCWOWAREATRIGTELEPORT Wow_AreaTrigTeleportById(DWORD id);
+LPCWOWAREATRIGTELEPORT Wow_AreaTrigTeleportByName(LPCSTR query); /* case-insensitive substr */
+LPCWOWAREATRIGTELEPORT Wow_AreaTrigSpawnForMap(DWORD map_id);   /* first entry targeting map */
+/* g_spawn.c — teleport entity to a spawn point or arbitrary position */
 void            Wow_TeleportPlayer(LPEDICT ent, DWORD spawn_index);
+void            Wow_TeleportPlayerToPos(LPEDICT ent, FLOAT x, FLOAT y, FLOAT z, FLOAT orientation);
 
 #endif

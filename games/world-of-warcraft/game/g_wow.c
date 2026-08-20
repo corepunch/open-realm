@@ -10,6 +10,7 @@
 #include "build/generated/g_creatures.c"
 #include "build/generated/g_quests.c"
 #include "build/generated/g_weapons.c"
+#include "build/generated/g_areatrigger_teleport.c"
 
 struct game_import gi;
 struct game_export globals;
@@ -21,6 +22,15 @@ static int wow_firebolt_impact_model = 0;
 static int wow_frostbolt_impact_model = 0;
 static char wow_loading_texture[MAX_PATHLEN] = "Interface\\Glues\\LoadingScreens\\LoadScreenEnviroment.blp";
 static char wow_loading_title[128] = "World of Warcraft";
+
+/* Pending cross-map teleport: set by Wow_CheckAreaTriggers / warp command before
+ * gi.MenuAction("map", ...) fires; consumed once by Wow_SpawnEntities on the new map. */
+typedef struct { BOOL pending; FLOAT x, y, z, orientation; } wowPendingTeleport_t;
+static wowPendingTeleport_t wow_pending_teleport;
+
+#define WOW_MAX_AREA_TRIGS 256
+static WOWAREATRIG wow_area_trigs[WOW_MAX_AREA_TRIGS];
+static DWORD       wow_area_trig_count;
 enum {
     WOW_PLAYER_EQUIPMENT_UPPER_BODY = 1,
     WOW_PLAYER_EQUIPMENT_LOWER_BODY = 1,
@@ -1517,6 +1527,84 @@ static void Wow_ThinkUnit(LPEDICT ent) {
 static void Wow_ThinkProjectile(LPEDICT ent) { Wow_RunProjectile(ent); }
 static void Wow_ThinkDynamicObject(LPEDICT ent) { Wow_RunDynamicObjectFrame(ent); }
 
+/* Build the WDT path for a numeric map ID by scanning Map.dbc field 1 (directory).
+ * Returns true and fills out on success; false when the DBC is absent or the ID
+ * is not present.  Callers must provide a buffer of at least MAX_PATHLEN bytes. */
+static BOOL Wow_WdtPathForMapId(DWORD map_id, LPSTR out, DWORD out_size) {
+    LPBYTE data; DWORD size = 0; stbDbc_t h; BOOL found = false;
+    data = gi.ReadFile ? gi.ReadFile("DBFilesClient\\Map.dbc", &size) : NULL;
+    if (!Stb_DbcValid(data, size, &h) || h.fields < 2 || h.record_size < sizeof(wowMapDbc_t))
+        { SAFE_DELETE(data, gi.MemFree); return false; }
+    BYTE const *recs = Stb_DbcRecords(data), *strs = Stb_DbcStrings(data, &h);
+    FOR_LOOP(i, h.records) {
+        wowMapDbc_t const *m = (wowMapDbc_t const *)(recs + i * h.record_size);
+        if (m->id != map_id) continue;
+        LPCSTR dir = Stb_DbcString(strs, h.string_size, m->directory_offset);
+        if (dir && *dir) { snprintf(out, out_size, "World\\Maps\\%s\\%s.wdt", dir, dir); found = true; }
+        break;
+    }
+    gi.MemFree(data);
+    return found;
+}
+
+/* Load AreaTrigger.dbc records for the current map into wow_area_trigs[].
+ * Called at end of Wow_SpawnEntities so triggers are ready for RunFrame. */
+static void Wow_LoadAreaTriggers(void) {
+    LPBYTE data; DWORD size = 0, map_id; stbDbc_t h;
+    wow_area_trig_count = 0;
+    map_id = CM_WowGetMapId();
+    data = gi.ReadFile ? gi.ReadFile("DBFilesClient\\AreaTrigger.dbc", &size) : NULL;
+    /* AreaTrigger.dbc: 10 uint32/float fields, no string block — record_size == 40. */
+    if (!Stb_DbcValid(data, size, &h) || h.fields != 10 || h.record_size != sizeof(WOWAREATRIG))
+        { SAFE_DELETE(data, gi.MemFree); return; }
+    BYTE const *base = Stb_DbcRecords(data);
+    FOR_LOOP(i, h.records) {
+        WOWAREATRIG const *t = (WOWAREATRIG const *)(base + i * h.record_size);
+        if (t->map_id != map_id) continue;
+        if (!Wow_AreaTrigTeleportById(t->id)) continue; /* no destination, skip */
+        if (wow_area_trig_count >= WOW_MAX_AREA_TRIGS) break;
+        wow_area_trigs[wow_area_trig_count++] = *t;
+    }
+    fprintf(stderr, "WoW: loaded %u area triggers for map %u\n",
+            (unsigned)wow_area_trig_count, (unsigned)map_id);
+    gi.MemFree(data);
+}
+
+/* Per-frame overlap test between the player and all cached area triggers.
+ * Sphere: dist < radius.  Box: player in local-frame AABB after orientation rotation.
+ * On a hit: saves destination to wow_pending_teleport and calls MenuAction("map", ...).
+ * Guards on pending to avoid re-entering before the map change completes. */
+static void Wow_CheckAreaTriggers(LPEDICT ent) {
+    char wdt[MAX_PATHLEN];
+    if (wow_pending_teleport.pending || !wow_area_trig_count) return;
+    FOR_LOOP(i, wow_area_trig_count) {
+        LPCWOWAREATRIG t = &wow_area_trigs[i];
+        LPCWOWAREATRIGTELEPORT dest = Wow_AreaTrigTeleportById(t->id);
+        FLOAT dx = ent->s.origin.x - t->x, dy = ent->s.origin.y - t->y, dz = ent->s.origin.z - t->z;
+        if (!dest) continue;
+        if (t->radius > 0.0f) {
+            if (dx*dx + dy*dy + dz*dz > t->radius * t->radius) continue;
+        } else {
+            FLOAT co = cosf(t->box_orientation), so = sinf(t->box_orientation);
+            if (fabsf( dx*co + dy*so) > t->box_x) continue;
+            if (fabsf(-dx*so + dy*co) > t->box_y) continue;
+            if (fabsf(dz)             > t->box_z) continue;
+        }
+        wow_pending_teleport = (wowPendingTeleport_t){ true,
+            dest->target_x, dest->target_y, dest->target_z, dest->target_orientation };
+        if (Wow_WdtPathForMapId(dest->target_map, wdt, sizeof(wdt))) {
+            fprintf(stderr, "WoW: area trigger %u → map %u (%s)\n",
+                    (unsigned)t->id, (unsigned)dest->target_map, wdt);
+            gi.MenuAction("map", wdt);
+        } else {
+            fprintf(stderr, "WoW: area trigger %u: no WDT for map %u\n",
+                    (unsigned)t->id, (unsigned)dest->target_map);
+            wow_pending_teleport.pending = false;
+        }
+        return;
+    }
+}
+
 static bool Wow_SpawnEntities(void) {
     LPCMAPINFO mapinfo = CM_GetMapInfo();
     char race[64], sex[64];
@@ -1528,20 +1616,43 @@ static bool Wow_SpawnEntities(void) {
     /* Read race before spawn selection so the player starts in their race's
        home zone (e.g. Orcs in Valley of Trials, not Northshire). */
     Wow_ReadSelectedCharFromCvars(race, sizeof(race), sex, sizeof(sex), &class_id, &appearance);
-    spawn_index = Wow_SelectSpawnPoint(race, class_id);
-    if (spawn_index == ~0u) {
-        /* A mismatched map is a lifecycle error; substituting a WorldSafeLoc caused Orcs to appear in Northshire. */
-        fprintf(stderr, "WoW: no playercreateinfo spawn for race=%s class=%u on loaded map=%u\n",
-                race, (unsigned)class_id, (unsigned)CM_WowGetMapId());
-        return false;
-    }
 
-    if (spawn_index != ~0u) {
-        LPCVECTOR3 sp = Wow_GetSpawnPos(spawn_index);
-        if (sp) {
-            spawn_origin = (VECTOR2){ sp->x, sp->y };
-            spawn_location = (LONG)spawn_index;
-            fprintf(stderr, "WoW: spawn race=%s at (%.1f %.1f)\n", race, sp->x, sp->y);
+    if (wow_pending_teleport.pending) {
+        /* Cross-map teleport: destination was saved by Wow_CheckAreaTriggers or warp command. */
+        spawn_origin = (VECTOR2){ wow_pending_teleport.x, wow_pending_teleport.y };
+        fprintf(stderr, "WoW: pending teleport → map=%u (%.1f %.1f)\n",
+                (unsigned)CM_WowGetMapId(), spawn_origin.x, spawn_origin.y);
+    } else {
+        spawn_index = Wow_SelectSpawnPoint(race, class_id);
+        if (spawn_index == ~0u) {
+            DWORD map_id = CM_WowGetMapId();
+            if (Wow_HasSpawnForMap(map_id)) {
+                /* Outdoor map but wrong race/class for it — genuine mismatch, reject. */
+                fprintf(stderr, "WoW: no playercreateinfo spawn for race=%s class=%u on map=%u\n",
+                        race, (unsigned)class_id, (unsigned)map_id);
+                return false;
+            }
+            /* No playercreateinfo for ANY race on this map — it's a dungeon/instance.
+             * Fall back to the areatrigger_teleport destination for this map. */
+            LPCWOWAREATRIGTELEPORT at = Wow_AreaTrigSpawnForMap(map_id);
+            if (at) {
+                wow_pending_teleport = (wowPendingTeleport_t){ true,
+                    at->target_x, at->target_y, at->target_z, at->target_orientation };
+                spawn_origin = (VECTOR2){ at->target_x, at->target_y };
+                fprintf(stderr, "WoW: dungeon map=%u; using areatrigger spawn '%s'\n",
+                        (unsigned)map_id, at->name);
+            } else {
+                fprintf(stderr, "WoW: no spawn for map=%u (no playercreateinfo, no areatrigger)\n",
+                        (unsigned)map_id);
+                return false;
+            }
+        } else {
+            LPCVECTOR3 sp = Wow_GetSpawnPos(spawn_index);
+            if (sp) {
+                spawn_origin = (VECTOR2){ sp->x, sp->y };
+                spawn_location = (LONG)spawn_index;
+                fprintf(stderr, "WoW: spawn race=%s at (%.1f %.1f)\n", race, sp->x, sp->y);
+            }
         }
     }
     Wow_SelectLoadingScreen(mapinfo ? mapinfo->mapName : NULL);
@@ -1556,6 +1667,14 @@ static bool Wow_SpawnEntities(void) {
     wow_move.distance = 8.5f;
     wow_spawns_this_frame = 0;
     Wow_InitPlayer(&wow_edicts[0], spawn_origin, spawn_location);
+    /* Apply authoritative z and orientation from pending teleport AFTER InitPlayer so
+     * the SQL z overrides the terrain-height fallback used for dungeon interiors. */
+    if (wow_pending_teleport.pending) {
+        LPEDICT p = &wow_edicts[0];
+        p->s.origin.z = wow_pending_teleport.z;
+        p->s.angle    = wow_pending_teleport.orientation;
+        wow_pending_teleport.pending = false;
+    }
     globals.num_edicts = WOW_MAX_CLIENTS;
     Wow_SpawnAmbientCreatures(&spawn_origin);
     /* Initial world population is intentionally split into budgets so the
@@ -1570,6 +1689,7 @@ static bool Wow_SpawnEntities(void) {
     wow_frostbolt_impact_model = Wow_FrostboltImpactModel();
     fprintf(stderr, "WoW: impact models — fire=%d frost=%d\n", wow_firebolt_impact_model, wow_frostbolt_impact_model);
     fprintf(stderr, "WoW doodads: static ADT doodads are renderer-owned and not synced as entities\n");
+    Wow_LoadAreaTriggers();
     return true;
 }
 
@@ -1617,6 +1737,7 @@ static void Wow_RunFrame(void) {
     }
     /* WMO floors, unlike ADT terrain, can sit above the outdoor ground inside buildings. */
     ent->s.origin.z = Wow_FloorHeight(ent->s.origin.x, ent->s.origin.y, ent->s.origin.z);
+    Wow_CheckAreaTriggers(ent); /* check dungeon/zone portals after position is settled */
     /* Run spell cast state machine before entity lock check.
      * Cast animation plays via Wow_AdvanceEntityFrame; cooldowns tick down. */
     {
@@ -1942,6 +2063,41 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
             idx = Wow_SelectSpawnPoint("Orc", WOW_CLASS_WARRIOR);
         }
         if (idx != ~0u) Wow_TeleportPlayer(ent, idx);
+    } else if (argc >= 2 && !strcasecmp(argv[0], "warp")) {
+        /* warp <name>: teleport to a named WorldSafeLoc on the current map,
+         * or perform a cross-map teleport via areatrigger_teleport by name.
+         * Usable at runtime and from +warp on the command line (forwarded via client). */
+        LPCSTR query = argv[1];
+        char wdt[MAX_PATHLEN];
+        DWORD n = CM_WowGetAllSpawnCount(); BOOL found = false;
+        /* First: search WorldSafeLocs on current map (same-map warp). */
+        FOR_LOOP(i, n) {
+            LPCSTR nm = CM_WowGetSpawnName(i); LPCVECTOR3 pos;
+            DWORD qlen = (DWORD)strlen(query), nlen; BOOL match = false; DWORD j;
+            if (!nm) continue;
+            nlen = (DWORD)strlen(nm);
+            if (nlen < qlen) continue; /* guard unsigned subtraction below */
+            for (j = 0; !match && j <= nlen - qlen; j++)
+                if (!strncasecmp(nm + j, query, qlen)) match = true;
+            if (!match) continue;
+            pos = CM_WowGetSpawnPos(i);
+            if (!pos) continue;
+            Wow_TeleportPlayerToPos(ent, pos->x, pos->y, pos->z, 0.0f);
+            found = true; break;
+        }
+        /* Second: search areatrigger_teleport by name (cross-map warp). */
+        if (!found) {
+            LPCWOWAREATRIGTELEPORT at = Wow_AreaTrigTeleportByName(query);
+            if (at && Wow_WdtPathForMapId(at->target_map, wdt, sizeof(wdt))) {
+                wow_pending_teleport = (wowPendingTeleport_t){ true,
+                    at->target_x, at->target_y, at->target_z, at->target_orientation };
+                fprintf(stderr, "WoW: warp '%s' → map %u (%s)\n", query, (unsigned)at->target_map, wdt);
+                gi.MenuAction("map", wdt);
+                found = true;
+            }
+        }
+        if (!found)
+            fprintf(stderr, "WoW: warp '%s': no matching WorldSafeLoc or areatrigger destination\n", query);
     } else if (argc >= 5 && (!strcasecmp(argv[0], "move") || !strcasecmp(argv[0], "wowmove"))) {
         wow_move.flags = (DWORD)strtoul(argv[1], NULL, 10);
         wow_move.yaw = (FLOAT)atof(argv[2]);

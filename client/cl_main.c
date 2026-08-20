@@ -31,7 +31,8 @@ static DWORD cl_pending_game_command_count;
 static BOOL CL_IsDeferredGameCommand(LPCSTR text) {
     return text && (!strncmp(text, "give ", 5) || !strcmp(text, "give") ||
                     !strncmp(text, "god", 3) || !strncmp(text, "kill", 4) ||
-                    !strncmp(text, "research ", 9));
+                    !strncmp(text, "research ", 9) ||
+                    !strncmp(text, "warp ", 5) || !strcmp(text, "warp"));
 }
 
 static void CL_FlushPendingGameCommands(void) {
