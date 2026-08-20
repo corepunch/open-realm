@@ -306,9 +306,7 @@ BOOL Wow_ReadM2RadiusFromPath(LPCSTR path, float *radius) {
 
     size = ri.FS_ReadFile(path, (void **)&data);
     if (size < (int)(sizeof(DWORD) * 2) || !data) {
-        if (data) {
-            ri.FS_FreeFile(data);
-        }
+        SAFE_DELETE(data, ri.FS_FreeFile);
         return false;
     }
 

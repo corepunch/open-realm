@@ -111,9 +111,7 @@ static void RStd_TextureSizeFromHeader(LPCSTR fileName, DWORD *width, DWORD *hei
             *height = RStd_ReadLE32(data + 16);
         }
     }
-    if (buffer) {
-        ri.FS_FreeFile(buffer);
-    }
+    SAFE_DELETE(buffer, ri.FS_FreeFile);
 }
 
 static void RStd_Init(DWORD width, DWORD height) {

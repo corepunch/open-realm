@@ -1660,9 +1660,7 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size, BOOL *b
     if (M2_IsCharacterModelPath(modelFilename)) model->flags |= M2_MODEL_CHARACTER;
     if (buffer_owned) *buffer_owned = true;
     if (!M2_LoadFileImage(model, (BYTE *)buffer, size, base_offset, m2_size)) {
-        if (skin_data) {
-            ri.FS_FreeFile(skin_data);
-        }
+        SAFE_DELETE(skin_data, ri.FS_FreeFile);
         M2_FreeModelData(model);
         ri.MemFree(model);
         return M2_CreateFallbackModel(modelFilename, "failed to copy animation data");
@@ -1743,9 +1741,7 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size, BOOL *b
         ri.MemFree(verts);
     }
 
-    if (skin_data) {
-        ri.FS_FreeFile(skin_data);
-    }
+    SAFE_DELETE(skin_data, ri.FS_FreeFile);
     if (!model->batches) {
         M2_FreeModelData(model);
         ri.MemFree(model);

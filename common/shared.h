@@ -39,6 +39,7 @@ static inline size_t bz_strlcpy(char *destination, const char *source, size_t si
 #define MAX_LIST_FETCH_ROWS 32
 #define MIN(x, y) (((x)<(y))?(x):(y))
 #define MAX(x, y) (((x)>(y))?(x):(y))
+#define BZ_CLAMP_U8(x) ((BYTE)MIN(255, MAX(0, (int)(x)))) // clamp a numeric expression to a 0..255 byte
 
 #define BYTE2FLOAT(x) ((x)/255.f)
 
@@ -74,11 +75,12 @@ property = next, next = next ? next->next : NULL)
 for (type *property = array; property - array < num; property++)
 
 /* ARRAY(type, name): declare a pointer and its element count as one unit.
-   Read the count with ARRAY_COUNT(name) and iterate with FOR_EACH_ARRAY
-   (or FOR_LOOP(i, ARRAY_COUNT(name)) when the index is needed) — never
-   touch name##_count directly. */
+   Read the count with ARRAY_COUNT(name), iterate with FOR_EACH_ARRAY
+   (or FOR_LOOP(i, ARRAY_COUNT(name)) when the index is needed), and test for
+   emptiness with IS_ARRAY_EMPTY(name) — never touch name##_count directly. */
 #define ARRAY(type, name) type *name; DWORD name##_count
 #define ARRAY_COUNT(name) (name##_count)
+#define IS_ARRAY_EMPTY(name) (!(name) || !ARRAY_COUNT(name))
 #define FOR_EACH_ARRAY(type, property, name) \
 for (type *property = name; property - name < ARRAY_COUNT(name); property++)
 
