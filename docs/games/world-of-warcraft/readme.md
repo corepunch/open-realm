@@ -72,7 +72,8 @@ What the World of Warcraft target currently knows how to load and render.
 - [Terrain And World Rendering](terrain-and-world-rendering.md): WDT tiles, ADT chunks, splats, alpha maps, doodads, WMOs, and height queries.
 - [M2 And Character Display](m2-and-character-display.md): M2 loading, creation/select data flow, packed defaults, DBC-backed outfit data, geosets, and component texture rules.
 - [WoW Character Display Quick Reference](../../wow-character.md): authoritative DBCs, saved appearance values, common pitfalls, and bounded diagnostic commands.
-- [Grass Rendering System](grass-rendering-system.md): terrain-advertent grass rendering.
+- [Grass Tech Reference](GRASS_TECH.md): current implementation state — active vs. disabled paths, wind-sway math, phase decorrelation, density formula, and key constants.
+- [Grass Rendering System](grass-rendering-system.md): architecture walkthrough, M2 instancing design, historical prototype notes.
 - [GPU Terrain Height Atlas And Static Grass Batches](static-grass-and-height-atlas.md): exact MCVT atlas, static M2 instance batches, patch culling, alpha handling, and staged verification plan.
 - [References](references.md): public schema references and local source/tool entry points.
 - [Sounds](sounds.md)
