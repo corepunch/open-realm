@@ -20,16 +20,6 @@ static wowCreatureInfoCache_t wow_creature_info_cache[256];
 static DWORD wow_creature_info_cache_count = 0;
 static BOOL wow_creature_info_cache_loaded = false;
 
-/* CreatureDisplayInfo.dbc record layout (fields needed). */
-typedef struct {
-    DWORD id;
-    DWORD model_id;
-    DWORD sound_id;
-    DWORD extended_display_info_id;
-    FLOAT scale;
-} wowCreatureDisplayInfoCacheDbc_t;
-
-/* CreatureModelData.dbc — scale + collision from existing m_creature.c usage. */
 /* Spawn a dynamic object entity for spell impact visuals.
  * Replaces the temp_entity pattern for fireball/frostbolt impacts. */
 LPEDICT Wow_SpawnDynamicObject(DWORD spell_id, LPCVECTOR2 origin, DWORD duration) {

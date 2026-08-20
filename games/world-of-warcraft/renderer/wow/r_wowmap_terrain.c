@@ -171,12 +171,12 @@ void Wow_AddTerrainCell(VERTEX *vertices,
                                VECTOR3 const normals[WOW_MCVT_COUNT],
                                int x,
                                int y,
-                               COLOR32 color) {
+                               COLOR32 const *mccv) {
     static BYTE const tri[] = { 9, 0, 17, 9, 1, 0, 9, 18, 1, 9, 17, 18 };
     int base = y * 17 + x;
     FOR_LOOP(i, sizeof(tri) / sizeof(tri[0])) {
         int height_index = base + tri[i];
-        Wow_PushTerrainVertex(vertices, index, pos, heights, &normals[height_index], height_index, color);
+        Wow_PushTerrainVertex(vertices, index, pos, heights, &normals[height_index], height_index, mccv[height_index]);
     }
 }
 
@@ -274,9 +274,20 @@ void Wow_AddAdtChunk(wowVec3_t pos,
                             char **textures,
                             DWORD num_textures,
                             float const *heights,
-                            BYTE const *normals) {
+                            BYTE const *normals,
+                            COLOR32 const *mccv,
+                            BYTE const *mcsh) {
     enum { MAX_VERTICES = 8 * 8 * 12 };
-    COLOR32 color = Wow_Color(127, 127, 127, 127);
+    COLOR32 mccv_fallback[WOW_MCVT_COUNT];
+    /* Vanilla (1.x) ADTs have no MCCV, so fall back to white and let the shader's
+       dynamic sun (ambient + diffuse·N·L) light the surface. MCCV only exists in
+       WotLK+; TODO: convert its on-disk BGRA bytes to RGBA (like Wow_Color does
+       for MOCV) when WotLK terrain data is supported. */
+    if (!mccv) {
+        COLOR32 white = Wow_Color(255, 255, 255, 255);
+        FOR_LOOP(i, WOW_MCVT_COUNT) mccv_fallback[i] = white;
+        mccv = mccv_fallback;
+    }
     DWORD slot_texture_ids[4] = { 0, 0, 0, 0 };
     DWORD unique_layer_count = Wow_BuildUniqueTextureSlots(layers, layer_count, slot_texture_ids);
     DWORD effective_layers = MAX(1, MIN(unique_layer_count ? unique_layer_count : layer_count, 4));
@@ -288,8 +299,6 @@ void Wow_AddAdtChunk(wowVec3_t pos,
     if (!heights) {
         return;
     }
-    (void)normals;
-
     vertices = ri.MemAlloc(sizeof(VERTEX) * MAX_VERTICES);
     if (!vertices) {
         return;
@@ -314,7 +323,7 @@ void Wow_AddAdtChunk(wowVec3_t pos,
     FOR_LOOP(y, 8) {
         FOR_LOOP(x, 8) {
             if (WOW_IGNORE_TERRAIN_HOLES || !Wow_IsHole(holes, x, y)) {
-                Wow_AddTerrainCell(vertices, &num_vertices, pos, heights, derived_normals, x, y, color);
+                Wow_AddTerrainCell(vertices, &num_vertices, pos, heights, derived_normals, x, y, mccv);
             }
         }
     }
@@ -339,6 +348,10 @@ void Wow_AddAdtChunk(wowVec3_t pos,
     chunk->position = pos;
     memcpy(chunk->heights, heights, sizeof(chunk->heights));
     chunk->has_heights = true;
+    if (mcsh) {
+        memcpy(chunk->mcsh, mcsh, sizeof(chunk->mcsh));
+        chunk->has_mcsh = true;
+    }
     chunk->alpha_texture = wow_world.alpha_atlas_texture ? wow_world.alpha_atlas_texture : Wow_CreateAlphaTexture(alpha);
     chunk->alpha_index_x = alpha_index_x;
     chunk->alpha_index_y = alpha_index_y;

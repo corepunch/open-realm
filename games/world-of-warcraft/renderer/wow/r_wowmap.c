@@ -95,7 +95,13 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
     Matrix3_normal(&normal_matrix, &identity);
     R_Call(glUniformMatrix4fv, wow_terrain_shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
     R_Call(glUniformMatrix4fv, wow_terrain_shader->uModelMatrix, 1, GL_FALSE, identity.v);
-    R_Call(glUniformMatrix4fv, wow_terrain_shader->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
+    {
+        VECTOR3 sun_dir;
+        Wow_SunDirection(Wow_DayFraction(), &sun_dir);
+        R_Call(glUniform3f, wow_uSunDir, sun_dir.x, sun_dir.y, sun_dir.z);
+        R_Call(glUniform3f, wow_uSunAmbient, WOW_LIGHT_AMBIENT_R, WOW_LIGHT_AMBIENT_G, WOW_LIGHT_AMBIENT_B);
+        R_Call(glUniform3f, wow_uSunDiffuse, WOW_LIGHT_DIFFUSE_R, WOW_LIGHT_DIFFUSE_G, WOW_LIGHT_DIFFUSE_B);
+    }
     R_Call(glUniformMatrix3fv, wow_terrain_shader->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
     R_Call(glUniform1i, wow_uUseWeightedBlend, wow_world.use_weighted_blend ? 1 : 0);
     R_Call(glUniform1i, wow_uSingleTexture, 0);

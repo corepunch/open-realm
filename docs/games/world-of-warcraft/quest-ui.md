@@ -81,27 +81,49 @@ kill objectives and the player's progress is tracked.
    identified by `go_entry = quest_id`. Only entities within 6500 units of
    the player spawn are created.
 
+Quest givers are creatures in AzerothCore and carry world positions via
+`creature.sql`; the questgiver role is the join of `creature_queststarter`
+(creature_entry → quest_id) with `creature` (creature_entry → spawn position).
+
+### Spawn budget and distance ordering
+
+`WOW_QUEST_LOCATION_BUDGET` (default 32) caps how many quest giver entities are
+spawned per `Wow_SpawnQuestLocations` call. The generated `wow_quest_givers[]`
+table is ordered by quest_id; some starting quests have high IDs (e.g. quest 783
+"A Threat Within" for humans) and would never be reached if the table were
+walked sequentially — at the human spawn point ~566 givers fall within the 6500-
+unit radius, meaning the budget runs out after the first 32 in table order.
+
+**Fix:** `Wow_SpawnQuestLocations` does a pre-pass that collects all within-radius
+candidates into a `wowGiverSort_t` array, sorts them by distance² (ascending),
+then walks the sorted list applying the budget. Quest 783 is the 3rd closest
+entry to the human spawn (2 units away, same tile as Deputy Willem's other quests)
+and is therefore always spawned regardless of its position in the table.
+
 ## Overhead Quest Marker
 
-Quest givers retain the available-quest image index on the server entity. When
-building a snapshot, the server copies the entity state and customizes the
-marker for that recipient: the yellow "!" is sent only when the quest is
-available, while accepted, completed, or prerequisite-locked quests send no
-marker. The client resolves the image index in `V_AddClientEntity` and the
-renderer draws it as a billboarded sprite above the entity head:
+Quest givers retain the available-quest image index (`overhead_sprite`) on the
+server entity at spawn via `gi.ImageIndex("Interface\\GossipFrame\\AvailableQuestIcon.blp")`.
+When building a snapshot, the server copies the entity state and then calls
+`Wow_CustomizeEntity` (the `CustomizeEntity` game callback invoked from
+`SV_BuildClientFrame`) to set the per-client value:
 
-- **Field**: `entityState_t.overhead_sprite` (`NFT_SHORT`, image index) → `renderEntity_t.overhead_sprite` (resolved `LPCTEXTURE`). 0/NULL means no sprite.
-- **Render**: `R_GameRenderModel` (`games/world-of-warcraft/renderer/r_game.c`) draws it after the model,
-  floating `(M2_GroundOffset(model) + M2_HeadHeight(model)) * scale + 0.25` above the entity origin. `M2_HeadHeight`
-  (`renderer/m2/r_m2.c`) returns the model's animation-inclusive bounding-box top, so the
-  marker clears the head regardless of creature height. `R_DrawBillboardSprite`
-  (`renderer/r_particles.c`) draws the camera-facing quad, reusing the particle billboard
-  pipeline (Quake-style explosion billboard).
+| Condition | `overhead_sprite` sent |
+|-----------|----------------------|
+| Quest already in player's log (any status) | 0 (hidden) |
+| Quest has `prev_quest` and that quest is NOT in log | 0 (chain locked) |
+| Quest has `prev_quest` and that quest IS in log | sprite index (show "!") |
+| Quest has no `prev_quest` (starter quest) | sprite index (show "!") |
 
-Per-player marker selection is implemented by the WoW `CustomizeEntity` game
-callback from `SV_BuildClientFrame`; entity state remains shared until the
-per-client snapshot copy is made. Turn-in question marks are not emitted until
-the corresponding authoritative texture and marker state are added.
+`Wow_AddQuest` uses the same "prev_quest must be in log" rule, so the marker
+and the accept gate are always consistent.
+
+The client pipeline:
+- **Network**: `NFT_SHORT` image index in `entityState_t.overhead_sprite`.
+- **Client resolve**: `cl_view.c` — `re.overhead_sprite = cl.pics[ent->current.overhead_sprite]`. Image configstrings are loaded eagerly in `CL_PrepRefresh`; late arrivals are caught in `cl_parse.c` and reloaded in-place.
+- **Render**: `R_GameRenderModel` (`games/world-of-warcraft/renderer/r_game.c`) draws it after the model, floating `(M2_GroundOffset(model) + M2_HeadHeight(model)) * scale + 0.25` above the entity origin. `M2_HeadHeight` (`renderer/m2/r_m2.c`) returns `model->bounds.max.z` (the M2 file bounding-box top). `R_DrawBillboardSprite` (`renderer/r_particles.c`) draws the camera-facing quad via the particle billboard pipeline.
+
+Turn-in "?" markers are not yet implemented.
 
 ## Extraction Tools
 
@@ -157,3 +179,5 @@ layout pixel positions and asset paths.
 - NPC interaction → dialog opening
 - Quest chain unlock (12→13→14)
 - Progress text in dialog textarea
+- `quest_givers_receive_creature_frame_for_idle_animation` — Deputy Willem (display 2072) spawns with `overhead_sprite != 0` and `Stand` animation
+- `quest_marker_is_hidden_after_quest_acceptance` — `Wow_CustomizeEntity` shows "!" for a fresh player on quest 783, hides it after `quest_accept 783`

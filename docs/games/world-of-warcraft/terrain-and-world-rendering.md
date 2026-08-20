@@ -219,6 +219,37 @@ diagnosis; `r_fog 0` intentionally exposes the hard boundary. Terrain/WMO use th
 world shader, while M2 entities and instanced doodads use the shared MDX/M2/M3 model
 shader's existing fog uniforms.
 
+## Sun Direction And Light Color
+
+The 1.5 archive has no lighting DBCs **and no `.lit` files** (pre-1.9 zones stored
+lighting in per-zone `.lit`, moved to `Light*.dbc` in 1.9), so there is no authored
+sun path or light color to read. The client therefore synthesizes both:
+
+- **Direction** — `Wow_SunDirection` (`r_wowmap_draw.c`) derives the sun from
+  time-of-day (`Wow_DayFraction` = `tr.viewDef.time / WOW_DAY_LENGTH_MS`). It is
+  WoWee's synthesized `directionalDir` (`data/WoWee/src/rendering/lighting_manager.cpp`
+  `sampleLightParams`), negated and Y-up→Z-up swapped to engine axes. `day_frac`
+  0=midnight, 0.25=dawn(sun in -X), 0.5=noon, 0.75=dusk(sun in +X). The direction is
+  "toward the sun" (what the model/terrain shaders expect for `N·L`).
+- **Color** — `WOW_LIGHT_AMBIENT_*` / `WOW_LIGHT_DIFFUSE_*` in
+  `games/world-of-warcraft/common/ui_constants.h`, WoWee's documented no-DBC fallback
+  tint (cool ambient, warm diffuse). Diffuse is halved from WoWee's `(1.0,0.95,0.85)`
+  so `ambient + diffuse` stays ≤ 1.0 in the engine's non-HDR lighting.
+
+Consumers: terrain (`r_wowmap_shader.c` vertex shader computes
+`v_lighting = ambient + diffuse·N·L`), grass (`uSunDir.z` elevation), and M2 models
+(`r_m2.c` `uLightDir`/`uLightColor`/`uLightAmbient`). For the authoritative chain that
+*is* missing here, see WoWee: `Light.dbc` → `LightParams.dbc` →
+`LightIntBand.dbc`/`LightFloatBand.dbc` (time-of-day color/fog bands, half-minutes
+0–2879).
+
+Baked terrain data in this 1.5 archive: MCNK has **no `MCCV`** (vertex color is
+WotLK+; the parser reads it but the fallback is white, and its BGRA bytes still need
+the RGBA swap `Wow_Color` performs for MOCV), but **does** carry `MCSH` (256 per ADT),
+the 64×64×8-bit baked sun shadow map. Vanilla terrain lighting is
+`texture × (ambient + diffuse·N·L) × MCSH`; the MCSH multiply is not yet applied.
+
+
 MDDF positions are absolute map coordinates, not tile-local coordinates. Both the
 renderer and the game-side interactive-object path use `CM_WowObjectPoint`:
 

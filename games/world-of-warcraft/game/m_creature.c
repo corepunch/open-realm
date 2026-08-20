@@ -215,6 +215,13 @@ static LPEDICT Wow_SpawnCreature(DWORD display_id,
     return ent;
 }
 
+typedef struct { FLOAT dist2; DWORD idx; } wowGiverSort_t;
+static int Wow_CmpGiverDist(void const *a, void const *b) {
+    FLOAT const da = ((wowGiverSort_t const *)a)->dist2;
+    FLOAT const db = ((wowGiverSort_t const *)b)->dist2;
+    return da < db ? -1 : da > db ? 1 : 0;
+}
+
 /* Spawn non-hostile quest NPCs and server-side objective anchors from the
  * imported world database, limited to the player's nearby starting area. */
 void Wow_SpawnQuestLocations(LPCVECTOR2 origin) {
@@ -223,11 +230,29 @@ void Wow_SpawnQuestLocations(LPCVECTOR2 origin) {
     DWORD budget = WOW_QUEST_LOCATION_BUDGET;
     FLOAT const spawn_radius = 6500.0f;
     FLOAT const spawn_radius2 = spawn_radius * spawn_radius;
+    wowGiverSort_t sorted[2048];
+    DWORD nsorted = 0;
 
     if (!origin)
         return;
 
+    /* Pre-sort by distance so the budget always favours the nearest quest
+     * givers; table order (quest_id) is irrelevant to spawn priority. */
     FOR_LOOP(i, Wow_QuestGiverCount()) {
+        LPCWOWQUESTGIVER data = Wow_QuestGiver(i);
+        VECTOR2 pos = { data->position.x, data->position.y };
+        VECTOR2 delta = Vector2_sub(&pos, origin);
+        FLOAT dist2 = delta.x * delta.x + delta.y * delta.y;
+        if (dist2 <= spawn_radius2 && nsorted < sizeof(sorted) / sizeof(*sorted)) {
+            sorted[nsorted].dist2 = dist2;
+            sorted[nsorted].idx  = (DWORD)i;
+            nsorted++;
+        }
+    }
+    qsort(sorted, nsorted, sizeof(*sorted), Wow_CmpGiverDist);
+
+    FOR_LOOP(si, nsorted) {
+        DWORD i = sorted[si].idx;
         LPCWOWQUESTGIVER data = Wow_QuestGiver(i);
         LPCWOWCREATURE creature = Wow_CreatureByEntry(data->creature_entry);
         LPCWOWCREATUREMODEL creature_model;
@@ -235,7 +260,6 @@ void Wow_SpawnQuestLocations(LPCVECTOR2 origin) {
         FLOAT scale = 1.0f;
         FLOAT radius = 1.0f;
         VECTOR2 position;
-        VECTOR2 delta;
         LPEDICT ent;
         wowEntityLocal_t *local;
 
@@ -249,9 +273,7 @@ void Wow_SpawnQuestLocations(LPCVECTOR2 origin) {
         if (data->display_id != creature_model->display_id)
             fprintf(stderr, "WoW: quest giver creature %u display %u disagrees with primary model %u\n", (unsigned)data->creature_entry, (unsigned)data->display_id, (unsigned)creature_model->display_id);
         position = (VECTOR2){ data->position.x, data->position.y };
-        delta = Vector2_sub(&position, origin);
-        if (delta.x * delta.x + delta.y * delta.y > spawn_radius2 ||
-            !Wow_CachedCreatureModel(creature_model->display_id, model_path, sizeof(model_path), &scale, &radius))
+        if (!Wow_CachedCreatureModel(creature_model->display_id, model_path, sizeof(model_path), &scale, &radius))
             continue;
         ent = Wow_Spawn();
         if (!ent)

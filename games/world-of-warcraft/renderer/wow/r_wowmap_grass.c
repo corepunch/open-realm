@@ -507,7 +507,13 @@ void Wow_DrawGrass(void) {
     cam = tr.viewDef.camerastate[0].origin;
     R_Call(glUseProgram, wow_grass_shader->progid);
     R_Call(glUniformMatrix4fv, wow_grass_shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
-    R_Call(glUniformMatrix4fv, wow_grass_shader->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
+    {
+        VECTOR3 sun_dir;
+        Wow_SunDirection(Wow_DayFraction(), &sun_dir);
+        R_Call(glUniform3f, wow_uGrassSunDir, sun_dir.x, sun_dir.y, sun_dir.z);
+        R_Call(glUniform3f, wow_uGrassSunAmbient, WOW_LIGHT_AMBIENT_R, WOW_LIGHT_AMBIENT_G, WOW_LIGHT_AMBIENT_B);
+        R_Call(glUniform3f, wow_uGrassSunDiffuse, WOW_LIGHT_DIFFUSE_R, WOW_LIGHT_DIFFUSE_G, WOW_LIGHT_DIFFUSE_B);
+    }
     R_Call(glUniform1f,  wow_uGrassTime,             (GLfloat)(tr.viewDef.time / 1000.0f));
     R_Call(glUniform3f,  wow_uGrassCameraOrigin,     (GLfloat)cam.x, (GLfloat)cam.y, (GLfloat)cam.z);
     R_Call(glUniform1f,  wow_uGrassDrawDistance,     (GLfloat)WOW_GRASS_DRAW_DISTANCE);

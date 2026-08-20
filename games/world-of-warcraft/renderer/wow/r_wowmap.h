@@ -262,6 +262,8 @@ typedef struct wowAdtChunk_s {
     wowVec3_t position;
     float heights[WOW_MCVT_COUNT];
     BOOL has_heights;
+    BYTE mcsh[512];
+    BOOL has_mcsh;
     BOX3 bounds;
     BOX3 grass_bounds;
     struct wowAdtChunk_s *next;
@@ -353,7 +355,7 @@ typedef struct {
     WORD flags;
     WORD doodad_set;
     WORD name_set;
-    WORD unk;
+    WORD scale;
 } wowMapObjDef_t;
 
 typedef struct {
@@ -464,7 +466,7 @@ void Wow_AccumulateTerrainCellNormals(VECTOR3 normals[WOW_MCVT_COUNT], wowVec3_t
 void Wow_NormalizeTerrainNormals(VECTOR3 normals[WOW_MCVT_COUNT]);
 void Wow_PushTerrainVertex(VERTEX *vertices, LPDWORD index, wowVec3_t pos, float const *heights, LPCVECTOR3 normal, int height_index, COLOR32 color);
 BOOL Wow_IsHole(WORD holes, int x, int y);
-void Wow_AddTerrainCell(VERTEX *vertices, LPDWORD index, wowVec3_t pos, float const *heights, VECTOR3 const normals[WOW_MCVT_COUNT], int x, int y, COLOR32 color);
+void Wow_AddTerrainCell(VERTEX *vertices, LPDWORD index, wowVec3_t pos, float const *heights, VECTOR3 const normals[WOW_MCVT_COUNT], int x, int y, COLOR32 const *mccv);
 BOOL Wow_BarycentricHeight(float px, float py, float ax, float ay, float ah, float bx, float by, float bh, float cx, float cy, float ch, float *height);
 BOOL Wow_HeightInCell(float const *heights, int row, int col, float fx, float fy, float *height);
 BOOL Wow_TerrainHeightAtPoint(float sx, float sy, float *height);
@@ -474,7 +476,7 @@ DWORD Wow_AlphaSlotForTexture(DWORD unique_texture_ids[4], DWORD *unique_count, 
 DWORD Wow_BuildUniqueTextureSlots(wowLayer_t const *layers, DWORD layer_count, DWORD slot_texture_ids[4]);
 void Wow_DecodeAlphaLayer(BYTE const *src, BYTE const *src_end, DWORD flags, DWORD mcnk_flags, BOOL big_alpha, BYTE out[WOW_ALPHA_TEXELS]);
 void Wow_DecodeAlphaMaps(BYTE const *mcal, DWORD mcal_size, wowLayer_t const *layers, DWORD layer_count, DWORD mcnk_flags, BYTE alpha[4][WOW_ALPHA_TEXELS]);
-void Wow_AddAdtChunk(wowVec3_t pos, DWORD alpha_index_x, DWORD alpha_index_y, WORD holes, uint64_t no_effect_mask, BYTE const alpha[4][WOW_ALPHA_TEXELS], wowLayer_t const *layers, DWORD layer_count, char **textures, DWORD num_textures, float const *heights, BYTE const *normals);
+void Wow_AddAdtChunk(wowVec3_t pos, DWORD alpha_index_x, DWORD alpha_index_y, WORD holes, uint64_t no_effect_mask, BYTE const alpha[4][WOW_ALPHA_TEXELS], wowLayer_t const *layers, DWORD layer_count, char **textures, DWORD num_textures, float const *heights, BYTE const *normals, COLOR32 const *mccv, BYTE const *mcsh);
 void Wow_FreeStringList(char **strings, DWORD count);
 char **Wow_ParseStringBlock(BYTE const *data, DWORD size, LPDWORD out_count);
 LPCSTR Wow_StringRefFromOffsets(BYTE const *blob, DWORD blob_size, DWORD const *offsets, DWORD offset_count, DWORD id);
@@ -498,7 +500,6 @@ void Wow_LoadAdtFile(DWORD tile_x, DWORD tile_y);
 BYTE const *Wow_FindMainChunk(BYTE const *data, DWORD size, LPDWORD main_size);
 void Wow_LoadWdtFlags(BYTE const *data, DWORD size);
 BOOL Wow_LoadWdtTiles(BYTE const *data, DWORD size);
-LPCSTR Wow_DbcString(BYTE const *string_block, DWORD string_size, DWORD offset);
 int Wow_AdtIndexForWorldCoord(float coord);
 void Wow_LoadMapDbcFlags(void);
 void Wow_LoadGroundEffectDBCs(void);
@@ -527,6 +528,8 @@ BOOL Wow_WmoGroupInView(wowWmoGroup_t const *group, LPCMATRIX4 matrix);
 BOOL Wow_WmoContainsPoint(wowWmoModel_t const *model, LPCMATRIX4 matrix, VECTOR3 point);
 void Wow_BindWorldTexture(LPCTEXTURE texture, DWORD unit, LPCTEXTURE bound[5], LPDWORD binds);
 void Wow_DrawMinimap(LPCRECT screen);
+FLOAT Wow_DayFraction(void);
+void Wow_SunDirection(FLOAT day_frac, LPVECTOR3 out);
 BOOL Wow_MakeSplatVertex(float x, float y, LPCVECTOR2 mins, float width, float height, COLOR32 color, LPVERTEX vertex);
 void Wow_AddSplatTriangle(LPVERTEX vertices, LPDWORD count, VERTEX a, VERTEX b, VERTEX c, float max_height_delta);
 

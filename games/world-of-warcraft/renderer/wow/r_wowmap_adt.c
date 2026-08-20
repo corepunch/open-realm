@@ -84,6 +84,8 @@ void Wow_LoadAdt(BYTE const *data, DWORD size, DWORD tile_x, DWORD tile_y) {
             DWORD layer_count = 0;
             BYTE const *mcal = NULL;
             DWORD mcal_size = 0;
+            COLOR32 const *mccv = NULL;
+            BYTE const *mcsh = NULL;
             float heights[WOW_MCVT_COUNT];
             BYTE normals[WOW_MCVT_COUNT * 3];
             BOOL has_heights = false;
@@ -126,6 +128,22 @@ void Wow_LoadAdt(BYTE const *data, DWORD size, DWORD tile_x, DWORD tile_y) {
                 } else if (*(DWORD const *)subtag == ID_LACM) {
                     mcal = subchunk;
                     mcal_size = sub_size;
+                } else if (*(DWORD const *)subtag == ID_VCCM && sub_size >= WOW_MCVT_COUNT * sizeof(COLOR32)) {
+                    mccv = (COLOR32 const *)subchunk;
+                } else if (*(DWORD const *)subtag == ID_HSCM && sub_size >= 512) {
+                    mcsh = subchunk;
+                } else if (*(DWORD const *)subtag == ID_FRCM) {
+                    /* MCRF: uint32[] indices into the tile's MDDF/MODF arrays for doodads/WMOs
+                       that overlap this cell. Not needed while we instantiate from root-level
+                       MDDF/MODF directly; required later for per-chunk visibility culling. */
+                } else if (*(DWORD const *)subtag == ID_ESCM) {
+                    /* MCSE: ambient sound emitter placement records. Audio system only. */
+                } else if (*(DWORD const *)subtag == ID_QLCM) {
+                    /* MCLQ: legacy inline liquid chunk (Vanilla / TBC). Contains water/lava/slime
+                       geometry as a 9×9 vertex grid with type flags. Superseded by MH2O in WotLK;
+                       needs its own liquid rendering pass to display Vanilla/TBC water. */
+                } else if (!is_mcnr) {
+                    fprintf(stderr, "WoW: unknown MCNK subchunk '%.4s' (%u bytes)\n", (char const *)subtag, sub_size);
                 }
                 sub += sub_size;
                 if (is_mcnr && sub_size == sizeof(normals) && sub + 13 <= chunk_size) {
@@ -139,8 +157,30 @@ void Wow_LoadAdt(BYTE const *data, DWORD size, DWORD tile_x, DWORD tile_y) {
                 (void)pred_tex;  /* TODO Phase 1: decode 2-bit per-cell layer map */
                 Wow_DecodeAlphaMaps(mcal, mcal_size, layers, layer_count, chunk_flags, alpha);
                 Wow_UploadAlphaAtlasChunk(atlas_index_x, atlas_index_y, alpha);
-                Wow_AddAdtChunk(pos, atlas_index_x, atlas_index_y, holes, no_effect_mask, alpha, layers, layer_count, textures, num_textures, heights, has_normals ? normals : NULL);
+                Wow_AddAdtChunk(pos, atlas_index_x, atlas_index_y, holes, no_effect_mask, alpha, layers, layer_count, textures, num_textures, heights, has_normals ? normals : NULL, mccv, mcsh);
             }
+        } else if (*(DWORD const *)tag == ID_REVM) {
+            /* MVER: file format version (always 18 for pre-Cata ADTs). Tag-driven
+               scanning makes this redundant; no action needed. */
+        } else if (*(DWORD const *)tag == ID_RDMM) {
+            /* MHDR: byte offsets to every other named chunk in the file. Sequential
+               tag scanning makes this redundant; no action needed. */
+        } else if (*(DWORD const *)tag == ID_NICM) {
+            /* MCIN: 256-entry {offset, size} index into the 16×16 MCNK grid. Sequential
+               scanning finds MCNK tags directly; no action needed. */
+        } else if (*(DWORD const *)tag == ID_O2HM) {
+            /* MH2O: WotLK liquid layer data (water, lava, slime). Replaces per-chunk MCLQ.
+               Complex format with per-cell depth, UV arrays and render flags; needs its
+               own liquid rendering pass to display WotLK+ water. */
+        } else if (*(DWORD const *)tag == ID_OBMF) {
+            /* MFBO: two 3×3 height planes defining the min/max flyable altitude per tile
+               quadrant. Flight-path clipping only; not relevant to terrain rendering. */
+        } else if (*(DWORD const *)tag == ID_FXTM) {
+            /* MTXF: uint32 flags array, one entry per MTEX texture. Flag 0x1 = environment
+               cube-map reflection; flag 0x2 = no mip-map. Needed for correct specular /
+               cubemap handling; wire up when implementing reflective surfaces. */
+        } else {
+            fprintf(stderr, "WoW: unknown ADT chunk '%.4s' (%u bytes)\n", (char const *)tag, chunk_size);
         }
 
         offset += chunk_size;
@@ -298,10 +338,6 @@ BOOL Wow_LoadWdtTiles(BYTE const *data, DWORD size) {
     return true;
 }
 
-LPCSTR Wow_DbcString(BYTE const *string_block, DWORD string_size, DWORD offset) {
-    return Stb_DbcString(string_block, string_size, offset);
-}
-
 int Wow_AdtIndexForWorldCoord(float coord) {
     return (int)floorf(32.0f - coord / WOW_ADT_SIZE);
 }
@@ -329,7 +365,7 @@ void Wow_LoadMapDbcFlags(void) {
 
         FOR_LOOP(field_index, h.fields) {
             DWORD string_offset = Wow_Read32(record + field_index * sizeof(DWORD));
-            LPCSTR value = Wow_DbcString(strings_base, h.string_size, string_offset);
+            LPCSTR value = Stb_DbcString(strings_base, h.string_size, string_offset);
             if (value && *value && !strcasecmp(value, wow_world.map_name)) {
                 directory_matches = true;
                 break;

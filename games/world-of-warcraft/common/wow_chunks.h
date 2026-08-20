@@ -32,19 +32,30 @@
 #define ID_RPOM MAKEFOURCC('R','P','O','M') /* MOPR — portal references per group */
 #define ID_NGOM MAKEFOURCC('N','G','O','M') /* MONG — group name */
 
-/* ADT */
-#define ID_XETM MAKEFOURCC('X','E','T','M') /* MTEX */
-#define ID_XDMM MAKEFOURCC('X','D','M','M') /* MMDX */
-#define ID_DIMM MAKEFOURCC('D','I','M','M') /* MMID */
-#define ID_OMWM MAKEFOURCC('O','M','W','M') /* MWMO */
-#define ID_DIWM MAKEFOURCC('D','I','W','M') /* MWID */
-#define ID_FDDM MAKEFOURCC('F','D','D','M') /* MDDF */
-#define ID_FDOM MAKEFOURCC('F','D','O','M') /* MODF */
-#define ID_KNCM MAKEFOURCC('K','N','C','M') /* MCNK */
-#define ID_RNCM MAKEFOURCC('R','N','C','M') /* MCNR */
-#define ID_TVCM MAKEFOURCC('T','V','C','M') /* MCVT */
-#define ID_YLCM MAKEFOURCC('Y','L','C','M') /* MCLY */
-#define ID_LACM MAKEFOURCC('L','A','C','M') /* MCAL */
+/* ADT — root chunks */
+#define ID_RDMM MAKEFOURCC('R','D','M','M') /* MHDR — file header (offsets to other chunks) */
+#define ID_NICM MAKEFOURCC('N','I','C','M') /* MCIN — 256-entry chunk index */
+#define ID_XETM MAKEFOURCC('X','E','T','M') /* MTEX — texture filename string block */
+#define ID_FXTM MAKEFOURCC('F','X','T','M') /* MTXF — per-texture flags (cubemap, no-mip, etc.) */
+#define ID_XDMM MAKEFOURCC('X','D','M','M') /* MMDX — M2 doodad filename string block */
+#define ID_DIMM MAKEFOURCC('D','I','M','M') /* MMID — byte offsets into MMDX */
+#define ID_OMWM MAKEFOURCC('O','M','W','M') /* MWMO — WMO filename string block */
+#define ID_DIWM MAKEFOURCC('D','I','W','M') /* MWID — byte offsets into MWMO */
+#define ID_FDDM MAKEFOURCC('F','D','D','M') /* MDDF — M2 doodad placement records */
+#define ID_FDOM MAKEFOURCC('F','D','O','M') /* MODF — WMO placement records */
+#define ID_O2HM MAKEFOURCC('O','2','H','M') /* MH2O — WotLK liquid/water layer data */
+#define ID_OBMF MAKEFOURCC('O','B','M','F') /* MFBO — flight-bounds height planes */
+/* ADT — MCNK subchunks */
+#define ID_KNCM MAKEFOURCC('K','N','C','M') /* MCNK — terrain chunk body */
+#define ID_RNCM MAKEFOURCC('R','N','C','M') /* MCNR — packed per-vertex normals */
+#define ID_TVCM MAKEFOURCC('T','V','C','M') /* MCVT — per-vertex height grid */
+#define ID_YLCM MAKEFOURCC('Y','L','C','M') /* MCLY — texture layer records */
+#define ID_LACM MAKEFOURCC('L','A','C','M') /* MCAL — alpha blend maps */
+#define ID_VCCM MAKEFOURCC('V','C','C','M') /* MCCV — per-vertex baked lighting (WotLK+) */
+#define ID_HSCM MAKEFOURCC('H','S','C','M') /* MCSH — 64×64-bit baked shadow map */
+#define ID_FRCM MAKEFOURCC('F','R','C','M') /* MCRF — doodad/WMO ref index list */
+#define ID_ESCM MAKEFOURCC('E','S','C','M') /* MCSE — ambient sound emitter records */
+#define ID_QLCM MAKEFOURCC('Q','L','C','M') /* MCLQ — legacy inline liquid (Vanilla/TBC) */
 
 /* WDT */
 #define ID_NIAM MAKEFOURCC('N','I','A','M') /* MAIN */
