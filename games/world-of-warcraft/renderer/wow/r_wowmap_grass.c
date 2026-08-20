@@ -421,9 +421,10 @@ void Wow_BuildGrassForChunk(wowAdtChunk_t *chunk,
                     Wow_GroundEffectWeights(ground_effect, weights);
                     if (!weights[0] && !weights[1] && !weights[2] && !weights[3]) continue;
                     DWORD di = Wow_SelectDoodadFromWeights(weights, &seed);
-                    wowGroundEffectDoodad_t *doodad = Wow_GetGroundEffectDoodad(ground_effect->doodad_id[di]);
+                    DWORD did = ground_effect->doodad_id[di];
+                    if (!did) continue; /* id=0 means empty slot in GroundEffectTexture; not an error */
+                    wowGroundEffectDoodad_t *doodad = Wow_GetGroundEffectDoodad(did);
                     if (!doodad) {
-                        DWORD did = ground_effect->doodad_id[di];
                         if (did < WOW_GRASS_DOODAD_LOGGED_IDS && !missing_logged[did]) {
                             fprintf(stderr, "[GRASS] missing GroundEffectDoodad id=%u for effect=%u\n", (unsigned)did, (unsigned)effect_id);
                             missing_logged[did] = true;

@@ -180,7 +180,14 @@ void Wow_LoadAdt(BYTE const *data, DWORD size, DWORD tile_x, DWORD tile_y) {
                cube-map reflection; flag 0x2 = no mip-map. Needed for correct specular /
                cubemap handling; wire up when implementing reflective surfaces. */
         } else {
-            fprintf(stderr, "WoW: unknown ADT chunk '%.4s' (%u bytes)\n", (char const *)tag, chunk_size);
+            /* Log each unknown tag at most once across all tile loads. */
+            static DWORD seen[16]; static DWORD seen_n = 0;
+            DWORD t = *(DWORD const *)tag; BOOL logged = false;
+            for (DWORD i = 0; i < seen_n; i++) if (seen[i] == t) { logged = true; break; }
+            if (!logged) {
+                fprintf(stderr, "WoW: unknown ADT chunk '%.4s' (%u bytes)\n", (char const *)tag, chunk_size);
+                if (seen_n < 16) seen[seen_n++] = t;
+            }
         }
 
         offset += chunk_size;
