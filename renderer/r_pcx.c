@@ -112,11 +112,7 @@ LPTEXTURE R_LoadTexturePCX(HANDLE data, DWORD filesize) {
     R_LoadTextureMipLevel(texture, 0, pixels, width, height);
 
 done:
-    if (rows) {
-        ri.MemFree(rows);
-    }
-    if (pixels) {
-        ri.MemFree((HANDLE)pixels);
-    }
+    SAFE_DELETE(rows, ri.MemFree);
+    SAFE_DELETE(pixels, ri.MemFree);
     return texture;
 }

@@ -90,6 +90,48 @@ static void Wow_AllocWmoArray(wowWmoModel_t *model, BYTE const *chunk, DWORD chu
     if (*ptr) memcpy(*ptr, chunk, *count * elem_size);
 }
 
+/* Root chunks with bespoke logic (scalar headers / owned blobs) map to these. */
+static void Wow_LoadMohd(wowWmoModel_t *model, BYTE const *chunk, DWORD chunk_size) {
+    if (chunk_size < 8) return;
+    model->num_groups = Wow_Read32(chunk + 4);
+    if (chunk_size >= 0x10) model->n_lights = Wow_Read32(chunk + 0x0C);
+    if (chunk_size >= 0x20) {
+        /* MOHD ambColor is BGRA in file; store with .r=R .g=G .b=B */
+        model->amb_color.r = chunk[0x1E];
+        model->amb_color.g = chunk[0x1D];
+        model->amb_color.b = chunk[0x1C];
+        model->amb_color.a = chunk[0x1F];
+    }
+    if (chunk_size >= 0x32) model->mohd_flags = Wow_Read16(chunk + 0x30);
+}
+
+static void Wow_LoadModn(wowWmoModel_t *model, BYTE const *chunk, DWORD chunk_size) {
+    if (!chunk_size) return;
+    /* MODN: null-terminated doodad model filename blob */
+    model->doodad_name_blob = ri.MemAlloc(chunk_size + 1);
+    if (model->doodad_name_blob) {
+        memcpy(model->doodad_name_blob, chunk, chunk_size);
+        model->doodad_name_blob[chunk_size] = '\0';
+        model->doodad_name_blob_size = chunk_size;
+    }
+}
+
+static const struct { DWORD tag; void (*load)(wowWmoModel_t *, BYTE const *, DWORD); } kRootLoaders[] = {
+    { ID_DHOM, Wow_LoadMohd },
+    { ID_NDOM, Wow_LoadModn },
+};
+
+/* Dispatch a root chunk: bespoke loaders first, then the pointer+count and array tables. */
+static void Wow_ParseRootChunk(wowWmoModel_t *model, wowWmoRootChunks_t *chunks,
+                               DWORD tag, BYTE const *chunk, DWORD chunk_size) {
+    FOR_LOOP(i, sizeof(kRootLoaders) / sizeof(*kRootLoaders))
+        if (tag == kRootLoaders[i].tag) { kRootLoaders[i].load(model, chunk, chunk_size); return; }
+    FOR_LOOP(i, sizeof(kRootRefs) / sizeof(*kRootRefs))
+        if (tag == kRootRefs[i].tag) { Wow_FillRef(chunks, chunk, chunk_size, kRootRefs[i].ptr_off, kRootRefs[i].count_off, kRootRefs[i].elem_size); return; }
+    FOR_LOOP(i, sizeof(kRootArrays) / sizeof(*kRootArrays))
+        if (tag == kRootArrays[i].tag) { Wow_AllocWmoArray(model, chunk, chunk_size, kRootArrays[i].count_off, kRootArrays[i].ptr_off, kRootArrays[i].elem_size); return; }
+}
+
 static DWORD Wow_WmoMaterialSlot(DWORD material_id, LPTEXTURE const *materials,
                                    BYTE const *blend_modes, DWORD count) {
     LPTEXTURE texture = material_id < count ? materials[material_id] : tr.texture[TEX_WHITE];
@@ -184,9 +226,8 @@ void Wow_FixMocvAlpha(BYTE *colors, DWORD color_count,
                               BOOL exterior) {
     BOOL skip_base = (mohd_flags & 0x04) != 0;
     BOOL lighten   = (mohd_flags & 0x02) != 0;
-    BYTE ambR = skip_base ? 0 : amb.r;
-    BYTE ambG = skip_base ? 0 : amb.g;
-    BYTE ambB = skip_base ? 0 : amb.b;
+    /* MOCV is BGRA; keep ambient in that same B,G,R channel order for the loop. */
+    BYTE amb_c[3] = { skip_base ? 0 : amb.b, skip_base ? 0 : amb.g, skip_base ? 0 : amb.r };
     int begin_second = 0;
     DWORD i;
 
@@ -204,12 +245,7 @@ void Wow_FixMocvAlpha(BYTE *colors, DWORD color_count,
     /* Batch-A (transparent) vertices: pre-multiply rgb by (1 - alpha), subtract ambient */
     for (i = 0; i < (DWORD)begin_second && i < color_count; i++) {
         float a = colors[i * 4 + 3] / 255.f;
-        int r = (int)colors[i * 4 + 2]; /* BGRA: +2 = R */
-        int g = (int)colors[i * 4 + 1];
-        int b = (int)colors[i * 4 + 0];
-        colors[i * 4 + 2] = (BYTE)MAX(0, (int)((r - ambR) * (1.f - a) / 2.f));
-        colors[i * 4 + 1] = (BYTE)MAX(0, (int)((g - ambG) * (1.f - a) / 2.f));
-        colors[i * 4 + 0] = (BYTE)MAX(0, (int)((b - ambB) * (1.f - a) / 2.f));
+        FOR_LOOP(c, 3) colors[i * 4 + c] = BZ_CLAMP_U8((colors[i * 4 + c] - amb_c[c]) * (1.f - a) / 2.f);
         /* alpha left as authored for batch-A */
     }
 
@@ -217,12 +253,10 @@ void Wow_FixMocvAlpha(BYTE *colors, DWORD color_count,
        Shader multiplies by 2 to cancel the /2 here. */
     for (i = (DWORD)begin_second; i < color_count; i++) {
         float a = colors[i * 4 + 3] / 255.f;
-        int r = (int)colors[i * 4 + 2];
-        int g = (int)colors[i * 4 + 1];
-        int b = (int)colors[i * 4 + 0];
-        colors[i * 4 + 2] = (BYTE)MIN(255, MAX(0, (int)((r * a / 64.f + r - ambR) / 2.f)));
-        colors[i * 4 + 1] = (BYTE)MIN(255, MAX(0, (int)((g * a / 64.f + g - ambG) / 2.f)));
-        colors[i * 4 + 0] = (BYTE)MIN(255, MAX(0, (int)((b * a / 64.f + b - ambB) / 2.f)));
+        FOR_LOOP(c, 3) {
+            int v = colors[i * 4 + c];
+            colors[i * 4 + c] = BZ_CLAMP_U8((v * a / 64.f + v - amb_c[c]) / 2.f);
+        }
         colors[i * 4 + 3] = exterior ? 0xFF : 0x00;
     }
 }
@@ -291,12 +325,12 @@ static BOOL Wow_LoadWmoGroup(wowWmoModel_t *model, DWORD group_index, WOWWMOLOAD
         offset += chunk_size;
     }
 
-    if (!chunks.vertices || !chunks.indices || !ARRAY_COUNT(chunks.vertices) || !ARRAY_COUNT(chunks.indices)) {
+    if (IS_ARRAY_EMPTY(chunks.vertices) || IS_ARRAY_EMPTY(chunks.indices)) {
         fprintf(stderr, "WoW WMO: group %s has no drawable geometry\n", group_path);
         goto cleanup;
     }
 
-    if (chunks.colors && ARRAY_COUNT(chunks.colors)) {
+    if (!IS_ARRAY_EMPTY(chunks.colors)) {
         colors_copy = ri.MemAlloc(ARRAY_COUNT(chunks.colors) * 4);
         if (colors_copy) {
             memcpy(colors_copy, chunks.colors, ARRAY_COUNT(chunks.colors) * 4);
@@ -398,7 +432,6 @@ BOOL Wow_LoadWmoModel(wowWmoModel_t *model) {
     LPBYTE data = NULL;
     int size;
     DWORD offset = 0;
-    DWORD group_count = 0;
     wowWmoRootChunks_t chunks = { 0 };
     LPTEXTURE *materials = NULL;
     BYTE *mat_blend_modes = NULL;
@@ -416,48 +449,12 @@ BOOL Wow_LoadWmoModel(wowWmoModel_t *model) {
         DWORD chunk_size = Wow_Read32(data + offset + 4);
         BYTE const *chunk = data + offset + 8;
         offset += 8;
-        if (offset + chunk_size > (DWORD)size) {
-            break;
-        }
-        if (*(DWORD const *)tag == ID_DHOM && chunk_size >= 8) {
-            group_count = Wow_Read32(chunk + 4);
-            if (chunk_size >= 0x10) model->n_lights = Wow_Read32(chunk + 0x0C);
-            if (chunk_size >= 0x20) {
-                /* MOHD ambColor is BGRA in file; store with .r=R .g=G .b=B */
-                model->amb_color.r = chunk[0x1E];
-                model->amb_color.g = chunk[0x1D];
-                model->amb_color.b = chunk[0x1C];
-                model->amb_color.a = chunk[0x1F];
-            }
-            if (chunk_size >= 0x32) model->mohd_flags = Wow_Read16(chunk + 0x30);
-        } else if (*(DWORD const *)tag == ID_NDOM && chunk_size > 0) {
-            /* MODN: null-terminated doodad model filename blob */
-            model->doodad_name_blob = ri.MemAlloc(chunk_size + 1);
-            if (model->doodad_name_blob) {
-                memcpy(model->doodad_name_blob, chunk, chunk_size);
-                model->doodad_name_blob[chunk_size] = '\0';
-                model->doodad_name_blob_size = chunk_size;
-            }
-        } else {
-            DWORD tag_id = *(DWORD const *)tag;
-            BOOL handled = false;
-            FOR_LOOP(i, sizeof(kRootRefs) / sizeof(*kRootRefs))
-                if (tag_id == kRootRefs[i].tag) {
-                    Wow_FillRef(&chunks, chunk, chunk_size, kRootRefs[i].ptr_off, kRootRefs[i].count_off, kRootRefs[i].elem_size);
-                    handled = true;
-                    break;
-                }
-            if (!handled)
-                FOR_LOOP(i, sizeof(kRootArrays) / sizeof(*kRootArrays))
-                    if (tag_id == kRootArrays[i].tag) {
-                        Wow_AllocWmoArray(model, chunk, chunk_size, kRootArrays[i].count_off, kRootArrays[i].ptr_off, kRootArrays[i].elem_size);
-                        break;
-                    }
-        }
+        if (offset + chunk_size > (DWORD)size) break;
+        Wow_ParseRootChunk(model, &chunks, *(DWORD const *)tag, chunk, chunk_size);
         offset += chunk_size;
     }
 
-    if (!group_count) {
+    if (!model->num_groups) {
         fprintf(stderr, "WoW WMO: %s has no groups\n", model->path);
         goto cleanup;
     }
@@ -486,10 +483,9 @@ BOOL Wow_LoadWmoModel(wowWmoModel_t *model) {
     memset(load.builds, 0, load.build_count * sizeof(*load.builds));
     FOR_LOOP(i, load.build_count) load.builds[i].texture = i % load.slot_count < chunks.material_count ? materials[i % load.slot_count] : tr.texture[TEX_WHITE];
 
-    model->groups = ri.MemAlloc(sizeof(*model->groups) * group_count);
-    memset(model->groups, 0, sizeof(*model->groups) * group_count);
-    model->num_groups = group_count;
-    FOR_LOOP(i, group_count)
+    model->groups = ri.MemAlloc(sizeof(*model->groups) * model->num_groups);
+    memset(model->groups, 0, sizeof(*model->groups) * model->num_groups);
+    FOR_LOOP(i, model->num_groups)
         if (!Wow_LoadWmoGroup(model, i, &load)) goto cleanup;
 
     /* Duplicate group geometry once on the GPU so dense views bind each material once per WMO instance. */

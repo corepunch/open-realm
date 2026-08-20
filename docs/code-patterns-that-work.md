@@ -135,10 +135,13 @@ FOR_EACH_ARRAY(WORD const, idx, chunks.indices)   // pointer loop
 FOR_LOOP(i, ARRAY_COUNT(chunks.indices))          // index loop when i is needed
     emit(chunks.indices[i], i / 3);
 
+if (IS_ARRAY_EMPTY(chunks.vertices))               // NULL pointer OR zero count
+    fail();
+
 ri.MemAlloc(ARRAY_COUNT(chunks.vertices) * sizeof(*chunks.vertices));
 ```
 
-`ARRAY_COUNT(name)` reads the paired count; `FOR_EACH_ARRAY(type, it, name)` walks elements by pointer; `FOR_LOOP(i, ARRAY_COUNT(name))` covers index-based iteration. The macros live next to `FOR_LOOP`/`FOR_EACH` in `common/shared.h`.
+`ARRAY_COUNT(name)` reads the paired count; `IS_ARRAY_EMPTY(name)` tests both pointer and count; `FOR_EACH_ARRAY(type, it, name)` walks elements by pointer; `FOR_LOOP(i, ARRAY_COUNT(name))` covers index-based iteration. The macros live next to `FOR_LOOP`/`FOR_EACH` in `common/shared.h`.
 
 ## Enum over multiple booleans
 
