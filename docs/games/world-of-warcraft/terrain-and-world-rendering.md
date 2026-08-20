@@ -114,6 +114,22 @@ Classic WMO surface lighting is group-authored. Group `MOCV` stores BGRA baked v
 
 Northshire's `NSAbbey.wmo` confirms the contract in the shipped Classic data: 14 groups and 42 `MOLT` lights; its interior groups have matching `MOVT`/`MONR`/`MOCV` counts, while an exterior group has `MONR` but no `MOCV`. `MOLT` is not surface lighting: Classic format research identifies `MOCV` as the only lighting for interior WMO geometry and describes the root lights as inputs for M2 doodads and characters. Preserve `MOLT` for the future WMO-contained doodad lighting path; do not add its lights to WMO wall shading and double-light the baked result.
 
+The correct shader formula in `r_wowmap_shader.c`:
+
+```glsl
+// WMO path: v_color.rgb is MOCV fixup-corrected (pre-baked lighting / 2)
+// 2× multiplication cancels the /2 in Wow_FixMocvAlpha
+color.rgb = color.rgb * 2.0 * v_color.rgb + (uWmoAmbient + uWmoLightAdd) * (1.0 - extBlend);
+```
+
+Where `extBlend = v_color.a` (1.0 for exterior batches, 0.0 for interior). Key invariants:
+
+- `Wow_FixMocvAlpha` (CPU, `r_wowmap_objects.c`) divides raw BGRA values by 2. The shader 2× cancels only that division — it must not wrap the ambient/MOLT terms.
+- `uWmoAmbient` (`MOHD amb_color / 255`) and `uWmoLightAdd` (`Wow_ComputeMoltContribution`) are additive after the MOCV term, never inside the 2×.
+- `v_lighting` (N·L directional) is terrain-only. WMO geometry has baked normals; applying it doubles outdoor sun on pre-lit surfaces.
+- Ambient and MOLT apply only to interior batches (`1.0 - extBlend`): exterior MOCV already contains the outdoor sun bake.
+- **Overbright bug (old formula):** `color.rgb *= 2.0 * (ambient + lightAdd + MOCV + lighting * extBlend)`. For a neutral wall (`MOCV=0.5`, `lighting=0.75`): `2×(0.5+0.75) = 2.5×` — dramatically overbright.
+
 The current opaque same-texture coalescing does not yet implement the full `MOMT` blend-mode and MOGP batch A/B/C ordering contract. Add material blend classification before enabling WMO transparency; keep transparent batches ordered rather than folding them into the opaque model-wide buffers.
 
 WMO group bounds are rejected when their transformed bounding sphere lies wholly
@@ -162,6 +178,21 @@ The useful analogy is one streamed world plus many reusable inline brush models,
 Quake II can load the whole BSP eagerly because a map is one bounded file. Azeroth cannot eagerly retain every ADT and WMO. Preserve the 16-ADT working set and shared path-keyed WMO collision cache, but move asset discovery out of the hot trace when streaming work is added: expose a `CM_WowPrepareArea(origin, radius)`-style collision-world operation, call it from authoritative game movement/spawn lifecycle, and incrementally load nearby ADT instance tables and referenced WMO collision models. `CM_WowFloorHeight` should then be a query over prepared state, with synchronous loading retained only until that streaming lifecycle exists. Do not expose raw WMO structs across the game/common boundary.
 
 Naming should follow the existing engine convention: public collision-world operations use `CM_*`; private format loaders use `CMod_*`-style names if `world_wow.c` is split into a dedicated WMO collision loader; renderer registration remains `R_*`/`Wow_LoadWmoModel`. Do not reuse `R_LoadModel` or game `G_RegisterModel` for collision WMOs—their lifetimes and data are different.
+
+### WMO Draw Performance
+
+Root cause of 3fps regression: `Wow_QueueWmoDoodads` (`r_wowmap_objects.c`) called every frame for all WMO instances. Inside: `Wow_LoadDoodadModel` performs an O(n) `strcasecmp` linked-list scan; a second O(n) scan finds the `wowDoodadModel_t *group`. With 43 WMOs × ~100 doodad defs = 4300 lookups/frame at O(200), the profiler confirmed 860K `strcasecmp_l` calls/frame (78% of frame time).
+
+Fixes applied:
+
+1. **`def_groups` cache** (`wowWmoModel_t`): `wowDoodadModel_t **def_groups` populated on first `Wow_QueueWmoDoodads` call per model. Subsequent frames use O(1) pointer lookup; freed in `Wow_FreeWmoModels`.
+2. **Move-to-front** in `Wow_LoadDoodadModel` (`r_wowmap_objects.c`): after a cache hit, the entry moves to the front of `wow_world.doodad_models`. Grass generates 465K calls with 14 unique models — after the first batch, each model hits at position 0.
+3. **WMO precompute** (`r_wowmap.c`, `Wow_DrawTerrainAndWmos`): `Matrix3_normal`, `Wow_WmoContainsPoint`, `Wow_ComputeMoltContribution`, and group visibility count computed once per WMO, cached in a `wmo_cache[]` stack array (max 256 entries). Invisible WMOs (vis=0) excluded before GPU work; WMOs with no transparent batches skip pass 1.
+4. **Constant uniforms hoisted**: `uUseWeightedBlend=0` and `uAlphaOrigin=(0,0)` set once before the WMO loop, not per-WMO per pass.
+
+Measured results (M1 Pro, Eastern Kingdoms, Northshire): 3fps → 50fps after `def_groups` cache; → 60fps after WMO precompute + skip; 97fps with `r_wmos 0`; 120fps (vsync) with `r_wmos 0` + `r_grass 0`.
+
+Remaining cost: 43 visible WMOs × 2 passes ≈ 6ms/frame; grass height atlas (465K instanced blades) ≈ 2ms/frame; together they exceed the 8.33ms 120Hz boundary → 60fps vsync. Path to 120fps: UBO-based per-WMO matrices (eliminates per-WMO `glUniform*` per pass) or portal-based group visibility (reduces groups drawn per frame).
 
 ## Distance Fog And Hard Clip
 

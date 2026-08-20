@@ -36,6 +36,8 @@ make run-wow ARGS="+map 1 +warp crossroads"
 
 `+warp` is a deferred client command — it fires after the player has connected and the map is loaded.
 
+> **Note:** These command combinations work regardless of which character race is set as default. If the default race has no `playercreateinfo` spawn on the target map, `Wow_SpawnEntities` falls back to any available spawn on that map and logs a warning; the `+warp` then repositions the player normally. See [spawn-and-teleport.md](spawn-and-teleport.md) for fallback details.
+
 ## The `warp` Command
 
 **In-game usage:** type `warp <name>` in the console.
