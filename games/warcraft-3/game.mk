@@ -1,3 +1,7 @@
+ZIP_URL  := https://archive.org/download/warcraft-iii-installer-enus/Warcraft-III-1.29.2-enUS.zip
+ZIP_FILE := Warcraft-III-1.29.2-enUS.zip
+DATA_DIR := data
+
 WC3DATA  := data/Warcraft\ III
 DEMODATA := data/Warcraft3demo
 MPQ      := $(WC3DATA)/War3.mpq
@@ -93,6 +97,10 @@ $(eval $(call unity_lib_schema,$(GAME_WC3_TEST_LIB),$(GAME_BASE_DEPS) $(JASS_LIB
 $(eval $(call app_schema,$(WC3_TEST_BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) $(GAME_WC3_TEST_LIB) $(RENDERER_LIB) $(UI_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS),openwarcraft3-tests,$(WC3_FDF_CFLAGS) -DBZ_TESTS,-lsheet -lshared -ljass -lgame-wc3-test -lrenderer -lui $(LIBS) -lz))
 
 openwarcraft3-tests: $(WC3_TEST_BINARY)
+
+WC3_ENGINE_TEST_DIR    := $(TESTS_DIR)/wc3-engine-data
+WC3_ENGINE_TEST_MPQ    := $(WC3_ENGINE_TEST_DIR)/test-wc3.mpq
+WC3_ENGINE_FIXTURE_DIR := tests/wc3-engine-data
 
 WC3_PATTERN ?= *
 test-wc3-engine: $(WC3_TEST_BINARY) | test-wc3-engine-assets
@@ -199,4 +207,25 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 $(TESTS_DIR):
 	@mkdir -p $@
 
-WC3_PHONY := wc3-build jass-tool jass sheet renderer game ui openwarcraft3 run run-demo run-map run-ui-text test test-commands test-server-net test-renderer-model test-ui test-mpq-compat test-assets test-render-golden update-render-golden openwarcraft3-tests test-wc3-engine test-wow-wmo test-wow-wmo-assets
+download: $(ZIP_FILE)
+	mkdir -p $(DATA_DIR)
+	unzip -o $(ZIP_FILE) -d $(DATA_DIR)
+
+$(ZIP_FILE):
+	curl -L -o $(ZIP_FILE) $(ZIP_URL)
+
+# ---------------------------------------------------------------------------
+# test-wc3-engine-assets — pack minimal SLK fixture for in-engine WC3 tests
+# ---------------------------------------------------------------------------
+test-wc3-engine-assets: mpqtool | $(TESTS_DIR)
+	@echo "[test-wc3-engine-assets] packing test-wc3.mpq"
+	@mkdir -p $(WC3_ENGINE_TEST_DIR)
+	@set --; \
+	for f in $$(find $(WC3_ENGINE_FIXTURE_DIR) -type f | sort); do \
+		rel=$${f#$(WC3_ENGINE_FIXTURE_DIR)/}; set -- "$$@" "$$f" "$$rel"; \
+	done; \
+	$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WC3_ENGINE_TEST_MPQ) pack "$$@"
+	@echo "[test-wc3-engine-assets] verifying archive"
+	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WC3_ENGINE_TEST_MPQ) cat Units/UnitBalance.slk | grep -q "hpea" && echo "  cat SLK OK"
+
+WC3_PHONY := wc3-build jass-tool jass sheet renderer game ui openwarcraft3 run run-demo run-map run-ui-text test test-commands test-server-net test-renderer-model test-ui test-mpq-compat test-assets test-render-golden update-render-golden openwarcraft3-tests test-wc3-engine test-wc3-engine-assets download
