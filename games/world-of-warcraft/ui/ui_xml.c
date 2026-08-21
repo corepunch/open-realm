@@ -5,8 +5,7 @@
 #include "client/ui_text_input.h"
 
 #include <ctype.h>
-#include <libxml/parser.h>
-#include <libxml/tree.h>
+#include "common/tinyxml.h"
 #include <limits.h>
 #if defined(__has_include)
 #if __has_include(<SDL2/SDL_keycode.h>)

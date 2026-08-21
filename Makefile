@@ -78,6 +78,21 @@ endif
 
 SHARED_LIB := $(LIB_DIR)/libshared$(LIB_EXT)
 
+# Vendored Lua 5.4 (checked in under vendor/lua, compiled like Quake 3's jpeg).
+# The interpreter/compiler drivers (lua.c, luac.c) are excluded; only the VM
+# library is built, into a static archive linked by the WoW UI module.
+LUA_DIR    := vendor/lua/src
+LUA_SRCS   := $(filter-out $(LUA_DIR)/lua.c $(LUA_DIR)/luac.c, $(wildcard $(LUA_DIR)/*.c))
+LUA_OBJ    := $(LIB_DIR)/lua.o
+LUA_LIB    := $(LIB_DIR)/liblua.a
+LUA_CFLAGS := -I$(LUA_DIR)
+
+$(LUA_LIB): $(LUA_SRCS) $(wildcard $(LUA_DIR)/*.h) | $(LIB_DIR)
+	@echo "[lua]"
+	@$(call UNITY,$(LUA_DIR),! -name 'lua.c' ! -name 'luac.c') | \
+		$(CC) $(CFLAGS) $(LUA_CFLAGS) -c -x c -o $(LUA_OBJ) -
+	@ar rcs $@ $(LUA_OBJ)
+
 TOOL_SRCS := $(shell find tools -maxdepth 1 -name '*.c' ! -name 'jass.c' | sort)
 TOOL_NAMES := $(patsubst tools/%.c,%,$(TOOL_SRCS))
 TOOL_BINS := $(addprefix $(BIN_DIR)/,$(addsuffix $(EXE_EXT),$(TOOL_NAMES)))

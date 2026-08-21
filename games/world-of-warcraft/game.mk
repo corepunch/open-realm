@@ -19,11 +19,8 @@ WOW_COMMON_SRCS  := $(shell find $(WOW_DIR)/common -name '*.c' 2>/dev/null | sor
 
 WOW_CFLAGS      := $(CFLAGS) -I$(WOW_DIR) -I$(WOW_DIR)/game -DWOW -DOW3_LOAD_ALL_MPQS -Wno-unused-function
 WOW_TEST_CFLAGS := $(WOW_CFLAGS) -DTOOL_COMMON_NO_MPQ -Itests -Ishared
-LUA_CFLAGS      := $(shell pkg-config --cflags lua5.4 2>/dev/null || pkg-config --cflags lua 2>/dev/null)
-LUA_LIBS        := $(shell pkg-config --libs lua5.4 2>/dev/null || pkg-config --libs lua 2>/dev/null)
-WOW_XML_CFLAGS  := $(shell pkg-config --cflags libxml-2.0 2>/dev/null || xml2-config --cflags 2>/dev/null) -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/libxml2
-WOW_XML_LIBS    := $(shell pkg-config --libs libxml-2.0 2>/dev/null || xml2-config --libs 2>/dev/null)
-WOW_UI_CFLAGS   := $(WOW_CFLAGS) $(LUA_CFLAGS) $(WOW_XML_CFLAGS) -DSTB_WOW_XML_IMPLEMENTATION
+LUA_LIBS        := -llua
+WOW_UI_CFLAGS   := $(WOW_CFLAGS) $(LUA_CFLAGS) -DSTB_WOW_XML_IMPLEMENTATION
 
 renderer-wow: $(RENDERER_WOW_LIB)
 game-wow:     $(GAME_WOW_LIB)
@@ -107,9 +104,9 @@ $(WOW_GENERATED_DIR)/g_%.c: $(WOW_GENERATOR) $(WOW_DIR)/serverdata/%.csv
 
 $(eval $(call unity_lib_schema,$(RENDERER_WOW_LIB),$(RENDERER_BASE_DEPS) $(call CSRC,renderer $(WOW_DIR)/renderer),renderer-wow,renderer $(WOW_DIR)/renderer,,$(WOW_CFLAGS),common/mpq.c,$(RENDERER_SHARED_LIBS)))
 
-$(eval $(call unity_lib_schema,$(GAME_WOW_LIB),$(GAME_BASE_DEPS) $(WOW_GENERATED_SRCS) common/world.c $(WOW_COMMON_SRCS) $(call CSRC,$(WOW_DIR)/game),game-wow,$(WOW_DIR)/game,,$(WOW_CFLAGS),common/mpq.c,-lshared $(LIBS) -lm -lz))
+$(eval $(call unity_lib_schema,$(GAME_WOW_LIB),$(GAME_BASE_DEPS) $(WOW_GENERATED_SRCS) common/world.c $(WOW_COMMON_SRCS) $(call CSRC,$(WOW_DIR)/game),game-wow,$(WOW_DIR)/game,,$(WOW_CFLAGS),common/mpq.c $(SERVER_GAME_SRCS),-lshared $(LIBS) -lm -lz))
 
-$(eval $(call unity_lib_schema,$(UI_WOW_LIB),$(UI_BASE_DEPS) client/ui.h $(call CSRC,$(WOW_DIR)/ui),ui-wow,$(WOW_DIR)/ui,,$(WOW_UI_CFLAGS),,-lshared $(LUA_LIBS) $(WOW_XML_LIBS)))
+$(eval $(call unity_lib_schema,$(UI_WOW_LIB),$(UI_BASE_DEPS) client/ui.h $(LUA_LIB) $(call CSRC,$(WOW_DIR)/ui),ui-wow,$(WOW_DIR)/ui,,$(WOW_UI_CFLAGS),,-lshared $(LUA_LIBS)))
 
 $(eval $(call app_schema,$(WOW_BINARY),$(SHARED_LIB) $(SHEET_LIB) $(GAME_WOW_LIB) $(RENDERER_WOW_LIB) $(UI_WOW_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS),openwow,$(WOW_CFLAGS),-lsheet -lshared -lgame-wow -lrenderer-wow -lui-wow $(LIBS) -lz))
 
@@ -119,7 +116,7 @@ $(eval $(call app_schema,$(WOW_BINARY),$(SHARED_LIB) $(SHEET_LIB) $(GAME_WOW_LIB
 GAME_WOW_TEST_LIB := $(LIB_DIR)/libgame-wow-test$(LIB_EXT)
 WOW_TEST_BINARY   := $(BIN_DIR)/openwow-tests$(EXE_EXT)
 
-$(eval $(call unity_lib_schema,$(GAME_WOW_TEST_LIB),$(GAME_BASE_DEPS) $(WOW_GENERATED_SRCS) common/world.c $(WOW_COMMON_SRCS) $(call CSRC,$(WOW_DIR)/game) $(RENDERER_WOW_LIB),game-wow-test,$(WOW_DIR)/game,,$(WOW_CFLAGS) -DBZ_TESTS,common/mpq.c,-lshared -lrenderer-wow $(LIBS) -lm -lz))
+$(eval $(call unity_lib_schema,$(GAME_WOW_TEST_LIB),$(GAME_BASE_DEPS) $(WOW_GENERATED_SRCS) common/world.c $(WOW_COMMON_SRCS) $(call CSRC,$(WOW_DIR)/game) $(RENDERER_WOW_LIB),game-wow-test,$(WOW_DIR)/game,,$(WOW_CFLAGS) -DBZ_TESTS,common/mpq.c $(SERVER_GAME_SRCS),-lshared -lrenderer-wow $(LIBS) -lm -lz))
 $(eval $(call app_schema,$(WOW_TEST_BINARY),$(SHARED_LIB) $(SHEET_LIB) $(GAME_WOW_TEST_LIB) $(RENDERER_WOW_LIB) $(UI_WOW_LIB) $(APP_SRCS) $(CLIENT_HEADERS) $(COMMON_HEADERS),openwow-tests,$(WOW_CFLAGS),-lsheet -lshared -lgame-wow-test -lrenderer-wow -lui-wow $(LIBS) -lz))
 
 openwow-tests: $(WOW_TEST_BINARY)
@@ -134,7 +131,7 @@ test-wow-engine: $(WOW_TEST_BINARY) | test-wow-engine-assets
 WOW_TEST_RES_DIR    := $(TESTS_DIR)/wow-resources
 WOW_TEST_SRC_DIR    := $(WOW_TEST_DIR)/resources-src
 WOW_TEST_MPQ        := $(TESTS_DIR)/test-wow.mpq
-WOW_UI_TEST_CFLAGS  := $(WOW_TEST_CFLAGS) $(LUA_CFLAGS) $(WOW_XML_CFLAGS) -DTEST_WOW_MPQ=\"$(WOW_TEST_MPQ)\"
+WOW_UI_TEST_CFLAGS  := $(WOW_TEST_CFLAGS) $(LUA_CFLAGS) -DTEST_WOW_MPQ=\"$(WOW_TEST_MPQ)\"
 WOW_WMO_TEST_DATA_DIR := $(TESTS_DIR)/wow-wmo-data
 WOW_WMO_TEST_MPQ    := $(TESTS_DIR)/test-wow-wmo.mpq
 WOW_WMO_TEST_CFLAGS := $(WOW_TEST_CFLAGS) -DTEST_WOW_WMO_MPQ=\"$(WOW_WMO_TEST_MPQ)\"
@@ -143,9 +140,9 @@ $(eval $(call test_schema,test-wow-appearance,,$(WOW_TEST_CFLAGS),$(BIN_DIR)/tes
 $(eval $(call test_schema,test-wow-abilities,$(WOW_GENERATED_SRCS),$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_abilities$(EXE_EXT),tests/test_runner.c $(WOW_TEST_DIR)/test_wow_abilities.c $(WOW_DIR)/game/g_wow.c $(WOW_DIR)/game/g_world.c $(WOW_DIR)/game/g_ai.c $(WOW_DIR)/game/m_creature.c $(WOW_DIR)/game/g_gameobject.c $(WOW_DIR)/game/g_spawn.c $(SERVER_GAME_SRCS) $(COMMON_GAME_SRCS) $(call CSRC,shared),-lm -lz,))
 $(eval $(call test_schema,test-wow-game,$(WOW_GENERATED_SRCS),$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_game$(EXE_EXT),tests/test_runner.c $(WOW_TEST_DIR)/test_wow_game.c $(WOW_DIR)/game/g_wow.c $(WOW_DIR)/game/g_ui.c $(WOW_DIR)/game/g_world.c $(WOW_DIR)/game/g_ai.c $(WOW_DIR)/game/m_creature.c $(WOW_DIR)/game/g_gameobject.c $(WOW_DIR)/game/g_spawn.c $(SERVER_GAME_SRCS) $(COMMON_GAME_SRCS) $(call CSRC,shared),-lm -lz,))
 $(eval $(call test_schema,test-wow-entities,$(WOW_GENERATED_SRCS),$(WOW_TEST_CFLAGS),$(BIN_DIR)/test_wow_entities$(EXE_EXT),tests/test_runner.c $(WOW_TEST_DIR)/test_wow_entities.c $(WOW_DIR)/game/g_wow.c $(WOW_DIR)/game/g_world.c $(WOW_DIR)/game/g_ai.c $(WOW_DIR)/game/m_creature.c $(WOW_DIR)/game/g_gameobject.c $(WOW_DIR)/game/g_spawn.c $(SERVER_GAME_SRCS) $(COMMON_GAME_SRCS) $(call CSRC,shared),-lm -lz,))
-$(eval $(call test_schema,test-wow-ui,test-wow-assets,$(WOW_UI_TEST_CFLAGS),$(BIN_DIR)/test_wow_ui$(EXE_EXT),tests/test_runner.c $(WOW_TEST_DIR)/test_wow_ui.c $(WOW_DIR)/ui/ui_main.c $(WOW_DIR)/ui/ui_lua.c $(WOW_DIR)/ui/ui_dbc.c $(WOW_DIR)/ui/ui_loading.c $(WOW_DIR)/ui/ui_xml.c $(WOW_DIR)/ui/ui_windows.c common/mpq.c,-lshared $(LUA_LIBS) $(WOW_XML_LIBS) -lz,))
+$(eval $(call test_schema,test-wow-ui,test-wow-assets $(LUA_LIB),$(WOW_UI_TEST_CFLAGS),$(BIN_DIR)/test_wow_ui$(EXE_EXT),tests/test_runner.c $(WOW_TEST_DIR)/test_wow_ui.c $(WOW_DIR)/ui/ui_main.c $(WOW_DIR)/ui/ui_lua.c $(WOW_DIR)/ui/ui_dbc.c $(WOW_DIR)/ui/ui_loading.c $(WOW_DIR)/ui/ui_xml.c $(WOW_DIR)/ui/ui_windows.c common/mpq.c,-lshared $(LUA_LIBS) -lz,))
 $(eval $(call test_schema,test-wow-wmo,test-wow-wmo-assets,$(WOW_WMO_TEST_CFLAGS),$(BIN_DIR)/test_wow_wmo$(EXE_EXT),tests/test_runner.c $(WOW_TEST_DIR)/test_wow_wmo.c $(call CSRC,shared),-lm,))
-$(eval $(call test_schema,test-wow-hud-xml,test-wow-assets,$(WOW_UI_TEST_CFLAGS),$(BIN_DIR)/test_wow_hud_xml$(EXE_EXT),tests/test_runner.c $(WOW_TEST_DIR)/test_wow_hud_xml.c $(WOW_DIR)/ui/ui_main.c $(WOW_DIR)/ui/ui_lua.c $(WOW_DIR)/ui/ui_dbc.c $(WOW_DIR)/ui/ui_loading.c $(WOW_DIR)/ui/ui_xml.c $(WOW_DIR)/ui/ui_windows.c common/mpq.c,-lshared $(LUA_LIBS) $(WOW_XML_LIBS) -lz,))
+$(eval $(call test_schema,test-wow-hud-xml,test-wow-assets $(LUA_LIB),$(WOW_UI_TEST_CFLAGS),$(BIN_DIR)/test_wow_hud_xml$(EXE_EXT),tests/test_runner.c $(WOW_TEST_DIR)/test_wow_hud_xml.c $(WOW_DIR)/ui/ui_main.c $(WOW_DIR)/ui/ui_lua.c $(WOW_DIR)/ui/ui_dbc.c $(WOW_DIR)/ui/ui_loading.c $(WOW_DIR)/ui/ui_xml.c $(WOW_DIR)/ui/ui_windows.c common/mpq.c,-lshared $(LUA_LIBS) -lz,))
 
 test-wow-assets: blpgen mpqtool | $(TESTS_DIR)
 	@echo "[test-wow-assets] generating WoW UI fixtures"

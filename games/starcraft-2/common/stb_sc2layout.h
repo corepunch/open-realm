@@ -2,7 +2,7 @@
  * stb_sc2layout.h — SC2 .SC2Layout XML parser and frame builder (single-header).
  *
  * Parses StarCraft II UI layout files (.SC2Layout) into sc2BaseFrame_t arrays.
- * Uses libxml2 for XML parsing.
+ * Uses common/tinyxml.h for XML parsing.
  *
  * Declarations-only mode (default):
  *   Include this header normally to get types and extern declarations.
@@ -305,8 +305,7 @@ void SC2_SetEnabled(sc2Frame_t *frame, BOOL enabled);
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
-#include <libxml/parser.h>
-#include <libxml/tree.h>
+#include "common/tinyxml.h"
 
 extern uiImport_t uiimport;
 
