@@ -124,6 +124,10 @@ void UI_ShowQuest(LPEDICT ent, LPCQUEST quest);
 void UI_ShowQuests(LPEDICT ent);
 void UI_HideQuests(LPEDICT ent);
 
+/* Game result dialog (hud_game_result.c) */
+void UI_ShowGameResult(LPEDICT ent, BOOL victory);
+void UI_HideGameResult(LPEDICT ent);
+
 /* Cinematic / interface (hud_cinematic.c) */
 void UI_ShowInterface(LPEDICT ent, BOOL flag, FLOAT duration);
 void UI_ShowGameInterface(LPEDICT ent);

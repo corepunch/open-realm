@@ -293,9 +293,7 @@ CLIENTCOMMAND(Cancel) {
     }
 }
 
-void UI_ShowQuests(LPEDICT ent);
 void UI_ShowQuest(LPEDICT ent, LPCQUEST quest);
-void UI_HideQuests(LPEDICT ent);
 
 CLIENTCOMMAND(Quests) {
     UI_ShowQuests(clent);
@@ -303,6 +301,19 @@ CLIENTCOMMAND(Quests) {
 
 CLIENTCOMMAND(HideQuests) {
     UI_HideQuests(clent);
+}
+
+CLIENTCOMMAND(HideGameResult) {
+    UI_HideGameResult(clent);
+}
+
+/* TODO: restart / quit require engine-level session teardown not yet plumbed. */
+CLIENTCOMMAND(GameResultRestart) {
+    (void)clent; (void)argc; (void)argv;
+}
+
+CLIENTCOMMAND(GameResultQuit) {
+    (void)clent; (void)argc; (void)argv;
 }
 
 /* CMD_Menu: Stub for legacy menu commands.
@@ -411,6 +422,9 @@ clientCommand_t clientCommands[] = {
     { "quests", CMD_Quests },
     { "hidequests", CMD_HideQuests },
     { "quest", CMD_Quest },
+    { "hidegameresult", CMD_HideGameResult },
+    { "gameresult_restart", CMD_GameResultRestart },
+    { "gameresult_quit", CMD_GameResultQuit },
     { "debugspawn", CMD_DebugSpawn },
     { "menu", CMD_Menu },
     { NULL }

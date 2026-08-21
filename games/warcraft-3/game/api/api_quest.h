@@ -104,8 +104,11 @@ DWORD DefeatConditionSetDescription(LPJASS j) {
     return 0;
 }
 DWORD FlashQuestDialogButton(LPJASS j) {
+    /* TODO: flash the quest button in the command bar (requires ps.uiflags pulse). */
     return 0;
 }
 DWORD ForceQuestDialogUpdate(LPJASS j) {
+    /* Push the current quest list to every connected client. */
+    FILTER_EDICTS(ent, ent->client) UI_ShowQuests(ent);
     return 0;
 }

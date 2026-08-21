@@ -980,6 +980,87 @@ TEST(wc3_combat, quest_remove_clears_from_list) {
     T_NULL(level.quests);
 }
 
+TEST(wc3_combat, quest_discovered_required_enabled_flags) {
+    LPQUEST q = G_MakeQuest();
+    q->discovered = true;
+    q->required   = true;
+    q->enabled    = true;
+    T_ASSERT(q->discovered);
+    T_ASSERT(q->required);
+    T_ASSERT(q->enabled);
+    G_RemoveQuest(q);
+}
+
+TEST(wc3_combat, quest_item_create_non_null) {
+    LPQUEST q = G_MakeQuest();
+    LPQUESTITEM item = gi.MemAlloc(sizeof(QUESTITEM));
+    ADD_TO_LIST(item, q->items);
+    T_NOT_NULL(item);
+    G_RemoveQuest(q);
+}
+
+TEST(wc3_combat, quest_item_set_description) {
+    LPQUEST q = G_MakeQuest();
+    LPQUESTITEM item = gi.MemAlloc(sizeof(QUESTITEM));
+    ADD_TO_LIST(item, q->items);
+    item->description = strdup("Kill 10 footmen");
+    T_STREQ(item->description, "Kill 10 footmen");
+    G_RemoveQuest(q);
+}
+
+TEST(wc3_combat, quest_item_set_completed) {
+    LPQUEST q = G_MakeQuest();
+    LPQUESTITEM item = gi.MemAlloc(sizeof(QUESTITEM));
+    ADD_TO_LIST(item, q->items);
+    item->completed = true;
+    T_ASSERT(item->completed);
+    G_RemoveQuest(q);
+}
+
+TEST(wc3_combat, quest_item_defaults_incomplete) {
+    LPQUEST q = G_MakeQuest();
+    LPQUESTITEM item = gi.MemAlloc(sizeof(QUESTITEM));
+    ADD_TO_LIST(item, q->items);
+    T_ASSERT(!item->completed);
+    G_RemoveQuest(q);
+}
+
+TEST(wc3_combat, quest_multiple_items_linked) {
+    LPQUEST q = G_MakeQuest();
+    LPQUESTITEM a = gi.MemAlloc(sizeof(QUESTITEM));
+    LPQUESTITEM b = gi.MemAlloc(sizeof(QUESTITEM));
+    ADD_TO_LIST(a, q->items);
+    ADD_TO_LIST(b, q->items);
+    /* Both items must be reachable from the list head. */
+    BOOL found_a = false, found_b = false;
+    FOR_EACH_LIST(QUESTITEM, it, q->items) {
+        if (it == a) found_a = true;
+        if (it == b) found_b = true;
+    }
+    T_ASSERT(found_a);
+    T_ASSERT(found_b);
+    G_RemoveQuest(q);
+}
+
+TEST(wc3_combat, quest_multiple_quests_in_list) {
+    level.quests = NULL;
+    LPQUEST q1 = G_MakeQuest();
+    LPQUEST q2 = G_MakeQuest();
+    T_NOT_NULL(q1);
+    T_NOT_NULL(q2);
+    /* Both quests must be reachable from level.quests. */
+    BOOL found_q1 = false, found_q2 = false;
+    FOR_EACH_LIST(QUEST, q, level.quests) {
+        if (q == q1) found_q1 = true;
+        if (q == q2) found_q2 = true;
+    }
+    T_ASSERT(found_q1);
+    T_ASSERT(found_q2);
+    G_RemoveQuest(q1);
+    G_RemoveQuest(q2);
+    T_NULL(level.quests);
+}
+
 /* ==========================================================================
  * G_PublishEvent
  * ========================================================================== */
@@ -1006,6 +1087,40 @@ TEST(wc3_combat, publish_event_sequential) {
 
     T_NOT_NULL(evt2);
     T_EQ((int)evt2->type, (int)EVENT_PLAYER_UNIT_TRAIN_FINISH);
+}
+
+/* ==========================================================================
+ * Win conditions — EVENT_PLAYER_VICTORY / EVENT_PLAYER_DEFEAT
+ * ========================================================================== */
+
+TEST(wc3_combat, publish_event_player_victory) {
+    level.events.write = 0;
+    level.events.read  = 0;
+
+    LPEDICT ent = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
+    GAMEEVENT *evt = G_PublishEvent(ent, EVENT_PLAYER_VICTORY);
+
+    T_NOT_NULL(evt);
+    T_EQ((int)evt->type, (int)EVENT_PLAYER_VICTORY);
+    T_EQ(evt->edict, ent);
+}
+
+TEST(wc3_combat, publish_event_player_defeat) {
+    level.events.write = 0;
+    level.events.read  = 0;
+
+    LPEDICT ent = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
+    GAMEEVENT *evt = G_PublishEvent(ent, EVENT_PLAYER_DEFEAT);
+
+    T_NOT_NULL(evt);
+    T_EQ((int)evt->type, (int)EVENT_PLAYER_DEFEAT);
+    T_EQ(evt->edict, ent);
+}
+
+TEST(wc3_combat, victory_and_defeat_are_distinct_event_types) {
+    T_ASSERT(EVENT_PLAYER_VICTORY != EVENT_PLAYER_DEFEAT);
+    T_EQ((int)EVENT_PLAYER_VICTORY, 14);
+    T_EQ((int)EVENT_PLAYER_DEFEAT,  13);
 }
 
 /* ==========================================================================
