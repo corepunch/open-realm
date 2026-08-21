@@ -579,6 +579,25 @@ static void CL_VideoApply_f(void) {
     }
 }
 
+static void CL_Quit_f(void) {
+    CL_Shutdown();
+    Com_Quit();
+}
+
+/* Map-or-quit dispatcher called from the server game import (gi.MenuAction). */
+void MenuAction(LPCSTR action, LPCSTR arg) {
+    if (!strcmp(action, "map")) {
+        PATHSTR map;
+        if (!arg || !*arg) return;
+        if (!Com_ResolveMapArgument(arg, map, sizeof(map))) return;
+        CL_SetGameplayBindings();
+        CL_BeginLoadingMap(map);
+        SV_Map(map);
+    } else if (!strcmp(action, "quit")) {
+        CL_Quit_f();
+    }
+}
+
 void CL_Init(void) {
     clVideoMode_t mode;
 
@@ -645,7 +664,7 @@ void CL_Init(void) {
     
     CL_ClearState();
 
-    Cmd_AddCommand("quit", Com_Quit);
+    Cmd_AddCommand("quit", CL_Quit_f);
     Cmd_AddCommand("screenshot", CL_Screenshot_f);
 
     CON_Init();

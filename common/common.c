@@ -1235,9 +1235,8 @@ void Com_Quit(void) {
          * experiments, debug cvars) clobber hand-edited openwow-config.cfg. */
         /* Cvar_WriteConfig(Cvar_String("config", "")); */
     }
-    if (!Cvar_Integer("dedicated", 0)) {
+    if (!Cvar_Integer("dedicated", 0))
         CL_Shutdown();
-    }
     SV_Shutdown();
     NET_Shutdown();
     FS_Shutdown();
@@ -1378,23 +1377,6 @@ bool Com_ResolveMapArgument(LPCSTR arg, LPSTR out, DWORD out_size) {
     return false;
 }
 
-void MenuAction(LPCSTR action, LPCSTR arg) {
-    if (!strcmp(action, "map")) {
-        PATHSTR map;
-
-        if (!arg || !*arg) {
-            return;
-        }
-        if (!Com_ResolveMapArgument(arg, map, sizeof(map))) {
-            return;
-        }
-        CL_SetGameplayBindings();
-        CL_BeginLoadingMap(map);
-        SV_Map(map);
-    } else if (!strcmp(action, "quit")) {
-        Com_Quit();
-    }
-}
 
 static void Com_Maps_f(void) {
     DWORD count = 0;
@@ -1463,11 +1445,12 @@ static void Com_Dir_f(void) {
 }
 
 static void Com_Map_f(void) {
-    if (Cmd_Argc() < 2) {
-        fprintf(stderr, "Usage: map <map>\n");
-        return;
-    }
-    MenuAction("map", Cmd_ArgsFrom(1));
+    PATHSTR map;
+    if (Cmd_Argc() < 2) { fprintf(stderr, "Usage: map <map>\n"); return; }
+    if (!Com_ResolveMapArgument(Cmd_ArgsFrom(1), map, sizeof(map))) return;
+    CL_SetGameplayBindings();
+    CL_BeginLoadingMap(map);
+    SV_Map(map);
 }
 
 /* Run the in-engine test registry and exit with the failure count.  Tests are

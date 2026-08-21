@@ -7,9 +7,7 @@ UI_SC2_LIB       := $(LIB_DIR)/libui-sc2$(LIB_EXT)
 SC2_BINARY       := $(BIN_DIR)/opensc2$(EXE_EXT)
 SC2_COMMON_SRCS  := $(shell find $(SC2_DIR)/common -name '*.c' 2>/dev/null | sort)
 
-SC2_XML_CFLAGS   := $(shell pkg-config --cflags libxml-2.0 2>/dev/null || xml2-config --cflags 2>/dev/null) -I/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/libxml2
-SC2_XML_LIBS     := $(shell pkg-config --libs libxml-2.0 2>/dev/null || xml2-config --libs 2>/dev/null)
-SC2_CFLAGS       := $(CFLAGS) -I$(SC2_DIR) -DSC2 -DOW3_LOAD_ALL_MPQS -Wno-unused-function $(SC2_XML_CFLAGS)
+SC2_CFLAGS       := $(CFLAGS) -I$(SC2_DIR) -DSC2 -DOW3_LOAD_ALL_MPQS -Wno-unused-function
 SC2_IMPL_CFLAGS  := $(SC2_CFLAGS) -DSTB_SC2LAYOUT_IMPLEMENTATION -DSTB_SC2LAYOUT_GLOBALS
 SC2_TEST_CFLAGS  := $(SC2_CFLAGS) -I. -Itests -Icommon -Ishared -DTEST_SC2_MPQ=\"build/tests/test-sc2.SC2Maps\"
 
@@ -26,17 +24,17 @@ build-run-sc2: opensc2
 
 $(BIN_DIR)/m3tool$(EXE_EXT): tools/m3tool.c $(TOOL_DEPS) $(CLIENT_HEADERS) $(COMMON_HEADERS) | $(BIN_DIR) $(SHARED_LIB) $(SHEET_LIB) $(RENDERER_SC2_LIB)
 	@$(CC) $(SC2_CFLAGS) -o $@ $< \
-		$(RPATH) $(LDFLAGS) -lrenderer-sc2 -lsheet -lshared $(LIBS) -lm -lz $(SC2_XML_LIBS)
+		$(RPATH) $(LDFLAGS) -lrenderer-sc2 -lsheet -lshared $(LIBS) -lm -lz
 
 $(BIN_DIR)/sc2map$(EXE_EXT): tools/sc2map.c $(SC2_DIR)/common/sc2_map.c $(SC2_DIR)/common/sc2_map.h common/mpq.c | $(BIN_DIR)
 	@$(CC) $(SC2_CFLAGS) -o $@ tools/sc2map.c $(SC2_DIR)/common/sc2_map.c common/mpq.c \
-		$(RPATH) $(LDFLAGS) -lm -lz $(SC2_XML_LIBS)
+		$(RPATH) $(LDFLAGS) -lm -lz
 
-$(eval $(call unity_lib_schema,$(RENDERER_SC2_LIB),$(RENDERER_BASE_DEPS) $(call CSRC,renderer $(SC2_DIR)/renderer) $(SC2_COMMON_SRCS),renderer-sc2,renderer $(SC2_DIR)/renderer,,$(SC2_CFLAGS),common/mpq.c,$(RENDERER_SHARED_LIBS) $(SC2_XML_LIBS)))
+$(eval $(call unity_lib_schema,$(RENDERER_SC2_LIB),$(RENDERER_BASE_DEPS) $(call CSRC,renderer $(SC2_DIR)/renderer) $(SC2_COMMON_SRCS),renderer-sc2,renderer $(SC2_DIR)/renderer,,$(SC2_CFLAGS),common/mpq.c,$(RENDERER_SHARED_LIBS)))
 
-$(eval $(call unity_lib_schema,$(GAME_SC2_LIB),$(GAME_BASE_DEPS) $(WORLD_CORE_SRCS) $(SC2_COMMON_SRCS) $(call CSRC,$(SC2_DIR)/game),game-sc2,$(SC2_DIR)/game,,$(SC2_IMPL_CFLAGS),common/mpq.c,-lshared $(LIBS) -lm -lz $(SC2_XML_LIBS)))
+$(eval $(call unity_lib_schema,$(GAME_SC2_LIB),$(GAME_BASE_DEPS) $(WORLD_CORE_SRCS) $(SC2_COMMON_SRCS) $(call CSRC,$(SC2_DIR)/game),game-sc2,$(SC2_DIR)/game,,$(SC2_IMPL_CFLAGS),common/mpq.c,-lshared $(LIBS) -lm -lz))
 
-$(eval $(call unity_lib_schema,$(UI_SC2_LIB),$(UI_BASE_DEPS) client/ui.h $(call CSRC,$(SC2_DIR)/ui),ui-sc2,$(SC2_DIR)/ui,,$(SC2_IMPL_CFLAGS),,-lshared $(SC2_XML_LIBS)))
+$(eval $(call unity_lib_schema,$(UI_SC2_LIB),$(UI_BASE_DEPS) client/ui.h $(call CSRC,$(SC2_DIR)/ui),ui-sc2,$(SC2_DIR)/ui,,$(SC2_IMPL_CFLAGS),,-lshared))
 
 $(eval $(call app_schema,$(SC2_BINARY),$(SHARED_LIB) $(SHEET_LIB) $(GAME_SC2_LIB) $(RENDERER_SC2_LIB) $(UI_SC2_LIB) $(APP_SRCS) $(CLIENT_HEADERS),opensc2,$(SC2_IMPL_CFLAGS),-lsheet -lshared -lgame-sc2 -lrenderer-sc2 -lui-sc2 $(LIBS) -lz))
 
@@ -47,7 +45,7 @@ SC2_TEST_RES_DIR := $(TESTS_DIR)/sc2-resources
 SC2_TEST_SRC_DIR := $(SC2_TEST_DIR)/resources-src
 SC2_TEST_MPQ     := $(TESTS_DIR)/test-sc2.SC2Maps
 
-$(eval $(call test_schema,test-sc2,test-sc2-assets $(SHARED_LIB) $(SHEET_LIB),$(SC2_TEST_CFLAGS),$(BIN_DIR)/test_sc2$(EXE_EXT),tests/test_runner.c $(SC2_TEST_DIR)/test_sc2_map.c $(SC2_TEST_DIR)/test_sc2_layout.c $(SC2_TEST_DIR)/test_sc2_consoleui.c $(SC2_TEST_DIR)/stb_sc2layout_impl.c $(SC2_DIR)/common/sc2_map.c common/common.c common/cmd.c common/cvar.c common/msg.c common/net.c common/mpq.c,-lsheet -lshared -lm -lz $(SC2_XML_LIBS) $(NET_LIBS),))
+$(eval $(call test_schema,test-sc2,test-sc2-assets $(SHARED_LIB) $(SHEET_LIB),$(SC2_TEST_CFLAGS),$(BIN_DIR)/test_sc2$(EXE_EXT),tests/test_runner.c $(SC2_TEST_DIR)/test_sc2_map.c $(SC2_TEST_DIR)/test_sc2_layout.c $(SC2_TEST_DIR)/test_sc2_consoleui.c $(SC2_TEST_DIR)/stb_sc2layout_impl.c $(SC2_DIR)/common/sc2_map.c common/common.c common/cmd.c common/cvar.c common/msg.c common/net.c common/mpq.c,-lsheet -lshared -lm -lz $(NET_LIBS),))
 
 test-sc2-assets: sc2fixturegen mpqtool sc2map | $(TESTS_DIR)
 	@echo "[test-sc2-assets] generating SC2 terrain fixtures"

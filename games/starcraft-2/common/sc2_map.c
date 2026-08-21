@@ -1,8 +1,7 @@
 #include "sc2_map.h"
 #include "sc2_utils.h"
 #include "common/mpq.h"
-#include <libxml/parser.h>
-#include <libxml/tree.h>
+#include "common/tinyxml.h"
 #include <stddef.h>
 #include <stdlib.h>
 

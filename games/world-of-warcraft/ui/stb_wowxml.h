@@ -99,8 +99,7 @@ LPCSTR UIWow_XmlElemParent(int idx);
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
-#include <libxml/parser.h>
-#include <libxml/tree.h>
+#include "common/tinyxml.h"
 #include "client/ui_text_input.h"
 
 /* ---- Private types ---- */
