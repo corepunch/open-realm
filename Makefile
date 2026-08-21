@@ -95,6 +95,8 @@ FONT_SYMBOL := conchars_sysfont_pcx
 # value as a comment character, which would truncate the sed expression.
 UNITY = find $1 -name '*.c' $2 | sort | awk '{printf "\043include \"%s\"\n", $$0}'
 CSRC = $(shell find $(1) -name '*.c' $(2) | sort)
+COMMON_SRCS      := $(filter-out common/main.c, $(call CSRC,common))
+COMMON_GAME_SRCS := common/mpq.c
 
 define unity_lib_schema
 $(1): $(2) | $$(LIB_DIR)
@@ -138,9 +140,10 @@ $(BIN_DIR) $(LIB_DIR):
 	@mkdir -p $@
 
 APP_SRCS          := $(shell find client server common -name '*.c')
-RENDERER_BASE_DEPS  := $(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS) common/mpq.c common/mpq.h $(FONT_HEADER)
+RENDERER_BASE_DEPS  := $(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS) $(COMMON_SRCS) $(FONT_HEADER)
 RENDERER_SHARED_LIBS := -lshared $(LIBS) -lz
-GAME_BASE_DEPS    := $(SHARED_LIB) $(COMMON_HEADERS) common/mpq.c common/mpq.h
+SERVER_GAME_SRCS  := server/sv_quest.c
+GAME_BASE_DEPS    := $(SHARED_LIB) $(COMMON_HEADERS) $(COMMON_SRCS) $(SERVER_GAME_SRCS)
 UI_BASE_DEPS      := $(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS)
 
 $(eval $(call unity_lib_schema,$(SHARED_LIB),$(call CSRC,shared),shared,shared,,$(CFLAGS),,-lm))

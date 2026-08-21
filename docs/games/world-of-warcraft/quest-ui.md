@@ -6,23 +6,39 @@ The client never runs quest Lua scripts while `game_mode` is active.
 ## Architecture
 
 ```
+common/shared.h                 ─── svQuestEntry_t, playerState_s.quest_log  (engine)
+server/sv_quest.h               ─── SV_QuestFind, SV_QuestAdd                (engine)
+
 AzerothCore SQL dumps                extract_quest_data.py
  ├─ quest_template.sql          ──►  games/world-of-warcraft/serverdata/
- ├─ quest_template_addon.sql         ├─ g_wow_local.h   (structs + API)
+ ├─ quest_template_addon.sql         ├─ g_wow_local.h   (WoW structs + API)
  ├─ quest_offer_reward.sql           ├─ build/generated/g_quests.c   (static tables)
  ├─ creature_queststarter.sql        └─ quest_spawns.csv   (reference)
  ├─ creature_template_model.sql
  ├─ creature.sql (positions)
  └─ quest_poi_points.sql
 
-games/world-of-warcraft/serverdata/ ──►  game/g_wow.c (quest logic)
+games/world-of-warcraft/serverdata/ ──►  game/g_wow.c (quest logic, uses sv_quest API)
                                          game/g_ui.c  (quest dialog rendering)
                                          game/m_creature.c (quest giver spawning)
 ```
 
 ## Data Structures
 
-Defined in `games/world-of-warcraft/game/g_wow_local.h`:
+### Engine-level (common/shared.h + server/sv_quest.h)
+
+The quest log is part of `playerState_s` — generic, game-agnostic per-player state:
+
+| Type | Location | Purpose |
+|------|----------|---------|
+| `svQuestStatus_t` | `common/shared.h` | `NONE → ACTIVE → COMPLETE → REWARDED` |
+| `svQuestEntry_t` | `common/shared.h` | `quest_id` + `status` (one slot in the log) |
+| `ps.quest_log[SV_MAX_QUEST_LOG]` | `playerState_s` | Fixed-capacity per-player quest log |
+| `ps.quest_count` | `playerState_s` | Number of active log entries |
+| `SV_QuestFind(log, count, id)` | `server/sv_quest.h` | Linear search by quest_id |
+| `SV_QuestAdd(log, &count, max, id)` | `server/sv_quest.h` | Add with duplicate guard |
+
+### WoW-specific (games/world-of-warcraft/game/g_wow_local.h)
 
 | Struct | Purpose |
 |--------|---------|
@@ -30,9 +46,7 @@ Defined in `games/world-of-warcraft/game/g_wow_local.h`:
 | `WOWQUESTOBJECTIVE` | quest_id → 2D objective position (server-side anchor) |
 | `WOWQUESTKILLOBJECTIVE` | creature display_id + required kill count |
 | `WOWQUESTDETAIL` | Full quest: title, description, objectives, reward text, XP, gold, prerequisites, kill objectives |
-| `wowQuestState_t` | Per-player: quest_id, status enum, kill_progress[4] |
-
-Quest status enum: `NONE → ACCEPTED → COMPLETE → REWARDED`
+| `wowClient_t.kill_progress[SV_MAX_QUEST_LOG][4]` | Per-slot kill progress counters (parallel to `ps.quest_log`) |
 
 ## Server Commands
 
@@ -61,15 +75,18 @@ kill objectives and the player's progress is tracked.
 
 ## Quest Logic (g_wow.c)
 
-- `Wow_AddQuest(client, id)` — validates detail exists, log not full, not
-  already accepted, prerequisite chain met (`prev_quest` must be in log).
-- `Wow_CompleteQuest(client, id)` — only awards if `status == ACCEPTED`;
-  adds `reward_xp` to `WOW_STAT_XP`, `reward_gold` to `WOW_STAT_COPPER`.
+- `Wow_AddQuest(client, id)` — validates detail exists, prerequisite chain met
+  (`prev_quest` must be in log); delegates to `SV_QuestAdd` for log management.
+- `Wow_CompleteQuest(client, id)` — uses `SV_QuestFind`; only awards if
+  `status == SV_QUEST_ACTIVE`; adds `reward_xp` to `WOW_STAT_XP`, `reward_gold`
+  to `WOW_STAT_COPPER`.
 - `Wow_QuestAwardKillCredit(attacker, display_id)` — called from AI death
-  handler; iterates all ACCEPTED quests, matches display_id against kill
-  objectives, increments progress, auto-transitions to COMPLETE when all
-  objectives are met.
-- `Wow_FindQuestState(client, id)` — linear search of the quest log.
+  handler; iterates `ps.quest_log`, matches display_id against kill objectives,
+  increments `wc->kill_progress[slot][j]`, auto-transitions to `SV_QUEST_COMPLETE`
+  when all objectives are met.
+
+Quest log access: `ent->client->ps.quest_log` / `ent->client->ps.quest_count`
+(via the engine's `playerState_s` — available to any server game module).
 
 ## Quest Spawning (m_creature.c)
 
