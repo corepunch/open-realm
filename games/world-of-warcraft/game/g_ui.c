@@ -119,20 +119,26 @@ static void UI_WriteSimpleButton(FLOAT x, FLOAT y, FLOAT w, FLOAT h,
 }
 
 /* The client ships QuestFrame.xml/Lua, but WoW game mode suppresses client UI
- * scripts. Recreate the classic 384x512 dialog on the server quest layer. */
+ * scripts. Recreate the classic quest dialog and quest log on one shared layer.
+ * Both UI_WriteQuestDialog and UI_WriteQuestLog previously wrote separate
+ * svc_layout messages to LAYER_QUESTDIALOG; the second write always cleared the
+ * first.  Merged into a single write: quest_open takes priority, then
+ * questlog_open, otherwise the layer is cleared. */
 static void UI_WriteQuestDialog(LPEDICT ent) {
     wowClient_t *wc = (wowClient_t *)ent->client;
-    LPCWOWQUESTDETAIL detail = Wow_QuestDetail(wc->quest_id);
-    wowQuestState_t *state = Wow_FindQuestState(wc, wc->quest_id);
-    char command[64], text[512];
-    FLOAT x = PX(24), y = PY(104);
-    BOOL is_complete = state && state->status == WOW_QUEST_COMPLETE;
-    BOOL is_accepted = state && state->status == WOW_QUEST_ACCEPTED;
 
     gi.Write(PF_BYTE, &(LONG){svc_layout});
     gi.Write(PF_BYTE, &(LONG){LAYER_QUESTDIALOG});
     ui_next_frame_number = 1;
+
     if (wc->quest_open) {
+        LPCWOWQUESTDETAIL detail = Wow_QuestDetail(wc->quest_id);
+        wowQuestState_t *state = Wow_FindQuestState(wc, wc->quest_id);
+        char command[64], text[512];
+        FLOAT x = PX(24), y = PY(104);
+        BOOL is_complete = state && state->status == WOW_QUEST_COMPLETE;
+        BOOL is_accepted = state && state->status == WOW_QUEST_ACCEPTED;
+
         UI_WriteImage("Interface\\QuestFrame\\UI-QuestGreeting-TopLeft.blp", x, y, PW(256), PH(256), COLOR32_WHITE);
         UI_WriteImage("Interface\\QuestFrame\\UI-QuestGreeting-TopRight.blp", x + PW(256), y, PW(128), PH(256), COLOR32_WHITE);
         UI_WriteImage("Interface\\QuestFrame\\UI-QuestGreeting-BotLeft.blp", x, y + PH(256), PW(256), PH(256), COLOR32_WHITE);
@@ -167,51 +173,41 @@ static void UI_WriteQuestDialog(LPEDICT ent) {
             UI_WriteSimpleButton(x + PW(22), y + PH(420), PW(120), PH(28), "Accept", command);
         }
         UI_WriteSimpleButton(x + PW(250), y + PH(420), PW(90), PH(28), "Close", "quest_close");
+    } else if (wc->questlog_open) {
+        FLOAT x = PX(24), y = PY(68);
+        FLOAT line_y = y + PH(48);
+        DWORD line_count = 0;
+        char buf[128], cmd[64];
+
+        UI_WriteImage("Interface\\QuestFrame\\UI-QuestGreeting-TopLeft.blp", x, y, PW(256), PH(128), COLOR32_WHITE);
+        UI_WriteImage("Interface\\QuestFrame\\UI-QuestGreeting-TopRight.blp", x + PW(256), y, PW(128), PH(128), COLOR32_WHITE);
+        UI_WriteImage("Interface\\QuestFrame\\UI-QuestGreeting-BotLeft.blp", x, y + PH(256), PW(256), PH(256), COLOR32_WHITE);
+        UI_WriteImage("Interface\\QuestFrame\\UI-QuestGreeting-BotRight.blp", x + PW(256), y + PH(256), PW(128), PH(256), COLOR32_WHITE);
+
+        UI_WriteTextFrame(x + PW(42), y + PH(12), PW(280), PH(22), "Quest Log", MAKE(COLOR32, 255, 215, 120, 255), FONT_JUSTIFYCENTER);
+
+        if (!wc->quest_count) {
+            UI_WriteTextFrame(x + PW(42), line_y, PW(280), PH(22), "No active quests.", MAKE(COLOR32, 160, 150, 140, 255), FONT_JUSTIFYCENTER);
+        } else FOR_LOOP(i, wc->quest_count) {
+            wowQuestState_t *qs = &wc->quests[i];
+            LPCWOWQUESTDETAIL detail = Wow_QuestDetail(qs->quest_id);
+            LPCSTR status = qs->status == WOW_QUEST_COMPLETE ? " (Complete)" : "";
+
+            snprintf(buf, sizeof(buf), "%s%s", detail ? detail->title : "Unknown Quest", status);
+            snprintf(cmd, sizeof(cmd), "quest %u", (unsigned)qs->quest_id);
+            UI_WriteSimpleButton(x + PW(28), line_y, PW(308), PH(22), buf, cmd);
+            line_y += PH(28);
+            if (++line_count >= 14) break;
+        }
+        UI_WriteSimpleButton(x + PW(250), y + PH(450), PW(90), PH(28), "Close", "quest_close");
     }
+
     gi.Write(PF_LONG, &(LONG){0});
     gi.Write(PF_SHORT, &(LONG){0});
 }
 
 static void UI_WriteQuestLog(LPEDICT ent) {
-    wowClient_t *wc = (wowClient_t *)ent->client;
-    FLOAT x = PX(24), y = PY(68);
-    FLOAT line_y = y + PH(48);
-    DWORD line_count = 0;
-    char buf[128], cmd[64];
-
-    gi.Write(PF_BYTE, &(LONG){svc_layout});
-    gi.Write(PF_BYTE, &(LONG){LAYER_QUESTDIALOG});
-    ui_next_frame_number = 1;
-    if (!wc->questlog_open) { gi.Write(PF_LONG, &(LONG){0}); gi.Write(PF_SHORT, &(LONG){0}); return; }
-
-    UI_WriteImage("Interface\\QuestFrame\\UI-QuestGreeting-TopLeft.blp", x, y, PW(256), PH(128), COLOR32_WHITE);
-    UI_WriteImage("Interface\\QuestFrame\\UI-QuestGreeting-TopRight.blp", x + PW(256), y, PW(128), PH(128), COLOR32_WHITE);
-    UI_WriteImage("Interface\\QuestFrame\\UI-QuestGreeting-BotLeft.blp", x, y + PH(256), PW(256), PH(256), COLOR32_WHITE);
-    UI_WriteImage("Interface\\QuestFrame\\UI-QuestGreeting-BotRight.blp", x + PW(256), y + PH(256), PW(128), PH(256), COLOR32_WHITE);
-
-    UI_WriteTextFrame(x + PW(42), y + PH(12), PW(280), PH(22), "Quest Log", MAKE(COLOR32, 255, 215, 120, 255), FONT_JUSTIFYCENTER);
-
-    if (!wc->quest_count) {
-        UI_WriteTextFrame(x + PW(42), line_y, PW(280), PH(22), "No active quests.", MAKE(COLOR32, 160, 150, 140, 255), FONT_JUSTIFYCENTER);
-        line_y += PH(28);
-    } else FOR_LOOP(i, wc->quest_count) {
-        wowQuestState_t *qs = &wc->quests[i];
-        LPCWOWQUESTDETAIL detail = Wow_QuestDetail(qs->quest_id);
-        LPCSTR status;
-
-        status = qs->status == WOW_QUEST_COMPLETE ? " (Complete)" : "";
-        snprintf(buf, sizeof(buf), "%s%s", detail ? detail->title : "Unknown Quest", status);
-        snprintf(cmd, sizeof(cmd), "quest %u", (unsigned)qs->quest_id);
-        UI_WriteSimpleButton(x + PW(28), line_y, PW(308), PH(22), buf, cmd);
-        line_y += PH(28);
-        line_count++;
-        if (line_count >= 14) break;
-    }
-
-    UI_WriteSimpleButton(x + PW(250), y + PH(450), PW(90), PH(28), "Close", "quest_close");
-
-    gi.Write(PF_LONG, &(LONG){0});
-    gi.Write(PF_SHORT, &(LONG){0});
+    (void)ent; /* merged into UI_WriteQuestDialog */
 }
 
 /* Write an FT_TEXTURE frame with float-precision UV (supports l>r or t>b for flips). */

@@ -123,6 +123,8 @@ static void CL_WowRmbUp(void) {
     }
     if (re.TraceEntity(&cl.viewDef, mouse.origin.x, mouse.origin.y, &entnum)) {
         CL_WowSendInteract(entnum);
+    } else if (cl.playerstate.selected_entity) {
+        CL_WowSendInteract(cl.playerstate.selected_entity);
     }
 }
 

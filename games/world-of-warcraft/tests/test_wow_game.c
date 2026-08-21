@@ -1383,6 +1383,47 @@ TEST(wow_game, quest_open_via_selected_npc_entity) {
     if (game->Shutdown) game->Shutdown();
 }
 
+/* "interact N" on a quest NPC opens the quest dialog with title and Accept button. */
+TEST(wow_game, quest_open_via_interact_command) {
+    struct game_export *game = init_game();
+    LPEDICT player;
+    wowClient_t *wc;
+    wowEntityLocal_t *npc_local;
+    LPEDICT npc;
+    BOOL found_title = false;
+    BOOL found_accept = false;
+    char cmd_arg[16];
+
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    player = &wow_edicts[0];
+    game->ClientBegin(player);
+    wc = (wowClient_t *)player->client;
+
+    npc = first_creature();
+    T_NOT_NULL(npc);
+    npc_local = Wow_EntityLocal(npc);
+    npc_local->quest_id = 33;
+
+    test_ui_frame_count = 0;
+    memset(test_layout_seen, 0, sizeof(test_layout_seen));
+    snprintf(cmd_arg, sizeof(cmd_arg), "%u", (unsigned)npc->s.number);
+    game->ClientCommand(player, 2, (LPCSTR[]){"interact", cmd_arg});
+
+    T_ASSERT(wc->quest_open);
+    T_EQ((int)wc->quest_id, 33);
+    T_ASSERT(test_layout_seen[LAYER_QUESTDIALOG]);
+
+    FOR_LOOP(i, test_ui_frame_count) {
+        testUiFrame_t const *frame = &test_ui_frames[i];
+        if (frame->layer != LAYER_QUESTDIALOG) continue;
+        if (!strcmp(frame->text, "Wolves Across the Border")) found_title = true;
+        if (!strncmp(frame->onclick, "quest_accept 33", 15)) found_accept = true;
+    }
+    T_ASSERT(found_title);
+    T_ASSERT(found_accept);
+    if (game->Shutdown) game->Shutdown();
+}
+
 /* Quest chain: completing quest 12 unlocks 13, completing 13 unlocks 14. */
 TEST(wow_game, quest_chain_sequential_unlock) {
     struct game_export *game = init_game();
