@@ -187,6 +187,8 @@ static void test_error(LPCSTR fmt, ...) {
     va_end(args);
 }
 void UI_WriteWowHud(LPEDICT ent) { (void)ent; }
+void UI_WriteWelcomeWindow(LPEDICT ent) { (void)ent; }
+void UI_HideWindow(LPEDICT ent, LPCSTR window_id) { (void)ent; (void)window_id; }
 
 static struct game_import test_import(void) {
     struct game_import import;

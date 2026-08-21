@@ -487,7 +487,7 @@ static void assert_player_ui_payload(void) {
     T_EQ(num_buttons, WOW_UI_ACTION_SLOTS);
     T_STREQ((LPCSTR)test_last_unicast_buf + cursor, "Interface\\Icons\\Ability_Warrior_Cleave.blp");
     cursor += (DWORD)strlen((LPCSTR)test_last_unicast_buf + cursor) + 1;
-    T_STREQ((LPCSTR)test_last_unicast_buf + cursor, "Attack");
+    T_STREQ((LPCSTR)test_last_unicast_buf + cursor, "Heroic Strike");
     cursor += (DWORD)strlen((LPCSTR)test_last_unicast_buf + cursor) + 1;
     T_STREQ((LPCSTR)test_last_unicast_buf + cursor, "1");
     cursor += (DWORD)strlen((LPCSTR)test_last_unicast_buf + cursor) + 1;
@@ -505,7 +505,7 @@ static void assert_player_ui_payload(void) {
     T_EQ(num_inventory, WOW_UI_INVENTORY_SLOTS);
     T_STREQ((LPCSTR)test_last_unicast_buf + cursor, "Interface\\Icons\\INV_Misc_Bag_08.blp");
     cursor += (DWORD)strlen((LPCSTR)test_last_unicast_buf + cursor) + 1;
-    T_STREQ((LPCSTR)test_last_unicast_buf + cursor, "Backpack");
+    T_STREQ((LPCSTR)test_last_unicast_buf + cursor, "Worn Knapsack");
     cursor += (DWORD)strlen((LPCSTR)test_last_unicast_buf + cursor) + 1;
     T_STREQ((LPCSTR)test_last_unicast_buf + cursor, "1");
     cursor += (DWORD)strlen((LPCSTR)test_last_unicast_buf + cursor) + 1;
