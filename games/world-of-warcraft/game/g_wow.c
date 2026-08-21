@@ -2107,6 +2107,22 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
         wow_move.distance = Wow_Clamp((FLOAT)atof(argv[4]), WOW_CAMERA_MIN_DISTANCE, WOW_CAMERA_MAX_DISTANCE);
     } else if (argc >= 1 && (!strcasecmp(argv[0], "select"))) {
         Wow_SelectEntity(ent, argc >= 2 ? Wow_EdictByNumber((DWORD)strtoul(argv[1], NULL, 10)) : NULL);
+    } else if (argc >= 2 && !strcasecmp(argv[0], "interact")) {
+        LPEDICT target = Wow_EdictByNumber((DWORD)strtoul(argv[1], NULL, 10));
+        wowEntityLocal_t *target_local = target ? Wow_EntityLocal(target) : NULL;
+        Wow_SelectEntity(ent, target && target != ent ? target : NULL);
+        if (target_local && target_local->quest_id) {
+            wowClient_t *client = (wowClient_t *)ent->client;
+            if (!Wow_QuestDetail(target_local->quest_id)) return;
+            client->quest_id = target_local->quest_id;
+            client->quest_open = true;
+            UI_WriteWowHud(ent);
+        } else {
+            wowEntityLocal_t *local = Wow_EntityLocal(ent);
+            if (!local || local->dead || !ent->attack) return;
+            local->enemy = target && target != ent ? target : NULL;
+            ent->attack(ent);
+        }
     } else if (argc >= 1 && (!strcasecmp(argv[0], "wow_cycle_target") || !strcasecmp(argv[0], "cycletarget"))) {
         DWORD old = ent->client->ps.selected_entity;
         DWORD start = old > 0 ? old + 1 : WOW_MAX_CLIENTS;
