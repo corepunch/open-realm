@@ -1,4 +1,5 @@
-/* ui_xml.c — WoW Glue FrameXML-style loader/runtime (TOC, Include/Script, frame registry, basic drawing). */
+/* ui_xml.c — WoW Glue FrameXML runtime: drawing, Lua bindings, mouse events, TOC loader.
+ * Parsing lives in stb_wowxml.h — compiled via -DSTB_WOW_XML_IMPLEMENTATION in WOW_UI_CFLAGS. */
 #include "ui_local.h"
 #include "ui_dbc.h"
 #include "client/ui_text_input.h"
@@ -26,18 +27,36 @@
 #define SDLK_ESCAPE 27
 #endif
 
-/* -------------------------------------------------------------------------
- * Local float-pair types used throughout the elem struct.
- * fpoint — a screen-space position or offset (x, y).
- * fsize  — a screen-space extent (w, h).
- * ------------------------------------------------------------------------- */
+/* Types, helpers, and parser now live in stb_wowxml.h (compiled via -DSTB_WOW_XML_IMPLEMENTATION).
+ * The Lua runtime below accesses wow_xml, ELEM_*, EF_*, etc. via the header. */
+
+/* Forward declarations for Lua code below (both build modes). */
+static void UIWow_XmlPublishFrame(int idx);
+static void UIWow_XMLRunFrameScript(int idx, LPCSTR script, LPCSTR event_name);
+
+#ifdef STB_WOW_XML_IMPLEMENTATION
+/* Host services for stb_wowxml.h — only compiled in the unity production build
+ * where -DSTB_WOW_XML_IMPLEMENTATION is set globally. */
+int  UI_XmlFsReadFile(LPCSTR p, void **b) { return uiimport.FS_ReadFile ? uiimport.FS_ReadFile(p, b) : -1; }
+void UI_XmlFsFreeFile(void *b) { if (uiimport.FS_FreeFile) uiimport.FS_FreeFile(b); }
+void UI_XmlPrintf(LPCSTR fmt, ...) { va_list ap; if (!uiimport.Printf) return; va_start(ap, fmt); uiimport.Printf(fmt); va_end(ap); }
+void UI_XmlOnFramePublish(int idx)  { UIWow_XmlPublishFrame(idx); }
+void UI_XmlOnShow(int idx) {
+    if (idx >= 0 && idx < wow_xml.count && UIWow_ElemStr(&wow_xml.elems[idx], ELEM_ON_SHOW))
+        UIWow_XMLRunFrameScript(idx, wow_xml.elems[idx].texts[ELEM_ON_SHOW], "OnShow");
+}
+void UI_XmlOnScriptBody(LPCSTR path, LPCSTR body) {
+    char chunk[512];
+    snprintf(chunk, sizeof(chunk), "%s:<Script>", path ? path : "");
+    UIWow_RunLuaString(chunk, body);
+}
+void UI_XmlLoadScriptFile(LPCSTR path) { UIWow_LoadLuaFile(path, false); }
+#endif /* STB_WOW_XML_IMPLEMENTATION */
+
+/* --- CODE BELOW IS GUARDED: already in stb_wowxml.h when -DSTB_WOW_XML_IMPLEMENTATION is set. --- */
+#ifndef STB_WOW_XML_IMPLEMENTATION
 typedef struct { FLOAT x, y; } fpoint_t;
 typedef struct { FLOAT w, h; } fsize_t;
-
-/* -------------------------------------------------------------------------
- * String field enum — indexes into uiWowXmlElem_t::texts[].
- * Cleanup is a single loop: for (i) free(e->texts[i]).
- * ------------------------------------------------------------------------- */
 typedef enum {
     ELEM_NAME = 0,
     ELEM_PARENT_NAME,
@@ -84,14 +103,7 @@ typedef enum {
     WOW_XML_BUTTON_TEXT_COUNT
 } uiWowXmlButtonTextState_t;
 
-typedef enum { 
-    WOW_XML_FRAME, 
-    WOW_XML_MODEL, 
-    WOW_XML_TEXTURE, 
-    WOW_XML_FONTSTRING, 
-    WOW_XML_BUTTON, 
-    WOW_XML_EDITBOX 
-} uiWowXmlType_t;
+/* uiWowXmlType_t is declared in ui_local.h (shared with ui_windows.c and tests). */
 typedef enum {
     EF_USED          = 1 << 0,
     EF_HAS_ANCHOR    = 1 << 1,
@@ -419,14 +431,13 @@ static RECT UIWow_XmlComputeRect(int idx) {
     }
     return out;
 }
+#endif /* !STB_WOW_XML_IMPLEMENTATION */
 
 static int UIWow_FrameFromSelf(lua_State *L) {
     int idx;
     luaL_checktype(L, 1, LUA_TTABLE); lua_getfield(L, 1, "__ow3_index"); idx = (int)luaL_optinteger(L, -1, -1); lua_pop(L, 1);
     return idx >= 0 && idx < wow_xml.count && (wow_xml.elems[idx].flags & EF_USED) ? idx : -1;
 }
-
-static void UIWow_XmlPublishFrame(int idx);
 
 static void UIWow_XmlPublishSyntheticFrame(LPCSTR name) {
     if (!wow_ui.lua || !name || !name[0]) return;
@@ -440,8 +451,7 @@ static void UIWow_XmlPublishSyntheticFrame(LPCSTR name) {
     luaL_getmetatable(wow_ui.lua, "UIWow.Frame"); lua_setmetatable(wow_ui.lua, -2);
     lua_setglobal(wow_ui.lua, name);
 }
-static void UIWow_XMLRunFrameScript(int idx, LPCSTR script, LPCSTR event_name);
-
+#ifndef STB_WOW_XML_IMPLEMENTATION
 static void UIWow_XMLSetShown(int idx, BOOL shown) {
     if (idx < 0 || idx >= wow_xml.count) return;
     if (shown) {
@@ -453,6 +463,7 @@ static void UIWow_XMLSetShown(int idx, BOOL shown) {
         wow_xml.elems[idx].flags |= EF_HIDDEN;
     }
 }
+#endif /* !STB_WOW_XML_IMPLEMENTATION */
 
 static int UIWow_LuaFrameShow(lua_State *L) {
     int i = UIWow_FrameFromSelf(L);
@@ -840,6 +851,7 @@ static void UIWow_XmlPublishFrame(int idx) {
     }
 }
 
+#ifndef STB_WOW_XML_IMPLEMENTATION
 static void UIWow_XmlReadSize(uiWowXmlElem_t *e, xmlNodePtr node) {
     xmlNodePtr c;
     for (c = node->children; c; c = c->next) {
@@ -1371,6 +1383,8 @@ static BOOL UIWow_XMLProcessFile(LPCSTR path, int depth) {
     return UIWow_XMLProcessXml(path, depth);
 }
 
+#endif /* !STB_WOW_XML_IMPLEMENTATION — closes guard around parser code */
+
 /* Read Glue TOC entries line-by-line, ignore comments, resolve relative paths, and process each entry. */
 static BOOL UIWow_XMLLoadFromToc(LPCSTR toc_path) {
     void *buf = NULL; int size; char *text, *cur;
@@ -1415,6 +1429,7 @@ static void UIWow_LuaSetGlueScreen_named(LPCSTR screen) {
     }
 }
 
+#ifndef STB_WOW_XML_IMPLEMENTATION
 static void UIWow_XMLFreeElems(void) {
     FOR_LOOP(i, wow_xml.count) UIWow_ElemFreeStrings(&wow_xml.elems[i]);
 }
@@ -1427,6 +1442,67 @@ void UIWow_XmlComputeRectPub(int idx, FLOAT *x, FLOAT *y, FLOAT *w, FLOAT *h) {
     if (w) *w = r.w;
     if (h) *h = r.h;
 }
+
+/* -------------------------------------------------------------------------
+ * Public XML load/query API (used by ui_windows.c and tests).
+ * ------------------------------------------------------------------------- */
+
+/* Parse a single FrameXML file into the elem registry without requiring Lua. */
+BOOL UIWow_XMLLoadFile(LPCSTR path) {
+    return UIWow_XMLProcessXml(path, 0);
+}
+
+/* Parse an in-memory FrameXML buffer (used for unit tests). */
+BOOL UIWow_XMLLoadBuffer(LPCSTR buf, int size, LPCSTR debug_name) {
+    xmlDocPtr doc; xmlNodePtr root;
+    if (!buf || size <= 0) return false;
+    doc = xmlReadMemory(buf, size, debug_name ? debug_name : "buffer", NULL,
+                        XML_PARSE_NONET | XML_PARSE_NOBLANKS |
+                        XML_PARSE_NOERROR | XML_PARSE_NOWARNING);
+    if (!doc) return false;
+    root = xmlDocGetRootElement(doc);
+    if (root) {
+        s_current_xml_path[0] = '\0';
+        UIWow_XMLProcessTopLevel(debug_name ? debug_name : "buffer", root, 0);
+    }
+    xmlFreeDoc(doc);
+    return true;
+}
+
+/* Show or hide a named top-level frame (used by the in-game window manager). */
+void UIWow_XMLSetFrameVisible(LPCSTR name, BOOL visible) {
+    UIWow_XMLSetShown(UIWow_XmlFindByName(name), visible);
+}
+
+/* Reset the elem registry (called when transitioning to game mode). */
+void UIWow_XMLClearFrames(void) {
+    UIWow_XMLFreeElems();
+    memset(wow_xml.elems, 0, sizeof(wow_xml.elems));
+    wow_xml.count = 0; wow_xml.focus = -1; wow_xml.pressed_button = -1;
+    wow_xml.hovered_button = -1; wow_xml.drag.scrollbar_idx = -1;
+}
+
+static int UIWow_XMLHitFrame(FLOAT x, FLOAT y); /* defined below */
+
+/* Hit-test for game-mode button clicks (no Lua required). */
+LPCSTR UIWow_XMLHitButton(FLOAT nx, FLOAT ny) {
+    int hit = UIWow_XMLHitFrame(nx, ny);
+    if (hit < 0) return NULL;
+    uiWowXmlElem_t *e = &wow_xml.elems[hit];
+    if (e->type != WOW_XML_BUTTON || !(e->flags & EF_ENABLED)) return NULL;
+    return UIWow_ElemStr(e, ELEM_ON_CLICK);
+}
+
+/* Elem inspectors for tests. */
+int    UIWow_XmlElemCount(void)      { return wow_xml.count; }
+int    UIWow_XmlElemType(int idx)    { return (idx >= 0 && idx < wow_xml.count) ? (int)wow_xml.elems[idx].type : -1; }
+LPCSTR UIWow_XmlElemName(int idx)    { return (idx >= 0 && idx < wow_xml.count) ? UIWow_ElemStr(&wow_xml.elems[idx], ELEM_NAME) : NULL; }
+LPCSTR UIWow_XmlElemText(int idx)    { return (idx >= 0 && idx < wow_xml.count) ? UIWow_ElemStr(&wow_xml.elems[idx], ELEM_TEXT) : NULL; }
+LPCSTR UIWow_XmlElemOnClick(int idx) { return (idx >= 0 && idx < wow_xml.count) ? UIWow_ElemStr(&wow_xml.elems[idx], ELEM_ON_CLICK) : NULL; }
+LPCSTR UIWow_XmlElemPoint(int idx)   { return (idx >= 0 && idx < wow_xml.count) ? UIWow_ElemStr(&wow_xml.elems[idx], ELEM_POINT) : NULL; }
+int    UIWow_XmlElemHidden(int idx)  { return (idx >= 0 && idx < wow_xml.count) && (wow_xml.elems[idx].flags & EF_HIDDEN) ? 1 : 0; }
+LPCSTR UIWow_XmlElemParent(int idx)  { return (idx >= 0 && idx < wow_xml.count) ? UIWow_ElemStr(&wow_xml.elems[idx], ELEM_PARENT_NAME) : NULL; }
+#endif /* !STB_WOW_XML_IMPLEMENTATION */
 
 /* Drop the injected character-create model when XML runtime state is rebuilt. */
 static void UIWow_XMLReleaseCharCustomizeModel(void) {
@@ -1519,8 +1595,6 @@ static void UIWow_XMLRunFrameScript(int idx, LPCSTR script, LPCSTR event_name) {
     }
     lua_pushnil(wow_ui.lua); lua_setglobal(wow_ui.lua, "this");
 }
-
-static int UIWow_XMLHitFrame(FLOAT x, FLOAT y);
 
 /* Compute cumulative vertical scroll offset for element idx by walking up the
    parent chain and summing all ScrollFrame scroll_y values. */
@@ -1637,6 +1711,7 @@ static void UIWow_XMLDrawBackdrop(uiWowXmlElem_t const *e, LPCRECT r) {
     wow_ui.renderer->DrawBackdrop(&db);
 }
 
+#ifndef STB_WOW_XML_IMPLEMENTATION
 static BOOL UIWow_XMLIsVisible(int idx) {
     while (idx >= 0 && idx < wow_xml.count) {
         uiWowXmlElem_t const *e = &wow_xml.elems[idx];
@@ -1645,6 +1720,7 @@ static BOOL UIWow_XMLIsVisible(int idx) {
     }
     return true;
 }
+#endif /* !STB_WOW_XML_IMPLEMENTATION */
 
 static LPCSTR UIWow_XMLResolveText(uiWowXmlElem_t const *e, LPSTR out, size_t out_size) {
     LPCSTR t = e->texts[ELEM_TEXT];
@@ -1875,9 +1951,11 @@ void UIWow_XMLDraw(void) {
     }
 }
 
+#ifndef STB_WOW_XML_IMPLEMENTATION
 static BOOL UIWow_XMLPointInRect(FLOAT x, FLOAT y, LPCRECT r) {
     return r && x >= r->x && y >= r->y && x <= r->x + r->w && y <= r->y + r->h;
 }
+#endif /* !STB_WOW_XML_IMPLEMENTATION */
 
 /* Find the ScrollFrame under the mouse position (in FDF coords). */
 static int UIWow_XMLHitScrollFrame(FLOAT x, FLOAT y) {
@@ -1917,6 +1995,7 @@ static int UIWow_XMLScrollBarParent(int idx) {
     return -1;
 }
 
+#ifndef STB_WOW_XML_IMPLEMENTATION
 static int UIWow_XMLHitFrame(FLOAT x, FLOAT y) {
     for (int i = wow_xml.count - 1; i >= 0; i--) {
         uiWowXmlElem_t const *e = &wow_xml.elems[i]; RECT r;
@@ -1926,6 +2005,7 @@ static int UIWow_XMLHitFrame(FLOAT x, FLOAT y) {
     }
     return -1;
 }
+#endif /* !STB_WOW_XML_IMPLEMENTATION */
 
 BOOL UIWow_XMLMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
     VECTOR2 mouse = UIWow_MouseFdf(x, y);

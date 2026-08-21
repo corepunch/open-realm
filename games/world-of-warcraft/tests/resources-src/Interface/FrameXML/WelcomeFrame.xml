@@ -1,0 +1,48 @@
+<Ui>
+  <Frame name="WelcomeFrame" hidden="false">
+    <Size>
+      <AbsDimension x="388" y="175"/>
+    </Size>
+    <Anchors>
+      <Anchor point="CENTER"/>
+    </Anchors>
+    <Backdrop bgFile="Interface\DialogFrame\UI-DialogBox-Background.blp"/>
+    <Frames>
+      <FontString name="WelcomeFrameHeader" parent="WelcomeFrame"
+                  text="Welcome to World of Warcraft">
+        <Size>
+          <AbsDimension x="340" y="20"/>
+        </Size>
+        <Anchors>
+          <Anchor point="TOP" x="0" y="-15"/>
+        </Anchors>
+        <Font file="Fonts\FRIZQT__.TTF" height="15">
+          <Color r="1.0" g="0.82" b="0.0" a="1.0"/>
+        </Font>
+      </FontString>
+      <FontString name="WelcomeFrameText" parent="WelcomeFrame"
+                  text="Welcome to the world of Azeroth. Your adventure begins now.">
+        <Size>
+          <AbsDimension x="340" y="80"/>
+        </Size>
+        <Anchors>
+          <Anchor point="TOP" x="0" y="-40"/>
+        </Anchors>
+        <Font file="Fonts\FRIZQT__.TTF" height="12">
+          <Color r="1.0" g="1.0" b="1.0" a="1.0"/>
+        </Font>
+      </FontString>
+      <Button name="WelcomeFrameAccept" parent="WelcomeFrame" text="Okay">
+        <Size>
+          <AbsDimension x="128" y="25"/>
+        </Size>
+        <Anchors>
+          <Anchor point="BOTTOM" x="0" y="15"/>
+        </Anchors>
+        <Scripts>
+          <OnClick>window_close WelcomeFrame</OnClick>
+        </Scripts>
+      </Button>
+    </Frames>
+  </Frame>
+</Ui>

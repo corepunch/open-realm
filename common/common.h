@@ -73,6 +73,7 @@ enum svc_ops {
     
 // Unit UI data (Phase 8: HUD migration)
     svc_unit_ui,                 // [byte num_units] for each unit: [short entity] [byte num_buttons] [buttons] [byte num_inventory] [inventory] [byte num_queue] [queue]
+    svc_window,                  // [string window_id] [byte show(1)/hide(0)]  -- show or hide a named XML window
     svc_disconnect               // server is closing or dropped this client
 };
 

@@ -177,6 +177,9 @@ typedef struct {
     void (*UpdateLobbySetup)(lobbyState_t const *state);
     uiGameCommand_t GameCommand;
     void (*DrawGameOverlay)(void);
+
+    /* Named XML windows — show/hide a window by ID (svc_window from server). */
+    void (*ShowWindow)(const char *window_id, int show);
 } uiExport_t;
 
 /* Entry point called by the client to get the UI function table.

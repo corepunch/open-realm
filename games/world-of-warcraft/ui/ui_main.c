@@ -212,6 +212,7 @@ static void UIWow_Init(void) {
 }
 
 static void UIWow_Shutdown(void) {
+    UIWow_ShutdownWindows();
     UIWow_ShutdownLua();
     if (wow_ui.renderer) {
         FOR_LOOP(i, WOW_UI_MAX_TEXTURES) {
@@ -418,6 +419,7 @@ static void UIWow_ShowCharacterCreateMenu(void){ UIWow_CallLuaShow("character_cr
 void UIWow_EnterGameMode(void) {
     wow_ui.game_mode = true;
     wow_ui.current_menu[0] = '\0';
+    UIWow_XMLClearFrames();  /* drop glue-screen elements; game windows load fresh */
 }
 
 typedef struct { LPCSTR command; void (*function)(void); } uiWowMenuCommandDef_t;
@@ -538,6 +540,8 @@ static BOOL UIWow_GameOverlayMouseDown(int x, int y) {
     VECTOR2 pos = UIWow_MouseFdf(x, y);
     DWORD unread = 0;
 
+    if (UIWow_WindowMouseDown(pos.x, pos.y)) return true;
+
     FOR_LOOP(i, wow_ui.message_count) {
         wowUiMessage_t *message = &wow_ui.messages[i];
         FLOAT icon_x;
@@ -562,6 +566,7 @@ static void UIWow_DrawGameOverlay(void) {
     wowUiMessage_t const *open = NULL;
 
     UIWow_EnsureRenderer();
+    UIWow_DrawWindows();
     if (!wow_ui.renderer || !wow_ui.renderer->DrawFill || !wow_ui.renderer->DrawText) return;
     FOR_LOOP(i, wow_ui.message_count) {
         wowUiMessage_t const *message = &wow_ui.messages[i];
@@ -598,5 +603,6 @@ uiExport_t UI_GetAPI(uiImport_t import) {
         .UpdateLobbySetup = UIWow_UpdateLobbySetup,
         .GameCommand      = UIWow_GameCommand,
         .DrawGameOverlay  = UIWow_DrawGameOverlay,
+        .ShowWindow       = UIWow_ShowWindow,
     };
 }

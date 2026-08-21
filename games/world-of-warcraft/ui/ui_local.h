@@ -104,12 +104,29 @@ void UIWow_CallLuaUpdate(DWORD msec);
 BOOL UIWow_RunLuaString(LPCSTR name, LPCSTR script);
 BOOL UIWow_LoadLuaFile(LPCSTR path, BOOL noisy_missing);
 
+/* stb_wowxml.h provides uiWowXmlType_t, wowXmlRuntime_t, and the parser API. */
+#include "stb_wowxml.h"
+
 /* ui_xml.c */
 void UIWow_XMLInitRuntime(void);
 void UIWow_XMLShutdownRuntime(void);
 BOOL UIWow_XMLLoadGlueFromToc(LPCSTR toc_path);
+BOOL UIWow_XMLLoadFile(LPCSTR path);
+BOOL UIWow_XMLLoadBuffer(LPCSTR buf, int size, LPCSTR debug_name);
+void UIWow_XMLSetFrameVisible(LPCSTR name, BOOL visible);
+void UIWow_XMLClearFrames(void);
+LPCSTR UIWow_XMLHitButton(FLOAT nx, FLOAT ny);
 void UIWow_XMLDraw(void);
-int UIWow_XmlFindByNamePub(LPCSTR name);
+int  UIWow_XmlFindByNamePub(LPCSTR name);
+void UIWow_XmlComputeRectPub(int idx, FLOAT *x, FLOAT *y, FLOAT *w, FLOAT *h);
+int    UIWow_XmlElemCount(void);
+int    UIWow_XmlElemType(int idx);
+LPCSTR UIWow_XmlElemName(int idx);
+LPCSTR UIWow_XmlElemText(int idx);
+LPCSTR UIWow_XmlElemOnClick(int idx);
+LPCSTR UIWow_XmlElemPoint(int idx);
+int    UIWow_XmlElemHidden(int idx);
+LPCSTR UIWow_XmlElemParent(int idx);
 void UIWow_XMLSetFrameModel(int idx, LPCSTR model_path);
 void UIWow_XMLInvalidateCharCustomizeModel(void);
 void UIWow_XmlSetFrameModel(int idx, LPCSTR model_path);
@@ -118,6 +135,12 @@ void UIWow_XmlSetFrameModel(int idx, LPCSTR model_path);
 void UIWow_LoadStaticAssets(void);
 void UIWow_UpdateMapBackground(LPCPLAYER ps);
 void UIWow_DrawLoadingScreenC(LPCSTR map, LPCSTR status, FLOAT progress);
+
+/* ui_windows.c */
+void UIWow_ShowWindow(const char *window_id, int show);
+void UIWow_DrawWindows(void);
+BOOL UIWow_WindowMouseDown(float nx, float ny);
+void UIWow_ShutdownWindows(void);
 
 /* Shared helpers (defined in ui_main.c) */
 void UIWow_EnterGameMode(void);

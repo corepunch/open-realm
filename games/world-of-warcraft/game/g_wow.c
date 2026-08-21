@@ -55,45 +55,51 @@ static struct {
 /* Per-frame spawn budget (declared extern in g_wow_local.h). */
 DWORD wow_spawns_this_frame = 0;
 
+/* Starting inventory — the 6 bag/item slots on the right of the action bar.
+ * Reflects what a new character actually has: two bags, a potion, food, and
+ * the class starting weapon. Spells never go here — they belong in actions[]. */
 static wowHudIcon_t const wow_start_inventory[WOW_UI_INVENTORY_SLOTS] = {
-    { "Interface\\Icons\\INV_Misc_Bag_08.blp", "Backpack", 1 },
-    { "Interface\\Icons\\INV_Weapon_ShortBlade_05.blp", "Short Blade", 1 },
-    { "Interface\\Icons\\INV_Misc_Food_24.blp", "Food", 5 },
-    { "Interface\\Icons\\Spell_Nature_HealingTouch.blp", "Healing Touch", 1 },
-    { "Interface\\Icons\\Ability_Warrior_BattleShout.blp", "Battle Shout", 1 },
-    { "Interface\\Icons\\INV_Misc_Coin_01.blp", "Coin", 12 },
+    { "Interface\\Icons\\INV_Misc_Bag_08.blp",          "Worn Knapsack",           1 },
+    { "Interface\\Icons\\INV_Misc_Bag_08.blp",          "Worn Knapsack",           1 },
+    { "Interface\\Icons\\INV_Potion_51.blp",            "Minor Healing Potion",    2 },
+    { "Interface\\Icons\\INV_Misc_Food_24.blp",         "Tough Jerky",             5 },
+    { "Interface\\Icons\\INV_Weapon_ShortBlade_05.blp", "Worn Shortsword",         1 },
+    { "Interface\\Icons\\INV_Misc_Coin_01.blp",         "Copper Coin",            10 },
 };
 
-/* Warrior: melee abilities in slots 0-2, healing in 3, no ranged spells. */
+/* Warrior action bar — abilities only.
+ * Slots 0-2 map to WOW_SPELL_ATTACK; slot 3 to WOW_SPELL_HEALING_TOUCH.
+ * Slots 4-11 are empty until the player earns more abilities. */
 static wowHudIcon_t const wow_actions_warrior[WOW_UI_ACTION_SLOTS] = {
-    { "Interface\\Icons\\Ability_Warrior_Cleave.blp",      "Attack",        1 },
-    { "Interface\\Icons\\Ability_Warrior_Charge.blp",      "Charge",        1 },
-    { "Interface\\Icons\\Ability_Warrior_BattleShout.blp", "Battle Shout",  1 },
-    { "Interface\\Icons\\Spell_Nature_HealingTouch.blp",   "Healing Touch", 1 },
-    { "",                                                   "",              0 },
-    { "",                                                   "",              0 },
-    { "Interface\\Icons\\INV_Weapon_ShortBlade_05.blp",    "Short Blade",   1 },
-    { "Interface\\Icons\\INV_Misc_Food_24.blp",            "Food",          5 },
-    { "Interface\\Icons\\INV_Potion_51.blp",               "Healing Potion",2 },
-    { "Interface\\Icons\\INV_Misc_Bag_08.blp",             "Backpack",      1 },
-    { "",                                                   "",              0 },
-    { "Interface\\Icons\\INV_Misc_Coin_01.blp",            "Coin",          12 },
+    { "Interface\\Icons\\Ability_Warrior_Cleave.blp",      "Heroic Strike",  1 },
+    { "Interface\\Icons\\Ability_Warrior_Charge.blp",      "Charge",         1 },
+    { "Interface\\Icons\\Ability_Warrior_BattleShout.blp", "Battle Shout",   1 },
+    { "Interface\\Icons\\Spell_Nature_HealingTouch.blp",   "Healing Touch",  1 },
+    { "",                                                   "",               0 },
+    { "",                                                   "",               0 },
+    { "",                                                   "",               0 },
+    { "",                                                   "",               0 },
+    { "",                                                   "",               0 },
+    { "",                                                   "",               0 },
+    { "",                                                   "",               0 },
+    { "",                                                   "",               0 },
 };
 
-/* Mage prototype: healing plus fire/frost spells in slots 3-5. */
+/* Mage action bar — abilities only.
+ * Slot 0 → auto-attack; slot 3 → heal; slots 4-5 → fire/frost. */
 static wowHudIcon_t const wow_actions_mage[WOW_UI_ACTION_SLOTS] = {
-    { "Interface\\Icons\\Ability_Warrior_Cleave.blp",      "Attack",        1 },
-    { "",                                                   "",              0 },
-    { "",                                                   "",              0 },
-    { "Interface\\Icons\\Spell_Nature_HealingTouch.blp",   "Healing Touch", 1 },
-    { "Interface\\Icons\\Spell_Fire_FireBolt02.blp",       "Fireball",      1 },
-    { "Interface\\Icons\\Spell_Frost_FrostBolt02.blp",     "Frostbolt",     1 },
-    { "Interface\\Icons\\INV_Weapon_ShortBlade_05.blp",    "Short Blade",   1 },
-    { "Interface\\Icons\\INV_Misc_Food_24.blp",            "Food",          5 },
-    { "Interface\\Icons\\INV_Potion_51.blp",               "Healing Potion",2 },
-    { "Interface\\Icons\\INV_Misc_Bag_08.blp",             "Backpack",      1 },
-    { "Interface\\Icons\\Spell_Holy_MagicalSentry.blp",    "Sentry",        1 },
-    { "Interface\\Icons\\INV_Misc_Coin_01.blp",            "Coin",          12 },
+    { "Interface\\Icons\\Ability_Warrior_Cleave.blp",      "Attack",         1 },
+    { "",                                                   "",               0 },
+    { "",                                                   "",               0 },
+    { "Interface\\Icons\\Spell_Nature_HealingTouch.blp",   "Healing Touch",  1 },
+    { "Interface\\Icons\\Spell_Fire_FireBolt02.blp",       "Fireball",       1 },
+    { "Interface\\Icons\\Spell_Frost_FrostBolt02.blp",     "Frostbolt",      1 },
+    { "",                                                   "",               0 },
+    { "",                                                   "",               0 },
+    { "",                                                   "",               0 },
+    { "",                                                   "",               0 },
+    { "",                                                   "",               0 },
+    { "",                                                   "",               0 },
 };
 
 #define WOW_MISSING_ANIMATION_LOG_SLOTS 128
@@ -2196,6 +2202,8 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
             cl->gcd_time = WOW_GCD_MS;
             if (def->cast) def->cast(ent, target);
         }
+    } else if (argc >= 2 && !strcasecmp(argv[0], "window_close")) {
+        UI_HideWindow(ent, argv[1]);
     }
 }
 
@@ -2234,6 +2242,7 @@ static void Wow_ClientBegin(LPEDICT ent) {
     Wow_SendPlayerUi(ent);
     Wow_SendInbox(ent);
     UI_WriteWowHud(ent);
+    UI_WriteWelcomeWindow(ent);
 }
 
 struct game_export *GetGameAPI(struct game_import *import) {
