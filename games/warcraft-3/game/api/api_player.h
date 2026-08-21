@@ -352,8 +352,10 @@ DWORD RemovePlayer(LPJASS j) {
         if (pent) {
             if (*gameResult == 0) {
                 G_PublishEvent(pent, EVENT_PLAYER_VICTORY);
+                UI_ShowGameResult(pent, true);
             } else if (*gameResult == 1) {
                 G_PublishEvent(pent, EVENT_PLAYER_DEFEAT);
+                UI_ShowGameResult(pent, false);
             }
         }
     }

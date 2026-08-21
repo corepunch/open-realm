@@ -361,6 +361,7 @@ typedef enum {
     LAYER_INVENTORY,
     LAYER_MESSAGE,
     LAYER_QUESTDIALOG,
+    LAYER_GAME_RESULT,
 } UILAYOUTLAYER;
 
 typedef enum {
