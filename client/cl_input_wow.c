@@ -78,6 +78,11 @@ static void CL_WowSendAttack(DWORD entity_number) {
     SZ_Printf(&cls.netchan.message, "attack %u", (unsigned)entity_number);
 }
 
+static void CL_WowSendInteract(DWORD entity_number) {
+    MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+    SZ_Printf(&cls.netchan.message, "interact %u", (unsigned)entity_number);
+}
+
 /* LMB up: if mouse didn't move much, treat as a click → select target under cursor. */
 static void CL_WowLmbUp(void) {
     DWORD entnum;
@@ -116,9 +121,8 @@ static void CL_WowRmbUp(void) {
     if (CL_MouseOverGameplayUI()) {
         return;
     }
-    /* Context interact: attack hostile entity under cursor. */
     if (re.TraceEntity(&cl.viewDef, mouse.origin.x, mouse.origin.y, &entnum)) {
-        CL_WowSendAttack(entnum);
+        CL_WowSendInteract(entnum);
     }
 }
 
