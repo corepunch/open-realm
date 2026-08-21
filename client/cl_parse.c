@@ -660,6 +660,16 @@ static void CL_ParseGameCommand(LPSIZEBUF msg) {
     msg->readcount = payload_start + (DWORD)payload_size;
 }
 
+static void CL_ParseWindow(LPSIZEBUF msg) {
+    char window_id[64];
+    int show;
+
+    MSG_ReadStringN(msg, window_id, sizeof(window_id));
+    show = MSG_ReadByte(msg);
+    if (ui.ShowWindow)
+        ui.ShowWindow(window_id, show);
+}
+
 /* Dispatch loop for a complete server message buffer.  Each iteration reads
  * one message-type byte and calls the matching handler.  An unknown type
  * stops processing and prints an error to stderr. */
@@ -708,6 +718,9 @@ void CL_ParseServerMessage(LPSIZEBUF msg) {
             // Phase 8: Unit UI data
             case svc_unit_ui:
                 CL_ParseUnitUI(msg);
+                break;
+            case svc_window:
+                CL_ParseWindow(msg);
                 break;
             case svc_disconnect:
                 CL_Disconnect("Server disconnected.", true);

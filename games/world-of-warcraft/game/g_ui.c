@@ -359,6 +359,26 @@ static void UI_WriteTargetingFrame(LPEDICT ent) {
     UI_WriteColorBar(PX(105), PY(54), PW(119), PH(11), (FLOAT)ps->stats[WOW_STAT_POWER], (FLOAT)ps->stats[WOW_STAT_POWER_MAX], MAKE(COLOR32, 26, 82, 210, 235));
 }
 
+/* Send svc_window to show (show=1) or hide (show=0) a named XML window. */
+static void UI_WriteWindowMsg(LPCSTR window_id, int show) {
+    gi.Write(PF_BYTE, &(LONG){svc_window});
+    gi.Write(PF_STRING, window_id);
+    gi.Write(PF_BYTE, &(LONG){show});
+}
+
+/* Show the classic "Welcome to World of Warcraft" message box for ent. */
+void UI_WriteWelcomeWindow(LPEDICT ent) {
+    UI_WriteWindowMsg("WelcomeFrame", 1);
+    gi.unicast(ent);
+}
+
+/* Hide a named window by ID. */
+void UI_HideWindow(LPEDICT ent, LPCSTR window_id) {
+    if (!window_id || !window_id[0]) return;
+    UI_WriteWindowMsg(window_id, 0);
+    gi.unicast(ent);
+}
+
 /* Build and unicast the WoW HUD layer for a player */
 void UI_WriteWowHud(LPEDICT ent) {
     LPPLAYER ps;
