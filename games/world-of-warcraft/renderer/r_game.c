@@ -99,10 +99,13 @@ LPMODEL R_GameLoadModel(LPCSTR modelFilename) {
     LPMODEL model;
 
     snprintf(load_name, sizeof(load_name), "%s", modelFilename ? modelFilename : "");
-    if ((fileSize < 0 || !buffer) && R_GamePathHasExtension(modelFilename, ".mdx")) {
+    /* WoW only uses .m2; legacy data files (WMO MODN chunks, early ADTs) may
+     * reference models with any extension (.MDL, .MDX, etc.).  If the direct
+     * read failed and the path isn't already .m2, strip the extension and retry. */
+    if ((fileSize < 0 || !buffer) && !R_GamePathHasExtension(modelFilename, ".m2")) {
         PATHSTR tempFileName = { 0 };
-        LPSTR ext = strcasestr(modelFilename, ".mdx");
-        size_t stemLen = (size_t)(ext - modelFilename);
+        LPCSTR dot = strrchr(modelFilename, '.');
+        size_t stemLen = dot ? (size_t)(dot - modelFilename) : strlen(modelFilename);
 
         if (stemLen > sizeof(tempFileName) - 4) {
             stemLen = sizeof(tempFileName) - 4;
@@ -112,22 +115,14 @@ LPMODEL R_GameLoadModel(LPCSTR modelFilename) {
         fileSize = ri.FS_ReadFile(tempFileName, &buffer);
         if (fileSize >= 0 && buffer) {
             snprintf(load_name, sizeof(load_name), "%s", tempFileName);
-        } else {
-            fprintf(stderr, "R_LoadModel: missing WoW glue model %s and converted path %s\n", modelFilename, tempFileName);
         }
     }
-    if ((fileSize < 0 || !buffer) &&
-        (R_GamePathHasExtension(modelFilename, ".m2") ||
-         R_GamePathHasExtension(modelFilename, ".mdx"))) {
-        fprintf(stderr, "R_LoadModel: missing WoW model %s, using fallback\n", modelFilename);
+    if (fileSize < 0 || !buffer) {
         model = ri.MemAlloc(sizeof(model_t));
         memset(model, 0, sizeof(*model));
-        model->m2 = R_LoadModelM2(modelFilename, NULL, 0, NULL);
+        model->m2 = R_LoadModelM2(load_name, NULL, 0, NULL);
         model->modeltype = ID_MD20;
         return model;
-    }
-    if (fileSize < 0 || !buffer) {
-        return NULL;
     }
     if (*(DWORD *)buffer != ID_MD20 && *(DWORD *)buffer != ID_MD21 && *(DWORD *)buffer != ID_12DM) {
         fprintf(stderr, "Unknown model format %.4s in file %s\n", (LPSTR)buffer, modelFilename);

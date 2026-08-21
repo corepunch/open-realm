@@ -143,38 +143,27 @@ LPMODEL R_GameLoadModel(LPCSTR modelFilename) {
     int fileSize = ri.FS_ReadFile(modelFilename, &buffer);
     LPMODEL model = NULL;
 
-    if (fileSize < 0 && R_GamePathHasExtension(modelFilename, ".mdl")) {
-        /* R_GamePathHasExtension uses strcasecmp, so the extension may be any
-         * case variant (e.g. ".MDL").  strstr() is case-sensitive, so we must
-         * not use it here; instead compute the stem length directly. */
+    /* WC3 data files reference models with any extension (.MDL, .MDX, variant
+     * digits, etc.).  Strip to the stem via the last dot, optionally remove a
+     * trailing digit (WC3 convention: HeroArcher1.mdl → HeroArcher.mdx), then
+     * retry with .mdx.  Using strrchr avoids the strcasestr case-sensitivity
+     * issue and handles extensions of any length. */
+    if (fileSize < 0) {
         PATHSTR tempFileName = { 0 };
-        size_t stemLen = strlen(modelFilename) - 4; /* ".mdl" = 4 chars */
+        LPCSTR dot = strrchr(modelFilename, '.');
+        LPCSTR stem_end = dot ? dot : modelFilename + strlen(modelFilename);
+        size_t stemLen;
 
+        if (stem_end > modelFilename && isdigit((unsigned char)*(stem_end - 1))) {
+            stem_end--;
+        }
+        stemLen = (size_t)(stem_end - modelFilename);
         if (stemLen > sizeof(tempFileName) - 5) {
             stemLen = sizeof(tempFileName) - 5;
         }
         memcpy(tempFileName, modelFilename, stemLen);
         memcpy(tempFileName + stemLen, ".mdx", 5);
         fileSize = ri.FS_ReadFile(tempFileName, &buffer);
-    }
-    if (fileSize < 0) {
-        size_t nameLen = strlen(modelFilename);
-        if (nameLen >= 4) {
-            PATHSTR tempFileName = { 0 };
-            LPCSTR end = modelFilename + nameLen - 4;
-            size_t stemLen;
-
-            if (end > modelFilename && isdigit((unsigned char)*(end - 1))) {
-                end--;
-            }
-            stemLen = (size_t)(end - modelFilename);
-            if (stemLen > sizeof(tempFileName) - 5) {
-                stemLen = sizeof(tempFileName) - 5;
-            }
-            memcpy(tempFileName, modelFilename, stemLen);
-            memcpy(tempFileName + stemLen, ".mdx", 5);
-            fileSize = ri.FS_ReadFile(tempFileName, &buffer);
-        }
     }
     if (fileSize < 0 || !buffer) {
         return NULL;
