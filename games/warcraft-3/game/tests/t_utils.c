@@ -2,11 +2,15 @@
  * t_utils.c — Shared helpers for in-engine WC3 tests.
  *
  * Compiled once into the game module alongside the t_*.c files.
- * Provides alloc_test_unit(), reset_entities(), and setup_test_world().
+ * Provides alloc_test_unit(), reset_entities(), setup_test_world(),
+ * and run_test_jass() for JASS integration tests.
  */
 #ifdef BZ_TESTS
 
 #include "../g_local.h"
+#include "jass/jass.h"
+
+extern JASSMODULE jass_funcs[];
 
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y) {
     LPEDICT ent = G_Spawn();
@@ -80,19 +84,64 @@ void setup_test_world(void) {
 
 /* Every in-engine WC3 test starts from the state contract the old standalone harness provided. */
 static void reset_test_state(void) {
+    if (level.vm) { jass_close(level.vm); }
     G_FowShutdown();
     memset(g_edicts, 0, sizeof(edict_t) * globals.max_edicts);
     globals.num_edicts = game.max_clients;
     globals.edicts = g_edicts;
+    /* Restore player-slot client pointers so G_GetPlayerEntityByNumber works. */
     FOR_LOOP(i, game.max_clients) g_edicts[i].s.number = i;
     memset(game.clients, 0, game.max_clients * sizeof(*game.clients));
-    FOR_LOOP(i, game.max_clients) game.clients[i].ps.number = i;
+    FOR_LOOP(i, game.max_clients) {
+        game.clients[i].ps.number = i;
+        g_edicts[i].client = &game.clients[i];
+    }
     memset(&level, 0, sizeof(level));
     memset(&test_mapinfo, 0, sizeof(test_mapinfo));
     level.mapinfo = &test_mapinfo;
     gi.GetTime = test_get_time;
     CM_SetupTestWorldBounds(&MAKE(BOX2, .min = {0, 0}, .max = {512, 384}));
     if (gi.ClearWorld) gi.ClearWorld();
+}
+
+/*
+ * run_test_jass — load a synthetic JASS map script and run its main().
+ *
+ * Initializes a fresh JASS VM, loads Scripts\common.j and Scripts\Blizzard.j
+ * from the test fixture MPQ, evaluates the given source, calls main(), and
+ * pumps all coroutines.  The VM is stored in level.vm so callers can inspect
+ * C-level game state (level.quests, level.events) after the call returns.
+ * The VM is closed automatically by reset_test_state() before the next test.
+ *
+ * Returns true if no JASS runtime error occurred.
+ */
+BOOL run_test_jass(LPCSTR src) {
+    /* jass_dobuffer mutates the string in-place; duplicate to avoid clobbering read-only literals. */
+    DWORD len = strlen(src);
+    LPSTR buf = gi.MemAlloc(len + 1);
+    memcpy(buf, src, len + 1);
+
+    if (level.vm) { jass_close(level.vm); level.vm = NULL; }
+
+    jass_sethost(&MAKE(JASSHOST,
+        .MemAlloc         = gi.MemAlloc,
+        .MemFree          = gi.MemFree,
+        .GetTime          = gi.GetTime,
+        .ReadFile         = gi.ReadFile,
+        .natives          = jass_funcs,
+        .GetPlayerByNumber = G_GetPlayerByNumber,
+    ));
+    level.vm = jass_newstate();
+
+    jass_dofile(level.vm, "Scripts\\common.j");
+    jass_dofile(level.vm, "Scripts\\Blizzard.j");
+    jass_dobuffer(level.vm, buf);
+    gi.MemFree(buf);
+
+    jass_callbyname(level.vm, "main", true);
+    jass_runevents(level.vm);
+
+    return !jass_rterror_pending(level.vm);
 }
 
 __attribute__((constructor)) static void register_test_reset(void) { Test_SetBeforeEach(reset_test_state); }

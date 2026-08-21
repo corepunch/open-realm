@@ -1848,46 +1848,36 @@ void Wow_QuestAwardKillCredit(LPEDICT attacker, DWORD display_id) {
 
     if (!attacker || !attacker->client) return;
     wc = (wowClient_t *)attacker->client;
-    FOR_LOOP(i, wc->quest_count) {
-        wowQuestState_t *qs = &wc->quests[i];
+    FOR_LOOP(i, wc->client.ps.quest_count) {
+        svQuestEntry_t *qs = &wc->client.ps.quest_log[i];
         LPCWOWQUESTDETAIL detail;
         BOOL all_done;
 
-        if (qs->status != WOW_QUEST_ACCEPTED) continue;
+        if (qs->status != SV_QUEST_ACTIVE) continue;
         detail = Wow_QuestDetail(qs->quest_id);
         if (!detail || !detail->kill_objective_count) continue;
         all_done = true;
         FOR_LOOP(j, detail->kill_objective_count) {
             if (detail->kill_objectives[j].display_id != display_id) {
-                if (qs->kill_progress[j] < detail->kill_objectives[j].required_count)
+                if (wc->kill_progress[i][j] < detail->kill_objectives[j].required_count)
                     all_done = false;
                 continue;
             }
-            if (qs->kill_progress[j] < detail->kill_objectives[j].required_count)
-                qs->kill_progress[j]++;
-            if (qs->kill_progress[j] < detail->kill_objectives[j].required_count)
+            if (wc->kill_progress[i][j] < detail->kill_objectives[j].required_count)
+                wc->kill_progress[i][j]++;
+            if (wc->kill_progress[i][j] < detail->kill_objectives[j].required_count)
                 all_done = false;
         }
         if (all_done)
-            qs->status = WOW_QUEST_COMPLETE;
+            qs->status = SV_QUEST_COMPLETE;
     }
-}
-
-wowQuestState_t *Wow_FindQuestState(wowClient_t *client, DWORD quest_id) {
-    FOR_LOOP(i, client->quest_count)
-        if (client->quests[i].quest_id == quest_id) return &client->quests[i];
-    return NULL;
 }
 
 static BOOL Wow_AddQuest(wowClient_t *client, DWORD quest_id) {
     LPCWOWQUESTDETAIL detail = Wow_QuestDetail(quest_id);
-    if (!detail || client->quest_count >= WOW_MAX_QUEST_LOG) return false;
-    if (Wow_FindQuestState(client, quest_id)) return false;
-    if (detail->prev_quest && !Wow_FindQuestState(client, detail->prev_quest)) return false;
-    client->quests[client->quest_count].quest_id = quest_id;
-    client->quests[client->quest_count].status = WOW_QUEST_ACCEPTED;
-    client->quest_count++;
-    return true;
+    if (!detail) return false;
+    if (detail->prev_quest && !SV_QuestFind(client->client.ps.quest_log, client->client.ps.quest_count, detail->prev_quest)) return false;
+    return SV_QuestAdd(client->client.ps.quest_log, &client->client.ps.quest_count, SV_MAX_QUEST_LOG, quest_id);
 }
 
 /* Serialize the complete bounded inbox so reconnects and repeated reward
@@ -1920,12 +1910,12 @@ void Wow_SendInbox(LPEDICT ent) {
 }
 
 static void Wow_CompleteQuest(wowClient_t *client, DWORD quest_id) {
-    wowQuestState_t *state = Wow_FindQuestState(client, quest_id);
+    svQuestEntry_t *state = SV_QuestFind(client->client.ps.quest_log, client->client.ps.quest_count, quest_id);
     LPCWOWQUESTDETAIL detail;
-    if (!state || state->status != WOW_QUEST_ACCEPTED) return;
+    if (!state || state->status != SV_QUEST_ACTIVE) return;
     detail = Wow_QuestDetail(quest_id);
     if (!detail) return;
-    state->status = WOW_QUEST_COMPLETE;
+    state->status = SV_QUEST_COMPLETE;
     client->client.ps.stats[WOW_STAT_XP] += detail->reward_xp;
     client->client.ps.stats[WOW_STAT_COPPER] += detail->reward_gold;
     if (client->message_count < WOW_UI_MAX_MESSAGES) {
@@ -2032,7 +2022,7 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
     } else if (argc >= 1 && !strcasecmp(argv[0], "quest_accept")) {
         wowClient_t *client = (wowClient_t *)ent->client;
         DWORD quest_id = argc >= 2 ? (DWORD)strtoul(argv[1], NULL, 10) : client->quest_id;
-        if (quest_id && Wow_QuestDetail(quest_id)) Wow_AddQuest(client, quest_id);
+        if (quest_id) Wow_AddQuest(client, quest_id);
         client->quest_open = false;
         UI_WriteWowHud(ent);
     } else if (argc >= 1 && !strcasecmp(argv[0], "quest_complete")) {
@@ -2227,16 +2217,16 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
 static void Wow_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
     wowClient_t *client;
-    wowQuestState_t *quest;
+    svQuestEntry_t *quest;
     LPCWOWQUESTDETAIL detail;
 
     if (!local || !local->quest_id || player >= WOW_MAX_CLIENTS || !state->overhead_sprite)
         return;
     client = &wow_clients[player];
-    quest = Wow_FindQuestState(client, local->quest_id);
+    quest = SV_QuestFind(client->client.ps.quest_log, client->client.ps.quest_count, local->quest_id);
     detail = Wow_QuestDetail(local->quest_id);
     if (quest) { state->overhead_sprite = 0; return; }
-    if (detail && detail->prev_quest && !Wow_FindQuestState(client, detail->prev_quest))
+    if (detail && detail->prev_quest && !SV_QuestFind(client->client.ps.quest_log, client->client.ps.quest_count, detail->prev_quest))
         state->overhead_sprite = 0;
     else
         state->overhead_sprite = local->quest_available_sprite;

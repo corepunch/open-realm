@@ -17,10 +17,12 @@ static void GameResultEnsureLoaded(void) {
     GameResultDialog_Load(&grd);
 }
 
-/* UI_ShowGameResult — send the victory/defeat dialog to a single client. */
+/* UI_ShowGameResult — send the victory/defeat dialog to a single client.
+ * No-ops gracefully when the FDF is not loaded (e.g., test environment). */
 void UI_ShowGameResult(LPEDICT ent, BOOL victory) {
     if (!ent) return;
     GameResultEnsureLoaded();
+    if (!grd.GameResultDialog) return; /* FDF unavailable — UI_WriteLayout would crash on NULL root */
     UI_SetText(grd.GameResultText, "%s", victory ? "Victory!" : "Defeat!");
     UI_SetText(grd.GameResultContinueButtonText, "Continue");
     UI_SetOnClick(grd.GameResultContinueButton, "hidegameresult");

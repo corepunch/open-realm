@@ -133,11 +133,12 @@ static void UI_WriteQuestDialog(LPEDICT ent) {
 
     if (wc->quest_open) {
         LPCWOWQUESTDETAIL detail = Wow_QuestDetail(wc->quest_id);
-        wowQuestState_t *state = Wow_FindQuestState(wc, wc->quest_id);
+        svQuestEntry_t *state = SV_QuestFind(wc->client.ps.quest_log, wc->client.ps.quest_count, wc->quest_id);
+        DWORD slot = state ? (DWORD)(state - wc->client.ps.quest_log) : 0;
         char command[64], text[512];
         FLOAT x = PX(24), y = PY(104);
-        BOOL is_complete = state && state->status == WOW_QUEST_COMPLETE;
-        BOOL is_accepted = state && state->status == WOW_QUEST_ACCEPTED;
+        BOOL is_complete = state && state->status == SV_QUEST_COMPLETE;
+        BOOL is_accepted = state && state->status == SV_QUEST_ACTIVE;
 
         UI_WriteImage("Interface\\QuestFrame\\UI-QuestGreeting-TopLeft.blp", x, y, PW(256), PH(256), COLOR32_WHITE);
         UI_WriteImage("Interface\\QuestFrame\\UI-QuestGreeting-TopRight.blp", x + PW(256), y, PW(128), PH(256), COLOR32_WHITE);
@@ -149,14 +150,14 @@ static void UI_WriteQuestDialog(LPEDICT ent) {
         if (detail) {
             int off = 0;
             if (is_complete)
-                off = snprintf(text, sizeof(text), "%s\\n\\nRewards:\\n%d XP  |  %u copper", detail->reward_text, (int)detail->reward_xp, (unsigned)detail->reward_gold);
+                off = snprintf(text, sizeof(text), "%s\n\nRewards:\n%d XP  |  %u copper", detail->reward_text, (int)detail->reward_xp, (unsigned)detail->reward_gold);
             else {
-                off = snprintf(text, sizeof(text), "%s\\n\\n%s", detail->description, detail->objectives_text);
+                off = snprintf(text, sizeof(text), "%s\n\n%s", detail->description, detail->objectives_text);
                 if (is_accepted && detail->kill_objective_count) {
-                    off += snprintf(text + off, sizeof(text) - off, "\\n\\nProgress:");
+                    off += snprintf(text + off, sizeof(text) - off, "\n\nProgress:");
                     FOR_LOOP(j, detail->kill_objective_count) {
                         LPCSTR name = Wow_CachedCreatureName(detail->kill_objectives[j].display_id);
-                        off += snprintf(text + off, sizeof(text) - off, "\\n  %s: %u/%u", name ? name : "Creature", (unsigned)(state ? state->kill_progress[j] : 0), (unsigned)detail->kill_objectives[j].required_count);
+                        off += snprintf(text + off, sizeof(text) - off, "\n  %s: %u/%u", name ? name : "Creature", (unsigned)(state ? wc->kill_progress[slot][j] : 0), (unsigned)detail->kill_objectives[j].required_count);
                     }
                 }
             }
@@ -186,12 +187,12 @@ static void UI_WriteQuestDialog(LPEDICT ent) {
 
         UI_WriteTextFrame(x + PW(42), y + PH(12), PW(280), PH(22), "Quest Log", MAKE(COLOR32, 255, 215, 120, 255), FONT_JUSTIFYCENTER);
 
-        if (!wc->quest_count) {
+        if (!wc->client.ps.quest_count) {
             UI_WriteTextFrame(x + PW(42), line_y, PW(280), PH(22), "No active quests.", MAKE(COLOR32, 160, 150, 140, 255), FONT_JUSTIFYCENTER);
-        } else FOR_LOOP(i, wc->quest_count) {
-            wowQuestState_t *qs = &wc->quests[i];
+        } else FOR_LOOP(i, wc->client.ps.quest_count) {
+            svQuestEntry_t *qs = &wc->client.ps.quest_log[i];
             LPCWOWQUESTDETAIL detail = Wow_QuestDetail(qs->quest_id);
-            LPCSTR status = qs->status == WOW_QUEST_COMPLETE ? " (Complete)" : "";
+            LPCSTR status = qs->status == SV_QUEST_COMPLETE ? " (Complete)" : "";
 
             snprintf(buf, sizeof(buf), "%s%s", detail ? detail->title : "Unknown Quest", status);
             snprintf(cmd, sizeof(cmd), "quest %u", (unsigned)qs->quest_id);

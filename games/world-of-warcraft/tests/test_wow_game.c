@@ -724,12 +724,12 @@ TEST(wow_game, quest_accept_adds_to_quest_log) {
     player = &wow_edicts[0];
     game->ClientBegin(player);
     wc = (wowClient_t *)player->client;
-    T_EQ((int)wc->quest_count, 0);
+    T_EQ((int)wc->client.ps.quest_count, 0);
 
     game->ClientCommand(player, 2, accept_command);
-    T_EQ((int)wc->quest_count, 1);
-    T_EQ((int)wc->quests[0].quest_id, 788);
-    T_EQ((int)wc->quests[0].status, WOW_QUEST_ACCEPTED);
+    T_EQ((int)wc->client.ps.quest_count, 1);
+    T_EQ((int)wc->client.ps.quest_log[0].quest_id, 788);
+    T_EQ((int)wc->client.ps.quest_log[0].status, SV_QUEST_ACTIVE);
 }
 
 TEST(wow_game, quest_prerequisite_blocks_accept) {
@@ -745,15 +745,15 @@ TEST(wow_game, quest_prerequisite_blocks_accept) {
     wc = (wowClient_t *)player->client;
 
     game->ClientCommand(player, 2, accept13);
-    T_EQ((int)wc->quest_count, 0);
+    T_EQ((int)wc->client.ps.quest_count, 0);
 
     game->ClientCommand(player, 2, accept12);
-    T_EQ((int)wc->quest_count, 1);
-    T_EQ((int)wc->quests[0].quest_id, 12);
+    T_EQ((int)wc->client.ps.quest_count, 1);
+    T_EQ((int)wc->client.ps.quest_log[0].quest_id, 12);
 
     game->ClientCommand(player, 2, accept13);
-    T_EQ((int)wc->quest_count, 2);
-    T_EQ((int)wc->quests[1].quest_id, 13);
+    T_EQ((int)wc->client.ps.quest_count, 2);
+    T_EQ((int)wc->client.ps.quest_log[1].quest_id, 13);
 }
 
 TEST(wow_game, quest_complete_delivers_rewards) {
@@ -891,7 +891,7 @@ TEST(wow_game, quest_kill_progress_increments_and_auto_completes) {
     LPEDICT player;
     LPCSTR accept788[] = { "quest_accept", "788" };
     wowClient_t *wc;
-    wowQuestState_t *state;
+    svQuestEntry_t *state;
 
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     player = &wow_edicts[0];
@@ -899,18 +899,18 @@ TEST(wow_game, quest_kill_progress_increments_and_auto_completes) {
     wc = (wowClient_t *)player->client;
 
     game->ClientCommand(player, 2, accept788);
-    state = Wow_FindQuestState(wc, 788);
+    state = SV_QuestFind(wc->client.ps.quest_log, wc->client.ps.quest_count, 788);
     T_NOT_NULL(state);
-    T_EQ((int)state->status, WOW_QUEST_ACCEPTED);
-    T_EQ((int)state->kill_progress[0], 0);
+    T_EQ((int)state->status, SV_QUEST_ACTIVE);
+    T_EQ((int)wc->kill_progress[0][0], 0);
 
     FOR_LOOP(i, 4) Wow_QuestAwardKillCredit(player, 503);
-    T_EQ((int)state->kill_progress[0], 4);
-    T_EQ((int)state->status, WOW_QUEST_ACCEPTED);
+    T_EQ((int)wc->kill_progress[0][0], 4);
+    T_EQ((int)state->status, SV_QUEST_ACTIVE);
 
     FOR_LOOP(i, 4) Wow_QuestAwardKillCredit(player, 503);
-    T_EQ((int)state->kill_progress[0], 8);
-    T_EQ((int)state->status, WOW_QUEST_COMPLETE);
+    T_EQ((int)wc->kill_progress[0][0], 8);
+    T_EQ((int)state->status, SV_QUEST_COMPLETE);
 }
 
 TEST(wow_game, quest_kill_credit_only_on_accepted_quest) {
@@ -924,13 +924,13 @@ TEST(wow_game, quest_kill_credit_only_on_accepted_quest) {
     wc = (wowClient_t *)player->client;
 
     Wow_QuestAwardKillCredit(player, 503);
-    T_EQ((int)wc->quest_count, 0);
+    T_EQ((int)wc->client.ps.quest_count, 0);
 
     game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "788"});
     game->ClientCommand(player, 2, (LPCSTR[]){"quest_complete", "788"});
-    T_EQ((int)wc->quests[0].kill_progress[0], 0);
+    T_EQ((int)wc->kill_progress[0][0], 0);
     Wow_QuestAwardKillCredit(player, 503);
-    T_EQ((int)wc->quests[0].kill_progress[0], 0);
+    T_EQ((int)wc->kill_progress[0][0], 0);
 }
 
 TEST(wow_game, quest_kill_credit_wrong_creature_no_progress) {
@@ -938,7 +938,7 @@ TEST(wow_game, quest_kill_credit_wrong_creature_no_progress) {
     LPEDICT player;
     LPCSTR accept788[] = { "quest_accept", "788" };
     wowClient_t *wc;
-    wowQuestState_t *state;
+    svQuestEntry_t *state;
 
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     player = &wow_edicts[0];
@@ -946,15 +946,15 @@ TEST(wow_game, quest_kill_credit_wrong_creature_no_progress) {
     wc = (wowClient_t *)player->client;
 
     game->ClientCommand(player, 2, accept788);
-    state = Wow_FindQuestState(wc, 788);
+    state = SV_QuestFind(wc->client.ps.quest_log, wc->client.ps.quest_count, 788);
     T_NOT_NULL(state);
-    T_EQ((int)state->kill_progress[0], 0);
+    T_EQ((int)wc->kill_progress[0][0], 0);
 
     Wow_QuestAwardKillCredit(player, 999);
-    T_EQ((int)state->kill_progress[0], 0);
+    T_EQ((int)wc->kill_progress[0][0], 0);
 
     Wow_QuestAwardKillCredit(player, 503);
-    T_EQ((int)state->kill_progress[0], 1);
+    T_EQ((int)wc->kill_progress[0][0], 1);
 }
 
 TEST(wow_game, wow_load_map_initializes_player_state) {
@@ -1174,7 +1174,7 @@ TEST(wow_game, wow_fireball_movement_cancels) {
     if (game->Shutdown) game->Shutdown();
 }
 
-/* Quest log rejects quests when full (WOW_MAX_QUEST_LOG slots). */
+/* Quest log rejects quests when full (SV_MAX_QUEST_LOG slots). */
 TEST(wow_game, quest_log_full_rejects_new_quests) {
     struct game_export *game = init_game();
     LPEDICT player;
@@ -1186,7 +1186,7 @@ TEST(wow_game, quest_log_full_rejects_new_quests) {
     game->ClientBegin(player);
     wc = (wowClient_t *)player->client;
 
-    FOR_LOOP(i, WOW_MAX_QUEST_LOG) {
+    FOR_LOOP(i, SV_MAX_QUEST_LOG) {
         char id_buf[16];
         LPCSTR accept_args[2];
         snprintf(id_buf, sizeof(id_buf), "%u", (unsigned)available_quests[i]);
@@ -1194,11 +1194,11 @@ TEST(wow_game, quest_log_full_rejects_new_quests) {
         accept_args[1] = id_buf;
         game->ClientCommand(player, 2, accept_args);
     }
-    T_EQ((int)wc->quest_count, WOW_MAX_QUEST_LOG);
+    T_EQ((int)wc->client.ps.quest_count, SV_MAX_QUEST_LOG);
 
     /* Next accept should fail */
     game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "184"});
-    T_EQ((int)wc->quest_count, WOW_MAX_QUEST_LOG);
+    T_EQ((int)wc->client.ps.quest_count, SV_MAX_QUEST_LOG);
     if (game->Shutdown) game->Shutdown();
 }
 
@@ -1214,9 +1214,9 @@ TEST(wow_game, quest_accept_same_quest_twice_is_idempotent) {
     wc = (wowClient_t *)player->client;
 
     game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "788"});
-    T_EQ((int)wc->quest_count, 1);
+    T_EQ((int)wc->client.ps.quest_count, 1);
     game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "788"});
-    T_EQ((int)wc->quest_count, 1);
+    T_EQ((int)wc->client.ps.quest_count, 1);
     if (game->Shutdown) game->Shutdown();
 }
 
@@ -1225,7 +1225,7 @@ TEST(wow_game, quest_kill_credit_does_not_overflow) {
     struct game_export *game = init_game();
     LPEDICT player;
     wowClient_t *wc;
-    wowQuestState_t *state;
+    svQuestEntry_t *state;
 
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     player = &wow_edicts[0];
@@ -1233,13 +1233,13 @@ TEST(wow_game, quest_kill_credit_does_not_overflow) {
     wc = (wowClient_t *)player->client;
 
     game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "788"});
-    state = Wow_FindQuestState(wc, 788);
+    state = SV_QuestFind(wc->client.ps.quest_log, wc->client.ps.quest_count, 788);
     T_NOT_NULL(state);
 
     /* Kill 20 when only 8 required */
     FOR_LOOP(i, 20) Wow_QuestAwardKillCredit(player, 503);
-    T_EQ((int)state->kill_progress[0], 8);
-    T_EQ((int)state->status, WOW_QUEST_COMPLETE);
+    T_EQ((int)wc->kill_progress[0][0], 8);
+    T_EQ((int)state->status, SV_QUEST_COMPLETE);
     if (game->Shutdown) game->Shutdown();
 }
 
@@ -1255,9 +1255,9 @@ TEST(wow_game, quest_accept_invalid_id_no_crash) {
     wc = (wowClient_t *)player->client;
 
     game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "99999"});
-    T_EQ((int)wc->quest_count, 0);
+    T_EQ((int)wc->client.ps.quest_count, 0);
     game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "0"});
-    T_EQ((int)wc->quest_count, 0);
+    T_EQ((int)wc->client.ps.quest_count, 0);
     if (game->Shutdown) game->Shutdown();
 }
 
@@ -1310,7 +1310,7 @@ TEST(wow_game, quest_log_toggle_open_close) {
     if (game->Shutdown) game->Shutdown();
 }
 
-/* Quest dialog shows "Complete Quest" button only when status == WOW_QUEST_COMPLETE. */
+/* Quest dialog shows "Complete Quest" button only when status == SV_QUEST_COMPLETE. */
 TEST(wow_game, quest_dialog_shows_complete_button_only_when_done) {
     struct game_export *game = init_game();
     LPEDICT player;
@@ -1441,21 +1441,21 @@ TEST(wow_game, quest_chain_sequential_unlock) {
 
     /* Quest 14 requires 13, which requires 12 */
     game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "14"});
-    T_EQ((int)wc->quest_count, 0);
+    T_EQ((int)wc->client.ps.quest_count, 0);
 
     game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "12"});
-    T_EQ((int)wc->quest_count, 1);
+    T_EQ((int)wc->client.ps.quest_count, 1);
     game->ClientCommand(player, 2, (LPCSTR[]){"quest_complete", "12"});
     T_ASSERT(ps->stats[WOW_STAT_XP] > 0);
 
     game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "13"});
-    T_EQ((int)wc->quest_count, 2);
+    T_EQ((int)wc->client.ps.quest_count, 2);
     game->ClientCommand(player, 2, (LPCSTR[]){"quest_complete", "13"});
 
     game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "14"});
-    T_EQ((int)wc->quest_count, 3);
-    T_EQ((int)wc->quests[2].quest_id, 14);
-    T_EQ((int)wc->quests[2].status, WOW_QUEST_ACCEPTED);
+    T_EQ((int)wc->client.ps.quest_count, 3);
+    T_EQ((int)wc->client.ps.quest_log[2].quest_id, 14);
+    T_EQ((int)wc->client.ps.quest_log[2].status, SV_QUEST_ACTIVE);
     if (game->Shutdown) game->Shutdown();
 }
 
@@ -1464,7 +1464,7 @@ TEST(wow_game, quest_kill_credit_from_combat_death) {
     struct game_export *game = init_game();
     LPEDICT player;
     wowClient_t *wc;
-    wowQuestState_t *state;
+    svQuestEntry_t *state;
 
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     player = &wow_edicts[0];
@@ -1473,13 +1473,13 @@ TEST(wow_game, quest_kill_credit_from_combat_death) {
 
     /* Accept quest 788 which needs display_id 503 kills */
     game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "788"});
-    state = Wow_FindQuestState(wc, 788);
+    state = SV_QuestFind(wc->client.ps.quest_log, wc->client.ps.quest_count, 788);
     T_NOT_NULL(state);
-    T_EQ((int)state->kill_progress[0], 0);
+    T_EQ((int)wc->kill_progress[0][0], 0);
 
     /* Simulate creature death (the AI death handler calls QuestAwardKillCredit) */
     Wow_QuestAwardKillCredit(player, 503);
-    T_EQ((int)state->kill_progress[0], 1);
+    T_EQ((int)wc->kill_progress[0][0], 1);
     if (game->Shutdown) game->Shutdown();
 }
 
