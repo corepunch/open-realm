@@ -227,5 +227,6 @@ test-wc3-engine-assets: mpqtool | $(TESTS_DIR)
 	$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WC3_ENGINE_TEST_MPQ) pack "$$@"
 	@echo "[test-wc3-engine-assets] verifying archive"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WC3_ENGINE_TEST_MPQ) cat Units/UnitBalance.slk | grep -q "hpea" && echo "  cat SLK OK"
+	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WC3_ENGINE_TEST_MPQ) cat Scripts/common.j | grep -q "playergameresult" && echo "  cat common.j OK"
 
 WC3_PHONY := wc3-build jass-tool jass sheet renderer game ui openwarcraft3 run run-demo run-map run-ui-text test test-commands test-server-net test-renderer-model test-ui test-mpq-compat test-assets test-render-golden update-render-golden openwarcraft3-tests test-wc3-engine test-wc3-engine-assets download

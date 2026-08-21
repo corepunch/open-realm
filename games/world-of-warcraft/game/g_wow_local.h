@@ -2,6 +2,7 @@
 #define G_WOW_LOCAL_H
 
 #include "server/server.h"
+#include "server/sv_quest.h"
 #include "common/wow_ui_shared.h"
 #include "common/ui_constants.h"
 #include "common/stb_dbc.h"
@@ -171,21 +172,6 @@ typedef struct {
     DWORD kill_objective_count;
 } WOWQUESTDETAIL;
 
-typedef enum {
-    WOW_QUEST_NONE,
-    WOW_QUEST_ACCEPTED,
-    WOW_QUEST_COMPLETE,
-    WOW_QUEST_REWARDED,
-} wowQuestStatus_t;
-
-typedef struct {
-    DWORD quest_id;
-    wowQuestStatus_t status;
-    DWORD kill_progress[WOW_QUEST_MAX_KILL_OBJECTIVES];
-} wowQuestState_t;
-
-#define WOW_MAX_QUEST_LOG 16
-
 typedef const WOWQUESTGIVER *LPCWOWQUESTGIVER;
 typedef const WOWQUESTOBJECTIVE *LPCWOWQUESTOBJECTIVE;
 typedef const WOWQUESTDETAIL *LPCWOWQUESTDETAIL;
@@ -328,8 +314,7 @@ typedef struct {
     wowHudIcon_t actions[WOW_UI_ACTION_SLOTS];
     BOOL quest_open;
     DWORD quest_id;
-    wowQuestState_t quests[WOW_MAX_QUEST_LOG];
-    DWORD quest_count;
+    DWORD kill_progress[SV_MAX_QUEST_LOG][WOW_QUEST_MAX_KILL_OBJECTIVES];
     DWORD questlog_open;
     wowUiMessage_t messages[WOW_UI_MAX_MESSAGES];
     DWORD message_count;
@@ -411,7 +396,6 @@ void UI_WriteWowHud(LPEDICT ent);
 void UI_WriteWelcomeWindow(LPEDICT ent);
 void UI_HideWindow(LPEDICT ent, LPCSTR window_id);
 void Wow_GetPlayerRaceSex(char *race, size_t race_sz, char *sex, size_t sex_sz);
-wowQuestState_t *Wow_FindQuestState(wowClient_t *client, DWORD quest_id);
 void Wow_QuestAwardKillCredit(LPEDICT attacker, DWORD display_id);
 void Wow_SendInbox(LPEDICT ent);
 

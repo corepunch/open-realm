@@ -370,6 +370,20 @@ typedef enum {
     CLIENT_UI_CINEMATIC,
 } CLIENTUISTATE;
 
+#define SV_MAX_QUEST_LOG 16
+
+typedef enum {
+    SV_QUEST_NONE = 0,
+    SV_QUEST_ACTIVE,
+    SV_QUEST_COMPLETE,
+    SV_QUEST_REWARDED
+} svQuestStatus_t;
+
+typedef struct {
+    DWORD quest_id;
+    svQuestStatus_t status;
+} svQuestEntry_t;
+
 struct playerState_s {
     DWORD number;
     QUATERNION viewquat;
@@ -390,6 +404,8 @@ struct playerState_s {
     DWORD selected_entity;  /* entity number this player has targeted (0 = none) */
     USHORT stats[MAX_STATS];
     LPCSTR texts[MAX_STATS];
+    svQuestEntry_t quest_log[SV_MAX_QUEST_LOG];
+    DWORD quest_count;
 };
 
 /* One-shot events embedded in entityState_t.event.
