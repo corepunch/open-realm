@@ -189,6 +189,12 @@ DWORD Wow_QuestObjectiveCount(void);
 LPCWOWQUESTOBJECTIVE Wow_QuestObjective(DWORD index);
 LPCWOWQUESTDETAIL Wow_QuestDetail(DWORD quest_id);
 
+/* Ambient creature display IDs used by both m_creature.c and the loot table. */
+#define WOW_CREATURE_DISPLAY_WOLF   161 // CreatureDisplayInfo.dbc; Timber Wolf family
+#define WOW_CREATURE_DISPLAY_BOAR   193 // Stonetusk Boar; Durotar starting zone
+#define WOW_CREATURE_DISPLAY_KOBOLD 163 // Kobold Vermin; kobold family
+#define WOW_CREATURE_DISPLAY_MURLOC 188 // Murloc; coastal murloc variant
+
 #define WOW_MAX_CLIENTS 1
 #define WOW_MAX_EDICTS 128
 #define BZ_WOW_MOVE_MASK (WOW_MOVE_FORWARD | WOW_MOVE_BACK | WOW_MOVE_LEFT | WOW_MOVE_RIGHT)
@@ -246,6 +252,14 @@ typedef struct wowMove_s {
 /* Per-frame entity spawn budget (reset each frame) */
 extern DWORD wow_spawns_this_frame;
 
+/* HUD icon slot: icon path, display name, stack count.  Used for inventory,
+ * action bar slots, and corpse loot slots. */
+typedef struct {
+    char icon[256];
+    char name[64];
+    DWORD count;
+} wowHudIcon_t;
+
 /* Per-entity game state.  Entity behaviour is driven entirely by the edict's
  * think function pointer (Quake2 style); there is no type/kind tag. */
 typedef struct {
@@ -296,6 +310,12 @@ typedef struct {
     DWORD go_display_id;
     DWORD quest_id;
     DWORD quest_available_sprite;
+    /* Loot fields — valid on any entity (rolled at death, consumed on pickup). */
+#define WOW_MAX_LOOT_ITEMS 6
+    wowHudIcon_t loot_items[WOW_MAX_LOOT_ITEMS];
+    DWORD loot_count;    /* active slots (icon[0]!=0 entries) */
+    DWORD loot_copper;   /* copper coins rolled at death */
+    DWORD loot_anim_timer; /* ms remaining for player loot animation */
     /* Corpse fields (think == Wow_RunCorpseFrame). */
     DWORD corpse_owner;
     DWORD corpse_timer;
@@ -305,13 +325,8 @@ typedef struct {
     DWORD dyn_radius;
     DWORD dyn_duration;
     BOOL godmode;
+    DWORD copper;        /* player copper balance (written to WOW_STAT_COPPER each frame) */
 } wowEntityLocal_t;
-
-typedef struct {
-    char icon[256];
-    char name[64];
-    DWORD count;
-} wowHudIcon_t;
 
 typedef struct {
     struct client_s client;
@@ -324,6 +339,17 @@ typedef struct {
     DWORD questlog_open;
     wowUiMessage_t messages[WOW_UI_MAX_MESSAGES];
     DWORD message_count;
+    /* Loot window state: snapshot taken on loot open, consumed by loot_take. */
+    DWORD loot_target;                          /* entity# of open corpse (0=closed) */
+    wowHudIcon_t loot_snap[WOW_MAX_LOOT_ITEMS]; /* item snapshot at open time */
+    DWORD loot_snap_count;                      /* non-zero slots remaining */
+    /* Backpack window toggle. */
+    BOOL backpack_open;
+    /* Damage flash overlay: brief text near health/target frames (server-side timers). */
+    DWORD incoming_damage;      /* last incoming hit amount */
+    DWORD incoming_dmg_timer;   /* ms remaining to display */
+    DWORD outgoing_damage;      /* last outgoing hit amount */
+    DWORD outgoing_dmg_timer;   /* ms remaining to display */
 } wowClient_t;
 
 typedef struct WOWDOODADDEF {
@@ -426,6 +452,9 @@ DWORD           Wow_SelectSpawnPoint(LPCSTR race, DWORD class_id);
 DWORD           Wow_PlayerCreateMap(LPCSTR race, DWORD class_id);
 LPCVECTOR3      Wow_GetSpawnPos(DWORD idx);
 BOOL            Wow_HasSpawnForMap(DWORD map_id); /* true if ANY race spawns on map_id */
+/* g_wow.c — loot system */
+void   Wow_RollLoot(LPEDICT ent);
+LPEDICT Wow_FindNearestCorpse(LPEDICT ent, FLOAT range);
 /* g_areatrigger_teleport.c — generated from serverdata/areatrigger_teleport.csv */
 DWORD                 Wow_AreaTrigTeleportCount(void);
 LPCWOWAREATRIGTELEPORT Wow_AreaTrigTeleportById(DWORD id);

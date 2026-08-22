@@ -1,7 +1,7 @@
 #ifndef wow_ui_shared_h
 #define wow_ui_shared_h
 
-#define WOW_UI_INVENTORY_SLOTS 6
+#define WOW_UI_INVENTORY_SLOTS 16 // slots; 6 start-items + 10 looted; sent via svc_unit_ui
 #define WOW_UI_ACTION_SLOTS 12
 #define WOW_UI_MAX_MESSAGES 8
 #define WOW_UI_MESSAGE_TITLE 128

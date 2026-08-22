@@ -90,14 +90,21 @@ static void Wow_AdvanceDeathFrame(LPEDICT ent, wowEntityLocal_t *local) {
 
 void Wow_ApplyDamage(LPEDICT target, LPEDICT attacker, DWORD damage) {
     wowEntityLocal_t *target_local;
+    DWORD actual;
 
-    if (!target || damage == 0) {
-        return;
-    }
-
+    if (!target || damage == 0) return;
     target_local = Wow_EntityLocal(target);
-    if (!target_local || target_local->dead || target_local->health == 0 || target_local->godmode) {
-        return;
+    if (!target_local || target_local->dead || target_local->health == 0 || target_local->godmode) return;
+
+    actual = MIN(damage, target_local->health);
+    /* Push damage flash events to player client (entity 0). */
+    if (Wow_EntityIndex(target) < WOW_MAX_CLIENTS) {
+        wow_clients[0].incoming_damage = actual;
+        wow_clients[0].incoming_dmg_timer = 1500;
+    }
+    if (attacker && Wow_EntityIndex(attacker) < WOW_MAX_CLIENTS) {
+        wow_clients[0].outgoing_damage = actual;
+        wow_clients[0].outgoing_dmg_timer = 1500;
     }
 
     if (target_local->health <= damage) {
@@ -318,6 +325,7 @@ void Wow_AIDie(LPEDICT ent, LPEDICT attacker) {
     local->attack_damage_done = false;
     local->pain_time = 0;
     Wow_QuestAwardKillCredit(attacker, local->display_id);
+    Wow_RollLoot(ent);
 
     ent->svflags |= SVF_DEADMONSTER;
     if (Wow_SetEntityMoveFirstAnimation(ent, &wow_move_death, death_animations) && local->animation) {

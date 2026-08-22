@@ -55,9 +55,9 @@ static struct {
 /* Per-frame spawn budget (declared extern in g_wow_local.h). */
 DWORD wow_spawns_this_frame = 0;
 
-/* Starting inventory — the 6 bag/item slots on the right of the action bar.
- * Reflects what a new character actually has: two bags, a potion, food, and
- * the class starting weapon. Spells never go here — they belong in actions[]. */
+/* Starting inventory — 16 slots total; first 6 shown in the HUD quick-access bar,
+ * all 16 visible in the backpack window.  Slots 6-15 start empty and fill with loot.
+ * Spells never go here — they belong in actions[]. */
 static wowHudIcon_t const wow_start_inventory[WOW_UI_INVENTORY_SLOTS] = {
     { "Interface\\Icons\\INV_Misc_Bag_08.blp",          "Worn Knapsack",           1 },
     { "Interface\\Icons\\INV_Misc_Bag_08.blp",          "Worn Knapsack",           1 },
@@ -101,6 +101,119 @@ static wowHudIcon_t const wow_actions_mage[WOW_UI_ACTION_SLOTS] = {
     { "",                                                   "",               0 },
     { "",                                                   "",               0 },
 };
+
+/* -------------------------------------------------------------------------
+ * Loot system: item definitions + loot templates keyed by creature display_id.
+ * Items use real WoW 1.12 entry IDs and icon paths from the MPQ archives.
+ * Icon rendering falls back to the placeholder texture if the BLP is absent.
+ * -------------------------------------------------------------------------*/
+typedef struct { DWORD entry; LPCSTR name; LPCSTR icon; } wowItemDef_t;
+static wowItemDef_t const wow_item_defs[] = {
+    { 2589,  "Linen Cloth",       "Interface\\Icons\\INV_Fabric_Linen_01.blp" },
+    { 4234,  "Light Leather",     "Interface\\Icons\\INV_Misc_Leather_01.blp" },
+    { 12208, "Raw Boar Ribs",     "Interface\\Icons\\INV_Misc_Food_11.blp" },
+    { 6083,  "Kobold Candle",     "Interface\\Icons\\INV_Misc_Candle_01.blp" },
+    { 7974,  "Murloc Eye",        "Interface\\Icons\\INV_Misc_MonsterScales_01.blp" },
+    { 811,   "Stringy Wolf Meat", "Interface\\Icons\\INV_Misc_Food_52.blp" },
+    { 2318,  "Wolf Pelt",         "Interface\\Icons\\INV_Misc_Pelt_Wolf_01.blp" },
+    { 5504,  "Boar Tusk",         "Interface\\Icons\\INV_Misc_BoneTusk_02.blp" },
+};
+#define WOW_ITEM_DEF_COUNT (sizeof(wow_item_defs) / sizeof(wow_item_defs[0]))
+
+#define WOW_LOOT_DROP_MAX 4
+typedef struct { DWORD item_entry; DWORD chance_pct; DWORD min_qty, max_qty; } wowLootDrop_t;
+typedef struct {
+    DWORD display_id;
+    DWORD copper_min, copper_max; /* rolled copper (added to player wallet on loot open) */
+    wowLootDrop_t drops[WOW_LOOT_DROP_MAX];
+    DWORD drop_count;
+} wowLootEntry_t;
+
+static wowLootEntry_t const wow_loot_table[] = {
+    { WOW_CREATURE_DISPLAY_WOLF, 10, 40, {
+        { 811,  80, 1, 2 }, /* Stringy Wolf Meat — common food drop */
+        { 2318, 40, 1, 1 }, /* Wolf Pelt — leather source */
+        { 4234, 30, 1, 1 }, /* Light Leather */
+    }, 3 },
+    { WOW_CREATURE_DISPLAY_BOAR, 10, 40, {
+        { 12208, 80, 1, 2 }, /* Raw Boar Ribs */
+        { 5504,  35, 1, 1 }, /* Boar Tusk — quest/vendor item */
+        { 4234,  25, 1, 1 }, /* Light Leather */
+    }, 3 },
+    { WOW_CREATURE_DISPLAY_KOBOLD, 5, 25, {
+        { 2589, 70, 1, 4 }, /* Linen Cloth — humanoid standard drop */
+        { 6083, 25, 1, 1 }, /* Kobold Candle — flavor item */
+    }, 2 },
+    { WOW_CREATURE_DISPLAY_MURLOC, 5, 25, {
+        { 7974, 55, 1, 1 }, /* Murloc Eye — quest/vendor item */
+        { 2589, 45, 1, 2 }, /* Linen Cloth */
+    }, 2 },
+};
+#define WOW_LOOT_TABLE_COUNT (sizeof(wow_loot_table) / sizeof(wow_loot_table[0]))
+
+static wowItemDef_t const *Wow_ItemByEntry(DWORD entry) {
+    FOR_LOOP(i, WOW_ITEM_DEF_COUNT)
+        if (wow_item_defs[i].entry == entry) return &wow_item_defs[i];
+    return NULL;
+}
+
+/* Roll loot for a freshly-killed creature; results stored on the corpse entity. */
+void Wow_RollLoot(LPEDICT ent) {
+    wowEntityLocal_t *local = Wow_EntityLocal(ent);
+    wowLootEntry_t const *tmpl = NULL;
+
+    if (!local) return;
+    local->loot_count = 0;
+    local->loot_copper = 0;
+    memset(local->loot_items, 0, sizeof(local->loot_items));
+
+    FOR_LOOP(i, WOW_LOOT_TABLE_COUNT)
+        if (wow_loot_table[i].display_id == local->display_id) { tmpl = &wow_loot_table[i]; break; }
+    if (!tmpl) return;
+
+    if (tmpl->copper_max > tmpl->copper_min)
+        local->loot_copper = tmpl->copper_min + (DWORD)(rand() % (int)(tmpl->copper_max - tmpl->copper_min + 1));
+    else
+        local->loot_copper = tmpl->copper_min;
+
+    FOR_LOOP(i, tmpl->drop_count) {
+        wowLootDrop_t const *drop = &tmpl->drops[i];
+        wowItemDef_t const *item = Wow_ItemByEntry(drop->item_entry);
+        DWORD slot = local->loot_count;
+
+        if (slot >= WOW_MAX_LOOT_ITEMS) break;
+        if ((DWORD)(rand() % 100) >= drop->chance_pct || !item) continue;
+        DWORD qty = drop->min_qty;
+        if (drop->max_qty > drop->min_qty) qty += (DWORD)(rand() % (int)(drop->max_qty - drop->min_qty + 1));
+        snprintf(local->loot_items[slot].icon, sizeof(local->loot_items[slot].icon), "%s", item->icon);
+        snprintf(local->loot_items[slot].name, sizeof(local->loot_items[slot].name), "%s", item->name);
+        local->loot_items[slot].count = qty;
+        local->loot_count++;
+    }
+}
+
+/* Find the nearest corpse entity within range that still has items to loot. */
+LPEDICT Wow_FindNearestCorpse(LPEDICT ent, FLOAT range) {
+    LPEDICT best = NULL;
+    FLOAT best_dist2 = range * range;
+
+    if (!ent) return NULL;
+    for (DWORD i = WOW_MAX_CLIENTS; i < (DWORD)globals.num_edicts && i < WOW_MAX_EDICTS; i++) {
+        LPEDICT c = &wow_edicts[i];
+        wowEntityLocal_t *local;
+        VECTOR2 delta;
+        FLOAT dist2;
+
+        if (!c->inuse || c->think != Wow_RunCorpseFrame) continue;
+        local = Wow_EntityLocal(c);
+        /* Include corpses with no items if they still have copper (gold auto-loots). */
+        if (!local || (local->loot_count == 0 && local->loot_copper == 0)) continue;
+        delta = Vector2_sub(&c->s.origin2, &ent->s.origin2);
+        dist2 = delta.x * delta.x + delta.y * delta.y;
+        if (dist2 < best_dist2) { best_dist2 = dist2; best = c; }
+    }
+    return best;
+}
 
 #define WOW_MISSING_ANIMATION_LOG_SLOTS 128
 
@@ -1153,11 +1266,20 @@ static void Wow_UpdatePlayerHud(LPEDICT ent) {
     ps->stats[WOW_STAT_LEVEL] = 1;
     ps->stats[WOW_STAT_XP] = 120;
     ps->stats[WOW_STAT_XP_MAX] = 400;
-    ps->stats[WOW_STAT_COPPER] = 1234;
+    ps->stats[WOW_STAT_COPPER] = (USHORT)MIN(local->copper, 0xFFFFu);
     /* Cast progress: remaining ms and total ms for client-side cast bar */
     ps->stats[WOW_STAT_CAST_PROGRESS] = (USHORT)(local->cast_spell != SPELL_NONE ? local->cast_remaining : 0);
     ps->stats[WOW_STAT_CAST_MAX] = (USHORT)(local->cast_spell != SPELL_NONE ? local->cast_duration : 0);
     ps->stats[WOW_STAT_SELECTED_ACTION] = (USHORT)local->selected_action_slot;
+    /* Tick down damage-flash overlay timers (displayed in g_ui.c) */
+    wowClient_t *wc = (wowClient_t *)ent->client;
+    if (wc->incoming_dmg_timer > FRAMETIME) wc->incoming_dmg_timer -= FRAMETIME;
+    else wc->incoming_dmg_timer = 0;
+    if (wc->outgoing_dmg_timer > FRAMETIME) wc->outgoing_dmg_timer -= FRAMETIME;
+    else wc->outgoing_dmg_timer = 0;
+    /* Tick down loot animation timer; reset to Stand when done. */
+    if (local->loot_anim_timer > FRAMETIME) local->loot_anim_timer -= FRAMETIME;
+    else if (local->loot_anim_timer) { local->loot_anim_timer = 0; Wow_SetStandMove(ent); }
 }
 
 static void Wow_WriteHudIcon(wowHudIcon_t const *icon, DWORD slot) {
@@ -1455,6 +1577,7 @@ static void Wow_InitPlayer(LPEDICT ent, VECTOR2 spawn_origin, LONG spawn_locatio
             ? wow_actions_mage : wow_actions_warrior;
         memcpy(wow_clients[0].inventory, wow_start_inventory, sizeof(wow_start_inventory));
         memcpy(wow_clients[0].actions, actions, WOW_UI_ACTION_SLOTS * sizeof(actions[0]));
+        Wow_EntityLocal(ent)->copper = 1234; /* starting copper balance */
         fprintf(stderr, "WoW: action bar initialized for class %u\n", (unsigned)class_id);
     }
 #ifdef WOW
@@ -2044,6 +2167,33 @@ static void Wow_CheatCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
     }
 }
 
+/* Open the loot window for a specific corpse entity.  Snapshots items into the
+ * client struct, auto-takes copper, and triggers the player loot animation. */
+static void Wow_OpenLootTarget(LPEDICT ent, LPEDICT corpse) {
+    wowClient_t *client = (wowClient_t *)ent->client;
+    wowEntityLocal_t *player_local = Wow_EntityLocal(ent);
+    wowEntityLocal_t *corpse_local = corpse ? Wow_EntityLocal(corpse) : NULL;
+
+    if (!corpse_local || (corpse_local->loot_count == 0 && corpse_local->loot_copper == 0)) return;
+
+    client->loot_target = corpse->s.number;
+    memcpy(client->loot_snap, corpse_local->loot_items, sizeof(client->loot_snap));
+    client->loot_snap_count = corpse_local->loot_count;
+
+    /* Copper auto-loots on open (classic WoW behaviour). */
+    if (corpse_local->loot_copper > 0 && player_local) {
+        player_local->copper += corpse_local->loot_copper;
+        corpse_local->loot_copper = 0;
+    }
+
+    /* Loot animation: plays once then Wow_UpdatePlayerHud resets to Stand. */
+    if (player_local) {
+        Wow_SetEntityAnimation(ent, "Loot");
+        player_local->loot_anim_timer = 1200; /* ms; long enough for bend-down pose */
+    }
+    UI_WriteWowHud(ent);
+}
+
 static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
     if (argc >= 1 && !strcasecmp(argv[0], "give")) {
         Wow_GiveCommand(ent, argc, argv);
@@ -2096,6 +2246,41 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
             Wow_SendInbox(ent);
             break;
         }
+    } else if (argc >= 1 && !strcasecmp(argv[0], "loot")) {
+        /* Open loot window for the nearest corpse within melee+loot range. */
+        LPEDICT corpse = Wow_FindNearestCorpse(ent, 10.0f);
+        if (corpse) Wow_OpenLootTarget(ent, corpse);
+    } else if (argc >= 2 && !strcasecmp(argv[0], "loot_take")) {
+        /* Move one item from the loot snapshot into the first empty inventory slot. */
+        wowClient_t *client = (wowClient_t *)ent->client;
+        DWORD slot = (DWORD)strtoul(argv[1], NULL, 10);
+        if (client->loot_target && slot < WOW_MAX_LOOT_ITEMS && client->loot_snap[slot].icon[0]) {
+            DWORD inv_slot = WOW_UI_INVENTORY_SLOTS;
+            FOR_LOOP(i, WOW_UI_INVENTORY_SLOTS)
+                if (!client->inventory[i].icon[0]) { inv_slot = i; break; }
+            if (inv_slot < WOW_UI_INVENTORY_SLOTS) {
+                client->inventory[inv_slot] = client->loot_snap[slot];
+                /* Sync removal back to corpse entity (keeps corpse state authoritative). */
+                LPEDICT corpse = Wow_EdictByNumber(client->loot_target);
+                wowEntityLocal_t *cl = corpse ? Wow_EntityLocal(corpse) : NULL;
+                if (cl && cl->loot_items[slot].icon[0]) { cl->loot_items[slot].icon[0] = '\0'; cl->loot_count--; }
+                Wow_SendPlayerUi(ent);
+            }
+            client->loot_snap[slot].icon[0] = '\0';
+            /* Close window when all items have been taken. */
+            BOOL all_gone = true;
+            FOR_LOOP(i, WOW_MAX_LOOT_ITEMS) if (client->loot_snap[i].icon[0]) { all_gone = false; break; }
+            if (all_gone) client->loot_target = 0;
+            UI_WriteWowHud(ent);
+        }
+    } else if (argc >= 1 && !strcasecmp(argv[0], "loot_close")) {
+        wowClient_t *client = (wowClient_t *)ent->client;
+        client->loot_target = 0;
+        UI_WriteWowHud(ent);
+    } else if (argc >= 1 && !strcasecmp(argv[0], "backpack")) {
+        wowClient_t *client = (wowClient_t *)ent->client;
+        client->backpack_open = !client->backpack_open;
+        UI_WriteWowHud(ent);
     } else if (argc >= 1 && !strcasecmp(argv[0], "respawn")) {
         char race[64], sex[64]; DWORD class_id, appearance;
         Wow_ReadSelectedCharFromCvars(race, sizeof(race), sex, sizeof(sex), &class_id, &appearance);
@@ -2151,7 +2336,10 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
         LPEDICT target = Wow_EdictByNumber((DWORD)strtoul(argv[1], NULL, 10));
         wowEntityLocal_t *target_local = target ? Wow_EntityLocal(target) : NULL;
         Wow_SelectEntity(ent, target && target != ent ? target : NULL);
-        if (target_local && target_local->quest_id) {
+        if (target && target->think == Wow_RunCorpseFrame) {
+            /* Right-clicked a corpse: open loot window. */
+            Wow_OpenLootTarget(ent, target);
+        } else if (target_local && target_local->quest_id) {
             wowClient_t *client = (wowClient_t *)ent->client;
             DWORD quest_id = Wow_QuestForGiver(client, target_local);
             if (!quest_id || !Wow_QuestDetail(quest_id)) return;

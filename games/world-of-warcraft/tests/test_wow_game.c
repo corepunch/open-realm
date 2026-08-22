@@ -1713,3 +1713,205 @@ TEST(wow_game, game_object_uses_authored_mddf_transform) {
     T_FEQ(state.scale, def.scale / 1024.0f, 0.001f);
     T_EQ(state.flags & EF_GROUND_ANCHOR, 0);
 }
+
+/* -------------------------------------------------------------------------
+ * Loot system tests
+ * -------------------------------------------------------------------------*/
+
+/* Wow_RollLoot on a wolf entity always yields copper within the [10,40] table range. */
+TEST(wow_game, loot_roll_wolf_copper_in_range) {
+    struct game_export *game = init_game();
+    LPEDICT creature;
+    wowEntityLocal_t *local;
+
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    game->ClientBegin(&wow_edicts[0]);
+    creature = first_creature();
+    T_NOT_NULL(creature);
+    local = Wow_EntityLocal(creature);
+    T_EQ((int)local->display_id, WOW_CREATURE_DISPLAY_WOLF);
+
+    Wow_RollLoot(creature);
+    T_ASSERT(local->loot_copper >= 10 && local->loot_copper <= 40);
+    if (game->Shutdown) game->Shutdown();
+}
+
+/* loot command near a corpse snapshots items and auto-takes copper into player wallet. */
+TEST(wow_game, loot_command_auto_takes_copper) {
+    struct game_export *game = init_game();
+    LPEDICT player = &wow_edicts[0], creature;
+    wowClient_t *wc;
+    wowEntityLocal_t *creature_local, *player_local;
+
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    game->ClientBegin(player);
+    creature = first_creature();
+    T_NOT_NULL(creature);
+    creature_local = Wow_EntityLocal(creature);
+    player_local   = Wow_EntityLocal(player);
+    wc             = (wowClient_t *)player->client;
+
+    /* Kill the creature and bypass the death animation for test speed. */
+    Wow_AIDie(creature, player);
+    creature->think = Wow_RunCorpseFrame;
+    /* Override loot to a deterministic copper value. */
+    creature_local->loot_copper = 30;
+    creature->s.origin2 = player->s.origin2;
+
+    player_local->copper = 100;
+    game->ClientCommand(player, 1, (LPCSTR[]){"loot"});
+
+    T_EQ((int)player_local->copper, 130);      /* copper auto-looted on open */
+    T_EQ((int)creature_local->loot_copper, 0); /* drained from corpse */
+    T_EQ((int)wc->loot_target, (int)creature->s.number);
+    if (game->Shutdown) game->Shutdown();
+}
+
+/* loot_take <slot> moves the item from the corpse snapshot into inventory. */
+TEST(wow_game, loot_take_moves_item_to_inventory) {
+    struct game_export *game = init_game();
+    LPEDICT player = &wow_edicts[0], creature;
+    wowClient_t *wc;
+    wowEntityLocal_t *creature_local;
+    DWORD inv_slot;
+
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    game->ClientBegin(player);
+    creature = first_creature();
+    T_NOT_NULL(creature);
+    creature_local = Wow_EntityLocal(creature);
+    wc             = (wowClient_t *)player->client;
+
+    Wow_AIDie(creature, player);
+    creature->think = Wow_RunCorpseFrame;
+    /* One deterministic item, no copper, no other drops. */
+    memset(creature_local->loot_items, 0, sizeof(creature_local->loot_items));
+    creature_local->loot_count = 1;
+    creature_local->loot_copper = 0;
+    snprintf(creature_local->loot_items[0].icon, sizeof(creature_local->loot_items[0].icon),
+             "%s", "Interface\\Icons\\INV_Misc_Food_52.blp");
+    snprintf(creature_local->loot_items[0].name, sizeof(creature_local->loot_items[0].name),
+             "%s", "Stringy Wolf Meat");
+    creature_local->loot_items[0].count = 1;
+    creature->s.origin2 = player->s.origin2;
+
+    game->ClientCommand(player, 1, (LPCSTR[]){"loot"});
+    T_STREQ(wc->loot_snap[0].name, "Stringy Wolf Meat");
+
+    /* Record first empty inventory slot before take. */
+    inv_slot = WOW_UI_INVENTORY_SLOTS;
+    FOR_LOOP(i, WOW_UI_INVENTORY_SLOTS)
+        if (!wc->inventory[i].icon[0]) { inv_slot = i; break; }
+    T_ASSERT(inv_slot < WOW_UI_INVENTORY_SLOTS);
+
+    game->ClientCommand(player, 2, (LPCSTR[]){"loot_take", "0"});
+    T_STREQ(wc->inventory[inv_slot].name, "Stringy Wolf Meat");
+    T_EQ((int)wc->loot_snap[0].icon[0], 0); /* snapshot slot cleared */
+    T_EQ((int)wc->loot_target, 0);           /* auto-closed: last item taken */
+    if (game->Shutdown) game->Shutdown();
+}
+
+/* loot_close dismisses the loot window without taking any items. */
+TEST(wow_game, loot_close_clears_window) {
+    struct game_export *game = init_game();
+    LPEDICT player = &wow_edicts[0], creature;
+    wowClient_t *wc;
+    wowEntityLocal_t *creature_local;
+
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    game->ClientBegin(player);
+    creature = first_creature();
+    T_NOT_NULL(creature);
+    creature_local = Wow_EntityLocal(creature);
+    wc             = (wowClient_t *)player->client;
+
+    Wow_AIDie(creature, player);
+    creature->think = Wow_RunCorpseFrame;
+    creature_local->loot_copper = 10;
+    creature->s.origin2 = player->s.origin2;
+
+    game->ClientCommand(player, 1, (LPCSTR[]){"loot"});
+    T_ASSERT(wc->loot_target != 0);
+
+    game->ClientCommand(player, 1, (LPCSTR[]){"loot_close"});
+    T_EQ((int)wc->loot_target, 0);
+    if (game->Shutdown) game->Shutdown();
+}
+
+/* -------------------------------------------------------------------------
+ * Backpack window tests
+ * -------------------------------------------------------------------------*/
+
+/* backpack command toggles backpack_open each call. */
+TEST(wow_game, backpack_toggles_open_closed) {
+    struct game_export *game = init_game();
+    LPEDICT player = &wow_edicts[0];
+    wowClient_t *wc;
+
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    game->ClientBegin(player);
+    wc = (wowClient_t *)player->client;
+
+    T_EQ((int)wc->backpack_open, 0);
+    game->ClientCommand(player, 1, (LPCSTR[]){"backpack"});
+    T_EQ((int)wc->backpack_open, 1);
+    game->ClientCommand(player, 1, (LPCSTR[]){"backpack"});
+    T_EQ((int)wc->backpack_open, 0);
+    if (game->Shutdown) game->Shutdown();
+}
+
+/* -------------------------------------------------------------------------
+ * Damage flash overlay tests
+ * -------------------------------------------------------------------------*/
+
+/* Damage dealt to the player sets the incoming flash timer. */
+TEST(wow_game, damage_flash_incoming_set_on_player_hit) {
+    struct game_export *game = init_game();
+    LPEDICT player = &wow_edicts[0], creature;
+    wowClient_t *wc;
+    wowEntityLocal_t *player_local;
+
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    game->ClientBegin(player);
+    creature = first_creature();
+    T_NOT_NULL(creature);
+    wc = (wowClient_t *)player->client;
+    player_local = Wow_EntityLocal(player);
+    player_local->dead = false;
+    player_local->health = 100;
+    player_local->godmode = false;
+    wc->incoming_dmg_timer = 0;
+    wc->outgoing_dmg_timer = 0;
+
+    Wow_ApplyDamage(player, creature, 5);
+    T_EQ((int)wc->incoming_damage, 5);
+    T_EQ((int)wc->incoming_dmg_timer, 1500);
+    T_EQ((int)wc->outgoing_dmg_timer, 0); /* creature is not a client */
+    if (game->Shutdown) game->Shutdown();
+}
+
+/* Damage dealt by the player to an enemy sets the outgoing flash timer. */
+TEST(wow_game, damage_flash_outgoing_set_on_enemy_hit) {
+    struct game_export *game = init_game();
+    LPEDICT player = &wow_edicts[0], creature;
+    wowClient_t *wc;
+    wowEntityLocal_t *creature_local;
+
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    game->ClientBegin(player);
+    creature = first_creature();
+    T_NOT_NULL(creature);
+    wc = (wowClient_t *)player->client;
+    creature_local = Wow_EntityLocal(creature);
+    creature_local->dead = false;
+    creature_local->health = 100;
+    creature_local->godmode = false;
+    wc->incoming_dmg_timer = 0;
+    wc->outgoing_dmg_timer = 0;
+
+    Wow_ApplyDamage(creature, player, 2);
+    T_EQ((int)wc->outgoing_damage, 2);
+    T_EQ((int)wc->outgoing_dmg_timer, 1500);
+    T_EQ((int)wc->incoming_dmg_timer, 0); /* creature is not a client */
+    if (game->Shutdown) game->Shutdown();
+}

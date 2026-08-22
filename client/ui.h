@@ -21,7 +21,7 @@
 
 /* Unit UI data structures (Phase 8) */
 #define MAX_COMMAND_BUTTONS 12
-#define MAX_INVENTORY_SLOTS 6
+#define MAX_INVENTORY_SLOTS 16 // must match WOW_UI_INVENTORY_SLOTS in wow_ui_shared.h
 #define MAX_BUILD_QUEUE_ITEMS 7
 #define MAX_LAYOUT_LAYERS 16
 

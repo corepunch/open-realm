@@ -4,10 +4,7 @@
 
 #define WOW_AMBIENT_CREATURE_COUNT 64
 #define WOW_QUEST_LOCATION_BUDGET  32
-#define WOW_CREATURE_DISPLAY_WOLF 161
-#define WOW_CREATURE_DISPLAY_BOAR 193
-#define WOW_CREATURE_DISPLAY_KOBOLD 163
-#define WOW_CREATURE_DISPLAY_MURLOC 188
+/* WOW_CREATURE_DISPLAY_* constants live in g_wow_local.h (shared with loot table). */
 
 /* Yellow "!" billboard shown above quest givers with an available quest. */
 #define WOW_QUEST_AVAILABLE_ICON "Interface\\GossipFrame\\AvailableQuestIcon.blp"

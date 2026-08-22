@@ -470,6 +470,118 @@ static void UI_WriteTargetingFrame(LPEDICT ent) {
     UI_WriteColorBar(PX(105), PY(54), PW(119), PH(11), (FLOAT)ps->stats[WOW_STAT_POWER], (FLOAT)ps->stats[WOW_STAT_POWER_MAX], MAKE(COLOR32, 26, 82, 210, 235));
 }
 
+/* -------------------------------------------------------------------------
+ * Loot window — shows corpse loot snapshot, one row per item with click-to-take.
+ * Items are stored in client->loot_snap[] so the window is fully server-authored
+ * and requires no direct entity access in the layout pass.
+ * -------------------------------------------------------------------------*/
+static void UI_WriteLootWindow(LPEDICT ent) {
+    wowClient_t *wc = (wowClient_t *)ent->client;
+    char buf[96];
+    DWORD visible = 0;
+    FLOAT x, y, h;
+
+    if (!wc->loot_target) return;
+
+    /* Count visible slots to size the panel dynamically. */
+    FOR_LOOP(i, WOW_MAX_LOOT_ITEMS) if (wc->loot_snap[i].icon[0]) visible++;
+    if (!visible) { /* nothing left; auto-close */
+        wc->loot_target = 0;
+        return;
+    }
+
+    x = PX(300.0f); y = PY(160.0f);
+    h = PH(52.0f + (FLOAT)visible * 36.0f);
+
+    /* Dark parchment background + gold border */
+    UI_WriteColorRect(x, y, PW(380.0f), h, MAKE(COLOR32, 20, 16, 10, 230));
+    UI_WriteColorRect(x, y, PW(380.0f), PH(1.0f), MAKE(COLOR32, 170, 140, 60, 255));
+    UI_WriteColorRect(x, y + h, PW(380.0f), PH(1.0f), MAKE(COLOR32, 170, 140, 60, 255));
+    UI_WriteColorRect(x, y, PW(1.0f), h, MAKE(COLOR32, 170, 140, 60, 255));
+    UI_WriteColorRect(x + PW(379.0f), y, PW(1.0f), h, MAKE(COLOR32, 170, 140, 60, 255));
+
+    /* Title bar */
+    UI_WriteColorRect(x, y, PW(380.0f), PH(22.0f), MAKE(COLOR32, 50, 40, 20, 240));
+    UI_WriteTextFrame(x + PW(8), y + PH(5), PW(200), PH(14), "Loot",
+                      MAKE(COLOR32, 255, 215, 120, 255), FONT_JUSTIFYLEFT);
+
+    /* Close button — top right corner */
+    UI_WriteSimpleButton(x + PW(320), y + PH(3), PW(56), PH(18), "Close", "loot_close");
+
+    /* Item rows */
+    DWORD row = 0;
+    FOR_LOOP(i, WOW_MAX_LOOT_ITEMS) {
+        FLOAT row_y;
+        DWORD icon_img;
+        char cmd[32];
+
+        if (!wc->loot_snap[i].icon[0]) continue;
+        row_y = y + PH(26.0f + (FLOAT)row * 36.0f);
+
+        /* Slot background */
+        UI_WriteColorRect(x + PW(8), row_y, PW(362.0f), PH(32.0f), MAKE(COLOR32, 35, 28, 16, 200));
+
+        /* Item icon */
+        icon_img = gi.ImageIndex(wc->loot_snap[i].icon);
+        if (icon_img) {
+            uiFrame_t icon; memset(&icon, 0, sizeof(icon));
+            icon.flags.type = FT_TEXTURE;
+            icon.color = COLOR32_WHITE;
+            icon.tex.index = icon_img;
+            icon.tex.coord[1] = 0xff; icon.tex.coord[3] = 0xff;
+            UI_SetFrameRect(&icon, x + PW(12), row_y + PH(2), PW(28), PH(28));
+            UI_WriteProxyFrame(&icon, NULL, 0);
+        }
+
+        /* Item name + count */
+        if (wc->loot_snap[i].count > 1)
+            snprintf(buf, sizeof(buf), "%s x%u", wc->loot_snap[i].name, (unsigned)wc->loot_snap[i].count);
+        else
+            snprintf(buf, sizeof(buf), "%s", wc->loot_snap[i].name);
+        UI_WriteTextFrame(x + PW(48), row_y + PH(9), PW(280), PH(16), buf, COLOR32_WHITE, FONT_JUSTIFYLEFT);
+
+        /* Click region: "loot_take <slot>" */
+        snprintf(cmd, sizeof(cmd), "loot_take %u", (unsigned)i);
+        UI_WriteClickRegion(x + PW(8), row_y, PW(360.0f), PH(32.0f), cmd);
+        row++;
+    }
+}
+
+/* -------------------------------------------------------------------------
+ * Backpack window — 4×4 grid showing all WOW_UI_INVENTORY_SLOTS item slots.
+ * Positioned in the upper-right, above the bag slot row.
+ * -------------------------------------------------------------------------*/
+static void UI_WriteBackpackWindow(LPEDICT ent) {
+    wowClient_t *wc = (wowClient_t *)ent->client;
+    FLOAT x, y, w, h;
+
+    if (!wc->backpack_open) return;
+
+    x = PX(818.0f); y = PY(478.0f);
+    w = PW(190.0f); h = PH(230.0f);
+
+    /* Background + border */
+    UI_WriteColorRect(x, y, w, h, MAKE(COLOR32, 20, 16, 10, 230));
+    UI_WriteColorRect(x, y, w, PH(1.0f), MAKE(COLOR32, 170, 140, 60, 255));
+    UI_WriteColorRect(x, y + h, w, PH(1.0f), MAKE(COLOR32, 170, 140, 60, 255));
+    UI_WriteColorRect(x, y, PW(1.0f), h, MAKE(COLOR32, 170, 140, 60, 255));
+    UI_WriteColorRect(x + w, y, PW(1.0f), h, MAKE(COLOR32, 170, 140, 60, 255));
+
+    /* Title bar */
+    UI_WriteColorRect(x, y, w, PH(22.0f), MAKE(COLOR32, 50, 40, 20, 240));
+    UI_WriteTextFrame(x + PW(6), y + PH(5), PW(100), PH(14), "Backpack",
+                      MAKE(COLOR32, 255, 215, 120, 255), FONT_JUSTIFYLEFT);
+    UI_WriteSimpleButton(x + w - PW(54), y + PH(3), PW(50), PH(18), "Close", "backpack");
+
+    /* 4×4 grid of item slots */
+    FOR_LOOP(i, WOW_UI_INVENTORY_SLOTS) {
+        FLOAT sx = x + PW(8.0f + (FLOAT)(i % 4) * 44.0f);
+        FLOAT sy = y + PH(26.0f + (FLOAT)(i / 4) * 44.0f);
+        DWORD img = wc->inventory[i].icon[0] ? gi.ImageIndex(wc->inventory[i].icon) : 0;
+        UI_WriteActionButtonSlot(sx, sy, img, wc->inventory[i].count);
+    }
+}
+
 /* Send svc_window to show (show=1) or hide (show=0) a named XML window. */
 static void UI_WriteWindowMsg(LPCSTR window_id, int show) {
     gi.Write(PF_BYTE, &(LONG){svc_window});
@@ -508,6 +620,20 @@ void UI_WriteWowHud(LPEDICT ent) {
     /* Character/targeting frame (portrait area top-left) */
     UI_WriteTargetingFrame(ent);
 
+    /* Damage flash overlays — brief text shown after hits.  Timers tick in Wow_UpdatePlayerHud. */
+    if (wc->outgoing_dmg_timer > 0) {
+        char dmg_buf[32];
+        snprintf(dmg_buf, sizeof(dmg_buf), "-%u", (unsigned)wc->outgoing_damage);
+        UI_WriteTextFrame(PX(180.0f), PY(72.0f), PW(80), PH(18), dmg_buf,
+                          MAKE(COLOR32, 255, 255, 50, 255), FONT_JUSTIFYLEFT);
+    }
+    if (wc->incoming_dmg_timer > 0) {
+        char dmg_buf[32];
+        snprintf(dmg_buf, sizeof(dmg_buf), "-%u", (unsigned)wc->incoming_damage);
+        UI_WriteTextFrame(PX(130.0f), PY(60.0f), PW(80), PH(18), dmg_buf,
+                          MAKE(COLOR32, 255, 60, 60, 255), FONT_JUSTIFYLEFT);
+    }
+
     /* Main action bar + end-caps */
     UI_WriteActionBar();
 
@@ -517,14 +643,15 @@ void UI_WriteWowHud(LPEDICT ent) {
         UI_WriteActionButtonSlot(PX(8.0f + (FLOAT)i * 42.0f), PY(728), img, wc->actions[i].count);
     }
 
-    /* 6 inventory slots, right side (replaces empty placeholder slots) */
+    /* First 6 inventory slots shown in the quick-access bar; all 16 visible in backpack window. */
     FOR_LOOP(i, 6) {
         DWORD img = wc->inventory[i].icon[0] ? gi.ImageIndex(wc->inventory[i].icon) : 0;
         UI_WriteActionButtonSlot(PX(939.0f - (FLOAT)i * 42.0f), PY(728), img, wc->inventory[i].count);
     }
 
-    /* Backpack */
+    /* Backpack button — image + click region to toggle the backpack window */
     UI_WriteImage("Interface\\Buttons\\Button-Backpack-Up.blp", PX(981), PY(729), PW(37), PH(37), COLOR32_WHITE);
+    UI_WriteClickRegion(PX(981), PY(729), PW(37), PH(37), "backpack");
 
     /* Minimap border + viewport */
     UI_WriteMinimapFrames();
@@ -567,5 +694,7 @@ void UI_WriteWowHud(LPEDICT ent) {
     gi.Write(PF_SHORT, &(LONG){0});
     UI_WriteQuestDialog(ent);
     UI_WriteQuestLog(ent);
+    UI_WriteLootWindow(ent);
+    UI_WriteBackpackWindow(ent);
     gi.unicast(ent);
 }
