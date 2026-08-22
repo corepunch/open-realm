@@ -40,6 +40,14 @@ typedef struct {
     char text[512];
     char onclick[128];
     DWORD image_index;
+    FLOAT x, y, w, h;
+    COLOR32 color;
+    RESOURCE font;
+    BYTE uv[4];
+    RESOURCE scroll_image[3];
+    BYTE scroll_uv[3][4];
+    FLOAT button_height;
+    VECTOR2 thumb_size;
 } testUiFrame_t;
 
 static testUiFrame_t test_ui_frames[256];
@@ -49,7 +57,7 @@ static BYTE test_layout_layer;
 static BOOL test_layout_seen[MAX_LAYOUT_LAYERS];
 
 /* ---- configstring stubs (game_import.configstring / GetConfigstring) ---- */
-#define TEST_CONFIGSTRINGS 128
+#define TEST_CONFIGSTRINGS MAX_CONFIGSTRINGS
 static char test_configstrings[TEST_CONFIGSTRINGS][512];
 
 static void test_configstring(DWORD index, LPCSTR string) {
@@ -365,6 +373,24 @@ static void test_write(pfWriteType_t type, void const *value) {
             snprintf(capture->text, sizeof(capture->text), "%s", frame->text ? frame->text : "");
             snprintf(capture->onclick, sizeof(capture->onclick), "%s", frame->onclick ? frame->onclick : "");
             capture->image_index = frame->tex.index;
+            capture->x = frame->points.x[FPP_MIN].offset / UI_FRAMEPOINT_SCALE;
+            capture->y = -frame->points.y[FPP_MIN].offset / UI_FRAMEPOINT_SCALE;
+            capture->w = frame->size.width; capture->h = frame->size.height;
+            capture->color = frame->color;
+            if (frame->buffer.data && frame->flags.type == FT_STRING)
+                capture->font = ((uiLabel_t const *)frame->buffer.data)->font;
+            if (frame->buffer.data && frame->flags.type == FT_TEXTAREA)
+                capture->font = ((uiTextArea_t const *)frame->buffer.data)->font;
+            if (frame->buffer.data && frame->flags.type == FT_SIMPLEBUTTON)
+                memcpy(capture->uv, ((uiSimpleButton_t const *)frame->buffer.data)->normal.texcoord, sizeof(capture->uv));
+            if (frame->buffer.data && frame->flags.type == FT_SCROLLBAR) {
+                uiScrollBar_t const *scroll = frame->buffer.data;
+                FOR_LOOP(i, 3) {
+                    capture->scroll_image[i] = scroll->image[i].texture;
+                    memcpy(capture->scroll_uv[i], scroll->image[i].texcoord, sizeof(capture->scroll_uv[i]));
+                }
+                capture->button_height = scroll->buttonHeight; capture->thumb_size = scroll->thumbSize;
+            }
             break;
         }
         default:
@@ -620,7 +646,7 @@ TEST(wow_game, quest_marker_is_hidden_after_quest_acceptance) {
     game->RunFrame();
     Wow_SpawnQuestLocations(&origin);
     FOR_LOOP(i, globals.num_edicts) {
-        if (wow_edicts[i].inuse && Wow_EntityLocal(&wow_edicts[i])->quest_id == 783) {
+        if (wow_edicts[i].inuse && wow_edicts[i].s.class_id == 2072) {
             giver = &wow_edicts[i];
             break;
         }
@@ -640,6 +666,85 @@ TEST(wow_game, quest_marker_is_hidden_after_quest_acceptance) {
 
 static LPCSTR test_image_name(DWORD index) {
     return index >= 1 && index <= test_num_images ? test_images[index - 1].name : NULL;
+}
+
+/* One physical Deputy Willem owns all matching queststarter rows; a fresh
+ * Human resolves those rows to quest 783 and uses the client FrameXML metrics. */
+TEST(wow_game, deputy_willem_opens_classic_first_human_quest_frame) {
+    struct game_export *game = init_game();
+    LPEDICT player, deputy = NULL;
+    DWORD deputy_count = 0;
+    BOOL found_npc = false, found_title = false, found_body = false;
+    BOOL found_portrait = false, found_close = false, found_decline = false, found_scroll = false;
+    char entnum[16];
+
+    snprintf(test_playerinfo, sizeof(test_playerinfo), "\\race\\Human\\sex\\Male\\class\\%u\\appearance\\0", (unsigned)WOW_CLASS_PALADIN);
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    player = &wow_edicts[0];
+    game->ClientBegin(player);
+    game->RunFrame();
+    Wow_SpawnQuestLocations(&(VECTOR2){ -8947.64f, -132.319f });
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT ent = &wow_edicts[i];
+        if (!ent->inuse || ent->s.class_id != 2072) continue;
+        deputy = ent; deputy_count++;
+    }
+    T_EQ((int)deputy_count, 1);
+    T_NOT_NULL(deputy);
+    if (!deputy) { if (game->Shutdown) game->Shutdown(); return; }
+
+    test_ui_frame_count = 0;
+    snprintf(entnum, sizeof(entnum), "%u", (unsigned)deputy->s.number);
+    game->ClientCommand(player, 2, (LPCSTR[]){ "interact", entnum });
+    T_EQ((int)((wowClient_t *)player->client)->quest_id, 783);
+    FOR_LOOP(i, test_ui_frame_count) {
+        testUiFrame_t const *frame = &test_ui_frames[i];
+        LPCSTR image;
+        if (frame->layer != LAYER_QUESTDIALOG) continue;
+        if (!strcmp(frame->text, "Deputy Willem")) {
+            found_npc = true;
+            T_FEQ(frame->y, 127.0f / 768.0f, 0.0001f);
+            T_FEQ(frame->h, 14.0f / 768.0f, 0.0001f);
+        }
+        if (!strcmp(frame->text, "A Threat Within")) {
+            found_title = true;
+            T_EQ((int)frame->font, 18);
+            T_FEQ(frame->x, 28.0f / 1024.0f, 0.0001f);
+            T_FEQ(frame->y, 195.0f / 768.0f, 0.0001f);
+            T_EQ((int)frame->color.r, 0); T_EQ((int)frame->color.g, 0); T_EQ((int)frame->color.b, 0);
+        }
+        if (frame->type == FT_TEXTAREA && strstr(frame->text, "young paladin")) {
+            found_body = true;
+            T_EQ((int)frame->font, 13);
+            T_FEQ(frame->x, 28.0f / 1024.0f, 0.0001f);
+            T_EQ((int)frame->color.r, 0); T_EQ((int)frame->color.g, 0); T_EQ((int)frame->color.b, 0);
+        }
+        if (frame->type == FT_PORTRAIT && frame->image_index == deputy->s.model) found_portrait = true;
+        if (!strcmp(frame->onclick, "quest_close") && frame->w == 32.0f / 1024.0f) found_close = true;
+        if (!strcmp(frame->text, "Decline") && !strcmp(frame->onclick, "quest_close")) found_decline = true;
+        if (!strcmp(frame->text, "Accept")) {
+            T_EQ((int)frame->uv[0], 0); T_EQ((int)frame->uv[1], 159);
+            T_EQ((int)frame->uv[2], 0); T_EQ((int)frame->uv[3], 175);
+        }
+        if (frame->type == FT_SCROLLBAR) {
+            found_scroll = true;
+            T_FEQ(frame->x, 329.0f / 1024.0f, 0.0001f); T_FEQ(frame->y, 185.0f / 768.0f, 0.0001f);
+            T_FEQ(frame->w, 16.0f / 1024.0f, 0.0001f); T_FEQ(frame->h, 334.0f / 768.0f, 0.0001f);
+            T_FEQ(frame->button_height, 16.0f / 768.0f, 0.0001f);
+            T_FEQ(frame->thumb_size.x, 16.0f / 1024.0f, 0.0001f);
+            T_FEQ(frame->thumb_size.y, 16.0f / 768.0f, 0.0001f);
+            FOR_LOOP(j, 3) {
+                T_ASSERT(frame->scroll_image[j] > 0);
+                T_EQ((int)frame->scroll_uv[j][0], 63); T_EQ((int)frame->scroll_uv[j][1], 191);
+                T_EQ((int)frame->scroll_uv[j][2], 63); T_EQ((int)frame->scroll_uv[j][3], 191);
+            }
+        }
+        image = frame->type == FT_TEXTURE ? test_image_name(frame->image_index) : NULL;
+        if (image && !strcmp(image, "Interface\\Buttons\\UI-Panel-MinimizeButton-Up.blp")) found_close = true;
+    }
+    T_ASSERT(found_npc); T_ASSERT(found_title); T_ASSERT(found_body);
+    T_ASSERT(found_portrait); T_ASSERT(found_close); T_ASSERT(found_decline); T_ASSERT(found_scroll);
+    if (game->Shutdown) game->Shutdown();
 }
 
 TEST(wow_game, quest_hud_is_server_authored_on_quest_layer) {
@@ -701,6 +806,7 @@ TEST(wow_game, hud_draws_race_portrait_on_console_layer) {
 
 TEST(wow_game, quest_detail_has_full_text_and_rewards) {
     LPCWOWQUESTDETAIL detail = Wow_QuestDetail(7);
+    LPCWOWQUESTDETAIL threat = Wow_QuestDetail(783);
 
     T_NOT_NULL(detail);
     T_STREQ(detail->title, "Kobold Camp Cleanup");
@@ -712,6 +818,10 @@ TEST(wow_game, quest_detail_has_full_text_and_rewards) {
     T_EQ((int)detail->min_level, 1);
     T_EQ((int)detail->prev_quest, 783);
     T_EQ((int)detail->reward_items[0], 0);
+    T_NOT_NULL(threat);
+    T_ASSERT(strstr(threat->description, "young $c"));
+    T_ASSERT(strstr(threat->description, "speak with my superior, Marshal McBride"));
+    T_ASSERT(!strstr(threat->description, "..."));
 }
 
 TEST(wow_game, quest_accept_adds_to_quest_log) {
@@ -751,6 +861,9 @@ TEST(wow_game, quest_prerequisite_blocks_accept) {
     T_EQ((int)wc->client.ps.quest_count, 1);
     T_EQ((int)wc->client.ps.quest_log[0].quest_id, 12);
 
+    game->ClientCommand(player, 2, accept13);
+    T_EQ((int)wc->client.ps.quest_count, 1);
+    game->ClientCommand(player, 2, (LPCSTR[]){ "quest_complete", "12" });
     game->ClientCommand(player, 2, accept13);
     T_EQ((int)wc->client.ps.quest_count, 2);
     T_EQ((int)wc->client.ps.quest_log[1].quest_id, 13);

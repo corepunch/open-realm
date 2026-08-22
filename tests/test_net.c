@@ -30,6 +30,19 @@
 
 void test_client_stubs_init(void);
 void test_client_stubs_set_cvar(LPCSTR name, LPCSTR value);
+void SCR_LayoutDrawScrollBar(LPCUIFRAME frame, LPCRECT screen);
+
+static RECT test_scroll_rects[3], test_scroll_uvs[3];
+static LPCTEXTURE test_scroll_tex[3];
+static DWORD test_scroll_draws;
+
+static void capture_scroll_image(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color) {
+    (void)color;
+    if (test_scroll_draws >= 3) return;
+    test_scroll_tex[test_scroll_draws] = texture;
+    test_scroll_rects[test_scroll_draws] = *screen;
+    test_scroll_uvs[test_scroll_draws++] = *uv;
+}
 
 /* -----------------------------------------------------------------------
  * Helpers
@@ -53,6 +66,42 @@ static netadr_t loopback_adr(void) {
     memset(&adr, 0, sizeof(adr));
     adr.type = NA_LOOPBACK;
     return adr;
+}
+
+/* Server-authored WoW scrollbars use cropped textures while legacy FDF data keeps backdrop parts. */
+TEST(net, layout_scrollbar_draws_cropped_texture_parts_top_to_bottom) {
+    uiScrollBar_t scroll = {0};
+    uiFrame_t frame = { .value = 0.0f, .buffer = { &scroll, sizeof(scroll) } };
+    RECT screen = MAKE(RECT, 0.1f, 0.2f, 0.02f, 0.4f);
+
+    test_client_stubs_init(); test_scroll_draws = 0; re.DrawImage = capture_scroll_image;
+    FOR_LOOP(i, 3) {
+        scroll.image[i].texture = i + 1;
+        scroll.image[i].texcoord[0] = scroll.image[i].texcoord[2] = 63;
+        scroll.image[i].texcoord[1] = scroll.image[i].texcoord[3] = 191;
+        cl.pics[i + 1] = (LPTEXTURE)(uintptr_t)(i + 1);
+    }
+    scroll.buttonHeight = 0.03f; scroll.thumbSize = MAKE(VECTOR2, 0.02f, 0.03f);
+    SCR_LayoutDrawScrollBar(&frame, &screen);
+
+    T_EQ((int)test_scroll_draws, 3);
+    T_ASSERT(test_scroll_tex[0] == cl.pics[1]); T_FEQ(test_scroll_rects[0].y, 0.57f, 0.0001f);
+    T_ASSERT(test_scroll_tex[1] == cl.pics[2]); T_FEQ(test_scroll_rects[1].y, 0.2f, 0.0001f);
+    T_ASSERT(test_scroll_tex[2] == cl.pics[3]); T_FEQ(test_scroll_rects[2].y, 0.23f, 0.0001f);
+    FOR_LOOP(i, 3) {
+        T_FEQ(test_scroll_uvs[i].x, 63.0f / 255.0f, 0.0001f);
+        T_FEQ(test_scroll_uvs[i].w, 128.0f / 255.0f, 0.0001f);
+    }
+}
+
+TEST(net, layout_scrollbar_without_art_draws_nothing) {
+    uiScrollBar_t scroll = {0};
+    uiFrame_t frame = { .buffer = { &scroll, sizeof(scroll) } };
+    RECT screen = MAKE(RECT, 0.1f, 0.2f, 0.02f, 0.4f);
+
+    test_client_stubs_init(); test_scroll_draws = 0; re.DrawImage = capture_scroll_image;
+    SCR_LayoutDrawScrollBar(&frame, &screen);
+    T_EQ((int)test_scroll_draws, 0);
 }
 
 /* -----------------------------------------------------------------------

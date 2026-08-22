@@ -262,9 +262,13 @@ void Wow_SpawnQuestLocations(LPCVECTOR2 origin) {
         VECTOR2 position;
         LPEDICT ent;
         wowEntityLocal_t *local;
+        BOOL duplicate = false;
 
         if (!budget)
             break;
+        FOR_LOOP(prev, si)
+            if (Wow_QuestGiverSame(data, Wow_QuestGiver(sorted[prev].idx))) { duplicate = true; break; }
+        if (duplicate) continue;
         creature_model = Wow_CreaturePrimaryModel(creature);
         if (!creature_model) {
             fprintf(stderr, "WoW: quest giver creature %u has no primary server model\n", (unsigned)data->creature_entry);

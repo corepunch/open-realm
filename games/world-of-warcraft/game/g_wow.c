@@ -1392,6 +1392,13 @@ static void Wow_ReadSelectedCharFromCS(char *race, size_t race_sz, char *sex, si
     }
 }
 
+/* Server-authored UI resolves class-sensitive quest text from playerinfo. */
+DWORD Wow_GetPlayerClass(void) {
+    char race[64], sex[64]; DWORD class_id, appearance;
+    Wow_ReadSelectedCharFromCS(race, sizeof(race), sex, sizeof(sex), &class_id, &appearance);
+    return class_id;
+}
+
 static void Wow_InitPlayer(LPEDICT ent, VECTOR2 spawn_origin, LONG spawn_location) {
     LPPLAYER ps;
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
@@ -1490,6 +1497,17 @@ static void Wow_Shutdown(void) {
 static bool Wow_SpawnEntities(void);
 
 static bool Wow_LoadMap(LPCSTR mapFilename) {
+    /* "preview" pseudo-map: no collision, no spawns, black background.
+     * The renderer logs a missing WDT and draws nothing for the world.
+     * Use as: make run-wow-preview  then type "quest <id>" in-game. */
+    if (!strcmp(mapFilename, "preview")) {
+        if (gi.ClearWorld) gi.ClearWorld();
+        gi.configstring(CS_GENERAL + WOW_CS_PLAYERINFO,
+            "\\race\\Human\\sex\\Male\\class\\2\\appearance\\0");
+        Wow_SelectLoadingScreen("preview");
+        Wow_InitPlayer(&wow_edicts[0], (VECTOR2){0, 0}, -1);
+        return true;
+    }
     if (!CM_LoadMap(mapFilename)) {
         return false;
     }
@@ -1873,11 +1891,43 @@ void Wow_QuestAwardKillCredit(LPEDICT attacker, DWORD display_id) {
     }
 }
 
+/* An accepted predecessor is still in progress; only completion unlocks the chain. */
+static BOOL Wow_QuestPrereqMet(wowClient_t *client, DWORD quest_id) {
+    svQuestEntry_t *prev = SV_QuestFind(client->client.ps.quest_log, client->client.ps.quest_count, quest_id);
+    return !quest_id || (prev && prev->status == SV_QUEST_COMPLETE);
+}
+
 static BOOL Wow_AddQuest(wowClient_t *client, DWORD quest_id) {
     LPCWOWQUESTDETAIL detail = Wow_QuestDetail(quest_id);
     if (!detail) return false;
-    if (detail->prev_quest && !SV_QuestFind(client->client.ps.quest_log, client->client.ps.quest_count, detail->prev_quest)) return false;
+    if (!Wow_QuestPrereqMet(client, detail->prev_quest)) return false;
     return SV_QuestAdd(client->client.ps.quest_log, &client->client.ps.quest_count, SV_MAX_QUEST_LOG, quest_id);
+}
+
+/* Resolve one physical quest NPC's repeated queststarter rows to the first
+ * quest currently available to this player. The old one-edict-per-row path
+ * made overlapping duplicates select an arbitrary later quest. */
+static DWORD Wow_QuestForGiver(wowClient_t *client, wowEntityLocal_t const *local) {
+    LPCWOWQUESTGIVER giver = NULL;
+    DWORD representative = local->quest_id;
+
+    FOR_LOOP(i, Wow_QuestGiverCount()) {
+        LPCWOWQUESTGIVER cur = Wow_QuestGiver(i);
+        if (cur->quest_id != representative) continue;
+        if (local->home.x != cur->position.x || local->home.y != cur->position.y) continue;
+        giver = cur; break;
+    }
+    if (!giver) return representative;
+    FOR_LOOP(i, Wow_QuestGiverCount()) {
+        LPCWOWQUESTGIVER cur = Wow_QuestGiver(i);
+        LPCWOWQUESTDETAIL detail;
+        if (!Wow_QuestGiverSame(giver, cur)) continue;
+        if (SV_QuestFind(client->client.ps.quest_log, client->client.ps.quest_count, cur->quest_id)) continue;
+        detail = Wow_QuestDetail(cur->quest_id);
+        if (detail && Wow_QuestPrereqMet(client, detail->prev_quest))
+            return cur->quest_id;
+    }
+    return 0;
 }
 
 /* Serialize the complete bounded inbox so reconnects and repeated reward
@@ -2006,7 +2056,7 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
             ? Wow_EdictByNumber(ent->client->ps.selected_entity) : NULL;
         wowEntityLocal_t *selected_local = selected ? Wow_EntityLocal(selected) : NULL;
         if (!quest_id && selected_local)
-            quest_id = selected_local->quest_id;
+            quest_id = Wow_QuestForGiver(client, selected_local);
         if (!quest_id || !Wow_QuestDetail(quest_id)) {
             fprintf(stderr, "WoW: quest UI has no server data for quest %u\n", (unsigned)quest_id);
             return;
@@ -2103,8 +2153,9 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
         Wow_SelectEntity(ent, target && target != ent ? target : NULL);
         if (target_local && target_local->quest_id) {
             wowClient_t *client = (wowClient_t *)ent->client;
-            if (!Wow_QuestDetail(target_local->quest_id)) return;
-            client->quest_id = target_local->quest_id;
+            DWORD quest_id = Wow_QuestForGiver(client, target_local);
+            if (!quest_id || !Wow_QuestDetail(quest_id)) return;
+            client->quest_id = quest_id;
             client->quest_open = true;
             UI_WriteWowHud(ent);
         } else {
@@ -2217,19 +2268,13 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
 static void Wow_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
     wowClient_t *client;
-    svQuestEntry_t *quest;
-    LPCWOWQUESTDETAIL detail;
+    DWORD quest_id;
 
     if (!local || !local->quest_id || player >= WOW_MAX_CLIENTS || !state->overhead_sprite)
         return;
     client = &wow_clients[player];
-    quest = SV_QuestFind(client->client.ps.quest_log, client->client.ps.quest_count, local->quest_id);
-    detail = Wow_QuestDetail(local->quest_id);
-    if (quest) { state->overhead_sprite = 0; return; }
-    if (detail && detail->prev_quest && !SV_QuestFind(client->client.ps.quest_log, client->client.ps.quest_count, detail->prev_quest))
-        state->overhead_sprite = 0;
-    else
-        state->overhead_sprite = local->quest_available_sprite;
+    quest_id = Wow_QuestForGiver(client, local);
+    state->overhead_sprite = quest_id ? local->quest_available_sprite : 0;
 }
 
 static void Wow_ClientSetCameraPosition(LPEDICT ent, LPCVECTOR2 position) {

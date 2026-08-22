@@ -62,13 +62,46 @@ The quest log is part of `playerState_s` — generic, game-agnostic per-player s
 
 The dialog is rendered on `LAYER_QUESTDIALOG` using classic QuestFrame textures:
 - `Interface\QuestFrame\UI-QuestGreeting-{TopLeft,TopRight,BotLeft,BotRight}.blp`
-- 384×512 panel at canvas position (24, 104) on a 1024×768 reference grid.
+- 384×512 panel at canvas position (0, 104) on a 1024×768 reference grid.
+
+`Interface\FrameXML\QuestFrame.xml` remains the authoritative geometry even
+though game mode does not execute it:
+
+| Element | Classic metric |
+|---------|----------------|
+| NPC portrait | `(7, 6)`, 60×60, selected giver model via `FT_PORTRAIT` |
+| NPC name | 300×14, centered at `TOP + (0, -23)` in the metal title bar |
+| Close button | `(326, 14)`, 32×32, `UI-Panel-MinimizeButton-Up` |
+| Quest title | `(28, 91)`, 18px `MORPHEUS.ttf`, black |
+| Description | `(28, 116)`, 13px `FRIZQT__.TTF`, black, 270px wide |
+| Scrollbar | `(329, 81)`, 16×334; 16px arrows and thumb, cropped to the texture center |
+| Accept | `(23, 418)`, 77×22 |
+| Decline | `(267, 418)`, 78×22 |
+
+`UIPanelButtonTemplate` does not use the complete 128×32 button texture. Its
+authoritative UV rectangle is `(0, 0)..(0.625, 0.6875)`, an 80×22 opaque region
+which must be cropped and stretched across the button frame. Full UVs leave the
+remaining transparent atlas area inside the frame and make the backdrop appear
+to cover only part of the button.
+
+The server-authored layout reuses the existing `FT_SCROLLBAR`/`uiScrollBar_t`
+contract rather than adding a WoW-only frame type. WoW populates its optional
+cropped-texture parts from `UIPanelScrollFrameTemplate`; legacy FDF scrollbar
+backdrops remain supported by the same client drawer.
+
+Inspect the installed source directly with:
+
+```sh
+build/bin/mpqtool -data data/world-of-warcraft cat 'Interface/FrameXML/QuestFrame.xml'
+build/bin/mpqtool -data data/world-of-warcraft cat 'Interface/FrameXML/Fonts.xml'
+build/bin/mpqtool -data data/world-of-warcraft cat 'Interface/FrameXML/UIPanelTemplates.xml'
+```
 
 Buttons depend on quest state:
 - **New quest** (not in log): "Accept" button → `quest_accept <id>`
 - **In progress** (ACCEPTED, objectives incomplete): no action buttons
 - **Complete** (all objectives done): "Complete Quest" → `quest_complete <id>`
-- **Always**: "Close" button → `quest_close`
+- **Always**: top-right close icon and "Decline" button → `quest_close`
 
 Kill progress is shown as `"Creature: 5/10"` text when the quest has
 kill objectives and the player's progress is tracked.
@@ -76,7 +109,8 @@ kill objectives and the player's progress is tracked.
 ## Quest Logic (g_wow.c)
 
 - `Wow_AddQuest(client, id)` — validates detail exists, prerequisite chain met
-  (`prev_quest` must be in log); delegates to `SV_QuestAdd` for log management.
+  (`prev_quest` must be complete, not merely active); delegates to `SV_QuestAdd`
+  for log management.
 - `Wow_CompleteQuest(client, id)` — uses `SV_QuestFind`; only awards if
   `status == SV_QUEST_ACTIVE`; adds `reward_xp` to `WOW_STAT_XP`, `reward_gold`
   to `WOW_STAT_COPPER`.
@@ -101,6 +135,14 @@ Quest log access: `ent->client->ps.quest_log` / `ent->client->ps.quest_count`
 Quest givers are creatures in AzerothCore and carry world positions via
 `creature.sql`; the questgiver role is the join of `creature_queststarter`
 (creature_entry → quest_id) with `creature` (creature_entry → spawn position).
+
+`creature_queststarter` contains one row per quest, so Deputy Willem appears
+five times at the same coordinates. `Wow_SpawnQuestLocations` collapses equal
+`(creature_entry, position)` rows into one edict. At interaction/snapshot time,
+`Wow_QuestForGiver` scans every matching row and chooses the first quest not in
+the log whose prerequisite is complete. Without grouping, five overlapping
+Willem models spawn and selection can open quest 18 (`Brotherhood of Thieves`)
+instead of fresh-Human quest 783 (`A Threat Within`).
 
 ### Spawn budget and distance ordering
 
@@ -127,12 +169,10 @@ When building a snapshot, the server copies the entity state and then calls
 
 | Condition | `overhead_sprite` sent |
 |-----------|----------------------|
-| Quest already in player's log (any status) | 0 (hidden) |
-| Quest has `prev_quest` and that quest is NOT in log | 0 (chain locked) |
-| Quest has `prev_quest` and that quest IS in log | sprite index (show "!") |
-| Quest has no `prev_quest` (starter quest) | sprite index (show "!") |
+| No matching quest is currently available | 0 (hidden) |
+| Any matching quest has no prerequisite or a completed prerequisite | sprite index (show "!") |
 
-`Wow_AddQuest` uses the same "prev_quest must be in log" rule, so the marker
+`Wow_AddQuest` uses the same "prev_quest must be complete" rule, so the marker
 and the accept gate are always consistent.
 
 The client pipeline:
@@ -157,6 +197,11 @@ python3 data/WoWee/tools/extract_server_data.py --max-level 40  # more content
 
 Produces: `weapons.csv` (1289), `quests.csv` (2737), `quest_spawns.csv` (1787+2558),
 `creatures.csv` (29947 templates / 40213 model rows), `creature_spawns.csv` (13729).
+
+Quest extraction preserves the complete SQL prose and `$B` paragraph breaks.
+It must not truncate text or eagerly replace `$N`, `$c`, and `$r`: `g_ui.c`
+expands those tokens from the active player's name, class, and race when it
+authors the frame.
 
 ### Stage 2: CSV → C (`serverdata/gen_serverdata_c.py`)
 

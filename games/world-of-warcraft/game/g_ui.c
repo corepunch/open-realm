@@ -8,6 +8,7 @@
  */
 
 #include "g_wow_local.h"
+#include "common/wow_character_utils.h"
 
 #define VW 1024.0f
 #define VH 768.0f
@@ -74,10 +75,31 @@ static void UI_WriteTextArea(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR text, CO
     frame.flags.type = FT_TEXTAREA;
     frame.text = text ? text : "";
     frame.color = color;
-    area.font = gi.FontIndex("Fonts\\FRIZQT__.TTF", 10);
-    area.inset = PW(8);
+    area.font = gi.FontIndex("Fonts\\FRIZQT__.TTF", 13);
+    area.inset = 0;
     UI_SetFrameRect(&frame, x, y, w, h);
     UI_WriteProxyFrame(&frame, &area, sizeof(area));
+}
+
+/* UIPanelScrollFrameTemplate is one slider frame with fixed arrow and thumb textures. */
+static void UI_WriteQuestScrollBar(FLOAT x, FLOAT y) {
+    LPCSTR paths[] = {
+        "Interface\\Buttons\\UI-ScrollBar-ScrollDownButton-Up.blp",
+        "Interface\\Buttons\\UI-ScrollBar-ScrollUpButton-Up.blp",
+        "Interface\\Buttons\\UI-ScrollBar-Knob.blp",
+    };
+    uiFrame_t frame = {0};
+    uiScrollBar_t scroll = {0};
+
+    frame.flags.type = FT_SCROLLBAR;
+    FOR_LOOP(i, sizeof(paths) / sizeof(paths[0])) {
+        scroll.image[i].texture = gi.ImageIndex(paths[i]);
+        scroll.image[i].texcoord[0] = scroll.image[i].texcoord[2] = (BYTE)(0.25f * 0xff);
+        scroll.image[i].texcoord[1] = scroll.image[i].texcoord[3] = (BYTE)(0.75f * 0xff);
+    }
+    scroll.buttonHeight = PH(16); scroll.thumbSize = MAKE(VECTOR2, PW(16), PH(16));
+    UI_SetFrameRect(&frame, x + PW(329), y + PH(81), PW(16), PH(334));
+    UI_WriteProxyFrame(&frame, &scroll, sizeof(scroll));
 }
 
 static void UI_WriteClickRegion(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR command) {
@@ -99,7 +121,7 @@ static void UI_WriteSimpleButton(FLOAT x, FLOAT y, FLOAT w, FLOAT h,
     uiFrame_t frame;
     uiSimpleButton_t button;
     RESOURCE texture = gi.ImageIndex("Interface\\Buttons\\UI-Panel-Button-Up.blp");
-    RESOURCE font = gi.FontIndex("Fonts\\FRIZQT__.TTF", HUD_FONT_SIZE);
+    RESOURCE font = gi.FontIndex("Fonts\\FRIZQT__.TTF", 12);
 
     memset(&frame, 0, sizeof(frame));
     memset(&button, 0, sizeof(button));
@@ -108,14 +130,94 @@ static void UI_WriteSimpleButton(FLOAT x, FLOAT y, FLOAT w, FLOAT h,
     frame.onclick = command;
     button.normal.texture = texture;
     button.normal.font = font;
-    button.normal.texcoord[1] = 0xff;
-    button.normal.texcoord[3] = 0xff;
+    /* UIPanelButtonTemplate crops the atlas; full UVs made its opaque art occupy only part of the frame. */
+    button.normal.texcoord[1] = (BYTE)(0.625f * 0xff);
+    button.normal.texcoord[3] = (BYTE)(0.6875f * 0xff);
     button.normal.fontcolor = COLOR32_WHITE;
     button.pushed = button.normal;
     button.disabled = button.normal;
     button.highlight = button.normal;
     UI_SetFrameRect(&frame, x, y, w, h);
     UI_WriteProxyFrame(&frame, &button, sizeof(button));
+}
+
+/* QuestFrame.xml uses a distinct 18px Morpheus title inside the parchment. */
+static void UI_WriteQuestTitle(FLOAT x, FLOAT y, LPCSTR text) {
+    uiFrame_t frame = {0};
+    uiLabel_t label = {0};
+
+    frame.flags.type = FT_STRING;
+    frame.text = text;
+    frame.color = MAKE(COLOR32, 0, 0, 0, 255);
+    label.font = gi.FontIndex("Fonts\\MORPHEUS.ttf", 18);
+    label.textalignx = FONT_JUSTIFYLEFT;
+    label.textaligny = FONT_JUSTIFYTOP;
+    UI_SetFrameRect(&frame, x + PW(28), y + PH(91), PW(285), PH(24));
+    UI_WriteProxyFrame(&frame, &label, sizeof(label));
+}
+
+/* QuestNpcNameFrame centers the giver name in the metal title bar. */
+static void UI_WriteQuestNpcName(FLOAT x, FLOAT y, LPCSTR text) {
+    uiFrame_t frame = {0};
+    uiLabel_t label = {0};
+
+    frame.flags.type = FT_STRING;
+    frame.text = text;
+    frame.color = COLOR32_WHITE;
+    label.font = gi.FontIndex("Fonts\\FRIZQT__.TTF", 12);
+    label.textalignx = FONT_JUSTIFYCENTER;
+    label.textaligny = FONT_JUSTIFYTOP;
+    /* QuestNpcNameFrame is TOP-anchored 23px below QuestFrame; the old 17px offset placed text over the border. */
+    UI_SetFrameRect(&frame, x + PW(42), y + PH(23), PW(300), PH(14));
+    UI_WriteProxyFrame(&frame, &label, sizeof(label));
+}
+
+/* The quest giver's model occupies the 60px portrait aperture in QuestFrame.xml. */
+static void UI_WriteQuestPortrait(FLOAT x, FLOAT y, RESOURCE model) {
+    uiFrame_t frame = {0};
+    if (!model) return;
+    frame.flags.type = FT_PORTRAIT;
+    frame.tex.index = model;
+    UI_SetFrameRect(&frame, x + PW(7), y + PH(6), PW(60), PH(60));
+    UI_WriteProxyFrame(&frame, NULL, 0);
+}
+
+typedef struct { LPEDICT ent; LPCSTR src; LPSTR dst; size_t size; } wowQuestText_t;
+
+/* Expand the player tokens retained from authoritative quest_template text. */
+static void UI_FormatQuestText(wowQuestText_t const *fmt) {
+    char race[64], sex[64];
+    LPCSTR name = fmt->ent->client->ps.name && *fmt->ent->client->ps.name ? fmt->ent->client->ps.name : "adventurer";
+    LPCSTR cls = Wow_ClassName(Wow_GetPlayerClass());
+    Wow_GetPlayerRaceSex(race, sizeof(race), sex, sizeof(sex));
+    struct { char key; LPCSTR value; } repl[] = {
+        { 'N', name }, { 'n', name }, { 'C', cls }, { 'c', cls },
+        { 'R', race }, { 'r', race },
+    };
+    size_t out = 0;
+
+    for (LPCSTR src = fmt->src ? fmt->src : ""; *src && out + 1 < fmt->size; src++) {
+        LPCSTR value = NULL;
+        if (*src == '$' && src[1]) FOR_LOOP(i, sizeof(repl) / sizeof(repl[0]))
+            if (repl[i].key == src[1]) { value = repl[i].value; break; }
+        if (!value) { fmt->dst[out++] = *src; continue; }
+        size_t len = strlen(value);
+        if (len > fmt->size - out - 1) len = fmt->size - out - 1;
+        memcpy(fmt->dst + out, value, len); out += len; src++;
+    }
+    fmt->dst[out] = '\0';
+}
+
+/* Resolve the queststarter relation back to the creature-template name. */
+static LPCSTR UI_QuestGiverName(DWORD quest_id) {
+    FOR_LOOP(i, Wow_QuestGiverCount()) {
+        LPCWOWQUESTGIVER data = Wow_QuestGiver(i);
+        LPCWOWCREATURE creature;
+        if (data->quest_id != quest_id) continue;
+        creature = Wow_CreatureByEntry(data->creature_entry);
+        return creature ? creature->name : NULL;
+    }
+    return NULL;
 }
 
 /* The client ships QuestFrame.xml/Lua, but WoW game mode suppresses client UI
@@ -135,8 +237,12 @@ static void UI_WriteQuestDialog(LPEDICT ent) {
         LPCWOWQUESTDETAIL detail = Wow_QuestDetail(wc->quest_id);
         svQuestEntry_t *state = SV_QuestFind(wc->client.ps.quest_log, wc->client.ps.quest_count, wc->quest_id);
         DWORD slot = state ? (DWORD)(state - wc->client.ps.quest_log) : 0;
-        char command[64], text[512];
-        FLOAT x = PX(24), y = PY(104);
+        LPEDICT selected = wc->client.ps.selected_entity && wc->client.ps.selected_entity < (DWORD)globals.num_edicts
+            ? &wow_edicts[wc->client.ps.selected_entity] : NULL;
+        wowEntityLocal_t *giver = selected ? Wow_EntityLocal(selected) : NULL;
+        LPCSTR giver_name = NULL;
+        char command[64], desc[2048], obj[1024], text[3072];
+        FLOAT x = PX(0), y = PY(104);
         BOOL is_complete = state && state->status == SV_QUEST_COMPLETE;
         BOOL is_accepted = state && state->status == SV_QUEST_ACTIVE;
 
@@ -145,14 +251,21 @@ static void UI_WriteQuestDialog(LPEDICT ent) {
         UI_WriteImage("Interface\\QuestFrame\\UI-QuestGreeting-BotLeft.blp", x, y + PH(256), PW(256), PH(256), COLOR32_WHITE);
         UI_WriteImage("Interface\\QuestFrame\\UI-QuestGreeting-BotRight.blp", x + PW(256), y + PH(256), PW(128), PH(256), COLOR32_WHITE);
 
-        UI_WriteTextFrame(x + PW(42), y + PH(18), PW(280), PH(22), detail ? detail->title : "Quest", MAKE(COLOR32, 255, 215, 120, 255), FONT_JUSTIFYCENTER);
+        giver_name = UI_QuestGiverName(giver ? giver->quest_id : detail ? detail->quest_id : 0);
+        UI_WriteQuestPortrait(x, y, selected ? selected->s.model : 0);
+        UI_WriteQuestNpcName(x, y, giver_name ? giver_name : "Quest");
+        UI_WriteImage("Interface\\Buttons\\UI-Panel-MinimizeButton-Up.blp", x + PW(326), y + PH(14), PW(32), PH(32), COLOR32_WHITE);
+        UI_WriteClickRegion(x + PW(326), y + PH(14), PW(32), PH(32), "quest_close");
+        UI_WriteQuestTitle(x, y, detail ? detail->title : "Quest");
 
         if (detail) {
             int off = 0;
+            UI_FormatQuestText(&(wowQuestText_t){ ent, is_complete ? detail->reward_text : detail->description, desc, sizeof(desc) });
+            UI_FormatQuestText(&(wowQuestText_t){ ent, detail->objectives_text, obj, sizeof(obj) });
             if (is_complete)
-                off = snprintf(text, sizeof(text), "%s\n\nRewards:\n%d XP  |  %u copper", detail->reward_text, (int)detail->reward_xp, (unsigned)detail->reward_gold);
+                off = snprintf(text, sizeof(text), "%s\n\nRewards:\n%d XP  |  %u copper", desc, (int)detail->reward_xp, (unsigned)detail->reward_gold);
             else {
-                off = snprintf(text, sizeof(text), "%s\n\n%s", detail->description, detail->objectives_text);
+                off = snprintf(text, sizeof(text), "%s%s%s", desc, obj[0] ? "\n\n" : "", obj);
                 if (is_accepted && detail->kill_objective_count) {
                     off += snprintf(text + off, sizeof(text) - off, "\n\nProgress:");
                     FOR_LOOP(j, detail->kill_objective_count) {
@@ -164,16 +277,17 @@ static void UI_WriteQuestDialog(LPEDICT ent) {
         } else {
             snprintf(text, sizeof(text), "Quest data not available.");
         }
-        UI_WriteTextArea(x + PW(28), y + PH(82), PW(328), PH(320), text, MAKE(COLOR32, 240, 230, 205, 255));
+        UI_WriteTextArea(x + PW(28), y + PH(116), PW(270), PH(286), text, MAKE(COLOR32, 0, 0, 0, 255));
+        UI_WriteQuestScrollBar(x, y);
 
         if (is_complete) {
             snprintf(command, sizeof(command), "quest_complete %u", (unsigned)wc->quest_id);
-            UI_WriteSimpleButton(x + PW(22), y + PH(420), PW(180), PH(28), "Complete Quest", command);
+            UI_WriteSimpleButton(x + PW(23), y + PH(418), PW(120), PH(22), "Complete Quest", command);
         } else if (!is_accepted) {
             snprintf(command, sizeof(command), "quest_accept %u", (unsigned)wc->quest_id);
-            UI_WriteSimpleButton(x + PW(22), y + PH(420), PW(120), PH(28), "Accept", command);
+            UI_WriteSimpleButton(x + PW(23), y + PH(418), PW(77), PH(22), "Accept", command);
         }
-        UI_WriteSimpleButton(x + PW(250), y + PH(420), PW(90), PH(28), "Close", "quest_close");
+        UI_WriteSimpleButton(x + PW(267), y + PH(418), PW(78), PH(22), "Decline", "quest_close");
     } else if (wc->questlog_open) {
         FLOAT x = PX(24), y = PY(68);
         FLOAT line_y = y + PH(48);
