@@ -64,7 +64,10 @@ void R_ShutdownTextureCache(void) {
 int R_RegisterTextureFile(char const *textureFileName) {
     LPTEXTURE tex = (LPTEXTURE)R_LoadTexture(textureFileName);
     if (tex) {
-        if (!R_FindTextureByID(tex->texid)) ADD_TO_LIST(tex, g_textures);
+        /* The cache can return an existing node; the old unbraced macro call always reassigned the head. */
+        if (!R_FindTextureByID(tex->texid)) {
+            ADD_TO_LIST(tex, g_textures);
+        }
         return tex->texid;
     } else {
         return -1;

@@ -423,6 +423,11 @@ static void G_ClientBegin(LPEDICT edict) {
     G_FowSendFull(edict);
 }
 
+/* Keep the mandatory snapshot hook inert because WC3 entity state is identical for every recipient. */
+static void G_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
+    (void)player; (void)ent; (void)state;
+}
+
 /* Return the game API vtable to the server.
  * Called once at startup; after this point the server drives the game
  * exclusively through the returned function pointers. */
@@ -441,7 +446,7 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.ClientSetCameraPosition = G_ClientSetCameraPosition;
     globals.ClientBegin = G_ClientBegin;
     globals.CanSeeEntity = G_FowPlayerCanSeeEntity;
-    globals.CustomizeEntity = NULL;
+    globals.CustomizeEntity = G_CustomizeEntity;
     globals.GetThemeValue = G_GetThemeValue;
     globals.LoadMap = G_LoadMap;
     globals.GetWorldBounds = CM_GetWorldBounds;

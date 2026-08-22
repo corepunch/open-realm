@@ -19,6 +19,22 @@ make run-ui-text
 
 The 3D portrait is created by the `MainMenu3d` UI scene in `games/warcraft-3/ui/screens/main_menu.c`.
 
+### White MDX geometry diagnosis
+
+If menu scenes or in-game MDX models retain geometry but render large white regions, log a failed
+`MDLX_GetTexture` result in `games/warcraft-3/renderer/mdx/r_mdx_geoset.c` and inspect the
+`g_textures` chain in `renderer/r_texture.c`. A valid `mdxTexture_t.texid` with no
+`R_FindTextureByID` result means the texid index was truncated; it is not an MPQ lookup or BLP decode failure.
+
+`ADD_TO_LIST(VAR, LIST)` expands to two unbraced statements. Never use it as the sole body of an
+unbraced `if`: only `VAR->next = LIST` becomes conditional while `LIST = VAR` always executes. This is
+especially destructive when a runtime cache returns an object already present in an intrusive list,
+because assigning that old object as the head discards every newer entry. Reproduce the WC3 menu path with:
+
+```bash
+build/bin/openwarcraft3 -data 'data/Warcraft III' +menu_game +com_frame_limit 1
+```
+
 ## World of Warcraft
 
 The character-create scene is the fastest character renderer test:

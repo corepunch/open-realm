@@ -51,6 +51,18 @@ static LPEDICT make_unit_hero(void) {
     return ent;
 }
 
+TEST(wc3_api, customize_entity_export_is_inert) {
+    entityState_t state = { .number = 7, .model = 11, .renderfx = RF_SELECTED };
+
+    T_NOT_NULL(globals.CustomizeEntity);
+    if (!globals.CustomizeEntity)
+        return;
+    globals.CustomizeEntity(3, NULL, &state);
+    T_EQ(state.number, 7);
+    T_EQ(state.model, 11);
+    T_EQ(state.renderfx, RF_SELECTED);
+}
+
 /* =========================================================================
  * Player — color
  * ========================================================================= */

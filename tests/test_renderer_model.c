@@ -5,14 +5,18 @@
 #include <stdlib.h>
 
 refImport_t ri;
+struct render_globals tr;
 static DWORD load_count, release_count, register_count;
 static BOOL fail_load, touch_during_registration;
 static DWORD spawn_count;
+static LPTEXTURE texture_load_result;
 
 static HANDLE test_alloc(long size) { return calloc(1, (size_t)size); }
 static void test_free(HANDLE memory) { free(memory); }
 static void test_error(LPCSTR format, ...) { (void)format; T_ASSERT(false); }
 static void test_spawn(void *context) { (*(DWORD *)context)++; }
+
+LPTEXTURE R_LoadTexture(LPCSTR filename) { (void)filename; return texture_load_result; }
 
 LPMODEL R_GameLoadModel(LPCSTR filename) {
     (void)filename; load_count++;
@@ -67,6 +71,16 @@ TEST(renderer_model, unknown_model_release_is_immediate) {
     LPMODEL model;
     reset_registry(); model = test_alloc(sizeof(*model));
     R_ReleaseModel(model); T_EQ(release_count, 1);
+}
+
+TEST(renderer_texture, cached_registration_preserves_newer_texture_indices) {
+    TEXTURE first = { .texid = 100 }, second = { .texid = 101 };
+
+    texture_load_result = &first; T_EQ(R_RegisterTextureFile("first"), 100);
+    texture_load_result = &second; T_EQ(R_RegisterTextureFile("second"), 101);
+    T_ASSERT(R_FindTextureByID(100) == &first); T_ASSERT(R_FindTextureByID(101) == &second);
+    texture_load_result = &first; T_EQ(R_RegisterTextureFile("first"), 100);
+    T_ASSERT(R_FindTextureByID(100) == &first); T_ASSERT(R_FindTextureByID(101) == &second);
 }
 
 TEST(renderer_model, clock_emission_needs_no_instance_accumulator) {

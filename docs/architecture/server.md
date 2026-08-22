@@ -53,6 +53,11 @@ void SV_RunGameFrame(void) {
 
 For each connected client, `SV_BuildClientFrame` (`server/sv_ents.c`) collects the entities visible to that client into a snapshot. `SV_WriteFrameToClient` then delta-encodes the snapshot against the previous one using `MSG_WriteDeltaEntity` and transmits it as an `svc_packetentities` message.
 
+After copying each authoritative `edict_t.s`, `SV_BuildClientFrame` calls the mandatory
+`game_export.CustomizeEntity` hook. Games that do not author recipient-specific state must
+export an explicit no-op; setting the hook to `NULL` crashes at the first visible entity.
+WoW uses the hook for per-client quest markers, while WC3 and SC2 leave the copied state unchanged.
+
 Delta compression ensures only changed entity fields are sent, keeping bandwidth usage low even with many active entities.
 
 ## Game Library Interface

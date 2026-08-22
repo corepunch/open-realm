@@ -448,6 +448,11 @@ static BOOL SC2_CanSeeEntity(DWORD player, LPCEDICT ent) {
     return true;
 }
 
+/* Keep the mandatory snapshot hook inert because SC2 entity state is identical for every recipient. */
+static void SC2_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
+    (void)player; (void)ent; (void)state;
+}
+
 static LPCSTR SC2_GetThemeValue(LPCSTR filename) {
     return filename ? filename : "";
 }
@@ -462,7 +467,7 @@ struct game_export *GetGameAPI(struct game_import *import) {
     globals.ClientCommand         = SC2_ClientCommand;
     globals.ClientSetCameraPosition = SC2_ClientSetCameraPosition;
     globals.CanSeeEntity          = SC2_CanSeeEntity;
-    globals.CustomizeEntity       = NULL;
+    globals.CustomizeEntity       = SC2_CustomizeEntity;
     globals.GetThemeValue         = SC2_GetThemeValue;
     globals.LoadMap               = SC2_LoadMap;
     globals.GetWorldBounds        = CM_GetWorldBounds;
