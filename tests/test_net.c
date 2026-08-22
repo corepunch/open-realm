@@ -30,11 +30,15 @@
 
 void test_client_stubs_init(void);
 void test_client_stubs_set_cvar(LPCSTR name, LPCSTR value);
+void CL_ParseLayout(LPSIZEBUF msg);
 void SCR_LayoutDrawScrollBar(LPCUIFRAME frame, LPCRECT screen);
+void SCR_LayoutDrawTextArea(LPCUIFRAME frame, LPCRECT screen);
 
 static RECT test_scroll_rects[3], test_scroll_uvs[3];
 static LPCTEXTURE test_scroll_tex[3];
 static DWORD test_scroll_draws;
+static drawText_t test_textarea_draw;
+static DWORD test_textarea_draws;
 
 static void capture_scroll_image(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color) {
     (void)color;
@@ -43,6 +47,8 @@ static void capture_scroll_image(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv,
     test_scroll_rects[test_scroll_draws] = *screen;
     test_scroll_uvs[test_scroll_draws++] = *uv;
 }
+
+static void capture_textarea(LPCDRAWTEXT text) { test_textarea_draw = *text; test_textarea_draws++; }
 
 /* -----------------------------------------------------------------------
  * Helpers
@@ -70,24 +76,23 @@ static netadr_t loopback_adr(void) {
 
 /* Server-authored WoW scrollbars use cropped textures while legacy FDF data keeps backdrop parts. */
 TEST(net, layout_scrollbar_draws_cropped_texture_parts_top_to_bottom) {
-    uiScrollBar_t scroll = {0};
+    uiScrollBarImage_t scroll = {0};
     uiFrame_t frame = { .value = 0.0f, .buffer = { &scroll, sizeof(scroll) } };
     RECT screen = MAKE(RECT, 0.1f, 0.2f, 0.02f, 0.4f);
 
     test_client_stubs_init(); test_scroll_draws = 0; re.DrawImage = capture_scroll_image;
     FOR_LOOP(i, 3) {
-        scroll.image[i].texture = i + 1;
-        scroll.image[i].texcoord[0] = scroll.image[i].texcoord[2] = 63;
-        scroll.image[i].texcoord[1] = scroll.image[i].texcoord[3] = 191;
+        scroll.image[i] = i + 1;
         cl.pics[i + 1] = (LPTEXTURE)(uintptr_t)(i + 1);
     }
-    scroll.buttonHeight = 0.03f; scroll.thumbSize = MAKE(VECTOR2, 0.02f, 0.03f);
+    scroll.texcoord[0] = scroll.texcoord[2] = 63;
+    scroll.texcoord[1] = scroll.texcoord[3] = 191;
     SCR_LayoutDrawScrollBar(&frame, &screen);
 
     T_EQ((int)test_scroll_draws, 3);
-    T_ASSERT(test_scroll_tex[0] == cl.pics[1]); T_FEQ(test_scroll_rects[0].y, 0.57f, 0.0001f);
+    T_ASSERT(test_scroll_tex[0] == cl.pics[1]); T_FEQ(test_scroll_rects[0].y, 0.58f, 0.0001f);
     T_ASSERT(test_scroll_tex[1] == cl.pics[2]); T_FEQ(test_scroll_rects[1].y, 0.2f, 0.0001f);
-    T_ASSERT(test_scroll_tex[2] == cl.pics[3]); T_FEQ(test_scroll_rects[2].y, 0.23f, 0.0001f);
+    T_ASSERT(test_scroll_tex[2] == cl.pics[3]); T_FEQ(test_scroll_rects[2].y, 0.22f, 0.0001f);
     FOR_LOOP(i, 3) {
         T_FEQ(test_scroll_uvs[i].x, 63.0f / 255.0f, 0.0001f);
         T_FEQ(test_scroll_uvs[i].w, 128.0f / 255.0f, 0.0001f);
@@ -102,6 +107,25 @@ TEST(net, layout_scrollbar_without_art_draws_nothing) {
     test_client_stubs_init(); test_scroll_draws = 0; re.DrawImage = capture_scroll_image;
     SCR_LayoutDrawScrollBar(&frame, &screen);
     T_EQ((int)test_scroll_draws, 0);
+}
+
+/* Text areas are scroll viewports, so wrapped content must not escape their inset rectangle. */
+TEST(net, layout_textarea_clips_to_inset_viewport) {
+    uiTextArea_t area = { .font = 1, .inset = 0.01f };
+    uiFrame_t frame = { .text = "wrapped text", .buffer = { &area, sizeof(area) } };
+    RECT screen = MAKE(RECT, 0.1f, 0.2f, 0.3f, 0.4f);
+
+    test_client_stubs_init(); test_textarea_draws = 0; re.DrawText = capture_textarea;
+    SCR_LayoutDrawTextArea(&frame, &screen);
+
+    T_EQ((int)test_textarea_draws, 1);
+    T_EQ((int)test_textarea_draw.flags, DRAW_WORD_WRAP | DRAW_CLIP);
+    T_FEQ(test_textarea_draw.rect.x, 0.11f, 0.0001f); T_FEQ(test_textarea_draw.rect.y, 0.21f, 0.0001f);
+    T_FEQ(test_textarea_draw.rect.w, 0.28f, 0.0001f); T_FEQ(test_textarea_draw.rect.h, 0.38f, 0.0001f);
+    T_FEQ(test_textarea_draw.clip.x, test_textarea_draw.rect.x, 0.0001f);
+    T_FEQ(test_textarea_draw.clip.y, test_textarea_draw.rect.y, 0.0001f);
+    T_FEQ(test_textarea_draw.clip.w, test_textarea_draw.rect.w, 0.0001f);
+    T_FEQ(test_textarea_draw.clip.h, test_textarea_draw.rect.h, 0.0001f);
 }
 
 /* -----------------------------------------------------------------------
@@ -426,6 +450,29 @@ TEST(net, msg_multiple_types_sequential) {
     T_EQ(MSG_ReadByte(&sb)  & 0xFF,       42);
     T_EQ(MSG_ReadShort(&sb) & 0xFFFF, 1000);
     T_EQ((unsigned int)MSG_ReadLong(&sb), (unsigned int)0x12345678);
+}
+
+/* Layout payload sizes are one unsigned wire byte; WoW's textured scrollbar is larger than signed-char range. */
+TEST(net, layout_parser_accepts_scrollbar_payload_above_127_bytes) {
+    BYTE buf[512];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    BYTE payload[192] = {0};
+    uiFrame_t empty = {0}, frame = { .number = 1, .flags = { .type = FT_SCROLLBAR } };
+
+    test_client_stubs_init();
+    MSG_WriteByte(&sb, LAYER_QUESTDIALOG);
+    MSG_WriteDeltaUIFrame(&sb, &empty, &frame, true);
+    MSG_WriteByte(&sb, sizeof(payload));
+    MSG_Write(&sb, payload, sizeof(payload));
+    MSG_WriteLong(&sb, 0); MSG_WriteShort(&sb, 0);
+    sb.readcount = 0;
+
+    CL_ParseLayout(&sb);
+    T_ASSERT(cl.layout[LAYER_QUESTDIALOG] != NULL);
+    if (cl.layout[LAYER_QUESTDIALOG]) {
+        SCR_Clear(cl.layout[LAYER_QUESTDIALOG]);
+        T_EQ(SCR_Frame(1)->buffer.size, sizeof(payload));
+    }
 }
 
 static uiUnitData_t test_unit_ui_last;

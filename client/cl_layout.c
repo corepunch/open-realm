@@ -301,7 +301,8 @@ LPCUIFRAME SCR_Clear(HANDLE data) {
         if (msg.readcount + sizeof(BYTE) > msg.cursize) {
             break;
         }
-        ent->buffer.size = MSG_ReadByte(&msg);
+        /* Buffer length is an unsigned wire byte; values 128..255 must not sign-extend. */
+        ent->buffer.size = (BYTE)MSG_ReadByte(&msg);
         if (msg.readcount + ent->buffer.size > msg.cursize) {
             break;
         }

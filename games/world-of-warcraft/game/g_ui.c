@@ -17,6 +17,7 @@
 #define PW(w) ((w) / VW)
 #define PH(h) ((h) / VH)
 #define HUD_FONT_SIZE 10
+#define WOW_BUTTON_TEXT_COLOR MAKE(COLOR32, 255, 209, 0, 255) // RGBA; GameFontNormal 1.0/0.82/0; quest buttons
 
 static DWORD ui_next_frame_number;
 
@@ -89,15 +90,14 @@ static void UI_WriteQuestScrollBar(FLOAT x, FLOAT y) {
         "Interface\\Buttons\\UI-ScrollBar-Knob.blp",
     };
     uiFrame_t frame = {0};
-    uiScrollBar_t scroll = {0};
+    uiScrollBarImage_t scroll = {0};
 
     frame.flags.type = FT_SCROLLBAR;
     FOR_LOOP(i, sizeof(paths) / sizeof(paths[0])) {
-        scroll.image[i].texture = gi.ImageIndex(paths[i]);
-        scroll.image[i].texcoord[0] = scroll.image[i].texcoord[2] = (BYTE)(0.25f * 0xff);
-        scroll.image[i].texcoord[1] = scroll.image[i].texcoord[3] = (BYTE)(0.75f * 0xff);
+        scroll.image[i] = gi.ImageIndex(paths[i]);
     }
-    scroll.buttonHeight = PH(16); scroll.thumbSize = MAKE(VECTOR2, PW(16), PH(16));
+    scroll.texcoord[0] = scroll.texcoord[2] = (BYTE)(0.25f * 0xff);
+    scroll.texcoord[1] = scroll.texcoord[3] = (BYTE)(0.75f * 0xff);
     UI_SetFrameRect(&frame, x + PW(329), y + PH(81), PW(16), PH(334));
     UI_WriteProxyFrame(&frame, &scroll, sizeof(scroll));
 }
@@ -133,7 +133,7 @@ static void UI_WriteSimpleButton(FLOAT x, FLOAT y, FLOAT w, FLOAT h,
     /* UIPanelButtonTemplate crops the atlas; full UVs made its opaque art occupy only part of the frame. */
     button.normal.texcoord[1] = (BYTE)(0.625f * 0xff);
     button.normal.texcoord[3] = (BYTE)(0.6875f * 0xff);
-    button.normal.fontcolor = COLOR32_WHITE;
+    button.normal.fontcolor = WOW_BUTTON_TEXT_COLOR;
     button.pushed = button.normal;
     button.disabled = button.normal;
     button.highlight = button.normal;

@@ -10,7 +10,8 @@
 #define MAX_GLYPHSET 256
 #define MAX_CACHED_FONTS 64
 #define FONT_SCALE 2
-#define INV_SCALE(x) ((x) / (FONT_SCALE * UI_FONT_COORD_SCALE))
+#define INV_SCALE_X(x) ((x) / (FONT_SCALE * UI_FONT_COORD_SCALE))
+#define INV_SCALE_Y(y) (INV_SCALE_X(y) * UI_PIXEL_ASPECT)
 #define TEXT_BATCH_VERTICES 1020
 
 typedef struct {
@@ -198,14 +199,14 @@ FLOAT R_GetFontWidth(LPFONT font, LPCSTR text) {
         p = utf8_to_codepoint(p, &codepoint);
         glyphSet_t *set = R_GetGlyphSet(font, codepoint);
         stbtt_bakedchar *g = &set->glyphs[codepoint & 0xff];
-        x += INV_SCALE(g->xadvance);
+        x += INV_SCALE_X(g->xadvance);
     }
     return x;
 }
 
 
 FLOAT R_GetFontHeight(LPFONT font) {
-    return FONT_SCALE * INV_SCALE(font->height);
+    return FONT_SCALE * INV_SCALE_Y(font->height);
 }
 
 BOOL will_word_fit(LPCSTR text, FLOAT width, LPCFONT font) {
@@ -215,14 +216,14 @@ BOOL will_word_fit(LPCSTR text, FLOAT width, LPCFONT font) {
         p = utf8_to_codepoint(p, &codepoint);
         glyphSet_t *set = R_GetGlyphSet((LPFONT)font, codepoint);
         stbtt_bakedchar *g = &set->glyphs[codepoint & 0xff];
-        width -= INV_SCALE(g->xadvance);
+        width -= INV_SCALE_X(g->xadvance);
     }
     for (; *p && isspace(*p) && *p != '\n';) {
         unsigned codepoint;
         p = utf8_to_codepoint(p, &codepoint);
         glyphSet_t *set = R_GetGlyphSet((LPFONT)font, codepoint);
         stbtt_bakedchar *g = &set->glyphs[codepoint & 0xff];
-        width -= INV_SCALE(g->xadvance);
+        width -= INV_SCALE_X(g->xadvance);
     }
     /* Measurement and drawing subtract the same advances in different orders; tolerate sub-pixel residue. */
     return R_TextFitsWidth(width);
@@ -257,10 +258,10 @@ static RECT get_uvrect(stbtt_bakedchar *g, FLOAT h, FLOAT w) {
 
 static RECT get_screenrect(LPCVECTOR2 cursor, stbtt_bakedchar *g) {
     RECT const screen = {
-        .x = cursor->x + INV_SCALE(g->xoff),
-        .y = cursor->y + INV_SCALE(g->yoff),
-        .w = INV_SCALE(g->x1 - g->x0),
-        .h = INV_SCALE(g->y1 - g->y0),
+        .x = cursor->x + INV_SCALE_X(g->xoff),
+        .y = cursor->y + INV_SCALE_Y(g->yoff),
+        .w = INV_SCALE_X(g->x1 - g->x0),
+        .h = INV_SCALE_Y(g->y1 - g->y0),
     };
     return screen;
 }
@@ -310,7 +311,7 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
     VECTOR2 pos = draw ? get_position(arg) : MAKE(VECTOR2, 0, 0);
     COLOR32 color = arg->color;
     VECTOR2 cursor = pos;
-    FLOAT linesize = 0.5 * arg->font->size / 1000.f;
+    VECTOR2 linesize = MAKE(VECTOR2, 0.5f * arg->font->size / UI_FONT_COORD_SCALE, 0.5f * arg->font->size / UI_FONT_COORD_SCALE * UI_PIXEL_ASPECT);
     FLOAT line_height = R_GetFontHeight((LPFONT)arg->font);
     FLOAT line_advance = line_height * (arg->lineHeight > 0 ? arg->lineHeight : 1.0f);
     FLOAT max_cursor_x = pos.x;
@@ -350,13 +351,13 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
                                             .texture = arg->icons[icon],
                                             .shader = SHADER_UI,
                                             .alphamode = BLEND_MODE_BLEND,
-                                            .screen = MAKE(RECT, cursor.x, cursor.y + linesize * 0.1, linesize, linesize),
+                                            .screen = MAKE(RECT, cursor.x, cursor.y + linesize.y * 0.1f, linesize.x, linesize.y),
                                             .uv = MAKE(RECT, 0, 0, 1, 1),
                                             .color = COLOR32_WHITE,
                                             .flags = (arg->flags & DRAW_CLIP),
                                             .clip = arg->clip));
                     }
-                    cursor.x += linesize;
+                    cursor.x += linesize.x;
                     break;
             }
             p = end + 1;
@@ -393,7 +394,7 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
             RECT const screen = get_screenrect(&cursor, g);
             add_text_glyph(&batch, arg, set->image, &screen, &uv_rect, color);
         }
-        cursor.x += INV_SCALE(g->xadvance);
+        cursor.x += INV_SCALE_X(g->xadvance);
         max_cursor_x = MAX(max_cursor_x, cursor.x);
         max_cursor_y = MAX(max_cursor_y, cursor.y);
     }

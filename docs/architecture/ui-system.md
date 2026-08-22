@@ -305,6 +305,25 @@ Use this to verify layout rects, UVs, text translation, color codes, and screen 
 | Startup screen | `menu_main` | `menu_main` (default) | `menu_login` |
 | Renderer diagnostics | `make run-ui-text` | `+r_module stdout` | `+r_module stdout` |
 
+## Authored Pixel Aspect
+
+`UI_BASE_WIDTH` and `UI_BASE_HEIGHT` define the renderer's coordinate scene,
+not necessarily the source layout's pixel aspect. `UI_PIXEL_ASPECT` converts an
+authored horizontal pixel span to the equivalent vertical UI span:
+
+```c
+UI_PIXEL_ASPECT = UI_MIN_ASPECT * UI_BASE_HEIGHT / UI_BASE_WIDTH
+```
+
+It is `1` for WC3's 0.8x0.6 scene and SC2's 1600x1200 scene, but `4/3` for
+WoW's normalized 1x1 scene. Font glyph Y offsets, heights, line advance, inline
+icons, and inferred square control heights must apply this factor. X advances
+and widths must not. Applying one normalization divisor to both axes made WoW
+glyphs and inferred square scrollbar sprites exactly 25% too short vertically.
+
+Frames with authoritative width and height already converted independently
+(for example WoW `PW(16)` and `PH(16)`) must not apply the factor a second time.
+
 ## Key Files
 
 | File | Role |
@@ -314,6 +333,7 @@ Use this to verify layout rects, UVs, text translation, color codes, and screen 
 | `client/cl_scrn.c` | `SCR_DrawLayout` — server-authored layout rendering |
 | `client/cl_input.c` | Mouse state, input sampling |
 | `common/shared.h` | `CLIENTUISTATE` enum, `UILAYOUTLAYER` enum, `playerState_t` |
+| `games/*/common/ui_constants.h` | Per-game scene dimensions and `UI_PIXEL_ASPECT` |
 | `games/warcraft-3/ui/ui_main.c` | UI library entry point, menu command dispatch |
 | `games/warcraft-3/ui/ui_screen.h` | `uiScreen_t` struct and screen declarations |
 | `games/warcraft-3/common/stb_fdf.h` | FDF parser, `FRAMEDEF` struct, `frames[]` registry |
@@ -322,6 +342,7 @@ Use this to verify layout rects, UVs, text translation, color codes, and screen 
 
 ## See Also
 
+- [Server-Authored UI Payloads](ui-payloads.md) — compact type-specific wire schemas, byte limits, and diagnostics
 - [Client Architecture](client.md) — client main loop and scene rendering
 - [Runtime Modules and Cvars](runtime.md) — cvar system, config loading, stdout renderer
 - [Warcraft III UI System](../games/warcraft-3/architecture/ui.md) — WC3-specific UI detail

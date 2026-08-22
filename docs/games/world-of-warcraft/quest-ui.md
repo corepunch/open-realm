@@ -84,10 +84,40 @@ which must be cropped and stretched across the button frame. Full UVs leave the
 remaining transparent atlas area inside the frame and make the backdrop appear
 to cover only part of the button.
 
-The server-authored layout reuses the existing `FT_SCROLLBAR`/`uiScrollBar_t`
-contract rather than adding a WoW-only frame type. WoW populates its optional
-cropped-texture parts from `UIPanelScrollFrameTemplate`; legacy FDF scrollbar
-backdrops remain supported by the same client drawer.
+The server-authored layout reuses `FT_SCROLLBAR` rather than adding a WoW-only
+frame type. WoW sends the 10-byte `uiScrollBarImage_t`: three texture resources
+and one shared UV crop from `UIPanelScrollFrameTemplate`. Its deliberate limits
+are one visual state, no track backdrop, a shared UV rectangle, and square
+arrow/thumb parts inferred from the frame width plus `UI_PIXEL_ASPECT`. Legacy
+FDF scrollbars retain the full `uiScrollBar_t` backdrop payload and use the same
+client drawer.
+
+`FT_TEXTAREA` is the scroll viewport even before wheel/button interaction is
+implemented. The client draws it with both `DRAW_WORD_WRAP` and `DRAW_CLIP`,
+using the inset content rectangle as the clip rectangle. Wrapping without
+clipping allowed long quest descriptions to paint through the footer buttons;
+the corrected font height made that latent error immediately visible.
+
+WoW's UI scene is normalized 1x1 while its authoritative FrameXML grid is
+1024x768. Consequently one equal normalized X/Y span is not physically square:
+glyph Y metrics and inferred square control heights use `UI_PIXEL_ASPECT = 4/3`.
+Without it, both fonts and scrollbar parts render 25% too short vertically; the
+title then also appears shifted upward because its glyph baseline offset is
+compressed. Explicit `PW`/`PH` frame dimensions are already axis-correct and do
+not receive this factor again.
+
+`UIPanelButtonTemplate` uses 12px `GameFontNormal`: RGB `(1.0, 0.82, 0)`, or
+byte color `(255, 209, 0)`. `GameFontHighlight` is white and `GameFontDisable`
+is 50% grey; the current server-authored quest buttons serialize the normal
+gold state.
+
+Layout frame payload lengths are unsigned wire bytes. Cast `MSG_ReadByte` to
+`BYTE` when decoding `uiFrame_t.buffer.size`; its return type preserves signed
+behavior for legacy callers, and sign-extension otherwise rejects payloads from
+128 through 255 bytes. The original 192-byte textured scrollbar payload exposed
+this boundary before it was reduced to the compact 10-byte representation.
+See [Server-Authored UI Payloads](../../architecture/ui-payloads.md) for the
+full postmortem and rules for new payload schemas.
 
 Inspect the installed source directly with:
 

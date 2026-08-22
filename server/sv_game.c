@@ -22,7 +22,7 @@ static void SV_DebugLayoutMessage(sizeBuf_t const *source) {
         if (!number && !bits) break;
         MSG_ReadDeltaUIFrame(&msg, &frame, number, bits);
         if (msg.readcount >= msg.cursize) break;
-        DWORD payload = MSG_ReadByte(&msg);
+        DWORD payload = (BYTE)MSG_ReadByte(&msg);
         if (payload > msg.cursize - msg.readcount) break;
         msg.readcount += payload;
         frames++;

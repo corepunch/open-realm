@@ -4,6 +4,7 @@
 
 - In client/UI code, never define or hardcode UI elements, layout coordinates, textures, frame names, or control structures that can be read from FDF. Parse and reuse the actual FDF frames/templates, then bind dynamic data into those frames.
 - The only exception is selected game code under `games/<game>/game/`, where there is no FDF parser. Server-authored gameplay HUD payloads may generate simple proxy frames there when needed.
+- Keep proxy-frame buffers as compact wire schemas, not copies of runtime structs. See [Server-Authored UI Payloads](architecture/ui-payloads.md).
 
 ## Screen Controller Conventions
 

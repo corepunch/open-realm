@@ -6,6 +6,7 @@
 #define UI_MIN_ASPECT  (4.0f / 3.0f)
 #define UI_FRAMEPOINT_SCALE 32767.0
 #define UI_FONT_COORD_SCALE 1000.0f
+#define UI_PIXEL_ASPECT (UI_MIN_ASPECT * UI_BASE_HEIGHT / UI_BASE_WIDTH) // y/x; 4:3 WoW pixels inside its normalized 1x1 scene
 
 /* Classic has no Light*.dbc here; keep its explicit outdoor fallback shared by camera and renderer. */
 #define WOW_WORLD_FAR_CLIP 700.0f

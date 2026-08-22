@@ -44,10 +44,10 @@ typedef struct {
     COLOR32 color;
     RESOURCE font;
     BYTE uv[4];
+    COLOR32 fontcolor;
     RESOURCE scroll_image[3];
-    BYTE scroll_uv[3][4];
-    FLOAT button_height;
-    VECTOR2 thumb_size;
+    BYTE scroll_uv[4];
+    DWORD payload_size;
 } testUiFrame_t;
 
 static testUiFrame_t test_ui_frames[256];
@@ -381,15 +381,16 @@ static void test_write(pfWriteType_t type, void const *value) {
                 capture->font = ((uiLabel_t const *)frame->buffer.data)->font;
             if (frame->buffer.data && frame->flags.type == FT_TEXTAREA)
                 capture->font = ((uiTextArea_t const *)frame->buffer.data)->font;
-            if (frame->buffer.data && frame->flags.type == FT_SIMPLEBUTTON)
-                memcpy(capture->uv, ((uiSimpleButton_t const *)frame->buffer.data)->normal.texcoord, sizeof(capture->uv));
+            if (frame->buffer.data && frame->flags.type == FT_SIMPLEBUTTON) {
+                uiSimpleButton_t const *button = frame->buffer.data;
+                memcpy(capture->uv, button->normal.texcoord, sizeof(capture->uv));
+                capture->fontcolor = button->normal.fontcolor;
+            }
             if (frame->buffer.data && frame->flags.type == FT_SCROLLBAR) {
-                uiScrollBar_t const *scroll = frame->buffer.data;
-                FOR_LOOP(i, 3) {
-                    capture->scroll_image[i] = scroll->image[i].texture;
-                    memcpy(capture->scroll_uv[i], scroll->image[i].texcoord, sizeof(capture->scroll_uv[i]));
-                }
-                capture->button_height = scroll->buttonHeight; capture->thumb_size = scroll->thumbSize;
+                uiScrollBarImage_t const *scroll = frame->buffer.data;
+                FOR_LOOP(i, 3) capture->scroll_image[i] = scroll->image[i];
+                memcpy(capture->scroll_uv, scroll->texcoord, sizeof(capture->scroll_uv));
+                capture->payload_size = frame->buffer.size;
             }
             break;
         }
@@ -725,19 +726,22 @@ TEST(wow_game, deputy_willem_opens_classic_first_human_quest_frame) {
         if (!strcmp(frame->text, "Accept")) {
             T_EQ((int)frame->uv[0], 0); T_EQ((int)frame->uv[1], 159);
             T_EQ((int)frame->uv[2], 0); T_EQ((int)frame->uv[3], 175);
+            T_EQ((int)frame->fontcolor.r, 255); T_EQ((int)frame->fontcolor.g, 209);
+            T_EQ((int)frame->fontcolor.b, 0); T_EQ((int)frame->fontcolor.a, 255);
+        }
+        if (!strcmp(frame->text, "Decline")) {
+            T_EQ((int)frame->fontcolor.r, 255); T_EQ((int)frame->fontcolor.g, 209);
+            T_EQ((int)frame->fontcolor.b, 0); T_EQ((int)frame->fontcolor.a, 255);
         }
         if (frame->type == FT_SCROLLBAR) {
             found_scroll = true;
             T_FEQ(frame->x, 329.0f / 1024.0f, 0.0001f); T_FEQ(frame->y, 185.0f / 768.0f, 0.0001f);
             T_FEQ(frame->w, 16.0f / 1024.0f, 0.0001f); T_FEQ(frame->h, 334.0f / 768.0f, 0.0001f);
-            T_FEQ(frame->button_height, 16.0f / 768.0f, 0.0001f);
-            T_FEQ(frame->thumb_size.x, 16.0f / 1024.0f, 0.0001f);
-            T_FEQ(frame->thumb_size.y, 16.0f / 768.0f, 0.0001f);
-            FOR_LOOP(j, 3) {
-                T_ASSERT(frame->scroll_image[j] > 0);
-                T_EQ((int)frame->scroll_uv[j][0], 63); T_EQ((int)frame->scroll_uv[j][1], 191);
-                T_EQ((int)frame->scroll_uv[j][2], 63); T_EQ((int)frame->scroll_uv[j][3], 191);
-            }
+            T_FEQ(frame->w * UI_PIXEL_ASPECT, 16.0f / 768.0f, 0.0001f);
+            T_EQ(frame->payload_size, sizeof(uiScrollBarImage_t)); T_EQ(frame->payload_size, 10);
+            FOR_LOOP(j, 3) T_ASSERT(frame->scroll_image[j] > 0);
+            T_EQ((int)frame->scroll_uv[0], 63); T_EQ((int)frame->scroll_uv[1], 191);
+            T_EQ((int)frame->scroll_uv[2], 63); T_EQ((int)frame->scroll_uv[3], 191);
         }
         image = frame->type == FT_TEXTURE ? test_image_name(frame->image_index) : NULL;
         if (image && !strcmp(image, "Interface\\Buttons\\UI-Panel-MinimizeButton-Up.blp")) found_close = true;

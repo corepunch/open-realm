@@ -142,3 +142,7 @@ openwarcraft3 -data=/path/to/Warcraft3 -connect=192.168.1.10:27910
 | `server/sv_init.c` | `SV_ClientConnect` (loopback slot), `SV_DirectConnect` (UDP slot) |
 | `server/sv_main.c` | `SV_ReadPackets` — OOB routing and per-slot dispatch |
 | `client/cl_main.c` | `CL_Connect`, `CL_ReadPackets` |
+
+## See Also
+
+- [Server-Authored UI Payloads](ui-payloads.md) — `svc_layout` frame payload contract and unsigned size-byte handling

@@ -318,7 +318,8 @@ void CL_ParseLayout(LPSIZEBUF msg) {
         if (msg->readcount + sizeof(BYTE) > msg->cursize) {
             break;
         }
-        ent.buffer.size = MSG_ReadByte(msg);
+        /* Buffer length is an unsigned wire byte; MSG_ReadByte retains signed-char sentinels for legacy callers. */
+        ent.buffer.size = (BYTE)MSG_ReadByte(msg);
         if (msg->readcount > msg->cursize ||
             ent.buffer.size > msg->cursize - msg->readcount) {
             break;
