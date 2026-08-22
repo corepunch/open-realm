@@ -41,7 +41,7 @@ def read_named_csv(filename):
 
 
 def escape_c(s):
-    return s.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')
+    return s.replace('\\', '\\\\').replace('??', '?\\?').replace('"', '\\"').replace('\n', '\\n')
 
 
 def c_string(value):

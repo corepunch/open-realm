@@ -289,32 +289,42 @@ static void SCR_LayoutDrawBackdropPart(LPCUIFRAME frame, LPCRECT screen, uiBackd
         SCR_LayoutDrawBackdrop2(frame, screen, bd);
 }
 
+/* WoW sliders use cropped textures; retain backdrop drawing for legacy FDF scrollbars. */
+static BOOL SCR_LayoutDrawScrollImage(uiSimpleButtonState_t const *part, LPCRECT screen) {
+    RECT uv, suv;
+    if (!part->texture) return false;
+    uv = get_uvrect(part->texcoord); suv = Rect_div(&uv, 0xff);
+    re.DrawImage(cl.pics[part->texture], screen, &suv, COLOR32_WHITE);
+    return true;
+}
+
 void SCR_LayoutDrawScrollBar(LPCUIFRAME frame, LPCRECT screen) {
     uiScrollBar_t const *sb = frame->buffer.data;
     if (!sb || screen->w <= 0 || screen->h <= 0) return;
 
     SCR_LayoutDrawBackdropPart(frame, screen, &sb->background);
 
-    FLOAT bh = MIN(screen->w, screen->h * 0.5f);
+    FLOAT bh = MIN(sb->buttonHeight > 0 ? sb->buttonHeight : screen->w, screen->h * 0.5f);
     RECT inc   = MAKE(RECT, screen->x, screen->y + screen->h - bh, screen->w, bh);
     RECT dec   = MAKE(RECT, screen->x, screen->y, screen->w, bh);
     RECT track = MAKE(RECT, screen->x, dec.y + dec.h, screen->w, inc.y - (dec.y + dec.h));
-    SCR_LayoutDrawBackdropPart(frame, &inc, &sb->incButton);
-    SCR_LayoutDrawBackdropPart(frame, &dec, &sb->decButton);
+    if (!SCR_LayoutDrawScrollImage(&sb->image[0], &inc)) SCR_LayoutDrawBackdropPart(frame, &inc, &sb->incButton);
+    if (!SCR_LayoutDrawScrollImage(&sb->image[1], &dec)) SCR_LayoutDrawBackdropPart(frame, &dec, &sb->decButton);
     if (track.h <= 0) return;
 
 #ifdef UI_STRETCHED_SCROLLBAR_THUMB
     FLOAT th = MIN(MAX(bh, track.h * 0.25f), track.h);
 #else
-    FLOAT th = MIN(MIN(bh, 0.010f), track.h);
+    FLOAT th = MIN(sb->thumbSize.y > 0 ? sb->thumbSize.y : MIN(bh, 0.010f), track.h);
 #endif
-    FLOAT tw = MIN(screen->w, 0.010f);
+    FLOAT tw = MIN(screen->w, sb->thumbSize.x > 0 ? sb->thumbSize.x : 0.010f);
     RECT thumb = {
         screen->x + (screen->w - tw) * 0.5f,
-        track.y + track.h - th - (track.h - th) * MIN(MAX(frame->value, 0.0f), 1.0f),
+        /* Slider value zero is the top of a top-origin UI; the old formula inverted it. */
+        track.y + (track.h - th) * MIN(MAX(frame->value, 0.0f), 1.0f),
         tw, th
     };
-    SCR_LayoutDrawBackdropPart(frame, &thumb, &sb->thumbButton);
+    if (!SCR_LayoutDrawScrollImage(&sb->image[2], &thumb)) SCR_LayoutDrawBackdropPart(frame, &thumb, &sb->thumbButton);
 }
 
 static BOOL SCR_LayoutFrameHasClickCommand(LPCUIFRAME frame) {

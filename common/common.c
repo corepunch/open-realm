@@ -1338,6 +1338,11 @@ bool Com_ResolveMapArgument(LPCSTR arg, LPSTR out, DWORD out_size) {
     fsMapResolve_t status;
 
 #ifdef WOW
+    if (arg && !strcmp(arg, "preview")) {
+        /* UI sandbox: no real WDT — renderer shows black background. */
+        snprintf(out, out_size, "%s", arg);
+        return true;
+    }
     if (arg && !strcmp(arg, "playercreate")) {
         DWORD map_id = SV_PlayerCreateMap();
 

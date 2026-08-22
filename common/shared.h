@@ -804,6 +804,9 @@ typedef struct {
     uiBackdrop_t incButton;
     uiBackdrop_t decButton;
     uiBackdrop_t thumbButton;
+    uiSimpleButtonState_t image[3];
+    FLOAT buttonHeight;
+    VECTOR2 thumbSize;
 } uiScrollBar_t;
 
 typedef struct {

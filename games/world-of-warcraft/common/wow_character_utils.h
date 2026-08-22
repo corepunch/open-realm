@@ -48,6 +48,17 @@ static DWORD Wow_RaceNumber(LPCSTR name) {
     return 0;
 }
 
+/* ChrClasses.dbc IDs used by runtime quest-text substitutions. */
+static LPCSTR Wow_ClassName(DWORD id) {
+    static struct { LPCSTR name; DWORD id; } const classes[] = {
+        { "warrior", 1 }, { "paladin", 2 }, { "hunter", 3 }, { "rogue", 4 }, { "priest", 5 },
+        { "shaman", 7 }, { "mage", 8 }, { "warlock", 9 }, { "druid", 11 },
+    };
+    FOR_LOOP(i, sizeof(classes) / sizeof(classes[0]))
+        if (classes[i].id == id) return classes[i].name;
+    return "adventurer";
+}
+
 /* Character models omit some race-specific variants; choose only IDs present in the loaded model. */
 static WORD Wow_CharacterGeosetPick(WORD const *available, DWORD count, WORD group,
                                     WORD preferred, WORD fallback) {

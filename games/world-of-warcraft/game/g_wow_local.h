@@ -176,6 +176,11 @@ typedef const WOWQUESTGIVER *LPCWOWQUESTGIVER;
 typedef const WOWQUESTOBJECTIVE *LPCWOWQUESTOBJECTIVE;
 typedef const WOWQUESTDETAIL *LPCWOWQUESTDETAIL;
 
+/* Queststarter SQL repeats one physical NPC for every quest it can offer. */
+static BOOL Wow_QuestGiverSame(LPCWOWQUESTGIVER a, LPCWOWQUESTGIVER b) {
+    return a->creature_entry == b->creature_entry && !memcmp(&a->position, &b->position, sizeof(a->position));
+}
+
 #define WOW_QUEST_OBJECTIVE_ANCHOR 0x51504F49
 
 DWORD Wow_QuestGiverCount(void);
@@ -190,6 +195,7 @@ LPCWOWQUESTDETAIL Wow_QuestDetail(DWORD quest_id);
 #define WOW_PLAYER_MODEL "Character\\Orc\\Male\\OrcMale.m2"
 #define WOW_PLAYER_WEAPON_MODEL "Item\\ObjectComponents\\Weapon\\Axe_1H_Horde_A_01.m2"
 #define WOW_CLASS_WARRIOR 1
+#define WOW_CLASS_PALADIN 2 // ChrClasses.dbc ID; Human reference class; used by quest-text substitution tests
 #define WOW_CLASS_MAGE    8
 #define WOW_START_WEAPON_ENTRY 37
 
@@ -396,6 +402,7 @@ void UI_WriteWowHud(LPEDICT ent);
 void UI_WriteWelcomeWindow(LPEDICT ent);
 void UI_HideWindow(LPEDICT ent, LPCSTR window_id);
 void Wow_GetPlayerRaceSex(char *race, size_t race_sz, char *sex, size_t sex_sz);
+DWORD Wow_GetPlayerClass(void);
 void Wow_QuestAwardKillCredit(LPEDICT attacker, DWORD display_id);
 void Wow_SendInbox(LPEDICT ent);
 
