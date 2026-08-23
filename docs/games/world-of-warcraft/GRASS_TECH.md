@@ -22,6 +22,18 @@ authoritative doodad geometry or material identity. Do not re-enable it until th
 control texture encodes model/material selection. See the static-grass doc for the
 complete correctness requirements.
 
+### Original 2004 Elwynn Size Oracle
+
+The original Northshire reference has short ground detail reaching roughly the
+ankle or lower shin, unlike later references with waist-high stylized grass. The
+active renderer already matches the 2004 size source: it draws the authoritative
+`World\NoDXT\Detail\ElwGra*.m2` assets at scale `1.0`. Their visible heights are
+mostly `0.288..0.620` world units (`ElwGra02` is the tall `1.593`-unit outlier),
+against a visible `HumanMale.m2` height of `2.035` units. Therefore grass height
+should not be increased from the later screenshots. Our field can look fuller
+than the 2004 capture because density was deliberately increased by 1.5×; treat
+size and density as separate comparisons.
+
 ---
 
 ## M2 Instanced Path

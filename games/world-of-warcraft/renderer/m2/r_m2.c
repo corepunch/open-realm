@@ -2261,6 +2261,17 @@ BOOL M2_AttachmentMatrix(m2Model_t const *model,
     return true;
 }
 
+/* Rebuild the requested entity pose before resolving an attachment outside the M2 draw pass. */
+BOOL M2_EntityAttachmentPosition(m2Model_t const *model, renderEntity_t const *entity, DWORD attachment_id,
+                                 LPCMATRIX4 model_matrix, LPVECTOR3 out) {
+    MATRIX4 matrix;
+    if (!model || !entity || !model_matrix || !out) return false;
+    M2_CalculateBoneMatrices(model, entity);
+    if (!M2_AttachmentMatrix(model, attachment_id, model_matrix, &matrix)) return false;
+    *out = MAKE(VECTOR3, matrix.v[12], matrix.v[13], matrix.v[14]);
+    return true;
+}
+
 FLOAT M2_GroundOffset(m2Model_t const *model) {
     if (!model || model->geometry_bounds.min.z >= 0.0f) {
         return 0.0f;
@@ -2272,6 +2283,9 @@ FLOAT M2_GroundOffset(m2Model_t const *model) {
 FLOAT M2_HeadHeight(m2Model_t const *model) {
     return model ? model->bounds.max.z : 0.0f;
 }
+
+/* Positive geometry minima are model-authored clearance below the first visible vertex. */
+FLOAT M2_VisibleBottom(m2Model_t const *model) { return model ? model->geometry_bounds.min.z : 0.0f; }
 
 BOOL M2_IsCharacterModel(m2Model_t const *model) { return model && (model->flags & M2_MODEL_CHARACTER); }
 

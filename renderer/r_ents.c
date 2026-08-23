@@ -335,10 +335,10 @@ void R_DrawHealthBars(void) {
         renderEntity_t const *e = tr.viewDef.entities + i;
 #ifdef WOW
         if (e->name && *e->name) {
-            VECTOR3 top = e->origin;
+            VECTOR3 top;
             VECTOR3 delta;
             FLOAT alpha, ux, uy;
-            top.z += R_GameEntityHeight(e);
+            R_GameEntityOverheadPosition(e, &top);
             delta = Vector3_sub(&top, &wow_cam);
             alpha = Wow_WorldLabelAlpha(Vector3_len(&delta), e->flags & RF_SELECTED, e->number == tr.viewDef.player);
             if (alpha > 0.0f && R_WorldToUI(&top, &ux, &uy)) {
@@ -348,7 +348,9 @@ void R_DrawHealthBars(void) {
                     if (!wow_name_font) fprintf(stderr, "WoW: NPC name font Fonts\\FRIZQT__.TTF could not be loaded\n");
                 }
                 if (wow_name_font) {
-                    RECT label = MAKE(RECT, ux - scene.w * 0.12f, uy, scene.w * 0.24f, scene.h * 0.03f);
+                    /* Attachment 18 is the model-authored point below the name, so the label ends at its projection. */
+                    RECT label = MAKE(RECT, ux - scene.w * 0.12f, uy - scene.h * 0.03f,
+                                      scene.w * 0.24f, scene.h * 0.03f);
                     drawText_t text = MAKE(drawText_t, .font = wow_name_font, .text = e->name, .rect = label,
                         .color = MAKE(COLOR32, 0, 255, 0, (BYTE)(255.0f * alpha)), .textWidth = label.w, .lineHeight = label.h,
                         .halign = FONT_JUSTIFYCENTER, .valign = FONT_JUSTIFYMIDDLE);

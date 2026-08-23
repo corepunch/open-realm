@@ -221,6 +221,73 @@ The client pipeline:
   `CL_PrepRefresh`; bit 15 is stripped before the `cl.pics[]` lookup and selects
   the gold tint.
 
+### Marker Animation Ownership
+
+`TalkToMe.m2` contains two 1533 ms sequences. Sequence 0 (`Stand`) animates its
+root Z translation from `0` to `-0.089` and back; sequence 1 (animation ID 190)
+animates from `+0.517` to `+0.427` and back. The overhead renderer currently
+copies the parent creature's complete `renderEntity_t`, including `frame` and
+`oldframe`, before replacing only its model. Creature frames use concatenated
+model-local intervals, so `M2_FrameToPoseTime` interprets the creature's frame
+against the marker's unrelated two-sequence table. Frames `0..1532` select the
+low sequence and `1533..3065` select the sequence translated upward by about
+half a world unit, producing an abrupt periodic vertical jump even though the
+NPC origin and marker anchor remain constant. Confirm with:
+
+```sh
+build/bin/m2tool -mpq data/world-of-warcraft/interface.MPQ \
+  -model 'Interface\Buttons\TalkToMe.m2' --info --anim 0
+build/bin/m2tool -mpq data/world-of-warcraft/interface.MPQ \
+  -model 'Interface\Buttons\TalkToMe.m2' --info --anim 1
+```
+
+The marker must own its animation selection and clock; do not pass the parent
+creature's model-local frame through to `TalkToMe.m2`.
+
+### Original 2004 Placement and Reveal Oracle
+
+The original 2004 Deputy Willem interaction view places the stack tightly: the
+marker dot sits above the name, and the name sits immediately above the helmet
+plume. M2 attachment ID 18 is `AT_AboveChar_PlayerName`; reverse-engineered
+client documentation identifies it as the point consumed by
+`CGUnit_C::GetNamePosition`. Resolve the animated attachment with the entity's
+model matrix after rebuilding its current bone pose. Runtime tracing on Deputy
+Willem showed a stable `2.213`-unit origin-to-attachment delta across animation
+frames and frame-clock wraps.
+
+The label occupies attachment 18: its rectangle ends at the projected point.
+When no name is known, the quest marker also starts directly at attachment 18.
+When both are visible, only the marker moves upward by `TalkToMe.m2`'s
+model-authored positive bottom clearance, leaving the attachment slot for the
+label without introducing another tuned world constant. Do not use character
+animation bounds here: `HumanMale.m2` spans Z `-0.855..2.986` in those bounds
+but its visible rest vertices span only `-0.001..2.034`, which previously put
+both elements far above the head. Confirm the source data with:
+
+```sh
+build/bin/m2tool -mpq data/world-of-warcraft/model.MPQ \
+  -model 'Character\Human\Male\HumanMale.m2' --info
+build/bin/m2tool -mpq data/world-of-warcraft/interface.MPQ \
+  -model 'Interface\Buttons\TalkToMe.m2' --info
+```
+
+Reference: WhiteoutLib's M2 attachment table documents attachment 18 and its
+original-client consumer:
+`https://github.com/sc2-arcade-watcher/WhiteoutLib/blob/libmodkit/docs/M2_FILE_FORMAT_SPECIFICATION.md`.
+
+WoWee and WowUnreal are not authoritative placement implementations. WoWee
+uses custom constants (visual bounding radius times two plus `1.1` for the
+marker, and `+2.3` for names); WowUnreal hardcodes a 200 cm nameplate offset and
+does not implement the quest marker. Use them only as comparison engines, not
+as the 2004 behavior source.
+
+The target reveal lifecycle is per player: show only `!` before the first
+interaction, show `!` plus the name once the NPC is selected/known, then retain
+the known name and remove `!` after accepting the quest. The current state does
+not implement this contract: `m_creature.c` authors the name configstring for
+every viewer immediately, and `QUEST_MARKER_ACTIVE` replaces `!` with the grey
+active-question sprite instead of clearing the marker.
+
 ## NPC World Names
 
 NPC names do not exist in the client creature DBCs. `CreatureDisplayInfo.dbc`

@@ -2,7 +2,7 @@
 #include "renderer/r_local.h"
 #include "wow/r_wowmap.h"
 
-#define WOW_QUEST_MARKER_HEAD_GAP 0.25f // world units; separates TalkToMe.m2 from the parent M2 bounds
+#define WOW_ATTACHMENT_PLAYER_NAME 18 // M2 attachment ID; original client CGUnit_C::GetNamePosition anchor
 
 void R_RegisterMap(LPCSTR mapFileName);
 void R_DrawWorld(void);
@@ -17,8 +17,11 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
 void M2_RenderInstanced(m2Model_t const *model, LPCINSTANCEBUFFER instances, DWORD flags);
 BOOL M2_CanStaticInstance(m2Model_t const *model);
 BOOL M2_AttachmentMatrix(m2Model_t const *model, DWORD attachment_id, LPCMATRIX4 model_matrix, LPMATRIX4 out);
+BOOL M2_EntityAttachmentPosition(m2Model_t const *model, renderEntity_t const *entity, DWORD attachment_id,
+                                 LPCMATRIX4 model_matrix, LPVECTOR3 out);
 FLOAT M2_GroundOffset(m2Model_t const *model);
 FLOAT M2_HeadHeight(m2Model_t const *model);
+FLOAT M2_VisibleBottom(m2Model_t const *model);
 BOOL M2_CameraView(m2Model_t const *model, DWORD camera_index, LPVECTOR3 eye, LPVECTOR3 target, LPFLOAT fov_degrees, LPFLOAT znear, LPFLOAT zfar);
 BOOL M2_IsCharacterModel(m2Model_t const *model);
 BOOL M2_SetEntitySequenceFrame(m2Model_t const *model, LPCSTR anim, renderEntity_t *entity);
@@ -243,11 +246,16 @@ void R_GameRenderModel(renderEntity_t const *entity) {
     M2_RenderModel(entity, entity->model->m2, &transform);
     if (entity->overhead_model && entity->overhead_model->modeltype == ID_MD20) {
         renderEntity_t marker = *entity;
-        marker.origin.z += R_GameEntityHeight(entity) + WOW_QUEST_MARKER_HEAD_GAP;
+        R_GameEntityOverheadPosition(entity, &marker.origin);
         marker.model = entity->overhead_model;
+        /* A visible name owns the base slot; TalkToMe's authored bottom clearance separates the marker above it. */
+        if (entity->name && *entity->name) marker.origin.z += M2_VisibleBottom(marker.model->m2);
         marker.attached_model = marker.overhead_model = NULL;
         marker.overhead_sprite = NULL;
         marker.scale = 1.0f;
+        /* The parent frame crosses TalkToMe's unrelated sequence every 1533 ms; the marker owns Stand's clock. */
+        marker.frame = marker.oldframe = tr.viewDef.time;
+        M2_SetEntitySequenceFrame(marker.model->m2, "0", &marker);
         marker.flags &= ~RF_GROUND_ANCHOR;
         marker.flags |= RF_NO_SHADOW;
         R_GetEntityMatrix(&marker, &attached_transform);
@@ -397,10 +405,31 @@ FLOAT R_GameSelectionRadius(renderEntity_t const *entity) {
     return MAX(entity->radius * MAX(entity->scale, 1.0f), 1.0f);
 }
 
-/* M2 bounds, not collision radius, own the visual top used by markers and labels. */
+/* Attachment 18 is the model-authored PlayerName point used by the original client. */
+BOOL R_GameEntityOverheadPosition(renderEntity_t const *entity, LPVECTOR3 out) {
+    static LPCMODEL last_missing;
+    MATRIX4 transform;
+    if (!entity || !out) return false;
+    *out = entity->origin;
+    if (!entity->model || entity->model->modeltype != ID_MD20) {
+        out->z += entity->radius * 2.0f;
+        return false;
+    }
+    R_GetEntityMatrix(entity, &transform);
+    if (M2_EntityAttachmentPosition(entity->model->m2, entity, WOW_ATTACHMENT_PLAYER_NAME, &transform, out)) return true;
+    if (entity->model != last_missing) {
+        last_missing = entity->model;
+        fprintf(stderr, "WoW renderer: M2 model has no PlayerName attachment 18\n");
+    }
+    out->z += (M2_GroundOffset(entity->model->m2) + M2_HeadHeight(entity->model->m2)) * entity->scale;
+    return false;
+}
+
 FLOAT R_GameEntityHeight(renderEntity_t const *entity) {
-    if (!entity || !entity->model || entity->model->modeltype != ID_MD20) return entity ? entity->radius * 2.0f : 0.0f;
-    return (M2_GroundOffset(entity->model->m2) + M2_HeadHeight(entity->model->m2)) * entity->scale;
+    VECTOR3 top;
+    if (!entity) return 0.0f;
+    R_GameEntityOverheadPosition(entity, &top);
+    return top.z - entity->origin.z;
 }
 
 bool R_GameGetModelInfo(LPMODEL model, LPMODELINFO info) {

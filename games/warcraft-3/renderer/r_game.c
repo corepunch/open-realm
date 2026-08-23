@@ -238,6 +238,11 @@ FLOAT R_GameSelectionRadius(renderEntity_t const *entity) {
 }
 
 FLOAT R_GameEntityHeight(renderEntity_t const *entity) { return entity ? entity->radius * 2.0f : 0.0f; }
+BOOL R_GameEntityOverheadPosition(renderEntity_t const *entity, LPVECTOR3 out) {
+    if (!entity || !out) return false;
+    *out = entity->origin; out->z += R_GameEntityHeight(entity);
+    return true;
+}
 
 static void R_GameTextureCacheAdd(LPCSTR path) {
     if (!path || !*path || model_texture_cache.count >= 256) {
