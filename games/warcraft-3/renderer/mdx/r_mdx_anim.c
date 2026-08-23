@@ -250,5 +250,5 @@ static void MDLX_BindBoneMatrices(mdxModel_t const *model, LPCMATRIX4 model_matr
     }
 #endif
     R_Call(glUseProgram, shader->progid);
-    R_Call(glUniformMatrix4fv, shader->uBones, MDX_MATRIX_PALETTE, GL_FALSE, bone_matrices->v);
+    R_Call(glUniformMatrix4fv, shader->uBones, tr.bone_count, GL_FALSE, bone_matrices->v);
 }

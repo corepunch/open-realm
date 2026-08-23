@@ -32,6 +32,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | FS / VFS / MPQ loading stack, SC2 vs WoW patterns, mmap ADT optimization | [docs/fs-loading-architecture.md](docs/fs-loading-architecture.md) |
 | Code patterns that work well (file-shaped structs, table-driven parsing, pointer-walk parsers) | [docs/code-patterns-that-work.md](docs/code-patterns-that-work.md) |
 | Launching UI/model scenes and maps from the command line; `make run-wow`, `make build-run-wow-*`, `make run-sc2` shortcuts | [docs/rendering-scene-workflow.md](docs/rendering-scene-workflow.md) |
+| Release/debug builds, MSAA, GL/GLES backends, adaptive bone palettes, video modes | [docs/build-and-renderer-platforms.md](docs/build-and-renderer-platforms.md) |
 
 ## Coding Style
 

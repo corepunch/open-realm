@@ -608,7 +608,9 @@ static void jass_resumecoroutine(LPJASSCOROUTINE co) {
         if (!token) {
             if (frame->type == JASS_FRAME_LOOP) {
                 frame->pc = frame->body;
-                assert(frame->loop_count++ < INF_LOOP_PROTECTION);
+                /* Keep the increment outside assert: NDEBUG used to remove it together with the diagnostic check. */
+                frame->loop_count++;
+                assert(frame->loop_count <= INF_LOOP_PROTECTION);
             } else {
                 jass_coroutine_popframe(co);
             }
@@ -1265,7 +1267,9 @@ DWORD VM_EvalIdentifier(LPJASS j, LPCTOKEN token) {
 }
 
 DWORD VM_EvalArrayAccess(LPJASS j, LPCTOKEN token) {
-    assert(jass_dotoken(j, token->index) == 1);
+    /* Evaluate before asserting: release builds must not erase the VM operation. */
+    DWORD count = jass_dotoken(j, token->index);
+    assert(count == 1);
     DWORD index_val = jass_popinteger(j);
     VM_EvalIdentifier(j, token);
     LPJASSVAR var = jass_stackvalue(j, -1);
@@ -1361,10 +1365,13 @@ static void jass_set_value(LPJASS j, LPJASSVAR dest, LPCTOKEN init) {
 }
 
 static void jass_set_array_value(LPJASS j, LPJASSVAR dest, LPCTOKEN index, LPCTOKEN init) {
-    assert(jass_dotoken(j, index) == 1);
+    /* Evaluate before asserting: NDEBUG previously skipped both expressions and copied an unrelated stack value. */
+    DWORD count = jass_dotoken(j, index);
+    assert(count == 1);
     DWORD index_val = jass_popinteger(j);
     LPJASSVAR index_dest = ensure_array_value(j, dest, index_val);
-    assert(jass_dotoken(j, init) == 1);
+    count = jass_dotoken(j, init);
+    assert(count == 1);
     jass_copy(j, index_dest, j->stack + jass_top(j));
     jass_pop(j, 1);
 }

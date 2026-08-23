@@ -55,6 +55,19 @@ TEST(wc3_jass_map, bjassassert_false_is_caught) {
     ));
 }
 
+TEST(wc3_jass_map, array_assignment_and_access_evaluate_expressions) {
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  integer array values\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  local integer i = 2\n"
+        "  set values[i + 1] = 40 + 2\n"
+        "  call BJassAssert(values[3] == 42, \"array expression evaluation\")\n"
+        "endfunction\n"
+    ));
+}
+
 /* =========================================================================
  * Quests — pure JASS tests using IsQuest* getters and BJassAssert
  * ========================================================================= */

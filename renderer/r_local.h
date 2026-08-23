@@ -13,6 +13,8 @@
 #else
 #include <OpenGLES/ES3/gl.h>
 #endif
+#elif __linux__ && defined(BZ_GL_ES3)
+#include <GLES3/gl3.h>
 #elif __linux__ || defined(__OpenBSD__)
 #define GL_GLEXT_PROTOTYPES 1
 #include <GL/gl.h>
@@ -52,6 +54,8 @@
 #define TEAM_MASK (MAX_TEAMS - 1)
 #define PORTRAIT_SHADOW_SIZE 50
 #define MAX_SKIN_BONES 4
+#define BZ_BONE_PALETTE_MAX 128 // matrices; shared MDX/M2/M3 shader contract; bounds CPU-side palette storage
+#define BZ_BONE_UNIFORM_RESERVE 64 // vec4 uniforms; lighting/view/grass budget; excluded before sizing uBones
 #define NUM_SELECTION_CIRCLES 3
 #define NUM_RECT_VERTICES 6
 #define SYSFONT_COLS 16
@@ -111,6 +115,15 @@ static DWORD R_InstanceBufferCapacity(DWORD capacity, DWORD count) {
     if (capacity >= count) return capacity;
     for (capacity = capacity ? capacity : 16; capacity < count; capacity *= 2) {}
     return capacity;
+}
+static DWORD R_BonePaletteSize(DWORD vectors) {
+    return MAX(1, MIN(BZ_BONE_PALETTE_MAX, vectors > BZ_BONE_UNIFORM_RESERVE ?
+                     (vectors - BZ_BONE_UNIFORM_RESERVE) / 4 : 1));
+}
+static void R_SwapRedBlue(BYTE *pixels, DWORD count, DWORD stride) {
+    FOR_LOOP(i, count) {
+        BYTE tmp = pixels[i * stride]; pixels[i * stride] = pixels[i * stride + 2]; pixels[i * stride + 2] = tmp;
+    }
 }
 
 struct shader_program {
@@ -219,6 +232,7 @@ struct render_globals {
     sheetRow_t *sheet[SHEET_COUNT];
     size2_t drawableSize;
     int msaa_samples;
+    DWORD bone_count;
     LPTEXTURE minimap;
     RECT minimapRect;   /* last UI-space rect the minimap was drawn at */
     BOOL hasMinimap;

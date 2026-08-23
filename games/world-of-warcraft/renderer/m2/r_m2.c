@@ -1237,12 +1237,12 @@ static void M2_UploadBatchBones(m2Model_t const *model, m2ModelBatch_t const *ba
     DWORD nlook = model ? (DWORD)M2_BoneLookupArray(model).size : 0;
     DWORD nbone = model ? (DWORD)M2_BonesArray(model).size : 0;
 
-    FOR_LOOP(i, M2_MAX_BONES_PER_BATCH) {
+    FOR_LOOP(i, tr.bone_count) {
         Matrix4_identity(&palette[i]);
     }
 
     if (model && batch && bone_lookup) {
-        DWORD count = MIN((DWORD)batch->bone_count, (DWORD)M2_MAX_BONES_PER_BATCH);
+        DWORD count = MIN((DWORD)batch->bone_count, tr.bone_count);
         FOR_LOOP(i, count) {
             DWORD lookup = (DWORD)batch->bone_combo_index + i;
             if (lookup < nlook) {
@@ -1254,7 +1254,7 @@ static void M2_UploadBatchBones(m2Model_t const *model, m2ModelBatch_t const *ba
         }
     }
 
-    R_Call(glUniformMatrix4fv, shader->uBones, M2_MAX_BONES_PER_BATCH, GL_FALSE, palette[0].v);
+    R_Call(glUniformMatrix4fv, shader->uBones, tr.bone_count, GL_FALSE, palette[0].v);
 }
 
 static LPTEXTURE M2_TextureForBatch(BYTE const *m2_data,

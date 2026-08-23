@@ -173,17 +173,19 @@ static LPCSTR model_vs =
 "out vec2 v_texcoord;\n"
 "out vec2 v_texcoord2;\n"
 "out vec3 v_lighting;\n"
-"uniform mat4 uBones[128];\n"
+"uniform mat4 uBones[BZ_BONE_COUNT];\n"
 "uniform mat4 uViewProjectionMatrix;\n"
 "uniform mat4 uModelMatrix;\n"
 "uniform mat4 uLightMatrix;\n"
 "uniform mat3 uNormalMatrix;\n"
 "uniform mat4 uTextureMatrix;\n"
+// TODO: I'd hack these into a mat3, how's that? Also what is this anyway? We already have uLights[]
 "uniform vec3 uLightDir;\n"
 "uniform vec3 uLightColor;\n"
 "uniform vec3 uLightAmbient;\n"
 "uniform int uLightCount;\n"
 "uniform float uFirstBoneLookupIndex;\n"
+// TODO: isn't 8 lights too many?? Let's add BZ_LIGHT_COUNT
 "uniform mat4 uLights[8];\n"
 "const int MODEL_LIGHT_OMNI = 0;\n"
 "const int MODEL_LIGHT_DIRECT = 1;\n"
@@ -224,7 +226,7 @@ static LPCSTR model_vs =
 "    vec4 position = vec4(0.0);\n"
 "    vec4 normal = vec4(0.0);\n"
 "    for (int i = 0; i < 4; ++i) {\n"
-"        int boneIdx = int(i_skin1[i]) + int(uFirstBoneLookupIndex);\n"
+"        int boneIdx = min(int(i_skin1[i]) + int(uFirstBoneLookupIndex), BZ_BONE_COUNT - 1);\n"
 "        position += uBones[boneIdx] * pos4 * i_boneWeight1[i];\n"
 "        normal += uBones[boneIdx] * norm4 * i_boneWeight1[i];\n"
 "    }\n"
@@ -255,18 +257,25 @@ static LPCSTR model_fs =
 #if defined(USE_SHADOWMAPS) || defined(DEBUG_PATHFINDING)
 "uniform sampler2D uShadowmap;\n"
 #endif
+// TODO: Add USE_FOGOFWAR and disable it in WoW as it's not needed
 "uniform sampler2D uFogOfWar;\n"
 "uniform float uLayerAlpha;\n"
 "uniform vec4 uGeosetColor;\n"
+// TODO: Replace uUvTrans, uUvRot, uUvScale with uv matrix!
 "uniform vec2 uUvTrans;\n"
 "uniform vec2 uUvRot;\n"
 "uniform vec2 uUvScale;\n"
 "uniform bool uAlphaKey;\n"
+// TODO: Alpha cutoff is not used in MSAA!
 "uniform float uAlphaCutoff;\n"
+// TODO: Why do we need unshaded?? UI is drawn with a separate shader isnt it? 
 "uniform bool uUnshaded;\n"
+// TODO: Add USE_FOG and disable it in Warcraft3 (is it not used?)
+// No need for uFogEnable, it's only adding to the mess, by default we just use infinitely far fog? Also, fog shall be a matrix, so that we can fog in any direction (horizontal fog, depth fog, and so on)
 "uniform bool uFogEnable;\n"
 "uniform vec3 uFogColor;\n"
 "uniform vec2 uFogParams;\n"
+// TODO: This will be gone if we use Uv transfrom matrix
 "vec2 quat_transform(vec2 q, vec2 v) {\n"
 "    float c = q.y * q.y - q.x * q.x;\n"
 "    float s = 2.0 * q.x * q.y;\n"
@@ -292,8 +301,12 @@ static LPCSTR model_fs =
 "        }\n"
 "    }\n"
 "    if (uAlphaKey) {\n"
+#ifndef BZ_USE_MSAA
+"        if (col.a < uAlphaCutoff) discard;\n"
+#else
 "        float edge = max(fwidth(col.a), 1.0 / 255.0);\n"
 "        col.a = smoothstep(uAlphaCutoff - edge, uAlphaCutoff + edge, col.a);\n"
+#endif
 "    }\n"
 "    o_color = col;\n"
 "}\n";
@@ -314,6 +327,8 @@ LPSHADER R_ModelShader(void) {
     return model_shader ? model_shader : tr.shader[SHADER_DEFAULT];
 }
 
+
+// TODO: use #ifdef in the original shader instead of duplicating it!
 /* Instanced model shader for static meshes (ground-effect clutter). Identical
    skinning/lighting to model_vs, but the per-instance world transform is a
    vertex attribute instead of uModelMatrix so thousands of instances share one
@@ -326,6 +341,7 @@ static LPCSTR instanced_vs =
 "in vec3 i_normal;\n"
 "in vec4 i_skin1;\n"
 "in vec4 i_boneWeight1;\n"
+// TODO: Why do we need 0 1 2 3 for?? Isn't this called once per instance?
 "in vec4 i_instance0;\n"
 "in vec4 i_instance1;\n"
 "in vec4 i_instance2;\n"
@@ -337,7 +353,7 @@ static LPCSTR instanced_vs =
 "out vec2 v_texcoord;\n"
 "out vec2 v_texcoord2;\n"
 "out vec3 v_lighting;\n"
-"uniform mat4 uBones[128];\n"
+"uniform mat4 uBones[BZ_BONE_COUNT];\n"
 "uniform mat4 uViewProjectionMatrix;\n"
 "uniform mat4 uLightMatrix;\n"
 "uniform mat4 uTextureMatrix;\n"
@@ -347,6 +363,7 @@ static LPCSTR instanced_vs =
 "uniform int uLightCount;\n"
 "uniform float uFirstBoneLookupIndex;\n"
 "uniform mat4 uLights[8];\n"
+// TODO: Can we pack grass into mat4? Also, for grass I thought we could use a separate shader for clarity?
 "uniform vec3 uGrassCameraPos;\n"
 "uniform vec2 uGrassFade;\n"
 "uniform float uGrassTime;\n"
@@ -359,7 +376,7 @@ static LPCSTR instanced_vs =
 "const int MODEL_LIGHT_AMBIENT = 2;\n"
 "vec3 vertex_lighting(vec3 normal, vec3 worldPos) {\n"
 "    vec3 n = normalize(normal);\n"
-"    if (uLightCount == 0)\n"
+"    if (uLightCount == 0)\n" // TODO: no, this is crap, lightcount shall be > 0, what is this hack?
 "        return uLightAmbient + uLightColor * max(dot(n, normalize(uLightDir)), 0.0);\n"
 "    vec3 lighting = uLightAmbient;\n"
 "    for (int i = 0; i < 8; ++i) {\n"
@@ -393,7 +410,7 @@ static LPCSTR instanced_vs =
 "    vec4 position = vec4(0.0);\n"
 "    vec4 normal = vec4(0.0);\n"
 "    for (int i = 0; i < 4; ++i) {\n"
-"        int boneIdx = int(i_skin1[i]) + int(uFirstBoneLookupIndex);\n"
+"        int boneIdx = min(int(i_skin1[i]) + int(uFirstBoneLookupIndex), BZ_BONE_COUNT - 1);\n"
 "        position += uBones[boneIdx] * pos4 * i_boneWeight1[i];\n"
 "        normal += uBones[boneIdx] * norm4 * i_boneWeight1[i];\n"
 "    }\n"
@@ -433,18 +450,33 @@ LPSHADER R_ModelShaderInstanced(void) {
             R_Call(glUseProgram, instanced_shader->progid);
             R_Call(glUniform1f, instanced_shader->uAlphaCutoff, 0.5f);
             /* Static grass has no keyed bones; install its identity palette once, not once per frame. */
-            R_Call(glUniformMatrix4fv, instanced_shader->uBones, 128, GL_FALSE, bones[0].v);
+            R_Call(glUniformMatrix4fv, instanced_shader->uBones, tr.bone_count, GL_FALSE, bones[0].v);
         }
     }
     return instanced_shader;
+}
+
+/* GLES 3 uses GLSL ES 300; shader bodies otherwise share GLSL 1.40 syntax. */
+static void R_SetShaderSource(GLuint shader, LPCSTR source) {
+    char prefix[160];
+    LPCSTR body = strchr(source, '\n');
+    snprintf(prefix, sizeof(prefix),
+#ifdef BZ_GL_ES3
+             "#version 300 es\nprecision highp float;\nprecision highp int;\n#define BZ_BONE_COUNT %u\n",
+#else
+             "#version 140\n#define BZ_BONE_COUNT %u\n",
+#endif
+             (unsigned)tr.bone_count);
+    LPCSTR strings[] = { prefix, body ? body + 1 : source };
+    GLint lengths[] = { (GLint)strlen(strings[0]), (GLint)strlen(strings[1]) };
+    R_Call(glShaderSource, shader, 2, strings, lengths);
 }
 
 LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
     GLuint vs = R_Call(glCreateShader, GL_VERTEX_SHADER);
     GLuint fs = R_Call(glCreateShader, GL_FRAGMENT_SHADER);
 
-    int length = (int)strlen(vs_default);
-    R_Call(glShaderSource, vs, 1, (const GLchar **)&vs_default, &length);
+    R_SetShaderSource(vs, vs_default);
     R_Call(glCompileShader, vs);
 
     GLint status;
@@ -466,8 +498,7 @@ LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
         }
         return NULL;
     }
-    length = (int)strlen(fs_default);
-    R_Call(glShaderSource, fs, 1, (const GLchar **)&fs_default, &length);
+    R_SetShaderSource(fs, fs_default);
     R_Call(glCompileShader, fs);
 
     R_Call(glGetShaderiv, fs, GL_COMPILE_STATUS, &status);

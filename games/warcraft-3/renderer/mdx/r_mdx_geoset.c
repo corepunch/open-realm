@@ -157,6 +157,16 @@ static void MDLX_RenderTailEmitter(mdxModel_t const *model,
 
 static bool MDLX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
     R_SetAlphaKeyState(false);
+#ifdef USE_SHADOWMAPS
+    switch (is_rendering_lights ? (int)layer->blendMode : -1) {
+        case BLEND_MODE_BLEND:
+        case BLEND_MODE_ADD:
+        case BLEND_MODE_ADDALPHA:
+        case BLEND_MODE_MODULATE:
+        case BLEND_MODE_MODULATE_2X:
+            return false;
+    }
+#endif
     switch (layer->blendMode) {
         case BLEND_MODE_NONE:
             R_Call(glDisable, GL_BLEND);
@@ -172,10 +182,6 @@ static bool MDLX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
             R_SetAlphaKeyState(true);
             break;
         case BLEND_MODE_BLEND:
-#ifdef USE_SHADOWMAPS
-            if (is_rendering_lights)
-                return false;
-#endif
             R_Call(glEnable, GL_BLEND);
             R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             R_Call(glDepthMask, GL_FALSE);
@@ -185,37 +191,21 @@ static bool MDLX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
             return false;
 #else
         case BLEND_MODE_ADD:
-#ifdef USE_SHADOWMAPS
-            if (is_rendering_lights)
-                return false;
-#endif
             R_Call(glEnable, GL_BLEND);
             R_Call(glBlendFunc, GL_ONE, GL_ONE);
             R_Call(glDepthMask, GL_FALSE);
             break;
         case BLEND_MODE_ADDALPHA:
-#ifdef USE_SHADOWMAPS
-            if (is_rendering_lights)
-                return false;
-#endif
             R_Call(glEnable, GL_BLEND);
             R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE);
             R_Call(glDepthMask, GL_FALSE);
             break;
         case BLEND_MODE_MODULATE:
-#ifdef USE_SHADOWMAPS
-            if (is_rendering_lights)
-                return false;
-#endif
             R_Call(glEnable, GL_BLEND);
             R_Call(glBlendFunc, GL_DST_COLOR, GL_ZERO);
             R_Call(glDepthMask, GL_FALSE);
             break;
         case BLEND_MODE_MODULATE_2X:
-#ifdef USE_SHADOWMAPS
-            if (is_rendering_lights)
-                return false;
-#endif
             R_Call(glEnable, GL_BLEND);
             R_Call(glBlendFunc, GL_DST_COLOR, GL_SRC_COLOR);
             R_Call(glDepthMask, GL_FALSE);
@@ -372,7 +362,7 @@ static void MDLX_BindLayerTextureAnimation(mdxModel_t const *model,
 static void MDLX_BindGeosetMatrixPalette(mdxModel_t const *model, mdxGeoset_t const *geoset) {
     MATRIX4 matrixPalette[MDX_MATRIX_PALETTE];
 
-    FOR_LOOP(i, MDX_MATRIX_PALETTE) {
+    FOR_LOOP(i, tr.bone_count) {
         Matrix4_identity(&matrixPalette[i]);
         if (i >= geoset->num_matrixPalette) {
             continue;
@@ -383,7 +373,7 @@ static void MDLX_BindGeosetMatrixPalette(mdxModel_t const *model, mdxGeoset_t co
         }
     }
 
-    R_Call(glUniformMatrix4fv, mdlx.shader->uBones, MDX_MATRIX_PALETTE, GL_FALSE, matrixPalette->v);
+    R_Call(glUniformMatrix4fv, mdlx.shader->uBones, tr.bone_count, GL_FALSE, matrixPalette->v);
 }
 
 static VECTOR4 MDLX_EvaluateGeosetColor(mdxModel_t const *model,

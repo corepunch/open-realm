@@ -147,7 +147,7 @@ All cvars registered in `Cvar_Init()`:
 | `com_frame_limit` | `"0"` | 0 | Exit after N frames; `0` means run forever |
 | `scr_showfps` | `"1"` | CVAR_ARCHIVE | Show FPS counter |
 | `skip_cutscene` | `"0"` | 0 | Skip cutscenes |
-| `vid_mode` | `"2"` | CVAR_ARCHIVE | Video mode |
+| `vid_mode` | `"0"` | CVAR_ARCHIVE | Resolution-table index; mode 0 is 640x480 |
 | `r_model_detail` | `"2"` | CVAR_ARCHIVE | Model detail level |
 | `r_anim_quality` | `"2"` | CVAR_ARCHIVE | Animation quality |
 | `r_texture_quality` | `"2"` | CVAR_ARCHIVE | Texture quality |

@@ -4,6 +4,14 @@ This document records the intended coordinate contract for game data, the curren
 WoW implementation, and the migration required to stop compensating for WoW axes
 in every renderer path.
 
+To avoid this mess:
+```text
+engine.x = 32 * WOW_ADT_SIZE - mddf.position.z
+engine.y = 32 * WOW_ADT_SIZE - mddf.position.x
+engine.z = mddf.position.y
+```
+
+
 ## Desired Contract
 
 Each game should render in its native world coordinate system. A game module owns

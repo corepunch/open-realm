@@ -2,6 +2,29 @@ CC      := gcc
 BIN_DIR := build/bin
 LIB_DIR := build/lib
 CFLAGS  := -Wall -Wmisleading-indentation -fno-common -I. -Ishared -Ishared/types
+BUILD   ?= debug
+MSAA    ?= 0
+GL_BACKEND ?= gl
+
+ifeq ($(BUILD),release)
+	CFLAGS += -O2
+else ifneq ($(BUILD),debug)
+	$(error BUILD must be debug or release)
+else
+	CFLAGS += -O0 -g
+endif
+ifeq ($(filter $(MSAA),0 2 4 8),)
+	$(error MSAA must be 0, 2, 4, or 8)
+endif
+ifeq ($(GL_BACKEND),gles3)
+	CFLAGS += -DBZ_GL_ES3
+else ifneq ($(GL_BACKEND),gl)
+	$(error GL_BACKEND must be gl or gles3)
+endif
+CFLAGS += -DBZ_MSAA_SAMPLES=$(MSAA)
+ifneq ($(MSAA),0)
+	CFLAGS += -DBZ_USE_MSAA
+endif
 
 ifeq ($(DIAG_OUTPUT),1)
 	CFLAGS += -DDIAG_OUTPUT
@@ -13,6 +36,9 @@ endif
 # Platform detection
 # ---------------------------------------------------------------------------
 ifeq ($(OS),Windows_NT)
+	ifeq ($(GL_BACKEND),gles3)
+		$(error GL_BACKEND=gles3 is currently supported on Linux only)
+	endif
     LIB_EXT   := .dll
     LIB_FLAGS := -shared
     EXE_EXT   := .exe
@@ -26,6 +52,9 @@ else
     UNAME_S := $(shell uname -s)
     EXE_EXT :=
     ifeq ($(UNAME_S),Darwin)
+		ifeq ($(GL_BACKEND),gles3)
+			$(error GL_BACKEND=gles3 is currently supported on Linux only)
+		endif
 		ARCH ?= arm64
 		ifeq ($(ARCH),arm64)
             HOMEBREW_PREFIX := /opt/homebrew
@@ -55,9 +84,16 @@ else
         LIB_RPATH := -Wl,-rpath,'$$ORIGIN'
         CFLAGS    += -fPIC
         LDFLAGS   := -L$(LIB_DIR) -Wl,-z,defs
-		LIBS      := -lSDL2 -lEGL -lGL -lm
+		ifeq ($(GL_BACKEND),gles3)
+			LIBS      := -lSDL2 -lEGL -lGLESv2 -lm
+		else
+			LIBS      := -lSDL2 -lEGL -lGL -lm
+		endif
 		NET_LIBS  :=
     else ifeq ($(UNAME_S),OpenBSD)
+		ifeq ($(GL_BACKEND),gles3)
+			$(error GL_BACKEND=gles3 is currently supported on Linux only)
+		endif
         # BSD (OpenBSD): /usr/X11R6 for Mesa GL, clang as default CC
         ifeq ($(filter command line environment,$(origin CC)),)
             CC := clang

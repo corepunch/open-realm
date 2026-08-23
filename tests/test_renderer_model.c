@@ -108,11 +108,6 @@ TEST(renderer_model, clock_emission_ignores_zero_rate_and_delta) {
     T_EQ(spawn_count, 0);
 }
 
-TEST(renderer_alpha, msaa_request_normalizes_off_and_caps_driver_input) {
-    T_EQ(R_MsaaRequest(-1), 0); T_EQ(R_MsaaRequest(1), 0);
-    T_EQ(R_MsaaRequest(4), 4); T_EQ(R_MsaaRequest(64), BZ_MSAA_MAX);
-}
-
 TEST(renderer_alpha, active_samples_require_a_real_multisample_buffer) {
     T_EQ(R_MsaaActiveSamples(0, 4), 0); T_EQ(R_MsaaActiveSamples(1, 1), 0);
     T_EQ(R_MsaaActiveSamples(1, 4), 4);
@@ -126,6 +121,19 @@ TEST(renderer_instances, dynamic_capacity_reuses_and_grows_power_of_two) {
     T_EQ(R_InstanceBufferCapacity(0, 1), (DWORD)16);
     T_EQ(R_InstanceBufferCapacity(16, 16), (DWORD)16);
     T_EQ(R_InstanceBufferCapacity(16, 17), (DWORD)32);
+}
+
+TEST(renderer_bones, palette_reserves_other_vertex_uniforms) {
+    T_EQ(R_BonePaletteSize(32), (DWORD)1); T_EQ(R_BonePaletteSize(256), (DWORD)48);
+    T_EQ(R_BonePaletteSize(1024), (DWORD)BZ_BONE_PALETTE_MAX);
+}
+
+TEST(renderer_texture, red_blue_swap_preserves_other_channels) {
+    BYTE rgba[] = { 1, 2, 3, 4, 5, 6, 7, 8 }, rgb[] = { 9, 10, 11 };
+    R_SwapRedBlue(rgba, 2, 4); R_SwapRedBlue(rgb, 1, 3);
+    T_EQ(rgba[0], (BYTE)3); T_EQ(rgba[1], (BYTE)2); T_EQ(rgba[2], (BYTE)1); T_EQ(rgba[3], (BYTE)4);
+    T_EQ(rgba[4], (BYTE)7); T_EQ(rgba[7], (BYTE)8);
+    T_EQ(rgb[0], (BYTE)11); T_EQ(rgb[1], (BYTE)10); T_EQ(rgb[2], (BYTE)9);
 }
 
 TEST(renderer_stats, triangles_include_instanced_amplification) {

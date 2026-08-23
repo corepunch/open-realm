@@ -81,8 +81,12 @@ LPCSTR fs_particle =
 "void main() {\n"
 "    o_color = texture(uTexture, v_texcoord) * v_color;\n"
 "    if (uAlphaKey) {\n"
+#ifndef BZ_USE_MSAA
+"        if (o_color.a < uAlphaCutoff) discard;\n"
+#else
 "        float edge = max(fwidth(o_color.a), 1.0 / 255.0);\n"
 "        o_color.a = smoothstep(uAlphaCutoff - edge, uAlphaCutoff + edge, o_color.a);\n"
+#endif
 "    }\n"
 "}\n";
 

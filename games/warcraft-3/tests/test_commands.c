@@ -7,6 +7,7 @@
 
 #include "common.h"
 #include "test.h"
+#include "common/video_modes.h"
 
 static PATHSTR last_loading_map;
 static PATHSTR last_sv_map;
@@ -270,4 +271,8 @@ TEST(commands, map_command_rejects_ambiguous_short_name) {
 
     T_STREQ(last_loading_map, "");
     T_STREQ(last_sv_map, "");
+}
+TEST(video_modes, invalid_index_uses_safe_default) {
+    T_EQ(video_mode_get(-1)->width, (DWORD)640); T_EQ(video_mode_get(99)->height, (DWORD)480);
+    T_EQ(video_mode_get(2)->width, (DWORD)1024); T_EQ(video_mode_get(2)->height, (DWORD)768);
 }

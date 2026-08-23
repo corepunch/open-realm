@@ -435,8 +435,9 @@ static void R_UpdateSwapInterval(void) {
 void R_Init(DWORD width, DWORD height) {
     renderer_shutdown = false;
     r_swapinterval = -999;
+    tr.bone_count = BZ_BONE_PALETTE_MAX;
     BOOL gl_current = false;
-    int requested_msaa = R_MsaaRequest(atoi(ri.CvarString ? ri.CvarString("r_msaa", BZ_MSAA_DEFAULT_STRING) : BZ_MSAA_DEFAULT_STRING));
+    int requested_msaa = BZ_MSAA_SAMPLES;
     SDL_version sdl_version;
 
     SDL_Init(SDL_INIT_VIDEO);
@@ -451,8 +452,13 @@ void R_Init(DWORD width, DWORD height) {
     SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
 #endif
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+#ifdef BZ_GL_ES3
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+#else
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+#endif
     SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, requested_msaa ? 1 : 0);
     SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, requested_msaa);
 
@@ -491,20 +497,37 @@ void R_Init(DWORD width, DWORD height) {
     fprintf(stderr, "Drawable size: %dx%d\n\n", tr.drawableSize.width, tr.drawableSize.height);
     if (gl_current) {
         GLint sample_buffers = 0, samples = 0;
+        GLint uniform_vectors = 0;
         int sdl_buffers = 0, sdl_samples = 0;
         SDL_GL_GetAttribute(SDL_GL_MULTISAMPLEBUFFERS, &sdl_buffers);
         SDL_GL_GetAttribute(SDL_GL_MULTISAMPLESAMPLES, &sdl_samples);
         R_Call(glGetIntegerv, GL_SAMPLE_BUFFERS, &sample_buffers);
         R_Call(glGetIntegerv, GL_SAMPLES, &samples);
+#ifdef BZ_GL_ES3
+        R_Call(glGetIntegerv, GL_MAX_VERTEX_UNIFORM_VECTORS, &uniform_vectors);
+#else
+        R_Call(glGetIntegerv, GL_MAX_VERTEX_UNIFORM_COMPONENTS, &uniform_vectors);
+        uniform_vectors /= 4;
+#endif
         tr.msaa_samples = R_MsaaActiveSamples(sample_buffers, samples);
+        tr.bone_count = R_BonePaletteSize((DWORD)MAX(uniform_vectors, 0));
         fprintf(stderr, "OpenGL setting:\n");
         fprintf(stderr, "GL_VENDOR: %s\n", R_GLString(GL_VENDOR));
         fprintf(stderr, "GL_RENDERER: %s\n", R_GLString(GL_RENDERER));
         fprintf(stderr, "GL_VERSION: %s\n", R_GLString(GL_VERSION));
         fprintf(stderr, "GL_SHADING_LANGUAGE_VERSION: %s\n", R_GLString(GL_SHADING_LANGUAGE_VERSION));
-        fprintf(stderr, "MSAA: requested=%dx SDL=%d/%d GL=%d/%d active=%dx alpha-to-coverage=%s\n",
+        fprintf(stderr, "MSAA: requested=%dx SDL=%d/%d GL=%d/%d active=%dx alpha-key=%s\n",
                 requested_msaa, sdl_buffers, sdl_samples, sample_buffers, samples, tr.msaa_samples,
-                tr.msaa_samples ? "yes" : "no (alpha-key blend fallback)");
+#ifdef BZ_USE_MSAA
+                tr.msaa_samples ? "alpha-to-coverage" : "blended fallback");
+#else
+                "hard discard");
+#endif
+        fprintf(stderr, "Bone palette: %u matrices from %d vertex uniform vectors\n",
+                (unsigned)tr.bone_count, uniform_vectors);
+        if (tr.bone_count < BZ_BONE_PALETTE_MAX)
+            fprintf(stderr, "OpenGL: only %u/%u bone matrices fit; complex models may animate incorrectly\n",
+                    (unsigned)tr.bone_count, BZ_BONE_PALETTE_MAX);
         R_PrintGLExtensions();
     }
     
@@ -551,7 +574,7 @@ void R_Init(DWORD width, DWORD height) {
     fprintf(stderr, "Refresher initialized.\n\n");
 }
 
-/* Alpha-key materials use sample coverage with depth writes; non-MSAA contexts retain a visible blended fallback. */
+/* Alpha-key shader variants discard without MSAA and convert alpha to sample coverage with it. */
 void R_SetAlphaKeyState(BOOL enabled) {
     if (!enabled) {
         R_Call(glDisable, GL_SAMPLE_ALPHA_TO_COVERAGE);
@@ -559,14 +582,17 @@ void R_SetAlphaKeyState(BOOL enabled) {
     }
 #ifdef USE_SHADOWMAPS
     if (is_rendering_lights) {
+#ifdef BZ_USE_MSAA
         /* TODO: Single-sample shadow targets need multisample depth coverage before alpha-key shadows can use ATOC. */
         R_Call(glDisable, GL_SAMPLE_ALPHA_TO_COVERAGE);
         R_Call(glEnable, GL_BLEND);
         R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         R_Call(glDepthMask, GL_FALSE);
         return;
+#endif
     }
 #endif
+#ifdef BZ_USE_MSAA
     if (tr.msaa_samples) {
         R_Call(glDisable, GL_BLEND);
         R_Call(glEnable, GL_SAMPLE_ALPHA_TO_COVERAGE);
@@ -578,6 +604,12 @@ void R_SetAlphaKeyState(BOOL enabled) {
         R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         R_Call(glDepthMask, GL_FALSE);
     }
+#else
+    R_Call(glDisable, GL_SAMPLE_ALPHA_TO_COVERAGE);
+    R_Call(glDisable, GL_BLEND);
+    R_Call(glBlendFunc, GL_ONE, GL_ZERO);
+    R_Call(glDepthMask, GL_TRUE);
+#endif
 }
 
 void R_Shutdown(void) {

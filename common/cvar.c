@@ -450,7 +450,7 @@ void Cvar_Init(void) {
     Cvar_GetD("com_frame_limit",  "0",                 0,            "cap frame rate in fps; 0=unlimited");
     Cvar_GetD("scr_showfps",      "1",                 CVAR_ARCHIVE, "show FPS counter on screen");
     Cvar_GetD("skip_cutscene",    "0",                 0,            "skip intro cutscene on startup");
-    Cvar_GetD("vid_mode",         "2",                 CVAR_ARCHIVE, "window mode: 0=windowed, 1=fullscreen, 2=borderless");
+    Cvar_GetD("vid_mode",         "0",                 CVAR_ARCHIVE, "resolution index: 0=640x480, 1=800x600, 2=1024x768, ...");
     Cvar_GetD("r_model_detail",   "2",                 CVAR_ARCHIVE, "model LOD quality: 0=low, 1=medium, 2=high");
     Cvar_GetD("r_anim_quality",   "2",                 CVAR_ARCHIVE, "animation interpolation quality: 0=off, 2=full");
     Cvar_GetD("r_texture_quality","2",                 CVAR_ARCHIVE, "texture mip level: 0=low, 1=medium, 2=full");
@@ -458,7 +458,6 @@ void Cvar_Init(void) {
     Cvar_GetD("r_lights",         "2",                 CVAR_ARCHIVE, "dynamic light count: 0=off, 1=minimal, 2=max");
     Cvar_GetD("r_unit_shadows",   "1",                 CVAR_ARCHIVE, "render blob shadows under units");
     Cvar_GetD("r_occlusion",      "1",                 CVAR_ARCHIVE, "frustum-cull off-screen entities");
-    Cvar_GetD("r_msaa",           "4",                 CVAR_ARCHIVE, "multisample anti-aliasing samples: 0, 2, 4, or 8");
     Cvar_GetD("r_vsync",          "0",                 CVAR_ARCHIVE, "vertical sync: 0=off (use for perf testing), 1=on");
     Cvar_GetD("r_stats",          "0",                 0,            "print per-frame draw/world stats to console each second");
     Cvar_GetD("r_entities",       "1",                 0,            "render game entities (units, buildings, etc.)");

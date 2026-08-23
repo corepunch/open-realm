@@ -84,6 +84,22 @@ Install SDL2 development libraries and build with a C compiler such as MSYS2/Min
 make build
 ```
 
+The default is an unoptimized diagnostic build. Build an optimized Warcraft III client with:
+
+```bash
+make clean
+make BUILD=release openwarcraft3
+```
+
+For low-power Linux/Mali devices such as the RG40XX, use native GLES 3.0, no MSAA, and the 640x480 default video mode:
+
+```bash
+make clean
+make BUILD=release GL_BACKEND=gles3 MSAA=0 openwarcraft3
+```
+
+Build configurations share `build/`; always run `make clean` when changing `BUILD`, `GL_BACKEND`, or `MSAA`. See [Build And Renderer Platforms](docs/build-and-renderer-platforms.md) for the API and alpha-coverage contracts.
+
 Compiles the engine and game libraries (`shared`, `jass`, `sheet`, `renderer`, `game`, `ui`) and the `open-realm` executable into `build/`.
 
 The default Warcraft III libraries are built from engine sources plus `games/warcraft-3/`. Warcraft III-specific script, sheet, game, renderer, UI, and test sources live under that tree. Alternate game builds use the same engine sources with `games/world-of-warcraft/` or `games/starcraft-2/`.
