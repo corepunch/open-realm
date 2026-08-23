@@ -50,6 +50,8 @@ static struct {
 };
 
 #define WOW_MAX_SPAWNS_PER_FRAME 64
+#define WOW_MAX_WALK_SLOPE_TAN 1.1917536f // rise/run; tan(50 degrees); blocks mountain faces while retaining authored ramps
+#define WOW_GROUND_EPSILON 0.01f // world units; distinguishes a terrain floor from a higher WMO floor at the same XY
 
 #define WOW_MAX_SPAWNS_PER_FRAME 64
 /* Per-frame spawn budget (declared extern in g_wow_local.h). */
@@ -577,6 +579,14 @@ FLOAT Wow_TerrainHeight(FLOAT x, FLOAT y) {
 }
 
 FLOAT Wow_FloorHeight(FLOAT x, FLOAT y, FLOAT z) { return CM_WowFloorHeight(x, y, z, 1.5f); }
+
+/* Terrain must obey the outdoor slope limit; reachable WMO steps use their authored collision floor instead. */
+BOOL Wow_TerrainMoveWalkable(LPCVECTOR3 from, LPCVECTOR3 to, FLOAT terrain) {
+    FLOAT dx, dy, dist;
+    if (fabsf(to->z - terrain) > WOW_GROUND_EPSILON) return true;
+    dx = to->x - from->x; dy = to->y - from->y; dist = sqrtf(dx * dx + dy * dy);
+    return fabsf(to->z - from->z) <= dist * WOW_MAX_WALK_SLOPE_TAN + WOW_GROUND_EPSILON;
+}
 
 static FLOAT Wow_ViewPitch(FLOAT wrapped_pitch) {
     return wrapped_pitch > 180.0f ? 360.0f - wrapped_pitch : -wrapped_pitch;
@@ -1844,6 +1854,7 @@ static void Wow_RunFrame(void) {
     FLOAT len;
     BOOL moving;
     BOOL locked;
+    VECTOR3 move_old, move_new;
 
     wow_spawns_this_frame = 0;
 
@@ -1872,14 +1883,19 @@ static void Wow_RunFrame(void) {
 
     len = sqrtf(dir.x * dir.x + dir.y * dir.y);
     moving = len > 0.001f;
+    move_old = ent->s.origin;
     ent->s.origin2 = (VECTOR2){ ent->s.origin.x, ent->s.origin.y };
+    move_new = ent->s.origin;
     if (moving) {
         FLOAT step = WOW_WALK_SPEED * ((FLOAT)FRAMETIME / 1000.0f) / len;
-        ent->s.origin.x += dir.x * step;
-        ent->s.origin.y += dir.y * step;
+        move_new.x += dir.x * step;
+        move_new.y += dir.y * step;
     }
     /* WMO floors, unlike ADT terrain, can sit above the outdoor ground inside buildings. */
-    ent->s.origin.z = Wow_FloorHeight(ent->s.origin.x, ent->s.origin.y, ent->s.origin.z);
+    move_new.z = Wow_FloorHeight(move_new.x, move_new.y, move_old.z);
+    /* The old XY-only move crossed steep terrain and WMO walls, exposing the ground below city shells. */
+    if (!moving || (!CM_WowMoveBlocked(&move_old, &move_new) &&
+        Wow_TerrainMoveWalkable(&move_old, &move_new, Wow_TerrainHeight(move_new.x, move_new.y)))) ent->s.origin = move_new;
     Wow_CheckAreaTriggers(ent); /* check dungeon/zone portals after position is settled */
     /* Run spell cast state machine before entity lock check.
      * Cast animation plays via Wow_AdvanceEntityFrame; cooldowns tick down. */

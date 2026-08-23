@@ -85,9 +85,9 @@ static void ref_fix_mocv(BYTE *colors, DWORD color_count,
                           BOOL exterior) {
     BOOL skip_base = (mohd_flags & 0x04) != 0;
     BOOL lighten   = (mohd_flags & 0x02) != 0;
-    BYTE ambR = skip_base ? 0 : amb.r;
-    BYTE ambG = skip_base ? 0 : amb.g;
-    BYTE ambB = skip_base ? 0 : amb.b;
+    BYTE ambR = skip_base || exterior ? 0 : amb.r;
+    BYTE ambG = skip_base || exterior ? 0 : amb.g;
+    BYTE ambB = skip_base || exterior ? 0 : amb.b;
     int begin_second = 0;
     DWORD i;
 
@@ -191,7 +191,7 @@ TEST(wow_wmo_mocv, batch_a_ambient_subtracted) {
     wowWmoBatchDef_t batch = { {0},{0}, 0, 3, 0, 0, 0, 0 };  /* last_vertex = 0 */
     COLOR32 amb = {64, 64, 64, 255}; /* .r=R .g=G .b=B */
     ref_fix_mocv(colors, 1, &batch, 1, 1 /*trans_batch_count=1 → split at vertex 1*/,
-                 amb, 0, true);
+                 amb, 0, false);
     T_EQ(colors[2], 68); /* R channel at byte +2 */
     T_EQ(colors[1], 58); /* G channel */
     T_EQ(colors[0], 48); /* B channel */
@@ -242,15 +242,15 @@ TEST(wow_wmo_mocv, lighten_flag_only_sets_ext_blend_alpha) {
     T_EQ(colors[1*4+3], 0xFF); /* exterior */
 }
 
-TEST(wow_wmo_mocv, batch_bc_alpha_additive_formula) {
+TEST(wow_wmo_mocv, exterior_batch_bc_does_not_subtract_indoor_ambient) {
     /* Batch-B/C formula: r' = (int)((R * (a_byte/255.f) / 64.f + R - ambR) / 2.f)
-       R=200, a_byte=128, ambR=50:
+       R=200, a_byte=128, exterior forces ambR=0:
          a_float = 128/255 ≈ 0.502
-         r' = (200*0.502/64 + 200 - 50) / 2 = (1.569 + 150) / 2 = 75.78 → 75 */
+         r' = (200*0.502/64 + 200) / 2 = (1.569 + 200) / 2 = 100.78 → 100 */
     BYTE colors[1 * 4] = { 0, 0, 200, 128 }; /* BGRA: R at [2]=200, A at [3]=128 */
     COLOR32 amb = {0, 0, 50, 255}; /* .b=0 .g=0 .r=50 .a=255 → ambR=50 */
     ref_fix_mocv(colors, 1, NULL, 0, 0, amb, 0, true);
-    T_EQ(colors[2], 75);
+    T_EQ(colors[2], 100);
     T_EQ(colors[3], 0xFF); /* exterior */
 }
 

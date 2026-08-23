@@ -391,6 +391,7 @@ void         G_FreeModels(void);
 FLOAT Wow_Clamp(FLOAT value, FLOAT min_value, FLOAT max_value);
 FLOAT Wow_TerrainHeight(FLOAT x, FLOAT y);
 FLOAT Wow_FloorHeight(FLOAT x, FLOAT y, FLOAT z);
+BOOL Wow_TerrainMoveWalkable(LPCVECTOR3 from, LPCVECTOR3 to, FLOAT terrain);
 DWORD Wow_EntityIndex(LPCEDICT ent);
 wowEntityLocal_t *Wow_EntityLocal(LPCEDICT ent);
 LPCANIMATION Wow_SetEntityAnimation(LPEDICT ent, LPCSTR animation_name);

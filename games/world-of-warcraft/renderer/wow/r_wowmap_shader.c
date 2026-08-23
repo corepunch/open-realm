@@ -159,14 +159,15 @@ void Wow_InitTerrainShader(void) {
     "        }\n"
     "    }\n"
     /* WMO path: MOCV was fixup-divided-by-2; multiply by 2 cancels that.
-       Ambient/MOLT are ADDITIVE (not multiplicative) and only apply to indoor
-       batches — exterior MOCV already has sun lighting pre-baked. v_lighting
-       (ambient + diffuse·N·L) is for terrain only; WMO lighting is baked into MOCV.
+       Interior MOCV is baked lighting plus authored WMO ambient/MOLT. Exterior
+       MOCV is an authored tint and receives the same outdoor directional light
+       as terrain; the 0.5 floor preserves surfaces with unusually dark/no MOCV.
        Terrain path: vertex color is white (vanilla has no MCCV) and the dynamic
        sun carried by v_lighting supplies the diffuse term. */
     "    if (uSingleTexture != 0) {\n"
-    "        float extBlend = v_color.a;\n"
-    "        color.rgb = color.rgb * 2.0 * v_color.rgb + (uWmoAmbient + uWmoLightAdd) * (1.0 - extBlend);\n"
+    "        vec3 mocv = 2.0 * v_color.rgb;\n"
+    "        if (uWmoIndoor != 0) color.rgb = color.rgb * mocv + uWmoAmbient + uWmoLightAdd;\n"
+    "        else color.rgb *= v_lighting * max(mocv, vec3(0.5));\n"
     "    } else {\n"
     "        color.rgb *= v_color.rgb * v_lighting;\n"
     "    }\n"

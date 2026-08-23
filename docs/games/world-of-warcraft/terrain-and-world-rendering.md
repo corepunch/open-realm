@@ -96,7 +96,12 @@ This is intentionally a first-pass ground-effect renderer. Exact client-style `G
 
 `CM_WowFloorHeight` extends that terrain result with WMO floors. The ADT cache retains lightweight `MWMO`/`MWID`/`MODF` instances; shared WMO collision geometry is loaded lazily only when a floor ray enters an instance bound. Root `MOHD` supplies the group count, and each group supplies `MOVT`/`MOVI` plus its authored collision BSP in `MOBN`/`MOBR`. `MOBR` is authoritative for which `MOVI` triangles belong to collision; do not discard those references using render-oriented `MOPY` flags. A bounded Northshire run measured 2,123 triangle tests for 300 floor calls (7.08 per query) instead of scanning all 9,453 Abbey triangles. If a WMO genuinely lacks `MOBN`/`MOBR`, the loader logs it, derives collision candidates from `MOPY`, and builds a 32x32 local-XZ index. Game movement owns the query; the client camera follows the replicated player entity Z and must not run the collision query again.
 
-This fixes buildings such as `World/WMO/Azeroth/Buildings/NSAbbey/NSAbbey.wmo`, whose floor sits above the outdoor ADT. It is a floor trace, not yet full capsule collision against WMO walls.
+Player movement applies two additional constraints before accepting that floor:
+
+- Outdoor terrain may change height only within a 50-degree walkable slope. This prevents the old XY-first movement from climbing or descending mountain faces into the terrain beneath city WMOs.
+- `CM_WowMoveBlocked` sweeps the player center and both cylinder edges at shin and chest height through nearby authored WMO BSP triangles. World-normal `abs(z) < 0.65` classifies walls; floor-like triangles remain owned by `CM_WowFloorHeight`. A WMO without BSP uses the same 32x32 collision grid instead of silently losing wall collision.
+
+The current sweep blocks the complete move rather than projecting the remainder along the hit plane. Add Quake-style slide movement if diagonal movement against walls needs to retain its tangential component; do not weaken or bypass the authored wall query.
 
 ## Doodads And WMOs
 
@@ -113,25 +118,30 @@ Game entities are not spawned for every ADT doodad. `games/world-of-warcraft/gam
 
 ### WMO lighting
 
-Classic WMO surface lighting is group-authored. Group `MOCV` stores BGRA baked vertex colors and `MONR` stores matching normals. Interior groups (`MOGP.flags & 0x2000`) use the baked color without outdoor directional lighting; exterior groups (`flags & 0x08`) retain world lighting and may use vertex color for authored accents. Keep indoor and outdoor geometry in separate material batches even when they share a texture, otherwise model-wide batching loses the lighting mode. Missing `MOCV` uses neutral `127,127,127`; it is not replaced with guessed ambient data.
+Classic WMO surface lighting is split by group ownership. Group `MOCV` stores BGRA vertex colors and `MONR` stores matching normals. Interior groups (`MOGP.flags & 0x2000`) use baked `MOCV` plus authored `MOHD`/`MOLT` contributions without outdoor directional lighting. Exterior groups receive the same synthesized outdoor ambient/directional term as terrain and use recovered `MOCV` as an authored tint. Keep indoor and outdoor geometry in separate material batches even when they share a texture, otherwise model-wide batching loses the lighting mode. Missing `MOCV` uses neutral `127,127,127`; it is not replaced with guessed ambient data.
 
 Northshire's `NSAbbey.wmo` confirms the contract in the shipped Classic data: 14 groups and 42 `MOLT` lights; its interior groups have matching `MOVT`/`MONR`/`MOCV` counts, while an exterior group has `MONR` but no `MOCV`. `MOLT` is not surface lighting: Classic format research identifies `MOCV` as the only lighting for interior WMO geometry and describes the root lights as inputs for M2 doodads and characters. Preserve `MOLT` for the future WMO-contained doodad lighting path; do not add its lights to WMO wall shading and double-light the baked result.
 
-The correct shader formula in `r_wowmap_shader.c`:
+The shader split in `r_wowmap_shader.c` is:
 
 ```glsl
-// WMO path: v_color.rgb is MOCV fixup-corrected (pre-baked lighting / 2)
-// 2× multiplication cancels the /2 in Wow_FixMocvAlpha
-color.rgb = color.rgb * 2.0 * v_color.rgb + (uWmoAmbient + uWmoLightAdd) * (1.0 - extBlend);
+vec3 mocv = 2.0 * v_color.rgb; // recover Wow_FixMocvAlpha's /2
+if (uWmoIndoor != 0)
+    color.rgb = color.rgb * mocv + uWmoAmbient + uWmoLightAdd;
+else
+    color.rgb *= v_lighting * max(mocv, vec3(0.5));
 ```
 
-Where `extBlend = v_color.a` (1.0 for exterior batches, 0.0 for interior). Key invariants:
+Key invariants:
 
-- `Wow_FixMocvAlpha` (CPU, `r_wowmap_objects.c`) divides raw BGRA values by 2. The shader 2× cancels only that division — it must not wrap the ambient/MOLT terms.
+- `Wow_FixMocvAlpha` (CPU, `r_wowmap_wmo.c`) divides raw BGRA values by 2. The shader 2× cancels only that division.
 - `uWmoAmbient` (`MOHD amb_color / 255`) and `uWmoLightAdd` (`Wow_ComputeMoltContribution`) are additive after the MOCV term, never inside the 2×.
-- `v_lighting` (N·L directional) is terrain-only. WMO geometry has baked normals; applying it doubles outdoor sun on pre-lit surfaces.
-- Ambient and MOLT apply only to interior batches (`1.0 - extBlend`): exterior MOCV already contains the outdoor sun bake.
-- **Overbright bug (old formula):** `color.rgb *= 2.0 * (ambient + lightAdd + MOCV + lighting * extBlend)`. For a neutral wall (`MOCV=0.5`, `lighting=0.75`): `2×(0.5+0.75) = 2.5×` — dramatically overbright.
+- `uWmoIndoor`, sourced from the batch's MOGP group, selects the branch. Do not reuse MOCV alpha as an indoor flag because batch-A vertices retain authored alpha.
+- Exterior `v_lighting` uses `MONR` and the same `ambient + diffuse·N·L` sun as terrain. The MOCV floor prevents malformed or absent colors from blacking out a facade.
+- **Old flat-light bug:** exterior batches used only recovered MOCV, so Stormwind walls did not react to sun direction even while adjacent terrain did.
+- **Old overbright bug:** `color.rgb *= 2.0 * (ambient + lightAdd + MOCV + lighting)`. For a neutral wall (`MOCV=0.5`, `lighting=0.75`), this produced `2×(0.5+0.75) = 2.5×`.
+
+The vendored WoWee reference uses the same ownership split in `data/WoWee/assets/shaders/wmo.frag.glsl`: interiors consume baked vertex color, while exterior groups use ambient plus directional light and multiply by a bounded vertex-color tint.
 
 The current opaque same-texture coalescing does not yet implement the full `MOMT` blend-mode and MOGP batch A/B/C ordering contract. Add material blend classification before enabling WMO transparency; keep transparent batches ordered rather than folding them into the opaque model-wide buffers.
 
@@ -166,6 +176,12 @@ A bounded Human-start comparison at yaw 0/90 confirmed that the direction spike 
 | yaw 90 | ~3,663 | 252 / 2,455 | 679 |
 
 The loaded 3x3 ADT window repeats `Stormwind.wmo` six times with the same authoritative MODF `unique_id=10047` and identical transform. **Fixed**: `Wow_AddWmoInstance` and `Wow_AddDoodadInstance` now track accepted non-zero `unique_id`s in `wowMap_t.placed_wmo_ids` / `placed_dood_ids` (dynamic arrays) and skip any placement whose id is already in the set. These arrays are freed in `Wow_FreeWmoInstances` / `Wow_FreeDoodadInstances`, which `Wow_ClearLoadedAdts` calls when the ADT window shifts. Do not deduplicate by path — distinct authored placements legitimately share a model. WoWee follows this exact ownership rule with `placedDoodadIds` and `placedWmoIds`.
+
+Stormwind's streets are WMO floors above the outdoor ADT, not misplaced geometry. Before slope and wall movement collision, a player could run over the mountains from Northshire and descend onto that underlying terrain, leaving the correctly placed city overhead. The official `warp stormwind` destination `(-9152.0, 410.9, 92.9)` loads `World/WMO/Azeroth/Buildings/Stormwind/Stormwind.wmo`; the local 1.5 archive reports 906,888 retained collision triangles. Verify the supported entrance path with:
+
+```sh
+make run-wow ARGS="+map playercreate +warp stormwind +com_frame_limit 160"
+```
 
 After placement deduplication, retain per-group frustum/fog culling and implement conservative interior portal traversal. The retail 1.12.1 client organizes the frame as a scene walk over spatial cells, performs per-kind frustum plus optional occlusion rejection, appends survivors to intrusive render lists, and drains terrain, WMO, doodad, M2, liquid, and far-band passes separately. Its WMO renderer has distinct inside/outside portal visibility and a portal flood. This is the appropriate architecture target; rendering every WMO-embedded doodad buffer unconditionally is not.
 

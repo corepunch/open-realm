@@ -58,6 +58,20 @@ TEST(wow_smoke, wmo_bsp_traversal) {
     T_ASSERT(!CM_WowTestBspRay(&start, &end, &fraction));
 }
 
+TEST(wow_smoke, wmo_wall_trace_rejects_floor_triangles) {
+    T_ASSERT(CM_WowTestWallRay(true));
+    T_ASSERT(!CM_WowTestWallRay(false));
+}
+
+TEST(wow_smoke, terrain_slope_blocks_mountains_but_not_wmo_steps) {
+    VECTOR3 from = { 0, 0, 0 }, gentle = { 0.7f, 0, 0.5f }, steep = { 0.7f, 0, 1.0f };
+    T_ASSERT(Wow_TerrainMoveWalkable(&from, &gentle, gentle.z));
+    T_ASSERT(!Wow_TerrainMoveWalkable(&from, &steep, steep.z));
+    T_ASSERT(Wow_TerrainMoveWalkable(&from, &steep, 0.0f));
+    steep.z = -1.0f;
+    T_ASSERT(!Wow_TerrainMoveWalkable(&from, &steep, steep.z));
+}
+
 TEST(wow_smoke, missing_m2_uses_fallback_model_and_disables_static_instancing) {
     model_t model = { 0 };
     struct { void *file; } fake = { NULL };

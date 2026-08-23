@@ -13,6 +13,10 @@
 #define CM_WOW_WMO_COLLISION  0x08
 #define CM_WOW_WMO_RENDER     0x20
 #define CM_WOW_WMO_GRID 32
+#define CM_WOW_PLAYER_RADIUS 0.50f // world units; horizontal player cylinder radius; used by swept WMO wall rays
+#define CM_WOW_PLAYER_LOW_Z 0.35f // world units above feet; catches low walls without treating floors as walls
+#define CM_WOW_PLAYER_HIGH_Z 1.50f // world units above feet; catches full-height WMO walls and doors
+#define CM_WOW_WALL_NORMAL_Z 0.65f // abs world normal Z; surfaces below this up component block horizontal movement
 
 typedef struct {
     VECTOR3 a, b, c;
@@ -56,6 +60,15 @@ typedef struct cmWowWmoInstance_s {
     cmWowWmoModel_t *model;
     struct cmWowWmoInstance_s *next;
 } cmWowWmoInstance_t;
+
+typedef struct {
+    cmWowWmoModel_t const *model;
+    cmWowWmoGroup_t const *group;
+    cmWowWmoInstance_t const *instance;
+    LPCVECTOR3 start, end;
+    FLOAT best;
+    BOOL walls_only;
+} cmWowTrace_t;
 
 typedef struct {
     BOOL    has_heights;
@@ -560,30 +573,45 @@ BOOL CM_WowRayTriangle(LPCVECTOR3 start, LPCVECTOR3 end, LPCVECTOR3 a, LPCVECTOR
     *fraction = hit; return true;
 }
 
+/* A WMO triangle blocks horizontal movement only when its transformed normal is wall-like. */
+static BOOL CM_WowTriangleIsWall(cmWowWmoInstance_t const *instance, cmWowWmoTri_t const *tri) {
+    VECTOR3 ab = Vector3_sub(&tri->b, &tri->a), ac = Vector3_sub(&tri->c, &tri->a);
+    VECTOR3 n = Vector3_cross(&ab, &ac), tip = Vector3_add(&tri->a, &n);
+    VECTOR3 world_a = Matrix4_multiply_vector3(&instance->matrix, &tri->a);
+    VECTOR3 world_tip = Matrix4_multiply_vector3(&instance->matrix, &tip);
+    VECTOR3 world_n = Vector3_sub(&world_tip, &world_a);
+    if (Vector3_len(&world_n) < 0.000001f) return false;
+    Vector3_normalize(&world_n);
+    return fabsf(world_n.z) < CM_WOW_WALL_NORMAL_Z;
+}
+
 /* Traverse the file-authored CAaBsp tree; MOBR leaves point back to MOVI triangles through the retained map. */
-static void CM_WowTraceWmoBsp(cmWowWmoModel_t const *model, cmWowWmoGroup_t const *group, LONG node_index,
-                              LPCVECTOR3 start, LPCVECTOR3 end, FLOAT *best, DWORD depth) {
+static void CM_WowTraceWmoBsp(cmWowTrace_t *trace, LONG node_index, DWORD depth) {
     cmWowWmoBspNode_t const *node;
     FLOAT a, b;
     int axis;
-    if (node_index < 0 || (DWORD)node_index >= group->node_count || depth > group->node_count) return;
-    node = group->nodes + node_index;
-    for (DWORD i = node->first_face; i < node->first_face + node->face_count && i < group->triangle_count; i++) {
-        DWORD index = group->triangles[i];
+    if (node_index < 0 || (DWORD)node_index >= trace->group->node_count || depth > trace->group->node_count) return;
+    node = trace->group->nodes + node_index;
+    for (DWORD i = node->first_face; i < node->first_face + node->face_count && i < trace->group->triangle_count; i++) {
+        DWORD index = trace->group->triangles[i];
+        cmWowWmoTri_t const *tri;
         FLOAT hit;
-        if (index < model->count && CM_WowRayTriangle(start, end, &model->triangles[index].a,
-            &model->triangles[index].b, &model->triangles[index].c, &hit) && hit < *best) *best = hit;
+        if (index >= trace->model->count) continue;
+        tri = trace->model->triangles + index;
+        if (trace->walls_only && !CM_WowTriangleIsWall(trace->instance, tri)) continue;
+        if (CM_WowRayTriangle(trace->start, trace->end, &tri->a, &tri->b, &tri->c, &hit) && hit < trace->best)
+            trace->best = hit;
     }
     if (node->flags & 0x04) return;
     axis = node->flags & 0x03;
     if (axis > 2) return;
-    a = ((FLOAT const *)start)[axis] - node->distance; b = ((FLOAT const *)end)[axis] - node->distance;
-    if (a <= 0.0f && b <= 0.0f) CM_WowTraceWmoBsp(model, group, node->children[0], start, end, best, depth + 1);
-    else if (a >= 0.0f && b >= 0.0f) CM_WowTraceWmoBsp(model, group, node->children[1], start, end, best, depth + 1);
+    a = ((FLOAT const *)trace->start)[axis] - node->distance; b = ((FLOAT const *)trace->end)[axis] - node->distance;
+    if (a <= 0.0f && b <= 0.0f) CM_WowTraceWmoBsp(trace, node->children[0], depth + 1);
+    else if (a >= 0.0f && b >= 0.0f) CM_WowTraceWmoBsp(trace, node->children[1], depth + 1);
     else {
         int near = a <= 0.0f ? 0 : 1;
-        CM_WowTraceWmoBsp(model, group, node->children[near], start, end, best, depth + 1);
-        CM_WowTraceWmoBsp(model, group, node->children[1 - near], start, end, best, depth + 1);
+        CM_WowTraceWmoBsp(trace, node->children[near], depth + 1);
+        CM_WowTraceWmoBsp(trace, node->children[1 - near], depth + 1);
     }
 }
 
@@ -598,8 +626,26 @@ BOOL CM_WowTestBspRay(LPCVECTOR3 start, LPCVECTOR3 end, FLOAT *fraction) {
     DWORD refs[] = { 0 };
     cmWowWmoModel_t model = { .triangles = triangles, .count = 1 };
     cmWowWmoGroup_t group = { .nodes = nodes, .node_count = 3, .triangles = refs, .triangle_count = 1 };
-    *fraction = 2.0f; CM_WowTraceWmoBsp(&model, &group, 0, start, end, fraction, 0);
-    return *fraction <= 1.0f;
+    cmWowTrace_t trace = { .model = &model, .group = &group, .start = start, .end = end, .best = 2.0f };
+    CM_WowTraceWmoBsp(&trace, 0, 0); *fraction = trace.best;
+    return trace.best <= 1.0f;
+}
+
+BOOL CM_WowTestWallRay(BOOL wall) {
+    cmWowWmoTri_t triangle = wall
+        ? (cmWowWmoTri_t){ .a = { 0, 0, 0 }, .b = { 0, 1, 0 }, .c = { 0, 0, 1 } }
+        : (cmWowWmoTri_t){ .a = { 0, 0, 0 }, .b = { 1, 0, 0 }, .c = { 0, 1, 0 } };
+    cmWowWmoBspNode_t node = { .flags = 4, .face_count = 1 };
+    DWORD ref = 0;
+    cmWowWmoModel_t model = { .triangles = &triangle, .count = 1 };
+    cmWowWmoGroup_t group = { .nodes = &node, .node_count = 1, .triangles = &ref, .triangle_count = 1 };
+    cmWowWmoInstance_t instance;
+    VECTOR3 start = wall ? (VECTOR3){ -1, .25f, .25f } : (VECTOR3){ .25f, .25f, 1 };
+    VECTOR3 end = wall ? (VECTOR3){ 1, .25f, .25f } : (VECTOR3){ .25f, .25f, -1 };
+    cmWowTrace_t trace = { .model = &model, .group = &group, .instance = &instance,
+                           .start = &start, .end = &end, .best = 2.0f, .walls_only = true };
+    Matrix4_identity(&instance.matrix); CM_WowTraceWmoBsp(&trace, 0, 0);
+    return trace.best <= 1.0f;
 }
 #endif
 
@@ -628,13 +674,14 @@ FLOAT CM_WowFloorHeight(FLOAT sx, FLOAT sy, FLOAT ref_z, FLOAT step_up) {
         if (!instance->model->missing_bsp) {
             FOR_LOOP(i, instance->model->group_count) {
                 cmWowWmoGroup_t const *group = instance->model->groups + i;
-                FLOAT fraction = 2.0f;
+                cmWowTrace_t trace = { .model = instance->model, .group = group, .instance = instance,
+                                       .start = &start, .end = &finish, .best = 2.0f };
                 VECTOR3 local_hit, world_hit;
                 if (seg_max.x < group->bounds.min.x || seg_min.x > group->bounds.max.x || seg_max.y < group->bounds.min.y ||
                     seg_min.y > group->bounds.max.y || seg_max.z < group->bounds.min.z || seg_min.z > group->bounds.max.z) continue;
-                CM_WowTraceWmoBsp(instance->model, group, 0, &start, &finish, &fraction, 0);
-                if (fraction > 1.0f) continue;
-                local_hit = Vector3_lerp(&start, &finish, fraction);
+                CM_WowTraceWmoBsp(&trace, 0, 0);
+                if (trace.best > 1.0f) continue;
+                local_hit = Vector3_lerp(&start, &finish, trace.best);
                 world_hit = Matrix4_multiply_vector3(&instance->matrix, &local_hit);
                 if (world_hit.z <= top + 0.001f && world_hit.z > best) best = world_hit.z;
             }
@@ -660,6 +707,83 @@ FLOAT CM_WowFloorHeight(FLOAT sx, FLOAT sy, FLOAT ref_z, FLOAT step_up) {
         }
     }
     return best;
+}
+
+/* Test one player-height ray against authored WMO walls, using BSP or the existing fallback grid. */
+static BOOL CM_WowInstanceWallRay(cmWowWmoInstance_t *instance, LPCVECTOR3 world_start, LPCVECTOR3 world_end) {
+    VECTOR3 start, finish, seg_min, seg_max;
+    if (!instance->model) instance->model = CM_WowGetWmoModel(instance->path);
+    if (!instance->model) return false;
+    start = Matrix4_multiply_vector3(&instance->inverse, world_start);
+    finish = Matrix4_multiply_vector3(&instance->inverse, world_end);
+    seg_min = (VECTOR3){ MIN(start.x,finish.x), MIN(start.y,finish.y), MIN(start.z,finish.z) };
+    seg_max = (VECTOR3){ MAX(start.x,finish.x), MAX(start.y,finish.y), MAX(start.z,finish.z) };
+    if (!instance->model->missing_bsp) {
+        FOR_LOOP(i, instance->model->group_count) {
+            cmWowWmoGroup_t const *group = instance->model->groups + i;
+            cmWowTrace_t trace = { .model = instance->model, .group = group, .instance = instance,
+                                   .start = &start, .end = &finish, .best = 2.0f, .walls_only = true };
+            if (seg_max.x < group->bounds.min.x || seg_min.x > group->bounds.max.x || seg_max.y < group->bounds.min.y ||
+                seg_min.y > group->bounds.max.y || seg_max.z < group->bounds.min.z || seg_min.z > group->bounds.max.z) continue;
+            CM_WowTraceWmoBsp(&trace, 0, 0);
+            if (trace.best <= 1.0f) return true;
+        }
+    } else {
+        int x0 = CM_WowWmoCell(seg_min.x, instance->model->bounds.min.x, instance->model->bounds.max.x);
+        int x1 = CM_WowWmoCell(seg_max.x, instance->model->bounds.min.x, instance->model->bounds.max.x);
+        int z0 = CM_WowWmoCell(seg_min.z, instance->model->bounds.min.z, instance->model->bounds.max.z);
+        int z1 = CM_WowWmoCell(seg_max.z, instance->model->bounds.min.z, instance->model->bounds.max.z);
+        for (int z = z0; z <= z1; z++) for (int x = x0; x <= x1; x++) {
+            DWORD cell = z * CM_WOW_WMO_GRID + x;
+            for (DWORD j = instance->model->cell_offsets[cell]; j < instance->model->cell_offsets[cell + 1]; j++) {
+                cmWowWmoTri_t const *tri = instance->model->triangles + instance->model->cell_triangles[j];
+                FLOAT fraction;
+                if (seg_max.x < tri->bounds.min.x || seg_min.x > tri->bounds.max.x || seg_max.y < tri->bounds.min.y ||
+                    seg_min.y > tri->bounds.max.y || seg_max.z < tri->bounds.min.z || seg_min.z > tri->bounds.max.z ||
+                    !CM_WowTriangleIsWall(instance, tri)) continue;
+                if (CM_WowRayTriangle(&start, &finish, &tri->a, &tri->b, &tri->c, &fraction)) return true;
+            }
+        }
+    }
+    return false;
+}
+
+/* Sweep center and cylinder-edge rays at shin/chest height so walls cannot be crossed or edge-clipped. */
+BOOL CM_WowMoveBlocked(LPCVECTOR3 from, LPCVECTOR3 to) {
+    cmWowAdtHeightCache_t *cache[2] = { NULL, NULL };
+    VECTOR2 move = { to->x - from->x, to->y - from->y };
+    FLOAT len = sqrtf(move.x * move.x + move.y * move.y);
+    int tile_x[2] = { CM_WowAdtIndexForWorldCoord(from->y), CM_WowAdtIndexForWorldCoord(to->y) };
+    int tile_y[2] = { CM_WowAdtIndexForWorldCoord(from->x), CM_WowAdtIndexForWorldCoord(to->x) };
+    if (len < 0.0001f) return false;
+    FOR_LOOP(k, 2) {
+        if (k && tile_x[k] == tile_x[0] && tile_y[k] == tile_y[0]) { cache[k] = cache[0]; continue; }
+        if (tile_x[k] < 0 || tile_x[k] >= 64 || tile_y[k] < 0 || tile_y[k] >= 64) continue;
+        CM_WowLoadAdtHeights(tile_x[k], tile_y[k]);
+        FOR_LOOP(i, CM_WOW_HEIGHT_CACHE_TILES)
+            if (cm_wow_height_cache[i].loaded && cm_wow_height_cache[i].tile_x == tile_x[k] &&
+                cm_wow_height_cache[i].tile_y == tile_y[k]) { cache[k] = cm_wow_height_cache + i; break; }
+    }
+    move.x = -move.y / len * CM_WOW_PLAYER_RADIUS; move.y = (to->x - from->x) / len * CM_WOW_PLAYER_RADIUS;
+    FOR_LOOP(k, 2) {
+        if (!cache[k] || (k && cache[k] == cache[0])) continue;
+        for (cmWowWmoInstance_t *instance = cache[k]->wmos; instance; instance = instance->next) {
+            if (MAX(from->x,to->x) + CM_WOW_PLAYER_RADIUS < instance->bounds.min.x ||
+                MIN(from->x,to->x) - CM_WOW_PLAYER_RADIUS > instance->bounds.max.x ||
+                MAX(from->y,to->y) + CM_WOW_PLAYER_RADIUS < instance->bounds.min.y ||
+                MIN(from->y,to->y) - CM_WOW_PLAYER_RADIUS > instance->bounds.max.y ||
+                MAX(from->z,to->z) + CM_WOW_PLAYER_HIGH_Z < instance->bounds.min.z ||
+                MIN(from->z,to->z) + CM_WOW_PLAYER_LOW_Z > instance->bounds.max.z) continue;
+            FOR_LOOP(side, 3) FOR_LOOP(level, 2) {
+                FLOAT off = side == 1 ? 1.0f : side == 2 ? -1.0f : 0.0f;
+                FLOAT z = level ? CM_WOW_PLAYER_HIGH_Z : CM_WOW_PLAYER_LOW_Z;
+                VECTOR3 a = { from->x + move.x * off, from->y + move.y * off, from->z + z };
+                VECTOR3 b = { to->x + move.x * off, to->y + move.y * off, to->z + z };
+                if (CM_WowInstanceWallRay(instance, &a, &b)) return true;
+            }
+        }
+    }
+    return false;
 }
 
 static BOOL CM_WowBarycentricHeight(float px, float py,
