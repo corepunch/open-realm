@@ -148,6 +148,11 @@ incoming tutorial-window requests when it is `0`; the check box changes it
 through the UI cvar import. Missing localized tutorial keys emit a `UIWow:`
 diagnostic instead of displaying an empty panel.
 
+The Okay button follows the XML button press/release contract: left mouse down
+swaps the art to `UI-Panel-Button-Down` and arms `tutorial_okay_pressed`, and
+left mouse up over the button closes the panel. Releasing off the button clears
+the pressed state without closing.
+
 The remaining work is persistence, localization keys instead of the initial
 literal quest text, close/focus behavior for multiple windows, and moving the
 existing server-positioned quest/inventory panels onto the same client window

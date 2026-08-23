@@ -84,6 +84,7 @@ typedef struct {
     DWORD tutorial_alerts[WOW_UI_MAX_TUTORIAL_ALERTS];
     DWORD tutorial_alert_count;
     BOOL tutorial_open;
+    BOOL tutorial_okay_pressed;
     char tutorial_title[WOW_UI_MESSAGE_TITLE];
     char tutorial_body[WOW_UI_MESSAGE_BODY];
     char tutorial_check[64];
@@ -149,6 +150,7 @@ void UIWow_DrawLoadingScreenC(LPCSTR map, LPCSTR status, FLOAT progress);
 void UIWow_ShowWindow(const char *window_id, int show);
 void UIWow_DrawWindows(void);
 BOOL UIWow_WindowMouseDown(float nx, float ny);
+BOOL UIWow_WindowMouseUp(float nx, float ny);
 void UIWow_ShutdownWindows(void);
 BOOL UIWow_TipsEnabled(void);
 BOOL UIWow_ShowTip(DWORD id);

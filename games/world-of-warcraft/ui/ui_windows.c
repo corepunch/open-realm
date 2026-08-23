@@ -56,6 +56,7 @@ static BOOL UIWow_LoadTutorialText(DWORD id) {
 BOOL UIWow_ShowTip(DWORD id) {
     wow_ui.tutorial_open = UIWow_TipsEnabled() && UIWow_LoadTutorialText(id);
     wow_ui.tutorial_id = wow_ui.tutorial_open ? id : 0;
+    if (!wow_ui.tutorial_open) wow_ui.tutorial_okay_pressed = false;
     return wow_ui.tutorial_open;
 }
 
@@ -78,7 +79,7 @@ void UIWow_ShowWindow(const char *window_id, int show) {
     if (!window_id || !window_id[0]) return;
     if (!strcmp(window_id, "TutorialFrame")) {
         if (show) UIWow_ShowTip(42);
-        else { wow_ui.tutorial_open = false; wow_ui.tutorial_id = 0; }
+        else { wow_ui.tutorial_open = false; wow_ui.tutorial_id = 0; wow_ui.tutorial_okay_pressed = false; }
         return;
     }
 
@@ -98,20 +99,38 @@ void UIWow_ShowWindow(const char *window_id, int show) {
     UIWow_XMLSetFrameVisible(window_id, true);
 }
 
+/* Compute the tutorial panel geometry once so the rendered art and the input
+ * hit regions never diverge.  Anchored above the action bar and sized by the
+ * localized body text using the TutorialFrame.xml measurements. */
+typedef struct {
+    RECT frame;      /* backdrop */
+    RECT check_box;  /* 24x24 check box art */
+    RECT check_hit;  /* check box + label click region */
+    RECT okay;       /* Okay button */
+    VECTOR2 body;    /* wrapped body text size */
+} uiWowTipLayout_t;
+
+static uiWowTipLayout_t UIWow_TipLayout(void) {
+    uiWowTipLayout_t l;
+    l.body = wow_ui.renderer->GetTextSize(&MAKE(drawText_t, .font = UIWow_LoadFont(14), .text = wow_ui.tutorial_body,
+        .rect = MAKE(RECT,0,0,UIWow_TipX(210),1), .textWidth = UIWow_TipX(210), .lineHeight = 1.15f,
+        .flags = DRAW_WORD_WRAP, .halign = FONT_JUSTIFYLEFT, .valign = FONT_JUSTIFYTOP));
+    FLOAT h = MAX(UIWow_TipY(128), l.body.y + UIWow_TipY(62));
+    l.frame = MAKE(RECT, 0.5f-UIWow_TipX(WOW_TIP_WIDTH)*0.5f, 0.5f+UIWow_TipY(WOW_TIP_BOTTOM_OFFSET)-h,
+                   UIWow_TipX(WOW_TIP_WIDTH), h);
+    l.check_box = MAKE(RECT, l.frame.x+UIWow_TipX(5), l.frame.y+l.frame.h-UIWow_TipY(29), UIWow_TipX(24), UIWow_TipY(24));
+    l.check_hit = MAKE(RECT, l.frame.x+UIWow_TipX(5), l.frame.y+l.frame.h-UIWow_TipY(29), UIWow_TipX(119), UIWow_TipY(24));
+    l.okay = MAKE(RECT, l.frame.x+l.frame.w-UIWow_TipX(83), l.frame.y+l.frame.h-UIWow_TipY(28), UIWow_TipX(76), UIWow_TipY(21));
+    return l;
+}
+
 void UIWow_DrawWindows(void) {
     drawBackdrop_t backdrop = {0}; drawText_t text = {0}; drawImage_t image = {0};
-    RECT frame, body, check, okay; VECTOR2 size; FLOAT h;
+    RECT check, okay;
     UIWow_XMLDraw();
     if (!wow_ui.tutorial_open) return;
-    body = MAKE(RECT, 0, 0, UIWow_TipX(210), 1);
-    text = MAKE(drawText_t, .font = UIWow_LoadFont(14), .text = wow_ui.tutorial_body, .rect = body,
-        .color = COLOR32_WHITE, .textWidth = body.w, .lineHeight = 1.15f, .flags = DRAW_WORD_WRAP,
-        .halign = FONT_JUSTIFYLEFT, .valign = FONT_JUSTIFYTOP);
-    size = wow_ui.renderer->GetTextSize(&text);
-    h = MAX(UIWow_TipY(128), size.y + UIWow_TipY(62));
-    frame = MAKE(RECT, 0.5f-UIWow_TipX(WOW_TIP_WIDTH)*0.5f, 0.5f+UIWow_TipY(WOW_TIP_BOTTOM_OFFSET)-h,
-                 UIWow_TipX(WOW_TIP_WIDTH), h);
-    backdrop.screen = frame;
+    uiWowTipLayout_t l = UIWow_TipLayout();
+    backdrop.screen = l.frame;
     backdrop.bg.texture = UIWow_LoadTexture("Interface\\TutorialFrame\\TutorialFrameBackground");
     backdrop.bg.color = backdrop.edge.color = COLOR32_WHITE;
     backdrop.edge.texture = UIWow_LoadTexture("Interface\\Tooltips\\UI-Tooltip-Border");
@@ -121,14 +140,14 @@ void UIWow_DrawWindows(void) {
     backdrop.flags = DRAW_TILE;
     wow_ui.renderer->DrawBackdrop(&backdrop);
     text = MAKE(drawText_t, .font = UIWow_LoadFont(14), .text = wow_ui.tutorial_title,
-        .rect = MAKE(RECT, frame.x+UIWow_TipX(10), frame.y+UIWow_TipY(9), UIWow_TipX(210), UIWow_TipY(18)),
+        .rect = MAKE(RECT, l.frame.x+UIWow_TipX(10), l.frame.y+UIWow_TipY(9), UIWow_TipX(210), UIWow_TipY(18)),
         .color = MAKE(COLOR32,255,209,0,255), .textWidth = UIWow_TipX(210), .lineHeight = UIWow_TipY(18),
         .halign = FONT_JUSTIFYLEFT, .valign = FONT_JUSTIFYTOP);
     wow_ui.renderer->DrawText(&text);
-    text.text = wow_ui.tutorial_body; text.rect = MAKE(RECT, frame.x+UIWow_TipX(10), frame.y+UIWow_TipY(29), UIWow_TipX(210), size.y);
+    text.text = wow_ui.tutorial_body; text.rect = MAKE(RECT, l.frame.x+UIWow_TipX(10), l.frame.y+UIWow_TipY(29), UIWow_TipX(210), l.body.y);
     text.color = COLOR32_WHITE; text.textWidth = UIWow_TipX(210); text.lineHeight = 1.15f; text.flags = DRAW_WORD_WRAP;
     wow_ui.renderer->DrawText(&text);
-    check = MAKE(RECT, frame.x+UIWow_TipX(5), frame.y+frame.h-UIWow_TipY(29), UIWow_TipX(24), UIWow_TipY(24));
+    check = l.check_box;
     image = MAKE(drawImage_t, .texture = UIWow_LoadTexture("Interface\\Buttons\\UI-CheckBox-Up"), .shader = SHADER_UI,
         .alphamode = BLEND_MODE_BLEND, .screen = check, .uv = MAKE(RECT,0,0,1,1), .color = COLOR32_WHITE);
     wow_ui.renderer->DrawImageEx(&image);
@@ -137,8 +156,9 @@ void UIWow_DrawWindows(void) {
         .rect = MAKE(RECT, check.x+check.w, check.y, UIWow_TipX(95), check.h), .color = MAKE(COLOR32,255,209,0,255),
         .textWidth = UIWow_TipX(95), .lineHeight = check.h, .halign = FONT_JUSTIFYLEFT, .valign = FONT_JUSTIFYMIDDLE);
     wow_ui.renderer->DrawText(&text);
-    okay = MAKE(RECT, frame.x+frame.w-UIWow_TipX(83), frame.y+frame.h-UIWow_TipY(28), UIWow_TipX(76), UIWow_TipY(21));
-    image.texture = UIWow_LoadTexture("Interface\\Buttons\\UI-Panel-Button-Up"); image.screen = okay;
+    okay = l.okay;
+    image.texture = UIWow_LoadTexture(wow_ui.tutorial_okay_pressed ? "Interface\\Buttons\\UI-Panel-Button-Down" : "Interface\\Buttons\\UI-Panel-Button-Up");
+    image.screen = okay;
     image.uv = MAKE(RECT,0,0,0.625f,0.6875f); wow_ui.renderer->DrawImageEx(&image);
     text = MAKE(drawText_t, .font = UIWow_LoadFont(12), .text = wow_ui.tutorial_okay, .rect = okay,
         .color = MAKE(COLOR32,255,209,0,255), .textWidth = okay.w, .lineHeight = okay.h,
@@ -147,26 +167,30 @@ void UIWow_DrawWindows(void) {
 }
 
 BOOL UIWow_WindowMouseDown(float nx, float ny) {
-    FLOAT h; VECTOR2 size; RECT frame, check, okay;
     if (wow_ui.tutorial_open) {
-        size = wow_ui.renderer->GetTextSize(&MAKE(drawText_t, .font = UIWow_LoadFont(14), .text = wow_ui.tutorial_body,
-            .rect = MAKE(RECT,0,0,UIWow_TipX(210),1), .textWidth = UIWow_TipX(210), .lineHeight = 1.15f,
-            .flags = DRAW_WORD_WRAP, .halign = FONT_JUSTIFYLEFT, .valign = FONT_JUSTIFYTOP));
-        h = MAX(UIWow_TipY(128), size.y + UIWow_TipY(62));
-        frame = MAKE(RECT, 0.5f-UIWow_TipX(WOW_TIP_WIDTH)*0.5f, 0.5f+UIWow_TipY(WOW_TIP_BOTTOM_OFFSET)-h,
-                     UIWow_TipX(WOW_TIP_WIDTH), h);
-        check = MAKE(RECT, frame.x+UIWow_TipX(5), frame.y+frame.h-UIWow_TipY(29), UIWow_TipX(119), UIWow_TipY(24));
-        okay = MAKE(RECT, frame.x+frame.w-UIWow_TipX(83), frame.y+frame.h-UIWow_TipY(28), UIWow_TipX(76), UIWow_TipY(21));
-        if (Rect_contains(&check, &MAKE(VECTOR2,nx,ny))) {
+        uiWowTipLayout_t l = UIWow_TipLayout();
+        if (Rect_contains(&l.check_hit, &MAKE(VECTOR2,nx,ny))) {
             uiimport.Cvar_Set(BZ_WOW_CVAR_SHOW_TIPS, UIWow_TipsEnabled() ? "0" : "1");
             if (!UIWow_TipsEnabled()) wow_ui.tutorial_alert_count = 0;
             return true;
         }
-        if (Rect_contains(&okay, &MAKE(VECTOR2,nx,ny))) { wow_ui.tutorial_open = false; return true; }
+        if (Rect_contains(&l.okay, &MAKE(VECTOR2,nx,ny))) { wow_ui.tutorial_okay_pressed = true; return true; }
     }
     LPCSTR onclick = UIWow_XMLHitButton(nx, ny);
     if (!onclick) return false;
     if (uiimport.ServerCommand) uiimport.ServerCommand(onclick);
+    return true;
+}
+
+/* The Okay button closes on release, not press: mouse down only arms the
+ * pushed visual.  Matches the XML button handler's press/release contract. */
+BOOL UIWow_WindowMouseUp(float nx, float ny) {
+    if (!wow_ui.tutorial_okay_pressed) return false;
+    wow_ui.tutorial_okay_pressed = false;
+    if (wow_ui.tutorial_open) {
+        uiWowTipLayout_t l = UIWow_TipLayout();
+        if (Rect_contains(&l.okay, &MAKE(VECTOR2,nx,ny))) wow_ui.tutorial_open = false;
+    }
     return true;
 }
 

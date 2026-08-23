@@ -18,7 +18,7 @@ uiImport_t uiimport;
 uiWowState_t wow_ui;
 
 static BOOL uiWow_menu_commands_registered;
-static BOOL UIWow_GameOverlayMouseDown(int x, int y);
+static BOOL UIWow_GameOverlayMouseEvent(uiMouseEvent_t event, int x, int y);
 
 #define WOW_TIP_ALERT_Y 671.0f // UI pixels; TutorialFrame.xml anchors alerts 55px above the bottom edge
 #define WOW_TIP_ALERT_W 34.0f // UI pixels; TutorialFrameAlert visible crop width
@@ -356,7 +356,7 @@ static void UIWow_TextInput(LPCSTR text) {
 static BOOL UIWow_MouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
     VECTOR2 mouse_pos;
     if (wow_ui.game_mode)
-        return event == UI_MOUSE_DOWN && UIWow_GameOverlayMouseDown(x, y);
+        return UIWow_GameOverlayMouseEvent(event, x, y);
     if (UIWow_XMLMouseEvent(event, x, y, param)) {
         return true;
     }
@@ -549,9 +549,12 @@ static void UIWow_GameCommand(LPCSTR command, void const *data, DWORD size) {
         UIWow_Printf("UIWow: unsupported game command '%s' (%u bytes)\n", command, (unsigned)size);
 }
 
-static BOOL UIWow_GameOverlayMouseDown(int x, int y) {
+static BOOL UIWow_GameOverlayMouseEvent(uiMouseEvent_t event, int x, int y) {
     VECTOR2 pos = UIWow_MouseFdf(x, y);
     DWORD unread = 0;
+
+    if (event == UI_MOUSE_UP) return UIWow_WindowMouseUp(pos.x, pos.y);
+    if (event != UI_MOUSE_DOWN) return false;
 
     if (UIWow_WindowMouseDown(pos.x, pos.y)) return true;
 
