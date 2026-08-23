@@ -110,9 +110,12 @@ show a false bar and remote-unit cast bars can use the same contract.
 
 ## Movement Facing and Directional Animation
 
-The player keeps its facing yaw while strafing or backpedaling, matching WoW's movement model. A/D moves laterally and uses
-the normal locomotion animation; `ShuffleLeft`/`ShuffleRight` are turn animations and must not be used for strafe input.
-Pure S movement selects `WalkBackwards`; forward or diagonal movement selects `Run`.
+The player's facing is derived server-side from the movement direction vector (`atan2(dir.y, dir.x)` in `Wow_RunFrame`,
+`game/g_wow.c`), so strafing turns the model sideways toward its direction of travel instead of pinning it to the camera yaw.
+Backpedal (S without W, including back-strafe diagonals) keeps facing forward, matching `Wow_SetDirectionalMove`'s backpedal
+rule; auto-chase leaves the input vector zero-length so facing stays on the camera. A/D moves laterally and uses the normal
+locomotion animation; `ShuffleLeft`/`ShuffleRight` are turn animations and must not be used for strafe input. Pure S movement
+selects `WalkBackwards`; forward or diagonal movement selects `Run`.
 
 ## References to Copy Deliberately
 

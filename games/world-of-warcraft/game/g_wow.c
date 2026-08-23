@@ -1942,6 +1942,14 @@ static void Wow_RunFrame(void) {
                 locked = true;
         }
     }
+    /* Face the direction of travel so strafing turns the model, not just slides it.
+     * Previously the model was pinned to the camera yaw (DEG2RAD(wow_move.yaw)), so A/D
+     * strafed sideways while the body kept facing forward. Backpedal still keeps eyes
+     * forward (matching Wow_SetDirectionalMove's backpedal rule); auto-chase leaves `len`
+     * at 0 so facing stays on the camera. */
+    FLOAT facing = (FLOAT)DEG2RAD(wow_move.yaw);
+    if (len > 0.001f && !((wow_move.flags & WOW_MOVE_BACK) && !(wow_move.flags & WOW_MOVE_FORWARD)))
+        facing = atan2f(dir.y, dir.x);
     if (locked) {
         Wow_UpdateCamera(ent);
     } else if (moving
@@ -1949,11 +1957,11 @@ static void Wow_RunFrame(void) {
         : (Wow_EntityAffectingCombat(ent)
             ? Wow_SetCombatReadyAnimation(ent)
             : Wow_SetStandMove(ent))) {
-        ent->s.angle = (FLOAT)DEG2RAD(wow_move.yaw);
+        ent->s.angle = facing;
         Wow_MovePlayerFrame(ent);
         Wow_UpdateCamera(ent);
     } else {
-        ent->s.angle = (FLOAT)DEG2RAD(wow_move.yaw);
+        ent->s.angle = facing;
         Wow_UpdateCamera(ent);
     }
     /* Regen mana every frame: WOW_MANA_REGEN_PER_SEC / (1000/FRAMETIME) per tick. */

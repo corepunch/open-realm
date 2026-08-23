@@ -1681,7 +1681,7 @@ TEST(wow_game, quest_dialog_shows_kill_progress_text) {
     if (game->Shutdown) game->Shutdown();
 }
 
-/* Strafe and backpedal preserve facing but select directional locomotion animations. */
+/* Strafing turns the model to face the direction of travel; backpedal preserves facing. */
 TEST(wow_game, wow_directional_movement_animations) {
     struct game_export *game = init_game();
     LPEDICT player = &wow_edicts[0];
@@ -1698,11 +1698,11 @@ TEST(wow_game, wow_directional_movement_animations) {
     game->ClientCommand(player, 5, left);
     game->RunFrame();
     T_STREQ(local->animation->name, "Run");
-    T_FEQ(player->s.angle, facing, 0.001f);
+    T_FEQ(player->s.angle, (FLOAT)(M_PI / 2.0), 0.001f);
     game->ClientCommand(player, 5, right);
     game->RunFrame();
     T_STREQ(local->animation->name, "Run");
-    T_FEQ(player->s.angle, facing, 0.001f);
+    T_FEQ(player->s.angle, (FLOAT)(-M_PI / 2.0), 0.001f);
     game->ClientCommand(player, 5, back);
     game->RunFrame();
     T_STREQ(local->animation->name, back_animation ? "WalkBackwards" : "Run");
