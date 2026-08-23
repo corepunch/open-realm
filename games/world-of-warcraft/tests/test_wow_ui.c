@@ -404,26 +404,30 @@ TEST(wow_ui, tutorial_42_uses_global_strings_and_display_tips_cvar) {
 
 TEST(wow_ui, tutorial_okay_closes_on_mouse_up_not_down) {
     uiExport_t ui;
+    RECT okay; int cx, cy;
 
     reset_test_state();
     T_ASSERT(SFileOpenArchive(TEST_WOW_MPQ, 0, 0, &test_archive));
     ui = init_ui(); UIWow_EnterGameMode();
     ui.ShowWindow("TutorialFrame", 1);
     T_ASSERT(wow_ui.tutorial_open);
+    UIWow_TutorialOkayRect(&okay);
+    cx = (int)((okay.x + okay.w * 0.5f) * 1024.0f);
+    cy = (int)((okay.y + okay.h * 0.5f) * 768.0f);
 
     /* Mouse down over the Okay button only arms the pushed visual; it must not close. */
-    T_ASSERT(ui.MouseEvent(UI_MOUSE_DOWN, 582, 456, 1));
+    T_ASSERT(ui.MouseEvent(UI_MOUSE_DOWN, cx, cy, 1));
     T_ASSERT(wow_ui.tutorial_okay_pressed);
     T_ASSERT(wow_ui.tutorial_open);
 
     /* Releasing over the button closes the panel and clears the pressed state. */
-    T_ASSERT(ui.MouseEvent(UI_MOUSE_UP, 582, 456, 1));
+    T_ASSERT(ui.MouseEvent(UI_MOUSE_UP, cx, cy, 1));
     T_ASSERT(!wow_ui.tutorial_okay_pressed);
     T_ASSERT(!wow_ui.tutorial_open);
 
     /* Pressing and releasing off the button cancels without closing. */
     ui.ShowWindow("TutorialFrame", 1);
-    T_ASSERT(ui.MouseEvent(UI_MOUSE_DOWN, 582, 456, 1));
+    T_ASSERT(ui.MouseEvent(UI_MOUSE_DOWN, cx, cy, 1));
     T_ASSERT(wow_ui.tutorial_okay_pressed);
     T_ASSERT(ui.MouseEvent(UI_MOUSE_UP, 100, 100, 1));
     T_ASSERT(!wow_ui.tutorial_okay_pressed);

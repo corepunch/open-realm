@@ -19,7 +19,8 @@
 #include <string.h>
 #include <stdio.h>
 
-#define WOW_TIP_WIDTH 230.0f // UI pixels; TutorialFrame.xml root width
+#define WOW_TIP_WIDTH 250.0f // UI pixels; tutorial frame width
+#define WOW_TIP_TEXT_WIDTH (WOW_TIP_WIDTH - 20.0f) // UI pixels; title/body column = frame minus 10px left anchor + 10px right margin (TutorialFrame.xml authors 230/210)
 #define WOW_TIP_BOTTOM_OFFSET 90.0f // UI pixels; tutorial 42 bottom anchor offset from UIParent center
 #define WOW_TIP_BACKDROP_CORNERS 0x1ff // corner flags; TutorialFrame.xml uses all tooltip border pieces
 
@@ -113,7 +114,7 @@ typedef struct {
 static uiWowTipLayout_t UIWow_TipLayout(void) {
     uiWowTipLayout_t l;
     l.body = wow_ui.renderer->GetTextSize(&MAKE(drawText_t, .font = UIWow_LoadFont(14), .text = wow_ui.tutorial_body,
-        .rect = MAKE(RECT,0,0,UIWow_TipX(210),1), .textWidth = UIWow_TipX(210), .lineHeight = 1.15f,
+        .rect = MAKE(RECT,0,0,UIWow_TipX(WOW_TIP_TEXT_WIDTH),1), .textWidth = UIWow_TipX(WOW_TIP_TEXT_WIDTH), .lineHeight = 1.15f,
         .flags = DRAW_WORD_WRAP, .halign = FONT_JUSTIFYLEFT, .valign = FONT_JUSTIFYTOP));
     FLOAT h = MAX(UIWow_TipY(128), l.body.y + UIWow_TipY(62));
     l.frame = MAKE(RECT, 0.5f-UIWow_TipX(WOW_TIP_WIDTH)*0.5f, 0.5f+UIWow_TipY(WOW_TIP_BOTTOM_OFFSET)-h,
@@ -122,6 +123,11 @@ static uiWowTipLayout_t UIWow_TipLayout(void) {
     l.check_hit = MAKE(RECT, l.frame.x+UIWow_TipX(5), l.frame.y+l.frame.h-UIWow_TipY(29), UIWow_TipX(119), UIWow_TipY(24));
     l.okay = MAKE(RECT, l.frame.x+l.frame.w-UIWow_TipX(83), l.frame.y+l.frame.h-UIWow_TipY(28), UIWow_TipX(76), UIWow_TipY(21));
     return l;
+}
+
+/* Expose the Okay button rect (normalized) for tests and layout verification. */
+void UIWow_TutorialOkayRect(RECT *out) {
+    if (out) *out = UIWow_TipLayout().okay;
 }
 
 void UIWow_DrawWindows(void) {
@@ -140,12 +146,12 @@ void UIWow_DrawWindows(void) {
     backdrop.flags = DRAW_TILE;
     wow_ui.renderer->DrawBackdrop(&backdrop);
     text = MAKE(drawText_t, .font = UIWow_LoadFont(14), .text = wow_ui.tutorial_title,
-        .rect = MAKE(RECT, l.frame.x+UIWow_TipX(10), l.frame.y+UIWow_TipY(9), UIWow_TipX(210), UIWow_TipY(18)),
-        .color = MAKE(COLOR32,255,209,0,255), .textWidth = UIWow_TipX(210), .lineHeight = UIWow_TipY(18),
+        .rect = MAKE(RECT, l.frame.x+UIWow_TipX(10), l.frame.y+UIWow_TipY(9), UIWow_TipX(WOW_TIP_TEXT_WIDTH), UIWow_TipY(18)),
+        .color = MAKE(COLOR32,255,209,0,255), .textWidth = UIWow_TipX(WOW_TIP_TEXT_WIDTH), .lineHeight = UIWow_TipY(18),
         .halign = FONT_JUSTIFYLEFT, .valign = FONT_JUSTIFYTOP);
     wow_ui.renderer->DrawText(&text);
-    text.text = wow_ui.tutorial_body; text.rect = MAKE(RECT, l.frame.x+UIWow_TipX(10), l.frame.y+UIWow_TipY(29), UIWow_TipX(210), l.body.y);
-    text.color = COLOR32_WHITE; text.textWidth = UIWow_TipX(210); text.lineHeight = 1.15f; text.flags = DRAW_WORD_WRAP;
+    text.text = wow_ui.tutorial_body; text.rect = MAKE(RECT, l.frame.x+UIWow_TipX(10), l.frame.y+UIWow_TipY(29), UIWow_TipX(WOW_TIP_TEXT_WIDTH), l.body.y);
+    text.color = COLOR32_WHITE; text.textWidth = UIWow_TipX(WOW_TIP_TEXT_WIDTH); text.lineHeight = 1.15f; text.flags = DRAW_WORD_WRAP;
     wow_ui.renderer->DrawText(&text);
     check = l.check_box;
     image = MAKE(drawImage_t, .texture = UIWow_LoadTexture("Interface\\Buttons\\UI-CheckBox-Up"), .shader = SHADER_UI,

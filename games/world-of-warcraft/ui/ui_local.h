@@ -151,6 +151,7 @@ void UIWow_ShowWindow(const char *window_id, int show);
 void UIWow_DrawWindows(void);
 BOOL UIWow_WindowMouseDown(float nx, float ny);
 BOOL UIWow_WindowMouseUp(float nx, float ny);
+void UIWow_TutorialOkayRect(RECT *out);
 void UIWow_ShutdownWindows(void);
 BOOL UIWow_TipsEnabled(void);
 BOOL UIWow_ShowTip(DWORD id);
