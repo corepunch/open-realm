@@ -6,6 +6,7 @@
 #define WOW_UI_MAX_MESSAGES 8
 #define WOW_UI_MESSAGE_TITLE 128
 #define WOW_UI_MESSAGE_BODY 512
+#define BZ_WOW_CVAR_SHOW_TIPS "ui_show_tips"
 
 typedef struct {
     DWORD message_id;

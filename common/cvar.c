@@ -1,5 +1,8 @@
 #include "common.h"
 #include "common/ui_constants.h"
+#ifdef WOW
+#include "games/world-of-warcraft/common/wow_ui_shared.h"
+#endif
 
 #include <ctype.h>
 #include <stdlib.h>
@@ -472,6 +475,7 @@ void Cvar_Init(void) {
     Cvar_GetD("r_wmos",           "1",                 0,            "render WMO buildings and structures");
     Cvar_GetD("r_terrain",        "1",                 0,            "render ADT terrain chunks");
     Cvar_GetD("r_minimap",        "1",                 0,            "render minimap overlay in corner");
+    Cvar_GetD(BZ_WOW_CVAR_SHOW_TIPS,"1",                CVAR_ARCHIVE, "show WoW tutorial tip windows and alerts");
 #endif
     Cvar_GetD("ui_chat_support",  "0",                 CVAR_ARCHIVE, "enable in-game chat UI panel");
     Cvar_GetD("s_provider",       "1",                 CVAR_ARCHIVE, "sound backend: 0=none, 1=OpenAL");

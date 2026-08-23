@@ -9,6 +9,7 @@
 #include "client/ui.h"
 #include "common/mpq.h"
 #include "common/wow_ui_shared.h"
+#include "ui/ui_local.h"
 
 #ifndef TEST_WOW_MPQ
 #define TEST_WOW_MPQ "build/tests/test-wow.mpq"
@@ -41,6 +42,7 @@ static DWORD draw_fill_count;
 static DWORD draw_text_count;
 static DWORD draw_cursor_count;
 static DWORD draw_minimap_count;
+static DWORD draw_tip_alert_count;
 static char last_draw_text[256];
 static char last_server_command[256];
 static char last_cmd_execute_text[256];
@@ -48,6 +50,7 @@ static DWORD last_panel_width;
 static DWORD last_panel_height;
 static DWORD last_inventory_width;
 static DWORD last_inventory_height;
+static char test_show_tips[8];
 
 static BOOL test_path_is_wow_default(LPCSTR name) {
     return name &&
@@ -168,6 +171,9 @@ static void test_draw_image(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLO
         draw_inventory_count++;
         last_inventory_width = texture->width;
         last_inventory_height = texture->height;
+    } else if (!strcmp(texture->name, "Interface\\TutorialFrame\\TutorialFrameAlert") ||
+               !strcmp(texture->name, "Interface\\TutorialFrame\\TutorialFrameAlert.blp")) {
+        draw_tip_alert_count++;
     }
 }
 
@@ -240,6 +246,15 @@ static void test_cmd_execute_text(LPCSTR text) {
     snprintf(last_cmd_execute_text, sizeof(last_cmd_execute_text), "%s", text ? text : "");
 }
 
+static LPCSTR test_cvar_string(LPCSTR name, LPCSTR fallback) {
+    if (!strcmp(name, BZ_WOW_CVAR_SHOW_TIPS)) return test_show_tips;
+    return fallback;
+}
+
+static void test_cvar_set(LPCSTR name, LPCSTR value) {
+    if (!strcmp(name, BZ_WOW_CVAR_SHOW_TIPS)) snprintf(test_show_tips, sizeof(test_show_tips), "%s", value);
+}
+
 static void reset_test_state(void) {
     memset(&test_ps, 0, sizeof(test_ps));
     memset(test_textures, 0, sizeof(test_textures));
@@ -257,10 +272,12 @@ static void reset_test_state(void) {
     draw_text_count = 0;
     draw_cursor_count = 0;
     draw_minimap_count = 0;
+    draw_tip_alert_count = 0;
     last_panel_width = 0;
     last_panel_height = 0;
     last_inventory_width = 0;
     last_inventory_height = 0;
+    snprintf(test_show_tips, sizeof(test_show_tips), "1");
 
     test_renderer.LoadTexture = test_load_texture;
     test_renderer.LoadFont = test_load_font;
@@ -286,7 +303,7 @@ static void reset_test_state(void) {
 static uiExport_t init_ui(void) {
     uiExport_t ui;
 
-    ui = UI_GetAPI((uiImport_t) { .FS_ReadFile = test_fs_read_file, .FS_FreeFile = test_fs_free_file, .MemAlloc = test_mem_alloc, .MemFree = test_mem_free, .Cmd_ExecuteText = test_cmd_execute_text, .ImageIndex = test_image_index, .ServerCommand = test_server_command, .GetPlayerState = test_get_player_state, .GetTexture = test_get_texture, .GetRenderer = test_get_renderer, .Printf = test_printf, });
+    ui = UI_GetAPI((uiImport_t) { .FS_ReadFile = test_fs_read_file, .FS_FreeFile = test_fs_free_file, .MemAlloc = test_mem_alloc, .MemFree = test_mem_free, .Cmd_ExecuteText = test_cmd_execute_text, .ImageIndex = test_image_index, .ServerCommand = test_server_command, .Cvar_String = test_cvar_string, .Cvar_Set = test_cvar_set, .GetPlayerState = test_get_player_state, .GetTexture = test_get_texture, .GetRenderer = test_get_renderer, .Printf = test_printf, });
     T_NOT_NULL(ui.Init);
     T_NOT_NULL(ui.Refresh);
     T_NOT_NULL(ui.Shutdown);
@@ -349,4 +366,38 @@ TEST(wow_ui, enter_world_delegates_map_selection_to_server_playercreateinfo) {
     ui.Shutdown();
     SFileCloseArchive(test_archive);
     test_archive = NULL;
+}
+
+TEST(wow_ui, tutorial_42_uses_global_strings_and_display_tips_cvar) {
+    uiExport_t ui;
+    BYTE questgiver[] = { 1, 1 }, movement[] = { 1, 2 };
+
+    reset_test_state();
+    T_ASSERT(SFileOpenArchive(TEST_WOW_MPQ, 0, 0, &test_archive));
+    ui = init_ui(); UIWow_EnterGameMode();
+    ui.GameCommand("wow_tutorial", questgiver, sizeof(questgiver));
+    ui.GameCommand("wow_tutorial", movement, sizeof(movement));
+    ui.GameCommand("wow_tutorial", questgiver, sizeof(questgiver));
+    ui.ShowWindow("TutorialFrame", 1);
+    T_ASSERT(wow_ui.tutorial_open);
+    T_EQ((int)wow_ui.tutorial_alert_count, 2);
+    T_STREQ(wow_ui.tutorial_title, "Welcome to World of Warcraft!");
+    T_ASSERT(strstr(wow_ui.tutorial_body, "help button"));
+    T_STREQ(wow_ui.tutorial_check, "Display Tips");
+    T_STREQ(wow_ui.tutorial_okay, "Okay");
+    wow_ui.tutorial_open = false; ui.DrawGameOverlay();
+    T_EQ((int)draw_tip_alert_count, 2);
+    T_ASSERT(ui.MouseEvent(UI_MOUSE_DOWN, 500, 690, 1));
+    T_ASSERT(wow_ui.tutorial_open);
+    T_EQ((int)wow_ui.tutorial_id, 1);
+    T_EQ((int)wow_ui.tutorial_alert_count, 1);
+    T_STREQ(wow_ui.tutorial_title, "Questgivers");
+    T_ASSERT(UIWow_WindowMouseDown(0.40f, 0.59f));
+    T_STREQ(test_show_tips, "0");
+    T_EQ((int)wow_ui.tutorial_alert_count, 0);
+    ui.ShowWindow("TutorialFrame", 0); ui.ShowWindow("TutorialFrame", 1);
+    T_ASSERT(!wow_ui.tutorial_open);
+    ui.GameCommand("wow_tutorial", movement, sizeof(movement));
+    T_EQ((int)wow_ui.tutorial_alert_count, 0);
+    ui.Shutdown(); SFileCloseArchive(test_archive); test_archive = NULL;
 }

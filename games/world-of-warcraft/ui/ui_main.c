@@ -20,6 +20,11 @@ uiWowState_t wow_ui;
 static BOOL uiWow_menu_commands_registered;
 static BOOL UIWow_GameOverlayMouseDown(int x, int y);
 
+#define WOW_TIP_ALERT_Y 671.0f // UI pixels; TutorialFrame.xml anchors alerts 55px above the bottom edge
+#define WOW_TIP_ALERT_W 34.0f // UI pixels; TutorialFrameAlert visible crop width
+#define WOW_TIP_ALERT_H 42.0f // UI pixels; TutorialFrameAlert visible crop height
+#define WOW_TIP_ALERT_STEP 36.0f // UI pixels; horizontal spacing for adjacent alerts
+
 /* -------------------------------------------------------------------------
  * Shared helpers used by ui_lua.c and ui_loading.c
  * ---------------------------------------------------------------------- */
@@ -532,6 +537,14 @@ static void UIWow_GameCommand(LPCSTR command, void const *data, DWORD size) {
         }
         return;
     }
+    if (!strcmp(command, "wow_tutorial")) {
+        if (size != 2 || payload[0] != 1 || !payload[1]) {
+            UIWow_Printf("UIWow: invalid wow_tutorial payload (%u bytes)\n", (unsigned)size);
+            return;
+        }
+        UIWow_QueueTip(payload[1]);
+        return;
+    }
     if (!strncasecmp(command, "wow_", 4))
         UIWow_Printf("UIWow: unsupported game command '%s' (%u bytes)\n", command, (unsigned)size);
 }
@@ -542,12 +555,23 @@ static BOOL UIWow_GameOverlayMouseDown(int x, int y) {
 
     if (UIWow_WindowMouseDown(pos.x, pos.y)) return true;
 
+    FOR_LOOP(i, wow_ui.tutorial_alert_count) {
+        FLOAT icon_x = 0.5f-WOW_TIP_ALERT_W/2048.0f + unread++*WOW_TIP_ALERT_STEP/1024.0f;
+        if (pos.x < icon_x || pos.x > icon_x+WOW_TIP_ALERT_W/1024.0f ||
+            pos.y < WOW_TIP_ALERT_Y/768.0f || pos.y > (WOW_TIP_ALERT_Y+WOW_TIP_ALERT_H)/768.0f) continue;
+        UIWow_ShowTip(wow_ui.tutorial_alerts[i]);
+        memmove(&wow_ui.tutorial_alerts[i], &wow_ui.tutorial_alerts[i+1], (wow_ui.tutorial_alert_count-i-1)*sizeof(wow_ui.tutorial_alerts[0]));
+        wow_ui.tutorial_alert_count--;
+        return true;
+    }
+
     FOR_LOOP(i, wow_ui.message_count) {
         wowUiMessage_t *message = &wow_ui.messages[i];
         FLOAT icon_x;
         if (!(message->flags & WOW_UI_MESSAGE_UNREAD)) continue;
-        icon_x = 0.35f + unread++ * 0.041f;
-        if (pos.x < icon_x || pos.x > icon_x + 0.031f || pos.y < 0.88f || pos.y > 0.922f) continue;
+        icon_x = 0.5f-WOW_TIP_ALERT_W/2048.0f + unread++*WOW_TIP_ALERT_STEP/1024.0f;
+        if (pos.x < icon_x || pos.x > icon_x+WOW_TIP_ALERT_W/1024.0f ||
+            pos.y < WOW_TIP_ALERT_Y/768.0f || pos.y > (WOW_TIP_ALERT_Y+WOW_TIP_ALERT_H)/768.0f) continue;
         wow_ui.open_message_id = message->message_id;
         if (uiimport.ServerCommand) {
             char command[64];
@@ -568,13 +592,25 @@ static void UIWow_DrawGameOverlay(void) {
     UIWow_EnsureRenderer();
     UIWow_DrawWindows();
     if (!wow_ui.renderer || !wow_ui.renderer->DrawFill || !wow_ui.renderer->DrawText) return;
+    if (!UIWow_TipsEnabled()) wow_ui.tutorial_alert_count = 0;
+    FOR_LOOP(i, wow_ui.tutorial_alert_count) {
+        rect = MAKE(RECT, 0.5f-WOW_TIP_ALERT_W/2048.0f + unread++*WOW_TIP_ALERT_STEP/1024.0f,
+                    WOW_TIP_ALERT_Y/768.0f, WOW_TIP_ALERT_W/1024.0f, WOW_TIP_ALERT_H/768.0f);
+        wow_ui.renderer->DrawImageEx(&MAKE(drawImage_t,
+            .texture = UIWow_LoadTexture("Interface\\TutorialFrame\\TutorialFrameAlert"),
+            .shader = SHADER_UI, .alphamode = BLEND_MODE_BLEND, .screen = rect,
+            .uv = MAKE(RECT,0,0,0.53125f,0.6875f), .color = COLOR32_WHITE));
+    }
     FOR_LOOP(i, wow_ui.message_count) {
         wowUiMessage_t const *message = &wow_ui.messages[i];
         if (message->message_id == wow_ui.open_message_id) open = message;
         if (!(message->flags & WOW_UI_MESSAGE_UNREAD)) continue;
-        rect = MAKE(RECT, 0.35f + unread++ * 0.041f, 0.88f, 0.031f, 0.042f);
-        wow_ui.renderer->DrawFill(&rect, MAKE(COLOR32, 90, 45, 20, 245));
-        wow_ui.renderer->DrawText(&MAKE(drawText_t, .font = UIWow_LoadFont(18), .text = "!", .rect = rect, .color = MAKE(COLOR32, 255, 220, 100, 255), .textWidth = rect.w, .lineHeight = rect.h, .halign = FONT_JUSTIFYCENTER, .valign = FONT_JUSTIFYMIDDLE));
+        rect = MAKE(RECT, 0.5f-WOW_TIP_ALERT_W/2048.0f + unread++*WOW_TIP_ALERT_STEP/1024.0f,
+                    WOW_TIP_ALERT_Y/768.0f, WOW_TIP_ALERT_W/1024.0f, WOW_TIP_ALERT_H/768.0f);
+        wow_ui.renderer->DrawImageEx(&MAKE(drawImage_t,
+            .texture = UIWow_LoadTexture("Interface\\TutorialFrame\\TutorialFrameAlert"),
+            .shader = SHADER_UI, .alphamode = BLEND_MODE_BLEND, .screen = rect,
+            .uv = MAKE(RECT,0,0,0.53125f,0.6875f), .color = COLOR32_WHITE));
     }
     if (!open) return;
     rect = MAKE(RECT, 0.25f, 0.25f, 0.50f, 0.22f);

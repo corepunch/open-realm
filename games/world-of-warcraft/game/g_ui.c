@@ -373,19 +373,20 @@ static void UI_WriteColorBar(FLOAT x, FLOAT y, FLOAT w, FLOAT h,
         UI_WriteColorRect(x + PW(2), y + PH(2), (w - PW(4)) * p, h - PH(4), fill_color);
 }
 
-/* Minimap: border image + actual minimap viewport */
+/* Minimap.xml authors a 140px circle centered inside the cropped 192px border atlas. */
 static void UI_WriteMinimapFrames(void) {
     uiFrame_t minimap;
 
-    /* Minimap border overlay */
-    UI_WriteImage("Interface\\Minimap\\UI-Minimap-Border.blp", PX(879), PY(8), PW(128), PH(128), COLOR32_WHITE);
-
-    /* Minimap viewport — FT_MINIMAP; client calls DrawMinimap() for this rect. */
     memset(&minimap, 0, sizeof(minimap));
     minimap.flags.type = FT_MINIMAP;
     minimap.color = COLOR32_WHITE;
-    UI_SetFrameRect(&minimap, PX(896), PY(25), PW(91), PH(91));
+    UI_SetFrameRect(&minimap, PX(867), PY(22), PW(140), PH(140));
     UI_WriteProxyFrame(&minimap, NULL, 0);
+    /* MinimapBackdrop and the cluster's top strip use the exact Minimap.xml atlas crops. */
+    UI_WriteImageUV("Interface\\Minimap\\UI-Minimap-Border.blp", PX(832), PY(20), PW(192), PH(192),
+                    0.25f, 1.0f, 0.125f, 0.875f, COLOR32_WHITE);
+    UI_WriteImageUV("Interface\\Minimap\\UI-Minimap-Border.blp", PX(832), PY(0), PW(192), PH(32),
+                    0.25f, 1.0f, 0.0f, 0.125f, COLOR32_WHITE);
 }
 
 /* Main action bar: four 256×53 strips + two end-caps from UI-MainMenuBar-Dwarf.blp */
@@ -439,10 +440,13 @@ static void UI_WriteActionButtonSlot(FLOAT x, FLOAT y, DWORD image_index, DWORD 
 /* Targeting frame: the WoW character frame backdrop + health/mana bars + name/level text */
 static void UI_WriteTargetingFrame(LPEDICT ent) {
     LPPLAYER ps = &ent->client->ps;
-    char name_buf[64], level_buf[32];
+    char name_buf[64], level_buf[32], health_buf[32], power_buf[32];
+    FLOAT health = ps->stats[WOW_STAT_HEALTH_MAX] ? (FLOAT)ps->stats[WOW_STAT_HEALTH] / ps->stats[WOW_STAT_HEALTH_MAX] : 0;
+    FLOAT power = ps->stats[WOW_STAT_POWER_MAX] ? (FLOAT)ps->stats[WOW_STAT_POWER] / ps->stats[WOW_STAT_POWER_MAX] : 0;
 
-    /* Character frame backdrop — drawn with a slight tint matching the original */
-    UI_WriteImageUV("Interface\\TargetingFrame\\UI-TargetingFrame.blp", PX(-19), PY(4), PW(232), PH(100), 1.0f, 0.09375f, 0.0f, 0.78125f, MAKE(COLOR32, 96, 92, 84, 230));
+    /* PlayerFrameTexture inherits the unmodified vertex color from PlayerFrame.xml. */
+    UI_WriteImageUV("Interface\\TargetingFrame\\UI-TargetingFrame.blp", PX(-19), PY(4), PW(232), PH(100),
+                    1.0f, 0.09375f, 0.0f, 0.78125f, COLOR32_WHITE);
 
     /* Classic 1.12 unit-frame portraits are 2D per-race/sex textures, already oval-masked. */
     {
@@ -464,10 +468,24 @@ static void UI_WriteTargetingFrame(LPEDICT ent) {
     UI_WriteTextFrame(PX(24), PY(58), PW(42), PH(12), level_buf, MAKE(COLOR32, 235, 225, 190, 255), FONT_JUSTIFYCENTER);
 
     /* Health bar */
-    UI_WriteColorBar(PX(105), PY(41), PW(119), PH(12), (FLOAT)ps->stats[WOW_STAT_HEALTH], (FLOAT)ps->stats[WOW_STAT_HEALTH_MAX], MAKE(COLOR32, 20, 178, 48, 235));
+    UI_WriteColorRect(PX(87), PY(41), PW(119), PH(12), MAKE(COLOR32, 12, 10, 8, 220));
+    if (health > 0) UI_WriteImageUV("Interface\\TargetingFrame\\UI-StatusBar.blp", PX(87), PY(41), PW(119)*health,
+                                   PH(12), 0, health, 0, 1, MAKE(COLOR32, 20, 178, 48, 255));
 
     /* Mana/power bar */
-    UI_WriteColorBar(PX(105), PY(54), PW(119), PH(11), (FLOAT)ps->stats[WOW_STAT_POWER], (FLOAT)ps->stats[WOW_STAT_POWER_MAX], MAKE(COLOR32, 26, 82, 210, 235));
+    UI_WriteColorRect(PX(87), PY(52), PW(119), PH(12), MAKE(COLOR32, 12, 10, 8, 220));
+    if (power > 0) UI_WriteImageUV("Interface\\TargetingFrame\\UI-StatusBar.blp", PX(87), PY(52), PW(119)*power,
+                                  PH(12), 0, power, 0, 1, MAKE(COLOR32, 26, 82, 210, 255));
+
+    /* TextStatusBarText is centered over each authored bar. */
+    snprintf(health_buf, sizeof(health_buf), "%u / %u", (unsigned)ps->stats[WOW_STAT_HEALTH],
+             (unsigned)ps->stats[WOW_STAT_HEALTH_MAX]);
+    snprintf(power_buf, sizeof(power_buf), "%u / %u", (unsigned)ps->stats[WOW_STAT_POWER],
+             (unsigned)ps->stats[WOW_STAT_POWER_MAX]);
+    UI_WriteTextFrame(PX(87), PY(41), PW(119), PH(12), health_buf, COLOR32_WHITE, FONT_JUSTIFYCENTER);
+    UI_WriteTextFrame(PX(87), PY(52), PW(119), PH(12), power_buf, COLOR32_WHITE, FONT_JUSTIFYCENTER);
+
+    /* PlayerFrame.lua hides PlayerRestIcon outside resting state; the server does not author that state yet. */
 }
 
 /* -------------------------------------------------------------------------
@@ -591,7 +609,10 @@ static void UI_WriteWindowMsg(LPCSTR window_id, int show) {
 
 /* Show the classic "Welcome to World of Warcraft" message box for ent. */
 void UI_WriteWelcomeWindow(LPEDICT ent) {
-    UI_WriteWindowMsg("WelcomeFrame", 1);
+    /* TutorialFrame.lua receives contextual tutorial IDs through TUTORIAL_TRIGGER; mirror that semantic event. */
+    gi.GameCommand(ent, "wow_tutorial", (BYTE[]){1, 1}, 2);
+    gi.GameCommand(ent, "wow_tutorial", (BYTE[]){1, 2}, 2);
+    UI_WriteWindowMsg("TutorialFrame", 1);
     gi.unicast(ent);
 }
 

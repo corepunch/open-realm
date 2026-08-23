@@ -1,0 +1,8 @@
+ENABLE_TUTORIAL_TEXT = "Display Tips"
+OKAY = "Okay"
+TUTORIAL_TITLE1 = "Questgivers"
+TUTORIAL1 = "Questgivers have exclamation marks over their heads.  Talk to questgivers by moving close to them and right clicking on them."
+TUTORIAL_TITLE2 = "Movement"
+TUTORIAL2 = "You can move with the ASDW keys, with the arrow keys or by holding down both the left and right mouse buttons."
+TUTORIAL_TITLE42 = "Welcome to World of Warcraft!"
+TUTORIAL42 = "When you encounter something new, a help button will appear in the bottom center of your screen."

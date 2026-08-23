@@ -2499,7 +2499,10 @@ static questMarker_t Wow_QuestMarkerForGiver(wowClient_t *client, wowEntityLocal
 /* Select a quest marker per recipient; entity state is shared between clients until this copy. */
 static void Wow_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
-    if (!local || !local->quest_id || player >= WOW_MAX_CLIENTS || !state->overhead_sprite) return;
+    if (player >= WOW_MAX_CLIENTS) return;
+    /* Vanilla reveals a creature's overhead name only after that recipient selects it. */
+    if (wow_clients[player].client.ps.selected_entity != state->number) state->image = 0;
+    if (!local || !local->quest_id || !state->overhead_sprite) return;
     switch (Wow_QuestMarkerForGiver(&wow_clients[player], local)) {
     case QUEST_MARKER_AVAILABLE:
         state->overhead_sprite = 0;

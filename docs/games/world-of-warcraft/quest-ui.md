@@ -289,12 +289,12 @@ marker, and `+2.3` for names); WowUnreal hardcodes a 200 cm nameplate offset and
 does not implement the quest marker. Use them only as comparison engines, not
 as the 2004 behavior source.
 
-The target reveal lifecycle is per player: show only `!` before the first
-interaction, show `!` plus the name once the NPC is selected/known, then retain
-the known name and remove `!` after accepting the quest. The current state does
-not implement this contract: `m_creature.c` authors the name configstring for
-every viewer immediately, and `QUEST_MARKER_ACTIVE` replaces `!` with the grey
-active-question sprite instead of clearing the marker.
+The reveal lifecycle is per player: an unselected quest giver shows only `!`;
+selection reveals its name in the attachment-18 slot and moves only the marker
+above it. Deselecting hides the name again. `Wow_CustomizeEntity` clears the
+copied snapshot's `image` field for every recipient except the one whose
+`selected_entity` matches the creature, without changing the shared edict.
+Accepted and completed quest marker state remains recipient-specific.
 
 ## NPC World Names
 
@@ -303,7 +303,8 @@ and `CreatureModelData.dbc` resolve appearance/model data only; authoritative
 names come from the generated AzerothCore `WOWCREATURE` table. At quest-giver
 spawn, the server interns `WOWCREATURE.name` into `CS_GENERAL` and sends the
 absolute configstring index through the otherwise-unused WoW
-`entityState_t.image` field. `V_AddClientEntity` resolves that index to
+`entityState_t.image` field. `Wow_CustomizeEntity` exposes that index only for
+the recipient's selected creature. `V_AddClientEntity` resolves it to
 `renderEntity_t.name`; the renderer projects the entity top through the active
 view-projection and draws the green `Fonts\\FRIZQT__.TTF` label. The secondary
 marker render entity clears its inherited name so each NPC receives one label.

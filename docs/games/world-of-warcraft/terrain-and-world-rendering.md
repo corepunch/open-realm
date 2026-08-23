@@ -375,7 +375,13 @@ Each game owns its minimap drawing via the `R_GameDrawMinimap(LPCRECT screen)` r
 - SC2 draws its map minimap texture.
 - WoW draws the translated Blizzard minimap tiles above.
 
-The circular frame is the existing `Interface\Minimap\UI-Minimap-Border.blp` overlay (a ring with a transparent center), not a stencil.
+`Interface\FrameXML\Minimap.xml` is the layout oracle: its content is 140x140
+at virtual-canvas `(867,22)`, inside the 192x192 border crop at `(832,20)`.
+The border's transparent center does not mask rectangular tile corners, so the
+WoW tile draw uses `SHADER_MINIMAP`: vertex color carries mask-local UV and the
+fragment shader smoothly clips the shared tile quads to the authored circle.
+The two border atlas crops draw afterward and therefore fit the masked content
+without covering it.
 
 ## Water
 

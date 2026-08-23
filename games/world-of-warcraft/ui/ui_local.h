@@ -19,6 +19,7 @@
 
 #define WOW_UI_MAX_TEXTURES 256
 #define WOW_UI_MAX_FONTS    16
+#define WOW_UI_MAX_TUTORIAL_ALERTS 10 // alerts; MAX_TUTORIAL_ALERTS in TutorialFrame.lua
 
 typedef enum {
     WOW_UI_TEX_BACKGROUND = 0,
@@ -79,6 +80,14 @@ typedef struct {
     wowUiMessage_t messages[WOW_UI_MAX_MESSAGES];
     DWORD message_count;
     DWORD open_message_id;
+    DWORD tutorial_id;
+    DWORD tutorial_alerts[WOW_UI_MAX_TUTORIAL_ALERTS];
+    DWORD tutorial_alert_count;
+    BOOL tutorial_open;
+    char tutorial_title[WOW_UI_MESSAGE_TITLE];
+    char tutorial_body[WOW_UI_MESSAGE_BODY];
+    char tutorial_check[64];
+    char tutorial_okay[32];
     LPTEXTURE textures[WOW_UI_TEX_COUNT];
     LPCFONT fonts[WOW_UI_FONT_COUNT];
     PATHSTR active_map;
@@ -141,6 +150,9 @@ void UIWow_ShowWindow(const char *window_id, int show);
 void UIWow_DrawWindows(void);
 BOOL UIWow_WindowMouseDown(float nx, float ny);
 void UIWow_ShutdownWindows(void);
+BOOL UIWow_TipsEnabled(void);
+BOOL UIWow_ShowTip(DWORD id);
+BOOL UIWow_QueueTip(DWORD id);
 
 /* Shared helpers (defined in ui_main.c) */
 void UIWow_EnterGameMode(void);

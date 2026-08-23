@@ -24,7 +24,7 @@ Features here use the Q2 svc_layout / server-authored UI pattern, not WoWee's Im
 | Backpack (16 slots) | `g_ui.c`, `g_wow.c` | Click backpack button to toggle; slots 0-5 also in HUD bar |
 | **Loot system** | `g_ai.c`, `g_wow.c`, `g_ui.c` | Rolled on death, copper auto-taken; item click-to-take |
 | **Damage flash overlay** | `g_ai.c`, `g_ui.c` | Yellow outgoing / red incoming; 1.5 s fade |
-| HUD: health/mana bars, targeting frame | `g_ui.c` | Classic 1.12 layout; 1024×768 canvas |
+| HUD: health/mana bars, player frame | `g_ui.c` | `PlayerFrame.xml` geometry; 119px textured bars at x=87, values, portrait/name/level; transient rest icon awaits server state |
 | HUD: cast bar | `g_ui.c` | Server-side progress; counts down from cast_max |
 | HUD: copper display | `g_ui.c` | Persisted on `wowEntityLocal_t.copper` |
 | Minimap | `g_ui.c` | FT_MINIMAP viewport |

@@ -659,9 +659,16 @@ TEST(wow_game, quest_marker_transitions_on_acceptance) {
         /* Before acceptance: the authoritative yellow "!" M2, not the GossipFrame BLP. */
         state = giver->s;
         game->CustomizeEntity(0, giver, &state);
+        T_EQ((int)state.image, 0);
         T_EQ((int)state.overhead_sprite, 0);
         T_EQ((int)state.model2, (int)avail_model);
         T_ASSERT(state.renderfx & RF_ATTACH_OVERHEAD);
+        /* Selection reveals the name, which makes the renderer stack the marker above attachment 18. */
+        wow_clients[0].client.ps.selected_entity = giver->s.number;
+        state = giver->s;
+        game->CustomizeEntity(0, giver, &state);
+        T_EQ((int)state.image, (int)giver->s.image);
+        wow_clients[0].client.ps.selected_entity = 0;
         /* After acceptance: grey "?" (ActiveQuestIcon, no tint). */
         game->ClientCommand(&wow_edicts[0], 2, (LPCSTR[]){ "quest_accept", "783" });
         state = giver->s;
@@ -802,7 +809,8 @@ TEST(wow_game, quest_hud_is_server_authored_on_quest_layer) {
 TEST(wow_game, hud_draws_race_portrait_on_console_layer) {
     struct game_export *game = init_game();
     LPEDICT player;
-    BOOL found_portrait = false;
+    BOOL found_portrait = false, found_minimap = false, found_level = false;
+    DWORD status_bars = 0;
 
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     player = &wow_edicts[0];
@@ -810,11 +818,23 @@ TEST(wow_game, hud_draws_race_portrait_on_console_layer) {
     FOR_LOOP(i, test_ui_frame_count) {
         testUiFrame_t const *frame = &test_ui_frames[i];
         LPCSTR name;
-        if (frame->layer != LAYER_CONSOLE || frame->type != FT_TEXTURE) continue;
+        if (frame->layer != LAYER_CONSOLE) continue;
+        if (frame->type == FT_STRING && !strcmp(frame->text, "Lvl 1")) found_level = true;
+        if (frame->type == FT_MINIMAP) {
+            found_minimap = true;
+            T_FEQ(frame->x, 867.0f/1024.0f, 0.0001f); T_FEQ(frame->y, 22.0f/768.0f, 0.0001f);
+            T_FEQ(frame->w, 140.0f/1024.0f, 0.0001f); T_FEQ(frame->h, 140.0f/768.0f, 0.0001f);
+            continue;
+        }
+        if (frame->type != FT_TEXTURE) continue;
         name = test_image_name(frame->image_index);
         if (name && !strcmp(name, "Interface\\CharacterFrame\\TemporaryPortrait-Male-Orc.blp")) found_portrait = true;
+        if (name && !strcmp(name, "Interface\\TargetingFrame\\UI-StatusBar.blp")) {
+            status_bars++;
+            T_FEQ(frame->x, 87.0f/1024.0f, 0.0001f);
+        }
     }
-    T_ASSERT(found_portrait);
+    T_ASSERT(found_portrait); T_ASSERT(found_minimap); T_ASSERT(found_level); T_EQ((int)status_bars, 2);
 }
 
 TEST(wow_game, quest_detail_has_full_text_and_rewards) {

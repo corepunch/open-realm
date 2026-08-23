@@ -295,16 +295,25 @@ static BOOL Wow_QueueDoodadInstance(wowDoodadInstance_t *doodad) {
     return true;
 }
 
-/* Draw one cropped Blizzard minimap tile, rotated into the renderer's +X-right/+Y-up world view. */
-static void Wow_DrawMinimapTile(LPCRECT dst, LPCTEXTURE tex, float u0, float u1, float v0, float v1) {
+typedef struct { RECT dst, mask, uv; LPCTEXTURE tex; } wowMinimapDraw_t;
+
+/* Encode mask-local position in vertex color so every authoritative tile shares one circular fragment mask. */
+static void Wow_DrawMinimapTile(wowMinimapDraw_t const *draw) {
     VERTEX v[6] = { 0 };
-    VECTOR2 uv[6] = { {u0,v1}, {u0,v0}, {u1,v0}, {u0,v1}, {u1,v0}, {u1,v1} };
+    VECTOR2 uv[6] = { {draw->uv.x,draw->uv.y+draw->uv.h}, {draw->uv.x,draw->uv.y},
+        {draw->uv.x+draw->uv.w,draw->uv.y}, {draw->uv.x,draw->uv.y+draw->uv.h},
+        {draw->uv.x+draw->uv.w,draw->uv.y}, {draw->uv.x+draw->uv.w,draw->uv.y+draw->uv.h} };
     VECTOR2 pos[6] = {
-        {dst->x,dst->y}, {dst->x+dst->w,dst->y}, {dst->x+dst->w,dst->y+dst->h},
-        {dst->x,dst->y}, {dst->x+dst->w,dst->y+dst->h}, {dst->x,dst->y+dst->h},
+        {draw->dst.x,draw->dst.y}, {draw->dst.x+draw->dst.w,draw->dst.y},
+        {draw->dst.x+draw->dst.w,draw->dst.y+draw->dst.h}, {draw->dst.x,draw->dst.y},
+        {draw->dst.x+draw->dst.w,draw->dst.y+draw->dst.h}, {draw->dst.x,draw->dst.y+draw->dst.h},
     };
-    FOR_LOOP(i, 6) { v[i].position = (VECTOR3){pos[i].x,pos[i].y,0}; v[i].texcoord = uv[i]; v[i].color = COLOR32_WHITE; }
-    R_DrawImageBatch(tex, SHADER_UI, BLEND_MODE_BLEND, 0, false, NULL, v, 6, false);
+    FOR_LOOP(i, 6) {
+        v[i].position = (VECTOR3){pos[i].x,pos[i].y,0}; v[i].texcoord = uv[i];
+        v[i].color = MAKE(COLOR32, (BYTE)(255.0f*(pos[i].x-draw->mask.x)/draw->mask.w),
+            (BYTE)(255.0f*(pos[i].y-draw->mask.y)/draw->mask.h), 255, 255);
+    }
+    R_DrawImageBatch(draw->tex, SHADER_MINIMAP, BLEND_MODE_BLEND, 0, false, NULL, v, 6, false);
 }
 
 /* Blizzard ships an authoritative 64x64 tile atlas; crop its local 256px tiles around the camera. */
@@ -335,8 +344,9 @@ void Wow_DrawMinimap(LPCRECT screen) {
             }
             dst = (RECT){ screen->x + (ix0-x0)/(2*r)*screen->w, screen->y + (y1-iy1)/(2*r)*screen->h,
                           (ix1-ix0)/(2*r)*screen->w, (iy1-iy0)/(2*r)*screen->h };
-            Wow_DrawMinimapTile(&dst, wow_world.minimap_tiles[tx][ty], (wy1-iy1)/WOW_ADT_SIZE, (wy1-iy0)/WOW_ADT_SIZE,
-                                (wx1-ix1)/WOW_ADT_SIZE, (wx1-ix0)/WOW_ADT_SIZE);
+            Wow_DrawMinimapTile(&(wowMinimapDraw_t){ .dst = dst, .mask = *screen, .tex = wow_world.minimap_tiles[tx][ty],
+                .uv = { (wy1-iy1)/WOW_ADT_SIZE, (wx1-ix1)/WOW_ADT_SIZE,
+                        (iy1-iy0)/WOW_ADT_SIZE, (ix1-ix0)/WOW_ADT_SIZE } });
         }
     }
 }

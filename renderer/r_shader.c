@@ -84,6 +84,18 @@ LPCSTR fs_ui =
 "    o_color = texture(uTexture, v_texcoord) * v_color;\n"
 "}\n";
 
+LPCSTR fs_minimap =
+"#version 140\n"
+"in vec4 v_color;\n"
+"in vec2 v_texcoord;\n"
+"out vec4 o_color;\n"
+"uniform sampler2D uTexture;\n"
+"void main() {\n"
+"    float mask = 1.0 - smoothstep(0.49, 0.5, length(v_color.rg - vec2(0.5)));\n"
+"    vec4 tex = texture(uTexture, v_texcoord);\n"
+"    o_color = vec4(tex.rgb, tex.a * mask);\n"
+"}\n";
+
 LPCSTR fs_unlit =
 "#version 140\n"
 "in vec4 v_color;\n"
