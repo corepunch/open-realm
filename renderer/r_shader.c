@@ -42,7 +42,9 @@ LPCSTR fs_default =
 "in vec3 v_lightDir;\n"
 "out vec4 o_color;\n"
 "uniform sampler2D uTexture;\n"
+#ifdef USE_FOGOFWAR
 "uniform sampler2D uFogOfWar;\n"
+#endif
 "float get_light() {\n"
 "    return dot(v_normal, v_lightDir);\n"
 "}\n"
@@ -57,22 +59,32 @@ LPCSTR fs_default =
 #else
 "float get_lighting() { return min(1.0, mix(0.35, 1.0, get_light()) * 1.1); }\n"
 #endif
+#ifdef USE_FOGOFWAR
 "float get_fogofwar() {\n"
 "    return texture(uFogOfWar, v_texcoord2).r;\n"
 "}\n"
+#endif
 "void main() {\n"
 "    vec4 col = texture(uTexture, v_texcoord) * v_color;\n"
-/* WoW sprites and decals don't use WC3-style map fog-of-war or
-   directional terrain lighting; model lighting lives in model_fs. */
-#ifdef WOW
-"    o_color = col;\n"
-#else
+#ifdef USE_FOGOFWAR
 "    col.rgb *= get_fogofwar() * get_lighting();\n"
-"    o_color = col;\n"
+#else
+"    col.rgb *= get_lighting();\n"
 #endif
+"    o_color = col;\n"
 "}\n";
 
 LPCSTR fs_ui =
+"#version 140\n"
+"in vec4 v_color;\n"
+"in vec2 v_texcoord;\n"
+"out vec4 o_color;\n"
+"uniform sampler2D uTexture;\n"
+"void main() {\n"
+"    o_color = texture(uTexture, v_texcoord) * v_color;\n"
+"}\n";
+
+LPCSTR fs_unlit =
 "#version 140\n"
 "in vec4 v_color;\n"
 "in vec2 v_texcoord;\n"
@@ -264,8 +276,9 @@ static LPCSTR model_fs =
 #ifdef USE_SHADOWMAPS
 "uniform sampler2D uShadowmap;\n"
 #endif
-// TODO: Add USE_FOGOFWAR and disable it in WoW as it's not needed
+#ifdef USE_FOGOFWAR
 "uniform sampler2D uFogOfWar;\n"
+#endif
 "uniform float uLayerAlpha;\n"
 "uniform vec4 uGeosetColor;\n"
 "uniform mat3 uUvMatrix;\n"
@@ -279,9 +292,11 @@ static LPCSTR model_fs =
 "uniform bool uFogEnable;\n"
 "uniform vec3 uFogColor;\n"
 "uniform vec2 uFogParams;\n"
+#ifdef USE_FOGOFWAR
 "float get_fogofwar() {\n"
 "    return texture(uFogOfWar, v_texcoord2).r;\n"
 "}\n"
+#endif
 "void main() {\n"
 "    vec2 uv = (uUvMatrix * vec3(v_texcoord, 1.0)).xy;\n"
 "    vec4 col = texture(uTexture, uv);\n"
@@ -289,7 +304,11 @@ static LPCSTR model_fs =
 "    col *= uLayerAlpha;\n"
 "    col *= v_color;\n"
 "    if (!uUnshaded) {\n"
+#ifdef USE_FOGOFWAR
 "        col.rgb *= get_fogofwar() * v_lighting;\n"
+#else
+"        col.rgb *= v_lighting;\n"
+#endif
 "        if (uFogEnable) {\n"
 "            float fogFactor = clamp((uFogParams.y - gl_FragCoord.z / gl_FragCoord.w) / (uFogParams.y - uFogParams.x), 0.0, 1.0);\n"
 "            col.rgb = mix(uFogColor, col.rgb, fogFactor);\n"
@@ -440,7 +459,9 @@ static LPSHADER R_InitShaderDefines(LPCSTR vs_src, LPCSTR fs_src, LPCSTR extra_d
 #ifdef USE_SHADOWMAPS
     R_RegisterUniform(program, uShadowmap);
 #endif
+#ifdef USE_FOGOFWAR
     R_RegisterUniform(program, uFogOfWar);
+#endif
     R_RegisterUniform(program, uBones);
     R_RegisterUniform(program, uAlphaKey);
     R_RegisterUniform(program, uAlphaCutoff);
@@ -462,7 +483,9 @@ static LPSHADER R_InitShaderDefines(LPCSTR vs_src, LPCSTR fs_src, LPCSTR extra_d
 #ifdef USE_SHADOWMAPS
     R_Call(glUniform1i, program->uShadowmap, 1);
 #endif
+#ifdef USE_FOGOFWAR
     R_Call(glUniform1i, program->uFogOfWar, 2);
+#endif
     /* UV transform defaults to identity so callers that don't animate UVs can skip the upload. */
     GLfloat identity_uv[9] = { 1,0,0, 0,1,0, 0,0,1 };
     R_Call(glUniformMatrix3fv, program->uUvMatrix, 1, GL_FALSE, identity_uv);
