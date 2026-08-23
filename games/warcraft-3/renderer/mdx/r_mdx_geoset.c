@@ -1,6 +1,7 @@
 #include "r_mdx.h"
 #include "renderer/r_emit.h"
 #include "renderer/r_local.h"
+#include "renderer/r_shader_utils.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -871,9 +872,18 @@ void MDX_RenderModel(renderEntity_t const *entity,
         -tr.viewDef.lightMatrix.v[6],
         -tr.viewDef.lightMatrix.v[10],
     };
-    R_Call(glUniform3f, shader->uLightDir, lightDir.x, lightDir.y, lightDir.z);
-    R_Call(glUniform3f, shader->uLightColor, directional, directional, directional);
-    R_Call(glUniform3f, shader->uLightAmbient, ambient, ambient, ambient);
+    DIRECTLIGHT sun = {
+        .dir = lightDir,
+        .color = { directional, directional, directional },
+        .ambient = { ambient, ambient, ambient },
+    };
+    /* The default sun is a real light; embedded-light models fold scene ambient into their first source. */
+    if (numLights)
+        R_AddLightAmbient(&lights[0].matrix, &sun.ambient);
+    else {
+        R_PackDirectLight(&lights[0].matrix, &sun);
+        numLights = 1;
+    }
     MDLX_BindModelLights(shader, lights, numLights);
 
     if (entity->flags & RF_NO_FOGOFWAR) {

@@ -1,4 +1,5 @@
 #include "renderer/r_local.h"
+#include "renderer/r_shader_utils.h"
 #include "games/starcraft-2/common/sc2_map.h"
 #include "r_m3.h"
 
@@ -69,21 +70,24 @@ R_EvalKeyframeValue(void const *left,
                     MODELKEYTRACKTYPE linetype,
                     HANDLE out);
 
-/* Map SC2 multi-directional lights onto the unified single directional + ambient.
-   Use directional[0] as the primary light; ambient comes from the map ambient. */
+/* M3 models use the map's primary direction as the mandatory shared-shader light entry. */
 static void M3_SetLightUniforms(LPSHADER shader) {
     sc2Map_t const *map = SC2_MapCurrent();
     sc2MapLighting_t const *lighting = map ? &map->lighting : NULL;
     VECTOR3 ambient = lighting && lighting->enabled ? lighting->ambient_color : (VECTOR3){ 1.0f, 1.0f, 1.0f };
     sc2DirectionalLight_t const *light0 = lighting && lighting->enabled ? &lighting->directional[0] : NULL;
     FLOAT enabled = light0 && light0->enabled ? 1.0f : 0.0f;
-    VECTOR3 direction = enabled ? (VECTOR3){ -light0->direction.x, -light0->direction.y, -light0->direction.z } : (VECTOR3){ 0.0f, 0.0f, 1.0f };
-    VECTOR3 color = (enabled && light0) ? light0->color : (VECTOR3){ 0.0f, 0.0f, 0.0f };
+    DIRECTLIGHT light;
+    MATRIX4 packed;
+    light.dir = enabled ? (VECTOR3){ -light0->direction.x, -light0->direction.y, -light0->direction.z } : (VECTOR3){ 0.0f, 0.0f, 1.0f };
+    light.color = (enabled && light0) ? light0->color : (VECTOR3){ 0.0f, 0.0f, 0.0f };
+    light.ambient = ambient;
     FLOAT multiplier = (enabled && light0) ? light0->color_multiplier : 0.0f;
 
-    R_Call(glUniform3f, shader->uLightAmbient, ambient.x, ambient.y, ambient.z);
-    R_Call(glUniform3f, shader->uLightDir, direction.x, direction.y, direction.z);
-    R_Call(glUniform3f, shader->uLightColor, color.x * multiplier, color.y * multiplier, color.z * multiplier);
+    light.color = Vector3_scale(&light.color, multiplier);
+    R_PackDirectLight(&packed, &light);
+    R_Call(glUniform1i, shader->uLightCount, 1);
+    R_Call(glUniformMatrix4fv, shader->uLights, 1, GL_FALSE, packed.v);
 }
 
 void M3_Read(m3Reader_t *buffer, void *dest, DWORD bytes) {
@@ -851,7 +855,6 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_TRUE);
     R_Call(glUseProgram, m3.shader->progid);
-    R_Call(glUniform1i, m3.shader->uLightCount, 0);
 #ifdef USE_SHADOWMAPS
     extern bool is_rendering_lights;
     if (is_rendering_lights) {

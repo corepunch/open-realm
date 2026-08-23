@@ -1,5 +1,6 @@
 #include "renderer/r_local.h"
 #include "renderer/r_emit.h"
+#include "renderer/r_shader_utils.h"
 #include "r_dbc.h"
 #include "r_m2_utils.h"
 #include "../wow/r_wowmap.h"
@@ -2017,6 +2018,19 @@ static void M2_SetBlendMode(LPSHADER shader, DWORD mode) {
     }
 }
 
+/* WoW's world sun is an ordinary directional entry; the shared shader never has a zero-light mode. */
+static void M2_BindSunLight(LPSHADER shader) {
+    MATRIX4 light;
+    DIRECTLIGHT sun = {
+        .color = { WOW_LIGHT_DIFFUSE_R, WOW_LIGHT_DIFFUSE_G, WOW_LIGHT_DIFFUSE_B },
+        .ambient = { WOW_LIGHT_AMBIENT_R, WOW_LIGHT_AMBIENT_G, WOW_LIGHT_AMBIENT_B },
+    };
+    Wow_SunDirection(Wow_DayFraction(), &sun.dir);
+    R_PackDirectLight(&light, &sun);
+    R_Call(glUniform1i, shader->uLightCount, 1);
+    R_Call(glUniformMatrix4fv, shader->uLights, 1, GL_FALSE, light.v);
+}
+
 void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMATRIX4 transform) {
     renderEntity_t resolved_entity;
     renderEntity_t const *draw_entity = entity;
@@ -2061,22 +2075,12 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
     character_texture = M2_PrepareCharacterTexture(model, draw_entity, outfit);
     Matrix3_normal(&normal_matrix, transform);
     R_Call(glUseProgram, shader->progid);
-    R_Call(glUniform1i, shader->uLightCount, 0);
     R_Call(glUniformMatrix4fv, shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
     R_Call(glUniformMatrix4fv, shader->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
     R_Call(glUniformMatrix4fv, shader->uModelMatrix, 1, GL_FALSE, transform->v);
     R_Call(glUniformMatrix4fv, shader->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
     R_Call(glUniformMatrix3fv, shader->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
-    {
-        VECTOR3 light_dir;
-        /* uLightDir points from the surface toward the sun; uLightAmbient +
-           uLightColor * N.L is the unified shader's diffuse model. Colors are
-           the classic no-DBC fallback (see ui_constants.h). */
-        Wow_SunDirection(Wow_DayFraction(), &light_dir);
-        R_Call(glUniform3f, shader->uLightDir, light_dir.x, light_dir.y, light_dir.z);
-        R_Call(glUniform3f, shader->uLightColor, WOW_LIGHT_DIFFUSE_R, WOW_LIGHT_DIFFUSE_G, WOW_LIGHT_DIFFUSE_B);
-        R_Call(glUniform3f, shader->uLightAmbient, WOW_LIGHT_AMBIENT_R, WOW_LIGHT_AMBIENT_G, WOW_LIGHT_AMBIENT_B);
-    }
+    M2_BindSunLight(shader);
     /* Set identity defaults for UV/color/layer uniforms that M2 does not animate. */
     R_Call(glUniform4f, shader->uGeosetColor, 1.0f, 1.0f, 1.0f, ground_alpha);
     R_Call(glUniform1f, shader->uLayerAlpha, 1.0f);
@@ -2134,17 +2138,10 @@ void M2_RenderInstanced(m2Model_t const *model, LPCINSTANCEBUFFER instances, DWO
         return;
     }
     R_Call(glUseProgram, shader->progid);
-    R_Call(glUniform1i, shader->uLightCount, 0);
     R_Call(glUniformMatrix4fv, shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
     R_Call(glUniformMatrix4fv, shader->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
     R_Call(glUniformMatrix4fv, shader->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
-    {
-        VECTOR3 light_dir;
-        Wow_SunDirection(Wow_DayFraction(), &light_dir);
-        R_Call(glUniform3f, shader->uLightDir, light_dir.x, light_dir.y, light_dir.z);
-        R_Call(glUniform3f, shader->uLightColor, WOW_LIGHT_DIFFUSE_R, WOW_LIGHT_DIFFUSE_G, WOW_LIGHT_DIFFUSE_B);
-        R_Call(glUniform3f, shader->uLightAmbient, WOW_LIGHT_AMBIENT_R, WOW_LIGHT_AMBIENT_G, WOW_LIGHT_AMBIENT_B);
-    }
+    M2_BindSunLight(shader);
     R_Call(glUniform4f, shader->uGeosetColor, 1.0f, 1.0f, 1.0f, 1.0f);
     R_Call(glUniform1f, shader->uLayerAlpha, 1.0f);
     { GLfloat m[9] = { 1,0,0, 0,1,0, 0,0,1 }; R_Call(glUniformMatrix3fv, shader->uUvMatrix, 1, GL_FALSE, m); }
@@ -2155,30 +2152,19 @@ void M2_RenderInstanced(m2Model_t const *model, LPCINSTANCEBUFFER instances, DWO
     R_Call(glUniform2f, shader->uFogParams, tr.viewDef.fogStart, tr.viewDef.fogEnd);
     R_Call(glUniform1f, shader->uFirstBoneLookupIndex, 0.0f);
     {
-        static GLuint cached_progid;
-        static GLint loc_camera = -1, loc_fade = -1, loc_time = -1, loc_wind = -1, loc_phase = -1, loc_height = -1, loc_ground = -1;
-        if (shader->progid != cached_progid) {
-            cached_progid = shader->progid;
-            loc_camera = glGetUniformLocation(shader->progid, "uGrassCameraPos");
-            loc_fade = glGetUniformLocation(shader->progid, "uGrassFade");
-            loc_time = glGetUniformLocation(shader->progid, "uGrassTime");
-            loc_wind = glGetUniformLocation(shader->progid, "uGrassWind");
-            loc_phase = glGetUniformLocation(shader->progid, "uGrassPhase");
-            loc_height = glGetUniformLocation(shader->progid, "uGrassHeight");
-            loc_ground = glGetUniformLocation(shader->progid, "uGroundEffect");
-        }
-        if (loc_ground >= 0) glUniform1i(loc_ground, flags & RF_GROUND_EFFECT ? 1 : 0);
-        if (loc_camera >= 0) {
-            VECTOR3 cam = tr.viewDef.camerastate[0].origin;
-            glUniform3f(loc_camera, cam.x, cam.y, cam.z);
-        }
-        if (loc_fade >= 0) {
-            glUniform2f(loc_fade, WOW_GRASS_FADE_START_DISTANCE, WOW_GRASS_DRAW_DISTANCE);
-        }
-        if (loc_time >= 0) glUniform1f(loc_time, tr.viewDef.time / 1000.0f);
-        if (loc_wind >= 0) glUniform3f(loc_wind, WOW_GRASS_WIND_SPEED, WOW_GRASS_WIND_AMPLITUDE, WOW_GRASS_WIND_ROOT_FRACTION);
-        if (loc_phase >= 0) glUniform4f(loc_phase, WOW_GRASS_WIND_PHASE_X, WOW_GRASS_WIND_PHASE_Y, WOW_GRASS_WIND_DIRECTION_X, WOW_GRASS_WIND_DIRECTION_Y);
-        if (loc_height >= 0) glUniform2f(loc_height, model->geometry_bounds.min.z, model->geometry_bounds.max.z);
+        MATRIX4 packed;
+        VECTOR3 cam = tr.viewDef.camerastate[0].origin;
+        MODELGRASS grass = {
+            .camera = { cam.x, cam.y },
+            .fade = { WOW_GRASS_FADE_START_DISTANCE, WOW_GRASS_DRAW_DISTANCE },
+            .height = { model->geometry_bounds.min.z, model->geometry_bounds.max.z },
+            .wind = { WOW_GRASS_WIND_SPEED, WOW_GRASS_WIND_AMPLITUDE, WOW_GRASS_WIND_ROOT_FRACTION },
+            .phase = { WOW_GRASS_WIND_PHASE_X, WOW_GRASS_WIND_PHASE_Y, WOW_GRASS_WIND_DIRECTION_X, WOW_GRASS_WIND_DIRECTION_Y },
+            .time = tr.viewDef.time / 1000.0f,
+            .enabled = flags & RF_GROUND_EFFECT,
+        };
+        R_PackModelGrass(&packed, &grass);
+        R_Call(glUniformMatrix4fv, shader->uGrassParams, 1, GL_FALSE, packed.v);
     }
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_TRUE);

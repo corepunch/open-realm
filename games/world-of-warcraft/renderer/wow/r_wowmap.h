@@ -44,7 +44,7 @@
 #define WOW_GRASS_WIND_PHASE_X 0.917f           // rad/world-unit in X; large enough that adjacent blades (~2.5 u apart) differ by ~131°
 #define WOW_GRASS_WIND_PHASE_Y 1.481f           // rad/world-unit in Y; ratio to PHASE_X ≈ φ² to prevent grid-aligned periodicity
 #define WOW_GRASS_WIND_DIRECTION_X 0.86f        // sway XY direction, X component; together with Y ≈ 30° off axis, length ≈ 1
-#define WOW_GRASS_WIND_DIRECTION_Y 0.51f        // sway XY direction, Y component; used as uGrassPhase.zw in the instanced shader
+#define WOW_GRASS_WIND_DIRECTION_Y 0.51f        // sway XY direction, Y component; used as uGrassParams[2].zw in the instanced shader
 #define WOW_GRASS_ROAD_COVERAGE_MIN 24          // alpha [0-255]; cells with a road-layer alpha above this suppress grass
 #define WOW_GRASS_CELL_STEP 1                   // stride over the 8×8 cell grid; 1 = every cell, 2 = every other (halves density)
 #define WOW_GRASS_CELLS_PER_AXIS 8              // cells per MCNK axis; matches WoW's fixed 8×8 sub-cell layout

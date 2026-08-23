@@ -145,11 +145,9 @@ struct shader_program {
     DWORD uLayerAlpha;
     DWORD uGeosetColor;
     DWORD uUvMatrix;
-    DWORD uLightDir;
-    DWORD uLightColor;
-    DWORD uLightAmbient;
     DWORD uLightCount;
     DWORD uLights;
+    DWORD uGrassParams;
     DWORD uEyePosition;
     DWORD uActiveGlow;
     DWORD uFogEnable;
