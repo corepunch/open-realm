@@ -1,6 +1,9 @@
 #include <stdlib.h> // atoi()
 
 #include "client.h"
+#ifdef WOW
+#include "common/wow_view.h"
+#endif
 #include "tr_public.h"
 #ifdef SC2
 #include "games/starcraft-2/common/sc2_map.h"
@@ -46,48 +49,6 @@ void Matrix4_fromViewQuat(LPCVECTOR3 target, LPCQUATERNION quat, FLOAT distance,
     Matrix4_rotateQuat(output, quat);
     Matrix4_translate(output, &vieworg);
 }
-
-#ifdef WOW
-static FLOAT LerpDegrees(FLOAT a, FLOAT b, FLOAT t) {
-    FLOAT delta = fmodf(b - a, 360.0f);
-    if (delta > 180.0f) {
-        delta -= 360.0f;
-    } else if (delta < -180.0f) {
-        delta += 360.0f;
-    }
-    return a + delta * t;
-}
-
-static void Wow_AngleVectors(LPCVECTOR3 angles, LPVECTOR3 forward, LPVECTOR3 right, LPVECTOR3 up) {
-    FLOAT yaw = (FLOAT)DEG2RAD(angles->y);
-    FLOAT pitch = (FLOAT)DEG2RAD(angles->x);
-    FLOAT roll = (FLOAT)DEG2RAD(angles->z);
-    FLOAT sy = sinf(yaw);
-    FLOAT cy = cosf(yaw);
-    FLOAT sp = sinf(pitch);
-    FLOAT cp = cosf(pitch);
-    FLOAT sr = sinf(roll);
-    FLOAT cr = cosf(roll);
-
-    if (forward) {
-        *forward = (VECTOR3){ cp * cy, cp * sy, -sp };
-    }
-    if (right) {
-        *right = (VECTOR3){
-            -sr * sp * cy + cr * sy,
-            -sr * sp * sy - cr * cy,
-            -sr * cp,
-        };
-    }
-    if (up) {
-        *up = (VECTOR3){
-            cr * sp * cy + sr * sy,
-            cr * sp * sy - sr * cy,
-            cr * cp,
-        };
-    }
-}
-#endif
 
 #ifdef SC2
 static void Matrix4_getSc2CameraMatrix(LPCVECTOR3 origin,
@@ -177,17 +138,17 @@ void Matrix4_getCameraMatrix(LPMATRIX4 output) {
     
 #ifdef WOW
     VECTOR3 angles = {
-        LerpDegrees(a->viewangles.x, b->viewangles.x, cl.viewDef.lerpfrac),
-        LerpDegrees(a->viewangles.y, b->viewangles.y, cl.viewDef.lerpfrac),
-        LerpDegrees(a->viewangles.z, b->viewangles.z, cl.viewDef.lerpfrac),
+        Wow_LerpDegrees(a->viewangles.x, b->viewangles.x, cl.viewDef.lerpfrac),
+        Wow_LerpDegrees(a->viewangles.y, b->viewangles.y, cl.viewDef.lerpfrac),
+        Wow_LerpDegrees(a->viewangles.z, b->viewangles.z, cl.viewDef.lerpfrac),
     };
     VECTOR3 forward;
     VECTOR3 offset;
     VECTOR3 eye;
 
     /* The authoritative entity already carries the game-side WMO floor; do not repeat collision in the client. */
-    origin.z = LerpNumber(cl.ents[0].prev.origin.z, cl.ents[0].current.origin.z, cl.viewDef.lerpfrac) + 1.6f;
-    Wow_AngleVectors(&angles, &forward, NULL, NULL);
+    origin.z = LerpNumber(cl.ents[0].prev.origin.z, cl.ents[0].current.origin.z, cl.viewDef.lerpfrac) + WOW_CAMERA_EYE_HEIGHT;
+    forward = Wow_ViewForward(&angles);
     offset = Vector3_scale(&forward, -distance);
     eye = Vector3_add(&origin, &offset);
 
@@ -240,7 +201,15 @@ static void V_AddClientEntity(centity_t const *ent) {
     re.frame = ent->current.frame;
     re.oldframe = ent->prev.frame;
     re.model = cl.models[ent->current.model];
+#ifdef WOW
+    /* WoW creature skins come from CreatureDisplayInfo; image carries a server name configstring instead. */
+    if (ent->current.image >= CS_GENERAL && ent->current.image < MAX_CONFIGSTRINGS)
+        re.name = cl.configstrings[ent->current.image];
+    else
+        re.skin = cl.pics[ent->current.image];
+#else
     re.skin = cl.pics[ent->current.image];
+#endif
     re.team = ent->current.player;
 #ifdef WOW
     /* WoW reuses the existing snapshot class ID for the DBC creature display ID. */
@@ -265,7 +234,8 @@ static void V_AddClientEntity(centity_t const *ent) {
     re.splat = cl.pics[ent->current.splat & 0xffff];
     re.splatsize = ent->current.splat >> 16;
     re.shadow = cl.pics[ent->current.shadow];
-    re.overhead_sprite = cl.pics[ent->current.overhead_sprite];
+    re.overhead_sprite = cl.pics[ent->current.overhead_sprite & 0x7fff];
+    re.overhead_sprite_color = (ent->current.overhead_sprite & 0x8000) ? MAKE(COLOR32, 255, 215, 0, 255) : COLOR32_WHITE;
     re.shadow_rect = MAKE(RECT,
                           ShadowUnpackRectComponent((BYTE)(ent->current.shadow_rect & 0xff)),
                           ShadowUnpackRectComponent((BYTE)((ent->current.shadow_rect >> 8) & 0xff)),
@@ -275,20 +245,17 @@ static void V_AddClientEntity(centity_t const *ent) {
         re.flags |= RF_NO_SHADOW;
     }
 #ifdef WOW
-    if (ent->current.model2 > 0 &&
-        ent->current.model2 < MAX_MODELS &&
-        !(ent->current.renderfx & RF_ATTACH_OVERHEAD)) {
+    if (ent->current.model2 > 0 && ent->current.model2 < MAX_MODELS && (ent->current.renderfx & RF_ATTACH_OVERHEAD))
+        re.overhead_model = cl.models[ent->current.model2];
+    else if (ent->current.model2 > 0 && ent->current.model2 < MAX_MODELS)
         re.attached_model = cl.models[ent->current.model2];
-    }
 #endif
 
     view_state.entities[view_state.num_entities++] = re;
     
     if (ent->current.model2 > 0) {
 #ifdef WOW
-        if (re.attached_model && !(ent->current.renderfx & RF_ATTACH_OVERHEAD)) {
-            return;
-        }
+        if (re.attached_model || re.overhead_model) return;
 #endif
         if (ent->current.model2 >= MAX_MODELS) {
             return;
@@ -301,6 +268,9 @@ static void V_AddClientEntity(centity_t const *ent) {
         re.frame = 0;
         re.oldframe = 0;
         re.scale = 1;
+        re.name = NULL;
+        re.number = 0;
+        re.health = re.mana = 0;
         re.flags |= RF_NO_SHADOW;
         if (ent->current.renderfx & RF_ATTACH_OVERHEAD) {
             re.origin.z += re.radius * 2.5;

@@ -63,7 +63,13 @@ Every `FS_MmapFile` result has a 16-byte header before the returned pointer:
 
 `CM_WowTerrainHeightAtPoint` keeps a bounded 16-tile LRU of parsed heightfields. Height queries therefore reuse the decompressed `MCVT` data while retaining a fixed memory budget; a tile is evicted only when the active query set exceeds that budget. M2 character-component texture existence probes use a session cache (`m2_known_textures`) so failed and successful candidate paths are each read from MPQ at most once.
 
-These are resident metadata/data caches, not an instruction to decompress every MPQ asset at startup. Textures and models remain lazy and use the renderer's loaded-resource cache; only assets that are actually referenced become resident.
+These are resident metadata/data caches, not an instruction to decompress every MPQ asset at startup. Textures and models remain lazy and use the renderer's loaded-resource cache; only assets that are actually referenced become resident. The texture registry is an unbounded session hash keyed case-insensitively by archive path; both successful loads and missing-path placeholders are registered. Do not cap it at the network `MAX_IMAGES` configstring count: WoW world rendering references thousands of renderer-local textures, and dropping later entries turns every draw into another MPQ search.
+
+Modified character atlases use a separate bounded 16-entry LRU keyed by model, appearance, equipment, and display ID. A cache
+hit reuses the rendered 256×256 atlas; a miss re-composites into the oldest render target. Classic `CharSections.dbc` can name
+optional overlays absent from the mounted archives—for example female tauren
+`Character\Tauren\Facial{Upper,Lower}Hair00_00.blp`. Register those misses once and omit the absent optional layer from the
+composite; never paint the magenta missing-texture placeholder into the character skin.
 
 ## Key invariants
 

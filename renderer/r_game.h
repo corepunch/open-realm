@@ -30,6 +30,7 @@ bool R_GameEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix);
 bool R_GameRenderShadow(renderEntity_t const *entity, LPCVECTOR2 origin);
 /* Selection-circle radius for the shared entity path; per-game tuning (e.g. WoW's fractional-creature clamp). */
 FLOAT R_GameSelectionRadius(renderEntity_t const *entity);
+FLOAT R_GameEntityHeight(renderEntity_t const *entity);
 
 bool R_GameExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t *viewdef);
 bool R_GameSetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity);

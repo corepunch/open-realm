@@ -17,6 +17,7 @@
 #define WOW_WORLD_FOG_RED 0.60f
 #define WOW_WORLD_FOG_GREEN 0.70f
 #define WOW_WORLD_FOG_BLUE 0.85f
+#define WOW_CAMERA_EYE_HEIGHT 1.6f // world units; raises the third-person camera target above the grounded player origin
 
 /* Sun light colors. Classic has no Light*.dbc / .lit, so the authored sun
    path is unavailable; these use WoWee's documented no-DBC fallback tint
@@ -30,5 +31,18 @@
 #define WOW_LIGHT_DIFFUSE_G 0.475f // green
 #define WOW_LIGHT_DIFFUSE_B 0.425f // blue
 #define WOW_DAY_LENGTH_MS 86400000.0f // ms; one full synthesized sun cycle (24h) for the time-of-day sun
+
+#define WOW_NAME_NPC_DISTANCE 20.0f // world units; WoWee ordinary-NPC nameplate cull distance
+#define WOW_NAME_PLAYER_DISTANCE 40.0f // world units; WoWee non-target player nameplate cull distance
+#define WOW_NAME_TARGET_DISTANCE 60.0f // world units; WoWee keeps the selected target visible through combat range
+#define WOW_NAME_FADE_DISTANCE 5.0f // world units; WoWee fades nameplates over the final portion of each cull range
+
+/* WoWee uses the same final-five-unit fade for its NPC, player, and target distance tiers. */
+static FLOAT Wow_WorldLabelAlpha(FLOAT distance, BOOL selected, BOOL player) {
+    FLOAT limit = selected ? WOW_NAME_TARGET_DISTANCE : player ? WOW_NAME_PLAYER_DISTANCE : WOW_NAME_NPC_DISTANCE;
+    if (distance >= limit) return 0.0f;
+    if (distance <= limit - WOW_NAME_FADE_DISTANCE) return 1.0f;
+    return (limit - distance) / WOW_NAME_FADE_DISTANCE;
+}
 
 #endif

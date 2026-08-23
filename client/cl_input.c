@@ -4,6 +4,13 @@
 mouseEvent_t mouse;
 static keyCode_t mouse_button_keys[8];
 
+/* SDL2 function keys are 0x4000003A–0x40000045 and don't fit in keyCode_t; map them to K_F1-K_F12. */
+static keyCode_t CL_SDLKeyToKeyCode(int sym) {
+    if (sym >= SDLK_F1 && sym <= SDLK_F12)
+        return (keyCode_t)(K_F1 + (sym - SDLK_F1));
+    return (keyCode_t)sym;
+}
+
 BOOL CL_AltModifierDown(void) {
     SDL_Keymod const mod = SDL_GetModState();
     return (mod & (KMOD_LALT | KMOD_RALT)) != 0;
@@ -119,14 +126,14 @@ void CL_Input(void) {
                     CL_HandleGameKey(event.key.keysym.sym, event.key.keysym.mod)) {
                     break; /* consumed by in-game handler (e.g. control groups) */
                 }
-                Key_Event(event.key.keysym.sym, true, event.key.timestamp);
+                Key_Event(CL_SDLKeyToKeyCode(event.key.keysym.sym), true, event.key.timestamp);
                 break;
             case SDL_KEYUP:
                 if (cls.key_dest == key_console || event.key.keysym.sym == SDLK_BACKQUOTE) {
                     CON_KeyEvent(event.key.keysym.sym, false);
                     break;
                 }
-                Key_Event(event.key.keysym.sym, false, event.key.timestamp);
+                Key_Event(CL_SDLKeyToKeyCode(event.key.keysym.sym), false, event.key.timestamp);
                 break;
             case SDL_MOUSEBUTTONDOWN:
                 mouse.origin.x = event.button.x;

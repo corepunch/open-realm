@@ -9,6 +9,8 @@
 #include "client/tr_public.h"
 #include "renderer/m2/r_dbc.h"
 #include "renderer/m2/r_m2_utils.h"
+#include "common/ui_constants.h"
+#include "common/wow_view.h"
 
 refImport_t ri;
 
@@ -60,6 +62,36 @@ TEST(wow_m2, classic_male_hair_path_uses_dbc_color) {
     T_ASSERT(m2_classic_hair_texture_path("Character/Orc/Male/OrcMale.m2", 7, path));
     T_STREQ(path, "Character\\Orc\\Hair00_07.blp");
     T_ASSERT(!m2_classic_hair_texture_path("Creature\\Wolf\\Wolf.m2", 0, path));
+}
+
+TEST(wow_renderer, world_labels_use_wowee_distance_tiers_and_fade) {
+    T_ASSERT(fabsf(Wow_WorldLabelAlpha(14.0f, false, false) - 1.0f) < 0.001f);
+    T_ASSERT(fabsf(Wow_WorldLabelAlpha(17.5f, false, false) - 0.5f) < 0.001f);
+    T_ASSERT(fabsf(Wow_WorldLabelAlpha(20.0f, false, false)) < 0.001f);
+    T_ASSERT(fabsf(Wow_WorldLabelAlpha(39.0f, false, true) - 0.2f) < 0.001f);
+    T_ASSERT(fabsf(Wow_WorldLabelAlpha(59.0f, true, false) - 0.2f) < 0.001f);
+}
+
+TEST(wow_renderer, character_composite_cache_hits_then_evicts_oldest) {
+    m2CompositeCacheKey_t keys[2] = { 0 };
+    m2CompositeCacheParams_t params = { keys, 2, { (void *)1, 10, 20, 30, 0, false }, NULL, false };
+    DWORD clock = 0, slot;
+
+    params.clock = &clock;
+    slot = m2_composite_cache_slot(&params); T_EQ(slot, 0); T_ASSERT(!params.hit);
+    slot = m2_composite_cache_slot(&params); T_EQ(slot, 0); T_ASSERT(params.hit);
+    params.wanted = (m2CompositeCacheKey_t){ (void *)2, 11, 21, 31, 0, false };
+    slot = m2_composite_cache_slot(&params); T_EQ(slot, 1); T_ASSERT(!params.hit);
+    params.wanted = (m2CompositeCacheKey_t){ (void *)3, 12, 22, 32, 0, false };
+    slot = m2_composite_cache_slot(&params); T_EQ(slot, 0); T_ASSERT(!params.hit); T_ASSERT(keys[0].owner == (void *)3);
+}
+
+TEST(wow_renderer, view_angle_helpers_wrap_and_match_forward_axis) {
+    VECTOR3 angles = { 0.0f, 90.0f, 0.0f }, forward;
+
+    T_ASSERT(fabsf(Wow_LerpDegrees(350.0f, 10.0f, 0.5f) - 360.0f) < 0.001f);
+    forward = Wow_ViewForward(&angles);
+    T_ASSERT(fabsf(forward.x) < 0.001f); T_ASSERT(fabsf(forward.y - 1.0f) < 0.001f);
 }
 
 TEST(wow_m2, particle_curve_preserves_fractional_scale_and_normalized_lifetime) {

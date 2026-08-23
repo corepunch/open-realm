@@ -1,5 +1,9 @@
 #include "r_local.h"
 #include "r_game.h"
+#ifdef WOW
+#include "common/ui_constants.h"
+#include "common/wow_view.h"
+#endif
 #include <float.h>
 #include <stdlib.h>
 
@@ -308,8 +312,51 @@ void R_DrawHealthBars(void) {
     RECT const scene = R_UISceneRect();
     FLOAT const w = scene.w * 0.045f;
     FLOAT const h = scene.h * 0.008f;
+#ifdef WOW
+    static LPFONT wow_name_font;
+    static BOOL wow_name_font_tried;
+    viewCamera_t const *old = tr.viewDef.camerastate + 1, *cur = tr.viewDef.camerastate;
+    VECTOR3 wow_cam = Vector3_lerp(&old->origin, &cur->origin, tr.viewDef.lerpfrac);
+    VECTOR3 wow_ang = {
+        Wow_LerpDegrees(old->viewangles.x, cur->viewangles.x, tr.viewDef.lerpfrac),
+        Wow_LerpDegrees(old->viewangles.y, cur->viewangles.y, tr.viewDef.lerpfrac),
+        Wow_LerpDegrees(old->viewangles.z, cur->viewangles.z, tr.viewDef.lerpfrac),
+    };
+    VECTOR3 wow_fwd, wow_off;
+    FOR_LOOP(i, tr.viewDef.num_entities)
+        if (tr.viewDef.entities[i].number == tr.viewDef.player) {
+            wow_cam.z = tr.viewDef.entities[i].origin.z + WOW_CAMERA_EYE_HEIGHT; break;
+        }
+    wow_fwd = Wow_ViewForward(&wow_ang);
+    wow_off = Vector3_scale(&wow_fwd, -LerpNumber(old->distance, cur->distance, tr.viewDef.lerpfrac));
+    wow_cam = Vector3_add(&wow_cam, &wow_off);
+#endif
     FOR_LOOP(i, tr.viewDef.num_entities) {
         renderEntity_t const *e = tr.viewDef.entities + i;
+#ifdef WOW
+        if (e->name && *e->name) {
+            VECTOR3 top = e->origin;
+            VECTOR3 delta;
+            FLOAT alpha, ux, uy;
+            top.z += R_GameEntityHeight(e);
+            delta = Vector3_sub(&top, &wow_cam);
+            alpha = Wow_WorldLabelAlpha(Vector3_len(&delta), e->flags & RF_SELECTED, e->number == tr.viewDef.player);
+            if (alpha > 0.0f && R_WorldToUI(&top, &ux, &uy)) {
+                if (!wow_name_font_tried) {
+                    wow_name_font_tried = true;
+                    wow_name_font = R_LoadFont("Fonts\\FRIZQT__.TTF", 14);
+                    if (!wow_name_font) fprintf(stderr, "WoW: NPC name font Fonts\\FRIZQT__.TTF could not be loaded\n");
+                }
+                if (wow_name_font) {
+                    RECT label = MAKE(RECT, ux - scene.w * 0.12f, uy, scene.w * 0.24f, scene.h * 0.03f);
+                    drawText_t text = MAKE(drawText_t, .font = wow_name_font, .text = e->name, .rect = label,
+                        .color = MAKE(COLOR32, 0, 255, 0, (BYTE)(255.0f * alpha)), .textWidth = label.w, .lineHeight = label.h,
+                        .halign = FONT_JUSTIFYCENTER, .valign = FONT_JUSTIFYMIDDLE);
+                    R_DrawText(&text);
+                }
+            }
+        }
+#endif
         /* Always for the current selection; for hovered entity; for every unit while ALT is held. */
         if (e->health == 0 || (!show_all && !(e->flags & RF_SELECTED) && e->number != tr.viewDef.hover_entity)) {
             continue;

@@ -181,7 +181,8 @@ static BOOL Wow_QuestGiverSame(LPCWOWQUESTGIVER a, LPCWOWQUESTGIVER b) {
     return a->creature_entry == b->creature_entry && !memcmp(&a->position, &b->position, sizeof(a->position));
 }
 
-#define WOW_QUEST_OBJECTIVE_ANCHOR 0x51504F49
+#define WOW_QUEST_OBJECTIVE_ANCHOR  0x51504F49
+#define WOW_QUEST_SPRITE_TINT_FLAG  (1u << 15) // bit[15] of entityState_t.overhead_sprite → render with yellow tint
 
 DWORD Wow_QuestGiverCount(void);
 LPCWOWQUESTGIVER Wow_QuestGiver(DWORD index);
@@ -209,6 +210,7 @@ LPCWOWQUESTDETAIL Wow_QuestDetail(DWORD quest_id);
    Set by the UI via a single userinfo-style cvar before map load, read by
    Wow_Init.  Format: \race\Human\sex\Male\class\1\appearance\12345 */
 #define WOW_CS_PLAYERINFO 0
+#define WOW_CS_NPC_NAME_FIRST 1 // CS_GENERAL slot; first server-authored NPC name used by world labels
 #define WOW_MOVE_FORWARD 1
 #define WOW_MOVE_BACK 2
 #define WOW_MOVE_LEFT 4
@@ -309,7 +311,8 @@ typedef struct {
     BOOL  go_interactive;
     DWORD go_display_id;
     DWORD quest_id;
-    DWORD quest_available_sprite;
+    DWORD quest_available_model;  /* model index for yellow "!" (TalkToMe.m2) */
+    DWORD quest_active_sprite;    /* image index for grey/yellow "?" (ActiveQuestIcon.blp) */
     /* Loot fields — valid on any entity (rolled at death, consumed on pickup). */
 #define WOW_MAX_LOOT_ITEMS 6
     wowHudIcon_t loot_items[WOW_MAX_LOOT_ITEMS];

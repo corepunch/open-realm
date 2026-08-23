@@ -2,6 +2,8 @@
 #include "renderer/r_local.h"
 #include "wow/r_wowmap.h"
 
+#define WOW_QUEST_MARKER_HEAD_GAP 0.25f // world units; separates TalkToMe.m2 from the parent M2 bounds
+
 void R_RegisterMap(LPCSTR mapFileName);
 void R_DrawWorld(void);
 void R_DrawTerrainShadows(void);
@@ -239,10 +241,22 @@ void R_GameRenderModel(renderEntity_t const *entity) {
     }
     R_GetEntityMatrix(entity, &transform);
     M2_RenderModel(entity, entity->model->m2, &transform);
+    if (entity->overhead_model && entity->overhead_model->modeltype == ID_MD20) {
+        renderEntity_t marker = *entity;
+        marker.origin.z += R_GameEntityHeight(entity) + WOW_QUEST_MARKER_HEAD_GAP;
+        marker.model = entity->overhead_model;
+        marker.attached_model = marker.overhead_model = NULL;
+        marker.overhead_sprite = NULL;
+        marker.scale = 1.0f;
+        marker.flags &= ~RF_GROUND_ANCHOR;
+        marker.flags |= RF_NO_SHADOW;
+        R_GetEntityMatrix(&marker, &attached_transform);
+        M2_RenderModel(&marker, marker.model->m2, &attached_transform);
+    }
     if (entity->overhead_sprite) {
         VECTOR3 origin = entity->origin;
         origin.z += (M2_GroundOffset(entity->model->m2) + M2_HeadHeight(entity->model->m2)) * entity->scale + 0.25f;
-        R_DrawBillboardSprite(entity->overhead_sprite, &origin, 1.0f, COLOR32_WHITE);
+        R_DrawBillboardSprite(entity->overhead_sprite, &origin, 0.5f, entity->overhead_sprite_color);
     }
     attachment_id = (tr.viewDef.rdflags & RDF_USE_ENTITY_CAMERA) ? 0 : 1;
     if (entity->attached_model &&
@@ -381,6 +395,12 @@ bool R_GameRenderShadow(renderEntity_t const *entity, LPCVECTOR2 origin) {
 FLOAT R_GameSelectionRadius(renderEntity_t const *entity) {
     /* Fractional WoW collision radii need a minimum visual footprint around the model. */
     return MAX(entity->radius * MAX(entity->scale, 1.0f), 1.0f);
+}
+
+/* M2 bounds, not collision radius, own the visual top used by markers and labels. */
+FLOAT R_GameEntityHeight(renderEntity_t const *entity) {
+    if (!entity || !entity->model || entity->model->modeltype != ID_MD20) return entity ? entity->radius * 2.0f : 0.0f;
+    return (M2_GroundOffset(entity->model->m2) + M2_HeadHeight(entity->model->m2)) * entity->scale;
 }
 
 bool R_GameGetModelInfo(LPMODEL model, LPMODELINFO info) {

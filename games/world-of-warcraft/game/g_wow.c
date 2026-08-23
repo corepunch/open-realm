@@ -2452,17 +2452,48 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
     }
 }
 
+typedef enum { QUEST_MARKER_NONE = 0, QUEST_MARKER_AVAILABLE, QUEST_MARKER_ACTIVE, QUEST_MARKER_COMPLETE } questMarker_t;
+
+/* Returns the highest-priority marker for this NPC relative to the given player:
+ * COMPLETE > ACTIVE > AVAILABLE > NONE. */
+static questMarker_t Wow_QuestMarkerForGiver(wowClient_t *client, wowEntityLocal_t const *local) {
+    LPCWOWQUESTGIVER giver = NULL;
+    questMarker_t best = QUEST_MARKER_NONE;
+    if (!local->quest_id) return QUEST_MARKER_NONE;
+    if (Wow_QuestForGiver(client, local)) return QUEST_MARKER_AVAILABLE;
+    FOR_LOOP(i, Wow_QuestGiverCount()) {
+        LPCWOWQUESTGIVER cur = Wow_QuestGiver(i);
+        if (cur->quest_id != local->quest_id) continue;
+        if (local->home.x != cur->position.x || local->home.y != cur->position.y) continue;
+        giver = cur; break;
+    }
+    if (!giver) return QUEST_MARKER_NONE;
+    FOR_LOOP(i, Wow_QuestGiverCount()) {
+        LPCWOWQUESTGIVER cur = Wow_QuestGiver(i);
+        svQuestEntry_t *e;
+        if (!Wow_QuestGiverSame(giver, cur)) continue;
+        e = SV_QuestFind(client->client.ps.quest_log, client->client.ps.quest_count, cur->quest_id);
+        if (!e || e->status == SV_QUEST_REWARDED) continue;
+        if (e->status == SV_QUEST_COMPLETE) return QUEST_MARKER_COMPLETE;
+        if (e->status == SV_QUEST_ACTIVE) best = QUEST_MARKER_ACTIVE;
+    }
+    return best;
+}
+
 /* Select a quest marker per recipient; entity state is shared between clients until this copy. */
 static void Wow_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
-    wowClient_t *client;
-    DWORD quest_id;
-
-    if (!local || !local->quest_id || player >= WOW_MAX_CLIENTS || !state->overhead_sprite)
-        return;
-    client = &wow_clients[player];
-    quest_id = Wow_QuestForGiver(client, local);
-    state->overhead_sprite = quest_id ? local->quest_available_sprite : 0;
+    if (!local || !local->quest_id || player >= WOW_MAX_CLIENTS || !state->overhead_sprite) return;
+    switch (Wow_QuestMarkerForGiver(&wow_clients[player], local)) {
+    case QUEST_MARKER_AVAILABLE:
+        state->overhead_sprite = 0;
+        state->model2 = local->quest_available_model;
+        state->renderfx |= RF_ATTACH_OVERHEAD;
+        break;
+    case QUEST_MARKER_COMPLETE:  state->overhead_sprite = local->quest_active_sprite | WOW_QUEST_SPRITE_TINT_FLAG; break;
+    case QUEST_MARKER_ACTIVE:    state->overhead_sprite = local->quest_active_sprite; break;
+    default:                     state->overhead_sprite = 0; break;
+    }
 }
 
 static void Wow_ClientSetCameraPosition(LPEDICT ent, LPCVECTOR2 position) {

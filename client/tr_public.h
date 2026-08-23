@@ -117,10 +117,13 @@ typedef struct {
     VECTOR3 origin;
     LPCMODEL model;
     LPCMODEL attached_model;
+    LPCMODEL overhead_model;
     LPCTEXTURE skin;
     LPCTEXTURE splat;
     LPCTEXTURE shadow;
-    LPCTEXTURE overhead_sprite; /* billboarded sprite drawn above the entity (NULL = none) */
+    LPCTEXTURE overhead_sprite;       /* billboarded sprite drawn above the entity (NULL = none) */
+    COLOR32    overhead_sprite_color; /* tint applied to overhead_sprite (WHITE = no tint) */
+    LPCSTR name;                      /* server-authored world label (NULL = none) */
     DWORD number;
     DWORD team;
 #ifdef WOW

@@ -60,8 +60,6 @@ LPTEXTURE R_LoadTextureBLP1(HANDLE data, DWORD filesize);
 LPTEXTURE R_LoadTextureBLP2(HANDLE data, DWORD filesize);
 LPTEXTURE R_LoadTextureDDS(HANDLE data, DWORD filesize);
 
-LPTEXTURE R_FindLoadedTexture(LPCSTR name);
-void R_CacheLoadedTexture(LPCSTR name, LPTEXTURE texture);
 BOOL R_IsTexturePCX(HANDLE data, DWORD filesize);
 LPTEXTURE R_LoadTexturePCX(HANDLE data, DWORD filesize);
 
@@ -252,11 +250,9 @@ LPTEXTURE R_LoadTexture(LPCSTR textureFilename) {
             load_path = blp_fallback;
     }
     if (fileSize < 0 || !buffer) {
-        static LPCSTR last_missing = NULL;
-        if (textureFilename != last_missing) {
-            fprintf(stderr, "R_LoadTexture: not found: %s\n", textureFilename);
-            last_missing = textureFilename;
-        }
+        /* Missing registrations are resident too: repeated draw paths must not search every MPQ again. */
+        fprintf(stderr, "R_LoadTexture: not found: %s\n", textureFilename);
+        R_CacheLoadedTexture(textureFilename, tr.texture[TEX_PLACEHOLDER]);
         return tr.texture[TEX_PLACEHOLDER];
     }
     switch (*(DWORD *)buffer) {
@@ -281,7 +277,8 @@ LPTEXTURE R_LoadTexture(LPCSTR textureFilename) {
             break;
     }
     ri.FS_FreeFile(buffer);
-    if (texture) R_CacheLoadedTexture(textureFilename, texture);
+    if (!texture) texture = tr.texture[TEX_PLACEHOLDER];
+    R_CacheLoadedTexture(textureFilename, texture);
     return texture;
 }
 

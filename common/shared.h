@@ -438,7 +438,7 @@ typedef struct entityState_s {
     DWORD equipment;
 #endif
     DWORD image;
-    DWORD overhead_sprite; /* billboarded sprite texture index drawn above the entity (0 = none) */
+    DWORD overhead_sprite; /* billboarded sprite: bits[14:0]=image index, bit[15]=yellow tint flag (0=none) */
     DWORD sound;
     DWORD frame;
     DWORD event;

@@ -83,6 +83,18 @@ TEST(renderer_texture, cached_registration_preserves_newer_texture_indices) {
     T_ASSERT(R_FindTextureByID(100) == &first); T_ASSERT(R_FindTextureByID(101) == &second);
 }
 
+TEST(renderer_texture, resident_registry_keeps_entries_beyond_configstring_limit) {
+    static TEXTURE placeholder = { .texid = 77 };
+    char path[64];
+
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free; tr.texture[TEX_PLACEHOLDER] = &placeholder;
+    FOR_LOOP(i, MAX_IMAGES * 4 + 1) {
+        snprintf(path, sizeof(path), "Textures/Registry/%u.blp", i);
+        R_CacheLoadedTexture(path, &placeholder);
+    }
+    T_ASSERT(R_FindLoadedTexture("textures/registry/1024.BLP") == &placeholder);
+}
+
 TEST(renderer_model, clock_emission_needs_no_instance_accumulator) {
     spawn_count = 0;
     R_EmitParticlesAtTime(10.0f, 1050, 100, test_spawn, &spawn_count);

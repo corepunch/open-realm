@@ -33,6 +33,16 @@ Features here use the Q2 svc_layout / server-authored UI pattern, not WoWee's Im
 | First-login cinematics | `g_wow.c`, WoW UI XML | M2 camera playback via DBC chain |
 | DBC loading (spells, items, areas) | `common/stb_dbc.h` | Shared schema-table decoder |
 
+## World Labels
+
+`renderer/r_ents.c` follows WoWee's `renderNameplates()` distance policy: ordinary NPC labels cull at 20 world units,
+player labels at 40, and the selected target at 60. Each tier fades over its final 5 units. Distance is measured from the
+interpolated third-person camera eye, not merely from clip-space visibility; projecting every server-authored name produced
+readable labels for NPCs 50–1,650 units away and severe overlap.
+
+The reusable camera-angle math lives in `games/world-of-warcraft/common/wow_view.h`; keep client camera construction and
+renderer label culling on that same pitch/yaw/roll convention.
+
 ## Loot System Details
 
 **Architecture** (added 2026-08):

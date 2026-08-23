@@ -227,6 +227,8 @@ struct render_globals {
 void R_RegisterMap(LPCSTR mapFileName);
 int R_RegisterTextureFile(LPCSTR textureFileName);
 LPTEXTURE R_LoadTexture(LPCSTR textureFileName);
+LPTEXTURE R_FindLoadedTexture(LPCSTR name);
+void R_CacheLoadedTexture(LPCSTR name, LPTEXTURE texture);
 void R_ReleaseTexture(LPTEXTURE texture);
 void R_ShutdownTextureCache(void);
 void R_DrawWorld(void);

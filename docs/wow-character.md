@@ -126,6 +126,10 @@ resolve but clothing does not, inspect both versioned DBC schemas before changin
 
 - Component texture names in `ItemDisplayInfo.dbc` are stems, not full archive paths. Resolve them under `Item\TextureComponents\<slot-folder>\` and try gender-specific suffixes (`_M`, `_F`) before universal (`_U`).
 - The whoa-master character component rectangles are documented in 512×512 atlas space. Classic body skins such as `Character\Orc\Male\OrcMaleSkin00_00.blp` may be 256×256, so scale component paste rectangles to the actual destination body texture size before compositing. Otherwise all right-half slots (torso, pants, boots, feet) land outside the texture and silently disappear.
+- Local Classic female-tauren section-2 row `4422` names `Character\Tauren\FacialLowerHair00_00.blp` and
+  `Character\Tauren\FacialUpperHair00_00.blp`, but neither file exists in any mounted MPQ. These are optional overlay layers:
+  log/cache each missing registration once and omit it from the composite. Drawing the renderer placeholder here turns the face
+  magenta. Do not invent a substitute path; the authoritative archive genuinely lacks the DBC-referenced files.
 
 ## Equipment and Actor State
 

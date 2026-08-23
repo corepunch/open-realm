@@ -191,26 +191,47 @@ and is therefore always spawned regardless of its position in the table.
 
 ## Overhead Quest Marker
 
-Quest givers retain the available-quest image index (`overhead_sprite`) on the
-server entity at spawn via `gi.ImageIndex("Interface\\GossipFrame\\AvailableQuestIcon.blp")`.
+Classic distinguishes the world marker models under `Interface\\Buttons` from
+the small dialog-list icons under `Interface\\GossipFrame`. The yellow world
+"!" is `TalkToMe.m2`; `AvailableQuestIcon.blp` is not its texture and must not
+be drawn as a billboard. Quest givers register `TalkToMe.m2` once at spawn.
 When building a snapshot, the server copies the entity state and then calls
 `Wow_CustomizeEntity` (the `CustomizeEntity` game callback invoked from
-`SV_BuildClientFrame`) to set the per-client value:
+`SV_BuildClientFrame`) to set the per-client marker:
 
-| Condition | `overhead_sprite` sent |
+| Condition | Marker sent |
 |-----------|----------------------|
-| No matching quest is currently available | 0 (hidden) |
-| Any matching quest has no prerequisite or a completed prerequisite | sprite index (show "!") |
+| Available | `model2=TalkToMe.m2`, `RF_ATTACH_OVERHEAD` (yellow "!") |
+| Accepted, incomplete | `overhead_sprite=ActiveQuestIcon.blp` (temporary grey "?") |
+| Complete | active sprite plus bit 15 gold tint (temporary yellow "?") |
+| None | both marker channels cleared |
 
 `Wow_AddQuest` uses the same "prev_quest must be complete" rule, so the marker
 and the accept gate are always consistent.
 
 The client pipeline:
-- **Network**: `NFT_SHORT` image index in `entityState_t.overhead_sprite`.
-- **Client resolve**: `cl_view.c` — `re.overhead_sprite = cl.pics[ent->current.overhead_sprite]`. Image configstrings are loaded eagerly in `CL_PrepRefresh`; late arrivals are caught in `cl_parse.c` and reloaded in-place.
-- **Render**: `R_GameRenderModel` (`games/world-of-warcraft/renderer/r_game.c`) draws it after the model, floating `(M2_GroundOffset(model) + M2_HeadHeight(model)) * scale + 0.25` above the entity origin. `M2_HeadHeight` (`renderer/m2/r_m2.c`) returns `model->bounds.max.z` (the M2 file bounding-box top). `R_DrawBillboardSprite` (`renderer/r_particles.c`) draws the camera-facing quad via the particle billboard pipeline.
+- **Available marker network path**: existing `entityState_t.model2` (`NFT_SHORT`)
+  plus `RF_ATTACH_OVERHEAD`; the client resolves it as `overhead_model` on the
+  parent render entity. The WoW renderer draws it at
+  `(M2_GroundOffset + M2_HeadHeight) * scale + 0.25`, using visual M2 bounds
+  rather than collision radius. This is the same secondary-model state channel
+  used by Quake-style entity effects and does not widen the snapshot struct.
+- **Question-mark sprite path**: `entityState_t.overhead_sprite` remains the
+  separate billboard channel. Image configstrings load eagerly in
+  `CL_PrepRefresh`; bit 15 is stripped before the `cl.pics[]` lookup and selects
+  the gold tint.
 
-Turn-in "?" markers are not yet implemented.
+## NPC World Names
+
+NPC names do not exist in the client creature DBCs. `CreatureDisplayInfo.dbc`
+and `CreatureModelData.dbc` resolve appearance/model data only; authoritative
+names come from the generated AzerothCore `WOWCREATURE` table. At quest-giver
+spawn, the server interns `WOWCREATURE.name` into `CS_GENERAL` and sends the
+absolute configstring index through the otherwise-unused WoW
+`entityState_t.image` field. `V_AddClientEntity` resolves that index to
+`renderEntity_t.name`; the renderer projects the entity top through the active
+view-projection and draws the green `Fonts\\FRIZQT__.TTF` label. The secondary
+marker render entity clears its inherited name so each NPC receives one label.
 
 ## Extraction Tools
 

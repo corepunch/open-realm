@@ -6,8 +6,9 @@
 #define WOW_QUEST_LOCATION_BUDGET  32
 /* WOW_CREATURE_DISPLAY_* constants live in g_wow_local.h (shared with loot table). */
 
-/* Yellow "!" billboard shown above quest givers with an available quest. */
-#define WOW_QUEST_AVAILABLE_ICON "Interface\\GossipFrame\\AvailableQuestIcon.blp"
+/* World markers are M2 models; GossipFrame BLPs are only dialog-list icons. */
+#define WOW_QUEST_AVAILABLE_MODEL "Interface\\Buttons\\TalkToMe.m2"           // M2; yellow world-space "!" marker
+#define WOW_QUEST_ACTIVE_ICON     "Interface\\GossipFrame\\ActiveQuestIcon.blp" // BLP; temporary active "?" sprite
 
 typedef struct {
     DWORD display_id;
@@ -54,6 +55,22 @@ static wowAmbientCreatureType_t const wow_ambient_creature_types[] = {
 
 static wowCreatureModelCache_t wow_creature_model_cache[sizeof(wow_ambient_creature_types) /
                                                         sizeof(wow_ambient_creature_types[0])];
+
+/* Quake-style configstrings keep authoritative server creature names out of the snapshot struct. */
+static DWORD Wow_CreatureNameConfigstring(LPCWOWCREATURE creature) {
+    if (!creature || !creature->name || !*creature->name) return 0;
+    for (DWORD slot = WOW_CS_NPC_NAME_FIRST; slot < MAX_GENERAL; slot++) {
+        DWORD idx = CS_GENERAL + slot;
+        LPCSTR name = gi.GetConfigstring(idx);
+        if (name && !strcmp(name, creature->name)) return idx;
+        if (name && *name) continue;
+        gi.configstring(idx, creature->name);
+        return idx;
+    }
+    fprintf(stderr, "WoW: NPC name configstring pool full for creature %u (%s)\n",
+            (unsigned)creature->entry, creature->name);
+    return 0;
+}
 
 /* A few AzerothCore rows begin above index zero; primary means the lowest
  * populated model index, not blindly models[0]. */
@@ -296,8 +313,10 @@ void Wow_SpawnQuestLocations(LPCVECTOR2 origin) {
         ent->s.radius = radius;
         ent->s.player = 2;
         ent->s.class_id = creature_model->display_id;
-        local->quest_available_sprite = (DWORD)gi.ImageIndex(WOW_QUEST_AVAILABLE_ICON);
-        ent->s.overhead_sprite = local->quest_available_sprite;
+        local->quest_available_model  = (DWORD)G_RegisterModel(WOW_QUEST_AVAILABLE_MODEL);
+        local->quest_active_sprite    = (DWORD)gi.ImageIndex(WOW_QUEST_ACTIVE_ICON);
+        ent->s.image = Wow_CreatureNameConfigstring(creature);
+        ent->s.overhead_sprite = local->quest_active_sprite; /* nonzero lets CustomizeEntity author recipient state */
         ent->s.angle = data->orientation;
         ent->s.flags = EF_GROUND_ANCHOR;
         /* Non-hostile NPCs still need the creature frame for their idle (Stand)

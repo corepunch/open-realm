@@ -124,10 +124,16 @@ static m2Model_t *M2_CreateFallbackModel(LPCSTR modelFilename, LPCSTR reason) {
     return model;
 }
 
-/* Modified character atlases are rendered into this shared scratch target. */
-#define M2_CHARACTER_COMPOSITE_RESOLUTION 256
-static LPRENDERTARGET m2_character_composite_target;
-static TEXTURE m2_character_composite_texture;
+/* Modified character atlases are retained by appearance instead of being recomposed every draw. */
+#define M2_CHARACTER_COMPOSITE_RESOLUTION 256 // pixels; Classic character body atlases use this native resolution
+#define M2_CHARACTER_COMPOSITE_CACHE_SIZE 16 // atlases; bounded global LRU shared across all loaded character models
+typedef struct {
+    LPRENDERTARGET target;
+    TEXTURE texture;
+} M2CHARCOMPOSITECACHE;
+static M2CHARCOMPOSITECACHE m2_character_composite_cache[M2_CHARACTER_COMPOSITE_CACHE_SIZE];
+static m2CompositeCacheKey_t m2_character_composite_keys[M2_CHARACTER_COMPOSITE_CACHE_SIZE];
+static DWORD m2_character_composite_clock;
 static BYTE M2_CharacterTextureSlotForSection(WORD section_id) {
     switch (section_id) {
         case 401:
@@ -1795,7 +1801,7 @@ static void M2_DrawCompositeComponent(LPCSTR stem, BYTE slot, LPCSTR model_path,
 
         if (!M2_CharacterComponentTexturePath(stem, slot, model_path, resolved, sizeof(resolved))) return;
         texture = R_LoadTexture(resolved);
-        if (texture) M2_DrawCompositeQuad(texture, &(RECT){ x, y, w, h }, true);
+        if (texture != tr.texture[TEX_PLACEHOLDER]) M2_DrawCompositeQuad(texture, &(RECT){ x, y, w, h }, true);
     }
 }
 
@@ -1810,7 +1816,9 @@ static void M2_DrawCompositeHeadVariation(LPCSTR model_path, DWORD section_id,
 
         if (!M2_DbcCharacterVariationTexturePath(model_path, section_id, variation_index, color_index, texture_indices[i], path, sizeof(path))) continue;
         texture = R_LoadTexture(path);
-        if (texture) M2_DrawCompositeQuad(texture, &(RECT){ rects[i][0], rects[i][1], rects[i][2], rects[i][3] }, true);
+        /* Some Classic CharSections rows reference absent optional overlays (notably female tauren facial hair). */
+        if (texture != tr.texture[TEX_PLACEHOLDER])
+            M2_DrawCompositeQuad(texture, &(RECT){ rects[i][0], rects[i][1], rects[i][2], rects[i][3] }, true);
     }
 }
 
@@ -1824,18 +1832,28 @@ static LPTEXTURE M2_PrepareCharacterTexture(m2Model_t const *model,
     };
     PATHSTR base_path;
     LPTEXTURE base;
+    M2CHARCOMPOSITECACHE *cached;
+    m2CompositeCacheParams_t cache;
+    DWORD cache_slot;
     GLint old_framebuffer;
     GLint old_viewport[4];
     GLboolean old_depth, old_cull, old_blend;
     GLboolean old_scissor;
     GLint old_scissor_box[4];
 
-    if (!model || !entity || !m2_character_composite_target ||
-        !M2_CharacterTextureModified(outfit, entity->appearance)) return NULL;
+    if (!model || !entity || !M2_CharacterTextureModified(outfit, entity->appearance)) return NULL;
+    cache = (m2CompositeCacheParams_t){ m2_character_composite_keys, M2_CHARACTER_COMPOSITE_CACHE_SIZE,
+        { model, entity->appearance, entity->equipment, entity->display_id, 0, false }, &m2_character_composite_clock, false };
+    cache_slot = m2_composite_cache_slot(&cache);
+    cached = m2_character_composite_cache + cache_slot;
+    if (cache.hit) return &cached->texture;
     if (!M2_DbcCharacterTexturePathForType(model->filename, entity->appearance, 1, base_path, sizeof(base_path)))
-        return NULL;
+        { m2_character_composite_keys[cache_slot].occupied = false; return NULL; }
     base = R_LoadTexture(base_path);
-    if (!base) return NULL;
+    if (base == tr.texture[TEX_PLACEHOLDER]) { m2_character_composite_keys[cache_slot].occupied = false; return NULL; }
+    if (!cached->target)
+        cached->target = R_AllocateRenderTexture(M2_CHARACTER_COMPOSITE_RESOLUTION, M2_CHARACTER_COMPOSITE_RESOLUTION, GL_RGBA, GL_UNSIGNED_BYTE, GL_COLOR_ATTACHMENT0);
+    if (!cached->target) { m2_character_composite_keys[cache_slot].occupied = false; return NULL; }
 
     R_Call(glGetIntegerv, GL_DRAW_FRAMEBUFFER_BINDING, &old_framebuffer);
     R_Call(glGetIntegerv, GL_VIEWPORT, old_viewport);
@@ -1844,7 +1862,7 @@ static LPTEXTURE M2_PrepareCharacterTexture(m2Model_t const *model,
     old_blend = R_Call(glIsEnabled, GL_BLEND);
     old_scissor = R_Call(glIsEnabled, GL_SCISSOR_TEST);
     R_Call(glGetIntegerv, GL_SCISSOR_BOX, old_scissor_box);
-    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, m2_character_composite_target->buffer);
+    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, cached->target->buffer);
     R_Call(glViewport, 0, 0, M2_CHARACTER_COMPOSITE_RESOLUTION, M2_CHARACTER_COMPOSITE_RESOLUTION);
     /* The view scissor is in window coordinates; it would clip this 256x256 target. */
     R_Call(glDisable, GL_SCISSOR_TEST);
@@ -1870,10 +1888,10 @@ static LPTEXTURE M2_PrepareCharacterTexture(m2Model_t const *model,
     if (old_blend) { R_Call(glEnable, GL_BLEND); } else { R_Call(glDisable, GL_BLEND); }
     R_Call(glScissor, old_scissor_box[0], old_scissor_box[1], old_scissor_box[2], old_scissor_box[3]);
     if (old_scissor) { R_Call(glEnable, GL_SCISSOR_TEST); } else { R_Call(glDisable, GL_SCISSOR_TEST); }
-    m2_character_composite_texture.texid = m2_character_composite_target->texture;
-    m2_character_composite_texture.width = M2_CHARACTER_COMPOSITE_RESOLUTION;
-    m2_character_composite_texture.height = M2_CHARACTER_COMPOSITE_RESOLUTION;
-    return &m2_character_composite_texture;
+    cached->texture.texid = cached->target->texture;
+    cached->texture.width = M2_CHARACTER_COMPOSITE_RESOLUTION;
+    cached->texture.height = M2_CHARACTER_COMPOSITE_RESOLUTION;
+    return &cached->texture;
 }
 
 static LPTEXTURE M2_CharacterTextureForBatch(m2Model_t const *model,
@@ -2270,18 +2288,23 @@ void M2_Release(m2Model_t *model) {
         ri.MemFree(batch);
         batch = next;
     }
+    /* A recycled model allocation must never inherit an atlas cached for the old owner at the same address. */
+    FOR_LOOP(i, M2_CHARACTER_COMPOSITE_CACHE_SIZE)
+        if (m2_character_composite_keys[i].owner == model) m2_character_composite_keys[i].occupied = false;
     M2_FreeModelData(model);
     ri.MemFree(model);
 }
 
 void M2_Init(void) {
-    m2_character_composite_target = R_AllocateRenderTexture(M2_CHARACTER_COMPOSITE_RESOLUTION, M2_CHARACTER_COMPOSITE_RESOLUTION, GL_RGBA, GL_UNSIGNED_BYTE, GL_COLOR_ATTACHMENT0);
+    memset(m2_character_composite_cache, 0, sizeof(m2_character_composite_cache));
+    memset(m2_character_composite_keys, 0, sizeof(m2_character_composite_keys));
+    m2_character_composite_clock = 0;
 }
 
 void M2_Shutdown(void) {
     m2KnownTexture_t *known;
-    R_ReleaseRenderTexture(m2_character_composite_target);
-    m2_character_composite_target = NULL;
+    FOR_LOOP(i, M2_CHARACTER_COMPOSITE_CACHE_SIZE)
+        SAFE_DELETE(m2_character_composite_cache[i].target, R_ReleaseRenderTexture);
     while ((known = m2_known_textures) != NULL) {
         m2_known_textures = known->next;
         ri.MemFree(known);

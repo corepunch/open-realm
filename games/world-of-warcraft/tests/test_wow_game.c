@@ -629,7 +629,9 @@ TEST(wow_game, quest_givers_receive_creature_frame_for_idle_animation) {
         T_ASSERT(e->idle == Wow_AIIdle);
         T_ASSERT(e->svflags & SVF_MONSTER);
         T_NOT_NULL(local->animation);
-        T_ASSERT(e->s.overhead_sprite != 0); /* quest giver shows the available-quest marker */
+        T_ASSERT(local->quest_available_model != 0);
+        T_ASSERT(e->s.image >= CS_GENERAL);
+        T_STREQ(test_configstrings[e->s.image], "Deputy Willem");
         if (local->animation) T_STREQ(local->animation->name, "Stand");
         break;
     }
@@ -637,30 +639,37 @@ TEST(wow_game, quest_givers_receive_creature_frame_for_idle_animation) {
     if (game->Shutdown) game->Shutdown();
 }
 
-TEST(wow_game, quest_marker_is_hidden_after_quest_acceptance) {
+TEST(wow_game, quest_marker_transitions_on_acceptance) {
     struct game_export *game = init_game();
     VECTOR2 origin = { -8947.64f, -132.319f };
     LPEDICT giver = NULL;
     entityState_t state;
+    DWORD avail_model, active_idx;
 
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     game->RunFrame();
     Wow_SpawnQuestLocations(&origin);
     FOR_LOOP(i, globals.num_edicts) {
-        if (wow_edicts[i].inuse && wow_edicts[i].s.class_id == 2072) {
-            giver = &wow_edicts[i];
-            break;
-        }
+        if (wow_edicts[i].inuse && wow_edicts[i].s.class_id == 2072) { giver = &wow_edicts[i]; break; }
     }
     T_NOT_NULL(giver);
     if (giver) {
-        state = giver->s;
-        game->CustomizeEntity(0, giver, &state);
-        T_ASSERT(state.overhead_sprite != 0);
-        game->ClientCommand(&wow_edicts[0], 2, (LPCSTR[]){ "quest_accept", "783" });
+        avail_model = (DWORD)test_model_index("Interface\\Buttons\\TalkToMe.m2");
+        active_idx = (DWORD)test_image_index("Interface\\GossipFrame\\ActiveQuestIcon.blp");
+        /* Before acceptance: the authoritative yellow "!" M2, not the GossipFrame BLP. */
         state = giver->s;
         game->CustomizeEntity(0, giver, &state);
         T_EQ((int)state.overhead_sprite, 0);
+        T_EQ((int)state.model2, (int)avail_model);
+        T_ASSERT(state.renderfx & RF_ATTACH_OVERHEAD);
+        /* After acceptance: grey "?" (ActiveQuestIcon, no tint). */
+        game->ClientCommand(&wow_edicts[0], 2, (LPCSTR[]){ "quest_accept", "783" });
+        state = giver->s;
+        game->CustomizeEntity(0, giver, &state);
+        T_EQ((int)(state.overhead_sprite & 0x7fff), (int)active_idx);
+        T_EQ((int)state.model2, 0);
+        T_ASSERT(!(state.renderfx & RF_ATTACH_OVERHEAD));
+        T_ASSERT(!(state.overhead_sprite & WOW_QUEST_SPRITE_TINT_FLAG));
     }
     if (game->Shutdown) game->Shutdown();
 }

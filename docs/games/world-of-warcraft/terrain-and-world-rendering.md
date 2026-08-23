@@ -153,6 +153,19 @@ The current renderer already performs two useful reductions: per-group frustum/f
 
 This is preferable to hardware occlusion queries on the macOS OpenGL-to-Metal path, where query readback can serialize the CPU and GPU. It also attacks the real cost visible in profiles: avoided group/material submissions and texture/pipeline changes. Instancing helps repeated WMO placements, but Northshire's expensive buildings are mostly unique instances, so it is secondary to portal visibility and material sorting. Indexed group buffers can later remove the current expanded triangle-list vertex duplication without changing visibility.
 
+### Human-start direction spike (2026-08-22)
+
+A bounded Human-start comparison at yaw 0/90 confirmed that the direction spike is WMO work, not grass or ADT doodads:
+
+| View | Total draws | WMO groups/draws | ADT doodad draws |
+| --- | ---: | ---: | ---: |
+| yaw 0 | ~1,246 | 49 / 176 | 692 |
+| yaw 90 | ~3,663 | 252 / 2,455 | 679 |
+
+The loaded 3x3 ADT window repeats `Stormwind.wmo` six times with the same authoritative MODF `unique_id=10047` and identical transform. `Wow_AddWmoInstance` currently ignores `unique_id`, so the 90-degree view submits the same 40 visible Stormwind groups six times. WMO doodads are likewise built for every duplicate instance. Deduplicate MDDF and MODF placements by their non-zero `unique_id` while the ADT window is resident; do not deduplicate by path because distinct authored placements legitimately share a model. WoWee follows this exact ownership rule with `placedDoodadIds` and `placedWmoIds`, removing IDs again when a streamed tile unloads.
+
+After placement deduplication, retain per-group frustum/fog culling and implement conservative interior portal traversal. The retail 1.12.1 client organizes the frame as a scene walk over spatial cells, performs per-kind frustum plus optional occlusion rejection, appends survivors to intrusive render lists, and drains terrain, WMO, doodad, M2, liquid, and far-band passes separately. Its WMO renderer has distinct inside/outside portal visibility and a portal flood. This is the appropriate architecture target; rendering every WMO-embedded doodad buffer unconditionally is not.
+
 [WoWee's WMO renderer](https://github.com/Kelsidavis/wowee/blob/main/src/rendering/wmo_renderer.cpp) is the closest portal implementation reference: it uses conservative interior-only traversal, seeds from camera and character groups, never portal-culls exterior groups, and falls back to frustum culling when containment is ambiguous. Its collision path does **not** consume `MOBN`/`MOBR`: `bspNodes` is declared but never populated, while floor queries use all `MOVI` triangles in per-group 2D grids after instance/group bounds rejection. Keep WoWee's conservative portal rules, but retain our cheaper authored BSP collision. The [classic 1.12.1 client reverse engineering](https://github.com/samwhosung/wow-1121-client-internals/blob/main/docs/models.md) identifies separate inside/outside portal visibility and portal-flood routines plus the WMO segment-intersection wrapper. [TrinityCore's world-object position update](https://github.com/TrinityCore/TrinityCore/blob/master/src/server/game/Entities/Object/Object.cpp) likewise records a distinct static floor and current WMO from its full terrain/collision query.
 
 Bounded verification:

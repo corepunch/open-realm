@@ -1,49 +1,59 @@
 #include "r_local.h"
+#include <ctype.h>
 
 /* texid -> texture index for model texture resolution; the cache below owns the texture memory. */
 static LPTEXTURE g_textures = NULL;
 
-/* Cap mirrors the model registry's MAX_MODELS * 4; past it textures are re-loaded per call instead of
- * growing the cache without bound for the whole session. */
-#define R_MAX_LOADED_TEXTURES (MAX_IMAGES * 4)
+#define BZ_IMAGE_CACHE_BUCKETS 2048u // buckets; keeps thousands of resident world textures near O(1) lookup
+#define BZ_IMAGE_HASH_INIT 2166136261u // FNV-1a seed; stable case-insensitive texture-path hashing
+#define BZ_IMAGE_HASH_PRIME 16777619u // FNV-1a multiplier; distributes archive paths across cache buckets
 
 typedef struct rImageCacheEntry_s {
     char *name;
     LPTEXTURE texture;
+    BOOL owns_texture;
     struct rImageCacheEntry_s *next;
+    struct rImageCacheEntry_s *hash_next;
 } rImageCacheEntry_t;
 
 static rImageCacheEntry_t *r_image_cache;
-static DWORD r_image_cache_count;
+static rImageCacheEntry_t *r_image_hash[BZ_IMAGE_CACHE_BUCKETS];
+
+/* Texture paths are case-insensitive inside MPQs, so the registry hash must use the same contract as lookup. */
+static DWORD R_TextureNameHash(LPCSTR name) {
+    DWORD hash = BZ_IMAGE_HASH_INIT;
+    for (; name && *name; name++) hash = (hash ^ (BYTE)tolower((unsigned char)*name)) * BZ_IMAGE_HASH_PRIME;
+    return hash;
+}
 
 LPTEXTURE R_FindLoadedTexture(LPCSTR name) {
     rImageCacheEntry_t *entry;
+    DWORD hash;
 
-    for (entry = r_image_cache; entry; entry = entry->next)
+    if (!name || !*name) return NULL;
+    hash = R_TextureNameHash(name) % BZ_IMAGE_CACHE_BUCKETS;
+    for (entry = r_image_hash[hash]; entry; entry = entry->hash_next)
         if (!strcasecmp(entry->name, name)) return entry->texture;
     return NULL;
 }
 
 void R_CacheLoadedTexture(LPCSTR name, LPTEXTURE texture) {
-    rImageCacheEntry_t *entry;
+    rImageCacheEntry_t *entry, *known;
+    DWORD hash;
 
     if (!name || !*name || !texture || R_FindLoadedTexture(name)) return;
-    if (r_image_cache_count >= R_MAX_LOADED_TEXTURES) {
-        static BOOL warned_cap;
-        if (!warned_cap) {
-            fprintf(stderr, "R_CacheLoadedTexture: cache full (%u); further textures are re-loaded per call\n",
-                    R_MAX_LOADED_TEXTURES);
-            warned_cap = true;
-        }
-        return;
-    }
+    hash = R_TextureNameHash(name) % BZ_IMAGE_CACHE_BUCKETS;
     entry = ri.MemAlloc(sizeof(*entry));
     entry->name = ri.MemAlloc(strlen(name) + 1);
     strcpy(entry->name, name);
     entry->texture = texture;
+    entry->owns_texture = texture != tr.texture[TEX_PLACEHOLDER];
+    for (known = r_image_cache; known; known = known->next)
+        if (known->texture == texture) { entry->owns_texture = false; break; }
     entry->next = r_image_cache;
+    entry->hash_next = r_image_hash[hash];
     r_image_cache = entry;
-    r_image_cache_count++;
+    r_image_hash[hash] = entry;
 }
 
 void R_ShutdownTextureCache(void) {
@@ -51,12 +61,14 @@ void R_ShutdownTextureCache(void) {
 
     while ((entry = r_image_cache) != NULL) {
         r_image_cache = entry->next;
-        R_Call(glDeleteTextures, 1, &entry->texture->texid);
-        ri.MemFree(entry->texture);
+        if (entry->owns_texture) {
+            R_Call(glDeleteTextures, 1, &entry->texture->texid);
+            ri.MemFree(entry->texture);
+        }
         ri.MemFree(entry->name);
         ri.MemFree(entry);
     }
-    r_image_cache_count = 0;
+    memset(r_image_hash, 0, sizeof(r_image_hash));
     /* The cache owns every cached texture; g_textures only indexes them by texid, so it must not outlive the free. */
     g_textures = NULL;
 }

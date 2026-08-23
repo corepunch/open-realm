@@ -41,6 +41,38 @@ typedef struct {
 typedef M2PARTICLECURVE *LPM2PARTICLECURVE;
 typedef M2PARTICLECURVE const *LPCM2PARTICLECURVE;
 
+typedef struct {
+    void const *owner;
+    DWORD appearance, equipment, display_id, used;
+    BOOL occupied;
+} m2CompositeCacheKey_t;
+
+typedef struct {
+    m2CompositeCacheKey_t *keys;
+    DWORD count;
+    m2CompositeCacheKey_t wanted;
+    LPDWORD clock;
+    BOOL hit;
+} m2CompositeCacheParams_t;
+
+/* Character atlas cache hits refresh recency; misses consume an empty slot before evicting the oldest entry. */
+static DWORD m2_composite_cache_slot(m2CompositeCacheParams_t *params) {
+    DWORD victim = 0, oldest = 0xffffffffu, stamp = ++*params->clock;
+    if (!stamp) stamp = ++*params->clock;
+    params->hit = false;
+    FOR_LOOP(i, params->count) {
+        m2CompositeCacheKey_t *key = params->keys + i;
+        if (key->occupied && key->owner == params->wanted.owner && key->appearance == params->wanted.appearance &&
+            key->equipment == params->wanted.equipment && key->display_id == params->wanted.display_id) {
+            key->used = stamp; params->hit = true; return i;
+        }
+        if (!key->occupied) { victim = i; oldest = 0; break; }
+        if (key->used < oldest) { oldest = key->used; victim = i; }
+    }
+    params->wanted.used = stamp; params->wanted.occupied = true; params->keys[victim] = params->wanted;
+    return victim;
+}
+
 /* M2 uses fractional, lifetime-normalized scales; encode them without changing the legacy MDX byte/seconds contract. */
 static void m2_particle_encode_curve(LPCM2PARTICLECURVE curve, cparticle_t *particle) {
     FLOAT max_value = MAX(curve->value[0], MAX(curve->value[1], curve->value[2]));
