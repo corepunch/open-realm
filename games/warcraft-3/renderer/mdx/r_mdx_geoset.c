@@ -186,10 +186,6 @@ static bool MDLX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
             R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             R_Call(glDepthMask, GL_FALSE);
             break;
-#ifdef DEBUG_PATHFINDING
-        default:
-            return false;
-#else
         case BLEND_MODE_ADD:
             R_Call(glEnable, GL_BLEND);
             R_Call(glBlendFunc, GL_ONE, GL_ONE);
@@ -215,7 +211,6 @@ static bool MDLX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
             R_Call(glBlendFunc, GL_ONE, GL_ZERO);
             R_Call(glDepthMask, GL_TRUE);
             break;
-#endif
     }
     return true;
 }

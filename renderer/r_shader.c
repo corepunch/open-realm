@@ -36,53 +36,32 @@ LPCSTR fs_default =
 "#version 140\n"
 "in vec2 v_texcoord;\n"
 "in vec2 v_texcoord2;\n"
-#ifdef USE_SHADOWMAPS
-"in vec4 v_shadow;\n"
-#endif
 "in vec3 v_normal;\n"
 "in vec4 v_color;\n"
 "in vec3 v_lightDir;\n"
 "out vec4 o_color;\n"
 "uniform sampler2D uTexture;\n"
-#if defined(USE_SHADOWMAPS) || defined(DEBUG_PATHFINDING)
-"uniform sampler2D uShadowmap;\n"
-#endif
 "uniform sampler2D uFogOfWar;\n"
 "float get_light() {\n"
 "    return dot(v_normal, v_lightDir);\n"
 "}\n"
 #ifdef USE_SHADOWMAPS
+"uniform sampler2D uShadowmap;\n"
+"in vec4 v_shadow;\n"
 "float get_shadow() {\n"
 "    float depth = texture(uShadowmap, vec2(v_shadow.x + 1.0, v_shadow.y + 1.0) * 0.5).r;\n"
 "    return depth < (v_shadow.z + 0.99) * 0.5 ? 0.0 : 1.0;\n"
 "}\n"
-#endif
-"float get_lighting() {\n"
-#ifdef USE_SHADOWMAPS
-"    return min(1.0, mix(0.35, 1.0, get_shadow() * get_light()) * 1.1);"
+"float get_lighting() { return min(1.0, mix(0.35, 1.0, get_shadow() * get_light()) * 1.1); }\n"
 #else
-"    return min(1.0, mix(0.35, 1.0, get_light()) * 1.1);"
+"float get_lighting() { return min(1.0, mix(0.35, 1.0, get_light()) * 1.1); }\n"
 #endif
-"}\n"
 "float get_fogofwar() {\n"
 "    return texture(uFogOfWar, v_texcoord2).r;\n"
 "}\n"
 "void main() {\n"
-#ifdef DEBUG_PATHFINDING
-"    vec4 debug = texture(uShadowmap, v_texcoord2);\n"
-"    vec4 color = texture(uTexture, v_texcoord);\n"
-"    float sin_factor = sin(debug.g * 3.14159 * 2.0);\n"
-"    float cos_factor = cos(debug.g * 3.14159 * 2.0);\n"
-"    vec2 tc = fract(v_texcoord2 * 384.0);\n"
-"    tc = (tc - 0.5) * mat2(cos_factor, sin_factor, -sin_factor, cos_factor);\n"
-"    tc += 0.5;\n"
-"    float stp = step(abs(0.5 - tc.y), tc.x * 0.25);"
-"    /*debug.a = color.a*/;\n"
-"    o_color = debug * 0.7;// mix(debug, color, 0.5) + vec4(stp);\n"
-"    return;\n"
-#endif
 "    vec4 col = texture(uTexture, v_texcoord) * v_color;\n"
-#ifdef WOW
+#ifdef WOW // TODO: Why is WoW not lit?? fogofwar shall be in #ifdef, disabled for WoW
 "    o_color = col;\n"
 #else
 "    col.rgb *= get_fogofwar() * get_lighting();\n"
@@ -254,7 +233,7 @@ static LPCSTR model_fs =
 "in vec4 v_color;\n"
 "out vec4 o_color;\n"
 "uniform sampler2D uTexture;\n"
-#if defined(USE_SHADOWMAPS) || defined(DEBUG_PATHFINDING)
+#ifdef USE_SHADOWMAPS
 "uniform sampler2D uShadowmap;\n"
 #endif
 // TODO: Add USE_FOGOFWAR and disable it in WoW as it's not needed
@@ -550,7 +529,7 @@ LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
     R_RegisterUniform(program, uNormalMatrix);
     R_RegisterUniform(program, uTextureMatrix);
     R_RegisterUniform(program, uTexture);
-#if defined(USE_SHADOWMAPS) || defined(DEBUG_PATHFINDING)
+#ifdef USE_SHADOWMAPS
     R_RegisterUniform(program, uShadowmap);
 #endif
     R_RegisterUniform(program, uFogOfWar);
@@ -576,7 +555,7 @@ LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default){
     R_RegisterUniform(program, uFirstBoneLookupIndex);
 
     R_Call(glUniform1i, program->uTexture, 0);
-#if defined(USE_SHADOWMAPS) || defined(DEBUG_PATHFINDING)
+#ifdef USE_SHADOWMAPS
     R_Call(glUniform1i, program->uShadowmap, 1);
 #endif
     R_Call(glUniform1i, program->uFogOfWar, 2);

@@ -172,18 +172,7 @@ static int const dx[] = {-1, 1, 0, 0, -1, -1, 1, 1};
 static int const dy[] = {0, 0, -1, 1, -1, 1, -1, 1};
 static int const gv[] = {10, 10, 10, 10, 14, 14, 14, 14};
 
-#ifdef DEBUG_PATHFINDING
-LPCOLOR32 pathDebug = NULL;
-static void CM_FillDebugObstacles(void) {
-    memset(pathDebug, 0x0, sizeof(pathmap.width * pathmap.height * sizeof(COLOR32)));
-    FOR_LOOP(i, pathmap.width * pathmap.height) {
-        pathDebug[i].r = pathmap.data[i].nowalk ? 255 : 0;
-        pathDebug[i].g = 0;
-        pathDebug[i].b = 0;
-        pathDebug[i].a = 255;
-    }
-}
-#endif
+
 
 inline static pathMapCell_t *path_node(DWORD x, DWORD y) {
     int const index = x + y * pathmap.width;
@@ -602,10 +591,6 @@ static point2_t LocationToPathMap(LPCVECTOR2 location) {
  * twice, at most width*height cells are queued at once and the ring buffer of
  * width*height+1 never overflows. */
 DWORD build_heatmap(point2_t target) {
-#ifdef DEBUG_PATHFINDING
-    CM_FillDebugObstacles();
-#endif
-
     DWORD const width = pathmap.width;
     DWORD const cap = pathmap.width * pathmap.height + 1;
     DWORD *const q = pathmap.queue;
@@ -647,11 +632,6 @@ DWORD build_heatmap(point2_t target) {
         }
     }
 
-#ifdef DEBUG_PATHFINDING
-    FOR_LOOP(i, pathmap.width * pathmap.height) {
-        pathDebug[i].r = pathmap.data[i].nowalk ? 255 : 0;
-    }
-#endif
     return 0;
 }
 
@@ -749,10 +729,5 @@ void CM_ReadPathMap(HANDLE archive) {
     SFileCloseFile(file);
     CM_SetupPathMap(width, height, cells);
     MemFree(cells);
-
-#ifdef DEBUG_PATHFINDING
-    pathDebug = MemAlloc(pathmap.width * pathmap.height * sizeof(COLOR32));
-    CM_FillDebugObstacles();
-#endif
 }
 #endif /* !TOOL_COMMON_NO_MPQ */

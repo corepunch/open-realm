@@ -226,9 +226,6 @@ typedef struct {
     bool (*TraceMinimap)(float x, float y, LPVECTOR2 outWorld);
     DWORD (*EntitiesInRect)(viewDef_t const *viewdef, LPCRECT rect, DWORD max, LPDWORD array);
 
-#ifdef DEBUG_PATHFINDING
-    void (*SetPathTexture)(LPCCOLOR32 debugTexture);
-#endif
 } refExport_t;
 
 typedef refExport_t *LPRENDERER;

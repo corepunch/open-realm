@@ -1,8 +1,6 @@
 #ifndef shared_h
 #define shared_h
 
-//#define DEBUG_PATHFINDING
-
 #include <string.h>
 #include <stdio.h>
 #include <assert.h>

@@ -134,7 +134,7 @@ struct shader_program {
     DWORD uNormalMatrix;
     DWORD uTextureMatrix;
     DWORD uTexture;
-#if defined(USE_SHADOWMAPS) || defined(DEBUG_PATHFINDING)
+#ifdef USE_SHADOWMAPS
     DWORD uShadowmap;
 #endif
     DWORD uFogOfWar;
@@ -144,9 +144,7 @@ struct shader_program {
     DWORD uUnshaded;
     DWORD uLayerAlpha;
     DWORD uGeosetColor;
-    DWORD uUvTrans;
-    DWORD uUvRot;
-    DWORD uUvScale;
+    DWORD uUvMatrix;
     DWORD uLightDir;
     DWORD uLightColor;
     DWORD uLightAmbient;

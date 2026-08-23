@@ -880,9 +880,6 @@ bool R_SetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
 }
 
 refExport_t R_GetAPI(refImport_t imp) {
-#ifdef DEBUG_PATHFINDING
-    void R_SetPathTexture(LPCCOLOR32 debugTexture);
-#endif
     ri = imp;
     return (refExport_t) {
         .Init = R_Init,
@@ -923,8 +920,5 @@ refExport_t R_GetAPI(refImport_t imp) {
         .TraceLocation = R_GameTraceLocation,
         .TraceMinimap = R_TraceMinimap,
         .EntitiesInRect = R_EntitiesInRect,
-#ifdef DEBUG_PATHFINDING
-        .SetPathTexture = R_SetPathTexture,
-#endif
     };
 }
