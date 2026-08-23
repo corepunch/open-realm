@@ -38,6 +38,9 @@ The code compares chunk tags in reversed byte order. Important ADT tags currentl
 | `RNCM` | `MCNR` | Terrain normals. |
 | `YLCM` | `MCLY` | Texture layers. |
 | `LACM` | `MCAL` | Alpha maps. |
+| `HSCM` | `MCSH` | Baked sun shadow bitfield. |
+| `QLCM` | `MCLQ` | Inline liquid geometry (Vanilla/TBC). |
+| `O2HM` | `MH2O` | Tile-level liquid layer data (WotLK+). |
 
 ## Terrain Layers
 
@@ -162,7 +165,7 @@ A bounded Human-start comparison at yaw 0/90 confirmed that the direction spike 
 | yaw 0 | ~1,246 | 49 / 176 | 692 |
 | yaw 90 | ~3,663 | 252 / 2,455 | 679 |
 
-The loaded 3x3 ADT window repeats `Stormwind.wmo` six times with the same authoritative MODF `unique_id=10047` and identical transform. `Wow_AddWmoInstance` currently ignores `unique_id`, so the 90-degree view submits the same 40 visible Stormwind groups six times. WMO doodads are likewise built for every duplicate instance. Deduplicate MDDF and MODF placements by their non-zero `unique_id` while the ADT window is resident; do not deduplicate by path because distinct authored placements legitimately share a model. WoWee follows this exact ownership rule with `placedDoodadIds` and `placedWmoIds`, removing IDs again when a streamed tile unloads.
+The loaded 3x3 ADT window repeats `Stormwind.wmo` six times with the same authoritative MODF `unique_id=10047` and identical transform. **Fixed**: `Wow_AddWmoInstance` and `Wow_AddDoodadInstance` now track accepted non-zero `unique_id`s in `wowMap_t.placed_wmo_ids` / `placed_dood_ids` (dynamic arrays) and skip any placement whose id is already in the set. These arrays are freed in `Wow_FreeWmoInstances` / `Wow_FreeDoodadInstances`, which `Wow_ClearLoadedAdts` calls when the ADT window shifts. Do not deduplicate by path — distinct authored placements legitimately share a model. WoWee follows this exact ownership rule with `placedDoodadIds` and `placedWmoIds`.
 
 After placement deduplication, retain per-group frustum/fog culling and implement conservative interior portal traversal. The retail 1.12.1 client organizes the frame as a scene walk over spatial cells, performs per-kind frustum plus optional occlusion rejection, appends survivors to intrusive render lists, and drains terrain, WMO, doodad, M2, liquid, and far-band passes separately. Its WMO renderer has distinct inside/outside portal visibility and a portal flood. This is the appropriate architecture target; rendering every WMO-embedded doodad buffer unconditionally is not.
 
@@ -259,8 +262,24 @@ Consumers: terrain (`r_wowmap_shader.c` vertex shader computes
 Baked terrain data in this 1.5 archive: MCNK has **no `MCCV`** (vertex color is
 WotLK+; the parser reads it but the fallback is white, and its BGRA bytes still need
 the RGBA swap `Wow_Color` performs for MOCV), but **does** carry `MCSH` (256 per ADT),
-the 64×64×8-bit baked sun shadow map. Vanilla terrain lighting is
-`texture × (ambient + diffuse·N·L) × MCSH`; the MCSH multiply is not yet applied.
+the 64×64×8-bit baked sun shadow map. `MCSH` has two distinct uses:
+
+1. **Alpha-map shadow modulation** (CPU, at decode time): for every MCAL texel where
+   the corresponding MCSH bit is set, darken the alpha value before uploading:
+   `alpha = (0xB2 * alpha) >> 8` (≈70% of original). **Implemented** in `r_wowmap_adt.c`
+   after `Wow_DecodeAlphaMaps` and before `Wow_UploadAlphaAtlasChunk`.
+2. **Final-color shadow multiply** (fragment shader): `out_color *= MCSH_sample` applied
+   after terrain lighting, so shadowed ground cells darken regardless of layer count.
+   Requires uploading the 64×64 R8 bitfield as a per-chunk texture. Not yet implemented.
+
+Vanilla terrain lighting is `texture × (ambient + diffuse·N·L) × MCSH`; apply the
+fragment-shader multiply only after adding MCSH to the shader uniforms.
+
+**Alpha-map chunk-edge feathering:** the classic client smooths alpha transitions at
+the 8-texel border between adjacent chunks to avoid hard seam lines where two chunks
+have different dominant textures. WoWee implements this as a `smoothstep(1/64, 8/64,
+border_distance)` weight in the fragment shader. Not yet implemented; most visible at
+transitions between grass and dirt in Northshire.
 
 
 MDDF positions are absolute map coordinates, not tile-local coordinates. Both the
@@ -342,9 +361,55 @@ Each game owns its minimap drawing via the `R_GameDrawMinimap(LPCRECT screen)` r
 
 The circular frame is the existing `Interface\Minimap\UI-Minimap-Border.blp` overlay (a ring with a transparent center), not a stencil.
 
+## Water
+
+Classic WoW uses two liquid formats depending on client version.
+
+### MCLQ (Vanilla / TBC)
+
+`MCLQ` is a sub-chunk inside each `MCNK` rather than a tile-level block. The MCNK
+header `liquid_offset` and `liquid_size` fields point to it; `MCNK.flags` bits 2–5
+identify the liquid type (river=2, ocean=4, magma=8, slime=16). The data layout is:
+
+- **Heights**: 9×9 float grid (81 floats) covering the chunk's XY footprint.
+- **Tile flags**: 8×8 byte grid; value `0x0F` marks a dry cell — skip it when building
+  geometry. Remaining cells emit one quad from four adjacent height samples.
+- **Flow data**: two `SWFlowv` entries (direction, position, velocity) at the end;
+  seldom populated in world terrain.
+
+The `r_wowmap_adt.c` parser detects `MCLQ` and comments it as needing a liquid
+rendering pass. No geometry is built yet.
+
+### MH2O (WotLK+)
+
+`MH2O` lives at tile level (one block per ADT). A 256-entry header array (one entry per
+`MCNK`) points to `SMLiquidChunk` descriptors; each descriptor carries a `liquidType`
+DBC reference, a `LiquidVertexFormat` (LVF) code, min/max height shortcuts, and offsets
+into per-instance heightmap data and a bitmask of which cells exist. The variable-size
+sub-grid allows partial liquid coverage within a chunk — only cells where the exists
+bitmask bit is set emit geometry.
+
+### Rendering plan
+
+Both formats share the same render requirements:
+
+1. Build a quad mesh from the height grid, skipping dry/absent cells.
+2. Submit as a separate **liquid pass** after all opaque geometry (terrain, WMO, M2).
+   Depth test ON, depth write OFF, alpha blending ON so transparent water shows
+   geometry beneath it.
+3. Animate UV coordinates each frame with a time-driven scroll to approximate wave
+   movement. A scrolling normal map can replace the flat-UV approximation later.
+
+Water is the largest currently unrendered terrain feature.
+
 ## Current Limits
 
 - Terrain rendering is the core focus.
-- DBC-driven lighting, WMO portals, distant LOD, water, and some animation fidelity are incomplete.
+- **Water** (MCLQ / MH2O) is parsed but produces no geometry — largest unrendered feature.
+- **MCSH** alpha-map modulation is implemented; the fragment-shader final-color multiply (upload 64×64 R8 per chunk) is not yet done.
+- **Alpha chunk-edge feathering** is absent; hard seam lines may appear at chunk boundaries.
+- DBC-driven lighting, WMO portals, and some animation fidelity are incomplete.
+- **Inner-vertex LOD**: dropping the inner 8×8 `MCVT` verts beyond ~200 world units
+  halves triangle count with no visible cost; not yet implemented.
 - The draw window and asset compatibility are tuned around local classic-era data.
 - Production support for arbitrary WoW client versions is not present.

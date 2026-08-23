@@ -187,6 +187,7 @@ typedef struct wowWmoGroup_s {
     wowWmoBatch_t *batches;
     BOX3 bounds;
     BOOL has_bounds;
+    BOOL indoor;           /* MOGP flags bit 0x2000: group is interior */
     WORD portal_start;     /* MOGP +0x24: first entry in model->portal_refs */
     WORD portal_count;     /* MOGP +0x26: number of portal_refs for this group */
     COLOR32 group_amb;       /* MOGP replacement_for_header_color (BGRA→RGB) */
@@ -304,6 +305,10 @@ typedef struct wowMap_s {
     DWORD num_wmo_models;
     DWORD num_wmo_batches;
     DWORD num_missing_wmos;
+    DWORD *placed_wmo_ids;     /* non-zero MODF unique_ids accepted this ADT window; dedup guard */
+    DWORD num_placed_wmo_ids, cap_placed_wmo_ids;
+    DWORD *placed_dood_ids;    /* non-zero MDDF unique_ids accepted this ADT window; dedup guard */
+    DWORD num_placed_dood_ids, cap_placed_dood_ids;
     DWORD wdt_flags;
     BOOL use_weighted_blend;
     BOOL has_adt_window;

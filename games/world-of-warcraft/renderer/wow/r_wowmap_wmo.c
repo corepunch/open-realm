@@ -270,7 +270,7 @@ void Wow_FixMocvAlpha(BYTE *colors, DWORD color_count,
         float a = colors[i * 4 + 3] / 255.f;
         FOR_LOOP(c, 3) {
             int v = colors[i * 4 + c];
-            colors[i * 4 + c] = BZ_CLAMP_U8((v * a / 64.f + v - amb_c[c]) / 2.f);
+            colors[i * 4 + c] = BZ_CLAMP_U8((v * a / 64.f + v - (exterior ? 0 : amb_c[c])) / 2.f);
         }
         colors[i * 4 + 3] = exterior ? 0xFF : 0x00;
     }
@@ -314,6 +314,7 @@ static BOOL Wow_LoadWmoGroup(wowWmoModel_t *model, DWORD group_index, WOWWMOLOAD
                 break;
             }
             indoor = (Wow_Read32(chunk + 8) & 0x2000) != 0;
+            model->groups[group_index].indoor = indoor;
             trans_batch_count = Wow_Read16(chunk + 0x30);
             model->groups[group_index].portal_start = Wow_Read16(chunk + 0x24);
             model->groups[group_index].portal_count = Wow_Read16(chunk + 0x26);
@@ -558,14 +559,32 @@ wowWmoModel_t *Wow_GetWmoModel(LPCSTR path) {
 }
 
 void Wow_AddWmoInstance(LPCSTR path, wowMapObjDef_t const *def) {
-    wowWmoModel_t *model = Wow_GetWmoModel(path);
+    wowWmoModel_t *model;
     wowWmoInstance_t *instance;
 
     wow_world.num_wmos++;
-    if (!model || !def) {
-        return;
+    if (!def) return;
+    /* Deduplicate by authoritative MODF unique_id: the 3×3 ADT window can list the same
+       WMO placement in multiple tiles; without this, yaw-90 Stormwind draws 6× the groups. */
+    if (def->unique_id) {
+        FOR_LOOP(i, wow_world.num_placed_wmo_ids)
+            if (wow_world.placed_wmo_ids[i] == def->unique_id) return;
+        if (wow_world.num_placed_wmo_ids == wow_world.cap_placed_wmo_ids) {
+            DWORD cap = wow_world.cap_placed_wmo_ids ? wow_world.cap_placed_wmo_ids * 2 : 64;
+            DWORD *arr = ri.MemAlloc(cap * sizeof(*arr));
+            if (arr) {
+                if (wow_world.placed_wmo_ids)
+                    memcpy(arr, wow_world.placed_wmo_ids, wow_world.num_placed_wmo_ids * sizeof(*arr));
+                SAFE_DELETE(wow_world.placed_wmo_ids, ri.MemFree);
+                wow_world.placed_wmo_ids = arr;
+                wow_world.cap_placed_wmo_ids = cap;
+            }
+        }
+        if (wow_world.num_placed_wmo_ids < wow_world.cap_placed_wmo_ids)
+            wow_world.placed_wmo_ids[wow_world.num_placed_wmo_ids++] = def->unique_id;
     }
-
+    model = Wow_GetWmoModel(path);
+    if (!model) return;
     instance = ri.MemAlloc(sizeof(*instance));
     memset(instance, 0, sizeof(*instance));
     instance->model = model;

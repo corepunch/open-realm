@@ -125,7 +125,7 @@ BOOL Wow_WmoContainsPoint(wowWmoModel_t const *model, LPCMATRIX4 matrix, VECTOR3
         float cx[2], cy[2], cz[2];
         if (!group->has_bounds) continue;
         /* Only interior groups contribute to containment */
-        if (!group->portal_count) continue;
+        if (!group->indoor) continue;
         world = Wow_EmptyBounds();
         cx[0] = group->bounds.min.x; cx[1] = group->bounds.max.x;
         cy[0] = group->bounds.min.y; cy[1] = group->bounds.max.y;

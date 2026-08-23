@@ -170,6 +170,8 @@ void Wow_FreeWmoInstances(void) {
         instance = next;
     }
     wow_world.wmos = NULL;
+    SAFE_DELETE(wow_world.placed_wmo_ids, ri.MemFree);
+    wow_world.num_placed_wmo_ids = wow_world.cap_placed_wmo_ids = 0;
 }
 
 void Wow_FreeDoodadInstances(void) {
@@ -188,6 +190,8 @@ void Wow_FreeDoodadInstances(void) {
     }
     wow_world.ground_effects = NULL;
     memset(wow_world.doodad_buckets, 0, sizeof(wow_world.doodad_buckets));
+    SAFE_DELETE(wow_world.placed_dood_ids, ri.MemFree);
+    wow_world.num_placed_dood_ids = wow_world.cap_placed_dood_ids = 0;
 }
 
 void Wow_ClearLoadedAdts(void) {
