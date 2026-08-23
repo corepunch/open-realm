@@ -1,4 +1,5 @@
 #include "r_local.h"
+#include "r_shader.h"
 
 LPCSTR vs_default =
 "#version 140\n"
@@ -152,10 +153,7 @@ static LPCSTR model_vs =
 "in vec4 i_skin1;\n"
 "in vec4 i_boneWeight1;\n"
 "#ifdef BZ_USE_INSTANCING\n"
-"in vec4 i_instance0;\n"
-"in vec4 i_instance1;\n"
-"in vec4 i_instance2;\n"
-"in vec4 i_instance3;\n"
+"in mat4 i_instance;\n"
 "#endif\n"
 "out vec4 v_color;\n"
 #ifdef USE_SHADOWMAPS
@@ -218,11 +216,10 @@ static LPCSTR model_vs =
 "    }\n"
 "    position.w = 1.0;\n"
 "#ifdef BZ_USE_INSTANCING\n"
-"    mat4 i_instance = mat4(i_instance0, i_instance1, i_instance2, i_instance3);\n"
 "    if (uGrassParams[3].z > 0.5) {\n"
 "        float grassHeight = max(uGrassParams[3].y - uGrassParams[3].x, 0.001);\n"
 "        float grassTop = smoothstep(uGrassParams[1].w, 1.0, clamp((position.z - uGrassParams[3].x) / grassHeight, 0.0, 1.0));\n"
-"        float grassPhase = dot(i_instance3.xy, uGrassParams[2].xy);\n"
+"        float grassPhase = dot(i_instance[3].xy, uGrassParams[2].xy);\n"
 "        float grassSway = sin(uGrassParams[1].x * uGrassParams[1].y + grassPhase) * uGrassParams[1].z * grassHeight * grassTop;\n"
 "        position.xy += uGrassParams[2].zw * grassSway;\n"
 "    }\n"
@@ -427,10 +424,7 @@ static LPSHADER R_InitShaderDefines(LPCSTR vs_src, LPCSTR fs_src, LPCSTR extra_d
     R_Call(glBindAttribLocation, program->progid, attrib_boneWeight1, "i_boneWeight1");
     R_Call(glBindAttribLocation, program->progid, attrib_particleSize, "i_size");
     R_Call(glBindAttribLocation, program->progid, attrib_particleAxis, "i_axis");
-    R_Call(glBindAttribLocation, program->progid, attrib_instance0, "i_instance0");
-    R_Call(glBindAttribLocation, program->progid, attrib_instance1, "i_instance1");
-    R_Call(glBindAttribLocation, program->progid, attrib_instance2, "i_instance2");
-    R_Call(glBindAttribLocation, program->progid, attrib_instance3, "i_instance3");
+    R_Call(glBindAttribLocation, program->progid, attrib_instance, "i_instance");
 
     R_Call(glLinkProgram, program->progid);
     R_Call(glUseProgram, program->progid);
@@ -478,6 +472,26 @@ static LPSHADER R_InitShaderDefines(LPCSTR vs_src, LPCSTR fs_src, LPCSTR extra_d
 
 LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default) {
     return R_InitShaderDefines(vs_default, fs_default, NULL);
+}
+
+/* Model callers submit one semantic lighting state; only this proxy knows the uniform packing contract. */
+void R_SetModelLighting(LPCSHADER shader, LPCMODELLIGHTING lighting) {
+    MATRIX4 packed[BZ_MODEL_LIGHT_MAX];
+    if (!lighting || lighting->count < 1 || lighting->count > BZ_MODEL_LIGHT_MAX) {
+        ri.error("R_SetModelLighting: light count must be 1..%u, got %u", BZ_MODEL_LIGHT_MAX,
+                 lighting ? lighting->count : 0);
+        return;
+    }
+    R_PackModelLighting(packed, lighting);
+    R_Call(glUniform1i, shader->uLightCount, lighting->count);
+    R_Call(glUniformMatrix4fv, shader->uLights, lighting->count, GL_FALSE, packed[0].v);
+}
+
+/* Grass uses the same proxy boundary so game code never uploads its packed matrix directly. */
+void R_SetModelGrass(LPCSHADER shader, LPCMODELGRASS grass) {
+    MATRIX4 packed;
+    R_PackModelGrass(&packed, grass);
+    R_Call(glUniformMatrix4fv, shader->uGrassParams, 1, GL_FALSE, packed.v);
 }
 
 void R_ReleaseShader(LPSHADER shader) {

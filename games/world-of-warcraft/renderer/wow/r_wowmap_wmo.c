@@ -626,34 +626,18 @@ void Wow_ComputeMoltContribution(wowWmoModel_t const *model, LPCMATRIX4 matrix,
             }
         }
         contrib = atten * lt->intensity;
-        out->x += contrib * lt->color.r / 255.0f;
-        out->y += contrib * lt->color.g / 255.0f;
-        out->z += contrib * lt->color.b / 255.0f;
+        VECTOR3 color = { lt->color.r, lt->color.g, lt->color.b };
+        *out = Vector3_mad(out, contrib / 255.0f, &color);
     }
-    out->x = MIN(1.0f, out->x);
-    out->y = MIN(1.0f, out->y);
-    out->z = MIN(1.0f, out->z);
+    *out = Vector3_clamp01(out);
 }
 
-/* Build a column-major 4x4 matrix for a WMO doodad in WMO local space.
-   Combines position, quaternion rotation, and uniform scale into T*R*S. */
 void Wow_WmoDoodadLocalMatrix(wowWmoDoodadDef_t const *def, LPMATRIX4 m) {
-    float qx = def->quat[0], qy = def->quat[1], qz = def->quat[2], qw = def->quat[3];
-    float s = def->scale;
-    memset(m->v, 0, sizeof(m->v));
-    m->v[0]  = s * (1.0f - 2.0f*(qy*qy + qz*qz));
-    m->v[1]  = s * 2.0f*(qx*qy + qz*qw);
-    m->v[2]  = s * 2.0f*(qx*qz - qy*qw);
-    m->v[4]  = s * 2.0f*(qx*qy - qz*qw);
-    m->v[5]  = s * (1.0f - 2.0f*(qx*qx + qz*qz));
-    m->v[6]  = s * 2.0f*(qy*qz + qx*qw);
-    m->v[8]  = s * 2.0f*(qx*qz + qy*qw);
-    m->v[9]  = s * 2.0f*(qy*qz - qx*qw);
-    m->v[10] = s * (1.0f - 2.0f*(qx*qx + qy*qy));
-    m->v[12] = def->position.x;
-    m->v[13] = def->position.y;
-    m->v[14] = def->position.z;
-    m->v[15] = 1.0f;
+    QUATERNION q = { def->quat[0], def->quat[1], def->quat[2], def->quat[3] };
+    VECTOR3 pos   = { def->position.x, def->position.y, def->position.z };
+    VECTOR3 scale = { def->scale, def->scale, def->scale };
+    VECTOR3 zero  = { 0.0f, 0.0f, 0.0f };
+    Matrix4_from_rotation_translation_scale_origin(m, &q, &pos, &scale, &zero);
 }
 
 /* Queue all doodads from the WMO's selected doodad set into instanced rendering.

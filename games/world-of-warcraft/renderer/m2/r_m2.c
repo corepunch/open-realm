@@ -1,6 +1,6 @@
 #include "renderer/r_local.h"
 #include "renderer/r_emit.h"
-#include "renderer/r_shader_utils.h"
+#include "renderer/r_shader.h"
 #include "r_dbc.h"
 #include "r_m2_utils.h"
 #include "../wow/r_wowmap.h"
@@ -2020,15 +2020,17 @@ static void M2_SetBlendMode(LPSHADER shader, DWORD mode) {
 
 /* WoW's world sun is an ordinary directional entry; the shared shader never has a zero-light mode. */
 static void M2_BindSunLight(LPSHADER shader) {
-    MATRIX4 light;
-    DIRECTLIGHT sun = {
-        .color = { WOW_LIGHT_DIFFUSE_R, WOW_LIGHT_DIFFUSE_G, WOW_LIGHT_DIFFUSE_B },
+    MODELLIGHTING light = {
         .ambient = { WOW_LIGHT_AMBIENT_R, WOW_LIGHT_AMBIENT_G, WOW_LIGHT_AMBIENT_B },
+        .count = 1,
+        .lights[0] = {
+            .color = { WOW_LIGHT_DIFFUSE_R, WOW_LIGHT_DIFFUSE_G, WOW_LIGHT_DIFFUSE_B },
+            .intensity = 1.0f,
+            .type = R_MODEL_LIGHT_DIRECT,
+        },
     };
-    Wow_SunDirection(Wow_DayFraction(), &sun.dir);
-    R_PackDirectLight(&light, &sun);
-    R_Call(glUniform1i, shader->uLightCount, 1);
-    R_Call(glUniformMatrix4fv, shader->uLights, 1, GL_FALSE, light.v);
+    Wow_SunDirection(Wow_DayFraction(), &light.lights[0].dir);
+    R_SetModelLighting(shader, &light);
 }
 
 void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMATRIX4 transform) {
@@ -2152,7 +2154,6 @@ void M2_RenderInstanced(m2Model_t const *model, LPCINSTANCEBUFFER instances, DWO
     R_Call(glUniform2f, shader->uFogParams, tr.viewDef.fogStart, tr.viewDef.fogEnd);
     R_Call(glUniform1f, shader->uFirstBoneLookupIndex, 0.0f);
     {
-        MATRIX4 packed;
         VECTOR3 cam = tr.viewDef.camerastate[0].origin;
         MODELGRASS grass = {
             .camera = { cam.x, cam.y },
@@ -2163,8 +2164,7 @@ void M2_RenderInstanced(m2Model_t const *model, LPCINSTANCEBUFFER instances, DWO
             .time = tr.viewDef.time / 1000.0f,
             .enabled = flags & RF_GROUND_EFFECT,
         };
-        R_PackModelGrass(&packed, &grass);
-        R_Call(glUniformMatrix4fv, shader->uGrassParams, 1, GL_FALSE, packed.v);
+        R_SetModelGrass(shader, &grass);
     }
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_TRUE);

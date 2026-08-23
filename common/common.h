@@ -99,10 +99,8 @@ typedef enum t_attrib_id {
     //attrib_boneWeight2,  /* removed: unified shader uses top-4 bones only */
     attrib_particleAxis,
     attrib_particleSize,
-    attrib_instance0,
-    attrib_instance1,
-    attrib_instance2,
-    attrib_instance3,
+    attrib_instance,
+    attrib_count = attrib_instance + 4, /* mat4 attributes reserve four consecutive locations */
 } t_attrib_id;
 
 struct texture;

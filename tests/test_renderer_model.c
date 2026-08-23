@@ -1,7 +1,7 @@
 #include "test.h"
 #include "renderer/r_local.h"
 #include "renderer/r_emit.h"
-#include "renderer/r_shader_utils.h"
+#include "renderer/r_shader.h"
 #include <stdarg.h>
 #include <stdlib.h>
 
@@ -125,18 +125,30 @@ TEST(renderer_instances, dynamic_capacity_reuses_and_grows_power_of_two) {
 }
 
 TEST(renderer_shader, directional_light_uses_array_schema) {
-    MATRIX4 light;
-    DIRECTLIGHT sun = { .dir = { 1, 2, 3 }, .color = { 4, 5, 6 }, .ambient = { 7, 8, 9 } };
-    R_PackDirectLight(&light, &sun);
-    T_EQ(light.v[3], 1.0f); T_EQ(light.v[4], -1.0f); T_EQ(light.v[5], -2.0f); T_EQ(light.v[6], -3.0f);
-    T_EQ(light.v[8], 4.0f); T_EQ(light.v[11], 1.0f); T_EQ(light.v[12], 7.0f); T_EQ(light.v[15], 1.0f);
+    MATRIX4 packed[BZ_MODEL_LIGHT_MAX];
+    MODELLIGHTING state = {
+        .ambient = { 1, 1, 1 }, .count = 1,
+        .lights[0] = {
+            .dir = { 1, 2, 3 }, .color = { 4, 5, 6 }, .ambient = { 7, 8, 9 },
+            .intensity = 0.5f, .ambient_intensity = 0.5f, .type = R_MODEL_LIGHT_DIRECT,
+        },
+    };
+    R_PackModelLighting(packed, &state);
+    T_EQ(packed[0].v[3], 1.0f); T_EQ(packed[0].v[4], -1.0f); T_EQ(packed[0].v[6], -3.0f);
+    T_EQ(packed[0].v[8], 4.0f); T_EQ(packed[0].v[11], 0.5f);
+    T_EQ(packed[0].v[12], 4.5f); T_EQ(packed[0].v[14], 5.5f); T_EQ(packed[0].v[15], 1.0f);
 }
 
-TEST(renderer_shader, scene_ambient_is_folded_once) {
-    MATRIX4 light = { .v = { [12] = 2, [13] = 3, [14] = 4, [15] = 0.5f } };
-    VECTOR3 ambient = { 5, 6, 7 };
-    R_AddLightAmbient(&light, &ambient);
-    T_EQ(light.v[12], 6.0f); T_EQ(light.v[13], 7.5f); T_EQ(light.v[14], 9.0f); T_EQ(light.v[15], 1.0f);
+TEST(renderer_shader, lighting_state_packs_all_sources) {
+    MATRIX4 packed[BZ_MODEL_LIGHT_MAX];
+    MODELLIGHTING state = { .count = 3 };
+    FOR_LOOP(i, state.count) {
+        state.lights[i].type = R_MODEL_LIGHT_DIRECT;
+        state.lights[i].color.x = (FLOAT)i + 1.0f;
+        state.lights[i].intensity = 1.0f;
+    }
+    R_PackModelLighting(packed, &state);
+    T_EQ(packed[0].v[8], 1.0f); T_EQ(packed[1].v[8], 2.0f); T_EQ(packed[2].v[8], 3.0f);
 }
 
 TEST(renderer_shader, grass_state_uses_one_matrix) {

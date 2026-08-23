@@ -138,6 +138,13 @@ VECTOR3 Vector3_unm(VECTOR3 const* v) {
     };
 }
 
+VECTOR3 Vector3_clamp01(LPCVECTOR3 v) {
+    float x = v->x > 1.0f ? 1.0f : v->x < 0.0f ? 0.0f : v->x;
+    float y = v->y > 1.0f ? 1.0f : v->y < 0.0f ? 0.0f : v->y;
+    float z = v->z > 1.0f ? 1.0f : v->z < 0.0f ? 0.0f : v->z;
+    return (VECTOR3){ x, y, z };
+}
+
 float Vector3_distance(LPCVECTOR3 a, LPCVECTOR3 b) {
     VECTOR3 const dist = Vector3_sub(a, b);
     return Vector3_len(&dist);

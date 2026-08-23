@@ -254,7 +254,7 @@ sun path or light color to read. The client therefore synthesizes both:
 
 Consumers: terrain (`r_wowmap_shader.c` vertex shader computes
 `v_lighting = ambient + diffuse·N·L`), grass (`uSunDir.z` elevation), and M2 models
-(`r_m2.c` packs the sun into shared model-shader `uLights[0]`). For the authoritative chain that
+(`r_m2.c` submits the sun through `R_SetModelLighting`). For the authoritative chain that
 *is* missing here, see WoWee: `Light.dbc` → `LightParams.dbc` →
 `LightIntBand.dbc`/`LightFloatBand.dbc` (time-of-day color/fog bands, half-minutes
 0–2879).

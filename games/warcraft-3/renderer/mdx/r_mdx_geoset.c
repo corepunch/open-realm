@@ -1,7 +1,7 @@
 #include "r_mdx.h"
 #include "renderer/r_emit.h"
 #include "renderer/r_local.h"
-#include "renderer/r_shader_utils.h"
+#include "renderer/r_shader.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -10,10 +10,6 @@ extern bool is_rendering_lights;
 #endif
 
 #define MDLX_STACK_DRAW_ORDER 64
-
-#define MDX_SHADER_MAX_LIGHTS 8
-
-typedef struct { MATRIX4 matrix; } mdxCollectedLight_t;
 
 #define GET_PARTICLE_ANIM_PARAM(MODEL, EMITTER, NAME) \
 float NAME = EMITTER->NAME; \
@@ -710,7 +706,7 @@ static void MDLX_RenderParticleEmitters(const renderEntity_t *entity, const mdxM
 static int MDLX_CollectModelLights(mdxModel_t const *model,
                                    LPCMATRIX4 modelMatrix,
                                    DWORD frame,
-                                   mdxCollectedLight_t *lights,
+                                   RMODELLIGHT *lights,
                                    int maxLights)
 {
     int count = 0;
@@ -760,24 +756,20 @@ static int MDLX_CollectModelLights(mdxModel_t const *model,
             Vector3_normalize(&worldDir);
 
         if (count < maxLights)
-            lights[count].matrix = (MATRIX4){ .v = {
-                worldPos.x, worldPos.y, worldPos.z, (float)light->type,
-                worldDir.x, worldDir.y, worldDir.z, astart,
-                color.x, color.y, color.z, intensity * visibility,
-                ambc.x, ambc.y, ambc.z, ambIntensity * visibility,
-            }};
+            lights[count] = (RMODELLIGHT){
+                .pos = worldPos,
+                .dir = Vector3_unm(&worldDir),
+                .color = color,
+                .ambient = ambc,
+                .atten_start = astart,
+                .intensity = intensity * visibility,
+                .ambient_intensity = ambIntensity * visibility,
+                .type = (RMODELLIGHTTYPE)light->type,
+            };
         count++;
     }
 
     return MIN(count, maxLights);
-}
-
-/* The shared shader adds all active sources in one geometry pass, avoiding
-   the coplanar redraw that would otherwise require polygon offset. */
-static void MDLX_BindModelLights(LPCSHADER shader, mdxCollectedLight_t const *lights, int count) {
-    R_Call(glUniform1i, shader->uLightCount, count);
-    if (count)
-        R_Call(glUniformMatrix4fv, shader->uLights, count, GL_FALSE, lights[0].matrix.v);
 }
 
 void MDX_RenderModel(renderEntity_t const *entity,
@@ -862,8 +854,8 @@ void MDX_RenderModel(renderEntity_t const *entity,
         last_valid = true;
     }
     MDLX_BindBoneMatrices(model, transform, entity->frame, entity->oldframe);
-    mdxCollectedLight_t lights[MDX_SHADER_MAX_LIGHTS];
-    int numLights = MDLX_CollectModelLights(model, transform, entity->frame, lights, MDX_SHADER_MAX_LIGHTS);
+    MODELLIGHTING lighting = { 0 };
+    int numLights = MDLX_CollectModelLights(model, transform, entity->frame, lighting.lights, BZ_MODEL_LIGHT_MAX);
     FLOAT ambient = numLights ? ((entity->flags & RF_PORTRAIT_LIGHTING) ? 0.22f : 0.0f)
                               : ((entity->flags & RF_PORTRAIT_LIGHTING) ? 0.58f : 0.35f);
     FLOAT directional = (entity->flags & RF_PORTRAIT_LIGHTING) ? 0.62f : 0.75f;
@@ -872,19 +864,16 @@ void MDX_RenderModel(renderEntity_t const *entity,
         -tr.viewDef.lightMatrix.v[6],
         -tr.viewDef.lightMatrix.v[10],
     };
-    DIRECTLIGHT sun = {
+    RMODELLIGHT sun = {
         .dir = lightDir,
         .color = { directional, directional, directional },
-        .ambient = { ambient, ambient, ambient },
+        .intensity = 1.0f,
+        .type = R_MODEL_LIGHT_DIRECT,
     };
-    /* The default sun is a real light; embedded-light models fold scene ambient into their first source. */
-    if (numLights)
-        R_AddLightAmbient(&lights[0].matrix, &sun.ambient);
-    else {
-        R_PackDirectLight(&lights[0].matrix, &sun);
-        numLights = 1;
-    }
-    MDLX_BindModelLights(shader, lights, numLights);
+    lighting.ambient = (VECTOR3){ ambient, ambient, ambient };
+    lighting.count = numLights ? numLights : 1;
+    if (!numLights) lighting.lights[0] = sun;
+    R_SetModelLighting(shader, &lighting);
 
     if (entity->flags & RF_NO_FOGOFWAR) {
         R_Call(glActiveTexture, GL_TEXTURE2);

@@ -85,13 +85,13 @@ At half coverage and density 8: `ceil(0.5 × 8) = 4`.
 float grassHeight = max(uGrassParams[3].y - uGrassParams[3].x, 0.001);
 float grassTop    = smoothstep(uGrassParams[1].w, 1.0,
                        clamp((position.z - uGrassParams[3].x) / grassHeight, 0.0, 1.0));
-float grassPhase  = dot(i_instance3.xy, uGrassParams[2].xy); // world XY position
+float grassPhase  = dot(i_instance[3].xy, uGrassParams[2].xy); // world XY position
 float grassSway   = sin(uGrassParams[1].x * uGrassParams[1].y + grassPhase)
                     * uGrassParams[1].z * grassHeight * grassTop;
 position.xy      += uGrassParams[2].zw * grassSway;          // .zw = sway direction
 ```
 
-`i_instance3.xy` is the world-space translation of the M2 instance (column 3 of the
+`i_instance[3].xy` is the world-space translation of the M2 instance (column 3 of the
 row-major instance matrix). `grassTop` suppresses sway below `ROOT_FRACTION` of blade
 height so roots stay anchored.
 

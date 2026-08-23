@@ -169,16 +169,16 @@ void R_DrawBufferInstanced(LPCBUFFER buffer, DWORD num_vertices, LPCINSTANCEBUFF
     /* Instance matrices were uploaded once at ADT-window construction, not once per frame. */
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, instances->vbo);
     for (int i = 0; i < 4; i++) {
-        R_Call(glEnableVertexAttribArray, attrib_instance0 + i);
-        R_Call(glVertexAttribPointer, attrib_instance0 + i, 4, GL_FLOAT, GL_FALSE, sizeof(MATRIX4), (void *)(i * 4 * sizeof(float)));
-        R_Call(glVertexAttribDivisor, attrib_instance0 + i, 1);
+        R_Call(glEnableVertexAttribArray, attrib_instance + i);
+        R_Call(glVertexAttribPointer, attrib_instance + i, 4, GL_FLOAT, GL_FALSE, sizeof(MATRIX4), (void *)(i * 4 * sizeof(float)));
+        R_Call(glVertexAttribDivisor, attrib_instance + i, 1);
     }
 
     R_StatsDraw(GL_TRIANGLES, num_vertices, instances->count);
     R_Call(glDrawArraysInstanced, GL_TRIANGLES, 0, num_vertices, instances->count);
 
     for (int i = 0; i < 4; i++) {
-        R_Call(glVertexAttribDivisor, attrib_instance0 + i, 0);
+        R_Call(glVertexAttribDivisor, attrib_instance + i, 0);
     }
 }
 

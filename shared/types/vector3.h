@@ -25,5 +25,6 @@ void Vector3_normalize(LPVECTOR3 v);
 void Vector3_set(LPVECTOR3 v, float x, float y, float z);
 void Vector3_clear(LPVECTOR3 v);
 VECTOR3 Vector3_unm(VECTOR3 const* v);
+VECTOR3 Vector3_clamp01(LPCVECTOR3 v);
 
 #endif

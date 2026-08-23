@@ -102,6 +102,55 @@ requirement. They are compensation for feeding native WoW model data into a
 Z-up renderer. Random grass yaw is separate and may remain as a native-space
 rotation around Y.
 
+## Target State: Transform Functions After Migration
+
+The test for whether the migration is complete is that every placement function
+reduces to the minimal form: translate, rotate by file angles verbatim, scale.
+No basis permutation matrix, no angle offsets, no axis-swap arithmetic.
+
+### Wow_InstanceMatrix (WMO placement)
+
+`wowVec3_t` and `VECTOR3` share the same `{float x,y,z}` layout, so
+`def->position` and `def->rotation` can be cast directly.  `ROTATE_XYZ` applies
+all three Euler components in one call.
+
+```c
+void Wow_InstanceMatrix(wowMapObjDef_t const *def, LPMATRIX4 matrix) {
+    Matrix4_identity(matrix);
+    Matrix4_translate(matrix, (LPCVECTOR3)&def->position);
+    Matrix4_rotate(matrix, (LPCVECTOR3)&def->rotation, ROTATE_XYZ);
+    if (def->scale) { float s = def->scale / 1024.f; Matrix4_scale(matrix, &(VECTOR3){s,s,s}); }
+}
+```
+
+The current 30-line version only exists because the basis permutation matrix
+rotates the WMO 90° relative to where its file angles expect it, so three
+compensating offset terms (`rotation.y - 270`, `-rotation.x`, `rotation.z - 90`)
+are then required to undo the damage.  Both the basis and the offsets vanish
+together once positions and rotations are kept in native WoW Y-up space.
+
+### R_GameEntityMatrix (M2 doodad/entity placement)
+
+The same principle applies.  The ADT basis block (lines 190–200 of
+`games/world-of-warcraft/renderer/r_game.c`) and its associated angle offsets
+(`rotation.y - 90`, the forced Z-axis yaw for `RF_GROUND_ANCHOR`) reduce to
+a direct rotate by `entity->rotation` once the entity origin is native WoW.
+The `RF_GROUND_EFFECT` fast path similarly loses its precomputed compensation
+constants and becomes a single-angle Y-rotation matrix.
+
+### CM_WowObjectPoint / Wow_ObjectPoint (position conversion)
+
+After migration these become identity functions — the conversion body is
+deleted and callers receive `{x, y, z}` unchanged:
+
+```c
+static inline VECTOR3 CM_WowObjectPoint(float x, float y, float z) {
+    return (VECTOR3){ x, y, z };
+}
+```
+
+Once every caller is updated, the function itself is removed.
+
 ## Migration Plan
 
 1. Add the WoW coordinate contract in a WoW-owned common header. Define up,

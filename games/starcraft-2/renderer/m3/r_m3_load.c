@@ -1,5 +1,5 @@
 #include "renderer/r_local.h"
-#include "renderer/r_shader_utils.h"
+#include "renderer/r_shader.h"
 #include "games/starcraft-2/common/sc2_map.h"
 #include "r_m3.h"
 
@@ -70,24 +70,24 @@ R_EvalKeyframeValue(void const *left,
                     MODELKEYTRACKTYPE linetype,
                     HANDLE out);
 
-/* M3 models use the map's primary direction as the mandatory shared-shader light entry. */
-static void M3_SetLightUniforms(LPSHADER shader) {
+/* M3 models consume the same authored key/fill/back rig as SC2 terrain. */
+static void M3_SetLighting(LPSHADER shader) {
     sc2Map_t const *map = SC2_MapCurrent();
-    sc2MapLighting_t const *lighting = map ? &map->lighting : NULL;
-    VECTOR3 ambient = lighting && lighting->enabled ? lighting->ambient_color : (VECTOR3){ 1.0f, 1.0f, 1.0f };
-    sc2DirectionalLight_t const *light0 = lighting && lighting->enabled ? &lighting->directional[0] : NULL;
-    FLOAT enabled = light0 && light0->enabled ? 1.0f : 0.0f;
-    DIRECTLIGHT light;
-    MATRIX4 packed;
-    light.dir = enabled ? (VECTOR3){ -light0->direction.x, -light0->direction.y, -light0->direction.z } : (VECTOR3){ 0.0f, 0.0f, 1.0f };
-    light.color = (enabled && light0) ? light0->color : (VECTOR3){ 0.0f, 0.0f, 0.0f };
-    light.ambient = ambient;
-    FLOAT multiplier = (enabled && light0) ? light0->color_multiplier : 0.0f;
-
-    light.color = Vector3_scale(&light.color, multiplier);
-    R_PackDirectLight(&packed, &light);
-    R_Call(glUniform1i, shader->uLightCount, 1);
-    R_Call(glUniformMatrix4fv, shader->uLights, 1, GL_FALSE, packed.v);
+    sc2MapLighting_t const *src = map ? &map->lighting : NULL;
+    MODELLIGHTING state = {
+        .ambient = src && src->enabled ? src->ambient_color : (VECTOR3){ 1.0f, 1.0f, 1.0f },
+        .count = SC2_MAX_DIRECTIONAL_LIGHTS,
+    };
+    FOR_LOOP(i, SC2_MAX_DIRECTIONAL_LIGHTS) {
+        sc2DirectionalLight_t const *light = src && src->enabled ? &src->directional[i] : NULL;
+        state.lights[i] = (RMODELLIGHT){
+            .dir = light && light->enabled ? Vector3_unm(&light->direction) : (VECTOR3){ 0.0f, 0.0f, 1.0f },
+            .color = light && light->enabled ? light->color : (VECTOR3){ 0.0f, 0.0f, 0.0f },
+            .intensity = light && light->enabled ? light->color_multiplier : 0.0f,
+            .type = R_MODEL_LIGHT_DIRECT,
+        };
+    }
+    R_SetModelLighting(shader, &state);
 }
 
 void M3_Read(m3Reader_t *buffer, void *dest, DWORD bytes) {
@@ -870,7 +870,7 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
     R_Call(glUniformMatrix4fv, m3.shader->uModelMatrix, 1, GL_FALSE, mScaledMatrix.v);
     R_Call(glUniformMatrix3fv, m3.shader->uNormalMatrix, 1, GL_TRUE, mNormalMatrix.v);
     R_Call(glUniformMatrix4fv, m3.shader->uBones, MIN(model->boneLookupNum, tr.bone_count), GL_FALSE, bonemats->v);
-    M3_SetLightUniforms(m3.shader);
+    M3_SetLighting(m3.shader);
     /* The unified model shader requires identity defaults for uniforms that
        M3 does not animate (texture UV transform, layer alpha, geoset colour). */
     R_Call(glUniform4f, m3.shader->uGeosetColor, 1.0f, 1.0f, 1.0f, 1.0f);
