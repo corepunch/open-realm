@@ -30,26 +30,27 @@ Consequences:
 
 ## Alpha-key coverage contract
 
-The shared renderer requests 4x MSAA by default (`r_msaa 4`) before creating the SDL
-window. After context creation it logs both SDL's returned attributes and OpenGL's
+The shared renderer requests the compile-time `MSAA=0/2/4/8` sample count before creating the SDL
+window; the bandwidth-safe default is zero. After context creation it logs both SDL's returned attributes and OpenGL's
 `GL_SAMPLE_BUFFERS`/`GL_SAMPLES`; the latter determine `tr.msaa_samples`. Context creation
 is retried without MSAA only when the requested multisample visual is unavailable, and
 that downgrade is logged.
 
 MDX, M2, M3, alpha-key particles, and WoW grass share one material contract:
 
-- the fragment shader remaps texture alpha around the authoritative cutoff with
-  `smoothstep`/`fwidth`; no renderer shader uses `discard`;
+- an `MSAA=0` fragment shader discards below the authoritative cutoff; an MSAA
+  build remaps the edge with `smoothstep`/`fwidth`;
 - with a multisampled target, `R_SetAlphaKeyState(true)` disables blending, enables
   `GL_SAMPLE_ALPHA_TO_COVERAGE`, and retains depth writes;
-- without MSAA, it logs the lack of coverage support at renderer initialization and uses
-  ordinary alpha blending with depth writes disabled, preserving visibility at reduced
-  overlap quality;
+- if an MSAA build cannot obtain a multisampled context, it logs the downgrade and uses
+  ordinary alpha blending with depth writes disabled; an `MSAA=0` build uses hard discard
+  and depth writes;
 - every non-alpha-key material path and frame start disables alpha-to-coverage so the
   state cannot leak into true blended, additive, UI, or terrain passes.
 
 Alpha-to-coverage is for cutout coverage, not general order-independent transparency.
 True blended and additive material modes keep their existing blend/depth contracts.
+See [Build And Renderer Platforms](build-and-renderer-platforms.md) for build commands and the GLES3 contract.
 
 ## Renderer profiling cvars
 

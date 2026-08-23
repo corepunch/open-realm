@@ -3,16 +3,6 @@
 LPMAPSEGMENT g_mapSegments = NULL;
 LPMAPLAYER g_groundLayers = NULL;
 
-#ifdef DEBUG_PATHFINDING
-LPCTEXTURE pathTexture = NULL;
-void R_SetPathTexture(LPCCOLOR32 debugTexture) {
-    if (pathTexture) {
-        R_LoadTextureMipLevel(pathTexture, 0, debugTexture, pathTexture->width, pathTexture->height);
-        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    }
-}
-#endif
 
 static void R_FileReadShadowMap(HANDLE hMpq, LPWAR3MAP  pWorld) {
     HANDLE file;
@@ -191,11 +181,6 @@ LPWAR3MAP FileReadWar3Map(HANDLE archive) {
         }
     }
     SFileCloseFile(file);
-#ifdef DEBUG_PATHFINDING
-    pathTexture = R_AllocateTexture((map->width - 1) * 4, (map->height - 1) * 4);
-    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-#endif
     FOR_LOOP(y, map->height) {
 //        printf("%04x  ", y);
         FOR_LOOP(x, map->width) {
@@ -273,10 +258,6 @@ void R_DrawWorld(void) {
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_TRUE);
     R_Call(glDepthFunc, GL_LEQUAL);
-    
-#ifdef DEBUG_PATHFINDING
-    R_BindTexture(pathTexture, 1);
-#endif
 
     FOR_EACH_LIST(MAPLAYER, layer, g_groundLayers) {
         if (layer == g_groundLayers) {

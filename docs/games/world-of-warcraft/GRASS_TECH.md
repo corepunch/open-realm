@@ -76,22 +76,22 @@ At half coverage and density 8: `ceil(0.5 × 8) = 4`.
 ### Wind sway (instanced vertex shader, `r_shader.c`)
 
 ```glsl
-// Uniforms uploaded by M2_RenderInstanced():
-//   uGrassWind  = vec3(WIND_SPEED=1.7, WIND_AMPLITUDE=0.12, ROOT_FRACTION=0.15)
-//   uGrassPhase = vec4(PHASE_X=0.917, PHASE_Y=1.481, DIR_X=0.86, DIR_Y=0.51)
-//   uGrassTime  = elapsed seconds
-//   uGrassHeight = vec2(model_bounds_z_min, model_bounds_z_max)
+// uGrassParams columns uploaded by M2_RenderInstanced():
+//   [0] = vec4(camera_xy, fade_start, fade_end)
+//   [1] = vec4(time, wind_speed, wind_amplitude, root_fraction)
+//   [2] = vec4(phase_xy, sway_direction_xy)
+//   [3] = vec4(model_z_min, model_z_max, enabled, reserved)
 
-float grassHeight = max(uGrassHeight.y - uGrassHeight.x, 0.001);
-float grassTop    = smoothstep(uGrassWind.z, 1.0,
-                       clamp((position.z - uGrassHeight.x) / grassHeight, 0.0, 1.0));
-float grassPhase  = dot(i_instance3.xy, uGrassPhase.xy);   // world XY position
-float grassSway   = sin(uGrassTime * uGrassWind.x + grassPhase)
-                    * uGrassWind.y * grassHeight * grassTop;
-position.xy      += uGrassPhase.zw * grassSway;            // .zw = sway direction
+float grassHeight = max(uGrassParams[3].y - uGrassParams[3].x, 0.001);
+float grassTop    = smoothstep(uGrassParams[1].w, 1.0,
+                       clamp((position.z - uGrassParams[3].x) / grassHeight, 0.0, 1.0));
+float grassPhase  = dot(i_instance[3].xy, uGrassParams[2].xy); // world XY position
+float grassSway   = sin(uGrassParams[1].x * uGrassParams[1].y + grassPhase)
+                    * uGrassParams[1].z * grassHeight * grassTop;
+position.xy      += uGrassParams[2].zw * grassSway;          // .zw = sway direction
 ```
 
-`i_instance3.xy` is the world-space translation of the M2 instance (column 3 of the
+`i_instance[3].xy` is the world-space translation of the M2 instance (column 3 of the
 row-major instance matrix). `grassTop` suppresses sway below `ROOT_FRACTION` of blade
 height so roots stay anchored.
 

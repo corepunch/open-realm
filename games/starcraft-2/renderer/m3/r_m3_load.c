@@ -1,4 +1,5 @@
 #include "renderer/r_local.h"
+#include "renderer/r_shader.h"
 #include "games/starcraft-2/common/sc2_map.h"
 #include "r_m3.h"
 
@@ -69,21 +70,24 @@ R_EvalKeyframeValue(void const *left,
                     MODELKEYTRACKTYPE linetype,
                     HANDLE out);
 
-/* Map SC2 multi-directional lights onto the unified single directional + ambient.
-   Use directional[0] as the primary light; ambient comes from the map ambient. */
-static void M3_SetLightUniforms(LPSHADER shader) {
+/* M3 models consume the same authored key/fill/back rig as SC2 terrain. */
+static void M3_SetLighting(LPSHADER shader) {
     sc2Map_t const *map = SC2_MapCurrent();
-    sc2MapLighting_t const *lighting = map ? &map->lighting : NULL;
-    VECTOR3 ambient = lighting && lighting->enabled ? lighting->ambient_color : (VECTOR3){ 1.0f, 1.0f, 1.0f };
-    sc2DirectionalLight_t const *light0 = lighting && lighting->enabled ? &lighting->directional[0] : NULL;
-    FLOAT enabled = light0 && light0->enabled ? 1.0f : 0.0f;
-    VECTOR3 direction = enabled ? (VECTOR3){ -light0->direction.x, -light0->direction.y, -light0->direction.z } : (VECTOR3){ 0.0f, 0.0f, 1.0f };
-    VECTOR3 color = (enabled && light0) ? light0->color : (VECTOR3){ 0.0f, 0.0f, 0.0f };
-    FLOAT multiplier = (enabled && light0) ? light0->color_multiplier : 0.0f;
-
-    R_Call(glUniform3f, shader->uLightAmbient, ambient.x, ambient.y, ambient.z);
-    R_Call(glUniform3f, shader->uLightDir, direction.x, direction.y, direction.z);
-    R_Call(glUniform3f, shader->uLightColor, color.x * multiplier, color.y * multiplier, color.z * multiplier);
+    sc2MapLighting_t const *src = map ? &map->lighting : NULL;
+    MODELLIGHTING state = {
+        .ambient = src && src->enabled ? src->ambient_color : (VECTOR3){ 1.0f, 1.0f, 1.0f },
+        .count = SC2_MAX_DIRECTIONAL_LIGHTS,
+    };
+    FOR_LOOP(i, SC2_MAX_DIRECTIONAL_LIGHTS) {
+        sc2DirectionalLight_t const *light = src && src->enabled ? &src->directional[i] : NULL;
+        state.lights[i] = (RMODELLIGHT){
+            .dir = light && light->enabled ? Vector3_unm(&light->direction) : (VECTOR3){ 0.0f, 0.0f, 1.0f },
+            .color = light && light->enabled ? light->color : (VECTOR3){ 0.0f, 0.0f, 0.0f },
+            .intensity = light && light->enabled ? light->color_multiplier : 0.0f,
+            .type = R_MODEL_LIGHT_DIRECT,
+        };
+    }
+    R_SetModelLighting(shader, &state);
 }
 
 void M3_Read(m3Reader_t *buffer, void *dest, DWORD bytes) {
@@ -570,6 +574,16 @@ static COLOR32 M3_LayerColor(m3Layer_t const *layer) {
 
 static BOOL M3_SetMaterialBlendMode(m3Material_t const *material) {
     R_SetAlphaKeyState(false);
+#ifdef USE_SHADOWMAPS
+    switch (is_rendering_lights ? (int)(material ? material->blendMode : BLEND_MODE_NONE) : -1) {
+        case BLEND_MODE_BLEND:
+        case BLEND_MODE_ADD:
+        case BLEND_MODE_ADDALPHA:
+        case BLEND_MODE_MODULATE:
+        case BLEND_MODE_MODULATE_2X:
+            return false;
+    }
+#endif
     switch (material ? material->blendMode : BLEND_MODE_NONE) {
         case BLEND_MODE_NONE:
         case BLEND_MODE_ALPHAKEY:
@@ -578,46 +592,26 @@ static BOOL M3_SetMaterialBlendMode(m3Material_t const *material) {
             R_Call(glDepthMask, GL_TRUE);
             break;
         case BLEND_MODE_BLEND:
-#ifdef USE_SHADOWMAPS
-            if (is_rendering_lights)
-                return false;
-#endif
             R_Call(glEnable, GL_BLEND);
             R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             R_Call(glDepthMask, GL_FALSE);
             break;
         case BLEND_MODE_ADD:
-#ifdef USE_SHADOWMAPS
-            if (is_rendering_lights)
-                return false;
-#endif
             R_Call(glEnable, GL_BLEND);
             R_Call(glBlendFunc, GL_ONE, GL_ONE);
             R_Call(glDepthMask, GL_FALSE);
             break;
         case BLEND_MODE_ADDALPHA:
-#ifdef USE_SHADOWMAPS
-            if (is_rendering_lights)
-                return false;
-#endif
             R_Call(glEnable, GL_BLEND);
             R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE);
             R_Call(glDepthMask, GL_FALSE);
             break;
         case BLEND_MODE_MODULATE:
-#ifdef USE_SHADOWMAPS
-            if (is_rendering_lights)
-                return false;
-#endif
             R_Call(glEnable, GL_BLEND);
             R_Call(glBlendFunc, GL_DST_COLOR, GL_ZERO);
             R_Call(glDepthMask, GL_FALSE);
             break;
         case BLEND_MODE_MODULATE_2X:
-#ifdef USE_SHADOWMAPS
-            if (is_rendering_lights)
-                return false;
-#endif
             R_Call(glEnable, GL_BLEND);
             R_Call(glBlendFunc, GL_DST_COLOR, GL_SRC_COLOR);
             R_Call(glDepthMask, GL_FALSE);
@@ -861,7 +855,6 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_TRUE);
     R_Call(glUseProgram, m3.shader->progid);
-    R_Call(glUniform1i, m3.shader->uLightCount, 0);
 #ifdef USE_SHADOWMAPS
     extern bool is_rendering_lights;
     if (is_rendering_lights) {
@@ -876,15 +869,13 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
     R_Call(glUniformMatrix4fv, m3.shader->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
     R_Call(glUniformMatrix4fv, m3.shader->uModelMatrix, 1, GL_FALSE, mScaledMatrix.v);
     R_Call(glUniformMatrix3fv, m3.shader->uNormalMatrix, 1, GL_TRUE, mNormalMatrix.v);
-    R_Call(glUniformMatrix4fv, m3.shader->uBones, MIN(model->boneLookupNum, M3_MAX_NODES), GL_FALSE, bonemats->v);
-    M3_SetLightUniforms(m3.shader);
+    R_Call(glUniformMatrix4fv, m3.shader->uBones, MIN(model->boneLookupNum, tr.bone_count), GL_FALSE, bonemats->v);
+    M3_SetLighting(m3.shader);
     /* The unified model shader requires identity defaults for uniforms that
        M3 does not animate (texture UV transform, layer alpha, geoset colour). */
     R_Call(glUniform4f, m3.shader->uGeosetColor, 1.0f, 1.0f, 1.0f, 1.0f);
     R_Call(glUniform1f, m3.shader->uLayerAlpha, 1.0f);
-    R_Call(glUniform2f, m3.shader->uUvTrans, 0.0f, 0.0f);
-    R_Call(glUniform2f, m3.shader->uUvRot, 0.0f, 1.0f);
-    R_Call(glUniform2f, m3.shader->uUvScale, 1.0f, 1.0f);
+    { GLfloat m[9] = { 1,0,0, 0,1,0, 0,0,1 }; R_Call(glUniformMatrix3fv, m3.shader->uUvMatrix, 1, GL_FALSE, m); }
     R_Call(glUniform1i, m3.shader->uAlphaKey, 0);
     R_Call(glUniform1f, m3.shader->uAlphaCutoff, 0.5f);
     R_Call(glUniform1i, m3.shader->uUnshaded, 0);

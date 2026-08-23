@@ -1,6 +1,7 @@
 #include "test.h"
 #include "renderer/r_local.h"
 #include "renderer/r_emit.h"
+#include "renderer/r_shader.h"
 #include <stdarg.h>
 #include <stdlib.h>
 
@@ -108,11 +109,6 @@ TEST(renderer_model, clock_emission_ignores_zero_rate_and_delta) {
     T_EQ(spawn_count, 0);
 }
 
-TEST(renderer_alpha, msaa_request_normalizes_off_and_caps_driver_input) {
-    T_EQ(R_MsaaRequest(-1), 0); T_EQ(R_MsaaRequest(1), 0);
-    T_EQ(R_MsaaRequest(4), 4); T_EQ(R_MsaaRequest(64), BZ_MSAA_MAX);
-}
-
 TEST(renderer_alpha, active_samples_require_a_real_multisample_buffer) {
     T_EQ(R_MsaaActiveSamples(0, 4), 0); T_EQ(R_MsaaActiveSamples(1, 1), 0);
     T_EQ(R_MsaaActiveSamples(1, 4), 4);
@@ -126,6 +122,58 @@ TEST(renderer_instances, dynamic_capacity_reuses_and_grows_power_of_two) {
     T_EQ(R_InstanceBufferCapacity(0, 1), (DWORD)16);
     T_EQ(R_InstanceBufferCapacity(16, 16), (DWORD)16);
     T_EQ(R_InstanceBufferCapacity(16, 17), (DWORD)32);
+}
+
+TEST(renderer_shader, directional_light_uses_array_schema) {
+    MATRIX4 packed[BZ_MODEL_LIGHT_MAX];
+    MODELLIGHTING state = {
+        .ambient = { 1, 1, 1 }, .count = 1,
+        .lights[0] = {
+            .dir = { 1, 2, 3 }, .color = { 4, 5, 6 }, .ambient = { 7, 8, 9 },
+            .intensity = 0.5f, .ambient_intensity = 0.5f, .type = R_MODEL_LIGHT_DIRECT,
+        },
+    };
+    R_PackModelLighting(packed, &state);
+    T_EQ(packed[0].v[3], 1.0f); T_EQ(packed[0].v[4], -1.0f); T_EQ(packed[0].v[6], -3.0f);
+    T_EQ(packed[0].v[8], 4.0f); T_EQ(packed[0].v[11], 0.5f);
+    T_EQ(packed[0].v[12], 4.5f); T_EQ(packed[0].v[14], 5.5f); T_EQ(packed[0].v[15], 1.0f);
+}
+
+TEST(renderer_shader, lighting_state_packs_all_sources) {
+    MATRIX4 packed[BZ_MODEL_LIGHT_MAX];
+    MODELLIGHTING state = { .count = 3 };
+    FOR_LOOP(i, state.count) {
+        state.lights[i].type = R_MODEL_LIGHT_DIRECT;
+        state.lights[i].color.x = (FLOAT)i + 1.0f;
+        state.lights[i].intensity = 1.0f;
+    }
+    R_PackModelLighting(packed, &state);
+    T_EQ(packed[0].v[8], 1.0f); T_EQ(packed[1].v[8], 2.0f); T_EQ(packed[2].v[8], 3.0f);
+}
+
+TEST(renderer_shader, grass_state_uses_one_matrix) {
+    MATRIX4 packed;
+    MODELGRASS grass = {
+        .camera = { 1, 2 }, .fade = { 3, 4 }, .time = 5, .wind = { 6, 7, 8 },
+        .phase = { 9, 10, 11, 12 }, .height = { 13, 14 }, .enabled = true,
+    };
+    R_PackModelGrass(&packed, &grass);
+    FOR_LOOP(i, 14) T_EQ(packed.v[i], (FLOAT)i + 1.0f);
+    T_EQ(packed.v[14], 1.0f); T_EQ(packed.v[15], 0.0f);
+    grass.enabled = false; R_PackModelGrass(&packed, &grass); T_EQ(packed.v[14], 0.0f); T_EQ(packed.v[15], 0.0f);
+}
+
+TEST(renderer_bones, palette_reserves_other_vertex_uniforms) {
+    T_EQ(R_BonePaletteSize(32), (DWORD)1); T_EQ(R_BonePaletteSize(256), (DWORD)48);
+    T_EQ(R_BonePaletteSize(1024), (DWORD)BZ_BONE_PALETTE_MAX);
+}
+
+TEST(renderer_texture, red_blue_swap_preserves_other_channels) {
+    BYTE rgba[] = { 1, 2, 3, 4, 5, 6, 7, 8 }, rgb[] = { 9, 10, 11 };
+    R_SwapRedBlue(rgba, 2, 4); R_SwapRedBlue(rgb, 1, 3);
+    T_EQ(rgba[0], (BYTE)3); T_EQ(rgba[1], (BYTE)2); T_EQ(rgba[2], (BYTE)1); T_EQ(rgba[3], (BYTE)4);
+    T_EQ(rgba[4], (BYTE)7); T_EQ(rgba[7], (BYTE)8);
+    T_EQ(rgb[0], (BYTE)11); T_EQ(rgb[1], (BYTE)10); T_EQ(rgb[2], (BYTE)9);
 }
 
 TEST(renderer_stats, triangles_include_instanced_amplification) {

@@ -1,6 +1,7 @@
 #include "r_mdx.h"
 #include "renderer/r_emit.h"
 #include "renderer/r_local.h"
+#include "renderer/r_shader.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -9,10 +10,6 @@ extern bool is_rendering_lights;
 #endif
 
 #define MDLX_STACK_DRAW_ORDER 64
-
-#define MDX_SHADER_MAX_LIGHTS 8
-
-typedef struct { MATRIX4 matrix; } mdxCollectedLight_t;
 
 #define GET_PARTICLE_ANIM_PARAM(MODEL, EMITTER, NAME) \
 float NAME = EMITTER->NAME; \
@@ -157,6 +154,16 @@ static void MDLX_RenderTailEmitter(mdxModel_t const *model,
 
 static bool MDLX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
     R_SetAlphaKeyState(false);
+#ifdef USE_SHADOWMAPS
+    switch (is_rendering_lights ? (int)layer->blendMode : -1) {
+        case BLEND_MODE_BLEND:
+        case BLEND_MODE_ADD:
+        case BLEND_MODE_ADDALPHA:
+        case BLEND_MODE_MODULATE:
+        case BLEND_MODE_MODULATE_2X:
+            return false;
+    }
+#endif
     switch (layer->blendMode) {
         case BLEND_MODE_NONE:
             R_Call(glDisable, GL_BLEND);
@@ -172,50 +179,26 @@ static bool MDLX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
             R_SetAlphaKeyState(true);
             break;
         case BLEND_MODE_BLEND:
-#ifdef USE_SHADOWMAPS
-            if (is_rendering_lights)
-                return false;
-#endif
             R_Call(glEnable, GL_BLEND);
             R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             R_Call(glDepthMask, GL_FALSE);
             break;
-#ifdef DEBUG_PATHFINDING
-        default:
-            return false;
-#else
         case BLEND_MODE_ADD:
-#ifdef USE_SHADOWMAPS
-            if (is_rendering_lights)
-                return false;
-#endif
             R_Call(glEnable, GL_BLEND);
             R_Call(glBlendFunc, GL_ONE, GL_ONE);
             R_Call(glDepthMask, GL_FALSE);
             break;
         case BLEND_MODE_ADDALPHA:
-#ifdef USE_SHADOWMAPS
-            if (is_rendering_lights)
-                return false;
-#endif
             R_Call(glEnable, GL_BLEND);
             R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE);
             R_Call(glDepthMask, GL_FALSE);
             break;
         case BLEND_MODE_MODULATE:
-#ifdef USE_SHADOWMAPS
-            if (is_rendering_lights)
-                return false;
-#endif
             R_Call(glEnable, GL_BLEND);
             R_Call(glBlendFunc, GL_DST_COLOR, GL_ZERO);
             R_Call(glDepthMask, GL_FALSE);
             break;
         case BLEND_MODE_MODULATE_2X:
-#ifdef USE_SHADOWMAPS
-            if (is_rendering_lights)
-                return false;
-#endif
             R_Call(glEnable, GL_BLEND);
             R_Call(glBlendFunc, GL_DST_COLOR, GL_SRC_COLOR);
             R_Call(glDepthMask, GL_FALSE);
@@ -225,7 +208,6 @@ static bool MDLX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
             R_Call(glBlendFunc, GL_ONE, GL_ZERO);
             R_Call(glDepthMask, GL_TRUE);
             break;
-#endif
     }
     return true;
 }
@@ -363,16 +345,27 @@ static void MDLX_BindLayerTextureAnimation(mdxModel_t const *model,
         scale = (VECTOR3){ 1, 1, 1 };
     }
 
-    R_Call(glUniform2f, mdlx.shader->uUvTrans, translation.x, translation.y);
-    R_Call(glUniform2f, mdlx.shader->uUvRot, rotation.z, rotation.w);
-    R_Call(glUniform2f, mdlx.shader->uUvScale, scale.x, scale.y);
+    {
+        /* Build the UV affine matrix.  Operations applied in order:
+             1. translate by (T.x, T.y)
+             2. rotate around UV centre (0.5,0.5) using quaternion zw components
+             3. scale around UV centre
+           Combined as a mat3: uv_out = (M * vec3(uv, 1)).xy
+           Column-major for glUniformMatrix3fv. */
+        float c = rotation.w * rotation.w - rotation.z * rotation.z;
+        float s = 2.0f * rotation.z * rotation.w;
+        float tx = scale.x * (c * (translation.x - 0.5f) - s * (translation.y - 0.5f)) + 0.5f;
+        float ty = scale.y * (s * (translation.x - 0.5f) + c * (translation.y - 0.5f)) + 0.5f;
+        GLfloat m[9] = { scale.x*c, scale.y*s, 0, -scale.x*s, scale.y*c, 0, tx, ty, 1 };
+        R_Call(glUniformMatrix3fv, mdlx.shader->uUvMatrix, 1, GL_FALSE, m);
+    }
 }
 
 
 static void MDLX_BindGeosetMatrixPalette(mdxModel_t const *model, mdxGeoset_t const *geoset) {
     MATRIX4 matrixPalette[MDX_MATRIX_PALETTE];
 
-    FOR_LOOP(i, MDX_MATRIX_PALETTE) {
+    FOR_LOOP(i, tr.bone_count) {
         Matrix4_identity(&matrixPalette[i]);
         if (i >= geoset->num_matrixPalette) {
             continue;
@@ -383,7 +376,7 @@ static void MDLX_BindGeosetMatrixPalette(mdxModel_t const *model, mdxGeoset_t co
         }
     }
 
-    R_Call(glUniformMatrix4fv, mdlx.shader->uBones, MDX_MATRIX_PALETTE, GL_FALSE, matrixPalette->v);
+    R_Call(glUniformMatrix4fv, mdlx.shader->uBones, tr.bone_count, GL_FALSE, matrixPalette->v);
 }
 
 static VECTOR4 MDLX_EvaluateGeosetColor(mdxModel_t const *model,
@@ -713,7 +706,7 @@ static void MDLX_RenderParticleEmitters(const renderEntity_t *entity, const mdxM
 static int MDLX_CollectModelLights(mdxModel_t const *model,
                                    LPCMATRIX4 modelMatrix,
                                    DWORD frame,
-                                   mdxCollectedLight_t *lights,
+                                   RMODELLIGHT *lights,
                                    int maxLights)
 {
     int count = 0;
@@ -763,24 +756,20 @@ static int MDLX_CollectModelLights(mdxModel_t const *model,
             Vector3_normalize(&worldDir);
 
         if (count < maxLights)
-            lights[count].matrix = (MATRIX4){ .v = {
-                worldPos.x, worldPos.y, worldPos.z, (float)light->type,
-                worldDir.x, worldDir.y, worldDir.z, astart,
-                color.x, color.y, color.z, intensity * visibility,
-                ambc.x, ambc.y, ambc.z, ambIntensity * visibility,
-            }};
+            lights[count] = (RMODELLIGHT){
+                .pos = worldPos,
+                .dir = Vector3_unm(&worldDir),
+                .color = color,
+                .ambient = ambc,
+                .atten_start = astart,
+                .intensity = intensity * visibility,
+                .ambient_intensity = ambIntensity * visibility,
+                .type = (RMODELLIGHTTYPE)light->type,
+            };
         count++;
     }
 
     return MIN(count, maxLights);
-}
-
-/* The shared shader adds all active sources in one geometry pass, avoiding
-   the coplanar redraw that would otherwise require polygon offset. */
-static void MDLX_BindModelLights(LPCSHADER shader, mdxCollectedLight_t const *lights, int count) {
-    R_Call(glUniform1i, shader->uLightCount, count);
-    if (count)
-        R_Call(glUniformMatrix4fv, shader->uLights, count, GL_FALSE, lights[0].matrix.v);
 }
 
 void MDX_RenderModel(renderEntity_t const *entity,
@@ -865,8 +854,8 @@ void MDX_RenderModel(renderEntity_t const *entity,
         last_valid = true;
     }
     MDLX_BindBoneMatrices(model, transform, entity->frame, entity->oldframe);
-    mdxCollectedLight_t lights[MDX_SHADER_MAX_LIGHTS];
-    int numLights = MDLX_CollectModelLights(model, transform, entity->frame, lights, MDX_SHADER_MAX_LIGHTS);
+    MODELLIGHTING lighting = { 0 };
+    int numLights = MDLX_CollectModelLights(model, transform, entity->frame, lighting.lights, BZ_MODEL_LIGHT_MAX);
     FLOAT ambient = numLights ? ((entity->flags & RF_PORTRAIT_LIGHTING) ? 0.22f : 0.0f)
                               : ((entity->flags & RF_PORTRAIT_LIGHTING) ? 0.58f : 0.35f);
     FLOAT directional = (entity->flags & RF_PORTRAIT_LIGHTING) ? 0.62f : 0.75f;
@@ -875,10 +864,16 @@ void MDX_RenderModel(renderEntity_t const *entity,
         -tr.viewDef.lightMatrix.v[6],
         -tr.viewDef.lightMatrix.v[10],
     };
-    R_Call(glUniform3f, shader->uLightDir, lightDir.x, lightDir.y, lightDir.z);
-    R_Call(glUniform3f, shader->uLightColor, directional, directional, directional);
-    R_Call(glUniform3f, shader->uLightAmbient, ambient, ambient, ambient);
-    MDLX_BindModelLights(shader, lights, numLights);
+    RMODELLIGHT sun = {
+        .dir = lightDir,
+        .color = { directional, directional, directional },
+        .intensity = 1.0f,
+        .type = R_MODEL_LIGHT_DIRECT,
+    };
+    lighting.ambient = (VECTOR3){ ambient, ambient, ambient };
+    lighting.count = numLights ? numLights : 1;
+    if (!numLights) lighting.lights[0] = sun;
+    R_SetModelLighting(shader, &lighting);
 
     if (entity->flags & RF_NO_FOGOFWAR) {
         R_Call(glActiveTexture, GL_TEXTURE2);

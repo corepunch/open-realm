@@ -25,6 +25,7 @@ typedef enum {
     SHADER_SHADOWSPLAT,
     SHADER_COMMANDBUTTON,
     SHADER_MINIMAP_FOG,
+    SHADER_UNLIT,
     SHADER_COUNT,
 } SHADERTYPE;
 
@@ -226,9 +227,6 @@ typedef struct {
     bool (*TraceMinimap)(float x, float y, LPVECTOR2 outWorld);
     DWORD (*EntitiesInRect)(viewDef_t const *viewdef, LPCRECT rect, DWORD max, LPDWORD array);
 
-#ifdef DEBUG_PATHFINDING
-    void (*SetPathTexture)(LPCCOLOR32 debugTexture);
-#endif
 } refExport_t;
 
 typedef refExport_t *LPRENDERER;

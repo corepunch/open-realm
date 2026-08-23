@@ -350,8 +350,7 @@ override in `M2_RenderInstanced`. For distance fade:
 
 - with MSAA, enable `GL_SAMPLE_ALPHA_TO_COVERAGE` and keep depth writes; modulate
   alpha in the fragment shader for fade, not blending;
-- without MSAA, the discard-free renderer uses a logged alpha-blended fallback with
-  depth writes disabled; expect weaker overlap quality than the MSAA path;
+- without MSAA, the renderer compiles a hard alpha-test discard and retains depth writes;
 - do not convert every alpha-key asset to smooth alpha blending merely to fade it;
 - if a real `BLEND_MODE_BLEND` ground-effect asset is found, sort **patches/batches**
   back-to-front first. Only add weighted blended OIT if visible artifacts and profiling
@@ -469,8 +468,7 @@ coordinate, and cell-hole handling. Same `HeightAtlas_SampleDiamond` snippet as 
 - Honor opaque, alpha-key, blended, and additive M2 batch modes independently.
 - Verify alpha-key assets use remapped alpha coverage + depth writes and require no
   per-blade sorting.
-- Keep the shared discard-free alpha-key contract: ATOC under MSAA and a logged blended
-  fallback otherwise.
+- Keep the shared compile-time alpha-key contract: ATOC under MSAA and hard discard otherwise.
 - Test intersecting clumps, camera rotation, fade band, mip distance, and patch seams.
 
 ### Phase 5: tune only from the new profile

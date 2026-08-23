@@ -270,7 +270,7 @@ void Wow_FixMocvAlpha(BYTE *colors, DWORD color_count,
         float a = colors[i * 4 + 3] / 255.f;
         FOR_LOOP(c, 3) {
             int v = colors[i * 4 + c];
-            colors[i * 4 + c] = BZ_CLAMP_U8((v * a / 64.f + v - amb_c[c]) / 2.f);
+            colors[i * 4 + c] = BZ_CLAMP_U8((v * a / 64.f + v - (exterior ? 0 : amb_c[c])) / 2.f);
         }
         colors[i * 4 + 3] = exterior ? 0xFF : 0x00;
     }
@@ -314,6 +314,7 @@ static BOOL Wow_LoadWmoGroup(wowWmoModel_t *model, DWORD group_index, WOWWMOLOAD
                 break;
             }
             indoor = (Wow_Read32(chunk + 8) & 0x2000) != 0;
+            model->groups[group_index].indoor = indoor;
             trans_batch_count = Wow_Read16(chunk + 0x30);
             model->groups[group_index].portal_start = Wow_Read16(chunk + 0x24);
             model->groups[group_index].portal_count = Wow_Read16(chunk + 0x26);
@@ -558,14 +559,32 @@ wowWmoModel_t *Wow_GetWmoModel(LPCSTR path) {
 }
 
 void Wow_AddWmoInstance(LPCSTR path, wowMapObjDef_t const *def) {
-    wowWmoModel_t *model = Wow_GetWmoModel(path);
+    wowWmoModel_t *model;
     wowWmoInstance_t *instance;
 
     wow_world.num_wmos++;
-    if (!model || !def) {
-        return;
+    if (!def) return;
+    /* Deduplicate by authoritative MODF unique_id: the 3×3 ADT window can list the same
+       WMO placement in multiple tiles; without this, yaw-90 Stormwind draws 6× the groups. */
+    if (def->unique_id) {
+        FOR_LOOP(i, wow_world.num_placed_wmo_ids)
+            if (wow_world.placed_wmo_ids[i] == def->unique_id) return;
+        if (wow_world.num_placed_wmo_ids == wow_world.cap_placed_wmo_ids) {
+            DWORD cap = wow_world.cap_placed_wmo_ids ? wow_world.cap_placed_wmo_ids * 2 : 64;
+            DWORD *arr = ri.MemAlloc(cap * sizeof(*arr));
+            if (arr) {
+                if (wow_world.placed_wmo_ids)
+                    memcpy(arr, wow_world.placed_wmo_ids, wow_world.num_placed_wmo_ids * sizeof(*arr));
+                SAFE_DELETE(wow_world.placed_wmo_ids, ri.MemFree);
+                wow_world.placed_wmo_ids = arr;
+                wow_world.cap_placed_wmo_ids = cap;
+            }
+        }
+        if (wow_world.num_placed_wmo_ids < wow_world.cap_placed_wmo_ids)
+            wow_world.placed_wmo_ids[wow_world.num_placed_wmo_ids++] = def->unique_id;
     }
-
+    model = Wow_GetWmoModel(path);
+    if (!model) return;
     instance = ri.MemAlloc(sizeof(*instance));
     memset(instance, 0, sizeof(*instance));
     instance->model = model;
@@ -607,34 +626,18 @@ void Wow_ComputeMoltContribution(wowWmoModel_t const *model, LPCMATRIX4 matrix,
             }
         }
         contrib = atten * lt->intensity;
-        out->x += contrib * lt->color.r / 255.0f;
-        out->y += contrib * lt->color.g / 255.0f;
-        out->z += contrib * lt->color.b / 255.0f;
+        VECTOR3 color = { lt->color.r, lt->color.g, lt->color.b };
+        *out = Vector3_mad(out, contrib / 255.0f, &color);
     }
-    out->x = MIN(1.0f, out->x);
-    out->y = MIN(1.0f, out->y);
-    out->z = MIN(1.0f, out->z);
+    *out = Vector3_clamp01(out);
 }
 
-/* Build a column-major 4x4 matrix for a WMO doodad in WMO local space.
-   Combines position, quaternion rotation, and uniform scale into T*R*S. */
 void Wow_WmoDoodadLocalMatrix(wowWmoDoodadDef_t const *def, LPMATRIX4 m) {
-    float qx = def->quat[0], qy = def->quat[1], qz = def->quat[2], qw = def->quat[3];
-    float s = def->scale;
-    memset(m->v, 0, sizeof(m->v));
-    m->v[0]  = s * (1.0f - 2.0f*(qy*qy + qz*qz));
-    m->v[1]  = s * 2.0f*(qx*qy + qz*qw);
-    m->v[2]  = s * 2.0f*(qx*qz - qy*qw);
-    m->v[4]  = s * 2.0f*(qx*qy - qz*qw);
-    m->v[5]  = s * (1.0f - 2.0f*(qx*qx + qz*qz));
-    m->v[6]  = s * 2.0f*(qy*qz + qx*qw);
-    m->v[8]  = s * 2.0f*(qx*qz + qy*qw);
-    m->v[9]  = s * 2.0f*(qy*qz - qx*qw);
-    m->v[10] = s * (1.0f - 2.0f*(qx*qx + qy*qy));
-    m->v[12] = def->position.x;
-    m->v[13] = def->position.y;
-    m->v[14] = def->position.z;
-    m->v[15] = 1.0f;
+    QUATERNION q = { def->quat[0], def->quat[1], def->quat[2], def->quat[3] };
+    VECTOR3 pos   = { def->position.x, def->position.y, def->position.z };
+    VECTOR3 scale = { def->scale, def->scale, def->scale };
+    VECTOR3 zero  = { 0.0f, 0.0f, 0.0f };
+    Matrix4_from_rotation_translation_scale_origin(m, &q, &pos, &scale, &zero);
 }
 
 /* Queue all doodads from the WMO's selected doodad set into instanced rendering.

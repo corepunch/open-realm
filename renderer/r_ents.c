@@ -408,28 +408,18 @@ static void R_RenderHoverHighlight(renderEntity_t const *entity) {
 void R_RenderModel(renderEntity_t const *entity) {
     if ((entity->flags & RF_HIDDEN) || !entity->model)
         return;
-    
-#ifdef USE_SHADOWMAPS
-    if (is_rendering_lights && (entity->flags & RF_NO_SHADOW))
-        return;
-#endif
 
 #ifdef USE_SHADOWMAPS
-    if (!is_rendering_lights)
+    if (is_rendering_lights) {
+        if (!(entity->flags & RF_NO_SHADOW))
+            R_GameRenderModel(entity);
+        return;
+    }
 #endif
-        R_RenderUberSplat(entity, (LPCVECTOR2)&entity->origin);
-#ifdef USE_SHADOWMAPS
-    if (!is_rendering_lights)
-#endif
-        R_RenderShadow(entity, (LPCVECTOR2)&entity->origin);
-    
+
+    R_RenderUberSplat(entity, (LPCVECTOR2)&entity->origin);
+    R_RenderShadow(entity, (LPCVECTOR2)&entity->origin);
     R_GameRenderModel(entity);
-    
-#ifdef USE_SHADOWMAPS
-    if (is_rendering_lights)
-        return;
-#endif
-
     R_RenderSelectedCircle(entity, (LPCVECTOR2)&entity->origin);
     R_RenderHoverHighlight(entity);
 }

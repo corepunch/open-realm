@@ -96,18 +96,31 @@ LPTEXTURE R_LoadTextureDDS(HANDLE data, DWORD filesize) {
         GLenum format;
         GLenum type = GL_UNSIGNED_BYTE;
         DWORD bpp = rgbBitCount / 8;
+        BOOL swap_rb = false;
 
         if (rgbBitCount == 32 && rMask == 0x00FF0000 && gMask == 0x0000FF00 &&
             bMask == 0x000000FF && aMask == 0xFF000000) {
             internalFormat = GL_RGBA;
+#ifdef BZ_GL_ES3
+            format = GL_RGBA; swap_rb = true;
+#else
             format = GL_BGRA;
+#endif
         } else if (rgbBitCount == 32 && rMask == 0xFF0000 && gMask == 0x00FF00 &&
                    bMask == 0x0000FF && aMask == 0xFF000000) {
             internalFormat = GL_RGBA;
+#ifdef BZ_GL_ES3
+            format = GL_RGBA; swap_rb = true;
+#else
             format = GL_BGRA;
+#endif
         } else if (rgbBitCount == 24 && rMask == 0xFF0000 && gMask == 0x00FF00 && bMask == 0x0000FF) {
             internalFormat = GL_RGB;
+#ifdef BZ_GL_ES3
+            format = GL_RGB; swap_rb = true;
+#else
             format = GL_BGR;
+#endif
         } else if (rgbBitCount == 32 && rMask == 0x000000FF && gMask == 0x0000FF00 &&
                    bMask == 0x00FF0000 && aMask == 0xFF000000) {
             internalFormat = GL_RGBA;
@@ -129,9 +142,15 @@ LPTEXTURE R_LoadTextureDDS(HANDLE data, DWORD filesize) {
         DWORD offset = 0, w = width, h = height;
         DWORD levels = mipMapCount > 0 ? mipMapCount : 1;
         for (DWORD i = 0; i < levels; i++) {
+            BYTE *pixels = NULL;
             if (w == 0 || h == 0) { levels--; continue; }
             DWORD pitch = w * bpp;
-            R_Call(glTexImage2D, GL_TEXTURE_2D, i, internalFormat, w, h, 0, format, type, buf + pixelOffset + offset);
+            if (swap_rb) {
+                pixels = ri.MemAlloc(pitch * h); memcpy(pixels, buf + pixelOffset + offset, pitch * h);
+                R_SwapRedBlue(pixels, w * h, bpp);
+            }
+            R_Call(glTexImage2D, GL_TEXTURE_2D, i, internalFormat, w, h, 0, format, type, pixels ? pixels : buf + pixelOffset + offset);
+            SAFE_DELETE(pixels, ri.MemFree);
             offset += pitch * h;
             w = MAX(w / 2, 1);
             h = MAX(h / 2, 1);

@@ -17,6 +17,7 @@ contains build, installation, and project-overview information.
 - [StarCraft II](games/starcraft-2/readme.md): target status, SC2Map loading, M3 models,
   catalog data, and HUD layout.
 - [Diagnostic Tools](diagnostic-tools.md): bounded renderer and asset-inspection workflows.
+- [Build And Renderer Platforms](build-and-renderer-platforms.md): release builds, MSAA, GLES3, video modes, and low-end diagnostics.
 - [Documentation Guide](documentation-guide.md): documentation placement and completion rules.
 
 All durable documentation lives in this `docs/` tree. Shared workflows are stored at

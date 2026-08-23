@@ -69,6 +69,24 @@ void Wow_AddDoodadInstance(LPCSTR model_path, wowDoodadDef_t const *def) {
         wow_world.num_filedata_doodads++;
         return;
     }
+    /* Deduplicate by authoritative MDDF unique_id: same ID across ADT tiles = same placed doodad. */
+    if (def->unique_id) {
+        FOR_LOOP(i, wow_world.num_placed_dood_ids)
+            if (wow_world.placed_dood_ids[i] == def->unique_id) return;
+        if (wow_world.num_placed_dood_ids == wow_world.cap_placed_dood_ids) {
+            DWORD cap = wow_world.cap_placed_dood_ids ? wow_world.cap_placed_dood_ids * 2 : 256;
+            DWORD *arr = ri.MemAlloc(cap * sizeof(*arr));
+            if (arr) {
+                if (wow_world.placed_dood_ids)
+                    memcpy(arr, wow_world.placed_dood_ids, wow_world.num_placed_dood_ids * sizeof(*arr));
+                SAFE_DELETE(wow_world.placed_dood_ids, ri.MemFree);
+                wow_world.placed_dood_ids = arr;
+                wow_world.cap_placed_dood_ids = cap;
+            }
+        }
+        if (wow_world.num_placed_dood_ids < wow_world.cap_placed_dood_ids)
+            wow_world.placed_dood_ids[wow_world.num_placed_dood_ids++] = def->unique_id;
+    }
     model = Wow_LoadDoodadModel(model_path);
     if (!model) {
         return;

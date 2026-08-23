@@ -10,6 +10,7 @@
  * CL_Init() sets up the renderer and input bindings at startup.
  */
 #include "client.h"
+#include "../common/video_modes.h"
 #include "tr_public.h"
 #include "ui_layout.h"
 #include "sound/s_local.h"
@@ -541,38 +542,10 @@ void CL_UIMenuCommand(LPCSTR command) {
     CL_MenuCommand(command);
 }
 
-typedef struct {
-    DWORD width;
-    DWORD height;
-} clVideoMode_t;
-
-static clVideoMode_t const cl_video_modes[] = {
-    { 640, 480 },
-    { 800, 600 },
-    { 1024, 768 },
-    { 1152, 864 },
-    { 1280, 720 },
-    { 1280, 960 },
-    { 1280, 1024 },
-    { 1366, 768 },
-    { 1600, 900 },
-    { 1600, 1200 },
-    { 1920, 1080 },
-    { 1920, 1200 },
-    { 2560, 1440 },
-};
-
-static clVideoMode_t CL_VideoMode(void) {
-    int mode = Cvar_Integer("vid_mode", 2);
-
-    if (mode < 0 || mode >= (int)(sizeof(cl_video_modes) / sizeof(cl_video_modes[0]))) {
-        mode = 2;
-    }
-    return cl_video_modes[mode];
-}
+static VIDEOMODE CL_VideoMode(void) { return *video_mode_get(Cvar_Integer("vid_mode", BZ_VIDEO_MODE_DEFAULT)); }
 
 static void CL_VideoApply_f(void) {
-    clVideoMode_t mode = CL_VideoMode();
+    VIDEOMODE mode = CL_VideoMode();
 
     if (re.SetWindowSize) {
         re.SetWindowSize(mode.width, mode.height);
@@ -599,7 +572,7 @@ void MenuAction(LPCSTR action, LPCSTR arg) {
 }
 
 void CL_Init(void) {
-    clVideoMode_t mode;
+    VIDEOMODE mode;
 
     CON_printf("OpenWarcraft3 v0.1");
     fprintf(stderr, "Console initialized.\n");

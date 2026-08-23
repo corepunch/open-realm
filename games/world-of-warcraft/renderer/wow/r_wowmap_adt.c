@@ -156,6 +156,13 @@ void Wow_LoadAdt(BYTE const *data, DWORD size, DWORD tile_x, DWORD tile_y) {
                 DWORD atlas_index_y = (tile_y - wow_world.alpha_origin_y) * 16 + index_y;
                 (void)pred_tex;  /* TODO Phase 1: decode 2-bit per-cell layer map */
                 Wow_DecodeAlphaMaps(mcal, mcal_size, layers, layer_count, chunk_flags, alpha);
+                /* MCSH: 64×64 baked sun-shadow bitfield, LSB-first, 1 bit per alpha texel.
+                   Darken each shadowed texel in all four layers by ≈70% (0xB2/256). */
+                if (mcsh) {
+                    FOR_LOOP(ti, WOW_ALPHA_TEXELS)
+                        if ((mcsh[ti >> 3] >> (ti & 7)) & 1)
+                            FOR_LOOP(li, 4) alpha[li][ti] = (BYTE)((0xB2 * alpha[li][ti]) >> 8);
+                }
                 Wow_UploadAlphaAtlasChunk(atlas_index_x, atlas_index_y, alpha);
                 Wow_AddAdtChunk(pos, atlas_index_x, atlas_index_y, holes, no_effect_mask, alpha, layers, layer_count, textures, num_textures, heights, has_normals ? normals : NULL, mccv, mcsh);
             }

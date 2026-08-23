@@ -44,7 +44,7 @@
 #define WOW_GRASS_WIND_PHASE_X 0.917f           // rad/world-unit in X; large enough that adjacent blades (~2.5 u apart) differ by ~131°
 #define WOW_GRASS_WIND_PHASE_Y 1.481f           // rad/world-unit in Y; ratio to PHASE_X ≈ φ² to prevent grid-aligned periodicity
 #define WOW_GRASS_WIND_DIRECTION_X 0.86f        // sway XY direction, X component; together with Y ≈ 30° off axis, length ≈ 1
-#define WOW_GRASS_WIND_DIRECTION_Y 0.51f        // sway XY direction, Y component; used as uGrassPhase.zw in the instanced shader
+#define WOW_GRASS_WIND_DIRECTION_Y 0.51f        // sway XY direction, Y component; used as uGrassParams[2].zw in the instanced shader
 #define WOW_GRASS_ROAD_COVERAGE_MIN 24          // alpha [0-255]; cells with a road-layer alpha above this suppress grass
 #define WOW_GRASS_CELL_STEP 1                   // stride over the 8×8 cell grid; 1 = every cell, 2 = every other (halves density)
 #define WOW_GRASS_CELLS_PER_AXIS 8              // cells per MCNK axis; matches WoW's fixed 8×8 sub-cell layout
@@ -187,6 +187,7 @@ typedef struct wowWmoGroup_s {
     wowWmoBatch_t *batches;
     BOX3 bounds;
     BOOL has_bounds;
+    BOOL indoor;           /* MOGP flags bit 0x2000: group is interior */
     WORD portal_start;     /* MOGP +0x24: first entry in model->portal_refs */
     WORD portal_count;     /* MOGP +0x26: number of portal_refs for this group */
     COLOR32 group_amb;       /* MOGP replacement_for_header_color (BGRA→RGB) */
@@ -304,6 +305,10 @@ typedef struct wowMap_s {
     DWORD num_wmo_models;
     DWORD num_wmo_batches;
     DWORD num_missing_wmos;
+    DWORD *placed_wmo_ids;     /* non-zero MODF unique_ids accepted this ADT window; dedup guard */
+    DWORD num_placed_wmo_ids, cap_placed_wmo_ids;
+    DWORD *placed_dood_ids;    /* non-zero MDDF unique_ids accepted this ADT window; dedup guard */
+    DWORD num_placed_dood_ids, cap_placed_dood_ids;
     DWORD wdt_flags;
     BOOL use_weighted_blend;
     BOOL has_adt_window;
