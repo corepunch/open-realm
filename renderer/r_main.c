@@ -545,7 +545,8 @@ void R_Init(DWORD width, DWORD height) {
 //    extern LPCSTR fs_alphatest;
     extern LPCSTR fs_commandbutton;
     extern LPCSTR fs_minimap_fog;
-    
+    extern LPCSTR fs_unlit;
+
     R_GameLoadAssets();
 
     tr.shader[SHADER_DEFAULT] = R_InitShader(vs_default, fs_default);
@@ -554,6 +555,7 @@ void R_Init(DWORD width, DWORD height) {
     tr.shader[SHADER_SHADOWSPLAT] = R_InitShader(vs_default, fs_shadow_splat);
     tr.shader[SHADER_COMMANDBUTTON] = R_InitShader(vs_default, fs_commandbutton);
     tr.shader[SHADER_MINIMAP_FOG] = R_InitShader(vs_default, fs_minimap_fog);
+    tr.shader[SHADER_UNLIT] = R_InitShader(vs_default, fs_unlit);
     fprintf(stderr, "Loading shaders succeeded.\n");
 
     tr.buffer[RBUF_TEMP1] = R_MakeVertexArrayObject(NULL, 0);
