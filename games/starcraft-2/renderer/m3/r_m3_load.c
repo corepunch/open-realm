@@ -570,6 +570,16 @@ static COLOR32 M3_LayerColor(m3Layer_t const *layer) {
 
 static BOOL M3_SetMaterialBlendMode(m3Material_t const *material) {
     R_SetAlphaKeyState(false);
+#ifdef USE_SHADOWMAPS
+    switch (is_rendering_lights ? (int)(material ? material->blendMode : BLEND_MODE_NONE) : -1) {
+        case BLEND_MODE_BLEND:
+        case BLEND_MODE_ADD:
+        case BLEND_MODE_ADDALPHA:
+        case BLEND_MODE_MODULATE:
+        case BLEND_MODE_MODULATE_2X:
+            return false;
+    }
+#endif
     switch (material ? material->blendMode : BLEND_MODE_NONE) {
         case BLEND_MODE_NONE:
         case BLEND_MODE_ALPHAKEY:
@@ -578,46 +588,26 @@ static BOOL M3_SetMaterialBlendMode(m3Material_t const *material) {
             R_Call(glDepthMask, GL_TRUE);
             break;
         case BLEND_MODE_BLEND:
-#ifdef USE_SHADOWMAPS
-            if (is_rendering_lights)
-                return false;
-#endif
             R_Call(glEnable, GL_BLEND);
             R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             R_Call(glDepthMask, GL_FALSE);
             break;
         case BLEND_MODE_ADD:
-#ifdef USE_SHADOWMAPS
-            if (is_rendering_lights)
-                return false;
-#endif
             R_Call(glEnable, GL_BLEND);
             R_Call(glBlendFunc, GL_ONE, GL_ONE);
             R_Call(glDepthMask, GL_FALSE);
             break;
         case BLEND_MODE_ADDALPHA:
-#ifdef USE_SHADOWMAPS
-            if (is_rendering_lights)
-                return false;
-#endif
             R_Call(glEnable, GL_BLEND);
             R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE);
             R_Call(glDepthMask, GL_FALSE);
             break;
         case BLEND_MODE_MODULATE:
-#ifdef USE_SHADOWMAPS
-            if (is_rendering_lights)
-                return false;
-#endif
             R_Call(glEnable, GL_BLEND);
             R_Call(glBlendFunc, GL_DST_COLOR, GL_ZERO);
             R_Call(glDepthMask, GL_FALSE);
             break;
         case BLEND_MODE_MODULATE_2X:
-#ifdef USE_SHADOWMAPS
-            if (is_rendering_lights)
-                return false;
-#endif
             R_Call(glEnable, GL_BLEND);
             R_Call(glBlendFunc, GL_DST_COLOR, GL_SRC_COLOR);
             R_Call(glDepthMask, GL_FALSE);
@@ -882,9 +872,7 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
        M3 does not animate (texture UV transform, layer alpha, geoset colour). */
     R_Call(glUniform4f, m3.shader->uGeosetColor, 1.0f, 1.0f, 1.0f, 1.0f);
     R_Call(glUniform1f, m3.shader->uLayerAlpha, 1.0f);
-    R_Call(glUniform2f, m3.shader->uUvTrans, 0.0f, 0.0f);
-    R_Call(glUniform2f, m3.shader->uUvRot, 0.0f, 1.0f);
-    R_Call(glUniform2f, m3.shader->uUvScale, 1.0f, 1.0f);
+    { GLfloat m[9] = { 1,0,0, 0,1,0, 0,0,1 }; R_Call(glUniformMatrix3fv, m3.shader->uUvMatrix, 1, GL_FALSE, m); }
     R_Call(glUniform1i, m3.shader->uAlphaKey, 0);
     R_Call(glUniform1f, m3.shader->uAlphaCutoff, 0.5f);
     R_Call(glUniform1i, m3.shader->uUnshaded, 0);

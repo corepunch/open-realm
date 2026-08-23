@@ -580,19 +580,17 @@ void R_SetAlphaKeyState(BOOL enabled) {
         R_Call(glDisable, GL_SAMPLE_ALPHA_TO_COVERAGE);
         return;
     }
+#ifdef BZ_USE_MSAA
 #ifdef USE_SHADOWMAPS
     if (is_rendering_lights) {
-#ifdef BZ_USE_MSAA
         /* TODO: Single-sample shadow targets need multisample depth coverage before alpha-key shadows can use ATOC. */
         R_Call(glDisable, GL_SAMPLE_ALPHA_TO_COVERAGE);
         R_Call(glEnable, GL_BLEND);
         R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         R_Call(glDepthMask, GL_FALSE);
         return;
-#endif
     }
 #endif
-#ifdef BZ_USE_MSAA
     if (tr.msaa_samples) {
         R_Call(glDisable, GL_BLEND);
         R_Call(glEnable, GL_SAMPLE_ALPHA_TO_COVERAGE);

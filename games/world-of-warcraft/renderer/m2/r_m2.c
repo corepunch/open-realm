@@ -2077,14 +2077,10 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
         R_Call(glUniform3f, shader->uLightColor, WOW_LIGHT_DIFFUSE_R, WOW_LIGHT_DIFFUSE_G, WOW_LIGHT_DIFFUSE_B);
         R_Call(glUniform3f, shader->uLightAmbient, WOW_LIGHT_AMBIENT_R, WOW_LIGHT_AMBIENT_G, WOW_LIGHT_AMBIENT_B);
     }
-    /* The unified model shader transforms UVs through quat_transform using
-     * uUvRot (default (0,0) collapses all UVs to 0.5).  Set identity defaults
-     * for all UV/color/layer uniforms that M2 does not animate. */
+    /* Set identity defaults for UV/color/layer uniforms that M2 does not animate. */
     R_Call(glUniform4f, shader->uGeosetColor, 1.0f, 1.0f, 1.0f, ground_alpha);
     R_Call(glUniform1f, shader->uLayerAlpha, 1.0f);
-    R_Call(glUniform2f, shader->uUvTrans, 0.0f, 0.0f);
-    R_Call(glUniform2f, shader->uUvRot, 0.0f, 1.0f);  /* identity quaternion */
-    R_Call(glUniform2f, shader->uUvScale, 1.0f, 1.0f);
+    { GLfloat m[9] = { 1,0,0, 0,1,0, 0,0,1 }; R_Call(glUniformMatrix3fv, shader->uUvMatrix, 1, GL_FALSE, m); }
     R_Call(glUniform1i, shader->uAlphaKey, 0);
     R_Call(glUniform1i, shader->uUnshaded, 0);
     R_Call(glUniform1f, shader->uFogEnable, tr.viewDef.fogEnable);
@@ -2151,9 +2147,7 @@ void M2_RenderInstanced(m2Model_t const *model, LPCINSTANCEBUFFER instances, DWO
     }
     R_Call(glUniform4f, shader->uGeosetColor, 1.0f, 1.0f, 1.0f, 1.0f);
     R_Call(glUniform1f, shader->uLayerAlpha, 1.0f);
-    R_Call(glUniform2f, shader->uUvTrans, 0.0f, 0.0f);
-    R_Call(glUniform2f, shader->uUvRot, 0.0f, 1.0f);
-    R_Call(glUniform2f, shader->uUvScale, 1.0f, 1.0f);
+    { GLfloat m[9] = { 1,0,0, 0,1,0, 0,0,1 }; R_Call(glUniformMatrix3fv, shader->uUvMatrix, 1, GL_FALSE, m); }
     R_Call(glUniform1i, shader->uAlphaKey, 0);
     R_Call(glUniform1i, shader->uUnshaded, 0);
     R_Call(glUniform1f, shader->uFogEnable, tr.viewDef.fogEnable);

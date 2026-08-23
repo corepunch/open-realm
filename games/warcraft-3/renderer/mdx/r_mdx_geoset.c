@@ -348,9 +348,20 @@ static void MDLX_BindLayerTextureAnimation(mdxModel_t const *model,
         scale = (VECTOR3){ 1, 1, 1 };
     }
 
-    R_Call(glUniform2f, mdlx.shader->uUvTrans, translation.x, translation.y);
-    R_Call(glUniform2f, mdlx.shader->uUvRot, rotation.z, rotation.w);
-    R_Call(glUniform2f, mdlx.shader->uUvScale, scale.x, scale.y);
+    {
+        /* Build the UV affine matrix.  Operations applied in order:
+             1. translate by (T.x, T.y)
+             2. rotate around UV centre (0.5,0.5) using quaternion zw components
+             3. scale around UV centre
+           Combined as a mat3: uv_out = (M * vec3(uv, 1)).xy
+           Column-major for glUniformMatrix3fv. */
+        float c = rotation.w * rotation.w - rotation.z * rotation.z;
+        float s = 2.0f * rotation.z * rotation.w;
+        float tx = scale.x * (c * (translation.x - 0.5f) - s * (translation.y - 0.5f)) + 0.5f;
+        float ty = scale.y * (s * (translation.x - 0.5f) + c * (translation.y - 0.5f)) + 0.5f;
+        GLfloat m[9] = { scale.x*c, scale.y*s, 0, -scale.x*s, scale.y*c, 0, tx, ty, 1 };
+        R_Call(glUniformMatrix3fv, mdlx.shader->uUvMatrix, 1, GL_FALSE, m);
+    }
 }
 
 
