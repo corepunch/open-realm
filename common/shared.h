@@ -159,12 +159,14 @@ enum {
     FLAG(RF_HOSTILE, 13),
     FLAG(RF_HOVERED, 14),
     FLAG(RF_GROUND_EFFECT, 15),
+    FLAG(RF_MOUNTED, 16), /* riding a mount; overhead name resolves to the mounted attachment */
 };
 
 enum {
     FLAG(EF_GROUND_ANCHOR, 0),
     FLAG(EF_FOW_BLOCKER, 1),
     FLAG(EF_FOW_REVEALER, 2),
+    FLAG(EF_MOUNTED, 3), /* WoW: entity is riding a mount */
 };
 
 enum {

@@ -55,6 +55,71 @@ typedef struct {
     m2TrackClassic_t visibility_track;
 } m2AttachmentClassic_t;
 
+/* Canonical M2 attachment type IDs (wowdev.wiki M2#Attachments; the client's CModelAttachmentId).
+ * These are semantic type IDs resolved through the attachment_lookup table, never positional
+ * array indices, so they are stable regardless of a model's attachments[] order. */
+typedef enum {
+    M2_ATTACH_SHIELD = 0,              /* also MountMain / ItemVisual0 */
+    M2_ATTACH_HAND_RIGHT = 1,          /* ItemVisual1 */
+    M2_ATTACH_HAND_LEFT = 2,           /* ItemVisual2 */
+    M2_ATTACH_ELBOW_RIGHT = 3,         /* ItemVisual3 */
+    M2_ATTACH_ELBOW_LEFT = 4,          /* ItemVisual4 */
+    M2_ATTACH_SHOULDER_RIGHT = 5,
+    M2_ATTACH_SHOULDER_LEFT = 6,
+    M2_ATTACH_KNEE_RIGHT = 7,
+    M2_ATTACH_KNEE_LEFT = 8,
+    M2_ATTACH_HIP_RIGHT = 9,
+    M2_ATTACH_HIP_LEFT = 10,
+    M2_ATTACH_HELM = 11,
+    M2_ATTACH_BACK = 12,
+    M2_ATTACH_SHOULDER_FLAP_RIGHT = 13,
+    M2_ATTACH_SHOULDER_FLAP_LEFT = 14,
+    M2_ATTACH_CHEST_BLOOD_FRONT = 15,
+    M2_ATTACH_CHEST_BLOOD_BACK = 16,
+    M2_ATTACH_BREATH = 17,
+    M2_ATTACH_PLAYER_NAME = 18,        /* CGUnit_C::GetNamePosition name-plate anchor */
+    M2_ATTACH_BASE = 19,
+    M2_ATTACH_HEAD = 20,
+    M2_ATTACH_SPELL_LEFT_HAND = 21,
+    M2_ATTACH_SPELL_RIGHT_HAND = 22,
+    M2_ATTACH_SPECIAL1 = 23,
+    M2_ATTACH_SPECIAL2 = 24,
+    M2_ATTACH_SPECIAL3 = 25,
+    M2_ATTACH_SHEATH_MAIN_HAND = 26,
+    M2_ATTACH_SHEATH_OFF_HAND = 27,
+    M2_ATTACH_SHEATH_SHIELD = 28,
+    M2_ATTACH_PLAYER_NAME_MOUNTED = 29, /* GetNamePosition tries this before M2_ATTACH_PLAYER_NAME */
+    M2_ATTACH_LARGE_WEAPON_LEFT = 30,
+    M2_ATTACH_LARGE_WEAPON_RIGHT = 31,
+    M2_ATTACH_HIP_WEAPON_LEFT = 32,
+    M2_ATTACH_HIP_WEAPON_RIGHT = 33,
+    M2_ATTACH_CHEST = 34,
+    M2_ATTACH_HAND_ARROW = 35,
+    M2_ATTACH_BULLET = 36,
+    M2_ATTACH_SPELL_HAND_OMNI = 37,
+    M2_ATTACH_SPELL_HAND_DIRECTED = 38,
+    M2_ATTACH_VEHICLE_SEAT1 = 39,      /* Wrath+ */
+    M2_ATTACH_VEHICLE_SEAT2 = 40,
+    M2_ATTACH_VEHICLE_SEAT3 = 41,
+    M2_ATTACH_VEHICLE_SEAT4 = 42,
+    M2_ATTACH_VEHICLE_SEAT5 = 43,
+    M2_ATTACH_VEHICLE_SEAT6 = 44,
+    M2_ATTACH_VEHICLE_SEAT7 = 45,
+    M2_ATTACH_VEHICLE_SEAT8 = 46,
+    M2_ATTACH_LEFT_FOOT = 47,
+    M2_ATTACH_RIGHT_FOOT = 48,
+    M2_ATTACH_SHIELD_NO_GLOVE = 49,
+    M2_ATTACH_SPINE_LOW = 50,
+    M2_ATTACH_ALTERED_SHOULDER_R = 51,
+    M2_ATTACH_ALTERED_SHOULDER_L = 52,
+    M2_ATTACH_BELT_BUCKLE = 53,        /* MoP+ */
+    M2_ATTACH_SHEATH_CROSSBOW = 54,
+    M2_ATTACH_HEAD_TOP = 55,           /* Legion+ */
+    M2_ATTACH_VIRTUAL_SPELL_DIRECTED = 56, /* BfA+ */
+    M2_ATTACH_BACKPACK = 57,           /* BfA+ */
+    M2_ATTACH_UNKNOWN_BFA = 60,        /* BfA+; undocumented */
+} m2AttachmentId_t;
+
 typedef struct {
     DWORD camera_id;
     FLOAT fov, far_clip, near_clip;

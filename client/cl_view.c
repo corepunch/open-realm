@@ -227,6 +227,9 @@ static void V_AddClientEntity(centity_t const *ent) {
     if (ent->current.flags & EF_FOW_REVEALER) {
         re.flags |= RF_FOW_REVEALER;
     }
+    if (ent->current.flags & EF_MOUNTED) {
+        re.flags |= RF_MOUNTED;
+    }
     re.radius = ent->current.radius;
     re.number = ent->current.number;
     re.health = ent->current.stats[ENT_HEALTH];

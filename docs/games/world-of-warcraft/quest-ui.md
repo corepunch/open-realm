@@ -259,7 +259,15 @@ The label occupies attachment 18: its rectangle ends at the projected point.
 When no name is known, the quest marker also starts directly at attachment 18.
 When both are visible, only the marker moves upward by `TalkToMe.m2`'s
 model-authored positive bottom clearance, leaving the attachment slot for the
-label without introducing another tuned world constant. Do not use character
+label without introducing another tuned world constant.
+
+Attachment IDs are a stable semantic enum, not positional array order: each
+`attachments[]` record carries an `id` and `attachment_lookup` maps type→index.
+`r_m2_format.h`'s `m2AttachmentId_t` enumerates the canonical table. When the
+entity's `RF_MOUNTED` flag is set (server-side `EF_MOUNTED`), the name anchor
+resolves to `M2_ATTACH_PLAYER_NAME_MOUNTED` (29) instead of
+`M2_ATTACH_PLAYER_NAME` (18), mirroring `CGUnit_C::GetNamePosition`'s mounted
+priority. Do not use character
 animation bounds here: `HumanMale.m2` spans Z `-0.855..2.986` in those bounds
 but its visible rest vertices span only `-0.001..2.034`, which previously put
 both elements far above the head. Confirm the source data with:

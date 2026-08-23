@@ -1,8 +1,7 @@
 #include "renderer/r_game.h"
 #include "renderer/r_local.h"
 #include "wow/r_wowmap.h"
-
-#define WOW_ATTACHMENT_PLAYER_NAME 18 // M2 attachment ID; original client CGUnit_C::GetNamePosition anchor
+#include "m2/r_m2_format.h"
 
 void R_RegisterMap(LPCSTR mapFileName);
 void R_DrawWorld(void);
@@ -405,10 +404,11 @@ FLOAT R_GameSelectionRadius(renderEntity_t const *entity) {
     return MAX(entity->radius * MAX(entity->scale, 1.0f), 1.0f);
 }
 
-/* Attachment 18 is the model-authored PlayerName point used by the original client. */
+/* The PlayerName attachment (mounted variant when riding) is the model-authored name-plate point. */
 BOOL R_GameEntityOverheadPosition(renderEntity_t const *entity, LPVECTOR3 out) {
     static LPCMODEL last_missing;
     MATRIX4 transform;
+    DWORD attachment;
     if (!entity || !out) return false;
     *out = entity->origin;
     if (!entity->model || entity->model->modeltype != ID_MD20) {
@@ -416,10 +416,12 @@ BOOL R_GameEntityOverheadPosition(renderEntity_t const *entity, LPVECTOR3 out) {
         return false;
     }
     R_GetEntityMatrix(entity, &transform);
-    if (M2_EntityAttachmentPosition(entity->model->m2, entity, WOW_ATTACHMENT_PLAYER_NAME, &transform, out)) return true;
+    /* CGUnit_C::GetNamePosition prefers the mounted anchor (29) over the grounded one (18). */
+    attachment = (entity->flags & RF_MOUNTED) ? M2_ATTACH_PLAYER_NAME_MOUNTED : M2_ATTACH_PLAYER_NAME;
+    if (M2_EntityAttachmentPosition(entity->model->m2, entity, attachment, &transform, out)) return true;
     if (entity->model != last_missing) {
         last_missing = entity->model;
-        fprintf(stderr, "WoW renderer: M2 model has no PlayerName attachment 18\n");
+        fprintf(stderr, "WoW renderer: M2 model has no PlayerName attachment %u\n", attachment);
     }
     out->z += (M2_GroundOffset(entity->model->m2) + M2_HeadHeight(entity->model->m2)) * entity->scale;
     return false;

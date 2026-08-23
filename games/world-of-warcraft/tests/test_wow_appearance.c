@@ -44,6 +44,15 @@ TEST(wow_m2, legacy_materials_use_render_flags_array) {
     T_EQ(m2_particle_blend_mode(4), BLEND_MODE_ADD);
 }
 
+TEST(wow_m2, attachment_ids_match_wowdev_canonical_table) {
+    T_EQ(M2_ATTACH_PLAYER_NAME, 18);
+    T_EQ(M2_ATTACH_PLAYER_NAME_MOUNTED, 29);
+    T_EQ(M2_ATTACH_BREATH, 17);
+    T_EQ(M2_ATTACH_HEAD, 20);
+    T_EQ(M2_ATTACH_SHIELD, 0);
+    T_EQ(M2_ATTACH_BACKPACK, 57);
+}
+
 TEST(wow_m2, dbc_character_path_resolves_race_and_gender) {
     DWORD race, gender;
 
@@ -398,4 +407,20 @@ TEST(wow_appearance, wow_entity_delta_preserves_overhead_sprite) {
 
     T_EQ(number, 9);
     T_EQ(out.overhead_sprite, 42);
+}
+
+TEST(wow_appearance, wow_entity_delta_preserves_mounted_flag) {
+    BYTE buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    entityState_t from = { 0 }, to = { .number = 10, .model = 3, .flags = EF_MOUNTED }, out = { 0 };
+    DWORD bits = 0;
+    int number;
+
+    MSG_WriteDeltaEntity(&sb, &from, &to, true);
+    sb.readcount = 0;
+    number = MSG_ReadEntityBits(&sb, &bits);
+    MSG_ReadDeltaEntity(&sb, &out, number, bits);
+
+    T_EQ(number, 10);
+    T_EQ((int)(out.flags & EF_MOUNTED), (int)EF_MOUNTED);
 }
