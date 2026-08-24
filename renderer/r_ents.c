@@ -370,15 +370,15 @@ void R_DrawHealthBars(void) {
             continue;
         }
         FLOAT const x  = ux - w * 0.5f;
+        VECTOR2 const bars = R_StatusBarOffsets(h, e->mana > 0);
         FLOAT const hp = e->health / 255.0f;
         /* Green at full -> yellow at half -> red when low, like the original. */
         COLOR32 const hpcol = hp > 0.5f
             ? MAKE(COLOR32, (BYTE)(255.0f * (1.0f - hp) * 2.0f), 200, 0, 255)
             : MAKE(COLOR32, 220, (BYTE)(200.0f * hp * 2.0f), 0, 255);
-        R_DrawStatusBar(x, uy, w, h, hp, hpcol);
+        R_DrawStatusBar(x, uy + bars.x, w, h, hp, hpcol);
         if (e->mana > 0) {
-            R_DrawStatusBar(x, uy + h + scene.h * 0.0015f, w, h,
-                            e->mana / 255.0f, MAKE(COLOR32, 60, 90, 235, 255));
+            R_DrawStatusBar(x, uy + bars.y, w, h, e->mana / 255.0f, MAKE(COLOR32, 60, 90, 235, 255));
         }
     }
 }

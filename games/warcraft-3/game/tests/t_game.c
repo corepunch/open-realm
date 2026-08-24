@@ -27,6 +27,7 @@ void setup_test_world(void);
 
 
 #include "../game/hud/hud_utils.h"
+#include "../hud/hud_local.h"
 #include "../../../renderer/r_local.h"
 
 /* Forward declarations for internal functions not exposed in any header. */
@@ -84,6 +85,27 @@ TEST(wc3_game, hud_portrait_model_uses_serialized_field) {
     UI_SetPortraitFrameModel(&frame, 42);
     T_EQ(frame.Type, FT_PORTRAIT);
     T_EQ(frame.Portrait.model, 42);
+}
+
+TEST(wc3_game, hud_build_timer_stays_inside_info_panel) {
+    T_ASSERT(BUILDQUEUE_TIMER_X + BUILDQUEUE_TIMER_W <= INFO_PANEL_X + INFO_PANEL_W);
+}
+
+TEST(wc3_game, hud_portraits_align_at_info_panel_top) {
+    T_ASSERT(BUILDQUEUE_FIRST_Y < INFO_PANEL_Y + 0.0390f);
+    T_ASSERT(PORTRAIT_Y <= INFO_PANEL_Y);
+}
+
+TEST(wc3_game, overhead_health_moves_above_single_bar_slot) {
+    VECTOR2 const bars = R_StatusBarOffsets(8.0f, false);
+    T_FEQ(bars.x, -8.0f, 0.01f);
+    T_FEQ(bars.y, 0.0f, 0.01f);
+}
+
+TEST(wc3_game, overhead_mana_takes_lower_slot_and_pushes_health) {
+    VECTOR2 const bars = R_StatusBarOffsets(8.0f, true);
+    T_ASSERT(bars.x < -16.0f);
+    T_FEQ(bars.y, 0.0f, 0.01f);
 }
 
 /* =========================================================================

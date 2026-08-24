@@ -148,6 +148,14 @@ TEST(wc3_unit, stand_clears_no_ubersplat_flag) {
     T_ASSERT(!(ent->s.renderfx & RF_NO_UBERSPLAT));
 }
 
+TEST(wc3_unit, spawned_building_is_immobile) {
+    T_ASSERT(unit_spawn_aiflags(MAKEFOURCC('h','b','a','r')) & AI_IMMOBILE);
+}
+
+TEST(wc3_unit, spawned_mobile_unit_is_not_immobile) {
+    T_ASSERT(!(unit_spawn_aiflags(MAKEFOURCC('h','p','e','a')) & AI_IMMOBILE));
+}
+
 /* -----------------------------------------------------------------------
  * Die tests
  * --------------------------------------------------------------------- */

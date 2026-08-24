@@ -85,7 +85,9 @@ static void ai_chop(LPEDICT ent) {
         ent->harvested_lumber += HARVEST_TREE_DAMAGE;
         ent->s.renderfx |= RF_HAS_LUMBER;
     }
-    if (tree->health.value < HARVEST_TREE_DAMAGE) {
+    /* Equal remaining life is lethal too; the old strict comparison reduced
+     * the tree to zero without calling die(), so it never fell or unblocked. */
+    if (tree->health.value <= HARVEST_TREE_DAMAGE) {
         tree->health.value = 0;
         tree->die(tree, ent);
     } else if (tree->pain) {
