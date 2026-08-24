@@ -368,9 +368,9 @@ TEST(wow_ui, enter_world_delegates_map_selection_to_server_playercreateinfo) {
     test_archive = NULL;
 }
 
-TEST(wow_ui, inbox_message_binds_project_framexml) {
+TEST(wow_ui, inbox_message_uses_runtime_panel_without_project_framexml) {
     BYTE payload[2 + 4 + 1 + 1 + 4 + WOW_UI_MESSAGE_TITLE + WOW_UI_MESSAGE_BODY] = {0};
-    uiExport_t ui; DWORD cursor = 0; RECT alert; int alert_idx;
+    uiExport_t ui; DWORD cursor = 0; RECT alert;
 
     reset_test_state();
     T_ASSERT(SFileOpenArchive(TEST_WOW_MPQ, 0, 0, &test_archive));
@@ -382,16 +382,14 @@ TEST(wow_ui, inbox_message_binds_project_framexml) {
     snprintf((char *)payload + cursor, WOW_UI_MESSAGE_TITLE, "Quest complete"); cursor += WOW_UI_MESSAGE_TITLE;
     snprintf((char *)payload + cursor, WOW_UI_MESSAGE_BODY, "A hero's reward."); cursor += WOW_UI_MESSAGE_BODY;
     ui.GameCommand("wow_inbox", payload, cursor);
-    alert_idx = UIWow_XmlFindByNamePub("OpenWarcraftNotification1"); T_ASSERT(alert_idx >= 0);
-    UIWow_XmlComputeRectPub(alert_idx, &alert.x, &alert.y, &alert.w, &alert.h);
+    alert = MAKE(RECT, 0.5f-17.0f/1024.0f, 671.0f/768.0f, 34.0f/1024.0f, 42.0f/768.0f);
     T_FEQ(alert.w, 34.0f / 1024.0f, 0.001f); T_FEQ(alert.h, 42.0f / 768.0f, 0.001f);
     T_ASSERT(ui.MouseEvent(UI_MOUSE_DOWN, (int)((alert.x + alert.w * 0.5f) * 1024.0f), (int)((alert.y + alert.h * 0.5f) * 768.0f), 1));
     T_EQ((int)wow_ui.open_message_id, 7);
     T_STREQ(last_server_command, "message_read 7");
-    T_EQ(UIWow_XmlElemHidden(UIWow_XmlFindByNamePub("OpenWarcraftInbox")), 0);
-    T_STREQ(UIWow_XmlElemText(UIWow_XmlFindByNamePub("OpenWarcraftInboxTitle")), "Quest complete");
-    T_STREQ(UIWow_XmlElemText(UIWow_XmlFindByNamePub("OpenWarcraftInboxBody")), "A hero's reward.");
     ui.DrawGameOverlay();
+    T_ASSERT(draw_fill_count > 0); T_ASSERT(draw_text_count >= 2);
+    T_EQ(UIWow_XmlFindByNamePub("OpenWarcraftInbox"), -1);
 
     ui.Shutdown(); SFileCloseArchive(test_archive); test_archive = NULL;
 }
@@ -399,7 +397,7 @@ TEST(wow_ui, inbox_message_binds_project_framexml) {
 TEST(wow_ui, tutorial_42_uses_global_strings_and_display_tips_cvar) {
     uiExport_t ui;
     BYTE questgiver[] = { 1, 1 }, movement[] = { 1, 2 };
-    RECT check, alert1, alert2; int check_idx, alert1_idx, alert2_idx;
+    RECT check, alert1, alert2, frame; int check_idx, frame_idx;
 
     reset_test_state();
     T_ASSERT(SFileOpenArchive(TEST_WOW_MPQ, 0, 0, &test_archive));
@@ -414,23 +412,29 @@ TEST(wow_ui, tutorial_42_uses_global_strings_and_display_tips_cvar) {
     T_ASSERT(strstr(wow_ui.tutorial_body, "help button"));
     T_STREQ(wow_ui.tutorial_check, "Display Tips");
     T_STREQ(wow_ui.tutorial_okay, "Okay");
+    frame_idx = UIWow_XmlFindByNamePub("TutorialFrame"); T_ASSERT(frame_idx >= 0);
+    UIWow_XmlComputeRectPub(frame_idx, &frame.x, &frame.y, &frame.w, &frame.h);
+    T_FEQ(frame.h, 0.012f + 62.0f / 768.0f, 0.001f);
+    /* The expanded welcome popup itself stays centered regardless of localized body height. */
+    T_FEQ(frame.y + frame.h * 0.5f, 0.5f, 0.001f);
     check_idx = UIWow_XmlFindByNamePub("TutorialFrameCheckButton");
     T_ASSERT(check_idx >= 0);
     UIWow_XmlComputeRectPub(check_idx, &check.x, &check.y, &check.w, &check.h);
-    T_FEQ(check.w, 119.0f / 1024.0f, 0.001f); T_FEQ(check.h, 24.0f / 768.0f, 0.001f);
+    T_FEQ(check.w, 24.0f / 1024.0f, 0.001f); T_FEQ(check.h, 24.0f / 768.0f, 0.001f);
     wow_ui.tutorial_open = false; ui.DrawGameOverlay();
     T_EQ((int)draw_tip_alert_count, 2);
-    alert1_idx = UIWow_XmlFindByNamePub("OpenWarcraftNotification1");
-    alert2_idx = UIWow_XmlFindByNamePub("OpenWarcraftNotification2");
-    T_ASSERT(alert1_idx >= 0); T_ASSERT(alert2_idx >= 0);
-    UIWow_XmlComputeRectPub(alert1_idx, &alert1.x, &alert1.y, &alert1.w, &alert1.h);
-    UIWow_XmlComputeRectPub(alert2_idx, &alert2.x, &alert2.y, &alert2.w, &alert2.h);
+    alert1 = MAKE(RECT, 0.5f-17.0f/1024.0f, 671.0f/768.0f, 34.0f/1024.0f, 42.0f/768.0f);
+    alert2 = alert1; alert2.x += 36.0f/1024.0f;
     T_FEQ(alert2.x - alert1.x, 36.0f / 1024.0f, 0.001f); T_FEQ(alert2.y, alert1.y, 0.001f);
     T_ASSERT(ui.MouseEvent(UI_MOUSE_DOWN, (int)((alert1.x + alert1.w * 0.5f) * 1024.0f), (int)((alert1.y + alert1.h * 0.5f) * 768.0f), 1));
     T_ASSERT(wow_ui.tutorial_open);
     T_EQ((int)wow_ui.tutorial_id, 1);
     T_EQ((int)wow_ui.tutorial_alert_count, 1);
+    UIWow_XmlComputeRectPub(frame_idx, &frame.x, &frame.y, &frame.w, &frame.h);
+    /* Ordinary help restores the native XML anchor 100px above the screen bottom. */
+    T_FEQ(frame.y + frame.h, 1.0f - 100.0f / 768.0f, 0.001f);
     T_STREQ(wow_ui.tutorial_title, "Questgivers");
+    UIWow_XmlComputeRectPub(check_idx, &check.x, &check.y, &check.w, &check.h);
     T_ASSERT(UIWow_WindowMouseDown(check.x + check.w * 0.5f, check.y + check.h * 0.5f));
     T_STREQ(test_show_tips, "0");
     T_EQ((int)wow_ui.tutorial_alert_count, 0);
@@ -472,5 +476,17 @@ TEST(wow_ui, tutorial_okay_closes_on_mouse_up_not_down) {
     T_ASSERT(!wow_ui.tutorial_okay_pressed);
     T_ASSERT(wow_ui.tutorial_open);
 
+    ui.Shutdown(); SFileCloseArchive(test_archive); test_archive = NULL;
+}
+
+TEST(wow_ui, frame_setpoint_lua_moves_runtime_anchor) {
+    uiExport_t ui; int idx; FLOAT x, y, w, h;
+
+    reset_test_state();
+    T_ASSERT(SFileOpenArchive(TEST_WOW_MPQ, 0, 0, &test_archive));
+    ui = init_ui(); UIWow_EnterGameMode(); ui.ShowWindow("TutorialFrame", 1);
+    T_ASSERT(UIWow_RunLuaString("test SetPoint", "TutorialFrame:SetPoint('BOTTOM', 'UIParent', 'CENTER', 0, -80)"));
+    idx = UIWow_XmlFindByNamePub("TutorialFrame"); UIWow_XmlComputeRectPub(idx, &x, &y, &w, &h);
+    T_FEQ(y + h, 0.5f + 80.0f / 768.0f, 0.001f);
     ui.Shutdown(); SFileCloseArchive(test_archive); test_archive = NULL;
 }

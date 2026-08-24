@@ -1,0 +1,15 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <Frame name="TutorialFrame" parent="UIParent" hidden="true">
+        <Size><AbsDimension x="230" y="128"/></Size>
+        <Anchors><Anchor point="BOTTOM"><Offset><AbsDimension x="0" y="100"/></Offset></Anchor></Anchors>
+        <Backdrop bgFile="Interface\TutorialFrame\TutorialFrameBackground" edgeFile="Interface\Tooltips\UI-Tooltip-Border" tile="true"><EdgeSize><AbsValue val="16"/></EdgeSize><TileSize><AbsValue val="16"/></TileSize><BackgroundInsets><AbsInset left="3" right="5" top="3" bottom="5"/></BackgroundInsets></Backdrop>
+        <Layers><Layer level="ARTWORK">
+            <FontString name="TutorialFrameTitle" inherits="GameFontHighlight" justifyH="LEFT" justifyV="TOP"><Size><AbsDimension x="210" y="0"/></Size><Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="10" y="-9"/></Offset></Anchor></Anchors><Color r="1" g="0.82" b="0"/></FontString>
+            <FontString name="TutorialFrameText" inherits="GameFontNormal" justifyH="LEFT"><Size><AbsDimension x="210" y="0"/></Size><Anchors><Anchor point="TOPLEFT" relativeTo="TutorialFrameTitle" relativePoint="BOTTOMLEFT"><Offset><AbsDimension x="0" y="-2"/></Offset></Anchor></Anchors><Color r="1" g="1" b="1"/></FontString>
+        </Layer></Layers>
+        <Frames>
+            <CheckButton name="TutorialFrameCheckButton" checked="true" inherits="UICheckButtonTemplate"><Size><AbsDimension x="24" y="24"/></Size><Anchors><Anchor point="BOTTOMLEFT"><Offset><AbsDimension x="5" y="5"/></Offset></Anchor></Anchors><Layers><Layer level="BACKGROUND"><FontString name="TutorialFrameCheckboxText" inherits="GameFontNormalSmall"><Size><AbsDimension x="0" y="0"/></Size><Anchors><Anchor point="LEFT" relativePoint="RIGHT"/></Anchors></FontString></Layer></Layers></CheckButton>
+            <Button name="TutorialFrameOkayButton"><Size><AbsDimension x="76" y="21"/></Size><Anchors><Anchor point="BOTTOMRIGHT"><Offset><AbsDimension x="-7" y="7"/></Offset></Anchor></Anchors><NormalTexture inherits="DialogButtonNormalTexture"/><PushedTexture inherits="DialogButtonPushedTexture"/><HighlightTexture inherits="DialogButtonHighlightTexture"/><NormalText inherits="GameFontNormalSmall"/><HighlightText inherits="GameFontHighlightSmall"/></Button>
+        </Frames>
+    </Frame>
+</Ui>

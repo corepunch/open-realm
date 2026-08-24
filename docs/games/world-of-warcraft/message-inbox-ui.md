@@ -118,18 +118,17 @@ Implemented in the current tree:
 - bounded version-1 `wow_inbox` snapshots with up to eight records;
 - quest reward → unread inbox record and client-begin snapshot delivery;
 - server-validated `message_read <id>` handling;
-- project FrameXML notification strip (`share/Interface/FrameXML/OpenWarcraftNotifications.xml`); its virtual template owns the
-  `TutorialFrameAlert` 34x42 size, bottom-55 anchor, 36px stride, and texture crop for the bounded named slots;
-- project FrameXML message panel (`share/Interface/FrameXML/OpenWarcraftInbox.xml`); C binds the selected server-authored title/body
-  and never assigns its backdrop, rectangle, or typography;
+- runtime notification strip using the native `TutorialFrameAlert` art, 34x42 crop, bottom-55 anchor, and 36px stride from
+  `TutorialFrame.xml`/`TutorialFrame.lua`;
+- runtime message panel for the project-specific inbox model; classic WoW has no FrameXML window for this server payload;
 - regression coverage for reward delivery and read-state changes.
 
 ## Tutorial tips
 
 The welcome panel is classic tutorial ID 42, not a `WelcomeFrame`. The server sends the semantic `TutorialFrame` window request at
-client begin. The WoW UI loads `GlobalStrings.lua` and resolves `TUTORIAL_TITLE42` and `TUTORIAL42`, then binds them into
-`share/Interface/FrameXML/OpenWarcraftTutorialFrame.xml`. That project tree preserves the classic composition: 230px width,
-`TutorialFrameBackground`, tooltip border, check box, and 76x21 Okay button.
+client begin. The WoW UI loads `GlobalStrings.lua`, resolves `TUTORIAL_TITLE42` and `TUTORIAL42`, then binds them into Blizzard's
+`Interface/FrameXML/TutorialFrame.xml`. Its zero-height body is measured at runtime and the frame follows native
+`TutorialFrameText:GetHeight() + 62` sizing, so localized text expands the backdrop.
 The reusable client path retains `tutorial_id`, title, and body, so later
 tutorial triggers can use the same presentation rather than adding one-off HUD
 frames.
@@ -137,7 +136,7 @@ frames.
 At client begin the server sends versioned `wow_tutorial` triggers for tutorial
 IDs 1 (`Questgivers`) and 2 (`Movement`), alongside the welcome-window request.
 This mirrors `TutorialFrame_NewTutorial`, which receives numeric `TUTORIAL_TRIGGER` events in the original Lua. Each appears above
-the action bar in a named slot authored by `OpenWarcraftNotifications.xml`; clicking an alert
+the action bar using the native alert dimensions and runtime sibling stride; clicking an alert
 removes it from the bounded client queue and opens the same localized tutorial
 panel for that ID. Inbox notifications share the strip geometry but remain
 separate server-authored records.

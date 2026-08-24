@@ -86,8 +86,7 @@ void SCR_DrawScreenField(DWORD msec) {
         SCR_DrawFPS(msec);
     }
 #ifndef BZ_TESTS
-    if (cl_screenshot_pending) {
-        cl_screenshot_pending = false;
+    if (CL_ScreenshotReady()) {
         re.Screenshot();
     }
 #endif

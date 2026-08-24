@@ -1,7 +1,7 @@
 /*
  * ui_loading.c - Loading screen drawing and map background management.
  *
- * Draws the dynamic map background, then binds the title into project FrameXML.
+ * Draws the dynamic map background and runtime title; classic WoW ships no loading-screen FrameXML.
  */
 #include "ui_local.h"
 
@@ -42,9 +42,7 @@ void UIWow_UpdateMapBackground(LPCPLAYER ps) {
     UIWow_Printf("UIWow: loading screen map=%s background=%s\n", wow_ui.active_map[0] ? wow_ui.active_map : "<none>", screen_path);
 }
 
-/* -------------------------------------------------------------------------
- * Loading drawing (dynamic background + FrameXML title)
- * ---------------------------------------------------------------------- */
+/* Classic WoW creates loading presentation outside FrameXML, so keep this renderer-owned runtime path. */
 
 void UIWow_DrawLoadingScreenC(LPCSTR map, LPCSTR status, FLOAT progress) {
     RECT full = MAKE(RECT, 0, 0, 1, 1);
@@ -69,12 +67,10 @@ void UIWow_DrawLoadingScreenC(LPCSTR map, LPCSTR status, FLOAT progress) {
         map_title = "";
     }
 
-    if (!UIWow_XMLSetFrameText("OpenWarcraftLoadingTitle", map_title)) {
-        UIWow_Printf("UIWow: required FrameXML font string OpenWarcraftLoadingTitle is missing\n");
-        return;
+    if (*map_title) {
+        RECT title = MAKE(RECT, 0.16f, 0.77f, 0.68f, 0.05f);
+        wow_ui.renderer->DrawText(&MAKE(drawText_t, .font = UIWow_LoadFont(22), .text = map_title, .rect = title,
+            .color = MAKE(COLOR32,235,210,160,255), .textWidth = title.w, .lineHeight = title.h,
+            .halign = FONT_JUSTIFYCENTER, .valign = FONT_JUSTIFYMIDDLE));
     }
-    UIWow_XMLSetFrameVisible("OpenWarcraftLoadingScreen", true);
-    if (!UIWow_XMLDrawFrame("OpenWarcraftLoadingScreen"))
-        UIWow_Printf("UIWow: required FrameXML loading root OpenWarcraftLoadingScreen could not draw\n");
-    UIWow_XMLSetFrameVisible("OpenWarcraftLoadingScreen", false);
 }

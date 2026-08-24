@@ -166,7 +166,9 @@ TEST(wc3_game, hud_message_overlay_position_is_runtime_data) {
     T_FEQ(frame.Width, 0.30f, 0.001f);
     T_FEQ(frame.Height, 0.145f, 0.001f);
     T_FEQ(frame.Points.x[FPP_MIN].offset, 0.20f, 0.001f);
-    T_FEQ(frame.Points.y[FPP_MIN].offset, -0.10f, 0.001f);
+    /* Formula: -(0.30 - pos.y); JASS y=0 anchors at 0.30 from screen top,
+     * positive JASS y shifts the text upward (toward screen top, less negative offset). */
+    T_FEQ(frame.Points.y[FPP_MIN].offset, -(0.30f - 0.10f), 0.001f);
     T_STREQ(frame.Text, "Runtime message");
 }
 

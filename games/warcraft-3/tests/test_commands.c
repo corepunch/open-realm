@@ -15,6 +15,11 @@ static char last_forwarded[1024];
 static bool command_tests_initialized;
 static bool late_command_called;
 
+extern BOOL cl_screenshot_pending;
+extern DWORD cl_screenshot_delay;
+void CL_Screenshot_f(void);
+BOOL CL_ScreenshotReady(void);
+
 void Key_Init(void) {
 }
 
@@ -197,6 +202,18 @@ TEST(commands, remaining_plus_commands_run_late) {
     Cbuf_Execute();
 
     T_ASSERT(late_command_called);
+}
+
+TEST(commands, screenshot_optional_delay_counts_rendered_frames) {
+    setup_command_tests();
+    if (!Cmd_Exists("screenshot")) Cmd_AddCommand("screenshot", CL_Screenshot_f);
+    cl_screenshot_pending = false; cl_screenshot_delay = 0;
+    Cmd_ExecuteString("screenshot 3");
+    T_ASSERT(cl_screenshot_pending); T_EQ(cl_screenshot_delay, 3);
+    T_ASSERT(!CL_ScreenshotReady()); T_ASSERT(!CL_ScreenshotReady()); T_ASSERT(CL_ScreenshotReady());
+    T_ASSERT(!cl_screenshot_pending); T_EQ(cl_screenshot_delay, 0);
+    Cmd_ExecuteString("screenshot"); T_ASSERT(CL_ScreenshotReady());
+    Cmd_ExecuteString("screenshot invalid"); T_ASSERT(!cl_screenshot_pending);
 }
 
 typedef struct {

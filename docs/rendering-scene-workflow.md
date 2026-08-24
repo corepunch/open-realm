@@ -104,6 +104,16 @@ make run-sc2 ARGS="+map Foo"  # override map
 
 ## Screenshots
 
-Use the in-game `screenshot` command after the target scene is visible. The client writes `screenshots/shotNNNN.png`. On macOS Retina displays, the capture uses the GL viewport/drawable size rather than SDL's logical window size, so the PNG includes the complete framebuffer instead of only its lower-left quarter.
+Use the engine `screenshot [frame-delay]` command rather than desktop capture. It writes `screenshots/shotNNNN.png`; with a delay,
+the Nth fully rendered frame after command execution is captured. This makes bounded command-line QA deterministic:
+
+```bash
+build/bin/openwow -data data/world-of-warcraft +map playercreate +screenshot 10 +com_frame_limit 20
+build/bin/openwarcraft3 -data 'data/Warcraft III' +menu_main +screenshot 10 +com_frame_limit 20
+```
+
+Place `+screenshot N` after the map/menu selector and keep `com_frame_limit` larger than `N`. `+screenshot 1` captures the first
+rendered frame; bare `+screenshot` captures the next rendered frame. On macOS Retina displays, capture uses the GL
+viewport/drawable size rather than SDL's logical window size, so the PNG includes the complete framebuffer.
 
 For bounded startup or stdout diagnostics, add `+com_frame_limit N`; do not use it when manually inspecting a scene unless `N` is large enough to reach the scene.

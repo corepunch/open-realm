@@ -64,6 +64,7 @@ typedef enum {
     ELEM_NORMAL_FILE,
     ELEM_PUSHED_FILE,
     ELEM_HIGHLIGHT_FILE,
+    ELEM_CHECKED_FILE,
     ELEM_TEXT,
     ELEM_POINT,
     ELEM_RELATIVE_POINT,
@@ -330,6 +331,8 @@ static void UIWow_XmlInheritElem(uiWowXmlElem_t *e, LPCSTR inherits) {
             UIWow_ElemSetStr(e, ELEM_PUSHED_FILE, src->texts[ELEM_PUSHED_FILE]);
         if (!UIWow_ElemStr(e, ELEM_HIGHLIGHT_FILE) && UIWow_ElemStr(src, ELEM_HIGHLIGHT_FILE))
             UIWow_ElemSetStr(e, ELEM_HIGHLIGHT_FILE, src->texts[ELEM_HIGHLIGHT_FILE]);
+        if (!UIWow_ElemStr(e, ELEM_CHECKED_FILE) && UIWow_ElemStr(src, ELEM_CHECKED_FILE))
+            UIWow_ElemSetStr(e, ELEM_CHECKED_FILE, src->texts[ELEM_CHECKED_FILE]);
         FOR_LOOP(i, sizeof(uiwow_button_part_name_fields) / sizeof(uiwow_button_part_name_fields[0])) {
             uiWowXmlStr_t f = uiwow_button_part_name_fields[i];
             if (!UIWow_ElemStr(e, f) && UIWow_ElemStr(src, f)) UIWow_ElemSetStr(e, f, src->texts[f]);
@@ -493,6 +496,20 @@ static int UIWow_LuaFrameSetHeight(lua_State *L) {
 static int UIWow_LuaFrameSetWidth(lua_State *L) {
     int i = UIWow_FrameFromSelf(L);
     if (i >= 0) { wow_xml.elems[i].size.w = UIWow_XmlX((FLOAT)luaL_checknumber(L, 2)); wow_xml.elems[i].flags |= EF_HAS_SIZE; }
+    return 0;
+}
+
+/* Frame:SetPoint replaces the primary anchor, including runtime anchors authored by native Lua. */
+static int UIWow_LuaFrameSetPoint(lua_State *L) {
+    int i = UIWow_FrameFromSelf(L), ri = -1;
+    WOWXMLPOINT in = { luaL_checkstring(L, 2), NULL, NULL, 0, 0 };
+    if (lua_istable(L, 3)) {
+        lua_getfield(L, 3, "__ow3_index"); ri = (int)luaL_optinteger(L, -1, -1); lua_pop(L, 1);
+        if (ri >= 0 && ri < wow_xml.count) in.rel = UIWow_ElemStr(&wow_xml.elems[ri], ELEM_NAME);
+    } else if (!lua_isnoneornil(L, 3)) in.rel = luaL_checkstring(L, 3);
+    in.rel_point = luaL_optstring(L, 4, in.point);
+    in.x = (FLOAT)luaL_optnumber(L, 5, 0.0); in.y = (FLOAT)luaL_optnumber(L, 6, 0.0);
+    if (i >= 0) UIWow_XMLSetFramePoint(UIWow_ElemStr(&wow_xml.elems[i], ELEM_NAME), &in);
     return 0;
 }
 
@@ -793,7 +810,7 @@ static void UIWow_XMLInstallLuaCompat(void) {
         { "LockHighlight", UIWow_LuaFrameNoop }, { "UnlockHighlight", UIWow_LuaFrameNoop },
         { "GetButtonState", UIWow_LuaFrameGetButtonState }, { "IsShown", UIWow_LuaFrameIsVisible },
         { "GetFrameLevel", UIWow_LuaFrameGetID }, { "SetFrameLevel", UIWow_LuaFrameNoop },
-        { "SetPoint", UIWow_LuaFrameNoop }, { "ClearAllPoints", UIWow_LuaFrameNoop },
+        { "SetPoint", UIWow_LuaFrameSetPoint }, { "ClearAllPoints", UIWow_LuaFrameNoop },
         { "Raise", UIWow_LuaFrameNoop }, { "Lower", UIWow_LuaFrameNoop },
         { "SetValue", UIWow_LuaFrameNoop }, { "GetValue", UIWow_LuaFrameGetZero },
         { "SetMinMaxValues", UIWow_LuaFrameNoop }, { "GetMinMaxValues", UIWow_LuaFrameGetMinMax },
@@ -1061,6 +1078,8 @@ static void UIWow_XmlReadButtonPart(uiWowXmlElem_t *e, xmlNodePtr child) {
             e->highlight_texcoord = temp.texcoord;
             e->flags |= EF_HAS_HIGHLIGHT_TEXCOORD;
         }
+    } else if (!xmlStrcasecmp(child->name, BAD_CAST "CheckedTexture") && UIWow_ElemStr(&temp, ELEM_FILE)) {
+        UIWow_ElemSetStr(e, ELEM_CHECKED_FILE, temp.texts[ELEM_FILE]);
     }
     SAFE_DELETE(file, xmlFree); SAFE_DELETE(inherits, xmlFree); SAFE_DELETE(name, xmlFree);
     UIWow_ElemFreeStrings(&temp);
@@ -1071,7 +1090,7 @@ static void UIWow_XmlReadButton(uiWowXmlElem_t *e, xmlNodePtr node) {
     for (c = node->children; c; c = c->next) {
         if (c->type != XML_ELEMENT_NODE) continue;
         if (!xmlStrcasecmp(c->name, BAD_CAST "NormalTexture") || !xmlStrcasecmp(c->name, BAD_CAST "PushedTexture") ||
-            !xmlStrcasecmp(c->name, BAD_CAST "HighlightTexture")) UIWow_XmlReadButtonPart(e, c);
+            !xmlStrcasecmp(c->name, BAD_CAST "HighlightTexture") || !xmlStrcasecmp(c->name, BAD_CAST "CheckedTexture")) UIWow_XmlReadButtonPart(e, c);
         else if (!xmlStrcasecmp(c->name, BAD_CAST "NormalText") || !xmlStrcasecmp(c->name, BAD_CAST "HighlightText") || !xmlStrcasecmp(c->name, BAD_CAST "DisabledText")) {
             uiWowXmlElem_t temp;
             uiWowXmlButtonTextState_t text_state = WOW_XML_BUTTON_TEXT_NORMAL;
@@ -1128,6 +1147,7 @@ static void UIWow_XmlReadShared(uiWowXmlElem_t *e, xmlNodePtr node) {
     xmlChar *text = xmlGetProp(node, BAD_CAST "text"), *virt = xmlGetProp(node, BAD_CAST "virtual");
     xmlChar *all = xmlGetProp(node, BAD_CAST "setAllPoints"), *password = xmlGetProp(node, BAD_CAST "password");
     xmlChar *id = xmlGetProp(node, BAD_CAST "id"), *wordwrap = xmlGetProp(node, BAD_CAST "wordWrap");
+    xmlChar *checked = xmlGetProp(node, BAD_CAST "checked");
     if (file && *file) UIWow_ElemSetStr(e, ELEM_FILE, (char const *)file);
     if (text && *text) UIWow_ElemSetStr(e, ELEM_TEXT, (char const *)text);
     if (hidden && *hidden && !strcasecmp((char const *)hidden, "true")) e->flags |= EF_HIDDEN;
@@ -1136,8 +1156,10 @@ static void UIWow_XmlReadShared(uiWowXmlElem_t *e, xmlNodePtr node) {
     if (password && *password && strcmp((char const *)password, "0")) e->flags |= EF_PASSWORD;
     if (id && *id) e->id = atoi((char const *)id);
     if (wordwrap && *wordwrap && !strcasecmp((char const *)wordwrap, "true")) e->flags |= EF_WORD_WRAP;
+    if (checked && *checked && !strcasecmp((char const *)checked, "true")) e->flags |= EF_CHECKED;
     SAFE_DELETE(file, xmlFree); SAFE_DELETE(hidden, xmlFree); SAFE_DELETE(text, xmlFree); SAFE_DELETE(virt, xmlFree);
     SAFE_DELETE(all, xmlFree); SAFE_DELETE(password, xmlFree); SAFE_DELETE(id, xmlFree); SAFE_DELETE(wordwrap, xmlFree);
+    SAFE_DELETE(checked, xmlFree);
     UIWow_XmlReadSize(e, node); UIWow_XmlReadAnchor(e, node); UIWow_XmlReadBackdrop(e, node);
     UIWow_XmlReadTexCoords(e, node); UIWow_XmlReadFont(e, node); UIWow_XmlReadJustify(e, node);
     UIWow_XmlReadTextInsets(e, node);
@@ -1519,6 +1541,43 @@ int    UIWow_XmlElemHidden(int idx)  { return (idx >= 0 && idx < wow_xml.count) 
 LPCSTR UIWow_XmlElemParent(int idx)  { return (idx >= 0 && idx < wow_xml.count) ? UIWow_ElemStr(&wow_xml.elems[idx], ELEM_PARENT_NAME) : NULL; }
 #endif /* !STB_WOW_XML_IMPLEMENTATION */
 
+/* CheckButton checked state selects the native CheckedTexture parsed from its Blizzard template. */
+BOOL UIWow_XMLSetButtonChecked(LPCSTR name, BOOL checked) {
+    int idx = UIWow_XmlFindByName(name);
+    if (idx < 0 || wow_xml.elems[idx].type != WOW_XML_BUTTON || !(wow_xml.elems[idx].flags & EF_CHECKBUTTON)) return false;
+    if (checked) wow_xml.elems[idx].flags |= EF_CHECKED;
+    else wow_xml.elems[idx].flags &= ~EF_CHECKED;
+    return true;
+}
+
+/* Runtime FrameXML scripts use the same native point and positive-Y-up coordinate contract as XML anchors. */
+BOOL UIWow_XMLSetFramePoint(LPCSTR name, LPCWOWXMLPOINT in) {
+    int idx = UIWow_XmlFindByName(name); uiWowXmlElem_t *e;
+    if (idx < 0 || !in || !in->point || !in->point[0]) return false;
+    e = &wow_xml.elems[idx];
+    UIWow_ElemSetStr(e, ELEM_POINT, in->point);
+    UIWow_ElemSetStr(e, ELEM_RELATIVE_POINT, in->rel_point && in->rel_point[0] ? in->rel_point : in->point);
+    UIWow_ElemSetStr(e, ELEM_RELATIVE_NAME, in->rel);
+    e->relative_to = in->rel && in->rel[0] ? UIWow_XmlFindByName(in->rel) : -1;
+    e->offset = MAKE(fpoint_t, UIWow_XmlX(in->x), -UIWow_XmlY(in->y)); e->flags |= EF_HAS_ANCHOR;
+    return true;
+}
+
+/* Reproduce FrameXML's GetHeight + SetHeight sizing before the parent backdrop is drawn. */
+BOOL UIWow_XMLSizeFrameToText(LPCSTR frame, LPCSTR text, FLOAT padding) {
+    int fi = UIWow_XmlFindByName(frame), ti = UIWow_XmlFindByName(text); RECT r; LPCFONT font; VECTOR2 sz;
+    if (fi < 0 || ti < 0 || wow_xml.elems[ti].type != WOW_XML_FONTSTRING || !wow_ui.renderer || !wow_ui.renderer->GetTextSize)
+        return false;
+    r = UIWow_XmlComputeRect(ti); font = UIWow_LoadFont((DWORD)wow_xml.elems[ti].font_size);
+    if (!font || r.w <= 0.0f) return false;
+    sz = wow_ui.renderer->GetTextSize(&MAKE(drawText_t, .font = font, .text = UIWow_ElemStr(&wow_xml.elems[ti], ELEM_TEXT),
+        .rect = r, .textWidth = r.w, .lineHeight = 1.33f, .flags = DRAW_WORD_WRAP));
+    wow_xml.elems[ti].measured.h = sz.y;
+    /* TutorialFrame.lua uses TutorialFrameText:GetHeight() + 62; retaining that formula fixes the old fixed-height overflow. */
+    wow_xml.elems[fi].size.h = sz.y + UIWow_XmlY(padding); wow_xml.elems[fi].flags |= EF_HAS_SIZE;
+    return true;
+}
+
 /* Drop the injected character-create model when XML runtime state is rebuilt. */
 static void UIWow_XMLReleaseCharCustomizeModel(void) {
     if (wow_ui.renderer && wow_ui.renderer->ReleaseModel)
@@ -1803,7 +1862,7 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
         BOOL hovered = e->type == WOW_XML_BUTTON && hovered_button == i;
         int draw_layer = e->type == WOW_XML_MODEL ? WOW_XML_LAYER_BACKGROUND : e->draw_layer;
         LPCSTR file = e->texts[ELEM_FILE], normal_file = e->texts[ELEM_NORMAL_FILE], pushed_file = e->texts[ELEM_PUSHED_FILE];
-        LPCSTR highlight_file = e->texts[ELEM_HIGHLIGHT_FILE], elem_text = e->texts[ELEM_TEXT];
+        LPCSTR highlight_file = e->texts[ELEM_HIGHLIGHT_FILE], checked_file = e->texts[ELEM_CHECKED_FILE], elem_text = e->texts[ELEM_TEXT];
         FLOAT scroll_off_y = 0.0f;
         RECT clip_rect = {0};
         BOOL has_clip = false;
@@ -1922,6 +1981,10 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
             if (t) {
                 UIWow_XMLDrawImage(t, &r, &uv, MAKE(COLOR32, e->colors[ELEM_COLOR_VERTEX].r, e->colors[ELEM_COLOR_VERTEX].g, e->colors[ELEM_COLOR_VERTEX].b, (BYTE)(e->colors[ELEM_COLOR_VERTEX].a * e->alpha)), BLEND_MODE_BLEND);
             }
+            if (e->type == WOW_XML_BUTTON && e->flags & EF_CHECKED && checked_file) {
+                LPTEXTURE ct = UIWow_LoadTexture(checked_file);
+                if (ct) UIWow_XMLDrawImage(ct, &r, &MAKE(RECT,0,0,1,1), COLOR32_WHITE, BLEND_MODE_BLEND);
+            }
             if (e->type == WOW_XML_BUTTON && hovered && highlight_file && highlight_file[0]) {
                 LPTEXTURE ht = UIWow_LoadTexture(highlight_file);
                 RECT huv = MAKE(RECT, 0, 0, 1, 1);
@@ -1935,9 +1998,12 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
             /* FrameXML may leave either FontString axis to its renderer-measured natural size. */
             if (f && e->type == WOW_XML_FONTSTRING && (e->size.w == 0 || e->size.h == 0) && wow_ui.renderer->GetTextSize) {
                 LPCSTR display = UIWow_XMLDisplayText(e, text, sizeof(text));
-                VECTOR2 sz = wow_ui.renderer->GetTextSize(&MAKE(drawText_t, .font = f, .text = display, .rect = r, .textWidth = r.w, .lineHeight = 1.33f, .flags = (e->flags & EF_WORD_WRAP) ? DRAW_WORD_WRAP : 0));
-                e->measured = MAKE(fsize_t, sz.x, sz.y);
-                /* Natural FontString dimensions are renderer-derived when XML leaves an axis unconstrained. */
+                /* When width is unconstrained, measure at full virtual width to get the natural line width.
+                   Passing r.w=0 would wrap every character at column 0 and freeze measured.w near zero. */
+                FLOAT measure_w = e->size.w > 0 ? r.w : 1.0f;
+                VECTOR2 sz = wow_ui.renderer->GetTextSize(&MAKE(drawText_t, .font = f, .text = display, .rect = r, .textWidth = measure_w, .lineHeight = 1.33f, .flags = (e->flags & EF_WORD_WRAP) ? DRAW_WORD_WRAP : 0));
+                if (e->size.w == 0) e->measured.w = sz.x;
+                if (e->size.h == 0) e->measured.h = sz.y;
                 r = UIWow_XmlComputeRect(i);
                 r.y -= scroll_off_y;
             }

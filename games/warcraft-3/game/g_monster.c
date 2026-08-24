@@ -238,9 +238,10 @@ pathTex_t *M_LoadPathTex(LPCSTR filename) {
     if (filename && strlen(filename) > 1) {
         DWORD filesize;
         HANDLE buffer = gi.ReadFile(filename, &filesize);
-        if (buffer) {
+        if (buffer)
             pathTex = LoadTGA(buffer, filesize);
-        }
+        else
+            fprintf(stderr, "M_LoadPathTex: not found: %s\n", filename);
         gi.MemFree(buffer);
         return pathTex;
     }
