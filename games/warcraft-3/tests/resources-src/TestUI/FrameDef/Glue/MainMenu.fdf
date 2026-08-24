@@ -7,7 +7,6 @@ Frame "FRAME" "MainMenuFrame" {
     Height 0.600,
 
     Frame "SPRITE" "WarCraftIIILogo" {
-        SetPoint TOPLEFT, "MainMenuFrame", TOPLEFT, 0.13, 0.04,
     }
 
     Frame "FRAME" "RealmSelect" {

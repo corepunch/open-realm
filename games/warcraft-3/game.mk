@@ -50,6 +50,17 @@ run-demo: $(BINARY)
 run-map: $(BINARY)
 	$(BINARY) -data $(WC3DATA) +map "$(MAP)"
 
+TRACE_FILE := build/profile-map.trace
+
+profile-map: $(BINARY) xctraceprof
+	xctrace record --template "Time Profiler" --time-limit 20s \
+		--output $(TRACE_FILE) \
+		--launch -- $(BINARY) -data $(WC3DATA) -tft +map "$(MAP)"
+	xctrace export --input $(TRACE_FILE) \
+		--xpath '/trace-toc/run[@number="1"]/data/table[@schema="time-profile"]' \
+		> build/time-profile.xml
+	$(BIN_DIR)/xctraceprof --window 3:20 --top 40 build/time-profile.xml
+
 run-ui-text: $(BINARY)
 	$(BINARY) -data $(WC3DATA) +r_module stdout +com_frame_limit 1 +$(UI_CMD)
 
