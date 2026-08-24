@@ -1,0 +1,39 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <Frame name="OpenWarcraftInbox" hidden="true">
+        <Size><AbsDimension x="512" y="169"/></Size>
+        <Anchors>
+            <Anchor point="TOPLEFT">
+                <Offset><AbsDimension x="256" y="-192"/></Offset>
+            </Anchor>
+        </Anchors>
+        <Backdrop bgFile="Interface\DialogFrame\UI-DialogBox-Background" edgeFile="Interface\DialogFrame\UI-DialogBox-Border" tile="true">
+            <EdgeSize><AbsValue val="32"/></EdgeSize>
+            <TileSize><AbsValue val="32"/></TileSize>
+            <BackgroundInsets><AbsInset left="11" right="12" top="12" bottom="11"/></BackgroundInsets>
+        </Backdrop>
+        <Layers>
+            <Layer level="ARTWORK">
+                <FontString name="OpenWarcraftInboxTitle" font="Fonts\FRIZQT__.TTF" justifyH="CENTER" justifyV="MIDDLE">
+                    <Size><AbsDimension x="471" y="31"/></Size>
+                    <Anchors>
+                        <Anchor point="TOPLEFT">
+                            <Offset><AbsDimension x="20" y="-15"/></Offset>
+                        </Anchor>
+                    </Anchors>
+                    <FontHeight><AbsValue val="16"/></FontHeight>
+                    <Color r="1" g="0.8431" b="0.4706"/>
+                </FontString>
+                <FontString name="OpenWarcraftInboxBody" font="Fonts\FRIZQT__.TTF" justifyH="LEFT" justifyV="TOP" wordWrap="true">
+                    <Size><AbsDimension x="451" y="100"/></Size>
+                    <Anchors>
+                        <Anchor point="TOPLEFT">
+                            <Offset><AbsDimension x="31" y="-54"/></Offset>
+                        </Anchor>
+                    </Anchors>
+                    <FontHeight><AbsValue val="12"/></FontHeight>
+                    <Color r="0.9412" g="0.902" b="0.8039"/>
+                </FontString>
+            </Layer>
+        </Layers>
+    </Frame>
+</Ui>

@@ -46,3 +46,9 @@ Inspect the original client source with:
 ```sh
 build/bin/mpqtool -mpq data/world-of-warcraft/interface.MPQ cat 'Interface/FrameXML/TutorialFrame.xml'
 ```
+
+## Project-owned inbox panel
+
+`share/Interface/FrameXML/OpenWarcraftInbox.xml` owns the open-message backdrop, 512x169 placement, and title/body typography. The
+client inbox model remains populated by the server's `wow_inbox` payload; selecting an unread alert binds only its title and body,
+shows `OpenWarcraftInbox`, and sends `message_read <id>` back to the server.
