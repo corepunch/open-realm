@@ -68,12 +68,6 @@ static void MainMenu_InitFrames(void) {
         if (logo_model) {
             main_menu.WarCraftIIILogo->Portrait.model = logo_model;
         }
-        UI_SetPoint(main_menu.WarCraftIIILogo,
-                    FRAMEPOINT_TOPLEFT,
-                    main_menu.MainMenuFrame,
-                    FRAMEPOINT_TOPLEFT,
-                    0.13f,
-                    -0.08f);
     }
 
     UI_SetOnClick(main_menu.RealmButton, "menu_realm_select");

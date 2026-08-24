@@ -1125,6 +1125,8 @@ bool FS_ExtractFile(LPCSTR toExtract, LPCSTR extracted) {
 }
 
 void FS_Init(void) {
+    /* Project-owned UI/layout assets live beside configs and remain separate from authoritative game archives. */
+    FS_AddGameDirectory("share");
 //    ExtractStarCraft2();
     
 //    FS_AddArchive("/Users/igor/Documents/Warcraft III Demo/war3.mpq");

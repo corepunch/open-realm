@@ -1,0 +1,5 @@
+Frame "CONTROL" "OpenWarcraftCampaignList" INHERITS WITHCHILDREN "MapListBox" {
+    Width 0.34,
+    Height 0.11,
+    SetPoint BOTTOMLEFT, "BackButton", TOPLEFT, -0.14, 0.04,
+}

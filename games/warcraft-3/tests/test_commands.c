@@ -84,6 +84,16 @@ TEST(commands, command_registration) {
     T_ASSERT(Cmd_Exists("path"));
 }
 
+TEST(commands, share_authored_ui_assets_are_readable) {
+    DWORD size = 0;
+    HANDLE data;
+
+    setup_command_tests();
+    data = FS_ReadFile("UI\\FrameDef\\OpenWarcraft3\\CampaignList.fdf", &size);
+    T_NOT_NULL(data); T_ASSERT(size > 0);
+    if (data) FS_FreeFile(data);
+}
+
 TEST(commands, command_and_cvar_completion) {
     char out[128];
 
