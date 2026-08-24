@@ -23,13 +23,7 @@ void SC2_HUD_WriteConsolePanel(LPEDICT ent) {
     sc2BaseFrame_t *ui_con  = SC2_LayoutFindFrameByName("ConsoleUIContainer");
     sc2BaseFrame_t *minimap = SC2_LayoutFindFrameByName("MinimapPanel");
 
-    if (!console && !minimap) {
-        /* Fallback path — no SC2 layout data available */
-        console = SC2_HUD_FindFallbackFrameByType(SC2_FRAMETYPE_CONSOLE_PANEL);
-        if (!console) return;
-        SC2_HUD_WriteLayout(ent, frames, count, console, LAYER_BACKGROUND);
-        return;
-    }
+    if (!console && !minimap) return;
 
     SC2_HUD_WriteStart(LAYER_BACKGROUND);
 

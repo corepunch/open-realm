@@ -52,9 +52,7 @@ static void command_apply_icons(sc2BaseFrame_t *frames, DWORD count, sc2BaseFram
 }
 
 static sc2BaseFrame_t *command_find(void) {
-    sc2BaseFrame_t *r = SC2_LayoutFindFrameByType(SC2_FRAMETYPE_COMMAND_PANEL);
-    if (r) return r;
-    return SC2_HUD_FindFallbackFrameByType(SC2_FRAMETYPE_COMMAND_PANEL);
+    return SC2_LayoutFindFrameByType(SC2_FRAMETYPE_COMMAND_PANEL);
 }
 
 void SC2_HUD_WriteCommandPanel(LPEDICT ent) {

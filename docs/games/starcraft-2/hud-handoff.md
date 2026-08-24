@@ -19,7 +19,7 @@ Last commit: `a8f4e25 fix(sc2-hud): template resolution two-pass + layer separat
 
 ### HUD bridge (`hud.c`, `hud_resource.c`, `hud_console.c`, `hud_command.c`, `hud_infopanel.c`)
 - `SC2_HUD_InitLayoutHost()` wires `uiimport` (file I/O, `ImageIndex`, `FontIndex`).
-- `SC2_HUD_EnsureLayout()` loads the layout once; falls back to programmatic frames if SC2 data is missing.
+- `SC2_HUD_EnsureLayout()` loads the layout once and returns no frames when authoritative layout data is missing or invalid.
 - `SC2_HUD_BuildFrameForWrite()` converts `sc2BaseFrame_t` → `uiFrame_t` (anchors, color, tex, stat/text, label buffer).
 - `SC2_HUD_WriteAncestors` + `SC2_HUD_WriteFrameWithChildren` for correct wire ordering (parents before children).
 - **Layer separation**: LAYER_BACKGROUND carries only ConsolePanel subtree + bare ConsoleUIContainer + MinimapPanel. CommandPanel and InfoPanel are on LAYER_COMMANDBAR / LAYER_INFOPANEL.
@@ -85,7 +85,7 @@ Since `SC2_HUD_WriteFrameWithChildren` already skips `SC2_UIFLAG_HIDDEN` frames 
 | File | Role |
 |------|------|
 | `games/starcraft-2/common/stb_sc2layout.h` | Single-header parser. All template resolution, flattening, anchor math lives here. |
-| `games/starcraft-2/game/hud/hud.c` | Bridge: `sc2BaseFrame_t → uiFrame_t`, shared layout load, fallback frames, `sc2_hud_image_index`. |
+| `games/starcraft-2/game/hud/hud.c` | Bridge: `sc2BaseFrame_t → uiFrame_t`, shared layout load, `sc2_hud_image_index`. |
 | `games/starcraft-2/game/hud/hud_resource.c` | Writes LAYER_CONSOLE: ResourcePanel + stat bindings. Anchor chain for CashPanel right-edge. |
 | `games/starcraft-2/game/hud/hud_console.c` | Writes LAYER_BACKGROUND: ConsolePanel model backdrop + MinimapPanel. |
 | `games/starcraft-2/game/hud/hud_command.c` | Writes LAYER_COMMANDBAR: CommandPanel ability grid. |
