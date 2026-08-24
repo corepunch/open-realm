@@ -151,14 +151,13 @@ TEST(wc3_game, hud_quest_rows_bind_authored_children) {
 }
 
 TEST(wc3_game, hud_message_overlay_loads_authored_geometry) {
-    message_loaded = false;
-    memset(&msg, 0, sizeof(msg));
+    msg_overlay_loaded = false;
     T_ASSERT(MessageEnsureLoaded());
-    T_FEQ(msg.OpenWarcraftMessageText->Width, 0.30f, 0.001f);
-    T_FEQ(msg.OpenWarcraftMessageText->Height, 0.145f, 0.001f);
-    T_FEQ(msg.OpenWarcraftMessageText->Font.Size, 0.010f, 0.001f);
-    T_FEQ(msg.OpenWarcraftMessageText->Points.x[FPP_MIN].offset, 0.05f, 0.001f);
-    T_FEQ(msg.OpenWarcraftMessageText->Points.y[FPP_MIN].offset, -0.30f, 0.001f);
+    T_FEQ(msg_overlay_text.Width, 0.30f, 0.001f);
+    T_FEQ(msg_overlay_text.Height, 0.145f, 0.001f);
+    T_FEQ(msg_overlay_text.Font.Size, 0.010f, 0.001f);
+    T_FEQ(msg_overlay_text.Points.x[FPP_MIN].offset, 0.05f, 0.001f);
+    T_FEQ(msg_overlay_text.Points.y[FPP_MIN].offset, -0.30f, 0.001f);
 }
 
 TEST(wc3_game, hud_message_overlay_position_is_runtime_data) {
@@ -178,35 +177,6 @@ TEST(wc3_game, hud_message_overlay_invalid_position_keeps_fdf_anchor) {
     T_FEQ(frame.Points.y[FPP_MIN].offset, -0.30f, 0.001f);
 }
 
-TEST(wc3_game, hud_build_queue_uses_authored_frames) {
-    LPFRAMEDEF root = UI_HudFrame("OpenWarcraftInfoPanel");
-    LPFRAMEDEF timer = UI_HudFrame("OpenWarcraftBuildTimeIndicator");
-    LPFRAMEDEF list = UI_HudFrame("OpenWarcraftBuildQueue");
-    LPFRAMEDEF multi = UI_HudFrame("OpenWarcraftMultiselect");
-    LPFRAMEDEF command = UI_HudFrame("OpenWarcraftCommandButton");
-    T_NOT_NULL(root); T_NOT_NULL(timer); T_NOT_NULL(list);
-    T_EQ(timer->Type, FT_SIMPLESTATUSBAR);
-    T_EQ(list->Type, FT_BUILDQUEUE);
-    T_FEQ(root->Width, 0.180f, 0.001f);
-    T_FEQ(timer->Width, 0.115f, 0.001f);
-    T_EQ(list->BuildQueue.FirstItem, UI_HudFrame("OpenWarcraftBuildQueueFirst"));
-    T_EQ(list->BuildQueue.BuildTimer, timer);
-    T_FEQ(list->BuildQueue.ItemOffset, 0.0281f, 0.001f);
-    T_NOT_NULL(multi); T_EQ(multi->Multiselect.NumColumns, 6);
-    T_NOT_NULL(command); T_EQ(command->Grid.NumColumns, 4);
-    T_FEQ(command->Grid.Offset.x, 0.0434f, 0.001f);
-}
-
-TEST(wc3_game, hud_grid_clone_uses_authored_stride) {
-    FRAMEDEF tmpl; LPFRAMEDEF item;
-    UI_InitFrame(&tmpl, FT_COMMANDBUTTON);
-    tmpl.Grid.Offset = MAKE(VECTOR2, 0.04f, -0.05f); tmpl.Grid.NumColumns = 3;
-    UI_SetPoint(&tmpl, FRAMEPOINT_TOPLEFT, NULL, FRAMEPOINT_TOPLEFT, 0.1f, -0.2f);
-    item = UI_CloneGridItem(&tmpl, NULL, 5);
-    T_NOT_NULL(item);
-    T_FEQ(item->Points.x[FPP_MIN].offset, 0.18f, 0.001f);
-    T_FEQ(item->Points.y[FPP_MIN].offset, -0.25f, 0.001f);
-}
 
 TEST(wc3_game, overhead_health_moves_above_single_bar_slot) {
     VECTOR2 const bars = R_StatusBarOffsets(8.0f, false);

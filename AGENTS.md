@@ -95,7 +95,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 ## What to Avoid
 
 - **Do not patch loaded UI layout in code.** SC2Layout and FDF files define the correct layout. When a panel's anchors seem wrong (e.g. off-screen positioning from a cross-panel reference), fix the anchor resolution in the layout system so it handles the case correctly — don't override anchors per-panel in game code. The layout data is authoritative; code must apply it faithfully.
-- **Never duplicate a game's UI layout in C.** All geometry — positions, sizes, anchors, grid strides, column counts — belongs in the game's layout files: FDF for WC3, XML (FrameXML) for WoW, SC2Layout for SC2. C code only loads those files (`UI_EnsureFDF`, `UIWow_XMLLoadFile`, the SC2Layout pipeline) and fills runtime data (textures, text, click handlers, visibility) into the parsed frame tree. Do not declare `#define` coordinate constants, inline `RECT`/`VECTOR2` literals, or call `UI_SetFrameRect` / `UI_SetPoint` / `UI_SetSize` for frames whose origin and size are already owned by a layout file. For WC3, use `UI_HudFrame(name)` to look up a named frame from the loaded FDF; for repeated controls (grids, scrolled lists), define a grid or list template in FDF and call `UI_CloneGridItem` / `UI_CloneStackedRow` from C rather than spawning and positioning children manually.
+- **Never duplicate a game's UI layout in C.** All geometry — positions, sizes, anchors — belongs in the game's own layout files: FDF for WC3, FrameXML for WoW, SC2Layout for SC2. For WC3: load the relevant FDF from the MPQ via `UI_EnsureFDF`, generate a binding header with `fdfbindgen`, and fill runtime data (textures, text, click handlers, visibility) into the parsed frame tree. Do **not** write project-owned FDF files in `share/UI/FrameDef/` — if a frame exists in War3.mpq, bind to the War3 original; if the frame type is native (portrait, command button, minimap, tooltip) and has no FDF definition in the MPQ, construct it in C with a static `FRAMEDEF`, `UI_InitFrame`, `UI_SetSize`, and `UI_SetPoint` using inline float literals. Do not declare named `#define` position constants for these inline values.
 - Do not introduce helper variables just to name an intermediate result if the expression is already readable inline.
 - Do not add blank lines between short, related statements.
 - Do not split a declaration and its first assignment onto separate lines.
@@ -110,7 +110,7 @@ The `fdfbindgen` tool (built at `build/bin/fdfbindgen`) reads one or more FDF fi
 
 **When to regenerate:** any time you add, rename, or remove a named frame in an FDF file that already has a corresponding generated header, run fdfbindgen to keep the header in sync. Do not edit generated headers by hand.
 
-**How to run (read from MPQ):**
+**How to run — glue/menu header from MPQ:**
 ```
 mpqtool -mpq War3.mpq cat UI/FrameDef/Glue/MainMenu.fdf \
   | build/bin/fdfbindgen -prefix MainMenu -root MainMenuFrame \
@@ -118,13 +118,16 @@ mpqtool -mpq War3.mpq cat UI/FrameDef/Glue/MainMenu.fdf \
   > games/warcraft-3/ui/generated/main_menu.h
 ```
 
-**How to run (read from disk, project-owned FDF):**
+**How to run — in-game HUD header from MPQ:**
 ```
-build/bin/fdfbindgen -prefix MessageOverlay -root OpenWarcraftMessageOverlay \
-    -load UI\\FrameDef\\OpenWarcraft3\\MessageOverlay.fdf \
-    share/UI/FrameDef/OpenWarcraft3/MessageOverlay.fdf \
-  > games/warcraft-3/game/generated/message_overlay.h
+mpqtool -mpq War3.mpq cat UI/FrameDef/UI/InfoPanelBuildingDetail.fdf \
+  | build/bin/fdfbindgen -prefix InfoPanelBuildingDetail -root InfoPanelBuildingDetail \
+      -load UI\\FrameDef\\UI\\InfoPanelTemplates.fdf \
+      -load UI\\FrameDef\\UI\\InfoPanelBuildingDetail.fdf - \
+  > games/warcraft-3/game/generated/info_panel_building_detail.h
 ```
+
+All generated headers bind directly to frames parsed from War3.mpq FDF files. Do not generate headers from project-owned FDF files — there are none; use C code instead for frames that have no MPQ equivalent.
 
 Key flags: `-prefix <Name>` sets the struct and function prefix; `-root <FrameName>` selects which top-level frame becomes the binding root; `-optional-root <FrameName>` adds an additional root that is allowed to be absent; `-optional-children` suppresses missing-child errors for frames that may not appear in all archive variants (e.g. TFT-only frames).
 
