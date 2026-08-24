@@ -368,6 +368,31 @@ TEST(wow_ui, enter_world_delegates_map_selection_to_server_playercreateinfo) {
     test_archive = NULL;
 }
 
+TEST(wow_ui, inbox_message_binds_project_framexml) {
+    BYTE payload[2 + 4 + 1 + 1 + 4 + WOW_UI_MESSAGE_TITLE + WOW_UI_MESSAGE_BODY] = {0};
+    uiExport_t ui; DWORD cursor = 0;
+
+    reset_test_state();
+    T_ASSERT(SFileOpenArchive(TEST_WOW_MPQ, 0, 0, &test_archive));
+    ui = init_ui(); UIWow_EnterGameMode();
+    payload[cursor++] = 1; payload[cursor++] = 1;
+    payload[cursor++] = 7; cursor += 3;
+    payload[cursor++] = WOW_UI_MESSAGE_QUEST_REWARD; payload[cursor++] = WOW_UI_MESSAGE_UNREAD;
+    payload[cursor++] = 42; cursor += 3;
+    snprintf((char *)payload + cursor, WOW_UI_MESSAGE_TITLE, "Quest complete"); cursor += WOW_UI_MESSAGE_TITLE;
+    snprintf((char *)payload + cursor, WOW_UI_MESSAGE_BODY, "A hero's reward."); cursor += WOW_UI_MESSAGE_BODY;
+    ui.GameCommand("wow_inbox", payload, cursor);
+    T_ASSERT(ui.MouseEvent(UI_MOUSE_DOWN, 512, 690, 1));
+    T_EQ((int)wow_ui.open_message_id, 7);
+    T_STREQ(last_server_command, "message_read 7");
+    T_EQ(UIWow_XmlElemHidden(UIWow_XmlFindByNamePub("OpenWarcraftInbox")), 0);
+    T_STREQ(UIWow_XmlElemText(UIWow_XmlFindByNamePub("OpenWarcraftInboxTitle")), "Quest complete");
+    T_STREQ(UIWow_XmlElemText(UIWow_XmlFindByNamePub("OpenWarcraftInboxBody")), "A hero's reward.");
+    ui.DrawGameOverlay();
+
+    ui.Shutdown(); SFileCloseArchive(test_archive); test_archive = NULL;
+}
+
 TEST(wow_ui, tutorial_42_uses_global_strings_and_display_tips_cvar) {
     uiExport_t ui;
     BYTE questgiver[] = { 1, 1 }, movement[] = { 1, 2 };

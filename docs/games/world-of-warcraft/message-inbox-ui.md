@@ -118,17 +118,17 @@ Implemented in the current tree:
 - bounded version-1 `wow_inbox` snapshots with up to eight records;
 - quest reward → unread inbox record and client-begin snapshot delivery;
 - server-validated `message_read <id>` handling;
-- client-owned active-game notification strip and message window; unread
-  records use `TutorialFrameAlert` with the 34x42 size, bottom-55 anchor, and
+- client-owned active-game notification strip; unread records use `TutorialFrameAlert` with the 34x42 size, bottom-55 anchor, and
   texture crop from `TutorialFrame.xml`;
+- project FrameXML message panel (`share/Interface/FrameXML/OpenWarcraftInbox.xml`); C binds the selected server-authored title/body
+  and never assigns its backdrop, rectangle, or typography;
 - regression coverage for reward delivery and read-state changes.
 
 ## Tutorial tips
 
-The welcome panel is classic tutorial ID 42, not a `WelcomeFrame`. The server
-sends the semantic `TutorialFrame` window request at client begin. The WoW UI
-loads `GlobalStrings.lua` and resolves `TUTORIAL_TITLE42` and `TUTORIAL42`, then
-draws the measurements and assets authored by `TutorialFrame.xml`: 230px width,
+The welcome panel is classic tutorial ID 42, not a `WelcomeFrame`. The server sends the semantic `TutorialFrame` window request at
+client begin. The WoW UI loads `GlobalStrings.lua` and resolves `TUTORIAL_TITLE42` and `TUTORIAL42`, then binds them into
+`share/Interface/FrameXML/OpenWarcraftTutorialFrame.xml`. That project tree preserves the classic composition: 230px width,
 `TutorialFrameBackground`, tooltip border, check box, and 76x21 Okay button.
 The reusable client path retains `tutorial_id`, title, and body, so later
 tutorial triggers can use the same presentation rather than adding one-off HUD
