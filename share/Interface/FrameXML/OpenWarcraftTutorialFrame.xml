@@ -1,0 +1,85 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <Frame name="TutorialFrame" hidden="true">
+        <Size><AbsDimension x="230" y="128"/></Size>
+        <Anchors>
+            <Anchor point="BOTTOM">
+                <Offset><AbsDimension x="0" y="100"/></Offset>
+            </Anchor>
+        </Anchors>
+        <Backdrop bgFile="Interface\TutorialFrame\TutorialFrameBackground" edgeFile="Interface\Tooltips\UI-Tooltip-Border" tile="true">
+            <EdgeSize><AbsValue val="16"/></EdgeSize>
+            <TileSize><AbsValue val="16"/></TileSize>
+            <BackgroundInsets><AbsInset left="3" right="5" top="3" bottom="5"/></BackgroundInsets>
+        </Backdrop>
+        <Layers>
+            <Layer level="ARTWORK">
+                <FontString name="TutorialFrameTitle" font="Fonts\FRIZQT__.TTF" justifyH="LEFT" justifyV="TOP">
+                    <Size><AbsDimension x="210" y="18"/></Size>
+                    <Anchors>
+                        <Anchor point="TOPLEFT">
+                            <Offset><AbsDimension x="10" y="-9"/></Offset>
+                        </Anchor>
+                    </Anchors>
+                    <FontHeight><AbsValue val="14"/></FontHeight>
+                    <Color r="1" g="0.82" b="0"/>
+                </FontString>
+                <FontString name="TutorialFrameText" font="Fonts\FRIZQT__.TTF" justifyH="LEFT" justifyV="TOP" wordWrap="true">
+                    <Size><AbsDimension x="210" y="62"/></Size>
+                    <Anchors>
+                        <Anchor point="TOPLEFT" relativeTo="TutorialFrameTitle" relativePoint="BOTTOMLEFT">
+                            <Offset><AbsDimension x="0" y="-2"/></Offset>
+                        </Anchor>
+                    </Anchors>
+                    <FontHeight><AbsValue val="14"/></FontHeight>
+                    <Color r="1" g="1" b="1"/>
+                </FontString>
+            </Layer>
+        </Layers>
+        <Frames>
+            <Button name="TutorialFrameCheckButton">
+                <Size><AbsDimension x="119" y="24"/></Size>
+                <Anchors>
+                    <Anchor point="BOTTOMLEFT">
+                        <Offset><AbsDimension x="5" y="5"/></Offset>
+                    </Anchor>
+                </Anchors>
+                <Layers>
+                    <Layer level="ARTWORK">
+                        <Texture name="TutorialFrameCheckBox" file="Interface\Buttons\UI-CheckBox-Up">
+                            <Size><AbsDimension x="24" y="24"/></Size>
+                            <Anchors><Anchor point="LEFT"/></Anchors>
+                        </Texture>
+                        <Texture name="TutorialFrameCheckMark" file="Interface\Buttons\UI-CheckBox-Check">
+                            <Size><AbsDimension x="24" y="24"/></Size>
+                            <Anchors><Anchor point="LEFT"/></Anchors>
+                        </Texture>
+                        <FontString name="TutorialFrameCheckboxText" font="Fonts\FRIZQT__.TTF" justifyH="LEFT" justifyV="MIDDLE">
+                            <Size><AbsDimension x="95" y="24"/></Size>
+                            <Anchors>
+                                <Anchor point="LEFT" relativeTo="TutorialFrameCheckBox" relativePoint="RIGHT"/>
+                            </Anchors>
+                            <FontHeight><AbsValue val="12"/></FontHeight>
+                            <Color r="1" g="0.82" b="0"/>
+                        </FontString>
+                    </Layer>
+                </Layers>
+            </Button>
+            <Button name="TutorialFrameOkayButton">
+                <Size><AbsDimension x="76" y="21"/></Size>
+                <Anchors>
+                    <Anchor point="BOTTOMRIGHT">
+                        <Offset><AbsDimension x="-7" y="7"/></Offset>
+                    </Anchor>
+                </Anchors>
+                <NormalTexture file="Interface\Buttons\UI-Panel-Button-Up">
+                    <TexCoords left="0" right="0.625" top="0" bottom="0.6875"/>
+                </NormalTexture>
+                <PushedTexture file="Interface\Buttons\UI-Panel-Button-Down"/>
+                <NormalText font="Fonts\FRIZQT__.TTF" justifyH="CENTER" justifyV="MIDDLE">
+                    <FontHeight><AbsValue val="12"/></FontHeight>
+                    <Color r="1" g="0.82" b="0"/>
+                </NormalText>
+            </Button>
+        </Frames>
+    </Frame>
+</Ui>

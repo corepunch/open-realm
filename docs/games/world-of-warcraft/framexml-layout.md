@@ -33,3 +33,16 @@ again so it cannot leak into glue or in-game screens.
 
 `UIWow_XMLDrawFrame(name)` draws one named tree without rendering every visible GlueXML root. `UIWow_XMLSetFrameText(name, text)` is
 the C-side data-binding equivalent of FrameXML's Lua `SetText`; neither API changes geometry.
+
+## Project-owned tutorial layout
+
+`share/Interface/FrameXML/OpenWarcraftTutorialFrame.xml` preserves the classic `TutorialFrame.xml` composition without rebuilding it
+in `ui_windows.c`: the 230x128 frame, bottom anchor, backdrop, title/body columns, checkbox, and Okay button are authored in XML. C
+loads localized `GlobalStrings.lua` values, binds those strings plus checked/pressed state, and uses the named XML button rectangles for
+input. `UIWow_XMLSetButtonPressed(name, pressed)` selects the XML `NormalTexture`/`PushedTexture`; it does not assign geometry.
+
+Inspect the original client source with:
+
+```sh
+build/bin/mpqtool -mpq data/world-of-warcraft/interface.MPQ cat 'Interface/FrameXML/TutorialFrame.xml'
+```

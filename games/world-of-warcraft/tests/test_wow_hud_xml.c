@@ -25,6 +25,7 @@ static DWORD next_texture_id;
 static int geometry_warnings;
 static drawText_t last_draw_text;
 static char last_draw_text_value[128];
+static char last_draw_image_name[256];
 static DWORD draw_text_calls;
 
 static int test_fs_read_file(LPCSTR fileName, void **buf) {
@@ -66,7 +67,9 @@ static LPFONT test_load_font(LPCSTR name, DWORD sz) {
 static void     test_release_texture(LPTEXTURE t) { free(t); }
 static size2_t  test_get_texture_size(LPCTEXTURE t) { size2_t s = {0,0}; if(t){s.width=t->width;s.height=t->height;} return s; }
 static void     test_draw_image(LPCTEXTURE t, LPCRECT s, LPCRECT u, COLOR32 c) { (void)t;(void)s;(void)u;(void)c; }
-static void     test_draw_image_ex(LPCDRAWIMAGE i) { (void)i; }
+static void test_draw_image_ex(LPCDRAWIMAGE i) {
+    snprintf(last_draw_image_name, sizeof(last_draw_image_name), "%s", i && i->texture ? i->texture->name : "");
+}
 static void     test_draw_fill(LPCRECT r, COLOR32 c) { (void)r;(void)c; }
 static void     test_draw_minimap(LPCRECT r) { (void)r; }
 static VECTOR2  test_get_text_size(LPCDRAWTEXT dt) { return MAKE(VECTOR2, dt&&dt->text?(FLOAT)strlen(dt->text)*0.01f:0.0f, 0.012f); }
@@ -96,6 +99,7 @@ static void reset_state(void) {
     draw_text_calls = 0;
     memset(&last_draw_text, 0, sizeof(last_draw_text));
     last_draw_text_value[0] = '\0';
+    last_draw_image_name[0] = '\0';
     test_ps.client_ui_state = CLIENT_UI_GAME;
     test_renderer.LoadTexture     = test_load_texture;
     test_renderer.LoadFont        = test_load_font;
@@ -175,6 +179,24 @@ TEST(wow_hud_xml, parse_button_onclick) {
     T_EQ(UIWow_XmlElemType(idx), (int)WOW_XML_BUTTON);
     T_STREQ(UIWow_XmlElemText(idx), "OK");
     T_STREQ(UIWow_XmlElemOnClick(idx), "window_close WelcomeFrame");
+    UIWow_XMLClearFrames();
+}
+
+TEST(wow_hud_xml, button_press_state_selects_xml_pushed_texture) {
+    static const char xml[] =
+        "<Ui><Button name=\"Btn\"><Size><AbsDimension x=\"80\" y=\"20\"/></Size>"
+        "<NormalTexture file=\"normal.blp\"/><PushedTexture file=\"pushed.blp\"/></Button></Ui>";
+
+    reset_state(); init_ui(); UIWow_XMLClearFrames();
+    T_ASSERT(UIWow_XMLLoadBuffer(xml, (int)(sizeof(xml)-1), "test"));
+    T_ASSERT(UIWow_XMLDrawFrame("Btn"));
+    T_STREQ(last_draw_image_name, "normal.blp");
+    T_ASSERT(UIWow_XMLSetButtonPressed("Btn", true));
+    T_ASSERT(UIWow_XMLDrawFrame("Btn"));
+    T_STREQ(last_draw_image_name, "pushed.blp");
+    T_ASSERT(UIWow_XMLSetButtonPressed("Btn", false));
+    T_ASSERT(UIWow_XMLDrawFrame("Btn"));
+    T_STREQ(last_draw_image_name, "normal.blp");
     UIWow_XMLClearFrames();
 }
 
