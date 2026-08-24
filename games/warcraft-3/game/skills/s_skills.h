@@ -74,6 +74,7 @@ extern ability_t a_flame_strike;
 extern ability_t a_siphon_mana;
 
 FLOAT AB_Number(LPCSTR classname, LPCSTR field);
+FLOAT AB_Data(LPCSTR classname, DWORD level, DWORD index);
 DWORD S_SpellCurrentCode(LPEDICT clent, DWORD fallback);
 DWORD S_SpellLevel(LPEDICT caster, DWORD code);
 FLOAT S_SpellNumber(DWORD code, LPCSTR field, DWORD level);

@@ -369,6 +369,45 @@ GAMEEVENT *G_PublishEvent(LPEDICT edict, EVENTTYPE type) {
     return evt;
 }
 
+/* Gameplay messages expose state-machine transitions without turning internal
+ * engine flow into Warcraft/JASS events or retaining entity pointers. */
+BOOL G_SubscribeMessage(gameMsgFn fn, void *ctx) {
+    FOR_LOOP(i, MAX_MESSAGE_SUBSCRIBERS) {
+        GAMEMSGSUB *sub = &level.messages.subs[i];
+        if (sub->fn == fn && sub->ctx == ctx)
+            return true;
+        if (!sub->fn) {
+            sub->fn = fn; sub->ctx = ctx;
+            return true;
+        }
+    }
+    fprintf(stderr, "G_SubscribeMessage: subscriber limit %d reached\n", MAX_MESSAGE_SUBSCRIBERS);
+    return false;
+}
+
+/* Tests and tools unsubscribe explicitly so later state transitions cannot
+ * call a callback whose capture storage has left scope. */
+void G_UnsubscribeMessage(gameMsgFn fn, void *ctx) {
+    FOR_LOOP(i, MAX_MESSAGE_SUBSCRIBERS) {
+        GAMEMSGSUB *sub = &level.messages.subs[i];
+        if (sub->fn == fn && sub->ctx == ctx) {
+            memset(sub, 0, sizeof(*sub));
+            return;
+        }
+    }
+}
+
+/* Synchronous delivery preserves the exact transition order and copies stable
+ * entity numbers, so subscribers never depend on edict lifetime. */
+void G_PublishMessage(LPEDICT actor, GAMEMSGTYPE type, LPEDICT target) {
+    GAMEMSG msg = { type, actor->s.number, target->s.number };
+    FOR_LOOP(i, MAX_MESSAGE_SUBSCRIBERS) {
+        GAMEMSGSUB const *sub = &level.messages.subs[i];
+        if (sub->fn)
+            sub->fn(&msg, sub->ctx);
+    }
+}
+
 LPCSTR G_LevelString(LPCSTR name) {
     DWORD string_id = 0;
     sscanf(name, "TRIGSTR_%d", &string_id);

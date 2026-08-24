@@ -63,12 +63,27 @@ extern FLOAT MINING_CAPACITY;
 extern FLOAT MINING_DURATION;
 extern FLOAT HARVEST_GOLD_CAPACITY;
 extern FLOAT HARVEST_TREE_DAMAGE;
+extern FLOAT HARVEST_LUMBER_CAPACITY;
 extern FLOAT HARVEST_RANGE;
+extern FLOAT HARVEST_COOLDOWN;
+extern FLOAT HARVEST_SEARCH_RANGE;
+extern void harvest_cooldown(LPEDICT);
 
 static BOOL tree_died;
 static DWORD tree_pained;
 static void test_tree_die(LPEDICT tree, LPEDICT attacker) { (void)tree; (void)attacker; tree_died = true; }
 static void test_tree_pain(LPEDICT tree) { (void)tree; tree_pained++; }
+
+typedef struct {
+    GAMEMSG msg[32];
+    DWORD count;
+} MSGTRACE;
+
+static void trace_message(LPCGAMEMSG msg, void *ctx) {
+    MSGTRACE *trace = ctx;
+    if (trace->count < sizeof(trace->msg) / sizeof(trace->msg[0]))
+        trace->msg[trace->count++] = *msg;
+}
 
 /* Gold workers enter at the mine boundary; the mine's collision footprint must
  * not strand them just outside the older fixed interaction radius. */
@@ -77,7 +92,7 @@ TEST(wc3_movement, gold_worker_enters_large_mine_footprint) {
     LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 400.0f, 0.0f);
     worker->collision = 16.0f;
     worker->unitinfo.MoveSpeed = 100.0f;
-    mine->collision = 192.0f;
+    mine->collision = 128.0f; /* 8 blocked cells across in ROC 16x16Goldmine.tga. */
     mine->s.model = 1;
     mine->movetype = MOVETYPE_NONE;
     gi.LinkEntity(worker);
@@ -104,8 +119,9 @@ TEST(wc3_movement, lumber_final_chop_fells_tree) {
     tree->targtype = TARG_TREE;
     tree->health.value = 10.0f;
     tree->health.max_value = 10.0f;
-    tree->die = test_tree_die;
-    tree_died = false;
+    SP_monster_tree(tree);
+    MSGTRACE trace = {0};
+    T_ASSERT(G_SubscribeMessage(trace_message, &trace));
     HARVEST_RANGE = 64.0f;
     HARVEST_TREE_DAMAGE = 10.0f;
     harvest_start(worker, tree);
@@ -113,10 +129,21 @@ TEST(wc3_movement, lumber_final_chop_fells_tree) {
     worker->currentmove->think(worker);
     worker->wait = 0.01f;
     worker->currentmove->think(worker);
+    G_UnsubscribeMessage(trace_message, &trace);
 
-    T_ASSERT(tree_died);
     T_FEQ(tree->health.value, 0.0f, 0.01f);
     T_FEQ(worker->harvested_lumber, 10.0f, 0.01f);
+    T_ASSERT(tree->svflags & SVF_DEADMONSTER);
+    T_STREQ(tree->currentmove->animation, "death");
+    T_EQ(trace.count, 4);
+    T_EQ(trace.msg[0].type, GAME_MSG_HARVEST_MOVE_LUMBER);
+    T_EQ(trace.msg[1].type, GAME_MSG_HARVEST_START_CHOP);
+    T_EQ(trace.msg[2].type, GAME_MSG_HARVEST_CHOP);
+    T_EQ(trace.msg[3].type, GAME_MSG_HARVEST_TREE_FELLED);
+    FOR_LOOP(i, trace.count) {
+        T_EQ(trace.msg[i].actor, worker->s.number);
+        T_EQ(trace.msg[i].target, tree->s.number);
+    }
 }
 
 /* Non-lethal chops damage but do not fell a living tree. */
@@ -143,28 +170,207 @@ TEST(wc3_movement, lumber_nonlethal_chop_keeps_tree_standing) {
     T_FEQ(tree->health.value, 1.0f, 0.01f);
 }
 
+/* Ahar slots 1=1 (damage/lumber per swing), 2=10 (capacity): 10 swings are
+ * needed per trip. Drives the full cooldown+swing cycle. */
+TEST(wc3_movement, lumber_worker_takes_ten_swings_per_trip) {
+    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
+    LPEDICT tree = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 20.0f, 0.0f);
+    worker->attack1.damagePoint = 0.01f;
+    tree->targtype = TARG_TREE;
+    tree->health.value = 500.0f; tree->health.max_value = 500.0f;
+    tree->pain = test_tree_pain; tree->die = test_tree_die;
+    tree_pained = 0; tree_died = false;
+    HARVEST_RANGE = 64.0f; HARVEST_TREE_DAMAGE = 1.0f;
+    HARVEST_LUMBER_CAPACITY = 10.0f; HARVEST_COOLDOWN = 0.01f;
+    harvest_start(worker, tree);
+    worker->currentmove->think(worker); /* ai_walktree → harvest_swing (within range) */
+    /* Drive the first chop. */
+    worker->wait = 0.01f;
+    worker->currentmove->think(worker); /* ai_chop: lumber=1, tree-=1 */
+    /* Cycle through cooldown+swing until capacity fills; expect exactly 9 more chops. */
+    FOR_LOOP(i, 15) {
+        if (worker->harvested_lumber >= HARVEST_LUMBER_CAPACITY) break;
+        harvest_cooldown(worker);           /* anim end: <cap → cooldown state */
+        worker->wait = 0.01f;
+        worker->currentmove->think(worker); /* ai_cooldown → harvest_swing */
+        worker->wait = 0.01f;
+        worker->currentmove->think(worker); /* ai_chop */
+    }
+    T_EQ(tree_pained, 10);
+    T_FEQ(worker->harvested_lumber, 10.0f, 0.01f);
+    T_FEQ(tree->health.value, 490.0f, 0.01f);
+    T_ASSERT(!tree_died);
+}
+
+/* The capacity-filling chop must fell the tree before return starts.  After
+ * depositing, the worker must reject that dead tree and select the next one. */
+TEST(wc3_movement, lumber_lethal_trip_fells_then_selects_next_tree) {
+    reset_entities();
+    setup_test_world();
+    LPEDICT worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    worker->movetype = MOVETYPE_STEP; worker->stand = unit_stand; worker->die = unit_die;
+    worker->collision = 0.0f; worker->attack1.damagePoint = 0.01f;
+    LPEDICT tree1 = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 20.0f, 0.0f);
+    tree1->targtype = TARG_TREE;
+    tree1->health.value = 10.0f; tree1->health.max_value = 10.0f;
+    tree1->s.model = G_RegisterModel("Doodads\\Terrain\\LordaeronTree\\LordaeronTree0.mdx");
+    SP_monster_tree(tree1);
+    LPEDICT tree2 = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 30.0f, 0.0f);
+    tree2->targtype = TARG_TREE;
+    tree2->health.value = 500.0f; tree2->health.max_value = 500.0f;
+    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 0.0f, 0.0f);
+    hall->s.player = worker->s.player;
+    HARVEST_RANGE = 64.0f; HARVEST_TREE_DAMAGE = 1.0f;
+    HARVEST_LUMBER_CAPACITY = 10.0f; HARVEST_COOLDOWN = 0.01f; HARVEST_SEARCH_RANGE = 1000.0f;
+    MSGTRACE trace = {0};
+    T_ASSERT(G_SubscribeMessage(trace_message, &trace));
+    harvest_start(worker, tree1);
+    worker->currentmove->think(worker); /* enter the first swing */
+    FOR_LOOP(i, 10) {
+        worker->wait = 0.01f;
+        worker->currentmove->think(worker); /* chop */
+        harvest_cooldown(worker);           /* cooldown, or return on chop ten */
+        if (i < 9) {
+            worker->wait = 0.01f;
+            worker->currentmove->think(worker); /* start the next swing */
+        }
+    }
+    worker->currentmove->think(worker); /* deposit and select tree2 */
+    worker->currentmove->think(worker); /* begin chopping tree2 */
+    G_UnsubscribeMessage(trace_message, &trace);
+
+    T_FEQ(tree1->health.value, 0.0f, 0.01f);
+    T_ASSERT(tree1->svflags & SVF_DEADMONSTER);
+    T_STREQ(tree1->currentmove->animation, "death");
+    if (tree1->animation) {
+        T_STREQ(tree1->animation->name, "death");
+        T_EQ(tree1->s.frame, tree1->animation->interval[0]);
+    } else {
+        T_EQ(tree1->s.frame, 0);
+    }
+    T_ASSERT(worker->goalentity == tree2);
+    T_ASSERT(worker->secondarygoal == tree2);
+    T_EQ(trace.count, 17);
+    T_EQ(trace.msg[12].type, GAME_MSG_HARVEST_TREE_FELLED);
+    T_EQ(trace.msg[12].target, tree1->s.number);
+    T_EQ(trace.msg[13].type, GAME_MSG_HARVEST_RETURN_LUMBER);
+    T_EQ(trace.msg[13].target, hall->s.number);
+    T_EQ(trace.msg[14].type, GAME_MSG_HARVEST_DEPOSIT_LUMBER);
+    T_EQ(trace.msg[15].type, GAME_MSG_HARVEST_RESUME_LUMBER);
+    T_EQ(trace.msg[15].target, tree2->s.number);
+    T_EQ(trace.msg[16].type, GAME_MSG_HARVEST_START_CHOP);
+    T_EQ(trace.msg[16].target, tree2->s.number);
+}
+
+/* With no live tree left, depositing lumber ends in stand and emits no false
+ * resume transition naming the felled tree. */
+TEST(wc3_movement, lumber_deposit_without_live_tree_stops) {
+    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
+    LPEDICT tree = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 20.0f, 0.0f);
+    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 0.0f, 0.0f);
+    worker->attack1.damagePoint = 0.01f;
+    tree->targtype = TARG_TREE; tree->health.value = 1.0f; tree->health.max_value = 1.0f;
+    SP_monster_tree(tree);
+    hall->s.player = worker->s.player;
+    HARVEST_RANGE = 64.0f; HARVEST_TREE_DAMAGE = 1.0f; HARVEST_LUMBER_CAPACITY = 1.0f;
+    MSGTRACE trace = {0};
+    T_ASSERT(G_SubscribeMessage(trace_message, &trace));
+    harvest_start(worker, tree);
+    worker->currentmove->think(worker);
+    worker->wait = 0.01f; worker->currentmove->think(worker);
+    harvest_cooldown(worker);
+    worker->currentmove->think(worker);
+    G_UnsubscribeMessage(trace_message, &trace);
+
+    T_ASSERT(worker->goalentity == NULL);
+    T_ASSERT(worker->secondarygoal == NULL);
+    T_STREQ(worker->currentmove->animation, "stand");
+    T_EQ(trace.count, 6);
+    T_EQ(trace.msg[4].type, GAME_MSG_HARVEST_RETURN_LUMBER);
+    T_EQ(trace.msg[5].type, GAME_MSG_HARVEST_DEPOSIT_LUMBER);
+}
+
+/* A manual return may carry lumber without a remembered tree target. */
+TEST(wc3_movement, lumber_manual_return_without_tree_stops) {
+    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
+    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 0.0f, 0.0f);
+    hall->s.player = worker->s.player;
+    worker->harvested_lumber = 1;
+    worker->s.renderfx |= RF_HAS_LUMBER;
+    harvest_walkback(worker);
+    worker->currentmove->think(worker);
+
+    T_ASSERT(worker->goalentity == NULL);
+    T_ASSERT(worker->secondarygoal == NULL);
+    T_EQ(worker->harvested_lumber, 0);
+    T_STREQ(worker->currentmove->animation, "stand");
+}
+
 /* The complete gold loop enters, exits carrying gold, deposits it, and resumes mining. */
 TEST(wc3_movement, gold_worker_deposits_and_resumes_mining) {
     LPEDICT worker = make_moving_unit(0.0f, 0.0f);
     LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 400.0f, 0.0f);
     LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 0.0f, 0.0f);
     worker->collision = 16.0f; worker->unitinfo.MoveSpeed = 100.0f;
-    mine->collision = 192.0f; mine->s.model = 1;
+    mine->collision = 128.0f; mine->s.model = 1;
     hall->collision = 64.0f; hall->s.model = 1;
     gi.LinkEntity(worker); gi.LinkEntity(mine); gi.LinkEntity(hall);
     MINING_CAPACITY = 5.0f; MINING_DURATION = 0.01f; HARVEST_GOLD_CAPACITY = 10.0f;
     DWORD const old_gold = game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD];
+    MSGTRACE trace = {0};
+    T_ASSERT(G_SubscribeMessage(trace_message, &trace));
     harvest_gold_start(worker, mine);
 
     FOR_LOOP(i, 100) {
         worker->currentmove->think(worker);
         if (game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD] > old_gold) break;
     }
+    G_UnsubscribeMessage(trace_message, &trace);
 
     T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD], old_gold + 10);
     T_EQ(worker->harvested_gold, 0);
     T_ASSERT(!(worker->s.renderfx & RF_HIDDEN));
     T_ASSERT(worker->secondarygoal == mine);
+    T_EQ(trace.count, 5);
+    T_EQ(trace.msg[0].type, GAME_MSG_HARVEST_MOVE_GOLD);
+    T_EQ(trace.msg[1].type, GAME_MSG_HARVEST_ENTER_MINE);
+    T_EQ(trace.msg[2].type, GAME_MSG_HARVEST_RETURN_GOLD);
+    T_EQ(trace.msg[3].type, GAME_MSG_HARVEST_DEPOSIT_GOLD);
+    T_EQ(trace.msg[4].type, GAME_MSG_HARVEST_RESUME_GOLD);
+    FOR_LOOP(i, trace.count)
+        T_EQ(trace.msg[i].actor, worker->s.number);
+    T_EQ(trace.msg[0].target, mine->s.number);
+    T_EQ(trace.msg[1].target, mine->s.number);
+    T_EQ(trace.msg[2].target, hall->s.number);
+    T_EQ(trace.msg[3].target, hall->s.number);
+    T_EQ(trace.msg[4].target, mine->s.number);
+}
+
+/* Unsubscription is part of the callback lifetime contract. */
+TEST(wc3_movement, gameplay_message_unsubscribe_stops_delivery) {
+    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
+    MSGTRACE trace = {0};
+    T_ASSERT(G_SubscribeMessage(trace_message, &trace));
+    G_PublishMessage(worker, GAME_MSG_HARVEST_MOVE_GOLD, worker);
+    G_UnsubscribeMessage(trace_message, &trace);
+    G_PublishMessage(worker, GAME_MSG_HARVEST_ENTER_MINE, worker);
+    T_EQ(trace.count, 1);
+}
+
+/* Duplicate subscriptions are idempotent, and exhaustion is explicit. */
+TEST(wc3_movement, gameplay_message_subscription_capacity_is_bounded) {
+    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
+    MSGTRACE trace[MAX_MESSAGE_SUBSCRIBERS + 1] = {0};
+    T_ASSERT(G_SubscribeMessage(trace_message, &trace[0]));
+    T_ASSERT(G_SubscribeMessage(trace_message, &trace[0]));
+    FOR_LOOP(i, MAX_MESSAGE_SUBSCRIBERS - 1)
+        T_ASSERT(G_SubscribeMessage(trace_message, &trace[i + 1]));
+    T_ASSERT(!G_SubscribeMessage(trace_message, &trace[MAX_MESSAGE_SUBSCRIBERS]));
+    G_PublishMessage(worker, GAME_MSG_HARVEST_MOVE_GOLD, worker);
+    FOR_LOOP(i, MAX_MESSAGE_SUBSCRIBERS) {
+        T_EQ(trace[i].count, 1);
+        G_UnsubscribeMessage(trace_message, &trace[i]);
+    }
 }
 
 /* -----------------------------------------------------------------------

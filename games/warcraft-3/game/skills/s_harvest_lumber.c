@@ -59,20 +59,33 @@ static void ai_walktree(LPEDICT ent) {
     } else if (M_IsDead(ent->goalentity)) {
         look_for_another_tree(ent);
     } else {
+        G_PublishMessage(ent, GAME_MSG_HARVEST_START_CHOP, ent->goalentity);
         harvest_swing(ent);
     }
 }
 
 static void ai_harvest_walkback(LPEDICT ent) {
     if (M_DistanceToGoal(ent) < (ent->collision + ent->goalentity->collision + 5)) {
-        ent->goalentity = ent->secondarygoal;
+        LPEDICT townhall = ent->goalentity;
+        G_PublishMessage(ent, GAME_MSG_HARVEST_DEPOSIT_LUMBER, townhall);
         LPPLAYER player = G_GetPlayerByNumber(ent->s.player);
         if (player) {
             player->stats[PLAYERSTATE_RESOURCE_LUMBER] += ent->harvested_lumber;
         }
         ent->s.renderfx &= ~RF_HAS_LUMBER;
         ent->harvested_lumber = 0;
-        harvest_walk(ent);
+        /* Resolve the next live tree at the deposit boundary.  Resuming with
+         * the felled tree left it as the worker's active goal for another tick. */
+        LPEDICT tree = ent->secondarygoal;
+        if (!tree || M_IsDead(tree))
+            tree = find_another_tree(ent);
+        ent->goalentity = ent->secondarygoal = tree;
+        if (tree) {
+            G_PublishMessage(ent, GAME_MSG_HARVEST_RESUME_LUMBER, tree);
+            harvest_walk(ent);
+        } else {
+            ent->stand(ent);
+        }
     } else {
         unit_changeangle(ent);
         unit_moveindirection(ent);
@@ -81,6 +94,7 @@ static void ai_harvest_walkback(LPEDICT ent) {
 
 static void ai_chop(LPEDICT ent) {
     LPEDICT tree = ent->secondarygoal;
+    G_PublishMessage(ent, GAME_MSG_HARVEST_CHOP, tree);
     if (!M_IsDead(tree)) {
         ent->harvested_lumber += HARVEST_TREE_DAMAGE;
         ent->s.renderfx |= RF_HAS_LUMBER;
@@ -90,6 +104,7 @@ static void ai_chop(LPEDICT ent) {
     if (tree->health.value <= HARVEST_TREE_DAMAGE) {
         tree->health.value = 0;
         tree->die(tree, ent);
+        G_PublishMessage(ent, GAME_MSG_HARVEST_TREE_FELLED, tree);
     } else if (tree->pain) {
         tree->health.value -= HARVEST_TREE_DAMAGE;
         tree->pain(tree);
@@ -132,6 +147,7 @@ void harvest_swing(LPEDICT ent) {
 void harvest_walkback(LPEDICT ent) {
     LPEDICT townhall = find_townhall(ent);
     if (townhall) {
+        G_PublishMessage(ent, GAME_MSG_HARVEST_RETURN_LUMBER, townhall);
         ent->goalentity = townhall;
         unit_setmove(ent, &harvest_move_walkback);
     } else {
@@ -144,6 +160,7 @@ void CMD_Harvest(LPEDICT ent);
 void harvest_start(LPEDICT self, LPEDICT target) {
     self->goalentity = target;
     self->secondarygoal = target;
+    G_PublishMessage(self, GAME_MSG_HARVEST_MOVE_LUMBER, target);
     harvest_walk(self);
 }
 
@@ -265,9 +282,9 @@ void harvest_command(LPEDICT ent) {
 }
 
 void SP_ability_harvest(LPCSTR classname, ability_t *self) {
-    HARVEST_LUMBER_CAPACITY = AB_Number(classname, "DataB1"); /* Lumber Capacity */
-    HARVEST_GOLD_CAPACITY = AB_Number(classname, "DataC1");   /* Gold Capacity */
-    HARVEST_TREE_DAMAGE = AB_Number(classname, "DataA1");     /* Damage to Tree */
+    HARVEST_TREE_DAMAGE = AB_Data(classname, 1, 1);     /* lumber/tree-HP per swing */
+    HARVEST_LUMBER_CAPACITY = AB_Data(classname, 1, 2); /* max lumber to carry */
+    HARVEST_GOLD_CAPACITY = AB_Data(classname, 1, 3);
     HARVEST_RANGE = AB_Number(classname, "Rng1");
     HARVEST_COOLDOWN = AB_Number(classname, "Dur1");
     HARVEST_SEARCH_RANGE = AB_Number(classname, "Area1");

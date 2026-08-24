@@ -97,18 +97,11 @@ LPCSTR S_SpellString(DWORD code, LPCSTR field, DWORD level) {
     return value;
 }
 
-/* Ability "Data" columns in AbilityData.slk are named Data<Letter><Level> —
- * e.g. DataA1, DataB1 … DataE3 — where the letter (A=1 … I=9) selects the
- * parameter and the trailing digit the ability level.  (Non-Data fields such as
- * Cool/Cost/Rng have no letter dimension, so S_SpellNumber appends just the
- * level.)  index is 1-based: 1=DataA, 5=DataE, etc. */
+/* Data slots use the shared ROC/TFT schema resolver; index is 1-based. */
 FLOAT S_SpellData(DWORD code, DWORD level, DWORD index) {
-    char field[16];
-
-    level = MAX(1, MIN(level, 4));
-    index = MAX(1, MIN(index, 9));
-    snprintf(field, sizeof(field), "Data%c%u", 'A' + (int)(index - 1), (unsigned)level);
-    return S_SpellNumber(code, field, 0);
+    char classname[5] = {0};
+    memcpy(classname, &code, 4);
+    return AB_Data(classname, level, index);
 }
 
 DWORD S_SpellUnitId(DWORD code, DWORD level) {
