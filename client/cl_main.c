@@ -767,15 +767,18 @@ void CL_Connect(LPCSTR host, unsigned short port) {
     netadr_t adr;
     UINAME name;
 
-    fprintf(stderr, "CL_Connect: opening client UDP socket for %s\n", host);
-    NET_ConfigSource(NS_CLIENT, true);
-    if (!NET_IsConfigured(NS_CLIENT)) {
-        fprintf(stderr, "CL_Connect: client UDP socket is closed, cannot connect\n");
-        return;
-    }
     if (!NET_StringToAdr(host, port, &adr)) {
         fprintf(stderr, "CL_Connect: bad server address \"%s\"\n", host);
         return;
+    }
+    // Loopback (localhost) needs no UDP socket — packets go through the
+    // in-memory ring buffer.  Only open the socket for remote addresses.
+    if (adr.type != NA_LOOPBACK) {
+        NET_ConfigSource(NS_CLIENT, true);
+        if (!NET_IsConfigured(NS_CLIENT)) {
+            fprintf(stderr, "CL_Connect: client UDP socket is closed, cannot connect\n");
+            return;
+        }
     }
     cls.netchan.remote_address = adr;
     SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
@@ -784,8 +787,11 @@ void CL_Connect(LPCSTR host, unsigned short port) {
     // client slot and reply with "client_connect".
     CL_SanitizeUserinfoValue(Cvar_String("name", "Player"), name, sizeof(name));
     Netchan_OutOfBandPrint(NS_CLIENT, adr, "connect\n\\name\\%s", name[0] ? name : "Player");
-    fprintf(stderr, "CL_Connect: connecting to %d.%d.%d.%d:%u\n",
-            adr.ip[0], adr.ip[1], adr.ip[2], adr.ip[3], ntohs(adr.port));
+    if (adr.type == NA_LOOPBACK)
+        fprintf(stderr, "CL_Connect: connecting to local server via loopback\n");
+    else
+        fprintf(stderr, "CL_Connect: connecting to %d.%d.%d.%d:%u\n",
+                adr.ip[0], adr.ip[1], adr.ip[2], adr.ip[3], ntohs(adr.port));
 }
 
 void CL_Shutdown(void) {
