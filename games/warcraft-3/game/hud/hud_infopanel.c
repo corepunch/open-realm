@@ -23,7 +23,10 @@ static void InfoPanelEnsureLoaded(void) {
     InfoPanelBuildingDetail_Load(&building_panel);
     UI_InitFrame(&bottom_panel, FT_SIMPLEFRAME);
     UI_SetSize(&bottom_panel, 0.180f, 0.120f);
-    UI_SetPoint(&bottom_panel, FRAMEPOINT_TOPLEFT, NULL, FRAMEPOINT_TOPLEFT, 0.310f, UI_BASE_HEIGHT - 0.120f);
+    /* UI_SetPoint Y uses WC3 FDF convention: negative = downward from TOPLEFT.
+     * UI_CopyFrameBase encodes the raw float; the client negates it on decode.
+     * So to place the panel at top-origin y=0.480, pass -(0.480). */
+    UI_SetPoint(&bottom_panel, FRAMEPOINT_TOPLEFT, NULL, FRAMEPOINT_TOPLEFT, 0.310f, -(UI_BASE_HEIGHT - 0.120f));
 }
 
 void UI_WriteSingleInfo(LPEDICT ent) {

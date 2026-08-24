@@ -44,8 +44,11 @@ static FRAMEDEF MessageFrame(LPCVECTOR2 pos, LPCSTR message) {
     FRAMEDEF frame = msg_overlay_text;
     frame.Text = (LPSTR)message;
     frame.TextLength = strlen(message);
+    /* WC3 DisplayTextToPlayer standard position is center-left (y=0.30 from screen top).
+     * JASS y=0 is the baseline; positive y shifts the text upward.
+     * WarSmash anchors messages at FramePoint.LEFT, y=0 (screen center) regardless of JASS y. */
     if (pos && pos->x >= 0.0f && pos->x <= UI_BASE_WIDTH && pos->y >= 0.0f && pos->y <= UI_BASE_HEIGHT)
-        UI_SetPoint(&frame, FRAMEPOINT_TOPLEFT, &msg_overlay_root, FRAMEPOINT_TOPLEFT, pos->x, -pos->y);
+        UI_SetPoint(&frame, FRAMEPOINT_TOPLEFT, &msg_overlay_root, FRAMEPOINT_TOPLEFT, pos->x, -(0.30f - pos->y));
     return frame;
 }
 
