@@ -15,6 +15,12 @@ under `share/UI/FrameDef/OpenWarcraft3/`; `FS_Init` mounts `share/` as a loose a
 `CampaignList.fdf` is the reference: ROC/TFT `MapListBox.fdf` supplies the reusable control shell, while the project template owns
 the campaign consumer's size and anchor to `BackButton`. Both ROC and TFT load the same project template.
 
+`DialogTemplates.fdf` is the composition reference. It inherits Blizzard's `StandardDialogTemplate`,
+`BattleNetDialogTemplate`, and `ScriptDialog` skins, then authors the message and OK-button children that those reusable roots do
+not position for a consumer. `ui_dialog.c` maps the public template names to those final roots, clones them, binds text/commands,
+and recenters the dialog instance; it must not manufacture children or overwrite their size, justification, or relative anchors.
+Cloning copies `DialogBackdropName` but not the resolved child pointer, so the controller must rebind `DialogBackdrop` by name.
+
 ## Screen Controller Conventions
 
 - In `games/warcraft-3/ui/screens/*.c`, prefer `UI_FRAME(...)` and `UI_CHILD_FRAME(...)` for readability and FDF-name coupling.

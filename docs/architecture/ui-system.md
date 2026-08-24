@@ -158,6 +158,7 @@ At init, FDF files are loaded from MPQ in dependency order:
 GlobalStrings.fdf → EscMenuTemplates.fdf → EscMenuMainPanel.fdf →
 StandardTemplates.fdf → MainMenu.fdf → SinglePlayerMenu.fdf →
 CampaignMenu.fdf → DialogWar3.fdf → MapListBox.fdf → OpenWarcraft3/CampaignList.fdf → MapInfoPane.fdf →
+StandardTemplates.fdf + BattleNetTemplates.fdf + ScriptDialog.fdf → OpenWarcraft3/DialogTemplates.fdf →
 LocalMultiplayerJoin.fdf → LocalMultiplayerCreate.fdf → TeamSetup.fdf →
 PlayerSlot.fdf → GameChatroom.fdf → Loading.fdf
 ```

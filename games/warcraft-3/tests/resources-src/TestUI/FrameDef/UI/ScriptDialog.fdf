@@ -1,0 +1,20 @@
+Frame "TEXT" "EscMenuTitleTextTemplate" { FrameFont "MasterFont", 0.013, "", }
+Frame "TEXT" "EscMenuButtonTextTemplate" { FrameFont "MasterFont", 0.013, "", }
+Frame "GLUETEXTBUTTON" "EscMenuButtonTemplate" { Width 0.159, Height 0.031, }
+
+Frame "DIALOG" "ScriptDialog" {
+    Width 0.288,
+    Height 0.112,
+    DialogBackdrop "ScriptDialogBackdrop",
+    Frame "BACKDROP" "ScriptDialogBackdrop" {
+        BackdropBackground "TestUI\Textures\solid_white.blp",
+    }
+    Frame "TEXT" "ScriptDialogText" INHERITS "EscMenuTitleTextTemplate" {
+        SetPoint TOP, "ScriptDialog", TOP, 0.0, -0.03,
+    }
+}
+
+Frame "GLUETEXTBUTTON" "ScriptDialogButton" INHERITS WITHCHILDREN "EscMenuButtonTemplate" {
+    ButtonText "ScriptDialogButtonText",
+    Frame "TEXT" "ScriptDialogButtonText" INHERITS "EscMenuButtonTextTemplate" { Text "", }
+}
