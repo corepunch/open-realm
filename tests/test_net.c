@@ -753,3 +753,45 @@ TEST(net, entity_delta_preserves_large_wc3_radii) {
         T_FEQ(out.radius, radii[i], 0.001f);
     }
 }
+
+/* Regression: UI_SetPoint Y sign convention.
+ * UI_CopyFrameBase encodes Y without negation; cl_layout.c negates on decode
+ * (SCR_NormalizeAnchorOffset flips the sign for the Y axis).  A TOPLEFT anchor
+ * with offset -0.480 (WC3 FDF convention: negative = downward) must resolve to
+ * y=0.480 from the screen top, placing the info panel in the HUD console area.
+ * A positive +0.480 would produce y=-0.480, which is above the screen. */
+TEST(net, layout_topleft_y_negative_offset_resolves_below_screen_top) {
+    BYTE buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    uiFrame_t empty = {0}, frame = {0};
+
+    frame.number        = 1;
+    frame.flags.type    = FT_SIMPLEFRAME;
+    frame.size.width    = 0.180f;
+    frame.size.height   = 0.120f;
+    frame.points.x[FPP_MIN].used       = 1;
+    frame.points.x[FPP_MIN].targetPos  = FPP_MIN;
+    frame.points.x[FPP_MIN].relativeTo = 0;
+    frame.points.x[FPP_MIN].offset     = (int16_t)( 0.310f * UI_FRAMEPOINT_SCALE);
+    frame.points.y[FPP_MIN].used       = 1;
+    frame.points.y[FPP_MIN].targetPos  = FPP_MIN;
+    frame.points.y[FPP_MIN].relativeTo = 0;
+    frame.points.y[FPP_MIN].offset     = (int16_t)(-0.480f * UI_FRAMEPOINT_SCALE);
+
+    test_client_stubs_init();
+    MSG_WriteByte(&sb, LAYER_INFOPANEL);
+    MSG_WriteDeltaUIFrame(&sb, &empty, &frame, true);
+    MSG_WriteByte(&sb, 0);
+    MSG_WriteLong(&sb, 0); MSG_WriteShort(&sb, 0);
+    sb.readcount = 0;
+    CL_ParseLayout(&sb);
+    T_ASSERT(cl.layout[LAYER_INFOPANEL] != NULL);
+    SCR_Clear(cl.layout[LAYER_INFOPANEL]);
+
+    LPCRECT r = SCR_LayoutRect(SCR_Frame(1));
+    T_NOT_NULL(r);
+    T_FEQ(r->x, 0.310f, 0.002f);
+    T_FEQ(r->y, 0.480f, 0.002f);
+    T_FEQ(r->w, 0.180f, 0.002f);
+    T_FEQ(r->h, 0.120f, 0.002f);
+}
