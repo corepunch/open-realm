@@ -87,6 +87,69 @@ TEST(wc3_game, hud_portrait_model_uses_serialized_field) {
     T_EQ(frame.Portrait.model, 42);
 }
 
+TEST(wc3_game, hud_authored_row_keeps_template_size) {
+    FRAMEDEF tmpl = { .Type = FT_FRAME, .Width = 0.08f, .Height = 0.033f };
+    FRAMEDEF parent = { .Type = FT_FRAME };
+    LPFRAMEDEF row = UI_CloneStackedRow(&tmpl, &parent, 0);
+    T_NOT_NULL(row);
+    T_FEQ(row->Width, 0.08f, 0.001f);
+    T_FEQ(row->Height, 0.033f, 0.001f);
+    T_FEQ(row->Points.y[FPP_MIN].offset, 0.0f, 0.001f);
+}
+
+TEST(wc3_game, hud_authored_row_stride_uses_template_height) {
+    FRAMEDEF tmpl = { .Type = FT_FRAME, .Width = 0.15f, .Height = 0.012f };
+    FRAMEDEF parent = { .Type = FT_FRAME };
+    LPFRAMEDEF row = UI_CloneStackedRow(&tmpl, &parent, 3);
+    T_NOT_NULL(row);
+    T_ASSERT(row->Points.y[FPP_MIN].relativeTo == &parent);
+    T_FEQ(row->Points.y[FPP_MIN].offset, -0.036f, 0.001f);
+}
+
+TEST(wc3_game, hud_quest_rows_bind_authored_children) {
+    QUEST quest = { .title = "Test Quest", .discovered = true, .required = true };
+    QUESTITEM item = { .description = "Test Objective" };
+    LPFRAMEDEF list, item_list, button, title, item_title;
+
+    UI_ClearTemplates();
+    quest_row_template = UI_Spawn(FT_FRAME, NULL);
+    snprintf(quest_row_template->Name, sizeof(quest_row_template->Name), "QuestListItem");
+    UI_SetSize(quest_row_template, 0.08f, 0.033f);
+    button = UI_Spawn(FT_GLUEBUTTON, quest_row_template);
+    snprintf(button->Name, sizeof(button->Name), "QuestListItemButton");
+    title = UI_Spawn(FT_TEXT, quest_row_template);
+    snprintf(title->Name, sizeof(title->Name), "QuestListItemTitle");
+    quest_item_template = UI_Spawn(FT_FRAME, NULL);
+    snprintf(quest_item_template->Name, sizeof(quest_item_template->Name), "QuestItemListItem");
+    UI_SetSize(quest_item_template, 0.15f, 0.012f);
+    item_title = UI_Spawn(FT_TEXT, quest_item_template);
+    snprintf(item_title->Name, sizeof(item_title->Name), "QuestItemListItemTitle");
+    list = UI_Spawn(FT_FRAME, NULL);
+    item_list = UI_Spawn(FT_FRAME, NULL);
+    quest.items = &item;
+    level.quests = &quest;
+
+    PopulateQuestList(list, true, &quest);
+    PopulateQuestItems(item_list, &quest);
+    title = UI_FindChildFrame(list, "QuestListItemTitle");
+    button = UI_FindChildFrame(list, "QuestListItemButton");
+    item_title = UI_FindChildFrame(item_list, "QuestItemListItemTitle");
+    T_NOT_NULL(title);
+    T_NOT_NULL(button);
+    T_NOT_NULL(item_title);
+    T_FEQ(title->Parent->Width, 0.08f, 0.001f);
+    T_FEQ(item_title->Parent->Height, 0.012f, 0.001f);
+    T_STREQ(title->Text, "> Test Quest");
+    T_STREQ(button->OnClick, "quest 0");
+    T_STREQ(item_title->Text, "- Test Objective");
+
+    level.quests = NULL;
+    quest_row_template = quest_item_template = NULL;
+    quests_loaded = false;
+    memset(&qd, 0, sizeof(qd));
+    UI_ClearTemplates();
+}
+
 TEST(wc3_game, hud_build_timer_stays_inside_info_panel) {
     T_ASSERT(BUILDQUEUE_TIMER_X + BUILDQUEUE_TIMER_W <= INFO_PANEL_X + INFO_PANEL_W);
 }

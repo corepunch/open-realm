@@ -52,17 +52,6 @@
 #define TOOLTIP_Y 0.3400f
 #define TOOLTIP_W 0.2200f
 #define TOOLTIP_H 0.1000f
-#define QUEST_X 0.1500f
-#define QUEST_Y 0.0700f
-#define QUEST_W 0.5000f
-#define QUEST_H 0.4050f
-#define QUEST_LIST_X (QUEST_X + 0.0200f)
-#define QUEST_LIST_Y (QUEST_Y + 0.0950f)
-#define QUEST_LIST_W 0.1800f
-#define QUEST_ROW_H 0.0180f
-#define QUEST_DETAIL_X (QUEST_X + 0.2250f)
-#define QUEST_DETAIL_Y (QUEST_Y + 0.0950f)
-#define QUEST_DETAIL_W 0.2500f
 #define QUEST_MESSAGE_X 0.0500f
 #define QUEST_MESSAGE_Y 0.3000f
 #define QUEST_MESSAGE_W 0.3000f

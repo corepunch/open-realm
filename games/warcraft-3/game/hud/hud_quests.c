@@ -6,15 +6,23 @@
  */
 
 #include "hud_local.h"
+#include "hud_utils.h"
 #include "../generated/quest_dialog.h"
 
 static QuestDialog_t qd;
+static LPFRAMEDEF quest_row_template, quest_item_template;
 static BOOL quests_loaded;
 
-static void QuestsEnsureLoaded(void) {
-    if (quests_loaded) return;
+/* QuestDialog.fdf owns both repeated row schemas in addition to the dialog root. */
+static BOOL QuestsEnsureLoaded(void) {
+    if (quests_loaded) return qd.QuestDialog && quest_row_template && quest_item_template;
     quests_loaded = true;
-    QuestDialog_Load(&qd);
+    if (!QuestDialog_Load(&qd)) return false;
+    quest_row_template = UI_FindFrame("QuestListItem");
+    quest_item_template = UI_FindFrame("QuestItemListItem");
+    if (!quest_row_template) BZ_FDF_REPORT_MISSING("QuestListItem");
+    if (!quest_item_template) BZ_FDF_REPORT_MISSING("QuestItemListItem");
+    return quest_row_template && quest_item_template;
 }
 
 DWORD UI_QuestIndex(LPCQUEST quest) {
@@ -45,13 +53,20 @@ static void PopulateQuestList(LPFRAMEDEF container, BOOL required, LPCQUEST sele
         color = quest == selected ? MAKE(COLOR32, 252, 210, 18, 255) : COLOR32_WHITE;
         snprintf(command, sizeof(command), "quest %u", (unsigned)UI_QuestIndex(quest));
 
-        LPFRAMEDEF row_frame = UI_Spawn(FT_TEXTBUTTON, container);
-        if (!row_frame) continue;
-        UI_SetPoint(row_frame, FRAMEPOINT_TOPLEFT, container, FRAMEPOINT_TOPLEFT, 0.0f, -(FLOAT)row * QUEST_ROW_H);
-        UI_SetSize(row_frame, QUEST_LIST_W, QUEST_ROW_H);
-        UI_SetText(row_frame, "%s", text);
-        UI_SetOnClick(row_frame, "%s", command);
-        row_frame->Font.Color = color;
+        LPFRAMEDEF row_frame = UI_CloneStackedRow(quest_row_template, container, row);
+        LPFRAMEDEF button = row_frame ? UI_FindChildFrame(row_frame, "QuestListItemButton") : NULL;
+        LPFRAMEDEF title = row_frame ? UI_FindChildFrame(row_frame, "QuestListItemTitle") : NULL;
+        if (!row_frame) {
+            fprintf(stderr, "WC3 HUD: failed to clone QuestListItem row %u\n", (unsigned)row);
+            return;
+        }
+        if (!button || !title) {
+            BZ_FDF_REPORT_MISSING(!button ? "QuestListItemButton" : "QuestListItemTitle");
+            return;
+        }
+        UI_SetText(title, "%s", text);
+        UI_SetOnClick(button, "%s", command);
+        title->Font.Color = color;
         row++;
     }
 }
@@ -65,12 +80,18 @@ static void PopulateQuestItems(LPFRAMEDEF container, LPCQUEST quest) {
                  item->completed ? "- |cff80ff80" : "-",
                  UI_LevelStringSafe(item->description));
 
-        LPFRAMEDEF item_frame = UI_Spawn(FT_STRING, container);
-        if (!item_frame) continue;
-        UI_SetPoint(item_frame, FRAMEPOINT_TOPLEFT, container, FRAMEPOINT_TOPLEFT, 0.0f, -(FLOAT)row * QUEST_ROW_H);
-        UI_SetSize(item_frame, QUEST_DETAIL_W, QUEST_ROW_H);
-        UI_SetText(item_frame, "%s", text);
-        item_frame->Font.Color = COLOR32_WHITE;
+        LPFRAMEDEF item_frame = UI_CloneStackedRow(quest_item_template, container, row);
+        LPFRAMEDEF title = item_frame ? UI_FindChildFrame(item_frame, "QuestItemListItemTitle") : NULL;
+        if (!item_frame) {
+            fprintf(stderr, "WC3 HUD: failed to clone QuestItemListItem row %u\n", (unsigned)row);
+            return;
+        }
+        if (!title) {
+            BZ_FDF_REPORT_MISSING("QuestItemListItemTitle");
+            return;
+        }
+        UI_SetText(title, "%s", text);
+        title->Font.Color = COLOR32_WHITE;
         row++;
     }
 }
@@ -81,7 +102,7 @@ void UI_ShowQuest(LPEDICT ent, LPCQUEST quest) {
 
     if (!ent || !quest) return;
 
-    QuestsEnsureLoaded();
+    if (!QuestsEnsureLoaded()) return;
 
     snprintf(title, sizeof(title), "%s",
              quest->discovered ? UI_LevelStringSafe(quest->title) : "Undiscovered Quest");
