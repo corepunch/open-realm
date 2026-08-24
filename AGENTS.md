@@ -95,10 +95,38 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 ## What to Avoid
 
 - **Do not patch loaded UI layout in code.** SC2Layout and FDF files define the correct layout. When a panel's anchors seem wrong (e.g. off-screen positioning from a cross-panel reference), fix the anchor resolution in the layout system so it handles the case correctly — don't override anchors per-panel in game code. The layout data is authoritative; code must apply it faithfully.
+- **Never duplicate a game's UI layout in C.** All geometry — positions, sizes, anchors, grid strides, column counts — belongs in the game's layout files: FDF for WC3, XML (FrameXML) for WoW, SC2Layout for SC2. C code only loads those files (`UI_EnsureFDF`, `UIWow_XMLLoadFile`, the SC2Layout pipeline) and fills runtime data (textures, text, click handlers, visibility) into the parsed frame tree. Do not declare `#define` coordinate constants, inline `RECT`/`VECTOR2` literals, or call `UI_SetFrameRect` / `UI_SetPoint` / `UI_SetSize` for frames whose origin and size are already owned by a layout file. For WC3, use `UI_HudFrame(name)` to look up a named frame from the loaded FDF; for repeated controls (grids, scrolled lists), define a grid or list template in FDF and call `UI_CloneGridItem` / `UI_CloneStackedRow` from C rather than spawning and positioning children manually.
 - Do not introduce helper variables just to name an intermediate result if the expression is already readable inline.
 - Do not add blank lines between short, related statements.
 - Do not split a declaration and its first assignment onto separate lines.
 - Do not add null-pointer or function-pointer guards before calling cross-module API functions (`ui.*`, `re.*`, `s.*`, etc.). These are guaranteed to be set at init time.
+
+## WC3 UI Tooling — fdfbindgen
+
+The `fdfbindgen` tool (built at `build/bin/fdfbindgen`) reads one or more FDF files and emits a C header that maps every named frame to a typed struct field. The generated headers live in two locations:
+
+- `games/warcraft-3/ui/generated/` — screen-level frames used by the menu/glue layer (`ui/screens/*.c`).
+- `games/warcraft-3/game/generated/` — in-game HUD frames used by `game/hud/*.c`.
+
+**When to regenerate:** any time you add, rename, or remove a named frame in an FDF file that already has a corresponding generated header, run fdfbindgen to keep the header in sync. Do not edit generated headers by hand.
+
+**How to run (read from MPQ):**
+```
+mpqtool -mpq War3.mpq cat UI/FrameDef/Glue/MainMenu.fdf \
+  | build/bin/fdfbindgen -prefix MainMenu -root MainMenuFrame \
+      -load UI\\FrameDef\\Glue\\MainMenu.fdf - \
+  > games/warcraft-3/ui/generated/main_menu.h
+```
+
+**How to run (read from disk, project-owned FDF):**
+```
+build/bin/fdfbindgen -prefix MessageOverlay -root OpenWarcraftMessageOverlay \
+    -load UI\\FrameDef\\OpenWarcraft3\\MessageOverlay.fdf \
+    share/UI/FrameDef/OpenWarcraft3/MessageOverlay.fdf \
+  > games/warcraft-3/game/generated/message_overlay.h
+```
+
+Key flags: `-prefix <Name>` sets the struct and function prefix; `-root <FrameName>` selects which top-level frame becomes the binding root; `-optional-root <FrameName>` adds an additional root that is allowed to be absent; `-optional-children` suppresses missing-child errors for frames that may not appear in all archive variants (e.g. TFT-only frames).
 
 ## Tool Failures
 
