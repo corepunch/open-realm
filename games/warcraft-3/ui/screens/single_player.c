@@ -46,11 +46,9 @@ static DWORD campaign_background_model = 0;
 static singlePlayerView_t current_view = SINGLE_PLAYER_VIEW_MAIN;
 
 static BOOL SinglePlayerMenu_LoadScreen(void) {
-    if (SinglePlayerMenu_Load(&single_player)) {
-        UI_EnsureFDF("UI\\FrameDef\\Glue\\MapListBox.fdf");
-        return true;
-    }
-    return false;
+    if (!SinglePlayerMenu_Load(&single_player)) return false;
+    return UI_EnsureFDF("UI\\FrameDef\\Glue\\MapListBox.fdf") &&
+           UI_EnsureFDF("UI\\FrameDef\\OpenWarcraft3\\CampaignList.fdf");
 }
 
 static char *SinglePlayer_Trim(char *text) {
@@ -479,7 +477,7 @@ static void SinglePlayer_CreateCampaignList(void) {
         return;
     }
 
-    template_frame = UI_FindFrame("MapListBox");
+    template_frame = UI_FindFrame("OpenWarcraftCampaignList");
     if (!template_frame) {
         return;
     }
@@ -490,13 +488,6 @@ static void SinglePlayer_CreateCampaignList(void) {
     }
 
     SinglePlayer_PopulateCampaignList();
-    UI_SetSize(campaign_list_frame, 0.34f, 0.11f);
-    UI_SetPoint(campaign_list_frame,
-                FRAMEPOINT_BOTTOMLEFT,
-                single_player.BackButton,
-                FRAMEPOINT_TOPLEFT,
-                -0.14f,
-                0.04f);
     UI_BindMapList(campaign_list_frame, &campaign_list, single_player.DifficultySelectLabel, 4, "menu_single_player_campaign_select %u");
 }
 

@@ -6,6 +6,15 @@
 - The only exception is selected game code under `games/<game>/game/`, where there is no FDF parser. Server-authored gameplay HUD payloads may generate simple proxy frames there when needed.
 - Keep proxy-frame buffers as compact wire schemas, not copies of runtime structs. See [Server-Authored UI Payloads](architecture/ui-payloads.md).
 
+### Project-owned FDF
+
+Blizzard FDF remains authoritative for shipped frames. When OpenWarcraft introduces a genuinely new control, author its template
+under `share/UI/FrameDef/OpenWarcraft3/`; `FS_Init` mounts `share/` as a loose asset root and the screen must require it through
+`UI_EnsureFDF()`. C may clone the template and bind data, visibility, and commands, but must not replace its size or anchors.
+
+`CampaignList.fdf` is the reference: ROC/TFT `MapListBox.fdf` supplies the reusable control shell, while the project template owns
+the campaign consumer's size and anchor to `BackButton`. Both ROC and TFT load the same project template.
+
 ## Screen Controller Conventions
 
 - In `games/warcraft-3/ui/screens/*.c`, prefer `UI_FRAME(...)` and `UI_CHILD_FRAME(...)` for readability and FDF-name coupling.

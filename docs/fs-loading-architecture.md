@@ -14,6 +14,10 @@
 
 `FS_ReadFile` tries MPQ archives first (`FS_OpenFile` → StormLib), falls back to `FS_ReadLooseFile`.
 
+`FS_Init` always mounts `share/` as the built-in loose asset root. This is the tracked home for project-authored layouts such as
+`share/UI/FrameDef/OpenWarcraft3/CampaignList.fdf`; mounted game archives remain authoritative for Blizzard paths. `-data` and
+`extra_data` add further loose roots and archives after initialization.
+
 ## refImport_t FS surface
 
 `client/tr_public.h` — `refImport_t`:

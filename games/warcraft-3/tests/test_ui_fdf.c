@@ -1580,6 +1580,7 @@ TEST(ui_fdf, main_menu_quit_dialog_commands_quit) {
     };
     LPFRAMEDEF global_exit_button;
     LPFRAMEDEF exit_button;
+    LPFRAMEDEF logo;
     LPFRAMEDEF modal;
     LPFRAMEDEF dialog;
     LPFRAMEDEF message;
@@ -1614,6 +1615,10 @@ TEST(ui_fdf, main_menu_quit_dialog_commands_quit) {
     T_ASSERT(global_exit_button != exit_button);
     T_ASSERT(!exit_button->hidden);
     T_STREQ(exit_button->OnClick, "menu_quit");
+    logo = UI_FindChildFrame(UI_FindFrame("MainMenuFrame"), "WarCraftIIILogo");
+    if (!require_not_null(logo)) { uiimport = saved; return; }
+    T_FEQ(logo->Points.x[FPP_MIN].offset, 0.13f, 0.001f);
+    T_FEQ(logo->Points.y[FPP_MIN].offset, 0.04f, 0.001f);
 
     modal = UI_FindFrame("MainMenuQuitModal");
     if (!require_not_null(modal)) {
@@ -1733,6 +1738,7 @@ static void test_single_player_campaign_profile(BOOL tft) {
     LPFRAMEDEF root;
     LPFRAMEDEF campaign_button;
     LPFRAMEDEF cancel_button;
+    LPFRAMEDEF back_button;
     LPFRAMEDEF campaign_select_frame;
     LPFRAMEDEF campaign_list_box;
 
@@ -1761,6 +1767,7 @@ static void test_single_player_campaign_profile(BOOL tft) {
     root = UI_FindFrame("SinglePlayerMenu");
     campaign_button = UI_FindFrame("CampaignButton");
     cancel_button = UI_FindFrame("CancelButton");
+    back_button = UI_FindFrame("BackButton");
 
     if (!require_not_null(root)) {
         uiimport = saved;
@@ -1774,6 +1781,7 @@ static void test_single_player_campaign_profile(BOOL tft) {
         uiimport = saved;
         return;
     }
+    if (!require_not_null(back_button)) { uiimport = saved; return; }
     T_ASSERT(!root->hidden);
     T_STREQ(campaign_button->OnClick, "menu_single_player_campaign");
     T_STREQ(cancel_button->OnClick, "menu_main");
@@ -1781,7 +1789,7 @@ static void test_single_player_campaign_profile(BOOL tft) {
     SinglePlayerMenu_ShowCampaign();
     campaign_select_frame = UI_FindFrame("CampaignSelectFrame");
     campaign_list_box = campaign_select_frame
-        ? UI_FindChildFrame(campaign_select_frame, "MapListBox")
+        ? UI_FindChildFrame(campaign_select_frame, "OpenWarcraftCampaignList")
         : NULL;
 
     if (!require_not_null(campaign_list_box)) {
@@ -1789,6 +1797,12 @@ static void test_single_player_campaign_profile(BOOL tft) {
         return;
     }
     T_ASSERT(!campaign_list_box->hidden);
+    T_FEQ(campaign_list_box->Width, 0.34f, 0.001f);
+    T_FEQ(campaign_list_box->Height, 0.11f, 0.001f);
+    T_FEQ(campaign_list_box->Points.x[FPP_MIN].offset, -0.14f, 0.001f);
+    T_FEQ(campaign_list_box->Points.y[FPP_MAX].offset, 0.04f, 0.001f);
+    T_ASSERT(campaign_list_box->Points.x[FPP_MIN].relativeTo == back_button);
+    T_ASSERT(campaign_list_box->Points.y[FPP_MAX].relativeTo == back_button);
     T_ASSERT(campaign_list_box->MapListControl.State != NULL);
     T_EQ((int)campaign_list_box->MapListControl.State->count, 4);
     T_STREQ(campaign_list_box->MapListControl.State->items[0].name,
@@ -1875,5 +1889,3 @@ TEST(ui_fdf, utf16le_fdf_is_parsed_correctly) {
     T_FEQ(frame->Width, 0.75f, 0.01f);
     T_FEQ(frame->Height, 0.50f, 0.01f);
 }
-
-
