@@ -269,7 +269,6 @@ void G_RefreshResourceBar(LPEDICT ent) {
 
     UI_WriteStart(LAYER_CONSOLE);
     UI_WriteConsoleBackdrop(food_u);
-    UI_WriteMinimapFrame();
     UI_WriteEnd(ent);
 
     ent->client->resourcebar.gold      = gold;
