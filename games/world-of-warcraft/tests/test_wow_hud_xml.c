@@ -23,6 +23,9 @@ static PLAYER test_ps;
 static LPCTEXTURE test_textures[MAX_IMAGES];
 static DWORD next_texture_id;
 static int geometry_warnings;
+static drawText_t last_draw_text;
+static char last_draw_text_value[128];
+static DWORD draw_text_calls;
 
 static int test_fs_read_file(LPCSTR fileName, void **buf) {
     HANDLE file; DWORD size, read = 0;
@@ -67,7 +70,13 @@ static void     test_draw_image_ex(LPCDRAWIMAGE i) { (void)i; }
 static void     test_draw_fill(LPCRECT r, COLOR32 c) { (void)r;(void)c; }
 static void     test_draw_minimap(LPCRECT r) { (void)r; }
 static VECTOR2  test_get_text_size(LPCDRAWTEXT dt) { return MAKE(VECTOR2, dt&&dt->text?(FLOAT)strlen(dt->text)*0.01f:0.0f, 0.012f); }
-static void     test_draw_text(LPCDRAWTEXT dt) { (void)dt; }
+static void test_draw_text(LPCDRAWTEXT dt) {
+    draw_text_calls++;
+    if (!dt) return;
+    last_draw_text = *dt;
+    snprintf(last_draw_text_value, sizeof(last_draw_text_value), "%s", dt->text ? dt->text : "");
+    last_draw_text.text = last_draw_text_value;
+}
 static LPCTEXTURE test_get_texture(DWORD i) { return i < MAX_IMAGES ? test_textures[i] : NULL; }
 static int test_image_index(LPCSTR n) {
     for (DWORD i = 1; i < MAX_IMAGES; i++) {
@@ -84,6 +93,9 @@ static void reset_state(void) {
     memset(&test_renderer, 0, sizeof(test_renderer));
     next_texture_id = 0;
     geometry_warnings = 0;
+    draw_text_calls = 0;
+    memset(&last_draw_text, 0, sizeof(last_draw_text));
+    last_draw_text_value[0] = '\0';
     test_ps.client_ui_state = CLIENT_UI_GAME;
     test_renderer.LoadTexture     = test_load_texture;
     test_renderer.LoadFont        = test_load_font;
@@ -348,6 +360,34 @@ TEST(wow_hud_xml, welcome_frame_loads_from_mpq) {
         if (i == root_idx) continue;
         T_STREQ(UIWow_XmlElemParent(i), "WelcomeFrame");
     }
+
+    UIWow_XMLClearFrames();
+    SFileCloseArchive(test_archive);
+    test_archive = NULL;
+}
+
+TEST(wow_hud_xml, loading_title_draws_from_project_framexml) {
+    int title_idx;
+    FLOAT x, y, w, h;
+
+    reset_state();
+    T_ASSERT(SFileOpenArchive(TEST_WOW_MPQ, 0, 0, &test_archive));
+    init_ui();
+    UIWow_XMLClearFrames();
+    T_ASSERT(UIWow_XMLLoadFile("Interface\\FrameXML\\OpenWarcraftLoadingScreen.xml"));
+    title_idx = UIWow_XmlFindByNamePub("OpenWarcraftLoadingTitle");
+    T_ASSERT(title_idx >= 0);
+    UIWow_XmlComputeRectPub(title_idx, &x, &y, &w, &h);
+    T_FEQ(x, 0.16f, 0.001f); T_FEQ(y, 0.77f, 0.001f);
+    T_FEQ(w, 0.68f, 0.001f); T_FEQ(h, 0.05f, 0.001f);
+
+    test_ps.texts[PLAYERTEXT_MAP_TITLE] = "The Barrens";
+    UIWow_DrawLoadingScreenC(NULL, NULL, 0.0f);
+    T_EQ(draw_text_calls, 1);
+    T_STREQ(last_draw_text.text, "The Barrens");
+    T_FEQ(last_draw_text.rect.x, 0.16f, 0.001f);
+    T_FEQ(last_draw_text.rect.y, 0.77f, 0.001f);
+    T_EQ(UIWow_XmlElemHidden(UIWow_XmlFindByNamePub("OpenWarcraftLoadingScreen")), 1);
 
     UIWow_XMLClearFrames();
     SFileCloseArchive(test_archive);

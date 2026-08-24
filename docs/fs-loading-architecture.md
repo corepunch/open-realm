@@ -16,7 +16,9 @@
 
 `FS_Init` always mounts `share/` as the built-in loose asset root. This is the tracked home for project-authored layouts such as
 `share/UI/FrameDef/OpenWarcraft3/CampaignList.fdf`, `DialogTemplates.fdf`, and `MessageOverlay.fdf`; mounted game archives remain
-authoritative for Blizzard paths. `-data` and `extra_data` add further loose roots and archives after initialization.
+authoritative for Blizzard paths. The same root holds project FrameXML such as
+`share/Interface/FrameXML/OpenWarcraftLoadingScreen.xml`. `-data` and `extra_data` add further loose roots and archives after
+initialization.
 
 ## refImport_t FS surface
 

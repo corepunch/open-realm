@@ -26,12 +26,6 @@ typedef enum {
     WOW_UI_TEX_COUNT
 } uiWowTexId_t;
 
-typedef enum {
-    WOW_UI_FONT_TITLE = 0,
-    WOW_UI_FONT_STATUS,
-    WOW_UI_FONT_COUNT
-} uiWowFontId_t;
-
 #define WOW_UI_WARN_FLAG(x) (1u << (x))
 
 #define WOW_UI_WARN_NO_RENDERER            WOW_UI_WARN_FLAG(0)
@@ -90,7 +84,6 @@ typedef struct {
     char tutorial_check[64];
     char tutorial_okay[32];
     LPTEXTURE textures[WOW_UI_TEX_COUNT];
-    LPCFONT fonts[WOW_UI_FONT_COUNT];
     PATHSTR active_map;
     PATHSTR current_menu;
     int model_frame_idx;      /* frame index for SetCharSelectModelFrame */
@@ -124,6 +117,8 @@ BOOL UIWow_XMLLoadGlueFromToc(LPCSTR toc_path);
 BOOL UIWow_XMLLoadFile(LPCSTR path);
 BOOL UIWow_XMLLoadBuffer(LPCSTR buf, int size, LPCSTR debug_name);
 void UIWow_XMLSetFrameVisible(LPCSTR name, BOOL visible);
+BOOL UIWow_XMLSetFrameText(LPCSTR name, LPCSTR text);
+BOOL UIWow_XMLDrawFrame(LPCSTR name);
 void UIWow_XMLClearFrames(void);
 LPCSTR UIWow_XMLHitButton(FLOAT nx, FLOAT ny);
 void UIWow_XMLDraw(void);
@@ -142,7 +137,6 @@ void UIWow_XMLInvalidateCharCustomizeModel(void);
 void UIWow_XmlSetFrameModel(int idx, LPCSTR model_path);
 
 /* ui_loading.c */
-void UIWow_LoadStaticAssets(void);
 void UIWow_UpdateMapBackground(LPCPLAYER ps);
 void UIWow_DrawLoadingScreenC(LPCSTR map, LPCSTR status, FLOAT progress);
 

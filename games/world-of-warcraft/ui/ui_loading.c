@@ -1,26 +1,9 @@
 /*
  * ui_loading.c - Loading screen drawing and map background management.
  *
- * Draws the loading screen entirely in C: map background and title text.
+ * Draws the dynamic map background, then binds the title into project FrameXML.
  */
 #include "ui_local.h"
-
-/* -------------------------------------------------------------------------
- * Static asset lazy-loading (fonts)
- * ---------------------------------------------------------------------- */
-
-void UIWow_LoadStaticAssets(void) {
-    UIWow_EnsureRenderer();
-    if (!wow_ui.renderer) {
-        return;
-    }
-    if (!wow_ui.fonts[WOW_UI_FONT_TITLE]) {
-        wow_ui.fonts[WOW_UI_FONT_TITLE] = wow_ui.renderer->LoadFont("Fonts\\FRIZQT__.TTF", 22);
-    }
-    if (!wow_ui.fonts[WOW_UI_FONT_STATUS]) {
-        wow_ui.fonts[WOW_UI_FONT_STATUS] = wow_ui.renderer->LoadFont("Fonts\\FRIZQT__.TTF", 16);
-    }
-}
 
 /* -------------------------------------------------------------------------
  * Map background texture
@@ -60,13 +43,12 @@ void UIWow_UpdateMapBackground(LPCPLAYER ps) {
 }
 
 /* -------------------------------------------------------------------------
- * C fallback drawing (background + title text)
+ * Loading drawing (dynamic background + FrameXML title)
  * ---------------------------------------------------------------------- */
 
 void UIWow_DrawLoadingScreenC(LPCSTR map, LPCSTR status, FLOAT progress) {
     RECT full = MAKE(RECT, 0, 0, 1, 1);
     RECT uv = MAKE(RECT, 0, 0, 1, 1);
-    RECT title_rect = MAKE(RECT, 0.16f, 0.77f, 0.68f, 0.05f);
     LPCPLAYER ps = uiimport.GetPlayerState ? uiimport.GetPlayerState() : NULL;
     LPCSTR map_title = ps ? ps->texts[PLAYERTEXT_MAP_TITLE] : NULL;
 
@@ -75,7 +57,6 @@ void UIWow_DrawLoadingScreenC(LPCSTR map, LPCSTR status, FLOAT progress) {
     (void)progress;
 
     UIWow_EnsureRenderer();
-    UIWow_LoadStaticAssets();
     if (!wow_ui.renderer) {
         return;
     }
@@ -88,7 +69,12 @@ void UIWow_DrawLoadingScreenC(LPCSTR map, LPCSTR status, FLOAT progress) {
         map_title = "";
     }
 
-    if (wow_ui.fonts[WOW_UI_FONT_TITLE] && map_title && *map_title) {
-        wow_ui.renderer->DrawText(&MAKE(drawText_t, .font = wow_ui.fonts[WOW_UI_FONT_TITLE], .text = map_title, .rect = title_rect, .color = MAKE(COLOR32, 235, 210, 160, 255), .textWidth = title_rect.w, .lineHeight = title_rect.h, .halign = FONT_JUSTIFYCENTER, .valign = FONT_JUSTIFYMIDDLE));
+    if (!UIWow_XMLSetFrameText("OpenWarcraftLoadingTitle", map_title)) {
+        UIWow_Printf("UIWow: required FrameXML font string OpenWarcraftLoadingTitle is missing\n");
+        return;
     }
+    UIWow_XMLSetFrameVisible("OpenWarcraftLoadingScreen", true);
+    if (!UIWow_XMLDrawFrame("OpenWarcraftLoadingScreen"))
+        UIWow_Printf("UIWow: required FrameXML loading root OpenWarcraftLoadingScreen could not draw\n");
+    UIWow_XMLSetFrameVisible("OpenWarcraftLoadingScreen", false);
 }

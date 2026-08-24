@@ -23,3 +23,13 @@ make run-wow ARGS='+com_frame_limit 100'
 ```
 
 The standalone test covers authored size, zero unresolved size, one-shot diagnostics, and renderer-measured FontString dimensions.
+
+## Project-owned loading layout
+
+Classic `interface.MPQ` has no loading-screen FrameXML. `share/Interface/FrameXML/OpenWarcraftLoadingScreen.xml` supplies the
+project-owned root and title FontString. XML owns its 1024x768-native size, anchor, font, color, and justification. `ui_loading.c`
+continues to draw the server-selected map texture, sets only `OpenWarcraftLoadingTitle` text, draws that named XML tree, and hides it
+again so it cannot leak into glue or in-game screens.
+
+`UIWow_XMLDrawFrame(name)` draws one named tree without rendering every visible GlueXML root. `UIWow_XMLSetFrameText(name, text)` is
+the C-side data-binding equivalent of FrameXML's Lua `SetText`; neither API changes geometry.
