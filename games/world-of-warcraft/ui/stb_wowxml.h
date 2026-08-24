@@ -70,6 +70,9 @@ BOOL UIWow_XMLLoadBuffer(LPCSTR buf, int size, LPCSTR debug_name);
 /* Show or hide a named top-level frame by setting/clearing EF_HIDDEN. */
 void UIWow_XMLSetFrameVisible(LPCSTR name, BOOL visible);
 
+/* Bind dynamic text without replacing XML-authored geometry or presentation. */
+BOOL UIWow_XMLSetFrameText(LPCSTR name, LPCSTR text);
+
 /* Reset the elem registry (call when entering game mode). */
 void UIWow_XMLClearFrames(void);
 
@@ -982,6 +985,15 @@ BOOL UIWow_XMLLoadBuffer(LPCSTR buf, int size, LPCSTR debug_name) {
 
 void UIWow_XMLSetFrameVisible(LPCSTR name, BOOL visible) {
     UIWow_XMLSetShown(UIWow_XmlFindByName(name), visible);
+}
+
+/* Named runtime values bind dynamic game state without overriding authored XML geometry. */
+BOOL UIWow_XMLSetFrameText(LPCSTR name, LPCSTR text) {
+    int idx = UIWow_XmlFindByName(name);
+    if (idx < 0)
+        return false;
+    UIWow_ElemSetStr(&wow_xml.elems[idx], ELEM_TEXT, text ? text : "");
+    return true;
 }
 
 void UIWow_XMLClearFrames(void) {

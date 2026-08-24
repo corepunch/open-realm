@@ -1473,6 +1473,13 @@ void UIWow_XMLSetFrameVisible(LPCSTR name, BOOL visible) {
     UIWow_XMLSetShown(UIWow_XmlFindByName(name), visible);
 }
 
+BOOL UIWow_XMLSetFrameText(LPCSTR name, LPCSTR text) {
+    int idx = UIWow_XmlFindByName(name);
+    if (idx < 0) return false;
+    UIWow_ElemSetStr(&wow_xml.elems[idx], ELEM_TEXT, text ? text : "");
+    return true;
+}
+
 /* Reset the elem registry (called when transitioning to game mode). */
 void UIWow_XMLClearFrames(void) {
     UIWow_XMLFreeElems();
@@ -1958,6 +1965,16 @@ void UIWow_XMLDraw(void) {
         if (wow_xml.elems[i].parent < 0)
             UIWow_XMLDrawTree((int)i, wow_xml.hovered_button);
     }
+}
+
+BOOL UIWow_XMLDrawFrame(LPCSTR name) {
+    int idx = UIWow_XmlFindByName(name);
+    if (idx < 0) return false;
+    UIWow_EnsureRenderer();
+    if (!wow_ui.renderer) return false;
+    UIWow_XMLComputeScrollRanges();
+    UIWow_XMLDrawTree(idx, wow_xml.hovered_button);
+    return true;
 }
 
 #ifndef STB_WOW_XML_IMPLEMENTATION

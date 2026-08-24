@@ -943,6 +943,8 @@ void UIWow_InitLua(void) {
     } else {
         UIWow_Printf("UIWow: no legacy OW3 FrameXML or GlueXML Lua bootstrap found\n");
     }
+    if (!UIWow_XMLLoadFile("Interface\\FrameXML\\OpenWarcraftLoadingScreen.xml"))
+        UIWow_Printf("UIWow: required loading layout Interface\\FrameXML\\OpenWarcraftLoadingScreen.xml is missing\n");
 }
 
 void UIWow_ShutdownLua(void) {
