@@ -370,7 +370,7 @@ TEST(wow_ui, enter_world_delegates_map_selection_to_server_playercreateinfo) {
 
 TEST(wow_ui, inbox_message_binds_project_framexml) {
     BYTE payload[2 + 4 + 1 + 1 + 4 + WOW_UI_MESSAGE_TITLE + WOW_UI_MESSAGE_BODY] = {0};
-    uiExport_t ui; DWORD cursor = 0;
+    uiExport_t ui; DWORD cursor = 0; RECT alert; int alert_idx;
 
     reset_test_state();
     T_ASSERT(SFileOpenArchive(TEST_WOW_MPQ, 0, 0, &test_archive));
@@ -382,7 +382,10 @@ TEST(wow_ui, inbox_message_binds_project_framexml) {
     snprintf((char *)payload + cursor, WOW_UI_MESSAGE_TITLE, "Quest complete"); cursor += WOW_UI_MESSAGE_TITLE;
     snprintf((char *)payload + cursor, WOW_UI_MESSAGE_BODY, "A hero's reward."); cursor += WOW_UI_MESSAGE_BODY;
     ui.GameCommand("wow_inbox", payload, cursor);
-    T_ASSERT(ui.MouseEvent(UI_MOUSE_DOWN, 512, 690, 1));
+    alert_idx = UIWow_XmlFindByNamePub("OpenWarcraftNotification1"); T_ASSERT(alert_idx >= 0);
+    UIWow_XmlComputeRectPub(alert_idx, &alert.x, &alert.y, &alert.w, &alert.h);
+    T_FEQ(alert.w, 34.0f / 1024.0f, 0.001f); T_FEQ(alert.h, 42.0f / 768.0f, 0.001f);
+    T_ASSERT(ui.MouseEvent(UI_MOUSE_DOWN, (int)((alert.x + alert.w * 0.5f) * 1024.0f), (int)((alert.y + alert.h * 0.5f) * 768.0f), 1));
     T_EQ((int)wow_ui.open_message_id, 7);
     T_STREQ(last_server_command, "message_read 7");
     T_EQ(UIWow_XmlElemHidden(UIWow_XmlFindByNamePub("OpenWarcraftInbox")), 0);
@@ -396,7 +399,7 @@ TEST(wow_ui, inbox_message_binds_project_framexml) {
 TEST(wow_ui, tutorial_42_uses_global_strings_and_display_tips_cvar) {
     uiExport_t ui;
     BYTE questgiver[] = { 1, 1 }, movement[] = { 1, 2 };
-    RECT check; int check_idx;
+    RECT check, alert1, alert2; int check_idx, alert1_idx, alert2_idx;
 
     reset_test_state();
     T_ASSERT(SFileOpenArchive(TEST_WOW_MPQ, 0, 0, &test_archive));
@@ -417,7 +420,13 @@ TEST(wow_ui, tutorial_42_uses_global_strings_and_display_tips_cvar) {
     T_FEQ(check.w, 119.0f / 1024.0f, 0.001f); T_FEQ(check.h, 24.0f / 768.0f, 0.001f);
     wow_ui.tutorial_open = false; ui.DrawGameOverlay();
     T_EQ((int)draw_tip_alert_count, 2);
-    T_ASSERT(ui.MouseEvent(UI_MOUSE_DOWN, 500, 690, 1));
+    alert1_idx = UIWow_XmlFindByNamePub("OpenWarcraftNotification1");
+    alert2_idx = UIWow_XmlFindByNamePub("OpenWarcraftNotification2");
+    T_ASSERT(alert1_idx >= 0); T_ASSERT(alert2_idx >= 0);
+    UIWow_XmlComputeRectPub(alert1_idx, &alert1.x, &alert1.y, &alert1.w, &alert1.h);
+    UIWow_XmlComputeRectPub(alert2_idx, &alert2.x, &alert2.y, &alert2.w, &alert2.h);
+    T_FEQ(alert2.x - alert1.x, 36.0f / 1024.0f, 0.001f); T_FEQ(alert2.y, alert1.y, 0.001f);
+    T_ASSERT(ui.MouseEvent(UI_MOUSE_DOWN, (int)((alert1.x + alert1.w * 0.5f) * 1024.0f), (int)((alert1.y + alert1.h * 0.5f) * 768.0f), 1));
     T_ASSERT(wow_ui.tutorial_open);
     T_EQ((int)wow_ui.tutorial_id, 1);
     T_EQ((int)wow_ui.tutorial_alert_count, 1);

@@ -52,3 +52,9 @@ build/bin/mpqtool -mpq data/world-of-warcraft/interface.MPQ cat 'Interface/Frame
 `share/Interface/FrameXML/OpenWarcraftInbox.xml` owns the open-message backdrop, 512x169 placement, and title/body typography. The
 client inbox model remains populated by the server's `wow_inbox` payload; selecting an unread alert binds only its title and body,
 shows `OpenWarcraftInbox`, and sends `message_read <id>` back to the server.
+
+## Project-owned notification strip
+
+`share/Interface/FrameXML/OpenWarcraftNotifications.xml` authors the classic 34x42 `TutorialFrameAlert` crop, bottom-55 anchor, and
+36px sibling stride once in a virtual template. Its 18 named slots cover the bounded maximum of ten tutorial alerts plus eight inbox
+records. C maps current records onto those slots and uses their computed rectangles for input; it contains no alert coordinates.
