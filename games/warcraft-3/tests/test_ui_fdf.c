@@ -1527,12 +1527,14 @@ TEST(ui_fdf, dialog_war3_supports_configurable_button_modes) {
     T_ASSERT(!UI_DialogWar3Visible(&dialog));
 }
 
+static LPCSTR const authored_dialog_files[] = {
+    "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
+    "UI\\FrameDef\\Glue\\BattleNetTemplates.fdf",
+    "UI\\FrameDef\\UI\\ScriptDialog.fdf",
+    "UI\\FrameDef\\OpenWarcraft3\\DialogTemplates.fdf",
+};
+
 TEST(ui_fdf, dialog_supports_battlenet_template) {
-    LPCSTR files[] = {
-        "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
-        "UI\\FrameDef\\Glue\\DialogWar3.fdf",
-        "UI\\FrameDef\\Glue\\BattleNetTemplates.fdf",
-    };
     LPFRAMEDEF root;
     uiDialogWar3_t dialog;
     uiDialogWar3Init_t init = {
@@ -1545,7 +1547,7 @@ TEST(ui_fdf, dialog_supports_battlenet_template) {
         .ok_command = "menu_main",
     };
 
-    load_ui_files(files, sizeof(files) / sizeof(files[0]));
+    load_ui_files(authored_dialog_files, sizeof(authored_dialog_files) / sizeof(authored_dialog_files[0]));
     uiimport.GetRenderer = test_get_renderer;
     uiimport.Printf = test_ui_printf;
 
@@ -1562,11 +1564,65 @@ TEST(ui_fdf, dialog_supports_battlenet_template) {
     T_NOT_NULL(dialog.frame->DialogBackdrop);
     T_ASSERT(dialog.ok_backdrop == dialog.ok_button);
     T_ASSERT(dialog.ok_button->Parent == dialog.frame);
+    T_FEQ(dialog.text->Width, 0.48f, 0.001f);
+    T_FEQ(dialog.text->Height, 0.25f, 0.001f);
+    T_FEQ(dialog.ok_button->Width, 0.18f, 0.001f);
+    T_FEQ(dialog.ok_button->Height, 0.031f, 0.001f);
+    T_ASSERT(dialog.text->Points.x[FPP_MIN].relativeTo == dialog.frame);
+    T_ASSERT(dialog.ok_button->Points.y[FPP_MAX].relativeTo == dialog.frame);
 
     UI_DialogWar3Show(&dialog, &config);
     T_ASSERT(UI_DialogWar3Visible(&dialog));
     T_STREQ(dialog.text->Text, "OpenWarcraft3\nA larger dialog template.");
     T_STREQ(dialog.ok_button->OnClick, "menu_main");
+}
+
+TEST(ui_fdf, dialog_supports_standard_authored_template) {
+    LPFRAMEDEF root;
+    uiDialogWar3_t dialog;
+    uiDialogWar3Init_t init = {
+        .modal_name = "TestStandardDialogModal",
+        .template_name = "StandardDialogTemplate",
+    };
+
+    load_ui_files(authored_dialog_files, sizeof(authored_dialog_files) / sizeof(authored_dialog_files[0]));
+    uiimport.GetRenderer = test_get_renderer;
+    uiimport.Printf = test_ui_printf;
+    root = UI_Spawn(FT_FRAME, NULL);
+    if (!require_not_null(root)) return;
+    UI_SetSize(root, UI_BASE_WIDTH, UI_BASE_HEIGHT);
+
+    T_ASSERT(UI_DialogWar3Init(&dialog, root, &init));
+    T_FEQ(dialog.frame->Width, 0.60f, 0.001f);
+    T_FEQ(dialog.text->Width, 0.48f, 0.001f);
+    T_FEQ(dialog.text->Height, 0.25f, 0.001f);
+    T_FEQ(dialog.ok_button->Width, 0.159f, 0.001f);
+    T_ASSERT(dialog.text->Points.x[FPP_MIN].relativeTo == dialog.frame);
+    T_ASSERT(dialog.ok_button->Points.y[FPP_MAX].relativeTo == dialog.frame);
+}
+
+TEST(ui_fdf, dialog_preserves_script_text_and_authors_button) {
+    LPFRAMEDEF root;
+    uiDialogWar3_t dialog;
+    uiDialogWar3Init_t init = {
+        .modal_name = "TestScriptDialogModal",
+        .template_name = "ScriptDialog",
+    };
+
+    load_ui_files(authored_dialog_files, sizeof(authored_dialog_files) / sizeof(authored_dialog_files[0]));
+    uiimport.GetRenderer = test_get_renderer;
+    uiimport.Printf = test_ui_printf;
+    root = UI_Spawn(FT_FRAME, NULL);
+    if (!require_not_null(root)) return;
+    UI_SetSize(root, UI_BASE_WIDTH, UI_BASE_HEIGHT);
+
+    T_ASSERT(UI_DialogWar3Init(&dialog, root, &init));
+    T_FEQ(dialog.frame->Width, 0.288f, 0.001f);
+    T_FEQ(dialog.frame->Height, 0.112f, 0.001f);
+    T_STREQ(dialog.text->Name, "ScriptDialogText");
+    T_FEQ(dialog.ok_button->Width, 0.159f, 0.001f);
+    T_FEQ(dialog.ok_button->Height, 0.031f, 0.001f);
+    T_ASSERT(dialog.ok_button->Points.y[FPP_MAX].relativeTo == dialog.frame);
 }
 
 TEST(ui_fdf, main_menu_quit_dialog_commands_quit) {

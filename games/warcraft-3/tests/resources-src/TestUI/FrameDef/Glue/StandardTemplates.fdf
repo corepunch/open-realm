@@ -1,1 +1,21 @@
-// Minimal synthetic fixture. Tests only need this file to exist.
+Frame "TEXT" "StandardInfoTextTemplate" {
+    FrameFont "MasterFont", 0.013, "",
+}
+
+Frame "TEXT" "StandardButtonTextTemplate" {
+    FrameFont "MasterFont", 0.013, "",
+}
+
+Frame "TEXTBUTTON" "StandardButtonTemplate" {
+    Width 0.179,
+    Height 0.031,
+}
+
+Frame "DIALOG" "StandardDialogTemplate" {
+    Width 0.60,
+    Height 0.40,
+    DialogBackdrop "StandardDialogBackdropTemplate",
+    Frame "BACKDROP" "StandardDialogBackdropTemplate" {
+        BackdropBackground "TestUI\Textures\solid_white.blp",
+    }
+}

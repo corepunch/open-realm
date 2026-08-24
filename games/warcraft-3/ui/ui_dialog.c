@@ -56,19 +56,33 @@ static BOOL UI_DialogWar3CreateModal(uiDialogWar3_t *dialog,
     return true;
 }
 
-static BOOL UI_DialogWar3EnsureTemplate(LPCSTR template_name) {
-    if (!strcmp(template_name, "BattleNetDialogTemplate")) {
-        return UI_EnsureFDF("UI\\FrameDef\\Glue\\StandardTemplates.fdf") &&
-               UI_EnsureFDF("UI\\FrameDef\\Glue\\DialogWar3.fdf") &&
-               UI_EnsureFDF("UI\\FrameDef\\Glue\\BattleNetTemplates.fdf");
-    }
-    if (!strcmp(template_name, "StandardDialogTemplate")) {
-        return UI_EnsureFDF("UI\\FrameDef\\Glue\\StandardTemplates.fdf");
-    }
-    if (!strcmp(template_name, "ScriptDialog")) {
-        return UI_EnsureFDF("UI\\FrameDef\\UI\\ScriptDialog.fdf");
-    }
-    return false;
+typedef struct {
+    LPCSTR requested, authored, text;
+} DIALOGTEMPLATE;
+typedef DIALOGTEMPLATE *LPDIALOGTEMPLATE;
+typedef const DIALOGTEMPLATE *LPCDIALOGTEMPLATE;
+
+static const DIALOGTEMPLATE dialog_templates[] = {
+    { "StandardDialogTemplate", "OpenWarcraftStandardDialog", "DialogText" },
+    { "BattleNetDialogTemplate", "OpenWarcraftBattleNetDialog", "DialogText" },
+    { "ScriptDialog", "OpenWarcraftScriptDialog", "ScriptDialogText" },
+    { NULL, NULL, NULL },
+};
+
+/* Runtime names select a final project template; FDF remains the only source of its child geometry. */
+static LPCDIALOGTEMPLATE UI_DialogWar3Template(LPCSTR name) {
+    LPCDIALOGTEMPLATE it;
+    for (it = dialog_templates; it->requested; it++)
+        if (!strcmp(name, it->requested)) return it;
+    return NULL;
+}
+
+/* The project templates compose children from all three Blizzard template families. */
+static BOOL UI_DialogWar3EnsureTemplates(void) {
+    return UI_EnsureFDF("UI\\FrameDef\\Glue\\StandardTemplates.fdf") &&
+           UI_EnsureFDF("UI\\FrameDef\\Glue\\BattleNetTemplates.fdf") &&
+           UI_EnsureFDF("UI\\FrameDef\\UI\\ScriptDialog.fdf") &&
+           UI_EnsureFDF("UI\\FrameDef\\OpenWarcraft3\\DialogTemplates.fdf");
 }
 
 static LPFRAMEDEF UI_DialogWar3CloneTemplate(LPCSTR template_name, LPFRAMEDEF parent) {
@@ -78,30 +92,6 @@ static LPFRAMEDEF UI_DialogWar3CloneTemplate(LPCSTR template_name, LPFRAMEDEF pa
         frame->Parent = parent;
     }
     return frame;
-}
-
-static LPFRAMEDEF UI_DialogWar3CloneNamed(LPCSTR template_name,
-                                          LPFRAMEDEF parent,
-                                          LPCSTR name)
-{
-    LPFRAMEDEF frame = UI_DialogWar3CloneTemplate(template_name, parent);
-    if (frame && name) {
-        snprintf(frame->Name, sizeof(frame->Name), "%s", name);
-    }
-    return frame;
-}
-
-static void UI_DialogWar3UseDialogBackdrop(uiDialogWar3_t *dialog) {
-    LPFRAMEDEF source_dialog = UI_FindFrame("DialogWar3");
-    LPFRAMEDEF source = source_dialog ? UI_FindChildFrame(source_dialog, source_dialog->DialogBackdropName) : NULL;
-    LPFRAMEDEF dest = dialog && dialog->frame ? UI_FindChildFrame(dialog->frame, dialog->frame->DialogBackdropName) : NULL;
-
-    if (!source || !dest) return;
-    dest->Backdrop = source->Backdrop;
-    dest->Color = source->Color;
-    dest->AlphaMode = source->AlphaMode;
-    dest->DecorateFileNames = source->DecorateFileNames;
-    dialog->frame->DialogBackdrop = dest;
 }
 
 static void UI_DialogWar3BindCommon(uiDialogWar3_t *dialog) {
@@ -127,70 +117,31 @@ static BOOL UI_DialogWar3CreateLegacy(uiDialogWar3_t *dialog) {
     return true;
 }
 
-static LPFRAMEDEF UI_DialogWar3CreateText(uiDialogWar3_t *dialog, LPCSTR template_name) {
-    LPCSTR text_template = !strcmp(template_name, "ScriptDialog")
-                           ? "EscMenuTitleTextTemplate"
-                           : "StandardInfoTextTemplate";
-    LPFRAMEDEF text = UI_DialogWar3CloneNamed(text_template, dialog->frame, "DialogText");
-    if (!text) {
-        text = UI_Spawn(FT_TEXT, dialog->frame);
-        if (!text) {
-            return NULL;
-        }
-        snprintf(text->Name, sizeof(text->Name), "DialogText");
-    }
-    text->Font.Justification.Horizontal = FONT_JUSTIFYLEFT;
-    text->Font.Justification.Vertical = FONT_JUSTIFYTOP;
-    UI_SetSize(text, dialog->frame->Width - 0.12f, dialog->frame->Height - 0.15f);
-    UI_SetPoint(text, FRAMEPOINT_TOPLEFT, dialog->frame, FRAMEPOINT_TOPLEFT, 0.06f, -0.055f);
-    return text;
-}
-
-static BOOL UI_DialogWar3CreateButton(uiDialogWar3_t *dialog,
-                                      LPCSTR template_name,
-                                      LPCSTR command)
-{
-    BOOL battlenet = !strcmp(template_name, "BattleNetDialogTemplate");
-    LPCSTR button_template = battlenet ? "BattleNetBorderedButtonTemplate"
-                             : "StandardButtonTemplate";
-    LPCSTR text_template = battlenet ? "BattleNetButtonTextTemplate"
-                           : "StandardButtonTextTemplate";
-    LPFRAMEDEF text;
-
-    dialog->ok_button = UI_DialogWar3CloneNamed(button_template, dialog->frame, "DialogButtonOK");
-    text = UI_DialogWar3CloneNamed(text_template, dialog->ok_button, "DialogButtonOKText");
-    if (!dialog->ok_button || !text) {
-        return false;
-    }
-    dialog->ok_backdrop = dialog->ok_button;
-    UI_SetSize(dialog->ok_button, battlenet ? 0.18f : 0.159f, 0.031f);
-    UI_SetPoint(dialog->ok_button, FRAMEPOINT_BOTTOM, dialog->frame, FRAMEPOINT_BOTTOM, 0.0f, 0.045f);
-    dialog->ok_button->Text = text->Name;
-    UI_SetText(text, "OK");
-    UI_SetOnClick(dialog->ok_button, "%s", command ? command : "");
-    return true;
-}
-
 static BOOL UI_DialogWar3CreateTemplate(uiDialogWar3_t *dialog,
                                         uiDialogWar3Init_t const *init)
 {
     LPCSTR template_name = UI_DialogWar3TemplateName(init);
+    LPCDIALOGTEMPLATE layout;
 
     if (!strcmp(template_name, "DialogWar3")) {
         return UI_DialogWar3CreateLegacy(dialog);
     }
-    if (!UI_DialogWar3EnsureTemplate(template_name)) {
+    layout = UI_DialogWar3Template(template_name);
+    if (!layout || !UI_DialogWar3EnsureTemplates()) {
         uiimport.Printf("ERROR: unsupported dialog template: %s\n", template_name);
         return false;
     }
-    dialog->frame = UI_DialogWar3CloneTemplate(template_name, dialog->modal);
+    dialog->frame = UI_DialogWar3CloneTemplate(layout->authored, dialog->modal);
     if (!dialog->frame) {
         return false;
     }
     UI_SetPoint(dialog->frame, FRAMEPOINT_CENTER, dialog->modal, FRAMEPOINT_CENTER, 0.0f, 0.0f);
-    if (!strcmp(template_name, "BattleNetDialogTemplate")) UI_DialogWar3UseDialogBackdrop(dialog);
-    dialog->text = UI_DialogWar3CreateText(dialog, template_name);
-    if (!dialog->text || !UI_DialogWar3CreateButton(dialog, template_name, NULL)) {
+    dialog->text = UI_FindChildFrame(dialog->frame, layout->text);
+    dialog->ok_button = UI_FindChildFrame(dialog->frame, "DialogButtonOK");
+    dialog->ok_backdrop = dialog->ok_button;
+    dialog->frame->DialogBackdrop = UI_FindChildFrame(dialog->frame, dialog->frame->DialogBackdropName);
+    if (!dialog->text || !dialog->ok_button) {
+        uiimport.Printf("ERROR: authored dialog %s is missing required children\n", layout->authored);
         return false;
     }
     dialog->default_height = dialog->frame->Height;
