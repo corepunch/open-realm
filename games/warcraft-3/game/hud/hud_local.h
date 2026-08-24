@@ -11,52 +11,12 @@
 /* Layout constants */
 #include "common/ui_constants.h"
 
-#define INFO_PANEL_X 0.310f
-#define INFO_PANEL_Y 0.486f
-#define INFO_PANEL_W 0.180f
-#define INFO_PANEL_H 0.105f
-#define BUILDQUEUE_OFFSET 0.0281f
-#define BUILDQUEUE_BACKDROP_X INFO_PANEL_X
-#define BUILDQUEUE_BACKDROP_Y (INFO_PANEL_Y + INFO_PANEL_H - 0.1000f)
-#define BUILDQUEUE_BACKDROP_W INFO_PANEL_W
-#define BUILDQUEUE_BACKDROP_H 0.1000f
-#define BUILDQUEUE_FIRST_X (INFO_PANEL_X + 0.0100f)
-#define BUILDQUEUE_FIRST_Y (INFO_PANEL_Y + 0.0350f) // UI units; lifts active portrait inside its queue frame
-#define BUILDQUEUE_FIRST_W 0.0280f
-#define BUILDQUEUE_FIRST_H 0.0310f
-#define BUILDQUEUE_LIST_X (INFO_PANEL_X + 0.0095f)
-#define BUILDQUEUE_LIST_Y (INFO_PANEL_Y + 0.0800f)
-#define BUILDQUEUE_ITEM_W 0.0200f
-#define BUILDQUEUE_ITEM_H 0.0215f
-#define BUILDQUEUE_TIMER_X (INFO_PANEL_X + 0.061250f)
-#define BUILDQUEUE_TIMER_Y (INFO_PANEL_Y + 0.038125f)
-#define BUILDQUEUE_TIMER_W 0.1150f // UI units; ends inside the 0.180-wide info panel border
-#define BUILDQUEUE_TIMER_H 0.0120f
-#define BUILDQUEUE_ACTION_X (INFO_PANEL_X + 0.061250f)
-#define BUILDQUEUE_ACTION_Y (INFO_PANEL_Y + 0.022875f)
-#define BUILDQUEUE_ACTION_W 0.1050f
-#define BUILDQUEUE_ACTION_H 0.0140f
-#define PORTRAIT_X 0.215f
-#define PORTRAIT_Y 0.486f // UI units; aligns the 3D portrait with the info-panel top
-#define PORTRAIT_SIZE 0.080f
-#define COMMAND_BUTTON_SIZE 0.039f
-#define COMMAND_BUTTON_CENTER_X(x) (UI_BASE_WIDTH * 0.5f + 0.2365f + (FLOAT)(x) * 0.0434f)
-#define COMMAND_BUTTON_CENTER_Y(y) (UI_BASE_HEIGHT - (0.1131f - (FLOAT)(y) * 0.0434f))
-#define INVENTORY_BUTTON_SIZE 0.033f
-#define INVENTORY_BUTTON_CENTER_X(x) (UI_BASE_WIDTH * 0.5f + 0.1315f + (FLOAT)(x) * 0.0394f)
-#define INVENTORY_BUTTON_CENTER_Y(y) (UI_BASE_HEIGHT - (0.0971f - (FLOAT)(y) * 0.0384f))
-#define MULTISELECT_X 0.314f
-#define MULTISELECT_Y 0.500f
-#define MULTISELECT_SIZE 0.025f
-#define TOOLTIP_X 0.5800f
-#define TOOLTIP_Y 0.3400f
-#define TOOLTIP_W 0.2200f
-#define TOOLTIP_H 0.1000f
 /* Frame-write primitives (hud_write.c) */
 extern DWORD ui_next_frame_number;
 extern LPGAMECLIENT ui_current_client;
 
 void UI_SetCurrentClient(LPGAMECLIENT client);
+LPFRAMEDEF UI_HudFrame(LPCSTR name);
 void UI_SetFramePoint(uiFramePoint_t *point, uiFramePointPos_t target, DWORD relative, FLOAT offset, BOOL y_axis);
 void UI_SetFrameRect(LPUIFRAME frame, FLOAT x, FLOAT y, FLOAT w, FLOAT h);
 void UI_WriteProxyFrame(LPUIFRAME frame, HANDLE data, DWORD data_size);
@@ -85,8 +45,7 @@ void UI_WriteConsoleBackdrop(LONG);
 void UI_WriteMinimapFrame(void);
 
 /* Command buttons (hud_commands.c) */
-RECT UI_CommandButtonRect(BYTE x, BYTE y);
-RECT UI_InventoryButtonRect(BYTE slot);
+LPFRAMEDEF UI_InventoryFrame(BYTE slot);
 void UI_WriteCommandButton(LPCSTR code, BOOL research, DWORD level);
 void UI_WriteCommandButtonFrame(gameCommandButton_t const *button);
 void UI_FormatTooltip(LPCSTR code, LPCSTR tip, LPCSTR ubertip, FLOAT manacost, LPSTR out, DWORD out_size);

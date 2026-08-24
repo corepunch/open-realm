@@ -1,0 +1,72 @@
+Frame "SIMPLEFRAME" "OpenWarcraftInfoPanel" {
+    Width 0.180, Height 0.120,
+    Anchor BOTTOM, 0.0, 0.0,
+    Frame "SIMPLEFRAME" "OpenWarcraftBuildingDetail" {
+        SetAllPoints, DecorateFileNames,
+        String "OpenWarcraftBuildingName" {
+            Anchor TOP, 0.0, 0.0,
+            Font "InfoPanelTextFont", 0.013, FontColor 1.0 1.0 1.0 1.0,
+            FontJustificationH JUSTIFYCENTER,
+        }
+        String "OpenWarcraftBuildingAction" {
+            Width 0.105, Height 0.014,
+            SetPoint CENTER, "OpenWarcraftBuildingDetail", TOPLEFT, 0.11375, -0.029875,
+            Font "InfoPanelTextFont", 0.010, FontColor 0.99 0.827 0.0705 1.0,
+            FontJustificationH JUSTIFYCENTER,
+        }
+        Texture "OpenWarcraftBuildQueueBackdrop" {
+            SetPoint BOTTOMLEFT, "OpenWarcraftBuildingDetail", BOTTOMLEFT, 0.0, 0.0,
+            SetPoint BOTTOMRIGHT, "OpenWarcraftBuildingDetail", BOTTOMRIGHT, 0.0, 0.0,
+            Height 0.100,
+            File "BuildQueueBackdrop",
+        }
+        Texture "OpenWarcraftBuildQueueFirst" {
+            Width 0.028, Height 0.031,
+            SetPoint TOPLEFT, "OpenWarcraftBuildingDetail", TOPLEFT, 0.010, -0.041,
+        }
+        Frame "SIMPLESTATUSBAR" "OpenWarcraftBuildTimeIndicator" {
+            Width 0.115, Height 0.012,
+            SetPoint TOPLEFT, "OpenWarcraftBuildingDetail", TOPLEFT, 0.061250, -0.038125,
+        }
+        Frame "BUILDQUEUE" "OpenWarcraftBuildQueue" {
+            Width 0.020, Height 0.0215,
+            SetPoint TOPLEFT, "OpenWarcraftBuildingDetail", TOPLEFT, 0.0095, -0.086,
+            BuildQueueFirstItem "OpenWarcraftBuildQueueFirst", BuildQueueTimer "OpenWarcraftBuildTimeIndicator",
+            BuildQueueItemOffset 0.0281,
+        }
+    }
+}
+
+Frame "COMMANDBUTTON" "OpenWarcraftCommandButton" {
+    Width 0.039, Height 0.039,
+    Anchor BOTTOMLEFT, 0.6170, 0.0936,
+    GridOffset 0.0434 -0.0434, GridColumns 4,
+}
+
+Frame "COMMANDBUTTON" "OpenWarcraftInventoryButton" {
+    Width 0.033, Height 0.033,
+    Anchor BOTTOMLEFT, 0.5150, 0.0806,
+    GridOffset 0.0394 -0.0384, GridColumns 2,
+}
+
+Frame "PORTRAIT" "OpenWarcraftPortrait" {
+    Width 0.080, Height 0.080, Anchor TOPLEFT, 0.215, -0.486,
+}
+
+Frame "MULTISELECT" "OpenWarcraftMultiselect" {
+    Width 0.025, Height 0.025,
+    Anchor TOPLEFT, 0.314, -0.500,
+    MultiselectOffset 0.031 0.050, MultiselectColumns 6,
+}
+
+Frame "TOOLTIPTEXT" "OpenWarcraftTooltip" {
+    Width 0.220, Height 0.100,
+    Anchor TOPLEFT, 0.580, -0.340,
+    Font "MasterFont", 0.010, FontJustificationH JUSTIFYLEFT, FontJustificationV JUSTIFYTOP,
+    BackdropTileBackground, BackdropBlendAll,
+    BackdropBackground "ToolTipBackground",
+    BackdropEdgeFile "ToolTipBorder",
+    BackdropCornerFlags "UL|UR|BL|BR|T|L|B|R",
+    BackdropCornerSize 0.008, BackdropBackgroundSize 0.036,
+    BackdropBackgroundInsets 0.0025 0.0025 0.0025 0.0025,
+}

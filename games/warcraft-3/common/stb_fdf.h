@@ -200,6 +200,8 @@ struct uiFrameDef_s {
     BOOL disabled;
     DWORD TextLength;
     DWORD Stat;
+    FLOAT Value;
+    BYTE Hotkey;
     LPSTR DynamicText;
     DWORD DynamicTextCapacity;
     struct {
@@ -356,6 +358,10 @@ struct uiFrameDef_s {
         DWORD NumItems;
         uiMultiselectItem_t Items[MAX_SELECTED_ENTITIES];
     } Multiselect;
+    struct {
+        VECTOR2 Offset;
+        DWORD NumColumns;
+    } Grid;
     /* Interaction state — updated by event handler, read by draw */
     DWORD ui_flags;
     /* Per-type event handler: called from UI_MouseEventLocal */
@@ -431,6 +437,7 @@ void UI_ClearTextures(void);
 /* -------------------------------------------------------------------------- */
 LPFRAMEDEF UI_Spawn(FRAMETYPE type, LPFRAMEDEF parent);
 LPFRAMEDEF UI_CloneFrameTree(LPCFRAMEDEF source, LPFRAMEDEF parent);
+LPFRAMEDEF UI_CloneGridItem(LPCFRAMEDEF source, LPFRAMEDEF parent, DWORD index);
 DWORD UI_FindFrameNumber(LPCSTR name);
 void UI_SetText(LPFRAMEDEF frame, LPCSTR format, ...);
 void UI_SetTextPointer(LPFRAMEDEF frame, LPCSTR text);
@@ -1585,6 +1592,13 @@ static fdf_parseItem_t items[] = {
     { "ChatDisplayBorderSize", { FDF_F(TextArea.Inset, Float), FDF_F_END } },
     { "CheckBoxCheckHighlight", { FDF_F(CheckBox.CheckHighlight, Name), FDF_F_END } },
     { "CheckBoxDisabledCheckHighlight", { FDF_F(CheckBox.DisabledCheckHighlight, Name), FDF_F_END } },
+    { "BuildQueueFirstItem", { FDF_F(BuildQueue.FirstItem, FramePtr), FDF_F_END } },
+    { "BuildQueueTimer", { FDF_F(BuildQueue.BuildTimer, FramePtr), FDF_F_END } },
+    { "BuildQueueItemOffset", { FDF_F(BuildQueue.ItemOffset, Float), FDF_F_END } },
+    { "MultiselectOffset", { FDF_F(Multiselect.Offset, Vector2), FDF_F_END } },
+    { "MultiselectColumns", { FDF_F(Multiselect.NumColumns, Integer), FDF_F_END } },
+    { "GridOffset", { FDF_F(Grid.Offset, Vector2), FDF_F_END } },
+    { "GridColumns", { FDF_F(Grid.NumColumns, Integer), FDF_F_END } },
     { "ButtonText", { FDF_F(TextStorage, Text), FDF_F_END } },
     { "ButtonPushedTextOffset", { FDF_F(Button.PushedTextOffset, Vector2), FDF_F_END } },
     { "NormalTexture", { FDF_F(Button.NormalTexture, Name), FDF_F_END } },
@@ -1780,6 +1794,19 @@ LPFRAMEDEF UI_CloneFrameTree(LPCFRAMEDEF source, LPFRAMEDEF parent) {
     }
     copies[0]->Parent = parent;
     return copies[0];
+}
+
+/* Repeated HUD controls inherit their origin, stride, and column count from one authored frame. */
+LPFRAMEDEF UI_CloneGridItem(LPCFRAMEDEF source, LPFRAMEDEF parent, DWORD index) {
+    LPFRAMEDEF frame;
+    DWORD col, row;
+    if (!source || !source->Grid.NumColumns || !(frame = UI_CloneFrameTree(source, parent))) return NULL;
+    col = index % source->Grid.NumColumns; row = index / source->Grid.NumColumns;
+    FOR_LOOP(i, FPP_COUNT) {
+        if (frame->Points.x[i].used) frame->Points.x[i].offset += source->Grid.Offset.x * col;
+        if (frame->Points.y[i].used) frame->Points.y[i].offset += source->Grid.Offset.y * row;
+    }
+    return frame;
 }
 
 static void UI_CloneTemplateChildren(LPCFRAMEDEF source, LPFRAMEDEF parent) {

@@ -3,7 +3,8 @@
 ## FDF-Driven Layout
 
 - In client/UI code, never define or hardcode UI elements, layout coordinates, textures, frame names, or control structures that can be read from FDF. Parse and reuse the actual FDF frames/templates, then bind dynamic data into those frames.
-- The only exception is selected game code under `games/<game>/game/`, where there is no FDF parser. Server-authored gameplay HUD payloads may generate simple proxy frames there when needed.
+- WC3 game code uses the same FDF parser as the UI module. Server-authored gameplay HUDs load frame trees, inject runtime data,
+  and serialize them; they do not reconstruct those trees as proxy frames.
 - Keep proxy-frame buffers as compact wire schemas, not copies of runtime structs. See [Server-Authored UI Payloads](architecture/ui-payloads.md).
 
 ### Project-owned FDF
@@ -23,6 +24,9 @@ Cloning copies `DialogBackdropName` but not the resolved child pointer, so the c
 
 `MessageOverlay.fdf` is the server-authored HUD reference: FDF owns the text-area schema and default anchor; the game module copies
 the parsed frame and injects per-player JASS text/position immediately before `svc_layout` serialization.
+
+`Hud.fdf` demonstrates dynamic types: `BuildQueue*`, `Multiselect*`, and `Grid*` properties author payload relationships and repeated
+control stride. `UI_CloneGridItem()` expands a template without putting origin, size, spacing, or column counts back into C.
 
 ## Screen Controller Conventions
 

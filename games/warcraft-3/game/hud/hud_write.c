@@ -11,6 +11,13 @@
 DWORD ui_next_frame_number;
 LPGAMECLIENT ui_current_client;
 
+/* The project HUD FDF is the sole owner of composition absent from Blizzard's templates. */
+LPFRAMEDEF UI_HudFrame(LPCSTR name) {
+    static BOOL loaded;
+    if (!loaded) loaded = UI_EnsureFDF("UI\\FrameDef\\OpenWarcraft3\\Hud.fdf");
+    return loaded ? UI_FindFrame(name) : NULL;
+}
+
 LPCSTR UI_LevelStringSafe(LPCSTR text) {
     if (!text || !*text) {
         return " ";
@@ -166,29 +173,8 @@ void UI_WriteTextAreaFrame(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR text, COLO
 }
 
 void UI_WriteTooltipFrame(void) {
-    uiFrame_t frame;
-    uiTooltip_t tooltip;
-
-    memset(&frame, 0, sizeof(frame));
-    memset(&tooltip, 0, sizeof(tooltip));
-    frame.flags.type = FT_TOOLTIPTEXT;
-    frame.color = COLOR32_WHITE;
-    tooltip.background.Background = gi.ImageIndex(Theme_String("ToolTipBackground", "ToolTipBackground"));
-    tooltip.background.EdgeFile = gi.ImageIndex(Theme_String("ToolTipBorder", "ToolTipBorder"));
-    tooltip.background.CornerFlags = 0x1ff;
-    tooltip.background.CornerSize = 0.008f;
-    tooltip.background.BackgroundSize = 0.036f;
-    tooltip.background.BackgroundInsets[0] = 0.0025f;
-    tooltip.background.BackgroundInsets[1] = 0.0025f;
-    tooltip.background.BackgroundInsets[2] = 0.0025f;
-    tooltip.background.BackgroundInsets[3] = 0.0025f;
-    tooltip.background.TileBackground = true;
-    tooltip.background.BlendAll = true;
-    tooltip.text.font = gi.FontIndex(Theme_String("MasterFont", "Fonts\\FRIZQT__.TTF"), HUD_FONT_SIZE);
-    tooltip.text.textalignx = FONT_JUSTIFYLEFT;
-    tooltip.text.textaligny = FONT_JUSTIFYTOP;
-    UI_SetFrameRect(&frame, TOOLTIP_X, TOOLTIP_Y, TOOLTIP_W, TOOLTIP_H);
-    UI_WriteProxyFrame(&frame, &tooltip, sizeof(tooltip));
+    LPFRAMEDEF frame = UI_HudFrame("OpenWarcraftTooltip");
+    if (frame) UI_WriteFrame(frame);
 }
 
 void UI_AppendMessageText(LPSTR out, DWORD out_size, LPCSTR text) {
