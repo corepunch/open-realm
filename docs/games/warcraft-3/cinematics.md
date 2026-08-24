@@ -47,7 +47,7 @@ This is separate from the JASS-level ESC skip mechanism.
 | `games/warcraft-3/game/g_events.c` | `G_ExecuteEvent()` — dispatches JASS triggers |
 | `games/warcraft-3/jass/jdo.c` | `jass_calltrigger()`, `jass_evaluatetrigger()` — coroutine execution |
 | `games/warcraft-3/game/hud/hud_cinematic.c` | Loads FDF cinematic/message frames, binds runtime data, serializes HUD layers |
-| `share/UI/FrameDef/OpenWarcraft3/MessageOverlay.fdf` | Message overlay size, font, inset, and default anchor |
+| `games/warcraft-3/game/hud/hud_write.c` | C-constructed `FT_FRAME`+`FT_TEXTAREA` message overlay (size, font, inset, anchor) |
 
 ## Debugging
 
@@ -77,10 +77,7 @@ Indicates wrong `currentplayer` context in the JASS VM. Check `jass_eventplayer(
 
 ### DisplayText Message Overlay
 
-`DisplayTextToPlayer` and its timed variants pass message content and `(x,y)` screen position to `UI_ShowText`. The server loads
-`OpenWarcraft3/MessageOverlay.fdf`; the FDF owns the full-screen parent, text-area size, font, inset, and default anchor. A valid
-JASS position overrides only the copied text frame's anchor for that serialized message. Missing or out-of-range coordinates retain
-the FDF anchor, never a parallel C default.
+`DisplayTextToPlayer` and its timed variants pass message content and `(x,y)` screen position to `UI_ShowText`. The server constructs the message overlay as a static C `FRAMEDEF` pair (`FT_FRAME` root with `FT_TEXTAREA` child) in `hud_write.c`. The C code owns the full-screen parent, text-area size, font, inset, and default anchor as inline float values. A valid JASS position overrides only the copied text frame's anchor for that serialized message. Missing or out-of-range coordinates retain the default anchor.
 
 ## Branch Maintenance
 

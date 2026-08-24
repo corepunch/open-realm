@@ -26,10 +26,13 @@ non-movement classification (shadow type, footprint collision, repair targets, b
 
 ## Presentation Geometry
 
-FDF is authoritative for screen-space HUD geometry. `OpenWarcraft3/Hud.fdf` composes the info/build panel and authors command,
-inventory, portrait, multiselect, and tooltip geometry. C only binds entity state, assets, text, commands, and queue contents.
-Repeated controls use `GridOffset`/`GridColumns` with `UI_CloneGridItem()`; do not restore coordinate macros in `hud_local.h`.
-`OpenWarcraft3/ConsoleHud.fdf` composes Blizzard's ConsoleUI and ResourceBar templates and owns the minimap viewport.
+FDF is authoritative for screen-space HUD geometry. Frames that exist in War3.mpq FDF files are loaded via `UI_EnsureFDF` and
+bound with generated headers (see `game/generated/`). `InfoPanelBuildingDetail.fdf` owns the building-detail sub-panel including
+`BuildTimeIndicator`, `BuildingActionLabel`, and `BuildQueueBackdrop`; C only binds entity state, text, and queue contents into
+those frames. Native WC3 frame types that have no FDF in the MPQ (portrait, command button, minimap, tooltip) are constructed as
+static `FRAMEDEF` objects in C with inline float literals; do not add `#define` position constants for them.
+`ConsoleUI.fdf` and `ResourceBar.fdf` are loaded directly from War3.mpq; the minimap viewport is a C-constructed `FT_MINIMAP`
+frame anchored inline.
 
 Repeated quest rows already have authoritative schemas in Blizzard's `QuestDialog.fdf`. `QuestListItem` and
 `QuestItemListItem` own row size and child placement. The server clones those templates, stacks each clone by the template's own

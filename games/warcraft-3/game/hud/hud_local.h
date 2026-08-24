@@ -2,21 +2,18 @@
 #define hud_local_h
 
 #include "../g_local.h"
+#include "common/ui_constants.h"
 
 /* HUD font sizes */
 #define HUD_FONT_SIZE 10
 #define HUD_SMALL_FONT_SIZE 8
 #define HUD_TITLE_FONT_SIZE 12
 
-/* Layout constants */
-#include "common/ui_constants.h"
-
 /* Frame-write primitives (hud_write.c) */
 extern DWORD ui_next_frame_number;
 extern LPGAMECLIENT ui_current_client;
 
 void UI_SetCurrentClient(LPGAMECLIENT client);
-LPFRAMEDEF UI_HudFrame(LPCSTR name);
 void UI_SetFramePoint(uiFramePoint_t *point, uiFramePointPos_t target, DWORD relative, FLOAT offset, BOOL y_axis);
 void UI_SetFrameRect(LPUIFRAME frame, FLOAT x, FLOAT y, FLOAT w, FLOAT h);
 void UI_WriteProxyFrame(LPUIFRAME frame, HANDLE data, DWORD data_size);
@@ -42,9 +39,9 @@ FLOAT Theme_Float(LPCSTR key, LPCSTR def);
 
 /* Console (hud_console.c) */
 void UI_WriteConsoleBackdrop(LONG);
+void UI_WriteMinimapFrame(void);
 
 /* Command buttons (hud_commands.c) */
-LPFRAMEDEF UI_InventoryFrame(BYTE slot);
 void UI_WriteCommandButton(LPCSTR code, BOOL research, DWORD level);
 void UI_WriteCommandButtonFrame(gameCommandButton_t const *button);
 void UI_FormatTooltip(LPCSTR code, LPCSTR tip, LPCSTR ubertip, FLOAT manacost, LPSTR out, DWORD out_size);

@@ -3,30 +3,21 @@
 ## FDF-Driven Layout
 
 - In client/UI code, never define or hardcode UI elements, layout coordinates, textures, frame names, or control structures that can be read from FDF. Parse and reuse the actual FDF frames/templates, then bind dynamic data into those frames.
-- WC3 game code uses the same FDF parser as the UI module. Server-authored gameplay HUDs load frame trees, inject runtime data,
-  and serialize them; they do not reconstruct those trees as proxy frames.
+- WC3 game code has access to the FDF parser and uses it for frames that exist in War3.mpq (e.g. building detail, resource bar, quest dialog). For native WC3 frame types that have no FDF definition in the MPQ (portrait, command button, minimap, tooltip), simple proxy frames are constructed in C with inline float values and serialized via `UI_WriteProxyFrame`.
 - Keep proxy-frame buffers as compact wire schemas, not copies of runtime structs. See [Server-Authored UI Payloads](architecture/ui-payloads.md).
 
-### Project-owned FDF
+### No project-owned FDF
 
-Blizzard FDF remains authoritative for shipped frames. When OpenWarcraft introduces a genuinely new control, author its template
-under `share/UI/FrameDef/OpenWarcraft3/`; `FS_Init` mounts `share/` as a loose asset root and the screen must require it through
-`UI_EnsureFDF()`. C may clone the template and bind data, visibility, and commands, but must not replace its size or anchors.
+There are no project-owned FDF files under `share/UI/FrameDef/`. Every FDF frame used by OpenWarcraft comes from the War3.mpq
+archives. The authoritative source for any frame's geometry is always the MPQ FDF, never C code and never a project overlay.
 
-`CampaignList.fdf` is the reference: ROC/TFT `MapListBox.fdf` supplies the reusable control shell, while the project template owns
-the campaign consumer's size and anchor to `BackButton`. Both ROC and TFT load the same project template.
+When you need a frame that exists in the MPQ, load it with `UI_EnsureFDF` and generate a binding header with `fdfbindgen`
+(see AGENTS.md §WC3 UI Tooling). Examples: `InfoPanelBuildingDetail.fdf` for the building-detail HUD sub-panel; `QuestDialog.fdf`
+for the quest window; `MapListBox.fdf` for a list-box control reused by campaign and multiplayer screens.
 
-`DialogTemplates.fdf` is the composition reference. It inherits Blizzard's `StandardDialogTemplate`,
-`BattleNetDialogTemplate`, and `ScriptDialog` skins, then authors the message and OK-button children that those reusable roots do
-not position for a consumer. `ui_dialog.c` maps the public template names to those final roots, clones them, binds text/commands,
-and recenters the dialog instance; it must not manufacture children or overwrite their size, justification, or relative anchors.
-Cloning copies `DialogBackdropName` but not the resolved child pointer, so the controller must rebind `DialogBackdrop` by name.
-
-`MessageOverlay.fdf` is the server-authored HUD reference: FDF owns the text-area schema and default anchor; the game module copies
-the parsed frame and injects per-player JASS text/position immediately before `svc_layout` serialization.
-
-`Hud.fdf` demonstrates dynamic types: `BuildQueue*`, `Multiselect*`, and `Grid*` properties author payload relationships and repeated
-control stride. `UI_CloneGridItem()` expands a template without putting origin, size, spacing, or column counts back into C.
+For frame types that have no FDF definition in War3.mpq — portraits, command buttons, minimap, tooltip — construct a static
+`FRAMEDEF` in C with `UI_InitFrame`, `UI_SetSize`, and `UI_SetPoint`, using inline float literals. Do not name those positions
+with `#define` constants.
 
 ## Screen Controller Conventions
 

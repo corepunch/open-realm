@@ -8,19 +8,6 @@
 
 #include "hud_local.h"
 
-static LPFRAMEDEF cmd_frames[12], inv_frames[MAX_INVENTORY];
-
-/* Grid instances retain stable frame numbers while FDF owns origin, size, stride, and columns. */
-static LPFRAMEDEF UI_GridFrame(LPFRAMEDEF *items, DWORD count, LPCSTR name, DWORD index) {
-    if (index >= count) return NULL;
-    if (!items[index]) items[index] = UI_CloneGridItem(UI_HudFrame(name), NULL, index);
-    return items[index];
-}
-
-LPFRAMEDEF UI_InventoryFrame(BYTE slot) {
-    return UI_GridFrame(inv_frames, MAX_INVENTORY, "OpenWarcraftInventoryButton", slot);
-}
-
 DWORD UI_ClassIdFromCode(LPCSTR code) {
     DWORD class_id = 0;
 
@@ -75,24 +62,28 @@ void UI_FormatTooltip(LPCSTR code, LPCSTR tip, LPCSTR ubertip, FLOAT manacost, L
 }
 
 void UI_WriteCommandButtonFrame(gameCommandButton_t const *button) {
-    LPFRAMEDEF frame;
+    uiFrame_t frame;
     char onclick[320];
     char tooltip[1024];
 
     if (!button) {
         return;
     }
-    frame = UI_GridFrame(cmd_frames, 12, "OpenWarcraftCommandButton", button->y * 4 + button->x);
-    if (!frame) return;
-    frame->Texture.Image = gi.ImageIndex(button->art);
-    frame->Stat = button->active;
-    frame->Value = button->cooldown;
-    frame->Hotkey = (BYTE)button->hotkey;
+    FLOAT bx = UI_BASE_WIDTH * 0.5f + 0.2365f + (FLOAT)button->x * 0.0434f;
+    FLOAT by = UI_BASE_HEIGHT - 0.1131f + (FLOAT)button->y * 0.0434f;
+    memset(&frame, 0, sizeof(frame));
+    frame.flags.type = FT_COMMANDBUTTON;
+    frame.color = COLOR32_WHITE;
+    frame.tex.index = gi.ImageIndex(button->art);
+    frame.stat = button->active;
+    frame.value = button->cooldown;
+    frame.hotkey = (BYTE)button->hotkey;
     UI_FormatTooltip(button->command, button->tooltip, button->ubertip, button->manacost, tooltip, sizeof(tooltip));
-    frame->Tip = tooltip;
+    frame.tooltip = tooltip;
     snprintf(onclick, sizeof(onclick), "%s %s", button->research ? "research" : "button", button->command);
-    snprintf(frame->OnClick, sizeof(frame->OnClick), "%s", onclick);
-    UI_WriteFrame(frame);
+    frame.onclick = onclick;
+    UI_SetFrameRect(&frame, bx - 0.0195f, by - 0.0195f, 0.039f, 0.039f);
+    UI_WriteProxyFrame(&frame, NULL, 0);
 }
 
 void UI_WriteCommandButton(LPCSTR code, BOOL research, DWORD level) {
@@ -112,33 +103,69 @@ void UI_WriteCommandButton(LPCSTR code, BOOL research, DWORD level) {
 void UI_WriteBuildQueue(LPEDICT ent) {
     gameQueueItem_t queue[MAX_BUILD_QUEUE];
     BYTE count = G_GetBuildQueue(ent, queue, MAX_BUILD_QUEUE);
-    LPFRAMEDEF root, panel, name, action, backdrop, first, timer, list;
+    DWORD size;
+    LPBYTE buffer;
+    uiBuildQueue_t *buildqueue;
+    uiFrame_t backdrop;
+    uiFrame_t firstitem;
+    uiFrame_t buildtimer;
+    uiFrame_t list;
 
-    if (!count) return;
-    root = UI_HudFrame("OpenWarcraftInfoPanel");
-    panel = UI_HudFrame("OpenWarcraftBuildingDetail");
-    name = UI_HudFrame("OpenWarcraftBuildingName");
-    action = UI_HudFrame("OpenWarcraftBuildingAction");
-    backdrop = UI_HudFrame("OpenWarcraftBuildQueueBackdrop");
-    first = UI_HudFrame("OpenWarcraftBuildQueueFirst");
-    timer = UI_HudFrame("OpenWarcraftBuildTimeIndicator");
-    list = UI_HudFrame("OpenWarcraftBuildQueue");
-    if (!root || !panel || !name || !action || !backdrop || !first || !timer || !list) return;
-
-    UI_SetText(name, "%s", UNIT_NAME(ent->class_id) ? UNIT_NAME(ent->class_id) : GetClassName(ent->class_id));
-    UI_SetText(action, "%s", ent->currentmove && ent->currentmove->think == ai_birth ? "Constructing" : "Training");
-    UI_SetHidden(backdrop, ent->currentmove && ent->currentmove->think == ai_birth);
-    first->Texture.Image = gi.ImageIndex(queue[0].art);
-    timer->Color = MAKE(COLOR32, 160, 0, 160, 255);
-    timer->Texture.Image = gi.ImageIndex("SimpleBuildTimeIndicator");
-    timer->Texture.Image2 = gi.ImageIndex("SimpleBuildTimeIndicatorBorder");
-    list->BuildQueue.NumQueue = count;
-    FOR_LOOP(i, count) {
-        list->BuildQueue.Queue[i].image = (USHORT)gi.ImageIndex(queue[i].art);
-        list->BuildQueue.Queue[i].starttime = queue[i].starttime;
-        list->BuildQueue.Queue[i].endtime = queue[i].endtime;
+    if (!count) {
+        return;
     }
-    UI_WriteFrameWithChildren(root, NULL);
+
+    UI_WriteTextFrame(0.310f, 0.486f, 0.180f, 0.018f,
+                      UNIT_NAME(ent->class_id) ? UNIT_NAME(ent->class_id) : GetClassName(ent->class_id),
+                      COLOR32_WHITE, FONT_JUSTIFYCENTER);
+    UI_WriteTextFrame(0.371250f, 0.508875f, 0.105f, 0.014f,
+                      ent->currentmove && ent->currentmove->think == ai_birth ? "Constructing" : "Training",
+                      MAKE(COLOR32, 252, 210, 18, 255), FONT_JUSTIFYCENTER);
+
+    if (!ent->currentmove || ent->currentmove->think != ai_birth) {
+        memset(&backdrop, 0, sizeof(backdrop));
+        backdrop.flags.type = FT_TEXTURE;
+        backdrop.color = COLOR32_WHITE;
+        backdrop.tex.index = gi.ImageIndex("BuildQueueBackdrop");
+        UI_SetFrameRect(&backdrop, 0.310f, 0.491f, 0.180f, 0.100f);
+        UI_WriteProxyFrame(&backdrop, NULL, 0);
+    }
+
+    memset(&firstitem, 0, sizeof(firstitem));
+    firstitem.flags.type = FT_TEXTURE;
+    firstitem.color = COLOR32_WHITE;
+    firstitem.tex.index = gi.ImageIndex(queue[0].art);
+    UI_SetFrameRect(&firstitem, 0.320f, 0.525f, 0.028f, 0.031f);
+    UI_WriteProxyFrame(&firstitem, NULL, 0);
+
+    memset(&buildtimer, 0, sizeof(buildtimer));
+    buildtimer.flags.type = FT_SIMPLESTATUSBAR;
+    buildtimer.color = MAKE(COLOR32, 160, 0, 160, 255);
+    buildtimer.tex.index = gi.ImageIndex("SimpleBuildTimeIndicator");
+    buildtimer.tex.index2 = gi.ImageIndex("SimpleBuildTimeIndicatorBorder");
+    UI_SetFrameRect(&buildtimer, 0.371250f, 0.524125f, 0.145f, 0.012f);
+    UI_WriteProxyFrame(&buildtimer, NULL, 0);
+
+    size = sizeof(uiBuildQueue_t) + sizeof(uiBuildQueueItem_t) * count;
+    buffer = gi.MemAlloc(size);
+    memset(buffer, 0, size);
+    buildqueue = (uiBuildQueue_t *)buffer;
+    buildqueue->firstitem = (USHORT)firstitem.number;
+    buildqueue->buildtimer = (USHORT)buildtimer.number;
+    buildqueue->itemoffset = 0.0281f;
+    buildqueue->numitems = count;
+    FOR_LOOP(i, count) {
+        buildqueue->items[i].image = (USHORT)gi.ImageIndex(queue[i].art);
+        buildqueue->items[i].starttime = queue[i].starttime;
+        buildqueue->items[i].endtime = queue[i].endtime;
+    }
+
+    memset(&list, 0, sizeof(list));
+    list.flags.type = FT_BUILDQUEUE;
+    list.color = COLOR32_WHITE;
+    UI_SetFrameRect(&list, 0.3195f, 0.566f, 0.020f, 0.0215f);
+    UI_WriteProxyFrame(&list, buffer, size);
+    gi.MemFree(buffer);
 }
 
 void UI_AddCommandButtonExtended(LPCSTR code, BOOL research, DWORD level) {
