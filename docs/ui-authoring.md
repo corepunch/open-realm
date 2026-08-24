@@ -21,6 +21,9 @@ not position for a consumer. `ui_dialog.c` maps the public template names to tho
 and recenters the dialog instance; it must not manufacture children or overwrite their size, justification, or relative anchors.
 Cloning copies `DialogBackdropName` but not the resolved child pointer, so the controller must rebind `DialogBackdrop` by name.
 
+`MessageOverlay.fdf` is the server-authored HUD reference: FDF owns the text-area schema and default anchor; the game module copies
+the parsed frame and injects per-player JASS text/position immediately before `svc_layout` serialization.
+
 ## Screen Controller Conventions
 
 - In `games/warcraft-3/ui/screens/*.c`, prefer `UI_FRAME(...)` and `UI_CHILD_FRAME(...)` for readability and FDF-name coupling.

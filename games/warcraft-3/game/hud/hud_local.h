@@ -52,11 +52,6 @@
 #define TOOLTIP_Y 0.3400f
 #define TOOLTIP_W 0.2200f
 #define TOOLTIP_H 0.1000f
-#define QUEST_MESSAGE_X 0.0500f
-#define QUEST_MESSAGE_Y 0.3000f
-#define QUEST_MESSAGE_W 0.3000f
-#define QUEST_MESSAGE_H 0.1450f
-
 /* Frame-write primitives (hud_write.c) */
 extern DWORD ui_next_frame_number;
 extern LPGAMECLIENT ui_current_client;

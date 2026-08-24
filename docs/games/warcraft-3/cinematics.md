@@ -46,7 +46,8 @@ This is separate from the JASS-level ESC skip mechanism.
 | `games/warcraft-3/game/skills/s_move.c` | `order_move()`, `ai_move_walk()` |
 | `games/warcraft-3/game/g_events.c` | `G_ExecuteEvent()` — dispatches JASS triggers |
 | `games/warcraft-3/jass/jdo.c` | `jass_calltrigger()`, `jass_evaluatetrigger()` — coroutine execution |
-| `games/warcraft-3/ui/ui_main.c` | `UI_DrawCinematicPanel()` — renders speaker/dialogue text |
+| `games/warcraft-3/game/hud/hud_cinematic.c` | Loads FDF cinematic/message frames, binds runtime data, serializes HUD layers |
+| `share/UI/FrameDef/OpenWarcraft3/MessageOverlay.fdf` | Message overlay size, font, inset, and default anchor |
 
 ## Debugging
 
@@ -73,6 +74,13 @@ Indicates wrong `currentplayer` context in the JASS VM. Check `jass_eventplayer(
 
 **Cinematic HUD layers hidden:**
 `CLIENT_UI_CINEMATIC` hides portrait, console, command bar, info panel, inventory via `UI_LayoutShouldSkipLayoutLayer` in `client/cl_unit_layout.c`.
+
+### DisplayText Message Overlay
+
+`DisplayTextToPlayer` and its timed variants pass message content and `(x,y)` screen position to `UI_ShowText`. The server loads
+`OpenWarcraft3/MessageOverlay.fdf`; the FDF owns the full-screen parent, text-area size, font, inset, and default anchor. A valid
+JASS position overrides only the copied text frame's anchor for that serialized message. Missing or out-of-range coordinates retain
+the FDF anchor, never a parallel C default.
 
 ## Branch Maintenance
 
