@@ -115,7 +115,7 @@ typedef struct { FLOAT w, h; } fsize_t;
 
 typedef enum {
     ELEM_NAME = 0, ELEM_PARENT_NAME, ELEM_RELATIVE_NAME, ELEM_FILE,
-    ELEM_NORMAL_FILE, ELEM_PUSHED_FILE, ELEM_HIGHLIGHT_FILE, ELEM_TEXT,
+    ELEM_NORMAL_FILE, ELEM_PUSHED_FILE, ELEM_HIGHLIGHT_FILE, ELEM_CHECKED_FILE, ELEM_TEXT,
     ELEM_POINT, ELEM_RELATIVE_POINT, ELEM_BACKDROP_BG, ELEM_BACKDROP_EDGE,
     ELEM_ON_CLICK, ELEM_ON_LOAD, ELEM_ON_SHOW, ELEM_ON_ENTER, ELEM_ON_LEAVE,
     ELEM_ON_ENTER_PRESSED, ELEM_ON_ESCAPE_PRESSED, ELEM_ON_TAB_PRESSED,
@@ -326,7 +326,7 @@ static void UIWow_XmlInheritElem(uiWowXmlElem_t *e, LPCSTR inherits) {
             if (!UIWow_ElemStr(e, f) && UIWow_ElemStr(src, f)) UIWow_ElemSetStr(e, f, src->texts[f]);
         }
         static uiWowXmlStr_t const copy_str[] = {
-            ELEM_FILE, ELEM_NORMAL_FILE, ELEM_PUSHED_FILE, ELEM_HIGHLIGHT_FILE,
+            ELEM_FILE, ELEM_NORMAL_FILE, ELEM_PUSHED_FILE, ELEM_HIGHLIGHT_FILE, ELEM_CHECKED_FILE,
             ELEM_TEXT, ELEM_BACKDROP_BG, ELEM_BACKDROP_EDGE,
             ELEM_NORMAL_NAME, ELEM_PUSHED_NAME, ELEM_HIGHLIGHT_NAME
         };
@@ -649,6 +649,8 @@ static void UIWow_XmlReadButtonPart(uiWowXmlElem_t *e, xmlNodePtr child) {
         UIWow_ElemSetStr(e, ELEM_HIGHLIGHT_FILE, temp.texts[ELEM_FILE]);
         if (name && *name) UIWow_ElemSetStr(e, ELEM_HIGHLIGHT_NAME, (char const *)name);
         if (temp.flags & EF_HAS_TEXCOORD) { e->highlight_texcoord = temp.texcoord; e->flags |= EF_HAS_HIGHLIGHT_TEXCOORD; }
+    } else if (!xmlStrcasecmp(child->name, BAD_CAST "CheckedTexture") && UIWow_ElemStr(&temp, ELEM_FILE)) {
+        UIWow_ElemSetStr(e, ELEM_CHECKED_FILE, temp.texts[ELEM_FILE]);
     }
     SAFE_DELETE(file, xmlFree); SAFE_DELETE(inherits, xmlFree); SAFE_DELETE(name, xmlFree);
     UIWow_ElemFreeStrings(&temp);
@@ -659,7 +661,7 @@ static void UIWow_XmlReadButton(uiWowXmlElem_t *e, xmlNodePtr node) {
     for (c = node->children; c; c = c->next) {
         if (c->type != XML_ELEMENT_NODE) continue;
         if (!xmlStrcasecmp(c->name, BAD_CAST "NormalTexture") || !xmlStrcasecmp(c->name, BAD_CAST "PushedTexture") ||
-            !xmlStrcasecmp(c->name, BAD_CAST "HighlightTexture")) {
+            !xmlStrcasecmp(c->name, BAD_CAST "HighlightTexture") || !xmlStrcasecmp(c->name, BAD_CAST "CheckedTexture")) {
             UIWow_XmlReadButtonPart(e, c);
         } else if (!xmlStrcasecmp(c->name, BAD_CAST "NormalText") || !xmlStrcasecmp(c->name, BAD_CAST "HighlightText") ||
                    !xmlStrcasecmp(c->name, BAD_CAST "DisabledText")) {
@@ -717,6 +719,7 @@ static void UIWow_XmlReadShared(uiWowXmlElem_t *e, xmlNodePtr node) {
     xmlChar *text = xmlGetProp(node, BAD_CAST "text"), *virt = xmlGetProp(node, BAD_CAST "virtual");
     xmlChar *all  = xmlGetProp(node, BAD_CAST "setAllPoints"), *pw = xmlGetProp(node, BAD_CAST "password");
     xmlChar *id   = xmlGetProp(node, BAD_CAST "id"), *wordwrap = xmlGetProp(node, BAD_CAST "wordWrap");
+    xmlChar *checked = xmlGetProp(node, BAD_CAST "checked");
     if (file && *file) UIWow_ElemSetStr(e, ELEM_FILE, (char const *)file);
     if (text && *text) UIWow_ElemSetStr(e, ELEM_TEXT, (char const *)text);
     if (hidden && *hidden && !strcasecmp((char const *)hidden, "true")) e->flags |= EF_HIDDEN;
@@ -725,8 +728,10 @@ static void UIWow_XmlReadShared(uiWowXmlElem_t *e, xmlNodePtr node) {
     if (pw     && *pw     && strcmp((char const *)pw, "0"))             e->flags |= EF_PASSWORD;
     if (id && *id) e->id = atoi((char const *)id);
     if (wordwrap && *wordwrap && !strcasecmp((char const *)wordwrap, "true")) e->flags |= EF_WORD_WRAP;
+    if (checked && *checked && !strcasecmp((char const *)checked, "true")) e->flags |= EF_CHECKED;
     SAFE_DELETE(file,xmlFree); SAFE_DELETE(hidden,xmlFree); SAFE_DELETE(text,xmlFree); SAFE_DELETE(virt,xmlFree);
     SAFE_DELETE(all,xmlFree);  SAFE_DELETE(pw,xmlFree);     SAFE_DELETE(id,xmlFree);   SAFE_DELETE(wordwrap,xmlFree);
+    SAFE_DELETE(checked, xmlFree);
     UIWow_XmlReadSize(e, node); UIWow_XmlReadAnchor(e, node); UIWow_XmlReadBackdrop(e, node);
     UIWow_XmlReadTexCoords(e, node); UIWow_XmlReadFont(e, node); UIWow_XmlReadJustify(e, node);
     UIWow_XmlReadTextInsets(e, node);

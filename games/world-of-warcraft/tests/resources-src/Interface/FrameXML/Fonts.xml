@@ -1,0 +1,8 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <FontString name="GameFontNormal" font="Fonts\FRIZQT__.TTF" virtual="true"><FontHeight><AbsValue val="12"/></FontHeight></FontString>
+    <FontString name="GameFontHighlight" inherits="GameFontNormal" virtual="true"/>
+    <FontString name="GameFontNormalSmall" font="Fonts\FRIZQT__.TTF" virtual="true"><FontHeight><AbsValue val="10"/></FontHeight></FontString>
+    <FontString name="GameFontHighlightSmall" inherits="GameFontNormalSmall" virtual="true"/>
+    <FontString name="DialogButtonNormalText" inherits="GameFontNormalSmall" virtual="true"/>
+    <FontString name="DialogButtonHighlightText" inherits="DialogButtonNormalText" virtual="true"/>
+</Ui>

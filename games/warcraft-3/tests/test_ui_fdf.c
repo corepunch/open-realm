@@ -1529,6 +1529,10 @@ TEST(ui_fdf, dialog_war3_supports_configurable_button_modes) {
 
 static LPCSTR const authored_dialog_files[] = {
     "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
+    /* DialogWar3.fdf must be pre-loaded: UI_DialogWar3EnsureTemplate("BattleNetDialogTemplate")
+     * calls UI_EnsureFDF for it; without a prior load the deferred UI_EnsureFDF call hits a null
+     * FS_ReadFile (load_ui_files restores uiimport before UI_DialogWar3Init runs). */
+    "UI\\FrameDef\\Glue\\DialogWar3.fdf",
     "UI\\FrameDef\\Glue\\BattleNetTemplates.fdf",
     "UI\\FrameDef\\UI\\ScriptDialog.fdf",
 };

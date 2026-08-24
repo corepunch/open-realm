@@ -200,6 +200,17 @@ TEST(wow_hud_xml, button_press_state_selects_xml_pushed_texture) {
     UIWow_XMLClearFrames();
 }
 
+TEST(wow_hud_xml, checkbutton_checked_state_selects_native_checked_texture) {
+    static const char xml[] = "<Ui><CheckButton name=\"Check\"><Size><AbsDimension x=\"24\" y=\"24\"/></Size>"
+        "<NormalTexture file=\"normal.blp\"/><CheckedTexture file=\"checked.blp\"/></CheckButton></Ui>";
+
+    reset_state(); init_ui(); UIWow_XMLClearFrames();
+    T_ASSERT(UIWow_XMLLoadBuffer(xml, (int)(sizeof(xml)-1), "test"));
+    T_ASSERT(UIWow_XMLSetButtonChecked("Check", false)); UIWow_XMLDraw(); T_STREQ(last_draw_image_name, "normal.blp");
+    T_ASSERT(UIWow_XMLSetButtonChecked("Check", true)); UIWow_XMLDraw(); T_STREQ(last_draw_image_name, "checked.blp");
+    UIWow_XMLClearFrames();
+}
+
 TEST(wow_hud_xml, parse_center_anchor) {
     static const char xml[] =
         "<Ui><Frame name=\"F\">"
@@ -388,20 +399,11 @@ TEST(wow_hud_xml, welcome_frame_loads_from_mpq) {
     test_archive = NULL;
 }
 
-TEST(wow_hud_xml, loading_title_draws_from_project_framexml) {
-    int title_idx;
-    FLOAT x, y, w, h;
-
+TEST(wow_hud_xml, loading_title_draws_from_runtime_without_project_framexml) {
     reset_state();
     T_ASSERT(SFileOpenArchive(TEST_WOW_MPQ, 0, 0, &test_archive));
     init_ui();
     UIWow_XMLClearFrames();
-    T_ASSERT(UIWow_XMLLoadFile("Interface\\FrameXML\\OpenWarcraftLoadingScreen.xml"));
-    title_idx = UIWow_XmlFindByNamePub("OpenWarcraftLoadingTitle");
-    T_ASSERT(title_idx >= 0);
-    UIWow_XmlComputeRectPub(title_idx, &x, &y, &w, &h);
-    T_FEQ(x, 0.16f, 0.001f); T_FEQ(y, 0.77f, 0.001f);
-    T_FEQ(w, 0.68f, 0.001f); T_FEQ(h, 0.05f, 0.001f);
 
     test_ps.texts[PLAYERTEXT_MAP_TITLE] = "The Barrens";
     UIWow_DrawLoadingScreenC(NULL, NULL, 0.0f);
@@ -409,7 +411,7 @@ TEST(wow_hud_xml, loading_title_draws_from_project_framexml) {
     T_STREQ(last_draw_text.text, "The Barrens");
     T_FEQ(last_draw_text.rect.x, 0.16f, 0.001f);
     T_FEQ(last_draw_text.rect.y, 0.77f, 0.001f);
-    T_EQ(UIWow_XmlElemHidden(UIWow_XmlFindByNamePub("OpenWarcraftLoadingScreen")), 1);
+    T_EQ(UIWow_XmlFindByNamePub("OpenWarcraftLoadingScreen"), -1);
 
     UIWow_XMLClearFrames();
     SFileCloseArchive(test_archive);

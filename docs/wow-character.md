@@ -160,11 +160,11 @@ Run the exact creation screen with a bounded lifetime and optional screenshot:
 
 ```bash
 make openwow
-build/bin/openwow -data data/world-of-warcraft +menu_character_create +screenshot +com_frame_limit 20
+build/bin/openwow -data data/world-of-warcraft +menu_character_create +screenshot 10 +com_frame_limit 20
 ```
 
 For a saved-character/class test, update both `class` and `appearance` in `share/characters.xml`, run
-`+menu_character_select +screenshot +com_frame_limit 20`, then restore the save. Diagnose in this order:
+`+menu_character_select +screenshot 10 +com_frame_limit 20`, then restore the save. Diagnose in this order:
 
 1. Confirm `UIWow_GetCharacterCreateAppearance()` packs the expected class and customization.
 2. Confirm `M2_DbcStartOutfit()` derives the expected race/gender/class key and finds a row.

@@ -19,7 +19,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#define WOW_TIP_LAYOUT "Interface\\FrameXML\\OpenWarcraftTutorialFrame.xml" // archive path; project XML owns tutorial composition
+#define WOW_TIP_LAYOUT "Interface\\FrameXML\\TutorialFrame.xml" // archive path; Blizzard owns the tutorial frame and alert templates
 
 BOOL UIWow_TipsEnabled(void) {
     LPCSTR value = uiimport.Cvar_String(BZ_WOW_CVAR_SHOW_TIPS, "1");
@@ -47,13 +47,18 @@ static BOOL UIWow_LoadTutorialText(DWORD id) {
     return false;
 }
 
-/* Load the project tree after game-mode entry clears the GlueXML registry. */
+/* TutorialFrame inherits Blizzard fonts, button art, and UICheckButtonTemplate from earlier FrameXML files. */
 static BOOL UIWow_LoadTutorialLayout(void) {
+    static LPCSTR const files[] = { "Interface\\FrameXML\\Fonts.xml", "Interface\\FrameXML\\BasicControls.xml",
+        "Interface\\FrameXML\\UIPanelTemplates.xml", WOW_TIP_LAYOUT };
     static LPCSTR const names[] = { "TutorialFrame", "TutorialFrameTitle", "TutorialFrameText",
-        "TutorialFrameCheckButton", "TutorialFrameCheckMark", "TutorialFrameCheckboxText", "TutorialFrameOkayButton" };
-    if (UIWow_XmlFindByNamePub(names[0]) < 0 && !UIWow_XMLLoadFile(WOW_TIP_LAYOUT)) {
-        UIWow_Printf("UIWow: required tutorial layout %s is missing\n", WOW_TIP_LAYOUT);
-        return false;
+        "TutorialFrameCheckButton", "TutorialFrameCheckboxText", "TutorialFrameOkayButton" };
+    if (UIWow_XmlFindByNamePub(names[0]) < 0) {
+        FOR_LOOP(i, sizeof(files) / sizeof(files[0])) {
+            if (UIWow_XMLLoadFile(files[i])) continue;
+            UIWow_Printf("UIWow: required native FrameXML %s is missing\n", files[i]);
+            return false;
+        }
     }
     FOR_LOOP(i, sizeof(names) / sizeof(names[0])) {
         if (UIWow_XmlFindByNamePub(names[i]) >= 0) continue;
@@ -63,7 +68,7 @@ static BOOL UIWow_LoadTutorialLayout(void) {
     return true;
 }
 
-/* Bind localized state into the named XML elements; the file owns every rectangle and asset. */
+/* Bind localized state, then apply TutorialFrame.lua's SetHeight(body:GetHeight() + 62) contract. */
 static BOOL UIWow_BindTutorial(void) {
     struct { LPCSTR name, text; } const values[] = {
         { "TutorialFrameTitle", wow_ui.tutorial_title }, { "TutorialFrameText", wow_ui.tutorial_body },
@@ -71,15 +76,19 @@ static BOOL UIWow_BindTutorial(void) {
     };
     FOR_LOOP(i, sizeof(values) / sizeof(values[0]))
         if (!UIWow_XMLSetFrameText(values[i].name, values[i].text)) return false;
-    UIWow_XMLSetFrameVisible("TutorialFrameCheckMark", UIWow_TipsEnabled());
+    if (!UIWow_XMLSizeFrameToText("TutorialFrame", "TutorialFrameText", 62.0f)) return false;
+    /* Native Lua bottom-anchors intro 42, which shifts a dynamically taller translation upward; center its resized bounds instead. */
+    if (!UIWow_XMLSetFramePoint("TutorialFrame", &(WOWXMLPOINT){ wow_ui.tutorial_id == 42 ? "CENTER" : "BOTTOM", "UIParent", wow_ui.tutorial_id == 42 ? "CENTER" : "BOTTOM", 0, wow_ui.tutorial_id == 42 ? 0 : 100 })) return false;
+    UIWow_XMLSetButtonChecked("TutorialFrameCheckButton", UIWow_TipsEnabled());
     UIWow_XMLSetFrameVisible("TutorialFrame", true);
     return true;
 }
 
 /* Every tutorial alert resolves through the same localized GlobalStrings keys and XML panel. */
 BOOL UIWow_ShowTip(DWORD id) {
+    wow_ui.tutorial_id = id;
     wow_ui.tutorial_open = UIWow_TipsEnabled() && UIWow_LoadTutorialText(id) && UIWow_LoadTutorialLayout() && UIWow_BindTutorial();
-    wow_ui.tutorial_id = wow_ui.tutorial_open ? id : 0;
+    if (!wow_ui.tutorial_open) wow_ui.tutorial_id = 0;
     if (!wow_ui.tutorial_open) {
         wow_ui.tutorial_okay_pressed = false;
         UIWow_XMLSetFrameVisible("TutorialFrame", false);
@@ -153,7 +162,7 @@ BOOL UIWow_WindowMouseDown(float nx, float ny) {
     if (wow_ui.tutorial_open) {
         if (UIWow_TutorialContains("TutorialFrameCheckButton", nx, ny)) {
             uiimport.Cvar_Set(BZ_WOW_CVAR_SHOW_TIPS, UIWow_TipsEnabled() ? "0" : "1");
-            UIWow_XMLSetFrameVisible("TutorialFrameCheckMark", UIWow_TipsEnabled());
+            UIWow_XMLSetButtonChecked("TutorialFrameCheckButton", UIWow_TipsEnabled());
             if (!UIWow_TipsEnabled()) wow_ui.tutorial_alert_count = 0;
             return true;
         }

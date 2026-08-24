@@ -1,0 +1,9 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <CheckButton name="UICheckButtonTemplate" virtual="true">
+        <Size><AbsDimension x="32" y="32"/></Size>
+        <NormalTexture file="Interface\Buttons\UI-CheckBox-Up"/>
+        <PushedTexture file="Interface\Buttons\UI-CheckBox-Down"/>
+        <HighlightTexture file="Interface\Buttons\UI-CheckBox-Highlight"/>
+        <CheckedTexture file="Interface\Buttons\UI-CheckBox-Check"/>
+    </CheckButton>
+</Ui>

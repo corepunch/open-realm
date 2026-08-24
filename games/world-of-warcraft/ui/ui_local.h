@@ -61,6 +61,13 @@ typedef struct {
     char name[256];
 } uiWowIcon_t;
 
+typedef struct WOWXMLPOINT {
+    LPCSTR point, rel, rel_point;
+    FLOAT x, y;
+} WOWXMLPOINT;
+typedef struct WOWXMLPOINT *LPWOWXMLPOINT;
+typedef const struct WOWXMLPOINT *LPCWOWXMLPOINT;
+
 typedef struct {
     LPRENDERER renderer;
     lua_State *lua;
@@ -119,6 +126,9 @@ BOOL UIWow_XMLLoadBuffer(LPCSTR buf, int size, LPCSTR debug_name);
 void UIWow_XMLSetFrameVisible(LPCSTR name, BOOL visible);
 BOOL UIWow_XMLSetFrameText(LPCSTR name, LPCSTR text);
 BOOL UIWow_XMLSetButtonPressed(LPCSTR name, BOOL pressed);
+BOOL UIWow_XMLSetButtonChecked(LPCSTR name, BOOL checked);
+BOOL UIWow_XMLSetFramePoint(LPCSTR name, LPCWOWXMLPOINT point);
+BOOL UIWow_XMLSizeFrameToText(LPCSTR frame, LPCSTR text, FLOAT padding);
 BOOL UIWow_XMLDrawFrame(LPCSTR name);
 void UIWow_XMLClearFrames(void);
 LPCSTR UIWow_XMLHitButton(FLOAT nx, FLOAT ny);
