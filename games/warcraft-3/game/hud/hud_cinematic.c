@@ -9,14 +9,33 @@
 #include "hud_local.h"
 #include "hud_utils.h"
 #include "../generated/cinematic_panel.h"
+#include "../generated/message_overlay.h"
 
 static CinematicPanel_t cin;
+static MessageOverlay_t msg;
 static BOOL cinematic_loaded;
+static BOOL message_loaded;
 
 static void CinematicEnsureLoaded(void) {
     if (cinematic_loaded) return;
     cinematic_loaded = true;
     CinematicPanel_Load(&cin);
+}
+
+/* The project FDF owns the message schema; JASS only supplies content and an optional position. */
+static BOOL MessageEnsureLoaded(void) {
+    if (!message_loaded) message_loaded = MessageOverlay_Load(&msg);
+    return message_loaded;
+}
+
+/* Copy the authored frame so one player's runtime text/position never mutates the shared template. */
+static FRAMEDEF MessageFrame(LPCVECTOR2 pos, LPCSTR message) {
+    FRAMEDEF frame = *msg.OpenWarcraftMessageText;
+    frame.Text = (LPSTR)message;
+    frame.TextLength = strlen(message);
+    if (pos && pos->x >= 0.0f && pos->x <= UI_BASE_WIDTH && pos->y >= 0.0f && pos->y <= UI_BASE_HEIGHT)
+        UI_SetPoint(&frame, FRAMEPOINT_TOPLEFT, msg.OpenWarcraftMessageOverlay, FRAMEPOINT_TOPLEFT, pos->x, -pos->y);
+    return frame;
 }
 
 void UI_ClearLayer(LPEDICT ent, DWORD layer) {
@@ -42,18 +61,17 @@ void UI_ShowGameInterface(LPEDICT ent) {
 }
 
 void UI_ShowText(LPEDICT ent, LPCVECTOR2 pos, LPCSTR text, FLOAT duration) {
-    FLOAT x = pos ? pos->x : 0.0500f;
-    FLOAT y = QUEST_MESSAGE_Y;
-    LPCSTR message = NULL;
+    FRAMEDEF frame;
+    LPCSTR message;
 
     (void)duration;
-    if (!ent) return;
-    if (x < 0.0f || x > UI_BASE_WIDTH) x = 0.0500f;
+    if (!ent || !MessageEnsureLoaded()) return;
+    message = UI_FormatMessageText(UI_LevelStringSafe(text));
+    frame = MessageFrame(pos, message);
 
     UI_WriteStart(LAYER_MESSAGE);
-    message = UI_FormatMessageText(UI_LevelStringSafe(text));
-    UI_WriteTextAreaFrame(x, y, QUEST_MESSAGE_W, QUEST_MESSAGE_H,
-                          message, COLOR32_WHITE, HUD_FONT_SIZE, 0.0f);
+    UI_WriteFrame(msg.OpenWarcraftMessageOverlay);
+    UI_WriteFrameWithChildren(&frame, msg.OpenWarcraftMessageOverlay);
     UI_WriteEnd(ent);
 }
 
