@@ -147,7 +147,7 @@ static DWORD move_collect_selected(LPGAMECLIENT client,
         if (count >= max_units) {
             break;
         }
-        if (UNIT_IS_BUILDING(ent->class_id) || UNIT_SPEED(ent->class_id) <= 0) {
+        if ((ent->aiflags & AI_IMMOBILE) || UNIT_SPEED(ent->class_id) <= 0) {
             continue;
         }
         units[count++] = ent;
@@ -285,6 +285,8 @@ static umove_t move_move_walk = { "walk", ai_move_walk, NULL, &a_move };
 /* Set the unit's move target and begin walking.
  * goalentity must be a waypoint or any entity whose origin is the destination. */
 void order_move(LPEDICT self, LPEDICT target) {
+    if (self->aiflags & AI_IMMOBILE)
+        return;
     self->goalentity = target;
     self->attackmove_waypoint = NULL;
     self->patrol_a = NULL;

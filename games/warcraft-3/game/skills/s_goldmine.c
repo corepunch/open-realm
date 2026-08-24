@@ -23,7 +23,10 @@ LPEDICT find_townhall(LPEDICT unit) {
 }
 
 static void ai_walkmine(LPEDICT ent) {
-    if (M_DistanceToGoal(ent) <  ent->collision + 180) {
+    /* Building collision became footprint-authored in 55724517; using the old
+     * fixed 180u mine radius stranded workers outside larger mine footprints. */
+    FLOAT const contact = ent->collision + ent->goalentity->collision;
+    if (M_DistanceToGoal(ent) <= contact + unit_movedistance(ent)) {
         harvestgold_minegold(ent);
     } else {
         unit_changeangle(ent);

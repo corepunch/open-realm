@@ -165,6 +165,8 @@ static void unit_commit_step(LPEDICT self, LPCVECTOR2 cand) {
  * a different direction every tick — that disagreement is what made units
  * visibly rotate/wobble and crab sideways past each other and trees. */
 void unit_moveindirection(LPEDICT self) {
+    if (self->aiflags & AI_IMMOBILE)
+        return;
     FLOAT const dist = unit_movedistance(self);
     VECTOR2 const by_facing = Vector2_mad(&self->s.origin2, dist,
                                           &MAKE(VECTOR2, cosf(self->s.angle), sinf(self->s.angle)));
@@ -234,6 +236,8 @@ static FLOAT unit_desired_heading(LPEDICT self, FLOAT goal_angle, FLOAT dist) {
 }
 
 void unit_changeangle(LPEDICT self) {
+    if (self->aiflags & AI_IMMOBILE)
+        return;
     VECTOR2 to_goal = Vector2_sub(&self->goalentity->s.origin2, &self->s.origin2);
     VECTOR2 dir;
 

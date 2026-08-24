@@ -21,7 +21,7 @@
 #define BUILDQUEUE_BACKDROP_W INFO_PANEL_W
 #define BUILDQUEUE_BACKDROP_H 0.1000f
 #define BUILDQUEUE_FIRST_X (INFO_PANEL_X + 0.0100f)
-#define BUILDQUEUE_FIRST_Y (INFO_PANEL_Y + 0.0390f)
+#define BUILDQUEUE_FIRST_Y (INFO_PANEL_Y + 0.0350f) // UI units; lifts active portrait inside its queue frame
 #define BUILDQUEUE_FIRST_W 0.0280f
 #define BUILDQUEUE_FIRST_H 0.0310f
 #define BUILDQUEUE_LIST_X (INFO_PANEL_X + 0.0095f)
@@ -30,14 +30,14 @@
 #define BUILDQUEUE_ITEM_H 0.0215f
 #define BUILDQUEUE_TIMER_X (INFO_PANEL_X + 0.061250f)
 #define BUILDQUEUE_TIMER_Y (INFO_PANEL_Y + 0.038125f)
-#define BUILDQUEUE_TIMER_W 0.1450f
+#define BUILDQUEUE_TIMER_W 0.1150f // UI units; ends inside the 0.180-wide info panel border
 #define BUILDQUEUE_TIMER_H 0.0120f
 #define BUILDQUEUE_ACTION_X (INFO_PANEL_X + 0.061250f)
 #define BUILDQUEUE_ACTION_Y (INFO_PANEL_Y + 0.022875f)
 #define BUILDQUEUE_ACTION_W 0.1050f
 #define BUILDQUEUE_ACTION_H 0.0140f
 #define PORTRAIT_X 0.215f
-#define PORTRAIT_Y 0.490f
+#define PORTRAIT_Y 0.486f // UI units; aligns the 3D portrait with the info-panel top
 #define PORTRAIT_SIZE 0.080f
 #define COMMAND_BUTTON_SIZE 0.039f
 #define COMMAND_BUTTON_CENTER_X(x) (UI_BASE_WIDTH * 0.5f + 0.2365f + (FLOAT)(x) * 0.0434f)

@@ -79,6 +79,7 @@ typedef struct {
 enum {
     AI_HOLD_FRAME = 1 << 0,
     AI_FLYING     = 1 << 1,  /* air-layer unit (movetp "fly"): ignores ground collision */
+    AI_IMMOBILE   = 1 << 2,  /* fixed unit: may act, but never translates or changes facing */
 };
 
 typedef enum {
@@ -828,6 +829,7 @@ FLOAT unit_movedistance(LPEDICT);
 DWORD M_RefreshHeatmap(LPEDICT);
 BOOL M_IsDead(LPEDICT);
 void SP_SpawnUnit(LPEDICT);
+DWORD unit_spawn_aiflags(DWORD);
 void SP_TrainUnit(LPEDICT, DWORD);
 BOOL player_pay(LPPLAYER, DWORD);
 BYTE compress_stat(EDICTSTAT const *);

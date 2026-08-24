@@ -160,6 +160,8 @@ BOOL unit_issueorder(LPEDICT self, LPCSTR order, LPCVECTOR2 point) {
     if (!self || !order || !point) {
         return false;
     }
+    if (self->aiflags & AI_IMMOBILE)
+        return false;
     if (!strcmp(order, "move") || !strcmp(order, "attack")) {
         VECTOR2 target = *point;
         CM_ClosestPathablePointForRadius(point, self->collision, &target);
