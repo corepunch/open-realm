@@ -73,6 +73,9 @@ void UIWow_XMLSetFrameVisible(LPCSTR name, BOOL visible);
 /* Bind dynamic text without replacing XML-authored geometry or presentation. */
 BOOL UIWow_XMLSetFrameText(LPCSTR name, LPCSTR text);
 
+/* Bind client-owned press state while XML continues to own button presentation. */
+BOOL UIWow_XMLSetButtonPressed(LPCSTR name, BOOL pressed);
+
 /* Reset the elem registry (call when entering game mode). */
 void UIWow_XMLClearFrames(void);
 
@@ -993,6 +996,15 @@ BOOL UIWow_XMLSetFrameText(LPCSTR name, LPCSTR text) {
     if (idx < 0)
         return false;
     UIWow_ElemSetStr(&wow_xml.elems[idx], ELEM_TEXT, text ? text : "");
+    return true;
+}
+
+/* The renderer selects NormalTexture/PushedTexture from this single press state. */
+BOOL UIWow_XMLSetButtonPressed(LPCSTR name, BOOL pressed) {
+    int idx = UIWow_XmlFindByName(name);
+    if (idx < 0 || wow_xml.elems[idx].type != WOW_XML_BUTTON) return false;
+    if (pressed) wow_xml.pressed_button = idx;
+    else if (wow_xml.pressed_button == idx) wow_xml.pressed_button = -1;
     return true;
 }
 

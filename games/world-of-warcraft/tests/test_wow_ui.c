@@ -371,6 +371,7 @@ TEST(wow_ui, enter_world_delegates_map_selection_to_server_playercreateinfo) {
 TEST(wow_ui, tutorial_42_uses_global_strings_and_display_tips_cvar) {
     uiExport_t ui;
     BYTE questgiver[] = { 1, 1 }, movement[] = { 1, 2 };
+    RECT check; int check_idx;
 
     reset_test_state();
     T_ASSERT(SFileOpenArchive(TEST_WOW_MPQ, 0, 0, &test_archive));
@@ -385,6 +386,10 @@ TEST(wow_ui, tutorial_42_uses_global_strings_and_display_tips_cvar) {
     T_ASSERT(strstr(wow_ui.tutorial_body, "help button"));
     T_STREQ(wow_ui.tutorial_check, "Display Tips");
     T_STREQ(wow_ui.tutorial_okay, "Okay");
+    check_idx = UIWow_XmlFindByNamePub("TutorialFrameCheckButton");
+    T_ASSERT(check_idx >= 0);
+    UIWow_XmlComputeRectPub(check_idx, &check.x, &check.y, &check.w, &check.h);
+    T_FEQ(check.w, 119.0f / 1024.0f, 0.001f); T_FEQ(check.h, 24.0f / 768.0f, 0.001f);
     wow_ui.tutorial_open = false; ui.DrawGameOverlay();
     T_EQ((int)draw_tip_alert_count, 2);
     T_ASSERT(ui.MouseEvent(UI_MOUSE_DOWN, 500, 690, 1));
@@ -392,7 +397,7 @@ TEST(wow_ui, tutorial_42_uses_global_strings_and_display_tips_cvar) {
     T_EQ((int)wow_ui.tutorial_id, 1);
     T_EQ((int)wow_ui.tutorial_alert_count, 1);
     T_STREQ(wow_ui.tutorial_title, "Questgivers");
-    T_ASSERT(UIWow_WindowMouseDown(0.40f, 0.59f));
+    T_ASSERT(UIWow_WindowMouseDown(check.x + check.w * 0.5f, check.y + check.h * 0.5f));
     T_STREQ(test_show_tips, "0");
     T_EQ((int)wow_ui.tutorial_alert_count, 0);
     ui.ShowWindow("TutorialFrame", 0); ui.ShowWindow("TutorialFrame", 1);

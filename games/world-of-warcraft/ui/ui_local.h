@@ -118,6 +118,7 @@ BOOL UIWow_XMLLoadFile(LPCSTR path);
 BOOL UIWow_XMLLoadBuffer(LPCSTR buf, int size, LPCSTR debug_name);
 void UIWow_XMLSetFrameVisible(LPCSTR name, BOOL visible);
 BOOL UIWow_XMLSetFrameText(LPCSTR name, LPCSTR text);
+BOOL UIWow_XMLSetButtonPressed(LPCSTR name, BOOL pressed);
 BOOL UIWow_XMLDrawFrame(LPCSTR name);
 void UIWow_XMLClearFrames(void);
 LPCSTR UIWow_XMLHitButton(FLOAT nx, FLOAT ny);

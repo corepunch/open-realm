@@ -1480,6 +1480,15 @@ BOOL UIWow_XMLSetFrameText(LPCSTR name, LPCSTR text) {
     return true;
 }
 
+/* The renderer selects NormalTexture/PushedTexture from this single press state. */
+BOOL UIWow_XMLSetButtonPressed(LPCSTR name, BOOL pressed) {
+    int idx = UIWow_XmlFindByName(name);
+    if (idx < 0 || wow_xml.elems[idx].type != WOW_XML_BUTTON) return false;
+    if (pressed) wow_xml.pressed_button = idx;
+    else if (wow_xml.pressed_button == idx) wow_xml.pressed_button = -1;
+    return true;
+}
+
 /* Reset the elem registry (called when transitioning to game mode). */
 void UIWow_XMLClearFrames(void) {
     UIWow_XMLFreeElems();
