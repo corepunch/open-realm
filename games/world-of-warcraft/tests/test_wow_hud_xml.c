@@ -22,6 +22,7 @@ static refExport_t test_renderer;
 static PLAYER test_ps;
 static LPCTEXTURE test_textures[MAX_IMAGES];
 static DWORD next_texture_id;
+static int geometry_warnings;
 
 static int test_fs_read_file(LPCSTR fileName, void **buf) {
     HANDLE file; DWORD size, read = 0;
@@ -39,7 +40,11 @@ static int test_fs_read_file(LPCSTR fileName, void **buf) {
 static void test_fs_free_file(void *buf) { free(buf); }
 static HANDLE test_mem_alloc(long sz) { return calloc(1, (size_t)sz); }
 static void   test_mem_free(HANDLE m) { free(m); }
-static void   test_printf(LPCSTR fmt, ...) { (void)fmt; }
+static void test_printf(LPCSTR fmt, ...) {
+    char msg[512]; va_list ap;
+    va_start(ap, fmt); vsnprintf(msg, sizeof(msg), fmt, ap); va_end(ap);
+    if (strstr(msg, "UIWow: unresolved FrameXML geometry")) geometry_warnings++;
+}
 
 static LPTEXTURE test_load_texture(LPCSTR name) {
     LPTEXTURE t = calloc(1, sizeof(*t));
@@ -78,6 +83,7 @@ static void reset_state(void) {
     memset(test_textures, 0, sizeof(test_textures));
     memset(&test_renderer, 0, sizeof(test_renderer));
     next_texture_id = 0;
+    geometry_warnings = 0;
     test_ps.client_ui_state = CLIENT_UI_GAME;
     test_renderer.LoadTexture     = test_load_texture;
     test_renderer.LoadFont        = test_load_font;
@@ -256,6 +262,36 @@ TEST(wow_hud_xml, frame_size_reflected_in_rect) {
     /* 512/1024 = 0.5, 384/768 = 0.5 */
     T_ASSERT(w > 0.49f && w < 0.51f);
     T_ASSERT(h > 0.49f && h < 0.51f);
+    UIWow_XMLClearFrames();
+}
+
+TEST(wow_hud_xml, unresolved_frame_has_no_invented_geometry) {
+    static const char xml[] = "<Ui><Frame name=\"NoGeometry\"/></Ui>";
+    int idx; FLOAT x, y, w, h;
+
+    reset_state(); init_ui(); UIWow_XMLClearFrames();
+    T_ASSERT(UIWow_XMLLoadBuffer(xml, (int)(sizeof(xml)-1), "test"));
+    idx = UIWow_XmlFindByNamePub("NoGeometry");
+    UIWow_XmlComputeRectPub(idx, &x, &y, &w, &h);
+    T_EQ(w, 0.0f); T_EQ(h, 0.0f);
+    UIWow_XMLDraw(); UIWow_XMLDraw();
+    T_EQ(geometry_warnings, 1);
+    UIWow_XMLClearFrames();
+}
+
+TEST(wow_hud_xml, unauthored_fontstring_uses_natural_text_size) {
+    static const char xml[] = "<Ui><FontString name=\"NaturalText\" text=\"Hello\"/></Ui>";
+    int idx; FLOAT x, y, w, h;
+
+    reset_state(); init_ui(); UIWow_XMLClearFrames();
+    T_ASSERT(UIWow_XMLLoadBuffer(xml, (int)(sizeof(xml)-1), "test"));
+    idx = UIWow_XmlFindByNamePub("NaturalText");
+    UIWow_XmlComputeRectPub(idx, &x, &y, &w, &h);
+    T_EQ(w, 0.0f); T_EQ(h, 0.0f);
+    UIWow_XMLDraw();
+    UIWow_XmlComputeRectPub(idx, &x, &y, &w, &h);
+    T_ASSERT(w > 0.049f && w < 0.051f); T_EQ(h, 0.012f);
+    T_EQ(geometry_warnings, 0);
     UIWow_XMLClearFrames();
 }
 

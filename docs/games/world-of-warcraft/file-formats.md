@@ -131,7 +131,7 @@ Per-table field layouts and packed appearance/equipment values as consumed by `o
 
 | Format | Role | References |
 | --- | --- | --- |
-| FrameXML / Lua / TOC / XML | Client UI definitions and scripts. Mostly outside the current `openwow` renderer path, except for future UI exploration. | [Warcraft Wiki UI tech](https://warcraft.wiki.gg/wiki/World_of_Warcraft_API), local `data/whoa-master/src/ui`. |
+| FrameXML / Lua / TOC / XML | Client UI definitions, inheritance, geometry, textures, and scripts loaded by the `openwow` UI runtime. | [FrameXML layout](framexml-layout.md), [Warcraft Wiki UI tech](https://warcraft.wiki.gg/wiki/World_of_Warcraft_API), local `data/whoa-master/src/ui`. |
 | `WTF` / config files | User settings and addon saved data. Not useful for asset rendering. | [Warcraft Wiki WTF folder](https://warcraft.wiki.gg/wiki/WTF). |
 | `WAV` / `MP3` / `OGG` | Audio payloads referenced by DBCs, models, zones, and UI. | `SoundEntries.dbc`, `SoundEntriesAdvanced.dbc`, `data/whoa-master/src/sound` if/when audio matters. |
 | `LST` | List metadata occasionally found in patches. | [wowdev Lst](https://wowdev.wiki/Lst). |
