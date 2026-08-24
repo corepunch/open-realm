@@ -5,9 +5,8 @@
  * frame at top/bottom, the minimap viewport rect, and the gold/lumber/
  * supply/upkeep resource bar.
  *
- * ConsoleUI and ResourceBar use FDF-defined layouts from Blizzard's
- * MPQ archives instead of hardcoded coordinates.  The minimap stays
- * manual because FT_MINIMAP has no FDF equivalent.
+ * Blizzard's templates supply the skin; ConsoleHud.fdf owns their final
+ * composition and the OpenWarcraft MINIMAP extension.
  */
 
 #include "hud_local.h"
@@ -20,27 +19,14 @@ static BOOL hud_console_loaded;
 
 static void ConsoleEnsureLoaded(void) {
     if (hud_console_loaded) return;
-    hud_console_loaded = true;
-    ConsoleUI_Load(&console_ui);
-    /* ConsoleUI.fdf omits its root anchors; the original UI stretched it to the scene. */
-    UI_SetAllPoints(console_ui.ConsoleUI);
-    ResourceBar_Load(&res);
-    /* ResourceBar.fdf omits placement because game code owns its top-right ConsoleUI anchor. */
-    UI_SetParent(res.ResourceBarFrame, console_ui.ConsoleUI);
-    UI_SetPoint(res.ResourceBarFrame, FRAMEPOINT_TOPRIGHT, console_ui.ConsoleUI, FRAMEPOINT_TOPRIGHT, 0.0f, 0.0f);
+    hud_console_loaded = ConsoleUI_Load(&console_ui) && ResourceBar_Load(&res) &&
+        UI_EnsureFDF("UI\\FrameDef\\OpenWarcraft3\\ConsoleHud.fdf") &&
+        ConsoleUI_Bind(&console_ui, UI_FindFrame("OpenWarcraftConsoleUI")) &&
+        ResourceBar_Bind(&res, UI_FindFrame("OpenWarcraftResourceBar"));
+    if (!hud_console_loaded) return;
     res.ResourceBarGoldText->Stat = PLAYERSTATE_RESOURCE_GOLD;
     res.ResourceBarLumberText->Stat = PLAYERSTATE_RESOURCE_LUMBER;
     res.ResourceBarSupplyText->Stat = PLAYERSTATE_RESOURCE_FOOD_USED;
-}
-
-void UI_WriteMinimapFrame(void) {
-    uiFrame_t frame;
-
-    memset(&frame, 0, sizeof(frame));
-    frame.flags.type = FT_MINIMAP;
-    frame.color = COLOR32_WHITE;
-    UI_SetFrameRect(&frame, 0.0070f, 0.4525f, 0.1395f, 0.1395f);
-    UI_WriteProxyFrame(&frame, NULL, 0);
 }
 
 void UI_WriteConsoleBackdrop(LONG food_used) {
@@ -48,6 +34,7 @@ void UI_WriteConsoleBackdrop(LONG food_used) {
     COLOR32 upkeep_color;
 
     ConsoleEnsureLoaded();
+    if (!hud_console_loaded) return;
 
     upkeep_text = food_used > 80 ? "Heavy Upkeep" : food_used > 50 ? "Low Upkeep" : "No Upkeep";
     upkeep_color = food_used > 80 ? MAKE(COLOR32, 255, 64, 64, 255)
@@ -56,6 +43,5 @@ void UI_WriteConsoleBackdrop(LONG food_used) {
     UI_SetText(res.ResourceBarUpkeepText, "%s", upkeep_text);
     res.ResourceBarUpkeepText->Font.Color = upkeep_color;
 
-    /* ResourceBarFrame is a ConsoleUI child, so serialize the combined tree exactly once. */
     UI_WriteFrameWithChildren(console_ui.ConsoleUI, NULL);
 }

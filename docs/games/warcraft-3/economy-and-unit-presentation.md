@@ -29,6 +29,7 @@ non-movement classification (shadow type, footprint collision, repair targets, b
 FDF is authoritative for screen-space HUD geometry. `OpenWarcraft3/Hud.fdf` composes the info/build panel and authors command,
 inventory, portrait, multiselect, and tooltip geometry. C only binds entity state, assets, text, commands, and queue contents.
 Repeated controls use `GridOffset`/`GridColumns` with `UI_CloneGridItem()`; do not restore coordinate macros in `hud_local.h`.
+`OpenWarcraft3/ConsoleHud.fdf` composes Blizzard's ConsoleUI and ResourceBar templates and owns the minimap viewport.
 
 Repeated quest rows already have authoritative schemas in Blizzard's `QuestDialog.fdf`. `QuestListItem` and
 `QuestItemListItem` own row size and child placement. The server clones those templates, stacks each clone by the template's own

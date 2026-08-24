@@ -1,0 +1,10 @@
+Frame "SIMPLEFRAME" "OpenWarcraftConsoleUI" INHERITS WITHCHILDREN "ConsoleUI" {
+    SetAllPoints,
+    Frame "SIMPLEFRAME" "OpenWarcraftResourceBar" INHERITS WITHCHILDREN "ResourceBarFrame" {
+        SetPoint TOPRIGHT, "OpenWarcraftConsoleUI", TOPRIGHT, 0.0, 0.0,
+    }
+    Frame "MINIMAP" "OpenWarcraftMinimap" {
+        Width 0.1395, Height 0.1395,
+        Anchor TOPLEFT, 0.0070, -0.4525,
+    }
+}

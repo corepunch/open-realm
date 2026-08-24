@@ -42,7 +42,6 @@ FLOAT Theme_Float(LPCSTR key, LPCSTR def);
 
 /* Console (hud_console.c) */
 void UI_WriteConsoleBackdrop(LONG);
-void UI_WriteMinimapFrame(void);
 
 /* Command buttons (hud_commands.c) */
 LPFRAMEDEF UI_InventoryFrame(BYTE slot);
