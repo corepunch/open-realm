@@ -97,22 +97,23 @@ All reads go through `UnitIntegerField` / `UnitRealField` / `UnitBooleanField` /
 
 ## Ability Field Codes
 
-Abilities read from `AbilityData.slk` via `AB_Number(classname, "DataXY")`. The column naming uses letter+digit, **not** number+number — `Data11/12/13` don't exist and decode to 0.
+Ability custom data must be read through `AB_Data(classname, level, slot)`. ROC stores `Data<level><slot>` columns such as
+`Data11/12/13`; TFT stores the same slots as `Data<letter><level>` (`DataA1/B1/C1`). Direct `AB_Number` calls are release-specific.
 
 | Ability | Field | Column | Value |
 |---|---|---|---|
-| Goldmine (`ANmi`) | `DataA1` | Max Gold | e.g. 12500 |
-| Goldmine | `DataB1` | Mining Duration | |
-| Goldmine | `DataC1` | Mining Capacity | |
-| Harvest lumber | `DataA1` | Damage to Tree | |
-| Harvest lumber | `DataB1` | Lumber Capacity | |
-| Harvest lumber | `DataC1` | Gold Capacity | |
+| Goldmine (`Agld`) | slot 1 | Max Gold | 12500 |
+| Goldmine | slot 2 | Mining Duration | 1 |
+| Goldmine | slot 3 | Mining Capacity | 1 |
+| Harvest lumber (`Ahar`) | slot 1 | Damage to Tree | 1 |
+| Harvest lumber | slot 2 | Lumber Capacity | 10 |
+| Harvest lumber | slot 3 | Gold Capacity | 10 |
 
 Common ability fields (all abilities):
 - `Rng1` — cast/work range
 - `Dur1` — duration / cooldown
 - `Area1` — area radius
-- `DataA1`–`DataI1` — ability-specific data fields (letter A–I, not digits 1–9)
+- `AB_Data(..., level, slot)` — ability-specific data with ROC/TFT schema resolution
 
 ## Combat Damage Model (WC3 1.29)
 

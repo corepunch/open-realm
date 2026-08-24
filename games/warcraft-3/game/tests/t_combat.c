@@ -747,6 +747,57 @@ static const char slk_ability_helpers[] =
     "C;Y3;X10;K\"hwat\"\n"
     "E\n";
 
+static const char slk_ability_helpers_roc[] =
+    "ID;PWXL;N;EBB;Y3;X4\n"
+    "C;Y1;X1;K\"alias\"\n"
+    "C;Y1;X2;K\"Data11\"\n"
+    "C;Y1;X3;K\"Data12\"\n"
+    "C;Y1;X4;K\"Data13\"\n"
+    "C;Y2;X1;K\"Ahar\"\n"
+    "C;Y2;X2;K1\n"
+    "C;Y2;X3;K10\n"
+    "C;Y2;X4;K10\n"
+    "C;Y3;X1;K\"Agld\"\n"
+    "C;Y3;X2;K12500\n"
+    "C;Y3;X3;K1\n"
+    "C;Y3;X4;K1\n"
+    "E\n";
+
+/* ROC and TFT store the same semantic ability slots under different headers. */
+TEST(wc3_combat, ability_data_resolves_roc_and_tft_columns) {
+    sheetRow_t *old_abilities = game.config.abilities;
+    sheetRow_t *rows = parse_slk_string(slk_ability_helpers_roc);
+    game.config.abilities = rows;
+    T_FEQ(AB_Data("Ahar", 1, 1), 1.0f, 0.01f);
+    T_FEQ(AB_Data("Ahar", 1, 2), 10.0f, 0.01f);
+    T_FEQ(S_SpellData(MAKEFOURCC('A','h','a','r'), 1, 3), 10.0f, 0.01f);
+    free_slk_rows(rows);
+
+    rows = parse_slk_string(slk_ability_helpers);
+    game.config.abilities = rows;
+    T_FEQ(AB_Data("AHtb", 1, 1), 100.0f, 0.01f);
+    T_FEQ(AB_Data("AHtb", 1, 2), 55.0f, 0.01f);
+    T_FEQ(S_SpellData(MAKEFOURCC('A','H','t','b'), 1, 5), 42.0f, 0.01f);
+    game.config.abilities = old_abilities;
+    free_slk_rows(rows);
+}
+
+/* Agl2 is registered for coverage but has no data row; it must not erase the
+ * Agld globals initialized immediately before it. */
+TEST(wc3_combat, overlay_mine_does_not_reset_basic_mine_data) {
+    extern FLOAT MAX_GOLD, MINING_DURATION, MINING_CAPACITY;
+    sheetRow_t *old_abilities = game.config.abilities;
+    sheetRow_t *rows = parse_slk_string(slk_ability_helpers_roc);
+    game.config.abilities = rows;
+    a_goldmine.init("Agld", &a_goldmine);
+    T_FEQ(MAX_GOLD, 12500.0f, 0.01f);
+    T_FEQ(MINING_DURATION, 1.0f, 0.01f);
+    T_FEQ(MINING_CAPACITY, 1.0f, 0.01f);
+    T_NULL(a_goldmine_overlayed.init);
+    game.config.abilities = old_abilities;
+    free_slk_rows(rows);
+}
+
 TEST(wc3_combat, spell_helpers_read_slk_fields) {
     sheetRow_t *old_abilities = game.config.abilities;
     sheetRow_t *rows = parse_slk_string(slk_ability_helpers);

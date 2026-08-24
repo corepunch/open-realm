@@ -19,6 +19,7 @@
 #define SEL_SCALE 72
 #define MAX_BUILD_QUEUE 7
 #define MAX_EVENT_QUEUE 256
+#define MAX_MESSAGE_SUBSCRIBERS 8 // callbacks; bounded because messages are synchronous and game-local
 #define MAX_ENTITIES MAX_GAME_ENTITIES
 #define MAX_REGION_SIZE 16
 #define MAX_INVENTORY 6
@@ -506,6 +507,38 @@ typedef struct {
     LPEVENT responseTo;
 } GAMEEVENT;
 
+typedef enum {
+    GAME_MSG_HARVEST_MOVE_GOLD,
+    GAME_MSG_HARVEST_ENTER_MINE,
+    GAME_MSG_HARVEST_RETURN_GOLD,
+    GAME_MSG_HARVEST_DEPOSIT_GOLD,
+    GAME_MSG_HARVEST_RESUME_GOLD,
+    GAME_MSG_HARVEST_MOVE_LUMBER,
+    GAME_MSG_HARVEST_START_CHOP,
+    GAME_MSG_HARVEST_CHOP,
+    GAME_MSG_HARVEST_TREE_FELLED,
+    GAME_MSG_HARVEST_RETURN_LUMBER,
+    GAME_MSG_HARVEST_DEPOSIT_LUMBER,
+    GAME_MSG_HARVEST_RESUME_LUMBER,
+} GAMEMSGTYPE;
+
+typedef struct {
+    GAMEMSGTYPE type;
+    DWORD actor;
+    DWORD target;
+} GAMEMSG;
+typedef GAMEMSG const *LPCGAMEMSG;
+typedef void (*gameMsgFn)(LPCGAMEMSG, void *);
+
+typedef struct {
+    gameMsgFn fn;
+    void *ctx;
+} GAMEMSGSUB;
+
+typedef struct {
+    GAMEMSGSUB subs[MAX_MESSAGE_SUBSCRIBERS];
+} GAMEMESSAGES;
+
 typedef struct {
     DWORD class_id;
     VECTOR2 origin;
@@ -737,6 +770,7 @@ struct level_locals {
     LPJASS vm;
     LPCMAPINFO mapinfo;
     LEVELEVENTS events;
+    GAMEMESSAGES messages;
     LPQUEST quests;
     USHORT alliances[MAX_PLAYERS][MAX_PLAYERS];
     fowGrid_t fow;
@@ -771,6 +805,9 @@ BOOL G_SkipCutscene(void);
 void G_ClearCameraTarget(LPGAMECLIENT client, LPCSTR func);
 void G_SetPlayerText(LPGAMECLIENT, PLAYERTEXT, LPCSTR);
 GAMEEVENT *G_PublishEvent(LPEDICT, EVENTTYPE);
+BOOL G_SubscribeMessage(gameMsgFn, void *);
+void G_UnsubscribeMessage(gameMsgFn, void *);
+void G_PublishMessage(LPEDICT, GAMEMSGTYPE, LPEDICT);
 
 // g_fow.c
 void G_FowInit(void);
@@ -793,6 +830,7 @@ BOOL SP_FindEmptySpaceAround(LPEDICT, DWORD, LPVECTOR2, FLOAT *);
 LPEDICT SP_SpawnAtLocation(DWORD, DWORD, LPCVECTOR2);
 LPEDICT G_CreateDestructable(DWORD class_id, FLOAT x, FLOAT y, FLOAT z, FLOAT facing, FLOAT scale, DWORD variation);
 BOOL G_IsDestructable(LPCEDICT ent);
+void SP_monster_tree(LPEDICT);
 
 LPEDICT Waypoint_add(LPCVECTOR2);
 void M_CheckGround (LPEDICT);
@@ -962,6 +1000,7 @@ void G_ClientSetCameraPosition(LPEDICT, LPCVECTOR2);
 
 //  s_skills.c
 FLOAT AB_Number(LPCSTR, LPCSTR);
+FLOAT AB_Data(LPCSTR, DWORD, DWORD);
 DWORD GetAbilityIndex(ability_t const *);
 
 // g_combat.c

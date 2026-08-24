@@ -36,6 +36,8 @@ static void ai_walkmine(LPEDICT ent) {
 
 static void ai_goldmine_walkback(LPEDICT ent) {
     if (M_DistanceToGoal(ent) < (ent->collision + ent->goalentity->collision + 5)) {
+        LPEDICT townhall = ent->goalentity;
+        G_PublishMessage(ent, GAME_MSG_HARVEST_DEPOSIT_GOLD, townhall);
         ent->goalentity = ent->secondarygoal;
         LPPLAYER player = G_GetPlayerByNumber(ent->s.player);
         if (player) {
@@ -43,6 +45,7 @@ static void ai_goldmine_walkback(LPEDICT ent) {
         }
         ent->s.renderfx &= ~RF_HAS_GOLD;
         ent->harvested_gold = 0;
+        G_PublishMessage(ent, GAME_MSG_HARVEST_RESUME_GOLD, ent->goalentity);
         harvestgold_walk(ent);
     } else {
         unit_changeangle(ent);
@@ -68,6 +71,7 @@ void harvestgold_walk(LPEDICT ent) {
 
 void harvestgold_minegold(LPEDICT ent) {
     if (ent->goalentity->peonsinside < MINING_CAPACITY) {
+        G_PublishMessage(ent, GAME_MSG_HARVEST_ENTER_MINE, ent->goalentity);
         unit_setmove(ent, &harvestgold_move_minegold);
         ent->wait = MINING_DURATION;
         ent->s.renderfx |= RF_HIDDEN;
@@ -89,6 +93,7 @@ void harvestgold_walkback(LPEDICT ent) {
     }
     LPEDICT townhall = find_townhall(ent);
     if (townhall) {
+        G_PublishMessage(ent, GAME_MSG_HARVEST_RETURN_GOLD, townhall);
         ent->goalentity = townhall;
         unit_setmove(ent, &harvestgold_move_walkback);
     } else {
@@ -103,13 +108,14 @@ void harvestgold_wait(LPEDICT ent) {
 void harvest_gold_start(LPEDICT self, LPEDICT target) {
     self->goalentity = target;
     self->secondarygoal = target;
+    G_PublishMessage(self, GAME_MSG_HARVEST_MOVE_GOLD, target);
     harvestgold_walk(self);
 }
 
 void SP_ability_goldmine(LPCSTR classname, ability_t *self) {
-    MAX_GOLD = AB_Number(classname, "DataA1");        /* Max Gold */
-    MINING_DURATION = AB_Number(classname, "DataB1");  /* Mining Duration */
-    MINING_CAPACITY = AB_Number(classname, "DataC1");  /* Mining Capacity */
+    MAX_GOLD = AB_Data(classname, 1, 1);        /* Max Gold */
+    MINING_DURATION = AB_Data(classname, 1, 2); /* Mining Duration (s) */
+    MINING_CAPACITY = AB_Data(classname, 1, 3); /* Max Peons Inside */
 }
 
 ability_t a_goldmine = {
@@ -118,7 +124,8 @@ ability_t a_goldmine = {
 
 /* ---- Overlayed Gold Mine (Agl2): same as basic mine with overlay -------- */
 ability_t a_goldmine_overlayed = {
-    .init = SP_ability_goldmine,
+    /* Agl2 has no AbilityData row; reusing Agld's initializer reset the shared
+     * mining capacity to zero after Agld initialized and stranded every worker. */
 };
 
 /* ---- Entangle Gold Mine (Aent): NE transforms ownership of a mine ------- */

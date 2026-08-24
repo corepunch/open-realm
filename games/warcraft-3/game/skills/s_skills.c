@@ -12,6 +12,34 @@ FLOAT AB_Number(LPCSTR classname, LPCSTR field) {
     return str ? atof(str) : 0;
 }
 
+/* ROC names ability data columns Data11..Data34 (level, slot); TFT renamed the
+ * same slots DataA1..DataI4 (slot, level). Resolve the archive schema here so
+ * skill code names slots, not one release's physical column spelling. */
+FLOAT AB_Data(LPCSTR classname, DWORD level, DWORD index) {
+    char letter[16], numeric[16];
+    LPCSTR str;
+    static BOOL warned_missing_table;
+
+    if (!game.config.abilities) {
+        if (!warned_missing_table) {
+            fprintf(stderr, "AB_Data: AbilityData.slk is not loaded; custom ability data resolves to zero\n");
+            warned_missing_table = true;
+        }
+        return 0;
+    }
+    level = MAX(1, MIN(level, 4)); index = MAX(1, MIN(index, 9));
+    snprintf(letter, sizeof(letter), "Data%c%u", 'A' + (int)index - 1, (unsigned)level);
+    snprintf(numeric, sizeof(numeric), "Data%u%u", (unsigned)level, (unsigned)index);
+    str = FS_FindSheetCell(game.config.abilities, classname, letter);
+    if (!str)
+        str = FS_FindSheetCell(game.config.abilities, classname, numeric);
+    if (str)
+        return atof(str);
+    fprintf(stderr, "AB_Data: %.4s data slot %u level %u is absent from AbilityData.slk\n",
+            classname, (unsigned)index, (unsigned)level);
+    return 0;
+}
+
 static abilityitem_t abilitylist[] = {
     { STR_CmdStop, &a_stop },
     { STR_CmdMove, &a_move },

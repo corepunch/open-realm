@@ -23,6 +23,10 @@ void tree_stand(LPEDICT self) {
 
 void tree_die(LPEDICT self, LPEDICT attacker) {
     unit_setmove(self, &tree_move_death);
+    /* Begin the fall in the lethal transition itself.  Keeping the prior hit
+     * frame made the death snapshot continue to display an upright tree. */
+    if (self->animation)
+        self->s.frame = self->animation->interval[0];
     G_PublishEvent(self, EVENT_UNIT_DEATH);
     self->svflags |= SVF_DEADMONSTER;
 }
