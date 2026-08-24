@@ -141,6 +141,7 @@ typedef enum {
     EF_PENDING_ONLOAD = 1 << 16, EF_HAS_ANCHOR2     = 1 << 17,
     EF_WORD_WRAP      = 1 << 18, EF_IS_SCROLLFRAME  = 1 << 19,
     EF_SCROLLBAR_PART = 1 << 20, EF_CHECKBUTTON     = 1 << 21,
+    EF_LOGGED_GEOMETRY = 1 << 22,
 } uiWowXmlElemFlag_t;
 
 typedef struct {
@@ -151,7 +152,8 @@ typedef struct {
     fpoint_t pos, offset, text_off, offset2;
     char *point2, *relative_point2, *relative_name2;
     fsize_t size, edge, tile, text_inset;
-    FLOAT measured_h, alpha, font_size;
+    fsize_t measured;
+    FLOAT alpha, font_size;
     FLOAT backdrop_insets[4];
     uiFontJustificationH_t halign;
     uiFontJustificationV_t valign;
@@ -203,7 +205,7 @@ static LPCSTR UIWow_ElemStr(uiWowXmlElem_t const *e, uiWowXmlStr_t f) {
 static void UIWow_ElemSetStr(uiWowXmlElem_t *e, uiWowXmlStr_t f, LPCSTR s) {
     free(e->texts[f]);
     e->texts[f] = (s && *s) ? strdup(s) : NULL;
-    if (f == ELEM_TEXT) e->measured_h = 0;
+    if (f == ELEM_TEXT) e->measured = MAKE(fsize_t, 0, 0);
 }
 
 static void UIWow_ElemAppendStr(uiWowXmlElem_t *e, uiWowXmlStr_t f, LPCSTR s) {
@@ -365,9 +367,9 @@ static RECT UIWow_XmlComputeRect(int idx) {
     uiWowXmlElem_t const *e = &wow_xml.elems[idx];
     RECT parent = MAKE(RECT, 0, 0, 1, 1);
     LPCSTR point = e->texts[ELEM_POINT], rel_point = e->texts[ELEM_RELATIVE_POINT];
-    FLOAT default_h = e->type == WOW_XML_FONTSTRING ? UIWow_XmlY(e->font_size > 0.0f ? e->font_size : 14.0f) : 0.05f;
-    FLOAT eff_h = e->size.h > 0 ? e->size.h : (e->type == WOW_XML_FONTSTRING && e->measured_h > 0 ? e->measured_h : default_h);
-    RECT out = MAKE(RECT, 0, 0, e->size.w > 0 ? e->size.w : 0.2f, eff_h);
+    FLOAT w = e->size.w > 0 ? e->size.w : (e->type == WOW_XML_FONTSTRING ? e->measured.w : 0.0f);
+    FLOAT h = e->size.h > 0 ? e->size.h : (e->type == WOW_XML_FONTSTRING ? e->measured.h : 0.0f);
+    RECT out = MAKE(RECT, 0, 0, w, h);
     FLOAT ax, ay;
     if (e->parent >= 0 && e->parent < wow_xml.count) parent = UIWow_XmlComputeRect(e->parent);
     if (e->flags & EF_SET_ALL_PTS) return parent;

@@ -126,6 +126,7 @@ typedef enum {
     EF_IS_SCROLLFRAME = 1 << 19,
     EF_SCROLLBAR_PART = 1 << 20,
     EF_CHECKBUTTON    = 1 << 21,
+    EF_LOGGED_GEOMETRY = 1 << 22,
 } uiWowXmlElemFlag_t;
 
 typedef struct {
@@ -136,7 +137,7 @@ typedef struct {
     fpoint_t pos, offset, text_off, offset2; /* pos(x,y), anchor offset(ox,oy), text offset, second anchor offset */
     char *point2, *relative_point2, *relative_name2; /* second anchor point/relativeTo names (owned strings) */
     fsize_t size, edge, tile, text_inset; /* size(w,h), border edge, tile size, text inset */
-    FLOAT measured_h; /* renderer-measured text height; replaces size.h for FontStrings with y=0 */
+    fsize_t measured; /* renderer-measured natural FontString size when XML omits an axis */
     FLOAT alpha, font_size;
     FLOAT backdrop_insets[4];
     uiFontJustificationH_t halign;
@@ -206,7 +207,7 @@ static uiWowXmlStr_t const uiwow_button_part_name_fields[] = {
 static void UIWow_ElemSetStr(uiWowXmlElem_t *e, uiWowXmlStr_t f, LPCSTR s) {
     free(e->texts[f]);
     e->texts[f] = (s && *s) ? strdup(s) : NULL;
-    if (f == ELEM_TEXT) e->measured_h = 0; /* invalidate cached text height */
+    if (f == ELEM_TEXT) e->measured = MAKE(fsize_t, 0, 0); /* invalidate cached natural text size */
 }
 
 /* Append to a string field (used for script bodies). */
@@ -387,10 +388,9 @@ static RECT UIWow_XmlComputeRect(int idx) {
     RECT parent = MAKE(RECT, 0, 0, 1, 1);
     LPCSTR point = e->texts[ELEM_POINT];
     LPCSTR rel_point = e->texts[ELEM_RELATIVE_POINT];
-    FLOAT default_h = e->type == WOW_XML_FONTSTRING ? UIWow_XmlY(e->font_size > 0.0f ? e->font_size : 14.0f) : 0.05f;
-    /* FontStrings with no authored height use the renderer-measured text height when available. */
-    FLOAT eff_h = e->size.h > 0 ? e->size.h : (e->type == WOW_XML_FONTSTRING && e->measured_h > 0 ? e->measured_h : default_h);
-    RECT out = MAKE(RECT, 0, 0, e->size.w > 0 ? e->size.w : 0.2f, eff_h);
+    FLOAT w = e->size.w > 0 ? e->size.w : (e->type == WOW_XML_FONTSTRING ? e->measured.w : 0.0f);
+    FLOAT h = e->size.h > 0 ? e->size.h : (e->type == WOW_XML_FONTSTRING ? e->measured.h : 0.0f);
+    RECT out = MAKE(RECT, 0, 0, w, h);
     FLOAT ax, ay;
     if (e->parent >= 0 && e->parent < wow_xml.count) parent = UIWow_XmlComputeRect(e->parent);
     if (e->flags & EF_SET_ALL_PTS) return parent;
@@ -1770,6 +1770,15 @@ static LPMODEL UIWow_XMLCharCustomizeModel(int i) {
     return wow_ui.char_customize_model;
 }
 
+/* Report unresolved authored geometry once without fabricating a drawable or clickable rectangle. */
+static void UIWow_XMLWarnGeometry(uiWowXmlElem_t *e, LPCRECT r) {
+    if ((r->w > 0.0f && r->h > 0.0f) || e->flags & EF_LOGGED_GEOMETRY) return;
+    uiimport.Printf("UIWow: unresolved FrameXML geometry frame=%s source=%s width=%g height=%g\n",
+        UIWow_ElemStr(e, ELEM_NAME) ? e->texts[ELEM_NAME] : "<unnamed>",
+        UIWow_ElemStr(e, ELEM_SOURCE_FILE) ? e->texts[ELEM_SOURCE_FILE] : "<buffer>", r->w, r->h);
+    e->flags |= EF_LOGGED_GEOMETRY;
+}
+
 /* Draw one XML frame's own layer. whoa draws a frame's batches before recursing into child frames. */
 static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
         uiWowXmlElem_t *e = &wow_xml.elems[i]; RECT r; RECT uv = MAKE(RECT, 0, 0, 1, 1); char text[512];
@@ -1791,6 +1800,7 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
         }
         if (draw_layer != layer) return;
         r = UIWow_XmlComputeRect(i);
+        if (e->type != WOW_XML_FONTSTRING) UIWow_XMLWarnGeometry(e, &r);
         /* Compute scroll offset for descendants of ScrollFrames. Skip the
            ScrollFrame itself (it is the viewport) and its direct ScrollBar
            child (Slider) which must remain fixed. */
@@ -1906,16 +1916,16 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
         if (((elem_text && elem_text[0]) || (e->type == WOW_XML_EDITBOX && wow_xml.focus == i)) &&
             (e->type == WOW_XML_FONTSTRING || e->type == WOW_XML_EDITBOX || e->type == WOW_XML_BUTTON)) {
             LPCFONT f = UIWow_LoadFont((DWORD)e->font_size);
-            /* For FontStrings with no authored height, measure the wrapped text height so that
-               sibling FontStrings anchored to BOTTOMLEFT of this one are positioned correctly. */
-            if (f && e->type == WOW_XML_FONTSTRING && e->size.h == 0 && wow_ui.renderer->GetTextSize) {
+            /* FrameXML may leave either FontString axis to its renderer-measured natural size. */
+            if (f && e->type == WOW_XML_FONTSTRING && (e->size.w == 0 || e->size.h == 0) && wow_ui.renderer->GetTextSize) {
                 LPCSTR display = UIWow_XMLDisplayText(e, text, sizeof(text));
                 VECTOR2 sz = wow_ui.renderer->GetTextSize(&MAKE(drawText_t, .font = f, .text = display, .rect = r, .textWidth = r.w, .lineHeight = 1.33f, .flags = (e->flags & EF_WORD_WRAP) ? DRAW_WORD_WRAP : 0));
-                e->measured_h = sz.y;
-                /* Recompute r now that measured_h is known, so tr below uses the updated height. */
+                e->measured = MAKE(fsize_t, sz.x, sz.y);
+                /* Natural FontString dimensions are renderer-derived when XML leaves an axis unconstrained. */
                 r = UIWow_XmlComputeRect(i);
                 r.y -= scroll_off_y;
             }
+            UIWow_XMLWarnGeometry(e, &r);
             RECT tr = MAKE(RECT, r.x + e->text_inset.w + e->text_off.x, r.y + e->text_off.y, r.w - e->text_inset.w, r.h - e->text_inset.h);
             LPCSTR display = UIWow_XMLDisplayText(e, text, sizeof(text));
             if (f) {
@@ -2161,17 +2171,17 @@ static void UIWow_XMLEditInsert(uiWowXmlElem_t *e, LPCSTR text) {
         wow_xml.text_input.size = new_size;
     }
     UI_TextInput_Insert(&wow_xml.text_input, text);
-    e->measured_h = 0;
+    e->measured = MAKE(fsize_t, 0, 0);
 }
 
 static void UIWow_XMLEditBackspace(uiWowXmlElem_t *e) {
     if (UI_TextInput_Backspace(&wow_xml.text_input))
-        e->measured_h = 0;
+        e->measured = MAKE(fsize_t, 0, 0);
 }
 
 static void UIWow_XMLEditDelete(uiWowXmlElem_t *e) {
     if (UI_TextInput_Delete(&wow_xml.text_input))
-        e->measured_h = 0;
+        e->measured = MAKE(fsize_t, 0, 0);
 }
 
 BOOL UIWow_XMLTextInput(LPCSTR text) {
@@ -2202,7 +2212,7 @@ BOOL UIWow_XMLKeyEvent(int key, BOOL down, DWORD time) {
     result = UI_TextInput_Key(&wow_xml.text_input, key);
     switch (result) {
         case UI_TEXTINPUT_CONSUMED:
-            e->measured_h = 0;
+            e->measured = MAKE(fsize_t, 0, 0);
             return true;
         case UI_TEXTINPUT_ENTER:
             if (UIWow_ElemStr(e, ELEM_ON_ENTER_PRESSED))
