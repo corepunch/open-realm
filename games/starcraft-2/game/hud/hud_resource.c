@@ -38,7 +38,7 @@ static sc2BaseFrame_t *resource_find(void) {
         }
         return root;
     }
-    return SC2_HUD_FindFallbackFrameByType(SC2_FRAMETYPE_RESOURCE_PANEL);
+    return NULL;
 }
 
 static void write_one(sc2BaseFrame_t *f) {

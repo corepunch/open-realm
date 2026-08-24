@@ -30,7 +30,7 @@ cl_unit_layout.c renders generically (SCR_Clear → SCR_LayoutDrawOverlay)
 | File | Role |
 |------|------|
 | `games/starcraft-2/ui/sc2_layout.c` + `.h` | Parser: XML → `sc2BaseFrame_t[]` |
-| `games/starcraft-2/game/hud/hud.c` | Bridge: `sc2BaseFrame_t` → `uiFrame_t` + fallback frames + svc_layout framing |
+| `games/starcraft-2/game/hud/hud.c` | Bridge: `sc2BaseFrame_t` → `uiFrame_t` + svc_layout framing |
 | `games/starcraft-2/game/hud/hud_resource.c` | Resource panel (minerals/vespene/supply) |
 | `games/starcraft-2/game/hud/hud_console.c` | Console panel (menu bar, chat) |
 | `games/starcraft-2/game/hud/hud_command.c` | Command card (ability buttons) |
@@ -136,7 +136,8 @@ All panel writers call `SC2_HUD_EnsureLayout()` which loads `SC2_LayoutBuildGame
 SC2_HUD_EnsureLayout(NULL);
 ```
 
-`SC2_HUD_EnsureLayout` returns the frame array or a programmatic fallback when the XML layout can't be parsed (no SC2 data available):
+`SC2_HUD_EnsureLayout` returns only the parsed frame array. Missing or invalid `.SC2Layout` data is already diagnosed by the parser;
+the HUD must remain absent so the content error is visible instead of being concealed by invented geometry:
 
 ```c
 sc2BaseFrame_t *SC2_HUD_EnsureLayout(DWORD *count) {
@@ -144,36 +145,11 @@ sc2BaseFrame_t *SC2_HUD_EnsureLayout(DWORD *count) {
         layout_loaded = true;
         layout_ok = SC2_LayoutBuildGameUI();
     }
-    if (layout_ok) {
-        if (count) *count = (DWORD)sc2_layout.num_frames;
-        return sc2_layout.frames;
-    }
-    /* Fallback when SC2 data is unavailable */
-    if (SC2_HUD_BuildFallbackLayout()) {
-        if (count) *count = sc2_fb_count;
-        return sc2_fb_frames;
-    }
+    if (layout_ok) return SC2_LayoutGetFrames(count);
     if (count) *count = 0;
     return NULL;
 }
 ```
-
-## Programmatic fallback frames
-
-When `SC2_LayoutBuildGameUI()` fails (SC2 data missing), `SC2_HUD_BuildFallbackLayout()` builds a hardcoded `sc2BaseFrame_t[]` with:
-
-| Index | Frame | Type | Parent |
-|-------|-------|------|--------|
-| 0 | GameUI root | FT_FRAME | −1 (scene) |
-| 1 | ConsolePanel | FT_FRAME | 0 |
-| 2 | Console background texture | FT_SPRITE | 1 |
-| 3 | Minimap | FT_MINIMAP | 1 |
-| 4 | ResourcePanel | FT_FRAME | 0 |
-| 5 | Gold label | FT_TEXT | 4 |
-| 6 | Vespene label | FT_TEXT | 4 |
-| 7 | Supply label | FT_TEXT | 4 |
-
-Panel writers try `SC2_LayoutFindFrameByType()` first, falling back to `SC2_HUD_FindFallbackFrameByType()` which walks the fallback array by mapped `FRAMETYPE`.
 
 ## Shorthand anchor: `<Anchor relative="$parent"/>`
 
