@@ -178,13 +178,34 @@ TEST(wc3_game, hud_message_overlay_invalid_position_keeps_fdf_anchor) {
     T_FEQ(frame.Points.y[FPP_MIN].offset, -0.30f, 0.001f);
 }
 
-TEST(wc3_game, hud_build_timer_stays_inside_info_panel) {
-    T_ASSERT(BUILDQUEUE_TIMER_X + BUILDQUEUE_TIMER_W <= INFO_PANEL_X + INFO_PANEL_W);
+TEST(wc3_game, hud_build_queue_uses_authored_frames) {
+    LPFRAMEDEF root = UI_HudFrame("OpenWarcraftInfoPanel");
+    LPFRAMEDEF timer = UI_HudFrame("OpenWarcraftBuildTimeIndicator");
+    LPFRAMEDEF list = UI_HudFrame("OpenWarcraftBuildQueue");
+    LPFRAMEDEF multi = UI_HudFrame("OpenWarcraftMultiselect");
+    LPFRAMEDEF command = UI_HudFrame("OpenWarcraftCommandButton");
+    T_NOT_NULL(root); T_NOT_NULL(timer); T_NOT_NULL(list);
+    T_EQ(timer->Type, FT_SIMPLESTATUSBAR);
+    T_EQ(list->Type, FT_BUILDQUEUE);
+    T_FEQ(root->Width, 0.180f, 0.001f);
+    T_FEQ(timer->Width, 0.115f, 0.001f);
+    T_EQ(list->BuildQueue.FirstItem, UI_HudFrame("OpenWarcraftBuildQueueFirst"));
+    T_EQ(list->BuildQueue.BuildTimer, timer);
+    T_FEQ(list->BuildQueue.ItemOffset, 0.0281f, 0.001f);
+    T_NOT_NULL(multi); T_EQ(multi->Multiselect.NumColumns, 6);
+    T_NOT_NULL(command); T_EQ(command->Grid.NumColumns, 4);
+    T_FEQ(command->Grid.Offset.x, 0.0434f, 0.001f);
 }
 
-TEST(wc3_game, hud_portraits_align_at_info_panel_top) {
-    T_ASSERT(BUILDQUEUE_FIRST_Y < INFO_PANEL_Y + 0.0390f);
-    T_ASSERT(PORTRAIT_Y <= INFO_PANEL_Y);
+TEST(wc3_game, hud_grid_clone_uses_authored_stride) {
+    FRAMEDEF tmpl; LPFRAMEDEF item;
+    UI_InitFrame(&tmpl, FT_COMMANDBUTTON);
+    tmpl.Grid.Offset = MAKE(VECTOR2, 0.04f, -0.05f); tmpl.Grid.NumColumns = 3;
+    UI_SetPoint(&tmpl, FRAMEPOINT_TOPLEFT, NULL, FRAMEPOINT_TOPLEFT, 0.1f, -0.2f);
+    item = UI_CloneGridItem(&tmpl, NULL, 5);
+    T_NOT_NULL(item);
+    T_FEQ(item->Points.x[FPP_MIN].offset, 0.18f, 0.001f);
+    T_FEQ(item->Points.y[FPP_MIN].offset, -0.25f, 0.001f);
 }
 
 TEST(wc3_game, overhead_health_moves_above_single_bar_slot) {

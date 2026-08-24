@@ -26,8 +26,9 @@ non-movement classification (shadow type, footprint collision, repair targets, b
 
 ## Presentation Geometry
 
-FDF is authoritative for screen-space HUD geometry. `game/hud/hud_local.h` still contains legacy construction/training constants
-that must be removed as each panel is converted; do not treat those C values as the layout contract or add new geometry there.
+FDF is authoritative for screen-space HUD geometry. `OpenWarcraft3/Hud.fdf` composes the info/build panel and authors command,
+inventory, portrait, multiselect, and tooltip geometry. C only binds entity state, assets, text, commands, and queue contents.
+Repeated controls use `GridOffset`/`GridColumns` with `UI_CloneGridItem()`; do not restore coordinate macros in `hud_local.h`.
 
 Repeated quest rows already have authoritative schemas in Blizzard's `QuestDialog.fdf`. `QuestListItem` and
 `QuestItemListItem` own row size and child placement. The server clones those templates, stacks each clone by the template's own
