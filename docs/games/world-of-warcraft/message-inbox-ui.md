@@ -118,8 +118,8 @@ Implemented in the current tree:
 - bounded version-1 `wow_inbox` snapshots with up to eight records;
 - quest reward → unread inbox record and client-begin snapshot delivery;
 - server-validated `message_read <id>` handling;
-- client-owned active-game notification strip; unread records use `TutorialFrameAlert` with the 34x42 size, bottom-55 anchor, and
-  texture crop from `TutorialFrame.xml`;
+- project FrameXML notification strip (`share/Interface/FrameXML/OpenWarcraftNotifications.xml`); its virtual template owns the
+  `TutorialFrameAlert` 34x42 size, bottom-55 anchor, 36px stride, and texture crop for the bounded named slots;
 - project FrameXML message panel (`share/Interface/FrameXML/OpenWarcraftInbox.xml`); C binds the selected server-authored title/body
   and never assigns its backdrop, rectangle, or typography;
 - regression coverage for reward delivery and read-state changes.
@@ -136,9 +136,8 @@ frames.
 
 At client begin the server sends versioned `wow_tutorial` triggers for tutorial
 IDs 1 (`Questgivers`) and 2 (`Movement`), alongside the welcome-window request.
-This mirrors `TutorialFrame_NewTutorial`, which receives numeric
-`TUTORIAL_TRIGGER` events in the original Lua. Each appears above the action bar as the 34x42
-`TutorialFrameAlert` crop authored by `TutorialFrame.xml`; clicking an alert
+This mirrors `TutorialFrame_NewTutorial`, which receives numeric `TUTORIAL_TRIGGER` events in the original Lua. Each appears above
+the action bar in a named slot authored by `OpenWarcraftNotifications.xml`; clicking an alert
 removes it from the bounded client queue and opens the same localized tutorial
 panel for that ID. Inbox notifications share the strip geometry but remain
 separate server-authored records.

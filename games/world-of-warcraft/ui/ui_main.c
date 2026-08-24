@@ -20,11 +20,9 @@ uiWowState_t wow_ui;
 static BOOL uiWow_menu_commands_registered;
 static BOOL UIWow_GameOverlayMouseEvent(uiMouseEvent_t event, int x, int y);
 
-#define WOW_TIP_ALERT_Y 671.0f // UI pixels; TutorialFrame.xml anchors alerts 55px above the bottom edge
-#define WOW_TIP_ALERT_W 34.0f // UI pixels; TutorialFrameAlert visible crop width
-#define WOW_TIP_ALERT_H 42.0f // UI pixels; TutorialFrameAlert visible crop height
-#define WOW_TIP_ALERT_STEP 36.0f // UI pixels; horizontal spacing for adjacent alerts
 #define WOW_INBOX_LAYOUT "Interface\\FrameXML\\OpenWarcraftInbox.xml" // archive path; project XML owns the open-message panel
+#define WOW_NOTIFICATION_LAYOUT "Interface\\FrameXML\\OpenWarcraftNotifications.xml" // archive path; project XML owns alert slots
+#define WOW_NOTIFICATION_COUNT (WOW_UI_MAX_TUTORIAL_ALERTS + WOW_UI_MAX_MESSAGES) // slots; maximum tutorial and inbox alerts combined
 
 /* -------------------------------------------------------------------------
  * Shared helpers used by ui_lua.c and ui_loading.c
@@ -204,6 +202,27 @@ LPCFONT UIWow_LoadFont(DWORD size) {
 }
 
 static void UIWow_RegisterMenuCommands(void);
+
+/* Stable slot names let C map bounded records to XML without carrying rectangles. */
+static void UIWow_NotificationName(DWORD slot, LPSTR name, size_t size) {
+    snprintf(name, size, "OpenWarcraftNotification%u", (unsigned)slot + 1);
+}
+
+/* Game-mode entry requires the complete authored alert strip. */
+static BOOL UIWow_LoadNotificationLayout(void) {
+    char name[64];
+    if (!UIWow_XMLLoadFile(WOW_NOTIFICATION_LAYOUT)) {
+        UIWow_Printf("UIWow: required notification layout %s is missing\n", WOW_NOTIFICATION_LAYOUT);
+        return false;
+    }
+    FOR_LOOP(i, WOW_NOTIFICATION_COUNT) {
+        UIWow_NotificationName(i, name, sizeof(name));
+        if (UIWow_XmlFindByNamePub(name) >= 0) continue;
+        UIWow_Printf("UIWow: required notification FrameXML element %s is missing\n", name);
+        return false;
+    }
+    return true;
+}
 
 /* -------------------------------------------------------------------------
  * Lifecycle
@@ -426,6 +445,7 @@ void UIWow_EnterGameMode(void) {
     wow_ui.game_mode = true;
     wow_ui.current_menu[0] = '\0';
     UIWow_XMLClearFrames();  /* drop glue-screen elements; game windows load fresh */
+    UIWow_LoadNotificationLayout();
 }
 
 typedef struct { LPCSTR command; void (*function)(void); } uiWowMenuCommandDef_t;
@@ -576,9 +596,35 @@ static void UIWow_GameCommand(LPCSTR command, void const *data, DWORD size) {
         UIWow_Printf("UIWow: unsupported game command '%s' (%u bytes)\n", command, (unsigned)size);
 }
 
+/* Hit testing resolves the same named rectangle that FrameXML draws. */
+static BOOL UIWow_NotificationContains(DWORD slot, LPCVECTOR2 pos) {
+    char name[64]; int idx; RECT r;
+    UIWow_NotificationName(slot, name, sizeof(name)); idx = UIWow_XmlFindByNamePub(name);
+    if (idx < 0) return false;
+    UIWow_XmlComputeRectPub(idx, &r.x, &r.y, &r.w, &r.h);
+    return Rect_contains(&r, pos);
+}
+
+/* Map the bounded tutorial/inbox models onto sequential authored slots. */
+static void UIWow_UpdateNotificationSlots(void) {
+    char name[64]; DWORD slot = 0;
+    FOR_LOOP(i, WOW_NOTIFICATION_COUNT) {
+        UIWow_NotificationName(i, name, sizeof(name)); UIWow_XMLSetFrameVisible(name, false);
+    }
+    if (UIWow_TipsEnabled()) {
+        FOR_LOOP(i, wow_ui.tutorial_alert_count) {
+            UIWow_NotificationName(slot++, name, sizeof(name)); UIWow_XMLSetFrameVisible(name, true);
+        }
+    }
+    FOR_LOOP(i, wow_ui.message_count) {
+        if (!(wow_ui.messages[i].flags & WOW_UI_MESSAGE_UNREAD)) continue;
+        UIWow_NotificationName(slot++, name, sizeof(name)); UIWow_XMLSetFrameVisible(name, true);
+    }
+}
+
 static BOOL UIWow_GameOverlayMouseEvent(uiMouseEvent_t event, int x, int y) {
     VECTOR2 pos = UIWow_MouseFdf(x, y);
-    DWORD unread = 0;
+    DWORD slot = 0;
 
     if (event == UI_MOUSE_UP) return UIWow_WindowMouseUp(pos.x, pos.y);
     if (event != UI_MOUSE_DOWN) return false;
@@ -586,9 +632,7 @@ static BOOL UIWow_GameOverlayMouseEvent(uiMouseEvent_t event, int x, int y) {
     if (UIWow_WindowMouseDown(pos.x, pos.y)) return true;
 
     FOR_LOOP(i, wow_ui.tutorial_alert_count) {
-        FLOAT icon_x = 0.5f-WOW_TIP_ALERT_W/2048.0f + unread++*WOW_TIP_ALERT_STEP/1024.0f;
-        if (pos.x < icon_x || pos.x > icon_x+WOW_TIP_ALERT_W/1024.0f ||
-            pos.y < WOW_TIP_ALERT_Y/768.0f || pos.y > (WOW_TIP_ALERT_Y+WOW_TIP_ALERT_H)/768.0f) continue;
+        if (!UIWow_NotificationContains(slot++, &pos)) continue;
         UIWow_ShowTip(wow_ui.tutorial_alerts[i]);
         memmove(&wow_ui.tutorial_alerts[i], &wow_ui.tutorial_alerts[i+1], (wow_ui.tutorial_alert_count-i-1)*sizeof(wow_ui.tutorial_alerts[0]));
         wow_ui.tutorial_alert_count--;
@@ -597,11 +641,8 @@ static BOOL UIWow_GameOverlayMouseEvent(uiMouseEvent_t event, int x, int y) {
 
     FOR_LOOP(i, wow_ui.message_count) {
         wowUiMessage_t *message = &wow_ui.messages[i];
-        FLOAT icon_x;
         if (!(message->flags & WOW_UI_MESSAGE_UNREAD)) continue;
-        icon_x = 0.5f-WOW_TIP_ALERT_W/2048.0f + unread++*WOW_TIP_ALERT_STEP/1024.0f;
-        if (pos.x < icon_x || pos.x > icon_x+WOW_TIP_ALERT_W/1024.0f ||
-            pos.y < WOW_TIP_ALERT_Y/768.0f || pos.y > (WOW_TIP_ALERT_Y+WOW_TIP_ALERT_H)/768.0f) continue;
+        if (!UIWow_NotificationContains(slot++, &pos)) continue;
         if (!UIWow_OpenInbox(message)) return false;
         if (uiimport.ServerCommand) {
             char command[64];
@@ -615,31 +656,9 @@ static BOOL UIWow_GameOverlayMouseEvent(uiMouseEvent_t event, int x, int y) {
 
 /* Draw client-owned inbox notifications over the active game view. */
 static void UIWow_DrawGameOverlay(void) {
-    RECT rect;
-    DWORD unread = 0;
-
     UIWow_EnsureRenderer();
-    UIWow_DrawWindows();
-    if (!wow_ui.renderer || !wow_ui.renderer->DrawImageEx) return;
     if (!UIWow_TipsEnabled()) wow_ui.tutorial_alert_count = 0;
-    FOR_LOOP(i, wow_ui.tutorial_alert_count) {
-        rect = MAKE(RECT, 0.5f-WOW_TIP_ALERT_W/2048.0f + unread++*WOW_TIP_ALERT_STEP/1024.0f,
-                    WOW_TIP_ALERT_Y/768.0f, WOW_TIP_ALERT_W/1024.0f, WOW_TIP_ALERT_H/768.0f);
-        wow_ui.renderer->DrawImageEx(&MAKE(drawImage_t,
-            .texture = UIWow_LoadTexture("Interface\\TutorialFrame\\TutorialFrameAlert"),
-            .shader = SHADER_UI, .alphamode = BLEND_MODE_BLEND, .screen = rect,
-            .uv = MAKE(RECT,0,0,0.53125f,0.6875f), .color = COLOR32_WHITE));
-    }
-    FOR_LOOP(i, wow_ui.message_count) {
-        wowUiMessage_t const *message = &wow_ui.messages[i];
-        if (!(message->flags & WOW_UI_MESSAGE_UNREAD)) continue;
-        rect = MAKE(RECT, 0.5f-WOW_TIP_ALERT_W/2048.0f + unread++*WOW_TIP_ALERT_STEP/1024.0f,
-                    WOW_TIP_ALERT_Y/768.0f, WOW_TIP_ALERT_W/1024.0f, WOW_TIP_ALERT_H/768.0f);
-        wow_ui.renderer->DrawImageEx(&MAKE(drawImage_t,
-            .texture = UIWow_LoadTexture("Interface\\TutorialFrame\\TutorialFrameAlert"),
-            .shader = SHADER_UI, .alphamode = BLEND_MODE_BLEND, .screen = rect,
-            .uv = MAKE(RECT,0,0,0.53125f,0.6875f), .color = COLOR32_WHITE));
-    }
+    UIWow_UpdateNotificationSlots(); UIWow_DrawWindows();
 }
 
 /* -------------------------------------------------------------------------
