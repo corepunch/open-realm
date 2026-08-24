@@ -9,6 +9,13 @@ static void UI_SetPortraitFrameModel(LPFRAMEDEF frame, DWORD model) {
     frame->Portrait.model = model;
 }
 
+/* Dynamic lists repeat authored row geometry; only the row index is runtime data. */
+static LPFRAMEDEF UI_CloneStackedRow(LPCFRAMEDEF tmpl, LPFRAMEDEF parent, DWORD row) {
+    LPFRAMEDEF frame = UI_CloneFrameTree(tmpl, parent);
+    if (frame) UI_SetPoint(frame, FRAMEPOINT_TOPLEFT, parent, FRAMEPOINT_TOPLEFT, 0.0f, -(FLOAT)row * frame->Height);
+    return frame;
+}
+
 /* Correct stale war3skins attribute paths before they enter the image configstring table. */
 static LPCSTR UI_ResolveTextureAlias(LPCSTR path) {
     static struct { LPCSTR from, to; } const aliases[] = {

@@ -26,8 +26,13 @@ non-movement classification (shadow type, footprint collision, repair targets, b
 
 ## Presentation Geometry
 
-Construction/training geometry is owned by `game/hud/hud_local.h`. The active queue portrait is lifted inside its frame, and the
-timer width must satisfy `BUILDQUEUE_TIMER_X + BUILDQUEUE_TIMER_W <= INFO_PANEL_X + INFO_PANEL_W`.
+FDF is authoritative for screen-space HUD geometry. `game/hud/hud_local.h` still contains legacy construction/training constants
+that must be removed as each panel is converted; do not treat those C values as the layout contract or add new geometry there.
+
+Repeated quest rows already have authoritative schemas in Blizzard's `QuestDialog.fdf`. `QuestListItem` and
+`QuestItemListItem` own row size and child placement. The server clones those templates, stacks each clone by the template's own
+height, then binds title, selection color, and command data to the named children. It must not spawn generic text rows or impose a
+parallel width/stride.
 
 Overhead resource bars use two fixed slots in `renderer/r_ents.c`: mana keeps the lower/original slot, and health occupies the slot
 above it. Without mana, health still sits one bar height above the projected model point.
