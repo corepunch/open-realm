@@ -19,9 +19,10 @@ The worker could therefore never enter.
 ## Immobile Units
 
 `AI_IMMOBILE` is the single no-translation/no-facing-change flag. `SP_SpawnUnit` derives it from authoritative `UnitUI.slk:isBldg`
-through `UNIT_IS_BUILDING`; there is no class-ID list. Ground move orders reject immobile units, and the low-level movement and turn
-functions enforce the contract for combat and future order paths too. An immobile tower may still execute actions, but it does not
-rotate under the current contract.
+through `UNIT_IS_BUILDING`; there is no class-ID list. Movement selectors (move, attack-move, patrol) and ground move orders reject
+immobile units, and the low-level movement and turn functions enforce the contract for combat and future order paths too. An immobile
+tower may still execute actions, but it does not rotate under the current contract. `UNIT_IS_BUILDING` remains the correct lookup for
+non-movement classification (shadow type, footprint collision, repair targets, building-kill XP, fog rendering, selection grouping).
 
 ## Presentation Geometry
 

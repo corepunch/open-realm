@@ -41,7 +41,7 @@ static BOOL patrol_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
     BOOL any = false;
 
     FOR_SELECTED_UNITS(clent->client, ent) {
-        if (UNIT_IS_BUILDING(ent->class_id) || UNIT_SPEED(ent->class_id) <= 0) {
+        if ((ent->aiflags & AI_IMMOBILE) || UNIT_SPEED(ent->class_id) <= 0) {
             continue;
         }
         VECTOR2 target = *location;
