@@ -216,6 +216,7 @@ static void R_RenderUberSplat(const renderEntity_t *entity, LPCVECTOR2 origin) {
 }
 
 static void R_RenderShadow(const renderEntity_t *entity, LPCVECTOR2 origin) {
+#ifndef USE_SHADOWMAPS
     LPCTEXTURE shadow = entity->shadow;
     BOX3 bounds;
 
@@ -255,6 +256,7 @@ static void R_RenderShadow(const renderEntity_t *entity, LPCVECTOR2 origin) {
         }
     }
     R_RenderRectSplat(&mins, &maxs, shadow, tr.shader[SHADER_SHADOWSPLAT], shadowColor);
+#endif
 }
 
 static void R_RenderSelectedCircle(const renderEntity_t *entity, LPCVECTOR2 origin) {

@@ -1,4 +1,5 @@
 #include "renderer/r_game.h"
+#include "wow_assets.h"
 #include "renderer/r_local.h"
 #include "wow/r_wowmap.h"
 #include "m2/r_m2_format.h"
@@ -9,6 +10,8 @@ void R_DrawTerrainShadows(void);
 void R_DrawAlphaSurfaces(void);
 bool R_TraceLocation(viewDef_t const *viewdef, FLOAT x, FLOAT y, LPVECTOR3 output);
 float GetAccurateHeightAtPoint(float sx, float sy);
+
+static LPTEXTURE s_quest_active_icon;
 
 m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size, BOOL *buffer_owned);
 void M2_Init(void);
@@ -48,6 +51,7 @@ void R_GameLoadAssets(void) {
     LPTEXTURE ring = R_MakeSelectionCircleTexture();
     FOR_LOOP(i, NUM_SELECTION_CIRCLES)
         tr.texture[TEX_SELECTION_CIRCLE+i] = ring;
+    s_quest_active_icon = R_LoadTexture(WOW_QUEST_ACTIVE_ICON);
 }
 
 void R_GameInit(void) {
@@ -250,7 +254,7 @@ void R_GameRenderModel(renderEntity_t const *entity) {
         /* A visible name owns the base slot; TalkToMe's authored bottom clearance separates the marker above it. */
         if (entity->name && *entity->name) marker.origin.z += M2_VisibleBottom(marker.model->m2);
         marker.attached_model = marker.overhead_model = NULL;
-        marker.overhead_sprite = NULL;
+        marker.flags &= ~(RF_HAS_QUEST | RF_QUEST_COMPLETE);
         marker.scale = 1.0f;
         /* The parent frame crosses TalkToMe's unrelated sequence every 1533 ms; the marker owns Stand's clock. */
         marker.frame = marker.oldframe = tr.viewDef.time;
@@ -260,10 +264,11 @@ void R_GameRenderModel(renderEntity_t const *entity) {
         R_GetEntityMatrix(&marker, &attached_transform);
         M2_RenderModel(&marker, marker.model->m2, &attached_transform);
     }
-    if (entity->overhead_sprite) {
+    if (s_quest_active_icon && (entity->flags & RF_HAS_QUEST)) {
         VECTOR3 origin = entity->origin;
         origin.z += (M2_GroundOffset(entity->model->m2) + M2_HeadHeight(entity->model->m2)) * entity->scale + 0.25f;
-        R_DrawBillboardSprite(entity->overhead_sprite, &origin, 0.5f, entity->overhead_sprite_color);
+        COLOR32 tint = (entity->flags & RF_QUEST_COMPLETE) ? MAKE(COLOR32, 255, 215, 0, 255) : COLOR32_WHITE;
+        R_DrawBillboardSprite(s_quest_active_icon, &origin, 0.5f, tint);
     }
     attachment_id = (tr.viewDef.rdflags & RDF_USE_ENTITY_CAMERA) ? 0 : 1;
     if (entity->attached_model &&
@@ -342,6 +347,7 @@ bool R_GameTraceModel(renderEntity_t const *entity, LPCLINE3 line, LPFLOAT dista
     return true;
 }
 
+#ifndef USE_SHADOWMAPS
 bool R_GameRenderShadow(renderEntity_t const *entity, LPCVECTOR2 origin) {
     LPCTEXTURE shadow;
     BOOL use_fast_blob;
@@ -398,6 +404,7 @@ bool R_GameRenderShadow(renderEntity_t const *entity, LPCVECTOR2 origin) {
     }
     return true;
 }
+#endif
 
 FLOAT R_GameSelectionRadius(renderEntity_t const *entity) {
     /* Fractional WoW collision radii need a minimum visual footprint around the model. */

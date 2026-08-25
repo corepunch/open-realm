@@ -143,8 +143,10 @@ static void SP_SpawnDestructable(LPEDICT edict) {
      * collision circle.  Fabricating a 50-unit circle on every tree was a prime
      * cause of units sticking on trunks. */
     edict->collision = radius > 0.0f ? radius : 0.0f;
+#ifndef USE_SHADOWMAPS
     edict->s.shadow = G_LoadShadowTexture(DESTRUCTABLE_SHADOW(edict->class_id), false);
     edict->s.shadow_rect = 0;
+#endif
     edict->health.value = DESTRUCTABLE_HIT_POINT_MAXIMUM(edict->class_id);
     edict->health.max_value = DESTRUCTABLE_HIT_POINT_MAXIMUM(edict->class_id);
     edict->targtype = G_GetTargetType(DESTRUCTABLE_TARGETED_AS(edict->class_id));

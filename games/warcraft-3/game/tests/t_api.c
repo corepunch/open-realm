@@ -22,6 +22,8 @@
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
 void reset_entities(void);
 void setup_test_world(void);
+BOOL run_test_jass(LPCSTR src);
+extern LPPLAYER currentplayer;
 
 
 
@@ -42,6 +44,37 @@ void setup_test_world(void);
 static LPPLAYER test_player(int idx) {
     game.clients[idx].ps.number = (DWORD)idx;
     return &game.clients[idx].ps;
+}
+
+static LPCSTR skip_cutscene_cvar(LPCSTR name, LPCSTR fallback) {
+    return !strcmp(name, "skip_cutscene") ? "1" : fallback;
+}
+
+/* Fast-forward only changes cinematic timing; JASS retains ownership of the input/UI lifecycle. */
+TEST(wc3_api, skip_cutscene_preserves_scripted_input_and_ui_state) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+    LPGAMECLIENT gc = &game.clients[0];
+
+    gi.CvarString = skip_cutscene_cvar;
+    currentplayer = &gc->ps;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call ShowInterface(false, 0.0)\n"
+        "  call EnableUserControl(false)\n"
+        "endfunction\n"));
+    T_EQ(gc->ps.client_ui_state, CLIENT_UI_CINEMATIC);
+    T_ASSERT(gc->no_control);
+
+    currentplayer = &gc->ps;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call ShowInterface(true, 0.0)\n"
+        "  call EnableUserControl(true)\n"
+        "endfunction\n"));
+    T_EQ(gc->ps.client_ui_state, CLIENT_UI_GAME);
+    T_ASSERT(!gc->no_control);
+    currentplayer = NULL;
+    gi.CvarString = old_cvar;
 }
 
 /* Create a minimal unit in slot 0 and return it. */

@@ -118,13 +118,8 @@ typedef struct {
 typedef struct {
     VECTOR3 origin;
     LPCMODEL model;
-    LPCMODEL attached_model;
-    LPCMODEL overhead_model;
     LPCTEXTURE skin;
     LPCTEXTURE splat;
-    LPCTEXTURE shadow;
-    LPCTEXTURE overhead_sprite;       /* billboarded sprite drawn above the entity (NULL = none) */
-    COLOR32    overhead_sprite_color; /* tint applied to overhead_sprite (WHITE = no tint) */
     LPCSTR name;                      /* server-authored world label (NULL = none) */
     DWORD number;
     DWORD team;
@@ -132,16 +127,21 @@ typedef struct {
     DWORD display_id;
     DWORD appearance;
     DWORD equipment;
+    LPCMODEL attached_model;
+    LPCMODEL overhead_model;
+    VECTOR3 rotation;   /* 3D rotation for renderer-only static objects (WoW map objects, doodads) */
 #endif
     DWORD frame;
     DWORD oldframe;
     DWORD flags;
     float angle;        /* 1D yaw for dynamic actors (units, players); grounded Warcraft III entities use this */
-    VECTOR3 rotation;   /* 3D rotation for renderer-only static objects (WoW map objects, doodads) */
     float scale;
     float radius;
     float splatsize;
+#ifndef USE_SHADOWMAPS
+    LPCTEXTURE shadow;
     RECT shadow_rect;
+#endif
     BYTE health;   /* current HP fraction, 0-255 (0 = dead/no bar) */
     BYTE mana;     /* current mana fraction, 0-255 (0 = no mana bar) */
 } renderEntity_t;

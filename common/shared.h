@@ -157,14 +157,19 @@ enum {
     FLAG(RF_HOSTILE, 13),
     FLAG(RF_HOVERED, 14),
     FLAG(RF_GROUND_EFFECT, 15),
-    FLAG(RF_MOUNTED, 16), /* riding a mount; overhead name resolves to the mounted attachment */
+    FLAG(RF_MOUNTED, 16),      /* riding a mount; overhead name resolves to the mounted attachment */
+    FLAG(RF_HAS_QUEST, 17),    /* show overhead "?" sprite */
+    FLAG(RF_QUEST_COMPLETE, 18), /* tint "?" sprite yellow */
 };
 
 enum {
     FLAG(EF_GROUND_ANCHOR, 0),
     FLAG(EF_FOW_BLOCKER, 1),
     FLAG(EF_FOW_REVEALER, 2),
-    FLAG(EF_MOUNTED, 3), /* WoW: entity is riding a mount */
+    FLAG(EF_MOUNTED, 3),        /* WoW: entity is riding a mount */
+    FLAG(EF_HAS_QUEST, 4),      /* entity has a quest in progress — show "?" sprite */
+    FLAG(EF_QUEST_COMPLETE, 5), /* quest is ready to turn in — tint "?" yellow */
+    FLAG(EF_HOSTILE, 6),        /* entity is hostile — renderer shows red nameplate */
 };
 
 enum {
@@ -385,27 +390,24 @@ typedef struct {
 } svQuestEntry_t;
 
 struct playerState_s {
-    DWORD number;
-    QUATERNION viewquat;
-    VECTOR3 viewangles;
-    VECTOR2 origin;
-    FLOAT distance;
-    DWORD fov;      /* vertical field of view in degrees */
-    DWORD rdflags;
-    DWORD uiflags;
-    DWORD client_ui_state;
-    DWORD cinematic_portrait;   /* model index of the cinematic transmission portrait (0 = none) */
-    DWORD team;
-    DWORD color;    // player color index (0 = red, 1 = blue, … see PLAYER_COLOR_*)
-    DWORD race;     // map player race, see playerRace_t
-    LPSTR name;     // player display name (set from mapplayer or by script)
-    LONG  start_location; // start location index assigned to this player (-1 = none)
-    FLOAT cinefade;
-    DWORD selected_entity;  /* entity number this player has targeted (0 = none) */
-    USHORT stats[MAX_STATS];
-    LPCSTR texts[MAX_STATS];
-    svQuestEntry_t quest_log[SV_MAX_QUEST_LOG];
-    DWORD quest_count;
+    DWORD number;                   // client slot index
+    QUATERNION viewquat;            // canonical 3D view orientation sent to the renderer
+    VECTOR3 viewangles;             // euler pitch/yaw for WoW orbit camera math; only transmitted #ifdef WOW (can't round-trip euler from quat losslessly)
+    VECTOR2 origin;                 // 2D camera focus point; XY only because all games here are isometric/orbit, not first-person
+    FLOAT distance;                 // camera distance from origin for orbit/isometric view
+    DWORD fov;                      // vertical FOV in degrees; transmitted as NFT_BYTE so BYTE would suffice
+    DWORD rdflags;                  // refdef flags (underwater tint, etc.)
+    DWORD uiflags;                  // per-widget HUD visibility bits, set server-side via FDF/svc_layout pipeline
+    DWORD client_ui_state;          // coarse UI mode: CLIENT_UI_LOADING/GAME/CINEMATIC; state machine, not a bitfield like uiflags
+    DWORD cinematic_portrait;       // WC3 only: model index of transmission talking-head portrait (set by JASS TransmissionFromUnitWithNameBJ), 0 = none
+    DWORD team;                     // alliance group (1-based, 0 = none); NOT the same as color — multiple colors can share a team
+    DWORD color;                    // cosmetic color slot (0 = red, 1 = blue, …); drives minimap dot and skin lookup, NOT the same as team
+    DWORD race;                     // map player race (playerRace_t), used to resolve WC3 race UI skins
+    LPSTR name;                     // player display name from mapplayer or JASS script; NOTE: LPSTR but no caller mutates through this — LPCSTR would be correct
+    LONG  start_location;           // start location index for JASS GetStartLocationX/Y (-1 = none)
+    FLOAT cinefade;                 // full-screen fade alpha [0,1]; collapsed from Q2's blend[4] since no game here uses tinted overlays
+    USHORT stats[MAX_STATS];        // fast-update integer stats; USHORT (vs Q3's int) to halve wire size
+    LPCSTR texts[MAX_STATS];        // string stats parallel to stats[], for UI text fields
 };
 
 /* One-shot events embedded in entityState_t.event.
@@ -426,29 +428,37 @@ typedef struct entityState_s {
         struct { VECTOR2 origin2; FLOAT z; };
     };
     FLOAT angle;
+#ifdef WOW
     VECTOR3 rotation;
+#endif
     FLOAT scale;
     FLOAT radius;
     BYTE stats[ENT_STAT_COUNT];
-    DWORD player;
-    DWORD model;
-    DWORD model2;
+    BYTE player;
+    BYTE model;
+    BYTE model2;
+    USHORT image;
+    BYTE sound;
+    DWORD frame;
+    BYTE event;
+    BYTE flags;
+    BYTE renderfx;
+    BYTE ability;
+    DWORD splat;
 #ifdef WOW
     DWORD appearance;
     DWORD equipment;
 #endif
-    DWORD image;
-    DWORD overhead_sprite; /* billboarded sprite: bits[14:0]=image index, bit[15]=yellow tint flag (0=none) */
-    DWORD sound;
-    DWORD frame;
-    DWORD event;
-    USHORT flags;
-    BYTE renderfx;
-    BYTE ability;
-    DWORD splat;
+#ifndef USE_SHADOWMAPS
     DWORD shadow;
     DWORD shadow_rect;
+#endif
 } entityState_t;
+
+_Static_assert(MAX_CLIENTS     <= 256,  "entityState_t.player is BYTE — bump to USHORT if MAX_CLIENTS exceeds 255");
+_Static_assert(MAX_MODELS      <= 256,  "entityState_t.model/model2 are BYTE — bump to USHORT if MAX_MODELS exceeds 255");
+_Static_assert(MAX_SOUNDS      <= 256,  "entityState_t.sound is BYTE — bump to USHORT if MAX_SOUNDS exceeds 255");
+_Static_assert(MAX_CONFIGSTRINGS <= 65536, "entityState_t.image is USHORT — bump to DWORD if MAX_CONFIGSTRINGS exceeds 65535");
 
 #ifdef WOW
 typedef struct wowAppearance_s {

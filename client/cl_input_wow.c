@@ -28,6 +28,7 @@ static struct {
     SDL_Cursor *cursor_crosshair;
     SDL_Cursor *cursor_hand;
     DWORD last_hover_entity;
+    DWORD selected_entity;
 } wow_input = {
     .pitch = 342.0f,
     .distance = 8.0f,
@@ -69,6 +70,7 @@ static BOOL CL_WowMouseMovedPast(VECTOR2 const *a, VECTOR2 const *b) {
 }
 
 static void CL_WowSendSelect(DWORD entity_number) {
+    wow_input.selected_entity = entity_number;
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
     SZ_Printf(&cls.netchan.message, "select %u", (unsigned)entity_number);
 }
@@ -123,8 +125,8 @@ static void CL_WowRmbUp(void) {
     }
     if (re.TraceEntity(&cl.viewDef, mouse.origin.x, mouse.origin.y, &entnum)) {
         CL_WowSendInteract(entnum);
-    } else if (cl.playerstate.selected_entity) {
-        CL_WowSendInteract(cl.playerstate.selected_entity);
+    } else if (wow_input.selected_entity) {
+        CL_WowSendInteract(wow_input.selected_entity);
     }
 }
 

@@ -235,10 +235,10 @@ static void UI_WriteQuestDialog(LPEDICT ent) {
 
     if (wc->quest_open) {
         LPCWOWQUESTDETAIL detail = Wow_QuestDetail(wc->quest_id);
-        svQuestEntry_t *state = SV_QuestFind(wc->client.ps.quest_log, wc->client.ps.quest_count, wc->quest_id);
-        DWORD slot = state ? (DWORD)(state - wc->client.ps.quest_log) : 0;
-        LPEDICT selected = wc->client.ps.selected_entity && wc->client.ps.selected_entity < (DWORD)globals.num_edicts
-            ? &wow_edicts[wc->client.ps.selected_entity] : NULL;
+        svQuestEntry_t *state = SV_QuestFind(wc->quest_log, wc->quest_count, wc->quest_id);
+        DWORD slot = state ? (DWORD)(state - wc->quest_log) : 0;
+        LPEDICT selected = wc->selected_entity && wc->selected_entity < (DWORD)globals.num_edicts
+            ? &wow_edicts[wc->selected_entity] : NULL;
         wowEntityLocal_t *giver = selected ? Wow_EntityLocal(selected) : NULL;
         LPCSTR giver_name = NULL;
         char command[64], desc[2048], obj[1024], text[3072];
@@ -301,10 +301,10 @@ static void UI_WriteQuestDialog(LPEDICT ent) {
 
         UI_WriteTextFrame(x + PW(42), y + PH(12), PW(280), PH(22), "Quest Log", MAKE(COLOR32, 255, 215, 120, 255), FONT_JUSTIFYCENTER);
 
-        if (!wc->client.ps.quest_count) {
+        if (!wc->quest_count) {
             UI_WriteTextFrame(x + PW(42), line_y, PW(280), PH(22), "No active quests.", MAKE(COLOR32, 160, 150, 140, 255), FONT_JUSTIFYCENTER);
-        } else FOR_LOOP(i, wc->client.ps.quest_count) {
-            svQuestEntry_t *qs = &wc->client.ps.quest_log[i];
+        } else FOR_LOOP(i, wc->quest_count) {
+            svQuestEntry_t *qs = &wc->quest_log[i];
             LPCWOWQUESTDETAIL detail = Wow_QuestDetail(qs->quest_id);
             LPCSTR status = qs->status == SV_QUEST_COMPLETE ? " (Complete)" : "";
 

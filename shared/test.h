@@ -28,7 +28,9 @@
 #define test_h
 
 #include <math.h>
+#include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 typedef struct test_s {
     const char    *name;   /* e.g. "wow_combat.pain_interrupts_attack" */
@@ -71,5 +73,30 @@ extern int test_failures;
 #define T_STREQ(a, b)     T_ASSERT((a) && (b) && strcmp((a), (b)) == 0)
 #define T_NULL(p)         T_ASSERT((p) == 0)
 #define T_NOT_NULL(p)     T_ASSERT((p) != 0)
+
+/* T_RUN_UNTIL(step, cond, n) — advance simulation up to n steps until cond
+ * becomes true, then assert it.  Fails the test if cond never fires.
+ *
+ * Example: fire a projectile, run up to 200 ticks, assert it hit the target.
+ *   T_RUN_UNTIL(Wow_RunProjectile(proj), !proj->inuse, 200);
+ *   T_RUN_UNTIL(game->RunFrame(), target_local->dead, 1000);
+ */
+#define T_RUN_UNTIL(step, cond, n) do {                                        \
+    for (unsigned _r = 0; !(cond) && _r < (unsigned)(n); _r++) (step);        \
+    T_ASSERT(cond);                                                            \
+} while (0)
+
+/* T_BENCH(label, iters, expr) — run expr iters times, print wall-clock ms/call.
+ * Does not assert; use for perf baselines and regression spotting. */
+#define T_BENCH(label, iters, expr) do {                                       \
+    struct timespec _t0, _t1;                                                  \
+    clock_gettime(CLOCK_MONOTONIC, &_t0);                                      \
+    for (int _bi = 0; _bi < (iters); _bi++) { expr; }                         \
+    clock_gettime(CLOCK_MONOTONIC, &_t1);                                      \
+    double _ms = ((_t1.tv_sec  - _t0.tv_sec)  * 1e3)                          \
+               + ((_t1.tv_nsec - _t0.tv_nsec) * 1e-6);                        \
+    printf("[BENCH] %-52s  %7.2f ms/call  (%d iters)\n",                      \
+           (label), _ms / (double)(iters), (iters));                           \
+} while (0)
 
 #endif /* test_h */

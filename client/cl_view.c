@@ -196,7 +196,9 @@ static void V_AddClientEntity(centity_t const *ent) {
     
     re.origin = Vector3_lerp(&ent->prev.origin, &ent->current.origin, cl.viewDef.lerpfrac);
     re.angle = LerpRotation(ent->prev.angle, ent->current.angle, cl.viewDef.lerpfrac);
+#ifdef WOW
     re.rotation = Vector3_lerp(&ent->prev.rotation, &ent->current.rotation, cl.viewDef.lerpfrac);
+#endif
     re.scale = LerpNumber(ent->prev.scale, ent->current.scale, cl.viewDef.lerpfrac);
     re.frame = ent->current.frame;
     re.oldframe = ent->prev.frame;
@@ -227,23 +229,24 @@ static void V_AddClientEntity(centity_t const *ent) {
     if (ent->current.flags & EF_FOW_REVEALER) {
         re.flags |= RF_FOW_REVEALER;
     }
-    if (ent->current.flags & EF_MOUNTED) {
-        re.flags |= RF_MOUNTED;
-    }
+    if (ent->current.flags & EF_MOUNTED) re.flags |= RF_MOUNTED;
+    if (ent->current.flags & EF_HAS_QUEST) re.flags |= RF_HAS_QUEST;
+    if (ent->current.flags & EF_QUEST_COMPLETE) re.flags |= RF_QUEST_COMPLETE;
+    if (ent->current.flags & EF_HOSTILE) re.flags |= RF_HOSTILE;
     re.radius = ent->current.radius;
     re.number = ent->current.number;
     re.health = ent->current.stats[ENT_HEALTH];
     re.mana   = ent->current.stats[ENT_MANA];
     re.splat = cl.pics[ent->current.splat & 0xffff];
     re.splatsize = ent->current.splat >> 16;
+#ifndef USE_SHADOWMAPS
     re.shadow = cl.pics[ent->current.shadow];
-    re.overhead_sprite = cl.pics[ent->current.overhead_sprite & 0x7fff];
-    re.overhead_sprite_color = (ent->current.overhead_sprite & 0x8000) ? MAKE(COLOR32, 255, 215, 0, 255) : COLOR32_WHITE;
     re.shadow_rect = MAKE(RECT,
                           ShadowUnpackRectComponent((BYTE)(ent->current.shadow_rect & 0xff)),
                           ShadowUnpackRectComponent((BYTE)((ent->current.shadow_rect >> 8) & 0xff)),
                           ShadowUnpackRectComponent((BYTE)((ent->current.shadow_rect >> 16) & 0xff)),
                           ShadowUnpackRectComponent((BYTE)((ent->current.shadow_rect >> 24) & 0xff)));
+#endif
     if (!Cvar_Integer("r_unit_shadows", 1)) {
         re.flags |= RF_NO_SHADOW;
     }
