@@ -51,8 +51,8 @@ void SCR_DrawScreenField(DWORD msec) {
 
 Inside `ui.Refresh()` → `UI_RefreshLocal()`, there are three branches:
 
-1. **Menu/glue mode** (`game_mode == false`): Calls current `uiScreen_t->draw()` — main menu, single player, options, LAN lobby, etc.
-2. **Game mode + loading** (`game_mode == true` + `CLIENT_UI_LOADING`): Draws the loading screen.
+1. **Loading** (`playerState_t.client_ui_state == CLIENT_UI_LOADING`): Draws the loading screen. This is checked first and is **not** gated on `game_mode` — `menu_ingame` sets `game_mode` asynchronously through the command buffer, after `SCR_BeginLoadingPlaque` has already frozen the frame that would have drawn the loading screen.
+2. **Menu/glue mode** (`game_mode == false`): Calls current `uiScreen_t->draw()` — main menu, single player, options, LAN lobby, etc.
 3. **Game mode + active** (`game_mode == true` + `CLIENT_UI_GAME`): Does nothing — the in-game HUD is handled entirely by `SCR_DrawLayout()`.
 
 ## Screen Controllers
@@ -267,7 +267,7 @@ Game-mode mouse behavior lives in per-game `cl_input_<game>.c` files. Never crea
 
 ## Loading Screen
 
-The loading screen is owned by the UI library and drawn when `game_mode == true` and `playerState_t.client_ui_state == CLIENT_UI_LOADING`. It:
+The loading screen is owned by the UI library and drawn when `playerState_t.client_ui_state == CLIENT_UI_LOADING` (regardless of `game_mode`). It:
 
 1. Loads `Loading.fdf` frames
 2. Reads map info from `.w3m`/`.w3x` (title, subtitle, custom loading screen model)
