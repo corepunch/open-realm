@@ -149,6 +149,13 @@ KNOWN_AS(CliffInfo, CLIFFINFO);
 
 #include "cmodel.h"
 
+/* Per-game identity, defined by each game.mk (warcraft-3, world-of-warcraft,
+ * starcraft-2). Used to scope share/<game>/ read-only defaults and the
+ * ~/.<game>/ writable user directory. */
+#ifndef BZ_GAME
+#define BZ_GAME "openwarcraft3"
+#endif
+
 // common.c
 void Com_Init(int argc, LPCSTR *argv);
 void Com_Error(errorCode_t code, LPCSTR fmt, ...);
@@ -156,6 +163,11 @@ void LoadMap(LPCSTR pFilename);
 bool Com_ResolveMapArgument(LPCSTR arg, LPSTR out, DWORD out_size);
 
 void FS_Init(void);
+void FS_SetShareDirectory(LPCSTR dir);
+void FS_SetHomeDirectory(LPCSTR dir);
+LPCSTR FS_BasePath(void);
+LPCSTR FS_HomePath(void);
+void FS_UserPath(LPCSTR rel, LPSTR out, DWORD out_size);
 void FS_Shutdown(void);
 BOMStatus PF_TextRemoveBom(LPSTR buffer);
 

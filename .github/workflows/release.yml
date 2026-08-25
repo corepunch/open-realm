@@ -48,6 +48,7 @@ jobs:
           mkdir -p release
           cp build/bin/openwarcraft3 release/
           cp -r build/lib/. release/
+          cp -r build/share release/
           tar -czf openwarcraft3-${{ matrix.name }}.tar.gz -C release .
 
       - name: Determine release tag

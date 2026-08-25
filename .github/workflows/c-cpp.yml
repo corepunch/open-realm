@@ -63,4 +63,5 @@ jobs:
           path: |
             build/bin/openwarcraft3
             build/lib/
+            build/share/
           if-no-files-found: error

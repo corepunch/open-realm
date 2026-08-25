@@ -21,9 +21,9 @@ All FDF parsing, layout solving, screen transitions, and frame rendering happen 
 ```text
 common/main.c
   -> Com_Init
-      -> share/default.cfg
-      -> share/config.cfg
-      -> share/autoexec.cfg
+      -> share/warcraft-3/config.cfg   (shipped game defaults)
+      -> ~/.warcraft-3/config.cfg      (writable user config)
+      -> ~/.warcraft-3/autoexec.cfg    (optional local overrides)
       -> command-line cvars
   -> CL_Init
       -> select renderer from r_module

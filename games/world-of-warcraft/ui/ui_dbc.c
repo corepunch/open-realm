@@ -117,7 +117,18 @@ static void *base_info_buf; /* CharBaseInfo 2-byte records keep no string pointe
  * ---------------------------------------------------------------------- */
 
 #define WOW_MAX_CHARACTERS 10
-#define WOW_CHARACTERS_FILE "share/characters.xml"
+
+/* Build the writable saved-characters path: ~/.<game>/characters.xml, falling
+ * back to <base>/<game>/characters.xml when $HOME is unavailable. */
+static void CharList_Path(char *out, int sz) {
+    LPCSTR home = uiimport.Cvar_String("fs_homepath", "");
+
+    if (home && *home) {
+        snprintf(out, sz, "%s/characters.xml", home);
+    } else {
+        snprintf(out, sz, "%s/%s/characters.xml", uiimport.Cvar_String("fs_basepath", "share"), BZ_GAME);
+    }
+}
 
 typedef struct {
     char  name[64];
@@ -169,7 +180,9 @@ static void CharList_Load(void) {
     wow_charlist.loaded = true;
 
     if (!uiimport.FS_ReadFile) return;
-    size = uiimport.FS_ReadFile(WOW_CHARACTERS_FILE, &buf);
+    char path[512];
+    CharList_Path(path, sizeof(path));
+    size = uiimport.FS_ReadFile(path, &buf);
     if (size <= 0 || !buf) { SAFE_DELETE(buf, uiimport.FS_FreeFile); return; }
 
     p = (LPCSTR)buf;
@@ -216,7 +229,11 @@ static void CharList_Save(void) {
         pos += snprintf(xml + pos, sizeof(xml) - (size_t)pos, "  <Character name=\"%s\" race=\"%u\" sex=\"%u\"" " class=\"%u\" appearance=\"%u\" />\n", e->name, e->race_id, e->sex_id, e->class_id, e->appearance);
     }
     pos += snprintf(xml + pos, sizeof(xml) - (size_t)pos, "</Characters>\n");
-    uiimport.FS_WriteFile(WOW_CHARACTERS_FILE, xml, pos);
+    {
+        char path[512];
+        CharList_Path(path, sizeof(path));
+        uiimport.FS_WriteFile(path, xml, pos);
+    }
 }
 
 /* -------------------------------------------------------------------------

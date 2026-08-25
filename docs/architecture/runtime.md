@@ -58,21 +58,27 @@ Session-only cvars (`map`, `connect`) are explicitly skipped. When `com_frame_li
 
 ### Load Order
 
-Config files live under `share/`, the engine-owned default resource directory. The actual load order in `Com_Init()` is:
+Config files are split by ownership: read-only defaults ship with the game, writable user settings live in a per-user home directory. The paths are resolved at startup (`Sys_ResolveShareDirectory` / `Sys_ResolveHomeDirectory` in `common/main.c`):
+
+- `fs_basepath` — read-only base `share/` dir, anchored at the executable (`<exe>/share`, `<exe>/../share`, or CWD `share`). Engine-wide assets (`fonts/`) live at its top level.
+- `fs_homepath` — writable `~/.<game>/` (or `%USERPROFILE%\.<game>\`), adopted only if creatable and writable; empty otherwise.
+
+The load order in `Com_Init()` is:
 
 | Step | File | Purpose |
 |------|------|---------|
 | 1 | **Programmatic `Cvar_Get()` in `Cvar_Init()`** | In-code defaults |
 | 2 | `-config` CLI arg | Override config path |
 | 3 | Early `+` args (`+set`, `+<cvar>`) | Command-line overrides |
-| 4 | **`share/default.cfg`** | Committed shipped defaults |
-| 5 | **`share/openwarcraft3.cfg`** (or `openwow.cfg`) | Gameplay defaults (key bindings) |
-| 6 | **Cvar `config`** (default `share/openwarcraft3-config.cfg`) | Generated user config — created by `writeconfig` |
-| 7 | **`share/autoexec.cfg`** | Optional local overrides (gitignored) |
-| 8 | `-data`, `-connect`, `-tft`, `-roc` CLI args | Data-dir / expansion settings |
-| 9 | Remaining `+` args (`+set`, `+<cvar>`), consumed | Final command-line overrides |
+| 4 | **`<base>/<game>/config.cfg`** | Shipped game defaults (key bindings) |
+| 5 | **Cvar `config`** (default `~/.<game>/config.cfg`) | Generated user config — created by `writeconfig` |
+| 6 | **`~/.<game>/autoexec.cfg`** | Optional local overrides |
+| 7 | `-data`, `-connect`, `-tft`, `-roc` CLI args | Data-dir / expansion settings |
+| 8 | Remaining `+` args (`+set`, `+<cvar>`), consumed | Final command-line overrides |
 
-After step 7, `map` and `connect` cvars are explicitly cleared, then re-populated from command-line arguments in steps 8–9.
+When `$HOME` is absent or read-only (portable/read-only deploy), `fs_homepath` is empty and steps 5–6 degrade to `<base>/<game>/config.cfg` and `<base>/<game>/autoexec.cfg`, so a `share/` tree copied beside the executable still works.
+
+After step 6, `map` and `connect` cvars are explicitly cleared, then re-populated from command-line arguments in steps 7–8.
 
 ### Config File Execution
 
@@ -129,7 +135,9 @@ All cvars registered in `Cvar_Init()`:
 
 | cvar | Default | Flags | Description |
 |------|---------|-------|-------------|
-| `config` | `share/openwarcraft3-config.cfg` | CVAR_ARCHIVE | Generated config path |
+| `config` | `~/.<game>/config.cfg` (resolved) | CVAR_ARCHIVE | Generated config path |
+| `fs_basepath` | resolved share dir | 0 | Read-only engine/share data directory |
+| `fs_homepath` | `~/.<game>/` (empty if unavailable) | 0 | Writable per-user directory |
 | `data` | `""` | CVAR_ARCHIVE | Game asset directory (contains MPQs) |
 | `fs_expansion` | `"0"` | 0 | Mount expansion archives (`-tft` sets to `"1"`) |
 | `map` | `""` | 0 | Internal MPQ map path for listen-server mode |

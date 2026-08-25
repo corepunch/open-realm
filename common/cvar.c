@@ -338,7 +338,7 @@ void Cvar_WriteConfig(LPCSTR filename) {
         return;
     }
     fprintf(file, "// OpenWarcraft3 generated config\n");
-    fprintf(file, "// Loaded after share/default.cfg and the build-specific defaults.\n\n");
+    fprintf(file, "// Loaded after the shipped game defaults and before autoexec.cfg.\n\n");
     Key_WriteBindings(file);
     fprintf(file, "\n");
     FOR_EACH_LIST(cvar_t, var, cvar_vars) {
@@ -430,11 +430,16 @@ void Cvar_Init(void) {
     Cmd_AddCommand("exec", Cvar_Exec_f);
     Cmd_AddCommand("writeconfig", Cvar_WriteConfig_f);
 
-#ifdef WOW
-    Cvar_GetD("config", "share/openwow-config.cfg",       CVAR_ARCHIVE, "config file path; loaded/saved on startup");
-#else
-    Cvar_GetD("config", "share/openwarcraft3-config.cfg", CVAR_ARCHIVE, "config file path; loaded/saved on startup");
-#endif
+    {
+        static PATHSTR config_path;
+
+        FS_UserPath("config.cfg", config_path, sizeof(config_path));
+        Cvar_GetD("config", config_path, CVAR_ARCHIVE, "writable config file; loaded/saved on startup");
+    }
+    /* Resolved filesystem roots, exposed as cvars so UI/game modules (shared
+     * libs that can't reach common.c statics) can locate their own user files. */
+    Cvar_GetD("fs_basepath", FS_BasePath(), 0, "read-only engine/share data directory");
+    Cvar_GetD("fs_homepath", FS_HomePath(), 0, "writable per-user directory (empty if unavailable)");
     Cvar_GetD("data",             "",                  CVAR_ARCHIVE, "override game data directory path");
     Cvar_GetD("fs_expansion",     "0",                 0,            "0=RoC data only, 1=include TFT expansion data");
     Cvar_GetD("map",              "",                  0,            "map file to load at startup (e.g. Maps/HumanCampaign1.w3m)");
@@ -450,6 +455,7 @@ void Cvar_Init(void) {
     Cvar_GetD("name",             "Player",            CVAR_ARCHIVE, "player display name shown in lobbies");
     Cvar_GetD("sv_hostname",      "OpenWarcraft3",     CVAR_ARCHIVE, "server name shown in lobby browser");
     Cvar_GetD("sv_cheats",        "0",                 0,            "enable cheat commands on this server");
+    Cvar_GetD("dedicated",        "0",                 0,            "dedicated server mode (no client)");
     Cvar_GetD("com_frame_limit",  "0",                 0,            "cap frame rate in fps; 0=unlimited");
     Cvar_GetD("scr_showfps",      "1",                 CVAR_ARCHIVE, "show FPS counter on screen");
     Cvar_GetD("skip_cutscene",    "0",                 0,            "skip intro cutscene on startup");

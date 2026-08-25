@@ -14,8 +14,9 @@
 
 `FS_ReadFile` tries MPQ archives first (`FS_OpenFile` → StormLib), falls back to `FS_ReadLooseFile`.
 
-`FS_Init` always mounts `share/` as the built-in loose asset root. Mounted game archives remain
-authoritative for all Blizzard paths. WoW production UI does not place project-owned XML under `share/Interface/FrameXML/`: load the
+`FS_Init` always mounts the resolved base `share/` dir as the built-in loose asset root (engine fonts at its
+top level; per-game read-only defaults under `share/<game>/`, installed from `games/<game>/share/`). Mounted game
+archives remain authoritative for all Blizzard paths. WoW production UI does not place project-owned XML under `share/Interface/FrameXML/`: load the
 native archive path when it exists, or construct runtime presentation when classic WoW itself has no FrameXML for that feature.
 `-data` and `extra_data` add further loose roots and archives after initialization.
 

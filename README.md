@@ -164,14 +164,14 @@ The console accepts the same commands and cvars used by the command line. For ex
 
 ### Configuration and cvars
 
-OpenRealm uses Quake-style cvars and config files. Defaults live in `share/default.cfg`; generated user settings are written to `share/config.cfg`; optional local overrides can be placed in `share/autoexec.cfg`.
+OpenRealm uses Quake-style cvars and config files. Shipped game defaults live in `games/<game>/share/config.cfg` (installed to `build/share/<game>/`); generated user settings are written to `~/.<game>/config.cfg`; optional local overrides can be placed in `~/.<game>/autoexec.cfg`.
 
 Config load order:
 
 1. Built-in cvar defaults
-2. `share/default.cfg`
-3. `share/config.cfg`
-4. `share/autoexec.cfg`
+2. `share/<game>/config.cfg` (shipped game defaults, e.g. key bindings)
+3. `~/.<game>/config.cfg` (generated user config, written by `writeconfig`)
+4. `~/.<game>/autoexec.cfg` (optional local overrides)
 5. Command-line launch args such as `-data data/Warcraft\ III`, command-line cvars such as `+r_module stdout`, and queued commands such as `+map Maps\\Campaign\\Orc01.w3m` or `+menu_main`
 
 Common runtime cvars:
@@ -422,7 +422,7 @@ For UI work, use the stdout renderer before reaching for screenshots:
 make run-ui-text
 ```
 
-This runs the configured UI command for one frame, skips network socket binding, prints draw calls to stdout, and exits without writing `share/config.cfg`. It is useful for checking:
+This runs the configured UI command for one frame, skips network socket binding, prints draw calls to stdout, and exits without writing the user config. It is useful for checking:
 
 - which textures, models, fonts, and screens were loaded
 - button/backdrop rects, UVs, colors, and blend modes

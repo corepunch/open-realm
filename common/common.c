@@ -296,6 +296,66 @@ static BOOL FS_FileOnDiskExists(LPCSTR filename) {
     return FS_StatPath(filename, NULL, &isFile) && isFile;
 }
 
+/* Read-only base share/ directory (engine fonts + per-game <game>/ defaults).
+ * Resolved by main() to the executable's location; falls back to a CWD-relative
+ * "share" for in-tree dev builds, where make already runs from the repo root. */
+static PATHSTR fs_share_dir = { 0 };
+
+/* Writable per-user directory (~/.<BZ_GAME>). Empty when $HOME is absent or not
+ * writable, in which case FS_UserPath degrades to the base share/<game>/ dir so
+ * portable/read-only deployments still work. */
+static PATHSTR fs_home_dir = { 0 };
+
+void FS_SetShareDirectory(LPCSTR dir) {
+    /* First-match-wins: main() probes candidates in priority order (flat exe
+     * dir, then the FHS build tree, then CWD); once resolved, later fallbacks
+     * must not clobber a better absolute path. */
+    if (fs_share_dir[0] || !dir || !*dir || !FS_DirectoryExists(dir)) {
+        return;
+    }
+    snprintf(fs_share_dir, sizeof(fs_share_dir), "%s", dir);
+}
+
+/* Create and adopt the per-user directory only if it ends up writable, so a
+ * read-only $HOME (handheld/SD-card deploy) transparently falls back to the
+ * base share dir instead of failing every config write. */
+void FS_SetHomeDirectory(LPCSTR dir) {
+    if (!dir || !*dir) {
+        return;
+    }
+#ifdef _WIN32
+    _mkdir(dir);
+    if (_access(dir, 2) != 0) { /* 2 = write access */
+        return;
+    }
+#else
+    mkdir(dir, 0755);
+    if (access(dir, W_OK) != 0) {
+        return;
+    }
+#endif
+    snprintf(fs_home_dir, sizeof(fs_home_dir), "%s", dir);
+}
+
+LPCSTR FS_BasePath(void) {
+    return fs_share_dir[0] ? fs_share_dir : "share";
+}
+
+LPCSTR FS_HomePath(void) {
+    return fs_home_dir;
+}
+
+/* Resolve a writable per-user file (config.cfg, autoexec.cfg, characters.xml).
+ * Home directory first; falls back to the base share/<game>/ dir so a portable
+ * deployment (share/ next to the executable) keeps working without $HOME. */
+void FS_UserPath(LPCSTR rel, LPSTR out, DWORD out_size) {
+    if (fs_home_dir[0]) {
+        snprintf(out, out_size, "%s/%s", fs_home_dir, rel);
+    } else {
+        snprintf(out, out_size, "%s/%s/%s", FS_BasePath(), BZ_GAME, rel);
+    }
+}
+
 static BOOL FS_HasExtension(LPCSTR filename, LPCSTR extension) {
     size_t filenameLen;
     size_t extensionLen;
@@ -1125,8 +1185,14 @@ bool FS_ExtractFile(LPCSTR toExtract, LPCSTR extracted) {
 }
 
 void FS_Init(void) {
-    /* Project-owned UI/layout assets live beside configs and remain separate from authoritative game archives. */
-    FS_AddGameDirectory("share");
+    PATHSTR gameDir;
+
+    /* Project-owned loose assets stay separate from authoritative game
+     * archives.  Per-game defaults (share/<game>/) take precedence over the
+     * engine-wide share/ root, mirroring ioquake3's fs_basepath/fs_game. */
+    snprintf(gameDir, sizeof(gameDir), "%s/%s", FS_BasePath(), BZ_GAME);
+    FS_AddGameDirectory(gameDir);
+    FS_AddGameDirectory(FS_BasePath());
 //    ExtractStarCraft2();
     
 //    FS_AddArchive("/Users/igor/Documents/Warcraft III Demo/war3.mpq");
@@ -1234,7 +1300,7 @@ void Com_Quit(void) {
     if (Cvar_Integer("com_frame_limit", 0) <= 0) {
         /* TODO: re-enable when config-overwrite-on-exit is acceptable during dev.
          * Currently disabled because developer-run config changes (e.g. bind
-         * experiments, debug cvars) clobber hand-edited openwow-config.cfg. */
+         * experiments, debug cvars) clobber hand-edited ~/.<game>/config.cfg. */
         /* Cvar_WriteConfig(Cvar_String("config", "")); */
     }
     if (!Cvar_Integer("dedicated", 0))
@@ -1488,17 +1554,22 @@ void Com_Init(int argc, LPCSTR *argv) {
     Cbuf_AddEarlyCommands(false);
     Cbuf_Execute();
     FS_Init();
-    Cvar_LoadConfig("share/default.cfg");
+    {
+        PATHSTR cfg;
+        /* Shipped game defaults (bindings, per-game cvars): share/<game>/config.cfg. */
+        snprintf(cfg, sizeof(cfg), "%s/%s/config.cfg", FS_BasePath(), BZ_GAME);
+        Cvar_LoadConfig(cfg);
+    }
     Cbuf_Execute();
-#ifdef WOW
-    Cvar_LoadConfig("share/openwow.cfg");
-#else
-    Cvar_LoadConfig("share/openwarcraft3.cfg");
-#endif
-    Cbuf_Execute();
+    /* Writable user config (~/.<game>/config.cfg, or share/<game>/config.cfg
+     * when $HOME is unavailable): written by `writeconfig`. */
     Cvar_LoadConfig(Cvar_String("config", ""));
     Cbuf_Execute();
-    Cvar_LoadConfig("share/autoexec.cfg");
+    {
+        PATHSTR cfg;
+        FS_UserPath("autoexec.cfg", cfg, sizeof(cfg));
+        Cvar_LoadConfig(cfg);
+    }
     Cbuf_Execute();
     Cvar_Set("map", "");
     Cvar_Set("connect", "");
