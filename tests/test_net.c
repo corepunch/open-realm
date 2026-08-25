@@ -33,6 +33,7 @@ void test_client_stubs_set_cvar(LPCSTR name, LPCSTR value);
 void CL_ParseLayout(LPSIZEBUF msg);
 void SCR_LayoutDrawScrollBar(LPCUIFRAME frame, LPCRECT screen);
 void SCR_LayoutDrawTextArea(LPCUIFRAME frame, LPCRECT screen);
+extern DWORD test_fow_upload_calls;
 
 static RECT test_scroll_rects[3], test_scroll_uvs[3];
 static LPCTEXTURE test_scroll_tex[3];
@@ -632,6 +633,7 @@ TEST(net, fow_full_message_unpacks_visible_and_explored_planes) {
     T_ASSERT(cl.fow.explored[1]);
     T_EQ(cl.fow.texture[0], 255);
     T_EQ(cl.fow.texture[1], 128);
+    T_EQ(test_fow_upload_calls, 1);
     reset_fow_client_state();
 }
 
@@ -663,6 +665,15 @@ TEST(net, fow_row_delta_reconstructs_client_grid) {
     T_ASSERT(!cl.fow.visible[0]);
     T_ASSERT(cl.fow.visible[1 * cl.fow.width + 4]);
     T_EQ(cl.fow.texture[1 * cl.fow.width + 4], 255);
+    /* Both chunks belong to one server message and therefore publish one assembled texture. */
+    T_EQ(test_fow_upload_calls, 1);
+
+    SZ_Clear(&sb);
+    sb.readcount = 0;
+    write_fow_message(&sb, FOW_MSG_VISIBLE_PLANE | FOW_MSG_RLE, 8, 2, 1, 1, delta_payload, sizeof(delta_payload));
+    CL_ParseServerMessage(&sb);
+    /* A later server message is a new publication boundary. */
+    T_EQ(test_fow_upload_calls, 2);
     reset_fow_client_state();
 }
 

@@ -812,6 +812,7 @@ void G_PublishMessage(LPEDICT, GAMEMSGTYPE, LPEDICT);
 // g_fow.c
 void G_FowInit(void);
 void G_FowShutdown(void);
+void G_FowConnectPlayer(DWORD player);
 void G_FowUpdate(void);
 void G_FowSendDeltas(void);
 void G_FowSendFull(LPEDICT ent);

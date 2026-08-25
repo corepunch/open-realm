@@ -2,9 +2,14 @@
 
 ## Executive Summary
 
-The current fog-of-war path is more complex than it needs to be for a fast RTS baseline. It is renderer-owned, high-resolution, GPU-heavy, and attempts per-revealer occlusion by drawing entity silhouettes. That can look nice, but it makes gameplay visibility hard to reason about and scales poorly when many revealers and blockers are present.
+WC3 gameplay visibility is an authoritative low-resolution per-player grid, but the renderer also retains an older
+high-resolution path that attempts per-revealer occlusion by drawing entity silhouettes. That visual path can look
+nice, but it scales poorly when many revealers and blockers are present.
 
-Recommended direction: move toward an authoritative low-resolution per-player visibility grid, update it on a fixed simulation cadence, upload it as an `R8` texture, and let the renderer smooth/composite it. Keep true line-of-sight as a second phase only if gameplay really needs occluders beyond terrain height, cliffs, and scripted sight blockers.
+Recommended direction: keep the authoritative grid, but calculate only the connected viewers and their shared-vision
+owners. Rebuild blocker cells only when blocker state changes, then run grid shadowcasting for those viewers. Upload
+the resulting `R8` data once per packet and let the renderer filter it. Do not replace this with a result cache: the
+large win is eliminating irrelevant players and repeated whole-grid/publication work.
 
 ## Current Implementation
 
@@ -30,6 +35,40 @@ The current renderer path:
 6. Produces `FOW_RT_RESULT` as half history plus half immediate.
 7. Samples the result in world/minimap shaders.
 
+The authoritative WC3 path now also receives RLE-compressed `svc_fogofwar` row chunks from the server. The client
+decodes each chunk into `visible`/`explored` planes, updates only those rows in its combined R8 buffer, and publishes
+the assembled texture once after the complete server message. The renderer defines storage on the first update and
+uses `glTexSubImage2D` while dimensions remain unchanged. Chunk boundaries must never trigger independent texture
+uploads: they are transport framing, not distinct visual states.
+
+Server reveals are viewer-centric and do not cache reveal results. Each update builds a stack-local bitmask of
+connected viewers plus a stack-local owner-to-viewer mask, clears only those grids, and applies each source directly
+to viewers that receive its owner's vision. Entities owned by players with no consuming viewer are rejected before
+revealer classification, and their unused grids are never touched. Active fog modifiers follow the same viewer rule.
+The player must be marked via `G_FowConnectPlayer` before the first update so its full sync contains current visibility.
+
+On Orc01, a like-for-like 1 kHz Time Profiler capture over 1,200 bounded frames measured `G_FowUpdate` falling from
+430 ms to 61 ms inclusive across the capture (86% lower). The unit-reveal subtree fell from 227 ms to 9 ms (96%
+lower). `G_FowBlockersChanged` is now the largest remaining FOW component at 41 ms across the capture; optimizing that
+requires explicit blocker lifecycle invalidation and is separate from the no-cache reveal algorithm.
+
+The original client decoder expanded every run one cell at a time, doing division and modulo for each cell. It then
+rescanned the complete grid and called `glTexImage2D` after every chunk. A 1 kHz Time Profiler capture after replacing
+that work with `memset` runs, row-local compositing, packet-level publication, and `glTexSubImage2D` measured 2 ms
+inclusive in `CL_ParseFogOfWar` over the complete 20-second capture; the decoder had no sampled self time. Reproduce
+with:
+
+```sh
+xctrace record --template 'Time Profiler' --time-limit 20s --launch -- \
+  build/bin/openwarcraft3 -data 'data/Warcraft III' +map 'Maps\Campaign\Orc01.w3m' +com_frame_limit 1200
+```
+
+[WarSmash](https://github.com/Retera/WarsmashModEngine) is a useful behavioral reference, not a fast implementation to
+copy verbatim: it uses an ordinary logical player fog grid and separates that state from minimap presentation.
+[OpenRA](https://github.com/OpenRA/OpenRA) likewise treats shroud as simulation-owned spatial state exposed to
+rendering. Both support the same architectural boundary used here: visibility is ordinary game data; texture work is
+a publication step, never part of RLE parsing.
+
 Important constants:
 
 - `FOW_UPDATE_INTERVAL_MS = 100`
@@ -44,8 +83,7 @@ The expensive part is not just the render-target size. It is the combination of 
 - `R_CasterNearRevealers` makes blocker collection `O(num_blockers * num_revealers)`.
 - The resulting blocker buffer is drawn once per revealer, so raster work trends toward `O(num_revealers * nearby_blocker_vertices)`.
 - `SIGHT_DISTANCE` is fixed at `2000`, not per-unit sight radius, so many units may reveal too much and search too widely.
-- Visibility currently lives in the renderer, so server/game logic cannot authoritatively ask "is this entity visible to player N?" without duplicating or reading render state.
-- History is GPU-only, which is fine for shading but awkward for gameplay, networking, save/load, selection rules, and last-known enemy state.
+- The legacy renderer visibility and history are GPU-only; WC3 gameplay must continue using its authoritative server grid.
 
 Verdict: yes, it is overly complex for the first fast, correct RTS FOW pass. The current path is closer to a visual shadow/occlusion experiment than a robust RTS visibility system.
 

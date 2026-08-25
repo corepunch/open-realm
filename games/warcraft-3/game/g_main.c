@@ -458,6 +458,7 @@ static void G_ClientBegin(LPEDICT edict) {
     Get_Portrait_f(edict);
     Get_Commands_f(edict);
 
+    G_FowConnectPlayer(client->ps.number);
     G_FowUpdate();
     G_FowSendFull(edict);
 }

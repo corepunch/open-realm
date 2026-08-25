@@ -512,6 +512,7 @@ TEST(wc3_game, fow_grid_uses_two_by_two_cells_per_tile) {
 TEST(wc3_game, fow_revealer_marks_visible_and_explored) {
     reset_entities();
     G_FowInit();
+    G_FowConnectPlayer(0);
 
     LPEDICT revealer = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
     revealer->s.player = 0;
@@ -526,9 +527,33 @@ TEST(wc3_game, fow_revealer_marks_visible_and_explored) {
     G_FowShutdown();
 }
 
+TEST(wc3_game, fow_updates_only_connected_shared_viewers) {
+    reset_entities();
+    G_FowInit();
+
+    LPEDICT revealer = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
+    revealer->s.player = 5;
+    revealer->balance.sight_radius.day = 128.0f;
+    revealer->health.value = revealer->health.max_value = 1.0f;
+    DWORD index = G_FowWorldToCellY(64.0f) * level.fow.width + G_FowWorldToCellX(64.0f);
+
+    G_FowUpdate();
+    T_ASSERT(!level.fow.players[5].visible[index]);
+
+    G_FowConnectPlayer(0);
+    G_FowConnectPlayer(1);
+    level.alliances[0][5] |= 1 << ALLIANCE_SHARED_VISION;
+    G_FowUpdate();
+    T_ASSERT(level.fow.players[0].visible[index]);
+    T_ASSERT(!level.fow.players[1].visible[index]);
+    T_ASSERT(!level.fow.players[5].visible[index]);
+    G_FowShutdown();
+}
+
 TEST(wc3_game, fow_visible_clears_but_explored_remains) {
     reset_entities();
     G_FowInit();
+    G_FowConnectPlayer(0);
 
     LPEDICT revealer = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
     revealer->s.player = 0;
@@ -549,6 +574,7 @@ TEST(wc3_game, fow_visible_clears_but_explored_remains) {
 TEST(wc3_game, fow_blocker_stops_visibility_behind_it) {
     reset_entities();
     G_FowInit();
+    G_FowConnectPlayer(0);
 
     LPEDICT revealer = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 96.0f, 96.0f);
     revealer->s.player = 0;
@@ -587,6 +613,7 @@ static pathTex_t *make_fow_pathtex(DWORD width, DWORD height, BYTE blocked) {
 TEST(wc3_game, fow_tree_pathtex_closes_gap_behind_canopy) {
     reset_entities();
     G_FowInit();
+    G_FowConnectPlayer(0);
 
     LPEDICT revealer = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32.0f, 128.0f);
     revealer->s.player = 0;
