@@ -177,21 +177,26 @@ static void Sys_ResolveShareDirectory(void) {
     FS_SetShareDirectory("share");
 }
 
-/* Resolve the writable per-user directory to $HOME/.<BZ_GAME>; only adopted if
- * creatable and writable (verified by FS_SetHomeDirectory), so a read-only or
- * absent $HOME leaves FS_UserPath to fall back to share/<game>/. */
+/* Resolve the writable per-user directory, matching ioquake3's platform split:
+ * Windows uses %APPDATA%\<game> (no dot), Unix uses ~/.<game>. Only adopted if
+ * creatable and writable (verified by FS_SetHomeDirectory), so an absent/read-only
+ * home leaves FS_UserPath to fall back to share/<game>/. */
 static void Sys_ResolveHomeDirectory(void) {
-#ifdef _WIN32
-    LPCSTR home = getenv("USERPROFILE");
-#else
-    LPCSTR home = getenv("HOME");
-#endif
     PATHSTR dir;
 
+#ifdef _WIN32
+    LPCSTR home = getenv("APPDATA");
+    if (!home || !*home) {
+        return;
+    }
+    snprintf(dir, sizeof(dir), "%s/%s", home, BZ_GAME);
+#else
+    LPCSTR home = getenv("HOME");
     if (!home || !*home) {
         return;
     }
     snprintf(dir, sizeof(dir), "%s/.%s", home, BZ_GAME);
+#endif
     FS_SetHomeDirectory(dir);
 }
 
