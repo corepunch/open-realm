@@ -16,7 +16,7 @@ game-sc2:     $(GAME_SC2_LIB)
 ui-sc2:       $(UI_SC2_LIB)
 opensc2:      $(SC2_BINARY)
 
-run-sc2: $(SC2_BINARY)
+run-sc2: $(SC2_BINARY) install-share
 	$(SC2_BINARY) -data data/StarCraft2 +map TRaynor01 $(ARGS)
 
 build-run-sc2: opensc2

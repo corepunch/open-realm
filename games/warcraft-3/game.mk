@@ -38,16 +38,16 @@ game:        $(GAME_LIB)
 ui:          $(UI_LIB)
 openwarcraft3: $(BINARY)
 
-run: $(BINARY)
+run: $(BINARY) install-share
 	$(BINARY) -data $(WC3DATA) -tft
 
-run-roc: $(BINARY)
+run-roc: $(BINARY) install-share
 	$(BINARY) -data $(WC3DATA)
 
-run-demo: $(BINARY)
+run-demo: $(BINARY) install-share
 	$(BINARY) -data $(DEMODATA)
 
-run-map: $(BINARY)
+run-map: $(BINARY) install-share
 	$(BINARY) -data $(WC3DATA) +map "$(MAP)"
 
 TRACE_FILE := build/profile-map.trace
@@ -61,7 +61,7 @@ profile-map: $(BINARY) xctraceprof
 		> build/time-profile.xml
 	$(BIN_DIR)/xctraceprof --window 3:20 --top 40 build/time-profile.xml
 
-run-ui-text: $(BINARY)
+run-ui-text: $(BINARY) install-share
 	$(BINARY) -data $(WC3DATA) +r_module stdout +com_frame_limit 1 +$(UI_CMD)
 
 # Golden-image render regression test (deterministic MDX renders vs committed
