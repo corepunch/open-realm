@@ -542,7 +542,8 @@ TEST(wc3_game, fow_updates_only_connected_shared_viewers) {
 
     G_FowConnectPlayer(0);
     G_FowConnectPlayer(1);
-    level.alliances[0][5] |= 1 << ALLIANCE_SHARED_VISION;
+    memset(level.alliances, 0, sizeof(level.alliances));
+    G_SetPlayerAlliance(game_player(0), game_player(5), ALLIANCE_SHARED_VISION, true);
     G_FowUpdate();
     T_ASSERT(level.fow.players[0].visible[index]);
     T_ASSERT(!level.fow.players[1].visible[index]);

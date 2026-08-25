@@ -739,7 +739,6 @@ typedef struct {
     BYTE *dirty_visible_rows;
     BYTE *dirty_explored_rows;
     BOOL client_connected;
-    BOOL had_visible;
 } fowPlayerGrid_t;
 
 typedef struct {
