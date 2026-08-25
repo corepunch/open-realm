@@ -61,7 +61,7 @@ Session-only cvars (`map`, `connect`) are explicitly skipped. When `com_frame_li
 Config files are split by ownership: read-only defaults ship with the game, writable user settings live in a per-user home directory. The paths are resolved at startup (`Sys_ResolveShareDirectory` / `Sys_ResolveHomeDirectory` in `common/main.c`):
 
 - `fs_basepath` — read-only base `share/` dir, anchored at the executable (`<exe>/share`, `<exe>/../share`, or CWD `share`). Engine-wide assets (`fonts/`) live at its top level.
-- `fs_homepath` — writable `~/.<game>/` (or `%USERPROFILE%\.<game>\`), adopted only if creatable and writable; empty otherwise.
+- `fs_homepath` — writable `~/.<game>/` on Unix, `%APPDATA%\<game>\` on Windows, adopted only if creatable and writable; empty otherwise.
 
 The load order in `Com_Init()` is:
 
