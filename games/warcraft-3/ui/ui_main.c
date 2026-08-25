@@ -540,24 +540,29 @@ void UI_RefreshLocal(DWORD time) {
     if (!ui_state.active) {
         return;
     }
-    
+
     ui_state.time = time;
-    
+
     /* Call current screen refresh */
     uiScreen_t *screen = UI_GetCurrentScreen();
     if (screen && screen->refresh) {
         screen->refresh((int)time);
     }
 
+    /* Draw the loading screen whenever the server reports CLIENT_UI_LOADING.
+     * Do not gate on game_mode: menu_ingame sets it asynchronously through the
+     * command buffer, after SCR_BeginLoadingPlaque has already frozen the frame
+     * that would have drawn the loading screen. */
+    LPCPLAYER ps = uiimport.GetPlayerState();
+    if (ps && ps->client_ui_state == CLIENT_UI_LOADING) {
+        UI_DrawLoadingScreenLocal(NULL, NULL, 0.0f);
+        return;
+    }
+
     /* Draw current screen (menus/glue only — in-game HUD is server-authored via svc_layout) */
     if (!ui_state.game_mode) {
         if (screen && screen->draw)
             screen->draw();
-    } else {
-        LPCPLAYER ps = uiimport.GetPlayerState();
-        if (ps && ps->client_ui_state == CLIENT_UI_LOADING) {
-            UI_DrawLoadingScreenLocal(NULL, NULL, 0.0f);
-        }
     }
 }
 
