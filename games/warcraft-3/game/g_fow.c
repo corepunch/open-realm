@@ -380,7 +380,6 @@ static void G_FowRevealCircle(DWORD player, LPCEDICT ent, FLOAT radius) {
     }
 
     grid = &level.fow.players[player];
-    grid->had_visible = true;
     cx = G_FowWorldToCellX(ent->s.origin.x);
     cy = G_FowWorldToCellY(ent->s.origin.y);
     if (cx == FOW_INVALID_CELL || cy == FOW_INVALID_CELL) {
@@ -681,7 +680,6 @@ static void G_FowRevealBox(fowPlayerGrid_t *grid, LPCBOX2 box) {
         x1 == FOW_INVALID_CELL || y1 == FOW_INVALID_CELL) {
         return;
     }
-    grid->had_visible = true;
     for (DWORD y = y0; y <= y1; y++) {
         for (DWORD x = x0; x <= x1; x++) {
             G_FOW_SET_VISIBLE_CELL(grid, x, y);
@@ -700,7 +698,6 @@ static void G_FowApplyModifierForPlayer(DWORD player, LPCFOGMODIFIER mod) {
         if (cx == FOW_INVALID_CELL || cy == FOW_INVALID_CELL) {
             return;
         }
-        grid->had_visible = true;
         G_FowRevealDisk(grid, cx, cy, G_FowRadiusCells(mod->radius));
     }
 }
@@ -805,7 +802,6 @@ void G_FowUpdate(void) {
             continue;
         }
         G_FowClearVisible(grid);
-        grid->had_visible = false;
     }
 
     FOR_LOOP(i, globals.num_edicts) {
