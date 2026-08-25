@@ -34,19 +34,19 @@ game-wow:     $(GAME_WOW_LIB)
 ui-wow:       $(UI_WOW_LIB)
 openwow:      $(WOW_BINARY)
 
-run-wow: $(WOW_BINARY)
+run-wow: $(WOW_BINARY) install-share
 	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) $(ARGS)
 
-build-run-wow: openwow
+build-run-wow: openwow install-share
 	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR)
 
-build-run-wow-map: openwow
+build-run-wow-map: openwow install-share
 	$(WOW_BINARY) -data $(WOW_INSTALL_DATA_DIR) +map 1
 
 # Per-race launch targets: build-run-wow-orc, build-run-wow-human, …
 WOW_RACES := Orc:orc Human:human Dwarf:dwarf Undead:undead Tauren:tauren NightElf:nightelf Gnome:gnome Troll:troll
 define wow_race_target
-build-run-wow-$(word 2,$(subst :, ,$(1))): openwow
+build-run-wow-$(word 2,$(subst :, ,$(1))): openwow install-share
 	$$(WOW_BINARY) -data $$(WOW_INSTALL_DATA_DIR) +set wow_playerinfo '\race\$(word 1,$(subst :, ,$(1)))\sex\Male\class\1\appearance\0' +map playercreate
 endef
 $(foreach r,$(WOW_RACES),$(eval $(call wow_race_target,$(r))))
