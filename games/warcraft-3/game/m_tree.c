@@ -41,8 +41,7 @@ void SP_monster_tree(LPEDICT self) {
     self->die = tree_die;
 
     unit_setmove(self, &tree_move_stand);
- 
-    void monster_think(LPEDICT self);
+
     self->think = monster_think;
     monster_start(self);
 }

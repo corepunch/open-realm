@@ -158,8 +158,11 @@ ability_t a_entangled_mine = {0};
 static FLOAT blight_gold_per_interval;
 static FLOAT blight_interval_duration;
 
-static void blight_mine_think(LPEDICT ent) {
+void blight_mine_think(LPEDICT ent) {
+    monster_think(ent);
     DWORD now = gi.GetTime();
+    if (ent->freetime && now < ent->freetime)
+        return;
     LPPLAYER player = G_GetPlayerByNumber(ent->s.player);
 
     if (!player || ent->health.value <= 0) {

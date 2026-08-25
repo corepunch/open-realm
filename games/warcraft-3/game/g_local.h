@@ -835,6 +835,7 @@ void SP_monster_tree(LPEDICT);
 LPEDICT Waypoint_add(LPCVECTOR2);
 void M_CheckGround (LPEDICT);
 void monster_start(LPEDICT);
+void monster_think(LPEDICT);
 
 // g_model.c
 int          G_RegisterModel(LPCSTR filename);
@@ -1049,6 +1050,8 @@ void unit_stand(LPEDICT);
 BOOL G_ActorHasSkill(LPEDICT, LPCSTR);
 void harvest_start(LPEDICT, LPEDICT);
 void harvest_gold_start(LPEDICT, LPEDICT);
+void cargo_drop_all(LPEDICT);
+void blight_mine_think(LPEDICT);
 BOOL move_selectlocation(LPEDICT, LPCVECTOR2);
 BOOL move_should_arrive(LPEDICT, FLOAT);
 BOOL move_is_blocked(LPEDICT, FLOAT, FLOAT);

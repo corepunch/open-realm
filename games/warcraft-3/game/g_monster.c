@@ -439,6 +439,10 @@ void SP_SpawnUnit(LPEDICT self) {
     self->balance.sight_radius.day = UNIT_SIGHT_RADIUS(self->class_id);
     self->balance.sight_radius.night = UNIT_SIGHT_RADIUS_NIGHT(self->class_id);
     self->think = monster_think;
+    /* Blighted gold mines earn gold on an interval instead of via workers. */
+    if (G_ActorHasSkill(self, "Abgm")) {
+        self->think = blight_mine_think;
+    }
     self->svflags |= SVF_MONSTER;
     /* Buildings use a single immobility contract so smart orders, combat, and
      * future movement paths cannot rotate or translate them independently. */

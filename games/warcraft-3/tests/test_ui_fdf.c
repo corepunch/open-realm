@@ -1677,7 +1677,7 @@ TEST(ui_fdf, main_menu_quit_dialog_commands_quit) {
     logo = UI_FindChildFrame(UI_FindFrame("MainMenuFrame"), "WarCraftIIILogo");
     if (!require_not_null(logo)) { uiimport = saved; return; }
     T_FEQ(logo->Points.x[FPP_MIN].offset, 0.13f, 0.001f);
-    T_FEQ(logo->Points.y[FPP_MIN].offset, 0.04f, 0.001f);
+    T_FEQ(logo->Points.y[FPP_MIN].offset, -0.08f, 0.001f);
 
     modal = UI_FindFrame("MainMenuQuitModal");
     if (!require_not_null(modal)) {

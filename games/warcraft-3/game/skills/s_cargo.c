@@ -5,11 +5,12 @@ static FLOAT cargo_capacity_value;
 /* ---- Cargo Hold (Acar): passive ability on transport units ---------------- */
 
 static BOOL cargo_has_capacity(LPEDICT transport, DWORD needed) {
-    return (transport->cargo_count + needed) <= transport->cargo_capacity;
+    return transport->cargo_count + needed <= MAX_CARGO &&
+           transport->cargo_count + needed <= (DWORD)cargo_capacity_value;
 }
 
 static void cargo_add_unit(LPEDICT transport, LPEDICT unit) {
-    if (transport->cargo_count >= MAX_CARGO) {
+    if (!cargo_has_capacity(transport, 1)) {
         return;
     }
     transport->cargo_units[transport->cargo_count++] = unit;
@@ -33,7 +34,7 @@ static void cargo_drop_unit(LPEDICT transport, DWORD index) {
     unit->s.origin2 = transport->s.origin2;
 }
 
-static void cargo_drop_all(LPEDICT transport) {
+void cargo_drop_all(LPEDICT transport) {
     while (transport->cargo_count > 0) {
         cargo_drop_unit(transport, transport->cargo_count - 1);
     }
@@ -61,7 +62,7 @@ static BOOL load_selecttarget(LPEDICT clent, LPEDICT target) {
     if (!G_ActorHasSkill(caster, "Acar")) {
         return false;
     }
-    if (caster->cargo_count >= (DWORD)cargo_capacity_value) {
+    if (!cargo_has_capacity(caster, 1)) {
         return false;
     }
     if (target->s.renderfx & RF_HIDDEN) {

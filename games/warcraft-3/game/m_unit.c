@@ -95,6 +95,10 @@ void unit_stand(LPEDICT self) {
 void unit_die(LPEDICT self, LPEDICT attacker) {
     unit_leavecombat(self);
     unit_setmove(self, &unit_move_death);
+    /* Destroying a transport ejects its passengers at the wreck. */
+    if (self->cargo_count > 0) {
+        cargo_drop_all(self);
+    }
     /* EVENT_UNIT_DEATH matches widget-specific death triggers
      * (TriggerRegisterDeathEvent/UnitEvent); EVENT_PLAYER_UNIT_DEATH fires the
      * owner's player-unit-death triggers (TriggerRegisterPlayerUnitEvent), e.g.

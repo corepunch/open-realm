@@ -21,7 +21,7 @@ static FLOAT item_stat_int_val;
 #define ID_ITEM_ATTACK   MAKEFOURCC('A', 'I', 'a', 't')
 #define ID_ITEM_DEFENSE  MAKEFOURCC('A', 'I', 'd', 'e')
 #define ID_ITEM_LIFE     MAKEFOURCC('A', 'I', 'm', 'l')
-#define ID_ITEM_MANA     MAKEFOURCC('A', 'I', 'm', 'm')
+#define ID_ITEM_MANA_BONUS MAKEFOURCC('A', 'I', 'm', 'm')
 #define ID_ITEM_STAT     MAKEFOURCC('A', 'I', 'a', 'b')
 
 static void apply_attack(LPEDICT unit, FLOAT amount) {
@@ -72,7 +72,7 @@ void item_stat_apply(LPEDICT unit, DWORD item_code) {
     if (item_code == ID_ITEM_LIFE && item_life_bonus_val != 0) {
         apply_life(unit, item_life_bonus_val);
     }
-    if (item_code == ID_ITEM_MANA && item_mana_bonus_val != 0) {
+    if (item_code == ID_ITEM_MANA_BONUS && item_mana_bonus_val != 0) {
         apply_mana(unit, item_mana_bonus_val);
     }
     if (item_code == ID_ITEM_STAT) {
@@ -93,7 +93,7 @@ void item_stat_remove(LPEDICT unit, DWORD item_code) {
     if (item_code == ID_ITEM_LIFE && item_life_bonus_val != 0) {
         apply_life(unit, -item_life_bonus_val);
     }
-    if (item_code == ID_ITEM_MANA && item_mana_bonus_val != 0) {
+    if (item_code == ID_ITEM_MANA_BONUS && item_mana_bonus_val != 0) {
         apply_mana(unit, -item_mana_bonus_val);
     }
     if (item_code == ID_ITEM_STAT) {
