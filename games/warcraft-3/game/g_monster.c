@@ -307,6 +307,7 @@ static void M_SetUnitShadow(LPEDICT self) {
         return;
     }
 
+#ifndef USE_SHADOWMAPS
     self->s.shadow = shadow;
     FLOAT shadow_x = UNIT_SHADOW_IMAGE_CENTER_X(self->class_id);
     FLOAT shadow_y = UNIT_SHADOW_IMAGE_CENTER_Y(self->class_id);
@@ -320,6 +321,7 @@ static void M_SetUnitShadow(LPEDICT self) {
         shadow_h = size;
     }
     self->s.shadow_rect = ShadowPackRect(shadow_x, shadow_y, shadow_w, shadow_h);
+#endif
 }
 
 static void M_SetBuildingShadow(LPEDICT self) {
@@ -332,8 +334,10 @@ static void M_SetBuildingShadow(LPEDICT self) {
         return;
     }
 
+#ifndef USE_SHADOWMAPS
     self->s.shadow = shadow;
     self->s.shadow_rect = 0;
+#endif
 }
 
 /* Register the first sound file for a given SLK label+suffix and return its

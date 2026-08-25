@@ -182,7 +182,6 @@ static BOOL Wow_QuestGiverSame(LPCWOWQUESTGIVER a, LPCWOWQUESTGIVER b) {
 }
 
 #define WOW_QUEST_OBJECTIVE_ANCHOR  0x51504F49
-#define WOW_QUEST_SPRITE_TINT_FLAG  (1u << 15) // bit[15] of entityState_t.overhead_sprite → render with yellow tint
 
 DWORD Wow_QuestGiverCount(void);
 LPCWOWQUESTGIVER Wow_QuestGiver(DWORD index);
@@ -312,7 +311,6 @@ typedef struct {
     DWORD go_display_id;
     DWORD quest_id;
     DWORD quest_available_model;  /* model index for yellow "!" (TalkToMe.m2) */
-    DWORD quest_active_sprite;    /* image index for grey/yellow "?" (ActiveQuestIcon.blp) */
     /* Loot fields — valid on any entity (rolled at death, consumed on pickup). */
 #define WOW_MAX_LOOT_ITEMS 6
     wowHudIcon_t loot_items[WOW_MAX_LOOT_ITEMS];
@@ -336,8 +334,11 @@ typedef struct {
     UINAME name;
     wowHudIcon_t inventory[WOW_UI_INVENTORY_SLOTS];
     wowHudIcon_t actions[WOW_UI_ACTION_SLOTS];
+    DWORD selected_entity;  /* entity this player has targeted (server-side only, not synced to client) */
     BOOL quest_open;
     DWORD quest_id;
+    svQuestEntry_t quest_log[SV_MAX_QUEST_LOG];
+    DWORD quest_count;
     DWORD kill_progress[SV_MAX_QUEST_LOG][WOW_QUEST_MAX_KILL_OBJECTIVES];
     DWORD questlog_open;
     wowUiMessage_t messages[WOW_UI_MAX_MESSAGES];

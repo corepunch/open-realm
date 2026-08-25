@@ -27,7 +27,9 @@ bool R_GameModelCanStaticInstance(LPCMODEL model);
 bool R_GameTraceModel(renderEntity_t const *entity, LPCLINE3 line, LPFLOAT distance);
 bool R_GameGetModelInfo(LPMODEL model, LPMODELINFO info);
 bool R_GameEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix);
+#ifndef USE_SHADOWMAPS
 bool R_GameRenderShadow(renderEntity_t const *entity, LPCVECTOR2 origin);
+#endif
 /* Selection-circle radius for the shared entity path; per-game tuning (e.g. WoW's fractional-creature clamp). */
 FLOAT R_GameSelectionRadius(renderEntity_t const *entity);
 FLOAT R_GameEntityHeight(renderEntity_t const *entity);

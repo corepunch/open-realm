@@ -733,6 +733,86 @@ TEST(wc3_movement, unit_stops_when_goal_is_occupied) {
     T_ASSERT(min_goal_dist <= combined + unit_movedistance(unit)); /* but reached right up to it */
 }
 
+/* Without a town hall the worker exits the mine carrying gold but has nowhere
+ * to go: it stops in stand state.  The RETURN_GOLD, DEPOSIT_GOLD, and
+ * RESUME_GOLD messages must NOT be published. */
+TEST(wc3_movement, gold_worker_stops_when_no_townhall) {
+    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
+    LPEDICT mine   = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 400.0f, 0.0f);
+    worker->collision = 16.0f; worker->unitinfo.MoveSpeed = 100.0f;
+    mine->collision = 128.0f; mine->s.model = 1; mine->movetype = MOVETYPE_NONE;
+    gi.LinkEntity(mine);
+    MINING_CAPACITY = 5.0f; MINING_DURATION = 0.01f; HARVEST_GOLD_CAPACITY = 10.0f;
+
+    MSGTRACE trace = {0};
+    T_ASSERT(G_SubscribeMessage(trace_message, &trace));
+    harvest_gold_start(worker, mine);
+
+    /* Drive until harvested_gold is set (harvestgold_walkback fired). */
+    FOR_LOOP(i, 100) {
+        worker->currentmove->think(worker);
+        if (worker->harvested_gold > 0) break;
+    }
+    G_UnsubscribeMessage(trace_message, &trace);
+
+    T_ASSERT(worker->harvested_gold > 0);           /* gold carried, not deposited */
+    T_ASSERT(worker->s.renderfx & RF_HAS_GOLD);     /* visual bag still on worker */
+    T_ASSERT(!(worker->s.renderfx & RF_HIDDEN));    /* not inside mine */
+    T_STREQ(worker->currentmove->animation, "stand");
+    /* Only MOVE_GOLD and ENTER_MINE — no return/deposit/resume. */
+    T_EQ((int)trace.count, 2);
+    T_EQ(trace.msg[0].type, GAME_MSG_HARVEST_MOVE_GOLD);
+    T_EQ(trace.msg[1].type, GAME_MSG_HARVEST_ENTER_MINE);
+}
+
+/* A second worker ordered to mine when the mine is already at capacity waits
+ * outside.  When the first worker exits, it wakes the second, which enters
+ * immediately without a new walk order from the player. */
+TEST(wc3_movement, gold_mine_queues_second_worker_when_at_capacity) {
+    LPEDICT worker1 = make_moving_unit(0.0f, 0.0f);
+    LPEDICT mine    = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 400.0f, 0.0f);
+    worker1->collision = 16.0f; worker1->unitinfo.MoveSpeed = 100.0f;
+    mine->collision = 128.0f; mine->s.model = 1; mine->movetype = MOVETYPE_NONE;
+    gi.LinkEntity(mine);
+    MINING_CAPACITY = 1.0f; MINING_DURATION = 0.01f; HARVEST_GOLD_CAPACITY = 10.0f;
+
+    /* Worker1 walks to and enters the mine. */
+    harvest_gold_start(worker1, mine);
+    FOR_LOOP(i, 60) {
+        worker1->currentmove->think(worker1);
+        if (worker1->s.renderfx & RF_HIDDEN) break;
+    }
+    T_ASSERT(worker1->s.renderfx & RF_HIDDEN);
+    T_EQ((int)mine->peonsinside, 1);
+
+    /* Worker2: wire and place at the mine entrance so it reaches immediately. */
+    LPEDICT worker2 = alloc_test_unit(MAKEFOURCC('h','p','e','a'),
+                                      mine->s.origin2.x - mine->collision - 16.0f,
+                                      mine->s.origin2.y);
+    worker2->movetype = MOVETYPE_STEP;
+    worker2->stand    = unit_stand;
+    worker2->die      = unit_die;
+    worker2->collision = 16.0f;
+    worker2->health.value = worker2->health.max_value = 250.0f;
+    worker2->unitinfo.MoveSpeed = 100.0f;
+    unit_stand(worker2);
+    gi.LinkEntity(worker2);
+
+    harvest_gold_start(worker2, mine);
+    worker2->currentmove->think(worker2); /* immediately at mine — enters wait state */
+
+    T_ASSERT(!(worker2->s.renderfx & RF_HIDDEN));   /* waiting outside */
+    T_EQ((int)mine->peonsinside, 1);                /* still only worker1 */
+    T_STREQ(worker2->currentmove->animation, "stand");
+
+    /* Worker1 exits; harvestgold_walkback wakes worker2 in the same call. */
+    worker1->currentmove->think(worker1);
+    T_ASSERT(worker2->s.renderfx & RF_HIDDEN);   /* worker2 now inside */
+    T_EQ((int)mine->peonsinside, 1);             /* worker1 left (−1) worker2 entered (+1) */
+    T_ASSERT(!(worker1->s.renderfx & RF_HIDDEN));/* worker1 exited */
+    T_ASSERT(worker1->s.renderfx & RF_HAS_GOLD); /* worker1 carrying gold */
+}
+
 /* -----------------------------------------------------------------------
  * Suite runner
  * --------------------------------------------------------------------- */

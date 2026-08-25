@@ -22,11 +22,13 @@ Cutscenes in Warcraft III are driven entirely by the map's JASS script (`war3map
 
 The `skip_cutscene` cvar provides an engine-level fast-forward. When set to `1`:
 - `SetCinematicScene` returns early (no dialogue)
-- `ShowInterface` forces UI visible
-- `EnableUserControl` forces user control on
 - `TriggerSleepAction` sleeps only 1ms
 - Camera durations forced to 0
 - Cinefilter forced off
+
+`ShowInterface` and `EnableUserControl` still honor the JASS booleans while the script fast-forwards. Keeping cinematic
+UI/input state prevents edge-scroll camera messages from racing the script: the final camera setup must land before cleanup
+restores input.
 
 This is separate from the JASS-level ESC skip mechanism.
 
@@ -74,6 +76,12 @@ Indicates wrong `currentplayer` context in the JASS VM. Check `jass_eventplayer(
 
 **Cinematic HUD layers hidden:**
 `CLIENT_UI_CINEMATIC` hides portrait, console, command bar, info panel, inventory via `UI_LayoutShouldSkipLayoutLayer` in `client/cl_unit_layout.c`.
+
+**Fast-forward ends at the last cinematic camera position:**
+Log server `playerState.origin`, client camera prediction, `client_ui_state`, and `no_control` together. If gameplay input
+becomes active before the final camera native, edge scrolling can send `clc_camera_position` during the accelerated script
+and overwrite the authoritative snap. `skip_cutscene` must shorten timing only; the JASS cleanup owns the UI and input
+transition.
 
 ### DisplayText Message Overlay
 

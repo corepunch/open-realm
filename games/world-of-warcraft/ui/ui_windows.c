@@ -16,10 +16,9 @@
  */
 
 #include "ui_local.h"
+#include "wow_assets.h"
 #include <string.h>
 #include <stdio.h>
-
-#define WOW_TIP_LAYOUT "Interface\\FrameXML\\TutorialFrame.xml" // archive path; Blizzard owns the tutorial frame and alert templates
 
 BOOL UIWow_TipsEnabled(void) {
     LPCSTR value = uiimport.Cvar_String(BZ_WOW_CVAR_SHOW_TIPS, "1");

@@ -644,7 +644,7 @@ TEST(wow_game, quest_marker_transitions_on_acceptance) {
     VECTOR2 origin = { -8947.64f, -132.319f };
     LPEDICT giver = NULL;
     entityState_t state;
-    DWORD avail_model, active_idx;
+    DWORD avail_model;
 
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     game->RunFrame();
@@ -655,28 +655,27 @@ TEST(wow_game, quest_marker_transitions_on_acceptance) {
     T_NOT_NULL(giver);
     if (giver) {
         avail_model = (DWORD)test_model_index("Interface\\Buttons\\TalkToMe.m2");
-        active_idx = (DWORD)test_image_index("Interface\\GossipFrame\\ActiveQuestIcon.blp");
-        /* Before acceptance: the authoritative yellow "!" M2, not the GossipFrame BLP. */
+        /* Before acceptance: the authoritative yellow "!" M2, EF_HAS_QUEST cleared for this client. */
         state = giver->s;
         game->CustomizeEntity(0, giver, &state);
         T_EQ((int)state.image, 0);
-        T_EQ((int)state.overhead_sprite, 0);
+        T_ASSERT(!(state.flags & EF_HAS_QUEST));
         T_EQ((int)state.model2, (int)avail_model);
         T_ASSERT(state.renderfx & RF_ATTACH_OVERHEAD);
         /* Selection reveals the name, which makes the renderer stack the marker above attachment 18. */
-        wow_clients[0].client.ps.selected_entity = giver->s.number;
+        wow_clients[0].selected_entity = giver->s.number;
         state = giver->s;
         game->CustomizeEntity(0, giver, &state);
         T_EQ((int)state.image, (int)giver->s.image);
-        wow_clients[0].client.ps.selected_entity = 0;
-        /* After acceptance: grey "?" (ActiveQuestIcon, no tint). */
+        wow_clients[0].selected_entity = 0;
+        /* After acceptance: grey "?" flag, no tint. */
         game->ClientCommand(&wow_edicts[0], 2, (LPCSTR[]){ "quest_accept", "783" });
         state = giver->s;
         game->CustomizeEntity(0, giver, &state);
-        T_EQ((int)(state.overhead_sprite & 0x7fff), (int)active_idx);
+        T_ASSERT(state.flags & EF_HAS_QUEST);
         T_EQ((int)state.model2, 0);
         T_ASSERT(!(state.renderfx & RF_ATTACH_OVERHEAD));
-        T_ASSERT(!(state.overhead_sprite & WOW_QUEST_SPRITE_TINT_FLAG));
+        T_ASSERT(!(state.flags & EF_QUEST_COMPLETE));
     }
     if (game->Shutdown) game->Shutdown();
 }
@@ -867,12 +866,12 @@ TEST(wow_game, quest_accept_adds_to_quest_log) {
     player = &wow_edicts[0];
     game->ClientBegin(player);
     wc = (wowClient_t *)player->client;
-    T_EQ((int)wc->client.ps.quest_count, 0);
+    T_EQ((int)wc->quest_count, 0);
 
     game->ClientCommand(player, 2, accept_command);
-    T_EQ((int)wc->client.ps.quest_count, 1);
-    T_EQ((int)wc->client.ps.quest_log[0].quest_id, 788);
-    T_EQ((int)wc->client.ps.quest_log[0].status, SV_QUEST_ACTIVE);
+    T_EQ((int)wc->quest_count, 1);
+    T_EQ((int)wc->quest_log[0].quest_id, 788);
+    T_EQ((int)wc->quest_log[0].status, SV_QUEST_ACTIVE);
 }
 
 TEST(wow_game, quest_prerequisite_blocks_accept) {
@@ -888,18 +887,18 @@ TEST(wow_game, quest_prerequisite_blocks_accept) {
     wc = (wowClient_t *)player->client;
 
     game->ClientCommand(player, 2, accept13);
-    T_EQ((int)wc->client.ps.quest_count, 0);
+    T_EQ((int)wc->quest_count, 0);
 
     game->ClientCommand(player, 2, accept12);
-    T_EQ((int)wc->client.ps.quest_count, 1);
-    T_EQ((int)wc->client.ps.quest_log[0].quest_id, 12);
+    T_EQ((int)wc->quest_count, 1);
+    T_EQ((int)wc->quest_log[0].quest_id, 12);
 
     game->ClientCommand(player, 2, accept13);
-    T_EQ((int)wc->client.ps.quest_count, 1);
+    T_EQ((int)wc->quest_count, 1);
     game->ClientCommand(player, 2, (LPCSTR[]){ "quest_complete", "12" });
     game->ClientCommand(player, 2, accept13);
-    T_EQ((int)wc->client.ps.quest_count, 2);
-    T_EQ((int)wc->client.ps.quest_log[1].quest_id, 13);
+    T_EQ((int)wc->quest_count, 2);
+    T_EQ((int)wc->quest_log[1].quest_id, 13);
 }
 
 TEST(wow_game, quest_complete_delivers_rewards) {
@@ -1045,7 +1044,7 @@ TEST(wow_game, quest_kill_progress_increments_and_auto_completes) {
     wc = (wowClient_t *)player->client;
 
     game->ClientCommand(player, 2, accept788);
-    state = SV_QuestFind(wc->client.ps.quest_log, wc->client.ps.quest_count, 788);
+    state = SV_QuestFind(wc->quest_log, wc->quest_count, 788);
     T_NOT_NULL(state);
     T_EQ((int)state->status, SV_QUEST_ACTIVE);
     T_EQ((int)wc->kill_progress[0][0], 0);
@@ -1070,7 +1069,7 @@ TEST(wow_game, quest_kill_credit_only_on_accepted_quest) {
     wc = (wowClient_t *)player->client;
 
     Wow_QuestAwardKillCredit(player, 503);
-    T_EQ((int)wc->client.ps.quest_count, 0);
+    T_EQ((int)wc->quest_count, 0);
 
     game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "788"});
     game->ClientCommand(player, 2, (LPCSTR[]){"quest_complete", "788"});
@@ -1092,7 +1091,7 @@ TEST(wow_game, quest_kill_credit_wrong_creature_no_progress) {
     wc = (wowClient_t *)player->client;
 
     game->ClientCommand(player, 2, accept788);
-    state = SV_QuestFind(wc->client.ps.quest_log, wc->client.ps.quest_count, 788);
+    state = SV_QuestFind(wc->quest_log, wc->quest_count, 788);
     T_NOT_NULL(state);
     T_EQ((int)wc->kill_progress[0][0], 0);
 
@@ -1198,7 +1197,7 @@ TEST(wow_game, wow_load_map_spawns_and_runs_creature_state) {
 
     game->ClientCommand(player, 2, attack_argv);
     T_EQ((int)(player_local->enemy ? player_local->enemy->s.number : 0), 1);
-    T_EQ((int)player->client->ps.selected_entity, 1);
+    T_EQ((int)((wowClient_t *)player->client)->selected_entity, 1);
 
     /* Run frames until the player chases into melee range and starts swinging. */
     for (int i = 0; i < 300; i++) {
@@ -1232,7 +1231,7 @@ TEST(wow_game, selecting_target_does_not_start_combat_or_chase) {
     game->ClientCommand(player, 2, select_argv);
     game->RunFrame();
 
-    T_EQ((int)player->client->ps.selected_entity, (int)creature->s.number);
+    T_EQ((int)((wowClient_t *)player->client)->selected_entity, (int)creature->s.number);
     T_NULL(local->enemy);
     T_EQ((int)local->attack_time, 0);
     T_EQ((int)local->attack_damage_time, 0);
@@ -1256,7 +1255,7 @@ TEST(wow_game, wow_fireball_cast_interrupts_melee_and_launches) {
     T_NOT_NULL(creature);
     creature->s.origin = (VECTOR3){ player->s.origin.x + 10.0f, player->s.origin.y, player->s.origin.z };
     creature->s.origin2 = (VECTOR2){ creature->s.origin.x, creature->s.origin.y };
-    player->client->ps.selected_entity = creature->s.number;
+    ((wowClient_t *)player->client)->selected_entity = creature->s.number;
     local->enemy = creature;
     local->attack_time = local->attack_damage_time = 500;
     local->attack_backswing_time = 500;
@@ -1301,7 +1300,7 @@ TEST(wow_game, wow_fireball_movement_cancels) {
     T_NOT_NULL(creature);
     creature->s.origin = (VECTOR3){ player->s.origin.x + 10.0f, player->s.origin.y, player->s.origin.z };
     creature->s.origin2 = (VECTOR2){ creature->s.origin.x, creature->s.origin.y };
-    player->client->ps.selected_entity = creature->s.number;
+    ((wowClient_t *)player->client)->selected_entity = creature->s.number;
     game->ClientCommand(player, 5, move_argv);
     game->ClientCommand(player, 2, action_argv);
     T_EQ((int)local->cast_spell, (int)SPELL_NONE);
@@ -1340,11 +1339,11 @@ TEST(wow_game, quest_log_full_rejects_new_quests) {
         accept_args[1] = id_buf;
         game->ClientCommand(player, 2, accept_args);
     }
-    T_EQ((int)wc->client.ps.quest_count, SV_MAX_QUEST_LOG);
+    T_EQ((int)wc->quest_count, SV_MAX_QUEST_LOG);
 
     /* Next accept should fail */
     game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "184"});
-    T_EQ((int)wc->client.ps.quest_count, SV_MAX_QUEST_LOG);
+    T_EQ((int)wc->quest_count, SV_MAX_QUEST_LOG);
     if (game->Shutdown) game->Shutdown();
 }
 
@@ -1360,9 +1359,9 @@ TEST(wow_game, quest_accept_same_quest_twice_is_idempotent) {
     wc = (wowClient_t *)player->client;
 
     game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "788"});
-    T_EQ((int)wc->client.ps.quest_count, 1);
+    T_EQ((int)wc->quest_count, 1);
     game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "788"});
-    T_EQ((int)wc->client.ps.quest_count, 1);
+    T_EQ((int)wc->quest_count, 1);
     if (game->Shutdown) game->Shutdown();
 }
 
@@ -1379,7 +1378,7 @@ TEST(wow_game, quest_kill_credit_does_not_overflow) {
     wc = (wowClient_t *)player->client;
 
     game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "788"});
-    state = SV_QuestFind(wc->client.ps.quest_log, wc->client.ps.quest_count, 788);
+    state = SV_QuestFind(wc->quest_log, wc->quest_count, 788);
     T_NOT_NULL(state);
 
     /* Kill 20 when only 8 required */
@@ -1401,9 +1400,9 @@ TEST(wow_game, quest_accept_invalid_id_no_crash) {
     wc = (wowClient_t *)player->client;
 
     game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "99999"});
-    T_EQ((int)wc->client.ps.quest_count, 0);
+    T_EQ((int)wc->quest_count, 0);
     game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "0"});
-    T_EQ((int)wc->client.ps.quest_count, 0);
+    T_EQ((int)wc->quest_count, 0);
     if (game->Shutdown) game->Shutdown();
 }
 
@@ -1513,7 +1512,7 @@ TEST(wow_game, quest_open_via_selected_npc_entity) {
     npc_local->quest_id = 33;
 
     /* Select the NPC and issue bare "quest" command (no ID argument) */
-    player->client->ps.selected_entity = npc->s.number;
+    ((wowClient_t *)player->client)->selected_entity = npc->s.number;
     test_ui_frame_count = 0;
     game->ClientCommand(player, 1, (LPCSTR[]){"quest"});
     T_ASSERT(wc->quest_open);
@@ -1587,21 +1586,21 @@ TEST(wow_game, quest_chain_sequential_unlock) {
 
     /* Quest 14 requires 13, which requires 12 */
     game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "14"});
-    T_EQ((int)wc->client.ps.quest_count, 0);
+    T_EQ((int)wc->quest_count, 0);
 
     game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "12"});
-    T_EQ((int)wc->client.ps.quest_count, 1);
+    T_EQ((int)wc->quest_count, 1);
     game->ClientCommand(player, 2, (LPCSTR[]){"quest_complete", "12"});
     T_ASSERT(ps->stats[WOW_STAT_XP] > 0);
 
     game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "13"});
-    T_EQ((int)wc->client.ps.quest_count, 2);
+    T_EQ((int)wc->quest_count, 2);
     game->ClientCommand(player, 2, (LPCSTR[]){"quest_complete", "13"});
 
     game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "14"});
-    T_EQ((int)wc->client.ps.quest_count, 3);
-    T_EQ((int)wc->client.ps.quest_log[2].quest_id, 14);
-    T_EQ((int)wc->client.ps.quest_log[2].status, SV_QUEST_ACTIVE);
+    T_EQ((int)wc->quest_count, 3);
+    T_EQ((int)wc->quest_log[2].quest_id, 14);
+    T_EQ((int)wc->quest_log[2].status, SV_QUEST_ACTIVE);
     if (game->Shutdown) game->Shutdown();
 }
 
@@ -1619,7 +1618,7 @@ TEST(wow_game, quest_kill_credit_from_combat_death) {
 
     /* Accept quest 788 which needs display_id 503 kills */
     game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "788"});
-    state = SV_QuestFind(wc->client.ps.quest_log, wc->client.ps.quest_count, 788);
+    state = SV_QuestFind(wc->quest_log, wc->quest_count, 788);
     T_NOT_NULL(state);
     T_EQ((int)wc->kill_progress[0][0], 0);
 
@@ -1942,5 +1941,114 @@ TEST(wow_game, damage_flash_outgoing_set_on_enemy_hit) {
     T_EQ((int)wc->outgoing_damage, 2);
     T_EQ((int)wc->outgoing_dmg_timer, 1500);
     T_EQ((int)wc->incoming_dmg_timer, 0); /* creature is not a client */
+    if (game->Shutdown) game->Shutdown();
+}
+
+/* GCD set by an instant cast prevents a second cast until it expires. */
+TEST(wow_game, gcd_blocks_second_instant_cast) {
+    struct game_export *game = init_game();
+    LPEDICT player = &wow_edicts[0];
+    wowEntityLocal_t *local;
+
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    local = Wow_EntityLocal(player);
+    T_NOT_NULL(local);
+    local->health = 50;
+
+    /* Slot 3 = Healing Touch (instant, range=0, self). */
+    game->ClientCommand(player, 2, (LPCSTR[]){ "wow_action", "3" });
+    T_EQ((int)local->gcd_time, 1500);
+    T_EQ((int)local->mana, 92);    /* 100 - WOW_HEALING_TOUCH_MANA_COST (8) */
+    T_EQ((int)local->health, 52);
+
+    local->health = 50;
+    DWORD mana_snapshot = local->mana;
+
+    /* Immediate second cast blocked by GCD. */
+    game->ClientCommand(player, 2, (LPCSTR[]){ "wow_action", "3" });
+    T_EQ((int)local->mana, (int)mana_snapshot);
+    T_EQ((int)local->health, 50);
+
+    /* 15 frames drain the GCD (1500ms / FRAMETIME). */
+    FOR_LOOP(i, 1500 / FRAMETIME) game->RunFrame();
+    T_EQ((int)local->gcd_time, 0);
+
+    /* Third cast succeeds once GCD expires. */
+    local->health = 50;
+    game->ClientCommand(player, 2, (LPCSTR[]){ "wow_action", "3" });
+    T_EQ((int)local->health, 52);
+
+    if (game->Shutdown) game->Shutdown();
+}
+
+/* ps.stats[WOW_STAT_CAST_PROGRESS] reflects remaining cast time each frame. */
+TEST(wow_game, cast_progress_stat_shows_countdown) {
+    struct game_export *game = init_game();
+    LPEDICT player = &wow_edicts[0];
+    LPEDICT creature;
+    wowEntityLocal_t *local;
+
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    creature = first_creature();
+    T_NOT_NULL(creature);
+    if (!creature) { if (game->Shutdown) game->Shutdown(); return; }
+    creature->s.origin  = (VECTOR3){ player->s.origin.x + 10.0f, player->s.origin.y, player->s.origin.z };
+    creature->s.origin2 = (VECTOR2){ creature->s.origin.x, creature->s.origin.y };
+    ((wowClient_t *)player->client)->selected_entity = creature->s.number;
+    local = Wow_EntityLocal(player);
+
+    /* Slot 4 = Fireball (1500ms cast). */
+    game->ClientCommand(player, 2, (LPCSTR[]){ "wow_action", "4" });
+    T_ASSERT(local->cast_spell != SPELL_NONE);
+    T_EQ((int)local->cast_duration, 1500);
+    T_EQ((int)local->cast_remaining, 1500);
+
+    /* After one frame cast_remaining ticks down; Wow_UpdatePlayerHud writes it to ps.stats. */
+    game->RunFrame();
+    T_EQ((int)player->client->ps.stats[WOW_STAT_CAST_PROGRESS], 1400);
+    T_EQ((int)player->client->ps.stats[WOW_STAT_CAST_MAX], 1500);
+
+    if (game->Shutdown) game->Shutdown();
+}
+
+/* Wow_MonsterStart sets RF_HOSTILE on all spawned creatures. */
+TEST(wow_game, creature_spawns_with_rf_hostile_flag) {
+    struct game_export *game = init_game();
+    LPEDICT creature;
+
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    game->RunFrame();
+    creature = first_creature();
+    T_NOT_NULL(creature);
+    if (creature)
+        T_ASSERT(creature->s.flags & EF_HOSTILE);
+
+    if (game->Shutdown) game->Shutdown();
+}
+
+/* After death animation expires (WOW_DEFAULT_DEATH_TIME = 1200ms), think transitions
+ * to Wow_RunCorpseFrame and SVF_MONSTER is cleared. */
+TEST(wow_game, creature_death_transitions_to_corpse_frame) {
+    struct game_export *game = init_game();
+    LPEDICT creature;
+    wowEntityLocal_t *local;
+
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    game->RunFrame();
+    creature = first_creature();
+    T_NOT_NULL(creature);
+    if (!creature) { if (game->Shutdown) game->Shutdown(); return; }
+
+    local = Wow_EntityLocal(creature);
+    Wow_AIDie(creature, NULL);
+    T_ASSERT(local->dead);
+    T_ASSERT(creature->svflags & SVF_DEADMONSTER);
+    T_ASSERT(creature->think != Wow_RunCorpseFrame);
+
+    /* WOW_DEFAULT_DEATH_TIME = 1200ms / FRAMETIME = 100ms → 12 ticks. */
+    FOR_LOOP(i, 1200 / FRAMETIME) Wow_AIAdvanceLockedFrame(creature);
+    T_ASSERT(creature->think == Wow_RunCorpseFrame);
+    T_ASSERT(!(creature->svflags & SVF_MONSTER));
+
     if (game->Shutdown) game->Shutdown();
 }

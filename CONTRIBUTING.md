@@ -34,6 +34,64 @@ Available assertions: `T_ASSERT(cond)`, `T_EQ(a,b)`, `T_NE(a,b)`, `T_FEQ(a,b,eps
 
 Do not include `test_framework.h` — it has been removed. Do not write a `main()` for test files; link against `tests/test_runner.c` instead.
 
+### Message Delta Tests
+
+Every field or flag added to `entityState_t` travels over the network via `MSG_WriteDeltaEntity`/`MSG_ReadDeltaEntity`.
+Write a round-trip test whenever you add a new field, flag, or packed value to confirm the serialization contract:
+
+```c
+TEST(wow_appearance, entity_delta_preserves_my_flag) {
+    BYTE buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    entityState_t from = { 0 }, to = { .number = 9, .model = 3, .flags = EF_MY_FLAG }, out = { 0 };
+    DWORD bits = 0;
+    int number;
+
+    MSG_WriteDeltaEntity(&sb, &from, &to, true);
+    sb.readcount = 0;
+    number = MSG_ReadEntityBits(&sb, &bits);
+    MSG_ReadDeltaEntity(&sb, &out, number, bits);
+
+    T_EQ(number, 9);
+    T_ASSERT(out.flags & EF_MY_FLAG);
+}
+```
+
+Key points:
+- Set `from` to all-zero and `to` to only the fields under test so the delta is minimal.
+- Always set a non-zero `model` alongside new fields — a zero-model entity may be skipped by the delta encoder.
+- Reset `sb.readcount = 0` between write and read; `make_msg_buf` is defined in the same test file.
+- These tests live in `games/world-of-warcraft/tests/test_wow_appearance.c` for WoW entity fields.
+- After verifying network survival, test the game-logic side separately (see below).
+
+### Unit Behaviour Tests via `CustomizeEntity`
+
+Server-side per-client state filtering happens in `Wow_CustomizeEntity` (called via `game->CustomizeEntity`).
+Test that function by driving game state, calling it with a copied `entityState_t`, and asserting the resulting flags:
+
+```c
+TEST(wow_game, my_feature_sets_correct_flags) {
+    struct game_export *game = init_game();
+    entityState_t state;
+    LPEDICT npc = /* find or spawn the entity */;
+
+    /* Drive the entity into the desired server state here */
+
+    state = npc->s;
+    game->CustomizeEntity(0, npc, &state);   /* player 0 */
+    T_ASSERT(state.flags & EF_MY_FLAG);
+    T_ASSERT(!(state.flags & EF_OTHER_FLAG));
+
+    if (game->Shutdown) game->Shutdown();
+}
+```
+
+Key points:
+- `CustomizeEntity` receives a *copy* of `npc->s` and mutates it; `npc->s` is unchanged.
+- Call it once per logical state transition (e.g. before quest accept, after quest accept) to test each branch.
+- Combine with `wow_clients[player].selected_entity` changes to test visibility gating.
+- These tests live in `games/world-of-warcraft/tests/test_wow_game.c`.
+
 ## Build and Linking
 
 - Never add `DYLIB_LOOKUP := -Wl,-undefined,dynamic_lookup` or otherwise rely on `-Wl,-undefined,dynamic_lookup` in this repository.

@@ -34,19 +34,22 @@ netField_t entityStateFields[] = {
     { NETF(entityState_t, origin), NFT_VECTOR3 },
 #endif
     { NETF(entityState_t, angle), NFT_ANGLE },
+#ifdef WOW
     { NETF(entityState_t, rotation), NFT_VECTOR3 },
+#endif
     { NETF(entityState_t, scale), NFT_PACKED_FLOAT },
     { NETF(entityState_t, frame), NFT_LONG },
-    { NETF(entityState_t, model), NFT_SHORT },
-    { NETF(entityState_t, model2), NFT_SHORT },
+    { NETF(entityState_t, model), NFT_BYTE },
+    { NETF(entityState_t, model2), NFT_BYTE },
 #ifdef WOW
     { NETF(entityState_t, appearance), NFT_LONG },
     { NETF(entityState_t, equipment), NFT_LONG },
 #endif
     { NETF(entityState_t, image), NFT_SHORT },
-    { NETF(entityState_t, overhead_sprite), NFT_SHORT },
     { NETF(entityState_t, player), NFT_BYTE },
-    { NETF(entityState_t, flags), NFT_LONG },
+    { NETF(entityState_t, flags), NFT_BYTE },
+    { NETF(entityState_t, renderfx), NFT_BYTE },
+    { NETF(entityState_t, ability), NFT_BYTE },
 #ifdef WOW
     /* WoW creature radii can be 0.5; NFT_ROUND serialized those as zero. WoW radii stay < 65.5 so the packed-float
      * range is ample. WC3 selection radii (buildings/destructables) exceed 65.5 and must keep NFT_ROUND. */
@@ -55,8 +58,10 @@ netField_t entityStateFields[] = {
     { NETF(entityState_t, radius), NFT_ROUND },
 #endif
     { NETF(entityState_t, splat), NFT_LONG },
+#ifndef USE_SHADOWMAPS
     { NETF(entityState_t, shadow), NFT_SHORT },
     { NETF(entityState_t, shadow_rect), NFT_LONG },
+#endif
     { NETF(entityState_t, stats), NFT_LONG },
     { NULL }
 };
@@ -303,6 +308,12 @@ static DWORD MSG_GetBits(void const *from,
             case NFT_QUATERNION:
                 if (memcmp(fromF, toF, sizeof(QUATERNION))!=0) bits |= 1 << (field - fields);
                 break;
+            case NFT_BYTE:
+                if (*(uint8_t *)fromF != *(uint8_t *)toF) bits |= 1 << (field - fields);
+                break;
+            case NFT_SHORT:
+                if (*(uint16_t *)fromF != *(uint16_t *)toF) bits |= 1 << (field - fields);
+                break;
             default:
                 if (*fromF != *toF) {
                     if ((field->type == NFT_TEXT || field->type == NFT_DUPTEXT) && **((LPCSTR *)toF) == 0) {
@@ -332,8 +343,8 @@ static void MSG_WriteFields(LPSIZEBUF msg,
             case NFT_PACKED_FLOAT: MSG_WriteShort(msg, *_float * 500); break;
             case NFT_ANGLE: MSG_WriteShort(msg, *_float / 360 * 0xffff); break;
             case NFT_LONG: MSG_WriteLong(msg, *toF); break;
-            case NFT_SHORT: MSG_WriteShort(msg, *toF); break;
-            case NFT_BYTE: MSG_WriteByte(msg, *toF); break;
+            case NFT_SHORT: MSG_WriteShort(msg, *(uint16_t *)toF); break;
+            case NFT_BYTE: MSG_WriteByte(msg, *(uint8_t *)toF); break;
             case NFT_TEXT: MSG_WriteString(msg, *(LPCSTR *)toF); break;
             case NFT_DUPTEXT: MSG_WriteString(msg, *(LPCSTR *)toF); break;
             case NFT_VECTOR2: FOR_LOOP(i, 2) MSG_WriteFloat(msg, _float[i]); break;
@@ -360,8 +371,8 @@ static void MSG_ReadFields(LPSIZEBUF msg,
             case NFT_PACKED_FLOAT: *_float = MSG_ReadShort(msg) / 500.f; break;
             case NFT_ANGLE: *_float = MSG_ReadShort(msg) * 360.f / 0xffff; break;
             case NFT_LONG: *toF = MSG_ReadLong(msg); break;
-            case NFT_SHORT: *toF = MSG_ReadShort(msg); break;
-            case NFT_BYTE: *toF = MSG_ReadByte(msg); break;
+            case NFT_SHORT: *(uint16_t *)toF = (uint16_t)MSG_ReadShort(msg); break;
+            case NFT_BYTE: *(uint8_t *)toF = (uint8_t)MSG_ReadByte(msg); break;
             case NFT_TEXT:
                 *((LPCSTR *)toF) = (LPCSTR)(msg->data + msg->readcount);
                 while (*(msg->data+(msg->readcount++)));

@@ -393,10 +393,10 @@ TEST(wow_appearance, wow_entity_delta_preserves_fractional_radius) {
     T_FEQ(out.radius, 0.5f, 0.001f);
 }
 
-TEST(wow_appearance, wow_entity_delta_preserves_overhead_sprite) {
+TEST(wow_appearance, wow_entity_delta_preserves_quest_flags) {
     BYTE buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
-    entityState_t from = { 0 }, to = { .number = 9, .model = 3, .overhead_sprite = 42 }, out = { 0 };
+    entityState_t from = { 0 }, to = { .number = 9, .model = 3, .flags = EF_HAS_QUEST | EF_QUEST_COMPLETE }, out = { 0 };
     DWORD bits = 0;
     int number;
 
@@ -406,7 +406,8 @@ TEST(wow_appearance, wow_entity_delta_preserves_overhead_sprite) {
     MSG_ReadDeltaEntity(&sb, &out, number, bits);
 
     T_EQ(number, 9);
-    T_EQ(out.overhead_sprite, 42);
+    T_ASSERT(out.flags & EF_HAS_QUEST);
+    T_ASSERT(out.flags & EF_QUEST_COMPLETE);
 }
 
 TEST(wow_appearance, wow_entity_delta_preserves_mounted_flag) {

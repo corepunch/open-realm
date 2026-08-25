@@ -1229,8 +1229,8 @@ void Wow_HealingTouch(LPEDICT caster) {
 /* Find a target in range for the firebolt spell.  Prefers current selection,
    then the current melee enemy, then nearest enemy. */
 LPEDICT Wow_FindSpellTarget(LPEDICT ent, FLOAT range) {
-    if (ent && ent->client && ent->client->ps.selected_entity) {
-        LPEDICT t = Wow_EdictByNumber(ent->client->ps.selected_entity);
+    if (ent && ent->client && ((wowClient_t *)ent->client)->selected_entity) {
+        LPEDICT t = Wow_EdictByNumber(((wowClient_t *)ent->client)->selected_entity);
         if (t && t != ent && t->inuse) {
             VECTOR2 delta = Vector2_sub(&t->s.origin2, &ent->s.origin2);
             if (sqrtf(delta.x * delta.x + delta.y * delta.y) <= range) {
@@ -1995,16 +1995,17 @@ static LPCSTR Wow_GetThemeValue(LPCSTR filename) {
 static BOOL Wow_PlayerIsMoving(void) { return wow_move.flags & BZ_WOW_MOVE_MASK; }
 
 static void Wow_SelectEntity(LPEDICT ent, LPEDICT target) {
-    DWORD old = ent->client->ps.selected_entity;
+    wowClient_t *wc = (wowClient_t *)ent->client;
+    DWORD old = wc->selected_entity;
     LPEDICT old_target = old ? Wow_EdictByNumber(old) : NULL;
 
     if (old_target && old_target != target)
         old_target->selected &= ~(1 << ent->client->ps.number);
     if (target && target != ent && target->inuse) {
         target->selected |= (1 << ent->client->ps.number);
-        ent->client->ps.selected_entity = target->s.number;
+        wc->selected_entity = target->s.number;
     } else {
-        ent->client->ps.selected_entity = 0;
+        wc->selected_entity = 0;
     }
 }
 
@@ -2013,8 +2014,8 @@ void Wow_QuestAwardKillCredit(LPEDICT attacker, DWORD display_id) {
 
     if (!attacker || !attacker->client) return;
     wc = (wowClient_t *)attacker->client;
-    FOR_LOOP(i, wc->client.ps.quest_count) {
-        svQuestEntry_t *qs = &wc->client.ps.quest_log[i];
+    FOR_LOOP(i, wc->quest_count) {
+        svQuestEntry_t *qs = &wc->quest_log[i];
         LPCWOWQUESTDETAIL detail;
         BOOL all_done;
 
@@ -2040,7 +2041,7 @@ void Wow_QuestAwardKillCredit(LPEDICT attacker, DWORD display_id) {
 
 /* An accepted predecessor is still in progress; only completion unlocks the chain. */
 static BOOL Wow_QuestPrereqMet(wowClient_t *client, DWORD quest_id) {
-    svQuestEntry_t *prev = SV_QuestFind(client->client.ps.quest_log, client->client.ps.quest_count, quest_id);
+    svQuestEntry_t *prev = SV_QuestFind(client->quest_log, client->quest_count, quest_id);
     return !quest_id || (prev && prev->status == SV_QUEST_COMPLETE);
 }
 
@@ -2048,7 +2049,7 @@ static BOOL Wow_AddQuest(wowClient_t *client, DWORD quest_id) {
     LPCWOWQUESTDETAIL detail = Wow_QuestDetail(quest_id);
     if (!detail) return false;
     if (!Wow_QuestPrereqMet(client, detail->prev_quest)) return false;
-    return SV_QuestAdd(client->client.ps.quest_log, &client->client.ps.quest_count, SV_MAX_QUEST_LOG, quest_id);
+    return SV_QuestAdd(client->quest_log, &client->quest_count, SV_MAX_QUEST_LOG, quest_id);
 }
 
 /* Resolve one physical quest NPC's repeated queststarter rows to the first
@@ -2069,7 +2070,7 @@ static DWORD Wow_QuestForGiver(wowClient_t *client, wowEntityLocal_t const *loca
         LPCWOWQUESTGIVER cur = Wow_QuestGiver(i);
         LPCWOWQUESTDETAIL detail;
         if (!Wow_QuestGiverSame(giver, cur)) continue;
-        if (SV_QuestFind(client->client.ps.quest_log, client->client.ps.quest_count, cur->quest_id)) continue;
+        if (SV_QuestFind(client->quest_log, client->quest_count, cur->quest_id)) continue;
         detail = Wow_QuestDetail(cur->quest_id);
         if (detail && Wow_QuestPrereqMet(client, detail->prev_quest))
             return cur->quest_id;
@@ -2107,7 +2108,7 @@ void Wow_SendInbox(LPEDICT ent) {
 }
 
 static void Wow_CompleteQuest(wowClient_t *client, DWORD quest_id) {
-    svQuestEntry_t *state = SV_QuestFind(client->client.ps.quest_log, client->client.ps.quest_count, quest_id);
+    svQuestEntry_t *state = SV_QuestFind(client->quest_log, client->quest_count, quest_id);
     LPCWOWQUESTDETAIL detail;
     if (!state || state->status != SV_QUEST_ACTIVE) return;
     detail = Wow_QuestDetail(quest_id);
@@ -2226,8 +2227,8 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
     } else if (argc >= 1 && !strcasecmp(argv[0], "quest")) {
         wowClient_t *client = (wowClient_t *)ent->client;
         DWORD quest_id = argc >= 2 ? (DWORD)strtoul(argv[1], NULL, 10) : 0;
-        LPEDICT selected = ent->client->ps.selected_entity
-            ? Wow_EdictByNumber(ent->client->ps.selected_entity) : NULL;
+        LPEDICT selected = ((wowClient_t *)ent->client)->selected_entity
+            ? Wow_EdictByNumber(((wowClient_t *)ent->client)->selected_entity) : NULL;
         wowEntityLocal_t *selected_local = selected ? Wow_EntityLocal(selected) : NULL;
         if (!quest_id && selected_local)
             quest_id = Wow_QuestForGiver(client, selected_local);
@@ -2377,7 +2378,7 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
             ent->attack(ent);
         }
     } else if (argc >= 1 && (!strcasecmp(argv[0], "wow_cycle_target") || !strcasecmp(argv[0], "cycletarget"))) {
-        DWORD old = ent->client->ps.selected_entity;
+        DWORD old = ((wowClient_t *)ent->client)->selected_entity;
         DWORD start = old > 0 ? old + 1 : WOW_MAX_CLIENTS;
         for (DWORD i = start; i < (DWORD)globals.num_edicts; i++) {
             LPEDICT t = &wow_edicts[i];
@@ -2454,8 +2455,8 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
         LPEDICT target = def->range > 0 ? Wow_FindSpellTarget(ent, def->range) : NULL;
         /* For instant melee spells, accept the selected target even when out of
          * range — the auto-chase in Wow_RunFrame closes the gap automatically. */
-        if (!def->cast_time && !target && ent->client && ent->client->ps.selected_entity) {
-            LPEDICT t = Wow_EdictByNumber(ent->client->ps.selected_entity);
+        if (!def->cast_time && !target && ent->client && ((wowClient_t *)ent->client)->selected_entity) {
+            LPEDICT t = Wow_EdictByNumber(((wowClient_t *)ent->client)->selected_entity);
             if (t && t != ent && t->inuse && (t->svflags & SVF_MONSTER))
                 target = t;
         }
@@ -2496,7 +2497,7 @@ static questMarker_t Wow_QuestMarkerForGiver(wowClient_t *client, wowEntityLocal
         LPCWOWQUESTGIVER cur = Wow_QuestGiver(i);
         svQuestEntry_t *e;
         if (!Wow_QuestGiverSame(giver, cur)) continue;
-        e = SV_QuestFind(client->client.ps.quest_log, client->client.ps.quest_count, cur->quest_id);
+        e = SV_QuestFind(client->quest_log, client->quest_count, cur->quest_id);
         if (!e || e->status == SV_QUEST_REWARDED) continue;
         if (e->status == SV_QUEST_COMPLETE) return QUEST_MARKER_COMPLETE;
         if (e->status == SV_QUEST_ACTIVE) best = QUEST_MARKER_ACTIVE;
@@ -2509,17 +2510,17 @@ static void Wow_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state)
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
     if (player >= WOW_MAX_CLIENTS) return;
     /* Vanilla reveals a creature's overhead name only after that recipient selects it. */
-    if (wow_clients[player].client.ps.selected_entity != state->number) state->image = 0;
-    if (!local || !local->quest_id || !state->overhead_sprite) return;
+    if (wow_clients[player].selected_entity != state->number) state->image = 0;
+    if (!local || !local->quest_id || !(state->flags & EF_HAS_QUEST)) return;
+    state->flags &= ~(EF_HAS_QUEST | EF_QUEST_COMPLETE);
     switch (Wow_QuestMarkerForGiver(&wow_clients[player], local)) {
     case QUEST_MARKER_AVAILABLE:
-        state->overhead_sprite = 0;
         state->model2 = local->quest_available_model;
         state->renderfx |= RF_ATTACH_OVERHEAD;
         break;
-    case QUEST_MARKER_COMPLETE:  state->overhead_sprite = local->quest_active_sprite | WOW_QUEST_SPRITE_TINT_FLAG; break;
-    case QUEST_MARKER_ACTIVE:    state->overhead_sprite = local->quest_active_sprite; break;
-    default:                     state->overhead_sprite = 0; break;
+    case QUEST_MARKER_COMPLETE: state->flags |= EF_HAS_QUEST | EF_QUEST_COMPLETE; break;
+    case QUEST_MARKER_ACTIVE:   state->flags |= EF_HAS_QUEST; break;
+    default: break;
     }
 }
 

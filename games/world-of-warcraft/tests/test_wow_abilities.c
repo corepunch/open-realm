@@ -300,12 +300,7 @@ TEST(wow_abilities, firebolt_homing_moves_toward_target) {
     T_ASSERT(proj->inuse);
     T_ASSERT(proj->s.origin.x > first_x);
 
-    /* Should eventually reach and be removed */
-    DWORD max_steps = 200;
-    while (proj->inuse && max_steps-- > 0) {
-        Wow_RunProjectile(proj);
-    }
-    T_ASSERT(!proj->inuse);
+    T_RUN_UNTIL(Wow_RunProjectile(proj), !proj->inuse, 200);
 }
 
 TEST(wow_abilities, firebolt_z_height_interpolates_correctly) {
@@ -359,13 +354,7 @@ TEST(wow_abilities, firebolt_applies_damage_on_hit) {
     Wow_FireFirebolt(caster, target);
     {
         LPEDICT proj = &wow_edicts[2];
-
-        /* Run projectile until it hits */
-        DWORD max_steps = 200;
-        while (proj->inuse && max_steps-- > 0) {
-            Wow_RunProjectile(proj);
-        }
-        T_ASSERT(!proj->inuse);
+        T_RUN_UNTIL(Wow_RunProjectile(proj), !proj->inuse, 200);
     }
     T_EQ((int)target_local->health, 1);
 }
@@ -383,11 +372,7 @@ TEST(wow_abilities, firebolt_lethal_kills_target) {
     Wow_FireFirebolt(caster, target);
     {
         LPEDICT proj = &wow_edicts[2];
-        DWORD max_steps = 200;
-        while (proj->inuse && max_steps-- > 0) {
-            Wow_RunProjectile(proj);
-        }
-        T_ASSERT(!proj->inuse);
+        T_RUN_UNTIL(Wow_RunProjectile(proj), !proj->inuse, 200);
     }
     T_ASSERT(target_local->dead);
     T_EQ((int)target_local->health, 0);
@@ -535,7 +520,7 @@ TEST(wow_abilities, find_spell_target_uses_selected_entity) {
     T_NOT_NULL(target2);
 
     /* Set selected entity to the farther one */
-    caster->client->ps.selected_entity = target2->s.number;
+    ((wowClient_t *)caster->client)->selected_entity = target2->s.number;
     result = Wow_FindSpellTarget(caster, 40.0f);
     /* Should prefer selected even though target1 is closer */
     T_NOT_NULL(result);
@@ -552,7 +537,7 @@ TEST(wow_abilities, find_spell_target_falls_back_to_nearest) {
     T_NOT_NULL(target2);
 
     /* No selected entity */
-    caster->client->ps.selected_entity = 0;
+    ((wowClient_t *)caster->client)->selected_entity = 0;
     result = Wow_FindSpellTarget(caster, 40.0f);
     /* Should find the nearest (target1 at 5 units) */
     T_NOT_NULL(result);
@@ -566,8 +551,165 @@ TEST(wow_abilities, find_spell_target_returns_null_when_out_of_range) {
 
     T_NOT_NULL(caster);
     T_NOT_NULL(target);
-    caster->client->ps.selected_entity = target->s.number;
+    ((wowClient_t *)caster->client)->selected_entity = target->s.number;
     result = Wow_FindSpellTarget(caster, 10.0f);
     T_NULL(result);
+}
+
+/* ---- Frostbolt tests ---- */
+
+TEST(wow_abilities, frostbolt_spawns_projectile) {
+    LPEDICT caster = make_player();
+    LPEDICT target = make_creature(10.0f, 0.0f);
+
+    T_NOT_NULL(caster);
+    T_NOT_NULL(target);
+    Wow_FireFrostbolt(caster, target);
+    {
+        LPEDICT proj = &wow_edicts[2];
+        wowEntityLocal_t *pl = Wow_EntityLocal(proj);
+        T_ASSERT(proj->inuse);
+        T_NOT_NULL(pl);
+        T_ASSERT(proj->think == Wow_RunProjectile);
+        T_EQ((int)pl->projectile_target, (int)target->s.number);
+        T_FEQ(pl->projectile_speed, 20.0f, 0.001f);
+        T_EQ((int)pl->projectile_damage, 3);
+        T_EQ((int)pl->slow_timer, 2000);  /* pending slow to apply on hit */
+        T_FEQ(proj->s.scale, 0.8f, 0.001f);
+        T_ASSERT(proj->s.flags & EF_GROUND_ANCHOR);
+    }
+}
+
+TEST(wow_abilities, frostbolt_applies_slow_on_hit) {
+    LPEDICT caster = make_player();
+    LPEDICT target = make_creature(3.0f, 0.0f);
+    wowEntityLocal_t *target_local;
+
+    T_NOT_NULL(caster);
+    T_NOT_NULL(target);
+    target_local = Wow_EntityLocal(target);
+    target_local->health = 10; /* must survive the hit (frostbolt deals 3) so slow is applied */
+    Wow_FireFrostbolt(caster, target);
+    {
+        LPEDICT proj = &wow_edicts[2];
+        T_RUN_UNTIL(Wow_RunProjectile(proj), !proj->inuse, 200);
+    }
+    T_EQ((int)target_local->slow_timer, 2000);
+}
+
+TEST(wow_abilities, frostbolt_lethal_kills_target) {
+    LPEDICT caster = make_player();
+    LPEDICT target = make_creature(3.0f, 0.0f);
+    wowEntityLocal_t *target_local;
+
+    T_NOT_NULL(caster);
+    T_NOT_NULL(target);
+    target_local = Wow_EntityLocal(target);
+    target_local->health = 1;
+    Wow_FireFrostbolt(caster, target);
+    {
+        LPEDICT proj = &wow_edicts[2];
+        T_RUN_UNTIL(Wow_RunProjectile(proj), !proj->inuse, 200);
+    }
+    T_ASSERT(target_local->dead);
+    T_EQ((int)target_local->health, 0);
+}
+
+TEST(wow_abilities, frostbolt_at_dead_caster_does_nothing) {
+    LPEDICT caster = make_player();
+    LPEDICT target = make_creature(5.0f, 0.0f);
+
+    T_NOT_NULL(caster);
+    T_NOT_NULL(target);
+    Wow_EntityLocal(caster)->dead = true;
+    Wow_FireFrostbolt(caster, target);
+    for (DWORD i = WOW_MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
+        LPEDICT e = &wow_edicts[i];
+        if (e->inuse && e->think == Wow_RunProjectile)
+            T_ASSERT(!"frostbolt spawned despite dead caster");
+    }
+}
+
+TEST(wow_abilities, frostbolt_at_dead_target_does_nothing) {
+    LPEDICT caster = make_player();
+    LPEDICT target = make_creature(5.0f, 0.0f);
+
+    T_NOT_NULL(caster);
+    T_NOT_NULL(target);
+    Wow_EntityLocal(target)->dead = true;
+    Wow_FireFrostbolt(caster, target);
+    for (DWORD i = WOW_MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
+        LPEDICT e = &wow_edicts[i];
+        if (e->inuse && e->think == Wow_RunProjectile)
+            T_ASSERT(!"frostbolt spawned despite dead target");
+    }
+}
+
+TEST(wow_abilities, frostbolt_disappears_when_target_dies) {
+    LPEDICT caster = make_player();
+    LPEDICT target = make_creature(8.0f, 0.0f);
+    wowEntityLocal_t *target_local;
+
+    T_NOT_NULL(caster);
+    T_NOT_NULL(target);
+    target_local = Wow_EntityLocal(target);
+    Wow_FireFrostbolt(caster, target);
+    {
+        LPEDICT proj = &wow_edicts[2];
+        T_ASSERT(proj->inuse);
+        Wow_RunProjectile(proj);
+        T_ASSERT(proj->inuse);
+        target_local->dead = true;
+        target->inuse = false;
+        Wow_RunProjectile(proj);
+        T_ASSERT(!proj->inuse);
+    }
+}
+
+/* ---- Damage and godmode tests ---- */
+
+TEST(wow_abilities, godmode_blocks_damage) {
+    LPEDICT caster = make_player();
+    LPEDICT target = make_creature(5.0f, 0.0f);
+    wowEntityLocal_t *target_local;
+
+    T_NOT_NULL(caster);
+    T_NOT_NULL(target);
+    target_local = Wow_EntityLocal(target);
+    target_local->godmode = true;
+    target_local->health = 3;
+
+    Wow_ApplyDamage(target, caster, 5);
+    T_EQ((int)target_local->health, 3);
+    T_ASSERT(!target_local->dead);
+}
+
+/* ---- Healing Touch mana tests ---- */
+
+TEST(wow_abilities, healing_touch_deducts_mana) {
+    LPEDICT caster = make_player();
+    wowEntityLocal_t *local;
+
+    T_NOT_NULL(caster);
+    local = Wow_EntityLocal(caster);
+    local->mana = 100;
+    local->health = 50;
+
+    Wow_HealingTouch(caster);
+    T_EQ((int)local->mana, 92);  /* 100 - WOW_HEALING_TOUCH_MANA_COST (8) */
+}
+
+TEST(wow_abilities, healing_touch_blocked_when_oom) {
+    LPEDICT caster = make_player();
+    wowEntityLocal_t *local;
+
+    T_NOT_NULL(caster);
+    local = Wow_EntityLocal(caster);
+    local->mana = 7;   /* below WOW_HEALING_TOUCH_MANA_COST (8) */
+    local->health = 50;
+
+    Wow_HealingTouch(caster);
+    T_EQ((int)local->health, 50);  /* not healed */
+    T_EQ((int)local->mana, 7);     /* mana not consumed */
 }
 

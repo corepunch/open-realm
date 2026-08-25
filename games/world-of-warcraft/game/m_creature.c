@@ -1,4 +1,5 @@
 #include "g_wow_local.h"
+#include "wow_assets.h"
 #include <math.h>
 #include <stdio.h>
 
@@ -7,8 +8,6 @@
 /* WOW_CREATURE_DISPLAY_* constants live in g_wow_local.h (shared with loot table). */
 
 /* World markers are M2 models; GossipFrame BLPs are only dialog-list icons. */
-#define WOW_QUEST_AVAILABLE_MODEL "Interface\\Buttons\\TalkToMe.m2"           // M2; yellow world-space "!" marker
-#define WOW_QUEST_ACTIVE_ICON     "Interface\\GossipFrame\\ActiveQuestIcon.blp" // BLP; temporary active "?" sprite
 
 typedef struct {
     DWORD display_id;
@@ -178,13 +177,14 @@ static void Wow_MonsterStart(LPEDICT ent,
     local->attack_damage_point = 250;
     local->attack_backswing = 450;
     ent->svflags |= SVF_MONSTER;
-    ent->s.renderfx |= RF_HOSTILE;
     ent->idle = Wow_AIIdle;
     ent->move = Wow_AIMove;
     ent->think = Wow_RunCreatureFrame;
     ent->attack = Wow_AIAttack;
     ent->pain = Wow_AIPain;
-    ent->s.flags = EF_GROUND_ANCHOR;
+    /* EF_HOSTILE fits in the BYTE flags field; RF_HOSTILE (bit 13) overflows renderfx.
+     * cl_view.c translates EF_HOSTILE → RF_HOSTILE when building renderEntity_t. */
+    ent->s.flags = EF_GROUND_ANCHOR | EF_HOSTILE;
     ent->s.angle = (FLOAT)DEG2RAD(yaw);
     if (patrol_radius > 0.0f) {
         Wow_SetWalkMove(ent);
@@ -313,12 +313,10 @@ void Wow_SpawnQuestLocations(LPCVECTOR2 origin) {
         ent->s.radius = radius;
         ent->s.player = 2;
         ent->s.class_id = creature_model->display_id;
-        local->quest_available_model  = (DWORD)G_RegisterModel(WOW_QUEST_AVAILABLE_MODEL);
-        local->quest_active_sprite    = (DWORD)gi.ImageIndex(WOW_QUEST_ACTIVE_ICON);
+        local->quest_available_model = (DWORD)G_RegisterModel(WOW_QUEST_AVAILABLE_MODEL);
         ent->s.image = Wow_CreatureNameConfigstring(creature);
-        ent->s.overhead_sprite = local->quest_active_sprite; /* nonzero lets CustomizeEntity author recipient state */
         ent->s.angle = data->orientation;
-        ent->s.flags = EF_GROUND_ANCHOR;
+        ent->s.flags = EF_GROUND_ANCHOR | EF_HAS_QUEST;
         /* Non-hostile NPCs still need the creature frame for their idle (Stand)
          * animation; without a think function the entity loop skips them and
          * they render frozen at frame 0. */

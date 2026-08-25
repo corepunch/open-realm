@@ -628,6 +628,65 @@ TEST(wc3_game, fow_full_sync_marks_player_connected) {
 }
 
 /* =========================================================================
+ * Performance benchmarks
+ *
+ * Run with: openwarcraft3-tests -data <wc3data> -tft +dedicated 1 +test 'wc3_perf.*'
+ * These tests do not assert; they print [BENCH] lines to stdout so you can
+ * spot regressions by comparing across builds (BUILD=release for meaningful
+ * numbers).
+ * ========================================================================= */
+
+void CM_SetupTestWorldBounds(LPCBOX2 bounds);
+
+/* 128×128-tile map → 16384×16384 units → 256×256 FOW cells at FOW_CELL_SIZE=64.
+ * Two players connected, 80 revealer units each spread across the map. */
+TEST(wc3_perf, fow_update_large_map) {
+    CM_SetupTestWorldBounds(&MAKE(BOX2, .min = {0.0f, 0.0f},
+                                        .max = {16384.0f, 16384.0f}));
+    G_FowInit();
+
+    level.fow.players[0].client_connected = true;
+    level.fow.players[1].client_connected = true;
+
+    for (int p = 0; p < 2; p++) {
+        for (int i = 0; i < 80; i++) {
+            LPEDICT ent         = G_Spawn();
+            ent->s.player       = (DWORD)p;
+            ent->s.origin.x     = 1024.0f + (i % 16) * 900.0f;
+            ent->s.origin.y     = 1024.0f + (i / 16) * 900.0f + p * 6000.0f;
+            ent->s.origin2.x    = ent->s.origin.x;
+            ent->s.origin2.y    = ent->s.origin.y;
+            ent->health.value   = 100.0f;
+            ent->health.max_value = 100.0f;
+            ent->balance.sight_radius.day = 900.0f;
+        }
+    }
+
+    T_BENCH("G_FowUpdate  (256x256 grid, 160 revealers, 2 players)", 10,
+            G_FowUpdate());
+    G_FowShutdown();
+}
+
+/* 1900 active units — matches the entity count seen in the perf profile.
+ * Each entity goes through spell_run_frame + unit_updatestatuses + physics
+ * every call, which is the dominant cost even before think fires. */
+TEST(wc3_perf, run_entities_1900) {
+    setup_test_world();
+
+    for (int i = 0; i < 1900; i++) {
+        LPEDICT ent = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'),
+                                      (FLOAT)((i % 50) * 64),
+                                      (FLOAT)((i / 50) * 64));
+        ent->health.value     = 100.0f;
+        ent->health.max_value = 100.0f;
+        ent->movetype         = MOVETYPE_STEP;
+    }
+
+    T_BENCH("G_RunEntities (1900 active units, MOVETYPE_STEP)",       30,
+            G_RunEntities());
+}
+
+/* =========================================================================
  * Suite runner
  * ========================================================================= */
 

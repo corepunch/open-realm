@@ -21,12 +21,14 @@ void SP_SpawnItem(LPEDICT self) {
     PATHSTR model_filename;
     strlcpy(model_filename, ITEM_FILE(self->class_id), sizeof(model_filename));
     self->s.model = G_RegisterModel(model_filename);
+#ifndef USE_SHADOWMAPS
     self->s.shadow = G_LoadShadowTexture(FS_FindSheetCell(game.config.misc, "Misc", "ItemShadowFile"), false);
     self->s.shadow_rect = ShadowPackRect(
         G_MiscVectorValue("ItemShadowOffset", 0),
         G_MiscVectorValue("ItemShadowOffset", 1),
         G_MiscVectorValue("ItemShadowSize", 0),
         G_MiscVectorValue("ItemShadowSize", 1));
+#endif
     self->movetype = MOVETYPE_NONE;
 }
 
