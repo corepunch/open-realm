@@ -169,7 +169,7 @@ OpenRealm uses Quake-style cvars and config files. Shipped game defaults live in
 Config load order:
 
 1. Built-in cvar defaults
-2. `share/<game>/config.cfg` (shipped game defaults, e.g. key bindings)
+2. `build/share/<game>/config.cfg` (shipped game defaults, e.g. key bindings)
 3. `~/.<game>/config.cfg` (generated user config, written by `writeconfig`)
 4. `~/.<game>/autoexec.cfg` (optional local overrides)
 5. Command-line launch args such as `-data data/Warcraft\ III`, command-line cvars such as `+r_module stdout`, and queued commands such as `+map Maps\\Campaign\\Orc01.w3m` or `+menu_main`
