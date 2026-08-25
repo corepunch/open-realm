@@ -17,6 +17,7 @@ struct client_static cls;
 refExport_t re;
 uiExport_t ui;
 mouseEvent_t mouse;
+DWORD test_fow_upload_calls;
 
 typedef struct { char name[64]; char value[128]; } mockCvar_t;
 static mockCvar_t mock_cvars[32];
@@ -36,7 +37,9 @@ void test_client_stubs_set_cvar(LPCSTR name, LPCSTR value) {
 
 static size2_t mock_GetWindowSize(void) { return MAKE(size2_t, 1024, 768); }
 static void mock_DrawLoadingIndicator(LPCRECT rect, DWORD time, COLOR32 color) { (void)rect; (void)time; (void)color; }
-static void mock_SetFogOfWarData(DWORD width, DWORD height, BYTE const *data) { (void)width; (void)height; (void)data; }
+static void mock_SetFogOfWarData(DWORD width, DWORD height, BYTE const *data) {
+    (void)width; (void)height; (void)data; test_fow_upload_calls++;
+}
 
 void V_RenderView(void) {}
 void CON_DrawConsole(void) {}
@@ -72,6 +75,7 @@ void test_client_stubs_init(void) {
     memset(&re, 0, sizeof(re));
     memset(&ui, 0, sizeof(ui));
     memset(&mouse, 0, sizeof(mouse));
+    test_fow_upload_calls = 0;
     re.GetWindowSize = mock_GetWindowSize;
     re.DrawLoadingIndicator = mock_DrawLoadingIndicator;
     re.SetFogOfWarData = mock_SetFogOfWarData;

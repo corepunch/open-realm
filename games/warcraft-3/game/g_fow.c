@@ -624,23 +624,11 @@ static void G_FowRebuildBlockers(void) {
     }
 }
 
-static void G_FowRevealForSharedPlayers(LPCEDICT ent, FLOAT radius) {
-    DWORD owner;
-
-    if (!ent || ent->s.player >= MAX_PLAYERS) {
-        return;
-    }
-
-    owner = ent->s.player;
-    G_FowRevealCircle(owner, ent, radius);
-    FOR_LOOP(player, MAX_PLAYERS) {
-        if (player == owner) {
-            continue;
-        }
-        if (G_FowSharedVision(player, owner)) {
-            G_FowRevealCircle(player, ent, radius);
-        }
-    }
+/* Reveal directly into connected viewer grids; source-owner grids are irrelevant when nobody consumes them. */
+static void G_FowRevealForViewers(LPCEDICT ent, FLOAT radius, DWORD viewers) {
+    FOR_LOOP(viewer, MAX_PLAYERS)
+        if (viewers & (1u << viewer))
+            G_FowRevealCircle(viewer, ent, radius);
 }
 
 /* --- Fog modifiers ------------------------------------------------------- *
@@ -717,21 +705,17 @@ static void G_FowApplyModifierForPlayer(DWORD player, LPCFOGMODIFIER mod) {
     }
 }
 
-static void G_FowApplyModifiers(void) {
+static void G_FowApplyModifiers(DWORD viewers) {
     FOR_LOOP(i, g_num_fog_modifiers) {
         LPCFOGMODIFIER mod = g_fog_modifiers[i];
         if (!mod || !mod->started || mod->state != FOG_OF_WAR_VISIBLE ||
             mod->player >= MAX_PLAYERS) {
             continue;
         }
-        G_FowApplyModifierForPlayer(mod->player, mod);
-        if (mod->use_shared_vision) {
-            FOR_LOOP(player, MAX_PLAYERS) {
-                if (player != mod->player && G_FowSharedVision(player, mod->player)) {
-                    G_FowApplyModifierForPlayer(player, mod);
-                }
-            }
-        }
+        FOR_LOOP(viewer, MAX_PLAYERS)
+            if ((viewers & (1u << viewer)) &&
+                (viewer == mod->player || (mod->use_shared_vision && G_FowSharedVision(viewer, mod->player))))
+                G_FowApplyModifierForPlayer(viewer, mod);
     }
 }
 
@@ -788,17 +772,36 @@ void G_FowInit(void) {
     }
 }
 
+/* Mark a player grid as consumed before its first authoritative update. */
+void G_FowConnectPlayer(DWORD player) {
+    if (player < MAX_PLAYERS)
+        level.fow.players[player].client_connected = true;
+}
+
 void G_FowUpdate(void) {
+    DWORD owner_viewers[MAX_PLAYERS] = { 0 };
+    DWORD viewers = 0;
+
     if (!G_FowReady()) {
         return;
     }
+
+    FOR_LOOP(player, MAX_PLAYERS)
+        if (level.fow.players[player].client_connected)
+            viewers |= 1u << player;
+    if (!viewers)
+        return;
+    FOR_LOOP(owner, MAX_PLAYERS)
+        FOR_LOOP(viewer, MAX_PLAYERS)
+            if ((viewers & (1u << viewer)) && G_FowSharedVision(viewer, owner))
+                owner_viewers[owner] |= 1u << viewer;
 
     if (G_FowBlockersChanged()) {
         G_FowRebuildBlockers();
     }
     FOR_LOOP(player, MAX_PLAYERS) {
         fowPlayerGrid_t *grid = &level.fow.players[player];
-        if (!grid->had_visible && !grid->client_connected) {
+        if (!(viewers & (1u << player))) {
             continue;
         }
         G_FowClearVisible(grid);
@@ -809,14 +812,14 @@ void G_FowUpdate(void) {
         LPCEDICT ent = &g_edicts[i];
         FLOAT radius;
 
-        if (!G_FowEntityIsRevealer(ent)) {
+        if (ent->s.player >= MAX_PLAYERS || !owner_viewers[ent->s.player] || !G_FowEntityIsRevealer(ent)) {
             continue;
         }
         radius = G_FowEntitySightRadius(ent);
-        G_FowRevealForSharedPlayers(ent, radius);
+        G_FowRevealForViewers(ent, radius, owner_viewers[ent->s.player]);
     }
 
-    G_FowApplyModifiers();
+    G_FowApplyModifiers(viewers);
 }
 
 /* FogEnable(false) reveals the whole map for this player, units included
@@ -1006,7 +1009,7 @@ void G_FowSendFull(LPEDICT ent) {
     if (player >= MAX_PLAYERS) {
         return;
     }
-    level.fow.players[player].client_connected = true;
+    G_FowConnectPlayer(player);
     rows_per_chunk = G_FowRowsPerChunk(FOW_MSG_VISIBLE_PLANE | FOW_MSG_EXPLORED_PLANE);
     for (DWORD row = 0; row < level.fow.height; row += rows_per_chunk) {
         G_FowWriteRows(ent,

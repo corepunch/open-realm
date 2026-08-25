@@ -428,35 +428,35 @@ DWORD R_GetMinimapFogOfWarTexture(void) {
 }
 
 void R_SetFogOfWarData(DWORD width, DWORD height, BYTE const *data) {
+    BOOL allocate;
+
     if (!width || !height || !data) {
         R_ReleaseTexture(fow_resources.network);
         fow_resources.network = NULL;
         return;
     }
 
-    if (!fow_resources.network ||
-        fow_resources.network->width != width ||
-        fow_resources.network->height != height)
-    {
+    allocate = !fow_resources.network ||
+               fow_resources.network->width != width ||
+               fow_resources.network->height != height;
+    if (allocate) {
         R_ReleaseTexture(fow_resources.network);
         fow_resources.network = R_AllocateTexture(width, height);
     }
 
     R_Call(glBindTexture, GL_TEXTURE_2D, fow_resources.network->texid);
     R_Call(glPixelStorei, GL_UNPACK_ALIGNMENT, 1);
-    R_Call(glTexImage2D,
-           GL_TEXTURE_2D,
-           0,
-           GL_R8,
-           width,
-           height,
-           0,
-           GL_RED,
-           GL_UNSIGNED_BYTE,
-           data);
+    /* Existing storage must be updated, not redefined as the old per-FOW-chunk path did. */
+    if (allocate) {
+        R_Call(glTexImage2D, GL_TEXTURE_2D, 0, GL_R8, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, data);
+    } else {
+        R_Call(glTexSubImage2D, GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RED, GL_UNSIGNED_BYTE, data);
+    }
     R_Call(glPixelStorei, GL_UNPACK_ALIGNMENT, 4);
-    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    if (allocate) {
+        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    }
 }

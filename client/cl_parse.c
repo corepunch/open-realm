@@ -407,16 +407,21 @@ static void CL_ClearFogRows(BYTE *plane, DWORD first_row, DWORD row_count) {
     memset(plane + first_row * cl.fow.width, 0, row_count * cl.fow.width);
 }
 
-static void CL_UpdateFogTexture(void) {
-    DWORD cells = cl.fow.width * cl.fow.height;
+/* Rebuild only the rows carried by this message; the old path rescanned the whole map after every RLE chunk. */
+static void CL_UpdateFogTextureRows(DWORD first_row, DWORD row_count) {
+    BYTE *texture, *visible, *explored;
+    DWORD first, cells;
 
-    if (!cl.fow.texture || !cl.fow.visible || !cl.fow.explored) {
+    if (!cl.fow.texture || !cl.fow.visible || !cl.fow.explored || first_row >= cl.fow.height) {
         return;
     }
-    FOR_LOOP(i, cells) {
-        cl.fow.texture[i] = cl.fow.visible[i] ? 255 : (cl.fow.explored[i] ? 128 : 0);
-    }
-    re.SetFogOfWarData(cl.fow.width, cl.fow.height, cl.fow.texture);
+    first = first_row * cl.fow.width;
+    cells = MIN(row_count, cl.fow.height - first_row) * cl.fow.width;
+    texture = cl.fow.texture + first;
+    visible = cl.fow.visible + first;
+    explored = cl.fow.explored + first;
+    FOR_LOOP(i, cells)
+        texture[i] = visible[i] ? 255 : (explored[i] ? 128 : 0);
 }
 
 static BYTE *CL_FogPlaneForStreamIndex(DWORD flags, DWORD stream_index) {
@@ -458,39 +463,29 @@ static BOOL CL_ValidateFogRLE(BYTE const *payload, DWORD payload_bytes, DWORD ex
     return bits == expected_bits;
 }
 
-static void CL_UnpackFogRLE(BYTE const *payload,
-                            DWORD payload_bytes,
-                            DWORD flags,
-                            DWORD first_row,
-                            DWORD row_count)
-{
+/* Decode whole contiguous runs; the stream concatenates compact row ranges for each requested plane. */
+static void CL_UnpackFogRLE(BYTE const *payload, DWORD payload_bytes, DWORD flags, DWORD first_row, DWORD row_count) {
     DWORD plane_bits = cl.fow.width * row_count;
     DWORD decoded = 0;
     BYTE value = payload[0] ? 1 : 0;
 
     for (DWORD i = 1; i < payload_bytes; i++) {
-        DWORD len = payload[i];
-
-        FOR_LOOP(j, len) {
+        DWORD remaining = payload[i];
+        while (remaining) {
             DWORD plane_index = decoded / plane_bits;
             DWORD bit_index = decoded % plane_bits;
-            DWORD row = bit_index / cl.fow.width;
-            DWORD x = bit_index % cl.fow.width;
+            DWORD count = MIN(remaining, plane_bits - bit_index);
             BYTE *plane = CL_FogPlaneForStreamIndex(flags, plane_index);
-
-            if (plane) {
-                plane[(first_row + row) * cl.fow.width + x] = value;
-            }
-            decoded++;
+            if (plane) memset(plane + first_row * cl.fow.width + bit_index, value, count);
+            decoded += count;
+            remaining -= count;
         }
-
-        if (len != 255) {
-            value = !value;
-        }
+        if (payload[i] != 255) value = !value;
     }
 }
 
-void CL_ParseFogOfWar(LPSIZEBUF msg) {
+/* Apply one validated wire chunk and report whether the caller must publish the assembled texture. */
+static BOOL CL_ParseFogOfWar(LPSIZEBUF msg) {
     DWORD flags = MSG_ReadByte(msg);
     DWORD width = MSG_ReadShort(msg);
     DWORD height = MSG_ReadShort(msg);
@@ -513,16 +508,16 @@ void CL_ParseFogOfWar(LPSIZEBUF msg) {
         payload_bytes > msg->cursize - msg->readcount)
     {
         msg->readcount = MIN(msg->cursize, msg->readcount + payload_bytes);
-        return;
+        return false;
     }
     payload = msg->data + msg->readcount;
     if (!CL_ValidateFogRLE(payload, payload_bytes, expected_bits)) {
         msg->readcount = MIN(msg->cursize, msg->readcount + payload_bytes);
-        return;
+        return false;
     }
     if (!CL_EnsureFogOfWarSize(width, height)) {
         msg->readcount = MIN(msg->cursize, msg->readcount + payload_bytes);
-        return;
+        return false;
     }
 
     if (flags & FOW_MSG_FULL) {
@@ -531,7 +526,8 @@ void CL_ParseFogOfWar(LPSIZEBUF msg) {
     }
     CL_UnpackFogRLE(payload, payload_bytes, flags, first_row, row_count);
     msg->readcount += payload_bytes;
-    CL_UpdateFogTexture();
+    CL_UpdateFogTextureRows(first_row, row_count);
+    return true;
 }
 
 void CL_MirrorMessage(LPSIZEBUF msg) {
@@ -676,10 +672,11 @@ static void CL_ParseWindow(LPSIZEBUF msg) {
  * stops processing and prints an error to stderr. */
 void CL_ParseServerMessage(LPSIZEBUF msg) {
     BYTE pack_id = 0;
+    BOOL fow_dirty = false;
     while (MSG_Read(msg, &pack_id, 1)) {
         switch (pack_id) {
             case svc_bad:
-                return;
+                goto done;
             case svc_playerinfo:
                 CL_ParsePlayerInfo(msg);
                 break;
@@ -711,7 +708,7 @@ void CL_ParseServerMessage(LPSIZEBUF msg) {
                 CL_ParseGameCommand(msg);
                 break;
             case svc_fogofwar:
-                CL_ParseFogOfWar(msg);
+                fow_dirty |= CL_ParseFogOfWar(msg);
                 break;
             case svc_temp_entity:
                 CL_ParseTEnt(msg);
@@ -726,10 +723,13 @@ void CL_ParseServerMessage(LPSIZEBUF msg) {
             case svc_disconnect:
                 CL_Disconnect("Server disconnected.", true);
                 msg->readcount = msg->cursize;
-                return;
+                goto done;
             default:
                 fprintf(stderr, "Unknown message %d\n", pack_id);
-                return;
+                goto done;
         }
     }
+done:
+    /* FOW chunks are one logical update; publishing each chunk caused repeated full GPU texture definitions. */
+    if (fow_dirty) re.SetFogOfWarData(cl.fow.width, cl.fow.height, cl.fow.texture);
 }
