@@ -294,9 +294,19 @@ static void UIWow_RecreateLuaStateForMenu(LPCSTR menu_name) {
     UIWow_InitLua();
 }
 
-/* Convert event pixels into FDF space. */
+/* Convert event pixels into FDF space. The WoW UI scene is drawn full-window
+ * in normalized [0,1] space (R_UISceneRect → UI_BASE_WIDTH/HEIGHT = 1), so
+ * mouse pixels divide by the current window size. The old fixed 1024x768
+ * baseline left clicks landing wrong at any other resolution. */
 VECTOR2 UIWow_MouseFdf(int x, int y) {
-    return MAKE(VECTOR2, x / 1024.0f, y / 768.0f);
+    size2_t window = { 1024, 768 };
+    if (wow_ui.renderer && wow_ui.renderer->GetWindowSize) {
+        window = wow_ui.renderer->GetWindowSize();
+    }
+    if (window.width == 0 || window.height == 0) {
+        window = (size2_t){ 1024, 768 };
+    }
+    return MAKE(VECTOR2, x / (FLOAT)window.width, y / (FLOAT)window.height);
 }
 
 /* Forward mouse motion to Lua when XML does not own the hovered frame. */
