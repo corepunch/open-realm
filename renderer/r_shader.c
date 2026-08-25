@@ -234,7 +234,7 @@ static LPCSTR model_vs =
 "    vec4 position = vec4(0.0);\n"
 "    vec4 normal = vec4(0.0);\n"
 "    for (int i = 0; i < 4; ++i) {\n"
-"        int boneIdx = min(int(i_skin1[i]) + int(uFirstBoneLookupIndex), BZ_BONE_COUNT - 1);\n"
+"        int boneIdx = int(i_skin1[i]) + int(uFirstBoneLookupIndex);\n"
 "        position += uBones[boneIdx] * pos4 * i_boneWeight1[i];\n"
 "        normal += uBones[boneIdx] * norm4 * i_boneWeight1[i];\n"
 "    }\n"
