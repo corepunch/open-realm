@@ -13,7 +13,7 @@ Cutscenes in Warcraft III are driven entirely by the map's JASS script (`war3map
 
 ### ESC / Skip Mechanism
 
-- ESC is bound to `cmd cancel` (`share/openwarcraft3.cfg` line 9).
+- ESC is bound to `cmd cancel` (`games/warcraft-3/share/config.cfg` line 9).
 - `CMD_Cancel` (`g_commands.c:199`) publishes `EVENT_PLAYER_END_CINEMATIC` for the canceling player and all other human players.
 - The map registers a trigger via `TriggerRegisterPlayerEventEndCinematic(trigger, player)`. When the event fires, the trigger sets a skip flag (e.g. `udg_IntroSkipped = true`) and calls cleanup: `CinematicModeBJ(false, ...)`, `SetUserControlForceOn(...)`, `ResetToGameCameraForPlayer(...)`.
 - The main cinematic coroutine checks the skip flag after each `TriggerSleepAction` and returns early.

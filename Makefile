@@ -1,6 +1,7 @@
 CC      := gcc
 BIN_DIR := build/bin
 LIB_DIR := build/lib
+SHARE_INSTALL := build/share
 CFLAGS  := -Wall -Wmisleading-indentation -fno-common -I. -Ishared -Ishared/types
 BUILD   ?= debug
 MSAA    ?= 0
@@ -163,7 +164,7 @@ $(1): $(2) | $$(LIB_DIR)
 endef
 
 define app_schema
-$(1): $(2) | $$(BIN_DIR)
+$(1): $(2) | $$(BIN_DIR) install-share
 	@echo "[$(3)]"
 	@$$(call UNITY,client server common sound,! -name 'stb_vorbis.c') | \
 		$$(CC) $(4) -x c -o $$@ - $$(RPATH) $$(LDFLAGS) $(5)
@@ -176,8 +177,22 @@ $(1): $(2) | $$(BIN_DIR)
 endef
 
 default: build
-build:
+build: install-share
 shared:      $(SHARED_LIB)
+
+# Install project-owned read-only assets (engine fonts + per-game defaults) into
+# the FHS-style build tree: build/bin/<exe>, build/lib/, build/share/<game>/.
+# Mirrors the flat layout of a deployed portable app (share/ beside the exe).
+install-share:
+	@mkdir -p $(SHARE_INSTALL)
+	@cp -R share/. $(SHARE_INSTALL)/
+	@for g in warcraft-3 world-of-warcraft starcraft-2; do \
+		if [ -d games/$$g/share ]; then \
+			mkdir -p $(SHARE_INSTALL)/$$g; \
+			cp games/$$g/share/* $(SHARE_INSTALL)/$$g/; \
+		fi; \
+	done
+	@echo "[install-share]"
 tools:       $(TOOL_BINS)
 	@echo "[tools]"
 font:        $(FONT_HEADER)
@@ -227,4 +242,4 @@ $(FONT_HEADER): $(FONT_SRC) $(BIN_DIR)/img2sysfont$(EXE_EXT)
 clean:
 	rm -rf build
 
-.PHONY: default build shared tools font $(TOOL_NAMES) diag clean $(WC3_PHONY) $(WOW_PHONY) $(SC2_PHONY)
+.PHONY: default build shared tools font $(TOOL_NAMES) diag clean install-share $(WC3_PHONY) $(WOW_PHONY) $(SC2_PHONY)

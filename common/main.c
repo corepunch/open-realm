@@ -159,6 +159,42 @@ static void Sys_ShowStartupError(LPCSTR message) {
 }
 #endif
 
+/* Anchor the read-only share/ tree at the executable's location so the binary
+ * finds its configs regardless of the working directory. Probes three layouts:
+ * flat portable (share/ beside the exe), the FHS build tree (share/ beside
+ * bin/), and the in-tree CWD fallback. */
+static void Sys_ResolveShareDirectory(void) {
+    LPSTR base = SDL_GetBasePath();
+
+    if (base) {
+        PATHSTR share;
+        snprintf(share, sizeof(share), "%sshare", base);
+        FS_SetShareDirectory(share);
+        snprintf(share, sizeof(share), "%s../share", base);
+        FS_SetShareDirectory(share);
+        SDL_free(base);
+    }
+    FS_SetShareDirectory("share");
+}
+
+/* Resolve the writable per-user directory to $HOME/.<BZ_GAME>; only adopted if
+ * creatable and writable (verified by FS_SetHomeDirectory), so a read-only or
+ * absent $HOME leaves FS_UserPath to fall back to share/<game>/. */
+static void Sys_ResolveHomeDirectory(void) {
+#ifdef _WIN32
+    LPCSTR home = getenv("USERPROFILE");
+#else
+    LPCSTR home = getenv("HOME");
+#endif
+    PATHSTR dir;
+
+    if (!home || !*home) {
+        return;
+    }
+    snprintf(dir, sizeof(dir), "%s/.%s", home, BZ_GAME);
+    FS_SetHomeDirectory(dir);
+}
+
 static unsigned short Sys_GamePort(void) {
     int port = Cvar_Integer("game_port", PORT_SERVER);
 
@@ -235,6 +271,8 @@ int main(int argc, LPSTR argv[]) {
             BZ_ARCH,
             BZ_BYTE_ORDER);
 
+    Sys_ResolveShareDirectory();
+    Sys_ResolveHomeDirectory();
     Com_Init(argc, (LPCSTR *)argv);
 
     LPCSTR data_dir = Cvar_String("data", "");

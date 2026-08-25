@@ -12,10 +12,5 @@ StormLib-master/
 _codeql_detected_source_root
 War3.mpq
 .mcp.json
-/share/config.cfg
-/share/openwarcraft3-config.cfg
-/share/openwow-config.cfg
-/share/autoexec.cfg
-share/characters.xml
 screenshots/
 site/
