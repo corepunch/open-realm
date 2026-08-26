@@ -297,7 +297,7 @@ static void CL_AddBuilding(void) {
         return;
     if (view_state.num_entities >= MAX_CLIENT_ENTITIES)
         return;
-    if (cl.cursorEntity->model >= MAX_MODELS)
+    if (!cl.cursorEntity->model)  /* 0 = no model registered (BYTE; always < MAX_MODELS) */
         return;
 
     renderEntity_t ent;
