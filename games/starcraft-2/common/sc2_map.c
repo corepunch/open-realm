@@ -1882,6 +1882,7 @@ static void sc2_resolve_object_model_candidates(sc2MapObject_t *object) {
     static LPCSTR const prefixes[] = {
         "Assets\\Units\\Critters",
         "Assets\\Buildings\\Terran",
+        "Assets\\Buildings\\Resources",
         "Assets\\Units\\Terran",
         "Assets\\Doodads",
         "Assets\\Effects\\Terran",
