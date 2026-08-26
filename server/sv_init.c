@@ -262,7 +262,7 @@ void SV_InitGame(void) {
     }
 
     svs.initialized = true;
-    svs.num_client_entities = UPDATE_BACKUP * ge->max_clients * MAX_PACKET_ENTITIES;
+    svs.num_client_entities = ge->max_clients * MAX_PACKET_ENTITIES;
     svs.client_entities = MemAlloc(sizeof(entityState_t) * svs.num_client_entities);
     
     FOR_LOOP(i, ge->max_clients) {

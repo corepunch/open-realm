@@ -502,6 +502,16 @@ TEST(server_net, local_map_uses_loopback_without_udp) {
     test_mapinfo = NULL;
 }
 
+TEST(server_net, server_snapshot_ring_scales_to_client_capacity) {
+    reset_server_state(4);
+
+    SV_InitGame();
+
+    T_EQ(svs.num_client_entities, (DWORD)(test_ge.max_clients * MAX_PACKET_ENTITIES));
+    T_ASSERT(svs.num_client_entities < (DWORD)(UPDATE_BACKUP * test_ge.max_clients * MAX_PACKET_ENTITIES));
+    T_ASSERT(svs.client_entities != NULL);
+}
+
 TEST(server_net, lobby_start_preserves_connected_clients) {
     MAPINFO info;
     lobbySlot_t slot;
