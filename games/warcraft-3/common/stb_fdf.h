@@ -24,7 +24,7 @@
 /* -------------------------------------------------------------------------- */
 #define MAX_BUILD_QUEUE 7
 #ifndef MAX_UI_CLASSES
-#define MAX_UI_CLASSES 4096
+#define MAX_UI_CLASSES 2048 // frames per module; measured peak is 1167, leaving 75% headroom
 #endif
 #include "ui_constants.h"
 #define UI_MAX_MAP_LIST_ITEMS 1024
@@ -121,10 +121,10 @@ typedef struct {
 #ifndef FRAMEPOINT_DEFINED
 #define FRAMEPOINT_DEFINED
 typedef struct {
-    uiFramePointPos_t targetPos;
-    bool used;
     LPCFRAMEDEF relativeTo;
     FLOAT offset;
+    uiFramePointPos_t targetPos: 7;
+    DWORD used: 1;
 } FRAMEPOINT;
 #endif
 
@@ -193,11 +193,11 @@ struct uiFrameDef_s {
     FLOAT Width, Height;
     COLOR32 Color;
     BLEND_MODE AlphaMode;
-    BOOL DecorateFileNames;
-    BOOL inuse;
-    BOOL AnyPointsSet;
-    BOOL hidden;
-    BOOL disabled;
+    DWORD DecorateFileNames: 1;
+    DWORD inuse: 1;
+    DWORD AnyPointsSet: 1;
+    DWORD hidden: 1;
+    DWORD disabled: 1;
     DWORD TextLength;
     DWORD Stat;
     LPSTR DynamicText;
@@ -212,15 +212,15 @@ struct uiFrameDef_s {
         BOX2 TexCoord;
     } Texture;
     struct {
-        BOOL TileBackground;
         DWORD Background;
         DWORD CornerFlags;
         FLOAT CornerSize;
         FLOAT BackgroundSize;
         FLOAT BackgroundInsets[4];
         DWORD EdgeFile;
-        BOOL BlendAll;
-        BOOL Mirrored;
+        DWORD TileBackground: 1;
+        DWORD BlendAll: 1;
+        DWORD Mirrored: 1;
     } Backdrop;
     UINAME DialogBackdropName;
     LPCFRAMEDEF DialogBackdrop;
@@ -315,9 +315,9 @@ struct uiFrameDef_s {
         FLOAT BorderSize;
         COLOR32 CursorColor;
         COLOR32 HighlightColor;
-        BOOL HighlightInitial;
         DWORD MaxChars;
-        BOOL Focus;
+        DWORD HighlightInitial: 1;
+        DWORD Focus: 1;
         UINAME Text;
         COLOR32 TextColor;
         UINAME TextFrame;
@@ -1076,6 +1076,7 @@ LPFRAMEDEF UI_Spawn(FRAMETYPE type, LPFRAMEDEF parent) {
             return frame;
         }
     }
+    fprintf(stderr, "FDF: frame capacity %u exhausted\n", MAX_UI_CLASSES);
     return NULL;
 }
 

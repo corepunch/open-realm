@@ -1,5 +1,7 @@
 # Campaign loading and asset resolution
 
+For measured menu/loading resource residency and reclamation priorities, see [WC3 memory](memory.md).
+
 ## Loading-screen ownership
 
 `CL_BeginLoadingMap` publishes the resolved destination in the session-only `map` cvar **before**

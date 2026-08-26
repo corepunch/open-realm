@@ -508,10 +508,10 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
         LPCTEXTURE texture = MDLX_GetTexture(model, team, textureId, modeltex->replaceableID, overrideTexture);
         R_BindTexture(texture, 0);
         R_Call(glBindVertexArray, geoset->vertexArrayBuffer);
-        R_Call(glBindBuffer, GL_ELEMENT_ARRAY_BUFFER, *geoset->buffer);
+        /* The geoset VAO already binds the model-owned index buffer. */
         R_StatsDraw(GL_TRIANGLES, geoset->num_triangles, 1);
         R_ApplyShader(shader);
-        R_Call(glDrawElements, GL_TRIANGLES, geoset->num_triangles, GL_UNSIGNED_SHORT, NULL);
+        R_Call(glDrawElements, GL_TRIANGLES, geoset->num_triangles, GL_UNSIGNED_SHORT, (void *)(uintptr_t)geoset->indexofs);
     }
 
     R_Call(glEnable, GL_DEPTH_TEST);

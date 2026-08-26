@@ -506,9 +506,9 @@ TEST(server_net, server_snapshot_ring_scales_to_client_capacity) {
     reset_server_state(4);
 
     SV_InitGame();
-
-    T_EQ(svs.num_client_entities, (DWORD)(test_ge.max_clients * MAX_PACKET_ENTITIES));
-    T_ASSERT(svs.num_client_entities < (DWORD)(UPDATE_BACKUP * test_ge.max_clients * MAX_PACKET_ENTITIES));
+    /* History is required; the old test omitted it before the per-frame packet budget was reduced. */
+    T_EQ(svs.num_client_entities, (DWORD)(test_ge.max_clients * MAX_PACKET_ENTITIES * UPDATE_BACKUP));
+    T_ASSERT(svs.num_client_entities < (DWORD)(UPDATE_BACKUP * test_ge.max_clients * MAX_GAME_ENTITIES));
     T_ASSERT(svs.client_entities != NULL);
 }
 

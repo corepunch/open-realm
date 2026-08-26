@@ -186,8 +186,8 @@ enum {
 #define MAX_COMMANDS 12
 #define MAX_STATS 32
 
-#define MAX_GAME_ENTITIES 4096
-#define MAX_PACKET_ENTITIES 256 // per-frame packet snapshot budget
+#define MAX_GAME_ENTITIES 16000
+#define MAX_PACKET_ENTITIES 1024 // per-frame packet snapshot budget
 #define MAX_CLIENTS 24
 #define MAX_MODELS 256
 #define MAX_FONTSTYLES 256

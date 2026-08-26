@@ -299,11 +299,8 @@ LPMAPLAYER R_BuildMapSegmentLayer(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD laye
 }
 
 LPMAPLAYER R_BuildGroundLayerGlobal(LPCWAR3MAP map, DWORD layer) {
-    static LPVERTEX whole_map_buffer = NULL;
-    static DWORD whole_map_capacity = 0;
     LPMAPLAYER mapLayer;
     PATHSTR zBuffer;
-    DWORD needed;
 
     if (g_groundTextures[layer] == NULL) {
         char groundID[5] = { 0 };
@@ -318,11 +315,8 @@ LPMAPLAYER R_BuildGroundLayerGlobal(LPCWAR3MAP map, DWORD layer) {
         }
     }
 
-    needed = map->width * map->height * 6;
-    if (needed > whole_map_capacity) {
-        whole_map_buffer = ri.MemAlloc(sizeof(VERTEX) * needed);
-        whole_map_capacity = needed;
-    }
+    /* Construction scratch must not remain resident (or leak when the next map is larger). */
+    LPVERTEX whole_map_buffer = ri.MemAlloc(sizeof(VERTEX) * (map->width - 1) * (map->height - 1) * 6);
 
     mapLayer = ri.MemAlloc(sizeof(MAPLAYER));
     mapLayer->texture = g_groundTextures[layer];
@@ -334,10 +328,14 @@ LPMAPLAYER R_BuildGroundLayerGlobal(LPCWAR3MAP map, DWORD layer) {
         }
     }
     mapLayer->num_vertices = (DWORD)(ground_current_vertex - whole_map_buffer);
-    if (mapLayer->num_vertices == 0) {
+    if (mapLayer->num_vertices)
+        mapLayer->buffer = R_MakeVertexArrayObject(whole_map_buffer, mapLayer->num_vertices);
+    ri.MemFree(whole_map_buffer);
+    ground_current_vertex = NULL;
+    if (!mapLayer->num_vertices) {
+        ri.MemFree(mapLayer);
         return NULL;
     }
-    mapLayer->buffer = R_MakeVertexArrayObject(whole_map_buffer, mapLayer->num_vertices);
     return mapLayer;
 }
 

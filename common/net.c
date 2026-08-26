@@ -9,8 +9,8 @@
  *   NET_GetPacket()   — checks the loopback buffer first, then the UDP
  *                       socket.  Returns the sender address in *from.
  *
- * Loopback buffers (always present):
- *   Two 256 KiB ring buffers provide a zero-latency in-process path for
+ * Loopback buffers (allocated on first send, grown only for queued bursts):
+ *   Two byte queues provide a zero-latency in-process path for
  *   local (same-process) server+client communication.  bufs[NS_CLIENT]
  *   carries client→server traffic; bufs[NS_SERVER] carries server→client.
  *
@@ -29,16 +29,16 @@
 #include "net_platform.h"
 #include "common.h"
 
-#define LOOPBACK_SIZE (1024 * 1024 * 8)
+#define BZ_LOOPBACK_LIMIT (8 * 1024 * 1024) // bytes per direction; preserves the existing maximum queued burst
+#define BZ_LOOPBACK_MIN MAX_MSGLEN // bytes; one maximum packet of initial storage, grown with its length prefix
 
 /* ---------------------------------------------------------------------------
  * Loopback ring buffers
  * -------------------------------------------------------------------------*/
 
 struct loopback {
-    char buffer[LOOPBACK_SIZE];
-    int read;
-    int write;
+    ARRAY(BYTE, data);
+    DWORD read, write;
 };
 
 // bufs[NS_CLIENT] holds client→server packets; bufs[NS_SERVER] holds
@@ -48,23 +48,35 @@ static struct loopback loopbufs[2];
 
 static void NET_SendLoopPacket(NETSOURCE netsrc, int length, const void *data) {
     struct loopback *buf = &loopbufs[netsrc];
-    int const packet_size = length + 4;
-
-    if (length <= 0 || packet_size > LOOPBACK_SIZE) {
+    if (length <= 0 || length > BZ_LOOPBACK_LIMIT - (int)sizeof(DWORD)) {
         fprintf(stderr, "NET_SendLoopPacket: bad packet length %d\n", length);
         return;
     }
-    if (buf->write - buf->read + packet_size > LOOPBACK_SIZE) {
+    DWORD packet_size = length + sizeof(DWORD), used = buf->write - buf->read;
+    if (used + packet_size > BZ_LOOPBACK_LIMIT) {
         fprintf(stderr, "NET_SendLoopPacket: loopback overflow, dropping queued packets\n");
         buf->read = buf->write;
+        used = 0;
     }
-
+    if (used + packet_size > ARRAY_COUNT(buf->data)) {
+        DWORD cap = MAX(BZ_LOOPBACK_MIN, ARRAY_COUNT(buf->data));
+        while (cap < used + packet_size) cap *= 2;
+        BYTE *data = malloc(cap);
+        if (!data) {
+            fprintf(stderr, "NET_SendLoopPacket: could not grow queue to %u bytes\n", cap);
+            return;
+        }
+        /* Keep wrapped pending packets in order; the old fixed queues touched 16 MiB at startup. */
+        FOR_LOOP(i, used) data[i] = buf->data[(buf->read + i) % ARRAY_COUNT(buf->data)];
+        free(buf->data); buf->data = data; ARRAY_COUNT(buf->data) = cap;
+        buf->read = 0; buf->write = used;
+    }
     DWORD len = (DWORD)length;
     FOR_LOOP(i, 4) {
-        buf->buffer[(buf->write++) % LOOPBACK_SIZE] = ((char *)&len)[i];
+        buf->data[(buf->write++) % ARRAY_COUNT(buf->data)] = ((char *)&len)[i];
     }
     FOR_LOOP(i, length) {
-        buf->buffer[(buf->write++) % LOOPBACK_SIZE] = ((const char *)data)[i];
+        buf->data[(buf->write++) % ARRAY_COUNT(buf->data)] = ((const char *)data)[i];
     }
 }
 
@@ -75,11 +87,11 @@ int NET_GetLoopPacket(NETSOURCE netsrc, netadr_t *from, LPSIZEBUF msg) {
 
     DWORD size = 0;
     FOR_LOOP(i, 4) {
-        ((char *)&size)[i] = buf->buffer[(buf->read++) % LOOPBACK_SIZE];
+        ((char *)&size)[i] = buf->data[(buf->read++) % ARRAY_COUNT(buf->data)];
     }
     assert(size < MAX_MSGLEN);
     FOR_LOOP(i, size) {
-        ((char *)msg->data)[i] = buf->buffer[(buf->read++) % LOOPBACK_SIZE];
+        ((char *)msg->data)[i] = buf->data[(buf->read++) % ARRAY_COUNT(buf->data)];
     }
     msg->cursize = size;
     msg->readcount = 0;
@@ -268,6 +280,12 @@ static int NET_GetUDPPacket(NETSOURCE netsrc, netadr_t *from, LPSIZEBUF msg) {
  * Public API
  * -------------------------------------------------------------------------*/
 
+/* Initialization and shutdown release queue storage without changing the supported burst limit. */
+static void net_clear_loopback(void) {
+    FOR_LOOP(i, 2) free(loopbufs[i].data);
+    memset(loopbufs, 0, sizeof(loopbufs));
+}
+
 void NET_Init(void) {
 #ifdef _WIN32
     WSADATA winsock_data;
@@ -280,7 +298,7 @@ void NET_Init(void) {
         winsock_initialized = true;
     }
 #endif
-    memset(loopbufs, 0, sizeof(loopbufs));
+    net_clear_loopback();
 }
 
 void NET_Config(BOOL multiplayer) {
@@ -315,6 +333,7 @@ BOOL NET_IsConfigured(NETSOURCE netsrc) {
 
 void NET_Shutdown(void) {
     NET_Config(false);
+    net_clear_loopback();
 #ifdef _WIN32
     if (winsock_initialized) {
         WSACleanup();
