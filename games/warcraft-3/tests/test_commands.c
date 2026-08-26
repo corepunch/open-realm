@@ -159,6 +159,19 @@ TEST(commands, dash_cvars_are_not_command_line_cvars) {
     T_STREQ(Cvar_String("r_module", NULL), "renderer");
 }
 
+TEST(commands, display_modes_require_explicit_flag) {
+    LPCSTR args[] = { "test_commands", "-vid_modes" };
+    LPCSTR other[] = { "test_commands", "-vid_modes_extra" };
+
+    setup_command_tests();
+    T_STREQ(Cvar_String("vid_modes", NULL), "0");
+    Cvar_ApplyCommandLine(2, other);
+    T_STREQ(Cvar_String("vid_modes", NULL), "0");
+    Cvar_ApplyCommandLine(2, args);
+    T_STREQ(Cvar_String("vid_modes", NULL), "1");
+    Cvar_Set("vid_modes", "0");
+}
+
 TEST(commands, plus_cvars_apply_immediately) {
     LPCSTR argv[] = { "test_commands", "+game_port", "28010", "+r_module", "stdout" };
 
@@ -302,4 +315,17 @@ TEST(commands, map_command_rejects_ambiguous_short_name) {
 TEST(video_modes, invalid_index_uses_safe_default) {
     T_EQ(video_mode_get(-1)->width, (DWORD)640); T_EQ(video_mode_get(99)->height, (DWORD)480);
     T_EQ(video_mode_get(2)->width, (DWORD)1024); T_EQ(video_mode_get(2)->height, (DWORD)768);
+}
+
+TEST(video_modes, wow_defaults_allow_explicit_override) {
+    LPCSTR args[] = { "test_commands", "+set", "vid_mode", "0" };
+
+    setup_command_tests();
+    Cvar_Set("vid_mode", "0");
+    Cvar_LoadConfig("games/world-of-warcraft/share/config.cfg");
+    Cbuf_Execute();
+    T_STREQ(Cvar_String("vid_mode", NULL), "2");
+    COM_InitArgv(4, args);
+    Cbuf_AddEarlyCommands(true);
+    T_STREQ(Cvar_String("vid_mode", NULL), "0");
 }

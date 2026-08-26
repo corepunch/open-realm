@@ -456,7 +456,8 @@ void R_Init(DWORD width, DWORD height) {
             sdl_version.minor,
             sdl_version.patch);
     fprintf(stderr, "SDL video driver is \"%s\".\n", SDL_GetCurrentVideoDriver());
-    R_PrintDisplayModes();
+    /* The full SDL mode list is diagnostic output, previously printed on every startup. */
+    if (atoi(ri.CvarString("vid_modes", "0"))) R_PrintDisplayModes();
     fprintf(stderr, "Video initialized.\n\n");
     
     fprintf(stderr, "Refresher initialization.\n");

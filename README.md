@@ -126,6 +126,16 @@ build/bin/open-realm -data "data/Warcraft III"
 
 The data folder is scanned for top-level `.mpq` archives and an optional loose `Maps/` directory. This lets newer installs expose multiplayer maps from the filesystem while older assets can still be loaded from MPQs.
 
+To log available SDL display modes at startup, pass `-vid_modes` (also supported by WoW and SC2):
+
+```bash
+build/bin/openwarcraft3 -data "data/Warcraft III" -vid_modes +menu_main +com_frame_limit 10
+```
+
+Normal startup omits this list. The equivalent cvar is `+set vid_modes 1`; it is not saved automatically.
+Plural `vid_modes` controls diagnostic logging, while singular `vid_mode` selects the resolution.
+See [Video Modes](docs/build-and-renderer-platforms.md#video-modes) for details.
+
 To start a game from the normal client menu, click **Single Player**, then **Campaign**, then choose a campaign race. The current Single Player flow launches the first available campaign map for the selected race:
 
 - Tutorial: `Maps\Campaign\Prologue01.w3m`
@@ -185,6 +195,7 @@ Common runtime cvars:
 | `ui_module` | `"ui"` | UI module name for the Quake-style module boundary |
 | `g_module` | `"game"` | Game module name for the server game boundary |
 | `com_frame_limit` | `"0"` | Exit after N frames; useful with `r_module=stdout` |
+| `vid_modes` | `"0"` | Log SDL display modes at renderer startup; enabled by `-vid_modes`, not archived |
 
 ### (Optional) Download Warcraft III 1.29b assets
 

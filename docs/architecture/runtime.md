@@ -82,7 +82,7 @@ After step 6, `map` and `connect` cvars are explicitly cleared, then re-populate
 
 ### Config File Execution
 
-`Cvar_LoadConfig(path)` tries `FS_ReadFileIntoString` first (MPQ/loose filesystem), then falls back to raw `fopen` for local files. The text is fed into the command buffer and executed immediately via `Cbuf_Execute()`.
+`Cvar_LoadConfig(path)` tries `FS_ReadFileIntoString` first (MPQ/loose filesystem), then falls back to raw `fopen` for local files. It queues the text; startup calls `Cbuf_Execute()` after each config load before consuming the resulting cvars.
 
 ## Command-Line Arguments
 
@@ -93,6 +93,7 @@ After step 6, `map` and `connect` cvars are explicitly cleared, then re-populate
 | `-data <folder>` | Sets `data` cvar (game asset directory) |
 | `-connect <host[:port]>` | Sets `connect` cvar (remote server address) |
 | `-config <path>` | Sets `config` cvar (generated config path) |
+| `-vid_modes` | Sets session cvar `vid_modes` to `"1"`; logs SDL display modes during renderer startup |
 | `-tft` | Sets `fs_expansion` to `"1"` (mount TFT MPQs) |
 | `-roc` | Sets `fs_expansion` to `"0"` (ROnly, no expansion MPQs) |
 

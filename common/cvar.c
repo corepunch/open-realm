@@ -414,6 +414,9 @@ void Cvar_ApplyCommandLine(int argc, LPCSTR *argv) {
         if (Cvar_ApplyDashArg(argc, argv, &i, "data")) {
             continue;
         }
+        if (Cvar_ApplyDashFlag(arg, "vid_modes", "vid_modes", "1")) {
+            continue;
+        }
         if (Cvar_ApplyDashFlag(arg, "tft", "fs_expansion", "1")) {
             continue;
         }
@@ -460,6 +463,7 @@ void Cvar_Init(void) {
     Cvar_GetD("scr_showfps",      "1",                 CVAR_ARCHIVE, "show FPS counter on screen");
     Cvar_GetD("skip_cutscene",    "0",                 0,            "skip intro cutscene on startup");
     Cvar_GetD("vid_mode",         "0",                 CVAR_ARCHIVE, "resolution index: 0=640x480, 1=800x600, 2=1024x768, ...");
+    Cvar_GetD("vid_modes",        "0",                 0,            "log SDL display modes during video initialization");
     Cvar_GetD("r_model_detail",   "2",                 CVAR_ARCHIVE, "model LOD quality: 0=low, 1=medium, 2=high");
     Cvar_GetD("r_anim_quality",   "2",                 CVAR_ARCHIVE, "animation interpolation quality: 0=off, 2=full");
     Cvar_GetD("r_texture_quality","2",                 CVAR_ARCHIVE, "texture mip level: 0=low, 1=medium, 2=full");

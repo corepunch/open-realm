@@ -139,6 +139,28 @@ MSAA is fixed at build time because the sample count is part of SDL context crea
 
 `vid_mode` is a resolution-table index, not a window-style enum. The authoritative table is `common/video_modes.h` and is shared by client startup and the Warcraft III options menu. Mode 0 is 640x480 and is the safe default for the RG40XX display. Invalid indices resolve to mode 0 and the options menu applies changes through `vid_apply`.
 
+WC3 and WoW ship `seta vid_mode "2"` (1024x768) in `games/<game>/share/config.cfg`; user config, autoexec and
+command-line settings override it. Keep this per-game policy out of the shared mode table. WoW previously omitted
+the setting: targeted `CL_VideoMode` startup logs confirmed mode 0 / 640x480 versus WC3 mode 2 / 1024x768.
+
+The SDL display-mode list is opt-in with `-vid_modes` (or `+set vid_modes 1`). `Cvar_ApplyCommandLine` maps the flag
+to a non-archived cvar, which `R_Init` reads through `ri.CvarString` before enumerating modes. Normal startup skips
+both enumeration and its log; SDL/GL driver and drawable-size diagnostics remain. The old unconditional call
+enumerated 132 modes on the verification Mac. `vid_modes` controls logging; singular `vid_mode` selects resolution.
+
+Check WoW's shipped default without a saved config, then repeat with `-vid_modes` to see the list:
+
+```bash
+make openwow
+build/bin/openwow -data data/world-of-warcraft -config '' +menu_character_create +com_frame_limit 10
+build/bin/openwow -data data/world-of-warcraft -config '' -vid_modes +menu_character_create +com_frame_limit 10
+```
+
+`make test-commands` covers exact flag matching, disabled/enabled diagnostics, loading the actual WoW defaults,
+and an explicit resolution override. Runtime checks must cover logs with and without the flag in ROC/TFT, WoW and SC2.
+Verified on macOS: all eight 10-frame launches exited successfully; the list appeared only with `-vid_modes`.
+ROC/TFT and WoW reported 2048x1536 Retina drawables (1024x768 windows); SC2 retained its existing 640x480 default.
+
 Use this bounded diagnostic after changing video or renderer setup:
 
 ```bash
