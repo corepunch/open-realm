@@ -385,18 +385,23 @@ bool R_GameExtractEntityCamera(renderEntity_t const *entity, float aspect, viewD
      * ConsolePanel.SC2Layout: position=(0,-5,0) → target=(0,0,0), which
      * produces the flat top-down-front view the SC2 engine uses. */
     if (entity->flags & RF_ORTHO_CAMERA) {
-        /* Console chrome: three sections at world X = -1, 0, +1 (from
-         * <Position> in ConsolePanel.SC2Layout, sent as entity.origin.x).
-         * Camera is FIXED at world X=0 so each section shifts left/right by
-         * its entity.origin.x offset — left third, center, right third.
-         * Setting eye/tgt model-space X to -origin.x cancels the entity
-         * translation, keeping the camera at world X=0:
-         *   world_x = (-origin.x) + origin.x = 0.
-         * Ortho uses the model bounding sphere (same as before) so the chrome
-         * band stays the same size at the screen bottom. */
-        float s     = radius * 1.05f;
+        /* Console chrome: <Camera position="0,-5,0" target="0,0,0"/> from
+         * ConsolePanel.SC2Layout defines the ortho view.  Three sections at
+         * world X = -1, 0, +1 (from <Position> delivered as entity.origin.x).
+         *
+         * s_x = 1.5 — three sections span X = -1.5..+1.5 total (each model
+         *   1 unit wide, half-total = 1.5); derived from the Position values.
+         * s_y = radius*1.05 — model height from bounding sphere.
+         * tgt_z = s_y/aspect — SC2Layout camera target is at Z=0 (model
+         *   origin); the Stand animation fills the ortho view symmetrically,
+         *   so screen-bottom = target_z - s_y/aspect = 0 - s_y/aspect.
+         *   Setting tgt_z = s_y/aspect aligns screen-bottom with Z=0 exactly.
+         * Camera is fixed at world X=0; subtracting origin.x in model-space
+         * cancels the entity translation: world_x = -origin.x + origin.x = 0. */
+        float s_y   = radius * 1.05f;
+        float s_x   = 1.5f;
         float dist  = 5.0f;
-        float tgt_z = center.z + 0.04f + s / aspect;
+        float tgt_z = s_y / aspect;
         VECTOR3 eye = { -entity->origin.x, center.y - dist, tgt_z };
         VECTOR3 tgt = { -entity->origin.x, center.y,        tgt_z };
         eye = Matrix4_multiply_vector3(&transform, &eye);
@@ -405,7 +410,7 @@ bool R_GameExtractEntityCamera(renderEntity_t const *entity, float aspect, viewD
         if (Vector3_len(&dir) <= 0.001f)
             dir = (VECTOR3){ 0.0f, 1.0f, 0.0f };
         VECTOR3 up = { 0.0f, 0.0f, 1.0f };
-        Matrix4_ortho(&proj, -s, s, -s / aspect, s / aspect, 0.1f, dist + radius * 4.0f);
+        Matrix4_ortho(&proj, -s_x, s_x, -s_y / aspect, s_y / aspect, 0.1f, dist + radius * 4.0f);
         Matrix4_lookAt(&view, &eye, &dir, &up);
     } else {
         float fov  = 35.0f;
