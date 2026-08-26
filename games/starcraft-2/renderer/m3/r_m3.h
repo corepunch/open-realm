@@ -261,8 +261,19 @@ typedef struct {
     M3_ENTRIES(Region, regions);
     M3_ENTRIES(Batch, batches);
     Reference MSEC;
-    DWORD indicesBuffer;
+    DWORD indexofs;
 } m3Divisions_t;
+
+/* Concatenate file-shaped division faces and retain each division's byte range in the model EBO. */
+static DWORD m3_pack_division_faces(m3Divisions_t *divisions, DWORD count, USHORT *indices) {
+    DWORD offset = 0;
+    FOR_LOOP(i, count) {
+        if (divisions[i].facesNum)
+            memcpy(indices + offset, divisions[i].faces, divisions[i].facesNum * sizeof(*indices));
+        divisions[i].indexofs = offset * sizeof(*indices); offset += divisions[i].facesNum;
+    }
+    return offset;
+}
 
 typedef struct {
     DWORD unknown0;

@@ -51,6 +51,7 @@ extern render_phase_t render_phase;
 static struct {
     MODELPROG * shader;
     DWORD uDiffuseMap;
+    DWORD indexofs;
 } m3 = { 0 };
 
 typedef struct {
@@ -325,10 +326,6 @@ M3_READER(Divisions) {
     M3_REFR(sb, data->regions, Region, 0);
     M3_REFR(sb, data->batches, Batch, 0);
     M3_READ(sb, data->MSEC, 0);
-    
-    R_Call(glGenBuffers, 1, &data->indicesBuffer);
-    R_Call(glBindBuffer, GL_ELEMENT_ARRAY_BUFFER, data->indicesBuffer);
-    R_Call(glBufferData, GL_ELEMENT_ARRAY_BUFFER, data->facesNum * sizeof(USHORT), data->faces, GL_STATIC_DRAW);
 }
 
 M3_READER(Sequence) {
@@ -387,7 +384,7 @@ M3_READER(Bone) {
    M3 uses the same VAO layout as MDX/M2. */
 void M3_MakeBuffer(m3Model_t *model) {
     VERTEX *verts = model->verticesNum ? ri.MemAlloc(model->verticesNum * sizeof(VERTEX)) : NULL;
-    model->renbuf = ri.MemAlloc(sizeof(BUFFER));
+    DWORD elems = 0;
 
     FOR_LOOP(i, model->verticesNum) {
         m3Vertex_t const *src = &model->vertices[i];
@@ -404,26 +401,15 @@ void M3_MakeBuffer(m3Model_t *model) {
         memcpy(dst->boneWeight, src->boneWeight, 4);
     }
 
-    R_Call(glGenVertexArrays, 1, &model->renbuf->vao);
+    M3_FOR_EACH(Divisions, div, model->divisions) elems += div->facesNum;
+    USHORT *indices = elems ? ri.MemAlloc(elems * sizeof(*indices)) : NULL;
+    m3_pack_division_faces(model->divisions, model->divisionsNum, indices);
+    model->renbuf = R_MakeVertexArrayObject(verts, model->verticesNum);
     R_Call(glBindVertexArray, model->renbuf->vao);
-    R_Call(glGenBuffers, 1, &model->renbuf->vbo);
-    R_Call(glBindBuffer, GL_ARRAY_BUFFER, model->renbuf->vbo);
-
-    R_Call(glEnableVertexAttribArray, attrib_position);
-    R_Call(glEnableVertexAttribArray, attrib_texcoord);
-    R_Call(glEnableVertexAttribArray, attrib_skin1);
-    R_Call(glEnableVertexAttribArray, attrib_boneWeight1);
-    R_Call(glEnableVertexAttribArray, attrib_normal);
-    R_Call(glEnableVertexAttribArray, attrib_color);
-
-    R_Call(glVertexAttribPointer, attrib_position, 3, GL_FLOAT, GL_FALSE, sizeof(VERTEX), FOFS(vertex, position));
-    R_Call(glVertexAttribPointer, attrib_texcoord, 2, GL_FLOAT, GL_FALSE, sizeof(VERTEX), FOFS(vertex, texcoord));
-    R_Call(glVertexAttribPointer, attrib_skin1, 4, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(VERTEX), FOFS(vertex, skin[0]));
-    R_Call(glVertexAttribPointer, attrib_boneWeight1, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(VERTEX), FOFS(vertex, boneWeight[0]));
-    R_Call(glVertexAttribPointer, attrib_normal, 3, GL_FLOAT, GL_FALSE, sizeof(VERTEX), FOFS(vertex, normal));
-    R_Call(glVertexAttribPointer, attrib_color, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(VERTEX), FOFS(vertex, color));
-
-    R_Call(glBufferData, GL_ARRAY_BUFFER, model->verticesNum * sizeof(VERTEX), verts, GL_STATIC_DRAW);
+    R_Call(glGenBuffers, 1, &model->renbuf->ibo);
+    R_Call(glBindBuffer, GL_ELEMENT_ARRAY_BUFFER, model->renbuf->ibo);
+    R_Call(glBufferData, GL_ELEMENT_ARRAY_BUFFER, elems * sizeof(*indices), indices, GL_STATIC_DRAW);
+    ri.MemFree(indices);
     ri.MemFree(verts);
 }
 
@@ -677,7 +663,7 @@ static void M3_DrawRegionMaterial(m3Region_t const *region, m3Material_t const *
 #ifndef __linux__
     DWORD const num_indices = region->triangleIndicesCount;
     DWORD const first_vertex = region->firstVertexIndex;
-    HANDLE const indices = (HANDLE)(sizeof(USHORT) * region->firstTriangleIndex);
+    HANDLE const indices = (HANDLE)(uintptr_t)(m3.indexofs + sizeof(USHORT) * region->firstTriangleIndex);
 #endif
 
     if (!M3_SetMaterialBlendMode(material)) {
@@ -742,9 +728,9 @@ static void M3_DrawRegionMaterialReference(m3Model_t const *model,
 }
 
 void M3_DrawDivisions(m3Model_t const *model, m3Divisions_t const *divisions, BOOL blendedPass) {
-    if (!model || !divisions || !divisions->indicesBuffer)
+    if (!model || !model->renbuf || !model->renbuf->ibo || !divisions)
         return;
-    R_Call(glBindBuffer, GL_ELEMENT_ARRAY_BUFFER, divisions->indicesBuffer);
+    m3.indexofs = divisions->indexofs;
     M3_FOR_EACH(Batch, batch, divisions->batches) {
         if (batch->regionIndex >= divisions->regionsNum ||
             batch->materialReferenceIndex >= model->materialReferencesNum)

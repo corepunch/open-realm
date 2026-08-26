@@ -35,6 +35,7 @@ typedef struct {
     DWORD sequence_stride, bone_stride, attachment_stride, camera_stride, particle_stride, ribbon_stride;
 } m2FormatDef_t;
 
+
 typedef struct {
     FLOAT value[3], midpoint, lifespan;
 } M2PARTICLECURVE;
@@ -128,6 +129,7 @@ static BOOL m2_validate_skin_vertex_range(WORD const *skin_vertices, DWORD skin_
     }
     return true;
 }
+
 
 static BYTE const *m2_find_chunk(BYTE const *data, DWORD size, DWORD fourcc, LPDWORD chunk_size) {
     DWORD offset = 0;

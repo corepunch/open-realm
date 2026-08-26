@@ -725,6 +725,19 @@ void R_DrawBuffer(LPCBUFFER buffer, DWORD num_vertices) {
     R_Call(glDrawArrays, GL_TRIANGLES, 0, num_vertices);
 }
 
+/* Model-owned element buffers retain per-section ranges as byte offsets. */
+void R_DrawIndexedBuffer16(LPCBUFFER buffer, LPCDRAWELEMENTS draw) {
+    R_Call(glBindVertexArray, buffer->vao);
+    R_StatsDraw(GL_TRIANGLES, draw->count, 1);
+    R_Call(glDrawElements, GL_TRIANGLES, draw->count, GL_UNSIGNED_SHORT, (void *)(uintptr_t)draw->offset);
+}
+
+void R_DrawIndexedBuffer32(LPCBUFFER buffer, LPCDRAWELEMENTS draw) {
+    R_Call(glBindVertexArray, buffer->vao);
+    R_StatsDraw(GL_TRIANGLES, draw->count, 1);
+    R_Call(glDrawElements, GL_TRIANGLES, draw->count, GL_UNSIGNED_INT, (void *)(uintptr_t)draw->offset);
+}
+
 /* Static procedural batches need only gl_InstanceID; their shared VAO has no per-instance stream. */
 void R_DrawBufferCopies(LPCBUFFER buffer, DWORD num_vertices, DWORD num_instances) {
     R_Call(glBindVertexArray, buffer->vao);

@@ -108,6 +108,9 @@ struct render_buffer {
     DWORD ibo;
 };
 
+typedef struct DRAWELEMENTS { DWORD count, offset; } DRAWELEMENTS, *LPDRAWELEMENTS;
+typedef DRAWELEMENTS const *LPCDRAWELEMENTS;
+
 typedef struct INSTANCEBUFFER {
     DWORD vbo;
     DWORD count;
@@ -400,12 +403,16 @@ VERTEX *R_AddWireBox(VERTEX *buffer, LPCBOX3 box, COLOR32 color);
 LPBUFFER R_MakeVertexArrayObject(LPCVERTEX vertices, DWORD size);
 LPBUFFER R_MakeIndexedVertexArrayObject(LPCVERTEX vertices, DWORD num_vertices, DWORD const *indices, DWORD num_indices);
 void R_DrawBuffer(LPCBUFFER buffer, DWORD num_vertices);
+void R_DrawIndexedBuffer16(LPCBUFFER buffer, LPCDRAWELEMENTS draw);
+void R_DrawIndexedBuffer32(LPCBUFFER buffer, LPCDRAWELEMENTS draw);
 void R_DrawBufferCopies(LPCBUFFER buffer, DWORD num_vertices, DWORD num_instances);
 void R_DrawIndexedBuffer(LPCBUFFER buffer, DWORD num_indices);
 BOOL R_MakeInstanceBuffer(LPINSTANCEBUFFER buffer, LPCMATRIX4 matrices, DWORD count);
 BOOL R_UpdateInstanceBuffer(LPINSTANCEBUFFER buffer, LPCMATRIX4 matrices, DWORD count);
 void R_ReleaseInstanceBuffer(LPINSTANCEBUFFER buffer);
 void R_DrawBufferInstanced(LPCBUFFER buffer, DWORD num_vertices, LPCINSTANCEBUFFER instances);
+void R_DrawIndexedBuffer16Instanced(LPCBUFFER buffer, LPCDRAWELEMENTS draw, LPCINSTANCEBUFFER instances);
+void R_DrawIndexedBuffer32Instanced(LPCBUFFER buffer, LPCDRAWELEMENTS draw, LPCINSTANCEBUFFER instances);
 void R_ShutdownDrawBufferInstanced(void);
 
 // r_draw.c

@@ -19,9 +19,8 @@ typedef struct m2KnownTexture_s {
 static m2KnownTexture_t *m2_known_textures;
 
 typedef struct m2ModelBatch_s {
-	LPBUFFER buffer;
 	LPTEXTURE texture;
-	DWORD num_vertices;
+	DRAWELEMENTS draw;
 	DWORD texture_type;
 	WORD bone_count;
 	WORD bone_combo_index;
@@ -44,6 +43,7 @@ struct m2Model_s {
     BOX3 geometry_bounds;
     DWORD flags;
     /* Renderer-owned state that has no representation in the M2 file. */
+    LPBUFFER buffer;
     m2ModelBatch_t *batches;
     DWORD num_batches;
 };
@@ -57,6 +57,8 @@ typedef struct {
     m2Box_t bounding_box;
 } m2GeometryInfo_t;
 
+typedef struct { LPCVERTEX vertices; DWORD num_vertices; DWORD const *indices; DWORD num_indices; } M2BUFFERDATA;
+
 static MODELPROG * m2_shader;
 static MATRIX4 m2_bone_matrices[M2_MAX_BONES];
 
@@ -65,6 +67,16 @@ static MODELPROG * M2_Shader(void) {
         m2_shader = R_ModelShader();
     }
     return m2_shader;
+}
+
+/* Concatenate the old batch-expanded geometry so one model still owns exactly one VBO and one EBO. */
+static LPBUFFER M2_MakeBuffer(M2BUFFERDATA const *data) {
+    LPBUFFER buffer = R_MakeVertexArrayObject(data->vertices, data->num_vertices);
+    R_Call(glBindVertexArray, buffer->vao);
+    R_Call(glGenBuffers, 1, &buffer->ibo);
+    R_Call(glBindBuffer, GL_ELEMENT_ARRAY_BUFFER, buffer->ibo);
+    R_Call(glBufferData, GL_ELEMENT_ARRAY_BUFFER, data->num_indices * sizeof(*data->indices), data->indices, GL_STATIC_DRAW);
+    return buffer;
 }
 
 static void M2_LogFallback(LPCSTR modelFilename, LPCSTR reason) {
@@ -78,6 +90,7 @@ static void M2_LogFallback(LPCSTR modelFilename, LPCSTR reason) {
 
 static m2Model_t *M2_CreateFallbackModel(LPCSTR modelFilename, LPCSTR reason) {
     static VERTEX vertices[12];
+    static DWORD indices[12];
     static BOOL initialized;
     m2Model_t *model;
     m2ModelBatch_t *batch;
@@ -103,12 +116,14 @@ static m2Model_t *M2_CreateFallbackModel(LPCSTR modelFilename, LPCSTR reason) {
             vertices[i].normal = (VECTOR3){ 0.0f, 0.0f, 1.0f };
             vertices[i].texcoord = (VECTOR2){ 0.0f, 0.0f };
             vertices[i].color = color;
+            indices[i] = i;
         }
         initialized = true;
     }
 
     model = ri.MemAlloc(sizeof(*model));
     memset(model, 0, sizeof(*model));
+    snprintf(model->filename, sizeof(model->filename), "%s", modelFilename ? modelFilename : "<null>");
     model->bounds = (BOX3){
         .min = { -14.0f, -14.0f, 0.0f },
         .max = { 14.0f, 14.0f, 42.0f },
@@ -116,9 +131,9 @@ static m2Model_t *M2_CreateFallbackModel(LPCSTR modelFilename, LPCSTR reason) {
     model->geometry_bounds = model->bounds;
     batch = ri.MemAlloc(sizeof(*batch));
     memset(batch, 0, sizeof(*batch));
-    batch->buffer = R_MakeVertexArrayObject(vertices, 12);
+    model->buffer = M2_MakeBuffer(&(M2BUFFERDATA){ vertices, 12, indices, 12 });
     batch->texture = tr.texture[TEX_WHITE];
-    batch->num_vertices = 12;
+    batch->draw.count = 12;
     model->batches = batch;
     model->num_batches = 1;
     return model;
@@ -1328,10 +1343,7 @@ static BOOL M2_SkinPath(LPCSTR model_path, LPSTR out, DWORD out_size) {
 static VERTEX M2_MakeVertex(m2VertexDisk_t const *src) {
     VERTEX out;
     memset(&out, 0, sizeof(out));
-    out.position = src->pos;
-    out.normal = src->normal;
-    out.texcoord = src->tex_coords[0];
-    out.color = COLOR32_WHITE;
+    out.position = src->pos; out.normal = src->normal; out.texcoord = src->tex_coords[0]; out.color = COLOR32_WHITE;
     memcpy(out.skin, src->bone_indices, sizeof(src->bone_indices));
     memcpy(out.boneWeight, src->bone_weights, sizeof(src->bone_weights));
     return out;
@@ -1573,6 +1585,8 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size, BOOL *b
     m2Batch_t const *batches;
     m2Ubyte4_t const *skin_bones;
     m2Model_t *model;
+    VERTEX *verts;
+    DWORD *indices;
     DWORD batch_count;
     DWORD section_count;
     DWORD skin_vertex_count;
@@ -1583,6 +1597,7 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size, BOOL *b
     DWORD version;
     m2FormatDef_t const *format;
     DWORD base_offset = 0;
+    DWORD total_indices = 0, vertex_offset = 0;
 
     if (buffer_owned) *buffer_owned = false;
 
@@ -1652,6 +1667,12 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size, BOOL *b
         SAFE_DELETE(skin_data, ri.FS_FreeFile);
         return M2_CreateFallbackModel(modelFilename, using_legacy_view ? "invalid legacy embedded view" : "missing skin profile");
     }
+    FOR_LOOP(i, skin_vertex_count) {
+        if (skin_vertices[i] >= (DWORD)geom.vertices.size) {
+            SAFE_DELETE(skin_data, ri.FS_FreeFile);
+            return M2_CreateFallbackModel(modelFilename, "skin vertex lookup exceeds model vertices");
+        }
+    }
 
     model = ri.MemAlloc(sizeof(*model));
     memset(model, 0, sizeof(*model));
@@ -1679,6 +1700,29 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size, BOOL *b
 		}
 	}
 
+    /* Preserve the old batch-expanded vertex interpretation while sharing the two GL buffers. */
+    FOR_LOOP(i, batch_count) {
+        m2Batch_t const *batch = &batches[i];
+        DWORD start, count;
+        if (batch->skin_section_index >= section_count) continue;
+        if (using_legacy_view) {
+            m2SkinSectionLegacy_t const *section = &((m2SkinSectionLegacy_t const *)sections)[batch->skin_section_index];
+            start = section->index_start; count = section->index_count;
+        } else {
+            m2SkinSection_t const *section = &((m2SkinSection_t const *)sections)[batch->skin_section_index];
+            start = section->index_start; count = section->index_count;
+        }
+        if (count && m2_validate_skin_vertex_range(skin_vertices, skin_vertex_count, skin_indices,
+            skin_index_count, (DWORD)geom.vertices.size, start, count)) total_indices += count;
+    }
+    verts = total_indices ? ri.MemAlloc(sizeof(*verts) * total_indices) : NULL;
+    indices = total_indices ? ri.MemAlloc(sizeof(*indices) * total_indices) : NULL;
+    if (total_indices && (!verts || !indices)) {
+        SAFE_DELETE(verts, ri.MemFree); SAFE_DELETE(indices, ri.MemFree); SAFE_DELETE(skin_data, ri.FS_FreeFile);
+        M2_FreeModelData(model); ri.MemFree(model);
+        return M2_CreateFallbackModel(modelFilename, "could not pack shared batch geometry");
+    }
+
 	FOR_LOOP(i, batch_count) {
 		m2Batch_t const *batch = &batches[i];
         DWORD index_start;
@@ -1686,7 +1730,6 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size, BOOL *b
         WORD bone_count;
         WORD bone_combo_index;
         WORD section_id = 0;
-        VERTEX *verts;
         m2ModelBatch_t *out;
         BYTE alphamode;
         if (batch->skin_section_index >= section_count) {
@@ -1714,24 +1757,17 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size, BOOL *b
             fprintf(stderr, "M2: section %u has an invalid skin index/vertex range\n", section_id);
             continue;
         }
-        verts = ri.MemAlloc(sizeof(*verts) * index_count);
-        if (!verts) {
-            continue;
-        }
         FOR_LOOP(j, index_count) {
-            DWORD sidx = skin_indices[index_start + j];
-            DWORD vidx = skin_vertices[sidx];
-            verts[j] = M2_MakeVertex(&m2_vertices[vidx]);
-            if (skin_bones) {
-                memcpy(verts[j].skin, skin_bones[sidx].v, sizeof(skin_bones[sidx].v));
-            }
+            DWORD sidx = skin_indices[index_start + j], vidx = skin_vertices[sidx];
+            verts[vertex_offset + j] = M2_MakeVertex(&m2_vertices[vidx]);
+            if (skin_bones) memcpy(verts[vertex_offset + j].skin, skin_bones[sidx].v, sizeof(skin_bones[sidx].v));
+            indices[vertex_offset + j] = vertex_offset + j;
         }
         alphamode = batch->material_index < material_count ? m2_blend_mode(materials[batch->material_index * 2 + 1]) : 0;
         out = ri.MemAlloc(sizeof(*out));
         memset(out, 0, sizeof(*out));
-        out->buffer = R_MakeVertexArrayObject(verts, index_count);
+        out->draw = (DRAWELEMENTS){ index_count, vertex_offset * sizeof(*indices) };
         out->texture = M2_TextureForBatch(m2_base, m2_size, &geom, batch, modelFilename, true, &out->texture_type);
-        out->num_vertices = index_count;
         out->bone_count = bone_count;
         out->bone_combo_index = bone_combo_index;
         out->section_id = section_id;
@@ -1740,15 +1776,18 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size, BOOL *b
         out->alphamode = alphamode;
         ADD_TO_LIST(out, model->batches);
         model->num_batches++;
-        ri.MemFree(verts);
+        vertex_offset += index_count;
     }
 
     SAFE_DELETE(skin_data, ri.FS_FreeFile);
     if (!model->batches) {
+        SAFE_DELETE(verts, ri.MemFree); SAFE_DELETE(indices, ri.MemFree);
         M2_FreeModelData(model);
         ri.MemFree(model);
         return M2_CreateFallbackModel(modelFilename, using_legacy_view ? "legacy view produced no batches" : "skin produced no batches");
     }
+    model->buffer = M2_MakeBuffer(&(M2BUFFERDATA){ verts, vertex_offset, indices, vertex_offset });
+    ri.MemFree(indices); ri.MemFree(verts);
     return model;
 }
 
@@ -2111,7 +2150,7 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
 #endif
 		R_BindTexture(tr.texture[TEX_WHITE], 2);
 		R_ApplyShader(shader);
-		R_DrawBuffer(batch->buffer, batch->num_vertices);
+		R_DrawIndexedBuffer32(model->buffer, &batch->draw);
 	}
 	R_SetAlphaKeyState(false);
 	if (outfit)
@@ -2175,7 +2214,7 @@ void M2_RenderInstanced(m2Model_t const *model, LPCINSTANCEBUFFER instances, DWO
 #endif
 		R_BindTexture(tr.texture[TEX_WHITE], 2);
 		R_ApplyShader(shader);
-		R_DrawBufferInstanced(batch->buffer, batch->num_vertices, instances);
+		R_DrawIndexedBuffer32Instanced(model->buffer, &batch->draw, instances);
 	}
 	R_SetAlphaKeyState(false);
 }
@@ -2276,10 +2315,10 @@ void M2_Release(m2Model_t *model) {
     batch = model->batches;
     while (batch) {
         m2ModelBatch_t *next = batch->next;
-        R_ReleaseVertexArrayObject(batch->buffer);
         ri.MemFree(batch);
         batch = next;
     }
+    R_ReleaseVertexArrayObject(model->buffer);
     /* A recycled model allocation must never inherit an atlas cached for the old owner at the same address. */
     FOR_LOOP(i, M2_CHARACTER_COMPOSITE_CACHE_SIZE)
         if (m2_character_composite_keys[i].owner == model) m2_character_composite_keys[i].occupied = false;
