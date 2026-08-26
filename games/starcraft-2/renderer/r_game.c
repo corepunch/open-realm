@@ -396,7 +396,7 @@ bool R_GameExtractEntityCamera(renderEntity_t const *entity, float aspect, viewD
          * band stays the same size at the screen bottom. */
         float s     = radius * 1.05f;
         float dist  = 5.0f;
-        float tgt_z = center.z + 0.05f + s / aspect;
+        float tgt_z = center.z + 0.04f + s / aspect;
         VECTOR3 eye = { -entity->origin.x, center.y - dist, tgt_z };
         VECTOR3 tgt = { -entity->origin.x, center.y,        tgt_z };
         eye = Matrix4_multiply_vector3(&transform, &eye);
