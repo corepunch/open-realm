@@ -2,6 +2,7 @@
 #include "m3/r_m3.h"
 #include "games/starcraft-2/common/sc2_map.h"
 #include "sc2/r_sc2map.h"
+#include <math.h>
 
 void M3_Init(void);
 void M3_Shutdown(void);
@@ -356,11 +357,75 @@ bool R_GameGetModelInfo(LPMODEL model, LPMODELINFO info) {
     return true;
 }
 
+/* Portrait camera for SC2 FT_PORTRAIT frames.
+ *
+ * Unit portraits (small radius): 35° perspective, camera from -Y side.
+ * Console chrome models (large radius > 3): orthographic from the camera
+ * defined in ConsolePanel.SC2Layout — position=(0,-5,0), target=origin, fov=90.
+ * The ortho half-extent equals the bounding sphere radius so the model fills
+ * the viewport, matching the SC2 engine's flat-panel appearance. */
 bool R_GameExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t *viewdef) {
-    (void)entity;
-    (void)aspect;
-    (void)viewdef;
-    return false;
+    if (!entity || !entity->model || entity->model->modeltype != ID_43DM || !entity->model->m3 || !viewdef)
+        return false;
+
+    m3Model_t const *m3 = entity->model->m3;
+    BoundingSphere const *bs = &m3->boundings;
+    VECTOR3 center = {
+        (bs->max.x + bs->min.x) * 0.5f,
+        (bs->max.y + bs->min.y) * 0.5f,
+        (bs->max.z + bs->min.z) * 0.5f
+    };
+    float radius = (bs->radius > 0.1f) ? bs->radius : 1.5f;
+    MATRIX4 transform;
+    R_GetEntityMatrix(entity, &transform);
+
+    MATRIX4 proj, view;
+    /* Console chrome models have a large bounding sphere (full-screen-width
+     * panels, radius >> unit models).  Use the orthographic camera from
+     * ConsolePanel.SC2Layout: position=(0,-5,0) → target=(0,0,0), which
+     * produces the flat top-down-front view the SC2 engine uses. */
+    if (radius > 3.0f) {
+        /* Console chrome camera from ConsolePanel.SC2Layout:
+         *   position=(0,-5,0), target=origin, fov=90 → half-extent=5.
+         * The viewport is restricted to the bottom 332/1200 = 27.7% strip.
+         * Use the SC2 reference 4:3 aspect (1600/1200) so the ortho scale
+         * matches the full-screen design: the bottom strip of that ortho
+         * contains the chrome geometry (Z=-2 to 0 in model space). */
+        /* Fixed console camera — world-space, does NOT move with entity.
+         * Models at different X positions (MinimapModel X=-1, etc.) move
+         * within this fixed view; the camera stays at origin. */
+        VECTOR3 eye = { 0.0f, -5.0f, 0.0f };
+        VECTOR3 dir = { 0.0f,  1.0f, 0.0f };
+        VECTOR3 up  = { 0.0f,  0.0f, 1.0f };
+        (void)transform;
+        /* Align ortho bottom to the model's min-Z so chrome fills the viewport. */
+        float bottom_z = bs->min.z;
+        float strip_h  = (332.0f / 1200.0f) * 7.5f;
+        float s        = 5.0f;
+        Matrix4_ortho(&proj, -s, s, bottom_z, bottom_z + strip_h, 0.1f, 100.0f);
+        Matrix4_lookAt(&view, &eye, &dir, &up);
+    } else {
+        float fov  = 35.0f;
+        float dist = radius / tanf((fov * (float)M_PI / 180.0f) * 0.5f);
+        VECTOR3 eye = { center.x, center.y - dist * 0.9f, center.z + radius * 0.25f };
+        VECTOR3 tgt = center;
+        eye = Matrix4_multiply_vector3(&transform, &eye);
+        tgt = Matrix4_multiply_vector3(&transform, &tgt);
+        VECTOR3 model_z = Matrix4_multiply_vector3(&transform, &(VECTOR3){0, 0, 1});
+        VECTOR3 model_o = Matrix4_multiply_vector3(&transform, &(VECTOR3){0, 0, 0});
+        VECTOR3 up      = Vector3_sub(&model_z, &model_o);
+        if (Vector3_len(&up) <= 0.001f)
+            up = (VECTOR3){ 0.0f, 0.0f, 1.0f };
+        VECTOR3 dir = Vector3_sub(&tgt, &eye);
+        if (Vector3_len(&dir) <= 0.001f)
+            dir = (VECTOR3){ 0.0f, 1.0f, 0.0f };
+        Matrix4_perspective(&proj, fov, aspect, MAX(0.05f, dist * 0.02f), MAX(dist + radius * 4.0f, 100.0f));
+        Matrix4_lookAt(&view, &eye, &dir, &up);
+    }
+    Matrix4_multiply(&proj, &view, &viewdef->viewProjectionMatrix);
+    Matrix4_identity(&viewdef->textureMatrix);
+    Matrix4_identity(&viewdef->lightMatrix);
+    return true;
 }
 
 bool R_GameSetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {

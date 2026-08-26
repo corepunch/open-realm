@@ -611,6 +611,7 @@ void CL_Init(void) {
         .MemAlloc = MemAlloc,
         .MemFree = MemFree,
         .ImageIndex = CL_ImageIndex,
+        .ModelIndex = CL_ModelIndex,
         .FontIndex = CL_FontIndex,
         .Cmd_AddCommand = Cmd_AddCommand,
         .Cmd_ExecuteText = Cbuf_AddText,

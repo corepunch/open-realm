@@ -237,9 +237,31 @@ Violating this order causes per-file pass "NOT FOUND" for cross-file refs, leavi
 
 The `ConsoleUIContainer` frame is written as a bare container (no children) on `LAYER_BACKGROUND` so that children on other layers can use it as their parent reference.
 
+## Portrait panel (FT_PORTRAIT)
+
+`PortraitPanel.SC2Layout` defines a `<Frame type="Portrait" name="Portrait">` child. This type maps to `FT_PORTRAIT` (added in `stb_sc2layout.h`: `SC2_FRAMETYPE_PORTRAIT` enum + `{ "Portrait", SC2_FRAMETYPE_PORTRAIT }` in the parse table).
+
+`SCR_LayoutDrawPortrait` renders it via `re.RenderFrame` with `RDF_USE_ENTITY_CAMERA`. For SC2, `R_GameExtractEntityCamera` (`games/starcraft-2/renderer/r_game.c`) computes a bounds-based portrait camera from `m3->boundings` (BoundingSphere min/max/radius): 35° FOV perspective, camera at `center + (0, -dist*0.9, +radius*0.25)` looking at the bounding sphere center.
+
+The portrait model index is set server-side by `SC2_HUD_SetPortraitModel(model)` (hud.c) before `SC2_HUD_WriteConsolePanel`. In `SC2_ClientBegin` (g_sc2.c), the first selectable unit's `s.model` is used. `SC2_HUD_BuildFrameForWrite` overrides `tex.index` with `portrait_model` for any `FT_PORTRAIT` frame.
+
+The `PortraitPanel` background image (`UI/BlankPortraitBackground` → `terranblankportrait_static.dds`) is a DXT5 texture that is black by design — it is the blank state shown behind the 3D portrait model.
+
 ## ConsolePanel Model children (3D console chrome)
 
-`ConsolePanel.SC2Layout` contains three `<Frame type="Model">` children (`InfopanelModel`, `MinimapModel`, `CommandPanelModel`) that render the 3D console backdrop in the real SC2 engine. These map to `FT_SPRITE` but our `R_GameDrawSprite` for SC2 is a no-op (no .m3 model renderer). They are hidden in `sc2_hud_hide_optional_panels()` to prevent null-model draw calls.
+`ConsolePanel.SC2Layout` contains three `<Frame type="Model">` children — `InfopanelModel`, `MinimapModel`, `CommandPanelModel` — referencing `.m3` models from `Assets.txt`:
+
+| Frame | XML Position | Asset key | .m3 path |
+|-------|-------------|-----------|----------|
+| MinimapModel     | X=-1, Y=-1 | `UI/ConsoleModelMinimapPanel`  | `Assets/UI/Console/Terran/ConsoleTerran/ConsoleTerran_00.m3` |
+| InfopanelModel   | X=0, Y=-1  | `UI/ConsoleModelInfopanel`     | `ConsoleTerran_01.m3` |
+| CommandPanelModel| X=+1, Y=-1 | `UI/ConsoleModelCommandPanel`  | `ConsoleTerran_02.m3` |
+
+These now map to `FT_PORTRAIT` (same as `SC2_FRAMETYPE_PORTRAIT`) via the `SC2_MapFrameType` update. The model index is resolved server-side by `sc2_hud_model_index()` (hud.c) via `uiimport.ModelIndex → gi.ModelIndex(path)`. `SC2_HUD_BuildFrameForWrite` restricts each frame to the bottom 332 SC2-unit strip (height constraint) so `SCR_LayoutDrawPortrait` receives the correct bottom viewport.
+
+`R_GameExtractEntityCamera` (r_game.c) detects large-radius models (radius > 3.0) and uses the orthographic camera from the XML: fixed eye at (0,-5,0) looking in +Y, bottom edge aligned to `bs->min.z` (model bounding sphere min-Z), height = 332/1200 × 7.5 world units. Each model translates in X via `uiFrame_t.value` (set from `frame->name` in `SC2_HUD_BuildFrameForWrite`); `SCR_LayoutDrawPortrait` applies it as `entity.origin.x`.
+
+**Known limitation:** each of the three models renders in its own `re.RenderFrame` call, so they cannot composite into a single seamless strip — the last rendered model (CommandPanelModel) overwrites center-overlapping areas. For seamless full-width chrome, all three models need to be batched into a single `viewDef_t` with 3 entities. The `<Position>` XML attribute (X=-1/0/+1) is hardcoded by frame name; a TODO is to parse it from the Model element in `SC2_ParseModel`.
 
 ## NormalImage / HoverImage button children (fill-parent semantics)
 

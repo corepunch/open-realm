@@ -110,6 +110,7 @@ typedef enum {
     SC2_FRAMETYPE_MINIMAP,
     SC2_FRAMETYPE_RESOURCE_PANEL,
     SC2_FRAMETYPE_PORTRAIT_PANEL,
+    SC2_FRAMETYPE_PORTRAIT,
     SC2_FRAMETYPE_GAME_UI,
     SC2_FRAMETYPE_WORLD_PANEL,
     SC2_FRAMETYPE_COUNTDOWN_LABEL,
@@ -352,6 +353,7 @@ static struct { LPCSTR name; sc2FrameType type; } sc2_frame_types[] = {
     { "Minimap",                SC2_FRAMETYPE_MINIMAP },
     { "ResourcePanel",          SC2_FRAMETYPE_RESOURCE_PANEL },
     { "PortraitPanel",          SC2_FRAMETYPE_PORTRAIT_PANEL },
+    { "Portrait",               SC2_FRAMETYPE_PORTRAIT },
     { "GameUI",                 SC2_FRAMETYPE_GAME_UI },
     { "WorldPanel",             SC2_FRAMETYPE_WORLD_PANEL },
     { "CountdownLabel",         SC2_FRAMETYPE_COUNTDOWN_LABEL },
@@ -1006,8 +1008,9 @@ FRAMETYPE SC2_MapFrameType(sc2FrameType sc2_type) {
         return FT_TEXTURE;
     case SC2_FRAMETYPE_MINIMAP:
         return FT_MINIMAP;
+    case SC2_FRAMETYPE_PORTRAIT:
     case SC2_FRAMETYPE_MODEL:
-        return FT_SPRITE;
+        return FT_PORTRAIT;
     case SC2_FRAMETYPE_LABEL:
     case SC2_FRAMETYPE_COUNTDOWN_LABEL:
         return FT_TEXT;
@@ -1178,7 +1181,9 @@ static void SC2_FlattenFrame(sc2Frame_t *frame, int parent_index) {
 
     SC2_ResolveAnchors(frame, dst);
 
-    if (frame->type != SC2_FRAMETYPE_MODEL && frame->num_textures > 0 && frame->textures[0].flags & SC2_TEX_HAS_TEXTURE)
+    if (frame->type == SC2_FRAMETYPE_MODEL && frame->num_textures > 0 && frame->textures[0].flags & SC2_TEX_HAS_TEXTURE)
+        dst->image = uiimport.ModelIndex ? (DWORD)uiimport.ModelIndex(frame->textures[0].resource) : 0;
+    else if (frame->type != SC2_FRAMETYPE_MODEL && frame->num_textures > 0 && frame->textures[0].flags & SC2_TEX_HAS_TEXTURE)
         dst->image = uiimport.ImageIndex ? (DWORD)uiimport.ImageIndex(frame->textures[0].resource) : 0;
 
     for (int i = 0; i < frame->num_textures; i++) {
