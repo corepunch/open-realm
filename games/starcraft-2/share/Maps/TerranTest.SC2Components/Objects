@@ -1,0 +1,8 @@
+<Objects>
+    <Unit id="CommandCenter" model="Assets\Units\Terran\CommandCenter\CommandCenter.m3" x="0" y="0" z="0" angle="0" scale="1" player="1" />
+    <Unit id="SCV" model="Assets\Units\Terran\SCV\SCV.m3" x="-6" y="-4" z="0" angle="0" scale="1" player="1" />
+    <Unit id="SCV" model="Assets\Units\Terran\SCV\SCV.m3" x="-3" y="-6" z="0" angle="0" scale="1" player="1" />
+    <Unit id="Marine" model="Assets\Units\Terran\Marine\Marine.m3" x="7" y="3" z="0" angle="0" scale="1" player="1" />
+    <Unit id="Marine" model="Assets\Units\Terran\Marine\Marine.m3" x="9" y="5" z="0" angle="0" scale="1" player="1" />
+    <Doodad id="MineralField" model="Assets\Doodads\Terran\MineralField\MineralField.m3" x="12" y="-7" z="0" angle="0" scale="1" player="15" />
+</Objects>

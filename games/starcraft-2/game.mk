@@ -17,10 +17,10 @@ ui-sc2:       $(UI_SC2_LIB)
 opensc2:      $(SC2_BINARY)
 
 run-sc2: $(SC2_BINARY) install-share
-	$(SC2_BINARY) -data data/StarCraft2 +map TRaynor01 $(ARGS)
+	$(SC2_BINARY) -data data/StarCraft2 +map Maps/TerranTest.SC2Components $(ARGS)
 
-build-run-sc2: opensc2
-	$(SC2_BINARY) -data data/StarCraft2 +map TRaynor01
+build-run-sc2: opensc2 install-share
+	$(SC2_BINARY) -data data/StarCraft2 +map Maps/TerranTest.SC2Components
 
 $(BIN_DIR)/m3tool$(EXE_EXT): tools/m3tool.c $(TOOL_DEPS) $(CLIENT_HEADERS) $(COMMON_HEADERS) | $(BIN_DIR) $(SHARED_LIB) $(SHEET_LIB) $(RENDERER_SC2_LIB)
 	@$(CC) $(SC2_CFLAGS) -o $@ $< \

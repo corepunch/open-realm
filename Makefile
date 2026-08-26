@@ -189,7 +189,7 @@ install-share:
 	@for g in warcraft-3 world-of-warcraft starcraft-2; do \
 		if [ -d games/$$g/share ]; then \
 			mkdir -p $(SHARE_INSTALL)/$$g; \
-			cp games/$$g/share/* $(SHARE_INSTALL)/$$g/; \
+			cp -R games/$$g/share/. $(SHARE_INSTALL)/$$g/; \
 		fi; \
 	done
 	@echo "[install-share]"
