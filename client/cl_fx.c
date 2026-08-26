@@ -8,7 +8,7 @@
  * frame; g_main.c resets both to zero at the start of each RunFrame so
  * the one-shot fires exactly once. */
 void CL_EntityEvent(entityState_t const *ent) {
-    if (!ent->event || !ent->sound || ent->sound >= MAX_SOUNDS) return;
+    if (!ent->event || !ent->sound) return;
     LPCSTR path = cl.configstrings[CS_SOUNDS + ent->sound];
     if (path && path[0])
         S_PlaySoundFile(path);

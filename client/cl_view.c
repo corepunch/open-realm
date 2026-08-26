@@ -190,10 +190,8 @@ static void V_AddClientEntity(centity_t const *ent) {
     if (view_state.num_entities >= MAX_CLIENT_ENTITIES) {
         return;
     }
-    if (ent->current.model >= MAX_MODELS) {
-        return;
-    }
-    
+    /* model is a BYTE and MAX_MODELS is 256, so it is always a valid index;
+       the old `>= MAX_MODELS` guard was a constant-false comparison. */
     re.origin = Vector3_lerp(&ent->prev.origin, &ent->current.origin, cl.viewDef.lerpfrac);
     re.angle = LerpRotation(ent->prev.angle, ent->current.angle, cl.viewDef.lerpfrac);
 #ifdef WOW
@@ -259,16 +257,14 @@ static void V_AddClientEntity(centity_t const *ent) {
 
     view_state.entities[view_state.num_entities++] = re;
     
-    if (ent->current.model2 > 0) {
+        if (ent->current.model2 > 0) {
 #ifdef WOW
         if (re.attached_model || re.overhead_model) return;
 #endif
-        if (ent->current.model2 >= MAX_MODELS) {
-            return;
-        }
         if (view_state.num_entities >= MAX_CLIENT_ENTITIES) {
             return;
         }
+        /* model2 is a BYTE and MAX_MODELS is 256, so it is always a valid index. */
         re.model = cl.models[ent->current.model2];
         re.skin = 0;
         re.frame = 0;
