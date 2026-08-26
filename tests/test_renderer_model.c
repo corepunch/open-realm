@@ -582,3 +582,149 @@ TEST(renderer_shader, shadow_receiver_contract) {
     T_NULL(strstr(shader_src, "shadow_visibility"));
 #endif
 }
+
+/* -----------------------------------------------------------------------
+ * shader_desc: UNIFORM/ATTRIB/SHARED macro expansion, R_BuildShaderDeclarations,
+ * and R_LoadShaderDescInto for each supported GLSL dialect.
+ * ----------------------------------------------------------------------- */
+
+typedef struct {
+    GLuint progid;
+    GLint  mvp;
+    GLint  texture;
+    GLint  color;
+} sd_test_prog_t;
+
+#define SHADER_TYPE sd_test_prog_t
+static const shader_desc_t sd_test = {
+    .Name = "test",
+    .Uniforms = {
+        UNIFORM(mvp,     UT_FLOAT_MAT4, PRECISION_HIGH),
+        UNIFORM(texture, UT_SAMPLER_2D, PRECISION_LOW),
+        UNIFORM(color,   UT_FLOAT_VEC4, PRECISION_LOW),
+    },
+    .Attributes = {
+        ATTRIB(position, attrib_position, UT_FLOAT_VEC3),
+        ATTRIB(texcoord, attrib_texcoord, UT_FLOAT_VEC2),
+    },
+    .Shared = {
+        SHARED(texcoord, UT_FLOAT_VEC2),
+    },
+    .VertexBody =
+        "void main() {\n"
+        "  gl_Position = u_mvp * vec4(a_position, 1.0);\n"
+        "  v_texcoord = a_texcoord;\n"
+        "}\n",
+    .FragmentBody =
+        "void main() {\n"
+        "  " GLSL_FRAGCOLOR " = " GLSL_TEX "(u_texture, v_texcoord) * u_color;\n"
+        "}\n",
+};
+#undef SHADER_TYPE
+
+/* UNIFORM(field) stores offsetof(SHADER_TYPE, field); attrib/shared names get a_/v_ prefix. */
+TEST(renderer_shader_desc, macro_expansion_records_offsets_and_prefixed_names) {
+    T_EQ(sd_test.Uniforms[0].offset, offsetof(sd_test_prog_t, mvp));
+    T_EQ(sd_test.Uniforms[1].offset, offsetof(sd_test_prog_t, texture));
+    T_EQ(sd_test.Uniforms[2].offset, offsetof(sd_test_prog_t, color));
+    T_STREQ(sd_test.Uniforms[0].name, "u_mvp");
+    T_STREQ(sd_test.Uniforms[1].name, "u_texture");
+    T_STREQ(sd_test.Uniforms[2].name, "u_color");
+    T_STREQ(sd_test.Attributes[0].name, "a_position");
+    T_STREQ(sd_test.Attributes[1].name, "a_texcoord");
+    T_STREQ(sd_test.Shared[0].name, "v_texcoord");
+    T_EQ(sd_test.Attributes[0].attrib, attrib_position);
+    T_EQ(sd_test.Attributes[1].attrib, attrib_texcoord);
+    T_NULL(sd_test.Uniforms[3].name);
+    T_NULL(sd_test.Attributes[2].name);
+    T_NULL(sd_test.Shared[1].name);
+}
+
+/* GLSL 120: attribute/varying keywords, no o_color declaration in FS. */
+TEST(renderer_shader_desc, declarations_120_vertex_uses_attribute_and_varying) {
+    char buf[1024];
+    R_BuildShaderDeclarations(buf, sizeof(buf), &sd_test, true, GLSL_DIALECT_120);
+    T_NOT_NULL(strstr(buf, "uniform mat4 u_mvp;\n"));
+    T_NOT_NULL(strstr(buf, "uniform sampler2D u_texture;\n"));
+    T_NOT_NULL(strstr(buf, "attribute vec3 a_position;\n"));
+    T_NOT_NULL(strstr(buf, "attribute vec2 a_texcoord;\n"));
+    T_NOT_NULL(strstr(buf, "varying vec2 v_texcoord;\n"));
+    T_NULL(strstr(buf, " in "));
+    T_NULL(strstr(buf, " out "));
+}
+
+TEST(renderer_shader_desc, declarations_120_fragment_omits_o_color) {
+    char buf[1024];
+    R_BuildShaderDeclarations(buf, sizeof(buf), &sd_test, false, GLSL_DIALECT_120);
+    T_NOT_NULL(strstr(buf, "varying vec2 v_texcoord;\n"));
+    T_NULL(strstr(buf, "out vec4 o_color"));
+    T_NULL(strstr(buf, " in "));
+}
+
+/* GLSL 140: in/out keywords, o_color declared in FS. */
+TEST(renderer_shader_desc, declarations_140_vertex_uses_in_out) {
+    char buf[1024];
+    R_BuildShaderDeclarations(buf, sizeof(buf), &sd_test, true, GLSL_DIALECT_140);
+    T_NOT_NULL(strstr(buf, "uniform mat4 u_mvp;\n"));
+    T_NOT_NULL(strstr(buf, "in vec3 a_position;\n"));
+    T_NOT_NULL(strstr(buf, "in vec2 a_texcoord;\n"));
+    T_NOT_NULL(strstr(buf, "out vec2 v_texcoord;\n"));
+    T_NULL(strstr(buf, "attribute "));
+    T_NULL(strstr(buf, "varying "));
+}
+
+TEST(renderer_shader_desc, declarations_140_fragment_declares_o_color) {
+    char buf[1024];
+    R_BuildShaderDeclarations(buf, sizeof(buf), &sd_test, false, GLSL_DIALECT_140);
+    T_NOT_NULL(strstr(buf, "in vec2 v_texcoord;\n"));
+    T_NOT_NULL(strstr(buf, "out vec4 o_color;\n"));
+    T_NULL(strstr(buf, "attribute "));
+    T_NULL(strstr(buf, "varying "));
+}
+
+/* GLSL 150 uses the same declaration keywords as 140; only the version line differs. */
+TEST(renderer_shader_desc, declarations_150_identical_to_140) {
+    char buf140[1024], buf150[1024];
+    R_BuildShaderDeclarations(buf140, sizeof(buf140), &sd_test, true,  GLSL_DIALECT_140);
+    R_BuildShaderDeclarations(buf150, sizeof(buf150), &sd_test, true,  GLSL_DIALECT_150);
+    T_STREQ(buf140, buf150);
+    R_BuildShaderDeclarations(buf140, sizeof(buf140), &sd_test, false, GLSL_DIALECT_140);
+    R_BuildShaderDeclarations(buf150, sizeof(buf150), &sd_test, false, GLSL_DIALECT_150);
+    T_STREQ(buf140, buf150);
+}
+
+/* GLES3 uses the same declaration keywords as 140; the precision prologue is in the version string. */
+TEST(renderer_shader_desc, declarations_es3_identical_to_140) {
+    char buf140[1024], bufES3[1024];
+    R_BuildShaderDeclarations(buf140, sizeof(buf140), &sd_test, true, GLSL_DIALECT_140);
+    R_BuildShaderDeclarations(bufES3, sizeof(bufES3), &sd_test, true, GLSL_DIALECT_ES3);
+    T_STREQ(buf140, bufES3);
+    R_BuildShaderDeclarations(buf140, sizeof(buf140), &sd_test, false, GLSL_DIALECT_140);
+    R_BuildShaderDeclarations(bufES3, sizeof(bufES3), &sd_test, false, GLSL_DIALECT_ES3);
+    T_STREQ(buf140, bufES3);
+}
+
+/* R_LoadShaderDescInto writes locations into struct fields via stored offsets. */
+TEST(renderer_shader_desc, load_writes_progid_and_uniform_locations) {
+    sd_test_prog_t prog;
+    memset(&prog, -1, sizeof(prog));  /* prefill with non-zero to detect writes */
+    reset_shader();
+    R_LoadShaderDescInto(&sd_test, NULL, &prog.progid, &prog);
+    T_EQ(prog.progid,  (GLuint)GL_LINK_STATUS); /* BZ_TestCreateProgram returns GL_LINK_STATUS */
+    T_EQ(prog.mvp,     0);  /* BZ_TestUniformLocation returns 0; was -1 before */
+    T_EQ(prog.texture, 0);
+    T_EQ(prog.color,   0);
+    T_EQ(shader_test.creates, 2);
+    T_EQ(shader_test.links,   1);
+    T_EQ(shader_test.deleted, 2);
+}
+
+TEST(renderer_shader_desc, load_null_prog_base_skips_location_writes) {
+    sd_test_prog_t prog;
+    memset(&prog, -1, sizeof(prog));
+    reset_shader();
+    R_LoadShaderDescInto(&sd_test, NULL, &prog.progid, NULL);
+    T_EQ(prog.progid, (GLuint)GL_LINK_STATUS);
+    T_EQ(prog.mvp,    (GLint)-1); /* not written when prog_base == NULL */
+    T_EQ(shader_test.creates, 2); T_EQ(shader_test.links, 1);
+}

@@ -2,13 +2,14 @@
 
 ## Build Profiles
 
-The Makefile has three independent build choices:
+The Makefile has four independent build choices:
 
 | Variable | Values | Default | Contract |
 |---|---|---|---|
 | `BUILD` | `debug`, `release` | `debug` | `release` adds `-O2`; debug adds `-O0 -g` |
 | `GL_BACKEND` | `gl`, `gles3` | `gl` | Desktop OpenGL 3.1, or Linux OpenGL ES 3.0 |
 | `MSAA` | `0`, `2`, `4`, `8` | `0` | Compile-time default framebuffer sample count |
+| `GLSL` | `120`, `140`, `150` | `140` | GLSL version for descriptor-based shaders (ignored when `GL_BACKEND=gles3`) |
 
 All configurations currently share `build/`, so clean before changing any build variable:
 
@@ -38,6 +39,47 @@ For an optimized desktop build with 4x coverage:
 make clean
 make BUILD=release MSAA=4 openwarcraft3
 ```
+
+## GLSL Version Selection
+
+The `GLSL` variable sets which GLSL version string the descriptor-based shader system emits.  It has no effect when `GL_BACKEND=gles3` — that path always generates `#version 300 es`.
+
+| `GLSL=` | Preprocessor define | `#version` emitted | Keyword style |
+|---------|--------------------|--------------------|---------------|
+| `120` | `-DBZ_GLSL_120` | `#version 120` | `attribute` / `varying` / `texture2D` / `gl_FragColor` |
+| `140` *(default)* | *(none)* | `#version 140` | `in` / `out` / `texture` / `o_color` |
+| `150` | `-DBZ_GLSL_150` | `#version 150` | same as 140 |
+| *(when `gles3`)* | `-DBZ_GL_ES3` | `#version 300 es` | same as 140 + `precision highp float/int` prologue |
+
+GLSL 140 and 150 use identical declaration keywords; the `GLSL=150` choice only changes the `#version` line.  Use it when targeting a core profile context that requires at least 150 (e.g. macOS Core Profile which dropped the compatibility profile and requires ≥ 150).
+
+**Switching versions requires a clean build** because the version define bakes into compiled `.o` files:
+
+```bash
+make clean
+make GLSL=120 openwarcraft3        # legacy hardware / older drivers
+make clean
+make GLSL=150 openwarcraft3        # macOS Core Profile
+make clean
+make GL_BACKEND=gles3 openwarcraft3  # GLES3 (ignores GLSL=)
+```
+
+### How dialect tokens work in shader bodies
+
+Shader bodies in `shader_desc_t` must not hardcode version-specific spellings.  Use the compile-time macros from `renderer/shader_desc.h` instead:
+
+| Macro | GLSL 120 | GLSL 140/150/ES3 |
+|-------|----------|-----------------|
+| `GLSL_ATTR` | `attribute` | `in` |
+| `GLSL_VS_OUT` | `varying` | `out` |
+| `GLSL_FS_IN` | `varying` | `in` |
+| `GLSL_FRAGCOLOR` | `gl_FragColor` | `o_color` |
+| `GLSL_TEX` | `texture2D` | `texture` |
+| `GLSL_TEXFETCH` | `texture2D` | `texelFetch` |
+
+The `uniform`, `in`, and `out` declarations for each stage are generated automatically by `R_BuildShaderDeclarations()` from the descriptor tables — shader bodies only contain the logic inside `void main()`.
+
+`make test-renderer-model` verifies that each dialect produces the correct declarations.
 
 ## JASS Header Dependencies
 

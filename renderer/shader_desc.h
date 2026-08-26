@@ -69,6 +69,15 @@
 /* -----------------------------------------------------------------------
  * Compile-time dialect tokens for use inside VertexBody / FragmentBody.
  * Everything else (version line, declarations) is generated from the descriptor.
+ *
+ * Controlled by the GLSL Make variable (default 140):
+ *   make GLSL=120   → -DBZ_GLSL_120   (attribute/varying/texture2D/gl_FragColor)
+ *   make GLSL=140   → (no define)     (in/out/texture/o_color)
+ *   make GLSL=150   → -DBZ_GLSL_150   (same tokens as 140, only #version differs)
+ *   make GL_BACKEND=gles3 → -DBZ_GL_ES3  (300 es, precision qualifiers)
+ *
+ * GL_BACKEND=gles3 overrides GLSL: the ES3 define takes precedence regardless
+ * of the GLSL= value because GLES uses a separate version namespace (300 es).
  * ----------------------------------------------------------------------- */
 #ifdef BZ_GL_ES3
 #  define GLSL_ATTR       "in"
@@ -84,7 +93,7 @@
 #  define GLSL_FRAGCOLOR  "gl_FragColor"
 #  define GLSL_TEX        "texture2D"
 #  define GLSL_TEXFETCH   "texture2D"
-#else /* GLSL 140 default */
+#else /* GLSL 140 or 150 — same keyword set, only the version line differs */
 #  define GLSL_ATTR       "in"
 #  define GLSL_VS_OUT     "out"
 #  define GLSL_FS_IN      "in"
@@ -94,12 +103,15 @@
 #endif
 
 /* -----------------------------------------------------------------------
- * Dialect enum — for R_BuildShaderDeclarations (runtime dialect selection).
+ * Dialect enum — passed to R_BuildShaderDeclarations for the version line
+ * and keyword selection.  Compile-time macros map to these at build time;
+ * pass a specific value to generate source for a different version at runtime.
  * ----------------------------------------------------------------------- */
 typedef enum {
-    GLSL_DIALECT_120,
-    GLSL_DIALECT_140,
-    GLSL_DIALECT_ES3,
+    GLSL_DIALECT_120,   /* attribute/varying/texture2D/gl_FragColor          */
+    GLSL_DIALECT_140,   /* in/out/texture/o_color                            */
+    GLSL_DIALECT_150,   /* same keywords as 140; version line is "#version 150" */
+    GLSL_DIALECT_ES3,   /* 300 es, same keywords as 140 + precision prologue */
 } glsl_dialect_t;
 
 /* -----------------------------------------------------------------------

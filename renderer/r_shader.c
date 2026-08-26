@@ -827,9 +827,11 @@ int R_BuildShaderDeclarations(char *buf, int size, const shader_desc_t *desc,
 
 static void R_SetShaderSourceFromDesc(GLuint stage, const shader_desc_t *desc,
                                       bool is_vertex, const char *defines) {
+    /* Indexed by glsl_dialect_t — must stay in enum order. */
     static const char *const version_prefix[] = {
         "#version 120\n",
         "#version 140\n",
+        "#version 150\n",
         "#version 300 es\nprecision highp float;\nprecision highp int;\n",
     };
     glsl_dialect_t dialect =
@@ -837,6 +839,8 @@ static void R_SetShaderSourceFromDesc(GLuint stage, const shader_desc_t *desc,
         GLSL_DIALECT_ES3;
 #elif defined(BZ_GLSL_120)
         GLSL_DIALECT_120;
+#elif defined(BZ_GLSL_150)
+        GLSL_DIALECT_150;
 #else
         GLSL_DIALECT_140;
 #endif
