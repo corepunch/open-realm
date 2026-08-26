@@ -2,6 +2,22 @@
 #define r_shader_h
 
 #include "renderer/r_local.h"
+#include "renderer/shader_desc.h"
+
+/*
+ * Compile and link the shader described by desc (with optional defines
+ * prepended to both stages), write the GL program id into *progid_out, then
+ * walk Uniforms[] and write each resolved glGetUniformLocation into the
+ * corresponding field of the typed program struct at prog_base + offset.
+ *
+ * prog_base must point to the beginning of the typed program struct (i.e. the
+ * GLuint progid field).  The per-field offsets stored in Uniforms[].offset
+ * must have been computed with offsetof(YourProgType, field) — guaranteed
+ * when the UNIFORM() macro is used inside the descriptor initialiser with
+ * SHADER_TYPE defined to YourProgType.
+ */
+void R_LoadShaderDescInto(const shader_desc_t *desc, const char *defines,
+                          GLuint *progid_out, void *prog_base);
 
 /* Shared comparison/PCF contract; callers supply the existing shadow sampler and light-space position. */
 #define BZ_SHADOW_GLSL \

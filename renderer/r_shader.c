@@ -164,6 +164,271 @@ LPCSTR fs_minimap_fog =
 "    o_color = vec4(v_color.rgb, alpha);\n"
 "}\n";
 
+/* -----------------------------------------------------------------------
+ * Descriptor-based replacements for the simple sprite/UI shaders above.
+ *
+ * Each program struct has a GLuint progid followed by one GLint per uniform
+ * in declaration order — the UNIFORM() macro stores the field offsetof so
+ * R_LoadShaderDescInto() writes resolved locations directly into the struct.
+ *
+ * Bodies contain only GLSL logic; version line, precision, and all
+ * uniform/in/out declarations are generated from the descriptor tables.
+ *
+ * Load (example):
+ *   R_LoadShaderDescInto(&sd_unlit, NULL, &unlit_prog.progid, &unlit_prog);
+ *
+ * Call site (example):
+ *   glUniformMatrix4fv(unlit_prog.viewProjection, 1, GL_FALSE, vp);
+ *   glUniformMatrix4fv(unlit_prog.model,          1, GL_FALSE, m);
+ * ----------------------------------------------------------------------- */
+
+/* --- unlit / ui: texture * vertex-color, no lighting ------------------- */
+typedef struct {
+    GLuint progid;
+    GLint  viewProjection;
+    GLint  model;
+    GLint  texture;
+} unlit_prog_t;
+
+#define SHADER_TYPE unlit_prog_t
+const shader_desc_t sd_unlit = {
+    .Name = "unlit",
+    .Uniforms = {
+        UNIFORM(viewProjection, UT_FLOAT_MAT4, PRECISION_HIGH),
+        UNIFORM(model,          UT_FLOAT_MAT4, PRECISION_HIGH),
+        UNIFORM(texture,        UT_SAMPLER_2D, PRECISION_LOW),
+    },
+    .Attributes = {
+        ATTRIB(position, attrib_position, UT_FLOAT_VEC3),
+        ATTRIB(texcoord, attrib_texcoord, UT_FLOAT_VEC2),
+        ATTRIB(color,    attrib_color,    UT_COLOR),
+    },
+    .Shared = {
+        SHARED(texcoord, UT_FLOAT_VEC2),
+        SHARED(color,    UT_COLOR),
+    },
+    .VertexBody =
+        "void main() {\n"
+        "  gl_Position = u_viewProjection * u_model * vec4(a_position, 1.0);\n"
+        "  v_texcoord = a_texcoord;\n"
+        "  v_color = a_color;\n"
+        "}\n",
+    .FragmentBody =
+        "void main() {\n"
+        "  " GLSL_FRAGCOLOR " = " GLSL_TEX "(u_texture, v_texcoord) * v_color;\n"
+        "}\n",
+};
+#undef SHADER_TYPE
+
+/* --- minimap: circular mask applied to alpha ---------------------------- */
+typedef struct {
+    GLuint progid;
+    GLint  viewProjection;
+    GLint  model;
+    GLint  texture;
+} minimap_prog_t;
+
+#define SHADER_TYPE minimap_prog_t
+const shader_desc_t sd_minimap = {
+    .Name = "minimap",
+    .Uniforms = {
+        UNIFORM(viewProjection, UT_FLOAT_MAT4, PRECISION_HIGH),
+        UNIFORM(model,          UT_FLOAT_MAT4, PRECISION_HIGH),
+        UNIFORM(texture,        UT_SAMPLER_2D, PRECISION_LOW),
+    },
+    .Attributes = {
+        ATTRIB(position, attrib_position, UT_FLOAT_VEC3),
+        ATTRIB(texcoord, attrib_texcoord, UT_FLOAT_VEC2),
+        ATTRIB(color,    attrib_color,    UT_COLOR),
+    },
+    .Shared = {
+        SHARED(texcoord, UT_FLOAT_VEC2),
+        SHARED(color,    UT_COLOR),
+    },
+    .VertexBody =
+        "void main() {\n"
+        "  gl_Position = u_viewProjection * u_model * vec4(a_position, 1.0);\n"
+        "  v_texcoord = a_texcoord;\n"
+        "  v_color = a_color;\n"
+        "}\n",
+    .FragmentBody =
+        "void main() {\n"
+        "  float mask = 1.0 - smoothstep(0.49, 0.5, length(v_color.rg - vec2(0.5)));\n"
+        "  vec4 tex = " GLSL_TEX "(u_texture, v_texcoord);\n"
+        "  " GLSL_FRAGCOLOR " = vec4(tex.rgb, tex.a * mask);\n"
+        "}\n",
+};
+#undef SHADER_TYPE
+
+/* --- splat: crop edges to [0,1] bounds ---------------------------------- */
+typedef struct {
+    GLuint progid;
+    GLint  viewProjection;
+    GLint  model;
+    GLint  texture;
+} splat_prog_t;
+
+#define SHADER_TYPE splat_prog_t
+const shader_desc_t sd_splat = {
+    .Name = "splat",
+    .Uniforms = {
+        UNIFORM(viewProjection, UT_FLOAT_MAT4, PRECISION_HIGH),
+        UNIFORM(model,          UT_FLOAT_MAT4, PRECISION_HIGH),
+        UNIFORM(texture,        UT_SAMPLER_2D, PRECISION_LOW),
+    },
+    .Attributes = {
+        ATTRIB(position, attrib_position, UT_FLOAT_VEC3),
+        ATTRIB(texcoord, attrib_texcoord, UT_FLOAT_VEC2),
+        ATTRIB(color,    attrib_color,    UT_COLOR),
+    },
+    .Shared = {
+        SHARED(texcoord, UT_FLOAT_VEC2),
+        SHARED(color,    UT_COLOR),
+    },
+    .VertexBody =
+        "void main() {\n"
+        "  gl_Position = u_viewProjection * u_model * vec4(a_position, 1.0);\n"
+        "  v_texcoord = a_texcoord;\n"
+        "  v_color = a_color;\n"
+        "}\n",
+    .FragmentBody =
+        "float crop_edges(vec2 tc) {\n"
+        "  return step(abs(tc.x - 0.5), 0.5) * step(abs(tc.y - 0.5), 0.5);\n"
+        "}\n"
+        "void main() {\n"
+        "  " GLSL_FRAGCOLOR " = " GLSL_TEX "(u_texture, v_texcoord) * v_color;\n"
+        "  " GLSL_FRAGCOLOR ".a *= crop_edges(v_texcoord);\n"
+        "}\n",
+};
+#undef SHADER_TYPE
+
+/* --- shadow splat: black silhouette with texture alpha ------------------ */
+typedef struct {
+    GLuint progid;
+    GLint  viewProjection;
+    GLint  model;
+    GLint  texture;
+} shadow_splat_prog_t;
+
+#define SHADER_TYPE shadow_splat_prog_t
+const shader_desc_t sd_shadow_splat = {
+    .Name = "shadow_splat",
+    .Uniforms = {
+        UNIFORM(viewProjection, UT_FLOAT_MAT4, PRECISION_HIGH),
+        UNIFORM(model,          UT_FLOAT_MAT4, PRECISION_HIGH),
+        UNIFORM(texture,        UT_SAMPLER_2D, PRECISION_LOW),
+    },
+    .Attributes = {
+        ATTRIB(position, attrib_position, UT_FLOAT_VEC3),
+        ATTRIB(texcoord, attrib_texcoord, UT_FLOAT_VEC2),
+        ATTRIB(color,    attrib_color,    UT_COLOR),
+    },
+    .Shared = {
+        SHARED(texcoord, UT_FLOAT_VEC2),
+        SHARED(color,    UT_COLOR),
+    },
+    .VertexBody =
+        "void main() {\n"
+        "  gl_Position = u_viewProjection * u_model * vec4(a_position, 1.0);\n"
+        "  v_texcoord = a_texcoord;\n"
+        "  v_color = a_color;\n"
+        "}\n",
+    .FragmentBody =
+        "float crop_edges(vec2 tc) {\n"
+        "  return step(abs(tc.x - 0.5), 0.5) * step(abs(tc.y - 0.5), 0.5);\n"
+        "}\n"
+        "void main() {\n"
+        "  vec4 tex = " GLSL_TEX "(u_texture, v_texcoord);\n"
+        "  " GLSL_FRAGCOLOR " = vec4(0.0, 0.0, 0.0, tex.a * v_color.a * crop_edges(v_texcoord));\n"
+        "}\n",
+};
+#undef SHADER_TYPE
+
+/* --- commandbutton: edge glow controlled by u_activeGlow ---------------- */
+typedef struct {
+    GLuint progid;
+    GLint  viewProjection;
+    GLint  model;
+    GLint  texture;
+    GLint  activeGlow;
+} commandbutton_prog_t;
+
+#define SHADER_TYPE commandbutton_prog_t
+const shader_desc_t sd_commandbutton = {
+    .Name = "commandbutton",
+    .Uniforms = {
+        UNIFORM(viewProjection, UT_FLOAT_MAT4, PRECISION_HIGH),
+        UNIFORM(model,          UT_FLOAT_MAT4, PRECISION_HIGH),
+        UNIFORM(texture,        UT_SAMPLER_2D, PRECISION_LOW),
+        UNIFORM(activeGlow,     UT_FLOAT,      PRECISION_LOW),
+    },
+    .Attributes = {
+        ATTRIB(position, attrib_position, UT_FLOAT_VEC3),
+        ATTRIB(texcoord, attrib_texcoord, UT_FLOAT_VEC2),
+        ATTRIB(color,    attrib_color,    UT_COLOR),
+    },
+    .Shared = {
+        SHARED(texcoord, UT_FLOAT_VEC2),
+        SHARED(color,    UT_COLOR),
+    },
+    .VertexBody =
+        "void main() {\n"
+        "  gl_Position = u_viewProjection * u_model * vec4(a_position, 1.0);\n"
+        "  v_texcoord = a_texcoord;\n"
+        "  v_color = a_color;\n"
+        "}\n",
+    .FragmentBody =
+        "void main() {\n"
+        "  " GLSL_FRAGCOLOR " = " GLSL_TEX "(u_texture, v_texcoord) * v_color;\n"
+        "  float glow = max(abs(v_texcoord.x - 0.5), abs(v_texcoord.y - 0.5));\n"
+        "  glow = smoothstep(0.33, 0.5, glow) * 0.75 * u_activeGlow;\n"
+        "  " GLSL_FRAGCOLOR ".rgb = mix(" GLSL_FRAGCOLOR ".rgb, vec3(0.5, 1.0, 0.5), glow);\n"
+        "  float crop = step(abs(v_texcoord.x - 0.5), 0.5) * step(abs(v_texcoord.y - 0.5), 0.5);\n"
+        "  " GLSL_FRAGCOLOR ".a *= crop;\n"
+        "}\n",
+};
+#undef SHADER_TYPE
+
+/* --- minimap fog: fog-of-war overlay with y-flip ------------------------ */
+typedef struct {
+    GLuint progid;
+    GLint  viewProjection;
+    GLint  model;
+    GLint  texture;
+} minimap_fog_prog_t;
+
+#define SHADER_TYPE minimap_fog_prog_t
+const shader_desc_t sd_minimap_fog = {
+    .Name = "minimap_fog",
+    .Uniforms = {
+        UNIFORM(viewProjection, UT_FLOAT_MAT4, PRECISION_HIGH),
+        UNIFORM(model,          UT_FLOAT_MAT4, PRECISION_HIGH),
+        UNIFORM(texture,        UT_SAMPLER_2D, PRECISION_LOW),
+    },
+    .Attributes = {
+        ATTRIB(position, attrib_position, UT_FLOAT_VEC3),
+        ATTRIB(texcoord, attrib_texcoord, UT_FLOAT_VEC2),
+        ATTRIB(color,    attrib_color,    UT_COLOR),
+    },
+    .Shared = {
+        SHARED(texcoord, UT_FLOAT_VEC2),
+        SHARED(color,    UT_COLOR),
+    },
+    .VertexBody =
+        "void main() {\n"
+        "  gl_Position = u_viewProjection * u_model * vec4(a_position, 1.0);\n"
+        "  v_texcoord = a_texcoord;\n"
+        "  v_color = a_color;\n"
+        "}\n",
+    .FragmentBody =
+        "void main() {\n"
+        "  float visibility = " GLSL_TEX "(u_texture, vec2(v_texcoord.x, 1.0 - v_texcoord.y)).r;\n"
+        "  float alpha = clamp(1.0 - visibility, 0.0, 1.0) * v_color.a;\n"
+        "  " GLSL_FRAGCOLOR " = vec4(v_color.rgb, alpha);\n"
+        "}\n",
+};
+#undef SHADER_TYPE
+
 /* Shared vertex shader for MDX/M2/M3 model formats.
    Compiled twice: once as-is (uModelMatrix path), and once with
    "#define BZ_USE_INSTANCING 1" injected to switch to per-instance
@@ -507,6 +772,121 @@ static LPSHADER R_InitShaderDefines(LPCSTR vs_src, LPCSTR fs_src, LPCSTR extra_d
 
 LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default) {
     return R_InitShaderDefines(vs_default, fs_default, NULL);
+}
+
+/* -----------------------------------------------------------------------
+ * Descriptor-based shader loading (shader_desc.h).
+ * ----------------------------------------------------------------------- */
+
+static const char *R_GLSLTypeStr(uniformType_t type) {
+    switch (type) {
+        case UT_FLOAT:            return "float";
+        case UT_FLOAT_VEC2:       return "vec2";
+        case UT_FLOAT_VEC3:       return "vec3";
+        case UT_FLOAT_VEC4:       return "vec4";
+        case UT_COLOR:            return "vec4";
+        case UT_INT:              return "int";
+        case UT_INT_VEC2:         return "ivec2";
+        case UT_BOOL:             return "bool";
+        case UT_FLOAT_MAT3:       return "mat3";
+        case UT_FLOAT_MAT4:       return "mat4";
+        case UT_SAMPLER_2D:       return "sampler2D";
+        case UT_SAMPLER_2D_RECT:  return "sampler2DRect";
+        case UT_SAMPLER_2D_ARRAY: return "sampler2DArray";
+        default:                  return "float";
+    }
+}
+
+int R_BuildShaderDeclarations(char *buf, int size, const shader_desc_t *desc,
+                              bool is_vertex, glsl_dialect_t dialect) {
+    const char *attr_kw  = (dialect == GLSL_DIALECT_120) ? "attribute" : "in";
+    const char *vsout_kw = (dialect == GLSL_DIALECT_120) ? "varying"   : "out";
+    const char *fsin_kw  = (dialect == GLSL_DIALECT_120) ? "varying"   : "in";
+    int n = 0;
+
+    for (int i = 0; i < MAX_SHADER_UNIFORMS && desc->Uniforms[i].name; i++)
+        n += snprintf(buf + n, size - n, "uniform %s %s;\n",
+                      R_GLSLTypeStr(desc->Uniforms[i].type), desc->Uniforms[i].name);
+
+    if (is_vertex) {
+        for (int i = 0; i < MAX_SHADER_ATTRIBS && desc->Attributes[i].name; i++)
+            n += snprintf(buf + n, size - n, "%s %s %s;\n",
+                          attr_kw, R_GLSLTypeStr(desc->Attributes[i].type), desc->Attributes[i].name);
+        for (int i = 0; i < MAX_SHADER_SHARED && desc->Shared[i].name; i++)
+            n += snprintf(buf + n, size - n, "%s %s %s;\n",
+                          vsout_kw, R_GLSLTypeStr(desc->Shared[i].type), desc->Shared[i].name);
+    } else {
+        for (int i = 0; i < MAX_SHADER_SHARED && desc->Shared[i].name; i++)
+            n += snprintf(buf + n, size - n, "%s %s %s;\n",
+                          fsin_kw, R_GLSLTypeStr(desc->Shared[i].type), desc->Shared[i].name);
+        if (dialect != GLSL_DIALECT_120)
+            n += snprintf(buf + n, size - n, "out vec4 o_color;\n");
+    }
+    return n;
+}
+
+static void R_SetShaderSourceFromDesc(GLuint stage, const shader_desc_t *desc,
+                                      bool is_vertex, const char *defines) {
+    static const char *const version_prefix[] = {
+        "#version 120\n",
+        "#version 140\n",
+        "#version 300 es\nprecision highp float;\nprecision highp int;\n",
+    };
+    glsl_dialect_t dialect =
+#ifdef BZ_GL_ES3
+        GLSL_DIALECT_ES3;
+#elif defined(BZ_GLSL_120)
+        GLSL_DIALECT_120;
+#else
+        GLSL_DIALECT_140;
+#endif
+    char decls[2048];
+    R_BuildShaderDeclarations(decls, sizeof(decls), desc, is_vertex, dialect);
+    const char *strings[] = {
+        version_prefix[dialect],
+        defines ? defines : "",
+        decls,
+        is_vertex ? desc->VertexBody : desc->FragmentBody,
+    };
+    R_Call(glShaderSource, stage, 4, strings, NULL);
+}
+
+void R_LoadShaderDescInto(const shader_desc_t *desc, const char *defines,
+                          GLuint *progid_out, void *prog_base) {
+    GLuint vs = R_Call(glCreateShader, GL_VERTEX_SHADER);
+    GLuint fs = R_Call(glCreateShader, GL_FRAGMENT_SHADER);
+
+    R_SetShaderSourceFromDesc(vs, desc, true, defines);
+    R_Call(glCompileShader, vs);
+    R_CheckShader(vs, GL_COMPILE_STATUS, desc->Name);
+
+    R_SetShaderSourceFromDesc(fs, desc, false, defines);
+    R_Call(glCompileShader, fs);
+    R_CheckShader(fs, GL_COMPILE_STATUS, desc->Name);
+
+    GLuint progid = R_Call(glCreateProgram, );
+    for (int i = 0; i < MAX_SHADER_ATTRIBS && desc->Attributes[i].name; i++)
+        R_Call(glBindAttribLocation, progid, desc->Attributes[i].attrib, desc->Attributes[i].name);
+    R_Call(glAttachShader, progid, vs);
+    R_Call(glAttachShader, progid, fs);
+    R_Call(glLinkProgram, progid);
+    R_CheckShader(progid, GL_LINK_STATUS, desc->Name);
+    R_Call(glDeleteShader, vs);
+    R_Call(glDeleteShader, fs);
+    R_Call(glUseProgram, progid);
+
+    *progid_out = progid;
+
+    int sampler_unit = 0;
+    for (int i = 0; i < MAX_SHADER_UNIFORMS && desc->Uniforms[i].name; i++) {
+        GLint loc = glGetUniformLocation(progid, desc->Uniforms[i].name);
+        if (prog_base)
+            *(GLint *)((char *)prog_base + desc->Uniforms[i].offset) = loc;
+        if (desc->Uniforms[i].type == UT_SAMPLER_2D     ||
+            desc->Uniforms[i].type == UT_SAMPLER_2D_RECT ||
+            desc->Uniforms[i].type == UT_SAMPLER_2D_ARRAY)
+            R_Call(glUniform1i, loc, sampler_unit++);
+    }
 }
 
 /* Model callers submit one semantic lighting state; only this proxy knows the uniform packing contract. */
