@@ -278,18 +278,12 @@ BOOL SC2_HUD_BuildFrameForWrite(LPCSC2BASEFRAME frame, uiFrame_t *out) {
         out->buffer.data = (HANDLE)&frame->label;
     }
     copy_points(out, frame);
-    /* Console chrome: bottom 332-unit strip viewport + "Stand" idle animation.
-     * R_GameExtractEntityCamera aligns the ortho so chrome bottom sits at the
-     * strip's screen bottom (target_z = bs->min.z + s/aspect).
-     * X position from XML <Position>: MinimapModel=-1, InfopanelModel=0, CommandPanelModel=+1. */
-    if (frame->sc2_type == SC2_FRAMETYPE_MODEL) {
-        out->text = "Stand"; /* idle HUD pose; chrome visible band is above center.z */
-        if (frame->name) {
-            if (!strcasecmp(frame->name, "MinimapModel"))           out->value = -1.0f;
-            else if (!strcasecmp(frame->name, "InfopanelModel"))    out->value =  0.0f;
-            else if (!strcasecmp(frame->name, "CommandPanelModel")) out->value =  1.0f;
-        }
-    }
+    /* Console chrome: full-screen viewport renders all three sections into a
+     * bottom band.  "Stand" animation gives the idle HUD pose.
+     * entity.origin.x is not used (models render centered via the ortho camera).
+     * TODO: parse <Position> from SC2Layout XML to spread models across screen. */
+    if (frame->sc2_type == SC2_FRAMETYPE_MODEL && frame->name)
+        out->text = "Stand";
     return true;
 }
 

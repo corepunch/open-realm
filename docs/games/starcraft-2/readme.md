@@ -70,6 +70,7 @@ Public reverse-engineering and modding references for how StarCraft II maps are 
 - [Map, Model, And Unit Data](map-model-unit-data.md) — practical path from placed objects through catalog XML to M3 models.
 - [Parser Notes](parser-notes.md) — practical loading order and implementation guidance.
 - [HUD Layout Pipeline](hud-layout-pipeline.md) — `.SC2Layout` → `sc2BaseFrame_t` → `uiFrame_t` → `svc_layout` pipeline; UI texture resolution via Assets.txt.
+- [UI Layout Format](ui-layout-format.md) — `.SC2Layout` XML syntax, DescIndex manifest, layout directory structure, frame class hierarchy, Galaxy Script overview, and community resources.
 - [References](references.md) — all public sources, tools, and GitHub repos used.
 - [Sounds](sounds.md)
 

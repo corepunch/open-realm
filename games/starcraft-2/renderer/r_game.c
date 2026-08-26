@@ -385,11 +385,17 @@ bool R_GameExtractEntityCamera(renderEntity_t const *entity, float aspect, viewD
      * ConsolePanel.SC2Layout: position=(0,-5,0) → target=(0,0,0), which
      * produces the flat top-down-front view the SC2 engine uses. */
     if (entity->flags & RF_ORTHO_CAMERA) {
-        /* Console chrome (RF_ORTHO_CAMERA): ortho centered on model bounding
-         * sphere, looking from -Y with Z-up (matches ConsolePanel.SC2Layout). */
-        float s    = radius * 1.05f;
-        float dist = 5.0f;
-        float tgt_z = center.z;
+        /* Console chrome (RF_ORTHO_CAMERA): full-screen ortho from -Y, Z-up.
+         * chrome_min_Z ≈ center.z + 0.28 (empirical from "Stand" animation).
+         * tgt_z = chrome_min_Z + s/aspect aligns chrome bottom to screen bottom
+         * so the chrome band occupies the lowest portion of the screen. */
+        float s     = radius * 1.05f;
+        float dist  = 5.0f;
+        /* Empirical: console chrome "Stand" animation places geometry at
+         * world Z ≈ center.z+0.04..+0.26 (measured from full-screen render).
+         * tgt_z = (center.z + 0.05) + s/aspect aligns the chrome bottom with
+         * screen bottom and puts the chrome band in the bottom ~30% of screen. */
+        float tgt_z = center.z + 0.05f + s / aspect;
         VECTOR3 eye = { center.x, center.y - dist, tgt_z };
         VECTOR3 tgt = { center.x, center.y,        tgt_z };
         eye = Matrix4_multiply_vector3(&transform, &eye);
