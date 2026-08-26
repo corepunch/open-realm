@@ -325,6 +325,15 @@ TEST(ui_fdf, parse_single_frame_definition) {
     T_NULL(root->Parent);
 }
 
+TEST(ui_fdf, compact_pool_preserves_capacity_and_reports_exhaustion) {
+    LPFRAMEDEF last = NULL;
+    reset_ui_state();
+    FOR_LOOP(i, MAX_UI_CLASSES - 1) last = UI_Spawn(FT_FRAME, NULL);
+    T_NOT_NULL(last); T_ASSERT(last == &frames[MAX_UI_CLASSES - 1]);
+    T_NULL(UI_Spawn(FT_FRAME, NULL));
+    T_ASSERT(sizeof(FRAMEPOINT) <= sizeof(void *) + 8);
+}
+
 TEST(ui_fdf, parse_nested_parent_child_relationship) {
     LPFRAMEDEF root;
     LPFRAMEDEF child;

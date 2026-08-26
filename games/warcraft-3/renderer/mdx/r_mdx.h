@@ -41,7 +41,7 @@ enum {
     MODEL_EMITTER_TAIL = 2
 };
 
-#define MAX_MDLX_BUFFERS 8
+enum { BZ_MDX_VERTEX_BUFFER, BZ_MDX_INDEX_BUFFER, BZ_MDX_BUFFER_COUNT };
 
 #define MDLXNODE_Helper 0
 #define MDLXNODE_DontInheritTranslation 1
@@ -337,11 +337,12 @@ typedef struct mdxGeoset_s {
     int num_bounds;
     int num_texcoordChannels;    
     DWORD vertexArrayBuffer;
-    DWORD buffer[MAX_MDLX_BUFFERS];
+    DWORD indexofs; // bytes into the model-owned index buffer; indices remain geoset-local
     struct mdxGeoset_s *next;
 } mdxGeoset_t;
 
 typedef struct mdxModel_s {
+    DWORD buffers[BZ_MDX_BUFFER_COUNT];
     DWORD version;
     mdxInfo_t info;
     mdxBounds_t bounds;
@@ -383,6 +384,8 @@ mdxSequence_t const *MDLX_FindSequenceByName(mdxModel_t const *model, LPCSTR nam
 
 mdxModel_t *R_LoadModelMDLX(void *buffer, DWORD size);
 void MDLX_Release(mdxModel_t *model);
+void MDX_BuildBuffers(mdxModel_t *model);
+void MDX_PackModelGeometry(mdxModel_t *model, LPVERTEX vertices, USHORT *indices);
 void MDLX_Init(void);
 void MDLX_Shutdown(void);
 void MDX_RenderModel(renderEntity_t const *entity, mdxModel_t const *model, LPCMATRIX4 model_matrix);

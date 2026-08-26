@@ -1,5 +1,7 @@
 # WC3 Performance Hot Spots
 
+For process footprint, allocation profiling, and RAM reduction priorities, see [WC3 memory](memory.md).
+
 Profile-driven optimizations across the renderer, client, and server. The five sampled hot spots and the fixes applied to each are listed below so a future reader understands *why* each path is shaped the way it is.
 
 ## MDX bone setup (was ~16%)

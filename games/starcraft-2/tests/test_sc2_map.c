@@ -9,7 +9,8 @@
 #include "common.h"
 #include "games/starcraft-2/common/sc2_map.h"
 #include "test.h"
-#include "games/starcraft-2/common/sc2_utils.h"
+#include "games/starcraft-2/renderer/sc2/sc2_shadow.h"
+#include "games/starcraft-2/renderer/m3/r_m3.h"
 
 #ifndef TEST_SC2_MPQ
 #define TEST_SC2_MPQ "build/tests/test-sc2.SC2Maps"
@@ -23,6 +24,14 @@
 
 static BOOL sc2_tests_initialized;
 static DWORD short_terrain_dimensions;
+
+TEST(sc2_map, m3_division_faces_pack_into_model_ranges) {
+    USHORT a[] = {0,1,2}, b[] = {2,3,0}, indices[6];
+    m3Divisions_t divisions[2] = {{.facesNum=3,.faces=a}, {.facesNum=3,.faces=b}};
+    T_EQ((int)m3_pack_division_faces(divisions, 2, indices), 6);
+    T_EQ((int)divisions[0].indexofs, 0); T_EQ((int)divisions[1].indexofs, 6);
+    T_EQ(indices[0], 0); T_EQ(indices[3], 2); T_EQ(indices[5], 0);
+}
 static DWORD listed_count;
 static PATHSTR listed_map;
 

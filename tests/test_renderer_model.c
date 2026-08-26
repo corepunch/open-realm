@@ -2,6 +2,7 @@
 #include "renderer/r_local.h"
 #include "renderer/r_emit.h"
 #include "games/warcraft-3/renderer/w3m/r_war3map.h"
+#include "games/warcraft-3/renderer/mdx/r_mdx.h"
 #include "renderer/r_shader.h"
 #include <stdarg.h>
 #include <stdlib.h>
@@ -190,6 +191,25 @@ static void reset_registry(void) {
     fail_load = touch_during_registration = false;
 }
 
+
+TEST(renderer_model, mdx_geometry_packs_two_geosets_into_model_ranges) {
+    VECTOR3 pos[] = {{1,2,3}, {4,5,6}, {7,8,9}}, normals[] = {{0,0,1}, {0,1,0}, {1,0,0}};
+    VECTOR2 uv[] = {{0,0}, {1,0}, {0,1}};
+    short first_idx[] = {0,1,0}, second_idx[] = {0};
+    mdxGeoset_t second = {.vertices=pos+2,.normals=normals+2,.texcoord=uv+2,.triangles=second_idx,
+        .num_vertices=1,.num_normals=1,.num_texcoord=1,.num_triangles=1};
+    mdxGeoset_t first = {.vertices=pos,.normals=normals,.texcoord=uv,.triangles=first_idx,
+        .num_vertices=2,.num_normals=2,.num_texcoord=2,.num_triangles=3,.next=&second};
+    mdxModel_t model = {.geosets=&first}; VERTEX vertices[3]; USHORT indices[4];
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    MDX_PackModelGeometry(&model, vertices, indices);
+    T_FEQ(vertices[2].position.x, 7, 0.001f);
+    T_EQ(vertices[0].color.r, 255); T_EQ(vertices[0].color.g, 255);
+    T_EQ(vertices[0].color.b, 255); T_EQ(vertices[0].color.a, 255);
+    T_EQ(indices[2], 0); T_EQ(indices[3], 0); T_EQ((int)first.indexofs, 0); T_EQ((int)second.indexofs, 6);
+    ri.MemFree(first.matrixPalette); ri.MemFree(second.matrixPalette);
+}
+
 TEST(renderer_model, filename_cache_hit_and_miss) {
     LPMODEL first, second;
     reset_registry();
@@ -330,6 +350,11 @@ TEST(renderer_bones, instanced_shader_uses_the_same_palette_contract) {
     T_NOT_NULL(strstr(shader_src, "#define BZ_USE_INSTANCING 1\n"));
     T_NOT_NULL(strstr(shader_src, "uniform mat4 u_bones[128];"));
     T_NOT_NULL(strstr(shader_src, "int boneIdx = int(a_skin1[i]) + int(u_firstBoneLookupIndex);"));
+}
+
+TEST(renderer_shader, normal_model_defines_do_not_inherit_instancing) {
+    T_NOT_NULL(strstr(R_ShaderDefines(true), "#define BZ_USE_INSTANCING 1\n"));
+    T_NULL(strstr(R_ShaderDefines(false), "BZ_USE_INSTANCING"));
 }
 
 static HANDLE shader_alloc(long size) { return shader_test.memory = test_alloc(size); }

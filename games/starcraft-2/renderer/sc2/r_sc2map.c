@@ -4,6 +4,7 @@ extern render_phase_t render_phase;
 
 #include "games/starcraft-2/common/sc2_map.c"
 #include "games/starcraft-2/renderer/m3/r_m3.h"
+#include "games/starcraft-2/renderer/sc2/sc2_shadow.h"
 #define SC2_REUSE_WAR3_CLIFF_BAKER
 #include "games/warcraft-3/renderer/w3m/r_war3map_cliffs.c"
 #undef SC2_REUSE_WAR3_CLIFF_BAKER

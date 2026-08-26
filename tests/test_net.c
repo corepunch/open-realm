@@ -237,6 +237,21 @@ TEST(net, loopback_multiple_packets_in_order) {
     T_EQ(NET_GetPacket(NS_SERVER, &from, &msg), 0);
 }
 
+TEST(net, loopback_grows_without_reordering_pending_packets) {
+    static BYTE payload[65536], msg_buf[MAX_MSGLEN];
+    static sizeBuf_t msg = { msg_buf, MAX_MSGLEN, 0, 0 };
+    netadr_t adr = loopback_adr(), from;
+    drain_loopback(NS_SERVER);
+    FOR_LOOP(packet, 6) {
+        memset(payload, packet, sizeof(payload));
+        NET_SendPacket(NS_CLIENT, sizeof(payload), payload, adr);
+    }
+    FOR_LOOP(packet, 6) {
+        T_EQ(NET_GetPacket(NS_SERVER, &from, &msg), (int)sizeof(payload));
+        T_EQ(msg.data[0], packet); T_EQ(msg.data[sizeof(payload)-1], packet);
+    }
+}
+
 TEST(net, loopback_server_to_client) {
     static BYTE   msg_buf[MAX_MSGLEN];
     static sizeBuf_t msg = { msg_buf, MAX_MSGLEN, 0, 0 };

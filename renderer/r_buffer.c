@@ -144,13 +144,10 @@ void R_ReleaseInstanceBuffer(LPINSTANCEBUFFER buffer) {
     memset(buffer, 0, sizeof(*buffer));
 }
 
-/* Rebind one model batch and its persistent instance stream to the shared VAO. */
-void R_DrawBufferInstanced(LPCBUFFER buffer, DWORD num_vertices, LPCINSTANCEBUFFER instances) {
-    if (!buffer || !num_vertices || !instances || !instances->vbo || !instances->count) return;
-    if (!r_instanced_vao) {
-        R_Call(glGenVertexArrays, 1, &r_instanced_vao);
-    }
-
+/* Both array and indexed draws share one transient VAO for their persistent instance stream. */
+static BOOL R_BindInstancedBuffer(LPCBUFFER buffer, LPCINSTANCEBUFFER instances) {
+    if (!buffer || !instances || !instances->vbo || !instances->count) return false;
+    if (!r_instanced_vao) R_Call(glGenVertexArrays, 1, &r_instanced_vao);
     R_Call(glBindVertexArray, r_instanced_vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, buffer->vbo);
     R_Call(glEnableVertexAttribArray, attrib_position);
@@ -166,20 +163,43 @@ void R_DrawBufferInstanced(LPCBUFFER buffer, DWORD num_vertices, LPCINSTANCEBUFF
     R_Call(glVertexAttribPointer, attrib_boneWeight1, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(struct vertex), FOFS(vertex, boneWeight[0]));
     R_Call(glVertexAttribPointer, attrib_normal, 3, GL_FLOAT, GL_FALSE, sizeof(struct vertex), FOFS(vertex, normal));
 
-    /* Instance matrices were uploaded once at ADT-window construction, not once per frame. */
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, instances->vbo);
-    for (int i = 0; i < 4; i++) {
+    FOR_LOOP(i, 4) {
         R_Call(glEnableVertexAttribArray, attrib_instance + i);
-        R_Call(glVertexAttribPointer, attrib_instance + i, 4, GL_FLOAT, GL_FALSE, sizeof(MATRIX4), (void *)(i * 4 * sizeof(float)));
+        R_Call(glVertexAttribPointer, attrib_instance + i, 4, GL_FLOAT, GL_FALSE,
+            sizeof(MATRIX4), (void *)(i * 4 * sizeof(float)));
         R_Call(glVertexAttribDivisor, attrib_instance + i, 1);
     }
+    return true;
+}
 
+static void R_ResetInstancedBuffer(void) { FOR_LOOP(i, 4) R_Call(glVertexAttribDivisor, attrib_instance + i, 0); }
+
+/* Rebind one model batch and its persistent instance stream to the shared VAO. */
+void R_DrawBufferInstanced(LPCBUFFER buffer, DWORD num_vertices, LPCINSTANCEBUFFER instances) {
+    if (!num_vertices || !R_BindInstancedBuffer(buffer, instances)) return;
     R_StatsDraw(GL_TRIANGLES, num_vertices, instances->count);
     R_Call(glDrawArraysInstanced, GL_TRIANGLES, 0, num_vertices, instances->count);
+    R_ResetInstancedBuffer();
+}
 
-    for (int i = 0; i < 4; i++) {
-        R_Call(glVertexAttribDivisor, attrib_instance + i, 0);
-    }
+/* M2 sections share model geometry while each visible group keeps its authored index range. */
+void R_DrawIndexedBuffer16Instanced(LPCBUFFER buffer, LPCDRAWELEMENTS draw, LPCINSTANCEBUFFER instances) {
+    if (!draw || !draw->count || !R_BindInstancedBuffer(buffer, instances)) return;
+    R_Call(glBindBuffer, GL_ELEMENT_ARRAY_BUFFER, buffer->ibo);
+    R_StatsDraw(GL_TRIANGLES, draw->count, instances->count);
+    R_Call(glDrawElementsInstanced, GL_TRIANGLES, draw->count, GL_UNSIGNED_SHORT,
+        (void *)(uintptr_t)draw->offset, instances->count);
+    R_ResetInstancedBuffer();
+}
+
+void R_DrawIndexedBuffer32Instanced(LPCBUFFER buffer, LPCDRAWELEMENTS draw, LPCINSTANCEBUFFER instances) {
+    if (!draw || !draw->count || !R_BindInstancedBuffer(buffer, instances)) return;
+    R_Call(glBindBuffer, GL_ELEMENT_ARRAY_BUFFER, buffer->ibo);
+    R_StatsDraw(GL_TRIANGLES, draw->count, instances->count);
+    R_Call(glDrawElementsInstanced, GL_TRIANGLES, draw->count, GL_UNSIGNED_INT,
+        (void *)(uintptr_t)draw->offset, instances->count);
+    R_ResetInstancedBuffer();
 }
 
 /* Free the lazily-created shared VAO; owners release their immutable instance VBOs. */

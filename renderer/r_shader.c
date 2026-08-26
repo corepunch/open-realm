@@ -465,6 +465,8 @@ const shader_desc_t sd_model = {
 static char shader_defines_buf[256];
 static LPCSTR R_ShaderDefines(BOOL instancing) {
     int n = 0;
+    /* Each variant owns its defines; the old retained instancing after the grass program compiled first. */
+    shader_defines_buf[0] = '\0';
     if (instancing)
         n += snprintf(shader_defines_buf + n, sizeof(shader_defines_buf) - n, "#define BZ_USE_INSTANCING 1\n");
 #ifdef USE_SHADOWMAPS
