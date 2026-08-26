@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="us-ascii"?>
+<terrain version="113">
+    <heightMap tileSet="MarSara" uvtiling="12.750000 15.000000 0.000000 0.000000 " dim="96 96 " offset="0.000000 0.000000 0.000000 " scale="1.000000 1.000000 1.000000 ">
+        <vertData quantizeBias="0.000000" quantizeScale="1.000000" standardHeight="7.000000" name="t3HeightMap"/>
+        <masks name="t3TextureMasks"/>
+        <textureList num="1">
+            <texture i="0" name="MarSaraDirt"/>
+        </textureList>
+    </heightMap>
+</terrain>
