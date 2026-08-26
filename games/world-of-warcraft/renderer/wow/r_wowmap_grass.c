@@ -500,32 +500,32 @@ void Wow_DrawGrass(void) {
     if (!wow_world.has_atlas_origin || !wow_world.grass_ctrl || !wow_world.height_atlas) return;
 
     Wow_InitGrassShader();
-    if (!wow_grass_shader) return;
+    if (!wow_grass_shader.prog.progid) return;
 
     Wow_EnsureCameraGrassMesh();
     if (!wow_world.grass_tile_vbo) return;
 
     cam = tr.viewDef.camerastate[0].origin;
-    R_Call(glUseProgram, wow_grass_shader->progid);
-    R_Call(glUniformMatrix4fv, wow_grass_shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
+
+    wow_grass_shader.state.viewProjection = tr.viewDef.viewProjectionMatrix;
     {
         VECTOR3 sun_dir;
         Wow_SunDirection(Wow_DayFraction(), &sun_dir);
-        R_Call(glUniform3f, wow_uGrassSunDir, sun_dir.x, sun_dir.y, sun_dir.z);
-        R_Call(glUniform3f, wow_uGrassSunAmbient, WOW_LIGHT_AMBIENT_R, WOW_LIGHT_AMBIENT_G, WOW_LIGHT_AMBIENT_B);
-        R_Call(glUniform3f, wow_uGrassSunDiffuse, WOW_LIGHT_DIFFUSE_R, WOW_LIGHT_DIFFUSE_G, WOW_LIGHT_DIFFUSE_B);
+        wow_grass_shader.state.sunDir = (VECTOR3){ sun_dir.x, sun_dir.y, sun_dir.z };
+        wow_grass_shader.state.sunAmbient = (VECTOR3){ WOW_LIGHT_AMBIENT_R, WOW_LIGHT_AMBIENT_G, WOW_LIGHT_AMBIENT_B };
+        wow_grass_shader.state.sunDiffuse = (VECTOR3){ WOW_LIGHT_DIFFUSE_R, WOW_LIGHT_DIFFUSE_G, WOW_LIGHT_DIFFUSE_B };
     }
-    R_Call(glUniform1f,  wow_uGrassTime,             (GLfloat)(tr.viewDef.time / 1000.0f));
-    R_Call(glUniform3f,  wow_uGrassCameraOrigin,     (GLfloat)cam.x, (GLfloat)cam.y, (GLfloat)cam.z);
-    R_Call(glUniform1f,  wow_uGrassDrawDistance,     (GLfloat)WOW_GRASS_DRAW_DISTANCE);
-    R_Call(glUniform1f,  wow_uGrassFadeStartDistance,(GLfloat)WOW_GRASS_FADE_START_DISTANCE);
-    R_Call(glUniform2f,  wow_uCameraXZ,              (GLfloat)cam.x, (GLfloat)cam.y);
-    R_Call(glUniform1f,  wow_uGrassSlotSpacing,      (GLfloat)WOW_GRASS_SLOT_SPACING);
-    R_Call(glUniform2f,  wow_uAtlasOriginWorld,      (GLfloat)wow_world.atlas_world_x, (GLfloat)wow_world.atlas_world_y);
-    R_Call(glUniform1f,  wow_uAtlasChunkSize,        (GLfloat)WOW_ADT_CHUNK_SIZE);
-    R_Call(glUniform1f,  wow_uAtlasUnitSize,         (GLfloat)WOW_ADT_UNIT_SIZE);
-    R_Call(glUniform2f,  wow_uCtrlOriginWorld,       (GLfloat)wow_world.atlas_world_x, (GLfloat)wow_world.atlas_world_y);
-    R_Call(glUniform1f,  wow_uCtrlCellSize,          (GLfloat)WOW_ADT_UNIT_SIZE);
+    wow_grass_shader.state.grassTime = (GLfloat)(tr.viewDef.time / 1000.0f);
+    wow_grass_shader.state.grassCameraOrigin = (VECTOR3){ (GLfloat)cam.x, (GLfloat)cam.y, (GLfloat)cam.z };
+    wow_grass_shader.state.grassDrawDistance = (GLfloat)WOW_GRASS_DRAW_DISTANCE;
+    wow_grass_shader.state.grassFadeStartDistance = (GLfloat)WOW_GRASS_FADE_START_DISTANCE;
+    wow_grass_shader.state.cameraXZ = (VECTOR2){ (GLfloat)cam.x, (GLfloat)cam.y };
+    wow_grass_shader.state.grassSlotSpacing = (GLfloat)WOW_GRASS_SLOT_SPACING;
+    wow_grass_shader.state.atlasOriginWorld = (VECTOR2){ (GLfloat)wow_world.atlas_world_x, (GLfloat)wow_world.atlas_world_y };
+    wow_grass_shader.state.atlasChunkSize = (GLfloat)WOW_ADT_CHUNK_SIZE;
+    wow_grass_shader.state.atlasUnitSize = (GLfloat)WOW_ADT_UNIT_SIZE;
+    wow_grass_shader.state.ctrlOriginWorld = (VECTOR2){ (GLfloat)wow_world.atlas_world_x, (GLfloat)wow_world.atlas_world_y };
+    wow_grass_shader.state.ctrlCellSize = (GLfloat)WOW_ADT_UNIT_SIZE;
 
     /* Height atlas on texture unit 5 */
     R_Call(glActiveTexture, GL_TEXTURE5);
@@ -534,14 +534,16 @@ void Wow_DrawGrass(void) {
     R_Call(glActiveTexture, GL_TEXTURE6);
     R_Call(glBindTexture, GL_TEXTURE_2D, wow_world.grass_ctrl->texid);
     R_Call(glActiveTexture, GL_TEXTURE0);
-    R_Call(glUniform1i, wow_uHeightAtlas, 5);
-    R_Call(glUniform1i, wow_uGrassCtrl,   6);
+    wow_grass_shader.state.heightAtlas = 5;
+    wow_grass_shader.state.grassCtrl = 6;
 
     R_Call(glEnable,    GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_TRUE);
     R_Call(glDepthFunc, GL_LEQUAL);
     R_Call(glDisable,   GL_CULL_FACE);
     R_SetAlphaKeyState(true);
+
+    R_ApplyShader(&wow_grass_shader);
 
     R_DrawBufferCopies(wow_world.grass_tile_vbo, wow_world.grass_tile_nverts, WOW_GRASS_BLADE_SLOTS);
 

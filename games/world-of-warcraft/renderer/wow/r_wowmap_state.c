@@ -257,33 +257,10 @@ void Wow_FreeWorld(void) {
 }
 
 void Wow_ShutdownWorldShaders(void) {
-    SAFE_DELETE(wow_terrain_shader, R_ReleaseShader);
-    SAFE_DELETE(wow_grass_shader, R_ReleaseShader);
-    wow_uTexture0 = -1;
-    wow_uTexture1 = -1;
-    wow_uTexture2 = -1;
-    wow_uTexture3 = -1;
-    wow_uAlphaTexture = -1;
-    wow_uUseWeightedBlend = -1;
-    wow_uSingleTexture = -1;
-    wow_uWmoIndoor = -1;
-    wow_uWmoAmbient = -1;
-    wow_uWmoBlendMode = -1;
-    wow_uAlphaOrigin = -1;
-    wow_uAlphaAtlasChunks = -1;
-    wow_uGrassTime = -1;
-    wow_uGrassCameraOrigin = -1;
-    wow_uGrassDrawDistance = -1;
-    wow_uGrassFadeStartDistance = -1;
-    wow_uHeightAtlas = -1;
-    wow_uAtlasOriginWorld = -1;
-    wow_uAtlasChunkSize = -1;
-    wow_uAtlasUnitSize = -1;
-    wow_uGrassCtrl = -1;
-    wow_uCtrlOriginWorld = -1;
-    wow_uCtrlCellSize = -1;
-    wow_uCameraXZ = -1;
-    wow_uGrassSlotSpacing = -1;
+    R_DeleteShader(&wow_terrain_shader.prog);
+    R_DeleteShader(&wow_grass_shader.prog);
+    memset(&wow_terrain_shader, 0, sizeof(wow_terrain_shader));
+    memset(&wow_grass_shader, 0, sizeof(wow_grass_shader));
 }
 
 LPTEXTURE Wow_LoadTexture(LPCSTR path) {
@@ -405,7 +382,6 @@ float Wow_LoadM2BoundsRadius(LPCSTR path) {
     }
     return radius;
 }
-
 
 void Wow_FreeStringList(char **strings, DWORD count) {
     if (!strings) {

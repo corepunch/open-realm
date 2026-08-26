@@ -57,14 +57,14 @@ typedef struct {
     m2Box_t bounding_box;
 } m2GeometryInfo_t;
 
-static LPSHADER m2_shader;
+static MODELPROG * m2_shader;
 static MATRIX4 m2_bone_matrices[M2_MAX_BONES];
 
-static LPSHADER M2_Shader(void) {
+static MODELPROG * M2_Shader(void) {
     if (!m2_shader) {
         m2_shader = R_ModelShader();
     }
-    return m2_shader ? m2_shader : tr.shader[SHADER_DEFAULT];
+    return m2_shader;
 }
 
 static void M2_LogFallback(LPCSTR modelFilename, LPCSTR reason) {
@@ -1027,7 +1027,6 @@ static void m2_spawn_particle(void *raw) {
 	fx->columns = MAX(1, ctx->p->cols); fx->rows = MAX(1, ctx->p->rows);
 }
 
-
 /* Vanilla/TBC stores three static BGRA lifecycle colors and three scalar scales. */
 static void m2p_sample_classic_data(BYTE const *raw, m2_pctx_t *ctx) {
     m2ParticleClassic_t const *p = (m2ParticleClassic_t const *)raw;
@@ -1103,7 +1102,6 @@ static void M2_DrawParticles(m2Model_t const *model, renderEntity_t const *entit
 		R_EmitParticlesAtTime(rate, tr.viewDef.time, tr.viewDef.deltaTime, m2_spawn_particle, &ctx);
 	}
 }
-
 
 static void M2_DrawRibbons(m2Model_t const *model, renderEntity_t const *entity, LPCMATRIX4 model_matrix) {
 	m2Array_t ribbons;
@@ -1231,7 +1229,7 @@ static void M2_CalculateBoneMatrices(m2Model_t const *model, renderEntity_t cons
     }
 }
 
-static void M2_UploadBatchBones(m2Model_t const *model, m2ModelBatch_t const *batch, LPSHADER shader) {
+static void M2_UploadBatchBones(m2Model_t const *model, m2ModelBatch_t const *batch, MODELPROG * shader) {
     MATRIX4 palette[BZ_BONE_PALETTE_MAX];
     WORD const *bone_lookup = model ? M2_BoneLookup(model) : NULL;
     DWORD nlook = model ? (DWORD)M2_BoneLookupArray(model).size : 0;
@@ -1254,7 +1252,7 @@ static void M2_UploadBatchBones(m2Model_t const *model, m2ModelBatch_t const *ba
         }
     }
 
-    R_Call(glUniformMatrix4fv, shader->uBones, BZ_BONE_PALETTE_MAX, GL_FALSE, palette[0].v);
+    memcpy(&shader->state.bones, palette[0].v, (BZ_BONE_PALETTE_MAX) * sizeof(MATRIX4));
 }
 
 static LPTEXTURE M2_TextureForBatch(BYTE const *m2_data,
@@ -1358,7 +1356,6 @@ static BOOL M2_CalculateGeometryBounds(m2VertexDisk_t const *verts, DWORD nverts
     return true;
 }
 
-
 static BOOL M2_LoadSkinData(LPCSTR modelFilename,
                             LPBYTE *skin_data,
                             DWORD *skin_size,
@@ -1426,7 +1423,6 @@ static BOOL M2_InitModernGeometry(BYTE const *m2_base,
     *header = modern;
     return true;
 }
-
 
 static BOOL M2_IsCharacterModelPath(LPCSTR model_path) {
     LPCSTR character;
@@ -1776,12 +1772,12 @@ static void M2_DrawCompositeQuad(LPTEXTURE texture, LPCRECT screen, BOOL blend) 
     R_AddQuad(vertices, screen, &uv, COLOR32_WHITE, 0);
     Matrix4_identity(&identity);
     Matrix4_ortho(&projection, 0, M2_CHARACTER_COMPOSITE_RESOLUTION, 0, M2_CHARACTER_COMPOSITE_RESOLUTION, 0, 100);
-    R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
+
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STREAM_DRAW);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, projection.v);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uModelMatrix, 1, GL_FALSE, identity.v);
+    tr.shader_ui.state.viewProjection = projection;
+    tr.shader_ui.state.model = identity;
     R_BindTexture(texture, 0);
     if (blend) {
         R_Call(glEnable, GL_BLEND);
@@ -1790,6 +1786,7 @@ static void M2_DrawCompositeQuad(LPTEXTURE texture, LPCRECT screen, BOOL blend) 
         R_Call(glDisable, GL_BLEND);
     }
     R_StatsDraw(GL_TRIANGLES, 6, 1);
+    R_ApplyShader(&tr.shader_ui);
     R_Call(glDrawArrays, GL_TRIANGLES, 0, 6);
 }
 
@@ -2002,8 +1999,8 @@ static void M2_RenderItemAttachments(renderEntity_t const *entity, m2Model_t con
 }
 
 /* Keep ordinary and instanced M2 batches on the same material-state contract. */
-static void M2_SetBlendMode(LPSHADER shader, DWORD mode) {
-    R_Call(glUniform1i, shader->uAlphaKey, mode == BLEND_MODE_ALPHAKEY);
+static void M2_SetBlendMode(MODELPROG * shader, DWORD mode) {
+    shader->state.alphaKey = mode == BLEND_MODE_ALPHAKEY;
     R_SetAlphaKeyState(mode == BLEND_MODE_ALPHAKEY);
     if (mode == BLEND_MODE_NONE) {
         R_Call(glDisable, GL_BLEND); R_Call(glDepthMask, GL_TRUE);
@@ -2018,7 +2015,7 @@ static void M2_SetBlendMode(LPSHADER shader, DWORD mode) {
 }
 
 /* WoW's world sun is an ordinary directional entry; the shared shader never has a zero-light mode. */
-static void M2_BindSunLight(LPSHADER shader) {
+static void M2_BindSunLight(MODELPROG * shader) {
     MODELLIGHTING light = {
         .ambient = { WOW_LIGHT_AMBIENT_R, WOW_LIGHT_AMBIENT_G, WOW_LIGHT_AMBIENT_B },
         .count = 1,
@@ -2042,7 +2039,7 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
     LPCM2CHARACTEROUTFIT outfit = NULL;
     LPTEXTURE character_texture = NULL;
     m2ModelBatch_t *batch;
-    LPSHADER shader;
+    MODELPROG * shader;
     BOOL ground_effect;
     FLOAT ground_alpha = 1.0f;
 
@@ -2075,23 +2072,23 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
         outfit = &outfit_data;
     character_texture = M2_PrepareCharacterTexture(model, draw_entity, outfit);
     Matrix3_normal(&normal_matrix, transform);
-    R_Call(glUseProgram, shader->progid);
-    R_Call(glUniformMatrix4fv, shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
-    R_Call(glUniformMatrix4fv, shader->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
-    R_Call(glUniformMatrix4fv, shader->uModelMatrix, 1, GL_FALSE, transform->v);
-    R_Call(glUniformMatrix4fv, shader->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
-    R_Call(glUniformMatrix3fv, shader->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
+
+    shader->state.viewProjection = tr.viewDef.viewProjectionMatrix;
+    shader->state.textureMatrix = tr.viewDef.textureMatrix;
+    shader->state.model = *transform;
+    shader->state.lightMatrix = tr.viewDef.lightMatrix;
+    shader->state.normalMatrix = normal_matrix;
     M2_BindSunLight(shader);
     /* Set identity defaults for UV/color/layer uniforms that M2 does not animate. */
-    R_Call(glUniform4f, shader->uGeosetColor, 1.0f, 1.0f, 1.0f, ground_alpha);
-    R_Call(glUniform1f, shader->uLayerAlpha, 1.0f);
-    { GLfloat m[9] = { 1,0,0, 0,1,0, 0,0,1 }; R_Call(glUniformMatrix3fv, shader->uUvMatrix, 1, GL_FALSE, m); }
-    R_Call(glUniform1i, shader->uAlphaKey, 0);
-    R_Call(glUniform1i, shader->uUnshaded, 0);
-    R_Call(glUniform1f, shader->uFogEnable, tr.viewDef.fogEnable);
-    R_Call(glUniform3f, shader->uFogColor, tr.viewDef.fogColor.x, tr.viewDef.fogColor.y, tr.viewDef.fogColor.z);
-    R_Call(glUniform2f, shader->uFogParams, tr.viewDef.fogStart, tr.viewDef.fogEnd);
-    R_Call(glUniform1f, shader->uFirstBoneLookupIndex, 0.0f);
+    shader->state.geosetColor = (VECTOR4){ 1.0f, 1.0f, 1.0f, ground_alpha };
+    shader->state.layerAlpha = 1.0f;
+    { GLfloat m[9] = { 1,0,0, 0,1,0, 0,0,1 }; memcpy(&shader->state.uvMatrix, m, (1) * sizeof(MATRIX3)); }
+    shader->state.alphaKey = 0;
+    shader->state.unshaded = 0;
+    shader->state.fogEnable = tr.viewDef.fogEnable;
+    shader->state.fogColor = (VECTOR3){ tr.viewDef.fogColor.x, tr.viewDef.fogColor.y, tr.viewDef.fogColor.z };
+    shader->state.fogParams = (VECTOR2){ tr.viewDef.fogStart, tr.viewDef.fogEnd };
+    shader->state.firstBoneLookupIndex = 0.0f;
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_TRUE);
     R_Call(glDisable, GL_BLEND);
@@ -2113,6 +2110,7 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
 		R_BindTexture(tr.texture[TEX_SHADOWMAP], 1);
 #endif
 		R_BindTexture(tr.texture[TEX_WHITE], 2);
+		R_ApplyShader(shader);
 		R_DrawBuffer(batch->buffer, batch->num_vertices);
 	}
 	R_SetAlphaKeyState(false);
@@ -2125,7 +2123,7 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
    tracks, so this path adds root-anchored wind in the vertex shader. */
 void M2_RenderInstanced(m2Model_t const *model, LPCINSTANCEBUFFER instances, DWORD flags) {
     m2ModelBatch_t *batch;
-    LPSHADER shader;
+    MODELPROG * shader;
 
     if (!model || !instances || !instances->count) return;
 
@@ -2138,20 +2136,20 @@ void M2_RenderInstanced(m2Model_t const *model, LPCINSTANCEBUFFER instances, DWO
         }
         return;
     }
-    R_Call(glUseProgram, shader->progid);
-    R_Call(glUniformMatrix4fv, shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
-    R_Call(glUniformMatrix4fv, shader->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
-    R_Call(glUniformMatrix4fv, shader->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
+
+    shader->state.viewProjection = tr.viewDef.viewProjectionMatrix;
+    shader->state.textureMatrix = tr.viewDef.textureMatrix;
+    shader->state.lightMatrix = tr.viewDef.lightMatrix;
     M2_BindSunLight(shader);
-    R_Call(glUniform4f, shader->uGeosetColor, 1.0f, 1.0f, 1.0f, 1.0f);
-    R_Call(glUniform1f, shader->uLayerAlpha, 1.0f);
-    { GLfloat m[9] = { 1,0,0, 0,1,0, 0,0,1 }; R_Call(glUniformMatrix3fv, shader->uUvMatrix, 1, GL_FALSE, m); }
-    R_Call(glUniform1i, shader->uAlphaKey, 0);
-    R_Call(glUniform1i, shader->uUnshaded, 0);
-    R_Call(glUniform1f, shader->uFogEnable, tr.viewDef.fogEnable);
-    R_Call(glUniform3f, shader->uFogColor, tr.viewDef.fogColor.x, tr.viewDef.fogColor.y, tr.viewDef.fogColor.z);
-    R_Call(glUniform2f, shader->uFogParams, tr.viewDef.fogStart, tr.viewDef.fogEnd);
-    R_Call(glUniform1f, shader->uFirstBoneLookupIndex, 0.0f);
+    shader->state.geosetColor = (VECTOR4){ 1.0f, 1.0f, 1.0f, 1.0f };
+    shader->state.layerAlpha = 1.0f;
+    { GLfloat m[9] = { 1,0,0, 0,1,0, 0,0,1 }; memcpy(&shader->state.uvMatrix, m, (1) * sizeof(MATRIX3)); }
+    shader->state.alphaKey = 0;
+    shader->state.unshaded = 0;
+    shader->state.fogEnable = tr.viewDef.fogEnable;
+    shader->state.fogColor = (VECTOR3){ tr.viewDef.fogColor.x, tr.viewDef.fogColor.y, tr.viewDef.fogColor.z };
+    shader->state.fogParams = (VECTOR2){ tr.viewDef.fogStart, tr.viewDef.fogEnd };
+    shader->state.firstBoneLookupIndex = 0.0f;
     {
         VECTOR3 cam = tr.viewDef.camerastate[0].origin;
         MODELGRASS grass = {
@@ -2176,6 +2174,7 @@ void M2_RenderInstanced(m2Model_t const *model, LPCINSTANCEBUFFER instances, DWO
 		R_BindTexture(tr.texture[TEX_SHADOWMAP], 1);
 #endif
 		R_BindTexture(tr.texture[TEX_WHITE], 2);
+		R_ApplyShader(shader);
 		R_DrawBufferInstanced(batch->buffer, batch->num_vertices, instances);
 	}
 	R_SetAlphaKeyState(false);

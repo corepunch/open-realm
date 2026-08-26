@@ -64,22 +64,17 @@ make clean
 make GL_BACKEND=gles3 openwarcraft3  # GLES3 (ignores GLSL=)
 ```
 
-### How dialect tokens work in shader bodies
+### Descriptor shader bodies and state
 
-Shader bodies in `shader_desc_t` must not hardcode version-specific spellings.  Use the compile-time macros from `renderer/shader_desc.h` instead:
+Shader descriptors provide `vec4 vert()` and `vec4 frag()` bodies and call `texture()`.
+`R_BuildShaderDeclarations` generates uniform/attribute/varying declarations. `R_BuildShaderMain`
+wraps the bodies with the dialect's output variables; GLSL 120 gets the `texture2D` alias.
+Bodies do not need `GLSL_ATTR`, `GLSL_FRAGCOLOR`, or other dialect-token macros.
 
-| Macro | GLSL 120 | GLSL 140/150/ES3 |
-|-------|----------|-----------------|
-| `GLSL_ATTR` | `attribute` | `in` |
-| `GLSL_VS_OUT` | `varying` | `out` |
-| `GLSL_FS_IN` | `varying` | `in` |
-| `GLSL_FRAGCOLOR` | `gl_FragColor` | `o_color` |
-| `GLSL_TEX` | `texture2D` | `texture` |
-| `GLSL_TEXFETCH` | `texture2D` | `texelFetch` |
-
-The `uniform`, `in`, and `out` declarations for each stage are generated automatically by `R_BuildShaderDeclarations()` from the descriptor tables — shader bodies only contain the logic inside `void main()`.
-
-`make test-renderer-model` verifies that each dialect produces the correct declarations.
+`UNIFORM` entries address fields in a typed CPU value state; GL locations stay inside `SHADERPROG`.
+Populate the state, then call `R_ApplyShader` at the draw boundary. See
+[descriptor programs and typed state](architecture/model-shader.md#descriptor-programs-and-typed-state).
+`make test-renderer-model` verifies declaration generation and upload dispatch.
 
 ## JASS Header Dependencies
 

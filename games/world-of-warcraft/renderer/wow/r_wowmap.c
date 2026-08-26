@@ -91,26 +91,24 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
 
     if (!draw_terrain && !draw_wmos) return;
 
-    R_Call(glUseProgram, wow_terrain_shader->progid);
     Matrix3_normal(&normal_matrix, &identity);
-    R_Call(glUniformMatrix4fv, wow_terrain_shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
-    R_Call(glUniformMatrix4fv, wow_terrain_shader->uModelMatrix, 1, GL_FALSE, identity.v);
+    wow_terrain_shader.state.viewProjection = tr.viewDef.viewProjectionMatrix;
+    wow_terrain_shader.state.model = identity;
     {
         VECTOR3 sun_dir;
         Wow_SunDirection(Wow_DayFraction(), &sun_dir);
-        R_Call(glUniform3f, wow_uSunDir, sun_dir.x, sun_dir.y, sun_dir.z);
-        R_Call(glUniform3f, wow_uSunAmbient, WOW_LIGHT_AMBIENT_R, WOW_LIGHT_AMBIENT_G, WOW_LIGHT_AMBIENT_B);
-        R_Call(glUniform3f, wow_uSunDiffuse, WOW_LIGHT_DIFFUSE_R, WOW_LIGHT_DIFFUSE_G, WOW_LIGHT_DIFFUSE_B);
+        wow_terrain_shader.state.sunDir = (VECTOR3){ sun_dir.x, sun_dir.y, sun_dir.z };
+        wow_terrain_shader.state.sunAmbient = (VECTOR3){ WOW_LIGHT_AMBIENT_R, WOW_LIGHT_AMBIENT_G, WOW_LIGHT_AMBIENT_B };
+        wow_terrain_shader.state.sunDiffuse = (VECTOR3){ WOW_LIGHT_DIFFUSE_R, WOW_LIGHT_DIFFUSE_G, WOW_LIGHT_DIFFUSE_B };
     }
-    R_Call(glUniformMatrix3fv, wow_terrain_shader->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
-    R_Call(glUniform1i, wow_uUseWeightedBlend, wow_world.use_weighted_blend ? 1 : 0);
-    R_Call(glUniform1i, wow_uSingleTexture, 0);
-    R_Call(glUniform1i, wow_uWmoIndoor, bound_indoor);
-    R_Call(glUniform1i, wow_uFogEnable, tr.viewDef.fogEnable);
-    R_Call(glUniform3f, wow_uFogColor, tr.viewDef.fogColor.x, tr.viewDef.fogColor.y, tr.viewDef.fogColor.z);
-    R_Call(glUniform2f, wow_uFogParams, tr.viewDef.fogStart, tr.viewDef.fogEnd);
-    R_Call(glUniform3f, wow_uFogCamera, tr.viewDef.camerastate[0].origin.x, tr.viewDef.camerastate[0].origin.y,
-           tr.viewDef.camerastate[0].origin.z);
+    wow_terrain_shader.state.normalMatrix = normal_matrix;
+    wow_terrain_shader.state.useWeightedBlend = wow_world.use_weighted_blend ? 1 : 0;
+    wow_terrain_shader.state.singleTexture = 0;
+    wow_terrain_shader.state.wmoIndoor = bound_indoor;
+    wow_terrain_shader.state.fogEnable = tr.viewDef.fogEnable;
+    wow_terrain_shader.state.fogColor = (VECTOR3){ tr.viewDef.fogColor.x, tr.viewDef.fogColor.y, tr.viewDef.fogColor.z };
+    wow_terrain_shader.state.fogParams = (VECTOR2){ tr.viewDef.fogStart, tr.viewDef.fogEnd };
+    wow_terrain_shader.state.fogCamera = (VECTOR3){ tr.viewDef.camerastate[0].origin.x, tr.viewDef.camerastate[0].origin.y, tr.viewDef.camerastate[0].origin.z };
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_TRUE);
     R_Call(glDepthFunc, GL_LEQUAL);
@@ -130,7 +128,8 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
         Wow_BindWorldTexture(chunk->textures[2] ? chunk->textures[2] : chunk->textures[0], 2, bound_textures, &texture_binds);
         Wow_BindWorldTexture(chunk->textures[3] ? chunk->textures[3] : chunk->textures[0], 3, bound_textures, &texture_binds);
         Wow_BindWorldTexture(chunk->alpha_texture ? chunk->alpha_texture : tr.texture[TEX_WHITE], 4, bound_textures, &texture_binds);
-        R_Call(glUniform2f, wow_uAlphaOrigin, (GLfloat)chunk->alpha_index_x, (GLfloat)chunk->alpha_index_y);
+        wow_terrain_shader.state.alphaOrigin = (VECTOR2){ (GLfloat)chunk->alpha_index_x, (GLfloat)chunk->alpha_index_y };
+        R_ApplyShader(&wow_terrain_shader);
         R_DrawBuffer(chunk->buffer, chunk->num_vertices);
         stats->chunks++; stats->vertices += chunk->num_vertices;
     }
@@ -138,10 +137,10 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
     /* WMO batches have one texture; two passes: opaque first, alpha-blended second.
      * Pre-compute per-WMO visible_group count + cam_inside once; re-use across both passes
      * so the expensive Matrix3_normal / MOLT / frustum checks don't run twice per WMO. */
-    R_Call(glUniform1i, wow_uSingleTexture, 1);
-    R_Call(glUniform1i, wow_uWmoBlendMode, 0);
-    R_Call(glUniform1i, wow_uUseWeightedBlend, 0);     /* constant: WMOs don't use weighted alpha blend */
-    R_Call(glUniform2f, wow_uAlphaOrigin, 0.0f, 0.0f); /* constant: WMOs use full-texture coords */
+    wow_terrain_shader.state.singleTexture = 1;
+    wow_terrain_shader.state.wmoBlendMode = 0;
+    wow_terrain_shader.state.useWeightedBlend = 0;     /* constant: WMOs don't use weighted alpha blend */
+    wow_terrain_shader.state.alphaOrigin = (VECTOR2){ 0.0f, 0.0f }; /* constant: WMOs use full-texture coords */
     {
         /* Per-WMO pre-computed data. WMOs are static so this is stable across passes. */
         enum { WMO_CACHE_MAX = 256 };
@@ -205,20 +204,19 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
                 if (wmo_pass == 1 && !wmo_cache[wi].has_trans) continue;
                 cam_inside = wmo_cache[wi].inside;
                 model_batch = wmo_cache[wi].model_batch;
-                R_Call(glUniformMatrix4fv, wow_terrain_shader->uModelMatrix, 1, GL_FALSE, wmo->matrix.v);
-                R_Call(glUniformMatrix3fv, wow_terrain_shader->uNormalMatrix, 1, GL_TRUE, wmo_cache[wi].nm.v);
-                R_Call(glUniform3f, wow_uWmoAmbient, wmo->model->amb_color.r / 255.0f,
-                       wmo->model->amb_color.g / 255.0f, wmo->model->amb_color.b / 255.0f);
-                R_Call(glUniform3f, wow_uWmoLightAdd, wmo_cache[wi].molt.x, wmo_cache[wi].molt.y, wmo_cache[wi].molt.z);
+                memcpy(&wow_terrain_shader.state.model, wmo->matrix.v, (1) * sizeof(MATRIX4));
+                wow_terrain_shader.state.normalMatrix = wmo_cache[wi].nm;
+                wow_terrain_shader.state.wmoAmbient = (VECTOR3){ wmo->model->amb_color.r / 255.0f, wmo->model->amb_color.g / 255.0f, wmo->model->amb_color.b / 255.0f };
+                wow_terrain_shader.state.wmoLightAdd = (VECTOR3){ wmo_cache[wi].molt.x, wmo_cache[wi].molt.y, wmo_cache[wi].molt.z };
                 if (model_batch) {
                     for (wowWmoBatch_t *batch = wmo->model->batches; batch; batch = batch->next) {
                         if (!batch->buffer || !batch->num_vertices) continue;
                         if ((int)batch->transparent != wmo_pass) continue;
                         if (cam_inside && !batch->indoor) continue; /* portal cull: skip exterior when inside */
-                        if (bound_indoor != batch->indoor) { bound_indoor = batch->indoor; R_Call(glUniform1i, wow_uWmoIndoor, bound_indoor); }
+                        if (bound_indoor != batch->indoor) { bound_indoor = batch->indoor; wow_terrain_shader.state.wmoIndoor = bound_indoor; }
                         if (bound_blend_mode != (int)batch->blend_mode) {
                             bound_blend_mode = (int)batch->blend_mode;
-                            R_Call(glUniform1i, wow_uWmoBlendMode, bound_blend_mode);
+                            wow_terrain_shader.state.wmoBlendMode = bound_blend_mode;
                             if (wmo_pass) {
                                 if (bound_blend_mode == 3)      { R_Call(glBlendFunc, GL_ONE, GL_ONE); }
                                 else if (bound_blend_mode == 4) { R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE); }
@@ -226,6 +224,7 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
                             }
                         }
                         Wow_BindWorldTexture(batch->texture ? batch->texture : tr.texture[TEX_WHITE], 0, bound_textures, &texture_binds);
+                        R_ApplyShader(&wow_terrain_shader);
                         R_DrawBuffer(batch->buffer, batch->num_vertices); stats->wmo_batches++;
                         if (stats->collect && Wow_StatPointer(batch->texture, stats->texture_hash, sizeof(stats->texture_hash) / sizeof(*stats->texture_hash))) stats->wmo_textures++;
                     }
@@ -240,10 +239,10 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
                             if (!batch->buffer || !batch->num_vertices) continue;
                             if ((int)batch->transparent != wmo_pass) continue;
                             if (cam_inside && !batch->indoor) continue; /* portal cull */
-                            if (bound_indoor != batch->indoor) { bound_indoor = batch->indoor; R_Call(glUniform1i, wow_uWmoIndoor, bound_indoor); }
+                            if (bound_indoor != batch->indoor) { bound_indoor = batch->indoor; wow_terrain_shader.state.wmoIndoor = bound_indoor; }
                             if (bound_blend_mode != (int)batch->blend_mode) {
                                 bound_blend_mode = (int)batch->blend_mode;
-                                R_Call(glUniform1i, wow_uWmoBlendMode, bound_blend_mode);
+                                wow_terrain_shader.state.wmoBlendMode = bound_blend_mode;
                                 if (wmo_pass) {
                                     if (bound_blend_mode == 3)      { R_Call(glBlendFunc, GL_ONE, GL_ONE); }
                                     else if (bound_blend_mode == 4) { R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE); }
@@ -251,6 +250,7 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
                                 }
                             }
                             Wow_BindWorldTexture(batch->texture ? batch->texture : tr.texture[TEX_WHITE], 0, bound_textures, &texture_binds);
+                            R_ApplyShader(&wow_terrain_shader);
                             R_DrawBuffer(batch->buffer, batch->num_vertices); stats->wmo_batches++;
                             if (stats->collect && Wow_StatPointer(batch->texture, stats->texture_hash, sizeof(stats->texture_hash) / sizeof(*stats->texture_hash))) stats->wmo_textures++;
                         }
@@ -264,14 +264,14 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
         }
     }
     Matrix3_normal(&normal_matrix, &identity);
-    R_Call(glUniformMatrix4fv, wow_terrain_shader->uModelMatrix, 1, GL_FALSE, identity.v);
-    R_Call(glUniformMatrix3fv, wow_terrain_shader->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
-    R_Call(glUniform1i, wow_uUseWeightedBlend, wow_world.use_weighted_blend ? 1 : 0);
-    R_Call(glUniform1i, wow_uSingleTexture, 0);
-    R_Call(glUniform1i, wow_uWmoIndoor, 0);
-    R_Call(glUniform3f, wow_uWmoAmbient, 0.0f, 0.0f, 0.0f);
-    R_Call(glUniform3f, wow_uWmoLightAdd, 0.0f, 0.0f, 0.0f);
-    R_Call(glUniform1i, wow_uWmoBlendMode, 0);
+    wow_terrain_shader.state.model = identity;
+    wow_terrain_shader.state.normalMatrix = normal_matrix;
+    wow_terrain_shader.state.useWeightedBlend = wow_world.use_weighted_blend ? 1 : 0;
+    wow_terrain_shader.state.singleTexture = 0;
+    wow_terrain_shader.state.wmoIndoor = 0;
+    wow_terrain_shader.state.wmoAmbient = (VECTOR3){ 0.0f, 0.0f, 0.0f };
+    wow_terrain_shader.state.wmoLightAdd = (VECTOR3){ 0.0f, 0.0f, 0.0f };
+    wow_terrain_shader.state.wmoBlendMode = 0;
 }
 
 /* Group the small visible set by static M2 so repeated trees/props share material draws. */
@@ -375,7 +375,7 @@ void R_DrawWorld(void) {
     }
 
     Wow_InitTerrainShader();
-    if (!wow_terrain_shader) {
+    if (!wow_terrain_shader.prog.progid) {
         static BOOL logged_no_shader = false;
         if (!logged_no_shader) {
             fprintf(stderr, "R_DrawWorld: WoW terrain shader failed to initialize\n");
@@ -481,6 +481,7 @@ void R_DrawWorld(void) {
 
     if (R_CvarEnabled("r_doodads", "1") && wow_world.object_buffer && wow_world.num_object_vertices) {
         R_BindTexture(tr.texture[TEX_WHITE], 0);
+        R_ApplyShader(&wow_terrain_shader);
         R_DrawBuffer(wow_world.object_buffer, wow_world.num_object_vertices);
     }
 }

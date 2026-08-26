@@ -398,9 +398,9 @@ bool R_GameRenderShadow(renderEntity_t const *entity, LPCVECTOR2 origin) {
         return true;
     }
     if (use_fast_blob) {
-        R_RenderFlatRectSplat(&mins, &maxs, shadow_z, shadow, tr.shader[SHADER_SHADOWSPLAT], shadowColor);
+        R_RenderFlatRectSplat(&mins, &maxs, shadow_z, shadow, R_SPLAT_SHADER(&tr.shader_shadowSplat), shadowColor);
     } else {
-        R_RenderRectSplat(&mins, &maxs, shadow, tr.shader[SHADER_SHADOWSPLAT], shadowColor);
+        R_RenderRectSplat(&mins, &maxs, shadow, R_SPLAT_SHADER(&tr.shader_shadowSplat), shadowColor);
     }
     return true;
 }

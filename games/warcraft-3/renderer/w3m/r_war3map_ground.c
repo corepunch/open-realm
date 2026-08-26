@@ -47,7 +47,6 @@ DWORD IsMidRamp(LPCWAR3MAPVERTEX mv) {
         (mv[3].cliffVariation && mv[3].ramp);
 }
 
-
 static void R_MakeTile(LPCWAR3MAP map, DWORD x, DWORD y, DWORD ground, LPCTEXTURE texture) {
     struct War3MapVertex tile[4];
     GetTileVertices(x, y, map, tile);
@@ -178,9 +177,9 @@ static void R_FlushSplatBatch(void) {
  * splats in a batch share this state; only the texture and per-tile geometry
  * vary, so re-issuing it per splat was pure overhead. */
 static LPCTEXTURE g_splat_texture;
-static LPCSHADER g_splat_shader;
+static splat_shader_t *g_splat_shader;
 
-static void R_SetupSplatState(LPCTEXTURE texture, LPCSHADER shader) {
+static void R_SetupSplatState(LPCTEXTURE texture, splat_shader_t *shader) {
     MATRIX4 mModelMatrix;
 
     Matrix4_identity(&mModelMatrix);
@@ -188,15 +187,16 @@ static void R_SetupSplatState(LPCTEXTURE texture, LPCSHADER shader) {
     g_splat_shader = shader;
     R_BindTexture(texture, 0);
     R_SetTextureWrap(texture, false, false); /* splats are decals, so repeating the source texture smears the edges */
-    R_Call(glUseProgram, shader->progid);
-    R_Call(glUniformMatrix4fv, shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
-    R_Call(glUniformMatrix4fv, shader->uModelMatrix, 1, GL_FALSE, mModelMatrix.v);
+
+    shader->state.viewProjection = tr.viewDef.viewProjectionMatrix;
+    shader->state.model = mModelMatrix;
     R_Call(glEnable, GL_BLEND);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     R_Call(glDepthMask, GL_FALSE);
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
     ground_current_vertex = ground_vertex_buffer;
+    R_ApplyShader(shader);
 }
 
 /* Emit terrain-conforming tiles for one splat rect into the shared buffer,
@@ -233,7 +233,7 @@ static void R_GenerateSplatTiles(LPCVECTOR2 mins, LPCVECTOR2 maxs, COLOR32 color
     }
 }
 
-void R_BeginSplatBatch(LPCSHADER shader) {
+void R_BeginSplatBatch(splat_shader_t *shader) {
     g_splat_shader = shader;
     g_splat_texture = NULL;
     ground_current_vertex = ground_vertex_buffer;
@@ -258,7 +258,7 @@ void R_EndSplatBatch(void) {
 void R_RenderRectSplat(LPCVECTOR2 mins,
                        LPCVECTOR2 maxs,
                        LPCTEXTURE texture,
-                       LPCSHADER shader,
+                       splat_shader_t *shader,
                        COLOR32 color)
 {
     if (!tr.world || !texture) {
@@ -345,7 +345,7 @@ void R_RenderFlatRectSplat(LPCVECTOR2 mins,
                            LPCVECTOR2 maxs,
                            FLOAT z,
                            LPCTEXTURE texture,
-                           LPCSHADER shader,
+                           splat_shader_t *shader,
                            COLOR32 color)
 {
     MATRIX4 model_matrix;
@@ -368,9 +368,9 @@ void R_RenderFlatRectSplat(LPCVECTOR2 mins,
 
     R_BindTexture(texture, 0);
     R_SetTextureWrap(texture, false, false); /* this pass uses a 0..1 quad, so clamp the border instead of tiling */
-    R_Call(glUseProgram, shader->progid);
-    R_Call(glUniformMatrix4fv, shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
-    R_Call(glUniformMatrix4fv, shader->uModelMatrix, 1, GL_FALSE, model_matrix.v);
+
+    shader->state.viewProjection = tr.viewDef.viewProjectionMatrix;
+    shader->state.model = model_matrix;
 
     R_Call(glEnable, GL_BLEND);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -379,6 +379,7 @@ void R_RenderFlatRectSplat(LPCVECTOR2 mins,
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STREAM_DRAW);
     R_StatsDraw(GL_TRIANGLES, sizeof(vertices) / sizeof(vertices[0]), 1);
+    R_ApplyShader(shader);
     R_Call(glDrawArrays, GL_TRIANGLES, 0, sizeof(vertices) / sizeof(vertices[0]));
     R_Call(glDepthMask, GL_TRUE);
 }
@@ -386,7 +387,7 @@ void R_RenderFlatRectSplat(LPCVECTOR2 mins,
 void R_RenderSplat(LPCVECTOR2 position,
                    FLOAT radius,
                    LPCTEXTURE texture,
-                   LPCSHADER shader,
+                   splat_shader_t *shader,
                    COLOR32 color)
 {
     VECTOR2 mins = {

@@ -334,17 +334,14 @@ static void R_SetupGL(bool drawLight) {
 #endif
         tr.viewDef.viewProjectionMatrix.v;
 
-    R_Call(glUseProgram, tr.shader[SHADER_DEFAULT]->progid);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uViewProjectionMatrix, 1, GL_FALSE, viewProjectionMatrix);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uModelMatrix, 1, GL_FALSE, model_matrix.v);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
-    R_Call(glUniformMatrix3fv, tr.shader[SHADER_DEFAULT]->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
+    memcpy(&tr.shader_default.state.viewProjection, viewProjectionMatrix, (1) * sizeof(MATRIX4));
+    tr.shader_default.state.textureMatrix = tr.viewDef.textureMatrix;
+    tr.shader_default.state.model = model_matrix;
+    tr.shader_default.state.lightMatrix = tr.viewDef.lightMatrix;
+    tr.shader_default.state.normalMatrix = normal_matrix;
 
-    R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
-
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uModelMatrix, 1, GL_FALSE, model_matrix.v);
+    tr.shader_ui.state.viewProjection = ui_matrix;
+    tr.shader_ui.state.model = model_matrix;
     
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_TRUE);
@@ -532,29 +529,9 @@ void R_Init(DWORD width, DWORD height) {
 //    R_LoadModel("Assets\\Units\\Terran\\MarineTychus\\MarineTychus.m3");
 //    R_LoadModel("Assets\\Units\\Zerg\\Queen\\Queen.m3");
     
-    // Disabled until skin/alphatest shaders are wired; Linux -Wall warns on unused extern hooks.
-//    extern LPCSTR vs_skin;
-    extern LPCSTR vs_default;
-    extern LPCSTR fs_default;
-    extern LPCSTR fs_ui;
-    extern LPCSTR fs_splat;
-    extern LPCSTR fs_shadow_splat;
-//    extern LPCSTR fs_alphatest;
-    extern LPCSTR fs_commandbutton;
-    extern LPCSTR fs_minimap;
-    extern LPCSTR fs_minimap_fog;
-    extern LPCSTR fs_unlit;
-
     R_GameLoadAssets();
 
-    tr.shader[SHADER_DEFAULT] = R_InitShader(vs_default, fs_default);
-    tr.shader[SHADER_UI] = R_InitShader(vs_default, fs_ui);
-    tr.shader[SHADER_SPLAT] = R_InitShader(vs_default, fs_splat);
-    tr.shader[SHADER_SHADOWSPLAT] = R_InitShader(vs_default, fs_shadow_splat);
-    tr.shader[SHADER_COMMANDBUTTON] = R_InitShader(vs_default, fs_commandbutton);
-    tr.shader[SHADER_MINIMAP] = R_InitShader(vs_default, fs_minimap);
-    tr.shader[SHADER_MINIMAP_FOG] = R_InitShader(vs_default, fs_minimap_fog);
-    tr.shader[SHADER_UNLIT] = R_InitShader(vs_default, fs_unlit);
+    R_LoadBuiltinShaders();
     fprintf(stderr, "Loading shaders succeeded.\n");
 
     tr.buffer[RBUF_TEMP1] = R_MakeVertexArrayObject(NULL, 0);
@@ -619,6 +596,7 @@ void R_Shutdown(void) {
     R_ShutdownModels();
     R_GameShutdown();
     R_ShutdownModelShader();
+    R_ShutdownBuiltinShaders();
     R_ShutdownFonts();
     
     R_ShutdownFogOfWar();

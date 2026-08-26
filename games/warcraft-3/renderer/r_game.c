@@ -89,7 +89,7 @@ void R_GameDrawMinimap(LPCRECT screen) {
     LPCTEXTURE tex = tr.minimap ? tr.minimap : tr.texture[TEX_WHITE];
     R_DrawImage(tex, screen, &MAKE(RECT, 0, 0, 1, 1), COLOR32_WHITE);
 
-    if (tr.world && tr.shader[SHADER_MINIMAP_FOG]) {
+    if (tr.world && tr.shader_minimapFog.prog.progid) {
         DWORD const fow_texid = R_GetMinimapFogOfWarTexture();
         if (fow_texid && (!tr.texture[TEX_WHITE] || fow_texid != tr.texture[TEX_WHITE]->texid)) {
             TEXTURE fog_texture = {

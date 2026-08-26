@@ -402,44 +402,75 @@ typedef struct {
 } wowGroundEffectDoodad_t;
 
 extern wowMap_t wow_world;
-extern LPSHADER wow_terrain_shader;
-extern LPSHADER wow_grass_shader;
-extern GLint wow_uTexture0;
-extern GLint wow_uTexture1;
-extern GLint wow_uTexture2;
-extern GLint wow_uTexture3;
-extern GLint wow_uAlphaTexture;
-extern GLint wow_uUseWeightedBlend;
-extern GLint wow_uSingleTexture;
-extern GLint wow_uWmoIndoor;
-extern GLint wow_uWmoAmbient;
-extern GLint wow_uWmoLightAdd;
-extern GLint wow_uWmoBlendMode;
-extern GLint wow_uAlphaOrigin;
-extern GLint wow_uAlphaAtlasChunks;
-extern GLint wow_uFogEnable;
-extern GLint wow_uFogColor;
-extern GLint wow_uFogParams;
-extern GLint wow_uFogCamera;
-extern GLint wow_uSunDir;
-extern GLint wow_uSunAmbient;
-extern GLint wow_uSunDiffuse;
-extern GLint wow_uGrassTime;
-extern GLint wow_uGrassCameraOrigin;
-extern GLint wow_uGrassDrawDistance;
-extern GLint wow_uGrassFadeStartDistance;
+
+/* Terrain and grass have separate typed values and private program locations. */
+typedef struct WOWTERRAINSTATE {
+    MATRIX4 viewProjection;
+    MATRIX4 model;
+    MATRIX3 normalMatrix;
+    VECTOR3 sunDir;
+    VECTOR3 sunAmbient;
+    VECTOR3 sunDiffuse;
+    int texture0;
+    int texture1;
+    int texture2;
+    int texture3;
+    int alphaTexture;
+    bool useWeightedBlend;
+    bool singleTexture;
+    bool wmoIndoor;
+    VECTOR3 wmoAmbient;
+    VECTOR3 wmoLightAdd;
+    int wmoBlendMode;
+    VECTOR2 alphaOrigin;
+    FLOAT alphaAtlasChunks;
+    bool fogEnable;
+    VECTOR3 fogColor;
+    VECTOR2 fogParams;
+    VECTOR3 fogCamera;
+} WOWTERRAINSTATE;
+typedef struct WOWTERRAINSTATE *LPWOWTERRAINSTATE;
+typedef const struct WOWTERRAINSTATE *LPCWOWTERRAINSTATE;
+typedef struct WOWTERRAINPROG {
+    SHADERPROG prog;
+    WOWTERRAINSTATE state;
+} WOWTERRAINPROG;
+typedef struct WOWTERRAINPROG *LPWOWTERRAINPROG;
+typedef const struct WOWTERRAINPROG *LPCWOWTERRAINPROG;
+
+typedef struct WOWGRASSSTATE {
+    MATRIX4 viewProjection;
+    VECTOR3 sunDir;
+    VECTOR3 sunAmbient;
+    VECTOR3 sunDiffuse;
+    FLOAT grassTime;
+    int grassCtrl;
+    VECTOR2 ctrlOriginWorld;
+    FLOAT ctrlCellSize;
+    VECTOR2 cameraXZ;
+    FLOAT grassSlotSpacing;
+    int heightAtlas;
+    VECTOR2 atlasOriginWorld;
+    FLOAT atlasChunkSize;
+    FLOAT atlasUnitSize;
+    VECTOR3 grassCameraOrigin;
+    FLOAT grassDrawDistance;
+    FLOAT grassFadeStartDistance;
+} WOWGRASSSTATE;
+typedef struct WOWGRASSSTATE *LPWOWGRASSSTATE;
+typedef const struct WOWGRASSSTATE *LPCWOWGRASSSTATE;
+typedef struct WOWGRASSPROG {
+    SHADERPROG prog;
+    WOWGRASSSTATE state;
+} WOWGRASSPROG;
+typedef struct WOWGRASSPROG *LPWOWGRASSPROG;
+typedef const struct WOWGRASSPROG *LPCWOWGRASSPROG;
+
+extern WOWTERRAINPROG wow_terrain_shader;
+extern WOWGRASSPROG wow_grass_shader;
 /* Height atlas uniforms (terrain + grass) */
-extern GLint wow_uHeightAtlas;
-extern GLint wow_uAtlasOriginWorld;
-extern GLint wow_uAtlasChunkSize;
-extern GLint wow_uAtlasUnitSize;
 /* Grass control texture uniforms */
-extern GLint wow_uGrassCtrl;
-extern GLint wow_uCtrlOriginWorld;
-extern GLint wow_uCtrlCellSize;
 /* Camera-following grass tile uniforms */
-extern GLint wow_uCameraXZ;
-extern GLint wow_uGrassSlotSpacing;
 
 BOOL Wow_PathHasExtension(LPCSTR path, LPCSTR extension);
 void Wow_NormalizeMapPath(LPCSTR mapFileName, LPSTR out, DWORD out_size);

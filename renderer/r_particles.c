@@ -1,4 +1,5 @@
 #include "r_local.h"
+#include "r_shader.h"
 
 #define NUM_PARTICLE_VERTICES 6
 #define MAX_PARTICLES 10000
@@ -11,8 +12,24 @@ typedef struct particle_vertex {
     BYTE axis[2];
 } particleVertex_t;
 
+typedef struct PARTICLESTATE {
+    MATRIX4 viewProjection;
+    MATRIX4 model;
+    int texture;
+    bool alphaKey;
+    FLOAT alphaCutoff;
+} PARTICLESTATE;
+typedef struct PARTICLESTATE *LPPARTICLESTATE;
+typedef const struct PARTICLESTATE *LPCPARTICLESTATE;
+typedef struct PARTICLEPROG {
+    SHADERPROG prog;
+    PARTICLESTATE state;
+} PARTICLEPROG;
+typedef struct PARTICLEPROG *LPPARTICLEPROG;
+typedef const struct PARTICLEPROG *LPCPARTICLEPROG;
+
 static struct {
-    LPSHADER shader;
+    PARTICLEPROG shader;
 //    LPRENDERTARGET rt[FOW_RT_COUNT];
     LPBUFFER particles;
     LPTEXTURE texture;
@@ -45,50 +62,53 @@ cparticle_t *R_SpawnParticle(void) {
     return p;
 }
 
-LPCSTR vs_particle =
-"#version 140\n"
-"in vec3 i_position;\n"
-"in vec4 i_color;\n"
-"in vec2 i_texcoord;\n"
-"in float i_size;\n"
-"in vec2 i_axis;\n"
-"out vec4 v_color;\n"
-"out vec2 v_texcoord;\n"
-"uniform mat4 uViewProjectionMatrix;\n"
-"uniform mat4 uModelMatrix;\n"
-"void main() {\n"
-"    mat4 m = uViewProjectionMatrix;\n"
-"    vec3 left = normalize(vec3(m[0][0], m[1][0], m[2][0])) * i_size;\n"
-"    vec3 up = normalize(vec3(m[0][1], m[1][1], m[2][1])) * i_size;\n"
-"    mat3 bb_mat = mat3(left, up, i_position);\n"
-"    vec3 pos = bb_mat * vec3(i_axis - vec2(0.5), 1.0);\n"
-"    gl_Position = uViewProjectionMatrix * vec4(pos, 1.0);\n"
-"    v_color = i_color;\n"
-"    v_texcoord = i_texcoord;\n"
-"}\n";
-
-LPCSTR fs_particle =
-"#version 140\n"
-"in vec4 v_color;\n"
-"in vec2 v_texcoord;\n"
-"out vec4 o_color;\n"
-"uniform sampler2D uTexture;\n"
-"uniform bool uAlphaKey;\n"
-"uniform float uAlphaCutoff;\n"
-"float crop_edges(vec2 tc) {\n"
-"   return step(abs(tc.x - 0.5), 0.5) * step(abs(tc.y - 0.5), 0.5);\n"
-"}\n"
-"void main() {\n"
-"    o_color = texture(uTexture, v_texcoord) * v_color;\n"
-"    if (uAlphaKey) {\n"
-#ifndef BZ_USE_MSAA
-"        if (o_color.a < uAlphaCutoff) discard;\n"
-#else
-"        float edge = max(fwidth(o_color.a), 1.0 / 255.0);\n"
-"        o_color.a = smoothstep(uAlphaCutoff - edge, uAlphaCutoff + edge, o_color.a);\n"
-#endif
-"    }\n"
-"}\n";
+#define SHADER_TYPE PARTICLESTATE
+static const shader_desc_t sd_particle = {
+    .Name = "particle",
+    .Uniforms = {
+        UNIFORM(viewProjection, UT_FLOAT_MAT4, PRECISION_HIGH),
+        UNIFORM(model,          UT_FLOAT_MAT4, PRECISION_HIGH),
+        UNIFORM(texture,        UT_SAMPLER_2D, PRECISION_LOW),
+        UNIFORM(alphaKey,       UT_BOOL,       PRECISION_LOW),
+        UNIFORM(alphaCutoff,    UT_FLOAT,      PRECISION_LOW),
+    },
+    .Attributes = {
+        ATTRIB(position, attrib_position,     UT_FLOAT_VEC3),
+        ATTRIB(color,    attrib_color,        UT_COLOR),
+        ATTRIB(texcoord, attrib_texcoord,     UT_FLOAT_VEC2),
+        ATTRIB(size,     attrib_particleSize, UT_FLOAT),
+        ATTRIB(axis,     attrib_particleAxis, UT_FLOAT_VEC2),
+    },
+    .Shared = {
+        SHARED(color,    UT_COLOR),
+        SHARED(texcoord, UT_FLOAT_VEC2),
+    },
+    .VertexBody =
+        "vec4 vert() {\n"
+        "  mat4 m = u_viewProjection;\n"
+        "  vec3 left = normalize(vec3(m[0][0], m[1][0], m[2][0])) * a_size;\n"
+        "  vec3 up = normalize(vec3(m[0][1], m[1][1], m[2][1])) * a_size;\n"
+        "  mat3 bb_mat = mat3(left, up, a_position);\n"
+        "  vec3 pos = bb_mat * vec3(a_axis - vec2(0.5), 1.0);\n"
+        "  v_color = a_color;\n"
+        "  v_texcoord = a_texcoord;\n"
+        "  return u_viewProjection * vec4(pos, 1.0);\n"
+        "}\n",
+    .FragmentBody =
+        "vec4 frag() {\n"
+        "  vec4 col = texture(u_texture, v_texcoord) * v_color;\n"
+        "  if (u_alphaKey) {\n"
+        "#ifndef BZ_USE_MSAA\n"
+        "    if (col.a < u_alphaCutoff) discard;\n"
+        "#else\n"
+        "    float edge = max(fwidth(col.a), 1.0 / 255.0);\n"
+        "    col.a = smoothstep(u_alphaCutoff - edge, u_alphaCutoff + edge, col.a);\n"
+        "#endif\n"
+        "  }\n"
+        "  return col;\n"
+        "}\n",
+};
+#undef SHADER_TYPE
 
 particleVertex_t *
 R_AddParticle(particleVertex_t *buffer,
@@ -167,13 +187,13 @@ static void R_FlushParticles(LPCTEXTURE texture, LPCMATRIX4 matrix, particleVert
     R_Call(glBindVertexArray, particles_resources.particles->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, particles_resources.particles->vbo);
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(particleVertex_t) * (pv - particles_resources.vertices), particles_resources.vertices, GL_DYNAMIC_DRAW);
-    R_Call(glUseProgram, particles_resources.shader->progid);
-    R_Call(glUniformMatrix4fv, particles_resources.shader->uModelMatrix, 1, GL_FALSE, matrix->v);
-    R_Call(glUniformMatrix4fv, particles_resources.shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
+
+    particles_resources.shader.state.model = *matrix;
+    particles_resources.shader.state.viewProjection = tr.viewDef.viewProjectionMatrix;
     R_Call(glActiveTexture, GL_TEXTURE0);
     R_Call(glBindTexture, GL_TEXTURE_2D, (texture?texture:particles_resources.texture)->texid);
-    R_Call(glUniform1i, particles_resources.shader->uAlphaKey, blend_mode == BLEND_MODE_ALPHAKEY);
-    R_Call(glUniform1f, particles_resources.shader->uAlphaCutoff, 0.5f);
+    particles_resources.shader.state.alphaKey = blend_mode == BLEND_MODE_ALPHAKEY;
+    particles_resources.shader.state.alphaCutoff = 0.5f;
     R_SetAlphaKeyState(blend_mode == BLEND_MODE_ALPHAKEY);
     if (blend_mode == BLEND_MODE_NONE) {
         R_Call(glDisable, GL_BLEND);
@@ -195,6 +215,7 @@ static void R_FlushParticles(LPCTEXTURE texture, LPCMATRIX4 matrix, particleVert
         }
     }
     R_StatsDraw(GL_TRIANGLES, (DWORD)(pv - particles_resources.vertices), 1);
+    R_ApplyShader(&particles_resources.shader);
     R_Call(glDrawArrays, GL_TRIANGLES, 0, (GLsizei)(pv - particles_resources.vertices));
 }
 
@@ -318,12 +339,19 @@ void R_InitParticles(void) {
     particles_resources.texture = R_AllocateTexture(DOT_TEXTURE, DOT_TEXTURE);
     R_LoadTextureMipLevel(particles_resources.texture, &(TEXMIP){ data, DOT_TEXTURE, DOT_TEXTURE, 0, PIXEL_RGBA });
 
-    particles_resources.shader = R_InitShader(vs_particle, fs_particle);
+    static const char *particle_defines =
+#ifdef BZ_USE_MSAA
+        "#define BZ_USE_MSAA 1\n"
+#endif
+        "";
+    memset(&particles_resources.shader, 0, sizeof(particles_resources.shader));
+    R_LoadShader(&sd_particle, particle_defines, &particles_resources.shader);
     particles_resources.particles = R_MakeParticlesVertexArrayObject();
     R_ClearParticles();
 }
 
 void R_ShutdownParticles(void) {
     R_ReleaseVertexArrayObject(particles_resources.particles);
-    R_ReleaseShader(particles_resources.shader);
+    R_DeleteShader(&particles_resources.shader.prog);
+    memset(&particles_resources.shader, 0, sizeof(particles_resources.shader));
 }

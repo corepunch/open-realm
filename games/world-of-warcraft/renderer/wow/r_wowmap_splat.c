@@ -2,7 +2,7 @@
 
 typedef struct {
     LPCTEXTURE texture;
-    LPCSHADER shader;
+    splat_shader_t *shader;
     DWORD num_vertices;
     VERTEX vertices[WOW_SPLAT_BATCH_VERTICES];
 } WOWSPLATBATCH;
@@ -10,16 +10,16 @@ typedef struct {
 static WOWSPLATBATCH wow_splat_batches[WOW_SPLAT_BATCHES];
 
 /* Stream one material batch in a single upload/draw pair. */
-static void Wow_DrawSplatVertices(LPCTEXTURE texture, LPCSHADER shader,
+static void Wow_DrawSplatVertices(LPCTEXTURE texture, splat_shader_t *shader,
                                   LPCVERTEX vertices, DWORD num_vertices) {
     MATRIX4 model_matrix;
 
     if (!texture || !shader || !vertices || !num_vertices) return;
     Matrix4_identity(&model_matrix);
     R_BindTexture(texture, 0);
-    R_Call(glUseProgram, shader->progid);
-    R_Call(glUniformMatrix4fv, shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
-    R_Call(glUniformMatrix4fv, shader->uModelMatrix, 1, GL_FALSE, model_matrix.v);
+
+    shader->state.viewProjection = tr.viewDef.viewProjectionMatrix;
+    shader->state.model = model_matrix;
     R_Call(glEnable, GL_BLEND);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     R_Call(glDepthMask, GL_FALSE);
@@ -30,6 +30,7 @@ static void Wow_DrawSplatVertices(LPCTEXTURE texture, LPCSHADER shader,
     /* Re-specifying the whole stream buffer lets the driver orphan busy storage. */
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(*vertices) * num_vertices, vertices, GL_STREAM_DRAW);
     R_StatsDraw(GL_TRIANGLES, num_vertices, 1);
+    R_ApplyShader(shader);
     R_Call(glDrawArrays, GL_TRIANGLES, 0, num_vertices);
     R_Call(glDisable, GL_POLYGON_OFFSET_FILL);
     R_Call(glDepthMask, GL_TRUE);
@@ -45,7 +46,7 @@ void Wow_FlushSplats(void) {
 }
 
 /* Group splats by material; common blob shadows and selection rings become one draw each. */
-static void Wow_QueueSplatVertices(LPCTEXTURE texture, LPCSHADER shader,
+static void Wow_QueueSplatVertices(LPCTEXTURE texture, splat_shader_t *shader,
                                    LPCVERTEX vertices, DWORD num_vertices) {
     WOWSPLATBATCH *empty = NULL;
 
@@ -122,7 +123,7 @@ void Wow_AddSplatTriangle(LPVERTEX vertices,
 void R_DrawTerrainShadows(void) {
 }
 
-void R_RenderRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, LPCSHADER shader, COLOR32 color) {
+void R_RenderRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, splat_shader_t *shader, COLOR32 color) {
     float width;
     float height;
     int cols;
@@ -241,7 +242,7 @@ void R_RenderRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, LPC
 }
 
 void R_RenderFlatRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, FLOAT z,
-                           LPCTEXTURE texture, LPCSHADER shader, COLOR32 color) {
+                           LPCTEXTURE texture, splat_shader_t *shader, COLOR32 color) {
     float width;
     float height;
     VERTEX vertices[6];
@@ -266,7 +267,7 @@ void R_RenderFlatRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, FLOAT z,
     Wow_QueueSplatVertices(texture, shader, vertices, 6);
 }
 
-void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture, LPCSHADER shader, COLOR32 color) {
+void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture, splat_shader_t *shader, COLOR32 color) {
     if (!position || radius <= 0.0f) return;
     VECTOR2 mins = { .x = position->x - radius, .y = position->y - radius };
     VECTOR2 maxs = { .x = position->x + radius, .y = position->y + radius };
@@ -275,8 +276,8 @@ void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture, LPCSHA
 
 /* WoW shadows are drawn by R_GameRenderShadow (returns true) and splats already
  * batch through Wow_QueueSplatVertices, so the shared batch API stays immediate. */
-static LPCSHADER wow_batch_shader;
-void R_BeginSplatBatch(LPCSHADER shader) { wow_batch_shader = shader; }
+static splat_shader_t *wow_batch_shader;
+void R_BeginSplatBatch(splat_shader_t *shader) { wow_batch_shader = shader; }
 void R_AddRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, COLOR32 color) {
     R_RenderRectSplat(mins, maxs, texture, wow_batch_shader, color);
 }

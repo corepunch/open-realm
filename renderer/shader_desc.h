@@ -1,106 +1,33 @@
 #ifndef shader_desc_h
 #define shader_desc_h
 
-/*
- * Descriptor-based shader declarations.
- *
- * Each shader is two things:
- *
- *   1. A typed program struct — one named GLint field per uniform.
- *      Call sites write:  glUniformMatrix4fv(prog.mvp, ...)
- *
- *   2. A shader_desc_t — static const data that drives GLSL source generation.
- *      The linker generates the version prologue and all uniform/in/out
- *      declarations from the tables, so bodies contain only GLSL logic.
- *
- * Both come from the same UNIFORM / ATTRIB / SHARED entries in the descriptor
- * initialiser; each entry stores the field's offsetof so the loader can write
- * the resolved GL location directly into the typed struct.
- *
- * Naming convention (prefixes are applied automatically):
- *   UNIFORM(mvp, ...)       → C field .mvp    /  GLSL uniform "u_mvp"
- *   ATTRIB(position, ...)   →                    GLSL attribute "a_position"
- *   SHARED(texcoord0, ...)  →                    GLSL varying "v_texcoord0"
- *
- * Usage pattern:
- *
- *   // 1. Declare the typed struct first:
- *   typedef struct {
- *       GLuint progid;
- *       GLint  mvp;
- *       GLint  texture;
- *   } simple_prog_t;
- *
- *   // 2. Bind SHADER_TYPE, declare the descriptor, unbind:
- *   #define SHADER_TYPE simple_prog_t
- *   static const shader_desc_t sd_simple = {
- *       .Name = "simple",
- *       .Uniforms = {
- *           UNIFORM(mvp,     UT_FLOAT_MAT4, PRECISION_HIGH),
- *           UNIFORM(texture, UT_SAMPLER_2D, PRECISION_LOW),
- *       },
- *       .Attributes = {
- *           ATTRIB(position,  attrib_position, UT_FLOAT_VEC4),
- *           ATTRIB(texcoord0, attrib_texcoord, UT_FLOAT_VEC2),
- *       },
- *       .Shared = {
- *           SHARED(texcoord0, UT_FLOAT_VEC2),
- *       },
- *       .VertexBody =
- *           "void main() {\n"
- *           "  gl_Position = u_mvp * a_position;\n"
- *           "  v_texcoord0 = a_texcoord0;\n"
- *           "}\n",
- *       .FragmentBody =
- *           "void main() {\n"
- *           "  " GLSL_FRAGCOLOR " = " GLSL_TEX "(u_texture, v_texcoord0);\n"
- *           "}\n",
- *   };
- *   #undef SHADER_TYPE
- *
- *   // 3. Load — writes progid and resolves uniform locations into the struct:
- *   static simple_prog_t simple_prog;
- *   R_LoadShaderDescInto(&sd_simple, NULL, &simple_prog.progid, &simple_prog);
+/* Descriptors generate GLSL declarations and map typed CPU state to program-owned locations.
+ * Define SHADER_TYPE as the value struct, then describe its members with UNIFORM.
+ * R_LoadShader(desc, defines, &shader) links a { SHADERPROG prog; STATE state; }.
+ * Fill shader.state and call R_ApplyShader(&shader) before drawing. The backend
+ * binds the program and uploads the complete state; callers never handle locations.
  */
 
 #include <stddef.h>
 #include "common/common.h"
 
 /* -----------------------------------------------------------------------
- * Compile-time dialect tokens for use inside VertexBody / FragmentBody.
- * Everything else (version line, declarations) is generated from the descriptor.
+ * Dialect differences.  Bodies define vec4 vert()/frag() and call texture();
+ * the linker generates main() which assigns the result to gl_Position and to
+ * gl_FragColor (120) or o_color (otherwise).  GLSL 120 fragment bodies also
+ * get a leading `#define texture texture2D`, since that dialect's builtin has
+ * a different name.  Keyword selection (attribute/varying vs in/out) is
+ * likewise generated, so bodies carry no per-dialect conditionals.
  *
  * Controlled by the GLSL Make variable (default 140):
- *   make GLSL=120   → -DBZ_GLSL_120   (attribute/varying/texture2D/gl_FragColor)
- *   make GLSL=140   → (no define)     (in/out/texture/o_color)
- *   make GLSL=150   → -DBZ_GLSL_150   (same tokens as 140, only #version differs)
+ *   make GLSL=120   → -DBZ_GLSL_120   (attribute/varying + texture alias)
+ *   make GLSL=140   → (no define)     (in/out)
+ *   make GLSL=150   → -DBZ_GLSL_150   (same keywords as 140, only #version differs)
  *   make GL_BACKEND=gles3 → -DBZ_GL_ES3  (300 es, precision qualifiers)
  *
  * GL_BACKEND=gles3 overrides GLSL: the ES3 define takes precedence regardless
  * of the GLSL= value because GLES uses a separate version namespace (300 es).
  * ----------------------------------------------------------------------- */
-#ifdef BZ_GL_ES3
-#  define GLSL_ATTR       "in"
-#  define GLSL_VS_OUT     "out"
-#  define GLSL_FS_IN      "in"
-#  define GLSL_FRAGCOLOR  "o_color"
-#  define GLSL_TEX        "texture"
-#  define GLSL_TEXFETCH   "texelFetch"
-#elif defined(BZ_GLSL_120)
-#  define GLSL_ATTR       "attribute"
-#  define GLSL_VS_OUT     "varying"
-#  define GLSL_FS_IN      "varying"
-#  define GLSL_FRAGCOLOR  "gl_FragColor"
-#  define GLSL_TEX        "texture2D"
-#  define GLSL_TEXFETCH   "texture2D"
-#else /* GLSL 140 or 150 — same keyword set, only the version line differs */
-#  define GLSL_ATTR       "in"
-#  define GLSL_VS_OUT     "out"
-#  define GLSL_FS_IN      "in"
-#  define GLSL_FRAGCOLOR  "o_color"
-#  define GLSL_TEX        "texture"
-#  define GLSL_TEXFETCH   "texelFetch"
-#endif
 
 /* -----------------------------------------------------------------------
  * Dialect enum — passed to R_BuildShaderDeclarations for the version line
@@ -141,13 +68,14 @@ typedef enum {
     UT_COUNT,
 } uniformType_t;
 
-/* Uniform: stores the offsetof the corresponding GLint field in the typed
-   program struct so the loader can write the resolved location directly. */
+/* Uniform offsets address typed CPU values. count=0 is scalar; arrays upload as one block. */
 typedef struct {
     size_t          offset;    /* offsetof(SHADER_TYPE, field) */
     const char     *name;      /* GLSL name, e.g. "u_mvp" */
     uniformType_t   type;
     precisionType_t precision;
+    bool            transpose; /* CPU row-major matrix storage */
+    DWORD           count;     /* array size; 0 = scalar */
 } shaderUniform_t;
 
 typedef struct {
@@ -165,42 +93,60 @@ typedef struct {
  * Descriptor.  Declare as static const; zero-initialised slots (name==NULL)
  * are sentinels that stop the linker's table walk.
  * ----------------------------------------------------------------------- */
-#define MAX_SHADER_UNIFORMS  16
-#define MAX_SHADER_ATTRIBS    8
-#define MAX_SHADER_SHARED     8
+#define MAX_SHADER_UNIFORMS 32 // uniforms; largest game descriptor fits; bounds descriptor and location tables
+#define MAX_SHADER_ATTRIBS 8 // attributes; shared model input count; bounds descriptor table
+#define MAX_SHADER_SHARED 8 // varyings; shared shader interface capacity; bounds descriptor table
 
 typedef struct shader_desc {
     const char      *Name;
     shaderUniform_t  Uniforms[MAX_SHADER_UNIFORMS];
     shaderAttrib_t   Attributes[MAX_SHADER_ATTRIBS];
     shaderVarying_t  Shared[MAX_SHADER_SHARED];
-    const char      *VertexBody;    /* GLSL logic only — no declarations */
-    const char      *FragmentBody;
+    const char      *VertexBody;    /* defines vec4 vert() → clip-space position */
+    const char      *FragmentBody;  /* defines vec4 frag() → fragment color */
 } shader_desc_t;
 
 typedef const shader_desc_t *LPCSHADERDESC;
 
-/* -----------------------------------------------------------------------
- * Descriptor entry macros.
- *
- * SHADER_TYPE must be #defined to the per-shader typed struct for the
- * duration of the descriptor initialiser, then #undef'd.
- *
- * UNIFORM(field, type, prec)
- *   Records offsetof(SHADER_TYPE, field) so the loader can write the
- *   resolved GL uniform location directly into the typed struct.
- *   GLSL name:  "u_" #field
- *
- * ATTRIB(field, attrib_id, type)
- *   Explicit attribute location binding.
- *   GLSL name:  "a_" #field
- *
- * SHARED(field, type)
- *   Varying declared as 'out' in the vertex stage and 'in' in the fragment.
- *   GLSL name:  "v_" #field
- * ----------------------------------------------------------------------- */
+/* GL handles stay in the program, never in the typed value state. */
+typedef struct SHADERPROG {
+    GLuint progid;
+    LPCSHADERDESC desc;
+    GLint locs[MAX_SHADER_UNIFORMS];
+} SHADERPROG;
+typedef struct SHADERPROG *LPSHADERPROG;
+typedef const struct SHADERPROG *LPCSHADERPROG;
+
+typedef struct SHADERLOAD {
+    LPCSHADERDESC desc;
+    LPCSTR defines;
+    LPSHADERPROG prog;
+    void *state;
+} SHADERLOAD;
+typedef struct SHADERLOAD *LPSHADERLOAD;
+typedef const struct SHADERLOAD *LPCSHADERLOAD;
+void R_LoadShaderState(LPCSHADERLOAD load);
+void R_DeleteShader(LPSHADERPROG prog);
+void R_UploadShader(LPCSHADERPROG prog, LPCVOID state);
+#define R_LoadShader(D, F, P) R_LoadShaderState(&(SHADERLOAD){ D, F, &(P)->prog, &(P)->state })
+#define R_ApplyShader(P) R_UploadShader(&(P)->prog, &(P)->state)
+
+/* SHADER_TYPE names the CPU value struct. Named entries preserve an existing GLSL spelling.
+ * Array entries use inline contiguous typed storage; all locations remain inside SHADERPROG.
+ */
 #define UNIFORM(field, type, prec) \
-    { offsetof(SHADER_TYPE, field), "u_" #field, type, prec }
+    { offsetof(SHADER_TYPE, field), "u_" #field, type, prec, false, 0 }
+#define UNIFORM_ARRAY(field, type, prec, count) \
+    { offsetof(SHADER_TYPE, field), "u_" #field, type, prec, false, count }
+/* Explicit GLSL spelling for game shader contracts. */
+#define UNIFORM_NAMED(field, name, type, prec) \
+    { offsetof(SHADER_TYPE, field), name, type, prec, false, 0 }
+#define UNIFORM_NAMED_ARRAY(field, name, type, prec, count) \
+    { offsetof(SHADER_TYPE, field), name, type, prec, false, count }
+#define UNIFORM_TRANSPOSE(field, type, prec) \
+    { offsetof(SHADER_TYPE, field), "u_" #field, type, prec, true, 0 }
+#define UNIFORM_NAMED_TRANSPOSE(field, name, type, prec) \
+    { offsetof(SHADER_TYPE, field), name, type, prec, true, 0 }
 #define ATTRIB(field, attrib_id, type) \
     { "a_" #field, attrib_id, type }
 #define SHARED(field, type) \
@@ -208,12 +154,21 @@ typedef const shader_desc_t *LPCSHADERDESC;
 
 /* -----------------------------------------------------------------------
  * R_BuildShaderDeclarations
- *   Writes the uniform/in/out declaration block for one stage of desc into
- *   buf[size] for the given dialect.  Returns bytes written (excluding NUL).
- *   Pass the result as one of the strings in a glShaderSource call — no heap
- *   allocation needed.
+ *   Writes the declaration block for one stage of desc into buf[size] for the
+ *   given dialect: uniforms, then attributes/varyings with the dialect's
+ *   keywords (attribute/varying for 120, in/out otherwise), plus `out vec4
+ *   o_color` in the fragment stage for non-120.  GLSL 120 fragment shaders get
+ *   a leading `#define texture texture2D` since that dialect has no `texture`
+ *   builtin.  Returns bytes written (excluding NUL).
+ *
+ * R_BuildShaderMain
+ *   Writes the generated main() for one stage: `gl_Position = vert();` for the
+ *   vertex stage, or `gl_FragColor = frag();` (120) / `o_color = frag();`
+ *   (otherwise) for the fragment stage.  Bodies define vert()/frag() and never
+ *   reference gl_Position, gl_FragColor, or o_color directly.
  * ----------------------------------------------------------------------- */
 int R_BuildShaderDeclarations(char *buf, int size, const shader_desc_t *desc,
                               bool is_vertex, glsl_dialect_t dialect);
+int R_BuildShaderMain(char *buf, int size, bool is_vertex, glsl_dialect_t dialect);
 
 #endif /* shader_desc_h */

@@ -1,5 +1,6 @@
 #include "r_local.h"
 #include "r_game.h"
+#include "r_shader.h"
 
 #define SIGHT_SIZE 64
 #define SIGHT_DISTANCE 2000
@@ -8,44 +9,63 @@
 #define MAX_FOGOFWAR_REVEALERS MAX_FOGOFWAR_CASTERS
 #define NUM_SIGHT_SECIONS 5
 
-LPCSTR vs_shadow =
-"#version 140\n"
-"in vec3 i_position;\n"
-"in vec4 i_color;\n"
-"in vec2 i_texcoord;\n"
-"out vec4 v_color;\n"
-"out vec2 v_texcoord;\n"
-"uniform mat4 uViewProjectionMatrix;\n"
-"uniform mat4 uModelMatrix;\n"
-"uniform vec2 uEyePosition;\n"
-"void main() {\n"
-"    vec4 pos = vec4(i_position, 1.0);\n"
-"    vec3 eye = vec3(uEyePosition, 0.0);\n"
-"    vec3 up = vec3(0, 0, 1);\n"
-"    vec3 dir = normalize(i_position - eye);\n"
-"    vec3 side = normalize(cross(dir, up));\n"
-"    if (distance(eye.xy, i_position.xy) > 100.0) {\n"
-"      float x = (i_texcoord.x - 0.5) * 2.0;\n"
-"      float y = i_texcoord.y;\n"
-"      pos.xy += side.xy * x * /*i_position.z*/100.0;\n"
-"      pos.xy += normalize(pos.xyz - eye).xy * y * 2000.0;\n"
-"    }\n"
-"    pos.z = 0;\n"
-"    v_color = i_color;\n"
-"    v_texcoord = i_texcoord;\n"
-"    gl_Position = uViewProjectionMatrix * uModelMatrix * pos;\n"
-"}\n";
+typedef struct FOWRAYCASTSTATE {
+    MATRIX4 viewProjection;
+    MATRIX4 model;
+    VECTOR2 eyePosition;
+} FOWRAYCASTSTATE;
+typedef struct FOWRAYCASTSTATE *LPFOWRAYCASTSTATE;
+typedef const struct FOWRAYCASTSTATE *LPCFOWRAYCASTSTATE;
+typedef struct FOWRAYCASTPROG {
+    SHADERPROG prog;
+    FOWRAYCASTSTATE state;
+} FOWRAYCASTPROG;
+typedef struct FOWRAYCASTPROG *LPFOWRAYCASTPROG;
+typedef const struct FOWRAYCASTPROG *LPCFOWRAYCASTPROG;
 
-LPCSTR fs_shadow =
-"#version 140\n"
-"in vec4 v_color;\n"
-"in vec2 v_texcoord;\n"
-"out vec4 o_color;\n"
-"void main() {\n"
-"    float f = 2.0 * abs(v_texcoord.x - 0.5);\n"
-"    float k = smoothstep(0.0,0.2,v_texcoord.y);\n"
-"    o_color = vec4(mix(1.0,f*f,k));\n"
-"}\n";
+#define SHADER_TYPE FOWRAYCASTSTATE
+static const shader_desc_t sd_fow_raycast = {
+    .Name = "fow_raycast",
+    .Uniforms = {
+        UNIFORM(viewProjection, UT_FLOAT_MAT4, PRECISION_HIGH),
+        UNIFORM(model,          UT_FLOAT_MAT4, PRECISION_HIGH),
+        UNIFORM(eyePosition,    UT_FLOAT_VEC2, PRECISION_LOW),
+    },
+    .Attributes = {
+        ATTRIB(position, attrib_position, UT_FLOAT_VEC3),
+        ATTRIB(color,    attrib_color,    UT_COLOR),
+        ATTRIB(texcoord, attrib_texcoord, UT_FLOAT_VEC2),
+    },
+    .Shared = {
+        SHARED(color,    UT_COLOR),
+        SHARED(texcoord, UT_FLOAT_VEC2),
+    },
+    .VertexBody =
+        "vec4 vert() {\n"
+        "  vec4 pos = vec4(a_position, 1.0);\n"
+        "  vec3 eye = vec3(u_eyePosition, 0.0);\n"
+        "  vec3 up = vec3(0, 0, 1);\n"
+        "  vec3 dir = normalize(a_position - eye);\n"
+        "  vec3 side = normalize(cross(dir, up));\n"
+        "  if (distance(eye.xy, a_position.xy) > 100.0) {\n"
+        "    float x = (a_texcoord.x - 0.5) * 2.0;\n"
+        "    float y = a_texcoord.y;\n"
+        "    pos.xy += side.xy * x * 100.0;\n"
+        "    pos.xy += normalize(pos.xyz - eye).xy * y * 2000.0;\n"
+        "  }\n"
+        "  pos.z = 0;\n"
+        "  v_color = a_color;\n"
+        "  v_texcoord = a_texcoord;\n"
+        "  return u_viewProjection * u_model * pos;\n"
+        "}\n",
+    .FragmentBody =
+        "vec4 frag() {\n"
+        "  float f = 2.0 * abs(v_texcoord.x - 0.5);\n"
+        "  float k = smoothstep(0.0, 0.2, v_texcoord.y);\n"
+        "  return vec4(mix(1.0, f*f, k));\n"
+        "}\n",
+};
+#undef SHADER_TYPE
 
 enum {
     FOW_RT_IMMEDIATE,
@@ -54,13 +74,8 @@ enum {
     FOW_RT_COUNT,
 };
 
-enum {
-    FOW_SHADER_RAYCAST,
-    FOW_SHADER_COUNT,
-};
-
 static struct {
-    LPSHADER shader[FOW_SHADER_COUNT];
+    FOWRAYCASTPROG shader;
     LPRENDERTARGET rt[FOW_RT_COUNT];
     LPBUFFER casters;
     LPTEXTURE sight;
@@ -108,8 +123,8 @@ static void R_MakeSightMatrix(renderEntity_t const *ent, LPMATRIX4 model_matrix)
         SIGHT_DISTANCE,
         SIGHT_DISTANCE,
     });
-    R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uModelMatrix, 1, GL_FALSE, model_matrix->v);
+
+    tr.shader_ui.state.model = *model_matrix;
 }
 
 static DWORD R_CollectRevealers(renderEntity_t const **out, DWORD max_revealers) {
@@ -220,14 +235,15 @@ static void R_BlitTexture(GLuint texid, float alpha) {
     Matrix4_identity(&model_matrix);
 
     // Set simple projection
-    R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uModelMatrix, 1, GL_FALSE, model_matrix.v);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, proj_matrix.v);
+
+    tr.shader_ui.state.model = model_matrix;
+    tr.shader_ui.state.viewProjection = proj_matrix;
 
     R_Call(glBindTexture, GL_TEXTURE_2D, texid);
     {
         DWORD count = R_PushRectToBuffer(RBUF_TEMP1, &uv, alpha);
         R_StatsDraw(GL_TRIANGLES, count, 1);
+        R_ApplyShader(&tr.shader_ui);
         R_Call(glDrawArrays, GL_TRIANGLES, 0, count);
     }
 }
@@ -271,13 +287,11 @@ void R_RenderFogOfWar(void) {
     if (num_revealers > 0) {
         num_casters = R_AddCastersToBuffer(fow_resources.casters, revealers, num_revealers);
 
-        R_Call(glUseProgram, fow_resources.shader[FOW_SHADER_RAYCAST]->progid);
-        R_Call(glUniformMatrix4fv, fow_resources.shader[FOW_SHADER_RAYCAST]->uViewProjectionMatrix, 1, GL_FALSE, proj_matrix.v);
-        R_Call(glUniformMatrix4fv, fow_resources.shader[FOW_SHADER_RAYCAST]->uModelMatrix, 1, GL_FALSE, model_matrix.v);
+        fow_resources.shader.state.viewProjection = proj_matrix;
+        fow_resources.shader.state.model = model_matrix;
     }
 
-    R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, proj_matrix.v);
+    tr.shader_ui.state.viewProjection = proj_matrix;
 
     R_Call(glViewport, 0, 0, texture_width, texture_height);
     R_Call(glScissor, 0, 0, texture_width, texture_height);
@@ -305,15 +319,17 @@ void R_RenderFogOfWar(void) {
         R_Call(glBindTexture, GL_TEXTURE_2D, fow_resources.sight->texid);
         R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
         R_StatsDraw(GL_TRIANGLES, NUM_RECT_VERTICES, 1);
+        R_ApplyShader(&tr.shader_ui);
         R_Call(glDrawArrays, GL_TRIANGLES, 0, NUM_RECT_VERTICES);
 
         // Draw line of sight into dst alpha
-        R_Call(glUseProgram, fow_resources.shader[FOW_SHADER_RAYCAST]->progid);
-        R_Call(glUniform2fv, fow_resources.shader[FOW_SHADER_RAYCAST]->uEyePosition, 1, (GLfloat *)&ent->origin);
+
+        memcpy(&fow_resources.shader.state.eyePosition, (GLfloat *)&ent->origin, (1) * sizeof(VECTOR2));
         R_Call(glBindVertexArray, fow_resources.casters->vao);
         R_Call(glBlendFunc, GL_DST_ALPHA, GL_ZERO);
         R_Call(glBindBuffer, GL_ARRAY_BUFFER, fow_resources.casters->vbo);
         R_StatsDraw(GL_TRIANGLES, num_casters, 1);
+        R_ApplyShader(&fow_resources.shader);
         R_Call(glDrawArrays, GL_TRIANGLES, 0, num_casters);
         
         // Draw white rect using dst alpha
@@ -324,6 +340,7 @@ void R_RenderFogOfWar(void) {
         R_Call(glBlendFunc, GL_DST_ALPHA, GL_ONE_MINUS_DST_ALPHA);
         R_Call(glBindTexture, GL_TEXTURE_2D, tr.texture[TEX_WHITE]->texid);
         R_StatsDraw(GL_TRIANGLES, NUM_RECT_VERTICES, 1);
+        R_ApplyShader(&tr.shader_ui);
         R_Call(glDrawArrays, GL_TRIANGLES, 0, NUM_RECT_VERTICES);
     }
     
@@ -331,9 +348,9 @@ void R_RenderFogOfWar(void) {
     Matrix4_identity(&model_matrix);
 
     // Set simple projection
-    R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uModelMatrix, 1, GL_FALSE, model_matrix.v);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, proj_matrix.v);
+
+    tr.shader_ui.state.model = model_matrix;
+    tr.shader_ui.state.viewProjection = proj_matrix;
 
     // Add current state to history
     R_Call(glBlendEquation, GL_MAX);
@@ -359,7 +376,6 @@ void R_RenderFogOfWar(void) {
     R_Call(glBindFramebuffer, GL_FRAMEBUFFER, 0);
 }
 
-
 LPBUFFER R_MakeCastersVertexArrayObject(void) {
     LPBUFFER buf = ri.MemAlloc(sizeof(BUFFER));
 
@@ -381,17 +397,16 @@ void R_InitFogOfWar(DWORD width, DWORD height) {
     fow_resources.rt[FOW_RT_IMMEDIATE] = R_AllocateRenderTexture(width, height, GL_RGBA, GL_UNSIGNED_BYTE, GL_COLOR_ATTACHMENT0);
     fow_resources.rt[FOW_RT_HISTORY] = R_AllocateRenderTexture(width, height, GL_RGBA, GL_UNSIGNED_BYTE, GL_COLOR_ATTACHMENT0);
     fow_resources.rt[FOW_RT_RESULT] = R_AllocateRenderTexture(width, height, GL_RGBA, GL_UNSIGNED_BYTE, GL_COLOR_ATTACHMENT0);
-    fow_resources.shader[FOW_SHADER_RAYCAST] = R_InitShader(vs_shadow, fs_shadow);
+    memset(&fow_resources.shader, 0, sizeof(fow_resources.shader));
+    R_LoadShader(&sd_fow_raycast, NULL, &fow_resources.shader);
     fow_resources.casters = R_MakeCastersVertexArrayObject();
     fow_resources.sight = R_AllocateSightTexture();
     fow_resources.last_update_time = 0;
 }
 
 void R_ShutdownFogOfWar(void) {
-    FOR_LOOP(i, FOW_SHADER_COUNT) {
-        R_ReleaseShader(fow_resources.shader[i]);
-        fow_resources.shader[i] = NULL;
-    }
+    R_DeleteShader(&fow_resources.shader.prog);
+    memset(&fow_resources.shader, 0, sizeof(fow_resources.shader));
     FOR_LOOP(i, FOW_RT_COUNT) {
         R_ReleaseRenderTexture(fow_resources.rt[i]);
         fow_resources.rt[i] = NULL;

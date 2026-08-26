@@ -1,196 +1,17 @@
 #include "r_local.h"
 #include "r_shader.h"
 
-LPCSTR vs_default =
-"#version 140\n"
-"in vec3 i_position;\n"
-"in vec2 i_texcoord;\n"
-"in vec3 i_normal;\n"
-"in vec4 i_color;\n"
-#ifdef USE_SHADOWMAPS
-"out vec4 v_shadow;\n"
-#endif
-"out vec2 v_texcoord;\n"
-"out vec2 v_texcoord2;\n"
-"out vec3 v_normal;\n"
-"out vec3 v_lightDir;\n"
-"out vec4 v_color;\n"
-"uniform mat4 uViewProjectionMatrix;\n"
-"uniform mat4 uTextureMatrix;\n"
-"uniform mat4 uModelMatrix;\n"
-"uniform mat4 uLightMatrix;\n"
-"uniform mat3 uNormalMatrix;\n"
-"void main() {\n"
-"    vec4 pos = uModelMatrix * vec4(i_position, 1.0);"
-"    v_texcoord = i_texcoord;\n"
-"    v_texcoord2 = (uTextureMatrix * pos).xy;\n"
-"    v_normal = normalize(uNormalMatrix * i_normal);\n"
-#ifdef USE_SHADOWMAPS
-"    v_shadow = uLightMatrix * pos;\n"
-#endif
-"    v_color = i_color;\n"
-"    v_lightDir = -normalize(vec3(uLightMatrix[0][2], uLightMatrix[1][2], uLightMatrix[2][2]))*1.2;\n"
-"    gl_Position = uViewProjectionMatrix * uModelMatrix * vec4(i_position, 1.0);\n"
-"}\n";
-
-LPCSTR fs_default =
-"#version 140\n"
-"in vec2 v_texcoord;\n"
-"in vec2 v_texcoord2;\n"
-"in vec3 v_normal;\n"
-"in vec4 v_color;\n"
-"in vec3 v_lightDir;\n"
-"out vec4 o_color;\n"
-"uniform sampler2D uTexture;\n"
-#ifdef USE_FOGOFWAR
-"uniform sampler2D uFogOfWar;\n"
-#endif
-"float get_light() {\n"
-"    return dot(v_normal, v_lightDir);\n"
-"}\n"
-#ifdef USE_SHADOWMAPS
-"uniform sampler2D uShadowmap;\n"
-"in vec4 v_shadow;\n"
-"float get_shadow() {\n"
-"    float depth = texture(uShadowmap, vec2(v_shadow.x + 1.0, v_shadow.y + 1.0) * 0.5).r;\n"
-"    return depth < (v_shadow.z + 0.99) * 0.5 ? 0.0 : 1.0;\n"
-"}\n"
-"float get_lighting() { return min(1.0, mix(0.35, 1.0, get_shadow() * get_light()) * 1.1); }\n"
-#else
-"float get_lighting() { return min(1.0, mix(0.35, 1.0, get_light()) * 1.1); }\n"
-#endif
-#ifdef USE_FOGOFWAR
-"float get_fogofwar() {\n"
-"    return texture(uFogOfWar, v_texcoord2).r;\n"
-"}\n"
-#endif
-"void main() {\n"
-"    vec4 col = texture(uTexture, v_texcoord) * v_color;\n"
-#ifdef USE_FOGOFWAR
-"    col.rgb *= get_fogofwar() * get_lighting();\n"
-#else
-"    col.rgb *= get_lighting();\n"
-#endif
-"    o_color = col;\n"
-"}\n";
-
-LPCSTR fs_ui =
-"#version 140\n"
-"in vec4 v_color;\n"
-"in vec2 v_texcoord;\n"
-"out vec4 o_color;\n"
-"uniform sampler2D uTexture;\n"
-"void main() {\n"
-"    o_color = texture(uTexture, v_texcoord) * v_color;\n"
-"}\n";
-
-LPCSTR fs_minimap =
-"#version 140\n"
-"in vec4 v_color;\n"
-"in vec2 v_texcoord;\n"
-"out vec4 o_color;\n"
-"uniform sampler2D uTexture;\n"
-"void main() {\n"
-"    float mask = 1.0 - smoothstep(0.49, 0.5, length(v_color.rg - vec2(0.5)));\n"
-"    vec4 tex = texture(uTexture, v_texcoord);\n"
-"    o_color = vec4(tex.rgb, tex.a * mask);\n"
-"}\n";
-
-LPCSTR fs_unlit =
-"#version 140\n"
-"in vec4 v_color;\n"
-"in vec2 v_texcoord;\n"
-"out vec4 o_color;\n"
-"uniform sampler2D uTexture;\n"
-"void main() {\n"
-"    o_color = texture(uTexture, v_texcoord) * v_color;\n"
-"}\n";
-
-LPCSTR fs_splat =
-"#version 140\n"
-"in vec4 v_color;\n"
-"in vec2 v_texcoord;\n"
-"out vec4 o_color;\n"
-"uniform sampler2D uTexture;\n"
-"float crop_edges(vec2 tc) {\n"
-"   return step(abs(tc.x - 0.5), 0.5) * step(abs(tc.y - 0.5), 0.5);\n"
-"}\n"
-"void main() {\n"
-"    o_color = texture(uTexture, v_texcoord) * v_color;\n"
-"    o_color.a *= crop_edges(v_texcoord);\n"
-"}\n";
-
-LPCSTR fs_shadow_splat =
-"#version 140\n"
-"in vec4 v_color;\n"
-"in vec2 v_texcoord;\n"
-"out vec4 o_color;\n"
-"uniform sampler2D uTexture;\n"
-"float crop_edges(vec2 tc) {\n"
-"   return step(abs(tc.x - 0.5), 0.5) * step(abs(tc.y - 0.5), 0.5);\n"
-"}\n"
-"void main() {\n"
-"    vec4 tex = texture(uTexture, v_texcoord);\n"
-"    o_color = vec4(0.0, 0.0, 0.0, tex.a * v_color.a * crop_edges(v_texcoord));\n"
-"}\n";
-
-LPCSTR fs_commandbutton =
-"#version 140\n"
-"in vec4 v_color;\n"
-"in vec2 v_texcoord;\n"
-"out vec4 o_color;\n"
-"uniform sampler2D uTexture;\n"
-"uniform float uActiveGlow;\n"
-"float crop_edges(vec2 tc) {\n"
-"   return step(abs(tc.x - 0.5), 0.5) * step(abs(tc.y - 0.5), 0.5);\n"
-"}\n"
-"void main() {\n"
-"    o_color = texture(uTexture, v_texcoord) * v_color;\n"
-"    float glow = max(abs(v_texcoord.x - 0.5), abs(v_texcoord.y - 0.5));\n"
-"    glow = smoothstep(0.33, 0.5, glow) * 0.75 * uActiveGlow;\n"
-"    o_color.rgb = mix(o_color.rgb,vec3(0.5,1.0,0.5),glow);\n"
-"    o_color.a *= crop_edges(v_texcoord);\n"
-"}\n";
-
-LPCSTR fs_minimap_fog =
-"#version 140\n"
-"in vec4 v_color;\n"
-"in vec2 v_texcoord;\n"
-"out vec4 o_color;\n"
-"uniform sampler2D uTexture;\n"
-"void main() {\n"
-"    float visibility = texture(uTexture, vec2(v_texcoord.x, 1.0 - v_texcoord.y)).r;\n"
-"    float alpha = clamp(1.0 - visibility, 0.0, 1.0) * v_color.a;\n"
-"    o_color = vec4(v_color.rgb, alpha);\n"
-"}\n";
-
 /* -----------------------------------------------------------------------
- * Descriptor-based replacements for the simple sprite/UI shaders above.
+ * Built-in renderer programs, described entirely as shader_desc_t.  Bodies
+ * define vec4 vert()/frag(); the version prologue, declarations, and main()
+ * are generated from the descriptor tables at load time.
  *
- * Each program struct has a GLuint progid followed by one GLint per uniform
- * in declaration order — the UNIFORM() macro stores the field offsetof so
- * R_LoadShaderDescInto() writes resolved locations directly into the struct.
- *
- * Bodies contain only GLSL logic; version line, precision, and all
- * uniform/in/out declarations are generated from the descriptor tables.
- *
- * Load (example):
- *   R_LoadShaderDescInto(&sd_unlit, NULL, &unlit_prog.progid, &unlit_prog);
- *
- * Call site (example):
- *   glUniformMatrix4fv(unlit_prog.viewProjection, 1, GL_FALSE, vp);
- *   glUniformMatrix4fv(unlit_prog.model,          1, GL_FALSE, m);
+ * Each program owns GL handles plus a separate typed value state. Descriptor
+ * offsets address values; R_ApplyShader submits them at the draw boundary.
  * ----------------------------------------------------------------------- */
 
 /* --- unlit / ui: texture * vertex-color, no lighting ------------------- */
-typedef struct {
-    GLuint progid;
-    GLint  viewProjection;
-    GLint  model;
-    GLint  texture;
-} unlit_prog_t;
-
-#define SHADER_TYPE unlit_prog_t
+#define SHADER_TYPE SPRITESTATE
 const shader_desc_t sd_unlit = {
     .Name = "unlit",
     .Uniforms = {
@@ -208,27 +29,20 @@ const shader_desc_t sd_unlit = {
         SHARED(color,    UT_COLOR),
     },
     .VertexBody =
-        "void main() {\n"
-        "  gl_Position = u_viewProjection * u_model * vec4(a_position, 1.0);\n"
+        "vec4 vert() {\n"
         "  v_texcoord = a_texcoord;\n"
         "  v_color = a_color;\n"
+        "  return u_viewProjection * u_model * vec4(a_position, 1.0);\n"
         "}\n",
     .FragmentBody =
-        "void main() {\n"
-        "  " GLSL_FRAGCOLOR " = " GLSL_TEX "(u_texture, v_texcoord) * v_color;\n"
+        "vec4 frag() {\n"
+        "  return texture(u_texture, v_texcoord) * v_color;\n"
         "}\n",
 };
 #undef SHADER_TYPE
 
 /* --- minimap: circular mask applied to alpha ---------------------------- */
-typedef struct {
-    GLuint progid;
-    GLint  viewProjection;
-    GLint  model;
-    GLint  texture;
-} minimap_prog_t;
-
-#define SHADER_TYPE minimap_prog_t
+#define SHADER_TYPE SPRITESTATE
 const shader_desc_t sd_minimap = {
     .Name = "minimap",
     .Uniforms = {
@@ -246,29 +60,22 @@ const shader_desc_t sd_minimap = {
         SHARED(color,    UT_COLOR),
     },
     .VertexBody =
-        "void main() {\n"
-        "  gl_Position = u_viewProjection * u_model * vec4(a_position, 1.0);\n"
+        "vec4 vert() {\n"
         "  v_texcoord = a_texcoord;\n"
         "  v_color = a_color;\n"
+        "  return u_viewProjection * u_model * vec4(a_position, 1.0);\n"
         "}\n",
     .FragmentBody =
-        "void main() {\n"
+        "vec4 frag() {\n"
         "  float mask = 1.0 - smoothstep(0.49, 0.5, length(v_color.rg - vec2(0.5)));\n"
-        "  vec4 tex = " GLSL_TEX "(u_texture, v_texcoord);\n"
-        "  " GLSL_FRAGCOLOR " = vec4(tex.rgb, tex.a * mask);\n"
+        "  vec4 tex = texture(u_texture, v_texcoord);\n"
+        "  return vec4(tex.rgb, tex.a * mask);\n"
         "}\n",
 };
 #undef SHADER_TYPE
 
 /* --- splat: crop edges to [0,1] bounds ---------------------------------- */
-typedef struct {
-    GLuint progid;
-    GLint  viewProjection;
-    GLint  model;
-    GLint  texture;
-} splat_prog_t;
-
-#define SHADER_TYPE splat_prog_t
+#define SHADER_TYPE SPRITESTATE
 const shader_desc_t sd_splat = {
     .Name = "splat",
     .Uniforms = {
@@ -286,31 +93,25 @@ const shader_desc_t sd_splat = {
         SHARED(color,    UT_COLOR),
     },
     .VertexBody =
-        "void main() {\n"
-        "  gl_Position = u_viewProjection * u_model * vec4(a_position, 1.0);\n"
+        "vec4 vert() {\n"
         "  v_texcoord = a_texcoord;\n"
         "  v_color = a_color;\n"
+        "  return u_viewProjection * u_model * vec4(a_position, 1.0);\n"
         "}\n",
     .FragmentBody =
         "float crop_edges(vec2 tc) {\n"
         "  return step(abs(tc.x - 0.5), 0.5) * step(abs(tc.y - 0.5), 0.5);\n"
         "}\n"
-        "void main() {\n"
-        "  " GLSL_FRAGCOLOR " = " GLSL_TEX "(u_texture, v_texcoord) * v_color;\n"
-        "  " GLSL_FRAGCOLOR ".a *= crop_edges(v_texcoord);\n"
+        "vec4 frag() {\n"
+        "  vec4 col = texture(u_texture, v_texcoord) * v_color;\n"
+        "  col.a *= crop_edges(v_texcoord);\n"
+        "  return col;\n"
         "}\n",
 };
 #undef SHADER_TYPE
 
 /* --- shadow splat: black silhouette with texture alpha ------------------ */
-typedef struct {
-    GLuint progid;
-    GLint  viewProjection;
-    GLint  model;
-    GLint  texture;
-} shadow_splat_prog_t;
-
-#define SHADER_TYPE shadow_splat_prog_t
+#define SHADER_TYPE SPRITESTATE
 const shader_desc_t sd_shadow_splat = {
     .Name = "shadow_splat",
     .Uniforms = {
@@ -328,32 +129,24 @@ const shader_desc_t sd_shadow_splat = {
         SHARED(color,    UT_COLOR),
     },
     .VertexBody =
-        "void main() {\n"
-        "  gl_Position = u_viewProjection * u_model * vec4(a_position, 1.0);\n"
+        "vec4 vert() {\n"
         "  v_texcoord = a_texcoord;\n"
         "  v_color = a_color;\n"
+        "  return u_viewProjection * u_model * vec4(a_position, 1.0);\n"
         "}\n",
     .FragmentBody =
         "float crop_edges(vec2 tc) {\n"
         "  return step(abs(tc.x - 0.5), 0.5) * step(abs(tc.y - 0.5), 0.5);\n"
         "}\n"
-        "void main() {\n"
-        "  vec4 tex = " GLSL_TEX "(u_texture, v_texcoord);\n"
-        "  " GLSL_FRAGCOLOR " = vec4(0.0, 0.0, 0.0, tex.a * v_color.a * crop_edges(v_texcoord));\n"
+        "vec4 frag() {\n"
+        "  vec4 tex = texture(u_texture, v_texcoord);\n"
+        "  return vec4(0.0, 0.0, 0.0, tex.a * v_color.a * crop_edges(v_texcoord));\n"
         "}\n",
 };
 #undef SHADER_TYPE
 
 /* --- commandbutton: edge glow controlled by u_activeGlow ---------------- */
-typedef struct {
-    GLuint progid;
-    GLint  viewProjection;
-    GLint  model;
-    GLint  texture;
-    GLint  activeGlow;
-} commandbutton_prog_t;
-
-#define SHADER_TYPE commandbutton_prog_t
+#define SHADER_TYPE SPRITESTATE
 const shader_desc_t sd_commandbutton = {
     .Name = "commandbutton",
     .Uniforms = {
@@ -372,32 +165,26 @@ const shader_desc_t sd_commandbutton = {
         SHARED(color,    UT_COLOR),
     },
     .VertexBody =
-        "void main() {\n"
-        "  gl_Position = u_viewProjection * u_model * vec4(a_position, 1.0);\n"
+        "vec4 vert() {\n"
         "  v_texcoord = a_texcoord;\n"
         "  v_color = a_color;\n"
+        "  return u_viewProjection * u_model * vec4(a_position, 1.0);\n"
         "}\n",
     .FragmentBody =
-        "void main() {\n"
-        "  " GLSL_FRAGCOLOR " = " GLSL_TEX "(u_texture, v_texcoord) * v_color;\n"
+        "vec4 frag() {\n"
+        "  vec4 col = texture(u_texture, v_texcoord) * v_color;\n"
         "  float glow = max(abs(v_texcoord.x - 0.5), abs(v_texcoord.y - 0.5));\n"
         "  glow = smoothstep(0.33, 0.5, glow) * 0.75 * u_activeGlow;\n"
-        "  " GLSL_FRAGCOLOR ".rgb = mix(" GLSL_FRAGCOLOR ".rgb, vec3(0.5, 1.0, 0.5), glow);\n"
+        "  col.rgb = mix(col.rgb, vec3(0.5, 1.0, 0.5), glow);\n"
         "  float crop = step(abs(v_texcoord.x - 0.5), 0.5) * step(abs(v_texcoord.y - 0.5), 0.5);\n"
-        "  " GLSL_FRAGCOLOR ".a *= crop;\n"
+        "  col.a *= crop;\n"
+        "  return col;\n"
         "}\n",
 };
 #undef SHADER_TYPE
 
 /* --- minimap fog: fog-of-war overlay with y-flip ------------------------ */
-typedef struct {
-    GLuint progid;
-    GLint  viewProjection;
-    GLint  model;
-    GLint  texture;
-} minimap_fog_prog_t;
-
-#define SHADER_TYPE minimap_fog_prog_t
+#define SHADER_TYPE SPRITESTATE
 const shader_desc_t sd_minimap_fog = {
     .Name = "minimap_fog",
     .Uniforms = {
@@ -415,261 +202,282 @@ const shader_desc_t sd_minimap_fog = {
         SHARED(color,    UT_COLOR),
     },
     .VertexBody =
-        "void main() {\n"
-        "  gl_Position = u_viewProjection * u_model * vec4(a_position, 1.0);\n"
+        "vec4 vert() {\n"
         "  v_texcoord = a_texcoord;\n"
         "  v_color = a_color;\n"
+        "  return u_viewProjection * u_model * vec4(a_position, 1.0);\n"
         "}\n",
     .FragmentBody =
-        "void main() {\n"
-        "  float visibility = " GLSL_TEX "(u_texture, vec2(v_texcoord.x, 1.0 - v_texcoord.y)).r;\n"
+        "vec4 frag() {\n"
+        "  float visibility = texture(u_texture, vec2(v_texcoord.x, 1.0 - v_texcoord.y)).r;\n"
         "  float alpha = clamp(1.0 - visibility, 0.0, 1.0) * v_color.a;\n"
-        "  " GLSL_FRAGCOLOR " = vec4(v_color.rgb, alpha);\n"
+        "  return vec4(v_color.rgb, alpha);\n"
         "}\n",
 };
 #undef SHADER_TYPE
 
-/* Shared vertex shader for MDX/M2/M3 model formats.
-   Compiled twice: once as-is (uModelMatrix path), and once with
-   "#define BZ_USE_INSTANCING 1" injected to switch to per-instance
-   matrix attributes and add ground-effect grass wind. */
-static LPCSTR model_vs =
-"#version 140\n"
-"in vec3 i_position;\n"
-"in vec4 i_color;\n"
-"in vec2 i_texcoord;\n"
-"in vec3 i_normal;\n"
-"in vec4 i_skin1;\n"
-"in vec4 i_boneWeight1;\n"
-"#ifdef BZ_USE_INSTANCING\n"
-"in mat4 i_instance;\n"
-"#endif\n"
-"out vec4 v_color;\n"
-#ifdef USE_SHADOWMAPS
-"out vec4 v_shadow;\n"
-"out vec3 v_shadowlight;\n"
-#endif
-"out vec2 v_texcoord;\n"
-"out vec2 v_texcoord2;\n"
-"out vec3 v_lighting;\n"
-/* The CPU palette and literal GLSL array share one compile-time size; never shrink it from GL limits. */
-"uniform mat4 uBones[" BZ_XSTR(BZ_BONE_PALETTE_MAX) "];\n"
-"uniform mat4 uViewProjectionMatrix;\n"
-"uniform mat4 uLightMatrix;\n"
-"uniform mat4 uTextureMatrix;\n"
-"uniform int uLightCount;\n"
-"uniform float uFirstBoneLookupIndex;\n"
-"uniform mat4 uLights[8];\n"
-"#ifdef BZ_USE_INSTANCING\n"
-"uniform mat4 uGrassParams;\n"
-"#else\n"
-"uniform mat4 uModelMatrix;\n"
-"uniform mat3 uNormalMatrix;\n"
-"#endif\n"
-"const int MODEL_LIGHT_OMNI = 0;\n"
-"const int MODEL_LIGHT_DIRECT = 1;\n"
-"const int MODEL_LIGHT_AMBIENT = 2;\n"
-"vec3 apply_light(mat4 light, vec3 n, vec3 worldPos) {\n"
-"    int type = int(light[0].w + 0.5);\n"
-"    vec3 color = light[2].rgb * light[2].a;\n"
-"    vec3 ambient = light[3].rgb * light[3].a;\n"
-"    if (type == MODEL_LIGHT_AMBIENT) {\n"
-"        return color + ambient;\n"
-"    } else if (type == MODEL_LIGHT_DIRECT) {\n"
-"        vec3 l = normalize(-light[1].xyz);\n"
-"        return clamp(color * max(dot(n, l), 0.0), vec3(0.0), vec3(1.0)) + ambient;\n"
-"    } else {\n"
-"        vec3 delta = light[0].xyz - worldPos;\n"
-"        vec3 l = normalize(delta);\n"
-"        float dist = length(delta) / 64.0 + 1.0;\n"
-"        float atten = 1.0 / (dist * dist);\n"
-"        return clamp(color * atten * max(dot(n, l), 0.0), vec3(0.0), vec3(1.0)) + ambient * atten;\n"
-"    }\n"
-"}\n"
-"vec3 vertex_lighting(vec3 normal, vec3 worldPos) {\n"
-"    vec3 n = normalize(normal);\n"
-"    vec3 lighting = vec3(0.0);\n"
-#ifdef USE_SHADOWMAPS
-"    v_shadowlight = vec3(0.0);\n"
-#endif
-"    for (int i = 0; i < 8; ++i) {\n"
-"        if (i >= uLightCount) break;\n"
-"        vec3 contribution = apply_light(uLights[i], n, worldPos);\n"
-"        lighting += contribution;\n"
-#ifdef USE_SHADOWMAPS
-/* Slot zero is the shadow-casting key; ambient/fill/back remain visible in its shadow. */
-"        if (i == 0 && int(uLights[i][0].w + 0.5) == MODEL_LIGHT_DIRECT)\n"
-"            v_shadowlight = contribution - uLights[i][3].rgb * uLights[i][3].a;\n"
-#endif
-"    }\n"
-"    return lighting;\n"
-"}\n"
-"void main() {\n"
-"    vec4 pos4 = vec4(i_position, 1.0);\n"
-"    vec4 norm4 = vec4(i_normal, 0.0);\n"
-"    vec4 position = vec4(0.0);\n"
-"    vec4 normal = vec4(0.0);\n"
-"    for (int i = 0; i < 4; ++i) {\n"
-"        int boneIdx = int(i_skin1[i]) + int(uFirstBoneLookupIndex);\n"
-"        position += uBones[boneIdx] * pos4 * i_boneWeight1[i];\n"
-"        normal += uBones[boneIdx] * norm4 * i_boneWeight1[i];\n"
-"    }\n"
-"    position.w = 1.0;\n"
-"#ifdef BZ_USE_INSTANCING\n"
-"    if (uGrassParams[3].z > 0.5) {\n"
-"        float grassHeight = max(uGrassParams[3].y - uGrassParams[3].x, 0.001);\n"
-"        float grassTop = smoothstep(uGrassParams[1].w, 1.0, clamp((position.z - uGrassParams[3].x) / grassHeight, 0.0, 1.0));\n"
-"        float grassPhase = dot(i_instance[3].xy, uGrassParams[2].xy);\n"
-"        float grassSway = sin(uGrassParams[1].x * uGrassParams[1].y + grassPhase) * uGrassParams[1].z * grassHeight * grassTop;\n"
-"        position.xy += uGrassParams[2].zw * grassSway;\n"
-"    }\n"
-"    vec4 worldPos4 = i_instance * position;\n"
-"    v_color = i_color;\n"
-"    if (uGrassParams[3].z > 0.5) {\n"
-"        float fadeDist = length(worldPos4.xy - uGrassParams[0].xy);\n"
-"        v_color.a *= 1.0 - smoothstep(uGrassParams[0].z, uGrassParams[0].w, fadeDist);\n"
-"    }\n"
-"    v_texcoord = i_texcoord;\n"
-"    v_texcoord2 = (uTextureMatrix * worldPos4).xy;\n"
-"    v_lighting = vertex_lighting(normalize(mat3(i_instance) * normal.xyz), worldPos4.xyz);\n"
-#ifdef USE_SHADOWMAPS
-"    v_shadow = uLightMatrix * worldPos4;\n"
-#endif
-"    gl_Position = uViewProjectionMatrix * worldPos4;\n"
-"#else\n"
-"    v_color = i_color;\n"
-"    v_texcoord = i_texcoord;\n"
-"    v_texcoord2 = (uTextureMatrix * uModelMatrix * position).xy;\n"
-"    vec3 worldNormal = normalize(uNormalMatrix * normal.xyz);\n"
-"    vec3 worldPos = (uModelMatrix * position).xyz;\n"
-"    v_lighting = vertex_lighting(worldNormal, worldPos);\n"
-#ifdef USE_SHADOWMAPS
-"    v_shadow = uLightMatrix * uModelMatrix * position;\n"
-#endif
-"    gl_Position = uViewProjectionMatrix * uModelMatrix * position;\n"
-"#endif\n"
-"}\n";
+/* --- default: ground/world sprite with per-vertex lighting --------------- */
+#define SHADER_TYPE DEFAULTSTATE
+const shader_desc_t sd_default = {
+    .Name = "default",
+    .Uniforms = {
+        UNIFORM(viewProjection, UT_FLOAT_MAT4, PRECISION_HIGH),
+        UNIFORM(textureMatrix,  UT_FLOAT_MAT4, PRECISION_HIGH),
+        UNIFORM(model,          UT_FLOAT_MAT4, PRECISION_HIGH),
+        UNIFORM(lightMatrix,    UT_FLOAT_MAT4, PRECISION_HIGH),
+        UNIFORM_TRANSPOSE(normalMatrix,   UT_FLOAT_MAT3, PRECISION_HIGH),
+        UNIFORM(texture,        UT_SAMPLER_2D, PRECISION_LOW),
+        UNIFORM(shadowmap,      UT_SAMPLER_2D, PRECISION_LOW),
+        UNIFORM(fogOfWar,       UT_SAMPLER_2D, PRECISION_LOW),
+    },
+    .Attributes = {
+        ATTRIB(position, attrib_position, UT_FLOAT_VEC3),
+        ATTRIB(texcoord, attrib_texcoord, UT_FLOAT_VEC2),
+        ATTRIB(normal,   attrib_normal,   UT_FLOAT_VEC3),
+        ATTRIB(color,    attrib_color,    UT_COLOR),
+    },
+    .Shared = {
+        SHARED(texcoord,  UT_FLOAT_VEC2),
+        SHARED(texcoord2, UT_FLOAT_VEC2),
+        SHARED(normal,    UT_FLOAT_VEC3),
+        SHARED(lightDir,  UT_FLOAT_VEC3),
+        SHARED(color,     UT_COLOR),
+        SHARED(shadow,    UT_FLOAT_VEC4),
+    },
+    .VertexBody =
+        "vec4 vert() {\n"
+        "  vec4 pos = u_model * vec4(a_position, 1.0);\n"
+        "  v_texcoord = a_texcoord;\n"
+        "  v_texcoord2 = (u_textureMatrix * pos).xy;\n"
+        "  v_normal = normalize(u_normalMatrix * a_normal);\n"
+        "#ifdef USE_SHADOWMAPS\n"
+        "  v_shadow = u_lightMatrix * pos;\n"
+        "#endif\n"
+        "  v_color = a_color;\n"
+        "  v_lightDir = -normalize(vec3(u_lightMatrix[0][2], u_lightMatrix[1][2], u_lightMatrix[2][2])) * 1.2;\n"
+        "  return u_viewProjection * u_model * vec4(a_position, 1.0);\n"
+        "}\n",
+    .FragmentBody =
+        "float get_light() {\n"
+        "  return dot(v_normal, v_lightDir);\n"
+        "}\n"
+        "#ifdef USE_SHADOWMAPS\n"
+        "float get_shadow() {\n"
+        "  float depth = texture(u_shadowmap, vec2(v_shadow.x + 1.0, v_shadow.y + 1.0) * 0.5).r;\n"
+        "  return depth < (v_shadow.z + 0.99) * 0.5 ? 0.0 : 1.0;\n"
+        "}\n"
+        "float get_lighting() { return min(1.0, mix(0.35, 1.0, get_shadow() * get_light()) * 1.1); }\n"
+        "#else\n"
+        "float get_lighting() { return min(1.0, mix(0.35, 1.0, get_light()) * 1.1); }\n"
+        "#endif\n"
+        "#ifdef USE_FOGOFWAR\n"
+        "float get_fogofwar() {\n"
+        "  return texture(u_fogOfWar, v_texcoord2).r;\n"
+        "}\n"
+        "#endif\n"
+        "vec4 frag() {\n"
+        "  vec4 col = texture(u_texture, v_texcoord) * v_color;\n"
+        "#ifdef USE_FOGOFWAR\n"
+        "  col.rgb *= get_fogofwar() * get_lighting();\n"
+        "#else\n"
+        "  col.rgb *= get_lighting();\n"
+        "#endif\n"
+        "  return col;\n"
+        "}\n",
+};
+#undef SHADER_TYPE
 
-static LPCSTR model_fs =
-"#version 140\n"
-"in vec2 v_texcoord;\n"
-"in vec2 v_texcoord2;\n"
+/* --- model: shared skinned shader for MDX/M2/M3, compiled twice -----------
+ * (normal + BZ_USE_INSTANCING).  USE_SHADOWMAPS/USE_FOGOFWAR/BZ_USE_MSAA are
+ * injected as GLSL defines from the matching C preprocessor macros. */
+#define SHADER_TYPE MODELSTATE
+const shader_desc_t sd_model = {
+    .Name = "model",
+    .Uniforms = {
+        UNIFORM_ARRAY(bones,               UT_FLOAT_MAT4, PRECISION_HIGH, BZ_BONE_PALETTE_MAX),
+        UNIFORM(viewProjection,            UT_FLOAT_MAT4, PRECISION_HIGH),
+        UNIFORM(lightMatrix,               UT_FLOAT_MAT4, PRECISION_HIGH),
+        UNIFORM(textureMatrix,             UT_FLOAT_MAT4, PRECISION_HIGH),
+        UNIFORM(lightCount,                UT_INT,        PRECISION_LOW),
+        UNIFORM(firstBoneLookupIndex,      UT_FLOAT,      PRECISION_LOW),
+        UNIFORM_ARRAY(lights,              UT_FLOAT_MAT4, PRECISION_HIGH, BZ_MODEL_LIGHT_MAX),
+        UNIFORM(grassParams,               UT_FLOAT_MAT4, PRECISION_HIGH),
+        UNIFORM(model,                     UT_FLOAT_MAT4, PRECISION_HIGH),
+        UNIFORM_TRANSPOSE(normalMatrix,              UT_FLOAT_MAT3, PRECISION_HIGH),
+        UNIFORM(texture,                   UT_SAMPLER_2D, PRECISION_LOW),
+        UNIFORM(shadowmap,                 UT_SAMPLER_2D, PRECISION_LOW),
+        UNIFORM(fogOfWar,                  UT_SAMPLER_2D, PRECISION_LOW),
+        UNIFORM(layerAlpha,                UT_FLOAT,      PRECISION_LOW),
+        UNIFORM(geosetColor,               UT_FLOAT_VEC4, PRECISION_LOW),
+        UNIFORM(uvMatrix,                  UT_FLOAT_MAT3, PRECISION_HIGH),
+        UNIFORM(alphaKey,                  UT_BOOL,       PRECISION_LOW),
+        UNIFORM(alphaCutoff,               UT_FLOAT,      PRECISION_LOW),
+        UNIFORM(unshaded,                  UT_BOOL,       PRECISION_LOW),
+        UNIFORM(fogEnable,                 UT_BOOL,       PRECISION_LOW),
+        UNIFORM(fogColor,                  UT_FLOAT_VEC3, PRECISION_LOW),
+        UNIFORM(fogParams,                 UT_FLOAT_VEC2, PRECISION_LOW),
+    },
+    .Attributes = {
+        ATTRIB(position,     attrib_position,     UT_FLOAT_VEC3),
+        ATTRIB(color,        attrib_color,        UT_COLOR),
+        ATTRIB(texcoord,     attrib_texcoord,     UT_FLOAT_VEC2),
+        ATTRIB(normal,       attrib_normal,       UT_FLOAT_VEC3),
+        ATTRIB(skin1,        attrib_skin1,        UT_FLOAT_VEC4),
+        ATTRIB(boneWeight1,  attrib_boneWeight1,  UT_FLOAT_VEC4),
+        ATTRIB(instance,     attrib_instance,     UT_FLOAT_MAT4),
+    },
+    .Shared = {
+        SHARED(color,       UT_COLOR),
+        SHARED(shadow,      UT_FLOAT_VEC4),
+        SHARED(shadowlight, UT_FLOAT_VEC3),
+        SHARED(texcoord,    UT_FLOAT_VEC2),
+        SHARED(texcoord2,   UT_FLOAT_VEC2),
+        SHARED(lighting,    UT_FLOAT_VEC3),
+    },
+    .VertexBody =
+        "const int MODEL_LIGHT_OMNI = 0;\n"
+        "const int MODEL_LIGHT_DIRECT = 1;\n"
+        "const int MODEL_LIGHT_AMBIENT = 2;\n"
+        "vec3 apply_light(mat4 light, vec3 n, vec3 worldPos) {\n"
+        "  int type = int(light[0].w + 0.5);\n"
+        "  vec3 color = light[2].rgb * light[2].a;\n"
+        "  vec3 ambient = light[3].rgb * light[3].a;\n"
+        "  if (type == MODEL_LIGHT_AMBIENT) return color + ambient;\n"
+        "  if (type == MODEL_LIGHT_DIRECT) {\n"
+        "    vec3 l = normalize(-light[1].xyz);\n"
+        "    return clamp(color * max(dot(n, l), 0.0), vec3(0.0), vec3(1.0)) + ambient;\n"
+        "  }\n"
+        "  vec3 delta = light[0].xyz - worldPos;\n"
+        "  vec3 l = normalize(delta);\n"
+        "  float dist = length(delta) / 64.0 + 1.0;\n"
+        "  float atten = 1.0 / (dist * dist);\n"
+        "  return clamp(color * atten * max(dot(n, l), 0.0), vec3(0.0), vec3(1.0)) + ambient * atten;\n"
+        "}\n"
+        "vec3 vertex_lighting(vec3 normal, vec3 worldPos) {\n"
+        "  vec3 n = normalize(normal);\n"
+        "  vec3 lighting = vec3(0.0);\n"
+        "#ifdef USE_SHADOWMAPS\n"
+        "  v_shadowlight = vec3(0.0);\n"
+        "#endif\n"
+        "  for (int i = 0; i < 8; ++i) {\n"
+        "    if (i >= u_lightCount) break;\n"
+        "    vec3 contribution = apply_light(u_lights[i], n, worldPos);\n"
+        "    lighting += contribution;\n"
+        "#ifdef USE_SHADOWMAPS\n"
+        "    if (i == 0 && int(u_lights[i][0].w + 0.5) == MODEL_LIGHT_DIRECT)\n"
+        "      v_shadowlight = contribution - u_lights[i][3].rgb * u_lights[i][3].a;\n"
+        "#endif\n"
+        "  }\n"
+        "  return lighting;\n"
+        "}\n"
+        "vec4 vert() {\n"
+        "  vec4 pos4 = vec4(a_position, 1.0);\n"
+        "  vec4 norm4 = vec4(a_normal, 0.0);\n"
+        "  vec4 position = vec4(0.0);\n"
+        "  vec4 normal = vec4(0.0);\n"
+        "  for (int i = 0; i < 4; ++i) {\n"
+        "    int boneIdx = int(a_skin1[i]) + int(u_firstBoneLookupIndex);\n"
+        "    position += u_bones[boneIdx] * pos4 * a_boneWeight1[i];\n"
+        "    normal += u_bones[boneIdx] * norm4 * a_boneWeight1[i];\n"
+        "  }\n"
+        "  position.w = 1.0;\n"
+        "#ifdef BZ_USE_INSTANCING\n"
+        "  if (u_grassParams[3].z > 0.5) {\n"
+        "    float grassHeight = max(u_grassParams[3].y - u_grassParams[3].x, 0.001);\n"
+        "    float grassTop = smoothstep(u_grassParams[1].w, 1.0, clamp((position.z - u_grassParams[3].x) / grassHeight, 0.0, 1.0));\n"
+        "    float grassPhase = dot(a_instance[3].xy, u_grassParams[2].xy);\n"
+        "    float grassSway = sin(u_grassParams[1].x * u_grassParams[1].y + grassPhase) * u_grassParams[1].z * grassHeight * grassTop;\n"
+        "    position.xy += u_grassParams[2].zw * grassSway;\n"
+        "  }\n"
+        "  vec4 worldPos4 = a_instance * position;\n"
+        "  v_color = a_color;\n"
+        "  if (u_grassParams[3].z > 0.5) {\n"
+        "    float fadeDist = length(worldPos4.xy - u_grassParams[0].xy);\n"
+        "    v_color.a *= 1.0 - smoothstep(u_grassParams[0].z, u_grassParams[0].w, fadeDist);\n"
+        "  }\n"
+        "  v_texcoord = a_texcoord;\n"
+        "  v_texcoord2 = (u_textureMatrix * worldPos4).xy;\n"
+        "  v_lighting = vertex_lighting(normalize(mat3(a_instance) * normal.xyz), worldPos4.xyz);\n"
+        "#ifdef USE_SHADOWMAPS\n"
+        "  v_shadow = u_lightMatrix * worldPos4;\n"
+        "#endif\n"
+        "  return u_viewProjection * worldPos4;\n"
+        "#else\n"
+        "  v_color = a_color;\n"
+        "  v_texcoord = a_texcoord;\n"
+        "  v_texcoord2 = (u_textureMatrix * u_model * position).xy;\n"
+        "  vec3 worldNormal = normalize(u_normalMatrix * normal.xyz);\n"
+        "  vec3 worldPos = (u_model * position).xyz;\n"
+        "  v_lighting = vertex_lighting(worldNormal, worldPos);\n"
+        "#ifdef USE_SHADOWMAPS\n"
+        "  v_shadow = u_lightMatrix * u_model * position;\n"
+        "#endif\n"
+        "  return u_viewProjection * u_model * position;\n"
+        "#endif\n"
+        "}\n",
+    .FragmentBody =
+        "#ifdef USE_FOGOFWAR\n"
+        "float get_fogofwar() {\n"
+        "  return texture(u_fogOfWar, v_texcoord2).r;\n"
+        "}\n"
+        "#endif\n"
+        "#ifdef USE_SHADOWMAPS\n"
+        BZ_SHADOW_GLSL
+        "#endif\n"
+        "vec4 frag() {\n"
+        "  vec2 uv = (u_uvMatrix * vec3(v_texcoord, 1.0)).xy;\n"
+        "  vec4 col = texture(u_texture, uv);\n"
+        "  col *= u_geosetColor;\n"
+        "  col *= u_layerAlpha;\n"
+        "  col *= v_color;\n"
+        "  if (!u_unshaded) {\n"
+        "    vec3 light = v_lighting;\n"
+        "#ifdef USE_SHADOWMAPS\n"
+        "    light -= v_shadowlight * (1.0 - shadow_visibility(u_shadowmap, v_shadow));\n"
+        "#endif\n"
+        "    light = min(light, vec3(1.0));\n"
+        "#ifdef USE_FOGOFWAR\n"
+        "    col.rgb *= get_fogofwar() * light;\n"
+        "#else\n"
+        "    col.rgb *= light;\n"
+        "#endif\n"
+        "    if (u_fogEnable) {\n"
+        "      float fogFactor = clamp((u_fogParams.y - gl_FragCoord.z / gl_FragCoord.w) / (u_fogParams.y - u_fogParams.x), 0.0, 1.0);\n"
+        "      col.rgb = mix(u_fogColor, col.rgb, fogFactor);\n"
+        "    }\n"
+        "  }\n"
+        "  if (u_alphaKey) {\n"
+        "#ifndef BZ_USE_MSAA\n"
+        "    if (col.a < u_alphaCutoff) discard;\n"
+        "#else\n"
+        "    float edge = max(fwidth(col.a), 1.0 / 255.0);\n"
+        "    col.a = smoothstep(u_alphaCutoff - edge, u_alphaCutoff + edge, col.a);\n"
+        "#endif\n"
+        "  }\n"
+        "  return col;\n"
+        "}\n",
+};
+#undef SHADER_TYPE
+
+/* Compile-time GLSL defines derived from C build macros; prepended to every
+   built-in program.  Extra per-variant defines (e.g. BZ_USE_INSTANCING) are
+   added by the callers. */
+static char shader_defines_buf[256];
+static LPCSTR R_ShaderDefines(BOOL instancing) {
+    int n = 0;
+    if (instancing)
+        n += snprintf(shader_defines_buf + n, sizeof(shader_defines_buf) - n, "#define BZ_USE_INSTANCING 1\n");
 #ifdef USE_SHADOWMAPS
-"in vec4 v_shadow;\n"
-"in vec3 v_shadowlight;\n"
-#endif
-"in vec3 v_lighting;\n"
-"in vec4 v_color;\n"
-"out vec4 o_color;\n"
-"uniform sampler2D uTexture;\n"
-#ifdef USE_SHADOWMAPS
-"uniform sampler2D uShadowmap;\n"
+    n += snprintf(shader_defines_buf + n, sizeof(shader_defines_buf) - n, "#define USE_SHADOWMAPS 1\n");
 #endif
 #ifdef USE_FOGOFWAR
-"uniform sampler2D uFogOfWar;\n"
+    n += snprintf(shader_defines_buf + n, sizeof(shader_defines_buf) - n, "#define USE_FOGOFWAR 1\n");
 #endif
-"uniform float uLayerAlpha;\n"
-"uniform vec4 uGeosetColor;\n"
-"uniform mat3 uUvMatrix;\n"
-"uniform bool uAlphaKey;\n"
-/* In MSAA mode, hard discard is replaced by smoothstep alpha-to-coverage
-   to avoid edge aliasing; uAlphaCutoff is still used as the threshold. */
-"uniform float uAlphaCutoff;\n"
-/* uUnshaded: MDX emissive layers skip lighting and fog-of-war. */
-"uniform bool uUnshaded;\n"
-// TODO: Add USE_FOG to skip compilation in games that never use it
-"uniform bool uFogEnable;\n"
-"uniform vec3 uFogColor;\n"
-"uniform vec2 uFogParams;\n"
-#ifdef USE_FOGOFWAR
-"float get_fogofwar() {\n"
-"    return texture(uFogOfWar, v_texcoord2).r;\n"
-"}\n"
+#ifdef BZ_USE_MSAA
+    n += snprintf(shader_defines_buf + n, sizeof(shader_defines_buf) - n, "#define BZ_USE_MSAA 1\n");
 #endif
-#ifdef USE_SHADOWMAPS
-BZ_SHADOW_GLSL
-#endif
-"void main() {\n"
-"    vec2 uv = (uUvMatrix * vec3(v_texcoord, 1.0)).xy;\n"
-"    vec4 col = texture(uTexture, uv);\n"
-"    col *= uGeosetColor;\n"
-"    col *= uLayerAlpha;\n"
-"    col *= v_color;\n"
-"    if (!uUnshaded) {\n"
-"        vec3 light = v_lighting;\n"
-#ifdef USE_SHADOWMAPS
-"        light -= v_shadowlight * (1.0 - shadow_visibility(uShadowmap, v_shadow));\n"
-#endif
-"        light = min(light, vec3(1.0));\n"
-#ifdef USE_FOGOFWAR
-"        col.rgb *= get_fogofwar() * light;\n"
-#else
-"        col.rgb *= light;\n"
-#endif
-"        if (uFogEnable) {\n"
-"            float fogFactor = clamp((uFogParams.y - gl_FragCoord.z / gl_FragCoord.w) / (uFogParams.y - uFogParams.x), 0.0, 1.0);\n"
-"            col.rgb = mix(uFogColor, col.rgb, fogFactor);\n"
-"        }\n"
-"    }\n"
-"    if (uAlphaKey) {\n"
-#ifndef BZ_USE_MSAA
-"        if (col.a < uAlphaCutoff) discard;\n"
-#else
-"        float edge = max(fwidth(col.a), 1.0 / 255.0);\n"
-"        col.a = smoothstep(uAlphaCutoff - edge, uAlphaCutoff + edge, col.a);\n"
-#endif
-"    }\n"
-"    o_color = col;\n"
-"}\n";
-
-static LPSHADER model_shader;
-
-/* Returns the shared model shader, compiling it on first call. All three model
-   formats (MDX/M2/M3) use this single shader; per-format data is normalised at
-   load time so the GPU path is identical. */
-LPSHADER R_ModelShader(void) {
-    if (!model_shader) {
-        model_shader = R_InitShader(model_vs, model_fs);
-        R_Call(glUseProgram, model_shader->progid);
-        R_Call(glUniform1f, model_shader->uAlphaCutoff, 0.5f);
-    }
-    /* Shader creation is fatal on failure; an unskinned fallback cannot preserve the model contract. */
-    return model_shader;
-}
-
-
-static LPSHADER R_InitShaderDefines(LPCSTR vs_src, LPCSTR fs_src, LPCSTR extra_defines);
-
-static LPSHADER instanced_shader;
-
-/* Instanced model shader for static meshes (ground-effect clutter). Uses model_vs
-   compiled with BZ_USE_INSTANCING to replace uModelMatrix with per-instance attributes. */
-LPSHADER R_ModelShaderInstanced(void) {
-    if (!instanced_shader) {
-        MATRIX4 bones[BZ_BONE_PALETTE_MAX];
-
-        instanced_shader = R_InitShaderDefines(model_vs, model_fs, "#define BZ_USE_INSTANCING 1\n");
-        FOR_LOOP(i, BZ_BONE_PALETTE_MAX) Matrix4_identity(&bones[i]);
-        R_Call(glUseProgram, instanced_shader->progid);
-        R_Call(glUniform1f, instanced_shader->uAlphaCutoff, 0.5f);
-        /* Static grass has no keyed bones; install its identity palette once, not once per frame. */
-        R_Call(glUniformMatrix4fv, instanced_shader->uBones, BZ_BONE_PALETTE_MAX, GL_FALSE, bones[0].v);
-    }
-    return instanced_shader;
-}
-
-/* Only dialect and instancing vary; the model palette is fixed in the C shader body. */
-static void R_SetShaderSource(GLuint shader, LPCSTR source, LPCSTR extra_defines) {
-    LPCSTR body = strchr(source, '\n');
-    LPCSTR prefix =
-#ifdef BZ_GL_ES3
-        "#version 300 es\nprecision highp float;\nprecision highp int;\n";
-#else
-        "#version 140\n";
-#endif
-    LPCSTR strings[] = { prefix, extra_defines ? extra_defines : "", body ? body + 1 : source };
-    GLint lengths[] = { (GLint)strlen(strings[0]), (GLint)strlen(strings[1]), (GLint)strlen(strings[2]) };
-    R_Call(glShaderSource, shader, 3, strings, lengths);
+    (void)n;
+    return shader_defines_buf;
 }
 
 /* A compiled shader can still exceed resources at link time. Never draw with a failed program.
@@ -691,92 +499,6 @@ static void R_CheckShader(GLuint obj, GLenum check, LPCSTR label) {
     free(log);
     exit(EXIT_FAILURE);
 }
-
-static LPSHADER R_InitShaderDefines(LPCSTR vs_src, LPCSTR fs_src, LPCSTR extra_defines) {
-    GLuint vs = R_Call(glCreateShader, GL_VERTEX_SHADER);
-    GLuint fs = R_Call(glCreateShader, GL_FRAGMENT_SHADER);
-
-    R_SetShaderSource(vs, vs_src, extra_defines);
-    R_Call(glCompileShader, vs);
-    R_CheckShader(vs, GL_COMPILE_STATUS, "Vertex shader compilation");
-    R_SetShaderSource(fs, fs_src, extra_defines);
-    R_Call(glCompileShader, fs);
-    R_CheckShader(fs, GL_COMPILE_STATUS, "Fragment shader compilation");
-
-    LPSHADER program = ri.MemAlloc(sizeof(struct shader_program));
-    program->progid = R_Call(glCreateProgram, );
-
-    R_Call(glAttachShader, program->progid, vs);
-    R_Call(glAttachShader, program->progid, fs);
-
-    R_Call(glBindAttribLocation, program->progid, attrib_position, "i_position");
-    R_Call(glBindAttribLocation, program->progid, attrib_color, "i_color");
-    R_Call(glBindAttribLocation, program->progid, attrib_texcoord, "i_texcoord");
-    R_Call(glBindAttribLocation, program->progid, attrib_normal, "i_normal");
-    R_Call(glBindAttribLocation, program->progid, attrib_skin1, "i_skin1");
-    R_Call(glBindAttribLocation, program->progid, attrib_boneWeight1, "i_boneWeight1");
-    R_Call(glBindAttribLocation, program->progid, attrib_particleSize, "i_size");
-    R_Call(glBindAttribLocation, program->progid, attrib_particleAxis, "i_axis");
-    R_Call(glBindAttribLocation, program->progid, attrib_instance, "i_instance");
-
-    R_Call(glLinkProgram, program->progid);
-    R_CheckShader(program->progid, GL_LINK_STATUS, "Shader program link");
-    R_Call(glDeleteShader, vs);
-    R_Call(glDeleteShader, fs);
-    R_Call(glUseProgram, program->progid);
-
-#define R_RegisterUniform(PROGRAM, NAME) PROGRAM->NAME = glGetUniformLocation(PROGRAM->progid, #NAME);
-
-    R_RegisterUniform(program, uViewProjectionMatrix);
-    R_RegisterUniform(program, uModelMatrix);
-    R_RegisterUniform(program, uLightMatrix);
-    R_RegisterUniform(program, uNormalMatrix);
-    R_RegisterUniform(program, uTextureMatrix);
-    R_RegisterUniform(program, uTexture);
-#ifdef USE_SHADOWMAPS
-    R_RegisterUniform(program, uShadowmap);
-#endif
-#ifdef USE_FOGOFWAR
-    R_RegisterUniform(program, uFogOfWar);
-#endif
-    R_RegisterUniform(program, uBones);
-    R_RegisterUniform(program, uAlphaKey);
-    R_RegisterUniform(program, uAlphaCutoff);
-    R_RegisterUniform(program, uUnshaded);
-    R_RegisterUniform(program, uLayerAlpha);
-    R_RegisterUniform(program, uGeosetColor);
-    R_RegisterUniform(program, uUvMatrix);
-    R_RegisterUniform(program, uLightCount);
-    program->uLights = glGetUniformLocation(program->progid, "uLights[0]");
-    R_RegisterUniform(program, uGrassParams);
-    R_RegisterUniform(program, uEyePosition);
-    R_RegisterUniform(program, uActiveGlow);
-    R_RegisterUniform(program, uFogEnable);
-    R_RegisterUniform(program, uFogColor);
-    R_RegisterUniform(program, uFogParams);
-    R_RegisterUniform(program, uFirstBoneLookupIndex);
-
-    R_Call(glUniform1i, program->uTexture, 0);
-#ifdef USE_SHADOWMAPS
-    R_Call(glUniform1i, program->uShadowmap, 1);
-#endif
-#ifdef USE_FOGOFWAR
-    R_Call(glUniform1i, program->uFogOfWar, 2);
-#endif
-    /* UV transform defaults to identity so callers that don't animate UVs can skip the upload. */
-    GLfloat identity_uv[9] = { 1,0,0, 0,1,0, 0,0,1 };
-    R_Call(glUniformMatrix3fv, program->uUvMatrix, 1, GL_FALSE, identity_uv);
-
-    return program;
-}
-
-LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default) {
-    return R_InitShaderDefines(vs_default, fs_default, NULL);
-}
-
-/* -----------------------------------------------------------------------
- * Descriptor-based shader loading (shader_desc.h).
- * ----------------------------------------------------------------------- */
 
 static const char *R_GLSLTypeStr(uniformType_t type) {
     switch (type) {
@@ -804,9 +526,20 @@ int R_BuildShaderDeclarations(char *buf, int size, const shader_desc_t *desc,
     const char *fsin_kw  = (dialect == GLSL_DIALECT_120) ? "varying"   : "in";
     int n = 0;
 
-    for (int i = 0; i < MAX_SHADER_UNIFORMS && desc->Uniforms[i].name; i++)
-        n += snprintf(buf + n, size - n, "uniform %s %s;\n",
-                      R_GLSLTypeStr(desc->Uniforms[i].type), desc->Uniforms[i].name);
+    /* GLSL 120 has no `texture` builtin; alias it so fragment bodies can
+       call texture() regardless of dialect. */
+    if (!is_vertex && dialect == GLSL_DIALECT_120)
+        n += snprintf(buf + n, size - n, "#define texture texture2D\n");
+
+    for (int i = 0; i < MAX_SHADER_UNIFORMS && desc->Uniforms[i].name; i++) {
+        if (desc->Uniforms[i].count > 1)
+            n += snprintf(buf + n, size - n, "uniform %s %s[%u];\n",
+                          R_GLSLTypeStr(desc->Uniforms[i].type), desc->Uniforms[i].name,
+                          desc->Uniforms[i].count);
+        else
+            n += snprintf(buf + n, size - n, "uniform %s %s;\n",
+                          R_GLSLTypeStr(desc->Uniforms[i].type), desc->Uniforms[i].name);
+    }
 
     if (is_vertex) {
         for (int i = 0; i < MAX_SHADER_ATTRIBS && desc->Attributes[i].name; i++)
@@ -823,6 +556,13 @@ int R_BuildShaderDeclarations(char *buf, int size, const shader_desc_t *desc,
             n += snprintf(buf + n, size - n, "out vec4 o_color;\n");
     }
     return n;
+}
+
+int R_BuildShaderMain(char *buf, int size, bool is_vertex, glsl_dialect_t dialect) {
+    if (is_vertex)
+        return snprintf(buf, size, "void main() { gl_Position = vert(); }\n");
+    return snprintf(buf, size, "void main() { %s = frag(); }\n",
+                    dialect == GLSL_DIALECT_120 ? "gl_FragColor" : "o_color");
 }
 
 static void R_SetShaderSourceFromDesc(GLuint stage, const shader_desc_t *desc,
@@ -844,19 +584,25 @@ static void R_SetShaderSourceFromDesc(GLuint stage, const shader_desc_t *desc,
 #else
         GLSL_DIALECT_140;
 #endif
-    char decls[2048];
+    char decls[2048], main_wrapper[128];
     R_BuildShaderDeclarations(decls, sizeof(decls), desc, is_vertex, dialect);
+    R_BuildShaderMain(main_wrapper, sizeof(main_wrapper), is_vertex, dialect);
     const char *strings[] = {
         version_prefix[dialect],
         defines ? defines : "",
         decls,
         is_vertex ? desc->VertexBody : desc->FragmentBody,
+        main_wrapper,
     };
-    R_Call(glShaderSource, stage, 4, strings, NULL);
+    R_Call(glShaderSource, stage, 5, strings, NULL);
 }
 
-void R_LoadShaderDescInto(const shader_desc_t *desc, const char *defines,
-                          GLuint *progid_out, void *prog_base) {
+/* Descriptor compilation and lookup never overwrite caller-owned non-sampler values. */
+void R_LoadShaderState(LPCSHADERLOAD load) {
+    LPCSHADERDESC desc = load->desc;
+    LPCSTR defines = load->defines;
+    LPSHADERPROG prog = load->prog;
+    void *state = load->state;
     GLuint vs = R_Call(glCreateShader, GL_VERTEX_SHADER);
     GLuint fs = R_Call(glCreateShader, GL_FRAGMENT_SHADER);
 
@@ -879,45 +625,142 @@ void R_LoadShaderDescInto(const shader_desc_t *desc, const char *defines,
     R_Call(glDeleteShader, fs);
     R_Call(glUseProgram, progid);
 
-    *progid_out = progid;
-
-    int sampler_unit = 0;
+    prog->progid = progid;
+    prog->desc = desc;
+    int unit = 0;
     for (int i = 0; i < MAX_SHADER_UNIFORMS && desc->Uniforms[i].name; i++) {
-        GLint loc = glGetUniformLocation(progid, desc->Uniforms[i].name);
-        if (prog_base)
-            *(GLint *)((char *)prog_base + desc->Uniforms[i].offset) = loc;
-        if (desc->Uniforms[i].type == UT_SAMPLER_2D     ||
-            desc->Uniforms[i].type == UT_SAMPLER_2D_RECT ||
-            desc->Uniforms[i].type == UT_SAMPLER_2D_ARRAY)
-            R_Call(glUniform1i, loc, sampler_unit++);
+        const shaderUniform_t *u = &desc->Uniforms[i];
+        prog->locs[i] = glGetUniformLocation(progid, u->name);
+        if (u->type >= UT_SAMPLER_2D && u->type <= UT_SAMPLER_2D_ARRAY)
+            *(int *)((char *)state + u->offset) = unit++;
     }
 }
 
+/* Release linked programs before their GL context is destroyed. */
+void R_DeleteShader(LPSHADERPROG prog) {
+    if (prog->progid) glDeleteProgram(prog->progid);
+    memset(prog, 0, sizeof(*prog));
+}
+
+/* One typed state submission owns all uniforms, including bool conversion and matrix storage order. */
+void R_UploadShader(LPCSHADERPROG prog, LPCVOID state) {
+    R_Call(glUseProgram, prog->progid);
+    for (int i = 0; i < MAX_SHADER_UNIFORMS && prog->desc->Uniforms[i].name; i++) {
+        const shaderUniform_t *u = &prog->desc->Uniforms[i];
+        const void *data = (const char *)state + u->offset;
+        GLint loc = prog->locs[i];
+        GLsizei count = u->count ? u->count : 1;
+        if (loc < 0) continue; /* Linked shader optimised this declared input away. */
+        switch (u->type) {
+            case UT_FLOAT: R_Call(glUniform1fv, loc, count, data); break;
+            case UT_FLOAT_VEC2: R_Call(glUniform2fv, loc, count, data); break;
+            case UT_FLOAT_VEC3: R_Call(glUniform3fv, loc, count, data); break;
+            case UT_FLOAT_VEC4: case UT_COLOR: R_Call(glUniform4fv, loc, count, data); break;
+            case UT_INT: case UT_SAMPLER_2D: case UT_SAMPLER_2D_RECT: case UT_SAMPLER_2D_ARRAY:
+                R_Call(glUniform1iv, loc, count, data); break;
+            case UT_INT_VEC2: R_Call(glUniform2iv, loc, count, data); break;
+            case UT_BOOL: {
+                GLint values[count];
+                FOR_LOOP(j, count) values[j] = ((const bool *)data)[j];
+                R_Call(glUniform1iv, loc, count, values); break;
+            }
+            case UT_FLOAT_MAT3: R_Call(glUniformMatrix3fv, loc, count, u->transpose, data); break;
+            case UT_FLOAT_MAT4: R_Call(glUniformMatrix4fv, loc, count, u->transpose, data); break;
+            default: fprintf(stderr, "R_UploadShader: invalid type for %s.%s\n", prog->desc->Name, u->name); exit(EXIT_FAILURE);
+        }
+    }
+}
+
+static MODELPROG model_shader;
+static MODELPROG instanced_shader;
+static BOOL model_shader_loaded;
+static BOOL instanced_shader_loaded;
+
+static void R_LoadModelShader(MODELPROG *out, BOOL instancing) {
+    memset(out, 0, sizeof(*out));
+    R_LoadShader(&sd_model, R_ShaderDefines(instancing), out);
+
+    out->state.alphaCutoff = 0.5f;
+}
+
+/* Returns the shared model shader, compiling it on first call. All three model
+   formats (MDX/M2/M3) use this single shader; per-format data is normalised at
+   load time so the GPU path is identical. */
+MODELPROG *R_ModelShader(void) {
+    if (!model_shader_loaded) {
+        R_LoadModelShader(&model_shader, false);
+        model_shader_loaded = true;
+    }
+    return &model_shader;
+}
+
+/* Instanced model shader for static meshes (ground-effect clutter). Uses the
+   model shader compiled with BZ_USE_INSTANCING to replace uModelMatrix with
+   per-instance attributes. */
+MODELPROG *R_ModelShaderInstanced(void) {
+    if (!instanced_shader_loaded) {
+        R_LoadModelShader(&instanced_shader, true);
+        FOR_LOOP(i, BZ_BONE_PALETTE_MAX) Matrix4_identity(&instanced_shader.state.bones[i]);
+        instanced_shader_loaded = true;
+    }
+    return &instanced_shader;
+}
+
 /* Model callers submit one semantic lighting state; only this proxy knows the uniform packing contract. */
-void R_SetModelLighting(LPCSHADER shader, LPCMODELLIGHTING lighting) {
-    MATRIX4 packed[BZ_MODEL_LIGHT_MAX];
+void R_SetModelLighting(MODELPROG *shader, LPCMODELLIGHTING lighting) {
     if (!lighting || lighting->count < 1 || lighting->count > BZ_MODEL_LIGHT_MAX) {
         ri.error("R_SetModelLighting: light count must be 1..%u, got %u", BZ_MODEL_LIGHT_MAX,
                  lighting ? lighting->count : 0);
         return;
     }
-    R_PackModelLighting(packed, lighting);
-    R_Call(glUniform1i, shader->uLightCount, lighting->count);
-    R_Call(glUniformMatrix4fv, shader->uLights, lighting->count, GL_FALSE, packed[0].v);
+    R_PackModelLighting(shader->state.lights, lighting);
+    shader->state.lightCount = lighting->count;
 }
 
 /* Grass uses the same proxy boundary so game code never uploads its packed matrix directly. */
-void R_SetModelGrass(LPCSHADER shader, LPCMODELGRASS grass) {
-    MATRIX4 packed;
-    R_PackModelGrass(&packed, grass);
-    R_Call(glUniformMatrix4fv, shader->uGrassParams, 1, GL_FALSE, packed.v);
-}
-
-void R_ReleaseShader(LPSHADER shader) {
-    ri.MemFree(shader);
+void R_SetModelGrass(MODELPROG *shader, LPCMODELGRASS grass) {
+    R_PackModelGrass(&shader->state.grassParams, grass);
 }
 
 void R_ShutdownModelShader(void) {
-    SAFE_DELETE(model_shader, R_ReleaseShader);
-    SAFE_DELETE(instanced_shader, R_ReleaseShader);
+    R_DeleteShader(&model_shader.prog);
+    R_DeleteShader(&instanced_shader.prog);
+    model_shader_loaded = instanced_shader_loaded = false;
+}
+
+/* Map the public SHADERTYPE selector to the matching sprite program. */
+SPRITEPROG *R_SpriteShader(SHADERTYPE type) {
+    switch (type) {
+        case SHADER_SPLAT:         return &tr.shader_splat;
+        case SHADER_SHADOWSPLAT:   return &tr.shader_shadowSplat;
+        case SHADER_COMMANDBUTTON: return &tr.shader_commandButton;
+        case SHADER_MINIMAP:       return &tr.shader_minimap;
+        case SHADER_MINIMAP_FOG:   return &tr.shader_minimapFog;
+        case SHADER_UNLIT:         return &tr.shader_unlit;
+        default:                   return &tr.shader_ui;
+    }
+}
+
+/* Builtin lifetime is renderer-owned; this table is shared by load and shutdown. */
+static struct { LPCSHADERDESC desc; SPRITEPROG *shader; } builtin_shaders[] = {
+    { &sd_unlit, &tr.shader_ui }, { &sd_splat, &tr.shader_splat },
+    { &sd_shadow_splat, &tr.shader_shadowSplat }, { &sd_commandbutton, &tr.shader_commandButton },
+    { &sd_minimap, &tr.shader_minimap }, { &sd_minimap_fog, &tr.shader_minimapFog },
+    { &sd_unlit, &tr.shader_unlit },
+};
+
+void R_LoadBuiltinShaders(void) {
+    FOR_LOOP(i, sizeof(builtin_shaders) / sizeof(*builtin_shaders)) {
+        SPRITEPROG *shader = builtin_shaders[i].shader;
+        memset(shader, 0, sizeof(*shader));
+        R_LoadShader(builtin_shaders[i].desc, R_ShaderDefines(false), shader);
+    }
+    memset(&tr.shader_default, 0, sizeof(tr.shader_default));
+    R_LoadShader(&sd_default, R_ShaderDefines(false), &tr.shader_default);
+}
+
+void R_ShutdownBuiltinShaders(void) {
+    FOR_LOOP(i, sizeof(builtin_shaders) / sizeof(*builtin_shaders))
+        R_DeleteShader(&builtin_shaders[i].shader->prog);
+    R_DeleteShader(&tr.shader_default.prog);
 }

@@ -39,7 +39,6 @@ M3_READER(TYPE##SequenceData) { \
     M3_REFR(sb, data->values, TYPE, 0); \
 }
 
-
 static MATRIX4 bonemats[BZ_BONE_PALETTE_MAX];
 static MATRIX4 tmp[M3_MAX_NODES];
 
@@ -50,7 +49,7 @@ extern bool is_rendering_lights;
 #endif
 
 static struct {
-    LPSHADER shader;
+    MODELPROG * shader;
     DWORD uDiffuseMap;
 } m3 = { 0 };
 
@@ -71,7 +70,7 @@ R_EvalKeyframeValue(void const *left,
                     HANDLE out);
 
 /* M3 models consume the same authored key/fill/back rig as SC2 terrain. */
-static void M3_SetLighting(LPSHADER shader) {
+static void M3_SetLighting(MODELPROG * shader) {
     sc2Map_t const *map = SC2_MapCurrent();
     sc2MapLighting_t const *src = map ? &map->lighting : NULL;
     bool const lit = src && src->enabled;
@@ -684,19 +683,15 @@ static void M3_DrawRegionMaterial(m3Region_t const *region, m3Material_t const *
     if (!M3_SetMaterialBlendMode(material)) {
         return;
     }
-    R_Call(glUniform4f, m3.shader->uGeosetColor,
-           diffuse_color.r / 255.0f,
-           diffuse_color.g / 255.0f,
-           diffuse_color.b / 255.0f,
-           diffuse_color.a / 255.0f * alpha);
+    m3.shader->state.geosetColor = (VECTOR4){ diffuse_color.r / 255.0f, diffuse_color.g / 255.0f, diffuse_color.b / 255.0f, diffuse_color.a / 255.0f * alpha };
     {
         FLOAT cutoff = M3_MaterialAlphaCutoff(material);
         BOOL alpha_key = cutoff >= 0.0f;
-        R_Call(glUniform1i, m3.shader->uAlphaKey, alpha_key);
-        R_Call(glUniform1f, m3.shader->uAlphaCutoff, cutoff >= 0.0f ? cutoff : 0.5f);
+        m3.shader->state.alphaKey = alpha_key;
+        m3.shader->state.alphaCutoff = cutoff >= 0.0f ? cutoff : 0.5f;
         if (alpha_key && !M3_MaterialIsBlended(material)) R_SetAlphaKeyState(true);
     }
-    R_Call(glUniform1f, m3.shader->uFirstBoneLookupIndex, (FLOAT)region->firstBoneLookupIndex);
+    m3.shader->state.firstBoneLookupIndex = (FLOAT)region->firstBoneLookupIndex;
 
     R_Call(glActiveTexture, GL_TEXTURE0);
     R_Call(glBindTexture, GL_TEXTURE_2D, diffuse->texid);
@@ -706,6 +701,7 @@ static void M3_DrawRegionMaterial(m3Region_t const *region, m3Material_t const *
             continue;
 #ifndef __linux__
         R_StatsDraw(GL_TRIANGLES, num_indices, 1);
+        R_ApplyShader(m3.shader);
         R_Call(glDrawElementsBaseVertex, GL_TRIANGLES, num_indices, GL_UNSIGNED_SHORT, indices, first_vertex);
 #endif
     }
@@ -872,33 +868,33 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
     R_Call(glDisable, GL_BLEND);
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_TRUE);
-    R_Call(glUseProgram, m3.shader->progid);
+
 #ifdef USE_SHADOWMAPS
     extern bool is_rendering_lights;
     if (is_rendering_lights) {
-        R_Call(glUniformMatrix4fv, m3.shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
+        m3.shader->state.viewProjection = tr.viewDef.lightMatrix;
     } else {
-        R_Call(glUniformMatrix4fv, m3.shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
+        m3.shader->state.viewProjection = tr.viewDef.viewProjectionMatrix;
     }
 #else
-    R_Call(glUniformMatrix4fv, m3.shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
+    m3.shader->state.viewProjection = tr.viewDef.viewProjectionMatrix;
 #endif
-    R_Call(glUniformMatrix4fv, m3.shader->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
-    R_Call(glUniformMatrix4fv, m3.shader->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
-    R_Call(glUniformMatrix4fv, m3.shader->uModelMatrix, 1, GL_FALSE, mScaledMatrix.v);
-    R_Call(glUniformMatrix3fv, m3.shader->uNormalMatrix, 1, GL_TRUE, mNormalMatrix.v);
-    R_Call(glUniformMatrix4fv, m3.shader->uBones, MIN(model->boneLookupNum, BZ_BONE_PALETTE_MAX), GL_FALSE, bonemats->v);
+    m3.shader->state.lightMatrix = tr.viewDef.lightMatrix;
+    m3.shader->state.textureMatrix = tr.viewDef.textureMatrix;
+    m3.shader->state.model = mScaledMatrix;
+    m3.shader->state.normalMatrix = mNormalMatrix;
+    memcpy(&m3.shader->state.bones, bonemats->v, (MIN(model->boneLookupNum, BZ_BONE_PALETTE_MAX)) * sizeof(MATRIX4));
     M3_SetLighting(m3.shader);
     /* The unified model shader requires identity defaults for uniforms that
        M3 does not animate (texture UV transform, layer alpha, geoset colour). */
-    R_Call(glUniform4f, m3.shader->uGeosetColor, 1.0f, 1.0f, 1.0f, 1.0f);
-    R_Call(glUniform1f, m3.shader->uLayerAlpha, 1.0f);
-    { GLfloat m[9] = { 1,0,0, 0,1,0, 0,0,1 }; R_Call(glUniformMatrix3fv, m3.shader->uUvMatrix, 1, GL_FALSE, m); }
-    R_Call(glUniform1i, m3.shader->uAlphaKey, 0);
-    R_Call(glUniform1f, m3.shader->uAlphaCutoff, 0.5f);
-    R_Call(glUniform1i, m3.shader->uUnshaded, 0);
-    R_Call(glUniform1f, m3.shader->uFogEnable, 0);
-    R_Call(glUniform1f, m3.shader->uFirstBoneLookupIndex, 0.0f);
+    m3.shader->state.geosetColor = (VECTOR4){ 1.0f, 1.0f, 1.0f, 1.0f };
+    m3.shader->state.layerAlpha = 1.0f;
+    { GLfloat m[9] = { 1,0,0, 0,1,0, 0,0,1 }; memcpy(&m3.shader->state.uvMatrix, m, (1) * sizeof(MATRIX3)); }
+    m3.shader->state.alphaKey = 0;
+    m3.shader->state.alphaCutoff = 0.5f;
+    m3.shader->state.unshaded = 0;
+    m3.shader->state.fogEnable = 0;
+    m3.shader->state.firstBoneLookupIndex = 0.0f;
     R_Call(glBindVertexArray, model->renbuf->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, model->renbuf->vbo);
     

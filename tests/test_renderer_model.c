@@ -38,17 +38,26 @@ static void BZ_TestLinkProgram(GLuint obj) { (void)obj; shader_test.links++; }
 static void BZ_TestUseProgram(GLuint obj) { (void)obj; shader_test.uses++; }
 static void BZ_TestDeleteShader(GLuint obj) { (void)obj; shader_test.deleted++; }
 static GLint BZ_TestUniformLocation(GLuint obj, const GLchar *name) { (void)obj; (void)name; return 0; }
-static void BZ_TestUniform1i(GLint loc, GLint val) { (void)loc; (void)val; }
-static void BZ_TestUniform1f(GLint loc, GLfloat val) { (void)loc; (void)val; }
+static struct { int calls, width, integer; GLsizei count; GLboolean transpose; float data[2048]; } upload;
+static void capture_float(int width, GLsizei count, const GLfloat *val) {
+    upload.calls++; upload.width = width; upload.count = count;
+    memcpy(upload.data, val, width * count * sizeof(float));
+}
+static void BZ_TestUniform1i(GLint loc, GLint val) { (void)loc; upload.calls++; upload.integer = val; }
+static void BZ_TestUniform1iv(GLint loc, GLsizei n, const GLint *v) { (void)n; BZ_TestUniform1i(loc, *v); }
+static void BZ_TestUniform2iv(GLint loc, GLsizei n, const GLint *v) { (void)n; BZ_TestUniform1i(loc, v[1]); }
+static void BZ_TestUniform1fv(GLint loc, GLsizei n, const GLfloat *v) { (void)loc; capture_float(1, n, v); }
+static void BZ_TestUniform2fv(GLint loc, GLsizei n, const GLfloat *v) { (void)loc; capture_float(2, n, v); }
+static void BZ_TestUniform3fv(GLint loc, GLsizei n, const GLfloat *v) { (void)loc; capture_float(3, n, v); }
+static void BZ_TestUniform4fv(GLint loc, GLsizei n, const GLfloat *v) { (void)loc; capture_float(4, n, v); }
 static void BZ_TestUniformMatrix3(GLint loc, GLsizei count, GLboolean transpose, const GLfloat *val) {
-    (void)loc; (void)count; (void)transpose; (void)val;
+    (void)loc; capture_float(9, count, val); upload.transpose = transpose;
 }
 static void BZ_TestUniformMatrix4(GLint loc, GLsizei count, GLboolean transpose, const GLfloat *val) {
-    (void)loc; (void)transpose;
-    shader_test.uploads++;
-    T_EQ(count, BZ_BONE_PALETTE_MAX);
-    FOR_LOOP(i, count * 16) T_EQ(val[i], i % 16 % 5 == 0 ? 1.0f : 0.0f);
+    (void)loc; capture_float(16, count, val); upload.transpose = transpose; shader_test.uploads++;
 }
+static int deleted_programs;
+static void BZ_TestDeleteProgram(GLuint id) { (void)id; deleted_programs++; }
 static void BZ_TestShaderStatus(GLuint obj, GLenum check, GLint *val) {
     *val = check == GL_INFO_LOG_LENGTH ? shader_test.logsize : obj != shader_test.fail;
 }
@@ -69,7 +78,13 @@ static _Noreturn void BZ_TestShaderExit(int code) { shader_test.exitcode = code;
 #define glDeleteShader BZ_TestDeleteShader
 #define glGetUniformLocation BZ_TestUniformLocation
 #define glUniform1i BZ_TestUniform1i
-#define glUniform1f BZ_TestUniform1f
+#define glUniform1iv BZ_TestUniform1iv
+#define glUniform2iv BZ_TestUniform2iv
+#define glUniform1fv BZ_TestUniform1fv
+#define glUniform2fv BZ_TestUniform2fv
+#define glUniform3fv BZ_TestUniform3fv
+#define glUniform4fv BZ_TestUniform4fv
+#define glDeleteProgram BZ_TestDeleteProgram
 #define glUniformMatrix3fv BZ_TestUniformMatrix3
 #define glUniformMatrix4fv BZ_TestUniformMatrix4
 #define glGetShaderiv BZ_TestShaderStatus
@@ -90,7 +105,13 @@ static _Noreturn void BZ_TestShaderExit(int code) { shader_test.exitcode = code;
 #undef glDeleteShader
 #undef glGetUniformLocation
 #undef glUniform1i
-#undef glUniform1f
+#undef glUniform1iv
+#undef glUniform2iv
+#undef glUniform1fv
+#undef glUniform2fv
+#undef glUniform3fv
+#undef glUniform4fv
+#undef glDeleteProgram
 #undef glUniformMatrix3fv
 #undef glUniformMatrix4fv
 #undef glGetShaderiv
@@ -296,19 +317,19 @@ TEST(renderer_shader, grass_state_uses_one_matrix) {
 
 TEST(renderer_bones, model_shader_preserves_high_palette_indices) {
     memset(&tr, 0, sizeof(tr));
-    R_SetShaderSource(1, model_vs, NULL);
-    T_NOT_NULL(strstr(shader_src, "uniform mat4 uBones[128];"));
+    R_SetShaderSourceFromDesc(1, &sd_model, true, NULL);
+    T_NOT_NULL(strstr(shader_src, "uniform mat4 u_bones[128];"));
     T_NULL(strstr(shader_src, "BZ_BONE_COUNT"));
     /* Slot 83 must stay 83: the old clamp redirected it to 63 with a 64-matrix palette. */
-    T_NOT_NULL(strstr(shader_src, "int boneIdx = int(i_skin1[i]) + int(uFirstBoneLookupIndex);"));
+    T_NOT_NULL(strstr(shader_src, "int boneIdx = int(a_skin1[i]) + int(u_firstBoneLookupIndex);"));
     T_NULL(strstr(shader_src, "#define BZ_USE_INSTANCING"));
 }
 
 TEST(renderer_bones, instanced_shader_uses_the_same_palette_contract) {
-    R_SetShaderSource(1, model_vs, "#define BZ_USE_INSTANCING 1\n");
+    R_SetShaderSourceFromDesc(1, &sd_model, true, "#define BZ_USE_INSTANCING 1\n");
     T_NOT_NULL(strstr(shader_src, "#define BZ_USE_INSTANCING 1\n"));
-    T_NOT_NULL(strstr(shader_src, "uniform mat4 uBones[128];"));
-    T_NOT_NULL(strstr(shader_src, "int boneIdx = int(i_skin1[i]) + int(uFirstBoneLookupIndex);"));
+    T_NOT_NULL(strstr(shader_src, "uniform mat4 u_bones[128];"));
+    T_NOT_NULL(strstr(shader_src, "int boneIdx = int(a_skin1[i]) + int(u_firstBoneLookupIndex);"));
 }
 
 static HANDLE shader_alloc(long size) { return shader_test.memory = test_alloc(size); }
@@ -323,18 +344,19 @@ static void reset_shader(void) {
 
 TEST(renderer_shader, model_cache_checks_compile_and_link_once) {
     reset_shader();
-    LPSHADER shader = R_ModelShader();
+    MODELPROG * shader = R_ModelShader();
     T_NOT_NULL(shader); T_ASSERT(R_ModelShader() == shader);
     T_EQ(shader_test.creates, 2); T_EQ(shader_test.links, 1); T_EQ(shader_test.deleted, 2);
     T_EQ(shader_test.exitcode, 0); T_EQ(shader_test.logs, 0);
     R_ShutdownModelShader();
 }
 
-TEST(renderer_shader, instanced_cache_uploads_full_identity_palette_once) {
+TEST(renderer_shader, instanced_cache_initializes_full_identity_palette_once) {
     reset_shader();
-    LPSHADER shader = R_ModelShaderInstanced();
+    MODELPROG * shader = R_ModelShaderInstanced();
     T_NOT_NULL(shader); T_ASSERT(R_ModelShaderInstanced() == shader);
-    T_EQ(shader_test.creates, 2); T_EQ(shader_test.links, 1); T_EQ(shader_test.uploads, 1);
+    T_EQ(shader_test.creates, 2); T_EQ(shader_test.links, 1); T_EQ(shader_test.uploads, 0);
+    FOR_LOOP(i, BZ_BONE_PALETTE_MAX) FOR_LOOP(j, 16) T_EQ(shader->state.bones[i].v[j], j % 5 == 0 ? 1.0f : 0.0f);
     T_EQ(shader_test.deleted, 2); T_EQ(shader_test.exitcode, 0);
     R_ShutdownModelShader();
 }
@@ -349,7 +371,7 @@ TEST(renderer_shader, failed_compile_or_link_never_returns_a_model_fallback) {
         }
         T_EQ(shader_test.exitcode, EXIT_FAILURE); T_EQ(shader_test.uses, 0);
         T_EQ(shader_test.links, stages[i] == GL_LINK_STATUS ? 1 : 0);
-        T_EQ(shader_test.logs, 1); T_NULL(model_shader);
+        T_EQ(shader_test.logs, 1); T_ASSERT(!model_shader_loaded);
         free(shader_test.memory);
     }
 }
@@ -360,7 +382,7 @@ TEST(renderer_shader, instanced_link_failure_is_fatal_without_palette_upload) {
         R_ModelShaderInstanced(); T_ASSERT(false);
     }
     T_EQ(shader_test.exitcode, EXIT_FAILURE); T_EQ(shader_test.uses, 0); T_EQ(shader_test.uploads, 0);
-    T_NULL(instanced_shader); free(shader_test.memory);
+    T_ASSERT(!instanced_shader_loaded); free(shader_test.memory);
 }
 
 TEST(renderer_shader, failures_remain_fatal_without_a_driver_log_buffer) {
@@ -562,25 +584,21 @@ TEST(renderer_terrain, cliff_ramps_require_adjacent_corners_one_level_apart) {
     T_ASSERT(!R_IsCliffRamp(tile));
 }
 
-/* The shadow and non-shadow builds share lighting; only the key's direct contribution is occluded. */
+/* The shadow and non-shadow builds share lighting; only the key's direct contribution is occluded.
+   The descriptor always emits the receiver wiring and gates it behind GLSL `#ifdef USE_SHADOWMAPS`,
+   so the raw source carries the same body in both builds. */
 TEST(renderer_shader, shadow_receiver_contract) {
-    R_SetShaderSource(1, model_vs, NULL);
-    T_NOT_NULL(strstr(shader_src, "return lighting;"));
-#ifdef USE_SHADOWMAPS
+    R_SetShaderSourceFromDesc(1, &sd_model, true, NULL);
+    T_NOT_NULL(strstr(shader_src, "return lighting;")); /* clamp moved out of vertex_lighting */
     T_NOT_NULL(strstr(shader_src, "out vec3 v_shadowlight;"));
-    T_NOT_NULL(strstr(shader_src, "contribution - uLights[i][3].rgb * uLights[i][3].a"));
-#else
-    T_NULL(strstr(shader_src, "v_shadowlight"));
-#endif
-    R_SetShaderSource(1, model_fs, NULL);
-    T_NOT_NULL(strstr(shader_src, "light = min(light, vec3(1.0))"));
-#ifdef USE_SHADOWMAPS
+    T_NOT_NULL(strstr(shader_src, "v_shadowlight = vec3(0.0);"));
+    T_NOT_NULL(strstr(shader_src, "contribution - u_lights[i][3].rgb * u_lights[i][3].a"));
+
+    R_SetShaderSourceFromDesc(1, &sd_model, false, NULL);
+    T_NOT_NULL(strstr(shader_src, "light = min(light, vec3(1.0));")); /* clamp applied after occlusion */
     T_NOT_NULL(strstr(shader_src, "in vec3 v_shadowlight;"));
-    T_NOT_NULL(strstr(shader_src, "light -= v_shadowlight * (1.0 - shadow_visibility"));
+    T_NOT_NULL(strstr(shader_src, "light -= v_shadowlight * (1.0 - shadow_visibility(u_shadowmap, v_shadow));"));
     T_NOT_NULL(strstr(shader_src, "textureSize(depths, 0)"));
-#else
-    T_NULL(strstr(shader_src, "shadow_visibility"));
-#endif
 }
 
 /* -----------------------------------------------------------------------
@@ -588,14 +606,18 @@ TEST(renderer_shader, shadow_receiver_contract) {
  * and R_LoadShaderDescInto for each supported GLSL dialect.
  * ----------------------------------------------------------------------- */
 
-typedef struct {
-    GLuint progid;
-    GLint  mvp;
-    GLint  texture;
-    GLint  color;
-} sd_test_prog_t;
+typedef struct SDTESTSTATE {
+    MATRIX4 mvp;
+    int texture;
+    VECTOR4 color;
+} SDTESTSTATE;
+typedef struct SDTESTSTATE *LPSDTESTSTATE;
+typedef const struct SDTESTSTATE *LPCSDTESTSTATE;
+typedef struct SDTESTPROG { SHADERPROG prog; SDTESTSTATE state; } SDTESTPROG;
+typedef struct SDTESTPROG *LPSDTESTPROG;
+typedef const struct SDTESTPROG *LPCSDTESTPROG;
 
-#define SHADER_TYPE sd_test_prog_t
+#define SHADER_TYPE SDTESTSTATE
 static const shader_desc_t sd_test = {
     .Name = "test",
     .Uniforms = {
@@ -611,22 +633,22 @@ static const shader_desc_t sd_test = {
         SHARED(texcoord, UT_FLOAT_VEC2),
     },
     .VertexBody =
-        "void main() {\n"
-        "  gl_Position = u_mvp * vec4(a_position, 1.0);\n"
+        "vec4 vert() {\n"
         "  v_texcoord = a_texcoord;\n"
+        "  return u_mvp * vec4(a_position, 1.0);\n"
         "}\n",
     .FragmentBody =
-        "void main() {\n"
-        "  " GLSL_FRAGCOLOR " = " GLSL_TEX "(u_texture, v_texcoord) * u_color;\n"
+        "vec4 frag() {\n"
+        "  return texture(u_texture, v_texcoord) * u_color;\n"
         "}\n",
 };
 #undef SHADER_TYPE
 
 /* UNIFORM(field) stores offsetof(SHADER_TYPE, field); attrib/shared names get a_/v_ prefix. */
 TEST(renderer_shader_desc, macro_expansion_records_offsets_and_prefixed_names) {
-    T_EQ(sd_test.Uniforms[0].offset, offsetof(sd_test_prog_t, mvp));
-    T_EQ(sd_test.Uniforms[1].offset, offsetof(sd_test_prog_t, texture));
-    T_EQ(sd_test.Uniforms[2].offset, offsetof(sd_test_prog_t, color));
+    T_EQ(sd_test.Uniforms[0].offset, offsetof(SDTESTSTATE, mvp));
+    T_EQ(sd_test.Uniforms[1].offset, offsetof(SDTESTSTATE, texture));
+    T_EQ(sd_test.Uniforms[2].offset, offsetof(SDTESTSTATE, color));
     T_STREQ(sd_test.Uniforms[0].name, "u_mvp");
     T_STREQ(sd_test.Uniforms[1].name, "u_texture");
     T_STREQ(sd_test.Uniforms[2].name, "u_color");
@@ -651,12 +673,14 @@ TEST(renderer_shader_desc, declarations_120_vertex_uses_attribute_and_varying) {
     T_NOT_NULL(strstr(buf, "varying vec2 v_texcoord;\n"));
     T_NULL(strstr(buf, " in "));
     T_NULL(strstr(buf, " out "));
+    T_NULL(strstr(buf, "#define texture"));
 }
 
-TEST(renderer_shader_desc, declarations_120_fragment_omits_o_color) {
+TEST(renderer_shader_desc, declarations_120_fragment_aliases_texture) {
     char buf[1024];
     R_BuildShaderDeclarations(buf, sizeof(buf), &sd_test, false, GLSL_DIALECT_120);
     T_NOT_NULL(strstr(buf, "varying vec2 v_texcoord;\n"));
+    T_NOT_NULL(strstr(buf, "#define texture texture2D\n"));
     T_NULL(strstr(buf, "out vec4 o_color"));
     T_NULL(strstr(buf, " in "));
 }
@@ -680,6 +704,7 @@ TEST(renderer_shader_desc, declarations_140_fragment_declares_o_color) {
     T_NOT_NULL(strstr(buf, "out vec4 o_color;\n"));
     T_NULL(strstr(buf, "attribute "));
     T_NULL(strstr(buf, "varying "));
+    T_NULL(strstr(buf, "#define texture"));
 }
 
 /* GLSL 150 uses the same declaration keywords as 140; only the version line differs. */
@@ -704,27 +729,81 @@ TEST(renderer_shader_desc, declarations_es3_identical_to_140) {
     T_STREQ(buf140, bufES3);
 }
 
-/* R_LoadShaderDescInto writes locations into struct fields via stored offsets. */
-TEST(renderer_shader_desc, load_writes_progid_and_uniform_locations) {
-    sd_test_prog_t prog;
-    memset(&prog, -1, sizeof(prog));  /* prefill with non-zero to detect writes */
-    reset_shader();
-    R_LoadShaderDescInto(&sd_test, NULL, &prog.progid, &prog);
-    T_EQ(prog.progid,  (GLuint)GL_LINK_STATUS); /* BZ_TestCreateProgram returns GL_LINK_STATUS */
-    T_EQ(prog.mvp,     0);  /* BZ_TestUniformLocation returns 0; was -1 before */
-    T_EQ(prog.texture, 0);
-    T_EQ(prog.color,   0);
-    T_EQ(shader_test.creates, 2);
-    T_EQ(shader_test.links,   1);
-    T_EQ(shader_test.deleted, 2);
+/* main() is generated: bodies define vert()/frag(), never gl_Position/o_color. */
+TEST(renderer_shader_desc, main_vertex_assigns_gl_position) {
+    char buf[128];
+    FOR_LOOP(i, 4) {
+        R_BuildShaderMain(buf, sizeof(buf), true, (glsl_dialect_t)i);
+        T_STREQ(buf, "void main() { gl_Position = vert(); }\n");
+    }
 }
 
-TEST(renderer_shader_desc, load_null_prog_base_skips_location_writes) {
-    sd_test_prog_t prog;
-    memset(&prog, -1, sizeof(prog));
+TEST(renderer_shader_desc, main_fragment_120_assigns_gl_fragcolor) {
+    char buf[128];
+    R_BuildShaderMain(buf, sizeof(buf), false, GLSL_DIALECT_120);
+    T_STREQ(buf, "void main() { gl_FragColor = frag(); }\n");
+}
+
+TEST(renderer_shader_desc, main_fragment_140_assigns_o_color) {
+    char buf[128];
+    R_BuildShaderMain(buf, sizeof(buf), false, GLSL_DIALECT_140);
+    T_STREQ(buf, "void main() { o_color = frag(); }\n");
+    R_BuildShaderMain(buf, sizeof(buf), false, GLSL_DIALECT_150);
+    T_STREQ(buf, "void main() { o_color = frag(); }\n");
+    R_BuildShaderMain(buf, sizeof(buf), false, GLSL_DIALECT_ES3);
+    T_STREQ(buf, "void main() { o_color = frag(); }\n");
+}
+
+/* Locations stay private to the program and loading preserves caller-owned non-sampler values. */
+TEST(renderer_shader_desc, load_writes_locations_and_initializes_samplers) {
+    SDTESTPROG shader = { .state.color = { 1, 2, 3, 4 } };
     reset_shader();
-    R_LoadShaderDescInto(&sd_test, NULL, &prog.progid, NULL);
-    T_EQ(prog.progid, (GLuint)GL_LINK_STATUS);
-    T_EQ(prog.mvp,    (GLint)-1); /* not written when prog_base == NULL */
-    T_EQ(shader_test.creates, 2); T_EQ(shader_test.links, 1);
+    R_LoadShader(&sd_test, NULL, &shader);
+    T_EQ(shader.prog.progid, (GLuint)GL_LINK_STATUS);
+    FOR_LOOP(i, 3) T_EQ(shader.prog.locs[i], 0);
+    T_EQ(shader.state.texture, 0); T_EQ(shader.state.color.w, 4);
+    T_EQ(shader_test.creates, 2); T_EQ(shader_test.links, 1); T_EQ(shader_test.deleted, 2);
+}
+
+/* The descriptor chooses upload shape; arrays stay blocks and bools are not read as GLint storage. */
+TEST(renderer_shader_desc, upload_dispatches_values_arrays_and_inactive_inputs) {
+    union { float f[32]; int i[32]; bool b; } state = { 0 };
+    shader_desc_t desc = { .Name = "upload" };
+    SHADERPROG prog = { .progid = 1, .desc = &desc };
+    static const int widths[] = { 1, 2, 3, 4, 4, 0, 0, 0, 9, 16, 0, 0, 0 };
+    FOR_LOOP(type, UT_COUNT) {
+        desc.Uniforms[0] = (shaderUniform_t){ .name = "value", .type = type };
+        memset(&upload, 0, sizeof(upload));
+        if (widths[type]) {
+            FOR_LOOP(i, 32) state.f[i] = i + 1;
+            desc.Uniforms[0].count = 2;
+        } else if (type == UT_BOOL) state.b = true;
+        else state.i[0] = state.i[1] = 7;
+        R_UploadShader(&prog, &state);
+        T_EQ(upload.calls, 1);
+        if (widths[type]) {
+            T_EQ(upload.width, widths[type]); T_EQ(upload.count, 2);
+            T_EQ(upload.data[widths[type] * 2 - 1], widths[type] * 2);
+        } else T_EQ(upload.integer, type == UT_BOOL ? 1 : 7);
+    }
+    desc.Uniforms[0] = (shaderUniform_t){ .name = "bool", .type = UT_BOOL };
+    state.b = false; R_UploadShader(&prog, &state); T_EQ(upload.integer, 0);
+    desc.Uniforms[0].type = UT_FLOAT_MAT3; desc.Uniforms[0].transpose = true;
+    R_UploadShader(&prog, &state); T_EQ(upload.transpose, GL_TRUE);
+    int calls = upload.calls; prog.locs[0] = -1;
+    R_UploadShader(&prog, &state); T_EQ(upload.calls, calls);
+}
+
+TEST(renderer_shader_desc, sampler_order_and_program_release) {
+    struct { SHADERPROG prog; int state[3]; } shader = { 0 };
+    /* A linked descriptor requires shader bodies even when the test only inspects sampler setup. */
+    shader_desc_t desc = { .Name = "samplers", .VertexBody = sd_test.VertexBody, .FragmentBody = sd_test.FragmentBody };
+    reset_shader();
+    FOR_LOOP(i, 3) desc.Uniforms[i] = (shaderUniform_t){ .offset = i * sizeof(int), .name = "sampler", .type = UT_SAMPLER_2D };
+    R_LoadShader(&desc, NULL, &shader);
+    FOR_LOOP(i, 3) T_EQ(shader.state[i], i);
+    int deleted = deleted_programs;
+    R_DeleteShader(&shader.prog); T_EQ(deleted_programs, deleted + 1);
+    T_EQ(shader.prog.progid, 0); T_NULL(shader.prog.desc);
+    R_DeleteShader(&shader.prog); T_EQ(deleted_programs, deleted + 1);
 }
