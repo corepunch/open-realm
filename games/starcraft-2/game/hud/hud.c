@@ -278,19 +278,14 @@ BOOL SC2_HUD_BuildFrameForWrite(LPCSC2BASEFRAME frame, uiFrame_t *out) {
         out->buffer.data = (HANDLE)&frame->label;
     }
     copy_points(out, frame);
-    /* Console chrome: bottom-strip viewport + world X position per model.
-     * The ortho camera is fixed at (0,-5,0); models translate within it.
-     * MinimapModel X=-1 (left), InfopanelModel X=0 (center), CommandPanelModel X=+1 (right). */
+    /* Console chrome: bottom 332-unit strip viewport + "Stand" idle animation.
+     * R_GameExtractEntityCamera aligns the ortho so chrome bottom sits at the
+     * strip's screen bottom (target_z = bs->min.z + s/aspect).
+     * X position from XML <Position>: MinimapModel=-1, InfopanelModel=0, CommandPanelModel=+1. */
     if (frame->sc2_type == SC2_FRAMETYPE_MODEL) {
-        out->size.height = 332.0f;
-        out->size.width  = 0.0f;
-        out->points.y[FPP_MIN].used = 0;
-        out->points.y[FPP_MID].used = 0;
-        out->points.y[FPP_MAX] = (uiFramePoint_t){
-            .used=1, .targetPos=FPP_MAX, .relativeTo=UI_PARENT, .offset=0
-        };
+        out->text = "Stand"; /* idle HUD pose; chrome visible band is above center.z */
         if (frame->name) {
-            if (!strcasecmp(frame->name, "MinimapModel"))      out->value = -1.0f;
+            if (!strcasecmp(frame->name, "MinimapModel"))           out->value = -1.0f;
             else if (!strcasecmp(frame->name, "InfopanelModel"))    out->value =  0.0f;
             else if (!strcasecmp(frame->name, "CommandPanelModel")) out->value =  1.0f;
         }

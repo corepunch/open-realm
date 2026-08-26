@@ -384,25 +384,21 @@ bool R_GameExtractEntityCamera(renderEntity_t const *entity, float aspect, viewD
      * panels, radius >> unit models).  Use the orthographic camera from
      * ConsolePanel.SC2Layout: position=(0,-5,0) → target=(0,0,0), which
      * produces the flat top-down-front view the SC2 engine uses. */
-    if (radius > 3.0f) {
-        /* Console chrome camera from ConsolePanel.SC2Layout:
-         *   position=(0,-5,0), target=origin, fov=90 → half-extent=5.
-         * The viewport is restricted to the bottom 332/1200 = 27.7% strip.
-         * Use the SC2 reference 4:3 aspect (1600/1200) so the ortho scale
-         * matches the full-screen design: the bottom strip of that ortho
-         * contains the chrome geometry (Z=-2 to 0 in model space). */
-        /* Fixed console camera — world-space, does NOT move with entity.
-         * Models at different X positions (MinimapModel X=-1, etc.) move
-         * within this fixed view; the camera stays at origin. */
-        VECTOR3 eye = { 0.0f, -5.0f, 0.0f };
-        VECTOR3 dir = { 0.0f,  1.0f, 0.0f };
-        VECTOR3 up  = { 0.0f,  0.0f, 1.0f };
-        (void)transform;
-        /* Align ortho bottom to the model's min-Z so chrome fills the viewport. */
-        float bottom_z = bs->min.z;
-        float strip_h  = (332.0f / 1200.0f) * 7.5f;
-        float s        = 5.0f;
-        Matrix4_ortho(&proj, -s, s, bottom_z, bottom_z + strip_h, 0.1f, 100.0f);
+    if (entity->flags & RF_ORTHO_CAMERA) {
+        /* Console chrome (RF_ORTHO_CAMERA): ortho centered on model bounding
+         * sphere, looking from -Y with Z-up (matches ConsolePanel.SC2Layout). */
+        float s    = radius * 1.05f;
+        float dist = 5.0f;
+        float tgt_z = center.z;
+        VECTOR3 eye = { center.x, center.y - dist, tgt_z };
+        VECTOR3 tgt = { center.x, center.y,        tgt_z };
+        eye = Matrix4_multiply_vector3(&transform, &eye);
+        tgt = Matrix4_multiply_vector3(&transform, &tgt);
+        VECTOR3 dir = Vector3_sub(&tgt, &eye);
+        if (Vector3_len(&dir) <= 0.001f)
+            dir = (VECTOR3){ 0.0f, 1.0f, 0.0f };
+        VECTOR3 up = { 0.0f, 0.0f, 1.0f };
+        Matrix4_ortho(&proj, -s, s, -s / aspect, s / aspect, 0.1f, dist + radius * 4.0f);
         Matrix4_lookAt(&view, &eye, &dir, &up);
     } else {
         float fov  = 35.0f;
@@ -428,10 +424,22 @@ bool R_GameExtractEntityCamera(renderEntity_t const *entity, float aspect, viewD
     return true;
 }
 
+/* Select the first sequence whose name matches anim (case-insensitive).
+ * Accumulate sequence durations to build the absolute time for that seq.
+ * Falls back to time=0 (first sequence, first frame) if not found. */
 bool R_GameSetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
-    (void)model;
-    (void)anim;
-    (void)entity;
+    if (!model || model->modeltype != ID_43DM || !model->m3 || !entity) return false;
+    m3Model_t const *m3 = model->m3;
+
+    DWORD time = 0;
+    M3_FOR_EACH(Sequence, seq, m3->sequences) {
+        if (seq->name && anim && !strcasecmp(seq->name, anim)) {
+            entity->frame = entity->oldframe = time;
+            return true;
+        }
+        time += seq->interval[1];
+    }
+    entity->frame = entity->oldframe = 0;
     return false;
 }
 

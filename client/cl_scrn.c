@@ -475,6 +475,9 @@ void SCR_LayoutDrawPortrait(LPCUIFRAME frame, LPCRECT screen) {
     renderEntity_t entity = {0};
     entity.model = draw; entity.scale = 1.0f;
     entity.flags = RF_NO_SHADOW | RF_NO_FOGOFWAR | RF_PORTRAIT_LIGHTING;
+    /* Console chrome models send text="Stand"; mark them for ortho camera. */
+    if (anim && !strcmp(anim, "Stand"))
+        entity.flags |= RF_ORTHO_CAMERA;
     entity.origin = (VECTOR3){ frame->value, 0.0f, 0.0f }; /* model world X from frame.value */
     re.SetEntityAnimFrame(draw, anim, &entity);
 
