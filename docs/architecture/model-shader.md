@@ -161,3 +161,17 @@ before `R_GameShutdown`. Reusing terrain/map cleanup there attempts to release c
 already removed from the model registry. A bounded TRaynor01 run with targeted shutdown logs confirmed
 an abort at the first cliff-model release. Keep map cleanup at its registration boundary; do not
 fold it into `R_SC2ShutdownShaders`.
+
+### Model variant define lifetime
+
+`R_ShaderDefines` returns a shared scratch string and must clear it before composing every model
+variant. Commit `63b8da0` omitted that reset: when WoW grass requested the instanced program first,
+the later ordinary M2 program retained `BZ_USE_INSTANCING`. Its linked `u_model` location became
+`-1`, and regular M2 VAOs were interpreted through unset `a_instance` columns. The visible result
+was flickering, screen-sized triangles followed by disappearing characters and creatures.
+
+For this failure, compare the generated vertex source and linked inputs rather than terrain buffers:
+the bad normal program contains `#define BZ_USE_INSTANCING 1`, while
+`glGetUniformLocation(program, "u_model")` returns `-1`. The pre-change and corrected programs
+retain an active model matrix. `renderer_shader.normal_model_defines_do_not_inherit_instancing`
+locks the required instanced-then-normal compile order.

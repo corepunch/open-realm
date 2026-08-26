@@ -352,6 +352,11 @@ TEST(renderer_bones, instanced_shader_uses_the_same_palette_contract) {
     T_NOT_NULL(strstr(shader_src, "int boneIdx = int(a_skin1[i]) + int(u_firstBoneLookupIndex);"));
 }
 
+TEST(renderer_shader, normal_model_defines_do_not_inherit_instancing) {
+    T_NOT_NULL(strstr(R_ShaderDefines(true), "#define BZ_USE_INSTANCING 1\n"));
+    T_NULL(strstr(R_ShaderDefines(false), "BZ_USE_INSTANCING"));
+}
+
 static HANDLE shader_alloc(long size) { return shader_test.memory = test_alloc(size); }
 
 /* Each case starts with empty caches and independent driver counters. */
