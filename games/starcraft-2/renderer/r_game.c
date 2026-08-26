@@ -399,7 +399,7 @@ bool R_GameExtractEntityCamera(renderEntity_t const *entity, float aspect, viewD
          * Camera is fixed at world X=0; subtracting origin.x in model-space
          * cancels the entity translation: world_x = -origin.x + origin.x = 0. */
         float s_y   = radius * 1.05f;
-        float s_x   = 1.5f;
+        float s_x   = 3.0f * s_y;  /* 3 sections: each fills s_y wide, total half-span = 3*s_y */
         float dist  = 5.0f;
         float tgt_z = s_y / aspect;
         VECTOR3 eye = { -entity->origin.x, center.y - dist, tgt_z };
