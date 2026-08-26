@@ -7,6 +7,7 @@ void R_DrawTerrainSegment(LPCMAPSEGMENT segment, DWORD mask) {
         if (((1 << layer->type) & mask) == 0)
             continue;
         R_BindTexture(layer->texture, 0);
+        R_ApplyShader(&tr.shader_default);
         R_DrawBuffer(layer->buffer, layer->num_vertices);
     }
 }

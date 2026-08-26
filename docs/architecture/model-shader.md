@@ -121,3 +121,43 @@ separately from accumulated lighting. The fragment shader removes only the occlu
 so scene ambient and other lights remain. `BZ_SHADOW_GLSL` also serves SC2 terrain/cliffs; see
 [SC2 shadow diagnostics](../games/starcraft-2/map-model-unit-data.md#shadow-and-catalog-diagnostics).
 The umbrella suite runs the model shader tests with shadows both enabled and disabled.
+
+## Descriptor programs and typed state
+
+All renderer shaders (sprites, ground, MDX/M2/M3, particles, FOW raycast, SC2 terrain/cliffs,
+WoW terrain/grass) use `shader_desc_t`. A typed program has `SHADERPROG prog` plus a typed `state`.
+`SHADERPROG` owns the linked handle and location table; `UNIFORM` offsets address **state values**,
+not locations. `R_LoadShader` resolves inputs once and assigns sampler units in descriptor order.
+Draw paths fill values and call `R_ApplyShader(&shader)` immediately before the draw (or once when
+setting up an unchanged splat batch). `R_UploadShader(&shader.prog, &state)` also accepts a separate
+state value. Only `renderer/r_shader.c` calls `glGetUniformLocation` or `glUniform*`.
+
+- State booleans are C `bool` and GLSL `bool`, including WoW `useWeightedBlend`, `singleTexture`,
+  `wmoIndoor`, model alpha-key/unshaded/fog flags. The backend converts to GLint for GL; never read
+  a bool through a GLint pointer. WMO blend mode remains an integer, since it is not a boolean.
+- Matrices/vectors are native shared math types. Arrays are contiguous inline storage and submit
+  with one count-based GL call. Model bones remain the full 128-matrix contract, lights eight slots;
+  `lightCount` selects active entries. Instanced bones initialize to identity once at program creation.
+- `UNIFORM_TRANSPOSE` describes row-major CPU normal matrices; UV matrices remain column-major.
+- One renderer API submission is **not** one GL call or a UBO. The GL backend walks the descriptor
+  and submits active fields, preserving the existing supported dialects without std140 assumptions.
+- Samplers use descriptor declaration order, not linker location order. Shared models/default ground
+  use diffuse=0, shadow=1, FOW=2. WoW terrain uses layers=0..3, alpha=4; camera grass explicitly
+  assigns its height/control samplers to 5/6 to match existing bindings.
+- Inactive locations (`-1`) mean GLSL optimized out a declared input; the upload skips those.
+  Shader compile/link failure still terminates, never substitutes another shader.
+- Release each `SHADERPROG` with `R_DeleteShader` before its GL context is destroyed.
+
+`make test-renderer-model` exercises generation for 120/140/150/ES3, program cache hit/miss,
+compile/link failures, typed offsets, preserved non-sampler values, all upload types, arrays,
+boolean true/false, transpose, and inactive inputs. `make test` additionally needs local UDP socket
+permissions. On macOS, graphical smoke tests need display access (sandboxed SDL can report no displays).
+Use `+screenshot 5 +com_frame_limit 10`; `com_framelimit` is not the registered cvar.
+If `+map playercreate` reports missing spawn-map data, use the authoritative explicit WDT path for
+renderer verification: `+map World/Maps/Azeroth/Azeroth.wdt` (do not add a runtime map fallback).
+
+SC2 shader shutdown must only delete its programs: `R_Shutdown` currently calls `R_ShutdownModels`
+before `R_GameShutdown`. Reusing terrain/map cleanup there attempts to release cliff-model pointers
+already removed from the model registry. A bounded TRaynor01 run with targeted shutdown logs confirmed
+an abort at the first cliff-model release. Keep map cleanup at its registration boundary; do not
+fold it into `R_SC2ShutdownShaders`.

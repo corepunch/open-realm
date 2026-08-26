@@ -62,6 +62,14 @@
 #define SYSFONT_DRAW_WIDTH 8
 #define SYSFONT_DRAW_HEIGHT 8
 
+typedef enum render_phase_e {
+    RENDER_PHASE_SOLID = 0,
+    RENDER_PHASE_LIGHTS,
+    RENDER_PHASE_ALPHA,
+} render_phase_t;
+
+extern render_phase_t render_phase;
+
 #include "../common/common.h"
 #include "../client/tr_public.h"
 #include "r_alpha.h"
@@ -74,7 +82,6 @@ static uint64_t R_PrimitiveTriangles(GLenum mode, DWORD count, DWORD instances) 
 }
 
 
-KNOWN_AS(shader_program, SHADER);
 KNOWN_AS(render_buffer, BUFFER);
 KNOWN_AS(render_target, RENDERTARGET);
 KNOWN_AS(vertex, VERTEX);
@@ -126,35 +133,92 @@ static void R_SwapRedBlue(BYTE *pixels, DWORD count, DWORD stride) {
     }
 }
 
-struct shader_program {
-    DWORD progid;
-    DWORD uViewProjectionMatrix;
-    DWORD uModelMatrix;
-    DWORD uLightMatrix;
-    DWORD uNormalMatrix;
-    DWORD uTextureMatrix;
-    DWORD uTexture;
-#ifdef USE_SHADOWMAPS
-    DWORD uShadowmap;
-#endif
-    DWORD uFogOfWar;
-    DWORD uBones;
-    DWORD uAlphaKey;
-    DWORD uAlphaCutoff;
-    DWORD uUnshaded;
-    DWORD uLayerAlpha;
-    DWORD uGeosetColor;
-    DWORD uUvMatrix;
-    DWORD uLightCount;
-    DWORD uLights;
-    DWORD uGrassParams;
-    DWORD uEyePosition;
-    DWORD uActiveGlow;
-    DWORD uFogEnable;
-    DWORD uFogColor;
-    DWORD uFogParams;
-    DWORD uFirstBoneLookupIndex;
-};
+#include "shader_desc.h"
+#define BZ_MODEL_LIGHT_MAX 8 // lights; shared model shader array capacity; bounds one lighting-state upload
+
+/* Typed shader values are separate from the program-owned GL locations. */
+
+/* Simple sprite/UI shaders: position+texcoord+color vertex, unlit fragment. */
+typedef struct SPRITESTATE {
+    MATRIX4 viewProjection;
+    MATRIX4 model;
+    int texture;
+    FLOAT activeGlow;
+} SPRITESTATE;
+typedef struct SPRITESTATE *LPSPRITESTATE;
+typedef const struct SPRITESTATE *LPCSPRITESTATE;
+typedef struct SPRITEPROG {
+    SHADERPROG prog;
+    SPRITESTATE state;
+} SPRITEPROG;
+typedef struct SPRITEPROG *LPSPRITEPROG;
+typedef const struct SPRITEPROG *LPCSPRITEPROG;
+
+/* Ground/world shader with per-vertex lighting + texture/fog-of-war matrices.
+   progid/viewProjection/model share the SPRITEPROG prefix layout so the
+   splat path can address either type through splat_shader_t. */
+typedef struct DEFAULTSTATE {
+    MATRIX4 viewProjection;
+    MATRIX4 model;
+    MATRIX4 textureMatrix;
+    MATRIX4 lightMatrix;
+    MATRIX3 normalMatrix;
+    int texture;
+    int shadowmap;
+    int fogOfWar;
+} DEFAULTSTATE;
+typedef struct DEFAULTSTATE *LPDEFAULTSTATE;
+typedef const struct DEFAULTSTATE *LPCDEFAULTSTATE;
+typedef struct DEFAULTPROG {
+    SHADERPROG prog;
+    DEFAULTSTATE state;
+} DEFAULTPROG;
+typedef struct DEFAULTPROG *LPDEFAULTPROG;
+typedef const struct DEFAULTPROG *LPCDEFAULTPROG;
+
+/* Minimal common view for the splat/decals path: the three uniforms it uploads. */
+typedef struct {
+    SHADERPROG prog;
+    struct { MATRIX4 viewProjection, model; } state;
+} splat_shader_t;
+
+/* SPRITEPROG and DEFAULTPROG share a progid/viewProjection/model prefix,
+   so the splat path can address either through splat_shader_t. */
+#define R_SPLAT_SHADER(P) ((splat_shader_t *)(P))
+
+/* Shared skinned-model shader (MDX/M2/M3): bone palette + 8 packed lights. */
+typedef struct MODELSTATE {
+    MATRIX4 bones[BZ_BONE_PALETTE_MAX];
+    MATRIX4 viewProjection;
+    MATRIX4 lightMatrix;
+    MATRIX4 textureMatrix;
+    int lightCount;
+    FLOAT firstBoneLookupIndex;
+    MATRIX4 lights[BZ_MODEL_LIGHT_MAX];
+    MATRIX4 grassParams;
+    MATRIX4 model;
+    MATRIX3 normalMatrix;
+    int texture;
+    int shadowmap;
+    int fogOfWar;
+    FLOAT layerAlpha;
+    VECTOR4 geosetColor;
+    MATRIX3 uvMatrix;
+    bool alphaKey;
+    FLOAT alphaCutoff;
+    bool unshaded;
+    bool fogEnable;
+    VECTOR3 fogColor;
+    VECTOR2 fogParams;
+} MODELSTATE;
+typedef struct MODELSTATE *LPMODELSTATE;
+typedef const struct MODELSTATE *LPCMODELSTATE;
+typedef struct MODELPROG {
+    SHADERPROG prog;
+    MODELSTATE state;
+} MODELPROG;
+typedef struct MODELPROG *LPMODELPROG;
+typedef const struct MODELPROG *LPCMODELPROG;
 
 struct render_target {
     DWORD buffer;
@@ -221,7 +285,14 @@ struct render_globals {
     viewDef_t viewDef;
     LPCWAR3MAP world;
     LPTEXTURE texture[TEX_COUNT];
-    LPSHADER shader[SHADER_COUNT];
+    SPRITEPROG  shader_ui;
+    SPRITEPROG  shader_splat;
+    SPRITEPROG  shader_shadowSplat;
+    SPRITEPROG  shader_commandButton;
+    SPRITEPROG  shader_minimap;
+    SPRITEPROG  shader_minimapFog;
+    SPRITEPROG  shader_unlit;
+    DEFAULTPROG shader_default;
     LPBUFFER buffer[RBUF_COUNT];
     LPMODEL model[MODEL_COUNT];
     LPRENDERTARGET rt[RT_COUNT];
@@ -271,24 +342,25 @@ void R_ReleaseVertexArrayObject(LPBUFFER buffer);
 LPCTEXTURE R_FindTextureByID(DWORD textureID);
 void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y);
 bool R_SetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity);
-void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture, LPCSHADER shader, COLOR32 color);
+void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture, splat_shader_t *shader, COLOR32 color);
 void R_DrawHealthBars(void);
 void R_DrawBackdrop(LPCDRAWBACKDROP drawBackdrop);
-void R_RenderRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, LPCSHADER shader, COLOR32 color);
-void R_RenderFlatRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, FLOAT z, LPCTEXTURE texture, LPCSHADER shader, COLOR32 color);
+void R_RenderRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, splat_shader_t *shader, COLOR32 color);
+void R_RenderFlatRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, FLOAT z, LPCTEXTURE texture, splat_shader_t *shader, COLOR32 color);
 /* Batched splat rendering: accumulate many ground decals (unit shadows) into one
  * vertex-buffer upload + draw per contiguous texture run (plus capacity flushes),
  * instead of one upload + draw per splat. */
-void R_BeginSplatBatch(LPCSHADER shader);
+void R_BeginSplatBatch(splat_shader_t *shader);
 void R_AddRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, COLOR32 color);
 void R_EndSplatBatch(void);
 
 // r_shader.c
-LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default);
-void R_ReleaseShader(LPSHADER shader);
-LPSHADER R_ModelShader(void);
-LPSHADER R_ModelShaderInstanced(void);
+MODELPROG *R_ModelShader(void);
+MODELPROG *R_ModelShaderInstanced(void);
 void R_ShutdownModelShader(void);
+void R_LoadBuiltinShaders(void);
+void R_ShutdownBuiltinShaders(void);
+SPRITEPROG *R_SpriteShader(SHADERTYPE type);
 
 // r_main.c
 #ifdef USE_SHADOWMAPS

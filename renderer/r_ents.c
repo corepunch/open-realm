@@ -133,7 +133,7 @@ void R_DrawDecals(void) {
                 continue;
             }
         }
-        R_RenderSplat(&decal->origin, decal->radius, decal->texture, tr.shader[SHADER_SPLAT], decal->color);
+        R_RenderSplat(&decal->origin, decal->radius, decal->texture, R_SPLAT_SHADER(&tr.shader_splat), decal->color);
     }
 }
 
@@ -209,13 +209,13 @@ DWORD R_EntitiesInRect(viewDef_t const *viewdef, LPCRECT rect, DWORD max, LPDWOR
 }
 
 #ifdef USE_SHADOWMAPS
-extern bool is_rendering_lights;
+extern render_phase_t render_phase;
 #endif
 DWORD selCircles[NUM_SELECTION_CIRCLES] = { 100, 300, 100000 };
 
 static void R_RenderUberSplat(const renderEntity_t *entity, LPCVECTOR2 origin) {
     if (entity->splat && !(entity->flags & RF_NO_UBERSPLAT)) {
-        R_RenderSplat(origin, entity->splatsize, entity->splat, tr.shader[SHADER_DEFAULT], COLOR32_WHITE);
+        R_RenderSplat(origin, entity->splatsize, entity->splat, R_SPLAT_SHADER(&tr.shader_default), COLOR32_WHITE);
     }
 }
 
@@ -270,7 +270,7 @@ static void R_RenderShadow(const renderEntity_t *entity, LPCVECTOR2 origin) {
  * texture change or buffer capacity), instead of one per unit. */
 static void R_DrawEntityShadows(void) {
 #ifndef USE_SHADOWMAPS
-    R_BeginSplatBatch(tr.shader[SHADER_SHADOWSPLAT]);
+    R_BeginSplatBatch(R_SPLAT_SHADER(&tr.shader_shadowSplat));
     FOR_LOOP(i, tr.viewDef.num_entities) {
         renderEntity_t const *ent = tr.viewDef.entities + i;
         if ((ent->flags & RF_HIDDEN) || !ent->model) {
@@ -290,7 +290,7 @@ static void R_RenderSelectedCircle(const renderEntity_t *entity, LPCVECTOR2 orig
             if ((radius * 2) > selCircles[i])
                 continue;
             /* A flat actor-Z quad intersects sloped terrain; the splat path fits the ring to terrain samples. */
-            R_RenderSplat(origin, radius, tr.texture[TEX_SELECTION_CIRCLE+i], tr.shader[SHADER_SPLAT], color);
+            R_RenderSplat(origin, radius, tr.texture[TEX_SELECTION_CIRCLE+i], R_SPLAT_SHADER(&tr.shader_splat), color);
             break;
         }
     }
@@ -425,7 +425,7 @@ static void R_RenderHoverHighlight(renderEntity_t const *entity) {
             continue;
         R_RenderSplat(&(VECTOR2){ entity->origin.x, entity->origin.y },
                       radius, tr.texture[TEX_SELECTION_CIRCLE+i],
-                      tr.shader[SHADER_SPLAT], color);
+                      R_SPLAT_SHADER(&tr.shader_splat), color);
         break;
     }
 }
@@ -435,7 +435,7 @@ void R_RenderModel(renderEntity_t const *entity) {
         return;
 
 #ifdef USE_SHADOWMAPS
-    if (is_rendering_lights) {
+    if (render_phase == RENDER_PHASE_LIGHTS) {
         if (!(entity->flags & RF_NO_SHADOW))
             R_GameRenderModel(entity);
         return;

@@ -3,7 +3,6 @@
 LPMAPSEGMENT g_mapSegments = NULL;
 LPMAPLAYER g_groundLayers = NULL;
 
-
 static void R_FileReadShadowMap(HANDLE hMpq, LPWAR3MAP  pWorld) {
     HANDLE file;
     if (!SFileOpenFileEx(hMpq, "war3map.shd", SFILE_OPEN_FROM_MPQ, &file)) {
@@ -247,14 +246,13 @@ void R_DrawTerrainShadows(void) {
     };
     COLOR32 shadowColor = {0, 0, 0, 255};
 
-    R_RenderRectSplat(&mins, &maxs, tr.texture[TEX_TERRAIN_SHADOW], tr.shader[SHADER_SHADOWSPLAT], shadowColor);
+    R_RenderRectSplat(&mins, &maxs, tr.texture[TEX_TERRAIN_SHADOW], R_SPLAT_SHADER(&tr.shader_shadowSplat), shadowColor);
 }
 
 void R_DrawWorld(void) {
     if (tr.viewDef.rdflags & RDF_NOWORLDMODEL)
         return;
 
-    R_Call(glUseProgram, tr.shader[SHADER_DEFAULT]->progid);
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_TRUE);
     R_Call(glDepthFunc, GL_LEQUAL);
@@ -267,6 +265,7 @@ void R_DrawWorld(void) {
             R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         }
         R_BindTexture(layer->texture, 0);
+        R_ApplyShader(&tr.shader_default);
         R_DrawBuffer(layer->buffer, layer->num_vertices);
     }
 
@@ -280,8 +279,7 @@ void R_DrawWorld(void) {
 void R_DrawAlphaSurfaces(void) {
     if (tr.viewDef.rdflags & RDF_NOWORLDMODEL)
         return;
-    
-    R_Call(glUseProgram, tr.shader[SHADER_DEFAULT]->progid);
+
     R_Call(glEnable, GL_BLEND);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     R_Call(glDepthMask, GL_FALSE);

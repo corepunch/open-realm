@@ -101,7 +101,7 @@ void R_RenderFlatRectSplat(LPCVECTOR2 mins,
                            LPCVECTOR2 maxs,
                            FLOAT z,
                            LPCTEXTURE texture,
-                           LPCSHADER shader,
+                           splat_shader_t *shader,
                            COLOR32 color)
 {
     MATRIX4 model_matrix;
@@ -122,9 +122,9 @@ void R_RenderFlatRectSplat(LPCVECTOR2 mins,
 
     Matrix4_identity(&model_matrix);
     R_BindTexture(texture, 0);
-    R_Call(glUseProgram, shader->progid);
-    R_Call(glUniformMatrix4fv, shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
-    R_Call(glUniformMatrix4fv, shader->uModelMatrix, 1, GL_FALSE, model_matrix.v);
+
+    shader->state.viewProjection = tr.viewDef.viewProjectionMatrix;
+    shader->state.model = model_matrix;
     R_Call(glEnable, GL_BLEND);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     R_Call(glDepthMask, GL_FALSE);
@@ -132,6 +132,7 @@ void R_RenderFlatRectSplat(LPCVECTOR2 mins,
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STREAM_DRAW);
     R_StatsDraw(GL_TRIANGLES, sizeof(vertices) / sizeof(vertices[0]), 1);
+    R_ApplyShader(shader);
     R_Call(glDrawArrays, GL_TRIANGLES, 0, sizeof(vertices) / sizeof(vertices[0]));
     R_Call(glDepthMask, GL_TRUE);
 }
@@ -139,7 +140,7 @@ void R_RenderFlatRectSplat(LPCVECTOR2 mins,
 void R_RenderRectSplat(LPCVECTOR2 mins,
                        LPCVECTOR2 maxs,
                        LPCTEXTURE texture,
-                       LPCSHADER shader,
+                       splat_shader_t *shader,
                        COLOR32 color)
 {
     R_RenderFlatRectSplat(mins, maxs, 0.0f, texture, shader, color);
@@ -148,7 +149,7 @@ void R_RenderRectSplat(LPCVECTOR2 mins,
 void R_RenderSplat(LPCVECTOR2 position,
                    FLOAT radius,
                    LPCTEXTURE texture,
-                   LPCSHADER shader,
+                   splat_shader_t *shader,
                    COLOR32 color)
 {
     VECTOR2 mins = {
@@ -165,8 +166,8 @@ void R_RenderSplat(LPCVECTOR2 position,
 
 /* SC2 splats are flat quads; the shared batch API stays immediate (a batching
  * pass exists only in the WC3 terrain-conforming renderer). */
-static LPCSHADER sc2_batch_shader;
-void R_BeginSplatBatch(LPCSHADER shader) { sc2_batch_shader = shader; }
+static splat_shader_t *sc2_batch_shader;
+void R_BeginSplatBatch(splat_shader_t *shader) { sc2_batch_shader = shader; }
 void R_AddRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, COLOR32 color) {
     R_RenderRectSplat(mins, maxs, texture, sc2_batch_shader, color);
 }
@@ -180,6 +181,7 @@ void R_GameInit(void) {
 }
 
 void R_GameShutdown(void) {
+    R_SC2ShutdownShaders();
     M3_Shutdown();
 }
 

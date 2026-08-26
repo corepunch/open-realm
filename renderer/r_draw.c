@@ -34,12 +34,11 @@ void R_DrawString(int x, int y, LPCSTR text) {
     if (!count) return;
 
     Matrix4_ortho(&ui_matrix, 0.0f, window.width, window.height, 0.0f, 0.0f, 100.0f);
-    
-    R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
+
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
     R_Call(glBufferData, GL_ARRAY_BUFFER, count * sizeof(*simp), simp, GL_DYNAMIC_DRAW);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
+    tr.shader_ui.state.viewProjection = ui_matrix;
     
     R_BindTexture(tr.texture[TEX_FONT], 0);
     
@@ -47,6 +46,7 @@ void R_DrawString(int x, int y, LPCSTR text) {
     R_Call(glEnable, GL_BLEND);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     R_StatsDraw(GL_TRIANGLES, count, 1);
+    R_ApplyShader(&tr.shader_ui);
     R_Call(glDrawArrays, GL_TRIANGLES, 0, count);
 }
 
@@ -64,11 +64,10 @@ void R_DrawFill(LPCRECT rect, COLOR32 color) {
     R_AddQuad(simp, rect, &(RECT){0, 0, 1, 1}, color, 0);
     Matrix4_ortho(&ui_matrix, 0.0f, window.width, window.height, 0.0f, 0.0f, 100.0f);
 
-    R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(simp), simp, GL_DYNAMIC_DRAW);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
+    tr.shader_ui.state.viewProjection = ui_matrix;
 
     R_BindTexture(tr.texture[TEX_WHITE], 0);
 
@@ -78,6 +77,7 @@ void R_DrawFill(LPCRECT rect, COLOR32 color) {
     R_Call(glEnable, GL_BLEND);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     R_StatsDraw(GL_TRIANGLES, 6, 1);
+    R_ApplyShader(&tr.shader_ui);
     R_Call(glDrawArrays, GL_TRIANGLES, 0, 6);
 }
 
@@ -137,7 +137,7 @@ void R_DrawImageBatch(LPCTEXTURE texture,
         return;
     }
 
-    LPCSHADER shader = tr.shader[shaderType];
+    SPRITEPROG *shader = R_SpriteShader(shaderType);
     
     MATRIX4 ui_matrix, model_matrix;
     RECT const scene = R_UISceneRect();
@@ -145,10 +145,10 @@ void R_DrawImageBatch(LPCTEXTURE texture,
     Matrix4_identity(&model_matrix);
     
     R_Call(glDisable, GL_CULL_FACE);
-    R_Call(glUseProgram, shader->progid);
-    R_Call(glUniformMatrix4fv, shader->uViewProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
-    R_Call(glUniformMatrix4fv, shader->uModelMatrix, 1, GL_FALSE, model_matrix.v);
-    R_Call(glUniform1f , shader->uActiveGlow, uActiveGlow);
+
+    shader->state.viewProjection = ui_matrix;
+    shader->state.model = model_matrix;
+    shader->state.activeGlow = uActiveGlow;
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VERTEX) * num_vertices, vertices, GL_DYNAMIC_DRAW);
@@ -176,6 +176,7 @@ void R_DrawImageBatch(LPCTEXTURE texture,
         R_SetUIClipScissor(clip);
     }
     R_StatsDraw(GL_TRIANGLES, num_vertices, 1);
+    R_ApplyShader(shader);
     R_Call(glDrawArrays, GL_TRIANGLES, 0, num_vertices);
     if (hasClip) {
         R_ResetUIScissor();
@@ -293,15 +294,6 @@ void R_DrawMinimapCameraRect(LPCRECT screen) {
         return;
     }
 
-    static int log_frame = 0;
-    if (++log_frame % 60 == 0) {
-        fprintf(stderr, "[minimap_cam] viewport px: L=%.1f R=%.1f T=%.1f B=%.1f\n", left, right, top, bottom);
-        FOR_LOOP(i, 4) {
-            fprintf(stderr, "  corner[%d] world=(%.1f,%.1f,%.1f) minimap=(%.1f,%.1f)\n",
-                i, worlds[i].x, worlds[i].y, worlds[i].z, corners[i].x, corners[i].y);
-        }
-    }
-
     FOR_LOOP(i, 5) {
         VECTOR2 const *corner = &corners[i % 4];
         vertices[i] = (VERTEX){
@@ -320,14 +312,15 @@ void R_DrawMinimapCameraRect(LPCRECT screen) {
     R_Call(glDisable, GL_CULL_FACE);
     R_Call(glEnable, GL_BLEND);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uModelMatrix, 1, GL_FALSE, model_matrix.v);
+
+    tr.shader_ui.state.viewProjection = ui_matrix;
+    tr.shader_ui.state.model = model_matrix;
     R_BindTexture(tr.texture[TEX_WHITE], 0);
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
     R_StatsDraw(GL_LINE_STRIP, 5, 1);
+    R_ApplyShader(&tr.shader_ui);
     R_Call(glDrawArrays, GL_LINE_STRIP, 0, 5);
 }
 
@@ -410,8 +403,7 @@ void R_DrawWireRect(LPCRECT rect, COLOR32 color) {
     size2_t const window = R_GetWindowSize();
     Matrix4_ortho(&ui_matrix, 0.0f, window.width, window.height, 0.0f, 0.0f, 100.0f);
 
-    R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
+    tr.shader_ui.state.viewProjection = ui_matrix;
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(simp), simp, GL_DYNAMIC_DRAW);
@@ -422,6 +414,7 @@ void R_DrawWireRect(LPCRECT rect, COLOR32 color) {
     R_Call(glEnable, GL_BLEND);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     R_StatsDraw(GL_LINE_STRIP, sizeof(simp) / sizeof(*simp), 1);
+    R_ApplyShader(&tr.shader_ui);
     R_Call(glDrawArrays, GL_LINE_STRIP, 0, sizeof(simp) / sizeof(*simp));
 }
 
@@ -453,9 +446,8 @@ void R_DrawBoundingBox(LPCBOX3 box, LPCMATRIX4 modelMatrix, LPCMATRIX4 vpMatrix,
         simp[i * 2 + 1].color = color;
     }
 
-    R_Call(glUseProgram, tr.shader[SHADER_DEFAULT]->progid);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uViewProjectionMatrix, 1, GL_FALSE, vpMatrix->v);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uModelMatrix, 1, GL_FALSE, modelMatrix->v);
+    tr.shader_default.state.viewProjection = *vpMatrix;
+    tr.shader_default.state.model = *modelMatrix;
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(simp), simp, GL_DYNAMIC_DRAW);
@@ -467,6 +459,7 @@ void R_DrawBoundingBox(LPCBOX3 box, LPCMATRIX4 modelMatrix, LPCMATRIX4 vpMatrix,
     R_Call(glEnable, GL_BLEND);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     R_StatsDraw(GL_LINES, 24, 1);
+    R_ApplyShader(&tr.shader_default);
     R_Call(glDrawArrays, GL_LINES, 0, 24);
     R_Call(glEnable, GL_DEPTH_TEST);
 }

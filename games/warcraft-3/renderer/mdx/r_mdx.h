@@ -371,7 +371,7 @@ typedef struct mdxModel_s {
 } mdxModel_t;
 
 typedef struct {
-    LPSHADER shader;
+    MODELPROG * shader;
 } mdlx_state_t;
 
 extern mdlx_state_t mdlx;

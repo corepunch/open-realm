@@ -274,7 +274,7 @@ void R_GameRenderModel(renderEntity_t const *entity) {
     if (entity->attached_model &&
         entity->attached_model->modeltype == ID_MD20 &&
 #ifdef USE_SHADOWMAPS
-        !is_rendering_lights &&
+        render_phase != RENDER_PHASE_LIGHTS &&
 #endif
         M2_AttachmentMatrix(entity->model->m2, attachment_id, &transform, &attached_transform)) {
         if (tr.viewDef.rdflags & RDF_USE_ENTITY_CAMERA) {
@@ -398,9 +398,9 @@ bool R_GameRenderShadow(renderEntity_t const *entity, LPCVECTOR2 origin) {
         return true;
     }
     if (use_fast_blob) {
-        R_RenderFlatRectSplat(&mins, &maxs, shadow_z, shadow, tr.shader[SHADER_SHADOWSPLAT], shadowColor);
+        R_RenderFlatRectSplat(&mins, &maxs, shadow_z, shadow, R_SPLAT_SHADER(&tr.shader_shadowSplat), shadowColor);
     } else {
-        R_RenderRectSplat(&mins, &maxs, shadow, tr.shader[SHADER_SHADOWSPLAT], shadowColor);
+        R_RenderRectSplat(&mins, &maxs, shadow, R_SPLAT_SHADER(&tr.shader_shadowSplat), shadowColor);
     }
     return true;
 }

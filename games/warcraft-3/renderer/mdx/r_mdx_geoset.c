@@ -6,7 +6,7 @@
 #include <string.h>
 
 #ifdef USE_SHADOWMAPS
-extern bool is_rendering_lights;
+extern render_phase_t render_phase;
 #endif
 
 #define MDLX_STACK_DRAW_ORDER 64
@@ -155,7 +155,7 @@ static void MDLX_RenderTailEmitter(mdxModel_t const *model,
 static bool MDLX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
     R_SetAlphaKeyState(false);
 #ifdef USE_SHADOWMAPS
-    switch (is_rendering_lights ? (int)layer->blendMode : -1) {
+    switch (render_phase == RENDER_PHASE_LIGHTS ? (int)layer->blendMode : -1) {
         case BLEND_MODE_BLEND:
         case BLEND_MODE_ADD:
         case BLEND_MODE_ADDALPHA:
@@ -175,7 +175,7 @@ static bool MDLX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
             R_Call(glDepthMask, GL_TRUE);
             break;
         case BLEND_MODE_ALPHAKEY:
-            R_Call(glUniform1i, mdlx.shader->uAlphaKey, 1);
+            mdlx.shader->state.alphaKey = 1;
             R_SetAlphaKeyState(true);
             break;
         case BLEND_MODE_BLEND:
@@ -357,10 +357,9 @@ static void MDLX_BindLayerTextureAnimation(mdxModel_t const *model,
         float tx = scale.x * (c * (translation.x - 0.5f) - s * (translation.y - 0.5f)) + 0.5f;
         float ty = scale.y * (s * (translation.x - 0.5f) + c * (translation.y - 0.5f)) + 0.5f;
         GLfloat m[9] = { scale.x*c, scale.y*s, 0, -scale.x*s, scale.y*c, 0, tx, ty, 1 };
-        R_Call(glUniformMatrix3fv, mdlx.shader->uUvMatrix, 1, GL_FALSE, m);
+        memcpy(&mdlx.shader->state.uvMatrix, m, (1) * sizeof(MATRIX3));
     }
 }
-
 
 static void MDLX_BindGeosetMatrixPalette(mdxModel_t const *model, mdxGeoset_t const *geoset) {
     MATRIX4 matrixPalette[MDX_MATRIX_PALETTE];
@@ -379,7 +378,7 @@ static void MDLX_BindGeosetMatrixPalette(mdxModel_t const *model, mdxGeoset_t co
         }
     }
 
-    R_Call(glUniformMatrix4fv, mdlx.shader->uBones, count, GL_FALSE, matrixPalette->v);
+    memcpy(&mdlx.shader->state.bones, matrixPalette->v, (count) * sizeof(MATRIX4));
 }
 
 static VECTOR4 MDLX_EvaluateGeosetColor(mdxModel_t const *model,
@@ -456,7 +455,7 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
                              bool blendedPass)
 {
     BOOL force_two_sided = model && !model->cameras;
-    LPSHADER shader = mdlx.shader;
+    MODELPROG * shader = mdlx.shader;
     VECTOR4 geosetColor;
 
     if (!MDLX_MaterialHasPass(material, blendedPass)) {
@@ -465,8 +464,8 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
 
     geosetColor = MDLX_EvaluateGeosetColor(model, geoset, frame);
     MDLX_BindGeosetMatrixPalette(model, geoset);
-    R_Call(glUniform1f, shader->uLayerAlpha, 1.0f);
-    R_Call(glUniform4f, shader->uGeosetColor, geosetColor.x, geosetColor.y, geosetColor.z, geosetColor.w);
+    shader->state.layerAlpha = 1.0f;
+    shader->state.geosetColor = (VECTOR4){ geosetColor.x, geosetColor.y, geosetColor.z, geosetColor.w };
 
     FOR_LOOP(layerID, material->num_layers) {
         mdxMaterialLayer_t const *layer = &material->layers[layerID];
@@ -476,7 +475,7 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
             continue;
         }
         R_Call(glEnable, GL_DEPTH_TEST);
-        R_Call(glUniform1i, shader->uAlphaKey, 0);
+        shader->state.alphaKey = 0;
         if (force_two_sided) {
             R_Call(glDisable, GL_CULL_FACE);
         } else {
@@ -488,7 +487,7 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
             continue;
         MDLX_ApplyLayerFlags(layer);
         BOOL unshaded = forceUnshaded || (layer->flags & MODEL_GEO_UNSHADED);
-        R_Call(glUniform1i, shader->uUnshaded, unshaded);
+        shader->state.unshaded = unshaded;
         /* Fog only affects opaque/alpha-blended geometry.  Additive and
          * modulate layers (glows, the blue spire flare) must NOT mix toward
          * the fog colour or they turn into solid fog-coloured quads. */
@@ -497,12 +496,12 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
                 (layer->blendMode == BLEND_MODE_NONE ||
                  layer->blendMode == BLEND_MODE_ALPHAKEY ||
                  layer->blendMode == BLEND_MODE_BLEND);
-            R_Call(glUniform1i, shader->uFogEnable, layerFog ? 1 : 0);
+            shader->state.fogEnable = layerFog ? 1 : 0;
         }
         alpha = MDLX_EvaluateLayerAlpha(model, material, layer, frame);
         if (alpha < EPSILON)
             continue;
-        R_Call(glUniform1f, shader->uLayerAlpha, alpha);
+        shader->state.layerAlpha = alpha;
         MDLX_BindLayerTextureAnimation(model, layer, frame);
         DWORD textureId = MDLX_EvaluateLayerTextureId(model, layer, frame);
         mdxTexture_t const *modeltex = &model->textures[textureId];
@@ -511,6 +510,7 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
         R_Call(glBindVertexArray, geoset->vertexArrayBuffer);
         R_Call(glBindBuffer, GL_ELEMENT_ARRAY_BUFFER, *geoset->buffer);
         R_StatsDraw(GL_TRIANGLES, geoset->num_triangles, 1);
+        R_ApplyShader(shader);
         R_Call(glDrawElements, GL_TRIANGLES, geoset->num_triangles, GL_UNSIGNED_SHORT, NULL);
     }
 
@@ -519,9 +519,9 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
     R_SetAlphaKeyState(false);
     R_Call(glCullFace, GL_BACK);
     R_Call(glDepthMask, GL_TRUE);
-    R_Call(glUniform1i, shader->uUnshaded, forceUnshaded);
-    R_Call(glUniform1f, shader->uLayerAlpha, 1.0f);
-    R_Call(glUniform4f, shader->uGeosetColor, 1.0f, 1.0f, 1.0f, 1.0f);
+    shader->state.unshaded = forceUnshaded;
+    shader->state.layerAlpha = 1.0f;
+    shader->state.geosetColor = (VECTOR4){ 1.0f, 1.0f, 1.0f, 1.0f };
 }
 
 mdxSequence_t const *MDLX_FindSequenceByName(mdxModel_t const *model, LPCSTR name) {
@@ -803,18 +803,18 @@ void MDX_RenderModel(renderEntity_t const *entity,
         entity = &ent;
     }
     
-    LPSHADER shader = mdlx.shader;
+    MODELPROG * shader = mdlx.shader;
     MATRIX3 normalMatrix;
     GLfloat const *viewProjectionMatrix =
 #ifdef USE_SHADOWMAPS
-        is_rendering_lights ? tr.viewDef.lightMatrix.v :
+        render_phase == RENDER_PHASE_LIGHTS ? tr.viewDef.lightMatrix.v :
 #endif
         tr.viewDef.viewProjectionMatrix.v;
     Matrix3_normal(&normalMatrix, transform);
-    R_Call(glUseProgram, shader->progid);
-    R_Call(glUniformMatrix4fv, shader->uModelMatrix, 1, GL_FALSE, transform->v);
-    R_Call(glUniformMatrix3fv, shader->uNormalMatrix, 1, GL_TRUE, normalMatrix.v);
-    R_Call(glUniform1i, shader->uUnshaded, (entity->flags & RF_NO_LIGHTING) != 0);
+
+    shader->state.model = *transform;
+    shader->state.normalMatrix = normalMatrix;
+    shader->state.unshaded = (entity->flags & RF_NO_LIGHTING) != 0;
 
     /* uViewProjectionMatrix/uTextureMatrix/uLightMatrix/fog uniforms are the
        same for every entity drawn within one R_DrawEntities pass (one view).
@@ -837,15 +837,14 @@ void MDX_RenderModel(renderEntity_t const *entity,
              || last.fogStart != tr.viewDef.fogStart
              || last.fogEnd != tr.viewDef.fogEnd));
     if (view_changed) {
-        R_Call(glUniformMatrix4fv, shader->uViewProjectionMatrix, 1, GL_FALSE, viewProjectionMatrix);
-        R_Call(glUniformMatrix4fv, shader->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
-        R_Call(glUniformMatrix4fv, shader->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
-        R_Call(glUniform1i, shader->uFogEnable, tr.viewDef.fogEnable ? 1 : 0);
-        R_Call(glUniform1f, shader->uFirstBoneLookupIndex, 0.0f);
+        memcpy(&shader->state.viewProjection, viewProjectionMatrix, (1) * sizeof(MATRIX4));
+        shader->state.textureMatrix = tr.viewDef.textureMatrix;
+        shader->state.lightMatrix = tr.viewDef.lightMatrix;
+        shader->state.fogEnable = tr.viewDef.fogEnable ? 1 : 0;
+        shader->state.firstBoneLookupIndex = 0.0f;
         if (tr.viewDef.fogEnable) {
-            R_Call(glUniform3f, shader->uFogColor,
-                   tr.viewDef.fogColor.x, tr.viewDef.fogColor.y, tr.viewDef.fogColor.z);
-            R_Call(glUniform2f, shader->uFogParams, tr.viewDef.fogStart, tr.viewDef.fogEnd);
+            shader->state.fogColor = (VECTOR3){ tr.viewDef.fogColor.x, tr.viewDef.fogColor.y, tr.viewDef.fogColor.z };
+            shader->state.fogParams = (VECTOR2){ tr.viewDef.fogStart, tr.viewDef.fogEnd };
         }
         memcpy(last.vp, viewProjectionMatrix, sizeof(last.vp));
         last.tex = tr.viewDef.textureMatrix;

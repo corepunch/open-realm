@@ -6,6 +6,7 @@ CFLAGS  := -Wall -Wmisleading-indentation -fno-common -I. -Ishared -Ishared/type
 BUILD   ?= debug
 MSAA    ?= 0
 GL_BACKEND ?= gl
+GLSL      ?= 140
 
 ifeq ($(BUILD),release)
 	CFLAGS += -O2
@@ -17,9 +18,18 @@ endif
 ifeq ($(filter $(MSAA),0 2 4 8),)
 	$(error MSAA must be 0, 2, 4, or 8)
 endif
+ifeq ($(filter $(GLSL),120 140 150),)
+	$(error GLSL must be 120, 140, or 150)
+endif
 ifeq ($(GL_BACKEND),gles3)
 	CFLAGS += -DBZ_GL_ES3
-else ifneq ($(GL_BACKEND),gl)
+else ifeq ($(GL_BACKEND),gl)
+	ifeq ($(GLSL),120)
+		CFLAGS += -DBZ_GLSL_120
+	else ifeq ($(GLSL),150)
+		CFLAGS += -DBZ_GLSL_150
+	endif
+else
 	$(error GL_BACKEND must be gl or gles3)
 endif
 CFLAGS += -DBZ_MSAA_SAMPLES=$(MSAA)

@@ -25,9 +25,7 @@ struct render_globals tr;
 SDL_Window *window;
 SDL_GLContext context;
 
-#ifdef USE_SHADOWMAPS
-bool is_rendering_lights = false;
-#endif
+render_phase_t render_phase = RENDER_PHASE_SOLID;
 static bool renderer_shutdown = false;
 
 /* Capture the physical GL drawable; SDL window dimensions are logical points on Retina. */
@@ -334,17 +332,14 @@ static void R_SetupGL(bool drawLight) {
 #endif
         tr.viewDef.viewProjectionMatrix.v;
 
-    R_Call(glUseProgram, tr.shader[SHADER_DEFAULT]->progid);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uViewProjectionMatrix, 1, GL_FALSE, viewProjectionMatrix);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uModelMatrix, 1, GL_FALSE, model_matrix.v);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_DEFAULT]->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
-    R_Call(glUniformMatrix3fv, tr.shader[SHADER_DEFAULT]->uNormalMatrix, 1, GL_TRUE, normal_matrix.v);
+    memcpy(&tr.shader_default.state.viewProjection, viewProjectionMatrix, (1) * sizeof(MATRIX4));
+    tr.shader_default.state.textureMatrix = tr.viewDef.textureMatrix;
+    tr.shader_default.state.model = model_matrix;
+    tr.shader_default.state.lightMatrix = tr.viewDef.lightMatrix;
+    tr.shader_default.state.normalMatrix = normal_matrix;
 
-    R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
-
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, ui_matrix.v);
-    R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uModelMatrix, 1, GL_FALSE, model_matrix.v);
+    tr.shader_ui.state.viewProjection = ui_matrix;
+    tr.shader_ui.state.model = model_matrix;
     
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_TRUE);
@@ -532,29 +527,9 @@ void R_Init(DWORD width, DWORD height) {
 //    R_LoadModel("Assets\\Units\\Terran\\MarineTychus\\MarineTychus.m3");
 //    R_LoadModel("Assets\\Units\\Zerg\\Queen\\Queen.m3");
     
-    // Disabled until skin/alphatest shaders are wired; Linux -Wall warns on unused extern hooks.
-//    extern LPCSTR vs_skin;
-    extern LPCSTR vs_default;
-    extern LPCSTR fs_default;
-    extern LPCSTR fs_ui;
-    extern LPCSTR fs_splat;
-    extern LPCSTR fs_shadow_splat;
-//    extern LPCSTR fs_alphatest;
-    extern LPCSTR fs_commandbutton;
-    extern LPCSTR fs_minimap;
-    extern LPCSTR fs_minimap_fog;
-    extern LPCSTR fs_unlit;
-
     R_GameLoadAssets();
 
-    tr.shader[SHADER_DEFAULT] = R_InitShader(vs_default, fs_default);
-    tr.shader[SHADER_UI] = R_InitShader(vs_default, fs_ui);
-    tr.shader[SHADER_SPLAT] = R_InitShader(vs_default, fs_splat);
-    tr.shader[SHADER_SHADOWSPLAT] = R_InitShader(vs_default, fs_shadow_splat);
-    tr.shader[SHADER_COMMANDBUTTON] = R_InitShader(vs_default, fs_commandbutton);
-    tr.shader[SHADER_MINIMAP] = R_InitShader(vs_default, fs_minimap);
-    tr.shader[SHADER_MINIMAP_FOG] = R_InitShader(vs_default, fs_minimap_fog);
-    tr.shader[SHADER_UNLIT] = R_InitShader(vs_default, fs_unlit);
+    R_LoadBuiltinShaders();
     fprintf(stderr, "Loading shaders succeeded.\n");
 
     tr.buffer[RBUF_TEMP1] = R_MakeVertexArrayObject(NULL, 0);
@@ -583,7 +558,7 @@ void R_SetAlphaKeyState(BOOL enabled) {
     }
 #ifdef BZ_USE_MSAA
 #ifdef USE_SHADOWMAPS
-    if (is_rendering_lights) {
+    if (render_phase == RENDER_PHASE_LIGHTS) {
         /* TODO: Single-sample shadow targets need multisample depth coverage before alpha-key shadows can use ATOC. */
         R_Call(glDisable, GL_SAMPLE_ALPHA_TO_COVERAGE);
         R_Call(glEnable, GL_BLEND);
@@ -619,6 +594,7 @@ void R_Shutdown(void) {
     R_ShutdownModels();
     R_GameShutdown();
     R_ShutdownModelShader();
+    R_ShutdownBuiltinShaders();
     R_ShutdownFonts();
     
     R_ShutdownFogOfWar();
@@ -656,7 +632,7 @@ void R_RevertSettings(void) {
 
 #ifdef USE_SHADOWMAPS
 void R_RenderShadowMap(void) {
-    is_rendering_lights = true;
+    render_phase = RENDER_PHASE_LIGHTS;
     R_SetupGL(true);
     R_BindTexture(tr.texture[TEX_SHADOWMAP], 1);
     R_GameDrawWorld();
@@ -667,7 +643,7 @@ void R_RenderShadowMap(void) {
 
 void R_RenderView(void) {
 #ifdef USE_SHADOWMAPS
-    is_rendering_lights = false;
+    render_phase = RENDER_PHASE_SOLID;
 #endif
     R_SetupViewport(&tr.viewDef.viewport);
     R_SetupScissor(&tr.viewDef.scissor);
@@ -678,10 +654,12 @@ void R_RenderView(void) {
     R_GameDrawWorld();
     R_DrawDecals();
     R_DrawEntities();
+    render_phase = RENDER_PHASE_ALPHA;
     R_GameDrawAlphaSurfaces();
     if (!(tr.viewDef.rdflags & RDF_NOPARTICLES)) {
         R_DrawParticles();
     }
+    render_phase = RENDER_PHASE_SOLID;
     R_RevertSettings();
 
     R_DrawHealthBars();

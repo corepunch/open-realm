@@ -98,7 +98,21 @@ make clean
 make BUILD=release GL_BACKEND=gles3 MSAA=0 openwarcraft3
 ```
 
-Build configurations share `build/`; always run `make clean` when changing `BUILD`, `GL_BACKEND`, or `MSAA`. See [Build And Renderer Platforms](docs/build-and-renderer-platforms.md) for the API and alpha-coverage contracts.
+Build configurations share `build/`; always run `make clean` when changing `BUILD`, `GL_BACKEND`, `MSAA`, or `GLSL`.
+
+| Variable | Default | Other values | Notes |
+|----------|---------|--------------|-------|
+| `BUILD` | `debug` | `release` | `release` adds `-O2` |
+| `GL_BACKEND` | `gl` | `gles3` | GLES3 is Linux-only |
+| `MSAA` | `0` | `2`, `4`, `8` | Coverage sample count |
+| `GLSL` | `140` | `120`, `150` | GLSL version for descriptor shaders; ignored when `GL_BACKEND=gles3` |
+
+```bash
+make clean && make GLSL=120 openwarcraft3          # legacy GLSL 120
+make clean && make GLSL=150 openwarcraft3          # macOS Core Profile
+```
+
+See [Build And Renderer Platforms](docs/build-and-renderer-platforms.md) for the full dialect token reference, shader body conventions, and alpha-coverage contracts.
 
 Compiles the engine and game libraries (`shared`, `jass`, `sheet`, `renderer`, `game`, `ui`) and the `open-realm` executable into `build/`.
 
