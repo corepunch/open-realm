@@ -8,6 +8,21 @@ BOOL scr_initialized;
 #define SCR_FPS_HEIGHT 8
 #define SCR_FPS_BOTTOM_MARGIN 4
 
+/* Returns the UI canvas width for the current window aspect.  For SC2
+ * widescreen the canvas expands horizontally while the height stays fixed
+ * (matches cl_layout.c::SCR_GetUISceneRect and r_draw.c::R_UISceneRect). */
+static FLOAT SCR_UICanvasWidth(void) {
+#ifdef SC2
+    size2_t win = re.GetWindowSize();
+    if (win.height > 0) {
+        FLOAT aspect = (FLOAT)win.width / (FLOAT)win.height;
+        if (aspect > UI_MIN_ASPECT)
+            return UI_BASE_HEIGHT * aspect;
+    }
+#endif
+    return UI_BASE_WIDTH;
+}
+
 static void SCR_DrawString(int x, int y, LPCSTR string) {
     if (string) re.DrawString(x, y, string);
 }
@@ -71,8 +86,10 @@ void SCR_DrawScreenField(DWORD msec) {
         break;
     case ca_active:
         V_RenderView();
-        SCR_DrawLayout();
-        if (ui.DrawGameOverlay) ui.DrawGameOverlay();
+        if (Cvar_Integer("r_hud", 1)) {
+            SCR_DrawLayout();
+            if (ui.DrawGameOverlay) ui.DrawGameOverlay();
+        }
         /* TODO: research whether to replace key_dest enum with a keyCatchers bitmask
         * like Q3 — multiple input consumers can be active simultaneously. */
         if (cls.key_dest == key_menu) {
@@ -149,7 +166,7 @@ static VECTOR2 SCR_LayoutScreenToFdf(int x, int y) {
         nx = (FLOAT)x / (FLOAT)window.width;
         ny = (FLOAT)y / (FLOAT)window.height;
     }
-    return MAKE(VECTOR2, nx * UI_BASE_WIDTH, ny * UI_BASE_HEIGHT);
+    return MAKE(VECTOR2, nx * SCR_UICanvasWidth(), ny * UI_BASE_HEIGHT);
 }
 
 static RECT get_uvrect(uint8_t const *tc) {
@@ -459,10 +476,11 @@ void SCR_LayoutDrawMinimap(LPCUIFRAME frame, LPCRECT screen) {
 }
 
 void SCR_LayoutDrawPortrait(LPCUIFRAME frame, LPCRECT screen) {
+    FLOAT const canvas_w = SCR_UICanvasWidth();
     RECT const viewport = {
-        screen->x / UI_BASE_WIDTH,
+        screen->x / canvas_w,
         (UI_BASE_HEIGHT - screen->y - screen->h) / UI_BASE_HEIGHT,
-        screen->w / UI_BASE_WIDTH,
+        screen->w / canvas_w,
         screen->h / UI_BASE_HEIGHT
     };
     LPCMODEL port  = cl.portraits[frame->tex.index];

@@ -11,11 +11,20 @@ struct {
     bool calculated;
 } runtimes[MAX_LAYOUT_OBJECTS];
 
-/* Fixed 0.8x0.6 canvas regardless of window aspect: the final FDF->pixel
- * conversion already stretches this to fill the window, so HUD panels
- * anchored to different edges stay flush against each other instead of
- * drifting apart on non-4:3 resolutions. */
+/* UI canvas: UI_BASE_HEIGHT rows are always 1200 virtual units tall.
+ * For SC2, the canvas width scales with the actual window aspect ratio so
+ * that panels anchored to Right=Max / Left=Min reach the real screen edges
+ * on widescreen displays.  For 1280x720 (16:9): width = 1200*(16/9) ≈ 2133.
+ * Other games keep the fixed 1600x1200 canvas. */
 static RECT SCR_GetUISceneRect(void) {
+#ifdef SC2
+    size2_t win = re.GetWindowSize();
+    if (win.height > 0) {
+        FLOAT aspect = (FLOAT)win.width / (FLOAT)win.height;
+        if (aspect > UI_MIN_ASPECT)
+            return MAKE(RECT, 0, 0, UI_BASE_HEIGHT * aspect, UI_BASE_HEIGHT);
+    }
+#endif
     return MAKE(RECT, 0, 0, UI_BASE_WIDTH, UI_BASE_HEIGHT);
 }
 

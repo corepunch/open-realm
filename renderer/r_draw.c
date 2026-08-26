@@ -7,6 +7,13 @@
 #define R_UI_MIN_ASPECT  UI_MIN_ASPECT
 
 RECT R_UISceneRect(void) {
+#ifdef SC2
+    if (tr.drawableSize.height > 0) {
+        FLOAT aspect = (FLOAT)tr.drawableSize.width / (FLOAT)tr.drawableSize.height;
+        if (aspect > R_UI_MIN_ASPECT)
+            return MAKE(RECT, 0, 0, R_UI_BASE_HEIGHT * aspect, R_UI_BASE_HEIGHT);
+    }
+#endif
     return MAKE(RECT, 0, 0, R_UI_BASE_WIDTH, R_UI_BASE_HEIGHT);
 }
 
