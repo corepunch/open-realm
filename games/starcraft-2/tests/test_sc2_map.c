@@ -9,7 +9,7 @@
 #include "common.h"
 #include "games/starcraft-2/common/sc2_map.h"
 #include "test.h"
-#include "games/starcraft-2/common/sc2_utils.h"
+#include "games/starcraft-2/renderer/sc2/sc2_shadow.h"
 #include "games/starcraft-2/renderer/m3/r_m3.h"
 
 #ifndef TEST_SC2_MPQ
