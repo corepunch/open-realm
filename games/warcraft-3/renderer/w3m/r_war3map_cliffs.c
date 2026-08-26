@@ -177,7 +177,8 @@ static void R_MakeCliff(LPCWAR3MAP map, DWORD x, DWORD y, cliffData_t const *dat
         return;
 
     char cliffcfg[5] = { 0 };
-    bool const is_ramp = GetTileRamps(tile) > 1;
+    /* Equal-height ramp flags mark the adjoining cliff, not a sloped transition (e.g. HABH). */
+    bool const is_ramp = R_IsCliffRamp(tile);
     int const baselevel = TileBaseLevel(tile);
 
     FOR_LOOP(index, 4) {

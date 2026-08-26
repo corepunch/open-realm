@@ -474,11 +474,15 @@ static void CL_UICvarSet(LPCSTR name, LPCSTR value) {
 }
 
 void CL_BeginLoadingMap(LPCSTR mapName) {
-    (void)mapName;
+    /* Publish the resolved map before freezing the plaque; menu launches have no startup map cvar. */
+    Cvar_Set("map", mapName);
     cl.playerstate.client_ui_state = CLIENT_UI_LOADING;
     cls.state = ca_connected;
     CL_MenuCommand("menu_ingame");
     SCR_BeginLoadingPlaque();
+    /* New map baselines repopulate the compact active-entity list; drop any
+     * stale entries from the previous map before they arrive. */
+    cl.num_active = 0;
 }
 
 /* Public wrapper for UI library and input system (Phase 8.6) */

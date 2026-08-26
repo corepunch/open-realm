@@ -90,6 +90,7 @@ static BOOL G_UnitRegeneratesHP(LPCEDICT ent) {
  * then calls the entity's think function, and finally compresses health/mana
  * into the 8-bit stat fields that are sent to clients. */
 void G_RunEntity(LPEDICT ent) {
+    if (!ent->inuse) return; /* defensive: freed edicts carry no simulation state */
     spell_run_frame(ent);
     unit_updatestatuses(ent);
     SAFE_CALL(ent->prethink, ent);

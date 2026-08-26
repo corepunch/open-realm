@@ -1,6 +1,7 @@
 #include "test.h"
 #include "renderer/r_local.h"
 #include "renderer/r_emit.h"
+#include "games/warcraft-3/renderer/w3m/r_war3map.h"
 #include "renderer/r_shader.h"
 #include <stdarg.h>
 #include <stdlib.h>
@@ -495,4 +496,68 @@ TEST(renderer_texture, dds_channel_masks_use_the_common_upload_capabilities) {
 TEST(renderer_stats, triangles_include_instanced_amplification) {
     T_EQ(R_PrimitiveTriangles(GL_TRIANGLES, 12, 100), (uint64_t)400);
     T_EQ(R_PrimitiveTriangles(GL_LINES, 12, 100), (uint64_t)0);
+}
+
+/* File lookup probes the exact reference first and only substitutes the supported BLP representation. */
+static LPCSTR texture_file;
+static DWORD texture_reads;
+static int test_texture_read(LPCSTR name, void **buffer) {
+    texture_reads++;
+    *buffer = !strcmp(name, texture_file) ? (void *)&texture_reads : NULL;
+    return *buffer ? sizeof(texture_reads) : -1;
+}
+
+TEST(renderer_texture, authored_extensions_resolve_without_losing_real_files) {
+    static const struct { LPCSTR name, file; DWORD reads; BOOL found; } cases[] = {
+        { "White_mask.tga", "White_mask.blp", 2, true },
+        { "Cliff0.TGA", "Cliff0.blp", 2, true },
+        { "Cliff0.tga", "Cliff0.tga", 1, true },
+        { "Tree", "Tree.blp", 2, true },
+        { "Tree.blp", "Tree.blp", 1, true },
+        { "Missing.tga", "", 2, false },
+        { "Missing.blp", "", 1, false },
+        { "Missing.dds", "", 1, false },
+        { "Missing.pcx", "", 1, false },
+        { "Missing", "", 2, false },
+    };
+    int (*read_file)(LPCSTR, void **) = ri.FS_ReadFile;
+    ri.FS_ReadFile = test_texture_read;
+    FOR_LOOP(i, sizeof(cases) / sizeof(cases[0])) {
+        PATHSTR path; void *buffer = NULL;
+        texture_file = cases[i].file; texture_reads = 0;
+        T_EQ(R_ReadTextureFile(cases[i].name, path, &buffer) >= 0, cases[i].found);
+        T_EQ(texture_reads, cases[i].reads);
+        if (cases[i].found) { T_NOT_NULL(buffer); T_STREQ(path, cases[i].file); }
+        else T_NULL(buffer);
+    }
+    ri.FS_ReadFile = read_file;
+}
+
+TEST(renderer_terrain, cliff_ramps_require_adjacent_corners_one_level_apart) {
+    static const BYTE edge[][2] = { {0,1}, {1,3}, {3,2}, {2,0} };
+    WAR3MAPVERTEX tile[4] = {0};
+    T_ASSERT(!R_IsCliffRamp(tile));
+    FOR_LOOP(i, 4) {
+        memset(tile, 0, sizeof(tile));
+        tile[edge[i][0]].ramp = tile[edge[i][1]].ramp = 1;
+        tile[edge[i][0]].level = tile[edge[i][1]].level = 1;
+        T_ASSERT(!R_IsCliffRamp(tile)); /* Human01 HABH had two high corners, not a ramp slope. */
+        tile[edge[i][0]].level = 0;
+        T_ASSERT(R_IsCliffRamp(tile));
+        tile[edge[i][1]].level = 2;
+        T_ASSERT(!R_IsCliffRamp(tile)); /* Native transitions contain LH/HX, never LX. */
+        tile[edge[i][0]].level = 1;
+        T_ASSERT(R_IsCliffRamp(tile));
+        tile[edge[i][0]].level = 2; tile[edge[i][1]].level = 1;
+        T_ASSERT(R_IsCliffRamp(tile));
+    }
+    memset(tile, 0, sizeof(tile));
+    tile[0].ramp = 1; tile[0].level = 1;
+    T_ASSERT(!R_IsCliffRamp(tile));
+    tile[3].ramp = 1;
+    T_ASSERT(!R_IsCliffRamp(tile)); /* Diagonals are not transition edges. */
+    tile[1].ramp = 1;
+    T_ASSERT(!R_IsCliffRamp(tile));
+    tile[2].ramp = 1;
+    T_ASSERT(!R_IsCliffRamp(tile));
 }

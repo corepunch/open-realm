@@ -174,6 +174,102 @@ static void R_FlushSplatBatch(void) {
     ground_current_vertex = ground_vertex_buffer;
 }
 
+/* Bind the splat shader/VAO/VBO and upload the per-view uniforms once.  All
+ * splats in a batch share this state; only the texture and per-tile geometry
+ * vary, so re-issuing it per splat was pure overhead. */
+static LPCTEXTURE g_splat_texture;
+static LPCSHADER g_splat_shader;
+
+static void R_SetupSplatState(LPCTEXTURE texture, LPCSHADER shader) {
+    MATRIX4 mModelMatrix;
+
+    Matrix4_identity(&mModelMatrix);
+    g_splat_texture = texture;
+    g_splat_shader = shader;
+    R_BindTexture(texture, 0);
+    R_SetTextureWrap(texture, false, false); /* splats are decals, so repeating the source texture smears the edges */
+    R_Call(glUseProgram, shader->progid);
+    R_Call(glUniformMatrix4fv, shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
+    R_Call(glUniformMatrix4fv, shader->uModelMatrix, 1, GL_FALSE, mModelMatrix.v);
+    R_Call(glEnable, GL_BLEND);
+    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    R_Call(glDepthMask, GL_FALSE);
+    R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
+    R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
+    ground_current_vertex = ground_vertex_buffer;
+}
+
+/* Emit terrain-conforming tiles for one splat rect into the shared buffer,
+ * flushing to the GPU only when the buffer fills. */
+static void R_GenerateSplatTiles(LPCVECTOR2 mins, LPCVECTOR2 maxs, COLOR32 color) {
+    int x_start, x_end;
+    int y_start, y_end;
+
+    FLOAT const width = maxs->x - mins->x;
+    FLOAT const height = maxs->y - mins->y;
+    if (width <= 0 || height <= 0) {
+        return;
+    }
+
+    x_start = MAX(0, (int)floor((mins->x - tr.world->center.x) / TILE_SIZE));
+    y_start = MAX(0, (int)floor((mins->y - tr.world->center.y) / TILE_SIZE));
+    x_end = MIN((int)tr.world->width - 1, (int)ceil((maxs->x - tr.world->center.x) / TILE_SIZE));
+    y_end = MIN((int)tr.world->height - 1, (int)ceil((maxs->y - tr.world->center.y) / TILE_SIZE));
+
+    if (x_start >= x_end || y_start >= y_end) {
+        return;
+    }
+
+    for (int x = x_start; x < x_end; x++) {
+        for (int y = y_start; y < y_end; y++) {
+            if (!R_TileAcceptsSplat(tr.world, (DWORD)x, (DWORD)y)) {
+                continue;
+            }
+            if ((ground_current_vertex - ground_vertex_buffer) + 6 > GROUND_VERTEX_BUFFER_CAPACITY) {
+                R_FlushSplatBatch();
+            }
+            R_MakeSplatTile(tr.world, (DWORD)x, (DWORD)y, mins, width, height, color);
+        }
+    }
+}
+
+void R_BeginSplatBatch(LPCSHADER shader) {
+    g_splat_shader = shader;
+    g_splat_texture = NULL;
+    ground_current_vertex = ground_vertex_buffer;
+}
+
+void R_AddRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, COLOR32 color) {
+    if (!tr.world || !texture) {
+        return;
+    }
+    if (texture != g_splat_texture) {
+        R_FlushSplatBatch();
+        R_SetupSplatState(texture, g_splat_shader);
+    }
+    R_GenerateSplatTiles(mins, maxs, color);
+}
+
+void R_EndSplatBatch(void) {
+    R_FlushSplatBatch();
+    R_Call(glDepthMask, GL_TRUE);
+}
+
+void R_RenderRectSplat(LPCVECTOR2 mins,
+                       LPCVECTOR2 maxs,
+                       LPCTEXTURE texture,
+                       LPCSHADER shader,
+                       COLOR32 color)
+{
+    if (!tr.world || !texture) {
+        return;
+    }
+    R_SetupSplatState(texture, shader);
+    R_GenerateSplatTiles(mins, maxs, color);
+    R_FlushSplatBatch();
+    R_Call(glDepthMask, GL_TRUE);
+}
+
 LPMAPLAYER R_BuildMapSegmentLayer(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD layer) {
     LPMAPLAYER mapLayer = ri.MemAlloc(sizeof(MAPLAYER));
     PATHSTR zBuffer;
@@ -243,61 +339,6 @@ LPMAPLAYER R_BuildGroundLayerGlobal(LPCWAR3MAP map, DWORD layer) {
     }
     mapLayer->buffer = R_MakeVertexArrayObject(whole_map_buffer, mapLayer->num_vertices);
     return mapLayer;
-}
-
-void R_RenderRectSplat(LPCVECTOR2 mins,
-                       LPCVECTOR2 maxs,
-                       LPCTEXTURE texture,
-                       LPCSHADER shader,
-                       COLOR32 color)
-{
-    MATRIX4 mModelMatrix;
-    int x_start, x_end;
-    int y_start, y_end;
-
-    Matrix4_identity(&mModelMatrix);
-    
-    FLOAT const width = maxs->x - mins->x;
-    FLOAT const height = maxs->y - mins->y;
-    if (!tr.world || !texture || width <= 0 || height <= 0) {
-        return;
-    }
-
-    x_start = MAX(0, (int)floor((mins->x - tr.world->center.x) / TILE_SIZE));
-    y_start = MAX(0, (int)floor((mins->y - tr.world->center.y) / TILE_SIZE));
-    x_end = MIN((int)tr.world->width - 1, (int)ceil((maxs->x - tr.world->center.x) / TILE_SIZE));
-    y_end = MIN((int)tr.world->height - 1, (int)ceil((maxs->y - tr.world->center.y) / TILE_SIZE));
-
-    if (x_start >= x_end || y_start >= y_end) {
-        return;
-    }
-
-    R_BindTexture(texture, 0);
-    R_SetTextureWrap(texture, false, false); /* splats are decals, so repeating the source texture smears the edges */
-    R_Call(glUseProgram, shader->progid);
-    R_Call(glUniformMatrix4fv, shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
-    R_Call(glUniformMatrix4fv, shader->uModelMatrix, 1, GL_FALSE, mModelMatrix.v);
-
-    R_Call(glEnable, GL_BLEND);
-    R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    R_Call(glDepthMask, GL_FALSE);
-    R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
-    R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
-
-    ground_current_vertex = ground_vertex_buffer;
-    for (int x = x_start; x < x_end; x++) {
-        for (int y = y_start; y < y_end; y++) {
-            if (!R_TileAcceptsSplat(tr.world, (DWORD)x, (DWORD)y)) {
-                continue;
-            }
-            if ((ground_current_vertex - ground_vertex_buffer) + 6 > GROUND_VERTEX_BUFFER_CAPACITY) {
-                R_FlushSplatBatch();
-            }
-            R_MakeSplatTile(tr.world, (DWORD)x, (DWORD)y, mins, width, height, color);
-        }
-    }
-    R_FlushSplatBatch();
-    R_Call(glDepthMask, GL_TRUE);
 }
 
 void R_RenderFlatRectSplat(LPCVECTOR2 mins,

@@ -61,7 +61,7 @@ LPCSTR Cvar_String(LPCSTR name, LPCSTR fallback) {
 }
 
 void CL_ParseTEnt(LPSIZEBUF msg) { (void)msg; }
-void CL_BeginLoadingMap(LPCSTR mapName) { (void)mapName; cl.playerstate.client_ui_state = CLIENT_UI_LOADING; cls.state = ca_connected; }
+void CL_BeginLoadingMap(LPCSTR mapName) { (void)mapName; cl.playerstate.client_ui_state = CLIENT_UI_LOADING; cls.state = ca_connected; cl.num_active = 0; }
 void CL_SetGameplayInput(void) { cls.key_dest = key_game; }
 void CL_Disconnect(LPCSTR reason, BOOL notify) { (void)reason; (void)notify; cls.state = ca_disconnected; }
 void CL_EntityEvent(entityState_t const *ent) { (void)ent; }

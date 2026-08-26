@@ -1,5 +1,7 @@
 # UI Screen Authoring
 
+For campaign loading and asset diagnostics, see [WC3 loading and assets](games/warcraft-3/loading-and-assets.md).
+
 ## FDF-Driven Layout
 
 - In client/UI code, never define or hardcode UI elements, layout coordinates, textures, frame names, or control structures that can be read from FDF. Parse and reuse the actual FDF frames/templates, then bind dynamic data into those frames.

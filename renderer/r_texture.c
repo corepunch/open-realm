@@ -1,6 +1,21 @@
 #include "r_local.h"
 #include <ctype.h>
 
+/* Asset references may retain a .tga source name after conversion to BLP; actual TGA files take precedence. */
+int R_ReadTextureFile(LPCSTR name, LPSTR path, void **buffer) {
+    static LPCSTR const exact[] = { ".blp", ".dds", ".pcx" };
+    LPCSTR ext = strrchr(name, '.');
+    snprintf(path, sizeof(PATHSTR), "%s", name);
+    int size = ri.FS_ReadFile(path, buffer);
+    if (size >= 0 && *buffer) return size;
+    FOR_LOOP(i, sizeof(exact) / sizeof(exact[0]))
+        if (ext && !strcasecmp(ext, exact[i])) return size;
+    /* Previously only extensionless names found BLPs, leaving authored .tga references unresolved. */
+    int len = ext && !strcasecmp(ext, ".tga") ? (int)(ext - name) : (int)strlen(name);
+    snprintf(path, sizeof(PATHSTR), "%.*s.blp", len, name);
+    return ri.FS_ReadFile(path, buffer);
+}
+
 /* texid -> texture index for model texture resolution; the cache below owns the texture memory. */
 static LPTEXTURE g_textures = NULL;
 static GLenum r_bgra_internal;

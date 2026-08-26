@@ -273,6 +273,15 @@ void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture, LPCSHA
     R_RenderRectSplat(&mins, &maxs, texture, shader, color);
 }
 
+/* WoW shadows are drawn by R_GameRenderShadow (returns true) and splats already
+ * batch through Wow_QueueSplatVertices, so the shared batch API stays immediate. */
+static LPCSHADER wow_batch_shader;
+void R_BeginSplatBatch(LPCSHADER shader) { wow_batch_shader = shader; }
+void R_AddRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, COLOR32 color) {
+    R_RenderRectSplat(mins, maxs, texture, wow_batch_shader, color);
+}
+void R_EndSplatBatch(void) { }
+
 VECTOR2 GetWar3MapSize(LPCWAR3MAP war3Map) {
     (void)war3Map;
     return (VECTOR2){ 0.0f, 0.0f };

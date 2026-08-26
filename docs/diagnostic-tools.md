@@ -148,6 +148,9 @@ Agent guidance:
 
 ## Time Profiler (macOS)
 
+For Linux WC3 entity-rendering profiles and CPU-sample interpretation, see
+[the August 2026 ARM profile review](#linux-wc3-arm-profile-review-2026-08-26).
+
 - For runtime CPU profiling on macOS, prefer Instruments `xctrace` with the local `xctraceprof` parser.
 - Record a run:
 	- `/Applications/Xcode.app/Contents/Developer/usr/bin/xctrace record --template "Time Profiler" --time-limit 20s --output /private/tmp/openwarcraft3-orc01.trace --launch -- /Users/igor/Developer/openwarcraft3/build/bin/openwarcraft3 -data "/Users/igor/Developer/openwarcraft3/data/Warcraft III" +map "Maps\\Campaign\\Orc01.w3m"`
@@ -158,3 +161,66 @@ Agent guidance:
 	- `build/bin/xctraceprof --window 8:18 --focus R_RenderFogOfWar --top 25 /private/tmp/openwarcraft3-orc01-timeprof.xml`
 	- `build/bin/xctraceprof --window 8:18 --focus SV_Frame --top 20 /private/tmp/openwarcraft3-orc01-timeprof.xml`
 - Use `R_RenderFogOfWar` for renderer-owned fog, `CL_ParseFogOfWar`/`R_SetFogOfWarData` for client texture upload, `SV_Frame`/`G_FowUpdate` for server/game tick work.
+
+## Linux WC3 ARM Profile Review (2026-08-26)
+
+Source: [open-realm perf report, address mappings, and interpretation](https://gist.github.com/sookyboo/632574119cc8e03abb7da133d5c039f0).
+Reviewed against local revision `011be57b`. The user reports 21 FPS; the gist does not identify the exact build revision,
+map/camera, build flags, GL startup information, or wall-clock/GPU timings. It contains about 7K `cycles:ppp` samples,
+zero reported lost samples, and additional audio/driver threads. Percentages below are sampled CPU-cycle shares,
+not frame milliseconds or GPU execution time. Inclusive parent and child percentages must not be added.
+
+| Profile path | Sample share | Interpretation |
+|---|---:|---|
+| Main view `R_DrawEntities` | 46.54% | Includes models and their shadows; all call sites total 47.10% |
+| MDX geoset branch | 18.87% | Geometry/material submission, including driver work |
+| MDX bone-binding branch | 16.31% | Node evaluation, clearing/scanning, palette construction and GL upload |
+| `R_RenderShadow` | 8.33% | Separate from the two MDX branches |
+| `CL_AddEntities` | 7.11% self | Address `0x15a14`; full client-slot traversal in current source |
+| `CL_ParseFrame` | 4.33% self | Address `0xc7e0`; another full client-slot traversal per snapshot |
+| `G_RunEntities` | 10.18% inclusive | Simulation; not the largest aggregate target |
+
+### Source-confirmed work and limits
+
+- `client/cl_view.c:CL_AddEntities` scans all 16,384 client slots each rendered frame, even when few are occupied.
+  `client/cl_parse.c:CL_ParseFrame` scans the same capacity and copies active states each snapshot. Together their
+  self samples are 11.44%. Occupancy counters and instruction-level attribution are needed before assigning all
+  this cost to empty-slot scanning. `git blame` traces the render-side capacity loop to `d68a52eda` (2023).
+- `games/warcraft-3/renderer/mdx/r_mdx_anim.c:MDLX_BindBoneMatrices` clears 1,024 matrices (64 KiB), scans
+  1,024 node slots twice, constructs 128 palette entries and uploads `tr.bone_count` matrices per rendered model.
+  The fixed-capacity work is attributed by blame to `2bfbd4e03`. Only about 5.11% of the report is under the
+  `R_CalculateNodeMatrix` call site; do not advertise the entire 16.31% as removable by local-pose caching.
+- Local transforms also depend on interpolation fraction and global-sequence time (`tr.viewDef.time`, or
+  `SDL_GetTicks()` when zero). `(model, frame, oldframe)` alone is not a sufficient persistent cache key.
+  Billboard global transforms depend on the model transform. Measure reuse before introducing a cache.
+- `MDLX_BindGeosetMatrixPalette` uploads a geoset-specific palette after model bone binding. Count uploads and
+  inspect all consumers before deciding whether the earlier upload can be removed.
+- `games/warcraft-3/renderer/w3m/r_war3map_ground.c:R_RenderRectSplat` batches tiles within one splat, then flushes
+  at the end of each call. `R_RenderModel` interleaves each entity's splats and model drawing. Existing batching
+  is not batching across entities; changing pass order must preserve blending/depth behavior. Blame attributes
+  the current tile batch to `4af98697c`.
+- `r_mdx_merge_opaque` from the gist interpretation is absent from this checkout and the available history search
+  for `games/warcraft-3/renderer`. It may be fork-specific; setting it here does not enable a merging path.
+- The raw driver addresses resolve only to `libGL.so.1`, not named GL functions. The interpretation identifies
+  gl4es, but the report alone does not prove its version or separate state overhead from submission/stalls.
+
+### Next measurements
+
+1. Obtain the tested revision, release/debug flags, renderer startup log and exact scene. Compare a clean
+   `BUILD=release GL_BACKEND=gles3 MSAA=0` Linux build with the existing backend; see
+   [build profiles](build-and-renderer-platforms.md#build-profiles). A local Mac run cannot validate ARM/gl4es speed.
+2. On the same scene/camera, collect `r_stats 1` with `r_unit_shadows 1` and `0`, restoring `1` afterward.
+   Example bounded ROC launch (repeat with `-tft`; substitute the reported map when known):
+
+   ```sh
+   build/bin/openwarcraft3 -data 'data/Warcraft III' +map 'Maps\Campaign\Orc01.w3m' +set r_stats 1 +set r_unit_shadows 0 +com_frame_limit 300
+   ```
+
+3. Add targeted temporary logs for occupied client slots, submitted/visible models, occupied MDX nodes,
+   actual matrix upload counts, and unique poses including time/interpolation. Capture a bounded run before
+   changing traversal, caching, or draw submission. Verify ROC and TFT and run `make test` for implementation changes.
+
+21 FPS is 47.62 ms/frame; 30 FPS requires 33.33 ms/frame, a 30% frame-time reduction. The 8.33% shadow sample share
+cannot establish the wall-time benefit of disabling shadows. Even under a simplified proportional CPU-only model,
+removing that entire share predicts only about 22.9 FPS, not 30. Prioritize MDX submission/bone work and the two
+client traversals, then reprofile; the report does not justify a promised FPS improvement.

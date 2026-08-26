@@ -19,3 +19,7 @@ Frame "DIALOG" "StandardDialogTemplate" {
         BackdropBackground "TestUI\Textures\solid_white.blp",
     }
 }
+
+Frame "TEXT" "StandardLabelTextTemplate" { FrameFont "MasterFont", 0.015, "", }
+Frame "TEXT" "StandardTitleTextTemplate" { FrameFont "MasterFont", 0.02, "", }
+Frame "TEXT" "StandardValueTextTemplate" { FrameFont "MasterFont", 0.013, "", }

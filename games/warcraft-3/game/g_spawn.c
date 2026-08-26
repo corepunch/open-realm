@@ -128,8 +128,9 @@ static void SP_SpawnDestructable(LPEDICT edict) {
     LPCSTR path_tex = DESTRUCTABLE_PATH_TEX(edict->class_id);
     FLOAT radius = DESTRUCTABLE_RADIUS(edict->class_id);
     PATHSTR buffer;
-    snprintf(buffer, sizeof(buffer), "%s.blp", DESTRUCTABLE_TEXTURE(edict->class_id));
-    edict->s.image = gi.ImageIndex(buffer);
+    LPCSTR tex = DESTRUCTABLE_TEXTURE(edict->class_id);
+    /* texFile may include an extension; "_" means the model has no replacement texture. */
+    edict->s.image = tex && *tex && strcmp(tex, "_") ? gi.ImageIndex(tex) : 0;
     if (dir) {
         snprintf(buffer, sizeof(buffer), "%s\\%s\\%s%d.mdx", dir, file, file, edict->variation);
     } else {

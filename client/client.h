@@ -98,6 +98,11 @@ struct client_state {
     DWORD hover_entity;     /* entity number under mouse cursor (0 = none) */
     LPCMODEL moveConfirmation;
     DWORD num_entities;
+    /* Compact list of entity numbers whose current state carries a live model.
+     * CL_ParseFrame and CL_AddEntities iterate this instead of scanning all
+     * MAX_CLIENT_ENTITIES slots every frame. */
+    DWORD active_entities[MAX_CLIENT_ENTITIES];
+    DWORD num_active;
     DWORD time;
     struct {
         RECT rect;
@@ -128,7 +133,10 @@ BOOL CL_AltModifierDown(void);
 void V_RenderView(void);
 void V_Shutdown(void);
 void CL_PrepRefresh(void);
+// cl_parse.c
 void CL_ParseServerMessage(LPSIZEBUF msg);
+void CL_AddActiveEntity(DWORD index);
+void CL_RemoveActiveEntity(DWORD index);
 
 void CON_DrawConsole(void);
 void CON_printf(LPCSTR fmt, ...);

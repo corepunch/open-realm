@@ -22,6 +22,15 @@ DWORD GetTileRamps(LPCWAR3MAPVERTEX vertices);
 DWORD IsTileCliff(LPCWAR3MAPVERTEX vertices);
 DWORD IsTileWater(LPCWAR3MAPVERTEX vertices);
 
+/* Transition models join two adjacent ramp corners one cliff level apart; tile order is NE,NW,SE,SW. */
+static inline BOOL R_IsCliffRamp(LPCWAR3MAPVERTEX tile) {
+    static const BYTE next[] = { 1, 3, 0, 2 };
+    if (tile[0].ramp + tile[1].ramp + tile[2].ramp + tile[3].ramp != 2) return false;
+    FOR_LOOP(i, 4)
+        if (tile[i].ramp && tile[next[i]].ramp && abs((int)tile[i].level - tile[next[i]].level) == 1) return true;
+    return false;
+}
+
 VECTOR2 GetWar3MapSize(LPCWAR3MAP war3Map);
 
 #endif

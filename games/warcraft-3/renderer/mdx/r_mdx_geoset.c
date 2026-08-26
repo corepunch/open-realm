@@ -364,19 +364,22 @@ static void MDLX_BindLayerTextureAnimation(mdxModel_t const *model,
 
 static void MDLX_BindGeosetMatrixPalette(mdxModel_t const *model, mdxGeoset_t const *geoset) {
     MATRIX4 matrixPalette[MDX_MATRIX_PALETTE];
+    /* Skin indices are geoset-local (0..num_matrixPalette-1), so only the
+     * palette entries the geoset actually references need to reach the shader.
+     * Uploading the full BZ_BONE_PALETTE_MAX per geoset was wasted uniform
+     * traffic for every draw. */
+    DWORD const count = MIN((DWORD)geoset->num_matrixPalette, BZ_BONE_PALETTE_MAX);
 
-    FOR_LOOP(i, BZ_BONE_PALETTE_MAX) {
-        Matrix4_identity(&matrixPalette[i]);
-        if (i >= geoset->num_matrixPalette) {
-            continue;
-        }
+    FOR_LOOP(i, count) {
         int node_id = geoset->matrixPalette[i];
         if (node_id >= 0 && node_id < MDX_MAX_NODES && model->nodes[node_id]) {
             matrixPalette[i] = node_matrices[node_id];
+        } else {
+            Matrix4_identity(&matrixPalette[i]);
         }
     }
 
-    R_Call(glUniformMatrix4fv, mdlx.shader->uBones, BZ_BONE_PALETTE_MAX, GL_FALSE, matrixPalette->v);
+    R_Call(glUniformMatrix4fv, mdlx.shader->uBones, count, GL_FALSE, matrixPalette->v);
 }
 
 static VECTOR4 MDLX_EvaluateGeosetColor(mdxModel_t const *model,

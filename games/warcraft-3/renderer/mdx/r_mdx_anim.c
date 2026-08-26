@@ -14,7 +14,6 @@ void R_EvalKeyframeValue(void const *left, void const *right, float t, MODELKEYT
 
 static MATRIX4 local_matrices[MDX_MAX_NODES];
 MATRIX4 node_matrices[MDX_MAX_NODES];
-static MATRIX4 bone_matrices[MDX_MATRIX_PALETTE];
 
 mdxSequence_t const *R_FindSequenceAtTime(mdxModel_t const *model, DWORD time) {
     FOR_LOOP(seqIndex, model->num_sequences) {
@@ -209,46 +208,15 @@ void AddSkin(LPVECTOR3 pos, LPCMATRIX4 mat, LPCVECTOR3 org, FLOAT weight) {
 }
 
 static void MDLX_BindBoneMatrices(mdxModel_t const *model, LPCMATRIX4 model_matrix, DWORD frame1, DWORD frame0) {
-    LPSHADER shader = mdlx.shader;
-    memset(node_matrices, 0, sizeof(node_matrices));
-
-    FOR_LOOP(node_id, MDX_MAX_NODES) {
-        mdxNode_t *node = model->nodes[node_id];
-        if (!node)
-            continue;
+    /* Only the nodes this model actually has need their global matrices
+     * recomputed.  The old path memset the full 64KB node_matrices array and
+     * scanned all MDX_MAX_NODES slots twice; models have tens of nodes, so the
+     * compact node_list built at load time is orders of magnitude smaller. */
+    FOR_LOOP(i, model->num_nodes) {
+        mdxNode_t *node = model->node_list[i];
+        memset(&node_matrices[node->node_id], 0, sizeof(MATRIX4)); /* reset the "computed" flag (v[15]==0) */
         R_CalculateNodeMatrix(model, node, frame1, frame0, &local_matrices[node->node_id]);
     }
-    FOR_LOOP(node_id, MDX_MAX_NODES) {
-        mdxNode_t *node = model->nodes[node_id];
-        if (!node)
-            continue;
-        R_GetNodeGlobalMatrix(model, model_matrix, node);
-    }
-
-    FOR_LOOP(i, MDX_MATRIX_PALETTE) {
-        Matrix4_identity(&bone_matrices[i]);
-        if (i < MDX_MAX_NODES && model->nodes[i]) {
-            bone_matrices[i] = node_matrices[i];
-        }
-    }
-    
-#if 0
-    if (model->knight) {
-        static VECTOR3 pos[1024];
-        FOR_EACH_LIST(mdxGeoset_t, geoset, model->geosets) {
-            FOR_LOOP(i, geoset->num_vertices) {
-                VECTOR3 org = geoset->vertices[i];
-                memset(pos+i, 0, sizeof(VECTOR3));
-                FOR_LOOP(j, MAX_SKIN_BONES) {
-                    AddSkin(pos+i, global_matrices+geoset->skinning[i].skin[j], &org, geoset->skinning[i].boneWeight[j]/255.f);
-            }
-            R_Call(glBindBuffer, GL_ARRAY_BUFFER, geoset->buffer[1]);
-            R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VECTOR3) * geoset->vertices, pos, GL_STATIC_DRAW);
-            R_Call(glVertexAttribPointer, attrib_position, 3, GL_FLOAT, GL_FALSE, 0, 0);
-            R_Call(glEnableVertexAttribArray, attrib_position);
-        }
-    }
-#endif
-    R_Call(glUseProgram, shader->progid);
-    R_Call(glUniformMatrix4fv, shader->uBones, BZ_BONE_PALETTE_MAX, GL_FALSE, bone_matrices->v);
+    FOR_LOOP(i, model->num_nodes)
+        R_GetNodeGlobalMatrix(model, model_matrix, model->node_list[i]);
 }

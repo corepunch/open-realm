@@ -297,59 +297,18 @@ static void UI_EnterGameMode(void) {
     UI_SetScreen(NULL);
 }
 
-static LPCSTR UI_CsvField(LPCSTR text, DWORD index, LPSTR out, DWORD out_size) {
-    DWORD field = 0;
-    DWORD len = 0;
-    LPCSTR p = text;
-
-    if (!out || out_size == 0) {
-        return "";
-    }
-    out[0] = '\0';
-    if (!text) {
-        return out;
-    }
-
-    while (*p && field < index) {
-        if (*p++ == ',') {
-            field++;
-        }
-    }
-    while (p[len] && p[len] != ',' && len + 1 < out_size) {
-        len++;
-    }
-    memcpy(out, p, len);
-    out[len] = '\0';
-    return out;
-}
-
-static LPCSTR UI_LoadingMapPath(void) {
-    if (loading_state.map[0]) {
-        return loading_state.map;
-    }
-    return uiimport.Cvar_String("map", "");
-}
-
-static DWORD UI_LoadCampaignLoadingModel(DWORD campaign_background, DWORD *sequence_index) {
-    sheetRow_t *world_edit_data;
+/* LoadingScreens rows describe the model/sequence; TFT adds an expansion category before the display label. */
+static DWORD UI_LoadCampaignLoadingModel(DWORD background, DWORD *sequence) {
+    sheetRow_t *data = FS_ParseINI("UI\\WorldEditData.txt");
     char key[8];
-    char sequence[16];
-    char model[MAX_PATHLEN];
-    LPCSTR row;
-
-    if (sequence_index) {
-        *sequence_index = 0;
+    PATHSTR model;
+    snprintf(key, sizeof(key), "%02u", (unsigned)background);
+    LPCSTR row = FS_FindSheetCell(data, "LoadingScreens", key);
+    if (!UI_ParseLoadingRow(row, sequence, model)) {
+        fprintf(stderr, "UI: invalid LoadingScreens[%s]: %s\n", key, row ? row : "(missing)");
+        return 0;
     }
-
-    world_edit_data = FS_ParseINI("UI\\WorldEditData.txt");
-    snprintf(key, sizeof(key), "%02u", (unsigned)campaign_background);
-    row = FS_FindSheetCell(world_edit_data, "LoadingScreens", key);
-    UI_CsvField(row, 1, sequence, sizeof(sequence));
-    UI_CsvField(row, 2, model, sizeof(model));
-    if (sequence_index && sequence[0]) {
-        *sequence_index = (DWORD)atoi(sequence);
-    }
-    return model[0] ? UI_LoadModel(model, false) : 0;
+    return UI_LoadModel(model, false);
 }
 
 static DWORD UI_DefaultLoadingModel(void) {
@@ -369,7 +328,8 @@ static DWORD UI_CustomLoadingModel(LPCMAPINFO info) {
 
 static void UI_UpdateLoadingMapInfo(void) {
     MAPINFO info;
-    LPCSTR map_path = UI_LoadingMapPath();
+    /* Compare the current destination, not the cached path itself, so subsequent maps reload their artwork. */
+    LPCSTR map_path = uiimport.Cvar_String("map", "");
     DWORD background_model = 0;
     DWORD background_sequence = 0;
 
@@ -420,15 +380,7 @@ static void UI_InitLoadingScreen(void) {
     }
 }
 
-static void UI_DrawLoadingScreenLocal(LPCSTR map, LPCSTR status, FLOAT progress) {
-    (void)progress;
-    if (map && *map) {
-        snprintf(loading_state.map, sizeof(loading_state.map), "%s", map);
-    }
-    if (status && *status) {
-        snprintf(loading_state.text, sizeof(loading_state.text), "%s", status);
-    }
-
+static void UI_DrawLoadingScreenLocal(void) {
     UI_UpdateLoadingMapInfo();
 
     if (!loading_screen.Loading) {
@@ -481,6 +433,7 @@ static void UI_UpdateMouseFrameFlags(LPCFRAMEDEF hit, BOOL clear_pressed) {
 
 void UI_InitLocal(void) {
     memset(&ui_state, 0, sizeof(ui_state));
+    memset(&loading_state, 0, sizeof(loading_state));
     UI_ResetGlueSceneModels();
     UI_RegisterMenuCommands();
     
@@ -555,7 +508,7 @@ void UI_RefreshLocal(DWORD time) {
      * that would have drawn the loading screen. */
     LPCPLAYER ps = uiimport.GetPlayerState();
     if (ps && ps->client_ui_state == CLIENT_UI_LOADING) {
-        UI_DrawLoadingScreenLocal(NULL, NULL, 0.0f);
+        UI_DrawLoadingScreenLocal();
         return;
     }
 

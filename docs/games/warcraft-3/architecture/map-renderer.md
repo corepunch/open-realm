@@ -182,6 +182,8 @@ Each entity with `radius >= 10` casts a circle of sight. A custom ray-cast shade
 
 > **Gotcha — shared static buffer**: `aVertexBuffer` in `r_war3map_ground.c` is a file-scope array also used during segment building. `R_RenderSplat` must not be called while segment building is in progress (it is safe at runtime because segments are built once at load time).
 
+`R_RenderRectSplat` is the immediate (single-decal) entry point. For many same-shader decals — unit shadows — `R_DrawEntityShadows` uses the batched `R_BeginSplatBatch` / `R_AddRectSplat` / `R_EndSplatBatch` API to collapse hundreds of splats into one vertex-buffer upload + draw per distinct texture. See [performance](../performance.md).
+
 ## Height and Normal Queries
 
 `GetAccurateHeightAtPoint(sx, sy)` performs bilinear interpolation across the four heightmap vertices surrounding the world-space point `(sx, sy)`. This is used by cliff snapping and by `R_GetAPI().GetHeightAtPoint` which the server calls to place units on the ground.
