@@ -278,12 +278,12 @@ BOOL SC2_HUD_BuildFrameForWrite(LPCSC2BASEFRAME frame, uiFrame_t *out) {
         out->buffer.data = (HANDLE)&frame->label;
     }
     copy_points(out, frame);
-    /* Console chrome: full-screen viewport renders all three sections into a
-     * bottom band.  "Stand" animation gives the idle HUD pose.
-     * entity.origin.x is not used (models render centered via the ortho camera).
-     * TODO: parse <Position> from SC2Layout XML to spread models across screen. */
-    if (frame->sc2_type == SC2_FRAMETYPE_MODEL && frame->name)
-        out->text = "Stand";
+    /* Console chrome: model_x (-1/0/+1 from <Position>) is the world-space X
+     * used by the ortho camera to position each section (left/center/right). */
+    if (frame->sc2_type == SC2_FRAMETYPE_MODEL && frame->name) {
+        out->text  = "Stand";
+        out->value = frame->model_x;
+    }
     return true;
 }
 

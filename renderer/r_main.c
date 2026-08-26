@@ -48,17 +48,28 @@ static void R_Screenshot(void) {
     _mkdir("screenshots");
 #endif
     for (slot = 0; slot <= 9999; slot++) {
-        snprintf(path, sizeof(path), "screenshots/shot%04d.png", slot);
+        snprintf(path, sizeof(path), "screenshots/shot%04d.jpg", slot);
         FILE *file = fopen(path, "rb");
         if (!file) break;
         fclose(file);
     }
     if (slot > 9999) { fprintf(stderr, "Screenshot: no free slot (max 10000)\n"); return; }
-    pixels = ri.MemAlloc((long)((size_t)width * height * 4));
+    pixels = ri.MemAlloc((long)((size_t)width * height * 3));
     if (!pixels) { fprintf(stderr, "Screenshot: alloc failed\n"); return; }
-    R_Call(glReadPixels, 0, 0, (GLsizei)width, (GLsizei)height, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+    {
+        BYTE *rgba = ri.MemAlloc((long)((size_t)width * height * 4));
+        if (!rgba) { ri.MemFree(pixels); return; }
+        R_Call(glReadPixels, 0, 0, (GLsizei)width, (GLsizei)height, GL_RGBA, GL_UNSIGNED_BYTE, rgba);
+        /* Strip alpha: RGBA → RGB */
+        for (DWORD i = 0; i < width * height; i++) {
+            pixels[i*3+0] = rgba[i*4+0];
+            pixels[i*3+1] = rgba[i*4+1];
+            pixels[i*3+2] = rgba[i*4+2];
+        }
+        ri.MemFree(rgba);
+    }
     stbi_flip_vertically_on_write(1);
-    if (stbi_write_png(path, (int)width, (int)height, 4, pixels, (int)width * 4))
+    if (stbi_write_jpg(path, (int)width, (int)height, 3, pixels, 90))
         fprintf(stderr, "Wrote %s (%ux%u drawable pixels)\n", path, width, height);
     else
         fprintf(stderr, "Screenshot: write failed for %s\n", path);

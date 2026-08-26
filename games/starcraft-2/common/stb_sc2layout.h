@@ -199,6 +199,8 @@ typedef struct sc2BaseFrame_s {
         FLOAT insets[4];
     } backdrop;
     DWORD ui_flags;
+    FLOAT model_x;          /* X from <Model><Position val="X,..."/>: -1=minimap,0=info,+1=command */
+    BOOL  has_model_pos;    /* true when <Position> was explicitly parsed */
     void (*on_event)(struct sc2BaseFrame_s *frame, FLOAT x, FLOAT y, int button, BOOL down);
     void (*on_draw)(struct sc2BaseFrame_s *frame, LPCRECT rect);
 } sc2BaseFrame_t;
@@ -247,6 +249,8 @@ typedef struct sc2Frame_s {
     struct sc2Frame_s *parent;
     sc2BaseFrame_t *resolved_frame;
     PATHSTR source_file;
+    FLOAT model_x;      /* X from <Model><Position val="X,..."/>, 0 if unset */
+    BOOL  has_model_pos;
 } sc2Frame_t;
 
 typedef struct {
@@ -737,6 +741,19 @@ static void SC2_ParseModel(void *node, sc2Frame_t *frame) {
         frame->num_textures = 1;
         SC2_XmlFree(val);
     }
+    for (xmlNode *child = ((xmlNode *)node)->children; child; child = child->next) {
+        if (child->type != XML_ELEMENT_NODE) continue;
+        if (!strcasecmp((const char *)child->name, "Position")) {
+            LPCSTR pos = SC2_XmlGetProp(child, "val");
+            if (pos) {
+                float px = 0;
+                sscanf(pos, "%f", &px);
+                frame->model_x = px;
+                frame->has_model_pos = true;
+                SC2_XmlFree(pos);
+            }
+        }
+    }
 }
 
 static void SC2_ParseFrameAttrs(void *node, sc2Frame_t *frame) {
@@ -1160,6 +1177,8 @@ static void SC2_FlattenFrame(sc2Frame_t *frame, int parent_index) {
     }
     dst->color = (frame->flags & SC2_FRAME_HAS_COLOR) ? frame->color : (COLOR32){255, 255, 255, 255};
     dst->alpha = (frame->flags & SC2_FRAME_HAS_ALPHA) ? frame->alpha : 1.0f;
+    dst->model_x = frame->model_x;
+    dst->has_model_pos = frame->has_model_pos;
     dst->ui_flags = 0;
     if (frame->flags & SC2_FRAME_HAS_VISIBLE) {
         if (!(frame->flags & SC2_FRAME_VISIBLE))
@@ -1333,6 +1352,7 @@ BOOL SC2_LayoutBuildGameUI(void) {
     }
     return SC2_LayoutFlatten("GameUI");
 }
+
 
 BOOL SC2_LayoutFlatten(LPCSTR root_name) {
     sc2Frame_t *root = SC2_FindTemplate(root_name);
