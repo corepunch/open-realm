@@ -398,8 +398,12 @@ bool R_GameExtractEntityCamera(renderEntity_t const *entity, float aspect, viewD
          *   Setting tgt_z = s_y/aspect aligns screen-bottom with Z=0 exactly.
          * Camera is fixed at world X=0; subtracting origin.x in model-space
          * cancels the entity translation: world_x = -origin.x + origin.x = 0. */
+        /* Each model's chrome geometry occupies its own third of the world
+         * (left/center/right).  All three render in the same full-screen
+         * ortho view at world X=0; their separate geometry sections tile
+         * naturally.  s_x = s_y keeps the model proportions undistorted. */
         float s_y   = radius * 1.05f;
-        float s_x   = 3.0f * s_y;  /* 3 sections: each fills s_y wide, total half-span = 3*s_y */
+        float s_x   = s_y;
         float dist  = 5.0f;
         float tgt_z = s_y / aspect;
         VECTOR3 eye = { -entity->origin.x, center.y - dist, tgt_z };

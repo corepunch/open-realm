@@ -74,18 +74,36 @@ R_EvalKeyframeValue(void const *left,
 static void M3_SetLighting(LPSHADER shader) {
     sc2Map_t const *map = SC2_MapCurrent();
     sc2MapLighting_t const *src = map ? &map->lighting : NULL;
+    bool const lit = src && src->enabled;
     MODELLIGHTING state = {
-        .ambient = src && src->enabled ? src->ambient_color : (VECTOR3){ 1.0f, 1.0f, 1.0f },
+        /* dark ambient with a slight sky-blue tint when no map lighting is authored */
+        .ambient = lit ? src->ambient_color : (VECTOR3){ 0.35f, 0.35f, 0.40f },
         .count = SC2_MAX_DIRECTIONAL_LIGHTS,
     };
     FOR_LOOP(i, SC2_MAX_DIRECTIONAL_LIGHTS) {
-        sc2DirectionalLight_t const *light = src && src->enabled ? &src->directional[i] : NULL;
-        state.lights[i] = (RMODELLIGHT){
-            .dir = light && light->enabled ? Vector3_unm(&light->direction) : (VECTOR3){ 0.0f, 0.0f, 1.0f },
-            .color = light && light->enabled ? light->color : (VECTOR3){ 0.0f, 0.0f, 0.0f },
-            .intensity = light && light->enabled ? light->color_multiplier : 0.0f,
-            .type = R_MODEL_LIGHT_DIRECT,
-        };
+        sc2DirectionalLight_t const *light = lit ? &src->directional[i] : NULL;
+        bool const enabled = light && light->enabled;
+        if (enabled) {
+            state.lights[i] = (RMODELLIGHT){
+                .dir       = Vector3_unm(&light->direction),
+                .color     = light->color,
+                .intensity = light->color_multiplier,
+                .type      = R_MODEL_LIGHT_DIRECT,
+            };
+        } else if (!lit && i == 0) {
+            /* default key sun: warm 45-degree overhead-left when no map lighting */
+            state.lights[i] = (RMODELLIGHT){
+                .dir       = { 0.577f, 0.577f, 0.577f },
+                .color     = { 1.0f, 0.90f, 0.80f },
+                .intensity = 1.0f,
+                .type      = R_MODEL_LIGHT_DIRECT,
+            };
+        } else {
+            state.lights[i] = (RMODELLIGHT){
+                .dir  = { 0.0f, 0.0f, 1.0f },
+                .type = R_MODEL_LIGHT_DIRECT,
+            };
+        }
     }
     R_SetModelLighting(shader, &state);
 }
