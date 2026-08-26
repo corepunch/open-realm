@@ -8,6 +8,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static void wr_u32le(unsigned char *p, uint32_t v) {
@@ -140,9 +141,105 @@ static int write_texture_masks(const char *path) {
     return write_file(path, data, sizeof(data));
 }
 
+/* Write a flat NxM height-map binary (HMAP).  w and h are cell counts;
+ * the height-map has (w+1)*(h+1) vertices. height_val is the raw sample
+ * height written to every vertex (world units depend on t3Terrain.xml
+ * quantise params; 8 gives height ~0 with the default MarSara bias). */
+static int write_flat_height_map(const char *path, unsigned int w, unsigned int h, unsigned int height_val) {
+    unsigned int vw = w + 1, vh = h + 1;
+    size_t data_size = 32 + vw * vh * 6;
+    unsigned char *data = calloc(1, data_size);
+    if (!data) { fprintf(stderr, "sc2fixturegen: OOM\n"); return 0; }
+    memcpy(data, "HMAP", 4);
+    wr_u32le(data + 4,  101);
+    wr_u32le(data + 8,  vw);
+    wr_u32le(data + 12, vh);
+    for (unsigned int i = 0; i < vw * vh; i++)
+        wr_u16le(data + 32 + i * 6 + 2, (uint16_t)height_val);
+    int ok = write_file(path, data, data_size);
+    free(data);
+    return ok;
+}
+
+static int write_flat_sync_height_map(const char *path, unsigned int w, unsigned int h) {
+    unsigned int vw = w + 1, vh = h + 1;
+    size_t data_size = 64 + vw * vh * 4;
+    unsigned char *data = calloc(1, data_size);
+    if (!data) { fprintf(stderr, "sc2fixturegen: OOM\n"); return 0; }
+    memcpy(data, "SMAP", 4);
+    wr_u32le(data + 4,  102);
+    wr_u32le(data + 8,  vw);
+    wr_u32le(data + 12, vh);
+    int ok = write_file(path, data, data_size);
+    free(data);
+    return ok;
+}
+
+static int write_flat_cell_flags(const char *path, unsigned int w, unsigned int h) {
+    size_t data_size = 32 + w * h;
+    unsigned char *data = calloc(1, data_size);
+    if (!data) { fprintf(stderr, "sc2fixturegen: OOM\n"); return 0; }
+    memcpy(data, "LFCT", 4);
+    wr_u32le(data + 24, w);
+    wr_u32le(data + 28, h);
+    int ok = write_file(path, data, data_size);
+    free(data);
+    return ok;
+}
+
+static int write_flat_cliff_levels(const char *path, unsigned int w, unsigned int h) {
+    size_t data_size = 32 + w * h * 2;
+    unsigned char *data = calloc(1, data_size);
+    if (!data) { fprintf(stderr, "sc2fixturegen: OOM\n"); return 0; }
+    memcpy(data, "CLIF", 4);
+    wr_u32le(data + 8,  w);
+    wr_u32le(data + 12, h);
+    int ok = write_file(path, data, data_size);
+    free(data);
+    return ok;
+}
+
+/* Flat texture-mask: 1x1 pixels, 1 layer.  All weight on layer 0. */
+static int write_flat_texture_masks(const char *path, unsigned int w, unsigned int h) {
+    size_t data_size = 64 + w * h;
+    unsigned char *data = calloc(1, data_size);
+    if (!data) { fprintf(stderr, "sc2fixturegen: OOM\n"); return 0; }
+    memcpy(data, "MASK", 4);
+    wr_u32le(data + 12, w);
+    wr_u32le(data + 16, h);
+    memset(data + 64, 0x0f, w * h); /* max weight for layer 0 (nibble scale: 0x0f = 15/15) */
+    int ok = write_file(path, data, data_size);
+    free(data);
+    return ok;
+}
+
+/* flat-terrain <dir> <width> <height>: generate all binary terrain files for
+ * a flat WxH-cell map.  Files are written as <dir>/t3HeightMap, etc. */
+static int write_flat_terrain(const char *dir, unsigned int w, unsigned int h) {
+    char path[1024];
+    int ok = 1;
+#define FLAT_FILE(name, fn, ...) \
+    snprintf(path, sizeof(path), "%s/" name, dir); \
+    if (!fn(path, ##__VA_ARGS__)) { fprintf(stderr, "failed: %s\n", path); ok = 0; }
+    FLAT_FILE("t3HeightMap",      write_flat_height_map,      w, h, 8)
+    FLAT_FILE("t3SyncHeightMap",  write_flat_sync_height_map, w, h)
+    FLAT_FILE("t3CellFlags",      write_flat_cell_flags,      w, h)
+    FLAT_FILE("t3SyncCliffLevel", write_flat_cliff_levels,    w, h)
+    FLAT_FILE("t3TextureMasks",   write_flat_texture_masks,   w, h)
+#undef FLAT_FILE
+    return ok;
+}
+
 int main(int argc, char **argv) {
+    if (argc == 5 && !strcmp(argv[1], "flat-terrain")) {
+        unsigned int w = (unsigned int)atoi(argv[3]);
+        unsigned int h = (unsigned int)atoi(argv[4]);
+        if (!w || !h) { fprintf(stderr, "sc2fixturegen: bad dimensions\n"); return 1; }
+        return write_flat_terrain(argv[2], w, h) ? 0 : 1;
+    }
     if (argc != 3) {
-        fprintf(stderr, "Usage: sc2fixturegen <map-info|height-map|sync-height-map|cell-flags|cliff-levels|texture-masks> <out>\n");
+        fprintf(stderr, "Usage: sc2fixturegen <map-info|height-map|sync-height-map|cell-flags|cliff-levels|texture-masks> <out>\n"
+                        "       sc2fixturegen flat-terrain <dir> <width> <height>\n");
         return 1;
     }
     if (!strcmp(argv[1], "map-info")) {
