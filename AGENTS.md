@@ -35,7 +35,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | Config load order, cvar registry, `fs_basepath`/`fs_homepath`, `share/<game>/` + `~/.<game>/` layout | [docs/architecture/runtime.md](docs/architecture/runtime.md) |
 | Code patterns that work well (file-shaped structs, table-driven parsing, pointer-walk parsers) | [docs/code-patterns-that-work.md](docs/code-patterns-that-work.md) |
 | Launching UI/model scenes and maps from the command line; `make run-wow`, `make build-run-wow-*`, `make run-sc2` shortcuts | [docs/rendering-scene-workflow.md](docs/rendering-scene-workflow.md) |
-| Release/debug builds, MSAA, GL/GLES backends, adaptive bone palettes, video modes | [docs/build-and-renderer-platforms.md](docs/build-and-renderer-platforms.md) |
+| Release/debug builds, MSAA, GL/GLES backends, fixed bone palette and capacity diagnostics, video modes | [docs/build-and-renderer-platforms.md](docs/build-and-renderer-platforms.md) |
 | Shared model shader lighting and packed grass uniform contracts | [docs/architecture/model-shader.md](docs/architecture/model-shader.md) |
 
 ## Coding Style

@@ -5,6 +5,23 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
+static char shader_src[16384];
+
+/* Capture the real shader source submission without requiring a window in the unit suite. */
+static void BZ_TestShaderSource(GLuint shader, GLsizei count, const GLchar *const *strings, const GLint *lengths) {
+    size_t used = 0;
+    (void)shader;
+    FOR_LOOP(i, count) {
+        size_t size = lengths && lengths[i] >= 0 ? (size_t)lengths[i] : strlen(strings[i]);
+        T_ASSERT(used + size < sizeof(shader_src));
+        memcpy(shader_src + used, strings[i], size); used += size;
+    }
+    shader_src[used] = 0;
+}
+#define glShaderSource BZ_TestShaderSource
+#include "renderer/r_shader.c"
+#undef glShaderSource
+
 refImport_t ri;
 struct render_globals tr;
 static DWORD load_count, release_count, register_count;
@@ -199,9 +216,29 @@ TEST(renderer_shader, grass_state_uses_one_matrix) {
     grass.enabled = false; R_PackModelGrass(&packed, &grass); T_EQ(packed.v[14], 0.0f); T_EQ(packed.v[15], 0.0f);
 }
 
-TEST(renderer_bones, palette_reserves_other_vertex_uniforms) {
+TEST(renderer_bones, diagnostic_estimate_reserves_other_vertex_uniforms) {
+    T_EQ(R_BonePaletteSize(0), (DWORD)1); T_EQ(R_BonePaletteSize(64), (DWORD)1);
     T_EQ(R_BonePaletteSize(32), (DWORD)1); T_EQ(R_BonePaletteSize(256), (DWORD)48);
+    T_EQ(R_BonePaletteSize(320), (DWORD)64); T_EQ(R_BonePaletteSize(575), (DWORD)127);
+    T_EQ(R_BonePaletteSize(576), (DWORD)BZ_BONE_PALETTE_MAX);
     T_EQ(R_BonePaletteSize(1024), (DWORD)BZ_BONE_PALETTE_MAX);
+}
+
+TEST(renderer_bones, model_shader_preserves_high_palette_indices) {
+    tr.bone_count = BZ_BONE_PALETTE_MAX;
+    R_SetShaderSource(1, model_vs, NULL);
+    T_NOT_NULL(strstr(shader_src, "#define BZ_BONE_COUNT 128\n"));
+    T_NOT_NULL(strstr(shader_src, "uniform mat4 uBones[BZ_BONE_COUNT];"));
+    /* Slot 83 must stay 83: the old clamp redirected it to 63 with a 64-matrix palette. */
+    T_NOT_NULL(strstr(shader_src, "int boneIdx = int(i_skin1[i]) + int(uFirstBoneLookupIndex);"));
+    T_NULL(strstr(shader_src, "#define BZ_USE_INSTANCING"));
+}
+
+TEST(renderer_bones, instanced_shader_uses_the_same_palette_contract) {
+    tr.bone_count = BZ_BONE_PALETTE_MAX;
+    R_SetShaderSource(1, model_vs, "#define BZ_USE_INSTANCING 1\n");
+    T_NOT_NULL(strstr(shader_src, "#define BZ_BONE_COUNT 128\n#define BZ_USE_INSTANCING 1\n"));
+    T_NOT_NULL(strstr(shader_src, "int boneIdx = int(i_skin1[i]) + int(uFirstBoneLookupIndex);"));
 }
 
 TEST(renderer_texture, red_blue_swap_preserves_other_channels) {

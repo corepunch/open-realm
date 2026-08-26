@@ -114,13 +114,17 @@ The supported renderer floors are desktop OpenGL 3.1 and OpenGL ES 3.0. GLES3 sh
 
 OpenGL 2.0 and OpenGL ES 2.0 are intentionally unsupported. The renderer relies on vertex-array objects, instanced drawing, vertex attribute divisors, and GLSL `in`/`out` syntax. More importantly, the shared MDX/M2/M3 skinning shader needs a sizeable matrix palette; ES2 guarantees too little vertex-uniform storage for the current renderer contract. Supporting ES2 would require a separate renderer design rather than version-string substitutions.
 
-At initialization the renderer reads the available vertex-uniform vectors, reserves space for view, lighting, and grass uniforms, and compiles `uBones` to the remaining matrix count up to 128. If less than 128 fits, startup logs:
+The shared model shader keeps a fixed 128-matrix palette. At initialization the renderer reads vertex-uniform capacity and
+subtracts a conservative view/lighting/grass budget for diagnostics only. A low estimate must not resize the palette or remap
+asset bone indices. Startup logs:
 
 ```text
-OpenGL: only N/128 bone matrices fit; complex models may animate incorrectly
+Bone palette: 128 matrices fixed; driver estimate=N from V vertex uniform vectors
 ```
 
-Bone indices are clamped to the allocated shader palette. This keeps rendering defined, but models that genuinely require the missing matrices can deform incorrectly; the warning must not be suppressed.
+See [shared model shader contracts](architecture/model-shader.md#bone-palette) for the regression, units, gl4es query caveat,
+and remaining shader-link diagnostic limitation. Fixed size does not make a genuinely insufficient backend support the shader;
+that requires a different palette transport or draw batching, not clamping bone indices.
 
 ## MSAA And Alpha-Key Materials
 

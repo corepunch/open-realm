@@ -2,6 +2,72 @@
 
 `renderer/r_shader.c` owns the vertex shader shared by WC3 MDX, WoW M2, and SC2 M3 models. Callers use the same contracts regardless of how many sources their game data provides.
 
+## Bone palette
+
+`BZ_BONE_PALETTE_MAX` is 128 matrices, matching the literal `uBones[128]` before commit `2629f076` (#160).
+`R_Init` sets `tr.bone_count` to that fixed size; `R_SetShaderSource` emits `#define BZ_BONE_COUNT 128` for both ordinary and
+instanced model shaders. A macro with the same expanded value is equivalent to the old literal. Vertex palette indices are
+`int(i_skin1[i]) + int(uFirstBoneLookupIndex)` and must not be clamped to a hardware-derived estimate.
+
+### Regression and correction
+
+`2629f076` made `tr.bone_count` depend on `R_BonePaletteSize` and added a shader clamp. This changed both shader array length
+and CPU upload counts. WC3 `MDLX_BindGeosetMatrixPalette` also stopped constructing palette entries above the reduced count.
+At 64 entries, an asset index of 83 became 63: unrelated vertices used the last matrix, corrupting animation and potentially
+the apparent size/position of portraits. A model's total skeleton count is not its draw's palette size: MDX geosets map palette
+slots through `matrixPalette[]` to node matrices.
+
+Imported [sookyboo's correction](https://github.com/sookyboo/open-realm/commit/069bdced50a477fe53458e1b4b3c398c669db3ba)
+retains the estimate only as a warning and restores the fixed palette and unchanged indices.
+
+### Uniform units and the user's report
+
+`GL_MAX_VERTEX_UNIFORM_COMPONENTS` counts scalar components; divide by four to get vec4 vectors. One mat4 consumes four vec4s
+(16 components). `BZ_BONE_UNIFORM_RESERVE = 64` means **64 vec4s reserved for other uniforms**, not 64 available bones.
+The diagnostic estimate is `max(1, min(128, floor((vectors - 64) / 4)))`, with values below the reserve returning 1.
+Examples: 256 vectors gives 48 matrices, 320 gives 64, and 576 reaches 128. This budget is a renderer estimate, not a direct
+hardware bone-count query. The GLSL compiler/linker checks actual shader resources.
+
+The linked [gist](https://gist.github.com/sookyboo/737f7aec1f7be2b34f5fd1b22c0050f1) is an agent's explanation, **not a driver log**;
+its 64-entry example is hypothetical. It cannot establish the user's actual query result or backend capacity.
+
+There is a concrete gl4es query hazard: at upstream revision `81547d986798e876de8b434193920b606a72363f`,
+[`gl4es_glGetIntegerv`](https://github.com/ptitSeb/gl4es/blob/81547d986798e876de8b434193920b606a72363f/src/gl/getter.c)
+has no translation for desktop `GL_MAX_VERTEX_UNIFORM_COMPONENTS` (`0x8B4A`); it forwards the enum to GLES. GLES2 supports
+`GL_MAX_VERTEX_UNIFORM_VECTORS` (`0x8DFB`), not that desktop enum. An invalid query leaves the initialized result at zero,
+which the old sizing helper turns into **one matrix**. This is a source-confirmed risk in that gl4es revision, not a confirmed
+diagnosis of the user's installed build. Obtain its version, raw query value and immediate `glGetError()` before claiming it.
+Do not infer capacity from the physical GPU name or treat the post-fix estimate as authoritative on this wrapper.
+
+### Verification and limitations
+
+Temporary targeted logs on an Apple M1 Pro / OpenGL 4.1 context showed 1024 uniform vectors, a linked model program with
+128 active `uBones` entries, and ROC menu geoset palettes of 84, 91 and 124 entries. Temporarily substituting a 320-vector
+report reproduced a linked 64-entry shader, 64-matrix uploads for those same geosets, and index 83 mapping to 63. This proves
+the truncation mechanism locally; it does not reproduce the user's GLES/gl4es driver. Diagnostic edits were removed.
+
+`tests/test_renderer_model.c` checks diagnostic budget boundaries and captures the actual shader-source submission for ordinary
+and instanced variants, asserting the full palette and direct index expression without requiring a display. Run `make test`.
+For live verification, build all three games and launch bounded scenes (WC3 must cover both archive variants):
+
+```bash
+make -j4 openwarcraft3 openwow opensc2 install-share
+build/bin/openwarcraft3 -data 'data/Warcraft III' +menu_main +screenshot 10 +com_frame_limit 20
+build/bin/openwarcraft3 -data 'data/Warcraft III' -tft +menu_main +com_frame_limit 20
+build/bin/openwow -data data/world-of-warcraft +menu_character_create +com_frame_limit 20
+build/bin/opensc2 -data data/StarCraft2 +map TRaynor01 +com_frame_limit 20
+```
+
+Fixed 128 entries cannot overcome a real uniform-storage limit. Supporting such devices needs a separate renderer design
+(e.g. palette batches with remapped vertices or another matrix transport). Do not claim the imported patch implements that.
+Also, the patch's comment about explicit failure is an intention, not a complete guarantee: `R_InitShaderDefines` logs shader
+**compile** failures but currently does not check `GL_LINK_STATUS`, and `R_ModelShader` can return `SHADER_DEFAULT` on compile
+failure. Checking link status and enforcing fatal model-shader failure remain separate work; do not diagnose success from
+absence of compiler logs alone. During investigation, query `GL_LINK_STATUS` and `glGetActiveUniform` for `uBones[0]` explicitly.
+
+See also [renderer platforms](../build-and-renderer-platforms.md) and
+[Khronos uniform resource rules](https://wikis.khronos.org/opengl/GLSL_Uniforms).
+
 ## Lighting
 
 `uLightCount` is always in `[1, 8]`. There is no zero-light fallback and no parallel directional-light uniform family. Game renderers populate one semantic `MODELLIGHTING` value and call `R_SetModelLighting` once; only that renderer proxy packs and uploads `uLightCount` and `uLights[]`.
