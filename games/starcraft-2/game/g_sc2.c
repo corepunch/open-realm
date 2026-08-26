@@ -395,6 +395,15 @@ static void SC2_ClientBegin(LPEDICT ent) {
     ent->client = &sc2_clients[number];
     ent->client->ps.client_ui_state = CLIENT_UI_GAME;
 
+    /* Use the first selectable unit's model for the portrait panel. */
+    for (DWORD i = SC2_MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
+        LPEDICT u = &sc2_edicts[i];
+        if (u->inuse && u->s.model && u->collision > 0) {
+            SC2_HUD_SetPortraitModel(u->s.model);
+            break;
+        }
+    }
+
     /* Send initial static HUD — console backdrop, resource bar,
      * command panel, info panel.  The client retains the last
      * received layout per layer and renders it every frame. */

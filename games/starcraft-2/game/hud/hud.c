@@ -166,14 +166,37 @@ static int sc2_hud_image_index(LPCSTR resource) {
     return gi.ImageIndex(resource);
 }
 
+/* Resolve a UI model resource key (e.g. @@UI/ConsoleModelInfopanel) to its
+ * .m3 path via assets_catalog, then register it as a model and return its index. */
+static int sc2_hud_model_index(LPCSTR resource) {
+    while (*resource == '@') resource++;
+    for (int i = 0; i < assets_catalog_count; i++) {
+        if (!strcasecmp(resource, assets_catalog[i].key))
+            return gi.ModelIndex(assets_catalog[i].val);
+    }
+    if (!strncasecmp(resource, "UI/", 3)) {
+        if (!sc2_hud_missing_ui_seen(resource))
+            fprintf(stderr, "SC2_HUD: unresolved model resource '%s'\n", resource);
+        return 0;
+    }
+    return gi.ModelIndex(resource);
+}
+
 void SC2_HUD_InitLayoutHost(void) {
     memset(&uiimport, 0, sizeof(uiimport));
     uiimport.FS_ReadFile = sc2_hud_read_file;
     uiimport.FS_FreeFile = sc2_hud_free_file;
     uiimport.ImageIndex = sc2_hud_image_index;
+    uiimport.ModelIndex = sc2_hud_model_index;
     uiimport.FontIndex = gi.FontIndex;
     gi.ReadFileAll("GameData/Assets.txt", sc2_hud_parse_assets_txt, NULL);
 }
+
+/* ------------------------------------------------------------------ */
+/* Portrait model — set before WriteConsolePanel to show a unit in the portrait. */
+
+static RESOURCE portrait_model;
+void SC2_HUD_SetPortraitModel(RESOURCE model) { portrait_model = model; }
 
 /* ------------------------------------------------------------------ */
 /* Frame numbering — flat wire[] map, (DWORD)-1 = unassigned */
@@ -241,7 +264,10 @@ BOOL SC2_HUD_BuildFrameForWrite(LPCSC2BASEFRAME frame, uiFrame_t *out) {
     out->color.a     = (BYTE)(out->color.a * frame->alpha);
     out->size.width  = frame->size.width;
     out->size.height = frame->size.height;
-    out->tex.index   = (USHORT)frame->image;
+    /* SC2_FRAMETYPE_PORTRAIT = unit portrait viewer: use the selected unit model.
+     * SC2_FRAMETYPE_MODEL    = console chrome: use the .m3 resolved from Assets.txt. */
+    out->tex.index   = (frame->sc2_type == SC2_FRAMETYPE_PORTRAIT && portrait_model)
+                       ? (USHORT)portrait_model : (USHORT)frame->image;
     out->tex.coord[1] = 0xff;
     out->tex.coord[3] = 0xff;
     out->flags.type  = frame->type;
@@ -252,6 +278,23 @@ BOOL SC2_HUD_BuildFrameForWrite(LPCSC2BASEFRAME frame, uiFrame_t *out) {
         out->buffer.data = (HANDLE)&frame->label;
     }
     copy_points(out, frame);
+    /* Console chrome: bottom-strip viewport + world X position per model.
+     * The ortho camera is fixed at (0,-5,0); models translate within it.
+     * MinimapModel X=-1 (left), InfopanelModel X=0 (center), CommandPanelModel X=+1 (right). */
+    if (frame->sc2_type == SC2_FRAMETYPE_MODEL) {
+        out->size.height = 332.0f;
+        out->size.width  = 0.0f;
+        out->points.y[FPP_MIN].used = 0;
+        out->points.y[FPP_MID].used = 0;
+        out->points.y[FPP_MAX] = (uiFramePoint_t){
+            .used=1, .targetPos=FPP_MAX, .relativeTo=UI_PARENT, .offset=0
+        };
+        if (frame->name) {
+            if (!strcasecmp(frame->name, "MinimapModel"))      out->value = -1.0f;
+            else if (!strcasecmp(frame->name, "InfopanelModel"))    out->value =  0.0f;
+            else if (!strcasecmp(frame->name, "CommandPanelModel")) out->value =  1.0f;
+        }
+    }
     return true;
 }
 
@@ -297,10 +340,8 @@ static void sc2_hud_hide_optional_panels(void) {
         "CreditsPanel", "TipAlertMovingFrame", "TipAlertPanel",
         "RevealPanel", "AlliancePanel", "TeamResourcePanel",
         "LeaderPanel", "ChatBar", "SystemAlertPanel",
-        /* ConsolePanel 3D model children — these are SC2 .m3 models that
-         * require a full SC2 model renderer; we can't render them, so hide
-         * them to prevent FT_SPRITE draw calls on null model handles. */
-        "InfopanelModel", "MinimapModel", "CommandPanelModel",
+        /* InfopanelModel, MinimapModel, CommandPanelModel are now rendered
+         * via FT_PORTRAIT + R_GameExtractEntityCamera. */
         NULL,
     };
 
@@ -314,14 +355,8 @@ sc2BaseFrame_t *SC2_HUD_EnsureLayout(DWORD *count) {
     if (!layout_loaded) {
         layout_loaded = true;
         layout_ok = SC2_LayoutBuildGameUI();
-        if (layout_ok) {
+        if (layout_ok)
             sc2_hud_hide_optional_panels();
-            /* PortraitPanel is hidden by default; shown only on unit select.
-             * Without this, hud_console.c WriteFrameWithChildren renders the
-             * blank portrait background rectangle in the center of the screen. */
-            sc2BaseFrame_t *portrait = SC2_LayoutFindFrameByType(SC2_FRAMETYPE_PORTRAIT_PANEL);
-            if (portrait) portrait->ui_flags |= SC2_UIFLAG_HIDDEN;
-        }
     }
     if (layout_ok) return SC2_LayoutGetFrames(count);
     /* Layout data is authoritative: returning no frames keeps parse/load failures visible. */

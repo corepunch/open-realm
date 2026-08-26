@@ -59,4 +59,8 @@ void SC2_HUD_WriteConsolePanel(LPEDICT ent);
 void SC2_HUD_WriteCommandPanel(LPEDICT ent);
 void SC2_HUD_WriteInfoPanel(LPEDICT ent);
 
+/* Set the model index used by FT_PORTRAIT frames on the next console write.
+ * Call before SC2_HUD_WriteConsolePanel when a unit is selected. */
+void SC2_HUD_SetPortraitModel(RESOURCE model);
+
 #endif /* SC2_HUD_H */
