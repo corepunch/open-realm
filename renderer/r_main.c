@@ -6,6 +6,15 @@
 
 #include <SDL2/SDL.h>
 #include <sys/stat.h>
+#ifdef __APPLE__
+/* Forward-declare the Objective-C runtime calls we need without pulling in
+ * <objc/objc.h>, which redefines BOOL and conflicts with our project typedef. */
+typedef void *MacId;
+typedef void *MacSel;
+extern MacId  objc_getClass(const char *name);
+extern MacSel sel_registerName(const char *str);
+extern MacId  objc_msgSend(MacId, MacSel, ...);
+#endif
 #ifndef __APPLE__
 #include <SDL2/SDL_opengl.h>
 #endif
@@ -411,6 +420,21 @@ void R_Init(DWORD width, DWORD height) {
     int requested_msaa = BZ_MSAA_SAMPLES;
     SDL_version sdl_version;
 
+#ifdef __APPLE__
+    /* On macOS, SDL_Init(SDL_INIT_VIDEO) calls [NSApp finishLaunching] which
+     * activates the process regardless of window visibility.  Set the policy
+     * to Prohibited first so the app never appears in the Dock or takes focus.
+     * NSApplicationActivationPolicyProhibited = 2. */
+    if (atoi(ri.CvarString("vid_hidden", "0"))) {
+        MacId ns_app = ((MacId(*)(MacId, MacSel))objc_msgSend)(
+            objc_getClass("NSApplication"),
+            sel_registerName("sharedApplication"));
+        ((int(*)(MacId, MacSel, long))objc_msgSend)(
+            ns_app,
+            sel_registerName("setActivationPolicy:"),
+            2L /* NSApplicationActivationPolicyProhibited */);
+    }
+#endif
     SDL_Init(SDL_INIT_VIDEO);
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
