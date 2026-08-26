@@ -547,6 +547,13 @@ void ReadParticleEmitter(LPSIZEBUF buffer, mdxParticleEmitter_t *pe) {
     MSG_READ(buffer, pe->SegmentColor);
     MSG_READ(buffer, pe->Alpha);
     MSG_READ(buffer, pe->ParticleScaling);
+    /* MDX particle sizes are authored as small ParticleScaling floats; the
+       shared R_DrawParticles pipeline used to render every particle at 2x, so
+       the original game read these at 2x.  Commit 97a52d18 dropped the global
+       `*2.0` when M2 moved to per-emitter size_value_scale curves, halving MDX
+       particles.  Bake the 2x back in at load time so WC3 sizes match the
+       original while the shared pipeline stays scale-agnostic. */
+    FOR_LOOP(i, 3) pe->ParticleScaling[i] *= 2.0f;
     MSG_READ(buffer, pe->LifeSpanUVAnim);
     MSG_READ(buffer, pe->DecayUVAnim);
     MSG_READ(buffer, pe->TailUVAnim);
