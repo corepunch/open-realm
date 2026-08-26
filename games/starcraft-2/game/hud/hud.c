@@ -329,6 +329,8 @@ static void sc2_hud_hide_optional_panels(void) {
         "CreditsPanel", "TipAlertMovingFrame", "TipAlertPanel",
         "RevealPanel", "AlliancePanel", "TeamResourcePanel",
         "LeaderPanel", "ChatBar", "SystemAlertPanel",
+        /* TODO: show CommandTooltip only on command-button hover; hide for now. */
+        "CommandTooltip",
         /* InfopanelModel, MinimapModel, CommandPanelModel are now rendered
          * via FT_PORTRAIT + R_GameExtractEntityCamera. */
         NULL,
