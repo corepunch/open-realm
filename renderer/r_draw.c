@@ -240,7 +240,7 @@ static BOOL R_MinimapPointForWorld(LPCVECTOR3 world, LPCRECT screen, LPVECTOR2 o
     return true;
 }
 
-static BOOL R_TraceViewportCornerToMinimap(FLOAT x, FLOAT y, LPCRECT screen, LPVECTOR2 out) {
+static BOOL R_TraceViewportCornerToMinimap(FLOAT x, FLOAT y, LPCRECT screen, LPVECTOR2 out, LPVECTOR3 world_out) {
     VECTOR3 world;
     LINE3 line;
     PLANE3 ground = {
@@ -251,6 +251,9 @@ static BOOL R_TraceViewportCornerToMinimap(FLOAT x, FLOAT y, LPCRECT screen, LPV
     line = R_LineForScreenPoint(&tr.viewDef, x, y);
     if (!Line3_intersect_plane3(&line, &ground, &world)) {
         return false;
+    }
+    if (world_out) {
+        *world_out = world;
     }
     return R_MinimapPointForWorld(&world, screen, out);
 }
@@ -275,11 +278,21 @@ void R_DrawMinimapCameraRect(LPCRECT screen) {
         return;
     }
 
-    if (!R_TraceViewportCornerToMinimap(left, top, screen, &corners[0]) ||
-        !R_TraceViewportCornerToMinimap(right, top, screen, &corners[1]) ||
-        !R_TraceViewportCornerToMinimap(right, bottom, screen, &corners[2]) ||
-        !R_TraceViewportCornerToMinimap(left, bottom, screen, &corners[3])) {
+    VECTOR3 worlds[4];
+    if (!R_TraceViewportCornerToMinimap(left, top, screen, &corners[0], &worlds[0]) ||
+        !R_TraceViewportCornerToMinimap(right, top, screen, &corners[1], &worlds[1]) ||
+        !R_TraceViewportCornerToMinimap(right, bottom, screen, &corners[2], &worlds[2]) ||
+        !R_TraceViewportCornerToMinimap(left, bottom, screen, &corners[3], &worlds[3])) {
         return;
+    }
+
+    static int log_frame = 0;
+    if (++log_frame % 60 == 0) {
+        fprintf(stderr, "[minimap_cam] viewport px: L=%.1f R=%.1f T=%.1f B=%.1f\n", left, right, top, bottom);
+        FOR_LOOP(i, 4) {
+            fprintf(stderr, "  corner[%d] world=(%.1f,%.1f,%.1f) minimap=(%.1f,%.1f)\n",
+                i, worlds[i].x, worlds[i].y, worlds[i].z, corners[i].x, corners[i].y);
+        }
     }
 
     FOR_LOOP(i, 5) {

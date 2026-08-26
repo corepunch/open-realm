@@ -442,9 +442,21 @@ void G_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
 void G_ClientSetCameraPosition(LPEDICT ent, LPCVECTOR2 position) {
     if (ent->client->no_control)
         return;
+    VECTOR2 clamped = *position;
+    if (level.mapinfo) {
+        FLOAT const *b = level.mapinfo->cameraBounds.bounds;
+        FLOAT min_x = MIN(MIN(b[0], b[2]), MIN(b[4], b[6]));
+        FLOAT max_x = MAX(MAX(b[0], b[2]), MAX(b[4], b[6]));
+        FLOAT min_y = MIN(MIN(b[1], b[3]), MIN(b[5], b[7]));
+        FLOAT max_y = MAX(MAX(b[1], b[3]), MAX(b[5], b[7]));
+        if (max_x > min_x && max_y > min_y) {
+            clamped.x = MAX(min_x, MIN(max_x, clamped.x));
+            clamped.y = MAX(min_y, MIN(max_y, clamped.y));
+        }
+    }
     G_ClearCameraTarget(ent->client, "G_ClientSetCameraPosition");
     ent->client->camera.old_state = ent->client->camera.state;
-    ent->client->camera.state.position = *position;
+    ent->client->camera.state.position = clamped;
     ent->client->camera.start_time = gi.GetTime();
     ent->client->camera.end_time = ent->client->camera.start_time;
 }
