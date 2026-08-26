@@ -1,4 +1,6 @@
 #include "r_sc2map.h"
+#include "renderer/r_shader.h"
+extern bool is_rendering_lights;
 
 #include "games/starcraft-2/common/sc2_map.c"
 #include "games/starcraft-2/renderer/m3/r_m3.h"
@@ -100,19 +102,25 @@ static LPCSTR sc2_vs_terrain =
 "out vec2 v_texcoord2;\n"
 "out vec3 v_worldpos;\n"
 "out vec3 v_light;\n"
+"out vec3 v_key;\n"
 "out vec4 v_color;\n"
 "uniform mat4 uViewProjectionMatrix;\n"
 "uniform mat4 uTextureMatrix;\n"
 "uniform mat4 uModelMatrix;\n"
+"uniform mat4 uLightMatrix;\n"
+"out vec4 v_shadow;\n"
 "uniform vec3 uLightAmbient;\n"
 "uniform vec3 uLightDir[3];\n"
 "uniform vec3 uLightColor[3];\n"
 "vec3 vertex_lighting(vec3 normal) {\n"
 "    vec3 n = normalize(normal);\n"
 "    vec3 light = uLightAmbient;\n"
+"    v_key = vec3(0.0);\n"
 "    for (int i = 0; i < 3; i++) {\n"
 "        vec3 l = normalize(uLightDir[i]);\n"
-"        light += uLightColor[i] * max(dot(n, l), 0.0);\n"
+"        vec3 contribution = uLightColor[i] * max(dot(n, l), 0.0);\n"
+"        light += contribution;\n"
+"        if (i == 0) v_key = contribution;\n"
 "    }\n"
 "    return max(light, vec3(0.0));\n"
 "}\n"
@@ -120,6 +128,7 @@ static LPCSTR sc2_vs_terrain =
 "    vec4 pos = uModelMatrix * vec4(i_position, 1.0);\n"
 "    v_texcoord2 = (uTextureMatrix * pos).xy;\n"
 "    v_worldpos = pos.xyz;\n"
+"    v_shadow = uLightMatrix * pos;\n"
 "    v_light = vertex_lighting(mat3(uModelMatrix) * i_normal);\n"
 "    v_color = i_color;\n"
 "    gl_Position = uViewProjectionMatrix * pos;\n"
@@ -134,18 +143,24 @@ static LPCSTR sc2_vs_cliff_texture =
 "out vec2 v_texcoord;\n"
 "out vec3 v_worldpos;\n"
 "out vec3 v_light;\n"
+"out vec3 v_key;\n"
 "out vec4 v_color;\n"
 "uniform mat4 uViewProjectionMatrix;\n"
 "uniform mat4 uModelMatrix;\n"
+"uniform mat4 uLightMatrix;\n"
+"out vec4 v_shadow;\n"
 "uniform vec3 uLightAmbient;\n"
 "uniform vec3 uLightDir[3];\n"
 "uniform vec3 uLightColor[3];\n"
 "vec3 vertex_lighting(vec3 normal) {\n"
 "    vec3 n = normalize(normal);\n"
 "    vec3 light = uLightAmbient;\n"
+"    v_key = vec3(0.0);\n"
 "    for (int i = 0; i < 3; i++) {\n"
 "        vec3 l = normalize(uLightDir[i]);\n"
-"        light += uLightColor[i] * max(dot(n, l), 0.0);\n"
+"        vec3 contribution = uLightColor[i] * max(dot(n, l), 0.0);\n"
+"        light += contribution;\n"
+"        if (i == 0) v_key = contribution;\n"
 "    }\n"
 "    return max(light, vec3(0.0));\n"
 "}\n"
@@ -153,6 +168,7 @@ static LPCSTR sc2_vs_cliff_texture =
 "    vec4 pos = uModelMatrix * vec4(i_position, 1.0);\n"
 "    v_texcoord = i_texcoord;\n"
 "    v_worldpos = pos.xyz;\n"
+"    v_shadow = uLightMatrix * pos;\n"
 "    v_light = vertex_lighting(mat3(uModelMatrix) * i_normal);\n"
 "    v_color = i_color;\n"
 "    gl_Position = uViewProjectionMatrix * pos;\n"
@@ -163,8 +179,12 @@ static LPCSTR sc2_fs_terrain =
 "in vec2 v_texcoord2;\n"
 "in vec3 v_worldpos;\n"
 "in vec3 v_light;\n"
+"in vec3 v_key;\n"
 "in vec4 v_color;\n"
 "out vec4 o_color;\n"
+"in vec4 v_shadow;\n"
+"uniform sampler2D uShadowmap;\n"
+"uniform vec3 uLightAmbient;\n"
 "uniform sampler2D uLayer0;\n"
 "uniform sampler2D uLayer1;\n"
 "uniform sampler2D uLayer2;\n"
@@ -186,6 +206,7 @@ static LPCSTR sc2_fs_terrain =
 "    float vertical = v_worldpos.z <= uFogParams.x ? 1.0 : exp(-above * max(uFogParams.z, 0.0001));\n"
 "    return clamp((uFogParams.y / max(uFogParams.z, 0.0001)) * vertical, 0.0, 1.0) * uFogColor.a;\n"
 "}\n"
+BZ_SHADOW_GLSL
 "void main() {\n"
 "    vec2 mc = get_mask_coord();\n"
 "    vec2 tc = get_terrain_coord();\n"
@@ -195,7 +216,7 @@ static LPCSTR sc2_fs_terrain =
 "                 texture(uLayer2, tc) * w.b +\n"
 "                 texture(uLayer3, tc) * w.a;\n"
 "    color.rgb *= v_color.rgb;\n"
-"    color.rgb *= v_light;\n"
+"    color.rgb *= (v_light - v_key * (1.0 - shadow_visibility(uShadowmap, v_shadow)));\n"
 "    color.rgb = mix(color.rgb, uFogColor.rgb, get_height_fog());\n"
 "    color.a = 1.0;\n"
 "    o_color = color;\n"
@@ -207,7 +228,11 @@ static LPCSTR sc2_fs_cliff =
 "in vec2 v_texcoord;\n"
 "in vec3 v_worldpos;\n"
 "in vec3 v_light;\n"
+"in vec3 v_key;\n"
 "out vec4 o_color;\n"
+"in vec4 v_shadow;\n"
+"uniform sampler2D uShadowmap;\n"
+"uniform vec3 uLightAmbient;\n"
 "uniform sampler2D uTexture;\n"
 "uniform vec4 uFogColor;\n"
 "uniform vec4 uFogParams;\n"
@@ -217,9 +242,10 @@ static LPCSTR sc2_fs_cliff =
 "    float vertical = v_worldpos.z <= uFogParams.x ? 1.0 : exp(-above * max(uFogParams.z, 0.0001));\n"
 "    return clamp((uFogParams.y / max(uFogParams.z, 0.0001)) * vertical, 0.0, 1.0) * uFogColor.a;\n"
 "}\n"
+BZ_SHADOW_GLSL
 "void main() {\n"
 "    vec4 color = texture(uTexture, v_texcoord) * v_color;\n"
-"    color.rgb *= v_light;\n"
+"    color.rgb *= (v_light - v_key * (1.0 - shadow_visibility(uShadowmap, v_shadow)));\n"
 "    color.rgb = mix(color.rgb, uFogColor.rgb, get_height_fog());\n"
 "    o_color = color;\n"
 "}\n";
@@ -1314,7 +1340,12 @@ static void r_sc2_set_light_uniforms(rSc2LightUniforms_t const *uniforms) {
 
 static void r_sc2_begin_terrain_shader(MATRIX4 const *model_matrix) {
     R_Call(glUseProgram, sc2_terrain_shader->progid);
-    R_Call(glUniformMatrix4fv, sc2_terrain_shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
+    /* The depth pass must use the same light projection later sampled by receivers. */
+    R_Call(glUniformMatrix4fv, sc2_terrain_shader->uViewProjectionMatrix, 1, GL_FALSE, is_rendering_lights ? tr.viewDef.lightMatrix.v : tr.viewDef.viewProjectionMatrix.v);
+    R_Call(glUniformMatrix4fv, sc2_terrain_shader->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
+    R_Call(glUniform1i, sc2_terrain_shader->uShadowmap, 5);
+    R_Call(glActiveTexture, GL_TEXTURE5);
+    R_Call(glBindTexture, GL_TEXTURE_2D, is_rendering_lights ? tr.texture[TEX_WHITE]->texid : tr.rt[RT_DEPTHMAP]->texture);
     R_Call(glUniformMatrix4fv, sc2_terrain_shader->uModelMatrix, 1, GL_FALSE, model_matrix->v);
     R_Call(glUniformMatrix4fv, sc2_terrain_shader->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
     r_sc2_set_fog_uniforms(sc2_u_fog_color, sc2_u_fog_params);
@@ -1431,7 +1462,12 @@ static void r_sc2_draw_cliff_layer(LPCMAPSEGMENT segment) {
     R_Call(glEnable, GL_POLYGON_OFFSET_FILL);
     R_Call(glPolygonOffset, -1.0f, -1.0f);
     R_Call(glUseProgram, sc2_cliff_shader->progid);
-    R_Call(glUniformMatrix4fv, sc2_cliff_shader->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
+    /* The depth pass must use the same light projection later sampled by receivers. */
+    R_Call(glUniformMatrix4fv, sc2_cliff_shader->uViewProjectionMatrix, 1, GL_FALSE, is_rendering_lights ? tr.viewDef.lightMatrix.v : tr.viewDef.viewProjectionMatrix.v);
+    R_Call(glUniformMatrix4fv, sc2_cliff_shader->uLightMatrix, 1, GL_FALSE, tr.viewDef.lightMatrix.v);
+    R_Call(glUniform1i, sc2_cliff_shader->uShadowmap, 5);
+    R_Call(glActiveTexture, GL_TEXTURE5);
+    R_Call(glBindTexture, GL_TEXTURE_2D, is_rendering_lights ? tr.texture[TEX_WHITE]->texid : tr.rt[RT_DEPTHMAP]->texture);
     R_Call(glUniformMatrix4fv, sc2_cliff_shader->uModelMatrix, 1, GL_FALSE, model_matrix.v);
     R_Call(glUniformMatrix4fv, sc2_cliff_shader->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
     r_sc2_set_fog_uniforms(sc2_u_cliff_fog_color, sc2_u_cliff_fog_params);
@@ -1450,7 +1486,20 @@ void R_SC2DrawWorld(void) {
     if (!sc2_terrain_segment || (tr.viewDef.rdflags & RDF_NOWORLDMODEL))
         return;
 
+    if (is_rendering_lights) {
+        sc2Map_t const *map = SC2_MapCurrent();
+        SC2SHADOWVIEW input = {
+            .camera = tr.viewDef.viewProjectionMatrix,
+            .target = Vector3_lerp(&tr.viewDef.camerastate[1].origin, &tr.viewDef.camerastate[0].origin, tr.viewDef.lerpfrac),
+            .light = map->lighting.directional[SC2_LIGHT_KEY].direction,
+            .reach = LerpNumber(tr.viewDef.camerastate[1].distance, tr.viewDef.camerastate[0].distance, tr.viewDef.lerpfrac),
+        };
+        input.target.z = R_SC2GetHeightAtPoint(input.target.x, input.target.y);
+        if (!sc2_shadow_matrix(&input, &tr.viewDef.lightMatrix))
+            ri.error("SC2 shadow: invalid camera or missing authored key light for %s", map->t3Terrain.tile_set);
+    }
     Matrix4_identity(&model_matrix);
+
     R_Call(glUseProgram, tr.shader[SHADER_UI]->progid);
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uViewProjectionMatrix, 1, GL_FALSE, tr.viewDef.viewProjectionMatrix.v);
     R_Call(glUniformMatrix4fv, tr.shader[SHADER_UI]->uModelMatrix, 1, GL_FALSE, model_matrix.v);

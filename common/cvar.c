@@ -445,7 +445,11 @@ void Cvar_Init(void) {
     Cvar_GetD("fs_homepath", FS_HomePath(), 0, "writable per-user directory (empty if unavailable)");
     Cvar_GetD("data",             "",                  CVAR_ARCHIVE, "override game data directory path");
     Cvar_GetD("fs_expansion",     "0",                 0,            "0=RoC data only, 1=include TFT expansion data");
-    Cvar_GetD("map",              "",                  0,            "map to load at startup; updated to the resolved destination when loading begins");
+#ifdef SC2_DEFAULT_MAP
+    Cvar_GetD("map",              SC2_DEFAULT_MAP,     0,            "map file to load at startup");
+#else
+    Cvar_GetD("map",              "",                  0,            "map file to load at startup (e.g. Maps/HumanCampaign1.w3m)");
+#endif
     Cvar_GetD("connect",          "",                  0,            "server address to connect to at startup");
     Cvar_GetD("cl_debug_entities","0",                 0,            "log client-side entity sync events");
     Cvar_GetD("sv_debug_entities","0",                 0,            "log server-side entity sync events");

@@ -156,6 +156,7 @@ enum {
     FLAG(RF_FOW_REVEALER, 12),
     FLAG(RF_HOSTILE, 13),
     FLAG(RF_HOVERED, 14),
+    FLAG(RF_ORTHO_CAMERA, 15), /* HUD model: use orthographic camera (console chrome) */
     FLAG(RF_GROUND_EFFECT, 15),
     FLAG(RF_MOUNTED, 16),      /* riding a mount; overhead name resolves to the mounted attachment */
     FLAG(RF_HAS_QUEST, 17),    /* show overhead "?" sprite */
@@ -676,6 +677,16 @@ typedef struct { // serialized as 4 bytes
 } uiFramePoint_t;
 
 typedef uiFramePoint_t uiFramePoints_t[FPP_COUNT];
+
+/* Model-frame payload: camera and placement authored by the game's layout, not network entity state. */
+typedef enum { UI_MODEL_PERSPECTIVE, UI_MODEL_ORTHOGRAPHIC } UIMODELPROJECTION;
+typedef struct UIMODEL {
+    VECTOR3 eye, target, pos, scale;
+    FLOAT fov, znear, zfar, aspect;
+    UIMODELPROJECTION projection;
+} UIMODEL;
+typedef struct UIMODEL *LPUIMODEL;
+typedef const struct UIMODEL *LPCUIMODEL;
 
 typedef struct uiFrame_s {
     DWORD number;

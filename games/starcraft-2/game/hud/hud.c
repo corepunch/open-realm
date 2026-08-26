@@ -278,22 +278,14 @@ BOOL SC2_HUD_BuildFrameForWrite(LPCSC2BASEFRAME frame, uiFrame_t *out) {
         out->buffer.data = (HANDLE)&frame->label;
     }
     copy_points(out, frame);
-    /* Console chrome: bottom-strip viewport + world X position per model.
-     * The ortho camera is fixed at (0,-5,0); models translate within it.
-     * MinimapModel X=-1 (left), InfopanelModel X=0 (center), CommandPanelModel X=+1 (right). */
     if (frame->sc2_type == SC2_FRAMETYPE_MODEL) {
-        out->size.height = 332.0f;
-        out->size.width  = 0.0f;
-        out->points.y[FPP_MIN].used = 0;
-        out->points.y[FPP_MID].used = 0;
-        out->points.y[FPP_MAX] = (uiFramePoint_t){
-            .used=1, .targetPos=FPP_MAX, .relativeTo=UI_PARENT, .offset=0
-        };
-        if (frame->name) {
-            if (!strcasecmp(frame->name, "MinimapModel"))      out->value = -1.0f;
-            else if (!strcasecmp(frame->name, "InfopanelModel"))    out->value =  0.0f;
-            else if (!strcasecmp(frame->name, "CommandPanelModel")) out->value =  1.0f;
+        if (frame->model_flags != BZ_SC2_MODEL_FIELDS) {
+            fprintf(stderr, "SC2_HUD: incomplete model/camera payload for %s (fields=%x)\n", frame->name, frame->model_flags);
+            return false;
         }
+        out->text = "Stand";
+        out->buffer.data = (HANDLE)&frame->model;
+        out->buffer.size = sizeof(frame->model);
     }
     return true;
 }
@@ -340,6 +332,8 @@ static void sc2_hud_hide_optional_panels(void) {
         "CreditsPanel", "TipAlertMovingFrame", "TipAlertPanel",
         "RevealPanel", "AlliancePanel", "TeamResourcePanel",
         "LeaderPanel", "ChatBar", "SystemAlertPanel",
+        /* TODO: show CommandTooltip only on command-button hover; hide for now. */
+        "CommandTooltip",
         /* InfopanelModel, MinimapModel, CommandPanelModel are now rendered
          * via FT_PORTRAIT + R_GameExtractEntityCamera. */
         NULL,

@@ -7,7 +7,7 @@ UI_SC2_LIB       := $(LIB_DIR)/libui-sc2$(LIB_EXT)
 SC2_BINARY       := $(BIN_DIR)/opensc2$(EXE_EXT)
 SC2_COMMON_SRCS  := $(shell find $(SC2_DIR)/common -name '*.c' 2>/dev/null | sort)
 
-SC2_CFLAGS       := $(CFLAGS) -I$(SC2_DIR) -DSC2 -DOW3_LOAD_ALL_MPQS -Wno-unused-function -DBZ_GAME=\"starcraft-2\"
+SC2_CFLAGS       := $(CFLAGS) -I$(SC2_DIR) -DSC2 -DOW3_LOAD_ALL_MPQS -Wno-unused-function -DBZ_GAME=\"starcraft-2\" -DUSE_SHADOWMAPS -DSC2_DEFAULT_MAP=\"Maps/Campaign/TRaynor01.SC2Map\"
 SC2_IMPL_CFLAGS  := $(SC2_CFLAGS) -DSTB_SC2LAYOUT_IMPLEMENTATION -DSTB_SC2LAYOUT_GLOBALS
 SC2_TEST_CFLAGS  := $(SC2_CFLAGS) -I. -Itests -Icommon -Ishared -DTEST_SC2_MPQ=\"build/tests/test-sc2.SC2Maps\"
 
@@ -17,10 +17,10 @@ ui-sc2:       $(UI_SC2_LIB)
 opensc2:      $(SC2_BINARY)
 
 run-sc2: $(SC2_BINARY) install-share
-	$(SC2_BINARY) -data data/StarCraft2 +map Maps/TerranTest.SC2Components $(ARGS)
+	$(SC2_BINARY) -data data/StarCraft2 +map Maps/Campaign/TRaynor01.SC2Map $(ARGS)
 
 build-run-sc2: opensc2 install-share
-	$(SC2_BINARY) -data data/StarCraft2 +map Maps/TerranTest.SC2Components
+	$(SC2_BINARY) -data data/StarCraft2 +map Maps/Campaign/TRaynor01.SC2Map
 
 $(BIN_DIR)/m3tool$(EXE_EXT): tools/m3tool.c $(TOOL_DEPS) $(CLIENT_HEADERS) $(COMMON_HEADERS) | $(BIN_DIR) $(SHARED_LIB) $(SHEET_LIB) $(RENDERER_SC2_LIB)
 	@$(CC) $(SC2_CFLAGS) -o $@ $< \

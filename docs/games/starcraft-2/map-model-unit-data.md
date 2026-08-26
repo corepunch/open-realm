@@ -120,3 +120,45 @@ Keep these boundaries:
 - Model rendering stays in `games/starcraft-2/renderer`.
 - Game spawning consumes resolved object records and registers normal model handles.
 - Engine code only knows generic map paths, media handles, and entity state.
+
+## Shadow and catalog diagnostics
+
+The SC2 shadow pass uses the map's `CLight` key direction, loaded from the dependency catalogs and map
+overrides. `sc2_catalog_roots[]` already includes `Base.SC2Data`: append only the relative filename when
+reading a loose catalog and prepend only `data/` when opening the archive. Commit `08178496c` appended
+`Base.SC2Data` again, producing paths such as `Mods/Liberty.SC2Mod/Base.SC2Data/Base.SC2Data`. Runtime
+logs confirmed that no dependency light catalog opened, despite a global override catalog being readable.
+MarSara's actual key direction is `(0.724693,-0.124265,-0.677775)`, with ambient `(0.525490,0.466667,0.4)`.
+
+Loading those catalogs exposes `CModel VariationCount`. A positive count means the inherited model path
+is a stem for `_NN.m3`; the map's `Variation` selects NN. Zero means unsuffixed; absent values inherit
+(`variants == -1` internally). Catalog layers retain omitted fields. The resolution cache key includes
+both object name and variation; caching by name alone collapsed all cacti/bones into the first variation.
+Out-of-range placed variations are logged and their requested paths preserved, not replaced with `_00`.
+Local TRaynor01 includes Bush variation 6 against a five-variation catalog; missing assets remain visible
+in logs/placeholders. `make test-sc2` covers dependency light loading and variation cache hits/misses.
+
+`sc2_shadow_matrix` fits the visible ground footprint (inverse camera rays at target terrain height) in
+native SC2 units. The old WC3 +/-1500-unit light volume gave small units almost no shadow texels. The same
+light matrix now drives terrain/cliff and M3 depth draws and color-pass receivers. Terrain previously used
+the camera matrix even in the depth pass, and neither terrain nor the shared M3 fragment path sampled the
+shadow map. Terrain layers/masks occupy units 0..4, so its shadow sampler uses unit 5; M3 restores its shadow
+binding on unit 1 after terrain. During depth/UI draws bind white instead of the active depth target.
+
+`BZ_SHADOW_GLSL` supplies a bounds-checked 3x3 PCF comparison with normalized-depth bias 0.0001. It attenuates
+only the key's direct contribution; ambient/fill/back lighting remains. Missing or invalid key/camera data
+raises a renderer error rather than repeatedly drawing with the unrelated legacy matrix. Tests cover fitted
+ground coverage, unit-scale resolution, vertical key basis, invalid input, and shader source contracts in
+both `make test-renderer-model` and `make test-renderer-shadows` builds.
+
+```sh
+build/bin/mpqtool -data data/StarCraft2 cat GameData/LightData.xml
+build/bin/mpqtool -data data/StarCraft2 cat GameData/ModelData.xml
+build/bin/mpqtool -mpq data/StarCraft2/Mods/Liberty.SC2Mod/base.SC2Assets ls Assets/Doodads/MarSaraCactus
+build/bin/opensc2 -data data/StarCraft2 +vid_mode 4 +map TRaynor01 +screenshot 5 +com_frame_limit 10
+build/bin/opensc2 -data data/StarCraft2 +vid_mode 4 +map Maps/TerranTest.SC2Components +screenshot 5 +com_frame_limit 10
+```
+
+Use renderer bone/vertex diagnostics if `m3tool --info --dump-all` fails: the local tool aborted before
+printing console model data during this investigation. Console behavior is described in
+[hud-layout-pipeline.md](hud-layout-pipeline.md#consolepanel-model-children-3d-console-chrome).

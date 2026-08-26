@@ -37,4 +37,14 @@
         <Width val="32"/>
         <Height val="32"/>
     </Frame>
+    <Frame type="Model" name="ConsoleModelBase">
+        <Model><Position val="-1,-1,0"/><Scale val="1,1,1"/></Model>
+        <Camera position="0,-5,0" target="0,0,0" fov="90" minz="1" maxz="1000"/>
+        <Projection val="Orthographic"/>
+    </Frame>
+    <Frame type="Model" name="ConsoleModelOverride" template="TestTemplates/ConsoleModelBase">
+        <Model><Position val="0,0,0"/></Model>
+        <Camera fov="60"/>
+        <Projection val="Perspective"/>
+    </Frame>
 </Desc>

@@ -782,6 +782,16 @@ bool FS_FileExists(LPCSTR fileName) {
         FS_CloseFile(file);
         return true;
     }
+#ifdef SC2
+    /* .SC2Map is a directory — it has no file entry of its own in MPQ archives.
+     * Probe its canonical MapInfo child instead. */
+    if (FS_PathHasExtension(fileName, ".SC2Map")) {
+        char mapInfoPath[MAX_PATHLEN + 16];
+        snprintf(mapInfoPath, sizeof(mapInfoPath), "%s/MapInfo", fileName);
+        HANDLE h = FS_OpenFile(mapInfoPath);
+        if (h) { FS_CloseFile(h); return true; }
+    }
+#endif
     FOR_LOOP(i, MAX_GAME_DIRS) {
         char path[MAX_PATHLEN * 2];
 

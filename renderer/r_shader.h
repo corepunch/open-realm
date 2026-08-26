@@ -3,6 +3,18 @@
 
 #include "renderer/r_local.h"
 
+/* Shared comparison/PCF contract; callers supply the existing shadow sampler and light-space position. */
+#define BZ_SHADOW_GLSL \
+    "float shadow_visibility(sampler2D depths, vec4 lightpos) {\n" \
+    "    vec3 p = lightpos.xyz / lightpos.w * 0.5 + 0.5;\n" \
+    "    if (any(lessThan(p, vec3(0.0))) || any(greaterThan(p, vec3(1.0)))) return 1.0;\n" \
+    "    vec2 texel = 1.0 / vec2(textureSize(depths, 0));\n" \
+    "    float lit = 0.0;\n" \
+    "    for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++)\n" \
+    "        lit += step(p.z - 0.0001, texture(depths, p.xy + vec2(x, y) * texel).r);\n" \
+    "    return lit / 9.0;\n" \
+    "}\n"
+
 #define BZ_MODEL_LIGHT_MAX 8 // lights; shared model shader array capacity; bounds one lighting-state upload
 
 typedef enum {

@@ -21,4 +21,6 @@
     <CModel id="AnimalCorpse" parent="Doodad">
         <VariationCount value="9"/>
     </CModel>
+    <CModel id="VariantChild" parent="BillboardTall"/>
+    <CModel id="VariantZero" parent="BillboardTall"><VariationCount value="0"/></CModel>
 </Catalog>

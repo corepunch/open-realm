@@ -1,6 +1,6 @@
 # References
 
-Collected through 2026-06-06.
+Collected through 2026-08-26.
 
 ## Binary Format Specifications
 
@@ -50,6 +50,20 @@ Collected through 2026-06-06.
 - StarCraft II Editor Guides, `Data Spaces`: https://s2editor-guides.readthedocs.io/New_Tutorials/04_Data_Editor/data-spaces/
   - How to create data space XML files, `GameData.xml` includes, `.SC2Components` workflow, localization separation.
 
+## UI Layout System
+
+- SC2Mapster/sc2layout-schema: https://github.com/SC2Mapster/sc2layout-schema
+  - XSD for all SC2Layout XML elements, per-frame-class Markdown docs, enum definitions. `sc2layout/frame_class.xml` contains the full C++ frame class hierarchy (400+ named types). The authoritative reference for `.SC2Layout` parsing.
+- sc2-arcade-watcher/sc2-xsd: https://github.com/sc2-arcade-watcher/sc2-xsd
+  - XSD schemas for every SC2 XML type: `SC2Layout.xsd`, `GameData.xsd`, `Catalog.xsd`, `ComponentList.xsd`, `BankList.xsd`, `Attributes.xsd`, `Objects.xsd`. XSD namespace used in layout files is `http://www.hiveworkshop.com/SC2Layout.xsd`.
+- sc2-arcade-watcher/sc2-galaxy-toolkit: https://github.com/sc2-arcade-watcher/sc2-galaxy-toolkit
+  - Active VS Code extension (monorepo). Language support for Galaxy Script and SC2Layout XML. Supersedes the archived `Talv/sc2-layouts` and `Talv/vscode-sc2-galaxy` repos.
+- SC2Mapster/SC2GameData: https://github.com/SC2Mapster/SC2GameData
+  - Extracted game files: every `.SC2Layout` from core, liberty, swarm, void, and HotS stormmod archives. Browse `mods/core.sc2mod/base.sc2data/UI/Layout/` for all in-game layout files. Archived — no longer actively updated but good snapshot.
+- SC2Mapster/blizzard-tutorials (deployed): https://s2editor-guides.readthedocs.io/
+  - Official Blizzard editor tutorials maintained by the community. Relevant chapters: Dialogs (doc 043), Dialog Panels (044), UI Events (049), Galaxy Script (058).
+- Skunk's SC2 UI Tutorial (Google Doc): https://docs.google.com/document/d/1wvlTy-XCyCxjd4ZNuElRbqkcY5UA5pneYFl4i1LCYLs/edit
+  - The community's primary how-to for SC2Layout authoring. Linked from sc2-mapster mkdocs as the primary UI reference. Requires Google account access.
 ## Archive / Container Format
 
 - Zezula, `MPQ Archives — MPQ file format`: https://www.zezula.net/en/mpq/mpqformat.html
@@ -79,6 +93,10 @@ Collected through 2026-06-06.
 
 ## Related SC2 Tooling
 
+- sc2-arcade-watcher/sc2-file-format-docs: https://github.com/sc2-arcade-watcher/sc2-file-format-docs
+  - IDA Pro reverse-engineering derived binary format specs. Covers: MPQ archive structs, CASC/NGDP pipeline, binary terrain formats, BSN replay protocol bytecode, DocumentHeader, MapInfo structs. Native UI frame C++ struct layouts listed as future work.
+- sc2-arcade-watcher/s2mdec: https://github.com/sc2-arcade-watcher/s2mdec
+  - Go decoder for `.s2mi` / `.s2mh` binary blobs (SC2 map info/header).
 - Talv/sc2-dood: https://github.com/Talv/sc2-dood
   - TypeScript parser and exporter for the `Objects` file from `.SC2Map` archives.
 - Talv/plaxtony: https://github.com/Talv/plaxtony

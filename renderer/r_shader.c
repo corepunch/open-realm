@@ -182,6 +182,7 @@ static LPCSTR model_vs =
 "out vec4 v_color;\n"
 #ifdef USE_SHADOWMAPS
 "out vec4 v_shadow;\n"
+"out vec3 v_shadowlight;\n"
 #endif
 "out vec2 v_texcoord;\n"
 "out vec2 v_texcoord2;\n"
@@ -223,11 +224,20 @@ static LPCSTR model_vs =
 "vec3 vertex_lighting(vec3 normal, vec3 worldPos) {\n"
 "    vec3 n = normalize(normal);\n"
 "    vec3 lighting = vec3(0.0);\n"
+#ifdef USE_SHADOWMAPS
+"    v_shadowlight = vec3(0.0);\n"
+#endif
 "    for (int i = 0; i < 8; ++i) {\n"
 "        if (i >= uLightCount) break;\n"
-"        lighting += apply_light(uLights[i], n, worldPos);\n"
+"        vec3 contribution = apply_light(uLights[i], n, worldPos);\n"
+"        lighting += contribution;\n"
+#ifdef USE_SHADOWMAPS
+/* Slot zero is the shadow-casting key; ambient/fill/back remain visible in its shadow. */
+"        if (i == 0 && int(uLights[i][0].w + 0.5) == MODEL_LIGHT_DIRECT)\n"
+"            v_shadowlight = contribution - uLights[i][3].rgb * uLights[i][3].a;\n"
+#endif
 "    }\n"
-"    return min(lighting, vec3(1.0));\n"
+"    return lighting;\n"
 "}\n"
 "void main() {\n"
 "    vec4 pos4 = vec4(i_position, 1.0);\n"
@@ -281,6 +291,7 @@ static LPCSTR model_fs =
 "in vec2 v_texcoord2;\n"
 #ifdef USE_SHADOWMAPS
 "in vec4 v_shadow;\n"
+"in vec3 v_shadowlight;\n"
 #endif
 "in vec3 v_lighting;\n"
 "in vec4 v_color;\n"
@@ -310,6 +321,9 @@ static LPCSTR model_fs =
 "    return texture(uFogOfWar, v_texcoord2).r;\n"
 "}\n"
 #endif
+#ifdef USE_SHADOWMAPS
+BZ_SHADOW_GLSL
+#endif
 "void main() {\n"
 "    vec2 uv = (uUvMatrix * vec3(v_texcoord, 1.0)).xy;\n"
 "    vec4 col = texture(uTexture, uv);\n"
@@ -317,10 +331,15 @@ static LPCSTR model_fs =
 "    col *= uLayerAlpha;\n"
 "    col *= v_color;\n"
 "    if (!uUnshaded) {\n"
+"        vec3 light = v_lighting;\n"
+#ifdef USE_SHADOWMAPS
+"        light -= v_shadowlight * (1.0 - shadow_visibility(uShadowmap, v_shadow));\n"
+#endif
+"        light = min(light, vec3(1.0));\n"
 #ifdef USE_FOGOFWAR
-"        col.rgb *= get_fogofwar() * v_lighting;\n"
+"        col.rgb *= get_fogofwar() * light;\n"
 #else
-"        col.rgb *= v_lighting;\n"
+"        col.rgb *= light;\n"
 #endif
 "        if (uFogEnable) {\n"
 "            float fogFactor = clamp((uFogParams.y - gl_FragCoord.z / gl_FragCoord.w) / (uFogParams.y - uFogParams.x), 0.0, 1.0);\n"
