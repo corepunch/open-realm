@@ -96,16 +96,20 @@ static void G_TouchTriggers(LPEDICT ent) {
 void G_RunEntities(void) {
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT ent = globals.edicts+i;
+        if (!ent->inuse) continue; /* freed edicts are memset and never re-sent; skip the per-frame clear */
         ent->old_origin = ent->s.origin2;
         /* Clear one-shot event fields so each event fires for exactly one frame. */
         ent->s.event = EV_NONE;
         ent->s.sound = 0;
     }
     FOR_LOOP(i, globals.num_edicts) {
-        G_RunEntity(globals.edicts+i);
+        LPEDICT ent = globals.edicts+i;
+        if (!ent->inuse) continue;
+        G_RunEntity(ent);
     }
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT ent = globals.edicts+i;
+        if (!ent->inuse) continue;
         if (!memcmp(&ent->old_origin, &ent->s.origin2, sizeof(VECTOR2)))
             continue;
         G_TouchTriggers(ent);

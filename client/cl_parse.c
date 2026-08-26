@@ -41,6 +41,27 @@ static LPCSTR CL_PlayerRaceName(playerRace_t race) {
 /* Apply a stream of delta-encoded entity updates.  For each entity the server
  * sends only the fields that changed since the previous frame.  A U_REMOVE
  * flag signals that an entity should be removed from the local table. */
+void CL_AddActiveEntity(DWORD index) {
+    if (index >= MAX_CLIENT_ENTITIES || !cl.ents[index].current.model) {
+        return;
+    }
+    FOR_LOOP(i, cl.num_active) {
+        if (cl.active_entities[i] == index) {
+            return;
+        }
+    }
+    cl.active_entities[cl.num_active++] = index;
+}
+
+void CL_RemoveActiveEntity(DWORD index) {
+    FOR_LOOP(i, cl.num_active) {
+        if (cl.active_entities[i] == index) {
+            cl.active_entities[i] = cl.active_entities[--cl.num_active];
+            return;
+        }
+    }
+}
+
 static void CL_ReadPacketEntities(LPSIZEBUF msg) {
     int count = 0;
     int previous = 0;
@@ -86,6 +107,9 @@ static void CL_ReadPacketEntities(LPSIZEBUF msg) {
                         old.origin.y,
                         old.origin.z);
             }
+            if (old.model) {
+                CL_RemoveActiveEntity(nument);
+            }
             memset(&ent->current, 0, sizeof(ent->current));
             memset(&ent->prev, 0, sizeof(ent->prev));
             removed++;
@@ -96,6 +120,9 @@ static void CL_ReadPacketEntities(LPSIZEBUF msg) {
         }
         ent->prev = ent->current;
         MSG_ReadDeltaEntity(msg, &ent->current, nument, bits);
+        if (!old.model && ent->current.model) {
+            CL_AddActiveEntity(nument);
+        }
         if (ent->current.event)
             CL_EntityEvent(&ent->current);
         if (debug_entities) {
@@ -198,6 +225,9 @@ static void CL_ParseBaseline(LPSIZEBUF msg) {
     MSG_ReadDeltaEntity(msg, &cent->baseline, index, bits);
     memcpy(&cent->current, &cent->baseline, sizeof(entityState_t));
     memcpy(&cent->prev, &cent->baseline, sizeof(entityState_t));
+    if (cent->current.model) {
+        CL_AddActiveEntity(index);
+    }
 }
 
 /* Handle the svc_frame header: record the server frame number and time, then
@@ -216,10 +246,8 @@ void CL_ParseFrame(LPSIZEBUF msg) {
         CL_SetGameplayInput();
     }
     
-    FOR_LOOP(index, MAX_CLIENT_ENTITIES) {
-        centity_t *ce = &cl.ents[index];
-        if (!ce->current.model)
-            continue;
+    FOR_LOOP(i, cl.num_active) {
+        centity_t *ce = &cl.ents[cl.active_entities[i]];
         ce->prev = ce->current;
     }
 }

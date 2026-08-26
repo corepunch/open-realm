@@ -41,6 +41,8 @@ static BOOL R_EntityInView(renderEntity_t const *entity) {
     });
 }
 
+static void R_DrawEntityShadows(void);
+
 void R_DrawEntities(void) {
     static BYTE prev_state[MAX_GAME_ENTITIES];
     static BOOL initialized = false;
@@ -55,6 +57,8 @@ void R_DrawEntities(void) {
     } else {
         initialized = false;
     }
+
+    R_DrawEntityShadows();
 
     FOR_LOOP(i, tr.viewDef.num_entities) {
         renderEntity_t const *ent = tr.viewDef.entities+i;
@@ -255,7 +259,25 @@ static void R_RenderShadow(const renderEntity_t *entity, LPCVECTOR2 origin) {
             return;
         }
     }
-    R_RenderRectSplat(&mins, &maxs, shadow, tr.shader[SHADER_SHADOWSPLAT], shadowColor);
+    R_AddRectSplat(&mins, &maxs, shadow, shadowColor);
+#endif
+}
+
+/* Unit shadows are ground decals that share one shader and differ only by
+ * texture and rect.  Drawing each in isolation re-uploaded the vertex buffer
+ * and re-issued all splat GL state per unit; batching them across the scene
+ * collapses hundreds of small draws into one per distinct texture. */
+static void R_DrawEntityShadows(void) {
+#ifndef USE_SHADOWMAPS
+    R_BeginSplatBatch(tr.shader[SHADER_SHADOWSPLAT]);
+    FOR_LOOP(i, tr.viewDef.num_entities) {
+        renderEntity_t const *ent = tr.viewDef.entities + i;
+        if ((ent->flags & RF_HIDDEN) || !ent->model) {
+            continue;
+        }
+        R_RenderShadow(ent, (LPCVECTOR2)&ent->origin);
+    }
+    R_EndSplatBatch();
 #endif
 }
 
@@ -420,7 +442,6 @@ void R_RenderModel(renderEntity_t const *entity) {
 #endif
 
     R_RenderUberSplat(entity, (LPCVECTOR2)&entity->origin);
-    R_RenderShadow(entity, (LPCVECTOR2)&entity->origin);
     R_GameRenderModel(entity);
     R_RenderSelectedCircle(entity, (LPCVECTOR2)&entity->origin);
     R_RenderHoverHighlight(entity);

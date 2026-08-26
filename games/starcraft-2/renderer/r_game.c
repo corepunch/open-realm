@@ -162,6 +162,15 @@ void R_RenderSplat(LPCVECTOR2 position,
     R_RenderRectSplat(&mins, &maxs, texture, shader, color);
 }
 
+/* SC2 splats are flat quads; the shared batch API stays immediate (a batching
+ * pass exists only in the WC3 terrain-conforming renderer). */
+static LPCSHADER sc2_batch_shader;
+void R_BeginSplatBatch(LPCSHADER shader) { sc2_batch_shader = shader; }
+void R_AddRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, COLOR32 color) {
+    R_RenderRectSplat(mins, maxs, texture, sc2_batch_shader, color);
+}
+void R_EndSplatBatch(void) { }
+
 void R_GameLoadAssets(void) {
 }
 

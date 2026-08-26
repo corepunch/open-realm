@@ -275,6 +275,11 @@ void R_DrawHealthBars(void);
 void R_DrawBackdrop(LPCDRAWBACKDROP drawBackdrop);
 void R_RenderRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, LPCSHADER shader, COLOR32 color);
 void R_RenderFlatRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, FLOAT z, LPCTEXTURE texture, LPCSHADER shader, COLOR32 color);
+/* Batched splat rendering: accumulate many ground decals (unit shadows) into one
+ * vertex-buffer upload + draw per distinct texture instead of one per splat. */
+void R_BeginSplatBatch(LPCSHADER shader);
+void R_AddRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, COLOR32 color);
+void R_EndSplatBatch(void);
 
 // r_shader.c
 LPSHADER R_InitShader(LPCSTR vs_default, LPCSTR fs_default);

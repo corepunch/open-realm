@@ -839,6 +839,19 @@ mdxBounds_t MDX_CalculateBounds(mdxModel_t const *model) {
     return b;
 }
 
+/* Register a node in the model's sparse node table and compact node list.  The
+ * compact list lets MDLX_BindBoneMatrices iterate only the nodes a model
+ * actually has instead of scanning all MDX_MAX_NODES slots every frame. */
+static void MDLX_AddNode(mdxModel_t *model, mdxNode_t *node) {
+    if (node->node_id >= MDX_MAX_NODES) {
+        return;
+    }
+    if (!model->nodes[node->node_id]) {
+        model->nodes[node->node_id] = node;
+        model->node_list[model->num_nodes++] = node;
+    }
+}
+
 mdxModel_t *R_LoadModelMDLX(void *data, DWORD size) {
     mdxModel_t *model = ri.MemAlloc(sizeof(mdxModel_t));
     sizeBuf_t buffer = { .data = data, .cursize = size, .readcount = 4 };
@@ -846,36 +859,12 @@ mdxModel_t *R_LoadModelMDLX(void *data, DWORD size) {
         MDLX_Release(model);
         return NULL;
     }
-    FOR_EACH_LIST(mdxBone_t, bone, model->bones) {
-        if (bone->node.node_id < MDX_MAX_NODES) {
-            model->nodes[bone->node.node_id] = &bone->node;
-        }
-    }
-    FOR_EACH_LIST(mdxHelper_t, helper, model->helpers) {
-        if (helper->node.node_id < MDX_MAX_NODES) {
-            model->nodes[helper->node.node_id] = &helper->node;
-        }
-    }
-    FOR_EACH_LIST(mdxCollisionShape_t, shape, model->collisionShapes) {
-        if (shape->node.node_id < MDX_MAX_NODES) {
-            model->nodes[shape->node.node_id] = &shape->node;
-        }
-    }
-    FOR_EACH_LIST(mdxParticleEmitter_t, emitter, model->emitters) {
-        if (emitter->node.node_id < MDX_MAX_NODES) {
-            model->nodes[emitter->node.node_id] = &emitter->node;
-        }
-    }
-    FOR_EACH_LIST(mdxAttachment_t, attachment, model->attachments) {
-        if (attachment->node.node_id < MDX_MAX_NODES) {
-            model->nodes[attachment->node.node_id] = &attachment->node;
-        }
-    }
-    FOR_EACH_LIST(mdxLight_t, light, model->lights) {
-        if (light->node.node_id < MDX_MAX_NODES) {
-            model->nodes[light->node.node_id] = &light->node;
-        }
-    }
+    FOR_EACH_LIST(mdxBone_t, bone, model->bones) MDLX_AddNode(model, &bone->node);
+    FOR_EACH_LIST(mdxHelper_t, helper, model->helpers) MDLX_AddNode(model, &helper->node);
+    FOR_EACH_LIST(mdxCollisionShape_t, shape, model->collisionShapes) MDLX_AddNode(model, &shape->node);
+    FOR_EACH_LIST(mdxParticleEmitter_t, emitter, model->emitters) MDLX_AddNode(model, &emitter->node);
+    FOR_EACH_LIST(mdxAttachment_t, attachment, model->attachments) MDLX_AddNode(model, &attachment->node);
+    FOR_EACH_LIST(mdxLight_t, light, model->lights) MDLX_AddNode(model, &light->node);
     FOR_LOOP(i, model->num_textures) {
         mdxTexture_t *tex = model->textures+i;
         if (!tex->path[0]) {

@@ -342,11 +342,8 @@ static void CL_AddCursorSplat(void) {
 }
 
 static void CL_AddEntities(void) {
-    FOR_LOOP(index, MAX_CLIENT_ENTITIES) {
-        centity_t const *ce = &cl.ents[index];
-        if (!ce->current.model)
-            continue;
-        V_AddClientEntity(ce);
+    FOR_LOOP(i, cl.num_active) {
+        V_AddClientEntity(&cl.ents[cl.active_entities[i]]);
     }
     
     CL_AddTEnts();

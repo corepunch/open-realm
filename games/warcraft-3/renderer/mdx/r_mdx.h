@@ -361,6 +361,8 @@ typedef struct mdxModel_s {
     mdxAttachment_t *attachments;
     mdxLight_t *lights;
     mdxNode_t *nodes[MDX_MAX_NODES];
+    mdxNode_t *node_list[MDX_MAX_NODES]; /* compact list of present nodes; avoids scanning 1024 slots per frame */
+    int num_nodes;
     VECTOR3 *pivots;
     int num_textures;
     int num_sequences;
