@@ -87,11 +87,12 @@ make build-run-wow-troll
 
 ## StarCraft II
 
-There is currently no character-create/model portrait scene registered for SC2. Use the HUD/map scene for renderer smoke tests:
+The default map is `Maps/TerranTest.SC2Components` — a flat 96×96 Mar Sara terrain with a Terran
+Command Center, 2 SCVs, 2 Marines, and a Vespene Geyser for player 1.
 
 ```bash
 make opensc2
-build/bin/opensc2 -data data/StarCraft2 +map TRaynor01
+build/bin/opensc2 -data data/StarCraft2 +map Maps/TerranTest.SC2Components
 ```
 
 SC2 UI and map rendering are separate from the WoW character scene; do not use a WoW-style character command unless a future SC2 screen registers one.
@@ -99,8 +100,8 @@ SC2 UI and map rendering are separate from the WoW character scene; do not use a
 ### Make shortcuts
 
 ```bash
-make build-run-sc2            # build + launch TRaynor01
-make run-sc2                  # launch TRaynor01, no rebuild
+make build-run-sc2            # build + launch TerranTest
+make run-sc2                  # launch TerranTest, no rebuild
 make run-sc2 ARGS="+map Foo"  # override map
 ```
 
@@ -117,5 +118,20 @@ build/bin/openwarcraft3 -data 'data/Warcraft III' +menu_main +screenshot 10 +com
 Place `+screenshot N` after the map/menu selector and keep `com_frame_limit` larger than `N`. `+screenshot 1` captures the first
 rendered frame; bare `+screenshot` captures the next rendered frame. On macOS Retina displays, capture uses the GL
 viewport/drawable size rather than SDL's logical window size, so the PNG includes the complete framebuffer.
+
+### Headless / no-focus-steal mode
+
+Pass `+vid_hidden 1` to create the GL window without ever showing it. The window never appears on screen and the
+application does not steal keyboard focus from the IDE. All rendering and screenshot capture work normally because
+`glReadPixels` reads from the GL framebuffer regardless of window visibility.
+
+```bash
+# Screenshot without window appearing — VS Code keeps focus
+make run-sc2 ARGS="+vid_hidden 1 +screenshot 5 +com_frame_limit 20"
+make run-wow ARGS="+vid_hidden 1 +screenshot 5 +com_frame_limit 20"
+```
+
+`+vid_hidden 1` sets the `vid_hidden` cvar before the renderer initialises. It is implemented in
+`renderer/r_main.c` by substituting `SDL_WINDOW_HIDDEN` for `SDL_WINDOW_SHOWN` at window creation.
 
 For bounded startup or stdout diagnostics, add `+com_frame_limit N`; do not use it when manually inspecting a scene unless `N` is large enough to reach the scene.
