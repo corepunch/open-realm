@@ -113,3 +113,11 @@ The instance transform is declared as one `in mat4 i_instance`. OpenGL assigns i
 ## Extension rule
 
 Do not add a special count value, a second uniform family, or a per-game shader branch when an existing entry can encode the state. Extend the common schema only when authoritative data requires another value. If the common representation is genuinely incapable of expressing a title's behavior, document the exact constraint before adding an exception.
+
+## Shadow receivers
+
+With `USE_SHADOWMAPS`, the shared model shader exports the first directional light's direct contribution
+separately from accumulated lighting. The fragment shader removes only the occluded part before clamping,
+so scene ambient and other lights remain. `BZ_SHADOW_GLSL` also serves SC2 terrain/cliffs; see
+[SC2 shadow diagnostics](../games/starcraft-2/map-model-unit-data.md#shadow-and-catalog-diagnostics).
+The umbrella suite runs the model shader tests with shadows both enabled and disabled.

@@ -257,31 +257,34 @@ The `PortraitPanel` background image (`UI/BlankPortraitBackground` → `terranbl
 | InfopanelModel   | X=0, Y=-1  | `UI/ConsoleModelInfopanel`     | `ConsoleTerran_01.m3` |
 | CommandPanelModel| X=+1, Y=-1 | `UI/ConsoleModelCommandPanel`  | `ConsoleTerran_02.m3` |
 
-These now map to `FT_PORTRAIT` (same as `SC2_FRAMETYPE_PORTRAIT`) via the `SC2_MapFrameType` update. The model index is resolved server-side by `sc2_hud_model_index()` (hud.c) via `uiimport.ModelIndex → gi.ModelIndex(path)`. `SC2_HUD_BuildFrameForWrite` restricts each frame to the bottom 332 SC2-unit strip (height constraint) so `SCR_LayoutDrawPortrait` receives the correct bottom viewport.
+The model frames map to `FT_PORTRAIT`, with model handles resolved from the original `Assets.txt`.
+`SC2_ParseModel` retains Position/Scale; `SC2_ParseCamera` retains eye/target/FOV/clip planes, and Projection
+selects an enum. Template inheritance tracks eight presence bits, preserving explicit zero overrides.
+`SC2_HUD_BuildFrameForWrite` sends this `UIMODEL` through the existing `uiFrame_t.buffer` blob. Neither
+`entityState_t` nor `playerState_t` changes. Incomplete model cameras are reported by `SC2_HUD`.
 
-`R_GameExtractEntityCamera` (r_game.c) detects large-radius models (radius > 3.0) and uses the orthographic camera from the XML: fixed eye at (0,-5,0) looking in +Y, bottom edge aligned to `bs->min.z` (model bounding sphere min-Z), height = 332/1200 × 7.5 world units. Each model translates in X via `uiFrame_t.value` (set from `frame->name` in `SC2_HUD_BuildFrameForWrite`); `SCR_LayoutDrawPortrait` applies it as `entity.origin.x`.
+`SCR_LayoutDrawPortrait` uses `UI_ModelMatrix` for these payloads; ordinary unit portraits retain their
+bounds-derived camera. The layout camera uses normalized viewport Position: X anchors the left/center/right
+edge, Y anchors the bottom, and Z is model depth. Native SC2 console assets use X=-1/0/+1, Y=-1, scale=1,
+eye=(0,-5,0), target=(0,0,0), FOV=90, near=1, far=1000. At the authored 4:3 aspect, the orthographic
+half-width is tan(FOV/2), half-height is half-width/(4/3). Widening changes only half-width; model dimensions
+remain proportional to screen height. The `Stand` info-panel mesh can sit below the bottom edge in its
+unselected state; do not recenter it from its bounding sphere.
 
-**Known limitation:** each of the three models renders in its own `re.RenderFrame` call, so they cannot composite into a single seamless strip — the last rendered model (CommandPanelModel) overwrites center-overlapping areas. For seamless full-width chrome, all three models need to be batched into a single `viewDef_t` with 3 entities. The `<Position>` XML attribute (X=-1/0/+1) is hardcoded by frame name; a TODO is to parse it from the Model element in `SC2_ParseModel`.
+The previous code discarded camera/scale/Y/Z, inferred orthographic mode from the animation name `Stand`,
+and framed each chrome piece using its different bounding radius. Runtime bounds were approximately
+0.54/0.85/0.94, which explains the inconsistent, oversized pieces. Do not restore radius framing, crop the
+full-screen layout viewport, or insert per-panel anchor overrides. `RDF_NOWORLDMODEL` prevents these
+layout camera draws from running a world shadow pass.
 
-## NormalImage / HoverImage button children (fill-parent semantics)
+Verification: `make test-sc2` covers camera parsing, inheritance, explicit zeroes, both projections and
+4:3/16:9 anchor/scale invariants. Capture both aspect ratios with `+vid_mode 5` and `+vid_mode 4`:
 
-SC2 `GameButton` template defines `NormalImage` and `HoverImage` child Image frames with **no explicit anchors and no size**. In the real SC2 engine these implicitly fill the parent button bounds. In our renderer (`cl_layout.c::SCR_LayoutRect`):
+```sh
+build/bin/opensc2 -data data/StarCraft2 +vid_mode 4 +map TRaynor01 +screenshot 5 +com_frame_limit 10
+build/bin/opensc2 -data data/StarCraft2 +vid_mode 5 +map Maps/TerranTest.SC2Components +screenshot 5 +com_frame_limit 10
+```
 
-- When a `FT_TEXTURE` frame has `size.width == 0 && size.height == 0` AND no both-side anchor pair to derive size from, we use the parent frame's rect dimensions as the element size.
-- This correctly fills `NormalImage` / `HoverImage` to the enclosing button.
-
-**Note:** `<DescFlags val="Internal"/>` on these frames is a metadata marker indicating they are internal template implementation details. `<CollapseLayout val="true"/>` on icon/image frames is a hint that they don't contribute to layout collapse — parsed and stored but not acted on by our renderer.
-
-## Container height inference: pmax-only FT_FRAME panels
-
-SC2 layout panels (`CommandPanel`, `InfoPanel`, etc.) commonly define only a **Bottom anchor + Width** without an explicit Height. The real SC2 engine derives height from the button grid. Our engine handles this in `SCR_InferContainerHeights` (`cl_layout.c`), called after each `SCR_Clear` frame-wire parse:
-
-1. For every `FT_FRAME` with `size.height == 0` and **only** `pmax_y` set (Bottom-anchored, no Top/Mid):
-2. Walk all descendants in the frame list; for each with a known `size.height`, compute its y-offset relative to the container top using `scr_frame_abs_y()` — a recursive anchor-chain walker that treats the container as y=0.
-3. Take the maximum `(y_offset + child_height)` as the container's height.
-
-This allows rows of buttons (row N anchors to `row(N-1).Max + gap`) to correctly determine CommandPanel's height (~230px for 3 rows of 76×76 buttons).
-
-## Unresolved FT_TEXTURE frames (tex.index == 0)
-
-When a SC2 Image frame's `@@UI/...` texture key is not found in `Assets.txt` or the static `paths[]` table, `gi.ImageIndex` returns 0. `SCR_LayoutDrawTexture` in `cl_scrn.c` skips drawing when `frame->tex.index == 0` to avoid drawing `cl.pics[0]` (the first registered image) as a visual artifact.
+The cvar is `com_frame_limit`, not `com_framelimit`. This branch writes JPEG screenshots. Pink placeholders
+for missing fixture minimap/portrait assets are separate from console geometry; the campaign minimap loads.
+See [shadow and catalog diagnostics](map-model-unit-data.md#shadow-and-catalog-diagnostics).

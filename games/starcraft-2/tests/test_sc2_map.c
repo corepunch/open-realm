@@ -9,6 +9,7 @@
 #include "common.h"
 #include "games/starcraft-2/common/sc2_map.h"
 #include "test.h"
+#include "games/starcraft-2/common/sc2_utils.h"
 
 #ifndef TEST_SC2_MPQ
 #define TEST_SC2_MPQ "build/tests/test-sc2.SC2Maps"
@@ -393,7 +394,7 @@ TEST(sc2_map, sc2_map_loads_xml_objects_and_terrain) {
     T_STREQ(map->objects[3].name, "BillboardTall");
     T_EQ(map->objects[3].id, 3);
     T_EQ(map->objects[3].type, SC2_OBJECT_DOODAD);
-    T_STREQ(map->objects[3].model, "Assets\\Doodads\\BillboardTall\\BillboardTall.m3");
+    T_STREQ(map->objects[3].model, "Assets\\Doodads\\BillboardTall\\BillboardTall_00.m3");
     T_FEQ(map->objects[3].position.z, 8.0f, 0.001f);
     T_EQ(map->objects[3].flags, SC2_OBJECT_HEIGHT_ABSOLUTE | SC2_OBJECT_FORCE_PLACEMENT);
     T_EQ(map->objects[3].tint_color.r, 10);
@@ -672,3 +673,49 @@ TEST(sc2_map, sc2_map_rejects_huge_dimension_binary_terrain_layers) {
     use_sc2_fs_host();
 }
 
+
+/* Native unit-scale shadow coverage fits the visible ground and handles a vertical key light. */
+TEST(sc2_map, shadow_camera_ground_footprint) {
+    SC2SHADOWVIEW input = { .target = {48,48,0}, .light = {.724693f,-.124265f,-.677775f}, .reach = 34 };
+    MATRIX4 view, proj, shadow;
+    VECTOR3 dir = {0,1,-1}; Vector3_normalize(&dir);
+    VECTOR3 eye = Vector3_mad(&input.target, -input.reach, &dir);
+    Matrix4_lookAt(&view, &eye, &dir, &(VECTOR3){0,0,1});
+    Matrix4_perspective(&proj, 45, 16.0f/9, 1, 1000); Matrix4_multiply(&proj, &view, &input.camera);
+    T_ASSERT(sc2_shadow_matrix(&input, &shadow));
+    VECTOR3 a = Matrix4_multiply_vector3(&shadow, &input.target);
+    VECTOR3 b = Matrix4_multiply_vector3(&shadow, &(VECTOR3){49,48,0});
+    T_ASSERT(fabsf(a.x) < 1 && fabsf(a.y) < 1 && fabsf(a.z) < 1);
+    T_ASSERT(Vector3_distance(&a, &b) > .01f);
+    MATRIX4 inv; Matrix4_inverse(&input.camera, &inv);
+    FOR_LOOP(i, 4) {
+        VECTOR3 near = Matrix4_multiply_vector3(&inv, &(VECTOR3){i&1?1:-1,i&2?1:-1,-1});
+        VECTOR3 far = Matrix4_multiply_vector3(&inv, &(VECTOR3){i&1?1:-1,i&2?1:-1,1});
+        VECTOR3 ray = Vector3_sub(&far, &near), ground = Vector3_mad(&near, -near.z/ray.z, &ray);
+        VECTOR3 clip = Matrix4_multiply_vector3(&shadow, &ground);
+        T_ASSERT(fabsf(clip.x) <= 1 && fabsf(clip.y) <= 1 && fabsf(clip.z) <= 1);
+    }
+    input.light = (VECTOR3){0,0,-1}; T_ASSERT(sc2_shadow_matrix(&input, &shadow));
+    a = Matrix4_multiply_vector3(&shadow, &input.target); T_FEQ(a.x, 0, .0001f); T_FEQ(a.y, 0, .0001f);
+    input.light = (VECTOR3){0}; T_ASSERT(!sc2_shadow_matrix(&input, &shadow));
+    input.light.z = -1; input.reach = 0; T_ASSERT(!sc2_shadow_matrix(&input, &shadow));
+}
+
+/* Dependency roots contain Base.SC2Data once; numbered model cache keys include the placed variation. */
+TEST(sc2_map, catalog_root_lighting_and_model_variations) {
+    setup_sc2_tests(); use_sc2_fs_host();
+    T_ASSERT(SC2_MapLoad("Maps/Test/Variants.SC2Map"));
+    sc2Map_t *map = SC2_MapCurrent();
+    T_EQ(map->lighting.enabled, true); T_STREQ(map->lighting.id, "Variants");
+    T_FEQ(map->lighting.directional[SC2_LIGHT_KEY].direction.x, .7f, .0001f);
+    T_FEQ(map->lighting.ambient_color.z, .4f, .0001f);
+    T_EQ(map->num_objects, 7);
+    T_STREQ(map->objects[0].model, "Assets\\Doodads\\BillboardTall\\BillboardTall_00.m3");
+    T_STREQ(map->objects[1].model, "Assets\\Doodads\\BillboardTall\\BillboardTall_02.m3");
+    T_STREQ(map->objects[2].model, map->objects[0].model);
+    T_STREQ(map->objects[3].model, "Assets\\Doodads\\AnimalCorpse\\AnimalCorpse_08.m3");
+    T_STREQ(map->objects[4].model, "Assets\\Doodads\\VariantChild\\VariantChild_02.m3");
+    T_STREQ(map->objects[5].model, "Assets\\Doodads\\VariantZero\\VariantZero.m3");
+    T_STREQ(map->objects[6].model, "Assets\\Doodads\\BillboardTall\\BillboardTall_07.m3");
+    SC2_MapShutdown();
+}

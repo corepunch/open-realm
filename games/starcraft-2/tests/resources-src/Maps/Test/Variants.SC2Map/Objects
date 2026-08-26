@@ -1,0 +1,9 @@
+<PlacedObjects>
+<ObjectDoodad Id="1" Type="BillboardTall" Position="1,1,0" Variation="0"/>
+<ObjectDoodad Id="2" Type="BillboardTall" Position="2,1,0" Variation="2"/>
+<ObjectDoodad Id="3" Type="BillboardTall" Position="3,1,0" Variation="0"/>
+<ObjectDoodad Id="4" Type="AnimalCorpse" Position="4,1,0" Variation="8"/>
+<ObjectDoodad Id="5" Type="VariantChild" Position="5,1,0" Variation="2"/>
+<ObjectDoodad Id="6" Type="VariantZero" Position="6,1,0" Variation="0"/>
+<ObjectDoodad Id="7" Type="BillboardTall" Position="7,1,0" Variation="7"/>
+</PlacedObjects>

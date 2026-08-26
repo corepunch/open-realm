@@ -903,6 +903,9 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, model->renbuf->vbo);
     
     R_BindTexture(tr.texture[TEX_WHITE], 0);
+    /* Terrain owns units 0..4; restore the model's shadow binding and avoid depth-target feedback. */
+    R_Call(glActiveTexture, GL_TEXTURE1);
+    R_Call(glBindTexture, GL_TEXTURE_2D, is_rendering_lights || (tr.viewDef.rdflags & RDF_NOWORLDMODEL) ? tr.texture[TEX_WHITE]->texid : tr.rt[RT_DEPTHMAP]->texture);
     
     R_Call(glDisable, GL_CULL_FACE);
     

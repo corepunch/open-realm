@@ -678,6 +678,16 @@ typedef struct { // serialized as 4 bytes
 
 typedef uiFramePoint_t uiFramePoints_t[FPP_COUNT];
 
+/* Model-frame payload: camera and placement authored by the game's layout, not network entity state. */
+typedef enum { UI_MODEL_PERSPECTIVE, UI_MODEL_ORTHOGRAPHIC } UIMODELPROJECTION;
+typedef struct UIMODEL {
+    VECTOR3 eye, target, pos, scale;
+    FLOAT fov, znear, zfar, aspect;
+    UIMODELPROJECTION projection;
+} UIMODEL;
+typedef struct UIMODEL *LPUIMODEL;
+typedef const struct UIMODEL *LPCUIMODEL;
+
 typedef struct uiFrame_s {
     DWORD number;
     DWORD parent;

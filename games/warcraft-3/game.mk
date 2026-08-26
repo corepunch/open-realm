@@ -151,6 +151,7 @@ TEST_UI_SRCS := \
 	@$(MAKE) test-jass-build
 	@$(MAKE) test-server-net
 	@$(MAKE) test-renderer-model
+	@$(MAKE) test-renderer-shadows
 	@$(MAKE) test-sc2
 	@$(MAKE) test-wow-appearance
 	@$(MAKE) test-wow-engine
@@ -165,6 +166,7 @@ TEST_UI_SRCS := \
 $(eval $(call test_schema,test-commands,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_commands$(EXE_EXT),tests/test_runner.c $(WC3_TEST_DIR)/test_commands.c client/cl_screenshot.c common/common.c common/cmd.c common/cvar.c common/msg.c common/net.c common/mpq.c,-lsheet -lshared -lm -lz $(NET_LIBS),))
 $(eval $(call test_schema,test-server-net,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_server_net$(EXE_EXT),tests/test_runner.c $(WC3_TEST_DIR)/test_server_net.c $(WC3_TEST_DIR)/test_client_stubs.c server/sv_init.c server/sv_lan.c server/sv_main.c server/sv_lobby.c server/sv_send.c common/net.c common/msg.c,-lsheet -lshared -lm $(NET_LIBS),))
 $(eval $(call test_schema,test-renderer-model,$(SHARED_LIB),$(TEST_CFLAGS) -Wno-unused-function,$(BIN_DIR)/test_renderer_model$(EXE_EXT),tests/test_runner.c tests/test_renderer_model.c renderer/r_model.c,-lshared -lm $(LIBS),))
+$(eval $(call test_schema,test-renderer-shadows,$(SHARED_LIB),$(TEST_CFLAGS) -Wno-unused-function -DUSE_SHADOWMAPS,$(BIN_DIR)/test_renderer_shadows$(EXE_EXT),tests/test_runner.c tests/test_renderer_model.c renderer/r_model.c,-lshared -lm $(LIBS),))
 $(eval $(call test_schema,test-ui,test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB),$(TEST_UI_CFLAGS),$(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT),tests/test_runner.c $(TEST_UI_SRCS) common/mpq.c $(call CSRC,$(WC3_DIR)/ui),-lsheet -lshared -ljass -lm -lz,))
 
 test-mpq-compat: mpqtool $(MPQ_TEST)

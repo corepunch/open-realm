@@ -164,6 +164,8 @@ typedef enum {
 /* -------------------------------------------------------------------------- */
 /* Flattened frame types                                                       */
 /* -------------------------------------------------------------------------- */
+#define BZ_SC2_MODEL_FIELDS 0xffu // field bits; two transforms, five camera attributes and projection; complete model payload
+
 typedef struct {
     uiFramePointPos_t targetPos;
     BOOL used;
@@ -199,8 +201,8 @@ typedef struct sc2BaseFrame_s {
         FLOAT insets[4];
     } backdrop;
     DWORD ui_flags;
-    FLOAT model_x;          /* X from <Model><Position val="X,..."/>: -1=minimap,0=info,+1=command */
-    BOOL  has_model_pos;    /* true when <Position> was explicitly parsed */
+    UIMODEL model;
+    DWORD model_flags;
     void (*on_event)(struct sc2BaseFrame_s *frame, FLOAT x, FLOAT y, int button, BOOL down);
     void (*on_draw)(struct sc2BaseFrame_s *frame, LPCRECT rect);
 } sc2BaseFrame_t;
@@ -249,8 +251,8 @@ typedef struct sc2Frame_s {
     struct sc2Frame_s *parent;
     sc2BaseFrame_t *resolved_frame;
     PATHSTR source_file;
-    FLOAT model_x;      /* X from <Model><Position val="X,..."/>, 0 if unset */
-    BOOL  has_model_pos;
+    UIMODEL model;
+    DWORD model_flags;
 } sc2Frame_t;
 
 typedef struct {
@@ -309,6 +311,8 @@ void SC2_SetEnabled(sc2Frame_t *frame, BOOL enabled);
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <stddef.h>
+#include "common/ui_constants.h"
 #include <ctype.h>
 #include "common/tinyxml.h"
 
@@ -556,6 +560,18 @@ static void SC2_ResolveTemplate(sc2Frame_t *frame, sc2Frame_t *tmpl) {
         else frame->flags &= ~SC2_FRAME_HIGHLIGHT_ON_FOCUS;
     }
 
+    static const struct { size_t offset, size; } fields[] = {
+        { offsetof(UIMODEL, pos), sizeof(VECTOR3) }, { offsetof(UIMODEL, scale), sizeof(VECTOR3) },
+        { offsetof(UIMODEL, eye), sizeof(VECTOR3) }, { offsetof(UIMODEL, target), sizeof(VECTOR3) },
+        { offsetof(UIMODEL, fov), sizeof(FLOAT) }, { offsetof(UIMODEL, znear), sizeof(FLOAT) },
+        { offsetof(UIMODEL, zfar), sizeof(FLOAT) }, { offsetof(UIMODEL, projection), sizeof(UIMODELPROJECTION) },
+    };
+    FOR_LOOP(i, sizeof(fields) / sizeof(*fields)) {
+        if ((frame->model_flags & (1u << i)) || !(tmpl->model_flags & (1u << i))) continue;
+        memcpy((char *)&frame->model + fields[i].offset, (const char *)&tmpl->model + fields[i].offset, fields[i].size);
+        frame->model_flags |= 1u << i;
+    }
+
     if (tmpl->num_anchors > 0) {
         int num = 0;
         sc2ParsedAnchor_t merged[SC2_MAX_ANCHORS];
@@ -741,18 +757,37 @@ static void SC2_ParseModel(void *node, sc2Frame_t *frame) {
         frame->num_textures = 1;
         SC2_XmlFree(val);
     }
+    static const struct { LPCSTR name; size_t offset; } fields[] = {
+        { "Position", offsetof(UIMODEL, pos) }, { "Scale", offsetof(UIMODEL, scale) },
+    };
     for (xmlNode *child = ((xmlNode *)node)->children; child; child = child->next) {
-        if (child->type != XML_ELEMENT_NODE) continue;
-        if (!strcasecmp((const char *)child->name, "Position")) {
-            LPCSTR pos = SC2_XmlGetProp(child, "val");
-            if (pos) {
-                float px = 0;
-                sscanf(pos, "%f", &px);
-                frame->model_x = px;
-                frame->has_model_pos = true;
-                SC2_XmlFree(pos);
-            }
+        FOR_LOOP(i, sizeof(fields) / sizeof(*fields)) {
+            if (strcasecmp((LPCSTR)child->name, fields[i].name)) continue;
+            LPCSTR text = SC2_XmlGetProp(child, "val");
+            VECTOR3 *v = (VECTOR3 *)((char *)&frame->model + fields[i].offset);
+            if (text && sscanf(text, "%f,%f,%f", &v->x, &v->y, &v->z) == 3)
+                frame->model_flags |= 1u << i;
+            else fprintf(stderr, "SC2_Layout: invalid Model %s on %s\n", fields[i].name, frame->name);
+            SC2_XmlFree(text);
         }
+    }
+}
+
+/* Camera attributes stay together in the model payload, including the authored clip planes. */
+static void SC2_ParseCamera(void *node, sc2Frame_t *frame) {
+    static const struct { LPCSTR name; size_t offset; int count; } fields[] = {
+        { "position", offsetof(UIMODEL, eye), 3 }, { "target", offsetof(UIMODEL, target), 3 },
+        { "fov", offsetof(UIMODEL, fov), 1 }, { "minz", offsetof(UIMODEL, znear), 1 },
+        { "maxz", offsetof(UIMODEL, zfar), 1 },
+    };
+    FOR_LOOP(i, sizeof(fields) / sizeof(*fields)) {
+        LPCSTR text = SC2_XmlGetProp(node, fields[i].name);
+        if (!text) continue;
+        float *v = (float *)((char *)&frame->model + fields[i].offset);
+        if (text && (fields[i].count == 3 ? sscanf(text, "%f,%f,%f", v, v + 1, v + 2) : sscanf(text, "%f", v)) == fields[i].count)
+            frame->model_flags |= 1u << (i + 2);
+        else fprintf(stderr, "SC2_Layout: invalid Camera %s on %s\n", fields[i].name, frame->name);
+        SC2_XmlFree(text);
     }
 }
 
@@ -919,6 +954,20 @@ static void SC2_ParseFrameChildren(void *node, sc2Frame_t *frame) {
                 frame->flags |= SC2_FRAME_HAS_DESC_FLAGS;
                 SC2_XmlFree(val);
             }
+        } else if (!strcasecmp(tag, "Camera")) {
+            SC2_ParseCamera(cur, frame);
+        } else if (!strcasecmp(tag, "Projection")) {
+            LPCSTR val = SC2_XmlGetProp(cur, "val");
+            static const struct { LPCSTR name; UIMODELPROJECTION value; } modes[] = {
+                { "Orthographic", UI_MODEL_ORTHOGRAPHIC }, { "Perspective", UI_MODEL_PERSPECTIVE },
+            };
+            BOOL found = false;
+            FOR_LOOP(i, sizeof(modes) / sizeof(*modes)) {
+                if (!val || strcasecmp(val, modes[i].name)) continue;
+                frame->model.projection = modes[i].value; frame->model_flags |= 1u << 7; found = true;
+            }
+            if (!found) fprintf(stderr, "SC2_Layout: invalid Projection on %s\n", frame->name);
+            SC2_XmlFree(val);
         } else if (!strcasecmp(tag, "Model")) {
             SC2_ParseModel(cur, frame);
         } else if (!strcasecmp(tag, "Frame")) {
@@ -1177,8 +1226,9 @@ static void SC2_FlattenFrame(sc2Frame_t *frame, int parent_index) {
     }
     dst->color = (frame->flags & SC2_FRAME_HAS_COLOR) ? frame->color : (COLOR32){255, 255, 255, 255};
     dst->alpha = (frame->flags & SC2_FRAME_HAS_ALPHA) ? frame->alpha : 1.0f;
-    dst->model_x = frame->model_x;
-    dst->has_model_pos = frame->has_model_pos;
+    dst->model = frame->model;
+    dst->model.aspect = UI_MIN_ASPECT;
+    dst->model_flags = frame->model_flags;
     dst->ui_flags = 0;
     if (frame->flags & SC2_FRAME_HAS_VISIBLE) {
         if (!(frame->flags & SC2_FRAME_VISIBLE))

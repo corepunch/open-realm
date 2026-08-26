@@ -278,11 +278,14 @@ BOOL SC2_HUD_BuildFrameForWrite(LPCSC2BASEFRAME frame, uiFrame_t *out) {
         out->buffer.data = (HANDLE)&frame->label;
     }
     copy_points(out, frame);
-    /* Console chrome: model_x (-1/0/+1 from <Position>) is the world-space X
-     * used by the ortho camera to position each section (left/center/right). */
-    if (frame->sc2_type == SC2_FRAMETYPE_MODEL && frame->name) {
-        out->text  = "Stand";
-        out->value = frame->model_x;
+    if (frame->sc2_type == SC2_FRAMETYPE_MODEL) {
+        if (frame->model_flags != BZ_SC2_MODEL_FIELDS) {
+            fprintf(stderr, "SC2_HUD: incomplete model/camera payload for %s (fields=%x)\n", frame->name, frame->model_flags);
+            return false;
+        }
+        out->text = "Stand";
+        out->buffer.data = (HANDLE)&frame->model;
+        out->buffer.size = sizeof(frame->model);
     }
     return true;
 }

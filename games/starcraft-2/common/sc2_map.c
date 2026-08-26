@@ -32,6 +32,7 @@ typedef struct {
     char parent[64];
     char race[64];
     char path[256];
+    int variants; /* -1 inherits; zero selects the unsuffixed model. */
 } sc2CatalogModel_t;
 
 typedef struct {
@@ -59,7 +60,7 @@ typedef struct {
     FLOAT footprint_width;
     FLOAT footprint_height;
     FLOAT footprint_radius;
-    DWORD unit_flags;
+    DWORD unit_flags, variation;
 } sc2ResolvedObjectModel_t;
 
 typedef struct {
@@ -370,17 +371,17 @@ static xmlDocPtr sc2_read_catalog_xml(LPCSTR root, LPCSTR filename) {
     LPCSTR data_dir;
 
     if (!root || !*root) return sc2_read_global_xml(filename);
-    /* All catalog game data files live under Base.SC2Data/ inside each mod/archive */
-    snprintf(path, sizeof(path), "%s/Base.SC2Data/%s", root, filename);
+    /* Catalog roots already include Base.SC2Data; repeating it hid the base light/model catalogs. */
+    snprintf(path, sizeof(path), "%s/%s", root, filename);
     doc = sc2_read_global_xml(path);
     if (doc)
         return doc;
     data_dir = sc2_host.cvar_string ? sc2_host.cvar_string("data", "") : "";
     if (data_dir && *data_dir) {
-        snprintf(archive_path, sizeof(archive_path), "%s/%s/Base.SC2Data", data_dir, root);
+        snprintf(archive_path, sizeof(archive_path), "%s/%s", data_dir, root);
         return sc2_read_catalog_xml_from_archive(archive_path, filename);
     }
-    snprintf(archive_path, sizeof(archive_path), "%s/Base.SC2Data", root);
+    snprintf(archive_path, sizeof(archive_path), "%s", root);
     return sc2_read_catalog_xml_from_archive(archive_path, filename);
 }
 
@@ -1090,25 +1091,22 @@ static void sc2_parse_objects(sc2MapSource_t *source) {
     xmlFreeDoc(doc);
 }
 
-static void sc2_catalog_add_model(sc2Catalog_t *catalog, LPCSTR id, LPCSTR parent, LPCSTR race, LPCSTR path) {
-    sc2CatalogModel_t *model;
-
-    if (!catalog || !id || !*id) return;
-    FOR_LOOP(i, catalog->models_count) {
-        if (!strcasecmp(catalog->models[i].id, id)) {
-            snprintf(catalog->models[i].parent, sizeof(catalog->models[i].parent), "%s", parent ? parent : "");
-            snprintf(catalog->models[i].race, sizeof(catalog->models[i].race), "%s", race ? race : "");
-            snprintf(catalog->models[i].path, sizeof(catalog->models[i].path), "%s", path ? path : "");
-            sc2_normalize_slashes(catalog->models[i].path);
-            return;
+/* Catalog layers override only supplied fields; absent values retain their dependency's definition. */
+static void sc2_catalog_add_model(sc2Catalog_t *catalog, sc2CatalogModel_t const *src) {
+    sc2CatalogModel_t *model = NULL;
+    FOR_LOOP(i, catalog->models_count)
+        if (!strcasecmp(catalog->models[i].id, src->id)) { model = &catalog->models[i]; break; }
+    if (!model) {
+        if (catalog->models_count >= SC2_MAX_CATALOG_MODELS) {
+            fprintf(stderr, "SC2 catalog: model capacity exhausted at %s\n", src->id); return;
         }
+        model = &catalog->models[catalog->models_count++]; model->variants = -1;
+        snprintf(model->id, sizeof(model->id), "%s", src->id);
     }
-    if (catalog->models_count >= SC2_MAX_CATALOG_MODELS) return;
-    model = &catalog->models[catalog->models_count++];
-    snprintf(model->id, sizeof(model->id), "%s", id);
-    snprintf(model->parent, sizeof(model->parent), "%s", parent ? parent : "");
-    snprintf(model->race, sizeof(model->race), "%s", race ? race : "");
-    snprintf(model->path, sizeof(model->path), "%s", path ? path : "");
+    if (*src->parent) snprintf(model->parent, sizeof(model->parent), "%s", src->parent);
+    if (*src->race) snprintf(model->race, sizeof(model->race), "%s", src->race);
+    if (*src->path) snprintf(model->path, sizeof(model->path), "%s", src->path);
+    if (src->variants >= 0) model->variants = src->variants;
     sc2_normalize_slashes(model->path);
 }
 
@@ -1321,10 +1319,25 @@ static BOOL sc2_catalog_resolve_model_path_r(sc2Catalog_t const *catalog,
     return false;
 }
 
-static BOOL sc2_catalog_model_path(sc2Catalog_t const *catalog, LPCSTR id, LPSTR out, DWORD out_size) {
-    sc2CatalogModel_t const *model = sc2_catalog_model(catalog, id);
-
-    return sc2_catalog_resolve_model_path_r(catalog, model, id, model ? model->race : NULL, out, out_size, 0);
+/* VariationCount selects numbered assets; the map's Variation is part of the model lookup key. */
+static BOOL sc2_catalog_model_path(sc2Catalog_t const *catalog, LPCSTR id, sc2MapObject_t *object) {
+    sc2CatalogModel_t const *model = sc2_catalog_model(catalog, id), *cur = model;
+    char path[sizeof(object->model)];
+    if (!sc2_catalog_resolve_model_path_r(catalog, model, id, model ? model->race : NULL, path, sizeof(path), 0))
+        return false;
+    FOR_LOOP(depth, SC2_MAX_CATALOG_PARENT_DEPTH) {
+        if (!cur || cur->variants >= 0) break;
+        cur = sc2_catalog_model(catalog, cur->parent);
+    }
+    if (cur && cur->variants > 0) {
+        char *ext = strrchr(path, '.');
+        if (!ext) { fprintf(stderr, "SC2 catalog: model stem has no extension: %s\n", path); return false; }
+        if (object->variation >= (DWORD)cur->variants)
+            fprintf(stderr, "SC2 catalog: variation %u exceeds count %d for %s; preserving requested asset\n", object->variation, cur->variants, id);
+        /* The original path is a catalog stem, not an existing unsuffixed M3. */
+        *ext = 0; snprintf(object->model, sizeof(object->model), "%s_%02u.m3", path, object->variation);
+    } else snprintf(object->model, sizeof(object->model), "%s", path);
+    return true;
 }
 
 static LPCSTR sc2_catalog_cliff_mesh(sc2Catalog_t const *catalog, LPCSTR id) {
@@ -1434,28 +1447,23 @@ static BOOL sc2_terrain_texture_path_from_tileset(LPCSTR id,
 }
 
 static void sc2_parse_model_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
-    xmlNodePtr root;
-
-    if (!doc) return;
-    root = xmlDocGetRootElement(doc);
+    xmlNodePtr root = xmlDocGetRootElement(doc);
+    static sc2XmlField_t const fields[] = {
+        { "Model", offsetof(sc2CatalogModel_t, path), SC2_XML_FIELD_STRING, sizeof(((sc2CatalogModel_t *)0)->path) },
+        { "VariationCount", offsetof(sc2CatalogModel_t, variants), SC2_XML_FIELD_DWORD, 0 },
+    };
     for (xmlNodePtr node = root ? root->children : NULL; node; node = node->next) {
-        char id[64];
-        char parent[64] = "";
-        char race[64] = "";
-        char path[256] = "";
-
-        if (node->type != XML_ELEMENT_NODE || !sc2_contains_i((char const *)node->name, "CModel"))
-            continue;
-        if (!sc2_xml_attr(node, "id", id, sizeof(id))) continue;
-        sc2_xml_attr(node, "parent", parent, sizeof(parent));
-        sc2_xml_attr(node, "Race", race, sizeof(race));
+        sc2CatalogModel_t model = { .variants = -1 };
+        if (node->type != XML_ELEMENT_NODE || !sc2_contains_i((char const *)node->name, "CModel")) continue;
+        if (!sc2_xml_attr(node, "id", model.id, sizeof(model.id))) continue;
+        sc2_xml_attr(node, "parent", model.parent, sizeof(model.parent));
+        sc2_xml_attr(node, "Race", model.race, sizeof(model.race));
         for (xmlNodePtr child = node->children; child; child = child->next) {
-            if (child->type == XML_ELEMENT_NODE && sc2_streqi((char const *)child->name, "Model")) {
-                sc2_xml_attr(child, "value", path, sizeof(path));
-                break;
-            }
+            char value[256];
+            if (sc2_xml_attr(child, "value", value, sizeof(value)))
+                sc2_parse_xml_field(&model, fields, SC2_ARRAY_LEN(fields), (LPCSTR)child->name, value);
         }
-        sc2_catalog_add_model(catalog, id, parent, race, path);
+        sc2_catalog_add_model(catalog, &model);
     }
 }
 
@@ -1920,11 +1928,9 @@ static void sc2_resolve_object_models(sc2Catalog_t const *catalog) {
     FOR_LOOP(i, sc2_map.num_objects) {
         sc2MapObject_t *object = &sc2_map.objects[i];
         LPCSTR model_id;
-        char path[256];
-
         if (!object->name[0]) continue;
         FOR_LOOP(j, resolved_count) {
-            if (!strcasecmp(resolved[j].name, object->name)) {
+            if (!strcasecmp(resolved[j].name, object->name) && resolved[j].variation == object->variation) {
                 snprintf(object->model, sizeof(object->model), "%s", resolved[j].model);
                 snprintf(object->footprint, sizeof(object->footprint), "%s", resolved[j].footprint);
                 snprintf(object->mover, sizeof(object->mover), "%s", resolved[j].mover);
@@ -1960,12 +1966,8 @@ static void sc2_resolve_object_models(sc2Catalog_t const *catalog) {
         sc2_resolve_object_footprint(catalog, object);
         if (!model_id) model_id = sc2_catalog_actor_model(catalog, object->name);
         if (!model_id) model_id = object->name;
-        path[0] = '\0';
-        if (sc2_catalog_model_path(catalog, model_id, path, sizeof(path))) {
-            snprintf(object->model, sizeof(object->model), "%s", path);
-        } else {
+        if (!sc2_catalog_model_path(catalog, model_id, object))
             sc2_resolve_object_model_candidates(object);
-        }
         if (resolved_count < SC2_MAX_MAP_OBJECTS) {
             snprintf(resolved[resolved_count].name, sizeof(resolved[resolved_count].name), "%s", object->name);
             snprintf(resolved[resolved_count].model, sizeof(resolved[resolved_count].model), "%s", object->model);
@@ -1976,6 +1978,7 @@ static void sc2_resolve_object_models(sc2Catalog_t const *catalog) {
             resolved[resolved_count].footprint_height = object->footprint_height;
             resolved[resolved_count].footprint_radius = object->footprint_radius;
             resolved[resolved_count].unit_flags = object->unit_flags;
+            resolved[resolved_count].variation = object->variation;
             resolved_count++;
         }
 next_object:

@@ -561,3 +561,24 @@ TEST(renderer_terrain, cliff_ramps_require_adjacent_corners_one_level_apart) {
     tile[2].ramp = 1;
     T_ASSERT(!R_IsCliffRamp(tile));
 }
+
+/* The shadow and non-shadow builds share lighting; only the key's direct contribution is occluded. */
+TEST(renderer_shader, shadow_receiver_contract) {
+    R_SetShaderSource(1, model_vs, NULL);
+    T_NOT_NULL(strstr(shader_src, "return lighting;"));
+#ifdef USE_SHADOWMAPS
+    T_NOT_NULL(strstr(shader_src, "out vec3 v_shadowlight;"));
+    T_NOT_NULL(strstr(shader_src, "contribution - uLights[i][3].rgb * uLights[i][3].a"));
+#else
+    T_NULL(strstr(shader_src, "v_shadowlight"));
+#endif
+    R_SetShaderSource(1, model_fs, NULL);
+    T_NOT_NULL(strstr(shader_src, "light = min(light, vec3(1.0))"));
+#ifdef USE_SHADOWMAPS
+    T_NOT_NULL(strstr(shader_src, "in vec3 v_shadowlight;"));
+    T_NOT_NULL(strstr(shader_src, "light -= v_shadowlight * (1.0 - shadow_visibility"));
+    T_NOT_NULL(strstr(shader_src, "textureSize(depths, 0)"));
+#else
+    T_NULL(strstr(shader_src, "shadow_visibility"));
+#endif
+}

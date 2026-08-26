@@ -732,7 +732,8 @@ void R_RenderFrame(viewDef_t const *viewDef) {
     R_Call(glBindTexture, GL_TEXTURE_2D, R_GetFogOfWarTexture());
     R_Call(glActiveTexture, GL_TEXTURE0);
 #ifdef USE_SHADOWMAPS
-    if (!(tr.viewDef.rdflags & RDF_USE_ENTITY_CAMERA)) {
+    /* Layout-provided model cameras have no world shadow pass either. */
+    if (!(tr.viewDef.rdflags & (RDF_USE_ENTITY_CAMERA | RDF_NOWORLDMODEL))) {
         R_RenderShadowMap();
     }
 #endif

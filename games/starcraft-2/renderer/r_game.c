@@ -357,13 +357,7 @@ bool R_GameGetModelInfo(LPMODEL model, LPMODELINFO info) {
     return true;
 }
 
-/* Portrait camera for SC2 FT_PORTRAIT frames.
- *
- * Unit portraits (small radius): 35° perspective, camera from -Y side.
- * Console chrome models (large radius > 3): orthographic from the camera
- * defined in ConsolePanel.SC2Layout — position=(0,-5,0), target=origin, fov=90.
- * The ortho half-extent equals the bounding sphere radius so the model fills
- * the viewport, matching the SC2 engine's flat-panel appearance. */
+/* Unit portraits use a bounds-derived perspective camera; layout models supply their own camera payload. */
 bool R_GameExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t *viewdef) {
     if (!entity || !entity->model || entity->model->modeltype != ID_43DM || !entity->model->m3 || !viewdef)
         return false;
@@ -380,43 +374,7 @@ bool R_GameExtractEntityCamera(renderEntity_t const *entity, float aspect, viewD
     R_GetEntityMatrix(entity, &transform);
 
     MATRIX4 proj, view;
-    /* Console chrome models have a large bounding sphere (full-screen-width
-     * panels, radius >> unit models).  Use the orthographic camera from
-     * ConsolePanel.SC2Layout: position=(0,-5,0) → target=(0,0,0), which
-     * produces the flat top-down-front view the SC2 engine uses. */
-    if (entity->flags & RF_ORTHO_CAMERA) {
-        /* Console chrome: <Camera position="0,-5,0" target="0,0,0"/> from
-         * ConsolePanel.SC2Layout defines the ortho view.  Three sections at
-         * world X = -1, 0, +1 (from <Position> delivered as entity.origin.x).
-         *
-         * s_x = 1.5 — three sections span X = -1.5..+1.5 total (each model
-         *   1 unit wide, half-total = 1.5); derived from the Position values.
-         * s_y = radius*1.05 — model height from bounding sphere.
-         * tgt_z = s_y/aspect — SC2Layout camera target is at Z=0 (model
-         *   origin); the Stand animation fills the ortho view symmetrically,
-         *   so screen-bottom = target_z - s_y/aspect = 0 - s_y/aspect.
-         *   Setting tgt_z = s_y/aspect aligns screen-bottom with Z=0 exactly.
-         * Camera is fixed at world X=0; subtracting origin.x in model-space
-         * cancels the entity translation: world_x = -origin.x + origin.x = 0. */
-        /* Each model's chrome geometry occupies its own third of the world
-         * (left/center/right).  All three render in the same full-screen
-         * ortho view at world X=0; their separate geometry sections tile
-         * naturally.  s_x = s_y keeps the model proportions undistorted. */
-        float s_y   = radius * 1.05f;
-        float s_x   = s_y;
-        float dist  = 5.0f;
-        float tgt_z = s_y / aspect;
-        VECTOR3 eye = { -entity->origin.x, center.y - dist, tgt_z };
-        VECTOR3 tgt = { -entity->origin.x, center.y,        tgt_z };
-        eye = Matrix4_multiply_vector3(&transform, &eye);
-        tgt = Matrix4_multiply_vector3(&transform, &tgt);
-        VECTOR3 dir = Vector3_sub(&tgt, &eye);
-        if (Vector3_len(&dir) <= 0.001f)
-            dir = (VECTOR3){ 0.0f, 1.0f, 0.0f };
-        VECTOR3 up = { 0.0f, 0.0f, 1.0f };
-        Matrix4_ortho(&proj, -s_x, s_x, -s_y / aspect, s_y / aspect, 0.1f, dist + radius * 4.0f);
-        Matrix4_lookAt(&view, &eye, &dir, &up);
-    } else {
+    {
         float fov  = 35.0f;
         float dist = radius / tanf((fov * (float)M_PI / 180.0f) * 0.5f);
         VECTOR3 eye = { center.x, center.y - dist * 0.9f, center.z + radius * 0.25f };

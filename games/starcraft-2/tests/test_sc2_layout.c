@@ -442,3 +442,48 @@ TEST(sc2_layout, layout_find_by_type) {
     SC2_LayoutShutdown();
 }
 
+
+/* Native console cameras survive flattening and partial template overrides, including explicit zeroes. */
+TEST(sc2_layout, model_camera_payload) {
+    setup_sc2_layout_tests(); SC2_LayoutInit();
+    T_ASSERT(SC2_LayoutParseFile("UI/Layout/TestTemplates.SC2Layout"));
+    T_ASSERT(SC2_LayoutFlatten("ConsoleModelBase"));
+    sc2Frame_t *base = SC2_LayoutFindTemplate("ConsoleModelBase");
+    T_NOT_NULL(base); T_NOT_NULL(base->resolved_frame);
+    UIMODEL model = base->resolved_frame->model;
+    T_EQ(base->resolved_frame->model_flags, BZ_SC2_MODEL_FIELDS);
+    T_FEQ(model.pos.x, -1, .0001f); T_FEQ(model.pos.y, -1, .0001f);
+    T_FEQ(model.eye.y, -5, .0001f); T_FEQ(model.scale.z, 1, .0001f);
+    T_FEQ(model.znear, 1, .0001f); T_FEQ(model.zfar, 1000, .0001f);
+    T_FEQ(model.aspect, 4.0f / 3, .0001f); T_EQ(model.projection, UI_MODEL_ORTHOGRAPHIC);
+    T_ASSERT(SC2_LayoutFlatten("ConsoleModelOverride"));
+    sc2Frame_t *child = SC2_LayoutFindTemplate("ConsoleModelOverride");
+    T_NOT_NULL(child); T_NOT_NULL(child->resolved_frame);
+    model = child->resolved_frame->model;
+    T_EQ(child->resolved_frame->model_flags, BZ_SC2_MODEL_FIELDS);
+    T_FEQ(model.pos.x, 0, .0001f); T_FEQ(model.pos.y, 0, .0001f);
+    T_FEQ(model.eye.y, -5, .0001f); T_FEQ(model.fov, 60, .0001f);
+    T_EQ(model.projection, UI_MODEL_PERSPECTIVE);
+    SC2_LayoutShutdown();
+}
+
+/* Widening a viewport expands horizontal space, retaining authored size and bottom/side anchors. */
+TEST(sc2_layout, model_camera_widescreen) {
+    UIMODEL model = { .eye = {0,-5,0}, .pos = {-1,-1,0}, .scale = {1,1,1},
+        .fov = 90, .znear = 1, .zfar = 1000, .aspect = 4.0f / 3, .projection = UI_MODEL_ORTHOGRAPHIC };
+    MATRIX4 narrow, wide;
+    UI_ModelMatrix(&model, 4.0f / 3, &narrow); UI_ModelMatrix(&model, 16.0f / 9, &wide);
+    VECTOR3 a = Matrix4_multiply_vector3(&narrow, &(VECTOR3){0,0,0});
+    VECTOR3 b = Matrix4_multiply_vector3(&wide, &(VECTOR3){0,0,0});
+    T_FEQ(a.x, -1, .0001f); T_FEQ(b.x, a.x, .0001f); T_FEQ(a.y, -1, .0001f);
+    T_FEQ(b.y, a.y, .0001f);
+    a = Matrix4_multiply_vector3(&narrow, &(VECTOR3){.5f,0,.25f});
+    b = Matrix4_multiply_vector3(&wide, &(VECTOR3){.5f,0,.25f});
+    T_FEQ(b.y, a.y, .0001f); T_FEQ((b.x + 1) * (16.0f/9), (a.x + 1) * (4.0f/3), .0001f);
+    model.pos.x = 1; UI_ModelMatrix(&model, 16.0f/9, &wide);
+    b = Matrix4_multiply_vector3(&wide, &(VECTOR3){0,0,0}); T_FEQ(b.x, 1, .0001f);
+    model.projection = UI_MODEL_PERSPECTIVE; model.pos = (VECTOR3){0};
+    UI_ModelMatrix(&model, 16.0f/9, &wide);
+    b = Matrix4_multiply_vector3(&wide, &(VECTOR3){0,0,0});
+    T_FEQ(b.x, 0, .0001f); T_FEQ(b.y, 0, .0001f); T_ASSERT(b.z > -1 && b.z < 1);
+}

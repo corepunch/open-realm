@@ -493,10 +493,6 @@ void SCR_LayoutDrawPortrait(LPCUIFRAME frame, LPCRECT screen) {
     renderEntity_t entity = {0};
     entity.model = draw; entity.scale = 1.0f;
     entity.flags = RF_NO_SHADOW | RF_NO_FOGOFWAR | RF_PORTRAIT_LIGHTING;
-    /* Console chrome models send text="Stand"; mark them for ortho camera. */
-    if (anim && !strcmp(anim, "Stand"))
-        entity.flags |= RF_ORTHO_CAMERA;
-    entity.origin = (VECTOR3){ frame->value, 0.0f, 0.0f }; /* model world X from frame.value */
     re.SetEntityAnimFrame(draw, anim, &entity);
 
     viewDef_t vd = {0};
@@ -504,6 +500,15 @@ void SCR_LayoutDrawPortrait(LPCUIFRAME frame, LPCRECT screen) {
     vd.rdflags      = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL | RDF_NOFOG | RDF_USE_ENTITY_CAMERA;
     vd.num_entities = 1;
     vd.entities     = &entity;
+    if (frame->buffer.size == sizeof(UIMODEL)) {
+        size2_t size = re.GetWindowSize();
+        FLOAT aspect = viewport.w * size.width / (viewport.h * size.height);
+        /* The layout camera replaces the old radius guess and Stand-name mode switch. */
+        UI_ModelMatrix(frame->buffer.data, aspect, &vd.viewProjectionMatrix);
+        Matrix4_identity(&vd.textureMatrix);
+        Matrix4_identity(&vd.lightMatrix);
+        vd.rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL | RDF_NOFOG | RDF_NOPARTICLES;
+    }
     re.RenderFrame(&vd);
 }
 
