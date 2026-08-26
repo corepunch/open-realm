@@ -11,9 +11,45 @@ static DWORD load_count, release_count, register_count;
 static BOOL fail_load, touch_during_registration;
 static DWORD spawn_count;
 static LPTEXTURE texture_load_result;
+static GLenum upload_format, upload_internal;
+static COLOR32 upload_pixel;
+static DWORD upload_count;
+static LPCVOID upload_data;
+static LPCSTR test_version = "3.1", test_extension = "";
+static DWORD alloc_count, free_count, ext_count;
 
-static HANDLE test_alloc(long size) { return calloc(1, (size_t)size); }
-static void test_free(HANDLE memory) { free(memory); }
+static GLubyte const *test_glstring(GLenum name) { (void)name; return (GLubyte const *)test_version; }
+static SDL_bool test_hasext(char const *name) { ext_count++; return !strcmp(name, test_extension) ? SDL_TRUE : SDL_FALSE; }
+
+/* Capture the actual GL upload contract without requiring a display or a particular GL backend. */
+static void test_teximage(GLenum target, GLint level, GLint internal, GLsizei w, GLsizei h, GLint border, GLenum format, GLenum type, const void *data) {
+    (void)target; (void)level; (void)w; (void)h; (void)border;
+    T_EQ(type, GL_UNSIGNED_BYTE);
+    upload_format = format; upload_internal = internal; upload_data = data; upload_count++;
+    if (data) upload_pixel = *(LPCCOLOR32)data;
+}
+static void test_gentex(GLsizei n, GLuint *ids) { while (n--) *ids++ = 99; }
+static void test_bindtex(GLenum target, GLuint id) { (void)target; (void)id; }
+static void test_texparam(GLenum target, GLenum name, GLint value) { (void)target; (void)name; (void)value; }
+#undef glTexImage2D
+#undef glGenTextures
+#undef glBindTexture
+#undef glTexParameteri
+#define glTexImage2D test_teximage
+#define glGenTextures test_gentex
+#define glBindTexture test_bindtex
+#define glTexParameteri test_texparam
+#undef glGetString
+#define glGetString test_glstring
+#define SDL_GL_ExtensionSupported test_hasext
+#include "renderer/r_texture.c"
+#include "renderer/r_blp1.c"
+#include "renderer/r_blp2.c"
+#include "renderer/r_pcx.c"
+#include "renderer/r_dds.c"
+
+static HANDLE test_alloc(long size) { alloc_count++; return calloc(1, (size_t)size); }
+static void test_free(HANDLE memory) { free_count++; free(memory); }
 static void test_error(LPCSTR format, ...) { (void)format; T_ASSERT(false); }
 static void test_spawn(void *context) { (*(DWORD *)context)++; }
 
@@ -174,6 +210,116 @@ TEST(renderer_texture, red_blue_swap_preserves_other_channels) {
     T_EQ(rgba[0], (BYTE)3); T_EQ(rgba[1], (BYTE)2); T_EQ(rgba[2], (BYTE)1); T_EQ(rgba[3], (BYTE)4);
     T_EQ(rgba[4], (BYTE)7); T_EQ(rgba[7], (BYTE)8);
     T_EQ(rgb[0], (BYTE)11); T_EQ(rgb[1], (BYTE)10); T_EQ(rgb[2], (BYTE)9);
+}
+
+TEST(renderer_texture, rgba_upload_preserves_red_blue_and_alpha) {
+    TEXTURE tex = { .texid = 99 };
+    COLOR32 pixel = { 241, 37, 9, 123 };
+    upload_count = 0;
+    R_LoadTextureMipLevel(&tex, &(TEXMIP){ &pixel, 0, 1, 0, PIXEL_RGBA }); T_EQ(upload_count, 0);
+    R_LoadTextureMipLevel(&tex, &(TEXMIP){ &pixel, 1, 1, 0, PIXEL_RGBA });
+    T_EQ(upload_count, 1); T_EQ(upload_format, GL_RGBA);
+    T_EQ(upload_pixel.r, 241); T_EQ(upload_pixel.g, 37); T_EQ(upload_pixel.b, 9); T_EQ(upload_pixel.a, 123);
+}
+
+/* Emulate the advertised API, not the host OS; check byte order, ownership and the EXT/APPLE format pairs. */
+TEST(renderer_texture, source_format_and_context_select_upload_without_redundant_copies) {
+    static const struct { LPCSTR version, extension; GLenum internal; } cases[] = {
+        { "3.1", "", GL_RGBA },
+        { "OpenGL ES 3.0", "GL_EXT_texture_format_BGRA8888", BZ_GL_BGRA },
+        { "OpenGL ES 3.0", "GL_APPLE_texture_format_BGRA8888", GL_RGBA },
+        { "OpenGL ES 3.0", "", 0 },
+    };
+    TEXTURE tex = { .texid = 99 };
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    FOR_LOOP(i, sizeof(cases) / sizeof(cases[0])) {
+        test_version = cases[i].version; test_extension = cases[i].extension;
+        R_InitTextureFormats();
+        T_EQ(r_bgra_internal, cases[i].internal);
+        DWORD queries = ext_count;
+        FOR_LOOP(src, 2) {
+            COLOR32 pixel = src == PIXEL_BGRA ? (COLOR32){9, 37, 241, 123} : (COLOR32){241, 37, 9, 123};
+            COLOR32 saved = pixel;
+            BOOL convert = src == PIXEL_BGRA && !cases[i].internal;
+            alloc_count = free_count = 0;
+            R_LoadTextureMipLevel(&tex, &(TEXMIP){ &pixel, 1, 1, 1, src });
+            T_EQ(upload_format, src == PIXEL_BGRA && !convert ? BZ_GL_BGRA : GL_RGBA);
+            T_EQ(upload_internal, src == PIXEL_BGRA && !convert ? cases[i].internal : GL_RGBA);
+            T_EQ(upload_pixel.r, src == PIXEL_BGRA && !convert ? 9 : 241);
+            T_EQ(upload_pixel.b, src == PIXEL_BGRA && !convert ? 241 : 9);
+            T_EQ(upload_pixel.g, 37); T_EQ(upload_pixel.a, 123);
+            T_EQ(alloc_count, convert ? 1 : 0); T_EQ(free_count, alloc_count);
+            T_ASSERT(!memcmp(&pixel, &saved, sizeof(pixel)));
+            if (!convert) T_ASSERT(upload_data == &pixel);
+            T_EQ(ext_count, queries);
+        }
+        alloc_count = 0;
+        R_LoadTextureMipLevel(&tex, &(TEXMIP){ NULL, 1, 1, 0, PIXEL_BGRA });
+        T_NULL(upload_data); T_EQ(alloc_count, 0);
+    }
+}
+
+TEST(renderer_texture, blp1_palette_upload_is_rgba) {
+    struct { struct tBLP1Header hdr; COLOR32 pal[256]; BYTE index; } file = {0};
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    r_bgra_internal = 0;
+    file.hdr.magic = ID_BLP1; file.hdr.type = 1; file.hdr.width = file.hdr.height = 1;
+    file.hdr.offsets[0] = offsetof(__typeof__(file), index); file.hdr.lengths[0] = 1;
+    file.pal[0] = (COLOR32){9, 37, 241, 0};
+    test_free(R_LoadTextureBLP1(&file, sizeof(file)));
+    T_EQ(upload_format, GL_RGBA);
+    T_EQ(upload_pixel.r, 241); T_EQ(upload_pixel.g, 37); T_EQ(upload_pixel.b, 9); T_EQ(upload_pixel.a, 255);
+}
+
+TEST(renderer_texture, blp2_raw_palette_and_dxt_upload_are_rgba) {
+    struct { struct tBLP2Header hdr; BYTE data[16]; } file = {0};
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    r_bgra_internal = 0;
+    file.hdr.magic = ID_BLP2; file.hdr.type = 1; file.hdr.width = file.hdr.height = 1;
+    file.hdr.offsets[0] = offsetof(__typeof__(file), data); file.hdr.lengths[0] = 4;
+    file.hdr.encoding = 3; file.hdr.alphaDepth = 8;
+    memcpy(file.data, (BYTE[]){9, 37, 241, 123}, 4);
+    test_free(R_LoadTextureBLP2(&file, sizeof(file)));
+    T_EQ(upload_format, GL_RGBA);
+    T_EQ(upload_pixel.r, 241); T_EQ(upload_pixel.b, 9); T_EQ(upload_pixel.a, 123);
+    file.hdr.encoding = 1; file.hdr.alphaDepth = 0;
+    file.hdr.palette[0] = (COLOR32){9, 37, 241, 0}; file.data[0] = 0;
+    test_free(R_LoadTextureBLP2(&file, sizeof(file)));
+    T_EQ(upload_pixel.r, 241); T_EQ(upload_pixel.b, 9); T_EQ(upload_pixel.a, 255);
+    file.hdr.encoding = 2; file.hdr.width = file.hdr.height = 4; file.hdr.lengths[0] = 8;
+    memcpy(file.data, (BYTE[]){0, 248, 31, 0, 0, 0, 0, 0}, 8);
+    test_free(R_LoadTextureBLP2(&file, sizeof(file)));
+    T_EQ(upload_pixel.r, 255); T_EQ(upload_pixel.g, 0); T_EQ(upload_pixel.b, 0); T_EQ(upload_pixel.a, 255);
+}
+
+TEST(renderer_texture, pcx_palette_upload_is_rgba) {
+    BYTE file[128 + 1 + 769] = {0};
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    file[0] = 10; file[2] = 1; file[3] = 8; file[65] = 1; file[66] = 1;
+    file[129] = 12; file[130] = 241; file[131] = 37; file[132] = 9;
+    test_free(R_LoadTexturePCX(file, sizeof(file)));
+    T_EQ(upload_format, GL_RGBA);
+    T_EQ(upload_pixel.r, 241); T_EQ(upload_pixel.g, 37); T_EQ(upload_pixel.b, 9); T_EQ(upload_pixel.a, 255);
+}
+
+TEST(renderer_texture, dds_channel_masks_use_the_common_upload_capabilities) {
+    /* DDS header: 124 bytes after magic, 32-bit RGB+alpha, one 1x1 mip. */
+    DWORD file[33] = { [0] = MAKEFOURCC('D','D','S',' '), [1] = 124, [3] = 1, [4] = 1, [7] = 1,
+        [19] = 32, [20] = 0x41, [22] = 32, [24] = 0xff00, [26] = 0xff000000 };
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    FOR_LOOP(bgra, 2) {
+        file[23] = bgra ? 0xff0000 : 0xff; file[25] = bgra ? 0xff : 0xff0000;
+        COLOR32 pixel = bgra ? (COLOR32){9, 37, 241, 123} : (COLOR32){241, 37, 9, 123};
+        memcpy(file + 32, &pixel, sizeof(pixel));
+        FOR_LOOP(support, 2) {
+            r_bgra_internal = support ? GL_RGBA : 0;
+            test_free(R_LoadTextureDDS(file, sizeof(file)));
+            T_EQ(upload_format, bgra && support ? BZ_GL_BGRA : GL_RGBA);
+            T_EQ(upload_pixel.r, bgra && support ? 9 : 241);
+            T_EQ(upload_pixel.b, bgra && support ? 241 : 9);
+            T_EQ(upload_pixel.a, 123);
+        }
+    }
 }
 
 TEST(renderer_stats, triangles_include_instanced_amplification) {

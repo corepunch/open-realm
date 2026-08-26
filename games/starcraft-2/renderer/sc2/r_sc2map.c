@@ -606,14 +606,6 @@ static void r_sc2_decode_texture_mask_layer(sc2Map_t const *map, DWORD layer, LP
     }
 }
 
-static void r_sc2_store_mask_pixel(LPCOLOR32 pixel, BYTE r, BYTE g, BYTE b, BYTE a) {
-#if __linux__
-    *pixel = (COLOR32){ r, g, b, a };
-#else
-    *pixel = (COLOR32){ b, g, r, a };
-#endif
-}
-
 static LPTEXTURE r_sc2_build_mask_texture(sc2Map_t const *map, DWORD group) {
     DWORD w = 1;
     DWORD h = 1;
@@ -647,14 +639,15 @@ static LPTEXTURE r_sc2_build_mask_texture(sc2Map_t const *map, DWORD group) {
             mask[0] = 255;
             total = 255;
         }
-        r_sc2_store_mask_pixel(&pixels[i],
+        /* Layer weights are RGBA on every backend, just like the common texture upload contract. */
+        pixels[i] = (COLOR32){
                                (BYTE)((mask[group * SC2_TERRAIN_PASS_LAYERS + 0] * 255u + total / 2) / total),
                                (BYTE)((mask[group * SC2_TERRAIN_PASS_LAYERS + 1] * 255u + total / 2) / total),
                                (BYTE)((mask[group * SC2_TERRAIN_PASS_LAYERS + 2] * 255u + total / 2) / total),
-                               (BYTE)((mask[group * SC2_TERRAIN_PASS_LAYERS + 3] * 255u + total / 2) / total));
+                               (BYTE)((mask[group * SC2_TERRAIN_PASS_LAYERS + 3] * 255u + total / 2) / total)};
     }
     texture = R_AllocateTexture(w, h);
-    R_LoadTextureMipLevel(texture, 0, pixels, w, h);
+    R_LoadTextureMipLevel(texture, &(TEXMIP){ pixels, w, h, 0, PIXEL_RGBA });
     R_SetTextureWrap(texture, false, false);
     ri.MemFree(values);
     ri.MemFree(pixels);

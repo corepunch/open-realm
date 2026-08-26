@@ -96,7 +96,6 @@ static LPTEXTURE R_LoadTextureSTB(HANDLE data, DWORD filesize) {
     int width;
     int height;
     BYTE *image;
-    LPCOLOR32 pixels;
     LPTEXTURE texture;
 
     if (!data || filesize > INT32_MAX) {
@@ -107,21 +106,9 @@ static LPTEXTURE R_LoadTextureSTB(HANDLE data, DWORD filesize) {
         return NULL;
     }
 
-    pixels = ri.MemAlloc(sizeof(COLOR32) * width * height);
-    if (!pixels) {
-        stbi_image_free(image);
-        return NULL;
-    }
-    for (DWORD i = 0; i < (DWORD)(width * height); i++) {
-        pixels[i].r = image[i * 4 + 2];
-        pixels[i].g = image[i * 4 + 1];
-        pixels[i].b = image[i * 4 + 0];
-        pixels[i].a = image[i * 4 + 3];
-    }
-
+    /* STB already returns RGBA; the old BGRA copy made colors depend on the uploader's OS branch. */
     texture = R_AllocateTexture((DWORD)width, (DWORD)height);
-    R_LoadTextureMipLevel(texture, 0, pixels, (DWORD)width, (DWORD)height);
-    ri.MemFree(pixels);
+    R_LoadTextureMipLevel(texture, &(TEXMIP){ image, (DWORD)width, (DWORD)height, 0, PIXEL_RGBA });
     stbi_image_free(image);
     return texture;
 }
@@ -143,13 +130,13 @@ static LPTEXTURE R_MakePlaceholderTexture(void) {
         pixels[y * SIZE + x] = checker ? MAKE(COLOR32, 255, 0, 255, 255)
                                         : MAKE(COLOR32, 0, 0, 0, 255);
     }
-    R_LoadTextureMipLevel(texture, 0, pixels, SIZE, SIZE);
+    R_LoadTextureMipLevel(texture, &(TEXMIP){ pixels, SIZE, SIZE, 0, PIXEL_RGBA });
     return texture;
 }
 
 LPTEXTURE R_AllocateSinglePixelTexture(int color) {
     LPTEXTURE texture = R_AllocateTexture(1, 1);
-    R_LoadTextureMipLevel(texture, 0, (LPCCOLOR32)&color, 1, 1);
+    R_LoadTextureMipLevel(texture, &(TEXMIP){ &color, 1, 1, 0, PIXEL_RGBA });
     return texture;
 }
 
@@ -184,7 +171,7 @@ LPTEXTURE R_MakeLoadingIndicatorTexture(void) {
             pixels[y * TEXTURE_SIZE + x] = MAKE(COLOR32, 255, 255, 255, alpha);
         }
     }
-    R_LoadTextureMipLevel(texture, 0, pixels, TEXTURE_SIZE, TEXTURE_SIZE);
+    R_LoadTextureMipLevel(texture, &(TEXMIP){ pixels, TEXTURE_SIZE, TEXTURE_SIZE, 0, PIXEL_RGBA });
     return texture;
 }
 
@@ -203,7 +190,7 @@ LPTEXTURE R_MakeSelectionCircleTexture(void) {
                      (1.0f - R_SmoothStep(outer, outer + edge, distance));
         pixels[y * TEXTURE_SIZE + x] = MAKE(COLOR32, 255, 255, 255, (BYTE)(ring * 255.0f));
     }
-    R_LoadTextureMipLevel(texture, 0, pixels, TEXTURE_SIZE, TEXTURE_SIZE);
+    R_LoadTextureMipLevel(texture, &(TEXMIP){ pixels, TEXTURE_SIZE, TEXTURE_SIZE, 0, PIXEL_RGBA });
     return texture;
 }
 
@@ -223,7 +210,7 @@ static LPTEXTURE R_MakeBlobShadowTexture(void) {
         }
     }
 
-    R_LoadTextureMipLevel(texture, 0, pixels, TEXTURE_SIZE, TEXTURE_SIZE);
+    R_LoadTextureMipLevel(texture, &(TEXMIP){ pixels, TEXTURE_SIZE, TEXTURE_SIZE, 0, PIXEL_RGBA });
     return texture;
 }
 
@@ -529,6 +516,7 @@ void R_Init(DWORD width, DWORD height) {
             fprintf(stderr, "OpenGL: only %u/%u bone matrices fit; complex models may animate incorrectly\n",
                     (unsigned)tr.bone_count, BZ_BONE_PALETTE_MAX);
         R_PrintGLExtensions();
+        R_InitTextureFormats();
     }
     
 //    m3 = R_LoadModel("Assets\\Units\\Terran\\SpecialOpsDropship\\SpecialOpsDropship.m3");

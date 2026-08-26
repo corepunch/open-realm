@@ -39,6 +39,75 @@ make clean
 make BUILD=release MSAA=4 openwarcraft3
 ```
 
+## JASS Header Dependencies
+
+WC3's `libjass` directly includes game structs through `jass.h -> game/g_local.h`. Header changes must rebuild it even
+when no JASS source changes. `games/warcraft-3/game.mk:JASS_HEADERS` covers game/common/server/shared/client headers;
+`make test-jass-build` verifies the dependency using pretend-new header timestamps. A stale VM after the entity-state
+trim caused ESC to move cutscene units but skip local-player camera/UI cleanup; see
+[WC3 cinematics](games/warcraft-3/cinematics.md#debugging) for the reproduction and regression tests.
+
+## Texture Channel Order
+
+`COLOR32` is four **RGBA bytes** in engine code; BLP decoders retain their source BGRA order. The uploader receives a
+`TEXMIP` with an explicit `PIXEL_RGBA` or `PIXEL_BGRA` format. That describes memory, not the OS or GPU's storage.
+`R_InitTextureFormats()` runs once per GL context before loading textures; `r_bgra_internal` records the supported
+BGRA internal format (zero means BGRA must be converted). Every upload still uses `GL_UNSIGNED_BYTE`.
+
+| Context | BGRA internal / external format | RGBA source |
+|---|---|---|
+| Desktop GL, including a desktop API exposed by gl4es | RGBA / BGRA, original buffer | RGBA / RGBA, original buffer |
+| GLES with `GL_EXT_texture_format_BGRA8888` | BGRA_EXT / BGRA_EXT, original buffer | RGBA / RGBA, original buffer |
+| GLES with `GL_APPLE_texture_format_BGRA8888` | RGBA / BGRA_EXT, original buffer | RGBA / RGBA, original buffer |
+| GLES without either extension | Copy BGRA to RGBA, upload RGBA / RGBA, free copy | RGBA / RGBA, original buffer |
+
+EXT takes precedence when both extensions exist. The capability is derived from `GL_VERSION` and advertised extensions,
+not `__linux__`, GPU vendor, or CPU endian. The startup log prints `texture uploads RGBA=direct BGRA=direct` or
+`BGRA=CPU conversion to RGBA`, plus the selected internal format. Unsupported BGRA conversion preserves the caller's
+buffer. Null-data storage allocation needs no conversion. See the distinct format-pair requirements in the
+[EXT specification](https://registry.khronos.org/OpenGL/extensions/EXT/EXT_texture_format_BGRA8888.txt) and
+[APPLE specification](https://registry.khronos.org/OpenGL/extensions/APPLE/APPLE_texture_format_BGRA8888.txt).
+
+| Source | Format passed to uploader |
+|---|---|
+| BLP1 JPEG/palette; BLP2 palette/raw/DXT | BGRA; retain decoder output and upload directly when supported |
+| STB PNG/TGA/JPEG | RGBA; no intermediate BGRA copy |
+| PCX | RGBA; read palette RGB components into matching fields |
+| Generated pixels / SC2 terrain masks | RGBA; never compensate for platform in generators |
+| 32-bit uncompressed DDS | RGBA or BGRA from DDS channel masks; same common upload policy |
+| Compressed / 24-bit DDS | Existing separate compressed / RGB/BGR upload paths |
+
+The old uploader (Linux branch introduced in `572cfcc73`) interpreted all loaded BGRA image bytes as RGBA on Linux,
+but as BGRA elsewhere. M1 campaign logging captured BGRA upload bytes such as `(3,3,255,255)`. The OS conditional
+caused different colors from identical buffers. Merely changing its GL enum breaks RGBA-generated pixels; the source
+format must be explicit, and SC2's compensating desktop mask swizzle must be removed together.
+
+Independent corroboration: [open-realm b56a8618](https://github.com/sookyboo/open-realm/commit/b56a86180174943cc0b4132fb6b8d3d132b2fc46)
+fixes the same gl4es/PortMaster mismatch using separate RGBA/BGRA wrappers and a compile-time GLES conversion path.
+This tree uses one source-format-aware uploader and runtime capability detection, including GLES BGRA extensions.
+An earlier local revision normalized every BLP to RGBA; it has been superseded to avoid conversions where BGRA works.
+
+Reference checkout: `data/ioquake3`, upstream `ioquake/ioq3`, inspected commit
+`588393618dbc82e7207c21c6ddecca229944a03a`. `code/renderercommon/tr_image_tga.c:R_LoadTGA` converts source BGR into RGBA;
+`code/renderergl1/tr_image.c:Upload32` uploads RGBA without OS-dependent channel selection. Both designs keep the source
+bytes consistent with the API format; they differ in when conversion is needed.
+
+Verification: `make test-renderer-model` intercepts GL uploads. It emulates desktop GL, GLES EXT, GLES APPLE and plain
+GLES contexts, checks the exact internal/external pair, asymmetric R/B/alpha values, zero allocation for direct uploads,
+one allocation/free for converted BGRA, unchanged input memory, and no extension queries during uploads. BLP1 palette,
+BLP2 raw/palette/DXT, PCX and 32-bit DDS tests cover loader format declarations. `make test` includes this suite.
+Run bounded ROC/TFT, WoW and SC2 scenes after changes (see [scene workflow](rendering-scene-workflow.md)).
+
+For platform reports, collect OS, build flags (`GL_BACKEND`), startup `GL_VENDOR`/`GL_RENDERER`/`GL_VERSION`, the texture
+upload capability log, and an engine `+screenshot 10 +com_frame_limit 20` of the same scene. Ask whether textures,
+solid UI/vertex colors, or only screenshots are inverted. Do not introduce a global driver/OS swizzle toggle.
+Mac runtime checks and emulated capability tests do not substitute for Windows/Linux hardware validation.
+
+2026-08-26 verification: `make test` passed 5,250 assertions in 772 tests. All three games built, and bounded Human02
+ROC/TFT (including ESC), WoW character creation, and SC2 TRaynor01 runs completed on Apple M1. The capability log showed
+both source formats uploading directly; engine screenshots retained correct colors and WC3 gameplay camera/HUD cleanup.
+SC2 still reported missing DDS assets and an unloadable-texture warning, so its launch is a smoke check, not full asset QA.
+
 ## API Floor
 
 The supported renderer floors are desktop OpenGL 3.1 and OpenGL ES 3.0. GLES3 shaders are generated from the same GLSL 1.40 bodies with a `#version 300 es` header and precision declarations.

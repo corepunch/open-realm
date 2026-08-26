@@ -101,15 +101,16 @@ LPTEXTURE R_LoadTexturePCX(HANDLE data, DWORD filesize) {
             BYTE index = rows[y * bytes_per_line + x];
             LPCOLOR32 pixel = pixels + y * width + x;
 
-            pixel->r = palette[index][2];
+            /* PCX palettes are RGB; the old swap compensated for the desktop BGRA uploader. */
+            pixel->r = palette[index][0];
             pixel->g = palette[index][1];
-            pixel->b = palette[index][0];
+            pixel->b = palette[index][2];
             pixel->a = index == 255 ? 0 : 255;
         }
     }
 
     texture = R_AllocateTexture(width, height);
-    R_LoadTextureMipLevel(texture, 0, pixels, width, height);
+    R_LoadTextureMipLevel(texture, &(TEXMIP){ pixels, width, height, 0, PIXEL_RGBA });
 
 done:
     SAFE_DELETE(rows, ri.MemFree);

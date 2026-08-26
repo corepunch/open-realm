@@ -68,6 +68,44 @@ This is separate from the JASS-level ESC skip mechanism.
 **Mismatched player numbers in SetCinematicScene/EndCinematicScene:**
 Indicates wrong `currentplayer` context in the JASS VM. Check `jass_eventplayer(unit)` in trigger evaluation.
 
+**ESC moves units but leaves both the cinematic camera and cinematic HUD active:**
+After the entity/player contract trim (#162), an incremental build could leave `libjass` compiled against the old
+`edict_t`/`GAMECLIENT` layout. `jass.h` includes `game/g_local.h`; `jass_eventplayer()` dereferences `unit->client->ps`,
+but the original JASS make rule tracked only JASS sources and `libshared`, not game/common headers.
+The trigger's global actions still ran, while `GetLocalPlayer()` guards failed for camera/UI cleanup.
+
+Confirmed on ROC `Maps\Campaign\Human02.w3m`: connection edict 0 represents map player 1. Before rebuilding the VM,
+ESC at 4200 ms left server and decoded client `client_ui_state=2`, cinematic quaternion and FOV 45; camera prediction
+was inactive. Rebuilding JASS without changing its behavior restored the same skip path: `ResetToGameCamera` and
+`ShowInterface(true)` ran for player 1, both sides returned to state 0, FOV 50, distance 1650, gameplay quaternion
+approximately `(-0.292,0,0,0.956)`. This was a stale module ABI, not a missing snapshot field.
+
+`JASS_HEADERS` in `games/warcraft-3/game.mk` now tracks the shared/game header dependency closure. Do not widen the
+network structs or force the client UI to game mode to mask this failure.
+
+Regression checks:
+
+```sh
+make test-jass-build
+make test-wc3-engine WC3_PATTERN='wc3_api.escape*'
+make test
+```
+
+The VM test sends the real cancel command through the event queue, uses a nonmatching connection/map slot, checks an
+unrelated player's cancel does nothing, and asserts gameplay UI flags, control, target, FOV, distance and quaternion.
+`net.cinematic_cleanup_restores_camera_and_ui_samples` separately checks serialization through `CL_ParseServerMessage`.
+The build test uses `make -n -W <header>`; removing `JASS_HEADERS` makes it fail on `common/shared.h`.
+
+For bounded campaign verification, create a config containing 150 `wait` lines, `cmd cancel`, 80 more `wait` lines,
+then `screenshot`. Launch once without `-tft` and once with it:
+
+```sh
+build/bin/openwarcraft3 -data 'data/Warcraft III' +map 'Maps\Campaign\Human02.w3m' +exec /tmp/escape.cfg +com_frame_limit 280
+```
+
+Use the ESC binding's command (`cmd cancel`), not `skip_cutscene`, which exercises a different lifecycle.
+See [build/platform contracts](../../build-and-renderer-platforms.md) for incremental-build and pixel-format constraints.
+
 **TransmissionFromUnitWithNameBJ not showing dialogue:**
 `ForceEnumPlayers` must populate the force for `IsPlayerInForce(GetLocalPlayer(), ...)` guards in `Blizzard.j`. If empty, all transmissions are skipped silently.
 

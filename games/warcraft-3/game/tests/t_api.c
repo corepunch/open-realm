@@ -50,6 +50,55 @@ static LPCSTR skip_cutscene_cvar(LPCSTR name, LPCSTR fallback) {
     return !strcmp(name, "skip_cutscene") ? "1" : fallback;
 }
 
+/* Campaign human slots need not match the connection slot; exercise the real VM/edict module boundary. */
+TEST(wc3_api, escape_restores_game_camera_ui_and_control) {
+    LPGAMECLIENT gc = &game.clients[0];
+    LPCSTR cancel[] = { "cancel" };
+    QUATERNION quat = Quaternion_fromEuler(&(VECTOR3){326, 0, 0}, ROTATE_ZYX);
+
+    game.clients[1].ps.number = 0;
+    gc->ps.number = 1;
+    gc->camera.state.viewangles = (VECTOR3){300, 0, 120};
+    gc->camera.state.target_distance = 900;
+    gc->camera.state.fov = 35;
+    currentplayer = NULL;
+    T_ASSERT(run_test_jass(
+        "function cleanup takes nothing returns nothing\n"
+        "  if GetLocalPlayer() == Player(1) then\n"
+        "    call ResetToGameCamera(0.0)\n"
+        "    call ShowInterface(true, 0.0)\n"
+        "    call EnableUserControl(true)\n"
+        "    call PanCameraTo(128.0, 256.0)\n"
+        "  endif\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  call TriggerRegisterPlayerEvent(t, Player(1), EVENT_PLAYER_END_CINEMATIC)\n"
+        "  call TriggerAddAction(t, function cleanup)\n"
+        "  if GetLocalPlayer() == Player(1) then\n"
+        "    call ShowInterface(false, 0.0)\n"
+        "    call EnableUserControl(false)\n"
+        "  endif\n"
+        "endfunction\n"));
+    T_EQ(gc->ps.client_ui_state, CLIENT_UI_CINEMATIC);
+    T_ASSERT(gc->no_control);
+    /* An unrelated player's cancel must not run the registered cleanup. */
+    globals.ClientCommand(&g_edicts[1], 1, cancel);
+    G_RunEvents(); jass_runevents(level.vm);
+    T_EQ(gc->ps.client_ui_state, CLIENT_UI_CINEMATIC);
+    T_FEQ(gc->camera.state.target_distance, 900, 0.001f);
+
+    globals.ClientCommand(&g_edicts[0], 1, cancel);
+    G_RunEvents(); jass_runevents(level.vm); G_RunClients();
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_EQ(gc->ps.client_ui_state, CLIENT_UI_GAME);
+    T_EQ(gc->ps.uiflags, 1u << LAYER_CINEMATIC);
+    T_ASSERT(!gc->no_control);
+    T_FEQ(gc->ps.origin.x, 128, 0.001f); T_FEQ(gc->ps.origin.y, 256, 0.001f);
+    T_FEQ(gc->ps.distance, 1650, 0.001f); T_EQ(gc->ps.fov, 50);
+    T_FEQ(gc->ps.viewquat.x, quat.x, 0.001f); T_FEQ(gc->ps.viewquat.w, quat.w, 0.001f);
+}
+
 /* Fast-forward only changes cinematic timing; JASS retains ownership of the input/UI lifecycle. */
 TEST(wc3_api, skip_cutscene_preserves_scripted_input_and_ui_state) {
     LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;

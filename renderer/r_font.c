@@ -93,7 +93,7 @@ retry:
     }
     set->image = R_AllocateTexture(width, height);
     
-    R_LoadTextureMipLevel(set->image, 0, pixels, width, height);
+    R_LoadTextureMipLevel(set->image, &(TEXMIP){ pixels, width, height, 0, PIXEL_RGBA });
     ri.MemFree(pixels);
     ri.MemFree(fontimage);
     

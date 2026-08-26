@@ -92,7 +92,7 @@ LPTEXTURE R_AllocateSightTexture(void) {
             col[x+y*SIGHT_SIZE].a = c;
         }
     }
-    R_LoadTextureMipLevel(texture, 0, col, SIGHT_SIZE, SIGHT_SIZE);
+    R_LoadTextureMipLevel(texture, &(TEXMIP){ col, SIGHT_SIZE, SIGHT_SIZE, 0, PIXEL_RGBA });
     return texture;
 }
 

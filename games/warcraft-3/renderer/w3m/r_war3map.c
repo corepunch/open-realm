@@ -26,7 +26,7 @@ static void R_FileReadShadowMap(HANDLE hMpq, LPWAR3MAP  pWorld) {
         pixels[i].b = 0;
         pixels[i].a = shadow / 2;
     }
-    R_LoadTextureMipLevel(pShadowmap, 0, pixels, w, h);
+    R_LoadTextureMipLevel(pShadowmap, &(TEXMIP){ pixels, w, h, 0, PIXEL_RGBA });
     SFileCloseFile(file);
     ri.MemFree(shadows);
     ri.MemFree(pixels);

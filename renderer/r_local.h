@@ -256,7 +256,17 @@ LPTEXTURE R_MakeLoadingIndicatorTexture(void);
 LPTEXTURE R_MakeSelectionCircleTexture(void);
 BOOL R_IsTexturePCX(HANDLE data, DWORD filesize);
 LPTEXTURE R_LoadTexturePCX(HANDLE data, DWORD filesize);
-void R_LoadTextureMipLevel(LPCTEXTURE pTexture, DWORD level, LPCCOLOR32 pPixels, DWORD width, DWORD height);
+#define BZ_GL_BGRA 0x80e1 // GL enum; shared desktop/EXT/APPLE token absent from core GLES headers; BGRA byte uploads
+typedef enum { PIXEL_RGBA, PIXEL_BGRA } PIXELFORMAT;
+typedef struct {
+    LPCVOID pixels;
+    DWORD width, height, level;
+    PIXELFORMAT format;
+} TEXMIP;
+typedef TEXMIP *LPTEXMIP;
+typedef TEXMIP const *LPCTEXMIP;
+void R_InitTextureFormats(void);
+void R_LoadTextureMipLevel(LPCTEXTURE texture, LPCTEXMIP mip);
 void R_BindTexture(LPCTEXTURE texture, DWORD unit);
 void R_SetTextureWrap(LPCTEXTURE texture, bool wrapS, bool wrapT);
 void R_RenderModel(renderEntity_t const *edict);

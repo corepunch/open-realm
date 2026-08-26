@@ -8,6 +8,21 @@ type player           extends handle
 type quest            extends handle
 type questitem        extends handle
 type playergameresult extends handle
+type trigger          extends handle
+type event            extends handle
+type triggeraction    extends handle
+type playerevent      extends handle
+
+// Cinematic skip regression uses the same event and local-player guards as campaign scripts.
+native ConvertPlayerEvent         takes integer i returns playerevent
+native CreateTrigger              takes nothing returns trigger
+native TriggerRegisterPlayerEvent takes trigger whichTrigger, player whichPlayer, playerevent whichPlayerEvent returns event
+native TriggerAddAction           takes trigger whichTrigger, code actionFunc returns triggeraction
+native GetLocalPlayer             takes nothing returns player
+native ShowInterface              takes boolean flag, real fadeDuration returns nothing
+native EnableUserControl          takes boolean b returns nothing
+native ResetToGameCamera          takes real duration returns nothing
+native PanCameraTo                takes real x, real y returns nothing
 
 // Win conditions.
 native ConvertPlayerGameResult  takes integer i returns playergameresult
@@ -42,6 +57,7 @@ native BJassError   takes string msg returns nothing
 // Player game result constants — must live in a globals block (top-level
 // "constant <type>" is not valid; only "constant native" is top-level).
 globals
+    constant playerevent EVENT_PLAYER_END_CINEMATIC = ConvertPlayerEvent(17)
     constant playergameresult PLAYER_GAME_RESULT_VICTORY = ConvertPlayerGameResult(0)
     constant playergameresult PLAYER_GAME_RESULT_DEFEAT  = ConvertPlayerGameResult(1)
     constant playergameresult PLAYER_GAME_RESULT_TIE     = ConvertPlayerGameResult(2)

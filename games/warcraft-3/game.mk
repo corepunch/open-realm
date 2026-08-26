@@ -83,7 +83,9 @@ $(MPQ_TEST): $(WC3_TEST_DIR)/test_mpq_compat.c common/mpq.c common/mpq.h | $(BIN
 	@echo "[mpq-compat-test]"
 	@$(CC) $(CFLAGS) -o $@ $(WC3_TEST_DIR)/test_mpq_compat.c common/mpq.c -lm -lz
 
-$(eval $(call unity_lib_schema,$(JASS_LIB),$(SHARED_LIB) $(shell find $(WC3_JASS_DIR) -name '*.c' -o -name '*.h'),jass,$(WC3_JASS_DIR),,$(WC3_CFLAGS),,-lshared -lm))
+# jass.h includes g_local.h: stale edict/client offsets break player-local ESC cleanup after contract changes.
+JASS_HEADERS := $(COMMON_HEADERS) $(CLIENT_HEADERS) $(shell find $(WC3_DIR)/game $(WC3_DIR)/common server shared -name '*.h')
+$(eval $(call unity_lib_schema,$(JASS_LIB),$(SHARED_LIB) $(JASS_HEADERS) $(shell find $(WC3_JASS_DIR) -name '*.c' -o -name '*.h'),jass,$(WC3_JASS_DIR),,$(WC3_CFLAGS),,-lshared -lm))
 $(eval $(call src_lib_schema,$(SHEET_LIB),$(WC3_SHEET_DIR)/parser.c $(WC3_SHEET_DIR)/sheet.c common/common.h,sheet,$(CFLAGS),$(WC3_SHEET_DIR)/parser.c $(WC3_SHEET_DIR)/sheet.c,))
 $(eval $(call unity_lib_schema,$(RENDERER_LIB),$(RENDERER_BASE_DEPS) $(call CSRC,renderer $(WC3_DIR)/renderer),renderer,renderer $(WC3_DIR)/renderer,,$(WC3_CFLAGS),common/mpq.c,$(RENDERER_SHARED_LIBS)))
 $(eval $(call unity_lib_schema,$(GAME_LIB),$(GAME_BASE_DEPS) $(JASS_LIB) $(SHEET_LIB) $(WORLD_CORE_SRCS) $(WC3_COMMON_SRCS) $(call CSRC,$(WC3_DIR)/game),game,$(WC3_DIR)/game $(WC3_DIR)/common,! -name 'world_w3.c',$(WC3_FDF_CFLAGS),common/mpq.c,-lsheet -lshared -ljass $(LIBS) -lm -lz))
@@ -117,6 +119,10 @@ WC3_PATTERN ?= *
 test-wc3-engine: $(WC3_TEST_BINARY) | test-wc3-engine-assets
 	$(WC3_TEST_BINARY) -data $(WC3_ENGINE_TEST_DIR) -tft +dedicated 1 +test '$(WC3_PATTERN)'
 
+.PHONY: test-jass-build
+test-jass-build: $(JASS_LIB)
+	@sh tests/test_jass_build.sh $(JASS_LIB)
+
 # ---------------------------------------------------------------------------
 # Standalone test binaries — tests that don't need the full game module.
 # In-engine tests live in games/warcraft-3/game/tests/t_*.c and run via
@@ -142,6 +148,7 @@ TEST_UI_SRCS := \
 	@$(BIN_DIR)/test_openwarcraft3$(EXE_EXT)
 	@# Propagate sub-suite failures; the old ignored-error prefix made a red suite report success.
 	@$(MAKE) test-commands
+	@$(MAKE) test-jass-build
 	@$(MAKE) test-server-net
 	@$(MAKE) test-renderer-model
 	@$(MAKE) test-sc2
@@ -157,7 +164,7 @@ TEST_UI_SRCS := \
 
 $(eval $(call test_schema,test-commands,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_commands$(EXE_EXT),tests/test_runner.c $(WC3_TEST_DIR)/test_commands.c client/cl_screenshot.c common/common.c common/cmd.c common/cvar.c common/msg.c common/net.c common/mpq.c,-lsheet -lshared -lm -lz $(NET_LIBS),))
 $(eval $(call test_schema,test-server-net,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_server_net$(EXE_EXT),tests/test_runner.c $(WC3_TEST_DIR)/test_server_net.c $(WC3_TEST_DIR)/test_client_stubs.c server/sv_init.c server/sv_lan.c server/sv_main.c server/sv_lobby.c server/sv_send.c common/net.c common/msg.c,-lsheet -lshared -lm $(NET_LIBS),))
-$(eval $(call test_schema,test-renderer-model,$(SHARED_LIB),$(TEST_CFLAGS) -Wno-unused-function,$(BIN_DIR)/test_renderer_model$(EXE_EXT),tests/test_runner.c tests/test_renderer_model.c renderer/r_model.c renderer/r_texture.c,-lshared -lm $(LIBS),))
+$(eval $(call test_schema,test-renderer-model,$(SHARED_LIB),$(TEST_CFLAGS) -Wno-unused-function,$(BIN_DIR)/test_renderer_model$(EXE_EXT),tests/test_runner.c tests/test_renderer_model.c renderer/r_model.c,-lshared -lm $(LIBS),))
 $(eval $(call test_schema,test-ui,test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB),$(TEST_UI_CFLAGS),$(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT),tests/test_runner.c $(TEST_UI_SRCS) common/mpq.c $(call CSRC,$(WC3_DIR)/ui),-lsheet -lshared -ljass -lm -lz,))
 
 test-mpq-compat: mpqtool $(MPQ_TEST)

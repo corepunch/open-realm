@@ -101,19 +101,7 @@ LPTEXTURE R_LoadTextureDDS(HANDLE data, DWORD filesize) {
         if (rgbBitCount == 32 && rMask == 0x00FF0000 && gMask == 0x0000FF00 &&
             bMask == 0x000000FF && aMask == 0xFF000000) {
             internalFormat = GL_RGBA;
-#ifdef BZ_GL_ES3
-            format = GL_RGBA; swap_rb = true;
-#else
-            format = GL_BGRA;
-#endif
-        } else if (rgbBitCount == 32 && rMask == 0xFF0000 && gMask == 0x00FF00 &&
-                   bMask == 0x0000FF && aMask == 0xFF000000) {
-            internalFormat = GL_RGBA;
-#ifdef BZ_GL_ES3
-            format = GL_RGBA; swap_rb = true;
-#else
-            format = GL_BGRA;
-#endif
+            format = BZ_GL_BGRA;
         } else if (rgbBitCount == 24 && rMask == 0xFF0000 && gMask == 0x00FF00 && bMask == 0x0000FF) {
             internalFormat = GL_RGB;
 #ifdef BZ_GL_ES3
@@ -149,7 +137,12 @@ LPTEXTURE R_LoadTextureDDS(HANDLE data, DWORD filesize) {
                 pixels = ri.MemAlloc(pitch * h); memcpy(pixels, buf + pixelOffset + offset, pitch * h);
                 R_SwapRedBlue(pixels, w * h, bpp);
             }
-            R_Call(glTexImage2D, GL_TEXTURE_2D, i, internalFormat, w, h, 0, format, type, pixels ? pixels : buf + pixelOffset + offset);
+            /* 32-bit DDS masks describe source bytes; share BLP's capability-aware upload policy. */
+            if (bpp == 4) {
+                R_LoadTextureMipLevel(texture, &(TEXMIP){ buf + pixelOffset + offset, w, h, i, format == BZ_GL_BGRA ? PIXEL_BGRA : PIXEL_RGBA });
+            } else {
+                R_Call(glTexImage2D, GL_TEXTURE_2D, i, internalFormat, w, h, 0, format, type, pixels ? pixels : buf + pixelOffset + offset);
+            }
             SAFE_DELETE(pixels, ri.MemFree);
             offset += pitch * h;
             w = MAX(w / 2, 1);

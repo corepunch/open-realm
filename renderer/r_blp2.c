@@ -139,7 +139,7 @@ LPTEXTURE R_LoadTextureBLP2(HANDLE data, DWORD filesize) {
         DWORD const height = blp2_height(pBLPInfos, level);
         LPCOLOR32 pPixels = blp2_convert(data, filesize, pBLPInfos, level);
         if (pPixels) {
-            R_LoadTextureMipLevel(pTexture, level, pPixels, width, height);
+            R_LoadTextureMipLevel(pTexture, &(TEXMIP){ pPixels, width, height, level, PIXEL_BGRA });
             ri.MemFree(pPixels);
         }
     }

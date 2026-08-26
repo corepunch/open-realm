@@ -316,7 +316,7 @@ void R_InitParticles(void) {
     }
     
     particles_resources.texture = R_AllocateTexture(DOT_TEXTURE, DOT_TEXTURE);
-    R_LoadTextureMipLevel(particles_resources.texture, 0, (LPCCOLOR32)data, DOT_TEXTURE, DOT_TEXTURE);
+    R_LoadTextureMipLevel(particles_resources.texture, &(TEXMIP){ data, DOT_TEXTURE, DOT_TEXTURE, 0, PIXEL_RGBA });
 
     particles_resources.shader = R_InitShader(vs_particle, fs_particle);
     particles_resources.particles = R_MakeParticlesVertexArrayObject();

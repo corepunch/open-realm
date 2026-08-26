@@ -3,6 +3,20 @@
 
 /* texid -> texture index for model texture resolution; the cache below owns the texture memory. */
 static LPTEXTURE g_textures = NULL;
+static GLenum r_bgra_internal;
+
+/* Source bytes determine channel order; context capabilities only determine whether conversion is necessary. */
+void R_InitTextureFormats(void) {
+    if (strncmp((LPCSTR)glGetString(GL_VERSION), "OpenGL ES", 9))
+        r_bgra_internal = GL_RGBA;
+    else if (SDL_GL_ExtensionSupported("GL_EXT_texture_format_BGRA8888"))
+        r_bgra_internal = BZ_GL_BGRA;
+    else if (SDL_GL_ExtensionSupported("GL_APPLE_texture_format_BGRA8888"))
+        r_bgra_internal = GL_RGBA;
+    else
+        r_bgra_internal = 0;
+    fprintf(stderr, "OpenGL: texture uploads RGBA=direct BGRA=%s (internal=0x%x)\n", r_bgra_internal ? "direct" : "CPU conversion to RGBA", r_bgra_internal);
+}
 
 #define BZ_IMAGE_CACHE_BUCKETS 2048u // buckets; keeps thousands of resident world textures near O(1) lookup
 #define BZ_IMAGE_HASH_INIT 2166136261u // FNV-1a seed; stable case-insensitive texture-path hashing
@@ -136,17 +150,28 @@ void R_ReleaseTexture(LPTEXTURE texture) {
     ri.MemFree(texture);
 }
 
-void R_LoadTextureMipLevel(LPCTEXTURE pTexture, DWORD level, LPCCOLOR32 pPixels, DWORD width, DWORD height) {
-    if (width == 0 || height == 0)
+/* The format describes the supplied bytes, never the host OS; unsupported BGRA preserves the caller's buffer. */
+void R_LoadTextureMipLevel(LPCTEXTURE texture, LPCTEXMIP mip) {
+    GLenum format = GL_RGBA, internal = GL_RGBA;
+    BYTE *rgba = NULL;
+    if (!mip->width || !mip->height)
         return;
-    R_Call(glBindTexture, GL_TEXTURE_2D, pTexture->texid);
-#if __linux__
-    R_Call(glTexImage2D, GL_TEXTURE_2D, level, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pPixels);
-#else
-    R_Call(glTexImage2D, GL_TEXTURE_2D, level, GL_RGBA, width, height, 0, GL_BGRA, GL_UNSIGNED_BYTE, pPixels);
-#endif
-    if (level > 0) {
-        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, level);
+    if (mip->format == PIXEL_BGRA) {
+        if (r_bgra_internal) {
+            format = BZ_GL_BGRA; internal = r_bgra_internal;
+        } else if (mip->pixels) {
+            /* Core GLES has no BGRA upload; this explicit, init-logged conversion keeps colors unchanged. */
+            size_t bytes = (size_t)mip->width * mip->height * sizeof(COLOR32);
+            rgba = ri.MemAlloc(bytes);
+            memcpy(rgba, mip->pixels, bytes);
+            R_SwapRedBlue(rgba, mip->width * mip->height, sizeof(COLOR32));
+        }
+    }
+    R_Call(glBindTexture, GL_TEXTURE_2D, texture->texid);
+    R_Call(glTexImage2D, GL_TEXTURE_2D, mip->level, internal, mip->width, mip->height, 0, format, GL_UNSIGNED_BYTE, rgba ? rgba : mip->pixels);
+    if (rgba) ri.MemFree(rgba);
+    if (mip->level > 0) {
+        R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, mip->level);
         R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     } else {
         R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
