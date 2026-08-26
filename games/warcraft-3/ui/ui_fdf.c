@@ -54,7 +54,6 @@ static LPCSTR EnsureExtension(LPCSTR file, LPCSTR ext) {
 }
 
 BZ_HOST_HIDDEN DWORD UI_LoadTexture(LPCSTR file, BOOL decorate) {
-    LPRENDERER renderer;
     LPCSTR resolved;
     DWORD index;
 
@@ -82,9 +81,7 @@ BZ_HOST_HIDDEN DWORD UI_LoadTexture(LPCSTR file, BOOL decorate) {
     snprintf(ui_texture_names[index], sizeof(ui_texture_names[index]), "%s", resolved);
     snprintf(ui_texture_keys[index], sizeof(ui_texture_keys[index]), "%s", file);
     ui_texture_decorated[index] = decorate;
-    renderer = uiimport.GetRenderer();
-    if (renderer && renderer->LoadTexture && !ui_textures[index])
-        ui_textures[index] = renderer->LoadTexture(resolved);
+    /* FDF templates can contain unused/overridden art; resolve GPU resources only when drawn. */
     return index;
 }
 
@@ -94,22 +91,17 @@ LPCSTR UI_TextureName(DWORD index) {
 }
 
 LPCTEXTURE UI_GetTexture(DWORD index) {
-    LPRENDERER renderer;
-    LPCSTR resolved;
-
-    if (!index || index >= UI_MAX_TEXTURES) return NULL;
+    if (!index || index >= UI_MAX_TEXTURES || !ui_texture_names[index][0]) return NULL;
+    LPRENDERER renderer = uiimport.GetRenderer();
     if (ui_texture_decorated[index] && ui_texture_keys[index][0]) {
-        resolved = EnsureExtension(Theme_String(ui_texture_keys[index], "Default"), ".blp");
+        LPCSTR resolved = EnsureExtension(Theme_String(ui_texture_keys[index], "Default"), ".blp");
         if (strcmp(ui_texture_names[index], resolved)) {
-            renderer = uiimport.GetRenderer();
-            if (renderer && renderer->LoadTexture) {
-                if (ui_textures[index] && renderer->ReleaseTexture)
-                    renderer->ReleaseTexture((LPTEXTURE)ui_textures[index]);
-                ui_textures[index] = renderer->LoadTexture(resolved);
-                snprintf(ui_texture_names[index], sizeof(ui_texture_names[index]), "%s", resolved);
-            }
+            if (ui_textures[index]) renderer->ReleaseTexture((LPTEXTURE)ui_textures[index]);
+            ui_textures[index] = NULL;
+            snprintf(ui_texture_names[index], sizeof(ui_texture_names[index]), "%s", resolved);
         }
     }
+    if (!ui_textures[index]) ui_textures[index] = renderer->LoadTexture(ui_texture_names[index]);
     return ui_textures[index];
 }
 

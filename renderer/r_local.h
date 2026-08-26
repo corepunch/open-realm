@@ -236,6 +236,7 @@ struct render_globals {
 void R_RegisterMap(LPCSTR mapFileName);
 int R_RegisterTextureFile(LPCSTR textureFileName);
 LPTEXTURE R_LoadTexture(LPCSTR textureFileName);
+int R_ReadTextureFile(LPCSTR name, LPSTR path, void **buffer);
 LPTEXTURE R_FindLoadedTexture(LPCSTR name);
 void R_CacheLoadedTexture(LPCSTR name, LPTEXTURE texture);
 void R_ReleaseTexture(LPTEXTURE texture);
@@ -276,7 +277,8 @@ void R_DrawBackdrop(LPCDRAWBACKDROP drawBackdrop);
 void R_RenderRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, LPCSHADER shader, COLOR32 color);
 void R_RenderFlatRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, FLOAT z, LPCTEXTURE texture, LPCSHADER shader, COLOR32 color);
 /* Batched splat rendering: accumulate many ground decals (unit shadows) into one
- * vertex-buffer upload + draw per distinct texture instead of one per splat. */
+ * vertex-buffer upload + draw per contiguous texture run (plus capacity flushes),
+ * instead of one upload + draw per splat. */
 void R_BeginSplatBatch(LPCSHADER shader);
 void R_AddRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, COLOR32 color);
 void R_EndSplatBatch(void);

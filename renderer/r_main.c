@@ -214,28 +214,13 @@ static LPTEXTURE R_MakeBlobShadowTexture(void) {
     return texture;
 }
 
-static BOOL R_HasImageExtension(LPCSTR path) {
-    return R_PathHasExtension(path, ".blp") ||
-           R_PathHasExtension(path, ".tga") ||
-           R_PathHasExtension(path, ".dds") ||
-           R_PathHasExtension(path, ".pcx");
-}
-
 LPTEXTURE R_LoadTexture(LPCSTR textureFilename) {
     LPTEXTURE texture = NULL;
     void *buffer = NULL;
-    PATHSTR blp_fallback;
-    LPCSTR load_path = textureFilename;
+    PATHSTR load_path;
     texture = R_FindLoadedTexture(textureFilename);
     if (texture) return texture;
-    int fileSize = ri.FS_ReadFile(load_path, &buffer);
-    /* WC3 war3skins.txt paths omit .blp — try appending it before giving up. */
-    if ((fileSize < 0 || !buffer) && !R_HasImageExtension(load_path)) {
-        snprintf(blp_fallback, sizeof(blp_fallback), "%s.blp", load_path);
-        fileSize = ri.FS_ReadFile(blp_fallback, &buffer);
-        if (fileSize >= 0 && buffer)
-            load_path = blp_fallback;
-    }
+    int fileSize = R_ReadTextureFile(textureFilename, load_path, &buffer);
     if (fileSize < 0 || !buffer) {
         /* Missing registrations are resident too: repeated draw paths must not search every MPQ again. */
         fprintf(stderr, "R_LoadTexture: not found: %s\n", textureFilename);

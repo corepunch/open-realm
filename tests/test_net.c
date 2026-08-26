@@ -834,3 +834,112 @@ TEST(net, layout_topleft_y_negative_offset_resolves_below_screen_top) {
     T_FEQ(r->w, 0.180f, 0.002f);
     T_FEQ(r->h, 0.120f, 0.002f);
 }
+
+/* -----------------------------------------------------------------------
+ * Active-entity list lifecycle (client/cl_parse.c)
+ * ----------------------------------------------------------------------- */
+
+static void net_parse(sizeBuf_t *sb) {
+    sb->readcount = 0;
+    CL_ParseServerMessage(sb);
+}
+
+static void net_send_baseline(sizeBuf_t *sb, entityState_t const *state) {
+    entityState_t null = { 0 };
+    MSG_WriteByte(sb, svc_spawnbaseline);
+    MSG_WriteDeltaEntity(sb, &null, state, true);
+}
+
+static void net_send_delta(sizeBuf_t *sb, entityState_t const *from, entityState_t const *to) {
+    MSG_WriteByte(sb, svc_packetentities);
+    MSG_WriteDeltaEntity(sb, from, to, false);
+    MSG_WriteEntityBits(sb, 0, 0);
+}
+
+static void net_send_remove(sizeBuf_t *sb, DWORD number) {
+    MSG_WriteByte(sb, svc_packetentities);
+    MSG_WriteEntityBits(sb, 1u << U_REMOVE, number);
+    MSG_WriteEntityBits(sb, 0, 0);
+}
+
+/* Membership must track current.model exactly across both transitions, plus the
+ * U_REMOVE-after-model-cleared sequence the server produces for model-less
+ * sound/event entities. */
+TEST(net, active_entity_list_tracks_model_transitions) {
+    BYTE buf[512];
+    sizeBuf_t sb;
+    entityState_t state, from, to;
+
+    test_client_stubs_init();
+    T_EQ(cl.num_active, 0);
+
+    /* Baseline model=1 adds membership. */
+    memset(&state, 0, sizeof(state)); state.number = 7; state.model = 1;
+    sb = make_msg_buf(buf, sizeof(buf));
+    net_send_baseline(&sb, &state);
+    net_parse(&sb);
+    T_EQ(cl.num_active, 1);
+    T_EQ(cl.active_entities[0], 7);
+
+    /* Duplicate baseline must not append a second entry. */
+    sb = make_msg_buf(buf, sizeof(buf));
+    net_send_baseline(&sb, &state);
+    net_parse(&sb);
+    T_EQ(cl.num_active, 1);
+
+    /* A delta clearing the model (sound/event-only entity) removes membership. */
+    from = state; /* model=1 */
+    memset(&to, 0, sizeof(to)); to.number = 7; to.model = 0;
+    sb = make_msg_buf(buf, sizeof(buf));
+    net_send_delta(&sb, &from, &to);
+    net_parse(&sb);
+    T_EQ(cl.num_active, 0);
+
+    /* U_REMOVE after the model is already zero must not leave a stale entry. */
+    sb = make_msg_buf(buf, sizeof(buf));
+    net_send_remove(&sb, 7);
+    net_parse(&sb);
+    T_EQ(cl.num_active, 0);
+
+    /* Slot reuse: model 0 -> 1 re-adds, then a plain U_REMOVE clears it again. */
+    from = to; /* model=0 */
+    memset(&to, 0, sizeof(to)); to.number = 7; to.model = 2;
+    sb = make_msg_buf(buf, sizeof(buf));
+    net_send_delta(&sb, &from, &to);
+    net_parse(&sb);
+    T_EQ(cl.num_active, 1);
+    T_EQ(cl.active_entities[0], 7);
+
+    sb = make_msg_buf(buf, sizeof(buf));
+    net_send_remove(&sb, 7);
+    net_parse(&sb);
+    T_EQ(cl.num_active, 0);
+}
+
+/* CL_ParseFrame snapshots prev = current for the active list; map load resets it. */
+TEST(net, active_entity_list_frame_copy_and_map_reset) {
+    BYTE buf[512];
+    sizeBuf_t sb;
+    entityState_t state;
+
+    test_client_stubs_init();
+    memset(&state, 0, sizeof(state)); state.number = 7; state.model = 1;
+    sb = make_msg_buf(buf, sizeof(buf));
+    net_send_baseline(&sb, &state);
+    net_parse(&sb);
+    T_EQ(cl.num_active, 1);
+
+    /* Frame header snapshots the current origin into prev for every active entity. */
+    cl.ents[7].current.origin.x = 42.0f;
+    sb = make_msg_buf(buf, sizeof(buf));
+    MSG_WriteByte(&sb, svc_frame);
+    MSG_WriteLong(&sb, 1);
+    MSG_WriteLong(&sb, 1000);
+    MSG_WriteLong(&sb, 0);
+    net_parse(&sb);
+    T_FEQ(cl.ents[7].prev.origin.x, 42.0f, 0.001f);
+
+    /* Loading a new map drops the list so fresh baselines repopulate it. */
+    CL_BeginLoadingMap("Maps\\Test.w3m");
+    T_EQ(cl.num_active, 0);
+}

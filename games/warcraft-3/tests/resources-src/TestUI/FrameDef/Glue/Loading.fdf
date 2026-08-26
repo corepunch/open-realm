@@ -1,0 +1,122 @@
+// -- LOCALIZABLE TEXT ------------------------------------------
+
+IncludeFile "UI\FrameDef\Glue\StandardTemplates.fdf",
+
+// -- TEMPLATES -------------------------------------------------
+
+// -- FRAMES ----------------------------------------------------
+
+Frame "FRAME" "Loading" {
+    SetAllPoints,
+
+    Frame "SPRITE" "LoadingBackground" {
+        SetAllPoints,
+    }
+
+    Frame "SPRITE" "LoadingBar" {
+        SetPoint BOTTOMLEFT, "Loading", BOTTOMLEFT, 0.0, 0.0025,
+
+        Frame "TEXT" "LoadingBarText" INHERITS "StandardLabelTextTemplate" {
+            SetPoint BOTTOM, "Loading", BOTTOM, 0.0, 0.057,
+            Text "LOADING_LOADING",
+        }
+    }
+
+    // --- CUSTOM FRAMES ---
+    Frame "FRAME" "LoadingCustomPanel" {
+
+        Frame "TEXT" "LoadingTitleText" INHERITS "StandardTitleTextTemplate" {
+            Width 0.36,
+            FontColor 0.99 0.827 0.0705 1.0,
+            SetPoint TOPRIGHT, "Loading", TOPRIGHT, -0.025, -0.295,
+            FontJustificationH JUSTIFYCENTER,
+        }
+
+        Frame "TEXT" "LoadingSubtitleText" INHERITS "StandardTitleTextTemplate" {
+            Width 0.36,
+            DecorateFileNames,
+            FontColor 0.99 0.827 0.0705 1.0,
+            FrameFont "MasterFont", 0.024, "",            
+            SetPoint TOP, "LoadingTitleText", BOTTOM, 0.0, -0.003,
+            FontJustificationH JUSTIFYCENTER,
+
+        }
+
+        Frame "TEXT" "LoadingText" INHERITS "StandardValueTextTemplate" {
+            Width 0.36,
+            SetPoint TOP, "LoadingSubtitleText", BOTTOM, 0.0, -0.01,
+            FontJustificationH JUSTIFYLEFT,
+        }
+
+    }
+
+    // --- MELEE FRAMES ---
+    Frame "FRAME" "LoadingMeleePanel" {
+
+        Frame "SPRITE" "MinimapImage" {
+            Width 0.16,
+            Height 0.16,
+            SetPoint LEFT, "Loading", LEFT, 0.056875, 0.0425,
+        }
+
+        Frame "TEXT" "LoadingMeleeMapName" INHERITS "StandardTitleTextTemplate" {            
+            FontColor 0.99 0.827 0.0705 1.0,
+            SetPoint BOTTOM, "MinimapImage", TOP, 0.0, 0.01025,
+        }
+
+        Frame "TEXT" "LoadingMeleeGameTypeLabel" INHERITS "StandardLabelTextTemplate" {
+            Width 0.16,
+            SetPoint TOP, "MinimapImage", BOTTOM, 0.0, -0.01025,
+            FontJustificationH JUSTIFYLEFT,
+            Text "COLON_GAME_TYPE",
+        }
+
+        Frame "TEXT" "LoadingMeleeGameTypeValue" INHERITS "StandardValueTextTemplate" {
+            Width 0.16,
+            SetPoint TOP, "LoadingMeleeGameTypeLabel", BOTTOM, 0.0, -0.002,
+            FontJustificationH JUSTIFYLEFT,
+        }
+
+        Frame "FRAME" "LoadingMeleePlayerContainer" {
+            Width 0.2575,
+            SetPoint LEFT, "Loading", LEFT, 0.24, 0.0425,
+        }
+    }
+}
+
+// --- PLAYER SLOT ------------------------------------------------------
+Frame "FRAME" "LoadingPlayerSlot" {
+    Width 0.256,
+    Height 0.032,        
+
+    Frame "HIGHLIGHT" "LoadingPlayerSlotReadyHighlight" {
+        UseActiveContext,
+        Height 0.02,
+        Width 0.218,
+        SetPoint LEFT, "LoadingPlayerSlot", LEFT, 0.0192, 0.0,
+        HighlightType "SHADE",
+        HighlightColor 0.0 1.0 0.0 0.5,
+    }
+
+    Frame "BACKDROP" "LoadingPlayerSlotBackdrop" {
+        UseActiveContext,
+        SetAllPoints,
+        BackdropBackground  "UI\Widgets\Glues\Loading-NameBackground.blp",
+        BackdropBlendAll,
+
+        Frame "TEXT" "LoadingPlayerSlotLevel" INHERITS "StandardSmallTextTemplate" {
+            UseActiveContext,
+            Width 0.013,
+            FontJustificationH JUSTIFYCENTER,
+            SetPoint LEFT, "LoadingPlayerSlot", LEFT, 0.024, 0.0,
+        }
+
+        Frame "TEXT" "LoadingPlayerSlotName" INHERITS "StandardValueTextTemplate" {
+            UseActiveContext,
+            SetPoint LEFT, "LoadingPlayerSlot", LEFT, 0.024, 0.0,
+        }
+
+        Frame "TEXT" "LoadingPlayerSlotRace" INHERITS "StandardValueTextTemplate" {
+            UseActiveContext,
+            SetPoint RIGHT, "LoadingPlayerSlot", RIGHT, -0.024, 0.0,
+   

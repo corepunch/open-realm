@@ -22,7 +22,7 @@ Why pose *caching* was rejected: a persistent cache key would have to include bo
 
 Unit shadows are ground decals: one shader (`SHADER_SHADOWSPLAT`), differing only by texture and rect. `R_RenderShadow` previously called `R_RenderRectSplat` per unit, which bound the splat shader/VAO/VBO, uploaded view uniforms, re-set blend/depth-mask, re-set texture wrap, then uploaded the vertex buffer (`glBufferData`) and issued a draw per shadow — hundreds of tiny draws/upload per scene.
 
-Fix: `r_war3map_ground.c` now exposes `R_BeginSplatBatch` / `R_AddRectSplat` / `R_EndSplatBatch`. `R_RenderRectSplat` was refactored to share `R_SetupSplatState` + `R_GenerateSplatTiles` with the batch path. `R_DrawEntityShadows` (in `renderer/r_ents.c`) runs a dedicated pre-pass that accumulates every visible unit shadow and flushes only when the texture changes or the buffer fills, collapsing N shadows into one draw per distinct texture. WoW and SC2 provide immediate fallback implementations (WoW shadows already go through `R_GameRenderShadow` returning true; SC2 splats are flat quads).
+Fix: `r_war3map_ground.c` now exposes `R_BeginSplatBatch` / `R_AddRectSplat` / `R_EndSplatBatch`. `R_RenderRectSplat` was refactored to share `R_SetupSplatState` + `R_GenerateSplatTiles` with the batch path. `R_DrawEntityShadows` (in `renderer/r_ents.c`) runs a dedicated pre-pass that accumulates every visible unit shadow and flushes only when the texture changes or the buffer fills, collapsing N shadows into one upload + draw per contiguous texture run. WoW and SC2 provide immediate fallback implementations (WoW shadows already go through `R_GameRenderShadow` returning true; SC2 splats are flat quads).
 
 ## Client entity collection + snapshot copying (was ~11%)
 
@@ -47,3 +47,23 @@ build/bin/openwarcraft3 -data 'data/Warcraft III' -tft +menu_main +com_frame_lim
 ```
 
 The `wc3_perf.run_entities_1900` benchmark (`games/warcraft-3/game/tests/t_game.c`) measures `G_RunEntities` over 1900 active units.
+
+### Review regression cases (PR #164)
+
+- The active-list invariant is membership iff `cl.ents[index].current.model != 0`. Test baselines, duplicate adds,
+  model-to-zero deltas, removal, slot reuse, frame copying, and map reset through the real client parser.
+  `SV_BuildClientFrame` also transmits model-less entities carrying sound/events, so `U_REMOVE` is not the only way
+  to lose a model. At `34a556f2`, a baseline `{number=7, model=1}`, followed by a packet delta to
+  `{number=7, model=0, sound=1}`, leaves `num_active == 1`; a subsequent `U_REMOVE` still leaves that stale entry
+  because removal is guarded by `old.model`. A focused wire-parser test reproduced both failures; the existing
+  umbrella suite passes but does not exercise this lifecycle. Extend `tests/test_net.c` for regression coverage.
+- `CL_BeginLoadingMap` in `games/warcraft-3/tests/test_client_stubs.c` does not mirror the new list reset;
+  standalone parser tests using that stub do not validate production map-reset behavior.
+- The WC3 splat implementation batches **contiguous texture runs**, not all occurrences of each distinct texture.
+  `R_AddRectSplat` flushes at every texture change; `R_GenerateSplatTiles` also flushes at buffer capacity.
+  Below capacity, A/A/B/B produces two draws, but A/B/A/B produces four. Entity order is not sorted by shadow
+  texture and swap-removal changes it. Use both patterns when checking draw/upload counters; the distinct-texture
+  claims above describe the optimization goal, not a guaranteed bound in this revision.
+- The follow-up `10904293` restores the MDX particle size factor removed from `R_DrawParticles` in `97a52d18`.
+  `ReadParticleEmitter` doubles all three `ParticleScaling` lifecycle values once; both MDX head and tail spawns
+  consume those values. The shared renderer and M2 particle scaling are unchanged.

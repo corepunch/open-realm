@@ -31,6 +31,16 @@ void UI_SetActive(BOOL active);
 void UI_ShutdownLocal(void);
 void UI_RefreshLocal(DWORD time);
 
+/* ROC rows are label,sequence,model; TFT prepends a numeric expansion category (even for ROC campaigns). */
+static inline BOOL UI_ParseLoadingRow(LPCSTR row, LPDWORD sequence, LPSTR model) {
+    int offset = 0;
+    *sequence = 0; model[0] = 0;
+    if (!row) return false;
+    sscanf(row, "%*u,%n", &offset);
+    /* The old fixed column indices read TFT's sequence as a filename; 255 bounds the PATHSTR output. */
+    return sscanf(row + offset, "%*[^,],%u,%255[^,\r\n]", sequence, model) == 2;
+}
+
 /* ui_glue_scene.c */
 void UI_ResetGlueSceneModels(void);
 void UI_PreloadGlueSceneModels(void);

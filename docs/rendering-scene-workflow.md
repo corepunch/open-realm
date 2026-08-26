@@ -1,5 +1,7 @@
 # Rendering scene workflow
 
+For campaign loading and asset diagnostics, see [WC3 loading and assets](games/warcraft-3/loading-and-assets.md).
+
 Use these commands to launch a selected game's UI or model scene without entering a full gameplay session. Build the target first, then pass the scene command as a late `+` command.
 
 ## Warcraft III

@@ -266,7 +266,8 @@ static void R_RenderShadow(const renderEntity_t *entity, LPCVECTOR2 origin) {
 /* Unit shadows are ground decals that share one shader and differ only by
  * texture and rect.  Drawing each in isolation re-uploaded the vertex buffer
  * and re-issued all splat GL state per unit; batching them across the scene
- * collapses hundreds of small draws into one per distinct texture. */
+ * collapses runs of same-texture shadows into one upload + draw (flushing on
+ * texture change or buffer capacity), instead of one per unit. */
 static void R_DrawEntityShadows(void) {
 #ifndef USE_SHADOWMAPS
     R_BeginSplatBatch(tr.shader[SHADER_SHADOWSPLAT]);

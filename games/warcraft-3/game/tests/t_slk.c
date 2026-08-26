@@ -351,4 +351,37 @@ TEST(wc3_slk, armor_uses_realdef_not_def) {
     free_slk_rows(rows);
 }
 
+
+static PATHSTR spawn_tex;
+static DWORD spawn_images;
+static int capture_spawn_image(LPCSTR name) {
+    snprintf(spawn_tex, sizeof(spawn_tex), "%s", name); spawn_images++; return 42;
+}
+
+/* Drive the real spawn path with SLK texFile values: no replacement, extensionless art, and a source TGA name. */
+TEST(wc3_slk, destructable_texture_preserves_extension_and_absent_sentinel) {
+    static LPCSTR const names[] = { "_", "", "ReplaceableTextures\\Cliff\\Cliff0.tga",
+                                   "ReplaceableTextures\\LordaeronTree\\LordaeronSummerTree" };
+    sheetMetaData_t *meta = G_FindMetaData(DestructableMetaData, "btxf");
+    sheetRow_t *saved = meta->table;
+    int (*old_index)(LPCSTR) = gi.ImageIndex;
+    setup_test_world();
+    gi.ImageIndex = capture_spawn_image;
+    FOR_LOOP(i, sizeof(names) / sizeof(names[0])) {
+        char slk[1024];
+        snprintf(slk, sizeof(slk), "ID;PWXL;N;E\nC;Y1;X1;K\"ID\"\nC;Y1;X2;K\"file\"\nC;Y1;X3;K\"texFile\"\nC;Y1;X4;K\"targType\"\nC;Y2;X1;K\"LT05\"\nC;Y2;X2;K\"Cliff\"\nC;Y2;X3;K\"%s\"\nC;Y2;X4;K\"debris\"\nE\n", names[i]);
+        sheetRow_t *rows = parse_slk_string(slk);
+        G_SetConfigTable(DestructableMetaData, "DestructableData", rows);
+        edict_t ent = { .class_id = MAKEFOURCC('L','T','0','5') };
+        spawn_images = 0;
+        SP_CallSpawn(&ent);
+        T_EQ(ent.s.image, i < 2 ? 0 : 42);
+        T_EQ(spawn_images, i < 2 ? 0 : 1);
+        if (i >= 2) T_STREQ(spawn_tex, names[i]);
+        G_SetConfigTable(DestructableMetaData, "DestructableData", saved);
+        free_slk_rows(rows);
+    }
+    gi.ImageIndex = old_index;
+}
+
 #endif /* BZ_TESTS */

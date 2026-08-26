@@ -29,6 +29,9 @@ static HANDLE test_mpq_archive;
 static BOOL hide_expansion_campaign_file;
 static BOOL test_fs_expansion;
 static VECTOR2 test_mouse_pos;
+static LPCPLAYER test_player;
+static LPCSTR test_map = "";
+static DWORD map_reads, texture_releases;
 static int fake_image_index(LPCSTR name) {
     captured_model_path = name;
     return (name && *name) ? 456 : 0;
@@ -59,6 +62,7 @@ static int test_fs_read_file(LPCSTR file_name, void **buf) {
         return -1;
     }
     *buf = NULL;
+    if (strstr(file_name, ".w3m")) map_reads++;
 
     if (!test_mpq_archive &&
         !SFileOpenArchive("build/tests/tests.mpq", 0, 0, &test_mpq_archive)) {
@@ -178,9 +182,12 @@ static size2_t test_get_window_size(void) {
     return MAKE(size2_t, 1000, 750);
 }
 
+static void test_release_texture(LPTEXTURE texture) { (void)texture; texture_releases++; }
+
 static LPRENDERER test_get_renderer(void) {
     static refExport_t renderer = {
         .LoadTexture = test_load_texture,
+        .ReleaseTexture = test_release_texture,
         .LoadModel = test_load_model,
         .LoadFont = test_load_font,
         .GetWindowSize = test_get_window_size,
@@ -221,6 +228,7 @@ static void test_cmd_execute_text(LPCSTR text) {
 }
 
 static LPCSTR test_cvar_string(LPCSTR name, LPCSTR fallback) {
+    if (!strcmp(name, "map")) return test_map;
     if (name && !strcmp(name, "fs_expansion")) {
         return test_fs_expansion ? "1" : "0";
     }
@@ -231,7 +239,7 @@ static LPCSTR test_cvar_string(LPCSTR name, LPCSTR fallback) {
 }
 
 static LPCPLAYER test_get_player_state(void) {
-    return NULL;
+    return test_player;
 }
 
 static void load_ui_file(LPCSTR file_name) {
@@ -284,6 +292,8 @@ static void reset_ui_state(void) {
     captured_stand_sprites = 0;
     captured_realm_panel_sprites = 0;
     fake_texture_id = 0;
+    texture_releases = map_reads = 0;
+    test_player = NULL; test_map = "";
     hover_texture = NULL;
     captured_hover_draws = 0;
     memset(captured_text_rects, 0, sizeof(captured_text_rects));
@@ -623,6 +633,10 @@ TEST(ui_fdf, backdrop_background_adds_blp_extension) {
     frame = UI_FindFrame("BD");
     if (!require_not_null(frame)) return;
     T_EQ(frame->Backdrop.Background, 1);
+    T_NULL(captured_image_path);
+    T_NOT_NULL(UI_GetTexture(frame->Backdrop.Background));
+    T_ASSERT(UI_GetTexture(frame->Backdrop.Background) == UI_GetTexture(frame->Backdrop.Background));
+    T_EQ(fake_texture_id, 1);
     T_NOT_NULL(captured_image_path);
     T_STREQ(captured_image_path, "TestUI/Textures/checker_8x8.blp");
 }
@@ -1332,7 +1346,7 @@ TEST(ui_fdf, button1_dropdown_backdrop_gets_hover_highlight) {
 
     root = UI_FindFrame("Root");
     if (!require_not_null(root)) return;
-    T_NOT_NULL(hover_texture);
+    T_NULL(hover_texture);
 
     test_mouse_pos.x = 130;
     test_mouse_pos.y = 130;
@@ -1341,6 +1355,7 @@ TEST(ui_fdf, button1_dropdown_backdrop_gets_hover_highlight) {
     captured_hover_draws = 0;
     UI_DrawFrame(root);
 
+    T_NOT_NULL(hover_texture);
     T_EQ(captured_hover_draws, 1);
 }
 
@@ -1947,4 +1962,97 @@ TEST(ui_fdf, utf16le_fdf_is_parsed_correctly) {
     T_EQ(frame->Type, FT_BACKDROP);
     T_FEQ(frame->Width, 0.75f, 0.01f);
     T_FEQ(frame->Height, 0.50f, 0.01f);
+}
+
+/* Parsing a template must not fetch art that an instantiated frame overrides. */
+TEST(ui_fdf, unused_template_texture_stays_unloaded) {
+    reset_ui_state();
+    parse_fdf("template_art.fdf",
+              "Frame \"BACKDROP\" \"Template\" { BackdropBackground \"Unused.blp\", }"
+              "Frame \"BACKDROP\" \"Panel\" INHERITS \"Template\" { BackdropBackground \"Used.blp\", }");
+    LPFRAMEDEF panel = UI_FindFrame("Panel");
+    if (!require_not_null(panel)) return;
+    T_EQ(fake_texture_id, 0);
+    T_NOT_NULL(UI_GetTexture(panel->Backdrop.Background));
+    T_STREQ(captured_image_path, "Used.blp");
+    T_EQ(fake_texture_id, 1);
+    T_NOT_NULL(UI_GetTexture(UI_FindFrame("Template")->Backdrop.Background));
+    T_STREQ(captured_image_path, "Unused.blp"); /* A real consumer still reaches the renderer's diagnostic path. */
+    T_EQ(fake_texture_id, 2);
+    T_NULL(UI_GetTexture(0)); T_NULL(UI_GetTexture(1024)); T_NULL(UI_GetTexture(50));
+}
+
+static int test_theme_read(LPCSTR name, void **buf) {
+    LPCSTR text = "[Default]\nBackground=Default.blp\n[Human]\nBackground=Human.blp\n";
+    (void)name; *buf = strdup(text); return (int)strlen(text);
+}
+
+TEST(ui_fdf, deferred_texture_cache_tracks_theme_changes) {
+    uiImport_t saved = uiimport;
+    PLAYER player = { .race = kPlayerRaceHuman };
+    reset_ui_state();
+    uiimport.FS_ReadFile = test_theme_read; uiimport.FS_FreeFile = test_fs_free_file;
+    UI_LoadTheme("UI\\war3skins.txt");
+    DWORD index = UI_LoadTexture("Background", true);
+    T_EQ(UI_LoadTexture("Background", true), index);
+    T_EQ(fake_texture_id, 0);
+    test_player = &player;
+    T_NOT_NULL(UI_GetTexture(index));
+    T_STREQ(captured_image_path, "Human.blp");
+    T_EQ(texture_releases, 0); T_EQ(fake_texture_id, 1);
+    T_NOT_NULL(UI_GetTexture(index)); T_EQ(fake_texture_id, 1);
+    test_player = NULL;
+    T_NOT_NULL(UI_GetTexture(index));
+    T_STREQ(captured_image_path, "Default.blp");
+    T_EQ(texture_releases, 1); T_EQ(fake_texture_id, 2);
+    T_NOT_NULL(UI_GetTexture(index)); T_EQ(fake_texture_id, 2);
+    UI_ClearTheme(); uiimport = saved;
+}
+
+/* A menu launch starts without a startup map cvar; subsequent destinations must invalidate the metadata cache. */
+TEST(ui_fdf, loading_screen_uses_current_destination_and_caches_per_map) {
+    uiImport_t saved = uiimport;
+    PLAYER player = { .client_ui_state = CLIENT_UI_LOADING };
+    reset_ui_state();
+    uiimport.FS_ReadFile = test_fs_read_file; uiimport.FS_FreeFile = test_fs_free_file;
+    uiimport.Cvar_String = test_cvar_string; uiimport.Cmd_ExecuteText = test_cmd_execute_text;
+    UI_InitLocal();
+    test_player = &player;
+    UI_RefreshLocal(0);
+    T_EQ(map_reads, 0);
+    test_map = "Maps\\Campaign\\Human02.w3m";
+    UI_RefreshLocal(1);
+    LPFRAMEDEF title = UI_FindFrame("LoadingTitleText");
+    if (require_not_null(title)) {
+        T_STREQ(title->Text, "Human02");
+        T_ASSERT(UI_FindFrame("LoadingBackground")->Portrait.model != 0);
+        T_EQ(map_reads, 1);
+        UI_RefreshLocal(2); T_EQ(map_reads, 1);
+        test_map = "Maps\\Campaign\\Orc01.w3m";
+        UI_RefreshLocal(3); T_STREQ(title->Text, "Orc01"); T_EQ(map_reads, 2);
+        UI_RefreshLocal(4); T_EQ(map_reads, 2);
+        UI_InitLocal();
+        UI_RefreshLocal(5); T_EQ(map_reads, 3);
+    }
+    test_player = NULL; test_map = "";
+    UI_ShutdownLocal(); uiimport = saved;
+}
+
+TEST(ui_fdf, loading_rows_support_roc_and_tft_schema) {
+    static const struct { LPCSTR row, model; DWORD seq; BOOL valid; } cases[] = {
+        { "WESTRING_LOADINGSCREEN_HUMAN01,0,UI\\Glues\\Loading\\Backgrounds\\Campaigns\\LordaeronBackground.mdl",
+          "UI\\Glues\\Loading\\Backgrounds\\Campaigns\\LordaeronBackground.mdl", 0, true },
+        { "1,WESTRING_LOADINGSCREEN_HUMANX01,6,UI\\Glues\\Loading\\Backgrounds\\Campaigns\\LordaeronExpansionBackground.mdl",
+          "UI\\Glues\\Loading\\Backgrounds\\Campaigns\\LordaeronExpansionBackground.mdl", 6, true },
+        { "0,WESTRING_LOADINGSCREEN_HUMAN02,1,UI\\Glues\\Loading\\Backgrounds\\Campaigns\\LordaeronBackground.mdl",
+          "UI\\Glues\\Loading\\Backgrounds\\Campaigns\\LordaeronBackground.mdl", 1, true },
+        { NULL, "", 0, false }, { "", "", 0, false },
+        { "WESTRING_LOADINGSCREEN_HUMAN01", "", 0, false },
+        { "1,WESTRING_LOADINGSCREEN_HUMANX01,6,", "", 6, false },
+    };
+    FOR_LOOP(i, sizeof(cases) / sizeof(cases[0])) {
+        PATHSTR model; DWORD seq;
+        T_EQ(UI_ParseLoadingRow(cases[i].row, &seq, model), cases[i].valid);
+        if (cases[i].valid) { T_STREQ(model, cases[i].model); T_EQ(seq, cases[i].seq); }
+    }
 }

@@ -107,9 +107,10 @@ static void CL_ReadPacketEntities(LPSIZEBUF msg) {
                         old.origin.y,
                         old.origin.z);
             }
-            if (old.model) {
-                CL_RemoveActiveEntity(nument);
-            }
+            /* Clear membership unconditionally: the current model may already be
+             * zero (a prior delta replaced it with a sound/event), so gating on
+             * old.model leaves a stale active-list entry behind. */
+            CL_RemoveActiveEntity(nument);
             memset(&ent->current, 0, sizeof(ent->current));
             memset(&ent->prev, 0, sizeof(ent->prev));
             removed++;
@@ -120,8 +121,13 @@ static void CL_ReadPacketEntities(LPSIZEBUF msg) {
         }
         ent->prev = ent->current;
         MSG_ReadDeltaEntity(msg, &ent->current, nument, bits);
+        /* Keep the active list in sync with current.model on both transitions:
+         * a model-less entity may gain a model (add) or lose it to a sound/event
+         * (remove) without a U_REMOVE. */
         if (!old.model && ent->current.model) {
             CL_AddActiveEntity(nument);
+        } else if (old.model && !ent->current.model) {
+            CL_RemoveActiveEntity(nument);
         }
         if (ent->current.event)
             CL_EntityEvent(&ent->current);
