@@ -62,6 +62,14 @@
 #define SYSFONT_DRAW_WIDTH 8
 #define SYSFONT_DRAW_HEIGHT 8
 
+typedef enum render_phase_e {
+    RENDER_PHASE_SOLID = 0,
+    RENDER_PHASE_LIGHTS,
+    RENDER_PHASE_ALPHA,
+} render_phase_t;
+
+extern render_phase_t render_phase;
+
 #include "../common/common.h"
 #include "../client/tr_public.h"
 #include "r_alpha.h"

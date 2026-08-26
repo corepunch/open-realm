@@ -209,7 +209,7 @@ DWORD R_EntitiesInRect(viewDef_t const *viewdef, LPCRECT rect, DWORD max, LPDWOR
 }
 
 #ifdef USE_SHADOWMAPS
-extern bool is_rendering_lights;
+extern render_phase_t render_phase;
 #endif
 DWORD selCircles[NUM_SELECTION_CIRCLES] = { 100, 300, 100000 };
 
@@ -435,7 +435,7 @@ void R_RenderModel(renderEntity_t const *entity) {
         return;
 
 #ifdef USE_SHADOWMAPS
-    if (is_rendering_lights) {
+    if (render_phase == RENDER_PHASE_LIGHTS) {
         if (!(entity->flags & RF_NO_SHADOW))
             R_GameRenderModel(entity);
         return;

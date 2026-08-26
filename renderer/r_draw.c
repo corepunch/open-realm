@@ -294,15 +294,6 @@ void R_DrawMinimapCameraRect(LPCRECT screen) {
         return;
     }
 
-    static int log_frame = 0;
-    if (++log_frame % 60 == 0) {
-        fprintf(stderr, "[minimap_cam] viewport px: L=%.1f R=%.1f T=%.1f B=%.1f\n", left, right, top, bottom);
-        FOR_LOOP(i, 4) {
-            fprintf(stderr, "  corner[%d] world=(%.1f,%.1f,%.1f) minimap=(%.1f,%.1f)\n",
-                i, worlds[i].x, worlds[i].y, worlds[i].z, corners[i].x, corners[i].y);
-        }
-    }
-
     FOR_LOOP(i, 5) {
         VECTOR2 const *corner = &corners[i % 4];
         vertices[i] = (VERTEX){

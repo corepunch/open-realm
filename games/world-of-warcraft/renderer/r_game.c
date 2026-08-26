@@ -274,7 +274,7 @@ void R_GameRenderModel(renderEntity_t const *entity) {
     if (entity->attached_model &&
         entity->attached_model->modeltype == ID_MD20 &&
 #ifdef USE_SHADOWMAPS
-        !is_rendering_lights &&
+        render_phase != RENDER_PHASE_LIGHTS &&
 #endif
         M2_AttachmentMatrix(entity->model->m2, attachment_id, &transform, &attached_transform)) {
         if (tr.viewDef.rdflags & RDF_USE_ENTITY_CAMERA) {

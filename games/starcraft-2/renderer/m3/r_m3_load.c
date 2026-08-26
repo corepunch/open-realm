@@ -45,7 +45,7 @@ static MATRIX4 tmp[M3_MAX_NODES];
 m3Model_t *currentmodel;
 
 #ifdef USE_SHADOWMAPS
-extern bool is_rendering_lights;
+extern render_phase_t render_phase;
 #endif
 
 static struct {
@@ -592,7 +592,7 @@ static COLOR32 M3_LayerColor(m3Layer_t const *layer) {
 static BOOL M3_SetMaterialBlendMode(m3Material_t const *material) {
     R_SetAlphaKeyState(false);
 #ifdef USE_SHADOWMAPS
-    switch (is_rendering_lights ? (int)(material ? material->blendMode : BLEND_MODE_NONE) : -1) {
+    switch (render_phase == RENDER_PHASE_LIGHTS ? (int)(material ? material->blendMode : BLEND_MODE_NONE) : -1) {
         case BLEND_MODE_BLEND:
         case BLEND_MODE_ADD:
         case BLEND_MODE_ADDALPHA:
@@ -870,8 +870,8 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
     R_Call(glDepthMask, GL_TRUE);
 
 #ifdef USE_SHADOWMAPS
-    extern bool is_rendering_lights;
-    if (is_rendering_lights) {
+    extern render_phase_t render_phase;
+    if (render_phase == RENDER_PHASE_LIGHTS) {
         m3.shader->state.viewProjection = tr.viewDef.lightMatrix;
     } else {
         m3.shader->state.viewProjection = tr.viewDef.viewProjectionMatrix;
@@ -901,7 +901,7 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
     R_BindTexture(tr.texture[TEX_WHITE], 0);
     /* Terrain owns units 0..4; restore the model's shadow binding and avoid depth-target feedback. */
     R_Call(glActiveTexture, GL_TEXTURE1);
-    R_Call(glBindTexture, GL_TEXTURE_2D, is_rendering_lights || (tr.viewDef.rdflags & RDF_NOWORLDMODEL) ? tr.texture[TEX_WHITE]->texid : tr.rt[RT_DEPTHMAP]->texture);
+    R_Call(glBindTexture, GL_TEXTURE_2D, render_phase == RENDER_PHASE_LIGHTS || (tr.viewDef.rdflags & RDF_NOWORLDMODEL) ? tr.texture[TEX_WHITE]->texid : tr.rt[RT_DEPTHMAP]->texture);
     
     R_Call(glDisable, GL_CULL_FACE);
     

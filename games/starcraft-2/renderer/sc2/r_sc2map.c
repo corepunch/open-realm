@@ -1,6 +1,6 @@
 #include "r_sc2map.h"
 #include "renderer/r_shader.h"
-extern bool is_rendering_lights;
+extern render_phase_t render_phase;
 
 #include "games/starcraft-2/common/sc2_map.c"
 #include "games/starcraft-2/renderer/m3/r_m3.h"
@@ -1322,7 +1322,7 @@ static void r_sc2_set_light_state(LPVECTOR3 ambient_out, LPVECTOR3 dirs, LPVECTO
 
 static void r_sc2_begin_terrain_shader(MATRIX4 const *model_matrix) {
 
-    sc2_terrain_shader.state.viewProjection = is_rendering_lights ? tr.viewDef.lightMatrix : tr.viewDef.viewProjectionMatrix;
+    sc2_terrain_shader.state.viewProjection = render_phase == RENDER_PHASE_LIGHTS ? tr.viewDef.lightMatrix : tr.viewDef.viewProjectionMatrix;
     sc2_terrain_shader.state.lightMatrix = tr.viewDef.lightMatrix;
     sc2_terrain_shader.state.model = *model_matrix;
     sc2_terrain_shader.state.textureMatrix = tr.viewDef.textureMatrix;
@@ -1330,7 +1330,7 @@ static void r_sc2_begin_terrain_shader(MATRIX4 const *model_matrix) {
     r_sc2_set_light_state(&sc2_terrain_shader.state.lightAmbient, sc2_terrain_shader.state.lightDir, sc2_terrain_shader.state.lightColor);
     /* Depth pass samples a white texture; receivers sample the light-space depth map. */
     R_Call(glActiveTexture, GL_TEXTURE0 + sc2_terrain_shader.state.shadowmap);
-    R_Call(glBindTexture, GL_TEXTURE_2D, is_rendering_lights ? tr.texture[TEX_WHITE]->texid : tr.rt[RT_DEPTHMAP]->texture);
+    R_Call(glBindTexture, GL_TEXTURE_2D, render_phase == RENDER_PHASE_LIGHTS ? tr.texture[TEX_WHITE]->texid : tr.rt[RT_DEPTHMAP]->texture);
 }
 
 static void r_sc2_begin_terrain_pass(DWORD group) {
@@ -1453,13 +1453,13 @@ static void r_sc2_draw_cliff_layer(LPCMAPSEGMENT segment) {
     R_Call(glEnable, GL_POLYGON_OFFSET_FILL);
     R_Call(glPolygonOffset, -1.0f, -1.0f);
 
-    sc2_cliff_shader.state.viewProjection = is_rendering_lights ? tr.viewDef.lightMatrix : tr.viewDef.viewProjectionMatrix;
+    sc2_cliff_shader.state.viewProjection = render_phase == RENDER_PHASE_LIGHTS ? tr.viewDef.lightMatrix : tr.viewDef.viewProjectionMatrix;
     sc2_cliff_shader.state.lightMatrix = tr.viewDef.lightMatrix;
     sc2_cliff_shader.state.model = model_matrix;
     r_sc2_set_fog_state(&sc2_cliff_shader.state.fogColor, &sc2_cliff_shader.state.fogParams);
     r_sc2_set_light_state(&sc2_cliff_shader.state.lightAmbient, sc2_cliff_shader.state.lightDir, sc2_cliff_shader.state.lightColor);
     R_Call(glActiveTexture, GL_TEXTURE0 + sc2_cliff_shader.state.shadowmap);
-    R_Call(glBindTexture, GL_TEXTURE_2D, is_rendering_lights ? tr.texture[TEX_WHITE]->texid : tr.rt[RT_DEPTHMAP]->texture);
+    R_Call(glBindTexture, GL_TEXTURE_2D, render_phase == RENDER_PHASE_LIGHTS ? tr.texture[TEX_WHITE]->texid : tr.rt[RT_DEPTHMAP]->texture);
     R_Call(glEnable, GL_BLEND);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     R_BindTexture(layer->texture, 0);
@@ -1475,7 +1475,7 @@ void R_SC2DrawWorld(void) {
     if (!sc2_terrain_segment || (tr.viewDef.rdflags & RDF_NOWORLDMODEL))
         return;
 
-    if (is_rendering_lights) {
+    if (render_phase == RENDER_PHASE_LIGHTS) {
         sc2Map_t const *map = SC2_MapCurrent();
         SC2SHADOWVIEW input = {
             .camera = tr.viewDef.viewProjectionMatrix,

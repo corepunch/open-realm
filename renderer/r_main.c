@@ -25,9 +25,7 @@ struct render_globals tr;
 SDL_Window *window;
 SDL_GLContext context;
 
-#ifdef USE_SHADOWMAPS
-bool is_rendering_lights = false;
-#endif
+render_phase_t render_phase = RENDER_PHASE_SOLID;
 static bool renderer_shutdown = false;
 
 /* Capture the physical GL drawable; SDL window dimensions are logical points on Retina. */
@@ -560,7 +558,7 @@ void R_SetAlphaKeyState(BOOL enabled) {
     }
 #ifdef BZ_USE_MSAA
 #ifdef USE_SHADOWMAPS
-    if (is_rendering_lights) {
+    if (render_phase == RENDER_PHASE_LIGHTS) {
         /* TODO: Single-sample shadow targets need multisample depth coverage before alpha-key shadows can use ATOC. */
         R_Call(glDisable, GL_SAMPLE_ALPHA_TO_COVERAGE);
         R_Call(glEnable, GL_BLEND);
@@ -634,7 +632,7 @@ void R_RevertSettings(void) {
 
 #ifdef USE_SHADOWMAPS
 void R_RenderShadowMap(void) {
-    is_rendering_lights = true;
+    render_phase = RENDER_PHASE_LIGHTS;
     R_SetupGL(true);
     R_BindTexture(tr.texture[TEX_SHADOWMAP], 1);
     R_GameDrawWorld();
@@ -645,7 +643,7 @@ void R_RenderShadowMap(void) {
 
 void R_RenderView(void) {
 #ifdef USE_SHADOWMAPS
-    is_rendering_lights = false;
+    render_phase = RENDER_PHASE_SOLID;
 #endif
     R_SetupViewport(&tr.viewDef.viewport);
     R_SetupScissor(&tr.viewDef.scissor);
@@ -656,10 +654,12 @@ void R_RenderView(void) {
     R_GameDrawWorld();
     R_DrawDecals();
     R_DrawEntities();
+    render_phase = RENDER_PHASE_ALPHA;
     R_GameDrawAlphaSurfaces();
     if (!(tr.viewDef.rdflags & RDF_NOPARTICLES)) {
         R_DrawParticles();
     }
+    render_phase = RENDER_PHASE_SOLID;
     R_RevertSettings();
 
     R_DrawHealthBars();
