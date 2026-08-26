@@ -27,6 +27,61 @@ scan therefore produces the correct 128-unit radius (`8 * 32 / 2`). A prior test
 direct inspection of all 256 decoded pixels disproved that claim. The mine-entry regression belongs in the interaction threshold,
 not in a fabricated larger footprint.
 
+### Remote Mine-Entry Reports
+
+First collect the executable/game-module revision, device OS, archive release (ROC/TFT and patch), exact map, and whether one worker
+also gets stuck. History matters: `5f6d4e5d4` added collision-relative entry; `ae9467863` fixed the `Agl2` capacity reset and the
+ROC/TFT ability-column lookup. An older package is a hypothesis until its revision is confirmed. The August 26 handheld report
+states the latest build from August 25 was used, so do not attribute that report to the August 24 fixes without checking its SHA.
+
+Distinguish the states: `ai_walkmine` keeps the walk animation while outside the entry threshold; a full or zero-capacity mine
+switches to `harvestgold_move_wait` (stand). First verify `unit_issuetargetorder` actually calls `harvest_gold_start`: smart orders
+require worker `Ahar` and target `Agld`; otherwise a non-enemy target becomes a plain move to its center, which also stops at collision.
+For a failing bounded run, temporarily log distance, both collision radii,
+`unit_movedistance`, occupancy, and capacity at these transitions. If the worker remains outside entry range, log rejection in
+`g_ai.c:move_is_valid` separately for static pathmap and entity-circle collision. Do not enlarge the entry radius without this evidence.
+Movement uses `FRAMETIME` through `unit_movedistance`; low rendering FPS alone does not shrink the per-tick entry allowance.
+
+Build and run the existing gold tests with either local archive set (add `-tft` for TFT):
+
+```sh
+make openwarcraft3-tests
+build/bin/openwarcraft3-tests -data 'data/Warcraft III' +dedicated 1 +test 'wc3_movement.gold_*' +com_frame_limit 100
+```
+
+Local investigation at `8204597d` passed all four gold tests (40 assertions) with both archive modes. Temporary logs confirmed
+`Agld` initialization as max=12500, duration=1, capacity=1 in both local archive sets. The entry fixture reached distance=150 with
+contact=144 and step=10, then entered. **These tests replace the pathmap with an open map and override mining globals**; they verify
+the state machine/circle boundary, not a particular map's baked mine footprint or the remote console. A remote platform-specific
+cause remains unconfirmed without its build, assets/map, and runtime evidence.
+
+#### Human02 starting mine
+
+Inspect the campaign script, not just the standalone movement fixtures:
+
+```sh
+build/bin/mpqtool -mpq 'data/Warcraft III/War3.mpq' cat Maps/Campaign/Human02.w3m > /tmp/human02.w3m
+build/bin/mpqtool -mpq /tmp/human02.w3m cat war3map.j > /tmp/human02.j
+rg -n 'ngol|hpea|autoharvestgold|LocationOfGold' /tmp/human02.j
+```
+
+The local ROC script places `gg_unit_ngol_0009` at (-4736,-3840). Its three initial gold workers are at
+(-4276.2,-3938.2), (-4147.5,-3873.2), and (-4067.4,-3981.1). Both the intro completion and cancellation paths remove/recreate
+these workers and issue `autoharvestgold`. `unit_issueimmediateorder` currently implements only `stop`, so automatic campaign
+gathering is unsupported; this is separate from a manually ordered worker remaining in walk at the mine.
+
+At `8204597d`, bounded real-map runs after `cmd cancel` reproduced successful manual mining in both local archive modes.
+A temporary `G_RunFrame` probe at server time 7000 ms issued normal `unit_issuetargetorder(worker, "smart", mine)` calls for the
+three live starting workers; it did not change collision, positions, or mining values. All three resolved `Ahar`/`Agld`, reached
+the entry threshold, and entered as the capacity-1 slot became free. ROC logged mine radius=128, worker=16, step=19
+(entry threshold=163); local TFT mode logged mine radius=50, worker=16, step=19 (threshold=85). These are observations of the
+local archive sets, not universal ROC/TFT constants. Do not use one archive mode's radius to diagnose the other without logging it.
+
+Use the [cinematic skip workflow](cinematics.md#common-issues), with `+set r_vsync 1 +com_frame_limit 2400` to leave time for
+the post-intro approach. A 900-frame uncapped run ended before the 7000-ms probe here: `com_frame_limit` bounds main-loop
+iterations, not simulation ticks. Temporary probes were removed after investigation. The console failure remains unconfirmed;
+obtain its archive/patch version and corresponding order, entry-distance, and static/entity-rejection logs before changing behavior.
+
 ### AbilityData.slk Column Names
 
 The archives use different physical schemas for the same semantic data slots:
