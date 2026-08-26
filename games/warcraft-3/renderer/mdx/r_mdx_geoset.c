@@ -365,7 +365,7 @@ static void MDLX_BindLayerTextureAnimation(mdxModel_t const *model,
 static void MDLX_BindGeosetMatrixPalette(mdxModel_t const *model, mdxGeoset_t const *geoset) {
     MATRIX4 matrixPalette[MDX_MATRIX_PALETTE];
 
-    FOR_LOOP(i, tr.bone_count) {
+    FOR_LOOP(i, BZ_BONE_PALETTE_MAX) {
         Matrix4_identity(&matrixPalette[i]);
         if (i >= geoset->num_matrixPalette) {
             continue;
@@ -376,7 +376,7 @@ static void MDLX_BindGeosetMatrixPalette(mdxModel_t const *model, mdxGeoset_t co
         }
     }
 
-    R_Call(glUniformMatrix4fv, mdlx.shader->uBones, tr.bone_count, GL_FALSE, matrixPalette->v);
+    R_Call(glUniformMatrix4fv, mdlx.shader->uBones, BZ_BONE_PALETTE_MAX, GL_FALSE, matrixPalette->v);
 }
 
 static VECTOR4 MDLX_EvaluateGeosetColor(mdxModel_t const *model,

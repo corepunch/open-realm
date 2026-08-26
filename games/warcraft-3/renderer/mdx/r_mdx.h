@@ -8,7 +8,7 @@
 #define MDX_TEXTURE_PATH_LENGTH 260
 #define MDX_TEXTURE_RECORD_SIZE (sizeof(DWORD) + MDX_TEXTURE_PATH_LENGTH + sizeof(DWORD))
 #define MDX_MAX_NODES 1024
-#define MDX_MATRIX_PALETTE 128
+#define MDX_MATRIX_PALETTE BZ_BONE_PALETTE_MAX
 
 typedef char mdxObjectName_t[80];
 typedef char mdxFileName_t[260];

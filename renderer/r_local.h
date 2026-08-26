@@ -55,7 +55,6 @@
 #define PORTRAIT_SHADOW_SIZE 50
 #define MAX_SKIN_BONES 4
 #define BZ_BONE_PALETTE_MAX 128 // matrices; shared MDX/M2/M3 shader contract; bounds CPU-side palette storage
-#define BZ_BONE_UNIFORM_RESERVE 64 // vec4 uniforms; lighting/view/grass budget; excluded before sizing uBones
 #define NUM_SELECTION_CIRCLES 3
 #define NUM_RECT_VERTICES 6
 #define SYSFONT_COLS 16
@@ -115,10 +114,6 @@ static DWORD R_InstanceBufferCapacity(DWORD capacity, DWORD count) {
     if (capacity >= count) return capacity;
     for (capacity = capacity ? capacity : 16; capacity < count; capacity *= 2) {}
     return capacity;
-}
-static DWORD R_BonePaletteSize(DWORD vectors) {
-    return MAX(1, MIN(BZ_BONE_PALETTE_MAX, vectors > BZ_BONE_UNIFORM_RESERVE ?
-                     (vectors - BZ_BONE_UNIFORM_RESERVE) / 4 : 1));
 }
 #define STATUS_BAR_GAP_RATIO 0.1875f // bar heights; preserves the old 0.0015/0.008 scene-height gap
 /* Mana keeps the original lower slot while health moves one row above it. */
@@ -233,7 +228,6 @@ struct render_globals {
     sheetRow_t *sheet[SHEET_COUNT];
     size2_t drawableSize;
     int msaa_samples;
-    DWORD bone_count;
     LPTEXTURE minimap;
     RECT minimapRect;   /* last UI-space rect the minimap was drawn at */
     BOOL hasMinimap;

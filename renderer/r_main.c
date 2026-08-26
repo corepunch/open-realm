@@ -422,7 +422,6 @@ static void R_UpdateSwapInterval(void) {
 void R_Init(DWORD width, DWORD height) {
     renderer_shutdown = false;
     r_swapinterval = -999;
-    tr.bone_count = BZ_BONE_PALETTE_MAX;
     BOOL gl_current = false;
     int requested_msaa = BZ_MSAA_SAMPLES;
     SDL_version sdl_version;
@@ -484,36 +483,12 @@ void R_Init(DWORD width, DWORD height) {
     fprintf(stderr, "Drawable size: %dx%d\n\n", tr.drawableSize.width, tr.drawableSize.height);
     if (gl_current) {
         GLint sample_buffers = 0, samples = 0;
-        GLint uniform_vectors = 0;
         int sdl_buffers = 0, sdl_samples = 0;
         SDL_GL_GetAttribute(SDL_GL_MULTISAMPLEBUFFERS, &sdl_buffers);
         SDL_GL_GetAttribute(SDL_GL_MULTISAMPLESAMPLES, &sdl_samples);
         R_Call(glGetIntegerv, GL_SAMPLE_BUFFERS, &sample_buffers);
         R_Call(glGetIntegerv, GL_SAMPLES, &samples);
-#ifdef BZ_GL_ES3
-        R_Call(glGetIntegerv, GL_MAX_VERTEX_UNIFORM_VECTORS, &uniform_vectors);
-#else
-        R_Call(glGetIntegerv, GL_MAX_VERTEX_UNIFORM_COMPONENTS, &uniform_vectors);
-        uniform_vectors /= 4;
-#endif
         tr.msaa_samples = R_MsaaActiveSamples(sample_buffers, samples);
-
-        /*
-         * The model shader ABI uses a fixed 128-matrix palette.  Do not shrink
-         * this to the driver's estimated uniform capacity: model vertex bone
-         * indices are palette indices, and clamping them to a smaller array
-         * silently remaps every higher bone to the final matrix.  That corrupts
-         * skeletal animation and can change the apparent scale/position of
-         * portrait models.
-         *
-         * Keep the driver-derived value for diagnostics only.  If a backend
-         * genuinely cannot compile the 128-matrix shader, shader compilation
-         * should fail explicitly rather than rendering with corrupted skinning.
-         */
-        DWORD reported_bone_capacity =
-            R_BonePaletteSize((DWORD)MAX(uniform_vectors, 0));
-        tr.bone_count = BZ_BONE_PALETTE_MAX;
-
         fprintf(stderr, "OpenGL setting:\n");
         fprintf(stderr, "GL_VENDOR: %s\n", R_GLString(GL_VENDOR));
         fprintf(stderr, "GL_RENDERER: %s\n", R_GLString(GL_RENDERER));
@@ -526,14 +501,7 @@ void R_Init(DWORD width, DWORD height) {
 #else
                 "hard discard");
 #endif
-        fprintf(stderr,
-                "Bone palette: %u matrices fixed; driver estimate=%u from %d vertex uniform vectors\n",
-                (unsigned)tr.bone_count, (unsigned)reported_bone_capacity, uniform_vectors);
-        if (reported_bone_capacity < BZ_BONE_PALETTE_MAX)
-            fprintf(stderr,
-                    "OpenGL: driver estimate is %u/%u matrices; retaining the fixed palette because "
-                    "shrinking/clamping bone indices corrupts model skinning\n",
-                    (unsigned)reported_bone_capacity, BZ_BONE_PALETTE_MAX);
+        fprintf(stderr, "Bone palette: %u matrices fixed; shader compile/link validates support\n", BZ_BONE_PALETTE_MAX);
         R_PrintGLExtensions();
         R_InitTextureFormats();
     }

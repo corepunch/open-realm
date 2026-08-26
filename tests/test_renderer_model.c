@@ -4,6 +4,7 @@
 #include "renderer/r_shader.h"
 #include <stdarg.h>
 #include <stdlib.h>
+#include <setjmp.h>
 
 static char shader_src[16384];
 
@@ -18,9 +19,85 @@ static void BZ_TestShaderSource(GLuint shader, GLsizei count, const GLchar *cons
     }
     shader_src[used] = 0;
 }
+/* Mock only GL submission/status calls; shader creation and cache logic stay production code. */
+static struct {
+    GLenum fail;
+    GLint logsize;
+    int creates, links, uses, logs, deleted, uploads, exitcode;
+    BOOL noalloc;
+    HANDLE memory;
+} shader_test;
+static jmp_buf shader_exit;
+static GLuint BZ_TestCreateShader(GLenum type) { shader_test.creates++; return type; }
+static GLuint BZ_TestCreateProgram(void) { return GL_LINK_STATUS; }
+static void BZ_TestCompileShader(GLuint obj) { (void)obj; }
+static void BZ_TestAttachShader(GLuint obj, GLuint shader) { (void)obj; (void)shader; }
+static void BZ_TestBindAttrib(GLuint obj, GLuint idx, const GLchar *name) { (void)obj; (void)idx; (void)name; }
+static void BZ_TestLinkProgram(GLuint obj) { (void)obj; shader_test.links++; }
+static void BZ_TestUseProgram(GLuint obj) { (void)obj; shader_test.uses++; }
+static void BZ_TestDeleteShader(GLuint obj) { (void)obj; shader_test.deleted++; }
+static GLint BZ_TestUniformLocation(GLuint obj, const GLchar *name) { (void)obj; (void)name; return 0; }
+static void BZ_TestUniform1i(GLint loc, GLint val) { (void)loc; (void)val; }
+static void BZ_TestUniform1f(GLint loc, GLfloat val) { (void)loc; (void)val; }
+static void BZ_TestUniformMatrix3(GLint loc, GLsizei count, GLboolean transpose, const GLfloat *val) {
+    (void)loc; (void)count; (void)transpose; (void)val;
+}
+static void BZ_TestUniformMatrix4(GLint loc, GLsizei count, GLboolean transpose, const GLfloat *val) {
+    (void)loc; (void)transpose;
+    shader_test.uploads++;
+    T_EQ(count, BZ_BONE_PALETTE_MAX);
+    FOR_LOOP(i, count * 16) T_EQ(val[i], i % 16 % 5 == 0 ? 1.0f : 0.0f);
+}
+static void BZ_TestShaderStatus(GLuint obj, GLenum check, GLint *val) {
+    *val = check == GL_INFO_LOG_LENGTH ? shader_test.logsize : obj != shader_test.fail;
+}
+static void BZ_TestShaderLog(GLuint obj, GLsizei size, GLsizei *length, GLchar *log) {
+    (void)obj; (void)length; shader_test.logs++;
+    snprintf(log, size, "mock driver rejection");
+}
+static void *BZ_TestShaderMalloc(size_t size) { return shader_test.noalloc ? NULL : malloc(size); }
+static _Noreturn void BZ_TestShaderExit(int code) { shader_test.exitcode = code; longjmp(shader_exit, 1); }
 #define glShaderSource BZ_TestShaderSource
+#define glCreateShader BZ_TestCreateShader
+#define glCreateProgram BZ_TestCreateProgram
+#define glCompileShader BZ_TestCompileShader
+#define glAttachShader BZ_TestAttachShader
+#define glBindAttribLocation BZ_TestBindAttrib
+#define glLinkProgram BZ_TestLinkProgram
+#define glUseProgram BZ_TestUseProgram
+#define glDeleteShader BZ_TestDeleteShader
+#define glGetUniformLocation BZ_TestUniformLocation
+#define glUniform1i BZ_TestUniform1i
+#define glUniform1f BZ_TestUniform1f
+#define glUniformMatrix3fv BZ_TestUniformMatrix3
+#define glUniformMatrix4fv BZ_TestUniformMatrix4
+#define glGetShaderiv BZ_TestShaderStatus
+#define glGetProgramiv BZ_TestShaderStatus
+#define glGetShaderInfoLog BZ_TestShaderLog
+#define glGetProgramInfoLog BZ_TestShaderLog
+#define malloc BZ_TestShaderMalloc
+#define exit BZ_TestShaderExit
 #include "renderer/r_shader.c"
 #undef glShaderSource
+#undef glCreateShader
+#undef glCreateProgram
+#undef glCompileShader
+#undef glAttachShader
+#undef glBindAttribLocation
+#undef glLinkProgram
+#undef glUseProgram
+#undef glDeleteShader
+#undef glGetUniformLocation
+#undef glUniform1i
+#undef glUniform1f
+#undef glUniformMatrix3fv
+#undef glUniformMatrix4fv
+#undef glGetShaderiv
+#undef glGetProgramiv
+#undef glGetShaderInfoLog
+#undef glGetProgramInfoLog
+#undef malloc
+#undef exit
 
 refImport_t ri;
 struct render_globals tr;
@@ -216,29 +293,85 @@ TEST(renderer_shader, grass_state_uses_one_matrix) {
     grass.enabled = false; R_PackModelGrass(&packed, &grass); T_EQ(packed.v[14], 0.0f); T_EQ(packed.v[15], 0.0f);
 }
 
-TEST(renderer_bones, diagnostic_estimate_reserves_other_vertex_uniforms) {
-    T_EQ(R_BonePaletteSize(0), (DWORD)1); T_EQ(R_BonePaletteSize(64), (DWORD)1);
-    T_EQ(R_BonePaletteSize(32), (DWORD)1); T_EQ(R_BonePaletteSize(256), (DWORD)48);
-    T_EQ(R_BonePaletteSize(320), (DWORD)64); T_EQ(R_BonePaletteSize(575), (DWORD)127);
-    T_EQ(R_BonePaletteSize(576), (DWORD)BZ_BONE_PALETTE_MAX);
-    T_EQ(R_BonePaletteSize(1024), (DWORD)BZ_BONE_PALETTE_MAX);
-}
-
 TEST(renderer_bones, model_shader_preserves_high_palette_indices) {
-    tr.bone_count = BZ_BONE_PALETTE_MAX;
+    memset(&tr, 0, sizeof(tr));
     R_SetShaderSource(1, model_vs, NULL);
-    T_NOT_NULL(strstr(shader_src, "#define BZ_BONE_COUNT 128\n"));
-    T_NOT_NULL(strstr(shader_src, "uniform mat4 uBones[BZ_BONE_COUNT];"));
+    T_NOT_NULL(strstr(shader_src, "uniform mat4 uBones[128];"));
+    T_NULL(strstr(shader_src, "BZ_BONE_COUNT"));
     /* Slot 83 must stay 83: the old clamp redirected it to 63 with a 64-matrix palette. */
     T_NOT_NULL(strstr(shader_src, "int boneIdx = int(i_skin1[i]) + int(uFirstBoneLookupIndex);"));
     T_NULL(strstr(shader_src, "#define BZ_USE_INSTANCING"));
 }
 
 TEST(renderer_bones, instanced_shader_uses_the_same_palette_contract) {
-    tr.bone_count = BZ_BONE_PALETTE_MAX;
     R_SetShaderSource(1, model_vs, "#define BZ_USE_INSTANCING 1\n");
-    T_NOT_NULL(strstr(shader_src, "#define BZ_BONE_COUNT 128\n#define BZ_USE_INSTANCING 1\n"));
+    T_NOT_NULL(strstr(shader_src, "#define BZ_USE_INSTANCING 1\n"));
+    T_NOT_NULL(strstr(shader_src, "uniform mat4 uBones[128];"));
     T_NOT_NULL(strstr(shader_src, "int boneIdx = int(i_skin1[i]) + int(uFirstBoneLookupIndex);"));
+}
+
+static HANDLE shader_alloc(long size) { return shader_test.memory = test_alloc(size); }
+
+/* Each case starts with empty caches and independent driver counters. */
+static void reset_shader(void) {
+    ri.MemAlloc = shader_alloc; ri.MemFree = test_free;
+    R_ShutdownModelShader();
+    memset(&shader_test, 0, sizeof(shader_test));
+    shader_test.logsize = 64;
+}
+
+TEST(renderer_shader, model_cache_checks_compile_and_link_once) {
+    reset_shader();
+    LPSHADER shader = R_ModelShader();
+    T_NOT_NULL(shader); T_ASSERT(R_ModelShader() == shader);
+    T_EQ(shader_test.creates, 2); T_EQ(shader_test.links, 1); T_EQ(shader_test.deleted, 2);
+    T_EQ(shader_test.exitcode, 0); T_EQ(shader_test.logs, 0);
+    R_ShutdownModelShader();
+}
+
+TEST(renderer_shader, instanced_cache_uploads_full_identity_palette_once) {
+    reset_shader();
+    LPSHADER shader = R_ModelShaderInstanced();
+    T_NOT_NULL(shader); T_ASSERT(R_ModelShaderInstanced() == shader);
+    T_EQ(shader_test.creates, 2); T_EQ(shader_test.links, 1); T_EQ(shader_test.uploads, 1);
+    T_EQ(shader_test.deleted, 2); T_EQ(shader_test.exitcode, 0);
+    R_ShutdownModelShader();
+}
+
+/* A rejected stage must terminate before binding or caching an invalid/unskinned program. */
+TEST(renderer_shader, failed_compile_or_link_never_returns_a_model_fallback) {
+    static const GLenum stages[] = { GL_VERTEX_SHADER, GL_FRAGMENT_SHADER, GL_LINK_STATUS };
+    FOR_LOOP(i, sizeof(stages) / sizeof(stages[0])) {
+        reset_shader(); shader_test.fail = stages[i];
+        if (!setjmp(shader_exit)) {
+            R_ModelShader(); T_ASSERT(false);
+        }
+        T_EQ(shader_test.exitcode, EXIT_FAILURE); T_EQ(shader_test.uses, 0);
+        T_EQ(shader_test.links, stages[i] == GL_LINK_STATUS ? 1 : 0);
+        T_EQ(shader_test.logs, 1); T_NULL(model_shader);
+        free(shader_test.memory);
+    }
+}
+
+TEST(renderer_shader, instanced_link_failure_is_fatal_without_palette_upload) {
+    reset_shader(); shader_test.fail = GL_LINK_STATUS;
+    if (!setjmp(shader_exit)) {
+        R_ModelShaderInstanced(); T_ASSERT(false);
+    }
+    T_EQ(shader_test.exitcode, EXIT_FAILURE); T_EQ(shader_test.uses, 0); T_EQ(shader_test.uploads, 0);
+    T_NULL(instanced_shader); free(shader_test.memory);
+}
+
+TEST(renderer_shader, failures_remain_fatal_without_a_driver_log_buffer) {
+    FOR_LOOP(i, 2) {
+        reset_shader(); shader_test.fail = GL_LINK_STATUS;
+        shader_test.logsize = i ? 64 : 0; shader_test.noalloc = i;
+        if (!setjmp(shader_exit)) {
+            R_ModelShader(); T_ASSERT(false);
+        }
+        T_EQ(shader_test.exitcode, EXIT_FAILURE); T_EQ(shader_test.logs, 0); T_EQ(shader_test.uses, 0);
+        free(shader_test.memory);
+    }
 }
 
 TEST(renderer_texture, red_blue_swap_preserves_other_channels) {

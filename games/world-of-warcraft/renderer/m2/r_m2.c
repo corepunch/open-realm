@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include <strings.h>
 
-#define M2_MAX_BONES_PER_BATCH 128
 #define M2_MAX_BONES 1024
 #define M2_CHARACTER_TEXTURE_NONE 0xff
 
@@ -1233,17 +1232,17 @@ static void M2_CalculateBoneMatrices(m2Model_t const *model, renderEntity_t cons
 }
 
 static void M2_UploadBatchBones(m2Model_t const *model, m2ModelBatch_t const *batch, LPSHADER shader) {
-    MATRIX4 palette[M2_MAX_BONES_PER_BATCH];
+    MATRIX4 palette[BZ_BONE_PALETTE_MAX];
     WORD const *bone_lookup = model ? M2_BoneLookup(model) : NULL;
     DWORD nlook = model ? (DWORD)M2_BoneLookupArray(model).size : 0;
     DWORD nbone = model ? (DWORD)M2_BonesArray(model).size : 0;
 
-    FOR_LOOP(i, tr.bone_count) {
+    FOR_LOOP(i, BZ_BONE_PALETTE_MAX) {
         Matrix4_identity(&palette[i]);
     }
 
     if (model && batch && bone_lookup) {
-        DWORD count = MIN((DWORD)batch->bone_count, tr.bone_count);
+        DWORD count = MIN((DWORD)batch->bone_count, BZ_BONE_PALETTE_MAX);
         FOR_LOOP(i, count) {
             DWORD lookup = (DWORD)batch->bone_combo_index + i;
             if (lookup < nlook) {
@@ -1255,7 +1254,7 @@ static void M2_UploadBatchBones(m2Model_t const *model, m2ModelBatch_t const *ba
         }
     }
 
-    R_Call(glUniformMatrix4fv, shader->uBones, tr.bone_count, GL_FALSE, palette[0].v);
+    R_Call(glUniformMatrix4fv, shader->uBones, BZ_BONE_PALETTE_MAX, GL_FALSE, palette[0].v);
 }
 
 static LPTEXTURE M2_TextureForBatch(BYTE const *m2_data,

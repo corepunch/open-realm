@@ -186,7 +186,8 @@ static LPCSTR model_vs =
 "out vec2 v_texcoord;\n"
 "out vec2 v_texcoord2;\n"
 "out vec3 v_lighting;\n"
-"uniform mat4 uBones[BZ_BONE_COUNT];\n"
+/* The CPU palette and literal GLSL array share one compile-time size; never shrink it from GL limits. */
+"uniform mat4 uBones[" BZ_XSTR(BZ_BONE_PALETTE_MAX) "];\n"
 "uniform mat4 uViewProjectionMatrix;\n"
 "uniform mat4 uLightMatrix;\n"
 "uniform mat4 uTextureMatrix;\n"
@@ -345,12 +346,11 @@ static LPSHADER model_shader;
 LPSHADER R_ModelShader(void) {
     if (!model_shader) {
         model_shader = R_InitShader(model_vs, model_fs);
-        if (model_shader) {
-            R_Call(glUseProgram, model_shader->progid);
-            R_Call(glUniform1f, model_shader->uAlphaCutoff, 0.5f);
-        }
+        R_Call(glUseProgram, model_shader->progid);
+        R_Call(glUniform1f, model_shader->uAlphaCutoff, 0.5f);
     }
-    return model_shader ? model_shader : tr.shader[SHADER_DEFAULT];
+    /* Shader creation is fatal on failure; an unskinned fallback cannot preserve the model contract. */
+    return model_shader;
 }
 
 
@@ -362,35 +362,50 @@ static LPSHADER instanced_shader;
    compiled with BZ_USE_INSTANCING to replace uModelMatrix with per-instance attributes. */
 LPSHADER R_ModelShaderInstanced(void) {
     if (!instanced_shader) {
-        MATRIX4 bones[128];
+        MATRIX4 bones[BZ_BONE_PALETTE_MAX];
 
         instanced_shader = R_InitShaderDefines(model_vs, model_fs, "#define BZ_USE_INSTANCING 1\n");
-        if (instanced_shader) {
-            FOR_LOOP(i, 128) Matrix4_identity(&bones[i]);
-            R_Call(glUseProgram, instanced_shader->progid);
-            R_Call(glUniform1f, instanced_shader->uAlphaCutoff, 0.5f);
-            /* Static grass has no keyed bones; install its identity palette once, not once per frame. */
-            R_Call(glUniformMatrix4fv, instanced_shader->uBones, tr.bone_count, GL_FALSE, bones[0].v);
-        }
+        FOR_LOOP(i, BZ_BONE_PALETTE_MAX) Matrix4_identity(&bones[i]);
+        R_Call(glUseProgram, instanced_shader->progid);
+        R_Call(glUniform1f, instanced_shader->uAlphaCutoff, 0.5f);
+        /* Static grass has no keyed bones; install its identity palette once, not once per frame. */
+        R_Call(glUniformMatrix4fv, instanced_shader->uBones, BZ_BONE_PALETTE_MAX, GL_FALSE, bones[0].v);
     }
     return instanced_shader;
 }
 
-/* GLES 3 uses GLSL ES 300; shader bodies otherwise share GLSL 1.40 syntax.
-   extra_defines is injected between the version/BZ_BONE_COUNT prefix and the shader body. */
+/* Only dialect and instancing vary; the model palette is fixed in the C shader body. */
 static void R_SetShaderSource(GLuint shader, LPCSTR source, LPCSTR extra_defines) {
-    char prefix[160];
     LPCSTR body = strchr(source, '\n');
-    snprintf(prefix, sizeof(prefix),
+    LPCSTR prefix =
 #ifdef BZ_GL_ES3
-             "#version 300 es\nprecision highp float;\nprecision highp int;\n#define BZ_BONE_COUNT %u\n",
+        "#version 300 es\nprecision highp float;\nprecision highp int;\n";
 #else
-             "#version 140\n#define BZ_BONE_COUNT %u\n",
+        "#version 140\n";
 #endif
-             (unsigned)tr.bone_count);
     LPCSTR strings[] = { prefix, extra_defines ? extra_defines : "", body ? body + 1 : source };
     GLint lengths[] = { (GLint)strlen(strings[0]), (GLint)strlen(strings[1]), (GLint)strlen(strings[2]) };
     R_Call(glShaderSource, shader, 3, strings, lengths);
+}
+
+/* A compiled shader can still exceed resources at link time. Never draw with a failed program.
+   ri.error only prints in the client, so termination must not rely on that callback. */
+static void R_CheckShader(GLuint obj, GLenum check, LPCSTR label) {
+    GLint ok = GL_FALSE, size = 0;
+    if (check == GL_LINK_STATUS) glGetProgramiv(obj, check, &ok);
+    else glGetShaderiv(obj, check, &ok);
+    if (ok) return;
+    if (check == GL_LINK_STATUS) glGetProgramiv(obj, GL_INFO_LOG_LENGTH, &size);
+    else glGetShaderiv(obj, GL_INFO_LOG_LENGTH, &size);
+    char *log = size > 1 ? malloc(size) : NULL;
+    if (log) {
+        log[0] = 0;
+        if (check == GL_LINK_STATUS) glGetProgramInfoLog(obj, size, NULL, log);
+        else glGetShaderInfoLog(obj, size, NULL, log);
+    }
+    fprintf(stderr, "%s failed: %s\n", label, log ? log : size > 1 ? "cannot allocate driver log" : "no driver log");
+    free(log);
+    exit(EXIT_FAILURE);
 }
 
 static LPSHADER R_InitShaderDefines(LPCSTR vs_src, LPCSTR fs_src, LPCSTR extra_defines) {
@@ -399,47 +414,10 @@ static LPSHADER R_InitShaderDefines(LPCSTR vs_src, LPCSTR fs_src, LPCSTR extra_d
 
     R_SetShaderSource(vs, vs_src, extra_defines);
     R_Call(glCompileShader, vs);
-
-    GLint status;
-    R_Call(glGetShaderiv, vs, GL_COMPILE_STATUS, &status);
-    if (status == GL_FALSE) {
-        GLint logLength = 0;
-        glGetShaderiv(vs, GL_INFO_LOG_LENGTH, &logLength);
-        if (logLength > 1) {
-            char *log = malloc(logLength);
-            if (log) {
-                glGetShaderInfoLog(vs, logLength, NULL, log);
-                fprintf(stderr, "Vertex shader compilation failed:\n%s\n", log);
-                free(log);
-            } else {
-                fprintf(stderr, "Vertex shader compilation failed (could not allocate log buffer)\n");
-            }
-        } else {
-            fprintf(stderr, "Vertex shader compilation failed (no log)\n");
-        }
-        return NULL;
-    }
+    R_CheckShader(vs, GL_COMPILE_STATUS, "Vertex shader compilation");
     R_SetShaderSource(fs, fs_src, extra_defines);
     R_Call(glCompileShader, fs);
-
-    R_Call(glGetShaderiv, fs, GL_COMPILE_STATUS, &status);
-    if (status == GL_FALSE) {
-        GLint logLength = 0;
-        glGetShaderiv(fs, GL_INFO_LOG_LENGTH, &logLength);
-        if (logLength > 1) {
-            char *log = malloc(logLength);
-            if (log) {
-                glGetShaderInfoLog(fs, logLength, NULL, log);
-                fprintf(stderr, "Fragment shader compilation failed:\n%s\n", log);
-                free(log);
-            } else {
-                fprintf(stderr, "Fragment shader compilation failed (could not allocate log buffer)\n");
-            }
-        } else {
-            fprintf(stderr, "Fragment shader compilation failed (no log)\n");
-        }
-        return NULL;
-    }
+    R_CheckShader(fs, GL_COMPILE_STATUS, "Fragment shader compilation");
 
     LPSHADER program = ri.MemAlloc(sizeof(struct shader_program));
     program->progid = R_Call(glCreateProgram, );
@@ -458,6 +436,9 @@ static LPSHADER R_InitShaderDefines(LPCSTR vs_src, LPCSTR fs_src, LPCSTR extra_d
     R_Call(glBindAttribLocation, program->progid, attrib_instance, "i_instance");
 
     R_Call(glLinkProgram, program->progid);
+    R_CheckShader(program->progid, GL_LINK_STATUS, "Shader program link");
+    R_Call(glDeleteShader, vs);
+    R_Call(glDeleteShader, fs);
     R_Call(glUseProgram, program->progid);
 
 #define R_RegisterUniform(PROGRAM, NAME) PROGRAM->NAME = glGetUniformLocation(PROGRAM->progid, #NAME);

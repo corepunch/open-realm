@@ -40,7 +40,7 @@ M3_READER(TYPE##SequenceData) { \
 }
 
 
-static MATRIX4 bonemats[M3_MAX_NODES];
+static MATRIX4 bonemats[BZ_BONE_PALETTE_MAX];
 static MATRIX4 tmp[M3_MAX_NODES];
 
 m3Model_t *currentmodel;
@@ -827,14 +827,14 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
        the inverse rest pose here, making every vertex index an absolute
        palette slot. This removes the need for uFirstBoneLookupIndex. */
     memset(bonemats, 0, sizeof(bonemats));
-    FOR_LOOP(j, M3_MAX_NODES) {
+    FOR_LOOP(j, BZ_BONE_PALETTE_MAX) {
         MATRIX4 ident; Matrix4_identity(&ident); bonemats[j] = ident;
     }
     M3_FOR_EACH(Uint16, boneLookup, model->boneLookup) {
         m3Uint16_t boneIndex = *boneLookup;
         DWORD paletteIndex = (DWORD)(boneLookup - model->boneLookup);
         if (boneIndex >= model->bonesNum || boneIndex >= model->absoluteInverseBoneRestPositionsNum ||
-            paletteIndex >= M3_MAX_NODES) {
+            paletteIndex >= BZ_BONE_PALETTE_MAX) {
             continue;
         }
         Matrix4_multiply(tmp + boneIndex, model->absoluteInverseBoneRestPositions + boneIndex,
@@ -869,7 +869,7 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
     R_Call(glUniformMatrix4fv, m3.shader->uTextureMatrix, 1, GL_FALSE, tr.viewDef.textureMatrix.v);
     R_Call(glUniformMatrix4fv, m3.shader->uModelMatrix, 1, GL_FALSE, mScaledMatrix.v);
     R_Call(glUniformMatrix3fv, m3.shader->uNormalMatrix, 1, GL_TRUE, mNormalMatrix.v);
-    R_Call(glUniformMatrix4fv, m3.shader->uBones, MIN(model->boneLookupNum, tr.bone_count), GL_FALSE, bonemats->v);
+    R_Call(glUniformMatrix4fv, m3.shader->uBones, MIN(model->boneLookupNum, BZ_BONE_PALETTE_MAX), GL_FALSE, bonemats->v);
     M3_SetLighting(m3.shader);
     /* The unified model shader requires identity defaults for uniforms that
        M3 does not animate (texture UV transform, layer alpha, geoset colour). */
