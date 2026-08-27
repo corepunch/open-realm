@@ -47,8 +47,8 @@ static void item_permanent_life_command(LPEDICT clent) {
     target->health.value += amount;
 }
 
-/* WarSmash: CAbilityItemPermanentStatGain.checkBeforeQueue
- * Permanently adds to hero base stats, consumes the item. */
+/* Permanently adds to hero base stats. Consumption is handled by the item-use
+ * lifecycle once charges and perishable items are implemented. */
 static void item_permanent_stat_command(LPEDICT clent) {
     LPEDICT target = G_GetMainSelectedUnit(clent->client);
     DWORD code = S_SpellCurrentCode(clent, 0);
@@ -65,7 +65,7 @@ static void item_permanent_stat_command(LPEDICT clent) {
     G_RecomputeHeroStats(target);
 }
 
-/* WarSmash: CAbilityItemExperienceGain — grants XP. */
+/* Grants hero experience. */
 static void item_experience_command(LPEDICT clent) {
     LPEDICT target = G_GetMainSelectedUnit(clent->client);
     DWORD code = S_SpellCurrentCode(clent, ID_ITEM_XP_GAIN);
@@ -77,7 +77,7 @@ static void item_experience_command(LPEDICT clent) {
     G_HeroSetXP(target, target->hero.xp + amount);
 }
 
-/* WarSmash: CAbilityItemLevelGain — grants hero level. */
+/* Grants hero levels. */
 static void item_level_command(LPEDICT clent) {
     LPEDICT target = G_GetMainSelectedUnit(clent->client);
     DWORD code = S_SpellCurrentCode(clent, ID_ITEM_LEVEL_GAIN);
@@ -93,7 +93,7 @@ static void item_level_command(LPEDICT clent) {
     }
 }
 
-/* WarSmash: CAbilityItemFigurineSummon — summons a unit. */
+/* Summons the item-configured unit. */
 static void item_figurine_command(LPEDICT clent) {
     LPEDICT target = G_GetMainSelectedUnit(clent->client);
     DWORD code = S_SpellCurrentCode(clent, ID_ITEM_FIGURINE);

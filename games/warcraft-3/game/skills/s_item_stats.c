@@ -1,8 +1,6 @@
 #include "s_skills.h"
 
-/* Passive item stat bonuses — apply on pickup, reverse on drop.
- * Follows WarSmash pattern: CAbilityItemAttackBonus.onAdd/onRemove,
- * CAbilityItemDefenseBonus.onAdd/onRemove, etc. */
+/* Passive item stat bonuses — apply on pickup and reverse on removal. */
 
 typedef struct {
     DWORD code;

@@ -279,7 +279,8 @@ BYTE G_GetInventory(LPEDICT ent, gameInventoryItem_t *items, BYTE max_items) {
 
     for (BYTE slot = 0; slot < MAX_INVENTORY && count < max_items; slot++) {
         LPEDICT item = ent->inventory[slot];
-        if (!item || !item->class_id) {
+        if (!G_IsItem(item) || item->item.carrier != ent || item->item.inventory_slot != slot ||
+            item->item.in_world) {
             continue;
         }
         LPCSTR item_name = GetClassName(item->class_id);

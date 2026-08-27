@@ -590,10 +590,25 @@ TEST(wc3_api, item_type_id) {
  * Inventory — edict-based UnitHasItem / UnitItemInSlot
  * ========================================================================= */
 
+static LPEDICT alloc_inventory_test_unit(void) {
+    LPEDICT unit = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    unit->health.value = 100;
+    unit->health.max_value = 100;
+    return unit;
+}
+
+static LPEDICT alloc_world_test_item(DWORD class_id) {
+    LPEDICT item = alloc_test_unit(class_id, 0, 0);
+    item->s.model = 1;
+    item->item.in_world = true;
+    item->item.inventory_slot = -1;
+    return item;
+}
+
 TEST(wc3_api, unit_has_item_true) {
     reset_entities();
-    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
-    LPEDICT item = alloc_test_unit(MAKEFOURCC('r','a','t','f'), 0, 0);
+    LPEDICT unit = alloc_inventory_test_unit();
+    LPEDICT item = alloc_world_test_item(MAKEFOURCC('r','a','t','f'));
     unit_additemtoslot(unit, item, 0);
     /* UnitHasItem checks pointer identity */
     BOOL found = false;
@@ -607,9 +622,9 @@ TEST(wc3_api, unit_has_item_false_different_instance) {
     /* Two items of the same type — only one is in inventory.
      * With edict-based inventory, distinct instances are distinguishable. */
     reset_entities();
-    LPEDICT unit  = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
-    LPEDICT item1 = alloc_test_unit(MAKEFOURCC('r','a','t','f'), 0, 0);
-    LPEDICT item2 = alloc_test_unit(MAKEFOURCC('r','a','t','f'), 0, 0);
+    LPEDICT unit  = alloc_inventory_test_unit();
+    LPEDICT item1 = alloc_world_test_item(MAKEFOURCC('r','a','t','f'));
+    LPEDICT item2 = alloc_world_test_item(MAKEFOURCC('r','a','t','f'));
     unit_additemtoslot(unit, item1, 0);
     /* item2 is NOT in inventory */
     BOOL found = false;
@@ -621,15 +636,15 @@ TEST(wc3_api, unit_has_item_false_different_instance) {
 
 TEST(wc3_api, unit_item_in_slot_returns_edict) {
     reset_entities();
-    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
-    LPEDICT item = alloc_test_unit(MAKEFOURCC('r','a','t','f'), 0, 0);
+    LPEDICT unit = alloc_inventory_test_unit();
+    LPEDICT item = alloc_world_test_item(MAKEFOURCC('r','a','t','f'));
     unit_additemtoslot(unit, item, 2);
     T_ASSERT(unit->inventory[2] == item);
 }
 
 TEST(wc3_api, unit_item_in_slot_empty_is_null) {
     reset_entities();
-    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    LPEDICT unit = alloc_inventory_test_unit();
     T_NULL(unit->inventory[0]);
 }
 

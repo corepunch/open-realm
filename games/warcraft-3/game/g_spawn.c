@@ -87,6 +87,7 @@ void SP_monster_tree(LPEDICT edict);
 static void G_InitEdict(LPEDICT e) {
     memset(e, 0, sizeof(edict_t));
     e->inuse = true;
+    e->item.inventory_slot = -1;
     e->s.scale = 1;
     e->s.number = (int)(e - g_edicts);
 }

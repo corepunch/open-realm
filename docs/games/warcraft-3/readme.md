@@ -97,6 +97,7 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 
 ### Implementation Notes
 
+- [Inventory And World Items](inventory-and-items.md)
 - [Warcraft III UI System](architecture/ui.md)
 - [UI Flow](architecture/ui-flow.md)
 - [UI Quick Reference](architecture/ui-quick-reference.md)

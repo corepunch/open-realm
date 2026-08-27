@@ -136,6 +136,9 @@ BOOL unit_issuetargetorder(LPEDICT self, LPCSTR order, LPEDICT target) {
         return false;
     }
     if (!strcmp(order, "smart")) {
+        if (G_IsItem(target)) {
+            return G_OrderPickupItem(self, target);
+        }
         if (G_ActorHasSkill(self, "Ahar")) {
             if (G_ActorHasSkill(target, "Agld")) {
                 harvest_gold_start(self, target);
@@ -217,21 +220,11 @@ unit_createorfind(DWORD player,
 }
 
 BOOL unit_additemtoslot(LPEDICT edict, LPEDICT item, DWORD i) {
-    if (edict->inventory[i] == NULL) {
-        edict->inventory[i] = item;
-        return true;
-    } else {
-        return false;
-    }
+    return G_AddItemToSlot(edict, item, i);
 }
 
 BOOL unit_additem(LPEDICT edict, LPEDICT item) {
-    FOR_LOOP(i, MAX_INVENTORY) {
-        if (unit_additemtoslot(edict, item, i)) {
-            return true;
-        }
-    }
-    return false;
+    return G_PickupItem(edict, item);
 }
 
 static BOOL unit_status_stuns(DWORD code) {

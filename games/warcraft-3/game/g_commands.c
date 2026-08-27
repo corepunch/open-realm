@@ -270,6 +270,21 @@ CLIENTCOMMAND(Inventory) {
     }
 }
 
+CLIENTCOMMAND(DropItem) {
+    LPEDICT unit;
+    LONG slot;
+
+    if (!clent || !clent->client || argc < 2) {
+        return;
+    }
+    unit = G_GetMainSelectedUnit(clent->client);
+    slot = atoi(argv[1]);
+    if (!unit || slot < 0 || slot >= MAX_INVENTORY) {
+        return;
+    }
+    G_DropItem(unit, (DWORD)slot);
+}
+
 CLIENTCOMMAND(Cancel) {
     fprintf(stderr,
             "Client cancel command: player=%u edict=%u time=%u\n",
@@ -414,6 +429,7 @@ clientCommand_t clientCommands[] = {
     { "button", CMD_Button },
     { "research", CMD_Research },
     { "inventory", CMD_Inventory },
+    { "dropitem", CMD_DropItem },
     { "select", CMD_Select },
     { "point", CMD_Point },
     { "smart", CMD_Smart },

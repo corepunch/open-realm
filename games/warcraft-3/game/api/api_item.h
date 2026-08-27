@@ -7,7 +7,7 @@ DWORD CreateItem(LPJASS j) {
 }
 DWORD RemoveItem(LPJASS j) {
     LPEDICT whichItem = jass_checkhandle(j, 1, "item");
-    if (whichItem) G_FreeEdict(whichItem);
+    if (whichItem) G_RemoveItem(whichItem);
     return 0;
 }
 DWORD GetItemPlayer(LPJASS j) {
@@ -56,7 +56,13 @@ DWORD SetItemPosition(LPJASS j) {
     LPEDICT item = jass_checkhandle(j, 1, "item");
     FLOAT x = jass_checknumber(j, 2);
     FLOAT y = jass_checknumber(j, 3);
-    if (item) { item->s.origin.x = x; item->s.origin.y = y; }
+    if (item && item->item.in_world) {
+        item->s.origin.x = x;
+        item->s.origin.y = y;
+        item->s.origin.z = CM_GetHeightAtPoint(x, y);
+        item->s.origin2 = MAKE(VECTOR2, x, y);
+        gi.LinkEntity(item);
+    }
     return 0;
 }
 DWORD SetItemDropOnDeath(LPJASS j) {

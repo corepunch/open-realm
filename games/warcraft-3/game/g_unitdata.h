@@ -204,5 +204,7 @@ sheetRow_t *G_SheetTail(sheetRow_t *rows);
 
 #define ITEM_NAME(UNIT) UnitStringField(ItemsMetaData, UNIT, "inam")
 #define ITEM_FILE(UNIT) UnitStringField(ItemsMetaData, UNIT, "ifil")
+#define ITEM_SCALE(UNIT) UnitRealField(ItemsMetaData, UNIT, "isca")
+#define ITEM_SELECTION_SIZE(UNIT) UnitRealField(ItemsMetaData, UNIT, "issc")
 
 #endif

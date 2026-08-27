@@ -169,6 +169,9 @@ bool R_TraceEntity(viewDef_t const *viewdef, float x, float y, LPDWORD number) {
         renderEntity_t *ent = &viewdef->entities[i];
         FLOAT distance;
 
+        if (!ent->number || !ent->model || (ent->flags & RF_HIDDEN)) {
+            continue;
+        }
         if (R_GameTraceModel(ent, &line, &distance) && distance < best) {
             best = distance;
             best_number = ent->number;
@@ -197,8 +200,11 @@ DWORD R_EntitiesInRect(viewDef_t const *viewdef, LPCRECT rect, DWORD max, LPDWOR
     DWORD count = 0;
     FOR_LOOP(i, viewdef->num_entities) {
         renderEntity_t const *ent = &viewdef->entities[i];
+        if (!ent->number || !ent->model || (ent->flags & RF_HIDDEN)) {
+            continue;
+        }
         VECTOR3 const org = Matrix4_multiply_vector3(&viewdef->viewProjectionMatrix, &ent->origin);
-        if (ent->number != 0 && Rect_contains(&screen, (LPVECTOR2)&org)) {
+        if (Rect_contains(&screen, (LPVECTOR2)&org)) {
             if (count >= max) {
                 break;
             }

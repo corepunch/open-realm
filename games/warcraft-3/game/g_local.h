@@ -23,6 +23,7 @@
 #define MAX_ENTITIES MAX_GAME_ENTITIES
 #define MAX_REGION_SIZE 16
 #define MAX_INVENTORY 6
+#define ITEM_PICKUP_RANGE 150.0f /* world units; classic contextual-pickup reach */
 #define MAX_CARGO 8
 #define MAX_HERO_ABILITIES 4
 #define MAX_UNIT_STATUSES 8
@@ -621,6 +622,11 @@ struct edict_s {
     DWORD resources;
     DWORD freetime;
     LPEDICT inventory[MAX_INVENTORY];
+    struct {
+        LPEDICT carrier;
+        LONG inventory_slot;
+        BOOL in_world;
+    } item;
     LPEDICT cargo_units[MAX_CARGO];
     DWORD cargo_count;
     DWORD cargo_capacity;
@@ -1093,8 +1099,16 @@ void G_RunEvents(void);
 
 // g_items.c
 void SP_SpawnItem(LPEDICT);
+BOOL G_IsItem(LPCEDICT item);
+BOOL G_UnitHasInventory(LPEDICT unit);
+LONG G_FindFreeInventorySlot(LPCEDICT unit);
+BOOL G_CanPickupItem(LPEDICT unit, LPEDICT item);
+BOOL G_AddItemToSlot(LPEDICT unit, LPEDICT item, DWORD slot);
 BOOL G_PickupItem(LPEDICT unit, LPEDICT item);
-void G_DropItem(LPEDICT unit, DWORD slot);
+BOOL G_OrderPickupItem(LPEDICT unit, LPEDICT item);
+BOOL G_DropItemAt(LPEDICT unit, DWORD slot, LPCVECTOR2 position);
+BOOL G_DropItem(LPEDICT unit, DWORD slot);
+void G_RemoveItem(LPEDICT item);
 void G_UseItem(LPEDICT unit, DWORD slot);
 
 // ui_init
