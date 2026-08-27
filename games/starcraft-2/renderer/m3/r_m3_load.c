@@ -74,7 +74,8 @@ R_EvalKeyframeValue(void const *left,
 static void M3_SetLighting(MODELPROG * shader) {
     sc2Map_t const *map = SC2_MapCurrent();
     sc2MapLighting_t const *src = map ? &map->lighting : NULL;
-    bool const lit = src && src->enabled;
+    /* Layout-camera chrome is a separate scene: the map's colorized ambient made the HUD nearly black. */
+    bool const lit = src && src->enabled && !(tr.viewDef.rdflags & RDF_NOWORLDMODEL);
     MODELLIGHTING state = {
         /* dark ambient with a slight sky-blue tint when no map lighting is authored */
         .ambient = sc2_light_ambient(lit ? src : NULL),
