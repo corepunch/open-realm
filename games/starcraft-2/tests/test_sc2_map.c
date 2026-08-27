@@ -11,6 +11,7 @@
 #include "test.h"
 #include "games/starcraft-2/renderer/sc2/sc2_shadow.h"
 #include "games/starcraft-2/renderer/m3/r_m3.h"
+#include "games/warcraft-3/renderer/w3m/r_terrain_layers.h"
 
 #ifndef TEST_SC2_MPQ
 #define TEST_SC2_MPQ "build/tests/test-sc2.SC2Maps"
@@ -24,6 +25,24 @@
 
 static BOOL sc2_tests_initialized;
 static DWORD short_terrain_dimensions;
+
+static FLOAT test_grid_height(LPCVOID data, DWORD x, DWORD y) {
+    LPCFLOAT heights = data;
+
+    return heights[x + y * 3];
+}
+
+/* Grid derivatives stay smooth regardless of render-cell triangulation or omitted cliff cells. */
+TEST(sc2_map, shared_grid_normals) {
+    FLOAT flat[9] = {0};
+    FLOAT slope[9] = {0,1,2, 0,1,2, 0,1,2};
+    TERRAINNORMALS grid = { flat, test_grid_height, 3, 3, 1.0f };
+    VECTOR3 normal = R_TerrainGridNormal(&grid, 1, 1);
+
+    T_FEQ(normal.x, 0.0f, 0.0001f); T_FEQ(normal.y, 0.0f, 0.0001f); T_FEQ(normal.z, 1.0f, 0.0001f);
+    grid.data = slope; normal = R_TerrainGridNormal(&grid, 1, 1);
+    T_FEQ(normal.x, -0.707107f, 0.0001f); T_FEQ(normal.y, 0.0f, 0.0001f); T_FEQ(normal.z, 0.707107f, 0.0001f);
+}
 
 TEST(sc2_map, m3_division_faces_pack_into_model_ranges) {
     USHORT a[] = {0,1,2}, b[] = {2,3,0}, indices[6];
