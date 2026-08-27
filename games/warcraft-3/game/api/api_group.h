@@ -40,6 +40,9 @@ DWORD GroupClear(LPJASS j) {
     if (whichGroup) whichGroup->num_units = 0;
     return 0;
 }
+/* Enumeration filters run with each candidate bound as GetFilterUnit(). Apply
+ * counted limits after the filter accepts a unit, and restore context so nested
+ * group callbacks do not leak their candidate. */
 DWORD GroupEnumUnitsOfType(LPJASS j) {
     //ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
     //LPCSTR unitname = jass_checkstring(j, 2);
@@ -191,6 +194,9 @@ DWORD GroupImmediateOrder(LPJASS j) {
     }
     return jass_pushboolean(j, any);
 }
+/* By-id orders resolve through the same order table and gameplay dispatch as
+ * their string counterparts; the return value is the aggregate acceptance
+ * result, not a placeholder success flag. */
 DWORD GroupImmediateOrderById(LPJASS j) {
     //ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
     //LONG order = jass_checkinteger(j, 2);

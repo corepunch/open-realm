@@ -41,6 +41,9 @@ DWORD SetPlayerAlliance(LPJASS j) {
     G_SetPlayerAlliance(sourcePlayer, otherPlayer, *whichAllianceSetting, value);
     return 0;
 }
+/* Player-configuration natives need server-owned WC3 client state. Race
+ * preferences are a mask, tax is directional and resource-keyed, and controller
+ * state reflects config()/lobby choices; none belong in the networked PLAYER. */
 DWORD SetPlayerTaxRate(LPJASS j) {
     //HANDLE sourcePlayer = jass_checkhandle(j, 1, "player");
     //HANDLE otherPlayer = jass_checkhandle(j, 2, "player");
