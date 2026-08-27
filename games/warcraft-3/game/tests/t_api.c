@@ -24,6 +24,7 @@ void reset_entities(void);
 void setup_test_world(void);
 BOOL run_test_jass(LPCSTR src);
 extern LPPLAYER currentplayer;
+void unit_die(LPEDICT self, LPEDICT attacker);
 
 
 
@@ -687,6 +688,54 @@ TEST(wc3_api, unit_out_of_range) {
     LPEDICT b = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 3.0f, 4.0f);  /* dist = 5 */
     FLOAT dist = Vector2_distance(&a->s.origin2, &b->s.origin2);
     T_ASSERT(!(dist <= 4.0f));
+}
+
+/* =========================================================================
+ * Death event context
+ * ========================================================================= */
+
+TEST(wc3_api, death_event_exposes_trigger_widget_and_killing_unit) {
+    LPEDICT victim = NULL;
+    LPEDICT killer = NULL;
+
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit victim = null\n"
+        "  unit killer = null\n"
+        "  boolean deathFired = false\n"
+        "endglobals\n"
+        "function onDeath takes nothing returns nothing\n"
+        "  set deathFired = true\n"
+        "  call BJassAssert(GetTriggerWidget() == victim, \"wrong trigger widget\")\n"
+        "  call BJassAssert(GetKillingUnit() == killer, \"wrong killing unit\")\n"
+        "endfunction\n"
+        "function verifyDeath takes nothing returns nothing\n"
+        "  call BJassAssert(deathFired, \"death trigger did not fire\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  set victim = CreateUnit(Player(0), 'hfoo', 64.0, 64.0, 0.0)\n"
+        "  set killer = CreateUnit(Player(0), 'hpea', 128.0, 64.0, 0.0)\n"
+        "  call TriggerRegisterDeathEvent(t, victim)\n"
+        "  call TriggerAddAction(t, function onDeath)\n"
+        "endfunction\n"));
+
+    FOR_LOOP(i, globals.num_edicts) {
+        if (g_edicts[i].class_id == MAKEFOURCC('h', 'f', 'o', 'o')) {
+            victim = &g_edicts[i];
+        } else if (g_edicts[i].class_id == MAKEFOURCC('h', 'p', 'e', 'a')) {
+            killer = &g_edicts[i];
+        }
+    }
+    T_NOT_NULL(victim);
+    T_NOT_NULL(killer);
+
+    unit_die(victim, killer);
+    G_RunEvents();
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verifyDeath", true);
+    jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
 }
 
 /* =========================================================================

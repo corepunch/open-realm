@@ -67,6 +67,31 @@ sets, zero IDs, and invalid item rawcodes are skipped safely. Encoded `YYI*`
 random-item placeholders are recognized and reported but are not yet expanded
 into item-level/class selections.
 
+## Events And Scripted Lifecycle
+
+Death events retain both the dying widget and the damage source. Widget death
+registrations still receive the destructable through `GetTriggerWidget()`, while
+`GetKillingUnit()` returns the attacking unit or null for a scripted kill. The
+same source propagation is used for ordinary unit death events.
+
+All destructable lifecycle natives now use the authoritative transitions:
+
+- `KillDestructable` performs death animation, pathing replacement, loot, and
+  one death event.
+- `RemoveDestructable` unlinks and frees the object without death, loot, or a
+  death event, then rebuilds static pathing.
+- `SetDestructableLife` kills at zero and restores a dead object when assigned
+  positive life.
+- `DestructableRestoreLife` restores targetability, alive pathing, and either
+  the birth or stand animation.
+- `CreateDeadDestructable` and its Z variant create the dead presentation
+  without processing a gameplay death.
+
+Restoring a dead destructable begins a new lifecycle and resets its one-life
+loot guard. A later genuine death can therefore publish another event and
+resolve its configured drops again. Initially dead and explicitly dead-created
+objects are marked as already processed until restored.
+
 Dead remains keep their model and continue rendering. A transmitted entity
 flag maps to a renderer-only `RF_NOT_SELECTABLE` flag, excluding the remains
 from point and rectangle selection without hiding them.
@@ -85,10 +110,10 @@ This slice implements the first eight steps of the clean-room specification:
 placement life, runtime health, normal attacks, lethal detection, one-time
 death, death animation, post-death target disabling, and pathing replacement.
 
-Inline configured item sets, ordinary map random-item tables, and world-item
-spawning are implemented. Encoded random-item placeholder expansion, richer
-killer/event context, and complete scripted kill/remove/restore semantics
-remain deferred. Death works normally when no loot or callback exists.
+Inline configured item sets, ordinary map random-item tables, world-item
+spawning, killer event context, and scripted kill/remove/restore behavior are
+implemented. Encoded random-item placeholder expansion remains deferred. Death
+works normally when no loot or callback exists.
 
 ## Validation
 
@@ -100,3 +125,7 @@ results, multiple world-item drops, and one-time loot processing.
 Random-table tests additionally cover weighted boundaries, explicit table-number
 lookup, multiple table sets, missing/empty data, encoded-placeholder rejection,
 normal world-item state, and one-time spawning.
+Scripted-lifecycle tests cover silent dead creation, kill versus remove,
+zero-life death, positive-life restoration, birth/stand animation selection,
+second death after restoration, and JASS `GetTriggerWidget()` / `GetKillingUnit()`
+context.

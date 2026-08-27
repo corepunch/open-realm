@@ -103,8 +103,8 @@ void unit_die(LPEDICT self, LPEDICT attacker) {
      * (TriggerRegisterDeathEvent/UnitEvent); EVENT_PLAYER_UNIT_DEATH fires the
      * owner's player-unit-death triggers (TriggerRegisterPlayerUnitEvent), e.g.
      * the mission win check that counts the player's dying naga. */
-    G_PublishEvent(self, EVENT_UNIT_DEATH);
-    G_PublishEvent(self, EVENT_PLAYER_UNIT_DEATH);
+    G_PublishEventWithSource(self, EVENT_UNIT_DEATH, attacker);
+    G_PublishEventWithSource(self, EVENT_PLAYER_UNIT_DEATH, attacker);
     self->svflags |= SVF_DEADMONSTER;
     /* Award experience to the killer's nearby heroes (enemy kills only). */
     if (attacker && attacker != self && attacker->s.player != self->s.player) {

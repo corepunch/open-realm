@@ -513,6 +513,7 @@ typedef struct {
 typedef struct {
     EVENTTYPE type;
     LPEDICT edict;
+    LPEDICT source;
     LPEVENT responseTo;
 } GAMEEVENT;
 
@@ -841,6 +842,7 @@ BOOL G_SkipCutscene(void);
 void G_ClearCameraTarget(LPGAMECLIENT client, LPCSTR func);
 void G_SetPlayerText(LPGAMECLIENT, PLAYERTEXT, LPCSTR);
 GAMEEVENT *G_PublishEvent(LPEDICT, EVENTTYPE);
+GAMEEVENT *G_PublishEventWithSource(LPEDICT, EVENTTYPE, LPEDICT);
 BOOL G_SubscribeMessage(gameMsgFn, void *);
 void G_UnsubscribeMessage(gameMsgFn, void *);
 void G_PublishMessage(LPEDICT, GAMEMSGTYPE, LPEDICT);
@@ -866,6 +868,7 @@ void G_SpawnEntities(void);
 BOOL SP_FindEmptySpaceAround(LPEDICT, DWORD, LPVECTOR2, FLOAT *);
 LPEDICT SP_SpawnAtLocation(DWORD, DWORD, LPCVECTOR2);
 LPEDICT G_CreateDestructable(DWORD class_id, FLOAT x, FLOAT y, FLOAT z, FLOAT facing, FLOAT scale, DWORD variation);
+LPEDICT G_CreateDeadDestructable(DWORD class_id, FLOAT x, FLOAT y, FLOAT z, FLOAT facing, FLOAT scale, DWORD variation);
 BOOL G_IsDestructable(LPCEDICT ent);
 void SP_monster_tree(LPEDICT);
 
@@ -1130,11 +1133,16 @@ BOOL G_DestructableIsAttackable(LPCEDICT ent);
 void G_InitializeDestructablePlacement(LPEDICT ent, LPCDOODAD placement);
 BOOL G_DestructableApplyDamage(LPEDICT ent, LPEDICT attacker, FLOAT damage);
 BOOL G_KillDestructable(LPEDICT ent, LPEDICT killer);
+BOOL G_SetDestructableDeadState(LPEDICT ent, BOOL process_death);
+BOOL G_RemoveDestructable(LPEDICT ent);
+BOOL G_SetDestructableLife(LPEDICT ent, FLOAT life);
+BOOL G_RestoreDestructable(LPEDICT ent, FLOAT life, BOOL birth);
 DWORD G_SelectDropItem(droppableItem_t const *entries, DWORD count, DWORD roll);
 DWORD G_SelectRandomTableItem(mapRandomItem_t const *entries, DWORD count, DWORD roll);
 mapRandomItemTable_t const *G_FindRandomItemTable(DWORD table_number);
 void G_SpawnDestructableLoot(LPEDICT ent);
 void G_DestructableStartDeathAnimation(LPEDICT ent);
+void G_DestructableStartAliveAnimation(LPEDICT ent, BOOL birth);
 void tree_die(LPEDICT ent, LPEDICT attacker);
 
 // ui_init

@@ -18,7 +18,13 @@ void tree_pain(LPEDICT self) {
 }
 
 void tree_stand(LPEDICT self) {
-    unit_setmove(self, &tree_move_stand);
+    G_DestructableStartAliveAnimation(self, false);
+}
+
+void G_DestructableStartAliveAnimation(LPEDICT self, BOOL birth) {
+    unit_setmove(self, birth ? &tree_move_birth : &tree_move_stand);
+    if (self->animation)
+        self->s.frame = self->animation->interval[0];
 }
 
 void G_DestructableStartDeathAnimation(LPEDICT self) {
@@ -38,11 +44,12 @@ void tree_die(LPEDICT self, LPEDICT attacker) {
 }
 
 void tree_birth(LPEDICT self) {
-    unit_setmove(self, &tree_move_birth);
+    G_DestructableStartAliveAnimation(self, true);
 }
 
 void SP_monster_tree(LPEDICT self) {
     self->stand = tree_stand;
+    self->birth = tree_birth;
     self->pain = tree_pain;
     self->die = tree_die;
 

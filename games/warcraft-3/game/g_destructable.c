@@ -217,7 +217,12 @@ static BOOL G_EnterDestructableDeathState(LPEDICT ent,
     }
     if (publish_event) {
         G_SpawnDestructableLoot(ent);
-        G_PublishEvent(ent, EVENT_UNIT_DEATH);
+        G_PublishEventWithSource(ent, EVENT_UNIT_DEATH, killer);
+    } else {
+        /* Initially dead and CreateDeadDestructable instances did not die in
+         * gameplay, so they must not expose deferred loot. Restoration starts
+         * a fresh lifecycle and clears this guard. */
+        ent->destructable.loot_processed = true;
     }
 
     /* The lifecycle is complete before an optional compatibility callback is
@@ -265,6 +270,69 @@ void G_InitializeDestructablePlacement(LPEDICT ent, LPCDOODAD placement) {
 
 BOOL G_KillDestructable(LPEDICT ent, LPEDICT killer) {
     return G_EnterDestructableDeathState(ent, killer, true, true);
+}
+
+BOOL G_SetDestructableDeadState(LPEDICT ent, BOOL process_death) {
+    return G_EnterDestructableDeathState(ent, NULL, process_death, true);
+}
+
+BOOL G_RemoveDestructable(LPEDICT ent) {
+    if (!G_IsDestructable(ent)) {
+        return false;
+    }
+    unit_leavecombat(ent);
+    G_FreeEdict(ent);
+    CM_BakeStaticObstacles();
+    return true;
+}
+
+BOOL G_RestoreDestructable(LPEDICT ent, FLOAT life, BOOL birth) {
+    FLOAT restored_life;
+
+    if (!G_IsDestructable(ent)) {
+        return false;
+    }
+    restored_life = MAX(0.0f, MIN(life, ent->health.max_value));
+    if (restored_life <= 0.0f) {
+        return false;
+    }
+    ent->health.value = restored_life;
+    if (!ent->destructable.dead) {
+        return true;
+    }
+
+    ent->destructable.dead = false;
+    ent->destructable.loot_processed = false;
+    ent->svflags &= ~SVF_DEADMONSTER;
+    ent->aiflags &= ~AI_HOLD_FRAME;
+    if (!(ent->s.renderfx & RF_HIDDEN)) {
+        ent->s.flags &= ~EF_NOT_SELECTABLE;
+    }
+    G_ApplyDestructableAlivePathing(ent);
+    G_DestructableStartAliveAnimation(ent, birth);
+    if (ent->s.flags & EF_FOW_BLOCKER) {
+        G_FowMarkBlockersDirty();
+    }
+    CM_BakeStaticObstacles();
+    return true;
+}
+
+BOOL G_SetDestructableLife(LPEDICT ent, FLOAT life) {
+    if (!G_IsDestructable(ent)) {
+        return false;
+    }
+    if (life <= 0.0f) {
+        if (ent->destructable.dead) {
+            ent->health.value = 0.0f;
+            return true;
+        }
+        return G_KillDestructable(ent, NULL);
+    }
+    if (ent->destructable.dead) {
+        return G_RestoreDestructable(ent, life, false);
+    }
+    ent->health.value = MAX(0.0f, MIN(life, ent->health.max_value));
+    return true;
 }
 
 BOOL G_DestructableApplyDamage(LPEDICT ent, LPEDICT attacker, FLOAT damage) {

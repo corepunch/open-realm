@@ -14,6 +14,9 @@ void setup_test_pathmap(DWORD width, DWORD height, BYTE const *cells);
 void setup_test_world(void);
 BOOL unit_issuetargetorder(LPEDICT self, LPCSTR order, LPEDICT target);
 void T_Damage(LPEDICT target, LPEDICT attacker, int damage);
+BOOL run_test_jass(LPCSTR src);
+sheetRow_t *parse_slk_string(const char *slk_text);
+void free_slk_rows(sheetRow_t *rows);
 
 typedef struct {
     WORD width;
@@ -129,6 +132,7 @@ TEST(wc3_destructable, death_transition_event_and_callback_fire_once) {
     T_EQ(level.events.write, 1);
     T_EQ(level.events.queue[0].type, EVENT_UNIT_DEATH);
     T_ASSERT(level.events.queue[0].edict == dest);
+    T_ASSERT(level.events.queue[0].source == attacker);
 }
 
 TEST(wc3_destructable, smart_order_attacks_neutral_destructable) {
@@ -429,6 +433,137 @@ TEST(wc3_destructable, empty_encoded_and_invalid_table_entries_spawn_nothing) {
     T_ASSERT(G_KillDestructable(dest, NULL));
     T_EQ(globals.num_edicts, before);
     T_ASSERT(dest->destructable.loot_processed);
+}
+
+TEST(wc3_destructable, silent_dead_state_has_no_event_or_loot) {
+    LPEDICT dest = make_test_destructable(100.0f, 0.0f, 0.0f);
+
+    T_ASSERT(G_SetDestructableDeadState(dest, false));
+    T_ASSERT(dest->destructable.dead);
+    T_ASSERT(dest->destructable.loot_processed);
+    T_EQ(level.events.write, 0);
+    T_FEQ(dest->health.value, 0.0f, 0.01f);
+}
+
+TEST(wc3_destructable, restore_reenables_targeting_pathing_and_second_death) {
+    LPEDICT dest = make_test_destructable(100.0f, 4.0f, 4.0f);
+    LPEDICT attacker = make_destructable_test_attacker(8.0f, 4.0f);
+
+    T_ASSERT(G_KillDestructable(dest, attacker));
+    T_ASSERT(G_RestoreDestructable(dest, 150.0f, true));
+    T_ASSERT(!dest->destructable.dead);
+    T_ASSERT(!dest->destructable.loot_processed);
+    T_ASSERT(!(dest->svflags & SVF_DEADMONSTER));
+    T_ASSERT(!(dest->s.flags & EF_NOT_SELECTABLE));
+    T_ASSERT(dest->destructable.pathing_active);
+    T_ASSERT(G_DestructableIsAttackable(dest));
+    T_FEQ(dest->health.value, 100.0f, 0.01f);
+    T_NOT_NULL(dest->currentmove);
+    T_STREQ(dest->currentmove->animation, "birth");
+
+    T_ASSERT(G_KillDestructable(dest, attacker));
+    T_EQ(level.events.write, 2);
+    T_ASSERT(level.events.queue[1].source == attacker);
+}
+
+TEST(wc3_destructable, set_life_uses_death_and_restore_transitions) {
+    LPEDICT dest = make_test_destructable(100.0f, 0.0f, 0.0f);
+
+    T_ASSERT(G_SetDestructableLife(dest, 0.0f));
+    T_ASSERT(dest->destructable.dead);
+    T_EQ(level.events.write, 1);
+    T_NULL(level.events.queue[0].source);
+
+    T_ASSERT(G_SetDestructableLife(dest, 40.0f));
+    T_ASSERT(!dest->destructable.dead);
+    T_FEQ(dest->health.value, 40.0f, 0.01f);
+    T_STREQ(dest->currentmove->animation, "stand");
+    T_EQ(level.events.write, 1);
+}
+
+TEST(wc3_destructable, remove_bypasses_death_event_and_loot) {
+    LPEDICT dest = make_test_destructable(100.0f, 0.0f, 0.0f);
+
+    T_ASSERT(G_RemoveDestructable(dest));
+    T_ASSERT(!dest->inuse);
+    T_EQ(level.events.write, 0);
+}
+
+TEST(wc3_destructable, scripted_lifecycle_natives_use_authoritative_state) {
+    static LPCSTR const slk =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"ID\"\n"
+        "C;Y1;X2;K\"file\"\n"
+        "C;Y1;X3;K\"targType\"\n"
+        "C;Y1;X4;K\"HP\"\n"
+        "C;Y1;X5;K\"radius\"\n"
+        "C;Y2;X1;K\"B004\"\n"
+        "C;Y2;X2;K\"Doodads\\Test\\Test\"\n"
+        "C;Y2;X3;K\"debris\"\n"
+        "C;Y2;X4;K100\n"
+        "C;Y2;X5;K16\n"
+        "E\n";
+    sheetMetaData_t *meta = G_FindMetaData(DestructableMetaData, "bfil");
+    sheetRow_t *saved = meta->table;
+    sheetRow_t *rows = parse_slk_string(slk);
+    LPEDICT dest;
+
+    setup_test_world();
+    G_SetConfigTable(DestructableMetaData, "DestructableData", rows);
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  destructable scriptedDest = null\n"
+        "  integer scriptedDeaths = 0\n"
+        "endglobals\n"
+        "function onScriptedDeath takes nothing returns nothing\n"
+        "  set scriptedDeaths = scriptedDeaths + 1\n"
+        "  call BJassAssert(GetTriggerWidget() == scriptedDest, \"wrong destructable widget\")\n"
+        "  call BJassAssert(GetKillingUnit() == null, \"scripted kill has a killer\")\n"
+        "endfunction\n"
+        "function verifyScriptedDeath takes nothing returns nothing\n"
+        "  call BJassAssert(scriptedDeaths == 1, \"scripted death event count\")\n"
+        "endfunction\n"
+        "function removeScriptedDest takes nothing returns nothing\n"
+        "  call RemoveDestructable(scriptedDest)\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  set scriptedDest = CreateDeadDestructable('B004', 64.0, 64.0, 0.0, 1.0, 0)\n"
+        "  call BJassAssert(scriptedDest != null, \"dead creation returned null\")\n"
+        "  call BJassAssert(GetDestructableLife(scriptedDest) == 0.0, \"dead creation has life\")\n"
+        "  call DestructableRestoreLife(scriptedDest, 60.0, true)\n"
+        "  call BJassAssert(GetDestructableLife(scriptedDest) == 60.0, \"restore life failed\")\n"
+        "  call TriggerRegisterDeathEvent(t, scriptedDest)\n"
+        "  call TriggerAddAction(t, function onScriptedDeath)\n"
+        "  call KillDestructable(scriptedDest)\n"
+        "endfunction\n"));
+
+    dest = NULL;
+    FOR_LOOP(i, globals.num_edicts) {
+        if (g_edicts[i].class_id == MAKEFOURCC('B', '0', '0', '4')) {
+            dest = &g_edicts[i];
+            break;
+        }
+    }
+
+    T_NOT_NULL(dest);
+    T_ASSERT(dest->destructable.dead);
+    T_ASSERT(dest->destructable.loot_processed);
+    T_FEQ(dest->health.value, 0.0f, 0.01f);
+    T_EQ(level.events.write, 1);
+
+    G_RunEvents();
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verifyScriptedDeath", true);
+    jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+
+    jass_callbyname(level.vm, "removeScriptedDest", true);
+    jass_runevents(level.vm);
+    T_ASSERT(!dest->inuse);
+
+    G_SetConfigTable(DestructableMetaData, "DestructableData", saved);
+    free_slk_rows(rows);
 }
 
 #endif /* BZ_TESTS */

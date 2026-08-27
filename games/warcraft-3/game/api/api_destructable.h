@@ -21,42 +21,36 @@ DWORD CreateDestructableZ(LPJASS j) {
     return jass_pushlighthandle(j, d, "destructable");
 }
 DWORD CreateDeadDestructable(LPJASS j) {
-    //LONG objectid = jass_checkinteger(j, 1);
-    //FLOAT x = jass_checknumber(j, 2);
-    //FLOAT y = jass_checknumber(j, 3);
-    //FLOAT face = jass_checknumber(j, 4);
-    //FLOAT scale = jass_checknumber(j, 5);
-    //LONG variation = jass_checkinteger(j, 6);
-    return jass_pushnullhandle(j, "destructable");
+    LONG objectid = jass_checkinteger(j, 1);
+    FLOAT x = jass_checknumber(j, 2);
+    FLOAT y = jass_checknumber(j, 3);
+    FLOAT face = jass_checknumber(j, 4);
+    FLOAT scale = jass_checknumber(j, 5);
+    LONG variation = jass_checkinteger(j, 6);
+    LPEDICT d = G_CreateDeadDestructable(objectid, x, y, CM_GetHeightAtPoint(x, y),
+                                         DEG2RAD(face), scale, variation);
+    return jass_pushlighthandle(j, d, "destructable");
 }
 DWORD CreateDeadDestructableZ(LPJASS j) {
-    //LONG objectid = jass_checkinteger(j, 1);
-    //FLOAT x = jass_checknumber(j, 2);
-    //FLOAT y = jass_checknumber(j, 3);
-    //FLOAT z = jass_checknumber(j, 4);
-    //FLOAT face = jass_checknumber(j, 5);
-    //FLOAT scale = jass_checknumber(j, 6);
-    //LONG variation = jass_checkinteger(j, 7);
-    return jass_pushnullhandle(j, "destructable");
+    LONG objectid = jass_checkinteger(j, 1);
+    FLOAT x = jass_checknumber(j, 2);
+    FLOAT y = jass_checknumber(j, 3);
+    FLOAT z = jass_checknumber(j, 4);
+    FLOAT face = jass_checknumber(j, 5);
+    FLOAT scale = jass_checknumber(j, 6);
+    LONG variation = jass_checkinteger(j, 7);
+    LPEDICT d = G_CreateDeadDestructable(objectid, x, y, z,
+                                         DEG2RAD(face), scale, variation);
+    return jass_pushlighthandle(j, d, "destructable");
 }
 DWORD RemoveDestructable(LPJASS j) {
     LPEDICT d = jass_checkhandle(j, 1, "destructable");
-    if (d) {
-        G_FreeEdict(d);
-    }
+    G_RemoveDestructable(d);
     return 0;
 }
 DWORD KillDestructable(LPJASS j) {
-    /* Same kill path as a unit (m_unit.c): drop life to 0 and fire the death
-     * handler (tree_die), which publishes EVENT_UNIT_DEATH so death-registered
-     * triggers run. */
     LPEDICT d = jass_checkhandle(j, 1, "destructable");
-    if (d && !M_IsDead(d)) {
-        d->health.value = 0;
-        if (d->die) {
-            d->die(d, d);
-        }
-    }
+    G_KillDestructable(d, NULL);
     return 0;
 }
 /* Ghidra: SetDestructableInvulnerable=FUN_003f83a0 sets an invuln flag bit on
@@ -114,9 +108,7 @@ DWORD GetDestructableY(LPJASS j) {
 DWORD SetDestructableLife(LPJASS j) {
     LPEDICT d = jass_checkhandle(j, 1, "destructable");
     FLOAT life = jass_checknumber(j, 2);
-    if (d) {
-        d->health.value = life;
-    }
+    G_SetDestructableLife(d, life);
     return 0;
 }
 DWORD GetDestructableLife(LPJASS j) {
@@ -127,7 +119,10 @@ DWORD SetDestructableMaxLife(LPJASS j) {
     LPEDICT d = jass_checkhandle(j, 1, "destructable");
     FLOAT max = jass_checknumber(j, 2);
     if (d) {
-        d->health.max_value = max;
+        d->health.max_value = MAX(0.0f, max);
+        if (d->health.value > d->health.max_value || d->health.max_value <= 0.0f) {
+            G_SetDestructableLife(d, d->health.max_value);
+        }
     }
     return 0;
 }
@@ -148,18 +143,7 @@ DWORD DestructableRestoreLife(LPJASS j) {
     LPEDICT d = jass_checkhandle(j, 1, "destructable");
     FLOAT life = jass_checknumber(j, 2);
     BOOL birth = jass_checkboolean(j, 3);
-    (void)birth;  /* birth picks stand-vs-birth anim in WC3; trees only stand */
-    if (d) {
-        BOOL was_dead = M_IsDead(d);
-        d->health.value = MIN(life, d->health.max_value);
-        if (was_dead && d->health.value > 0) {
-            d->svflags &= ~SVF_DEADMONSTER;
-            d->aiflags &= ~AI_HOLD_FRAME;
-            if (d->stand) {
-                d->stand(d);
-            }
-        }
-    }
+    G_RestoreDestructable(d, life, birth);
     return 0;
 }
 DWORD QueueDestructableAnimation(LPJASS j) {

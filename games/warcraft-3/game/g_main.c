@@ -362,11 +362,18 @@ LPPLAYER G_GetPlayerByNumber(DWORD number) {
 //    return NULL;
 }
 
-GAMEEVENT *G_PublishEvent(LPEDICT edict, EVENTTYPE type) {
+GAMEEVENT *G_PublishEventWithSource(LPEDICT edict, EVENTTYPE type, LPEDICT source) {
     GAMEEVENT *evt = &level.events.queue[level.events.write++ % MAX_EVENT_QUEUE];
+
+    memset(evt, 0, sizeof(*evt));
     evt->type = type;
     evt->edict = edict;
+    evt->source = source;
     return evt;
+}
+
+GAMEEVENT *G_PublishEvent(LPEDICT edict, EVENTTYPE type) {
+    return G_PublishEventWithSource(edict, type, NULL);
 }
 
 /* Gameplay messages expose state-machine transitions without turning internal

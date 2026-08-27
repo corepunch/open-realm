@@ -459,6 +459,21 @@ LPEDICT G_CreateDestructable(DWORD class_id, FLOAT x, FLOAT y, FLOAT z, FLOAT fa
     return ent;
 }
 
+LPEDICT G_CreateDeadDestructable(DWORD class_id,
+                                 FLOAT x,
+                                 FLOAT y,
+                                 FLOAT z,
+                                 FLOAT facing,
+                                 FLOAT scale,
+                                 DWORD variation) {
+    LPEDICT ent = G_CreateDestructable(class_id, x, y, z, facing, scale, variation);
+
+    if (ent) {
+        G_SetDestructableDeadState(ent, false);
+    }
+    return ent;
+}
+
 BOOL SP_FindEmptySpaceAround(LPEDICT townhall, DWORD class_id, LPVECTOR2 out, FLOAT *angle) {
     FLOAT const colsize = UNIT_SELECTION_SCALE(class_id) * SEL_SCALE / 2;
     FLOAT const start_angle = M_PI * 1.25f;

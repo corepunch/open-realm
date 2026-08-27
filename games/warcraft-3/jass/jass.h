@@ -99,6 +99,7 @@ struct vm_program {
 struct jass_context {
     LPTRIGGER trigger;
     LPEDICT unit;
+    LPEDICT source;
     LPPLAYER playerState;
     LPCJASSFUNC func;
 };
@@ -135,7 +136,7 @@ HANDLE jass_newhandle(LPJASS j, DWORD size, LPCSTR type);
 HANDLE jass_alloc(long size);
 void jass_free(HANDLE ptr);
 LPCJASSCONTEXT jass_getcontext(LPJASS j);
-BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit);
+BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit, LPEDICT source);
 BOOL jass_popboolean(LPJASS j);
 void jass_pop(LPJASS j, DWORD count);
 BOOL jass_evaluatetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit);
