@@ -21,14 +21,20 @@ void tree_stand(LPEDICT self) {
     unit_setmove(self, &tree_move_stand);
 }
 
-void tree_die(LPEDICT self, LPEDICT attacker) {
+void G_DestructableStartDeathAnimation(LPEDICT self) {
     unit_setmove(self, &tree_move_death);
-    /* Begin the fall in the lethal transition itself.  Keeping the prior hit
-     * frame made the death snapshot continue to display an upright tree. */
+    /* Begin the death sequence in the transition itself. Missing model
+     * sequences leave animation NULL but do not block lifecycle processing. */
     if (self->animation)
         self->s.frame = self->animation->interval[0];
     G_PublishEvent(self, EVENT_UNIT_DEATH);
     self->svflags |= SVF_DEADMONSTER;
+}
+
+/* Legacy callback entry point used by script/native paths. Destructable death
+ * itself is owned by G_KillDestructable and does not depend on this callback. */
+void tree_die(LPEDICT self, LPEDICT attacker) {
+    G_KillDestructable(self, attacker);
 }
 
 void tree_birth(LPEDICT self) {

@@ -54,6 +54,7 @@ typedef struct {
 struct {
     DWORD width;
     DWORD height;
+    pathMapCell_t *terrain;  /* immutable WPM terrain before entity footprints */
     pathMapCell_t *original;
     pathMapCell_t *data;
     routeNode_t *heatmap;
@@ -136,6 +137,7 @@ void CM_SetupPathMap(DWORD width, DWORD height, BYTE const *cells) {
     DWORD n = width * height;
 
     SAFE_DELETE(pathmap.data, MemFree);
+    SAFE_DELETE(pathmap.terrain, MemFree);
     SAFE_DELETE(pathmap.original, MemFree);
     SAFE_DELETE(pathmap.heatmap, MemFree);
     SAFE_DELETE(pathmap.queue, MemFree);
@@ -151,15 +153,17 @@ void CM_SetupPathMap(DWORD width, DWORD height, BYTE const *cells) {
     }
 
     pathmap.data = MemAlloc(n);
+    pathmap.terrain = MemAlloc(n);
     pathmap.original = MemAlloc(n);
     pathmap.heatmap = MemAlloc(n * sizeof(routeNode_t));
     pathmap.queue = MemAlloc((n + 1) * sizeof(DWORD));
 
     if (cells) {
-        memcpy(pathmap.original, cells, n);
+        memcpy(pathmap.terrain, cells, n);
     } else {
-        memset(pathmap.original, 0, n);
+        memset(pathmap.terrain, 0, n);
     }
+    memcpy(pathmap.original, pathmap.terrain, n);
     memcpy(pathmap.data, pathmap.original, n);
     memset(pathmap.heatmap, 0, n * sizeof(routeNode_t));
 
@@ -233,7 +237,7 @@ static void stamp_entity_obstacle(edict_t const *ent, pathMapCell_t *target) {
                 }
             }
         }
-    } else if (!(ent->svflags & SVF_MONSTER)) {
+    } else if (!(ent->svflags & SVF_MONSTER) && ent->collision > 0.0f) {
         DWORD radius = collision_radius_cells(ent->collision);
         FOR_LOOP(x, MAX(1, radius * 2)) {
             FOR_LOOP(y, MAX(1, radius * 2)) {
@@ -247,18 +251,39 @@ static void stamp_entity_obstacle(edict_t const *ent, pathMapCell_t *target) {
     }
 }
 
-/* Bake all current static entity obstacles (buildings, doodads with pathtex,
- * non-monster solid entities) permanently into pathmap.original.  Call this
- * once after SpawnEntities() — these obstacles never move so they don't need
- * to be re-stamped every heatmap build. */
+static BOOL entity_blocks_static_pathing(edict_t const *ent) {
+    if (!ent || !ent->inuse || (ent->s.renderfx & RF_HIDDEN)) {
+        return false;
+    }
+#ifdef GAME_WORLD
+    if (ent->destructable.initialized) {
+        return ent->destructable.pathing_active &&
+            (ent->pathtex || ent->collision > 0.0f);
+    }
+#endif
+    if (ent->svflags & SVF_DEADMONSTER) {
+        return false;
+    }
+    return ent->pathtex || (!(ent->svflags & SVF_MONSTER) && ent->collision > 0.0f);
+}
+
+/* Rebuild current static obstacles from the immutable terrain baseline.  This
+ * is normally called once after map spawning, and again only when a static
+ * footprint changes (building creation or destructable death). */
 void CM_BakeStaticObstacles(void) {
-    if (!pathmap.original)
+    DWORD const cells = pathmap.width * pathmap.height;
+
+    if (!pathmap.terrain || !pathmap.original)
         return;
+    memcpy(pathmap.original, pathmap.terrain, cells);
     FOR_LOOP(i, ge->num_edicts) {
         edict_t *ent = EDICT_NUM(i);
-        if (!ent->inuse)
+        if (!entity_blocks_static_pathing(ent))
             continue;
         stamp_entity_obstacle(ent, pathmap.original);
+    }
+    if (pathmap.data) {
+        memcpy(pathmap.data, pathmap.original, cells);
     }
     /* Invalidate the cache so the next build uses the updated original. */
     heatmap_cache_invalidate();

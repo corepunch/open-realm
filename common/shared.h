@@ -161,6 +161,7 @@ enum {
     FLAG(RF_MOUNTED, 16),      /* riding a mount; overhead name resolves to the mounted attachment */
     FLAG(RF_HAS_QUEST, 17),    /* show overhead "?" sprite */
     FLAG(RF_QUEST_COMPLETE, 18), /* tint "?" sprite yellow */
+    FLAG(RF_NOT_SELECTABLE, 19), /* render normally but exclude from world hit/box selection */
 };
 
 enum {
@@ -171,6 +172,7 @@ enum {
     FLAG(EF_HAS_QUEST, 4),      /* entity has a quest in progress — show "?" sprite */
     FLAG(EF_QUEST_COMPLETE, 5), /* quest is ready to turn in — tint "?" yellow */
     FLAG(EF_HOSTILE, 6),        /* entity is hostile — renderer shows red nameplate */
+    FLAG(EF_NOT_SELECTABLE, 7), /* render entity, but exclude it from world/box selection */
 };
 
 enum {

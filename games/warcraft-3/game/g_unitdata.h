@@ -201,6 +201,7 @@ sheetRow_t *G_SheetTail(sheetRow_t *rows);
 #define DESTRUCTABLE_FOG_RADIUS(UNIT) UnitRealField(DestructableMetaData, UNIT, "bfra")
 #define DESTRUCTABLE_FOG_VISIBILITY(UNIT) UnitBooleanField(DestructableMetaData, UNIT, "bfvi")
 #define DESTRUCTABLE_PATH_TEX(UNIT) UnitStringField(DestructableMetaData, UNIT, "bptx")
+#define DESTRUCTABLE_DEATH_PATH_TEX(UNIT) UnitStringField(DestructableMetaData, UNIT, "bptd")
 
 #define ITEM_NAME(UNIT) UnitStringField(ItemsMetaData, UNIT, "inam")
 #define ITEM_FILE(UNIT) UnitStringField(ItemsMetaData, UNIT, "ifil")

@@ -149,6 +149,15 @@ BOOL unit_issuetargetorder(LPEDICT self, LPCSTR order, LPEDICT target) {
                 return true;
             }
         }
+        /* Neutral crates are not enemy units, but they are valid normal-attack
+         * targets.  Trees keep the harvest behavior above for workers. */
+        if (G_IsDestructable(target)) {
+            if (!G_DestructableIsAttackable(target)) {
+                return false;
+            }
+            order_attack(self, target);
+            return true;
+        }
         if (unit_smart_target_is_enemy(self, target)) {
             order_attack(self, target);
             return true;
@@ -156,6 +165,9 @@ BOOL unit_issuetargetorder(LPEDICT self, LPCSTR order, LPEDICT target) {
         return unit_issueorder(self, "move", &target->s.origin2);
     }
     if (!strcmp(order, "attack")) {
+        if (G_IsDestructable(target) && !G_DestructableIsAttackable(target)) {
+            return false;
+        }
         order_attack(self, target);
         return true;
     }

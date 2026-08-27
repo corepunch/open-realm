@@ -93,6 +93,43 @@ static BOOL can_attack(LPCEDICT ent) {
     return false;
 }
 
+static BOOL attack_target_is_valid(LPCEDICT target) {
+    if (!target || !target->inuse) {
+        return false;
+    }
+    if (target->destructable.initialized) {
+        return G_DestructableIsAttackable(target);
+    }
+    return !M_IsDead((LPEDICT)target);
+}
+
+static void attack_finish_after_kill(LPEDICT attacker) {
+    if (!attacker) {
+        return;
+    }
+    if (attacker->patrol_a) {
+        order_patrol_resume(attacker);
+    } else if (attacker->attackmove_waypoint) {
+        order_attackmove(attacker, attacker->attackmove_waypoint);
+    } else if (attacker->stand) {
+        attacker->stand(attacker);
+    }
+}
+
+static BOOL attack_stop_if_target_invalid(LPEDICT attacker) {
+    if (attack_target_is_valid(attacker ? attacker->goalentity : NULL)) {
+        return false;
+    }
+    if (attacker) {
+        unit_leavecombat(attacker);
+        attacker->goalentity = NULL;
+        if (attacker->stand) {
+            attacker->stand(attacker);
+        }
+    }
+    return true;
+}
+
 /* WC3 1.29 attack-type × defense-type damage multiplier table (verified from
  * MiscGame.txt). Rows = attack1.type (none,normal,pierce,siege,spells,chaos,
  * magic,hero); cols = defense_type (small,medium,large,fort,normal,hero,divine,
@@ -138,6 +175,12 @@ void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
     if (!target || target->invulnerable) {
         return;
     }
+    if (G_IsDestructable(target)) {
+        if (G_DestructableApplyDamage(target, attacker, (FLOAT)damage)) {
+            attack_finish_after_kill(attacker);
+        }
+        return;
+    }
     unit_entercombat(attacker, target);
     unit_entercombat(target, attacker);
 
@@ -146,13 +189,7 @@ void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
         unit_leavecombat(target);
         unit_leavecombat(attacker);
         target->die(target, attacker);
-        if (attacker->patrol_a) {
-            order_patrol_resume(attacker);
-        } else if (attacker->attackmove_waypoint) {
-            order_attackmove(attacker, attacker->attackmove_waypoint);
-        } else {
-            attacker->stand(attacker);
-        }
+        attack_finish_after_kill(attacker);
         return;
     } else {
         target->health.value -= damage;
@@ -165,12 +202,18 @@ void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
 }
 
 static void damage_target(LPEDICT ent) {
+    if (attack_stop_if_target_invalid(ent)) {
+        return;
+    }
     LPEDICT other = ent->goalentity;
     int damage = G_AttackDamage(ent, other, ai_rolldamage1(ent, 1));
     T_Damage(other, ent, damage);
 }
 
 static void throw_missile(LPEDICT ent) {
+    if (attack_stop_if_target_invalid(ent)) {
+        return;
+    }
     LPEDICT other = ent->goalentity;
     int damage = G_AttackDamage(ent, other, ai_rolldamage1(ent, 1));
     MATRIX4 matrix;
@@ -195,16 +238,25 @@ static void throw_missile(LPEDICT ent) {
 
 
 static void ai_melee(LPEDICT ent) {
+    if (attack_stop_if_target_invalid(ent)) {
+        return;
+    }
     unit_changeangle(ent);
     unit_runwait(ent, damage_target);
 }
 
 static void ai_ranged(LPEDICT ent) {
+    if (attack_stop_if_target_invalid(ent)) {
+        return;
+    }
     unit_changeangle(ent);
     unit_runwait(ent, throw_missile);
 }
 
 static void ai_melee_cooldown(LPEDICT ent) {
+    if (attack_stop_if_target_invalid(ent)) {
+        return;
+    }
     if (M_DistanceToGoal(ent) > ent->attack1.range) {
         attack_walk(ent);
     } else {
@@ -213,6 +265,9 @@ static void ai_melee_cooldown(LPEDICT ent) {
 }
 
 static void ai_ranged_cooldown(LPEDICT ent) {
+    if (attack_stop_if_target_invalid(ent)) {
+        return;
+    }
     if (M_DistanceToGoal(ent) > ent->attack1.range) {
         attack_walk(ent);
     } else {
@@ -221,6 +276,9 @@ static void ai_ranged_cooldown(LPEDICT ent) {
 }
 
 static void ai_attack_walk(LPEDICT ent) {
+    if (attack_stop_if_target_invalid(ent)) {
+        return;
+    }
     if (M_DistanceToGoal(ent) > ent->attack1.range) {
         unit_changeangle(ent);
         unit_moveindirection(ent);
@@ -243,6 +301,9 @@ void attack_walk(LPEDICT self) {
 
 /* Set the attack target and start walking toward attack range. */
 void order_attack(LPEDICT self, LPEDICT target) {
+    if (!self || !attack_target_is_valid(target)) {
+        return;
+    }
     unit_entercombat(self, target);
     self->goalentity = target;
     attack_walk(self);
@@ -281,7 +342,9 @@ void attack_ranged(LPEDICT self) {
 }
 
 BOOL attack_menu_selecttarget(LPEDICT ent, LPEDICT target) {
-    if (!S_SpellIsAliveTarget(target) || !S_SpellIsEnemy(ent, target)) {
+    BOOL destructable = G_DestructableIsAttackable(target);
+
+    if (!destructable && (!S_SpellIsAliveTarget(target) || !S_SpellIsEnemy(ent, target))) {
         return false;
     }
     FOR_SELECTED_UNITS(ent->client, e) {

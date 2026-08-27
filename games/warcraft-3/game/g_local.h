@@ -627,6 +627,16 @@ struct edict_s {
         LONG inventory_slot;
         BOOL in_world;
     } item;
+    struct {
+        BOOL initialized;
+        BOOL dead;
+        BOOL pathing_active;
+        BOOL placement_solid;
+        DWORD editor_id;
+        pathTex_t *alive_pathtex;
+        pathTex_t *death_pathtex;
+        FLOAT alive_collision;
+    } destructable;
     LPEDICT cargo_units[MAX_CARGO];
     DWORD cargo_count;
     DWORD cargo_capacity;
@@ -1110,6 +1120,15 @@ BOOL G_DropItemAt(LPEDICT unit, DWORD slot, LPCVECTOR2 position);
 BOOL G_DropItem(LPEDICT unit, DWORD slot);
 void G_RemoveItem(LPEDICT item);
 void G_UseItem(LPEDICT unit, DWORD slot);
+
+// g_destructable.c
+BOOL G_IsDestructable(LPCEDICT ent);
+BOOL G_DestructableIsAttackable(LPCEDICT ent);
+void G_InitializeDestructablePlacement(LPEDICT ent, LPCDOODAD placement);
+BOOL G_DestructableApplyDamage(LPEDICT ent, LPEDICT attacker, FLOAT damage);
+BOOL G_KillDestructable(LPEDICT ent, LPEDICT killer);
+void G_DestructableStartDeathAnimation(LPEDICT ent);
+void tree_die(LPEDICT ent, LPEDICT attacker);
 
 // ui_init
 void UI_Init(void);

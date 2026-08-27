@@ -41,6 +41,7 @@ nav:
         - FDF Reference: games/warcraft-3/file-docs/fdf.md
       - Implementation:
         - Inventory And World Items: games/warcraft-3/inventory-and-items.md
+        - Breakable Destructables: games/warcraft-3/breakable-destructables.md
         - UI System: games/warcraft-3/architecture/ui.md
         - UI Flow: games/warcraft-3/architecture/ui-flow.md
         - UI Quick Reference: games/warcraft-3/architecture/ui-quick-reference.md
