@@ -59,11 +59,21 @@ static rImageCacheEntry_t *r_image_hash[BZ_IMAGE_CACHE_BUCKETS];
 static BOOL r_load_streamed;
 static DWORD r_stream_generation;
 
+/* Aliases share one texture allocation, so lifetime state belongs to the cache entry that owns it. */
+static rImageCacheEntry_t *R_TextureOwner(rImageCacheEntry_t *entry) {
+    if (!entry || entry->owns_texture) return entry;
+    for (rImageCacheEntry_t *owner = r_image_cache; owner; owner = owner->next)
+        if (owner->owns_texture && owner->texture == entry->texture) return owner;
+    return entry;
+}
+
 static void R_MarkEntryUse(rImageCacheEntry_t *entry) {
+    entry = R_TextureOwner(entry);
     if (!entry || !entry->owns_texture) return;
     if (r_load_streamed) {
         if (!entry->pinned) { entry->streamed = true; entry->generation = r_stream_generation; }
-    } else if (entry->streamed) {
+    } else {
+        /* A persistent consumer may outlive every streaming generation; the old code pinned only streamed-first entries. */
         entry->streamed = false; entry->pinned = true;
     }
 }
@@ -151,6 +161,19 @@ static void R_UnlinkTextureFromIndex(LPTEXTURE texture) {
     }
 }
 
+/* Remove one path entry from both cache indexes without touching its shared texture allocation. */
+static void R_FreeCacheEntry(rImageCacheEntry_t **link) {
+    rImageCacheEntry_t *entry = *link;
+    DWORD hash = R_TextureNameHash(entry->name) % BZ_IMAGE_CACHE_BUCKETS;
+    rImageCacheEntry_t **hp = &r_image_hash[hash];
+
+    while (*hp && *hp != entry) hp = &(*hp)->hash_next;
+    if (*hp) *hp = entry->hash_next;
+    *link = entry->next;
+    ri.MemFree(entry->name);
+    ri.MemFree(entry);
+}
+
 /* Free streamable textures not referenced within the last keep_recent generations.
    Non-streamed / pinned / built-in textures are never touched.  World geometry is
    rebuilt on every window slide, so any live reference re-stamps its texture the
@@ -162,17 +185,18 @@ void R_ReclaimStreamedTextures(DWORD keep_recent) {
         rImageCacheEntry_t *entry = *pp;
         if (entry->streamed && !entry->pinned && entry->owns_texture &&
             (r_stream_generation - entry->generation) > keep_recent) {
-            DWORD hash = R_TextureNameHash(entry->name) % BZ_IMAGE_CACHE_BUCKETS;
-            rImageCacheEntry_t **hp = &r_image_hash[hash];
-            while (*hp && *hp != entry) hp = &(*hp)->hash_next;
-            if (*hp) *hp = entry->hash_next;
-            R_UnlinkTextureFromIndex(entry->texture);
-            R_Call(glDeleteTextures, 1, &entry->texture->texid);
-            ri.MemFree(entry->texture);
-            *pp = entry->next;
-            ri.MemFree(entry->name);
-            ri.MemFree(entry);
+            LPTEXTURE texture = entry->texture;
+            rImageCacheEntry_t **alias = &r_image_cache;
+
+            /* The owner and every path alias become invalid together when the allocation is reclaimed. */
+            while (*alias)
+                if ((*alias)->texture == texture) R_FreeCacheEntry(alias);
+                else alias = &(*alias)->next;
+            R_UnlinkTextureFromIndex(texture);
+            R_Call(glDeleteTextures, 1, &texture->texid);
+            ri.MemFree(texture);
             freed++;
+            pp = &r_image_cache;
         } else {
             pp = &(*pp)->next;
         }

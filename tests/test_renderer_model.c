@@ -148,14 +148,18 @@ static void test_teximage(GLenum target, GLint level, GLint internal, GLsizei w,
 static void test_gentex(GLsizei n, GLuint *ids) { while (n--) *ids++ = 99; }
 static void test_bindtex(GLenum target, GLuint id) { (void)target; (void)id; }
 static void test_texparam(GLenum target, GLenum name, GLint value) { (void)target; (void)name; (void)value; }
+static DWORD texture_delete_count;
+static void test_deletetex(GLsizei n, const GLuint *ids) { (void)ids; texture_delete_count += n; }
 #undef glTexImage2D
 #undef glGenTextures
 #undef glBindTexture
 #undef glTexParameteri
+#undef glDeleteTextures
 #define glTexImage2D test_teximage
 #define glGenTextures test_gentex
 #define glBindTexture test_bindtex
 #define glTexParameteri test_texparam
+#define glDeleteTextures test_deletetex
 #undef glGetString
 #define glGetString test_glstring
 #define SDL_GL_ExtensionSupported test_hasext
@@ -189,6 +193,13 @@ static void reset_registry(void) {
     ri.MemAlloc = test_alloc; ri.MemFree = test_free; ri.error = test_error;
     load_count = release_count = register_count = 0;
     fail_load = touch_during_registration = false;
+}
+
+static LPTEXTURE reset_texture_registry(void) {
+    R_ShutdownTextureCache();
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free;
+    r_load_streamed = false; r_stream_generation = 0; texture_delete_count = 0;
+    return test_alloc(sizeof(TEXTURE));
 }
 
 
@@ -266,6 +277,69 @@ TEST(renderer_texture, resident_registry_keeps_entries_beyond_configstring_limit
         R_CacheLoadedTexture(path, &placeholder);
     }
     T_ASSERT(R_FindLoadedTexture("textures/registry/1024.BLP") == &placeholder);
+}
+
+TEST(renderer_texture, persistent_then_streamed_remains_pinned) {
+    LPTEXTURE texture = reset_texture_registry();
+
+    R_CacheLoadedTexture("textures/shared.blp", texture);
+    T_ASSERT(r_image_cache->pinned); T_ASSERT(!r_image_cache->streamed);
+    r_load_streamed = true; T_ASSERT(R_FindLoadedTexture("textures/shared.blp") == texture); r_load_streamed = false;
+    R_AdvanceTextureGeneration(); R_ReclaimStreamedTextures(0);
+    T_ASSERT(r_image_cache && r_image_cache->texture == texture); T_EQ(texture_delete_count, 0);
+    R_ShutdownTextureCache();
+}
+
+TEST(renderer_texture, streamed_then_persistent_becomes_pinned) {
+    LPTEXTURE texture = reset_texture_registry();
+
+    r_load_streamed = true; R_CacheLoadedTexture("textures/shared.blp", texture); r_load_streamed = false;
+    T_ASSERT(r_image_cache->streamed); T_ASSERT(!r_image_cache->pinned);
+    T_ASSERT(R_FindLoadedTexture("textures/shared.blp") == texture);
+    T_ASSERT(r_image_cache->pinned); T_ASSERT(!r_image_cache->streamed);
+    R_AdvanceTextureGeneration(); R_ReclaimStreamedTextures(0);
+    T_ASSERT(r_image_cache && r_image_cache->texture == texture); T_EQ(texture_delete_count, 0);
+    R_ShutdownTextureCache();
+}
+
+TEST(renderer_texture, stale_streamed_texture_is_reclaimed) {
+    LPTEXTURE texture = reset_texture_registry();
+
+    r_load_streamed = true; R_CacheLoadedTexture("textures/streamed.blp", texture); r_load_streamed = false;
+    R_AdvanceTextureGeneration(); R_ReclaimStreamedTextures(0);
+    T_NULL(r_image_cache); T_EQ(texture_delete_count, 1);
+}
+
+TEST(renderer_texture, current_streamed_generation_is_retained) {
+    LPTEXTURE texture = reset_texture_registry();
+
+    r_load_streamed = true; R_CacheLoadedTexture("textures/current.blp", texture); r_load_streamed = false;
+    R_ReclaimStreamedTextures(0);
+    T_ASSERT(r_image_cache && r_image_cache->texture == texture); T_EQ(texture_delete_count, 0);
+    R_ShutdownTextureCache();
+}
+
+TEST(renderer_texture, persistent_alias_pins_streamed_owner) {
+    LPTEXTURE texture = reset_texture_registry();
+
+    r_load_streamed = true; R_CacheLoadedTexture("textures/owner.blp", texture); r_load_streamed = false;
+    R_CacheLoadedTexture("textures/alias.blp", texture);
+    rImageCacheEntry_t *owner = R_TextureOwner(r_image_cache);
+    T_ASSERT(owner->owns_texture); T_ASSERT(owner->pinned); T_ASSERT(!owner->streamed);
+    R_AdvanceTextureGeneration(); R_ReclaimStreamedTextures(0);
+    T_EQ(texture_delete_count, 0);
+    R_ShutdownTextureCache();
+}
+
+TEST(renderer_texture, reclaim_removes_streamed_aliases_with_owner) {
+    LPTEXTURE texture = reset_texture_registry();
+
+    r_load_streamed = true;
+    R_CacheLoadedTexture("textures/owner.blp", texture);
+    R_CacheLoadedTexture("textures/alias.blp", texture);
+    r_load_streamed = false;
+    R_AdvanceTextureGeneration(); R_ReclaimStreamedTextures(0);
+    T_NULL(r_image_cache); T_NULL(R_FindLoadedTexture("textures/alias.blp")); T_EQ(texture_delete_count, 1);
 }
 
 TEST(renderer_model, clock_emission_needs_no_instance_accumulator) {
