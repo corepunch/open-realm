@@ -360,6 +360,22 @@ TEST(renderer_shader, normal_model_defines_do_not_inherit_instancing) {
     T_NULL(strstr(R_ShaderDefines(false), "BZ_USE_INSTANCING"));
 }
 
+/* GLSL 120 does not accept implicit integer-to-float conversion in these fog-raycast expressions. */
+TEST(renderer_shader, fog_raycast_uses_float_literals_for_glsl120) {
+    FILE *file = fopen("renderer/r_fogofwar.c", "rb");
+    char line[256];
+    BOOL up = false, z = false, invalid = false;
+
+    T_NOT_NULL(file);
+    while (file && fgets(line, sizeof(line), file)) {
+        if (strstr(line, "vec3 up = vec3(0.0, 0.0, 1.0)")) up = true;
+        if (strstr(line, "pos.z = 0.0")) z = true;
+        if (strstr(line, "vec3 up = vec3(0, 0, 1)") || strstr(line, "pos.z = 0;")) invalid = true;
+    }
+    if (file) fclose(file);
+    T_ASSERT(up); T_ASSERT(z); T_ASSERT(!invalid);
+}
+
 static HANDLE shader_alloc(long size) { return shader_test.memory = test_alloc(size); }
 
 /* Each case starts with empty caches and independent driver counters. */

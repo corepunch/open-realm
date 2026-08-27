@@ -70,6 +70,11 @@ Shader descriptors provide `vec4 vert()` and `vec4 frag()` bodies and call `text
 `R_BuildShaderDeclarations` generates uniform/attribute/varying declarations. `R_BuildShaderMain`
 wraps the bodies with the dialect's output variables; GLSL 120 gets the `texture2D` alias.
 Bodies do not need `GLSL_ATTR`, `GLSL_FRAGCOLOR`, or other dialect-token macros.
+GLSL 120 shader bodies must spell floating-point constructor and assignment literals with a decimal suffix;
+use `vec3(0.0, 0.0, 1.0)` and `pos.z = 0.0`, not integer literals that newer dialects implicitly convert.
+The fog-of-war raycast correction follows [upstream commit 52f2de0b](https://github.com/corepunch/open-realm/commit/52f2de0b20035c23fa36e6f32e88a0477d710b64).
+macOS core-profile contexts reject `#version 120` itself, so runtime validation of that dialect requires a
+compatibility-profile/Linux driver; macOS can still run the source-contract tests.
 
 `UNIFORM` entries address fields in a typed CPU value state; GL locations stay inside `SHADERPROG`.
 Populate the state, then call `R_ApplyShader` at the draw boundary. See
