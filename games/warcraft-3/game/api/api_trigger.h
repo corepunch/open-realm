@@ -51,6 +51,9 @@ DWORD GetTriggerExecCount(LPJASS j) {
     //LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
     return jass_pushinteger(j, 0);
 }
+/* Registrations own their subject/filter/limit data. Dispatch installs event
+ * response context before conditions and actions, then restores it for nested
+ * triggers; state-limit events fire on the qualifying transition. */
 DWORD TriggerRegisterVariableEvent(LPJASS j) {
     //LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
     //LPCSTR varName = jass_checkstring(j, 2);

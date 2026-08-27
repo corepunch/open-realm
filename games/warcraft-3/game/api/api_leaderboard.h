@@ -1,3 +1,6 @@
+/* Leaderboards are server-owned data models serialized through the existing UI
+ * payload path. C owns labels/items/styles; authoritative layout files own all
+ * geometry, and PlayerSetLeaderboard selects the model per client. */
 DWORD CreateLeaderboard(LPJASS j) {
     return jass_pushnullhandle(j, "leaderboard");
 }

@@ -17,6 +17,9 @@ DWORD CreateSound(LPJASS j) {
 //    sound->eaxSetting = eaxSetting;
     return 1;
 }
+/* Label constructors resolve WC3 sound-data rows into the same game-owned sound
+ * descriptor as CreateSound. Playback is sent through the entity/server sound
+ * path; JASS never owns or calls the client mixer directly. */
 DWORD CreateSoundFilenameWithLabel(LPJASS j) {
     //LPCSTR fileName = jass_checkstring(j, 1);
     //BOOL looping = jass_checkboolean(j, 2);
@@ -106,6 +109,9 @@ DWORD AttachSoundToUnit(LPJASS j) {
     //HANDLE whichUnit = jass_checkhandle(j, 2, "unit");
     return 0;
 }
+/* Start/stop/query callbacks form one handle state machine. Attachment follows
+ * the unit, fade flags affect transition timing, and killWhenDone controls
+ * handle lifetime after playback rather than acting as an immediate free. */
 DWORD StartSound(LPJASS j) {
     //HANDLE soundHandle = jass_checkhandle(j, 1, "sound");
     return 0;

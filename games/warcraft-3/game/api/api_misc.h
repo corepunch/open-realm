@@ -154,6 +154,9 @@ DWORD GetLocalizedHotkey(LPJASS j) {
     //LPCSTR source = jass_checkstring(j, 1);
     return jass_pushinteger(j, 0);
 }
+/* Map-configuration natives run from config() before main(). They must mutate a
+ * per-level setup snapshot initialized from war3map.w3i; level.mapinfo is
+ * authoritative input and must not remain the writable runtime store. */
 DWORD SetMapName(LPJASS j) {
     //LPCSTR name = jass_checkstring(j, 1);
     return 0;
