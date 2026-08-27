@@ -68,8 +68,6 @@ typedef enum render_phase_e {
     RENDER_PHASE_ALPHA,
 } render_phase_t;
 
-extern render_phase_t render_phase;
-
 #include "../common/common.h"
 #include "../client/tr_public.h"
 #include "r_alpha.h"
@@ -287,6 +285,7 @@ enum {
 
 struct render_globals {
     viewDef_t viewDef;
+    render_phase_t render_phase;    /* current whole-scene pass (solid / shadow-map / alpha); read by game renderers */
     LPCWAR3MAP world;
     LPTEXTURE texture[TEX_COUNT];
     SPRITEPROG  shader_ui;

@@ -5,10 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef USE_SHADOWMAPS
-extern render_phase_t render_phase;
-#endif
-
 #define MDLX_STACK_DRAW_ORDER 64
 
 #define GET_PARTICLE_ANIM_PARAM(MODEL, EMITTER, NAME) \
@@ -155,7 +151,7 @@ static void MDLX_RenderTailEmitter(mdxModel_t const *model,
 static bool MDLX_SetBlendMode(const mdxMaterialLayer_t *layer, DWORD layerID) {
     R_SetAlphaKeyState(false);
 #ifdef USE_SHADOWMAPS
-    switch (render_phase == RENDER_PHASE_LIGHTS ? (int)layer->blendMode : -1) {
+    switch (tr.render_phase == RENDER_PHASE_LIGHTS ? (int)layer->blendMode : -1) {
         case BLEND_MODE_BLEND:
         case BLEND_MODE_ADD:
         case BLEND_MODE_ADDALPHA:
@@ -808,7 +804,7 @@ void MDX_RenderModel(renderEntity_t const *entity,
     MATRIX3 normalMatrix;
     GLfloat const *viewProjectionMatrix =
 #ifdef USE_SHADOWMAPS
-        render_phase == RENDER_PHASE_LIGHTS ? tr.viewDef.lightMatrix.v :
+        tr.render_phase == RENDER_PHASE_LIGHTS ? tr.viewDef.lightMatrix.v :
 #endif
         tr.viewDef.viewProjectionMatrix.v;
     Matrix3_normal(&normalMatrix, transform);
