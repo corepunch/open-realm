@@ -363,12 +363,17 @@ LPPLAYER G_GetPlayerByNumber(DWORD number) {
 }
 
 GAMEEVENT *G_PublishEventWithSource(LPEDICT edict, EVENTTYPE type, LPEDICT source) {
-    GAMEEVENT *evt = &level.events.queue[level.events.write++ % MAX_EVENT_QUEUE];
+    DWORD index = level.events.write++;
+    GAMEEVENT *evt = &level.events.queue[index % MAX_EVENT_QUEUE];
 
     memset(evt, 0, sizeof(*evt));
     evt->type = type;
     evt->edict = edict;
     evt->source = source;
+    if (type == EVENT_UNIT_DEATH && edict && G_IsDestructable(edict) && G_DebugDestructables())
+        fprintf(stderr, "WC3 dest script: death queued queue=%u ent=%u type=%.4s read=%u write=%u\n",
+                (unsigned)index, (unsigned)edict->s.number, (LPCSTR)&edict->class_id,
+                (unsigned)level.events.read, (unsigned)level.events.write);
     return evt;
 }
 

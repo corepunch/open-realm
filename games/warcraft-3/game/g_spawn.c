@@ -433,15 +433,29 @@ LPEDICT SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location) {
  * the original — one crate/gate carrying the trigger — instead of a stacked
  * duplicate.  Match a same-type destructable within 10 units of the spot. */
 LPEDICT G_CreateDestructable(DWORD class_id, FLOAT x, FLOAT y, FLOAT z, FLOAT facing, FLOAT scale, DWORD variation) {
+    if (G_DebugDestructables())
+        fprintf(stderr, "WC3 dest script: create request type=%.4s pos=(%.1f %.1f %.1f) face=%.3f scale=%.2f var=%u\n",
+                (LPCSTR)&class_id, x, y, z, facing, scale, (unsigned)variation);
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT existing = &g_edicts[i];
-        if (existing->class_id == class_id && G_IsDestructable(existing) &&
-            Vector2_distance(&MAKE(VECTOR2, x, y), &existing->s.origin2) < 10) {
+        FLOAT distance;
+
+        if (existing->class_id != class_id || !G_IsDestructable(existing))
+            continue;
+        distance = Vector2_distance(&MAKE(VECTOR2, x, y), &existing->s.origin2);
+        if (distance < 10) {
+            if (G_DebugDestructables())
+                fprintf(stderr, "WC3 dest script: create matched ent=%u type=%.4s distance=%.2f editor=%u "
+                                "dead=%u flags=0x%x\n", (unsigned)existing->s.number,
+                        (LPCSTR)&existing->class_id, distance, (unsigned)existing->destructable.editor_id,
+                        (unsigned)existing->destructable.dead, (unsigned)existing->s.flags);
             return existing;
         }
     }
     LPEDICT ent = G_Spawn();
     if (!ent) {
+        if (G_DebugDestructables())
+            fprintf(stderr, "WC3 dest script: create failed type=%.4s reason=no-edict\n", (LPCSTR)&class_id);
         return NULL;
     }
     ent->class_id = class_id;
@@ -456,6 +470,11 @@ LPEDICT G_CreateDestructable(DWORD class_id, FLOAT x, FLOAT y, FLOAT z, FLOAT fa
     if (G_IsDestructable(ent)) {
         CM_BakeStaticObstacles();
     }
+    if (G_DebugDestructables())
+        fprintf(stderr, "WC3 dest script: create spawned ent=%u type=%.4s is_dest=%u inuse=%u flags=0x%x "
+                        "renderfx=0x%x\n", (unsigned)ent->s.number, (LPCSTR)&ent->class_id,
+                (unsigned)G_IsDestructable(ent), (unsigned)ent->inuse,
+                (unsigned)ent->s.flags, (unsigned)ent->s.renderfx);
     return ent;
 }
 

@@ -3,7 +3,7 @@
 #define DESTRUCTABLE_DROP_RADIUS 32.0f // world units; separates multiple drops around one destroyed object
 #define NO_RANDOM_ITEM_TABLE ((DWORD)-1)
 
-static BOOL G_DebugDestructables(void) { return gi.CvarString && atoi(gi.CvarString("g_debug_destructables", "0")); }
+BOOL G_DebugDestructables(void) { return gi.CvarString && atoi(gi.CvarString("g_debug_destructables", "0")); }
 #define DEST_DEBUG(...) do { if (G_DebugDestructables()) fprintf(stderr, "WC3 dest debug: " __VA_ARGS__); } while (0)
 
 static void G_ApplyDestructableAlivePathing(LPEDICT ent) {

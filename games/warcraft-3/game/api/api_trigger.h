@@ -175,11 +175,20 @@ DWORD TriggerRegisterDeathEvent(LPJASS j) {
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
     LPEDICT whichWidget = jass_checkhandle(j, 2, "widget");
     if (!whichTrigger || !whichWidget) {
+        if (G_DebugDestructables())
+            fprintf(stderr, "WC3 dest script: death register rejected trigger=%p widget=%p\n",
+                    (void *)whichTrigger, (void *)whichWidget);
         return jass_pushnullhandle(j, "event");
     }
     LPEVENT evt = G_MakeEvent(EVENT_UNIT_DEATH);
     evt->subject = whichWidget;
     evt->trigger = whichTrigger;
+    if (G_DebugDestructables())
+        fprintf(stderr, "WC3 dest script: death register event=%p trigger=%p subject=%u type=%.4s is_dest=%u "
+                        "editor=%u disabled=%u\n", (void *)evt, (void *)whichTrigger,
+                (unsigned)whichWidget->s.number, (LPCSTR)&whichWidget->class_id,
+                (unsigned)G_IsDestructable(whichWidget), (unsigned)whichWidget->destructable.editor_id,
+                (unsigned)whichTrigger->disabled);
     return jass_pushlighthandle(j, evt, "event");
 }
 DWORD TriggerRegisterUnitStateEvent(LPJASS j) {

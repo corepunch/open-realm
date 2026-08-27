@@ -3,6 +3,17 @@ DWORD CreateItem(LPJASS j) {
     FLOAT x = jass_checknumber(j, 2);
     FLOAT y = jass_checknumber(j, 3);
     LPEDICT item = SP_SpawnAtLocation(itemid, 0, &MAKE(VECTOR2, x, y));
+    if (G_DebugDestructables()) {
+        if (item)
+            fprintf(stderr, "WC3 dest script: CreateItem rawcode=%.4s pos=(%.1f %.1f) result=%u inuse=%u "
+                            "world=%u flags=0x%x renderfx=0x%x svflags=0x%x origin=(%.1f %.1f %.1f)\n",
+                    (LPCSTR)&itemid, x, y, (unsigned)item->s.number, (unsigned)item->inuse,
+                    (unsigned)item->item.in_world, (unsigned)item->s.flags, (unsigned)item->s.renderfx,
+                    (unsigned)item->svflags, item->s.origin.x, item->s.origin.y, item->s.origin.z);
+        else
+            fprintf(stderr, "WC3 dest script: CreateItem rawcode=%.4s pos=(%.1f %.1f) result=null\n",
+                    (LPCSTR)&itemid, x, y);
+    }
     return jass_pushlighthandle(j, item, "item");
 }
 DWORD RemoveItem(LPJASS j) {

@@ -136,9 +136,11 @@ build/bin/openwarcraft3 +set g_debug_destructables 1 +set r_debug_destructables 
 ```
 
 `g_debug_destructables` records placement drop metadata, damage and death state, every inline/table roll, item-data
-validation, and the final world-item entity returned by `SP_SpawnAtLocation`. `r_debug_destructables` records actual
-shadow submissions and active MDX particle emitters for non-selectable death remains, rate-limited per entity. Search
-the captured log for `WC3 dest debug:` and `WC3 dest render:`.
+validation, and the final world-item entity returned by `SP_SpawnAtLocation`. It also traces scripted destructable
+creation/rebinding, death-trigger registration, queued-event matching and condition results, action function pointers,
+and `CreateItem` results. `r_debug_destructables` records actual shadow submissions and active MDX particle emitters
+for non-selectable death remains, rate-limited per entity. Search the captured log for `WC3 dest debug:`,
+`WC3 dest script:`, and `WC3 dest render:`.
 Scripted-lifecycle tests cover silent dead creation, kill versus remove,
 zero-life death, positive-life restoration, birth/stand animation selection,
 second death after restoration, and JASS `GetTriggerWidget()` / `GetKillingUnit()`

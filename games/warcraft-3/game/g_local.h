@@ -1128,6 +1128,7 @@ void G_RemoveItem(LPEDICT item);
 void G_UseItem(LPEDICT unit, DWORD slot);
 
 // g_destructable.c
+BOOL G_DebugDestructables(void);
 BOOL G_IsDestructable(LPCEDICT ent);
 BOOL G_DestructableIsAttackable(LPCEDICT ent);
 void G_InitializeDestructablePlacement(LPEDICT ent, LPCDOODAD placement);
