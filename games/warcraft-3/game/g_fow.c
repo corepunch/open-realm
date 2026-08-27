@@ -848,8 +848,10 @@ BOOL G_FowPlayerCanSeeEntity(DWORD player, LPCEDICT ent) {
     }
     index = y * level.fow.width + x;
     grid = &level.fow.players[player];
-    /* Static structures stay rendered (shrouded) once explored, matching
-     * authentic WC3 fog-of-war; only mobile units require current vision. */
+    /* The client fog mask shrouds static scenery; removing it with unit vision makes trees pop inside the camera view. */
+    if (ent->svflags & SVF_STATIC_SCENERY) {
+        return true;
+    }
     if (UNIT_IS_BUILDING(ent->class_id)) {
         return grid->explored && grid->explored[index] != 0;
     }

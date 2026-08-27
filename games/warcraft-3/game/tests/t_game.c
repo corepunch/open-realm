@@ -572,6 +572,31 @@ TEST(wc3_game, fow_visible_clears_but_explored_remains) {
     G_FowShutdown();
 }
 
+TEST(wc3_game, fow_static_scenery_persists_after_unit_vision_leaves) {
+    reset_entities();
+    G_FowInit();
+    G_FowConnectPlayer(0);
+
+    LPEDICT revealer = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
+    LPEDICT tree = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 64.0f, 64.0f);
+    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 64.0f);
+    revealer->s.player = 0;
+    revealer->balance.sight_radius.day = 128.0f;
+    revealer->health.value = revealer->health.max_value = 1.0f;
+    tree->s.player = unit->s.player = MAX_PLAYERS;
+    tree->svflags |= SVF_STATIC_SCENERY;
+
+    G_FowUpdate();
+    T_ASSERT(G_FowPlayerCanSeeEntity(0, tree));
+    T_ASSERT(G_FowPlayerCanSeeEntity(0, unit));
+    revealer->s.renderfx |= RF_HIDDEN;
+    G_FowUpdate();
+
+    T_ASSERT(G_FowPlayerCanSeeEntity(0, tree));
+    T_ASSERT(!G_FowPlayerCanSeeEntity(0, unit));
+    G_FowShutdown();
+}
+
 TEST(wc3_game, fow_blocker_stops_visibility_behind_it) {
     reset_entities();
     G_FowInit();

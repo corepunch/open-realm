@@ -7,6 +7,7 @@
 #define SVF_NOCLIENT 0x00000001    // don't send entity to clients, even if it has effects
 #define SVF_DEADMONSTER 0x00000002    // treat as CONTENTS_DEADMONSTER for collision
 #define SVF_MONSTER 0x00000004    // treat as CONTENTS_MONSTER for collision
+#define SVF_STATIC_SCENERY 0x00000008 // snapshot visibility; client fog shades map doodads/destructibles independently of unit sight
 
 KNOWN_AS(client_s, GAMECLIENT);
 KNOWN_AS(edict_s, EDICT);
