@@ -62,6 +62,9 @@ static BOOL sc2_cliff_shader_loaded;
 static LPTEXTURE sc2_terrain_textures[SC2_TERRAIN_BLEND_LAYERS];
 static LPTEXTURE sc2_terrain_masks[SC2_TERRAIN_BLEND_GROUPS];
 static DWORD sc2_num_terrain_layers;
+/* Shared normal grid: (MAP_W+1)*(MAP_H+1) normals derived from the heightmap.
+   Both ground vertices and cliff boundary vertices index into this so seams never appear. */
+static VECTOR3 *sc2_terrain_normals;
 
 typedef struct sc2CliffModel_s {
     PATHSTR path;
@@ -499,15 +502,55 @@ static BOOL r_sc2_cliff_vertex_joins_ground(LPCVECTOR3 pos, DWORD edges) {
            ((edges & SC2_CLIFF_JOIN_TOP) && fabsf(pos->y - 1.0f) < SC2_EPSILON);
 }
 
+static void r_sc2_build_terrain_normal_grid(sc2Map_t const *map) {
+    DWORD w = SC2_MAP_WIDTH(map);
+    DWORD h = SC2_MAP_HEIGHT(map);
+    TERRAINNORMALS grid = { map, r_sc2_normal_height, w + 1, h + 1, map->cell_size };
+    DWORD n = (w + 1) * (h + 1);
+
+    ri.MemFree(sc2_terrain_normals);
+    sc2_terrain_normals = ri.MemAlloc(n * sizeof(*sc2_terrain_normals));
+    FOR_LOOP(i, n)
+        sc2_terrain_normals[i] = R_TerrainGridNormal(&grid, i % (w + 1), i / (w + 1));
+}
+
+static VECTOR3 r_sc2_terrain_normal_at_world(sc2Map_t const *map, FLOAT wx, FLOAT wy) {
+    BOX2 bounds = SC2_MapBounds();
+    DWORD w = SC2_MAP_WIDTH(map);
+    DWORD h = SC2_MAP_HEIGHT(map);
+    FLOAT gx = (wx - bounds.min.x) / map->cell_size;
+    FLOAT gy = (wy - bounds.min.y) / map->cell_size;
+    int x0 = (int)floorf(gx), y0 = (int)floorf(gy);
+    FLOAT tx = gx - (FLOAT)x0, ty = gy - (FLOAT)y0;
+    int x1, y1;
+    VECTOR3 n00, n10, n01, n11, n0, n1, result;
+
+    if (!sc2_terrain_normals) return (VECTOR3){ 0.0f, 0.0f, 1.0f };
+    x0 = MAX(0, MIN((int)w, x0));
+    y0 = MAX(0, MIN((int)h, y0));
+    x1 = MIN((int)w, x0 + 1);
+    y1 = MIN((int)h, y0 + 1);
+    n00 = sc2_terrain_normals[x0 + y0 * (w + 1)];
+    n10 = sc2_terrain_normals[x1 + y0 * (w + 1)];
+    n01 = sc2_terrain_normals[x0 + y1 * (w + 1)];
+    n11 = sc2_terrain_normals[x1 + y1 * (w + 1)];
+    n0 = Vector3_lerp(&n00, &n10, tx);
+    n1 = Vector3_lerp(&n01, &n11, tx);
+    result = Vector3_lerp(&n0, &n1, ty);
+    Vector3_normalize(&result);
+    return result;
+}
+
 static void r_sc2_build_ground_vertex_normals(sc2Map_t const *map,
                                               VERTEX *vertices,
                                               DWORD w,
                                               DWORD h) {
-    TERRAINNORMALS grid = { map, r_sc2_normal_height, w + 1, h + 1, map->cell_size };
     DWORD num_vertices = (w + 1) * (h + 1);
 
-    FOR_LOOP(i, num_vertices)
-        vertices[i].normal = R_TerrainGridNormal(&grid, i % (w + 1), i / (w + 1));
+    if (sc2_terrain_normals) {
+        FOR_LOOP(i, num_vertices)
+            vertices[i].normal = sc2_terrain_normals[i];
+    }
 }
 
 static void r_sc2_release_layer(LPMAPLAYER layer) {
@@ -535,6 +578,8 @@ static void r_sc2_release_terrain(void) {
     }
     r_sc2_release_cliff_models();
     sc2_num_terrain_layers = 0;
+    ri.MemFree(sc2_terrain_normals);
+    sc2_terrain_normals = NULL;
 }
 
 static void r_sc2_release_cliff_models(void) {
@@ -1034,20 +1079,27 @@ static void r_sc2_bake_cliff_region(rCliffBakeList_t *list,
                     sc2_map_height_adjust_at_point(map, xy.x, xy.y),
             };
             /* The M3 silhouette is decorative; vertices at an emitted ground edge must use that exact surface height. */
-            if (r_sc2_cliff_vertex_joins_ground(&rotated, placement->join_edges) &&
-                fabsf(position.z - r_sc2_ground_height_at_point(map, xy.x, xy.y)) < map->cell_size)
-                position.z = r_sc2_ground_height_at_point(map, xy.x, xy.y);
-            uv = (VECTOR2){ vertex->uv[0][0] / SC2_M3_UV_SCALE, vertex->uv[0][1] / SC2_M3_UV_SCALE };
-            normal = r_sc2_rotate_cliff_vec(normal, rotation);
-            Vector3_normalize(&normal);
-            r_sc2_push_vertex_normal(out,
-                                     position.x,
-                                     position.y,
-                                     position.z,
-                                     uv.x,
-                                     uv.y,
-                                     255,
-                                     normal);
+            {
+                BOOL at_ground_edge = r_sc2_cliff_vertex_joins_ground(&rotated, placement->join_edges) &&
+                    fabsf(position.z - r_sc2_ground_height_at_point(map, xy.x, xy.y)) < map->cell_size;
+                if (at_ground_edge)
+                    position.z = r_sc2_ground_height_at_point(map, xy.x, xy.y);
+                uv = (VECTOR2){ vertex->uv[0][0] / SC2_M3_UV_SCALE, vertex->uv[0][1] / SC2_M3_UV_SCALE };
+                normal = r_sc2_rotate_cliff_vec(normal, rotation);
+                Vector3_normalize(&normal);
+                /* Ground-edge cliff vertices share the heightmap normal so cliff and ground mesh
+                   use the same source and produce no lighting seam at their boundary. */
+                if (at_ground_edge)
+                    normal = r_sc2_terrain_normal_at_world(map, position.x, position.y);
+                r_sc2_push_vertex_normal(out,
+                                         position.x,
+                                         position.y,
+                                         position.z,
+                                         uv.x,
+                                         uv.y,
+                                         255,
+                                         normal);
+            }
         }
     }
 }
@@ -1276,6 +1328,7 @@ static void r_sc2_build_terrain(sc2Map_t const *map) {
 
     r_sc2_init_terrain_shader();
     r_sc2_load_terrain_textures(map);
+    r_sc2_build_terrain_normal_grid(map);
     sc2_terrain_segment = ri.MemAlloc(sizeof(*sc2_terrain_segment));
     memset(sc2_terrain_segment, 0, sizeof(*sc2_terrain_segment));
     r_sc2_add_layer(&sc2_terrain_segment->layers, r_sc2_build_ground_layer(map));
