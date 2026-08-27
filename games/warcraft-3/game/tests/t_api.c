@@ -443,6 +443,15 @@ TEST(wc3_api, group_first_of_group) {
     T_ASSERT(g.units[1] == b);
 }
 
+TEST(wc3_api, group_add_is_set_semantics) {
+    reset_entities();
+    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    ggroup_t group = {0};
+    T_ASSERT(group_add_entity(&group, unit));
+    T_ASSERT(!group_add_entity(&group, unit));
+    T_EQ(group.num_units, 1);
+}
+
 TEST(wc3_api, group_is_unit_in_group_true) {
     reset_entities();
     LPEDICT a = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);

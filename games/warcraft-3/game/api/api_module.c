@@ -118,6 +118,7 @@ JASSMODULE jass_funcs[] = {
     { "SetPlayerRacePreference", SetPlayerRacePreference },
     { "SetPlayerRaceSelectable", SetPlayerRaceSelectable },
     { "SetPlayerController", SetPlayerController },
+    { "SetPlayerName", SetPlayerName },
     { "SetPlayerOnScoreScreen", SetPlayerOnScoreScreen },
     { "GetPlayerTeam", GetPlayerTeam },
     { "GetPlayerStartLocation", GetPlayerStartLocation },

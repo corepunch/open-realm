@@ -45,30 +45,42 @@ DWORD SetPlayerAlliance(LPJASS j) {
  * preferences are a mask, tax is directional and resource-keyed, and controller
  * state reflects config()/lobby choices; none belong in the networked PLAYER. */
 DWORD SetPlayerTaxRate(LPJASS j) {
-    //HANDLE sourcePlayer = jass_checkhandle(j, 1, "player");
-    //HANDLE otherPlayer = jass_checkhandle(j, 2, "player");
-    //HANDLE whichResource = jass_checkhandle(j, 3, "playerstate");
-    //LONG rate = jass_checkinteger(j, 4);
+    LPPLAYER source = jass_checkhandle(j, 1, "player"), other = jass_checkhandle(j, 2, "player");
+    LPDWORD resource = jass_checkhandle(j, 3, "playerstate");
+    LONG rate = jass_checkinteger(j, 4);
+    if (source && other && resource && *resource <= PLAYERSTATE_LUMBER_GATHERED)
+        PLAYER_CLIENT(source)->jass.tax[PLAYER_NUM(other)][*resource] = MIN(MAX(0, rate), 100);
     return 0;
 }
 DWORD SetPlayerRacePreference(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    //HANDLE whichRacePreference = jass_checkhandle(j, 2, "racepreference");
+    LPPLAYER player = jass_checkhandle(j, 1, "player");
+    LPDWORD pref = jass_checkhandle(j, 2, "racepreference");
+    if (player && pref) PLAYER_CLIENT(player)->jass.race_pref |= *pref;
     return 0;
 }
 DWORD SetPlayerRaceSelectable(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    //BOOL value = jass_checkboolean(j, 2);
+    LPPLAYER player = jass_checkhandle(j, 1, "player");
+    if (player) PLAYER_CLIENT(player)->jass.race_selectable = jass_checkboolean(j, 2);
     return 0;
 }
 DWORD SetPlayerController(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    //HANDLE controlType = jass_checkhandle(j, 2, "mapcontrol");
+    LPPLAYER player = jass_checkhandle(j, 1, "player");
+    LPDWORD control = jass_checkhandle(j, 2, "mapcontrol");
+    if (player && control) PLAYER_CLIENT(player)->jass.controller = *control;
+    return 0;
+}
+DWORD SetPlayerName(LPJASS j) {
+    LPPLAYER player = jass_checkhandle(j, 1, "player");
+    if (player) {
+        LPGAMECLIENT client = PLAYER_CLIENT(player);
+        strlcpy(client->jass.name, jass_checkstring(j, 2), sizeof(client->jass.name));
+        client->ps.name = client->jass.name;
+    }
     return 0;
 }
 DWORD SetPlayerOnScoreScreen(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    //BOOL flag = jass_checkboolean(j, 2);
+    LPPLAYER player = jass_checkhandle(j, 1, "player");
+    if (player) PLAYER_CLIENT(player)->jass.on_score_screen = jass_checkboolean(j, 2);
     return 0;
 }
 DWORD GetPlayerTeam(LPJASS j) {
@@ -87,12 +99,12 @@ DWORD GetPlayerColor(LPJASS j) {
     return 1;
 }
 DWORD GetPlayerSelectable(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    return jass_pushboolean(j, 0);
+    LPPLAYER player = jass_checkhandle(j, 1, "player");
+    return jass_pushboolean(j, player && PLAYER_CLIENT(player)->jass.race_selectable);
 }
 DWORD GetPlayerController(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    return jass_pushnullhandle(j, "mapcontrol");
+    LPPLAYER player = jass_checkhandle(j, 1, "player");
+    return JassPushMapControlHandle(j, player ? PLAYER_CLIENT(player)->jass.controller : 5);
 }
 DWORD GetPlayerSlotState(LPJASS j) {
     LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
@@ -108,22 +120,23 @@ DWORD GetPlayerSlotState(LPJASS j) {
     return JassPushPlayerSlotStateHandle(j, state);
 }
 DWORD GetPlayerTaxRate(LPJASS j) {
-    //HANDLE sourcePlayer = jass_checkhandle(j, 1, "player");
-    //HANDLE otherPlayer = jass_checkhandle(j, 2, "player");
-    //HANDLE whichResource = jass_checkhandle(j, 3, "playerstate");
-    return jass_pushinteger(j, 0);
+    LPPLAYER source = jass_checkhandle(j, 1, "player"), other = jass_checkhandle(j, 2, "player");
+    LPDWORD resource = jass_checkhandle(j, 3, "playerstate");
+    LONG rate = source && other && resource && *resource <= PLAYERSTATE_LUMBER_GATHERED ?
+        PLAYER_CLIENT(source)->jass.tax[PLAYER_NUM(other)][*resource] : 0;
+    return jass_pushinteger(j, rate);
 }
 DWORD IsPlayerRacePrefSet(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    //HANDLE pref = jass_checkhandle(j, 2, "racepreference");
-    return jass_pushboolean(j, 0);
+    LPPLAYER player = jass_checkhandle(j, 1, "player");
+    LPDWORD pref = jass_checkhandle(j, 2, "racepreference");
+    return jass_pushboolean(j, player && pref && (PLAYER_CLIENT(player)->jass.race_pref & *pref));
 }
 DWORD GetPlayerName(LPJASS j) {
     LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     LPGAMECLIENT client = whichPlayer ? PLAYER_CLIENT(whichPlayer) : NULL;
     LPCSTR name = "";
-    if (client && client->mapplayer && client->mapplayer->playerName) {
-        name = client->mapplayer->playerName;
+    if (client && client->jass.name[0]) {
+        name = client->jass.name;
     } else if (whichPlayer && whichPlayer->name) {
         name = whichPlayer->name;
     }
@@ -194,7 +207,7 @@ DWORD IsPlayerEnemy(LPJASS j) {
 DWORD IsPlayerInForce(LPJASS j) {
     LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     LPDWORD whichForce = jass_checkhandle(j, 2, "force");
-    return jass_pushboolean(j, (*whichForce) & (1 << PLAYER_NUM(whichPlayer)));
+    return jass_pushboolean(j, whichPlayer && whichForce && ((*whichForce) & (1 << PLAYER_NUM(whichPlayer))));
 }
 DWORD IsPlayerObserver(LPJASS j) {
     //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
@@ -273,21 +286,21 @@ DWORD GetPlayerAlliance(LPJASS j) {
     return jass_pushboolean(j, G_GetPlayerAlliance(sourcePlayer, otherPlayer, *whichAllianceSetting));
 }
 DWORD GetPlayerHandicap(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    return jass_pushnumber(j, 0);
+    LPPLAYER player = jass_checkhandle(j, 1, "player");
+    return jass_pushnumber(j, player ? PLAYER_CLIENT(player)->jass.handicap : 100.0f);
 }
 DWORD GetPlayerHandicapXP(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    return jass_pushnumber(j, 0);
+    LPPLAYER player = jass_checkhandle(j, 1, "player");
+    return jass_pushnumber(j, player ? PLAYER_CLIENT(player)->jass.handicap_xp : 100.0f);
 }
 DWORD SetPlayerHandicap(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    //FLOAT handicap = jass_checknumber(j, 2);
+    LPPLAYER player = jass_checkhandle(j, 1, "player");
+    if (player) PLAYER_CLIENT(player)->jass.handicap = MAX(0, jass_checknumber(j, 2));
     return 0;
 }
 DWORD SetPlayerHandicapXP(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    //FLOAT handicap = jass_checknumber(j, 2);
+    LPPLAYER player = jass_checkhandle(j, 1, "player");
+    if (player) PLAYER_CLIENT(player)->jass.handicap_xp = MAX(0, jass_checknumber(j, 2));
     return 0;
 }
 DWORD SetPlayerTechMaxAllowed(LPJASS j) {

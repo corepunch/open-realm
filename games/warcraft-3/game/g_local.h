@@ -28,6 +28,7 @@
 #define MAX_UNIT_STATUSES 8
 #define PLAYER_TEXT_BACKUP 16
 #define PLAYER_TEXT_MASK (PLAYER_TEXT_BACKUP - 1)
+#define MAX_START_PRIO 16 // slots; one possible priority entry per WC3 player start location
 
 #define FILTER_EDICTS(ENT, CONDITION) \
 for (LPEDICT ENT = globals.edicts; \
@@ -377,6 +378,13 @@ struct gcamerasetup_s {
 
 struct client_s {
     PLAYER ps;
+    struct {
+        DWORD race_pref, controller;
+        BYTE tax[MAX_PLAYERS][PLAYERSTATE_LUMBER_GATHERED + 1];
+        FLOAT handicap, handicap_xp;
+        BOOL race_selectable, on_score_screen;
+        char name[MAX_PATHLEN];
+    } jass;
     char playerTextStorage[PLAYERTEXT_COUNT][PLAYER_TEXT_BACKUP][512];
     DWORD playerTextCursor[PLAYERTEXT_COUNT];
     LPCMAPPLAYER mapplayer;
@@ -768,6 +776,16 @@ typedef FOGMODIFIER const *LPCFOGMODIFIER;
 struct level_locals {
     LPJASS vm;
     LPCMAPINFO mapinfo;
+    struct {
+        char name[MAX_PATHLEN], description[MAX_TRIGSTR_LENGTH];
+        DWORD teams, players, game_types, game_type, map_flags;
+        DWORD placement, speed, difficulty, resource_density, creature_density;
+        DWORD forced_start_locations;
+        struct {
+            DWORD count;
+            struct { LONG location; DWORD priority; } slots[MAX_START_PRIO];
+        } start_prio[MAX_PLAYERS];
+    } setup;
     LEVELEVENTS events;
     GAMEMESSAGES messages;
     LPQUEST quests;

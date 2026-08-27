@@ -90,13 +90,21 @@ DWORD RemoveRegion(LPJASS j) {
 }
 DWORD RegionAddRect(LPJASS j) {
     LPREGION whichRegion = jass_checkhandle(j, 1, "region");
-    LPBOX2 r = jass_checkhandle(j, 2, "rect");
-    whichRegion->rects[whichRegion->num_rects++] = *r;
+    LPCBOX2 r = jass_checkhandle(j, 2, "rect");
+    if (whichRegion && r && whichRegion->num_rects < MAX_REGION_SIZE)
+        whichRegion->rects[whichRegion->num_rects++] = *r;
     return 0;
 }
 DWORD RegionClearRect(LPJASS j) {
-    //HANDLE whichRegion = jass_checkhandle(j, 1, "region");
-    //HANDLE r = jass_checkhandle(j, 2, "rect");
+    LPREGION whichRegion = jass_checkhandle(j, 1, "region");
+    LPCBOX2 r = jass_checkhandle(j, 2, "rect");
+    if (!whichRegion || !r) return 0;
+    FOR_LOOP(i, whichRegion->num_rects) {
+        if (memcmp(whichRegion->rects + i, r, sizeof(*r))) continue;
+        memmove(whichRegion->rects + i, whichRegion->rects + i + 1,
+                (--whichRegion->num_rects - i) * sizeof(*r));
+        break;
+    }
     return 0;
 }
 DWORD RegionAddCell(LPJASS j) {

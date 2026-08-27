@@ -149,6 +149,7 @@ TEST_UI_SRCS := \
 	@# Propagate sub-suite failures; the old ignored-error prefix made a red suite report success.
 	@$(MAKE) test-commands
 	@$(MAKE) test-jass-build
+	@$(MAKE) test-galaxy
 	@$(MAKE) test-server-net
 	@$(MAKE) test-renderer-model
 	@$(MAKE) test-renderer-shadows
@@ -167,6 +168,7 @@ $(eval $(call test_schema,test-commands,test-assets $(SHARED_LIB) $(SHEET_LIB),$
 $(eval $(call test_schema,test-server-net,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_server_net$(EXE_EXT),tests/test_runner.c $(WC3_TEST_DIR)/test_server_net.c $(WC3_TEST_DIR)/test_client_stubs.c server/sv_init.c server/sv_lan.c server/sv_main.c server/sv_lobby.c server/sv_send.c common/net.c common/msg.c,-lsheet -lshared -lm $(NET_LIBS),))
 $(eval $(call test_schema,test-renderer-model,$(SHARED_LIB),$(TEST_CFLAGS) -Wno-unused-function,$(BIN_DIR)/test_renderer_model$(EXE_EXT),tests/test_runner.c tests/test_renderer_model.c renderer/r_model.c $(WC3_DIR)/renderer/mdx/r_mdx_buffer.c,-lshared -lm $(LIBS),))
 $(eval $(call test_schema,test-renderer-shadows,$(SHARED_LIB),$(TEST_CFLAGS) -Wno-unused-function -DUSE_SHADOWMAPS,$(BIN_DIR)/test_renderer_shadows$(EXE_EXT),tests/test_runner.c tests/test_renderer_model.c renderer/r_model.c $(WC3_DIR)/renderer/mdx/r_mdx_buffer.c,-lshared -lm $(LIBS),))
+$(eval $(call test_schema,test-galaxy,$(SHARED_LIB) $(JASS_LIB),$(TEST_CFLAGS) -DBZ_TESTS,$(BIN_DIR)/test_galaxy$(EXE_EXT),tests/test_runner.c tests/test_galaxy.c,-lshared -ljass -lm,))
 $(eval $(call test_schema,test-ui,test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB),$(TEST_UI_CFLAGS),$(BIN_DIR)/test_openwarcraft3_ui$(EXE_EXT),tests/test_runner.c $(TEST_UI_SRCS) common/mpq.c $(call CSRC,$(WC3_DIR)/ui),-lsheet -lshared -ljass -lm -lz,))
 
 test-mpq-compat: mpqtool $(MPQ_TEST)
@@ -249,4 +251,4 @@ test-wc3-engine-assets: mpqtool | $(TESTS_DIR)
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WC3_ENGINE_TEST_MPQ) cat Units/UnitBalance.slk | grep -q "hpea" && echo "  cat SLK OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WC3_ENGINE_TEST_MPQ) cat Scripts/common.j | grep -q "playergameresult" && echo "  cat common.j OK"
 
-WC3_PHONY := wc3-build jass-tool jass sheet renderer game ui openwarcraft3 run run-demo run-map run-ui-text test test-commands test-server-net test-renderer-model test-ui test-mpq-compat test-assets test-render-golden update-render-golden openwarcraft3-tests test-wc3-engine test-wc3-engine-assets download
+WC3_PHONY := wc3-build jass-tool jass sheet renderer game ui openwarcraft3 run run-demo run-map run-ui-text test test-commands test-server-net test-renderer-model test-renderer-shadows test-galaxy test-ui test-mpq-compat test-assets test-render-golden update-render-golden openwarcraft3-tests test-wc3-engine test-wc3-engine-assets download

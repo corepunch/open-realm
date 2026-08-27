@@ -1,10 +1,10 @@
 #define IS_UNIT(ent) (ent->svflags & SVF_MONSTER)
 
-void group_add_entity(ggroup_t *group, LPEDICT ent) {
-    if (!group || !ent || group->num_units >= MAX_GROUP_SIZE) {
-        return;
-    }
+BOOL group_add_entity(ggroup_t *group, LPEDICT ent) {
+    if (!group || !ent || group->num_units >= MAX_GROUP_SIZE) return false;
+    FOR_LOOP(i, group->num_units) if (group->units[i] == ent) return false;
     group->units[group->num_units++] = ent;
+    return true;
 }
 
 DWORD CreateGroup(LPJASS j) {
@@ -15,8 +15,7 @@ DWORD CreateGroup(LPJASS j) {
 DWORD GroupAddUnit(LPJASS j) {
     ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
     LPEDICT whichUnit = jass_checkhandle(j, 2, "unit");
-    group_add_entity(whichGroup, whichUnit);
-    return 0;
+    return jass_pushboolean(j, group_add_entity(whichGroup, whichUnit));
 }
 DWORD GroupRemoveUnit(LPJASS j) {
     ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
@@ -30,10 +29,10 @@ DWORD GroupRemoveUnit(LPJASS j) {
                 whichGroup->units[j] = whichGroup->units[j + 1];
             }
             whichGroup->num_units--;
-            return 0;
+            return jass_pushboolean(j, true);
         }
     }
-    return 0;
+    return jass_pushboolean(j, false);
 }
 DWORD GroupClear(LPJASS j) {
     ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
@@ -52,13 +51,13 @@ DWORD GroupEnumUnitsOfType(LPJASS j) {
 DWORD GroupEnumUnitsOfPlayer(LPJASS j) {
     ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
     LPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
-    //HANDLE filter = jass_checkhandle(j, 3, "boolexpr");
+    LPCJASSFUNC filter = jass_checkhandle(j, 3, "boolexpr");
     if (!whichGroup || !whichPlayer) {
         return 0;
     }
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT ent = &globals.edicts[i];
-        if (ent->s.player == PLAYER_NUM(whichPlayer)) {
+        if (IS_UNIT(ent) && ent->s.player == PLAYER_NUM(whichPlayer) && jass_evaluateboolexpr(j, filter, ent)) {
             group_add_entity(whichGroup, ent);
         }
     }
@@ -93,15 +92,16 @@ DWORD GroupEnumUnitsInRect(LPJASS j) {
 
 DWORD GroupEnumUnitsInRectCounted(LPJASS j) {
     ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
-    HANDLE r = jass_checkhandle(j, 2, "rect");
-//    HANDLE filter = jass_checkhandle(j, 3, "boolexpr");
+    LPCBOX2 r = jass_checkhandle(j, 2, "rect");
+    LPCJASSFUNC filter = jass_checkhandle(j, 3, "boolexpr");
     LONG countLimit = jass_checkinteger(j, 4);
     if (!whichGroup || !r) {
         return 0;
     }
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT ent = &globals.edicts[i];
-        if (IS_UNIT(ent) && Box2_containsPoint(r, &ent->s.origin2) && countLimit > 0) {
+        if (countLimit > 0 && IS_UNIT(ent) && Box2_containsPoint(r, &ent->s.origin2) &&
+            jass_evaluateboolexpr(j, filter, ent)) {
             group_add_entity(whichGroup, ent);
             countLimit--;
         }
@@ -113,13 +113,14 @@ DWORD GroupEnumUnitsInRange(LPJASS j) {
     FLOAT x = jass_checknumber(j, 2);
     FLOAT y = jass_checknumber(j, 3);
     FLOAT radius = jass_checknumber(j, 4);
-    //HANDLE filter = jass_checkhandle(j, 5, "boolexpr");
+    LPCJASSFUNC filter = jass_checkhandle(j, 5, "boolexpr");
     if (!whichGroup) {
         return 0;
     }
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT ent = &globals.edicts[i];
-        if (IS_UNIT(ent) && Vector2_distance(&ent->s.origin2, &MAKE(VECTOR2, x, y)) < radius) {
+        if (IS_UNIT(ent) && Vector2_distance(&ent->s.origin2, &MAKE(VECTOR2, x, y)) <= radius &&
+            jass_evaluateboolexpr(j, filter, ent)) {
             group_add_entity(whichGroup, ent);
         }
     }
@@ -129,13 +130,14 @@ DWORD GroupEnumUnitsInRangeOfLoc(LPJASS j) {
     ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
     LPCVECTOR2 whichLocation = jass_checkhandle(j, 2, "location");
     FLOAT radius = jass_checknumber(j, 3);
-    //HANDLE filter = jass_checkhandle(j, 4, "boolexpr");
+    LPCJASSFUNC filter = jass_checkhandle(j, 4, "boolexpr");
     if (!whichGroup || !whichLocation) {
         return 0;
     }
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT ent = &globals.edicts[i];
-        if (IS_UNIT(ent) && Vector2_distance(&ent->s.origin2, whichLocation) < radius) {
+        if (IS_UNIT(ent) && Vector2_distance(&ent->s.origin2, whichLocation) <= radius &&
+            jass_evaluateboolexpr(j, filter, ent)) {
             group_add_entity(whichGroup, ent);
         }
     }
@@ -146,14 +148,15 @@ DWORD GroupEnumUnitsInRangeCounted(LPJASS j) {
     FLOAT x = jass_checknumber(j, 2);
     FLOAT y = jass_checknumber(j, 3);
     FLOAT radius = jass_checknumber(j, 4);
-    //HANDLE filter = jass_checkhandle(j, 5, "boolexpr");
+    LPCJASSFUNC filter = jass_checkhandle(j, 5, "boolexpr");
     LONG countLimit = jass_checkinteger(j, 6);
     if (!whichGroup) {
         return 0;
     }
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT ent = &globals.edicts[i];
-        if (IS_UNIT(ent) && Vector2_distance(&ent->s.origin2, &MAKE(VECTOR2, x, y)) < radius && countLimit > 0) {
+        if (countLimit > 0 && IS_UNIT(ent) && Vector2_distance(&ent->s.origin2, &MAKE(VECTOR2, x, y)) <= radius &&
+            jass_evaluateboolexpr(j, filter, ent)) {
             group_add_entity(whichGroup, ent);
             countLimit--;
         }
@@ -162,16 +165,17 @@ DWORD GroupEnumUnitsInRangeCounted(LPJASS j) {
 }
 DWORD GroupEnumUnitsInRangeOfLocCounted(LPJASS j) {
     ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
-    HANDLE whichLocation = jass_checkhandle(j, 2, "location");
+    LPCVECTOR2 whichLocation = jass_checkhandle(j, 2, "location");
     FLOAT radius = jass_checknumber(j, 3);
-    //HANDLE filter = jass_checkhandle(j, 4, "boolexpr");
+    LPCJASSFUNC filter = jass_checkhandle(j, 4, "boolexpr");
     LONG countLimit = jass_checkinteger(j, 5);
     if (!whichGroup || !whichLocation) {
         return 0;
     }
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT ent = &globals.edicts[i];
-        if (IS_UNIT(ent) && Vector2_distance(&ent->s.origin2, whichLocation) < radius && countLimit > 0) {
+        if (countLimit > 0 && IS_UNIT(ent) && Vector2_distance(&ent->s.origin2, whichLocation) <= radius &&
+            jass_evaluateboolexpr(j, filter, ent)) {
             group_add_entity(whichGroup, ent);
             countLimit--;
         }
@@ -179,9 +183,15 @@ DWORD GroupEnumUnitsInRangeOfLocCounted(LPJASS j) {
     return 0;
 }
 DWORD GroupEnumUnitsSelected(LPJASS j) {
-    //ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
-    //HANDLE filter = jass_checkhandle(j, 3, "boolexpr");
+    ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
+    LPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
+    LPCJASSFUNC filter = jass_checkhandle(j, 3, "boolexpr");
+    if (!whichGroup || !whichPlayer) return 0;
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT ent = &globals.edicts[i];
+        if (IS_UNIT(ent) && ent->selected & (1 << PLAYER_NUM(whichPlayer)) && jass_evaluateboolexpr(j, filter, ent))
+            group_add_entity(whichGroup, ent);
+    }
     return 0;
 }
 DWORD GroupImmediateOrder(LPJASS j) {
@@ -261,11 +271,13 @@ DWORD ForGroup(LPJASS j) {
     if (!whichGroup || !callback) {
         return 0;
     }
+    LPEDICT previous = currentunit;
     FOR_LOOP(i, whichGroup->num_units) {
         currentunit = whichGroup->units[i];
         jass_pushfunction(j, callback);
         jass_call(j, 0);
     }
+    currentunit = previous;
     return 0;
 }
 DWORD FirstOfGroup(LPJASS j) {

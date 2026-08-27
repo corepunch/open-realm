@@ -270,9 +270,34 @@ static DWORD G_ClientSlotMapPlayerNumber(LPCMAPINFO mapinfo, DWORD slot, DWORD l
     return slot;
 }
 
+/* JASS mapcontrol values do not match W3I playerType values after computer. */
+static DWORD G_MapControl(LPCMAPPLAYER player) {
+    if (!player) return 5;
+    switch (player->playerType) {
+        case kPlayerTypeHuman: return 0;
+        case kPlayerTypeComputer: return 1;
+        case kPlayerTypeRescuable: return 2;
+        case kPlayerTypeNeutral: return 3;
+        default: return 5;
+    }
+}
+
+/* Race preferences are bit flags, unlike the sequential W3I race enum. */
+static DWORD G_RacePreference(LPCMAPPLAYER player) {
+    if (!player) return 0;
+    switch (player->playerRace) {
+        case kPlayerRaceHuman: return 1;
+        case kPlayerRaceOrc: return 2;
+        case kPlayerRaceNightElf: return 4;
+        case kPlayerRaceUndead: return 8;
+        default: return 32;
+    }
+}
+
 static void G_InitMapPlayer(LPEDICT clent, LPCMAPINFO mapinfo, DWORD playernum) {
     LPCMAPPLAYER player = mapinfo ? mapinfo->players + playernum : NULL;
     LPPLAYER ps = &clent->client->ps;
+    memset(&clent->client->jass, 0, sizeof(clent->client->jass));
     memset(ps, 0, sizeof(PLAYER));
     ps->number = playernum;
     ps->team = G_MapPlayerTeam(mapinfo, playernum);
@@ -291,6 +316,12 @@ static void G_InitMapPlayer(LPEDICT clent, LPCMAPINFO mapinfo, DWORD playernum) 
     clent->client->camera.state.target_distance = 1650;
     clent->client->camera.old_state = clent->client->camera.state;
     clent->client->mapplayer = player;
+    clent->client->jass.controller = G_MapControl(player);
+    clent->client->jass.race_pref = G_RacePreference(player);
+    clent->client->jass.race_selectable = true;
+    clent->client->jass.handicap = clent->client->jass.handicap_xp = 100.0f;
+    strlcpy(clent->client->jass.name, player && player->playerName ? player->playerName : "", sizeof(clent->client->jass.name));
+    ps->name = clent->client->jass.name;
 }
 
 void G_SpawnEntities(void) {
@@ -302,6 +333,16 @@ void G_SpawnEntities(void) {
     memset(&level, 0, sizeof(level));
 
     level.mapinfo = mapinfo;
+    level.setup.teams = mapinfo ? mapinfo->num_teams : 0;
+    if (mapinfo) FOR_LOOP(i, MAX_PLAYERS) level.setup.players += mapinfo->players[i].used;
+    level.setup.game_type = 4;
+    level.setup.speed = 2;
+    level.setup.difficulty = 1;
+    level.setup.resource_density = level.setup.creature_density = 2;
+    if (mapinfo) {
+        strlcpy(level.setup.name, mapinfo->mapName ? mapinfo->mapName : "", sizeof(level.setup.name));
+        strlcpy(level.setup.description, mapinfo->mapDescription ? mapinfo->mapDescription : "", sizeof(level.setup.description));
+    }
     G_FowInit();
     G_InitJassHost();
     level.vm = jass_newstate();

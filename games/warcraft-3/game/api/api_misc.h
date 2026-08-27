@@ -2,32 +2,25 @@ extern LPPLAYER currentplayer;
 
 DWORD class_id(LPCSTR str) { return *(DWORD *)str; }
 
-static DWORD api_race_handles[256];
-static DWORD api_player_slot_state_handles[256];
-
-static DWORD JassPushEnumHandle(LPJASS j, LPCSTR type, LONG value, DWORD *handles, DWORD count) {
-    if (value >= 0 && (DWORD)value < count) {
-        handles[value] = (DWORD)value;
-        return jass_pushlighthandle(j, &handles[value], type);
-    }
-    DWORD *handle = jass_newhandle(j, sizeof(DWORD), type);
+/* Converted enums are owned JASS handles; enum equality compares their DWORD payload. */
+static DWORD JassPushEnumHandle(LPJASS j, LPCSTR type, LONG value) {
+    LPDWORD handle = jass_newhandle(j, sizeof(*handle), type);
     *handle = (DWORD)value;
     return 1;
 }
 
 static DWORD JassPushRaceHandle(LPJASS j, LONG value) {
-    return JassPushEnumHandle(j, "race", value, api_race_handles, sizeof(api_race_handles) / sizeof(api_race_handles[0]));
+    return JassPushEnumHandle(j, "race", value);
 }
 
 static DWORD JassPushPlayerSlotStateHandle(LPJASS j, LONG value) {
-    return JassPushEnumHandle(j, "playerslotstate", value, api_player_slot_state_handles, sizeof(api_player_slot_state_handles) / sizeof(api_player_slot_state_handles[0]));
+    return JassPushEnumHandle(j, "playerslotstate", value);
 }
 
 #define CONVERT_FUNC(NAME, TYPE) \
+static DWORD JassPush##NAME##Handle(LPJASS j, LONG value) { return JassPushEnumHandle(j, #TYPE, value); } \
 DWORD Convert##NAME(LPJASS j) { \
-    API_ALLOC(DWORD, TYPE); \
-    *TYPE = jass_checkinteger(j, 1); \
-    return 1; \
+    return JassPush##NAME##Handle(j, jass_checkinteger(j, 1)); \
 }
 
 #define MATH_FUNC(NAME, FUNC, INPUT, OUTPUT) \
@@ -158,19 +151,19 @@ DWORD GetLocalizedHotkey(LPJASS j) {
  * per-level setup snapshot initialized from war3map.w3i; level.mapinfo is
  * authoritative input and must not remain the writable runtime store. */
 DWORD SetMapName(LPJASS j) {
-    //LPCSTR name = jass_checkstring(j, 1);
+    strlcpy(level.setup.name, jass_checkstring(j, 1), sizeof(level.setup.name));
     return 0;
 }
 DWORD SetMapDescription(LPJASS j) {
-    //LPCSTR description = jass_checkstring(j, 1);
+    strlcpy(level.setup.description, jass_checkstring(j, 1), sizeof(level.setup.description));
     return 0;
 }
 DWORD SetTeams(LPJASS j) {
-    //LONG teamcount = jass_checkinteger(j, 1);
+    level.setup.teams = MIN(MAX(0, jass_checkinteger(j, 1)), MAX_PLAYERS);
     return 0;
 }
 DWORD SetPlayers(LPJASS j) {
-    //LONG playercount = jass_checkinteger(j, 1);
+    level.setup.players = MIN(MAX(0, jass_checkinteger(j, 1)), MAX_PLAYERS);
     return 0;
 }
 DWORD DefineStartLocation(LPJASS j) {
@@ -194,88 +187,101 @@ DWORD DefineStartLocationLoc(LPJASS j) {
     return 0;
 }
 DWORD SetStartLocPrioCount(LPJASS j) {
-    //LONG whichStartLoc = jass_checkinteger(j, 1);
-    //LONG prioSlotCount = jass_checkinteger(j, 2);
+    LONG loc = jass_checkinteger(j, 1), count = jass_checkinteger(j, 2);
+    if (loc >= 0 && loc < MAX_PLAYERS) level.setup.start_prio[loc].count = MIN(MAX(0, count), MAX_START_PRIO);
     return 0;
 }
 DWORD SetStartLocPrio(LPJASS j) {
-    //LONG whichStartLoc = jass_checkinteger(j, 1);
-    //LONG prioSlotIndex = jass_checkinteger(j, 2);
-    //LONG otherStartLocIndex = jass_checkinteger(j, 3);
-    //HANDLE priority = jass_checkhandle(j, 4, "startlocprio");
+    LONG loc = jass_checkinteger(j, 1), slot = jass_checkinteger(j, 2), other = jass_checkinteger(j, 3);
+    LPDWORD priority = jass_checkhandle(j, 4, "startlocprio");
+    if (loc >= 0 && loc < MAX_PLAYERS && slot >= 0 && slot < (LONG)level.setup.start_prio[loc].count && priority)
+        level.setup.start_prio[loc].slots[slot] = (typeof(*level.setup.start_prio[loc].slots)){ other, *priority };
     return 0;
 }
 DWORD GetStartLocPrioSlot(LPJASS j) {
-    //LONG whichStartLoc = jass_checkinteger(j, 1);
-    //LONG prioSlotIndex = jass_checkinteger(j, 2);
-    return jass_pushinteger(j, 0);
+    LONG loc = jass_checkinteger(j, 1), slot = jass_checkinteger(j, 2);
+    LONG value = loc >= 0 && loc < MAX_PLAYERS && slot >= 0 && slot < (LONG)level.setup.start_prio[loc].count ?
+        level.setup.start_prio[loc].slots[slot].location : 0;
+    return jass_pushinteger(j, value);
 }
 DWORD GetStartLocPrio(LPJASS j) {
-    //LONG whichStartLoc = jass_checkinteger(j, 1);
-    //LONG prioSlotIndex = jass_checkinteger(j, 2);
-    return jass_pushnullhandle(j, "startlocprio");
+    LONG loc = jass_checkinteger(j, 1), slot = jass_checkinteger(j, 2);
+    LONG value = loc >= 0 && loc < MAX_PLAYERS && slot >= 0 && slot < (LONG)level.setup.start_prio[loc].count ?
+        level.setup.start_prio[loc].slots[slot].priority : 0;
+    return JassPushStartLocPrioHandle(j, value);
 }
 DWORD SetGameTypeSupported(LPJASS j) {
-    //HANDLE whichGameType = jass_checkhandle(j, 1, "gametype");
-    //BOOL value = jass_checkboolean(j, 2);
+    LPDWORD type = jass_checkhandle(j, 1, "gametype");
+    BOOL value = jass_checkboolean(j, 2);
+    if (type) {
+        SET_FLAG(level.setup.game_types, *type, value);
+    }
     return 0;
 }
 DWORD SetMapFlag(LPJASS j) {
-    //HANDLE whichMapFlag = jass_checkhandle(j, 1, "mapflag");
-    //BOOL value = jass_checkboolean(j, 2);
+    LPDWORD flag = jass_checkhandle(j, 1, "mapflag");
+    BOOL value = jass_checkboolean(j, 2);
+    if (flag) {
+        SET_FLAG(level.setup.map_flags, *flag, value);
+    }
     return 0;
 }
 DWORD SetGamePlacement(LPJASS j) {
-    //HANDLE whichPlacementType = jass_checkhandle(j, 1, "placement");
+    LPDWORD value = jass_checkhandle(j, 1, "placement");
+    if (value) level.setup.placement = *value;
     return 0;
 }
 DWORD SetGameSpeed(LPJASS j) {
-    //HANDLE whichspeed = jass_checkhandle(j, 1, "gamespeed");
+    LPDWORD value = jass_checkhandle(j, 1, "gamespeed");
+    if (value) level.setup.speed = *value;
     return 0;
 }
 DWORD SetGameDifficulty(LPJASS j) {
-    //HANDLE whichdifficulty = jass_checkhandle(j, 1, "gamedifficulty");
+    LPDWORD value = jass_checkhandle(j, 1, "gamedifficulty");
+    if (value) level.setup.difficulty = *value;
     return 0;
 }
 DWORD SetResourceDensity(LPJASS j) {
-    //HANDLE whichdensity = jass_checkhandle(j, 1, "mapdensity");
+    LPDWORD value = jass_checkhandle(j, 1, "mapdensity");
+    if (value) level.setup.resource_density = *value;
     return 0;
 }
 DWORD SetCreatureDensity(LPJASS j) {
-    //HANDLE whichdensity = jass_checkhandle(j, 1, "mapdensity");
+    LPDWORD value = jass_checkhandle(j, 1, "mapdensity");
+    if (value) level.setup.creature_density = *value;
     return 0;
 }
 DWORD GetTeams(LPJASS j) {
-    return jass_pushinteger(j, level.mapinfo ? (LONG)level.mapinfo->num_teams : 0);
+    return jass_pushinteger(j, level.setup.teams);
 }
 DWORD GetPlayers(LPJASS j) {
-    return jass_pushinteger(j, MAX_PLAYERS);
+    return jass_pushinteger(j, level.setup.players);
 }
 DWORD IsGameTypeSupported(LPJASS j) {
-    //HANDLE whichGameType = jass_checkhandle(j, 1, "gametype");
-    return jass_pushboolean(j, 0);
+    LPDWORD type = jass_checkhandle(j, 1, "gametype");
+    return jass_pushboolean(j, type && (level.setup.game_types & *type));
 }
 DWORD GetGameTypeSelected(LPJASS j) {
-    return jass_pushnullhandle(j, "gametype");
+    return JassPushGameTypeHandle(j, level.setup.game_type);
 }
 DWORD IsMapFlagSet(LPJASS j) {
-    //HANDLE whichMapFlag = jass_checkhandle(j, 1, "mapflag");
-    return jass_pushboolean(j, 0);
+    LPDWORD flag = jass_checkhandle(j, 1, "mapflag");
+    return jass_pushboolean(j, flag && (level.setup.map_flags & *flag));
 }
 DWORD GetGamePlacement(LPJASS j) {
-    return jass_pushnullhandle(j, "placement");
+    return JassPushPlacementHandle(j, level.setup.placement);
 }
 DWORD GetGameSpeed(LPJASS j) {
-    return jass_pushnullhandle(j, "gamespeed");
+    return JassPushGameSpeedHandle(j, level.setup.speed);
 }
 DWORD GetGameDifficulty(LPJASS j) {
-    return jass_pushnullhandle(j, "gamedifficulty");
+    return JassPushGameDifficultyHandle(j, level.setup.difficulty);
 }
 DWORD GetResourceDensity(LPJASS j) {
-    return jass_pushnullhandle(j, "mapdensity");
+    return JassPushMapDensityHandle(j, level.setup.resource_density);
 }
 DWORD GetCreatureDensity(LPJASS j) {
-    return jass_pushnullhandle(j, "mapdensity");
+    return JassPushMapDensityHandle(j, level.setup.creature_density);
 }
 DWORD GetStartLocationX(LPJASS j) {
     LONG whichStartLocation = jass_checkinteger(j, 1);
@@ -348,59 +354,64 @@ DWORD CreateForce(LPJASS j) {
 DWORD ForceAddPlayer(LPJASS j) {
     LPDWORD whichForce = jass_checkhandle(j, 1, "force");
     LPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
-    *whichForce |= 1 << PLAYER_NUM(whichPlayer);
+    if (whichForce && whichPlayer) *whichForce |= 1 << PLAYER_NUM(whichPlayer);
     return 0;
 }
 DWORD ForceRemovePlayer(LPJASS j) {
     LPDWORD whichForce = jass_checkhandle(j, 1, "force");
     LPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
-    *whichForce &= ~(1 << PLAYER_NUM(whichPlayer));
+    if (whichForce && whichPlayer) *whichForce &= ~(1 << PLAYER_NUM(whichPlayer));
     return 0;
 }
 DWORD ForceClear(LPJASS j) {
     LPDWORD whichForce = jass_checkhandle(j, 1, "force");
-    *whichForce = 0;
+    if (whichForce) *whichForce = 0;
     return 0;
 }
-/* ForceEnumPlayers(whichForce, filter): add every player passing the filter to
- * the force. The boolexpr filter (arg 2) can't be evaluated here (no boolexpr
- * callback support), but the dominant caller is GetPlayersAll(), which passes a
- * null filter and expects every player added. Blizzard.j gates all cinematic
- * transmissions behind IsPlayerInForce(GetLocalPlayer(), GetPlayersAll()), so a
- * no-op here silently suppresses every cinematic dialog/portrait. Add all real
- * player slots so membership tests succeed. */
+/* Force filters bind each candidate as GetFilterPlayer(); limits count accepted
+ * players, matching group enumeration rather than limiting candidates tested. */
 DWORD ForceEnumPlayers(LPJASS j) {
     LPDWORD whichForce = jass_checkhandle(j, 1, "force");
-    if (whichForce) {
-        FOR_LOOP(i, game.max_clients) {
-            *whichForce |= 1 << game.clients[i].ps.number;
-        }
-    }
+    LPCJASSFUNC filter = jass_checkhandle(j, 2, "boolexpr");
+    if (!whichForce) return 0;
+    FOR_LOOP(i, game.max_clients)
+        if (jass_evaluateplayerexpr(j, filter, &game.clients[i].ps)) *whichForce |= 1 << game.clients[i].ps.number;
     return 0;
 }
 DWORD ForceEnumPlayersCounted(LPJASS j) {
     LPDWORD whichForce = jass_checkhandle(j, 1, "force");
+    LPCJASSFUNC filter = jass_checkhandle(j, 2, "boolexpr");
     LONG countLimit = jass_checkinteger(j, 3);
-    if (whichForce) {
-        LONG added = 0;
-        FOR_LOOP(i, game.max_clients) {
-            if (added >= countLimit) break;
-            *whichForce |= 1 << game.clients[i].ps.number;
-            added++;
-        }
+    if (!whichForce || countLimit <= 0) return 0;
+    FOR_LOOP(i, game.max_clients) {
+        LPPLAYER player = &game.clients[i].ps;
+        if (jass_evaluateplayerexpr(j, filter, player)) *whichForce |= 1 << player->number, countLimit--;
+        if (!countLimit) break;
     }
     return 0;
 }
 DWORD ForceEnumAllies(LPJASS j) {
-    //LPDWORD whichForce = jass_checkhandle(j, 1, "force");
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
-    //HANDLE filter = jass_checkhandle(j, 3, "boolexpr");
+    LPDWORD whichForce = jass_checkhandle(j, 1, "force");
+    LPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
+    LPCJASSFUNC filter = jass_checkhandle(j, 3, "boolexpr");
+    if (!whichForce || !whichPlayer) return 0;
+    FOR_LOOP(i, game.max_clients) {
+        LPPLAYER player = &game.clients[i].ps;
+        if (G_GetPlayerAlliance(whichPlayer, player, ALLIANCE_PASSIVE) && jass_evaluateplayerexpr(j, filter, player))
+            *whichForce |= 1 << player->number;
+    }
     return 0;
 }
 DWORD ForceEnumEnemies(LPJASS j) {
-    //LPDWORD whichForce = jass_checkhandle(j, 1, "force");
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
-    //HANDLE filter = jass_checkhandle(j, 3, "boolexpr");
+    LPDWORD whichForce = jass_checkhandle(j, 1, "force");
+    LPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
+    LPCJASSFUNC filter = jass_checkhandle(j, 3, "boolexpr");
+    if (!whichForce || !whichPlayer) return 0;
+    FOR_LOOP(i, game.max_clients) {
+        LPPLAYER player = &game.clients[i].ps;
+        if (!G_GetPlayerAlliance(whichPlayer, player, ALLIANCE_PASSIVE) && jass_evaluateplayerexpr(j, filter, player))
+            *whichForce |= 1 << player->number;
+    }
     return 0;
 }
 DWORD ForForce(LPJASS j) {
@@ -427,20 +438,19 @@ DWORD ForForce(LPJASS j) {
     return 0;
 }
 DWORD IsUnitInRegion(LPJASS j) {
-    //HANDLE whichRegion = jass_checkhandle(j, 1, "region");
-    //HANDLE whichUnit = jass_checkhandle(j, 2, "unit");
-    return jass_pushboolean(j, 0);
+    LPCREGION whichRegion = jass_checkhandle(j, 1, "region");
+    LPCEDICT whichUnit = jass_checkhandle(j, 2, "unit");
+    return jass_pushboolean(j, whichRegion && whichUnit && G_RegionContains(whichRegion, &whichUnit->s.origin2));
 }
 DWORD IsPointInRegion(LPJASS j) {
-    //HANDLE whichRegion = jass_checkhandle(j, 1, "region");
-    //FLOAT x = jass_checknumber(j, 2);
-    //FLOAT y = jass_checknumber(j, 3);
-    return jass_pushboolean(j, 0);
+    LPCREGION whichRegion = jass_checkhandle(j, 1, "region");
+    VECTOR2 point = { jass_checknumber(j, 2), jass_checknumber(j, 3) };
+    return jass_pushboolean(j, whichRegion && G_RegionContains(whichRegion, &point));
 }
 DWORD IsLocationInRegion(LPJASS j) {
-    //HANDLE whichRegion = jass_checkhandle(j, 1, "region");
-    //HANDLE whichLocation = jass_checkhandle(j, 2, "location");
-    return jass_pushboolean(j, 0);
+    LPCREGION whichRegion = jass_checkhandle(j, 1, "region");
+    LPCVECTOR2 whichLocation = jass_checkhandle(j, 2, "location");
+    return jass_pushboolean(j, whichRegion && whichLocation && G_RegionContains(whichRegion, whichLocation));
 }
 DWORD GetWorldBounds(LPJASS j) {
     return jass_pushnullhandle(j, "rect");
@@ -460,7 +470,7 @@ DWORD GetEnumDestructable(LPJASS j) {
     return jass_pushlighthandle(j, currentdestructable, "destructable");
 }
 DWORD GetFilterPlayer(LPJASS j) {
-    return jass_pushnullhandle(j, "player");
+    return jass_pushlighthandle(j, jass_getcontext(j)->playerState, "player");
 }
 DWORD GetEnumPlayer(LPJASS j) {
     extern LPPLAYER currentenumplayer;

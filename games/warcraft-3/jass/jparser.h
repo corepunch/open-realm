@@ -50,5 +50,6 @@ struct token {
 };
 
 LPTOKEN JASS_ParseTokens(LPPARSER p);
+LPTOKEN GALAXY_ParseTokens(LPPARSER p);
 
 #endif

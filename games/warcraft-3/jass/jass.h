@@ -50,12 +50,18 @@ struct jass_module {
     LPJASSCFUNCTION func;
 };
 
+typedef enum {
+    JASS_MODE_JASS   = 0,
+    JASS_MODE_GALAXY = 1,
+} JASSMODE;
+
 typedef struct {
     HANDLE (*MemAlloc)(long size);
     void (*MemFree)(HANDLE ptr);
     DWORD (*GetTime)(void);
     HANDLE (*ReadFile)(LPCSTR filename, DWORD *size);
     LPCJASSMODULE natives;
+    LPCJASSMODULE galaxy_natives;
     LPPLAYER (*GetPlayerByNumber)(DWORD number);
 } JASSHOST;
 
@@ -143,6 +149,7 @@ BOOL jass_popboolean(LPJASS j);
 void jass_pop(LPJASS j, DWORD count);
 BOOL jass_evaluatetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit);
 BOOL jass_evaluateboolexpr(LPJASS j, LPCJASSFUNC expr, LPEDICT unit);
+BOOL jass_evaluateplayerexpr(LPJASS j, LPCJASSFUNC expr, LPPLAYER player);
 void jass_executetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit);
 
 /* -------------------------------------------------------------------------
@@ -167,9 +174,14 @@ void   jass_rterror_clear(LPJASS j);
  * spawn_coroutine=false: call synchronously on the current stack. */
 void jass_callbyname(LPJASS j, LPCSTR name, BOOL spawn_coroutine);
 
-/* jass_dofile / jass_dobuffer — load and evaluate source. */
+/* jass_dofile / jass_dobuffer — load and evaluate source (JASS mode).
+ * jass_dofile auto-detects Galaxy mode for .galaxy filenames. */
 BOOL jass_dofile(LPJASS j, LPCSTR fileName);
 BOOL jass_dobuffer(LPJASS j, LPSTR buffer);
+
+/* _ex variants — explicit mode control. */
+BOOL jass_dofile_ex(LPJASS j, LPCSTR fileName, JASSMODE mode);
+BOOL jass_dobuffer_ex(LPJASS j, LPSTR buffer, JASSMODE mode);
 
 /* jass_newstate / jass_close — state lifecycle. */
 LPJASS jass_newstate(void);
