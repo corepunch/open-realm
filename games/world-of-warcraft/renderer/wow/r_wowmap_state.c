@@ -263,8 +263,18 @@ void Wow_ShutdownWorldShaders(void) {
     memset(&wow_grass_shader, 0, sizeof(wow_grass_shader));
 }
 
-LPTEXTURE Wow_LoadTexture(LPCSTR path) {
+LPTEXTURE Wow_LoadTexture(LPCSTR path, BOOL streamable) {
     wowTextureCache_t *entry;
+
+    /* Streaming world textures (terrain, WMO) are owned by the renderer cache,
+       which dedups by path and reclaims them by generation when the ADT window
+       slides.  Keeping them out of wow_world.textures avoids a stale pointer in
+       that list after a reclaim. */
+    if (streamable) {
+        LPTEXTURE texture = R_LoadTextureStreamed(path);
+        R_SetTextureWrap(texture, true, true);
+        return texture;
+    }
 
     for (entry = wow_world.textures; entry; entry = entry->next) {
         if (!strcasecmp(entry->path, path)) {

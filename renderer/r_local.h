@@ -310,6 +310,9 @@ struct render_globals {
 void R_RegisterMap(LPCSTR mapFileName);
 int R_RegisterTextureFile(LPCSTR textureFileName);
 LPTEXTURE R_LoadTexture(LPCSTR textureFileName);
+LPTEXTURE R_LoadTextureStreamed(LPCSTR textureFileName);
+void R_AdvanceTextureGeneration(void);
+void R_ReclaimStreamedTextures(DWORD keep_recent);
 int R_ReadTextureFile(LPCSTR name, LPSTR path, void **buffer);
 LPTEXTURE R_FindLoadedTexture(LPCSTR name);
 void R_CacheLoadedTexture(LPCSTR name, LPTEXTURE texture);

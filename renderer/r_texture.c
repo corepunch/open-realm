@@ -41,12 +41,32 @@ typedef struct rImageCacheEntry_s {
     char *name;
     LPTEXTURE texture;
     BOOL owns_texture;
+    BOOL streamed;              /* eligible for generation reclaim (streaming world texture) */
+    BOOL pinned;               /* a non-streaming consumer depends on it; never reclaim */
+    DWORD generation;          /* last streaming generation that referenced this texture */
     struct rImageCacheEntry_s *next;
     struct rImageCacheEntry_s *hash_next;
 } rImageCacheEntry_t;
 
 static rImageCacheEntry_t *r_image_cache;
 static rImageCacheEntry_t *r_image_hash[BZ_IMAGE_CACHE_BUCKETS];
+
+/* Quake 2 registration-sequence lifetime: streaming callers bump the generation
+   when their working set changes, every touched texture is re-stamped, and
+   textures left stale are reclaimed.  r_load_streamed gates whether a load marks
+   its entry streamable; a texture also used by any non-streaming consumer is
+   pinned so it is never reclaimed out from under that consumer. */
+static BOOL r_load_streamed;
+static DWORD r_stream_generation;
+
+static void R_MarkEntryUse(rImageCacheEntry_t *entry) {
+    if (!entry || !entry->owns_texture) return;
+    if (r_load_streamed) {
+        if (!entry->pinned) { entry->streamed = true; entry->generation = r_stream_generation; }
+    } else if (entry->streamed) {
+        entry->streamed = false; entry->pinned = true;
+    }
+}
 
 /* Texture paths are case-insensitive inside MPQs, so the registry hash must use the same contract as lookup. */
 static DWORD R_TextureNameHash(LPCSTR name) {
@@ -62,7 +82,7 @@ LPTEXTURE R_FindLoadedTexture(LPCSTR name) {
     if (!name || !*name) return NULL;
     hash = R_TextureNameHash(name) % BZ_IMAGE_CACHE_BUCKETS;
     for (entry = r_image_hash[hash]; entry; entry = entry->hash_next)
-        if (!strcasecmp(entry->name, name)) return entry->texture;
+        if (!strcasecmp(entry->name, name)) { R_MarkEntryUse(entry); return entry->texture; }
     return NULL;
 }
 
@@ -77,12 +97,16 @@ void R_CacheLoadedTexture(LPCSTR name, LPTEXTURE texture) {
     strcpy(entry->name, name);
     entry->texture = texture;
     entry->owns_texture = texture != tr.texture[TEX_PLACEHOLDER];
+    entry->streamed = false;
+    entry->pinned = false;
+    entry->generation = 0;
     for (known = r_image_cache; known; known = known->next)
         if (known->texture == texture) { entry->owns_texture = false; break; }
     entry->next = r_image_cache;
     entry->hash_next = r_image_hash[hash];
     r_image_cache = entry;
     r_image_hash[hash] = entry;
+    R_MarkEntryUse(entry);
 }
 
 void R_ShutdownTextureCache(void) {
@@ -100,6 +124,60 @@ void R_ShutdownTextureCache(void) {
     memset(r_image_hash, 0, sizeof(r_image_hash));
     /* The cache owns every cached texture; g_textures only indexes them by texid, so it must not outlive the free. */
     g_textures = NULL;
+}
+
+/* Streaming world loads route through here so their cache entries are stamped
+   with the current generation and become eligible for reclaim. */
+LPTEXTURE R_LoadTextureStreamed(LPCSTR name) {
+    LPTEXTURE texture;
+    r_load_streamed = true;
+    texture = R_LoadTexture(name);
+    r_load_streamed = false;
+    return texture;
+}
+
+/* Called when a streaming caller's working set changes (e.g. the WoW ADT window
+   slides); every texture still needed is re-stamped during the reload that follows. */
+void R_AdvanceTextureGeneration(void) {
+    r_stream_generation++;
+}
+
+/* Remove a texture from the texid index list before its memory is freed. */
+static void R_UnlinkTextureFromIndex(LPTEXTURE texture) {
+    LPTEXTURE *pp = &g_textures;
+    while (*pp) {
+        if (*pp == texture) { *pp = texture->next; return; }
+        pp = &(*pp)->next;
+    }
+}
+
+/* Free streamable textures not referenced within the last keep_recent generations.
+   Non-streamed / pinned / built-in textures are never touched.  World geometry is
+   rebuilt on every window slide, so any live reference re-stamps its texture the
+   same generation — a stale stamp means nothing resident still uses it. */
+void R_ReclaimStreamedTextures(DWORD keep_recent) {
+    rImageCacheEntry_t **pp = &r_image_cache;
+    DWORD freed = 0;
+    while (*pp) {
+        rImageCacheEntry_t *entry = *pp;
+        if (entry->streamed && !entry->pinned && entry->owns_texture &&
+            (r_stream_generation - entry->generation) > keep_recent) {
+            DWORD hash = R_TextureNameHash(entry->name) % BZ_IMAGE_CACHE_BUCKETS;
+            rImageCacheEntry_t **hp = &r_image_hash[hash];
+            while (*hp && *hp != entry) hp = &(*hp)->hash_next;
+            if (*hp) *hp = entry->hash_next;
+            R_UnlinkTextureFromIndex(entry->texture);
+            R_Call(glDeleteTextures, 1, &entry->texture->texid);
+            ri.MemFree(entry->texture);
+            *pp = entry->next;
+            ri.MemFree(entry->name);
+            ri.MemFree(entry);
+            freed++;
+        } else {
+            pp = &(*pp)->next;
+        }
+    }
+    if (freed) fprintf(stderr, "R_ReclaimStreamedTextures: freed %u stale streaming textures (gen %u)\n", freed, r_stream_generation);
 }
 
 int R_RegisterTextureFile(char const *textureFileName) {

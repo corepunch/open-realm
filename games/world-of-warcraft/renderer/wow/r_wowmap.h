@@ -12,6 +12,7 @@
 #define WOW_WDT_TILES 64
 #define WOW_MCVT_COUNT (9 * 9 + 8 * 8)
 #define WOW_ADT_RADIUS 1
+#define WOW_TEXTURE_KEEP_GENERATIONS 2 // window rebuilds; keep streaming textures this many slides before reclaim to avoid reload thrash in the overlapping tiles
 #define WOW_ADT_CHUNK_SIZE (WOW_ADT_SIZE / 16.0f)
 #define WOW_ADT_UNIT_SIZE (WOW_ADT_CHUNK_SIZE / 8.0f)
 #define WOW_ALPHA_TEXELS (64 * 64)
@@ -485,7 +486,7 @@ void Wow_FreeDoodadInstances(void);
 void Wow_ClearLoadedAdts(void);
 void Wow_FreeWorld(void);
 void Wow_ShutdownWorldShaders(void);
-LPTEXTURE Wow_LoadTexture(LPCSTR path);
+LPTEXTURE Wow_LoadTexture(LPCSTR path, BOOL streamable);
 BOOL Wow_ReadM2RadiusFromPath(LPCSTR path, float *radius);
 BOOL Wow_CopyModelPathFallback(LPCSTR path, LPSTR out, DWORD out_size);
 float Wow_LoadM2BoundsRadius(LPCSTR path);

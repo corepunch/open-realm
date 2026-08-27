@@ -484,7 +484,7 @@ BOOL Wow_LoadWmoModel(wowWmoModel_t *model) {
             DWORD texture_offset = Wow_Read32(chunks.materials_blob + i * 64 + 0x0c);
             WORD blend = Wow_Read16(chunks.materials_blob + i * 64 + 0x02);
             LPCSTR texture_path = Wow_StringAt(chunks.texture_blob, chunks.texture_blob_size, texture_offset);
-            materials[i] = texture_path ? Wow_LoadTexture(texture_path) : tr.texture[TEX_WHITE];
+            materials[i] = texture_path ? Wow_LoadTexture(texture_path, true) : tr.texture[TEX_WHITE];
             mat_blend_modes[i] = (BYTE)(blend > 4 ? 0 : blend);
         }
     }
