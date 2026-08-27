@@ -475,6 +475,9 @@ TEST(sc2_map, sc2_map_loads_xml_objects_and_terrain) {
     T_FEQ(map->lighting.ambient_color.x, 0.1f, 0.001f);
     T_FEQ(map->lighting.ambient_color.y, 0.2f, 0.001f);
     T_FEQ(map->lighting.ambient_color.z, 0.3f, 0.001f);
+    T_EQ(map->lighting.colorize, true);
+    T_FEQ(map->lighting.colorization_blend, 0.3f, 0.001f);
+    T_FEQ(sc2_light_ambient(&map->lighting).z, 0.09f, 0.001f);
     T_EQ(map->lighting.directional[SC2_LIGHT_KEY].enabled, true);
     T_FEQ(map->lighting.directional[SC2_LIGHT_KEY].color.x, 0.4f, 0.001f);
     T_FEQ(map->lighting.directional[SC2_LIGHT_KEY].color.y, 0.5f, 0.001f);
@@ -488,6 +491,15 @@ TEST(sc2_map, sc2_map_loads_xml_objects_and_terrain) {
     T_EQ(map->lighting.directional[SC2_LIGHT_BACK].enabled, true);
     T_FEQ(map->lighting.directional[SC2_LIGHT_BACK].color_multiplier, 5.0f, 0.001f);
     T_FEQ(map->lighting.directional[SC2_LIGHT_BACK].direction.y, 1.0f, 0.001f);
+}
+
+/* Non-colorized catalogs retain direct ambient while missing lighting uses the renderer fallback. */
+TEST(sc2_map, ordinary_and_missing_light_ambient) {
+    sc2MapLighting_t light = { .ambient_color = { 0.1f, 0.2f, 0.3f } };
+    VECTOR3 ambient = sc2_light_ambient(&light);
+    T_FEQ(ambient.x, 0.1f, 0.001f); T_FEQ(ambient.y, 0.2f, 0.001f); T_FEQ(ambient.z, 0.3f, 0.001f);
+    ambient = sc2_light_ambient(NULL);
+    T_FEQ(ambient.x, 0.35f, 0.001f); T_FEQ(ambient.y, 0.35f, 0.001f); T_FEQ(ambient.z, 0.4f, 0.001f);
 }
 
 TEST(sc2_map, sc2_map_loads_binary_terrain_layers) {

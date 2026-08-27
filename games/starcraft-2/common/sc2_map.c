@@ -573,7 +573,9 @@ static sc2XmlField_t const sc2_terrain_data_fields[] = {
 };
 
 static sc2XmlField_t const sc2_light_data_fields[] = {
+    SC2_LIGHTING_XML_FIELD("Colorize", colorize, SC2_XML_FIELD_DWORD),
     SC2_LIGHTING_XML_FIELD("AmbientColor", ambient_color, SC2_XML_FIELD_VEC3),
+    SC2_LIGHTING_XML_FIELD("ColorizationBlend", colorization_blend, SC2_XML_FIELD_FLOAT),
 };
 
 static sc2XmlField_t const sc2_directional_light_fields[] = {
@@ -646,6 +648,7 @@ static void sc2_parse_light_data_value(xmlNodePtr node, int light_index, LPCSTR 
 static void sc2_parse_light_data_node(xmlNodePtr node, LPCSTR light_id, int light_index) {
     char id[64];
     char value[256];
+    LPCSTR field;
 
     if (!node || node->type != XML_ELEMENT_NODE)
         return;
@@ -669,8 +672,10 @@ static void sc2_parse_light_data_node(xmlNodePtr node, LPCSTR light_id, int ligh
                 xmlFree(text);
             }
         }
+        field = (char const *)node->name;
+        if (sc2_streqi(field, "Param") && sc2_xml_attr(node, "index", id, sizeof(id))) field = id;
         if (sc2_xml_attr(node, "value", value, sizeof(value)))
-            sc2_parse_light_data_value(node, light_index, (char const *)node->name, value);
+            sc2_parse_light_data_value(node, light_index, field, value);
     }
     for (xmlNodePtr child = node->children; child; child = child->next)
         sc2_parse_light_data_node(child, light_id, light_index);

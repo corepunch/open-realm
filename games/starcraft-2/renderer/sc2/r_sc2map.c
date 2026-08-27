@@ -5,6 +5,8 @@ extern render_phase_t render_phase;
 #include "games/starcraft-2/common/sc2_map.c"
 #include "games/starcraft-2/renderer/m3/r_m3.h"
 #include "games/starcraft-2/renderer/sc2/sc2_shadow.h"
+#define BZ_SC2_STR_INNER(x) #x
+#define BZ_SC2_STR(x) BZ_SC2_STR_INNER(x)
 #define SC2_REUSE_WAR3_CLIFF_BAKER
 #include "games/warcraft-3/renderer/w3m/r_war3map_cliffs.c"
 #undef SC2_REUSE_WAR3_CLIFF_BAKER
@@ -170,7 +172,7 @@ static const shader_desc_t sd_sc2_terrain = {
         "  vec3 n = normalize(normal);\n"
         "  vec3 light = u_lightAmbient;\n"
         "  v_key = vec3(0.0);\n"
-        "  for (int i = 0; i < 3; i++) {\n"
+        "  for (int i = 0; i < " BZ_SC2_STR(SC2_DIFFUSE_LIGHTS) "; i++) {\n"
         "    vec3 l = normalize(u_lightDir[i]);\n"
         "    vec3 contribution = u_lightColor[i] * max(dot(n, l), 0.0);\n"
         "    light += contribution;\n"
@@ -252,7 +254,7 @@ static const shader_desc_t sd_sc2_cliff = {
         "  vec3 n = normalize(normal);\n"
         "  vec3 light = u_lightAmbient;\n"
         "  v_key = vec3(0.0);\n"
-        "  for (int i = 0; i < 3; i++) {\n"
+        "  for (int i = 0; i < " BZ_SC2_STR(SC2_DIFFUSE_LIGHTS) "; i++) {\n"
         "    vec3 l = normalize(u_lightDir[i]);\n"
         "    vec3 contribution = u_lightColor[i] * max(dot(n, l), 0.0);\n"
         "    light += contribution;\n"
@@ -1306,10 +1308,11 @@ static void r_sc2_set_fog_state(LPVECTOR4 u_color, LPVECTOR4 u_params) {
 static void r_sc2_set_light_state(LPVECTOR3 ambient_out, LPVECTOR3 dirs, LPVECTOR3 colors) {
     sc2Map_t const *map = SC2_MapCurrent();
     sc2MapLighting_t const *lighting = map ? &map->lighting : NULL;
-    VECTOR3 ambient = lighting && lighting->enabled ? lighting->ambient_color : (VECTOR3){ 1.0f, 1.0f, 1.0f };
+    VECTOR3 ambient = sc2_light_ambient(lighting && lighting->enabled ? lighting : NULL);
 
     *ambient_out = (VECTOR3){ ambient.x, ambient.y, ambient.z };
-    FOR_LOOP(i, SC2_MAX_DIRECTIONAL_LIGHTS) {
+    /* Adding Fill/Back as unshadowed suns lit faces opposite the visible key shadow. */
+    FOR_LOOP(i, SC2_DIFFUSE_LIGHTS) {
         sc2DirectionalLight_t const *light = lighting && lighting->enabled ? &lighting->directional[i] : NULL;
         FLOAT enabled = light && light->enabled ? 1.0f : 0.0f;
         VECTOR3 direction = enabled ? (VECTOR3){ -light->direction.x, -light->direction.y, -light->direction.z } : (VECTOR3){ 0.0f, 0.0f, 1.0f };

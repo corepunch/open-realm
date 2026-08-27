@@ -70,17 +70,18 @@ R_EvalKeyframeValue(void const *left,
                     MODELKEYTRACKTYPE linetype,
                     HANDLE out);
 
-/* M3 models consume the same authored key/fill/back rig as SC2 terrain. */
+/* M3 diffuse uses the same shadow-casting authored key as SC2 terrain. */
 static void M3_SetLighting(MODELPROG * shader) {
     sc2Map_t const *map = SC2_MapCurrent();
     sc2MapLighting_t const *src = map ? &map->lighting : NULL;
     bool const lit = src && src->enabled;
     MODELLIGHTING state = {
         /* dark ambient with a slight sky-blue tint when no map lighting is authored */
-        .ambient = lit ? src->ambient_color : (VECTOR3){ 0.35f, 0.35f, 0.40f },
-        .count = SC2_MAX_DIRECTIONAL_LIGHTS,
+        .ambient = sc2_light_ambient(lit ? src : NULL),
+        .count = SC2_DIFFUSE_LIGHTS,
     };
-    FOR_LOOP(i, SC2_MAX_DIRECTIONAL_LIGHTS) {
+    /* Fill/back are not extra unshadowed Lambert suns; they otherwise illuminate key-backfacing surfaces. */
+    FOR_LOOP(i, SC2_DIFFUSE_LIGHTS) {
         sc2DirectionalLight_t const *light = lit ? &src->directional[i] : NULL;
         bool const enabled = light && light->enabled;
         if (enabled) {
