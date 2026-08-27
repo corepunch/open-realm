@@ -1104,6 +1104,48 @@ static void r_sc2_bake_cliff_region(rCliffBakeList_t *list,
     }
 }
 
+typedef struct { int qx, qy; DWORD idx; } rNormalWeldKeyXY_t;
+
+static int r_sc2_weld_xy_cmp(const void *a, const void *b) {
+    rNormalWeldKeyXY_t const *ka = a, *kb = b;
+    if (ka->qx != kb->qx) return ka->qx < kb->qx ? -1 : 1;
+    if (ka->qy != kb->qy) return ka->qy < kb->qy ? -1 : 1;
+    return 0;
+}
+
+/* Average normals of all cliff vertices sharing the same XY grid column.
+   Keyed on integers (snap = cell_size/2) so adjacent-piece edges always land in the same bucket. */
+static void r_sc2_weld_cliff_normals_xy(VERTEX *vertices, DWORD n, FLOAT snap) {
+    rNormalWeldKeyXY_t *keys;
+    DWORD i;
+
+    if (n < 2 || snap <= 0.0f) return;
+    keys = ri.MemAlloc(n * sizeof(*keys));
+    FOR_LOOP(i, n) {
+        keys[i].qx = (int)roundf(vertices[i].position.x / snap);
+        keys[i].qy = (int)roundf(vertices[i].position.y / snap);
+        keys[i].idx = i;
+    }
+    qsort(keys, n, sizeof(*keys), r_sc2_weld_xy_cmp);
+    i = 0;
+    while (i < n) {
+        VECTOR3 avg = { 0 };
+        DWORD j = i;
+        while (j < n && keys[j].qx == keys[i].qx && keys[j].qy == keys[i].qy)
+            j++;
+        for (DWORD k = i; k < j; k++) {
+            avg.x += vertices[keys[k].idx].normal.x;
+            avg.y += vertices[keys[k].idx].normal.y;
+            avg.z += vertices[keys[k].idx].normal.z;
+        }
+        Vector3_normalize(&avg);
+        for (DWORD k = i; k < j; k++)
+            vertices[keys[k].idx].normal = avg;
+        i = j;
+    }
+    ri.MemFree(keys);
+}
+
 static void r_sc2_bake_cliff_model(rCliffBakeList_t *list,
                                    sc2Map_t const *map,
                                    LPCMODEL model,
@@ -1307,6 +1349,9 @@ static LPMAPLAYER r_sc2_build_cliff_layer(sc2Map_t const *map) {
         ri.MemFree(list.vertices);
         return NULL;
     }
+    /* Weld normals by XY column (integer-snapped to cell_size/2) so adjacent cliff pieces
+       share smooth normals at their boundaries without requiring indexed geometry. */
+    r_sc2_weld_cliff_normals_xy(list.vertices, list.num_vertices, map->cell_size * 0.5f);
     map_layer = ri.MemAlloc(sizeof(*map_layer));
     memset(map_layer, 0, sizeof(*map_layer));
     map_layer->type = MAPLAYERTYPE_CLIFF;
