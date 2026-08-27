@@ -135,9 +135,10 @@ state value. Only `renderer/r_shader.c` calls `glGetUniformLocation` or `glUnifo
 - State booleans are C `bool` and GLSL `bool`, including WoW `useWeightedBlend`, `singleTexture`,
   `wmoIndoor`, model alpha-key/unshaded/fog flags. The backend converts to GLint for GL; never read
   a bool through a GLint pointer. WMO blend mode remains an integer, since it is not a boolean.
-- Matrices/vectors are native shared math types. Arrays are contiguous inline storage and submit
-  with one count-based GL call. Model bones remain the full 128-matrix contract, lights eight slots;
-  `lightCount` selects active entries. Instanced bones initialize to identity once at program creation.
+- Matrices/vectors are native shared math types. Arrays are contiguous inline storage and submit with one
+  count-based GL call. The shader keeps its 128-matrix bone capacity, while `boneCount` limits ordinary draws
+  to the active MDX geoset, M2 batch, or M3 lookup prefix. Lights keep eight slots and `lightCount` selects
+  active entries. Instanced bones initialize to the full identity palette once at program creation.
 - `UNIFORM_TRANSPOSE` describes row-major CPU normal matrices; UV matrices remain column-major.
 - One renderer API submission is **not** one GL call or a UBO. The GL backend walks the descriptor
   and submits active fields, preserving the existing supported dialects without std140 assumptions.
@@ -175,3 +176,27 @@ the bad normal program contains `#define BZ_USE_INSTANCING 1`, while
 `glGetUniformLocation(program, "u_model")` returns `-1`. The pre-change and corrected programs
 retain an active model matrix. `renderer_shader.normal_model_defines_do_not_inherit_instancing`
 locks the required instanced-then-normal compile order.
+
+### Descriptor upload performance regression and correction
+
+The 26→22 FPS report arrived after `63b8da00`/`f151b435` replaced targeted uniform updates with
+`R_ApplyShader`. Code inspection confirmed a CPU/driver regression: every apply walked and uploaded the
+complete descriptor state. For the shared model program that included all 128 `uBones` matrices (8 KiB)
+plus every view, lighting, material, and sampler uniform on every material draw. Before the descriptor
+conversion, MDX uploaded only `min(geoset->num_matrixPalette, 128)` bones, M3 used its active lookup count,
+and unchanged WC3 view uniforms were cached. The descriptor path therefore undid the reduced-palette traffic
+optimization even though the GLSL lighting equation itself did not become more expensive.
+
+`R_UploadShader` now retains one exact byte cache per linked program and compares each declared value without
+including struct padding. A repeated material draw still submits one complete logical state, but issues GL
+uniform calls only for fields whose bytes changed. Counted fixed-capacity arrays separate GLSL capacity from
+the active upload prefix; `u_bones[128]` remains the shader contract while each format supplies `boneCount`.
+The backend also retains the bound program because all shader binding goes through this path. This restores
+active-palette traffic and makes camera/view/light values and program binds effectively once-per-change.
+Cache hit/miss and counted-array paths have direct unit coverage.
+
+The later RAM work (`51d6d85a`/`e471c472`) packs VBO/EBO storage and converts duplicated vertices to indexed
+draws. It does not add per-fragment work and should reduce buffer traffic/residency; lower RAM alone does not
+explain an FPS loss unless the old build was already paging. Attribute setup is unchanged for ordinary draws.
+The shader upload regression, rather than packed RAM storage, is the code-backed cause addressed here. Compare identical release builds,
+resolution, MSAA, camera, and map; the local SC2 screenshot run is not comparable to the reported device/FPS.

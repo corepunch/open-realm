@@ -870,6 +870,7 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
     m3.shader->state.model = mScaledMatrix;
     m3.shader->state.normalMatrix = mNormalMatrix;
     memcpy(&m3.shader->state.bones, bonemats->v, (MIN(model->boneLookupNum, BZ_BONE_PALETTE_MAX)) * sizeof(MATRIX4));
+    m3.shader->state.boneCount = MAX(1, MIN(model->boneLookupNum, BZ_BONE_PALETTE_MAX));
     M3_SetLighting(m3.shader);
     /* The unified model shader requires identity defaults for uniforms that
        M3 does not animate (texture UV transform, layer alpha, geoset colour). */

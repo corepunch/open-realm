@@ -192,6 +192,7 @@ typedef struct {
 /* Shared skinned-model shader (MDX/M2/M3): bone palette + 8 packed lights. */
 typedef struct MODELSTATE {
     MATRIX4 bones[BZ_BONE_PALETTE_MAX];
+    DWORD boneCount;
     MATRIX4 viewProjection;
     MATRIX4 lightMatrix;
     MATRIX4 textureMatrix;

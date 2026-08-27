@@ -339,6 +339,9 @@ TEST(renderer_bones, model_shader_preserves_high_palette_indices) {
     memset(&tr, 0, sizeof(tr));
     R_SetShaderSourceFromDesc(1, &sd_model, true, NULL);
     T_NOT_NULL(strstr(shader_src, "uniform mat4 u_bones[128];"));
+    T_EQ(sd_model.Uniforms[0].count, BZ_BONE_PALETTE_MAX);
+    T_EQ(sd_model.Uniforms[0].count_offset, offsetof(MODELSTATE, boneCount));
+    T_ASSERT(sd_model.Uniforms[0].counted);
     T_NULL(strstr(shader_src, "BZ_BONE_COUNT"));
     /* Slot 83 must stay 83: the old clamp redirected it to 63 with a 64-matrix palette. */
     T_NOT_NULL(strstr(shader_src, "int boneIdx = int(a_skin1[i]) + int(u_firstBoneLookupIndex);"));
@@ -788,6 +791,33 @@ TEST(renderer_shader_desc, load_writes_locations_and_initializes_samplers) {
     FOR_LOOP(i, 3) T_EQ(shader.prog.locs[i], 0);
     T_EQ(shader.state.texture, 0); T_EQ(shader.state.color.w, 4);
     T_EQ(shader_test.creates, 2); T_EQ(shader_test.links, 1); T_EQ(shader_test.deleted, 2);
+    T_NOT_NULL(shader.prog.cache);
+    R_DeleteShader(&shader.prog);
+}
+
+/* The program cache preserves complete typed state while unchanged draw fields issue no driver uploads.
+   Zero-valued uniforms (including unit-0 samplers) match the link-time GL default, so they need no first upload. */
+TEST(renderer_shader_desc, apply_uploads_only_changed_uniforms) {
+    SDTESTPROG shader = { .state.color = { 1, 2, 3, 4 }, .state.mvp = { .v = { 1 } } };
+    reset_shader(); R_LoadShader(&sd_test, NULL, &shader); memset(&upload, 0, sizeof(upload));
+    int uses = shader_test.uses;
+    R_ApplyShader(&shader); T_EQ(upload.calls, 2); T_EQ(shader_test.uses, uses);
+    R_ApplyShader(&shader); T_EQ(upload.calls, 2);
+    shader.state.color.x = 5; R_ApplyShader(&shader); T_EQ(upload.calls, 3);
+    shader.state.mvp.v[0] = 2; R_ApplyShader(&shader); T_EQ(upload.calls, 4);
+    R_DeleteShader(&shader.prog);
+}
+
+/* Fixed-capacity GLSL arrays upload only the active CPU prefix named by their count field. */
+TEST(renderer_shader_desc, counted_array_uses_runtime_upload_count) {
+    typedef struct { MATRIX4 values[4]; DWORD count; } TESTCOUNTSTATE;
+    TESTCOUNTSTATE state = { .count = 2 };
+    shader_desc_t desc = { .Name = "counted", .Uniforms = {{
+        .name = "values", .type = UT_FLOAT_MAT4, .count = 4, .count_offset = offsetof(TESTCOUNTSTATE, count), .counted = true,
+    }} };
+    SHADERPROG prog = { .progid = 1, .desc = &desc, .locs = { 0 } };
+    memset(&upload, 0, sizeof(upload)); R_UploadShader(&prog, &state);
+    T_EQ(upload.calls, 1); T_EQ(upload.count, 2);
 }
 
 /* The descriptor chooses upload shape; arrays stay blocks and bools are not read as GLint storage. */

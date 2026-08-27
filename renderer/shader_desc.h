@@ -5,7 +5,7 @@
  * Define SHADER_TYPE as the value struct, then describe its members with UNIFORM.
  * R_LoadShader(desc, defines, &shader) links a { SHADERPROG prog; STATE state; }.
  * Fill shader.state and call R_ApplyShader(&shader) before drawing. The backend
- * binds the program and uploads the complete state; callers never handle locations.
+ * binds the program and uploads changed state; callers never handle locations.
  */
 
 #include <stddef.h>
@@ -76,6 +76,8 @@ typedef struct {
     precisionType_t precision;
     bool            transpose; /* CPU row-major matrix storage */
     DWORD           count;     /* array size; 0 = scalar */
+    size_t          count_offset; /* runtime upload count for a fixed-capacity GLSL array */
+    bool            counted;
 } shaderUniform_t;
 
 typedef struct {
@@ -113,6 +115,7 @@ typedef struct SHADERPROG {
     GLuint progid;
     LPCSHADERDESC desc;
     GLint locs[MAX_SHADER_UNIFORMS];
+    void *cache; /* shadow of last-uploaded state for change detection */
 } SHADERPROG;
 typedef struct SHADERPROG *LPSHADERPROG;
 typedef const struct SHADERPROG *LPCSHADERPROG;
@@ -127,7 +130,7 @@ typedef struct SHADERLOAD *LPSHADERLOAD;
 typedef const struct SHADERLOAD *LPCSHADERLOAD;
 void R_LoadShaderState(LPCSHADERLOAD load);
 void R_DeleteShader(LPSHADERPROG prog);
-void R_UploadShader(LPCSHADERPROG prog, LPCVOID state);
+void R_UploadShader(LPSHADERPROG prog, LPCVOID state);
 #define R_LoadShader(D, F, P) R_LoadShaderState(&(SHADERLOAD){ D, F, &(P)->prog, &(P)->state })
 #define R_ApplyShader(P) R_UploadShader(&(P)->prog, &(P)->state)
 
@@ -138,6 +141,9 @@ void R_UploadShader(LPCSHADERPROG prog, LPCVOID state);
     { offsetof(SHADER_TYPE, field), "u_" #field, type, prec, false, 0 }
 #define UNIFORM_ARRAY(field, type, prec, count) \
     { offsetof(SHADER_TYPE, field), "u_" #field, type, prec, false, count }
+#define UNIFORM_ARRAY_COUNTED(field, type, prec, count, count_field) \
+    { offsetof(SHADER_TYPE, field), "u_" #field, type, prec, false, count, \
+      offsetof(SHADER_TYPE, count_field), true }
 /* Explicit GLSL spelling for game shader contracts. */
 #define UNIFORM_NAMED(field, name, type, prec) \
     { offsetof(SHADER_TYPE, field), name, type, prec, false, 0 }

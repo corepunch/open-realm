@@ -379,6 +379,7 @@ static void MDLX_BindGeosetMatrixPalette(mdxModel_t const *model, mdxGeoset_t co
     }
 
     memcpy(&mdlx.shader->state.bones, matrixPalette->v, (count) * sizeof(MATRIX4));
+    mdlx.shader->state.boneCount = count;
 }
 
 static VECTOR4 MDLX_EvaluateGeosetColor(mdxModel_t const *model,
