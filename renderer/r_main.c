@@ -634,10 +634,15 @@ void R_RevertSettings(void) {
 void R_RenderShadowMap(void) {
     render_phase = RENDER_PHASE_LIGHTS;
     R_SetupGL(true);
+    /* Bias depth writes away from receivers; the old unbiased pass made each terrain triangle shadow itself. */
+    R_Call(glEnable, GL_POLYGON_OFFSET_FILL);
+    R_Call(glPolygonOffset, 2.0f, 4.0f);
     R_BindTexture(tr.texture[TEX_SHADOWMAP], 1);
     R_GameDrawWorld();
     R_GameDrawTerrainShadows();
     R_DrawEntities();
+    R_Call(glDisable, GL_POLYGON_OFFSET_FILL);
+    R_Call(glPolygonOffset, 0.0f, 0.0f);
 }
 #endif
 

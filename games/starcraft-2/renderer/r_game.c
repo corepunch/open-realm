@@ -406,7 +406,6 @@ bool R_GameExtractEntityCamera(renderEntity_t const *entity, float aspect, viewD
 bool R_GameSetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
     if (!model || model->modeltype != ID_43DM || !model->m3 || !entity) return false;
     m3Model_t const *m3 = model->m3;
-
     DWORD time = 0;
     M3_FOR_EACH(Sequence, seq, m3->sequences) {
         if (seq->name && anim && !strcasecmp(seq->name, anim)) {
