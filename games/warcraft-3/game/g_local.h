@@ -632,10 +632,12 @@ struct edict_s {
         BOOL dead;
         BOOL pathing_active;
         BOOL placement_solid;
+        BOOL loot_processed;
         DWORD editor_id;
         pathTex_t *alive_pathtex;
         pathTex_t *death_pathtex;
         FLOAT alive_collision;
+        ARRAY(droppableItemSet_t const, drop_sets);
     } destructable;
     LPEDICT cargo_units[MAX_CARGO];
     DWORD cargo_count;
@@ -1127,6 +1129,8 @@ BOOL G_DestructableIsAttackable(LPCEDICT ent);
 void G_InitializeDestructablePlacement(LPEDICT ent, LPCDOODAD placement);
 BOOL G_DestructableApplyDamage(LPEDICT ent, LPEDICT attacker, FLOAT damage);
 BOOL G_KillDestructable(LPEDICT ent, LPEDICT killer);
+DWORD G_SelectDropItem(droppableItem_t const *entries, DWORD count, DWORD roll);
+void G_SpawnDestructableLoot(LPEDICT ent);
 void G_DestructableStartDeathAnimation(LPEDICT ent);
 void tree_die(LPEDICT ent, LPEDICT attacker);
 
