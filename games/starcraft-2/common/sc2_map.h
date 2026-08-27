@@ -9,6 +9,7 @@
 #define SC2_MAX_TERRAIN_TEXTURES 16
 #define SC2_MAX_CLIFF_SETS     8
 #define SC2_MAX_CLIFF_CELLS    16384
+#define SC2_MAX_HARD_TILES     16384 // placements; bounds corrupt HRDT counts before allocation
 #define SC2_MAPINFO_DATA_SIZE  512
 #define SC2_OBJECT_HEIGHT_ABSOLUTE 0x00000001
 #define SC2_OBJECT_HEIGHT_OFFSET   0x00000002
@@ -190,6 +191,17 @@ typedef struct {
 } sc2MapTextureMasks_t;
 
 typedef struct {
+    char            tile[64];
+    char            model[256];
+    VECTOR3         position;
+    VECTOR3         normal;
+    VECTOR3         start;
+    VECTOR3         end;
+    VECTOR2         scale;
+    USHORT          flags;
+} sc2MapHardTile_t;
+
+typedef struct {
     DWORD          fourcc;
     DWORD          version;
     DWORD          unknown0;
@@ -216,6 +228,7 @@ typedef struct {
     sc2MapTerrain_t t3Terrain;
     sc2MapTextureMasks_t *t3TextureMasks;
     DWORD          t3TextureMasksSize;
+    ARRAY(sc2MapHardTile_t, hard_tiles);
     sc2MapCellFlags_t *t3CellFlags;
     sc2MapSyncCliffLevel_t *t3SyncCliffLevel;
     sc2MapInfo_t   MapInfo;

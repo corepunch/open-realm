@@ -21,7 +21,7 @@ See [file-formats/objects.md](file-formats/objects.md) for the full `Objects` XM
 | `t3SyncPathingInfo` | `PATH` | binary | **not yet parsed** |
 | `t3Water` | `WATR` | binary | **not yet parsed** |
 | `t3FluffDoodad` | `DLFT` | binary | **not yet parsed** |
-| `t3HardTile` | `HRDT` | binary | **not yet parsed** |
+| `t3HardTile` | `HRDT` | binary | parsed |
 | `t3VertCol` | — | binary | unknown layout |
 | `PaintedPathingLayer` | — | binary | partially understood |
 | `Terrain` | — | binary | sparse |
@@ -381,7 +381,10 @@ Type values 0x01 and 0x07 appear invisible on Desert Oasis; 0x06 appears at doub
 
 Source: https://sc2mapster.wiki.gg/wiki/File_Formats/Maps/t3HardTile
 
-**Not yet parsed by the engine. Observed only in specific maps (e.g. Metalopolis). Purpose unknown.**
+This is the placement data for hard-tile roads and rails. The corresponding catalog records are
+`CTile` entries in `GameData/TileData.xml`; their `Material` fields resolve to M3 assets such as
+`Assets/HardTiles/MarSaraRoad/MarSaraRoad.m3`. The public binary schema remains partly reverse engineered, so preserve and report
+unknown fields rather than guessing their meaning.
 
 **Header:**
 
@@ -398,9 +401,11 @@ struct HEADER {
 
 ```c
 typedef struct {
-    FLOAT  x, y, z;         // world position
-    FLOAT  rotation[9];     // 3×3 rotation matrix (row-major)
-    FLOAT  scaleX, scaleY;
+    FLOAT  x, y, z;         // world surface center
+    FLOAT  normal[3];       // road surface normal
+    FLOAT  start[3];        // first endpoint offset from center
+    FLOAT  end[3];          // second endpoint offset from center
+    FLOAT  scaleX, scaleY;  // half-width and depth
     USHORT unk;
 } SUBBLOCK;
 
@@ -408,10 +413,15 @@ typedef struct {
     UINT     num;           // number of subblocks
     SUBBLOCK sub[num];
     USHORT   sep;           // separator
-    CHAR     n1[12];        // texture name: "\0TextureName\0"
+    BYTE     zero;          // leading string marker
+    CHAR     tile[];        // null-terminated CTile ID
     DWORD    unk;
 } BLOCK;
 ```
+
+The old public description treated the name as a fixed 12-byte array. A live `TRaynor01` version-102 file disproves that: the block
+uses a null-terminated variable-length ID. Advancing by 18 bytes after `MarSaraTile` shifts the next count by one byte and reads 1075
+instead of 4.
 
 ---
 
@@ -523,6 +533,5 @@ Files not yet parsed by the engine:
 - `t3SyncPathingInfo` — authoritative movement/building pathing
 - `t3Water` — water/lava rectangles
 - `t3FluffDoodad` — ambient doodad scatter
-- `t3HardTile` — unknown purpose, rare
 - `t3VertCol` — vertex colors, layout unknown
 - `PaintedPathingLayer` — editor-painted pathing overrides

@@ -29,7 +29,8 @@ Collected through 2026-08-26.
 - SC2Mapster Wiki, `File Formats/Maps/t3SyncPathingInfo`: https://sc2mapster.wiki.gg/wiki/File_Formats/Maps/t3SyncPathingInfo
   - `PATH` header, `USHORT` per-cell pathing values (0x00=passable, 0x02=ramp, 0x23=blocked).
 - SC2Mapster Wiki, `File Formats/Maps/t3HardTile`: https://sc2mapster.wiki.gg/wiki/File_Formats/Maps/t3HardTile
-  - `HRDT` header, BLOCK/SUBBLOCK structs with position, 3×3 rotation matrix, scale.
+  - `HRDT` header and BLOCK/SUBBLOCK byte sizes. Live `TRaynor01` data corrects its guessed fields to surface center/normal,
+    endpoint offsets, half-width/depth, and a variable-length `CTile` ID.
 - SC2Mapster Wiki, `File Formats` (top-level): https://sc2mapster.wiki.gg/wiki/File_Formats
   - Container formats (MPQ, SC2Map, SC2Mod, SC2Replay), asset formats (DDS, M3, M3A, OGV, TGA).
 - SC2Mapster Wiki, `Model Files`: https://sc2mapster.wiki.gg/wiki/Model_Files

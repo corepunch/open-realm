@@ -141,6 +141,26 @@ static int write_texture_masks(const char *path) {
     return write_file(path, data, sizeof(data));
 }
 
+static void wr_f32le(unsigned char *p, float value) { uint32_t bits; memcpy(&bits, &value, sizeof(bits)); wr_u32le(p, bits); }
+
+static int write_hard_tiles(const char *path) {
+    unsigned char data[28 + 4 + 2 * 58 + 19];
+    unsigned int offset = 28;
+    float shape[9] = { 0,0,1, -1,0,0, 1,0,0 };
+
+    memset(data, 0, sizeof(data)); memcpy(data, "HRDT", 4); wr_u32le(data + 4, 102); wr_u32le(data + 24, 1);
+    wr_u32le(data + offset, 2); offset += 4;
+    for (unsigned int i = 0; i < 2; i++) {
+        wr_f32le(data + offset, 2.0f + i * 3.0f); wr_f32le(data + offset + 4, 4.0f + i); wr_f32le(data + offset + 8, 0.25f * i);
+        for (unsigned int j = 0; j < 9; j++) wr_f32le(data + offset + 12 + j * 4, shape[j]);
+        wr_f32le(data + offset + 48, 1.0f + i); wr_f32le(data + offset + 52, 0.5f + i); wr_u16le(data + offset + 56, (uint16_t)(7 + i));
+        offset += 58;
+    }
+    wr_u16le(data + offset, 0); offset += 2; data[offset++] = 0; memcpy(data + offset, "FixtureTile", 11); offset += 11;
+    data[offset++] = 0; wr_u32le(data + offset, 0);
+    return write_file(path, data, sizeof(data));
+}
+
 /* Write a flat NxM height-map binary (HMAP).  w and h are cell counts;
  * the height-map has (w+1)*(h+1) vertices. height_val is the raw sample
  * height written to every vertex (world units depend on t3Terrain.xml
@@ -238,7 +258,7 @@ int main(int argc, char **argv) {
         return write_flat_terrain(argv[2], w, h) ? 0 : 1;
     }
     if (argc != 3) {
-        fprintf(stderr, "Usage: sc2fixturegen <map-info|height-map|sync-height-map|cell-flags|cliff-levels|texture-masks> <out>\n"
+        fprintf(stderr, "Usage: sc2fixturegen <map-info|height-map|sync-height-map|cell-flags|cliff-levels|texture-masks|hard-tiles> <out>\n"
                         "       sc2fixturegen flat-terrain <dir> <width> <height>\n");
         return 1;
     }
@@ -259,6 +279,9 @@ int main(int argc, char **argv) {
     }
     if (!strcmp(argv[1], "texture-masks")) {
         return write_texture_masks(argv[2]) ? 0 : 1;
+    }
+    if (!strcmp(argv[1], "hard-tiles")) {
+        return write_hard_tiles(argv[2]) ? 0 : 1;
     }
     fprintf(stderr, "sc2fixturegen: unknown fixture kind %s\n", argv[1]);
     return 1;

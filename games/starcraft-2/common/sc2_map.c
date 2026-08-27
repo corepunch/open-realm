@@ -11,6 +11,11 @@
 #define SC2_MAX_CATALOG_FOOTPRINTS   1024
 #define SC2_MAX_CATALOG_TERRAIN_TEX  512
 #define SC2_MAX_CATALOG_CLIFFS       256
+#define SC2_MAX_CATALOG_TILES        512 // entries; covers dependency and map-local CTile catalogs
+#define SC2_HARD_TILE_HEADER_SIZE    28 // bytes; HRDT v102 header through block count
+#define SC2_HARD_TILE_RECORD_SIZE    58 // bytes; center, normal, endpoints, width/depth and flags
+#define SC2_HARD_TILE_NAME_PREFIX    3 // bytes; separator USHORT followed by a zero byte
+#define SC2_HARD_TILE_NAME_SUFFIX    4 // bytes; unknown DWORD after the terminated CTile ID
 #define SC2_MAX_CATALOG_PARENT_DEPTH 8
 #define SC2_MAX_CATALOG_INCLUDE_DEPTH 8
 #define SC2_ARRAY_LEN(x)             ((DWORD)(sizeof(x) / sizeof((x)[0])))
@@ -82,18 +87,25 @@ typedef struct {
 } sc2CatalogCliff_t;
 
 typedef struct {
+    char id[64];
+    char model[256];
+} sc2CatalogTile_t;
+
+typedef struct {
     DWORD models_count;
     DWORD actors_count;
     DWORD units_count;
     DWORD footprints_count;
     DWORD terrain_tex_count;
     DWORD cliffs_count;
+    DWORD tiles_count;
     sc2CatalogModel_t models[SC2_MAX_CATALOG_MODELS];
     sc2CatalogActor_t actors[SC2_MAX_CATALOG_ACTORS];
     sc2CatalogUnit_t units[SC2_MAX_CATALOG_UNITS];
     sc2CatalogFootprint_t footprints[SC2_MAX_CATALOG_FOOTPRINTS];
     sc2CatalogTerrainTex_t terrain_tex[SC2_MAX_CATALOG_TERRAIN_TEX];
     sc2CatalogCliff_t cliffs[SC2_MAX_CATALOG_CLIFFS];
+    sc2CatalogTile_t tiles[SC2_MAX_CATALOG_TILES];
 } sc2Catalog_t;
 
 typedef enum {
@@ -142,6 +154,7 @@ static LPCSTR const sc2_catalog_known_files[] = {
     "GameData\\FootprintData.xml",
     "GameData\\TerrainTexData.xml",
     "GameData\\CliffData.xml",
+    "GameData\\TileData.xml",
     NULL,
 };
 
@@ -182,6 +195,7 @@ static void sc2_map_clear(void) {
     SAFE_DELETE(sc2_map.t3HeightMap, sc2_free);
     SAFE_DELETE(sc2_map.t3SyncHeightMap, sc2_free);
     SAFE_DELETE(sc2_map.t3TextureMasks, sc2_free);
+    SAFE_DELETE(sc2_map.hard_tiles, sc2_free);
     memset(&sc2_map, 0, sizeof(sc2_map));
 }
 
@@ -1222,6 +1236,23 @@ static void sc2_catalog_add_cliff(sc2Catalog_t *catalog, LPCSTR id, LPCSTR mesh)
     snprintf(cliff->mesh, sizeof(cliff->mesh), "%s", mesh);
 }
 
+static void sc2_catalog_add_tile(sc2Catalog_t *catalog, LPCSTR id, LPCSTR model) {
+    sc2CatalogTile_t *tile;
+
+    if (!catalog || !id || !*id || !model || !*model) return;
+    FOR_LOOP(i, catalog->tiles_count) {
+        if (strcasecmp(catalog->tiles[i].id, id)) continue;
+        snprintf(catalog->tiles[i].model, sizeof(catalog->tiles[i].model), "%s", model);
+        sc2_normalize_slashes(catalog->tiles[i].model);
+        return;
+    }
+    if (catalog->tiles_count >= SC2_MAX_CATALOG_TILES) return;
+    tile = &catalog->tiles[catalog->tiles_count++];
+    snprintf(tile->id, sizeof(tile->id), "%s", id);
+    snprintf(tile->model, sizeof(tile->model), "%s", model);
+    sc2_normalize_slashes(tile->model);
+}
+
 static void sc2_catalog_add_footprint(sc2Catalog_t *catalog,
                                       LPCSTR id,
                                       FLOAT width,
@@ -1731,6 +1762,23 @@ static void sc2_parse_cliff_catalog_source(sc2Catalog_t *catalog, sc2MapSource_t
     xmlFreeDoc(doc);
 }
 
+static void sc2_parse_tile_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
+    xmlNodePtr root;
+
+    if (!doc) return;
+    root = xmlDocGetRootElement(doc);
+    for (xmlNodePtr node = root ? root->children : NULL; node; node = node->next) {
+        char id[64], model[256] = "";
+
+        if (node->type != XML_ELEMENT_NODE || !sc2_streqi((char const *)node->name, "CTile")) continue;
+        if (!sc2_xml_attr(node, "id", id, sizeof(id))) continue;
+        for (xmlNodePtr child = node->children; child; child = child->next)
+            if (child->type == XML_ELEMENT_NODE && sc2_streqi((char const *)child->name, "Material"))
+                sc2_xml_attr(child, "value", model, sizeof(model));
+        sc2_catalog_add_tile(catalog, id, model);
+    }
+}
+
 static void sc2_parse_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
     sc2_parse_unit_catalog_doc(catalog, doc);
     sc2_parse_model_catalog_doc(catalog, doc);
@@ -1738,6 +1786,7 @@ static void sc2_parse_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
     sc2_parse_footprint_catalog_doc(catalog, doc);
     sc2_parse_terrain_tex_catalog_doc(catalog, doc);
     sc2_parse_cliff_catalog_doc(catalog, doc);
+    sc2_parse_tile_catalog_doc(catalog, doc);
 }
 
 static void sc2_parse_catalog_layer_doc(sc2Catalog_t *catalog,
@@ -1857,6 +1906,17 @@ static void sc2_resolve_cliff_sets(sc2Catalog_t const *catalog) {
                     sizeof(sc2_map.t3Terrain.cliff_sets[i].mesh) - 1);
             sc2_map.t3Terrain.cliff_sets[i].mesh[sizeof(sc2_map.t3Terrain.cliff_sets[i].mesh) - 1] = '\0';
         }
+    }
+}
+
+static void sc2_resolve_hard_tiles(sc2Catalog_t const *catalog) {
+    FOR_EACH_ARRAY(sc2MapHardTile_t, tile, sc2_map.hard_tiles) {
+        FOR_LOOP(i, catalog->tiles_count) {
+            if (strcasecmp(tile->tile, catalog->tiles[i].id)) continue;
+            snprintf(tile->model, sizeof(tile->model), "%s", catalog->tiles[i].model);
+            break;
+        }
+        if (!tile->model[0]) fprintf(stderr, "SC2 hard tile: unresolved CTile %s\n", tile->tile);
     }
 }
 
@@ -2015,6 +2075,7 @@ static void sc2_resolve_catalogs(sc2MapSource_t *source) {
     sc2_parse_catalogs(catalog, source);
     sc2_resolve_terrain_textures(catalog);
     sc2_resolve_cliff_sets(catalog);
+    sc2_resolve_hard_tiles(catalog);
     sc2_resolve_object_models(catalog);
     sc2_map.catalog.units = catalog->units_count;
     sc2_map.catalog.actors = catalog->actors_count;
@@ -2302,6 +2363,74 @@ static void sc2_parse_texture_masks(sc2MapSource_t *source) {
     }
 }
 
+static BOOL sc2_hard_tile_layout(BYTE const *data, DWORD size, LPDWORD count) {
+    size_t offset = SC2_HARD_TILE_HEADER_SIZE;
+    DWORD blocks, total = 0;
+
+    if (!data || size < SC2_HARD_TILE_HEADER_SIZE) return false;
+    memcpy(&blocks, data + 24, sizeof(blocks));
+    FOR_LOOP(i, blocks) {
+        DWORD num;
+        size_t bytes;
+
+        if (offset + sizeof(num) > size) return false;
+        memcpy(&num, data + offset, sizeof(num)); offset += sizeof(num);
+        if (num > SC2_MAX_HARD_TILES - total) return false;
+        bytes = (size_t)num * SC2_HARD_TILE_RECORD_SIZE;
+        if (bytes > size - offset || SC2_HARD_TILE_NAME_PREFIX + SC2_HARD_TILE_NAME_SUFFIX > size - offset - bytes) return false;
+        offset += bytes + SC2_HARD_TILE_NAME_PREFIX;
+        while (offset < size && data[offset]) offset++;
+        if (offset >= size || SC2_HARD_TILE_NAME_SUFFIX >= size - offset) return false;
+        total += num; offset += 1 + SC2_HARD_TILE_NAME_SUFFIX;
+    }
+    if (offset != size) return false;
+    *count = total;
+    return true;
+}
+
+/* HRDT stores each block's tile ID after its placement records, requiring a validated two-pass decode. */
+static void sc2_parse_hard_tiles(sc2MapSource_t *source) {
+    DWORD size = 0, count = 0, blocks;
+    LPBYTE data = sc2_read_binary_layer(source, "t3HardTile", SC2_HARD_TILE_HEADER_SIZE,
+                                        MAKEFOURCC('H','R','D','T'), &size);
+    size_t offset = SC2_HARD_TILE_HEADER_SIZE;
+
+    if (!data) return;
+    if (!sc2_hard_tile_layout(data, size, &count)) {
+        fprintf(stderr, "SC2 hard tile: invalid HRDT layout (%u bytes)\n", (unsigned)size);
+        sc2_free(data); return;
+    }
+    if (!count) { sc2_free(data); return; }
+    sc2_map.hard_tiles = sc2_alloc((long)(count * sizeof(*sc2_map.hard_tiles)));
+    if (!sc2_map.hard_tiles) { sc2_free(data); return; }
+    memset(sc2_map.hard_tiles, 0, count * sizeof(*sc2_map.hard_tiles));
+    memcpy(&blocks, data + 24, sizeof(blocks));
+    FOR_LOOP(block, blocks) {
+        DWORD num, first = ARRAY_COUNT(sc2_map.hard_tiles);
+        BYTE const *records, *name, *name_end;
+
+        memcpy(&num, data + offset, sizeof(num)); offset += sizeof(num); records = data + offset;
+        name = records + (size_t)num * SC2_HARD_TILE_RECORD_SIZE + SC2_HARD_TILE_NAME_PREFIX;
+        for (name_end = name; *name_end; name_end++);
+        FOR_LOOP(i, num) {
+            sc2MapHardTile_t *tile = &sc2_map.hard_tiles[first + i];
+            BYTE const *record = records + (size_t)i * SC2_HARD_TILE_RECORD_SIZE;
+            DWORD len = (DWORD)(name_end - name);
+
+            memcpy(tile->tile, name, MIN(len, sizeof(tile->tile) - 1));
+            memcpy(&tile->position, record, sizeof(tile->position));
+            memcpy(&tile->normal, record + 12, sizeof(tile->normal));
+            memcpy(&tile->start, record + 24, sizeof(tile->start));
+            memcpy(&tile->end, record + 36, sizeof(tile->end));
+            memcpy(&tile->scale, record + 48, sizeof(tile->scale));
+            memcpy(&tile->flags, record + 56, sizeof(tile->flags));
+        }
+        ARRAY_COUNT(sc2_map.hard_tiles) += num;
+        offset = (size_t)(name_end - data) + 1 + SC2_HARD_TILE_NAME_SUFFIX;
+    }
+    sc2_free(data);
+}
+
 void SC2_MapSetHost(sc2MapHost_t const *host) {
     memset(&sc2_host, 0, sizeof(sc2_host));
     if (host) sc2_host = *host;
@@ -2326,14 +2455,15 @@ BOOL SC2_MapLoad(LPCSTR mapFilename) {
     sc2_parse_cell_flags(&source);
     sc2_parse_sync_cliff_level(&source);
     sc2_parse_texture_masks(&source);
+    sc2_parse_hard_tiles(&source);
     sc2_parse_objects(&source);
     sc2_resolve_catalogs(&source);
     sc2_source_close(&source);
     sc2_map.origin.x = 0.0f;
     sc2_map.origin.y = 0.0f;
-    fprintf(stderr, "SC2_MapLoad: %s %ux%u objects=%u\n",
+    fprintf(stderr, "SC2_MapLoad: %s %ux%u objects=%u hardTiles=%u\n",
             sc2_map.map_name, (unsigned)sc2_map_width(), (unsigned)sc2_map_height(),
-            (unsigned)sc2_map.num_objects);
+            (unsigned)sc2_map.num_objects, (unsigned)ARRAY_COUNT(sc2_map.hard_tiles));
     return true;
 }
 

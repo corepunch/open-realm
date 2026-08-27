@@ -56,6 +56,7 @@ test-sc2-assets: sc2fixturegen mpqtool sc2map | $(TESTS_DIR)
 	@$(BIN_DIR)/sc2fixturegen$(EXE_EXT) cell-flags $(SC2_TEST_RES_DIR)/Maps/Test/Tiny.SC2Map/t3CellFlags
 	@$(BIN_DIR)/sc2fixturegen$(EXE_EXT) cliff-levels $(SC2_TEST_RES_DIR)/Maps/Test/Tiny.SC2Map/t3SyncCliffLevel
 	@$(BIN_DIR)/sc2fixturegen$(EXE_EXT) texture-masks $(SC2_TEST_RES_DIR)/Maps/Test/Tiny.SC2Map/t3TextureMasks
+	@$(BIN_DIR)/sc2fixturegen$(EXE_EXT) hard-tiles $(SC2_TEST_RES_DIR)/Maps/Test/Tiny.SC2Map/t3HardTile
 	@echo "[test-sc2-assets] packing test-sc2.SC2Maps"
 	@set --; \
 	for f in $$(find $(SC2_TEST_RES_DIR) -type f | sort); do \

@@ -54,8 +54,12 @@ extern VECTOR4 M3_GetVector4AnimValue(m3Model_t const *model,
                                       m3SequenceTimeline_t const *timeline,
                                       m3Vector4AnimRef_t const *animref,
                                       DWORD time);
+extern void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMATRIX4 transform);
 
 static LPMAPSEGMENT sc2_terrain_segment;
+typedef struct { renderEntity_t entity; MATRIX4 matrix; } rSc2HardTileRender_t;
+static rSc2HardTileRender_t *sc2_hard_tiles;
+static DWORD sc2_hard_tiles_count;
 static BOOL sc2_terrain_shader_loaded;
 static BOOL sc2_cliff_shader_loaded;
 static LPTEXTURE sc2_terrain_textures[SC2_TERRAIN_BLEND_LAYERS];
@@ -77,6 +81,12 @@ typedef struct rSc2CliffPlacement_s {
     FLOAT z_scale;
     DWORD join_edges;
 } rSc2CliffPlacement_t;
+
+typedef struct rSc2CliffBakeBatch_s {
+    rCliffBakeList_t list;
+    LPCTEXTURE texture;
+    struct rSc2CliffBakeBatch_s *next;
+} rSc2CliffBakeBatch_t;
 
 typedef enum {
     SC2_CLIFF_JOIN_LEFT = 1 << 0,
@@ -576,9 +586,28 @@ static void r_sc2_release_terrain(void) {
         SAFE_DELETE(sc2_terrain_masks[i], R_ReleaseTexture);
     }
     r_sc2_release_cliff_models();
+    FOR_EACH_ARRAY(rSc2HardTileRender_t, tile, sc2_hard_tiles) R_ReleaseModel((LPMODEL)tile->entity.model);
+    ri.MemFree(sc2_hard_tiles); sc2_hard_tiles = NULL; ARRAY_COUNT(sc2_hard_tiles) = 0;
     sc2_num_terrain_layers = 0;
     ri.MemFree(sc2_terrain_normals);
     sc2_terrain_normals = NULL;
+}
+
+static void r_sc2_build_hard_tiles(sc2Map_t const *map) {
+    if (!map || IS_ARRAY_EMPTY(map->hard_tiles)) return;
+    sc2_hard_tiles = ri.MemAlloc(ARRAY_COUNT(map->hard_tiles) * sizeof(*sc2_hard_tiles));
+    memset(sc2_hard_tiles, 0, ARRAY_COUNT(map->hard_tiles) * sizeof(*sc2_hard_tiles));
+    FOR_EACH_ARRAY(sc2MapHardTile_t, tile, map->hard_tiles) {
+        rSc2HardTileRender_t *out;
+        LPCMODEL model;
+
+        if (!tile->model[0]) continue;
+        model = R_LoadModel(tile->model);
+        if (!model || model->modeltype != ID_43DM || !model->m3) continue;
+        out = &sc2_hard_tiles[ARRAY_COUNT(sc2_hard_tiles)++];
+        out->entity.model = model; out->entity.origin = tile->position; out->entity.scale = 1.0f;
+        r_sc2_hard_tile_matrix(tile, &out->matrix);
+    }
 }
 
 static void r_sc2_release_cliff_models(void) {
@@ -1103,45 +1132,56 @@ static void r_sc2_bake_cliff_region(rCliffBakeList_t *list,
     }
 }
 
-typedef struct { int qx, qy; DWORD idx; } rNormalWeldKeyXY_t;
+typedef struct { int qx, qy, qz; DWORD idx; } rNormalWeldKey_t;
 
 static int r_sc2_weld_xy_cmp(const void *a, const void *b) {
-    rNormalWeldKeyXY_t const *ka = a, *kb = b;
+    rNormalWeldKey_t const *ka = a, *kb = b;
     if (ka->qx != kb->qx) return ka->qx < kb->qx ? -1 : 1;
     if (ka->qy != kb->qy) return ka->qy < kb->qy ? -1 : 1;
+    if (ka->qz != kb->qz) return ka->qz < kb->qz ? -1 : 1;
     return 0;
 }
 
-/* Average normals of all cliff vertices sharing the same XY grid column.
-   Keyed on integers (snap = cell_size/2) so adjacent-piece edges always land in the same bucket. */
-static void r_sc2_weld_cliff_normals_xy(VERTEX *vertices, DWORD n, FLOAT snap) {
-    rNormalWeldKeyXY_t *keys;
+/* Weld only coincident, similarly facing cliff vertices; XY-only averaging merged stacked and opposing faces. */
+static void r_sc2_weld_cliff_normals_xy(rCliffBakeList_t *list, FLOAT snap) {
+    VERTEX *vertices = list->vertices;
+    DWORD n = list->num_vertices;
+    rNormalWeldKey_t *keys;
+    VECTOR3 *normals;
     DWORD i;
 
     if (n < 2 || snap <= 0.0f) return;
     keys = ri.MemAlloc(n * sizeof(*keys));
+    normals = ri.MemAlloc(n * sizeof(*normals));
     FOR_LOOP(i, n) {
         keys[i].qx = (int)roundf(vertices[i].position.x / snap);
         keys[i].qy = (int)roundf(vertices[i].position.y / snap);
+        keys[i].qz = (int)roundf(vertices[i].position.z / SC2_EPSILON);
         keys[i].idx = i;
     }
     qsort(keys, n, sizeof(*keys), r_sc2_weld_xy_cmp);
     i = 0;
     while (i < n) {
-        VECTOR3 avg = { 0 };
         DWORD j = i;
-        while (j < n && keys[j].qx == keys[i].qx && keys[j].qy == keys[i].qy)
+        while (j < n && keys[j].qx == keys[i].qx && keys[j].qy == keys[i].qy && keys[j].qz == keys[i].qz)
             j++;
         for (DWORD k = i; k < j; k++) {
-            avg.x += vertices[keys[k].idx].normal.x;
-            avg.y += vertices[keys[k].idx].normal.y;
-            avg.z += vertices[keys[k].idx].normal.z;
+            VECTOR3 avg = vertices[keys[k].idx].normal;
+            DWORD count = Vector3_len(&avg) > 0.0f;
+            for (DWORD l = i; l < j; l++) {
+                if (!r_sc2_cliff_weld_compatible(&vertices[keys[k].idx], list->groups[keys[k].idx], &vertices[keys[l].idx], list->groups[keys[l].idx], SC2_EPSILON)) continue;
+                avg.x += vertices[keys[l].idx].normal.x;
+                avg.y += vertices[keys[l].idx].normal.y;
+                avg.z += vertices[keys[l].idx].normal.z;
+                count++;
+            }
+            normals[keys[k].idx] = count ? avg : vertices[keys[k].idx].normal;
+            if (count) Vector3_normalize(&normals[keys[k].idx]);
         }
-        Vector3_normalize(&avg);
-        for (DWORD k = i; k < j; k++)
-            vertices[keys[k].idx].normal = avg;
         i = j;
     }
+    FOR_LOOP(i, n) vertices[i].normal = normals[i];
+    ri.MemFree(normals);
     ri.MemFree(keys);
 }
 
@@ -1227,6 +1267,16 @@ static LPCTEXTURE r_sc2_cliff_diffuse_texture(LPCMODEL model) {
     return NULL;
 }
 
+static rSc2CliffBakeBatch_t *r_sc2_cliff_bake_batch(rSc2CliffBakeBatch_t **batches, LPCTEXTURE texture) {
+    rSc2CliffBakeBatch_t *batch;
+
+    for (batch = *batches; batch; batch = batch->next)
+        if (batch->texture == texture) return batch;
+    batch = ri.MemAlloc(sizeof(*batch)); memset(batch, 0, sizeof(*batch));
+    batch->texture = texture; ADD_TO_LIST(batch, *batches);
+    return batch;
+}
+
 static sc2CliffCell_t const *r_sc2_find_cliff_cell(sc2Map_t const *map, DWORD index) {
     FOR_LOOP(i, map->t3Terrain.num_cliff_cells) {
         if (map->t3Terrain.cliff_cells[i].index == index)
@@ -1302,11 +1352,10 @@ static sc2CliffCell_t r_sc2_cliff_cell_for_index(sc2Map_t const *map, DWORD inde
 }
 
 static LPMAPLAYER r_sc2_build_cliff_layer(sc2Map_t const *map) {
-    rCliffBakeList_t list = {0};
-    LPMAPLAYER map_layer;
+    rSc2CliffBakeBatch_t *batches = NULL, *batch;
+    LPMAPLAYER layers = NULL;
     DWORD cliff_width;
     DWORD cliff_height;
-    LPCTEXTURE diffuse = NULL;
 
     if (!map || !map->t3Terrain.num_cliff_sets || !map->t3SyncCliffLevel)
         return NULL;
@@ -1339,27 +1388,24 @@ static LPMAPLAYER r_sc2_build_cliff_layer(sc2Map_t const *map) {
             model = r_sc2_load_cliff_model(path);
             if (!model || model->modeltype != ID_43DM || !model->m3)
                 continue;
-            if (!diffuse)
-                diffuse = r_sc2_cliff_diffuse_texture(model);
-            r_sc2_bake_cliff_model(&list, map, model, grid_x, grid_y, rotation, baselevel);
+            batch = r_sc2_cliff_bake_batch(&batches, r_sc2_cliff_diffuse_texture(model));
+            r_sc2_bake_cliff_model(&batch->list, map, model, grid_x, grid_y, rotation, baselevel);
         }
     }
-    if (!list.num_vertices) {
-        ri.MemFree(list.vertices);
-        return NULL;
+    while (batches) {
+        LPMAPLAYER layer;
+        batch = batches; batches = batch->next;
+        if (!batch->list.num_vertices) { ri.MemFree(batch); continue; }
+        r_sc2_weld_cliff_normals_xy(&batch->list, map->cell_size * 0.5f);
+        layer = ri.MemAlloc(sizeof(*layer)); memset(layer, 0, sizeof(*layer));
+        layer->type = MAPLAYERTYPE_CLIFF;
+        layer->texture = batch->texture ? batch->texture : tr.texture[TEX_WHITE];
+        layer->buffer = R_MakeVertexArrayObject(batch->list.vertices, batch->list.num_vertices);
+        layer->num_vertices = batch->list.num_vertices;
+        r_sc2_add_layer(&layers, layer);
+        ri.MemFree(batch->list.vertices); ri.MemFree(batch->list.groups); ri.MemFree(batch);
     }
-    /* Weld normals by XY column (integer-snapped to cell_size/2) so adjacent cliff pieces
-       share smooth normals at their boundaries without requiring indexed geometry. */
-    r_sc2_weld_cliff_normals_xy(list.vertices, list.num_vertices, map->cell_size * 0.5f);
-    map_layer = ri.MemAlloc(sizeof(*map_layer));
-    memset(map_layer, 0, sizeof(*map_layer));
-    map_layer->type = MAPLAYERTYPE_CLIFF;
-    map_layer->texture = diffuse ? diffuse : tr.texture[TEX_WHITE];
-    map_layer->buffer = R_MakeVertexArrayObject(list.vertices, list.num_vertices);
-    map_layer->num_vertices = list.num_vertices;
-    ri.MemFree(list.vertices);
-    ri.MemFree(list.groups);
-    return map_layer;
+    return layers;
 }
 
 static void r_sc2_build_terrain(sc2Map_t const *map) {
@@ -1377,6 +1423,7 @@ static void r_sc2_build_terrain(sc2Map_t const *map) {
     memset(sc2_terrain_segment, 0, sizeof(*sc2_terrain_segment));
     r_sc2_add_layer(&sc2_terrain_segment->layers, r_sc2_build_ground_layer(map));
     r_sc2_add_layer(&sc2_terrain_segment->layers, r_sc2_build_cliff_layer(map));
+    r_sc2_build_hard_tiles(map);
 
     bounds = SC2_MapBounds();
     if (map->t3HeightMap) {
@@ -1390,6 +1437,11 @@ static void r_sc2_build_terrain(sc2Map_t const *map) {
         .min = { bounds.min.x, bounds.min.y, -1.0f },
         .max = { bounds.max.x, bounds.max.y, max_z },
     };
+}
+
+static void r_sc2_draw_hard_tiles(void) {
+    FOR_EACH_ARRAY(rSc2HardTileRender_t, tile, sc2_hard_tiles)
+        M3_RenderModel(&tile->entity, tile->entity.model->m3, &tile->matrix);
 }
 
 static LPTEXTURE r_sc2_terrain_layer_texture(DWORD index) {
@@ -1546,19 +1598,13 @@ static void r_sc2_draw_cliff_layer(LPCMAPSEGMENT segment) {
 
     if (!sc2_terrain_shader_loaded || !sc2_cliff_shader_loaded || !segment)
         return;
-    layer = segment->layers;
-    while (layer && layer->type != MAPLAYERTYPE_CLIFF) {
-        layer = layer->next;
-    }
-    if (!layer)
-        return;
-
     Matrix4_identity(&model_matrix);
 
     /* Pass 1: terrain blend - fills depth and lays down terrain color seamlessly.
        Use world XY position for terrain UV so tiling matches the ground exactly. */
     r_sc2_begin_terrain_shader(&model_matrix);
-    r_sc2_draw_terrain_vertices(layer);
+    for (layer = segment->layers; layer; layer = layer->next)
+        if (layer->type == MAPLAYERTYPE_CLIFF) r_sc2_draw_terrain_vertices(layer);
     /* The terrain pass already wrote cliff depth; the material overlay belongs only in the color pass. */
     if (tr.render_phase == RENDER_PHASE_LIGHTS)
         return;
@@ -1576,9 +1622,12 @@ static void r_sc2_draw_cliff_layer(LPCMAPSEGMENT segment) {
     R_Call(glBindTexture, GL_TEXTURE_2D, tr.render_phase == RENDER_PHASE_LIGHTS ? tr.texture[TEX_WHITE]->texid : tr.rt[RT_DEPTHMAP]->texture);
     R_Call(glEnable, GL_BLEND);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    R_BindTexture(layer->texture, 0);
-    R_ApplyShader(&sc2_cliff_shader);
-    R_DrawBuffer(layer->buffer, layer->num_vertices);
+    for (layer = segment->layers; layer; layer = layer->next) {
+        if (layer->type != MAPLAYERTYPE_CLIFF) continue;
+        R_BindTexture(layer->texture, 0);
+        R_ApplyShader(&sc2_cliff_shader);
+        R_DrawBuffer(layer->buffer, layer->num_vertices);
+    }
     R_Call(glDisable, GL_POLYGON_OFFSET_FILL);
     R_Call(glPolygonOffset, 0.0f, 0.0f);
 }
@@ -1612,6 +1661,7 @@ void R_SC2DrawWorld(void) {
     R_Call(glColorMask, GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
     r_sc2_draw_ground_layer(sc2_terrain_segment);
     r_sc2_draw_cliff_layer(sc2_terrain_segment);
+    r_sc2_draw_hard_tiles();
 }
 
 static BOOL r_sc2_clip_trace_to_bounds(LPCLINE3 line, LPCBOX2 bounds, LPFLOAT t0, LPFLOAT t1) {
