@@ -26,6 +26,52 @@ static void G_ApplyDestructableDeathPathing(LPEDICT ent) {
         ent->pathtex != NULL;
 }
 
+/*
+ * Activate a preplaced war3map.doo placeholder when generated war3map.j
+ * creates the corresponding destructable through CreateDestructable().
+ */
+void G_ActivateScriptedDestructable(LPEDICT ent,
+                                    FLOAT x,
+                                    FLOAT y,
+                                    FLOAT z,
+                                    FLOAT facing,
+                                    FLOAT scale,
+                                    DWORD variation) {
+    if (!ent || !G_IsDestructable(ent)) {
+        return;
+    }
+
+    ent->variation = variation;
+
+    ent->s.origin.x = x;
+    ent->s.origin.y = y;
+    ent->s.origin.z = z;
+    ent->s.angle = facing;
+    ent->s.scale = scale;
+
+    ent->destructable.dead = false;
+    ent->destructable.loot_processed = false;
+
+    /*
+     * CreateDestructable creates the normal active form, even when the
+     * war3map.doo entry used as its placeholder had flags=0.
+     */
+    ent->destructable.placement_solid = true;
+
+    ent->svflags &= ~SVF_DEADMONSTER;
+
+    ent->s.renderfx &= ~RF_HIDDEN;
+    ent->s.renderfx &= ~RF_NO_SHADOW;
+    ent->s.flags &= ~EF_NOT_SELECTABLE;
+
+    ent->health.value = ent->health.max_value;
+
+    G_ApplyDestructableAlivePathing(ent);
+    G_DestructableStartAliveAnimation(ent, false);
+
+    gi.LinkEntity(ent);
+}
+
 BOOL G_IsDestructable(LPCEDICT ent) {
     if (!ent || !ent->inuse || !ent->class_id) {
         return false;

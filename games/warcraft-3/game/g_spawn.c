@@ -479,10 +479,20 @@ LPEDICT G_CreateDestructable(DWORD class_id, FLOAT x, FLOAT y, FLOAT z, FLOAT fa
         if (best) {
             best->destructable.script_bound = true;
 
+            G_ActivateScriptedDestructable(best,
+                                           x,
+                                           y,
+                                           z,
+                                           facing,
+                                           scale,
+                                           variation);
+
             if (G_DebugDestructables()) {
+
                 fprintf(stderr,
-                        "WC3 dest script: create matched ent=%u type=%.4s distance=%.2f "
-                        "editor=%u var=%u requested_var=%u pos=(%.1f %.1f)\n",
+                        "WC3 dest script: create matched+activated ent=%u type=%.4s distance=%.2f "
+                        "editor=%u var=%u requested_var=%u pos=(%.1f %.1f) "
+                        "hidden=%u solid=%u life=%.1f\n",
                         (unsigned)best->s.number,
                         (LPCSTR)&best->class_id,
                         best_distance,
@@ -490,8 +500,13 @@ LPEDICT G_CreateDestructable(DWORD class_id, FLOAT x, FLOAT y, FLOAT z, FLOAT fa
                         (unsigned)best->variation,
                         (unsigned)variation,
                         best->s.origin2.x,
-                        best->s.origin2.y);
+                        best->s.origin2.y,
+                        (unsigned)((best->s.renderfx & RF_HIDDEN) != 0),
+                        (unsigned)best->destructable.placement_solid,
+                        best->health.value);
             }
+
+            CM_BakeStaticObstacles();
 
             return best;
         }

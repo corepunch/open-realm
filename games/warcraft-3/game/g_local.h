@@ -1144,6 +1144,13 @@ void G_UseItem(LPEDICT unit, DWORD slot);
 // g_destructable.c
 BOOL G_DebugDestructables(void);
 void G_SetDestructableScriptBinding(BOOL enabled);
+void G_ActivateScriptedDestructable(LPEDICT ent,
+                                    FLOAT x,
+                                    FLOAT y,
+                                    FLOAT z,
+                                    FLOAT facing,
+                                    FLOAT scale,
+                                    DWORD variation);
 BOOL G_IsDestructable(LPCEDICT ent);
 BOOL G_DestructableIsAttackable(LPCEDICT ent);
 void G_InitializeDestructablePlacement(LPEDICT ent, LPCDOODAD placement);
