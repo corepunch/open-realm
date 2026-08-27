@@ -125,6 +125,20 @@ results, multiple world-item drops, and one-time loot processing.
 Random-table tests additionally cover weighted boundaries, explicit table-number
 lookup, multiple table sets, missing/empty data, encoded-placeholder rejection,
 normal world-item state, and one-time spawning.
+
+## Runtime Diagnostics
+
+Use the opt-in destructable diagnostics when death presentation or loot spawning is wrong:
+
+```bash
+build/bin/openwarcraft3 +set g_debug_destructables 1 +set r_debug_destructables 1 \
+  +map <map-path> +com_frame_limit 1000 2>destructables.log
+```
+
+`g_debug_destructables` records placement drop metadata, damage and death state, every inline/table roll, item-data
+validation, and the final world-item entity returned by `SP_SpawnAtLocation`. `r_debug_destructables` records actual
+shadow submissions and active MDX particle emitters for non-selectable death remains, rate-limited per entity. Search
+the captured log for `WC3 dest debug:` and `WC3 dest render:`.
 Scripted-lifecycle tests cover silent dead creation, kill versus remove,
 zero-life death, positive-life restoration, birth/stand animation selection,
 second death after restoration, and JASS `GetTriggerWidget()` / `GetKillingUnit()`

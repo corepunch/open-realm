@@ -3,6 +3,9 @@
 #define DESTRUCTABLE_DROP_RADIUS 32.0f // world units; separates multiple drops around one destroyed object
 #define NO_RANDOM_ITEM_TABLE ((DWORD)-1)
 
+static BOOL G_DebugDestructables(void) { return gi.CvarString && atoi(gi.CvarString("g_debug_destructables", "0")); }
+#define DEST_DEBUG(...) do { if (G_DebugDestructables()) fprintf(stderr, "WC3 dest debug: " __VA_ARGS__); } while (0)
+
 static void G_ApplyDestructableAlivePathing(LPEDICT ent) {
     ent->pathtex = ent->destructable.placement_solid
         ? ent->destructable.alive_pathtex
@@ -116,8 +119,10 @@ static void G_QueueDestructableDrop(DWORD item_id,
     LPCSTR item_file;
 
     if (!item_id) {
+        DEST_DEBUG("loot candidate result=none\n");
         return;
     }
+    DEST_DEBUG("loot candidate rawcode=%.4s hex=0x%08x\n", (LPCSTR)&item_id, (unsigned)item_id);
     if (G_IsEncodedRandomItem(item_id)) {
         fprintf(stderr, "G_SpawnDestructableLoot: unsupported encoded random item 0x%08x\n", item_id);
         return;
@@ -127,6 +132,8 @@ static void G_QueueDestructableDrop(DWORD item_id,
         fprintf(stderr, "G_SpawnDestructableLoot: invalid item ID 0x%08x\n", item_id);
         return;
     }
+    DEST_DEBUG("loot candidate accepted rawcode=%.4s file=%s slot=%u\n", (LPCSTR)&item_id, item_file,
+               (unsigned)*selected_count);
     selected[(*selected_count)++] = item_id;
 }
 
@@ -139,11 +146,22 @@ void G_SpawnDestructableLoot(LPEDICT ent) {
     DWORD selected_count = 0;
     DWORD max_selected;
 
+    if (!ent) {
+        DEST_DEBUG("loot skipped reason=null-entity\n");
+        return;
+    }
     if (!G_IsDestructable(ent) || !ent->destructable.dead || ent->destructable.loot_processed) {
+        DEST_DEBUG("loot skipped ent=%u type=%.4s is_dest=%u dead=%u processed=%u\n", (unsigned)ent->s.number,
+                   (LPCSTR)&ent->class_id, (unsigned)G_IsDestructable(ent), (unsigned)ent->destructable.dead,
+                   (unsigned)ent->destructable.loot_processed);
         return;
     }
     ent->destructable.loot_processed = true;
     table = G_FindRandomItemTable(ent->destructable.item_table);
+    DEST_DEBUG("loot begin ent=%u type=%.4s inline_sets=%u table_id=%u table=%p origin=(%.1f %.1f %.1f)\n",
+               (unsigned)ent->s.number, (LPCSTR)&ent->class_id,
+               (unsigned)ARRAY_COUNT(ent->destructable.drop_sets), (unsigned)ent->destructable.item_table,
+               (void *)table, ent->s.origin.x, ent->s.origin.y, ent->s.origin.z);
     if (ent->destructable.item_table != NO_RANDOM_ITEM_TABLE && !table) {
         fprintf(stderr, "G_SpawnDestructableLoot: missing random item table %u\n",
                 (unsigned)ent->destructable.item_table);
@@ -151,29 +169,40 @@ void G_SpawnDestructableLoot(LPEDICT ent) {
     max_selected = ARRAY_COUNT(ent->destructable.drop_sets) +
         (table && table->sets ? table->num_sets : 0);
     if (!max_selected) {
+        DEST_DEBUG("loot end ent=%u result=no-sets\n", (unsigned)ent->s.number);
         return;
     }
 
     selected = gi.MemAlloc(sizeof(*selected) * max_selected);
-    FOR_EACH_ARRAY(droppableItemSet_t const, set, ent->destructable.drop_sets) {
-        DWORD item_id;
+    FOR_LOOP(i, ARRAY_COUNT(ent->destructable.drop_sets)) {
+        droppableItemSet_t const *set = ent->destructable.drop_sets + i;
+        DWORD item_id, roll;
 
         if (!set->droppableItems || set->num_droppableItems <= 0) {
+            DEST_DEBUG("loot inline_set=%u skipped entries=%d ptr=%p\n", (unsigned)i,
+                       (int)set->num_droppableItems, (void *)set->droppableItems);
             continue;
         }
-        item_id = G_SelectDropItem(set->droppableItems, (DWORD)set->num_droppableItems, (DWORD)(rand() % 100));
+        roll = (DWORD)(rand() % 100);
+        item_id = G_SelectDropItem(set->droppableItems, (DWORD)set->num_droppableItems, roll);
+        DEST_DEBUG("loot inline_set=%u entries=%d roll=%u selected=%.4s hex=0x%08x\n", (unsigned)i,
+                   (int)set->num_droppableItems, (unsigned)roll, (LPCSTR)&item_id, (unsigned)item_id);
         G_QueueDestructableDrop(item_id, selected, &selected_count);
     }
     if (table && table->sets) {
         FOR_LOOP(i, table->num_sets) {
             mapRandomItemSet_t const *set = &table->sets[i];
-            DWORD item_id;
+            DWORD item_id, roll;
 
             if (!set->items || !set->num_items) {
+                DEST_DEBUG("loot table_set=%u skipped entries=%u ptr=%p\n", (unsigned)i,
+                           (unsigned)set->num_items, (void *)set->items);
                 continue;
             }
-            item_id = G_SelectRandomTableItem(set->items, set->num_items,
-                                              (DWORD)(rand() % 100));
+            roll = (DWORD)(rand() % 100);
+            item_id = G_SelectRandomTableItem(set->items, set->num_items, roll);
+            DEST_DEBUG("loot table_set=%u entries=%u roll=%u selected=%.4s hex=0x%08x\n", (unsigned)i,
+                       (unsigned)set->num_items, (unsigned)roll, (LPCSTR)&item_id, (unsigned)item_id);
             G_QueueDestructableDrop(item_id, selected, &selected_count);
         }
     }
@@ -186,8 +215,21 @@ void G_SpawnDestructableLoot(LPEDICT ent) {
             ent->s.origin.y + sinf(angle) * radius,
         };
 
-        SP_SpawnAtLocation(selected[i], PLAYER_NEUTRAL_PASSIVE, &point);
+        LPEDICT item = SP_SpawnAtLocation(selected[i], PLAYER_NEUTRAL_PASSIVE, &point);
+
+        if (!item) {
+            DEST_DEBUG("loot spawn failed rawcode=%.4s point=(%.1f %.1f)\n", (LPCSTR)&selected[i], point.x, point.y);
+            continue;
+        }
+        DEST_DEBUG("loot spawned ent=%u rawcode=%.4s inuse=%u world=%u carrier=%p slot=%d flags=0x%x "
+                   "renderfx=0x%x svflags=0x%x origin=(%.1f %.1f %.1f)\n", (unsigned)item->s.number,
+                   (LPCSTR)&selected[i], (unsigned)item->inuse, (unsigned)item->item.in_world,
+                   (void *)item->item.carrier, (int)item->item.inventory_slot, (unsigned)item->s.flags,
+                   (unsigned)item->s.renderfx, (unsigned)item->svflags,
+                   item->s.origin.x, item->s.origin.y, item->s.origin.z);
     }
+    DEST_DEBUG("loot end ent=%u selected=%u capacity=%u\n", (unsigned)ent->s.number,
+               (unsigned)selected_count, (unsigned)max_selected);
     gi.MemFree(selected);
 }
 
@@ -198,8 +240,17 @@ static BOOL G_EnterDestructableDeathState(LPEDICT ent,
     void (*callback)(LPEDICT, LPEDICT);
 
     if (!G_IsDestructable(ent) || ent->destructable.dead) {
+        DEST_DEBUG("death skipped ent=%p is_dest=%u dead=%u\n", (void *)ent, (unsigned)G_IsDestructable(ent),
+                   (unsigned)(ent && ent->destructable.dead));
         return false;
     }
+
+    DEST_DEBUG("death begin ent=%u type=%.4s killer=%u publish=%u rebuild=%u life=%.1f shadow=%u "
+               "shadow_rect=0x%08x frame=%u inline_sets=%u table=%u\n", (unsigned)ent->s.number,
+               (LPCSTR)&ent->class_id, killer ? (unsigned)killer->s.number : 0, (unsigned)publish_event,
+               (unsigned)rebuild_pathing, ent->health.value, (unsigned)ent->s.shadow,
+               (unsigned)ent->s.shadow_rect, (unsigned)ent->s.frame,
+               (unsigned)ARRAY_COUNT(ent->destructable.drop_sets), (unsigned)ent->destructable.item_table);
 
     ent->destructable.dead = true;
     ent->health.value = 0.0f;
@@ -211,12 +262,20 @@ static BOOL G_EnterDestructableDeathState(LPEDICT ent,
         G_FowMarkBlockersDirty();
     }
     G_DestructableStartDeathAnimation(ent);
+    DEST_DEBUG("death state ent=%u flags=0x%x renderfx=0x%x svflags=0x%x shadow=%u frame=%u move=%s anim=%s "
+               "pathtex=%p collision=%.1f\n", (unsigned)ent->s.number, (unsigned)ent->s.flags,
+               (unsigned)ent->s.renderfx, (unsigned)ent->svflags, (unsigned)ent->s.shadow,
+               (unsigned)ent->s.frame, ent->currentmove ? ent->currentmove->animation : "<none>",
+               ent->animation ? ent->animation->name : "<none>", (void *)ent->pathtex, ent->collision);
 
     if (rebuild_pathing) {
         CM_BakeStaticObstacles();
     }
     if (publish_event) {
         G_SpawnDestructableLoot(ent);
+        DEST_DEBUG("death post-loot ent=%u processed=%u\n", (unsigned)ent->s.number,
+                   (unsigned)ent->destructable.loot_processed);
+        G_PublishEvent(ent, EVENT_UNIT_DEATH);
         G_PublishEventWithSource(ent, EVENT_UNIT_DEATH, killer);
     } else {
         /* Initially dead and CreateDeadDestructable instances did not die in
@@ -266,6 +325,12 @@ void G_InitializeDestructablePlacement(LPEDICT ent, LPCDOODAD placement) {
     if (ent->health.value <= 0.0f) {
         G_EnterDestructableDeathState(ent, NULL, false, false);
     }
+    DEST_DEBUG("placement ent=%u type=%.4s editor=%u flags=%u visible=%u solid=%u life_pct=%u life=%.1f/%.1f "
+               "inline_sets=%u table=%u shadow=%u shadow_rect=0x%08x\n", (unsigned)ent->s.number,
+               (LPCSTR)&ent->class_id, (unsigned)ent->destructable.editor_id, (unsigned)placement->flags,
+               (unsigned)visible, (unsigned)ent->destructable.placement_solid, (unsigned)placement->treeLife,
+               ent->health.value, ent->health.max_value, (unsigned)ARRAY_COUNT(ent->destructable.drop_sets),
+               (unsigned)ent->destructable.item_table, (unsigned)ent->s.shadow, (unsigned)ent->s.shadow_rect);
 }
 
 BOOL G_KillDestructable(LPEDICT ent, LPEDICT killer) {
@@ -338,8 +403,17 @@ BOOL G_SetDestructableLife(LPEDICT ent, FLOAT life) {
 BOOL G_DestructableApplyDamage(LPEDICT ent, LPEDICT attacker, FLOAT damage) {
     if (!G_IsDestructable(ent) || ent->destructable.dead ||
         ent->invulnerable || damage <= 0.0f) {
+        DEST_DEBUG("damage skipped ent=%p attacker=%u damage=%.1f is_dest=%u dead=%u invuln=%u life=%.1f\n",
+                   (void *)ent, attacker ? (unsigned)attacker->s.number : 0, damage,
+                   (unsigned)G_IsDestructable(ent), (unsigned)(ent && ent->destructable.dead),
+                   (unsigned)(ent && ent->invulnerable), ent ? ent->health.value : 0.0f);
         return false;
     }
+
+    DEST_DEBUG("damage ent=%u type=%.4s attacker=%u damage=%.1f life=%.1f lethal=%u\n",
+               (unsigned)ent->s.number, (LPCSTR)&ent->class_id,
+               attacker ? (unsigned)attacker->s.number : 0, damage, ent->health.value,
+               (unsigned)(damage >= ent->health.value));
 
     if (damage >= ent->health.value) {
         return G_KillDestructable(ent, attacker);
