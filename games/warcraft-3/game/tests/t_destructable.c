@@ -518,6 +518,7 @@ TEST(wc3_destructable, scripted_lifecycle_natives_use_authoritative_state) {
         "function onScriptedDeath takes nothing returns nothing\n"
         "  set scriptedDeaths = scriptedDeaths + 1\n"
         "  call BJassAssert(GetTriggerWidget() == scriptedDest, \"wrong destructable widget\")\n"
+        "  call BJassAssert(GetTriggerDestructable() == scriptedDest, \"wrong trigger destructable\")\n"
         "  call BJassAssert(GetKillingUnit() == null, \"scripted kill has a killer\")\n"
         "endfunction\n"
         "function verifyScriptedDeath takes nothing returns nothing\n"

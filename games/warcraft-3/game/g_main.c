@@ -291,9 +291,20 @@ static void G_StartScripts(void) {
     if (level.scriptsStarted) {
         return;
     }
+
+    /*
+     * war3map.doo objects already exist in OpenRealm before generated
+     * war3map.j main() runs. During this initial execution only,
+     * CreateDestructable() may rebind generated gg_dest_* handles to those
+     * preplaced instances.
+     */
+    G_SetDestructableScriptBinding(true);
+
     jass_callbyname(level.vm, "main", true);
     level.scriptsStarted = true;
     jass_runevents(level.vm);
+
+    G_SetDestructableScriptBinding(false);
 }
 
 /* One complete server-frame simulation step.

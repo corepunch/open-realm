@@ -256,6 +256,11 @@ static BOOL G_EnterDestructableDeathState(LPEDICT ent,
     ent->health.value = 0.0f;
     ent->svflags |= SVF_DEADMONSTER;
     ent->s.flags |= EF_NOT_SELECTABLE;
+
+    /* Dead destructable remains keep their model but no longer cast the
+     * alive destructable's blob/splat shadow. */
+    ent->s.renderfx |= RF_NO_SHADOW;
+
     unit_leavecombat(ent);
     G_ApplyDestructableDeathPathing(ent);
     if (ent->s.flags & EF_FOW_BLOCKER) {
@@ -275,7 +280,6 @@ static BOOL G_EnterDestructableDeathState(LPEDICT ent,
         G_SpawnDestructableLoot(ent);
         DEST_DEBUG("death post-loot ent=%u processed=%u\n", (unsigned)ent->s.number,
                    (unsigned)ent->destructable.loot_processed);
-        G_PublishEvent(ent, EVENT_UNIT_DEATH);
         G_PublishEventWithSource(ent, EVENT_UNIT_DEATH, killer);
     } else {
         /* Initially dead and CreateDeadDestructable instances did not die in
@@ -301,6 +305,9 @@ void G_InitializeDestructablePlacement(LPEDICT ent, LPCDOODAD placement) {
         return;
     }
 
+    ent->destructable.map_placed = true;
+    ent->destructable.script_bound = false;
+
     ent->destructable.editor_id = placement->unitID;
     ent->destructable.item_table = placement->droppedItemSetPtr;
     ent->destructable.drop_sets = placement->droppableItemSets;
@@ -318,6 +325,7 @@ void G_InitializeDestructablePlacement(LPEDICT ent, LPCDOODAD placement) {
 
     ent->destructable.dead = false;
     ent->svflags &= ~SVF_DEADMONSTER;
+    ent->s.renderfx &= ~RF_NO_SHADOW;
     G_ApplyDestructableAlivePathing(ent);
 
     life_fraction = (FLOAT)placement->treeLife / 100.0f;
@@ -370,6 +378,10 @@ BOOL G_RestoreDestructable(LPEDICT ent, FLOAT life, BOOL birth) {
     ent->destructable.loot_processed = false;
     ent->svflags &= ~SVF_DEADMONSTER;
     ent->aiflags &= ~AI_HOLD_FRAME;
+
+    /* Restored destructables regain their normal shadow. */
+    ent->s.renderfx &= ~RF_NO_SHADOW;
+
     if (!(ent->s.renderfx & RF_HIDDEN)) {
         ent->s.flags &= ~EF_NOT_SELECTABLE;
     }

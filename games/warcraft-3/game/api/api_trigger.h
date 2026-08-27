@@ -314,3 +314,10 @@ DWORD GetTriggerWidget(LPJASS j) {
      * destructable here — e.g. SaveDyingWidget -> WidgetDropItem loot drops. */
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "widget");
 }
+
+DWORD GetTriggerDestructable(LPJASS j) {
+    return jass_pushlighthandle(
+        j,
+        jass_getcontext(j)->unit,
+        "destructable");
+}

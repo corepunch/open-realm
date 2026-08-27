@@ -630,15 +630,29 @@ struct edict_s {
     } item;
     struct {
         BOOL initialized;
+
+        /* Set only for destructables originating from war3map.doo. */
+        BOOL map_placed;
+
+        /*
+         * During generated map initialization, CreateDestructable() binds named
+         * gg_dest_* handles back to these already-created map instances.
+         * One preplaced instance may be claimed only once.
+         */
+        BOOL script_bound;
+
         BOOL dead;
         BOOL pathing_active;
         BOOL placement_solid;
         BOOL loot_processed;
+
         DWORD editor_id;
         DWORD item_table;
+
         pathTex_t *alive_pathtex;
         pathTex_t *death_pathtex;
         FLOAT alive_collision;
+
         ARRAY(droppableItemSet_t const, drop_sets);
     } destructable;
     LPEDICT cargo_units[MAX_CARGO];
@@ -1129,6 +1143,7 @@ void G_UseItem(LPEDICT unit, DWORD slot);
 
 // g_destructable.c
 BOOL G_DebugDestructables(void);
+void G_SetDestructableScriptBinding(BOOL enabled);
 BOOL G_IsDestructable(LPCEDICT ent);
 BOOL G_DestructableIsAttackable(LPCEDICT ent);
 void G_InitializeDestructablePlacement(LPEDICT ent, LPCDOODAD placement);

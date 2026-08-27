@@ -413,6 +413,18 @@ LPEDICT SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location) {
     return ent;
 }
 
+static BOOL bind_map_destructables = false;
+
+void G_SetDestructableScriptBinding(BOOL enabled) {
+    bind_map_destructables = enabled;
+
+    if (G_DebugDestructables()) {
+        fprintf(stderr,
+                "WC3 dest script: map destructable binding %s\n",
+                enabled ? "begin" : "end");
+    }
+}
+
 /* Runtime (JASS CreateDestructable) spawn of a destructable.  Mirrors the
  * map-doodad spawn loop in G_SpawnEntities: set class_id/variation/origin/
  * facing/scale, then route through SP_CallSpawn (which sends a destructable
@@ -436,20 +448,61 @@ LPEDICT G_CreateDestructable(DWORD class_id, FLOAT x, FLOAT y, FLOAT z, FLOAT fa
     if (G_DebugDestructables())
         fprintf(stderr, "WC3 dest script: create request type=%.4s pos=(%.1f %.1f %.1f) face=%.3f scale=%.2f var=%u\n",
                 (LPCSTR)&class_id, x, y, z, facing, scale, (unsigned)variation);
-    FOR_LOOP(i, globals.num_edicts) {
-        LPEDICT existing = &g_edicts[i];
-        FLOAT distance;
+    if (bind_map_destructables) {
+        LPEDICT best = NULL;
+        FLOAT best_distance = 10.0f;
 
-        if (existing->class_id != class_id || !G_IsDestructable(existing))
-            continue;
-        distance = Vector2_distance(&MAKE(VECTOR2, x, y), &existing->s.origin2);
-        if (distance < 10) {
-            if (G_DebugDestructables())
-                fprintf(stderr, "WC3 dest script: create matched ent=%u type=%.4s distance=%.2f editor=%u "
-                                "dead=%u flags=0x%x\n", (unsigned)existing->s.number,
-                        (LPCSTR)&existing->class_id, distance, (unsigned)existing->destructable.editor_id,
-                        (unsigned)existing->destructable.dead, (unsigned)existing->s.flags);
-            return existing;
+        FOR_LOOP(i, globals.num_edicts) {
+            LPEDICT existing = &g_edicts[i];
+            FLOAT distance;
+
+            if (!existing->inuse ||
+                existing->class_id != class_id ||
+                !G_IsDestructable(existing) ||
+                !existing->destructable.map_placed ||
+                existing->destructable.script_bound) {
+                continue;
+            }
+
+            distance = Vector2_distance(
+                &MAKE(VECTOR2, x, y),
+                &existing->s.origin2);
+
+            if (distance >= best_distance) {
+                continue;
+            }
+
+            best = existing;
+            best_distance = distance;
+        }
+
+        if (best) {
+            best->destructable.script_bound = true;
+
+            if (G_DebugDestructables()) {
+                fprintf(stderr,
+                        "WC3 dest script: create matched ent=%u type=%.4s distance=%.2f "
+                        "editor=%u var=%u requested_var=%u pos=(%.1f %.1f)\n",
+                        (unsigned)best->s.number,
+                        (LPCSTR)&best->class_id,
+                        best_distance,
+                        (unsigned)best->destructable.editor_id,
+                        (unsigned)best->variation,
+                        (unsigned)variation,
+                        best->s.origin2.x,
+                        best->s.origin2.y);
+            }
+
+            return best;
+        }
+
+        if (G_DebugDestructables()) {
+            fprintf(stderr,
+                    "WC3 dest script: create no preplaced match type=%.4s pos=(%.1f %.1f) var=%u\n",
+                    (LPCSTR)&class_id,
+                    x,
+                    y,
+                    (unsigned)variation);
         }
     }
     LPEDICT ent = G_Spawn();

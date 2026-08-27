@@ -691,6 +691,21 @@ static void MDLX_RenderGeosets(const renderEntity_t *entity,
 static void MDLX_RenderParticleEmitters(const renderEntity_t *entity, const mdxModel_t *model, LPCMATRIX4 model_matrix) {
     static DWORD next_log[MAX_GAME_ENTITIES];
     DWORD active = 0, head = 0, tail = 0;
+
+    /*
+     * Dead destructable remains are marked RF_NOT_SELECTABLE.  While their
+     * death sequence is advancing oldframe != frame, so the destruction
+     * emitters remain active.  tree_decay1() holds the final frame once the
+     * death sequence finishes; after the next snapshot oldframe == frame.
+     *
+     * Do not keep evaluating/emitting particles indefinitely from that held
+     * final death frame. Existing particles remain in the particle system and
+     * expire normally.
+     */
+    if ((entity->flags & RF_NOT_SELECTABLE) &&
+        entity->oldframe == entity->frame) {
+        return;
+    }
     FLOAT total_rate = 0.0f, max_life = 0.0f;
     float const frame = LerpNumber(entity->oldframe, entity->frame, tr.viewDef.lerpfrac);
 
