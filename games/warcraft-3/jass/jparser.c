@@ -9,10 +9,12 @@
 #define PARSER_THROW(...) \
 fprintf(stderr, __VA_ARGS__); \
 fprintf(stderr, "\n"); \
+fflush(stderr); \
 parser_throw(); \
 longjmp(exception_env, 1);
 
 static jmp_buf exception_env;
+static volatile int __throw_count = 0;
 typedef LPTOKEN (*LPGRAMMARFUNC)(LPPARSER);
 
 typedef struct {
@@ -61,7 +63,9 @@ LPCSTR jass_getoperator(LPCSTR str) {
 }
 
 void parser_throw(void) {
-    assert(false);
+    /* Intentionally no-op — longjmp in PARSER_THROW jumps to the enclosing
+     * setjmp in JASS_ParseTokens / GALAXY_ParseTokens.  Add assert(false)
+     * here temporarily to get a backtrace when debugging parse failures. */
 }
 
 LPSTR read_identifier(LPPARSER p) {
@@ -195,7 +199,7 @@ PARSER(read_single_identifier) {
         left = alloc_token(TT_CALL);
         left->primary = strdup("__unm");
         left->args = read_single_identifier(p);
-    } else if (eat_token(p, "not")) {
+    } else if (eat_token(p, "not") || eat_token(p, "!")) {
         left = alloc_token(TT_CALL);
         left->primary = strdup("__not");
         left->args = read_single_identifier(p);
@@ -441,3 +445,292 @@ LPTOKEN JASS_ParseTokens(LPPARSER p) {
         return NULL;
     }
 }
+
+/* =========================================================================
+ * Galaxy scripting front-end
+ *
+ * Galaxy is syntactically C-style JASS: same trigger/unit/player model,
+ * same types under the hood.  The parser produces the same TOKEN AST so the
+ * VM, coroutine scheduler, and native dispatch are completely unchanged.
+ *
+ * Type name mapping applied at parse time:
+ *   int   → integer    fixed  → real
+ *   bool  → boolean    text   → string   (all other names pass through)
+ *
+ * Fixed-size arrays `type[N] var` are parsed as TT_GLOBAL / TT_VARDECL with
+ * TF_ARRAY set and the declared size stored in token->index.  The VM treats
+ * them identically to JASS's unbounded `type array var`.
+ * ========================================================================= */
+
+static LPCSTR galaxy_normalize_type(LPCSTR name) {
+    if (!strcmp(name, "int"))   return "integer";
+    if (!strcmp(name, "bool"))  return "boolean";
+    if (!strcmp(name, "fixed")) return "real";
+    if (!strcmp(name, "text"))  return "string";
+    return name;
+}
+
+/* Two-token lookahead: returns true when the next tokens look like
+ * "type [N] varname" rather than "ident (" or "ident =". */
+static BOOL galaxy_looks_like_decl(LPPARSER p) {
+    PARSER saved = *p;
+    if (!is_identifier(peek_token(p))) { return false; }
+    parse_token(p);                             /* consume type name    */
+    if (eat_token(p, "[")) {                    /* optional array size  */
+        while (!eat_token(p, "]") && *peek_token(p)) parse_token(p);
+    }
+    LPCSTR second = peek_token(p);
+    BOOL result = is_identifier(second);
+    *p = saved;
+    return result;
+}
+
+/* Parse a C-style `(type name, type name, ...)` parameter list.
+ * Caller has already consumed the opening `(`. */
+PARSER(galaxy_parse_args) {
+    if (eat_token(p, ")")) return NULL;
+    LPTOKEN args = NULL;
+    do {
+        LPTOKEN arg  = alloc_token(TT_VARDECL);
+        arg->primary = strdup(galaxy_normalize_type(parse_token(p)));   /* type */
+        arg->secondary = read_identifier(p);                             /* name */
+        PUSH_BACK(TOKEN, arg, args);
+    } while (eat_token(p, ","));
+    eat_token(p, ")");
+    return args;
+}
+
+/* Parse `rettype name(args)` — shared by function defs and native decls. */
+PARSER(galaxy_parse_function_decl) {
+    LPTOKEN token  = alloc_token(TT_FUNCTION);
+    token->secondary = strdup(galaxy_normalize_type(parse_token(p)));  /* return type */
+    token->primary   = read_identifier(p);                              /* name        */
+    eat_token(p, "(");
+    token->args = galaxy_parse_args(p);
+    return token;
+}
+
+PARSER(galaxy_statement_return) {
+    LPTOKEN ret = alloc_token(TT_RETURN);
+    if (!eat_token(p, ";")) {
+        ret->body = parse_logical_expression(p);
+        eat_token(p, ";");
+    }
+    return ret;
+}
+
+/* Forward decl — galaxy_statement_if calls galaxy_parse_body_stmt. */
+static BOOL galaxy_parse_body_stmt(LPPARSER p, LPTOKEN function);
+
+PARSER(galaxy_statement_if) {
+    LPTOKEN token = alloc_token(TT_IF);
+    token->condition = parse_logical_expression(p);
+    eat_token(p, "{");
+    while (!eat_token(p, "}")) {
+        if (!galaxy_parse_body_stmt(p, token))
+            PARSER_THROW("broken if body");
+    }
+    /* Parse optional else / else-if chain. */
+    LPTOKEN *chain = &token->elseblock;
+    while (eat_token(p, "else")) {
+        LPTOKEN branch = alloc_token(TT_ELSE);
+        if (eat_token(p, "if")) {
+            branch->condition = parse_logical_expression(p);
+        }
+        eat_token(p, "{");
+        while (!eat_token(p, "}")) {
+            if (!galaxy_parse_body_stmt(p, branch))
+                PARSER_THROW("broken else body");
+        }
+        *chain = branch;
+        chain = &branch->elseblock;
+        if (!branch->condition) break;  /* plain else terminates chain */
+    }
+    return token;
+}
+
+/* `while (cond) { body }` maps to TT_LOOP with an injected TT_EXITWHEN
+ * as the first body statement (same layout the VM expects). */
+PARSER(galaxy_statement_while) {
+    LPTOKEN loop = alloc_token(TT_LOOP);
+    LPTOKEN cond = parse_logical_expression(p);
+    /* exitwhen !cond */
+    LPTOKEN not_cond = alloc_token(TT_CALL);
+    not_cond->primary = strdup("__not");
+    not_cond->args    = cond;
+    LPTOKEN exitwhen  = alloc_token(TT_EXITWHEN);
+    exitwhen->condition = not_cond;
+    PUSH_BACK(TOKEN, exitwhen, loop->body);
+    eat_token(p, "{");
+    while (!eat_token(p, "}")) {
+        if (!galaxy_parse_body_stmt(p, loop))
+            PARSER_THROW("broken while body");
+    }
+    return loop;
+}
+
+/* Parse a local variable declaration: `type [N] name [= expr];` */
+PARSER(galaxy_parse_local) {
+    LPTOKEN token    = alloc_token(TT_VARDECL);
+    token->primary   = strdup(galaxy_normalize_type(parse_token(p)));
+    if (eat_token(p, "[")) {
+        token->flags |= TF_ARRAY;
+        token->index  = alloc_token(TT_INTEGER);
+        token->index->primary = strdup(parse_token(p));  /* array size */
+        eat_token(p, "]");
+        if (eat_token(p, "[")) { parse_token(p); eat_token(p, "]"); }  /* 2-D: skip */
+    }
+    token->secondary = read_identifier(p);
+    if (eat_token(p, "=")) {
+        token->init = parse_logical_expression(p);
+        eat_token(p, ";");
+    } else {
+        eat_token(p, ";");
+    }
+    return token;
+}
+
+/* Parse an assignment (`name [idx] = expr;`) or a call expression (`name(args);`). */
+static LPTOKEN galaxy_parse_expression_stmt(LPPARSER p) {
+    LPCSTR name = parse_token(p);
+
+    /* Array index before = */
+    LPTOKEN index_expr = NULL;
+    if (eat_token(p, "[")) {
+        index_expr = parse_logical_expression(p);  /* eats ] */
+    }
+
+    if (eat_token(p, "=")) {
+        LPTOKEN token    = alloc_token(TT_SET);
+        token->secondary = strdup(name);
+        token->index     = index_expr;
+        token->init      = parse_logical_expression(p);
+        eat_token(p, ";");
+        return token;
+    } else if (eat_token(p, "(")) {
+        LPTOKEN token  = alloc_token(TT_CALL);
+        token->primary = strdup(name);
+        if (!eat_token(p, ")")) {
+            token->args = parse_logical_expression(p);  /* eats ) */
+        }
+        eat_token(p, ";");
+        return token;
+    } else {
+        eat_token(p, ";");
+        LPTOKEN token  = alloc_token(TT_IDENTIFIER);
+        token->primary = strdup(name);
+        return token;
+    }
+}
+
+/* Dispatch one statement inside a function body. */
+static BOOL galaxy_parse_body_stmt(LPPARSER p, LPTOKEN function) {
+    LPCSTR tok = peek_token(p);
+    if (!*tok) return false;
+
+    LPTOKEN stmt = NULL;
+    if (!strcmp(tok, "if"))     { parse_token(p); stmt = galaxy_statement_if(p);    }
+    else if (!strcmp(tok, "while"))  { parse_token(p); stmt = galaxy_statement_while(p); }
+    else if (!strcmp(tok, "return")) { parse_token(p); stmt = galaxy_statement_return(p);}
+    else if (!strcmp(tok, "break")) {
+        /* break → exitwhen true  (only valid inside a loop; parser doesn't check) */
+        parse_token(p); eat_token(p, ";");
+        LPTOKEN ew = alloc_token(TT_EXITWHEN);
+        LPTOKEN bt = alloc_token(TT_BOOLEAN); bt->primary = strdup("true");
+        ew->condition = bt;
+        stmt = ew;
+    } else if (!strcmp(tok, "continue")) {
+        /* continue has no JASS equivalent inside loop+exitwhen layout — skip */
+        parse_token(p); eat_token(p, ";");
+        return true;
+    } else if (galaxy_looks_like_decl(p)) {
+        stmt = galaxy_parse_local(p);
+    } else {
+        stmt = galaxy_parse_expression_stmt(p);
+    }
+
+    if (stmt) { PUSH_BACK(TOKEN, stmt, function->body); return true; }
+    return false;
+}
+
+/* `rettype name(args) { body }` */
+PARSER(galaxy_keyword_function) {
+    LPTOKEN function = galaxy_parse_function_decl(p);
+    eat_token(p, "{");
+    while (!eat_token(p, "}")) {
+        if (!galaxy_parse_body_stmt(p, function))
+            PARSER_THROW("broken function body");
+    }
+    return function;
+}
+
+/* Top-level `[const] type [N] name [= expr];` */
+PARSER(galaxy_parse_global) {
+    LPTOKEN token = alloc_token(TT_GLOBAL);
+    if (eat_token(p, "const")) token->flags |= TF_CONSTANT;
+    token->primary = strdup(galaxy_normalize_type(parse_token(p)));
+    if (eat_token(p, "[")) {
+        token->flags |= TF_ARRAY;
+        token->index  = alloc_token(TT_INTEGER);
+        token->index->primary = strdup(parse_token(p));
+        eat_token(p, "]");
+        if (eat_token(p, "[")) { parse_token(p); eat_token(p, "]"); }  /* 2-D: skip */
+    }
+    token->secondary = read_identifier(p);
+    if (eat_token(p, "=")) {
+        token->init = parse_logical_expression(p);
+        eat_token(p, ";");
+    } else {
+        eat_token(p, ";");
+    }
+    return token;
+}
+
+/* `native rettype name(args);` */
+PARSER(galaxy_parse_native) {
+    LPTOKEN token = galaxy_parse_function_decl(p);
+    token->flags |= TF_NATIVE;
+    eat_token(p, ";");
+    return token;
+}
+
+/* Peek ahead to decide: top-level function definition vs global variable.
+ * If after (optional `[N]`) we see `name (`, it's a function; otherwise global. */
+static LPTOKEN galaxy_parse_global_or_func(LPPARSER p) {
+    PARSER saved = *p;
+    parse_token(p);                             /* consume return/type name */
+    if (eat_token(p, "[")) {                    /* skip array bracket if present */
+        while (!eat_token(p, "]") && *peek_token(p)) parse_token(p);
+    }
+    parse_token(p);                             /* consume function/variable name */
+    BOOL is_func  = eat_token(p, "(");         /* ( → function def               */
+    *p = saved;
+    return is_func ? galaxy_keyword_function(p) : galaxy_parse_global(p);
+}
+
+LPTOKEN GALAXY_ParseTokens(LPPARSER p) {
+    LPTOKEN tokens = NULL;
+    if (setjmp(exception_env) == 0) {
+        while (*peek_token(p)) {
+            LPTOKEN token = NULL;
+            LPCSTR  tok   = peek_token(p);
+            if (!strcmp(tok, "native")) {
+                parse_token(p);
+                token = galaxy_parse_native(p);
+            } else if (!strcmp(tok, "const")) {
+                token = galaxy_parse_global(p);
+            } else if (is_identifier(tok)) {
+                token = galaxy_parse_global_or_func(p);
+            } else {
+                PARSER_THROW("unknown top-level Galaxy token: %s", tok);
+            }
+            if (token) { PUSH_BACK(TOKEN, token, tokens); }
+        }
+        return tokens;
+    } else {
+        FREE(tokens);
+        fprintf(stderr, "Galaxy Parser Error\n");
+        return NULL;
+    }
+}
+

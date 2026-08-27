@@ -12,6 +12,7 @@
 //#define DEBUG_JASS
 
 #define JASS_DELIM     ",;()[]+-/*="
+#define GALAXY_DELIM   ",;()[]+-/*={}!"
 #define JASS_CONSTANT  "constant"
 #define JASS_ARRAY     "array"
 #define JASS_NULL      "null"
@@ -186,6 +187,14 @@ JASS_CMPOP(__gt, >);
 JASS_CMPOP(__lt, <);
 
 static BOOL var_eq(LPCJASSVAR a, LPCJASSVAR b) {
+    static LPCSTR const value_handles[] = {
+        "race", "alliancetype", "racepreference", "igamestate", "fgamestate", "playerstate",
+        "playergameresult", "unitstate", "gameevent", "playerevent", "playerunitevent", "widgetevent",
+        "dialogevent", "unitevent", "limitop", "unittype", "gamespeed", "placement", "startlocprio",
+        "gamedifficulty", "gametype", "mapflag", "mapvisibility", "mapsetting", "mapdensity", "mapcontrol",
+        "playercolor", "playerslotstate", "volumegroup", "camerafield", "blendmode", "raritycontrol",
+        "texmapflags", "fogstate", "effecttype"
+    };
     if (jass_getvarbasetype(a) != jass_getvarbasetype(b)) {
         return false;
     }
@@ -200,7 +209,12 @@ static BOOL var_eq(LPCJASSVAR a, LPCJASSVAR b) {
         case jasstype_boolean: return !memcmp(a->value, b->value, sizeof(BOOL));
         case jasstype_code: return !memcmp(a->value, b->value, sizeof(HANDLE));
         case jasstype_cfunction: return !memcmp(a->value, b->value, sizeof(HANDLE));
-        case jasstype_handle: return !memcmp(a->value, b->value, sizeof(HANDLE));
+        case jasstype_handle:
+            if (a->value == b->value) return true;
+            if (a->type != b->type) return false;
+            FOR_LOOP(i, sizeof(value_handles) / sizeof(value_handles[0]))
+                if (!strcmp(a->type->name, value_handles[i])) return !memcmp(a->value, b->value, sizeof(DWORD));
+            return false;
     }
     return false;
 }
@@ -791,6 +805,20 @@ BOOL jass_evaluateboolexpr(LPJASS j, LPCJASSFUNC expr, LPEDICT unit) {
     return result_count == 1 && jass_popboolean(&tmp_state);
 }
 
+/* Force filters bind players through the same scratch-state context used by
+ * trigger callbacks, keeping GetFilterPlayer isolated across nested calls. */
+BOOL jass_evaluateplayerexpr(LPJASS j, LPCJASSFUNC expr, LPPLAYER player) {
+    if (!expr) return true;
+    JASS tmp_state;
+    memcpy(&tmp_state, j, sizeof(struct jass_s));
+    memset(tmp_state.stack, 0, sizeof(tmp_state.stack));
+    tmp_state.num_stack = 0;
+    tmp_state.context.playerState = player;
+    jass_pushfunction(&tmp_state, expr);
+    DWORD result_count = jass_call(&tmp_state, 0);
+    return result_count == 1 && jass_popboolean(&tmp_state);
+}
+
 void jass_executetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
     FOR_EACH_LIST(TRIGGERACTION, action, trigger->actions) {
         LPPLAYER player = jass_eventplayer(unit);
@@ -824,6 +852,13 @@ static LPJASSCFUNCTION find_cfunction(LPCJASS j, LPCSTR name) {
     }
     if (jass_host.natives) {
         for (LPCJASSMODULE m = jass_host.natives; m->name; m++) {
+            if (!strcmp(m->name, name)) {
+                return m->func;
+            }
+        }
+    }
+    if (jass_host.galaxy_natives) {
+        for (LPCJASSMODULE m = jass_host.galaxy_natives; m->name; m++) {
             if (!strcmp(m->name, name)) {
                 return m->func;
             }
@@ -1476,9 +1511,13 @@ TOKENFUNC(FUNCTION) {
         PUSH_BACK(JASSARG, jarg, func->args);
     }
     if (token->flags & TF_NATIVE) {
-        LPCJASSMODULE mod = find_in_array(jass_host.natives, sizeof(JASSMODULE), func->name);
-        if (mod) {
-            func->nativefunc = mod->func;
+        if (jass_host.natives) {
+            LPCJASSMODULE mod = find_in_array(jass_host.natives, sizeof(JASSMODULE), func->name);
+            if (mod) func->nativefunc = mod->func;
+        }
+        if (!func->nativefunc && jass_host.galaxy_natives) {
+            LPCJASSMODULE mod = find_in_array(jass_host.galaxy_natives, sizeof(JASSMODULE), func->name);
+            if (mod) func->nativefunc = mod->func;
         }
     }
     ADD_TO_LIST(func, j->functions);
@@ -1585,12 +1624,76 @@ static void jass_remove_bom(LPSTR buf) {
     if (u[0] == 0xFE && u[1] == 0xFF)                  { memmove(buf, buf + 2, strlen(buf + 2) + 1); }
 }
 
-BOOL jass_dobuffer(LPJASS j, LPSTR buffer) {
+/* Forward declaration — galaxy_preprocess_includes calls jass_dofile_ex. */
+BOOL jass_dofile_ex(LPJASS j, LPCSTR fileName, JASSMODE mode);
+
+/* galaxy_preprocess_includes — scan buffer for `include "path"` directives,
+ * overwrite each with spaces (preserving newlines for line-number stability),
+ * and recursively load the included file before the main buffer is parsed. */
+static void galaxy_preprocess_includes(LPJASS j, LPSTR buf, JASSMODE mode) {
+    LPSTR cur = buf;
+    while (*cur) {
+        while (*cur && isspace((unsigned char)*cur)) cur++;
+        if (strncmp(cur, "include", 7) == 0 &&
+            (cur[7] == ' ' || cur[7] == '\t' || cur[7] == '"')) {
+            LPSTR line_start = cur;
+            cur += 7;
+            while (*cur == ' ' || *cur == '\t') cur++;
+            if (*cur == '"') {
+                cur++;
+                LPSTR path_start = cur;
+                while (*cur && *cur != '"' && *cur != '\n') cur++;
+                if (*cur == '"') {
+                    DWORD path_len = (DWORD)(cur - path_start);
+                    cur++;
+                    char path[512];
+                    DWORD copy_len = path_len < 500 ? path_len : 500;
+                    memcpy(path, path_start, copy_len);
+                    path[copy_len] = '\0';
+                    /* Append .galaxy if path has no extension. */
+                    LPCSTR slash = strrchr(path, '/');
+                    LPCSTR dot   = strrchr(path, '.');
+                    if (!dot || (slash && dot < slash)) {
+                        strlcat(path, ".galaxy", sizeof(path));
+                    }
+                    /* Erase directive in place; keep newlines for line numbers. */
+                    for (LPSTR p = line_start; p < cur; p++) {
+                        if (*p != '\n') *p = ' ';
+                    }
+                    jass_dofile_ex(j, path, mode);
+                    continue;
+                }
+            }
+        }
+        while (*cur && *cur != '\n') cur++;
+    }
+}
+
+BOOL jass_dobuffer_ex(LPJASS j, LPSTR buffer, JASSMODE mode) {
     jass_remove_comments(buffer);
     jass_remove_bom(buffer);
-    LPTOKEN program = JASS_ParseTokens(&MAKE(PARSER, .buffer = buffer, .delimiters = JASS_DELIM));
+    LPTOKEN program = NULL;
+    if (mode == JASS_MODE_GALAXY) {
+        galaxy_preprocess_includes(j, buffer, mode);
+        program = GALAXY_ParseTokens(
+            &MAKE(PARSER, .buffer = buffer, .delimiters = GALAXY_DELIM));
+    } else {
+        program = JASS_ParseTokens(
+            &MAKE(PARSER, .buffer = buffer, .delimiters = JASS_DELIM));
+    }
+    if (!program) {
+        LPJASS root = jass_root(j);
+        root->rterror_pending = true;
+        snprintf(root->rterror_message, sizeof(root->rterror_message),
+                 "parse error");
+        return false;
+    }
     eval_TOKENS(j, program);
     return true;
+}
+
+BOOL jass_dobuffer(LPJASS j, LPSTR buffer) {
+    return jass_dobuffer_ex(j, buffer, JASS_MODE_JASS);
 }
 
 LPJASS jass_newstate(void) {
@@ -1611,21 +1714,27 @@ void jass_close(LPJASS j) {
     jass_free(j);
 }
 
-BOOL jass_dofile(LPJASS j, LPCSTR fileName) {
+BOOL jass_dofile_ex(LPJASS j, LPCSTR fileName, JASSMODE mode) {
     DWORD size = 0;
     LPSTR buffer = jass_host.ReadFile(fileName, &size);
     if (buffer) {
-        /* ReadFile does not NUL-terminate; append one so dobuffer can work in-place. */
         LPSTR nul_terminated = jass_alloc(size + 1);
         memcpy(nul_terminated, buffer, size);
         nul_terminated[size] = '\0';
         jass_free(buffer);
-        BOOL success = jass_dobuffer(j, nul_terminated);
+        BOOL success = jass_dobuffer_ex(j, nul_terminated, mode);
         jass_free(nul_terminated);
         return success;
     } else {
         return false;
     }
+}
+
+BOOL jass_dofile(LPJASS j, LPCSTR fileName) {
+    /* Auto-detect Galaxy mode from file extension. */
+    LPCSTR dot = strrchr(fileName, '.');
+    JASSMODE mode = (dot && !strcmp(dot, ".galaxy")) ? JASS_MODE_GALAXY : JASS_MODE_JASS;
+    return jass_dofile_ex(j, fileName, mode);
 }
 
 /* =========================================================================
