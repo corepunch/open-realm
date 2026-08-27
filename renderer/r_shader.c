@@ -225,7 +225,7 @@ const shader_desc_t sd_default = {
         UNIFORM(textureMatrix,  UT_FLOAT_MAT4, PRECISION_HIGH),
         UNIFORM(model,          UT_FLOAT_MAT4, PRECISION_HIGH),
         UNIFORM(lightMatrix,    UT_FLOAT_MAT4, PRECISION_HIGH),
-        UNIFORM_TRANSPOSE(normalMatrix,   UT_FLOAT_MAT3, PRECISION_HIGH),
+        UNIFORM(normalMatrix,   UT_FLOAT_MAT3_TRANSPOSE, PRECISION_HIGH),
         UNIFORM(texture,        UT_SAMPLER_2D, PRECISION_LOW),
         UNIFORM(shadowmap,      UT_SAMPLER_2D, PRECISION_LOW),
         UNIFORM(fogOfWar,       UT_SAMPLER_2D, PRECISION_LOW),
@@ -294,16 +294,16 @@ const shader_desc_t sd_default = {
 const shader_desc_t sd_model = {
     .Name = "model",
     .Uniforms = {
-        UNIFORM_ARRAY_COUNTED(bones, UT_FLOAT_MAT4, PRECISION_HIGH, BZ_BONE_PALETTE_MAX, boneCount),
+        UNIFORM(bones, UT_FLOAT_MAT4, PRECISION_HIGH, BZ_BONE_PALETTE_MAX, boneCount),
         UNIFORM(viewProjection,            UT_FLOAT_MAT4, PRECISION_HIGH),
         UNIFORM(lightMatrix,               UT_FLOAT_MAT4, PRECISION_HIGH),
         UNIFORM(textureMatrix,             UT_FLOAT_MAT4, PRECISION_HIGH),
         UNIFORM(lightCount,                UT_INT,        PRECISION_LOW),
         UNIFORM(firstBoneLookupIndex,      UT_FLOAT,      PRECISION_LOW),
-        UNIFORM_ARRAY(lights,              UT_FLOAT_MAT4, PRECISION_HIGH, BZ_MODEL_LIGHT_MAX),
+        UNIFORM(lights,                    UT_FLOAT_MAT4, PRECISION_HIGH, BZ_MODEL_LIGHT_MAX),
         UNIFORM(grassParams,               UT_FLOAT_MAT4, PRECISION_HIGH),
         UNIFORM(model,                     UT_FLOAT_MAT4, PRECISION_HIGH),
-        UNIFORM_TRANSPOSE(normalMatrix,              UT_FLOAT_MAT3, PRECISION_HIGH),
+        UNIFORM(normalMatrix,       UT_FLOAT_MAT3_TRANSPOSE, PRECISION_HIGH),
         UNIFORM(texture,                   UT_SAMPLER_2D, PRECISION_LOW),
         UNIFORM(shadowmap,                 UT_SAMPLER_2D, PRECISION_LOW),
         UNIFORM(fogOfWar,                  UT_SAMPLER_2D, PRECISION_LOW),
@@ -513,6 +513,7 @@ static const char *R_GLSLTypeStr(uniformType_t type) {
         case UT_INT_VEC2:         return "ivec2";
         case UT_BOOL:             return "bool";
         case UT_FLOAT_MAT3:       return "mat3";
+        case UT_FLOAT_MAT3_TRANSPOSE: return "mat3";
         case UT_FLOAT_MAT4:       return "mat4";
         case UT_SAMPLER_2D:       return "sampler2D";
         case UT_SAMPLER_2D_RECT:  return "sampler2DRect";
@@ -601,7 +602,7 @@ static void R_SetShaderSourceFromDesc(GLuint stage, const shader_desc_t *desc,
 
 /* Return exact CPU storage consumed by one value so cached comparisons never include struct padding. */
 static size_t R_UniformTypeSize(uniformType_t type) {
-    static BYTE const widths[UT_COUNT] = { 1, 2, 3, 4, 4, 1, 2, 1, 9, 16, 1, 1, 1 };
+    static BYTE const widths[UT_COUNT] = { 1, 2, 3, 4, 4, 1, 2, 1, 9, 9, 16, 1, 1, 1 };
     if (type >= UT_COUNT) return 0;
     if (type == UT_BOOL) return sizeof(bool);
     if (type >= UT_INT && type <= UT_INT_VEC2) return widths[type] * sizeof(int);
@@ -698,8 +699,9 @@ void R_UploadShader(LPSHADERPROG prog, LPCVOID state) {
                 FOR_LOOP(j, count) values[j] = ((const bool *)data)[j];
                 R_Call(glUniform1iv, loc, count, values); break;
             }
-            case UT_FLOAT_MAT3: R_Call(glUniformMatrix3fv, loc, count, u->transpose, data); break;
-            case UT_FLOAT_MAT4: R_Call(glUniformMatrix4fv, loc, count, u->transpose, data); break;
+            case UT_FLOAT_MAT3: R_Call(glUniformMatrix3fv, loc, count, GL_FALSE, data); break;
+            case UT_FLOAT_MAT3_TRANSPOSE: R_Call(glUniformMatrix3fv, loc, count, GL_TRUE, data); break;
+            case UT_FLOAT_MAT4: R_Call(glUniformMatrix4fv, loc, count, GL_FALSE, data); break;
             default: fprintf(stderr, "R_UploadShader: invalid type for %s.%s\n", prog->desc->Name, u->name); exit(EXIT_FAILURE);
         }
         if (prog->cache)

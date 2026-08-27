@@ -139,7 +139,9 @@ state value. Only `renderer/r_shader.c` calls `glGetUniformLocation` or `glUnifo
   count-based GL call. The shader keeps its 128-matrix bone capacity, while `boneCount` limits ordinary draws
   to the active MDX geoset, M2 batch, or M3 lookup prefix. Lights keep eight slots and `lightCount` selects
   active entries. Instanced bones initialize to the full identity palette once at program creation.
-- `UNIFORM_TRANSPOSE` describes row-major CPU normal matrices; UV matrices remain column-major.
+- `UT_FLOAT_MAT3_TRANSPOSE` describes row-major CPU normal matrices; UV matrices remain column-major.
+- Every descriptor uses `UNIFORM`: three arguments describe a scalar, a fourth adds fixed array capacity,
+  and a fifth names the state field containing a counted array's active upload count.
 - One renderer API submission is **not** one GL call or a UBO. The GL backend walks the descriptor
   and submits active fields, preserving the existing supported dialects without std140 assumptions.
 - Samplers use descriptor declaration order, not linker location order. Shared models/default ground

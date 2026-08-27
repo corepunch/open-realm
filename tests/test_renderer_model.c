@@ -688,6 +688,14 @@ static const shader_desc_t sd_test = {
 };
 #undef SHADER_TYPE
 
+typedef struct { MATRIX4 fixed[2], counted[3]; DWORD count; } SDARRAYTESTSTATE;
+#define SHADER_TYPE SDARRAYTESTSTATE
+static const shader_desc_t sd_array_test = { .Uniforms = {
+    UNIFORM(fixed,   UT_FLOAT_MAT4, PRECISION_HIGH, 2),
+    UNIFORM(counted, UT_FLOAT_MAT4, PRECISION_HIGH, 3, count),
+} };
+#undef SHADER_TYPE
+
 /* UNIFORM(field) stores offsetof(SHADER_TYPE, field); attrib/shared names get a_/v_ prefix. */
 TEST(renderer_shader_desc, macro_expansion_records_offsets_and_prefixed_names) {
     T_EQ(sd_test.Uniforms[0].offset, offsetof(SDTESTSTATE, mvp));
@@ -696,6 +704,10 @@ TEST(renderer_shader_desc, macro_expansion_records_offsets_and_prefixed_names) {
     T_STREQ(sd_test.Uniforms[0].name, "u_mvp");
     T_STREQ(sd_test.Uniforms[1].name, "u_texture");
     T_STREQ(sd_test.Uniforms[2].name, "u_color");
+    T_EQ(sd_array_test.Uniforms[0].count, 2u); T_ASSERT(!sd_array_test.Uniforms[0].counted);
+    T_EQ(sd_array_test.Uniforms[1].count, 3u);
+    T_EQ(sd_array_test.Uniforms[1].count_offset, offsetof(SDARRAYTESTSTATE, count));
+    T_ASSERT(sd_array_test.Uniforms[1].counted);
     T_STREQ(sd_test.Attributes[0].name, "a_position");
     T_STREQ(sd_test.Attributes[1].name, "a_texcoord");
     T_STREQ(sd_test.Shared[0].name, "v_texcoord");
@@ -841,7 +853,7 @@ TEST(renderer_shader_desc, upload_dispatches_values_arrays_and_inactive_inputs) 
     union { float f[32]; int i[32]; bool b; } state = { 0 };
     shader_desc_t desc = { .Name = "upload" };
     SHADERPROG prog = { .progid = 1, .desc = &desc };
-    static const int widths[] = { 1, 2, 3, 4, 4, 0, 0, 0, 9, 16, 0, 0, 0 };
+    static const int widths[] = { 1, 2, 3, 4, 4, 0, 0, 0, 9, 9, 16, 0, 0, 0 };
     FOR_LOOP(type, UT_COUNT) {
         desc.Uniforms[0] = (shaderUniform_t){ .name = "value", .type = type };
         memset(&upload, 0, sizeof(upload));
@@ -859,7 +871,7 @@ TEST(renderer_shader_desc, upload_dispatches_values_arrays_and_inactive_inputs) 
     }
     desc.Uniforms[0] = (shaderUniform_t){ .name = "bool", .type = UT_BOOL };
     state.b = false; R_UploadShader(&prog, &state); T_EQ(upload.integer, 0);
-    desc.Uniforms[0].type = UT_FLOAT_MAT3; desc.Uniforms[0].transpose = true;
+    desc.Uniforms[0].type = UT_FLOAT_MAT3_TRANSPOSE;
     R_UploadShader(&prog, &state); T_EQ(upload.transpose, GL_TRUE);
     int calls = upload.calls; prog.locs[0] = -1;
     R_UploadShader(&prog, &state); T_EQ(upload.calls, calls);

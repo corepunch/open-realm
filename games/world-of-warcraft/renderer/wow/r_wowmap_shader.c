@@ -9,10 +9,10 @@ WOWGRASSPROG wow_grass_shader;
 /* Keep terrain and grass on the same exact MCVT diamond interpolation contract. */
 #define WOW_HEIGHT_ATLAS_GLSL \
     "bool HeightAtlas_Coord(vec2 worldXY, out ivec2 tile, out vec2 cell) {\n" \
-    "    vec2 rel = (uAtlasOriginWorld - worldXY) / uAtlasChunkSize;\n" \
+    "    vec2 rel = (u_atlasOriginWorld - worldXY) / u_atlasChunkSize;\n" \
     "    tile = ivec2(floor(rel.y), floor(rel.x));\n" \
-    "    cell = fract(rel) * (uAtlasChunkSize / uAtlasUnitSize);\n" \
-    "    ivec2 tiles = textureSize(uHeightAtlas, 0) / ivec2(17, 9);\n" \
+    "    cell = fract(rel) * (u_atlasChunkSize / u_atlasUnitSize);\n" \
+    "    ivec2 tiles = textureSize(u_heightAtlas, 0) / ivec2(17, 9);\n" \
     "    return all(greaterThanEqual(tile, ivec2(0))) && all(lessThan(tile, tiles));\n" \
     "}\n" \
     "float HeightAtlas_Bary(vec2 p, vec2 a, float ah, vec2 b, float bh, vec2 c, float ch) {\n" \
@@ -27,11 +27,11 @@ WOWGRASSPROG wow_grass_shader;
     "    ivec2 cell = ivec2(clamp(floor(local), vec2(0.0), vec2(7.0)));\n" \
     "    vec2 p = clamp(local - vec2(cell), vec2(0.0), vec2(1.0));\n" \
     "    ivec2 base = tile * ivec2(17, 9) + ivec2(cell.y, cell.x);\n" \
-    "    float tl = texelFetch(uHeightAtlas, base, 0).r;\n" \
-    "    float tr = texelFetch(uHeightAtlas, base + ivec2(1, 0), 0).r;\n" \
-    "    float bl = texelFetch(uHeightAtlas, base + ivec2(0, 1), 0).r;\n" \
-    "    float br = texelFetch(uHeightAtlas, base + ivec2(1, 1), 0).r;\n" \
-    "    float ct = texelFetch(uHeightAtlas, tile*ivec2(17, 9) + ivec2(9+cell.y, cell.x), 0).r;\n" \
+    "    float tl = texelFetch(u_heightAtlas, base, 0).r;\n" \
+    "    float tr = texelFetch(u_heightAtlas, base + ivec2(1, 0), 0).r;\n" \
+    "    float bl = texelFetch(u_heightAtlas, base + ivec2(0, 1), 0).r;\n" \
+    "    float br = texelFetch(u_heightAtlas, base + ivec2(1, 1), 0).r;\n" \
+    "    float ct = texelFetch(u_heightAtlas, tile*ivec2(17, 9) + ivec2(9+cell.y, cell.x), 0).r;\n" \
     "    if (p.y <= p.x && p.y <= 1.0-p.x)\n" \
     "        return HeightAtlas_Bary(p, vec2(.5), ct, vec2(0), tl, vec2(1,0), bl);\n" \
     "    if (p.x <= p.y && p.x <= 1.0-p.y)\n" \
@@ -45,29 +45,29 @@ WOWGRASSPROG wow_grass_shader;
 static const shader_desc_t sd_wow_terrain = {
     .Name = "wow_terrain",
     .Uniforms = {
-        UNIFORM_NAMED(viewProjection,   "uViewProjectionMatrix", UT_FLOAT_MAT4, PRECISION_HIGH),
-        UNIFORM_NAMED(model,            "uModelMatrix",          UT_FLOAT_MAT4, PRECISION_HIGH),
-        UNIFORM_NAMED_TRANSPOSE(normalMatrix,     "uNormalMatrix",         UT_FLOAT_MAT3, PRECISION_HIGH),
-        UNIFORM_NAMED(sunDir,           "uSunDir",               UT_FLOAT_VEC3, PRECISION_LOW),
-        UNIFORM_NAMED(sunAmbient,       "uSunAmbient",           UT_FLOAT_VEC3, PRECISION_LOW),
-        UNIFORM_NAMED(sunDiffuse,       "uSunDiffuse",           UT_FLOAT_VEC3, PRECISION_LOW),
-        UNIFORM_NAMED(texture0,         "uTexture0",             UT_SAMPLER_2D, PRECISION_LOW),
-        UNIFORM_NAMED(texture1,         "uTexture1",             UT_SAMPLER_2D, PRECISION_LOW),
-        UNIFORM_NAMED(texture2,         "uTexture2",             UT_SAMPLER_2D, PRECISION_LOW),
-        UNIFORM_NAMED(texture3,         "uTexture3",             UT_SAMPLER_2D, PRECISION_LOW),
-        UNIFORM_NAMED(alphaTexture,     "uAlphaTexture",         UT_SAMPLER_2D, PRECISION_LOW),
-        UNIFORM_NAMED(useWeightedBlend, "uUseWeightedBlend",     UT_BOOL,        PRECISION_LOW),
-        UNIFORM_NAMED(singleTexture,    "uSingleTexture",        UT_BOOL,        PRECISION_LOW),
-        UNIFORM_NAMED(wmoIndoor,        "uWmoIndoor",            UT_BOOL,        PRECISION_LOW),
-        UNIFORM_NAMED(wmoAmbient,       "uWmoAmbient",           UT_FLOAT_VEC3, PRECISION_LOW),
-        UNIFORM_NAMED(wmoLightAdd,      "uWmoLightAdd",          UT_FLOAT_VEC3, PRECISION_LOW),
-        UNIFORM_NAMED(wmoBlendMode,     "uWmoBlendMode",         UT_INT,        PRECISION_LOW),
-        UNIFORM_NAMED(alphaOrigin,      "uAlphaOrigin",          UT_FLOAT_VEC2, PRECISION_LOW),
-        UNIFORM_NAMED(alphaAtlasChunks, "uAlphaAtlasChunks",     UT_FLOAT,      PRECISION_LOW),
-        UNIFORM_NAMED(fogEnable,        "uFogEnable",            UT_BOOL,       PRECISION_LOW),
-        UNIFORM_NAMED(fogColor,         "uFogColor",             UT_FLOAT_VEC3, PRECISION_LOW),
-        UNIFORM_NAMED(fogParams,        "uFogParams",            UT_FLOAT_VEC2, PRECISION_LOW),
-        UNIFORM_NAMED(fogCamera,        "uFogCamera",            UT_FLOAT_VEC3, PRECISION_LOW),
+        UNIFORM(viewProjection, UT_FLOAT_MAT4, PRECISION_HIGH),
+        UNIFORM(model,          UT_FLOAT_MAT4, PRECISION_HIGH),
+        UNIFORM(normalMatrix,   UT_FLOAT_MAT3_TRANSPOSE, PRECISION_HIGH),
+        UNIFORM(sunDir,         UT_FLOAT_VEC3, PRECISION_LOW),
+        UNIFORM(sunAmbient,     UT_FLOAT_VEC3, PRECISION_LOW),
+        UNIFORM(sunDiffuse,     UT_FLOAT_VEC3, PRECISION_LOW),
+        UNIFORM(texture0,       UT_SAMPLER_2D, PRECISION_LOW),
+        UNIFORM(texture1,       UT_SAMPLER_2D, PRECISION_LOW),
+        UNIFORM(texture2,       UT_SAMPLER_2D, PRECISION_LOW),
+        UNIFORM(texture3,       UT_SAMPLER_2D, PRECISION_LOW),
+        UNIFORM(alphaTexture,   UT_SAMPLER_2D, PRECISION_LOW),
+        UNIFORM(useWeightedBlend, UT_BOOL,      PRECISION_LOW),
+        UNIFORM(singleTexture,  UT_BOOL,        PRECISION_LOW),
+        UNIFORM(wmoIndoor,      UT_BOOL,        PRECISION_LOW),
+        UNIFORM(wmoAmbient,     UT_FLOAT_VEC3, PRECISION_LOW),
+        UNIFORM(wmoLightAdd,    UT_FLOAT_VEC3, PRECISION_LOW),
+        UNIFORM(wmoBlendMode,   UT_INT,        PRECISION_LOW),
+        UNIFORM(alphaOrigin,    UT_FLOAT_VEC2, PRECISION_LOW),
+        UNIFORM(alphaAtlasChunks, UT_FLOAT,    PRECISION_LOW),
+        UNIFORM(fogEnable,      UT_BOOL,       PRECISION_LOW),
+        UNIFORM(fogColor,       UT_FLOAT_VEC3, PRECISION_LOW),
+        UNIFORM(fogParams,      UT_FLOAT_VEC2, PRECISION_LOW),
+        UNIFORM(fogCamera,      UT_FLOAT_VEC3, PRECISION_LOW),
     },
     .Attributes = {
         ATTRIB(position, attrib_position, UT_FLOAT_VEC3),
@@ -83,34 +83,34 @@ static const shader_desc_t sd_wow_terrain = {
     },
     .VertexBody =
         "vec4 vert() {\n"
-        "  vec4 pos = uModelMatrix * vec4(a_position, 1.0);\n"
+        "  vec4 pos = u_model * vec4(a_position, 1.0);\n"
         "  v_texcoord = a_texcoord;\n"
-        "  vec3 normal = normalize(uNormalMatrix * a_normal);\n"
-        "  v_lighting = uSunAmbient + uSunDiffuse * clamp(dot(normal, uSunDir), 0.0, 1.0);\n"
+        "  vec3 normal = normalize(u_normalMatrix * a_normal);\n"
+        "  v_lighting = u_sunAmbient + u_sunDiffuse * clamp(dot(normal, u_sunDir), 0.0, 1.0);\n"
         "  v_color = a_color;\n"
         "  v_world = pos.xyz;\n"
-        "  return uViewProjectionMatrix * pos;\n"
+        "  return u_viewProjection * pos;\n"
         "}\n",
     .FragmentBody =
         "vec2 adtAlphaCoord(vec2 chunkCoord) {\n"
         "  const float alphaTexelsPerChunk = 64.0;\n"
-        "  float alphaAtlasSize = alphaTexelsPerChunk * uAlphaAtlasChunks;\n"
+        "  float alphaAtlasSize = alphaTexelsPerChunk * u_alphaAtlasChunks;\n"
         "  chunkCoord = clamp(chunkCoord, vec2(0.0), vec2(1.0));\n"
-        "  vec2 atlasTexel = uAlphaOrigin * alphaTexelsPerChunk + chunkCoord * (alphaTexelsPerChunk - 1.0) + vec2(0.5);\n"
+        "  vec2 atlasTexel = u_alphaOrigin * alphaTexelsPerChunk + chunkCoord * (alphaTexelsPerChunk - 1.0) + vec2(0.5);\n"
         "  return atlasTexel / alphaAtlasSize;\n"
         "}\n"
         "vec4 frag() {\n"
         "  vec2 alphaCoord = adtAlphaCoord(v_texcoord * 0.125);\n"
-        "  vec4 tex1 = texture(uTexture0, v_texcoord);\n"
+        "  vec4 tex1 = texture(u_texture0, v_texcoord);\n"
         "  vec4 color;\n"
-        "  if (uSingleTexture) {\n"
+        "  if (u_singleTexture) {\n"
         "    color = tex1;\n"
         "  } else {\n"
-        "    vec3 alphaBlend = texture(uAlphaTexture, alphaCoord).gba;\n"
-        "    vec4 tex2 = texture(uTexture1, v_texcoord);\n"
-        "    vec4 tex3 = texture(uTexture2, v_texcoord);\n"
-        "    vec4 tex4 = texture(uTexture3, v_texcoord);\n"
-        "    if (uUseWeightedBlend) {\n"
+        "    vec3 alphaBlend = texture(u_alphaTexture, alphaCoord).gba;\n"
+        "    vec4 tex2 = texture(u_texture1, v_texcoord);\n"
+        "    vec4 tex3 = texture(u_texture2, v_texcoord);\n"
+        "    vec4 tex4 = texture(u_texture3, v_texcoord);\n"
+        "    if (u_useWeightedBlend) {\n"
         "      float baseWeight = 1.0 - clamp(dot(alphaBlend, vec3(1.0)), 0.0, 1.0);\n"
         "      vec4 weights = vec4(baseWeight, alphaBlend);\n"
         "      color = tex1 * weights.r + tex2 * weights.g + tex3 * weights.b + tex4 * weights.a;\n"
@@ -118,19 +118,19 @@ static const shader_desc_t sd_wow_terrain = {
         "      color = mix(mix(mix(tex1, tex2, alphaBlend.r), tex3, alphaBlend.g), tex4, alphaBlend.b);\n"
         "    }\n"
         "  }\n"
-        "  if (uSingleTexture) {\n"
+        "  if (u_singleTexture) {\n"
         "    vec3 mocv = 2.0 * v_color.rgb;\n"
-        "    if (uWmoIndoor) color.rgb = color.rgb * mocv + uWmoAmbient + uWmoLightAdd;\n"
+        "    if (u_wmoIndoor) color.rgb = color.rgb * mocv + u_wmoAmbient + u_wmoLightAdd;\n"
         "    else color.rgb *= v_lighting * max(mocv, vec3(0.5));\n"
         "  } else {\n"
         "    color.rgb *= v_color.rgb * v_lighting;\n"
         "  }\n"
-        "  if (uFogEnable) {\n"
-        "    float fog = clamp((uFogParams.y - distance(v_world, uFogCamera)) / (uFogParams.y - uFogParams.x), 0.0, 1.0);\n"
-        "    color.rgb = mix(uFogColor, color.rgb, fog);\n"
+        "  if (u_fogEnable) {\n"
+        "    float fog = clamp((u_fogParams.y - distance(v_world, u_fogCamera)) / (u_fogParams.y - u_fogParams.x), 0.0, 1.0);\n"
+        "    color.rgb = mix(u_fogColor, color.rgb, fog);\n"
         "  }\n"
-        "  if (uSingleTexture && uWmoBlendMode == 1 && color.a < 0.5) discard;\n"
-        "  if (!uSingleTexture || uWmoBlendMode < 2) color.a = 1.0;\n"
+        "  if (u_singleTexture && u_wmoBlendMode == 1 && color.a < 0.5) discard;\n"
+        "  if (!u_singleTexture || u_wmoBlendMode < 2) color.a = 1.0;\n"
         "  return color;\n"
         "}\n",
 };
@@ -140,23 +140,23 @@ static const shader_desc_t sd_wow_terrain = {
 static const shader_desc_t sd_wow_grass = {
     .Name = "wow_grass",
     .Uniforms = {
-        UNIFORM_NAMED(viewProjection,        "uViewProjectionMatrix", UT_FLOAT_MAT4, PRECISION_HIGH),
-        UNIFORM_NAMED(sunDir,                "uSunDir",               UT_FLOAT_VEC3, PRECISION_LOW),
-        UNIFORM_NAMED(sunAmbient,            "uSunAmbient",           UT_FLOAT_VEC3, PRECISION_LOW),
-        UNIFORM_NAMED(sunDiffuse,            "uSunDiffuse",           UT_FLOAT_VEC3, PRECISION_LOW),
-        UNIFORM_NAMED(grassTime,             "uGrassTime",            UT_FLOAT,      PRECISION_LOW),
-        UNIFORM_NAMED(grassCtrl,             "uGrassCtrl",            UT_SAMPLER_2D, PRECISION_LOW),
-        UNIFORM_NAMED(ctrlOriginWorld,       "uCtrlOriginWorld",      UT_FLOAT_VEC2, PRECISION_LOW),
-        UNIFORM_NAMED(ctrlCellSize,          "uCtrlCellSize",         UT_FLOAT,      PRECISION_LOW),
-        UNIFORM_NAMED(cameraXZ,              "uCameraXZ",             UT_FLOAT_VEC2, PRECISION_LOW),
-        UNIFORM_NAMED(grassSlotSpacing,      "uGrassSlotSpacing",     UT_FLOAT,      PRECISION_LOW),
-        UNIFORM_NAMED(heightAtlas,           "uHeightAtlas",          UT_SAMPLER_2D, PRECISION_LOW),
-        UNIFORM_NAMED(atlasOriginWorld,      "uAtlasOriginWorld",     UT_FLOAT_VEC2, PRECISION_LOW),
-        UNIFORM_NAMED(atlasChunkSize,        "uAtlasChunkSize",       UT_FLOAT,      PRECISION_LOW),
-        UNIFORM_NAMED(atlasUnitSize,         "uAtlasUnitSize",        UT_FLOAT,      PRECISION_LOW),
-        UNIFORM_NAMED(grassCameraOrigin,     "uGrassCameraOrigin",    UT_FLOAT_VEC3, PRECISION_LOW),
-        UNIFORM_NAMED(grassDrawDistance,     "uGrassDrawDistance",    UT_FLOAT,      PRECISION_LOW),
-        UNIFORM_NAMED(grassFadeStartDistance,"uGrassFadeStartDistance",UT_FLOAT,     PRECISION_LOW),
+        UNIFORM(viewProjection,        UT_FLOAT_MAT4, PRECISION_HIGH),
+        UNIFORM(sunDir,                UT_FLOAT_VEC3, PRECISION_LOW),
+        UNIFORM(sunAmbient,            UT_FLOAT_VEC3, PRECISION_LOW),
+        UNIFORM(sunDiffuse,            UT_FLOAT_VEC3, PRECISION_LOW),
+        UNIFORM(grassTime,             UT_FLOAT,      PRECISION_LOW),
+        UNIFORM(grassCtrl,             UT_SAMPLER_2D, PRECISION_LOW),
+        UNIFORM(ctrlOriginWorld,       UT_FLOAT_VEC2, PRECISION_LOW),
+        UNIFORM(ctrlCellSize,          UT_FLOAT,      PRECISION_LOW),
+        UNIFORM(cameraXZ,              UT_FLOAT_VEC2, PRECISION_LOW),
+        UNIFORM(grassSlotSpacing,      UT_FLOAT,      PRECISION_LOW),
+        UNIFORM(heightAtlas,           UT_SAMPLER_2D, PRECISION_LOW),
+        UNIFORM(atlasOriginWorld,      UT_FLOAT_VEC2, PRECISION_LOW),
+        UNIFORM(atlasChunkSize,        UT_FLOAT,      PRECISION_LOW),
+        UNIFORM(atlasUnitSize,         UT_FLOAT,      PRECISION_LOW),
+        UNIFORM(grassCameraOrigin,     UT_FLOAT_VEC3, PRECISION_LOW),
+        UNIFORM(grassDrawDistance,     UT_FLOAT,      PRECISION_LOW),
+        UNIFORM(grassFadeStartDistance, UT_FLOAT,     PRECISION_LOW),
     },
     .Attributes = {
         ATTRIB(position, attrib_position, UT_FLOAT_VEC3),
@@ -177,16 +177,16 @@ static const shader_desc_t sd_wow_grass = {
         "  float top = clamp(a_texcoord.y, 0.0, 1.0);\n"
         "  int gx = gl_InstanceID % " BZ_WOW_STR(WOW_GRASS_GRID_SIDE) " - " BZ_WOW_STR(WOW_GRASS_GRID_HALF) ";\n"
         "  int gy = gl_InstanceID / " BZ_WOW_STR(WOW_GRASS_GRID_SIDE) " - " BZ_WOW_STR(WOW_GRASS_GRID_HALF) ";\n"
-        "  vec2 cell = floor(uCameraXZ / uGrassSlotSpacing) + vec2(gx, gy);\n"
+        "  vec2 cell = floor(u_cameraXZ / u_grassSlotSpacing) + vec2(gx, gy);\n"
         "  vec2 jitter = vec2(GrassHash(cell), GrassHash(cell + vec2(19.19,73.73))) - vec2(0.5);\n"
-        "  vec2 worldXY = (cell + jitter * 0.72) * uGrassSlotSpacing;\n"
+        "  vec2 worldXY = (cell + jitter * 0.72) * u_grassSlotSpacing;\n"
         "  ivec2 htile; vec2 hcell;\n"
         "  float keep = HeightAtlas_Coord(worldXY, htile, hcell) ? 1.0 : 0.0;\n"
-        "  vec2 crel = (uCtrlOriginWorld - worldXY) / uCtrlCellSize;\n"
+        "  vec2 crel = (u_ctrlOriginWorld - worldXY) / u_ctrlCellSize;\n"
         "  ivec2 cc = ivec2(floor(crel.y), floor(crel.x));\n"
-        "  ivec2 csize = textureSize(uGrassCtrl, 0);\n"
+        "  ivec2 csize = textureSize(u_grassCtrl, 0);\n"
         "  bool cin = all(greaterThanEqual(cc, ivec2(0))) && all(lessThan(cc, csize));\n"
-        "  vec4 ctrl = cin ? texelFetch(uGrassCtrl, cc, 0) : vec4(1.0, 0.0, 0.0, 0.0);\n"
+        "  vec4 ctrl = cin ? texelFetch(u_grassCtrl, cc, 0) : vec4(1.0, 0.0, 0.0, 0.0);\n"
         "  float seed = GrassHash(cell + vec2(41.41,17.17));\n"
         "  keep *= (1.0-step(0.5, ctrl.r)) * step(seed, ctrl.g);\n"
         "  float scale = 0.65 + 0.7 * GrassHash(cell + vec2(5.13,91.7));\n"
@@ -194,20 +194,20 @@ static const shader_desc_t sd_wow_grass = {
         "  float cy = cos(yaw), sy = sin(yaw);\n"
         "  vec3 pos = vec3(cy*a_position.x-sy*a_position.z, sy*a_position.x+cy*a_position.z, a_position.y) * scale;\n"
         "  float phase = GrassHash(cell + vec2(3.71,53.9));\n"
-        "  float wave = sin(uGrassTime * 1.7 + phase * 6.2831853) * 0.22 * top;\n"
+        "  float wave = sin(u_grassTime * 1.7 + phase * 6.2831853) * 0.22 * top;\n"
         "  pos.xy += vec2(wave, wave * 0.35);\n"
         "  pos += vec3(worldXY, HeightAtlas_SampleDiamond(worldXY));\n"
         "  pos *= keep;\n"
         "  v_world = pos;\n"
         "  v_color = vec4(0.28, 0.62, 0.18, keep);\n"
         "  v_uv = a_texcoord;\n"
-        "  v_lighting = uSunAmbient + uSunDiffuse * clamp(uSunDir.z, 0.0, 1.0);\n"
-        "  return uViewProjectionMatrix * vec4(pos, 1.0);\n"
+        "  v_lighting = u_sunAmbient + u_sunDiffuse * clamp(u_sunDir.z, 0.0, 1.0);\n"
+        "  return u_viewProjection * vec4(pos, 1.0);\n"
         "}\n",
     .FragmentBody =
         "vec4 frag() {\n"
-        "  float d = distance(v_world.xy, uGrassCameraOrigin.xy);\n"
-        "  float fade = 1.0 - smoothstep(uGrassFadeStartDistance, uGrassDrawDistance, d);\n"
+        "  float d = distance(v_world.xy, u_grassCameraOrigin.xy);\n"
+        "  float fade = 1.0 - smoothstep(u_grassFadeStartDistance, u_grassDrawDistance, d);\n"
         "  float width = 1.0 - abs(v_uv.x * 2.0 - 1.0);\n"
         "  float edge = smoothstep(0.24, 0.46, width);\n"
         "  float root = smoothstep(0.02, 0.14, v_uv.y);\n"
