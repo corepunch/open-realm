@@ -634,6 +634,7 @@ struct edict_s {
         BOOL placement_solid;
         BOOL loot_processed;
         DWORD editor_id;
+        DWORD item_table;
         pathTex_t *alive_pathtex;
         pathTex_t *death_pathtex;
         FLOAT alive_collision;
@@ -1130,6 +1131,8 @@ void G_InitializeDestructablePlacement(LPEDICT ent, LPCDOODAD placement);
 BOOL G_DestructableApplyDamage(LPEDICT ent, LPEDICT attacker, FLOAT damage);
 BOOL G_KillDestructable(LPEDICT ent, LPEDICT killer);
 DWORD G_SelectDropItem(droppableItem_t const *entries, DWORD count, DWORD roll);
+DWORD G_SelectRandomTableItem(mapRandomItem_t const *entries, DWORD count, DWORD roll);
+mapRandomItemTable_t const *G_FindRandomItemTable(DWORD table_number);
 void G_SpawnDestructableLoot(LPEDICT ent);
 void G_DestructableStartDeathAnimation(LPEDICT ent);
 void tree_die(LPEDICT ent, LPEDICT attacker);

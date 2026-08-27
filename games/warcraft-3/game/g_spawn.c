@@ -151,6 +151,7 @@ static void SP_SpawnDestructable(LPEDICT edict) {
     edict->destructable.alive_collision = edict->collision;
     edict->destructable.initialized = true;
     edict->destructable.dead = false;
+    edict->destructable.item_table = (DWORD)-1;
     edict->destructable.placement_solid = true;
     edict->destructable.pathing_active = edict->pathtex || edict->collision > 0.0f;
 #ifndef USE_SHADOWMAPS

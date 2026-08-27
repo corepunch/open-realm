@@ -192,6 +192,7 @@ TEST(wc3_destructable, placement_retains_inline_drop_sets) {
     DOODAD placement = {
         .flags = 2,
         .treeLife = 100,
+        .droppedItemSetPtr = (DWORD)-1,
         .num_droppedItemSets = 1,
         .droppableItemSets = sets,
     };
@@ -201,6 +202,7 @@ TEST(wc3_destructable, placement_retains_inline_drop_sets) {
 
     T_ASSERT(dest->destructable.drop_sets == sets);
     T_EQ(ARRAY_COUNT(dest->destructable.drop_sets), 1);
+    T_EQ(dest->destructable.item_table, (DWORD)-1);
     T_ASSERT(!dest->destructable.loot_processed);
 }
 
@@ -233,6 +235,7 @@ TEST(wc3_destructable, death_spawns_each_inline_result_once_as_world_item) {
     DOODAD placement = {
         .flags = 2,
         .treeLife = 100,
+        .droppedItemSetPtr = (DWORD)-1,
         .num_droppedItemSets = 2,
         .droppableItemSets = sets,
     };
@@ -274,6 +277,7 @@ TEST(wc3_destructable, empty_probability_remainder_spawns_no_item) {
     DOODAD placement = {
         .flags = 2,
         .treeLife = 100,
+        .droppedItemSetPtr = (DWORD)-1,
         .num_droppedItemSets = 1,
         .droppableItemSets = sets,
     };
@@ -281,6 +285,143 @@ TEST(wc3_destructable, empty_probability_remainder_spawns_no_item) {
     DWORD before;
 
     setup_test_world();
+    dest = make_test_destructable(10.0f, 100.0f, 200.0f);
+    G_InitializeDestructablePlacement(dest, &placement);
+    before = globals.num_edicts;
+
+    T_ASSERT(G_KillDestructable(dest, NULL));
+    T_EQ(globals.num_edicts, before);
+    T_ASSERT(dest->destructable.loot_processed);
+}
+
+TEST(wc3_destructable, weighted_random_table_selection_honors_boundaries_and_remainder) {
+    mapRandomItem_t entries[] = {
+        { 30, MAKEFOURCC('r', 'a', 't', 'f') },
+        { 20, MAKEFOURCC('r', 'd', 'e', '2') },
+    };
+    mapRandomItem_t saturated[] = {
+        { 150, MAKEFOURCC('r', 'a', 't', 'f') },
+    };
+
+    T_EQ(G_SelectRandomTableItem(entries, 2, 0), entries[0].itemID);
+    T_EQ(G_SelectRandomTableItem(entries, 2, 29), entries[0].itemID);
+    T_EQ(G_SelectRandomTableItem(entries, 2, 30), entries[1].itemID);
+    T_EQ(G_SelectRandomTableItem(entries, 2, 49), entries[1].itemID);
+    T_EQ(G_SelectRandomTableItem(entries, 2, 50), 0);
+    T_EQ(G_SelectRandomTableItem(entries, 2, 99), 0);
+    T_EQ(G_SelectRandomTableItem(entries, 2, 100), 0);
+    T_EQ(G_SelectRandomTableItem(saturated, 1, 99), saturated[0].itemID);
+}
+
+TEST(wc3_destructable, random_item_table_lookup_uses_table_number) {
+    mapRandomItemTable_t tables[] = {
+        { .tableNumber = 7 },
+        { .tableNumber = 42 },
+    };
+    LPMAPINFO mapinfo;
+
+    setup_test_world();
+    mapinfo = (LPMAPINFO)level.mapinfo;
+    mapinfo->num_randomItems = 2;
+    mapinfo->randomItems = tables;
+
+    T_ASSERT(G_FindRandomItemTable(42) == &tables[1]);
+    T_NULL(G_FindRandomItemTable(1));
+    T_NULL(G_FindRandomItemTable((DWORD)-1));
+}
+
+TEST(wc3_destructable, death_spawns_map_table_sets_once_as_world_items) {
+    mapRandomItem_t first_items[] = {
+        { 100, MAKEFOURCC('r', 'a', 't', 'f') },
+    };
+    mapRandomItem_t second_items[] = {
+        { 100, MAKEFOURCC('r', 'd', 'e', '2') },
+    };
+    mapRandomItemSet_t sets[] = {
+        { 1, first_items },
+        { 1, second_items },
+    };
+    mapRandomItemTable_t tables[] = {
+        { .tableNumber = 3 },
+        { .tableNumber = 42, .num_sets = 2, .sets = sets },
+    };
+    DOODAD placement = {
+        .flags = 2,
+        .treeLife = 100,
+        .droppedItemSetPtr = 42,
+    };
+    LPMAPINFO mapinfo;
+    LPEDICT dest;
+    DWORD first_item;
+
+    setup_test_world();
+    mapinfo = (LPMAPINFO)level.mapinfo;
+    mapinfo->num_randomItems = 2;
+    mapinfo->randomItems = tables;
+    dest = make_test_destructable(10.0f, 100.0f, 200.0f);
+    G_InitializeDestructablePlacement(dest, &placement);
+    first_item = globals.num_edicts;
+
+    T_ASSERT(G_KillDestructable(dest, NULL));
+    T_EQ(globals.num_edicts, first_item + 2);
+    T_EQ(g_edicts[first_item].class_id, first_items[0].itemID);
+    T_EQ(g_edicts[first_item + 1].class_id, second_items[0].itemID);
+    T_ASSERT(G_IsItem(&g_edicts[first_item]));
+    T_ASSERT(G_IsItem(&g_edicts[first_item + 1]));
+
+    G_SpawnDestructableLoot(dest);
+    T_EQ(globals.num_edicts, first_item + 2);
+}
+
+TEST(wc3_destructable, missing_random_item_table_spawns_nothing) {
+    DOODAD placement = {
+        .flags = 2,
+        .treeLife = 100,
+        .droppedItemSetPtr = 999,
+    };
+    LPEDICT dest;
+    DWORD before;
+
+    setup_test_world();
+    dest = make_test_destructable(10.0f, 100.0f, 200.0f);
+    G_InitializeDestructablePlacement(dest, &placement);
+    before = globals.num_edicts;
+
+    T_ASSERT(G_KillDestructable(dest, NULL));
+    T_EQ(globals.num_edicts, before);
+    T_ASSERT(dest->destructable.loot_processed);
+}
+
+TEST(wc3_destructable, empty_encoded_and_invalid_table_entries_spawn_nothing) {
+    mapRandomItem_t encoded_items[] = {
+        { 100, MAKEFOURCC('Y', 'Y', 'I', '0') },
+    };
+    mapRandomItem_t invalid_items[] = {
+        { 100, MAKEFOURCC('z', 'z', 'z', 'z') },
+    };
+    mapRandomItemSet_t sets[] = {
+        { 0, NULL },
+        { 1, encoded_items },
+        { 1, invalid_items },
+    };
+    mapRandomItemTable_t table = {
+        .tableNumber = 9,
+        .num_sets = 3,
+        .sets = sets,
+    };
+    DOODAD placement = {
+        .flags = 2,
+        .treeLife = 100,
+        .droppedItemSetPtr = 9,
+    };
+    LPMAPINFO mapinfo;
+    LPEDICT dest;
+    DWORD before;
+
+    setup_test_world();
+    mapinfo = (LPMAPINFO)level.mapinfo;
+    mapinfo->num_randomItems = 1;
+    mapinfo->randomItems = &table;
     dest = make_test_destructable(10.0f, 100.0f, 200.0f);
     G_InitializeDestructablePlacement(dest, &placement);
     before = globals.num_edicts;

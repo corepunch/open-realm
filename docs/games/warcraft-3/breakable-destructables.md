@@ -52,6 +52,21 @@ pathing is rebuilt first; selected valid rawcodes then spawn through
 are distributed around the destroyed object rather than stacked at one point.
 Invalid item rawcodes are reported and skipped.
 
+## Map Random-Item Tables
+
+A placement's `droppedItemSetPtr` is retained alongside its inline item sets.
+At death it is resolved against the `war3map.w3i` random-item tables by the
+table's explicit `tableNumber`; it is not treated as an array index. Each set
+in the resolved table receives its own 0–99 roll and contributes at most one
+item using the same cumulative-percentage and no-item-remainder rules as an
+inline set.
+
+Inline and table results are collected before spawning, so all selected items
+share the same radial placement behavior. Missing tables, empty tables and
+sets, zero IDs, and invalid item rawcodes are skipped safely. Encoded `YYI*`
+random-item placeholders are recognized and reported but are not yet expanded
+into item-level/class selections.
+
 Dead remains keep their model and continue rendering. A transmitted entity
 flag maps to a renderer-only `RF_NOT_SELECTABLE` flag, excluding the remains
 from point and rectangle selection without hiding them.
@@ -70,10 +85,10 @@ This slice implements the first eight steps of the clean-room specification:
 placement life, runtime health, normal attacks, lethal detection, one-time
 death, death animation, post-death target disabling, and pathing replacement.
 
-Inline configured item sets and world-item spawning are implemented. Random
-item-table pointers, encoded random-item placeholders, richer killer/event
-context, and complete scripted kill/remove/restore semantics remain deferred.
-Death works normally when no loot or callback exists.
+Inline configured item sets, ordinary map random-item tables, and world-item
+spawning are implemented. Encoded random-item placeholder expansion, richer
+killer/event context, and complete scripted kill/remove/restore semantics
+remain deferred. Death works normally when no loot or callback exists.
 
 ## Validation
 
@@ -82,3 +97,6 @@ non-solid objects, callback-independent lethal damage, one-time events and
 callbacks, neutral contextual targeting, dead-order rejection, alive-footprint
 removal, death-footprint replacement, weighted selection, intentional no-item
 results, multiple world-item drops, and one-time loot processing.
+Random-table tests additionally cover weighted boundaries, explicit table-number
+lookup, multiple table sets, missing/empty data, encoded-placeholder rejection,
+normal world-item state, and one-time spawning.
