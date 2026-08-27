@@ -342,11 +342,13 @@ static void RStd_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
 }
 
 static bool RStd_SetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
-    (void)model;
-    (void)anim;
     if (!entity) {
         return false;
     }
+    printf("set_entity_anim");
+    RStd_PrintName("model", RStd_HandleName((HANDLE)model));
+    RStd_PrintName("anim", anim);
+    printf("\n");
     entity->frame = 0; entity->oldframe = 0;
     return true;
 }

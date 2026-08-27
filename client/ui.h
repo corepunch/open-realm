@@ -161,7 +161,8 @@ typedef struct {
 static inline void UI_ModelMatrix(LPCUIMODEL model, FLOAT aspect, LPMATRIX4 out) {
     MATRIX4 proj, view, local;
     VECTOR3 dir = Vector3_sub(&model->target, &model->eye);
-    FLOAT half_y = tanf(model->fov * (FLOAT)M_PI / 360.0f) / model->aspect;
+    FLOAT model_aspect = (model->aspect > 0.0f) ? model->aspect : 1.0f;
+    FLOAT half_y = tanf(model->fov * (FLOAT)M_PI / 360.0f) / model_aspect;
     FLOAT half_x = half_y * aspect;
     Matrix4_lookAt(&view, &model->eye, &dir, &(VECTOR3){ 0, 0, 1 });
     if (model->projection == UI_MODEL_ORTHOGRAPHIC)

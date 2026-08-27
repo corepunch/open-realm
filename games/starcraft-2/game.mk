@@ -80,9 +80,9 @@ test-sc2-assets: sc2fixturegen mpqtool sc2map | $(TESTS_DIR)
 SC2_HUD_LIVE_BIN := $(BIN_DIR)/test_sc2_hud_live$(EXE_EXT)
 SC2_HUD_LIVE_SRC := tests/test_runner.c $(SC2_TEST_DIR)/test_sc2_hud_live.c
 
-$(SC2_HUD_LIVE_BIN): $(SC2_HUD_LIVE_SRC) | $(BIN_DIR)
+$(SC2_HUD_LIVE_BIN): $(SC2_HUD_LIVE_SRC) $(SHARED_LIB) | $(BIN_DIR)
 	$(CC) $(CFLAGS) -I. -Itests -DSC2_BINARY=\"$(SC2_BINARY)\" -DSC2_DATA=\"data/StarCraft2\" \
-	    -o $@ $(SC2_HUD_LIVE_SRC) -lm
+	    -o $@ $(SC2_HUD_LIVE_SRC) $(RPATH) $(LDFLAGS) -lshared -lm
 
 # Requires Blizzard SC2 archives under data/StarCraft2/ — local-only.
 test-sc2-live: opensc2 $(SC2_HUD_LIVE_BIN)

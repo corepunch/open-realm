@@ -2,6 +2,14 @@
 
 Implements issue #82. Mirrors the WC3 server-authored HUD pattern.
 
+## Selection/InfoPanel status
+
+The InfoPanel subtree is structurally present on `TRaynor01` and now travels with the complete console tree in `LAYER_BACKGROUND`. Its native subtree includes `UnitPanel`, `UnitWireframe`, `ShieldLabel`, `LifeLabel`, `EnergyLabel`, `InfoPaneUnit`, and the latter's direct `NameLabel` child. Missing selected-unit presentation is therefore a binding and selection-lifecycle problem, not a missing layout message.
+
+Do not establish an initial selection until native map-player assignment is parsed. Current runtime evidence is inconsistent across boundaries: `world_sc2.c` advertises map player 0, `SC2_InitClients` writes player 1, while controllable `TRaynor01` units are owned by native player 2. Inferring the human owner from the first mobile unit would also select civilians or neutral units on other maps.
+
+When player mapping is available, selection changes should derive one primary selected edict, update the portrait model, `InfoPaneUnit/NameLabel`, stats, and commands, then resend the unified `LAYER_BACKGROUND` console tree. Life, shield, and energy labels must remain hidden until their authoritative game-state values exist.
+
 ## Overview
 
 The server parses `.SC2Layout` XML files, produces a `sc2BaseFrame_t[]` array, stamps dynamic data (stats, text, visibility) onto frames, converts them to `uiFrame_t`, and sends via `svc_layout`. The client (`cl_unit_layout.c`) renders generically — it has no knowledge of SC2 layout files.
@@ -32,9 +40,8 @@ cl_unit_layout.c renders generically (SCR_Clear → SCR_LayoutDrawOverlay)
 | `games/starcraft-2/ui/sc2_layout.c` + `.h` | Parser: XML → `sc2BaseFrame_t[]` |
 | `games/starcraft-2/game/hud/hud.c` | Bridge: `sc2BaseFrame_t` → `uiFrame_t` + svc_layout framing |
 | `games/starcraft-2/game/hud/hud_resource.c` | Resource panel (minerals/vespene/supply) |
-| `games/starcraft-2/game/hud/hud_console.c` | Console panel (menu bar, chat) |
-| `games/starcraft-2/game/hud/hud_command.c` | Command card (ability buttons) |
-| `games/starcraft-2/game/hud/hud_infopanel.c` | Info panel (selected unit stats) |
+| `games/starcraft-2/game/hud/hud_console.c` | Unified console tree (chrome, portrait, minimap, info, commands) |
+| `games/starcraft-2/game/hud/hud_command.c` | Stamps command-card runtime data before console serialization |
 | `common/shared.h` `UILAYOUTLAYER` | reuses `LAYER_CONSOLE/BACKGROUND/COMMANDBAR/INFOPANEL` |
 
 ## Send-on-connect pattern
@@ -45,11 +52,9 @@ HUD is sent once per client on connect (in `SC2_ClientBegin`), not every frame. 
 /* g_sc2.c :: SC2_ClientBegin */
 SC2_HUD_WriteResourcePanel(ent);
 SC2_HUD_WriteConsolePanel(ent);
-SC2_HUD_WriteCommandPanel(ent);
-SC2_HUD_WriteInfoPanel(ent);
 ```
 
-The `SC2_RunFrame` loop does NOT resend HUD — static panels never change, and dynamic panels (command/info) will be sent on selection change when that system is wired up.
+The `SC2_RunFrame` loop does NOT resend HUD. Selection changes will restamp dynamic command/info data and resend the unified console layer when that system is wired up.
 
 ## UI texture resolution
 
@@ -231,11 +236,11 @@ Violating this order causes per-file pass "NOT FOUND" for cross-file refs, leavi
 
 `SC2_FRAMETYPE_BUTTON` and `SC2_FRAMETYPE_COMMAND_BUTTON` map to `FT_FRAME`, not `FT_BUTTON`. SC2 buttons are containers — their visual appearance comes from child `NormalImage`/`HoverImage` frames (`FT_TEXTURE`). The client's `SCR_LayoutGlueTextButton` (called for `FT_BUTTON`) expects a `uiGlueTextButton_t` buffer that SC2 buttons don't carry; using `FT_FRAME` avoids the crash.
 
-## BACKGROUND layer: only ConsolePanel + MinimapPanel
+## BACKGROUND layer: complete bottom console
 
-`hud_console.c` intentionally omits `CommandPanel` and `InfoPanel` from `LAYER_BACKGROUND`. Those panels are written by `hud_command.c` and `hud_infopanel.c` on their own dedicated layers. Writing them on `LAYER_BACKGROUND` would double-render them and bloat the background layer with 100+ command-card frames.
+`hud_console.c` writes the complete bottom console as one retained `LAYER_BACKGROUND` tree: `ConsolePanel`, `ConsoleUIContainer`, `MinimapPanel`, `InfoPanel`, and `CommandPanel`. This matches the native layout ownership and the WC3 console pattern. A layout message resets frame numbering, so splitting sibling panels across messages leaves their parent references pointing into unrelated retained trees.
 
-The `ConsoleUIContainer` frame is written as a bare container (no children) on `LAYER_BACKGROUND` so that children on other layers can use it as their parent reference.
+Command data is stamped into the shared parsed tree before serialization. Do not add independent InfoPanel or CommandPanel layer writers; they would duplicate descendants and break shared parent ownership.
 
 ## Portrait panel (FT_PORTRAIT)
 
@@ -266,7 +271,10 @@ selects an enum. Template inheritance tracks eight presence bits, preserving exp
 `SCR_LayoutDrawPortrait` uses `UI_ModelMatrix` for these payloads; ordinary unit portraits retain their
 bounds-derived camera. The layout camera uses normalized viewport Position: X anchors the left/center/right
 edge, Y anchors the bottom, and Z is model depth. Native SC2 console assets use X=-1/0/+1, Y=-1, scale=1,
-eye=(0,-5,0), target=(0,0,0), FOV=90, near=1, far=1000. At the authored 4:3 aspect, the orthographic
+eye=(0,-5,0), target=(0,0,0), FOV=90, near=1, far=1000. The three chrome models use the final frame of
+their `Birth` sequence as the stable assembled pose. In particular, `ConsoleTerran_01.m3` moves its parent
+bone from Z=-0.414 to Z=+0.007 during `Birth`; its `Stand` sequences omit that placement track and reset to
+the hidden bind pose, leaving the center console absent. At the authored 4:3 aspect, the orthographic
 half-width is tan(FOV/2), half-height is half-width/(4/3). Widening changes only half-width; model dimensions
 remain proportional to screen height. The `Stand` info-panel mesh can sit below the bottom edge in its
 unselected state; do not recenter it from its bounding sphere.

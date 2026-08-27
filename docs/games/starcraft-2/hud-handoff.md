@@ -17,12 +17,12 @@ Last commit: `a8f4e25 fix(sc2-hud): template resolution two-pass + layer separat
 - `SC2_FRAMETYPE_IMAGE` maps to `FT_TEXTURE`; `SC2_FRAMETYPE_MODEL` maps to `FT_SPRITE`.
 - `SC2_FRAMETYPE_COUNTDOWN_LABEL` (used for resource labels in ResourcePanel) maps to `FT_TEXT`. ✓
 
-### HUD bridge (`hud.c`, `hud_resource.c`, `hud_console.c`, `hud_command.c`, `hud_infopanel.c`)
+### HUD bridge (`hud.c`, `hud_resource.c`, `hud_console.c`, `hud_command.c`)
 - `SC2_HUD_InitLayoutHost()` wires `uiimport` (file I/O, `ImageIndex`, `FontIndex`).
 - `SC2_HUD_EnsureLayout()` loads the layout once and returns no frames when authoritative layout data is missing or invalid.
 - `SC2_HUD_BuildFrameForWrite()` converts `sc2BaseFrame_t` → `uiFrame_t` (anchors, color, tex, stat/text, label buffer).
 - `SC2_HUD_WriteAncestors` + `SC2_HUD_WriteFrameWithChildren` for correct wire ordering (parents before children).
-- **Layer separation**: LAYER_BACKGROUND carries only ConsolePanel subtree + bare ConsoleUIContainer + MinimapPanel. CommandPanel and InfoPanel are on LAYER_COMMANDBAR / LAYER_INFOPANEL.
+- **Unified console ownership**: LAYER_BACKGROUND carries ConsolePanel, ConsoleUIContainer, MinimapPanel, InfoPanel, and CommandPanel in one retained tree. Splitting siblings across layout messages invalidates their shared parent numbering.
 - **Texture catalog**: `sc2_hud_load_assets_txt("GameData/Assets.txt")` populates a runtime `assets_catalog[]` for Liberty.SC2Mod entries. Core.SC2Mod entries that Liberty doesn't repeat are hardcoded in `paths[]`.
 - `sv_debug_layout 1` server cvar prints per-layer wire diagnostics.
 
@@ -68,7 +68,7 @@ After `SC2_LayoutFlatten("GameUI")`, ResourceLabel0 should be at `parent_index =
 
 In the SC2 game, PortraitPanel is hidden by default and only shown when a unit is selected. It needs to be treated the same way here.
 
-**Fix**: The cleanest approach is to set `SC2_UIFLAG_HIDDEN` on the PortraitPanel flat frame right after `SC2_HUD_EnsureLayout()` loads the layout. It should only be cleared by `hud_infopanel.c` when a unit is selected. Add this to `SC2_HUD_InitLayoutHost` or to the end of `SC2_LayoutBuildGameUI`:
+**Fix**: The cleanest approach is to set `SC2_UIFLAG_HIDDEN` on the PortraitPanel flat frame right after `SC2_HUD_EnsureLayout()` loads the layout. It should only be cleared when a unit is selected. Add this to `SC2_HUD_InitLayoutHost` or to the end of `SC2_LayoutBuildGameUI`:
 
 ```c
 /* Hide PortraitPanel by default — shown only on unit select */
@@ -87,9 +87,8 @@ Since `SC2_HUD_WriteFrameWithChildren` already skips `SC2_UIFLAG_HIDDEN` frames 
 | `games/starcraft-2/common/stb_sc2layout.h` | Single-header parser. All template resolution, flattening, anchor math lives here. |
 | `games/starcraft-2/game/hud/hud.c` | Bridge: `sc2BaseFrame_t → uiFrame_t`, shared layout load, `sc2_hud_image_index`. |
 | `games/starcraft-2/game/hud/hud_resource.c` | Writes LAYER_CONSOLE: ResourcePanel + stat bindings. Anchor chain for CashPanel right-edge. |
-| `games/starcraft-2/game/hud/hud_console.c` | Writes LAYER_BACKGROUND: ConsolePanel model backdrop + MinimapPanel. |
-| `games/starcraft-2/game/hud/hud_command.c` | Writes LAYER_COMMANDBAR: CommandPanel ability grid. |
-| `games/starcraft-2/game/hud/hud_infopanel.c` | Writes LAYER_INFOPANEL: selected unit stats/portrait. |
+| `games/starcraft-2/game/hud/hud_console.c` | Writes LAYER_BACKGROUND: complete console tree. |
+| `games/starcraft-2/game/hud/hud_command.c` | Stamps CommandPanel ability-grid data before console serialization. |
 | `games/starcraft-2/tests/test_sc2_consoleui.c` | All adapter tests. |
 | `docs/games/starcraft-2/hud-layout-pipeline.md` | Design doc (up to date). |
 | `client/cl_layout.c` | `SCR_GetStringValue`: `stat > 0` → player stat, `text != NULL` → literal, else `"text %d"`. |

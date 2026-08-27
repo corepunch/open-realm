@@ -56,8 +56,7 @@ sc2BaseFrame_t *SC2_HUD_EnsureLayout(DWORD *count);
 /* Per-frame HUD writers called from G_RunFrame */
 void SC2_HUD_WriteResourcePanel(LPEDICT ent);
 void SC2_HUD_WriteConsolePanel(LPEDICT ent);
-void SC2_HUD_WriteCommandPanel(LPEDICT ent);
-void SC2_HUD_WriteInfoPanel(LPEDICT ent);
+void SC2_HUD_PrepareCommandPanel(sc2BaseFrame_t *frames, DWORD count, sc2BaseFrame_t *root);
 
 /* Set the model index used by FT_PORTRAIT frames on the next console write.
  * Call before SC2_HUD_WriteConsolePanel when a unit is selected. */

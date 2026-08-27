@@ -396,12 +396,35 @@ static void SC2_ClientBegin(LPEDICT ent) {
     ent->client->ps.client_ui_state = CLIENT_UI_GAME;
 
     /* Use the first selectable unit's model for the portrait panel. */
+    /* Resolve map player: SC2 mission maps assign the human player a specific
+     * slot index (e.g. player 2 in TRaynor01) that differs from the lobby
+     * client index (ps.number = i+1 from SC2_InitClients).  Find the player
+     * number that owns the most mobile units — that is the controllable player.
+     * Player 0 (neutral) is excluded. */
+    DWORD player_counts[16] = {0};
     for (DWORD i = SC2_MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
         LPEDICT u = &sc2_edicts[i];
-        if (u->inuse && u->s.model && u->collision > 0) {
-            SC2_HUD_SetPortraitModel(u->s.model);
-            break;
-        }
+        if (u->inuse && u->s.model && sc2_move[i].mobile && u->s.player > 0 && u->s.player < 16)
+            player_counts[u->s.player]++;
+    }
+    DWORD map_player = 0, best_count = 0;
+    for (DWORD p = 1; p < 16; p++)
+        if (player_counts[p] > best_count) { best_count = player_counts[p]; map_player = p; }
+    if (map_player > 0 && map_player != (DWORD)ent->client->ps.number) {
+        fprintf(stderr, "SC2_ClientBegin: remapping client ps.number %u → %u (most units)\n",
+                ent->client->ps.number, map_player);
+        ent->client->ps.number = (int)map_player;
+    }
+
+    DWORD client_player = SC2_ClientPlayer(ent);
+
+    /* Pre-select the first selectable unit so InfoPanel shows unit info. */
+    for (DWORD i = SC2_MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
+        LPEDICT u = &sc2_edicts[i];
+        if (!SC2_IsSelectable(u, client_player)) continue;
+        u->selected |= 1 << client_player;
+        SC2_HUD_SetPortraitModel(u->s.model);
+        break;
     }
 
     /* Send initial static HUD — console backdrop, resource bar,
@@ -409,8 +432,6 @@ static void SC2_ClientBegin(LPEDICT ent) {
      * received layout per layer and renders it every frame. */
     SC2_HUD_WriteResourcePanel(ent);
     SC2_HUD_WriteConsolePanel(ent);
-    SC2_HUD_WriteCommandPanel(ent);
-    SC2_HUD_WriteInfoPanel(ent);
 }
 
 static void SC2_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
