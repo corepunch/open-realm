@@ -208,9 +208,6 @@ DWORD R_EntitiesInRect(viewDef_t const *viewdef, LPCRECT rect, DWORD max, LPDWOR
     return count;
 }
 
-#ifdef USE_SHADOWMAPS
-extern render_phase_t render_phase;
-#endif
 DWORD selCircles[NUM_SELECTION_CIRCLES] = { 100, 300, 100000 };
 
 static void R_RenderUberSplat(const renderEntity_t *entity, LPCVECTOR2 origin) {
@@ -435,7 +432,7 @@ void R_RenderModel(renderEntity_t const *entity) {
         return;
 
 #ifdef USE_SHADOWMAPS
-    if (render_phase == RENDER_PHASE_LIGHTS) {
+    if (tr.render_phase == RENDER_PHASE_LIGHTS) {
         if (!(entity->flags & RF_NO_SHADOW))
             R_GameRenderModel(entity);
         return;

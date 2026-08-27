@@ -120,6 +120,7 @@ static void SP_SpawnDoodad(LPEDICT edict) {
     }
     edict->s.model = G_RegisterModel(buffer);
     edict->movetype = MOVETYPE_NONE;
+    edict->svflags |= SVF_STATIC_SCENERY;
 }
 
 static void SP_SpawnDestructable(LPEDICT edict) {
@@ -155,6 +156,7 @@ static void SP_SpawnDestructable(LPEDICT edict) {
         edict->s.flags |= EF_FOW_BLOCKER;
     }
     edict->movetype = MOVETYPE_NONE;
+    edict->svflags |= SVF_STATIC_SCENERY;
 }
 
 /* The destructable currently being visited by EnumDestructablesInRect, read

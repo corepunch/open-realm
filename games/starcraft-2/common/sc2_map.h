@@ -9,6 +9,7 @@
 #define SC2_MAX_TERRAIN_TEXTURES 16
 #define SC2_MAX_CLIFF_SETS     8
 #define SC2_MAX_CLIFF_CELLS    16384
+#define SC2_MAX_HARD_TILES     16384 // placements; bounds corrupt HRDT counts before allocation
 #define SC2_MAPINFO_DATA_SIZE  512
 #define SC2_OBJECT_HEIGHT_ABSOLUTE 0x00000001
 #define SC2_OBJECT_HEIGHT_OFFSET   0x00000002
@@ -21,6 +22,7 @@
 #define SC2_LIGHT_FILL             1
 #define SC2_LIGHT_BACK             2
 #define SC2_MAX_DIRECTIONAL_LIGHTS 3
+#define SC2_DIFFUSE_LIGHTS         1 // lights; the shadow-casting key alone drives coherent Lambert diffuse
 
 typedef enum {
     SC2_OBJECT_UNIT,
@@ -83,10 +85,18 @@ typedef struct {
 
 typedef struct {
     BOOL            enabled;
+    DWORD           colorize;
     char            id[64];
     VECTOR3         ambient_color;
+    FLOAT           colorization_blend;
     sc2DirectionalLight_t directional[SC2_MAX_DIRECTIONAL_LIGHTS];
 } sc2MapLighting_t;
+
+/* Colorized SC2 lights use the authored blend as ambient strength; ordinary lights use their ambient directly. */
+static VECTOR3 sc2_light_ambient(sc2MapLighting_t const *light) {
+    FLOAT scale = light && light->colorize ? light->colorization_blend : 1.0f;
+    return light ? Vector3_scale(&light->ambient_color, scale) : (VECTOR3){ 0.35f, 0.35f, 0.40f };
+}
 
 typedef struct {
     char           diffuse[256];
@@ -181,6 +191,17 @@ typedef struct {
 } sc2MapTextureMasks_t;
 
 typedef struct {
+    char            tile[64];
+    char            model[256];
+    VECTOR3         position;
+    VECTOR3         normal;
+    VECTOR3         start;
+    VECTOR3         end;
+    VECTOR2         scale;
+    USHORT          flags;
+} sc2MapHardTile_t;
+
+typedef struct {
     DWORD          fourcc;
     DWORD          version;
     DWORD          unknown0;
@@ -207,6 +228,7 @@ typedef struct {
     sc2MapTerrain_t t3Terrain;
     sc2MapTextureMasks_t *t3TextureMasks;
     DWORD          t3TextureMasksSize;
+    ARRAY(sc2MapHardTile_t, hard_tiles);
     sc2MapCellFlags_t *t3CellFlags;
     sc2MapSyncCliffLevel_t *t3SyncCliffLevel;
     sc2MapInfo_t   MapInfo;

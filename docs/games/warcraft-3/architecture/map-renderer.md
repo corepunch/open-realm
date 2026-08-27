@@ -160,6 +160,8 @@ The static baked shadow texture (`war3map.shd`) is bound to texture unit 1 durin
 
 The fog of war uses three off-screen render targets, all sized at (`width`-1)×4 × (`height`-1)×4 texels (same resolution as the baked shadow map):
 
+Server snapshot visibility and client fog shading have separate ownership. Mobile units require current server-side vision, buildings remain after their cell is explored, and map doodads/destructibles carry `SVF_STATIC_SCENERY` so unit sight never removes them from the snapshot. The client fog mask shades that static scenery. Applying current unit vision to trees makes them pop out while still inside a moving cinematic camera view; classify static scenery once in `SP_SpawnDoodad` / `SP_SpawnDestructable`, not through per-frame metadata lookups.
+
 | Target | Contents |
 |--------|----------|
 | `FOW_RT_IMMEDIATE` | Sight revealed this frame by all player-1 units |

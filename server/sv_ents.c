@@ -105,8 +105,7 @@ LPENTITYSTATE SV_NextClientEntity(void) {
 void SV_BuildClientFrame(LPCLIENT client) {
     edict_t *clent = client->edict;
     LPCLIENTFRAME frame = &client->frames[sv.framenum & UPDATE_MASK];
-    /* MAX_PACKET_ENTITIES (16384) makes this array too large for the stack
-     * (~256KB per call, every client, every frame) - keep it static instead. */
+    /* Keep the per-client, per-frame candidate workspace off the stack. */
     static visibleEntityCandidate_t candidates[MAX_PACKET_ENTITIES];
     int num_candidates = 0;
 #ifdef WOW

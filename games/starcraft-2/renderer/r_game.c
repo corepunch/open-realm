@@ -400,17 +400,15 @@ bool R_GameExtractEntityCamera(renderEntity_t const *entity, float aspect, viewD
     return true;
 }
 
-/* Select the first sequence whose name matches anim (case-insensitive).
- * Accumulate sequence durations to build the absolute time for that seq.
- * Falls back to time=0 (first sequence, first frame) if not found. */
+/* Retained SC2 UI models use a stable final pose from the requested sequence. */
 bool R_GameSetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
     if (!model || model->modeltype != ID_43DM || !model->m3 || !entity) return false;
     m3Model_t const *m3 = model->m3;
-
     DWORD time = 0;
     M3_FOR_EACH(Sequence, seq, m3->sequences) {
         if (seq->name && anim && !strcasecmp(seq->name, anim)) {
-            entity->frame = entity->oldframe = time;
+            /* End minus one remains inside this sequence in M3_FindAnimationAtTime. */
+            entity->frame = entity->oldframe = time + (seq->interval[1] ? seq->interval[1] - 1 : 0);
             return true;
         }
         time += seq->interval[1];

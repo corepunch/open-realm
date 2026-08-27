@@ -211,6 +211,17 @@ Quake II can load the whole BSP eagerly because a map is one bounded file. Azero
 
 Naming should follow the existing engine convention: public collision-world operations use `CM_*`; private format loaders use `CMod_*`-style names if `world_wow.c` is split into a dedicated WMO collision loader; renderer registration remains `R_*`/`Wow_LoadWmoModel`. Do not reuse `R_LoadModel` or game `G_RegisterModel` for collision WMOs—their lifetimes and data are different.
 
+### Streaming texture reclaim (generation marking)
+
+The world texture cache is `r_image_cache` in `renderer/r_texture.c` — the real owner of every loaded texture (a `wow_world.textures` entry only holds a redundant path→pointer; `R_ReleaseTexture` no-ops while a texture is still in `r_image_cache`). Terrain layer and WMO material textures loaded via `Wow_LoadTexture(path, streamable=true)` accumulated for the whole session because `Wow_ClearLoadedAdts` (ADT window slide) frees only geometry, never textures — a progressive file-RSS leak that OOM-kills memory-limited handhelds (RG40xx: ~445 MB file-RSS at kill; on Mali/dmabuf GPU textures show as file-RSS).
+
+**Fix follows Quake 2's `registration_sequence`, not reference counting.** Q3 (`tr_image.c`) allocates images in a permanent hunk and bulk-frees via `R_DeleteTextures` on map change — no eviction, because a BSP map is one bounded lifetime. Q2's streaming-ish analog stamps every asset touched during a registration pass and frees the unstamped ones at `R_EndRegistration`. Generation marking beats refcounting here because **all world geometry is rebuilt on every window slide**, so every live texture reference is re-established (and re-stamped) that generation — a stale stamp provably means nothing resident uses it, with no inc/dec balancing to get wrong.
+
+Mechanics:
+- `rImageCacheEntry_t` carries `streamed`, `pinned`, `generation`. `R_LoadTextureStreamed` sets `r_load_streamed` so the entry is stamped with the current `r_stream_generation`. Any load through the normal `R_LoadTexture` promotes a shared entry `streamed→pinned` so a non-streaming consumer (entity/UI/other game) can never have its texture reclaimed underneath it.
+- `Wow_LoadNearbyAdts`: `R_AdvanceTextureGeneration()` before loading the new tiles, `R_ReclaimStreamedTextures(WOW_TEXTURE_KEEP_GENERATIONS)` after. `keep_recent=2` keeps the last few windows to avoid reload thrash in the 6-of-9 overlapping tiles.
+- Safe because chunks/WMOs are freed by `Wow_ClearLoadedAdts` **before** the sweep, so no live geometry references a reclaimed texture. Minimap tiles (`wow_world.minimap_tiles[][]`, map-scoped) load with `streamable=false` and stay pinned. Doodad **M2** textures load via base `R_LoadTexture` (pinned), so doodad models are never broken — their geometry cache (`wow_world.doodad_models`) still accumulates and needs a separate coordinated model+texture eviction (TODO).
+
 ### WMO Draw Performance
 
 Root cause of 3fps regression: `Wow_QueueWmoDoodads` (`r_wowmap_objects.c`) called every frame for all WMO instances. Inside: `Wow_LoadDoodadModel` performs an O(n) `strcasecmp` linked-list scan; a second O(n) scan finds the `wowDoodadModel_t *group`. With 43 WMOs × ~100 doodad defs = 4300 lookups/frame at O(200), the profiler confirmed 860K `strcasecmp_l` calls/frame (78% of frame time).

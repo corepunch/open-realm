@@ -129,6 +129,16 @@ reading a loose catalog and prepend only `data/` when opening the archive. Commi
 `Base.SC2Data` again, producing paths such as `Mods/Liberty.SC2Mod/Base.SC2Data/Base.SC2Data`. Runtime
 logs confirmed that no dependency light catalog opened, despite a global override catalog being readable.
 MarSara's actual key direction is `(0.724693,-0.124265,-0.677775)`, with ambient `(0.525490,0.466667,0.4)`.
+MarSara marks `AmbientColor` with `Colorize="1"` and authors `ColorizationBlend=0.30`; feeding the tint
+straight into the Lambert sum washed the scene out (ambient 0.525 + key ~0.6 clamped to 1.0) and hid the
+shadows. The catalog parser retains both fields, and terrain/cliff/M3 lighting uses the authored blend as
+the ambient strength for colorized lights. Non-colorized lights retain their direct ambient value; missing
+map lighting uses `(0.35,0.35,0.40)`. Temporary runtime diagnostics compared transformed cliff face and
+vertex normals (typical dot 0.88..1.00) and found negative key-light dots on the reported dark-facing
+surfaces, confirming that normals and the model normal-matrix path were not the cause. One reported normal
+had `dot(key)=-0.723` but `dot(back)=+0.607`: treating authored Fill/Back channels as two additional
+unshadowed Lambert suns caused the contradiction. Diffuse terrain, cliffs, and M3 models therefore use only
+the shadow-casting Key channel; all three channels remain parsed rather than discarding authoritative data.
 
 Loading those catalogs exposes `CModel VariationCount`. A positive count means the inherited model path
 is a stem for `_NN.m3`; the map's `Variation` selects NN. Zero means unsuffixed; absent values inherit
@@ -146,7 +156,7 @@ shadow map. Terrain layers/masks occupy units 0..4, so its shadow sampler uses u
 binding on unit 1 after terrain. During depth/UI draws bind white instead of the active depth target.
 
 `BZ_SHADOW_GLSL` supplies a bounds-checked 3x3 PCF comparison with normalized-depth bias 0.0001. It attenuates
-only the key's direct contribution; ambient/fill/back lighting remains. Missing or invalid key/camera data
+the key's direct contribution while ambient remains. Missing or invalid key/camera data
 raises a renderer error rather than repeatedly drawing with the unrelated legacy matrix. Tests cover fitted
 ground coverage, unit-scale resolution, vertical key basis, invalid input, and shader source contracts in
 both `make test-renderer-model` and `make test-renderer-shadows` builds.

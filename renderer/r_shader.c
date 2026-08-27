@@ -225,7 +225,7 @@ const shader_desc_t sd_default = {
         UNIFORM(textureMatrix,  UT_FLOAT_MAT4, PRECISION_HIGH),
         UNIFORM(model,          UT_FLOAT_MAT4, PRECISION_HIGH),
         UNIFORM(lightMatrix,    UT_FLOAT_MAT4, PRECISION_HIGH),
-        UNIFORM_TRANSPOSE(normalMatrix,   UT_FLOAT_MAT3, PRECISION_HIGH),
+        UNIFORM(normalMatrix,   UT_FLOAT_MAT3_TRANSPOSE, PRECISION_HIGH),
         UNIFORM(texture,        UT_SAMPLER_2D, PRECISION_LOW),
         UNIFORM(shadowmap,      UT_SAMPLER_2D, PRECISION_LOW),
         UNIFORM(fogOfWar,       UT_SAMPLER_2D, PRECISION_LOW),
@@ -294,16 +294,16 @@ const shader_desc_t sd_default = {
 const shader_desc_t sd_model = {
     .Name = "model",
     .Uniforms = {
-        UNIFORM_ARRAY(bones,               UT_FLOAT_MAT4, PRECISION_HIGH, BZ_BONE_PALETTE_MAX),
+        UNIFORM(bones, UT_FLOAT_MAT4, PRECISION_HIGH, BZ_BONE_PALETTE_MAX, boneCount),
         UNIFORM(viewProjection,            UT_FLOAT_MAT4, PRECISION_HIGH),
         UNIFORM(lightMatrix,               UT_FLOAT_MAT4, PRECISION_HIGH),
         UNIFORM(textureMatrix,             UT_FLOAT_MAT4, PRECISION_HIGH),
         UNIFORM(lightCount,                UT_INT,        PRECISION_LOW),
         UNIFORM(firstBoneLookupIndex,      UT_FLOAT,      PRECISION_LOW),
-        UNIFORM_ARRAY(lights,              UT_FLOAT_MAT4, PRECISION_HIGH, BZ_MODEL_LIGHT_MAX),
+        UNIFORM(lights,                    UT_FLOAT_MAT4, PRECISION_HIGH, BZ_MODEL_LIGHT_MAX),
         UNIFORM(grassParams,               UT_FLOAT_MAT4, PRECISION_HIGH),
         UNIFORM(model,                     UT_FLOAT_MAT4, PRECISION_HIGH),
-        UNIFORM_TRANSPOSE(normalMatrix,              UT_FLOAT_MAT3, PRECISION_HIGH),
+        UNIFORM(normalMatrix,       UT_FLOAT_MAT3_TRANSPOSE, PRECISION_HIGH),
         UNIFORM(texture,                   UT_SAMPLER_2D, PRECISION_LOW),
         UNIFORM(shadowmap,                 UT_SAMPLER_2D, PRECISION_LOW),
         UNIFORM(fogOfWar,                  UT_SAMPLER_2D, PRECISION_LOW),
@@ -513,6 +513,7 @@ static const char *R_GLSLTypeStr(uniformType_t type) {
         case UT_INT_VEC2:         return "ivec2";
         case UT_BOOL:             return "bool";
         case UT_FLOAT_MAT3:       return "mat3";
+        case UT_FLOAT_MAT3_TRANSPOSE: return "mat3";
         case UT_FLOAT_MAT4:       return "mat4";
         case UT_SAMPLER_2D:       return "sampler2D";
         case UT_SAMPLER_2D_RECT:  return "sampler2DRect";
@@ -599,6 +600,18 @@ static void R_SetShaderSourceFromDesc(GLuint stage, const shader_desc_t *desc,
     R_Call(glShaderSource, stage, 5, strings, NULL);
 }
 
+/* Return exact CPU storage consumed by one value so cached comparisons never include struct padding. */
+static size_t R_UniformTypeSize(uniformType_t type) {
+    static BYTE const widths[UT_COUNT] = { 1, 2, 3, 4, 4, 1, 2, 1, 9, 9, 16, 1, 1, 1 };
+    if (type >= UT_COUNT) return 0;
+    if (type == UT_BOOL) return sizeof(bool);
+    if (type >= UT_INT && type <= UT_INT_VEC2) return widths[type] * sizeof(int);
+    if (type >= UT_SAMPLER_2D) return sizeof(int);
+    return widths[type] * sizeof(FLOAT);
+}
+
+static GLuint shader_bound;
+
 /* Descriptor compilation and lookup never overwrite caller-owned non-sampler values. */
 void R_LoadShaderState(LPCSHADERLOAD load) {
     LPCSHADERDESC desc = load->desc;
@@ -626,33 +639,53 @@ void R_LoadShaderState(LPCSHADERLOAD load) {
     R_Call(glDeleteShader, vs);
     R_Call(glDeleteShader, fs);
     R_Call(glUseProgram, progid);
+    shader_bound = progid;
 
     prog->progid = progid;
     prog->desc = desc;
     int unit = 0;
+    size_t cache_size = 0;
     for (int i = 0; i < MAX_SHADER_UNIFORMS && desc->Uniforms[i].name; i++) {
         const shaderUniform_t *u = &desc->Uniforms[i];
+        size_t end = u->offset + R_UniformTypeSize(u->type) * (u->count ? u->count : 1);
         prog->locs[i] = glGetUniformLocation(progid, u->name);
+        cache_size = MAX(cache_size, end);
         if (u->type >= UT_SAMPLER_2D && u->type <= UT_SAMPLER_2D_ARRAY)
             *(int *)((char *)state + u->offset) = unit++;
     }
+    prog->cache = ri.MemAlloc((long)cache_size);
+    if (!prog->cache) ri.error("R_LoadShaderState: cache allocation failed for %s", desc->Name);
+    memset(prog->cache, 0, cache_size);
 }
 
 /* Release linked programs before their GL context is destroyed. */
 void R_DeleteShader(LPSHADERPROG prog) {
     if (prog->progid) glDeleteProgram(prog->progid);
+    if (shader_bound == prog->progid) shader_bound = 0;
+    if (prog->cache) ri.MemFree(prog->cache);
     memset(prog, 0, sizeof(*prog));
 }
 
-/* One typed state submission owns all uniforms, including bool conversion and matrix storage order. */
-void R_UploadShader(LPCSHADERPROG prog, LPCVOID state) {
-    R_Call(glUseProgram, prog->progid);
+/* One typed state submission owns all uniforms; exact per-program caching avoids redundant driver calls. */
+void R_UploadShader(LPSHADERPROG prog, LPCVOID state) {
+    if (shader_bound != prog->progid) {
+        R_Call(glUseProgram, prog->progid);
+        shader_bound = prog->progid;
+    }
     for (int i = 0; i < MAX_SHADER_UNIFORMS && prog->desc->Uniforms[i].name; i++) {
         const shaderUniform_t *u = &prog->desc->Uniforms[i];
         const void *data = (const char *)state + u->offset;
         GLint loc = prog->locs[i];
-        GLsizei count = u->count ? u->count : 1;
+        GLsizei count = u->counted ? *(DWORD const *)((char const *)state + u->count_offset) :
+                                     (u->count ? u->count : 1);
+        size_t bytes = R_UniformTypeSize(u->type) * count;
         if (loc < 0) continue; /* Linked shader optimised this declared input away. */
+        if (u->counted && (count < 1 || count > (GLsizei)u->count)) {
+            fprintf(stderr, "R_UploadShader: invalid count %d for %s.%s[%u]\n", count, prog->desc->Name, u->name, u->count);
+            exit(EXIT_FAILURE);
+        }
+        if (prog->cache && !memcmp((char *)prog->cache + u->offset, data, bytes))
+            continue;
         switch (u->type) {
             case UT_FLOAT: R_Call(glUniform1fv, loc, count, data); break;
             case UT_FLOAT_VEC2: R_Call(glUniform2fv, loc, count, data); break;
@@ -666,10 +699,13 @@ void R_UploadShader(LPCSHADERPROG prog, LPCVOID state) {
                 FOR_LOOP(j, count) values[j] = ((const bool *)data)[j];
                 R_Call(glUniform1iv, loc, count, values); break;
             }
-            case UT_FLOAT_MAT3: R_Call(glUniformMatrix3fv, loc, count, u->transpose, data); break;
-            case UT_FLOAT_MAT4: R_Call(glUniformMatrix4fv, loc, count, u->transpose, data); break;
+            case UT_FLOAT_MAT3: R_Call(glUniformMatrix3fv, loc, count, GL_FALSE, data); break;
+            case UT_FLOAT_MAT3_TRANSPOSE: R_Call(glUniformMatrix3fv, loc, count, GL_TRUE, data); break;
+            case UT_FLOAT_MAT4: R_Call(glUniformMatrix4fv, loc, count, GL_FALSE, data); break;
             default: fprintf(stderr, "R_UploadShader: invalid type for %s.%s\n", prog->desc->Name, u->name); exit(EXIT_FAILURE);
         }
+        if (prog->cache)
+            memcpy((char *)prog->cache + u->offset, data, bytes);
     }
 }
 
@@ -703,6 +739,7 @@ MODELPROG *R_ModelShaderInstanced(void) {
     if (!instanced_shader_loaded) {
         R_LoadModelShader(&instanced_shader, true);
         FOR_LOOP(i, BZ_BONE_PALETTE_MAX) Matrix4_identity(&instanced_shader.state.bones[i]);
+        instanced_shader.state.boneCount = BZ_BONE_PALETTE_MAX;
         instanced_shader_loaded = true;
     }
     return &instanced_shader;

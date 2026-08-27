@@ -322,7 +322,15 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
 
 /* Receive an svc_layout message from the server.  The server serializes the
  * entire UI frame tree as a binary blob; the client stores the raw blob and
- * passes it to the renderer each frame without interpreting the contents. */
+ * passes it to the renderer each frame without interpreting the contents.
+ *
+ * Wire contract: ONE message carries exactly ONE layer — header (svc_layout +
+ * layer byte), frames, then a terminator (LONG 0 + SHORT 0 read by
+ * MSG_ReadEntityBits).  After the terminator the outer packet loop reads the
+ * next byte as a new message id, so server frames written outside a layer (no
+ * svc_layout header) are never attributed to any layer and are silently dropped
+ * as an unknown message.  The server must open a layer before writing frames
+ * (see UI_WriteStart/UI_WriteEnd in games/world-of-warcraft/game/g_ui.c). */
 void CL_ParseLayout(LPSIZEBUF msg) {
     DWORD layer = MSG_ReadByte(msg);
     DWORD payload_size = 0;

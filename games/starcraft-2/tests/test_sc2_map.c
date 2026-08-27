@@ -9,8 +9,10 @@
 #include "common.h"
 #include "games/starcraft-2/common/sc2_map.h"
 #include "test.h"
+#include "games/starcraft-2/renderer/sc2/r_sc2map.h"
 #include "games/starcraft-2/renderer/sc2/sc2_shadow.h"
 #include "games/starcraft-2/renderer/m3/r_m3.h"
+#include "games/warcraft-3/renderer/w3m/r_terrain_layers.h"
 
 #ifndef TEST_SC2_MPQ
 #define TEST_SC2_MPQ "build/tests/test-sc2.SC2Maps"
@@ -25,12 +27,64 @@
 static BOOL sc2_tests_initialized;
 static DWORD short_terrain_dimensions;
 
+static FLOAT test_grid_height(LPCVOID data, DWORD x, DWORD y) {
+    LPCFLOAT heights = data;
+
+    return heights[x + y * 3];
+}
+
+/* Grid derivatives stay smooth regardless of render-cell triangulation or omitted cliff cells. */
+TEST(sc2_map, shared_grid_normals) {
+    FLOAT flat[9] = {0};
+    FLOAT slope[9] = {0,1,2, 0,1,2, 0,1,2};
+    TERRAINNORMALS grid = { flat, test_grid_height, 3, 3, 1.0f };
+    VECTOR3 normal = R_TerrainGridNormal(&grid, 1, 1);
+
+    T_FEQ(normal.x, 0.0f, 0.0001f); T_FEQ(normal.y, 0.0f, 0.0001f); T_FEQ(normal.z, 1.0f, 0.0001f);
+    grid.data = slope; normal = R_TerrainGridNormal(&grid, 1, 1);
+    T_FEQ(normal.x, -0.707107f, 0.0001f); T_FEQ(normal.y, 0.0f, 0.0001f); T_FEQ(normal.z, 0.707107f, 0.0001f);
+}
+
+TEST(sc2_map, cliff_weld_requires_matching_height_and_normal_hemisphere) {
+    VERTEX base = {.position={1,2,3},.normal={1,0,0}};
+    VERTEX seam = {.position={1,2,3},.normal={0.5f,0.5f,0}};
+    VERTEX stacked = {.position={1,2,4},.normal={1,0,0}};
+    VERTEX opposed = {.position={1,2,3},.normal={-1,0,0}};
+    VERTEX zero = {.position={1,2,3},.normal={0,0,0}};
+
+    T_ASSERT(r_sc2_cliff_weld_compatible(&base, 1, &seam, 2, 0.001f));
+    T_ASSERT(!r_sc2_cliff_weld_compatible(&base, 1, &seam, 1, 0.001f));
+    T_ASSERT(!r_sc2_cliff_weld_compatible(&base, 1, &stacked, 2, 0.001f));
+    T_ASSERT(!r_sc2_cliff_weld_compatible(&base, 1, &opposed, 2, 0.001f));
+    T_ASSERT(!r_sc2_cliff_weld_compatible(&base, 1, &zero, 2, 0.001f));
+}
+
 TEST(sc2_map, m3_division_faces_pack_into_model_ranges) {
     USHORT a[] = {0,1,2}, b[] = {2,3,0}, indices[6];
     m3Divisions_t divisions[2] = {{.facesNum=3,.faces=a}, {.facesNum=3,.faces=b}};
     T_EQ((int)m3_pack_division_faces(divisions, 2, indices), 6);
     T_EQ((int)divisions[0].indexofs, 0); T_EQ((int)divisions[1].indexofs, 6);
     T_EQ(indices[0], 0); T_EQ(indices[3], 2); T_EQ(indices[5], 0);
+}
+
+TEST(sc2_map, hard_tile_matrix_maps_prism_to_authored_surface) {
+    sc2MapHardTile_t tile = {
+        .position = { 10, 20, 3 },
+        .normal = { 0,0,1 },
+        .start = { -2,0,0 },
+        .end = { 2,0,0 },
+        .scale = { 1.5f, 1 },
+    };
+    MATRIX4 matrix;
+    VECTOR3 start_left, end_right, top;
+
+    r_sc2_hard_tile_matrix(&tile, &matrix);
+    start_left = Matrix4_multiply_vector3(&matrix, &(VECTOR3){-.5f,-.5f,1});
+    end_right = Matrix4_multiply_vector3(&matrix, &(VECTOR3){.5f,.5f,1});
+    top = Matrix4_multiply_vector3(&matrix, &(VECTOR3){0,0,1});
+    T_FEQ(start_left.x, 8, .0001f); T_FEQ(start_left.y, 21.5f, .0001f); T_FEQ(start_left.z, 3, .0001f);
+    T_FEQ(end_right.x, 12, .0001f); T_FEQ(end_right.y, 18.5f, .0001f); T_FEQ(end_right.z, 3, .0001f);
+    T_FEQ(top.x, 10, .0001f); T_FEQ(top.y, 20, .0001f); T_FEQ(top.z, 3, .0001f);
 }
 static DWORD listed_count;
 static PATHSTR listed_map;
@@ -268,6 +322,16 @@ static HANDLE make_short_texture_masks(LPDWORD size) {
     return layer;
 }
 
+static HANDLE make_short_hard_tiles(LPDWORD size) {
+    BYTE *layer = MemAlloc(32);
+
+    if (!layer) return NULL;
+    memset(layer, 0, 32); memcpy(layer, "HRDT", 4);
+    layer[4] = 102; layer[24] = 1; layer[28] = 1;
+    if (size) *size = 32;
+    return layer;
+}
+
 static HANDLE read_test_short_terrain_file(LPCSTR filename, LPDWORD size) {
     if (size) *size = 0;
     if (test_path_leaf_is(filename, "t3HeightMap"))
@@ -280,6 +344,8 @@ static HANDLE read_test_short_terrain_file(LPCSTR filename, LPDWORD size) {
         return make_short_sync_cliff_level(size);
     if (test_path_leaf_is(filename, "t3TextureMasks"))
         return make_short_texture_masks(size);
+    if (test_path_leaf_is(filename, "t3HardTile"))
+        return make_short_hard_tiles(size);
     return read_test_disk_file(filename, size);
 }
 
@@ -475,6 +541,9 @@ TEST(sc2_map, sc2_map_loads_xml_objects_and_terrain) {
     T_FEQ(map->lighting.ambient_color.x, 0.1f, 0.001f);
     T_FEQ(map->lighting.ambient_color.y, 0.2f, 0.001f);
     T_FEQ(map->lighting.ambient_color.z, 0.3f, 0.001f);
+    T_EQ(map->lighting.colorize, true);
+    T_FEQ(map->lighting.colorization_blend, 0.3f, 0.001f);
+    T_FEQ(sc2_light_ambient(&map->lighting).z, 0.09f, 0.001f);
     T_EQ(map->lighting.directional[SC2_LIGHT_KEY].enabled, true);
     T_FEQ(map->lighting.directional[SC2_LIGHT_KEY].color.x, 0.4f, 0.001f);
     T_FEQ(map->lighting.directional[SC2_LIGHT_KEY].color.y, 0.5f, 0.001f);
@@ -488,6 +557,15 @@ TEST(sc2_map, sc2_map_loads_xml_objects_and_terrain) {
     T_EQ(map->lighting.directional[SC2_LIGHT_BACK].enabled, true);
     T_FEQ(map->lighting.directional[SC2_LIGHT_BACK].color_multiplier, 5.0f, 0.001f);
     T_FEQ(map->lighting.directional[SC2_LIGHT_BACK].direction.y, 1.0f, 0.001f);
+}
+
+/* Non-colorized catalogs retain direct ambient while missing lighting uses the renderer fallback. */
+TEST(sc2_map, ordinary_and_missing_light_ambient) {
+    sc2MapLighting_t light = { .ambient_color = { 0.1f, 0.2f, 0.3f } };
+    VECTOR3 ambient = sc2_light_ambient(&light);
+    T_FEQ(ambient.x, 0.1f, 0.001f); T_FEQ(ambient.y, 0.2f, 0.001f); T_FEQ(ambient.z, 0.3f, 0.001f);
+    ambient = sc2_light_ambient(NULL);
+    T_FEQ(ambient.x, 0.35f, 0.001f); T_FEQ(ambient.y, 0.35f, 0.001f); T_FEQ(ambient.z, 0.4f, 0.001f);
 }
 
 TEST(sc2_map, sc2_map_loads_binary_terrain_layers) {
@@ -554,6 +632,15 @@ TEST(sc2_map, sc2_map_loads_binary_terrain_layers) {
         T_EQ(map->t3TextureMasksSize, 80);
         T_EQ(map->t3TextureMasks->data[0], 0x12);
         T_EQ(map->t3TextureMasks->data[8], 0xab);
+    }
+    T_EQ(ARRAY_COUNT(map->hard_tiles), 2);
+    if (ARRAY_COUNT(map->hard_tiles) == 2) {
+        T_STREQ(map->hard_tiles[0].tile, "FixtureTile");
+        T_STREQ(map->hard_tiles[0].model, "Assets\\HardTiles\\MarSaraRoad\\MarSaraRoad.m3");
+        T_FEQ(map->hard_tiles[0].position.x, 2.0f, 0.001f);
+        T_FEQ(map->hard_tiles[1].position.y, 5.0f, 0.001f);
+        T_FEQ(map->hard_tiles[1].scale.x, 2.0f, 0.001f);
+        T_EQ(map->hard_tiles[1].flags, 8);
     }
 }
 
@@ -638,6 +725,7 @@ static void assert_tiny_map_loaded_without_binary_terrain_layers(sc2Map_t *map) 
     T_NULL(map->t3SyncCliffLevel);
     T_NULL(map->t3TextureMasks);
     T_EQ(map->t3TextureMasksSize, 0);
+    T_ASSERT(IS_ARRAY_EMPTY(map->hard_tiles));
 }
 
 TEST(sc2_map, sc2_map_rejects_short_binary_terrain_layers) {

@@ -1,10 +1,11 @@
 #include "r_sc2map.h"
 #include "renderer/r_shader.h"
-extern render_phase_t render_phase;
 
 #include "games/starcraft-2/common/sc2_map.c"
 #include "games/starcraft-2/renderer/m3/r_m3.h"
 #include "games/starcraft-2/renderer/sc2/sc2_shadow.h"
+#define BZ_SC2_STR_INNER(x) #x
+#define BZ_SC2_STR(x) BZ_SC2_STR_INNER(x)
 #define SC2_REUSE_WAR3_CLIFF_BAKER
 #include "games/warcraft-3/renderer/w3m/r_war3map_cliffs.c"
 #undef SC2_REUSE_WAR3_CLIFF_BAKER
@@ -53,13 +54,20 @@ extern VECTOR4 M3_GetVector4AnimValue(m3Model_t const *model,
                                       m3SequenceTimeline_t const *timeline,
                                       m3Vector4AnimRef_t const *animref,
                                       DWORD time);
+extern void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMATRIX4 transform);
 
 static LPMAPSEGMENT sc2_terrain_segment;
+typedef struct { renderEntity_t entity; MATRIX4 matrix; } rSc2HardTileRender_t;
+static rSc2HardTileRender_t *sc2_hard_tiles;
+static DWORD sc2_hard_tiles_count;
 static BOOL sc2_terrain_shader_loaded;
 static BOOL sc2_cliff_shader_loaded;
 static LPTEXTURE sc2_terrain_textures[SC2_TERRAIN_BLEND_LAYERS];
 static LPTEXTURE sc2_terrain_masks[SC2_TERRAIN_BLEND_GROUPS];
 static DWORD sc2_num_terrain_layers;
+/* Shared normal grid: (MAP_W+1)*(MAP_H+1) normals derived from the heightmap.
+   Both ground vertices and cliff boundary vertices index into this so seams never appear. */
+static VECTOR3 *sc2_terrain_normals;
 
 typedef struct sc2CliffModel_s {
     PATHSTR path;
@@ -71,7 +79,21 @@ typedef struct rSc2CliffPlacement_s {
     FLOAT base_z;
     FLOAT model_z_offset;
     FLOAT z_scale;
+    DWORD join_edges;
 } rSc2CliffPlacement_t;
+
+typedef struct rSc2CliffBakeBatch_s {
+    rCliffBakeList_t list;
+    LPCTEXTURE texture;
+    struct rSc2CliffBakeBatch_s *next;
+} rSc2CliffBakeBatch_t;
+
+typedef enum {
+    SC2_CLIFF_JOIN_LEFT = 1 << 0,
+    SC2_CLIFF_JOIN_RIGHT = 1 << 1,
+    SC2_CLIFF_JOIN_BOTTOM = 1 << 2,
+    SC2_CLIFF_JOIN_TOP = 1 << 3,
+} rSc2CliffJoin_t;
 
 static sc2CliffModel_t *sc2_cliff_models;
 
@@ -139,8 +161,8 @@ static const shader_desc_t sd_sc2_terrain = {
         UNIFORM(model,          UT_FLOAT_MAT4, PRECISION_HIGH),
         UNIFORM(lightMatrix,    UT_FLOAT_MAT4, PRECISION_HIGH),
         UNIFORM(lightAmbient,   UT_FLOAT_VEC3, PRECISION_LOW),
-        UNIFORM_ARRAY(lightDir,   UT_FLOAT_VEC3, PRECISION_LOW, SC2_MAX_DIRECTIONAL_LIGHTS),
-        UNIFORM_ARRAY(lightColor, UT_FLOAT_VEC3, PRECISION_LOW, SC2_MAX_DIRECTIONAL_LIGHTS),
+        UNIFORM(lightDir,         UT_FLOAT_VEC3, PRECISION_LOW, SC2_MAX_DIRECTIONAL_LIGHTS),
+        UNIFORM(lightColor,       UT_FLOAT_VEC3, PRECISION_LOW, SC2_MAX_DIRECTIONAL_LIGHTS),
         UNIFORM(layer0,         UT_SAMPLER_2D, PRECISION_LOW),
         UNIFORM(layer1,         UT_SAMPLER_2D, PRECISION_LOW),
         UNIFORM(layer2,         UT_SAMPLER_2D, PRECISION_LOW),
@@ -170,7 +192,7 @@ static const shader_desc_t sd_sc2_terrain = {
         "  vec3 n = normalize(normal);\n"
         "  vec3 light = u_lightAmbient;\n"
         "  v_key = vec3(0.0);\n"
-        "  for (int i = 0; i < 3; i++) {\n"
+        "  for (int i = 0; i < " BZ_SC2_STR(SC2_DIFFUSE_LIGHTS) "; i++) {\n"
         "    vec3 l = normalize(u_lightDir[i]);\n"
         "    vec3 contribution = u_lightColor[i] * max(dot(n, l), 0.0);\n"
         "    light += contribution;\n"
@@ -226,8 +248,8 @@ static const shader_desc_t sd_sc2_cliff = {
         UNIFORM(model,          UT_FLOAT_MAT4, PRECISION_HIGH),
         UNIFORM(lightMatrix,    UT_FLOAT_MAT4, PRECISION_HIGH),
         UNIFORM(lightAmbient,   UT_FLOAT_VEC3, PRECISION_LOW),
-        UNIFORM_ARRAY(lightDir,   UT_FLOAT_VEC3, PRECISION_LOW, SC2_MAX_DIRECTIONAL_LIGHTS),
-        UNIFORM_ARRAY(lightColor, UT_FLOAT_VEC3, PRECISION_LOW, SC2_MAX_DIRECTIONAL_LIGHTS),
+        UNIFORM(lightDir,         UT_FLOAT_VEC3, PRECISION_LOW, SC2_MAX_DIRECTIONAL_LIGHTS),
+        UNIFORM(lightColor,       UT_FLOAT_VEC3, PRECISION_LOW, SC2_MAX_DIRECTIONAL_LIGHTS),
         UNIFORM(texture,        UT_SAMPLER_2D, PRECISION_LOW),
         UNIFORM(shadowmap,      UT_SAMPLER_2D, PRECISION_LOW),
         UNIFORM(fogColor,       UT_FLOAT_VEC4, PRECISION_LOW),
@@ -252,7 +274,7 @@ static const shader_desc_t sd_sc2_cliff = {
         "  vec3 n = normalize(normal);\n"
         "  vec3 light = u_lightAmbient;\n"
         "  v_key = vec3(0.0);\n"
-        "  for (int i = 0; i < 3; i++) {\n"
+        "  for (int i = 0; i < " BZ_SC2_STR(SC2_DIFFUSE_LIGHTS) "; i++) {\n"
         "    vec3 l = normalize(u_lightDir[i]);\n"
         "    vec3 contribution = u_lightColor[i] * max(dot(n, l), 0.0);\n"
         "    light += contribution;\n"
@@ -452,30 +474,80 @@ static FLOAT r_sc2_ground_height_at_grid(sc2Map_t const *map, DWORD grid_x, DWOR
 }
 #endif
 
-static VECTOR3 r_sc2_ground_face_normal(LPCVECTOR3 a, LPCVECTOR3 b, LPCVECTOR3 c) {
-    VECTOR3 ab = Vector3_sub(b, a);
-    VECTOR3 ac = Vector3_sub(c, a);
-    VECTOR3 normal = Vector3_cross(&ab, &ac);
-
-    if (Vector3_lengthsq(&normal) <= 0.000001f)
-        return (VECTOR3){ 0.0f, 0.0f, 1.0f };
-    Vector3_normalize(&normal);
-    if (normal.z < 0.0f)
-        normal = Vector3_scale(&normal, -1.0f);
-    return normal;
+static FLOAT r_sc2_normal_height(LPCVOID data, DWORD x, DWORD y) {
+    return r_sc2_ground_height_at_grid(data, x, y);
 }
 
-static void r_sc2_accumulate_ground_triangle_normal(VERTEX *vertices,
-                                                    DWORD i0,
-                                                    DWORD i1,
-                                                    DWORD i2) {
-    VECTOR3 normal = r_sc2_ground_face_normal(&vertices[i0].position,
-                                              &vertices[i1].position,
-                                              &vertices[i2].position);
+static FLOAT r_sc2_ground_height_at_point(sc2Map_t const *map, FLOAT x, FLOAT y) {
+    sc2MapHeightPoint_t p;
 
-    vertices[i0].normal = Vector3_add(&vertices[i0].normal, &normal);
-    vertices[i1].normal = Vector3_add(&vertices[i1].normal, &normal);
-    vertices[i2].normal = Vector3_add(&vertices[i2].normal, &normal);
+    if (!sc2_map_height_point(map, x, y, &p))
+        return 0.0f;
+    return sc2_map_height_lerp(r_sc2_ground_height_at_grid(map, p.x0, p.y0),
+                               r_sc2_ground_height_at_grid(map, p.x1, p.y0),
+                               r_sc2_ground_height_at_grid(map, p.x0, p.y1),
+                               r_sc2_ground_height_at_grid(map, p.x1, p.y1), p.tx, p.ty);
+}
+
+/* Only cliff sides bordering emitted ground have a seam that must share the height-grid edge. */
+static DWORD r_sc2_cliff_join_edges(sc2Map_t const *map, DWORD x, DWORD y) {
+    DWORD edges = 0;
+
+    FOR_LOOP(i, SC2_CLIFF_BLOCK_SPAN) {
+        if (x && !r_sc2_skip_ground_cell(map, x - 1, y + i)) edges |= SC2_CLIFF_JOIN_LEFT;
+        if (x + SC2_CLIFF_BLOCK_SPAN < SC2_MAP_WIDTH(map) &&
+            !r_sc2_skip_ground_cell(map, x + SC2_CLIFF_BLOCK_SPAN, y + i)) edges |= SC2_CLIFF_JOIN_RIGHT;
+        if (y && !r_sc2_skip_ground_cell(map, x + i, y - 1)) edges |= SC2_CLIFF_JOIN_BOTTOM;
+        if (y + SC2_CLIFF_BLOCK_SPAN < SC2_MAP_HEIGHT(map) &&
+            !r_sc2_skip_ground_cell(map, x + i, y + SC2_CLIFF_BLOCK_SPAN)) edges |= SC2_CLIFF_JOIN_TOP;
+    }
+    return edges;
+}
+
+static BOOL r_sc2_cliff_vertex_joins_ground(LPCVECTOR3 pos, DWORD edges) {
+    return ((edges & SC2_CLIFF_JOIN_LEFT) && fabsf(pos->x + 1.0f) < SC2_EPSILON) ||
+           ((edges & SC2_CLIFF_JOIN_RIGHT) && fabsf(pos->x - 1.0f) < SC2_EPSILON) ||
+           ((edges & SC2_CLIFF_JOIN_BOTTOM) && fabsf(pos->y + 1.0f) < SC2_EPSILON) ||
+           ((edges & SC2_CLIFF_JOIN_TOP) && fabsf(pos->y - 1.0f) < SC2_EPSILON);
+}
+
+static void r_sc2_build_terrain_normal_grid(sc2Map_t const *map) {
+    DWORD w = SC2_MAP_WIDTH(map);
+    DWORD h = SC2_MAP_HEIGHT(map);
+    TERRAINNORMALS grid = { map, r_sc2_normal_height, w + 1, h + 1, map->cell_size };
+    DWORD n = (w + 1) * (h + 1);
+
+    ri.MemFree(sc2_terrain_normals);
+    sc2_terrain_normals = ri.MemAlloc(n * sizeof(*sc2_terrain_normals));
+    FOR_LOOP(i, n)
+        sc2_terrain_normals[i] = R_TerrainGridNormal(&grid, i % (w + 1), i / (w + 1));
+}
+
+static VECTOR3 r_sc2_terrain_normal_at_world(sc2Map_t const *map, FLOAT wx, FLOAT wy) {
+    BOX2 bounds = SC2_MapBounds();
+    DWORD w = SC2_MAP_WIDTH(map);
+    DWORD h = SC2_MAP_HEIGHT(map);
+    FLOAT gx = (wx - bounds.min.x) / map->cell_size;
+    FLOAT gy = (wy - bounds.min.y) / map->cell_size;
+    int x0 = (int)floorf(gx), y0 = (int)floorf(gy);
+    FLOAT tx = gx - (FLOAT)x0, ty = gy - (FLOAT)y0;
+    int x1, y1;
+    VECTOR3 n00, n10, n01, n11, n0, n1, result;
+
+    if (!sc2_terrain_normals) return (VECTOR3){ 0.0f, 0.0f, 1.0f };
+    x0 = MAX(0, MIN((int)w, x0));
+    y0 = MAX(0, MIN((int)h, y0));
+    x1 = MIN((int)w, x0 + 1);
+    y1 = MIN((int)h, y0 + 1);
+    n00 = sc2_terrain_normals[x0 + y0 * (w + 1)];
+    n10 = sc2_terrain_normals[x1 + y0 * (w + 1)];
+    n01 = sc2_terrain_normals[x0 + y1 * (w + 1)];
+    n11 = sc2_terrain_normals[x1 + y1 * (w + 1)];
+    n0 = Vector3_lerp(&n00, &n10, tx);
+    n1 = Vector3_lerp(&n01, &n11, tx);
+    result = Vector3_lerp(&n0, &n1, ty);
+    Vector3_normalize(&result);
+    return result;
 }
 
 static void r_sc2_build_ground_vertex_normals(sc2Map_t const *map,
@@ -484,28 +556,9 @@ static void r_sc2_build_ground_vertex_normals(sc2Map_t const *map,
                                               DWORD h) {
     DWORD num_vertices = (w + 1) * (h + 1);
 
-    FOR_LOOP(i, num_vertices) {
-        vertices[i].normal = (VECTOR3){ 0.0f, 0.0f, 0.0f };
-    }
-    FOR_LOOP(y, h) {
-        FOR_LOOP(x, w) {
-            DWORD i00 = x + y * (w + 1);
-            DWORD i10 = i00 + 1;
-            DWORD i01 = i00 + w + 1;
-            DWORD i11 = i01 + 1;
-
-            if (r_sc2_skip_ground_cell(map, x, y))
-                continue;
-            r_sc2_accumulate_ground_triangle_normal(vertices, i00, i10, i11);
-            r_sc2_accumulate_ground_triangle_normal(vertices, i00, i11, i01);
-        }
-    }
-    FOR_LOOP(i, num_vertices) {
-        if (Vector3_lengthsq(&vertices[i].normal) <= 0.000001f) {
-            vertices[i].normal = (VECTOR3){ 0.0f, 0.0f, 1.0f };
-            continue;
-        }
-        Vector3_normalize(&vertices[i].normal);
+    if (sc2_terrain_normals) {
+        FOR_LOOP(i, num_vertices)
+            vertices[i].normal = sc2_terrain_normals[i];
     }
 }
 
@@ -533,7 +586,28 @@ static void r_sc2_release_terrain(void) {
         SAFE_DELETE(sc2_terrain_masks[i], R_ReleaseTexture);
     }
     r_sc2_release_cliff_models();
+    FOR_EACH_ARRAY(rSc2HardTileRender_t, tile, sc2_hard_tiles) R_ReleaseModel((LPMODEL)tile->entity.model);
+    ri.MemFree(sc2_hard_tiles); sc2_hard_tiles = NULL; ARRAY_COUNT(sc2_hard_tiles) = 0;
     sc2_num_terrain_layers = 0;
+    ri.MemFree(sc2_terrain_normals);
+    sc2_terrain_normals = NULL;
+}
+
+static void r_sc2_build_hard_tiles(sc2Map_t const *map) {
+    if (!map || IS_ARRAY_EMPTY(map->hard_tiles)) return;
+    sc2_hard_tiles = ri.MemAlloc(ARRAY_COUNT(map->hard_tiles) * sizeof(*sc2_hard_tiles));
+    memset(sc2_hard_tiles, 0, ARRAY_COUNT(map->hard_tiles) * sizeof(*sc2_hard_tiles));
+    FOR_EACH_ARRAY(sc2MapHardTile_t, tile, map->hard_tiles) {
+        rSc2HardTileRender_t *out;
+        LPCMODEL model;
+
+        if (!tile->model[0]) continue;
+        model = R_LoadModel(tile->model);
+        if (!model || model->modeltype != ID_43DM || !model->m3) continue;
+        out = &sc2_hard_tiles[ARRAY_COUNT(sc2_hard_tiles)++];
+        out->entity.model = model; out->entity.origin = tile->position; out->entity.scale = 1.0f;
+        r_sc2_hard_tile_matrix(tile, &out->matrix);
+    }
 }
 
 static void r_sc2_release_cliff_models(void) {
@@ -1032,19 +1106,83 @@ static void r_sc2_bake_cliff_region(rCliffBakeList_t *list,
                 placement->base_z + (placement->model_z_offset + local.z) * placement->z_scale +
                     sc2_map_height_adjust_at_point(map, xy.x, xy.y),
             };
-            uv = (VECTOR2){ vertex->uv[0][0] / SC2_M3_UV_SCALE, vertex->uv[0][1] / SC2_M3_UV_SCALE };
-            normal = r_sc2_rotate_cliff_vec(normal, rotation);
-            Vector3_normalize(&normal);
-            r_sc2_push_vertex_normal(out,
-                                     position.x,
-                                     position.y,
-                                     position.z,
-                                     uv.x,
-                                     uv.y,
-                                     255,
-                                     normal);
+            /* The M3 silhouette is decorative; vertices at an emitted ground edge must use that exact surface height. */
+            {
+                BOOL at_ground_edge = r_sc2_cliff_vertex_joins_ground(&rotated, placement->join_edges) &&
+                    fabsf(position.z - r_sc2_ground_height_at_point(map, xy.x, xy.y)) < map->cell_size;
+                if (at_ground_edge)
+                    position.z = r_sc2_ground_height_at_point(map, xy.x, xy.y);
+                uv = (VECTOR2){ vertex->uv[0][0] / SC2_M3_UV_SCALE, vertex->uv[0][1] / SC2_M3_UV_SCALE };
+                normal = r_sc2_rotate_cliff_vec(normal, rotation);
+                Vector3_normalize(&normal);
+                /* Ground-edge cliff vertices share the heightmap normal so cliff and ground mesh
+                   use the same source and produce no lighting seam at their boundary. */
+                if (at_ground_edge)
+                    normal = r_sc2_terrain_normal_at_world(map, position.x, position.y);
+                r_sc2_push_vertex_normal(out,
+                                         position.x,
+                                         position.y,
+                                         position.z,
+                                         uv.x,
+                                         uv.y,
+                                         255,
+                                         normal);
+            }
         }
     }
+}
+
+typedef struct { int qx, qy, qz; DWORD idx; } rNormalWeldKey_t;
+
+static int r_sc2_weld_xy_cmp(const void *a, const void *b) {
+    rNormalWeldKey_t const *ka = a, *kb = b;
+    if (ka->qx != kb->qx) return ka->qx < kb->qx ? -1 : 1;
+    if (ka->qy != kb->qy) return ka->qy < kb->qy ? -1 : 1;
+    if (ka->qz != kb->qz) return ka->qz < kb->qz ? -1 : 1;
+    return 0;
+}
+
+/* Weld only coincident, similarly facing cliff vertices; XY-only averaging merged stacked and opposing faces. */
+static void r_sc2_weld_cliff_normals_xy(rCliffBakeList_t *list, FLOAT snap) {
+    VERTEX *vertices = list->vertices;
+    DWORD n = list->num_vertices;
+    rNormalWeldKey_t *keys;
+    VECTOR3 *normals;
+    DWORD i;
+
+    if (n < 2 || snap <= 0.0f) return;
+    keys = ri.MemAlloc(n * sizeof(*keys));
+    normals = ri.MemAlloc(n * sizeof(*normals));
+    FOR_LOOP(i, n) {
+        keys[i].qx = (int)roundf(vertices[i].position.x / snap);
+        keys[i].qy = (int)roundf(vertices[i].position.y / snap);
+        keys[i].qz = (int)roundf(vertices[i].position.z / SC2_EPSILON);
+        keys[i].idx = i;
+    }
+    qsort(keys, n, sizeof(*keys), r_sc2_weld_xy_cmp);
+    i = 0;
+    while (i < n) {
+        DWORD j = i;
+        while (j < n && keys[j].qx == keys[i].qx && keys[j].qy == keys[i].qy && keys[j].qz == keys[i].qz)
+            j++;
+        for (DWORD k = i; k < j; k++) {
+            VECTOR3 avg = vertices[keys[k].idx].normal;
+            DWORD count = Vector3_len(&avg) > 0.0f;
+            for (DWORD l = i; l < j; l++) {
+                if (!r_sc2_cliff_weld_compatible(&vertices[keys[k].idx], list->groups[keys[k].idx], &vertices[keys[l].idx], list->groups[keys[l].idx], SC2_EPSILON)) continue;
+                avg.x += vertices[keys[l].idx].normal.x;
+                avg.y += vertices[keys[l].idx].normal.y;
+                avg.z += vertices[keys[l].idx].normal.z;
+                count++;
+            }
+            normals[keys[k].idx] = count ? avg : vertices[keys[k].idx].normal;
+            if (count) Vector3_normalize(&normals[keys[k].idx]);
+        }
+        i = j;
+    }
+    FOR_LOOP(i, n) vertices[i].normal = normals[i];
+    ri.MemFree(normals);
+    ri.MemFree(keys);
 }
 
 static void r_sc2_bake_cliff_model(rCliffBakeList_t *list,
@@ -1063,6 +1201,7 @@ static void r_sc2_bake_cliff_model(rCliffBakeList_t *list,
 
     if (!model || model->modeltype != ID_43DM || !model->m3 || !model->m3->verticesNum)
         return;
+    list->current_group++;
     m3 = model->m3;
     r_sc2_m3_build_cliff_bones(m3, bones);
     if (!r_sc2_cliff_model_bounds(model, &bounds)) {
@@ -1096,6 +1235,7 @@ static void r_sc2_bake_cliff_model(rCliffBakeList_t *list,
         placement.base_z = num_base ? base_z / (FLOAT)num_base : -bounds.min.z;
         placement.model_z_offset = -bounds.min.z;
         placement.z_scale = 1.0f;
+        placement.join_edges = r_sc2_cliff_join_edges(map, grid_x, grid_y);
     }
     FOR_LOOP(div_i, m3->divisionsNum) {
         m3Divisions_t const *div = &m3->divisions[div_i];
@@ -1125,6 +1265,16 @@ static LPCTEXTURE r_sc2_cliff_diffuse_texture(LPCMODEL model) {
             return mat->diffuseLayer->texture;
     }
     return NULL;
+}
+
+static rSc2CliffBakeBatch_t *r_sc2_cliff_bake_batch(rSc2CliffBakeBatch_t **batches, LPCTEXTURE texture) {
+    rSc2CliffBakeBatch_t *batch;
+
+    for (batch = *batches; batch; batch = batch->next)
+        if (batch->texture == texture) return batch;
+    batch = ri.MemAlloc(sizeof(*batch)); memset(batch, 0, sizeof(*batch));
+    batch->texture = texture; ADD_TO_LIST(batch, *batches);
+    return batch;
 }
 
 static sc2CliffCell_t const *r_sc2_find_cliff_cell(sc2Map_t const *map, DWORD index) {
@@ -1202,11 +1352,10 @@ static sc2CliffCell_t r_sc2_cliff_cell_for_index(sc2Map_t const *map, DWORD inde
 }
 
 static LPMAPLAYER r_sc2_build_cliff_layer(sc2Map_t const *map) {
-    rCliffBakeList_t list = {0};
-    LPMAPLAYER map_layer;
+    rSc2CliffBakeBatch_t *batches = NULL, *batch;
+    LPMAPLAYER layers = NULL;
     DWORD cliff_width;
     DWORD cliff_height;
-    LPCTEXTURE diffuse = NULL;
 
     if (!map || !map->t3Terrain.num_cliff_sets || !map->t3SyncCliffLevel)
         return NULL;
@@ -1239,23 +1388,24 @@ static LPMAPLAYER r_sc2_build_cliff_layer(sc2Map_t const *map) {
             model = r_sc2_load_cliff_model(path);
             if (!model || model->modeltype != ID_43DM || !model->m3)
                 continue;
-            if (!diffuse)
-                diffuse = r_sc2_cliff_diffuse_texture(model);
-            r_sc2_bake_cliff_model(&list, map, model, grid_x, grid_y, rotation, baselevel);
+            batch = r_sc2_cliff_bake_batch(&batches, r_sc2_cliff_diffuse_texture(model));
+            r_sc2_bake_cliff_model(&batch->list, map, model, grid_x, grid_y, rotation, baselevel);
         }
     }
-    if (!list.num_vertices) {
-        ri.MemFree(list.vertices);
-        return NULL;
+    while (batches) {
+        LPMAPLAYER layer;
+        batch = batches; batches = batch->next;
+        if (!batch->list.num_vertices) { ri.MemFree(batch); continue; }
+        r_sc2_weld_cliff_normals_xy(&batch->list, map->cell_size * 0.5f);
+        layer = ri.MemAlloc(sizeof(*layer)); memset(layer, 0, sizeof(*layer));
+        layer->type = MAPLAYERTYPE_CLIFF;
+        layer->texture = batch->texture ? batch->texture : tr.texture[TEX_WHITE];
+        layer->buffer = R_MakeVertexArrayObject(batch->list.vertices, batch->list.num_vertices);
+        layer->num_vertices = batch->list.num_vertices;
+        r_sc2_add_layer(&layers, layer);
+        ri.MemFree(batch->list.vertices); ri.MemFree(batch->list.groups); ri.MemFree(batch);
     }
-    map_layer = ri.MemAlloc(sizeof(*map_layer));
-    memset(map_layer, 0, sizeof(*map_layer));
-    map_layer->type = MAPLAYERTYPE_CLIFF;
-    map_layer->texture = diffuse ? diffuse : tr.texture[TEX_WHITE];
-    map_layer->buffer = R_MakeVertexArrayObject(list.vertices, list.num_vertices);
-    map_layer->num_vertices = list.num_vertices;
-    ri.MemFree(list.vertices);
-    return map_layer;
+    return layers;
 }
 
 static void r_sc2_build_terrain(sc2Map_t const *map) {
@@ -1268,10 +1418,12 @@ static void r_sc2_build_terrain(sc2Map_t const *map) {
 
     r_sc2_init_terrain_shader();
     r_sc2_load_terrain_textures(map);
+    r_sc2_build_terrain_normal_grid(map);
     sc2_terrain_segment = ri.MemAlloc(sizeof(*sc2_terrain_segment));
     memset(sc2_terrain_segment, 0, sizeof(*sc2_terrain_segment));
     r_sc2_add_layer(&sc2_terrain_segment->layers, r_sc2_build_ground_layer(map));
     r_sc2_add_layer(&sc2_terrain_segment->layers, r_sc2_build_cliff_layer(map));
+    r_sc2_build_hard_tiles(map);
 
     bounds = SC2_MapBounds();
     if (map->t3HeightMap) {
@@ -1285,6 +1437,11 @@ static void r_sc2_build_terrain(sc2Map_t const *map) {
         .min = { bounds.min.x, bounds.min.y, -1.0f },
         .max = { bounds.max.x, bounds.max.y, max_z },
     };
+}
+
+static void r_sc2_draw_hard_tiles(void) {
+    FOR_EACH_ARRAY(rSc2HardTileRender_t, tile, sc2_hard_tiles)
+        M3_RenderModel(&tile->entity, tile->entity.model->m3, &tile->matrix);
 }
 
 static LPTEXTURE r_sc2_terrain_layer_texture(DWORD index) {
@@ -1306,10 +1463,11 @@ static void r_sc2_set_fog_state(LPVECTOR4 u_color, LPVECTOR4 u_params) {
 static void r_sc2_set_light_state(LPVECTOR3 ambient_out, LPVECTOR3 dirs, LPVECTOR3 colors) {
     sc2Map_t const *map = SC2_MapCurrent();
     sc2MapLighting_t const *lighting = map ? &map->lighting : NULL;
-    VECTOR3 ambient = lighting && lighting->enabled ? lighting->ambient_color : (VECTOR3){ 1.0f, 1.0f, 1.0f };
+    VECTOR3 ambient = sc2_light_ambient(lighting && lighting->enabled ? lighting : NULL);
 
     *ambient_out = (VECTOR3){ ambient.x, ambient.y, ambient.z };
-    FOR_LOOP(i, SC2_MAX_DIRECTIONAL_LIGHTS) {
+    /* Adding Fill/Back as unshadowed suns lit faces opposite the visible key shadow. */
+    FOR_LOOP(i, SC2_DIFFUSE_LIGHTS) {
         sc2DirectionalLight_t const *light = lighting && lighting->enabled ? &lighting->directional[i] : NULL;
         FLOAT enabled = light && light->enabled ? 1.0f : 0.0f;
         VECTOR3 direction = enabled ? (VECTOR3){ -light->direction.x, -light->direction.y, -light->direction.z } : (VECTOR3){ 0.0f, 0.0f, 1.0f };
@@ -1323,7 +1481,7 @@ static void r_sc2_set_light_state(LPVECTOR3 ambient_out, LPVECTOR3 dirs, LPVECTO
 
 static void r_sc2_begin_terrain_shader(MATRIX4 const *model_matrix) {
 
-    sc2_terrain_shader.state.viewProjection = render_phase == RENDER_PHASE_LIGHTS ? tr.viewDef.lightMatrix : tr.viewDef.viewProjectionMatrix;
+    sc2_terrain_shader.state.viewProjection = tr.render_phase == RENDER_PHASE_LIGHTS ? tr.viewDef.lightMatrix : tr.viewDef.viewProjectionMatrix;
     sc2_terrain_shader.state.lightMatrix = tr.viewDef.lightMatrix;
     sc2_terrain_shader.state.model = *model_matrix;
     sc2_terrain_shader.state.textureMatrix = tr.viewDef.textureMatrix;
@@ -1331,7 +1489,7 @@ static void r_sc2_begin_terrain_shader(MATRIX4 const *model_matrix) {
     r_sc2_set_light_state(&sc2_terrain_shader.state.lightAmbient, sc2_terrain_shader.state.lightDir, sc2_terrain_shader.state.lightColor);
     /* Depth pass samples a white texture; receivers sample the light-space depth map. */
     R_Call(glActiveTexture, GL_TEXTURE0 + sc2_terrain_shader.state.shadowmap);
-    R_Call(glBindTexture, GL_TEXTURE_2D, render_phase == RENDER_PHASE_LIGHTS ? tr.texture[TEX_WHITE]->texid : tr.rt[RT_DEPTHMAP]->texture);
+    R_Call(glBindTexture, GL_TEXTURE_2D, tr.render_phase == RENDER_PHASE_LIGHTS ? tr.texture[TEX_WHITE]->texid : tr.rt[RT_DEPTHMAP]->texture);
 }
 
 static void r_sc2_begin_terrain_pass(DWORD group) {
@@ -1359,8 +1517,10 @@ static void r_sc2_set_terrain_uv(void) {
 }
 
 static void r_sc2_draw_terrain_indexed(LPCMAPLAYER layer) {
+    DWORD groups = tr.render_phase == RENDER_PHASE_LIGHTS ? 1 : SC2_TERRAIN_BLEND_GROUPS;
+
     r_sc2_set_terrain_uv();
-    FOR_LOOP(group, SC2_TERRAIN_BLEND_GROUPS) {
+    FOR_LOOP(group, groups) {
         r_sc2_begin_terrain_pass(group);
         R_ApplyShader(&sc2_terrain_shader);
         R_DrawIndexedBuffer(layer->buffer, layer->num_indices);
@@ -1370,8 +1530,10 @@ static void r_sc2_draw_terrain_indexed(LPCMAPLAYER layer) {
 }
 
 static void r_sc2_draw_terrain_vertices(LPCMAPLAYER layer) {
+    DWORD groups = tr.render_phase == RENDER_PHASE_LIGHTS ? 1 : SC2_TERRAIN_BLEND_GROUPS;
+
     r_sc2_set_terrain_uv();
-    FOR_LOOP(group, SC2_TERRAIN_BLEND_GROUPS) {
+    FOR_LOOP(group, groups) {
         r_sc2_begin_terrain_pass(group);
         R_ApplyShader(&sc2_terrain_shader);
         R_DrawBuffer(layer->buffer, layer->num_vertices);
@@ -1436,36 +1598,36 @@ static void r_sc2_draw_cliff_layer(LPCMAPSEGMENT segment) {
 
     if (!sc2_terrain_shader_loaded || !sc2_cliff_shader_loaded || !segment)
         return;
-    layer = segment->layers;
-    while (layer && layer->type != MAPLAYERTYPE_CLIFF) {
-        layer = layer->next;
-    }
-    if (!layer)
-        return;
-
     Matrix4_identity(&model_matrix);
 
     /* Pass 1: terrain blend - fills depth and lays down terrain color seamlessly.
        Use world XY position for terrain UV so tiling matches the ground exactly. */
     r_sc2_begin_terrain_shader(&model_matrix);
-    r_sc2_draw_terrain_vertices(layer);
+    for (layer = segment->layers; layer; layer = layer->next)
+        if (layer->type == MAPLAYERTYPE_CLIFF) r_sc2_draw_terrain_vertices(layer);
+    /* The terrain pass already wrote cliff depth; the material overlay belongs only in the color pass. */
+    if (tr.render_phase == RENDER_PHASE_LIGHTS)
+        return;
 
     /* Pass 2: cliff M3 texture alpha-blended on top, pulled slightly forward */
     R_Call(glEnable, GL_POLYGON_OFFSET_FILL);
     R_Call(glPolygonOffset, -1.0f, -1.0f);
 
-    sc2_cliff_shader.state.viewProjection = render_phase == RENDER_PHASE_LIGHTS ? tr.viewDef.lightMatrix : tr.viewDef.viewProjectionMatrix;
+    sc2_cliff_shader.state.viewProjection = tr.render_phase == RENDER_PHASE_LIGHTS ? tr.viewDef.lightMatrix : tr.viewDef.viewProjectionMatrix;
     sc2_cliff_shader.state.lightMatrix = tr.viewDef.lightMatrix;
     sc2_cliff_shader.state.model = model_matrix;
     r_sc2_set_fog_state(&sc2_cliff_shader.state.fogColor, &sc2_cliff_shader.state.fogParams);
     r_sc2_set_light_state(&sc2_cliff_shader.state.lightAmbient, sc2_cliff_shader.state.lightDir, sc2_cliff_shader.state.lightColor);
     R_Call(glActiveTexture, GL_TEXTURE0 + sc2_cliff_shader.state.shadowmap);
-    R_Call(glBindTexture, GL_TEXTURE_2D, render_phase == RENDER_PHASE_LIGHTS ? tr.texture[TEX_WHITE]->texid : tr.rt[RT_DEPTHMAP]->texture);
+    R_Call(glBindTexture, GL_TEXTURE_2D, tr.render_phase == RENDER_PHASE_LIGHTS ? tr.texture[TEX_WHITE]->texid : tr.rt[RT_DEPTHMAP]->texture);
     R_Call(glEnable, GL_BLEND);
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    R_BindTexture(layer->texture, 0);
-    R_ApplyShader(&sc2_cliff_shader);
-    R_DrawBuffer(layer->buffer, layer->num_vertices);
+    for (layer = segment->layers; layer; layer = layer->next) {
+        if (layer->type != MAPLAYERTYPE_CLIFF) continue;
+        R_BindTexture(layer->texture, 0);
+        R_ApplyShader(&sc2_cliff_shader);
+        R_DrawBuffer(layer->buffer, layer->num_vertices);
+    }
     R_Call(glDisable, GL_POLYGON_OFFSET_FILL);
     R_Call(glPolygonOffset, 0.0f, 0.0f);
 }
@@ -1476,7 +1638,7 @@ void R_SC2DrawWorld(void) {
     if (!sc2_terrain_segment || (tr.viewDef.rdflags & RDF_NOWORLDMODEL))
         return;
 
-    if (render_phase == RENDER_PHASE_LIGHTS) {
+    if (tr.render_phase == RENDER_PHASE_LIGHTS) {
         sc2Map_t const *map = SC2_MapCurrent();
         SC2SHADOWVIEW input = {
             .camera = tr.viewDef.viewProjectionMatrix,
@@ -1499,6 +1661,7 @@ void R_SC2DrawWorld(void) {
     R_Call(glColorMask, GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
     r_sc2_draw_ground_layer(sc2_terrain_segment);
     r_sc2_draw_cliff_layer(sc2_terrain_segment);
+    r_sc2_draw_hard_tiles();
 }
 
 static BOOL r_sc2_clip_trace_to_bounds(LPCLINE3 line, LPCBOX2 bounds, LPFLOAT t0, LPFLOAT t1) {

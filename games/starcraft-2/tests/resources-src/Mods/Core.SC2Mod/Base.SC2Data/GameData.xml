@@ -6,5 +6,6 @@
     <Catalog path="GameData/FootprintData.xml"/>
     <Catalog path="GameData/TerrainTexData.xml"/>
     <Catalog path="GameData/CliffData.xml"/>
+    <Catalog path="GameData/TileData.xml"/>
     <Catalog path="GameData/Overrides/CoreManifest.xml"/>
 </Includes>

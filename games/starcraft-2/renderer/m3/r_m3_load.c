@@ -44,10 +44,6 @@ static MATRIX4 tmp[M3_MAX_NODES];
 
 m3Model_t *currentmodel;
 
-#ifdef USE_SHADOWMAPS
-extern render_phase_t render_phase;
-#endif
-
 static struct {
     MODELPROG * shader;
     DWORD uDiffuseMap;
@@ -70,17 +66,21 @@ R_EvalKeyframeValue(void const *left,
                     MODELKEYTRACKTYPE linetype,
                     HANDLE out);
 
-/* M3 models consume the same authored key/fill/back rig as SC2 terrain. */
-static void M3_SetLighting(MODELPROG * shader) {
+/* M3 diffuse uses the same shadow-casting authored key as SC2 terrain. */
+static void M3_SetLighting(MODELPROG * shader, renderEntity_t const *entity) {
     sc2Map_t const *map = SC2_MapCurrent();
     sc2MapLighting_t const *src = map ? &map->lighting : NULL;
-    bool const lit = src && src->enabled;
-    MODELLIGHTING state = {
-        /* dark ambient with a slight sky-blue tint when no map lighting is authored */
-        .ambient = lit ? src->ambient_color : (VECTOR3){ 0.35f, 0.35f, 0.40f },
-        .count = SC2_MAX_DIRECTIONAL_LIGHTS,
-    };
-    FOR_LOOP(i, SC2_MAX_DIRECTIONAL_LIGHTS) {
+    /* Layout-camera chrome is a separate scene: the map's colorized ambient made the HUD nearly black. */
+    bool const lit = src && src->enabled && !(tr.viewDef.rdflags & RDF_NOWORLDMODEL);
+    bool const portrait = entity && (entity->flags & RF_PORTRAIT_LIGHTING);
+    /* Portrait/HUD chrome: bright neutral ambient so chrome is visible regardless of map lighting.
+       Mirrors WC3's RF_PORTRAIT_LIGHTING path: 0.58 ambient (no directional) / 0.22 (with lights). */
+    VECTOR3 ambient = lit ? sc2_light_ambient(src)
+                          : (portrait ? (VECTOR3){ 0.58f, 0.58f, 0.58f }
+                                      : sc2_light_ambient(NULL));
+    MODELLIGHTING state = { .ambient = ambient, .count = SC2_DIFFUSE_LIGHTS };
+    /* Fill/back are not extra unshadowed Lambert suns; they otherwise illuminate key-backfacing surfaces. */
+    FOR_LOOP(i, SC2_DIFFUSE_LIGHTS) {
         sc2DirectionalLight_t const *light = lit ? &src->directional[i] : NULL;
         bool const enabled = light && light->enabled;
         if (enabled) {
@@ -91,13 +91,14 @@ static void M3_SetLighting(MODELPROG * shader) {
                 .type      = R_MODEL_LIGHT_DIRECT,
             };
         } else if (!lit && i == 0) {
-            /* default key sun: warm 45-degree overhead-left when no map lighting */
             state.lights[i] = (RMODELLIGHT){
                 .dir       = { 0.577f, 0.577f, 0.577f },
                 .color     = { 1.0f, 0.90f, 0.80f },
-                .intensity = 1.0f,
+                /* Portrait chrome: key at 0.62 matching WC3's portrait directional intensity. */
+                .intensity = portrait ? 0.62f : 1.0f,
                 .type      = R_MODEL_LIGHT_DIRECT,
             };
+            if (portrait) state.ambient = (VECTOR3){ 0.22f, 0.22f, 0.22f };
         } else {
             state.lights[i] = (RMODELLIGHT){
                 .dir  = { 0.0f, 0.0f, 1.0f },
@@ -578,7 +579,7 @@ static COLOR32 M3_LayerColor(m3Layer_t const *layer) {
 static BOOL M3_SetMaterialBlendMode(m3Material_t const *material) {
     R_SetAlphaKeyState(false);
 #ifdef USE_SHADOWMAPS
-    switch (render_phase == RENDER_PHASE_LIGHTS ? (int)(material ? material->blendMode : BLEND_MODE_NONE) : -1) {
+    switch (tr.render_phase == RENDER_PHASE_LIGHTS ? (int)(material ? material->blendMode : BLEND_MODE_NONE) : -1) {
         case BLEND_MODE_BLEND:
         case BLEND_MODE_ADD:
         case BLEND_MODE_ADDALPHA:
@@ -657,6 +658,34 @@ m3Model_t *R_LoadModelM3(void *data, DWORD size) {
     return model;
 }
 
+/* Additive emissive/glow layer, drawn inline right after the material's diffuse
+   layer.  Mirrors Quake 3's glow stage (GLS_SRCBLEND_ONE|GLS_DSTBLEND_ONE): the
+   diffuse stage already wrote depth, so this only reads it — no separate scene
+   pass and no second bone-palette rebuild. */
+static void M3_DrawEmissiveLayer(m3Region_t const *region, m3Material_t const *material, FLOAT alpha) {
+    m3Layer_t const *emissive = material->emissiveLayer;
+    if (!emissive || !emissive->texture)
+        return;
+    COLOR32 ec = M3_LayerColor(emissive);
+    BOOL prev_unshaded = m3.shader->state.unshaded;
+    R_Call(glEnable, GL_BLEND);
+    R_Call(glBlendFunc, GL_ONE, GL_ONE);
+    R_Call(glDepthMask, GL_FALSE);
+    m3.shader->state.unshaded = 1;
+    m3.shader->state.alphaKey = 0;
+    m3.shader->state.geosetColor = (VECTOR4){ ec.r / 255.0f, ec.g / 255.0f, ec.b / 255.0f, ec.a / 255.0f * alpha };
+    m3.shader->state.firstBoneLookupIndex = (FLOAT)region->firstBoneLookupIndex;
+    R_Call(glActiveTexture, GL_TEXTURE0);
+    R_Call(glBindTexture, GL_TEXTURE_2D, emissive->texture->texid);
+#ifndef __linux__
+    R_StatsDraw(GL_TRIANGLES, region->triangleIndicesCount, 1);
+    R_ApplyShader(m3.shader);
+    R_Call(glDrawElementsBaseVertex, GL_TRIANGLES, region->triangleIndicesCount, GL_UNSIGNED_SHORT,
+           (HANDLE)(uintptr_t)(m3.indexofs + sizeof(USHORT) * region->firstTriangleIndex), region->firstVertexIndex);
+#endif
+    m3.shader->state.unshaded = prev_unshaded;
+}
+
 static void M3_DrawRegionMaterial(m3Region_t const *region, m3Material_t const *material, FLOAT alpha) {
     LPCTEXTURE diffuse = material->diffuseLayer && material->diffuseLayer->texture ? material->diffuseLayer->texture : tr.texture[TEX_WHITE];
     COLOR32 diffuse_color = M3_LayerColor(material->diffuseLayer);
@@ -678,10 +707,8 @@ static void M3_DrawRegionMaterial(m3Region_t const *region, m3Material_t const *
         if (alpha_key && !M3_MaterialIsBlended(material)) R_SetAlphaKeyState(true);
     }
     m3.shader->state.firstBoneLookupIndex = (FLOAT)region->firstBoneLookupIndex;
-
     R_Call(glActiveTexture, GL_TEXTURE0);
     R_Call(glBindTexture, GL_TEXTURE_2D, diffuse->texid);
-
     M3_FOR_EACH(Layer, layer, material->diffuseLayer) {
         if (!layer->texture)
             continue;
@@ -691,6 +718,9 @@ static void M3_DrawRegionMaterial(m3Region_t const *region, m3Material_t const *
         R_Call(glDrawElementsBaseVertex, GL_TRIANGLES, num_indices, GL_UNSIGNED_SHORT, indices, first_vertex);
 #endif
     }
+    /* Shadow-map pass only fills depth; glow belongs to the lit color pass. */
+    if (tr.render_phase != RENDER_PHASE_LIGHTS)
+        M3_DrawEmissiveLayer(region, material, alpha);
 }
 
 static void M3_DrawRegionMaterialReference(m3Model_t const *model,
@@ -856,8 +886,7 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
     R_Call(glDepthMask, GL_TRUE);
 
 #ifdef USE_SHADOWMAPS
-    extern render_phase_t render_phase;
-    if (render_phase == RENDER_PHASE_LIGHTS) {
+    if (tr.render_phase == RENDER_PHASE_LIGHTS) {
         m3.shader->state.viewProjection = tr.viewDef.lightMatrix;
     } else {
         m3.shader->state.viewProjection = tr.viewDef.viewProjectionMatrix;
@@ -870,7 +899,8 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
     m3.shader->state.model = mScaledMatrix;
     m3.shader->state.normalMatrix = mNormalMatrix;
     memcpy(&m3.shader->state.bones, bonemats->v, (MIN(model->boneLookupNum, BZ_BONE_PALETTE_MAX)) * sizeof(MATRIX4));
-    M3_SetLighting(m3.shader);
+    m3.shader->state.boneCount = MAX(1, MIN(model->boneLookupNum, BZ_BONE_PALETTE_MAX));
+    M3_SetLighting(m3.shader, entity);
     /* The unified model shader requires identity defaults for uniforms that
        M3 does not animate (texture UV transform, layer alpha, geoset colour). */
     m3.shader->state.geosetColor = (VECTOR4){ 1.0f, 1.0f, 1.0f, 1.0f };
@@ -878,7 +908,8 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
     { GLfloat m[9] = { 1,0,0, 0,1,0, 0,0,1 }; memcpy(&m3.shader->state.uvMatrix, m, (1) * sizeof(MATRIX3)); }
     m3.shader->state.alphaKey = 0;
     m3.shader->state.alphaCutoff = 0.5f;
-    m3.shader->state.unshaded = 0;
+    /* Portrait/HUD chrome renders at full texture brightness; lighting is cosmetic there. */
+    m3.shader->state.unshaded = entity && (entity->flags & RF_PORTRAIT_LIGHTING) ? 1 : 0;
     m3.shader->state.fogEnable = 0;
     m3.shader->state.firstBoneLookupIndex = 0.0f;
     R_Call(glBindVertexArray, model->renbuf->vao);
@@ -887,7 +918,7 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
     R_BindTexture(tr.texture[TEX_WHITE], 0);
     /* Terrain owns units 0..4; restore the model's shadow binding and avoid depth-target feedback. */
     R_Call(glActiveTexture, GL_TEXTURE1);
-    R_Call(glBindTexture, GL_TEXTURE_2D, render_phase == RENDER_PHASE_LIGHTS || (tr.viewDef.rdflags & RDF_NOWORLDMODEL) ? tr.texture[TEX_WHITE]->texid : tr.rt[RT_DEPTHMAP]->texture);
+    R_Call(glBindTexture, GL_TEXTURE_2D, tr.render_phase == RENDER_PHASE_LIGHTS || (tr.viewDef.rdflags & RDF_NOWORLDMODEL) ? tr.texture[TEX_WHITE]->texid : tr.rt[RT_DEPTHMAP]->texture);
     
     R_Call(glDisable, GL_CULL_FACE);
     

@@ -339,6 +339,9 @@ TEST(renderer_bones, model_shader_preserves_high_palette_indices) {
     memset(&tr, 0, sizeof(tr));
     R_SetShaderSourceFromDesc(1, &sd_model, true, NULL);
     T_NOT_NULL(strstr(shader_src, "uniform mat4 u_bones[128];"));
+    T_EQ(sd_model.Uniforms[0].count, BZ_BONE_PALETTE_MAX);
+    T_EQ(sd_model.Uniforms[0].count_offset, offsetof(MODELSTATE, boneCount));
+    T_ASSERT(sd_model.Uniforms[0].counted);
     T_NULL(strstr(shader_src, "BZ_BONE_COUNT"));
     /* Slot 83 must stay 83: the old clamp redirected it to 63 with a 64-matrix palette. */
     T_NOT_NULL(strstr(shader_src, "int boneIdx = int(a_skin1[i]) + int(u_firstBoneLookupIndex);"));
@@ -355,6 +358,22 @@ TEST(renderer_bones, instanced_shader_uses_the_same_palette_contract) {
 TEST(renderer_shader, normal_model_defines_do_not_inherit_instancing) {
     T_NOT_NULL(strstr(R_ShaderDefines(true), "#define BZ_USE_INSTANCING 1\n"));
     T_NULL(strstr(R_ShaderDefines(false), "BZ_USE_INSTANCING"));
+}
+
+/* GLSL 120 does not accept implicit integer-to-float conversion in these fog-raycast expressions. */
+TEST(renderer_shader, fog_raycast_uses_float_literals_for_glsl120) {
+    FILE *file = fopen("renderer/r_fogofwar.c", "rb");
+    char line[256];
+    BOOL up = false, z = false, invalid = false;
+
+    T_NOT_NULL(file);
+    while (file && fgets(line, sizeof(line), file)) {
+        if (strstr(line, "vec3 up = vec3(0.0, 0.0, 1.0)")) up = true;
+        if (strstr(line, "pos.z = 0.0")) z = true;
+        if (strstr(line, "vec3 up = vec3(0, 0, 1)") || strstr(line, "pos.z = 0;")) invalid = true;
+    }
+    if (file) fclose(file);
+    T_ASSERT(up); T_ASSERT(z); T_ASSERT(!invalid);
 }
 
 static HANDLE shader_alloc(long size) { return shader_test.memory = test_alloc(size); }
@@ -669,6 +688,14 @@ static const shader_desc_t sd_test = {
 };
 #undef SHADER_TYPE
 
+typedef struct { MATRIX4 fixed[2], counted[3]; DWORD count; } SDARRAYTESTSTATE;
+#define SHADER_TYPE SDARRAYTESTSTATE
+static const shader_desc_t sd_array_test = { .Uniforms = {
+    UNIFORM(fixed,   UT_FLOAT_MAT4, PRECISION_HIGH, 2),
+    UNIFORM(counted, UT_FLOAT_MAT4, PRECISION_HIGH, 3, count),
+} };
+#undef SHADER_TYPE
+
 /* UNIFORM(field) stores offsetof(SHADER_TYPE, field); attrib/shared names get a_/v_ prefix. */
 TEST(renderer_shader_desc, macro_expansion_records_offsets_and_prefixed_names) {
     T_EQ(sd_test.Uniforms[0].offset, offsetof(SDTESTSTATE, mvp));
@@ -677,6 +704,10 @@ TEST(renderer_shader_desc, macro_expansion_records_offsets_and_prefixed_names) {
     T_STREQ(sd_test.Uniforms[0].name, "u_mvp");
     T_STREQ(sd_test.Uniforms[1].name, "u_texture");
     T_STREQ(sd_test.Uniforms[2].name, "u_color");
+    T_EQ(sd_array_test.Uniforms[0].count, 2u); T_ASSERT(!sd_array_test.Uniforms[0].counted);
+    T_EQ(sd_array_test.Uniforms[1].count, 3u);
+    T_EQ(sd_array_test.Uniforms[1].count_offset, offsetof(SDARRAYTESTSTATE, count));
+    T_ASSERT(sd_array_test.Uniforms[1].counted);
     T_STREQ(sd_test.Attributes[0].name, "a_position");
     T_STREQ(sd_test.Attributes[1].name, "a_texcoord");
     T_STREQ(sd_test.Shared[0].name, "v_texcoord");
@@ -788,6 +819,33 @@ TEST(renderer_shader_desc, load_writes_locations_and_initializes_samplers) {
     FOR_LOOP(i, 3) T_EQ(shader.prog.locs[i], 0);
     T_EQ(shader.state.texture, 0); T_EQ(shader.state.color.w, 4);
     T_EQ(shader_test.creates, 2); T_EQ(shader_test.links, 1); T_EQ(shader_test.deleted, 2);
+    T_NOT_NULL(shader.prog.cache);
+    R_DeleteShader(&shader.prog);
+}
+
+/* The program cache preserves complete typed state while unchanged draw fields issue no driver uploads.
+   Zero-valued uniforms (including unit-0 samplers) match the link-time GL default, so they need no first upload. */
+TEST(renderer_shader_desc, apply_uploads_only_changed_uniforms) {
+    SDTESTPROG shader = { .state.color = { 1, 2, 3, 4 }, .state.mvp = { .v = { 1 } } };
+    reset_shader(); R_LoadShader(&sd_test, NULL, &shader); memset(&upload, 0, sizeof(upload));
+    int uses = shader_test.uses;
+    R_ApplyShader(&shader); T_EQ(upload.calls, 2); T_EQ(shader_test.uses, uses);
+    R_ApplyShader(&shader); T_EQ(upload.calls, 2);
+    shader.state.color.x = 5; R_ApplyShader(&shader); T_EQ(upload.calls, 3);
+    shader.state.mvp.v[0] = 2; R_ApplyShader(&shader); T_EQ(upload.calls, 4);
+    R_DeleteShader(&shader.prog);
+}
+
+/* Fixed-capacity GLSL arrays upload only the active CPU prefix named by their count field. */
+TEST(renderer_shader_desc, counted_array_uses_runtime_upload_count) {
+    typedef struct { MATRIX4 values[4]; DWORD count; } TESTCOUNTSTATE;
+    TESTCOUNTSTATE state = { .count = 2 };
+    shader_desc_t desc = { .Name = "counted", .Uniforms = {{
+        .name = "values", .type = UT_FLOAT_MAT4, .count = 4, .count_offset = offsetof(TESTCOUNTSTATE, count), .counted = true,
+    }} };
+    SHADERPROG prog = { .progid = 1, .desc = &desc, .locs = { 0 } };
+    memset(&upload, 0, sizeof(upload)); R_UploadShader(&prog, &state);
+    T_EQ(upload.calls, 1); T_EQ(upload.count, 2);
 }
 
 /* The descriptor chooses upload shape; arrays stay blocks and bools are not read as GLint storage. */
@@ -795,7 +853,7 @@ TEST(renderer_shader_desc, upload_dispatches_values_arrays_and_inactive_inputs) 
     union { float f[32]; int i[32]; bool b; } state = { 0 };
     shader_desc_t desc = { .Name = "upload" };
     SHADERPROG prog = { .progid = 1, .desc = &desc };
-    static const int widths[] = { 1, 2, 3, 4, 4, 0, 0, 0, 9, 16, 0, 0, 0 };
+    static const int widths[] = { 1, 2, 3, 4, 4, 0, 0, 0, 9, 9, 16, 0, 0, 0 };
     FOR_LOOP(type, UT_COUNT) {
         desc.Uniforms[0] = (shaderUniform_t){ .name = "value", .type = type };
         memset(&upload, 0, sizeof(upload));
@@ -813,7 +871,7 @@ TEST(renderer_shader_desc, upload_dispatches_values_arrays_and_inactive_inputs) 
     }
     desc.Uniforms[0] = (shaderUniform_t){ .name = "bool", .type = UT_BOOL };
     state.b = false; R_UploadShader(&prog, &state); T_EQ(upload.integer, 0);
-    desc.Uniforms[0].type = UT_FLOAT_MAT3; desc.Uniforms[0].transpose = true;
+    desc.Uniforms[0].type = UT_FLOAT_MAT3_TRANSPOSE;
     R_UploadShader(&prog, &state); T_EQ(upload.transpose, GL_TRUE);
     int calls = upload.calls; prog.locs[0] = -1;
     R_UploadShader(&prog, &state); T_EQ(upload.calls, calls);

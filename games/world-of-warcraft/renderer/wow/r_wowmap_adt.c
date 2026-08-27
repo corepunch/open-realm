@@ -406,6 +406,10 @@ void Wow_LoadNearbyAdts(int center_x, int center_y) {
         Wow_ClearLoadedAdts();
     }
 
+    /* New working set: bump the generation so textures the reload does not touch
+       become reclaimable, then sweep after all tiles load. */
+    R_AdvanceTextureGeneration();
+
     wow_world.alpha_origin_x = center_x - WOW_ADT_RADIUS;
     wow_world.alpha_origin_y = center_y - WOW_ADT_RADIUS;
     wow_world.adt_center_x = center_x;
@@ -422,6 +426,7 @@ void Wow_LoadNearbyAdts(int center_x, int center_y) {
             }
         }
     }
+    R_ReclaimStreamedTextures(WOW_TEXTURE_KEEP_GENERATIONS);
     fprintf(stderr, "R_DrawWorld: WoW ADT window centered on camera tile %d,%d radius=%d chunks=%u doodads=%u rendered_doodads=%u wmos=%u wmo_batches=%u\n", center_x, center_y, WOW_ADT_RADIUS, (unsigned)wow_world.num_chunks, (unsigned)wow_world.num_doodads, (unsigned)wow_world.num_doodad_instances, (unsigned)wow_world.num_wmos, (unsigned)wow_world.num_wmo_batches);
 }
 

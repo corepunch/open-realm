@@ -283,7 +283,8 @@ BOOL SC2_HUD_BuildFrameForWrite(LPCSC2BASEFRAME frame, uiFrame_t *out) {
             fprintf(stderr, "SC2_HUD: incomplete model/camera payload for %s (fields=%x)\n", frame->name, frame->model_flags);
             return false;
         }
-        out->text = "Stand";
+        /* The center model's steady sequences omit its placement track; Birth ends at the assembled console pose. */
+        out->text = "Birth";
         out->buffer.data = (HANDLE)&frame->model;
         out->buffer.size = sizeof(frame->model);
     }

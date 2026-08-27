@@ -371,7 +371,7 @@ void Wow_AddAdtChunk(wowVec3_t pos,
             texture_id = slot_texture_ids[0];
         }
         if (texture_id < num_textures && textures[texture_id]) {
-            chunk->textures[layer_index] = Wow_LoadTexture(textures[texture_id]);
+            chunk->textures[layer_index] = Wow_LoadTexture(textures[texture_id], true);
         } else {
             chunk->textures[layer_index] = layer_index > 0 ? chunk->textures[0] : tr.texture[TEX_WHITE];
         }

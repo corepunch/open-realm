@@ -340,7 +340,7 @@ void Wow_DrawMinimap(LPCRECT screen) {
             }
             if (!wow_world.minimap_tiles[tx][ty]) {
                 snprintf(path, sizeof(path), "Textures/Minimap/%s.blp", hash);
-                wow_world.minimap_tiles[tx][ty] = Wow_LoadTexture(path);
+                wow_world.minimap_tiles[tx][ty] = Wow_LoadTexture(path, false);
             }
             dst = (RECT){ screen->x + (ix0-x0)/(2*r)*screen->w, screen->y + (y1-iy1)/(2*r)*screen->h,
                           (ix1-ix0)/(2*r)*screen->w, (iy1-iy0)/(2*r)*screen->h };

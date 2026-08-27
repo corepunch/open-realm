@@ -1888,6 +1888,29 @@ TEST(wow_game, backpack_toggles_open_closed) {
     if (game->Shutdown) game->Shutdown();
 }
 
+/* Opening the backpack emits its window frames on the console HUD layer. */
+TEST(wow_game, backpack_window_emits_on_console_layer) {
+    struct game_export *game = init_game();
+    LPEDICT player = &wow_edicts[0];
+    BOOL found_title = false, found_close = false;
+
+    T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
+    game->ClientBegin(player);
+
+    test_ui_frame_count = 0;
+    memset(test_layout_seen, 0, sizeof(test_layout_seen));
+    game->ClientCommand(player, 1, (LPCSTR[]){"backpack"});
+    FOR_LOOP(i, test_ui_frame_count) {
+        testUiFrame_t const *frame = &test_ui_frames[i];
+        if (frame->layer != LAYER_CONSOLE) continue;
+        if (!strcmp(frame->text, "Backpack")) found_title = true;
+        if (!strcmp(frame->text, "Close") && !strcmp(frame->onclick, "backpack")) found_close = true;
+    }
+    T_ASSERT(found_title);
+    T_ASSERT(found_close);
+    if (game->Shutdown) game->Shutdown();
+}
+
 /* -------------------------------------------------------------------------
  * Damage flash overlay tests
  * -------------------------------------------------------------------------*/

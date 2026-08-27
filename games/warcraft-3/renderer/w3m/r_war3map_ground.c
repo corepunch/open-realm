@@ -25,18 +25,14 @@ VECTOR3 R_GetVertexPosition(LPCWAR3MAP map, DWORD x, DWORD y, BOOL useLevel) {
     };
 }
 
+static FLOAT r_war3_normal_height(LPCVOID data, DWORD x, DWORD y) {
+    return R_GetVertexPosition(data, x, y, false).z;
+}
+
 VECTOR3 R_GetVertexNormal(LPCWAR3MAP map, DWORD x, DWORD y) {
-    bool useLevel = false;
-    VECTOR3 const currentPoint = R_GetVertexPosition(map, x, y, useLevel);
-    VECTOR3 const leftPoint = (x > 0) ? R_GetVertexPosition(map, x - 1, y, useLevel) : currentPoint;
-    VECTOR3 const rightPoint = (x < map->width - 1) ? R_GetVertexPosition(map, x + 1, y, useLevel) : currentPoint;
-    VECTOR3 const topPoint = (y > 0) ? R_GetVertexPosition(map, x, y - 1, useLevel) : currentPoint;
-    VECTOR3 const bottomPoint = (y < map->height - 1) ? R_GetVertexPosition(map, x, y + 1, useLevel) : currentPoint;
-    VECTOR3 const diffX = Vector3_sub(&rightPoint, &leftPoint);
-    VECTOR3 const diffY = Vector3_sub(&bottomPoint, &topPoint);
-    VECTOR3 normal = Vector3_cross(&diffX, &diffY);
-    Vector3_normalize(&normal);
-    return normal;
+    TERRAINNORMALS grid = { map, r_war3_normal_height, map->width, map->height, TILE_SIZE };
+
+    return R_TerrainGridNormal(&grid, x, y);
 }
 
 DWORD IsMidRamp(LPCWAR3MAPVERTEX mv) {

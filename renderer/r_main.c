@@ -25,7 +25,6 @@ struct render_globals tr;
 SDL_Window *window;
 SDL_GLContext context;
 
-render_phase_t render_phase = RENDER_PHASE_SOLID;
 static bool renderer_shutdown = false;
 
 /* Capture the physical GL drawable; SDL window dimensions are logical points on Retina. */
@@ -558,7 +557,7 @@ void R_SetAlphaKeyState(BOOL enabled) {
     }
 #ifdef BZ_USE_MSAA
 #ifdef USE_SHADOWMAPS
-    if (render_phase == RENDER_PHASE_LIGHTS) {
+    if (tr.render_phase == RENDER_PHASE_LIGHTS) {
         /* TODO: Single-sample shadow targets need multisample depth coverage before alpha-key shadows can use ATOC. */
         R_Call(glDisable, GL_SAMPLE_ALPHA_TO_COVERAGE);
         R_Call(glEnable, GL_BLEND);
@@ -632,19 +631,22 @@ void R_RevertSettings(void) {
 
 #ifdef USE_SHADOWMAPS
 void R_RenderShadowMap(void) {
-    render_phase = RENDER_PHASE_LIGHTS;
+    tr.render_phase = RENDER_PHASE_LIGHTS;
     R_SetupGL(true);
+    /* Bias depth writes away from receivers; the old unbiased pass made each terrain triangle shadow itself. */
+    R_Call(glEnable, GL_POLYGON_OFFSET_FILL);
+    R_Call(glPolygonOffset, 2.0f, 4.0f);
     R_BindTexture(tr.texture[TEX_SHADOWMAP], 1);
     R_GameDrawWorld();
     R_GameDrawTerrainShadows();
     R_DrawEntities();
+    R_Call(glDisable, GL_POLYGON_OFFSET_FILL);
+    R_Call(glPolygonOffset, 0.0f, 0.0f);
 }
 #endif
 
 void R_RenderView(void) {
-#ifdef USE_SHADOWMAPS
-    render_phase = RENDER_PHASE_SOLID;
-#endif
+    tr.render_phase = RENDER_PHASE_SOLID;
     R_SetupViewport(&tr.viewDef.viewport);
     R_SetupScissor(&tr.viewDef.scissor);
     R_SetupGL(false);
@@ -654,12 +656,12 @@ void R_RenderView(void) {
     R_GameDrawWorld();
     R_DrawDecals();
     R_DrawEntities();
-    render_phase = RENDER_PHASE_ALPHA;
+    tr.render_phase = RENDER_PHASE_ALPHA;
     R_GameDrawAlphaSurfaces();
     if (!(tr.viewDef.rdflags & RDF_NOPARTICLES)) {
         R_DrawParticles();
     }
-    render_phase = RENDER_PHASE_SOLID;
+    tr.render_phase = RENDER_PHASE_SOLID;
     R_RevertSettings();
 
     R_DrawHealthBars();

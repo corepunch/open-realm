@@ -68,6 +68,7 @@ Public reverse-engineering and modding references for how StarCraft II maps are 
 - [Map Storage And Loading](map-storage-and-loading.md) — container format, component folders, dependency/XML loading behavior, and cache/download context.
 - [Embedded Map Files](embedded-map-files.md) — full binary specs for all known files inside `.SC2Map` archives.
 - [Map, Model, And Unit Data](map-model-unit-data.md) — practical path from placed objects through catalog XML to M3 models.
+- [Terrain And World Rendering](terrain-and-world-rendering.md) — cliff normal welding, authoritative texture batches, and texture lifetime rules.
 - [Parser Notes](parser-notes.md) — practical loading order and implementation guidance.
 - [HUD Layout Pipeline](hud-layout-pipeline.md) — `.SC2Layout` → `sc2BaseFrame_t` → `uiFrame_t` → `svc_layout` pipeline; UI texture resolution via Assets.txt.
 - [UI Layout Format](ui-layout-format.md) — `.SC2Layout` XML syntax, DescIndex manifest, layout directory structure, frame class hierarchy, Galaxy Script overview, and community resources.

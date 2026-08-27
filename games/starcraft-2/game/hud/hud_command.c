@@ -11,7 +11,7 @@
 
 /* SC2 command buttons need runtime icon assignment; template defaults only
  * define the button shell/background and leave the command art blank. */
-static void command_apply_icons(sc2BaseFrame_t *frames, DWORD count, sc2BaseFrame_t *root) {
+void SC2_HUD_PrepareCommandPanel(sc2BaseFrame_t *frames, DWORD count, sc2BaseFrame_t *root) {
     static LPCSTR icon_paths[] = {
         "Assets/Textures/icon-mineral.dds",
         "Assets/Textures/icon-gas.dds",
@@ -49,18 +49,4 @@ static void command_apply_icons(sc2BaseFrame_t *frames, DWORD count, sc2BaseFram
         fprintf(stderr, "SC2_HUD: stamped command icon textures on %d image frames\n", stamped);
         logged_once = true;
     }
-}
-
-static sc2BaseFrame_t *command_find(void) {
-    return SC2_LayoutFindFrameByType(SC2_FRAMETYPE_COMMAND_PANEL);
-}
-
-void SC2_HUD_WriteCommandPanel(LPEDICT ent) {
-    DWORD count = 0;
-    sc2BaseFrame_t *frames = SC2_HUD_EnsureLayout(&count);
-    if (!frames) return;
-    sc2BaseFrame_t *root = command_find();
-    if (!root) return;
-    command_apply_icons(frames, count, root);
-    SC2_HUD_WriteLayout(ent, frames, count, root, LAYER_COMMANDBAR);
 }

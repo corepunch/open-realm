@@ -2,12 +2,15 @@
 
 typedef struct {
     VERTEX *vertices;
+    DWORD *groups;
     DWORD num_vertices;
     DWORD capacity;
+    DWORD current_group;
 } rCliffBakeList_t;
 
 static void R_CliffBakeGrow(rCliffBakeList_t *list, DWORD add) {
     VERTEX *vertices;
+    DWORD *groups;
     DWORD capacity;
 
     if (list->num_vertices + add <= list->capacity)
@@ -17,16 +20,21 @@ static void R_CliffBakeGrow(rCliffBakeList_t *list, DWORD add) {
         capacity *= 2;
     }
     vertices = ri.MemAlloc(capacity * sizeof(*vertices));
+    groups = ri.MemAlloc(capacity * sizeof(*groups));
     if (list->vertices) {
         memcpy(vertices, list->vertices, list->num_vertices * sizeof(*vertices));
+        memcpy(groups, list->groups, list->num_vertices * sizeof(*groups));
         ri.MemFree(list->vertices);
+        ri.MemFree(list->groups);
     }
     list->vertices = vertices;
+    list->groups = groups;
     list->capacity = capacity;
 }
 
 static LPVERTEX R_CliffBakeVertex(rCliffBakeList_t *list) {
     R_CliffBakeGrow(list, 1);
+    list->groups[list->num_vertices] = list->current_group;
     return &list->vertices[list->num_vertices++];
 }
 

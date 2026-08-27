@@ -5,7 +5,7 @@
  * Define SHADER_TYPE as the value struct, then describe its members with UNIFORM.
  * R_LoadShader(desc, defines, &shader) links a { SHADERPROG prog; STATE state; }.
  * Fill shader.state and call R_ApplyShader(&shader) before drawing. The backend
- * binds the program and uploads the complete state; callers never handle locations.
+ * binds the program and uploads changed state; callers never handle locations.
  */
 
 #include <stddef.h>
@@ -61,6 +61,7 @@ typedef enum {
     UT_INT_VEC2,
     UT_BOOL,
     UT_FLOAT_MAT3,
+    UT_FLOAT_MAT3_TRANSPOSE,
     UT_FLOAT_MAT4,
     UT_SAMPLER_2D,
     UT_SAMPLER_2D_RECT,
@@ -74,8 +75,9 @@ typedef struct {
     const char     *name;      /* GLSL name, e.g. "u_mvp" */
     uniformType_t   type;
     precisionType_t precision;
-    bool            transpose; /* CPU row-major matrix storage */
     DWORD           count;     /* array size; 0 = scalar */
+    size_t          count_offset; /* runtime upload count for a fixed-capacity GLSL array */
+    bool            counted;
 } shaderUniform_t;
 
 typedef struct {
@@ -113,6 +115,7 @@ typedef struct SHADERPROG {
     GLuint progid;
     LPCSHADERDESC desc;
     GLint locs[MAX_SHADER_UNIFORMS];
+    void *cache; /* shadow of last-uploaded state for change detection */
 } SHADERPROG;
 typedef struct SHADERPROG *LPSHADERPROG;
 typedef const struct SHADERPROG *LPCSHADERPROG;
@@ -127,26 +130,20 @@ typedef struct SHADERLOAD *LPSHADERLOAD;
 typedef const struct SHADERLOAD *LPCSHADERLOAD;
 void R_LoadShaderState(LPCSHADERLOAD load);
 void R_DeleteShader(LPSHADERPROG prog);
-void R_UploadShader(LPCSHADERPROG prog, LPCVOID state);
+void R_UploadShader(LPSHADERPROG prog, LPCVOID state);
 #define R_LoadShader(D, F, P) R_LoadShaderState(&(SHADERLOAD){ D, F, &(P)->prog, &(P)->state })
 #define R_ApplyShader(P) R_UploadShader(&(P)->prog, &(P)->state)
 
-/* SHADER_TYPE names the CPU value struct. Named entries preserve an existing GLSL spelling.
- * Array entries use inline contiguous typed storage; all locations remain inside SHADERPROG.
- */
-#define UNIFORM(field, type, prec) \
-    { offsetof(SHADER_TYPE, field), "u_" #field, type, prec, false, 0 }
-#define UNIFORM_ARRAY(field, type, prec, count) \
-    { offsetof(SHADER_TYPE, field), "u_" #field, type, prec, false, count }
-/* Explicit GLSL spelling for game shader contracts. */
-#define UNIFORM_NAMED(field, name, type, prec) \
-    { offsetof(SHADER_TYPE, field), name, type, prec, false, 0 }
-#define UNIFORM_NAMED_ARRAY(field, name, type, prec, count) \
-    { offsetof(SHADER_TYPE, field), name, type, prec, false, count }
-#define UNIFORM_TRANSPOSE(field, type, prec) \
-    { offsetof(SHADER_TYPE, field), "u_" #field, type, prec, true, 0 }
-#define UNIFORM_NAMED_TRANSPOSE(field, name, type, prec) \
-    { offsetof(SHADER_TYPE, field), name, type, prec, true, 0 }
+/* SHADER_TYPE names the CPU value struct. A fourth argument makes a fixed array;
+ * a fifth names the state field containing its active upload count. */
+#define BZ_UNIFORM_3(field, type, prec) \
+    { offsetof(SHADER_TYPE, field), "u_" #field, type, prec, 0, 0, false }
+#define BZ_UNIFORM_4(field, type, prec, count) \
+    { offsetof(SHADER_TYPE, field), "u_" #field, type, prec, count, 0, false }
+#define BZ_UNIFORM_5(field, type, prec, count, count_field) \
+    { offsetof(SHADER_TYPE, field), "u_" #field, type, prec, count, offsetof(SHADER_TYPE, count_field), true }
+#define BZ_UNIFORM_SELECT(_1, _2, _3, _4, _5, NAME, ...) NAME
+#define UNIFORM(...) BZ_UNIFORM_SELECT(__VA_ARGS__, BZ_UNIFORM_5, BZ_UNIFORM_4, BZ_UNIFORM_3)(__VA_ARGS__)
 #define ATTRIB(field, attrib_id, type) \
     { "a_" #field, attrib_id, type }
 #define SHARED(field, type) \

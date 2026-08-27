@@ -68,8 +68,6 @@ typedef enum render_phase_e {
     RENDER_PHASE_ALPHA,
 } render_phase_t;
 
-extern render_phase_t render_phase;
-
 #include "../common/common.h"
 #include "../client/tr_public.h"
 #include "r_alpha.h"
@@ -192,6 +190,7 @@ typedef struct {
 /* Shared skinned-model shader (MDX/M2/M3): bone palette + 8 packed lights. */
 typedef struct MODELSTATE {
     MATRIX4 bones[BZ_BONE_PALETTE_MAX];
+    DWORD boneCount;
     MATRIX4 viewProjection;
     MATRIX4 lightMatrix;
     MATRIX4 textureMatrix;
@@ -286,6 +285,7 @@ enum {
 
 struct render_globals {
     viewDef_t viewDef;
+    render_phase_t render_phase;    /* current whole-scene pass (solid / shadow-map / alpha); read by game renderers */
     LPCWAR3MAP world;
     LPTEXTURE texture[TEX_COUNT];
     SPRITEPROG  shader_ui;
@@ -310,6 +310,9 @@ struct render_globals {
 void R_RegisterMap(LPCSTR mapFileName);
 int R_RegisterTextureFile(LPCSTR textureFileName);
 LPTEXTURE R_LoadTexture(LPCSTR textureFileName);
+LPTEXTURE R_LoadTextureStreamed(LPCSTR textureFileName);
+void R_AdvanceTextureGeneration(void);
+void R_ReclaimStreamedTextures(DWORD keep_recent);
 int R_ReadTextureFile(LPCSTR name, LPSTR path, void **buffer);
 LPTEXTURE R_FindLoadedTexture(LPCSTR name);
 void R_CacheLoadedTexture(LPCSTR name, LPTEXTURE texture);

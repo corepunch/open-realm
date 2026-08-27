@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="us-ascii"?>
 <Catalog>
     <CLight id="Fixture">
-        <ToDInfoArray index="0" AmbientColor="0.100000,0.200000,0.300000">
+        <ToDInfoArray index="0" AmbientColor="0.100000,0.200000,0.300000" Colorize="1">
+            <Param index="ColorizationBlend" value="0.300000"/>
             <DirectionalLight index="Key">
                 <Color value="0.400000,0.500000,0.600000"/>
                 <ColorMultiplier value="2.000000"/>

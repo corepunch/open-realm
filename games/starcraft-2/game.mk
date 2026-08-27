@@ -26,9 +26,9 @@ $(BIN_DIR)/m3tool$(EXE_EXT): tools/m3tool.c $(TOOL_DEPS) $(CLIENT_HEADERS) $(COM
 	@$(CC) $(SC2_CFLAGS) -o $@ $< \
 		$(RPATH) $(LDFLAGS) -lrenderer-sc2 -lsheet -lshared $(LIBS) -lm -lz
 
-$(BIN_DIR)/sc2map$(EXE_EXT): tools/sc2map.c $(SC2_DIR)/common/sc2_map.c $(SC2_DIR)/common/sc2_map.h common/mpq.c | $(BIN_DIR)
+$(BIN_DIR)/sc2map$(EXE_EXT): tools/sc2map.c $(SC2_DIR)/common/sc2_map.c $(SC2_DIR)/common/sc2_map.h common/mpq.c | $(BIN_DIR) $(SHARED_LIB)
 	@$(CC) $(SC2_CFLAGS) -o $@ tools/sc2map.c $(SC2_DIR)/common/sc2_map.c common/mpq.c \
-		$(RPATH) $(LDFLAGS) -lm -lz
+		$(RPATH) $(LDFLAGS) -lshared -lm -lz
 
 $(eval $(call unity_lib_schema,$(RENDERER_SC2_LIB),$(RENDERER_BASE_DEPS) $(call CSRC,renderer $(SC2_DIR)/renderer) $(SC2_COMMON_SRCS),renderer-sc2,renderer $(SC2_DIR)/renderer,,$(SC2_CFLAGS),common/mpq.c,$(RENDERER_SHARED_LIBS)))
 
@@ -56,6 +56,7 @@ test-sc2-assets: sc2fixturegen mpqtool sc2map | $(TESTS_DIR)
 	@$(BIN_DIR)/sc2fixturegen$(EXE_EXT) cell-flags $(SC2_TEST_RES_DIR)/Maps/Test/Tiny.SC2Map/t3CellFlags
 	@$(BIN_DIR)/sc2fixturegen$(EXE_EXT) cliff-levels $(SC2_TEST_RES_DIR)/Maps/Test/Tiny.SC2Map/t3SyncCliffLevel
 	@$(BIN_DIR)/sc2fixturegen$(EXE_EXT) texture-masks $(SC2_TEST_RES_DIR)/Maps/Test/Tiny.SC2Map/t3TextureMasks
+	@$(BIN_DIR)/sc2fixturegen$(EXE_EXT) hard-tiles $(SC2_TEST_RES_DIR)/Maps/Test/Tiny.SC2Map/t3HardTile
 	@echo "[test-sc2-assets] packing test-sc2.SC2Maps"
 	@set --; \
 	for f in $$(find $(SC2_TEST_RES_DIR) -type f | sort); do \
@@ -80,9 +81,9 @@ test-sc2-assets: sc2fixturegen mpqtool sc2map | $(TESTS_DIR)
 SC2_HUD_LIVE_BIN := $(BIN_DIR)/test_sc2_hud_live$(EXE_EXT)
 SC2_HUD_LIVE_SRC := tests/test_runner.c $(SC2_TEST_DIR)/test_sc2_hud_live.c
 
-$(SC2_HUD_LIVE_BIN): $(SC2_HUD_LIVE_SRC) | $(BIN_DIR)
+$(SC2_HUD_LIVE_BIN): $(SC2_HUD_LIVE_SRC) $(SHARED_LIB) | $(BIN_DIR)
 	$(CC) $(CFLAGS) -I. -Itests -DSC2_BINARY=\"$(SC2_BINARY)\" -DSC2_DATA=\"data/StarCraft2\" \
-	    -o $@ $(SC2_HUD_LIVE_SRC) -lm
+	    -o $@ $(SC2_HUD_LIVE_SRC) $(RPATH) $(LDFLAGS) -lshared -lm
 
 # Requires Blizzard SC2 archives under data/StarCraft2/ — local-only.
 test-sc2-live: opensc2 $(SC2_HUD_LIVE_BIN)

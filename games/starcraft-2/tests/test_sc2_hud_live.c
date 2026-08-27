@@ -54,7 +54,7 @@ static void capture_output(void) {
 
     char cmd[512];
     snprintf(cmd, sizeof(cmd),
-             "%s -data %s +r_module stdout +map TRaynor01 +com_frame_limit 5 2>/dev/null",
+             "%s -data %s +r_module stdout +set sv_debug_layout 1 +map TRaynor01 +com_frame_limit 5 2>&1",
              SC2_BINARY, SC2_DATA);
 
     FILE *fp = popen(cmd, "r");
@@ -87,8 +87,7 @@ static int find_line(const char *pattern) {
     return 0;
 }
 
-/* Count lines containing pattern (reserved for future assertions). */
-static int count_lines(const char *pattern) __attribute__((unused));
+/* Count lines containing pattern. */
 static int count_lines(const char *pattern) {
     int n = 0;
     for (int i = 0; i < g_nlines; i++)
@@ -124,39 +123,31 @@ static int not_found(const char *pattern) {
 /* ------------------------------------------------------------------ */
 
 #define ASSERT_LINE(pattern) do { \
-    _tests_run++; \
-    if (!find_line(pattern)) { \
+    if (!find_line(pattern)) \
         fprintf(stderr, "    FAIL [%s:%d]: expected line containing: %s\n", \
                 __FILE__, __LINE__, pattern); \
-        _tests_failed++; \
-    } \
+    T_ASSERT(find_line(pattern)); \
 } while (0)
 
 #define ASSERT_NO_LINE(pattern) do { \
-    _tests_run++; \
-    if (find_line(pattern)) { \
+    if (find_line(pattern)) \
         fprintf(stderr, "    FAIL [%s:%d]: unexpected line found: %s\n", \
                 __FILE__, __LINE__, pattern); \
-        _tests_failed++; \
-    } \
+    T_ASSERT(!find_line(pattern)); \
 } while (0)
 
 #define ASSERT_LINE_IN_FRAME(frame_idx, pattern) do { \
-    _tests_run++; \
-    if (!find_in_frame(frame_idx, pattern)) { \
+    if (!find_in_frame(frame_idx, pattern)) \
         fprintf(stderr, "    FAIL [%s:%d]: expected pattern in frame %d: %s\n", \
                 __FILE__, __LINE__, frame_idx, pattern); \
-        _tests_failed++; \
-    } \
+    T_ASSERT(find_in_frame(frame_idx, pattern)); \
 } while (0)
 
 #define ASSERT_BOTH_IN_LINE(p1, p2) do { \
-    _tests_run++; \
-    if (!find_line_with_both(p1, p2)) { \
+    if (!find_line_with_both(p1, p2)) \
         fprintf(stderr, "    FAIL [%s:%d]: expected line with '%s' AND '%s'\n", \
                 __FILE__, __LINE__, p1, p2); \
-        _tests_failed++; \
-    } \
+    T_ASSERT(find_line_with_both(p1, p2)); \
 } while (0)
 
 /* ------------------------------------------------------------------ */
@@ -245,11 +236,8 @@ TEST(sc2_hud_live, hud_no_unbound_resource_labels) {
         fprintf(stderr,
                 "    FAIL [%s:%d]: %d resource label(s) use fallback 'text N' — stat not bound\n",
                 __FILE__, __LINE__, unbound);
-        _tests_run++;
-        _tests_failed++;
-    } else {
-        _tests_run++;
     }
+    T_EQ(unbound, 0);
 }
 
 /* ------------------------------------------------------------------ */
@@ -282,6 +270,13 @@ TEST(sc2_hud_live, hud_command_panel_background_drawn) {
     capture_output();
     /* The command panel background texture must be loaded and drawn. */
     ASSERT_LINE("ui_commandcard_terranframe_normal.dds");
+}
+
+TEST(sc2_hud_live, hud_console_uses_one_retained_layer) {
+    capture_output();
+    T_EQ(count_lines("SV layout: layer=0"), 1);
+    T_EQ(count_lines("SV layout: layer=4"), 0);
+    T_EQ(count_lines("SV layout: layer=5"), 0);
 }
 
 TEST(sc2_hud_live, hud_command_button_icons_stamped) {
@@ -331,11 +326,8 @@ TEST(sc2_hud_live, hud_no_null_texture_in_resource_bar) {
         fprintf(stderr,
                 "    FAIL [%s:%d]: %d visible null-texture draw(s) in resource bar (y<50)\n",
                 __FILE__, __LINE__, null_tex_positive_size);
-        _tests_run++;
-        _tests_failed++;
-    } else {
-        _tests_run++;
     }
+    T_EQ(null_tex_positive_size, 0);
 }
 
 /* ------------------------------------------------------------------ */
@@ -384,11 +376,101 @@ TEST(sc2_hud_live, hud_no_unbound_text_in_resource_bar) {
                 "    FAIL [%s:%d]: %d draw_text 'text N' fallback(s) in resource bar"
                 " (check hud_resource.c bindings[])\n",
                 __FILE__, __LINE__, fallback_in_bar);
-        _tests_run++;
-        _tests_failed++;
-    } else {
-        _tests_run++;
     }
+    T_EQ(fallback_in_bar, 0);
+}
+
+/* ------------------------------------------------------------------ */
+/* Tests: InfoPanel chrome and content                                  */
+/* ------------------------------------------------------------------ */
+
+TEST(sc2_hud_live, hud_console_chrome_models_render) {
+    capture_output();
+    /* The three console chrome 3D models (InfopanelModel, MinimapModel,
+     * CommandPanelModel) must each produce a render_frame with a positive
+     * scissor.  A zero scissor means SCR_LayoutDrawPortrait never set it,
+     * which clips the GL draw to nothing — the console backdrop is invisible.
+     * Each chrome render has entities=1 and viewport/scissor matching {w:1}. */
+    int chrome_renders = 0;
+    for (int i = 0; i < g_nlines; i++) {
+        char *l = g_lines[i];
+        if (!strstr(l, "render_frame")) continue;
+        if (!strstr(l, "entities=1 ")) continue;
+        /* Must have positive scissor width. */
+        char *sp = strstr(l, "scissor=");
+        if (!sp) continue;
+        float sw = 0.0f;
+        if (sscanf(sp, "scissor={x:%*f,y:%*f,w:%f", &sw) == 1 && sw > 0.0f)
+            chrome_renders++;
+    }
+    if (chrome_renders < 3) {
+        fprintf(stderr,
+                "    FAIL [%s:%d]: only %d console chrome render_frame(s) with"
+                " positive scissor — expected >= 3 (infopanel + minimap + command)\n",
+                __FILE__, __LINE__, chrome_renders);
+    }
+    T_ASSERT(chrome_renders >= 3);
+}
+
+TEST(sc2_hud_live, hud_console_chrome_uses_assembled_pose) {
+    capture_output();
+    ASSERT_BOTH_IN_LINE("ConsoleTerran_00.m3", "anim=\"Birth\"");
+    ASSERT_BOTH_IN_LINE("ConsoleTerran_01.m3", "anim=\"Birth\"");
+    ASSERT_BOTH_IN_LINE("ConsoleTerran_02.m3", "anim=\"Birth\"");
+}
+
+TEST(sc2_hud_live, hud_unit_portrait_renders) {
+    capture_output();
+    /* SC2_ClientBegin pre-selects the first owned unit, setting portrait_model.
+     * The portrait render_frame must have a non-trivial viewport (not 0,0,1,1)
+     * meaning the PortraitPanel sent the unit's portrait area to the renderer. */
+    int portrait_renders = 0;
+    for (int i = 0; i < g_nlines; i++) {
+        char *l = g_lines[i];
+        if (!strstr(l, "render_frame")) continue;
+        if (!strstr(l, "entities=1 ")) continue;
+        char *vp = strstr(l, "viewport=");
+        if (!vp) continue;
+        float vx = 0, vy = 0, vw = 0, vh = 0;
+        sscanf(vp, "viewport={x:%f,y:%f,w:%f,h:%f}", &vx, &vy, &vw, &vh);
+        /* Portrait viewport must be a sub-region of the screen (not full 1.0×1.0). */
+        if (vw > 0.0f && vw < 0.95f && vh > 0.0f && vh < 0.95f)
+            portrait_renders++;
+    }
+    if (portrait_renders == 0) {
+        fprintf(stderr, "    FAIL [%s:%d]: no portrait render_frame with sub-screen"
+                " viewport — unit pre-selection or portrait model not wired\n",
+                __FILE__, __LINE__);
+    }
+    T_ASSERT(portrait_renders > 0);
+}
+
+TEST(sc2_hud_live, hud_infopanel_behavior_dots_visible) {
+    capture_output();
+    /* BehaviorBar dots (border-rounded-white.dds) inside InfoPanel must be
+     * drawn at the correct SC2 canvas position: x in [400, 1300] (center
+     * third of the 2133-wide canvas for 1280x720) and y > 980 (bottom area
+     * of the 1200-tall canvas).  At least one visible dot confirms the
+     * InfoPanel subtree is in the layer and positioned correctly. */
+    int dot_count = 0;
+    for (int i = 0; i < g_nlines; i++) {
+        char *l = g_lines[i];
+        if (!strstr(l, "border-rounded-white.dds")) continue;
+        if (!strstr(l, "draw_image")) continue;
+        char *sp = strstr(l, "screen={");
+        if (!sp) continue;
+        float sx = 0, sy = 0, sw = 0, sh = 0;
+        sscanf(sp, "screen={x:%f,y:%f,w:%f,h:%f}", &sx, &sy, &sw, &sh);
+        if (sw > 0 && sh > 0 && sx >= 400.0f && sx <= 1300.0f && sy > 980.0f)
+            dot_count++;
+    }
+    if (dot_count == 0) {
+        fprintf(stderr,
+                "    FAIL [%s:%d]: no InfoPanel behavior dots found in expected"
+                " area (x:400-1300, y>980) — InfoPanel may be absent or misplaced\n",
+                __FILE__, __LINE__);
+    }
+    T_ASSERT(dot_count > 0);
 }
 
 /* ------------------------------------------------------------------ */

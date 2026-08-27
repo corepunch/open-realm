@@ -21,6 +21,29 @@
 
 static DWORD ui_next_frame_number;
 
+/* svc_layout wire contract: every message carries exactly ONE layer —
+ * `svc_layout` byte, layer byte, frames, terminator (LONG 0 + SHORT 0).  The
+ * client's CL_ParseLayout stops at the terminator and the outer parser reads the
+ * next byte as a *message id*, so a frame written outside a layer (before
+ * UI_WriteStart or after UI_WriteEnd) is silently discarded.  Track the open
+ * layer and refuse to serialize a frame outside one instead of dropping it. */
+static BYTE ui_layout_layer = 0xFF; /* 0xFF = no layer open */
+
+/* Open a layout layer: emit the svc_layout + layer header and reset frame numbers. */
+static void UI_WriteStart(DWORD layer) {
+    ui_layout_layer = (BYTE)layer;
+    gi.Write(PF_BYTE, &(LONG){svc_layout});
+    gi.Write(PF_BYTE, &(LONG){layer});
+    ui_next_frame_number = 1;
+}
+
+/* Close the current layer with its terminator; nothing may be written until the next UI_WriteStart. */
+static void UI_WriteEnd(void) {
+    gi.Write(PF_LONG, &(LONG){0});   /* bits=0 */
+    gi.Write(PF_SHORT, &(LONG){0});  /* number=0 — MSG_ReadEntityBits consumes LONG+SHORT */
+    ui_layout_layer = 0xFF;
+}
+
 static void UI_WriteImage(LPCSTR path, FLOAT x, FLOAT y, FLOAT w, FLOAT h, COLOR32 color);
 
 static void UI_SetFramePoint(uiFramePoint_t *point, uiFramePointPos_t target, DWORD relative, FLOAT offset, BOOL y_axis) {
@@ -38,6 +61,11 @@ static void UI_SetFrameRect(LPUIFRAME frame, FLOAT x, FLOAT y, FLOAT w, FLOAT h)
 }
 
 static void UI_WriteProxyFrame(LPUIFRAME frame, HANDLE data, DWORD data_size) {
+    if (ui_layout_layer == 0xFF) {
+        fprintf(stderr, "WoW UI: FT_%d frame written outside a svc_layout layer (missing UI_WriteStart); skipped\n",
+                (int)frame->flags.type);
+        return;
+    }
     frame->number = ui_next_frame_number++;
     frame->parent = 0;
     frame->color = frame->color.a ? frame->color : COLOR32_WHITE;
@@ -229,9 +257,7 @@ static LPCSTR UI_QuestGiverName(DWORD quest_id) {
 static void UI_WriteQuestDialog(LPEDICT ent) {
     wowClient_t *wc = (wowClient_t *)ent->client;
 
-    gi.Write(PF_BYTE, &(LONG){svc_layout});
-    gi.Write(PF_BYTE, &(LONG){LAYER_QUESTDIALOG});
-    ui_next_frame_number = 1;
+    UI_WriteStart(LAYER_QUESTDIALOG);
 
     if (wc->quest_open) {
         LPCWOWQUESTDETAIL detail = Wow_QuestDetail(wc->quest_id);
@@ -317,8 +343,7 @@ static void UI_WriteQuestDialog(LPEDICT ent) {
         UI_WriteSimpleButton(x + PW(250), y + PH(450), PW(90), PH(28), "Close", "quest_close");
     }
 
-    gi.Write(PF_LONG, &(LONG){0});
-    gi.Write(PF_SHORT, &(LONG){0});
+    UI_WriteEnd();
 }
 
 static void UI_WriteQuestLog(LPEDICT ent) {
@@ -634,9 +659,7 @@ void UI_WriteWowHud(LPEDICT ent) {
     ps = &ent->client->ps;
     wc = (wowClient_t *)ent->client;
 
-    gi.Write(PF_BYTE, &(LONG){svc_layout});
-    gi.Write(PF_BYTE, &(LONG){LAYER_CONSOLE});
-    ui_next_frame_number = 1;
+    UI_WriteStart(LAYER_CONSOLE);
 
     /* Character/targeting frame (portrait area top-left) */
     UI_WriteTargetingFrame(ent);
@@ -711,11 +734,14 @@ void UI_WriteWowHud(LPEDICT ent) {
         }
     }
 
-    gi.Write(PF_LONG, &(LONG){0});
-    gi.Write(PF_SHORT, &(LONG){0});
-    UI_WriteQuestDialog(ent);
-    UI_WriteQuestLog(ent);
+    /* Loot and backpack windows are HUD overlays on LAYER_CONSOLE.  They must be
+     * written before the console terminator: writing them after a layer's
+     * terminator (as previously done after UI_WriteQuestDialog) appends raw frame
+     * bytes the client parses as a new message id and discards. */
     UI_WriteLootWindow(ent);
     UI_WriteBackpackWindow(ent);
+    UI_WriteEnd();
+    UI_WriteQuestDialog(ent);
+    UI_WriteQuestLog(ent);
     gi.unicast(ent);
 }
