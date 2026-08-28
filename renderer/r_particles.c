@@ -14,10 +14,8 @@ typedef struct particle_vertex {
 
 typedef struct PARTICLESTATE {
     MATRIX4 viewProjection;
-    MATRIX4 textureMatrix;
     MATRIX4 model;
     int texture;
-    int fogOfWar;
     bool alphaKey;
     FLOAT alphaCutoff;
 } PARTICLESTATE;
@@ -69,10 +67,8 @@ static const shader_desc_t sd_particle = {
     .Name = "particle",
     .Uniforms = {
         UNIFORM(viewProjection, UT_FLOAT_MAT4, PRECISION_HIGH),
-        UNIFORM(textureMatrix,  UT_FLOAT_MAT4, PRECISION_HIGH),
         UNIFORM(model,          UT_FLOAT_MAT4, PRECISION_HIGH),
         UNIFORM(texture,        UT_SAMPLER_2D, PRECISION_LOW),
-        UNIFORM(fogOfWar,       UT_SAMPLER_2D, PRECISION_LOW),
         UNIFORM(alphaKey,       UT_BOOL,       PRECISION_LOW),
         UNIFORM(alphaCutoff,    UT_FLOAT,      PRECISION_LOW),
     },
@@ -86,7 +82,6 @@ static const shader_desc_t sd_particle = {
     .Shared = {
         SHARED(color,    UT_COLOR),
         SHARED(texcoord, UT_FLOAT_VEC2),
-        SHARED(texcoord2, UT_FLOAT_VEC2),
     },
     .VertexBody =
         "vec4 vert() {\n"
@@ -97,16 +92,11 @@ static const shader_desc_t sd_particle = {
         "  vec3 pos = bb_mat * vec3(a_axis - vec2(0.5), 1.0);\n"
         "  v_color = a_color;\n"
         "  v_texcoord = a_texcoord;\n"
-        "  v_texcoord2 = (u_textureMatrix * vec4(pos, 1.0)).xy;\n"
         "  return u_viewProjection * vec4(pos, 1.0);\n"
         "}\n",
-    /* Waterfalls are PRE2-only models; the old unfogged particle pass exposed the whole effect through black FOW. */
     .FragmentBody =
         "vec4 frag() {\n"
         "  vec4 col = texture(u_texture, v_texcoord) * v_color;\n"
-        "#ifdef USE_FOGOFWAR\n"
-        "  col.rgb *= texture(u_fogOfWar, v_texcoord2).r;\n"
-        "#endif\n"
         "  if (u_alphaKey) {\n"
         "#ifndef BZ_USE_MSAA\n"
         "    if (col.a < u_alphaCutoff) discard;\n"
@@ -200,7 +190,6 @@ static void R_FlushParticles(LPCTEXTURE texture, LPCMATRIX4 matrix, particleVert
 
     particles_resources.shader.state.model = *matrix;
     particles_resources.shader.state.viewProjection = tr.viewDef.viewProjectionMatrix;
-    particles_resources.shader.state.textureMatrix = tr.viewDef.textureMatrix;
     R_Call(glActiveTexture, GL_TEXTURE0);
     R_Call(glBindTexture, GL_TEXTURE_2D, (texture?texture:particles_resources.texture)->texid);
     particles_resources.shader.state.alphaKey = blend_mode == BLEND_MODE_ALPHAKEY;
@@ -351,17 +340,12 @@ void R_InitParticles(void) {
     R_LoadTextureMipLevel(particles_resources.texture, &(TEXMIP){ data, DOT_TEXTURE, DOT_TEXTURE, 0, PIXEL_RGBA });
 
     static const char *particle_defines =
-#ifdef USE_FOGOFWAR
-        "#define USE_FOGOFWAR 1\n"
-#endif
 #ifdef BZ_USE_MSAA
         "#define BZ_USE_MSAA 1\n"
 #endif
         "";
     memset(&particles_resources.shader, 0, sizeof(particles_resources.shader));
     R_LoadShader(&sd_particle, particle_defines, &particles_resources.shader);
-    /* The scene contract reserves unit 2 for FOW; particles omit the shadow sampler that normally occupies unit 1. */
-    particles_resources.shader.state.fogOfWar = 2;
     particles_resources.particles = R_MakeParticlesVertexArrayObject();
     R_ClearParticles();
 }

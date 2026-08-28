@@ -23,7 +23,6 @@ typedef struct {
     ARRAY(BYTE const, colors);
     ARRAY(wowVec2_t const, uvs);
     ARRAY(wowWmoBatchDef_t const, batches);
-    ARRAY(WORD const, doodad_refs);
 } wowWmoGroupChunks_t;
 
 /* Reversed MOGP subchunk tag -> (ptr field, count field, element size) it fills. */
@@ -35,7 +34,6 @@ static const struct { DWORD tag; size_t ptr_off, count_off, elem_size; } kGroupS
     { ID_VTOM, offsetof(wowWmoGroupChunks_t, uvs),       offsetof(wowWmoGroupChunks_t, uvs_count),      sizeof(wowVec2_t) },
     { ID_ABOM, offsetof(wowWmoGroupChunks_t, batches),   offsetof(wowWmoGroupChunks_t, batches_count),  sizeof(wowWmoBatchDef_t) },
     { ID_VCOM, offsetof(wowWmoGroupChunks_t, colors),    offsetof(wowWmoGroupChunks_t, colors_count),   sizeof(COLOR32) },
-    { ID_RDOM, offsetof(wowWmoGroupChunks_t, doodad_refs), offsetof(wowWmoGroupChunks_t, doodad_refs_count), sizeof(WORD) },
 };
 
 /* Fill a { pointer, count } pair at the given struct offsets from a raw subchunk.
@@ -436,15 +434,6 @@ static BOOL Wow_LoadWmoGroup(wowWmoModel_t *model, DWORD group_index, WOWWMOLOAD
 
     model->groups[group_index].bounds = group_bounds;
     model->groups[group_index].has_bounds = group_has_bounds;
-    if (ARRAY_COUNT(chunks.doodad_refs)) {
-        wowWmoGroup_t *group = &model->groups[group_index];
-        group->doodad_refs = ri.MemAlloc(ARRAY_COUNT(chunks.doodad_refs) * sizeof(*group->doodad_refs));
-        if (!group->doodad_refs) { fprintf(stderr, "WoW WMO: failed to retain MODR for %s\n", group_path); goto cleanup; }
-        memcpy(group->doodad_refs, chunks.doodad_refs, ARRAY_COUNT(chunks.doodad_refs) * sizeof(*group->doodad_refs));
-        ARRAY_COUNT(group->doodad_refs) = ARRAY_COUNT(chunks.doodad_refs);
-        FOR_EACH_ARRAY(WORD, ref, group->doodad_refs)
-            if (*ref < model->num_doodad_defs) model->doodad_referenced[*ref] = 1;
-    }
     ok = true;
 
 cleanup:
@@ -512,10 +501,6 @@ BOOL Wow_LoadWmoModel(wowWmoModel_t *model) {
 
     model->groups = ri.MemAlloc(sizeof(*model->groups) * model->num_groups);
     memset(model->groups, 0, sizeof(*model->groups) * model->num_groups);
-    if (model->num_doodad_defs) {
-        model->doodad_referenced = ri.MemAlloc(model->num_doodad_defs);
-        memset(model->doodad_referenced, 0, model->num_doodad_defs);
-    }
     FOR_LOOP(i, model->num_groups)
         if (!Wow_LoadWmoGroup(model, i, &load)) goto cleanup;
 
@@ -604,13 +589,6 @@ void Wow_AddWmoInstance(LPCSTR path, wowMapObjDef_t const *def) {
     memset(instance, 0, sizeof(*instance));
     instance->model = model;
     instance->doodad_set = def->doodad_set;
-    if (model->num_groups) { instance->visible_groups = ri.MemAlloc(model->num_groups); memset(instance->visible_groups, 0, model->num_groups); }
-    if (model->num_doodad_defs) { instance->doodad_seen = ri.MemAlloc(model->num_doodad_defs); memset(instance->doodad_seen, 0, model->num_doodad_defs); }
-    if ((model->num_groups && !instance->visible_groups) || (model->num_doodad_defs && !instance->doodad_seen)) {
-        fprintf(stderr, "WoW WMO: failed to allocate visibility state for %s\n", path);
-        SAFE_DELETE(instance->visible_groups, ri.MemFree); SAFE_DELETE(instance->doodad_seen, ri.MemFree);
-        ri.MemFree(instance); return;
-    }
     Wow_InstanceMatrix(def, &instance->matrix);
     instance->next = wow_world.wmos;
     wow_world.wmos = instance;
@@ -662,37 +640,16 @@ void Wow_WmoDoodadLocalMatrix(wowWmoDoodadDef_t const *def, LPMATRIX4 m) {
     Matrix4_from_rotation_translation_scale_origin(m, &q, &pos, &scale, &zero);
 }
 
-/* Append one MODD after its authoritative MODR group has passed visibility. */
-static void Wow_QueueWmoDoodad(wowWmoInstance_t const *wmo, DWORD idx) {
-    wowWmoModel_t *model = wmo->model;
-    wowWmoDoodadDef_t const *def = &model->doodad_defs[idx];
-    wowDoodadModel_t *group;
-    MATRIX4 local, world;
-    BYTE inst_flags = (BYTE)(def->name_flags >> 24);
-    if ((inst_flags & 0x04) && def->color.a < model->num_lights_parsed) return;
-    group = model->def_groups[idx];
-    if (!group) return;
-    Wow_WmoDoodadLocalMatrix(def, &local);
-    Matrix4_multiply(&wmo->matrix, &local, &world);
-    if (group->wmo_count == group->wmo_capacity) {
-        DWORD capacity = group->wmo_capacity ? group->wmo_capacity * 2 : 16;
-        MATRIX4 *matrices = ri.MemAlloc(capacity * sizeof(*matrices));
-        if (!matrices) return;
-        if (group->wmo_matrices) {
-            memcpy(matrices, group->wmo_matrices, group->wmo_count * sizeof(*matrices));
-            ri.MemFree(group->wmo_matrices);
-        }
-        group->wmo_matrices = matrices; group->wmo_capacity = capacity;
-    }
-    group->wmo_matrices[group->wmo_count++] = world;
-}
-
-/* Queue only selected-set MODDs referenced by visible MOGP groups; MODR is the ownership source of truth. */
+/* Queue all doodads from the WMO's selected doodad set into instanced rendering.
+   Matrices are pre-composed in world/renderer space: wmo->matrix * doodad_local.
+   def_groups[] is a per-def cache of group pointers filled on the first call to
+   eliminate the per-frame Wow_LoadDoodadModel O(n) strcasecmp lookup. */
 void Wow_QueueWmoDoodads(wowWmoInstance_t const *wmo) {
     wowWmoModel_t *model;
     wowWmoDoodadSet_t const *ds;
+    DWORD i;
 
-    if (!wmo || !wmo->model || !wmo->visible) return;
+    if (!wmo || !wmo->model) return;
     model = wmo->model;
     if (!model->doodad_sets || wmo->doodad_set >= model->num_doodad_sets) return;
     ds = &model->doodad_sets[wmo->doodad_set];
@@ -716,19 +673,37 @@ void Wow_QueueWmoDoodads(wowWmoInstance_t const *wmo) {
     }
     if (!model->def_groups) return;
 
-    memset(wmo->doodad_seen, 0, model->num_doodad_defs);
-    FOR_LOOP(gi, model->num_groups) {
-        wowWmoGroup_t const *group = &model->groups[gi];
-        if (!wmo->visible_groups[gi]) continue;
-        FOR_EACH_ARRAY(WORD, ref, group->doodad_refs) {
-            DWORD idx = *ref;
-            if (idx < ds->start || idx >= ds->start + ds->count || idx >= model->num_doodad_defs || wmo->doodad_seen[idx]) continue;
-            wmo->doodad_seen[idx] = 1; Wow_QueueWmoDoodad(wmo, idx);
-        }
-    }
-    /* Some root WMOs genuinely omit MODR ownership; keep those scoped to their visible parent instead of the whole map. */
-    FOR_LOOP(i, ds->count) {
+    for (i = 0; i < ds->count; i++) {
         DWORD idx = ds->start + i;
-        if (idx < model->num_doodad_defs && !model->doodad_referenced[idx]) Wow_QueueWmoDoodad(wmo, idx);
+        wowWmoDoodadDef_t const *def;
+        wowDoodadModel_t *group;
+        MATRIX4 local, world;
+
+        if (idx >= model->num_doodad_defs) continue;
+        def = &model->doodad_defs[idx];
+        /* Phase 3.2: skip doodads that need a MOLT per-instance directional light. */
+        {
+            BYTE inst_flags = (BYTE)(def->name_flags >> 24);
+            if ((inst_flags & 0x04) && def->color.a < model->num_lights_parsed) continue;
+        }
+
+        group = model->def_groups[idx];
+        if (!group) continue;
+
+        Wow_WmoDoodadLocalMatrix(def, &local);
+        Matrix4_multiply(&wmo->matrix, &local, &world);
+
+        if (group->wmo_count == group->wmo_capacity) {
+            DWORD capacity = group->wmo_capacity ? group->wmo_capacity * 2 : 16;
+            MATRIX4 *matrices = ri.MemAlloc(capacity * sizeof(*matrices));
+            if (!matrices) continue;
+            if (group->wmo_matrices) {
+                memcpy(matrices, group->wmo_matrices, group->wmo_count * sizeof(*matrices));
+                ri.MemFree(group->wmo_matrices);
+            }
+            group->wmo_matrices = matrices;
+            group->wmo_capacity = capacity;
+        }
+        group->wmo_matrices[group->wmo_count++] = world;
     }
 }

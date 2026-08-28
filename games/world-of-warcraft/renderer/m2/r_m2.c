@@ -2274,14 +2274,6 @@ BOOL M2_EntityAttachmentPosition(m2Model_t const *model, renderEntity_t const *e
     return true;
 }
 
-/* Resolve an attachment while this model's just-calculated pose still owns the shared bone palette. */
-BOOL M2_PosedAttachmentPosition(m2Model_t const *model, DWORD attachment_id, LPCMATRIX4 model_matrix, LPVECTOR3 out) {
-    MATRIX4 matrix;
-    if (!model || !model_matrix || !out || !M2_AttachmentMatrix(model, attachment_id, model_matrix, &matrix)) return false;
-    *out = MAKE(VECTOR3, matrix.v[12], matrix.v[13], matrix.v[14]);
-    return true;
-}
-
 FLOAT M2_GroundOffset(m2Model_t const *model) {
     if (!model || model->geometry_bounds.min.z >= 0.0f) {
         return 0.0f;

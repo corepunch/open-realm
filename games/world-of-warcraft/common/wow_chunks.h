@@ -26,7 +26,6 @@
 #define ID_NDOM MAKEFOURCC('N','D','O','M') /* MODN */
 #define ID_SDOM MAKEFOURCC('S','D','O','M') /* MODS */
 #define ID_DDOM MAKEFOURCC('D','D','O','M') /* MODD */
-#define ID_RDOM MAKEFOURCC('R','D','O','M') /* MODR — group doodad-reference indices */
 #define ID_TLOM MAKEFOURCC('T','L','O','M') /* MOLT */
 #define ID_TPOM MAKEFOURCC('T','P','O','M') /* MOPT — portal plane definitions */
 #define ID_VPOM MAKEFOURCC('V','P','O','M') /* MOPV — portal vertex array */

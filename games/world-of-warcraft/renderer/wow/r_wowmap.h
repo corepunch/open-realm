@@ -186,7 +186,6 @@ typedef struct {
 
 typedef struct wowWmoGroup_s {
     wowWmoBatch_t *batches;
-    ARRAY(WORD, doodad_refs);
     BOX3 bounds;
     BOOL has_bounds;
     BOOL indoor;           /* MOGP flags bit 0x2000: group is interior */
@@ -225,7 +224,6 @@ typedef struct wowWmoModel_s {
     DWORD              num_doodad_sets;
     wowWmoDoodadDef_t *doodad_defs;
     DWORD              num_doodad_defs;
-    BYTE              *doodad_referenced; /* MODR ownership bit per MODD */
     char              *doodad_name_blob;   /* raw MODN chunk bytes, null-terminated */
     DWORD              doodad_name_blob_size;
     wowWmoLight_t     *lights;             /* MOLT light array */
@@ -250,9 +248,6 @@ typedef struct wowWmoInstance_s {
     wowWmoModel_t *model;
     MATRIX4 matrix;
     WORD doodad_set;  /* MODF.doodadSet index into model->doodad_sets */
-    BYTE *visible_groups; /* current view's authoritative MOGP visibility */
-    BYTE *doodad_seen;    /* per-instance MODR duplicate guard */
-    BOOL visible;
     struct wowWmoInstance_s *next;
 } wowWmoInstance_t;
 
@@ -279,7 +274,6 @@ typedef struct wowAdtChunk_s {
 typedef struct wowMap_s {
     wowWdtTile_t tiles[WOW_WDT_TILES][WOW_WDT_TILES];
     wowAdtChunk_t *chunks;
-    wowAdtChunk_t *height_chunks[WOW_HEIGHT_ATLAS_CHUNKS][WOW_HEIGHT_ATLAS_CHUNKS];
     wowTextureCache_t *textures;
     wowM2BoundsCache_t *m2_bounds;
     wowDoodadModel_t *doodad_models;
@@ -312,7 +306,6 @@ typedef struct wowMap_s {
     DWORD num_wmo_models;
     DWORD num_wmo_batches;
     DWORD num_missing_wmos;
-    BOOL wmo_doodads_built;
     DWORD *placed_wmo_ids;     /* non-zero MODF unique_ids accepted this ADT window; dedup guard */
     DWORD num_placed_wmo_ids, cap_placed_wmo_ids;
     DWORD *placed_dood_ids;    /* non-zero MDDF unique_ids accepted this ADT window; dedup guard */
@@ -330,6 +323,7 @@ typedef struct wowMap_s {
     char minimap_hash[WOW_WDT_TILES][WOW_WDT_TILES][WOW_MINIMAP_HASH_LENGTH + 1];
     LPTEXTURE minimap_tiles[WOW_WDT_TILES][WOW_WDT_TILES];
     BYTE minimap_warned[WOW_WDT_TILES][WOW_WDT_TILES];
+    BOOL wmo_doodads_built; /* WMO doodad persistent instance buffers are ready */
 } wowMap_t;
 
 typedef struct {

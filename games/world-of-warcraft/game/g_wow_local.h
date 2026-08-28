@@ -182,13 +182,9 @@ static BOOL Wow_QuestGiverSame(LPCWOWQUESTGIVER a, LPCWOWQUESTGIVER b) {
 }
 
 #define WOW_QUEST_OBJECTIVE_ANCHOR  0x51504F49
-#define WOW_QUEST_GIVER_GROUP_NONE  0xFFFFFFFFU // generated-index sentinel; no physical giver matches the representative row
 
 DWORD Wow_QuestGiverCount(void);
 LPCWOWQUESTGIVER Wow_QuestGiver(DWORD index);
-DWORD Wow_QuestGiverGroup(DWORD quest_id, LPCVECTOR2 position);
-DWORD Wow_QuestGiverGroupCount(DWORD group);
-LPCWOWQUESTGIVER Wow_QuestGiverInGroup(DWORD group, DWORD index);
 DWORD Wow_QuestObjectiveCount(void);
 LPCWOWQUESTOBJECTIVE Wow_QuestObjective(DWORD index);
 LPCWOWQUESTDETAIL Wow_QuestDetail(DWORD quest_id);

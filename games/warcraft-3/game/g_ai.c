@@ -316,7 +316,7 @@ static BOOL filter_sight(LPCEDICT ent) {
         return false;
     if (ent->svflags & SVF_DEADMONSTER)
         return false;
-    if (ent->balance.flags & UNIT_BALANCE_BUILDING)
+    if (UNIT_IS_BUILDING(ent->class_id))
         return false;
     /* Only auto-engage fights that involve the human player (player vs anyone,
      * and anyone vs player). This preserves the original computer->player
@@ -343,9 +343,16 @@ BOOL G_ShouldAcquireThisFrame(LPCEDICT self) {
     return ((level.time + stagger) % AI_ACQUIRE_INTERVAL) < (DWORD)FRAMETIME;
 }
 
-/* Return the spawn-cached range; repeated SLK walks dominated large acquisition scans. */
+/* Max distance a unit will autonomously notice and engage an enemy — capped
+ * at sight radius, defaulting to half sight when no explicit value exists. */
 FLOAT G_AcquisitionRange(LPCEDICT self) {
-    return self->balance.acquisition_range;
+    FLOAT const sight = self->balance.sight_radius.day;
+    FLOAT acquire = UNIT_ACQUISITION_RANGE(self->class_id);
+    if (acquire <= 0.0f)
+        acquire = sight * 0.5f;
+    if (sight > 0.0f && acquire > sight)
+        acquire = sight;
+    return acquire;
 }
 
 LPEDICT G_FindNearestEnemy(LPEDICT self, FLOAT radius) {
