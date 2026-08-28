@@ -225,6 +225,13 @@ Mechanics:
 
 ### WMO Draw Performance
 
+The August 2026 [RG40xx address mapping](https://gist.github.com/sookyboo/96bccd8acfb03fc1a9540b23d7f3a92a) for a reported
+3-4 FPS run reaches three established hot paths: instanced grass submission (`Wow_DrawGrass` → `M2_RenderInstanced` →
+`R_DrawIndexedBuffer32Instanced`), terrain/WMO doodad queuing, and entity-shadow terrain height queries. The gist contains
+resolved addresses but no sample counts, build revision, camera, renderer toggles, or GPU timing; it cannot rank those paths
+or establish that `e471c472` caused a new WoW regression. Re-run the isolation toggles and `r_stats 1` below on the same
+camera before changing draw transport or disabling authoritative content.
+
 Root cause of 3fps regression: `Wow_QueueWmoDoodads` (`r_wowmap_objects.c`) called every frame for all WMO instances. Inside: `Wow_LoadDoodadModel` performs an O(n) `strcasecmp` linked-list scan; a second O(n) scan finds the `wowDoodadModel_t *group`. With 43 WMOs × ~100 doodad defs = 4300 lookups/frame at O(200), the profiler confirmed 860K `strcasecmp_l` calls/frame (78% of frame time).
 
 Fixes applied:

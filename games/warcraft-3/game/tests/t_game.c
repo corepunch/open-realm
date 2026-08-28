@@ -579,20 +579,23 @@ TEST(wc3_game, fow_static_scenery_persists_after_unit_vision_leaves) {
 
     LPEDICT revealer = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
     LPEDICT tree = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 64.0f, 64.0f);
+    LPEDICT unseen = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 1024.0f, 1024.0f);
     LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 64.0f);
     revealer->s.player = 0;
     revealer->balance.sight_radius.day = 128.0f;
     revealer->health.value = revealer->health.max_value = 1.0f;
-    tree->s.player = unit->s.player = MAX_PLAYERS;
-    tree->svflags |= SVF_STATIC_SCENERY;
+    tree->s.player = unseen->s.player = unit->s.player = MAX_PLAYERS;
+    tree->svflags = unseen->svflags = SVF_STATIC_SCENERY;
 
     G_FowUpdate();
     T_ASSERT(G_FowPlayerCanSeeEntity(0, tree));
+    T_ASSERT(!G_FowPlayerCanSeeEntity(0, unseen));
     T_ASSERT(G_FowPlayerCanSeeEntity(0, unit));
     revealer->s.renderfx |= RF_HIDDEN;
     G_FowUpdate();
 
     T_ASSERT(G_FowPlayerCanSeeEntity(0, tree));
+    T_ASSERT(!G_FowPlayerCanSeeEntity(0, unseen));
     T_ASSERT(!G_FowPlayerCanSeeEntity(0, unit));
     G_FowShutdown();
 }

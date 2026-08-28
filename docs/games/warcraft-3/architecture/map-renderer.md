@@ -160,7 +160,11 @@ The static baked shadow texture (`war3map.shd`) is bound to texture unit 1 durin
 
 The fog of war uses three off-screen render targets, all sized at (`width`-1)×4 × (`height`-1)×4 texels (same resolution as the baked shadow map):
 
-Server snapshot visibility and client fog shading have separate ownership. Mobile units require current server-side vision, buildings remain after their cell is explored, and map doodads/destructibles carry `SVF_STATIC_SCENERY` so unit sight never removes them from the snapshot. The client fog mask shades that static scenery. Applying current unit vision to trees makes them pop out while still inside a moving cinematic camera view; classify static scenery once in `SP_SpawnDoodad` / `SP_SpawnDestructable`, not through per-frame metadata lookups.
+Server snapshot visibility and client fog shading have separate ownership. Mobile units require current server-side vision;
+buildings and map doodads/destructibles enter snapshots after their cell is explored and remain while the client fog mask
+shrouds them. Doodads/destructibles carry `SVF_STATIC_SCENERY` so the server can use explored rather than current vision
+without per-frame metadata lookups. Never send static scenery unconditionally: ROC Human02 has 2,299 such entities, which
+saturates the 1,024-entity snapshot and exposes unexplored waterfalls through black fog.
 
 | Target | Contents |
 |--------|----------|
@@ -170,7 +174,8 @@ Server snapshot visibility and client fog shading have separate ownership. Mobil
 
 Each entity with `radius >= 10` casts a circle of sight. A custom ray-cast shader (`vs_shadow` / `fs_shadow`) subtracts visibility blocked by other entities' silhouettes from the circle.
 
-> **Gotcha — fog is currently disabled**: `R_GetFogOfWarTexture` always returns `tr.texture[TEX_WHITE]->texid`. The full fog pipeline runs every frame but its result is never bound to `uFogOfWar`. The commented-out code in `R_GetFogOfWarTexture` shows what to uncomment to re-enable it.
+`R_GetFogOfWarTexture` prefers the server-authored `fow_resources.network` texture. The older render-target raycast is used
+only when no network texture exists; white is reserved for `RDF_NOFOG`, `RDF_NOWORLDMODEL`, or unavailable fog resources.
 
 > **Gotcha — only team 1**: the fog loop filters `ent->team != 1`, meaning only the first player's units reveal the map. Multi-player fog of war is not yet implemented.
 

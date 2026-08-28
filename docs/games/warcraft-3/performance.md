@@ -50,6 +50,48 @@ build/bin/openwarcraft3 -data 'data/Warcraft III' -tft +menu_main +com_frame_lim
 
 The `wc3_perf.run_entities_1900` benchmark (`games/warcraft-3/game/tests/t_game.c`) measures `G_RunEntities` over 1900 active units.
 
+## Static-scenery snapshot saturation (RG40xx report)
+
+Commit `215d9630` classified doodads/destructibles correctly but made `G_FowPlayerCanSeeEntity` return true for every
+`SVF_STATIC_SCENERY` entity, including unexplored cells. A bounded ROC Human02 run measured 2,430 edicts, of which 2,299
+were static scenery; all 2,299 passed visibility and filled the 1,024-entity snapshot cap on every sampled server frame.
+This explained the report's simultaneous tree-pop improvement, unexplored waterfall rendering, and CPU-bound FPS drop.
+The accompanying [post-regression ARM address map](https://gist.github.com/sookyboo/0fc1e06966e3b677e22e8ff7c1f0edc0)
+repeatedly resolves through `SV_AddVisibleEntityCandidate` / `SV_BuildClientFrame`, corroborating the measured path. It is
+an `addr2line` mapping without sample counts, so do not derive percentages from repetitions in that text.
+The reporter's [22 FPS baseline mapping](https://gist.github.com/sookyboo/b9ac1cc2657ad46209644878fab777b0)
+contains the expected MDX geoset, entity-shadow, simulation, and fog-update stacks but no server snapshot/candidate stack.
+The later capture adding that path is qualitatively consistent with the scenery regression; neither mapping contains the
+underlying sample weights, so this comparison identifies a new path but cannot quantify its frame-time share.
+
+Static scenery now follows the explored plane, like buildings: it does not pop when current sight leaves, but unexplored
+scenery neither consumes snapshot candidates nor renders through black fog. Diagnose future regressions by temporarily
+counting total and visible `SVF_STATIC_SCENERY` entities in `SV_BuildClientFrame` during a bounded Human02 run; remove the
+counter after capturing the result.
+
+### Local release A/B and remaining cost
+
+A same-machine release-build comparison used ROC Human02, 150 console `wait` commands, `cmd cancel`, then 1,200 waits
+with `r_stats 1` at the default 2048x1536 Retina drawable. Detached worktrees are required because changing
+`BUILD=debug/release` does not invalidate existing make outputs. Results are directional because the campaign continues
+to change the scene during the one-second statistic windows:
+
+| Revision/configuration | Settled FPS | Draws/frame |
+|---|---:|---:|
+| `6c274d96` suspected-good | 345, then 435 as entities left the view/snapshot | 115, then 34 |
+| `e471c472` | 311-316 | 146-148 |
+| current + explored-scenery fix | 338-351 | 146-148 |
+| current, `r_unit_shadows 0` | 342-350 | 129-130 |
+| current, `r_entities 0` | up to 472 | 41 |
+
+The current release therefore reaches the expected ~350 FPS locally even at the doubled Retina drawable. Disabling
+shadows does not materially change FPS; entity model submission is the remaining scalable owner. A temporary strict
+batch key `(model, skin, frame, oldframe, team, flags)` found 49 visible entities at the settled camera, 40 unique keys,
+and only 14 entities across five repeated keys (largest group six). Naive MDX instancing has limited coverage there.
+Do not treat the suspected-good 435 FPS window as equivalent content: its draw count fell to 34 as the older visibility
+lifecycle removed scenery. Obtain a post-fix handheld profile with sample weights before redesigning MDX pose/geoset
+submission; the address-only gists cannot choose between CPU submission and driver/GPU stalls.
+
 ### Review regression cases (PR #164)
 
 - The active-list invariant is membership iff `cl.ents[index].current.model != 0`. Test baselines, duplicate adds,

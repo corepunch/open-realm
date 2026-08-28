@@ -848,11 +848,8 @@ BOOL G_FowPlayerCanSeeEntity(DWORD player, LPCEDICT ent) {
     }
     index = y * level.fow.width + x;
     grid = &level.fow.players[player];
-    /* The client fog mask shrouds static scenery; removing it with unit vision makes trees pop inside the camera view. */
-    if (ent->svflags & SVF_STATIC_SCENERY) {
-        return true;
-    }
-    if (UNIT_IS_BUILDING(ent->class_id)) {
+    /* Explored scenery stays shrouded after sight leaves; sending unexplored map-wide doodads saturated snapshots. */
+    if ((ent->svflags & SVF_STATIC_SCENERY) || UNIT_IS_BUILDING(ent->class_id)) {
         return grid->explored && grid->explored[index] != 0;
     }
     return grid->visible && grid->visible[index] != 0;
