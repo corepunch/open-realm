@@ -178,7 +178,7 @@ void MSG_Write(LPSIZEBUF buf, LPCVOID value, DWORD size) {
 }
 
 void MSG_WriteByte(LPSIZEBUF buf, int value) {
-    char val = value;
+    BYTE val = (BYTE)value;
     MSG_Write(buf, &val, 1);
 }
 
@@ -245,7 +245,7 @@ int MSG_Read(LPSIZEBUF buf, HANDLE value, DWORD size) {
 }
 
 int MSG_ReadByte(LPSIZEBUF buf) {
-    char value = 0;
+    BYTE value = 0;
     MSG_Read(buf, &value, 1);
     return value;
 }
