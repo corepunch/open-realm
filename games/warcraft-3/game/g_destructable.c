@@ -251,9 +251,6 @@ static BOOL G_EnterDestructableDeathState(LPEDICT ent,
 
     unit_leavecombat(ent);
     G_ApplyDestructableDeathPathing(ent);
-    if (ent->s.flags & EF_FOW_BLOCKER) {
-        G_FowMarkBlockersDirty();
-    }
     G_DestructableStartDeathAnimation(ent);
     if (rebuild_pathing) {
         CM_BakeStaticObstacles();
@@ -361,9 +358,6 @@ BOOL G_RestoreDestructable(LPEDICT ent, FLOAT life, BOOL birth) {
     }
     G_ApplyDestructableAlivePathing(ent);
     G_DestructableStartAliveAnimation(ent, birth);
-    if (ent->s.flags & EF_FOW_BLOCKER) {
-        G_FowMarkBlockersDirty();
-    }
     CM_BakeStaticObstacles();
     return true;
 }
