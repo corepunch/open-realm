@@ -603,7 +603,10 @@ static void r_sc2_build_hard_tiles(sc2Map_t const *map) {
 
         if (!tile->model[0]) continue;
         model = R_LoadModel(tile->model);
-        if (!model || model->modeltype != ID_43DM || !model->m3) continue;
+        if (!model || model->modeltype != ID_43DM || !model->m3) {
+            fprintf(stderr, "SC2 hard tile: M3 load failed '%s' (CTile %s)\n", tile->model, tile->tile);
+            continue;
+        }
         out = &sc2_hard_tiles[ARRAY_COUNT(sc2_hard_tiles)++];
         out->entity.model = model; out->entity.origin = tile->position; out->entity.scale = 1.0f;
         r_sc2_hard_tile_matrix(tile, &out->matrix);
@@ -1386,8 +1389,10 @@ static LPMAPLAYER r_sc2_build_cliff_layer(sc2Map_t const *map) {
             if (!r_sc2_cliff_model_path(path, sizeof(path), set->mesh[0] ? set->mesh : set->name, config, cell.variant))
                 continue;
             model = r_sc2_load_cliff_model(path);
-            if (!model || model->modeltype != ID_43DM || !model->m3)
+            if (!model || model->modeltype != ID_43DM || !model->m3) {
+                fprintf(stderr, "SC2 cliff: M3 load failed '%s'\n", path);
                 continue;
+            }
             batch = r_sc2_cliff_bake_batch(&batches, r_sc2_cliff_diffuse_texture(model));
             r_sc2_bake_cliff_model(&batch->list, map, model, grid_x, grid_y, rotation, baselevel);
         }

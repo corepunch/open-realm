@@ -73,8 +73,28 @@ TRaynor01 run confirmed start/mid/end eye clearances of 17.27, 22.87, and 28.19 
 Visual fidelity remains blocked by catalog and native coverage:
 
 - `SpecialOpsDropship` and `Raynor01` do not resolve to M3 model paths;
+- the intro creates one `SpecialOpsDropship` at point `379`, creates Raynor plus five Marines as cargo, orders the dropship to
+	point `1037`, queues `SpecOpsDropshipTransport` there, and then queues movement to point `1038`;
+- `OrderTargetingPoint`, `UnitIssueOrder`, `UnitCargoCreate`, `UnitCargoLastCreated`, and `UnitCargoGroup` are stubs, while
+	`UnitGroupCount` always returns zero. Consequently the dropship never moves or unloads and the cargo-empty wait exits immediately;
+- `CinematicMode` only updates game-local state; it does not hide the gameplay layout or select `CLIENT_UI_CINEMATIC`;
+- `CinematicFade` applies its final alpha immediately and ignores both interpolation and `waitUntilDone`, so the script reaches its
+	one-second wait two seconds earlier than native SC2;
 - unsupported array/index expressions still report `Can't find function [` or `Can't evaluate token of type 6`;
 - `ObjectiveCreate` is not currently resolved on the start-game path;
 - Galaxy `continue` remains parse-safe fallthrough rather than true loop continuation.
 
 Do not replace missing map IDs or models with guessed defaults. Resolve them from the loaded SC2 map and catalog data.
+
+For opening-shot comparison, enable vsync so screenshot frame delays also advance real time:
+
+```sh
+build/bin/opensc2 -data data/StarCraft2 +set r_vsync 1 +vid_hidden 1 \
+	+map TRaynor01 +screenshot 90 +com_frame_limit 105
+```
+
+The intro script applies camera `1660` (`StartGame01`, target `30.183,28.759`, pitch `34.9`, yaw `193.9`, distance `30.2`) before
+spawning the dropship at point `379`, then moves toward camera `976` after the fade and a one-second wait. The route points `379`,
+`1037`, and `1038` all cluster around camera `1660`, confirming that the map lookup selects the intended opening area. Tests with
+the horizontal camera direction rotated by `90`, `180`, and `270` degrees all produced other incorrect map quadrants; do not mask
+the incomplete cinematic lifecycle with a yaw offset.

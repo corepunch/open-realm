@@ -160,6 +160,7 @@ static LPCSTR const sc2_catalog_known_files[] = {
 
 static BOOL sc2_mapinfo_fourcc(sc2MapInfo_t const *mapInfo);
 static BOOL sc2_parse_xml_field(void *base, sc2XmlField_t const *fields, DWORD num_fields, LPCSTR name, LPCSTR value);
+static LPCSTR sc2_object_type_name(sc2ObjectType_t type);
 
 static HANDLE sc2_alloc(long size) {
     return sc2_host.mem_alloc ? sc2_host.mem_alloc(size) : NULL;
@@ -1916,7 +1917,14 @@ static void sc2_resolve_hard_tiles(sc2Catalog_t const *catalog) {
             snprintf(tile->model, sizeof(tile->model), "%s", catalog->tiles[i].model);
             break;
         }
-        if (!tile->model[0]) fprintf(stderr, "SC2 hard tile: unresolved CTile %s\n", tile->tile);
+        if (!tile->model[0]) {
+            char path[256];
+            snprintf(path, sizeof(path), "Assets\\HardTiles\\%s\\%s.m3", tile->tile, tile->tile);
+            if (sc2_file_exists(path))
+                snprintf(tile->model, sizeof(tile->model), "%s", path);
+            else
+                fprintf(stderr, "SC2 hard tile: unresolved CTile %s\n", tile->tile);
+        }
     }
 }
 
@@ -2033,6 +2041,8 @@ static void sc2_resolve_object_models(sc2Catalog_t const *catalog) {
         if (!model_id) model_id = object->name;
         if (!sc2_catalog_model_path(catalog, model_id, object))
             sc2_resolve_object_model_candidates(object);
+        if (!object->model[0] && (object->type == SC2_OBJECT_UNIT || object->type == SC2_OBJECT_DOODAD))
+            fprintf(stderr, "SC2 %s: unresolved model '%s'\n", sc2_object_type_name(object->type), object->name);
         if (resolved_count < SC2_MAX_MAP_OBJECTS) {
             snprintf(resolved[resolved_count].name, sizeof(resolved[resolved_count].name), "%s", object->name);
             snprintf(resolved[resolved_count].model, sizeof(resolved[resolved_count].model), "%s", object->model);

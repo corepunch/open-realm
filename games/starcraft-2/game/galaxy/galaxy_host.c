@@ -76,6 +76,27 @@ typedef struct { FLOAT tx, ty, tz, pitch, yaw, dist, fov, height; } sc2GCam_t;
 static sc2GCam_t sc2_gcams[MAX_GALAXY_CAMS];
 static LONG sc2_gcam_n = 1;    /* 1-based; 0 = null handle */
 
+/* Cargo tracking — per-unit list of cargo unit handles. */
+#define MAX_CARGO_PER_UNIT 16
+/* Bit flag ORed into a unitgroup handle to mark it as a cargo-group reference.
+ * The lower bits encode the transport unit handle (max 256, well below 0x40000000). */
+#define CARGO_GROUP_FLAG   ((LONG)0x40000000)
+static LONG sc2_gcargo[MAX_GALAXY_UNITS][MAX_CARGO_PER_UNIT];
+static LONG sc2_gcargo_n[MAX_GALAXY_UNITS];
+static LONG sc2_last_cargo_handle;
+
+/* AbilityCommand handle table — stores ability name + command index. */
+#define MAX_GALAXY_ABILCMDS 64
+typedef struct { char ability[64]; LONG cmd_idx; } sc2GAbilCmd_t;
+static sc2GAbilCmd_t sc2_gabilcmds[MAX_GALAXY_ABILCMDS];
+static LONG sc2_gabilcmd_n = 1; /* 1-based; 0 = null */
+
+/* Order handle table — stores (abilcmd_h, target_pt_h) per issued order. */
+#define MAX_GALAXY_ORDERS 128
+typedef struct { LONG abilcmd_h; LONG pt_h; } sc2GOrder_t;
+static sc2GOrder_t sc2_gorders[MAX_GALAXY_ORDERS];
+static LONG sc2_gorder_n = 1;  /* 1-based; 0 = null */
+
 /* Defined in jdo.c — not part of the public JASS API; owned by this subsystem. */
 void galaxy_loaded_reset(void);
 
@@ -91,6 +112,13 @@ void galaxy_reset(void) {
     sc2_last_unit_handle = 0;
     sc2_gpoint_n = 1;
     sc2_gcam_n = 1;
+    memset(sc2_gcargo,   0, sizeof(sc2_gcargo));
+    memset(sc2_gcargo_n, 0, sizeof(sc2_gcargo_n));
+    sc2_last_cargo_handle = 0;
+    memset(sc2_gabilcmds, 0, sizeof(sc2_gabilcmds));
+    sc2_gabilcmd_n = 1;
+    memset(sc2_gorders, 0, sizeof(sc2_gorders));
+    sc2_gorder_n = 1;
     galaxy_loaded_reset();
 }
 
@@ -444,7 +472,42 @@ static DWORD sc2_UnitKill(LPJASS j)                 { (void)j; return jass_pushn
 static DWORD sc2_UnitRemove(LPJASS j)               { (void)j; return jass_pushnull(j); }
 static DWORD sc2_UnitRevive(LPJASS j)               { (void)j; return jass_pushnull(j); }
 static DWORD sc2_UnitWaitUntilIdle(LPJASS j)        { (void)j; return jass_pushnull(j); }
-static DWORD sc2_UnitIssueOrder(LPJASS j)           { return jass_pushboolean(j, false); }
+static DWORD sc2_UnitIssueOrder(LPJASS j) {
+    LONG unit_h  = (LONG)(uintptr_t)jass_checkhandle(j, 1, "unit");
+    LONG order_h = (LONG)(uintptr_t)jass_checkhandle(j, 2, "order");
+    (void)jass_checkinteger(j, 3); /* queue mode — cutscene doesn't need real queuing */
+    if (order_h <= 0 || order_h >= sc2_gorder_n)
+        return jass_pushboolean(j, false);
+    sc2GOrder_t *ord = &sc2_gorders[order_h];
+    LONG  ac_h = ord->abilcmd_h;
+    LONG  pt_h = ord->pt_h;
+    FLOAT tx   = (pt_h > 0 && pt_h < sc2_gpoint_n) ? sc2_gpoints[pt_h].x : 0.0f;
+    FLOAT ty   = (pt_h > 0 && pt_h < sc2_gpoint_n) ? sc2_gpoints[pt_h].y : 0.0f;
+    const char *ability = (ac_h > 0 && ac_h < sc2_gabilcmd_n)
+                          ? sc2_gabilcmds[ac_h].ability : "move";
+    void *ent = (unit_h > 0 && unit_h <= (LONG)sc2_gunit_n) ? sc2_gunits[unit_h - 1] : NULL;
+    fprintf(stderr, "UnitIssueOrder: unit=%ld ability=%s target=(%.1f,%.1f)\n",
+            (long)unit_h, ability, tx, ty);
+    if (strcmp(ability, "move") == 0) {
+        if (ent && sc2_galaxy_unit_set_position)
+            sc2_galaxy_unit_set_position(ent, tx, ty, 0.0f);
+    } else if (strcmp(ability, "SpecOpsDropshipTransport") == 0) {
+        if (unit_h > 0 && unit_h <= MAX_GALAXY_UNITS) {
+            LONG cargo_n = sc2_gcargo_n[unit_h - 1];
+            fprintf(stderr, "UnitIssueOrder: SpecOpsDropshipTransport — unloading %ld cargo units at (%.1f,%.1f)\n",
+                    (long)cargo_n, tx, ty);
+            for (LONG i = 0; i < cargo_n; i++) {
+                LONG ch  = sc2_gcargo[unit_h - 1][i];
+                void *ce = (ch > 0 && ch <= (LONG)sc2_gunit_n) ? sc2_gunits[ch - 1] : NULL;
+                if (ce && sc2_galaxy_unit_set_position)
+                    sc2_galaxy_unit_set_position(ce, tx, ty, 0.0f);
+                fprintf(stderr, "  dropped unit %ld at (%.1f,%.1f)\n", (long)ch, tx, ty);
+            }
+            sc2_gcargo_n[unit_h - 1] = 0;
+        }
+    }
+    return jass_pushboolean(j, true);
+}
 static DWORD sc2_UnitPauseAll(LPJASS j)             { (void)j; return jass_pushnull(j); }
 static DWORD sc2_UnitGetFacing(LPJASS j)            { return jass_pushnumber(j, 0.0f); }
 static DWORD sc2_UnitGetHeight(LPJASS j)            { return jass_pushnumber(j, 0.0f); }
@@ -455,9 +518,44 @@ static DWORD sc2_UnitGetType(LPJASS j)   { (void)jass_checkhandle(j, 1, "unit");
 static DWORD sc2_UnitFromId(LPJASS j)    { return jass_pushnullhandle(j, "unit"); }
 static DWORD sc2_UnitBehaviorAdd(LPJASS j)          { (void)j; return jass_pushnull(j); }
 static DWORD sc2_UnitBehaviorRemove(LPJASS j)       { (void)j; return jass_pushnull(j); }
-static DWORD sc2_UnitCargoCreate(LPJASS j)          { (void)j; return jass_pushnull(j); }
-static DWORD sc2_UnitCargoLastCreated(LPJASS j)     { return jass_pushnullhandle(j, "unit"); }
-static DWORD sc2_UnitCargoGroup(LPJASS j)           { return jass_pushnullhandle(j, "unitgroup"); }
+static DWORD sc2_UnitCargoCreate(LPJASS j) {
+    LONG   t_h  = (LONG)(uintptr_t)jass_checkhandle(j, 1, "unit");
+    LPCSTR type = jass_checkstring(j, 2);
+    LONG   cnt  = jass_checkinteger(j, 3);
+    if (cnt < 1) cnt = 1;
+    LPCSTR model = sc2_galaxy_get_unit_model ? sc2_galaxy_get_unit_model(type ? type : "") : "";
+    LONG handle  = 0;
+    for (LONG i = 0; i < cnt && sc2_gunit_n < MAX_GALAXY_UNITS; i++) {
+        void *ent = sc2_galaxy_on_unit_create ?
+            sc2_galaxy_on_unit_create(model && *model ? model : (type ? type : ""),
+                                      0, 0.0f, 0.0f, 0.0f) : NULL;
+        handle = (LONG)(++sc2_gunit_n);
+        sc2_gunits[handle - 1] = ent;
+        sc2_last_cargo_handle  = handle;
+        sc2_last_unit_handle   = handle;
+        if (t_h > 0 && t_h <= MAX_GALAXY_UNITS) {
+            LONG ci = sc2_gcargo_n[t_h - 1];
+            if (ci < MAX_CARGO_PER_UNIT)
+                sc2_gcargo[t_h - 1][sc2_gcargo_n[t_h - 1]++] = handle;
+        }
+    }
+    fprintf(stderr, "UnitCargoCreate: transport=%ld type=%s count=%ld\n",
+            (long)t_h, type ? type : "(null)", (long)cnt);
+    return handle ? jass_pushlighthandle(j, (HANDLE)(uintptr_t)handle, "unit")
+                  : jass_pushnullhandle(j, "unit");
+}
+static DWORD sc2_UnitCargoLastCreated(LPJASS j) {
+    return sc2_last_cargo_handle ?
+        jass_pushlighthandle(j, (HANDLE)(uintptr_t)sc2_last_cargo_handle, "unit") :
+        jass_pushnullhandle(j, "unit");
+}
+static DWORD sc2_UnitCargoGroup(LPJASS j) {
+    LONG h = (LONG)(uintptr_t)jass_checkhandle(j, 1, "unit");
+    if (h > 0 && h <= (LONG)sc2_gunit_n)
+        return jass_pushlighthandle(j,
+            (HANDLE)(uintptr_t)(CARGO_GROUP_FLAG | h), "unitgroup");
+    return jass_pushnullhandle(j, "unitgroup");
+}
 static DWORD sc2_UnitCargoLastCreatedGroup(LPJASS j){ return jass_pushnullhandle(j, "unitgroup"); }
 static DWORD sc2_UnitClearSelection(LPJASS j)       { (void)j; return jass_pushnull(j); }
 /* UnitRef wraps a unit handle into a unitref (same pointer, different type name). */
@@ -486,7 +584,16 @@ static DWORD sc2_EventUnitTarget(LPJASS j) { return jass_pushnullhandle(j, "unit
 /* UnitGroup */
 static DWORD sc2_UnitGroupEmpty(LPJASS j)            { return jass_pushnullhandle(j, "unitgroup"); }
 static DWORD sc2_UnitGroupAdd(LPJASS j)              { return jass_checkhandle(j, 1, "unitgroup") ? jass_pushlighthandle(j, jass_checkhandle(j, 1, "unitgroup"), "unitgroup") : jass_pushnullhandle(j, "unitgroup"); }
-static DWORD sc2_UnitGroupCount(LPJASS j)            { (void)jass_checkhandle(j, 1, "unitgroup"); return jass_pushinteger(j, 0); }
+static DWORD sc2_UnitGroupCount(LPJASS j) {
+    LONG h    = (LONG)(uintptr_t)jass_checkhandle(j, 1, "unitgroup");
+    LONG mode = jass_checkinteger(j, 2); (void)mode;
+    if (h & CARGO_GROUP_FLAG) {
+        LONG t = h & ~CARGO_GROUP_FLAG;
+        if (t > 0 && t <= (LONG)sc2_gunit_n)
+            return jass_pushinteger(j, sc2_gcargo_n[t - 1]);
+    }
+    return jass_pushinteger(j, 0);
+}
 static DWORD sc2_UnitGroupHasUnit(LPJASS j)          { return jass_pushboolean(j, false); }
 static DWORD sc2_UnitGroupWaitUntilIdle(LPJASS j)    { (void)j; return jass_pushnull(j); }
 static DWORD sc2_UnitInventoryGroup(LPJASS j)        { return jass_pushnullhandle(j, "unitgroup"); }
@@ -763,12 +870,32 @@ static DWORD sc2_DifficultyName(LPJASS j)     { return jass_pushstring(j, ""); }
 static DWORD sc2_DifficultyNameCampaign(LPJASS j) { return jass_pushstring(j, ""); }
 static DWORD sc2_AITimePause(LPJASS j)        { (void)j; return jass_pushnull(j); }
 static DWORD sc2_AbilityClass(LPJASS j)       { return jass_pushinteger(j, 0); }
-static DWORD sc2_AbilityCommand(LPJASS j)     { return jass_pushinteger(j, 0); }
+static DWORD sc2_AbilityCommand(LPJASS j) {
+    LPCSTR name = jass_checkstring(j, 1);
+    LONG   cmd  = jass_checkinteger(j, 2);
+    if (sc2_gabilcmd_n < MAX_GALAXY_ABILCMDS) {
+        LONG h = sc2_gabilcmd_n++;
+        snprintf(sc2_gabilcmds[h].ability, sizeof(sc2_gabilcmds[h].ability),
+                 "%s", name ? name : "");
+        sc2_gabilcmds[h].cmd_idx = cmd;
+        return jass_pushinteger(j, h);
+    }
+    return jass_pushinteger(j, 0);
+}
 static DWORD sc2_AbilityCommandGetAbility(LPJASS j){ return jass_pushstring(j, ""); }
 static DWORD sc2_AbilityCommandGetCommand(LPJASS j){ return jass_pushinteger(j, 0); }
 static DWORD sc2_AbilityCommandGetAction(LPJASS j) { return jass_pushinteger(j, 0); }
 static DWORD sc2_Order(LPJASS j)              { return jass_pushnullhandle(j, "order"); }
-static DWORD sc2_OrderTargetingPoint(LPJASS j){ return jass_pushnullhandle(j, "order"); }
+static DWORD sc2_OrderTargetingPoint(LPJASS j) {
+    LONG abilcmd_h = jass_checkinteger(j, 1);
+    LONG pt_h      = (LONG)(uintptr_t)jass_checkhandle(j, 2, "point");
+    if (sc2_gorder_n < MAX_GALAXY_ORDERS) {
+        LONG h = sc2_gorder_n++;
+        sc2_gorders[h] = (sc2GOrder_t){ abilcmd_h, pt_h };
+        return jass_pushlighthandle(j, (HANDLE)(uintptr_t)h, "order");
+    }
+    return jass_pushnullhandle(j, "order");
+}
 static DWORD sc2_OrderTargetingUnit(LPJASS j) { return jass_pushnullhandle(j, "order"); }
 static DWORD sc2_OrderSetPlayer(LPJASS j)     { (void)j; return jass_pushnull(j); }
 static DWORD sc2_UnitOrderIsValid(LPJASS j)   { return jass_pushboolean(j, false); }
