@@ -33,7 +33,6 @@ void G_DestructableStartDeathAnimation(LPEDICT self) {
      * sequences leave animation NULL but do not block lifecycle processing. */
     if (self->animation)
         self->s.frame = self->animation->interval[0];
-    G_PublishEvent(self, EVENT_UNIT_DEATH);
     self->svflags |= SVF_DEADMONSTER;
 }
 
