@@ -42,8 +42,9 @@ static HANDLE sc2_galaxy_readfile(LPCSTR filename, DWORD *size) {
     if (sz < 0) { fclose(f); return NULL; }
     buf = malloc((size_t)sz + 1);
     if (!buf) { fclose(f); return NULL; }
-    fread(buf, 1, (size_t)sz, f);
+    size_t got = fread(buf, 1, (size_t)sz, f);
     fclose(f);
+    if (got != (size_t)sz) { free(buf); return NULL; }
     buf[sz] = '\0';
     *size = (DWORD)sz;
     return buf;
@@ -58,7 +59,7 @@ static HANDLE sc2_galaxy_readfile(LPCSTR filename, DWORD *size) {
 #define MAX_GALAXY_POINTS 1024
 #define MAX_GALAXY_CAMS   64
 
-typedef struct { LONG id; LPCSTR func; BOOL mapinit; } sc2trig_t;
+typedef struct { LONG id; LPCSTR func; BOOL mapinit; BOOL wrapper_conds[2]; } sc2trig_t;
 static sc2trig_t sc2_trigs[MAX_SC2_TRIGGERS];
 static DWORD sc2_trig_n;
 static LONG  sc2_trig_next_id = 1;
@@ -74,6 +75,9 @@ static LONG sc2_gpoint_n = 1;  /* 1-based; 0 = null handle */
 typedef struct { FLOAT tx, ty, tz, pitch, yaw, dist, fov; } sc2GCam_t;
 static sc2GCam_t sc2_gcams[MAX_GALAXY_CAMS];
 static LONG sc2_gcam_n = 1;    /* 1-based; 0 = null handle */
+
+/* Defined in jdo.c — not part of the public JASS API; owned by this subsystem. */
+void galaxy_loaded_reset(void);
 
 void galaxy_reset(void) {
     for (DWORD i = 0; i < sc2_trig_n; i++) {
@@ -95,20 +99,33 @@ void galaxy_reset(void) {
  * We compile a thin wrapper so jass_startcoroutinebyname (no args) correctly enters with args. */
 static void sc2_fire_trigger_func(LPJASS j, LPCSTR funcname, BOOL testConds, BOOL as_coroutine) {
     LPJASS root = jass_getroot(j);
-    char name[128], code[512];
-    snprintf(name, sizeof(name), "__trig_%llx", (unsigned long long)(uintptr_t)funcname);
-    snprintf(code, sizeof(code), "void %s() { %s(%s, true); }",
-             name, funcname, testConds ? "true" : "false");
-    char *buf = strdup(code);
-    /* Earlier unsupported calls are logged where they occur; they must not be attributed to this wrapper parse. */
-    jass_rterror_clear(root);
-    BOOL ok = jass_dobuffer_ex(root, buf, JASS_MODE_GALAXY);
-    free(buf);
-    if (!ok || jass_rterror_pending(root)) {
-        fprintf(stderr, "sc2_fire_trigger_func: wrapper compile error for %s: %s\n",
-                funcname, jass_rterror_message(root));
+    char name[128];
+    /* Encode testConds in the wrapper name so each variant is compiled at most once. */
+    snprintf(name, sizeof(name), "__trig_%llx_%d",
+             (unsigned long long)(uintptr_t)funcname, testConds ? 1 : 0);
+
+    /* Find the trigger entry to check/set the compiled flag. */
+    sc2trig_t *trig = NULL;
+    for (DWORD i = 0; i < sc2_trig_n; i++) {
+        if (sc2_trigs[i].func == funcname) { trig = &sc2_trigs[i]; break; }
+    }
+    BOOL already = trig && trig->wrapper_conds[testConds ? 1 : 0];
+    if (!already) {
+        char code[512];
+        snprintf(code, sizeof(code), "void %s() { %s(%s, true); }",
+                 name, funcname, testConds ? "true" : "false");
+        char *buf = strdup(code);
+        /* Earlier unsupported calls are logged where they occur; they must not be attributed to this wrapper parse. */
         jass_rterror_clear(root);
-        return;
+        BOOL ok = jass_dobuffer_ex(root, buf, JASS_MODE_GALAXY);
+        free(buf);
+        if (!ok || jass_rterror_pending(root)) {
+            fprintf(stderr, "sc2_fire_trigger_func: wrapper compile error for %s: %s\n",
+                    funcname, jass_rterror_message(root));
+            jass_rterror_clear(root);
+            return;
+        }
+        if (trig) trig->wrapper_conds[testConds ? 1 : 0] = true;
     }
     fprintf(stderr, "sc2_fire_trigger_func: calling %s (coroutine=%d)\n", funcname, as_coroutine);
     if (as_coroutine)

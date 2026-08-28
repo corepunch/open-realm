@@ -48,9 +48,6 @@ void   jass_runevents(LPJASS j);
 HANDLE jass_alloc(long size);
 void   jass_free(HANDLE ptr);
 
-/* Reset the Galaxy include-once guard — call before re-loading scripts for a new map. */
-void   galaxy_loaded_reset(void);
-
 /* Return the root VM state (coroutine states share globals with the root). */
 LPJASS jass_getroot(LPJASS j);
 

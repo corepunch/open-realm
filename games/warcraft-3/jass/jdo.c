@@ -1737,8 +1737,8 @@ static BOOL galaxy_already_loaded(LPCSTR path) {
     for (DWORD i = 0; i < galaxy_loaded_n; i++) {
         if (!strcmp(galaxy_loaded[i], path)) return true;
     }
-    if (galaxy_loaded_n < GALAXY_MAX_INCLUDES)
-        strlcpy(galaxy_loaded[galaxy_loaded_n++], path, 512);
+    assert(galaxy_loaded_n < GALAXY_MAX_INCLUDES);
+    strlcpy(galaxy_loaded[galaxy_loaded_n++], path, 512);
     return false;
 }
 

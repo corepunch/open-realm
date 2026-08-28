@@ -875,6 +875,33 @@ TEST(galaxy, vm_coroutine_executes_dynamic_trigger) {
     gal_destroy(&s);
 }
 
+TEST(galaxy, vm_trigger_fires_multiple_times) {
+    gal_state_t s = gal_new();
+    galaxy_reset();
+    jass_sethost(&MAKE(JASSHOST,
+        .MemAlloc = gal_alloc, .MemFree = gal_free, .ReadFile = gal_read_file,
+        .natives = gal_assert_natives, .galaxy_natives = galaxy_get_natives(),
+    ));
+    T_ASSERT(gal_parse(&s,
+        "native void TestFail(string msg);\n"
+        "native trigger TriggerCreate(string funcName);\n"
+        "native void TriggerExecute(trigger t, bool testConds, bool waitDone);\n"
+        "int gv_count = 0;\n"
+        "bool handler(bool testConds, bool runActions) { gv_count = gv_count + 1; return true; }\n"
+        "void main() {\n"
+        "    trigger t = TriggerCreate(\"handler\");\n"
+        "    TriggerExecute(t, false, true);\n"
+        "    TriggerExecute(t, false, true);\n"
+        "    TriggerExecute(t, false, true);\n"
+        "    if (gv_count != 3) { TestFail(\"trigger should fire 3 times\"); }\n"
+        "}"));
+    jass_callbyname(s.j, "main", true);
+    jass_runevents(s.j);
+    T_ASSERT(!jass_rterror_pending(s.j));
+    galaxy_reset();
+    gal_destroy(&s);
+}
+
 TEST(galaxy, vm_indexed_root_lookups) {
     gal_state_t s = gal_new();
     size_t cap = BZ_GAL_INDEX_TEST_DECLS * 80, used = 0;
