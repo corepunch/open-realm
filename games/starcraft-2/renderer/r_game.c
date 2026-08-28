@@ -423,3 +423,10 @@ void R_GameDrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
     (void)x;
     (void)y;
 }
+
+/* TODO: SC2 authored cursor assets are not wired to the renderer yet;
+ * returning false keeps SDL's native platform cursor visible. */
+bool R_GameDrawCursor(float x, float y) {
+    (void)x; (void)y;
+    return false;
+}

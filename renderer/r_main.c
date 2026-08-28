@@ -868,6 +868,9 @@ void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
     R_GameDrawSprite(model, anim, x, y);
 }
 
+/* Cursor presentation is game-owned; the client only supplies UI coordinates. */
+bool R_DrawCursor(float x, float y) { return R_GameDrawCursor(x, y); }
+
 bool R_SetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
     return R_GameSetEntityAnimFrame(model, anim, entity);
 }
@@ -903,6 +906,7 @@ refExport_t R_GetAPI(refImport_t imp) {
         .SetWindowSize = R_SetWindowSize,
         .GetTextureSize = R_GetTextureSize,
         .DrawSprite = R_DrawSprite,
+        .DrawCursor = R_DrawCursor,
         .SetEntityAnimFrame = R_SetEntityAnimFrame,
         .DrawText = R_DrawText,
         .GetTextSize = R_GetTextSize,

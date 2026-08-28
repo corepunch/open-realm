@@ -107,6 +107,12 @@ The `+` prefix is for **command-line only**. It tells `Cbuf_AddEarlyCommands` / 
 | `+<cvar> [<value>]` | If `<cvar>` exists, sets it to `<value>` (or `"1"` if no value) |
 | `+<command> [<args>...]` | Queued via `Cbuf_AddText` — executed after module init |
 
+## Cursor Ownership
+
+SDL owns the native platform cursor on macOS, Linux, Windows, and other supported video backends. WoW changes that native cursor with `SDL_CreateSystemCursor` and `SDL_SetCursor` for hover context. The renderer does not duplicate platform cursor APIs or draw a generic software fallback.
+
+`r_cursor 0` keeps the SDL cursor and is the default. `r_cursor 1` explicitly replaces it with a game-authored cursor when the active game renderer provides one; Warcraft III renders `UI\\Cursor\\HumanCursor.mdx`. If that asset cannot load, the client leaves the SDL cursor visible.
+
 Early commands (`+set`, `+<cvar>`) are processed during `Com_Init()`, before module registration. Late commands (`+map`, `+menu_main`, etc.) are processed after `CL_Init()` when all command handlers are registered.
 
 In code, always use the bare command name: `"map ..."`, not `"+map ..."`.

@@ -23,6 +23,23 @@ static FLOAT SCR_UICanvasWidth(void) {
     return UI_BASE_WIDTH;
 }
 
+/*
+ * SDL mouse positions are window pixels, while UI/layout coordinates use the
+ * engine's virtual canvas.  Cursor drawing and FDF hit-testing must share this
+ * mapping, including SC2's widened canvas on widescreen displays.
+ */
+static VECTOR2 SCR_ScreenToUI(int x, int y) {
+    size2_t window = re.GetWindowSize();
+    FLOAT nx = 0.0f, ny = 0.0f;
+
+    if (window.width > 0 && window.height > 0) {
+        nx = (FLOAT)x / (FLOAT)window.width;
+        ny = (FLOAT)y / (FLOAT)window.height;
+    }
+
+    return MAKE(VECTOR2, nx * SCR_UICanvasWidth(), ny * UI_BASE_HEIGHT);
+}
+
 static void SCR_DrawString(int x, int y, LPCSTR string) {
     if (string) re.DrawString(x, y, string);
 }
@@ -52,6 +69,39 @@ static void SCR_DrawFPS(DWORD msec) {
         snprintf(text, sizeof(text), "FPS --  Drawcalls %u", (unsigned)re.GetDrawCalls());
     }
     SCR_DrawString(10, y, text);
+}
+
+/*
+ * Preserve the SDL cursor selected by the input module while the game renderer
+ * temporarily replaces it with authored cursor content.
+ */
+static void SCR_UpdateSystemCursor(BOOL game_cursor_active) {
+    static int previous_visibility = -2;
+
+    if (game_cursor_active) {
+        if (previous_visibility == -2) {
+            previous_visibility = SDL_ShowCursor(SDL_QUERY);
+            if (previous_visibility < 0) previous_visibility = SDL_ENABLE;
+            SDL_ShowCursor(SDL_DISABLE);
+        }
+        return;
+    }
+
+    if (previous_visibility != -2) {
+        SDL_ShowCursor(previous_visibility ? SDL_ENABLE : SDL_DISABLE);
+        previous_visibility = -2;
+    }
+}
+
+static void SCR_DrawCursor(void) {
+    int const x = (int)mouse.origin.x, y = (int)mouse.origin.y;
+    BOOL drawn = false;
+
+    if (Cvar_Integer("r_cursor", 0) == 1) {
+        VECTOR2 const pos = SCR_ScreenToUI(x, y);
+        drawn = re.DrawCursor(pos.x, pos.y);
+    }
+    SCR_UpdateSystemCursor(drawn);
 }
 
 void SCR_BeginLoadingPlaque(void) {
@@ -102,6 +152,9 @@ void SCR_DrawScreenField(DWORD msec) {
     if (Cvar_Integer("scr_showfps", 0)) {
         SCR_DrawFPS(msec);
     }
+
+    /* Cursor is deliberately last so it stays above world, HUD, menus and debug text. */
+    SCR_DrawCursor();
 #ifndef BZ_TESTS
     if (CL_ScreenshotReady()) {
         re.Screenshot();
@@ -169,18 +222,6 @@ static DWORD layout_current_layer;
 
 static RECT Rect_inset(LPCRECT r, FLOAT inset) {
     return MAKE(RECT, r->x+inset, r->y+inset, r->w-inset*2, r->h-inset*2);
-}
-
-static VECTOR2 SCR_LayoutScreenToFdf(int x, int y) {
-    LPRENDERER renderer = &re;
-    size2_t window = renderer->GetWindowSize();
-    FLOAT nx = 0, ny = 0;
-
-    if (window.width > 0 && window.height > 0) {
-        nx = (FLOAT)x / (FLOAT)window.width;
-        ny = (FLOAT)y / (FLOAT)window.height;
-    }
-    return MAKE(VECTOR2, nx * SCR_UICanvasWidth(), ny * UI_BASE_HEIGHT);
 }
 
 static RECT get_uvrect(uint8_t const *tc) {
@@ -788,7 +829,7 @@ void SCR_ClearLayoutLayer(DWORD layer) {
 }
 
 void SCR_LayoutMouseEvent(uiMouseEvent_t event, int x, int y, int32_t param) {
-    VECTOR2 const point = SCR_LayoutScreenToFdf(x, y);
+    VECTOR2 const point = SCR_ScreenToUI(x, y);
 
     layout_hovered_number = 0;
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
@@ -859,7 +900,7 @@ BOOL SCR_LayoutKeyEvent(int key) {
 }
 
 BOOL SCR_LayoutHitTest(int x, int y) {
-    VECTOR2 const point = SCR_LayoutScreenToFdf(x, y);
+    VECTOR2 const point = SCR_ScreenToUI(x, y);
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
         HANDLE layout = layout_layers[layer];
         DWORD flags = cl.playerstate.uiflags;

@@ -210,6 +210,7 @@ Common runtime cvars:
 | `g_module` | `"game"` | Game module name for the server game boundary |
 | `com_frame_limit` | `"0"` | Exit after N frames; useful with `r_module=stdout` |
 | `vid_modes` | `"0"` | Log SDL display modes at renderer startup; enabled by `-vid_modes`, not archived |
+| `r_cursor` | `"0"` | Native SDL platform cursor; set to `1` for Warcraft III's authored animated cursor |
 
 ### (Optional) Download Warcraft III 1.29b assets
 

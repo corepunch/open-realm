@@ -341,6 +341,12 @@ static void RStd_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
     printf(" x=%.6f y=%.6f\n", x, y);
 }
 
+/* stdout has no game-native cursor renderer; the client leaves SDL's platform cursor visible. */
+static bool RStd_DrawCursor(float x, float y) {
+    printf("draw_cursor x=%.6f y=%.6f unsupported\n", x, y);
+    return false;
+}
+
 static bool RStd_SetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
     if (!entity) {
         return false;
@@ -494,6 +500,7 @@ refExport_t R_StdoutGetAPI(refImport_t imp) {
         .DrawMinimap = RStd_DrawMinimap,
         .DrawLoadingIndicator = RStd_DrawLoadingIndicator,
         .DrawSprite = RStd_DrawSprite,
+        .DrawCursor = RStd_DrawCursor,
         .SetEntityAnimFrame = RStd_SetEntityAnimFrame,
         .DrawText = RStd_DrawText,
         .GetTextSize = RStd_GetTextSize,
