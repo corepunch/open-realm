@@ -25,7 +25,7 @@ UI_WOW_LIB       := $(LIB_DIR)/libui-wow$(LIB_EXT)
 WOW_BINARY       := $(BIN_DIR)/openwow$(EXE_EXT)
 WOW_COMMON_SRCS  := $(shell find $(WOW_DIR)/common -name '*.c' 2>/dev/null | sort)
 
-WOW_CFLAGS      := $(CFLAGS) -I$(WOW_DIR) -I$(WOW_DIR)/game -DWOW -DOW3_LOAD_ALL_MPQS -Wno-unused-function -DBZ_GAME=\"world-of-warcraft\"
+WOW_CFLAGS      := $(CFLAGS) -I$(WOW_DIR) -I$(WOW_DIR)/game -DWOW -DOW3_LOAD_ALL_MPQS -Wno-unused-function -D_GNU_SOURCE -DBZ_GAME=\"world-of-warcraft\"
 WOW_TEST_CFLAGS := $(WOW_CFLAGS) -DTOOL_COMMON_NO_MPQ -Itests -Ishared
 WOW_UI_CFLAGS   := $(WOW_CFLAGS) $(LUA_CFLAGS) -DSTB_WOW_XML_IMPLEMENTATION
 
