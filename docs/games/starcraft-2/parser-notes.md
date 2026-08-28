@@ -45,6 +45,26 @@ Do not put StarCraft II literals into engine code. Examples of game-specific dat
 - M3 model/material policy
 - SC2 trigger/Galaxy assumptions
 
+## Galaxy Front End
+
+Galaxy and JASS share the `libjass` AST and VM, but keep separate parser entry points. `jass_dobuffer_ex` selects them through the
+`jass_syntax` table in `games/warcraft-3/jass/jdo.c`; each entry owns its token delimiters, parser callback, and preprocessing flags.
+Add another source language by extending that table and emitting the existing `TOKEN` representation rather than adding mode branches
+to the VM.
+
+Native hosts include `games/warcraft-3/jass/jass_api.h`, which contains only the VM stack/coroutine ABI and does not import WC3 game
+internals. The full `jass.h` remains the WC3-facing API. SC2's game library links `libjass` and publishes its native table through
+`galaxy_get_natives()`.
+
+Galaxy-specific type aliases and statement keywords are tables in `games/warcraft-3/jass/jparser.c`. Multi-character operators are
+recognized by `jlex.c` only when their characters occur in the active syntax's delimiter set, which keeps `&&`, `||`, `<<`, and `>>`
+out of JASS while allowing compact expressions such as `value!=3` in both languages. Parse failures set `PARSER.error` and make
+`jass_dobuffer_ex` return false; they must not call `jass_rterror`, which aborts when no coroutine error boundary exists.
+
+`continue` is intentionally rejected until the common loop AST can represent it without silently changing control flow. Galaxy
+multidimensional arrays are currently accepted but flattened to the JASS array representation; additional dimensions are not preserved.
+Run `make test-galaxy` for parser mode isolation, syntax coverage, VM execution, includes, and the checked-in Galaxy smoke corpus.
+
 ## Binary Parsing Style
 
 - Parse fixed-width integer fields with explicit little-endian reads.

@@ -193,6 +193,7 @@ static gal_state_t gal_new(void) {
         .MemAlloc         = gal_alloc,
         .MemFree          = gal_free,
         .ReadFile         = gal_read_file,
+        .natives          = gal_test_natives,
         .galaxy_natives   = gal_test_natives,
     ));
     gal_state_t s;
@@ -205,12 +206,12 @@ static void gal_destroy(gal_state_t *s) {
     if (s->j) { jass_close(s->j); s->j = NULL; }
 }
 
-/* Load Galaxy source and call main() if it exists. */
-static int gal_run(gal_state_t *s, const char *src) {
+/* Load source and call main() if it exists. */
+static int gal_run_mode(gal_state_t *s, const char *src, JASSMODE mode) {
     unsigned int len = (unsigned int)strlen(src);
     char *buf = malloc(len + 1);
     memcpy(buf, src, len + 1);
-    jass_dobuffer_ex(s->j, buf, JASS_MODE_GALAXY);
+    jass_dobuffer_ex(s->j, buf, mode);
     free(buf);
     if (jass_rterror_pending(s->j)) {
         snprintf(s->errmsg, sizeof(s->errmsg), "%s", jass_rterror_message(s->j));
@@ -227,20 +228,24 @@ static int gal_run(gal_state_t *s, const char *src) {
     return 1;
 }
 
+static int gal_run(gal_state_t *s, const char *src) { return gal_run_mode(s, src, JASS_MODE_GALAXY); }
+
 /* Parse-only: load but don't call main(). */
-static int gal_parse(gal_state_t *s, const char *src) {
+static int gal_parse_mode(gal_state_t *s, const char *src, JASSMODE mode) {
     unsigned int len = (unsigned int)strlen(src);
     char *buf = malloc(len + 1);
     memcpy(buf, src, len + 1);
-    jass_dobuffer_ex(s->j, buf, JASS_MODE_GALAXY);
+    BOOL ok = jass_dobuffer_ex(s->j, buf, mode);
     free(buf);
-    if (jass_rterror_pending(s->j)) {
+    if (!ok || jass_rterror_pending(s->j)) {
         snprintf(s->errmsg, sizeof(s->errmsg), "%s", jass_rterror_message(s->j));
         jass_rterror_clear(s->j);
         return 0;
     }
     return 1;
 }
+
+static int gal_parse(gal_state_t *s, const char *src) { return gal_parse_mode(s, src, JASS_MODE_GALAXY); }
 
 /* =========================================================================
  * Parser tests — verify specific Galaxy constructs parse without error
@@ -447,6 +452,56 @@ TEST(galaxy, parse_logical_and_or) {
         "    bool a = true and false;\n"
         "    bool b = false or true;\n"
         "}"));
+    gal_destroy(&s);
+}
+
+TEST(galaxy, parse_symbolic_logical_operators) {
+    gal_state_t s = gal_new();
+    T_ASSERT(gal_parse(&s, "void f() { bool x = true&&false||true; }"));
+    gal_destroy(&s);
+}
+
+TEST(galaxy, parse_compact_comparison_operators) {
+    gal_state_t s = gal_new();
+    T_ASSERT(gal_parse(&s, "void f() { bool x = 1<=2; bool y = 2!=3; }"));
+    gal_destroy(&s);
+}
+
+TEST(galaxy, reject_unimplemented_continue) {
+    gal_state_t s = gal_new();
+    T_ASSERT(!gal_parse(&s, "void f() { while (true) { continue; } }"));
+    gal_destroy(&s);
+}
+
+TEST(jass_syntax, parse_native_form) {
+    gal_state_t s = gal_new();
+    T_ASSERT(gal_parse_mode(&s,
+        "globals\ninteger value=0\nendglobals\n"
+        "function main takes nothing returns nothing\nset value=value+1\nendfunction\n", JASS_MODE_JASS));
+    gal_destroy(&s);
+}
+
+TEST(jass_syntax, reject_galaxy_function_form) {
+    gal_state_t s = gal_new();
+    T_ASSERT(!gal_parse_mode(&s, "void f() {}", JASS_MODE_JASS));
+    gal_destroy(&s);
+}
+
+TEST(jass_syntax, reject_galaxy_symbolic_logic) {
+    gal_state_t s = gal_new();
+    T_ASSERT(!gal_parse_mode(&s,
+        "function f takes nothing returns boolean\nreturn true&&false\nendfunction\n", JASS_MODE_JASS));
+    gal_destroy(&s);
+}
+
+TEST(jass_syntax, vm_compact_arithmetic_and_comparison) {
+    gal_state_t s = gal_new();
+    T_ASSERT(gal_run_mode(&s,
+        "native TestFail takes string msg returns nothing\n"
+        "function main takes nothing returns nothing\n"
+        "local integer value=1+2\n"
+        "if value!=3 then\ncall TestFail(\"JASS compact operators failed\")\nendif\n"
+        "endfunction\n", JASS_MODE_JASS));
     gal_destroy(&s);
 }
 
@@ -698,6 +753,19 @@ TEST(galaxy, vm_comparison_operators) {
         "    if (!(2 <= 2)) { TestFail(\"2 <= 2\"); }\n"
         "    if (!(1 == 1)) { TestFail(\"1 == 1\"); }\n"
         "    if (!(1 != 2)) { TestFail(\"1 != 2\"); }\n"
+        "}"));
+    gal_destroy(&s);
+}
+
+TEST(galaxy, vm_symbolic_logic_and_shifts) {
+    gal_state_t s = gal_new();
+    T_ASSERT(gal_run(&s,
+        "native void TestFail(string msg);\n"
+        "void main() {\n"
+        "    bool logic = true&&false||true;\n"
+        "    int shifted = (1<<5)>>2;\n"
+        "    if (!logic) { TestFail(\"symbolic logic failed\"); }\n"
+        "    if (shifted!=8) { TestFail(\"shift operators failed\"); }\n"
         "}"));
     gal_destroy(&s);
 }

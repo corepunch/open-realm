@@ -1,7 +1,7 @@
 #ifndef galaxy_host_h
 #define galaxy_host_h
 
-#include "../../warcraft-3/jass/jass.h"
+#include "../../../warcraft-3/jass/jass_api.h"
 
 /* galaxy_get_natives — return the SC2 native function table.
  * Assign to host.galaxy_natives before calling jass_sethost(). */
