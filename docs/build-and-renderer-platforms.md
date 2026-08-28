@@ -28,6 +28,9 @@ GL_VERSION: OpenGL ES 3.x ...
 `llvmpipe` identifies software rendering. The GLES3 build is Linux-only; macOS, Windows, and OpenBSD retain desktop OpenGL.
 Release keeps assertions enabled: the JASS VM uses them for invariant diagnostics, while optimization is controlled independently.
 
+`common/shared.h` maps `strlcpy` and `strlcat` to project-local implementations on Linux and Windows. This is automatic and
+covers Linux systems whose libc predates those BSD APIs, including Ubuntu 22.04; no compatibility build flag is required.
+
 The first release profile used `-DNDEBUG` and exposed VM expressions inside `assert(...)`: indexed JASS assignments skipped both
 their index and value evaluation, then `jass_copy` read an unrelated stack entry during `G_ClientBegin`. Keep VM operations outside
 assertions. Diagnose this class with a bounded campaign launch; a crash report ending in
