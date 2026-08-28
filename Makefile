@@ -181,8 +181,11 @@ $(1): $(2) | $$(BIN_DIR) install-share
 endef
 
 define test_schema
-$(1): $(2) | $$(BIN_DIR)
+
+$(4): $(2) $(5) | $$(BIN_DIR)
 	@$$(CC) $(3) -o $(4) $(5) $$(RPATH) $$(LDFLAGS) $(6)
+
+$(1): $(4)
 	@$(4) $(7)
 endef
 
