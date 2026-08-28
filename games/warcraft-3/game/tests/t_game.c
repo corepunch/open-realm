@@ -564,10 +564,13 @@ TEST(wc3_game, fow_visible_clears_but_explored_remains) {
 
     G_FowUpdate();
     DWORD index = G_FowWorldToCellY(64.0f) * level.fow.width + G_FowWorldToCellX(64.0f);
+    DWORD row = G_FowWorldToCellY(64.0f);
+    T_ASSERT(level.fow.players[0].visible_rows[row]);
     revealer->s.renderfx |= RF_HIDDEN;
     G_FowUpdate();
 
     T_ASSERT(!level.fow.players[0].visible[index]);
+    T_ASSERT(!level.fow.players[0].visible_rows[row]);
     T_ASSERT(level.fow.players[0].explored[index]);
     G_FowShutdown();
 }
@@ -581,23 +584,34 @@ TEST(wc3_game, fow_static_scenery_persists_after_unit_vision_leaves) {
     LPEDICT tree = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 64.0f, 64.0f);
     LPEDICT unseen = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 1024.0f, 1024.0f);
     LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 64.0f);
+    LPEDICT building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64.0f, 64.0f);
     revealer->s.player = 0;
     revealer->balance.sight_radius.day = 128.0f;
     revealer->health.value = revealer->health.max_value = 1.0f;
-    tree->s.player = unseen->s.player = unit->s.player = MAX_PLAYERS;
+    tree->s.player = unseen->s.player = unit->s.player = building->s.player = MAX_PLAYERS;
     tree->svflags = unseen->svflags = SVF_STATIC_SCENERY;
+    building->balance.flags |= UNIT_BALANCE_BUILDING;
 
     G_FowUpdate();
     T_ASSERT(G_FowPlayerCanSeeEntity(0, tree));
     T_ASSERT(!G_FowPlayerCanSeeEntity(0, unseen));
     T_ASSERT(G_FowPlayerCanSeeEntity(0, unit));
+    T_ASSERT(G_FowPlayerCanSeeEntity(0, building));
     revealer->s.renderfx |= RF_HIDDEN;
     G_FowUpdate();
 
     T_ASSERT(G_FowPlayerCanSeeEntity(0, tree));
     T_ASSERT(!G_FowPlayerCanSeeEntity(0, unseen));
     T_ASSERT(!G_FowPlayerCanSeeEntity(0, unit));
+    T_ASSERT(G_FowPlayerCanSeeEntity(0, building));
     G_FowShutdown();
+}
+
+TEST(wc3_game, acquisition_range_uses_spawn_cache) {
+    LPEDICT ent = make_test_unit();
+    ent->class_id = MAKEFOURCC('n', 'o', 'n', 'e');
+    ent->balance.acquisition_range = 375.0f;
+    T_FEQ(G_AcquisitionRange(ent), 375.0f, 0.001f);
 }
 
 TEST(wc3_game, fow_blocker_stops_visibility_behind_it) {
@@ -694,6 +708,16 @@ TEST(wc3_game, fow_full_sync_marks_player_connected) {
 
 void CM_SetupTestWorldBounds(LPCBOX2 bounds);
 
+static volatile FLOAT acquisition_bench_sink;
+
+/* Exercise the repeated metadata lookup performed by acquisition scans. */
+static void bench_acquisition_ranges(void) {
+    FLOAT sum = 0.0f;
+    FOR_LOOP(pass, 10)
+        for (int i = 1; i < 1901; i++) sum += G_AcquisitionRange(&g_edicts[i]);
+    acquisition_bench_sink = sum;
+}
+
 /* 128×128-tile map → 16384×16384 units → 256×256 FOW cells at FOW_CELL_SIZE=64.
  * Two players connected, 80 revealer units each spread across the map. */
 TEST(wc3_perf, fow_update_large_map) {
@@ -740,6 +764,17 @@ TEST(wc3_perf, run_entities_1900) {
 
     T_BENCH("G_RunEntities (1900 active units, MOVETYPE_STEP)",       30,
             G_RunEntities());
+}
+
+/* 1900 immutable unit classes should not require repeated SLK metadata walks. */
+TEST(wc3_perf, acquisition_ranges_1900) {
+    setup_test_world();
+    for (int i = 0; i < 1900; i++) {
+        LPEDICT ent = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
+        ent->balance.sight_radius.day = 600.0f;
+        ent->balance.acquisition_range = 300.0f;
+    }
+    T_BENCH("G_AcquisitionRange (1900 units x 10 passes)", 30, bench_acquisition_ranges());
 }
 
 /* =========================================================================

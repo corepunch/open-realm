@@ -576,7 +576,11 @@ struct gquest_s {
 typedef struct {
     struct { FLOAT day, night; } sight_radius;
     struct { DWORD health, mana; } max;
+    FLOAT acquisition_range;
+    DWORD flags;
 } unitbalance_t;
+
+#define UNIT_BALANCE_BUILDING 0x1 // bit; immutable building classification; used by hot AI/FOW paths
 
 typedef struct {
     DWORD code;
@@ -778,6 +782,7 @@ typedef struct {
 typedef struct {
     BYTE *visible;
     BYTE *explored;
+    BYTE *visible_rows;
     BYTE *dirty_visible_rows;
     BYTE *dirty_explored_rows;
     BOOL client_connected;

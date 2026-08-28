@@ -486,6 +486,24 @@ TEST(renderer_shader, fog_raycast_uses_float_literals_for_glsl120) {
     T_ASSERT(up); T_ASSERT(z); T_ASSERT(!invalid);
 }
 
+/* WC3 waterfalls are PRE2-only MDX models, so their shared particle shader must consume the world FOW mask. */
+TEST(renderer_shader, world_particles_sample_fog_of_war) {
+    FILE *file = fopen("renderer/r_particles.c", "rb");
+    char line[256];
+    BOOL matrix = false, sampler = false, coord = false, shade = false, define = false;
+
+    T_NOT_NULL(file);
+    while (file && fgets(line, sizeof(line), file)) {
+        if (strstr(line, "UNIFORM(textureMatrix,")) matrix = true;
+        if (strstr(line, "UNIFORM(fogOfWar,")) sampler = true;
+        if (strstr(line, "v_texcoord2 = (u_textureMatrix * vec4(pos, 1.0)).xy")) coord = true;
+        if (strstr(line, "col.rgb *= texture(u_fogOfWar, v_texcoord2).r")) shade = true;
+        if (strstr(line, "#define USE_FOGOFWAR 1\\n")) define = true;
+    }
+    if (file) fclose(file);
+    T_ASSERT(matrix); T_ASSERT(sampler); T_ASSERT(coord); T_ASSERT(shade); T_ASSERT(define);
+}
+
 static HANDLE shader_alloc(long size) { return shader_test.memory = test_alloc(size); }
 
 /* Each case starts with empty caches and independent driver counters. */

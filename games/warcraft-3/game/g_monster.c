@@ -406,10 +406,11 @@ void SP_SpawnUnit(LPEDICT self) {
     PATHSTR model_filename;
     LPCSTR uber_splat = UNIT_UBER_SPLAT(self->class_id);
     LPCSTR path_tex = UNIT_PATH_TEX(self->class_id);
+    self->balance.flags = (unit_spawn_aiflags(self->class_id) & AI_IMMOBILE) ? UNIT_BALANCE_BUILDING : 0;
     snprintf(model_filename, sizeof(model_filename), "%s.mdx", UNIT_MODEL(self->class_id));
     self->s.model = G_RegisterModel(model_filename);
     self->s.splat = M_LoadUberSplat(uber_splat);
-    if (UNIT_IS_BUILDING(self->class_id)) {
+    if (self->balance.flags & UNIT_BALANCE_BUILDING) {
         M_SetBuildingShadow(self);
     } else {
         M_SetUnitShadow(self);
@@ -442,6 +443,12 @@ void SP_SpawnUnit(LPEDICT self) {
     self->unitinfo.MoveSpeed = UNIT_SPEED(self->class_id);
     self->balance.sight_radius.day = UNIT_SIGHT_RADIUS(self->class_id);
     self->balance.sight_radius.night = UNIT_SIGHT_RADIUS_NIGHT(self->class_id);
+    /* Unit-table values are immutable after spawn; cache them before the per-frame AI/FOW paths consume them. */
+    self->balance.acquisition_range = UNIT_ACQUISITION_RANGE(self->class_id);
+    if (self->balance.acquisition_range <= 0.0f)
+        self->balance.acquisition_range = self->balance.sight_radius.day * 0.5f;
+    if (self->balance.sight_radius.day > 0.0f && self->balance.acquisition_range > self->balance.sight_radius.day)
+        self->balance.acquisition_range = self->balance.sight_radius.day;
     self->think = monster_think;
     /* Blighted gold mines earn gold on an interval instead of via workers. */
     if (G_ActorHasSkill(self, "Abgm")) {
@@ -450,7 +457,7 @@ void SP_SpawnUnit(LPEDICT self) {
     self->svflags |= SVF_MONSTER;
     /* Buildings use a single immobility contract so smart orders, combat, and
      * future movement paths cannot rotate or translate them independently. */
-    self->aiflags |= unit_spawn_aiflags(self->class_id);
+    if (self->balance.flags & UNIT_BALANCE_BUILDING) self->aiflags |= AI_IMMOBILE;
     /* Cache the air/ground collision layer once. Flyers ('movetp' == "fly")
      * never collide with ground units and vice-versa. */
     {
@@ -510,7 +517,7 @@ void SP_SpawnUnit(LPEDICT self) {
 
     if ((self->pathtex = M_LoadPathTex(path_tex))) {
         /* Buildings: collide by footprint (their collisionSize is ~0). */
-        if (UNIT_IS_BUILDING(self->class_id)) {
+        if (self->balance.flags & UNIT_BALANCE_BUILDING) {
             self->collision = get_unit_collision(self->pathtex);
         }
     }
