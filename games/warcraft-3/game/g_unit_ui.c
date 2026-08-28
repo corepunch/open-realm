@@ -120,7 +120,7 @@ static LPCSTR G_CleanTooltipString(LPCSTR text, DWORD level) {
     return G_RemoveQuotes(G_ProcessTooltipString(G_StringForLevel(text, level)));
 }
 
-static LPCSTR G_CommandArtPath(LPCSTR art) {
+static LPCSTR G_UIArtPath(LPCSTR art) {
     if (!art || !*art) {
         return art;
     }
@@ -151,7 +151,7 @@ BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, 
     tip = FindConfigValue(art_code, G_ResearchField(STR_TIP, research));
     ubertip = FindConfigValue(art_code, G_ResearchField(STR_UBERTIP, research));
     hotkey = FindConfigValue(art_code, STR_HOTKEY);
-    art_path = G_CommandArtPath(art);
+    art_path = G_UIArtPath(art);
 
     if (buttonpos && *buttonpos) {
         sscanf(buttonpos, "%u,%u", &x, &y);
@@ -266,30 +266,39 @@ BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_but
     return count;
 }
 
+BOOL G_BuildInventoryItem(LPEDICT ent, LPEDICT item, BYTE slot, gameInventoryItem_t *out) {
+    LPCSTR item_name;
+    LPCSTR art;
+
+    if (!ent || !out || slot >= G_InventoryCapacity(ent) || !G_IsItem(item) ||
+        item->item.carrier != ent || item->item.inventory_slot != slot || item->item.in_world) return false;
+
+    memset(out, 0, sizeof(*out));
+    item_name = GetClassName(item->class_id);
+    art = FindConfigValue(item_name, STR_ART);
+    G_CopyString(out->art, sizeof(out->art), G_UIArtPath(art));
+    G_CopyString(out->tooltip, sizeof(out->tooltip), G_CleanTooltipString(FindConfigValue(item_name, STR_TIP), 0));
+    G_CopyString(out->ubertip, sizeof(out->ubertip), G_CleanTooltipString(FindConfigValue(item_name, STR_UBERTIP), 0));
+    out->slot = slot;
+    out->charges = G_ItemCharges(item);
+    if (!out->art[0]) {
+        fprintf(stderr, "G_BuildInventoryItem: missing Art item=%.4s slot=%u\n",
+                (char *)&item->class_id, (unsigned)slot);
+    }
+    return true;
+}
+
 BYTE G_GetInventory(LPEDICT ent, gameInventoryItem_t *items, BYTE max_items) {
     BYTE count = 0;
+    DWORD capacity;
 
-    if (!ent || !items) {
-        return 0;
-    }
+    if (!ent || !items) return 0;
     memset(items, 0, sizeof(*items) * max_items);
-
-    for (BYTE slot = 0; slot < MAX_INVENTORY && count < max_items; slot++) {
-        LPEDICT item = ent->inventory[slot];
-        if (!G_IsItem(item) || item->item.carrier != ent || item->item.inventory_slot != slot ||
-            item->item.in_world) {
-            continue;
-        }
-        LPCSTR item_name = GetClassName(item->class_id);
-        G_CopyString(items[count].art, sizeof(items[count].art), FindConfigValue(item_name, STR_ART));
-        G_CopyString(items[count].tooltip, sizeof(items[count].tooltip),
-                     G_RemoveQuotes(FindConfigValue(item_name, STR_TIP)));
-        G_CopyString(items[count].ubertip, sizeof(items[count].ubertip),
-                     G_RemoveQuotes(FindConfigValue(item_name, STR_UBERTIP)));
-        items[count].slot = slot;
-        count++;
+    capacity = G_InventoryCapacity(ent);
+    FOR_LOOP(slot, capacity) {
+        if (count >= max_items) break;
+        if (G_BuildInventoryItem(ent, ent->inventory[slot], (BYTE)slot, &items[count])) count++;
     }
-
     return count;
 }
 

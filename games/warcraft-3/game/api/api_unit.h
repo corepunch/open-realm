@@ -396,7 +396,7 @@ DWORD UnitAddItemToSlotById(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LONG itemId = jass_checkinteger(j, 2);
     LONG itemSlot = jass_checkinteger(j, 3);
-    if (!whichUnit || itemSlot < 0 || itemSlot >= MAX_INVENTORY) {
+    if (!whichUnit || itemSlot < 0 || (DWORD)itemSlot >= G_InventoryCapacity(whichUnit)) {
         return jass_pushboolean(j, false);
     }
     LPEDICT item = SP_SpawnAtLocation(itemId, whichUnit->s.player, &whichUnit->s.origin2);
@@ -424,7 +424,7 @@ DWORD UnitRemoveItem(LPJASS j) {
 DWORD UnitRemoveItemFromSlot(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LONG itemSlot = jass_checkinteger(j, 2);
-    if (!whichUnit || itemSlot < 0 || itemSlot >= MAX_INVENTORY) {
+    if (!whichUnit || itemSlot < 0 || (DWORD)itemSlot >= G_InventoryCapacity(whichUnit)) {
         return jass_pushnullhandle(j, "item");
     }
     LPEDICT item = whichUnit->inventory[itemSlot];
@@ -446,7 +446,7 @@ DWORD UnitHasItem(LPJASS j) {
 DWORD UnitItemInSlot(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LONG itemSlot = jass_checkinteger(j, 2);
-    if (!whichUnit || itemSlot < 0 || itemSlot >= MAX_INVENTORY) {
+    if (!whichUnit || itemSlot < 0 || (DWORD)itemSlot >= G_InventoryCapacity(whichUnit)) {
         return jass_pushnullhandle(j, "item");
     }
     LPEDICT item = whichUnit->inventory[itemSlot];

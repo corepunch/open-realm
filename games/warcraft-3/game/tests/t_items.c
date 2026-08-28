@@ -8,6 +8,7 @@
 
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
 void setup_test_world(void);
+BOOL run_test_jass(LPCSTR src);
 
 static LPEDICT make_item_test_inventory_unit(FLOAT x, FLOAT y) {
     LPEDICT unit = alloc_test_unit(MAKEFOURCC('H','p','a','l'), x, y);
@@ -49,6 +50,39 @@ TEST(wc3_items, spawn_initializes_world_state) {
     T_EQ(item->targtype, TARG_ITEM);
     T_ASSERT(!(item->s.renderfx & RF_HIDDEN));
     T_ASSERT(!(item->svflags & SVF_NOCLIENT));
+}
+
+TEST(wc3_items, spawn_initializes_scroll_charges_from_item_data) {
+    LPEDICT item = alloc_test_unit(MAKEFOURCC('s','p','r','o'), 32, 64);
+
+    SP_SpawnItem(item);
+
+    T_EQ(G_ItemCharges(item), 1);
+}
+
+TEST(wc3_items, inventory_capacity_comes_from_inventory_ability_data) {
+    LPEDICT standard = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    LPEDICT small = alloc_test_unit(MAKEFOURCC('H','0','0','1'), 0, 0);
+    LPEDICT none = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+
+    T_EQ(G_InventoryCapacity(standard), 6);
+    T_EQ(G_InventoryCapacity(small), 2);
+    T_EQ(G_InventoryCapacity(none), 0);
+}
+
+TEST(wc3_items, pickup_respects_inventory_capacity_not_storage_size) {
+    setup_test_world();
+    LPEDICT unit = alloc_test_unit(MAKEFOURCC('H','0','0','1'), 0, 0);
+    LPEDICT first = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32, 0);
+    LPEDICT second = make_item_test_world_item(MAKEFOURCC('r','d','e','2'), 64, 0);
+    LPEDICT extra = make_item_test_world_item(MAKEFOURCC('s','p','r','o'), 96, 0);
+
+    unit->health.value = unit->health.max_value = 100;
+    T_ASSERT(G_AddItemToSlot(unit, first, 0));
+    T_ASSERT(G_AddItemToSlot(unit, second, 1));
+    T_ASSERT(!G_AddItemToSlot(unit, extra, 2));
+    T_EQ(G_FindFreeInventorySlot(unit), -1);
+    T_ASSERT(extra->item.in_world);
 }
 
 TEST(wc3_items, pickup_sets_both_sides_of_inventory_state) {
@@ -107,6 +141,57 @@ TEST(wc3_items, full_inventory_leaves_item_in_world) {
     T_ASSERT(!(extra->s.renderfx & RF_HIDDEN));
     T_ASSERT(!(extra->svflags & SVF_NOCLIENT));
     T_NOT_NULL(extra->area.prev);
+}
+
+TEST(wc3_items, inventory_ui_resolves_scroll_metadata_and_charge) {
+    gameInventoryItem_t items[MAX_INVENTORY];
+    LPEDICT unit;
+    LPEDICT item;
+    BYTE count;
+
+    setup_test_world();
+    unit = make_item_test_inventory_unit(0, 0);
+    item = alloc_test_unit(MAKEFOURCC('s','p','r','o'), 32, 0);
+    SP_SpawnItem(item); gi.LinkEntity(item);
+
+    T_ASSERT(G_PickupItem(unit, item));
+    count = G_GetInventory(unit, items, MAX_INVENTORY);
+    T_EQ(count, 1);
+    T_EQ(items[0].slot, 0);
+    T_EQ(items[0].charges, 1);
+    T_STREQ(items[0].art, "TestUI\\Textures\\solid_white.blp");
+    T_STREQ(items[0].tooltip, "Scroll of Protection");
+    T_STREQ(items[0].ubertip, "Temporarily increases the armor of nearby units.");
+
+    G_SetItemCharges(item, 0);
+    count = G_GetInventory(unit, items, MAX_INVENTORY);
+    T_EQ(count, 1);
+    T_EQ(items[0].charges, 0);
+}
+
+TEST(wc3_items, drop_preserves_item_charges) {
+    setup_test_world();
+    LPEDICT unit = make_item_test_inventory_unit(128, 256);
+    LPEDICT item = alloc_test_unit(MAKEFOURCC('s','p','r','o'), 64, 0);
+
+    SP_SpawnItem(item); gi.LinkEntity(item);
+    T_EQ(G_ItemCharges(item), 1);
+    T_ASSERT(G_PickupItem(unit, item));
+    T_ASSERT(G_DropItem(unit, 0));
+    T_EQ(G_ItemCharges(item), 1);
+}
+
+TEST(wc3_items, jass_item_charge_natives_use_runtime_item_state) {
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local item i = CreateItem('spro', 64.0, 64.0)\n"
+        "  call BJassAssert(GetItemCharges(i) == 1, \"initial charges\")\n"
+        "  call SetItemCharges(i, 3)\n"
+        "  call BJassAssert(GetItemCharges(i) == 3, \"updated charges\")\n"
+        "  call SetItemCharges(i, -1)\n"
+        "  call BJassAssert(GetItemCharges(i) == 0, \"negative charges clamp\")\n"
+        "endfunction\n"));
 }
 
 TEST(wc3_items, drop_restores_same_item_to_world) {

@@ -34,6 +34,16 @@ DWORD GetItemLevel(LPJASS j) {
     LPEDICT item = jass_checkhandle(j, 1, "item");
     return jass_pushinteger(j, item ? item->itemData->level : 0);
 }
+DWORD GetItemCharges(LPJASS j) {
+    LPEDICT item = jass_checkhandle(j, 1, "item");
+    return jass_pushinteger(j, item ? (LONG)G_ItemCharges(item) : 0);
+}
+DWORD SetItemCharges(LPJASS j) {
+    LPEDICT item = jass_checkhandle(j, 1, "item");
+    LONG charges = jass_checkinteger(j, 2);
+    if (item) G_SetItemCharges(item, (DWORD)MAX(charges, 0));
+    return 0;
+}
 DWORD GetItemX(LPJASS j) {
     LPEDICT item = jass_checkhandle(j, 1, "item");
     return jass_pushnumber(j, item ? item->s.origin.x : 0);
