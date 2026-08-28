@@ -67,9 +67,9 @@ TEST(wc3_game, hud_proxy_number_never_moves_backwards) {
     T_EQ(UI_NextProxyFrameNumber(12, 10), 12);
 }
 
-static void test_text_exact_width_fits(void) { T_ASSERT(R_TextFitsWidth(0.0f)); }
-static void test_text_subpixel_residue_fits(void) { T_ASSERT(R_TextFitsWidth(-0.0000005f)); }
-static void test_text_real_overflow_does_not_fit(void) { T_ASSERT(!R_TextFitsWidth(-0.00001f)); }
+TEST(wc3_game, text_exact_width_fits) { T_ASSERT(R_TextFitsWidth(0.0f)); }
+TEST(wc3_game, text_subpixel_residue_fits) { T_ASSERT(R_TextFitsWidth(-0.0000005f)); }
+TEST(wc3_game, text_real_overflow_does_not_fit) { T_ASSERT(!R_TextFitsWidth(-0.00001f)); }
 TEST(wc3_game, hud_stale_attribute_texture_uses_infocard_asset) {
     T_STREQ(UI_ResolveTextureAlias("HeroStrengthIcon"),
                   "UI\\Widgets\\Console\\Human\\infocard-heroattributes-str.blp");
@@ -78,8 +78,8 @@ TEST(wc3_game, hud_valid_texture_path_is_unchanged) {
     T_STREQ(UI_ResolveTextureAlias("UI\\Feedback\\Resources\\ResourceGold.blp"),
                   "UI\\Feedback\\Resources\\ResourceGold.blp");
 }
-static void test_hud_second_attack_present_with_dice(void) { T_ASSERT(UI_HasSecondAttack(1)); }
-static void test_hud_second_attack_absent_without_dice(void) { T_ASSERT(!UI_HasSecondAttack(0)); }
+TEST(wc3_game, hud_second_attack_present_with_dice) { T_ASSERT(UI_HasSecondAttack(1)); }
+TEST(wc3_game, hud_second_attack_absent_without_dice) { T_ASSERT(!UI_HasSecondAttack(0)); }
 TEST(wc3_game, hud_portrait_model_uses_serialized_field) {
     FRAMEDEF frame = { 0 };
     UI_SetPortraitFrameModel(&frame, 42);

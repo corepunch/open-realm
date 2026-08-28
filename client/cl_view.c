@@ -249,15 +249,16 @@ static void V_AddClientEntity(centity_t const *ent) {
         re.flags |= RF_NO_SHADOW;
     }
 #ifdef WOW
-    if (ent->current.model2 > 0 && ent->current.model2 < MAX_MODELS && (ent->current.renderfx & RF_ATTACH_OVERHEAD))
+    /* model2 is a BYTE, so every nonzero value is a valid MAX_MODELS index. */
+    if (ent->current.model2 > 0 && (ent->current.renderfx & RF_ATTACH_OVERHEAD))
         re.overhead_model = cl.models[ent->current.model2];
-    else if (ent->current.model2 > 0 && ent->current.model2 < MAX_MODELS)
+    else if (ent->current.model2 > 0)
         re.attached_model = cl.models[ent->current.model2];
 #endif
 
     view_state.entities[view_state.num_entities++] = re;
-    
-        if (ent->current.model2 > 0) {
+
+    if (ent->current.model2 > 0) {
 #ifdef WOW
         if (re.attached_model || re.overhead_model) return;
 #endif

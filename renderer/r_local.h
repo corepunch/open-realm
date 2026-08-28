@@ -75,7 +75,7 @@ typedef enum render_phase_e {
 extern refImport_t ri;
 
 static inline BOOL R_CvarEnabled(LPCSTR name, LPCSTR fallback) { return !ri.CvarString || atoi(ri.CvarString(name, fallback)); }
-static uint64_t R_PrimitiveTriangles(GLenum mode, DWORD count, DWORD instances) {
+static inline uint64_t R_PrimitiveTriangles(GLenum mode, DWORD count, DWORD instances) {
     return mode == GL_TRIANGLES ? (uint64_t)(count / 3) * instances : 0;
 }
 
@@ -119,8 +119,8 @@ typedef struct INSTANCEBUFFER {
 typedef struct INSTANCEBUFFER *LPINSTANCEBUFFER;
 typedef const struct INSTANCEBUFFER *LPCINSTANCEBUFFER;
 
-static size_t R_InstanceBufferBytes(DWORD count) { return (size_t)count * sizeof(MATRIX4); }
-static DWORD R_InstanceBufferCapacity(DWORD capacity, DWORD count) {
+static inline size_t R_InstanceBufferBytes(DWORD count) { return (size_t)count * sizeof(MATRIX4); }
+static inline DWORD R_InstanceBufferCapacity(DWORD capacity, DWORD count) {
     if (capacity >= count) return capacity;
     for (capacity = capacity ? capacity : 16; capacity < count; capacity *= 2) {}
     return capacity;
@@ -130,7 +130,7 @@ static DWORD R_InstanceBufferCapacity(DWORD capacity, DWORD count) {
 static inline VECTOR2 R_StatusBarOffsets(FLOAT height, BOOL mana) {
     return MAKE(VECTOR2, -(mana ? 2.0f + STATUS_BAR_GAP_RATIO : 1.0f) * height, 0.0f);
 }
-static void R_SwapRedBlue(BYTE *pixels, DWORD count, DWORD stride) {
+static inline void R_SwapRedBlue(BYTE *pixels, DWORD count, DWORD stride) {
     FOR_LOOP(i, count) {
         BYTE tmp = pixels[i * stride]; pixels[i * stride] = pixels[i * stride + 2]; pixels[i * stride + 2] = tmp;
     }
@@ -446,7 +446,7 @@ VECTOR2 R_GetTextSize(LPCDRAWTEXT drawText);
 void R_DrawText(LPCDRAWTEXT drawText);
 void R_DrawString(int x, int y, LPCSTR text);
 /* One thousandth of a pixel in normalized UI space is exact enough for glyph-fit decisions. */
-static BOOL R_TextFitsWidth(FLOAT remaining) { return remaining >= -0.000001f; }
+static inline BOOL R_TextFitsWidth(FLOAT remaining) { return remaining >= -0.000001f; }
 
 // r_image.c
 LPRENDERTARGET R_AllocateRenderTexture(GLsizei width, GLsizei height, GLenum format, GLenum type, GLenum attachment);
