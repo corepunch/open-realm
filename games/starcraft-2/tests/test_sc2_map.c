@@ -425,6 +425,8 @@ static void assert_tiny_map_known_file_catalog_fallback(sc2Map_t *map) {
     T_STREQ(map->t3Terrain.cliff_sets[0].mesh, "CliffNatural0");
 }
 
+TEST(sc2_map, campaign_object_capacity) { T_EQ(SC2_MAX_MAP_OBJECTS, 4096); }
+
 TEST(sc2_map, sc2_map_loads_xml_objects_and_terrain) {
     sc2Map_t *map;
 

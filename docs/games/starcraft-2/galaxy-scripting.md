@@ -65,10 +65,12 @@ It must exit from `com_frame_limit` without an infinite-loop assertion or memory
 
 ## Remaining Gaps
 
-The bounded intro lifecycle completes, but visual fidelity is blocked by authoritative map/catalog resolution:
+The bounded intro lifecycle loads all 2,657 TRaynor01 objects with `SC2_MAX_MAP_OBJECTS` set to 4,096. Camera IDs 1660 and
+976 and the intro route points resolve from the authoritative map `Objects` data; both camera applications reach the game
+state callback.
 
-- camera IDs such as 1660 and 976 are not found in the currently parsed map objects;
-- point IDs used by the intro are not found;
+Visual fidelity remains blocked by catalog and native coverage:
+
 - `SpecialOpsDropship` and `Raynor01` do not resolve to M3 model paths;
 - unsupported array/index expressions still report `Can't find function [` or `Can't evaluate token of type 6`;
 - `ObjectiveCreate` is not currently resolved on the start-game path;

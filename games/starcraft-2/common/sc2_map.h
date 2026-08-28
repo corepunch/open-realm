@@ -4,7 +4,7 @@
 #include "common/common.h"
 #include <stdio.h>
 
-#define SC2_MAX_MAP_OBJECTS 1024
+#define SC2_MAX_MAP_OBJECTS 4096 // objects; accommodates object-heavy campaign maps such as TRaynor01
 #define SC2_CELL_SIZE          1.0f
 #define SC2_MAX_TERRAIN_TEXTURES 16
 #define SC2_MAX_CLIFF_SETS     8
