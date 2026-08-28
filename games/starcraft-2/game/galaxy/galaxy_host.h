@@ -70,9 +70,4 @@ extern const char *(*sc2_galaxy_get_unit_model)(LPCSTR unit_type);
 extern void (*sc2_galaxy_unit_set_position)(void *ent, float x, float y, float facing);
 extern BOOL (*sc2_galaxy_unit_is_alive)(void *ent);
 
-/* Galaxy unit table — 0-based; index 0 = first unit created (typically the dropship),
- * subsequent indices = cargo units and anything else UnitCreate/UnitCargoCreate spawned. */
-extern void  *sc2_gunits[];
-extern DWORD  sc2_gunit_n;
-
 #endif

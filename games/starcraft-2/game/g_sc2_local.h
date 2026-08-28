@@ -36,6 +36,7 @@ typedef struct {
 
 extern sc2Level_t sc2_level;
 
+int          G_RegisterModel(LPCSTR filename);
 LPCANIMATION G_GetAnimation(DWORD modelindex, LPCSTR animname);
 void         G_FreeModels(void);
 

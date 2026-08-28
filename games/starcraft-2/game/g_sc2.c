@@ -342,6 +342,8 @@ static void SC2_GalaxySetCamera(float target_x, float target_y,
 static void SC2_GalaxyCinematicMode(BOOL enable, float duration) {
     (void)duration;
     sc2_level.cinematic = enable;
+    FOR_LOOP(i, SC2_MAX_CLIENTS)
+        sc2_clients[i].ps.client_ui_state = enable ? CLIENT_UI_CINEMATIC : CLIENT_UI_GAME;
 }
 
 static void SC2_GalaxyCinematicFade(float alpha, float duration) {
@@ -579,9 +581,6 @@ static void SC2_SpawnEntities(void) {
 }
 
 static void SC2_RunFrame(void) {
-    static DWORD sc2_frame_count = 0;
-    sc2_frame_count++;
-
     /* Tick Galaxy VM — runs pending coroutines (cutscene waits, camera pans). */
     if (sc2_level.vm && sc2_level.scriptsStarted)
         galaxy_tick(sc2_level.vm);
@@ -592,28 +591,6 @@ static void SC2_RunFrame(void) {
             SC2_RunUnit(&sc2_edicts[i]);
     }
     SC2_SolveCollisions();
-
-    if (sc2_level.scriptsStarted && sc2_frame_count % 5 == 0) {
-        /* Log current interpolated camera state (what the client actually sees). */
-        VECTOR2 const cam_pos = sc2_clients[0].ps.origin;
-        VECTOR3 const cam_ang = sc2_clients[0].ps.viewangles; /* x=pitch y=yaw z=height_offset */
-        FLOAT   const cam_dist = (FLOAT)sc2_clients[0].ps.distance;
-        fprintf(stderr, "[f%u] cam target=(%.2f,%.2f) yaw=%.1f pitch=%.1f dist=%.1f height=%.2f\n",
-                sc2_frame_count, cam_pos.x, cam_pos.y,
-                cam_ang.y, cam_ang.x, cam_dist, cam_ang.z);
-
-        /* Log all galaxy-spawned unit positions:
-         *   unit 0 = dropship (SpecialOpsDropship)
-         *   units 1+ = cargo (Raynor01, Marine x5) */
-        for (DWORD gi_i = 0; gi_i < sc2_gunit_n; gi_i++) {
-            LPEDICT ent = (LPEDICT)sc2_gunits[gi_i];
-            if (!ent || !ent->inuse) continue;
-            LPCSTR label = (gi_i == 0) ? "dropship" : "cargo";
-            fprintf(stderr, "[f%u] %s[%u] pos=(%.2f,%.2f,%.2f)\n",
-                    sc2_frame_count, label, gi_i,
-                    ent->s.origin.x, ent->s.origin.y, ent->s.origin.z);
-        }
-    }
 }
 
 static void SC2_ClientBegin(LPEDICT ent) {
