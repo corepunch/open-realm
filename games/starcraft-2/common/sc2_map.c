@@ -137,6 +137,10 @@ typedef struct {
 
 static sc2MapHost_t sc2_host;
 static sc2Map_t     sc2_map;
+/* Kept alive after map load (not freed) so galaxy scripts can resolve models
+ * for units created at runtime (UnitCreate/UnitCargoCreate) that are never
+ * placed as map objects and therefore never enter sc2_map.objects[]. */
+static sc2Catalog_t *sc2_persistent_catalog;
 
 static LPCSTR const sc2_catalog_roots[] = {
     "Mods/Core.SC2Mod/Base.SC2Data",
@@ -191,6 +195,7 @@ static BOOL sc2_file_exists(LPCSTR path) {
 }
 
 static void sc2_map_clear(void) {
+    SAFE_DELETE(sc2_persistent_catalog, sc2_free);
     SAFE_DELETE(sc2_map.t3CellFlags, sc2_free);
     SAFE_DELETE(sc2_map.t3SyncCliffLevel, sc2_free);
     SAFE_DELETE(sc2_map.t3HeightMap, sc2_free);
@@ -1993,6 +1998,39 @@ static void sc2_resolve_object_footprint(sc2Catalog_t const *catalog, sc2MapObje
     object->footprint_radius = footprint->radius;
 }
 
+/* Resolves object->model/footprint/mover from its name via the unit->actor->model
+ * catalog chain. Shared by pre-placed map objects and dynamically spawned units
+ * (galaxy UnitCreate has no map object, so it builds a throwaway object here). */
+static void sc2_resolve_object_model(sc2Catalog_t const *catalog, sc2MapObject_t *object) {
+    LPCSTR model_id = NULL;
+    if (!object->name[0]) return;
+    if (object->type == SC2_OBJECT_UNIT) {
+        sc2CatalogUnit_t const *unit = sc2_catalog_unit(catalog, object->name);
+        if (unit) {
+            if (unit->has_radius) object->radius = unit->radius;
+            if (unit->footprint[0]) snprintf(object->footprint, sizeof(object->footprint), "%s", unit->footprint);
+            if (unit->mover[0]) snprintf(object->mover, sizeof(object->mover), "%s", unit->mover);
+            object->unit_flags |= unit->flags;
+            if (unit->actor[0]) {
+                LPCSTR actor_footprint = sc2_catalog_actor_footprint(catalog, unit->actor);
+                if (!object->footprint[0] && actor_footprint)
+                    snprintf(object->footprint, sizeof(object->footprint), "%s", actor_footprint);
+                model_id = sc2_catalog_actor_model(catalog, unit->actor);
+            }
+        }
+    }
+    if (!object->footprint[0]) {
+        LPCSTR actor_footprint = sc2_catalog_actor_footprint(catalog, object->name);
+        if (actor_footprint)
+            snprintf(object->footprint, sizeof(object->footprint), "%s", actor_footprint);
+    }
+    sc2_resolve_object_footprint(catalog, object);
+    if (!model_id) model_id = sc2_catalog_actor_model(catalog, object->name);
+    if (!model_id) model_id = object->name;
+    if (!sc2_catalog_model_path(catalog, model_id, object))
+        sc2_resolve_object_model_candidates(object);
+}
+
 static void sc2_resolve_object_models(sc2Catalog_t const *catalog) {
     sc2ResolvedObjectModel_t resolved[SC2_MAX_MAP_OBJECTS];
     DWORD resolved_count = 0;
@@ -2000,7 +2038,6 @@ static void sc2_resolve_object_models(sc2Catalog_t const *catalog) {
     memset(resolved, 0, sizeof(resolved));
     FOR_LOOP(i, sc2_map.num_objects) {
         sc2MapObject_t *object = &sc2_map.objects[i];
-        LPCSTR model_id;
         if (!object->name[0]) continue;
         FOR_LOOP(j, resolved_count) {
             if (!strcasecmp(resolved[j].name, object->name) && resolved[j].variation == object->variation) {
@@ -2015,32 +2052,7 @@ static void sc2_resolve_object_models(sc2Catalog_t const *catalog) {
                 goto next_object;
             }
         }
-        model_id = NULL;
-        if (object->type == SC2_OBJECT_UNIT) {
-            sc2CatalogUnit_t const *unit = sc2_catalog_unit(catalog, object->name);
-            if (unit) {
-                if (unit->has_radius) object->radius = unit->radius;
-                if (unit->footprint[0]) snprintf(object->footprint, sizeof(object->footprint), "%s", unit->footprint);
-                if (unit->mover[0]) snprintf(object->mover, sizeof(object->mover), "%s", unit->mover);
-                object->unit_flags |= unit->flags;
-                if (unit->actor[0]) {
-                    LPCSTR actor_footprint = sc2_catalog_actor_footprint(catalog, unit->actor);
-                    if (!object->footprint[0] && actor_footprint)
-                        snprintf(object->footprint, sizeof(object->footprint), "%s", actor_footprint);
-                    model_id = sc2_catalog_actor_model(catalog, unit->actor);
-                }
-            }
-        }
-        if (!object->footprint[0]) {
-            LPCSTR actor_footprint = sc2_catalog_actor_footprint(catalog, object->name);
-            if (actor_footprint)
-                snprintf(object->footprint, sizeof(object->footprint), "%s", actor_footprint);
-        }
-        sc2_resolve_object_footprint(catalog, object);
-        if (!model_id) model_id = sc2_catalog_actor_model(catalog, object->name);
-        if (!model_id) model_id = object->name;
-        if (!sc2_catalog_model_path(catalog, model_id, object))
-            sc2_resolve_object_model_candidates(object);
+        sc2_resolve_object_model(catalog, object);
         if (!object->model[0] && (object->type == SC2_OBJECT_UNIT || object->type == SC2_OBJECT_DOODAD))
             fprintf(stderr, "SC2 %s: unresolved model '%s'\n", sc2_object_type_name(object->type), object->name);
         if (resolved_count < SC2_MAX_MAP_OBJECTS) {
@@ -2092,7 +2104,21 @@ static void sc2_resolve_catalogs(sc2MapSource_t *source) {
     sc2_map.catalog.models = catalog->models_count;
     sc2_map.catalog.footprints = catalog->footprints_count;
     sc2_map.catalog.unresolved_models = sc2_count_unresolved_models();
-    sc2_free(catalog);
+    SAFE_DELETE(sc2_persistent_catalog, sc2_free);
+    sc2_persistent_catalog = catalog;
+}
+
+/* Resolves a unit type name (e.g. galaxy UnitCreate's type argument) to an M3
+ * model path via the same unit->actor->model catalog chain used for placed
+ * map objects, for units that have no corresponding map object. */
+LPCSTR SC2_MapResolveUnitModel(LPCSTR unit_type) {
+    static sc2MapObject_t object;
+    if (!sc2_persistent_catalog || !unit_type || !*unit_type) return "";
+    memset(&object, 0, sizeof(object));
+    object.type = SC2_OBJECT_UNIT;
+    snprintf(object.name, sizeof(object.name), "%s", unit_type);
+    sc2_resolve_object_model(sc2_persistent_catalog, &object);
+    return object.model;
 }
 
 static BOOL sc2_mapinfo_fourcc(sc2MapInfo_t const *mapInfo) {

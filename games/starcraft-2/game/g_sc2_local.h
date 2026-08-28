@@ -8,7 +8,10 @@
 #include "games/starcraft-2/game/galaxy/galaxy_host.h"
 
 #define SC2_MAX_CLIENTS 1
-#define SC2_MAX_EDICTS  2048
+/* TRaynor01 alone places 2657 map objects; leave headroom above that for
+ * cinematic/galaxy-spawned units (dropship, cargo, later Init0xUnits triggers)
+ * so SC2_GalaxyCreateUnit never silently starves out of edicts. */
+#define SC2_MAX_EDICTS  4096
 
 extern struct game_import gi;
 extern struct game_export globals;

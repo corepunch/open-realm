@@ -390,18 +390,27 @@ static BOOL SC2_GalaxyGetPointById(DWORD map_id, float *x, float *y) {
     return false;
 }
 
-/* Unit model lookup: find an existing map object whose type_name matches unit_type
- * and return its already-resolved M3 model path. */
+/* Unit model lookup: prefer an already-resolved M3 path from an existing map
+ * object with a matching type_name, then fall back to the persistent unit
+ * catalog for units created purely at runtime (e.g. cinematic UnitCreate). */
 static const char *SC2_GalaxyGetUnitModel(LPCSTR unit_type) {
     sc2Map_t const *map = SC2_MapCurrent();
-    if (!map || !unit_type || !*unit_type) return "";
-    FOR_LOOP(i, map->num_objects) {
-        sc2MapObject_t const *obj = &map->objects[i];
-        if (obj->type == SC2_OBJECT_UNIT && obj->model[0] &&
-            (!strcasecmp(obj->type_name, unit_type) || !strcasecmp(obj->name, unit_type))) {
-            fprintf(stderr, "SC2_GalaxyGetUnitModel: %s -> %s\n", unit_type, obj->model);
-            return obj->model;
+    LPCSTR catalog_model;
+    if (!unit_type || !*unit_type) return "";
+    if (map) {
+        FOR_LOOP(i, map->num_objects) {
+            sc2MapObject_t const *obj = &map->objects[i];
+            if (obj->type == SC2_OBJECT_UNIT && obj->model[0] &&
+                (!strcasecmp(obj->type_name, unit_type) || !strcasecmp(obj->name, unit_type))) {
+                fprintf(stderr, "SC2_GalaxyGetUnitModel: %s -> %s\n", unit_type, obj->model);
+                return obj->model;
+            }
         }
+    }
+    catalog_model = SC2_MapResolveUnitModel(unit_type);
+    if (catalog_model && catalog_model[0]) {
+        fprintf(stderr, "SC2_GalaxyGetUnitModel: %s -> %s (catalog)\n", unit_type, catalog_model);
+        return catalog_model;
     }
     fprintf(stderr, "SC2_GalaxyGetUnitModel: no model found for '%s'\n", unit_type);
     return "";
@@ -430,7 +439,12 @@ static BOOL SC2_GalaxyUnitIsAlive(void *ent_ptr) {
 /* Called with the resolved M3 model path (from sc2_galaxy_get_unit_model or
  * the unit type name as fallback if no catalog entry was found). */
 static void *SC2_GalaxyCreateUnit(LPCSTR model, int player, float x, float y, float angle) {
-    if (globals.num_edicts >= globals.max_edicts) return NULL;
+    if (globals.num_edicts >= globals.max_edicts) {
+        fprintf(stderr, "SC2_GalaxyCreateUnit: FATAL: edict pool full (%u/%u) — galaxy unit '%s' "
+                "(player=%d at %.1f,%.1f) DROPPED, will never render; raise SC2_MAX_EDICTS in g_sc2_local.h\n",
+                (unsigned)globals.num_edicts, (unsigned)globals.max_edicts, model ? model : "(null)", player, x, y);
+        return NULL;
+    }
     LPEDICT ent = &sc2_edicts[globals.num_edicts++];
     memset(ent, 0, sizeof(*ent));
     ent->inuse = true;
@@ -553,7 +567,12 @@ static void SC2_SpawnEntities(void) {
             continue;
         }
         if (globals.num_edicts >= globals.max_edicts) {
-            fprintf(stderr, "SC2_SpawnEntities: hit max edicts at %u objects\n", (unsigned)i);
+            fprintf(stderr, "SC2_SpawnEntities: FATAL: edict pool exhausted at %u/%u map objects "
+                    "(SC2_MAX_EDICTS=%u too small) — %u remaining static objects AND every later "
+                    "galaxy UnitCreate/UnitCargoCreate (cinematic units!) will be silently invisible; "
+                    "raise SC2_MAX_EDICTS in g_sc2_local.h\n",
+                    (unsigned)i, (unsigned)map->num_objects, (unsigned)globals.max_edicts,
+                    (unsigned)(map->num_objects - i));
             break;
         }
         ent = &sc2_edicts[globals.num_edicts++];

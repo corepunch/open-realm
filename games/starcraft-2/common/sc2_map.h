@@ -354,6 +354,7 @@ void          SC2_MapSetHost(sc2MapHost_t const *host);
 BOOL          SC2_MapLoad(LPCSTR mapFilename);
 void          SC2_MapShutdown(void);
 sc2Map_t     *SC2_MapCurrent(void);
+LPCSTR        SC2_MapResolveUnitModel(LPCSTR unit_type);
 FLOAT         SC2_MapHeightAtPoint(FLOAT x, FLOAT y);
 BOX2          SC2_MapBounds(void);
 VECTOR2       SC2_MapNormalizedPosition(FLOAT x, FLOAT y);

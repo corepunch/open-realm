@@ -435,6 +435,9 @@ static DWORD sc2_UnitCreate(LPJASS j) {
         void *ent = sc2_galaxy_on_unit_create ?
             sc2_galaxy_on_unit_create(model && *model ? model : (type ? type : ""),
                                       (int)player, x, y, angle) : NULL;
+        if (!ent)
+            fprintf(stderr, "sc2_UnitCreate: on_unit_create returned NULL for type '%s' (%ld/%ld) — unit will be invisible\n",
+                    type ? type : "(null)", (long)(i + 1), (long)count);
         handle = (LONG)(++sc2_gunit_n);
         sc2_gunits[handle - 1] = ent;
         sc2_last_unit_handle = handle;
@@ -555,6 +558,9 @@ static DWORD sc2_UnitCargoCreate(LPJASS j) {
         void *ent = sc2_galaxy_on_unit_create ?
             sc2_galaxy_on_unit_create(model && *model ? model : (type ? type : ""),
                                       0, 0.0f, 0.0f, 0.0f) : NULL;
+        if (!ent)
+            fprintf(stderr, "sc2_UnitCargoCreate: on_unit_create returned NULL for type '%s' (%ld/%ld) — cargo unit will be invisible\n",
+                    type ? type : "(null)", (long)(i + 1), (long)cnt);
         handle = (LONG)(++sc2_gunit_n);
         sc2_gunits[handle - 1] = ent;
         sc2_last_cargo_handle  = handle;
