@@ -397,7 +397,15 @@ TEST(net, msg_writebyte_readbyte_roundtrip) {
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
     MSG_WriteByte(&sb, 0xAB);
     sb.readcount = 0;
-    T_EQ(MSG_ReadByte(&sb) & 0xFF, 0xAB);
+    T_EQ(MSG_ReadByte(&sb), 0xAB);
+}
+
+TEST(net, msg_byte_ff_roundtrip_is_unsigned) {
+    BYTE buf[16];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    MSG_WriteByte(&sb, 0xFF);
+    sb.readcount = 0;
+    T_EQ(MSG_ReadByte(&sb), 255);
 }
 
 TEST(net, msg_writeshort_readshort_roundtrip) {

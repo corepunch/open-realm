@@ -691,8 +691,8 @@ TEST(server_net, lobby_setup_message_round_trips_slot_table) {
     FOR_LOOP(i, 1) {
         T_EQ(MSG_ReadByte(&msg), 0);
         T_EQ(MSG_ReadByte(&msg), 0);
-        T_EQ(MSG_ReadByte(&msg), -1);
-        T_EQ(MSG_ReadByte(&msg), -1);
+        T_EQ(MSG_ReadByte(&msg), 255);
+        T_EQ(MSG_ReadByte(&msg), 255);
         T_EQ(MSG_ReadByte(&msg), 0);
         T_EQ(MSG_ReadByte(&msg), 0);
         T_EQ(MSG_ReadByte(&msg), 0);
