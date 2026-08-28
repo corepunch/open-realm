@@ -41,14 +41,14 @@ static void G_RefreshInventoryUI(LPEDICT unit) {
     }
 
     /* Player/client edicts occupy the reserved [0, max_clients) range and are
-     * intentionally not normal in-use gameplay entities.  Refresh HUDs by
+     * intentionally not normal in-use gameplay entities.  Refresh inventory by
      * connection state instead of edict->inuse, otherwise a successful pickup
      * never re-sends LAYER_INVENTORY to the selecting client. */
     FOR_LOOP(i, game.max_clients) {
         LPEDICT player = globals.edicts + i;
         if (player->client && player->client->connected &&
             G_IsEntitySelected(player->client, unit)) {
-            Get_Portrait_f(player);
+            G_RefreshInventoryLayer(player);
         }
     }
 }

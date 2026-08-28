@@ -91,9 +91,16 @@ reserved client slots and gates on the explicit `GAMECLIENT.connected` state.
 initialization clears the state before the next map begins.
 
 A previous refresh path incorrectly required the reserved player edict itself to
-be `inuse`. Pickup still completed, but `Get_Portrait_f` was skipped and the
-server never resent `LAYER_INVENTORY`. The bounded diagnostic for this boundary
-is:
+be `inuse`. Pickup still completed, but the refresh was skipped and the server
+never resent `LAYER_INVENTORY`.
+
+Item-state changes refresh only `LAYER_INVENTORY` through
+`G_RefreshInventoryLayer`. They do not rebuild the portrait or info panel. This
+keeps item transitions independent of unrelated portrait/FDF presentation and
+avoids requiring a full selected-unit HUD rebuild merely because an item moved
+or its charge count changed.
+
+The bounded diagnostic for this boundary is:
 
 ```text
 +set sv_debug_layout 1 +com_frame_limit 100
