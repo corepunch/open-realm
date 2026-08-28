@@ -15,7 +15,7 @@
 } while (0)
 
 static jmp_buf exception_env;
-volatile BOOL galaxy_parse_error;
+static BOOL c_operators;
 typedef LPTOKEN (*LPGRAMMARFUNC)(LPPARSER);
 
 typedef struct {
@@ -35,17 +35,21 @@ BOOL is_multiplicative_operator(LPCSTR str) {
     return !strcmp(str, "*") || !strcmp(str, "/");
 }
 
-BOOL is_additive_operator(LPCSTR str) {
+BOOL is_additive_operator(LPPARSER p, LPCSTR str) {
+    (void)p;
     return !strcmp(str, "+") || !strcmp(str, "-") ||
-           !strcmp(str, "<<") || !strcmp(str, ">>");  /* Galaxy bitshift */
+           (c_operators && (!strcmp(str, "<<") || !strcmp(str, ">>")));
 }
 
 BOOL is_compare_operator(LPCSTR str) {
-    return !strcmp(str, ">") || !strcmp(str, "<") || !strcmp(str, "=") || !strcmp(str, "!");
+    return !strcmp(str, ">") || !strcmp(str, "<") || !strcmp(str, "==") || !strcmp(str, "!=") ||
+           !strcmp(str, ">=") || !strcmp(str, "<=");
 }
 
-BOOL is_logic_operator(LPCSTR str) {
-    return !strcmp(str, "and") || !strcmp(str, "or");
+BOOL is_logic_operator(LPPARSER p, LPCSTR str) {
+    (void)p;
+    return !strcmp(str, "and") || !strcmp(str, "or") ||
+           (c_operators && (!strcmp(str, "&&") || !strcmp(str, "||")));
 }
 
 LPCSTR jass_getoperator(LPCSTR str) {
@@ -61,6 +65,8 @@ LPCSTR jass_getoperator(LPCSTR str) {
     if (!strcmp(str, "<")) return "__lt";
     if (!strcmp(str, "and")) return "__and";
     if (!strcmp(str, "or")) return "__or";
+    if (!strcmp(str, "&&")) return "__and";
+    if (!strcmp(str, "||")) return "__or";
     if (!strcmp(str, "<<")) return "__lsh";
     if (!strcmp(str, ">>")) return "__rsh";
     return str;
@@ -179,9 +185,6 @@ LPTOKEN alloc_ident_token(LPPARSER p, TOKENTYPE tt) {
 LPTOKEN parse_operator_token(LPPARSER p) {
     UINAME op = { 0 };
     strlcpy(op, parse_token(p), sizeof(op));
-    if (eat_token(p, "=")) {
-        op[1] = '=';
-    }
     LPCSTR operatorid = jass_getoperator(op);
     LPTOKEN t = alloc_token(TT_CALL);
     t->primary = strdup(operatorid);
@@ -200,7 +203,7 @@ PARSER(read_single_identifier) {
         left = alloc_token(TT_CALL);
         left->primary = strdup("__unm");
         left->args = read_single_identifier(p);
-    } else if (eat_token(p, "not") || eat_token(p, "!")) {
+    } else if (eat_token(p, "not") || (c_operators && eat_token(p, "!"))) {
         left = alloc_token(TT_CALL);
         left->primary = strdup("__not");
         left->args = read_single_identifier(p);
@@ -250,7 +253,7 @@ PARSER(parse_multiplicative_expression) {
 
 PARSER(parse_additive_expression) {
     LPTOKEN left = parse_multiplicative_expression(p);
-    if (is_additive_operator(peek_token(p))) {
+    if (is_additive_operator(p, peek_token(p))) {
         LPTOKEN oper = parse_operator_token(p);
         LPTOKEN right = parse_additive_expression(p);
         PUSH_BACK(TOKEN, left, oper->args);
@@ -274,7 +277,7 @@ PARSER(parse_comparison_expression) {
 
 PARSER(parse_logical_expression) {
     LPTOKEN left = parse_comparison_expression(p);
-    if (is_logic_operator(peek_token(p))) {
+    if (is_logic_operator(p, peek_token(p))) {
         LPTOKEN oper = parse_operator_token(p);
         LPTOKEN right = parse_logical_expression(p);
         PUSH_BACK(TOKEN, left, oper->args);
@@ -428,6 +431,7 @@ static parseClass_t global_keywords[] = {
 };
 
 LPTOKEN JASS_ParseTokens(LPPARSER p) {
+    c_operators = false;
     LPTOKEN tokens = NULL;
     if (setjmp(exception_env) == 0) {
         LPTOKEN token = NULL;
@@ -442,6 +446,7 @@ LPTOKEN JASS_ParseTokens(LPPARSER p) {
         return tokens;
     } else {
         FREE(tokens);
+        p->error = true;
         fprintf(stderr, "Parser Error\n");
         return NULL;
     }
@@ -463,11 +468,13 @@ LPTOKEN JASS_ParseTokens(LPPARSER p) {
  * them identically to JASS's unbounded `type array var`.
  * ========================================================================= */
 
+static const struct { LPCSTR name, value; } galaxy_types[] = {
+    { "int", "integer" }, { "bool", "boolean" }, { "fixed", "real" }, { "text", "string" }, { NULL }
+};
+
 static LPCSTR galaxy_normalize_type(LPCSTR name) {
-    if (!strcmp(name, "int"))   return "integer";
-    if (!strcmp(name, "bool"))  return "boolean";
-    if (!strcmp(name, "fixed")) return "real";
-    if (!strcmp(name, "text"))  return "string";
+    for (DWORD i = 0; galaxy_types[i].name; i++)
+        if (!strcmp(name, galaxy_types[i].name)) return galaxy_types[i].value;
     return name;
 }
 
@@ -575,6 +582,18 @@ PARSER(galaxy_statement_while) {
     return loop;
 }
 
+PARSER(galaxy_statement_break) {
+    LPTOKEN token = alloc_token(TT_EXITWHEN);
+    token->condition = alloc_token(TT_BOOLEAN);
+    token->condition->primary = strdup("true");
+    eat_token(p, ";");
+    return token;
+}
+
+PARSER(galaxy_statement_continue) {
+    PARSER_THROW("Galaxy continue is not implemented");
+}
+
 /* Parse a local variable declaration: `type [N]* name [= expr];` */
 PARSER(galaxy_parse_local) {
     LPTOKEN token    = alloc_token(TT_VARDECL);
@@ -638,24 +657,15 @@ static LPTOKEN galaxy_parse_expression_stmt(LPPARSER p) {
 
 /* Dispatch one statement inside a function body. */
 static BOOL galaxy_parse_body_stmt(LPPARSER p, LPTOKEN function) {
-    LPCSTR tok = peek_token(p);
-    if (!*tok) return false;
-
+    static parseClass_t statements[] = {
+        { "if", galaxy_statement_if }, { "while", galaxy_statement_while }, { "return", galaxy_statement_return },
+        { "break", galaxy_statement_break }, { "continue", galaxy_statement_continue }, { NULL }
+    };
+    if (!*peek_token(p)) return false;
+    LPGRAMMARFUNC func = eat_keyword(p, statements);
     LPTOKEN stmt = NULL;
-    if (!strcmp(tok, "if"))     { parse_token(p); stmt = galaxy_statement_if(p);    }
-    else if (!strcmp(tok, "while"))  { parse_token(p); stmt = galaxy_statement_while(p); }
-    else if (!strcmp(tok, "return")) { parse_token(p); stmt = galaxy_statement_return(p);}
-    else if (!strcmp(tok, "break")) {
-        /* break → exitwhen true  (only valid inside a loop; parser doesn't check) */
-        parse_token(p); eat_token(p, ";");
-        LPTOKEN ew = alloc_token(TT_EXITWHEN);
-        LPTOKEN bt = alloc_token(TT_BOOLEAN); bt->primary = strdup("true");
-        ew->condition = bt;
-        stmt = ew;
-    } else if (!strcmp(tok, "continue")) {
-        /* continue has no JASS equivalent inside loop+exitwhen layout — skip */
-        parse_token(p); eat_token(p, ";");
-        return true;
+    if (func) {
+        stmt = func(p);
     } else if (galaxy_looks_like_decl(p)) {
         stmt = galaxy_parse_local(p);
     } else {
@@ -720,9 +730,7 @@ static LPTOKEN galaxy_parse_global_or_func(LPPARSER p) {
 }
 
 LPTOKEN GALAXY_ParseTokens(LPPARSER p) {
-    /* galaxy_parse_error is checked by jass_dobuffer_ex to distinguish a
-     * genuine parse error (PARSER_THROW → longjmp) from an empty file (NULL tokens). */
-    galaxy_parse_error = false;
+    c_operators = true;
     LPTOKEN tokens = NULL;
     if (setjmp(exception_env) == 0) {
         while (*peek_token(p)) {
@@ -743,7 +751,7 @@ LPTOKEN GALAXY_ParseTokens(LPPARSER p) {
         return tokens;
     } else {
         FREE(tokens);
-        galaxy_parse_error = true;
+        p->error = true;
         return NULL;
     }
 }

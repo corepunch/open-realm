@@ -52,8 +52,4 @@ struct token {
 LPTOKEN JASS_ParseTokens(LPPARSER p);
 LPTOKEN GALAXY_ParseTokens(LPPARSER p);
 
-/* Set to true when GALAXY_ParseTokens exits via PARSER_THROW (longjmp).
- * False when parsing succeeds (even if the result is an empty token list). */
-extern volatile BOOL galaxy_parse_error;
-
 #endif

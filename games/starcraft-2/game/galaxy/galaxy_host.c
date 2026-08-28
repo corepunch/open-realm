@@ -8,7 +8,7 @@
  * uses jass_check*() to read arguments and jass_push*() to return a value.
  */
 
-#include "../../warcraft-3/jass/jass.h"
+#include "../../../warcraft-3/jass/jass_api.h"
 
 /* Generic no-op stub — returns null, zero overhead. */
 static DWORD galaxy_stub(LPJASS j) {

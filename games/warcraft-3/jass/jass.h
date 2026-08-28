@@ -3,17 +3,15 @@
 
 #include "game/g_local.h"
 #include "game/api/api_macros.h"
+#include "jass_api.h"
 
 #define MAX_GROUP_SIZE 256
 
 #define API_ALLOC(TYPE, NAME) TYPE *NAME = jass_newhandle(j, sizeof(TYPE), #NAME);
 
-KNOWN_AS(jass_function, JASSFUNC);
 KNOWN_AS(jass_type, JASSTYPE);
 KNOWN_AS(jass_var, JASSVAR);
-KNOWN_AS(jass_module, JASSMODULE);
 KNOWN_AS(jass_context, JASSCONTEXT);
-KNOWN_AS(jass_coroutine, JASSCOROUTINE);
 KNOWN_AS(vm_program, VMPROGRAM);
 
 typedef enum {
@@ -33,8 +31,6 @@ typedef enum {
     UNIT_STATE_MAX_MANA,
 } UNITSTATE;
 
-typedef DWORD (*LPJASSCFUNCTION)(LPJASS);
-
 typedef enum {
     jasstype_integer,
     jasstype_real,
@@ -44,11 +40,6 @@ typedef enum {
     jasstype_handle,
     jasstype_cfunction,
 } JASSTYPEID;
-
-struct jass_module {
-    LPCSTR name;
-    LPJASSCFUNCTION func;
-};
 
 typedef enum {
     JASS_MODE_JASS   = 0,

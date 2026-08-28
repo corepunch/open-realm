@@ -11,8 +11,6 @@
 
 //#define DEBUG_JASS
 
-#define JASS_DELIM     ",;()[]+-/*="
-#define GALAXY_DELIM   ",;()[]+-/*={}!"
 #define JASS_CONSTANT  "constant"
 #define JASS_ARRAY     "array"
 #define JASS_NULL      "null"
@@ -22,6 +20,8 @@
 #define JASS_COMMA     ","
 #define JASS_OPERATOR(NAME) { #NAME, NAME }
 #define INF_LOOP_PROTECTION 10000
+#define SYNTAX_C_OPERATORS 1 // bitmask; enables Galaxy symbolic logic and shift operators
+#define SYNTAX_INCLUDES    2 // bitmask; enables Galaxy include preprocessing
 
 #define assert_type(var, type) assert(jass_checktype(var, type))
 #define JASSALLOC(type) jass_alloc(sizeof(type))
@@ -74,6 +74,17 @@ LPCSTR keywords[] = {
 };
 
 static JASSHOST jass_host;
+
+typedef struct {
+    LPCSTR delimiters;
+    LPTOKEN (*parse)(LPPARSER p);
+    DWORD flags;
+} JASSSYNTAX;
+
+static const JASSSYNTAX jass_syntax[] = {
+    [JASS_MODE_JASS] = { ",;()[]+-/*=<>!", JASS_ParseTokens, 0 },
+    [JASS_MODE_GALAXY] = { ",;()[]+-/*={}!<>&|", GALAXY_ParseTokens, SYNTAX_C_OPERATORS | SYNTAX_INCLUDES },
+};
 
 
 /* =========================================================================
@@ -1711,20 +1722,22 @@ static void galaxy_preprocess_includes(LPJASS j, LPSTR buf, JASSMODE mode) {
 BOOL jass_dobuffer_ex(LPJASS j, LPSTR buffer, JASSMODE mode) {
     jass_remove_comments(buffer);
     jass_remove_bom(buffer);
-    LPTOKEN program = NULL;
-    if (mode == JASS_MODE_GALAXY) {
+    if ((DWORD)mode >= sizeof(jass_syntax) / sizeof(jass_syntax[0])) {
+        LPJASS root = jass_root(j);
+        root->rterror_pending = true;
+        snprintf(root->rterror_message, sizeof(root->rterror_message), "unknown syntax mode");
+        return false;
+    }
+    const JASSSYNTAX *syntax = &jass_syntax[mode];
+    if (syntax->flags & SYNTAX_INCLUDES)
         galaxy_preprocess_includes(j, buffer, mode);
-        PARSER galaxy_parser = MAKE(PARSER, .buffer = buffer, .delimiters = GALAXY_DELIM);
-        program = GALAXY_ParseTokens(&galaxy_parser);
-        if (galaxy_parse_error) {
-            LPJASS root = jass_root(j);
-            root->rterror_pending = true;
-            snprintf(root->rterror_message, sizeof(root->rterror_message), "parse error");
-            return false;
-        }
-    } else {
-        program = JASS_ParseTokens(
-            &MAKE(PARSER, .buffer = buffer, .delimiters = JASS_DELIM));
+    PARSER parser = MAKE(PARSER, .buffer = buffer, .delimiters = syntax->delimiters);
+    LPTOKEN program = syntax->parse(&parser);
+    if (parser.error) {
+        LPJASS root = jass_root(j);
+        root->rterror_pending = true;
+        snprintf(root->rterror_message, sizeof(root->rterror_message), "parse error");
+        return false;
     }
     eval_TOKENS(j, program);
     return true;

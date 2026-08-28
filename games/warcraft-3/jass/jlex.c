@@ -31,6 +31,11 @@ LPCSTR parse_token(LPPARSER p) {
     } else if (strchr(p->delimiters, *p->buffer)) {
         word[0] = *(p->buffer++);
         word[1] = '\0';
+        if ((*p->buffer == '=' && strchr("=<>!", word[0])) ||
+            (*p->buffer == word[0] && strchr("<>&|", word[0]))) {
+            word[1] = *(p->buffer++);
+            word[2] = '\0';
+        }
         return word;
     } else {
         size_t segmentLength = 0;
