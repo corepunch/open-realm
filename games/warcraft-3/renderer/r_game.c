@@ -24,6 +24,10 @@ static LPCSTR modelNames[MODEL_COUNT] = {
     "UI\\Feedback\\SelectionCircle\\SelectionCircle.mdx"
 };
 
+static LPCSTR const cursor_model_name = "UI\\Cursor\\HumanCursor.mdx";
+static LPMODEL cursor_model;
+static BOOL cursor_load_attempted;
+
 typedef struct {
     LPMODEL model;
     DWORD count;
@@ -68,10 +72,13 @@ void R_GameLoadAssets(void) {
 }
 
 void R_GameInit(void) {
+    cursor_model = NULL; cursor_load_attempted = false;
     MDLX_Init();
 }
 
 void R_GameShutdown(void) {
+    /* R_ShutdownModels runs first and owns the cached model allocation; only clear our borrowed handle here. */
+    cursor_model = NULL; cursor_load_attempted = false;
     MDLX_Shutdown();
 }
 
@@ -334,4 +341,22 @@ bool R_GameSetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entit
 
 void R_GameDrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
     MDLX_DrawSprite(model, anim, x, y);
+}
+
+/* Warcraft III can replace the platform cursor with its authored animated MDX cursor. */
+bool R_GameDrawCursor(float x, float y) {
+    renderEntity_t probe = {0};
+
+    if (!cursor_model && !cursor_load_attempted) {
+        cursor_load_attempted = true;
+        cursor_model = R_LoadModel(cursor_model_name);
+        if (!cursor_model || !R_GameSetEntityAnimFrame(cursor_model, "Normal", &probe)) {
+            fprintf(stderr, "WC3 cursor unavailable: %s\n", cursor_model_name);
+            if (cursor_model) R_ReleaseModel(cursor_model);
+            cursor_model = NULL;
+        }
+    }
+    if (!cursor_model) return false;
+    MDLX_DrawSprite(cursor_model, "Normal", x, y);
+    return true;
 }

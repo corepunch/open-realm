@@ -120,6 +120,20 @@ TEST(commands, registered_renderer_cvar_accepts_bare_assignment) {
     T_STREQ(Cvar_String("r_stats", NULL), "1");
 }
 
+TEST(commands, cursor_defaults_to_native_sdl) {
+    setup_command_tests();
+    T_STREQ(Cvar_String("r_cursor", NULL), "0");
+}
+
+TEST(commands, cursor_allows_game_authored_override) {
+    LPCSTR argv[] = { "test_commands", "+r_cursor", "1" };
+
+    setup_command_tests();
+    COM_InitArgv(3, argv);
+    Cbuf_AddEarlyCommands(true);
+    T_STREQ(Cvar_String("r_cursor", NULL), "1");
+}
+
 TEST(commands, data_command_line_sets_data_cvar) {
     LPCSTR argv[] = { "test_commands", "-data", "tests/data dir" };
 

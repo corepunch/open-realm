@@ -576,3 +576,9 @@ void R_GameDrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
     (void)x;
     (void)y;
 }
+
+/* WoW context cursors are native SDL cursors owned by cl_input_wow.c. */
+bool R_GameDrawCursor(float x, float y) {
+    (void)x; (void)y;
+    return false;
+}

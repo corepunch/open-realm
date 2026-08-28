@@ -37,6 +37,8 @@ void test_client_stubs_set_cvar(LPCSTR name, LPCSTR value) {
 
 static size2_t mock_GetWindowSize(void) { return MAKE(size2_t, 1024, 768); }
 static void mock_DrawLoadingIndicator(LPCRECT rect, DWORD time, COLOR32 color) { (void)rect; (void)time; (void)color; }
+static void mock_DrawFill(LPCRECT rect, COLOR32 color) { (void)rect; (void)color; }
+static bool mock_DrawCursor(float x, float y) { (void)x; (void)y; return true; }
 static void mock_SetFogOfWarData(DWORD width, DWORD height, BYTE const *data) {
     (void)width; (void)height; (void)data; test_fow_upload_calls++;
 }
@@ -67,6 +69,7 @@ void CL_Disconnect(LPCSTR reason, BOOL notify) { (void)reason; (void)notify; cls
 void CL_EntityEvent(entityState_t const *ent) { (void)ent; }
 void Cbuf_AddText(LPCSTR text) { (void)text; }
 unsigned int SDL_GetTicks(void) { return 0; }
+int SDL_ShowCursor(int toggle) { (void)toggle; return 1; }
 void Com_Error(errorCode_t code, LPCSTR fmt, ...) { (void)code; (void)fmt; }
 
 void test_client_stubs_init(void) {
@@ -78,6 +81,8 @@ void test_client_stubs_init(void) {
     test_fow_upload_calls = 0;
     re.GetWindowSize = mock_GetWindowSize;
     re.DrawLoadingIndicator = mock_DrawLoadingIndicator;
+    re.DrawFill = mock_DrawFill;
+    re.DrawCursor = mock_DrawCursor;
     re.SetFogOfWarData = mock_SetFogOfWarData;
 }
 
