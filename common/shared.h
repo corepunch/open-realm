@@ -12,9 +12,9 @@
 #ifdef _WIN32
 #define strcasecmp _stricmp
 #define strncasecmp _strnicmp
+#endif
 
-/* The Windows C runtime does not provide BSD strlcpy.  Keep call sites
- * portable and preserve strlcpy's truncation/NUL-termination semantics. */
+/* Windows and older Linux C libraries lack BSD strlcpy/strlcat. */
 static inline size_t bz_strlcpy(char *destination, const char *source, size_t size) {
     size_t const source_length = strlen(source);
     if (size > 0) {
@@ -24,7 +24,21 @@ static inline size_t bz_strlcpy(char *destination, const char *source, size_t si
     }
     return source_length;
 }
+
+static inline size_t bz_strlcat(char *destination, const char *source, size_t size) {
+    size_t destination_length = 0, source_length = strlen(source);
+    while (destination_length < size && destination[destination_length]) destination_length++;
+    if (destination_length == size) return size + source_length;
+    size_t const available = size - destination_length - 1;
+    size_t const copy_length = source_length < available ? source_length : available;
+    memcpy(destination + destination_length, source, copy_length);
+    destination[destination_length + copy_length] = '\0';
+    return destination_length + source_length;
+}
+
+#if defined(_WIN32) || defined(__linux__)
 #define strlcpy bz_strlcpy
+#define strlcat bz_strlcat
 #endif
 
 #define MAX_PATHLEN 256
