@@ -863,6 +863,7 @@ typedef struct {
 LPPLAYER G_GetPlayerByNumber(DWORD);
 LPEDICT G_GetPlayerEntityByNumber(DWORD);
 LPGAMECLIENT G_GetPlayerClientByNumber(DWORD);
+void G_SetClientConnected(LPEDICT player, BOOL connected);
 TARGTYPE G_GetTargetType(LPCSTR);
 LPCSTR G_LevelString(LPCSTR);
 FLOAT G_Cinefade(void);

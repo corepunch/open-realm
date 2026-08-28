@@ -1,5 +1,5 @@
 ID;PWXL;N;E
-B;X4;Y3;D0
+B;X4;Y5;D0
 C;X1;Y1;K"alias"
 C;X2;K"code"
 C;X3;K"Data11"
@@ -12,4 +12,12 @@ C;X1;Y3;K"AIt2"
 C;X2;K"AInv"
 C;X3;K"2"
 C;X4;K"2"
+C;X1;Y4;K"AIt0"
+C;X2;K"AInv"
+C;X3;K"0"
+C;X4;K"0"
+C;X1;Y5;K"AIt9"
+C;X2;K"AInv"
+C;X3;K"9"
+C;X4;K"9"
 E

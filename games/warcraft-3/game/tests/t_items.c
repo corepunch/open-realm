@@ -104,6 +104,14 @@ TEST(wc3_items, inventory_capacity_comes_from_inventory_ability_data) {
     T_EQ(G_InventoryCapacity(none), 0);
 }
 
+TEST(wc3_items, inventory_capacity_rejects_zero_and_clamps_above_storage_limit) {
+    LPEDICT zero = alloc_test_unit(MAKEFOURCC('H','0','0','2'), 0, 0);
+    LPEDICT oversized = alloc_test_unit(MAKEFOURCC('H','0','0','9'), 0, 0);
+
+    T_EQ(G_InventoryCapacity(zero), 0);
+    T_EQ(G_InventoryCapacity(oversized), MAX_INVENTORY);
+}
+
 TEST(wc3_items, pickup_respects_inventory_capacity_not_storage_size) {
     setup_test_world();
     LPEDICT unit = alloc_test_unit(MAKEFOURCC('H','0','0','1'), 0, 0);
@@ -177,6 +185,21 @@ TEST(wc3_items, full_inventory_leaves_item_in_world) {
     T_NOT_NULL(extra->area.prev);
 }
 
+TEST(wc3_items, reserved_client_connection_state_transitions_both_directions) {
+    LPEDICT player = &g_edicts[0];
+    LPGAMECLIENT client = player->client;
+
+    T_NOT_NULL(client);
+    T_ASSERT(!player->inuse);
+    T_ASSERT(!client->connected);
+
+    G_SetClientConnected(player, true);
+    T_ASSERT(client->connected);
+
+    G_SetClientConnected(player, false);
+    T_ASSERT(!client->connected);
+}
+
 TEST(wc3_items, pickup_refreshes_inventory_for_connected_reserved_client_edict) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
     void (*old_unicast)(LPEDICT) = gi.unicast;
@@ -205,7 +228,7 @@ TEST(wc3_items, pickup_refreshes_inventory_for_connected_reserved_client_edict) 
     client->ps.number = 0;
     G_SelectEntity(client, unit);
 
-    client->connected = false;
+    G_SetClientConnected(player, false);
     reset_inventory_refresh_capture();
     gi.Write = capture_inventory_refresh_write;
     gi.unicast = capture_inventory_refresh_unicast;
@@ -214,7 +237,7 @@ TEST(wc3_items, pickup_refreshes_inventory_for_connected_reserved_client_edict) 
     gi.Write = old_write;
     gi.unicast = old_unicast;
 
-    client->connected = true;
+    G_SetClientConnected(player, true);
     reset_inventory_refresh_capture();
     gi.Write = capture_inventory_refresh_write;
     gi.unicast = capture_inventory_refresh_unicast;
@@ -254,6 +277,55 @@ TEST(wc3_items, inventory_ui_resolves_scroll_metadata_and_charge) {
     count = G_GetInventory(unit, items, MAX_INVENTORY);
     T_EQ(count, 1);
     T_EQ(items[0].charges, 0);
+}
+
+TEST(wc3_items, carried_charge_change_refreshes_inventory_and_same_value_is_noop) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(LPEDICT) = gi.unicast;
+    LPEDICT player;
+    LPGAMECLIENT client;
+    LPEDICT unit;
+    LPEDICT item;
+
+    setup_test_world();
+    player = &g_edicts[0];
+    client = player->client;
+    unit = make_item_test_inventory_unit(0, 0);
+    item = alloc_test_unit(MAKEFOURCC('s','p','r','o'), 32, 0);
+    SP_SpawnItem(item);
+    gi.LinkEntity(item);
+
+    T_NOT_NULL(client);
+    client->ps.number = 0;
+    G_SelectEntity(client, unit);
+
+    /* Pick up while disconnected so the assertion below observes only the
+     * charge-change refresh path. */
+    G_SetClientConnected(player, false);
+    T_ASSERT(G_PickupItem(unit, item));
+    G_SetClientConnected(player, true);
+
+    reset_inventory_refresh_capture();
+    gi.Write = capture_inventory_refresh_write;
+    gi.unicast = capture_inventory_refresh_unicast;
+    G_SetItemCharges(item, 3);
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+
+    T_EQ(G_ItemCharges(item), 3);
+    T_ASSERT(inventory_refresh_saw_inventory_layer);
+    T_ASSERT(inventory_refresh_unicast_count > 0);
+    T_ASSERT(inventory_refresh_unicast_target == player);
+
+    reset_inventory_refresh_capture();
+    gi.Write = capture_inventory_refresh_write;
+    gi.unicast = capture_inventory_refresh_unicast;
+    G_SetItemCharges(item, 3);
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+
+    T_EQ(inventory_refresh_unicast_count, 0);
+    T_ASSERT(!inventory_refresh_saw_inventory_layer);
 }
 
 TEST(wc3_items, drop_preserves_item_charges) {

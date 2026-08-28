@@ -303,7 +303,7 @@ static DWORD G_RacePreference(LPCMAPPLAYER player) {
 static void G_InitMapPlayer(LPEDICT clent, LPCMAPINFO mapinfo, DWORD playernum) {
     LPCMAPPLAYER player = mapinfo ? mapinfo->players + playernum : NULL;
     LPPLAYER ps = &clent->client->ps;
-    clent->client->connected = false;
+    G_SetClientConnected(clent, false);
     memset(&clent->client->jass, 0, sizeof(clent->client->jass));
     memset(ps, 0, sizeof(PLAYER));
     ps->number = playernum;
