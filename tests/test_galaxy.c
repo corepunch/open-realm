@@ -64,6 +64,9 @@ static unsigned int gal_void(LPJASS j)    { (void)j; return 0; }
 static unsigned int gal_true(LPJASS j) { return jass_pushboolean(j, 1); }
 static unsigned int gal_false_ret(LPJASS j) { return jass_pushboolean(j, 0); }
 static unsigned int gal_zero(LPJASS j)    { return jass_pushinteger(j, 0); }
+static float gal_sound_length(LPCSTR id, int asset) {
+    return !strcmp(id, "IntroLine") && asset == 2 ? 2.5f : 0.0f;
+}
 
 static unsigned int gal_TestFail(LPJASS j) {
     LPCSTR msg = jass_checkstring(j, 1);
@@ -741,6 +744,22 @@ TEST(galaxy, vm_break_exits_loop) {
     gal_destroy(&s);
 }
 
+TEST(galaxy, vm_multidimensional_array_access) {
+    gal_state_t s = gal_new();
+    T_ASSERT(gal_run(&s,
+        "native void TestFail(string msg);\n"
+        "int[3][4] gv_grid;\n"
+        "void main() {\n"
+        "    gv_grid[1][2] = 12;\n"
+        "    gv_grid[2][1] = 21;\n"
+        "    gv_grid[1][1] = 11;\n"
+        "    if (gv_grid[1][2] != 12) { TestFail(\"first nested value wrong\"); }\n"
+        "    if (gv_grid[2][1] != 21) { TestFail(\"second nested value wrong\"); }\n"
+        "    if (gv_grid[1][1] != 11) { TestFail(\"nested values aliased\"); }\n"
+        "}"));
+    gal_destroy(&s);
+}
+
 TEST(galaxy, vm_nested_function_calls) {
     gal_state_t s = gal_new();
     T_ASSERT(gal_run(&s,
@@ -833,6 +852,25 @@ TEST(galaxy, vm_string_word_loop_terminates) {
     jass_callbyname(s.j, "main", true);
     jass_runevents(s.j);
     T_ASSERT(!jass_rterror_pending(s.j));
+    gal_destroy(&s);
+}
+
+TEST(galaxy, vm_sound_link_length) {
+    gal_state_t s = gal_new();
+    sc2_galaxy_sound_length = gal_sound_length;
+    jass_sethost(&MAKE(JASSHOST,
+        .MemAlloc = gal_alloc, .MemFree = gal_free, .ReadFile = gal_read_file,
+        .natives = gal_assert_natives, .galaxy_natives = galaxy_get_natives(),
+    ));
+    T_ASSERT(gal_run(&s,
+        "native void TestFail(string msg); native soundlink SoundLink(string id, int asset);"
+        "native fixed SoundLengthSync(soundlink value);"
+        "void main() {"
+        "if (SoundLengthSync(SoundLink(\"IntroLine\", 2)) != 2.5) { TestFail(\"linked duration mismatch\"); }"
+        "if (SoundLengthSync(SoundLink(\"Missing\", 0)) != 0.0) { TestFail(\"missing duration mismatch\"); }"
+        "}"));
+    sc2_galaxy_sound_length = NULL;
+    galaxy_reset();
     gal_destroy(&s);
 }
 

@@ -12,6 +12,7 @@
 #define SC2_MAX_CATALOG_TERRAIN_TEX  512
 #define SC2_MAX_CATALOG_CLIFFS       256
 #define SC2_MAX_CATALOG_TILES        512 // entries; covers dependency and map-local CTile catalogs
+#define SC2_MAX_CATALOG_SOUNDS       8192 // entries; covers Core, Liberty and campaign CSound layers
 #define SC2_HARD_TILE_HEADER_SIZE    28 // bytes; HRDT v102 header through block count
 #define SC2_HARD_TILE_RECORD_SIZE    58 // bytes; center, normal, endpoints, width/depth and flags
 #define SC2_HARD_TILE_NAME_PREFIX    3 // bytes; separator USHORT followed by a zero byte
@@ -92,6 +93,12 @@ typedef struct {
 } sc2CatalogTile_t;
 
 typedef struct {
+    char id[96];
+    char parent[96];
+    char path[256];
+} sc2CatalogSound_t;
+
+typedef struct {
     DWORD models_count;
     DWORD actors_count;
     DWORD units_count;
@@ -99,6 +106,7 @@ typedef struct {
     DWORD terrain_tex_count;
     DWORD cliffs_count;
     DWORD tiles_count;
+    DWORD sounds_count;
     sc2CatalogModel_t models[SC2_MAX_CATALOG_MODELS];
     sc2CatalogActor_t actors[SC2_MAX_CATALOG_ACTORS];
     sc2CatalogUnit_t units[SC2_MAX_CATALOG_UNITS];
@@ -106,6 +114,7 @@ typedef struct {
     sc2CatalogTerrainTex_t terrain_tex[SC2_MAX_CATALOG_TERRAIN_TEX];
     sc2CatalogCliff_t cliffs[SC2_MAX_CATALOG_CLIFFS];
     sc2CatalogTile_t tiles[SC2_MAX_CATALOG_TILES];
+    sc2CatalogSound_t sounds[SC2_MAX_CATALOG_SOUNDS];
 } sc2Catalog_t;
 
 typedef enum {
@@ -159,6 +168,7 @@ static LPCSTR const sc2_catalog_known_files[] = {
     "GameData\\TerrainTexData.xml",
     "GameData\\CliffData.xml",
     "GameData\\TileData.xml",
+    "GameData\\SoundData.xml",
     NULL,
 };
 
@@ -1135,6 +1145,22 @@ static void sc2_catalog_add_model(sc2Catalog_t *catalog, sc2CatalogModel_t const
     sc2_normalize_slashes(model->path);
 }
 
+static void sc2_catalog_add_sound(sc2Catalog_t *catalog, sc2CatalogSound_t const *src) {
+    sc2CatalogSound_t *sound = NULL;
+    FOR_LOOP(i, catalog->sounds_count)
+        if (!strcasecmp(catalog->sounds[i].id, src->id)) { sound = &catalog->sounds[i]; break; }
+    if (!sound) {
+        if (catalog->sounds_count >= SC2_MAX_CATALOG_SOUNDS) {
+            fprintf(stderr, "SC2 catalog: sound capacity exhausted at %s\n", src->id); return;
+        }
+        sound = &catalog->sounds[catalog->sounds_count++];
+        snprintf(sound->id, sizeof(sound->id), "%s", src->id);
+    }
+    if (*src->parent) snprintf(sound->parent, sizeof(sound->parent), "%s", src->parent);
+    if (*src->path) snprintf(sound->path, sizeof(sound->path), "%s", src->path);
+    sc2_normalize_slashes(sound->path);
+}
+
 static void sc2_catalog_add_actor(sc2Catalog_t *catalog, LPCSTR id, LPCSTR model_id, LPCSTR footprint) {
     sc2CatalogActor_t *actor;
 
@@ -1295,6 +1321,13 @@ static sc2CatalogModel_t const *sc2_catalog_model(sc2Catalog_t const *catalog, L
     FOR_LOOP(i, catalog->models_count) {
         if (!strcasecmp(catalog->models[i].id, id)) return &catalog->models[i];
     }
+    return NULL;
+}
+
+static sc2CatalogSound_t const *sc2_catalog_sound(sc2Catalog_t const *catalog, LPCSTR id) {
+    if (!catalog || !id || !*id) return NULL;
+    FOR_LOOP(i, catalog->sounds_count)
+        if (!strcasecmp(catalog->sounds[i].id, id)) return &catalog->sounds[i];
     return NULL;
 }
 
@@ -1506,6 +1539,20 @@ static void sc2_parse_model_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
                 sc2_parse_xml_field(&model, fields, SC2_ARRAY_LEN(fields), (LPCSTR)child->name, value);
         }
         sc2_catalog_add_model(catalog, &model);
+    }
+}
+
+static void sc2_parse_sound_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
+    xmlNodePtr root = xmlDocGetRootElement(doc);
+    for (xmlNodePtr node = root ? root->children : NULL; node; node = node->next) {
+        sc2CatalogSound_t sound = {0};
+        if (node->type != XML_ELEMENT_NODE || !sc2_streqi((char const *)node->name, "CSound")) continue;
+        if (!sc2_xml_attr(node, "id", sound.id, sizeof(sound.id))) continue;
+        sc2_xml_attr(node, "parent", sound.parent, sizeof(sound.parent));
+        for (xmlNodePtr child = node->children; child; child = child->next)
+            if (child->type == XML_ELEMENT_NODE && sc2_streqi((char const *)child->name, "AssetArray"))
+                sc2_xml_attr(child, "File", sound.path, sizeof(sound.path));
+        sc2_catalog_add_sound(catalog, &sound);
     }
 }
 
@@ -1793,6 +1840,7 @@ static void sc2_parse_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
     sc2_parse_terrain_tex_catalog_doc(catalog, doc);
     sc2_parse_cliff_catalog_doc(catalog, doc);
     sc2_parse_tile_catalog_doc(catalog, doc);
+    sc2_parse_sound_catalog_doc(catalog, doc);
 }
 
 static void sc2_parse_catalog_layer_doc(sc2Catalog_t *catalog,
@@ -2129,6 +2177,49 @@ LPCSTR SC2_MapResolveUnitModel(LPCSTR unit_type) {
     snprintf(object.name, sizeof(object.name), "%s", unit_type);
     sc2_resolve_object_model(sc2_persistent_catalog, &object);
     return object.model;
+}
+
+static BOOL sc2_catalog_sound_path_r(sc2Catalog_t const *catalog, sc2CatalogSound_t const *sound,
+                                     LPCSTR id, LPSTR path, DWORD path_size, DWORD depth) {
+    static LPCSTR const races[] = { "Terran", "Protoss", "Zerg" };
+    if (!sound || depth > SC2_MAX_CATALOG_PARENT_DEPTH) return false;
+    if (sound->path[0]) {
+        if (!strstr(sound->path, "##Race##"))
+            return sc2_catalog_expand_model_path(sound->path, id, NULL, path, path_size);
+        FOR_LOOP(i, SC2_ARRAY_LEN(races))
+            if (sc2_catalog_expand_model_path(sound->path, id, races[i], path, path_size) && sc2_file_exists(path)) return true;
+        return false;
+    }
+    return sc2_catalog_sound_path_r(catalog, sc2_catalog_sound(catalog, sound->parent), id, path, path_size, depth + 1);
+}
+
+LPCSTR SC2_MapResolveSound(LPCSTR sound_id, int asset) {
+    static char path[MAX_PATHLEN];
+    sc2CatalogSound_t const *sound;
+    (void)asset;
+    if (!sc2_persistent_catalog || !sound_id || !*sound_id) return "";
+    sound = sc2_catalog_sound(sc2_persistent_catalog, sound_id);
+    if (sc2_catalog_sound_path_r(sc2_persistent_catalog, sound, sound_id, path, sizeof(path), 0)) return path;
+    fprintf(stderr, "SC2 sound: unresolved CSound '%s'\n", sound_id);
+    return "";
+}
+
+/* Sound duration is the Vorbis final PCM granule divided by the identification-header sample rate. */
+FLOAT SC2_MapSoundLength(LPCSTR sound_id, int asset) {
+    LPCSTR path = SC2_MapResolveSound(sound_id, asset);
+    BYTE *data;
+    DWORD size = 0, rate = 0;
+    ULONGLONG granule = 0;
+    if (!path || !*path) return 0.0f;
+    data = sc2_read_file(path, &size);
+    if (!data) { fprintf(stderr, "SC2 sound: missing asset '%s' for '%s'\n", path, sound_id); return 0.0f; }
+    FOR_LOOP(i, size > 16 ? size - 16 : 0)
+        if (data[i] == 1 && !memcmp(data + i + 1, "vorbis", 6)) { memcpy(&rate, data + i + 12, sizeof(rate)); break; }
+    for (DWORD i = size > 14 ? size - 14 : 0; i > 0; i--)
+        if (!memcmp(data + i, "OggS", 4)) { memcpy(&granule, data + i + 6, sizeof(granule)); break; }
+    sc2_free_file(data);
+    if (!rate || !granule) { fprintf(stderr, "SC2 sound: invalid OGG timing '%s'\n", path); return 0.0f; }
+    return (FLOAT)((double)granule / (double)rate);
 }
 
 static BOOL sc2_mapinfo_fourcc(sc2MapInfo_t const *mapInfo) {
@@ -2478,11 +2569,6 @@ static void sc2_parse_hard_tiles(sc2MapSource_t *source) {
             memcpy(&tile->end, record + 36, sizeof(tile->end));
             memcpy(&tile->scale, record + 48, sizeof(tile->scale));
             memcpy(&tile->flags, record + 56, sizeof(tile->flags));
-                fprintf(stderr, "SC2 road parse[%u]: CTile='%s' pos=(%.3f %.3f %.3f) normal=(%.3f %.3f %.3f) "
-                    "start=(%.3f %.3f %.3f) end=(%.3f %.3f %.3f) scale=(%.3f %.3f) flags=0x%04x\n",
-                    (unsigned)(first + i), tile->tile, tile->position.x, tile->position.y, tile->position.z,
-                    tile->normal.x, tile->normal.y, tile->normal.z, tile->start.x, tile->start.y, tile->start.z,
-                    tile->end.x, tile->end.y, tile->end.z, tile->scale.x, tile->scale.y, (unsigned)tile->flags);
         }
         ARRAY_COUNT(sc2_map.hard_tiles) += num;
         offset = (size_t)(name_end - data) + 1 + SC2_HARD_TILE_NAME_SUFFIX;

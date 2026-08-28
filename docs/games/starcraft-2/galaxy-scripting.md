@@ -27,6 +27,10 @@ This index removed the confirmed TRaynor01 startup bottleneck: an instrumented 2
 - Null equality is value-first: any two null values compare equal even when one has a declared type such as `string` and the other is the untyped `null` literal.
 - `StringWord(value, index)` is one-based, splits on C whitespace, and returns null when the requested word does not exist. CampaignLib uses that null sentinel to terminate story-room initialization loops.
 - Wrapper compilation clears a previously logged runtime error before parsing so unsupported earlier expressions are not misreported as wrapper parse failures.
+- `SoundLink` handles retain the catalog ID and asset index. `SoundLengthSync` and `TransmissionSend` resolve the layered `CSound`
+	parent chain, expand the mounted asset path, and derive duration from the OGG sample rate and final PCM granule. Transmission
+	duration modes apply default/add/subtract/set semantics to that asset duration; a blocking transmission yields its coroutine and
+	submits the resolved OGG to the client.
 
 ## Diagnostic Workflow
 
@@ -52,6 +56,15 @@ A successful lifecycle run registers 127 triggers and executes:
 
 It must exit from `com_frame_limit` without an infinite-loop assertion or memory fault.
 
+The intro does not end at camera `976`. Its eight-second interpolation overlaps `TRaynor01Raynor00028` (4.82 seconds), then cleanup
+starts gameplay. After the camera reaches its endpoint, `gt_OpeningLineQ_Func` plays `TRaynor01Raynor00030` (3.84 seconds) before
+the new-unit, hero-game, and story-mode tip triggers run. Confirm that ordering with:
+
+```sh
+make run-sc2 ARGS="+map Maps/Campaign/TRaynor01.SC2Map +set r_vsync 1 +vid_hidden 1 +com_frame_limit 1200" 2>&1 \
+	| grep -E "SC2 camera move:|TransmissionSend:|SC2_GalaxyPlaySound:|gt_(OpeningLineQ|TipUnitNewUnitMarinesQ|TipThisisnotaherogameQ|TipStoryModeQ)_Func"
+```
+
 ## Isolated Regressions
 
 `tests/test_galaxy.c` covers each confirmed failure independently:
@@ -60,6 +73,7 @@ It must exit from `com_frame_limit` without an infinite-loop assertion or memory
 - `vm_null_equality`: typed-null versus untyped-null comparison and the non-null inverse.
 - `vm_string_word`: indexed word extraction and the missing-word sentinel.
 - `vm_string_word_loop_terminates`: the CampaignLib `while (true)`/`StringWord` sentinel pattern in coroutine mode.
+- `vm_sound_link_length`: sound IDs and asset indexes reach the catalog-duration callback, including the unresolved inverse.
 - `vm_coroutine_void_argument`: zero-result nested arguments cannot underflow the coroutine stack.
 - `vm_coroutine_executes_dynamic_trigger`: a wrapper compiled after coroutine creation yields in a wait-done child and finishes before its parent resumes, even after an earlier logged VM error.
 
@@ -80,7 +94,7 @@ Visual fidelity remains blocked by catalog and native coverage:
 - `CinematicMode` only updates game-local state; it does not hide the gameplay layout or select `CLIENT_UI_CINEMATIC`;
 - `CinematicFade` applies its final alpha immediately and ignores both interpolation and `waitUntilDone`, so the script reaches its
 	one-second wait two seconds earlier than native SC2;
-- unsupported array/index expressions still report `Can't find function [` or `Can't evaluate token of type 6`;
+- multidimensional Galaxy arrays use nested sparse VM arrays; every authored index is preserved for reads and writes;
 - `ObjectiveCreate` is not currently resolved on the start-game path;
 - Galaxy `continue` remains parse-safe fallthrough rather than true loop continuation.
 

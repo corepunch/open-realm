@@ -1381,14 +1381,26 @@ DWORD VM_EvalIdentifier(LPJASS j, LPCTOKEN token) {
     }
 }
 
+/* Resolve every authored dimension through the VM's existing nested sparse-array representation. */
+static LPJASSVAR jass_array_value(LPJASS j, LPJASSVAR var, LPCTOKEN token) {
+    while (token) {
+        /* Evaluate before asserting: release builds must not erase the VM operation. */
+        DWORD count = jass_dotoken(j, token->index);
+        if (count != 1) jass_pushnull(j);
+        var = ensure_array_value(j, var, jass_popinteger(j));
+        token = token->body;
+    }
+    return var;
+}
+
 DWORD VM_EvalArrayAccess(LPJASS j, LPCTOKEN token) {
-    /* Evaluate before asserting: release builds must not erase the VM operation. */
     DWORD count = jass_dotoken(j, token->index);
     if (count != 1) { jass_pushnull(j); }
     DWORD index_val = jass_popinteger(j);
     VM_EvalIdentifier(j, token);
     LPJASSVAR var = jass_stackvalue(j, -1);
     LPJASSVAR item = ensure_array_value(j, var, index_val);
+    if (token->body) item = jass_array_value(j, item, token->body);
     jass_pop(j, 1);
     JASSVAR tmp;
     memcpy(&tmp, item, sizeof(JASSVAR));
@@ -1481,12 +1493,13 @@ static void jass_set_value(LPJASS j, LPJASSVAR dest, LPCTOKEN init) {
     }
 }
 
-static void jass_set_array_value(LPJASS j, LPJASSVAR dest, LPCTOKEN index, LPCTOKEN init) {
+static void jass_set_array_value(LPJASS j, LPJASSVAR dest, LPCTOKEN token, LPCTOKEN init) {
     /* Evaluate before asserting: NDEBUG previously skipped both expressions and copied an unrelated stack value. */
-    DWORD count = jass_dotoken(j, index);
+    DWORD count = jass_dotoken(j, token->index);
     if (count != 1) { jass_pushnull(j); }
     DWORD index_val = jass_popinteger(j);
     LPJASSVAR index_dest = ensure_array_value(j, dest, index_val);
+    if (token->body) index_dest = jass_array_value(j, index_dest, token->body);
     count = jass_dotoken(j, init);
     if (count != 1) { jass_pushnull(j); }
     jass_copy(j, index_dest, j->stack + jass_top(j));
@@ -1557,13 +1570,13 @@ TOKENFUNC(SET) {
     LPJASSVAR v = NULL;
     if ((v = find_global(j, token->secondary))) {
         if (token->index) {
-            return jass_set_array_value(j, v, token->index, token->init);
+            return jass_set_array_value(j, v, token, token->init);
         } else {
             return jass_set_value(j, v, token->init);
         }
     } else if ((v = find_dict(jass_stackvalue(j, 0)->env.locals, token->secondary))) {
         if (token->index) {
-            return jass_set_array_value(j, v, token->index, token->init);
+            return jass_set_array_value(j, v, token, token->init);
         } else {
             return jass_set_value(j, v, token->init);
         }

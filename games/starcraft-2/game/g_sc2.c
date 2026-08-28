@@ -436,6 +436,14 @@ static BOOL SC2_GalaxyUnitIsAlive(void *ent_ptr) {
     return ent && ent->inuse;
 }
 
+static void SC2_GalaxyPlaySound(LPCSTR sound_id, int asset) {
+    LPCSTR path = SC2_MapResolveSound(sound_id, asset);
+    if (!path || !*path) return;
+    sc2_edicts[0].s.sound = gi.SoundIndex(path);
+    sc2_edicts[0].s.event = EV_MOVE;
+    fprintf(stderr, "SC2_GalaxyPlaySound: %s -> %s\n", sound_id, path);
+}
+
 /* Called with the resolved M3 model path (from sc2_galaxy_get_unit_model or
  * the unit type name as fallback if no catalog entry was found). */
 static void *SC2_GalaxyCreateUnit(LPCSTR model, int player, float x, float y, float angle) {
@@ -466,6 +474,8 @@ static void SC2_InitGalaxyHost(void) {
     sc2_galaxy_on_camera          = SC2_GalaxySetCamera;
     sc2_galaxy_on_cinematic       = SC2_GalaxyCinematicMode;
     sc2_galaxy_on_fade            = SC2_GalaxyCinematicFade;
+    sc2_galaxy_sound_length       = SC2_MapSoundLength;
+    sc2_galaxy_on_sound           = SC2_GalaxyPlaySound;
     sc2_galaxy_on_unit_create     = SC2_GalaxyCreateUnit;
     sc2_galaxy_get_camera_by_id   = SC2_GalaxyGetCameraById;
     sc2_galaxy_get_point_by_id    = SC2_GalaxyGetPointById;
@@ -600,6 +610,10 @@ static void SC2_SpawnEntities(void) {
 }
 
 static void SC2_RunFrame(void) {
+    FOR_LOOP(i, globals.num_edicts) {
+        sc2_edicts[i].s.event = EV_NONE;
+        sc2_edicts[i].s.sound = 0;
+    }
     /* Tick Galaxy VM — runs pending coroutines (cutscene waits, camera pans). */
     if (sc2_level.vm && sc2_level.scriptsStarted)
         galaxy_tick(sc2_level.vm);

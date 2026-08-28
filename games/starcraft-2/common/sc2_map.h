@@ -369,6 +369,8 @@ BOOL          SC2_MapLoad(LPCSTR mapFilename);
 void          SC2_MapShutdown(void);
 sc2Map_t     *SC2_MapCurrent(void);
 LPCSTR        SC2_MapResolveUnitModel(LPCSTR unit_type);
+LPCSTR        SC2_MapResolveSound(LPCSTR sound_id, int asset);
+FLOAT         SC2_MapSoundLength(LPCSTR sound_id, int asset);
 FLOAT         SC2_MapHeightAtPoint(FLOAT x, FLOAT y);
 FLOAT         SC2_MapCameraHeightAtPoint(FLOAT x, FLOAT y);
 BOX2          SC2_MapBounds(void);

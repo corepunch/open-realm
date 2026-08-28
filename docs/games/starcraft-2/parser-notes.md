@@ -62,8 +62,11 @@ out of JASS while allowing compact expressions such as `value!=3` in both langua
 `jass_dobuffer_ex` return false; they must not call `jass_rterror`, which aborts when no coroutine error boundary exists.
 
 `continue` is intentionally rejected until the common loop AST can represent it without silently changing control flow. Galaxy
-multidimensional arrays are currently accepted but flattened to the JASS array representation; additional dimensions are not preserved.
-Run `make test-galaxy` for parser mode isolation, syntax coverage, VM execution, includes, and the checked-in Galaxy smoke corpus.
+multidimensional accesses preserve the first index in `TOKEN.index` and chain later `TT_ARRAYACCESS` nodes through `TOKEN.body`.
+The VM walks that chain through nested sparse `JASSARRAY` values for both reads and writes. This is required by native declarations such
+as `bool[33][31] libNtve_gv__GameUIVisible`; discarding later dimensions desynchronizes statement parsing and produces bogus type-6
+(`TT_IDENTIFIER`) diagnostics for `[`, the index name, and `]`. Run `make test-galaxy` for parser mode isolation, syntax coverage, VM
+execution, includes, and the checked-in Galaxy smoke corpus.
 
 ## Binary Parsing Style
 

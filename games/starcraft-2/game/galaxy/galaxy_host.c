@@ -102,6 +102,11 @@ typedef struct { LONG abilcmd_h; LONG pt_h; } sc2GOrder_t;
 static sc2GOrder_t sc2_gorders[MAX_GALAXY_ORDERS];
 static LONG sc2_gorder_n = 1;  /* 1-based; 0 = null */
 
+#define MAX_GALAXY_SOUNDS 256 // links; bounds SoundLink handles retained by live Galaxy scripts
+typedef struct { char id[96]; LONG asset; } sc2GSound_t;
+static sc2GSound_t sc2_gsounds[MAX_GALAXY_SOUNDS];
+static LONG sc2_gsound_n = 1;
+
 /* Defined in jdo.c — not part of the public JASS API; owned by this subsystem. */
 void galaxy_loaded_reset(void);
 
@@ -124,6 +129,8 @@ void galaxy_reset(void) {
     sc2_gabilcmd_n = 1;
     memset(sc2_gorders, 0, sizeof(sc2_gorders));
     sc2_gorder_n = 1;
+    memset(sc2_gsounds, 0, sizeof(sc2_gsounds));
+    sc2_gsound_n = 1;
     galaxy_loaded_reset();
 }
 
@@ -193,6 +200,8 @@ void (*sc2_galaxy_on_camera)(float target_x, float target_y,
                              float dist, float fov, float height_offset, float duration);
 void (*sc2_galaxy_on_cinematic)(BOOL enable, float duration);
 void (*sc2_galaxy_on_fade)(float alpha, float duration);
+float (*sc2_galaxy_sound_length)(LPCSTR sound_id, int asset);
+void (*sc2_galaxy_on_sound)(LPCSTR sound_id, int asset);
 void *(*sc2_galaxy_on_unit_create)(LPCSTR model, int player,
                                    float x, float y, float angle);
 
@@ -847,7 +856,16 @@ static DWORD sc2_PlayerValidateEffectUnit(LPJASS j)  { return jass_pushboolean(j
 /* -------------------------------------------------------------------------
  * Sound
  * ------------------------------------------------------------------------- */
-static DWORD sc2_SoundLink(LPJASS j)          { return jass_pushnullhandle(j, "soundlink"); }
+static DWORD sc2_SoundLink(LPJASS j) {
+    LPCSTR id = jass_checkstring(j, 1);
+    LONG asset = jass_checkinteger(j, 2), h;
+    if (!id || !*id || sc2_gsound_n >= MAX_GALAXY_SOUNDS)
+        return jass_pushnullhandle(j, "soundlink");
+    h = sc2_gsound_n++;
+    snprintf(sc2_gsounds[h].id, sizeof(sc2_gsounds[h].id), "%s", id);
+    sc2_gsounds[h].asset = asset;
+    return jass_pushlighthandle(j, (HANDLE)(uintptr_t)h, "soundlink");
+}
 static DWORD sc2_SoundLinkAsset(LPJASS j)     { return jass_pushnullhandle(j, "soundlink"); }
 static DWORD sc2_SoundLinkId(LPJASS j)        { return jass_pushnullhandle(j, "soundlink"); }
 static DWORD sc2_SoundPlay(LPJASS j)          { return jass_pushnullhandle(j, "sound"); }
@@ -861,7 +879,12 @@ static DWORD sc2_SoundWait(LPJASS j) {
     if (secs > 0.0f) jass_sleep(j, (DWORD)(secs * 1000.0f));
     return jass_pushnull(j);
 }
-static DWORD sc2_SoundLengthSync(LPJASS j)    { return jass_pushnumber(j, 0.0f); }
+static FLOAT sc2_sound_length(LPJASS j, int arg) {
+    LONG h = (LONG)(uintptr_t)jass_checkhandle(j, arg, "soundlink");
+    return h > 0 && h < sc2_gsound_n && sc2_galaxy_sound_length
+        ? sc2_galaxy_sound_length(sc2_gsounds[h].id, sc2_gsounds[h].asset) : 0.0f;
+}
+static DWORD sc2_SoundLengthSync(LPJASS j)    { return jass_pushnumber(j, sc2_sound_length(j, 1)); }
 static DWORD sc2_SoundtrackPlay(LPJASS j)     { (void)j; return jass_pushnull(j); }
 static DWORD sc2_SoundtrackPause(LPJASS j)    { (void)j; return jass_pushnull(j); }
 static DWORD sc2_SoundtrackDefault(LPJASS j)  { (void)j; return jass_pushnull(j); }
@@ -985,8 +1008,20 @@ static DWORD sc2_TransmissionSourceFromUnit(LPJASS j) { return jass_pushnullhand
 static DWORD sc2_TransmissionSend(LPJASS j) {
     /* args: playergroup, source, camerainfo, string anim, soundlink, text speaker,
      *       text msg, fixed duration, int durationType, bool waitUntilDone */
+    FLOAT sound_dur  = sc2_sound_length(j, 5);
     FLOAT dur        = jass_checknumber(j, 8);
+    LONG  dur_type   = jass_checkinteger(j, 9);
     BOOL  wait_done  = jass_checkboolean(j, 10);
+    LONG  sound_h    = (LONG)(uintptr_t)jass_checkhandle(j, 5, "soundlink");
+    /* Native SC2 derives transmission time from the linked asset before applying the requested modifier. */
+    if (dur_type == 0) dur = sound_dur;
+    else if (dur_type == 1) dur += sound_dur;
+    else if (dur_type == 2) dur = MAX(sound_dur - dur, 0.0f);
+    if (sound_h > 0 && sound_h < sc2_gsound_n && sc2_galaxy_on_sound)
+        sc2_galaxy_on_sound(sc2_gsounds[sound_h].id, sc2_gsounds[sound_h].asset);
+    fprintf(stderr, "TransmissionSend: sound=%s asset=%ld duration=%.2f wait=%d\n",
+            sound_h > 0 && sound_h < sc2_gsound_n ? sc2_gsounds[sound_h].id : "(null)",
+            sound_h > 0 && sound_h < sc2_gsound_n ? (long)sc2_gsounds[sound_h].asset : -1L, dur, wait_done);
     if (wait_done && dur > 0.0f)
         jass_sleep(j, (DWORD)(dur * 1000.0f));
     return jass_pushnullhandle(j, "sound");

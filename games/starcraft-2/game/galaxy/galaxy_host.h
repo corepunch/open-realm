@@ -49,6 +49,10 @@ extern void (*sc2_galaxy_on_cinematic)(BOOL enable, float duration);
 /* CinematicFade — set screen fade alpha (0=clear, 1=black). */
 extern void (*sc2_galaxy_on_fade)(float alpha, float duration);
 
+/* Sound catalog lookup: returns the selected asset duration in seconds. */
+extern float (*sc2_galaxy_sound_length)(LPCSTR sound_id, int asset);
+extern void (*sc2_galaxy_on_sound)(LPCSTR sound_id, int asset);
+
 /* UnitCreate — spawn a unit entity; returns LPEDICT cast to void*, or NULL. */
 extern void *(*sc2_galaxy_on_unit_create)(LPCSTR model, int player,
                                           float x, float y, float angle);

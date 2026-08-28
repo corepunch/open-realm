@@ -199,6 +199,19 @@ LPTOKEN parse_operator_token(LPPARSER p) {
 
 PARSER(parse_logical_expression);
 
+/* Preserve each Galaxy array dimension so the VM can walk nested sparse arrays. */
+static void parse_array_indices(LPPARSER p, LPTOKEN token) {
+    LPTOKEN *next = &token->body;
+    while (eat_token(p, "[")) {
+        LPTOKEN access = token;
+        if (token->index) {
+            access = alloc_token(TT_ARRAYACCESS);
+            *next = access; next = &access->body;
+        }
+        access->index = parse_logical_expression(p);
+    }
+}
+
 PARSER(read_single_identifier) {
     LPCSTR tok = peek_token(p);
     LPTOKEN left = NULL;
@@ -235,10 +248,7 @@ PARSER(read_single_identifier) {
                 left->args = parse_logical_expression(p);
             }
         }
-        if (eat_token(p, "[")) {
-            left->type = TT_ARRAYACCESS;
-            left->index = parse_logical_expression(p);
-        }
+        if (!strcmp(peek_token(p), "[")) { left->type = TT_ARRAYACCESS; parse_array_indices(p, left); }
     } else {
         return NULL;
     }
@@ -635,19 +645,16 @@ static LPTOKEN galaxy_parse_expression_stmt(LPPARSER p) {
      * subsequent eat_token / parse_token calls will overwrite. */
     LPSTR name = strdup(parse_token(p));
 
-    /* Array index before =: eat [idx] then skip additional [idx] dimensions. */
-    LPTOKEN index_expr = NULL;
-    if (eat_token(p, "[")) {
-        index_expr = parse_logical_expression(p);  /* eats ] */
-        /* Skip extra dimensions ([j][k]…) — multi-dimensional access is flattened. */
-        while (eat_token(p, "[")) { parse_logical_expression(p); }  /* each eats ] */
-    }
+    /* Preserve every array index before the assignment operator. */
+    TOKEN indices = { 0 };
+    parse_array_indices(p, &indices);
 
     LPTOKEN result = NULL;
     if (eat_token(p, "=")) {
         LPTOKEN token    = alloc_token(TT_SET);
         token->secondary = name;   /* transfer ownership */
-        token->index     = index_expr;
+        token->index     = indices.index;
+        token->body      = indices.body;
         token->init      = parse_logical_expression(p);
         eat_token(p, ";");
         result = token;
