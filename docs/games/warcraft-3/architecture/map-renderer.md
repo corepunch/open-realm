@@ -177,6 +177,11 @@ Each entity with `radius >= 10` casts a circle of sight. A custom ray-cast shade
 `R_GetFogOfWarTexture` prefers the server-authored `fow_resources.network` texture. The older render-target raycast is used
 only when no network texture exists; white is reserved for `RDF_NOFOG`, `RDF_NOWORLDMODEL`, or unavailable fog resources.
 
+World particles sample the same texture matrix and unit-2 fog mask as model geosets. This matters for
+`Doodads\\Terrain\\CliffDoodad\\Waterfall\\Waterfall.mdx`: the asset has two `PRE2` emitters and no geosets, so applying
+FOW only in the model shader leaves the complete waterfall visible through otherwise black fog. UI/model scenes receive
+the white FOW texture through `RDF_NOWORLDMODEL`, preserving their particle presentation without a parallel shader path.
+
 > **Gotcha — only team 1**: the fog loop filters `ent->team != 1`, meaning only the first player's units reveal the map. Multi-player fog of war is not yet implemented.
 
 ## Splat Rendering (`R_RenderSplat`)
