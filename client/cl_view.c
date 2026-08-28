@@ -51,8 +51,6 @@ void Matrix4_fromViewQuat(LPCVECTOR3 target, LPCQUATERNION quat, FLOAT distance,
 }
 
 #ifdef SC2
-static FLOAT SC2_LerpDegrees(FLOAT a, FLOAT b, FLOAT k) { return a + (fmodf(b - a + 540.0f, 360.0f) - 180.0f) * k; }
-
 /* Exponential low-pass filter on terrain height so the camera plane follows the
    ground smoothly rather than snapping 1:1 to every elevation change.
    Snaps immediately on large XY jumps (cutscene teleports). */

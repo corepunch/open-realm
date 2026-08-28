@@ -17,6 +17,8 @@
  * ------------------------------------------------------------------------- */
 static char sc2_gdir[512] = "data/TRaynor01-galaxy";
 static HANDLE (*sc2_orig_readfile)(LPCSTR, DWORD *);
+static HANDLE (*sc2_memalloc)(long);
+static void   (*sc2_memfree)(HANDLE);
 
 void galaxy_set_script_dir(LPCSTR dir) {
     if (dir) snprintf(sc2_gdir, sizeof(sc2_gdir), "%s", dir);
@@ -40,11 +42,14 @@ static HANDLE sc2_galaxy_readfile(LPCSTR filename, DWORD *size) {
     sz = ftell(f);
     fseek(f, 0, SEEK_SET);
     if (sz < 0) { fclose(f); return NULL; }
-    buf = malloc((size_t)sz + 1);
+    buf = sc2_memalloc ? (LPSTR)sc2_memalloc((long)sz + 1) : (LPSTR)malloc((size_t)sz + 1);
     if (!buf) { fclose(f); return NULL; }
     size_t got = fread(buf, 1, (size_t)sz, f);
     fclose(f);
-    if (got != (size_t)sz) { free(buf); return NULL; }
+    if (got != (size_t)sz) {
+        if (sc2_memfree) sc2_memfree(buf); else free(buf);
+        return NULL;
+    }
     buf[sz] = '\0';
     *size = (DWORD)sz;
     return buf;
@@ -201,6 +206,8 @@ LPJASS galaxy_open(HANDLE (*readfile)(LPCSTR, DWORD *),
                    void   (*memfree)(HANDLE)) {
     char path[512];
     sc2_orig_readfile = readfile;
+    sc2_memalloc      = memalloc;
+    sc2_memfree       = memfree;
     jass_sethost(&(JASSHOST){
         .MemAlloc       = memalloc,
         .MemFree        = memfree,
@@ -407,6 +414,9 @@ static DWORD sc2_UnitCreate(LPJASS j) {
     if (pt_h > 0 && pt_h < sc2_gpoint_n) { x = sc2_gpoints[pt_h].x; y = sc2_gpoints[pt_h].y; }
     LPCSTR model = sc2_galaxy_get_unit_model ?
         sc2_galaxy_get_unit_model(type ? type : "") : "";
+    if (!model || !*model)
+        fprintf(stderr, "sc2_UnitCreate: no model for type '%s', falling back to type name\n",
+                type ? type : "(null)");
     LONG handle = 0;
     for (LONG i = 0; i < count && sc2_gunit_n < MAX_GALAXY_UNITS; i++) {
         void *ent = sc2_galaxy_on_unit_create ?
@@ -524,6 +534,9 @@ static DWORD sc2_UnitCargoCreate(LPJASS j) {
     LONG   cnt  = jass_checkinteger(j, 3);
     if (cnt < 1) cnt = 1;
     LPCSTR model = sc2_galaxy_get_unit_model ? sc2_galaxy_get_unit_model(type ? type : "") : "";
+    if (!model || !*model)
+        fprintf(stderr, "sc2_UnitCargoCreate: no model for type '%s', falling back to type name\n",
+                type ? type : "(null)");
     LONG handle  = 0;
     for (LONG i = 0; i < cnt && sc2_gunit_n < MAX_GALAXY_UNITS; i++) {
         void *ent = sc2_galaxy_on_unit_create ?

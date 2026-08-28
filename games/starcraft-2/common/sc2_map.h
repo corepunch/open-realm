@@ -3,6 +3,12 @@
 
 #include "common/common.h"
 #include <stdio.h>
+#include <math.h>
+
+static inline FLOAT SC2_LerpDegrees(FLOAT a, FLOAT b, FLOAT k) {
+    FLOAT delta = fmodf(b - a + 540.0f, 360.0f) - 180.0f;
+    return a + delta * k;
+}
 
 #define SC2_MAX_MAP_OBJECTS 4096 // objects; accommodates object-heavy campaign maps such as TRaynor01
 #define SC2_CELL_SIZE          1.0f
