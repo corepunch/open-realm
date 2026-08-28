@@ -102,6 +102,12 @@ typedef struct { LONG abilcmd_h; LONG pt_h; } sc2GOrder_t;
 static sc2GOrder_t sc2_gorders[MAX_GALAXY_ORDERS];
 static LONG sc2_gorder_n = 1;  /* 1-based; 0 = null */
 
+#define MAX_UNIT_ORDERS 8 // orders; enough for generated cutscene queues; bounds per-unit storage
+#define SC2_CARGO_DROP_SPACING 1.1f // map units; separates the two-row cinematic unload formation
+typedef struct { char ability[64]; FLOAT x, y; BOOL started; } sc2GUnitOrder_t;
+static sc2GUnitOrder_t sc2_uorders[MAX_GALAXY_UNITS][MAX_UNIT_ORDERS];
+static LONG sc2_uorder_n[MAX_GALAXY_UNITS];
+
 #define MAX_GALAXY_SOUNDS 256 // links; bounds SoundLink handles retained by live Galaxy scripts
 typedef struct { char id[96]; LONG asset; } sc2GSound_t;
 static sc2GSound_t sc2_gsounds[MAX_GALAXY_SOUNDS];
@@ -129,6 +135,8 @@ void galaxy_reset(void) {
     sc2_gabilcmd_n = 1;
     memset(sc2_gorders, 0, sizeof(sc2_gorders));
     sc2_gorder_n = 1;
+    memset(sc2_uorders, 0, sizeof(sc2_uorders));
+    memset(sc2_uorder_n, 0, sizeof(sc2_uorder_n));
     memset(sc2_gsounds, 0, sizeof(sc2_gsounds));
     sc2_gsound_n = 1;
     galaxy_loaded_reset();
@@ -211,7 +219,51 @@ BOOL (*sc2_galaxy_get_camera_by_id)(DWORD map_id,
 BOOL (*sc2_galaxy_get_point_by_id)(DWORD map_id, float *x, float *y);
 const char *(*sc2_galaxy_get_unit_model)(LPCSTR unit_type);
 void (*sc2_galaxy_unit_set_position)(void *ent, float x, float y, float facing);
+void (*sc2_galaxy_unit_move)(void *ent, float x, float y);
+BOOL (*sc2_galaxy_unit_is_moving)(void *ent);
 BOOL (*sc2_galaxy_unit_is_alive)(void *ent);
+
+static void sc2_pop_unit_order(LONG unit_h) {
+    LONG *count = &sc2_uorder_n[unit_h - 1];
+    if (--*count > 0)
+        memmove(&sc2_uorders[unit_h - 1][0], &sc2_uorders[unit_h - 1][1], sizeof(sc2GUnitOrder_t) * *count);
+}
+
+/* Galaxy append orders begin only after the active movement reports completion. */
+static void sc2_run_unit_orders(void) {
+    for (LONG unit_h = 1; unit_h <= (LONG)sc2_gunit_n; unit_h++) {
+        LONG *count = &sc2_uorder_n[unit_h - 1];
+        void *ent = sc2_gunits[unit_h - 1];
+        while (*count > 0) {
+            sc2GUnitOrder_t *ord = &sc2_uorders[unit_h - 1][0];
+            if (!strcmp(ord->ability, "move")) {
+                if (!ord->started) {
+                    if (ent && sc2_galaxy_unit_move) sc2_galaxy_unit_move(ent, ord->x, ord->y);
+                    ord->started = true;
+                    break;
+                }
+                if (ent && sc2_galaxy_unit_is_moving && sc2_galaxy_unit_is_moving(ent)) break;
+                sc2_pop_unit_order(unit_h);
+                continue;
+            }
+            if (!strcmp(ord->ability, "SpecOpsDropshipTransport")) {
+                LONG cargo_n = sc2_gcargo_n[unit_h - 1];
+                for (LONG i = 0; i < cargo_n; i++) {
+                    LONG cargo_h = sc2_gcargo[unit_h - 1][i];
+                    void *cargo = (cargo_h > 0 && cargo_h <= (LONG)sc2_gunit_n) ? sc2_gunits[cargo_h - 1] : NULL;
+                    FLOAT x = ord->x + ((FLOAT)(i % 3) - 1.0f) * SC2_CARGO_DROP_SPACING;
+                    FLOAT y = ord->y + (0.75f + (FLOAT)(i / 3) * SC2_CARGO_DROP_SPACING);
+                    if (cargo && sc2_galaxy_unit_set_position)
+                        sc2_galaxy_unit_set_position(cargo, x, y, 0.0f);
+                }
+                fprintf(stderr, "UnitIssueOrder: unloaded %ld cargo units at (%.1f,%.1f)\n",
+                        (long)cargo_n, ord->x, ord->y);
+                sc2_gcargo_n[unit_h - 1] = 0;
+            }
+            sc2_pop_unit_order(unit_h);
+        }
+    }
+}
 
 /* -------------------------------------------------------------------------
  * VM lifecycle wrappers — g_sc2.c calls these instead of jass_* directly.
@@ -268,6 +320,7 @@ void galaxy_start(LPJASS vm) {
 }
 
 void galaxy_tick(LPJASS vm) {
+    sc2_run_unit_orders();
     jass_runevents(vm);
     if (jass_rterror_pending(vm)) {
         fprintf(stderr, "galaxy: runtime error: %s\n", jass_rterror_message(vm));
@@ -434,16 +487,10 @@ static DWORD sc2_UnitCreate(LPJASS j) {
     FLOAT  angle  = jass_checknumber(j, 6);
     FLOAT  x = 0.0f, y = 0.0f;
     if (pt_h > 0 && pt_h < sc2_gpoint_n) { x = sc2_gpoints[pt_h].x; y = sc2_gpoints[pt_h].y; }
-    LPCSTR model = sc2_galaxy_get_unit_model ?
-        sc2_galaxy_get_unit_model(type ? type : "") : "";
-    if (!model || !*model)
-        fprintf(stderr, "sc2_UnitCreate: no model for type '%s', falling back to type name\n",
-                type ? type : "(null)");
     LONG handle = 0;
     for (LONG i = 0; i < count && sc2_gunit_n < MAX_GALAXY_UNITS; i++) {
         void *ent = sc2_galaxy_on_unit_create ?
-            sc2_galaxy_on_unit_create(model && *model ? model : (type ? type : ""),
-                                      (int)player, x, y, angle) : NULL;
+            sc2_galaxy_on_unit_create(type ? type : "", (int)player, x, y, angle) : NULL;
         if (!ent)
             fprintf(stderr, "sc2_UnitCreate: on_unit_create returned NULL for type '%s' (%ld/%ld) — unit will be invisible\n",
                     type ? type : "(null)", (long)(i + 1), (long)count);
@@ -510,7 +557,7 @@ static DWORD sc2_UnitWaitUntilIdle(LPJASS j)        { (void)j; return jass_pushn
 static DWORD sc2_UnitIssueOrder(LPJASS j) {
     LONG unit_h  = (LONG)(uintptr_t)jass_checkhandle(j, 1, "unit");
     LONG order_h = (LONG)(uintptr_t)jass_checkhandle(j, 2, "order");
-    (void)jass_checkinteger(j, 3); /* queue mode — cutscene doesn't need real queuing */
+    LONG queue   = jass_checkinteger(j, 3);
     if (order_h <= 0 || order_h >= sc2_gorder_n)
         return jass_pushboolean(j, false);
     sc2GOrder_t *ord = &sc2_gorders[order_h];
@@ -520,27 +567,21 @@ static DWORD sc2_UnitIssueOrder(LPJASS j) {
     FLOAT ty   = (pt_h > 0 && pt_h < sc2_gpoint_n) ? sc2_gpoints[pt_h].y : 0.0f;
     const char *ability = (ac_h > 0 && ac_h < sc2_gabilcmd_n)
                           ? sc2_gabilcmds[ac_h].ability : "move";
-    void *ent = (unit_h > 0 && unit_h <= (LONG)sc2_gunit_n) ? sc2_gunits[unit_h - 1] : NULL;
-    fprintf(stderr, "UnitIssueOrder: unit=%ld ability=%s target=(%.1f,%.1f)\n",
-            (long)unit_h, ability, tx, ty);
-    if (strcmp(ability, "move") == 0) {
-        if (ent && sc2_galaxy_unit_set_position)
-            sc2_galaxy_unit_set_position(ent, tx, ty, 0.0f);
-    } else if (strcmp(ability, "SpecOpsDropshipTransport") == 0) {
-        if (unit_h > 0 && unit_h <= MAX_GALAXY_UNITS) {
-            LONG cargo_n = sc2_gcargo_n[unit_h - 1];
-            fprintf(stderr, "UnitIssueOrder: SpecOpsDropshipTransport — unloading %ld cargo units at (%.1f,%.1f)\n",
-                    (long)cargo_n, tx, ty);
-            for (LONG i = 0; i < cargo_n; i++) {
-                LONG ch  = sc2_gcargo[unit_h - 1][i];
-                void *ce = (ch > 0 && ch <= (LONG)sc2_gunit_n) ? sc2_gunits[ch - 1] : NULL;
-                if (ce && sc2_galaxy_unit_set_position)
-                    sc2_galaxy_unit_set_position(ce, tx, ty, 0.0f);
-                fprintf(stderr, "  dropped unit %ld at (%.1f,%.1f)\n", (long)ch, tx, ty);
-            }
-            sc2_gcargo_n[unit_h - 1] = 0;
-        }
+    if (unit_h <= 0 || unit_h > (LONG)sc2_gunit_n || (queue != 0 && queue != 1))
+        return jass_pushboolean(j, false);
+    if (queue == 0) sc2_uorder_n[unit_h - 1] = 0;
+    LONG *count = &sc2_uorder_n[unit_h - 1];
+    if (*count >= MAX_UNIT_ORDERS) {
+        fprintf(stderr, "UnitIssueOrder: queue full for unit %ld\n", (long)unit_h);
+        return jass_pushboolean(j, false);
     }
+    sc2GUnitOrder_t *queued = &sc2_uorders[unit_h - 1][(*count)++];
+    snprintf(queued->ability, sizeof(queued->ability), "%s", ability);
+    queued->x = tx;
+    queued->y = ty;
+    queued->started = false;
+    fprintf(stderr, "UnitIssueOrder: unit=%ld ability=%s target=(%.1f,%.1f) queue=%ld depth=%ld\n",
+            (long)unit_h, ability, tx, ty, (long)queue, (long)*count);
     return jass_pushboolean(j, true);
 }
 static DWORD sc2_UnitPauseAll(LPJASS j)             { (void)j; return jass_pushnull(j); }
@@ -558,15 +599,10 @@ static DWORD sc2_UnitCargoCreate(LPJASS j) {
     LPCSTR type = jass_checkstring(j, 2);
     LONG   cnt  = jass_checkinteger(j, 3);
     if (cnt < 1) cnt = 1;
-    LPCSTR model = sc2_galaxy_get_unit_model ? sc2_galaxy_get_unit_model(type ? type : "") : "";
-    if (!model || !*model)
-        fprintf(stderr, "sc2_UnitCargoCreate: no model for type '%s', falling back to type name\n",
-                type ? type : "(null)");
     LONG handle  = 0;
     for (LONG i = 0; i < cnt && sc2_gunit_n < MAX_GALAXY_UNITS; i++) {
         void *ent = sc2_galaxy_on_unit_create ?
-            sc2_galaxy_on_unit_create(model && *model ? model : (type ? type : ""),
-                                      0, 0.0f, 0.0f, 0.0f) : NULL;
+            sc2_galaxy_on_unit_create(type ? type : "", 0, 0.0f, 0.0f, 0.0f) : NULL;
         if (!ent)
             fprintf(stderr, "sc2_UnitCargoCreate: on_unit_create returned NULL for type '%s' (%ld/%ld) — cargo unit will be invisible\n",
                     type ? type : "(null)", (long)(i + 1), (long)cnt);

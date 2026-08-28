@@ -2166,17 +2166,19 @@ static void sc2_resolve_catalogs(sc2MapSource_t *source) {
     sc2_persistent_catalog = catalog;
 }
 
-/* Resolves a unit type name (e.g. galaxy UnitCreate's type argument) to an M3
- * model path via the same unit->actor->model catalog chain used for placed
- * map objects, for units that have no corresponding map object. */
+/* Dynamic units must inherit the same catalog model and movement metadata as map objects. */
+BOOL SC2_MapResolveUnit(LPCSTR unit_type, sc2MapObject_t *object) {
+    if (!sc2_persistent_catalog || !unit_type || !*unit_type || !object) return false;
+    memset(object, 0, sizeof(*object));
+    object->type = SC2_OBJECT_UNIT;
+    snprintf(object->name, sizeof(object->name), "%s", unit_type);
+    sc2_resolve_object_model(sc2_persistent_catalog, object);
+    return object->model[0] != '\0';
+}
+
 LPCSTR SC2_MapResolveUnitModel(LPCSTR unit_type) {
     static sc2MapObject_t object;
-    if (!sc2_persistent_catalog || !unit_type || !*unit_type) return "";
-    memset(&object, 0, sizeof(object));
-    object.type = SC2_OBJECT_UNIT;
-    snprintf(object.name, sizeof(object.name), "%s", unit_type);
-    sc2_resolve_object_model(sc2_persistent_catalog, &object);
-    return object.model;
+    return SC2_MapResolveUnit(unit_type, &object) ? object.model : "";
 }
 
 static BOOL sc2_catalog_sound_path_r(sc2Catalog_t const *catalog, sc2CatalogSound_t const *sound,

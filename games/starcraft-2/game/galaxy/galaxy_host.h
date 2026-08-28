@@ -53,8 +53,8 @@ extern void (*sc2_galaxy_on_fade)(float alpha, float duration);
 extern float (*sc2_galaxy_sound_length)(LPCSTR sound_id, int asset);
 extern void (*sc2_galaxy_on_sound)(LPCSTR sound_id, int asset);
 
-/* UnitCreate — spawn a unit entity; returns LPEDICT cast to void*, or NULL. */
-extern void *(*sc2_galaxy_on_unit_create)(LPCSTR model, int player,
+/* UnitCreate — resolve and spawn a unit type; returns LPEDICT cast to void*, or NULL. */
+extern void *(*sc2_galaxy_on_unit_create)(LPCSTR unit_type, int player,
                                           float x, float y, float angle);
 
 /* Map data lookups — filled from sc2_map objects by g_sc2.c */
@@ -72,6 +72,8 @@ extern const char *(*sc2_galaxy_get_unit_model)(LPCSTR unit_type);
 
 /* Entity operations via unit handle pointer */
 extern void (*sc2_galaxy_unit_set_position)(void *ent, float x, float y, float facing);
+extern void (*sc2_galaxy_unit_move)(void *ent, float x, float y);
+extern BOOL (*sc2_galaxy_unit_is_moving)(void *ent);
 extern BOOL (*sc2_galaxy_unit_is_alive)(void *ent);
 
 #endif

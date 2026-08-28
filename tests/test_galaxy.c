@@ -67,6 +67,17 @@ static unsigned int gal_zero(LPJASS j)    { return jass_pushinteger(j, 0); }
 static float gal_sound_length(LPCSTR id, int asset) {
     return !strcmp(id, "IntroLine") && asset == 2 ? 2.5f : 0.0f;
 }
+static BOOL gal_unit_moving;
+static LONG gal_move_count;
+static FLOAT gal_move_x;
+static void *gal_unit_create(LPCSTR type, int player, float x, float y, float angle) {
+    (void)type; (void)player; (void)x; (void)y; (void)angle;
+    return (void *)(uintptr_t)1;
+}
+static void gal_unit_move(void *ent, float x, float y) {
+    (void)ent; (void)y; gal_move_count++; gal_move_x = x; gal_unit_moving = true;
+}
+static BOOL gal_is_moving(void *ent) { (void)ent; return gal_unit_moving; }
 
 static unsigned int gal_TestFail(LPJASS j) {
     LPCSTR msg = jass_checkstring(j, 1);
@@ -870,6 +881,36 @@ TEST(galaxy, vm_sound_link_length) {
         "if (SoundLengthSync(SoundLink(\"Missing\", 0)) != 0.0) { TestFail(\"missing duration mismatch\"); }"
         "}"));
     sc2_galaxy_sound_length = NULL;
+    galaxy_reset();
+    gal_destroy(&s);
+}
+
+TEST(galaxy, vm_unit_order_append_waits_for_idle) {
+    gal_state_t s = gal_new();
+    gal_move_count = 0; gal_move_x = 0.0f; gal_unit_moving = false;
+    sc2_galaxy_on_unit_create = gal_unit_create;
+    sc2_galaxy_unit_move = gal_unit_move;
+    sc2_galaxy_unit_is_moving = gal_is_moving;
+    jass_sethost(&MAKE(JASSHOST,
+        .MemAlloc = gal_alloc, .MemFree = gal_free, .ReadFile = gal_read_file,
+        .natives = gal_assert_natives, .galaxy_natives = galaxy_get_natives(),
+    ));
+    T_ASSERT(gal_run(&s,
+        "native point Point(fixed x, fixed y); native abilcmd AbilityCommand(string name, int index);"
+        "native order OrderTargetingPoint(abilcmd command, point target);"
+        "native unit UnitCreate(int count, string type, int flags, int player, point where, fixed angle);"
+        "native bool UnitIssueOrder(unit value, order valueOrder, int queue);"
+        "void main() { unit value = UnitCreate(1, \"Flyer\", 0, 1, Point(0.0, 0.0), 0.0);"
+        "UnitIssueOrder(value, OrderTargetingPoint(AbilityCommand(\"move\", 0), Point(1.0, 0.0)), 0);"
+        "UnitIssueOrder(value, OrderTargetingPoint(AbilityCommand(\"move\", 0), Point(2.0, 0.0)), 1); }"));
+    T_EQ(gal_move_count, 0);
+    galaxy_tick(s.j); T_EQ(gal_move_count, 1); T_FEQ(gal_move_x, 1.0f, 0.001f);
+    galaxy_tick(s.j); T_EQ(gal_move_count, 1);
+    gal_unit_moving = false;
+    galaxy_tick(s.j); T_EQ(gal_move_count, 2); T_FEQ(gal_move_x, 2.0f, 0.001f);
+    sc2_galaxy_on_unit_create = NULL;
+    sc2_galaxy_unit_move = NULL;
+    sc2_galaxy_unit_is_moving = NULL;
     galaxy_reset();
     gal_destroy(&s);
 }

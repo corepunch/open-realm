@@ -31,6 +31,10 @@ This index removed the confirmed TRaynor01 startup bottleneck: an instrumented 2
 	parent chain, expand the mounted asset path, and derive duration from the OGG sample rate and final PCM granule. Transmission
 	duration modes apply default/add/subtract/set semantics to that asset duration; a blocking transmission yields its coroutine and
 	submits the resolved OGG to the client.
+- Galaxy-created units resolve the full layered `CUnit` record, not only its model. Radius, footprint, flags, and mover class use the
+	same path as map-placed units. `Fly` movers steer directly and skip ground collision/pathing; ground movers retain flow-field routing.
+- `UnitIssueOrder` preserves `c_orderQueueReplace` and `c_orderQueueAddToEnd`. Appended transport and departure orders remain queued
+	until the active move reports idle. `SpecOpsDropshipTransport` then empties cargo into a compact two-row formation before departure.
 
 ## Diagnostic Workflow
 
@@ -56,7 +60,8 @@ A successful lifecycle run registers 127 triggers and executes:
 
 It must exit from `com_frame_limit` without an infinite-loop assertion or memory fault.
 
-The intro does not end at camera `976`. Its eight-second interpolation overlaps `TRaynor01Raynor00028` (4.82 seconds), then cleanup
+The intro does not end at camera `976`. Its eight-second interpolation overlaps `TRaynor01Raynor00028` (4.82 seconds), while the
+dropship flies from point `379` to point `1037`. It unloads Raynor and five Marines there, then departs toward point `1038`; cleanup
 starts gameplay. After the camera reaches its endpoint, `gt_OpeningLineQ_Func` plays `TRaynor01Raynor00030` (3.84 seconds) before
 the new-unit, hero-game, and story-mode tip triggers run. Confirm that ordering with:
 
@@ -84,13 +89,8 @@ The bounded intro lifecycle loads all 2,657 TRaynor01 objects with `SC2_MAX_MAP_
 state callback. Camera 1660 applies instantly, then camera 976 interpolates over its authored eight-second duration. A bounded
 TRaynor01 run confirmed start/mid/end eye clearances of 17.27, 22.87, and 28.19 world units above terrain respectively.
 
-Visual fidelity remains blocked by catalog and native coverage:
+Remaining native coverage gaps:
 
-- `SpecialOpsDropship` and `Raynor01` do not resolve to M3 model paths;
-- the intro creates one `SpecialOpsDropship` at point `379`, creates Raynor plus five Marines as cargo (`UnitCargoCreate`),
-	moves the dropship to point `1037` (`UnitIssueOrder` / `move`), unloads all cargo there via
-	`SpecOpsDropshipTransport` (logged with per-unit drop-off coordinates), then moves to point `1038`; the cargo-empty
-	wait (`UnitCargoGroup` / `UnitGroupCount`) resolves correctly after the unload clears the transport's cargo list;
 - `CinematicMode` only updates game-local state; it does not hide the gameplay layout or select `CLIENT_UI_CINEMATIC`;
 - `CinematicFade` applies its final alpha immediately and ignores both interpolation and `waitUntilDone`, so the script reaches its
 	one-second wait two seconds earlier than native SC2;

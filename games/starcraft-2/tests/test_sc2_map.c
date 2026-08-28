@@ -456,11 +456,17 @@ TEST(sc2_map, campaign_object_capacity) { T_EQ(SC2_MAX_MAP_OBJECTS, 4096); }
 
 TEST(sc2_map, sc2_map_loads_xml_objects_and_terrain) {
     sc2Map_t *map;
+    sc2MapObject_t unit;
 
     setup_sc2_tests();
     use_sc2_fs_host();
     T_ASSERT(SC2_MapLoad("Maps\\Test\\Tiny.SC2Map"));
     map = SC2_MapCurrent();
+
+    T_ASSERT(SC2_MapResolveUnit("Marine", &unit));
+    T_STREQ(unit.model, "Assets\\Units\\Terran\\MarineManifestModel\\MarineManifestModel.m3");
+    T_STREQ(unit.mover, "Ground");
+    T_FEQ(unit.radius, 0.875f, 0.001f);
 
     T_STREQ(map->map_name, "SC2 Tiny Fixture");
     T_EQ(map->MapInfo.fourcc, MAKEFOURCC('I','p','a','M'));

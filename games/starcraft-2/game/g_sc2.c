@@ -23,6 +23,7 @@ static edict_t sc2_waypoints[SC2_MAX_EDICTS];
 typedef struct {
     BOOL moving;
     BOOL mobile;
+    BOOL flying;
     BOOL suppress_next_point;
     VECTOR2 target;
     FLOAT speed;
@@ -203,7 +204,7 @@ static void SC2_RunUnit(LPEDICT ent) {
         SC2_StopUnit(ent);
         return;
     }
-    if (dist <= SC2_MOVE_CLOSE) {
+    if (sc2_move[number].flying || dist <= SC2_MOVE_CLOSE) {
         dir = to_goal;
     } else {
         DWORD heatmap = CM_BuildHeatmap(&sc2_waypoints[number]);
@@ -232,7 +233,7 @@ static void SC2_SolveCollisions(void) {
 
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT a = &sc2_edicts[i];
-        if (!sc2_move[i].mobile || !a->inuse || a->collision <= 0) {
+        if (!sc2_move[i].mobile || sc2_move[i].flying || !a->inuse || a->collision <= 0) {
             continue;
         }
         DWORD num = gi.BoxEdicts(&a->bounds, colliders, SC2_MAX_COLLIDERS, sc2_collision_filter);
@@ -421,11 +422,10 @@ static void SC2_GalaxyUnitSetPosition(void *ent_ptr, float x, float y, float fac
     LPEDICT ent = (LPEDICT)ent_ptr;
     if (!ent || !ent->inuse) return;
     if (x == x) { /* NaN check: NaN != NaN, so x==x is false only for NaN → skip position */
-        ent->s.origin2.x = x;
-        ent->s.origin2.y = y;
-        ent->s.origin.x  = x;
-        ent->s.origin.y  = y;
-        ent->s.origin.z  = SC2_MapHeightAtPoint(x, y);
+        ent->s.origin2 = (VECTOR2){ x, y };
+        ent->s.origin.x = x;
+        ent->s.origin.y = y;
+        ent->s.origin.z = SC2_MapHeightAtPoint(x, y);
         gi.LinkEntity(ent);
     }
     ent->s.angle = facing;
@@ -436,6 +436,16 @@ static BOOL SC2_GalaxyUnitIsAlive(void *ent_ptr) {
     return ent && ent->inuse;
 }
 
+static void SC2_GalaxyUnitMove(void *ent_ptr, float x, float y) {
+    SC2_OrderMove((LPEDICT)ent_ptr, &(VECTOR2){ x, y });
+}
+
+static BOOL SC2_GalaxyUnitIsMoving(void *ent_ptr) {
+    LPEDICT ent = (LPEDICT)ent_ptr;
+    DWORD number = ent ? SC2_EdictNumber(ent) : SC2_MAX_EDICTS;
+    return number < SC2_MAX_EDICTS && sc2_move[number].moving;
+}
+
 static void SC2_GalaxyPlaySound(LPCSTR sound_id, int asset) {
     LPCSTR path = SC2_MapResolveSound(sound_id, asset);
     if (!path || !*path) return;
@@ -444,13 +454,19 @@ static void SC2_GalaxyPlaySound(LPCSTR sound_id, int asset) {
     fprintf(stderr, "SC2_GalaxyPlaySound: %s -> %s\n", sound_id, path);
 }
 
-/* Called with the resolved M3 model path (from sc2_galaxy_get_unit_model or
- * the unit type name as fallback if no catalog entry was found). */
-static void *SC2_GalaxyCreateUnit(LPCSTR model, int player, float x, float y, float angle) {
+/* Galaxy-created units use the same catalog-derived render and movement state as map units. */
+static void *SC2_GalaxyCreateUnit(LPCSTR unit_type, int player, float x, float y, float angle) {
+    sc2MapObject_t object;
+    LPCSTR model;
+    if (!SC2_MapResolveUnit(unit_type, &object)) {
+        fprintf(stderr, "SC2_GalaxyCreateUnit: no catalog unit '%s'\n", unit_type ? unit_type : "(null)");
+        return NULL;
+    }
+    model = object.model;
     if (globals.num_edicts >= globals.max_edicts) {
         fprintf(stderr, "SC2_GalaxyCreateUnit: FATAL: edict pool full (%u/%u) — galaxy unit '%s' "
                 "(player=%d at %.1f,%.1f) DROPPED, will never render; raise SC2_MAX_EDICTS in g_sc2_local.h\n",
-                (unsigned)globals.num_edicts, (unsigned)globals.max_edicts, model ? model : "(null)", player, x, y);
+                (unsigned)globals.num_edicts, (unsigned)globals.max_edicts, unit_type, player, x, y);
         return NULL;
     }
     LPEDICT ent = &sc2_edicts[globals.num_edicts++];
@@ -460,13 +476,20 @@ static void *SC2_GalaxyCreateUnit(LPCSTR model, int player, float x, float y, fl
     ent->s.origin.x = x;
     ent->s.origin.y = y;
     ent->s.origin.z = SC2_MapHeightAtPoint(x, y);
+    ent->s.origin2 = (VECTOR2){ x, y };
     ent->s.angle = angle;
     ent->s.scale = 1.0f;
     ent->s.player = (DWORD)player;
-    ent->s.model = G_RegisterModel(model ? model : "");
+        ent->s.model = G_RegisterModel(model);
+        ent->s.radius = SC2_ObjectRadius(&object);
+        ent->collision = SC2_ObjectCollisionRadius(&object, ent->s.radius);
+        if (SC2_ObjectIsMobile(&object)) ent->svflags |= SVF_MONSTER;
+        sc2_move[ent->s.number].mobile = ent->svflags & SVF_MONSTER;
+        sc2_move[ent->s.number].flying = !strcasecmp(object.mover, "Fly");
+        sc2_move[ent->s.number].speed = SC2_MOVE_SPEED;
     gi.LinkEntity(ent);
-    fprintf(stderr, "SC2_GalaxyCreateUnit: model=%s player=%d at (%.1f,%.1f)\n",
-            model ? model : "(null)", player, x, y);
+            fprintf(stderr, "SC2_GalaxyCreateUnit: type=%s model=%s mover=%s mobile=%d collision=%.2f player=%d at (%.1f,%.1f)\n",
+                    unit_type, model, object.mover, !!sc2_move[ent->s.number].mobile, ent->collision, player, x, y);
     return ent;
 }
 
@@ -481,6 +504,8 @@ static void SC2_InitGalaxyHost(void) {
     sc2_galaxy_get_point_by_id    = SC2_GalaxyGetPointById;
     sc2_galaxy_get_unit_model     = SC2_GalaxyGetUnitModel;
     sc2_galaxy_unit_set_position  = SC2_GalaxyUnitSetPosition;
+    sc2_galaxy_unit_move          = SC2_GalaxyUnitMove;
+    sc2_galaxy_unit_is_moving     = SC2_GalaxyUnitIsMoving;
     sc2_galaxy_unit_is_alive      = SC2_GalaxyUnitIsAlive;
 }
 
@@ -603,6 +628,7 @@ static void SC2_SpawnEntities(void) {
         }
         number = (DWORD)(ent - sc2_edicts);
         sc2_move[number].mobile = (ent->svflags & SVF_MONSTER) != 0;
+        sc2_move[number].flying = !strcasecmp(object->mover, "Fly");
         sc2_move[number].speed = SC2_MOVE_SPEED;
         gi.LinkEntity(ent);
     }
