@@ -51,31 +51,6 @@ void Matrix4_fromViewQuat(LPCVECTOR3 target, LPCQUATERNION quat, FLOAT distance,
 }
 
 #ifdef SC2
-/* Exponential low-pass filter on terrain height so the camera plane follows the
-   ground smoothly rather than snapping 1:1 to every elevation change.
-   Snaps immediately on large XY jumps (cutscene teleports). */
-static FLOAT SC2_SmoothedTerrainHeight(FLOAT x, FLOAT y) {
-    static FLOAT smoothed_z = 0.0f;
-    static FLOAT prev_x = 0.0f, prev_y = 0.0f;
-    static bool initialized = false;
-
-    FLOAT const terrain_z = CM_GetHeightAtPoint(x, y);
-    FLOAT const dx = x - prev_x, dy = y - prev_y;
-    bool const teleported = dx*dx + dy*dy > 400.0f; /* > 20 units */
-
-    if (!initialized || teleported) {
-        smoothed_z = terrain_z;
-        initialized = true;
-    } else {
-        /* dt in seconds; rate=3 gives ~95% convergence in ~1 s */
-        FLOAT const dt = (FLOAT)cl.viewDef.deltaTime / 1000.0f;
-        smoothed_z += (terrain_z - smoothed_z) * (1.0f - expf(-3.0f * dt));
-    }
-    prev_x = x;
-    prev_y = y;
-    return smoothed_z;
-}
-
 static void Matrix4_getSc2CameraMatrix(LPCVECTOR3 origin,
                                        LPCVECTOR3 angles,
                                        FLOAT distance,
@@ -101,8 +76,8 @@ static void Matrix4_getSc2CameraMatrix(LPCVECTOR3 origin,
     fov = fov > 0.0f ? fov : 27.8f;
     znear = znear > 0.0f ? znear : 0.1f;
     zfar = zfar > 0.0f ? zfar : 400.0f;
-    /* SC2 HeightOffset is relative to terrain; use smoothed height to avoid 1:1 cliff snapping. */
-    target.z = SC2_SmoothedTerrainHeight(target.x, target.y) + height_offset;
+    /* Spatial terrain filtering ignores narrow depressions without adding delayed camera motion. */
+    target.z = SC2_MapCameraHeightAtPoint(target.x, target.y) + height_offset;
     eye = Vector3_sub(&target, &(VECTOR3){ dir.x * distance, dir.y * distance, dir.z * distance });
     Matrix4_perspective(&proj, fov, aspect, znear, zfar);
     Matrix4_lookAt(&view, &eye, &dir, &(VECTOR3){ 0.0f, 0.0f, 1.0f });

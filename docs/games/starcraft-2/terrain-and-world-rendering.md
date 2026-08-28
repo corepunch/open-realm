@@ -29,6 +29,11 @@ SC2 computes camera target Z as terrain height at the target XY plus the camera'
 WC3 lifecycle: `MeleeUI` samples terrain under `cameraManager.target`, then `GameCameraManager.updateTargetZ` adds preset height and
 target offset before deriving the eye from pitch and distance. Treating `HeightOffset` as absolute world Z puts the eye underground.
 
+Camera rendering uses `SC2_MapCameraHeightAtPoint`, a stateless 5x5 box filter over a 16-world-unit heightmap footprint. This spatial
+filter makes a narrow canyon contribute little to camera height while broad terrain tiers still affect it. Do not replace it with a
+temporal filter: retaining the previous frame's height makes the camera rubber-band toward every local depression. Exact terrain
+queries for units, commands, roads, and collision continue to use `SC2_MapHeightAtPoint`.
+
 SC2 drag-panning intersects the cursor ray with the horizontal plane at `viewCamera_t.origin.z`, the current terrain-relative camera target height.
 It must not use `R_SC2TraceLocation`: that function intersects actual heightmap triangles for unit commands, so reusing it for camera
 drag makes the pan anchor jump when the cursor crosses cliffs or other terrain tiers. `TraceCameraPlane` owns the stable screen-ray

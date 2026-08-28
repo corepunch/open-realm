@@ -45,6 +45,23 @@ TEST(sc2_map, shared_grid_normals) {
     T_FEQ(normal.x, -0.707107f, 0.0001f); T_FEQ(normal.y, 0.0f, 0.0001f); T_FEQ(normal.z, 0.707107f, 0.0001f);
 }
 
+/* Camera-only spatial filtering suppresses narrow depressions without changing exact terrain queries. */
+TEST(sc2_map, camera_height_blurs_narrow_depressions) {
+    DWORD const side = 17, count = side * side;
+    sc2MapHeightMap_t *layer = MemAlloc(sizeof(*layer) + count * sizeof(*layer->data));
+    sc2Map_t map = { .MapInfo = { .width = 16, .height = 16 }, .cell_size = 1.0f, .t3HeightMap = layer };
+    DWORD i;
+
+    memset(layer, 0, sizeof(*layer) + count * sizeof(*layer->data));
+    layer->width = side; layer->height = side;
+    for (i = 0; i < count; i++) layer->data[i].height = 11;
+    T_FEQ(sc2_map_camera_height_at_point(&map, 8.0f, 8.0f), 10.0f, 0.001f);
+    layer->data[8 + 8 * side].height = 1;
+    T_FEQ(sc2_map_height_at_point(&map, 8.0f, 8.0f), 0.0f, 0.001f);
+    T_FEQ(sc2_map_camera_height_at_point(&map, 8.0f, 8.0f), 9.6f, 0.001f);
+    MemFree(layer);
+}
+
 TEST(sc2_map, cliff_weld_requires_matching_height_and_normal_hemisphere) {
     VERTEX base = {.position={1,2,3},.normal={1,0,0}};
     VERTEX seam = {.position={1,2,3},.normal={0.5f,0.5f,0}};
