@@ -869,6 +869,37 @@ TEST(wow_wmo_global, name_id_in_modf_is_index_into_mwid) {
     T_STREQ(path, "WorldB.wmo");
 }
 
+/* MODR references, not root MODD order, decide which embedded doodads follow a visible group. */
+static DWORD ref_visible_modr(BYTE const visible[2], WORD const refs[2][3], BYTE seen[6], WORD out[6]) {
+    DWORD count = 0;
+    memset(seen, 0, 6);
+    for (DWORD group = 0; group < 2; group++) {
+        if (!visible[group]) continue;
+        for (DWORD i = 0; i < 3; i++) {
+            WORD ref = refs[group][i];
+            if (ref >= 6 || seen[ref]) continue;
+            seen[ref] = 1; out[count++] = ref;
+        }
+    }
+    return count;
+}
+
+TEST(wow_wmo_doodad_visibility, queues_visible_modr_groups_and_deduplicates_shared_refs) {
+    WORD refs[2][3] = { { 0, 1, 2 }, { 2, 3, 4 } }, out[6] = { 0 };
+    BYTE seen[6], visible[2] = { 0, 1 };
+    DWORD count = ref_visible_modr(visible, refs, seen, out);
+    T_EQ((int)count, 3); T_EQ((int)out[0], 2); T_EQ((int)out[1], 3); T_EQ((int)out[2], 4);
+    visible[0] = 1;
+    count = ref_visible_modr(visible, refs, seen, out);
+    T_EQ((int)count, 5); T_EQ((int)out[2], 2); T_EQ((int)out[3], 3);
+}
+
+TEST(wow_wmo_doodad_visibility, invisible_parent_queues_no_group_owned_doodads) {
+    WORD refs[2][3] = { { 0, 1, 2 }, { 3, 4, 5 } }, out[6] = { 0 };
+    BYTE seen[6], visible[2] = { 0, 0 };
+    T_EQ((int)ref_visible_modr(visible, refs, seen, out), 0);
+}
+
 /* =========================================================================
    L. Phase 6: Portal structs, MOPT/MOPV/MOPR parsing, containment logic
    ======================================================================= */

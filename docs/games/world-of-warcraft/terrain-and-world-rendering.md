@@ -183,7 +183,7 @@ Stormwind's streets are WMO floors above the outdoor ADT, not misplaced geometry
 make run-wow ARGS="+map playercreate +warp stormwind +com_frame_limit 160"
 ```
 
-After placement deduplication, retain per-group frustum/fog culling and implement conservative interior portal traversal. The retail 1.12.1 client organizes the frame as a scene walk over spatial cells, performs per-kind frustum plus optional occlusion rejection, appends survivors to intrusive render lists, and drains terrain, WMO, doodad, M2, liquid, and far-band passes separately. Its WMO renderer has distinct inside/outside portal visibility and a portal flood. This is the appropriate architecture target; rendering every WMO-embedded doodad buffer unconditionally is not.
+After placement deduplication, retain per-group frustum/fog culling and implement conservative interior portal traversal. The retail 1.12.1 client organizes the frame as a scene walk over spatial cells, performs per-kind frustum plus optional occlusion rejection, appends survivors to intrusive render lists, and drains terrain, WMO, doodad, M2, liquid, and far-band passes separately. Its WMO renderer has distinct inside/outside portal visibility and a portal flood. WMO group `MODR` references are now retained and use the same per-frame group visibility result for embedded doodads; shared references are deduplicated, and the rare unreferenced `MODD` remains scoped to a visible parent. A Human-start run reduced WMO doodad instances from all 7,147 loaded definitions to 199 belonging to six visible WMOs/29 groups (97.2% fewer submissions).
 
 [WoWee's WMO renderer](https://github.com/Kelsidavis/wowee/blob/main/src/rendering/wmo_renderer.cpp) is the closest portal implementation reference: it uses conservative interior-only traversal, seeds from camera and character groups, never portal-culls exterior groups, and falls back to frustum culling when containment is ambiguous. Its collision path does **not** consume `MOBN`/`MOBR`: `bspNodes` is declared but never populated, while floor queries use all `MOVI` triangles in per-group 2D grids after instance/group bounds rejection. Keep WoWee's conservative portal rules, but retain our cheaper authored BSP collision. The [classic 1.12.1 client reverse engineering](https://github.com/samwhosung/wow-1121-client-internals/blob/main/docs/models.md) identifies separate inside/outside portal visibility and portal-flood routines plus the WMO segment-intersection wrapper. [TrinityCore's world-object position update](https://github.com/TrinityCore/TrinityCore/blob/master/src/server/game/Entities/Object/Object.cpp) likewise records a distinct static floor and current WMO from its full terrain/collision query.
 
@@ -265,6 +265,10 @@ retains the terrain-adjusted test for visible blobs. With both changes, the same
 rendering the unchanged ~1,178 draws, 1.29M triangles, and 162.9K instances; the screenshot path confirmed identical visible
 M2 grass/doodads and shadows. The Apple gain is about 15%, while removing the identity-EBO path is expected to matter more on
 the RG40xx GL translation stack.
+
+The same bounded run found the CPU terrain-height helper walking an average 1,108.8 of 2,304 resident MCNKs per successful
+query. The streamed height-atlas indices now retain a direct MCNK pointer table, so a query computes its atlas cell and reads
+one chunk. This is the CPU counterpart to the existing GPU height atlas and has explicit out-of-window and empty-cell misses.
 
 Root cause of 3fps regression: `Wow_QueueWmoDoodads` (`r_wowmap_objects.c`) called every frame for all WMO instances. Inside: `Wow_LoadDoodadModel` performs an O(n) `strcasecmp` linked-list scan; a second O(n) scan finds the `wowDoodadModel_t *group`. With 43 WMOs × ~100 doodad defs = 4300 lookups/frame at O(200), the profiler confirmed 860K `strcasecmp_l` calls/frame (78% of frame time).
 

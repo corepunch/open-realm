@@ -134,7 +134,7 @@ typedef struct wowDoodadModel_s {
     MATRIX4 *matrices;
     INSTANCEBUFFER instances;
     DWORD count, capacity;
-    /* WMO doodads are static — built once per ADT load into a persistent GPU buffer */
+    /* Retain buffer capacity while rebuilding only the visible MODR subset each frame. */
     MATRIX4 *wmo_matrices;
     INSTANCEBUFFER wmo_instances;
     DWORD wmo_count, wmo_capacity;
@@ -312,7 +312,6 @@ typedef struct wowMap_s {
     DWORD num_wmo_models;
     DWORD num_wmo_batches;
     DWORD num_missing_wmos;
-    BOOL wmo_doodads_built;
     DWORD *placed_wmo_ids;     /* non-zero MODF unique_ids accepted this ADT window; dedup guard */
     DWORD num_placed_wmo_ids, cap_placed_wmo_ids;
     DWORD *placed_dood_ids;    /* non-zero MDDF unique_ids accepted this ADT window; dedup guard */
