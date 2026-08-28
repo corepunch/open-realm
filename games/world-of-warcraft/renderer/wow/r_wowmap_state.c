@@ -110,6 +110,7 @@ void Wow_FreeChunks(void) {
         chunk = next;
     }
     wow_world.chunks = NULL;
+    memset(wow_world.height_chunks, 0, sizeof(wow_world.height_chunks));
     wow_world.num_grass_chunks = 0;
     wow_world.num_grass_vertices = 0;
     if (wow_world.alpha_atlas_texture) {

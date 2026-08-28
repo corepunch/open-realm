@@ -183,6 +183,13 @@ def gen_quests(output_dir):
     givers = [r for r in spawn_rows if r[0] == 'giver']
     objectives = [r for r in spawn_rows if r[0] == 'objective']
 
+    giver_groups = {}
+    for i, g in enumerate(givers):
+        _, _, entry, _, x, y, z, _ = g
+        giver_groups.setdefault((int(entry), float(x), float(y), float(z)), []).append(i)
+    groups = list(giver_groups.values())
+    row_group = {row: group for group, rows in enumerate(groups) for row in rows}
+
     lines = ['#include "g_wow_local.h"', '']
 
     # Quest givers
@@ -190,6 +197,24 @@ def gen_quests(output_dir):
     for g in givers:
         _, qid, entry, dispid, x, y, z, o = g
         lines.append(f'    {{ {qid}, {entry}, {dispid}, {{ {float(x):.4f}f, {float(y):.3f}f, {float(z):.4f}f }}, {float(o):.5f}f }},')
+    lines.append('};')
+    lines.append('')
+    lines.append('typedef struct { DWORD first, count; } WOWQUESTGIVERGROUP;')
+    lines.append('typedef struct { DWORD quest_id; VECTOR2 position; DWORD group; } WOWQUESTGIVERLOOKUP;')
+    lines.append('static const DWORD wow_quest_giver_group_rows[] = {')
+    for rows in groups:
+        lines.append('    ' + ', '.join(str(i) for i in rows) + ',')
+    lines.append('};')
+    lines.append('static const WOWQUESTGIVERGROUP wow_quest_giver_groups[] = {')
+    first = 0
+    for rows in groups:
+        lines.append(f'    {{ {first}, {len(rows)} }},')
+        first += len(rows)
+    lines.append('};')
+    lines.append('static const WOWQUESTGIVERLOOKUP wow_quest_giver_lookup[] = {')
+    lookup = sorted(((int(g[1]), float(g[4]), float(g[5]), row_group[i]) for i, g in enumerate(givers)))
+    for qid, x, y, group in lookup:
+        lines.append(f'    {{ {qid}, {{ {x:.4f}f, {y:.3f}f }}, {group} }},')
     lines.append('};')
     lines.append('')
 
@@ -234,6 +259,31 @@ def gen_quests(output_dir):
     lines.append('DWORD Wow_QuestGiverCount(void) { return sizeof(wow_quest_givers) / sizeof(wow_quest_givers[0]); }')
     lines.append('LPCWOWQUESTGIVER Wow_QuestGiver(DWORD index) {')
     lines.append('    return index < Wow_QuestGiverCount() ? &wow_quest_givers[index] : NULL;')
+    lines.append('}')
+    lines.append('DWORD Wow_QuestGiverGroup(DWORD quest_id, LPCVECTOR2 position) {')
+    lines.append('    DWORD lo = 0, hi = sizeof(wow_quest_giver_lookup) / sizeof(wow_quest_giver_lookup[0]);')
+    lines.append('    if (!position) return WOW_QUEST_GIVER_GROUP_NONE;')
+    lines.append('    while (lo < hi) {')
+    lines.append('        DWORD mid = lo + (hi - lo) / 2;')
+    lines.append('        WOWQUESTGIVERLOOKUP const *cur = &wow_quest_giver_lookup[mid];')
+    lines.append('        if (cur->quest_id < quest_id || (cur->quest_id == quest_id && (cur->position.x < position->x ||')
+    lines.append('            (cur->position.x == position->x && cur->position.y < position->y)))) lo = mid + 1;')
+    lines.append('        else hi = mid;')
+    lines.append('    }')
+    lines.append('    if (lo < sizeof(wow_quest_giver_lookup) / sizeof(wow_quest_giver_lookup[0])) {')
+    lines.append('        WOWQUESTGIVERLOOKUP const *cur = &wow_quest_giver_lookup[lo];')
+    lines.append('        if (cur->quest_id == quest_id && !memcmp(&cur->position, position, sizeof(*position))) return cur->group;')
+    lines.append('    }')
+    lines.append('    return WOW_QUEST_GIVER_GROUP_NONE;')
+    lines.append('}')
+    lines.append('DWORD Wow_QuestGiverGroupCount(DWORD group) {')
+    lines.append('    return group < sizeof(wow_quest_giver_groups) / sizeof(wow_quest_giver_groups[0]) ? wow_quest_giver_groups[group].count : 0;')
+    lines.append('}')
+    lines.append('LPCWOWQUESTGIVER Wow_QuestGiverInGroup(DWORD group, DWORD index) {')
+    lines.append('    WOWQUESTGIVERGROUP const *cur;')
+    lines.append('    if (group >= sizeof(wow_quest_giver_groups) / sizeof(wow_quest_giver_groups[0])) return NULL;')
+    lines.append('    cur = &wow_quest_giver_groups[group];')
+    lines.append('    return index < cur->count ? &wow_quest_givers[wow_quest_giver_group_rows[cur->first + index]] : NULL;')
     lines.append('}')
     lines.append('DWORD Wow_QuestObjectiveCount(void) {')
     lines.append('    return sizeof(wow_quest_objectives) / sizeof(wow_quest_objectives[0]);')
