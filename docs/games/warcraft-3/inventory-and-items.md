@@ -82,6 +82,26 @@ For Human02 this means a carried Scroll of Protection is handled generically:
 rawcode `spro` resolves its item UI data, appears in the first free slot, and
 shows its initial charge count of `1`. No HUD code checks for `spro`.
 
+## Inventory Refresh Lifecycle
+
+Player/client edicts occupy the reserved `[0, max_clients)` range and are not
+ordinary `inuse` gameplay entities. Inventory refresh therefore iterates those
+reserved client slots and gates on the explicit `GAMECLIENT.connected` state.
+`G_ClientBegin` marks the slot connected after the handshake, while map-player
+initialization clears the state before the next map begins.
+
+A previous refresh path incorrectly required the reserved player edict itself to
+be `inuse`. Pickup still completed, but `Get_Portrait_f` was skipped and the
+server never resent `LAYER_INVENTORY`. The bounded diagnostic for this boundary
+is:
+
+```text
++set sv_debug_layout 1 +com_frame_limit 100
+```
+
+A successful carried-item refresh should produce a new `layer=6` layout write;
+an occupied item contributes at least one textured command-button frame.
+
 ## Drop And Script Paths
 
 `G_DropItemAt` performs the inverse transition and places the same item edict
@@ -121,10 +141,12 @@ another engine's item implementation.
 ## Validation
 
 The `wc3_items.*` in-engine tests cover world-state initialization, data-driven
-capacity (including a reduced-capacity inventory), first-empty-slot insertion,
+capacity (including reduced, zero, and above-storage-limit cases),
+first-empty-slot insertion,
 full-inventory failure, pickup range and revalidation, drop identity, renderer
-visibility flags, carried-item removal, charge initialization/preservation,
-JASS charge access, and generic `spro` Art/Tip/Ubertip/charge presentation.
+visibility flags, carried-item removal, connection-state refresh gating, charge
+initialization/preservation, carried-charge refresh/no-op behavior, JASS charge
+access, and generic `spro` Art/Tip/Ubertip/charge presentation.
 Minimal `AbilityData.slk`, `UnitAbilities.slk`, `ItemData.slk`, `ItemFunc.txt`,
 and `ItemStrings.txt` fixtures keep these tests data-driven in both ROC and TFT
 test runs.

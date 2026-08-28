@@ -438,6 +438,10 @@ LPCSTR G_LevelString(LPCSTR name) {
     return name;
 }
 
+void G_SetClientConnected(LPEDICT player, BOOL connected) {
+    player->client->connected = connected;
+}
+
 /* Called when a client finishes the connection handshake and is ready to play.
  * The in-game HUD is server-authored through svc_layout; this binds the game
  * client and initializes gameplay state when a map is loaded. */
@@ -447,7 +451,7 @@ static void G_ClientBegin(LPEDICT edict) {
         edict->client = client;
     }
 
-    client->connected = true;
+    G_SetClientConnected(edict, true);
     client->ps.client_ui_state = CLIENT_UI_GAME;
     if (!client->mapplayer) {
         client->ps.origin = (VECTOR2){ 0, 0 };
