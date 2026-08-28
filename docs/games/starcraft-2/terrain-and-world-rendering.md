@@ -23,6 +23,13 @@ build/bin/opensc2 -data data/StarCraft2 +vid_hidden 1 +map Maps/TerranTest.SC2Co
 Add a temporary one-shot log after `SC2_MapLoad` in `R_SC2RegisterMap`; do not log from a draw path. Compare the authored ray, its
 Lambert negation, and the camera right vector in screen space, then remove the log.
 
+## Camera Drag Plane
+
+SC2 drag-panning intersects the cursor ray with the horizontal plane at `viewCamera_t.origin.z`, the authored camera target height.
+It must not use `R_SC2TraceLocation`: that function intersects actual heightmap triangles for unit commands, so reusing it for camera
+drag makes the pan anchor jump when the cursor crosses cliffs or other terrain tiers. `TraceCameraPlane` owns the stable screen-ray
+intersection; smart commands continue to use terrain `TraceLocation`.
+
 ## Hard-Tile Roads
 
 Roads use `CTile` records in `GameData/TileData.xml`; for example,

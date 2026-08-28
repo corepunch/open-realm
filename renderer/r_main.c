@@ -911,6 +911,7 @@ refExport_t R_GetAPI(refImport_t imp) {
         .GetHeightAtPoint = R_GameGetHeightAtPoint,
         .TraceEntity = R_TraceEntity,
         .TraceLocation = R_GameTraceLocation,
+        .TraceCameraPlane = R_TraceCameraPlane,
         .TraceMinimap = R_TraceMinimap,
         .EntitiesInRect = R_EntitiesInRect,
     };

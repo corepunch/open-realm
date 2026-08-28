@@ -385,6 +385,7 @@ DWORD R_GetFrameDrawCalls(void);
 // r_ents.c
 bool R_TraceEntity(viewDef_t const *viewdef, float x, float y, LPDWORD number);
 bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, LPVECTOR3 point);
+bool R_TraceCameraPlane(viewDef_t const *viewdef, float x, float y, LPVECTOR3 point);
 void R_GetEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix);
 LINE3 R_LineForScreenPoint(viewDef_t const *viewdef, float x, float y);
 DWORD R_EntitiesInRect(viewDef_t const *viewdef, LPCRECT rect, DWORD max, LPDWORD array);

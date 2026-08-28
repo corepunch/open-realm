@@ -502,6 +502,7 @@ refExport_t R_StdoutGetAPI(refImport_t imp) {
         .GetHeightAtPoint = RStd_GetHeightAtPoint,
         .TraceEntity = RStd_TraceEntity,
         .TraceLocation = RStd_TraceLocation,
+        .TraceCameraPlane = RStd_TraceLocation,
         .EntitiesInRect = RStd_EntitiesInRect,
     };
 }
