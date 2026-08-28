@@ -1,11 +1,15 @@
 #include "s_skills.h"
 
-/* Shop system — minimal marker abilities that can be extended when the
- * inventory and shop UI are wired up. */
+/* Shop system — minimal implementation.
+ * WarSmash: CAbilityNeutralBuilding auto-selects heroes, CAbilitySellItems
+ * handles purchase. For now, these are marker abilities that can be extended
+ * when the inventory/shop UI is wired up. */
 
 /* TODO: Neutral Building (Aneu) must scan the data-defined acquisition radius;
+ * WarSmash: CAbilityNeutralBuilding.onTick scans units in rect, maintains
  * the shop selection lifecycle is not implemented yet. */
 static void SP_ability_neutral_building(LPCSTR classname, ability_t *self) {
+    /* activation_radius read from SLK "AcqRange" when implemented. */
     (void)classname; (void)self;
 }
 
