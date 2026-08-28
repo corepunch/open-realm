@@ -762,13 +762,22 @@ TEST(renderer_terrain, cliff_ramps_require_adjacent_corners_one_level_apart) {
 TEST(renderer_shader, shadow_receiver_contract) {
     R_SetShaderSourceFromDesc(1, &sd_model, true, NULL);
     T_NOT_NULL(strstr(shader_src, "return lighting;")); /* clamp moved out of vertex_lighting */
+#ifdef BZ_GLSL_120
+    /* GLSL 120 uses varying for both stages; the old test incorrectly required 140+ in/out syntax. */
+    T_NOT_NULL(strstr(shader_src, "varying vec3 v_shadowlight;"));
+#else
     T_NOT_NULL(strstr(shader_src, "out vec3 v_shadowlight;"));
+#endif
     T_NOT_NULL(strstr(shader_src, "v_shadowlight = vec3(0.0);"));
     T_NOT_NULL(strstr(shader_src, "contribution - u_lights[i][3].rgb * u_lights[i][3].a"));
 
     R_SetShaderSourceFromDesc(1, &sd_model, false, NULL);
     T_NOT_NULL(strstr(shader_src, "light = min(light, vec3(1.0));")); /* clamp applied after occlusion */
+#ifdef BZ_GLSL_120
+    T_NOT_NULL(strstr(shader_src, "varying vec3 v_shadowlight;"));
+#else
     T_NOT_NULL(strstr(shader_src, "in vec3 v_shadowlight;"));
+#endif
     T_NOT_NULL(strstr(shader_src, "light -= v_shadowlight * (1.0 - shadow_visibility(u_shadowmap, v_shadow));"));
     T_NOT_NULL(strstr(shader_src, "textureSize(depths, 0)"));
 }
