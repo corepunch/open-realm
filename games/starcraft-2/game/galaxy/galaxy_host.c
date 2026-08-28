@@ -61,7 +61,7 @@ static HANDLE sc2_galaxy_readfile(LPCSTR filename, DWORD *size) {
  * ------------------------------------------------------------------------- */
 #define MAX_SC2_TRIGGERS  512
 #define MAX_GALAXY_UNITS  256
-#define MAX_GALAXY_POINTS 1024
+#define MAX_GALAXY_POINTS 4096
 #define MAX_GALAXY_CAMS   64
 
 typedef struct { LONG id; LPCSTR func; BOOL mapinit; BOOL wrapper_conds[2]; } sc2trig_t;
@@ -91,13 +91,13 @@ static LONG sc2_gcargo_n[MAX_GALAXY_UNITS];
 static LONG sc2_last_cargo_handle;
 
 /* AbilityCommand handle table — stores ability name + command index. */
-#define MAX_GALAXY_ABILCMDS 64
+#define MAX_GALAXY_ABILCMDS 1024
 typedef struct { char ability[64]; LONG cmd_idx; } sc2GAbilCmd_t;
 static sc2GAbilCmd_t sc2_gabilcmds[MAX_GALAXY_ABILCMDS];
 static LONG sc2_gabilcmd_n = 1; /* 1-based; 0 = null */
 
 /* Order handle table — stores (abilcmd_h, target_pt_h) per issued order. */
-#define MAX_GALAXY_ORDERS 128
+#define MAX_GALAXY_ORDERS 1024
 typedef struct { LONG abilcmd_h; LONG pt_h; } sc2GOrder_t;
 static sc2GOrder_t sc2_gorders[MAX_GALAXY_ORDERS];
 static LONG sc2_gorder_n = 1;  /* 1-based; 0 = null */
@@ -161,10 +161,17 @@ static void sc2_fire_trigger_func(LPJASS j, LPCSTR funcname, BOOL testConds, BOO
         if (trig) trig->wrapper_conds[testConds ? 1 : 0] = true;
     }
     fprintf(stderr, "sc2_fire_trigger_func: calling %s (coroutine=%d)\n", funcname, as_coroutine);
-    if (as_coroutine)
+    if (as_coroutine) {
         jass_startcoroutinebyname(root, name);
-    else if (!jass_callcoroutinebyname(root, name))
-        jass_callbyname(root, name, false);
+    } else {
+        if (!jass_callcoroutinebyname(root, name))
+            jass_callbyname(root, name, false);
+        if (jass_rterror_pending(root)) {
+            fprintf(stderr, "galaxy trigger %s: runtime error: %s\n",
+                    funcname, jass_rterror_message(root));
+            jass_rterror_clear(root);
+        }
+    }
 }
 
 void galaxy_fire_mapinit(LPJASS j) {
@@ -251,7 +258,13 @@ void galaxy_start(LPJASS vm) {
     fprintf(stderr, "galaxy_start: done, %u triggers registered\n", sc2_trig_n);
 }
 
-void galaxy_tick(LPJASS vm) { jass_runevents(vm); }
+void galaxy_tick(LPJASS vm) {
+    jass_runevents(vm);
+    if (jass_rterror_pending(vm)) {
+        fprintf(stderr, "galaxy: runtime error: %s\n", jass_rterror_message(vm));
+        jass_rterror_clear(vm);
+    }
+}
 
 /* -------------------------------------------------------------------------
  * Generic no-op stub
@@ -665,6 +678,9 @@ static DWORD sc2_PointFromId(LPJASS j) {
         sc2_gpoints[h] = (sc2GPoint_t){ x, y };
         return jass_pushlighthandle(j, (HANDLE)(uintptr_t)h, "point");
     }
+    if (sc2_gpoint_n >= MAX_GALAXY_POINTS)
+        fprintf(stderr, "PointFromId: table full (%d entries) — id=%u lost\n",
+                MAX_GALAXY_POINTS, map_id);
     return jass_pushnullhandle(j, "point");
 }
 
@@ -768,8 +784,18 @@ static DWORD sc2_PlayerGroupActive(LPJASS j)         { return jass_pushnullhandl
 static DWORD sc2_PlayerGroupAdd(LPJASS j)            { (void)j; return jass_pushnull(j); }
 static DWORD sc2_PlayerGroupClear(LPJASS j)          { return jass_pushnullhandle(j, "playergroup"); }
 static DWORD sc2_PlayerGroupCopy(LPJASS j)           { return jass_pushnullhandle(j, "playergroup"); }
+/* PlayerGroupCount / PlayerGroupPlayer: singleplayer stubs — exactly 1 human player. */
+static DWORD sc2_PlayerGroupCount(LPJASS j) {
+    (void)jass_checkhandle(j, 1, "playergroup");
+    return jass_pushinteger(j, 1);
+}
 static DWORD sc2_PlayerGroupEmpty(LPJASS j)          { return jass_pushnullhandle(j, "playergroup"); }
 static DWORD sc2_PlayerGroupHasPlayer(LPJASS j)      { return jass_pushboolean(j, false); }
+static DWORD sc2_PlayerGroupPlayer(LPJASS j) {
+    (void)jass_checkhandle(j, 1, "playergroup");
+    (void)jass_checkinteger(j, 2);
+    return jass_pushinteger(j, 1);
+}
 static DWORD sc2_PlayerGroupLoopBegin(LPJASS j)      { (void)j; return jass_pushnull(j); }
 static DWORD sc2_PlayerGroupLoopDone(LPJASS j)       { return jass_pushboolean(j, true); }
 static DWORD sc2_PlayerGroupLoopEnd(LPJASS j)        { (void)j; return jass_pushnull(j); }
@@ -893,6 +919,8 @@ static DWORD sc2_AbilityCommand(LPJASS j) {
         sc2_gabilcmds[h].cmd_idx = cmd;
         return jass_pushinteger(j, h);
     }
+    fprintf(stderr, "AbilityCommand: table full (%d entries) — '%s' lost\n",
+            MAX_GALAXY_ABILCMDS, name ? name : "");
     return jass_pushinteger(j, 0);
 }
 static DWORD sc2_AbilityCommandGetAbility(LPJASS j){ return jass_pushstring(j, ""); }
@@ -907,6 +935,7 @@ static DWORD sc2_OrderTargetingPoint(LPJASS j) {
         sc2_gorders[h] = (sc2GOrder_t){ abilcmd_h, pt_h };
         return jass_pushlighthandle(j, (HANDLE)(uintptr_t)h, "order");
     }
+    fprintf(stderr, "OrderTargetingPoint: table full (%d entries)\n", MAX_GALAXY_ORDERS);
     return jass_pushnullhandle(j, "order");
 }
 static DWORD sc2_OrderTargetingUnit(LPJASS j) { return jass_pushnullhandle(j, "order"); }
@@ -943,7 +972,19 @@ static DWORD sc2_UISetFrameVisible(LPJASS j)  { (void)j; return jass_pushnull(j)
 static DWORD sc2_HelpPanelAddTip(LPJASS j)    { (void)j; return jass_pushnull(j); }
 static DWORD sc2_HelpPanelDisplayPage(LPJASS j){ (void)j; return jass_pushnull(j); }
 static DWORD sc2_HelpPanelEnableTechTreeButton(LPJASS j){ (void)j; return jass_pushnull(j); }
+static DWORD sc2_TransmissionSource(LPJASS j)        { return jass_pushnullhandle(j, "transmissionsource"); }
 static DWORD sc2_TransmissionSourceFromModel(LPJASS j){ return jass_pushnullhandle(j, "transmissionsource"); }
+static DWORD sc2_TransmissionSourceFromUnit(LPJASS j) { return jass_pushnullhandle(j, "transmissionsource"); }
+/* TransmissionSend: send a transmission to players; sleep if waitUntilDone and duration > 0. */
+static DWORD sc2_TransmissionSend(LPJASS j) {
+    /* args: playergroup, source, camerainfo, string anim, soundlink, text speaker,
+     *       text msg, fixed duration, int durationType, bool waitUntilDone */
+    FLOAT dur        = jass_checknumber(j, 8);
+    BOOL  wait_done  = jass_checkboolean(j, 10);
+    if (wait_done && dur > 0.0f)
+        jass_sleep(j, (DWORD)(dur * 1000.0f));
+    return jass_pushnullhandle(j, "sound");
+}
 static DWORD sc2_TransmissionLastSent(LPJASS j)      { return jass_pushinteger(j, 0); }
 static DWORD sc2_TransmissionClear(LPJASS j)         { (void)j; return jass_pushnull(j); }
 static DWORD sc2_TransmissionClearAll(LPJASS j)      { (void)j; return jass_pushnull(j); }
@@ -1087,12 +1128,14 @@ static JASSMODULE sc2_galaxy_natives[] = {
     { "PlayerGroupAlliance",                 sc2_PlayerGroupAlliance },
     { "PlayerGroupClear",                    sc2_PlayerGroupClear },
     { "PlayerGroupCopy",                     sc2_PlayerGroupCopy },
+    { "PlayerGroupCount",                    sc2_PlayerGroupCount },
     { "PlayerGroupEmpty",                    sc2_PlayerGroupEmpty },
     { "PlayerGroupHasPlayer",                sc2_PlayerGroupHasPlayer },
     { "PlayerGroupLoopBegin",                sc2_PlayerGroupLoopBegin },
     { "PlayerGroupLoopDone",                 sc2_PlayerGroupLoopDone },
     { "PlayerGroupLoopEnd",                  sc2_PlayerGroupLoopEnd },
     { "PlayerGroupLoopStep",                 sc2_PlayerGroupLoopStep },
+    { "PlayerGroupPlayer",                   sc2_PlayerGroupPlayer },
     { "PlayerGroupRemove",                   sc2_PlayerGroupRemove },
     { "PlayerGroupSingle",                   sc2_PlayerGroupSingle },
     { "PlayerModifyPropertyInt",             sc2_PlayerModifyPropertyInt },
@@ -1171,7 +1214,10 @@ static JASSMODULE sc2_galaxy_natives[] = {
     { "TransmissionClear",                   sc2_TransmissionClear },
     { "TransmissionClearAll",                sc2_TransmissionClearAll },
     { "TransmissionLastSent",                sc2_TransmissionLastSent },
+    { "TransmissionSend",                    sc2_TransmissionSend },
+    { "TransmissionSource",                  sc2_TransmissionSource },
     { "TransmissionSourceFromModel",         sc2_TransmissionSourceFromModel },
+    { "TransmissionSourceFromUnit",          sc2_TransmissionSourceFromUnit },
     { "TransmissionWait",                    sc2_TransmissionWait },
     { "TriggerAddEventMapInit",              sc2_TriggerAddEventMapInit },
     { "TriggerAddEventPlayerAIWave",         sc2_TriggerAddEventPlayerAIWave },
