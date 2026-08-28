@@ -73,10 +73,10 @@ TRaynor01 run confirmed start/mid/end eye clearances of 17.27, 22.87, and 28.19 
 Visual fidelity remains blocked by catalog and native coverage:
 
 - `SpecialOpsDropship` and `Raynor01` do not resolve to M3 model paths;
-- the intro creates one `SpecialOpsDropship` at point `379`, creates Raynor plus five Marines as cargo, orders the dropship to
-	point `1037`, queues `SpecOpsDropshipTransport` there, and then queues movement to point `1038`;
-- `OrderTargetingPoint`, `UnitIssueOrder`, `UnitCargoCreate`, `UnitCargoLastCreated`, and `UnitCargoGroup` are stubs, while
-	`UnitGroupCount` always returns zero. Consequently the dropship never moves or unloads and the cargo-empty wait exits immediately;
+- the intro creates one `SpecialOpsDropship` at point `379`, creates Raynor plus five Marines as cargo (`UnitCargoCreate`),
+	moves the dropship to point `1037` (`UnitIssueOrder` / `move`), unloads all cargo there via
+	`SpecOpsDropshipTransport` (logged with per-unit drop-off coordinates), then moves to point `1038`; the cargo-empty
+	wait (`UnitCargoGroup` / `UnitGroupCount`) resolves correctly after the unload clears the transport's cargo list;
 - `CinematicMode` only updates game-local state; it does not hide the gameplay layout or select `CLIENT_UI_CINEMATIC`;
 - `CinematicFade` applies its final alpha immediately and ignores both interpolation and `waitUntilDone`, so the script reaches its
 	one-second wait two seconds earlier than native SC2;
