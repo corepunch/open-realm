@@ -27,6 +27,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WoW quest system, server-authored dialog, AzerothCore SQL extraction, quest commands | [docs/games/world-of-warcraft/quest-ui.md](docs/games/world-of-warcraft/quest-ui.md) |
 | WoW weapons, classes, combat roles, specializations | [docs/games/world-of-warcraft/weapons-and-classes.md](docs/games/world-of-warcraft/weapons-and-classes.md) |
 | WoW gameplay features: implemented vs missing (WoWee gap analysis), loot system details | [docs/games/world-of-warcraft/gameplay-features.md](docs/games/world-of-warcraft/gameplay-features.md) |
+| WoW perf & rendering architecture: isolation ladder, WMO doodad batching, server vs client loopback, RG40xx diagnostic, 2004-2008 classic rendering overview | [docs/games/world-of-warcraft/WOWPERF.md](docs/games/world-of-warcraft/WOWPERF.md) |
 | Entity sound architecture | [docs/architecture/sound.md](docs/architecture/sound.md) |
 | WC3 data model (SLK, unit stats, combat) | [docs/wc3-data-model.md](docs/wc3-data-model.md) |
 | WC3 JASS native coverage, callback contracts, state ownership | [docs/games/warcraft-3/jass-native-coverage.md](docs/games/warcraft-3/jass-native-coverage.md) |
