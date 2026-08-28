@@ -7,6 +7,17 @@
 void item_stat_apply(LPEDICT unit, DWORD item_code);
 void item_stat_remove(LPEDICT unit, DWORD item_code);
 
+/* Keep the native itemtype mapping in one table shared by GetItemType and the
+ * random-item selectors. */
+DWORD G_ItemTypeFromClass(LPCSTR cls) {
+    static struct { LPCSTR name; DWORD type; } const types[] = {
+        { "Permanent", 0 }, { "Charged", 1 }, { "PowerUp", 2 }, { "Artifact", 3 },
+        { "Purchasable", 4 }, { "Campaign", 5 }, { "Miscellaneous", 6 },
+    };
+    if (cls) FOR_LOOP(i, sizeof(types) / sizeof(*types)) if (!strcasecmp(cls, types[i].name)) return types[i].type;
+    return 7; /* ITEM_TYPE_UNKNOWN */
+}
+
 static FLOAT G_MiscVectorValue(LPCSTR name, DWORD index) {
     LPCSTR value = FS_FindSheetCell(game.config.misc, "Misc", name);
     if (!value) {
@@ -45,6 +56,17 @@ static void G_ShowInventoryFull(LPEDICT unit) {
     player = G_GetPlayerEntityByNumber(unit->s.player);
     if (player && player->client) {
         UI_ShowText(player, &MAKE(VECTOR2, 0, 0), "Inventory is full.", 2.0f);
+    }
+}
+
+/* ItemData stores passive effects as an ability list; the item rawcode itself
+ * is not an ability code. */
+static void G_ApplyItemStats(LPEDICT unit, LPCEDICT item, BOOL apply) {
+    LPCSTR abilities = FindConfigValue(GetClassName(item->class_id), "abilList");
+    if (!abilities || !*abilities) return;
+    PARSE_LIST(abilities, ability, parse_segment) {
+        DWORD code = *((DWORD const *)ability);
+        apply ? item_stat_apply(unit, code) : item_stat_remove(unit, code);
     }
 }
 
@@ -121,7 +143,7 @@ BOOL G_AddItemToSlot(LPEDICT unit, LPEDICT item, DWORD slot) {
     item->item.carrier = unit;
     item->item.inventory_slot = (LONG)slot;
     unit->inventory[slot] = item;
-    item_stat_apply(unit, item->class_id);
+    G_ApplyItemStats(unit, item, true);
     G_RefreshInventoryUI(unit);
     return true;
 }
@@ -206,7 +228,7 @@ BOOL G_DropItemAt(LPEDICT unit, DWORD slot, LPCVECTOR2 position) {
         return false;
     }
 
-    item_stat_remove(unit, item->class_id);
+    G_ApplyItemStats(unit, item, false);
     unit->inventory[slot] = NULL;
     item->item.carrier = NULL;
     item->item.inventory_slot = -1;
@@ -249,7 +271,7 @@ void G_RemoveItem(LPEDICT item) {
             }
         }
         if (slot >= 0) {
-            item_stat_remove(carrier, item->class_id);
+            G_ApplyItemStats(carrier, item, false);
             carrier->inventory[slot] = NULL;
         }
         G_RefreshInventoryUI(carrier);

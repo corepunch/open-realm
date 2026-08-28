@@ -381,10 +381,6 @@ GAMEEVENT *G_PublishEventWithSource(LPEDICT edict, EVENTTYPE type, LPEDICT sourc
     evt->type = type;
     evt->edict = edict;
     evt->source = source;
-    if (type == EVENT_UNIT_DEATH && edict && G_IsDestructable(edict) && G_DebugDestructables())
-        fprintf(stderr, "WC3 dest script: death queued queue=%u ent=%u type=%.4s read=%u write=%u\n",
-                (unsigned)index, (unsigned)edict->s.number, (LPCSTR)&edict->class_id,
-                (unsigned)level.events.read, (unsigned)level.events.write);
     return evt;
 }
 

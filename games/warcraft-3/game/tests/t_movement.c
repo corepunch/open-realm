@@ -59,6 +59,18 @@ static LPEDICT make_moving_unit(FLOAT x, FLOAT y) {
     return ent;
 }
 
+/* Harvest damage now uses the authoritative destructable lifecycle, so test
+ * trees must carry the initialization normally supplied by SP_SpawnDestructable. */
+static LPEDICT make_harvest_tree(FLOAT x, FLOAT y, FLOAT life) {
+    LPEDICT tree = alloc_test_unit(MAKEFOURCC('L','T','l','t'), x, y);
+    SP_monster_tree(tree);
+    tree->destructable.initialized = true;
+    tree->destructable.item_table = (DWORD)-1;
+    tree->targtype = TARG_TREE;
+    tree->health.value = tree->health.max_value = life;
+    return tree;
+}
+
 extern FLOAT MINING_CAPACITY;
 extern FLOAT MINING_DURATION;
 extern FLOAT HARVEST_GOLD_CAPACITY;
@@ -114,12 +126,8 @@ TEST(wc3_movement, gold_worker_enters_large_mine_footprint) {
  * which owns its fall animation and pathing removal. */
 TEST(wc3_movement, lumber_final_chop_fells_tree) {
     LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    LPEDICT tree = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 20.0f, 0.0f);
+    LPEDICT tree = make_harvest_tree(20.0f, 0.0f, 10.0f);
     worker->attack1.damagePoint = 0.01f;
-    tree->targtype = TARG_TREE;
-    tree->health.value = 10.0f;
-    tree->health.max_value = 10.0f;
-    SP_monster_tree(tree);
     MSGTRACE trace = {0};
     T_ASSERT(G_SubscribeMessage(trace_message, &trace));
     HARVEST_RANGE = 64.0f;
@@ -149,10 +157,7 @@ TEST(wc3_movement, lumber_final_chop_fells_tree) {
 /* Non-lethal chops damage but do not fell a living tree. */
 TEST(wc3_movement, lumber_nonlethal_chop_keeps_tree_standing) {
     LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    LPEDICT tree = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 20.0f, 0.0f);
-    tree->targtype = TARG_TREE;
-    tree->health.value = 11.0f;
-    tree->health.max_value = 11.0f;
+    LPEDICT tree = make_harvest_tree(20.0f, 0.0f, 11.0f);
     tree->pain = test_tree_pain;
     tree->die = test_tree_die;
     tree_died = false;
@@ -174,10 +179,8 @@ TEST(wc3_movement, lumber_nonlethal_chop_keeps_tree_standing) {
  * needed per trip. Drives the full cooldown+swing cycle. */
 TEST(wc3_movement, lumber_worker_takes_ten_swings_per_trip) {
     LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    LPEDICT tree = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 20.0f, 0.0f);
+    LPEDICT tree = make_harvest_tree(20.0f, 0.0f, 500.0f);
     worker->attack1.damagePoint = 0.01f;
-    tree->targtype = TARG_TREE;
-    tree->health.value = 500.0f; tree->health.max_value = 500.0f;
     tree->pain = test_tree_pain; tree->die = test_tree_die;
     tree_pained = 0; tree_died = false;
     HARVEST_RANGE = 64.0f; HARVEST_TREE_DAMAGE = 1.0f;
@@ -210,14 +213,9 @@ TEST(wc3_movement, lumber_lethal_trip_fells_then_selects_next_tree) {
     LPEDICT worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
     worker->movetype = MOVETYPE_STEP; worker->stand = unit_stand; worker->die = unit_die;
     worker->collision = 0.0f; worker->attack1.damagePoint = 0.01f;
-    LPEDICT tree1 = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 20.0f, 0.0f);
-    tree1->targtype = TARG_TREE;
-    tree1->health.value = 10.0f; tree1->health.max_value = 10.0f;
+    LPEDICT tree1 = make_harvest_tree(20.0f, 0.0f, 10.0f);
     tree1->s.model = G_RegisterModel("Doodads\\Terrain\\LordaeronTree\\LordaeronTree0.mdx");
-    SP_monster_tree(tree1);
-    LPEDICT tree2 = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 30.0f, 0.0f);
-    tree2->targtype = TARG_TREE;
-    tree2->health.value = 500.0f; tree2->health.max_value = 500.0f;
+    LPEDICT tree2 = make_harvest_tree(30.0f, 0.0f, 500.0f);
     LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 0.0f, 0.0f);
     hall->s.player = worker->s.player;
     HARVEST_RANGE = 64.0f; HARVEST_TREE_DAMAGE = 1.0f;
@@ -266,11 +264,9 @@ TEST(wc3_movement, lumber_lethal_trip_fells_then_selects_next_tree) {
  * resume transition naming the felled tree. */
 TEST(wc3_movement, lumber_deposit_without_live_tree_stops) {
     LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    LPEDICT tree = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 20.0f, 0.0f);
+    LPEDICT tree = make_harvest_tree(20.0f, 0.0f, 1.0f);
     LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 0.0f, 0.0f);
     worker->attack1.damagePoint = 0.01f;
-    tree->targtype = TARG_TREE; tree->health.value = 1.0f; tree->health.max_value = 1.0f;
-    SP_monster_tree(tree);
     hall->s.player = worker->s.player;
     HARVEST_RANGE = 64.0f; HARVEST_TREE_DAMAGE = 1.0f; HARVEST_LUMBER_CAPACITY = 1.0f;
     MSGTRACE trace = {0};

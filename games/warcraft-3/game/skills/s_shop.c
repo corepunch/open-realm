@@ -3,18 +3,18 @@
 /* Shop system — minimal marker abilities that can be extended when the
  * inventory and shop UI are wired up. */
 
-/* Neutral Building (Aneu): auto-selects nearest hero per player within radius.
- * The selection scan is not implemented yet. */
+/* TODO: Neutral Building (Aneu) must scan the data-defined acquisition radius;
+ * the shop selection lifecycle is not implemented yet. */
 static void SP_ability_neutral_building(LPCSTR classname, ability_t *self) {
-    /* activation_radius read from SLK "AcqRange" when implemented. */
+    (void)classname; (void)self;
 }
 
 ability_t a_neutral_building = {
     .init = SP_ability_neutral_building,
 };
 
-/* Shop Purchase Item (Apit): marker ability on shops. The future purchase path
- * will read the sold-item list, charge the player, and create the item. */
+/* TODO: Shop Purchase Item (Apit) must read the sold-item list, charge the
+ * player, and create the item through the authoritative lifecycle. */
 static void shop_stub_command(LPEDICT clent) {
     UI_AddCancelButton(clent);
 }

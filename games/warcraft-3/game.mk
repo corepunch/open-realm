@@ -111,13 +111,10 @@ $(eval $(call app_schema,$(WC3_TEST_BINARY),$(SHARED_LIB) $(JASS_LIB) $(SHEET_LI
 
 openwarcraft3-tests: $(WC3_TEST_BINARY)
 
-WC3_ENGINE_TEST_DIR    := $(TESTS_DIR)/wc3-engine-data
-WC3_ENGINE_TEST_MPQ    := $(WC3_ENGINE_TEST_DIR)/test-wc3.mpq
-WC3_ENGINE_FIXTURE_DIR := tests/wc3-engine-data
-
 WC3_PATTERN ?= *
-test-wc3-engine: $(WC3_TEST_BINARY) | test-wc3-engine-assets
-	$(WC3_TEST_BINARY) -data $(WC3_ENGINE_TEST_DIR) -tft +dedicated 1 +test '$(WC3_PATTERN)'
+test-wc3-engine: $(WC3_TEST_BINARY) test-assets
+	$(WC3_TEST_BINARY) -data $(TESTS_DIR) +dedicated 1 +test '$(WC3_PATTERN)'
+	$(WC3_TEST_BINARY) -data $(TESTS_DIR) -tft +dedicated 1 +test '$(WC3_PATTERN)'
 
 .PHONY: test-jass-build
 test-jass-build: $(JASS_LIB)
@@ -180,7 +177,7 @@ test-mpq-compat: mpqtool $(MPQ_TEST)
 # Generated files (never committed):
 #   build/tests/resources/TestUI/Textures/*.blp  — via blpgen
 #   build/tests/resources/TestUI/Models/*.mdx    — via mdxgen
-# Source-controlled FDF fixtures ($(WC3_TEST_DIR)/resources-src/**/*.fdf) are packed directly.
+# Source-controlled fixtures ($(WC3_TEST_DIR)/resources-src/**/*) are packed directly.
 # The archive is recreated from scratch on every run (deterministic).
 # ---------------------------------------------------------------------------
 TESTS_DIR     := build/tests
@@ -224,6 +221,11 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat Maps/Campaign/Human02.w3m | grep -q "Human02" && echo "  cat map OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat TestUI/Frames/basic_layout.fdf | grep -q "TestRootFrame" && echo "  cat FDF OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat TestUI/Textures/solid_white.blp | head -c4 | grep -q "BLP2" && echo "  cat BLP OK"
+	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat Units/ItemData.slk | \
+		grep -q "Test Attack Item" && echo "  cat item SLK OK"
+	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat Units/UnitBalance.slk | grep -q "hpea" && echo "  cat unit SLK OK"
+	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat Scripts/common.j | \
+		grep -q "playergameresult" && echo "  cat common.j OK"
 	@echo "[test-assets] done — $(TESTS_MPQ)"
 
 $(TESTS_DIR):
@@ -236,19 +238,6 @@ download: $(ZIP_FILE)
 $(ZIP_FILE):
 	curl -L -o $(ZIP_FILE) $(ZIP_URL)
 
-# ---------------------------------------------------------------------------
-# test-wc3-engine-assets — pack minimal SLK fixture for in-engine WC3 tests
-# ---------------------------------------------------------------------------
-test-wc3-engine-assets: mpqtool | $(TESTS_DIR)
-	@echo "[test-wc3-engine-assets] packing test-wc3.mpq"
-	@mkdir -p $(WC3_ENGINE_TEST_DIR)
-	@set --; \
-	for f in $$(find $(WC3_ENGINE_FIXTURE_DIR) -type f | sort); do \
-		rel=$${f#$(WC3_ENGINE_FIXTURE_DIR)/}; set -- "$$@" "$$f" "$$rel"; \
-	done; \
-	$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WC3_ENGINE_TEST_MPQ) pack "$$@"
-	@echo "[test-wc3-engine-assets] verifying archive"
-	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WC3_ENGINE_TEST_MPQ) cat Units/UnitBalance.slk | grep -q "hpea" && echo "  cat SLK OK"
-	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(WC3_ENGINE_TEST_MPQ) cat Scripts/common.j | grep -q "playergameresult" && echo "  cat common.j OK"
-
-WC3_PHONY := wc3-build jass-tool jass sheet renderer game ui openwarcraft3 run run-demo run-map run-ui-text test test-commands test-server-net test-renderer-model test-renderer-shadows test-galaxy test-ui test-mpq-compat test-assets test-render-golden update-render-golden openwarcraft3-tests test-wc3-engine test-wc3-engine-assets download
+WC3_PHONY := wc3-build jass-tool jass sheet renderer game ui openwarcraft3 run run-demo run-map run-ui-text test \
+	test-commands test-server-net test-renderer-model test-renderer-shadows test-galaxy test-ui test-mpq-compat test-assets test-render-golden \
+	update-render-golden openwarcraft3-tests test-wc3-engine download

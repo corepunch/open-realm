@@ -157,7 +157,7 @@ static BOOL G_CheatsEnabled(void) {
 static LPEDICT G_GiveItem(LPEDICT unit, DWORD item_code) {
     LPEDICT item = SP_SpawnAtLocation(item_code, unit->s.player, &unit->s.origin2);
     if (!item || !G_PickupItem(unit, item)) {
-        if (item) G_FreeEdict(item);
+        if (item) G_RemoveItem(item);
         return NULL;
     }
     return item;

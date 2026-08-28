@@ -417,12 +417,6 @@ static BOOL bind_map_destructables = false;
 
 void G_SetDestructableScriptBinding(BOOL enabled) {
     bind_map_destructables = enabled;
-
-    if (G_DebugDestructables()) {
-        fprintf(stderr,
-                "WC3 dest script: map destructable binding %s\n",
-                enabled ? "begin" : "end");
-    }
 }
 
 /* Runtime (JASS CreateDestructable) spawn of a destructable.  Mirrors the
@@ -444,10 +438,9 @@ void G_SetDestructableScriptBinding(BOOL enabled) {
  * unit_createorfind does for CreateUnit) yields the same observable result as
  * the original — one crate/gate carrying the trigger — instead of a stacked
  * duplicate.  Match a same-type destructable within 10 units of the spot. */
+/* HACK: Positional binding is required until the map parser exposes the
+ * generated script variable's editor creation ID. */
 LPEDICT G_CreateDestructable(DWORD class_id, FLOAT x, FLOAT y, FLOAT z, FLOAT facing, FLOAT scale, DWORD variation) {
-    if (G_DebugDestructables())
-        fprintf(stderr, "WC3 dest script: create request type=%.4s pos=(%.1f %.1f %.1f) face=%.3f scale=%.2f var=%u\n",
-                (LPCSTR)&class_id, x, y, z, facing, scale, (unsigned)variation);
     if (bind_map_destructables) {
         LPEDICT best = NULL;
         FLOAT best_distance = 10.0f;
@@ -487,45 +480,12 @@ LPEDICT G_CreateDestructable(DWORD class_id, FLOAT x, FLOAT y, FLOAT z, FLOAT fa
                                            scale,
                                            variation);
 
-            if (G_DebugDestructables()) {
-
-                fprintf(stderr,
-                        "WC3 dest script: create matched+activated ent=%u type=%.4s distance=%.2f "
-                        "editor=%u var=%u requested_var=%u pos=(%.1f %.1f) "
-                        "hidden=%u solid=%u life=%.1f\n",
-                        (unsigned)best->s.number,
-                        (LPCSTR)&best->class_id,
-                        best_distance,
-                        (unsigned)best->destructable.editor_id,
-                        (unsigned)best->variation,
-                        (unsigned)variation,
-                        best->s.origin2.x,
-                        best->s.origin2.y,
-                        (unsigned)((best->s.renderfx & RF_HIDDEN) != 0),
-                        (unsigned)best->destructable.placement_solid,
-                        best->health.value);
-            }
-
             CM_BakeStaticObstacles();
-
             return best;
-        }
-
-        if (G_DebugDestructables()) {
-            fprintf(stderr,
-                    "WC3 dest script: create no preplaced match type=%.4s pos=(%.1f %.1f) var=%u\n",
-                    (LPCSTR)&class_id,
-                    x,
-                    y,
-                    (unsigned)variation);
         }
     }
     LPEDICT ent = G_Spawn();
-    if (!ent) {
-        if (G_DebugDestructables())
-            fprintf(stderr, "WC3 dest script: create failed type=%.4s reason=no-edict\n", (LPCSTR)&class_id);
-        return NULL;
-    }
+    if (!ent) return NULL;
     ent->class_id = class_id;
     ent->variation = variation;
     ent->s.player = PLAYER_NEUTRAL_PASSIVE;
@@ -535,14 +495,7 @@ LPEDICT G_CreateDestructable(DWORD class_id, FLOAT x, FLOAT y, FLOAT z, FLOAT fa
     ent->spawn_time = gi.GetTime();
     SP_CallSpawn(ent);
     gi.LinkEntity(ent);
-    if (G_IsDestructable(ent)) {
-        CM_BakeStaticObstacles();
-    }
-    if (G_DebugDestructables())
-        fprintf(stderr, "WC3 dest script: create spawned ent=%u type=%.4s is_dest=%u inuse=%u flags=0x%x "
-                        "renderfx=0x%x\n", (unsigned)ent->s.number, (LPCSTR)&ent->class_id,
-                (unsigned)G_IsDestructable(ent), (unsigned)ent->inuse,
-                (unsigned)ent->s.flags, (unsigned)ent->s.renderfx);
+    if (G_IsDestructable(ent)) CM_BakeStaticObstacles();
     return ent;
 }
 

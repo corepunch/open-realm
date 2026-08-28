@@ -1067,29 +1067,6 @@ static BOOL JassItemFieldBoolean(LPCSTR value) {
         (atoi(value) != 0 || !strcasecmp(value, "TRUE"));
 }
 
-static DWORD JassItemTypeFromClass(LPCSTR cls) {
-    if (!cls) {
-        return 7; /* ITEM_TYPE_UNKNOWN */
-    }
-
-    if (!strcasecmp(cls, "Permanent"))
-        return 0;
-    if (!strcasecmp(cls, "Charged"))
-        return 1;
-    if (!strcasecmp(cls, "PowerUp"))
-        return 2;
-    if (!strcasecmp(cls, "Artifact"))
-        return 3;
-    if (!strcasecmp(cls, "Purchasable"))
-        return 4;
-    if (!strcasecmp(cls, "Campaign"))
-        return 5;
-    if (!strcasecmp(cls, "Miscellaneous"))
-        return 6;
-
-    return 7; /* ITEM_TYPE_UNKNOWN */
-}
-
 static DWORD JassItemRawcode(sheetRow_t const *row) {
     LPCSTR name;
 
@@ -1103,8 +1080,7 @@ static DWORD JassItemRawcode(sheetRow_t const *row) {
 
 static BOOL JassRandomItemEligible(sheetRow_t const *row,
                                    LONG requested_level,
-                                   DWORD requested_type,
-                                   BOOL filter_type) {
+                                   DWORD requested_type) {
     LPCSTR level;
     LPCSTR pick_random;
     LPCSTR item_class;
@@ -1123,7 +1099,7 @@ static BOOL JassRandomItemEligible(sheetRow_t const *row,
         return false;
     }
 
-    if (!filter_type || requested_type == 8) {
+    if (requested_type == 8) {
         /* ITEM_TYPE_ANY */
         return true;
     }
@@ -1138,23 +1114,17 @@ static BOOL JassRandomItemEligible(sheetRow_t const *row,
         item_class = JassItemRowField(row, "class");
     }
 
-    return JassItemTypeFromClass(item_class) == requested_type;
+    return G_ItemTypeFromClass(item_class) == requested_type;
 }
 
 static DWORD JassChooseRandomItem(LONG requested_level,
-                                  DWORD requested_type,
-                                  BOOL filter_type) {
+                                  DWORD requested_type) {
     sheetRow_t *items = ItemsMetaData[0].table;
     DWORD count = 0;
     DWORD selected_index;
 
     if (!items) {
-        if (G_DebugDestructables()) {
-            fprintf(stderr,
-                    "WC3 dest script: ChooseRandomItem level=%d type=%u result=no-item-data\n",
-                    (int)requested_level,
-                    (unsigned)requested_type);
-        }
+        fprintf(stderr, "JassChooseRandomItem: Units\\ItemData.slk is not loaded\n");
         return 0;
     }
 
@@ -1165,21 +1135,12 @@ static DWORD JassChooseRandomItem(LONG requested_level,
     FOR_EACH_LIST(sheetRow_t const, row, items) {
         if (JassRandomItemEligible(row,
                                    requested_level,
-                                   requested_type,
-                                   filter_type)) {
+                                   requested_type)) {
             count++;
         }
     }
 
-    if (!count) {
-        if (G_DebugDestructables()) {
-            fprintf(stderr,
-                    "WC3 dest script: ChooseRandomItem level=%d type=%u eligible=0 result=none\n",
-                    (int)requested_level,
-                    (unsigned)requested_type);
-        }
-        return 0;
-    }
+    if (!count) return 0;
 
     selected_index = (DWORD)(rand() % count);
 
@@ -1191,8 +1152,7 @@ static DWORD JassChooseRandomItem(LONG requested_level,
 
         if (!JassRandomItemEligible(row,
                                     requested_level,
-                                    requested_type,
-                                    filter_type)) {
+                                    requested_type)) {
             continue;
         }
 
@@ -1202,25 +1162,16 @@ static DWORD JassChooseRandomItem(LONG requested_level,
 
         rawcode = JassItemRawcode(row);
 
-        if (G_DebugDestructables()) {
-            fprintf(stderr,
-                    "WC3 dest script: ChooseRandomItem level=%d type=%u eligible=%u selected=%.4s hex=0x%08x\n",
-                    (int)requested_level,
-                    (unsigned)requested_type,
-                    (unsigned)count,
-                    (LPCSTR)&rawcode,
-                    (unsigned)rawcode);
-        }
-
         return rawcode;
     }
 
+    fprintf(stderr, "JassChooseRandomItem: candidate count changed during selection\n");
     return 0;
 }
 
 DWORD ChooseRandomItem(LPJASS j) {
     LONG level = jass_checkinteger(j, 1);
-    DWORD item_id = JassChooseRandomItem(level, 8, false);
+    DWORD item_id = JassChooseRandomItem(level, 8);
 
     return jass_pushinteger(j, (LONG)item_id);
 }
@@ -1229,7 +1180,7 @@ DWORD ChooseRandomItemEx(LPJASS j) {
     DWORD *whichType = jass_checkhandle(j, 1, "itemtype");
     LONG level = jass_checkinteger(j, 2);
     DWORD type = whichType ? *whichType : 8;
-    DWORD item_id = JassChooseRandomItem(level, type, true);
+    DWORD item_id = JassChooseRandomItem(level, type);
 
     return jass_pushinteger(j, (LONG)item_id);
 }

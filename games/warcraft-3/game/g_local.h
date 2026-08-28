@@ -1140,9 +1140,9 @@ BOOL G_DropItemAt(LPEDICT unit, DWORD slot, LPCVECTOR2 position);
 BOOL G_DropItem(LPEDICT unit, DWORD slot);
 void G_RemoveItem(LPEDICT item);
 void G_UseItem(LPEDICT unit, DWORD slot);
+DWORD G_ItemTypeFromClass(LPCSTR cls);
 
 // g_destructable.c
-BOOL G_DebugDestructables(void);
 void G_SetDestructableScriptBinding(BOOL enabled);
 void G_ActivateScriptedDestructable(LPEDICT ent,
                                     FLOAT x,

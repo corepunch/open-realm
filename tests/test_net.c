@@ -828,6 +828,24 @@ TEST(net, entity_delta_preserves_large_wc3_radii) {
     }
 }
 
+/* Dead destructable remains use the last available entity-state flag bit, so
+ * guard its snapshot round trip explicitly. */
+TEST(net, entity_delta_preserves_not_selectable_flag) {
+    BYTE buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    entityState_t from = { 0 }, to = { .number = 9, .model = 1, .flags = EF_NOT_SELECTABLE }, out = { 0 };
+    DWORD bits = 0;
+    int number;
+
+    MSG_WriteDeltaEntity(&sb, &from, &to, true);
+    sb.readcount = 0;
+    number = MSG_ReadEntityBits(&sb, &bits);
+    MSG_ReadDeltaEntity(&sb, &out, number, bits);
+
+    T_EQ(number, 9);
+    T_ASSERT(out.flags & EF_NOT_SELECTABLE);
+}
+
 /* Regression: UI_SetPoint Y sign convention.
  * UI_CopyFrameBase encodes Y without negation; cl_layout.c negates on decode
  * (SCR_NormalizeAnchorOffset flips the sign for the Y axis).  A TOPLEFT anchor

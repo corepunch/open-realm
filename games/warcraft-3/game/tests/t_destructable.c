@@ -93,6 +93,30 @@ TEST(wc3_destructable, hidden_nonsolid_placement_is_not_targetable) {
     T_ASSERT(!G_DestructableIsAttackable(dest));
 }
 
+TEST(wc3_destructable, generated_script_reuses_and_activates_hidden_placement) {
+    DOODAD placement = { .flags = 0, .treeLife = 100, .unitID = 77 };
+    LPEDICT dest, created;
+    DWORD count;
+
+    setup_test_world();
+    dest = make_test_destructable(100.0f, 64.0f, 96.0f);
+    G_InitializeDestructablePlacement(dest, &placement);
+    count = globals.num_edicts;
+    G_SetDestructableScriptBinding(true);
+    created = G_CreateDestructable(dest->class_id, 64.0f, 96.0f, 0.0f, 0.5f, 1.25f, 2);
+    G_SetDestructableScriptBinding(false);
+
+    T_ASSERT(created == dest);
+    T_EQ(globals.num_edicts, count);
+    T_ASSERT(dest->destructable.script_bound);
+    T_ASSERT(dest->destructable.placement_solid);
+    T_ASSERT(!(dest->s.renderfx & (RF_HIDDEN | RF_NO_SHADOW)));
+    T_ASSERT(!(dest->s.flags & EF_NOT_SELECTABLE));
+    T_FEQ(dest->health.value, dest->health.max_value, 0.01f);
+    T_FEQ(dest->s.origin2.x, 64.0f, 0.01f);
+    T_FEQ(dest->s.origin2.y, 96.0f, 0.01f);
+}
+
 TEST(wc3_destructable, lethal_damage_does_not_require_die_callback) {
     LPEDICT dest = make_test_destructable(25.0f, 0.0f, 0.0f);
     LPEDICT attacker = make_destructable_test_attacker(10.0f, 0.0f);
@@ -104,6 +128,7 @@ TEST(wc3_destructable, lethal_damage_does_not_require_die_callback) {
     T_FEQ(dest->health.value, 0.0f, 0.01f);
     T_ASSERT(dest->svflags & SVF_DEADMONSTER);
     T_ASSERT(dest->s.flags & EF_NOT_SELECTABLE);
+    T_ASSERT(dest->s.renderfx & RF_NO_SHADOW);
     T_ASSERT(!(dest->s.renderfx & RF_HIDDEN));
     T_ASSERT(!G_DestructableIsAttackable(dest));
     T_NOT_NULL(dest->currentmove);
@@ -455,6 +480,7 @@ TEST(wc3_destructable, restore_reenables_targeting_pathing_and_second_death) {
     T_ASSERT(!dest->destructable.loot_processed);
     T_ASSERT(!(dest->svflags & SVF_DEADMONSTER));
     T_ASSERT(!(dest->s.flags & EF_NOT_SELECTABLE));
+    T_ASSERT(!(dest->s.renderfx & RF_NO_SHADOW));
     T_ASSERT(dest->destructable.pathing_active);
     T_ASSERT(G_DestructableIsAttackable(dest));
     T_FEQ(dest->health.value, 100.0f, 0.01f);

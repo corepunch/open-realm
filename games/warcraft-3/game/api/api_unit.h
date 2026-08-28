@@ -388,7 +388,7 @@ DWORD UnitAddItemById(LPJASS j) {
     if (item && G_PickupItem(whichUnit, item)) {
         return jass_pushlighthandle(j, item, "item");
     } else {
-        if (item) G_FreeEdict(item);
+        if (item) G_RemoveItem(item);
         return jass_pushnullhandle(j, "item");
     }
 }
@@ -403,7 +403,7 @@ DWORD UnitAddItemToSlotById(LPJASS j) {
     if (item && G_AddItemToSlot(whichUnit, item, (DWORD)itemSlot)) {
         return jass_pushboolean(j, true);
     } else {
-        if (item) G_FreeEdict(item);
+        if (item) G_RemoveItem(item);
         return jass_pushboolean(j, false);
     }
 }

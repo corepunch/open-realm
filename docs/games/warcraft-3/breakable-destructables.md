@@ -126,21 +126,21 @@ Random-table tests additionally cover weighted boundaries, explicit table-number
 lookup, multiple table sets, missing/empty data, encoded-placeholder rejection,
 normal world-item state, and one-time spawning.
 
-## Runtime Diagnostics
+## Confirmed Failure Modes
 
-Use the opt-in destructable diagnostics when death presentation or loot spawning is wrong:
+- Blob shadows persisted because death kept the alive shadow state. The death
+  transition now sets `RF_NO_SHADOW`; restore and scripted activation clear it.
+- Death emitters persisted because the held final death frame continued to be
+  evaluated. The WC3 MDX renderer now stops new emission once a non-selectable
+  death remain has `oldframe == frame`; particles already emitted expire normally.
+- Campaign crate loot was attached to hidden `war3map.doo` placeholders while
+  generated `war3map.j` handles were being created separately. During initial
+  script execution, `CreateDestructable` rebinds the matching preplaced object,
+  activates it, and preserves its parsed inline and table drop metadata.
 
-```bash
-build/bin/openwarcraft3 +set g_debug_destructables 1 +set r_debug_destructables 1 \
-  +map <map-path> +com_frame_limit 1000 2>destructables.log
-```
+Temporary diagnostics used to establish these causes were removed after the
+transitions and regression tests were added.
 
-`g_debug_destructables` records placement drop metadata, damage and death state, every inline/table roll, item-data
-validation, and the final world-item entity returned by `SP_SpawnAtLocation`. It also traces scripted destructable
-creation/rebinding, death-trigger registration, queued-event matching and condition results, action function pointers,
-and `CreateItem` results. `r_debug_destructables` records actual shadow submissions and active MDX particle emitters
-for non-selectable death remains, rate-limited per entity. Search the captured log for `WC3 dest debug:`,
-`WC3 dest script:`, and `WC3 dest render:`.
 Scripted-lifecycle tests cover silent dead creation, kill versus remove,
 zero-life death, positive-life restoration, birth/stand animation selection,
 second death after restoration, and JASS `GetTriggerWidget()` / `GetKillingUnit()`

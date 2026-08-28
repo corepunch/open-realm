@@ -6,8 +6,6 @@
 #include <string.h>
 
 #define MDLX_STACK_DRAW_ORDER 64
-#define DEST_FX_DEBUG_INTERVAL 1000 // milliseconds; rate-limit each dead entity's emitter diagnostics
-
 #define GET_PARTICLE_ANIM_PARAM(MODEL, EMITTER, NAME) \
 float NAME = EMITTER->NAME; \
 if (EMITTER->keytracks.NAME) { \
@@ -689,9 +687,6 @@ static void MDLX_RenderGeosets(const renderEntity_t *entity,
 }
 
 static void MDLX_RenderParticleEmitters(const renderEntity_t *entity, const mdxModel_t *model, LPCMATRIX4 model_matrix) {
-    static DWORD next_log[MAX_GAME_ENTITIES];
-    DWORD active = 0, head = 0, tail = 0;
-
     /*
      * Dead destructable remains are marked RF_NOT_SELECTABLE.  While their
      * death sequence is advancing oldframe != frame, so the destruction
@@ -706,7 +701,6 @@ static void MDLX_RenderParticleEmitters(const renderEntity_t *entity, const mdxM
         entity->oldframe == entity->frame) {
         return;
     }
-    FLOAT total_rate = 0.0f, max_life = 0.0f;
     float const frame = LerpNumber(entity->oldframe, entity->frame, tr.viewDef.lerpfrac);
 
     FOR_EACH_LIST(mdxParticleEmitter_t, emitter, model->emitters) {
@@ -719,26 +713,10 @@ static void MDLX_RenderParticleEmitters(const renderEntity_t *entity, const mdxM
         }
         if (emitter->keytracks.EmissionRate)
             MDLX_GetModelKeytrackValue(model, emitter->keytracks.EmissionRate, frame, &rate);
-        if (rate > 0.0f) {
-            active++;
-            total_rate += rate;
-            max_life = MAX(max_life, emitter->LifeSpan);
-            emitter->emitter_type == MODEL_EMITTER_TAIL ? tail++ : head++;
-        }
         if (emitter->emitter_type == MODEL_EMITTER_TAIL)
             MDLX_RenderTailEmitter(model, emitter, model_matrix, frame, entity->team&TEAM_MASK);
         else
             MDLX_RenderHeadEmitter(model, emitter, model_matrix, frame, entity->team&TEAM_MASK);
-    }
-    if (active && (entity->flags & RF_NOT_SELECTABLE) && entity->number < MAX_GAME_ENTITIES &&
-        atoi(ri.CvarString ? ri.CvarString("r_debug_destructables", "0") : "0") &&
-        tr.viewDef.time >= next_log[entity->number]) {
-        fprintf(stderr, "WC3 dest render: emitters active time=%u ent=%u flags=0x%x frame=%u oldframe=%u "
-                        "emitters=%u head=%u tail=%u rate=%.2f max_life=%.2f\n", (unsigned)tr.viewDef.time,
-                (unsigned)entity->number, (unsigned)entity->flags, (unsigned)entity->frame,
-                (unsigned)entity->oldframe, (unsigned)active, (unsigned)head, (unsigned)tail,
-                total_rate, max_life);
-        next_log[entity->number] = tr.viewDef.time + DEST_FX_DEBUG_INTERVAL;
     }
 }
 

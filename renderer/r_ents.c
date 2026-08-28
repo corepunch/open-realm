@@ -7,8 +7,6 @@
 #include <float.h>
 #include <stdlib.h>
 
-#define DEST_DEBUG_INTERVAL 1000 // milliseconds; rate-limit each dead entity's shadow diagnostics
-
 void R_GetEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
     VECTOR3 origin = entity->origin;
 
@@ -226,7 +224,6 @@ static void R_RenderUberSplat(const renderEntity_t *entity, LPCVECTOR2 origin) {
 
 static void R_RenderShadow(const renderEntity_t *entity, LPCVECTOR2 origin) {
 #ifndef USE_SHADOWMAPS
-    static DWORD next_log[MAX_GAME_ENTITIES];
     LPCTEXTURE shadow = entity->shadow;
     BOX3 bounds;
 
@@ -264,16 +261,6 @@ static void R_RenderShadow(const renderEntity_t *entity, LPCVECTOR2 origin) {
         if (!Frustum_ContainsAABox(&tr.viewDef.frustum, &bounds)) {
             return;
         }
-    }
-    if ((entity->flags & RF_NOT_SELECTABLE) && entity->number < MAX_GAME_ENTITIES &&
-        atoi(ri.CvarString ? ri.CvarString("r_debug_destructables", "0") : "0") &&
-        tr.viewDef.time >= next_log[entity->number]) {
-        fprintf(stderr, "WC3 dest render: shadow submitted time=%u ent=%u flags=0x%x texture=%u "
-                        "rect=(%.1f %.1f %.1f %.1f) bounds=(%.1f %.1f)-(%.1f %.1f)\n",
-                (unsigned)tr.viewDef.time, (unsigned)entity->number, (unsigned)entity->flags,
-                (unsigned)shadow->texid, entity->shadow_rect.x, entity->shadow_rect.y,
-                entity->shadow_rect.w, entity->shadow_rect.h, mins.x, mins.y, maxs.x, maxs.y);
-        next_log[entity->number] = tr.viewDef.time + DEST_DEBUG_INTERVAL;
     }
     R_AddRectSplat(&mins, &maxs, shadow, shadowColor);
 #endif

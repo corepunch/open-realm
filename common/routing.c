@@ -252,19 +252,12 @@ static void stamp_entity_obstacle(edict_t const *ent, pathMapCell_t *target) {
 }
 
 static BOOL entity_blocks_static_pathing(edict_t const *ent) {
-    if (!ent || !ent->inuse || (ent->s.renderfx & RF_HIDDEN)) {
-        return false;
-    }
-#ifdef GAME_WORLD
-    if (ent->destructable.initialized) {
-        return ent->destructable.pathing_active &&
-            (ent->pathtex || ent->collision > 0.0f);
-    }
-#endif
-    if (ent->svflags & SVF_DEADMONSTER) {
-        return false;
-    }
-    return ent->pathtex || (!(ent->svflags & SVF_MONSTER) && ent->collision > 0.0f);
+    if (!ent || !ent->inuse || (ent->s.renderfx & RF_HIDDEN)) return false;
+    /* A dead object's replacement path texture remains authoritative; dead
+     * entities without one no longer contribute their alive collision. */
+    if (ent->pathtex) return true;
+    if (ent->svflags & SVF_DEADMONSTER) return false;
+    return !(ent->svflags & SVF_MONSTER) && ent->collision > 0.0f;
 }
 
 /* Rebuild current static obstacles from the immutable terrain baseline.  This

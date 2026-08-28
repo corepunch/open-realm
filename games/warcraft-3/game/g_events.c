@@ -4,17 +4,7 @@ BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit, LPEDICT source)
 
 static void G_ExecuteEvent(GAMEEVENT *evt) {
     LPEDICT subject = evt->edict;
-    BOOL debug_death = evt->type == EVENT_UNIT_DEATH && subject && G_IsDestructable(subject) &&
-        G_DebugDestructables();
-    DWORD same_type = 0, matched = 0, fired = 0;
-
-    if (debug_death)
-        fprintf(stderr, "WC3 dest script: death dispatch begin ent=%u type=%.4s event=%p handlers=%p\n",
-                (unsigned)subject->s.number, (LPCSTR)&subject->class_id, (void *)evt,
-                (void *)level.events.handlers);
     FOR_EACH_LIST(EVENT, e, level.events.handlers) {
-        if (debug_death && e->type == evt->type)
-            same_type++;
         switch (e->type) {
             case EVENT_GAME_VICTORY:
                 break;
@@ -63,33 +53,11 @@ static void G_ExecuteEvent(GAMEEVENT *evt) {
                 if (e->type == evt->type && subject &&
                     (e->subject == subject ||
                      e->subject == G_GetPlayerEntityByNumber(subject->s.player))) {
-                    BOOL result;
-                    DWORD actions = 0, conditions = 0;
-
-                    matched++;
-                    FOR_EACH_LIST(TRIGGERACTION, action, e->trigger->actions) {
-                        actions++;
-                        if (debug_death)
-                            fprintf(stderr, "WC3 dest script: death action trigger=%p index=%u func=%p\n",
-                                    (void *)e->trigger, (unsigned)(actions - 1), (void *)action->func);
-                    }
-                    FOR_EACH_LIST(TRIGGERCONDITION, condition, e->trigger->conditions)
-                        conditions++;
-                    result = jass_calltrigger(level.vm, e->trigger, subject, evt->source);
-                    fired += result;
-                    if (debug_death)
-                        fprintf(stderr, "WC3 dest script: death handler event=%p trigger=%p subject=%u "
-                                        "disabled=%u conditions=%u actions=%u passed=%u\n", (void *)e,
-                                (void *)e->trigger, (unsigned)subject->s.number,
-                                (unsigned)e->trigger->disabled, (unsigned)conditions,
-                                (unsigned)actions, (unsigned)result);
+                    jass_calltrigger(level.vm, e->trigger, subject, evt->source);
                 }
                 break;
         }
     }
-    if (debug_death)
-        fprintf(stderr, "WC3 dest script: death dispatch end ent=%u same_type=%u matched=%u passed=%u\n",
-                (unsigned)subject->s.number, (unsigned)same_type, (unsigned)matched, (unsigned)fired);
 }
 
 static void G_TouchTriggers(LPEDICT ent) {
@@ -151,9 +119,6 @@ void G_RunEntities(void) {
 void G_RunEvents(void) {
     for (LEVELEVENTS *e = &level.events; e->read < e->write; e->read++) {
         GAMEEVENT *evt = &e->queue[e->read % MAX_EVENT_QUEUE];
-        if (evt->type == EVENT_UNIT_DEATH && evt->edict && G_IsDestructable(evt->edict) && G_DebugDestructables())
-            fprintf(stderr, "WC3 dest script: death dequeue queue=%u ent=%u write=%u\n",
-                    (unsigned)e->read, (unsigned)evt->edict->s.number, (unsigned)e->write);
         G_ExecuteEvent(evt);
     }
 }
