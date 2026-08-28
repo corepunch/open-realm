@@ -877,7 +877,7 @@ typedef struct {
     uint16_t start_vertex;
     uint16_t count;
     float    plane[4];
-} test_WmoPortal_t;  /* 12 bytes */
+} test_WmoPortal_t;  /* 20 bytes */
 
 typedef struct {
     uint16_t portal_index;
@@ -904,7 +904,7 @@ TEST(wow_wmo_portal, portal_ref_field_offsets) {
 
 TEST(wow_wmo_portal, mopt_binary_parse) {
     /* Minimal MOPT record: startVertex=0, count=4, plane=(0,0,1,-5) */
-    BYTE buf[12];
+    BYTE buf[sizeof(test_WmoPortal_t)];
     memset(buf, 0, sizeof(buf));
     uint16_t sv = 0, cnt = 4;
     float nx = 0.0f, ny = 0.0f, nz = 1.0f, d = -5.0f;
@@ -912,20 +912,17 @@ TEST(wow_wmo_portal, mopt_binary_parse) {
     memcpy(buf + 2, &cnt, 2);
     memcpy(buf + 4, &nx, 4);
     memcpy(buf + 8, &ny, 4);
-    /* Note: plane[4] = {nx, ny, nz, d}, written consecutively */
-    BYTE buf16[12];
-    memset(buf16, 0, sizeof(buf16));
-    memcpy(buf16 + 0, &sv,  2);
-    memcpy(buf16 + 2, &cnt, 2);
-    memcpy(buf16 + 4, &nx, 4);
-    memcpy(buf16 + 8, &ny, 4);
+    memcpy(buf + 12, &nz, 4);
+    memcpy(buf + 16, &d, 4);
 
     test_WmoPortal_t p;
-    memcpy(&p, buf16, sizeof(p));
+    memcpy(&p, buf, sizeof(p));
     T_EQ((int)p.start_vertex, 0);
     T_EQ((int)p.count, 4);
     T_ASSERT(feq(p.plane[0], 0.0f));
     T_ASSERT(feq(p.plane[1], 0.0f));
+    T_ASSERT(feq(p.plane[2], 1.0f));
+    T_ASSERT(feq(p.plane[3], -5.0f));
 }
 
 TEST(wow_wmo_portal, mopt_plane_field) {

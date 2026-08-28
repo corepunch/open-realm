@@ -27,9 +27,9 @@ typedef struct {
    - Caps accumulator at 2.0 to suppress lag-spike bursts.
    Returns the number of active edges after the update.  The caller then iterates
    edges 0..(count-1) to spawn billboard particles. */
-static int R_UpdateTrail(trailEmitter_t *t, VECTOR3 spine_pos,
-                         VECTOR3 color, float alpha,
-                         float max_age, float edge_rate, float dt) {
+static inline int R_UpdateTrail(trailEmitter_t *t, VECTOR3 spine_pos,
+                                VECTOR3 color, float alpha,
+                                float max_age, float edge_rate, float dt) {
     if (!t || edge_rate <= 0.0f || max_age <= 0.0f) { t->count = 0; t->acc = 0.0f; return 0; }
     int write = t->head, alive = t->count;
     for (int e = 0; e < alive; e++) {

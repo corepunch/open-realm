@@ -242,23 +242,6 @@ static LPCPLAYER test_get_player_state(void) {
     return test_player;
 }
 
-static void load_ui_file(LPCSTR file_name) {
-    uiImport_t saved = uiimport;
-
-    UI_ClearTemplates();
-    memset(&uiimport, 0, sizeof(uiimport));
-    uiimport.FS_ReadFile = test_fs_read_file;
-    uiimport.FS_FreeFile = test_fs_free_file;
-    uiimport.MemAlloc = test_ui_mem_alloc;
-    uiimport.MemFree = test_ui_mem_free;
-    uiimport.GetPlayerState = test_get_player_state;
-    uiimport.ImageIndex = test_image_index;
-    uiimport.FontIndex = test_font_index;
-    uiimport.Printf = test_ui_printf;
-    UI_ParseFDF(file_name);
-    uiimport = saved;
-}
-
 static void load_ui_files(LPCSTR const *file_names, size_t count) {
     uiImport_t saved = uiimport;
 
