@@ -22,6 +22,7 @@ BOOL M2_CanStaticInstance(m2Model_t const *model);
 BOOL M2_AttachmentMatrix(m2Model_t const *model, DWORD attachment_id, LPCMATRIX4 model_matrix, LPMATRIX4 out);
 BOOL M2_EntityAttachmentPosition(m2Model_t const *model, renderEntity_t const *entity, DWORD attachment_id,
                                  LPCMATRIX4 model_matrix, LPVECTOR3 out);
+BOOL M2_PosedAttachmentPosition(m2Model_t const *model, DWORD attachment_id, LPCMATRIX4 model_matrix, LPVECTOR3 out);
 FLOAT M2_GroundOffset(m2Model_t const *model);
 FLOAT M2_HeadHeight(m2Model_t const *model);
 FLOAT M2_VisibleBottom(m2Model_t const *model);
@@ -30,6 +31,39 @@ BOOL M2_IsCharacterModel(m2Model_t const *model);
 BOOL M2_SetEntitySequenceFrame(m2Model_t const *model, LPCSTR anim, renderEntity_t *entity);
 void M2_Release(m2Model_t *model);
 void M2_Shutdown(void);
+
+typedef struct {
+    LPCMODEL model;
+    VECTOR3 origin, rotation, point;
+    DWORD time, frame, oldframe, flags;
+    FLOAT angle, scale;
+    BOOL valid, found;
+} wowOverheadCache_t;
+
+static wowOverheadCache_t s_overhead[MAX_GAME_ENTITIES];
+
+/* Entity transforms can change without server time advancing, so every pose input participates in the cache key. */
+static BOOL R_GameOverheadCacheMatch(wowOverheadCache_t const *cache, renderEntity_t const *entity) {
+    return cache->valid && cache->model == entity->model && cache->time == tr.viewDef.time &&
+           cache->frame == entity->frame && cache->oldframe == entity->oldframe && cache->flags == entity->flags &&
+           cache->angle == entity->angle && cache->scale == entity->scale &&
+           !memcmp(&cache->origin, &entity->origin, sizeof(cache->origin)) &&
+           !memcmp(&cache->rotation, &entity->rotation, sizeof(cache->rotation));
+}
+
+/* Preserve the model-authored attachment result before another M2 draw overwrites the shared bone palette. */
+static void R_GameCacheOverhead(renderEntity_t const *entity, LPCMATRIX4 transform) {
+    wowOverheadCache_t *cache;
+    DWORD attachment;
+    if (entity->number >= MAX_GAME_ENTITIES) return;
+    cache = &s_overhead[entity->number];
+    attachment = (entity->flags & RF_MOUNTED) ? M2_ATTACH_PLAYER_NAME_MOUNTED : M2_ATTACH_PLAYER_NAME;
+    cache->model = entity->model; cache->origin = entity->origin; cache->rotation = entity->rotation;
+    cache->time = tr.viewDef.time; cache->frame = entity->frame; cache->oldframe = entity->oldframe;
+    cache->flags = entity->flags; cache->angle = entity->angle; cache->scale = entity->scale;
+    cache->found = M2_PosedAttachmentPosition(entity->model->m2, attachment, transform, &cache->point);
+    cache->valid = true;
+}
 
 static BOOL R_GamePathHasExtension(LPCSTR path, LPCSTR extension) {
     size_t pathLen;
@@ -248,6 +282,7 @@ void R_GameRenderModel(renderEntity_t const *entity) {
     }
     R_GetEntityMatrix(entity, &transform);
     M2_RenderModel(entity, entity->model->m2, &transform);
+    R_GameCacheOverhead(entity, &transform);
     if (entity->overhead_model && entity->overhead_model->modeltype == ID_MD20) {
         renderEntity_t marker = *entity;
         R_GameEntityOverheadPosition(entity, &marker.origin);
@@ -418,6 +453,7 @@ FLOAT R_GameSelectionRadius(renderEntity_t const *entity) {
 /* The PlayerName attachment (mounted variant when riding) is the model-authored name-plate point. */
 BOOL R_GameEntityOverheadPosition(renderEntity_t const *entity, LPVECTOR3 out) {
     static LPCMODEL last_missing;
+    wowOverheadCache_t *cache;
     MATRIX4 transform;
     DWORD attachment;
     if (!entity || !out) return false;
@@ -426,10 +462,15 @@ BOOL R_GameEntityOverheadPosition(renderEntity_t const *entity, LPVECTOR3 out) {
         out->z += entity->radius * 2.0f;
         return false;
     }
+    cache = entity->number < MAX_GAME_ENTITIES ? &s_overhead[entity->number] : NULL;
+    if (cache && cache->found && R_GameOverheadCacheMatch(cache, entity)) { *out = cache->point; return true; }
     R_GetEntityMatrix(entity, &transform);
     /* CGUnit_C::GetNamePosition prefers the mounted anchor (29) over the grounded one (18). */
     attachment = (entity->flags & RF_MOUNTED) ? M2_ATTACH_PLAYER_NAME_MOUNTED : M2_ATTACH_PLAYER_NAME;
-    if (M2_EntityAttachmentPosition(entity->model->m2, entity, attachment, &transform, out)) return true;
+    if (M2_EntityAttachmentPosition(entity->model->m2, entity, attachment, &transform, out)) {
+        if (cache) { R_GameCacheOverhead(entity, &transform); *out = cache->point; }
+        return true;
+    }
     if (entity->model != last_missing) {
         last_missing = entity->model;
         fprintf(stderr, "WoW renderer: M2 model has no PlayerName attachment %u\n", attachment);

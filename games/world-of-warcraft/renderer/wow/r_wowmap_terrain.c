@@ -227,39 +227,25 @@ BOOL Wow_HeightInCell(float const *heights, int row, int col, float fx, float fy
 
 BOOL Wow_TerrainHeightAtPoint(float sx, float sy, float *height) {
     wowAdtChunk_t const *chunk;
+    int ix, iy;
 
-    if (!height) {
-        return false;
-    }
-
-    for (chunk = wow_world.chunks; chunk; chunk = chunk->next) {
-        float local_row;
-        float local_col;
-        int cell_row;
-        int cell_col;
+    if (!height || !wow_world.has_atlas_origin) return false;
+    ix = (int)floorf((wow_world.atlas_world_y - sy) / WOW_ADT_CHUNK_SIZE);
+    iy = (int)floorf((wow_world.atlas_world_x - sx) / WOW_ADT_CHUNK_SIZE);
+    if (ix < 0 || ix >= WOW_HEIGHT_ATLAS_CHUNKS || iy < 0 || iy >= WOW_HEIGHT_ATLAS_CHUNKS) return false;
+    chunk = wow_world.height_chunks[iy][ix];
+    if (chunk && chunk->has_heights) {
+        float row = (chunk->position.x - sx) / WOW_ADT_UNIT_SIZE;
+        float col = (chunk->position.y - sy) / WOW_ADT_UNIT_SIZE;
+        int cell_row = (int)floorf(MIN(row, 7.9999f));
+        int cell_col = (int)floorf(MIN(col, 7.9999f));
         float cell_height;
-
-        if (!chunk->has_heights ||
-            sx > chunk->position.x + 0.001f ||
-            sx < chunk->position.x - 8.0f * WOW_ADT_UNIT_SIZE - 0.001f ||
-            sy > chunk->position.y + 0.001f ||
-            sy < chunk->position.y - 8.0f * WOW_ADT_UNIT_SIZE - 0.001f) {
-            continue;
-        }
-
-        local_row = (chunk->position.x - sx) / WOW_ADT_UNIT_SIZE;
-        local_col = (chunk->position.y - sy) / WOW_ADT_UNIT_SIZE;
-        cell_row = (int)floorf(MIN(local_row, 7.9999f));
-        cell_col = (int)floorf(MIN(local_col, 7.9999f));
-        if (cell_row < 0 || cell_row >= 8 || cell_col < 0 || cell_col >= 8) {
-            continue;
-        }
-        if (Wow_HeightInCell(chunk->heights, cell_row, cell_col, local_row - cell_row, local_col - cell_col, &cell_height)) {
+        if (cell_row >= 0 && cell_row < 8 && cell_col >= 0 && cell_col < 8 &&
+            Wow_HeightInCell(chunk->heights, cell_row, cell_col, row - cell_row, col - cell_col, &cell_height)) {
             *height = chunk->position.z + cell_height;
             return true;
         }
     }
-
     return false;
 }
 
@@ -355,6 +341,9 @@ void Wow_AddAdtChunk(wowVec3_t pos,
     chunk->alpha_texture = wow_world.alpha_atlas_texture ? wow_world.alpha_atlas_texture : Wow_CreateAlphaTexture(alpha);
     chunk->alpha_index_x = alpha_index_x;
     chunk->alpha_index_y = alpha_index_y;
+    /* The atlas indices are the authoritative resident-window MCNK address; queries must not scan every chunk. */
+    if (alpha_index_x < WOW_HEIGHT_ATLAS_CHUNKS && alpha_index_y < WOW_HEIGHT_ATLAS_CHUNKS)
+        wow_world.height_chunks[alpha_index_y][alpha_index_x] = chunk;
     /* Upload absolute world Z = pos.z + MCVT relative height into GPU atlas */
     Wow_UploadHeightAtlasChunk(alpha_index_x, alpha_index_y, pos.z, chunk->heights);
     /* Any resident chunk defines tile (0,0); waiting for that tile breaks sparse maps and world edges. */
