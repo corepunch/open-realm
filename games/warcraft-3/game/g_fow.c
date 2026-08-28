@@ -9,6 +9,7 @@
     DWORD fow_index_ = G_FOW_CELL_INDEX((DWORD)(x), (DWORD)(y)); \
     if (!(grid)->visible[fow_index_]) { \
         (grid)->visible[fow_index_] = 1; \
+        (grid)->visible_rows[(DWORD)(y)] = 1; \
         if ((grid)->dirty_visible_rows) { \
             (grid)->dirty_visible_rows[(DWORD)(y)] = 1; \
         } \
@@ -113,22 +114,15 @@ static void G_FowSetBlockedDilated(DWORD x, DWORD y, int dilation) {
 }
 
 static void G_FowClearVisible(fowPlayerGrid_t *grid) {
-    if (!grid || !grid->visible || !grid->dirty_visible_rows) {
+    if (!grid || !grid->visible || !grid->visible_rows || !grid->dirty_visible_rows) {
         return;
     }
     FOR_LOOP(y, level.fow.height) {
-        BYTE *row = grid->visible + y * level.fow.width;
-        BOOL dirty = false;
-
-        FOR_LOOP(x, level.fow.width) {
-            if (row[x]) {
-                row[x] = 0;
-                dirty = true;
-            }
-        }
-        if (dirty) {
-            grid->dirty_visible_rows[y] = 1;
-        }
+        if (!grid->visible_rows[y]) continue;
+        /* Visibility writers mark occupied rows, so clearing no longer scans every cell of a mostly hidden map. */
+        memset(grid->visible + y * level.fow.width, 0, level.fow.width);
+        grid->visible_rows[y] = 0;
+        grid->dirty_visible_rows[y] = 1;
     }
 }
 
@@ -721,6 +715,7 @@ void G_FowShutdown(void) {
         fowPlayerGrid_t *grid = &level.fow.players[player];
         SAFE_DELETE(grid->visible, gi.MemFree);
         SAFE_DELETE(grid->explored, gi.MemFree);
+        SAFE_DELETE(grid->visible_rows, gi.MemFree);
         SAFE_DELETE(grid->dirty_visible_rows, gi.MemFree);
         SAFE_DELETE(grid->dirty_explored_rows, gi.MemFree);
     }
@@ -755,15 +750,17 @@ void G_FowInit(void) {
         fowPlayerGrid_t *grid = &level.fow.players[player];
         grid->visible = gi.MemAlloc(cells);
         grid->explored = gi.MemAlloc(cells);
+        grid->visible_rows = gi.MemAlloc(level.fow.height);
         grid->dirty_visible_rows = gi.MemAlloc(level.fow.height);
         grid->dirty_explored_rows = gi.MemAlloc(level.fow.height);
-        if (!grid->visible || !grid->explored ||
+        if (!grid->visible || !grid->explored || !grid->visible_rows ||
             !grid->dirty_visible_rows || !grid->dirty_explored_rows) {
             G_FowShutdown();
             return;
         }
         memset(grid->visible, 0, cells);
         memset(grid->explored, 0, cells);
+        memset(grid->visible_rows, 0, level.fow.height);
         memset(grid->dirty_visible_rows, 1, level.fow.height);
         memset(grid->dirty_explored_rows, 1, level.fow.height);
     }
@@ -849,7 +846,7 @@ BOOL G_FowPlayerCanSeeEntity(DWORD player, LPCEDICT ent) {
     index = y * level.fow.width + x;
     grid = &level.fow.players[player];
     /* Explored scenery stays shrouded after sight leaves; sending unexplored map-wide doodads saturated snapshots. */
-    if ((ent->svflags & SVF_STATIC_SCENERY) || UNIT_IS_BUILDING(ent->class_id)) {
+    if ((ent->svflags & SVF_STATIC_SCENERY) || (ent->balance.flags & UNIT_BALANCE_BUILDING)) {
         return grid->explored && grid->explored[index] != 0;
     }
     return grid->visible && grid->visible[index] != 0;

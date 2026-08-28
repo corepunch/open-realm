@@ -2056,20 +2056,11 @@ static BOOL Wow_AddQuest(wowClient_t *client, DWORD quest_id) {
  * quest currently available to this player. The old one-edict-per-row path
  * made overlapping duplicates select an arbitrary later quest. */
 static DWORD Wow_QuestForGiver(wowClient_t *client, wowEntityLocal_t const *local) {
-    LPCWOWQUESTGIVER giver = NULL;
-    DWORD representative = local->quest_id;
-
-    FOR_LOOP(i, Wow_QuestGiverCount()) {
-        LPCWOWQUESTGIVER cur = Wow_QuestGiver(i);
-        if (cur->quest_id != representative) continue;
-        if (local->home.x != cur->position.x || local->home.y != cur->position.y) continue;
-        giver = cur; break;
-    }
-    if (!giver) return representative;
-    FOR_LOOP(i, Wow_QuestGiverCount()) {
-        LPCWOWQUESTGIVER cur = Wow_QuestGiver(i);
+    DWORD group = Wow_QuestGiverGroup(local->quest_id, &local->home);
+    if (group == WOW_QUEST_GIVER_GROUP_NONE) return local->quest_id;
+    FOR_LOOP(i, Wow_QuestGiverGroupCount(group)) {
+        LPCWOWQUESTGIVER cur = Wow_QuestGiverInGroup(group, i);
         LPCWOWQUESTDETAIL detail;
-        if (!Wow_QuestGiverSame(giver, cur)) continue;
         if (SV_QuestFind(client->quest_log, client->quest_count, cur->quest_id)) continue;
         detail = Wow_QuestDetail(cur->quest_id);
         if (detail && Wow_QuestPrereqMet(client, detail->prev_quest))
@@ -2482,21 +2473,15 @@ typedef enum { QUEST_MARKER_NONE = 0, QUEST_MARKER_AVAILABLE, QUEST_MARKER_ACTIV
 /* Returns the highest-priority marker for this NPC relative to the given player:
  * COMPLETE > ACTIVE > AVAILABLE > NONE. */
 static questMarker_t Wow_QuestMarkerForGiver(wowClient_t *client, wowEntityLocal_t const *local) {
-    LPCWOWQUESTGIVER giver = NULL;
+    DWORD group;
     questMarker_t best = QUEST_MARKER_NONE;
     if (!local->quest_id) return QUEST_MARKER_NONE;
     if (Wow_QuestForGiver(client, local)) return QUEST_MARKER_AVAILABLE;
-    FOR_LOOP(i, Wow_QuestGiverCount()) {
-        LPCWOWQUESTGIVER cur = Wow_QuestGiver(i);
-        if (cur->quest_id != local->quest_id) continue;
-        if (local->home.x != cur->position.x || local->home.y != cur->position.y) continue;
-        giver = cur; break;
-    }
-    if (!giver) return QUEST_MARKER_NONE;
-    FOR_LOOP(i, Wow_QuestGiverCount()) {
-        LPCWOWQUESTGIVER cur = Wow_QuestGiver(i);
+    group = Wow_QuestGiverGroup(local->quest_id, &local->home);
+    if (group == WOW_QUEST_GIVER_GROUP_NONE) return QUEST_MARKER_NONE;
+    FOR_LOOP(i, Wow_QuestGiverGroupCount(group)) {
+        LPCWOWQUESTGIVER cur = Wow_QuestGiverInGroup(group, i);
         svQuestEntry_t *e;
-        if (!Wow_QuestGiverSame(giver, cur)) continue;
         e = SV_QuestFind(client->quest_log, client->quest_count, cur->quest_id);
         if (!e || e->status == SV_QUEST_REWARDED) continue;
         if (e->status == SV_QUEST_COMPLETE) return QUEST_MARKER_COMPLETE;
