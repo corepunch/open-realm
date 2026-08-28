@@ -16,6 +16,8 @@ static InfoPanelBuildingDetail_t building_panel;
 static FRAMEDEF bottom_panel;
 static BOOL infopanel_loaded;
 
+#define INVENTORY_CHARGE_FONT_SIZE 10
+
 static void InfoPanelEnsureLoaded(void) {
     if (infopanel_loaded) return;
     infopanel_loaded = true;
@@ -204,6 +206,21 @@ static void WritePortraitFrame(LPEDICT ent) {
     UI_WriteProxyFrame(&frame, NULL, 0);
 }
 
+static void WriteInventoryCharge(FLOAT x, FLOAT y, FLOAT w, FLOAT h, DWORD charges) {
+    uiFrame_t frame;
+    uiLabel_t label;
+    char text[16];
+
+    if (!charges) return;
+    memset(&frame, 0, sizeof(frame)); memset(&label, 0, sizeof(label));
+    snprintf(text, sizeof(text), "%u", (unsigned)charges);
+    frame.flags.type = FT_STRING; frame.text = text; frame.color = COLOR32_WHITE;
+    label.font = gi.FontIndex("Fonts\\FRIZQT__.TTF", INVENTORY_CHARGE_FONT_SIZE);
+    label.textalignx = FONT_JUSTIFYRIGHT; label.textaligny = FONT_JUSTIFYBOTTOM;
+    UI_SetFrameRect(&frame, x + 0.001f, y + 0.001f, w - 0.002f, h - 0.002f);
+    UI_WriteProxyFrame(&frame, &label, sizeof(label));
+}
+
 static void WriteInventory(LPEDICT ent) {
     gameInventoryItem_t items[MAX_INVENTORY];
     BYTE count = G_GetInventory(ent, items, MAX_INVENTORY);
@@ -212,15 +229,18 @@ static void WriteInventory(LPEDICT ent) {
         FLOAT by = UI_BASE_HEIGHT - 0.0971f + (FLOAT)(items[i].slot / 2) * 0.0384f;
         uiFrame_t frame;
         char onclick[128];
+        char tooltip[1024];
         memset(&frame, 0, sizeof(frame));
         frame.flags.type = FT_COMMANDBUTTON;
         frame.color = COLOR32_WHITE;
         frame.tex.index = gi.ImageIndex(items[i].art);
-        frame.tooltip = items[i].ubertip[0] ? items[i].ubertip : items[i].tooltip;
+        UI_FormatTooltip("", items[i].tooltip, items[i].ubertip, 0, tooltip, sizeof(tooltip));
+        frame.tooltip = tooltip;
         snprintf(onclick, sizeof(onclick), "inventory %u", (unsigned)items[i].slot);
         frame.onclick = onclick;
         UI_SetFrameRect(&frame, bx - 0.0165f, by - 0.0165f, 0.033f, 0.033f);
         UI_WriteProxyFrame(&frame, NULL, 0);
+        WriteInventoryCharge(bx - 0.0165f, by - 0.0165f, 0.033f, 0.033f, items[i].charges);
     }
     if (count) UI_WriteTooltipFrame();
 }

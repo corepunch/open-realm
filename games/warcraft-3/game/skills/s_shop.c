@@ -30,5 +30,5 @@ ability_t a_shop_purchase_item = {
 /* Shop Sharing (Aall): allows allies to use the shop. */
 ability_t a_shop_sharing = {0};
 
-/* Inventory (AInv): passive capability marker for six inventory slots. */
+/* Inventory (AInv): passive capability; inv1 supplies capacity up to the six-slot UI/storage limit. */
 ability_t a_inventory = {0};

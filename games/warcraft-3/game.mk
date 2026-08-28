@@ -223,6 +223,10 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat TestUI/Textures/solid_white.blp | head -c4 | grep -q "BLP2" && echo "  cat BLP OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat Units/ItemData.slk | \
 		grep -q "Test Attack Item" && echo "  cat item SLK OK"
+	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat Units/AbilityData.slk | \
+		grep -q "AInv" && echo "  cat ability SLK OK"
+	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat Units/ItemFunc.txt | \
+		grep -q "spro" && echo "  cat item UI OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat Units/UnitBalance.slk | grep -q "hpea" && echo "  cat unit SLK OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat Scripts/common.j | \
 		grep -q "playergameresult" && echo "  cat common.j OK"

@@ -238,7 +238,7 @@ CLIENTCOMMAND(Inventory) {
 
     ent = G_GetMainSelectedUnit(client);
     slot = atoi(argv[1]);
-    if (!ent || slot < 0 || slot >= MAX_INVENTORY) {
+    if (!ent || slot < 0 || (DWORD)slot >= G_InventoryCapacity(ent)) {
         return;
     }
 
@@ -279,7 +279,7 @@ CLIENTCOMMAND(DropItem) {
     }
     unit = G_GetMainSelectedUnit(clent->client);
     slot = atoi(argv[1]);
-    if (!unit || slot < 0 || slot >= MAX_INVENTORY) {
+    if (!unit || slot < 0 || (DWORD)slot >= G_InventoryCapacity(unit)) {
         return;
     }
     G_DropItem(unit, (DWORD)slot);

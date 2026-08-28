@@ -193,6 +193,9 @@ so trigger publication and snapshots remain consistent.
 - Item ownership is the inventory holder or explicit owning player defined by
   the item contract, not merely `edict.s.player` unless that field is kept in
   sync by every inventory transition.
+- Item charges are mutable item-instance state. `GetItemCharges` and
+  `SetItemCharges` read/write the carried or world item's edict state; setting
+  charges on a carried item refreshes the selected-unit inventory layer.
 - `widget` life operations share the damage/life representation across units,
   items, and destructables and clamp against the runtime maximum.
 

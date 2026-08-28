@@ -122,6 +122,11 @@ native ConvertPlayerGameResult  takes integer i returns playergameresult
 native RemovePlayer             takes player whichPlayer, playergameresult gameResult returns nothing
 native Player                   takes integer number returns player
 
+// Item inventory presentation and charge state.
+native CreateItem               takes integer itemid, real x, real y returns item
+native GetItemCharges           takes item whichItem returns integer
+native SetItemCharges           takes item whichItem, integer charges returns nothing
+
 // Quest management.
 native CreateQuest               takes nothing returns quest
 native DestroyQuest              takes quest whichQuest returns nothing

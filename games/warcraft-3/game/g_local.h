@@ -631,6 +631,7 @@ struct edict_s {
         LPEDICT carrier;
         LONG inventory_slot;
         BOOL in_world;
+        DWORD charges;
     } item;
     struct {
         BOOL initialized;
@@ -961,6 +962,7 @@ LPCSTR GetClassName(DWORD);
 // g_unit_ui.c (Phase 8)
 BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_buttons);
 BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, gameCommandButton_t *button);
+BOOL G_BuildInventoryItem(LPEDICT ent, LPEDICT item, BYTE slot, gameInventoryItem_t *out);
 BYTE G_GetInventory(LPEDICT ent, gameInventoryItem_t *items, BYTE max_items);
 BYTE G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue);
 
@@ -1135,7 +1137,10 @@ void G_RunEvents(void);
 // g_items.c
 void SP_SpawnItem(LPEDICT);
 BOOL G_IsItem(LPCEDICT item);
+DWORD G_InventoryCapacity(LPCEDICT unit);
 BOOL G_UnitHasInventory(LPEDICT unit);
+DWORD G_ItemCharges(LPCEDICT item);
+void G_SetItemCharges(LPEDICT item, DWORD charges);
 LONG G_FindFreeInventorySlot(LPCEDICT unit);
 BOOL G_CanPickupItem(LPEDICT unit, LPEDICT item);
 BOOL G_AddItemToSlot(LPEDICT unit, LPEDICT item, DWORD slot);
