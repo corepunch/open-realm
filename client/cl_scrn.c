@@ -112,10 +112,24 @@ void SCR_DrawScreenField(DWORD msec) {
 
 void SCR_UpdateScreen(DWORD msec) {
     static int recursive;
+    static DWORD no_refresh_elapsed, no_refresh_frames;
 
     if (!scr_initialized) {
         return;
     }
+
+    /* Quake-style no-refresh mode preserves input, snapshots, and server work while submitting no screen frame. */
+    if (Cvar_Integer("r_norefresh", 0)) {
+        if (Cvar_Integer("r_stats", 0)) {
+            no_refresh_elapsed += msec; no_refresh_frames++;
+            if (no_refresh_elapsed >= 1000) {
+                fprintf(stderr, "[R_NOREFRESH] loops=%u\n", (unsigned)((uint64_t)no_refresh_frames * 1000 / no_refresh_elapsed));
+                no_refresh_elapsed = 0; no_refresh_frames = 0;
+            }
+        } else no_refresh_elapsed = no_refresh_frames = 0;
+        return;
+    }
+    no_refresh_elapsed = 0; no_refresh_frames = 0;
 
     if (cls.disable_screen) {
         if (SDL_GetTicks() - cls.disable_screen > 120000) {

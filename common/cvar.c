@@ -477,6 +477,7 @@ void Cvar_Init(void) {
     Cvar_GetD("r_occlusion",      "1",                 CVAR_ARCHIVE, "frustum-cull off-screen entities");
     Cvar_GetD("r_vsync",          "0",                 CVAR_ARCHIVE, "vertical sync: 0=off (use for perf testing), 1=on");
     Cvar_GetD("r_stats",          "0",                 0,            "print per-frame draw/world stats to console each second");
+    Cvar_GetD("r_norefresh",      "0",                 0,            "skip all screen rendering while client/server processing continues");
     Cvar_GetD("r_entities",       "1",                 0,            "render game entities (units, buildings, etc.)");
     Cvar_GetD("r_fogofwar",       "1",                 0,            "render fog-of-war overlay");
 #ifdef WOW

@@ -233,6 +233,24 @@ by itself. A same-camera Human-start isolation run on an M1 at 2048x1536 ranked 
 `r_grass 0` 94-95, `r_unit_shadows 0` 105-106, `r_wmos 0` 154, and `r_doodads 0` 174. Doodad/WMO M2 submission, not
 grass density alone, is the highest-leverage handheld target; keep the authored far clip while optimizing that transport.
 
+A cumulative post-fix ladder on that camera further separates the frame: full 103-107 FPS; HUD/minimap off 109-112;
+entities/shadows/particles off 117-119; grass off still 117-120; doodads off 304; WMOs off 389; terrain/FOW off 610-623
+with zero draws. These are cumulative switches, not independent percentages. The large doodad and WMO steps remain the
+renderer priority; the zero-draw result is the GL clear/swap plus ordinary client/server loop floor on this machine.
+
+`r_norefresh 1` skips `SCR_DrawScreenField` entirely while preserving input, packet parsing, client commands, snapshots, and
+the local server. With `r_stats 1`, `[R_NOREFRESH] loops=N` reports outer client/server loop iterations per second instead of
+renderer FPS. The same scene sustains about 177K loops/s on the M1. Temporary startup A/B gates measured ~175K with WoW game
+simulation disabled, ~177K with snapshot construction disabled, ~303K with snapshot writing/delivery disabled, and ~320K
+with packet polling also disabled. The gates were removed after measurement: they show that AI/gameplay and visibility-list
+construction are negligible here, while the loopback protocol/client exchange is the remaining no-refresh work. Loop rate is
+not rendered FPS and is not portable to the RG40xx; repeat the command on that device to obtain its CPU-side ceiling:
+
+```sh
+build/bin/openwow -data data/world-of-warcraft +map playercreate \
+  +set r_norefresh 1 +set r_stats 1 +com_frame_limit 3000000
+```
+
 Commit `e471c472` retained one packed VBO per M2 model but expanded every skin index into a unique vertex and then uploaded
 a 32-bit EBO containing only `0, 1, 2, ...`. Targeted loader logs confirmed `identity=1` for every sampled character,
 doodad, and grass model (for example 11,367 vertices plus a redundant 45,468-byte EBO). The EBO cannot provide vertex-cache

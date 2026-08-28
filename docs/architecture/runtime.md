@@ -164,6 +164,8 @@ All cvars registered in `Cvar_Init()`:
 | `r_lights` | `"2"` | CVAR_ARCHIVE | Light quality |
 | `r_unit_shadows` | `"1"` | CVAR_ARCHIVE | Unit shadow rendering |
 | `r_occlusion` | `"1"` | CVAR_ARCHIVE | Occlusion culling |
+| `r_norefresh` | `"0"` | 0 | Skip all screen rendering while input, client networking, snapshots, and the server continue |
+| `r_stats` | `"0"` | 0 | Print renderer stats, or client/server loop rate while `r_norefresh=1` |
 | `ui_chat_support` | `"0"` | CVAR_ARCHIVE | Chat UI support |
 | `s_provider` | `"1"` | CVAR_ARCHIVE | Sound provider |
 

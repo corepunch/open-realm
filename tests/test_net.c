@@ -33,6 +33,9 @@ void test_client_stubs_set_cvar(LPCSTR name, LPCSTR value);
 void CL_ParseLayout(LPSIZEBUF msg);
 void SCR_LayoutDrawScrollBar(LPCUIFRAME frame, LPCRECT screen);
 void SCR_LayoutDrawTextArea(LPCUIFRAME frame, LPCRECT screen);
+void SCR_UpdateScreen(DWORD msec);
+extern BOOL scr_initialized;
+void test_client_stubs_clear_cvars(void);
 extern DWORD test_fow_upload_calls;
 
 static RECT test_scroll_rects[3], test_scroll_uvs[3];
@@ -40,6 +43,7 @@ static LPCTEXTURE test_scroll_tex[3];
 static DWORD test_scroll_draws;
 static drawText_t test_textarea_draw;
 static DWORD test_textarea_draws;
+static DWORD test_begin_frames, test_end_frames;
 
 static void capture_scroll_image(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color) {
     (void)color;
@@ -50,6 +54,22 @@ static void capture_scroll_image(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv,
 }
 
 static void capture_textarea(LPCDRAWTEXT text) { test_textarea_draw = *text; test_textarea_draws++; }
+static void capture_begin_frame(void) { test_begin_frames++; }
+static void capture_end_frame(void) { test_end_frames++; }
+
+/* r_norefresh skips every renderer/UI submission while its inverse still presents a normal client frame. */
+TEST(net, no_refresh_preserves_client_loop_without_screen_submission) {
+    test_client_stubs_init(); test_client_stubs_clear_cvars();
+    test_begin_frames = test_end_frames = 0;
+    re.BeginFrame = capture_begin_frame; re.EndFrame = capture_end_frame;
+    cls.state = ca_active; cls.key_dest = key_game; scr_initialized = true;
+    test_client_stubs_set_cvar("r_hud", "0"); test_client_stubs_set_cvar("scr_showfps", "0");
+    test_client_stubs_set_cvar("r_norefresh", "1"); SCR_UpdateScreen(16);
+    T_EQ(test_begin_frames, 0); T_EQ(test_end_frames, 0);
+    test_client_stubs_set_cvar("r_norefresh", "0"); SCR_UpdateScreen(16);
+    T_EQ(test_begin_frames, 1); T_EQ(test_end_frames, 1);
+    scr_initialized = false;
+}
 
 /* -----------------------------------------------------------------------
  * Helpers
