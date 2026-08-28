@@ -71,6 +71,7 @@ Public reverse-engineering and modding references for how StarCraft II maps are 
 - [Terrain And World Rendering](terrain-and-world-rendering.md) — cliff normal welding, authoritative texture batches, and texture lifetime rules.
 - [Parser Notes](parser-notes.md) — practical loading order and implementation guidance.
 - [HUD Layout Pipeline](hud-layout-pipeline.md) — `.SC2Layout` → `sc2BaseFrame_t` → `uiFrame_t` → `svc_layout` pipeline; UI texture resolution via Assets.txt.
+- [Galaxy Scripting](galaxy-scripting.md) — VM lifecycle, trigger wrappers, lookup indexes, isolated regressions, and remaining campaign gaps.
 - [UI Layout Format](ui-layout-format.md) — `.SC2Layout` XML syntax, DescIndex manifest, layout directory structure, frame class hierarchy, Galaxy Script overview, and community resources.
 - [References](references.md) — all public sources, tools, and GitHub repos used.
 - [Sounds](sounds.md)

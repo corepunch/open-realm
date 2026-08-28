@@ -25,6 +25,14 @@ static void CL_SetCameraPosition(VECTOR2 position) {
 static BOOL smart_click_active;
 static BOOL minimap_drag_active;
 
+static BOOL CL_TracePan(float x, float y, LPVECTOR3 point) {
+#ifdef SC2
+    return re.TraceCameraPlane(&cl.viewDef, x, y, point);
+#else
+    return re.TraceLocation(&cl.viewDef, x, y, point);
+#endif
+}
+
 /* Left-click (or click-drag) on the minimap recenters the camera there. */
 BOOL CL_TryMinimapClick(float x, float y) {
     VECTOR2 world;
@@ -85,7 +93,7 @@ static void CL_BeginPan(float x, float y) {
         camera_drag.active = false;
         return;
     }
-    camera_drag.active = re.TraceLocation(&cl.viewDef, x, y, &camera_drag.anchor);
+    camera_drag.active = CL_TracePan(x, y, &camera_drag.anchor);
 }
 
 static void CL_UpdatePan(float x, float y) {
@@ -100,7 +108,7 @@ static void CL_UpdatePan(float x, float y) {
         CL_BeginPan(x, y);
         return;
     }
-    if (!re.TraceLocation(&cl.viewDef, x, y, &point)) {
+    if (!CL_TracePan(x, y, &point)) {
         return;
     }
 

@@ -935,6 +935,23 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
     R_Call(glEnable, GL_BLEND);
 }
 
+/* Draw generated geometry through an M3 model's first authored material. */
+void M3_RenderBuffer(renderEntity_t const *entity, m3Model_t const *model, LPCBUFFER buffer, DWORD vertices, DWORD indices) {
+    m3Model_t view;
+    m3Divisions_t div = {0};
+    m3Region_t region = {.verticesCount=vertices,.triangleIndicesCount=indices,.bonesCount=1,.boneLookupIndicesCount=1};
+    m3Batch_t batch = {0};
+    MATRIX4 identity;
+
+    if (!model || !buffer || !indices || !model->divisions || !model->divisionsNum ||
+        !model->divisions[0].batches || !model->divisions[0].batchesNum) return;
+    view = *model; batch.materialReferenceIndex = model->divisions[0].batches[0].materialReferenceIndex;
+    div.regions = &region; div.regionsNum = 1;
+    div.batches = &batch; div.batchesNum = 1;
+    view.renbuf = (LPBUFFER)buffer; view.divisions = &div; view.divisionsNum = 1;
+    Matrix4_identity(&identity); M3_RenderModel(entity, &view, &identity);
+}
+
 void M3_Init(void) {
     m3.shader = R_ModelShader();
     /* uTexture (unit 0) is wired up by R_InitShader; diffuse texture binds to unit 0. */

@@ -3,8 +3,14 @@
 
 #include "common/common.h"
 #include <stdio.h>
+#include <math.h>
 
-#define SC2_MAX_MAP_OBJECTS 1024
+static inline FLOAT SC2_LerpDegrees(FLOAT a, FLOAT b, FLOAT k) {
+    FLOAT delta = fmodf(b - a + 540.0f, 360.0f) - 180.0f;
+    return a + delta * k;
+}
+
+#define SC2_MAX_MAP_OBJECTS 4096 // objects; accommodates object-heavy campaign maps such as TRaynor01
 #define SC2_CELL_SIZE          1.0f
 #define SC2_MAX_TERRAIN_TEXTURES 16
 #define SC2_MAX_CLIFF_SETS     8
@@ -348,6 +354,7 @@ void          SC2_MapSetHost(sc2MapHost_t const *host);
 BOOL          SC2_MapLoad(LPCSTR mapFilename);
 void          SC2_MapShutdown(void);
 sc2Map_t     *SC2_MapCurrent(void);
+LPCSTR        SC2_MapResolveUnitModel(LPCSTR unit_type);
 FLOAT         SC2_MapHeightAtPoint(FLOAT x, FLOAT y);
 BOX2          SC2_MapBounds(void);
 VECTOR2       SC2_MapNormalizedPosition(FLOAT x, FLOAT y);

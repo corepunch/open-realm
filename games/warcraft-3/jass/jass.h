@@ -41,20 +41,7 @@ typedef enum {
     jasstype_cfunction,
 } JASSTYPEID;
 
-typedef enum {
-    JASS_MODE_JASS   = 0,
-    JASS_MODE_GALAXY = 1,
-} JASSMODE;
-
-typedef struct {
-    HANDLE (*MemAlloc)(long size);
-    void (*MemFree)(HANDLE ptr);
-    DWORD (*GetTime)(void);
-    HANDLE (*ReadFile)(LPCSTR filename, DWORD *size);
-    LPCJASSMODULE natives;
-    LPCJASSMODULE galaxy_natives;
-    LPPLAYER (*GetPlayerByNumber)(DWORD number);
-} JASSHOST;
+/* JASSHOST and JASSMODE moved to jass_api.h — included above */
 
 typedef struct gtriggeraction_s {
     LPCJASSFUNC func;
@@ -115,6 +102,7 @@ DWORD jass_call(LPJASS j, DWORD args);
 void jass_sethost(JASSHOST const *host);
 LPJASSCOROUTINE jass_startcoroutine(LPJASS j, LPCJASSCONTEXT context);
 LPJASSCOROUTINE jass_startcoroutinebyname(LPJASS j, LPCSTR name);
+BOOL jass_callcoroutinebyname(LPJASS j, LPCSTR name);
 BOOL jass_resume(LPJASS j, LPJASSCOROUTINE co);
 BOOL jass_coroutinedone(LPCJASSCOROUTINE co);
 void jass_runevents(LPJASS j);

@@ -157,6 +157,17 @@ LINE3 R_LineForScreenPoint(viewDef_t const *viewdef, float x, float y) {
     return line;
 }
 
+/* Drag-panning stays on the camera target plane instead of jumping across terrain tiers. */
+bool R_TraceCameraPlane(viewDef_t const *viewdef, float x, float y, LPVECTOR3 point) {
+    LINE3 line;
+    PLANE3 plane;
+
+    if (!viewdef || !point) return false;
+    line = R_LineForScreenPoint(viewdef, x, y);
+    plane = (PLANE3){ .normal = { 0, 0, 1 }, .distance = -viewdef->camerastate[0].origin.z };
+    return Line3_intersect_plane3(&line, &plane, point);
+}
+
 bool R_TraceEntity(viewDef_t const *viewdef, float x, float y, LPDWORD number) {
     if (!viewdef || !number) {
         return false;

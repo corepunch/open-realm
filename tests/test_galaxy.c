@@ -19,6 +19,9 @@
 
 #include "shared/test.h"
 #include "games/warcraft-3/jass/jass.h"
+#include "games/starcraft-2/game/galaxy/galaxy_host.h"
+
+#define BZ_GAL_INDEX_TEST_DECLS 5000 // declarations; exceeds VM bucket count; used to exercise collision chains
 
 /* =========================================================================
  * Minimal host — stdlib allocator + flat-file ReadFile.
@@ -57,6 +60,7 @@ static void *gal_read_file(const char *path, unsigned int *out_size) {
 /* Native stubs for the test host.  TestFail wires Galaxy assertions into
  * jass_rterror so T_ASSERT(!jass_rterror_pending(j)) detects failures. */
 static unsigned int gal_stub(LPJASS j)    { return jass_pushnull(j); }
+static unsigned int gal_void(LPJASS j)    { (void)j; return 0; }
 static unsigned int gal_true(LPJASS j) { return jass_pushboolean(j, 1); }
 static unsigned int gal_false_ret(LPJASS j) { return jass_pushboolean(j, 0); }
 static unsigned int gal_zero(LPJASS j)    { return jass_pushinteger(j, 0); }
@@ -69,6 +73,7 @@ static unsigned int gal_TestFail(LPJASS j) {
 
 static JASSMODULE gal_test_natives[] = {
     { "TestFail", gal_TestFail },
+    { "NoValue", gal_void },
     /* Stubs for natives used during InitGlobals / InitTriggers init paths */
     { "TriggerCreate",               gal_stub },
     { "TriggerAddEventMapInit",      gal_stub },
@@ -176,6 +181,12 @@ static JASSMODULE gal_test_natives[] = {
     { "EventUnitCargo",              gal_stub  },
     { "EventUnitTarget",             gal_stub  },
     { "AITimePause",                 gal_stub  },
+    { NULL, NULL },
+};
+
+static JASSMODULE gal_assert_natives[] = {
+    { "TestFail", gal_TestFail },
+    { "NoValue", gal_void },
     { NULL, NULL },
 };
 
@@ -467,9 +478,10 @@ TEST(galaxy, parse_compact_comparison_operators) {
     gal_destroy(&s);
 }
 
-TEST(galaxy, reject_unimplemented_continue) {
+TEST(galaxy, parse_continue_in_loop) {
+    /* continue is implemented as exitwhen(false) — a parse-safe no-op. */
     gal_state_t s = gal_new();
-    T_ASSERT(!gal_parse(&s, "void f() { while (true) { continue; } }"));
+    T_ASSERT(gal_parse(&s, "void f() { while (true) { continue; } }"));
     gal_destroy(&s);
 }
 
@@ -767,6 +779,151 @@ TEST(galaxy, vm_symbolic_logic_and_shifts) {
         "    if (!logic) { TestFail(\"symbolic logic failed\"); }\n"
         "    if (shifted!=8) { TestFail(\"shift operators failed\"); }\n"
         "}"));
+    gal_destroy(&s);
+}
+
+TEST(galaxy, vm_null_equality) {
+    gal_state_t s = gal_new();
+    T_ASSERT(gal_run(&s,
+        "native void TestFail(string msg);\n"
+        "void main() {\n"
+        "    string empty = null;\n"
+        "    string value = \"value\";\n"
+        "    if (empty != null) { TestFail(\"typed null must equal null\"); }\n"
+        "    if (value == null) { TestFail(\"non-null string must differ from null\"); }\n"
+        "}"));
+    gal_destroy(&s);
+}
+
+TEST(galaxy, vm_string_word) {
+    gal_state_t s = gal_new();
+    jass_sethost(&MAKE(JASSHOST,
+        .MemAlloc = gal_alloc, .MemFree = gal_free, .ReadFile = gal_read_file,
+        .natives = gal_test_natives, .galaxy_natives = galaxy_get_natives(),
+    ));
+    T_ASSERT(gal_run(&s,
+        "native void TestFail(string msg);\n"
+        "native string StringWord(string value, int index);\n"
+        "void main() {\n"
+        "    if (StringWord(\"klaatu  barada nikto\", 2) != \"barada\") { TestFail(\"second word mismatch\"); }\n"
+        "    if (StringWord(\"klaatu barada nikto\", 4) != null) { TestFail(\"missing word must be null\"); }\n"
+        "}"));
+    gal_destroy(&s);
+}
+
+TEST(galaxy, vm_string_word_loop_terminates) {
+    gal_state_t s = gal_new();
+    jass_sethost(&MAKE(JASSHOST,
+        .MemAlloc = gal_alloc, .MemFree = gal_free, .ReadFile = gal_read_file,
+        .natives = gal_test_natives, .galaxy_natives = galaxy_get_natives(),
+    ));
+    T_ASSERT(gal_parse(&s,
+        "native void TestFail(string msg);\n"
+        "native string StringWord(string value, int index);\n"
+        "int gv_count = 0;\n"
+        "void main() {\n"
+        "    string item = \"\";\n"
+        "    while (true) {\n"
+        "        gv_count = gv_count + 1;\n"
+        "        item = StringWord(\"alpha beta gamma\", gv_count);\n"
+        "        if (item == null) { gv_count = gv_count - 1; break; }\n"
+        "    }\n"
+        "    if (gv_count != 3) { TestFail(\"word loop did not terminate at sentinel\"); }\n"
+        "}"));
+    jass_callbyname(s.j, "main", true);
+    jass_runevents(s.j);
+    T_ASSERT(!jass_rterror_pending(s.j));
+    gal_destroy(&s);
+}
+
+TEST(galaxy, vm_coroutine_void_argument) {
+    gal_state_t s = gal_new();
+    T_ASSERT(gal_parse(&s,
+        "native void NoValue(); native void TestFail(string msg);\n"
+        "int gv_called = 0;\n"
+        "void sink(int value) { gv_called = 1; }\n"
+        "void main() { sink(NoValue()); if (gv_called != 1) { TestFail(\"callee not run\"); } }"));
+    jass_callbyname(s.j, "main", true);
+    jass_runevents(s.j);
+    T_ASSERT(!jass_rterror_pending(s.j));
+    gal_destroy(&s);
+}
+
+TEST(galaxy, vm_coroutine_executes_dynamic_trigger) {
+    gal_state_t s = gal_new();
+    galaxy_reset();
+    jass_sethost(&MAKE(JASSHOST,
+        .MemAlloc = gal_alloc, .MemFree = gal_free, .ReadFile = gal_read_file,
+        .natives = gal_assert_natives, .galaxy_natives = galaxy_get_natives(),
+    ));
+    T_ASSERT(gal_parse(&s,
+        "native void TestFail(string msg);\n"
+        "native void Wait(fixed duration, int timeType);\n"
+        "native trigger TriggerCreate(string funcName);\n"
+        "native void TriggerExecute(trigger value, bool testConds, bool waitDone);\n"
+        "int gv_called = 0;\n"
+        "bool child(bool testConds, bool runActions) { gv_called = 1; Wait(0.0, 0); gv_called = 2; return true; }\n"
+        "void main() {\n"
+        "    trigger value = TriggerCreate(\"child\");\n"
+        "    MissingFunction();\n"
+        "    TriggerExecute(value, true, true);\n"
+        "    if (gv_called != 2) { TestFail(\"wait-done trigger resumed parent before child\"); }\n"
+        "}"));
+    jass_callbyname(s.j, "main", true);
+    jass_runevents(s.j);
+    jass_runevents(s.j);
+    T_ASSERT(!jass_rterror_pending(s.j));
+    galaxy_reset();
+    gal_destroy(&s);
+}
+
+TEST(galaxy, vm_trigger_fires_multiple_times) {
+    gal_state_t s = gal_new();
+    galaxy_reset();
+    jass_sethost(&MAKE(JASSHOST,
+        .MemAlloc = gal_alloc, .MemFree = gal_free, .ReadFile = gal_read_file,
+        .natives = gal_assert_natives, .galaxy_natives = galaxy_get_natives(),
+    ));
+    T_ASSERT(gal_parse(&s,
+        "native void TestFail(string msg);\n"
+        "native trigger TriggerCreate(string funcName);\n"
+        "native void TriggerExecute(trigger t, bool testConds, bool waitDone);\n"
+        "int gv_count = 0;\n"
+        "bool handler(bool testConds, bool runActions) { gv_count = gv_count + 1; return true; }\n"
+        "void main() {\n"
+        "    trigger t = TriggerCreate(\"handler\");\n"
+        "    TriggerExecute(t, false, true);\n"
+        "    TriggerExecute(t, false, true);\n"
+        "    TriggerExecute(t, false, true);\n"
+        "    if (gv_count != 3) { TestFail(\"trigger should fire 3 times\"); }\n"
+        "}"));
+    jass_callbyname(s.j, "main", true);
+    jass_runevents(s.j);
+    T_ASSERT(!jass_rterror_pending(s.j));
+    galaxy_reset();
+    gal_destroy(&s);
+}
+
+TEST(galaxy, vm_indexed_root_lookups) {
+    gal_state_t s = gal_new();
+    size_t cap = BZ_GAL_INDEX_TEST_DECLS * 80, used = 0;
+    char *src = calloc(1, cap);
+    used += snprintf(src + used, cap - used, "int gv_hits = 0;\n");
+    FOR_LOOP(i, BZ_GAL_INDEX_TEST_DECLS) {
+        used += snprintf(src + used, cap - used, "int gv_%u = 0; void fn_%u() { gv_%u = %u; gv_hits = gv_hits + 1; }\n", i, i, i, i);
+    }
+    used += snprintf(src + used, cap - used,
+        "native void TestFail(string msg); void main() { if (gv_hits != %u) { TestFail(\"indexed lookup failed\"); } }",
+        BZ_GAL_INDEX_TEST_DECLS);
+    T_ASSERT(used < cap && gal_parse(&s, src));
+    FOR_LOOP(i, BZ_GAL_INDEX_TEST_DECLS) {
+        char name[32];
+        snprintf(name, sizeof(name), "fn_%u", i);
+        jass_callbyname(s.j, name, false);
+    }
+    jass_callbyname(s.j, "main", false);
+    T_ASSERT(!jass_rterror_pending(s.j));
+    free(src);
     gal_destroy(&s);
 }
 

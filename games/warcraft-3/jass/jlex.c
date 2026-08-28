@@ -1,7 +1,7 @@
 #include "jlex.h"
 #include <ctype.h>
 
-#define MAX_SEGMENT_SIZE 1024
+#define MAX_SEGMENT_SIZE 16384  /* Galaxy scripts contain long string literals */
 
 BOOL eat_token(LPPARSER p, LPCSTR value) {
     LPCSTR tok = peek_token(p);

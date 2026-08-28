@@ -23,6 +23,18 @@ build/bin/opensc2 -data data/StarCraft2 +vid_hidden 1 +map Maps/TerranTest.SC2Co
 Add a temporary one-shot log after `SC2_MapLoad` in `R_SC2RegisterMap`; do not log from a draw path. Compare the authored ray, its
 Lambert negation, and the camera right vector in screen space, then remove the log.
 
+## Camera Drag Plane
+
+SC2 computes camera target Z as terrain height at the target XY plus the camera's authored `HeightOffset`. This matches Warsmash's
+WC3 lifecycle: `MeleeUI` samples terrain under `cameraManager.target`, then `GameCameraManager.updateTargetZ` adds preset height and
+target offset before deriving the eye from pitch and distance. Treating `HeightOffset` as absolute world Z puts the eye underground.
+
+SC2 drag-panning intersects the cursor ray with the horizontal plane at `viewCamera_t.origin.z`, the current terrain-relative camera target height.
+It must not use `R_SC2TraceLocation`: that function intersects actual heightmap triangles for unit commands, so reusing it for camera
+drag makes the pan anchor jump when the cursor crosses cliffs or other terrain tiers. `TraceCameraPlane` owns the stable screen-ray
+intersection during the drag; camera rendering resamples terrain at the moved target, so the eye rises over higher ground. Smart
+commands continue to use terrain `TraceLocation`.
+
 ## Hard-Tile Roads
 
 Roads use `CTile` records in `GameData/TileData.xml`; for example,
@@ -30,8 +42,16 @@ Roads use `CTile` records in `GameData/TileData.xml`; for example,
 (`HRDT`, observed version 102), whose repeated records contain a world surface center, surface normal, two endpoint offsets,
 half-width, depth, flags, and a
 null-terminated tile ID. `SC2_MapLoad` validates the whole pointer-walk before allocating `hard_tiles`, resolves each ID through the
-layered `CTile` catalogs, and logs unresolved IDs. `r_sc2_build_hard_tiles` retains one model reference per placement and
-`r_sc2_draw_hard_tiles` submits the authored transform through the normal M3 material and shadow path.
+layered `CTile` catalogs, and logs unresolved IDs. `r_sc2_build_hard_tiles` joins each flagged control-point chain as a cubic Bezier
+ribbon. Adjacent triangles and spans share sampled cross-sections, while longitudinal UV advances by sampled centerline distance so
+texture markings follow bends instead of stretching independently between controls. Road vertices retain the authored height when
+it is above terrain, otherwise they use terrain height plus `SC2_HARD_TILE_Z_BIAS` (`0.05` world units) to avoid z-fighting without
+visibly floating.
+
+`MarSaraRoad_Diffuse.dds` is a 1024x1024 atlas. Its seamless road body runs horizontally through the lower half (`V=0.5..1.0`),
+so generated ribbons map arc length to U and road width to that V band. Mapping width to U and length to the full V range selects the
+upper end-cap tiles and dirt between atlas regions, producing disconnected slabs. The body band has a 2:1 length/width aspect ratio;
+use the authored half-width when converting world distance to repeating U.
 
 Do not replace these placements with a generic road spline from painted terrain. If a map/version stores a centerline that must be tessellated,
 the relevant Quake III reference is `data/Quake-III-Arena-master/code/splines/splines.cpp`: it samples a uniform cubic B-spline with

@@ -2,8 +2,11 @@
 #include "games/starcraft-2/common/sc2_map.h"
 #include "games/starcraft-2/game/hud/hud.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+
+sc2Level_t sc2_level;
 
 #define SC2_MOVE_SPEED  6.0f
 #define SC2_MOVE_CLOSE  4.0f
@@ -263,6 +266,214 @@ static void SC2_SolveCollisions(void) {
     }
 }
 
+/* -------------------------------------------------------------------------
+ * Galaxy callbacks — bridge between galaxy_host.c natives and SC2 game state.
+ * ------------------------------------------------------------------------- */
+static void SC2_WriteCamera(LPCVECTOR2 origin, LPCVECTOR3 angles, FLOAT distance, FLOAT fov) {
+    FOR_LOOP(i, SC2_MAX_CLIENTS) {
+        sc2_clients[i].ps.origin = *origin;
+        sc2_clients[i].ps.viewangles = *angles;
+        sc2_clients[i].ps.fov = (DWORD)fov;
+        sc2_clients[i].ps.distance = distance;
+        sc2_clients[i].ps.viewquat = Quaternion_fromEuler(angles, ROTATE_ZYX);
+    }
+}
+
+static FLOAT SC2_CameraEyeZ(LPCSC2CAMERA camera) {
+    return CM_GetHeightAtPoint(camera->origin.x, camera->origin.y) + camera->angles.z +
+           sinf((FLOAT)DEG2RAD(camera->angles.x)) * camera->distance;
+}
+
+/* CameraApplyInfo durations author server snapshots; clients only smooth between those samples. */
+static void SC2_UpdateCamera(void) {
+    DWORD now = gi.GetTime();
+    DWORD duration = sc2_level.camera.end_time - sc2_level.camera.start_time;
+    LPSC2CAMERA a = &sc2_level.camera.old, b = &sc2_level.camera.state;
+    SC2CAMERA cur;
+    FLOAT k;
+
+    if (!duration || now >= sc2_level.camera.end_time) {
+        SC2_WriteCamera(&b->origin, &b->angles, b->distance, b->fov);
+        if (duration && sc2_level.camera.log_stage < 2) {
+            FLOAT ground = CM_GetHeightAtPoint(b->origin.x, b->origin.y), eye_z = SC2_CameraEyeZ(b);
+            fprintf(stderr, "SC2 camera move: end t=1.00 target=(%.2f %.2f) terrain=%.2f eye_z=%.2f clearance=%.2f pitch=%.2f yaw=%.2f dist=%.2f\n",
+                b->origin.x, b->origin.y, ground, eye_z, eye_z - ground, b->angles.x, b->angles.y, b->distance);
+            sc2_level.camera.log_stage = 2;
+        }
+        return;
+    }
+    k = (now - sc2_level.camera.start_time) / (FLOAT)duration;
+    cur.origin = Vector2_lerp(&a->origin, &b->origin, k);
+    cur.angles = (VECTOR3){ LerpNumber(a->angles.x, b->angles.x, k), SC2_LerpDegrees(a->angles.y, b->angles.y, k),
+                            LerpNumber(a->angles.z, b->angles.z, k) };
+    cur.distance = LerpNumber(a->distance, b->distance, k);
+    cur.fov = LerpNumber(a->fov, b->fov, k);
+    SC2_WriteCamera(&cur.origin, &cur.angles, cur.distance, cur.fov);
+    if (k >= 0.5f && !sc2_level.camera.log_stage) {
+        FLOAT ground = CM_GetHeightAtPoint(cur.origin.x, cur.origin.y), eye_z = SC2_CameraEyeZ(&cur);
+        fprintf(stderr, "SC2 camera move: mid t=%.2f target=(%.2f %.2f) terrain=%.2f eye_z=%.2f clearance=%.2f pitch=%.2f yaw=%.2f dist=%.2f\n",
+            k, cur.origin.x, cur.origin.y, ground, eye_z, eye_z - ground, cur.angles.x, cur.angles.y, cur.distance);
+        sc2_level.camera.log_stage = 1;
+    }
+}
+
+static void SC2_GalaxySetCamera(float target_x, float target_y,
+                                float yaw, float pitch,
+                                float dist, float fov, float height_offset, float duration) {
+    SC2_UpdateCamera();
+    sc2_level.camera.old = (SC2CAMERA){ sc2_clients[0].ps.origin, sc2_clients[0].ps.viewangles,
+                                       sc2_clients[0].ps.distance, sc2_clients[0].ps.fov };
+    sc2_level.camera.state = (SC2CAMERA){ { target_x, target_y }, { pitch, yaw, height_offset }, dist, fov };
+    sc2_level.camera.start_time = gi.GetTime();
+    sc2_level.camera.end_time = sc2_level.camera.start_time + (DWORD)(MAX(0.0f, duration) * 1000.0f);
+    sc2_level.camera.log_stage = duration > 0.0f ? 0 : 2;
+    SC2_UpdateCamera();
+    if (duration > 0.0f) {
+        FLOAT ground = CM_GetHeightAtPoint(sc2_level.camera.old.origin.x, sc2_level.camera.old.origin.y);
+        FLOAT eye_z = SC2_CameraEyeZ(&sc2_level.camera.old);
+        fprintf(stderr, "SC2 camera move: start t=0.00 target=(%.2f %.2f) terrain=%.2f eye_z=%.2f clearance=%.2f -> target=(%.2f %.2f) duration=%.2f\n",
+                sc2_level.camera.old.origin.x, sc2_level.camera.old.origin.y, ground, eye_z,
+            eye_z - ground, target_x, target_y, duration);
+        fprintf(stderr, "SC2_GalaxySetCamera: target=(%.1f,%.1f) yaw=%.1f pitch=%.1f dist=%.1f fov=%.1f height=%.2f duration=%.2f\n",
+            target_x, target_y, yaw, pitch, dist, fov, height_offset, duration);
+    }
+}
+
+static void SC2_GalaxyCinematicMode(BOOL enable, float duration) {
+    (void)duration;
+    sc2_level.cinematic = enable;
+    FOR_LOOP(i, SC2_MAX_CLIENTS)
+        sc2_clients[i].ps.client_ui_state = enable ? CLIENT_UI_CINEMATIC : CLIENT_UI_GAME;
+}
+
+static void SC2_GalaxyCinematicFade(float alpha, float duration) {
+    (void)duration; /* TODO: interpolated fade */
+    sc2_level.cinefade = alpha;
+    FOR_LOOP(i, SC2_MAX_CLIENTS)
+        sc2_clients[i].ps.cinefade = alpha;
+}
+
+/* Camera lookup: find SC2_OBJECT_CAMERA in the loaded map by integer ID. */
+static BOOL SC2_GalaxyGetCameraById(DWORD map_id,
+    float *tx, float *ty, float *tz,
+    float *pitch, float *yaw, float *dist, float *fov, float *height_offset) {
+    sc2Map_t const *map = SC2_MapCurrent();
+    if (!map) return false;
+    FOR_LOOP(i, map->num_objects) {
+        sc2MapObject_t const *obj = &map->objects[i];
+        if (obj->type == SC2_OBJECT_CAMERA && obj->id == map_id) {
+            *tx = obj->camera.target.x;  *ty = obj->camera.target.y;  *tz = obj->camera.target.z;
+            *pitch = obj->camera.pitch;  *yaw = obj->camera.yaw;
+            *dist  = obj->camera.distance;  *fov = obj->camera.fov;
+            *height_offset = obj->camera.height_offset;
+            fprintf(stderr, "SC2_GalaxyGetCameraById: id=%u target=(%.1f,%.1f,%.1f) pitch=%.1f yaw=%.1f dist=%.1f fov=%.1f\n",
+                    map_id, *tx, *ty, *tz, *pitch, *yaw, *dist, *fov);
+            return true;
+        }
+    }
+    fprintf(stderr, "SC2_GalaxyGetCameraById: id=%u not found in map\n", map_id);
+    return false;
+}
+
+/* Point lookup: find SC2_OBJECT_POINT in the loaded map by integer ID. */
+static BOOL SC2_GalaxyGetPointById(DWORD map_id, float *x, float *y) {
+    sc2Map_t const *map = SC2_MapCurrent();
+    if (!map) return false;
+    FOR_LOOP(i, map->num_objects) {
+        sc2MapObject_t const *obj = &map->objects[i];
+        if (obj->type == SC2_OBJECT_POINT && obj->id == map_id) {
+            *x = obj->position.x;  *y = obj->position.y;
+            return true;
+        }
+    }
+    fprintf(stderr, "SC2_GalaxyGetPointById: id=%u not found\n", map_id);
+    return false;
+}
+
+/* Unit model lookup: prefer an already-resolved M3 path from an existing map
+ * object with a matching type_name, then fall back to the persistent unit
+ * catalog for units created purely at runtime (e.g. cinematic UnitCreate). */
+static const char *SC2_GalaxyGetUnitModel(LPCSTR unit_type) {
+    sc2Map_t const *map = SC2_MapCurrent();
+    LPCSTR catalog_model;
+    if (!unit_type || !*unit_type) return "";
+    if (map) {
+        FOR_LOOP(i, map->num_objects) {
+            sc2MapObject_t const *obj = &map->objects[i];
+            if (obj->type == SC2_OBJECT_UNIT && obj->model[0] &&
+                (!strcasecmp(obj->type_name, unit_type) || !strcasecmp(obj->name, unit_type))) {
+                fprintf(stderr, "SC2_GalaxyGetUnitModel: %s -> %s\n", unit_type, obj->model);
+                return obj->model;
+            }
+        }
+    }
+    catalog_model = SC2_MapResolveUnitModel(unit_type);
+    if (catalog_model && catalog_model[0]) {
+        fprintf(stderr, "SC2_GalaxyGetUnitModel: %s -> %s (catalog)\n", unit_type, catalog_model);
+        return catalog_model;
+    }
+    fprintf(stderr, "SC2_GalaxyGetUnitModel: no model found for '%s'\n", unit_type);
+    return "";
+}
+
+/* Unit entity operations. */
+static void SC2_GalaxyUnitSetPosition(void *ent_ptr, float x, float y, float facing) {
+    LPEDICT ent = (LPEDICT)ent_ptr;
+    if (!ent || !ent->inuse) return;
+    if (x == x) { /* NaN check: NaN != NaN, so x==x is false only for NaN → skip position */
+        ent->s.origin2.x = x;
+        ent->s.origin2.y = y;
+        ent->s.origin.x  = x;
+        ent->s.origin.y  = y;
+        ent->s.origin.z  = SC2_MapHeightAtPoint(x, y);
+        gi.LinkEntity(ent);
+    }
+    ent->s.angle = facing;
+}
+
+static BOOL SC2_GalaxyUnitIsAlive(void *ent_ptr) {
+    LPEDICT ent = (LPEDICT)ent_ptr;
+    return ent && ent->inuse;
+}
+
+/* Called with the resolved M3 model path (from sc2_galaxy_get_unit_model or
+ * the unit type name as fallback if no catalog entry was found). */
+static void *SC2_GalaxyCreateUnit(LPCSTR model, int player, float x, float y, float angle) {
+    if (globals.num_edicts >= globals.max_edicts) {
+        fprintf(stderr, "SC2_GalaxyCreateUnit: FATAL: edict pool full (%u/%u) — galaxy unit '%s' "
+                "(player=%d at %.1f,%.1f) DROPPED, will never render; raise SC2_MAX_EDICTS in g_sc2_local.h\n",
+                (unsigned)globals.num_edicts, (unsigned)globals.max_edicts, model ? model : "(null)", player, x, y);
+        return NULL;
+    }
+    LPEDICT ent = &sc2_edicts[globals.num_edicts++];
+    memset(ent, 0, sizeof(*ent));
+    ent->inuse = true;
+    ent->s.number = (DWORD)(ent - sc2_edicts);
+    ent->s.origin.x = x;
+    ent->s.origin.y = y;
+    ent->s.origin.z = SC2_MapHeightAtPoint(x, y);
+    ent->s.angle = angle;
+    ent->s.scale = 1.0f;
+    ent->s.player = (DWORD)player;
+    ent->s.model = G_RegisterModel(model ? model : "");
+    gi.LinkEntity(ent);
+    fprintf(stderr, "SC2_GalaxyCreateUnit: model=%s player=%d at (%.1f,%.1f)\n",
+            model ? model : "(null)", player, x, y);
+    return ent;
+}
+
+static void SC2_InitGalaxyHost(void) {
+    sc2_galaxy_on_camera          = SC2_GalaxySetCamera;
+    sc2_galaxy_on_cinematic       = SC2_GalaxyCinematicMode;
+    sc2_galaxy_on_fade            = SC2_GalaxyCinematicFade;
+    sc2_galaxy_on_unit_create     = SC2_GalaxyCreateUnit;
+    sc2_galaxy_get_camera_by_id   = SC2_GalaxyGetCameraById;
+    sc2_galaxy_get_point_by_id    = SC2_GalaxyGetPointById;
+    sc2_galaxy_get_unit_model     = SC2_GalaxyGetUnitModel;
+    sc2_galaxy_unit_set_position  = SC2_GalaxyUnitSetPosition;
+    sc2_galaxy_unit_is_alive      = SC2_GalaxyUnitIsAlive;
+}
+
 static void SC2_InitClients(void) {
     sc2MapCamera_t camera;
 
@@ -278,9 +489,13 @@ static void SC2_InitClients(void) {
         ent->client->ps.fov = (DWORD)camera.fov;
         ent->client->ps.distance = camera.distance;
         ent->client->ps.rdflags = RDF_NOFOG | RDF_NOFOGMASK;
-        ent->client->ps.viewangles = (VECTOR3){ camera.pitch, camera.yaw, 0.0f };
+        ent->client->ps.viewangles = (VECTOR3){ camera.pitch, camera.yaw, camera.height_offset };
         ent->client->ps.viewquat = Quaternion_fromEuler(&ent->client->ps.viewangles, ROTATE_ZYX);
     }
+    sc2_level.camera.old = sc2_level.camera.state = (SC2CAMERA){ { camera.target.x, camera.target.y },
+        { camera.pitch, camera.yaw, camera.height_offset }, camera.distance, camera.fov };
+    sc2_level.camera.start_time = sc2_level.camera.end_time = gi.GetTime();
+    sc2_level.camera.log_stage = 2;
 }
 
 static void SC2_Init(void) {
@@ -288,6 +503,7 @@ static void SC2_Init(void) {
     memset(sc2_clients, 0, sizeof(sc2_clients));
     memset(sc2_move,    0, sizeof(sc2_move));
     memset(sc2_waypoints, 0, sizeof(sc2_waypoints));
+    memset(&sc2_level, 0, sizeof(sc2_level));
 
     globals.edicts     = sc2_edicts;
     globals.num_edicts = SC2_MAX_CLIENTS;
@@ -295,9 +511,11 @@ static void SC2_Init(void) {
     globals.max_clients = SC2_MAX_CLIENTS;
     SC2_InitClients();
     SC2_HUD_InitLayoutHost();
+    SC2_InitGalaxyHost();
 }
 
 static void SC2_Shutdown(void) {
+    if (sc2_level.vm) { galaxy_close(sc2_level.vm); sc2_level.vm = NULL; }
     G_FreeModels();
     SC2_MapShutdown();
 }
@@ -315,11 +533,15 @@ static bool SC2_LoadMap(LPCSTR mapFilename) {
         gi.ClearWorld();
     }
     SC2_SpawnEntities();
-    /* Register HUD configstrings after memset(&sv,...) in SV_Map wipes them.
-     * SC2_Init sets up uiimport callbacks; the actual configstring registration
-     * (layout parse → FontIndex → SV_FindIndex) must happen here, after the
-     * server struct has been zeroed and ge->LoadMap has run. */
+    /* Register HUD configstrings after memset(&sv,...) in SV_Map wipes them. */
     SC2_HUD_EnsureLayout(NULL);
+
+    /* Open Galaxy VM and load map scripts. */
+    if (sc2_level.vm) { galaxy_close(sc2_level.vm); sc2_level.vm = NULL; }
+    sc2_level.scriptsStarted = false;
+    sc2_level.vm = galaxy_open(gi.ReadFile, gi.GetTime, gi.MemAlloc, gi.MemFree);
+    if (sc2_level.vm)
+        galaxy_start(sc2_level.vm);  /* registers triggers via InitMap() */
     return true;
 }
 
@@ -345,7 +567,12 @@ static void SC2_SpawnEntities(void) {
             continue;
         }
         if (globals.num_edicts >= globals.max_edicts) {
-            fprintf(stderr, "SC2_SpawnEntities: hit max edicts at %u objects\n", (unsigned)i);
+            fprintf(stderr, "SC2_SpawnEntities: FATAL: edict pool exhausted at %u/%u map objects "
+                    "(SC2_MAX_EDICTS=%u too small) — %u remaining static objects AND every later "
+                    "galaxy UnitCreate/UnitCargoCreate (cinematic units!) will be silently invisible; "
+                    "raise SC2_MAX_EDICTS in g_sc2_local.h\n",
+                    (unsigned)i, (unsigned)map->num_objects, (unsigned)globals.max_edicts,
+                    (unsigned)(map->num_objects - i));
             break;
         }
         ent = &sc2_edicts[globals.num_edicts++];
@@ -373,16 +600,16 @@ static void SC2_SpawnEntities(void) {
 }
 
 static void SC2_RunFrame(void) {
+    /* Tick Galaxy VM — runs pending coroutines (cutscene waits, camera pans). */
+    if (sc2_level.vm && sc2_level.scriptsStarted)
+        galaxy_tick(sc2_level.vm);
+    SC2_UpdateCamera();
+
     FOR_LOOP(i, globals.num_edicts) {
-        if (sc2_edicts[i].inuse) {
+        if (sc2_edicts[i].inuse)
             SC2_RunUnit(&sc2_edicts[i]);
-        }
     }
     SC2_SolveCollisions();
-
-    /* HUD is sent on client connect only — static panels never change.
-     * Dynamic panels (command/info) will be sent on selection change
-     * when that system is wired up. */
 }
 
 static void SC2_ClientBegin(LPEDICT ent) {
@@ -427,11 +654,15 @@ static void SC2_ClientBegin(LPEDICT ent) {
         break;
     }
 
-    /* Send initial static HUD — console backdrop, resource bar,
-     * command panel, info panel.  The client retains the last
-     * received layout per layer and renders it every frame. */
+    /* Send initial static HUD. */
     SC2_HUD_WriteResourcePanel(ent);
     SC2_HUD_WriteConsolePanel(ent);
+
+    /* Fire the Galaxy MapInit event on the first client connect. */
+    if (sc2_level.vm && !sc2_level.scriptsStarted) {
+        sc2_level.scriptsStarted = true;
+        galaxy_fire_mapinit(sc2_level.vm);
+    }
 }
 
 static void SC2_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
