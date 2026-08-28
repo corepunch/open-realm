@@ -15,10 +15,23 @@ extern struct game_export globals;
 
 /* Level-local state for the Galaxy VM and cinematic system. */
 typedef struct {
+    VECTOR2 origin;
+    VECTOR3 angles;
+    FLOAT distance, fov;
+} SC2CAMERA;
+typedef SC2CAMERA *LPSC2CAMERA;
+typedef SC2CAMERA const *LPCSC2CAMERA;
+
+typedef struct {
     LPJASS vm;
     BOOL   scriptsStarted;
     FLOAT  cinefade;       /* 0=clear … 1=fully black (written to client ps.cinefade) */
     BOOL   cinematic;      /* true while cinematic bars/overlay is active */
+    struct {
+        SC2CAMERA old, state;
+        DWORD start_time, end_time;
+        BYTE log_stage;
+    } camera;
 } sc2Level_t;
 
 extern sc2Level_t sc2_level;

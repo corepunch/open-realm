@@ -51,6 +51,8 @@ void Matrix4_fromViewQuat(LPCVECTOR3 target, LPCQUATERNION quat, FLOAT distance,
 }
 
 #ifdef SC2
+static FLOAT SC2_LerpDegrees(FLOAT a, FLOAT b, FLOAT k) { return a + (fmodf(b - a + 540.0f, 360.0f) - 180.0f) * k; }
+
 static void Matrix4_getSc2CameraMatrix(LPCVECTOR3 origin,
                                        LPCVECTOR3 angles,
                                        FLOAT distance,
@@ -76,7 +78,8 @@ static void Matrix4_getSc2CameraMatrix(LPCVECTOR3 origin,
     fov = fov > 0.0f ? fov : 27.8f;
     znear = znear > 0.0f ? znear : 0.1f;
     zfar = zfar > 0.0f ? zfar : 400.0f;
-    target.z = height_offset;
+    /* SC2 HeightOffset is relative to terrain, matching the native RTS target-plane camera model. */
+    target.z = CM_GetHeightAtPoint(target.x, target.y) + height_offset;
     eye = Vector3_sub(&target, &(VECTOR3){ dir.x * distance, dir.y * distance, dir.z * distance });
     Matrix4_perspective(&proj, fov, aspect, znear, zfar);
     Matrix4_lookAt(&view, &eye, &dir, &(VECTOR3){ 0.0f, 0.0f, 1.0f });
@@ -156,9 +159,14 @@ void Matrix4_getCameraMatrix(LPMATRIX4 output) {
     Matrix4_lookAt(&view, &eye, &forward, &(VECTOR3){ 0.0f, 0.0f, 1.0f });
 #else
 #ifdef SC2
+    VECTOR3 angles = {
+        LerpNumber(a->viewangles.x, b->viewangles.x, cl.viewDef.lerpfrac),
+        SC2_LerpDegrees(a->viewangles.y, b->viewangles.y, cl.viewDef.lerpfrac),
+        LerpNumber(a->viewangles.z, b->viewangles.z, cl.viewDef.lerpfrac),
+    };
     (void)proj;
     (void)view;
-    Matrix4_getSc2CameraMatrix(&origin, &b->viewangles, distance, CM_GetCameraHeightOffset(), fov, aspect, znear, zfar, output);
+    Matrix4_getSc2CameraMatrix(&origin, &angles, distance, angles.z, fov, aspect, znear, zfar, output);
     return;
 #else
     origin.z = CM_GetHeightAtPoint(origin.x, origin.y) - 128;

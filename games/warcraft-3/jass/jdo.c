@@ -478,6 +478,17 @@ LPJASSCOROUTINE jass_startcoroutinebyname(LPJASS j, LPCSTR name) {
     return jass_startcoroutine(j, &context);
 }
 
+/* Dynamic wait-done calls must share the active coroutine so yielded child frames resume before their caller. */
+BOOL jass_callcoroutinebyname(LPJASS j, LPCSTR name) {
+    LPJASS root = jass_root(j);
+    LPJASSCOROUTINE co = root->current_coroutine;
+    LPCJASSFUNC func = find_function(root, name);
+
+    if (!co || !func || func->nativefunc) return false;
+    jass_coroutine_pushframe(co, JASS_FRAME_FUNCTION, func, func->code, NULL);
+    return true;
+}
+
 LPCSTR jass_functionname(LPCJASSFUNC func) {
     return func ? func->name : NULL;
 }

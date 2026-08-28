@@ -268,21 +268,79 @@ static void SC2_SolveCollisions(void) {
 /* -------------------------------------------------------------------------
  * Galaxy callbacks — bridge between galaxy_host.c natives and SC2 game state.
  * ------------------------------------------------------------------------- */
+static FLOAT SC2_LerpDegrees(FLOAT a, FLOAT b, FLOAT k) {
+    FLOAT delta = fmodf(b - a + 540.0f, 360.0f) - 180.0f;
+    return a + delta * k;
+}
+
+static void SC2_WriteCamera(LPCVECTOR2 origin, LPCVECTOR3 angles, FLOAT distance, FLOAT fov) {
+    FOR_LOOP(i, SC2_MAX_CLIENTS) {
+        sc2_clients[i].ps.origin = *origin;
+        sc2_clients[i].ps.viewangles = *angles;
+        sc2_clients[i].ps.fov = (DWORD)fov;
+        sc2_clients[i].ps.distance = distance;
+        sc2_clients[i].ps.viewquat = Quaternion_fromEuler(angles, ROTATE_ZYX);
+    }
+}
+
+static FLOAT SC2_CameraEyeZ(LPCSC2CAMERA camera) {
+    return CM_GetHeightAtPoint(camera->origin.x, camera->origin.y) + camera->angles.z +
+           sinf((FLOAT)DEG2RAD(camera->angles.x)) * camera->distance;
+}
+
+/* CameraApplyInfo durations author server snapshots; clients only smooth between those samples. */
+static void SC2_UpdateCamera(void) {
+    DWORD now = gi.GetTime();
+    DWORD duration = sc2_level.camera.end_time - sc2_level.camera.start_time;
+    LPSC2CAMERA a = &sc2_level.camera.old, b = &sc2_level.camera.state;
+    SC2CAMERA cur;
+    FLOAT k;
+
+    if (!duration || now >= sc2_level.camera.end_time) {
+        SC2_WriteCamera(&b->origin, &b->angles, b->distance, b->fov);
+        if (duration && sc2_level.camera.log_stage < 2) {
+            FLOAT ground = CM_GetHeightAtPoint(b->origin.x, b->origin.y), eye_z = SC2_CameraEyeZ(b);
+            fprintf(stderr, "SC2 camera move: end t=1.00 target=(%.2f %.2f) terrain=%.2f eye_z=%.2f clearance=%.2f pitch=%.2f yaw=%.2f dist=%.2f\n",
+                b->origin.x, b->origin.y, ground, eye_z, eye_z - ground, b->angles.x, b->angles.y, b->distance);
+            sc2_level.camera.log_stage = 2;
+        }
+        return;
+    }
+    k = (now - sc2_level.camera.start_time) / (FLOAT)duration;
+    cur.origin = Vector2_lerp(&a->origin, &b->origin, k);
+    cur.angles = (VECTOR3){ LerpNumber(a->angles.x, b->angles.x, k), SC2_LerpDegrees(a->angles.y, b->angles.y, k),
+                            LerpNumber(a->angles.z, b->angles.z, k) };
+    cur.distance = LerpNumber(a->distance, b->distance, k);
+    cur.fov = LerpNumber(a->fov, b->fov, k);
+    SC2_WriteCamera(&cur.origin, &cur.angles, cur.distance, cur.fov);
+    if (k >= 0.5f && !sc2_level.camera.log_stage) {
+        FLOAT ground = CM_GetHeightAtPoint(cur.origin.x, cur.origin.y), eye_z = SC2_CameraEyeZ(&cur);
+        fprintf(stderr, "SC2 camera move: mid t=%.2f target=(%.2f %.2f) terrain=%.2f eye_z=%.2f clearance=%.2f pitch=%.2f yaw=%.2f dist=%.2f\n",
+            k, cur.origin.x, cur.origin.y, ground, eye_z, eye_z - ground, cur.angles.x, cur.angles.y, cur.distance);
+        sc2_level.camera.log_stage = 1;
+    }
+}
+
 static void SC2_GalaxySetCamera(float target_x, float target_y,
                                 float yaw, float pitch,
-                                float dist, float fov, float duration) {
-    (void)duration; /* TODO: smooth camera interpolation */
-    FOR_LOOP(i, SC2_MAX_CLIENTS) {
-        sc2_clients[i].ps.origin.x = target_x;
-        sc2_clients[i].ps.origin.y = target_y;
-        sc2_clients[i].ps.viewangles.x = pitch;
-        sc2_clients[i].ps.viewangles.y = yaw;
-        sc2_clients[i].ps.fov = (DWORD)fov;
-        sc2_clients[i].ps.distance = dist;
-        sc2_clients[i].ps.viewquat = Quaternion_fromEuler(&sc2_clients[i].ps.viewangles, ROTATE_ZYX);
+                                float dist, float fov, float height_offset, float duration) {
+    SC2_UpdateCamera();
+    sc2_level.camera.old = (SC2CAMERA){ sc2_clients[0].ps.origin, sc2_clients[0].ps.viewangles,
+                                       sc2_clients[0].ps.distance, sc2_clients[0].ps.fov };
+    sc2_level.camera.state = (SC2CAMERA){ { target_x, target_y }, { pitch, yaw, height_offset }, dist, fov };
+    sc2_level.camera.start_time = gi.GetTime();
+    sc2_level.camera.end_time = sc2_level.camera.start_time + (DWORD)(MAX(0.0f, duration) * 1000.0f);
+    sc2_level.camera.log_stage = duration > 0.0f ? 0 : 2;
+    SC2_UpdateCamera();
+    if (duration > 0.0f) {
+        FLOAT ground = CM_GetHeightAtPoint(sc2_level.camera.old.origin.x, sc2_level.camera.old.origin.y);
+        FLOAT eye_z = SC2_CameraEyeZ(&sc2_level.camera.old);
+        fprintf(stderr, "SC2 camera move: start t=0.00 target=(%.2f %.2f) terrain=%.2f eye_z=%.2f clearance=%.2f -> target=(%.2f %.2f) duration=%.2f\n",
+                sc2_level.camera.old.origin.x, sc2_level.camera.old.origin.y, ground, eye_z,
+            eye_z - ground, target_x, target_y, duration);
     }
-    fprintf(stderr, "SC2_GalaxySetCamera: target=(%.1f,%.1f) yaw=%.1f pitch=%.1f dist=%.1f fov=%.1f\n",
-            target_x, target_y, yaw, pitch, dist, fov);
+        fprintf(stderr, "SC2_GalaxySetCamera: target=(%.1f,%.1f) yaw=%.1f pitch=%.1f dist=%.1f fov=%.1f height=%.2f duration=%.2f\n",
+            target_x, target_y, yaw, pitch, dist, fov, height_offset, duration);
 }
 
 static void SC2_GalaxyCinematicMode(BOOL enable, float duration) {
@@ -300,7 +358,7 @@ static void SC2_GalaxyCinematicFade(float alpha, float duration) {
 /* Camera lookup: find SC2_OBJECT_CAMERA in the loaded map by integer ID. */
 static BOOL SC2_GalaxyGetCameraById(DWORD map_id,
     float *tx, float *ty, float *tz,
-    float *pitch, float *yaw, float *dist, float *fov) {
+    float *pitch, float *yaw, float *dist, float *fov, float *height_offset) {
     sc2Map_t const *map = SC2_MapCurrent();
     if (!map) return false;
     FOR_LOOP(i, map->num_objects) {
@@ -309,6 +367,7 @@ static BOOL SC2_GalaxyGetCameraById(DWORD map_id,
             *tx = obj->camera.target.x;  *ty = obj->camera.target.y;  *tz = obj->camera.target.z;
             *pitch = obj->camera.pitch;  *yaw = obj->camera.yaw;
             *dist  = obj->camera.distance;  *fov = obj->camera.fov;
+            *height_offset = obj->camera.height_offset;
             fprintf(stderr, "SC2_GalaxyGetCameraById: id=%u target=(%.1f,%.1f,%.1f) pitch=%.1f yaw=%.1f dist=%.1f fov=%.1f\n",
                     map_id, *tx, *ty, *tz, *pitch, *yaw, *dist, *fov);
             return true;
@@ -418,9 +477,13 @@ static void SC2_InitClients(void) {
         ent->client->ps.fov = (DWORD)camera.fov;
         ent->client->ps.distance = camera.distance;
         ent->client->ps.rdflags = RDF_NOFOG | RDF_NOFOGMASK;
-        ent->client->ps.viewangles = (VECTOR3){ camera.pitch, camera.yaw, 0.0f };
+        ent->client->ps.viewangles = (VECTOR3){ camera.pitch, camera.yaw, camera.height_offset };
         ent->client->ps.viewquat = Quaternion_fromEuler(&ent->client->ps.viewangles, ROTATE_ZYX);
     }
+    sc2_level.camera.old = sc2_level.camera.state = (SC2CAMERA){ { camera.target.x, camera.target.y },
+        { camera.pitch, camera.yaw, camera.height_offset }, camera.distance, camera.fov };
+    sc2_level.camera.start_time = sc2_level.camera.end_time = gi.GetTime();
+    sc2_level.camera.log_stage = 2;
 }
 
 static void SC2_Init(void) {
@@ -523,6 +586,7 @@ static void SC2_RunFrame(void) {
     /* Tick Galaxy VM — runs pending coroutines (cutscene waits, camera pans). */
     if (sc2_level.vm && sc2_level.scriptsStarted)
         galaxy_tick(sc2_level.vm);
+    SC2_UpdateCamera();
 
     FOR_LOOP(i, globals.num_edicts) {
         if (sc2_edicts[i].inuse)

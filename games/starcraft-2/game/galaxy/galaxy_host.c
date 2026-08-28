@@ -72,7 +72,7 @@ typedef struct { FLOAT x, y; } sc2GPoint_t;
 static sc2GPoint_t sc2_gpoints[MAX_GALAXY_POINTS];
 static LONG sc2_gpoint_n = 1;  /* 1-based; 0 = null handle */
 
-typedef struct { FLOAT tx, ty, tz, pitch, yaw, dist, fov; } sc2GCam_t;
+typedef struct { FLOAT tx, ty, tz, pitch, yaw, dist, fov, height; } sc2GCam_t;
 static sc2GCam_t sc2_gcams[MAX_GALAXY_CAMS];
 static LONG sc2_gcam_n = 1;    /* 1-based; 0 = null handle */
 
@@ -130,7 +130,7 @@ static void sc2_fire_trigger_func(LPJASS j, LPCSTR funcname, BOOL testConds, BOO
     fprintf(stderr, "sc2_fire_trigger_func: calling %s (coroutine=%d)\n", funcname, as_coroutine);
     if (as_coroutine)
         jass_startcoroutinebyname(root, name);
-    else
+    else if (!jass_callcoroutinebyname(root, name))
         jass_callbyname(root, name, false);
 }
 
@@ -150,7 +150,7 @@ void galaxy_fire_mapinit(LPJASS j) {
  * ------------------------------------------------------------------------- */
 void (*sc2_galaxy_on_camera)(float target_x, float target_y,
                              float yaw, float pitch,
-                             float dist, float fov, float duration);
+                             float dist, float fov, float height_offset, float duration);
 void (*sc2_galaxy_on_cinematic)(BOOL enable, float duration);
 void (*sc2_galaxy_on_fade)(float alpha, float duration);
 void *(*sc2_galaxy_on_unit_create)(LPCSTR model, int player,
@@ -158,7 +158,7 @@ void *(*sc2_galaxy_on_unit_create)(LPCSTR model, int player,
 
 BOOL (*sc2_galaxy_get_camera_by_id)(DWORD map_id,
     float *tx, float *ty, float *tz,
-    float *pitch, float *yaw, float *dist, float *fov);
+    float *pitch, float *yaw, float *dist, float *fov, float *height_offset);
 BOOL (*sc2_galaxy_get_point_by_id)(DWORD map_id, float *x, float *y);
 const char *(*sc2_galaxy_get_unit_model)(LPCSTR unit_type);
 void (*sc2_galaxy_unit_set_position)(void *ent, float x, float y, float facing);
@@ -311,12 +311,12 @@ static DWORD sc2_TriggerAddEventUnitRegion(LPJASS j)              { (void)j; ret
 /* CameraInfoFromId: look up map camera by ID, store in local table, return handle. */
 static DWORD sc2_CameraInfoFromId(LPJASS j) {
     DWORD map_id = (DWORD)jass_checkinteger(j, 1);
-    FLOAT tx = 0, ty = 0, tz = 0, pitch = 56.0f, yaw = 180.0f, dist = 34.0f, fov = 28.0f;
+    FLOAT tx = 0, ty = 0, tz = 0, pitch = 56.0f, yaw = 180.0f, dist = 34.0f, fov = 28.0f, height = 0;
     if (sc2_galaxy_get_camera_by_id &&
         sc2_gcam_n < MAX_GALAXY_CAMS &&
-        sc2_galaxy_get_camera_by_id(map_id, &tx, &ty, &tz, &pitch, &yaw, &dist, &fov)) {
+        sc2_galaxy_get_camera_by_id(map_id, &tx, &ty, &tz, &pitch, &yaw, &dist, &fov, &height)) {
         LONG h = sc2_gcam_n++;
-        sc2_gcams[h] = (sc2GCam_t){ tx, ty, tz, pitch, yaw, dist, fov };
+        sc2_gcams[h] = (sc2GCam_t){ tx, ty, tz, pitch, yaw, dist, fov, height };
         return jass_pushlighthandle(j, (HANDLE)(uintptr_t)h, "camerainfo");
     }
     return jass_pushnullhandle(j, "camerainfo");
@@ -328,9 +328,11 @@ static DWORD sc2_CameraInfoDefault(LPJASS j) { return jass_pushnullhandle(j, "ca
 static DWORD sc2_CameraApplyInfo(LPJASS j) {
     LONG h = (LONG)(uintptr_t)jass_checkhandle(j, 2, "camerainfo");
     FLOAT dur = jass_checknumber(j, 3);
+    fprintf(stderr, "CameraApplyInfo: handle=%ld count=%ld duration=%.2f callback=%d\n",
+            (long)h, (long)sc2_gcam_n, dur, sc2_galaxy_on_camera != NULL);
     if (h > 0 && h < sc2_gcam_n && sc2_galaxy_on_camera) {
         sc2GCam_t *c = &sc2_gcams[h];
-        sc2_galaxy_on_camera(c->tx, c->ty, c->yaw, c->pitch, c->dist, c->fov, dur);
+        sc2_galaxy_on_camera(c->tx, c->ty, c->yaw, c->pitch, c->dist, c->fov, c->height, dur);
     }
     return jass_pushnull(j);
 }

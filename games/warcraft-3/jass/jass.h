@@ -102,6 +102,7 @@ DWORD jass_call(LPJASS j, DWORD args);
 void jass_sethost(JASSHOST const *host);
 LPJASSCOROUTINE jass_startcoroutine(LPJASS j, LPCJASSCONTEXT context);
 LPJASSCOROUTINE jass_startcoroutinebyname(LPJASS j, LPCSTR name);
+BOOL jass_callcoroutinebyname(LPJASS j, LPCSTR name);
 BOOL jass_resume(LPJASS j, LPJASSCOROUTINE co);
 BOOL jass_coroutinedone(LPCJASSCOROUTINE co);
 void jass_runevents(LPJASS j);

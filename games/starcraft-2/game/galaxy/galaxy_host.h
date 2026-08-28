@@ -40,7 +40,7 @@ LPCJASSMODULE galaxy_get_natives(void);
 /* CameraApplyInfo — move the client camera (duration=0: instant snap). */
 extern void (*sc2_galaxy_on_camera)(float target_x, float target_y,
                                     float yaw, float pitch,
-                                    float distance, float fov,
+                                    float distance, float fov, float height_offset,
                                     float duration);
 
 /* CinematicMode — toggle letterbox bars on/off. */
@@ -58,7 +58,7 @@ extern void *(*sc2_galaxy_on_unit_create)(LPCSTR model, int player,
 /* Camera lookup: fills target, orientation, optics; returns false if not found */
 extern BOOL (*sc2_galaxy_get_camera_by_id)(DWORD map_id,
     float *target_x, float *target_y, float *target_z,
-    float *pitch, float *yaw, float *distance, float *fov);
+    float *pitch, float *yaw, float *distance, float *fov, float *height_offset);
 
 /* Point lookup: fills x, y from a POINT-type map object; returns false if not found */
 extern BOOL (*sc2_galaxy_get_point_by_id)(DWORD map_id, float *x, float *y);

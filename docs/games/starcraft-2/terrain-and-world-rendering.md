@@ -25,10 +25,15 @@ Lambert negation, and the camera right vector in screen space, then remove the l
 
 ## Camera Drag Plane
 
-SC2 drag-panning intersects the cursor ray with the horizontal plane at `viewCamera_t.origin.z`, the authored camera target height.
+SC2 computes camera target Z as terrain height at the target XY plus the camera's authored `HeightOffset`. This matches Warsmash's
+WC3 lifecycle: `MeleeUI` samples terrain under `cameraManager.target`, then `GameCameraManager.updateTargetZ` adds preset height and
+target offset before deriving the eye from pitch and distance. Treating `HeightOffset` as absolute world Z puts the eye underground.
+
+SC2 drag-panning intersects the cursor ray with the horizontal plane at `viewCamera_t.origin.z`, the current terrain-relative camera target height.
 It must not use `R_SC2TraceLocation`: that function intersects actual heightmap triangles for unit commands, so reusing it for camera
 drag makes the pan anchor jump when the cursor crosses cliffs or other terrain tiers. `TraceCameraPlane` owns the stable screen-ray
-intersection; smart commands continue to use terrain `TraceLocation`.
+intersection during the drag; camera rendering resamples terrain at the moved target, so the eye rises over higher ground. Smart
+commands continue to use terrain `TraceLocation`.
 
 ## Hard-Tile Roads
 

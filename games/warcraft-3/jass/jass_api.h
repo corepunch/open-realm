@@ -72,6 +72,7 @@ DWORD  jass_pushstring(LPJASS j, LPCSTR value);
 DWORD  jass_pushstringlen(LPJASS j, LPCSTR value, DWORD len);
 DWORD  jass_pushlighthandle(LPJASS j, HANDLE value, LPCSTR type);
 LPJASSCOROUTINE jass_startcoroutinebyname(LPJASS j, LPCSTR name);
+BOOL   jass_callcoroutinebyname(LPJASS j, LPCSTR name);
 void   jass_sleep(LPJASS j, DWORD msec);
 
 #endif

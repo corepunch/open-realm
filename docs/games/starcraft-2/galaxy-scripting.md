@@ -11,7 +11,7 @@ The SC2 game module owns Galaxy lifecycle through `games/starcraft-2/game/galaxy
 5. `SC2_RunFrame` calls `galaxy_tick` to resume yielded trigger coroutines.
 6. `SC2_Shutdown` calls `galaxy_close`.
 
-Trigger functions use the Galaxy signature `bool function(bool testConds, bool runActions)`. The host compiles a no-argument wrapper before starting a coroutine. Dynamically compiled wrappers belong to the root VM; synchronous `TriggerExecute(..., waitDone=true)` must also resolve and execute them through the root, because an active coroutine has an older snapshot of the root function index.
+Trigger functions use the Galaxy signature `bool function(bool testConds, bool runActions)`. The host compiles a no-argument wrapper before starting a coroutine. Dynamically compiled wrappers belong to the root VM. `TriggerExecute(..., waitDone=true)` pushes that wrapper onto the active coroutine; a child `Wait` therefore preserves the child frame and resumes the parent only after the child returns. Calling the wrapper through the synchronous expression evaluator loses the yielded child frame and advances the parent to the next trigger prematurely.
 
 ## VM Lookup
 
@@ -61,13 +61,14 @@ It must exit from `com_frame_limit` without an infinite-loop assertion or memory
 - `vm_string_word`: indexed word extraction and the missing-word sentinel.
 - `vm_string_word_loop_terminates`: the CampaignLib `while (true)`/`StringWord` sentinel pattern in coroutine mode.
 - `vm_coroutine_void_argument`: zero-result nested arguments cannot underflow the coroutine stack.
-- `vm_coroutine_executes_dynamic_trigger`: a wrapper compiled after coroutine creation executes synchronously, even after an earlier logged VM error.
+- `vm_coroutine_executes_dynamic_trigger`: a wrapper compiled after coroutine creation yields in a wait-done child and finishes before its parent resumes, even after an earlier logged VM error.
 
 ## Remaining Gaps
 
 The bounded intro lifecycle loads all 2,657 TRaynor01 objects with `SC2_MAX_MAP_OBJECTS` set to 4,096. Camera IDs 1660 and
 976 and the intro route points resolve from the authoritative map `Objects` data; both camera applications reach the game
-state callback.
+state callback. Camera 1660 applies instantly, then camera 976 interpolates over its authored eight-second duration. A bounded
+TRaynor01 run confirmed start/mid/end eye clearances of 17.27, 22.87, and 28.19 world units above terrain respectively.
 
 Visual fidelity remains blocked by catalog and native coverage:
 

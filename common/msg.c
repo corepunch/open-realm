@@ -125,12 +125,16 @@ netField_t uiFrameFields[] = {
 
 netField_t playerStateFields[] = {
     { NETF(PLAYER, viewquat), NFT_QUATERNION },
-#ifdef WOW
+#if defined(WOW) || defined(SC2)
     { NETF(PLAYER, viewangles), NFT_VECTOR3_FLOAT },
 #endif
     { NETF(PLAYER, origin), NFT_VECTOR2 },
     { NETF(PLAYER, fov), NFT_BYTE },
+#ifdef SC2
+    { NETF(PLAYER, distance), NFT_PACKED_FLOAT },
+#else
     { NETF(PLAYER, distance), NFT_ROUND },
+#endif
     { NETF(PLAYER, rdflags), NFT_LONG },
     { NETF(PLAYER, uiflags), NFT_LONG },
     { NETF(PLAYER, client_ui_state), NFT_LONG },

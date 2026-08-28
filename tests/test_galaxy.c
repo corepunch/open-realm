@@ -858,17 +858,19 @@ TEST(galaxy, vm_coroutine_executes_dynamic_trigger) {
     ));
     T_ASSERT(gal_parse(&s,
         "native void TestFail(string msg);\n"
+        "native void Wait(fixed duration, int timeType);\n"
         "native trigger TriggerCreate(string funcName);\n"
         "native void TriggerExecute(trigger value, bool testConds, bool waitDone);\n"
         "int gv_called = 0;\n"
-        "bool child(bool testConds, bool runActions) { gv_called = 1; return true; }\n"
+        "bool child(bool testConds, bool runActions) { gv_called = 1; Wait(0.0, 0); gv_called = 2; return true; }\n"
         "void main() {\n"
         "    trigger value = TriggerCreate(\"child\");\n"
         "    MissingFunction();\n"
         "    TriggerExecute(value, true, true);\n"
-        "    if (gv_called != 1) { TestFail(\"dynamic trigger did not execute\"); }\n"
+        "    if (gv_called != 2) { TestFail(\"wait-done trigger resumed parent before child\"); }\n"
         "}"));
     jass_callbyname(s.j, "main", true);
+    jass_runevents(s.j);
     jass_runevents(s.j);
     T_ASSERT(!jass_rterror_pending(s.j));
     galaxy_reset();

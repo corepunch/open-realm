@@ -289,6 +289,7 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
         sc2MapCamera_t camera;
 
         SC2_MapDefaultCamera(&camera);
+        cl.viewDef.camerastate[0].origin.z = CM_GetHeightAtPoint(server_origin.x, server_origin.y) + cl.playerstate.viewangles.z;
         /* Galaxy camera natives author these snapshot fields; replacing them here kept every cutscene on map defaults. */
         cl.viewDef.camerastate[0].znear = camera.znear;
         cl.viewDef.camerastate[0].zfar = camera.zfar;
