@@ -75,6 +75,7 @@ What the World of Warcraft target currently knows how to load and render.
 - [Grass Tech Reference](GRASS_TECH.md): current implementation state — active vs. disabled paths, wind-sway math, phase decorrelation, density formula, and key constants.
 - [Grass Rendering System](grass-rendering-system.md): architecture walkthrough, M2 instancing design, historical prototype notes.
 - [GPU Terrain Height Atlas And Static Grass Batches](static-grass-and-height-atlas.md): exact MCVT atlas, static M2 instance batches, patch culling, alpha handling, and staged verification plan.
+- [Renderer Performance & Architecture (WOWPERF)](WOWPERF.md): isolation ladder, WMO doodad batching, server vs client loopback, RG40xx diagnostic, 2004-2008 classic rendering overview.
 - [References](references.md): public schema references and local source/tool entry points.
 - [Sounds](sounds.md)
 - [Magic And Effects](magic-and-effects.md): magic schools, damage types, multi-school system, buffs/debuffs, DoT/HoT, crowd control, status effects.
