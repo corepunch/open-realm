@@ -972,6 +972,7 @@ BYTE G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue);
 LPEDICT G_GetMainSelectedUnit(LPGAMECLIENT);
 void Get_Commands_f(LPEDICT);
 void Get_Portrait_f(LPEDICT);
+void G_RefreshInventoryLayer(LPEDICT);
 void G_RefreshInfoPanel(LPEDICT);
 void G_UpdateClientInfoPanels(void);
 void G_RefreshResourceBar(LPEDICT);

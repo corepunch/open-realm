@@ -14,6 +14,7 @@ static DWORD inventory_refresh_unicast_count;
 static LPEDICT inventory_refresh_unicast_target;
 static BOOL inventory_refresh_layout_pending;
 static BOOL inventory_refresh_saw_inventory_layer;
+static BOOL inventory_refresh_saw_other_layer;
 
 static void capture_inventory_refresh_write(pfWriteType_t type, void const *value) {
     LONG byte;
@@ -25,6 +26,8 @@ static void capture_inventory_refresh_write(pfWriteType_t type, void const *valu
     if (inventory_refresh_layout_pending) {
         if (byte == LAYER_INVENTORY) {
             inventory_refresh_saw_inventory_layer = true;
+        } else {
+            inventory_refresh_saw_other_layer = true;
         }
         inventory_refresh_layout_pending = false;
         return;
@@ -42,6 +45,7 @@ static void reset_inventory_refresh_capture(void) {
     inventory_refresh_unicast_target = NULL;
     inventory_refresh_layout_pending = false;
     inventory_refresh_saw_inventory_layer = false;
+    inventory_refresh_saw_other_layer = false;
 }
 
 static LPEDICT make_item_test_inventory_unit(FLOAT x, FLOAT y) {
@@ -249,6 +253,7 @@ TEST(wc3_items, pickup_refreshes_inventory_for_connected_reserved_client_edict) 
     T_EQ(disconnected_unicasts, 0);
     T_ASSERT(second_picked);
     T_ASSERT(inventory_refresh_saw_inventory_layer);
+    T_ASSERT(!inventory_refresh_saw_other_layer);
     T_ASSERT(inventory_refresh_unicast_count > 0);
     T_ASSERT(inventory_refresh_unicast_target == player);
 }
@@ -314,6 +319,7 @@ TEST(wc3_items, carried_charge_change_refreshes_inventory_and_same_value_is_noop
 
     T_EQ(G_ItemCharges(item), 3);
     T_ASSERT(inventory_refresh_saw_inventory_layer);
+    T_ASSERT(!inventory_refresh_saw_other_layer);
     T_ASSERT(inventory_refresh_unicast_count > 0);
     T_ASSERT(inventory_refresh_unicast_target == player);
 

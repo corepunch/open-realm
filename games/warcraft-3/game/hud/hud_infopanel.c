@@ -245,6 +245,21 @@ static void WriteInventory(LPEDICT ent) {
     if (count) UI_WriteTooltipFrame();
 }
 
+static void UI_SendInventoryLayer(LPEDICT ent, LPEDICT *selected, DWORD count) {
+    UI_WriteStart(LAYER_INVENTORY);
+    if (count == 1) WriteInventory(selected[0]);
+    UI_WriteEnd(ent);
+}
+
+void G_RefreshInventoryLayer(LPEDICT ent) {
+    LPEDICT selected[MAX_SELECTED_ENTITIES];
+    DWORD count;
+
+    if (!ent || !ent->client) return;
+    count = SelectedUnits(ent->client, selected, MAX_SELECTED_ENTITIES);
+    UI_SendInventoryLayer(ent, selected, count);
+}
+
 void Get_Portrait_f(LPEDICT ent) {
     LPEDICT selected[MAX_SELECTED_ENTITIES];
     DWORD count;
@@ -257,10 +272,7 @@ void Get_Portrait_f(LPEDICT ent) {
     UI_WriteEnd(ent);
 
     UI_SendInfoPanel(ent, selected, count);
-
-    UI_WriteStart(LAYER_INVENTORY);
-    if (count == 1) WriteInventory(selected[0]);
-    UI_WriteEnd(ent);
+    UI_SendInventoryLayer(ent, selected, count);
 }
 
 /* Re-send LAYER_INFOPANEL only when HP, mana, or XP of the selected unit changed. */
