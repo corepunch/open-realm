@@ -1,6 +1,6 @@
 #include "g_local.h"
 
-BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit);
+BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit, LPEDICT source);
 
 static void G_ExecuteEvent(GAMEEVENT *evt) {
     LPEDICT subject = evt->edict;
@@ -18,17 +18,17 @@ static void G_ExecuteEvent(GAMEEVENT *evt) {
                 break;
             case EVENT_GAME_ENTER_REGION:
                 if (evt->responseTo == e) {
-                    jass_calltrigger(level.vm, e->trigger, subject);
+                    jass_calltrigger(level.vm, e->trigger, subject, evt->source);
                 }
                 break;
             case EVENT_GAME_LEAVE_REGION:
                 if (evt->responseTo == e) {
-                    jass_calltrigger(level.vm, e->trigger, subject);
+                    jass_calltrigger(level.vm, e->trigger, subject, evt->source);
                 }
                 break;
             case EVENT_UNIT_IN_RANGE:
                 if (evt->responseTo == e) {
-                    jass_calltrigger(level.vm, e->trigger, subject);
+                    jass_calltrigger(level.vm, e->trigger, subject, evt->source);
                 }
                 break;
             case EVENT_GAME_TRACKABLE_HIT:
@@ -53,7 +53,7 @@ static void G_ExecuteEvent(GAMEEVENT *evt) {
                 if (e->type == evt->type && subject &&
                     (e->subject == subject ||
                      e->subject == G_GetPlayerEntityByNumber(subject->s.player))) {
-                    jass_calltrigger(level.vm, e->trigger, subject);
+                    jass_calltrigger(level.vm, e->trigger, subject, evt->source);
                 }
                 break;
         }

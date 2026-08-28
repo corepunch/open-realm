@@ -576,7 +576,7 @@ DWORD GetDyingUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 DWORD GetKillingUnit(LPJASS j) {
-    return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
+    return jass_pushlighthandle(j, jass_getcontext(j)->source, "unit");
 }
 DWORD GetDecayingUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
@@ -1047,10 +1047,144 @@ DWORD ChooseRandomCreep(LPJASS j) {
 DWORD ChooseRandomNPBuilding(LPJASS j) {
     return jass_pushinteger(j, 0);
 }
-DWORD ChooseRandomItem(LPJASS j) {
-    //LONG level = jass_checkinteger(j, 1);
-    return jass_pushinteger(j, 0);
+
+static LPCSTR JassItemRowField(sheetRow_t const *row, LPCSTR name) {
+    if (!row || !name) {
+        return NULL;
+    }
+
+    FOR_EACH_LIST(sheetField_t const, field, row->fields) {
+        if (!strcasecmp(field->name, name)) {
+            return field->value;
+        }
+    }
+
+    return NULL;
 }
+
+static BOOL JassItemFieldBoolean(LPCSTR value) {
+    return value &&
+        (atoi(value) != 0 || !strcasecmp(value, "TRUE"));
+}
+
+static DWORD JassItemRawcode(sheetRow_t const *row) {
+    LPCSTR name;
+
+    if (!row || !(name = row->name) ||
+        !name[0] || !name[1] || !name[2] || !name[3]) {
+        return 0;
+    }
+
+    return MAKEFOURCC(name[0], name[1], name[2], name[3]);
+}
+
+static BOOL JassRandomItemEligible(sheetRow_t const *row,
+                                   LONG requested_level,
+                                   DWORD requested_type) {
+    LPCSTR level;
+    LPCSTR pick_random;
+    LPCSTR item_class;
+
+    if (!row) {
+        return false;
+    }
+
+    pick_random = JassItemRowField(row, "pickRandom");
+    if (!JassItemFieldBoolean(pick_random)) {
+        return false;
+    }
+
+    level = JassItemRowField(row, "Level");
+    if (!level || atoi(level) != requested_level) {
+        return false;
+    }
+
+    if (requested_type == 8) {
+        /* ITEM_TYPE_ANY */
+        return true;
+    }
+
+    item_class = JassItemRowField(row, "itemClass");
+
+    /*
+     * Some ItemData versions expose this column as "class".  Accept either
+     * spelling so ROC/TFT data both work.
+     */
+    if (!item_class) {
+        item_class = JassItemRowField(row, "class");
+    }
+
+    return G_ItemTypeFromClass(item_class) == requested_type;
+}
+
+static DWORD JassChooseRandomItem(LONG requested_level,
+                                  DWORD requested_type) {
+    sheetRow_t *items = ItemsMetaData[0].table;
+    DWORD count = 0;
+    DWORD selected_index;
+
+    if (!items) {
+        fprintf(stderr, "JassChooseRandomItem: Units\\ItemData.slk is not loaded\n");
+        return 0;
+    }
+
+    /*
+     * First pass counts candidates. This deliberately consumes no random
+     * values so SetRandomSeed() remains predictable.
+     */
+    FOR_EACH_LIST(sheetRow_t const, row, items) {
+        if (JassRandomItemEligible(row,
+                                   requested_level,
+                                   requested_type)) {
+            count++;
+        }
+    }
+
+    if (!count) return 0;
+
+    selected_index = (DWORD)(rand() % count);
+
+    /*
+     * Second pass returns the selected candidate.
+     */
+    FOR_EACH_LIST(sheetRow_t const, row, items) {
+        DWORD rawcode;
+
+        if (!JassRandomItemEligible(row,
+                                    requested_level,
+                                    requested_type)) {
+            continue;
+        }
+
+        if (selected_index--) {
+            continue;
+        }
+
+        rawcode = JassItemRawcode(row);
+
+        return rawcode;
+    }
+
+    fprintf(stderr, "JassChooseRandomItem: candidate count changed during selection\n");
+    return 0;
+}
+
+DWORD ChooseRandomItem(LPJASS j) {
+    LONG level = jass_checkinteger(j, 1);
+    DWORD item_id = JassChooseRandomItem(level, 8);
+
+    return jass_pushinteger(j, (LONG)item_id);
+}
+
+DWORD ChooseRandomItemEx(LPJASS j) {
+    DWORD *whichType = jass_checkhandle(j, 1, "itemtype");
+    LONG level = jass_checkinteger(j, 2);
+    DWORD type = whichType ? *whichType : 8;
+    DWORD item_id = JassChooseRandomItem(level, type);
+
+    return jass_pushinteger(j, (LONG)item_id);
+}
+
 DWORD SetRandomSeed(LPJASS j) {
     LONG seed = jass_checkinteger(j, 1);
     srand((unsigned int)seed);

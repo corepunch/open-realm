@@ -7,7 +7,7 @@ DWORD CreateItem(LPJASS j) {
 }
 DWORD RemoveItem(LPJASS j) {
     LPEDICT whichItem = jass_checkhandle(j, 1, "item");
-    if (whichItem) G_FreeEdict(whichItem);
+    if (whichItem) G_RemoveItem(whichItem);
     return 0;
 }
 DWORD GetItemPlayer(LPJASS j) {
@@ -26,18 +26,8 @@ DWORD GetItemTypeId(LPJASS j) {
 DWORD GetItemType(LPJASS j) {
     LPEDICT item = jass_checkhandle(j, 1, "item");
     LPCSTR cls = item ? UnitStringField(ItemsMetaData, item->class_id, "icla") : NULL;
-    DWORD type = 7; /* ITEM_TYPE_UNKNOWN */
-    if (cls) {
-        if      (!strcasecmp(cls, "Permanent"))     type = 0;
-        else if (!strcasecmp(cls, "Charged"))       type = 1;
-        else if (!strcasecmp(cls, "PowerUp"))       type = 2;
-        else if (!strcasecmp(cls, "Artifact"))      type = 3;
-        else if (!strcasecmp(cls, "Purchasable"))   type = 4;
-        else if (!strcasecmp(cls, "Campaign"))      type = 5;
-        else if (!strcasecmp(cls, "Miscellaneous")) type = 6;
-    }
     API_ALLOC(DWORD, itemtype);
-    *itemtype = type;
+    *itemtype = G_ItemTypeFromClass(cls);
     return 1;
 }
 DWORD GetItemLevel(LPJASS j) {
@@ -56,7 +46,13 @@ DWORD SetItemPosition(LPJASS j) {
     LPEDICT item = jass_checkhandle(j, 1, "item");
     FLOAT x = jass_checknumber(j, 2);
     FLOAT y = jass_checknumber(j, 3);
-    if (item) { item->s.origin.x = x; item->s.origin.y = y; }
+    if (item && item->item.in_world) {
+        item->s.origin.x = x;
+        item->s.origin.y = y;
+        item->s.origin.z = CM_GetHeightAtPoint(x, y);
+        item->s.origin2 = MAKE(VECTOR2, x, y);
+        gi.LinkEntity(item);
+    }
     return 0;
 }
 DWORD SetItemDropOnDeath(LPJASS j) {

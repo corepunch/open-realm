@@ -162,4 +162,4 @@ make test-wc3-engine WC3_PATTERN='wc3_game.overhead_*'
 
 The movement suite covers large-footprint mine entry, the complete gold deposit/resume cycle, exact lethal tree trips with next-tree
 selection, the no-live-tree stop path, non-lethal chops, and both sides of the immobility contract. The in-engine fixture
-`tests/wc3-engine-data/Units/UnitUI.slk` supplies `isbldg` for the same metadata lookup used by the game.
+`games/warcraft-3/tests/resources-src/Units/UnitUI.slk` supplies `isbldg` for the same metadata lookup used by the game.

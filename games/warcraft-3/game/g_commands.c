@@ -157,7 +157,7 @@ static BOOL G_CheatsEnabled(void) {
 static LPEDICT G_GiveItem(LPEDICT unit, DWORD item_code) {
     LPEDICT item = SP_SpawnAtLocation(item_code, unit->s.player, &unit->s.origin2);
     if (!item || !G_PickupItem(unit, item)) {
-        if (item) G_FreeEdict(item);
+        if (item) G_RemoveItem(item);
         return NULL;
     }
     return item;
@@ -268,6 +268,21 @@ CLIENTCOMMAND(Inventory) {
     if (!handled) {
         Get_Commands_f(clent);
     }
+}
+
+CLIENTCOMMAND(DropItem) {
+    LPEDICT unit;
+    LONG slot;
+
+    if (!clent || !clent->client || argc < 2) {
+        return;
+    }
+    unit = G_GetMainSelectedUnit(clent->client);
+    slot = atoi(argv[1]);
+    if (!unit || slot < 0 || slot >= MAX_INVENTORY) {
+        return;
+    }
+    G_DropItem(unit, (DWORD)slot);
 }
 
 CLIENTCOMMAND(Cancel) {
@@ -414,6 +429,7 @@ clientCommand_t clientCommands[] = {
     { "button", CMD_Button },
     { "research", CMD_Research },
     { "inventory", CMD_Inventory },
+    { "dropitem", CMD_DropItem },
     { "select", CMD_Select },
     { "point", CMD_Point },
     { "smart", CMD_Smart },

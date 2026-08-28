@@ -774,7 +774,10 @@ void jass_runevents(LPJASS j) {
  * Trigger evaluation / execution
  * ========================================================================= */
 
-BOOL jass_evaluatetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
+static BOOL jass_evaluatetriggercontext(LPJASS j,
+                                        LPTRIGGER trigger,
+                                        LPEDICT unit,
+                                        LPEDICT source) {
     LPPLAYER player = jass_eventplayer(unit);
 
     if (trigger->disabled) {
@@ -787,6 +790,7 @@ BOOL jass_evaluatetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
         tmp_state.num_stack = 0;
         tmp_state.context.trigger = trigger;
         tmp_state.context.unit = unit;
+        tmp_state.context.source = source;
         tmp_state.context.playerState = player;
         jass_pushfunction(&tmp_state, cond->expr);
         LPPLAYER previous_player = currentplayer;
@@ -801,6 +805,10 @@ BOOL jass_evaluatetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
         }
     }
     return true;
+}
+
+BOOL jass_evaluatetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
+    return jass_evaluatetriggercontext(j, trigger, unit, NULL);
 }
 
 /* Evaluate a single boolexpr (a Condition()/Filter() code) against a candidate
@@ -839,21 +847,32 @@ BOOL jass_evaluateplayerexpr(LPJASS j, LPCJASSFUNC expr, LPPLAYER player) {
     return result_count == 1 && jass_popboolean(&tmp_state);
 }
 
-void jass_executetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
+static void jass_executetriggercontext(LPJASS j,
+                                       LPTRIGGER trigger,
+                                       LPEDICT unit,
+                                       LPEDICT source) {
     FOR_EACH_LIST(TRIGGERACTION, action, trigger->actions) {
         LPPLAYER player = jass_eventplayer(unit);
         jass_startcoroutine(j, &MAKE(JASSCONTEXT,
                                   .trigger = trigger,
                                   .func = action->func,
                                   .unit = unit,
+                                  .source = source,
                                   .playerState = player,
                               ));
     }
 }
 
-BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
-    if (jass_evaluatetrigger(j, trigger, unit)) {
-        jass_executetrigger(j, trigger, unit);
+void jass_executetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
+    jass_executetriggercontext(j, trigger, unit, NULL);
+}
+
+BOOL jass_calltrigger(LPJASS j,
+                      LPTRIGGER trigger,
+                      LPEDICT unit,
+                      LPEDICT source) {
+    if (jass_evaluatetriggercontext(j, trigger, unit, source)) {
+        jass_executetriggercontext(j, trigger, unit, source);
         return true;
     } else {
         return false;

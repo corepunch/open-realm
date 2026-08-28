@@ -174,9 +174,7 @@ DWORD TriggerRegisterDeathEvent(LPJASS j) {
      * (subject, type), so this fires exactly when the registered widget dies. */
     LPTRIGGER whichTrigger = jass_checkhandle(j, 1, "trigger");
     LPEDICT whichWidget = jass_checkhandle(j, 2, "widget");
-    if (!whichTrigger || !whichWidget) {
-        return jass_pushnullhandle(j, "event");
-    }
+    if (!whichTrigger || !whichWidget) return jass_pushnullhandle(j, "event");
     LPEVENT evt = G_MakeEvent(EVENT_UNIT_DEATH);
     evt->subject = whichWidget;
     evt->trigger = whichTrigger;
@@ -304,4 +302,11 @@ DWORD GetTriggerWidget(LPJASS j) {
      * unit (jass_executetrigger), so a death-registered trigger sees the dying
      * destructable here — e.g. SaveDyingWidget -> WidgetDropItem loot drops. */
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "widget");
+}
+
+DWORD GetTriggerDestructable(LPJASS j) {
+    return jass_pushlighthandle(
+        j,
+        jass_getcontext(j)->unit,
+        "destructable");
 }

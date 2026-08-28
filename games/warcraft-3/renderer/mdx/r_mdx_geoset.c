@@ -6,7 +6,6 @@
 #include <string.h>
 
 #define MDLX_STACK_DRAW_ORDER 64
-
 #define GET_PARTICLE_ANIM_PARAM(MODEL, EMITTER, NAME) \
 float NAME = EMITTER->NAME; \
 if (EMITTER->keytracks.NAME) { \
@@ -688,14 +687,32 @@ static void MDLX_RenderGeosets(const renderEntity_t *entity,
 }
 
 static void MDLX_RenderParticleEmitters(const renderEntity_t *entity, const mdxModel_t *model, LPCMATRIX4 model_matrix) {
+    /*
+     * Dead destructable remains are marked RF_NOT_SELECTABLE.  While their
+     * death sequence is advancing oldframe != frame, so the destruction
+     * emitters remain active.  tree_decay1() holds the final frame once the
+     * death sequence finishes; after the next snapshot oldframe == frame.
+     *
+     * Do not keep evaluating/emitting particles indefinitely from that held
+     * final death frame. Existing particles remain in the particle system and
+     * expire normally.
+     */
+    if ((entity->flags & RF_NOT_SELECTABLE) &&
+        entity->oldframe == entity->frame) {
+        return;
+    }
+    float const frame = LerpNumber(entity->oldframe, entity->frame, tr.viewDef.lerpfrac);
+
     FOR_EACH_LIST(mdxParticleEmitter_t, emitter, model->emitters) {
+        float visibility = 1.0f, rate = emitter->EmissionRate;
+
         if (emitter->keytracks.Visibility) {
-            float fVisibility = 1.f;
-            MDLX_GetModelKeytrackValue(model, emitter->keytracks.Visibility, entity->frame, &fVisibility);
-            if (fVisibility < EPSILON)
+            MDLX_GetModelKeytrackValue(model, emitter->keytracks.Visibility, entity->frame, &visibility);
+            if (visibility < EPSILON)
                 continue;
         }
-        float const frame = LerpNumber(entity->oldframe, entity->frame, tr.viewDef.lerpfrac);
+        if (emitter->keytracks.EmissionRate)
+            MDLX_GetModelKeytrackValue(model, emitter->keytracks.EmissionRate, frame, &rate);
         if (emitter->emitter_type == MODEL_EMITTER_TAIL)
             MDLX_RenderTailEmitter(model, emitter, model_matrix, frame, entity->team&TEAM_MASK);
         else

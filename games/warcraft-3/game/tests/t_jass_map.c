@@ -10,7 +10,7 @@
  * C checks level.events because there is no JASS introspection for the
  * server-side event queue.
  *
- * Scripts load Scripts\common.j from tests/wc3-engine-data/ — no War3.mpq.
+ * Scripts load generated fixtures from build/tests/tests.mpq — no War3.mpq.
  *
  * Covered:
  *   Quests   — CreateQuest, QuestSet+IsQuest+ round-trips, QuestCreateItem,

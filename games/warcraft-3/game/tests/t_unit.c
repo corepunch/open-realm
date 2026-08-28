@@ -54,6 +54,21 @@ static LPEDICT make_unit(FLOAT x, FLOAT y) {
     return ent;
 }
 
+static LPEDICT make_inventory_unit(FLOAT x, FLOAT y) {
+    LPEDICT ent = make_unit(x, y);
+    ent->class_id = MAKEFOURCC('H','p','a','l');
+    return ent;
+}
+
+static LPEDICT make_world_item(DWORD class_id) {
+    LPEDICT item = G_Spawn();
+    item->class_id = class_id;
+    item->s.model = 1;
+    item->item.in_world = true;
+    item->item.inventory_slot = -1;
+    return item;
+}
+
 /* -----------------------------------------------------------------------
  * Birth tests
  * --------------------------------------------------------------------- */
@@ -284,10 +299,8 @@ TEST(wc3_unit, issueimmediateorder_null_inputs_return_false) {
 
 TEST(wc3_unit, additemtoslot_fills_empty_slot) {
     reset_test_entities();
-    LPEDICT ent  = make_unit(0, 0);
-    LPEDICT item = G_Spawn();
-    item->class_id = MAKEFOURCC('r','a','t','f');
-    item->inuse = true;
+    LPEDICT ent  = make_inventory_unit(0, 0);
+    LPEDICT item = make_world_item(MAKEFOURCC('r','a','t','f'));
     BOOL ok = unit_additemtoslot(ent, item, 0);
     T_ASSERT(ok);
     T_ASSERT(ent->inventory[0] == item);
@@ -295,13 +308,9 @@ TEST(wc3_unit, additemtoslot_fills_empty_slot) {
 
 TEST(wc3_unit, additemtoslot_rejects_occupied_slot) {
     reset_test_entities();
-    LPEDICT ent   = make_unit(0, 0);
-    LPEDICT item1 = G_Spawn();
-    item1->class_id = MAKEFOURCC('r','a','t','f');
-    item1->inuse = true;
-    LPEDICT item2 = G_Spawn();
-    item2->class_id = MAKEFOURCC('r','a','t','f');
-    item2->inuse = true;
+    LPEDICT ent   = make_inventory_unit(0, 0);
+    LPEDICT item1 = make_world_item(MAKEFOURCC('r','a','t','f'));
+    LPEDICT item2 = make_world_item(MAKEFOURCC('r','a','t','f'));
     unit_additemtoslot(ent, item1, 0);
     BOOL ok = unit_additemtoslot(ent, item2, 0);
     T_ASSERT(!ok);
@@ -309,13 +318,9 @@ TEST(wc3_unit, additemtoslot_rejects_occupied_slot) {
 
 TEST(wc3_unit, additem_fills_first_free_slot) {
     reset_test_entities();
-    LPEDICT ent   = make_unit(0, 0);
-    LPEDICT item1 = G_Spawn();
-    item1->class_id = MAKEFOURCC('r','a','t','f');
-    item1->inuse = true;
-    LPEDICT item2 = G_Spawn();
-    item2->class_id = MAKEFOURCC('r','d','e','2');
-    item2->inuse = true;
+    LPEDICT ent   = make_inventory_unit(0, 0);
+    LPEDICT item1 = make_world_item(MAKEFOURCC('r','a','t','f'));
+    LPEDICT item2 = make_world_item(MAKEFOURCC('r','d','e','2'));
     unit_additemtoslot(ent, item1, 0);
     BOOL ok = unit_additem(ent, item2);
     T_ASSERT(ok);
@@ -324,16 +329,12 @@ TEST(wc3_unit, additem_fills_first_free_slot) {
 
 TEST(wc3_unit, additem_fails_when_inventory_full) {
     reset_test_entities();
-    LPEDICT ent = make_unit(0, 0);
+    LPEDICT ent = make_inventory_unit(0, 0);
     for (int i = 0; i < MAX_INVENTORY; i++) {
-        LPEDICT item = G_Spawn();
-        item->class_id = MAKEFOURCC('r','a','t','f');
-        item->inuse = true;
+        LPEDICT item = make_world_item(MAKEFOURCC('r','a','t','f'));
         unit_additemtoslot(ent, item, i);
     }
-    LPEDICT extra = G_Spawn();
-    extra->class_id = MAKEFOURCC('r','d','e','2');
-    extra->inuse = true;
+    LPEDICT extra = make_world_item(MAKEFOURCC('r','d','e','2'));
     BOOL ok = unit_additem(ent, extra);
     T_ASSERT(!ok);
 }

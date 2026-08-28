@@ -94,20 +94,16 @@ static void ai_harvest_walkback(LPEDICT ent) {
 
 static void ai_chop(LPEDICT ent) {
     LPEDICT tree = ent->secondarygoal;
+    BOOL felled;
+
     G_PublishMessage(ent, GAME_MSG_HARVEST_CHOP, tree);
-    if (!M_IsDead(tree)) {
+    if (tree && !M_IsDead(tree)) {
         ent->harvested_lumber += HARVEST_TREE_DAMAGE;
         ent->s.renderfx |= RF_HAS_LUMBER;
     }
-    /* Equal remaining life is lethal too; the old strict comparison reduced
-     * the tree to zero without calling die(), so it never fell or unblocked. */
-    if (tree->health.value <= HARVEST_TREE_DAMAGE) {
-        tree->health.value = 0;
-        tree->die(tree, ent);
+    felled = G_DestructableApplyDamage(tree, ent, HARVEST_TREE_DAMAGE);
+    if (felled) {
         G_PublishMessage(ent, GAME_MSG_HARVEST_TREE_FELLED, tree);
-    } else if (tree->pain) {
-        tree->health.value -= HARVEST_TREE_DAMAGE;
-        tree->pain(tree);
     }
 }
 

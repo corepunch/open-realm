@@ -87,6 +87,7 @@ void SP_monster_tree(LPEDICT edict);
 static void G_InitEdict(LPEDICT e) {
     memset(e, 0, sizeof(edict_t));
     e->inuse = true;
+    e->item.inventory_slot = -1;
     e->s.scale = 1;
     e->s.number = (int)(e - g_edicts);
 }
@@ -138,13 +139,21 @@ static void SP_SpawnDestructable(LPEDICT edict) {
         snprintf(buffer, sizeof(buffer), "%s%d.mdx", file, edict->variation);
     }
     edict->s.model = G_RegisterModel(buffer);
-    edict->pathtex = M_LoadPathTex(path_tex);
+    edict->destructable.alive_pathtex = M_LoadPathTex(path_tex);
+    edict->destructable.death_pathtex = M_LoadPathTex(DESTRUCTABLE_DEATH_PATH_TEX(edict->class_id));
+    edict->pathtex = edict->destructable.alive_pathtex;
     edict->s.radius = radius > 0.0f ? radius : 50.0f;  /* selection/UI circle only */
     /* WC3 trees have collisionSize 0 and block solely via their baked pathing
      * footprint; only destructables with a real radius (bridges, gates) get a
      * collision circle.  Fabricating a 50-unit circle on every tree was a prime
      * cause of units sticking on trunks. */
     edict->collision = radius > 0.0f ? radius : 0.0f;
+    edict->destructable.alive_collision = edict->collision;
+    edict->destructable.initialized = true;
+    edict->destructable.dead = false;
+    edict->destructable.item_table = (DWORD)-1;
+    edict->destructable.placement_solid = true;
+    edict->destructable.pathing_active = edict->pathtex || edict->collision > 0.0f;
 #ifndef USE_SHADOWMAPS
     edict->s.shadow = G_LoadShadowTexture(DESTRUCTABLE_SHADOW(edict->class_id), false);
     edict->s.shadow_rect = 0;
@@ -163,13 +172,6 @@ static void SP_SpawnDestructable(LPEDICT edict) {
  * back by the GetEnumDestructable native inside the enum action (mirrors the
  * jass-lib `currentunit`/GetEnumUnit pair). */
 LPEDICT currentdestructable = NULL;
-
-/* A live destructable edict (crate, gate, tree): in use, not a unit/building
- * (those carry SVF_MONSTER), and a class_id that resolves in DestructableData.
- * Used by the JASS destructable enumerators. */
-BOOL G_IsDestructable(LPCEDICT ent) {
-    return ent->inuse && !(ent->svflags & SVF_MONSTER) && DESTRUCTABLE_FILE(ent->class_id) != NULL;
-}
 
 sheetRow_t *find_row(LPCSTR dood_id) {
     FOR_EACH_LIST(sheetRow_t, d, Doodads){
@@ -373,6 +375,9 @@ void G_SpawnEntities(void) {
         ent->s.angle = doodad->angle;
         ent->s.scale = doodad->scale.x;
         SP_CallSpawn(ent);
+        if (G_IsDestructable(ent)) {
+            G_InitializeDestructablePlacement(ent, doodad);
+        }
         gi.LinkEntity(ent);
     }
     SP_worldspawn(NULL);
@@ -408,11 +413,18 @@ LPEDICT SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location) {
     return ent;
 }
 
+static BOOL bind_map_destructables = false;
+
+void G_SetDestructableScriptBinding(BOOL enabled) {
+    bind_map_destructables = enabled;
+}
+
 /* Runtime (JASS CreateDestructable) spawn of a destructable.  Mirrors the
  * map-doodad spawn loop in G_SpawnEntities: set class_id/variation/origin/
  * facing/scale, then route through SP_CallSpawn (which sends a destructable
  * class_id to SP_SpawnDestructable + SP_monster_tree, giving it a model, life,
- * collision and the tree_die death handler that publishes EVENT_UNIT_DEATH).
+ * collision and the core destructable lifecycle; tree_die remains a legacy
+ * callback entry point, but death does not depend on that callback).
  * Destructables are neutral-passive, like the map-placed ones.  facing is in
  * radians (the native converts from JASS degrees).
  *
@@ -426,18 +438,54 @@ LPEDICT SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location) {
  * unit_createorfind does for CreateUnit) yields the same observable result as
  * the original — one crate/gate carrying the trigger — instead of a stacked
  * duplicate.  Match a same-type destructable within 10 units of the spot. */
+/* HACK: Positional binding is required until the map parser exposes the
+ * generated script variable's editor creation ID. */
 LPEDICT G_CreateDestructable(DWORD class_id, FLOAT x, FLOAT y, FLOAT z, FLOAT facing, FLOAT scale, DWORD variation) {
-    FOR_LOOP(i, globals.num_edicts) {
-        LPEDICT existing = &g_edicts[i];
-        if (existing->class_id == class_id && G_IsDestructable(existing) &&
-            Vector2_distance(&MAKE(VECTOR2, x, y), &existing->s.origin2) < 10) {
-            return existing;
+    if (bind_map_destructables) {
+        LPEDICT best = NULL;
+        FLOAT best_distance = 10.0f;
+
+        FOR_LOOP(i, globals.num_edicts) {
+            LPEDICT existing = &g_edicts[i];
+            FLOAT distance;
+
+            if (!existing->inuse ||
+                existing->class_id != class_id ||
+                !G_IsDestructable(existing) ||
+                !existing->destructable.map_placed ||
+                existing->destructable.script_bound) {
+                continue;
+            }
+
+            distance = Vector2_distance(
+                &MAKE(VECTOR2, x, y),
+                &existing->s.origin2);
+
+            if (distance >= best_distance) {
+                continue;
+            }
+
+            best = existing;
+            best_distance = distance;
+        }
+
+        if (best) {
+            best->destructable.script_bound = true;
+
+            G_ActivateScriptedDestructable(best,
+                                           x,
+                                           y,
+                                           z,
+                                           facing,
+                                           scale,
+                                           variation);
+
+            CM_BakeStaticObstacles();
+            return best;
         }
     }
     LPEDICT ent = G_Spawn();
-    if (!ent) {
-        return NULL;
-    }
+    if (!ent) return NULL;
     ent->class_id = class_id;
     ent->variation = variation;
     ent->s.player = PLAYER_NEUTRAL_PASSIVE;
@@ -447,6 +495,22 @@ LPEDICT G_CreateDestructable(DWORD class_id, FLOAT x, FLOAT y, FLOAT z, FLOAT fa
     ent->spawn_time = gi.GetTime();
     SP_CallSpawn(ent);
     gi.LinkEntity(ent);
+    if (G_IsDestructable(ent)) CM_BakeStaticObstacles();
+    return ent;
+}
+
+LPEDICT G_CreateDeadDestructable(DWORD class_id,
+                                 FLOAT x,
+                                 FLOAT y,
+                                 FLOAT z,
+                                 FLOAT facing,
+                                 FLOAT scale,
+                                 DWORD variation) {
+    LPEDICT ent = G_CreateDestructable(class_id, x, y, z, facing, scale, variation);
+
+    if (ent) {
+        G_SetDestructableDeadState(ent, false);
+    }
     return ent;
 }
 

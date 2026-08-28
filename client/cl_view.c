@@ -231,6 +231,7 @@ static void V_AddClientEntity(centity_t const *ent) {
     if (ent->current.flags & EF_HAS_QUEST) re.flags |= RF_HAS_QUEST;
     if (ent->current.flags & EF_QUEST_COMPLETE) re.flags |= RF_QUEST_COMPLETE;
     if (ent->current.flags & EF_HOSTILE) re.flags |= RF_HOSTILE;
+    if (ent->current.flags & EF_NOT_SELECTABLE) re.flags |= RF_NOT_SELECTABLE;
     re.radius = ent->current.radius;
     re.number = ent->current.number;
     re.health = ent->current.stats[ENT_HEALTH];

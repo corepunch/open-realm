@@ -291,9 +291,20 @@ static void G_StartScripts(void) {
     if (level.scriptsStarted) {
         return;
     }
+
+    /*
+     * war3map.doo objects already exist in OpenRealm before generated
+     * war3map.j main() runs. During this initial execution only,
+     * CreateDestructable() may rebind generated gg_dest_* handles to those
+     * preplaced instances.
+     */
+    G_SetDestructableScriptBinding(true);
+
     jass_callbyname(level.vm, "main", true);
     level.scriptsStarted = true;
     jass_runevents(level.vm);
+
+    G_SetDestructableScriptBinding(false);
 }
 
 /* One complete server-frame simulation step.
@@ -362,11 +373,19 @@ LPPLAYER G_GetPlayerByNumber(DWORD number) {
 //    return NULL;
 }
 
-GAMEEVENT *G_PublishEvent(LPEDICT edict, EVENTTYPE type) {
-    GAMEEVENT *evt = &level.events.queue[level.events.write++ % MAX_EVENT_QUEUE];
+GAMEEVENT *G_PublishEventWithSource(LPEDICT edict, EVENTTYPE type, LPEDICT source) {
+    DWORD index = level.events.write++;
+    GAMEEVENT *evt = &level.events.queue[index % MAX_EVENT_QUEUE];
+
+    memset(evt, 0, sizeof(*evt));
     evt->type = type;
     evt->edict = edict;
+    evt->source = source;
     return evt;
+}
+
+GAMEEVENT *G_PublishEvent(LPEDICT edict, EVENTTYPE type) {
+    return G_PublishEventWithSource(edict, type, NULL);
 }
 
 /* Gameplay messages expose state-machine transitions without turning internal

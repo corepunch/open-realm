@@ -23,6 +23,7 @@
 #define MAX_ENTITIES MAX_GAME_ENTITIES
 #define MAX_REGION_SIZE 16
 #define MAX_INVENTORY 6
+#define ITEM_PICKUP_RANGE 150.0f /* world units; classic contextual-pickup reach */
 #define MAX_CARGO 8
 #define MAX_HERO_ABILITIES 4
 #define MAX_UNIT_STATUSES 8
@@ -512,6 +513,7 @@ typedef struct {
 typedef struct {
     EVENTTYPE type;
     LPEDICT edict;
+    LPEDICT source;
     LPEVENT responseTo;
 } GAMEEVENT;
 
@@ -621,6 +623,38 @@ struct edict_s {
     DWORD resources;
     DWORD freetime;
     LPEDICT inventory[MAX_INVENTORY];
+    struct {
+        LPEDICT carrier;
+        LONG inventory_slot;
+        BOOL in_world;
+    } item;
+    struct {
+        BOOL initialized;
+
+        /* Set only for destructables originating from war3map.doo. */
+        BOOL map_placed;
+
+        /*
+         * During generated map initialization, CreateDestructable() binds named
+         * gg_dest_* handles back to these already-created map instances.
+         * One preplaced instance may be claimed only once.
+         */
+        BOOL script_bound;
+
+        BOOL dead;
+        BOOL pathing_active;
+        BOOL placement_solid;
+        BOOL loot_processed;
+
+        DWORD editor_id;
+        DWORD item_table;
+
+        pathTex_t *alive_pathtex;
+        pathTex_t *death_pathtex;
+        FLOAT alive_collision;
+
+        ARRAY(droppableItemSet_t const, drop_sets);
+    } destructable;
     LPEDICT cargo_units[MAX_CARGO];
     DWORD cargo_count;
     DWORD cargo_capacity;
@@ -822,6 +856,7 @@ BOOL G_SkipCutscene(void);
 void G_ClearCameraTarget(LPGAMECLIENT client, LPCSTR func);
 void G_SetPlayerText(LPGAMECLIENT, PLAYERTEXT, LPCSTR);
 GAMEEVENT *G_PublishEvent(LPEDICT, EVENTTYPE);
+GAMEEVENT *G_PublishEventWithSource(LPEDICT, EVENTTYPE, LPEDICT);
 BOOL G_SubscribeMessage(gameMsgFn, void *);
 void G_UnsubscribeMessage(gameMsgFn, void *);
 void G_PublishMessage(LPEDICT, GAMEMSGTYPE, LPEDICT);
@@ -847,6 +882,7 @@ void G_SpawnEntities(void);
 BOOL SP_FindEmptySpaceAround(LPEDICT, DWORD, LPVECTOR2, FLOAT *);
 LPEDICT SP_SpawnAtLocation(DWORD, DWORD, LPCVECTOR2);
 LPEDICT G_CreateDestructable(DWORD class_id, FLOAT x, FLOAT y, FLOAT z, FLOAT facing, FLOAT scale, DWORD variation);
+LPEDICT G_CreateDeadDestructable(DWORD class_id, FLOAT x, FLOAT y, FLOAT z, FLOAT facing, FLOAT scale, DWORD variation);
 BOOL G_IsDestructable(LPCEDICT ent);
 void SP_monster_tree(LPEDICT);
 
@@ -1093,9 +1129,44 @@ void G_RunEvents(void);
 
 // g_items.c
 void SP_SpawnItem(LPEDICT);
+BOOL G_IsItem(LPCEDICT item);
+BOOL G_UnitHasInventory(LPEDICT unit);
+LONG G_FindFreeInventorySlot(LPCEDICT unit);
+BOOL G_CanPickupItem(LPEDICT unit, LPEDICT item);
+BOOL G_AddItemToSlot(LPEDICT unit, LPEDICT item, DWORD slot);
 BOOL G_PickupItem(LPEDICT unit, LPEDICT item);
-void G_DropItem(LPEDICT unit, DWORD slot);
+BOOL G_OrderPickupItem(LPEDICT unit, LPEDICT item);
+BOOL G_DropItemAt(LPEDICT unit, DWORD slot, LPCVECTOR2 position);
+BOOL G_DropItem(LPEDICT unit, DWORD slot);
+void G_RemoveItem(LPEDICT item);
 void G_UseItem(LPEDICT unit, DWORD slot);
+DWORD G_ItemTypeFromClass(LPCSTR cls);
+
+// g_destructable.c
+void G_SetDestructableScriptBinding(BOOL enabled);
+void G_ActivateScriptedDestructable(LPEDICT ent,
+                                    FLOAT x,
+                                    FLOAT y,
+                                    FLOAT z,
+                                    FLOAT facing,
+                                    FLOAT scale,
+                                    DWORD variation);
+BOOL G_IsDestructable(LPCEDICT ent);
+BOOL G_DestructableIsAttackable(LPCEDICT ent);
+void G_InitializeDestructablePlacement(LPEDICT ent, LPCDOODAD placement);
+BOOL G_DestructableApplyDamage(LPEDICT ent, LPEDICT attacker, FLOAT damage);
+BOOL G_KillDestructable(LPEDICT ent, LPEDICT killer);
+BOOL G_SetDestructableDeadState(LPEDICT ent, BOOL process_death);
+BOOL G_RemoveDestructable(LPEDICT ent);
+BOOL G_SetDestructableLife(LPEDICT ent, FLOAT life);
+BOOL G_RestoreDestructable(LPEDICT ent, FLOAT life, BOOL birth);
+DWORD G_SelectDropItem(droppableItem_t const *entries, DWORD count, DWORD roll);
+DWORD G_SelectRandomTableItem(mapRandomItem_t const *entries, DWORD count, DWORD roll);
+mapRandomItemTable_t const *G_FindRandomItemTable(DWORD table_number);
+void G_SpawnDestructableLoot(LPEDICT ent);
+void G_DestructableStartDeathAnimation(LPEDICT ent);
+void G_DestructableStartAliveAnimation(LPEDICT ent, BOOL birth);
+void tree_die(LPEDICT ent, LPEDICT attacker);
 
 // ui_init
 void UI_Init(void);

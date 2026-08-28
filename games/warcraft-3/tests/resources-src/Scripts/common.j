@@ -3,8 +3,14 @@
 // Not a substitute for the real common.j — do not add production map content here.
 
 // Handle subtypes.
-type unit             extends handle
-type player           extends handle
+// Units, destructables, and items must be convertible to widget because
+// TriggerRegisterDeathEvent accepts Warcraft III's common widget base type.
+type agent            extends handle
+type widget           extends agent
+type unit             extends widget
+type destructable     extends widget
+type item             extends widget
+type player           extends agent
 type quest            extends handle
 type questitem        extends handle
 type playergameresult extends handle
