@@ -10,6 +10,40 @@ LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
 void setup_test_world(void);
 BOOL run_test_jass(LPCSTR src);
 
+static DWORD inventory_refresh_unicast_count;
+static LPEDICT inventory_refresh_unicast_target;
+static BOOL inventory_refresh_layout_pending;
+static BOOL inventory_refresh_saw_inventory_layer;
+
+static void capture_inventory_refresh_write(pfWriteType_t type, void const *value) {
+    LONG byte;
+
+    if (type != PF_BYTE || !value) {
+        return;
+    }
+    byte = *(LONG const *)value;
+    if (inventory_refresh_layout_pending) {
+        if (byte == LAYER_INVENTORY) {
+            inventory_refresh_saw_inventory_layer = true;
+        }
+        inventory_refresh_layout_pending = false;
+        return;
+    }
+    inventory_refresh_layout_pending = byte == svc_layout;
+}
+
+static void capture_inventory_refresh_unicast(LPEDICT ent) {
+    inventory_refresh_unicast_count++;
+    inventory_refresh_unicast_target = ent;
+}
+
+static void reset_inventory_refresh_capture(void) {
+    inventory_refresh_unicast_count = 0;
+    inventory_refresh_unicast_target = NULL;
+    inventory_refresh_layout_pending = false;
+    inventory_refresh_saw_inventory_layer = false;
+}
+
 static LPEDICT make_item_test_inventory_unit(FLOAT x, FLOAT y) {
     LPEDICT unit = alloc_test_unit(MAKEFOURCC('H','p','a','l'), x, y);
     unit->s.model = 1;
@@ -141,6 +175,59 @@ TEST(wc3_items, full_inventory_leaves_item_in_world) {
     T_ASSERT(!(extra->s.renderfx & RF_HIDDEN));
     T_ASSERT(!(extra->svflags & SVF_NOCLIENT));
     T_NOT_NULL(extra->area.prev);
+}
+
+TEST(wc3_items, pickup_refreshes_inventory_for_connected_reserved_client_edict) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(LPEDICT) = gi.unicast;
+    LPEDICT player;
+    LPGAMECLIENT client;
+    LPEDICT unit;
+    LPEDICT first;
+    LPEDICT second;
+    BOOL first_picked;
+    BOOL second_picked;
+    DWORD disconnected_unicasts;
+
+    setup_test_world();
+    player = &g_edicts[0];
+    client = player->client;
+    unit = make_item_test_inventory_unit(0, 0);
+    first = alloc_test_unit(MAKEFOURCC('s','p','r','o'), 32, 0);
+    second = alloc_test_unit(MAKEFOURCC('s','p','r','o'), 64, 0);
+    SP_SpawnItem(first);
+    SP_SpawnItem(second);
+    gi.LinkEntity(first);
+    gi.LinkEntity(second);
+
+    T_NOT_NULL(client);
+    T_ASSERT(!player->inuse);
+    client->ps.number = 0;
+    G_SelectEntity(client, unit);
+
+    client->connected = false;
+    reset_inventory_refresh_capture();
+    gi.Write = capture_inventory_refresh_write;
+    gi.unicast = capture_inventory_refresh_unicast;
+    first_picked = G_PickupItem(unit, first);
+    disconnected_unicasts = inventory_refresh_unicast_count;
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+
+    client->connected = true;
+    reset_inventory_refresh_capture();
+    gi.Write = capture_inventory_refresh_write;
+    gi.unicast = capture_inventory_refresh_unicast;
+    second_picked = G_PickupItem(unit, second);
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+
+    T_ASSERT(first_picked);
+    T_EQ(disconnected_unicasts, 0);
+    T_ASSERT(second_picked);
+    T_ASSERT(inventory_refresh_saw_inventory_layer);
+    T_ASSERT(inventory_refresh_unicast_count > 0);
+    T_ASSERT(inventory_refresh_unicast_target == player);
 }
 
 TEST(wc3_items, inventory_ui_resolves_scroll_metadata_and_charge) {
