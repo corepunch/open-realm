@@ -131,6 +131,38 @@ To lift performance from ~105 FPS to >200 FPS on local hardware and improve low-
 4. **Benchmarking & Regression Testing**:
    - Run bounded verification (`+com_frame_limit 100`) after each change to verify framerate improvement.
 
+## RG40xx post-change address-map audit (2026-08-28)
+
+The [reported WoW gist](https://gist.github.com/sookyboo/f4ba5ba29abbd7d2c074b92f8b6ad46d) is a sequence of
+`addr2line` commands and resolved source locations, not the originating sampled profile. It contains no sample counts,
+percentages, timestamps, call graph, device/driver frames, build revision, or tested scene. Repeated addresses are not
+weights. The file proves that terrain/WMO drawing, instanced doodads, dynamic M2 bones, entity shadows, UI, snapshots,
+quest customization, AI floor queries, and routing were reachable; it cannot rank them or quantify an FPS opportunity.
+
+Current-source inspection identifies these measurement targets:
+
+1. **WMO-owned doodad visibility.** `R_DrawWorld` builds one persistent instance buffer per M2 model containing doodads
+   from every loaded WMO and submits every non-empty buffer every frame. Parent WMO and visible-group results therefore
+   cannot remove hidden instances. Parse authoritative group `MODR` doodad references, partition instance data by WMO/
+   group/model, and submit only groups selected by the existing WMO visibility pass. Do not infer group ownership from
+   position or add distance-only data fallbacks.
+2. **Renderer terrain-height lookup.** `Wow_TerrainHeightAtPoint` linearly walks `wow_world.chunks` for each query. Blob
+   shadows query once per visible entity; fitted selection/special splats query every lattice vertex. Maintain a direct
+   chunk-pointer grid alongside the existing height-atlas coordinates so world XY selects the owning MCNK in O(1).
+3. **Duplicate dynamic M2 poses.** `M2_RenderModel` evaluates bones, then an overhead quest marker immediately calls
+   `M2_EntityAttachmentPosition`, which evaluates the same pose again. The later name-label pass can evaluate it a third
+   time. Cache the resolved PlayerName attachment per entity and render frame after the model pose is built; invalidate
+   on model/frame/oldframe/interpolation changes and test marker plus label consumers.
+4. **Quest-giver snapshot lookup.** `Wow_CustomizeEntity` can make multiple full scans of 1,787 generated quest-giver
+   rows per quest NPC and client snapshot. Generate a physical-giver index keyed by authoritative map/position identity,
+   then evaluate only that giver's quest chain against the bounded player quest log.
+
+`closest_pathable_node`, `SV_BuildClientFrame`, UI drawing, and ordinary creature AI also appear, but the address map
+does not justify changing them. `closest_pathable_node` is normally an order-time correction rather than a frame loop;
+server isolation already found snapshot/simulation cost negligible locally; and `R_EndFrame` may represent GPU/swap
+waiting that an application-only address list cannot expose. Obtain `perf report --stdio` plus `perf script` or folded
+stacks from a fixed scene before implementing beyond the source-confirmed duplicate/linear work above.
+
 ---
 
 ## Related Documentation
