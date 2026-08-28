@@ -379,6 +379,7 @@ struct gcamerasetup_s {
 
 struct client_s {
     PLAYER ps;
+    BOOL connected; /* ClientBegin completed for this reserved player edict. */
     struct {
         DWORD race_pref, controller;
         BYTE tax[MAX_PLAYERS][PLAYERSTATE_LUMBER_GATHERED + 1];

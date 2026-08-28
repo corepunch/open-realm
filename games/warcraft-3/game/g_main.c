@@ -447,6 +447,7 @@ static void G_ClientBegin(LPEDICT edict) {
         edict->client = client;
     }
 
+    client->connected = true;
     client->ps.client_ui_state = CLIENT_UI_GAME;
     if (!client->mapplayer) {
         client->ps.origin = (VECTOR2){ 0, 0 };
