@@ -1916,6 +1916,10 @@ static void sc2_resolve_cliff_sets(sc2Catalog_t const *catalog) {
 }
 
 static void sc2_resolve_hard_tiles(sc2Catalog_t const *catalog) {
+    DWORD resolved = 0, unresolved = 0;
+
+    fprintf(stderr, "SC2 road resolve: placements=%u CTile catalog entries=%u\n",
+            (unsigned)ARRAY_COUNT(sc2_map.hard_tiles), (unsigned)catalog->tiles_count);
     FOR_EACH_ARRAY(sc2MapHardTile_t, tile, sc2_map.hard_tiles) {
         FOR_LOOP(i, catalog->tiles_count) {
             if (strcasecmp(tile->tile, catalog->tiles[i].id)) continue;
@@ -1930,7 +1934,13 @@ static void sc2_resolve_hard_tiles(sc2Catalog_t const *catalog) {
             else
                 fprintf(stderr, "SC2 hard tile: unresolved CTile %s\n", tile->tile);
         }
+        if (tile->model[0]) resolved++; else unresolved++;
+        fprintf(stderr, "SC2 road resolve[%u]: CTile='%s' model='%s' center_z=%.3f terrain_z=%.3f delta=%.3f\n",
+            (unsigned)(tile - sc2_map.hard_tiles), tile->tile, tile->model[0] ? tile->model : "(unresolved)",
+            tile->position.z, SC2_MapHeightAtPoint(tile->position.x, tile->position.y),
+            tile->position.z - SC2_MapHeightAtPoint(tile->position.x, tile->position.y));
     }
+    fprintf(stderr, "SC2 road resolve: resolved=%u unresolved=%u\n", (unsigned)resolved, (unsigned)unresolved);
 }
 
 static BOOL sc2_try_object_model_path(sc2MapObject_t *object, LPCSTR prefix) {
@@ -2431,16 +2441,21 @@ static void sc2_parse_hard_tiles(sc2MapSource_t *source) {
                                         MAKEFOURCC('H','R','D','T'), &size);
     size_t offset = SC2_HARD_TILE_HEADER_SIZE;
 
-    if (!data) return;
+    if (!data) { fprintf(stderr, "SC2 road parse: t3HardTile absent\n"); return; }
+    fprintf(stderr, "SC2 road parse: HRDT bytes=%u\n", (unsigned)size);
     if (!sc2_hard_tile_layout(data, size, &count)) {
         fprintf(stderr, "SC2 hard tile: invalid HRDT layout (%u bytes)\n", (unsigned)size);
         sc2_free(data); return;
     }
+    memcpy(&blocks, data + 24, sizeof(blocks));
+    fprintf(stderr, "SC2 road parse: layout valid blocks=%u placements=%u\n", (unsigned)blocks, (unsigned)count);
     if (!count) { sc2_free(data); return; }
     sc2_map.hard_tiles = sc2_alloc((long)(count * sizeof(*sc2_map.hard_tiles)));
-    if (!sc2_map.hard_tiles) { sc2_free(data); return; }
+    if (!sc2_map.hard_tiles) {
+        fprintf(stderr, "SC2 road parse: allocation failed for %u placements\n", (unsigned)count);
+        sc2_free(data); return;
+    }
     memset(sc2_map.hard_tiles, 0, count * sizeof(*sc2_map.hard_tiles));
-    memcpy(&blocks, data + 24, sizeof(blocks));
     FOR_LOOP(block, blocks) {
         DWORD num, first = ARRAY_COUNT(sc2_map.hard_tiles);
         BYTE const *records, *name, *name_end;
@@ -2448,6 +2463,9 @@ static void sc2_parse_hard_tiles(sc2MapSource_t *source) {
         memcpy(&num, data + offset, sizeof(num)); offset += sizeof(num); records = data + offset;
         name = records + (size_t)num * SC2_HARD_TILE_RECORD_SIZE + SC2_HARD_TILE_NAME_PREFIX;
         for (name_end = name; *name_end; name_end++);
+        fprintf(stderr, "SC2 road parse block[%u]: CTile='%.*s' placements=%u first=%u record_offset=%u\n",
+            (unsigned)block, (int)(name_end - name), (char const *)name, (unsigned)num,
+            (unsigned)first, (unsigned)(records - data));
         FOR_LOOP(i, num) {
             sc2MapHardTile_t *tile = &sc2_map.hard_tiles[first + i];
             BYTE const *record = records + (size_t)i * SC2_HARD_TILE_RECORD_SIZE;
@@ -2460,10 +2478,17 @@ static void sc2_parse_hard_tiles(sc2MapSource_t *source) {
             memcpy(&tile->end, record + 36, sizeof(tile->end));
             memcpy(&tile->scale, record + 48, sizeof(tile->scale));
             memcpy(&tile->flags, record + 56, sizeof(tile->flags));
+                fprintf(stderr, "SC2 road parse[%u]: CTile='%s' pos=(%.3f %.3f %.3f) normal=(%.3f %.3f %.3f) "
+                    "start=(%.3f %.3f %.3f) end=(%.3f %.3f %.3f) scale=(%.3f %.3f) flags=0x%04x\n",
+                    (unsigned)(first + i), tile->tile, tile->position.x, tile->position.y, tile->position.z,
+                    tile->normal.x, tile->normal.y, tile->normal.z, tile->start.x, tile->start.y, tile->start.z,
+                    tile->end.x, tile->end.y, tile->end.z, tile->scale.x, tile->scale.y, (unsigned)tile->flags);
         }
         ARRAY_COUNT(sc2_map.hard_tiles) += num;
         offset = (size_t)(name_end - data) + 1 + SC2_HARD_TILE_NAME_SUFFIX;
     }
+    fprintf(stderr, "SC2 road parse: decoded=%u final_offset=%u/%u\n",
+            (unsigned)ARRAY_COUNT(sc2_map.hard_tiles), (unsigned)offset, (unsigned)size);
     sc2_free(data);
 }
 

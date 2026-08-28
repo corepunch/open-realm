@@ -76,16 +76,26 @@ TEST(sc2_map, hard_tile_matrix_maps_prism_to_authored_surface) {
         .scale = { 1.5f, 1 },
     };
     MATRIX4 matrix;
-    VECTOR3 start_left, end_right, top;
+    VECTOR3 start_left, end_right, long_end, width_edge, top;
 
     r_sc2_hard_tile_matrix(&tile, &matrix);
     start_left = Matrix4_multiply_vector3(&matrix, &(VECTOR3){-.5f,-.5f,1});
     end_right = Matrix4_multiply_vector3(&matrix, &(VECTOR3){.5f,.5f,1});
+    long_end = Matrix4_multiply_vector3(&matrix, &(VECTOR3){0,.5f,1});
+    width_edge = Matrix4_multiply_vector3(&matrix, &(VECTOR3){.5f,0,1});
     top = Matrix4_multiply_vector3(&matrix, &(VECTOR3){0,0,1});
     T_FEQ(start_left.x, 8, .0001f); T_FEQ(start_left.y, 21.5f, .0001f); T_FEQ(start_left.z, 3, .0001f);
     T_FEQ(end_right.x, 12, .0001f); T_FEQ(end_right.y, 18.5f, .0001f); T_FEQ(end_right.z, 3, .0001f);
+    T_FEQ(long_end.x, 12, .0001f); T_FEQ(long_end.y, 20, .0001f);
+    T_FEQ(width_edge.x, 10, .0001f); T_FEQ(width_edge.y, 18.5f, .0001f);
     T_FEQ(top.x, 10, .0001f); T_FEQ(top.y, 20, .0001f); T_FEQ(top.z, 3, .0001f);
 }
+
+TEST(sc2_map, hard_tile_surface_uses_small_terrain_clearance) {
+    T_FEQ(r_sc2_hard_tile_surface_z(3.0f, 3.08f), 3.13f, .0001f);
+    T_FEQ(r_sc2_hard_tile_surface_z(3.0f, 2.5f), 3.0f, .0001f);
+}
+
 static DWORD listed_count;
 static PATHSTR listed_map;
 
