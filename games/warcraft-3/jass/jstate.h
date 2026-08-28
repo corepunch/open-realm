@@ -26,6 +26,7 @@ struct jass_var {
         LPJASSDICT locals;
         DWORD returnstack;
         BOOL done;
+        BOOL break_pending;  /* set by Galaxy `break`; cleared by eval_LOOP */
     } env;
     LPJASSARRAY _array;
 };

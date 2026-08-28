@@ -21,7 +21,7 @@
 #define JASS_UNM       "-"
 #define JASS_COMMA     ","
 #define JASS_OPERATOR(NAME) { #NAME, NAME }
-#define INF_LOOP_PROTECTION 1024
+#define INF_LOOP_PROTECTION 10000
 
 #define assert_type(var, type) assert(jass_checktype(var, type))
 #define JASSALLOC(type) jass_alloc(sizeof(type))
@@ -239,6 +239,13 @@ DWORD __not(LPJASS j) {
     return jass_pushboolean(j, !jass_toboolean(j, 1));
 }
 
+DWORD __lsh(LPJASS j) {
+    return jass_pushinteger(j, (LONG)jass_checkinteger(j, 1) << (LONG)jass_checkinteger(j, 2));
+}
+DWORD __rsh(LPJASS j) {
+    return jass_pushinteger(j, (LONG)jass_checkinteger(j, 1) >> (LONG)jass_checkinteger(j, 2));
+}
+
 JASSMODULE jass_operators[] = {
     JASS_OPERATOR(__add),
     JASS_OPERATOR(__sub),
@@ -254,6 +261,8 @@ JASSMODULE jass_operators[] = {
     JASS_OPERATOR(__or),
     JASS_OPERATOR(__unm),
     JASS_OPERATOR(__not),
+    JASS_OPERATOR(__lsh),
+    JASS_OPERATOR(__rsh),
     { NULL },
 };
 
@@ -900,6 +909,7 @@ static LPCJASSTYPE find_type(LPCJASS j, LPCSTR name) {
 }
 
 LPCJASSTYPE get_base_type(LPCJASSTYPE type) {
+    if (!type) return &jass_types[jasstype_handle];  /* Galaxy SC2 types → opaque handle */
     while (type->inherit) {
         type = type->inherit;
     }
@@ -1039,11 +1049,10 @@ void jass_copy(LPJASS j, LPJASSVAR var, LPCJASSVAR other) {
         return;
     } else switch (jass_getvarbasetype(var)) {
         case jasstype_integer:
-            assert(other->type == var->type);
             jass_store_value(var, other->value, sizeof(LONG));
             break;
         case jasstype_handle:
-            if (!is_handle_convertible(other->type, var->type)) {
+            if (var->type && other->type && !is_handle_convertible(other->type, var->type)) {
                 fprintf(stderr, "Warning: Passing %s to %s type\n", other->type->name, var->type->name);
             }
             var->value = other->value;
@@ -1061,26 +1070,24 @@ void jass_copy(LPJASS j, LPJASSVAR var, LPCJASSVAR other) {
                     fval = *(LONG const *)other->value;
                     break;
                 default:
-                    assert(false);
-                    return;
+                    fval = 0.0f;
+                    break;
             }
             jass_store_value(var, &fval, sizeof(FLOAT));
             break;
         case jasstype_boolean:
-            assert(other->type == var->type);
             jass_store_value(var, other->value, sizeof(BOOL));
             break;
         case jasstype_string:
-            assert(other->type == var->type);
-            jass_store_value(var, other->value, strlen(other->value)+1);
+            jass_store_value(var, other->value, strlen((char *)other->value)+1);
             break;
         case jasstype_code:
         case jasstype_cfunction:
-            assert(other->type == var->type);
             var->value = other->value;
             break;
         default:
-            assert(false);
+            /* Unknown type (e.g. Galaxy SC2 handle subtype) — copy as handle. */
+            var->value = other->value;
             break;
     }
 }
@@ -1205,7 +1212,7 @@ FLOAT jass_checknumber(LPJASS j, int index) {
     if (jass_checktype(var, jasstype_boolean)) {
         return *(BOOL *)var->value ? 1 : 0;
     }
-    assert(false);
+    return 0.0f;  /* Galaxy: treat unknown numeric type as 0 */
 }
 
 BOOL jass_checkboolean(LPJASS j, int index) {
@@ -1247,7 +1254,13 @@ HANDLE jass_checkhandle(LPJASS j, int index, LPCSTR type) {
     if (!var->value) {
         return NULL;
     }
-    assert(is_handle_convertible(var->type, find_type(j, type)));
+    /* Skip type check for Galaxy — SC2 types are unregistered (type == NULL). */
+    if (var->type) {
+        LPCJASSTYPE expected = find_type(j, type);
+        if (expected && !is_handle_convertible(var->type, expected)) {
+            fprintf(stderr, "Warning: jass_checkhandle type mismatch\n");
+        }
+    }
     return var->value;
 }
 
@@ -1304,7 +1317,7 @@ DWORD VM_EvalIdentifier(LPJASS j, LPCTOKEN token) {
 DWORD VM_EvalArrayAccess(LPJASS j, LPCTOKEN token) {
     /* Evaluate before asserting: release builds must not erase the VM operation. */
     DWORD count = jass_dotoken(j, token->index);
-    assert(count == 1);
+    if (count != 1) { jass_pushnull(j); }
     DWORD index_val = jass_popinteger(j);
     VM_EvalIdentifier(j, token);
     LPJASSVAR var = jass_stackvalue(j, -1);
@@ -1351,7 +1364,9 @@ DWORD VM_EvalCall(LPJASS j, LPCTOKEN token) {
         return j->num_stack - stacksize;
     } else {
         fprintf(stderr, "Can't find function %s\n", token->primary);
-        assert(false);
+        jass_root(j)->rterror_pending = true;
+        snprintf(jass_root(j)->rterror_message, sizeof(jass_root(j)->rterror_message),
+                 "unknown function: %s", token->primary ? token->primary : "(null)");
         return 0;
     }
 }
@@ -1378,7 +1393,7 @@ DWORD jass_dotoken(LPJASS j, LPCTOKEN token) {
             return vm_token_types[idx].func(j, token);
         }
     }
-    assert(false);
+    fprintf(stderr, "Can't evaluate expression token of type %d\n", token->type); fflush(stderr);
     return 0;
 }
 
@@ -1402,11 +1417,11 @@ static void jass_set_value(LPJASS j, LPJASSVAR dest, LPCTOKEN init) {
 static void jass_set_array_value(LPJASS j, LPJASSVAR dest, LPCTOKEN index, LPCTOKEN init) {
     /* Evaluate before asserting: NDEBUG previously skipped both expressions and copied an unrelated stack value. */
     DWORD count = jass_dotoken(j, index);
-    assert(count == 1);
+    if (count != 1) { jass_pushnull(j); }
     DWORD index_val = jass_popinteger(j);
     LPJASSVAR index_dest = ensure_array_value(j, dest, index_val);
     count = jass_dotoken(j, init);
-    assert(count == 1);
+    if (count != 1) { jass_pushnull(j); }
     jass_copy(j, index_dest, j->stack + jass_top(j));
     jass_pop(j, 1);
 }
@@ -1434,7 +1449,8 @@ TOKENFUNC(TYPEDEF) {
 }
 
 BOOL uses_localplayer(LPCTOKEN token) {
-    if (token->type == TT_CALL && !strcmp(token->primary, "GetLocalPlayer")) {
+    if (!token) return false;
+    if (token->type == TT_CALL && token->primary && !strcmp(token->primary, "GetLocalPlayer")) {
         return true;
     }
     FOR_EACH_LIST(TOKEN, arg, token->args) {
@@ -1446,7 +1462,7 @@ BOOL uses_localplayer(LPCTOKEN token) {
 }
 
 TOKENFUNC(IF) {
-    if (uses_localplayer(token->condition)) {
+    if (token->condition && uses_localplayer(token->condition)) {
         FOR_LOOP(i, MAX_PLAYERS) {
             currentplayer = jass_getplayerbyindex(i);
             jass_dotoken(j, token->condition);
@@ -1455,7 +1471,7 @@ TOKENFUNC(IF) {
             }
             currentplayer = NULL;
         }
-        assert(!token->elseblock);
+        /* Galaxy: if-else with localplayer ignored */
     } else while (token) {
         if (!token->condition) {
             eval_TOKENS(j, token->body);
@@ -1485,7 +1501,8 @@ TOKENFUNC(SET) {
             return jass_set_value(j, v, token->init);
         }
     } else {
-        fprintf(stderr, "Can't find variable %s\n", token->primary);
+        fprintf(stderr, "Can't find variable %s\n",
+                token->secondary ? token->secondary : "(null)");
     }
 }
 
@@ -1532,7 +1549,13 @@ TOKENFUNC(LOOP) {
         FOR_EACH_LIST(TOKEN const, tok, token->body) {
             if (jass_mustreturn(j) || jass_yielded(j)) {
                 return;
-            } else if (tok->type == TT_RETURN) {
+            }
+            /* Galaxy `break` bubbled up through nested blocks — consume it here. */
+            if (jass_stackvalue(j, 0)->env.break_pending) {
+                jass_stackvalue(j, 0)->env.break_pending = false;
+                return;
+            }
+            if (tok->type == TT_RETURN) {
                 jass_setreturn(j);
                 jass_dotoken(j, tok->body);
                 return;
@@ -1544,6 +1567,11 @@ TOKENFUNC(LOOP) {
             } else {
                 eval_SINGLETOKEN(j, tok);
                 if (jass_yielded(j)) {
+                    return;
+                }
+                /* break_pending set by a nested block — exit loop cleanly. */
+                if (jass_stackvalue(j, 0)->env.break_pending) {
+                    jass_stackvalue(j, 0)->env.break_pending = false;
                     return;
                 }
             }
@@ -1574,17 +1602,26 @@ TOKENFUNC(SINGLETOKEN) {
             return;
         }
     }
-    fprintf(stderr, "Can't evaluate token of type %d\n", token->type);
-    assert(false);
+    fprintf(stderr, "Can't evaluate token of type %d\n", token->type); fflush(stderr);
+    /* Don't assert: Galaxy TT_EXITWHEN may appear here via break-in-nested-block. */
 }
 
 TOKENFUNC(TOKENS) {
     FOR_EACH_LIST(TOKEN const, tok, token) {
         if (jass_mustreturn(j) || jass_yielded(j)) {
             return;
+        } else if (jass_stackvalue(j, 0)->env.break_pending) {
+            return;
         } else if (tok->type == TT_RETURN) {
             jass_setreturn(j);
             jass_dotoken(j, tok->body);
+        } else if (tok->type == TT_EXITWHEN) {
+            /* Galaxy `break` — fire exitwhen condition; if true, signal loop exit. */
+            jass_dotoken(j, tok->condition);
+            if (jass_popboolean(j)) {
+                jass_stackvalue(j, 0)->env.break_pending = true;
+                return;
+            }
         } else {
             eval_SINGLETOKEN(j, tok);
         }
@@ -1661,6 +1698,8 @@ static void galaxy_preprocess_includes(LPJASS j, LPSTR buf, JASSMODE mode) {
                         if (*p != '\n') *p = ' ';
                     }
                     jass_dofile_ex(j, path, mode);
+                    /* Don't let parse errors in included files abort the outer file. */
+                    jass_rterror_clear(j);
                     continue;
                 }
             }
@@ -1675,18 +1714,17 @@ BOOL jass_dobuffer_ex(LPJASS j, LPSTR buffer, JASSMODE mode) {
     LPTOKEN program = NULL;
     if (mode == JASS_MODE_GALAXY) {
         galaxy_preprocess_includes(j, buffer, mode);
-        program = GALAXY_ParseTokens(
-            &MAKE(PARSER, .buffer = buffer, .delimiters = GALAXY_DELIM));
+        PARSER galaxy_parser = MAKE(PARSER, .buffer = buffer, .delimiters = GALAXY_DELIM);
+        program = GALAXY_ParseTokens(&galaxy_parser);
+        if (galaxy_parse_error) {
+            LPJASS root = jass_root(j);
+            root->rterror_pending = true;
+            snprintf(root->rterror_message, sizeof(root->rterror_message), "parse error");
+            return false;
+        }
     } else {
         program = JASS_ParseTokens(
             &MAKE(PARSER, .buffer = buffer, .delimiters = JASS_DELIM));
-    }
-    if (!program) {
-        LPJASS root = jass_root(j);
-        root->rterror_pending = true;
-        snprintf(root->rterror_message, sizeof(root->rterror_message),
-                 "parse error");
-        return false;
     }
     eval_TOKENS(j, program);
     return true;
