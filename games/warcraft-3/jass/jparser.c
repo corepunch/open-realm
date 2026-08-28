@@ -6,15 +6,16 @@
 #define FREE(val) SAFE_DELETE(val, jass_free)
 #define PARSER(NAME, ...) static LPTOKEN NAME(LPPARSER p, ##__VA_ARGS__)
 
-#define PARSER_THROW(...) \
-fprintf(stderr, __VA_ARGS__); \
-fprintf(stderr, "\n"); \
-fflush(stderr); \
-parser_throw(); \
-longjmp(exception_env, 1);
+#define PARSER_THROW(...) do { \
+    fprintf(stderr, __VA_ARGS__); \
+    fprintf(stderr, "\n"); \
+    fflush(stderr); \
+    parser_throw(); \
+    longjmp(exception_env, 1); \
+} while (0)
 
 static jmp_buf exception_env;
-static volatile int __throw_count = 0;
+volatile BOOL galaxy_parse_error;
 typedef LPTOKEN (*LPGRAMMARFUNC)(LPPARSER);
 
 typedef struct {
@@ -35,7 +36,8 @@ BOOL is_multiplicative_operator(LPCSTR str) {
 }
 
 BOOL is_additive_operator(LPCSTR str) {
-    return !strcmp(str, "+") || !strcmp(str, "-");
+    return !strcmp(str, "+") || !strcmp(str, "-") ||
+           !strcmp(str, "<<") || !strcmp(str, ">>");  /* Galaxy bitshift */
 }
 
 BOOL is_compare_operator(LPCSTR str) {
@@ -59,13 +61,12 @@ LPCSTR jass_getoperator(LPCSTR str) {
     if (!strcmp(str, "<")) return "__lt";
     if (!strcmp(str, "and")) return "__and";
     if (!strcmp(str, "or")) return "__or";
+    if (!strcmp(str, "<<")) return "__lsh";
+    if (!strcmp(str, ">>")) return "__rsh";
     return str;
 }
 
 void parser_throw(void) {
-    /* Intentionally no-op — longjmp in PARSER_THROW jumps to the enclosing
-     * setjmp in JASS_ParseTokens / GALAXY_ParseTokens.  Add assert(false)
-     * here temporarily to get a backtrace when debugging parse failures. */
 }
 
 LPSTR read_identifier(LPPARSER p) {
@@ -363,7 +364,7 @@ PARSER(statement_if) {
             target = next;
         } else if (!parse_body(p, target)) {
             FREE(token);
-            PARSER_THROW("broken if statement")
+            PARSER_THROW("broken if statement");
         }
     }
     return token;
@@ -470,15 +471,20 @@ static LPCSTR galaxy_normalize_type(LPCSTR name) {
     return name;
 }
 
+/* Consume all `[N]` dimension brackets (handles 1D, 2D, 3D, …). */
+static void galaxy_eat_array_dims(LPPARSER p) {
+    while (eat_token(p, "[")) {
+        while (!eat_token(p, "]") && *peek_token(p)) parse_token(p);
+    }
+}
+
 /* Two-token lookahead: returns true when the next tokens look like
- * "type [N] varname" rather than "ident (" or "ident =". */
+ * "type [N]* varname" rather than "ident (" or "ident =". */
 static BOOL galaxy_looks_like_decl(LPPARSER p) {
     PARSER saved = *p;
     if (!is_identifier(peek_token(p))) { return false; }
-    parse_token(p);                             /* consume type name    */
-    if (eat_token(p, "[")) {                    /* optional array size  */
-        while (!eat_token(p, "]") && *peek_token(p)) parse_token(p);
-    }
+    parse_token(p);          /* consume type name */
+    galaxy_eat_array_dims(p);/* skip [N]+ brackets */
     LPCSTR second = peek_token(p);
     BOOL result = is_identifier(second);
     *p = saved;
@@ -526,9 +532,9 @@ PARSER(galaxy_statement_if) {
     LPTOKEN token = alloc_token(TT_IF);
     token->condition = parse_logical_expression(p);
     eat_token(p, "{");
-    while (!eat_token(p, "}")) {
-        if (!galaxy_parse_body_stmt(p, token))
-            PARSER_THROW("broken if body");
+    for (;;) {
+        if (eat_token(p, "}")) break;
+        if (!galaxy_parse_body_stmt(p, token)) { PARSER_THROW("broken if body"); }
     }
     /* Parse optional else / else-if chain. */
     LPTOKEN *chain = &token->elseblock;
@@ -538,13 +544,13 @@ PARSER(galaxy_statement_if) {
             branch->condition = parse_logical_expression(p);
         }
         eat_token(p, "{");
-        while (!eat_token(p, "}")) {
-            if (!galaxy_parse_body_stmt(p, branch))
-                PARSER_THROW("broken else body");
+        for (;;) {
+            if (eat_token(p, "}")) break;
+            if (!galaxy_parse_body_stmt(p, branch)) { PARSER_THROW("broken else body"); }
         }
         *chain = branch;
         chain = &branch->elseblock;
-        if (!branch->condition) break;  /* plain else terminates chain */
+        if (!branch->condition) break;
     }
     return token;
 }
@@ -562,23 +568,24 @@ PARSER(galaxy_statement_while) {
     exitwhen->condition = not_cond;
     PUSH_BACK(TOKEN, exitwhen, loop->body);
     eat_token(p, "{");
-    while (!eat_token(p, "}")) {
-        if (!galaxy_parse_body_stmt(p, loop))
-            PARSER_THROW("broken while body");
+    for (;;) {
+        if (eat_token(p, "}")) break;
+        if (!galaxy_parse_body_stmt(p, loop)) { PARSER_THROW("broken while body"); }
     }
     return loop;
 }
 
-/* Parse a local variable declaration: `type [N] name [= expr];` */
+/* Parse a local variable declaration: `type [N]* name [= expr];` */
 PARSER(galaxy_parse_local) {
     LPTOKEN token    = alloc_token(TT_VARDECL);
     token->primary   = strdup(galaxy_normalize_type(parse_token(p)));
     if (eat_token(p, "[")) {
         token->flags |= TF_ARRAY;
         token->index  = alloc_token(TT_INTEGER);
-        token->index->primary = strdup(parse_token(p));  /* array size */
+        token->index->primary = strdup(parse_token(p));  /* first dimension size */
         eat_token(p, "]");
-        if (eat_token(p, "[")) { parse_token(p); eat_token(p, "]"); }  /* 2-D: skip */
+        /* Skip additional dimensions (2D, 3D, …) — flattened in JASS VM. */
+        while (eat_token(p, "[")) { parse_token(p); eat_token(p, "]"); }
     }
     token->secondary = read_identifier(p);
     if (eat_token(p, "=")) {
@@ -592,35 +599,41 @@ PARSER(galaxy_parse_local) {
 
 /* Parse an assignment (`name [idx] = expr;`) or a call expression (`name(args);`). */
 static LPTOKEN galaxy_parse_expression_stmt(LPPARSER p) {
-    LPCSTR name = parse_token(p);
+    /* strdup immediately: parse_token returns a pointer to a static buffer that
+     * subsequent eat_token / parse_token calls will overwrite. */
+    LPSTR name = strdup(parse_token(p));
 
-    /* Array index before = */
+    /* Array index before =: eat [idx] then skip additional [idx] dimensions. */
     LPTOKEN index_expr = NULL;
     if (eat_token(p, "[")) {
         index_expr = parse_logical_expression(p);  /* eats ] */
+        /* Skip extra dimensions ([j][k]…) — multi-dimensional access is flattened. */
+        while (eat_token(p, "[")) { parse_logical_expression(p); }  /* each eats ] */
     }
 
+    LPTOKEN result = NULL;
     if (eat_token(p, "=")) {
         LPTOKEN token    = alloc_token(TT_SET);
-        token->secondary = strdup(name);
+        token->secondary = name;   /* transfer ownership */
         token->index     = index_expr;
         token->init      = parse_logical_expression(p);
         eat_token(p, ";");
-        return token;
+        result = token;
     } else if (eat_token(p, "(")) {
         LPTOKEN token  = alloc_token(TT_CALL);
-        token->primary = strdup(name);
+        token->primary = name;   /* transfer ownership */
         if (!eat_token(p, ")")) {
             token->args = parse_logical_expression(p);  /* eats ) */
         }
         eat_token(p, ";");
-        return token;
+        result = token;
     } else {
         eat_token(p, ";");
         LPTOKEN token  = alloc_token(TT_IDENTIFIER);
-        token->primary = strdup(name);
-        return token;
+        token->primary = name;   /* transfer ownership */
+        result = token;
     }
+    return result;
 }
 
 /* Dispatch one statement inside a function body. */
@@ -657,14 +670,14 @@ static BOOL galaxy_parse_body_stmt(LPPARSER p, LPTOKEN function) {
 PARSER(galaxy_keyword_function) {
     LPTOKEN function = galaxy_parse_function_decl(p);
     eat_token(p, "{");
-    while (!eat_token(p, "}")) {
-        if (!galaxy_parse_body_stmt(p, function))
-            PARSER_THROW("broken function body");
+    for (;;) {
+        if (eat_token(p, "}")) break;
+        if (!galaxy_parse_body_stmt(p, function)) { PARSER_THROW("broken function body"); }
     }
     return function;
 }
 
-/* Top-level `[const] type [N] name [= expr];` */
+/* Top-level `[const] type [N]* name [= expr];` */
 PARSER(galaxy_parse_global) {
     LPTOKEN token = alloc_token(TT_GLOBAL);
     if (eat_token(p, "const")) token->flags |= TF_CONSTANT;
@@ -674,7 +687,7 @@ PARSER(galaxy_parse_global) {
         token->index  = alloc_token(TT_INTEGER);
         token->index->primary = strdup(parse_token(p));
         eat_token(p, "]");
-        if (eat_token(p, "[")) { parse_token(p); eat_token(p, "]"); }  /* 2-D: skip */
+        while (eat_token(p, "[")) { parse_token(p); eat_token(p, "]"); }  /* N-D: skip extra */
     }
     token->secondary = read_identifier(p);
     if (eat_token(p, "=")) {
@@ -698,17 +711,18 @@ PARSER(galaxy_parse_native) {
  * If after (optional `[N]`) we see `name (`, it's a function; otherwise global. */
 static LPTOKEN galaxy_parse_global_or_func(LPPARSER p) {
     PARSER saved = *p;
-    parse_token(p);                             /* consume return/type name */
-    if (eat_token(p, "[")) {                    /* skip array bracket if present */
-        while (!eat_token(p, "]") && *peek_token(p)) parse_token(p);
-    }
-    parse_token(p);                             /* consume function/variable name */
-    BOOL is_func  = eat_token(p, "(");         /* ( → function def               */
+    parse_token(p);              /* consume return/type name */
+    galaxy_eat_array_dims(p);   /* skip [N]+ brackets */
+    parse_token(p);              /* consume function/variable name */
+    BOOL is_func = eat_token(p, "(");
     *p = saved;
     return is_func ? galaxy_keyword_function(p) : galaxy_parse_global(p);
 }
 
 LPTOKEN GALAXY_ParseTokens(LPPARSER p) {
+    /* galaxy_parse_error is checked by jass_dobuffer_ex to distinguish a
+     * genuine parse error (PARSER_THROW → longjmp) from an empty file (NULL tokens). */
+    galaxy_parse_error = false;
     LPTOKEN tokens = NULL;
     if (setjmp(exception_env) == 0) {
         while (*peek_token(p)) {
@@ -729,7 +743,7 @@ LPTOKEN GALAXY_ParseTokens(LPPARSER p) {
         return tokens;
     } else {
         FREE(tokens);
-        fprintf(stderr, "Galaxy Parser Error\n");
+        galaxy_parse_error = true;
         return NULL;
     }
 }
