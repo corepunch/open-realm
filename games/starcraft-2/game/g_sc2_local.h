@@ -4,6 +4,8 @@
 #include "common/common.h"
 #include "server/server.h"
 #include "games/starcraft-2/common/sc2_map.h"
+#include "games/warcraft-3/jass/jass_api.h"
+#include "games/starcraft-2/game/galaxy/galaxy_host.h"
 
 #define SC2_MAX_CLIENTS 1
 #define SC2_MAX_EDICTS  2048
@@ -11,11 +13,18 @@
 extern struct game_import gi;
 extern struct game_export globals;
 
+/* Level-local state for the Galaxy VM and cinematic system. */
+typedef struct {
+    LPJASS vm;
+    BOOL   scriptsStarted;
+    FLOAT  cinefade;       /* 0=clear … 1=fully black (written to client ps.cinefade) */
+    BOOL   cinematic;      /* true while cinematic bars/overlay is active */
+} sc2Level_t;
+
+extern sc2Level_t sc2_level;
+
 LPCANIMATION G_GetAnimation(DWORD modelindex, LPCSTR animname);
 void         G_FreeModels(void);
 
-/* HUD (hud/hud.c) */
-void SC2_HudInit(void);
-void SC2_HudShutdown(void);
-void SC2_WriteConsoleLayout(LPEDICT ent);
+/* HUD declarations are in hud/hud.h; include that separately in .c files. */
 #endif

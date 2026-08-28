@@ -16,6 +16,8 @@ KNOWN_AS(jass_dict, JASSDICT);
 KNOWN_AS(jass_arg, JASSARG);
 KNOWN_AS(jass_coroutine_frame, JASSCOROUTINEFRAME);
 
+#define BZ_JASS_HASH_SIZE 4096 // buckets; keeps Galaxy lookup chains near one entry; used for root globals/functions
+
 struct jass_var {
     LPCJASSTYPE type;
     HANDLE value;
@@ -47,6 +49,7 @@ struct jass_function {
     LPJASSARG args;
     LPCJASSTYPE returns;
     LPJASSFUNC next;
+    LPJASSFUNC hash_next;
     LPCSTR name;
     LPCTOKEN code;
     DWORD (*nativefunc)(LPJASS j);
@@ -61,6 +64,7 @@ struct jass_array {
 
 struct jass_dict {
     LPJASSDICT next;
+    LPJASSDICT hash_next;
     LPCSTR key;
     JASSVAR value;
 };
@@ -97,8 +101,10 @@ struct jass_coroutine {
 
 struct jass_s {
     LPJASSDICT globals;
+    LPJASSDICT global_hash[BZ_JASS_HASH_SIZE];
     LPJASSTYPE types;
     LPJASSFUNC functions;
+    LPJASSFUNC function_hash[BZ_JASS_HASH_SIZE];
     JASSVAR stack[MAX_JASS_STACK];
     DWORD num_stack;
     LPJASSVAR stack_pointer;

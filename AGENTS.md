@@ -36,6 +36,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 RAM profiling: MDX buffer overhead, FDF pools, texture residency, loopback budgets | [docs/games/warcraft-3/memory.md](docs/games/warcraft-3/memory.md) |
 | SC2 HUD layout pipeline (sc2BaseFrame_t → uiFrame_t, layer IDs, stat bindings) | [docs/games/starcraft-2/hud-layout-pipeline.md](docs/games/starcraft-2/hud-layout-pipeline.md) |
 | SC2 terrain/cliff rendering, normal welding, and material batches | [docs/games/starcraft-2/terrain-and-world-rendering.md](docs/games/starcraft-2/terrain-and-world-rendering.md) |
+| SC2 Galaxy VM lifecycle, trigger execution, lookup indexes, diagnostics, and gaps | [docs/games/starcraft-2/galaxy-scripting.md](docs/games/starcraft-2/galaxy-scripting.md) |
 | FS / VFS / MPQ loading stack, config/share dir resolution, SC2 vs WoW patterns, mmap ADT optimization | [docs/fs-loading-architecture.md](docs/fs-loading-architecture.md) |
 | Config load order, cvar registry, `fs_basepath`/`fs_homepath`, `share/<game>/` + `~/.<game>/` layout | [docs/architecture/runtime.md](docs/architecture/runtime.md) |
 | Code patterns that work well (file-shaped structs, table-driven parsing, pointer-walk parsers) | [docs/code-patterns-that-work.md](docs/code-patterns-that-work.md) |

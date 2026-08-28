@@ -19,7 +19,7 @@
 #define JASS_UNM       "-"
 #define JASS_COMMA     ","
 #define JASS_OPERATOR(NAME) { #NAME, NAME }
-#define INF_LOOP_PROTECTION 10000
+#define INF_LOOP_PROTECTION 1000000  /* SC2 Galaxy scripts have large but legitimate loops */
 #define SYNTAX_C_OPERATORS 1 // bitmask; enables Galaxy symbolic logic and shift operators
 #define SYNTAX_INCLUDES    2 // bitmask; enables Galaxy include preprocessing
 
@@ -110,6 +110,7 @@ static LPJASSVAR jass_topvalue(LPJASS j);
 static JASSTYPEID jass_getvarbasetype(LPCJASSVAR var);
 static DWORD jass_dotoken(LPJASS j, LPCTOKEN token);
 static LPCJASSFUNC find_function(LPCJASS j, LPCSTR name);
+static LPJASSVAR find_global(LPCJASS j, LPCSTR name);
 static void eval_SINGLETOKEN(LPJASS j, LPCTOKEN token);
 static void eval_VARDECL(LPJASS j, LPCTOKEN token);
 void eval_TOKENS(LPJASS j, LPCTOKEN token);
@@ -206,13 +207,11 @@ static BOOL var_eq(LPCJASSVAR a, LPCJASSVAR b) {
         "playercolor", "playerslotstate", "volumegroup", "camerafield", "blendmode", "raritycontrol",
         "texmapflags", "fogstate", "effecttype"
     };
-    if (jass_getvarbasetype(a) != jass_getvarbasetype(b)) {
-        return false;
-    }
     switch ((a->value == NULL) + (b->value == NULL)) {
         case 2: return true;
         case 1: return false;
     }
+    if (jass_getvarbasetype(a) != jass_getvarbasetype(b)) return false;
     switch (jass_getvarbasetype(a)) {
         case jasstype_integer: return !memcmp(a->value, b->value, sizeof(LONG));
         case jasstype_real: return !memcmp(a->value, b->value, sizeof(FLOAT));
@@ -256,6 +255,15 @@ DWORD __lsh(LPJASS j) {
 DWORD __rsh(LPJASS j) {
     return jass_pushinteger(j, (LONG)jass_checkinteger(j, 1) >> (LONG)jass_checkinteger(j, 2));
 }
+DWORD __bor(LPJASS j) {
+    return jass_pushinteger(j, (LONG)jass_checkinteger(j, 1) | (LONG)jass_checkinteger(j, 2));
+}
+DWORD __band(LPJASS j) {
+    return jass_pushinteger(j, (LONG)jass_checkinteger(j, 1) & (LONG)jass_checkinteger(j, 2));
+}
+DWORD __xor(LPJASS j) {
+    return jass_pushinteger(j, (LONG)jass_checkinteger(j, 1) ^ (LONG)jass_checkinteger(j, 2));
+}
 
 JASSMODULE jass_operators[] = {
     JASS_OPERATOR(__add),
@@ -274,6 +282,9 @@ JASSMODULE jass_operators[] = {
     JASS_OPERATOR(__not),
     JASS_OPERATOR(__lsh),
     JASS_OPERATOR(__rsh),
+    JASS_OPERATOR(__bor),
+    JASS_OPERATOR(__band),
+    JASS_OPERATOR(__xor),
     { NULL },
 };
 
@@ -340,9 +351,8 @@ LPCJASSCONTEXT jass_getcontext(LPJASS j) {
     return &j->context;
 }
 
-static LPJASS jass_root(LPJASS j) {
-    return j->root ? j->root : j;
-}
+static LPJASS jass_root(LPJASS j) { return j->root ? j->root : j; }
+LPJASS jass_getroot(LPJASS j)     { return jass_root(j); }
 
 /* =========================================================================
  * Coroutine frame management
@@ -403,9 +413,11 @@ static LPJASSDICT jass_coroutine_buildlocals(LPJASS j, LPCJASSFUNC func, LPCTOKE
         local->key = arg->name;
         local->value.type = arg->type;
         if (arg_token) {
-            jass_dotoken(j, arg_token);
+            DWORD count = jass_dotoken(j, arg_token);
+            /* Match synchronous calls: a void or unresolved argument becomes null instead of underflowing the stack. */
+            if (!count) { jass_pushnull(j); count = 1; }
             jass_copy(j, &local->value, jass_topvalue(j));
-            jass_pop(j, 1);
+            jass_discard(j, count);
             arg_token = arg_token->next;
         }
         PUSH_BACK(JASSDICT, local, locals);
@@ -906,8 +918,15 @@ static LPJASSCFUNCTION find_cfunction(LPCJASS j, LPCSTR name) {
     return NULL;
 }
 
+/* Root declarations use separate bucket links so list order and duplicate-name behavior stay unchanged. */
+static DWORD jass_hash(LPCSTR name) {
+    DWORD hash = 0;
+    while (*name) hash = (BYTE)*name++ + (hash << 6) + (hash << 16) - hash;
+    return hash & (BZ_JASS_HASH_SIZE - 1);
+}
+
 static LPCJASSFUNC find_function(LPCJASS j, LPCSTR name) {
-    FOR_EACH_LIST(JASSFUNC, func, j->functions) {
+    for (LPCJASSFUNC func = j->function_hash[jass_hash(name)]; func; func = func->hash_next) {
         if (!strcmp(func->name, name)) {
             return func;
         }
@@ -920,6 +939,13 @@ static LPJASSVAR find_dict(LPJASSDICT dict, LPCSTR name) {
         if (!strcmp(item->key, name)) {
             return &item->value;
         }
+    }
+    return NULL;
+}
+
+static LPJASSVAR find_global(LPCJASS j, LPCSTR name) {
+    for (LPJASSDICT item = j->global_hash[jass_hash(name)]; item; item = item->hash_next) {
+        if (!strcmp(item->key, name)) return &item->value;
     }
     return NULL;
 }
@@ -1335,7 +1361,7 @@ DWORD VM_EvalIdentifier(LPJASS j, LPCTOKEN token) {
         } else {
             return jass_pushnull(j);
         }
-    } else if ((v = find_dict(j->globals, token->primary))) {
+    } else if ((v = find_global(j, token->primary))) {
         return jass_pushvalue(j, v);
     } else if ((v = find_dict(jass_stackvalue(j, 0)->env.locals, token->primary))) {
         return jass_pushvalue(j, v);
@@ -1518,7 +1544,7 @@ TOKENFUNC(IF) {
 
 TOKENFUNC(SET) {
     LPJASSVAR v = NULL;
-    if ((v = find_dict(j->globals, token->secondary))) {
+    if ((v = find_global(j, token->secondary))) {
         if (token->index) {
             return jass_set_array_value(j, v, token->index, token->init);
         } else {
@@ -1543,11 +1569,15 @@ TOKENFUNC(VARDECL) {
 
 TOKENFUNC(GLOBAL) {
     LPJASSDICT global = parse_dict(j, token);
+    LPJASSDICT *bucket = &j->global_hash[jass_hash(global->key)];
     ADD_TO_LIST(global, j->globals);
+    global->hash_next = *bucket;
+    *bucket = global;
 }
 
 TOKENFUNC(FUNCTION) {
     LPJASSFUNC func = JASSALLOC(JASSFUNC);
+    LPJASSFUNC *bucket;
     func->name = token->primary;
     func->code = token->body;
     func->returns = find_type(j, token->secondary);
@@ -1567,7 +1597,10 @@ TOKENFUNC(FUNCTION) {
             if (mod) func->nativefunc = mod->func;
         }
     }
+    bucket = &j->function_hash[jass_hash(func->name)];
     ADD_TO_LIST(func, j->functions);
+    func->hash_next = *bucket;
+    *bucket = func;
 }
 
 TOKENFUNC(CALL) {
@@ -1694,9 +1727,29 @@ static void jass_remove_bom(LPSTR buf) {
 /* Forward declaration — galaxy_preprocess_includes calls jass_dofile_ex. */
 BOOL jass_dofile_ex(LPJASS j, LPCSTR fileName, JASSMODE mode);
 
+/* Include-once guard: tracks files already loaded in this VM to prevent
+ * re-parsing when multiple files include the same library. */
+#define GALAXY_MAX_INCLUDES 256
+static char galaxy_loaded[GALAXY_MAX_INCLUDES][512];
+static DWORD galaxy_loaded_n;
+
+static BOOL galaxy_already_loaded(LPCSTR path) {
+    for (DWORD i = 0; i < galaxy_loaded_n; i++) {
+        if (!strcmp(galaxy_loaded[i], path)) return true;
+    }
+    if (galaxy_loaded_n < GALAXY_MAX_INCLUDES)
+        strlcpy(galaxy_loaded[galaxy_loaded_n++], path, 512);
+    return false;
+}
+
+void galaxy_loaded_reset(void) {
+    galaxy_loaded_n = 0;
+}
+
 /* galaxy_preprocess_includes — scan buffer for `include "path"` directives,
  * overwrite each with spaces (preserving newlines for line-number stability),
- * and recursively load the included file before the main buffer is parsed. */
+ * and recursively load the included file before the main buffer is parsed.
+ * Each unique path is loaded at most once per VM lifetime. */
 static void galaxy_preprocess_includes(LPJASS j, LPSTR buf, JASSMODE mode) {
     LPSTR cur = buf;
     while (*cur) {
@@ -1727,9 +1780,12 @@ static void galaxy_preprocess_includes(LPJASS j, LPSTR buf, JASSMODE mode) {
                     for (LPSTR p = line_start; p < cur; p++) {
                         if (*p != '\n') *p = ' ';
                     }
-                    jass_dofile_ex(j, path, mode);
-                    /* Don't let parse errors in included files abort the outer file. */
-                    jass_rterror_clear(j);
+                    /* Include-once guard: skip if already loaded. */
+                    if (!galaxy_already_loaded(path)) {
+                        jass_dofile_ex(j, path, mode);
+                        /* Don't let parse errors in included files abort the outer file. */
+                        jass_rterror_clear(j);
+                    }
                     continue;
                 }
             }
@@ -1770,6 +1826,7 @@ LPJASS jass_newstate(void) {
     LPJASS j = JASSALLOC(JASS);
     j->stack_pointer = j->stack;
     j->root = j;
+    galaxy_loaded_reset(); /* each new VM session starts with a fresh include-once guard */
     return j;
 }
 
