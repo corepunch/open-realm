@@ -17,4 +17,9 @@ static VECTOR3 Wow_ViewForward(LPCVECTOR3 angles) {
     return (VECTOR3){ cosf(pitch) * cosf(yaw), cosf(pitch) * sinf(yaw), -sinf(pitch) };
 }
 
+/* Shadow callers share the same no-cull override for both cheap and terrain-adjusted bounds. */
+static BOOL Wow_ShadowBoundsVisible(LPCFRUSTUM3 frustum, LPCBOX3 bounds, BOOL cull) {
+    return !cull || Frustum_ContainsAABox(frustum, bounds);
+}
+
 #endif

@@ -169,6 +169,42 @@ static void test_deletetex(GLsizei n, const GLuint *ids) { (void)ids; texture_de
 #include "renderer/r_pcx.c"
 #include "renderer/r_dds.c"
 
+static struct { DWORD calls, first, count, instances, stats_count, stats_instances; } draw_test;
+void R_StatsDraw(GLenum mode, DWORD count, DWORD instances) {
+    (void)mode; draw_test.stats_count = count; draw_test.stats_instances = instances;
+}
+static void test_genva(GLsizei n, GLuint *ids) { while (n--) *ids++ = 7; }
+static void test_bindva(GLuint id) { (void)id; }
+static void test_bindbuf(GLenum target, GLuint id) { (void)target; (void)id; }
+static void test_enableattr(GLuint index) { (void)index; }
+static void test_attrptr(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void *ptr) {
+    (void)index; (void)size; (void)type; (void)normalized; (void)stride; (void)ptr;
+}
+static void test_divisor(GLuint index, GLuint divisor) { (void)index; (void)divisor; }
+static void test_drawarrays(GLenum mode, GLint first, GLsizei count) {
+    (void)mode; draw_test.calls++; draw_test.first = first; draw_test.count = count; draw_test.instances = 1;
+}
+static void test_drawarrays_inst(GLenum mode, GLint first, GLsizei count, GLsizei instances) {
+    (void)mode; draw_test.calls++; draw_test.first = first; draw_test.count = count; draw_test.instances = instances;
+}
+#define glGenVertexArrays test_genva
+#define glBindVertexArray test_bindva
+#define glBindBuffer test_bindbuf
+#define glEnableVertexAttribArray test_enableattr
+#define glVertexAttribPointer test_attrptr
+#define glVertexAttribDivisor test_divisor
+#define glDrawArrays test_drawarrays
+#define glDrawArraysInstanced test_drawarrays_inst
+#include "renderer/r_buffer.c"
+#undef glGenVertexArrays
+#undef glBindVertexArray
+#undef glBindBuffer
+#undef glEnableVertexAttribArray
+#undef glVertexAttribPointer
+#undef glVertexAttribDivisor
+#undef glDrawArrays
+#undef glDrawArraysInstanced
+
 static HANDLE test_alloc(long size) { alloc_count++; return calloc(1, (size_t)size); }
 static void test_free(HANDLE memory) { free_count++; free(memory); }
 static void test_error(LPCSTR format, ...) { (void)format; T_ASSERT(false); }
@@ -963,4 +999,27 @@ TEST(renderer_shader_desc, sampler_order_and_program_release) {
     R_DeleteShader(&shader.prog); T_EQ(deleted_programs, deleted + 1);
     T_EQ(shader.prog.progid, 0); T_NULL(shader.prog.desc);
     R_DeleteShader(&shader.prog); T_EQ(deleted_programs, deleted + 1);
+}
+
+/* Packed array batches preserve their non-zero first vertex and skip empty ranges. */
+TEST(renderer_buffer, array_range_uses_first_and_count) {
+    BUFFER buffer = { .vao = 3, .vbo = 4 };
+    DRAWRANGE draw = { .first = 17, .count = 12 };
+    memset(&draw_test, 0, sizeof(draw_test));
+    R_DrawBufferRange(&buffer, &draw);
+    T_EQ(draw_test.calls, 1); T_EQ(draw_test.first, 17); T_EQ(draw_test.count, 12); T_EQ(draw_test.instances, 1);
+    T_EQ(draw_test.stats_count, 12); T_EQ(draw_test.stats_instances, 1);
+    draw.count = 0; R_DrawBufferRange(&buffer, &draw); T_EQ(draw_test.calls, 1);
+}
+
+/* Instanced packed batches use the same range and reject an empty instance stream. */
+TEST(renderer_buffer, instanced_array_range_uses_first_count_and_instances) {
+    BUFFER buffer = { .vbo = 4 };
+    INSTANCEBUFFER instances = { .vbo = 5, .count = 9 };
+    DRAWRANGE draw = { .first = 23, .count = 18 };
+    memset(&draw_test, 0, sizeof(draw_test));
+    R_DrawBufferRangeInstanced(&buffer, &draw, &instances);
+    T_EQ(draw_test.calls, 1); T_EQ(draw_test.first, 23); T_EQ(draw_test.count, 18); T_EQ(draw_test.instances, 9);
+    T_EQ(draw_test.stats_count, 18); T_EQ(draw_test.stats_instances, 9);
+    instances.count = 0; R_DrawBufferRangeInstanced(&buffer, &draw, &instances); T_EQ(draw_test.calls, 1);
 }

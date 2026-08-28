@@ -165,6 +165,15 @@ already removed from the model registry. A bounded TRaynor01 run with targeted s
 an abort at the first cliff-model release. Keep map cleanup at its registration boundary; do not
 fold it into `R_SC2ShutdownShaders`.
 
+### Packed M2 batch transport
+
+Classic M2 skin sections are expanded into the interleaved `VERTEX` layout because each skin lookup can supply different
+bone indices. Once expanded, each output vertex is consumed exactly once and consecutive batches occupy consecutive ranges
+of the model-owned VBO. Store those ranges as `DRAWRANGE { first, count }` and submit them with `R_DrawBufferRange` or
+`R_DrawBufferRangeInstanced`. Do not add an identity EBO: sequential 32-bit indices provide no reuse and impose avoidable
+bandwidth and `glDrawElements*` translation work on GLES compatibility layers. MDX/M3 retain real indexed geometry because
+their packed element buffers do reuse vertices.
+
 ### Model variant define lifetime
 
 `R_ShaderDefines` returns a shared scratch string and must clear it before composing every model

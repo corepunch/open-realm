@@ -229,8 +229,24 @@ The August 2026 [RG40xx address mapping](https://gist.github.com/sookyboo/96bccd
 3-4 FPS run reaches three established hot paths: instanced grass submission (`Wow_DrawGrass` → `M2_RenderInstanced` →
 `R_DrawIndexedBuffer32Instanced`), terrain/WMO doodad queuing, and entity-shadow terrain height queries. The gist contains
 resolved addresses but no sample counts, build revision, camera, renderer toggles, or GPU timing; it cannot rank those paths
-or establish that `e471c472` caused a new WoW regression. Re-run the isolation toggles and `r_stats 1` below on the same
-camera before changing draw transport or disabling authoritative content.
+by itself. A same-camera Human-start isolation run on an M1 at 2048x1536 ranked the current costs: default 86-91 FPS,
+`r_grass 0` 94-95, `r_unit_shadows 0` 105-106, `r_wmos 0` 154, and `r_doodads 0` 174. Doodad/WMO M2 submission, not
+grass density alone, is the highest-leverage handheld target; keep the authored far clip while optimizing that transport.
+
+Commit `e471c472` retained one packed VBO per M2 model but expanded every skin index into a unique vertex and then uploaded
+a 32-bit EBO containing only `0, 1, 2, ...`. Targeted loader logs confirmed `identity=1` for every sampled character,
+doodad, and grass model (for example 11,367 vertices plus a redundant 45,468-byte EBO). The EBO cannot provide vertex-cache
+reuse: it only adds index bandwidth and `glDrawElements*` driver work, including the gist's
+`R_DrawIndexedBuffer32Instanced` path. M2 batches now retain `(first,count)` array ranges over the same packed VBO and use
+`glDrawArrays*`; this preserves the model-buffer RAM consolidation without manufacturing indices.
+
+The gist's shadow stack was also actionable. Before the fix, fast blob shadows called `R_GameGetHeightAtPoint` before their
+frustum test. A bounded diagnostic counted 32,768 height queries: 26,659 were rejected afterward, while a cheap AABB at the
+server-authored entity Z rejected 26,658 of the same shadows before the query. The renderer now performs that early test and
+retains the terrain-adjusted test for visible blobs. With both changes, the same default run settles at 102-105 FPS while
+rendering the unchanged ~1,178 draws, 1.29M triangles, and 162.9K instances; the screenshot path confirmed identical visible
+M2 grass/doodads and shadows. The Apple gain is about 15%, while removing the identity-EBO path is expected to matter more on
+the RG40xx GL translation stack.
 
 Root cause of 3fps regression: `Wow_QueueWmoDoodads` (`r_wowmap_objects.c`) called every frame for all WMO instances. Inside: `Wow_LoadDoodadModel` performs an O(n) `strcasecmp` linked-list scan; a second O(n) scan finds the `wowDoodadModel_t *group`. With 43 WMOs × ~100 doodad defs = 4300 lookups/frame at O(200), the profiler confirmed 860K `strcasecmp_l` calls/frame (78% of frame time).
 

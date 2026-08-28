@@ -175,11 +175,27 @@ static BOOL R_BindInstancedBuffer(LPCBUFFER buffer, LPCINSTANCEBUFFER instances)
 
 static void R_ResetInstancedBuffer(void) { FOR_LOOP(i, 4) R_Call(glVertexAttribDivisor, attrib_instance + i, 0); }
 
+/* Draw one subrange from a packed array buffer without manufacturing sequential indices. */
+void R_DrawBufferRange(LPCBUFFER buffer, LPCDRAWRANGE draw) {
+    if (!buffer || !draw || !draw->count) return;
+    R_Call(glBindVertexArray, buffer->vao);
+    R_StatsDraw(GL_TRIANGLES, draw->count, 1);
+    R_Call(glDrawArrays, GL_TRIANGLES, draw->first, draw->count);
+}
+
 /* Rebind one model batch and its persistent instance stream to the shared VAO. */
 void R_DrawBufferInstanced(LPCBUFFER buffer, DWORD num_vertices, LPCINSTANCEBUFFER instances) {
     if (!num_vertices || !R_BindInstancedBuffer(buffer, instances)) return;
     R_StatsDraw(GL_TRIANGLES, num_vertices, instances->count);
     R_Call(glDrawArraysInstanced, GL_TRIANGLES, 0, num_vertices, instances->count);
+    R_ResetInstancedBuffer();
+}
+
+/* Packed batch-expanded M2 geometry shares one VBO, so submit its vertex subrange without a redundant identity EBO. */
+void R_DrawBufferRangeInstanced(LPCBUFFER buffer, LPCDRAWRANGE draw, LPCINSTANCEBUFFER instances) {
+    if (!draw || !draw->count || !R_BindInstancedBuffer(buffer, instances)) return;
+    R_StatsDraw(GL_TRIANGLES, draw->count, instances->count);
+    R_Call(glDrawArraysInstanced, GL_TRIANGLES, draw->first, draw->count, instances->count);
     R_ResetInstancedBuffer();
 }
 

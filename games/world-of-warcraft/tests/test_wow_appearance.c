@@ -103,6 +103,18 @@ TEST(wow_renderer, view_angle_helpers_wrap_and_match_forward_axis) {
     T_ASSERT(fabsf(forward.x) < 0.001f); T_ASSERT(fabsf(forward.y - 1.0f) < 0.001f);
 }
 
+/* Shadow culling rejects outside bounds while RDF_NOFRUSTUMCULL's caller path preserves them. */
+TEST(wow_renderer, shadow_bounds_honor_frustum_and_override) {
+    MATRIX4 identity;
+    FRUSTUM3 frustum;
+    BOX3 inside = { .min = { -0.5f, -0.5f, -0.5f }, .max = { 0.5f, 0.5f, 0.5f } };
+    BOX3 outside = { .min = { 2.0f, 2.0f, 2.0f }, .max = { 3.0f, 3.0f, 3.0f } };
+    Matrix4_identity(&identity); Frustum_Calculate(&identity, &frustum);
+    T_ASSERT(Wow_ShadowBoundsVisible(&frustum, &inside, true));
+    T_ASSERT(!Wow_ShadowBoundsVisible(&frustum, &outside, true));
+    T_ASSERT(Wow_ShadowBoundsVisible(&frustum, &outside, false));
+}
+
 TEST(wow_m2, particle_curve_preserves_fractional_scale_and_normalized_lifetime) {
     M2PARTICLECURVE curve = { { 0.1388889f, 0.1666667f, 0.0000277778f }, 0.25f, 6.0f };
     cparticle_t particle = { 0 };

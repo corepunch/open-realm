@@ -1,6 +1,7 @@
 #include "renderer/r_game.h"
 #include "wow_assets.h"
 #include "renderer/r_local.h"
+#include "common/wow_view.h"
 #include "wow/r_wowmap.h"
 #include "m2/r_m2_format.h"
 
@@ -387,16 +388,19 @@ bool R_GameRenderShadow(renderEntity_t const *entity, LPCVECTOR2 origin) {
     }
 
     if (use_fast_blob) {
+        BOX3 pre_bounds = {
+            .min = { mins.x, mins.y, entity->origin.z - 16.0f },
+            .max = { maxs.x, maxs.y, entity->origin.z + 16.0f },
+        };
+        /* Entity Z is the server-authored ground position; reject its blob before the terrain height lookup. */
+        if (!Wow_ShadowBoundsVisible(&tr.viewDef.frustum, &pre_bounds, !(tr.viewDef.rdflags & RDF_NOFRUSTUMCULL))) return true;
         shadow_z = R_GameGetHeightAtPoint(origin->x, origin->y) + WOW_SPLAT_Z_BIAS;
     }
     bounds = (BOX3){
         .min = { mins.x, mins.y, shadow_z - 16.0f },
         .max = { maxs.x, maxs.y, shadow_z + 16.0f },
     };
-    if (!(tr.viewDef.rdflags & RDF_NOFRUSTUMCULL) &&
-        !Frustum_ContainsAABox(&tr.viewDef.frustum, &bounds)) {
-        return true;
-    }
+    if (!Wow_ShadowBoundsVisible(&tr.viewDef.frustum, &bounds, !(tr.viewDef.rdflags & RDF_NOFRUSTUMCULL))) return true;
     if (use_fast_blob) {
         R_RenderFlatRectSplat(&mins, &maxs, shadow_z, shadow, R_SPLAT_SHADER(&tr.shader_shadowSplat), shadowColor);
     } else {
