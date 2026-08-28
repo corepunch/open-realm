@@ -312,6 +312,7 @@ typedef struct wowMap_s {
     DWORD num_wmo_models;
     DWORD num_wmo_batches;
     DWORD num_missing_wmos;
+    BOOL wmo_doodads_built;
     DWORD *placed_wmo_ids;     /* non-zero MODF unique_ids accepted this ADT window; dedup guard */
     DWORD num_placed_wmo_ids, cap_placed_wmo_ids;
     DWORD *placed_dood_ids;    /* non-zero MDDF unique_ids accepted this ADT window; dedup guard */
