@@ -363,6 +363,22 @@ static int G_RegisterSoundLabel(sheetRow_t *sounds, LPCSTR label, LPCSTR suffix)
     return gi.SoundIndex(path);
 }
 
+/* Cache every native selection response so repeated clicks can choose among
+ * the authored UnitAckSounds variants instead of repeating the first file. */
+void G_RegisterSelectSounds(LPEDICT self, sheetRow_t *sounds, LPCSTR label) {
+    char key[128], file[256], path[512];
+    snprintf(key, sizeof(key), "%sWhat", label);
+    LPCSTR files = FS_FindSheetCell(sounds, key, "FileNames");
+    LPCSTR dir = FS_FindSheetCell(sounds, key, "DirectoryBase");
+    while (files && files[0] && self->num_select_sounds < MAX_UNIT_SELECT_SOUNDS) {
+        LPCSTR comma = strchr(files, ',');
+        snprintf(file, sizeof(file), "%.*s", comma ? (int)(comma - files) : (int)strlen(files), files);
+        snprintf(path, sizeof(path), "%s%s", dir ? dir : "", file);
+        self->sound_select[self->num_select_sounds++] = (BYTE)gi.SoundIndex(path);
+        files = comma ? comma + 1 : NULL;
+    }
+}
+
 /* Populate the unit's cached sound indices from UnitAckSounds.slk using the
  * "unitSound" label (e.g. "Footman").  Falls back gracefully if entries are
  * missing — sounds simply won't fire for that unit. */
@@ -371,6 +387,7 @@ static void G_RegisterUnitSounds(LPEDICT self) {
     if (!label || !label[0]) return;
     sheetRow_t *ack = game.config.unitAckSounds;
     if (!ack) return;
+    G_RegisterSelectSounds(self, ack, label);
     self->sound_attack = G_RegisterSoundLabel(ack, label, "YesAttack");
     /* Death sounds follow the pattern {label}Death but may not exist in the
      * AckSounds SLK.  Try the SLK first; fall back to the raw file path. */
