@@ -202,9 +202,9 @@ typedef struct {
  * UnitWeapons.slk
  * =========================================================================*/
 typedef struct {
-    LPCSTR attackType, rangeTest, damageUpgrade, damageModifier, weaponType;
+    LPCSTR attackType, rangeTest, damageUpgrade, damageModifier, weaponType, weaponSound;
     LONG damageDice, damageSides, damageBase, damageUpgradeAmount;
-    LONG areaTargets, maxTargets, targetsAllowed, weaponSound;
+    LONG areaTargets, maxTargets, targetsAllowed;
     FLOAT damagePoint, backswingPoint, cooldown;
     FLOAT minCooldown, minDamage, averageDamage, maxDamage, damagePerSecond;
     FLOAT damageLossFactor, range, rangeBuffer;
@@ -402,6 +402,7 @@ extern AbilityData_t *g_AbilityData; extern DWORD g_AbilityDataCount;
 extern Doodads_t *g_Doodads; extern DWORD g_DoodadsCount;
 extern UberSplatData_t *g_UberSplatData; extern DWORD g_UberSplatDataCount;
 extern UnitAckSounds_t *g_UnitAckSounds; extern DWORD g_UnitAckSoundsCount;
+extern UnitAckSounds_t *g_UnitCombatSounds; extern DWORD g_UnitCombatSoundsCount;
 extern ItemData_t *g_ItemData; extern DWORD g_ItemDataCount;
 extern DestructableData_t *g_DestructableData; extern DWORD g_DestructableDataCount;
 
@@ -419,6 +420,7 @@ LPCSTR G_AbilityDataText(LPCSTR name, LPCSTR column);
 Doodads_t const *G_Doodad(DWORD id);
 UberSplatData_t const *G_UberSplat(DWORD id);
 UnitAckSounds_t const *G_UnitAckSound(LPCSTR name);
+UnitAckSounds_t const *G_UnitCombatSound(LPCSTR name);
 ItemData_t    const *G_ItemData(DWORD id);
 ItemData_t    const *G_ItemDataRows(DWORD *count);
 DestructableData_t const *G_DestructableData(DWORD id);

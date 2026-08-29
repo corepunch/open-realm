@@ -156,6 +156,7 @@ static void G_InitGame(void) {
     InitConstants();
     InitUnitData();
     InitAbilities();
+    G_RegisterGlobalSounds();
     fprintf(stderr, "Game initialized.\n\n");
 }
 

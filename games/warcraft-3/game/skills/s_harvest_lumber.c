@@ -101,16 +101,21 @@ static void ai_harvest_walkback(LPEDICT ent) {
 
 static void ai_chop(LPEDICT ent) {
     LPEDICT tree = ent->secondarygoal;
-    BOOL felled;
 
     G_PublishMessage(ent, GAME_MSG_HARVEST_CHOP, tree);
     if (tree && !M_IsDead(tree)) {
         ent->harvested_lumber += HARVEST_TREE_DAMAGE;
         ent->s.renderfx |= RF_HAS_LUMBER;
     }
-    felled = G_DestructableApplyDamage(tree, ent, HARVEST_TREE_DAMAGE);
-    if (felled) {
+    BOOL felled = G_DestructableApplyDamage(tree, ent, HARVEST_TREE_DAMAGE);
+    /* Tree-fall supersedes chop: play one-shot EV_ATTACK sound for all clients. */
+    if (felled && g_numTreeFallSounds) {
         G_PublishMessage(ent, GAME_MSG_HARVEST_TREE_FELLED, tree);
+        ent->s.event = EV_ATTACK;
+        ent->s.sound = g_treeFallSounds[rand() % g_numTreeFallSounds];
+    } else if (ent->sound.num_chop) {
+        ent->s.event = EV_ATTACK;
+        ent->s.sound = ent->sound.chop[rand() % ent->sound.num_chop];
     }
 }
 

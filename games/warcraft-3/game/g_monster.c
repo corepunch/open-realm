@@ -343,6 +343,8 @@ static void M_SetBuildingShadow(LPEDICT self) {
 #endif
 }
 
+int g_treeFallSounds[3]; BYTE g_numTreeFallSounds;
+
 /* Register the first sound file for a given SLK label+suffix and return its
  * configstring index, or 0 if the entry is not found or has no files. */
 static int G_RegisterSoundLabel(LPCSTR label, LPCSTR suffix) {
@@ -364,6 +366,20 @@ static int G_RegisterSoundLabel(LPCSTR label, LPCSTR suffix) {
     else
         snprintf(path, sizeof(path), "%s", first);
     return gi.SoundIndex(path);
+}
+
+/* Like G_RegisterSoundVariants but looks up in UnitCombatSounds instead of UnitAckSounds. */
+static void G_RegisterCombatVariants(BYTE out[], BYTE *count, BYTE max, LPCSTR key) {
+    char file[256], path[512];
+    UnitAckSounds_t const *row = G_UnitCombatSound(key);
+    LPCSTR files = row->FileNames, dir = row->DirectoryBase;
+    while (files && files[0] && *count < max) {
+        LPCSTR comma = strchr(files, ',');
+        snprintf(file, sizeof(file), "%.*s", comma ? (int)(comma - files) : (int)strlen(files), files);
+        snprintf(path, sizeof(path), "%s%s", dir ? dir : "", file);
+        out[(*count)++] = (BYTE)gi.SoundIndex(path);
+        files = comma ? comma + 1 : NULL;
+    }
 }
 
 /* Register all comma-separated files for a given label+suffix into out[]/count.
@@ -423,6 +439,28 @@ static void G_RegisterUnitSounds(LPEDICT self) {
             }
             self->sound.death = gi.SoundIndex(path);
         }
+    }
+    /* Chop-wood impact sound from UnitCombatSounds: {weapType1}Wood (e.g. MetalLightChopWood). */
+    LPCSTR ws = self->UnitWeapons->attack1.weaponSound;
+    if (ws && ws[0] && ws[0] != '_') {
+        char key[128];
+        snprintf(key, sizeof(key), "%sWood", ws);
+        G_RegisterCombatVariants(self->sound.chop, &self->sound.num_chop, 3, key);
+    }
+}
+
+/* Register world-level sounds that are not per-unit: tree felling, etc.
+ * Called once from G_InitGame after the archive is mounted. */
+void G_RegisterGlobalSounds(void) {
+    static LPCSTR falls[] = {
+        "Sound\\Destructibles\\TreeFall1.wav",
+        "Sound\\Destructibles\\TreeFall2.wav",
+        "Sound\\Destructibles\\TreeFall3.wav",
+    };
+    g_numTreeFallSounds = 0;
+    FOR_LOOP(i, sizeof(falls) / sizeof(*falls)) {
+        int idx = gi.SoundIndex(falls[i]);
+        if (idx) g_treeFallSounds[g_numTreeFallSounds++] = idx;
     }
 }
 
