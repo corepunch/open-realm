@@ -836,8 +836,8 @@ TEST(net, entity_delta_preserves_large_wc3_radii) {
     }
 }
 
-/* Dead destructable remains use the last available entity-state flag bit, so
- * guard its snapshot round trip explicitly. */
+/* Dead destructable remains rely on EF_NOT_SELECTABLE surviving snapshots, so
+ * guard its round trip explicitly. */
 TEST(net, entity_delta_preserves_not_selectable_flag) {
     BYTE buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
@@ -852,6 +852,24 @@ TEST(net, entity_delta_preserves_not_selectable_flag) {
 
     T_EQ(number, 9);
     T_ASSERT(out.flags & EF_NOT_SELECTABLE);
+}
+
+/* Hover-health eligibility occupies the first bit above the legacy byte-sized
+ * entity flags, so guard both the widened field and delta serialization. */
+TEST(net, entity_delta_preserves_hover_health_flag) {
+    BYTE buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    entityState_t from = { 0 }, to = { .number = 9, .model = 1, .flags = EF_HOVER_HEALTH }, out = { 0 };
+    DWORD bits = 0;
+    int number;
+
+    MSG_WriteDeltaEntity(&sb, &from, &to, true);
+    sb.readcount = 0;
+    number = MSG_ReadEntityBits(&sb, &bits);
+    MSG_ReadDeltaEntity(&sb, &out, number, bits);
+
+    T_EQ(number, 9);
+    T_ASSERT(out.flags & EF_HOVER_HEALTH);
 }
 
 /* Sound events must travel with the entity snapshot so the client can resolve

@@ -819,6 +819,7 @@ void G_FowUpdate(void);
 void G_FowSendDeltas(void);
 void G_FowSendFull(LPEDICT ent);
 BOOL G_FowPlayerCanSeeEntity(DWORD player, LPCEDICT ent);
+BOOL G_FowPlayerCanHoverEntity(DWORD player, LPCEDICT ent);
 void G_FogModifierStart(LPFOGMODIFIER mod);
 void G_FogModifierStop(LPFOGMODIFIER mod);
 DWORD G_FowWorldToCellX(FLOAT x);

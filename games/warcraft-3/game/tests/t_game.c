@@ -597,6 +597,8 @@ TEST(wc3_game, fow_static_scenery_persists_after_unit_vision_leaves) {
     T_ASSERT(!G_FowPlayerCanSeeEntity(0, unseen));
     T_ASSERT(G_FowPlayerCanSeeEntity(0, unit));
     T_ASSERT(G_FowPlayerCanSeeEntity(0, building));
+    T_ASSERT(G_FowPlayerCanHoverEntity(0, unit));
+    T_ASSERT(G_FowPlayerCanHoverEntity(0, building));
     revealer->s.renderfx |= RF_HIDDEN;
     G_FowUpdate();
 
@@ -604,6 +606,8 @@ TEST(wc3_game, fow_static_scenery_persists_after_unit_vision_leaves) {
     T_ASSERT(!G_FowPlayerCanSeeEntity(0, unseen));
     T_ASSERT(!G_FowPlayerCanSeeEntity(0, unit));
     T_ASSERT(G_FowPlayerCanSeeEntity(0, building));
+    T_ASSERT(!G_FowPlayerCanHoverEntity(0, unit));
+    T_ASSERT(!G_FowPlayerCanHoverEntity(0, building));
     G_FowShutdown();
 }
 

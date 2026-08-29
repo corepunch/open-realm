@@ -509,6 +509,7 @@ void V_RenderView(void) {
         cl.viewDef.rdflags |= RDF_SHOW_ALL_HEALTHBARS; /* ALT: bars on every unit */
     }
     cl.viewDef.player = cl.playerstate.number;
+    cl.viewDef.hover_entity = cl.hover_entity;
     
 #if !defined(WOW) && !defined(SC2)
     {

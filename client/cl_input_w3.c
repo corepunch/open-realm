@@ -211,9 +211,33 @@ void CL_InputModeMouseButton(SDL_MouseButtonEvent const *button, BOOL down) {
     CL_EndPan();
 }
 
+static BOOL CL_CanHoverHealthEntity(DWORD entnum) {
+    LPCENTITYSTATE state;
+
+    if (!entnum || entnum >= MAX_CLIENT_ENTITIES) {
+        return false;
+    }
+    state = &cl.ents[entnum].current;
+    return state->model &&
+           state->stats[ENT_HEALTH] > 0 &&
+           (state->flags & EF_HOVER_HEALTH) &&
+           !(state->flags & EF_NOT_SELECTABLE);
+}
+
 void CL_InputModeMouseMotion(SDL_MouseMotionEvent const *motion) {
+    DWORD entnum = 0;
+
     if (!motion) {
         return;
+    }
+    if (CL_GameplayInputReady() &&
+        !CL_MouseOverGameplayUI() &&
+        re.TraceEntity(&cl.viewDef, (float)motion->x, (float)motion->y, &entnum) &&
+        CL_CanHoverHealthEntity(entnum))
+    {
+        cl.hover_entity = entnum;
+    } else {
+        cl.hover_entity = 0;
     }
     if (camera_drag.active) {
         CL_UpdatePan(motion->x, motion->y);

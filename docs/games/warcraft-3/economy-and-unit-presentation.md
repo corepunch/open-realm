@@ -162,6 +162,24 @@ parallel width/stride.
 Overhead resource bars use two fixed slots in `renderer/r_ents.c`: mana keeps the lower/original slot, and health occupies the slot
 above it. Without mana, health still sits one bar height above the projected model point.
 
+### World-unit hover health
+
+WC3 world hover is presentation-only and remains separate from selection. `client/cl_input_w3.c` ray-picks the world on mouse motion,
+then accepts only snapshot entities carrying the generic `EF_HOVER_HEALTH` capability. `G_CustomizeEntity` authors that bit per client
+for living `SVF_MONSTER` units/buildings that are selectable and actively visible. This stricter visibility check intentionally differs
+from `G_FowPlayerCanSeeEntity`: explored buildings may remain networked while shrouded, but must not expose current HP through hover.
+
+The presentation path is:
+
+```text
+TraceEntity -> cl.hover_entity -> cl.viewDef.hover_entity -> R_DrawHealthBars
+```
+
+An August 2026 regression had working world picking and working selected-unit health bars, but active gameplay never copied
+`cl.hover_entity` into `cl.viewDef.hover_entity`; the renderer therefore always saw hover entity 0. Targeted runtime logs confirmed the
+entity number at input, view, renderer, and health-bar filtering before the fix. Keep the active-view assignment in `V_RenderView`.
+The investigative logs were removed after confirmation.
+
 ## Verification
 
 Focused deterministic checks:

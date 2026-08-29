@@ -132,6 +132,13 @@ openwarcraft3 -data=/path/to/Warcraft3 -connect=192.168.1.10:27910
 `+map` and `-connect` are mutually exclusive.  Omitting both (with a valid
 `-data`) starts the client menu.
 
+## Entity snapshot flags
+
+`entityState_t.flags` is a `USHORT` serialized as `NFT_SHORT` by `common/msg.c`. Engine-level bits describe generic client
+presentation/interaction capabilities; game modules decide when to set them in server-authored snapshots. `EF_HOVER_HEALTH` means the
+client may expose the entity's health through world-hover presentation. Any new field, flag, or packed value in `entityState_t` requires
+a `MSG_WriteDeltaEntity`/`MSG_ReadDeltaEntity` round-trip test in `tests/test_net.c`.
+
 ## Key files
 
 | File | Purpose |
