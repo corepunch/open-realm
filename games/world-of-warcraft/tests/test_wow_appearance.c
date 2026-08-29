@@ -295,6 +295,16 @@ TEST(wow_dbc, table_parser_bounds_checks_columns_outside_record) {
     T_EQ(out.id, 9); T_EQ(out.flags, 0); T_EQ(out.name, (LPCSTR)0x1); /* out-of-range column untouched */
 }
 
+TEST(wow_dbc, table_parser_rejects_unsupported_shared_type) {
+    static stbDbcField_t const schema[] = { { 0, 0, BZ_FIELD_CHAR_ARRAY } };
+    BYTE records[4] = { 1, 0, 0, 0 };
+    DWORD out = 0xdeadbeef;
+
+    Stb_DbcParseRows(records, 1, sizeof(records), NULL, 0, schema, 1, &out, sizeof(out));
+
+    T_EQ(out, 0xdeadbeef);
+}
+
 TEST(wow_dbc, table_parser_fills_contiguous_array_from_columns) {
     typedef struct { DWORD id; LPCSTR names[3]; } rec_t;
     static stbDbcField_t const schema[] = {

@@ -139,6 +139,11 @@ static m2ItemDisplayInfoRec_t const *M2_ItemDisplayInfo(DWORD id) {
 }
 ```
 
+`stbDbcField_t.type` is the shared `bzFieldType_t`. The DBC aliases deliberately expose only its supported subset:
+`STB_DBC_U32` is `BZ_FIELD_U32`, `STB_DBC_FLOAT` is `BZ_FIELD_FLOAT`, and `STB_DBC_STR` is
+`BZ_FIELD_CSTR` because DBC string-block offsets decode to resident pointers. `BZ_FIELD_CHAR_ARRAY` is for bounded
+text copies such as SC2 XML and is rejected by the DBC decoder rather than silently treated as a string pointer.
+
 The decode is idempotent (`Stb_DbcCacheDecode` returns early once `rows` is set), so callers can ask for a row without
 worrying about double-decoding; each typed finder guards with `if (!cache.rows)` only when the schema must be picked
 first (next section).
