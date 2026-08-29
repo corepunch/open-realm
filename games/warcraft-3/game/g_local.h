@@ -608,11 +608,6 @@ struct edict_s {
     BOX2 areabounds;
 
     // keep above in sync with server.h
-    void (*idle)(LPEDICT);
-    void (*move)(LPEDICT);
-    void (*run)(LPEDICT);
-    void (*attack)(LPEDICT);
-    void (*pain)(LPEDICT);
     DWORD class_id;
     DWORD variation;
     DWORD build_project;
@@ -726,6 +721,11 @@ struct edict_s {
     void (*prethink)(LPEDICT);
     void (*think)(LPEDICT);
     void (*die)(LPEDICT, LPEDICT);
+    void (*idle)(LPEDICT);
+    void (*move)(LPEDICT);
+    void (*run)(LPEDICT);
+    void (*attack)(LPEDICT);
+    void (*pain)(LPEDICT);
 };
 
 /* An entity that should be ignored by collision and physics: dead, hidden, or
