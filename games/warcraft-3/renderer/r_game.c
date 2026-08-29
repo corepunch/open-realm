@@ -41,8 +41,8 @@ static LPCSTR modelNames[MODEL_COUNT] = {
 static LPCSTR const cursor_model_name = "UI\\Cursor\\HumanCursor.mdx";
 static LPMODEL cursor_model;
 static BOOL cursor_load_attempted;
-static stbSlkCache_t g_terrain;
-static stbSlkCache_t g_cliff;
+static w3TerrainArt_t *g_terrain_rows; static DWORD g_terrain_count; static slkIndex_t g_terrain_idx;
+static w3CliffType_t *g_cliff_rows;   static DWORD g_cliff_count;   static slkIndex_t g_cliff_idx;
 
 typedef struct {
     LPMODEL model;
@@ -71,12 +71,16 @@ void R_GameLoadAssets(void) {
     FOR_LOOP(i, MODEL_COUNT) {
         tr.model[i] = R_LoadModel(modelNames[i]);
     }
-    Stb_SlkCacheFree(&g_terrain);
-    if (!ri.LoadSlkCache(&g_terrain, "TerrainArt\\Terrain.slk", terrain_schema, sizeof(w3TerrainArt_t)))
-        fprintf(stderr, "Renderer: failed to load TerrainArt\\Terrain.slk\n");
-    Stb_SlkCacheFree(&g_cliff);
-    if (!ri.LoadSlkCache(&g_cliff, "TerrainArt\\CliffTypes.slk", cliff_schema, sizeof(w3CliffType_t)))
-        fprintf(stderr, "Renderer: failed to load TerrainArt\\CliffTypes.slk\n");
+    FS_SLKFreeIndex(&g_terrain_idx);
+    FS_SLKFreeRows(terrain_schema, g_terrain_rows, g_terrain_count, sizeof(w3TerrainArt_t));
+    g_terrain_count = ri.LoadSlk("TerrainArt\\Terrain.slk", terrain_schema, (void **)&g_terrain_rows, sizeof(w3TerrainArt_t));
+    if (!g_terrain_count) fprintf(stderr, "Renderer: failed to load TerrainArt\\Terrain.slk\n");
+    FS_SLKBuildIndex(&g_terrain_idx, g_terrain_rows, g_terrain_count, sizeof(w3TerrainArt_t));
+    FS_SLKFreeIndex(&g_cliff_idx);
+    FS_SLKFreeRows(cliff_schema, g_cliff_rows, g_cliff_count, sizeof(w3CliffType_t));
+    g_cliff_count = ri.LoadSlk("TerrainArt\\CliffTypes.slk", cliff_schema, (void **)&g_cliff_rows, sizeof(w3CliffType_t));
+    if (!g_cliff_count) fprintf(stderr, "Renderer: failed to load TerrainArt\\CliffTypes.slk\n");
+    FS_SLKBuildIndex(&g_cliff_idx, g_cliff_rows, g_cliff_count, sizeof(w3CliffType_t));
 
     FOR_LOOP(i, NUM_SELECTION_CIRCLES) {
         tr.texture[TEX_SELECTION_CIRCLE+i] = R_LoadTexture(selCirclesNames[i]);
@@ -93,26 +97,32 @@ void R_GameLoadAssets(void) {
 
 void R_GameInit(void) {
     cursor_model = NULL; cursor_load_attempted = false;
-    memset(&g_terrain, 0, sizeof(g_terrain)); memset(&g_cliff, 0, sizeof(g_cliff));
+    g_terrain_rows = NULL; g_terrain_count = 0; memset(&g_terrain_idx, 0, sizeof(g_terrain_idx));
+    g_cliff_rows   = NULL; g_cliff_count   = 0; memset(&g_cliff_idx,   0, sizeof(g_cliff_idx));
     MDLX_Init();
 }
 
 void R_GameShutdown(void) {
     /* R_ShutdownModels runs first and owns the cached model allocation; only clear our borrowed handle here. */
     cursor_model = NULL; cursor_load_attempted = false;
-    Stb_SlkCacheFree(&g_terrain); Stb_SlkCacheFree(&g_cliff);
+    FS_SLKFreeIndex(&g_terrain_idx);
+    FS_SLKFreeRows(terrain_schema, g_terrain_rows, g_terrain_count, sizeof(w3TerrainArt_t));
+    g_terrain_rows = NULL; g_terrain_count = 0;
+    FS_SLKFreeIndex(&g_cliff_idx);
+    FS_SLKFreeRows(cliff_schema, g_cliff_rows, g_cliff_count, sizeof(w3CliffType_t));
+    g_cliff_rows = NULL; g_cliff_count = 0;
     MDLX_Shutdown();
 }
 
 w3TerrainArt_t const *R_GameTerrainArt(DWORD id) {
     static w3TerrainArt_t zero;
-    w3TerrainArt_t *row = Stb_SlkCacheFind(&g_terrain, id);
+    w3TerrainArt_t *row = FS_SLKLookup(&g_terrain_idx, id);
     return row ? row : &zero;
 }
 
 w3CliffType_t const *R_GameCliffType(DWORD id) {
     static w3CliffType_t zero;
-    w3CliffType_t *row = Stb_SlkCacheFind(&g_cliff, id);
+    w3CliffType_t *row = FS_SLKLookup(&g_cliff_idx, id);
     return row ? row : &zero;
 }
 

@@ -39,30 +39,18 @@ typedef struct slkField_s {
     LPCSTR        id;      /* optional four-character object-data field ID */
 } slkField_t;
 
-/* Stateful typed-table cache, matching stbDbcCache_t ownership.  `source` is
- * parser-private; consumers only read decoded rows or query the index. */
-typedef struct {
-    void *source;
-    void *rows;
-    slkField_t const *schema;
-    DWORD count, row_stride;
-    ptrdiff_t key_offset;
-    BOOL has_key;
-} stbSlkCache_t;
-
 /* INI files are runtime-keyed dictionaries, so keep their parser state opaque
  * and expose lookup rather than pretending every file has a fixed row type. */
 typedef struct { void *source; } stbIniCache_t;
 
-#define STB_SLK_ROW(cache, T, idx) \
-    ((T const *)((BYTE const *)(cache).rows + (size_t)(idx) * (cache).row_stride))
-
-BOOL Stb_SlkCacheLoad(stbSlkCache_t *cache, LPCSTR filename, slkField_t const *schema, DWORD row_stride);
-BOOL Stb_SlkCacheLoadBuffer(stbSlkCache_t *cache, LPCSTR buffer, slkField_t const *schema, DWORD row_stride);
+/* Load SLK from file → allocate *dest, return count (0 on failure). */
+DWORD Stb_SlkLoad(LPCSTR filename, slkField_t const *schema, void **dest, DWORD row_stride);
+/* Load SLK from in-memory buffer → allocate *dest, return count (0 on failure). */
+DWORD Stb_SlkLoadBuffer(LPCSTR buffer, slkField_t const *schema, void **dest, DWORD row_stride);
 BOOL Stb_IniCacheLoad(stbIniCache_t *cache, LPCSTR filename);
 BOOL Stb_IniCacheLoadFiles(stbIniCache_t *cache, LPCSTR const *filenames);
-BOOL Stb_IniCacheDecode(stbIniCache_t const *ini, stbSlkCache_t *cache,
-                        slkField_t const *schema, DWORD row_stride);
+/* Decode an INI cache into a typed row array → allocate *dest, return count. */
+DWORD Stb_IniDecode(stbIniCache_t const *ini, slkField_t const *schema, void **dest, DWORD row_stride);
 LPCSTR Stb_IniCacheFind(stbIniCache_t const *cache, LPCSTR section, LPCSTR key);
 void Stb_IniCacheFree(stbIniCache_t *cache);
 
@@ -92,12 +80,6 @@ static inline void FS_SLKFreeRows(slkField_t const *schema, void *rows, DWORD co
         }
     }
     free(rows);
-}
-
-static inline void Stb_SlkCacheFree(stbSlkCache_t *cache) {
-    if (!cache) return;
-    FS_SLKFreeRows(cache->schema, cache->rows, cache->count, cache->row_stride);
-    memset(cache, 0, sizeof(*cache));
 }
 
 /* -------------------------------------------------------------------------
@@ -146,15 +128,6 @@ static inline void *FS_SLKLookup(slkIndex_t const *idx, DWORD key) {
         if      (idx->keys[mid] < key) lo = mid + 1;
         else if (idx->keys[mid] > key) hi = mid;
         else return idx->rows[mid];
-    }
-    return NULL;
-}
-
-static inline void *Stb_SlkCacheFind(stbSlkCache_t const *cache, DWORD key) {
-    if (!cache || !cache->rows || !cache->has_key) return NULL;
-    FOR_LOOP(i, cache->count) {
-        BYTE *row = (BYTE *)cache->rows + i * cache->row_stride;
-        if (*(DWORD *)(row + cache->key_offset) == key) return row;
     }
     return NULL;
 }

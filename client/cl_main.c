@@ -589,7 +589,7 @@ void CL_Init(void) {
         .FS_MmapFile = FS_MmapFile,
         .FS_MunmapFile = FS_MunmapFile,
         .FileExtract = FS_ExtractFile,
-        .LoadSlkCache = Stb_SlkCacheLoad,
+        .LoadSlk = Stb_SlkLoad,
         .CvarString = Cvar_String,
         .error = CON_printf,
     });

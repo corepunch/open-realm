@@ -1309,7 +1309,7 @@ int main(int argc, char **argv) {
         .FS_FreeFile = Tool_FS_FreeFile,
         .MemAlloc = MemAlloc,
         .MemFree = MemFree,
-        .LoadSlkCache = Stb_SlkCacheLoad,
+        .LoadSlk = Stb_SlkLoad,
         .error = errorf,
     });
 

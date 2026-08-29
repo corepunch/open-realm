@@ -995,7 +995,7 @@ FLOAT UnitMetaReal(LPEDICT, DWORD);
 void InitUnitData(void);
 void ShutdownUnitData(void);
 #ifdef BZ_TESTS
-typedef struct { LPCSTR text; stbSlkCache_t cache; } slkTestData_t;
+typedef struct { LPCSTR text; void *rows; DWORD count; } slkTestData_t;
 slkTestData_t *G_SetSLKRows(LPCSTR, slkTestData_t *);
 slkTestData_t *G_SetProfileRows(slkTestData_t *);
 #endif

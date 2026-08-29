@@ -316,7 +316,7 @@ int main(int argc, char **argv) {
         .FileExtract = FS_ExtractFile,
         .MemAlloc = Tool_MemAlloc,
         .MemFree = Tool_MemFree,
-        .LoadSlkCache = Stb_SlkCacheLoad,
+        .LoadSlk = Stb_SlkLoad,
         .error = errorf,
     });
 

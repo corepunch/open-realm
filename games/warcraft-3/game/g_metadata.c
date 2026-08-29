@@ -706,7 +706,6 @@ static slkField_t const dest_schema[] = {
  * =========================================================================*/
 UnitBalance_t *g_UnitBalance; DWORD g_UnitBalanceCount; static slkIndex_t balance_idx;
 UnitProfile_t *g_UnitProfile; DWORD g_UnitProfileCount; static slkIndex_t profile_idx;
-static stbSlkCache_t profile_cache;
 UnitData_t *g_UnitData; DWORD g_UnitDataCount; static slkIndex_t data_idx;
 UnitUI_t *g_UnitUI; DWORD g_UnitUICount; static slkIndex_t ui_idx;
 UnitWeapons_t *g_UnitWeapons; DWORD g_UnitWeaponsCount; static slkIndex_t weapons_idx;
@@ -725,7 +724,6 @@ typedef struct {
     void **rows;
     DWORD *count;
     slkIndex_t *idx;
-    stbSlkCache_t cache;
 } slkStore_t;
 
 static slkStore_t slk_stores[] = {
@@ -742,13 +740,6 @@ static slkStore_t slk_stores[] = {
     { "DestructableData", "Units\\DestructableData.slk", dest_schema, sizeof(*g_DestructableData), (void **)&g_DestructableData, &g_DestructableDataCount, &dest_idx },
 };
 
-/* Keep legacy exported arrays as borrowed views of the owning typed cache. */
-static void ApplySLKCache(slkStore_t *store) {
-    FS_SLKFreeIndex(store->idx);
-    *store->rows = store->cache.rows; *store->count = store->cache.count;
-    if (store->idx) FS_SLKBuildIndex(store->idx, store->cache.rows, store->cache.count, store->row_size);
-}
-
 /* Tests replace a typed table and restore its original parser-owned source. */
 #ifdef BZ_TESTS
 slkTestData_t *G_SetSLKRows(LPCSTR slk, slkTestData_t *data) {
@@ -757,12 +748,15 @@ slkTestData_t *G_SetSLKRows(LPCSTR slk, slkTestData_t *data) {
         if (!strcmp(slk, store->name)) {
             slkTestData_t *old = calloc(1, sizeof(*old));
             if (!old) return NULL;
-            old->cache = store->cache;
-            if (!data->cache.rows && !Stb_SlkCacheLoadBuffer(&data->cache, data->text, store->schema, store->row_size)) {
-                free(old); return NULL;
+            old->rows = *store->rows; old->count = *store->count;
+            if (!data->rows) {
+                data->count = Stb_SlkLoadBuffer(data->text, store->schema, &data->rows, store->row_size);
+                if (!data->count) { free(old); return NULL; }
             }
-            store->cache = data->cache; ApplySLKCache(store);
-            memset(&data->cache, 0, sizeof(data->cache));
+            FS_SLKFreeIndex(store->idx);
+            *store->rows = data->rows; *store->count = data->count;
+            if (store->idx) FS_SLKBuildIndex(store->idx, *store->rows, *store->count, store->row_size);
+            data->rows = NULL; data->count = 0;
             return old;
         }
     }
@@ -773,14 +767,15 @@ slkTestData_t *G_SetSLKRows(LPCSTR slk, slkTestData_t *data) {
 slkTestData_t *G_SetProfileRows(slkTestData_t *data) {
     slkTestData_t *old = calloc(1, sizeof(*old));
     if (!old) return NULL;
-    old->cache = profile_cache;
-    if (!data->cache.rows && !Stb_SlkCacheLoadBuffer(&data->cache, data->text, profile_schema, sizeof(*g_UnitProfile))) {
-        free(old); return NULL;
+    old->rows = g_UnitProfile; old->count = g_UnitProfileCount;
+    if (!data->rows) {
+        data->count = Stb_SlkLoadBuffer(data->text, profile_schema, &data->rows, sizeof(*g_UnitProfile));
+        if (!data->count) { free(old); return NULL; }
     }
-    FS_SLKFreeIndex(&profile_idx); profile_cache = data->cache;
-    memset(&data->cache, 0, sizeof(data->cache));
-    g_UnitProfile = profile_cache.rows; g_UnitProfileCount = profile_cache.count;
-    FS_SLKBuildIndex(&profile_idx, profile_cache.rows, profile_cache.count, profile_cache.row_stride);
+    FS_SLKFreeIndex(&profile_idx);
+    g_UnitProfile = data->rows; g_UnitProfileCount = data->count;
+    FS_SLKBuildIndex(&profile_idx, g_UnitProfile, g_UnitProfileCount, sizeof(*g_UnitProfile));
+    data->rows = NULL; data->count = 0;
     return old;
 }
 #endif
@@ -1247,25 +1242,26 @@ void InitUnitData(void) {
         }
     }
     Stb_IniCacheLoadFiles(&profile_ini, profile_files);
-    Stb_IniCacheDecode(&profile_ini, &profile_cache, profile_schema, sizeof(*g_UnitProfile));
-    g_UnitProfile = profile_cache.rows; g_UnitProfileCount = profile_cache.count;
-    FS_SLKBuildIndex(&profile_idx, profile_cache.rows, profile_cache.count, sizeof(*g_UnitProfile));
+    g_UnitProfileCount = Stb_IniDecode(&profile_ini, profile_schema, (void **)&g_UnitProfile, sizeof(*g_UnitProfile));
+    Stb_IniCacheFree(&profile_ini);
+    FS_SLKBuildIndex(&profile_idx, g_UnitProfile, g_UnitProfileCount, sizeof(*g_UnitProfile));
 
     FOR_LOOP(i, sizeof(slk_stores) / sizeof(*slk_stores)) {
         slkStore_t *store = slk_stores + i;
-        if (!Stb_SlkCacheLoad(&store->cache, store->path, store->schema, store->row_size))
-            fprintf(stderr, "SLK: failed to load '%s'\n", store->path);
-        ApplySLKCache(store);
+        *store->count = Stb_SlkLoad(store->path, store->schema, store->rows, store->row_size);
+        if (!*store->count) fprintf(stderr, "SLK: failed to load '%s'\n", store->path);
+        if (store->idx) FS_SLKBuildIndex(store->idx, *store->rows, *store->count, store->row_size);
     }
 }
 
 void ShutdownUnitData(void) {
-    FS_SLKFreeIndex(&profile_idx); Stb_SlkCacheFree(&profile_cache);
+    FS_SLKFreeIndex(&profile_idx);
+    FS_SLKFreeRows(profile_schema, g_UnitProfile, g_UnitProfileCount, sizeof(*g_UnitProfile));
     g_UnitProfile = NULL; g_UnitProfileCount = 0;
     FOR_LOOP(i, sizeof(slk_stores) / sizeof(*slk_stores)) {
         slkStore_t *store = slk_stores + i;
         FS_SLKFreeIndex(store->idx);
-        Stb_SlkCacheFree(&store->cache);
+        FS_SLKFreeRows(store->schema, *store->rows, *store->count, store->row_size);
         *store->rows = NULL; *store->count = 0;
     }
     FOR_LOOP(i, abilityConfigTableCount) Stb_IniCacheFree(abilityConfigTables + i);

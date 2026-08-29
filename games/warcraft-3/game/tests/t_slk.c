@@ -15,10 +15,11 @@ void setup_test_world(void);
 
 slkTestData_t *parse_slk_string(const char *slk_text) {
     static slkField_t const schema[] = { { NULL, 0, 0 } };
-    stbSlkCache_t cache = { 0 };
+    void *rows = NULL;
+    DWORD count = Stb_SlkLoadBuffer(slk_text, schema, &rows, sizeof(DWORD));
     slkTestData_t *data;
-    if (!Stb_SlkCacheLoadBuffer(&cache, slk_text, schema, sizeof(DWORD))) return NULL;
-    Stb_SlkCacheFree(&cache);
+    if (!count) return NULL;
+    FS_SLKFreeRows(schema, rows, count, sizeof(DWORD));
     data = calloc(1, sizeof(*data));
     if (data) data->text = slk_text;
     return data;
@@ -26,7 +27,7 @@ slkTestData_t *parse_slk_string(const char *slk_text) {
 
 void free_slk_rows(slkTestData_t *data) {
     if (!data) return;
-    Stb_SlkCacheFree(&data->cache); free(data);
+    free(data->rows); free(data);
 }
 
 static LPCSTR find_slk_value(slkTestData_t const *data, LPCSTR row, LPCSTR column) {
@@ -36,15 +37,21 @@ static LPCSTR find_slk_value(slkTestData_t const *data, LPCSTR row, LPCSTR colum
         { column, offsetof(row_t, value), STB_SLK_STR },
         { NULL, 0, 0 }
     };
-    stbSlkCache_t cache = { 0 };
-    row_t const *found;
-    bool has_value;
+    row_t *rows = NULL;
+    DWORD count, key;
     static char value[1024];
-    if (!data || !Stb_SlkCacheLoadBuffer(&cache, data->text, schema, sizeof(row_t))) return NULL;
-    found = Stb_SlkCacheFind(&cache, FS_SLKKey(row));
-    has_value = found && found->value;
-    if (has_value) snprintf(value, sizeof(value), "%s", found->value);
-    Stb_SlkCacheFree(&cache);
+    bool has_value = false;
+    if (!data) return NULL;
+    count = Stb_SlkLoadBuffer(data->text, schema, (void **)&rows, sizeof(row_t));
+    if (!count) return NULL;
+    key = FS_SLKKey(row);
+    FOR_LOOP(i, count) {
+        if (rows[i].id == key && rows[i].value) {
+            snprintf(value, sizeof(value), "%s", rows[i].value);
+            has_value = true; break;
+        }
+    }
+    FS_SLKFreeRows(schema, rows, count, sizeof(row_t));
     return has_value ? value : NULL;
 }
 
@@ -104,16 +111,15 @@ TEST(wc3_slk, typed_strings_are_owned_and_alias_safe) {
         "C;Y2;X2;K\"Footman\"\n"
         "C;Y2;X3;K\"Knight\"\n"
         "E\n";
-    stbSlkCache_t cache = { 0 };
+    testRow_t *rows = NULL;
     LPSTR alias = strstr(src, "Knight");
+    DWORD count = Stb_SlkLoadBuffer(src, schema, (void **)&rows, sizeof(testRow_t));
 
-    T_ASSERT(Stb_SlkCacheLoadBuffer(&cache, src, schema, sizeof(testRow_t)));
-    testRow_t const *rows = cache.rows;
-    T_EQ(cache.count, 1);
+    T_ASSERT(count == 1);
     T_NOT_NULL(alias);
     alias[0] = 'Y';
     T_STREQ(rows[0].name, "Knight");
-    Stb_SlkCacheFree(&cache);
+    FS_SLKFreeRows(schema, rows, count, sizeof(testRow_t));
 }
 
 TEST(wc3_slk, profile_ddx_and_fourcc_metadata_share_typed_row) {
@@ -400,7 +406,7 @@ TEST(wc3_slk, uber_splat_fields_use_typed_row) {
 }
 
 /* -----------------------------------------------------------------------
- * 5.  Production SLK buffer parser through Stb_SlkCacheLoadBuffer
+ * 5.  Production SLK buffer parser through Stb_SlkLoadBuffer
  * --------------------------------------------------------------------- */
 
 /* Omitted Y uses stateful current row; ROC tables rely on this heavily. */
