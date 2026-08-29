@@ -302,6 +302,33 @@ TEST(wc3_movement, lumber_manual_return_without_tree_stops) {
     T_STREQ(worker->currentmove->animation, "stand");
 }
 
+/* A large Town Hall footprint can block the next step before the old +5u
+ * lumber deposit tolerance is reached. Deposit at contact plus one simulation
+ * step so the worker does not get stuck against the building pathing map. */
+TEST(wc3_movement, lumber_return_deposits_at_next_step_contact) {
+    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
+    LPEDICT tree = make_harvest_tree(-400.0f, 0.0f, 100.0f);
+    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 220.0f, 0.0f);
+    DWORD const old_lumber = game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER];
+
+    worker->collision = 16.0f; worker->unitinfo.MoveSpeed = 190.0f;
+    hall->collision = 192.0f; hall->s.model = 1; hall->s.player = worker->s.player;
+    gi.LinkEntity(worker); gi.LinkEntity(tree); gi.LinkEntity(hall);
+    worker->harvested_lumber = 10;
+    worker->s.renderfx |= RF_HAS_LUMBER;
+    worker->secondarygoal = tree;
+
+    harvest_walkback(worker);
+    T_ASSERT(M_DistanceToGoal(worker) > worker->collision + hall->collision + 5.0f);
+    T_ASSERT(M_DistanceToGoal(worker) <= worker->collision + hall->collision + unit_movedistance(worker));
+    worker->currentmove->think(worker);
+
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER], old_lumber + 10);
+    T_EQ(worker->harvested_lumber, 0);
+    T_ASSERT(!(worker->s.renderfx & RF_HAS_LUMBER));
+    T_ASSERT(worker->goalentity == tree);
+}
+
 /* The complete gold loop enters, exits carrying gold, deposits it, and resumes mining. */
 TEST(wc3_movement, gold_worker_deposits_and_resumes_mining) {
     LPEDICT worker = make_moving_unit(0.0f, 0.0f);
