@@ -606,13 +606,13 @@ struct edict_s {
     LINK area;
     BOOL inuse;
     BOX2 areabounds;
+
+    // keep above in sync with server.h
     void (*idle)(LPEDICT);
     void (*move)(LPEDICT);
     void (*run)(LPEDICT);
     void (*attack)(LPEDICT);
     void (*pain)(LPEDICT);
-
-    // keep above in sync with server.h
     DWORD class_id;
     DWORD variation;
     DWORD build_project;
