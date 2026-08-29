@@ -384,4 +384,120 @@ TEST(wc3_slk, destructable_texture_preserves_extension_and_absent_sentinel) {
     gi.ImageIndex = old_index;
 }
 
+/* -----------------------------------------------------------------------
+ * 5.  Production SLK buffer parser (FS_ParseSLK_Buffer)
+ *     These tests exercise the real parser path, not parse_slk_string.
+ * --------------------------------------------------------------------- */
+
+/* Omitted Y uses stateful current row; ROC tables rely on this heavily. */
+TEST(wc3_slk, prod_stateful_y) {
+    static const char src[] =
+        "C;Y1;X1;K\"id\"\n"
+        "C;Y1;X2;K\"HP\"\n"
+        "C;Y2;X1;K\"hero\"\n"
+        "C;X2;K\"500\"\n"   /* Y omitted: Y=2 carries from previous C */
+        "E\n";
+    sheetRow_t *rows = FS_ParseSLK_Buffer(src);
+    T_NOT_NULL(rows);
+    T_STREQ(FS_FindSheetCell(rows, "hero", "HP"), "500");
+}
+
+/* Multiple columns populated using only omitted Y (stateful row context). */
+TEST(wc3_slk, prod_stateful_xy) {
+    static const char src[] =
+        "C;Y1;X1;K\"id\"\n"
+        "C;Y1;X2;K\"HP\"\n"
+        "C;Y1;X3;K\"MP\"\n"
+        "C;Y2;X1;K\"mage\"\n"
+        "C;X2;K\"500\"\n"   /* Y=2 carries; X=2: HP */
+        "C;X3;K\"200\"\n"   /* Y=2 carries; X=3: MP */
+        "E\n";
+    sheetRow_t *rows = FS_ParseSLK_Buffer(src);
+    T_NOT_NULL(rows);
+    T_STREQ(FS_FindSheetCell(rows, "mage", "HP"), "500");
+    T_STREQ(FS_FindSheetCell(rows, "mage", "MP"), "200");
+}
+
+/* F record advances X without creating a cell; next C inherits the updated X. */
+TEST(wc3_slk, prod_f_advances_x) {
+    static const char src[] =
+        "C;Y1;X1;K\"id\"\n"
+        "C;Y1;X2;K\"HP\"\n"
+        "C;Y2;X1;K\"mage\"\n"
+        "F;X2\n"            /* advance X to 2, no K → no cell */
+        "C;Y2;K\"400\"\n"   /* X=2 from F, Y=2 explicit: HP=400 */
+        "E\n";
+    sheetRow_t *rows = FS_ParseSLK_Buffer(src);
+    T_NOT_NULL(rows);
+    T_STREQ(FS_FindSheetCell(rows, "mage", "HP"), "400");
+}
+
+/* B record dimension bounds are advisory; wrong values must not corrupt output. */
+TEST(wc3_slk, prod_b_record_advisory) {
+    static const char src[] =
+        "B;Y999;X999\n"     /* wildly overstated bounds, must be ignored */
+        "C;Y1;X1;K\"id\"\n"
+        "C;Y1;X2;K\"HP\"\n"
+        "C;Y2;X1;K\"unit\"\n"
+        "C;Y2;X2;K\"300\"\n"
+        "E\n";
+    sheetRow_t *rows = FS_ParseSLK_Buffer(src);
+    T_NOT_NULL(rows);
+    T_STREQ(FS_FindSheetCell(rows, "unit", "HP"), "300");
+}
+
+/* Semicolons inside a quoted K value must not split the field. */
+TEST(wc3_slk, prod_quoted_semicolon) {
+    static const char src[] =
+        "C;Y1;X1;K\"id\"\n"
+        "C;Y1;X2;K\"path\"\n"
+        "C;Y2;X1;K\"itm1\"\n"
+        "C;Y2;X2;K\"foo;bar\"\n"  /* semicolon inside quotes */
+        "E\n";
+    sheetRow_t *rows = FS_ParseSLK_Buffer(src);
+    T_NOT_NULL(rows);
+    T_STREQ(FS_FindSheetCell(rows, "itm1", "path"), "foo;bar");
+}
+
+/* "" inside a quoted K value decodes to a single literal double-quote. */
+TEST(wc3_slk, prod_quote_escape) {
+    static const char src[] =
+        "C;Y1;X1;K\"id\"\n"
+        "C;Y1;X2;K\"note\"\n"
+        "C;Y2;X1;K\"obj1\"\n"
+        "C;Y2;X2;K\"foo\"\"bar\"\n"  /* SLK: K"foo""bar" → foo"bar */
+        "E\n";
+    sheetRow_t *rows = FS_ParseSLK_Buffer(src);
+    T_NOT_NULL(rows);
+    T_STREQ(FS_FindSheetCell(rows, "obj1", "note"), "foo\"bar");
+}
+
+/* Cells with Y=0 must be skipped; valid rows below must still parse. */
+TEST(wc3_slk, prod_zero_y_ignored) {
+    static const char src[] =
+        "C;Y1;X1;K\"id\"\n"
+        "C;Y1;X2;K\"HP\"\n"
+        "C;Y0;X2;K\"BAD\"\n"    /* invalid Y=0, must be skipped */
+        "C;Y2;X1;K\"unit\"\n"
+        "C;Y2;X2;K\"100\"\n"
+        "E\n";
+    sheetRow_t *rows = FS_ParseSLK_Buffer(src);
+    T_NOT_NULL(rows);
+    T_STREQ(FS_FindSheetCell(rows, "unit", "HP"), "100");
+    T_NULL(rows->next); /* only one data row; the Y=0 cell must not add a row */
+}
+
+/* File without an ID;PWXL magic line is parsed without error. */
+TEST(wc3_slk, prod_no_magic_line) {
+    static const char src[] =
+        "C;Y1;X1;K\"id\"\n"
+        "C;Y1;X2;K\"spd\"\n"
+        "C;Y2;X1;K\"foo\"\n"
+        "C;Y2;X2;K\"270\"\n"
+        "E\n";
+    sheetRow_t *rows = FS_ParseSLK_Buffer(src);
+    T_NOT_NULL(rows);
+    T_STREQ(FS_FindSheetCell(rows, "foo", "spd"), "270");
+}
+
 #endif /* BZ_TESTS */

@@ -122,44 +122,64 @@ static void SheetCacheStore(LPCSTR fileName, sheetRow_t *rows, sheetRow_t *tail)
     sheet_cache = entry;
 }
 
-static DWORD SheetParseTokens(TCHAR *buffer) {
-    DWORD numtokens = 1;
-    for (TCHAR *it = buffer; *it != '\0'; it++) {
-        if (*it == ';') {
-            numtokens++;
-            *it = '\0';
+/* Scan one semicolon-delimited SLK record field from *p up to end.
+ * For K fields, strips surrounding quotes and decodes "" → literal ".
+ * Advances *p past the field and any trailing semicolon.
+ * Returns false when no field remains. */
+static bool ScanSLKField(LPCSTR *p, LPCSTR end, char *out, size_t cap) {
+    char *dst = out, *dst_end = out + cap - 1;
+    LPCSTR s = *p;
+    bool is_k;
+
+    if (s >= end || !*s || *s == '\r' || *s == '\n') return false;
+
+    is_k = (*s == 'K');
+    if (dst < dst_end) *dst++ = *s++;
+
+    if (is_k && s < end && *s == '"') {
+        s++; /* skip opening quote */
+        while (s < end && *s && *s != '\r' && *s != '\n') {
+            if (*s == '"') {
+                if (s + 1 < end && s[1] == '"') { if (dst < dst_end) *dst++ = '"'; s += 2; } /* "" → " */
+                else { s++; break; } /* closing quote */
+            } else { if (dst < dst_end) *dst++ = *s++; }
+        }
+    } else {
+        while (s < end && *s && *s != ';' && *s != '\r' && *s != '\n') {
+            if (dst < dst_end) *dst++ = *s++;
         }
     }
-    return numtokens;
-}
-
-static TCHAR *GetToken(TCHAR *buffer, DWORD index) {
-    while (index > 0) {
-        buffer += strlen(buffer) + 1;
-        index--;
-    }
-    return buffer;
+    *dst = '\0';
+    if (s < end && *s == ';') s++;
+    *p = s;
+    return true;
 }
 
 //int text_size = 0;
 
-static void FS_FillSheetCell(DWORD x, DWORD y, LPSTR text) {
-    current_cell->column = x;
-    current_cell->row = y;
+static void FS_FillSheetCell(DWORD x, DWORD y, LPCSTR text) {
+    size_t len, remaining;
+
+    if (!text) return;
+    if (current_cell >= cells + sizeof(cells) / sizeof(cells[0])) {
+        fprintf(stderr, "SLK: cell pool exhausted at row=%u col=%u\n", y, x);
+        return;
+    }
+    len = strlen(text);
+    remaining = (size_t)((text_buffer + sizeof(text_buffer)) - current_text);
+    if (len + 1 > remaining) {
+        fprintf(stderr, "SLK: text arena exhausted at row=%u col=%u\n", y, x);
+        return;
+    }
+    current_cell->column = (USHORT)x;
+    current_cell->row = (USHORT)y;
     current_cell->next = current_cell + 1;
     current_cell->text = current_text;
-    for (char *instr = text; *instr; instr++) {
-        if (*instr == '"' || *instr == '\r' || *instr == '\n')
-            continue;
-        *(current_text++) = *instr;
-    }
-    *(current_text++) = '\0';
+    memcpy(current_text, text, len);
+    current_text[len] = '\0';
+    current_text += len + 1;
     previous_cell = current_cell;
     current_cell++;
-//    if (y == 2) {
-//    if (strstr(cell->text, "hhou")) {
-//        printf("\t%d %s\n", x, cell->text);
-//    }
 }
 
 sheetRow_t *FS_MakeRowsFromSheet(LPSHEET sheet) {
@@ -234,51 +254,40 @@ sheetRow_t *FS_MakeRowsFromSheet(LPSHEET sheet) {
     return start;
 }
 
-static sheetRow_t *FS_ParseSLK_Buffer(LPCSTR buffer)
+sheetRow_t *FS_ParseSLK_Buffer(LPCSTR buffer)
 {
-    LPCSTR line;
     LPSHEET start = current_cell;
-    DWORD X = 1;
-    DWORD Y = 1;
-    char czBuffer[MAX_SHEET_LINE];
+    DWORD X = 1, Y = 1;
+    char field[MAX_SHEET_LINE];
 
-    if (!buffer) {
-        return NULL;
-    }
+    if (!buffer) return NULL;
 
     while (*buffer) {
-        line = buffer;
-        while (*buffer && *buffer != '\n' && *buffer != '\r') {
-            buffer++;
-        }
+        LPCSTR line_start = buffer, line_end;
+        char rectype;
+        LPCSTR p;
 
-        size_t len = (size_t)(buffer - line);
-        if (len >= sizeof(czBuffer)) {
-            len = sizeof(czBuffer) - 1;
-        }
-        memcpy(czBuffer, line, len);
-        czBuffer[len] = '\0';
+        while (*buffer && *buffer != '\n' && *buffer != '\r') buffer++;
+        line_end = buffer;
+        while (*buffer == '\r' || *buffer == '\n') buffer++;
 
-        if (czBuffer[0] == 'C' || czBuffer[0] == 'F') {
-            DWORD const numTokens = SheetParseTokens(czBuffer);
-            for (DWORD i = 1; i < numTokens; i++) {
-                TCHAR *token = GetToken(czBuffer, i);
-                switch (*token) {
-                    case 'X':
-                        X = atoi(token + 1);
-                        break;
-                    case 'Y':
-                        Y = atoi(token + 1);
-                        break;
-                    case 'K':
-                        FS_FillSheetCell(X, Y, token + 1);
-                        break;
-                }
+        if (line_start == line_end) continue;
+
+        rectype = line_start[0];
+        if (rectype != 'C' && rectype != 'F') continue;
+
+        p = line_start + 1;
+        if (p < line_end && *p == ';') p++;
+
+        while (ScanSLKField(&p, line_end, field, sizeof(field))) {
+            switch (field[0]) {
+            case 'X': X = (DWORD)atoi(field + 1); break;
+            case 'Y': Y = (DWORD)atoi(field + 1); break;
+            case 'K':
+                if (rectype == 'C' && X >= 1 && Y >= 1)
+                    FS_FillSheetCell(X, Y, field + 1);
+                break;
             }
-        }
-
-        while (*buffer == '\r' || *buffer == '\n') {
-            buffer++;
         }
     }
 
@@ -286,7 +295,6 @@ static sheetRow_t *FS_ParseSLK_Buffer(LPCSTR buffer)
         previous_cell->next = NULL;
         return FS_MakeRowsFromSheet(start);
     }
-
     last_parsed_sheet_tail = NULL;
     return NULL;
 }

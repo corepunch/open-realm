@@ -206,6 +206,7 @@ typedef struct {
 void FS_SetSheetHost(SHEETHOST const *host);
 sheetRow_t *FS_ParseINI(LPCSTR fileName);
 sheetRow_t *FS_ParseSLK(LPCSTR fileName);
+sheetRow_t *FS_ParseSLK_Buffer(LPCSTR buffer);
 LPCSTR FS_FindSheetCell(sheetRow_t *sheet, LPCSTR row, LPCSTR column);
 sheetRow_t *FS_GetParsedSheetTail(void);
 

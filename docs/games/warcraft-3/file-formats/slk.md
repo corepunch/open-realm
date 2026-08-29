@@ -16,14 +16,16 @@ E
 | Record | Meaning |
 |--------|---------|
 | `ID` | File identification line — always `ID;PWXL;N;E` for WC3 SLK files |
-| `B` | Dimension bounds — total rows (`Y`) and columns (`X`) |
+| `B` | Advisory dimension bounds — total rows (`Y`) and columns (`X`) |
 | `C` | Cell data — row (`Y`), column (`X`), and value (`K`) |
+| `F` | Cell/column formatting; `X` and `Y` still update the current coordinates |
 | `E` | End-of-file marker |
 
 The first row (`Y=1`) contains column headers. Subsequent rows hold data records. The value field `K` can be:
 - A bare number: `K123` or `K3.14`
 - A quoted string: `K"Footman"`
-- An empty field means the cell inherits the value from the same column on the previous row (run-length encoding)
+
+`X` and `Y` are stateful. A record that omits either coordinate keeps the previous value, including coordinate changes made by an `F` record. A missing `K` does not create a cell. Do not allocate solely from `B`: shipped files contain bounds larger than their populated cell range.
 
 ## Key SLK Files
 
@@ -34,11 +36,11 @@ The first row (`Y=1`) contains column headers. Subsequent rows hold data records
 | `Units\UnitWeapons.slk` | Attack type, projectile, range |
 | `Units\UnitBalance.slk` | Build time, cost, food |
 | `Units\UnitAbilities.slk` | Per-unit ability assignments |
-| `Abilities\AbilityData.slk` | Spell data (cooldown, cast range, damage) |
-| `Items\ItemData.slk` | Item stats |
-| `Upgrades\UpgradeData.slk` | Research costs and effects |
+| `Units\AbilityData.slk` | Spell data (cooldown, cast range, damage) |
+| `Units\ItemData.slk` | Item stats |
+| `Units\UpgradeData.slk` | Research costs and effects |
 | `Doodads\Doodads.slk` | Doodad model paths and properties |
-| `DestructableData\DestructableData.slk` | Destructible HP, death animation |
+| `Units\DestructableData.slk` | Destructible HP, death animation |
 
 ## INI / Profile Files
 
@@ -46,15 +48,17 @@ Alongside SLK files, Warcraft III uses `profile.txt` style INI files (`war3mapSk
 
 ## Parsing in OpenWarcraft3
 
-The Warcraft III SLK/profile parser lives in `games/warcraft-3/sheet/`. It works in two phases:
+The Warcraft III SLK/profile parser lives in `games/warcraft-3/sheet/`. It works in three phases:
 
-### Phase 1 — Tokenisation (`SheetParseTokens`)
+### Phase 1 — Field scanning (`ScanSLKField`)
 
-Each line is read into a buffer. The `SheetParseTokens` function replaces every `;` separator with a NUL byte and counts the resulting token count. `GetToken(buffer, index)` then walks the NUL-separated list to retrieve any token by index.
+`FS_ParseSLK_Buffer` scans the input span line by line without copying lines into a fixed buffer. For each `C` or `F` record, `ScanSLKField` extracts one semicolon-delimited field at a time. For `K` fields that start with `"`, it switches to quote-aware mode: reads until the matching closing `"`, decoding `""` as a literal double-quote and treating semicolons inside quotes as ordinary characters.
+
+Bare (unquoted) fields for `X`, `Y`, and numeric `K` values are scanned up to the next `;` or end-of-line as before. The previous `SheetParseTokens`/`GetToken` approach that blindly NUL-terminated every `;` has been replaced; quoted semicolons now parse correctly.
 
 ### Phase 2 — Cell storage (`FS_FillSheetCell`)
 
-For each `C` record the parser extracts `Y`, `X`, and `K` fields and calls `FS_FillSheetCell(x, y, text)`, which appends the text to a flat string buffer and links a `sheetCell_t` node into a singly-linked list.
+For each `C` record the parser extracts `Y`, `X`, and `K` fields and calls `FS_FillSheetCell(x, y, text)`, which appends the text to a process-global string arena and links a `sheetCell_t` node into a process-global pool. Cells with `X=0` or `Y=0` are skipped before the call. `FS_FillSheetCell` checks both the cell pool and the text arena for exhaustion and logs to `stderr` before returning early if either is full. `F` records update the same current `X`/`Y` state but do not create cells.
 
 ```c
 typedef struct SheetCell {
@@ -70,11 +74,52 @@ typedef struct SheetCell {
 After all cells are parsed, `FS_MakeRowsFromSheet` converts the flat cell list into an array of `sheetRow_t` records, one per data row. The first row provides the column header names; subsequent rows are turned into `sheetField_t` key-value pairs keyed by header name.
 
 ```c
-// Look up a value in a row by column name:
-LPCSTR value = FS_GetField(row, "HP");
+LPCSTR value = FS_FindSheetCell(rows, "hfoo", "HP");
 ```
 
 The resulting row array drives Warcraft III unit spawning (`games/warcraft-3/game/g_spawn.c`) and metadata lookups (`games/warcraft-3/game/g_metadata.c`) at runtime.
+
+## Verified Archive Characteristics
+
+The following was measured with `build/bin/mpqtool` against the startup SLKs loaded by `InitGame` and `InitUnitData`:
+
+| Data set | Cells | Approx. stored value bytes | Data-row upper bound |
+|----------|------:|---------------------------:|---------------------:|
+| ROC (`War3.mpq`) | 148,596 | 984,282 | 3,956 |
+| TFT (`War3x.mpq`) | 333,954 | 2,088,980 | 7,382 |
+
+- ROC uses omitted coordinates heavily and contains thousands of `F` records. Stateful `X`/`Y` handling must be preserved.
+- The inspected startup tables contain no quoted semicolons and no lines at or above the current 1024-byte line limit.
+- `B` is not allocation truth. ROC `UberSplatData.slk` declares 136 rows but populates only 44; ROC `UnitAckSounds.slk` declares 20 columns but populates 19. TFT has similar mismatches in `UberSplatData.slk` and `UnitData.slk`.
+- The current three one-million-entry pools occupy about 72 MiB on a 64-bit build before the separate 8 MiB text arena, despite the TFT startup corpus containing about 334,000 cells and fewer than 7,400 data rows.
+
+## Current Risks
+
+1. **Cached lists have shared mutable ownership.** `FS_ParseSLK` and `FS_ParseINI` cache and return the same `sheetRow_t` list. `InitUnitData` then appends cached INI lists by rewriting each tail's `next`. Since `config_files` and `profile_files` overlap, one aggregate can rewrite another and repeated rows can form cycles. A cache entry must own an immutable table; aggregate lookup order must not be represented by splicing owned row lists.
+2. **Pool exhaustion corrupts memory.** Row and field cursors still have no capacity checks. `FS_FillSheetCell` now checks the cell pool and text arena and logs before returning early, but the `FS_MakeRowsFromSheet` row/field pools remain unchecked.
+3. **Long values are silently truncated.** The per-field buffer in `ScanSLKField` is `MAX_SHEET_LINE` (1024) bytes; values longer than 1023 bytes are truncated without a warning. The confirmed startup corpus has no such values. Cache keys in `NormalizeSheetKey` are also silently truncated at 256 bytes.
+4. **Errors are not actionable.** Invalid magic, malformed coordinates, unsupported records, allocation failure, and truncation generally return partial data or `NULL` without a filename, line, or reason.
+5. **Lookups are linear.** `FS_FindSheetCell` scans every row and then every field. Unit metadata performs this repeatedly at runtime.
+6. **Production parsing is now unit-tested.** `FS_ParseSLK_Buffer` is non-static and declared in `common.h`. Part 5 of `t_slk.c` exercises it directly: stateful omitted Y, stateful omitted X, F-record coordinate advance, advisory B bounds, quoted semicolons, `""` quote escapes, zero coordinate rejection, and no-magic-line tolerance.
+7. **There is no reset/destructor.** Cache entries and parser storage survive for the process lifetime, and `ShutdownUnitData` cannot release them.
+
+## External Implementations
+
+- [wc3libs](https://github.com/inwc3/wc3libs) uses an ANTLR grammar that keeps semicolons inside quoted values, preserves stateful coordinates, represents values as typed data, and exposes keyed object/field maps. Its loader requires `B` and allocates directly from it, which is too strict for Warcraft files with unreliable bounds.
+- [HiveWE](https://github.com/stijnherfst/HiveWE/blob/main/src/file_formats/slk.ixx) validates the `ID` record, returns explicit load errors, owns dynamic strings/maps, ignores `B`, preserves coordinate state, and provides row/column indexes. Its specialized line parser assumes a narrow token order and does not provide a generally quote-aware field lexer.
+- [mdx-m3-viewer](https://github.com/flowtsohg/mdx-m3-viewer/blob/master/src/parsers/slk/file.ts) deliberately ignores `B`, grows a sparse matrix from observed coordinates, and then builds case-insensitive keyed rows. Like the current parser, it splits raw semicolons and therefore is not a tokenization reference.
+- Warsmash similarly demonstrates dynamic typed rows and keyed lookup, but also splits raw semicolons. Its storage model is useful; its lexer is not.
+
+No implementation should be copied wholesale. The common useful contract is owned dynamic storage, observed-coordinate growth, stateful coordinates, explicit errors, and keyed access. wc3libs supplies the strongest lexical model; HiveWE supplies the closest table API model.
+
+## Migration Plan
+
+1. ✅ **Done.** `FS_ParseSLK_Buffer` is non-static and declared in `common.h`. `SheetParseTokens`/`GetToken` replaced by `ScanSLKField`, a quote-aware scanner that reads directly from the input span (no line copy). `FS_FillSheetCell` now validates X/Y (≥1) and checks pool/arena bounds. Part 5 of `t_slk.c` covers: quoted semicolons, `""` escapes, omitted `X`/`Y`, F-record coordinate advance, wrong/missing `B`, zero-coordinate rejection, and no-magic-line tolerance.
+2. Remaining from original step 2: long-value truncation warning and full removal of the `MAX_SHEET_LINE` per-field cap.
+3. Introduce an owned `sheetTable_t` behind the existing `sheetRow_t` result. Allocate cells/rows/fields/strings per table, fail with filename and line diagnostics, and add cache reset/destruction. Keep `sheetRow_t` stable until consumers migrate.
+4. Stop mutating cached row chains. Represent profile precedence as an array of table pointers, as `abilityConfigTables` already does, or build non-owning aggregate link nodes separate from cached rows.
+5. Add per-table row and case-insensitive column indexes as sidecars. Make `FS_FindSheetCell` use the index while retaining linked rows for iteration-heavy callers.
+6. After all consumers use table ownership explicitly, remove the global pools, `last_parsed_sheet_tail`, and the duplicate tail caches in the sheet and game modules.
 
 ## Example SLK Snippet
 
