@@ -9,6 +9,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include "common/shared.h"
 
 #ifdef _WIN32
 #include <direct.h>
