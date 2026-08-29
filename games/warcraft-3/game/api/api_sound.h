@@ -14,7 +14,7 @@ DWORD CreateSound(LPJASS j) {
     sound->stopwhenoutofrange = stopwhenoutofrange;
     sound->fadeInRate = fadeInRate;
     sound->fadeOutRate = fadeOutRate;
-//    sound->eaxSetting = eaxSetting;
+    sound->soundIndex = gi.SoundIndex(fileName);
     return 1;
 }
 /* Label constructors resolve WC3 sound-data rows into the same game-owned sound
@@ -113,7 +113,12 @@ DWORD AttachSoundToUnit(LPJASS j) {
  * the unit, fade flags affect transition timing, and killWhenDone controls
  * handle lifetime after playback rather than acting as an immediate free. */
 DWORD StartSound(LPJASS j) {
-    //HANDLE soundHandle = jass_checkhandle(j, 1, "sound");
+    gsound_t *sound = jass_checkhandle(j, 1, "sound");
+    if (!sound || !sound->soundIndex) return 0;
+    FOR_LOOP(i, game.max_clients) {
+        LPEDICT clent = G_GetPlayerEntityByNumber(i);
+        if (clent) gi.GameCommand(clent, "snd", &sound->soundIndex, sizeof(int));
+    }
     return 0;
 }
 DWORD StopSound(LPJASS j) {
