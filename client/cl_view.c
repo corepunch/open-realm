@@ -510,6 +510,13 @@ void V_RenderView(void) {
     }
     cl.viewDef.player = cl.playerstate.number;
     
+#if !defined(WOW) && !defined(SC2)
+    {
+        float yaw_rad = (float)DEG2RAD(cl.playerstate.viewangles.z);
+        VECTOR2 listener_right = { cosf(yaw_rad), sinf(yaw_rad) };
+        S_SetListener(&cl.playerstate.origin, &listener_right);
+    }
+#endif
     Matrix4_getCameraMatrix(&cl.viewDef.viewProjectionMatrix);
     Matrix4_getLightMatrix(&lightAngles, VIEW_SHADOW_SIZE, &cl.viewDef.lightMatrix);
 

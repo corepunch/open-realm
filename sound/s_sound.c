@@ -323,31 +323,70 @@ void S_StopAllSounds(void) {
 }
 
 /* =========================================================================
- * SDL audio mixer callback
+ * Spatialization
+ * =========================================================================
+ * Full volume within S_FULL_DIST world units; linear falloff to silence at
+ * S_CUTOFF_DIST.  Stereo pan from dot-product of source direction vs the
+ * listener's right vector (mirrors Quake 2 S_SpatializeOrigin). */
+
+#define S_FULL_DIST   400.0f
+#define S_CUTOFF_DIST 3000.0f
+
+static void S_SpatializeChannel(int ch) {
+    if (!s.channels[ch].is_positional) {
+        s.channels[ch].leftvol = s.channels[ch].rightvol = s.channels[ch].master_vol;
+        return;
+    }
+    float dx   = s.channels[ch].origin.x - s.listener.origin.x;
+    float dy   = s.channels[ch].origin.y - s.listener.origin.y;
+    float dist = sqrtf(dx * dx + dy * dy);
+
+    if (dist >= S_CUTOFF_DIST) {
+        s.channels[ch].leftvol = s.channels[ch].rightvol = 0.0f;
+        return;
+    }
+    float att = (dist <= S_FULL_DIST)
+        ? 1.0f
+        : (S_CUTOFF_DIST - dist) / (S_CUTOFF_DIST - S_FULL_DIST);
+
+    float dot = 0.0f;
+    if (dist > 1.0f)
+        dot = (dx / dist) * s.listener.right.x + (dy / dist) * s.listener.right.y;
+
+    s.channels[ch].leftvol  = s.channels[ch].master_vol * att * (0.5f * (1.0f - dot));
+    s.channels[ch].rightvol = s.channels[ch].master_vol * att * (0.5f * (1.0f + dot));
+}
+
+/* =========================================================================
+ * SDL audio mixer callback — stereo interleaved S16
  * ========================================================================= */
 
 static void SDLCALL S_MixAudio(void *userdata, Uint8 *stream, int len) {
     (void)userdata;
     memset(stream, 0, len);
-    Sint16 *out     = (Sint16 *)stream;
-    int     samples = len / (int)sizeof(Sint16);
+    Sint16 *out    = (Sint16 *)stream;
+    int     frames = len / (int)(2 * sizeof(Sint16));  /* stereo frames */
 
     for (int ch = 0; ch < S_MAX_CHANNELS; ch++) {
         if (!s.channels[ch].active || !s.channels[ch].sc) continue;
-        sfxcache_t *sc  = s.channels[ch].sc;
-        float       vol = s.channels[ch].volume;
-        int         pos = s.channels[ch].pos;
+        S_SpatializeChannel(ch);
+        sfxcache_t *sc   = s.channels[ch].sc;
+        float       lvol = s.channels[ch].leftvol;
+        float       rvol = s.channels[ch].rightvol;
+        int         pos  = s.channels[ch].pos;
 
-        for (int i = 0; i < samples; i++) {
+        for (int i = 0; i < frames; i++) {
             if (pos >= sc->length) {
                 s.channels[ch].active = FALSE;
                 break;
             }
-            int mixed = (int)out[i] + (int)(sc->data[pos] * vol);
-            if (mixed >  32767) mixed =  32767;
-            if (mixed < -32768) mixed = -32768;
-            out[i] = (Sint16)mixed;
-            pos++;
+            int samp = (int)sc->data[pos++];
+            int l = (int)out[i * 2]     + (int)(samp * lvol);
+            int r = (int)out[i * 2 + 1] + (int)(samp * rvol);
+            if (l >  32767) l =  32767; else if (l < -32768) l = -32768;
+            if (r >  32767) r =  32767; else if (r < -32768) r = -32768;
+            out[i * 2]     = (Sint16)l;
+            out[i * 2 + 1] = (Sint16)r;
         }
         s.channels[ch].pos = pos;
     }
@@ -366,7 +405,7 @@ BOOL S_Init(void) {
     SDL_AudioSpec want = {0}, have = {0};
     want.freq     = 44100;
     want.format   = AUDIO_S16SYS;
-    want.channels = 1;
+    want.channels = 2;
     want.samples  = 1024;
     want.callback = S_MixAudio;
     s.device = SDL_OpenAudioDevice(NULL, 0, &want, &have, 0);
@@ -396,15 +435,19 @@ void S_Shutdown(void) {
  * Playback helpers
  * ========================================================================= */
 
-static void S_StartSound(sfxcache_t *sc, float volume) {
+static void S_StartSound(sfxcache_t *sc, float volume, LPCVECTOR2 origin, BOOL is_positional) {
     if (!sc) return;
     SDL_LockAudioDevice(s.device);
     for (int ch = 0; ch < S_MAX_CHANNELS; ch++) {
         if (!s.channels[ch].active) {
-            s.channels[ch].sc     = sc;
-            s.channels[ch].pos    = 0;
-            s.channels[ch].volume = volume;
-            s.channels[ch].active = TRUE;
+            s.channels[ch].sc           = sc;
+            s.channels[ch].pos          = 0;
+            s.channels[ch].master_vol   = volume;
+            s.channels[ch].leftvol      = volume;
+            s.channels[ch].rightvol     = volume;
+            s.channels[ch].origin       = origin ? *origin : (VECTOR2){ 0.0f, 0.0f };
+            s.channels[ch].is_positional = is_positional;
+            s.channels[ch].active       = TRUE;
             SDL_UnlockAudioDevice(s.device);
             return;
         }
@@ -421,7 +464,7 @@ void S_PlaySound(DWORD kit_id) {
     sSoundKit_t *k = &s.kits[kit_id];
     if (k->id != kit_id) return;
     k->registration_sequence = s.registration_sequence;
-    S_StartSound(S_LoadKit(k), k->volume > 0.0f ? k->volume : 1.0f);
+    S_StartSound(S_LoadKit(k), k->volume > 0.0f ? k->volume : 1.0f, NULL, FALSE);
 }
 
 void S_PlaySoundByName(LPCSTR name) {
@@ -439,11 +482,26 @@ void S_RegisterSound(LPCSTR path) {
     S_LoadSfx(sfx);
 }
 
-/* Play a sound by raw MPQ-relative path (e.g. unit voice lines). */
+/* Play a sound by raw MPQ-relative path — non-positional (voice, UI, JASS). */
 void S_PlaySoundFile(LPCSTR path) {
     if (!s.initialized || !path || !*path) return;
     sfx_t *sfx = S_FindSfx(path, TRUE);
     if (!sfx) return;
     sfx->registration_sequence = s.registration_sequence;
-    S_StartSound(S_LoadSfx(sfx), 1.0f);
+    S_StartSound(S_LoadSfx(sfx), 1.0f, NULL, FALSE);
+}
+
+/* Play a positional sound at a 2D world origin (distance attenuation + stereo pan). */
+void S_PlaySoundAt(LPCSTR path, LPCVECTOR2 origin) {
+    if (!s.initialized || !path || !*path) return;
+    sfx_t *sfx = S_FindSfx(path, TRUE);
+    if (!sfx) return;
+    sfx->registration_sequence = s.registration_sequence;
+    S_StartSound(S_LoadSfx(sfx), 1.0f, origin, TRUE);
+}
+
+/* Update the listener position and right vector — call once per rendered frame. */
+void S_SetListener(LPCVECTOR2 origin, LPCVECTOR2 right) {
+    s.listener.origin = *origin;
+    s.listener.right  = *right;
 }

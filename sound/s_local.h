@@ -66,11 +66,21 @@ typedef struct {
     /* Registration sequence — bump on map load to free stale caches */
     int          registration_sequence;
 
+    /* Listener state for spatialization — set each frame from the camera */
+    struct {
+        VECTOR2 origin;
+        VECTOR2 right;   /* normalized right vector in world XY */
+    } listener;
+
     /* Active playback channels */
     struct {
         sfxcache_t *sc;
         int         pos;
-        float       volume;
+        float       master_vol;
+        float       leftvol;
+        float       rightvol;
+        VECTOR2     origin;
+        BOOL        is_positional;
         BOOL        active;
     } channels[S_MAX_CHANNELS];
 
@@ -87,5 +97,7 @@ void S_BeginRegistration(void);
 void S_EndRegistration(void);
 void S_RegisterSound(LPCSTR path);
 void S_PlaySoundFile(LPCSTR path);
+void S_PlaySoundAt(LPCSTR path, LPCVECTOR2 origin);
+void S_SetListener(LPCVECTOR2 origin, LPCVECTOR2 right);
 
 #endif

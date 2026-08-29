@@ -11,7 +11,7 @@ void CL_EntityEvent(entityState_t const *ent) {
     if (!ent->event || !ent->sound) return;
     LPCSTR path = cl.configstrings[CS_SOUNDS + ent->sound];
     if (path && path[0])
-        S_PlaySoundFile(path);
+        S_PlaySoundAt(path, &ent->origin2);
 }
 
 
