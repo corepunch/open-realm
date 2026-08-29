@@ -274,10 +274,10 @@ static LPCSTR Theme_PlayerRaceCategory(DWORD race) {
 LPCSTR Theme_PlayerString(LPGAMECLIENT client, LPCSTR key, LPCSTR def) {
     LPCSTR category, value;
 
-    if (!key || strstr(key, "\\") || !game.config.theme) return def;
+    if (!key || strstr(key, "\\") || !game.config.theme.source) return def;
     category = Theme_PlayerRaceCategory(client ? client->ps.race : kPlayerRaceNone);
-    value = FS_FindSheetCell(game.config.theme, category, key);
-    if (!value && strcmp(category, "Default")) value = FS_FindSheetCell(game.config.theme, "Default", key);
+    value = Stb_IniCacheFind(&game.config.theme, category, key);
+    if (!value && strcmp(category, "Default")) value = Stb_IniCacheFind(&game.config.theme, "Default", key);
     return value ? value : def;
 }
 
