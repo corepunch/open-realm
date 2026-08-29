@@ -146,11 +146,13 @@ void Wow_FreeWmoModels(void) {
                     ri.MemFree(batch);
                     batch = next_batch;
                 }
+                SAFE_DELETE(model->groups[i].doodad_refs, ri.MemFree);
             }
             ri.MemFree(model->groups);
         }
         SAFE_DELETE(model->doodad_sets, ri.MemFree);
         SAFE_DELETE(model->doodad_defs, ri.MemFree);
+        SAFE_DELETE(model->doodad_referenced, ri.MemFree);
         SAFE_DELETE(model->doodad_name_blob, ri.MemFree);
         SAFE_DELETE(model->def_groups, ri.MemFree);
         SAFE_DELETE(model->lights, ri.MemFree);
@@ -167,6 +169,8 @@ void Wow_FreeWmoInstances(void) {
     wowWmoInstance_t *instance = wow_world.wmos;
     while (instance) {
         wowWmoInstance_t *next = instance->next;
+        SAFE_DELETE(instance->visible_groups, ri.MemFree);
+        SAFE_DELETE(instance->doodad_seen, ri.MemFree);
         ri.MemFree(instance);
         instance = next;
     }
@@ -201,8 +205,6 @@ void Wow_ClearLoadedAdts(void) {
     Wow_FreeWmoInstances();
     Wow_FreeWmoModels();
     Wow_FreeDoodadInstances();
-    /* WMO doodad persistent buffers must be rebuilt when new WMOs load */
-    wow_world.wmo_doodads_built = false;
     for (wowDoodadModel_t *g = wow_world.doodad_models; g; g = g->next) {
         SAFE_DELETE(g->wmo_matrices, ri.MemFree);
         R_ReleaseInstanceBuffer(&g->wmo_instances);

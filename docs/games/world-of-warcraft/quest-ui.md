@@ -169,8 +169,11 @@ Quest givers are creatures in AzerothCore and carry world positions via
 `creature_queststarter` contains one row per quest, so Deputy Willem appears
 five times at the same coordinates. `Wow_SpawnQuestLocations` collapses equal
 `(creature_entry, position)` rows into one edict. At interaction/snapshot time,
-`Wow_QuestForGiver` scans every matching row and chooses the first quest not in
-the log whose prerequisite is complete. Without grouping, five overlapping
+The generator now emits a physical-giver index keyed by the representative quest
+and position. `Wow_QuestForGiver` and per-client marker selection binary-search
+that index, then inspect only the five Willem rows instead of scanning all 1,787
+giver rows. A bounded Human-start diagnostic previously measured 118,060 row
+visits for 100 marker calculations (1,180.6 per marker). Without grouping, five overlapping
 Willem models spawn and selection can open quest 18 (`Brotherhood of Thieves`)
 instead of fresh-Human quest 783 (`A Threat Within`).
 

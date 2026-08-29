@@ -148,6 +148,10 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
         wowWmoInstance_t *wmo_ptrs[WMO_CACHE_MAX];
         int wmo_n = 0;
         VECTOR3 cam = tr.viewDef.camerastate[0].origin;
+        for (wowWmoInstance_t *wmo = wow_world.wmos; wmo; wmo = wmo->next) {
+            wmo->visible = false;
+            if (wmo->visible_groups) memset(wmo->visible_groups, 0, wmo->model->num_groups);
+        }
         for (wowWmoInstance_t *wmo = draw_wmos ? wow_world.wmos : NULL; wmo && wmo_n < WMO_CACHE_MAX; wmo = wmo->next) {
             DWORD vis = 0; uint64_t vis_bits = 0; BOOL mi, has_trans = false;
             if (!wmo->model || !wmo->model->groups) { wmo_ptrs[wmo_n++] = NULL; continue; }
@@ -162,10 +166,12 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
             FOR_LOOP(gi, wmo->model->num_groups) {
                 if (Wow_WmoGroupInView(&wmo->model->groups[gi], &wmo->matrix)) {
                     vis++;
+                    wmo->visible_groups[gi] = 1;
                     if (gi < 64) vis_bits |= ((uint64_t)1 << gi);
                 }
             }
             if (!vis) { wmo_ptrs[wmo_n++] = NULL; continue; }
+            wmo->visible = true;
             mi = Wow_WmoContainsPoint(wmo->model, &wmo->matrix, cam);
             Matrix3_normal(&wmo_cache[wmo_n].nm, &wmo->matrix);
             Wow_ComputeMoltContribution(wmo->model, &wmo->matrix, cam, &wmo_cache[wmo_n].molt);
@@ -416,20 +422,8 @@ void R_DrawWorld(void) {
             }
         }
         if (R_CvarEnabled("r_wmos", "1")) {
-            if (!wow_world.wmo_doodads_built) {
-                /* First time after ADT load: queue all WMO doodads into wmo_matrices scratch */
-                for (wowWmoInstance_t *wmo = wow_world.wmos; wmo; wmo = wmo->next)
-                    Wow_QueueWmoDoodads(wmo);
-                /* Upload persistent GPU buffers; free CPU scratch */
-                for (wowDoodadModel_t *group = wow_world.doodad_models; group; group = group->next) {
-                    if (!group->wmo_count) continue;
-                    if (R_MakeInstanceBuffer(&group->wmo_instances, group->wmo_matrices, group->wmo_count)) {
-                        SAFE_DELETE(group->wmo_matrices, ri.MemFree);
-                        group->wmo_capacity = 0;
-                    }
-                }
-                wow_world.wmo_doodads_built = true;
-            }
+            for (wowDoodadModel_t *group = wow_world.doodad_models; group; group = group->next) group->wmo_count = 0;
+            for (wowWmoInstance_t *wmo = wow_world.wmos; wmo; wmo = wmo->next) Wow_QueueWmoDoodads(wmo);
         }
         for (wowDoodadModel_t *group = wow_world.doodad_models; group; group = group->next) {
             if (!group->count) continue;
@@ -442,9 +436,12 @@ void R_DrawWorld(void) {
             }
             R_GameRenderModelInstanced(group->model, &group->instances, 0); instanced_models++;
         }
-        if (R_CvarEnabled("r_wmos", "1") && wow_world.wmo_doodads_built) {
+        if (R_CvarEnabled("r_wmos", "1")) {
             for (wowDoodadModel_t *group = wow_world.doodad_models; group; group = group->next) {
                 if (!group->wmo_count) continue;
+                if (!R_UpdateInstanceBuffer(&group->wmo_instances, group->wmo_matrices, group->wmo_count)) {
+                    fprintf(stderr, "WoW WMO doodads: instance upload failed for %s\n", group->path); continue;
+                }
                 R_GameRenderModelInstanced(group->model, &group->wmo_instances, 0); instanced_models++;
             }
         }

@@ -514,6 +514,7 @@ BOOL Wow_LoadWmoModel(wowWmoModel_t *model) {
     memset(model->groups, 0, sizeof(*model->groups) * model->num_groups);
     if (model->num_doodad_defs) {
         model->doodad_referenced = ri.MemAlloc(model->num_doodad_defs);
+        if (!model->doodad_referenced) { fprintf(stderr, "WoW WMO: failed to allocate MODR index for %s\n", model->path); goto cleanup; }
         memset(model->doodad_referenced, 0, model->num_doodad_defs);
     }
     FOR_LOOP(i, model->num_groups)
@@ -604,13 +605,15 @@ void Wow_AddWmoInstance(LPCSTR path, wowMapObjDef_t const *def) {
     memset(instance, 0, sizeof(*instance));
     instance->model = model;
     instance->doodad_set = def->doodad_set;
-    if (model->num_groups) { instance->visible_groups = ri.MemAlloc(model->num_groups); memset(instance->visible_groups, 0, model->num_groups); }
-    if (model->num_doodad_defs) { instance->doodad_seen = ri.MemAlloc(model->num_doodad_defs); memset(instance->doodad_seen, 0, model->num_doodad_defs); }
+    if (model->num_groups) instance->visible_groups = ri.MemAlloc(model->num_groups);
+    if (model->num_doodad_defs) instance->doodad_seen = ri.MemAlloc(model->num_doodad_defs);
     if ((model->num_groups && !instance->visible_groups) || (model->num_doodad_defs && !instance->doodad_seen)) {
         fprintf(stderr, "WoW WMO: failed to allocate visibility state for %s\n", path);
         SAFE_DELETE(instance->visible_groups, ri.MemFree); SAFE_DELETE(instance->doodad_seen, ri.MemFree);
         ri.MemFree(instance); return;
     }
+    if (instance->visible_groups) memset(instance->visible_groups, 0, model->num_groups);
+    if (instance->doodad_seen) memset(instance->doodad_seen, 0, model->num_doodad_defs);
     Wow_InstanceMatrix(def, &instance->matrix);
     instance->next = wow_world.wmos;
     wow_world.wmos = instance;
