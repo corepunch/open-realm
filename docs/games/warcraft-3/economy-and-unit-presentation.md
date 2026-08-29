@@ -167,6 +167,12 @@ recipient-relative relationship from WC3 alliance state: non-passive allies are 
 green rings respectively, using the normal selection-circle size/texture choice and half-alpha hover presentation. Selection remains a
 separate state and suppresses the hover preview while the full selected-unit circle is visible.
 
+The authored WC3 cursor reuses that recipient-relative hover state without changing cursor assets. While the current hover entity carries
+both `EF_HOVER_HEALTH` and `EF_HOSTILE`, `client/cl_scrn.c` submits a red per-instance tint to the renderer; clearing/changing hover
+submits white, restoring the cursor's original artwork. This step intentionally leaves non-hostile cursors untinted and does not change
+the cursor animation sequence. `MDLX_DrawSpriteTinted` stores the tint on the transient cursor render entity, and the MDX renderer folds
+it into the existing geoset-color shader value so texture alpha and authored geoset/material colour remain independent.
+
 An August 2026 regression had working world picking and working selected-unit health bars, but active gameplay never copied
 `cl.hover_entity` into `cl.viewDef.hover_entity`; the renderer therefore always saw hover entity 0. Targeted runtime logs confirmed the
 entity number at input, view, renderer, and health-bar filtering before the fix. Keep the active-view assignment in `V_RenderView`.

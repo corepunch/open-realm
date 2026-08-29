@@ -174,7 +174,7 @@ bool MDLX_SetEntityAnimationFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *e
     return true;
 }
 
-void MDLX_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
+void MDLX_DrawSpriteTinted(LPCMODEL model, LPCSTR anim, float x, float y, COLOR32 tint) {
     renderEntity_t entity;
     viewDef_t viewdef;
     bool const fdf_sprite_coords = anim && anim[0] == '#' && anim[1] == '!';
@@ -193,6 +193,7 @@ void MDLX_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
     memset(&viewdef, 0, sizeof(viewdef));
     entity.scale = 1;
     entity.model = model;
+    entity.tint = tint.a ? tint : COLOR32_WHITE;
     DWORD seq_len = seq->interval[1] - seq->interval[0];
     if (seq_len == 0) seq_len = 1;
     entity.frame = seq->interval[0] + (tr.viewDef.time % seq_len);
@@ -218,6 +219,10 @@ void MDLX_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
     R_RenderShadowMap();
 #endif
     R_RenderView();
+}
+
+void MDLX_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
+    MDLX_DrawSpriteTinted(model, anim, x, y, COLOR32_WHITE);
 }
 
 void MDLX_Init(void) {

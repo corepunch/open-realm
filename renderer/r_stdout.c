@@ -342,7 +342,8 @@ static void RStd_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
 }
 
 /* stdout has no game-native cursor renderer; the client leaves SDL's platform cursor visible. */
-static bool RStd_DrawCursor(float x, float y) {
+static bool RStd_DrawCursor(float x, float y, COLOR32 tint) {
+    (void)tint;
     printf("draw_cursor x=%.6f y=%.6f unsupported\n", x, y);
     return false;
 }

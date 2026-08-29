@@ -393,5 +393,6 @@ bool MDLX_TraceModel(renderEntity_t const *ent, LPCLINE3 line);
 bool MDLX_ExtractCamera(mdxModel_t const *model, DWORD frame, float aspect, LPMATRIX4 output, LPMATRIX4 light);
 bool MDLX_SetEntityAnimationFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity);
 void MDLX_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y);
+void MDLX_DrawSpriteTinted(LPCMODEL model, LPCSTR anim, float x, float y, COLOR32 tint);
 
 #endif

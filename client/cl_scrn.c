@@ -93,13 +93,27 @@ static void SCR_UpdateSystemCursor(BOOL game_cursor_active) {
     }
 }
 
+static COLOR32 SCR_CursorTint(void) {
+    DWORD const entnum = cl.hover_entity;
+
+    if (entnum && entnum < MAX_CLIENT_ENTITIES) {
+        LPCENTITYSTATE state = &cl.ents[entnum].current;
+        if ((state->flags & (EF_HOVER_HEALTH | EF_HOSTILE)) ==
+            (EF_HOVER_HEALTH | EF_HOSTILE))
+        {
+            return MAKE(COLOR32, 255, 0, 0, 255);
+        }
+    }
+    return COLOR32_WHITE;
+}
+
 static void SCR_DrawCursor(void) {
     int const x = (int)mouse.origin.x, y = (int)mouse.origin.y;
     BOOL drawn = false;
 
     if (Cvar_Integer("r_cursor", 0) == 1) {
         VECTOR2 const pos = SCR_ScreenToUI(x, y);
-        drawn = re.DrawCursor(pos.x, pos.y);
+        drawn = re.DrawCursor(pos.x, pos.y, SCR_CursorTint());
     }
     SCR_UpdateSystemCursor(drawn);
 }

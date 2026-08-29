@@ -448,6 +448,7 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
                              LPCTEXTURE overrideTexture,
                              BOOL forceUnshaded,
                              DWORD frame,
+                             LPCVECTOR4 tint,
                              bool blendedPass)
 {
     BOOL force_two_sided = model && !model->cameras;
@@ -459,6 +460,11 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
     }
 
     geosetColor = MDLX_EvaluateGeosetColor(model, geoset, frame);
+    {
+        FLOAT *component = &geosetColor.x;
+        FLOAT const *factor = &tint->x;
+        FOR_LOOP(i, 4) component[i] *= factor[i];
+    }
     MDLX_BindGeosetMatrixPalette(model, geoset);
     shader->state.layerAlpha = 1.0f;
     shader->state.geosetColor = (VECTOR4){ geosetColor.x, geosetColor.y, geosetColor.z, geosetColor.w };
@@ -619,6 +625,11 @@ static void MDLX_RenderGeosets(const renderEntity_t *entity,
                                const mdxModel_t *model)
 {
     BOOL forceUnshaded = (entity->flags & RF_NO_LIGHTING) != 0;
+    COLOR32 const color = entity->tint.a ? entity->tint : COLOR32_WHITE;
+    VECTOR4 const tint = {
+        BYTE2FLOAT(color.r), BYTE2FLOAT(color.g),
+        BYTE2FLOAT(color.b), BYTE2FLOAT(color.a)
+    };
     DWORD geosetCount = 0;
     DWORD drawCount = 0;
     mdxGeosetDrawOrder_t stackDrawOrder[MDLX_STACK_DRAW_ORDER];
@@ -632,7 +643,7 @@ static void MDLX_RenderGeosets(const renderEntity_t *entity,
         }
         material = MDLX_GetMaterialAtIndex(geoset, model);
         if (MDLX_MaterialHasPass(material, false)) {
-            MDLX_RenderGeoset(model, geoset, material, entity->team&TEAM_MASK, entity->skin, forceUnshaded, entity->frame, false);
+            MDLX_RenderGeoset(model, geoset, material, entity->team&TEAM_MASK, entity->skin, forceUnshaded, entity->frame, &tint, false);
         }
     }
 
@@ -649,7 +660,7 @@ static void MDLX_RenderGeosets(const renderEntity_t *entity,
             if (MDLX_IsGeosetVisible(model, geoset, entity->frame) &&
                 MDLX_MaterialHasPass(material, true))
             {
-                MDLX_RenderGeoset(model, geoset, material, entity->team&TEAM_MASK, entity->skin, forceUnshaded, entity->frame, true);
+                MDLX_RenderGeoset(model, geoset, material, entity->team&TEAM_MASK, entity->skin, forceUnshaded, entity->frame, &tint, true);
             }
         }
         return;
@@ -678,7 +689,7 @@ static void MDLX_RenderGeosets(const renderEntity_t *entity,
 
     FOR_LOOP(i, drawCount) {
         mdxGeoset_t const *geoset = drawOrder[i].geoset;
-        MDLX_RenderGeoset(model, geoset, drawOrder[i].material, entity->team&TEAM_MASK, entity->skin, forceUnshaded, entity->frame, true);
+        MDLX_RenderGeoset(model, geoset, drawOrder[i].material, entity->team&TEAM_MASK, entity->skin, forceUnshaded, entity->frame, &tint, true);
     }
 
     if (drawOrder != stackDrawOrder) {

@@ -54,7 +54,7 @@ BOOL R_GameEntityOverheadPosition(renderEntity_t const *entity, LPVECTOR3 out);
 bool R_GameExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t *viewdef);
 bool R_GameSetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity);
 void R_GameDrawSprite(LPCMODEL model, LPCSTR anim, float x, float y);
-bool R_GameDrawCursor(float x, float y);
+bool R_GameDrawCursor(float x, float y, COLOR32 tint);
 w3TerrainArt_t const *R_GameTerrainArt(DWORD id);
 w3CliffType_t const *R_GameCliffType(DWORD id);
 
