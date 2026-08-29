@@ -746,7 +746,7 @@ static slkField_t const dest_schema[] = {
     { "colorR",           offsetof(DestructableData_t, colorR),           STB_SLK_INT   }, /* TFT */
     { "colorG",           offsetof(DestructableData_t, colorG),           STB_SLK_INT   }, /* TFT */
     { "colorB",           offsetof(DestructableData_t, colorB),           STB_SLK_INT   }, /* TFT */
-    { "dir",              offsetof(DestructableData_t, modelDirectory),   STB_SLK_STR   }, /* ROC */
+    { "dir",              offsetof(DestructableData_t, dir),              STB_SLK_STR   }, /* ROC */
     { NULL, 0, 0 }
 };
 

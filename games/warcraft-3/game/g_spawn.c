@@ -124,7 +124,7 @@ static void SP_SpawnDoodad(LPEDICT edict) {
 
 static void SP_SpawnDestructable(LPEDICT edict) {
     DestructableData_t const *row = edict->DestructableData;
-    LPCSTR dir = row->modelDirectory;
+    LPCSTR dir = row->dir;
     LPCSTR file = row->file;
     LPCSTR path_tex = row->pathingTexture;
     FLOAT radius = row->radius;
