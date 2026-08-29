@@ -163,6 +163,33 @@ TEST(wc3_api, customize_entity_hides_ack_from_other_players) {
     T_EQ(state.sound, 0);
 }
 
+TEST(wc3_api, customize_entity_marks_live_unit_hoverable) {
+    entityState_t state = { .number = 7, .model = 11 };
+    edict_t ent = { .svflags = SVF_MONSTER, .s = { .player = 3 } };
+    ent.health.value = 100.0f;
+
+    globals.CustomizeEntity(3, &ent, &state);
+    T_ASSERT(state.flags & EF_HOVER_HEALTH);
+}
+
+TEST(wc3_api, customize_entity_rejects_non_unit_hover_health) {
+    entityState_t state = { .number = 7, .model = 11, .flags = EF_HOVER_HEALTH };
+    edict_t ent = { .s = { .player = 3 } };
+    ent.health.value = 100.0f;
+
+    globals.CustomizeEntity(3, &ent, &state);
+    T_ASSERT(!(state.flags & EF_HOVER_HEALTH));
+}
+
+TEST(wc3_api, customize_entity_rejects_dead_or_unselectable_unit_hover_health) {
+    entityState_t state = { .number = 7, .model = 11, .flags = EF_NOT_SELECTABLE | EF_HOVER_HEALTH };
+    edict_t ent = { .svflags = SVF_MONSTER | SVF_DEADMONSTER, .s = { .player = 3 } };
+    ent.health.value = 100.0f;
+
+    globals.CustomizeEntity(3, &ent, &state);
+    T_ASSERT(!(state.flags & EF_HOVER_HEALTH));
+}
+
 /* =========================================================================
  * Player — color
  * ========================================================================= */

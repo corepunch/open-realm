@@ -200,6 +200,7 @@ enum {
     FLAG(EF_QUEST_COMPLETE, 5), /* quest is ready to turn in — tint "?" yellow */
     FLAG(EF_HOSTILE, 6),        /* entity is hostile — renderer shows red nameplate */
     FLAG(EF_NOT_SELECTABLE, 7), /* render entity, but exclude it from world/box selection */
+    FLAG(EF_HOVER_HEALTH, 8),   /* client may expose this entity's health on world hover */
 };
 
 enum {
@@ -472,7 +473,7 @@ typedef struct entityState_s {
     USHORT sound;
     DWORD frame;
     BYTE event;
-    BYTE flags;
+    USHORT flags;
     BYTE renderfx;
     BYTE ability;
     DWORD splat;

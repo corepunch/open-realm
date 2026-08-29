@@ -825,6 +825,31 @@ static BOOL G_FowPlayerFogDisabled(DWORD player) {
     return client && (client->ps.rdflags & RDF_NOFOG);
 }
 
+/* Hover information is interactive gameplay state, so unlike explored
+ * scenery it is exposed only while the entity is actively visible. */
+BOOL G_FowPlayerCanHoverEntity(DWORD player, LPCEDICT ent) {
+    DWORD x, y, index;
+    fowPlayerGrid_t const *grid;
+
+    if (!ent || player >= MAX_PLAYERS || !G_FowReady()) {
+        return true;
+    }
+    if (ent->s.player < MAX_PLAYERS && G_FowSharedVision(player, ent->s.player)) {
+        return true;
+    }
+    if (G_FowPlayerFogDisabled(player)) {
+        return true;
+    }
+    x = G_FowWorldToCellX(ent->s.origin.x);
+    y = G_FowWorldToCellY(ent->s.origin.y);
+    if (x == FOW_INVALID_CELL || y == FOW_INVALID_CELL) {
+        return false;
+    }
+    index = y * level.fow.width + x;
+    grid = &level.fow.players[player];
+    return grid->visible && grid->visible[index] != 0;
+}
+
 BOOL G_FowPlayerCanSeeEntity(DWORD player, LPCEDICT ent) {
     DWORD x, y, index;
     fowPlayerGrid_t const *grid;

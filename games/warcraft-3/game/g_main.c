@@ -472,6 +472,17 @@ static void G_ClientBegin(LPEDICT edict) {
 /* Selection voices are local feedback; suppress them in snapshots for clients
  * that did not select this entity while leaving world sounds unchanged. */
 static void G_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
+    if ((ent->svflags & SVF_MONSTER) &&
+        !(ent->svflags & SVF_DEADMONSTER) &&
+        ent->health.value > 0.0f &&
+        !(state->flags & EF_NOT_SELECTABLE) &&
+        G_FowPlayerCanHoverEntity(player, ent))
+    {
+        state->flags |= EF_HOVER_HEALTH;
+    } else {
+        state->flags &= ~EF_HOVER_HEALTH;
+    }
+
     if (state->event == EV_ACK && !(ent->selected & (1 << player))) {
         state->event = EV_NONE;
         state->sound = 0;
