@@ -1,4 +1,5 @@
 #include "r_war3map.h"
+#include "common/stb_slk.h"
 
 #define MAX_MAP_LAYERS 16
 #define WATER(INDEX) \
@@ -271,11 +272,11 @@ LPMAPLAYER R_BuildMapSegmentLayer(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD laye
     PATHSTR zBuffer;
     if (g_groundTextures[layer] == NULL) {
         char groundID[5] = { 0 };
+        w3TerrainArt_t const *terrain;
         memcpy(groundID, &map->grounds[layer], 4);
-        LPCSTR dir = ri.FindSheetCell(tr.sheet[SHEET_TERRAIN], groundID, "dir");
-        LPCSTR file = ri.FindSheetCell(tr.sheet[SHEET_TERRAIN], groundID, "file");
-        if (file && dir) {
-            snprintf(zBuffer, sizeof(zBuffer), "%s\\%s.blp", dir, file);
+        terrain = R_GameTerrainArt(FS_SLKKey(groundID));
+        if (terrain->file && terrain->dir) {
+            snprintf(zBuffer, sizeof(zBuffer), "%s\\%s.blp", terrain->dir, terrain->file);
             g_groundTextures[layer] = R_LoadTexture(zBuffer);
         } else {
             return NULL;
@@ -300,11 +301,11 @@ LPMAPLAYER R_BuildGroundLayerGlobal(LPCWAR3MAP map, DWORD layer) {
 
     if (g_groundTextures[layer] == NULL) {
         char groundID[5] = { 0 };
+        w3TerrainArt_t const *terrain;
         memcpy(groundID, &map->grounds[layer], 4);
-        LPCSTR dir = ri.FindSheetCell(tr.sheet[SHEET_TERRAIN], groundID, "dir");
-        LPCSTR file = ri.FindSheetCell(tr.sheet[SHEET_TERRAIN], groundID, "file");
-        if (file && dir) {
-            sprintf(zBuffer, "%s\\%s.blp", dir, file);
+        terrain = R_GameTerrainArt(FS_SLKKey(groundID));
+        if (terrain->file && terrain->dir) {
+            sprintf(zBuffer, "%s\\%s.blp", terrain->dir, terrain->file);
             g_groundTextures[layer] = R_LoadTexture(zBuffer);
         } else {
             return NULL;

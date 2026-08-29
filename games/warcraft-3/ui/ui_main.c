@@ -7,6 +7,7 @@
 
 #include "ui_local.h"
 #include "ui_screen.h"
+#include "common/stb_slk.h"
 #include "generated/loading_screen.h"
 
 /* Global import table filled by UI_GetAPI */
@@ -299,11 +300,12 @@ static void UI_EnterGameMode(void) {
 
 /* LoadingScreens rows describe the model/sequence; TFT adds an expansion category before the display label. */
 static DWORD UI_LoadCampaignLoadingModel(DWORD background, DWORD *sequence) {
-    sheetRow_t *data = FS_ParseINI("UI\\WorldEditData.txt");
+    static stbIniCache_t data;
+    if (!data.source) Stb_IniCacheLoad(&data, "UI\\WorldEditData.txt");
     char key[8];
     PATHSTR model;
     snprintf(key, sizeof(key), "%02u", (unsigned)background);
-    LPCSTR row = FS_FindSheetCell(data, "LoadingScreens", key);
+    LPCSTR row = Stb_IniCacheFind(&data, "LoadingScreens", key);
     if (!UI_ParseLoadingRow(row, sequence, model)) {
         fprintf(stderr, "UI: invalid LoadingScreens[%s]: %s\n", key, row ? row : "(missing)");
         return 0;

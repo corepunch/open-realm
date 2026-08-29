@@ -57,26 +57,12 @@ LPCSTR miscdata_files[] = {
 };
 
 static void InitMiscValue(LPCSTR name, FLOAT *dest) {
-    LPCSTR strvalue = FS_FindSheetCell(game.config.misc, "Misc", name);
+    LPCSTR strvalue = Stb_IniCacheFind(&game.config.misc, "Misc", name);
     *dest = strvalue ? atof(strvalue) : 0;
 }
 
 static void InitConstants(void) {
-    sheetRow_t *miscTail = NULL;
-
-    for (LPCSTR *config = miscdata_files; *config; config++) {
-        sheetRow_t *current = FS_ParseINI(*config);
-        if (current) {
-            sheetRow_t *currentTail = G_SheetTail(current);
-
-            if (miscTail) {
-                miscTail->next = current;
-            } else {
-                game.config.misc = current;
-            }
-            miscTail = currentTail;
-        }
-    }
+    Stb_IniCacheLoadFiles(&game.config.misc, miscdata_files);
     InitMiscValue("AttackHalfAngle", &game.constants.attackHalfAngle);
     InitMiscValue("MaxCollisionRadius", &game.constants.maxCollisionRadius);
     InitMiscValue("DecayTime", &game.constants.decayTime);
@@ -166,7 +152,7 @@ static void G_InitGame(void) {
 
     game.max_clients = globals.max_clients;
     game.clients = gi.MemAlloc(game.max_clients * sizeof(GAMECLIENT));
-    game.config.theme = FS_ParseINI("UI\\war3skins.txt");
+    Stb_IniCacheLoad(&game.config.theme, "UI\\war3skins.txt");
     InitConstants();
     InitUnitData();
     InitAbilities();
@@ -185,6 +171,7 @@ static void G_ShutdownGame(void) {
     globals.num_edicts = 0;
 
     ShutdownUnitData();
+    Stb_IniCacheFree(&game.config.theme); Stb_IniCacheFree(&game.config.misc);
     SAFE_DELETE(game.clients, gi.MemFree);
 }
 
@@ -330,7 +317,7 @@ static void G_RunFrame(void) {
 static LPCSTR G_GetThemeValue(LPCSTR filename) {
     LPCSTR skinned = NULL;
     if (!strstr(filename, "\\")) {
-        skinned = FS_FindSheetCell(game.config.theme, "Default", filename);
+        skinned = Stb_IniCacheFind(&game.config.theme, "Default", filename);
     }
     return skinned ? skinned : filename;
 }

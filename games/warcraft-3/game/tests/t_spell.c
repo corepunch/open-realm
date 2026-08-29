@@ -6,8 +6,8 @@
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
 void reset_entities(void);
 void setup_test_world(void);
-sheetRow_t *parse_slk_string(const char *slk_text);
-void free_slk_rows(sheetRow_t *rows);
+slkTestData_t *parse_slk_string(const char *slk_text);
+void free_slk_rows(slkTestData_t *rows);
 
 static const char slk_spell_data[] =
 	"ID;PWXL;N;EBB;Y2;X11\n"
@@ -142,16 +142,16 @@ TEST(wc3_spell, spell_unit_id_from_slk) {
 		"C;Y2;X2;K\"AHwe\"\n"
 		"C;Y2;X3;K\"hwat\"\n"
 		"E\n";
-	sheetRow_t *rows = parse_slk_string(slk);
-	sheetRow_t *old = G_SetSLKRows("AbilityData", rows);
+	slkTestData_t *rows = parse_slk_string(slk);
+	slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
 	T_EQ((int)S_SpellUnitId(MAKEFOURCC('A','H','w','e'), 1), (int)MAKEFOURCC('h','w','a','t'));
 	G_SetSLKRows("AbilityData", old);
 	free_slk_rows(rows);
 }
 
 TEST(wc3_spell, hero_duration_uses_herodur_col) {
-	sheetRow_t *rows = parse_slk_string(slk_spell_data);
-	sheetRow_t *old = G_SetSLKRows("AbilityData", rows);
+	slkTestData_t *rows = parse_slk_string(slk_spell_data);
+	slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
 	T_FEQ(S_SpellDuration(MAKEFOURCC('A','H','t','b'), 1, true), 3.0f, 0.01f);
 	T_FEQ(S_SpellDuration(MAKEFOURCC('A','H','t','b'), 1, false), 5.0f, 0.01f);
 	G_SetSLKRows("AbilityData", old);

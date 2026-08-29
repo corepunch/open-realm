@@ -3,6 +3,7 @@
 #include <ctype.h>
 
 #include "common/common.h"
+#include "games/warcraft-3/common/stb_slk.h"
 
 #define MAX_INI_LINE 1024
 #define MAX_SHEET_COLUMNS 256
@@ -14,10 +15,26 @@ typedef struct SheetCell {
     LPSHEET next;
 } sheetCell_t;
 
-typedef struct sheet_cache_entry_s {
-    char *name;
+typedef struct sheet_field_s {
+    LPCSTR name, value;
+    struct sheet_field_s *next;
+} sheetField_t;
+
+typedef struct sheet_row_s {
+    LPCSTR name;
+    sheetField_t *fields;
+    struct sheet_row_s *next;
+} sheetRow_t;
+
+typedef struct sheet_table_s {
     sheetRow_t *rows;
     sheetRow_t *tail;
+    struct sheet_table_s *next;
+} sheetTable_t;
+
+typedef struct sheet_cache_entry_s {
+    char *name;
+    sheetTable_t *sheet;
     struct sheet_cache_entry_s *next;
 } sheet_cache_entry_t;
 
@@ -32,7 +49,6 @@ static LPSHEET previous_cell = cells;
 static sheetRow_t *current_row = rows;
 static sheetField_t *current_field = fields;
 static sheet_cache_entry_t *sheet_cache = NULL;
-static sheetRow_t *last_parsed_sheet_tail = NULL;
 
 static LPSTR SheetStoreTextRange(LPCSTR text, size_t len) {
     LPSTR out = current_text;
@@ -76,7 +92,7 @@ static void NormalizeSheetKey(const char *src, char *dst, size_t dst_size)
     dst[i] = '\0';
 }
 
-static sheetRow_t *SheetCacheLookup(LPCSTR fileName, sheetRow_t **tailOut)
+static sheetTable_t *SheetCacheLookup(LPCSTR fileName)
 {
     char key[256];
     sheet_cache_entry_t *entry;
@@ -84,24 +100,18 @@ static sheetRow_t *SheetCacheLookup(LPCSTR fileName, sheetRow_t **tailOut)
     NormalizeSheetKey(fileName, key, sizeof(key));
     for (entry = sheet_cache; entry; entry = entry->next) {
         if (!strcmp(entry->name, key)) {
-            if (tailOut) {
-                *tailOut = entry->tail;
-            }
-            return entry->rows;
+            return entry->sheet;
         }
-    }
-    if (tailOut) {
-        *tailOut = NULL;
     }
     return NULL;
 }
 
-static void SheetCacheStore(LPCSTR fileName, sheetRow_t *rows, sheetRow_t *tail)
+static void SheetCacheStore(LPCSTR fileName, sheetTable_t *sheet)
 {
     char key[256];
     sheet_cache_entry_t *entry;
 
-    if (!rows) {
+    if (!sheet) {
         return;
     }
 
@@ -116,10 +126,23 @@ static void SheetCacheStore(LPCSTR fileName, sheetRow_t *rows, sheetRow_t *tail)
         return;
     }
     memcpy(entry->name, key, strlen(key) + 1);
-    entry->rows = rows;
-    entry->tail = tail ? tail : rows;
+    entry->sheet = sheet;
     entry->next = sheet_cache;
     sheet_cache = entry;
+}
+
+static sheetTable_t *FS_MakeTable(sheetRow_t *rows, sheetRow_t *tail)
+{
+    sheetTable_t *table = (sheetTable_t *)malloc(sizeof(*table));
+
+    if (!table) {
+        fprintf(stderr, "Sheet: out of memory creating table handle\n");
+        return NULL;
+    }
+    table->rows = rows;
+    table->tail = tail;
+    table->next = NULL;
+    return table;
 }
 
 /* Scan one semicolon-delimited SLK record field from *p up to end.
@@ -182,7 +205,7 @@ static void FS_FillSheetCell(DWORD x, DWORD y, LPCSTR text) {
     current_cell++;
 }
 
-sheetRow_t *FS_MakeRowsFromSheet(LPSHEET sheet) {
+static sheetTable_t *FS_MakeRowsFromSheet(LPSHEET sheet) {
     LPCSTR columns[256] = { 0 };
     sheetRow_t *start = NULL;
     sheetRow_t *last_row = NULL;
@@ -250,11 +273,10 @@ sheetRow_t *FS_MakeRowsFromSheet(LPSHEET sheet) {
     }
 
     free(rows_by_number);
-    last_parsed_sheet_tail = last_row;
-    return start;
+    return FS_MakeTable(start, last_row);
 }
 
-sheetRow_t *FS_ParseSLK_Buffer(LPCSTR buffer)
+static sheetTable_t *FS_ParseSLK_Buffer(LPCSTR buffer)
 {
     LPSHEET start = current_cell;
     DWORD X = 1, Y = 1;
@@ -295,48 +317,43 @@ sheetRow_t *FS_ParseSLK_Buffer(LPCSTR buffer)
         previous_cell->next = NULL;
         return FS_MakeRowsFromSheet(start);
     }
-    last_parsed_sheet_tail = NULL;
     return NULL;
 }
 
 
-sheetRow_t *FS_ParseSLK(LPCSTR fileName) {
-    sheetRow_t *cachedTail = NULL;
-    sheetRow_t *cached = SheetCacheLookup(fileName, &cachedTail);
+static sheetTable_t *FS_ParseSLK(LPCSTR fileName) {
+    sheetTable_t *cached = SheetCacheLookup(fileName);
     LPSTR buffer;
-    sheetRow_t *rows;
+    sheetTable_t *sheet;
 
-    if (cached) {
-        last_parsed_sheet_tail = cachedTail;
-        return cached;
-    }
+    if (cached) return cached;
 
     buffer = FS_ReadFileIntoString(fileName);
     if (!buffer) {
         return NULL;
     }
-    rows = FS_ParseSLK_Buffer(buffer);
+    sheet = FS_ParseSLK_Buffer(buffer);
     FS_FreeFileString(buffer);
-    if (rows) {
-        SheetCacheStore(fileName, rows, last_parsed_sheet_tail);
-    }
-    return rows;
+    if (sheet) SheetCacheStore(fileName, sheet);
+    return sheet;
 }
 
-LPCSTR FS_FindSheetCell(sheetRow_t *sheet, LPCSTR row, LPCSTR column) {
-    FOR_EACH_LIST(sheetRow_t const, srow, sheet) {
-        if (strcmp(srow->name, row))
-            continue;
-        FOR_EACH_LIST(sheetField_t const, scolumn, srow->fields) {
-            if (strcasecmp(scolumn->name, column))
+static LPCSTR FS_FindSheetCell(sheetTable_t const *sheet, LPCSTR row, LPCSTR column) {
+    for (; sheet; sheet = sheet->next) {
+        FOR_EACH_LIST(sheetRow_t const, srow, sheet->rows) {
+            if (strcmp(srow->name, row))
                 continue;
-            return scolumn->value;
+            FOR_EACH_LIST(sheetField_t const, scolumn, srow->fields) {
+                if (strcasecmp(scolumn->name, column))
+                    continue;
+                return scolumn->value;
+            }
         }
     }
     return NULL;
 }
 
-static sheetRow_t *FS_ParseINI_Buffer(LPCSTR buffer) {
+static sheetTable_t *FS_ParseINI_Buffer(LPCSTR buffer) {
     LPCSTR p = buffer;
     sheetRow_t *start = current_row;
     sheetRow_t *section = NULL;
@@ -394,44 +411,190 @@ static sheetRow_t *FS_ParseINI_Buffer(LPCSTR buffer) {
             }
         }
     }
-    if (current_row != start) {
-        last_parsed_sheet_tail = section;
-        if (section) {
-            section->next = NULL;
-        }
-        return start;
-    }
-
-    last_parsed_sheet_tail = NULL;
-    return NULL;
+    if (current_row == start)
+        return NULL;
+    if (section)
+        section->next = NULL;
+    return FS_MakeTable(start, section);
 }
 
-sheetRow_t *FS_ParseINI(LPCSTR fileName) {
-    sheetRow_t *cachedTail = NULL;
-    sheetRow_t *cached = SheetCacheLookup(fileName, &cachedTail);
+static sheetTable_t *FS_ParseINI(LPCSTR fileName) {
+    sheetTable_t *cached = SheetCacheLookup(fileName);
     LPSTR buffer;
 
-    if (cached) {
-        last_parsed_sheet_tail = cachedTail;
-        return cached;
-    }
+    if (cached) return cached;
 
     buffer = FS_ReadFileIntoString(fileName);
     if (!buffer) {
         return NULL;
     }
 //    printf("%")
-    sheetRow_t *config = FS_ParseINI_Buffer(buffer);
+    sheetTable_t *config = FS_ParseINI_Buffer(buffer);
     if (!config) {
         fprintf(stderr, "Failed to parse %s\n", fileName);
     } else {
-        SheetCacheStore(fileName, config, last_parsed_sheet_tail);
+        SheetCacheStore(fileName, config);
     }
     FS_FreeFileString(buffer);
     return config;
 }
 
-sheetRow_t *FS_GetParsedSheetTail(void)
+static void FS_AppendSheetTable(sheetTable_t **head, sheetTable_t **tail, sheetTable_t *sheet)
 {
-    return last_parsed_sheet_tail;
+    if (!sheet)
+        return;
+    if (*tail)
+        (*tail)->next = sheet;
+    else
+        *head = sheet;
+    *tail = sheet;
+    while ((*tail)->next)
+        *tail = (*tail)->next;
+}
+
+static void SheetSetTypedField(BYTE *dst, bzFieldType_t type, LPCSTR value, LPCSTR field_name)
+{
+    switch (type) {
+    case BZ_FIELD_U32: *(DWORD *)dst = value ? (DWORD)atoi(value) : 0; break;
+    case BZ_FIELD_FLOAT: *(FLOAT *)dst = value ? (FLOAT)atof(value) : 0.f; break;
+    case BZ_FIELD_BOOL: *(BOOL *)dst = value && (atoi(value) != 0 || !strcasecmp(value, "TRUE")); break;
+    case BZ_FIELD_CSTR: {
+        size_t len = value ? strlen(value) : 0;
+        LPSTR str = (LPSTR)malloc(len + 1);
+        if (!str) { fprintf(stderr, "SLK: out of memory copying field '%s'\n", field_name ? field_name : ""); break; }
+        memcpy(str, value ? value : "", len + 1);
+        free(*(void **)dst);
+        *(LPSTR *)dst = str;
+        break;
+    }
+    case BZ_FIELD_FOURCC: {
+        DWORD key = 0;
+        if (value) {
+            size_t n = strlen(value);
+            memcpy(&key, value, n < 4 ? n : 4);
+        }
+        *(DWORD *)dst = key;
+        break;
+    }
+    default: break;
+    }
+}
+
+static void *FS_LoadSheetTyped(sheetTable_t const *sheet, slkField_t const *schema, size_t row_size, DWORD *count_out)
+{
+    DWORD capacity = 0, out_count = 0;
+    LPCSTR *seen_names;
+    BYTE *rows_out;
+
+    if (count_out)
+        *count_out = 0;
+    if (!sheet || !schema || !row_size)
+        return NULL;
+
+    for (sheetTable_t const *table = sheet; table; table = table->next)
+        FOR_EACH_LIST(sheetRow_t const, row, table->rows) if (row->name && row->name[0]) capacity++;
+    if (!capacity)
+        return NULL;
+
+    seen_names = (LPCSTR *)calloc(capacity, sizeof(*seen_names));
+    rows_out = (BYTE *)calloc(capacity, row_size);
+    if (!seen_names || !rows_out) {
+        fprintf(stderr, "SLK: out of memory allocating %u decoded rows\n", capacity);
+        free(seen_names);
+        free(rows_out);
+        return NULL;
+    }
+
+    for (sheetTable_t const *table = sheet; table; table = table->next) {
+        FOR_EACH_LIST(sheetRow_t const, row, table->rows) {
+            BYTE *dst;
+            bool seen = false;
+
+            if (!row->name || !row->name[0])
+                continue;
+            FOR_LOOP(i, out_count) {
+                if (!strcmp(seen_names[i], row->name)) {
+                    seen = true;
+                    break;
+                }
+            }
+            if (seen)
+                continue;
+
+            seen_names[out_count] = row->name;
+            dst = rows_out + out_count * row_size;
+
+            for (slkField_t const *field = schema; field->column; field++) {
+                LPCSTR value;
+                BYTE *field_dst = dst + field->offset;
+
+                if (!field->column[0]) {
+                    SheetSetTypedField(field_dst, field->type, row->name, field->column);
+                    continue;
+                }
+                value = FS_FindSheetCell(sheet, row->name, field->column);
+                if (!value)
+                    continue;
+                SheetSetTypedField(field_dst, field->type, value, field->column);
+            }
+            out_count++;
+        }
+    }
+
+    free(seen_names);
+    if (!out_count) {
+        free(rows_out);
+        return NULL;
+    }
+    if (count_out)
+        *count_out = out_count;
+    return rows_out;
+}
+
+static BOOL SheetDecodeCache(stbSlkCache_t *cache, sheetTable_t *source,
+                             slkField_t const *schema, DWORD row_stride) {
+    if (!cache || !source || !schema || !row_stride) return false;
+    cache->rows = FS_LoadSheetTyped(source, schema, row_stride, &cache->count);
+    if (!cache->rows) return false;
+    cache->source = source; cache->schema = schema; cache->row_stride = row_stride;
+    for (slkField_t const *field = schema; field->column; field++)
+        if (!field->column[0] && field->type == STB_SLK_FOURCC) {
+            cache->key_offset = field->offset; cache->has_key = true; break;
+        }
+    return true;
+}
+
+BOOL Stb_SlkCacheLoad(stbSlkCache_t *cache, LPCSTR filename, slkField_t const *schema, DWORD row_stride) {
+    return SheetDecodeCache(cache, FS_ParseSLK(filename), schema, row_stride);
+}
+
+BOOL Stb_SlkCacheLoadBuffer(stbSlkCache_t *cache, LPCSTR buffer, slkField_t const *schema, DWORD row_stride) {
+    return SheetDecodeCache(cache, FS_ParseSLK_Buffer(buffer), schema, row_stride);
+}
+
+BOOL Stb_IniCacheLoad(stbIniCache_t *cache, LPCSTR filename) {
+    if (!cache || !filename) return false;
+    cache->source = FS_ParseINI(filename);
+    return cache->source != NULL;
+}
+
+BOOL Stb_IniCacheLoadFiles(stbIniCache_t *cache, LPCSTR const *filenames) {
+    sheetTable_t *head = NULL, *tail = NULL;
+    if (!cache || !filenames) return false;
+    for (; *filenames; filenames++) FS_AppendSheetTable(&head, &tail, FS_ParseINI(*filenames));
+    cache->source = head;
+    return head != NULL;
+}
+
+BOOL Stb_IniCacheDecode(stbIniCache_t const *ini, stbSlkCache_t *cache,
+                        slkField_t const *schema, DWORD row_stride) {
+    return ini && SheetDecodeCache(cache, ini->source, schema, row_stride);
+}
+
+LPCSTR Stb_IniCacheFind(stbIniCache_t const *cache, LPCSTR section, LPCSTR key) {
+    return cache ? FS_FindSheetCell(cache->source, section, key) : NULL;
+}
+
+void Stb_IniCacheFree(stbIniCache_t *cache) {
+    if (cache) cache->source = NULL;
 }

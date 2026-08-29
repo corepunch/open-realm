@@ -2,27 +2,12 @@
  * stb_slk.h — Schema-driven SLK / INI row decoder for Warcraft III.
  *
  * Mirrors stb_dbc.h's stbDbcField_t / Stb_DbcParseRows pattern but for
- * string-keyed columnar data (sheetRow_t linked lists produced by
- * FS_ParseSLK / FS_ParseINI).  Source readers still own file I/O and the
- * linked-list representation; this header converts that representation into
- * typed C structs for direct struct-field access instead of per-call
- * FS_FindSheetCell + atoi / atof.
- *
- * Typical use — decode:
- *
- *   static slkField_t const balance_schema[] = {
- *       { "realHP",    offsetof(UnitBalance_t, realHP),    BZ_FIELD_FLOAT },
- *       { "spd",       offsetof(UnitBalance_t, spd),       BZ_FIELD_FLOAT },
- *       { "regenType", offsetof(UnitBalance_t, regenType), BZ_FIELD_CSTR  },
- *   };
- *   UnitBalance_t row = {0};
- *   FS_SLKDecodeRow(slk_row, balance_schema,
- *       sizeof(balance_schema)/sizeof(balance_schema[0]), &row);
+ * string-keyed columnar data decoded through slkField_t DDX schemas.
  *
  * Typical use — index (after decoding all rows into a flat array `rows`):
  *
  *   slkIndex_t idx = {0};
- *   FS_SLKBuildIndex(&idx, head, rows, n, sizeof(UnitBalance_t));
+ *   FS_SLKBuildIndex(&idx, rows, n, sizeof(UnitBalance_t));
  *   UnitBalance_t *r = FS_SLKLookup(&idx, unit_fourcc);
  *
  * The index uses a sorted key array with binary search; callers must
@@ -46,69 +31,40 @@
 #define STB_SLK_STR    BZ_FIELD_CSTR   /* owned string; freed with FS_SLKFreeRows */
 #define STB_SLK_FOURCC BZ_FIELD_FOURCC /* 4-char text → DWORD via memcpy (LE)   */
 
-/* -------------------------------------------------------------------------
- * Schema entry — one SLK column → one struct field.
- * Mirrors stbDbcField_t but with a string column key.
- * -------------------------------------------------------------------------*/
-typedef struct {
+/* Schema entry — one SLK/INI key → one struct field. */
+typedef struct slkField_s {
     LPCSTR        column;  /* SLK column header (Y=1 text) or INI key name */
     ptrdiff_t     offset;  /* offsetof(RowStruct, field)                   */
     bzFieldType_t type;
     LPCSTR        id;      /* optional four-character object-data field ID */
 } slkField_t;
 
-/* -------------------------------------------------------------------------
- * FS_SLKDecodeRow — fill one struct from a sheetRow_t using a schema.
- *
- * schema is NULL-terminated (last entry has .column == NULL), following the
- * Quake 2 zero-sentinel field-table convention.  For each field in `row`,
- * a linear scan finds the first matching schema entry (case-insensitive) and
- * writes the converted value into *out at the given offset.  Unmatched row
- * fields are silently ignored; unmatched schema entries leave the struct
- * field at its initialised value (caller should zero the struct first).
- * -------------------------------------------------------------------------*/
-static inline void FS_SLKDecodeRow(sheetRow_t const *row,
-                                   slkField_t const *schema,
-                                   void *out) {
-    if (!row || !schema || !out) return;
-    for (slkField_t const *s = schema; s->column; s++) {
-        if (*s->column) continue;
-        if (s->type == BZ_FIELD_CSTR) {
-            size_t len = strlen(row->name); LPSTR value = (LPSTR)malloc(len + 1);
-            if (!value) { fprintf(stderr, "SLK: out of memory copying row name '%s'\n", row->name); continue; }
-            memcpy(value, row->name, len + 1); *(LPSTR *)((BYTE *)out + s->offset) = value;
-        }
-    }
-    FOR_EACH_LIST(sheetField_t const, f, row->fields) {
-        for (slkField_t const *s = schema; s->column; s++) {
-            if (strcasecmp(f->name, s->column)) continue;
-            BYTE *dst = (BYTE *)out + s->offset;
-            switch (s->type) {
-            case BZ_FIELD_U32:
-                *(DWORD *)dst = f->value ? (DWORD)atoi(f->value) : 0; break;
-            case BZ_FIELD_FLOAT:
-                *(FLOAT *)dst = f->value ? (FLOAT)atof(f->value) : 0.f; break;
-            case BZ_FIELD_BOOL:
-                *(BOOL *)dst = f->value &&
-                    (atoi(f->value) != 0 || !strcmp(f->value, "TRUE")); break;
-            case BZ_FIELD_CSTR: {
-                size_t len = f->value ? strlen(f->value) : 0;
-                LPSTR value = (LPSTR)malloc(len + 1);
-                if (!value) { fprintf(stderr, "SLK: out of memory copying field '%s'\n", f->name); break; }
-                memcpy(value, f->value ? f->value : "", len + 1);
-                free(*(void **)dst); *(LPSTR *)dst = value; break;
-            }
-            case BZ_FIELD_FOURCC: {
-                DWORD k = 0;
-                if (f->value) { size_t n = strlen(f->value); memcpy(&k, f->value, n < 4 ? n : 4); }
-                *(DWORD *)dst = k; break;
-            }
-            default: break;
-            }
-            break; /* matched — move to next field */
-        }
-    }
-}
+/* Stateful typed-table cache, matching stbDbcCache_t ownership.  `source` is
+ * parser-private; consumers only read decoded rows or query the index. */
+typedef struct {
+    void *source;
+    void *rows;
+    slkField_t const *schema;
+    DWORD count, row_stride;
+    ptrdiff_t key_offset;
+    BOOL has_key;
+} stbSlkCache_t;
+
+/* INI files are runtime-keyed dictionaries, so keep their parser state opaque
+ * and expose lookup rather than pretending every file has a fixed row type. */
+typedef struct { void *source; } stbIniCache_t;
+
+#define STB_SLK_ROW(cache, T, idx) \
+    ((T const *)((BYTE const *)(cache).rows + (size_t)(idx) * (cache).row_stride))
+
+BOOL Stb_SlkCacheLoad(stbSlkCache_t *cache, LPCSTR filename, slkField_t const *schema, DWORD row_stride);
+BOOL Stb_SlkCacheLoadBuffer(stbSlkCache_t *cache, LPCSTR buffer, slkField_t const *schema, DWORD row_stride);
+BOOL Stb_IniCacheLoad(stbIniCache_t *cache, LPCSTR filename);
+BOOL Stb_IniCacheLoadFiles(stbIniCache_t *cache, LPCSTR const *filenames);
+BOOL Stb_IniCacheDecode(stbIniCache_t const *ini, stbSlkCache_t *cache,
+                        slkField_t const *schema, DWORD row_stride);
+LPCSTR Stb_IniCacheFind(stbIniCache_t const *cache, LPCSTR section, LPCSTR key);
+void Stb_IniCacheFree(stbIniCache_t *cache);
 
 /* -------------------------------------------------------------------------
  * FOURCC key helpers — convert a 4-char unit-code string to a DWORD for
@@ -138,18 +94,22 @@ static inline void FS_SLKFreeRows(slkField_t const *schema, void *rows, DWORD co
     free(rows);
 }
 
+static inline void Stb_SlkCacheFree(stbSlkCache_t *cache) {
+    if (!cache) return;
+    FS_SLKFreeRows(cache->schema, cache->rows, cache->count, cache->row_stride);
+    memset(cache, 0, sizeof(*cache));
+}
+
 /* -------------------------------------------------------------------------
  * Sorted lookup index — parallel key[] / row[] arrays for binary search.
  * Not heap-owning: rows[] points into the caller's decoded array.
  * -------------------------------------------------------------------------*/
 typedef struct { DWORD *keys; void **rows; DWORD count; } slkIndex_t;
 
-/* Build the sorted index from a decoded row array `rows_base` (flat, stride
- * bytes between rows) paired with the original sheetRow_t list (for keys).
- * Assumes one-to-one correspondence between `head` and `rows_base[0..n-1]`. */
-static inline void FS_SLKBuildIndex(slkIndex_t *idx, sheetRow_t const *head,
-                                    void *rows_base, DWORD n, size_t stride) {
-    if (!idx || !head || !rows_base || !n) return;
+/* Build the sorted index from a decoded row array whose first field is its
+ * FOURCC key.  Typed SLK rows own their identity; parser rows stay private. */
+static inline void FS_SLKBuildIndex(slkIndex_t *idx, void *rows_base, DWORD n, size_t stride) {
+    if (!idx || !rows_base || !n) return;
     idx->keys = (DWORD *)malloc(n * sizeof(DWORD));
     idx->rows = (void **)malloc(n * sizeof(void *));
     if (!idx->keys || !idx->rows) {
@@ -158,14 +118,11 @@ static inline void FS_SLKBuildIndex(slkIndex_t *idx, sheetRow_t const *head,
         idx->keys = NULL; idx->rows = NULL; idx->count = 0;
         return;
     }
-    DWORD i = 0;
-    FOR_EACH_LIST(sheetRow_t const, r, head) {
-        if (i >= n) break;
-        idx->keys[i] = FS_SLKKey(r->name);
+    FOR_LOOP(i, n) {
         idx->rows[i] = (BYTE *)rows_base + i * stride;
-        i++;
+        idx->keys[i] = *(DWORD *)idx->rows[i];
     }
-    idx->count = i;
+    idx->count = n;
     /* Sort both arrays together by key using an index-sort. */
     /* Simple insertion sort — ~1000 units, negligible at load time. */
     for (DWORD j = 1; j < idx->count; j++) {
@@ -189,6 +146,15 @@ static inline void *FS_SLKLookup(slkIndex_t const *idx, DWORD key) {
         if      (idx->keys[mid] < key) lo = mid + 1;
         else if (idx->keys[mid] > key) hi = mid;
         else return idx->rows[mid];
+    }
+    return NULL;
+}
+
+static inline void *Stb_SlkCacheFind(stbSlkCache_t const *cache, DWORD key) {
+    if (!cache || !cache->rows || !cache->has_key) return NULL;
+    FOR_LOOP(i, cache->count) {
+        BYTE *row = (BYTE *)cache->rows + i * cache->row_stride;
+        if (*(DWORD *)(row + cache->key_offset) == key) return row;
     }
     return NULL;
 }

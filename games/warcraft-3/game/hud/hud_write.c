@@ -253,8 +253,8 @@ BZ_HOST_HIDDEN DWORD UI_LoadTexture(LPCSTR path, BOOL forcewrap) {
 
 BZ_HOST_HIDDEN LPCSTR Theme_String(LPCSTR key, LPCSTR def) {
     LPCSTR value = NULL;
-    if (key && !strstr(key, "\\") && game.config.theme) {
-        value = FS_FindSheetCell(game.config.theme, "Default", key);
+    if (key && !strstr(key, "\\") && game.config.theme.source) {
+        value = Stb_IniCacheFind(&game.config.theme, "Default", key);
     }
     return value ? value : def;
 }

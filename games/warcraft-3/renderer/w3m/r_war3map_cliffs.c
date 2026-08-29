@@ -42,6 +42,7 @@ static LPVERTEX R_CliffBakeVertex(rCliffBakeList_t *list) {
 
 #include "r_war3map.h"
 #include "../mdx/r_mdx.h"
+#include "common/stb_slk.h"
 
 #define SAME_TILE 852063
 #define NO_CLIFF MAKEFOURCC('C','L','n','o')
@@ -274,15 +275,17 @@ LPMAPLAYER R_BuildMapSegmentCliffs(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD cli
 
     LPMAPLAYER mapLayer = ri.MemAlloc(sizeof(MAPLAYER));
     char cliffID_str[5] = { 0 };
+    w3CliffType_t const *row;
     memcpy(cliffID_str, &cliffID, 4);
+    row = R_GameCliffType(FS_SLKKey(cliffID_str));
     cliffData_t data = {
         .cliff = cliff,
-        .texDir = ri.FindSheetCell(tr.sheet[SHEET_CLIFF], cliffID_str, "texDir"),
-        .texFile = ri.FindSheetCell(tr.sheet[SHEET_CLIFF], cliffID_str, "texFile"),
-        .groundTile = ri.FindSheetCell(tr.sheet[SHEET_CLIFF], cliffID_str, "groundTile"),
-        .upperTile = ri.FindSheetCell(tr.sheet[SHEET_CLIFF], cliffID_str, "upperTile"),
-        .rampModelDir = ri.FindSheetCell(tr.sheet[SHEET_CLIFF], cliffID_str, "rampModelDir"),
-        .cliffModelDir = ri.FindSheetCell(tr.sheet[SHEET_CLIFF], cliffID_str, "cliffModelDir"),
+        .texDir = row->texDir,
+        .texFile = row->texFile,
+        .groundTile = row->groundTile,
+        .upperTile = row->upperTile,
+        .rampModelDir = row->rampModelDir,
+        .cliffModelDir = row->cliffModelDir,
     };
     mapLayer->type = MAPLAYERTYPE_CLIFF;
     cliffs_current_vertex = cliffs_vertex_buffer;

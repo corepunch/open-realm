@@ -19,7 +19,7 @@ DWORD G_ItemTypeFromClass(LPCSTR cls) {
 }
 
 static FLOAT G_MiscVectorValue(LPCSTR name, DWORD index) {
-    LPCSTR value = FS_FindSheetCell(game.config.misc, "Misc", name);
+    LPCSTR value = Stb_IniCacheFind(&game.config.misc, "Misc", name);
     if (!value) {
         return 0;
     }
@@ -92,7 +92,7 @@ void SP_SpawnItem(LPEDICT self) {
     }
     self->s.radius = self->ItemData->selectionSize;
 #ifndef USE_SHADOWMAPS
-    self->s.shadow = G_LoadShadowTexture(FS_FindSheetCell(game.config.misc, "Misc", "ItemShadowFile"), false);
+    self->s.shadow = G_LoadShadowTexture(Stb_IniCacheFind(&game.config.misc, "Misc", "ItemShadowFile"), false);
     self->s.shadow_rect = ShadowPackRect(
         G_MiscVectorValue("ItemShadowOffset", 0),
         G_MiscVectorValue("ItemShadowOffset", 1),

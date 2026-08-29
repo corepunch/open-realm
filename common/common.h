@@ -1,6 +1,8 @@
 #ifndef __common_h__
 #define __common_h__
 
+#include <stddef.h>
+
 #include "shared.h"
 #include "net.h"
 #include "mpq.h"
@@ -204,11 +206,6 @@ typedef struct {
 } SHEETHOST;
 
 void FS_SetSheetHost(SHEETHOST const *host);
-sheetRow_t *FS_ParseINI(LPCSTR fileName);
-sheetRow_t *FS_ParseSLK(LPCSTR fileName);
-sheetRow_t *FS_ParseSLK_Buffer(LPCSTR buffer);
-LPCSTR FS_FindSheetCell(sheetRow_t *sheet, LPCSTR row, LPCSTR column);
-sheetRow_t *FS_GetParsedSheetTail(void);
 
 void CL_Init(void);
 void CL_Frame(DWORD msec);

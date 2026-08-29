@@ -2,6 +2,19 @@
 
 Read this when working on unit stats, combat, abilities, hero systems, pathfinding, or any code that reads from SLK/metadata tables.
 
+## SLK And INI Loading
+
+WC3 table loading follows the same boundary as `stb_dbc.h`: callers declare a `slkField_t` schema and own an
+`stbSlkCache_t` containing only decoded typed rows. `Stb_SlkCacheLoad` and `Stb_SlkCacheLoadBuffer` perform file parsing
+and decoding; `Stb_SlkCacheFind` resolves an explicitly declared FOURCC row key; `Stb_SlkCacheFree` releases owned
+strings and rows. The row key is a normal schema entry with an empty column name and `STB_SLK_FOURCC`; the loader never
+writes an implicit key into byte zero.
+
+INI files with fixed row layouts use `Stb_IniCacheDecode` into an `stbSlkCache_t`. Dynamic dictionaries such as skin,
+miscellaneous, command, and ability text files remain `stbIniCache_t` values queried through `Stb_IniCacheFind`.
+`sheetRow_t`, fields, linked lists, and append operations are private implementation details of
+`games/warcraft-3/sheet/sheet.c` and must not cross the parser boundary.
+
 ## The Base-vs-Computed Column Trap
 
 Several UnitBalance.slk columns exist in both a **base** form and a **computed** (real) form. The base column is the editor-entered value; the computed column includes bonuses (hero attributes, etc.). Always read the computed column at runtime — base values are 0 or wrong for heroes.

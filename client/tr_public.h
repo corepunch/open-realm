@@ -81,6 +81,7 @@ typedef struct drawBackdrop_s {
 typedef drawText_t const *LPCDRAWTEXT;
 typedef drawImage_t const *LPCDRAWIMAGE;
 typedef drawBackdrop_t const *LPCDRAWBACKDROP;
+#include "games/warcraft-3/common/stb_slk.h"
 
 typedef struct {
     // Quake 3-style file API: renderer is archive-agnostic
@@ -93,8 +94,7 @@ typedef struct {
     
     HANDLE (*MemAlloc)(long size);
     void (*MemFree)(HANDLE);
-    sheetRow_t *(*ReadSheet)(LPCSTR sheetFilename);
-    LPCSTR (*FindSheetCell)(sheetRow_t *sheet, LPCSTR row, LPCSTR column);
+    BOOL (*LoadSlkCache)(stbSlkCache_t *cache, LPCSTR filename, slkField_t const *schema, DWORD row_stride);
     LPCSTR (*CvarString)(LPCSTR name, LPCSTR fallback);
     void (*error)(LPCSTR fmt, ...);
 } refImport_t;
