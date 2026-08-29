@@ -31,6 +31,7 @@ typedef struct {
     LPCJASSMODULE natives;
     LPCJASSMODULE galaxy_natives;
     struct playerState_s *(*GetPlayerByNumber)(DWORD number);
+    void (*RuntimeError)(LPCSTR message);
 } JASSHOST;
 
 /* VM lifecycle */

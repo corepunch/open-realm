@@ -73,11 +73,20 @@ extern ability_t a_item_level_gain;
 extern ability_t a_flame_strike;
 extern ability_t a_siphon_mana;
 
-FLOAT AB_Number(LPCSTR classname, LPCSTR field);
 FLOAT AB_Data(LPCSTR classname, DWORD level, DWORD index);
+
+typedef enum {
+	ABILITY_NUMBER_CAST,
+	ABILITY_NUMBER_DURATION,
+	ABILITY_NUMBER_HERO_DURATION,
+	ABILITY_NUMBER_COOLDOWN,
+	ABILITY_NUMBER_COST,
+	ABILITY_NUMBER_AREA,
+	ABILITY_NUMBER_RANGE
+} abilityNumber_t;
 DWORD S_SpellCurrentCode(LPEDICT clent, DWORD fallback);
 DWORD S_SpellLevel(LPEDICT caster, DWORD code);
-FLOAT S_SpellNumber(DWORD code, LPCSTR field, DWORD level);
+FLOAT S_SpellNumber(DWORD code, abilityNumber_t field, DWORD level);
 LPCSTR S_SpellString(DWORD code, LPCSTR field, DWORD level);
 FLOAT S_SpellData(DWORD code, DWORD level, DWORD index);
 DWORD S_SpellUnitId(DWORD code, DWORD level);

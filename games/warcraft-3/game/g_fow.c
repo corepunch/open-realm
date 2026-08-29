@@ -407,8 +407,8 @@ static FLOAT G_FowEntitySightRadius(LPCEDICT ent) {
     if (!ent) {
         return 0.0f;
     }
-    day = ent->balance.sight_radius.day;
-    night = ent->balance.sight_radius.night;
+    day = ent->runtime.sight_radius.day;
+    night = ent->runtime.sight_radius.night;
     /* Use the day or night sight radius based on time of day, rather than
      * always taking the larger of the two. */
     if (night <= 0.0f) night = day;
@@ -513,7 +513,7 @@ static int G_FowBlockerDilation(LPCEDICT ent) {
         return FOW_TREE_DILATION_CELLS;
     }
     if (!(ent->svflags & SVF_MONSTER) &&
-        DESTRUCTABLE_OCCLUDER_HEIGHT(ent->class_id) > 0.0f)
+        ent->destructableData->occluderHeight > 0.0f)
     {
         return FOW_TREE_DILATION_CELLS;
     }
@@ -846,7 +846,7 @@ BOOL G_FowPlayerCanSeeEntity(DWORD player, LPCEDICT ent) {
     index = y * level.fow.width + x;
     grid = &level.fow.players[player];
     /* Explored scenery stays shrouded after sight leaves; sending unexplored map-wide doodads saturated snapshots. */
-    if ((ent->svflags & SVF_STATIC_SCENERY) || (ent->balance.flags & UNIT_BALANCE_BUILDING)) {
+    if ((ent->svflags & SVF_STATIC_SCENERY) || (ent->runtime.flags & UNIT_BALANCE_BUILDING)) {
         return grid->explored && grid->explored[index] != 0;
     }
     return grid->visible && grid->visible[index] != 0;

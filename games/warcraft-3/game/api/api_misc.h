@@ -1048,79 +1048,14 @@ DWORD ChooseRandomNPBuilding(LPJASS j) {
     return jass_pushinteger(j, 0);
 }
 
-static LPCSTR JassItemRowField(sheetRow_t const *row, LPCSTR name) {
-    if (!row || !name) {
-        return NULL;
-    }
-
-    FOR_EACH_LIST(sheetField_t const, field, row->fields) {
-        if (!strcasecmp(field->name, name)) {
-            return field->value;
-        }
-    }
-
-    return NULL;
+static BOOL JassRandomItemEligible(ItemData_t const *row, LONG level, DWORD type) {
+    if (!row->pickRandom || row->level != level) return false;
+    return type == 8 || G_ItemTypeFromClass(row->itemClass) == type;
 }
 
-static BOOL JassItemFieldBoolean(LPCSTR value) {
-    return value &&
-        (atoi(value) != 0 || !strcasecmp(value, "TRUE"));
-}
-
-static DWORD JassItemRawcode(sheetRow_t const *row) {
-    LPCSTR name;
-
-    if (!row || !(name = row->name) ||
-        !name[0] || !name[1] || !name[2] || !name[3]) {
-        return 0;
-    }
-
-    return MAKEFOURCC(name[0], name[1], name[2], name[3]);
-}
-
-static BOOL JassRandomItemEligible(sheetRow_t const *row,
-                                   LONG requested_level,
-                                   DWORD requested_type) {
-    LPCSTR level;
-    LPCSTR pick_random;
-    LPCSTR item_class;
-
-    if (!row) {
-        return false;
-    }
-
-    pick_random = JassItemRowField(row, "pickRandom");
-    if (!JassItemFieldBoolean(pick_random)) {
-        return false;
-    }
-
-    level = JassItemRowField(row, "Level");
-    if (!level || atoi(level) != requested_level) {
-        return false;
-    }
-
-    if (requested_type == 8) {
-        /* ITEM_TYPE_ANY */
-        return true;
-    }
-
-    item_class = JassItemRowField(row, "itemClass");
-
-    /*
-     * Some ItemData versions expose this column as "class".  Accept either
-     * spelling so ROC/TFT data both work.
-     */
-    if (!item_class) {
-        item_class = JassItemRowField(row, "class");
-    }
-
-    return G_ItemTypeFromClass(item_class) == requested_type;
-}
-
-static DWORD JassChooseRandomItem(LONG requested_level,
-                                  DWORD requested_type) {
-    sheetRow_t *items = ItemsMetaData[0].table;
-    DWORD count = 0;
+static DWORD JassChooseRandomItem(LONG requested_level, DWORD requested_type) {
+    DWORD item_count, count = 0;
+    ItemData_t const *items = G_ItemDataRows(&item_count);
     DWORD selected_index;
 
     if (!items) {
@@ -1132,13 +1067,8 @@ static DWORD JassChooseRandomItem(LONG requested_level,
      * First pass counts candidates. This deliberately consumes no random
      * values so SetRandomSeed() remains predictable.
      */
-    FOR_EACH_LIST(sheetRow_t const, row, items) {
-        if (JassRandomItemEligible(row,
-                                   requested_level,
-                                   requested_type)) {
-            count++;
-        }
-    }
+    FOR_LOOP(i, item_count)
+        if (JassRandomItemEligible(items + i, requested_level, requested_type)) count++;
 
     if (!count) return 0;
 
@@ -1147,22 +1077,10 @@ static DWORD JassChooseRandomItem(LONG requested_level,
     /*
      * Second pass returns the selected candidate.
      */
-    FOR_EACH_LIST(sheetRow_t const, row, items) {
-        DWORD rawcode;
-
-        if (!JassRandomItemEligible(row,
-                                    requested_level,
-                                    requested_type)) {
-            continue;
-        }
-
-        if (selected_index--) {
-            continue;
-        }
-
-        rawcode = JassItemRawcode(row);
-
-        return rawcode;
+    FOR_LOOP(i, item_count) {
+        if (!JassRandomItemEligible(items + i, requested_level, requested_type)) continue;
+        if (selected_index--) continue;
+        return items[i].id;
     }
 
     fprintf(stderr, "JassChooseRandomItem: candidate count changed during selection\n");
@@ -1381,7 +1299,7 @@ DWORD SetCinematicScene(LPJASS j) {
         G_SetPlayerText(gc, PLAYERTEXT_DIALOGUE, G_LevelString(text));
         currentplayer->cinematic_portrait = 0;
         if (portraitUnitId) {
-            LPCSTR model = UNIT_MODEL((DWORD)portraitUnitId);
+            LPCSTR model = G_UnitUI((DWORD)portraitUnitId)->modelFile;
             if (model && *model) {
                 PATHSTR mf;
                 snprintf(mf, sizeof(mf), "%s.mdx", model);

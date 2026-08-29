@@ -35,6 +35,7 @@ static LPEDICT make_test_destructable(FLOAT life, FLOAT x, FLOAT y) {
 
     ent->class_id = MAKEFOURCC('B', '0', '0', 'X');
     ent->s.class_id = ent->class_id;
+    G_BindEntityData(ent);
     ent->s.model = 1;
     ent->s.scale = 1.0f;
     ent->s.origin = (VECTOR3){ x, y, 0.0f };
@@ -54,6 +55,7 @@ static LPEDICT make_destructable_test_attacker(FLOAT x, FLOAT y) {
 
     ent->class_id = MAKEFOURCC('h', 'f', 'o', 'o');
     ent->s.class_id = ent->class_id;
+    G_BindEntityData(ent);
     ent->s.model = 1;
     ent->s.origin = (VECTOR3){ x, y, 0.0f };
     ent->health.value = 100.0f;
@@ -529,13 +531,11 @@ TEST(wc3_destructable, scripted_lifecycle_natives_use_authoritative_state) {
         "C;Y2;X4;K100\n"
         "C;Y2;X5;K16\n"
         "E\n";
-    sheetMetaData_t *meta = G_FindMetaData(DestructableMetaData, "bfil");
-    sheetRow_t *saved = meta->table;
     sheetRow_t *rows = parse_slk_string(slk);
     LPEDICT dest;
 
     setup_test_world();
-    G_SetConfigTable(DestructableMetaData, "DestructableData", rows);
+    sheetRow_t *saved = G_SetSLKRows("DestructableData", rows);
     T_ASSERT(run_test_jass(
         "globals\n"
         "  destructable scriptedDest = null\n"
@@ -589,7 +589,7 @@ TEST(wc3_destructable, scripted_lifecycle_natives_use_authoritative_state) {
     jass_runevents(level.vm);
     T_ASSERT(!dest->inuse);
 
-    G_SetConfigTable(DestructableMetaData, "DestructableData", saved);
+    G_SetSLKRows("DestructableData", saved);
     free_slk_rows(rows);
 }
 

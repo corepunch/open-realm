@@ -75,16 +75,16 @@ void SP_SpawnItem(LPEDICT self) {
     LPCSTR model;
     FLOAT scale;
 
-    if (!self || !(model = ITEM_FILE(self->class_id))) {
+    if (!self || !(model = self->itemData->file)) {
         return;
     }
     strlcpy(model_filename, model, sizeof(model_filename));
     self->s.model = G_RegisterModel(model_filename);
-    scale = ITEM_SCALE(self->class_id);
+    scale = self->itemData->scale;
     if (scale > 0) {
         self->s.scale = scale;
     }
-    self->s.radius = ITEM_SELECTION_SIZE(self->class_id);
+    self->s.radius = self->itemData->selectionSize;
 #ifndef USE_SHADOWMAPS
     self->s.shadow = G_LoadShadowTexture(FS_FindSheetCell(game.config.misc, "Misc", "ItemShadowFile"), false);
     self->s.shadow_rect = ShadowPackRect(
@@ -104,7 +104,7 @@ BOOL G_IsItem(LPCEDICT item) {
     if (!item || !item->inuse || !item->class_id) {
         return false;
     }
-    return item->item.in_world || item->item.carrier || ITEM_FILE(item->class_id) != NULL;
+    return item->item.in_world || item->item.carrier || item->itemData->file != NULL;
 }
 
 BOOL G_UnitHasInventory(LPEDICT unit) {

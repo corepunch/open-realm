@@ -132,8 +132,11 @@ static BOOL jass_atob(LPCSTR str) {
     return !strcmp(str, "true");
 }
 
+static void jass_default_error(LPCSTR message) { fprintf(stderr, "JASS runtime error: %s\n", message); }
+
 void jass_sethost(JASSHOST const *host) {
     jass_host = *host;
+    if (!jass_host.RuntimeError) jass_host.RuntimeError = jass_default_error;
 }
 
 HANDLE jass_alloc(long size) {
@@ -525,7 +528,7 @@ void jass_rterror(LPJASS j, LPCSTR message) {
     LPJASS root = jass_root(j);
     root->rterror_pending = true;
     snprintf(root->rterror_message, sizeof(root->rterror_message), "%s", message ? message : "(nil)");
-    fprintf(stderr, "JASS runtime error: %s\n", root->rterror_message);
+    jass_host.RuntimeError(root->rterror_message);
 
     LPJASSCOROUTINE co = root->current_coroutine;
     if (co && co->rterror_jmp_set) {

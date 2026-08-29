@@ -76,6 +76,7 @@ typedef enum {
         BZ_FIELD_VEC3,
         BZ_FIELD_COLOR32_ARGB,
         BZ_FIELD_COLOR32_RGBA,
+        BZ_FIELD_FOURCC,  /* 4-char text → DWORD via memcpy (same as MAKEFOURCC on LE) */
 } bzFieldType_t;
 
 #define KNOWN_AS(STRUCT, TYPE) \

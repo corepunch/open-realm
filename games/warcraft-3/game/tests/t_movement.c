@@ -407,7 +407,7 @@ TEST(wc3_movement, waypoint_add_sets_origin) {
 TEST(wc3_movement, unit_movedistance_matches_formula) {
     /* unit_movedistance = 10 * speed / FRAMETIME */
     LPEDICT unit = make_moving_unit(0.0f, 0.0f);
-    FLOAT expected = 10.0f * UNIT_SPEED(MAKEFOURCC('h','p','e','a')) / (FLOAT)FRAMETIME;
+    FLOAT expected = 10.0f * G_UnitBalance(MAKEFOURCC('h','p','e','a'))->speed / (FLOAT)FRAMETIME;
     T_FEQ(unit_movedistance(unit), expected, 0.01f);
 }
 

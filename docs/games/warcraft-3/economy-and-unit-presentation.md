@@ -89,8 +89,8 @@ The archives use different physical schemas for the same semantic data slots:
 - ROC `War3.mpq`: `Data<level><slot>` (`Data11`, `Data12`, `Data13`, then `Data21`...).
 - TFT `War3x.mpq`: `Data<slot-letter><level>` (`DataA1`, `DataB1`, `DataC1`, then `DataA2`...).
 
-Skill code must call `AB_Data(classname, level, slot)`. Do not pass either archive spelling to `AB_Number`; doing so breaks the other
-release. Confirm headers with:
+The AbilityData DDX schema maps both spellings into `abilityDataRow_t.data[level][slot]`. Skill code uses that typed array directly or
+calls `AB_Data(classname, level, slot)`; physical archive column names never reach gameplay code. Confirm headers with:
 
 ```sh
 build/bin/mpqtool -mpq "data/Warcraft III/War3.mpq" cat "Units/AbilityData.slk" | rg ';K"Data' | head

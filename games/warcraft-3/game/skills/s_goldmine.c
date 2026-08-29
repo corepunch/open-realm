@@ -174,8 +174,8 @@ void blight_mine_think(LPEDICT ent) {
 }
 
 static void SP_ability_blighted_goldmine(LPCSTR classname, ability_t *self) {
-    blight_gold_per_interval = AB_Number(classname, "DataA1");
-    blight_interval_duration = AB_Number(classname, "DataB1");
+    blight_gold_per_interval = G_AbilityDataName(classname)->data[0][0];
+    blight_interval_duration = G_AbilityDataName(classname)->data[0][1];
 }
 
 ability_t a_blighted_goldmine = {

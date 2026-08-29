@@ -516,7 +516,7 @@ TEST(wc3_game, fow_revealer_marks_visible_and_explored) {
 
     LPEDICT revealer = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
     revealer->s.player = 0;
-    revealer->balance.sight_radius.day = 128.0f;
+    revealer->runtime.sight_radius.day = 128.0f;
     revealer->health.value = 1.0f;
     revealer->health.max_value = 1.0f;
 
@@ -533,7 +533,7 @@ TEST(wc3_game, fow_updates_only_connected_shared_viewers) {
 
     LPEDICT revealer = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
     revealer->s.player = 5;
-    revealer->balance.sight_radius.day = 128.0f;
+    revealer->runtime.sight_radius.day = 128.0f;
     revealer->health.value = revealer->health.max_value = 1.0f;
     DWORD index = G_FowWorldToCellY(64.0f) * level.fow.width + G_FowWorldToCellX(64.0f);
 
@@ -558,7 +558,7 @@ TEST(wc3_game, fow_visible_clears_but_explored_remains) {
 
     LPEDICT revealer = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
     revealer->s.player = 0;
-    revealer->balance.sight_radius.day = 128.0f;
+    revealer->runtime.sight_radius.day = 128.0f;
     revealer->health.value = 1.0f;
     revealer->health.max_value = 1.0f;
 
@@ -586,11 +586,11 @@ TEST(wc3_game, fow_static_scenery_persists_after_unit_vision_leaves) {
     LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 64.0f);
     LPEDICT building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64.0f, 64.0f);
     revealer->s.player = 0;
-    revealer->balance.sight_radius.day = 128.0f;
+    revealer->runtime.sight_radius.day = 128.0f;
     revealer->health.value = revealer->health.max_value = 1.0f;
     tree->s.player = unseen->s.player = unit->s.player = building->s.player = MAX_PLAYERS;
     tree->svflags = unseen->svflags = SVF_STATIC_SCENERY;
-    building->balance.flags |= UNIT_BALANCE_BUILDING;
+    building->runtime.flags |= UNIT_BALANCE_BUILDING;
 
     G_FowUpdate();
     T_ASSERT(G_FowPlayerCanSeeEntity(0, tree));
@@ -610,7 +610,7 @@ TEST(wc3_game, fow_static_scenery_persists_after_unit_vision_leaves) {
 TEST(wc3_game, acquisition_range_uses_spawn_cache) {
     LPEDICT ent = make_test_unit();
     ent->class_id = MAKEFOURCC('n', 'o', 'n', 'e');
-    ent->balance.acquisition_range = 375.0f;
+    ent->runtime.acquisition_range = 375.0f;
     T_FEQ(G_AcquisitionRange(ent), 375.0f, 0.001f);
 }
 
@@ -621,7 +621,7 @@ TEST(wc3_game, fow_blocker_stops_visibility_behind_it) {
 
     LPEDICT revealer = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 96.0f, 96.0f);
     revealer->s.player = 0;
-    revealer->balance.sight_radius.day = 256.0f;
+    revealer->runtime.sight_radius.day = 256.0f;
     revealer->health.value = 1.0f;
     revealer->health.max_value = 1.0f;
 
@@ -660,7 +660,7 @@ TEST(wc3_game, fow_tree_pathtex_closes_gap_behind_canopy) {
 
     LPEDICT revealer = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32.0f, 128.0f);
     revealer->s.player = 0;
-    revealer->balance.sight_radius.day = 320.0f;
+    revealer->runtime.sight_radius.day = 320.0f;
     revealer->health.value = 1.0f;
     revealer->health.max_value = 1.0f;
 
@@ -738,7 +738,7 @@ TEST(wc3_perf, fow_update_large_map) {
             ent->s.origin2.y    = ent->s.origin.y;
             ent->health.value   = 100.0f;
             ent->health.max_value = 100.0f;
-            ent->balance.sight_radius.day = 900.0f;
+            ent->runtime.sight_radius.day = 900.0f;
         }
     }
 
@@ -771,8 +771,8 @@ TEST(wc3_perf, acquisition_ranges_1900) {
     setup_test_world();
     for (int i = 0; i < 1900; i++) {
         LPEDICT ent = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
-        ent->balance.sight_radius.day = 600.0f;
-        ent->balance.acquisition_range = 300.0f;
+        ent->runtime.sight_radius.day = 600.0f;
+        ent->runtime.acquisition_range = 300.0f;
     }
     T_BENCH("G_AcquisitionRange (1900 units x 10 passes)", 30, bench_acquisition_ranges());
 }

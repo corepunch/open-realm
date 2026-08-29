@@ -31,17 +31,17 @@ static void InfoPanelEnsureLoaded(void) {
 
 void UI_WriteSingleInfo(LPEDICT ent) {
     char buffer[128];
+    UnitBalance_t const *balance = ent->balance;
+    UnitWeapons_t const *weapons = ent->weapons;
     LPCSTR name = UNIT_PROPER_NAMES(ent->class_id);
     LPCSTR unit_name = UNIT_NAME(ent->class_id);
-    BOOL const is_hero = UNIT_STRENGTH(ent->class_id) > 0 ||
-                         UNIT_AGILITY(ent->class_id) > 0 ||
-                         UNIT_INTELLIGENCE(ent->class_id) > 0;
+    BOOL const is_hero = balance->strength > 0 || balance->agility > 0 || balance->intelligence > 0;
     DWORD level = is_hero && ent->hero.level > 0 ? ent->hero.level
-                                                 : MAX(1, UNIT_LEVEL(ent->class_id));
+                                                 : MAX(1, balance->level);
     LONG dice = ent->attack1.numberOfDice;
     LONG min_damage = dice ? (LONG)(ent->attack1.damageBase + dice) : 0;
     LONG max_damage = dice ? (LONG)(ent->attack1.damageBase + dice * ent->attack1.sidesPerDie) : 0;
-    LONG dice2 = UNIT_ATTACK2_DAMAGE_NUMBER_OF_DICE(ent->class_id);
+    LONG dice2 = weapons->attack2.damageDice;
     BOOL has_attack2 = UI_HasSecondAttack(dice2);
 
     if (!name || !*name) {
@@ -60,8 +60,8 @@ void UI_WriteSingleInfo(LPEDICT ent) {
 
     UI_SetText(unit_panel.AttackLabel2, "Damage:");
     snprintf(buffer, sizeof(buffer), "%d - %d",
-             (int)(UNIT_ATTACK2_DAMAGE_BASE(ent->class_id) + dice2),
-             (int)(UNIT_ATTACK2_DAMAGE_BASE(ent->class_id) + dice2 * UNIT_ATTACK2_DAMAGE_SIDES_PER_DIE(ent->class_id)));
+             (int)(weapons->attack2.damageBase + dice2),
+             (int)(weapons->attack2.damageBase + dice2 * weapons->attack2.damageSides));
     UI_SetText(unit_panel.AttackValue2, "%s", buffer);
     UI_SetHidden(unit_panel.AttackLabel2, !has_attack2);
     UI_SetHidden(unit_panel.AttackValue2, !has_attack2);
@@ -75,12 +75,12 @@ void UI_WriteSingleInfo(LPEDICT ent) {
     UI_SetText(unit_panel.RangeTitle1, "Range:");
     UI_SetText(unit_panel.RangeValue1, "%d", (int)(ent->attack1.range + 0.5f));
     UI_SetText(unit_panel.RangeTitle2, "Range:");
-    UI_SetText(unit_panel.RangeValue2, "%d", (int)(UNIT_ATTACK2_RANGE(ent->class_id) + 0.5f));
+    UI_SetText(unit_panel.RangeValue2, "%d", (int)(weapons->attack2.range + 0.5f));
     UI_SetHidden(unit_panel.RangeTitle2, !has_attack2);
     UI_SetHidden(unit_panel.RangeValue2, !has_attack2);
 
     if (is_hero) {
-        LPCSTR const prim = UNIT_PRIMARY_ATTRIBUTE(ent->class_id);
+        LPCSTR const prim = balance->primaryAttribute;
         struct { LPCSTR tag, code; DWORD val; } attrs[3] = {
             { "Str:", "STR", ent->hero.str },
             { "Agi:", "AGI", ent->hero.agi },

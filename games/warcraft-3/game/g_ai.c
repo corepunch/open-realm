@@ -27,7 +27,7 @@ BOOL unit_is_walking(LPCEDICT ent) {
 static FLOAT unit_current_speed(LPCEDICT self) {
     FLOAT speed = self->unitinfo.MoveSpeed > 0
         ? self->unitinfo.MoveSpeed
-        : UNIT_SPEED(self->class_id);
+        : self->balance->speed;
     if (self->move_group_speed > 0 && self->move_group_speed < speed && unit_is_walking(self)) {
         speed = self->move_group_speed;
     }
@@ -190,7 +190,7 @@ static void unit_turn_toward(LPEDICT self, FLOAT target) {
     VECTOR2 const goal   = { cosf(target), sinf(target) };
     FLOAT const cross = facing.x * goal.y - facing.y * goal.x;
     FLOAT const dot   = facing.x * goal.x + facing.y * goal.y;
-    FLOAT turn = UNIT_TURN_RATE(self->class_id);
+    FLOAT turn = self->data->turnRate;
     if (turn <= 0.0f) turn = 0.5f;
 
     if (dot >= cosf(turn)) {
@@ -316,7 +316,7 @@ static BOOL filter_sight(LPCEDICT ent) {
         return false;
     if (ent->svflags & SVF_DEADMONSTER)
         return false;
-    if (ent->balance.flags & UNIT_BALANCE_BUILDING)
+    if (ent->runtime.flags & UNIT_BALANCE_BUILDING)
         return false;
     /* Only auto-engage fights that involve the human player (player vs anyone,
      * and anyone vs player). This preserves the original computer->player
@@ -345,7 +345,7 @@ BOOL G_ShouldAcquireThisFrame(LPCEDICT self) {
 
 /* Return the spawn-cached range; repeated SLK walks dominated large acquisition scans. */
 FLOAT G_AcquisitionRange(LPCEDICT self) {
-    return self->balance.acquisition_range;
+    return self->runtime.acquisition_range;
 }
 
 LPEDICT G_FindNearestEnemy(LPEDICT self, FLOAT radius) {

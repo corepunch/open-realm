@@ -56,7 +56,7 @@ static void blizzard_execute(LPEDICT caster, spellTarget_t st, spell_info_t cons
     DWORD level = S_SpellLevel(caster, spell->code);
     DWORD waves = (DWORD)S_SpellData(spell->code, level, 1);
     DWORD damage = (DWORD)S_SpellData(spell->code, level, 2);
-    FLOAT area = S_SpellNumber(spell->code, "Area", level);
+    FLOAT area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     LPEDICT thinker;
 
     thinker = G_Spawn();
@@ -89,7 +89,7 @@ static void carrion_swarm_execute(LPEDICT caster, spellTarget_t st, spell_info_t
     blast = G_Spawn();
     blast->owner = caster;
     blast->s.origin2 = st.point;
-    blast->collision = MAX(96.0f, S_SpellNumber(spell->code, "Area", level));
+    blast->collision = MAX(96.0f, S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level));
     blast->damage = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 1));
     area_spell_damage(blast, S_SpellData(spell->code, level, 2)); /* DataB = Max Damage */
     G_FreeEdict(blast);

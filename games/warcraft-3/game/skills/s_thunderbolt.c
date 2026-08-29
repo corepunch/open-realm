@@ -9,6 +9,8 @@ static LPCSTR firebolt_missile_art;
 static FLOAT thunderbolt_missile_speed;
 static FLOAT firebolt_missile_speed;
 
+static FLOAT ConfigNumber(LPCSTR classname, LPCSTR field) { LPCSTR value = FindConfigValue(classname, field); return value ? atof(value) : 0; }
+
 static void thunderbolt_projectile_hit(LPEDICT missile);
 
 static umove_t thunderbolt_projectile_move = { "stand", NULL, thunderbolt_projectile_hit, &a_thunderbolt };
@@ -43,7 +45,7 @@ static void thunderbolt_execute(LPEDICT caster, spellTarget_t st, spell_info_t c
     DWORD level = S_SpellLevel(caster, code);
     LPCSTR art = bolt_missile_art(code);
     FLOAT speed = bolt_missile_speed(code);
-    FLOAT duration = S_SpellDuration(code, level, UNIT_LEVEL(target->class_id) >= 5);
+    FLOAT duration = S_SpellDuration(code, level, target->balance->level >= 5);
     LPEDICT missile;
 
     unit_setmove(caster, &spell_cast_move);
@@ -63,13 +65,13 @@ static void thunderbolt_execute(LPEDICT caster, spellTarget_t st, spell_info_t c
 static void SP_ability_thunderbolt(LPCSTR classname, ability_t *self) {
     (void)self;
     thunderbolt_missile_art = FindConfigValue(classname, "Missileart");
-    thunderbolt_missile_speed = AB_Number(classname, "Missilespeed");
+    thunderbolt_missile_speed = ConfigNumber(classname, "Missilespeed");
 }
 
 static void SP_ability_firebolt(LPCSTR classname, ability_t *self) {
     (void)self;
     firebolt_missile_art = FindConfigValue(classname, "Missileart");
-    firebolt_missile_speed = AB_Number(classname, "Missilespeed");
+    firebolt_missile_speed = ConfigNumber(classname, "Missilespeed");
 }
 
 static spell_info_t spell_thunderbolt = {

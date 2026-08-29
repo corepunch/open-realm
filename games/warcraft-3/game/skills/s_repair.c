@@ -5,7 +5,7 @@ static FLOAT repair_cost_factor;
 void repair_build(LPEDICT ent, LPEDICT building);
 
 static void ai_repair(LPEDICT ent) {
-    FLOAT const k = (FLOAT)FRAMETIME / (FLOAT)UNIT_BUILD_TIME_MSEC(ent->build->class_id);
+    FLOAT const k = (FLOAT)FRAMETIME / ((FLOAT)ent->build->balance->buildTime * 1000.0f);
     EDICTSTAT *hp = &ent->build->health;
     hp->value += hp->max_value * k;
     if (hp->value >= hp->max_value) {
@@ -28,7 +28,7 @@ void repair_build(LPEDICT ent, LPEDICT building) {
 }
 
 static BOOL repair_selecttarget(LPEDICT clent, LPEDICT target) {
-    if (!target || !UNIT_IS_BUILDING(target->class_id)) {
+    if (!target || !G_UnitIsBuilding(target->class_id)) {
         return false;
     }
     if (target->s.player != clent->client->ps.number) {
@@ -49,7 +49,7 @@ static void repair_command(LPEDICT clent) {
 }
 
 void SP_ability_repair(LPCSTR classname, ability_t *self) {
-    repair_cost_factor = AB_Number(classname, "DataA1");
+    repair_cost_factor = G_AbilityDataName(classname)->data[0][0];
 }
 
 ability_t a_repair = {

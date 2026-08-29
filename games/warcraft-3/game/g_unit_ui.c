@@ -9,9 +9,6 @@
  * used to shade the command-card button while it recharges. */
 FLOAT S_SpellCooldownFraction(LPEDICT caster, DWORD code, DWORD level);
 
-/* Defined in skills/s_spell.c — reads a per-level ability data field, e.g. "Cost". */
-FLOAT S_SpellNumber(DWORD code, LPCSTR field, DWORD level);
-
 static void G_CopyString(LPSTR out, DWORD out_size, LPCSTR text) {
     if (!out || out_size == 0) {
         return;
@@ -50,7 +47,7 @@ LPCSTR GetBuildCommand(unitRace_t race) {
 
 static LPCSTR G_CommandArtCode(LPEDICT ent, LPCSTR code) {
     if (!strcmp(code, STR_CmdBuild)) {
-        return GetBuildCommand(G_RaceFromString(UnitStringField(UnitsMetaData, ent->class_id, "urac")));
+        return GetBuildCommand(G_RaceFromString(ent->data->race));
     }
     return code;
 }
@@ -75,7 +72,7 @@ static LPCSTR G_RemoveQuotes(LPCSTR text) {
 }
 
 static LPCSTR G_AbilityString(LPCSTR classname, LPCSTR field) {
-    return game.config.abilities ? FS_FindSheetCell(game.config.abilities, classname, field) : NULL;
+    return G_AbilityDataText(classname, field);
 }
 
 static LPCSTR G_ProcessTooltipString(LPCSTR input) {
@@ -147,10 +144,7 @@ BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, 
     }
 
     memset(button, 0, sizeof(*button));
-    base_code = game.config.abilities ? FS_FindSheetCell(game.config.abilities, code, "code") : NULL;
-    if (!base_code) {
-        base_code = code;
-    }
+    base_code = GetClassName(G_AbilityCodeName(code));
     art_code = G_CommandArtCode(ent, code);
     art = FindConfigValue(art_code, G_ResearchField(STR_ART, research));
     buttonpos = FindConfigValue(art_code, G_ResearchField(STR_BUTTONPOS, research));
@@ -174,7 +168,7 @@ BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, 
     button->active = (BYTE)FindAbilityIndex(base_code);
     if (strlen(base_code) >= 4) {
         button->manacost = S_SpellNumber(MAKEFOURCC(base_code[0], base_code[1], base_code[2], base_code[3]),
-                                         "Cost", level);
+                         ABILITY_NUMBER_COST, level);
     }
     if (!button->art[0]) {
         fprintf(stderr,
@@ -213,40 +207,43 @@ static BOOL G_IsImplementedAbility(LPCSTR code) {
 
 BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_buttons) {
     BYTE count = 0;
+    UnitBalance_t const *b;
+    UnitWeapons_t const *w;
+    UnitAbilities_t const *a;
 
     if (!ent || !ent->class_id || !buttons) {
         return 0;
     }
     memset(buttons, 0, sizeof(*buttons) * max_buttons);
+    b = ent->balance;
+    w = ent->weapons;
+    a = ent->abilities;
 
     if (ent->currentmove && ent->currentmove->think == ai_birth) {
         return 0;
     }
 
-    if (UNIT_SPEED(ent->class_id) > 0) {
+    if (b->speed > 0) {
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdMove, false, 0);
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdHoldPos, false, 0);
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdPatrol, false, 0);
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdStop, false, 0);
     }
-    if (UNIT_ATTACK1_DAMAGE_NUMBER_OF_DICE(ent->class_id) != 0) {
+    if (w->attack1.damageDice != 0) {
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdAttack, false, 0);
     }
     if (UNIT_BUILDS(ent->class_id)) {
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdBuild, false, 0);
     }
-    if (UNIT_ABILITIES_HERO(ent->class_id)) {
+    if (a->heroAbilList) {
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdSelectSkill, false, 0);
-    } else if (UNIT_ABILITIES_NORMAL(ent->class_id)) {
-        PARSE_LIST(UNIT_ABILITIES_NORMAL(ent->class_id), abil, parse_segment) {
-            LPCSTR code = game.config.abilities ? FS_FindSheetCell(game.config.abilities, abil, "code") : NULL;
-            if (code && G_IsImplementedAbility(code)) {
+    } else if (a->abilList) {
+        PARSE_LIST(a->abilList, abil, parse_segment) {
+            DWORD const code = G_AbilityCodeName(abil);
+            if (G_IsImplementedAbility(GetClassName(code))) {
                 BYTE const idx = count;
                 G_AddCommandButton(ent, buttons, max_buttons, &count, abil, false, 0);
-                if (count > idx && strlen(code) >= 4) {
-                    buttons[idx].cooldown = S_SpellCooldownFraction(ent,
-                        MAKEFOURCC(code[0], code[1], code[2], code[3]), 0);
-                }
+                if (count > idx) buttons[idx].cooldown = S_SpellCooldownFraction(ent, code, 0);
             }
         }
     }
@@ -306,7 +303,7 @@ BYTE G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue) {
     memset(queue, 0, sizeof(*queue) * max_queue);
     for (LPEDICT build = ent->build; build && count < max_queue; build = build->build) {
         LPCSTR build_name = GetClassName(build->class_id);
-        DWORD duration = UNIT_BUILD_TIME_MSEC(build->class_id);
+        DWORD duration = build->balance->buildTime * 1000;
         FLOAT progress = 0;
 
         if (count == 0 && build->health.max_value > 0) {

@@ -183,7 +183,7 @@ static inline void Stb_DbcParseRows(BYTE const *records, DWORD count, DWORD reco
         FOR_LOOP(f, schema_count) {
             stbDbcField_t const *s = &schema[f];
             DWORD n = s->count ? s->count : 1;
-            DWORD esize = s->type == STB_DBC_U32 ? sizeof(DWORD) :
+            DWORD esize = (s->type == STB_DBC_U32 || s->type == BZ_FIELD_FOURCC) ? sizeof(DWORD) :
                           s->type == STB_DBC_FLOAT ? sizeof(FLOAT) :
                           s->type == STB_DBC_STR ? sizeof(LPCSTR) : 0;
             if (!esize) {
@@ -193,7 +193,7 @@ static inline void Stb_DbcParseRows(BYTE const *records, DWORD count, DWORD reco
             FOR_LOOP(e, n) {
                 DWORD byte_offset = (s->column + e) * sizeof(DWORD);
                 if (byte_offset + sizeof(DWORD) > record_size) break;
-                if (s->type == STB_DBC_U32)
+                if (s->type == STB_DBC_U32 || s->type == BZ_FIELD_FOURCC)
                     *(DWORD *)(dest + s->offset + e * esize) = Stb_DbcRead32(record + byte_offset);
                 else if (s->type == STB_DBC_FLOAT)
                     *(FLOAT *)(dest + s->offset + e * esize) = Stb_DbcReadFloat(record + byte_offset);

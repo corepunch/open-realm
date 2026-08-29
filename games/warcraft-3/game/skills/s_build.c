@@ -14,7 +14,7 @@ static void ai_build_walk(LPEDICT ent) {
 }
 
 static void ai_build(LPEDICT ent) {
-    FLOAT const k = (FLOAT)FRAMETIME / (FLOAT)UNIT_BUILD_TIME_MSEC(ent->build->class_id);
+    FLOAT const k = (FLOAT)FRAMETIME / ((FLOAT)ent->build->balance->buildTime * 1000.0f);
     EDICTSTAT *hp = &ent->build->health;
     hp->value += hp->max_value * k;
     if (hp->value >= hp->max_value) {
@@ -33,14 +33,15 @@ static umove_t build_move_stand = { "stand", ai_build, NULL, &a_build };
 
 static void FillUnitData(LPENTITYSTATE ent, DWORD unit_id, LPCSTR anim) {
     PATHSTR buffer = { 0 };
-    LPCSTR model_filename = UNIT_MODEL(unit_id);
+    UnitUI_t const *ui = G_UnitUI(unit_id);
+    LPCSTR model_filename = ui->modelFile;
     if (!model_filename)
         return;
     snprintf(buffer, sizeof(buffer), "%s.mdx", model_filename);
     memset(ent, 0, sizeof(entityState_t));
     ent->class_id = unit_id;
     ent->model = G_RegisterModel(buffer);
-    ent->scale = UNIT_SCALING_VALUE(unit_id);
+    ent->scale = ui->modelScale;
     ent->angle = -M_PI / 2;
     LPCANIMATION animation = G_GetAnimation(ent->model, anim);
     if (animation) {
