@@ -472,15 +472,28 @@ static void G_ClientBegin(LPEDICT edict) {
 /* Selection voices are local feedback; suppress them in snapshots for clients
  * that did not select this entity while leaving world sounds unchanged. */
 static void G_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
-    if ((ent->svflags & SVF_MONSTER) &&
+    BOOL const hoverable = (ent->svflags & SVF_MONSTER) &&
         !(ent->svflags & SVF_DEADMONSTER) &&
         ent->health.value > 0.0f &&
         !(state->flags & EF_NOT_SELECTABLE) &&
-        G_FowPlayerCanHoverEntity(player, ent))
-    {
+        G_FowPlayerCanHoverEntity(player, ent);
+
+    state->flags &= ~(EF_HOVER_HEALTH | EF_HOSTILE | EF_NEUTRAL);
+    if (hoverable) {
+        DWORD const owner = ent->s.player;
+        BOOL const same_owner = owner == player;
+        BOOL const valid_players = player < MAX_PLAYERS && owner < MAX_PLAYERS;
+        BOOL const passive_ally = valid_players &&
+            (level.alliances[player][owner] & (1 << ALLIANCE_PASSIVE));
+        BOOL const shared_control = valid_players &&
+            (level.alliances[player][owner] & (1 << ALLIANCE_SHARED_CONTROL));
+
         state->flags |= EF_HOVER_HEALTH;
-    } else {
-        state->flags &= ~EF_HOVER_HEALTH;
+        if (!same_owner && !passive_ally) {
+            state->flags |= EF_HOSTILE;
+        } else if (!same_owner && !shared_control) {
+            state->flags |= EF_NEUTRAL;
+        }
     }
 
     if (state->event == EV_ACK && !(ent->selected & (1 << player))) {

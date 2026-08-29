@@ -161,6 +161,12 @@ The presentation path is:
 TraceEntity -> cl.hover_entity -> cl.viewDef.hover_entity -> R_DrawHealthBars
 ```
 
+The same hover entity drives the ground selection-preview splat in `renderer/r_ents.c`. `G_CustomizeEntity` derives the
+recipient-relative relationship from WC3 alliance state: non-passive allies are `EF_HOSTILE`, passive allies without shared control are
+`EF_NEUTRAL`, and own/shared-control units carry neither relationship flag. The renderer maps those states to faint red, yellow, and
+green rings respectively, using the normal selection-circle size/texture choice and half-alpha hover presentation. Selection remains a
+separate state and suppresses the hover preview while the full selected-unit circle is visible.
+
 An August 2026 regression had working world picking and working selected-unit health bars, but active gameplay never copied
 `cl.hover_entity` into `cl.viewDef.hover_entity`; the renderer therefore always saw hover entity 0. Targeted runtime logs confirmed the
 entity number at input, view, renderer, and health-bar filtering before the fix. Keep the active-view assignment in `V_RenderView`.

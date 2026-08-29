@@ -136,7 +136,9 @@ openwarcraft3 -data=/path/to/Warcraft3 -connect=192.168.1.10:27910
 
 `entityState_t.flags` is a `USHORT` serialized as `NFT_SHORT` by `common/msg.c`. Engine-level bits describe generic client
 presentation/interaction capabilities; game modules decide when to set them in server-authored snapshots. `EF_HOVER_HEALTH` means the
-client may expose the entity's health through world-hover presentation. Any new field, flag, or packed value in `entityState_t` requires
+client may expose the entity's health through world-hover presentation. `EF_HOSTILE` and `EF_NEUTRAL` are recipient-relative
+presentation relationships; when neither is set, game-specific renderers may treat the entity as friendly. Any new field, flag, or
+packed value in `entityState_t` requires
 a `MSG_WriteDeltaEntity`/`MSG_ReadDeltaEntity` round-trip test in `tests/test_net.c`.
 
 ## Key files
