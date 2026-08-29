@@ -104,9 +104,10 @@ static wavinfo_t GetWavinfo(const char *name, BYTE *wav, int wavlength) {
     FindChunk("data");
     if (!data_p) { fprintf(stderr, "[sound] %s: missing data chunk\n", name); return info; }
     data_p += 4;
-    int raw_samples = GetLittleLong() / info.width;
-    if (!info.samples || raw_samples < info.samples)
-        info.samples = raw_samples;
+    /* Always use the data chunk size for total length. The cue/LIST loop markers
+     * in WC3 files describe a loop region inside a longer sound, not the full
+     * duration — using loopstart+loop_len here would crop the audio. */
+    info.samples = GetLittleLong() / info.width;
 
     info.dataofs = (int)(data_p - wav);
     return info;
@@ -126,11 +127,12 @@ static sfxcache_t *S_ResampleLoad(const char *path) {
 
     wavinfo_t info = GetWavinfo(path, file_data, (int)file_size);
     if (info.channels != 1) {
-        fprintf(stderr, "[sound] %s is a stereo sample\n", path);
+        fprintf(stderr, "[sound] %s: %d-channel audio, rejecting (need mono)\n", path, info.channels);
         FS_FreeFile(file_data);
         return NULL;
     }
     if (!info.samples || !info.width) {
+        fprintf(stderr, "[sound] %s: bad WAV (samples=%d width=%d)\n", path, info.samples, info.width);
         FS_FreeFile(file_data);
         return NULL;
     }
@@ -426,6 +428,15 @@ void S_PlaySoundByName(LPCSTR name) {
     if (!s.initialized || !name || !*name) return;
     sHashNode_t *n = S_FindByName(name);
     if (n) S_PlaySound(n->kit_id);
+}
+
+/* Preload a server-configstring sound so playback never blocks on archive I/O. */
+void S_RegisterSound(LPCSTR path) {
+    if (!s.initialized || !path || !*path) return;
+    sfx_t *sfx = S_FindSfx(path, TRUE);
+    if (!sfx) return;
+    sfx->registration_sequence = s.registration_sequence;
+    S_LoadSfx(sfx);
 }
 
 /* Play a sound by raw MPQ-relative path (e.g. unit voice lines). */
