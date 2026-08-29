@@ -26,7 +26,7 @@ typedef struct {
     BOOL flying;
     BOOL suppress_next_point;
     VECTOR2 target;
-    FLOAT speed;
+    FLOAT speed, height;
 } sc2MoveState_t;
 
 static sc2MoveState_t sc2_move[SC2_MAX_EDICTS];
@@ -48,14 +48,18 @@ static BOOL SC2_ObjectIsMobile(sc2MapObject_t const *object) {
     return true;
 }
 
-static FLOAT SC2_ObjectSpawnZ(sc2MapObject_t const *object) {
+static FLOAT SC2_ObjectSpawnZ(sc2MapObject_t const *object, BOOL flying) {
+    FLOAT terrain;
+
     if (!object) {
         return 0.0f;
     }
     if (object->flags & SC2_OBJECT_HEIGHT_ABSOLUTE) {
-        return object->position.z;
+        return object->position.z + (flying ? object->move_height : 0.0f);
     }
-    return SC2_MapHeightAtPoint(object->position.x, object->position.y) + object->position.z;
+    terrain = flying ? SC2_MapAirHeightAtPoint(object->position.x, object->position.y) :
+                       SC2_MapHeightAtPoint(object->position.x, object->position.y);
+    return terrain + object->position.z + (flying ? object->move_height : 0.0f);
 }
 
 static FLOAT SC2_ObjectRadius(sc2MapObject_t const *object) {
@@ -78,18 +82,23 @@ static FLOAT SC2_ObjectCollisionRadius(sc2MapObject_t const *object, FLOAT radiu
     return radius;
 }
 
-static void SC2_LinkAtGround(LPEDICT ent) {
-    ent->s.origin.x = ent->s.origin2.x;
-    ent->s.origin.y = ent->s.origin2.y;
-    ent->s.origin.z = SC2_MapHeightAtPoint(ent->s.origin2.x, ent->s.origin2.y);
-    gi.LinkEntity(ent);
-}
-
 static DWORD SC2_EdictNumber(LPCEDICT ent) {
     if (!ent || ent < sc2_edicts || ent >= sc2_edicts + SC2_MAX_EDICTS) {
         return SC2_MAX_EDICTS;
     }
     return (DWORD)(ent - sc2_edicts);
+}
+
+/* Flying movers retain their catalog-authored clearance while crossing terrain tiers. */
+static void SC2_LinkUnit(LPEDICT ent) {
+    DWORD number = SC2_EdictNumber(ent);
+    FLOAT terrain = sc2_move[number].flying ? SC2_MapAirHeightAtPoint(ent->s.origin2.x, ent->s.origin2.y) :
+                                              SC2_MapHeightAtPoint(ent->s.origin2.x, ent->s.origin2.y);
+
+    ent->s.origin.x = ent->s.origin2.x;
+    ent->s.origin.y = ent->s.origin2.y;
+    ent->s.origin.z = sc2_unit_world_height(terrain, sc2_move[number].height, sc2_move[number].flying);
+    gi.LinkEntity(ent);
 }
 
 static DWORD SC2_ClientPlayer(LPCEDICT ent) {
@@ -200,7 +209,7 @@ static void SC2_RunUnit(LPEDICT ent) {
     step = sc2_move[number].speed * (FRAMETIME / 1000.0f);
     if (dist <= step + SC2_MOVE_EPS) {
         ent->s.origin2 = sc2_move[number].target;
-        SC2_LinkAtGround(ent);
+        SC2_LinkUnit(ent);
         SC2_StopUnit(ent);
         return;
     }
@@ -216,7 +225,7 @@ static void SC2_RunUnit(LPEDICT ent) {
     Vector2_normalize(&dir);
     ent->s.angle = atan2f(dir.y, dir.x);
     ent->s.origin2 = Vector2_mad(&ent->s.origin2, step, &dir);
-    SC2_LinkAtGround(ent);
+    SC2_LinkUnit(ent);
 }
 
 static BOOL sc2_collision_filter(LPCEDICT ent) {
@@ -225,7 +234,7 @@ static BOOL sc2_collision_filter(LPCEDICT ent) {
 
 static void SC2_PushEntity(LPEDICT ent, FLOAT distance, LPCVECTOR2 dir) {
     ent->s.origin2 = Vector2_mad(&ent->s.origin2, distance, dir);
-    SC2_LinkAtGround(ent);
+    SC2_LinkUnit(ent);
 }
 
 static void SC2_SolveCollisions(void) {
@@ -423,10 +432,7 @@ static void SC2_GalaxyUnitSetPosition(void *ent_ptr, float x, float y, float fac
     if (!ent || !ent->inuse) return;
     if (x == x) { /* NaN check: NaN != NaN, so x==x is false only for NaN → skip position */
         ent->s.origin2 = (VECTOR2){ x, y };
-        ent->s.origin.x = x;
-        ent->s.origin.y = y;
-        ent->s.origin.z = SC2_MapHeightAtPoint(x, y);
-        gi.LinkEntity(ent);
+        SC2_LinkUnit(ent);
     }
     ent->s.angle = facing;
 }
@@ -475,7 +481,6 @@ static void *SC2_GalaxyCreateUnit(LPCSTR unit_type, int player, float x, float y
     ent->s.number = (DWORD)(ent - sc2_edicts);
     ent->s.origin.x = x;
     ent->s.origin.y = y;
-    ent->s.origin.z = SC2_MapHeightAtPoint(x, y);
     ent->s.origin2 = (VECTOR2){ x, y };
     ent->s.angle = angle;
     ent->s.scale = 1.0f;
@@ -487,7 +492,8 @@ static void *SC2_GalaxyCreateUnit(LPCSTR unit_type, int player, float x, float y
         sc2_move[ent->s.number].mobile = ent->svflags & SVF_MONSTER;
         sc2_move[ent->s.number].flying = !strcasecmp(object.mover, "Fly");
         sc2_move[ent->s.number].speed = SC2_MOVE_SPEED;
-    gi.LinkEntity(ent);
+        sc2_move[ent->s.number].height = object.move_height;
+    SC2_LinkUnit(ent);
             fprintf(stderr, "SC2_GalaxyCreateUnit: type=%s model=%s mover=%s mobile=%d collision=%.2f player=%d at (%.1f,%.1f)\n",
                     unit_type, model, object.mover, !!sc2_move[ent->s.number].mobile, ent->collision, player, x, y);
     return ent;
@@ -616,7 +622,6 @@ static void SC2_SpawnEntities(void) {
         ent->s.number = (DWORD)(ent - sc2_edicts);
         ent->s.class_id = SC2_MapObjectClassId(object);
         ent->s.origin = object->position;
-        ent->s.origin.z = SC2_ObjectSpawnZ(object);
         ent->s.angle = object->angle;
         ent->s.scale = object->scale > 0.0f ? object->scale : 1.0f;
         ent->s.radius = SC2_ObjectRadius(object);
@@ -630,6 +635,8 @@ static void SC2_SpawnEntities(void) {
         sc2_move[number].mobile = (ent->svflags & SVF_MONSTER) != 0;
         sc2_move[number].flying = !strcasecmp(object->mover, "Fly");
         sc2_move[number].speed = SC2_MOVE_SPEED;
+        sc2_move[number].height = object->move_height;
+        ent->s.origin.z = SC2_ObjectSpawnZ(object, sc2_move[number].flying);
         gi.LinkEntity(ent);
     }
     CM_BakeStaticObstacles();

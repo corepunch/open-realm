@@ -12,8 +12,8 @@ static inline FLOAT SC2_LerpDegrees(FLOAT a, FLOAT b, FLOAT k) {
 
 #define SC2_MAX_MAP_OBJECTS 4096 // objects; accommodates object-heavy campaign maps such as TRaynor01
 #define SC2_CELL_SIZE          1.0f
-#define SC2_CAMERA_HEIGHT_RADIUS  8.0f // world units; half-width of the camera-only terrain blur footprint
-#define SC2_CAMERA_HEIGHT_SAMPLES 5    // taps per axis; suppresses narrow depressions without filtering over time
+#define SC2_BROAD_HEIGHT_RADIUS  8.0f // world units; half-width of the air/camera terrain filter footprint
+#define SC2_BROAD_HEIGHT_SAMPLES 5    // taps per axis; suppresses narrow depressions without filtering over time
 #define SC2_MAX_TERRAIN_TEXTURES 16
 #define SC2_MAX_CLIFF_SETS     8
 #define SC2_MAX_CLIFF_CELLS    16384
@@ -69,6 +69,7 @@ typedef struct {
     FLOAT           footprint_width;
     FLOAT           footprint_height;
     FLOAT           footprint_radius;
+    FLOAT           move_height;
     FLOAT           pathing_soft_radius;
     FLOAT           pathing_hard_radius;
     DWORD           variation;
@@ -82,6 +83,10 @@ typedef struct {
     COLOR32         tint_color;
     sc2MapCamera_t  camera;
 } sc2MapObject_t;
+
+static inline FLOAT sc2_unit_world_height(FLOAT terrain, FLOAT height, BOOL flying) {
+    return terrain + (flying ? height : 0.0f);
+}
 
 typedef struct {
     BOOL            enabled;
@@ -331,16 +336,16 @@ static inline FLOAT sc2_map_height_at_point(sc2Map_t const *map, FLOAT x, FLOAT 
                                p.ty);
 }
 
-/* Camera height follows broad terrain elevation while ignoring narrow heightmap features. */
-static inline FLOAT sc2_map_camera_height_at_point(sc2Map_t const *map, FLOAT x, FLOAT y) {
-    FLOAT sum = 0.0f, step = SC2_CAMERA_HEIGHT_RADIUS * 2.0f / (SC2_CAMERA_HEIGHT_SAMPLES - 1);
+/* Air movers and cameras follow broad terrain elevation without dipping into narrow depressions. */
+static inline FLOAT sc2_map_broad_height_at_point(sc2Map_t const *map, FLOAT x, FLOAT y) {
+    FLOAT sum = 0.0f, step = SC2_BROAD_HEIGHT_RADIUS * 2.0f / (SC2_BROAD_HEIGHT_SAMPLES - 1);
     int ix, iy;
 
-    for (iy = 0; iy < SC2_CAMERA_HEIGHT_SAMPLES; iy++)
-        for (ix = 0; ix < SC2_CAMERA_HEIGHT_SAMPLES; ix++)
-            sum += sc2_map_height_at_point(map, x - SC2_CAMERA_HEIGHT_RADIUS + ix * step,
-                                          y - SC2_CAMERA_HEIGHT_RADIUS + iy * step);
-    return sum / (SC2_CAMERA_HEIGHT_SAMPLES * SC2_CAMERA_HEIGHT_SAMPLES);
+    for (iy = 0; iy < SC2_BROAD_HEIGHT_SAMPLES; iy++)
+        for (ix = 0; ix < SC2_BROAD_HEIGHT_SAMPLES; ix++)
+            sum += sc2_map_height_at_point(map, x - SC2_BROAD_HEIGHT_RADIUS + ix * step,
+                                          y - SC2_BROAD_HEIGHT_RADIUS + iy * step);
+    return sum / (SC2_BROAD_HEIGHT_SAMPLES * SC2_BROAD_HEIGHT_SAMPLES);
 }
 
 static inline FLOAT sc2_map_height_adjust_at_point(sc2Map_t const *map, FLOAT x, FLOAT y) {
@@ -373,6 +378,7 @@ BOOL          SC2_MapResolveUnit(LPCSTR unit_type, sc2MapObject_t *object);
 LPCSTR        SC2_MapResolveSound(LPCSTR sound_id, int asset);
 FLOAT         SC2_MapSoundLength(LPCSTR sound_id, int asset);
 FLOAT         SC2_MapHeightAtPoint(FLOAT x, FLOAT y);
+FLOAT         SC2_MapAirHeightAtPoint(FLOAT x, FLOAT y);
 FLOAT         SC2_MapCameraHeightAtPoint(FLOAT x, FLOAT y);
 BOX2          SC2_MapBounds(void);
 VECTOR2       SC2_MapNormalizedPosition(FLOAT x, FLOAT y);
