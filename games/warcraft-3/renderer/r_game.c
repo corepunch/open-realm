@@ -386,7 +386,7 @@ void R_GameDrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
 }
 
 /* Warcraft III can replace the platform cursor with its authored animated MDX cursor. */
-bool R_GameDrawCursor(float x, float y) {
+bool R_GameDrawCursor(float x, float y, COLOR32 tint) {
     renderEntity_t probe = {0};
 
     if (!cursor_model && !cursor_load_attempted) {
@@ -399,6 +399,6 @@ bool R_GameDrawCursor(float x, float y) {
         }
     }
     if (!cursor_model) return false;
-    MDLX_DrawSprite(cursor_model, "Normal", x, y);
+    MDLX_DrawSpriteTinted(cursor_model, "Normal", x, y, tint);
     return true;
 }

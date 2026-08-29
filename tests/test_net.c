@@ -37,6 +37,8 @@ void SCR_UpdateScreen(DWORD msec);
 extern BOOL scr_initialized;
 void test_client_stubs_clear_cvars(void);
 extern DWORD test_fow_upload_calls;
+extern DWORD test_cursor_draw_calls;
+extern COLOR32 test_cursor_tint;
 
 static RECT test_scroll_rects[3], test_scroll_uvs[3];
 static LPCTEXTURE test_scroll_tex[3];
@@ -68,6 +70,36 @@ TEST(net, no_refresh_preserves_client_loop_without_screen_submission) {
     T_EQ(test_begin_frames, 0); T_EQ(test_end_frames, 0);
     test_client_stubs_set_cvar("r_norefresh", "0"); SCR_UpdateScreen(16);
     T_EQ(test_begin_frames, 1); T_EQ(test_end_frames, 1);
+    scr_initialized = false;
+}
+
+
+/* Authored cursors use recipient-relative hover state for presentation only:
+ * hostile WC3 hover is red, and clearing hover restores the original artwork. */
+TEST(client_screen, cursor_tint_is_red_only_while_hovering_hostile_unit) {
+    test_client_stubs_init(); test_client_stubs_clear_cvars();
+    cls.state = ca_active; cls.key_dest = key_game; scr_initialized = true;
+    test_client_stubs_set_cvar("r_hud", "0");
+    test_client_stubs_set_cvar("scr_showfps", "0");
+    test_client_stubs_set_cvar("r_cursor", "1");
+    re.BeginFrame = capture_begin_frame; re.EndFrame = capture_end_frame;
+
+    cl.hover_entity = 7;
+    cl.ents[7].current.flags = EF_HOVER_HEALTH | EF_HOSTILE;
+    SCR_UpdateScreen(16);
+    T_EQ(test_cursor_draw_calls, 1);
+    T_EQ(test_cursor_tint.r, 255);
+    T_EQ(test_cursor_tint.g, 0);
+    T_EQ(test_cursor_tint.b, 0);
+    T_EQ(test_cursor_tint.a, 255);
+
+    cl.hover_entity = 0;
+    SCR_UpdateScreen(16);
+    T_EQ(test_cursor_draw_calls, 2);
+    T_EQ(test_cursor_tint.r, 255);
+    T_EQ(test_cursor_tint.g, 255);
+    T_EQ(test_cursor_tint.b, 255);
+    T_EQ(test_cursor_tint.a, 255);
     scr_initialized = false;
 }
 

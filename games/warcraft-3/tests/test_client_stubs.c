@@ -18,6 +18,8 @@ refExport_t re;
 uiExport_t ui;
 mouseEvent_t mouse;
 DWORD test_fow_upload_calls;
+DWORD test_cursor_draw_calls;
+COLOR32 test_cursor_tint;
 
 typedef struct { char name[64]; char value[128]; } mockCvar_t;
 static mockCvar_t mock_cvars[32];
@@ -38,7 +40,12 @@ void test_client_stubs_set_cvar(LPCSTR name, LPCSTR value) {
 static size2_t mock_GetWindowSize(void) { return MAKE(size2_t, 1024, 768); }
 static void mock_DrawLoadingIndicator(LPCRECT rect, DWORD time, COLOR32 color) { (void)rect; (void)time; (void)color; }
 static void mock_DrawFill(LPCRECT rect, COLOR32 color) { (void)rect; (void)color; }
-static bool mock_DrawCursor(float x, float y) { (void)x; (void)y; return true; }
+static bool mock_DrawCursor(float x, float y, COLOR32 tint) {
+    (void)x; (void)y;
+    test_cursor_draw_calls++;
+    test_cursor_tint = tint;
+    return true;
+}
 static void mock_SetFogOfWarData(DWORD width, DWORD height, BYTE const *data) {
     (void)width; (void)height; (void)data; test_fow_upload_calls++;
 }
@@ -81,6 +88,8 @@ void test_client_stubs_init(void) {
     memset(&ui, 0, sizeof(ui));
     memset(&mouse, 0, sizeof(mouse));
     test_fow_upload_calls = 0;
+    test_cursor_draw_calls = 0;
+    test_cursor_tint = COLOR32_WHITE;
     re.GetWindowSize = mock_GetWindowSize;
     re.DrawLoadingIndicator = mock_DrawLoadingIndicator;
     re.DrawFill = mock_DrawFill;

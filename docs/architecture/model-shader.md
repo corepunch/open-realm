@@ -110,6 +110,15 @@ The instanced model shader receives the complete effect state in `uGrassParams`,
 
 The instance transform is declared as one `in mat4 i_instance`. OpenGL assigns its four columns to consecutive attribute locations beginning at `attrib_instance`; buffer setup still describes those four columns because the vertex API operates per location.
 
+## Per-instance model tint
+
+`renderEntity_t.tint` is optional RGBA modulation for an individual rendered model; alpha zero means the normal white/unmodified value.
+WC3's authored MDX cursor uses this to tint only the transient cursor instance without changing the shared model, BLP textures, or
+authored geoset animation. The MDX path multiplies the instance tint into the evaluated geoset colour before assigning the existing
+`u_geosetColor` state. This deliberately avoids introducing a second shader colour uniform for the same multiplicative concept.
+A white tint therefore preserves texture/geoset colour and alpha, while a red `(255,0,0,255)` tint preserves authored alpha and
+modulates only RGB.
+
 ## Extension rule
 
 Do not add a special count value, a second uniform family, or a per-game shader branch when an existing entry can encode the state. Extend the common schema only when authoritative data requires another value. If the common representation is genuinely incapable of expressing a title's behavior, document the exact constraint before adding an exception.

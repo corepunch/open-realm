@@ -144,6 +144,7 @@ typedef struct {
 #endif
     BYTE health;   /* current HP fraction, 0-255 (0 = dead/no bar) */
     BYTE mana;     /* current mana fraction, 0-255 (0 = no mana bar) */
+    COLOR32 tint;  /* optional per-instance model RGBA; alpha 0 = unmodified/white */
 } renderEntity_t;
 
 typedef struct {
@@ -216,7 +217,7 @@ typedef struct {
     void (*DrawMinimap)(LPCRECT screen);
     void (*DrawLoadingIndicator)(LPCRECT rect, DWORD time, COLOR32 color);
     void (*DrawSprite)(LPCMODEL model, LPCSTR anim, float x, float y);
-    bool (*DrawCursor)(float x, float y);
+    bool (*DrawCursor)(float x, float y, COLOR32 tint);
     bool (*SetEntityAnimFrame)(LPCMODEL model, LPCSTR anim, renderEntity_t *entity);
     void (*DrawText)(LPCDRAWTEXT drawText);
     VECTOR2 (*GetTextSize)(LPCDRAWTEXT drawText);

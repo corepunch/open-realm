@@ -869,7 +869,7 @@ void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
 }
 
 /* Cursor presentation is game-owned; the client only supplies UI coordinates. */
-bool R_DrawCursor(float x, float y) { return R_GameDrawCursor(x, y); }
+bool R_DrawCursor(float x, float y, COLOR32 tint) { return R_GameDrawCursor(x, y, tint); }
 
 bool R_SetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
     return R_GameSetEntityAnimFrame(model, anim, entity);
