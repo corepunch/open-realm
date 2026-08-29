@@ -76,6 +76,14 @@ extern ability_t a_siphon_mana;
 FLOAT AB_Data(LPCSTR classname, DWORD level, DWORD index);
 
 typedef enum {
+	RETURN_RESOURCE_GOLD = 1,
+	RETURN_RESOURCE_LUMBER = 2,
+} returnResource_t;
+
+BOOL S_CanReturnResourceAt(LPEDICT unit, LPEDICT building, returnResource_t resource);
+LPEDICT S_FindNearestResourceDropoff(LPEDICT unit, returnResource_t resource);
+
+typedef enum {
 	ABILITY_NUMBER_CAST,
 	ABILITY_NUMBER_DURATION,
 	ABILITY_NUMBER_HERO_DURATION,

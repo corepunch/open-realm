@@ -5,8 +5,8 @@
 `unit_issuetargetorder(..., "smart", target)` routes workers with `Ahar` to gold or lumber in `m_unit.c`.
 The Gather command reaches the same state machines through `harvest_menu_selecttarget`.
 
-- Gold: `harvest_gold_start` -> walk to mine -> hidden mining wait -> walk to `htow` -> deposit -> resume the mine.
-- Lumber: `harvest_start` -> walk into `HARVEST_RANGE` -> swing/damage -> carry lumber -> deposit -> resume or find another tree.
+- Gold: `harvest_gold_start` -> walk to mine -> hidden mining wait -> nearest live same-owner drop-off accepting gold -> deposit -> resume the mine.
+- Lumber: `harvest_start` -> walk into `HARVEST_RANGE` -> swing/damage -> carry lumber -> nearest live same-owner drop-off accepting lumber -> deposit -> resume or find another tree.
 - `s_goldmine.c` uses the worker+mine collision contact radius plus one movement step as the entry boundary. Mine footprints are
   authoritative; do not restore the old fixed 180-unit radius.
 - A chop is lethal when tree life is less than or equal to `HARVEST_TREE_DAMAGE`. The lethal path must call `tree->die` because
@@ -19,6 +19,29 @@ the collision solver prevents the next step.
 A second stop-at-the-mine failure came from initialization order: `Agld` loaded capacity 1, then the registered `Agl2` placeholder
 reused `SP_ability_goldmine` even though no `Agl2` row exists, resetting the shared capacity to zero. At contact, `0 < 0` failed and
 the worker waited forever. `a_goldmine_overlayed` deliberately has no initializer until its authoritative data/behavior is implemented.
+
+### Resource Return Drop-Offs
+
+Resource return is capability-driven rather than keyed to a building class ID. `S_CanReturnResourceAt` reads the candidate's
+`UnitAbilities.slk:abilList` and accepts the stock Return Resources configurations as follows:
+
+- `Argd`: gold.
+- `Arlm`: lumber.
+- `Argl`: gold and lumber.
+
+For custom abilities whose `AbilityData.slk:code` resolves to the `Artn` Return Resources base ability, data slots A/B provide the
+gold/lumber acceptance flags. This preserves the same capability model for custom drop-off units instead of adding Town Hall or
+Lumber Mill rawcode checks to worker logic.
+
+`S_FindNearestResourceDropoff` scans live, in-use entities owned by the worker's player and chooses the compatible candidate with
+the smallest `Vector2_distance` from the worker. This is geometric distance; it does not pathfind to every candidate and compare
+route lengths. A Human Lumber Mill therefore competes with a Town Hall for lumber return and wins when it is geometrically closer,
+while a Lumber Mill remains ineligible for gold.
+
+The existing building-contact rule still controls when the deposit completes: worker collision + building collision + one movement
+step. The return move revalidates its target before each movement/deposit tick. If the selected drop-off dies, is removed, changes
+owner, or no longer exposes a compatible Return Resources ability, the worker retargets the nearest remaining compatible drop-off.
+If none exists, the worker stands while preserving the carried resource and carry visual.
 
 ### Mine Entry — Collision Formula
 
@@ -121,7 +144,8 @@ as lumber. Capacity (`HARVEST_LUMBER_CAPACITY`, slot 2 = 10) fills after 10 swin
 (m_tree.c owns the fall animation and pathing removal). `tree_die` sets the death sequence and its
 first frame in the same transition, so the lethal snapshot cannot retain the upright hit frame.
 
-The deposit transition validates `secondarygoal` before publishing resume. A dead tree is replaced
+The return transition first selects the nearest compatible return building and revalidates it while travelling. The deposit
+transition then validates `secondarygoal` before publishing resume. A dead tree is replaced
 with the nearest live tree; if none exists, the worker stands. Therefore `RESUME_LUMBER` always names
 a live target and a worker never spends a movement tick targeting the tree it just felled.
 
@@ -205,6 +229,7 @@ make test-wc3-engine WC3_PATTERN='wc3_game.overhead_*'
 ```
 
 The movement suite covers large-footprint mine entry, the complete gold deposit/resume cycle, trained-unit exit placement against
-static footprints, exact lethal tree trips with next-tree selection, the no-live-tree stop path, non-lethal chops, and both sides of
+static footprints, nearest compatible lumber drop-off selection, rejection of lumber-only drop-offs for gold, drop-off destruction
+retargeting, exact lethal tree trips with next-tree selection, the no-live-tree stop path, non-lethal chops, and both sides of
 the immobility contract. The in-engine fixture
 `games/warcraft-3/tests/resources-src/Units/UnitUI.slk` supplies `isbldg` for the same metadata lookup used by the game.

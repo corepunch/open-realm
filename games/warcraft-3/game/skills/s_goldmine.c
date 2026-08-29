@@ -10,18 +10,6 @@ void harvestgold_walk(LPEDICT ent);
 void harvestgold_wait(LPEDICT ent);
 void harvestgold_minegold(LPEDICT ent);
 
-LPEDICT find_townhall(LPEDICT unit) {
-    FOR_LOOP(i, globals.num_edicts) {
-        LPEDICT ent = &globals.edicts[i];
-        if (ent->class_id == MAKEFOURCC('h', 't', 'o', 'w') &&
-            ent->s.player == unit->s.player)
-        {
-            return ent;
-        }
-    }
-    return NULL;
-}
-
 static void ai_walkmine(LPEDICT ent) {
     /* Building collision became footprint-authored in 55724517; using the old
      * fixed 180u mine radius stranded workers outside larger mine footprints. */
@@ -35,6 +23,17 @@ static void ai_walkmine(LPEDICT ent) {
 }
 
 static void ai_goldmine_walkback(LPEDICT ent) {
+    LPEDICT dropoff;
+    if (!S_CanReturnResourceAt(ent, ent->goalentity, RETURN_RESOURCE_GOLD)) {
+        dropoff = S_FindNearestResourceDropoff(ent, RETURN_RESOURCE_GOLD);
+        if (!dropoff) {
+            ent->stand(ent);
+            return;
+        }
+        G_PublishMessage(ent, GAME_MSG_HARVEST_RETURN_GOLD, dropoff);
+        ent->goalentity = dropoff;
+    }
+
     FLOAT const dist = M_DistanceToGoal(ent);
     FLOAT const contact = ent->collision + ent->goalentity->collision;
     FLOAT const step = unit_movedistance(ent);
@@ -43,8 +42,8 @@ static void ai_goldmine_walkback(LPEDICT ent) {
      * reaches physical contact. Deposit once that next step would cross the
      * contact boundary, matching the gold-mine entry interaction rule. */
     if (dist <= contact + step) {
-        LPEDICT townhall = ent->goalentity;
-        G_PublishMessage(ent, GAME_MSG_HARVEST_DEPOSIT_GOLD, townhall);
+        LPEDICT dropoff = ent->goalentity;
+        G_PublishMessage(ent, GAME_MSG_HARVEST_DEPOSIT_GOLD, dropoff);
         ent->goalentity = ent->secondarygoal;
         LPPLAYER player = G_GetPlayerByNumber(ent->s.player);
         if (player) {
@@ -98,10 +97,10 @@ void harvestgold_walkback(LPEDICT ent) {
     {
         harvestgold_minegold(other);
     }
-    LPEDICT townhall = find_townhall(ent);
-    if (townhall) {
-        G_PublishMessage(ent, GAME_MSG_HARVEST_RETURN_GOLD, townhall);
-        ent->goalentity = townhall;
+    LPEDICT dropoff = S_FindNearestResourceDropoff(ent, RETURN_RESOURCE_GOLD);
+    if (dropoff) {
+        G_PublishMessage(ent, GAME_MSG_HARVEST_RETURN_GOLD, dropoff);
+        ent->goalentity = dropoff;
         unit_setmove(ent, &harvestgold_move_walkback);
     } else {
         ent->stand(ent);

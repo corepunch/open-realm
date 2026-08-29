@@ -14,7 +14,59 @@ void harvest_walk(LPEDICT ent);
 
 void harvest_start(LPEDICT self, LPEDICT target);
 void harvest_gold_start(LPEDICT self, LPEDICT target);
-LPEDICT find_townhall(LPEDICT unit);
+
+static DWORD return_resources_mask(LPCSTR ability) {
+    DWORD mask = 0;
+    AbilityData_t const *data;
+
+    /* Stock return-resource abilities expose the same Artn capability with
+     * different accepted-resource configurations. Keep the aliases explicit
+     * so tests and stripped data sets do not need a full AbilityData table. */
+    if (!strcmp(ability, "Argd")) return RETURN_RESOURCE_GOLD;
+    if (!strcmp(ability, "Arlm")) return RETURN_RESOURCE_LUMBER;
+    if (!strcmp(ability, "Argl")) return RETURN_RESOURCE_GOLD | RETURN_RESOURCE_LUMBER;
+
+    if (G_AbilityCodeName(ability) != MAKEFOURCC('A', 'r', 't', 'n'))
+        return 0;
+
+    data = G_AbilityDataName(ability);
+    if (data->data[0][0]) mask |= RETURN_RESOURCE_GOLD;
+    if (data->data[0][1]) mask |= RETURN_RESOURCE_LUMBER;
+    return mask;
+}
+
+BOOL S_CanReturnResourceAt(LPEDICT unit, LPEDICT building, returnResource_t resource) {
+    LPCSTR abilities;
+
+    if (!unit || !building || !building->inuse || building->s.player != unit->s.player || M_IsDead(building))
+        return false;
+    if (!building->UnitAbilities || !(abilities = building->UnitAbilities->abilList))
+        return false;
+
+    PARSE_LIST(abilities, abil, parse_segment) {
+        if (return_resources_mask(abil) & resource)
+            return true;
+    }
+    return false;
+}
+
+LPEDICT S_FindNearestResourceDropoff(LPEDICT unit, returnResource_t resource) {
+    LPEDICT best = NULL;
+    FLOAT best_dist = 0;
+
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT building = &globals.edicts[i];
+        FLOAT dist;
+        if (!S_CanReturnResourceAt(unit, building, resource))
+            continue;
+        dist = Vector2_distance(&unit->s.origin2, &building->s.origin2);
+        if (!best || dist < best_dist) {
+            best = building;
+            best_dist = dist;
+        }
+    }
+    return best;
+}
 
 static LPEDICT find_another_tree(LPEDICT ent) {
     FLOAT min_dist = HARVEST_SEARCH_RANGE;
@@ -65,6 +117,17 @@ static void ai_walktree(LPEDICT ent) {
 }
 
 static void ai_harvest_walkback(LPEDICT ent) {
+    LPEDICT dropoff;
+    if (!S_CanReturnResourceAt(ent, ent->goalentity, RETURN_RESOURCE_LUMBER)) {
+        dropoff = S_FindNearestResourceDropoff(ent, RETURN_RESOURCE_LUMBER);
+        if (!dropoff) {
+            ent->stand(ent);
+            return;
+        }
+        G_PublishMessage(ent, GAME_MSG_HARVEST_RETURN_LUMBER, dropoff);
+        ent->goalentity = dropoff;
+    }
+
     FLOAT const dist = M_DistanceToGoal(ent);
     FLOAT const contact = ent->collision + ent->goalentity->collision;
     FLOAT const step = unit_movedistance(ent);
@@ -73,8 +136,8 @@ static void ai_harvest_walkback(LPEDICT ent) {
      * reaches physical contact. Deposit once that next step would cross the
      * contact boundary, matching the resource interaction rule. */
     if (dist <= contact + step) {
-        LPEDICT townhall = ent->goalentity;
-        G_PublishMessage(ent, GAME_MSG_HARVEST_DEPOSIT_LUMBER, townhall);
+        LPEDICT dropoff = ent->goalentity;
+        G_PublishMessage(ent, GAME_MSG_HARVEST_DEPOSIT_LUMBER, dropoff);
         LPPLAYER player = G_GetPlayerByNumber(ent->s.player);
         if (player) {
             player->stats[PLAYERSTATE_RESOURCE_LUMBER] += ent->harvested_lumber;
@@ -153,10 +216,10 @@ void harvest_swing(LPEDICT ent) {
 }
 
 void harvest_walkback(LPEDICT ent) {
-    LPEDICT townhall = find_townhall(ent);
-    if (townhall) {
-        G_PublishMessage(ent, GAME_MSG_HARVEST_RETURN_LUMBER, townhall);
-        ent->goalentity = townhall;
+    LPEDICT dropoff = S_FindNearestResourceDropoff(ent, RETURN_RESOURCE_LUMBER);
+    if (dropoff) {
+        G_PublishMessage(ent, GAME_MSG_HARVEST_RETURN_LUMBER, dropoff);
+        ent->goalentity = dropoff;
         unit_setmove(ent, &harvest_move_walkback);
     } else {
         ent->stand(ent);

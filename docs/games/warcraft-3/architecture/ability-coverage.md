@@ -91,7 +91,7 @@ generic `Button` command path rather than by a registered ability code.
 | `Abgm` | Blighted Gold Mine | TODO | Needs undead mine variant. |
 | `Abli` | Blight | TODO | Needs blight placement/spread and terrain interaction. |
 | `Aaha` | Acolyte Harvest | TODO | Needs undead gold harvesting behavior. |
-| `Artn` | Return Resources | TODO | Local harvest returns are hardwired inside harvest states, not a standalone ability. |
+| `Artn` | Return Resources | Partial | Drop-off eligibility is ability-driven (`Argd`/`Arlm`/`Argl` plus `Artn`-derived data), with nearest compatible selection and retargeting; the carried-resource command/state still lives in harvest state machines. |
 | `Ahar` | Harvest | Partial | Local worker harvest exists, but not as the same split data model as the ability data. |
 | `Awha` | Wisp Harvest | TODO | Needs wisp-specific gather behavior. |
 | `Ahrl` | Harvest Lumber | Partial | Local lumber harvest is under `Ahar`; `Ahrl` is not registered. |
