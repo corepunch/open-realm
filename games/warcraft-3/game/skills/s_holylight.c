@@ -18,7 +18,7 @@ static BOOL holylight_validate(LPEDICT caster, spellTarget_t st) {
     if (target == caster) return false;
     if (!S_SpellIsAliveTarget(target)) return false;
     if (S_SpellIsEnemy(caster, target)) {
-        LPCSTR race = target->data->race;
+        LPCSTR race = target->UnitData->race;
         return race && !strcmp(race, STR_UNDEAD);
     }
     return S_SpellIsFriend(caster, target);

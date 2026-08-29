@@ -5,7 +5,7 @@ static FLOAT repair_cost_factor;
 void repair_build(LPEDICT ent, LPEDICT building);
 
 static void ai_repair(LPEDICT ent) {
-    FLOAT const k = (FLOAT)FRAMETIME / ((FLOAT)ent->build->balance->buildTime * 1000.0f);
+    FLOAT const k = (FLOAT)FRAMETIME / ((FLOAT)ent->build->UnitBalance->buildTime * 1000.0f);
     EDICTSTAT *hp = &ent->build->health;
     hp->value += hp->max_value * k;
     if (hp->value >= hp->max_value) {

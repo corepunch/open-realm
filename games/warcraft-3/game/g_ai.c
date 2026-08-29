@@ -27,7 +27,7 @@ BOOL unit_is_walking(LPCEDICT ent) {
 static FLOAT unit_current_speed(LPCEDICT self) {
     FLOAT speed = self->unitinfo.MoveSpeed > 0
         ? self->unitinfo.MoveSpeed
-        : self->balance->speed;
+        : self->UnitBalance->speed;
     if (self->move_group_speed > 0 && self->move_group_speed < speed && unit_is_walking(self)) {
         speed = self->move_group_speed;
     }
@@ -190,7 +190,7 @@ static void unit_turn_toward(LPEDICT self, FLOAT target) {
     VECTOR2 const goal   = { cosf(target), sinf(target) };
     FLOAT const cross = facing.x * goal.y - facing.y * goal.x;
     FLOAT const dot   = facing.x * goal.x + facing.y * goal.y;
-    FLOAT turn = self->data->turnRate;
+    FLOAT turn = self->UnitData->turnRate;
     if (turn <= 0.0f) turn = 0.5f;
 
     if (dot >= cosf(turn)) {

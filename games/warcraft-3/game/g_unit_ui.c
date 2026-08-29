@@ -3,7 +3,6 @@
  */
 
 #include "g_local.h"
-#include "g_metadata.h"
 
 /* Defined in skills/s_spell.c — remaining cooldown fraction for a unit's ability,
  * used to shade the command-card button while it recharges. */
@@ -47,7 +46,7 @@ LPCSTR GetBuildCommand(unitRace_t race) {
 
 static LPCSTR G_CommandArtCode(LPEDICT ent, LPCSTR code) {
     if (!strcmp(code, STR_CmdBuild)) {
-        return GetBuildCommand(G_RaceFromString(ent->data->race));
+        return GetBuildCommand(G_RaceFromString(ent->UnitData->race));
     }
     return code;
 }
@@ -215,9 +214,9 @@ BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_but
         return 0;
     }
     memset(buttons, 0, sizeof(*buttons) * max_buttons);
-    b = ent->balance;
-    w = ent->weapons;
-    a = ent->abilities;
+    b = ent->UnitBalance;
+    w = ent->UnitWeapons;
+    a = ent->UnitAbilities;
 
     if (ent->currentmove && ent->currentmove->think == ai_birth) {
         return 0;
@@ -303,7 +302,7 @@ BYTE G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue) {
     memset(queue, 0, sizeof(*queue) * max_queue);
     for (LPEDICT build = ent->build; build && count < max_queue; build = build->build) {
         LPCSTR build_name = GetClassName(build->class_id);
-        DWORD duration = build->balance->buildTime * 1000;
+        DWORD duration = build->UnitBalance->buildTime * 1000;
         FLOAT progress = 0;
 
         if (count == 0 && build->health.max_value > 0) {

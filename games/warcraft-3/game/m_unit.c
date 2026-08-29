@@ -114,7 +114,7 @@ void unit_die(LPEDICT self, LPEDICT attacker) {
 
 void unit_birth(LPEDICT self) {
     unit_setmove(self, &unit_move_birth);
-    self->wait = self->balance->buildTime;
+    self->wait = self->UnitBalance->buildTime;
     self->s.renderfx |= RF_NO_UBERSPLAT;
 }
 
@@ -366,7 +366,7 @@ void unit_learnability(LPEDICT ent, DWORD abilcode) {
  * cannot drop a living hero below 1 HP).  Non-heroes (no attributes) are a
  * no-op.  Call whenever a hero's str/agi/intel change. */
 void G_RecomputeHeroStats(LPEDICT ent) {
-    UnitBalance_t const *balance = ent->balance;
+    UnitBalance_t const *balance = ent->UnitBalance;
     LONG const baseStr = balance->strength;
     LONG const baseAgi = balance->agility;
     LONG const baseInt = balance->intelligence;
@@ -401,7 +401,7 @@ void G_RecomputeHeroStats(LPEDICT ent) {
             if (!strcmp(prim, "AGI")) primVal = ent->hero.agi;
             else if (!strcmp(prim, "INT")) primVal = ent->hero.intel;
         }
-        ent->attack1.damageBase = ent->weapons->attack1.damageBase + (FLOAT)primVal;
+        ent->attack1.damageBase = ent->UnitWeapons->attack1.damageBase + (FLOAT)primVal;
     }
 }
 
@@ -439,7 +439,7 @@ DWORD G_HeroLevelForXP(DWORD xp) {
 
 /* Set a hero's level and derive its attributes + HP/mana/armor for that level. */
 void G_HeroApplyLevel(LPEDICT ent, DWORD level) {
-    UnitBalance_t const *balance = ent->balance;
+    UnitBalance_t const *balance = ent->UnitBalance;
     LONG const baseStr = balance->strength;
     LONG const baseAgi = balance->agility;
     LONG const baseInt = balance->intelligence;
@@ -503,7 +503,7 @@ static FLOAT G_MiscListNum(LPCSTR key, DWORD n, FLOAT fallback) {
 }
 
 BOOL G_UnitIsHero(LPCEDICT ent) {
-    return ent->balance->strength > 0 || ent->balance->agility > 0 || ent->balance->intelligence > 0;
+    return ent->UnitBalance->strength > 0 || ent->UnitBalance->agility > 0 || ent->UnitBalance->intelligence > 0;
 }
 
 /* Award experience for killing `victim` to the killer's heroes within range,
@@ -515,7 +515,7 @@ void G_GrantKillXP(LPEDICT victim, LPEDICT killer) {
     }
     BOOL const victimHero = G_UnitIsHero(victim);
     DWORD const victimLevel = victimHero ? (DWORD)MAX(1, (LONG)victim->hero.level)
-                                         : (DWORD)MAX(1, victim->balance->level);
+                                         : (DWORD)MAX(1, victim->UnitBalance->level);
     DWORD baseXP;
     if (victimHero) {
         baseXP = (DWORD)G_MiscListNum("GrantHeroXP", victimLevel - 1, 100.0f);

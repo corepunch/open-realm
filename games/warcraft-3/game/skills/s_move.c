@@ -147,7 +147,7 @@ static DWORD move_collect_selected(LPGAMECLIENT client,
         if (count >= max_units) {
             break;
         }
-        if ((ent->aiflags & AI_IMMOBILE) || ent->balance->speed <= 0) {
+        if ((ent->aiflags & AI_IMMOBILE) || ent->UnitBalance->speed <= 0) {
             continue;
         }
         units[count++] = ent;
@@ -171,7 +171,7 @@ void move_reset_progress(LPEDICT self) {
 
 /* Effective current move speed of a unit (runtime override, else data table). */
 static FLOAT unit_effective_speed(LPEDICT ent) {
-    return ent->unitinfo.MoveSpeed > 0 ? ent->unitinfo.MoveSpeed : ent->balance->speed;
+    return ent->unitinfo.MoveSpeed > 0 ? ent->unitinfo.MoveSpeed : ent->UnitBalance->speed;
 }
 
 /* Slowest move speed across a group, so the whole group travels at it. */
