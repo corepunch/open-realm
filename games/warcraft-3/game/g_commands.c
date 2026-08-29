@@ -133,7 +133,7 @@ CLIENTCOMMAND(Button) {
         client->menu.cmdbutton(clent, *((DWORD *)classname));
     } else {
         LPEDICT ent = G_GetMainSelectedUnit(client);
-        LPCSTR builds = UNIT_TRAINS(ent->class_id);
+        LPCSTR builds = G_UnitProfile(ent->class_id)->trains;
         if (!builds)
             return;
         PARSE_LIST(builds, build, parse_segment) {

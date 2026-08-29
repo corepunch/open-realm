@@ -500,7 +500,7 @@ DWORD GetUnitRace(LPJASS j) {
 }
 DWORD GetUnitName(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    LPCSTR name = whichUnit ? UNIT_NAME(whichUnit->class_id) : NULL;
+    LPCSTR name = whichUnit ? G_UnitProfile(whichUnit->class_id)->name : NULL;
     return jass_pushstring(j, name ? name : "");
 }
 DWORD GetUnitFoodUsed(LPJASS j) {

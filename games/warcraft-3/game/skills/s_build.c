@@ -103,7 +103,7 @@ void build_menu_selectlocation(LPEDICT ent, DWORD building_id) {
 
 void ui_builds(LPGAMECLIENT client) {
     LPEDICT ent = G_GetMainSelectedUnit(client);
-    LPCSTR builds = UNIT_BUILDS(ent->class_id);
+    LPCSTR builds = G_UnitProfile(ent->class_id)->builds;
     if (!builds)
         return;
     PARSE_LIST(builds, build, parse_segment) {

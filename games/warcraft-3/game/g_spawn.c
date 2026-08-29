@@ -185,6 +185,7 @@ static BOOL G_ClassIdIsPrintable(DWORD class_id) {
 
 /* Bind immutable table rows after class_id is assigned and before entity-specific initialization. */
 void G_BindEntityData(LPEDICT edict) {
+    edict->profile = G_UnitProfile(edict->class_id);
     edict->balance = G_UnitBalance(edict->class_id);
     edict->data = G_UnitData(edict->class_id);
     edict->ui = G_UnitUI(edict->class_id);

@@ -22,7 +22,6 @@
  */
 #include "common/common.h"
 #include "g_local.h"
-#include "g_unitdata.h"
 #include "jass/jass.h"
 
 struct game_export globals;

@@ -10,7 +10,6 @@
 #include "server/game.h"
 #include "g_shared.h"
 #include "g_unitrow.h"
-#include "g_unitdata.h"
 #include "jass/jlex.h"
 
 #define EDICTFIELD(x, type) { #x, FOFS(edict_s, x)-(HANDLE)NULL, type }
@@ -696,6 +695,7 @@ struct edict_s {
     LPEDICT owner;
     LPEDICT build;
     LPCANIMATION animation;
+    UnitProfile_t const *profile;
     UnitBalance_t const *balance;
     UnitData_t const *data;
     UnitUI_t const *ui;
@@ -844,12 +844,12 @@ struct level_locals {
     BOOL scriptsStarted;
 };
 
-typedef struct sheetMetaData_s {
+typedef struct {
     LPCSTR id;
-    LPCSTR field;
-    LPCSTR slk;
-    sheetRow_t *table;
-} sheetMetaData_t;
+    size_t row_offset;
+    size_t field_offset;
+    bzFieldType_t type;
+} unitMeta_t;
 
 #define UITRIGGER_T_DEFINED
 typedef struct {
@@ -1050,15 +1050,17 @@ BOOL UI_BuildFrameForWrite(LPCFRAMEDEF frame,
                            DWORD textbuf_max);
 
 // g_metadata.c
-LPCSTR UnitStringField(sheetMetaData_t *, DWORD, LPCSTR);
-LONG UnitIntegerField(sheetMetaData_t *, DWORD, LPCSTR);
-BOOL UnitBooleanField(sheetMetaData_t *, DWORD, LPCSTR);
-FLOAT UnitRealField(sheetMetaData_t *, DWORD, LPCSTR);
+LPCSTR UnitMetaString(LPEDICT, DWORD);
+LONG UnitMetaInteger(LPEDICT, DWORD);
+BOOL UnitMetaBoolean(LPEDICT, DWORD);
+FLOAT UnitMetaReal(LPEDICT, DWORD);
+sheetRow_t *G_SheetTail(sheetRow_t *rows);
 
 void InitUnitData(void);
 void ShutdownUnitData(void);
 #ifdef BZ_TESTS
 sheetRow_t *G_SetSLKRows(LPCSTR, sheetRow_t *);
+sheetRow_t *G_SetProfileRows(sheetRow_t *);
 #endif
 void G_RegisterSelectSounds(LPEDICT, LPCSTR);
 
@@ -1194,9 +1196,6 @@ extern struct game_import gi;
 extern struct level_locals level;
 extern struct edict_s *g_edicts;
 
-extern sheetMetaData_t UnitsMetaData[];
-extern sheetMetaData_t DestructableMetaData[];
-extern sheetMetaData_t DoodadsMetaData[];
-extern sheetMetaData_t ItemsMetaData[];
+extern unitMeta_t const UnitsMetaData[];
 
 #endif

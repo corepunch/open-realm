@@ -117,7 +117,7 @@ void UI_WriteBuildQueue(LPEDICT ent) {
     }
 
     UI_WriteTextFrame(0.310f, 0.486f, 0.180f, 0.018f,
-                      UNIT_NAME(ent->class_id) ? UNIT_NAME(ent->class_id) : GetClassName(ent->class_id),
+                      G_UnitProfile(ent->class_id)->name ? G_UnitProfile(ent->class_id)->name : GetClassName(ent->class_id),
                       COLOR32_WHITE, FONT_JUSTIFYCENTER);
     UI_WriteTextFrame(0.371250f, 0.508875f, 0.105f, 0.014f,
                       ent->currentmove && ent->currentmove->think == ai_birth ? "Constructing" : "Training",
