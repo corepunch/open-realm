@@ -466,7 +466,7 @@ static void G_ClientBegin(LPEDICT edict) {
     UI_ShowGameInterface(edict);
 
     FILTER_EDICTS(ent, client->ps.number == ent->s.player) {
-        UnitBalance_t const *b = ent->balance;
+        UnitBalance_t const *b = ent->UnitBalance;
         client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] += b->foodMade;
         client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] += b->foodUsed;
     }

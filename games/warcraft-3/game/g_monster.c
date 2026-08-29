@@ -299,7 +299,7 @@ DWORD G_LoadShadowTexture(LPCSTR shadow, BOOL allowDDSFallback) {
 }
 
 static void M_SetUnitShadow(LPEDICT self) {
-    UnitUI_t const *ui = self->ui;
+    UnitUI_t const *ui = self->UnitUI;
     LPCSTR unit_shadow = ui->unitShadowTexture;
     DWORD shadow = G_LoadShadowTexture(unit_shadow, true);
     if (!shadow) {
@@ -327,7 +327,7 @@ static void M_SetUnitShadow(LPEDICT self) {
 }
 
 static void M_SetBuildingShadow(LPEDICT self) {
-    UnitUI_t const *ui = self->ui;
+    UnitUI_t const *ui = self->UnitUI;
     LPCSTR building_shadow = ui->buildingShadowTexture;
     DWORD shadow = G_LoadShadowTexture(building_shadow, false);
     if (!shadow) {
@@ -386,7 +386,7 @@ void G_RegisterSelectSounds(LPEDICT self, LPCSTR label) {
  * "unitSound" label (e.g. "Footman").  Falls back gracefully if entries are
  * missing — sounds simply won't fire for that unit. */
 static void G_RegisterUnitSounds(LPEDICT self) {
-    LPCSTR label = self->ui->soundLabel;
+    LPCSTR label = self->UnitUI->soundLabel;
     if (!label || !label[0]) return;
     G_RegisterSelectSounds(self, label);
     self->sound_attack = G_RegisterSoundLabel(label, "YesAttack");
@@ -395,7 +395,7 @@ static void G_RegisterUnitSounds(LPEDICT self) {
     self->sound_death = G_RegisterSoundLabel(label, "Death");
     if (!self->sound_death) {
         /* Derive death sound path from model directory: units\race\Name\NameDeath.wav */
-        LPCSTR model = self->ui->modelFile;
+        LPCSTR model = self->UnitUI->modelFile;
         if (model && model[0]) {
             char path[512];
             snprintf(path, sizeof(path), "%s\\%sDeath.wav",
@@ -422,10 +422,10 @@ DWORD unit_spawn_aiflags(DWORD class_id) { return G_UnitIsBuilding(class_id) ? A
  * unit's class_id and stores them in the edict. */
 void SP_SpawnUnit(LPEDICT self) {
     PATHSTR model_filename;
-    UnitBalance_t const *b = self->balance;
-    UnitData_t const *d = self->data;
-    UnitUI_t const *ui = self->ui;
-    UnitWeapons_t const *w = self->weapons;
+    UnitBalance_t const *b = self->UnitBalance;
+    UnitData_t const *d = self->UnitData;
+    UnitUI_t const *ui = self->UnitUI;
+    UnitWeapons_t const *w = self->UnitWeapons;
     LPCSTR uber_splat = ui->groundTexture;
     LPCSTR path_tex = d->pathingTexture;
     self->runtime.flags = (unit_spawn_aiflags(self->class_id) & AI_IMMOBILE) ? UNIT_BALANCE_BUILDING : 0;

@@ -33,8 +33,8 @@ static void InfoPanelEnsureLoaded(void) {
 
 void UI_WriteSingleInfo(LPEDICT ent) {
     char buffer[128];
-    UnitBalance_t const *balance = ent->balance;
-    UnitWeapons_t const *weapons = ent->weapons;
+    UnitBalance_t const *balance = ent->UnitBalance;
+    UnitWeapons_t const *weapons = ent->UnitWeapons;
     LPCSTR name = G_UnitProfile(ent->class_id)->properNames;
     LPCSTR unit_name = G_UnitProfile(ent->class_id)->name;
     BOOL const is_hero = balance->strength > 0 || balance->agility > 0 || balance->intelligence > 0;

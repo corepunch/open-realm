@@ -42,7 +42,7 @@ static void look_for_another_tree(LPEDICT ent) {
 }
 
 BOOL G_ActorHasSkill(LPEDICT ent, LPCSTR id) {
-    LPCSTR abilities = ent->abilities->abilList;
+    LPCSTR abilities = ent->UnitAbilities->abilList;
     if (abilities) {
         PARSE_LIST(abilities, abil, parse_segment) {
             if (!strcmp(abil, id))
@@ -137,7 +137,7 @@ void harvest_walk(LPEDICT ent) {
 
 void harvest_swing(LPEDICT ent) {
     unit_setmove(ent, &harvest_move_swing);
-    ent->wait = ent->weapons->attack1.damagePoint;
+    ent->wait = ent->UnitWeapons->attack1.damagePoint;
 }
 
 void harvest_walkback(LPEDICT ent) {
