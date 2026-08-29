@@ -805,16 +805,17 @@ void MDX_RenderModel(renderEntity_t const *entity,
             return;
     }
 
+    renderEntity_t remappedEntity;
     if (entity->flags & RF_HAS_LUMBER) {
-        renderEntity_t ent = *entity;
-        ent.frame = MDLX_RemapAnimation(model, ent.frame, "Lumber");
-        ent.oldframe = MDLX_RemapAnimation(model, ent.oldframe, "Lumber");
-        entity = &ent;
+        remappedEntity = *entity;
+        remappedEntity.frame = MDLX_RemapAnimation(model, remappedEntity.frame, "Lumber");
+        remappedEntity.oldframe = MDLX_RemapAnimation(model, remappedEntity.oldframe, "Lumber");
+        entity = &remappedEntity;
     } else if (entity->flags & RF_HAS_GOLD) {
-        renderEntity_t ent = *entity;
-        ent.frame = MDLX_RemapAnimation(model, ent.frame, "Gold");
-        ent.oldframe = MDLX_RemapAnimation(model, ent.oldframe, "Gold");
-        entity = &ent;
+        remappedEntity = *entity;
+        remappedEntity.frame = MDLX_RemapAnimation(model, remappedEntity.frame, "Gold");
+        remappedEntity.oldframe = MDLX_RemapAnimation(model, remappedEntity.oldframe, "Gold");
+        entity = &remappedEntity;
     }
     
     MODELPROG * shader = mdlx.shader;
