@@ -15,8 +15,8 @@ void setup_test_world(void);
 BOOL unit_issuetargetorder(LPEDICT self, LPCSTR order, LPEDICT target);
 void T_Damage(LPEDICT target, LPEDICT attacker, int damage);
 BOOL run_test_jass(LPCSTR src);
-sheetRow_t *parse_slk_string(const char *slk_text);
-void free_slk_rows(sheetRow_t *rows);
+slkTestData_t *parse_slk_string(const char *slk_text);
+void free_slk_rows(slkTestData_t *rows);
 
 typedef struct {
     WORD width;
@@ -531,11 +531,11 @@ TEST(wc3_destructable, scripted_lifecycle_natives_use_authoritative_state) {
         "C;Y2;X4;K100\n"
         "C;Y2;X5;K16\n"
         "E\n";
-    sheetRow_t *rows = parse_slk_string(slk);
+    slkTestData_t *rows = parse_slk_string(slk);
     LPEDICT dest;
 
     setup_test_world();
-    sheetRow_t *saved = G_SetSLKRows("DestructableData", rows);
+    slkTestData_t *saved = G_SetSLKRows("DestructableData", rows);
     T_ASSERT(run_test_jass(
         "globals\n"
         "  destructable scriptedDest = null\n"

@@ -1309,8 +1309,7 @@ int main(int argc, char **argv) {
         .FS_FreeFile = Tool_FS_FreeFile,
         .MemAlloc = MemAlloc,
         .MemFree = MemFree,
-        .ReadSheet = FS_ParseSLK,
-        .FindSheetCell = FS_FindSheetCell,
+        .LoadSlkCache = Stb_SlkCacheLoad,
         .error = errorf,
     });
 

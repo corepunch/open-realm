@@ -7,6 +7,7 @@
 
 #include "common/common.h"
 #include "common/stb_fdf.h"
+#include "common/stb_slk.h"
 #include "server/game.h"
 #include "g_shared.h"
 #include "g_unitrow.h"
@@ -671,8 +672,8 @@ struct game_locals {
     DWORD num_abilities;
     LPGAMECLIENT clients;
     struct {
-        sheetRow_t *theme;
-        sheetRow_t *misc;
+        stbIniCache_t theme;
+        stbIniCache_t misc;
     } config;
     struct {
         FLOAT attackHalfAngle;
@@ -990,13 +991,13 @@ LPCSTR UnitMetaString(LPEDICT, DWORD);
 LONG UnitMetaInteger(LPEDICT, DWORD);
 BOOL UnitMetaBoolean(LPEDICT, DWORD);
 FLOAT UnitMetaReal(LPEDICT, DWORD);
-sheetRow_t *G_SheetTail(sheetRow_t *rows);
 
 void InitUnitData(void);
 void ShutdownUnitData(void);
 #ifdef BZ_TESTS
-sheetRow_t *G_SetSLKRows(LPCSTR, sheetRow_t *);
-sheetRow_t *G_SetProfileRows(sheetRow_t *);
+typedef struct { LPCSTR text; stbSlkCache_t cache; } slkTestData_t;
+slkTestData_t *G_SetSLKRows(LPCSTR, slkTestData_t *);
+slkTestData_t *G_SetProfileRows(slkTestData_t *);
 #endif
 void G_RegisterSelectSounds(LPEDICT, LPCSTR);
 

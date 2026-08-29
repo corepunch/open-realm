@@ -22,8 +22,8 @@ static umove_t spell_effect_birth = { "birth", NULL, G_FreeEdict };
 static LPCSTR S_SpellThemeString(LPCSTR key, LPCSTR def) {
     LPCSTR value = NULL;
 
-    if (key && !strstr(key, "\\") && game.config.theme) {
-        value = FS_FindSheetCell(game.config.theme, "Default", key);
+    if (key && !strstr(key, "\\") && game.config.theme.source) {
+        value = Stb_IniCacheFind(&game.config.theme, "Default", key);
     }
     return value ? value : def;
 }

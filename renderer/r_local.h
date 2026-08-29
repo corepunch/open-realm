@@ -279,12 +279,6 @@ enum {
     MODEL_COUNT,
 };
 
-enum {
-    SHEET_TERRAIN,
-    SHEET_CLIFF,
-    SHEET_COUNT,
-};
-
 struct render_globals {
     viewDef_t viewDef;
     render_phase_t render_phase;    /* current whole-scene pass (solid / shadow-map / alpha); read by game renderers */
@@ -301,7 +295,6 @@ struct render_globals {
     LPBUFFER buffer[RBUF_COUNT];
     LPMODEL model[MODEL_COUNT];
     LPRENDERTARGET rt[RT_COUNT];
-    sheetRow_t *sheet[SHEET_COUNT];
     size2_t drawableSize;
     int msaa_samples;
     LPTEXTURE minimap;

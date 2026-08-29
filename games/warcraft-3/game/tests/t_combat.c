@@ -1,7 +1,7 @@
 #ifdef BZ_TESTS
 /* Forward declarations — defined in t_slk.c, compiled together in unity build. */
-sheetRow_t *parse_slk_string(const char *slk_text);
-void free_slk_rows(sheetRow_t *rows);
+slkTestData_t *parse_slk_string(const char *slk_text);
+void free_slk_rows(slkTestData_t *rows);
 /*
  * test_combat.c — Tests for combat, animation, ability lookup, resources,
  *                 build queue, and quest system.
@@ -765,8 +765,8 @@ static const char slk_ability_helpers_roc[] =
 
 /* ROC and TFT store the same semantic ability slots under different headers. */
 TEST(wc3_combat, ability_data_resolves_roc_and_tft_columns) {
-    sheetRow_t *rows = parse_slk_string(slk_ability_helpers_roc);
-    sheetRow_t *old_abilities = G_SetSLKRows("AbilityData", rows);
+    slkTestData_t *rows = parse_slk_string(slk_ability_helpers_roc);
+    slkTestData_t *old_abilities = G_SetSLKRows("AbilityData", rows);
     T_FEQ(AB_Data("Ahar", 1, 1), 1.0f, 0.01f);
     T_FEQ(AB_Data("Ahar", 1, 2), 10.0f, 0.01f);
     T_FEQ(S_SpellData(MAKEFOURCC('A','h','a','r'), 1, 3), 10.0f, 0.01f);
@@ -785,8 +785,8 @@ TEST(wc3_combat, ability_data_resolves_roc_and_tft_columns) {
  * Agld globals initialized immediately before it. */
 TEST(wc3_combat, overlay_mine_does_not_reset_basic_mine_data) {
     extern FLOAT MAX_GOLD, MINING_DURATION, MINING_CAPACITY;
-    sheetRow_t *rows = parse_slk_string(slk_ability_helpers_roc);
-    sheetRow_t *old_abilities = G_SetSLKRows("AbilityData", rows);
+    slkTestData_t *rows = parse_slk_string(slk_ability_helpers_roc);
+    slkTestData_t *old_abilities = G_SetSLKRows("AbilityData", rows);
     a_goldmine.init("Agld", &a_goldmine);
     T_FEQ(MAX_GOLD, 12500.0f, 0.01f);
     T_FEQ(MINING_DURATION, 1.0f, 0.01f);
@@ -797,8 +797,8 @@ TEST(wc3_combat, overlay_mine_does_not_reset_basic_mine_data) {
 }
 
 TEST(wc3_combat, spell_helpers_read_slk_fields) {
-    sheetRow_t *rows = parse_slk_string(slk_ability_helpers);
-    sheetRow_t *old_abilities = G_SetSLKRows("AbilityData", rows);
+    slkTestData_t *rows = parse_slk_string(slk_ability_helpers);
+    slkTestData_t *old_abilities = G_SetSLKRows("AbilityData", rows);
     DWORD thunder = MAKEFOURCC('A', 'H', 't', 'b');
     DWORD water = MAKEFOURCC('A', 'H', 'w', 'e');
 
@@ -818,8 +818,8 @@ TEST(wc3_combat, spell_helpers_read_slk_fields) {
 }
 
 TEST(wc3_combat, spell_mana_and_cooldown) {
-    sheetRow_t *rows = parse_slk_string(slk_ability_helpers);
-    sheetRow_t *old_abilities = G_SetSLKRows("AbilityData", rows);
+    slkTestData_t *rows = parse_slk_string(slk_ability_helpers);
+    slkTestData_t *old_abilities = G_SetSLKRows("AbilityData", rows);
     DWORD thunder = MAKEFOURCC('A', 'H', 't', 'b');
     LPEDICT caster = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
     caster->mana.value = 100.0f;

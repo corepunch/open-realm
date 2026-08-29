@@ -877,17 +877,6 @@ typedef struct {
     VECTOR2 pushedTextOffset;
 } uiGlueTextButton_t;
 
-typedef struct sheetField_s {
-    LPCSTR name, value;
-    struct sheetField_s *next;
-} sheetField_t;
-
-typedef struct sheetRow_s {
-    LPCSTR name;
-    struct sheetField_s *fields;
-    struct sheetRow_s *next;
-} sheetRow_t;
-
 typedef struct {
     LPSTR tok;
     LPCSTR str;

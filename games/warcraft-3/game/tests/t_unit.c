@@ -25,8 +25,8 @@ BOOL unit_issueorder(LPEDICT self, LPCSTR order, LPCVECTOR2 point);
 BOOL unit_issueimmediateorder(LPEDICT self, LPCSTR order);
 BOOL unit_additem(LPEDICT edict, LPEDICT item);
 BOOL unit_additemtoslot(LPEDICT edict, LPEDICT item, DWORD slot);
-sheetRow_t *parse_slk_string(LPCSTR slk_text);
-void free_slk_rows(sheetRow_t *rows);
+slkTestData_t *parse_slk_string(LPCSTR slk_text);
+void free_slk_rows(slkTestData_t *rows);
 
 /* Reset the entity pool between tests. */
 static void reset_test_entities(void) {
@@ -86,8 +86,8 @@ TEST(wc3_unit, selection_sound_registration_caches_all_responses) {
         "C;Y2;X3;K\"Units\\Human\\Footman\\\"\n"
         "E\n";
     LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
-    sheetRow_t *sounds = parse_slk_string(slk);
-    sheetRow_t *old = G_SetSLKRows("UnitAckSounds", sounds);
+    slkTestData_t *sounds = parse_slk_string(slk);
+    slkTestData_t *old = G_SetSLKRows("UnitAckSounds", sounds);
     G_RegisterSelectSounds(ent, "Footman");
     T_EQ(ent->sound.num_select, 4);
     FOR_LOOP(i, ent->sound.num_select) T_ASSERT(ent->sound.select[i]);

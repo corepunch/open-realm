@@ -416,7 +416,7 @@ void G_RecomputeHeroStats(LPEDICT ent) {
  * - SetHeroLevel works by granting enough XP to reach the level; XP is the
  *   source of truth and level only ever increases. */
 DWORD G_MaxHeroLevel(void) {
-    LPCSTR const v = FS_FindSheetCell(game.config.misc, "Misc", "MaxHeroLevel");
+    LPCSTR const v = Stb_IniCacheFind(&game.config.misc, "Misc", "MaxHeroLevel");
     DWORD const m = v ? (DWORD)atoi(v) : 0;
     return m > 0 ? m : 10;
 }
@@ -480,13 +480,13 @@ void G_HeroSetXP(LPEDICT ent, DWORD xp) {
  * 100,120,160,220,300 (heroes), HeroFactorXP=80,70,60,50,0 (diminishing % when
  * the hero outlevels the victim by N), BuildingKillsGiveExp=0. */
 static FLOAT G_MiscNum(LPCSTR key, FLOAT fallback) {
-    LPCSTR const v = FS_FindSheetCell(game.config.misc, "Misc", key);
+    LPCSTR const v = Stb_IniCacheFind(&game.config.misc, "Misc", key);
     return (v && *v) ? (FLOAT)atof(v) : fallback;
 }
 
 /* n-th (0-based) comma-separated entry of a Misc list, clamped to the last. */
 static FLOAT G_MiscListNum(LPCSTR key, DWORD n, FLOAT fallback) {
-    LPCSTR v = FS_FindSheetCell(game.config.misc, "Misc", key);
+    LPCSTR v = Stb_IniCacheFind(&game.config.misc, "Misc", key);
     if (!v || !*v) {
         return fallback;
     }

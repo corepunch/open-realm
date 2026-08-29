@@ -316,8 +316,7 @@ int main(int argc, char **argv) {
         .FileExtract = FS_ExtractFile,
         .MemAlloc = Tool_MemAlloc,
         .MemFree = Tool_MemFree,
-        .ReadSheet = FS_ParseSLK,
-        .FindSheetCell = FS_FindSheetCell,
+        .LoadSlkCache = Stb_SlkCacheLoad,
         .error = errorf,
     });
 

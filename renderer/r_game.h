@@ -3,6 +3,22 @@
 
 #include "r_local.h"
 
+typedef struct {
+	DWORD id;
+	LPCSTR dir;
+	LPCSTR file;
+} w3TerrainArt_t;
+
+typedef struct {
+	DWORD id;
+	LPCSTR texDir;
+	LPCSTR texFile;
+	LPCSTR groundTile;
+	LPCSTR upperTile;
+	LPCSTR rampModelDir;
+	LPCSTR cliffModelDir;
+} w3CliffType_t;
+
 void R_GameLoadAssets(void);
 void R_GameInit(void);
 void R_GameShutdown(void);
@@ -39,5 +55,7 @@ bool R_GameExtractEntityCamera(renderEntity_t const *entity, float aspect, viewD
 bool R_GameSetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity);
 void R_GameDrawSprite(LPCMODEL model, LPCSTR anim, float x, float y);
 bool R_GameDrawCursor(float x, float y);
+w3TerrainArt_t const *R_GameTerrainArt(DWORD id);
+w3CliffType_t const *R_GameCliffType(DWORD id);
 
 #endif

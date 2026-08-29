@@ -2,46 +2,6 @@
 #include "common/stb_slk.h"
 #include "g_unitrow.h"
 
-typedef struct sheet_tail_cache_entry_s {
-    sheetRow_t *rows;
-    sheetRow_t *tail;
-    struct sheet_tail_cache_entry_s *next;
-} sheet_tail_cache_entry_t;
-
-static sheet_tail_cache_entry_t *sheet_tail_cache = NULL;
-
-sheetRow_t *G_SheetTail(sheetRow_t *rows)
-{
-    sheet_tail_cache_entry_t *entry;
-    sheet_tail_cache_entry_t *new_entry;
-    sheetRow_t *tail;
-
-    if (!rows) {
-        return NULL;
-    }
-
-    for (entry = sheet_tail_cache; entry; entry = entry->next) {
-        if (entry->rows == rows) {
-            return entry->tail;
-        }
-    }
-
-    tail = rows;
-    while (tail->next) {
-        tail = tail->next;
-    }
-
-    new_entry = (sheet_tail_cache_entry_t *)malloc(sizeof(*new_entry));
-    if (!new_entry) {
-        return tail;
-    }
-    new_entry->rows = rows;
-    new_entry->tail = tail;
-    new_entry->next = sheet_tail_cache;
-    sheet_tail_cache = new_entry;
-    return tail;
-}
-
 LPCSTR config_files[] = {
     "Units\\OrcAbilityStrings.txt",
     "Units\\HumanUnitFunc.txt",
@@ -107,30 +67,10 @@ LPCSTR profile_files[] = {
     NULL
 };
 
-static sheetRow_t *abilityConfigs = NULL;
-static sheetRow_t *abilityConfigsTail = NULL;
-static sheetRow_t *commandFuncConfig = NULL;
-static sheetRow_t *commandStringsConfig = NULL;
-static sheetRow_t *abilityConfigTables[64];
+static stbIniCache_t abilityConfigTables[64];
+static stbIniCache_t *commandFuncConfig;
+static stbIniCache_t *commandStringsConfig;
 static DWORD abilityConfigTableCount = 0;
-
-static void AppendSheetRows(sheetRow_t **head, sheetRow_t **tail, sheetRow_t *rows)
-{
-    sheetRow_t *rows_tail;
-
-    if (!rows) {
-        return;
-    }
-
-    rows_tail = G_SheetTail(rows);
-
-    if (*tail) {
-        (*tail)->next = rows;
-    } else {
-        *head = rows;
-    }
-    *tail = rows_tail;
-}
 
 static unitMeta_t const *G_FindMetaData(unitMeta_t const *metadatas, DWORD id) {
     for (unitMeta_t const *d = metadatas; d->id; d++) {
@@ -164,6 +104,7 @@ static void warn_unregistered_field(DWORD id) {
  * DDX schemas — one entry per SLK column consumed at runtime.
  * =========================================================================*/
 static slkField_t const profile_schema[] = {
+    { "",              offsetof(UnitProfile_t, id),                STB_SLK_FOURCC },
     { "Name",          offsetof(UnitProfile_t, name),              STB_SLK_STR,   "unam" },
     { "Propernames",   offsetof(UnitProfile_t, properNames),       STB_SLK_STR,   "upro" },
     { "Builds",        offsetof(UnitProfile_t, builds),            STB_SLK_STR,   "ubui" },
@@ -225,6 +166,7 @@ static slkField_t const profile_schema[] = {
 };
 
 static slkField_t const balance_schema[] = {
+    { "",                 offsetof(UnitBalance_t, id),              STB_SLK_FOURCC },
     { "sortBalance",      offsetof(UnitBalance_t, sortBalance),     STB_SLK_STR   },
     { "sort2",            offsetof(UnitBalance_t, sort2),           STB_SLK_STR   },
     { "comment(s)",       offsetof(UnitBalance_t, comments),        STB_SLK_STR   },
@@ -288,6 +230,7 @@ static slkField_t const balance_schema[] = {
 };
 
 static slkField_t const data_schema[] = {
+    { "",                   offsetof(UnitData_t, id),               STB_SLK_FOURCC },
     { "sort",               offsetof(UnitData_t, sort),             STB_SLK_STR   },
     { "comment(s)",         offsetof(UnitData_t, comments),         STB_SLK_STR   },
     { "version",            offsetof(UnitData_t, version),          STB_SLK_INT   },
@@ -330,6 +273,7 @@ static slkField_t const data_schema[] = {
 };
 
 static slkField_t const ui_schema[] = {
+    { "",                 offsetof(UnitUI_t, id),               STB_SLK_FOURCC },
     { "sortUI",           offsetof(UnitUI_t, sortUI),           STB_SLK_STR   },
     { "InBeta",           offsetof(UnitUI_t, InBeta),           STB_SLK_BOOL  },
     { "file",             offsetof(UnitUI_t, modelFile),        STB_SLK_STR   },
@@ -389,6 +333,7 @@ static slkField_t const ui_schema[] = {
 };
 
 static slkField_t const weapons_schema[] = {
+    { "",              offsetof(UnitWeapons_t, id),            STB_SLK_FOURCC },
     { "sortWeap",       offsetof(UnitWeapons_t, sortWeap),      STB_SLK_STR   },
     { "sort2",          offsetof(UnitWeapons_t, sort2),         STB_SLK_STR   },
     { "comment(s)",     offsetof(UnitWeapons_t, comments),      STB_SLK_STR   },
@@ -469,6 +414,7 @@ static slkField_t const weapons_schema[] = {
 };
 
 static slkField_t const abil_schema[] = {
+    { "",             offsetof(UnitAbilities_t, id),          STB_SLK_FOURCC },
     { "sortAbil",     offsetof(UnitAbilities_t, sortAbil),     STB_SLK_STR  },
     { "comment(s)",   offsetof(UnitAbilities_t, comments),     STB_SLK_STR  },
     { "abilList",     offsetof(UnitAbilities_t, abilList),     STB_SLK_STR  },
@@ -481,6 +427,7 @@ static slkField_t const abil_schema[] = {
 #define AB_F(NAME, FIELD, LEVEL, TYPE) { NAME, offsetof(AbilityData_t, FIELD[LEVEL]), TYPE }
 #define AB_D(NAME, LEVEL, SLOT) { NAME, offsetof(AbilityData_t, data[LEVEL][SLOT]), STB_SLK_FLOAT }
 static slkField_t const ability_schema[] = {
+    { "",            offsetof(AbilityData_t, id),          STB_SLK_FOURCC },
     { "code",        offsetof(AbilityData_t, code),        STB_SLK_FOURCC },
     { "uberAlias",   offsetof(AbilityData_t, uberAlias),   STB_SLK_FOURCC }, /* ROC */
     { "comments",    offsetof(AbilityData_t, comments),    STB_SLK_STR    },
@@ -544,6 +491,7 @@ static slkField_t const ability_schema[] = {
 
 #define DOOD_VERT(NAME, VERTEX, CHANNEL) { NAME, offsetof(Doodads_t, vert[VERTEX][CHANNEL]), STB_SLK_INT }
 static slkField_t const doodad_schema[] = {
+    { "",                  offsetof(Doodads_t, id),                STB_SLK_FOURCC },
     { "category",          offsetof(Doodads_t, category),          STB_SLK_STR   },
     { "tilesets",          offsetof(Doodads_t, tilesets),          STB_SLK_STR   },
     { "tilesetSpecific",   offsetof(Doodads_t, tilesetSpecific),   STB_SLK_BOOL  },
@@ -597,6 +545,7 @@ static slkField_t const doodad_schema[] = {
 #undef DOOD_VERT
 
 static slkField_t const uber_schema[] = {
+    { "",           offsetof(UberSplatData_t, id),         STB_SLK_FOURCC },
     { "Name",       offsetof(UberSplatData_t, Name),       STB_SLK_STR   },
     { "comment",    offsetof(UberSplatData_t, comment),    STB_SLK_STR   },
     { "Dir",        offsetof(UberSplatData_t, Dir),        STB_SLK_STR   },
@@ -650,6 +599,7 @@ static slkField_t const sound_schema[] = {
 };
 
 static slkField_t const item_schema[] = {
+    { "",            offsetof(ItemData_t, id),          STB_SLK_FOURCC },
     { "scriptname",  offsetof(ItemData_t, scriptname),  STB_SLK_STR   },
     { "version",     offsetof(ItemData_t, version),     STB_SLK_INT   },
     { "InBeta",      offsetof(ItemData_t, InBeta),      STB_SLK_BOOL  },
@@ -689,6 +639,7 @@ static slkField_t const item_schema[] = {
 };
 
 static slkField_t const dest_schema[] = {
+    { "",                 offsetof(DestructableData_t, id),               STB_SLK_FOURCC },
     { "category",         offsetof(DestructableData_t, category),         STB_SLK_STR   },
     { "tilesets",         offsetof(DestructableData_t, tilesets),         STB_SLK_STR   },
     { "comment",          offsetof(DestructableData_t, comment),          STB_SLK_STR   },
@@ -755,9 +706,7 @@ static slkField_t const dest_schema[] = {
  * =========================================================================*/
 UnitBalance_t *g_UnitBalance; DWORD g_UnitBalanceCount; static slkIndex_t balance_idx;
 UnitProfile_t *g_UnitProfile; DWORD g_UnitProfileCount; static slkIndex_t profile_idx;
-#ifdef BZ_TESTS
-static sheetRow_t *profile_source;
-#endif
+static stbSlkCache_t profile_cache;
 UnitData_t *g_UnitData; DWORD g_UnitDataCount; static slkIndex_t data_idx;
 UnitUI_t *g_UnitUI; DWORD g_UnitUICount; static slkIndex_t ui_idx;
 UnitWeapons_t *g_UnitWeapons; DWORD g_UnitWeaponsCount; static slkIndex_t weapons_idx;
@@ -776,9 +725,7 @@ typedef struct {
     void **rows;
     DWORD *count;
     slkIndex_t *idx;
-#ifdef BZ_TESTS
-    sheetRow_t *source;
-#endif
+    stbSlkCache_t cache;
 } slkStore_t;
 
 static slkStore_t slk_stores[] = {
@@ -795,96 +742,27 @@ static slkStore_t slk_stores[] = {
     { "DestructableData", "Units\\DestructableData.slk", dest_schema, sizeof(*g_DestructableData), (void **)&g_DestructableData, &g_DestructableDataCount, &dest_idx },
 };
 
-/* Decode `head` rows into a typed flat array and build a sorted FOURCC index.
- * Rebuilds *rows_out (freeing any old allocation) from the NULL-terminated schema.
- * Called both at startup and when a test replaces one typed table's source. */
-static void RebuildDDXFromRows(slkIndex_t *idx, slkField_t const *schema,
-                               void **rows_out, DWORD *count_out, size_t row_size,
-                               sheetRow_t const *head) {
-    FS_SLKFreeIndex(idx); FS_SLKFreeRows(schema, *rows_out, *count_out, row_size); *rows_out = NULL; *count_out = 0;
-    if (!head) return;
-    DWORD n = 0; FOR_EACH_LIST(sheetRow_t const, r, head) n++;
-    *rows_out = calloc(n, row_size);
-    if (!*rows_out) { fprintf(stderr, "SLK: OOM for %u rows\n", n); return; }
-    *count_out = n;
-    DWORD i = 0;
-    FOR_EACH_LIST(sheetRow_t const, r, head) {
-        BYTE *row = (BYTE *)*rows_out + i++ * row_size;
-        *(DWORD *)row = FS_SLKKey(r->name);
-        FS_SLKDecodeRow(r, schema, row);
-    }
-    FS_SLKBuildIndex(idx, head, *rows_out, n, row_size);
-}
-
-/* Profile data is split across Func/Strings INIs. Decode each metadata field
- * through the combined list so the typed row preserves first-definition wins. */
-static void RebuildProfileDDX(sheetRow_t const *head) {
-    FS_SLKFreeIndex(&profile_idx); FS_SLKFreeRows(profile_schema, g_UnitProfile, g_UnitProfileCount, sizeof(*g_UnitProfile));
-    g_UnitProfile = NULL; g_UnitProfileCount = 0;
-    DWORD capacity = 0; FOR_EACH_LIST(sheetRow_t const, row, head) capacity++;
-    if (!capacity) return;
-    /* Allocate before duplicate detection; the old count pass dereferenced the still-NULL output array. */
-    g_UnitProfile = calloc(capacity, sizeof(*g_UnitProfile));
-    if (!g_UnitProfile) { fprintf(stderr, "Profile DDX: OOM for %u rows\n", capacity); return; }
-    DWORD out = 0;
-    FOR_EACH_LIST(sheetRow_t const, row, head) {
-        DWORD id = FS_SLKKey(row->name); BOOL found = false;
-        FOR_LOOP(i, out) if (g_UnitProfile[i].id == id) { found = true; break; }
-        if (found) continue;
-        UnitProfile_t *profile = g_UnitProfile + out++;
-        profile->id = id;
-        for (slkField_t const *field = profile_schema; field->column; field++) {
-            LPCSTR value = FS_FindSheetCell((sheetRow_t *)head, row->name, field->column);
-            if (!value) continue;
-            sheetField_t source_field = { field->column, value, NULL };
-            sheetRow_t source_row = { row->name, &source_field, NULL };
-            slkField_t source_schema[] = { *field, { NULL, 0, 0, 0 } };
-            FS_SLKDecodeRow(&source_row, source_schema, profile);
-        }
-    }
-    g_UnitProfileCount = out;
-    profile_idx.keys = malloc(g_UnitProfileCount * sizeof(*profile_idx.keys));
-    profile_idx.rows = malloc(g_UnitProfileCount * sizeof(*profile_idx.rows));
-    if (!profile_idx.keys || !profile_idx.rows) { fprintf(stderr, "Profile DDX: OOM building index\n"); FS_SLKFreeIndex(&profile_idx); return; }
-    profile_idx.count = g_UnitProfileCount;
-    FOR_LOOP(i, profile_idx.count) { profile_idx.keys[i] = g_UnitProfile[i].id; profile_idx.rows[i] = g_UnitProfile + i; }
-    for (DWORD i = 1; i < profile_idx.count; i++) {
-        DWORD key = profile_idx.keys[i], j = i; void *row = profile_idx.rows[i];
-        while (j && profile_idx.keys[j - 1] > key) { profile_idx.keys[j] = profile_idx.keys[j - 1]; profile_idx.rows[j] = profile_idx.rows[j - 1]; j--; }
-        profile_idx.keys[j] = key; profile_idx.rows[j] = row;
-    }
-}
-
-/* Parse SLK from disk, decode and index it, and warn once per column that has
- * no DDX schema entry. The raw rows remain parser-owned source data. */
-static sheetRow_t *ParseSLKInto(LPCSTR path, slkIndex_t *idx, slkField_t const *schema, size_t row_size,
-                                void **rows_out, DWORD *count_out) {
-    sheetRow_t *head = FS_ParseSLK(path);
-    if (!head) { fprintf(stderr, "SLK: failed to load '%s'\n", path); return NULL; }
-    RebuildDDXFromRows(idx, schema, rows_out, count_out, row_size, head);
-    /* Warn once per first-row column not covered by the schema (dev aid). */
-    if (head && head->fields) {
-        FOR_EACH_LIST(sheetField_t const, f, head->fields) {
-            bool found = false;
-            for (slkField_t const *s = schema; s->column; s++)
-                if (!strcasecmp(f->name, s->column)) { found = true; break; }
-            if (!found)
-                fprintf(stderr, "SLK DDX: column '%s' in '%s' has no schema entry\n",
-                        f->name, path);
-        }
-    }
-    return head;
+/* Keep legacy exported arrays as borrowed views of the owning typed cache. */
+static void ApplySLKCache(slkStore_t *store) {
+    FS_SLKFreeIndex(store->idx);
+    *store->rows = store->cache.rows; *store->count = store->cache.count;
+    if (store->idx) FS_SLKBuildIndex(store->idx, store->cache.rows, store->cache.count, store->row_size);
 }
 
 /* Tests replace a typed table and restore its original parser-owned source. */
 #ifdef BZ_TESTS
-sheetRow_t *G_SetSLKRows(LPCSTR slk, sheetRow_t *table) {
+slkTestData_t *G_SetSLKRows(LPCSTR slk, slkTestData_t *data) {
     FOR_LOOP(i, sizeof(slk_stores) / sizeof(*slk_stores)) {
         slkStore_t *store = slk_stores + i;
         if (!strcmp(slk, store->name)) {
-            sheetRow_t *old = store->source;
-            store->source = table;
-            RebuildDDXFromRows(store->idx, store->schema, store->rows, store->count, store->row_size, table);
+            slkTestData_t *old = calloc(1, sizeof(*old));
+            if (!old) return NULL;
+            old->cache = store->cache;
+            if (!data->cache.rows && !Stb_SlkCacheLoadBuffer(&data->cache, data->text, store->schema, store->row_size)) {
+                free(old); return NULL;
+            }
+            store->cache = data->cache; ApplySLKCache(store);
+            memset(&data->cache, 0, sizeof(data->cache));
             return old;
         }
     }
@@ -892,9 +770,17 @@ sheetRow_t *G_SetSLKRows(LPCSTR slk, sheetRow_t *table) {
     return NULL;
 }
 
-sheetRow_t *G_SetProfileRows(sheetRow_t *table) {
-    sheetRow_t *old = profile_source;
-    profile_source = table; RebuildProfileDDX(table);
+slkTestData_t *G_SetProfileRows(slkTestData_t *data) {
+    slkTestData_t *old = calloc(1, sizeof(*old));
+    if (!old) return NULL;
+    old->cache = profile_cache;
+    if (!data->cache.rows && !Stb_SlkCacheLoadBuffer(&data->cache, data->text, profile_schema, sizeof(*g_UnitProfile))) {
+        free(old); return NULL;
+    }
+    FS_SLKFreeIndex(&profile_idx); profile_cache = data->cache;
+    memset(&data->cache, 0, sizeof(data->cache));
+    g_UnitProfile = profile_cache.rows; g_UnitProfileCount = profile_cache.count;
+    FS_SLKBuildIndex(&profile_idx, profile_cache.rows, profile_cache.count, profile_cache.row_stride);
     return old;
 }
 #endif
@@ -1343,22 +1229,16 @@ BOOL G_UnitIsBuilding(DWORD id) {
 }
 
 void InitUnitData(void) {
-    sheetRow_t *Profile = NULL;
-    sheetRow_t *profileTail = NULL;
+    stbIniCache_t profile_ini = { 0 };
 
-    abilityConfigs = NULL;
-    abilityConfigsTail = NULL;
     commandFuncConfig = NULL;
     commandStringsConfig = NULL;
     abilityConfigTableCount = 0;
     
     for (LPCSTR *config = config_files; *config; config++) {
-        sheetRow_t *current = FS_ParseINI(*config);
-        if (current) {
-            if (abilityConfigTableCount < sizeof(abilityConfigTables) / sizeof(*abilityConfigTables)) {
-                abilityConfigTables[abilityConfigTableCount++] = current;
-            }
-            AppendSheetRows(&abilityConfigs, &abilityConfigsTail, current);
+        if (abilityConfigTableCount < sizeof(abilityConfigTables) / sizeof(*abilityConfigTables) &&
+            Stb_IniCacheLoad(abilityConfigTables + abilityConfigTableCount, *config)) {
+            stbIniCache_t *current = abilityConfigTables + abilityConfigTableCount++;
             if (!strcmp(*config, "Units\\CommandFunc.txt")) {
                 commandFuncConfig = current;
             } else if (!strcmp(*config, "Units\\CommandStrings.txt")) {
@@ -1366,54 +1246,29 @@ void InitUnitData(void) {
             }
         }
     }
-    for (LPCSTR *config = profile_files; *config; config++) {
-        sheetRow_t *current = FS_ParseINI(*config);
-        if (current) {
-            AppendSheetRows(&Profile, &profileTail, current);
-        }
-    }
-    RebuildProfileDDX(Profile);
-#ifdef BZ_TESTS
-    profile_source = Profile;
-#endif
+    Stb_IniCacheLoadFiles(&profile_ini, profile_files);
+    Stb_IniCacheDecode(&profile_ini, &profile_cache, profile_schema, sizeof(*g_UnitProfile));
+    g_UnitProfile = profile_cache.rows; g_UnitProfileCount = profile_cache.count;
+    FS_SLKBuildIndex(&profile_idx, profile_cache.rows, profile_cache.count, sizeof(*g_UnitProfile));
 
     FOR_LOOP(i, sizeof(slk_stores) / sizeof(*slk_stores)) {
         slkStore_t *store = slk_stores + i;
-        sheetRow_t *source = ParseSLKInto(store->path, store->idx, store->schema, store->row_size, store->rows, store->count);
-    #ifdef BZ_TESTS
-        store->source = source;
-    #else
-        (void)source;
-    #endif
+        if (!Stb_SlkCacheLoad(&store->cache, store->path, store->schema, store->row_size))
+            fprintf(stderr, "SLK: failed to load '%s'\n", store->path);
+        ApplySLKCache(store);
     }
 }
 
 void ShutdownUnitData(void) {
-    FS_SLKFreeIndex(&profile_idx); FS_SLKFreeRows(profile_schema, g_UnitProfile, g_UnitProfileCount, sizeof(*g_UnitProfile));
+    FS_SLKFreeIndex(&profile_idx); Stb_SlkCacheFree(&profile_cache);
     g_UnitProfile = NULL; g_UnitProfileCount = 0;
     FOR_LOOP(i, sizeof(slk_stores) / sizeof(*slk_stores)) {
         slkStore_t *store = slk_stores + i;
         FS_SLKFreeIndex(store->idx);
-        FS_SLKFreeRows(store->schema, *store->rows, *store->count, store->row_size);
+        Stb_SlkCacheFree(&store->cache);
         *store->rows = NULL; *store->count = 0;
-    #ifdef BZ_TESTS
-        store->source = NULL;
-    #endif
     }
-}
-
-static LPCSTR FindConfigField(sheetRow_t *sheet, LPCSTR row, LPCSTR column) {
-    FOR_EACH_LIST(sheetRow_t const, srow, sheet) {
-        if (strcmp(srow->name, row)) {
-            continue;
-        }
-        FOR_EACH_LIST(sheetField_t const, scolumn, srow->fields) {
-            if (!strcasecmp(scolumn->name, column)) {
-                return scolumn->value;
-            }
-        }
-    }
-    return NULL;
+    FOR_LOOP(i, abilityConfigTableCount) Stb_IniCacheFree(abilityConfigTables + i);
 }
 
 LPCSTR FindConfigValue(LPCSTR category, LPCSTR field) {
@@ -1421,13 +1276,13 @@ LPCSTR FindConfigValue(LPCSTR category, LPCSTR field) {
 
     if (!strncmp(category, "Cmd", 3)) {
         if (commandFuncConfig) {
-            value = FindConfigField(commandFuncConfig, category, field);
+            value = Stb_IniCacheFind(commandFuncConfig, category, field);
             if (value) {
                 return value;
             }
         }
         if (commandStringsConfig) {
-            value = FindConfigField(commandStringsConfig, category, field);
+            value = Stb_IniCacheFind(commandStringsConfig, category, field);
             if (value) {
                 return value;
             }
@@ -1435,7 +1290,7 @@ LPCSTR FindConfigValue(LPCSTR category, LPCSTR field) {
     }
 
     FOR_LOOP(i, abilityConfigTableCount) {
-        value = FindConfigField(abilityConfigTables[i], category, field);
+        value = Stb_IniCacheFind(abilityConfigTables + i, category, field);
         if (value) {
             return value;
         }

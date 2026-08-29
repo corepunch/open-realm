@@ -589,8 +589,7 @@ void CL_Init(void) {
         .FS_MmapFile = FS_MmapFile,
         .FS_MunmapFile = FS_MunmapFile,
         .FileExtract = FS_ExtractFile,
-        .ReadSheet = FS_ParseSLK,
-        .FindSheetCell = FS_FindSheetCell,
+        .LoadSlkCache = Stb_SlkCacheLoad,
         .CvarString = Cvar_String,
         .error = CON_printf,
     });
