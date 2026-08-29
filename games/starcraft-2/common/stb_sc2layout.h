@@ -791,6 +791,16 @@ static void SC2_ParseCamera(void *node, sc2Frame_t *frame) {
     }
 }
 
+static const struct {
+    LPCSTR name;
+    size_t offset;
+    size_t size;
+} sc2_frame_attrs[] = {
+    { "name",     offsetof(sc2Frame_t, name),          sizeof(((sc2Frame_t *)0)->name) },
+    { "template", offsetof(sc2Frame_t, template_path), sizeof(((sc2Frame_t *)0)->template_path) },
+    { "Image",    offsetof(sc2Frame_t, image_ref),     sizeof(((sc2Frame_t *)0)->image_ref) },
+};
+
 static void SC2_ParseFrameAttrs(void *node, sc2Frame_t *frame) {
     LPCSTR type_str = SC2_XmlGetProp(node, "type");
     if (type_str) {
@@ -799,26 +809,65 @@ static void SC2_ParseFrameAttrs(void *node, sc2Frame_t *frame) {
     } else {
         frame->type = SC2_FRAMETYPE_FRAME;
     }
-
-    LPCSTR name = SC2_XmlGetProp(node, "name");
-    if (name) {
-        SC2_Strncpyz(frame->name, name, sizeof(frame->name));
-        SC2_XmlFree(name);
+    FOR_LOOP(i, sizeof(sc2_frame_attrs) / sizeof(*sc2_frame_attrs)) {
+        LPCSTR text = SC2_XmlGetProp(node, sc2_frame_attrs[i].name);
+        if (!text) continue;
+        SC2_Strncpyz((char *)frame + sc2_frame_attrs[i].offset, text, sc2_frame_attrs[i].size);
+        SC2_XmlFree(text);
     }
-
-    LPCSTR tmpl = SC2_XmlGetProp(node, "template");
-    if (tmpl) {
-        SC2_Strncpyz(frame->template_path, tmpl, sizeof(frame->template_path));
-        SC2_XmlFree(tmpl);
-    }
-
-    LPCSTR image = SC2_XmlGetProp(node, "Image");
-    if (image) {
-        SC2_Strncpyz(frame->image_ref, image, sizeof(frame->image_ref));
-        SC2_XmlFree(image);
-    }
-
     frame->resolved_frame = NULL;
+}
+
+typedef enum {
+    SC2_FRAME_FIELD_FLOAT,
+    SC2_FRAME_FIELD_RESOLVED_FLOAT,
+    SC2_FRAME_FIELD_BOOL,
+} sc2FrameFieldType_t;
+
+static const struct {
+    LPCSTR               name;
+    size_t               offset;
+    sc2FrameFieldType_t  type;
+    DWORD                flag;
+    DWORD                present;
+} sc2_frame_fields[] = {
+    { "Width",            offsetof(sc2Frame_t, width),  SC2_FRAME_FIELD_RESOLVED_FLOAT, 0,                            SC2_FRAME_HAS_WIDTH },
+    { "Height",           offsetof(sc2Frame_t, height), SC2_FRAME_FIELD_RESOLVED_FLOAT, 0,                            SC2_FRAME_HAS_HEIGHT },
+    { "Alpha",            offsetof(sc2Frame_t, alpha),  SC2_FRAME_FIELD_FLOAT,          0,                            SC2_FRAME_HAS_ALPHA },
+    { "Visible",          0,                            SC2_FRAME_FIELD_BOOL,           SC2_FRAME_VISIBLE,            SC2_FRAME_HAS_VISIBLE },
+    { "AcceptsMouse",     0,                            SC2_FRAME_FIELD_BOOL,           SC2_FRAME_ACCEPTS_MOUSE,      0 },
+    { "CollapseLayout",   0,                            SC2_FRAME_FIELD_BOOL,           SC2_FRAME_COLLAPSE_LAYOUT,    0 },
+    { "HighlightOnHover", 0,                            SC2_FRAME_FIELD_BOOL,           SC2_FRAME_HIGHLIGHT_ON_HOVER, 0 },
+    { "HighlightOnFocus", 0,                            SC2_FRAME_FIELD_BOOL,           SC2_FRAME_HIGHLIGHT_ON_FOCUS, 0 },
+    { "BatchImages",      0,                            SC2_FRAME_FIELD_BOOL,           SC2_FRAME_BATCH_IMAGES,       0 },
+    { "BatchText",        0,                            SC2_FRAME_FIELD_BOOL,           SC2_FRAME_BATCH_TEXT,         0 },
+};
+
+static BOOL SC2_ParseFrameField(void *node, sc2Frame_t *frame) {
+    LPCSTR tag = (LPCSTR)((xmlNode *)node)->name;
+
+    FOR_LOOP(i, sizeof(sc2_frame_fields) / sizeof(*sc2_frame_fields)) {
+        FLOAT *value;
+        LPCSTR text;
+
+        if (strcasecmp(tag, sc2_frame_fields[i].name)) continue;
+        if (sc2_frame_fields[i].type == SC2_FRAME_FIELD_RESOLVED_FLOAT) {
+            value = (FLOAT *)((char *)frame + sc2_frame_fields[i].offset);
+            *value = SC2_ResolveAttrFloat(node, "val", 0.0f);
+        } else if (sc2_frame_fields[i].type == SC2_FRAME_FIELD_FLOAT) {
+            value = (FLOAT *)((char *)frame + sc2_frame_fields[i].offset);
+            if (!xmlGetAttrFloat(node, "val", value)) return true;
+        } else {
+            text = SC2_XmlGetProp(node, "val");
+            if (!text) return true;
+            if (!strcasecmp(text, "true") || !strcasecmp(text, "1")) frame->flags |= sc2_frame_fields[i].flag;
+            else frame->flags &= ~sc2_frame_fields[i].flag;
+            SC2_XmlFree(text);
+        }
+        frame->flags |= sc2_frame_fields[i].present;
+        return true;
+    }
+    return false;
 }
 
 static void SC2_ParseFrameChildren(void *node, sc2Frame_t *frame) {
@@ -826,13 +875,8 @@ static void SC2_ParseFrameChildren(void *node, sc2Frame_t *frame) {
         if (cur->type != XML_ELEMENT_NODE) continue;
         LPCSTR tag = (const char *)cur->name;
 
-        if (!strcasecmp(tag, "Width")) {
-            frame->width = SC2_ResolveAttrFloat(cur, "val", 0.0f);
-            frame->flags |= SC2_FRAME_HAS_WIDTH;
-        } else if (!strcasecmp(tag, "Height")) {
-            frame->height = SC2_ResolveAttrFloat(cur, "val", 0.0f);
-            frame->flags |= SC2_FRAME_HAS_HEIGHT;
-        } else if (!strcasecmp(tag, "Anchor")) {
+        if (SC2_ParseFrameField(cur, frame)) continue;
+        if (!strcasecmp(tag, "Anchor")) {
             SC2_ParseAnchor(cur, frame);
         } else if (!strcasecmp(tag, "Texture")) {
             SC2_ParseTexture(cur, frame, -1);
@@ -866,82 +910,12 @@ static void SC2_ParseFrameChildren(void *node, sc2Frame_t *frame) {
                     frame->textures[layer].flags &= ~SC2_TEX_LAYER_HIDDEN;
             }
             if (val) SC2_XmlFree(val);
-        } else if (!strcasecmp(tag, "Visible")) {
-            LPCSTR val = SC2_XmlGetProp(cur, "val");
-            if (val) {
-                if (!strcasecmp(val, "true") || !strcasecmp(val, "1"))
-                    frame->flags |= SC2_FRAME_VISIBLE;
-                else
-                    frame->flags &= ~SC2_FRAME_VISIBLE;
-                frame->flags |= SC2_FRAME_HAS_VISIBLE;
-                SC2_XmlFree(val);
-            }
-        } else if (!strcasecmp(tag, "Alpha")) {
-            FLOAT val;
-            if (xmlGetAttrFloat(cur, "val", &val)) {
-                frame->alpha = val;
-                frame->flags |= SC2_FRAME_HAS_ALPHA;
-            }
         } else if (!strcasecmp(tag, "Color")) {
             LPCSTR val = SC2_XmlGetProp(cur, "val");
             if (val) {
                 LPCSTR resolved = SC2_LayoutResolveConstant(val);
                 frame->color = SC2_ParseColor(resolved ? resolved : val);
                 frame->flags |= SC2_FRAME_HAS_COLOR;
-                SC2_XmlFree(val);
-            }
-        } else if (!strcasecmp(tag, "AcceptsMouse")) {
-            LPCSTR val = SC2_XmlGetProp(cur, "val");
-            if (val) {
-                if (!strcasecmp(val, "true") || !strcasecmp(val, "1"))
-                    frame->flags |= SC2_FRAME_ACCEPTS_MOUSE;
-                else
-                    frame->flags &= ~SC2_FRAME_ACCEPTS_MOUSE;
-                SC2_XmlFree(val);
-            }
-        } else if (!strcasecmp(tag, "CollapseLayout")) {
-            LPCSTR val = SC2_XmlGetProp(cur, "val");
-            if (val) {
-                if (!strcasecmp(val, "true") || !strcasecmp(val, "1"))
-                    frame->flags |= SC2_FRAME_COLLAPSE_LAYOUT;
-                else
-                    frame->flags &= ~SC2_FRAME_COLLAPSE_LAYOUT;
-                SC2_XmlFree(val);
-            }
-        } else if (!strcasecmp(tag, "HighlightOnHover")) {
-            LPCSTR val = SC2_XmlGetProp(cur, "val");
-            if (val) {
-                if (!strcasecmp(val, "true") || !strcasecmp(val, "1"))
-                    frame->flags |= SC2_FRAME_HIGHLIGHT_ON_HOVER;
-                else
-                    frame->flags &= ~SC2_FRAME_HIGHLIGHT_ON_HOVER;
-                SC2_XmlFree(val);
-            }
-        } else if (!strcasecmp(tag, "HighlightOnFocus")) {
-            LPCSTR val = SC2_XmlGetProp(cur, "val");
-            if (val) {
-                if (!strcasecmp(val, "true") || !strcasecmp(val, "1"))
-                    frame->flags |= SC2_FRAME_HIGHLIGHT_ON_FOCUS;
-                else
-                    frame->flags &= ~SC2_FRAME_HIGHLIGHT_ON_FOCUS;
-                SC2_XmlFree(val);
-            }
-        } else if (!strcasecmp(tag, "BatchImages")) {
-            LPCSTR val = SC2_XmlGetProp(cur, "val");
-            if (val) {
-                if (!strcasecmp(val, "true") || !strcasecmp(val, "1"))
-                    frame->flags |= SC2_FRAME_BATCH_IMAGES;
-                else
-                    frame->flags &= ~SC2_FRAME_BATCH_IMAGES;
-                SC2_XmlFree(val);
-            }
-        } else if (!strcasecmp(tag, "BatchText")) {
-            LPCSTR val = SC2_XmlGetProp(cur, "val");
-            if (val) {
-                if (!strcasecmp(val, "true") || !strcasecmp(val, "1"))
-                    frame->flags |= SC2_FRAME_BATCH_TEXT;
-                else
-                    frame->flags &= ~SC2_FRAME_BATCH_TEXT;
                 SC2_XmlFree(val);
             }
         } else if (!strcasecmp(tag, "DescFlags")) {
