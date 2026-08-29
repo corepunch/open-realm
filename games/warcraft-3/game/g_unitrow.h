@@ -341,7 +341,7 @@ typedef struct {
     LONG    version;
     BOOL    InBeta;
     LPCSTR  file;                    /* MDX model path                     */
-    LPCSTR  modelDirectory;          /* subdirectory prefix (ROC-only)     */
+    LPCSTR  dir;                     /* subdirectory prefix (ROC-only)     */
     LPCSTR  displayName;             /* TFT (ROC used "name" → lowercase)  */
     LPCSTR  EditorSuffix;            /* TFT-only                           */
     LPCSTR  textureFile;
