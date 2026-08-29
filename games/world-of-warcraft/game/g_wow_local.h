@@ -265,8 +265,8 @@ typedef struct {
     DWORD count;
 } wowHudIcon_t;
 
-/* Per-entity game state.  Entity behaviour is driven entirely by the edict's
- * think function pointer (Quake2 style); there is no type/kind tag. */
+/* Per-entity game state.  Entity behaviour is driven entirely by function
+ * pointers (Quake2 style); there is no type/kind tag. */
 typedef struct {
     DWORD display_id;
     LPCANIMATION animation;
@@ -331,6 +331,11 @@ typedef struct {
     DWORD dyn_duration;
     BOOL godmode;
     DWORD copper;        /* player copper balance (written to WOW_STAT_COPPER each frame) */
+    void (*think)(LPEDICT);
+    void (*idle)(LPEDICT);
+    void (*move)(LPEDICT);
+    void (*attack)(LPEDICT);
+    void (*pain)(LPEDICT);
 } wowEntityLocal_t;
 
 typedef struct {

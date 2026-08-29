@@ -54,6 +54,7 @@ typedef struct {
     LPCSTR        column;  /* SLK column header (Y=1 text) or INI key name */
     ptrdiff_t     offset;  /* offsetof(RowStruct, field)                   */
     bzFieldType_t type;
+    LPCSTR        id;      /* optional four-character object-data field ID */
 } slkField_t;
 
 /* -------------------------------------------------------------------------

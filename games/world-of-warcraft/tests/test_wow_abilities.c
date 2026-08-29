@@ -209,9 +209,9 @@ static LPEDICT make_player(void) {
         local->hostile = false;
         local->attack_damage_point = 250;
         local->attack_backswing = 450;
-        ent->idle = Wow_AIIdle;
-        ent->attack = Wow_AIAttack;
-        ent->pain = Wow_AIPain;
+        local->idle = Wow_AIIdle;
+        local->attack = Wow_AIAttack;
+        local->pain = Wow_AIPain;
         ent->s.origin = (VECTOR3){ 0.0f, 0.0f, 0.0f };
         ent->s.origin2 = (VECTOR2){ 0.0f, 0.0f };
         ent->s.angle = 0.0f;
@@ -231,12 +231,12 @@ static LPEDICT make_creature(FLOAT x, FLOAT y) {
     {
         wowEntityLocal_t *local = Wow_EntityLocal(ent);
 
-        ent->think = Wow_RunCreatureFrame;
+        local->think = Wow_RunCreatureFrame;
         local->health = 3;
         local->hostile = true;
-        ent->idle = Wow_AIIdle;
-        ent->attack = Wow_AIAttack;
-        ent->pain = Wow_AIPain;
+        local->idle = Wow_AIIdle;
+        local->attack = Wow_AIAttack;
+        local->pain = Wow_AIPain;
         ent->s.origin = (VECTOR3){ x, y, 0.0f };
         ent->s.origin2 = (VECTOR2){ x, y };
         ent->s.angle = 0.0f;
@@ -266,7 +266,7 @@ TEST(wow_abilities, firebolt_spawns_projectile) {
 
         T_ASSERT(proj->inuse);
         T_NOT_NULL(pl);
-        T_ASSERT(proj->think == Wow_RunProjectile);
+        T_ASSERT(pl->think == Wow_RunProjectile);
         T_EQ((int)pl->projectile_target, 1);
         T_EQ((int)pl->projectile_caster, 0);
         T_FEQ(pl->projectile_speed, 25.0f, 0.001f);
@@ -392,7 +392,7 @@ TEST(wow_abilities, firebolt_at_dead_caster_does_nothing) {
     /* No projectile should be spawned */
     for (DWORD i = WOW_MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
         LPEDICT e = &wow_edicts[i];
-        if (e->inuse && e->think == Wow_RunProjectile) {
+        if (e->inuse && Wow_EntityLocal(e)->think == Wow_RunProjectile) {
             T_ASSERT(!"projectile was spawned despite dead caster");
         }
     }
@@ -412,7 +412,7 @@ TEST(wow_abilities, firebolt_at_dead_target_does_nothing) {
     /* No projectile should be spawned */
     for (DWORD i = WOW_MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
         LPEDICT e = &wow_edicts[i];
-        if (e->inuse && e->think == Wow_RunProjectile) {
+        if (e->inuse && Wow_EntityLocal(e)->think == Wow_RunProjectile) {
             T_ASSERT(!"projectile was spawned despite dead target");
         }
     }
@@ -425,7 +425,7 @@ TEST(wow_abilities, firebolt_self_cast_does_nothing) {
     Wow_FireFirebolt(caster, caster);
     for (DWORD i = WOW_MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
         LPEDICT e = &wow_edicts[i];
-        if (e->inuse && e->think == Wow_RunProjectile) {
+        if (e->inuse && Wow_EntityLocal(e)->think == Wow_RunProjectile) {
             T_ASSERT(!"projectile was spawned for self-cast");
         }
     }
@@ -570,7 +570,7 @@ TEST(wow_abilities, frostbolt_spawns_projectile) {
         wowEntityLocal_t *pl = Wow_EntityLocal(proj);
         T_ASSERT(proj->inuse);
         T_NOT_NULL(pl);
-        T_ASSERT(proj->think == Wow_RunProjectile);
+        T_ASSERT(pl->think == Wow_RunProjectile);
         T_EQ((int)pl->projectile_target, (int)target->s.number);
         T_FEQ(pl->projectile_speed, 20.0f, 0.001f);
         T_EQ((int)pl->projectile_damage, 3);
@@ -625,7 +625,7 @@ TEST(wow_abilities, frostbolt_at_dead_caster_does_nothing) {
     Wow_FireFrostbolt(caster, target);
     for (DWORD i = WOW_MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
         LPEDICT e = &wow_edicts[i];
-        if (e->inuse && e->think == Wow_RunProjectile)
+        if (e->inuse && Wow_EntityLocal(e)->think == Wow_RunProjectile)
             T_ASSERT(!"frostbolt spawned despite dead caster");
     }
 }
@@ -640,7 +640,7 @@ TEST(wow_abilities, frostbolt_at_dead_target_does_nothing) {
     Wow_FireFrostbolt(caster, target);
     for (DWORD i = WOW_MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
         LPEDICT e = &wow_edicts[i];
-        if (e->inuse && e->think == Wow_RunProjectile)
+        if (e->inuse && Wow_EntityLocal(e)->think == Wow_RunProjectile)
             T_ASSERT(!"frostbolt spawned despite dead target");
     }
 }

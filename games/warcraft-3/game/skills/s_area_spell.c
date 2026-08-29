@@ -42,7 +42,7 @@ static void blizzard_think(LPEDICT ent) {
     if (ent->resources == 0 || (ent->spawn_time && now >= ent->spawn_time)) {
         LPEDICT caster = ent->owner;
         G_FreeEdict(ent);
-        if (caster && caster->channel_code == ID_BLIZZARD)
+        if (caster && caster->channel.code == ID_BLIZZARD)
             S_SpellCancelChannel(caster);
         return;
     }

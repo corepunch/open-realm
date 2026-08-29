@@ -513,7 +513,7 @@ static int G_FowBlockerDilation(LPCEDICT ent) {
         return FOW_TREE_DILATION_CELLS;
     }
     if (!(ent->svflags & SVF_MONSTER) &&
-        ent->destructableData->occluderHeight > 0.0f)
+        ent->DestructableData->occluderHeight > 0.0f)
     {
         return FOW_TREE_DILATION_CELLS;
     }

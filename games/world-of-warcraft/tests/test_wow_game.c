@@ -441,7 +441,7 @@ static struct game_import test_import(void) {
 
 static LPEDICT first_creature(void) {
     for (DWORD i = WOW_MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
-        if (wow_edicts[i].inuse && wow_edicts[i].think == Wow_RunCreatureFrame) {
+        if (wow_edicts[i].inuse && Wow_EntityLocal(&wow_edicts[i])->think == Wow_RunCreatureFrame) {
             return &wow_edicts[i];
         }
     }
@@ -638,8 +638,8 @@ TEST(wow_game, quest_givers_receive_creature_frame_for_idle_animation) {
         if (!e->inuse || e->s.class_id != 2072) continue;
         wowEntityLocal_t *local = Wow_EntityLocal(e);
         found = true;
-        T_ASSERT(e->think == Wow_RunCreatureFrame);
-        T_ASSERT(e->idle == Wow_AIIdle);
+        T_ASSERT(local->think == Wow_RunCreatureFrame);
+        T_ASSERT(local->idle == Wow_AIIdle);
         T_ASSERT(e->svflags & SVF_MONSTER);
         T_NOT_NULL(local->animation);
         T_ASSERT(local->quest_available_model != 0);
@@ -1129,7 +1129,7 @@ TEST(wow_game, wow_load_map_initializes_player_state) {
     T_ASSERT(player->inuse);
     T_NOT_NULL(player->client);
     T_NOT_NULL(local);
-    T_NULL(player->think); /* the player is driven by client input, not a think fn */
+    T_NULL(local->think); /* the player is driven by client input, not a think fn */
     T_EQ((int)local->health, 100);
     T_EQ((int)local->selected_action_slot, 255);
     assert_player_spawned(player);
@@ -1193,7 +1193,7 @@ TEST(wow_game, wow_load_map_spawns_and_runs_creature_state) {
     before = creature->s.origin2;
 
     T_EQ((int)creature->s.number, 1);
-    T_ASSERT(creature->think == Wow_RunCreatureFrame);
+    T_ASSERT(creature_local->think == Wow_RunCreatureFrame);
     T_EQ((int)creature_local->display_id, 161);
     T_EQ((int)creature_local->health, 3);
     T_ASSERT((creature->svflags & SVF_MONSTER) != 0);
@@ -1287,7 +1287,7 @@ TEST(wow_game, wow_fireball_cast_interrupts_melee_and_launches) {
     T_NULL(local->enemy); /* Fireball is a one-shot ranged cast, not a melee engage. */
     T_STREQ(local->animation->name, "SpellCastDirected");
     FOR_LOOP(i, (DWORD)globals.num_edicts) {
-        if (wow_edicts[i].inuse && wow_edicts[i].think == Wow_RunProjectile) {
+        if (wow_edicts[i].inuse && Wow_EntityLocal(&wow_edicts[i])->think == Wow_RunProjectile) {
             projectile = &wow_edicts[i];
             break;
         }
@@ -1327,7 +1327,7 @@ TEST(wow_game, wow_fireball_movement_cancels) {
     T_EQ((int)local->mana, 100);
     T_EQ((int)player->client->ps.stats[WOW_STAT_CAST_MAX], 0);
     FOR_LOOP(i, (DWORD)globals.num_edicts) {
-        T_ASSERT(!wow_edicts[i].inuse || wow_edicts[i].think != Wow_RunProjectile);
+        T_ASSERT(!wow_edicts[i].inuse || Wow_EntityLocal(&wow_edicts[i])->think != Wow_RunProjectile);
     }
     if (game->Shutdown) game->Shutdown();
 }
@@ -1794,7 +1794,7 @@ TEST(wow_game, loot_command_auto_takes_copper) {
 
     /* Kill the creature and bypass the death animation for test speed. */
     Wow_AIDie(creature, player);
-    creature->think = Wow_RunCorpseFrame;
+    creature_local->think = Wow_RunCorpseFrame;
     /* Override loot to a deterministic copper value. */
     creature_local->loot_copper = 30;
     creature->s.origin2 = player->s.origin2;
@@ -1824,7 +1824,7 @@ TEST(wow_game, loot_take_moves_item_to_inventory) {
     wc             = (wowClient_t *)player->client;
 
     Wow_AIDie(creature, player);
-    creature->think = Wow_RunCorpseFrame;
+    creature_local->think = Wow_RunCorpseFrame;
     /* One deterministic item, no copper, no other drops. */
     memset(creature_local->loot_items, 0, sizeof(creature_local->loot_items));
     creature_local->loot_count = 1;
@@ -1867,7 +1867,7 @@ TEST(wow_game, loot_close_clears_window) {
     wc             = (wowClient_t *)player->client;
 
     Wow_AIDie(creature, player);
-    creature->think = Wow_RunCorpseFrame;
+    creature_local->think = Wow_RunCorpseFrame;
     creature_local->loot_copper = 10;
     creature->s.origin2 = player->s.origin2;
 
@@ -2079,11 +2079,11 @@ TEST(wow_game, creature_death_transitions_to_corpse_frame) {
     Wow_AIDie(creature, NULL);
     T_ASSERT(local->dead);
     T_ASSERT(creature->svflags & SVF_DEADMONSTER);
-    T_ASSERT(creature->think != Wow_RunCorpseFrame);
+    T_ASSERT(local->think != Wow_RunCorpseFrame);
 
     /* WOW_DEFAULT_DEATH_TIME = 1200ms / FRAMETIME = 100ms → 12 ticks. */
     FOR_LOOP(i, 1200 / FRAMETIME) Wow_AIAdvanceLockedFrame(creature);
-    T_ASSERT(creature->think == Wow_RunCorpseFrame);
+    T_ASSERT(local->think == Wow_RunCorpseFrame);
     T_ASSERT(!(creature->svflags & SVF_MONSTER));
 
     if (game->Shutdown) game->Shutdown();

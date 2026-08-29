@@ -81,16 +81,16 @@ void SP_SpawnItem(LPEDICT self) {
     LPCSTR model;
     FLOAT scale;
 
-    if (!self || !(model = self->itemData->file)) {
+    if (!self || !(model = self->ItemData->file)) {
         return;
     }
     strlcpy(model_filename, model, sizeof(model_filename));
     self->s.model = G_RegisterModel(model_filename);
-    scale = self->itemData->scale;
+    scale = self->ItemData->scale;
     if (scale > 0) {
         self->s.scale = scale;
     }
-    self->s.radius = self->itemData->selectionSize;
+    self->s.radius = self->ItemData->selectionSize;
 #ifndef USE_SHADOWMAPS
     self->s.shadow = G_LoadShadowTexture(FS_FindSheetCell(game.config.misc, "Misc", "ItemShadowFile"), false);
     self->s.shadow_rect = ShadowPackRect(
@@ -111,18 +111,18 @@ BOOL G_IsItem(LPCEDICT item) {
     if (!item || !item->inuse || !item->class_id) {
         return false;
     }
-    return item->item.in_world || item->item.carrier || item->itemData->file != NULL;
+    return item->item.in_world || item->item.carrier || item->ItemData->file != NULL;
 }
 
 DWORD G_InventoryCapacity(LPCEDICT unit) {
     LPCSTR abilities;
 
-    if (!unit || !unit->inuse || !(abilities = UNIT_ABILITIES_NORMAL(unit->class_id))) return 0;
+    if (!unit || !unit->inuse || !(abilities = unit->UnitAbilities->abilList)) return 0;
     PARSE_LIST(abilities, abil, parse_segment) {
-        LPCSTR base = game.config.abilities ? FS_FindSheetCell(game.config.abilities, abil, "code") : NULL;
         LONG capacity;
 
-        if ((base && strcmp(base, "AInv")) || (!base && strcmp(abil, "AInv"))) continue;
+        /* Typed AbilityData resolves custom inventory abilities without returning to the removed sheet cache. */
+        if (G_AbilityCodeName(abil) != MAKEFOURCC('A','I','n','v')) continue;
         capacity = (LONG)AB_Data(abil, 1, 1); /* inv1 / Item Capacity */
         if (capacity <= 0) {
             fprintf(stderr, "G_InventoryCapacity: %.4s inventory ability %.4s has invalid inv1=%ld\n",

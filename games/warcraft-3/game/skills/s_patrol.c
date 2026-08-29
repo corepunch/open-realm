@@ -13,8 +13,9 @@ static void ai_patrol_walk(LPEDICT ent) {
     FLOAT move_distance = unit_movedistance(ent);
 
     if (move_should_arrive(ent, move_distance) || move_is_blocked(ent, distance, move_distance)) {
-        ent->patrol_target = ent->patrol_target == ent->patrol_a ? ent->patrol_b : ent->patrol_a;
-        ent->goalentity = ent->patrol_target;
+        ent->movement.patrol_target = ent->movement.patrol_target == ent->movement.patrol_a
+            ? ent->movement.patrol_b : ent->movement.patrol_a;
+        ent->goalentity = ent->movement.patrol_target;
         move_reset_progress(ent);
     } else {
         unit_changeangle(ent);
@@ -25,15 +26,15 @@ static void ai_patrol_walk(LPEDICT ent) {
 static umove_t patrol_move_walk = { "walk", ai_patrol_walk, NULL, &a_patrol };
 
 void order_patrol_resume(LPEDICT self) {
-    self->goalentity = self->patrol_target;
+    self->goalentity = self->movement.patrol_target;
     move_reset_progress(self);
     unit_setmove(self, &patrol_move_walk);
 }
 
 void order_patrol(LPEDICT self, LPEDICT b) {
-    self->patrol_a = Waypoint_add(&self->s.origin2);
-    self->patrol_b = b;
-    self->patrol_target = b;
+    self->movement.patrol_a = Waypoint_add(&self->s.origin2);
+    self->movement.patrol_b = b;
+    self->movement.patrol_target = b;
     order_patrol_resume(self);
 }
 
@@ -41,7 +42,7 @@ static BOOL patrol_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
     BOOL any = false;
 
     FOR_SELECTED_UNITS(clent->client, ent) {
-        if ((ent->aiflags & AI_IMMOBILE) || ent->balance->speed <= 0) {
+        if ((ent->aiflags & AI_IMMOBILE) || ent->UnitBalance->speed <= 0) {
             continue;
         }
         VECTOR2 target = *location;

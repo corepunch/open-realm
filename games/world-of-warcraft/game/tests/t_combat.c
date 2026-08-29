@@ -40,14 +40,14 @@ static void combat_prepare(LPEDICT *attacker_out, LPEDICT *target_out) {
     target->s.number = 2;
     attacker->s.model = target->s.model = model;
     attacker->svflags = target->svflags = SVF_MONSTER;
-    attacker->think = target->think = Wow_RunCreatureFrame;
-    attacker->pain = target->pain = Wow_AIPain;
-    attacker->attack = target->attack = Wow_AIAttack;
     attacker->s.origin2 = (VECTOR2){ 0.0f, 0.0f };
     target->s.origin2 = (VECTOR2){ 2.0f, 0.0f };
 
     al = Wow_EntityLocal(attacker);
     tl = Wow_EntityLocal(target);
+    al->think = tl->think = Wow_RunCreatureFrame;
+    al->pain = tl->pain = Wow_AIPain;
+    al->attack = tl->attack = Wow_AIAttack;
     al->health = 5;
     al->enemy = target;
     tl->health = 3;
@@ -70,7 +70,7 @@ TEST(wow_combat, attack_applies_damage_at_damage_point) {
     al->attack_backswing = 450;
     /* Clear the target's attack so a hit plays a pain reaction instead of
      * retaliating (Wow_ApplyDamage prefers retaliation when possible). */
-    target->attack = NULL;
+    tl->attack = NULL;
 
     Wow_AIAttack(attacker);
     T_ASSERT(al->attack_damage_time > 0); /* swing started (attack anim resolved) */
@@ -151,7 +151,7 @@ TEST(wow_combat, death_holds_terminal_frame) {
     for (int i = 0; i < 30; i++) Wow_AIAdvanceLockedFrame(target);
     T_EQ(target->s.frame, terminal - 1);
     T_EQ(globals.num_edicts, num_edicts); /* death must not allocate a duplicate model */
-    T_ASSERT(target->think == Wow_RunCorpseFrame);
+    T_ASSERT(tl->think == Wow_RunCorpseFrame);
     T_ASSERT(tl->corpse_timer > 0);
 }
 

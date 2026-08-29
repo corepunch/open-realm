@@ -17,6 +17,23 @@
 #include "common/shared.h"
 
 /* =========================================================================
+ * Unit Profile / INI
+ * =========================================================================*/
+typedef struct {
+    DWORD id;
+    LPCSTR name, properNames, builds, trains;
+    LPCSTR animProps, art, itemArt, attachmentAnimProps, attachmentLinkProps, awakenTip;
+    LPCSTR boneProps, buildingSoundLabel, buttonPosX, buttonPosY;
+    LPCSTR casterUpgradeArt, casterUpgradeName, casterUpgradeTip, dependencyOr;
+    LPCSTR description, editorSuffix, hotkey, loopingSoundFadeIn, loopingSoundFadeOut;
+    LPCSTR makeItems, movementSoundLabel, randomSoundLabel;
+    LPCSTR requiresCount, requires, requiresLevel[8], requiresAmount;
+    LPCSTR researches, revive, reviveTip, scoreScreenIcon, sellItems, sellUnits;
+    LPCSTR specialArt, targetArt, tip, reviveAt, uberTip, upgrade;
+    struct { LPCSTR art; FLOAT arc, speed; BOOL homing; } attack[2];
+} UnitProfile_t;
+
+/* =========================================================================
  * UnitBalance.slk
  * =========================================================================*/
 typedef struct {
@@ -324,7 +341,7 @@ typedef struct {
     LONG    version;
     BOOL    InBeta;
     LPCSTR  file;                    /* MDX model path                     */
-    LPCSTR  modelDirectory;          /* subdirectory prefix (ROC-only)     */
+    LPCSTR  dir;                     /* subdirectory prefix (ROC-only)     */
     LPCSTR  displayName;             /* TFT (ROC used "name" → lowercase)  */
     LPCSTR  EditorSuffix;            /* TFT-only                           */
     LPCSTR  textureFile;
@@ -376,6 +393,7 @@ typedef struct {
  * G_UnitCollision handles the ROC (UnitData) / TFT (UnitBalance) split.
  * =========================================================================*/
 extern UnitBalance_t *g_UnitBalance; extern DWORD g_UnitBalanceCount;
+extern UnitProfile_t *g_UnitProfile; extern DWORD g_UnitProfileCount;
 extern UnitData_t *g_UnitData; extern DWORD g_UnitDataCount;
 extern UnitUI_t *g_UnitUI; extern DWORD g_UnitUICount;
 extern UnitWeapons_t *g_UnitWeapons; extern DWORD g_UnitWeaponsCount;
@@ -388,6 +406,7 @@ extern ItemData_t *g_ItemData; extern DWORD g_ItemDataCount;
 extern DestructableData_t *g_DestructableData; extern DWORD g_DestructableDataCount;
 
 UnitBalance_t const *G_UnitBalance(DWORD id);
+UnitProfile_t const *G_UnitProfile(DWORD id);
 UnitData_t    const *G_UnitData(DWORD id);
 UnitUI_t      const *G_UnitUI(DWORD id);
 UnitWeapons_t const *G_UnitWeapons(DWORD id);

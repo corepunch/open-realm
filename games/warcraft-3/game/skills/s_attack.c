@@ -107,10 +107,10 @@ static void attack_finish_after_kill(LPEDICT attacker) {
     if (!attacker) {
         return;
     }
-    if (attacker->patrol_a) {
+    if (attacker->movement.patrol_a) {
         order_patrol_resume(attacker);
-    } else if (attacker->attackmove_waypoint) {
-        order_attackmove(attacker, attacker->attackmove_waypoint);
+    } else if (attacker->movement.attackmove_waypoint) {
+        order_attackmove(attacker, attacker->movement.attackmove_waypoint);
     } else if (attacker->stand) {
         attacker->stand(attacker);
     }
@@ -325,7 +325,7 @@ void attack_melee(LPEDICT self) {
     FLOAT divisor = attack_speed_divisor(self);
     unit_setmove(self, &attack_move_melee);
     self->wait = self->attack1.damagePoint / divisor;
-    if (self->sound_attack) { self->s.event = EV_ATTACK; self->s.sound = self->sound_attack; }
+    if (self->sound.attack) { self->s.event = EV_ATTACK; self->s.sound = self->sound.attack; }
 }
 
 void attack_ranged_cooldown(LPEDICT self) {
@@ -338,7 +338,7 @@ void attack_ranged(LPEDICT self) {
     FLOAT divisor = attack_speed_divisor(self);
     unit_setmove(self, &attack_move_ranged);
     self->wait = self->attack1.damagePoint / divisor;
-    if (self->sound_attack) { self->s.event = EV_ATTACK; self->s.sound = self->sound_attack; }
+    if (self->sound.attack) { self->s.event = EV_ATTACK; self->s.sound = self->sound.attack; }
 }
 
 BOOL attack_menu_selecttarget(LPEDICT ent, LPEDICT target) {
@@ -348,7 +348,7 @@ BOOL attack_menu_selecttarget(LPEDICT ent, LPEDICT target) {
         return false;
     }
     FOR_SELECTED_UNITS(ent->client, e) {
-        e->attackmove_waypoint = NULL;
+        e->movement.attackmove_waypoint = NULL;
         order_attack(e, target);
     }
     return true;
@@ -373,10 +373,10 @@ static void ai_attackmove_walk(LPEDICT ent) {
             ent->s.origin2 = ent->goalentity->s.origin2;
             gi.LinkEntity(ent);
         }
-        ent->attackmove_waypoint = NULL;
+        ent->movement.attackmove_waypoint = NULL;
         ent->stand(ent);
     } else if (move_is_blocked(ent, distance, move_distance)) {
-        ent->attackmove_waypoint = NULL;
+        ent->movement.attackmove_waypoint = NULL;
         ent->stand(ent);
     } else {
         unit_changeangle(ent);
@@ -388,7 +388,7 @@ static umove_t attackmove_move_walk = { "walk", ai_attackmove_walk, NULL, &a_att
 
 /* Begin (or resume, after a kill) attack-moving toward a waypoint. */
 void order_attackmove(LPEDICT self, LPEDICT waypoint) {
-    self->attackmove_waypoint = waypoint;
+    self->movement.attackmove_waypoint = waypoint;
     self->goalentity = waypoint;
     move_reset_progress(self);
     unit_setmove(self, &attackmove_move_walk);
@@ -399,7 +399,7 @@ static BOOL attackmove_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
     BOOL any = false;
 
     FOR_SELECTED_UNITS(clent->client, ent) {
-        if ((ent->aiflags & AI_IMMOBILE) || ent->balance->speed <= 0) {
+        if ((ent->aiflags & AI_IMMOBILE) || ent->UnitBalance->speed <= 0) {
             continue;
         }
         if (!any) {

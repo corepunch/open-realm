@@ -150,7 +150,7 @@ NPCs use abilities similar to player classes but without the same constraints:
 
 ### Entity Types
 
-The engine represents every in-world object as an `edict_t` with a `wowEntityLocal_t` side-car. Behaviour is driven entirely by the entity's `think` function pointer (Quake 2 style) — there is no type/kind tag dispatched on at runtime. Unlike Q2's `spawns[]` table and WC3's `SP_CallSpawn`, WoW has no central entity-type dispatcher; if the taxonomy grows, the hub belongs in `g_spawn.c` (see [spawn-and-teleport.md](spawn-and-teleport.md)).
+The engine represents every in-world object as an `edict_t` with a `wowEntityLocal_t` side-car. Behaviour is driven entirely by the side-car's `think`, `idle`, `move`, `attack`, and `pain` function pointers (Quake 2 style); these game callbacks do not belong to the shared server `edict_t`. There is no type/kind tag dispatched on at runtime. Unlike Q2's `spawns[]` table and WC3's `SP_CallSpawn`, WoW has no central entity-type dispatcher; if the taxonomy grows, the hub belongs in `g_spawn.c` (see [spawn-and-teleport.md](spawn-and-teleport.md)).
 
 | Think function | Role |
 |---|---|

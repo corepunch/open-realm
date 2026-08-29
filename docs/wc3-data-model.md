@@ -16,7 +16,19 @@ The old codes `umpc`, `uagc`, `uinc`, `ustc` are **not registered** in the metad
 
 ## Unit Field Code Reference
 
-All reads go through `UnitIntegerField` / `UnitRealField` / `UnitBooleanField` / `UnitStringField` against `UnitsMetaData`. The macros in `games/warcraft-3/game/g_unitdata.h` are the canonical access layer — add new fields there, not inline.
+Gameplay reads typed rows through `G_UnitBalance`, `G_UnitData`, `G_UnitUI`, `G_UnitWeapons`, `G_UnitAbil`, and
+`G_UnitProfile`. Profile/INI files are merged into `UnitProfile_t`; there is no separate macro access layer.
+
+`G_BindEntityData` resolves these rows once and stores direct, table-named pointers on `edict_t` (`UnitBalance`,
+`UnitWeapons`, `ItemData`, and so on). Keep those pointers flat: their exact names are the table-to-edict contract.
+They do not replace mutable runtime values such as attacks, armor, movement speed, hero attributes, health, or mana;
+items, upgrades, and JASS natives modify those values after spawn. Cohesive transient state belongs in the existing
+named edict sections (`item`, `destructable`, `cargo`, `movement`, `channel`, and `sound`). The server-visible prefix
+through `areabounds` must remain aligned with `server.h`.
+
+FourCC/JASS reads use `UnitIntegerField` / `UnitRealField` / `UnitBooleanField` / `UnitStringField`. Unit metadata binds
+each FourCC to its DDX field descriptor and typed-row index during `InitUnitData`, so these accessors read the same arrays
+as gameplay instead of returning to `sheetRow_t`. Add fields to the owning row and DDX schema in `g_metadata.c`.
 
 ### Health / Mana
 | Macro | Code | Notes |
@@ -62,7 +74,7 @@ All reads go through `UnitIntegerField` / `UnitRealField` / `UnitBooleanField` /
 | `UNIT_ATTACK1_AREA_OF_EFFECT_SMALL_DAMAGE` | `ua1q` | splash small radius |
 | `UNIT_ATTACK1_DAMAGE_FACTOR_MEDIUM` | `uhd1` | medium-ring damage multiplier |
 | `UNIT_ATTACK1_DAMAGE_FACTOR_SMALL` | `uqd1` | small-ring damage multiplier |
-| `UNIT_ATTACK1_PROJECTILE_SPEED` | `ua1z` | 0 = melee |
+| `G_UnitProfile(id)->attack[0].speed` | `ua1z` | 0 = melee; Profile/INI |
 
 ### Movement / Collision
 | Macro | Code | Notes |
@@ -92,8 +104,8 @@ All reads go through `UnitIntegerField` / `UnitRealField` / `UnitBooleanField` /
 | `UNIT_MODEL` | `umdl` | MDX path |
 | `UNIT_ABILITIES_NORMAL` | `uabi` | comma-separated ability codes |
 | `UNIT_ABILITIES_HERO` | `uhab` | hero abilities |
-| `UNIT_TRAINS` | `utra` | trainable unit codes |
-| `UNIT_BUILDS` | `ubui` | buildable structure codes |
+| `G_UnitProfile(id)->trains` | `utra` | trainable unit codes |
+| `G_UnitProfile(id)->builds` | `ubui` | buildable structure codes |
 
 ## Ability Field Codes
 

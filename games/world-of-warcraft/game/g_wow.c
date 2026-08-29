@@ -206,8 +206,9 @@ LPEDICT Wow_FindNearestCorpse(LPEDICT ent, FLOAT range) {
         VECTOR2 delta;
         FLOAT dist2;
 
-        if (!c->inuse || c->think != Wow_RunCorpseFrame) continue;
+        if (!c->inuse) continue;
         local = Wow_EntityLocal(c);
+        if (!local || local->think != Wow_RunCorpseFrame) continue;
         /* Include corpses with no items if they still have copper (gold auto-loots). */
         if (!local || (local->loot_count == 0 && local->loot_copper == 0)) continue;
         delta = Vector2_sub(&c->s.origin2, &ent->s.origin2);
@@ -722,7 +723,7 @@ static LPEDICT Wow_FindNearestAttackTarget(LPEDICT ent, FLOAT range);
 static void Wow_SpellAttack(LPEDICT caster, LPEDICT target) {
     wowEntityLocal_t *cl = Wow_EntityLocal(caster);
     if (cl) cl->enemy = target;
-    if (caster->attack) caster->attack(caster);
+    if (cl && cl->attack) cl->attack(caster);
 }
 static void Wow_SpellFireball(LPEDICT caster, LPEDICT target) { Wow_FireFirebolt(caster, target); }
 static void Wow_SpellFrostbolt(LPEDICT caster, LPEDICT target) { Wow_FireFrostbolt(caster, target); }
@@ -960,7 +961,7 @@ void Wow_RunProjectile(LPEDICT ent) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
     LPEDICT target;
 
-    if (!ent || !local || ent->think != Wow_RunProjectile || !ent->inuse) {
+    if (!ent || !local || local->think != Wow_RunProjectile || !ent->inuse) {
         return;
     }
     target = Wow_EdictByNumber(local->projectile_target);
@@ -1037,7 +1038,7 @@ void Wow_FireFirebolt(LPEDICT caster, LPEDICT target) {
     pl = Wow_EntityLocal(proj);
     if (!pl) return;
 
-    proj->think = Wow_RunProjectile;
+    pl->think = Wow_RunProjectile;
     {
         VECTOR2 delta = Vector2_sub(&(VECTOR2){ target->s.origin.x, target->s.origin.y }, &(VECTOR2){ caster->s.origin.x, caster->s.origin.y });
         yaw = (FLOAT)RAD2DEG(atan2f(delta.y, delta.x));
@@ -1176,7 +1177,7 @@ void Wow_FireFrostbolt(LPEDICT caster, LPEDICT target) {
     pl = Wow_EntityLocal(proj);
     if (!pl) return;
 
-    proj->think = Wow_RunProjectile;
+    pl->think = Wow_RunProjectile;
     {
         VECTOR2 delta = Vector2_sub(&(VECTOR2){ target->s.origin.x, target->s.origin.y }, &(VECTOR2){ caster->s.origin.x, caster->s.origin.y });
         yaw = (FLOAT)RAD2DEG(atan2f(delta.y, delta.x));
@@ -1571,10 +1572,10 @@ static void Wow_InitPlayer(LPEDICT ent, VECTOR2 spawn_origin, LONG spawn_locatio
     ent->s.scale = 1.0f;
     ent->s.radius = 1.0f;
     ent->s.flags = EF_GROUND_ANCHOR;
-    ent->idle = Wow_AIIdle;
-    ent->move = NULL;
-    ent->attack = Wow_AIAttack;
-    ent->pain = Wow_AIPain;
+    local->idle = Wow_AIIdle;
+    local->move = NULL;
+    local->attack = Wow_AIAttack;
+    local->pain = Wow_AIPain;
     Wow_SetStandMove(ent);
 
     ps = &ent->client->ps;
@@ -1933,7 +1934,7 @@ static void Wow_RunFrame(void) {
         }
     }
     if (!locked && Wow_EntityAffectingCombat(ent)) {
-        ent->attack(ent);
+        Wow_EntityLocal(ent)->attack(ent);
         /* If the attack started, treat as locked so the Run animation below
          * doesn't overwrite the swing. */
         {
@@ -1983,8 +1984,9 @@ static void Wow_RunFrame(void) {
 process_entities:
     for (DWORD i = WOW_MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
         LPEDICT e = &wow_edicts[i];
-        if (e->inuse && e->think)
-            e->think(e);
+        wowEntityLocal_t *local = Wow_EntityLocal(e);
+        if (e->inuse && local && local->think)
+            local->think(e);
     }
 }
 
@@ -2352,7 +2354,7 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
         LPEDICT target = Wow_EdictByNumber((DWORD)strtoul(argv[1], NULL, 10));
         wowEntityLocal_t *target_local = target ? Wow_EntityLocal(target) : NULL;
         Wow_SelectEntity(ent, target && target != ent ? target : NULL);
-        if (target && target->think == Wow_RunCorpseFrame) {
+        if (target_local && target_local->think == Wow_RunCorpseFrame) {
             /* Right-clicked a corpse: open loot window. */
             Wow_OpenLootTarget(ent, target);
         } else if (target_local && target_local->quest_id) {
@@ -2364,9 +2366,9 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
             UI_WriteWowHud(ent);
         } else {
             wowEntityLocal_t *local = Wow_EntityLocal(ent);
-            if (!local || local->dead || !ent->attack) return;
+            if (!local || local->dead || !local->attack) return;
             local->enemy = target && target != ent ? target : NULL;
-            ent->attack(ent);
+            local->attack(ent);
         }
     } else if (argc >= 1 && (!strcasecmp(argv[0], "wow_cycle_target") || !strcasecmp(argv[0], "cycletarget"))) {
         DWORD old = ((wowClient_t *)ent->client)->selected_entity;
@@ -2391,12 +2393,12 @@ static void Wow_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
             : Wow_FindNearestAttackTarget(ent, WOW_MELEE_RANGE);
         wowEntityLocal_t *local = Wow_EntityLocal(ent);
 
-        if (!ent || !local || local->dead || !ent->attack) {
+        if (!ent || !local || local->dead || !local->attack) {
             return;
         }
         local->enemy = target && target != ent ? target : NULL;
         Wow_SelectEntity(ent, target && target != ent ? target : NULL);
-        ent->attack(ent);
+        local->attack(ent);
     } else if (argc >= 1 && (!strcasecmp(argv[0], "stopattack") || !strcasecmp(argv[0], "wowstopattack"))) {
         wowEntityLocal_t *local = Wow_EntityLocal(ent);
 

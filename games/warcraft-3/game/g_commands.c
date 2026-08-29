@@ -24,8 +24,8 @@ BOOL G_IsEntitySelected(LPGAMECLIENT client, LPEDICT ent) {
 /* Client commands arrive before G_RunEntities clears the previous snapshot's
  * event, so retain the chosen acknowledgement until that frame begins. */
 void G_QueueSelectionSound(LPEDICT ent) {
-    if (ent && ent->num_select_sounds)
-        ent->pending_sound = ent->sound_select[rand() % ent->num_select_sounds];
+    if (ent && ent->sound.num_select)
+        ent->sound.pending = ent->sound.select[rand() % ent->sound.num_select];
 }
 
 void CMD_CancelCommand(LPEDICT ent) {
@@ -133,7 +133,7 @@ CLIENTCOMMAND(Button) {
         client->menu.cmdbutton(clent, *((DWORD *)classname));
     } else {
         LPEDICT ent = G_GetMainSelectedUnit(client);
-        LPCSTR builds = UNIT_TRAINS(ent->class_id);
+        LPCSTR builds = G_UnitProfile(ent->class_id)->trains;
         if (!builds)
             return;
         PARSE_LIST(builds, build, parse_segment) {

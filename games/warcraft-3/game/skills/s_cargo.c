@@ -5,38 +5,38 @@ static FLOAT cargo_capacity_value;
 /* ---- Cargo Hold (Acar): passive ability on transport units ---------------- */
 
 static BOOL cargo_has_capacity(LPEDICT transport, DWORD needed) {
-    return transport->cargo_count + needed <= MAX_CARGO &&
-           transport->cargo_count + needed <= (DWORD)cargo_capacity_value;
+        return transport->cargo.count + needed <= MAX_CARGO &&
+            transport->cargo.count + needed <= (DWORD)cargo_capacity_value;
 }
 
 static void cargo_add_unit(LPEDICT transport, LPEDICT unit) {
     if (!cargo_has_capacity(transport, 1)) {
         return;
     }
-    transport->cargo_units[transport->cargo_count++] = unit;
+    transport->cargo.units[transport->cargo.count++] = unit;
     unit->s.renderfx |= RF_HIDDEN;
     unit->invulnerable = true;
 }
 
 static void cargo_drop_unit(LPEDICT transport, DWORD index) {
-    if (index >= transport->cargo_count) {
+    if (index >= transport->cargo.count) {
         return;
     }
-    LPEDICT unit = transport->cargo_units[index];
+    LPEDICT unit = transport->cargo.units[index];
     /* Shift remaining units down. */
-    for (DWORD i = index; i < transport->cargo_count - 1; i++) {
-        transport->cargo_units[i] = transport->cargo_units[i + 1];
+    for (DWORD i = index; i < transport->cargo.count - 1; i++) {
+        transport->cargo.units[i] = transport->cargo.units[i + 1];
     }
-    transport->cargo_count--;
-    transport->cargo_units[transport->cargo_count] = NULL;
+    transport->cargo.count--;
+    transport->cargo.units[transport->cargo.count] = NULL;
     unit->s.renderfx &= ~RF_HIDDEN;
     unit->invulnerable = false;
     unit->s.origin2 = transport->s.origin2;
 }
 
 void cargo_drop_all(LPEDICT transport) {
-    while (transport->cargo_count > 0) {
-        cargo_drop_unit(transport, transport->cargo_count - 1);
+    while (transport->cargo.count > 0) {
+        cargo_drop_unit(transport, transport->cargo.count - 1);
     }
 }
 
@@ -86,10 +86,10 @@ ability_t a_load = {
 static BOOL drop_selectlocation(LPEDICT clent, LPCVECTOR2 point) {
     LPEDICT caster = G_GetMainSelectedUnit(clent->client);
 
-    if (!caster || !point || caster->cargo_count == 0) {
+    if (!caster || !point || caster->cargo.count == 0) {
         return false;
     }
-    cargo_drop_unit(caster, caster->cargo_count - 1);
+    cargo_drop_unit(caster, caster->cargo.count - 1);
     return true;
 }
 

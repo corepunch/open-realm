@@ -236,12 +236,11 @@ static struct game_export *init_game(void) {
     return game;
 }
 
-/* Entities are identified by their think function pointer (Quake2 style); there
- * is no kind tag.  These helpers find/count world entities (skipping the client
- * slots) whose think pointer matches. */
+/* Entities are identified by their game-local think function pointer (Quake2
+ * style); there is no kind tag. */
 static LPEDICT first_with_think(void (*think)(LPEDICT)) {
     for (DWORD i = WOW_MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
-        if (wow_edicts[i].inuse && wow_edicts[i].think == think) return &wow_edicts[i];
+        if (wow_edicts[i].inuse && Wow_EntityLocal(&wow_edicts[i])->think == think) return &wow_edicts[i];
     }
     return NULL;
 }
@@ -249,7 +248,7 @@ static LPEDICT first_with_think(void (*think)(LPEDICT)) {
 static DWORD count_with_think(void (*think)(LPEDICT)) {
     DWORD count = 0;
     for (DWORD i = WOW_MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
-        if (wow_edicts[i].inuse && wow_edicts[i].think == think) count++;
+        if (wow_edicts[i].inuse && Wow_EntityLocal(&wow_edicts[i])->think == think) count++;
     }
     return count;
 }
@@ -275,7 +274,7 @@ TEST(wow_entities, dying_creature_becomes_corpse) {
     T_ASSERT(cl->dead);
     T_EQ((int)globals.num_edicts, (int)num_edicts);
     while (cl->death_time > 0) Wow_AIAdvanceLockedFrame(creature);
-    T_ASSERT(creature->think == Wow_RunCorpseFrame);
+    T_ASSERT(cl->think == Wow_RunCorpseFrame);
     T_EQ((int)cl->corpse_owner, (int)creature->s.number);
     T_ASSERT(cl->corpse_timer > 0);
     T_EQ((int)creature->s.model, (int)model);
@@ -298,8 +297,8 @@ TEST(wow_entities, corpse_decays_over_time) {
     Wow_AIDie(creature, &wow_edicts[0]);
     while (Wow_EntityLocal(creature)->death_time > 0) Wow_AIAdvanceLockedFrame(creature);
 
-    T_ASSERT(creature->think == Wow_RunCorpseFrame);
     wowEntityLocal_t *cl = Wow_EntityLocal(creature);
+    T_ASSERT(cl->think == Wow_RunCorpseFrame);
     DWORD initial = cl->corpse_timer;
 
     for (int i = 0; i < 10; i++) game->RunFrame();
@@ -319,7 +318,7 @@ TEST(wow_entities, corpse_removed_after_timer_expires) {
     Wow_AIDie(creature, &wow_edicts[0]);
     while (Wow_EntityLocal(creature)->death_time > 0) Wow_AIAdvanceLockedFrame(creature);
 
-    T_ASSERT(creature->think == Wow_RunCorpseFrame);
+    T_ASSERT(Wow_EntityLocal(creature)->think == Wow_RunCorpseFrame);
     Wow_EntityLocal(creature)->corpse_timer = FRAMETIME;
 
     game->RunFrame();
@@ -363,7 +362,7 @@ TEST(wow_entities, dynamic_object_spawn_and_properties) {
     T_NOT_NULL(dobj);
 
     wowEntityLocal_t *dl = Wow_EntityLocal(dobj);
-    T_ASSERT(dobj->think == Wow_RunDynamicObjectFrame);
+    T_ASSERT(dl->think == Wow_RunDynamicObjectFrame);
     T_EQ((int)dl->dyn_spell_id, (int)WOW_SPELL_FIREBOLT);
     T_EQ((int)dl->dyn_duration, 5000);
     T_EQ((int)dl->dyn_radius, 2);
@@ -467,7 +466,7 @@ TEST(wow_entities, edict_limit_reached_returns_null) {
         memset(&wow_entity_locals[num - 1], 0, sizeof(wow_entity_locals[0]));
         e->inuse = true;
         e->s.number = num - 1;
-        e->think = Wow_RunCorpseFrame;
+        Wow_EntityLocal(e)->think = Wow_RunCorpseFrame;
         globals.num_edicts = (int)num;
     }
 

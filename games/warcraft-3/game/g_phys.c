@@ -70,7 +70,7 @@ void SV_Physics_Link(LPEDICT ent) {
  * ("uhrt": always / night / blight / none).  Unknown/missing defaults to
  * always, which is the most common case. */
 static BOOL G_UnitRegeneratesHP(LPCEDICT ent) {
-    LPCSTR const type = ent->balance->healthRegenType;
+    LPCSTR const type = ent->UnitBalance->healthRegenType;
     if (!type || !*type) {
         return true;
     }
@@ -113,7 +113,7 @@ void G_RunEntity(LPEDICT ent) {
      * regen bonus (MiscGame IntRegenBonus = 0.05 mana/sec per Intelligence;
      * hero.intel is 0 for non-heroes). */
     if (ent->mana.max_value > 0 && ent->mana.value < ent->mana.max_value) {
-        FLOAT const rate = ent->balance->manaRegen
+        FLOAT const rate = ent->UnitBalance->manaRegen
                          + (FLOAT)ent->hero.intel * INT_REGEN_BONUS;
         ent->mana.value = MIN(ent->mana.max_value, ent->mana.value + rate * (FRAMETIME / 1000.0f));
     }
@@ -124,7 +124,7 @@ void G_RunEntity(LPEDICT ent) {
      * = no regen), "none" never.  Living, wounded units only. */
     if (ent->health.max_value > 0 && ent->health.value > 0 &&
         ent->health.value < ent->health.max_value && G_UnitRegeneratesHP(ent)) {
-        FLOAT const rate = ent->balance->healthRegen
+        FLOAT const rate = ent->UnitBalance->healthRegen
                          + (FLOAT)ent->hero.str * STR_REGEN_BONUS;
         ent->health.value = MIN(ent->health.max_value, ent->health.value + rate * (FRAMETIME / 1000.0f));
     }

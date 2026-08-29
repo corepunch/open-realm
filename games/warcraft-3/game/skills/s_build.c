@@ -14,7 +14,7 @@ static void ai_build_walk(LPEDICT ent) {
 }
 
 static void ai_build(LPEDICT ent) {
-    FLOAT const k = (FLOAT)FRAMETIME / ((FLOAT)ent->build->balance->buildTime * 1000.0f);
+    FLOAT const k = (FLOAT)FRAMETIME / ((FLOAT)ent->build->UnitBalance->buildTime * 1000.0f);
     EDICTSTAT *hp = &ent->build->health;
     hp->value += hp->max_value * k;
     if (hp->value >= hp->max_value) {
@@ -103,7 +103,7 @@ void build_menu_selectlocation(LPEDICT ent, DWORD building_id) {
 
 void ui_builds(LPGAMECLIENT client) {
     LPEDICT ent = G_GetMainSelectedUnit(client);
-    LPCSTR builds = UNIT_BUILDS(ent->class_id);
+    LPCSTR builds = G_UnitProfile(ent->class_id)->builds;
     if (!builds)
         return;
     PARSE_LIST(builds, build, parse_segment) {

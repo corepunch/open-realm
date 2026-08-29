@@ -108,7 +108,7 @@ LPEDICT G_Spawn(void) {
 }
 
 static void SP_SpawnDoodad(LPEDICT edict) {
-    Doodads_t const *row = edict->doodad;
+    Doodads_t const *row = edict->Doodads;
     LPCSTR dir = row->dir;
     LPCSTR file = row->file;
     PATHSTR buffer;
@@ -123,8 +123,8 @@ static void SP_SpawnDoodad(LPEDICT edict) {
 }
 
 static void SP_SpawnDestructable(LPEDICT edict) {
-    DestructableData_t const *row = edict->destructableData;
-    LPCSTR dir = row->modelDirectory;
+    DestructableData_t const *row = edict->DestructableData;
+    LPCSTR dir = row->dir;
     LPCSTR file = row->file;
     LPCSTR path_tex = row->pathingTexture;
     FLOAT radius = row->radius;
@@ -185,14 +185,15 @@ static BOOL G_ClassIdIsPrintable(DWORD class_id) {
 
 /* Bind immutable table rows after class_id is assigned and before entity-specific initialization. */
 void G_BindEntityData(LPEDICT edict) {
-    edict->balance = G_UnitBalance(edict->class_id);
-    edict->data = G_UnitData(edict->class_id);
-    edict->ui = G_UnitUI(edict->class_id);
-    edict->weapons = G_UnitWeapons(edict->class_id);
-    edict->abilities = G_UnitAbil(edict->class_id);
-    edict->doodad = G_Doodad(edict->class_id);
-    edict->itemData = G_ItemData(edict->class_id);
-    edict->destructableData = G_DestructableData(edict->class_id);
+    edict->UnitProfile = G_UnitProfile(edict->class_id);
+    edict->UnitBalance = G_UnitBalance(edict->class_id);
+    edict->UnitData = G_UnitData(edict->class_id);
+    edict->UnitUI = G_UnitUI(edict->class_id);
+    edict->UnitWeapons = G_UnitWeapons(edict->class_id);
+    edict->UnitAbilities = G_UnitAbil(edict->class_id);
+    edict->Doodads = G_Doodad(edict->class_id);
+    edict->ItemData = G_ItemData(edict->class_id);
+    edict->DestructableData = G_DestructableData(edict->class_id);
 }
 
 void SP_CallSpawn(LPEDICT edict) {
@@ -200,15 +201,15 @@ void SP_CallSpawn(LPEDICT edict) {
         return;
     edict->s.class_id = edict->class_id;
     G_BindEntityData(edict);
-    if (edict->doodad->id) {
+    if (edict->Doodads->id) {
         SP_SpawnDoodad(edict);
-    } else if (edict->destructableData->file) {
+    } else if (edict->DestructableData->file) {
         SP_SpawnDestructable(edict);
         SP_monster_tree(edict);
-    } else if (edict->ui->modelFile) {
+    } else if (edict->UnitUI->modelFile) {
         SP_SpawnUnit(edict);
         SP_monster_unit(edict);
-    } else if (edict->itemData->file) {
+    } else if (edict->ItemData->file) {
         SP_SpawnItem(edict);
     } else if (MAKEFOURCC('s', 'l', 'o', 'c') == edict->class_id) {
         edict->svflags |= SVF_NOCLIENT;

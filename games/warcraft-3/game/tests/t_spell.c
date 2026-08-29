@@ -53,61 +53,61 @@ static LPEDICT make_hero(DWORD class_id, FLOAT hp, FLOAT mana, FLOAT x, FLOAT y)
 
 TEST(wc3_spell, channel_cancel_stun) {
 	LPEDICT caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
-	caster->channel_code = MAKEFOURCC('A','H','b','z');
-	caster->cast_origin = caster->s.origin2;
+	caster->channel.code = MAKEFOURCC('A','H','b','z');
+	caster->channel.origin = caster->s.origin2;
 	caster->stunned = true;
 	spell_run_frame(caster);
-	T_EQ((int)caster->channel_code, 0);
+	T_EQ((int)caster->channel.code, 0);
 }
 
 TEST(wc3_spell, channel_cancel_death) {
 	LPEDICT caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
-	caster->channel_code = MAKEFOURCC('A','H','b','z');
-	caster->cast_origin = caster->s.origin2;
+	caster->channel.code = MAKEFOURCC('A','H','b','z');
+	caster->channel.origin = caster->s.origin2;
 	caster->health.value = 0;
 	spell_run_frame(caster);
-	T_EQ((int)caster->channel_code, 0);
+	T_EQ((int)caster->channel.code, 0);
 }
 
 TEST(wc3_spell, channel_cancel_movement) {
 	LPEDICT caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
-	caster->channel_code = MAKEFOURCC('A','H','b','z');
-	caster->cast_origin.x = 100; caster->cast_origin.y = 100;
+	caster->channel.code = MAKEFOURCC('A','H','b','z');
+	caster->channel.origin.x = 100; caster->channel.origin.y = 100;
 	caster->s.origin.x = 101; caster->s.origin.y = 100;
 	caster->s.origin2.x = 101; caster->s.origin2.y = 100;
 	spell_run_frame(caster);
-	T_EQ((int)caster->channel_code, 0);
+	T_EQ((int)caster->channel.code, 0);
 }
 
 TEST(wc3_spell, channel_persists_no_movement) {
 	LPEDICT caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
-	caster->channel_code = MAKEFOURCC('A','H','b','z');
-	caster->cast_origin = caster->s.origin2;
+	caster->channel.code = MAKEFOURCC('A','H','b','z');
+	caster->channel.origin = caster->s.origin2;
 	spell_run_frame(caster);
-	T_EQ((int)caster->channel_code, (int)MAKEFOURCC('A','H','b','z'));
+	T_EQ((int)caster->channel.code, (int)MAKEFOURCC('A','H','b','z'));
 }
 
 TEST(wc3_spell, channel_cancel_clears_code) {
 	LPEDICT caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
-	caster->channel_code = MAKEFOURCC('A','H','b','z');
+	caster->channel.code = MAKEFOURCC('A','H','b','z');
 	S_SpellCancelChannel(caster);
-	T_EQ((int)caster->channel_code, 0);
+	T_EQ((int)caster->channel.code, 0);
 	T_STREQ(caster->currentmove->animation, "stand");
 }
 
 TEST(wc3_spell, channel_cancel_noop_empty) {
 	LPEDICT caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
-	caster->channel_code = 0;
+	caster->channel.code = 0;
 	S_SpellCancelChannel(caster);
-	T_EQ((int)caster->channel_code, 0);
+	T_EQ((int)caster->channel.code, 0);
 }
 
 TEST(wc3_spell, channel_run_frame_noop_when_idle) {
 	LPEDICT caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
-	caster->channel_code = 0;
+	caster->channel.code = 0;
 	caster->stunned = true;
 	spell_run_frame(caster);
-	T_EQ((int)caster->channel_code, 0);
+	T_EQ((int)caster->channel.code, 0);
 }
 
 /* ---- Toggle bypass ---- */
@@ -161,9 +161,9 @@ TEST(wc3_spell, hero_duration_uses_herodur_col) {
 TEST(wc3_spell, spell_is_channeling_detects_active) {
 	LPEDICT caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 0, 0, 0);
 	T_ASSERT(!S_SpellIsChanneling(caster));
-	caster->channel_code = MAKEFOURCC('A','H','b','z');
+	caster->channel.code = MAKEFOURCC('A','H','b','z');
 	T_ASSERT(S_SpellIsChanneling(caster));
-	caster->channel_code = 0;
+	caster->channel.code = 0;
 	T_ASSERT(!S_SpellIsChanneling(caster));
 }
 

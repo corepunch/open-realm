@@ -10,7 +10,6 @@
 #include "server/game.h"
 #include "g_shared.h"
 #include "g_unitrow.h"
-#include "g_unitdata.h"
 #include "jass/jlex.h"
 
 #define EDICTFIELD(x, type) { #x, FOFS(edict_s, x)-(HANDLE)NULL, type }
@@ -63,9 +62,6 @@ if (NAME) { \
 #define FOR_SELECTED_UNITS(CLIENT, ENT) \
 FILTER_EDICTS(ENT, G_IsEntitySelected(CLIENT, ENT))
 
-#ifndef FRAMEDEF_DEFINED
-KNOWN_AS(uiFrameDef_s, FRAMEDEF);
-#endif
 KNOWN_AS(jass_s, JASS);
 KNOWN_AS(gcamerasetup_s, CAMERASETUP);
 KNOWN_AS(gregion_s, REGION);
@@ -194,32 +190,6 @@ typedef enum {
     MOVETYPE_BOUNCE
 } MOVETYPE;
 
-#ifndef UIFRAMEPOINT_DEFINED
-#define UIFRAMEPOINT_DEFINED
-typedef enum { // Keep in sync with uiFramePointPos_t
-    FRAMEPOINT_TOPLEFT,
-    FRAMEPOINT_TOP,
-    FRAMEPOINT_TOPRIGHT,
-    FRAMEPOINT_UNUSED1,
-    FRAMEPOINT_LEFT,
-    FRAMEPOINT_CENTER,
-    FRAMEPOINT_RIGHT,
-    FRAMEPOINT_UNUSED2,
-    FRAMEPOINT_BOTTOMLEFT,
-    FRAMEPOINT_BOTTOM,
-    FRAMEPOINT_BOTTOMRIGHT,
-    FRAMEPOINT_UNUSED3,
-} UIFRAMEPOINT;
-#endif
-
-#ifndef UIFONTFLAGS_DEFINED
-#define UIFONTFLAGS_DEFINED
-typedef enum {
-    FONTFLAGS_FIXEDSIZE,
-    FONTFLAGS_PASSWORDFIELD,
-} UIFONTFLAGS;
-#endif
-
 typedef enum {
     EVENT_GAME_VICTORY = 0,
     EVENT_GAME_END_LEVEL = 1,
@@ -317,48 +287,6 @@ typedef enum {
     
     EVENT_UNIT_IN_RANGE,
 } EVENTTYPE;
-
-#ifndef HIGHLIGHTTYPE_DEFINED
-#define HIGHLIGHTTYPE_DEFINED
-typedef enum {
-    FILETEXTURE,
-} HIGHLIGHTTYPE;
-#endif
-
-#ifndef CONTROLSTYLE_DEFINED
-#define CONTROLSTYLE_DEFINED
-typedef enum {
-    AUTOTRACK = 1,
-    HIGHLIGHTONFOCUS = 2,
-    HIGHLIGHTONMOUSEOVER = 4,
-} CONTROLSTYLE;
-#endif
-
-#ifndef LAYOUTDIRECTION_DEFINED
-#define LAYOUTDIRECTION_DEFINED
-typedef enum {
-    LAYOUT_HORIZONTAL,
-    LAYOUT_VERTICAL,
-} LAYOUTDIRECTION;
-#endif
-
-#ifndef BUTTONTEXT_DEFINED
-#define BUTTONTEXT_DEFINED
-typedef struct {
-    UINAME frame;
-    UINAME text;
-} BUTTONTEXT;
-#endif
-
-#ifndef FRAMEPOINT_DEFINED
-#define FRAMEPOINT_DEFINED
-typedef struct {
-    uiFramePointPos_t targetPos;
-    bool used;
-    LPCFRAMEDEF relativeTo;
-    FLOAT offset;
-} FRAMEPOINT;
-#endif
 
 /* struct uiFrameDef_s is defined in common/stb_fdf.h (shared with UI module) */
 
@@ -578,7 +506,6 @@ struct gquest_s {
 
 typedef struct {
     struct { FLOAT day, night; } sight_radius;
-    struct { DWORD health, mana; } max;
     FLOAT acquisition_range;
     DWORD flags;
 } unitbalance_t;
@@ -608,11 +535,6 @@ struct edict_s {
     LINK area;
     BOOL inuse;
     BOX2 areabounds;
-    void (*idle)(LPEDICT);
-    void (*move)(LPEDICT);
-    void (*run)(LPEDICT);
-    void (*attack)(LPEDICT);
-    void (*pain)(LPEDICT);
 
     // keep above in sync with server.h
     DWORD class_id;
@@ -663,9 +585,10 @@ struct edict_s {
 
         ARRAY(droppableItemSet_t const, drop_sets);
     } destructable;
-    LPEDICT cargo_units[MAX_CARGO];
-    DWORD cargo_count;
-    DWORD cargo_capacity;
+    struct {
+        LPEDICT units[MAX_CARGO];
+        DWORD count;
+    } cargo;
     FLOAT velocity;
     doodadHero_t hero;
     heroability_t heroabilities[MAX_HERO_ABILITIES];
@@ -674,20 +597,22 @@ struct edict_s {
     BOOL paused;        // unit AI and movement suspended when true
     BOOL stunned;       // unit AI and movement suspended by timed status
     BOOL no_pathing;    // pathfinding disabled when true
-    DWORD channel_code; // ability code being channeled (0 = none)
-    VECTOR2 cast_origin; // position when channel started (movement cancels channel)
+    struct {
+        DWORD code;     // ability code being channeled (0 = none)
+        VECTOR2 origin; // position when channel started (movement cancels channel)
+    } channel;
     DWORD unit_color;   // explicit per-unit color override (0 = use owner color)
     VECTOR2 old_origin;
-    VECTOR2 move_last_origin;
-    FLOAT move_last_distance;
-    DWORD move_blocked_frames;
-    FLOAT move_group_speed;  // slowest member's speed for a group move (0 = no cap), keeps the group together
-    FLOAT move_heading;      // avoidance-resolved heading chosen this tick by unit_changeangle; movement follows it
-    LPEDICT attackmove_waypoint;  // non-NULL while attack-moving: resume walking toward it after a kill
-    LPEDICT patrol_a;        // non-NULL while patrolling: the two endpoints cycled between
-    LPEDICT patrol_b;
-    LPEDICT patrol_target;   // whichever of patrol_a/patrol_b is the current leg; survives combat detours
-    BOOL holding_position;  // never moves to engage; only fires on enemies already in attack range
+    struct {
+        VECTOR2 last_origin;
+        FLOAT last_distance;
+        DWORD blocked_frames;
+        FLOAT group_speed;  // slowest member's speed for a group move (0 = no cap), keeps the group together
+        FLOAT heading;      // avoidance-resolved heading chosen this tick by unit_changeangle; movement follows it
+        LPEDICT attackmove_waypoint;  // resume attack-move after a combat detour
+        LPEDICT patrol_a, patrol_b, patrol_target;
+        BOOL holding_position;
+    } movement;
     EDICTSTAT health;
     EDICTSTAT mana;
     MOVETYPE movetype;
@@ -698,36 +623,42 @@ struct edict_s {
     LPEDICT owner;
     LPEDICT build;
     LPCANIMATION animation;
-    UnitBalance_t const *balance;
-    UnitData_t const *data;
-    UnitUI_t const *ui;
-    UnitWeapons_t const *weapons;
-    UnitAbilities_t const *abilities;
-    Doodads_t const *doodad;
-    ItemData_t const *itemData;
-    DestructableData_t const *destructableData;
     unitbalance_t runtime;
     umove_t *currentmove;
-//    unitRace_t race;
+    unitRace_t race;
     FLOAT wait;
     UNITINFO unitinfo;
     unitAttack_t attack1;
     unitAttack_t attack2;
     DWORD defense_type;   /* WC3 defType index: small/medium/large/fort/normal/hero/divine/none */
     FLOAT armor_value;    /* computed armor ('realdef', incl. hero AGI) for damage reduction */
-    /* Registered sound configstring indices, populated at spawn from unitSound label. */
-    BYTE sound_select[MAX_UNIT_SELECT_SOUNDS]; /* selection acknowledgement variants */
-    BYTE num_select_sounds;
-    BYTE pending_sound; /* command-time voice queued for the next entity frame */
-    int sound_attack;   /* attack swing sound */
-    int sound_death;    /* death sound */
-    int sound_move;     /* footstep / movement sound */
+    struct {
+        BYTE select[MAX_UNIT_SELECT_SOUNDS];
+        BYTE num_select;
+        BYTE pending;
+        int attack, death;
+    } sound;
 
     void (*stand)(LPEDICT);
     void (*birth)(LPEDICT);
     void (*prethink)(LPEDICT);
     void (*think)(LPEDICT);
     void (*die)(LPEDICT, LPEDICT);
+    void (*idle)(LPEDICT);
+    void (*move)(LPEDICT);
+    void (*run)(LPEDICT);
+    void (*attack)(LPEDICT);
+    void (*pain)(LPEDICT);
+
+    UnitProfile_t const *UnitProfile;
+    UnitBalance_t const *UnitBalance;
+    UnitData_t const *UnitData;
+    UnitUI_t const *UnitUI;
+    UnitWeapons_t const *UnitWeapons;
+    UnitAbilities_t const *UnitAbilities;
+    Doodads_t const *Doodads;
+    ItemData_t const *ItemData;
+    DestructableData_t const *DestructableData;
 };
 
 /* An entity that should be ignored by collision and physics: dead, hidden, or
@@ -846,12 +777,12 @@ struct level_locals {
     BOOL scriptsStarted;
 };
 
-typedef struct sheetMetaData_s {
+typedef struct {
     LPCSTR id;
-    LPCSTR field;
-    LPCSTR slk;
-    sheetRow_t *table;
-} sheetMetaData_t;
+    size_t row_offset;
+    size_t field_offset;
+    bzFieldType_t type;
+} unitMeta_t;
 
 #define UITRIGGER_T_DEFINED
 typedef struct {
@@ -1055,15 +986,17 @@ BOOL UI_BuildFrameForWrite(LPCFRAMEDEF frame,
                            DWORD textbuf_max);
 
 // g_metadata.c
-LPCSTR UnitStringField(sheetMetaData_t *, DWORD, LPCSTR);
-LONG UnitIntegerField(sheetMetaData_t *, DWORD, LPCSTR);
-BOOL UnitBooleanField(sheetMetaData_t *, DWORD, LPCSTR);
-FLOAT UnitRealField(sheetMetaData_t *, DWORD, LPCSTR);
+LPCSTR UnitMetaString(LPEDICT, DWORD);
+LONG UnitMetaInteger(LPEDICT, DWORD);
+BOOL UnitMetaBoolean(LPEDICT, DWORD);
+FLOAT UnitMetaReal(LPEDICT, DWORD);
+sheetRow_t *G_SheetTail(sheetRow_t *rows);
 
 void InitUnitData(void);
 void ShutdownUnitData(void);
 #ifdef BZ_TESTS
 sheetRow_t *G_SetSLKRows(LPCSTR, sheetRow_t *);
+sheetRow_t *G_SetProfileRows(sheetRow_t *);
 #endif
 void G_RegisterSelectSounds(LPEDICT, LPCSTR);
 
@@ -1202,9 +1135,6 @@ extern struct game_import gi;
 extern struct level_locals level;
 extern struct edict_s *g_edicts;
 
-extern sheetMetaData_t UnitsMetaData[];
-extern sheetMetaData_t DestructableMetaData[];
-extern sheetMetaData_t DoodadsMetaData[];
-extern sheetMetaData_t ItemsMetaData[];
+extern unitMeta_t const UnitsMetaData[];
 
 #endif

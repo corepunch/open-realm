@@ -500,16 +500,16 @@ DWORD GetUnitRace(LPJASS j) {
 }
 DWORD GetUnitName(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    LPCSTR name = whichUnit ? UNIT_NAME(whichUnit->class_id) : NULL;
+    LPCSTR name = whichUnit ? G_UnitProfile(whichUnit->class_id)->name : NULL;
     return jass_pushstring(j, name ? name : "");
 }
 DWORD GetUnitFoodUsed(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    return jass_pushinteger(j, whichUnit ? whichUnit->balance->foodUsed : 0);
+    return jass_pushinteger(j, whichUnit ? whichUnit->UnitBalance->foodUsed : 0);
 }
 DWORD GetUnitFoodMade(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    return jass_pushinteger(j, whichUnit ? whichUnit->balance->foodMade : 0);
+    return jass_pushinteger(j, whichUnit ? whichUnit->UnitBalance->foodMade : 0);
 }
 DWORD IsUnitInGroup(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");

@@ -115,18 +115,18 @@ void Wow_ApplyDamage(LPEDICT target, LPEDICT attacker, DWORD damage) {
     target_local->health -= damage;
 
     /* Quake2-style reaction: retaliate when not already locked, else play pain. */
-    if (attacker && attacker != target && target->attack &&
+    if (attacker && attacker != target && target_local->attack &&
         target_local->attack_damage_time == 0 &&
         target_local->attack_backswing_time == 0 &&
         target_local->pain_time == 0 &&
         target_local->death_time == 0) {
         target_local->enemy = attacker;
-        target->attack(target);
+        target_local->attack(target);
         return;
     }
 
-    if (target->pain) {
-        target->pain(target);
+    if (target_local->pain) {
+        target_local->pain(target);
     }
 }
 
@@ -360,7 +360,7 @@ BOOL Wow_AIAdvanceLockedFrame(LPEDICT ent) {
                 local->corpse_owner = ent->s.number;
                 local->corpse_timer = BZ_WOW_CORPSE_TIME;
                 ent->svflags &= ~SVF_MONSTER;
-                ent->think = Wow_RunCorpseFrame;
+                local->think = Wow_RunCorpseFrame;
             }
         } else {
             Wow_AdvanceDeathFrame(ent, local);
@@ -402,7 +402,7 @@ BOOL Wow_AIAdvanceLockedFrame(LPEDICT ent) {
             local->attack_damage_done = false;
             if (Wow_EntityAffectingCombat(ent)) {
                 Wow_SetCombatReadyAnimation(ent);
-                ent->attack(ent); /* auto-reattack after each swing */
+                local->attack(ent); /* auto-reattack after each swing */
             } else {
                 Wow_SetStandMove(ent);
             }
@@ -449,12 +449,12 @@ void Wow_AIRunFrame(LPEDICT ent) {
 
     if (local->patrol_radius > 0.0f && local->walk_speed > 0.0f) {
         local->patrol_phase += ((FLOAT)FRAMETIME / 1000.0f) * 0.6f;
-        if (ent->move) {
-            ent->move(ent);
+        if (local->move) {
+            local->move(ent);
         }
     } else {
-        if (ent->idle) {
-            ent->idle(ent);
+        if (local->idle) {
+            local->idle(ent);
         }
     }
 

@@ -1,5 +1,4 @@
 #include "g_local.h"
-#include "g_metadata.h"
 #include "common/stb_slk.h"
 #include "g_unitrow.h"
 
@@ -133,9 +132,11 @@ static void AppendSheetRows(sheetRow_t **head, sheetRow_t **tail, sheetRow_t *ro
     *tail = rows_tail;
 }
 
-sheetMetaData_t *G_FindMetaData(sheetMetaData_t *metadatas, LPCSTR name) {
-    for (sheetMetaData_t *d = metadatas; d->id; d++) {
-        if (!strcmp(d->id, name)) {
+static unitMeta_t const *G_FindMetaData(unitMeta_t const *metadatas, DWORD id) {
+    for (unitMeta_t const *d = metadatas; d->id; d++) {
+        DWORD key;
+        memcpy(&key, d->id, sizeof(DWORD));
+        if (key == id) {
             return d;
         }
     }
@@ -146,60 +147,83 @@ sheetMetaData_t *G_FindMetaData(sheetMetaData_t *metadatas, LPCSTR name) {
  * unit data: the accessor silently resolves to NULL/0. That is how stat bugs
  * hid for so long ("umpc" mana, "udfc" armor, "uinc"/"ustc"/"uagc" attributes).
  * Warn once per code so any such gap surfaces the first time it is read. */
-static void warn_unregistered_field(LPCSTR name) {
-    static char seen[64][8];
+static void warn_unregistered_field(DWORD id) {
+    static DWORD seen[64];
     static DWORD count;
 
     for (DWORD i = 0; i < count; i++) {
-        if (!strcmp(seen[i], name)) {
+        if (seen[i] == id) {
             return;
         }
     }
-    if (count < 64) {
-        strncpy(seen[count], name, sizeof(seen[0]) - 1);
-        count++;
-    }
-    fprintf(stderr,
-            "WARNING: unit-data field code '%s' is not registered in the metadata "
-            "table; it silently reads as 0. Add it to UnitsMetaData[] (g_metadata.h).\n",
-            name);
-}
-
-LPCSTR UnitStringField(sheetMetaData_t *metadatas, DWORD unit_id, LPCSTR name) {
-    FOR_LOOP(n, level.mapinfo->num_userCreatedUnits) {
-        if (level.mapinfo->userCreatedUnits[n].newUnitID == unit_id) {
-            unit_id = level.mapinfo->userCreatedUnits[n].originalUnitID;
-        }
-    }
-    sheetMetaData_t *metadata = G_FindMetaData(metadatas, name);
-    if (!metadata) {
-        warn_unregistered_field(name);
-        return NULL;
-    }
-    if (metadata->table) {
-        return FS_FindSheetCell(metadata->table, GetClassName(unit_id), metadata->field);
-    }
-    return NULL;
-}
-
-LONG UnitIntegerField(sheetMetaData_t *metadatas, DWORD unit_id, LPCSTR name) {
-    LPCSTR str = UnitStringField(metadatas, unit_id, name);
-    return str ? atoi(str) : 0;
-}
-
-BOOL UnitBooleanField(sheetMetaData_t *metadatas, DWORD unit_id, LPCSTR name) {
-    LPCSTR str = UnitStringField(metadatas, unit_id, name);
-    return str && (atoi(str) != 0 || !strcmp(str, "TRUE"));
-}
-
-FLOAT UnitRealField(sheetMetaData_t *metadatas, DWORD unit_id, LPCSTR name) {
-    LPCSTR str = UnitStringField(metadatas, unit_id, name);
-    return str ? atof(str) : 0;
+    if (count < 64) seen[count++] = id;
+    fprintf(stderr, "WARNING: unit-data field code '%.4s' has no DDX metadata entry\n", (LPCSTR)&id);
 }
 
 /* =========================================================================
  * DDX schemas — one entry per SLK column consumed at runtime.
  * =========================================================================*/
+static slkField_t const profile_schema[] = {
+    { "Name",          offsetof(UnitProfile_t, name),              STB_SLK_STR,   "unam" },
+    { "Propernames",   offsetof(UnitProfile_t, properNames),       STB_SLK_STR,   "upro" },
+    { "Builds",        offsetof(UnitProfile_t, builds),            STB_SLK_STR,   "ubui" },
+    { "Trains",        offsetof(UnitProfile_t, trains),            STB_SLK_STR,   "utra" },
+    { "animProps",     offsetof(UnitProfile_t, animProps),         STB_SLK_STR,   "uani" },
+    { "Art",           offsetof(UnitProfile_t, art),               STB_SLK_STR,   "uico" },
+    { "Art",           offsetof(UnitProfile_t, itemArt),           STB_SLK_STR,   "iico" },
+    { "Attachmentanimprops", offsetof(UnitProfile_t, attachmentAnimProps), STB_SLK_STR, "uaap" },
+    { "Attachmentlinkprops", offsetof(UnitProfile_t, attachmentLinkProps), STB_SLK_STR, "ualp" },
+    { "Awakentip",     offsetof(UnitProfile_t, awakenTip),         STB_SLK_STR,   "uawt" },
+    { "Boneprops",     offsetof(UnitProfile_t, boneProps),         STB_SLK_STR,   "ubpr" },
+    { "BuildingSoundLabel", offsetof(UnitProfile_t, buildingSoundLabel), STB_SLK_STR, "ubsl" },
+    { "Buttonpos",     offsetof(UnitProfile_t, buttonPosX),        STB_SLK_STR,   "ubpx" },
+    { "Buttonpos",     offsetof(UnitProfile_t, buttonPosY),        STB_SLK_STR,   "ubpy" },
+    { "Casterupgradeart", offsetof(UnitProfile_t, casterUpgradeArt), STB_SLK_STR, "ucua" },
+    { "Casterupgradename", offsetof(UnitProfile_t, casterUpgradeName), STB_SLK_STR, "ucun" },
+    { "Casterupgradetip", offsetof(UnitProfile_t, casterUpgradeTip), STB_SLK_STR, "ucut" },
+    { "DependencyOr",  offsetof(UnitProfile_t, dependencyOr),      STB_SLK_STR,   "udep" },
+    { "Description",   offsetof(UnitProfile_t, description),       STB_SLK_STR,   "ides" },
+    { "EditorSuffix",  offsetof(UnitProfile_t, editorSuffix),      STB_SLK_STR,   "unsf" },
+    { "Hotkey",        offsetof(UnitProfile_t, hotkey),            STB_SLK_STR,   "uhot" },
+    { "LoopingSoundFadeIn", offsetof(UnitProfile_t, loopingSoundFadeIn), STB_SLK_STR, "ulfi" },
+    { "LoopingSoundFadeOut", offsetof(UnitProfile_t, loopingSoundFadeOut), STB_SLK_STR, "ulfo" },
+    { "Makeitems",     offsetof(UnitProfile_t, makeItems),         STB_SLK_STR,   "umki" },
+    { "Missileart",    offsetof(UnitProfile_t, attack[0].art),     STB_SLK_STR,   "ua1m" },
+    { "Missilearc",    offsetof(UnitProfile_t, attack[0].arc),     STB_SLK_FLOAT, "uma1" },
+    { "Missilespeed",  offsetof(UnitProfile_t, attack[0].speed),   STB_SLK_FLOAT, "ua1z" },
+    { "MissileHoming", offsetof(UnitProfile_t, attack[0].homing),  STB_SLK_BOOL,  "umh1" },
+    { "Missileart",    offsetof(UnitProfile_t, attack[1].art),     STB_SLK_STR,   "ua2m" },
+    { "Missilearc",    offsetof(UnitProfile_t, attack[1].arc),     STB_SLK_FLOAT, "uma2" },
+    { "Missilespeed",  offsetof(UnitProfile_t, attack[1].speed),   STB_SLK_FLOAT, "ua2z" },
+    { "MissileHoming", offsetof(UnitProfile_t, attack[1].homing),  STB_SLK_BOOL,  "umh2" },
+    { "MovementSoundLabel", offsetof(UnitProfile_t, movementSoundLabel), STB_SLK_STR, "umsl" },
+    { "RandomSoundLabel", offsetof(UnitProfile_t, randomSoundLabel), STB_SLK_STR, "ursl" },
+    { "Requirescount", offsetof(UnitProfile_t, requiresCount),     STB_SLK_STR,   "urqc" },
+    { "Requires",      offsetof(UnitProfile_t, requires),          STB_SLK_STR,   "ureq" },
+    { "Requires1",     offsetof(UnitProfile_t, requiresLevel[0]),  STB_SLK_STR,   "urq1" },
+    { "Requires2",     offsetof(UnitProfile_t, requiresLevel[1]),  STB_SLK_STR,   "urq2" },
+    { "Requires3",     offsetof(UnitProfile_t, requiresLevel[2]),  STB_SLK_STR,   "urq3" },
+    { "Requires4",     offsetof(UnitProfile_t, requiresLevel[3]),  STB_SLK_STR,   "urq4" },
+    { "Requires5",     offsetof(UnitProfile_t, requiresLevel[4]),  STB_SLK_STR,   "urq5" },
+    { "Requires6",     offsetof(UnitProfile_t, requiresLevel[5]),  STB_SLK_STR,   "urq6" },
+    { "Requires7",     offsetof(UnitProfile_t, requiresLevel[6]),  STB_SLK_STR,   "urq7" },
+    { "Requires8",     offsetof(UnitProfile_t, requiresLevel[7]),  STB_SLK_STR,   "urq8" },
+    { "Requiresamount", offsetof(UnitProfile_t, requiresAmount),   STB_SLK_STR,   "urqa" },
+    { "Researches",    offsetof(UnitProfile_t, researches),       STB_SLK_STR,   "ures" },
+    { "Revive",        offsetof(UnitProfile_t, revive),           STB_SLK_STR,   "urev" },
+    { "Revivetip",     offsetof(UnitProfile_t, reviveTip),        STB_SLK_STR,   "utpr" },
+    { "ScoreScreenIcon", offsetof(UnitProfile_t, scoreScreenIcon), STB_SLK_STR, "ussi" },
+    { "Sellitems",     offsetof(UnitProfile_t, sellItems),        STB_SLK_STR,   "usei" },
+    { "Sellunits",     offsetof(UnitProfile_t, sellUnits),        STB_SLK_STR,   "useu" },
+    { "Specialart",    offsetof(UnitProfile_t, specialArt),       STB_SLK_STR,   "uspa" },
+    { "Targetart",     offsetof(UnitProfile_t, targetArt),        STB_SLK_STR,   "utaa" },
+    { "Tip",           offsetof(UnitProfile_t, tip),              STB_SLK_STR,   "utip" },
+    { "Reviveat",      offsetof(UnitProfile_t, reviveAt),         STB_SLK_STR,   "urva" },
+    { "Ubertip",       offsetof(UnitProfile_t, uberTip),          STB_SLK_STR,   "utub" },
+    { "Upgrade",       offsetof(UnitProfile_t, upgrade),          STB_SLK_STR,   "uupt" },
+    { NULL, 0, 0, 0 }
+};
+
 static slkField_t const balance_schema[] = {
     { "sortBalance",      offsetof(UnitBalance_t, sortBalance),     STB_SLK_STR   },
     { "sort2",            offsetof(UnitBalance_t, sort2),           STB_SLK_STR   },
@@ -722,7 +746,7 @@ static slkField_t const dest_schema[] = {
     { "colorR",           offsetof(DestructableData_t, colorR),           STB_SLK_INT   }, /* TFT */
     { "colorG",           offsetof(DestructableData_t, colorG),           STB_SLK_INT   }, /* TFT */
     { "colorB",           offsetof(DestructableData_t, colorB),           STB_SLK_INT   }, /* TFT */
-    { "dir",              offsetof(DestructableData_t, modelDirectory),   STB_SLK_STR   }, /* ROC */
+    { "dir",              offsetof(DestructableData_t, dir),              STB_SLK_STR   }, /* ROC */
     { NULL, 0, 0 }
 };
 
@@ -730,6 +754,10 @@ static slkField_t const dest_schema[] = {
  * Decoded row arrays and lookup indexes (allocated at InitUnitData time).
  * =========================================================================*/
 UnitBalance_t *g_UnitBalance; DWORD g_UnitBalanceCount; static slkIndex_t balance_idx;
+UnitProfile_t *g_UnitProfile; DWORD g_UnitProfileCount; static slkIndex_t profile_idx;
+#ifdef BZ_TESTS
+static sheetRow_t *profile_source;
+#endif
 UnitData_t *g_UnitData; DWORD g_UnitDataCount; static slkIndex_t data_idx;
 UnitUI_t *g_UnitUI; DWORD g_UnitUICount; static slkIndex_t ui_idx;
 UnitWeapons_t *g_UnitWeapons; DWORD g_UnitWeaponsCount; static slkIndex_t weapons_idx;
@@ -788,6 +816,45 @@ static void RebuildDDXFromRows(slkIndex_t *idx, slkField_t const *schema,
     FS_SLKBuildIndex(idx, head, *rows_out, n, row_size);
 }
 
+/* Profile data is split across Func/Strings INIs. Decode each metadata field
+ * through the combined list so the typed row preserves first-definition wins. */
+static void RebuildProfileDDX(sheetRow_t const *head) {
+    FS_SLKFreeIndex(&profile_idx); FS_SLKFreeRows(profile_schema, g_UnitProfile, g_UnitProfileCount, sizeof(*g_UnitProfile));
+    g_UnitProfile = NULL; g_UnitProfileCount = 0;
+    DWORD capacity = 0; FOR_EACH_LIST(sheetRow_t const, row, head) capacity++;
+    if (!capacity) return;
+    /* Allocate before duplicate detection; the old count pass dereferenced the still-NULL output array. */
+    g_UnitProfile = calloc(capacity, sizeof(*g_UnitProfile));
+    if (!g_UnitProfile) { fprintf(stderr, "Profile DDX: OOM for %u rows\n", capacity); return; }
+    DWORD out = 0;
+    FOR_EACH_LIST(sheetRow_t const, row, head) {
+        DWORD id = FS_SLKKey(row->name); BOOL found = false;
+        FOR_LOOP(i, out) if (g_UnitProfile[i].id == id) { found = true; break; }
+        if (found) continue;
+        UnitProfile_t *profile = g_UnitProfile + out++;
+        profile->id = id;
+        for (slkField_t const *field = profile_schema; field->column; field++) {
+            LPCSTR value = FS_FindSheetCell((sheetRow_t *)head, row->name, field->column);
+            if (!value) continue;
+            sheetField_t source_field = { field->column, value, NULL };
+            sheetRow_t source_row = { row->name, &source_field, NULL };
+            slkField_t source_schema[] = { *field, { NULL, 0, 0, 0 } };
+            FS_SLKDecodeRow(&source_row, source_schema, profile);
+        }
+    }
+    g_UnitProfileCount = out;
+    profile_idx.keys = malloc(g_UnitProfileCount * sizeof(*profile_idx.keys));
+    profile_idx.rows = malloc(g_UnitProfileCount * sizeof(*profile_idx.rows));
+    if (!profile_idx.keys || !profile_idx.rows) { fprintf(stderr, "Profile DDX: OOM building index\n"); FS_SLKFreeIndex(&profile_idx); return; }
+    profile_idx.count = g_UnitProfileCount;
+    FOR_LOOP(i, profile_idx.count) { profile_idx.keys[i] = g_UnitProfile[i].id; profile_idx.rows[i] = g_UnitProfile + i; }
+    for (DWORD i = 1; i < profile_idx.count; i++) {
+        DWORD key = profile_idx.keys[i], j = i; void *row = profile_idx.rows[i];
+        while (j && profile_idx.keys[j - 1] > key) { profile_idx.keys[j] = profile_idx.keys[j - 1]; profile_idx.rows[j] = profile_idx.rows[j - 1]; j--; }
+        profile_idx.keys[j] = key; profile_idx.rows[j] = row;
+    }
+}
+
 /* Parse SLK from disk, decode and index it, and warn once per column that has
  * no DDX schema entry. The raw rows remain parser-owned source data. */
 static sheetRow_t *ParseSLKInto(LPCSTR path, slkIndex_t *idx, slkField_t const *schema, size_t row_size,
@@ -824,12 +891,296 @@ sheetRow_t *G_SetSLKRows(LPCSTR slk, sheetRow_t *table) {
     fprintf(stderr, "SLK: unknown typed table '%s'\n", slk);
     return NULL;
 }
+
+sheetRow_t *G_SetProfileRows(sheetRow_t *table) {
+    sheetRow_t *old = profile_source;
+    profile_source = table; RebuildProfileDDX(table);
+    return old;
+}
 #endif
+
+#define M(id,table,member,kind) \
+    { id, offsetof(edict_t, table), offsetof(table##_t, member), kind }
+
+unitMeta_t const UnitsMetaData[] = {
+    M("iabi",ItemData,abilList,BZ_FIELD_CSTR),
+    M("iarm",ItemData,armor,BZ_FIELD_U32),
+    M("icla",ItemData,itemClass,BZ_FIELD_CSTR),
+    M("iclb",ItemData,colorB,BZ_FIELD_U32),
+    M("iclg",ItemData,colorG,BZ_FIELD_U32),
+    M("iclr",ItemData,colorR,BZ_FIELD_U32),
+    M("icid",ItemData,cooldownID,BZ_FIELD_CSTR),
+    M("idrp",ItemData,drop,BZ_FIELD_BOOL),
+    M("idro",ItemData,droppable,BZ_FIELD_BOOL),
+    M("ifil",ItemData,file,BZ_FIELD_CSTR),
+    M("igol",ItemData,goldcost,BZ_FIELD_U32),
+    M("ihtp",ItemData,HP,BZ_FIELD_U32),
+    M("iicd",ItemData,ignoreCD,BZ_FIELD_BOOL),
+    M("ilev",ItemData,level,BZ_FIELD_U32),
+    M("ilum",ItemData,lumbercost,BZ_FIELD_U32),
+    M("imor",ItemData,morph,BZ_FIELD_BOOL),
+    M("ilvo",ItemData,oldLevel,BZ_FIELD_U32),
+    M("iper",ItemData,perishable,BZ_FIELD_BOOL),
+    M("iprn",ItemData,pickRandom,BZ_FIELD_BOOL),
+    M("ipow",ItemData,powerup,BZ_FIELD_BOOL),
+    M("ipri",ItemData,prio,BZ_FIELD_U32),
+    M("isca",ItemData,scale,BZ_FIELD_FLOAT),
+    M("issc",ItemData,selectionSize,BZ_FIELD_FLOAT),
+    M("isel",ItemData,sellable,BZ_FIELD_BOOL),
+    M("ipaw",ItemData,pawnable,BZ_FIELD_BOOL),
+    M("isto",ItemData,stockMax,BZ_FIELD_U32),
+    M("istr",ItemData,stockRegen,BZ_FIELD_U32),
+    M("isst",ItemData,stockStart,BZ_FIELD_U32),
+    M("iusa",ItemData,usable,BZ_FIELD_BOOL),
+    M("iuse",ItemData,uses,BZ_FIELD_U32),
+    M("uani",UnitProfile,animProps,BZ_FIELD_CSTR),
+    M("uico",UnitProfile,art,BZ_FIELD_CSTR),
+    M("iico",UnitProfile,itemArt,BZ_FIELD_CSTR),
+    M("uaap",UnitProfile,attachmentAnimProps,BZ_FIELD_CSTR),
+    M("ualp",UnitProfile,attachmentLinkProps,BZ_FIELD_CSTR),
+    M("uawt",UnitProfile,awakenTip,BZ_FIELD_CSTR),
+    M("ubpr",UnitProfile,boneProps,BZ_FIELD_CSTR),
+    M("ubsl",UnitProfile,buildingSoundLabel,BZ_FIELD_CSTR),
+    M("ubui",UnitProfile,builds,BZ_FIELD_CSTR),
+    M("ubpx",UnitProfile,buttonPosX,BZ_FIELD_CSTR),
+    M("ubpy",UnitProfile,buttonPosY,BZ_FIELD_CSTR),
+    M("ucua",UnitProfile,casterUpgradeArt,BZ_FIELD_CSTR),
+    M("ucun",UnitProfile,casterUpgradeName,BZ_FIELD_CSTR),
+    M("ucut",UnitProfile,casterUpgradeTip,BZ_FIELD_CSTR),
+    M("udep",UnitProfile,dependencyOr,BZ_FIELD_CSTR),
+    M("ides",UnitProfile,description,BZ_FIELD_CSTR),
+    M("unsf",UnitProfile,editorSuffix,BZ_FIELD_CSTR),
+    M("uhot",UnitProfile,hotkey,BZ_FIELD_CSTR),
+    M("ulfi",UnitProfile,loopingSoundFadeIn,BZ_FIELD_CSTR),
+    M("ulfo",UnitProfile,loopingSoundFadeOut,BZ_FIELD_CSTR),
+    M("umki",UnitProfile,makeItems,BZ_FIELD_CSTR),
+    M("uma1",UnitProfile,attack[0].arc,BZ_FIELD_FLOAT),
+    M("uma2",UnitProfile,attack[1].arc,BZ_FIELD_FLOAT),
+    M("ua1m",UnitProfile,attack[0].art,BZ_FIELD_CSTR),
+    M("ua2m",UnitProfile,attack[0].art,BZ_FIELD_CSTR),
+    M("umh1",UnitProfile,attack[0].homing,BZ_FIELD_BOOL),
+    M("umh2",UnitProfile,attack[1].homing,BZ_FIELD_BOOL),
+    M("ua1z",UnitProfile,attack[0].speed,BZ_FIELD_FLOAT),
+    M("ua2z",UnitProfile,attack[1].speed,BZ_FIELD_FLOAT),
+    M("umsl",UnitProfile,movementSoundLabel,BZ_FIELD_CSTR),
+    M("unam",UnitProfile,name,BZ_FIELD_CSTR),
+    M("upro",UnitProfile,properNames,BZ_FIELD_CSTR),
+    M("ursl",UnitProfile,randomSoundLabel,BZ_FIELD_CSTR),
+    M("urqc",UnitProfile,requiresCount,BZ_FIELD_CSTR),
+    M("ureq",UnitProfile,requires,BZ_FIELD_CSTR),
+    M("urq1",UnitProfile,requiresLevel[0],BZ_FIELD_CSTR),
+    M("urq2",UnitProfile,requiresLevel[1],BZ_FIELD_CSTR),
+    M("urq3",UnitProfile,requiresLevel[2],BZ_FIELD_CSTR),
+    M("urq4",UnitProfile,requiresLevel[3],BZ_FIELD_CSTR),
+    M("urq5",UnitProfile,requiresLevel[4],BZ_FIELD_CSTR),
+    M("urq6",UnitProfile,requiresLevel[5],BZ_FIELD_CSTR),
+    M("urq7",UnitProfile,requiresLevel[6],BZ_FIELD_CSTR),
+    M("urq8",UnitProfile,requiresLevel[7],BZ_FIELD_CSTR),
+    M("urqa",UnitProfile,requiresAmount,BZ_FIELD_CSTR),
+    M("ures",UnitProfile,researches,BZ_FIELD_CSTR),
+    M("urev",UnitProfile,revive,BZ_FIELD_CSTR),
+    M("utpr",UnitProfile,reviveTip,BZ_FIELD_CSTR),
+    M("ussi",UnitProfile,scoreScreenIcon,BZ_FIELD_CSTR),
+    M("usei",UnitProfile,sellItems,BZ_FIELD_CSTR),
+    M("useu",UnitProfile,sellUnits,BZ_FIELD_CSTR),
+    M("uspa",UnitProfile,specialArt,BZ_FIELD_CSTR),
+    M("utaa",UnitProfile,targetArt,BZ_FIELD_CSTR),
+    M("utip",UnitProfile,tip,BZ_FIELD_CSTR),
+    M("utra",UnitProfile,trains,BZ_FIELD_CSTR),
+    M("urva",UnitProfile,reviveAt,BZ_FIELD_CSTR),
+    M("utub",UnitProfile,uberTip,BZ_FIELD_CSTR),
+    M("uupt",UnitProfile,upgrade,BZ_FIELD_CSTR),
+    M("uabi",UnitAbilities,abilList,BZ_FIELD_CSTR),
+    M("udaa",UnitAbilities,auto_,BZ_FIELD_BOOL),
+    M("uhab",UnitAbilities,heroAbilList,BZ_FIELD_CSTR),
+    M("uagi",UnitBalance,agility,BZ_FIELD_U32),
+    M("uagp",UnitBalance,agilityPerLevel,BZ_FIELD_FLOAT),
+    M("ubld",UnitBalance,buildTime,BZ_FIELD_U32),
+    M("ubdi",UnitBalance,goldBountyDice,BZ_FIELD_U32),
+    M("ubba",UnitBalance,goldBountyBase,BZ_FIELD_U32),
+    M("ubsi",UnitBalance,goldBountySides,BZ_FIELD_U32),
+    M("ulbd",UnitBalance,lumberBountyDice,BZ_FIELD_U32),
+    M("ulba",UnitBalance,lumberBountyBase,BZ_FIELD_U32),
+    M("ulbs",UnitBalance,lumberBountySides,BZ_FIELD_U32),
+    M("ucol",UnitBalance,collision,BZ_FIELD_FLOAT),
+    M("ucod",UnitData,collision,BZ_FIELD_FLOAT),
+    M("udef",UnitBalance,baseArmor,BZ_FIELD_U32),
+    M("udfc",UnitBalance,armor,BZ_FIELD_FLOAT),
+    M("udty",UnitBalance,defenseType,BZ_FIELD_CSTR),
+    M("udup",UnitBalance,armorPerUpgrade,BZ_FIELD_U32),
+    M("ufma",UnitBalance,foodMade,BZ_FIELD_U32),
+    M("ufoo",UnitBalance,foodUsed,BZ_FIELD_U32),
+    M("ugol",UnitBalance,goldCost,BZ_FIELD_U32),
+    M("ugor",UnitBalance,goldRep,BZ_FIELD_U32),
+    M("uhpm",UnitBalance,maxHealth,BZ_FIELD_FLOAT),
+    M("uint",UnitBalance,intelligence,BZ_FIELD_U32),
+    M("uinp",UnitBalance,intelligencePerLevel,BZ_FIELD_FLOAT),
+    M("ubdg",UnitUI,isBuilding,BZ_FIELD_BOOL),
+    M("ulev",UnitBalance,level,BZ_FIELD_U32),
+    M("ulum",UnitBalance,lumberCost,BZ_FIELD_U32),
+    M("ulur",UnitBalance,lumberRep,BZ_FIELD_U32),
+    M("umpi",UnitBalance,initialMana,BZ_FIELD_FLOAT),
+    M("umpm",UnitBalance,maxMana,BZ_FIELD_FLOAT),
+    M("umas",UnitBalance,maxSpeed,BZ_FIELD_FLOAT),
+    M("umis",UnitBalance,minSpeed,BZ_FIELD_FLOAT),
+    M("unbr",UnitBalance,nbrandom,BZ_FIELD_U32),
+    M("usin",UnitBalance,nightSightRadius,BZ_FIELD_FLOAT),
+    M("upap",UnitBalance,preventPlace,BZ_FIELD_CSTR),
+    M("upra",UnitBalance,primaryAttribute,BZ_FIELD_CSTR),
+    M("uhpr",UnitBalance,healthRegen,BZ_FIELD_FLOAT),
+    M("umpr",UnitBalance,manaRegen,BZ_FIELD_FLOAT),
+    M("uhrt",UnitBalance,healthRegenType,BZ_FIELD_CSTR),
+    M("urtm",UnitBalance,reptm,BZ_FIELD_U32),
+    M("urpo",UnitBalance,repulse,BZ_FIELD_U32),
+    M("urpg",UnitBalance,repulseGroup,BZ_FIELD_U32),
+    M("urpp",UnitBalance,repulseParam,BZ_FIELD_FLOAT),
+    M("urpr",UnitBalance,repulsePrio,BZ_FIELD_U32),
+    M("upar",UnitBalance,requirePlace,BZ_FIELD_CSTR),
+    M("usid",UnitBalance,sightRadius,BZ_FIELD_FLOAT),
+    M("umvs",UnitBalance,speed,BZ_FIELD_FLOAT),
+    M("usma",UnitBalance,stockMax,BZ_FIELD_U32),
+    M("usrg",UnitBalance,stockRegen,BZ_FIELD_U32),
+    M("usst",UnitBalance,stockStart,BZ_FIELD_U32),
+    M("ustr",UnitBalance,strength,BZ_FIELD_U32),
+    M("ustp",UnitBalance,strengthPerLevel,BZ_FIELD_FLOAT),
+    M("util",UnitBalance,tilesets,BZ_FIELD_CSTR),
+    M("utyp",UnitBalance,type,BZ_FIELD_CSTR),
+    M("upgr",UnitBalance,upgrades,BZ_FIELD_CSTR),
+    M("uabr",UnitData,buffRadius,BZ_FIELD_FLOAT),
+    M("uabt",UnitData,buffType,BZ_FIELD_CSTR),
+    M("ucbo",UnitData,canBuildOn,BZ_FIELD_BOOL),
+    M("ufle",UnitData,canFlee,BZ_FIELD_BOOL),
+    M("usle",UnitData,canSleep,BZ_FIELD_BOOL),
+    M("ucar",UnitData,cargoSize,BZ_FIELD_U32),
+    M("udtm",UnitData,death,BZ_FIELD_FLOAT),
+    M("udea",UnitData,deathType,BZ_FIELD_U32),
+    M("ulos",UnitData,useExtendedLineOfSight,BZ_FIELD_BOOL),
+    M("ufor",UnitData,formationRank,BZ_FIELD_U32),
+    M("uibo",UnitData,isBuildOn,BZ_FIELD_BOOL),
+    M("umvf",UnitData,moveFloor,BZ_FIELD_FLOAT),
+    M("umvh",UnitData,moveHeight,BZ_FIELD_FLOAT),
+    M("umvt",UnitData,moveTypeName,BZ_FIELD_CSTR),
+    M("upru",UnitData,nameCount,BZ_FIELD_U32),
+    M("uori",UnitData,orientationInterpolation,BZ_FIELD_U32),
+    M("upat",UnitData,pathingTexture,BZ_FIELD_CSTR),
+    M("upoi",UnitData,points,BZ_FIELD_U32),
+    M("upri",UnitData,priority,BZ_FIELD_U32),
+    M("uprw",UnitData,propWin,BZ_FIELD_FLOAT),
+    M("urac",UnitData,race,BZ_FIELD_CSTR),
+    M("upaw",UnitData,requireWaterRadius,BZ_FIELD_FLOAT),
+    M("utar",UnitData,targetType,BZ_FIELD_CSTR),
+    M("umvr",UnitData,turnRate,BZ_FIELD_FLOAT),
+    M("uarm",UnitUI,armorType,BZ_FIELD_U32),
+    M("uble",UnitUI,blend,BZ_FIELD_FLOAT),
+    M("uclb",UnitUI,tintBlue,BZ_FIELD_U32),
+    M("ushb",UnitUI,buildingShadowTexture,BZ_FIELD_CSTR),
+    M("ucam",UnitUI,campaign,BZ_FIELD_BOOL),
+    M("utcc",UnitUI,customTeamColor,BZ_FIELD_BOOL),
+    M("udro",UnitUI,dropItems,BZ_FIELD_BOOL),
+    M("uept",UnitUI,elevationSamplePoints,BZ_FIELD_U32),
+    M("uerd",UnitUI,elevationSampleRadius,BZ_FIELD_FLOAT),
+    M("umdl",UnitUI,modelFile,BZ_FIELD_CSTR),
+    M("uver",UnitUI,fileVerFlags,BZ_FIELD_U32),
+    M("ufrd",UnitUI,fogOfWarSampleRadius,BZ_FIELD_FLOAT),
+    M("uclg",UnitUI,tintGreen,BZ_FIELD_U32),
+    M("uhos",UnitUI,hostilePal,BZ_FIELD_BOOL),
+    M("uine",UnitUI,inEditor,BZ_FIELD_BOOL),
+    M("umxp",UnitUI,maxPitchDegrees,BZ_FIELD_FLOAT),
+    M("umxr",UnitUI,maxRollDegrees,BZ_FIELD_FLOAT),
+    M("usca",UnitUI,modelScale,BZ_FIELD_FLOAT),
+    M("unbm",UnitUI,neutralBuildingMinimapIcon,BZ_FIELD_BOOL),
+    M("uhhb",UnitUI,hideHeroBar,BZ_FIELD_BOOL),
+    M("uhhm",UnitUI,hideHeroMinimap,BZ_FIELD_BOOL),
+    M("uhhd",UnitUI,hideHeroDeathMsg,BZ_FIELD_BOOL),
+    M("uhom",UnitUI,hideOnMinimap,BZ_FIELD_BOOL),
+    M("uocc",UnitUI,occluderHeight,BZ_FIELD_FLOAT),
+    M("uclr",UnitUI,tintRed,BZ_FIELD_U32),
+    M("urun",UnitUI,animationRunSpeed,BZ_FIELD_FLOAT),
+    M("ussc",UnitUI,selectionScale,BZ_FIELD_FLOAT),
+    M("uscb",UnitUI,scaleProjectiles,BZ_FIELD_BOOL),
+    M("usew",UnitUI,selectionCircleOnWater,BZ_FIELD_BOOL),
+    M("uslz",UnitUI,selectionCircleHeight,BZ_FIELD_FLOAT),
+    M("ushh",UnitUI,shadowHeight,BZ_FIELD_FLOAT),
+    M("ushr",UnitUI,waterShadow,BZ_FIELD_BOOL),
+    M("ushw",UnitUI,shadowWidth,BZ_FIELD_FLOAT),
+    M("ushx",UnitUI,shadowCenterX,BZ_FIELD_FLOAT),
+    M("ushy",UnitUI,shadowCenterY,BZ_FIELD_FLOAT),
+    M("uspe",UnitUI,special,BZ_FIELD_CSTR),
+    M("utco",UnitUI,teamColor,BZ_FIELD_U32),
+    M("utss",UnitUI,tilesetSpecific,BZ_FIELD_BOOL),
+    M("uubs",UnitUI,groundTexture,BZ_FIELD_CSTR),
+    M("ushu",UnitUI,unitShadowTexture,BZ_FIELD_CSTR),
+    M("usnd",UnitUI,soundLabel,BZ_FIELD_CSTR),
+    M("uuch",UnitUI,useClickHelper,BZ_FIELD_BOOL),
+    M("uwal",UnitUI,animationWalkSpeed,BZ_FIELD_FLOAT),
+    M("uacq",UnitWeapons,acquisitionRange,BZ_FIELD_FLOAT),
+    M("ua1t",UnitWeapons,attack1.attackType,BZ_FIELD_CSTR),
+    M("ua2t",UnitWeapons,attack2.attackType,BZ_FIELD_CSTR),
+    M("ubs1",UnitWeapons,attack1.backswingPoint,BZ_FIELD_FLOAT),
+    M("ubs2",UnitWeapons,attack2.backswingPoint,BZ_FIELD_FLOAT),
+    M("ucbs",UnitWeapons,castBackSwing,BZ_FIELD_FLOAT),
+    M("ucpt",UnitWeapons,castPoint,BZ_FIELD_FLOAT),
+    M("ua1c",UnitWeapons,attack1.cooldown,BZ_FIELD_FLOAT),
+    M("ua2c",UnitWeapons,attack2.cooldown,BZ_FIELD_FLOAT),
+    M("udl1",UnitWeapons,attack1.damageLossFactor,BZ_FIELD_FLOAT),
+    M("udl2",UnitWeapons,attack2.damageLossFactor,BZ_FIELD_FLOAT),
+    M("ua1d",UnitWeapons,attack1.damageDice,BZ_FIELD_U32),
+    M("ua2d",UnitWeapons,attack2.damageDice,BZ_FIELD_U32),
+    M("ua1b",UnitWeapons,attack1.damageBase,BZ_FIELD_U32),
+    M("ua2b",UnitWeapons,attack2.damageBase,BZ_FIELD_U32),
+    M("udp1",UnitWeapons,attack1.damagePoint,BZ_FIELD_FLOAT),
+    M("udp2",UnitWeapons,attack2.damagePoint,BZ_FIELD_FLOAT),
+    M("udu1",UnitWeapons,attack1.damageUpgradeAmount,BZ_FIELD_U32),
+    M("udu2",UnitWeapons,attack2.damageUpgradeAmount,BZ_FIELD_U32),
+    M("ua1f",UnitWeapons,attack1.areaFull,BZ_FIELD_FLOAT),
+    M("ua2f",UnitWeapons,attack2.areaFull,BZ_FIELD_FLOAT),
+    M("ua1h",UnitWeapons,attack1.areaMedium,BZ_FIELD_FLOAT),
+    M("ua2h",UnitWeapons,attack2.areaMedium,BZ_FIELD_FLOAT),
+    M("uhd1",UnitWeapons,attack1.factorMedium,BZ_FIELD_FLOAT),
+    M("uhd2",UnitWeapons,attack2.factorMedium,BZ_FIELD_FLOAT),
+    M("uisz",UnitWeapons,impactSwimZ,BZ_FIELD_FLOAT),
+    M("uimz",UnitWeapons,impactHeight,BZ_FIELD_FLOAT),
+    M("ulsz",UnitWeapons,launchSwimZ,BZ_FIELD_FLOAT),
+    M("ulpx",UnitData,launchOffsetX,BZ_FIELD_FLOAT),
+    M("ulpy",UnitData,launchOffsetY,BZ_FIELD_FLOAT),
+    M("ulpz",UnitData,launchOffsetZ,BZ_FIELD_FLOAT),
+    M("uamn",UnitWeapons,minimumAttackRange,BZ_FIELD_FLOAT),
+    M("ua1q",UnitWeapons,attack1.areaSmall,BZ_FIELD_FLOAT),
+    M("ua2q",UnitWeapons,attack2.areaSmall,BZ_FIELD_FLOAT),
+    M("uqd1",UnitWeapons,attack1.factorSmall,BZ_FIELD_FLOAT),
+    M("uqd2",UnitWeapons,attack2.factorSmall,BZ_FIELD_FLOAT),
+    M("ua1r",UnitWeapons,attack1.range,BZ_FIELD_FLOAT),
+    M("ua2r",UnitWeapons,attack2.range,BZ_FIELD_FLOAT),
+    M("urb1",UnitWeapons,attack1.rangeBuffer,BZ_FIELD_FLOAT),
+    M("urb2",UnitWeapons,attack2.rangeBuffer,BZ_FIELD_FLOAT),
+    M("uwu1",UnitWeapons,attack1.showUI,BZ_FIELD_BOOL),
+    M("uwu2",UnitWeapons,attack2.showUI,BZ_FIELD_BOOL),
+    M("ua1s",UnitWeapons,attack1.damageSides,BZ_FIELD_U32),
+    M("ua2s",UnitWeapons,attack2.damageSides,BZ_FIELD_U32),
+    M("usd1",UnitWeapons,attack1.spillDistance,BZ_FIELD_FLOAT),
+    M("usd2",UnitWeapons,attack2.spillDistance,BZ_FIELD_FLOAT),
+    M("usr1",UnitWeapons,attack1.spillRadius,BZ_FIELD_FLOAT),
+    M("usr2",UnitWeapons,attack2.spillRadius,BZ_FIELD_FLOAT),
+    M("ua1p",UnitWeapons,attack1.areaTargets,BZ_FIELD_U32),
+    M("ua2p",UnitWeapons,attack2.areaTargets,BZ_FIELD_U32),
+    M("utc1",UnitWeapons,attack1.maxTargets,BZ_FIELD_U32),
+    M("utc2",UnitWeapons,attack2.maxTargets,BZ_FIELD_U32),
+    M("ua1g",UnitWeapons,attack1.targetsAllowed,BZ_FIELD_U32),
+    M("ua2g",UnitWeapons,attack2.targetsAllowed,BZ_FIELD_U32),
+    M("uaen",UnitWeapons,attacksEnabled,BZ_FIELD_U32),
+    M("ua1w",UnitWeapons,attack1.weaponType,BZ_FIELD_CSTR),
+    M("ua2w",UnitWeapons,attack2.weaponType,BZ_FIELD_CSTR),
+    M("ucs1",UnitWeapons,attack1.weaponSound,BZ_FIELD_U32),
+    M("ucs2",UnitWeapons,attack2.weaponSound,BZ_FIELD_U32),
+    { 0 }
+};
+
+#undef M
 
 /* =========================================================================
  * Public lookup functions.
- * Map-created units remap their ID to the base unit ID, matching the
- * per-call remap that UnitStringField() performs for Profile fallback.
+ * Map-created units remap their ID to the base unit ID before any typed-row
+ * lookup, including FourCC metadata access.
  * =========================================================================*/
 static DWORD ResolveUnitID(DWORD id) {
     if (!level.mapinfo) return id;
@@ -840,7 +1191,52 @@ static DWORD ResolveUnitID(DWORD id) {
     return id;
 }
 
+/* Resolve a Warcraft field code through the immutable typed row cached on the edict. */
+static BYTE const *UnitFieldValue(LPEDICT unit, DWORD field_id, bzFieldType_t *type) {
+    unitMeta_t const *metadata = G_FindMetaData(UnitsMetaData, field_id);
+    if (!metadata) { warn_unregistered_field(field_id); return NULL; }
+    BYTE const *row = *(BYTE const * const *)((BYTE const *)unit + metadata->row_offset);
+    if (!row) return NULL;
+    *type = metadata->type;
+    return row + metadata->field_offset;
+}
+
+LPCSTR UnitMetaString(LPEDICT unit, DWORD field_id) {
+    bzFieldType_t type; BYTE const *value = UnitFieldValue(unit, field_id, &type);
+    return value && type == BZ_FIELD_CSTR ? *(LPCSTR const *)value : NULL;
+}
+
+LONG UnitMetaInteger(LPEDICT unit, DWORD field_id) {
+    bzFieldType_t type; BYTE const *value = UnitFieldValue(unit, field_id, &type);
+    if (!value) return 0;
+    switch (type) {
+    case BZ_FIELD_FLOAT: return (LONG)*(FLOAT const *)value;
+    case BZ_FIELD_BOOL: return *(BOOL const *)value;
+    case BZ_FIELD_CSTR: { LPCSTR str = *(LPCSTR const *)value; return str ? atoi(str) : 0; }
+    default: return *(LONG const *)value;
+    }
+}
+
+BOOL UnitMetaBoolean(LPEDICT unit, DWORD field_id) {
+    bzFieldType_t type; BYTE const *value = UnitFieldValue(unit, field_id, &type);
+    if (!value) return false;
+    if (type == BZ_FIELD_BOOL) return *(BOOL const *)value;
+    if (type == BZ_FIELD_FLOAT) return *(FLOAT const *)value != 0;
+    if (type == BZ_FIELD_CSTR) { LPCSTR str = *(LPCSTR const *)value; return str && (atoi(str) || !strcmp(str, "TRUE")); }
+    return *(LONG const *)value != 0;
+}
+
+FLOAT UnitMetaReal(LPEDICT unit, DWORD field_id) {
+    bzFieldType_t type; BYTE const *value = UnitFieldValue(unit, field_id, &type);
+    if (!value) return 0;
+    if (type == BZ_FIELD_FLOAT) return *(FLOAT const *)value;
+    if (type == BZ_FIELD_BOOL) return *(BOOL const *)value;
+    if (type == BZ_FIELD_CSTR) { LPCSTR str = *(LPCSTR const *)value; return str ? atof(str) : 0; }
+    return *(LONG const *)value;
+}
+
 UnitBalance_t const *G_UnitBalance(DWORD id) { static UnitBalance_t zero; UnitBalance_t *row = FS_SLKLookup(&balance_idx, ResolveUnitID(id)); return row ? row : &zero; }
+UnitProfile_t const *G_UnitProfile(DWORD id) { static UnitProfile_t zero; UnitProfile_t *row = FS_SLKLookup(&profile_idx, ResolveUnitID(id)); return row ? row : &zero; }
 UnitData_t const *G_UnitData(DWORD id) { static UnitData_t zero; UnitData_t *row = FS_SLKLookup(&data_idx, ResolveUnitID(id)); return row ? row : &zero; }
 UnitUI_t const *G_UnitUI(DWORD id) { static UnitUI_t zero; UnitUI_t *row = FS_SLKLookup(&ui_idx, ResolveUnitID(id)); return row ? row : &zero; }
 UnitWeapons_t const *G_UnitWeapons(DWORD id) { static UnitWeapons_t zero; UnitWeapons_t *row = FS_SLKLookup(&weapons_idx, ResolveUnitID(id)); return row ? row : &zero; }
@@ -976,10 +1372,10 @@ void InitUnitData(void) {
             AppendSheetRows(&Profile, &profileTail, current);
         }
     }
-    /* Profile/INI fields (UNIT_NAME, UNIT_TRAINS, UNIT_BUILDS, Missileart, etc.)
-     * still use the string-based lookup path. */
-    for (sheetMetaData_t *data = UnitsMetaData; data->id; data++)
-        if (!strcmp(data->slk, "Profile")) data->table = Profile;
+    RebuildProfileDDX(Profile);
+#ifdef BZ_TESTS
+    profile_source = Profile;
+#endif
 
     FOR_LOOP(i, sizeof(slk_stores) / sizeof(*slk_stores)) {
         slkStore_t *store = slk_stores + i;
@@ -993,6 +1389,8 @@ void InitUnitData(void) {
 }
 
 void ShutdownUnitData(void) {
+    FS_SLKFreeIndex(&profile_idx); FS_SLKFreeRows(profile_schema, g_UnitProfile, g_UnitProfileCount, sizeof(*g_UnitProfile));
+    g_UnitProfile = NULL; g_UnitProfileCount = 0;
     FOR_LOOP(i, sizeof(slk_stores) / sizeof(*slk_stores)) {
         slkStore_t *store = slk_stores + i;
         FS_SLKFreeIndex(store->idx);

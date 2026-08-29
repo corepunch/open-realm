@@ -299,7 +299,7 @@ DWORD G_LoadShadowTexture(LPCSTR shadow, BOOL allowDDSFallback) {
 }
 
 static void M_SetUnitShadow(LPEDICT self) {
-    UnitUI_t const *ui = self->ui;
+    UnitUI_t const *ui = self->UnitUI;
     LPCSTR unit_shadow = ui->unitShadowTexture;
     DWORD shadow = G_LoadShadowTexture(unit_shadow, true);
     if (!shadow) {
@@ -327,7 +327,7 @@ static void M_SetUnitShadow(LPEDICT self) {
 }
 
 static void M_SetBuildingShadow(LPEDICT self) {
-    UnitUI_t const *ui = self->ui;
+    UnitUI_t const *ui = self->UnitUI;
     LPCSTR building_shadow = ui->buildingShadowTexture;
     DWORD shadow = G_LoadShadowTexture(building_shadow, false);
     if (!shadow) {
@@ -373,11 +373,11 @@ void G_RegisterSelectSounds(LPEDICT self, LPCSTR label) {
     snprintf(key, sizeof(key), "%sWhat", label);
     UnitAckSounds_t const *row = G_UnitAckSound(key);
     LPCSTR files = row->FileNames, dir = row->DirectoryBase;
-    while (files && files[0] && self->num_select_sounds < MAX_UNIT_SELECT_SOUNDS) {
+    while (files && files[0] && self->sound.num_select < MAX_UNIT_SELECT_SOUNDS) {
         LPCSTR comma = strchr(files, ',');
         snprintf(file, sizeof(file), "%.*s", comma ? (int)(comma - files) : (int)strlen(files), files);
         snprintf(path, sizeof(path), "%s%s", dir ? dir : "", file);
-        self->sound_select[self->num_select_sounds++] = (BYTE)gi.SoundIndex(path);
+        self->sound.select[self->sound.num_select++] = (BYTE)gi.SoundIndex(path);
         files = comma ? comma + 1 : NULL;
     }
 }
@@ -386,16 +386,16 @@ void G_RegisterSelectSounds(LPEDICT self, LPCSTR label) {
  * "unitSound" label (e.g. "Footman").  Falls back gracefully if entries are
  * missing — sounds simply won't fire for that unit. */
 static void G_RegisterUnitSounds(LPEDICT self) {
-    LPCSTR label = self->ui->soundLabel;
+    LPCSTR label = self->UnitUI->soundLabel;
     if (!label || !label[0]) return;
     G_RegisterSelectSounds(self, label);
-    self->sound_attack = G_RegisterSoundLabel(label, "YesAttack");
+    self->sound.attack = G_RegisterSoundLabel(label, "YesAttack");
     /* Death sounds follow the pattern {label}Death but may not exist in the
      * AckSounds SLK.  Try the SLK first; fall back to the raw file path. */
-    self->sound_death = G_RegisterSoundLabel(label, "Death");
-    if (!self->sound_death) {
+    self->sound.death = G_RegisterSoundLabel(label, "Death");
+    if (!self->sound.death) {
         /* Derive death sound path from model directory: units\race\Name\NameDeath.wav */
-        LPCSTR model = self->ui->modelFile;
+        LPCSTR model = self->UnitUI->modelFile;
         if (model && model[0]) {
             char path[512];
             snprintf(path, sizeof(path), "%s\\%sDeath.wav",
@@ -408,7 +408,7 @@ static void G_RegisterUnitSounds(LPEDICT self) {
                 snprintf(dir_part, sizeof(dir_part), "%.*s", (int)(slash - model + 1), model);
                 snprintf(path, sizeof(path), "%s%sDeath.wav", dir_part, slash + 1);
             }
-            self->sound_death = gi.SoundIndex(path);
+            self->sound.death = gi.SoundIndex(path);
         }
     }
 }
@@ -422,10 +422,10 @@ DWORD unit_spawn_aiflags(DWORD class_id) { return G_UnitIsBuilding(class_id) ? A
  * unit's class_id and stores them in the edict. */
 void SP_SpawnUnit(LPEDICT self) {
     PATHSTR model_filename;
-    UnitBalance_t const *b = self->balance;
-    UnitData_t const *d = self->data;
-    UnitUI_t const *ui = self->ui;
-    UnitWeapons_t const *w = self->weapons;
+    UnitBalance_t const *b = self->UnitBalance;
+    UnitData_t const *d = self->UnitData;
+    UnitUI_t const *ui = self->UnitUI;
+    UnitWeapons_t const *w = self->UnitWeapons;
     LPCSTR uber_splat = ui->groundTexture;
     LPCSTR path_tex = d->pathingTexture;
     self->runtime.flags = (unit_spawn_aiflags(self->class_id) & AI_IMMOBILE) ? UNIT_BALANCE_BUILDING : 0;
@@ -531,10 +531,9 @@ void SP_SpawnUnit(LPEDICT self) {
         self->attack1.origin.x = G_UnitAttack1LaunchX(self->class_id);
         self->attack1.origin.y = G_UnitAttack1LaunchY(self->class_id);
         self->attack1.origin.z = G_UnitAttack1LaunchZ(self->class_id);
-        self->attack1.projectile.model = G_RegisterModel(UNIT_ATTACK1_PROJECTILE_ART(self->class_id));
-        self->attack1.projectile.arc = UNIT_ATTACK1_PROJECTILE_ARC(self->class_id);
-        self->attack1.projectile.speed = UNIT_ATTACK1_PROJECTILE_SPEED(self->class_id);        
-//        printf("%.4s %s\n", &self->class_id, UNIT_ATTACK1_PROJECTILE_ART(self->class_id));
+        self->attack1.projectile.model = G_RegisterModel(G_UnitProfile(self->class_id)->attack[0].art);
+        self->attack1.projectile.arc = G_UnitProfile(self->class_id)->attack[0].arc;
+        self->attack1.projectile.speed = G_UnitProfile(self->class_id)->attack[0].speed;
     }
 
     if ((self->pathtex = M_LoadPathTex(path_tex))) {

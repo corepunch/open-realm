@@ -27,9 +27,9 @@ BOOL unit_is_walking(LPCEDICT ent) {
 static FLOAT unit_current_speed(LPCEDICT self) {
     FLOAT speed = self->unitinfo.MoveSpeed > 0
         ? self->unitinfo.MoveSpeed
-        : self->balance->speed;
-    if (self->move_group_speed > 0 && self->move_group_speed < speed && unit_is_walking(self)) {
-        speed = self->move_group_speed;
+        : self->UnitBalance->speed;
+    if (self->movement.group_speed > 0 && self->movement.group_speed < speed && unit_is_walking(self)) {
+        speed = self->movement.group_speed;
     }
     return speed;
 }
@@ -175,7 +175,7 @@ void unit_moveindirection(LPEDICT self) {
         return;
     }
     VECTOR2 const by_heading = Vector2_mad(&self->s.origin2, dist,
-                                           &MAKE(VECTOR2, cosf(self->move_heading), sinf(self->move_heading)));
+                                           &MAKE(VECTOR2, cosf(self->movement.heading), sinf(self->movement.heading)));
     if (move_is_valid(self, &by_heading)) {
         unit_commit_step(self, &by_heading);
     }
@@ -190,7 +190,7 @@ static void unit_turn_toward(LPEDICT self, FLOAT target) {
     VECTOR2 const goal   = { cosf(target), sinf(target) };
     FLOAT const cross = facing.x * goal.y - facing.y * goal.x;
     FLOAT const dot   = facing.x * goal.x + facing.y * goal.y;
-    FLOAT turn = self->data->turnRate;
+    FLOAT turn = self->UnitData->turnRate;
     if (turn <= 0.0f) turn = 0.5f;
 
     if (dot >= cosf(turn)) {
@@ -241,7 +241,7 @@ void unit_changeangle(LPEDICT self) {
     VECTOR2 to_goal = Vector2_sub(&self->goalentity->s.origin2, &self->s.origin2);
     VECTOR2 dir;
 
-    self->move_heading = self->s.angle;  /* default if no heading is resolved this tick */
+    self->movement.heading = self->s.angle;  /* default if no heading is resolved this tick */
 
     /* Global routing: steer straight only when the line to the goal is clear of
      * terrain (near OR far); otherwise follow the flow field around terrain.
@@ -264,7 +264,7 @@ void unit_changeangle(LPEDICT self) {
      * aligned (no second, disagreeing search). */
     FLOAT const goal_angle = atan2f(dir.y, dir.x);
     FLOAT const desired = unit_desired_heading(self, goal_angle, unit_movedistance(self));
-    self->move_heading = desired;
+    self->movement.heading = desired;
     unit_turn_toward(self, desired);
 }
 
