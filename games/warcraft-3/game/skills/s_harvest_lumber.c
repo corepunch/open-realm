@@ -65,7 +65,14 @@ static void ai_walktree(LPEDICT ent) {
 }
 
 static void ai_harvest_walkback(LPEDICT ent) {
-    if (M_DistanceToGoal(ent) < (ent->collision + ent->goalentity->collision + 5)) {
+    FLOAT const dist = M_DistanceToGoal(ent);
+    FLOAT const contact = ent->collision + ent->goalentity->collision;
+    FLOAT const step = unit_movedistance(ent);
+
+    /* Building pathing can block the next movement step before the worker
+     * reaches physical contact. Deposit once that next step would cross the
+     * contact boundary, matching the resource interaction rule. */
+    if (dist <= contact + step) {
         LPEDICT townhall = ent->goalentity;
         G_PublishMessage(ent, GAME_MSG_HARVEST_DEPOSIT_LUMBER, townhall);
         LPPLAYER player = G_GetPlayerByNumber(ent->s.player);
