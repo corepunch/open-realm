@@ -373,11 +373,11 @@ void G_RegisterSelectSounds(LPEDICT self, LPCSTR label) {
     snprintf(key, sizeof(key), "%sWhat", label);
     UnitAckSounds_t const *row = G_UnitAckSound(key);
     LPCSTR files = row->FileNames, dir = row->DirectoryBase;
-    while (files && files[0] && self->num_select_sounds < MAX_UNIT_SELECT_SOUNDS) {
+    while (files && files[0] && self->sound.num_select < MAX_UNIT_SELECT_SOUNDS) {
         LPCSTR comma = strchr(files, ',');
         snprintf(file, sizeof(file), "%.*s", comma ? (int)(comma - files) : (int)strlen(files), files);
         snprintf(path, sizeof(path), "%s%s", dir ? dir : "", file);
-        self->sound_select[self->num_select_sounds++] = (BYTE)gi.SoundIndex(path);
+        self->sound.select[self->sound.num_select++] = (BYTE)gi.SoundIndex(path);
         files = comma ? comma + 1 : NULL;
     }
 }
@@ -389,11 +389,11 @@ static void G_RegisterUnitSounds(LPEDICT self) {
     LPCSTR label = self->UnitUI->soundLabel;
     if (!label || !label[0]) return;
     G_RegisterSelectSounds(self, label);
-    self->sound_attack = G_RegisterSoundLabel(label, "YesAttack");
+    self->sound.attack = G_RegisterSoundLabel(label, "YesAttack");
     /* Death sounds follow the pattern {label}Death but may not exist in the
      * AckSounds SLK.  Try the SLK first; fall back to the raw file path. */
-    self->sound_death = G_RegisterSoundLabel(label, "Death");
-    if (!self->sound_death) {
+    self->sound.death = G_RegisterSoundLabel(label, "Death");
+    if (!self->sound.death) {
         /* Derive death sound path from model directory: units\race\Name\NameDeath.wav */
         LPCSTR model = self->UnitUI->modelFile;
         if (model && model[0]) {
@@ -408,7 +408,7 @@ static void G_RegisterUnitSounds(LPEDICT self) {
                 snprintf(dir_part, sizeof(dir_part), "%.*s", (int)(slash - model + 1), model);
                 snprintf(path, sizeof(path), "%s%sDeath.wav", dir_part, slash + 1);
             }
-            self->sound_death = gi.SoundIndex(path);
+            self->sound.death = gi.SoundIndex(path);
         }
     }
 }

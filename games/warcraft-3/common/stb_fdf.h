@@ -33,13 +33,10 @@
 /* -------------------------------------------------------------------------- */
 /* Forward declarations                                                        */
 /* -------------------------------------------------------------------------- */
-#ifndef FRAMEDEF_DEFINED
-#define FRAMEDEF_DEFINED
 typedef struct uiFrameDef_s frameDef_t;
 typedef frameDef_t FRAMEDEF;
 typedef frameDef_t *LPFRAMEDEF;
 typedef frameDef_t const *LPCFRAMEDEF;
-#endif
 
 /* -------------------------------------------------------------------------- */
 /* Mouse event types (used by frame event_handler)                             */
@@ -55,10 +52,8 @@ typedef enum {
 #endif
 
 /* -------------------------------------------------------------------------- */
-/* Enums — guarded for game module inclusion via g_local.h                     */
+/* Enums                                                                       */
 /* -------------------------------------------------------------------------- */
-#ifndef UIFRAMEPOINT_DEFINED
-#define UIFRAMEPOINT_DEFINED
 typedef enum {
     FRAMEPOINT_TOPLEFT,
     FRAMEPOINT_TOP,
@@ -73,60 +68,41 @@ typedef enum {
     FRAMEPOINT_BOTTOMRIGHT,
     FRAMEPOINT_UNUSED3,
 } UIFRAMEPOINT;
-#endif
 
-#ifndef UIFONTFLAGS_DEFINED
-#define UIFONTFLAGS_DEFINED
 typedef enum {
     FONTFLAGS_FIXEDSIZE,
     FONTFLAGS_PASSWORDFIELD,
 } UIFONTFLAGS;
-#endif
 
-#ifndef HIGHLIGHTTYPE_DEFINED
-#define HIGHLIGHTTYPE_DEFINED
 typedef enum {
     FILETEXTURE,
 } HIGHLIGHTTYPE;
-#endif
 
-#ifndef CONTROLSTYLE_DEFINED
-#define CONTROLSTYLE_DEFINED
 typedef enum {
     AUTOTRACK = 1,
     HIGHLIGHTONFOCUS = 2,
     HIGHLIGHTONMOUSEOVER = 4,
 } CONTROLSTYLE;
-#endif
 
-#ifndef LAYOUTDIRECTION_DEFINED
-#define LAYOUTDIRECTION_DEFINED
 typedef enum {
     LAYOUT_HORIZONTAL,
     LAYOUT_VERTICAL,
 } LAYOUTDIRECTION;
-#endif
 
 /* -------------------------------------------------------------------------- */
 /* Small helper structs                                                        */
 /* -------------------------------------------------------------------------- */
-#ifndef BUTTONTEXT_DEFINED
-#define BUTTONTEXT_DEFINED
 typedef struct {
     UINAME frame;
     UINAME text;
 } BUTTONTEXT;
-#endif
 
-#ifndef FRAMEPOINT_DEFINED
-#define FRAMEPOINT_DEFINED
 typedef struct {
     LPCFRAMEDEF relativeTo;
     FLOAT offset;
     uiFramePointPos_t targetPos: 7;
     DWORD used: 1;
 } FRAMEPOINT;
-#endif
 
 typedef FRAMEPOINT const *LPCFRAMEPOINT;
 

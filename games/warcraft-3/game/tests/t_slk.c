@@ -223,14 +223,14 @@ TEST(wc3_slk, slk_fourcc_metadata_reads_typed_row) {
     DWORD id = MAKEFOURCC('h','p','e','a');
     edict_t unit = { .class_id = id };
     G_BindEntityData(&unit);
-    T_FEQ(UnitMetaReal(&unit, MAKEFOURCC('u','m','v','s')), unit.balance->speed, 0.01f);
+    T_FEQ(UnitMetaReal(&unit, MAKEFOURCC('u','m','v','s')), unit.UnitBalance->speed, 0.01f);
 }
 
 TEST(wc3_slk, fourcc_metadata_reads_rows_cached_on_edict) {
     UnitProfile_t profile = { .name = "Cached Unit" };
     UnitBalance_t balance = { .level = 17, .speed = 321.5f };
     UnitUI_t ui = { .hideHeroBar = true };
-    edict_t unit = { .profile = &profile, .balance = &balance, .ui = &ui };
+    edict_t unit = { .UnitProfile = &profile, .UnitBalance = &balance, .UnitUI = &ui };
 
     T_STREQ(UnitMetaString(&unit, MAKEFOURCC('u','n','a','m')), "Cached Unit");
     T_EQ(UnitMetaInteger(&unit, MAKEFOURCC('u','l','e','v')), 17);
@@ -340,12 +340,12 @@ TEST(wc3_slk, global_array_backs_spawned_unit) {
     T_NOT_NULL(g_UnitBalance);
     T_ASSERT(g_UnitBalanceCount > 0);
     SP_CallSpawn(&ent);
-    T_ASSERT(ent.profile == G_UnitProfile(ent.class_id));
-    T_ASSERT(ent.balance == G_UnitBalance(ent.class_id));
-    T_ASSERT(ent.data == G_UnitData(ent.class_id));
-    T_ASSERT(ent.ui == G_UnitUI(ent.class_id));
-    T_ASSERT(ent.weapons == G_UnitWeapons(ent.class_id));
-    T_ASSERT(ent.abilities == G_UnitAbil(ent.class_id));
+    T_ASSERT(ent.UnitProfile == G_UnitProfile(ent.class_id));
+    T_ASSERT(ent.UnitBalance == G_UnitBalance(ent.class_id));
+    T_ASSERT(ent.UnitData == G_UnitData(ent.class_id));
+    T_ASSERT(ent.UnitUI == G_UnitUI(ent.class_id));
+    T_ASSERT(ent.UnitWeapons == G_UnitWeapons(ent.class_id));
+    T_ASSERT(ent.UnitAbilities == G_UnitAbil(ent.class_id));
 }
 
 TEST(wc3_slk, weapon_columns_decode_into_attack_records) {

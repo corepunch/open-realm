@@ -163,10 +163,10 @@ static DWORD move_collect_selected(LPGAMECLIENT client,
 }
 
 void move_reset_progress(LPEDICT self) {
-    self->move_last_origin = self->s.origin2;
-    self->move_last_distance = -1;
-    self->move_blocked_frames = 0;
-    self->move_group_speed = 0;  /* single-unit/default: travel at own speed */
+    self->movement.last_origin = self->s.origin2;
+    self->movement.last_distance = -1;
+    self->movement.blocked_frames = 0;
+    self->movement.group_speed = 0;  /* single-unit/default: travel at own speed */
 }
 
 /* Effective current move speed of a unit (runtime override, else data table). */
@@ -212,7 +212,7 @@ BOOL move_should_arrive(LPEDICT ent, FLOAT move_distance) {
 
 BOOL move_is_blocked(LPEDICT ent, FLOAT distance, FLOAT move_distance) {
     FLOAT const settle_distance = move_distance + ent->collision + MOVE_SLOT_MARGIN;
-    if (ent->move_last_distance >= 0) {
+    if (ent->movement.last_distance >= 0) {
         /* move_last_distance is the *closest* the unit has come to its goal (a
          * watermark), not just the previous frame's distance.  With move-time
          * block-and-slide a unit boxed in near its goal orbits it: distance
@@ -220,8 +220,8 @@ BOOL move_is_blocked(LPEDICT ent, FLOAT distance, FLOAT move_distance) {
          * the best-so-far (instead of frame-to-frame) lets the stuck counter
          * accumulate through the orbit so the unit settles, instead of the
          * lateral motion resetting it every frame and walking forever. */
-        FLOAT const improvement = ent->move_last_distance - distance;
-        FLOAT const moved = Vector2_distance(&ent->s.origin2, &ent->move_last_origin);
+        FLOAT const improvement = ent->movement.last_distance - distance;
+        FLOAT const moved = Vector2_distance(&ent->s.origin2, &ent->movement.last_origin);
         FLOAT const min_progress = MAX(1.0f, move_distance * 0.05f);
         FLOAT const min_moved = MAX(1.0f, move_distance * 0.25f);
 
@@ -231,21 +231,21 @@ BOOL move_is_blocked(LPEDICT ent, FLOAT distance, FLOAT move_distance) {
          * its orbit around the blocked goal momentarily flings it back out
          * past settle_distance. */
         if (improvement >= min_progress) {
-            ent->move_blocked_frames = 0;
-            ent->move_last_distance = distance;     /* advance the watermark */
-        } else if (ent->move_last_distance <= settle_distance || moved < min_moved) {
-            ent->move_blocked_frames++;             /* near goal, or barely moving */
+            ent->movement.blocked_frames = 0;
+            ent->movement.last_distance = distance;     /* advance the watermark */
+        } else if (ent->movement.last_distance <= settle_distance || moved < min_moved) {
+            ent->movement.blocked_frames++;             /* near goal, or barely moving */
         } else {
-            ent->move_blocked_frames = 0;           /* far away but still making way */
+            ent->movement.blocked_frames = 0;           /* far away but still making way */
         }
     } else {
-        ent->move_last_distance = distance;
+        ent->movement.last_distance = distance;
     }
 
-    ent->move_last_origin = ent->s.origin2;
-    return ent->move_last_distance <= settle_distance
-        ? ent->move_blocked_frames >= MOVE_SETTLE_FRAMES
-        : ent->move_blocked_frames >= MOVE_BLOCKED_FRAMES;
+    ent->movement.last_origin = ent->s.origin2;
+    return ent->movement.last_distance <= settle_distance
+        ? ent->movement.blocked_frames >= MOVE_SETTLE_FRAMES
+        : ent->movement.blocked_frames >= MOVE_BLOCKED_FRAMES;
 }
 
 static umove_t move_move_hold = { "stand", NULL, NULL, &a_move };
@@ -254,8 +254,8 @@ static void move_hold(LPEDICT ent) {
     ent->build = NULL;
     ent->s.renderfx &= ~RF_NO_UBERSPLAT;
     ent->s.ability = 0;
-    ent->move_last_distance = 0;
-    ent->move_blocked_frames = 0;
+    ent->movement.last_distance = 0;
+    ent->movement.blocked_frames = 0;
     unit_setmove(ent, &move_move_hold);
 }
 
@@ -288,8 +288,8 @@ void order_move(LPEDICT self, LPEDICT target) {
     if (self->aiflags & AI_IMMOBILE)
         return;
     self->goalentity = target;
-    self->attackmove_waypoint = NULL;
-    self->patrol_a = NULL;
+    self->movement.attackmove_waypoint = NULL;
+    self->movement.patrol_a = NULL;
     move_reset_progress(self);
     unit_setmove(self, &move_move_walk);
 }
@@ -340,7 +340,7 @@ BOOL move_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
             have_confirmation = true;
         }
         order_move(ent, waypoint);
-        ent->move_group_speed = group_speed;  /* after order_move, which resets it */
+        ent->movement.group_speed = group_speed;  /* after order_move, which resets it */
     }
     gi.Write(PF_BYTE, &(LONG){svc_temp_entity});
     gi.Write(PF_BYTE, &(LONG){TE_MOVE_CONFIRMATION});

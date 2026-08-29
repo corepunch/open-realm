@@ -11,8 +11,8 @@
  *  (never game entities), and dynamic content arrives from AzerothCore CSVs
  *  (creatures.csv / quests.csv / playercreateinfo.csv) plus DBC lookups.
  *
- *  Instead of a classname table, each WoW spawner sets the entity's `think`
- *  pointer directly and there is no central type dispatcher.  That is fine at
+ *  Instead of a classname table, each WoW spawner sets the game-local `think`
+ *  callback directly and there is no central type dispatcher.  That is fine at
  *  the current five think-types (creature / game-object / corpse /
  *  dynamic-object / projectile — the player reuses the creature frame), but if
  *  the entity taxonomy grows — triggers, doors, varied NPC behaviour — a

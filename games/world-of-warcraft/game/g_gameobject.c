@@ -27,7 +27,7 @@ LPEDICT Wow_SpawnDynamicObject(DWORD spell_id, LPCVECTOR2 origin, DWORD duration
     if (!ent) return NULL;
 
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
-    ent->think = Wow_RunDynamicObjectFrame;
+    local->think = Wow_RunDynamicObjectFrame;
     local->dyn_spell_id = spell_id;
     local->dyn_duration = duration;
     local->dyn_radius = 2;
@@ -233,7 +233,7 @@ static void WowGo_SpawnDoodad(LPCWOWDOODADDEF def, LPCSTR model_path) {
         return;
 
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
-    ent->think = NULL; /* static object */
+    local->think = NULL; /* static object */
     local->display_id = display_id;
     local->go_display_id = display_id;
     local->go_state = 0; /* GO_STATE_READY */

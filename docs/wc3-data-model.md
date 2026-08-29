@@ -19,6 +19,13 @@ The old codes `umpc`, `uagc`, `uinc`, `ustc` are **not registered** in the metad
 Gameplay reads typed rows through `G_UnitBalance`, `G_UnitData`, `G_UnitUI`, `G_UnitWeapons`, `G_UnitAbil`, and
 `G_UnitProfile`. Profile/INI files are merged into `UnitProfile_t`; there is no separate macro access layer.
 
+`G_BindEntityData` resolves these rows once and stores direct, table-named pointers on `edict_t` (`UnitBalance`,
+`UnitWeapons`, `ItemData`, and so on). Keep those pointers flat: their exact names are the table-to-edict contract.
+They do not replace mutable runtime values such as attacks, armor, movement speed, hero attributes, health, or mana;
+items, upgrades, and JASS natives modify those values after spawn. Cohesive transient state belongs in the existing
+named edict sections (`item`, `destructable`, `cargo`, `movement`, `channel`, and `sound`). The server-visible prefix
+through `areabounds` must remain aligned with `server.h`.
+
 FourCC/JASS reads use `UnitIntegerField` / `UnitRealField` / `UnitBooleanField` / `UnitStringField`. Unit metadata binds
 each FourCC to its DDX field descriptor and typed-row index during `InitUnitData`, so these accessors read the same arrays
 as gameplay instead of returning to `sheetRow_t`. Add fields to the owning row and DDX schema in `g_metadata.c`.

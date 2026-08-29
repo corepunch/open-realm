@@ -11,8 +11,8 @@ static umove_t spell_effect_birth = { "birth", NULL, G_FreeEdict };
  * All hero/unit spells route through a single cmd entry point (spell_cmd) that
  * reads the ability code, validates mana/cooldown, configures targeting, and
  * dispatches to the spell_info_t::execute callback once a valid target is
- * acquired.  channeled spells (SPELL_CHANNEL) set ent->channel_code and
- * ent->cast_origin; spell_run_frame() enforces movement-cancel for them.
+ * acquired.  channeled spells set ent->channel state; spell_run_frame()
+ * enforces movement-cancel for them.
  *
  * Design mirrors:
  *   - WarSmash: CAbilitySpellBase with target-type dispatch
@@ -307,14 +307,14 @@ void S_SpellCursorSplat(LPEDICT clent, FLOAT radius) {
 }
 
 BOOL S_SpellIsChanneling(LPEDICT caster) {
-    return caster && caster->channel_code != 0;
+    return caster && caster->channel.code != 0;
 }
 
 void S_SpellCancelChannel(LPEDICT caster) {
-    if (!caster || !caster->channel_code) {
+    if (!caster || !caster->channel.code) {
         return;
     }
-    caster->channel_code = 0;
+    caster->channel.code = 0;
     if (caster->stand) {
         caster->stand(caster);
     }
@@ -325,7 +325,7 @@ void S_SpellCancelChannel(LPEDICT caster) {
 /* Per-frame channel enforcement: if the caster has moved from cast_origin,
  * cancel the channel.  Called from G_RunEntity. */
 void spell_run_frame(LPEDICT ent) {
-    if (!ent->channel_code)
+    if (!ent->channel.code)
         return;
 
     /* Stun or death interrupts channel. */
@@ -335,8 +335,8 @@ void spell_run_frame(LPEDICT ent) {
     }
 
     /* Movement cancel: caster moved from the position where channel began. */
-    if (fabsf(ent->s.origin.x - ent->cast_origin.x) > 0.5f ||
-        fabsf(ent->s.origin.y - ent->cast_origin.y) > 0.5f) {
+    if (fabsf(ent->s.origin.x - ent->channel.origin.x) > 0.5f ||
+        fabsf(ent->s.origin.y - ent->channel.origin.y) > 0.5f) {
         S_SpellCancelChannel(ent);
         return;
     }
@@ -370,8 +370,8 @@ static BOOL spell_validate_point(LPEDICT caster, DWORD code, DWORD level, LPCVEC
 
 /* Start channel: lock caster in place and record the origin for movement-cancel. */
 static void spell_begin_channel(LPEDICT caster, DWORD code) {
-    caster->channel_code = code;
-    caster->cast_origin = caster->s.origin2;
+    caster->channel.code = code;
+    caster->channel.origin = caster->s.origin2;
 }
 
 /* Pre-execute common work: spend mana, start cooldown. */

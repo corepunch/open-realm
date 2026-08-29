@@ -89,28 +89,28 @@ TEST(wc3_unit, selection_sound_registration_caches_all_responses) {
     sheetRow_t *sounds = parse_slk_string(slk);
     sheetRow_t *old = G_SetSLKRows("UnitAckSounds", sounds);
     G_RegisterSelectSounds(ent, "Footman");
-    T_EQ(ent->num_select_sounds, 4);
-    FOR_LOOP(i, ent->num_select_sounds) T_ASSERT(ent->sound_select[i]);
+    T_EQ(ent->sound.num_select, 4);
+    FOR_LOOP(i, ent->sound.num_select) T_ASSERT(ent->sound.select[i]);
     G_SetSLKRows("UnitAckSounds", old); free_slk_rows(sounds);
 }
 
 TEST(wc3_unit, selecting_owned_unit_emits_one_ack_event) {
     LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
-    ent->sound_select[0] = 11;
-    ent->sound_select[1] = 12;
-    ent->num_select_sounds = 2;
+    ent->sound.select[0] = 11;
+    ent->sound.select[1] = 12;
+    ent->sound.num_select = 2;
     G_QueueSelectionSound(ent);
-    T_ASSERT(ent->pending_sound == 11 || ent->pending_sound == 12);
+    T_ASSERT(ent->sound.pending == 11 || ent->sound.pending == 12);
     G_RunEntities();
     T_EQ(ent->s.event, EV_ACK);
     T_ASSERT(ent->s.sound == 11 || ent->s.sound == 12);
-    T_EQ(ent->pending_sound, 0);
+    T_EQ(ent->sound.pending, 0);
 }
 
 TEST(wc3_unit, selection_without_responses_does_not_queue_ack) {
     LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     G_QueueSelectionSound(ent);
-    T_EQ(ent->pending_sound, 0);
+    T_EQ(ent->sound.pending, 0);
 }
 
 /* -----------------------------------------------------------------------

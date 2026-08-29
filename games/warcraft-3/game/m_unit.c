@@ -75,7 +75,7 @@ BOOL unit_affectingcombat(LPEDICT self) {
 }
 
 void unit_stand(LPEDICT self) {
-    if (self->holding_position) {
+    if (self->movement.holding_position) {
         unit_setmove(self, unit_affectingcombat(self)
             ? &holdpos_move_stand_ready
             : &holdpos_move_stand);
@@ -87,8 +87,8 @@ void unit_stand(LPEDICT self) {
     self->build = NULL;
     self->s.renderfx &= ~RF_NO_UBERSPLAT;
     self->s.ability = 255;
-    self->move_last_distance = 0;
-    self->move_blocked_frames = 0;
+    self->movement.last_distance = 0;
+    self->movement.blocked_frames = 0;
     
 }
 
@@ -96,7 +96,7 @@ void unit_die(LPEDICT self, LPEDICT attacker) {
     unit_leavecombat(self);
     unit_setmove(self, &unit_move_death);
     /* Destroying a transport ejects its passengers at the wreck. */
-    if (self->cargo_count > 0) {
+    if (self->cargo.count > 0) {
         cargo_drop_all(self);
     }
     /* EVENT_UNIT_DEATH matches widget-specific death triggers

@@ -117,12 +117,12 @@ BOOL G_IsItem(LPCEDICT item) {
 DWORD G_InventoryCapacity(LPCEDICT unit) {
     LPCSTR abilities;
 
-    if (!unit || !unit->inuse || !(abilities = UNIT_ABILITIES_NORMAL(unit->class_id))) return 0;
+    if (!unit || !unit->inuse || !(abilities = unit->UnitAbilities->abilList)) return 0;
     PARSE_LIST(abilities, abil, parse_segment) {
-        LPCSTR base = game.config.abilities ? FS_FindSheetCell(game.config.abilities, abil, "code") : NULL;
         LONG capacity;
 
-        if ((base && strcmp(base, "AInv")) || (!base && strcmp(abil, "AInv"))) continue;
+        /* Typed AbilityData resolves custom inventory abilities without returning to the removed sheet cache. */
+        if (G_AbilityCodeName(abil) != MAKEFOURCC('A','I','n','v')) continue;
         capacity = (LONG)AB_Data(abil, 1, 1); /* inv1 / Item Capacity */
         if (capacity <= 0) {
             fprintf(stderr, "G_InventoryCapacity: %.4s inventory ability %.4s has invalid inv1=%ld\n",

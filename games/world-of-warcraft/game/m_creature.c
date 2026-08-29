@@ -177,11 +177,11 @@ static void Wow_MonsterStart(LPEDICT ent,
     local->attack_damage_point = 250;
     local->attack_backswing = 450;
     ent->svflags |= SVF_MONSTER;
-    ent->idle = Wow_AIIdle;
-    ent->move = Wow_AIMove;
-    ent->think = Wow_RunCreatureFrame;
-    ent->attack = Wow_AIAttack;
-    ent->pain = Wow_AIPain;
+    local->idle = Wow_AIIdle;
+    local->move = Wow_AIMove;
+    local->think = Wow_RunCreatureFrame;
+    local->attack = Wow_AIAttack;
+    local->pain = Wow_AIPain;
     /* EF_HOSTILE fits in the BYTE flags field; RF_HOSTILE (bit 13) overflows renderfx.
      * cl_view.c translates EF_HOSTILE → RF_HOSTILE when building renderEntity_t. */
     ent->s.flags = EF_GROUND_ANCHOR | EF_HOSTILE;
@@ -321,8 +321,8 @@ void Wow_SpawnQuestLocations(LPCVECTOR2 origin) {
          * animation; without a think function the entity loop skips them and
          * they render frozen at frame 0. */
         ent->svflags |= SVF_MONSTER;
-        ent->idle = Wow_AIIdle;
-        ent->think = Wow_RunCreatureFrame;
+        local->idle = Wow_AIIdle;
+        local->think = Wow_RunCreatureFrame;
         Wow_SetStandMove(ent);
         givers++;
         budget--;
@@ -346,7 +346,7 @@ void Wow_SpawnQuestLocations(LPCVECTOR2 origin) {
         local->go_entry = data->quest_id;
         local->go_type = WOW_QUEST_OBJECTIVE_ANCHOR;
         local->go_state = 0;
-        ent->think = Wow_RunGameObjectFrame;
+        local->think = Wow_RunGameObjectFrame;
         ent->s.origin = (VECTOR3){ position.x, position.y, Wow_TerrainHeight(position.x, position.y) };
         ent->s.origin2 = position;
         ent->s.radius = 1.0f;

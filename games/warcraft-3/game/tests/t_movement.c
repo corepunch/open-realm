@@ -622,8 +622,8 @@ TEST(wc3_movement, group_move_travels_at_slowest_member_speed) {
     T_ASSERT(move_selectlocation(clent, &dest));
 
     /* Both units adopt the slowest member's speed for the group move... */
-    T_FEQ(fast->move_group_speed, 100.0f, 0.01f);
-    T_FEQ(slow->move_group_speed, 100.0f, 0.01f);
+    T_FEQ(fast->movement.group_speed, 100.0f, 0.01f);
+    T_FEQ(slow->movement.group_speed, 100.0f, 0.01f);
     /* ...so the fast unit's per-frame travel is capped to the slow speed. */
     T_FEQ(unit_movedistance(fast), 10.0f * 100.0f / (FLOAT)FRAMETIME, 0.01f);
 }
@@ -635,7 +635,7 @@ TEST(wc3_movement, single_unit_move_keeps_own_speed) {
     VECTOR2 dest = {200.0f, 0.0f};
     unit_issueorder(unit, "move", &dest);
 
-    T_FEQ(unit->move_group_speed, 0.0f, 0.01f);
+    T_FEQ(unit->movement.group_speed, 0.0f, 0.01f);
     T_FEQ(unit_movedistance(unit), 10.0f * 300.0f / (FLOAT)FRAMETIME, 0.01f);
 }
 
