@@ -201,6 +201,43 @@ TEST(wc3_slk, typed_strings_are_owned_and_alias_safe) {
     FS_SLKFreeRows(schema, rows, 1, sizeof(*rows));
 }
 
+TEST(wc3_slk, profile_ddx_and_fourcc_metadata_share_typed_row) {
+    sheetField_t homing = { "MissileHoming", "TRUE", NULL };
+    sheetField_t speed = { "Missilespeed", "900", &homing };
+    sheetField_t name = { "Name", "Rifleman", &speed };
+    sheetRow_t row = { "hrif", &name, NULL };
+    sheetRow_t *old = G_SetProfileRows(&row);
+    DWORD id = MAKEFOURCC('h','r','i','f');
+    edict_t unit = { .class_id = id };
+    G_BindEntityData(&unit);
+
+    T_STREQ(G_UnitProfile(id)->name, "Rifleman");
+    T_FEQ(G_UnitProfile(id)->attack[0].speed, 900.f, 0.01f);
+    T_STREQ(UnitMetaString(&unit, MAKEFOURCC('u','n','a','m')), "Rifleman");
+    T_FEQ(UnitMetaReal(&unit, MAKEFOURCC('u','a','1','z')), 900.f, 0.01f);
+    T_ASSERT(UnitMetaBoolean(&unit, MAKEFOURCC('u','m','h','1')));
+    G_SetProfileRows(old);
+}
+
+TEST(wc3_slk, slk_fourcc_metadata_reads_typed_row) {
+    DWORD id = MAKEFOURCC('h','p','e','a');
+    edict_t unit = { .class_id = id };
+    G_BindEntityData(&unit);
+    T_FEQ(UnitMetaReal(&unit, MAKEFOURCC('u','m','v','s')), unit.balance->speed, 0.01f);
+}
+
+TEST(wc3_slk, fourcc_metadata_reads_rows_cached_on_edict) {
+    UnitProfile_t profile = { .name = "Cached Unit" };
+    UnitBalance_t balance = { .level = 17, .speed = 321.5f };
+    UnitUI_t ui = { .hideHeroBar = true };
+    edict_t unit = { .profile = &profile, .balance = &balance, .ui = &ui };
+
+    T_STREQ(UnitMetaString(&unit, MAKEFOURCC('u','n','a','m')), "Cached Unit");
+    T_EQ(UnitMetaInteger(&unit, MAKEFOURCC('u','l','e','v')), 17);
+    T_FEQ(UnitMetaReal(&unit, MAKEFOURCC('u','m','v','s')), 321.5f, 0.01f);
+    T_ASSERT(UnitMetaBoolean(&unit, MAKEFOURCC('u','h','h','b')));
+}
+
 /* -----------------------------------------------------------------------
  * 2.  In-memory SLK parsing (parse_slk_string)
  * --------------------------------------------------------------------- */
@@ -303,6 +340,7 @@ TEST(wc3_slk, global_array_backs_spawned_unit) {
     T_NOT_NULL(g_UnitBalance);
     T_ASSERT(g_UnitBalanceCount > 0);
     SP_CallSpawn(&ent);
+    T_ASSERT(ent.profile == G_UnitProfile(ent.class_id));
     T_ASSERT(ent.balance == G_UnitBalance(ent.class_id));
     T_ASSERT(ent.data == G_UnitData(ent.class_id));
     T_ASSERT(ent.ui == G_UnitUI(ent.class_id));

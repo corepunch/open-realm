@@ -232,7 +232,7 @@ BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_but
     if (w->attack1.damageDice != 0) {
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdAttack, false, 0);
     }
-    if (UNIT_BUILDS(ent->class_id)) {
+    if (G_UnitProfile(ent->class_id)->builds) {
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdBuild, false, 0);
     }
     if (a->heroAbilList) {
@@ -257,8 +257,8 @@ BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_but
             }
         }
     }
-    if (UNIT_TRAINS(ent->class_id)) {
-        PARSE_LIST(UNIT_TRAINS(ent->class_id), unit, parse_segment) {
+    if (G_UnitProfile(ent->class_id)->trains) {
+        PARSE_LIST(G_UnitProfile(ent->class_id)->trains, unit, parse_segment) {
             G_AddCommandButton(ent, buttons, max_buttons, &count, unit, false, 0);
         }
     }

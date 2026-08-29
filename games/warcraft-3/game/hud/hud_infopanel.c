@@ -35,8 +35,8 @@ void UI_WriteSingleInfo(LPEDICT ent) {
     char buffer[128];
     UnitBalance_t const *balance = ent->balance;
     UnitWeapons_t const *weapons = ent->weapons;
-    LPCSTR name = UNIT_PROPER_NAMES(ent->class_id);
-    LPCSTR unit_name = UNIT_NAME(ent->class_id);
+    LPCSTR name = G_UnitProfile(ent->class_id)->properNames;
+    LPCSTR unit_name = G_UnitProfile(ent->class_id)->name;
     BOOL const is_hero = balance->strength > 0 || balance->agility > 0 || balance->intelligence > 0;
     DWORD level = is_hero && ent->hero.level > 0 ? ent->hero.level
                                                  : MAX(1, balance->level);

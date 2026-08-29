@@ -77,12 +77,11 @@ called: `G_FowPlayerCanSeeEntity` still expands `UNIT_IS_BUILDING(ent->class_id)
 is `g_fow_building_cache_count = 0` once during `G_FowInit`. Release `-O2` may remove the unused static helper entirely;
 debug builds may retain it and shift code addresses, but neither case supplies a credible 20% frame-time reduction.
 
-The intended optimization is plausible after wiring and measurement. `UNIT_IS_BUILDING` reaches `UnitBooleanField` and
-`UnitStringField`, which scan map overrides and metadata before `FS_FindSheetCell` linearly scans SLK rows and fields.
-`SV_BuildClientFrame` invokes visibility for eligible entities once per client on every 100 ms server tick. Cache hits by
-class ID would replace those repeated string/table walks with a short class-ID lookup. Test that change separately from
-scene progression, thermal/DVFS state, controller-helper changes, and build-mode changes; Human02 draw counts change as
-the cinematic and entity population advance, so two instantaneous `r_stats` readings are not an A/B benchmark.
+The intended optimization became unnecessary after typed-row binding. `G_BindEntityData` caches each immutable SLK row
+on the edict, and `UnitMetaBoolean`/`UnitMetaString` resolve reflected fields through a compile-time FOURCC descriptor and
+two offsets. Hot visibility code reads `ent->runtime.flags` directly. Test further changes separately from scene
+progression, thermal/DVFS state, controller-helper changes, and build-mode changes; Human02 draw counts change as the
+cinematic and entity population advance, so two instantaneous `r_stats` readings are not an A/B benchmark.
 
 ### PortMaster post-fix address-map audit
 

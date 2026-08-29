@@ -531,10 +531,9 @@ void SP_SpawnUnit(LPEDICT self) {
         self->attack1.origin.x = G_UnitAttack1LaunchX(self->class_id);
         self->attack1.origin.y = G_UnitAttack1LaunchY(self->class_id);
         self->attack1.origin.z = G_UnitAttack1LaunchZ(self->class_id);
-        self->attack1.projectile.model = G_RegisterModel(UNIT_ATTACK1_PROJECTILE_ART(self->class_id));
-        self->attack1.projectile.arc = UNIT_ATTACK1_PROJECTILE_ARC(self->class_id);
-        self->attack1.projectile.speed = UNIT_ATTACK1_PROJECTILE_SPEED(self->class_id);        
-//        printf("%.4s %s\n", &self->class_id, UNIT_ATTACK1_PROJECTILE_ART(self->class_id));
+        self->attack1.projectile.model = G_RegisterModel(G_UnitProfile(self->class_id)->attack[0].art);
+        self->attack1.projectile.arc = G_UnitProfile(self->class_id)->attack[0].arc;
+        self->attack1.projectile.speed = G_UnitProfile(self->class_id)->attack[0].speed;
     }
 
     if ((self->pathtex = M_LoadPathTex(path_tex))) {

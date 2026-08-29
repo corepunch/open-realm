@@ -133,9 +133,11 @@ static void AppendSheetRows(sheetRow_t **head, sheetRow_t **tail, sheetRow_t *ro
     *tail = rows_tail;
 }
 
-sheetMetaData_t *G_FindMetaData(sheetMetaData_t *metadatas, LPCSTR name) {
-    for (sheetMetaData_t *d = metadatas; d->id; d++) {
-        if (!strcmp(d->id, name)) {
+static unitMeta_t const *G_FindMetaData(unitMeta_t const *metadatas, DWORD id) {
+    for (unitMeta_t const *d = metadatas; d->id; d++) {
+        DWORD key;
+        memcpy(&key, d->id, sizeof(DWORD));
+        if (key == id) {
             return d;
         }
     }
@@ -146,60 +148,83 @@ sheetMetaData_t *G_FindMetaData(sheetMetaData_t *metadatas, LPCSTR name) {
  * unit data: the accessor silently resolves to NULL/0. That is how stat bugs
  * hid for so long ("umpc" mana, "udfc" armor, "uinc"/"ustc"/"uagc" attributes).
  * Warn once per code so any such gap surfaces the first time it is read. */
-static void warn_unregistered_field(LPCSTR name) {
-    static char seen[64][8];
+static void warn_unregistered_field(DWORD id) {
+    static DWORD seen[64];
     static DWORD count;
 
     for (DWORD i = 0; i < count; i++) {
-        if (!strcmp(seen[i], name)) {
+        if (seen[i] == id) {
             return;
         }
     }
-    if (count < 64) {
-        strncpy(seen[count], name, sizeof(seen[0]) - 1);
-        count++;
-    }
-    fprintf(stderr,
-            "WARNING: unit-data field code '%s' is not registered in the metadata "
-            "table; it silently reads as 0. Add it to UnitsMetaData[] (g_metadata.h).\n",
-            name);
-}
-
-LPCSTR UnitStringField(sheetMetaData_t *metadatas, DWORD unit_id, LPCSTR name) {
-    FOR_LOOP(n, level.mapinfo->num_userCreatedUnits) {
-        if (level.mapinfo->userCreatedUnits[n].newUnitID == unit_id) {
-            unit_id = level.mapinfo->userCreatedUnits[n].originalUnitID;
-        }
-    }
-    sheetMetaData_t *metadata = G_FindMetaData(metadatas, name);
-    if (!metadata) {
-        warn_unregistered_field(name);
-        return NULL;
-    }
-    if (metadata->table) {
-        return FS_FindSheetCell(metadata->table, GetClassName(unit_id), metadata->field);
-    }
-    return NULL;
-}
-
-LONG UnitIntegerField(sheetMetaData_t *metadatas, DWORD unit_id, LPCSTR name) {
-    LPCSTR str = UnitStringField(metadatas, unit_id, name);
-    return str ? atoi(str) : 0;
-}
-
-BOOL UnitBooleanField(sheetMetaData_t *metadatas, DWORD unit_id, LPCSTR name) {
-    LPCSTR str = UnitStringField(metadatas, unit_id, name);
-    return str && (atoi(str) != 0 || !strcmp(str, "TRUE"));
-}
-
-FLOAT UnitRealField(sheetMetaData_t *metadatas, DWORD unit_id, LPCSTR name) {
-    LPCSTR str = UnitStringField(metadatas, unit_id, name);
-    return str ? atof(str) : 0;
+    if (count < 64) seen[count++] = id;
+    fprintf(stderr, "WARNING: unit-data field code '%.4s' has no DDX metadata entry\n", (LPCSTR)&id);
 }
 
 /* =========================================================================
  * DDX schemas — one entry per SLK column consumed at runtime.
  * =========================================================================*/
+static slkField_t const profile_schema[] = {
+    { "Name",          offsetof(UnitProfile_t, name),              STB_SLK_STR,   "unam" },
+    { "Propernames",   offsetof(UnitProfile_t, properNames),       STB_SLK_STR,   "upro" },
+    { "Builds",        offsetof(UnitProfile_t, builds),            STB_SLK_STR,   "ubui" },
+    { "Trains",        offsetof(UnitProfile_t, trains),            STB_SLK_STR,   "utra" },
+    { "animProps",     offsetof(UnitProfile_t, animProps),         STB_SLK_STR,   "uani" },
+    { "Art",           offsetof(UnitProfile_t, art),               STB_SLK_STR,   "uico" },
+    { "Art",           offsetof(UnitProfile_t, itemArt),           STB_SLK_STR,   "iico" },
+    { "Attachmentanimprops", offsetof(UnitProfile_t, attachmentAnimProps), STB_SLK_STR, "uaap" },
+    { "Attachmentlinkprops", offsetof(UnitProfile_t, attachmentLinkProps), STB_SLK_STR, "ualp" },
+    { "Awakentip",     offsetof(UnitProfile_t, awakenTip),         STB_SLK_STR,   "uawt" },
+    { "Boneprops",     offsetof(UnitProfile_t, boneProps),         STB_SLK_STR,   "ubpr" },
+    { "BuildingSoundLabel", offsetof(UnitProfile_t, buildingSoundLabel), STB_SLK_STR, "ubsl" },
+    { "Buttonpos",     offsetof(UnitProfile_t, buttonPosX),        STB_SLK_STR,   "ubpx" },
+    { "Buttonpos",     offsetof(UnitProfile_t, buttonPosY),        STB_SLK_STR,   "ubpy" },
+    { "Casterupgradeart", offsetof(UnitProfile_t, casterUpgradeArt), STB_SLK_STR, "ucua" },
+    { "Casterupgradename", offsetof(UnitProfile_t, casterUpgradeName), STB_SLK_STR, "ucun" },
+    { "Casterupgradetip", offsetof(UnitProfile_t, casterUpgradeTip), STB_SLK_STR, "ucut" },
+    { "DependencyOr",  offsetof(UnitProfile_t, dependencyOr),      STB_SLK_STR,   "udep" },
+    { "Description",   offsetof(UnitProfile_t, description),       STB_SLK_STR,   "ides" },
+    { "EditorSuffix",  offsetof(UnitProfile_t, editorSuffix),      STB_SLK_STR,   "unsf" },
+    { "Hotkey",        offsetof(UnitProfile_t, hotkey),            STB_SLK_STR,   "uhot" },
+    { "LoopingSoundFadeIn", offsetof(UnitProfile_t, loopingSoundFadeIn), STB_SLK_STR, "ulfi" },
+    { "LoopingSoundFadeOut", offsetof(UnitProfile_t, loopingSoundFadeOut), STB_SLK_STR, "ulfo" },
+    { "Makeitems",     offsetof(UnitProfile_t, makeItems),         STB_SLK_STR,   "umki" },
+    { "Missileart",    offsetof(UnitProfile_t, attack[0].art),     STB_SLK_STR,   "ua1m" },
+    { "Missilearc",    offsetof(UnitProfile_t, attack[0].arc),     STB_SLK_FLOAT, "uma1" },
+    { "Missilespeed",  offsetof(UnitProfile_t, attack[0].speed),   STB_SLK_FLOAT, "ua1z" },
+    { "MissileHoming", offsetof(UnitProfile_t, attack[0].homing),  STB_SLK_BOOL,  "umh1" },
+    { "Missileart",    offsetof(UnitProfile_t, attack[1].art),     STB_SLK_STR,   "ua2m" },
+    { "Missilearc",    offsetof(UnitProfile_t, attack[1].arc),     STB_SLK_FLOAT, "uma2" },
+    { "Missilespeed",  offsetof(UnitProfile_t, attack[1].speed),   STB_SLK_FLOAT, "ua2z" },
+    { "MissileHoming", offsetof(UnitProfile_t, attack[1].homing),  STB_SLK_BOOL,  "umh2" },
+    { "MovementSoundLabel", offsetof(UnitProfile_t, movementSoundLabel), STB_SLK_STR, "umsl" },
+    { "RandomSoundLabel", offsetof(UnitProfile_t, randomSoundLabel), STB_SLK_STR, "ursl" },
+    { "Requirescount", offsetof(UnitProfile_t, requiresCount),     STB_SLK_STR,   "urqc" },
+    { "Requires",      offsetof(UnitProfile_t, requires),          STB_SLK_STR,   "ureq" },
+    { "Requires1",     offsetof(UnitProfile_t, requiresLevel[0]),  STB_SLK_STR,   "urq1" },
+    { "Requires2",     offsetof(UnitProfile_t, requiresLevel[1]),  STB_SLK_STR,   "urq2" },
+    { "Requires3",     offsetof(UnitProfile_t, requiresLevel[2]),  STB_SLK_STR,   "urq3" },
+    { "Requires4",     offsetof(UnitProfile_t, requiresLevel[3]),  STB_SLK_STR,   "urq4" },
+    { "Requires5",     offsetof(UnitProfile_t, requiresLevel[4]),  STB_SLK_STR,   "urq5" },
+    { "Requires6",     offsetof(UnitProfile_t, requiresLevel[5]),  STB_SLK_STR,   "urq6" },
+    { "Requires7",     offsetof(UnitProfile_t, requiresLevel[6]),  STB_SLK_STR,   "urq7" },
+    { "Requires8",     offsetof(UnitProfile_t, requiresLevel[7]),  STB_SLK_STR,   "urq8" },
+    { "Requiresamount", offsetof(UnitProfile_t, requiresAmount),   STB_SLK_STR,   "urqa" },
+    { "Researches",    offsetof(UnitProfile_t, researches),       STB_SLK_STR,   "ures" },
+    { "Revive",        offsetof(UnitProfile_t, revive),           STB_SLK_STR,   "urev" },
+    { "Revivetip",     offsetof(UnitProfile_t, reviveTip),        STB_SLK_STR,   "utpr" },
+    { "ScoreScreenIcon", offsetof(UnitProfile_t, scoreScreenIcon), STB_SLK_STR, "ussi" },
+    { "Sellitems",     offsetof(UnitProfile_t, sellItems),        STB_SLK_STR,   "usei" },
+    { "Sellunits",     offsetof(UnitProfile_t, sellUnits),        STB_SLK_STR,   "useu" },
+    { "Specialart",    offsetof(UnitProfile_t, specialArt),       STB_SLK_STR,   "uspa" },
+    { "Targetart",     offsetof(UnitProfile_t, targetArt),        STB_SLK_STR,   "utaa" },
+    { "Tip",           offsetof(UnitProfile_t, tip),              STB_SLK_STR,   "utip" },
+    { "Reviveat",      offsetof(UnitProfile_t, reviveAt),         STB_SLK_STR,   "urva" },
+    { "Ubertip",       offsetof(UnitProfile_t, uberTip),          STB_SLK_STR,   "utub" },
+    { "Upgrade",       offsetof(UnitProfile_t, upgrade),          STB_SLK_STR,   "uupt" },
+    { NULL, 0, 0, 0 }
+};
+
 static slkField_t const balance_schema[] = {
     { "sortBalance",      offsetof(UnitBalance_t, sortBalance),     STB_SLK_STR   },
     { "sort2",            offsetof(UnitBalance_t, sort2),           STB_SLK_STR   },
@@ -730,6 +755,10 @@ static slkField_t const dest_schema[] = {
  * Decoded row arrays and lookup indexes (allocated at InitUnitData time).
  * =========================================================================*/
 UnitBalance_t *g_UnitBalance; DWORD g_UnitBalanceCount; static slkIndex_t balance_idx;
+UnitProfile_t *g_UnitProfile; DWORD g_UnitProfileCount; static slkIndex_t profile_idx;
+#ifdef BZ_TESTS
+static sheetRow_t *profile_source;
+#endif
 UnitData_t *g_UnitData; DWORD g_UnitDataCount; static slkIndex_t data_idx;
 UnitUI_t *g_UnitUI; DWORD g_UnitUICount; static slkIndex_t ui_idx;
 UnitWeapons_t *g_UnitWeapons; DWORD g_UnitWeaponsCount; static slkIndex_t weapons_idx;
@@ -788,6 +817,45 @@ static void RebuildDDXFromRows(slkIndex_t *idx, slkField_t const *schema,
     FS_SLKBuildIndex(idx, head, *rows_out, n, row_size);
 }
 
+/* Profile data is split across Func/Strings INIs. Decode each metadata field
+ * through the combined list so the typed row preserves first-definition wins. */
+static void RebuildProfileDDX(sheetRow_t const *head) {
+    FS_SLKFreeIndex(&profile_idx); FS_SLKFreeRows(profile_schema, g_UnitProfile, g_UnitProfileCount, sizeof(*g_UnitProfile));
+    g_UnitProfile = NULL; g_UnitProfileCount = 0;
+    DWORD capacity = 0; FOR_EACH_LIST(sheetRow_t const, row, head) capacity++;
+    if (!capacity) return;
+    /* Allocate before duplicate detection; the old count pass dereferenced the still-NULL output array. */
+    g_UnitProfile = calloc(capacity, sizeof(*g_UnitProfile));
+    if (!g_UnitProfile) { fprintf(stderr, "Profile DDX: OOM for %u rows\n", capacity); return; }
+    DWORD out = 0;
+    FOR_EACH_LIST(sheetRow_t const, row, head) {
+        DWORD id = FS_SLKKey(row->name); BOOL found = false;
+        FOR_LOOP(i, out) if (g_UnitProfile[i].id == id) { found = true; break; }
+        if (found) continue;
+        UnitProfile_t *profile = g_UnitProfile + out++;
+        profile->id = id;
+        for (slkField_t const *field = profile_schema; field->column; field++) {
+            LPCSTR value = FS_FindSheetCell((sheetRow_t *)head, row->name, field->column);
+            if (!value) continue;
+            sheetField_t source_field = { field->column, value, NULL };
+            sheetRow_t source_row = { row->name, &source_field, NULL };
+            slkField_t source_schema[] = { *field, { NULL, 0, 0, 0 } };
+            FS_SLKDecodeRow(&source_row, source_schema, profile);
+        }
+    }
+    g_UnitProfileCount = out;
+    profile_idx.keys = malloc(g_UnitProfileCount * sizeof(*profile_idx.keys));
+    profile_idx.rows = malloc(g_UnitProfileCount * sizeof(*profile_idx.rows));
+    if (!profile_idx.keys || !profile_idx.rows) { fprintf(stderr, "Profile DDX: OOM building index\n"); FS_SLKFreeIndex(&profile_idx); return; }
+    profile_idx.count = g_UnitProfileCount;
+    FOR_LOOP(i, profile_idx.count) { profile_idx.keys[i] = g_UnitProfile[i].id; profile_idx.rows[i] = g_UnitProfile + i; }
+    for (DWORD i = 1; i < profile_idx.count; i++) {
+        DWORD key = profile_idx.keys[i], j = i; void *row = profile_idx.rows[i];
+        while (j && profile_idx.keys[j - 1] > key) { profile_idx.keys[j] = profile_idx.keys[j - 1]; profile_idx.rows[j] = profile_idx.rows[j - 1]; j--; }
+        profile_idx.keys[j] = key; profile_idx.rows[j] = row;
+    }
+}
+
 /* Parse SLK from disk, decode and index it, and warn once per column that has
  * no DDX schema entry. The raw rows remain parser-owned source data. */
 static sheetRow_t *ParseSLKInto(LPCSTR path, slkIndex_t *idx, slkField_t const *schema, size_t row_size,
@@ -824,12 +892,18 @@ sheetRow_t *G_SetSLKRows(LPCSTR slk, sheetRow_t *table) {
     fprintf(stderr, "SLK: unknown typed table '%s'\n", slk);
     return NULL;
 }
+
+sheetRow_t *G_SetProfileRows(sheetRow_t *table) {
+    sheetRow_t *old = profile_source;
+    profile_source = table; RebuildProfileDDX(table);
+    return old;
+}
 #endif
 
 /* =========================================================================
  * Public lookup functions.
- * Map-created units remap their ID to the base unit ID, matching the
- * per-call remap that UnitStringField() performs for Profile fallback.
+ * Map-created units remap their ID to the base unit ID before any typed-row
+ * lookup, including FourCC metadata access.
  * =========================================================================*/
 static DWORD ResolveUnitID(DWORD id) {
     if (!level.mapinfo) return id;
@@ -840,7 +914,52 @@ static DWORD ResolveUnitID(DWORD id) {
     return id;
 }
 
+/* Resolve a Warcraft field code through the immutable typed row cached on the edict. */
+static BYTE const *UnitFieldValue(LPEDICT unit, DWORD field_id, bzFieldType_t *type) {
+    unitMeta_t const *metadata = G_FindMetaData(UnitsMetaData, field_id);
+    if (!metadata) { warn_unregistered_field(field_id); return NULL; }
+    BYTE const *row = *(BYTE const * const *)((BYTE const *)unit + metadata->row_offset);
+    if (!row) return NULL;
+    *type = metadata->type;
+    return row + metadata->field_offset;
+}
+
+LPCSTR UnitMetaString(LPEDICT unit, DWORD field_id) {
+    bzFieldType_t type; BYTE const *value = UnitFieldValue(unit, field_id, &type);
+    return value && type == BZ_FIELD_CSTR ? *(LPCSTR const *)value : NULL;
+}
+
+LONG UnitMetaInteger(LPEDICT unit, DWORD field_id) {
+    bzFieldType_t type; BYTE const *value = UnitFieldValue(unit, field_id, &type);
+    if (!value) return 0;
+    switch (type) {
+    case BZ_FIELD_FLOAT: return (LONG)*(FLOAT const *)value;
+    case BZ_FIELD_BOOL: return *(BOOL const *)value;
+    case BZ_FIELD_CSTR: { LPCSTR str = *(LPCSTR const *)value; return str ? atoi(str) : 0; }
+    default: return *(LONG const *)value;
+    }
+}
+
+BOOL UnitMetaBoolean(LPEDICT unit, DWORD field_id) {
+    bzFieldType_t type; BYTE const *value = UnitFieldValue(unit, field_id, &type);
+    if (!value) return false;
+    if (type == BZ_FIELD_BOOL) return *(BOOL const *)value;
+    if (type == BZ_FIELD_FLOAT) return *(FLOAT const *)value != 0;
+    if (type == BZ_FIELD_CSTR) { LPCSTR str = *(LPCSTR const *)value; return str && (atoi(str) || !strcmp(str, "TRUE")); }
+    return *(LONG const *)value != 0;
+}
+
+FLOAT UnitMetaReal(LPEDICT unit, DWORD field_id) {
+    bzFieldType_t type; BYTE const *value = UnitFieldValue(unit, field_id, &type);
+    if (!value) return 0;
+    if (type == BZ_FIELD_FLOAT) return *(FLOAT const *)value;
+    if (type == BZ_FIELD_BOOL) return *(BOOL const *)value;
+    if (type == BZ_FIELD_CSTR) { LPCSTR str = *(LPCSTR const *)value; return str ? atof(str) : 0; }
+    return *(LONG const *)value;
+}
+
 UnitBalance_t const *G_UnitBalance(DWORD id) { static UnitBalance_t zero; UnitBalance_t *row = FS_SLKLookup(&balance_idx, ResolveUnitID(id)); return row ? row : &zero; }
+UnitProfile_t const *G_UnitProfile(DWORD id) { static UnitProfile_t zero; UnitProfile_t *row = FS_SLKLookup(&profile_idx, ResolveUnitID(id)); return row ? row : &zero; }
 UnitData_t const *G_UnitData(DWORD id) { static UnitData_t zero; UnitData_t *row = FS_SLKLookup(&data_idx, ResolveUnitID(id)); return row ? row : &zero; }
 UnitUI_t const *G_UnitUI(DWORD id) { static UnitUI_t zero; UnitUI_t *row = FS_SLKLookup(&ui_idx, ResolveUnitID(id)); return row ? row : &zero; }
 UnitWeapons_t const *G_UnitWeapons(DWORD id) { static UnitWeapons_t zero; UnitWeapons_t *row = FS_SLKLookup(&weapons_idx, ResolveUnitID(id)); return row ? row : &zero; }
@@ -976,10 +1095,10 @@ void InitUnitData(void) {
             AppendSheetRows(&Profile, &profileTail, current);
         }
     }
-    /* Profile/INI fields (UNIT_NAME, UNIT_TRAINS, UNIT_BUILDS, Missileart, etc.)
-     * still use the string-based lookup path. */
-    for (sheetMetaData_t *data = UnitsMetaData; data->id; data++)
-        if (!strcmp(data->slk, "Profile")) data->table = Profile;
+    RebuildProfileDDX(Profile);
+#ifdef BZ_TESTS
+    profile_source = Profile;
+#endif
 
     FOR_LOOP(i, sizeof(slk_stores) / sizeof(*slk_stores)) {
         slkStore_t *store = slk_stores + i;
@@ -993,6 +1112,8 @@ void InitUnitData(void) {
 }
 
 void ShutdownUnitData(void) {
+    FS_SLKFreeIndex(&profile_idx); FS_SLKFreeRows(profile_schema, g_UnitProfile, g_UnitProfileCount, sizeof(*g_UnitProfile));
+    g_UnitProfile = NULL; g_UnitProfileCount = 0;
     FOR_LOOP(i, sizeof(slk_stores) / sizeof(*slk_stores)) {
         slkStore_t *store = slk_stores + i;
         FS_SLKFreeIndex(store->idx);
