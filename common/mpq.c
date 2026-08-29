@@ -42,6 +42,231 @@
 #define MPQ_COMPRESSION_ZLIB 0x02
 #define MPQ_FILE_EXISTS 0x80000000u
 
+#define MPQ_COMP_HUFF         0x01 // mask bit; adaptive Huffman compression
+#define MPQ_COMP_ADPCM_MONO   0x40 // mask bit; one-channel Blizzard ADPCM
+#define MPQ_COMP_ADPCM_STEREO 0x80 // mask bit; two-channel Blizzard ADPCM
+#define MPQ_HUFF_SYMBOLS      258 // symbols; 256 bytes plus end and escape markers
+#define MPQ_HUFF_NODES        515 // nodes; full adaptive tree capacity
+#define MPQ_ADPCM_INIT_STEP   44 // table index; Blizzard ADPCM initial quantizer step
+
+typedef struct mpqHuffNode_s {
+    struct mpqHuffNode_s *next, *prev, *parent, *low;
+    DWORD value, weight;
+} mpqHuffNode_t;
+
+typedef struct {
+    mpqHuffNode_t head, nodes[MPQ_HUFF_NODES];
+    mpqHuffNode_t *symbols[MPQ_HUFF_SYMBOLS];
+    DWORD used;
+} mpqHuffTree_t;
+
+typedef struct {
+    BYTE const *cur, *end;
+    DWORD bits, count;
+} mpqBitReader_t;
+
+typedef struct {
+    BYTE const *src;
+    DWORD src_size;
+    BYTE *dst;
+    DWORD dst_size;
+    DWORD out_size;
+} mpqDecompress_t;
+
+/* WC3 voice sectors use profile 7: a stereo-oriented distribution also used
+ * for Blizzard's ordinary 5-bit ADPCM stream before channel reconstruction. */
+static BYTE const mpq_huff_profile7[256] = {
+    0xc3,0xd9,0xef,0x3d,0xf9,0x7c,0xe9,0x1e,0xfd,0xab,0xf1,0x2c,0xfc,0x5b,0xfe,0x17,
+    [64]=0xbd,0xd9,0xec,0x3d,0xf5,0x7d,0xe8,0x1d,0xfb,0xae,0xf0,0x2c,0xfb,0x5c,0xff,0x18,
+    [128]=0x70,0x6c
+};
+
+static int const mpq_adpcm_next[32] = {
+    -1,0,-1,4,-1,2,-1,6,-1,1,-1,5,-1,3,-1,7,
+    -1,1,-1,5,-1,3,-1,7,-1,2,-1,4,-1,6,-1,8
+};
+
+static int const mpq_adpcm_step[89] = {
+    7,8,9,10,11,12,13,14,16,17,19,21,23,25,28,31,34,37,41,45,50,55,60,66,73,80,88,97,107,118,
+    130,143,157,173,190,209,230,253,279,307,337,371,408,449,494,544,598,658,724,796,876,963,1060,
+    1166,1282,1411,1552,1707,1878,2066,2272,2499,2749,3024,3327,3660,4026,4428,4871,5358,5894,
+    6484,7132,7845,8630,9493,10442,11487,12635,13899,15289,16818,18500,20350,22385,24623,27086,
+    29794,32767
+};
+
+static void Mpq_HuffLink(mpqHuffNode_t *at, mpqHuffNode_t *node) {
+    node->next = at->next; node->prev = at; at->next->prev = node; at->next = node;
+}
+
+static void Mpq_HuffRemove(mpqHuffNode_t *node) {
+    if (!node->next) return;
+    node->prev->next = node->next; node->next->prev = node->prev; node->next = node->prev = NULL;
+}
+
+static mpqHuffNode_t *Mpq_HuffNew(mpqHuffTree_t *tree, DWORD value, DWORD weight, mpqHuffNode_t *at) {
+    if (tree->used >= MPQ_HUFF_NODES) return NULL;
+    mpqHuffNode_t *node = &tree->nodes[tree->used++];
+    memset(node, 0, sizeof(*node)); node->value = value; node->weight = weight; Mpq_HuffLink(at, node);
+    return node;
+}
+
+static mpqHuffNode_t *Mpq_HuffHigher(mpqHuffTree_t *tree, mpqHuffNode_t *node, DWORD weight) {
+    for (; node != &tree->head; node = node->prev) if (node->weight >= weight) return node;
+    return &tree->head;
+}
+
+static DWORD Mpq_HuffFix(mpqHuffTree_t *tree, mpqHuffNode_t *node, DWORD max_weight) {
+    if (node->weight >= max_weight) return node->weight;
+    mpqHuffNode_t *higher = Mpq_HuffHigher(tree, tree->head.prev, node->weight);
+    Mpq_HuffRemove(node); Mpq_HuffLink(higher, node);
+    return max_weight;
+}
+
+/* Build the exact initial FGK tree selected by the stream's profile byte. */
+static BOOL Mpq_HuffBuild(mpqHuffTree_t *tree, DWORD profile) {
+    if (profile != 7) return FALSE;
+    memset(tree, 0, sizeof(*tree)); tree->head.next = tree->head.prev = &tree->head;
+    DWORD max_weight = 0;
+    FOR_LOOP(i, 256) {
+        if (!mpq_huff_profile7[i]) continue;
+        mpqHuffNode_t *node = Mpq_HuffNew(tree, i, mpq_huff_profile7[i], &tree->head);
+        if (!node) return FALSE;
+        tree->symbols[i] = node; max_weight = Mpq_HuffFix(tree, node, max_weight);
+    }
+    tree->symbols[256] = Mpq_HuffNew(tree, 256, 1, tree->head.prev);
+    tree->symbols[257] = Mpq_HuffNew(tree, 257, 1, tree->head.prev);
+    for (mpqHuffNode_t *low = tree->head.prev; low != &tree->head;) {
+        mpqHuffNode_t *high = low->prev;
+        if (high == &tree->head) break;
+        mpqHuffNode_t *parent = Mpq_HuffNew(tree, 0, high->weight + low->weight, &tree->head);
+        if (!parent) return FALSE;
+        low->parent = high->parent = parent; parent->low = low;
+        max_weight = Mpq_HuffFix(tree, parent, max_weight); low = high->prev;
+    }
+    return TRUE;
+}
+
+static void Mpq_HuffRebalance(mpqHuffTree_t *tree, mpqHuffNode_t *node) {
+    for (; node; node = node->parent) {
+        node->weight++;
+        mpqHuffNode_t *higher = Mpq_HuffHigher(tree, node->prev, node->weight);
+        mpqHuffNode_t *swap = higher->next;
+        if (swap == node) continue;
+        Mpq_HuffRemove(swap); Mpq_HuffLink(node, swap);
+        Mpq_HuffRemove(node); Mpq_HuffLink(higher, node);
+        mpqHuffNode_t *low = swap->parent->low, *parent = node->parent;
+        if (parent->low == node) parent->low = swap;
+        if (low == swap) swap->parent->low = node;
+        node->parent = swap->parent; swap->parent = parent;
+    }
+}
+
+static BOOL Mpq_HuffInsert(mpqHuffTree_t *tree, DWORD value) {
+    mpqHuffNode_t *escape = tree->head.prev;
+    mpqHuffNode_t *high = Mpq_HuffNew(tree, escape->value, escape->weight, tree->head.prev);
+    mpqHuffNode_t *low = Mpq_HuffNew(tree, value, 0, tree->head.prev);
+    if (!high || !low) return FALSE;
+    high->parent = low->parent = escape; escape->low = low;
+    tree->symbols[value] = low; Mpq_HuffRebalance(tree, low);
+    return TRUE;
+}
+
+static BOOL Mpq_ReadBits(mpqBitReader_t *r, DWORD count, DWORD *value) {
+    while (r->count < count) {
+        if (r->cur >= r->end) return FALSE;
+        r->bits |= (DWORD)*r->cur++ << r->count; r->count += 8;
+    }
+    *value = r->bits & ((1u << count) - 1); r->bits >>= count; r->count -= count;
+    return TRUE;
+}
+
+static BOOL Mpq_HuffDecode(BYTE const *src, DWORD src_size, BYTE *dst, DWORD cap, DWORD *out_size) {
+    mpqBitReader_t bits = { src, src + src_size, 0, 0 };
+    mpqHuffTree_t tree;
+    DWORD profile, used = 0;
+    if (!Mpq_ReadBits(&bits, 8, &profile) || !Mpq_HuffBuild(&tree, profile)) return FALSE;
+    while (used < cap) {
+        mpqHuffNode_t *node = tree.head.next;
+        while (node->low) {
+            DWORD bit;
+            if (!Mpq_ReadBits(&bits, 1, &bit)) return FALSE;
+            node = bit ? node->low->prev : node->low;
+        }
+        DWORD value = node->value;
+        if (value == 256) { *out_size = used; return TRUE; }
+        if (value == 257) {
+            if (!Mpq_ReadBits(&bits, 8, &value) || !Mpq_HuffInsert(&tree, value)) return FALSE;
+            node = tree.symbols[value]; Mpq_HuffRebalance(&tree, node);
+        }
+        dst[used++] = (BYTE)value;
+    }
+    *out_size = used;
+    return TRUE;
+}
+
+static void Mpq_WriteShort(BYTE **dst, int value) {
+    (*dst)[0] = (BYTE)value; (*dst)[1] = (BYTE)(value >> 8); *dst += 2;
+}
+
+/* Expand Blizzard's byte-coded differential samples into interleaved PCM16. */
+static BOOL Mpq_AdpcmDecode(BYTE const *src, DWORD src_size, BYTE *dst, DWORD cap, DWORD channels, DWORD *out_size) {
+    if (channels < 1 || channels > 2 || src_size < 2 + channels * 2 || cap < channels * 2) return FALSE;
+    BYTE const *cur = src + 2, *end = src + src_size;
+    BYTE *out = dst, *out_end = dst + cap;
+    int shift = src[1], channel = (int)channels - 1;
+    int predicted[2] = {0}, step_index[2] = { MPQ_ADPCM_INIT_STEP, MPQ_ADPCM_INIT_STEP };
+    FOR_LOOP(i, channels) {
+        predicted[i] = (short)(cur[0] | (cur[1] << 8)); cur += 2; Mpq_WriteShort(&out, predicted[i]);
+    }
+    while (cur < end) {
+        int code = *cur++;
+        channel = (channel + 1) % (int)channels;
+        if (code == 0x80) {
+            if (step_index[channel]) step_index[channel]--;
+        } else if (code == 0x81) {
+            step_index[channel] += 8;
+            if (step_index[channel] > 88) step_index[channel] = 88;
+            channel = (channel + 1) % (int)channels;
+            continue;
+        } else {
+            int step = mpq_adpcm_step[step_index[channel]], diff = step >> shift;
+            FOR_LOOP(bit, 6) if (code & (1 << bit)) diff += step >> bit;
+            predicted[channel] += (code & 0x40) ? -diff : diff;
+            if (predicted[channel] < -32768) predicted[channel] = -32768;
+            if (predicted[channel] > 32767) predicted[channel] = 32767;
+            step_index[channel] += mpq_adpcm_next[code & 0x1f];
+            if (step_index[channel] < 0) step_index[channel] = 0;
+            if (step_index[channel] > 88) step_index[channel] = 88;
+        }
+        if (out_end - out < 2) break;
+        Mpq_WriteShort(&out, predicted[channel]);
+    }
+    *out_size = (DWORD)(out - dst);
+    return *out_size != 0;
+}
+
+/* Decode the MPQ method byte in Blizzard's prescribed method order. */
+static BOOL Mpq_DecompressSector(mpqDecompress_t *p) {
+    if (!p || !p->src || !p->dst || !p->src_size || !p->dst_size) return FALSE;
+    if (p->src_size == p->dst_size) { memcpy(p->dst, p->src, p->src_size); p->out_size = p->src_size; return TRUE; }
+    BYTE mask = p->src[0];
+    if (mask == MPQ_COMPRESSION_ZLIB) {
+        uLongf size = p->dst_size;
+        if (uncompress(p->dst, &size, p->src + 1, p->src_size - 1) != Z_OK) return FALSE;
+        p->out_size = (DWORD)size; return TRUE;
+    }
+    if (mask == (MPQ_COMP_HUFF | MPQ_COMP_ADPCM_MONO) || mask == (MPQ_COMP_HUFF | MPQ_COMP_ADPCM_STEREO)) {
+        BYTE *tmp = malloc(p->dst_size);
+        DWORD tmp_size = 0, channels = mask & MPQ_COMP_ADPCM_STEREO ? 2 : 1;
+        if (!tmp) return FALSE;
+        BOOL huff_ok = Mpq_HuffDecode(p->src + 1, p->src_size - 1, tmp, p->dst_size, &tmp_size);
+        BOOL ok = huff_ok && Mpq_AdpcmDecode(tmp, tmp_size, p->dst, p->dst_size, channels, &p->out_size);
+        free(tmp); return ok;
+    }
+    fprintf(stderr, "MPQ: unsupported sector compression mask 0x%02x\n", mask);
+    return FALSE;
+}
+
 typedef struct {
     DWORD dwID;                 // "MPQ\x1a"
     DWORD dwHeaderSize;         // Size of MPQ header
@@ -1541,13 +1766,13 @@ BOOL SFileReadFile(HANDLE file, void *buffer, DWORD toRead, LPDWORD bytesRead, L
             break;
         }
 
+        if (mpqfile->flags & MPQ_FILE_ENCRYPTED)
+            DecryptBlock(compressed, sector_compressed_size, mpqfile->file_key + sector_start);
         if (!TryInflateSector(compressed, sector_compressed_size, sector_uncompressed_size, mpq->sector_buffer, &bytes_in_sector)) {
-            if (mpqfile->flags & MPQ_FILE_ENCRYPTED) {
-                DecryptBlock(compressed, sector_compressed_size, mpqfile->file_key + sector_start);
-                if (!TryInflateSector(compressed, sector_compressed_size, sector_uncompressed_size, mpq->sector_buffer, &bytes_in_sector)) {
-                    free(compressed);
-                    break;
-                }
+            mpqDecompress_t dec = { compressed, sector_compressed_size, mpq->sector_buffer,
+                                    sector_uncompressed_size, 0 };
+            if (Mpq_DecompressSector(&dec)) {
+                bytes_in_sector = dec.out_size;
             } else if (sector_compressed_size >= sector_uncompressed_size) {
                 memcpy(mpq->sector_buffer, compressed, sector_uncompressed_size);
                 bytes_in_sector = sector_uncompressed_size;

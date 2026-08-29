@@ -12,7 +12,14 @@
 | `FS_MmapFile(name, &size)` | loose-file only | `void *` | `mmap` backed by file | `FS_MunmapFile` |
 | `FS_ReadFileAll(name, cb, ud)` | loose or MPQ path | none (callback) | same as FS_ReadFile | caller owns buffer in callback |
 
-`FS_ReadFile` tries MPQ archives first (`FS_OpenFile` → StormLib), falls back to `FS_ReadLooseFile`.
+`FS_ReadFile` tries MPQ archives first (`FS_OpenFile` → the in-tree `common/mpq.c` reader), then falls back to
+`FS_ReadLooseFile`.
+
+WC3 voice WAV sectors commonly use an encrypted mixed compression stream: the first sector is zlib (`0x02`), while
+later sectors use adaptive Huffman followed by mono ADPCM (`0x41`; stereo is `0x81`). `common/mpq.c` applies
+those methods in mask order. Returning the successfully decoded prefix is not a valid recovery: it leaves a valid
+RIFF header with only one 4096-byte sector, which sounds like a sharply cropped syllable. Callers that request a
+whole file must verify `bytesRead == SFileGetFileSize()`.
 
 `FS_Init` always mounts the resolved base `share/` dir as the built-in loose asset root (engine fonts at its
 top level; per-game read-only defaults under `share/<game>/`, installed from `games/<game>/share/`). Mounted game
