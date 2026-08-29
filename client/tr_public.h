@@ -94,7 +94,7 @@ typedef struct {
     
     HANDLE (*MemAlloc)(long size);
     void (*MemFree)(HANDLE);
-    BOOL (*LoadSlkCache)(stbSlkCache_t *cache, LPCSTR filename, slkField_t const *schema, DWORD row_stride);
+    DWORD (*LoadSlk)(LPCSTR filename, slkField_t const *schema, void **dest, DWORD row_stride);
     LPCSTR (*CvarString)(LPCSTR name, LPCSTR fallback);
     void (*error)(LPCSTR fmt, ...);
 } refImport_t;
