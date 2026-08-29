@@ -132,6 +132,11 @@ Draw paths fill values and call `R_ApplyShader(&shader)` immediately before the 
 setting up an unchanged splat batch). `R_UploadShader(&shader.prog, &state)` also accepts a separate
 state value. Only `renderer/r_shader.c` calls `glGetUniformLocation` or `glUniform*`.
 
+This is the renderer's DDX-style table, but `uniformType_t` intentionally remains separate from parser
+`bzFieldType_t`. Uniform types encode GLSL declarations, sampler targets, matrix transpose behavior, and
+`glUniform*` dispatch; parser field types encode conversion and CPU destination storage. Share the descriptor
+pattern and native math structs, not enums whose runtime contracts differ.
+
 - State booleans are C `bool` and GLSL `bool`, including WoW `useWeightedBlend`, `singleTexture`,
   `wmoIndoor`, model alpha-key/unshaded/fog flags. The backend converts to GLint for GL; never read
   a bool through a GLint pointer. WMO blend mode remains an integer, since it is not a boolean.

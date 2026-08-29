@@ -85,6 +85,8 @@ No manual `if/else`, `strcmp` ladders, or ad hoc token handlers. Adding a field 
 
 Treat the table as a grammar, not merely a lookup optimization. Ordinary scalar productions use `{ name/column/tag, offset, type, count/flags }`; nested, repeated, versioned, or context-sensitive productions use explicit callbacks referenced by that grammar. Keep data-layer merging and inheritance after decoding so an absent field remains distinguishable from an authored zero.
 
+Parser descriptors share `bzFieldType_t` from `common/shared.h`. These values describe conversion and destination-storage contracts, not source syntax: DBC's `STB_DBC_STR` aliases pointer-valued `BZ_FIELD_CSTR`, while SC2 XML's string field aliases bounded inline `BZ_FIELD_CHAR_ARRAY`. The source parser remains responsible for little-endian reads versus textual conversion and must reject shared types it cannot decode. Shader descriptors use the same table pattern but keep `uniformType_t`; samplers, GLSL matrix forms, precision, and `glUniform*` dispatch are a GPU ABI rather than parser field types.
+
 The same idea covers **binary** files: WoW DBC rows are read with a `stbDbcField_t` schema table
 (`{ column, offsetof(struct, field), type, count }`) plus `Stb_DbcParseRows` / `Stb_DbcCacheDecode`, where a
 file-shaped struct mirrors the consumed subset of a row and a per-version dispatch function picks the schema when a

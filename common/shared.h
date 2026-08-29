@@ -66,6 +66,18 @@ static inline size_t bz_strlcat(char *destination, const char *source, size_t si
   #include <stdbool.h>
 #endif
 
+/* Descriptor grammars share conversion contracts; source readers still own byte/text decoding. */
+typedef enum {
+        BZ_FIELD_U32,
+        BZ_FIELD_FLOAT,
+        BZ_FIELD_BOOL,
+        BZ_FIELD_CSTR,
+        BZ_FIELD_CHAR_ARRAY,
+        BZ_FIELD_VEC3,
+        BZ_FIELD_COLOR32_ARGB,
+        BZ_FIELD_COLOR32_RGBA,
+} bzFieldType_t;
+
 #define KNOWN_AS(STRUCT, TYPE) \
 typedef struct STRUCT TYPE; \
 typedef struct STRUCT *LP##TYPE; \

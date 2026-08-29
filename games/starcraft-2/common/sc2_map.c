@@ -120,20 +120,18 @@ typedef struct {
     sc2CatalogSound_t sounds[SC2_MAX_CATALOG_SOUNDS];
 } sc2Catalog_t;
 
-typedef enum {
-    SC2_XML_FIELD_DWORD,
-    SC2_XML_FIELD_FLOAT,
-    SC2_XML_FIELD_STRING,
-    SC2_XML_FIELD_VEC3,
-    SC2_XML_FIELD_COLOR_ARGB,
-    SC2_XML_FIELD_COLOR_RGBA,
-} sc2XmlFieldType_t;
+#define SC2_XML_FIELD_DWORD      BZ_FIELD_U32
+#define SC2_XML_FIELD_FLOAT      BZ_FIELD_FLOAT
+#define SC2_XML_FIELD_STRING     BZ_FIELD_CHAR_ARRAY
+#define SC2_XML_FIELD_VEC3       BZ_FIELD_VEC3
+#define SC2_XML_FIELD_COLOR_ARGB BZ_FIELD_COLOR32_ARGB
+#define SC2_XML_FIELD_COLOR_RGBA BZ_FIELD_COLOR32_RGBA
 
 typedef struct {
-    LPCSTR            name;
-    size_t            offset;
-    sc2XmlFieldType_t type;
-    DWORD             size;
+    LPCSTR        name;
+    size_t        offset;
+    bzFieldType_t type;
+    DWORD         size;
 } sc2XmlField_t;
 
 typedef struct {
