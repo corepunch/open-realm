@@ -342,6 +342,33 @@ TEST(wc3_movement, gold_worker_deposits_and_resumes_mining) {
     T_EQ(trace.msg[4].target, mine->s.number);
 }
 
+/* A large Town Hall footprint can block the next step before the old +5u
+ * deposit tolerance is reached. The interaction must complete at contact plus
+ * one simulation step, just like entering a gold mine. */
+TEST(wc3_movement, gold_return_deposits_at_next_step_contact) {
+    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
+    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), -400.0f, 0.0f);
+    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 220.0f, 0.0f);
+    DWORD const old_gold = game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD];
+
+    worker->collision = 16.0f; worker->unitinfo.MoveSpeed = 190.0f;
+    mine->collision = 128.0f; mine->s.model = 1; mine->peonsinside = 1;
+    hall->collision = 192.0f; hall->s.model = 1; hall->s.player = worker->s.player;
+    gi.LinkEntity(worker); gi.LinkEntity(mine); gi.LinkEntity(hall);
+    HARVEST_GOLD_CAPACITY = 10.0f;
+    worker->goalentity = mine; worker->secondarygoal = mine;
+
+    harvestgold_walkback(worker);
+    T_ASSERT(M_DistanceToGoal(worker) > worker->collision + hall->collision + 5.0f);
+    T_ASSERT(M_DistanceToGoal(worker) <= worker->collision + hall->collision + unit_movedistance(worker));
+    worker->currentmove->think(worker);
+
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD], old_gold + 10);
+    T_EQ(worker->harvested_gold, 0);
+    T_ASSERT(!(worker->s.renderfx & RF_HAS_GOLD));
+    T_ASSERT(worker->goalentity == mine);
+}
+
 /* Unsubscription is part of the callback lifetime contract. */
 TEST(wc3_movement, gameplay_message_unsubscribe_stops_delivery) {
     LPEDICT worker = make_moving_unit(0.0f, 0.0f);
