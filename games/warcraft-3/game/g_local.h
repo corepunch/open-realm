@@ -552,6 +552,11 @@ struct edict_s {
     DWORD damage;
     DWORD resources;
     DWORD freetime;
+    struct {
+        LPEDICT mine;
+        DWORD mine_spawn_time;
+        BOOL restore_invulnerable;
+    } goldmine;
     LPEDICT inventory[MAX_INVENTORY];
     struct {
         LPEDICT carrier;
@@ -1065,6 +1070,14 @@ extern umove_t holdpos_move_stand;
 extern umove_t holdpos_move_stand_ready;
 void unit_stand(LPEDICT);
 BOOL G_ActorHasSkill(LPEDICT, LPCSTR);
+BOOL S_GoldMineIsMine(LPCEDICT);
+DWORD S_GoldMineMaximumGold(LPCEDICT);
+FLOAT S_GoldMineMiningDuration(LPCEDICT);
+DWORD S_GoldMineCapacity(LPCEDICT);
+BOOL S_GoldMineCanHarvest(LPCEDICT);
+BOOL S_GoldMineWorkerIsInside(LPCEDICT);
+void S_GoldMineInitUnit(LPEDICT);
+void S_GoldMineReleaseWorker(LPEDICT);
 void harvest_start(LPEDICT, LPEDICT);
 void harvest_gold_start(LPEDICT, LPEDICT);
 void cargo_drop_all(LPEDICT);

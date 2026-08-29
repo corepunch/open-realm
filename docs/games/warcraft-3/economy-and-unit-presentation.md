@@ -5,7 +5,7 @@
 `unit_issuetargetorder(..., "smart", target)` routes workers with `Ahar` to gold or lumber in `m_unit.c`.
 The Gather command reaches the same state machines through `harvest_menu_selecttarget`.
 
-- Gold: `harvest_gold_start` -> walk to mine -> hidden mining wait -> nearest live same-owner drop-off accepting gold -> deposit -> resume the mine.
+- Gold: `harvest_gold_start` -> walk to mine -> capacity-gated hidden mining wait -> carry finite mine gold -> nearest live same-owner drop-off accepting gold -> deposit -> resume the mine while it remains harvestable.
 - Lumber: `harvest_start` -> walk into `HARVEST_RANGE` -> swing/damage -> carry lumber -> nearest live same-owner drop-off accepting lumber -> deposit -> resume or find another tree.
 - `s_goldmine.c` uses the worker+mine collision contact radius plus one movement step as the entry boundary. Mine footprints are
   authoritative; do not restore the old fixed 180-unit radius.
@@ -16,9 +16,31 @@ The gold regression followed commit `55724517`, which correctly changed building
 still used a fixed 180-unit radius. Entry now uses worker radius + mine radius + one movement step, so a worker transitions before
 the collision solver prevents the next step.
 
-A second stop-at-the-mine failure came from initialization order: `Agld` loaded capacity 1, then the registered `Agl2` placeholder
-reused `SP_ability_goldmine` even though no `Agl2` row exists, resetting the shared capacity to zero. At contact, `0 < 0` failed and
-the worker waited forever. `a_goldmine_overlayed` deliberately has no initializer until its authoritative data/behavior is implemented.
+Gold-mine tuning is no longer copied into process-wide globals. `s_goldmine.c` resolves the mine entity's own `UnitAbilities.slk`
+list, follows `AbilityData.slk:code` to the `Agld` base ability, and reads Data1/Data2/Data3 as maximum gold, mining duration, and
+internal mining capacity. This is required for custom maps where two `Agld`-derived abilities can configure different capacities or
+durations in the same simulation. `Agl2` remains a separate marker until its overlay behavior is implemented; it cannot overwrite
+`Agld` mining data.
+
+### Gold Mine Capacity And Occupancy
+
+The familiar "five workers on gold" is economic saturation, not mine occupancy. Stock `Agld` data resolves to mining capacity 1, so
+only one worker may be hidden inside a normal Human/Orc mine at a time. Additional workers retain their Harvest state outside the
+mine and are reconsidered when a miner exits. The authoritative occupancy counter remains `mine->peonsinside`; each admitted worker
+also stores the exact mine pointer and spawn generation in `worker->goldmine` so duplicate admission cannot increment the counter
+twice and an edict recycled while a worker is hidden cannot be decremented accidentally.
+
+Entry sets `RF_HIDDEN` and temporary invulnerability. The generic `paused` flag is intentionally not used because
+`monster_think()` returns immediately for paused units and would stop the internal mining timer as well. Instead, the three normal
+order entry points reject orders while `S_GoldMineWorkerIsInside()` is true. Exit always unregisters once, restores the worker's prior
+invulnerability state, reveals it, and wakes waiting workers. `G_FreeEdict()` also calls `S_GoldMineReleaseWorker()` before clearing an
+entity, so scripted removal of an inside miner cannot strand the mine's occupancy counter.
+
+The mine's `resources` field is its remaining gold. `S_GoldMineInitUnit()` initializes a newly spawned `Agld`-derived mine from the
+ability's maximum-gold field; map/JASS `SetResourceAmount` can then override that value normally. A completed mining interval transfers
+`min(mine->resources, HARVEST_GOLD_CAPACITY)` to the worker and subtracts exactly that amount from the mine. A partial final trip is
+therefore possible. When the remaining amount reaches zero, the mine enters its death/depleted state before waiting workers are
+woken, so none can enter an empty mine. A worker that deposits the final trip does not resume walking back to the depleted mine.
 
 ### Resource Return Drop-Offs
 
@@ -57,11 +79,12 @@ also gets stuck. History matters: `5f6d4e5d4` added collision-relative entry; `a
 ROC/TFT ability-column lookup. An older package is a hypothesis until its revision is confirmed. The August 26 handheld report
 states the latest build from August 25 was used, so do not attribute that report to the August 24 fixes without checking its SHA.
 
-Distinguish the states: `ai_walkmine` keeps the walk animation while outside the entry threshold; a full or zero-capacity mine
-switches to `harvestgold_move_wait` (stand). First verify `unit_issuetargetorder` actually calls `harvest_gold_start`: smart orders
-require worker `Ahar` and target `Agld`; otherwise a non-enemy target becomes a plain move to its center, which also stops at collision.
-For a failing bounded run, temporarily log distance, both collision radii,
-`unit_movedistance`, occupancy, and capacity at these transitions. If the worker remains outside entry range, log rejection in
+Distinguish the states: `ai_walkmine` keeps the walk animation while outside the entry threshold; a full mine switches to
+`harvestgold_move_wait` (stand), while an empty/dead/zero-capacity mine is not harvestable. First verify `unit_issuetargetorder` actually
+calls `harvest_gold_start`: smart orders require worker `Ahar` and an `Agld`-derived target; otherwise a non-enemy target becomes a
+plain move to its center, which also stops at collision. For a failing bounded run, temporarily log distance, both collision radii,
+`unit_movedistance`, occupancy, per-mine capacity, and remaining `resources` at these transitions. If the worker remains outside entry
+range, log rejection in
 `g_ai.c:move_is_valid` separately for static pathmap and entity-circle collision. Do not enlarge the entry radius without this evidence.
 Movement uses `FRAMETIME` through `unit_movedistance`; low rendering FPS alone does not shrink the per-tick entry allowance.
 
@@ -72,11 +95,11 @@ make openwarcraft3-tests
 build/bin/openwarcraft3-tests -data 'data/Warcraft III' +dedicated 1 +test 'wc3_movement.gold_*' +com_frame_limit 100
 ```
 
-Local investigation at `8204597d` passed all four gold tests (40 assertions) with both archive modes. Temporary logs confirmed
-`Agld` initialization as max=12500, duration=1, capacity=1 in both local archive sets. The entry fixture reached distance=150 with
-contact=144 and step=10, then entered. **These tests replace the pathmap with an open map and override mining globals**; they verify
-the state machine/circle boundary, not a particular map's baked mine footprint or the remote console. A remote platform-specific
-cause remains unconfirmed without its build, assets/map, and runtime evidence.
+Historical investigation at `8204597d` confirmed `Agld` as max=12500, duration=1, capacity=1 in both local archive sets. The entry
+fixture reached distance=150 with contact=144 and step=10, then entered. Current movement tests inject typed `AbilityData` rows instead
+of overriding mining globals; they cover stock capacity 1 with six assigned workers, mixed custom capacities/durations, duplicate
+entry/order rejection, finite-gold depletion, and partial final trips. The open test pathmap still verifies the state-machine/circle
+boundary rather than a particular map's baked mine footprint.
 
 #### Human02 starting mine
 
@@ -228,8 +251,9 @@ make test-wc3-engine WC3_PATTERN='wc3_game.hud_*'
 make test-wc3-engine WC3_PATTERN='wc3_game.overhead_*'
 ```
 
-The movement suite covers large-footprint mine entry, the complete gold deposit/resume cycle, trained-unit exit placement against
-static footprints, nearest compatible lumber drop-off selection, rejection of lumber-only drop-offs for gold, drop-off destruction
-retargeting, exact lethal tree trips with next-tree selection, the no-live-tree stop path, non-lethal chops, and both sides of
-the immobility contract. The in-engine fixture
+The movement suite covers large-footprint mine entry, the complete gold deposit/resume cycle, stock capacity 1 under six assigned
+workers, independent custom mine capacities/durations, non-orderable inside miners, finite-gold depletion and partial final trips,
+trained-unit exit placement against static footprints, nearest compatible lumber drop-off selection, rejection of lumber-only
+drop-offs for gold, drop-off destruction retargeting, exact lethal tree trips with next-tree selection, the no-live-tree stop path,
+non-lethal chops, and both sides of the immobility contract. The in-engine fixture
 `games/warcraft-3/tests/resources-src/Units/UnitUI.slk` supplies `isbldg` for the same metadata lookup used by the game.

@@ -338,7 +338,7 @@ ability_t a_return_resources = {
 
 /* ---- Harvest menu dispatch (extended for wisp/acolyte) ------------------ */
 BOOL harvest_menu_selecttarget(LPEDICT clent, LPEDICT target) {
-    if (G_ActorHasSkill(target, "Agld")) {
+    if (S_GoldMineIsMine(target)) {
         FOR_SELECTED_UNITS(clent->client, ent) {
             harvest_gold_start(ent, target);
         }

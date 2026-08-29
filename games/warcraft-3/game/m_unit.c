@@ -135,12 +135,14 @@ BOOL unit_issuetargetorder(LPEDICT self, LPCSTR order, LPEDICT target) {
     if (!self || !order || !target) {
         return false;
     }
+    if (S_GoldMineWorkerIsInside(self))
+        return false;
     if (!strcmp(order, "smart")) {
         if (G_IsItem(target)) {
             return G_OrderPickupItem(self, target);
         }
         if (G_ActorHasSkill(self, "Ahar")) {
-            if (G_ActorHasSkill(target, "Agld")) {
+            if (S_GoldMineIsMine(target)) {
                 harvest_gold_start(self, target);
                 return true;
             }
@@ -179,6 +181,8 @@ BOOL unit_issueorder(LPEDICT self, LPCSTR order, LPCVECTOR2 point) {
     if (!self || !order || !point) {
         return false;
     }
+    if (S_GoldMineWorkerIsInside(self))
+        return false;
     if (self->aiflags & AI_IMMOBILE)
         return false;
     if (!strcmp(order, "move") || !strcmp(order, "attack")) {
@@ -196,6 +200,8 @@ BOOL unit_issueimmediateorder(LPEDICT self, LPCSTR order) {
     if (!self || !order) {
         return false;
     }
+    if (S_GoldMineWorkerIsInside(self))
+        return false;
     if (!strcmp(order, "stop")) {
         order_stop(self);
         return true;
@@ -575,6 +581,6 @@ void SP_monster_unit(LPEDICT self) {
     self->birth = unit_birth;
     
     unit_setmove(self, &unit_move_stand);
-    
+    S_GoldMineInitUnit(self);
     monster_start(self);
 }

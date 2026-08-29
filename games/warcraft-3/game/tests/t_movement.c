@@ -82,8 +82,10 @@ static void make_live_dropoff(LPEDICT building, UnitAbilities_t const *abilities
     building->health.value = building->health.max_value = 1000.0f;
 }
 
-extern FLOAT MINING_CAPACITY;
-extern FLOAT MINING_DURATION;
+slkTestData_t *parse_slk_string(const char *slk_text);
+void free_slk_rows(slkTestData_t *rows);
+
+
 extern FLOAT HARVEST_GOLD_CAPACITY;
 extern FLOAT HARVEST_TREE_DAMAGE;
 extern FLOAT HARVEST_LUMBER_CAPACITY;
@@ -91,6 +93,58 @@ extern FLOAT HARVEST_RANGE;
 extern FLOAT HARVEST_COOLDOWN;
 extern FLOAT HARVEST_SEARCH_RANGE;
 extern void harvest_cooldown(LPEDICT);
+
+static const char slk_goldmine_test_data[] =
+    "ID;PWXL;N;E\n"
+    "C;Y1;X1;K\"alias\"\n"
+    "C;Y1;X2;K\"code\"\n"
+    "C;Y1;X3;K\"Data11\"\n"
+    "C;Y1;X4;K\"Data12\"\n"
+    "C;Y1;X5;K\"Data13\"\n"
+    "C;Y2;X1;K\"Agld\"\n"
+    "C;Y2;X2;K\"Agld\"\n"
+    "C;Y2;X3;K12500\n"
+    "C;Y2;X4;K1\n"
+    "C;Y2;X5;K1\n"
+    "C;Y3;X1;K\"A001\"\n"
+    "C;Y3;X2;K\"Agld\"\n"
+    "C;Y3;X3;K100\n"
+    "C;Y3;X4;K0.01\n"
+    "C;Y3;X5;K1\n"
+    "C;Y4;X1;K\"A002\"\n"
+    "C;Y4;X2;K\"Agld\"\n"
+    "C;Y4;X3;K200\n"
+    "C;Y4;X4;K2\n"
+    "C;Y4;X5;K2\n"
+    "E\n";
+
+static UnitAbilities_t const test_goldmine_stock = { .abilList = "Agld" };
+static UnitAbilities_t const test_goldmine_cap1 = { .abilList = "A001" };
+static UnitAbilities_t const test_goldmine_cap2 = { .abilList = "A002" };
+
+static slkTestData_t *install_goldmine_test_data(slkTestData_t **rows_out) {
+    slkTestData_t *rows = parse_slk_string(slk_goldmine_test_data);
+    *rows_out = rows;
+    return G_SetSLKRows("AbilityData", rows);
+}
+
+static void setup_test_goldmine(LPEDICT mine, UnitAbilities_t const *abilities, DWORD resources) {
+    mine->UnitAbilities = abilities;
+    mine->resources = resources;
+    mine->health.value = mine->health.max_value = 1000.0f;
+}
+
+static LPEDICT add_gold_worker(FLOAT x, FLOAT y) {
+    LPEDICT worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), x, y);
+    worker->movetype = MOVETYPE_STEP;
+    worker->stand = unit_stand;
+    worker->die = unit_die;
+    worker->collision = 16.0f;
+    worker->health.value = worker->health.max_value = 250.0f;
+    worker->unitinfo.MoveSpeed = 100.0f;
+    unit_stand(worker);
+    return worker;
+}
 
 static BOOL tree_died;
 static DWORD tree_pained;
@@ -118,10 +172,10 @@ TEST(wc3_movement, gold_worker_enters_large_mine_footprint) {
     mine->collision = 128.0f; /* 8 blocked cells across in ROC 16x16Goldmine.tga. */
     mine->s.model = 1;
     mine->movetype = MOVETYPE_NONE;
+    setup_test_goldmine(mine, &test_goldmine_cap1, 100);
     gi.LinkEntity(worker);
     gi.LinkEntity(mine);
-    MINING_CAPACITY = 5.0f;
-    MINING_DURATION = 1.0f;
+    slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
     harvest_gold_start(worker, mine);
 
     FOR_LOOP(i, 40) {
@@ -131,6 +185,8 @@ TEST(wc3_movement, gold_worker_enters_large_mine_footprint) {
 
     T_ASSERT(worker->s.renderfx & RF_HIDDEN);
     T_EQ(mine->peonsinside, 1);
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
 }
 
 /* A final chop equal to the remaining life must run the tree's death callback,
@@ -479,8 +535,10 @@ TEST(wc3_movement, gold_worker_deposits_and_resumes_mining) {
     mine->collision = 128.0f; mine->s.model = 1;
     hall->collision = 64.0f; hall->s.model = 1;
     make_live_dropoff(hall, &return_gold_lumber_abilities);
+    setup_test_goldmine(mine, &test_goldmine_cap1, 100);
     gi.LinkEntity(worker); gi.LinkEntity(mine); gi.LinkEntity(hall);
-    MINING_CAPACITY = 5.0f; MINING_DURATION = 0.01f; HARVEST_GOLD_CAPACITY = 10.0f;
+    slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
+    HARVEST_GOLD_CAPACITY = 10.0f;
     DWORD const old_gold = game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD];
     MSGTRACE trace = {0};
     T_ASSERT(G_SubscribeMessage(trace_message, &trace));
@@ -509,6 +567,9 @@ TEST(wc3_movement, gold_worker_deposits_and_resumes_mining) {
     T_EQ(trace.msg[2].target, hall->s.number);
     T_EQ(trace.msg[3].target, hall->s.number);
     T_EQ(trace.msg[4].target, mine->s.number);
+    T_EQ(mine->resources, 90);
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
 }
 
 /* A large Town Hall footprint can block the next step before the old +5u
@@ -521,13 +582,15 @@ TEST(wc3_movement, gold_return_deposits_at_next_step_contact) {
     DWORD const old_gold = game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD];
 
     worker->collision = 16.0f; worker->unitinfo.MoveSpeed = 190.0f;
-    mine->collision = 128.0f; mine->s.model = 1; mine->peonsinside = 1;
+    mine->collision = 128.0f; mine->s.model = 1;
     hall->collision = 192.0f; hall->s.model = 1; hall->s.player = worker->s.player;
     make_live_dropoff(hall, &return_gold_lumber_abilities);
+    setup_test_goldmine(mine, &test_goldmine_cap1, 100);
     gi.LinkEntity(worker); gi.LinkEntity(mine); gi.LinkEntity(hall);
+    slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
     HARVEST_GOLD_CAPACITY = 10.0f;
     worker->goalentity = mine; worker->secondarygoal = mine;
-
+    harvestgold_minegold(worker);
     harvestgold_walkback(worker);
     T_ASSERT(M_DistanceToGoal(worker) > worker->collision + hall->collision + 5.0f);
     T_ASSERT(M_DistanceToGoal(worker) <= worker->collision + hall->collision + unit_movedistance(worker));
@@ -537,6 +600,9 @@ TEST(wc3_movement, gold_return_deposits_at_next_step_contact) {
     T_EQ(worker->harvested_gold, 0);
     T_ASSERT(!(worker->s.renderfx & RF_HAS_GOLD));
     T_ASSERT(worker->goalentity == mine);
+    T_EQ(mine->resources, 90);
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
 }
 
 /* A lumber-only return ability is incompatible with carried gold even when it
@@ -955,8 +1021,10 @@ TEST(wc3_movement, gold_worker_stops_when_no_townhall) {
     LPEDICT mine   = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 400.0f, 0.0f);
     worker->collision = 16.0f; worker->unitinfo.MoveSpeed = 100.0f;
     mine->collision = 128.0f; mine->s.model = 1; mine->movetype = MOVETYPE_NONE;
+    setup_test_goldmine(mine, &test_goldmine_cap1, 100);
     gi.LinkEntity(mine);
-    MINING_CAPACITY = 5.0f; MINING_DURATION = 0.01f; HARVEST_GOLD_CAPACITY = 10.0f;
+    slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
+    HARVEST_GOLD_CAPACITY = 10.0f;
 
     MSGTRACE trace = {0};
     T_ASSERT(G_SubscribeMessage(trace_message, &trace));
@@ -977,6 +1045,9 @@ TEST(wc3_movement, gold_worker_stops_when_no_townhall) {
     T_EQ((int)trace.count, 2);
     T_EQ(trace.msg[0].type, GAME_MSG_HARVEST_MOVE_GOLD);
     T_EQ(trace.msg[1].type, GAME_MSG_HARVEST_ENTER_MINE);
+    T_EQ(mine->resources, 90);
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
 }
 
 /* A second worker ordered to mine when the mine is already at capacity waits
@@ -987,8 +1058,10 @@ TEST(wc3_movement, gold_mine_queues_second_worker_when_at_capacity) {
     LPEDICT mine    = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 400.0f, 0.0f);
     worker1->collision = 16.0f; worker1->unitinfo.MoveSpeed = 100.0f;
     mine->collision = 128.0f; mine->s.model = 1; mine->movetype = MOVETYPE_NONE;
+    setup_test_goldmine(mine, &test_goldmine_cap1, 100);
     gi.LinkEntity(mine);
-    MINING_CAPACITY = 1.0f; MINING_DURATION = 0.01f; HARVEST_GOLD_CAPACITY = 10.0f;
+    slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
+    HARVEST_GOLD_CAPACITY = 10.0f;
 
     /* Worker1 walks to and enters the mine. */
     harvest_gold_start(worker1, mine);
@@ -1025,6 +1098,160 @@ TEST(wc3_movement, gold_mine_queues_second_worker_when_at_capacity) {
     T_EQ((int)mine->peonsinside, 1);             /* worker1 left (−1) worker2 entered (+1) */
     T_ASSERT(!(worker1->s.renderfx & RF_HIDDEN));/* worker1 exited */
     T_ASSERT(worker1->s.renderfx & RF_HAS_GOLD); /* worker1 carrying gold */
+    T_EQ(mine->resources, 90);
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
+/* Stock Agld has one internal mining slot. Six assigned workers may all keep
+ * Harvest orders, but only one may ever be registered/hidden inside. */
+TEST(wc3_movement, gold_mine_stock_capacity_never_exceeds_one_with_six_workers) {
+    reset_entities();
+    setup_test_world();
+    slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
+    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 0.0f, 0.0f);
+    setup_test_goldmine(mine, &test_goldmine_stock, 12500);
+    HARVEST_GOLD_CAPACITY = 10.0f;
+
+    T_EQ(S_GoldMineCapacity(mine), 1);
+    FOR_LOOP(i, 6) {
+        LPEDICT worker = add_gold_worker(150.0f + (FLOAT)i, 0.0f);
+        worker->goalentity = worker->secondarygoal = mine;
+        harvestgold_minegold(worker);
+        T_ASSERT(mine->peonsinside <= 1);
+        if (i == 0) {
+            T_ASSERT(S_GoldMineWorkerIsInside(worker));
+            T_ASSERT(worker->s.renderfx & RF_HIDDEN);
+        } else {
+            T_ASSERT(!S_GoldMineWorkerIsInside(worker));
+            T_ASSERT(!(worker->s.renderfx & RF_HIDDEN));
+            T_STREQ(worker->currentmove->animation, "stand");
+        }
+    }
+    T_EQ(mine->peonsinside, 1);
+
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
+/* Capacity, duration, and initial gold come from the specific Agld-derived
+ * ability on each mine rather than process-wide globals. */
+TEST(wc3_movement, gold_mines_keep_independent_custom_capacity_duration_and_gold) {
+    reset_entities();
+    setup_test_world();
+    slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
+    LPEDICT mine1 = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 0.0f, 0.0f);
+    LPEDICT mine2 = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 500.0f, 0.0f);
+    setup_test_goldmine(mine1, &test_goldmine_cap1, 0);
+    setup_test_goldmine(mine2, &test_goldmine_cap2, 0);
+    S_GoldMineInitUnit(mine1);
+    S_GoldMineInitUnit(mine2);
+
+    T_EQ(mine1->resources, 100);
+    T_EQ(mine2->resources, 200);
+    T_EQ(S_GoldMineCapacity(mine1), 1);
+    T_EQ(S_GoldMineCapacity(mine2), 2);
+    T_FEQ(S_GoldMineMiningDuration(mine1), 0.01f, 0.001f);
+    T_FEQ(S_GoldMineMiningDuration(mine2), 2.0f, 0.001f);
+
+    LPEDICT a = add_gold_worker(0.0f, 0.0f);
+    LPEDICT b = add_gold_worker(0.0f, 0.0f);
+    LPEDICT c = add_gold_worker(500.0f, 0.0f);
+    LPEDICT d = add_gold_worker(500.0f, 0.0f);
+    LPEDICT e = add_gold_worker(500.0f, 0.0f);
+    a->goalentity = b->goalentity = mine1;
+    c->goalentity = d->goalentity = e->goalentity = mine2;
+    harvestgold_minegold(a);
+    harvestgold_minegold(b);
+    harvestgold_minegold(c);
+    harvestgold_minegold(d);
+    harvestgold_minegold(e);
+
+    T_EQ(mine1->peonsinside, 1);
+    T_EQ(mine2->peonsinside, 2);
+    T_FEQ(c->wait, 2.0f, 0.001f);
+    T_ASSERT(!S_GoldMineWorkerIsInside(b));
+    T_ASSERT(!S_GoldMineWorkerIsInside(e));
+
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
+/* Inside membership is authoritative: duplicate entry cannot increment the
+ * mine twice, ordinary orders are rejected, and exit restores protection and
+ * unregisters exactly once. */
+TEST(wc3_movement, gold_miner_inside_is_non_orderable_and_unregisters_once) {
+    reset_entities();
+    setup_test_world();
+    slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
+    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 0.0f, 0.0f);
+    LPEDICT worker = add_gold_worker(0.0f, 0.0f);
+    VECTOR2 point = { 100.0f, 100.0f };
+    setup_test_goldmine(mine, &test_goldmine_cap1, 100);
+    worker->goalentity = worker->secondarygoal = mine;
+    HARVEST_GOLD_CAPACITY = 10.0f;
+
+    harvestgold_minegold(worker);
+    T_EQ(mine->peonsinside, 1);
+    T_ASSERT(worker->invulnerable);
+    T_ASSERT(S_GoldMineWorkerIsInside(worker));
+    harvestgold_minegold(worker);
+    T_EQ(mine->peonsinside, 1);
+    T_ASSERT(!unit_issueimmediateorder(worker, "stop"));
+    T_ASSERT(!unit_issueorder(worker, "move", &point));
+    T_ASSERT(!unit_issuetargetorder(worker, "attack", mine));
+    T_EQ(mine->peonsinside, 1);
+
+    harvestgold_walkback(worker);
+    T_EQ(mine->peonsinside, 0);
+    T_ASSERT(!S_GoldMineWorkerIsInside(worker));
+    T_ASSERT(!worker->invulnerable);
+    T_ASSERT(!(worker->s.renderfx & RF_HIDDEN));
+    T_EQ(worker->harvested_gold, 10);
+    harvestgold_walkback(worker); /* cannot unregister/decrement twice */
+    T_EQ(mine->peonsinside, 0);
+
+    LPEDICT removed = add_gold_worker(0.0f, 0.0f);
+    removed->goalentity = removed->secondarygoal = mine;
+    harvestgold_minegold(removed);
+    T_EQ(mine->peonsinside, 1);
+    G_FreeEdict(removed);
+    T_EQ(mine->peonsinside, 0);
+
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
+/* The final trip is clamped to remaining mine gold. Draining the mine to zero
+ * depletes it and prevents an already-waiting worker from entering. */
+TEST(wc3_movement, gold_mine_partial_final_trip_depletes_and_rejects_waiter) {
+    reset_entities();
+    setup_test_world();
+    slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
+    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 0.0f, 0.0f);
+    LPEDICT miner = add_gold_worker(0.0f, 0.0f);
+    LPEDICT waiter = add_gold_worker(0.0f, 0.0f);
+    setup_test_goldmine(mine, &test_goldmine_cap1, 6);
+    HARVEST_GOLD_CAPACITY = 10.0f;
+    miner->goalentity = miner->secondarygoal = mine;
+    waiter->goalentity = waiter->secondarygoal = mine;
+
+    harvestgold_minegold(miner);
+    harvestgold_minegold(waiter);
+    T_EQ(mine->peonsinside, 1);
+    T_STREQ(waiter->currentmove->animation, "stand");
+
+    harvestgold_walkback(miner);
+    T_EQ(miner->harvested_gold, 6);
+    T_EQ(mine->resources, 0);
+    T_EQ(mine->peonsinside, 0);
+    T_ASSERT(M_IsDead(mine));
+    T_ASSERT(!S_GoldMineWorkerIsInside(waiter));
+    T_ASSERT(!(waiter->s.renderfx & RF_HIDDEN));
+    T_STREQ(waiter->currentmove->animation, "stand");
+
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
 }
 
 /* -----------------------------------------------------------------------

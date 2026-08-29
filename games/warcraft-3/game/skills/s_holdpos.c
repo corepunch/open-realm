@@ -14,6 +14,8 @@ umove_t holdpos_move_stand_ready = { "stand ready", ai_holdpos_stand, unit_stand
 
 static void holdpos_command(LPEDICT ent) {
     FOR_SELECTED_UNITS(ent->client, e) {
+        if (S_GoldMineWorkerIsInside(e))
+            continue;
         e->movement.holding_position = true;
         unit_leavecombat(e);
         unit_stand(e);

@@ -1,16 +1,133 @@
 #include "s_skills.h"
 
-FLOAT MAX_GOLD;
-FLOAT MINING_DURATION;
-FLOAT MINING_CAPACITY;
 extern FLOAT HARVEST_GOLD_CAPACITY;
 
 void harvestgold_walkback(LPEDICT ent);
 void harvestgold_walk(LPEDICT ent);
 void harvestgold_wait(LPEDICT ent);
 void harvestgold_minegold(LPEDICT ent);
+static umove_t harvestgold_move_wait;
+
+static AbilityData_t const *goldmine_ability_data(LPCEDICT mine) {
+    LPCSTR abilities;
+
+    if (!mine || !mine->UnitAbilities || !(abilities = mine->UnitAbilities->abilList))
+        return NULL;
+
+    PARSE_LIST(abilities, abil, parse_segment) {
+        if (G_AbilityCodeName(abil) == MAKEFOURCC('A', 'g', 'l', 'd'))
+            return G_AbilityDataName(abil);
+    }
+    return NULL;
+}
+
+BOOL S_GoldMineIsMine(LPCEDICT mine) {
+    return goldmine_ability_data(mine) != NULL;
+}
+
+DWORD S_GoldMineMaximumGold(LPCEDICT mine) {
+    AbilityData_t const *data = goldmine_ability_data(mine);
+    if (!data || data->data[0][0] <= 0)
+        return 0;
+    return (DWORD)data->data[0][0];
+}
+
+FLOAT S_GoldMineMiningDuration(LPCEDICT mine) {
+    AbilityData_t const *data = goldmine_ability_data(mine);
+    return data ? MAX(0.0f, data->data[0][1]) : 0.0f;
+}
+
+DWORD S_GoldMineCapacity(LPCEDICT mine) {
+    AbilityData_t const *data = goldmine_ability_data(mine);
+    if (!data || data->data[0][2] <= 0)
+        return 0;
+    return (DWORD)data->data[0][2];
+}
+
+BOOL S_GoldMineCanHarvest(LPCEDICT mine) {
+    return mine && mine->inuse && mine->health.value > 0 && S_GoldMineIsMine(mine) && mine->resources > 0;
+}
+
+BOOL S_GoldMineWorkerIsInside(LPCEDICT worker) {
+    return worker && worker->goldmine.mine != NULL;
+}
+
+void S_GoldMineInitUnit(LPEDICT mine) {
+    DWORD maximum;
+
+    if (!S_GoldMineIsMine(mine))
+        return;
+    maximum = S_GoldMineMaximumGold(mine);
+    if (mine->resources == 0 && maximum > 0)
+        mine->resources = maximum;
+}
+
+static BOOL goldmine_membership_valid(LPCEDICT worker, LPCEDICT mine) {
+    return worker && mine && worker->goldmine.mine == mine && mine->inuse &&
+        worker->goldmine.mine_spawn_time == mine->spawn_time;
+}
+
+static void goldmine_register_miner(LPEDICT worker, LPEDICT mine) {
+    worker->goldmine.mine = mine;
+    worker->goldmine.mine_spawn_time = mine->spawn_time;
+    worker->goldmine.restore_invulnerable = worker->invulnerable;
+    worker->invulnerable = true;
+    worker->s.renderfx |= RF_HIDDEN;
+    mine->peonsinside++;
+}
+
+static LPEDICT goldmine_unregister_miner(LPEDICT worker) {
+    LPEDICT mine;
+
+    if (!worker || !(mine = worker->goldmine.mine))
+        return NULL;
+    if (goldmine_membership_valid(worker, mine) && mine->peonsinside > 0)
+        mine->peonsinside--;
+    worker->goldmine.mine = NULL;
+    worker->goldmine.mine_spawn_time = 0;
+    worker->invulnerable = worker->goldmine.restore_invulnerable;
+    worker->goldmine.restore_invulnerable = false;
+    worker->s.renderfx &= ~RF_HIDDEN;
+    return mine;
+}
+
+static void goldmine_deplete(LPEDICT mine) {
+    if (!mine || !mine->inuse || mine->resources > 0 || M_IsDead(mine))
+        return;
+    mine->health.value = 0;
+    if (mine->die)
+        mine->die(mine, NULL);
+    else
+        mine->svflags |= SVF_DEADMONSTER;
+}
+
+static void goldmine_wake_waiters(LPEDICT mine) {
+    /* Called immediately after goldmine_deplete; checks mine->inuse so a
+     * synchronous G_FreeEdict in die() does not iterate freed memory. */
+    if (!mine || !mine->inuse)
+        return;
+    FILTER_EDICTS(other, other->goalentity == mine &&
+                  other->currentmove == &harvestgold_move_wait)
+    {
+        harvestgold_minegold(other);
+    }
+}
+
+void S_GoldMineReleaseWorker(LPEDICT worker) {
+    LPEDICT mine;
+
+    if (!S_GoldMineWorkerIsInside(worker))
+        return;
+    mine = goldmine_unregister_miner(worker);
+    goldmine_wake_waiters(mine);
+}
+
 
 static void ai_walkmine(LPEDICT ent) {
+    if (!S_GoldMineCanHarvest(ent->goalentity)) {
+        ent->stand(ent);
+        return;
+    }
     /* Building collision became footprint-authored in 55724517; using the old
      * fixed 180u mine radius stranded workers outside larger mine footprints. */
     FLOAT const contact = ent->collision + ent->goalentity->collision;
@@ -50,8 +167,12 @@ static void ai_goldmine_walkback(LPEDICT ent) {
         }
         ent->s.renderfx &= ~RF_HAS_GOLD;
         ent->harvested_gold = 0;
-        G_PublishMessage(ent, GAME_MSG_HARVEST_RESUME_GOLD, ent->goalentity);
-        harvestgold_walk(ent);
+        if (S_GoldMineCanHarvest(ent->goalentity)) {
+            G_PublishMessage(ent, GAME_MSG_HARVEST_RESUME_GOLD, ent->goalentity);
+            harvestgold_walk(ent);
+        } else {
+            ent->stand(ent);
+        }
     } else {
         unit_changeangle(ent);
         unit_moveindirection(ent);
@@ -75,27 +196,59 @@ void harvestgold_walk(LPEDICT ent) {
 }
 
 void harvestgold_minegold(LPEDICT ent) {
-    if (ent->goalentity->peonsinside < MINING_CAPACITY) {
-        G_PublishMessage(ent, GAME_MSG_HARVEST_ENTER_MINE, ent->goalentity);
+    LPEDICT mine = ent ? ent->goalentity : NULL;
+    DWORD capacity;
+
+    if (!ent || !S_GoldMineCanHarvest(mine)) {
+        if (ent) ent->stand(ent);
+        return;
+    }
+    if (S_GoldMineWorkerIsInside(ent))
+        return;
+
+    capacity = S_GoldMineCapacity(mine);
+    if (capacity == 0) {
+        ent->stand(ent);
+        return;
+    }
+    if (mine->peonsinside < capacity) {
+        G_PublishMessage(ent, GAME_MSG_HARVEST_ENTER_MINE, mine);
         unit_setmove(ent, &harvestgold_move_minegold);
-        ent->wait = MINING_DURATION;
-        ent->s.renderfx |= RF_HIDDEN;
-        ent->goalentity->peonsinside++;
+        ent->wait = S_GoldMineMiningDuration(mine);
+        goldmine_register_miner(ent, mine);
     } else {
         harvestgold_wait(ent);
     }
 }
 
 void harvestgold_walkback(LPEDICT ent) {
-    ent->goalentity->peonsinside--;
-    ent->s.renderfx |= RF_HAS_GOLD;
-    ent->s.renderfx &= ~RF_HIDDEN;
-    ent->harvested_gold += HARVEST_GOLD_CAPACITY;
-    FILTER_EDICTS(other, other->goalentity == ent->goalentity &&
-                  other->currentmove == &harvestgold_move_wait)
-    {
-        harvestgold_minegold(other);
+    LPEDICT mine;
+    DWORD amount = 0;
+    DWORD carry_capacity;
+
+    if (!ent || !(mine = ent->goldmine.mine)) {
+        if (ent) ent->stand(ent);
+        return;
     }
+
+    if (goldmine_membership_valid(ent, mine) && !M_IsDead(mine) && S_GoldMineIsMine(mine)) {
+        carry_capacity = HARVEST_GOLD_CAPACITY > 0 ? (DWORD)HARVEST_GOLD_CAPACITY : 0;
+        amount = MIN(mine->resources, carry_capacity);
+        mine->resources -= amount;
+    }
+
+    goldmine_unregister_miner(ent);
+    if (mine->inuse && mine->resources == 0)
+        goldmine_deplete(mine);
+    goldmine_wake_waiters(mine);
+
+    if (amount == 0) {
+        ent->stand(ent);
+        return;
+    }
+
+    ent->s.renderfx |= RF_HAS_GOLD;
+    ent->harvested_gold += amount;
     LPEDICT dropoff = S_FindNearestResourceDropoff(ent, RETURN_RESOURCE_GOLD);
     if (dropoff) {
         G_PublishMessage(ent, GAME_MSG_HARVEST_RETURN_GOLD, dropoff);
@@ -117,25 +270,14 @@ void harvest_gold_start(LPEDICT self, LPEDICT target) {
     harvestgold_walk(self);
 }
 
-void SP_ability_goldmine(LPCSTR classname, ability_t *self) {
-    MAX_GOLD = AB_Data(classname, 1, 1);        /* Max Gold */
-    MINING_DURATION = AB_Data(classname, 1, 2); /* Mining Duration (s) */
-    MINING_CAPACITY = AB_Data(classname, 1, 3); /* Max Peons Inside */
-}
-
-ability_t a_goldmine = {
-    .init = SP_ability_goldmine,
-};
+ability_t a_goldmine = {0};
 
 /* ---- Overlayed Gold Mine (Agl2): same as basic mine with overlay -------- */
-ability_t a_goldmine_overlayed = {
-    /* Agl2 has no AbilityData row; reusing Agld's initializer reset the shared
-     * mining capacity to zero after Agld initialized and stranded every worker. */
-};
+ability_t a_goldmine_overlayed = {0};
 
 /* ---- Entangle Gold Mine (Aent): NE transforms ownership of a mine ------- */
 static BOOL entangle_goldmine_selecttarget(LPEDICT clent, LPEDICT target) {
-    if (!target || !G_ActorHasSkill(target, "Agld")) {
+    if (!target || !S_GoldMineIsMine(target)) {
         return false;
     }
     LPEDICT caster = G_GetMainSelectedUnit(clent->client);

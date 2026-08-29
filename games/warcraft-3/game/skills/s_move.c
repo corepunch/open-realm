@@ -285,6 +285,8 @@ static umove_t move_move_walk = { "walk", ai_move_walk, NULL, &a_move };
 /* Set the unit's move target and begin walking.
  * goalentity must be a waypoint or any entity whose origin is the destination. */
 void order_move(LPEDICT self, LPEDICT target) {
+    if (S_GoldMineWorkerIsInside(self))
+        return;
     if (self->aiflags & AI_IMMOBILE)
         return;
     self->goalentity = target;

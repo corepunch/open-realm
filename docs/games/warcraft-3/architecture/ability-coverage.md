@@ -86,7 +86,7 @@ generic `Button` command path rather than by a registered ability code.
 | `ANch` | Charm | Partial | Target ownership transfer, range, mana/cooldown, and max-level gate exist. Needs full target restrictions/order cleanup. |
 | `AIco` | Item command using Charm behavior | Partial | Shares Charm handler; inventory alias-to-base dispatch is wired. |
 | `AHca` | Cold Arrows | TODO | Needs autocast/toggle projectile modifier and slow buff. |
-| `Agld` | Gold Mine | Partial | Local gold mining works for the basic worker loop, but richer mine ability typing remains. |
+| `Agld` | Gold Mine | Partial | Per-mine `Agld`-derived capacity/duration/max-gold, finite resource depletion, waiting workers, inside-miner protection, and partial final trips are implemented; full variant/overlay behavior remains. |
 | `Agl2` | Overlayed Gold Mine | TODO | Needs overlay/minable mine variant. |
 | `Abgm` | Blighted Gold Mine | TODO | Needs undead mine variant. |
 | `Abli` | Blight | TODO | Needs blight placement/spread and terrain interaction. |
