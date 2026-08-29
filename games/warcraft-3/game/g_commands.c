@@ -28,6 +28,11 @@ void G_QueueSelectionSound(LPEDICT ent) {
         ent->sound.pending = ent->sound.select[rand() % ent->sound.num_select];
 }
 
+static void G_QueueOrderSound(LPEDICT ent) {
+    if (ent && ent->sound.num_yes)
+        ent->sound.pending = ent->sound.yes[rand() % ent->sound.num_yes];
+}
+
 void CMD_CancelCommand(LPEDICT ent) {
     Get_Commands_f(ent);
 }
@@ -108,6 +113,7 @@ CLIENTCOMMAND(Smart) {
         }
     }
     if (issued) {
+        G_QueueOrderSound(G_GetMainSelectedUnit(client));
         Get_Commands_f(clent);
     }
 }
@@ -119,7 +125,8 @@ CLIENTCOMMAND(SmartPoint) {
         return;
     }
     loc = (VECTOR2){ atoi(argv[1]), atoi(argv[2]) };
-    move_selectlocation(clent, &loc);
+    if (move_selectlocation(clent, &loc))
+        G_QueueOrderSound(G_GetMainSelectedUnit(clent->client));
 }
 
 CLIENTCOMMAND(Button) {

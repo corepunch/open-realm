@@ -636,6 +636,8 @@ struct edict_s {
     struct {
         BYTE select[MAX_UNIT_SELECT_SOUNDS];
         BYTE num_select;
+        BYTE yes[MAX_UNIT_SELECT_SOUNDS];   /* order confirmation ("Yes" sounds) */
+        BYTE num_yes;
         BYTE pending;
         int attack, death;
     } sound;

@@ -76,6 +76,7 @@ typedef struct {
     LONG fadeInRate;
     LONG fadeOutRate;
     DWORD duration;
+    int soundIndex; /* CS_SOUNDS configstring index; populated by CreateSound */
 } gsound_t;
 
 struct vm_program {

@@ -695,6 +695,12 @@ static void CL_ParseGameCommand(LPSIZEBUF msg) {
         CL_ParseLobbySetup(&payload);
     } else if (!strcmp(command, "lobby_chat")) {
         CL_ParseLobbyChat(&payload);
+    } else if (!strcmp(command, "snd")) {
+        int idx = MSG_ReadLong(&payload);
+        if (idx > 0) {
+            LPCSTR path = cl.configstrings[CS_SOUNDS + idx];
+            if (path && path[0]) S_PlaySoundFile(path);
+        }
     }
 
     msg->readcount = payload_start + (DWORD)payload_size;

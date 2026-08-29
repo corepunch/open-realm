@@ -366,20 +366,26 @@ static int G_RegisterSoundLabel(LPCSTR label, LPCSTR suffix) {
     return gi.SoundIndex(path);
 }
 
-/* Cache every native selection response so repeated clicks can choose among
- * the authored UnitAckSounds variants instead of repeating the first file. */
-void G_RegisterSelectSounds(LPEDICT self, LPCSTR label) {
+/* Register all comma-separated files for a given label+suffix into out[]/count.
+ * Every variant lands in CS_SOUNDS so playback never misses a precache. */
+static void G_RegisterSoundVariants(BYTE out[], BYTE *count, LPCSTR label, LPCSTR suffix) {
     char key[128], file[256], path[512];
-    snprintf(key, sizeof(key), "%sWhat", label);
+    snprintf(key, sizeof(key), "%s%s", label, suffix);
     UnitAckSounds_t const *row = G_UnitAckSound(key);
     LPCSTR files = row->FileNames, dir = row->DirectoryBase;
-    while (files && files[0] && self->sound.num_select < MAX_UNIT_SELECT_SOUNDS) {
+    while (files && files[0] && *count < MAX_UNIT_SELECT_SOUNDS) {
         LPCSTR comma = strchr(files, ',');
         snprintf(file, sizeof(file), "%.*s", comma ? (int)(comma - files) : (int)strlen(files), files);
         snprintf(path, sizeof(path), "%s%s", dir ? dir : "", file);
-        self->sound.select[self->sound.num_select++] = (BYTE)gi.SoundIndex(path);
+        out[(*count)++] = (BYTE)gi.SoundIndex(path);
         files = comma ? comma + 1 : NULL;
     }
+}
+
+/* Cache every native selection response so repeated clicks can choose among
+ * the authored UnitAckSounds variants instead of repeating the first file. */
+void G_RegisterSelectSounds(LPEDICT self, LPCSTR label) {
+    G_RegisterSoundVariants(self->sound.select, &self->sound.num_select, label, "What");
 }
 
 /* Populate the unit's cached sound indices from UnitAckSounds.slk using the
@@ -389,7 +395,14 @@ static void G_RegisterUnitSounds(LPEDICT self) {
     LPCSTR label = self->UnitUI->soundLabel;
     if (!label || !label[0]) return;
     G_RegisterSelectSounds(self, label);
-    self->sound.attack = G_RegisterSoundLabel(label, "YesAttack");
+    /* Register all order-confirmation variants so clients have them cached;
+     * sound.attack keeps the first index for the attack-swing event. */
+    G_RegisterSoundVariants(self->sound.yes, &self->sound.num_yes, label, "Yes");
+    {
+        BYTE tmp[MAX_UNIT_SELECT_SOUNDS]; BYTE n = 0;
+        G_RegisterSoundVariants(tmp, &n, label, "YesAttack");
+        self->sound.attack = n ? tmp[0] : 0;
+    }
     /* Death sounds follow the pattern {label}Death but may not exist in the
      * AckSounds SLK.  Try the SLK first; fall back to the raw file path. */
     self->sound.death = G_RegisterSoundLabel(label, "Death");
