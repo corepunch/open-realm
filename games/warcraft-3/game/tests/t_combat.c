@@ -781,16 +781,15 @@ TEST(wc3_combat, ability_data_resolves_roc_and_tft_columns) {
     free_slk_rows(rows);
 }
 
-/* Agl2 is registered for coverage but has no data row; it must not erase the
- * Agld globals initialized immediately before it. */
-TEST(wc3_combat, overlay_mine_does_not_reset_basic_mine_data) {
-    extern FLOAT MAX_GOLD, MINING_DURATION, MINING_CAPACITY;
+/* Gold-mine tuning stays in AbilityData instead of being copied into shared
+ * process-wide globals. Agl2 remains a marker without its own initializer. */
+TEST(wc3_combat, gold_mine_data_remains_authoritative_in_ability_rows) {
     slkTestData_t *rows = parse_slk_string(slk_ability_helpers_roc);
     slkTestData_t *old_abilities = G_SetSLKRows("AbilityData", rows);
-    a_goldmine.init("Agld", &a_goldmine);
-    T_FEQ(MAX_GOLD, 12500.0f, 0.01f);
-    T_FEQ(MINING_DURATION, 1.0f, 0.01f);
-    T_FEQ(MINING_CAPACITY, 1.0f, 0.01f);
+    T_FEQ(AB_Data("Agld", 1, 1), 12500.0f, 0.01f);
+    T_FEQ(AB_Data("Agld", 1, 2), 1.0f, 0.01f);
+    T_FEQ(AB_Data("Agld", 1, 3), 1.0f, 0.01f);
+    T_NULL(a_goldmine.init);
     T_NULL(a_goldmine_overlayed.init);
     G_SetSLKRows("AbilityData", old_abilities);
     free_slk_rows(rows);

@@ -18,7 +18,7 @@ ROC totals: 397 ability aliases, 244 unique base codes.
 | `Partial` | `AHhb` | Hero | Paladin - Holy Light | AHhb | Target spell: range/mana/heal/half-damage/target art; filters/cooldown incomplete. |
 | `Partial` | `AHtb` | Hero | Mountain King - Thunder Bolt | AHtb | Target spell: missile/damage/stun/range/mana; filters/cooldown incomplete. |
 | `Partial` | `ANfb` | Hero | Fire Bolt | ANfb, Awfb, ACfb | Shares Thunder Bolt behavior with Fire Bolt art/data; filters/cooldown incomplete. |
-| `Partial` | `Agld` | Unit/Common | Gold Mine | Agld | Basic gold mine worker loop exists. |
+| `Partial` | `Agld` | Unit/Common | Gold Mine | Agld | Capacity/duration/max-gold are per-mine ability data; finite resources, waiting workers, protected inside miners, partial final trips, and depletion are implemented. |
 | `Partial` | `Ahar` | Unit/Common | Harvest | Ahar | Worker lumber/gold order path exists; not full War3 split variants. |
 | `Stub` | `Amil` | Unit/Common | Militia | Amil | Registered only. |
 | `Partial` | `Arep` | Unit/Common | Repair (Human) | Ahrp, Arep | Repair helper exists; command/targeting incomplete. |

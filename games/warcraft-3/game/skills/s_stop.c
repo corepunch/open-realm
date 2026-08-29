@@ -4,6 +4,8 @@
 // static umove_t stop_stand = { "stand", ai_stand, NULL, &a_stop};
 
 void order_stop(LPEDICT ent) {
+    if (S_GoldMineWorkerIsInside(ent))
+        return;
     ent->movement.attackmove_waypoint = NULL;
     ent->movement.patrol_a = NULL;
     unit_leavecombat(ent);

@@ -26,12 +26,16 @@ static void ai_patrol_walk(LPEDICT ent) {
 static umove_t patrol_move_walk = { "walk", ai_patrol_walk, NULL, &a_patrol };
 
 void order_patrol_resume(LPEDICT self) {
+    if (S_GoldMineWorkerIsInside(self))
+        return;
     self->goalentity = self->movement.patrol_target;
     move_reset_progress(self);
     unit_setmove(self, &patrol_move_walk);
 }
 
 void order_patrol(LPEDICT self, LPEDICT b) {
+    if (S_GoldMineWorkerIsInside(self))
+        return;
     self->movement.patrol_a = Waypoint_add(&self->s.origin2);
     self->movement.patrol_b = b;
     self->movement.patrol_target = b;

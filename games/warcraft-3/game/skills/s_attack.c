@@ -301,7 +301,7 @@ void attack_walk(LPEDICT self) {
 
 /* Set the attack target and start walking toward attack range. */
 void order_attack(LPEDICT self, LPEDICT target) {
-    if (!self || !attack_target_is_valid(target)) {
+    if (!self || S_GoldMineWorkerIsInside(self) || !attack_target_is_valid(target)) {
         return;
     }
     unit_entercombat(self, target);
@@ -388,6 +388,8 @@ static umove_t attackmove_move_walk = { "walk", ai_attackmove_walk, NULL, &a_att
 
 /* Begin (or resume, after a kill) attack-moving toward a waypoint. */
 void order_attackmove(LPEDICT self, LPEDICT waypoint) {
+    if (S_GoldMineWorkerIsInside(self))
+        return;
     self->movement.attackmove_waypoint = waypoint;
     self->goalentity = waypoint;
     move_reset_progress(self);
