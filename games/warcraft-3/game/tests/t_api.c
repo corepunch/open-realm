@@ -170,6 +170,44 @@ TEST(wc3_api, customize_entity_marks_live_unit_hoverable) {
 
     globals.CustomizeEntity(3, &ent, &state);
     T_ASSERT(state.flags & EF_HOVER_HEALTH);
+    T_ASSERT(!(state.flags & EF_HOSTILE));
+    T_ASSERT(!(state.flags & EF_NEUTRAL));
+}
+
+TEST(wc3_api, customize_entity_marks_enemy_hover_relation_hostile) {
+    entityState_t state = { .number = 7, .model = 11 };
+    edict_t ent = { .svflags = SVF_MONSTER, .s = { .player = 2 } };
+    ent.health.value = 100.0f;
+
+    globals.CustomizeEntity(0, &ent, &state);
+    T_ASSERT(state.flags & EF_HOVER_HEALTH);
+    T_ASSERT(state.flags & EF_HOSTILE);
+    T_ASSERT(!(state.flags & EF_NEUTRAL));
+}
+
+TEST(wc3_api, customize_entity_marks_passive_ally_hover_relation_neutral) {
+    entityState_t state = { .number = 7, .model = 11 };
+    edict_t ent = { .svflags = SVF_MONSTER, .s = { .player = 1 } };
+    ent.health.value = 100.0f;
+    G_SetPlayerAlliance(test_player(0), test_player(1), ALLIANCE_PASSIVE, true);
+
+    globals.CustomizeEntity(0, &ent, &state);
+    T_ASSERT(state.flags & EF_HOVER_HEALTH);
+    T_ASSERT(!(state.flags & EF_HOSTILE));
+    T_ASSERT(state.flags & EF_NEUTRAL);
+}
+
+TEST(wc3_api, customize_entity_marks_shared_control_hover_relation_friendly) {
+    entityState_t state = { .number = 7, .model = 11 };
+    edict_t ent = { .svflags = SVF_MONSTER, .s = { .player = 1 } };
+    ent.health.value = 100.0f;
+    G_SetPlayerAlliance(test_player(0), test_player(1), ALLIANCE_PASSIVE, true);
+    G_SetPlayerAlliance(test_player(0), test_player(1), ALLIANCE_SHARED_CONTROL, true);
+
+    globals.CustomizeEntity(0, &ent, &state);
+    T_ASSERT(state.flags & EF_HOVER_HEALTH);
+    T_ASSERT(!(state.flags & EF_HOSTILE));
+    T_ASSERT(!(state.flags & EF_NEUTRAL));
 }
 
 TEST(wc3_api, customize_entity_rejects_non_unit_hover_health) {
@@ -182,12 +220,15 @@ TEST(wc3_api, customize_entity_rejects_non_unit_hover_health) {
 }
 
 TEST(wc3_api, customize_entity_rejects_dead_or_unselectable_unit_hover_health) {
-    entityState_t state = { .number = 7, .model = 11, .flags = EF_NOT_SELECTABLE | EF_HOVER_HEALTH };
+    entityState_t state = { .number = 7, .model = 11,
+        .flags = EF_NOT_SELECTABLE | EF_HOVER_HEALTH | EF_HOSTILE | EF_NEUTRAL };
     edict_t ent = { .svflags = SVF_MONSTER | SVF_DEADMONSTER, .s = { .player = 3 } };
     ent.health.value = 100.0f;
 
     globals.CustomizeEntity(3, &ent, &state);
     T_ASSERT(!(state.flags & EF_HOVER_HEALTH));
+    T_ASSERT(!(state.flags & EF_HOSTILE));
+    T_ASSERT(!(state.flags & EF_NEUTRAL));
 }
 
 /* =========================================================================

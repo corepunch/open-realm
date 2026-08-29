@@ -181,7 +181,7 @@ enum {
     FLAG(RF_FOW_BLOCKER, 10),
     FLAG(RF_PORTRAIT_LIGHTING, 11),
     FLAG(RF_FOW_REVEALER, 12),
-    FLAG(RF_HOSTILE, 13),
+    FLAG(RF_HOSTILE, 13),      /* hostile relationship presentation */
     FLAG(RF_HOVERED, 14),
     FLAG(RF_ORTHO_CAMERA, 15), /* HUD model: use orthographic camera (console chrome) */
     FLAG(RF_GROUND_EFFECT, 15),
@@ -189,6 +189,7 @@ enum {
     FLAG(RF_HAS_QUEST, 17),    /* show overhead "?" sprite */
     FLAG(RF_QUEST_COMPLETE, 18), /* tint "?" sprite yellow */
     FLAG(RF_NOT_SELECTABLE, 19), /* render normally but exclude from world hit/box selection */
+    FLAG(RF_NEUTRAL, 20),        /* neutral/passive relationship presentation */
 };
 
 enum {
@@ -198,9 +199,10 @@ enum {
     FLAG(EF_MOUNTED, 3),        /* WoW: entity is riding a mount */
     FLAG(EF_HAS_QUEST, 4),      /* entity has a quest in progress — show "?" sprite */
     FLAG(EF_QUEST_COMPLETE, 5), /* quest is ready to turn in — tint "?" yellow */
-    FLAG(EF_HOSTILE, 6),        /* entity is hostile — renderer shows red nameplate */
+    FLAG(EF_HOSTILE, 6),        /* hostile relationship to this snapshot recipient */
     FLAG(EF_NOT_SELECTABLE, 7), /* render entity, but exclude it from world/box selection */
     FLAG(EF_HOVER_HEALTH, 8),   /* client may expose this entity's health on world hover */
+    FLAG(EF_NEUTRAL, 9),        /* neutral/passive relationship to this snapshot recipient */
 };
 
 enum {

@@ -872,6 +872,23 @@ TEST(net, entity_delta_preserves_hover_health_flag) {
     T_ASSERT(out.flags & EF_HOVER_HEALTH);
 }
 
+/* Neutral hover-ring presentation is also recipient-authored snapshot state. */
+TEST(net, entity_delta_preserves_neutral_flag) {
+    BYTE buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    entityState_t from = { 0 }, to = { .number = 9, .model = 1, .flags = EF_NEUTRAL }, out = { 0 };
+    DWORD bits = 0;
+    int number;
+
+    MSG_WriteDeltaEntity(&sb, &from, &to, true);
+    sb.readcount = 0;
+    number = MSG_ReadEntityBits(&sb, &bits);
+    MSG_ReadDeltaEntity(&sb, &out, number, bits);
+
+    T_EQ(number, 9);
+    T_ASSERT(out.flags & EF_NEUTRAL);
+}
+
 /* Sound events must travel with the entity snapshot so the client can resolve
  * the server-assigned CS_SOUNDS index and fire the one-shot exactly once. */
 TEST(net, entity_delta_preserves_sound_event) {

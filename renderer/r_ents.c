@@ -430,10 +430,15 @@ static void R_RenderHoverHighlight(renderEntity_t const *entity) {
     if (entity->flags & RF_SELECTED) {
         return; /* selection circle already visible, skip hover */
     }
-    COLOR32 color = (entity->flags & RF_HOSTILE)
-        ? MAKE(COLOR32, 255, 80, 80, 160)   /* red for hostile */
-        : MAKE(COLOR32, 80, 200, 80, 160);   /* green for friendly */
-    float radius = entity->radius;
+    COLOR32 color;
+    if (entity->flags & RF_HOSTILE) {
+        color = MAKE(COLOR32, 255, 80, 80, 128);   /* enemy: faint red */
+    } else if (entity->flags & RF_NEUTRAL) {
+        color = MAKE(COLOR32, 255, 220, 80, 128);  /* neutral/passive ally: faint yellow */
+    } else {
+        color = MAKE(COLOR32, 80, 200, 80, 128);   /* own/shared-control: faint green */
+    }
+    float radius = R_GameSelectionRadius(entity);
     FOR_LOOP(i, NUM_SELECTION_CIRCLES) {
         if ((radius * 2) > selCircles[i])
             continue;
