@@ -45,6 +45,14 @@ Do not put StarCraft II literals into engine code. Examples of game-specific dat
 - M3 model/material policy
 - SC2 trigger/Galaxy assumptions
 
+## Catalog Grammar Tables
+
+`games/starcraft-2/common/sc2_map.c` decodes ordinary catalog child fields through `sc2XmlField_t` tables. Each entry names the XML production and the destination `{ offsetof, type, size }`; `sc2_parse_xml_child_field` reads the authored attribute and dispatches through the shared scalar decoder. Model, sound, actor, unit, terrain-texture, cliff, and tile records use this path.
+
+Keep catalog layering separate from decoding. The schema fills a temporary record, then `sc2_catalog_add_*` merges only authored values into the dependency result. Nested or context-sensitive productions remain explicit: indexed unit flags, footprint area/shape geometry, actor aliases, parent inheritance, and model token expansion are not scalar fields.
+
+Adding an ordinary catalog field should require one descriptor entry. Do not add another child-name `if`/`else` branch. If a new production is nested or repeated, add a narrowly named production callback and keep its scalar leaves table-driven.
+
 ## Galaxy Front End
 
 Galaxy and JASS share the `libjass` AST and VM, but keep separate parser entry points. `jass_dobuffer_ex` selects them through the

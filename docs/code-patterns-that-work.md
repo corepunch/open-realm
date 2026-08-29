@@ -83,11 +83,24 @@ static const struct field_s {
 
 No manual `if/else`, `strcmp` ladders, or ad hoc token handlers. Adding a field is one table entry.
 
+Treat the table as a grammar, not merely a lookup optimization. Ordinary scalar productions use `{ name/column/tag, offset, type, count/flags }`; nested, repeated, versioned, or context-sensitive productions use explicit callbacks referenced by that grammar. Keep data-layer merging and inheritance after decoding so an absent field remains distinguishable from an authored zero.
+
 The same idea covers **binary** files: WoW DBC rows are read with a `stbDbcField_t` schema table
 (`{ column, offsetof(struct, field), type, count }`) plus `Stb_DbcParseRows` / `Stb_DbcCacheDecode`, where a
 file-shaped struct mirrors the consumed subset of a row and a per-version dispatch function picks the schema when a
 table's layout shifts across client versions. See
 [`docs/games/world-of-warcraft/dbc-reference.md`](games/world-of-warcraft/dbc-reference.md#reading-a-dbc--the-schema-pattern).
+
+### Audit targets
+
+The remaining high-confidence manual grammars are bounded and should be converted when their subsystem is touched:
+
+- `games/world-of-warcraft/ui/stb_wowxml.h` and its guarded `ui_xml.c` copy: FrameXML node types, script handlers, shared attributes, button parts, and anchor-point factors.
+- `games/world-of-warcraft/common/world_wow.c`, `renderer/wow/r_wowmap_adt.c`, and `game/g_gameobject.c`: simple WoW chunk-tag bindings; use the descriptor shape already present in `renderer/wow/r_wowmap_wmo.c`.
+- `games/warcraft-3/ui/screens/single_player.c`: scalar campaign keys; keep indexed mission/file productions specialized.
+- `games/warcraft-3/game/g_unit_ui.c`, `tools/m2tool.c`, and `tools/mpqtool.c`: direct string-to-value maps.
+
+Do not mechanically table-drive ordinary control flow, two-way checks, or binary productions whose meaning depends on previously decoded context. The table must clarify the format grammar rather than hide it behind generic callbacks.
 
 ## format-driven parsing with sscanf
 

@@ -31,50 +31,48 @@ BOOL is_identifier(LPCSTR str);
 BOOL is_string(LPCSTR tok);
 BOOL is_fourcc(LPCSTR tok);
 
+static BOOL token_in(LPCSTR tok, LPCSTR const *grammar, DWORD count) {
+    FOR_LOOP(i, count)
+        if (!strcmp(tok, grammar[i])) return true;
+    return false;
+}
+
 BOOL is_multiplicative_operator(LPCSTR str) {
-    return !strcmp(str, "*") || !strcmp(str, "/");
+    static LPCSTR const grammar[] = { "*", "/" };
+    return token_in(str, grammar, sizeof(grammar) / sizeof(*grammar));
 }
 
 BOOL is_additive_operator(LPPARSER p, LPCSTR str) {
+    static LPCSTR const grammar[] = { "+", "-" };
+    static LPCSTR const c_grammar[] = { "<<", ">>" };
     (void)p;
-    return !strcmp(str, "+") || !strcmp(str, "-") ||
-           (c_operators && (!strcmp(str, "<<") || !strcmp(str, ">>")));
+        return token_in(str, grammar, sizeof(grammar) / sizeof(*grammar)) ||
+            (c_operators && token_in(str, c_grammar, sizeof(c_grammar) / sizeof(*c_grammar)));
 }
 
 BOOL is_compare_operator(LPCSTR str) {
-    return !strcmp(str, ">") || !strcmp(str, "<") || !strcmp(str, "==") || !strcmp(str, "!=") ||
-           !strcmp(str, ">=") || !strcmp(str, "<=");
+    static LPCSTR const grammar[] = { ">", "<", "==", "!=", ">=", "<=" };
+    return token_in(str, grammar, sizeof(grammar) / sizeof(*grammar));
 }
 
 BOOL is_logic_operator(LPPARSER p, LPCSTR str) {
+    static LPCSTR const grammar[] = { "and", "or" };
+    static LPCSTR const c_grammar[] = { "&&", "||", "|", "&", "^" };
     (void)p;
-    if (!strcmp(str, "and") || !strcmp(str, "or")) return true;
-    if (!c_operators) return false;
-    return !strcmp(str, "&&") || !strcmp(str, "||") ||
-           /* bitwise operators treated at logic level for Galaxy compatibility */
-           !strcmp(str, "|") || !strcmp(str, "&") || !strcmp(str, "^");
+        return token_in(str, grammar, sizeof(grammar) / sizeof(*grammar)) ||
+            (c_operators && token_in(str, c_grammar, sizeof(c_grammar) / sizeof(*c_grammar)));
 }
 
 LPCSTR jass_getoperator(LPCSTR str) {
-    if (!strcmp(str, "+")) return "__add";
-    if (!strcmp(str, "-")) return "__sub";
-    if (!strcmp(str, "*")) return "__mul";
-    if (!strcmp(str, "/")) return "__div";
-    if (!strcmp(str, "!=")) return "__ne";
-    if (!strcmp(str, "==")) return "__eq";
-    if (!strcmp(str, ">=")) return "__ge";
-    if (!strcmp(str, "<=")) return "__le";
-    if (!strcmp(str, ">")) return "__gt";
-    if (!strcmp(str, "<")) return "__lt";
-    if (!strcmp(str, "and")) return "__and";
-    if (!strcmp(str, "or")) return "__or";
-    if (!strcmp(str, "&&")) return "__and";
-    if (!strcmp(str, "||")) return "__or";
-    if (!strcmp(str, "<<")) return "__lsh";
-    if (!strcmp(str, ">>")) return "__rsh";
-    if (!strcmp(str, "|"))  return "__bor";
-    if (!strcmp(str, "&"))  return "__band";
-    if (!strcmp(str, "^"))  return "__xor";
+    static struct { LPCSTR token, name; } const grammar[] = {
+        { "+", "__add" }, { "-", "__sub" }, { "*", "__mul" }, { "/", "__div" },
+        { "!=", "__ne" }, { "==", "__eq" }, { ">=", "__ge" }, { "<=", "__le" },
+        { ">", "__gt" }, { "<", "__lt" }, { "and", "__and" }, { "or", "__or" },
+        { "&&", "__and" }, { "||", "__or" }, { "<<", "__lsh" }, { ">>", "__rsh" },
+        { "|", "__bor" }, { "&", "__band" }, { "^", "__xor" },
+    };
+    FOR_LOOP(i, sizeof(grammar) / sizeof(*grammar))
+        if (!strcmp(str, grammar[i].token)) return grammar[i].name;
     return str;
 }
 
