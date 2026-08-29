@@ -35,6 +35,7 @@ void UI_ResetFrameWriteList(void);
 
 /* Theme (hud_write.c) */
 LPCSTR Theme_String(LPCSTR key, LPCSTR def);
+LPCSTR Theme_PlayerString(LPGAMECLIENT client, LPCSTR key, LPCSTR def);
 FLOAT Theme_Float(LPCSTR key, LPCSTR def);
 
 /* Console (hud_console.c) */

@@ -117,7 +117,7 @@ BOOL G_IsItem(LPCEDICT item) {
 DWORD G_InventoryCapacity(LPCEDICT unit) {
     LPCSTR abilities;
 
-    if (!unit || !unit->inuse || !(abilities = unit->UnitAbilities->abilList)) return 0;
+    if (!unit || !unit->inuse || !unit->UnitAbilities || !(abilities = unit->UnitAbilities->abilList)) return 0;
     PARSE_LIST(abilities, abil, parse_segment) {
         LONG capacity;
 

@@ -221,9 +221,49 @@ static void WriteInventoryCharge(FLOAT x, FLOAT y, FLOAT w, FLOAT h, DWORD charg
     UI_WriteProxyFrame(&frame, &label, sizeof(label));
 }
 
-static void WriteInventory(LPEDICT ent) {
+/* WC3's classic inventory cover has no usable ROC FDF definition, so construct
+ * the native frame directly while keeping its texture race-selected from war3skins. */
+static void WriteInventoryCover(LPEDICT player) {
+    static FRAMEDEF frame;
+    LPCSTR art = Theme_PlayerString(player ? player->client : NULL, "ConsoleInventoryCoverTexture", NULL);
+
+    if (!art || !*art) {
+        fprintf(stderr, "WriteInventoryCover: missing ConsoleInventoryCoverTexture for player skin\n");
+        return;
+    }
+    UI_InitFrame(&frame, FT_TEXTURE);
+    UI_SetSize(&frame, 0.128f, 0.175f);
+    /* Native WC3 anchor is BOTTOMRIGHT at (0.600, 0.000) in bottom-left coordinates.
+     * Relative to OpenRealm's top-left scene origin that is x=0.600, y=0.600. */
+    UI_SetPoint(&frame, FRAMEPOINT_BOTTOMRIGHT, NULL, FRAMEPOINT_TOPLEFT, 0.600f, -0.600f);
+    frame.AlphaMode = BLEND_MODE_ALPHAKEY;
+    frame.Texture.TexCoord.min.y = 0.380859375f;
+    frame.Texture.Image = gi.ImageIndex(art);
+    UI_WriteFrame(&frame);
+}
+
+static void WriteInventoryNoCapacitySlot(BYTE slot, LPCSTR art) {
+    FLOAT bx = UI_BASE_WIDTH * 0.5f + 0.1315f + (FLOAT)(slot % 2) * 0.0394f;
+    FLOAT by = UI_BASE_HEIGHT - 0.0971f + (FLOAT)(slot / 2) * 0.0384f;
+    UI_WriteTextureFrame(bx - 0.0165f, by - 0.0165f, 0.033f, 0.033f, art);
+}
+
+static void WriteInventory(LPEDICT player, LPEDICT ent) {
     gameInventoryItem_t items[MAX_INVENTORY];
-    BYTE count = G_GetInventory(ent, items, MAX_INVENTORY);
+    DWORD capacity = G_InventoryCapacity(ent);
+    BYTE count;
+
+    if (!capacity) { WriteInventoryCover(player); return; }
+    if (capacity < MAX_INVENTORY) {
+        LPCSTR art = Theme_PlayerString(player ? player->client : NULL, "ConsoleInventoryNoCapacity", NULL);
+        if (!art || !*art) {
+            fprintf(stderr, "WriteInventory: missing ConsoleInventoryNoCapacity for player skin\n");
+            return;
+        }
+        for (DWORD slot = capacity; slot < MAX_INVENTORY; slot++) WriteInventoryNoCapacitySlot((BYTE)slot, art);
+    }
+
+    count = G_GetInventory(ent, items, MAX_INVENTORY);
     FOR_LOOP(i, count) {
         FLOAT bx = UI_BASE_WIDTH * 0.5f + 0.1315f + (FLOAT)(items[i].slot % 2) * 0.0394f;
         FLOAT by = UI_BASE_HEIGHT - 0.0971f + (FLOAT)(items[i].slot / 2) * 0.0384f;
@@ -247,7 +287,7 @@ static void WriteInventory(LPEDICT ent) {
 
 static void UI_SendInventoryLayer(LPEDICT ent, LPEDICT *selected, DWORD count) {
     UI_WriteStart(LAYER_INVENTORY);
-    if (count == 1) WriteInventory(selected[0]);
+    if (count == 1) WriteInventory(ent, selected[0]);
     UI_WriteEnd(ent);
 }
 

@@ -259,6 +259,28 @@ BZ_HOST_HIDDEN LPCSTR Theme_String(LPCSTR key, LPCSTR def) {
     return value ? value : def;
 }
 
+/* war3skins uses the console race category rather than the selected unit race. */
+static LPCSTR Theme_PlayerRaceCategory(DWORD race) {
+    switch (race) {
+        case kPlayerRaceHuman: return "Human";
+        case kPlayerRaceOrc: return "Orc";
+        case kPlayerRaceUndead: return "Undead";
+        case kPlayerRaceNightElf: return "NightElf";
+        default: return "Default";
+    }
+}
+
+/* Resolve a local player's race skin first, then the shared Default section. */
+LPCSTR Theme_PlayerString(LPGAMECLIENT client, LPCSTR key, LPCSTR def) {
+    LPCSTR category, value;
+
+    if (!key || strstr(key, "\\") || !game.config.theme) return def;
+    category = Theme_PlayerRaceCategory(client ? client->ps.race : kPlayerRaceNone);
+    value = FS_FindSheetCell(game.config.theme, category, key);
+    if (!value && strcmp(category, "Default")) value = FS_FindSheetCell(game.config.theme, "Default", key);
+    return value ? value : def;
+}
+
 BZ_HOST_HIDDEN FLOAT Theme_Float(LPCSTR key, LPCSTR def) {
     (void)key;
     return def ? atof(def) : 0.0f;
