@@ -1,6 +1,7 @@
 #include <stdlib.h> // atoi()
 
 #include "client.h"
+#include "sound/s_local.h"
 #ifdef WOW
 #include "common/wow_view.h"
 #endif
@@ -376,6 +377,9 @@ void CL_PrepRefresh(void) {
         world_loaded = true;
     }
 
+    BOOL register_sounds = !cl.refresh_prepped;
+    if (register_sounds) S_BeginRegistration();
+
 #ifdef SC2
     if (world_loaded && cls.state != ca_active) {
         sc2MapCamera_t map_camera;
@@ -435,6 +439,10 @@ void CL_PrepRefresh(void) {
         cl.pics[i] = re.LoadTexture(cl.configstrings[CS_IMAGES + i]);
     }
 
+    if (register_sounds)
+        for (DWORD i = 1; i < MAX_SOUNDS; i++)
+            if (*cl.configstrings[CS_SOUNDS + i]) S_RegisterSound(cl.configstrings[CS_SOUNDS + i]);
+
     for (DWORD i = 1; i < MAX_FONTSTYLES; i++) {
         if (!*cl.configstrings[CS_FONTS + i])
             continue;
@@ -458,6 +466,7 @@ void CL_PrepRefresh(void) {
     }
 
     if (world_loaded && !cl.refresh_prepped) {
+        S_EndRegistration();
         cl.refresh_prepped = true;
     }
 }

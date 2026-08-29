@@ -218,7 +218,7 @@ diag: clean
 $(BIN_DIR) $(LIB_DIR):
 	@mkdir -p $@
 
-APP_SRCS          := $(shell find client server common -name '*.c')
+APP_SRCS          := $(shell find client server common sound -name '*.c')
 RENDERER_BASE_DEPS  := $(SHARED_LIB) $(CLIENT_HEADERS) $(COMMON_HEADERS) $(COMMON_SRCS) $(FONT_HEADER)
 RENDERER_SHARED_LIBS := -lshared $(LIBS) -lz
 SERVER_GAME_SRCS  := server/sv_quest.c

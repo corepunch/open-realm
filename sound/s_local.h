@@ -85,6 +85,7 @@ extern sState_t s;
 void S_LoadSoundEntries(void);
 void S_BeginRegistration(void);
 void S_EndRegistration(void);
+void S_RegisterSound(LPCSTR path);
 void S_PlaySoundFile(LPCSTR path);
 
 #endif

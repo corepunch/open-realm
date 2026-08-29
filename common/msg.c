@@ -63,6 +63,8 @@ netField_t entityStateFields[] = {
     { NETF(entityState_t, shadow_rect), NFT_LONG },
 #endif
     { NETF(entityState_t, stats), NFT_LONG },
+    { NETF(entityState_t, event), NFT_BYTE },
+    { NETF(entityState_t, sound), NFT_BYTE },
     { NULL }
 };
 

@@ -67,6 +67,7 @@ void CL_BeginLoadingMap(LPCSTR mapName) { (void)mapName; cl.playerstate.client_u
 void CL_SetGameplayInput(void) { cls.key_dest = key_game; }
 void CL_Disconnect(LPCSTR reason, BOOL notify) { (void)reason; (void)notify; cls.state = ca_disconnected; }
 void CL_EntityEvent(entityState_t const *ent) { (void)ent; }
+void S_RegisterSound(LPCSTR path) { (void)path; }
 void Cbuf_AddText(LPCSTR text) { (void)text; }
 unsigned int SDL_GetTicks(void) { return 0; }
 int SDL_ShowCursor(int toggle) { (void)toggle; return 1; }

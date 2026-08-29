@@ -87,3 +87,9 @@ not select the entity, keeping acknowledgement voices local to the selecting pla
 On attack swing (`attack_melee`/`attack_ranged`): `s.event = EV_ATTACK; s.sound = sound_attack`.
 On death (`unit_die`): `s.event = EV_DEATH; s.sound = sound_death`.
 Client fires `S_PlaySoundFile` on any non-zero `s.event`.
+
+`CL_PrepRefresh` registers every populated `CS_SOUNDS` entry through
+`S_RegisterSound`, which creates the path-keyed handle and decodes its PCM before
+the client sends `begin`. The event path therefore performs only a configstring
+lookup and cached playback; archive I/O and resampling never occur on the click.
+Later `CS_SOUNDS` updates are registered directly by `CL_ParseConfigString`.

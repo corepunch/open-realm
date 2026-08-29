@@ -12,6 +12,7 @@
 #include <stdlib.h>
 
 #include "client.h"
+#include "sound/s_local.h"
 #include "ui_layout.h"
 #ifdef SC2
 #include "games/starcraft-2/common/sc2_map.h"
@@ -196,6 +197,8 @@ static void CL_ParseConfigString(LPSIZEBUF msg) {
         if (cl.configstrings[index][0])
             cl.pics[pic] = re.LoadTexture(cl.configstrings[index]);
     }
+    if (cl.refresh_prepped && index > CS_SOUNDS && index < CS_SOUNDS + MAX_SOUNDS && cl.configstrings[index][0])
+        S_RegisterSound(cl.configstrings[index]);
     if (index > CS_FONTS && index < CS_FONTS + MAX_FONTSTYLES) {
         DWORD font = index - CS_FONTS;
         if (cl.configstrings[index][0] && !cl.fonts[font]) {
