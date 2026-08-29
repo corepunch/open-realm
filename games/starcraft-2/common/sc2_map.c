@@ -53,8 +53,8 @@ typedef struct {
     char footprint[64];
     char mover[64];
     DWORD flags;
-    BOOL has_radius;
-    FLOAT radius;
+    BOOL has_radius, has_height;
+    FLOAT radius, height;
 } sc2CatalogUnit_t;
 
 typedef struct {
@@ -66,6 +66,7 @@ typedef struct {
     FLOAT footprint_width;
     FLOAT footprint_height;
     FLOAT footprint_radius;
+    FLOAT move_height;
     DWORD unit_flags, variation;
 } sc2ResolvedObjectModel_t;
 
@@ -1197,11 +1198,13 @@ static void sc2_catalog_add_unit(sc2Catalog_t *catalog,
                                  LPCSTR mover,
                                  DWORD flags,
                                  FLOAT radius,
-                                 BOOL has_radius) {
+                                 BOOL has_radius,
+                                 FLOAT height,
+                                 BOOL has_height) {
     sc2CatalogUnit_t *unit;
 
     if (!catalog || !id || !*id ||
-        ((!actor_id || !*actor_id) && (!footprint || !*footprint) && (!mover || !*mover) && !flags && !has_radius))
+        ((!actor_id || !*actor_id) && (!footprint || !*footprint) && (!mover || !*mover) && !flags && !has_radius && !has_height))
         return;
     FOR_LOOP(i, catalog->units_count) {
         if (!strcasecmp(catalog->units[i].id, id)) {
@@ -1216,6 +1219,10 @@ static void sc2_catalog_add_unit(sc2Catalog_t *catalog,
                 catalog->units[i].has_radius = true;
                 catalog->units[i].radius = radius;
             }
+            if (has_height) {
+                catalog->units[i].has_height = true;
+                catalog->units[i].height = height;
+            }
             return;
         }
     }
@@ -1228,6 +1235,8 @@ static void sc2_catalog_add_unit(sc2Catalog_t *catalog,
     unit->flags = flags;
     unit->has_radius = has_radius;
     unit->radius = has_radius ? radius : 0.0f;
+    unit->has_height = has_height;
+    unit->height = has_height ? height : 0.0f;
 }
 
 static void sc2_catalog_add_terrain_tex(sc2Catalog_t *catalog, LPCSTR id, LPCSTR diffuse, LPCSTR normal) {
@@ -1626,8 +1635,8 @@ static void sc2_parse_unit_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
         char footprint[64] = "";
         char mover[64] = "";
         DWORD flags = 0;
-        FLOAT radius = 0.0f;
-        BOOL has_radius = false;
+        FLOAT radius = 0.0f, height = 0.0f;
+        BOOL has_radius = false, has_height = false;
 
         if (node->type != XML_ELEMENT_NODE || !sc2_contains_i((char const *)node->name, "CUnit"))
             continue;
@@ -1656,9 +1665,13 @@ static void sc2_parse_unit_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
                        sc2_xml_attr(child, "value", value, sizeof(value)) &&
                        sscanf(value, "%f", &radius) == 1 && radius > 0.0f) {
                 has_radius = true;
+            } else if (sc2_streqi((char const *)child->name, "Height") &&
+                       sc2_xml_attr(child, "value", value, sizeof(value)) &&
+                       sscanf(value, "%f", &height) == 1) {
+                has_height = true;
             }
         }
-        sc2_catalog_add_unit(catalog, id, actor_id, footprint, mover, flags, radius, has_radius);
+        sc2_catalog_add_unit(catalog, id, actor_id, footprint, mover, flags, radius, has_radius, height, has_height);
     }
 }
 
@@ -2066,6 +2079,7 @@ static void sc2_resolve_object_model(sc2Catalog_t const *catalog, sc2MapObject_t
         sc2CatalogUnit_t const *unit = sc2_catalog_unit(catalog, object->name);
         if (unit) {
             if (unit->has_radius) object->radius = unit->radius;
+            if (unit->has_height) object->move_height = unit->height;
             if (unit->footprint[0]) snprintf(object->footprint, sizeof(object->footprint), "%s", unit->footprint);
             if (unit->mover[0]) snprintf(object->mover, sizeof(object->mover), "%s", unit->mover);
             object->unit_flags |= unit->flags;
@@ -2106,6 +2120,7 @@ static void sc2_resolve_object_models(sc2Catalog_t const *catalog) {
                 object->footprint_width = resolved[j].footprint_width;
                 object->footprint_height = resolved[j].footprint_height;
                 object->footprint_radius = resolved[j].footprint_radius;
+                object->move_height = resolved[j].move_height;
                 object->unit_flags = resolved[j].unit_flags;
                 goto next_object;
             }
@@ -2122,6 +2137,7 @@ static void sc2_resolve_object_models(sc2Catalog_t const *catalog) {
             resolved[resolved_count].footprint_width = object->footprint_width;
             resolved[resolved_count].footprint_height = object->footprint_height;
             resolved[resolved_count].footprint_radius = object->footprint_radius;
+            resolved[resolved_count].move_height = object->move_height;
             resolved[resolved_count].unit_flags = object->unit_flags;
             resolved[resolved_count].variation = object->variation;
             resolved_count++;
@@ -2628,8 +2644,12 @@ FLOAT SC2_MapHeightAtPoint(FLOAT x, FLOAT y) {
     return sc2_map_height_at_point(&sc2_map, x, y);
 }
 
+FLOAT SC2_MapAirHeightAtPoint(FLOAT x, FLOAT y) {
+    return sc2_map_broad_height_at_point(&sc2_map, x, y);
+}
+
 FLOAT SC2_MapCameraHeightAtPoint(FLOAT x, FLOAT y) {
-    return sc2_map_camera_height_at_point(&sc2_map, x, y);
+    return sc2_map_broad_height_at_point(&sc2_map, x, y);
 }
 
 BOX2 SC2_MapBounds(void) {

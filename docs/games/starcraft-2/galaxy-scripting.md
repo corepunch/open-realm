@@ -35,6 +35,11 @@ This index removed the confirmed TRaynor01 startup bottleneck: an instrumented 2
 	same path as map-placed units. `Fly` movers steer directly and skip ground collision/pathing; ground movers retain flow-field routing.
 - `UnitIssueOrder` preserves `c_orderQueueReplace` and `c_orderQueueAddToEnd`. Appended transport and departure orders remain queued
 	until the active move reports idle. `SpecOpsDropshipTransport` then empties cargo into a compact two-row formation before departure.
+- Flying-unit Z comes from the mover's broad `Air` height surface plus the resolved `CUnit.Height`; ground units use exact terrain.
+	`SpecialOpsDropship` authors `Mover="Fly"`, `PlaneArray[Air]=1`, and `Height=3.75`. A bounded TRaynor01 trace found the old path at
+	zero terrain clearance (`Z=0.0-0.4`) inside the ravine. Exact terrain plus `Height` still descended below its roughly `8.0` rim.
+	The broad Air surface plus `Height` kept the same XY route at `Z=9.2-10.1` across the gap. `t3SyncHeightMap` is not the Air surface:
+	sampled values followed the depression down to `-0.08`, so do not substitute it for the broad-height query.
 
 ## Diagnostic Workflow
 
