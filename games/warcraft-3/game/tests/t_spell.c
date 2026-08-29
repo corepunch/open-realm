@@ -143,20 +143,18 @@ TEST(wc3_spell, spell_unit_id_from_slk) {
 		"C;Y2;X3;K\"hwat\"\n"
 		"E\n";
 	sheetRow_t *rows = parse_slk_string(slk);
-	sheetRow_t *old = game.config.abilities;
-	game.config.abilities = rows;
+	sheetRow_t *old = G_SetSLKRows("AbilityData", rows);
 	T_EQ((int)S_SpellUnitId(MAKEFOURCC('A','H','w','e'), 1), (int)MAKEFOURCC('h','w','a','t'));
-	game.config.abilities = old;
+	G_SetSLKRows("AbilityData", old);
 	free_slk_rows(rows);
 }
 
 TEST(wc3_spell, hero_duration_uses_herodur_col) {
 	sheetRow_t *rows = parse_slk_string(slk_spell_data);
-	sheetRow_t *old = game.config.abilities;
-	game.config.abilities = rows;
+	sheetRow_t *old = G_SetSLKRows("AbilityData", rows);
 	T_FEQ(S_SpellDuration(MAKEFOURCC('A','H','t','b'), 1, true), 3.0f, 0.01f);
 	T_FEQ(S_SpellDuration(MAKEFOURCC('A','H','t','b'), 1, false), 5.0f, 0.01f);
-	game.config.abilities = old;
+	G_SetSLKRows("AbilityData", old);
 	free_slk_rows(rows);
 }
 

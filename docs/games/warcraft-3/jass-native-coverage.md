@@ -73,6 +73,18 @@ reconstructs and may override map/player setup before `main()` starts. Setup
 callbacks therefore need mutable per-level state initialized from `MAPINFO`;
 casting away `level.mapinfo` constness is not the long-term ownership model.
 
+## Runtime Error Reporting
+
+`jass_rterror()` records the error on the root VM and aborts the current
+coroutine. Reporting belongs to `JASSHOST.RuntimeError`; `jass_sethost()` uses
+the standard `JASS runtime error:` stderr reporter when the host omits it.
+
+In engine tests, `run_test_jass_error(source, expected)` installs a silent host
+reporter and compares the recorded error with `expected`. Use it for deliberate
+negative paths so expected failures do not resemble test-run failures. Ordinary
+`run_test_jass()` calls print captured errors as `JASS test error:` before
+returning false.
+
 ## Map Configuration Contract
 
 The following callbacks form one coherent setup subsystem:

@@ -39,6 +39,7 @@ static void reset_test_entities(void) {
 static LPEDICT make_unit(FLOAT x, FLOAT y) {
     LPEDICT ent = G_Spawn();
     ent->class_id       = MAKEFOURCC('h','p','e','a');
+    G_BindEntityData(ent);
     ent->s.origin2      = (VECTOR2){x, y};
     ent->s.origin.x     = x;
     ent->s.origin.y     = y;
@@ -49,9 +50,9 @@ static LPEDICT make_unit(FLOAT x, FLOAT y) {
     ent->stand          = unit_stand;
     ent->birth          = unit_birth;
     ent->die            = unit_die;
-    ent->health.value   = UNIT_HP(ent->class_id);
-    ent->health.max_value = UNIT_HP(ent->class_id);
-    ent->unitinfo.MoveSpeed = UNIT_SPEED(ent->class_id);
+    ent->health.value   = G_UnitBalance(ent->class_id)->maxHealth;
+    ent->health.max_value = G_UnitBalance(ent->class_id)->maxHealth;
+    ent->unitinfo.MoveSpeed = G_UnitBalance(ent->class_id)->speed;
     unit_stand(ent);
     return ent;
 }
@@ -59,12 +60,14 @@ static LPEDICT make_unit(FLOAT x, FLOAT y) {
 static LPEDICT make_inventory_unit(FLOAT x, FLOAT y) {
     LPEDICT ent = make_unit(x, y);
     ent->class_id = MAKEFOURCC('H','p','a','l');
+    G_BindEntityData(ent);
     return ent;
 }
 
 static LPEDICT make_world_item(DWORD class_id) {
     LPEDICT item = G_Spawn();
     item->class_id = class_id;
+    G_BindEntityData(item);
     item->s.model = 1;
     item->item.in_world = true;
     item->item.inventory_slot = -1;
@@ -84,10 +87,11 @@ TEST(wc3_unit, selection_sound_registration_caches_all_responses) {
         "E\n";
     LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     sheetRow_t *sounds = parse_slk_string(slk);
-    G_RegisterSelectSounds(ent, sounds, "Footman");
+    sheetRow_t *old = G_SetSLKRows("UnitAckSounds", sounds);
+    G_RegisterSelectSounds(ent, "Footman");
     T_EQ(ent->num_select_sounds, 4);
     FOR_LOOP(i, ent->num_select_sounds) T_ASSERT(ent->sound_select[i]);
-    free_slk_rows(sounds);
+    G_SetSLKRows("UnitAckSounds", old); free_slk_rows(sounds);
 }
 
 TEST(wc3_unit, selecting_owned_unit_emits_one_ack_event) {
@@ -126,7 +130,7 @@ TEST(wc3_unit, birth_sets_wait_from_build_time) {
     LPEDICT ent = make_unit(0, 0);
     unit_birth(ent);
     T_ASSERT(ent->wait > 0);
-    T_EQ((int)ent->wait, UNIT_BUILD_TIME(ent->class_id));
+    T_EQ((int)ent->wait, G_UnitBalance(ent->class_id)->buildTime);
 }
 
 TEST(wc3_unit, birth_sets_no_ubersplat_flag) {
@@ -153,6 +157,7 @@ TEST(wc3_unit, stand_uses_ready_animation_in_combat) {
     LPEDICT ent = make_unit(0, 0);
     LPEDICT target = G_Spawn();
     target->class_id = MAKEFOURCC('h','f','o','o');
+    G_BindEntityData(target);
     target->s.origin2 = (VECTOR2){50, 0};
     target->s.model = 1;
     target->inuse = true;
@@ -171,6 +176,7 @@ TEST(wc3_unit, stop_exits_ready_animation) {
     LPEDICT ent = make_unit(0, 0);
     LPEDICT target = G_Spawn();
     target->class_id = MAKEFOURCC('h','f','o','o');
+    G_BindEntityData(target);
     target->s.origin2 = (VECTOR2){50, 0};
     target->s.model = 1;
     target->inuse = true;
@@ -274,6 +280,7 @@ TEST(wc3_unit, issueorder_move_preserves_combat_state) {
     LPEDICT ent = make_unit(0, 0);
     LPEDICT target = G_Spawn();
     target->class_id = MAKEFOURCC('h','f','o','o');
+    G_BindEntityData(target);
     target->s.origin2 = (VECTOR2){50, 0};
     target->s.model = 1;
     target->inuse = true;

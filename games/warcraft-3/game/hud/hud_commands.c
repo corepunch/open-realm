@@ -19,9 +19,10 @@ DWORD UI_ClassIdFromCode(LPCSTR code) {
 
 void UI_FormatTooltip(LPCSTR code, LPCSTR tip, LPCSTR ubertip, FLOAT manacost, LPSTR out, DWORD out_size) {
     DWORD class_id = UI_ClassIdFromCode(code);
-    DWORD gold_cost = class_id ? UNIT_GOLD_COST(class_id) : 0;
-    DWORD lumber_cost = class_id ? UNIT_LUMBER_COST(class_id) : 0;
-    DWORD food_cost = class_id ? UNIT_FOOD_USED(class_id) : 0;
+    UnitBalance_t const *balance = class_id ? G_UnitBalance(class_id) : NULL;
+    DWORD gold_cost = balance ? (DWORD)balance->goldCost : 0;
+    DWORD lumber_cost = balance ? (DWORD)balance->lumberCost : 0;
+    DWORD food_cost = balance ? (DWORD)balance->foodUsed : 0;
     DWORD mana_cost = (DWORD)(manacost + 0.5f);
     DWORD gold_icon = 0;
     DWORD lumber_icon = 0;

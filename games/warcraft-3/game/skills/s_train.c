@@ -11,7 +11,7 @@ static void ShowTrainedUnit(LPEDICT townhall, LPEDICT unit) {
 }
 
 void ai_train_build(LPEDICT ent) {
-    FLOAT const k = (FLOAT)FRAMETIME / (FLOAT)UNIT_BUILD_TIME_MSEC(ent->build->class_id);
+    FLOAT const k = (FLOAT)FRAMETIME / ((FLOAT)ent->build->balance->buildTime * 1000.0f);
     EDICTSTAT *hp = &ent->build->health;
     hp->value += hp->max_value * k;
     if (hp->value >= hp->max_value) {

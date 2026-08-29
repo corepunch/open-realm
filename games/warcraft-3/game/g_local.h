@@ -9,6 +9,7 @@
 #include "common/stb_fdf.h"
 #include "server/game.h"
 #include "g_shared.h"
+#include "g_unitrow.h"
 #include "g_unitdata.h"
 #include "jass/jlex.h"
 
@@ -695,7 +696,15 @@ struct edict_s {
     LPEDICT owner;
     LPEDICT build;
     LPCANIMATION animation;
-    unitbalance_t balance;
+    UnitBalance_t const *balance;
+    UnitData_t const *data;
+    UnitUI_t const *ui;
+    UnitWeapons_t const *weapons;
+    UnitAbilities_t const *abilities;
+    Doodads_t const *doodad;
+    ItemData_t const *itemData;
+    DestructableData_t const *destructableData;
+    unitbalance_t runtime;
     umove_t *currentmove;
 //    unitRace_t race;
     FLOAT wait;
@@ -729,14 +738,8 @@ struct game_locals {
     DWORD num_abilities;
     LPGAMECLIENT clients;
     struct {
-        sheetRow_t *abilities;
-        sheetRow_t *items;
         sheetRow_t *theme;
-        sheetRow_t *splats;
-        sheetRow_t *uberSplats;
         sheetRow_t *misc;
-        sheetRow_t *unitAckSounds;    /* UI/SoundInfo/UnitAckSounds.slk */
-        sheetRow_t *unitCombatSounds; /* UI/SoundInfo/UnitCombatSounds.slk */
     } config;
     struct {
         FLOAT attackHalfAngle;
@@ -887,6 +890,7 @@ BOOL G_IsNight(void);
 // g_spawn.c
 LPEDICT G_Spawn(void);
 void SP_CallSpawn(LPEDICT);
+void G_BindEntityData(LPEDICT);
 void G_SpawnEntities(void);
 BOOL SP_FindEmptySpaceAround(LPEDICT, DWORD, LPVECTOR2, FLOAT *);
 LPEDICT SP_SpawnAtLocation(DWORD, DWORD, LPCVECTOR2);
@@ -1050,11 +1054,13 @@ LPCSTR UnitStringField(sheetMetaData_t *, DWORD, LPCSTR);
 LONG UnitIntegerField(sheetMetaData_t *, DWORD, LPCSTR);
 BOOL UnitBooleanField(sheetMetaData_t *, DWORD, LPCSTR);
 FLOAT UnitRealField(sheetMetaData_t *, DWORD, LPCSTR);
-LONG UnitCollisionField(DWORD);
 
 void InitUnitData(void);
 void ShutdownUnitData(void);
-void G_RegisterSelectSounds(LPEDICT, sheetRow_t *, LPCSTR);
+#ifdef BZ_TESTS
+sheetRow_t *G_SetSLKRows(LPCSTR, sheetRow_t *);
+#endif
+void G_RegisterSelectSounds(LPEDICT, LPCSTR);
 
 // g_command.c
 void G_SelectEntity(LPGAMECLIENT, LPEDICT);
@@ -1065,7 +1071,6 @@ void G_ClientCommand(LPEDICT, DWORD, LPCSTR[]);
 void G_ClientSetCameraPosition(LPEDICT, LPCVECTOR2);
 
 //  s_skills.c
-FLOAT AB_Number(LPCSTR, LPCSTR);
 FLOAT AB_Data(LPCSTR, DWORD, DWORD);
 DWORD GetAbilityIndex(ability_t const *);
 

@@ -44,7 +44,7 @@ static void flame_strike_execute(LPEDICT caster, spellTarget_t st, spell_info_t 
     DWORD initial_damage = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 2)); /* DataB = Initial Damage */
     DWORD burn_damage = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 3)); /* DataC = Damage Per Second */
     DWORD burn_ticks = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 4)); /* DataD = Full Damage Interval (ticks) */
-    FLOAT area = S_SpellNumber(spell->code, "Area", level);
+    FLOAT area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     LPEDICT thinker;
 
     thinker = G_Spawn();

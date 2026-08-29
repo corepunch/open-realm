@@ -1014,6 +1014,7 @@ static BOOL sc2_parse_xml_field(void *base, sc2XmlField_t const *fields, DWORD n
                 return sc2_parse_argb_color(value, (LPCOLOR32)out);
             case SC2_XML_FIELD_COLOR_RGBA:
                 return sc2_parse_rgba_color(value, (LPCOLOR32)out);
+            default: return false; /* BZ_FIELD_BOOL / BZ_FIELD_CSTR / BZ_FIELD_FOURCC not used in SC2 XML */
         }
     }
     return false;

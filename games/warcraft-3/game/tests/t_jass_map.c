@@ -24,6 +24,7 @@
 #include "../g_local.h"
 
 BOOL run_test_jass(LPCSTR src);
+BOOL run_test_jass_error(LPCSTR src, LPCSTR expected);
 
 /* =========================================================================
  * Helper: scan the event queue for a given type.
@@ -48,11 +49,19 @@ TEST(wc3_jass_map, bjassassert_true_passes) {
 }
 
 TEST(wc3_jass_map, bjassassert_false_is_caught) {
-    T_ASSERT(!run_test_jass(
+    T_ASSERT(run_test_jass_error(
         "function main takes nothing returns nothing\n"
         "  call BJassAssert(false, \"intentional failure\")\n"
         "endfunction\n"
-    ));
+    , "assertion failed: intentional failure"));
+}
+
+TEST(wc3_jass_map, bjassassert_error_message_must_match) {
+    T_ASSERT(!run_test_jass_error(
+        "function main takes nothing returns nothing\n"
+        "  call BJassAssert(false, \"actual failure\")\n"
+        "endfunction\n"
+    , "assertion failed: different failure"));
 }
 
 TEST(wc3_jass_map, array_assignment_and_access_evaluate_expressions) {

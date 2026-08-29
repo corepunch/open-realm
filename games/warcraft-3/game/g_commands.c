@@ -50,7 +50,7 @@ CLIENTCOMMAND(Select) {
             if (number >= globals.num_edicts)
                 continue;
             LPEDICT e = &globals.edicts[number];
-            if (e->s.player == client->ps.number && !UNIT_IS_BUILDING(e->class_id)) {
+            if (e->s.player == client->ps.number && !G_UnitIsBuilding(e->class_id)) {
                 hasunits = true;
             }
         }
@@ -60,7 +60,7 @@ CLIENTCOMMAND(Select) {
                 continue;
             LPEDICT e = &globals.edicts[number];
             if (e->s.player == client->ps.number) {
-                if (hasunits && UNIT_IS_BUILDING(e->class_id))
+                if (hasunits && G_UnitIsBuilding(e->class_id))
                     continue;
                 if (!cleared) {
                     FOR_SELECTED_UNITS(client, ent) G_DeselectEntity(client, ent);
@@ -125,8 +125,7 @@ CLIENTCOMMAND(SmartPoint) {
 CLIENTCOMMAND(Button) {
     LPCSTR classname = argv[1];
     LPGAMECLIENT client = clent->client;
-    LPCSTR code = game.config.abilities ? FS_FindSheetCell(game.config.abilities, classname, "code") : NULL;
-    ability_t const *ability = FindAbilityByClassname(code ? code : classname);
+    ability_t const *ability = FindAbilityByClassname(GetClassName(G_AbilityCodeName(classname)));
     if (ability && ability->cmd) {
         client->menu.ability_code = *((DWORD const *)classname);
         ability->cmd(clent);
@@ -263,8 +262,7 @@ CLIENTCOMMAND(Inventory) {
     abilities = FindConfigValue(GetClassName(item->class_id), "abilList");
     if (abilities && *abilities) {
         PARSE_LIST(abilities, ability_name, parse_segment) {
-            LPCSTR code = game.config.abilities ? FS_FindSheetCell(game.config.abilities, ability_name, "code") : NULL;
-            ability_t const *ability = FindAbilityByClassname(code ? code : ability_name);
+            ability_t const *ability = FindAbilityByClassname(GetClassName(G_AbilityCodeName(ability_name)));
             if (ability && ability->cmd) {
                 client->menu.ability_code = *((DWORD const *)ability_name);
                 ability->cmd(clent);

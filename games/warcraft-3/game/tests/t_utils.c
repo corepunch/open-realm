@@ -15,6 +15,7 @@ extern JASSMODULE jass_funcs[];
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y) {
     LPEDICT ent = G_Spawn();
     ent->class_id = class_id;
+    G_BindEntityData(ent);
     ent->s.origin2 = (VECTOR2){x, y};
     ent->s.origin.x = x;
     ent->s.origin.y = y;
@@ -104,6 +105,8 @@ static void reset_test_state(void) {
     if (gi.ClearWorld) gi.ClearWorld();
 }
 
+static void ignore_jass_error(LPCSTR message) { (void)message; }
+
 /*
  * run_test_jass — load a synthetic JASS map script and run its main().
  *
@@ -113,9 +116,10 @@ static void reset_test_state(void) {
  * C-level game state (level.quests, level.events) after the call returns.
  * The VM is closed automatically by reset_test_state() before the next test.
  *
- * Returns true if no JASS runtime error occurred.
+ * Returns true if no JASS runtime error occurred. The test host captures VM
+ * errors so callers can distinguish expected failures from test failures.
  */
-BOOL run_test_jass(LPCSTR src) {
+static BOOL run_test_jass_impl(LPCSTR src, LPCSTR expected) {
     /* jass_dobuffer mutates the string in-place; duplicate to avoid clobbering read-only literals. */
     DWORD len = strlen(src);
     LPSTR buf = gi.MemAlloc(len + 1);
@@ -130,6 +134,7 @@ BOOL run_test_jass(LPCSTR src) {
         .ReadFile         = gi.ReadFile,
         .natives          = jass_funcs,
         .GetPlayerByNumber = G_GetPlayerByNumber,
+        .RuntimeError     = ignore_jass_error,
     ));
     level.vm = jass_newstate();
 
@@ -141,8 +146,15 @@ BOOL run_test_jass(LPCSTR src) {
     jass_callbyname(level.vm, "main", true);
     jass_runevents(level.vm);
 
-    return !jass_rterror_pending(level.vm);
+    if (expected)
+        return jass_rterror_pending(level.vm) && !strcmp(jass_rterror_message(level.vm), expected);
+    if (!jass_rterror_pending(level.vm)) return true;
+    fprintf(stderr, "JASS test error: %s\n", jass_rterror_message(level.vm));
+    return false;
 }
+
+BOOL run_test_jass(LPCSTR src) { return run_test_jass_impl(src, NULL); }
+BOOL run_test_jass_error(LPCSTR src, LPCSTR expected) { return run_test_jass_impl(src, expected); }
 
 __attribute__((constructor)) static void register_test_reset(void) { Test_SetBeforeEach(reset_test_state); }
 

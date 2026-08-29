@@ -74,8 +74,7 @@ Buildings use `BuildingSoundLabel` (from `*UnitFunc.txt`) which maps to looping 
 
 ## OpenWarcraft3 Implementation
 
-The game loads `UI/SoundInfo/UnitAckSounds.slk` at init (`game.config.unitAckSounds`).
-At unit spawn, `G_RegisterUnitSounds` reads the `usnd` label from `unitUI.slk` and registers:
+The typed SLK registry loads `UI/SoundInfo/UnitAckSounds.slk` into a flat `unitSoundRow_t` array. Sound names are not FOURCCs, so each row owns its complete source name and `G_UnitAckSound` compares that string. At unit spawn, `G_RegisterUnitSounds` reads the `usnd` label from `unitUI.slk` and registers:
 - `sound_select[]` ← every `{label}What` file (up to the authoritative ROC/TFT maximum of six)
 - `sound_attack` ← `{label}YesAttack` first file path via `gi.SoundIndex`
 - `sound_death` ← `{label}Death.wav` raw path via `gi.SoundIndex`

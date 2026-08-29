@@ -17,7 +17,7 @@ static void selectskill_menu_selected(LPEDICT clent, DWORD classname) {
 
 void ui_selectskill(LPGAMECLIENT client) {
     LPEDICT ent = G_GetMainSelectedUnit(client);
-    LPCSTR abils = UNIT_ABILITIES_HERO(ent->class_id);
+    LPCSTR abils = ent->abilities->heroAbilList;
     if (!abils)
         return;
     PARSE_LIST(abils, abil, parse_segment) {

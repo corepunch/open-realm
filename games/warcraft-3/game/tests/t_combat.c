@@ -280,7 +280,7 @@ TEST(wc3_combat, runentity_hp_regen_always) {
 
     G_RunEntity(ent);
 
-    T_FEQ(ent->health.value, 200.0f + UNIT_HIT_POINTS_REGENERATION_RATE(ent->class_id) *
+    T_FEQ(ent->health.value, 200.0f + G_UnitBalance(ent->class_id)->healthRegen *
           (FRAMETIME / 1000.0f), 0.0001f);
 }
 
@@ -358,7 +358,7 @@ TEST(wc3_combat, hero_strength_hp_regen_bonus) {
 
     G_RunEntity(h);
 
-    T_FEQ(h->health.value, 600.0f + (UNIT_HIT_POINTS_REGENERATION_RATE(h->class_id) + 22 * 0.05f) *
+    T_FEQ(h->health.value, 600.0f + (G_UnitBalance(h->class_id)->healthRegen + 22 * 0.05f) *
           (FRAMETIME / 1000.0f), 0.001f);
 }
 
@@ -765,20 +765,19 @@ static const char slk_ability_helpers_roc[] =
 
 /* ROC and TFT store the same semantic ability slots under different headers. */
 TEST(wc3_combat, ability_data_resolves_roc_and_tft_columns) {
-    sheetRow_t *old_abilities = game.config.abilities;
     sheetRow_t *rows = parse_slk_string(slk_ability_helpers_roc);
-    game.config.abilities = rows;
+    sheetRow_t *old_abilities = G_SetSLKRows("AbilityData", rows);
     T_FEQ(AB_Data("Ahar", 1, 1), 1.0f, 0.01f);
     T_FEQ(AB_Data("Ahar", 1, 2), 10.0f, 0.01f);
     T_FEQ(S_SpellData(MAKEFOURCC('A','h','a','r'), 1, 3), 10.0f, 0.01f);
     free_slk_rows(rows);
 
     rows = parse_slk_string(slk_ability_helpers);
-    game.config.abilities = rows;
+    G_SetSLKRows("AbilityData", rows);
     T_FEQ(AB_Data("AHtb", 1, 1), 100.0f, 0.01f);
     T_FEQ(AB_Data("AHtb", 1, 2), 55.0f, 0.01f);
     T_FEQ(S_SpellData(MAKEFOURCC('A','H','t','b'), 1, 5), 42.0f, 0.01f);
-    game.config.abilities = old_abilities;
+    G_SetSLKRows("AbilityData", old_abilities);
     free_slk_rows(rows);
 }
 
@@ -786,27 +785,24 @@ TEST(wc3_combat, ability_data_resolves_roc_and_tft_columns) {
  * Agld globals initialized immediately before it. */
 TEST(wc3_combat, overlay_mine_does_not_reset_basic_mine_data) {
     extern FLOAT MAX_GOLD, MINING_DURATION, MINING_CAPACITY;
-    sheetRow_t *old_abilities = game.config.abilities;
     sheetRow_t *rows = parse_slk_string(slk_ability_helpers_roc);
-    game.config.abilities = rows;
+    sheetRow_t *old_abilities = G_SetSLKRows("AbilityData", rows);
     a_goldmine.init("Agld", &a_goldmine);
     T_FEQ(MAX_GOLD, 12500.0f, 0.01f);
     T_FEQ(MINING_DURATION, 1.0f, 0.01f);
     T_FEQ(MINING_CAPACITY, 1.0f, 0.01f);
     T_NULL(a_goldmine_overlayed.init);
-    game.config.abilities = old_abilities;
+    G_SetSLKRows("AbilityData", old_abilities);
     free_slk_rows(rows);
 }
 
 TEST(wc3_combat, spell_helpers_read_slk_fields) {
-    sheetRow_t *old_abilities = game.config.abilities;
     sheetRow_t *rows = parse_slk_string(slk_ability_helpers);
+    sheetRow_t *old_abilities = G_SetSLKRows("AbilityData", rows);
     DWORD thunder = MAKEFOURCC('A', 'H', 't', 'b');
     DWORD water = MAKEFOURCC('A', 'H', 'w', 'e');
 
-    game.config.abilities = rows;
-
-    T_FEQ(S_SpellNumber(thunder, "Cost", 1), 75.0f, 0.01f);
+    T_FEQ(S_SpellNumber(thunder, ABILITY_NUMBER_COST, 1), 75.0f, 0.01f);
     T_FEQ(S_SpellRange(thunder, 1), 600.0f, 0.01f);
     T_FEQ(S_SpellDuration(thunder, 1, true), 3.0f, 0.01f);
     T_FEQ(S_SpellData(thunder, 1, 1), 100.0f, 0.01f); /* DataA1 */
@@ -817,20 +813,18 @@ TEST(wc3_combat, spell_helpers_read_slk_fields) {
     T_FEQ(S_SpellData(thunder, 1, 5), 42.0f, 0.01f);  /* DataE1 */
     T_EQ((int)S_SpellUnitId(water, 1), (int)MAKEFOURCC('h','w','a','t'));
 
-    game.config.abilities = old_abilities;
+    G_SetSLKRows("AbilityData", old_abilities);
     free_slk_rows(rows);
 }
 
 TEST(wc3_combat, spell_mana_and_cooldown) {
-    sheetRow_t *old_abilities = game.config.abilities;
     sheetRow_t *rows = parse_slk_string(slk_ability_helpers);
+    sheetRow_t *old_abilities = G_SetSLKRows("AbilityData", rows);
     DWORD thunder = MAKEFOURCC('A', 'H', 't', 'b');
     LPEDICT caster = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
     caster->mana.value = 100.0f;
     caster->mana.max_value = 100.0f;
     level.time = 1000;
-    game.config.abilities = rows;
-
     T_ASSERT(S_SpellCooldownReady(caster, thunder));
     T_ASSERT(S_SpellSpendMana(caster, thunder, 1));
     T_FEQ(caster->mana.value, 25.0f, 0.01f);
@@ -848,7 +842,7 @@ TEST(wc3_combat, spell_mana_and_cooldown) {
     /* Ready again -> no shade. */
     T_FEQ(S_SpellCooldownFraction(caster, thunder, 1), 0.0f, 0.01f);
 
-    game.config.abilities = old_abilities;
+    G_SetSLKRows("AbilityData", old_abilities);
     free_slk_rows(rows);
 }
 
@@ -892,7 +886,7 @@ TEST(wc3_combat, player_pay_deducts_gold) {
     p->stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
 
     DWORD unit = MAKEFOURCC('h','p','e','a');
-    LONG gold = UNIT_GOLD_COST(unit);
+    LONG gold = G_UnitBalance(unit)->goldCost;
     BOOL ok = player_pay(p, unit);
 
     T_ASSERT(ok);
@@ -913,7 +907,7 @@ TEST(wc3_combat, player_pay_insufficient_gold_fails) {
 TEST(wc3_combat, player_pay_insufficient_lumber_fails) {
     LPPLAYER p = &game.clients[0].ps;
     DWORD project = MAKEFOURCC('h','b','a','r');
-    LONG gold = UNIT_GOLD_COST(project), lumber = UNIT_LUMBER_COST(project);
+    LONG gold = G_UnitBalance(project)->goldCost, lumber = G_UnitBalance(project)->lumberCost;
     T_ASSERT(gold > 0 && lumber > 0);
     p->stats[PLAYERSTATE_RESOURCE_GOLD]   = gold;
     p->stats[PLAYERSTATE_RESOURCE_LUMBER] = lumber - 1;

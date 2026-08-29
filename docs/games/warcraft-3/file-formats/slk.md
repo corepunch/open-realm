@@ -77,7 +77,31 @@ After all cells are parsed, `FS_MakeRowsFromSheet` converts the flat cell list i
 LPCSTR value = FS_FindSheetCell(rows, "hfoo", "HP");
 ```
 
-The resulting row array drives Warcraft III unit spawning (`games/warcraft-3/game/g_spawn.c`) and metadata lookups (`games/warcraft-3/game/g_metadata.c`) at runtime.
+The parser-owned row list remains the compatibility representation for INI files. Every runtime SLK is decoded once at startup into a flat typed array defined in `games/warcraft-3/game/g_unitrow.h`:
+
+- `UnitBalance.slk`
+- `UnitData.slk`
+- `UnitUI.slk`
+- `UnitWeapons.slk`
+- `UnitAbilities.slk`
+- `AbilityData.slk`
+- `ItemData.slk`
+- `DestructableData.slk`
+- `Doodads.slk`
+- `UberSplatData.slk`
+- `UnitAckSounds.slk`
+
+Every typed row contains its source FOURCC and every ROC/TFT column. Native column names exist only in the DDX schemas; C members use semantic names such as `agilityPerLevel`. `slk_stores[]` in `games/warcraft-3/game/g_metadata.c` initializes the public `g_UnitBalance`, `g_UnitWeapons`, and corresponding per-SLK arrays and indexes once. Production retains no raw source pointer in the registry. `ShutdownUnitData` frees the typed strings, arrays, and indexes.
+
+Spawned entities bind immutable pointers to their rows once in `SP_CallSpawn`, so gameplay uses `unit->balance->agilityPerLevel`, `unit->ui->modelFile`, or `unit->weapons->attack2.damageBase`. The mutable values derived at spawn remain in `unit->runtime`; this is separate from the immutable `UnitBalance_t`. Code that only has a FOURCC uses `G_UnitBalance(id)` and the other indexed lookup functions. Typed passthrough `UNIT_*`, `ITEM_*`, and `DESTRUCTABLE_*` macros are not part of this path; only Profile/INI fields remain macro-backed.
+
+`BZ_FIELD_CSTR` values are duplicated while decoding, so typed rows do not borrow parser-arena strings. `FS_SLKFreeRows` walks the same DDX schema, frees each unique string offset, and frees the row array. This unique-offset rule is required for release aliases such as ItemData `class`/`itemClass` and DestructableData `Name`/`name`.
+
+ROC/TFT columns that moved between tables remain represented in both owning row types. Accessors resolve the known release split, for example `UnitBalance.collision` in TFT versus `UnitData.collision` in ROC. AbilityData's ROC `Data11..Data34` and TFT `DataA1..DataI4` columns map into one `data[level][slot]` array during decoding. Test builds expose `G_SetSLKRows` to replace and restore a typed fixture; production builds do not retain that source pointer.
+
+FOURCC-keyed tables use the sorted `slkIndex_t` sidecar. `UnitAckSounds.slk` has arbitrary-length labels such as `FootmanWhat`; its row struct owns the full source row name and lookup compares that string in the flat array. Do not truncate sound labels into FOURCC keys.
+
+`SplatData.slk` and `UnitCombatSounds.slk` were previously loaded but had no consumers, so they are no longer loaded. Add a typed row and registry entry before introducing a runtime consumer for either table.
 
 ## Verified Archive Characteristics
 
@@ -99,9 +123,9 @@ The following was measured with `build/bin/mpqtool` against the startup SLKs loa
 2. **Pool exhaustion corrupts memory.** Row and field cursors still have no capacity checks. `FS_FillSheetCell` now checks the cell pool and text arena and logs before returning early, but the `FS_MakeRowsFromSheet` row/field pools remain unchecked.
 3. **Long values are silently truncated.** The per-field buffer in `ScanSLKField` is `MAX_SHEET_LINE` (1024) bytes; values longer than 1023 bytes are truncated without a warning. The confirmed startup corpus has no such values. Cache keys in `NormalizeSheetKey` are also silently truncated at 256 bytes.
 4. **Errors are not actionable.** Invalid magic, malformed coordinates, unsupported records, allocation failure, and truncation generally return partial data or `NULL` without a filename, line, or reason.
-5. **Lookups are linear.** `FS_FindSheetCell` scans every row and then every field. Unit metadata performs this repeatedly at runtime.
+5. **Compatibility lookups are linear.** `FS_FindSheetCell` still scans Profile/INI rows and fields. Runtime SLK lookups use sorted indexes, and spawned entities retain direct row pointers.
 6. **Production parsing is now unit-tested.** `FS_ParseSLK_Buffer` is non-static and declared in `common.h`. Part 5 of `t_slk.c` exercises it directly: stateful omitted Y, stateful omitted X, F-record coordinate advance, advisory B bounds, quoted semicolons, `""` quote escapes, zero coordinate rejection, and no-magic-line tolerance.
-7. **There is no reset/destructor.** Cache entries and parser storage survive for the process lifetime, and `ShutdownUnitData` cannot release them.
+7. **Legacy parser storage is process-scoped.** Cache entries and parser pools survive for the process lifetime. Typed SLK arrays and their owned strings are independent and are released by `ShutdownUnitData`.
 
 ## External Implementations
 

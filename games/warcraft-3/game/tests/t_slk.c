@@ -3,17 +3,15 @@
  *
  * Part 1 (pure functions): FS_FindSheetCell linked-list traversal tests.
  * Part 2 (unit stats): real archive data for hpea/hfoo.
- * Part 3 (custom metadata): G_SetConfigTable to test mana/armor edge cases.
+ * Part 3 (typed table replacement): G_SetSLKRows tests mana/armor edge cases.
  */
 #ifdef BZ_TESTS
 
 #include "test.h"
 #include "../g_local.h"
+#include "common/stb_slk.h"
 
 void setup_test_world(void);
-
-/* Defined in g_metadata.c; swaps the sheet backing one metadata table. */
-void G_SetConfigTable(sheetMetaData_t *metadatas, LPCSTR slk, sheetRow_t *table);
 
 /* parse_slk_string / free_slk_rows: defined in test_harness.c, reproduced
  * here so t_slk.c is self-contained without the old harness. */
@@ -184,6 +182,25 @@ TEST(wc3_slk, find_cell_null_sheet_returns_null) {
     T_NULL(FS_FindSheetCell(NULL, "hpea", "spd"));
 }
 
+TEST(wc3_slk, typed_strings_are_owned_and_alias_safe) {
+    typedef struct { LPCSTR name; } testRow_t;
+    static slkField_t const schema[] = {
+        { "Name", offsetof(testRow_t, name), STB_SLK_STR },
+        { "name", offsetof(testRow_t, name), STB_SLK_STR },
+        { NULL, 0, 0 }
+    };
+    char first[] = "Footman", second[] = "Knight";
+    sheetField_t alias = { "name", second, NULL };
+    sheetField_t field = { "Name", first, &alias };
+    sheetRow_t source = { "hfoo", &field, NULL };
+    testRow_t *rows = calloc(1, sizeof(*rows));
+
+    FS_SLKDecodeRow(&source, schema, rows);
+    first[0] = 'X'; second[0] = 'Y';
+    T_STREQ(rows->name, "Knight");
+    FS_SLKFreeRows(schema, rows, 1, sizeof(*rows));
+}
+
 /* -----------------------------------------------------------------------
  * 2.  In-memory SLK parsing (parse_slk_string)
  * --------------------------------------------------------------------- */
@@ -249,45 +266,73 @@ TEST(wc3_slk, parse_empty_string_returns_null) {
 
 TEST(wc3_slk, unit_speed_peasant) {
     setup_test_world();
-    FLOAT speed = UNIT_SPEED(MAKEFOURCC('h','p','e','a'));
+    FLOAT speed = G_UnitBalance(MAKEFOURCC('h','p','e','a'))->speed;
     T_ASSERT(speed == 190.0f || speed == 270.0f); /* TFT / ROC */
 }
 
 TEST(wc3_slk, unit_speed_footman) {
-    T_FEQ(UNIT_SPEED(MAKEFOURCC('h','f','o','o')), 270.0f, 0.01f);
+    T_EQ(G_UnitBalance(MAKEFOURCC('h','f','o','o'))->id, MAKEFOURCC('h','f','o','o'));
+    T_FEQ(G_UnitBalance(MAKEFOURCC('h','f','o','o'))->speed, 270.0f, 0.01f);
 }
 
 TEST(wc3_slk, unit_hp_peasant) {
-    FLOAT hp = UNIT_HP(MAKEFOURCC('h','p','e','a'));
+    FLOAT hp = G_UnitBalance(MAKEFOURCC('h','p','e','a'))->maxHealth;
     T_ASSERT(hp == 220.0f || hp == 250.0f); /* TFT / ROC */
 }
 
 TEST(wc3_slk, unit_hp_footman) {
-    T_FEQ(UNIT_HP(MAKEFOURCC('h','f','o','o')), 420.0f, 0.01f);
+    T_FEQ(G_UnitBalance(MAKEFOURCC('h','f','o','o'))->maxHealth, 420.0f, 0.01f);
 }
 
 TEST(wc3_slk, unit_build_time_peasant) {
-    LONG build = UNIT_BUILD_TIME(MAKEFOURCC('h','p','e','a'));
+    LONG build = G_UnitBalance(MAKEFOURCC('h','p','e','a'))->buildTime;
     T_ASSERT(build == 15 || build == 45); /* TFT / ROC */
 }
 
 TEST(wc3_slk, unit_build_time_footman) {
-    LONG build = UNIT_BUILD_TIME(MAKEFOURCC('h','f','o','o'));
+    LONG build = G_UnitBalance(MAKEFOURCC('h','f','o','o'))->buildTime;
     T_ASSERT(build == 20 || build == 60); /* TFT / ROC */
 }
 
 TEST(wc3_slk, unit_collision_peasant) {
-    T_EQ(UNIT_COLLISION(MAKEFOURCC('h','p','e','a')), 16);
+    T_EQ(G_UnitCollision(MAKEFOURCC('h','p','e','a')), 16);
+}
+
+TEST(wc3_slk, global_array_backs_spawned_unit) {
+    edict_t ent = { .class_id = MAKEFOURCC('h','f','o','o') };
+    T_NOT_NULL(g_UnitBalance);
+    T_ASSERT(g_UnitBalanceCount > 0);
+    SP_CallSpawn(&ent);
+    T_ASSERT(ent.balance == G_UnitBalance(ent.class_id));
+    T_ASSERT(ent.data == G_UnitData(ent.class_id));
+    T_ASSERT(ent.ui == G_UnitUI(ent.class_id));
+    T_ASSERT(ent.weapons == G_UnitWeapons(ent.class_id));
+    T_ASSERT(ent.abilities == G_UnitAbil(ent.class_id));
+}
+
+TEST(wc3_slk, weapon_columns_decode_into_attack_records) {
+    LPCSTR slk =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"unitWeaponID\"\nC;Y1;X2;K\"dmgplus1\"\nC;Y1;X3;K\"dmgplus2\"\n"
+        "C;Y1;X4;K\"rangeN1\"\nC;Y1;X5;K\"rangeN2\"\n"
+        "C;Y2;X1;K\"hfoo\"\nC;Y2;X2;K12\nC;Y2;X3;K34\nC;Y2;X4;K90\nC;Y2;X5;K600\nE\n";
+    sheetRow_t *rows = parse_slk_string(slk);
+    sheetRow_t *saved = G_SetSLKRows("UnitWeapons", rows);
+    UnitWeapons_t const *weapons = G_UnitWeapons(MAKEFOURCC('h','f','o','o'));
+    T_ASSERT(weapons == g_UnitWeapons);
+    T_EQ(weapons->attack1.damageBase, 12); T_EQ(weapons->attack2.damageBase, 34);
+    T_FEQ(weapons->attack1.range, 90.0f, 0.01f); T_FEQ(weapons->attack2.range, 600.0f, 0.01f);
+    G_SetSLKRows("UnitWeapons", saved); free_slk_rows(rows);
 }
 
 TEST(wc3_slk, unit_unknown_id_returns_zero) {
-    T_FEQ(UNIT_SPEED(MAKEFOURCC('x','x','x','x')),      0.0f, 0.01f);
-    T_FEQ(UNIT_HP(MAKEFOURCC('x','x','x','x')),         0.0f, 0.01f);
-    T_EQ  (UNIT_BUILD_TIME(MAKEFOURCC('x','x','x','x')), 0);
+    T_FEQ(G_UnitBalance(MAKEFOURCC('x','x','x','x'))->speed,      0.0f, 0.01f);
+    T_FEQ(G_UnitBalance(MAKEFOURCC('x','x','x','x'))->maxHealth,  0.0f, 0.01f);
+    T_EQ  (G_UnitBalance(MAKEFOURCC('x','x','x','x'))->buildTime, 0);
 }
 
 /* -----------------------------------------------------------------------
- * 4.  Mana / armor edge cases via G_SetConfigTable
+ * 4.  Mana / armor edge cases via typed table replacement
  * --------------------------------------------------------------------- */
 
 TEST(wc3_slk, mana_uses_realM_not_manaN) {
@@ -308,17 +353,15 @@ TEST(wc3_slk, mana_uses_realM_not_manaN) {
         "E\n";
     sheetRow_t *rows = parse_slk_string(slk_mana);
     T_NOT_NULL(rows);
-    sheetMetaData_t *md_mana = G_FindMetaData(UnitsMetaData, "umpm");
-    sheetRow_t *saved_mana = md_mana ? md_mana->table : NULL;
-    G_SetConfigTable(UnitsMetaData, "UnitBalance", rows);
+    sheetRow_t *saved_mana = G_SetSLKRows("UnitBalance", rows);
 
-    T_FEQ(UNIT_MANA_MAXIMUM(MAKEFOURCC('E','w','a','r')), 225.0f, 0.01f);
-    T_FEQ(UNIT_MANA_INITIAL(MAKEFOURCC('E','w','a','r')), 100.0f, 0.01f);
-    T_FEQ(UNIT_MANA_MAXIMUM(MAKEFOURCC('h','s','o','r')), 200.0f, 0.01f);
-    T_FEQ(UNIT_MANA_INITIAL(MAKEFOURCC('h','s','o','r')), 75.0f, 0.01f);
+    T_FEQ(G_UnitBalance(MAKEFOURCC('E','w','a','r'))->maxMana, 225.0f, 0.01f);
+    T_FEQ(G_UnitBalance(MAKEFOURCC('E','w','a','r'))->initialMana, 100.0f, 0.01f);
+    T_FEQ(G_UnitBalance(MAKEFOURCC('h','s','o','r'))->maxMana, 200.0f, 0.01f);
+    T_FEQ(G_UnitBalance(MAKEFOURCC('h','s','o','r'))->initialMana, 75.0f, 0.01f);
 
     /* Restore the archive table before freeing the temporary rows; later suites share this metadata. */
-    G_SetConfigTable(UnitsMetaData, "UnitBalance", saved_mana);
+    G_SetSLKRows("UnitBalance", saved_mana);
     free_slk_rows(rows);
 }
 
@@ -340,14 +383,12 @@ TEST(wc3_slk, armor_uses_realdef_not_def) {
         "E\n";
     sheetRow_t *rows = parse_slk_string(slk_armor);
     T_NOT_NULL(rows);
-    sheetMetaData_t *md_arm = G_FindMetaData(UnitsMetaData, "udfc");
-    sheetRow_t *saved_arm = md_arm ? md_arm->table : NULL;
-    G_SetConfigTable(UnitsMetaData, "UnitBalance", rows);
+    sheetRow_t *saved_arm = G_SetSLKRows("UnitBalance", rows);
 
-    T_FEQ(UNIT_ARMOR_VALUE(MAKEFOURCC('E','w','a','r')), 4.0f, 0.01f);
-    T_FEQ(UNIT_ARMOR_VALUE(MAKEFOURCC('h','f','o','o')), 2.0f, 0.01f);
+    T_FEQ(G_UnitBalance(MAKEFOURCC('E','w','a','r'))->armor, 4.0f, 0.01f);
+    T_FEQ(G_UnitBalance(MAKEFOURCC('h','f','o','o'))->armor, 2.0f, 0.01f);
 
-    G_SetConfigTable(UnitsMetaData, "UnitBalance", saved_arm);
+    G_SetSLKRows("UnitBalance", saved_arm);
     free_slk_rows(rows);
 }
 
@@ -362,8 +403,7 @@ static int capture_spawn_image(LPCSTR name) {
 TEST(wc3_slk, destructable_texture_preserves_extension_and_absent_sentinel) {
     static LPCSTR const names[] = { "_", "", "ReplaceableTextures\\Cliff\\Cliff0.tga",
                                    "ReplaceableTextures\\LordaeronTree\\LordaeronSummerTree" };
-    sheetMetaData_t *meta = G_FindMetaData(DestructableMetaData, "btxf");
-    sheetRow_t *saved = meta->table;
+    sheetRow_t *saved = NULL;
     int (*old_index)(LPCSTR) = gi.ImageIndex;
     setup_test_world();
     gi.ImageIndex = capture_spawn_image;
@@ -371,17 +411,43 @@ TEST(wc3_slk, destructable_texture_preserves_extension_and_absent_sentinel) {
         char slk[1024];
         snprintf(slk, sizeof(slk), "ID;PWXL;N;E\nC;Y1;X1;K\"ID\"\nC;Y1;X2;K\"file\"\nC;Y1;X3;K\"texFile\"\nC;Y1;X4;K\"targType\"\nC;Y2;X1;K\"LT05\"\nC;Y2;X2;K\"Cliff\"\nC;Y2;X3;K\"%s\"\nC;Y2;X4;K\"debris\"\nE\n", names[i]);
         sheetRow_t *rows = parse_slk_string(slk);
-        G_SetConfigTable(DestructableMetaData, "DestructableData", rows);
+        if (!saved) saved = G_SetSLKRows("DestructableData", rows);
+        else G_SetSLKRows("DestructableData", rows);
         edict_t ent = { .class_id = MAKEFOURCC('L','T','0','5') };
         spawn_images = 0;
         SP_CallSpawn(&ent);
         T_EQ(ent.s.image, i < 2 ? 0 : 42);
         T_EQ(spawn_images, i < 2 ? 0 : 1);
         if (i >= 2) T_STREQ(spawn_tex, names[i]);
-        G_SetConfigTable(DestructableMetaData, "DestructableData", saved);
+        G_SetSLKRows("DestructableData", saved);
         free_slk_rows(rows);
     }
     gi.ImageIndex = old_index;
+}
+
+TEST(wc3_slk, doodad_fields_use_typed_row) {
+    LPCSTR slk =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"doodID\"\nC;Y1;X2;K\"dir\"\nC;Y1;X3;K\"file\"\n"
+        "C;Y2;X1;K\"LTlt\"\nC;Y2;X2;K\"Doodads\\Terrain\"\nC;Y2;X3;K\"Tree\"\nE\n";
+    sheetRow_t *rows = parse_slk_string(slk);
+    sheetRow_t *saved = G_SetSLKRows("Doodads", rows);
+    Doodads_t const *row = G_Doodad(MAKEFOURCC('L','T','l','t'));
+    T_EQ(row->id, MAKEFOURCC('L','T','l','t'));
+    T_STREQ(row->dir, "Doodads\\Terrain"); T_STREQ(row->file, "Tree");
+    G_SetSLKRows("Doodads", saved); free_slk_rows(rows);
+}
+
+TEST(wc3_slk, uber_splat_fields_use_typed_row) {
+    LPCSTR slk =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"Name\"\nC;Y1;X2;K\"Dir\"\nC;Y1;X3;K\"file\"\nC;Y1;X4;K\"Scale\"\n"
+        "C;Y2;X1;K\"HMtp\"\nC;Y2;X2;K\"Splats\"\nC;Y2;X3;K\"TownHall\"\nC;Y2;X4;K4\nE\n";
+    sheetRow_t *rows = parse_slk_string(slk);
+    sheetRow_t *saved = G_SetSLKRows("UberSplatData", rows);
+    UberSplatData_t const *row = G_UberSplat(MAKEFOURCC('H','M','t','p'));
+    T_STREQ(row->Dir, "Splats"); T_STREQ(row->file, "TownHall"); T_FEQ(row->Scale, 4.0f, 0.01f);
+    G_SetSLKRows("UberSplatData", saved); free_slk_rows(rows);
 }
 
 /* -----------------------------------------------------------------------
