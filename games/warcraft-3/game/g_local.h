@@ -638,6 +638,7 @@ struct edict_s {
         BYTE num_select;
         BYTE yes[MAX_UNIT_SELECT_SOUNDS];   /* order confirmation ("Yes" sounds) */
         BYTE num_yes;
+        BYTE chop[3]; BYTE num_chop;        /* weapon-vs-wood impact variants */
         BYTE pending;
         int attack, death;
     } sound;
@@ -1002,6 +1003,9 @@ slkTestData_t *G_SetSLKRows(LPCSTR, slkTestData_t *);
 slkTestData_t *G_SetProfileRows(slkTestData_t *);
 #endif
 void G_RegisterSelectSounds(LPEDICT, LPCSTR);
+void G_RegisterGlobalSounds(void);  /* register world sounds (tree fall, etc.) at map init */
+extern int g_treeFallSounds[3];     /* Sound\Destructibles\TreeFall{1,2,3}.wav configstring indices */
+extern BYTE g_numTreeFallSounds;
 
 // g_command.c
 void G_SelectEntity(LPGAMECLIENT, LPEDICT);
