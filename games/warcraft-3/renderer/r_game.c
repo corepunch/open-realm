@@ -27,8 +27,8 @@ static slkField_t const cliff_schema[] = {
     { "", offsetof(w3CliffType_t, id), STB_SLK_FOURCC },
     { "texDir", offsetof(w3CliffType_t, texDir), STB_SLK_STR },
     { "texFile", offsetof(w3CliffType_t, texFile), STB_SLK_STR },
-    { "groundTile", offsetof(w3CliffType_t, groundTile), STB_SLK_STR },
-    { "upperTile", offsetof(w3CliffType_t, upperTile), STB_SLK_STR },
+    { "groundTile", offsetof(w3CliffType_t, groundTile), STB_SLK_FOURCC },
+    { "upperTile", offsetof(w3CliffType_t, upperTile), STB_SLK_FOURCC },
     { "rampModelDir", offsetof(w3CliffType_t, rampModelDir), STB_SLK_STR },
     { "cliffModelDir", offsetof(w3CliffType_t, cliffModelDir), STB_SLK_STR },
     { NULL, 0, 0 },
@@ -97,8 +97,6 @@ void R_GameLoadAssets(void) {
 
 void R_GameInit(void) {
     cursor_model = NULL; cursor_load_attempted = false;
-    g_terrain_rows = NULL; g_terrain_count = 0; memset(&g_terrain_idx, 0, sizeof(g_terrain_idx));
-    g_cliff_rows   = NULL; g_cliff_count   = 0; memset(&g_cliff_idx,   0, sizeof(g_cliff_idx));
     MDLX_Init();
 }
 

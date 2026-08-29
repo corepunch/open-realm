@@ -42,7 +42,6 @@ static LPVERTEX R_CliffBakeVertex(rCliffBakeList_t *list) {
 
 #include "r_war3map.h"
 #include "../mdx/r_mdx.h"
-#include "common/stb_slk.h"
 
 #define SAME_TILE 852063
 #define NO_CLIFF MAKEFOURCC('C','L','n','o')
@@ -56,8 +55,8 @@ typedef struct {
     DWORD cliff;
     LPCSTR texDir;
     LPCSTR texFile;
-    LPCSTR groundTile;
-    LPCSTR upperTile;
+    DWORD groundTile;
+    DWORD upperTile;
     LPCSTR rampModelDir;
     LPCSTR cliffModelDir;
 } cliffData_t;
@@ -202,14 +201,16 @@ static void R_MakeCliff(LPCWAR3MAP map, DWORD x, DWORD y, cliffData_t const *dat
         }
     }
     
-    FOR_LOOP(gindx, map->num_grounds) {
-//        DWORD tile = *(DWORD *)(IS_FOURCC(data->groundTile) ? data->groundTile : data->upperTile);
-        if (map->grounds[gindx] == *(DWORD *)data->groundTile) {
-            ((LPWAR3MAPVERTEX)GetWar3MapVertex(map, x+1, y+1))->ground = gindx;
-            ((LPWAR3MAPVERTEX)GetWar3MapVertex(map, x, y+1))->ground = gindx;
-            ((LPWAR3MAPVERTEX)GetWar3MapVertex(map, x+1, y))->ground = gindx;
-            ((LPWAR3MAPVERTEX)GetWar3MapVertex(map, x, y))->ground = gindx;
-            break;
+    DWORD const ground_key = data->groundTile ? data->groundTile : data->upperTile;
+    if (ground_key) {
+        FOR_LOOP(gindx, map->num_grounds) {
+            if (map->grounds[gindx] == ground_key) {
+                ((LPWAR3MAPVERTEX)GetWar3MapVertex(map, x+1, y+1))->ground = gindx;
+                ((LPWAR3MAPVERTEX)GetWar3MapVertex(map, x, y+1))->ground = gindx;
+                ((LPWAR3MAPVERTEX)GetWar3MapVertex(map, x+1, y))->ground = gindx;
+                ((LPWAR3MAPVERTEX)GetWar3MapVertex(map, x, y))->ground = gindx;
+                break;
+            }
         }
     }
 
@@ -274,10 +275,7 @@ LPMAPLAYER R_BuildMapSegmentCliffs(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD cli
     }
 
     LPMAPLAYER mapLayer = ri.MemAlloc(sizeof(MAPLAYER));
-    char cliffID_str[5] = { 0 };
-    w3CliffType_t const *row;
-    memcpy(cliffID_str, &cliffID, 4);
-    row = R_GameCliffType(FS_SLKKey(cliffID_str));
+    w3CliffType_t const *row = R_GameCliffType(cliffID);
     cliffData_t data = {
         .cliff = cliff,
         .texDir = row->texDir,

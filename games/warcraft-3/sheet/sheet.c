@@ -466,19 +466,40 @@ static void *FS_LoadSheetTyped(sheetTable_t const *sheet, slkField_t const *sche
     return rows_out;
 }
 
+/* Typed SLK rows are fully malloc-owned after FS_LoadSheetTyped — the static
+ * pools are only scratch space during parsing.  Reset cursors so they can be
+ * reused by the next load without exhausting the fixed-size arenas. */
+#define SHEET_POOL_SAVE() \
+    LPSHEET     _saved_cell  = current_cell;  \
+    LPSHEET     _saved_prev  = previous_cell; \
+    sheetRow_t *_saved_row   = current_row;   \
+    sheetField_t *_saved_fld = current_field; \
+    LPSTR       _saved_text  = current_text
+
+#define SHEET_POOL_RESTORE() \
+    current_cell  = _saved_cell;  \
+    previous_cell = _saved_prev;  \
+    current_row   = _saved_row;   \
+    current_field = _saved_fld;   \
+    current_text  = _saved_text
+
 DWORD Stb_SlkLoad(LPCSTR filename, slkField_t const *schema, void **dest, DWORD row_stride) {
+    SHEET_POOL_SAVE();
     DWORD count = 0;
     sheetTable_t *sheet = FS_ParseSLK(filename);
-    if (!sheet || !dest || !schema || !row_stride) return 0;
-    *dest = FS_LoadSheetTyped(sheet, schema, row_stride, &count);
+    if (sheet && dest && schema && row_stride)
+        *dest = FS_LoadSheetTyped(sheet, schema, row_stride, &count);
+    SHEET_POOL_RESTORE();
     return count;
 }
 
 DWORD Stb_SlkLoadBuffer(LPCSTR buffer, slkField_t const *schema, void **dest, DWORD row_stride) {
+    SHEET_POOL_SAVE();
     DWORD count = 0;
     sheetTable_t *sheet = FS_ParseSLK_Buffer(buffer);
-    if (!sheet || !dest || !schema || !row_stride) return 0;
-    *dest = FS_LoadSheetTyped(sheet, schema, row_stride, &count);
+    if (sheet && dest && schema && row_stride)
+        *dest = FS_LoadSheetTyped(sheet, schema, row_stride, &count);
+    SHEET_POOL_RESTORE();
     return count;
 }
 
