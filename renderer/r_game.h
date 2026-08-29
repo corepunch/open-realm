@@ -13,8 +13,8 @@ typedef struct {
 	DWORD id;
 	LPCSTR texDir;
 	LPCSTR texFile;
-	LPCSTR groundTile;
-	LPCSTR upperTile;
+	DWORD groundTile;
+	DWORD upperTile;
 	LPCSTR rampModelDir;
 	LPCSTR cliffModelDir;
 } w3CliffType_t;
