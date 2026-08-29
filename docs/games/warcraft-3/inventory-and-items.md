@@ -82,6 +82,32 @@ For Human02 this means a carried Scroll of Protection is handled generically:
 rawcode `spro` resolves its item UI data, appears in the first free slot, and
 shows its initial charge count of `1`. No HUD code checks for `spro`.
 
+### Selected-unit inventory panel state
+
+Inventory visibility is capability-defined independently of hero presentation.
+For one selected unit, `LAYER_INVENTORY` resolves `G_InventoryCapacity` and
+authors one of three states:
+
+- capacity `0`: cover the underlying six-slot console area with the local
+  player's race-skin `ConsoleInventoryCoverTexture`;
+- capacity `1..5`: leave the valid slots visible and cover each slot outside
+  capacity with `ConsoleInventoryNoCapacity`;
+- capacity `6`: leave all six normal slots visible.
+
+Both texture keys come from `UI\war3skins.txt`, using the local player's race
+section with `Default` fallback. Classic ROC data used by OpenRealm does not
+provide a usable inventory-cover FDF, so the cover is one of the WC3 native
+frames constructed in C: a static `FRAMEDEF` owns the confirmed texture crop,
+`ALPHAKEY` mode, `0.128 x 0.175` size, and bottom-right screen anchor. No
+project-owned production FDF is shipped. The selected unit determines inventory
+capability and contents; the local player's console skin determines cover/filler
+artwork. Hero/non-hero stats remain an independent info-panel decision.
+
+The cover samples only the useful lower portion of the packed console BLP
+(`V=0.380859375..1.0`) rather than squeezing the complete image canvas into the
+frame. This crop came from the bounded runtime asset diagnostic that established
+the useful pixels begin at row 195 of the 512-pixel source image.
+
 ## Inventory Refresh Lifecycle
 
 Player/client edicts occupy the reserved `[0, max_clients)` range and are not
@@ -155,5 +181,7 @@ visibility flags, carried-item removal, connection-state refresh gating, charge
 initialization/preservation, carried-charge refresh/no-op behavior, JASS charge
 access, and generic `spro` Art/Tip/Ubertip/charge presentation.
 Minimal `AbilityData.slk`, `UnitAbilities.slk`, `ItemData.slk`, `ItemFunc.txt`,
-and `ItemStrings.txt` fixtures keep these tests data-driven in both ROC and TFT
-test runs.
+`ItemStrings.txt`, and `war3skins.txt` fixtures keep these tests data-driven in
+both ROC and TFT test runs. Inventory-panel tests additionally cover the
+no-inventory cover, reduced-capacity fillers, full-capacity absence of fillers,
+race-skin selection, and the native cover frame's crop/geometry.

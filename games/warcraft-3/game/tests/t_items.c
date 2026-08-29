@@ -15,10 +15,34 @@ static LPEDICT inventory_refresh_unicast_target;
 static BOOL inventory_refresh_layout_pending;
 static BOOL inventory_refresh_saw_inventory_layer;
 static BOOL inventory_refresh_saw_other_layer;
+static PATHSTR inventory_panel_images[8];
+static DWORD inventory_panel_image_count;
+static uiFrame_t inventory_panel_frame;
+static BOOL inventory_panel_frame_seen;
+
+static int capture_inventory_panel_image(LPCSTR name) {
+    DWORD index = inventory_panel_image_count;
+    if (index < sizeof(inventory_panel_images) / sizeof(inventory_panel_images[0]))
+        snprintf(inventory_panel_images[index], sizeof(inventory_panel_images[index]), "%s", name ? name : "");
+    inventory_panel_image_count++;
+    return (int)(index + 1);
+}
+
+static void reset_inventory_panel_capture(void) {
+    memset(inventory_panel_images, 0, sizeof(inventory_panel_images));
+    inventory_panel_image_count = 0;
+    memset(&inventory_panel_frame, 0, sizeof(inventory_panel_frame));
+    inventory_panel_frame_seen = false;
+}
 
 static void capture_inventory_refresh_write(pfWriteType_t type, void const *value) {
     LONG byte;
 
+    if (type == PF_UIFRAME && value) {
+        inventory_panel_frame = *(uiFrame_t const *)value;
+        inventory_panel_frame_seen = true;
+        return;
+    }
     if (type != PF_BYTE || !value) {
         return;
     }
@@ -256,6 +280,113 @@ TEST(wc3_items, pickup_refreshes_inventory_for_connected_reserved_client_edict) 
     T_ASSERT(!inventory_refresh_saw_other_layer);
     T_ASSERT(inventory_refresh_unicast_count > 0);
     T_ASSERT(inventory_refresh_unicast_target == player);
+}
+
+TEST(wc3_items, inventory_panel_uses_race_cover_when_selected_unit_has_no_inventory) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(LPEDICT) = gi.unicast;
+    int (*old_image_index)(LPCSTR) = gi.ImageIndex;
+    LPEDICT player, peasant;
+    LPGAMECLIENT client;
+
+    setup_test_world();
+    player = &g_edicts[0]; client = player->client;
+    peasant = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    client->ps.race = kPlayerRaceHuman;
+    G_SelectEntity(client, peasant);
+
+    reset_inventory_refresh_capture(); reset_inventory_panel_capture();
+    gi.Write = capture_inventory_refresh_write; gi.unicast = capture_inventory_refresh_unicast;
+    gi.ImageIndex = capture_inventory_panel_image;
+    G_RefreshInventoryLayer(player);
+    gi.Write = old_write; gi.unicast = old_unicast; gi.ImageIndex = old_image_index;
+
+    T_ASSERT(inventory_refresh_saw_inventory_layer);
+    T_ASSERT(!inventory_refresh_saw_other_layer);
+    T_EQ(inventory_panel_image_count, 1);
+    T_STREQ(inventory_panel_images[0], "TestUI\\Textures\\human-inventory-cover.blp");
+    T_ASSERT(inventory_panel_frame_seen);
+    T_EQ(inventory_panel_frame.flags.type, FT_TEXTURE);
+    T_EQ(inventory_panel_frame.flags.alphaMode, BLEND_MODE_ALPHAKEY);
+    T_EQ(inventory_panel_frame.tex.coord[0], 0);
+    T_EQ(inventory_panel_frame.tex.coord[1], 0xff);
+    T_EQ(inventory_panel_frame.tex.coord[2], (BYTE)(0.380859375f * 0xff));
+    T_EQ(inventory_panel_frame.tex.coord[3], 0xff);
+    T_FEQ(inventory_panel_frame.size.width, 0.128f, 0.001f);
+    T_FEQ(inventory_panel_frame.size.height, 0.175f, 0.001f);
+    T_ASSERT(inventory_panel_frame.points.x[FPP_MAX].used);
+    T_ASSERT(inventory_panel_frame.points.y[FPP_MAX].used);
+    T_FEQ((FLOAT)inventory_panel_frame.points.x[FPP_MAX].offset / UI_FRAMEPOINT_SCALE - inventory_panel_frame.size.width,
+          0.472f, 0.001f);
+    T_FEQ(-(FLOAT)inventory_panel_frame.points.y[FPP_MAX].offset / UI_FRAMEPOINT_SCALE - inventory_panel_frame.size.height,
+          0.425f, 0.001f);
+}
+
+TEST(wc3_items, inventory_panel_uses_local_player_race_not_selected_unit_race) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(LPEDICT) = gi.unicast;
+    int (*old_image_index)(LPCSTR) = gi.ImageIndex;
+    LPEDICT player, peasant; LPGAMECLIENT client;
+
+    setup_test_world(); player = &g_edicts[0]; client = player->client;
+    peasant = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    client->ps.race = kPlayerRaceOrc; G_SelectEntity(client, peasant);
+    reset_inventory_panel_capture();
+    gi.Write = capture_inventory_refresh_write; gi.unicast = capture_inventory_refresh_unicast;
+    gi.ImageIndex = capture_inventory_panel_image; G_RefreshInventoryLayer(player);
+    gi.Write = old_write; gi.unicast = old_unicast; gi.ImageIndex = old_image_index;
+    T_EQ(inventory_panel_image_count, 1);
+    T_STREQ(inventory_panel_images[0], "TestUI\\Textures\\orc-inventory-cover.blp");
+}
+
+TEST(wc3_items, inventory_panel_falls_back_to_default_skin_for_unknown_player_race) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(LPEDICT) = gi.unicast;
+    int (*old_image_index)(LPCSTR) = gi.ImageIndex;
+    LPEDICT player, peasant; LPGAMECLIENT client;
+
+    setup_test_world(); player = &g_edicts[0]; client = player->client;
+    peasant = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    client->ps.race = kPlayerRaceNone; G_SelectEntity(client, peasant);
+    reset_inventory_panel_capture();
+    gi.Write = capture_inventory_refresh_write; gi.unicast = capture_inventory_refresh_unicast;
+    gi.ImageIndex = capture_inventory_panel_image; G_RefreshInventoryLayer(player);
+    gi.Write = old_write; gi.unicast = old_unicast; gi.ImageIndex = old_image_index;
+    T_EQ(inventory_panel_image_count, 1);
+    T_STREQ(inventory_panel_images[0], "TestUI\\Textures\\default-inventory-cover.blp");
+}
+
+TEST(wc3_items, inventory_panel_marks_only_slots_outside_reduced_capacity) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(LPEDICT) = gi.unicast;
+    int (*old_image_index)(LPCSTR) = gi.ImageIndex;
+    LPEDICT player, unit; LPGAMECLIENT client;
+
+    setup_test_world(); player = &g_edicts[0]; client = player->client;
+    unit = alloc_test_unit(MAKEFOURCC('H','0','0','1'), 0, 0);
+    client->ps.race = kPlayerRaceHuman; G_SelectEntity(client, unit);
+    reset_inventory_panel_capture();
+    gi.Write = capture_inventory_refresh_write; gi.unicast = capture_inventory_refresh_unicast;
+    gi.ImageIndex = capture_inventory_panel_image; G_RefreshInventoryLayer(player);
+    gi.Write = old_write; gi.unicast = old_unicast; gi.ImageIndex = old_image_index;
+    T_EQ(G_InventoryCapacity(unit), 2); T_EQ(inventory_panel_image_count, 4);
+    FOR_LOOP(i, 4) T_STREQ(inventory_panel_images[i], "TestUI\\Textures\\human-inventory-no-capacity.blp");
+}
+
+TEST(wc3_items, inventory_panel_leaves_all_slots_visible_at_full_capacity) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(LPEDICT) = gi.unicast;
+    int (*old_image_index)(LPCSTR) = gi.ImageIndex;
+    LPEDICT player, unit; LPGAMECLIENT client;
+
+    setup_test_world(); player = &g_edicts[0]; client = player->client;
+    unit = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    client->ps.race = kPlayerRaceHuman; G_SelectEntity(client, unit);
+    reset_inventory_panel_capture();
+    gi.Write = capture_inventory_refresh_write; gi.unicast = capture_inventory_refresh_unicast;
+    gi.ImageIndex = capture_inventory_panel_image; G_RefreshInventoryLayer(player);
+    gi.Write = old_write; gi.unicast = old_unicast; gi.ImageIndex = old_image_index;
+    T_EQ(G_InventoryCapacity(unit), MAX_INVENTORY); T_EQ(inventory_panel_image_count, 0);
 }
 
 TEST(wc3_items, inventory_ui_resolves_scroll_metadata_and_charge) {
