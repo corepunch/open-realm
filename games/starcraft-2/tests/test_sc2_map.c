@@ -55,11 +55,16 @@ TEST(sc2_map, camera_height_blurs_narrow_depressions) {
     memset(layer, 0, sizeof(*layer) + count * sizeof(*layer->data));
     layer->width = side; layer->height = side;
     for (i = 0; i < count; i++) layer->data[i].height = 11;
-    T_FEQ(sc2_map_camera_height_at_point(&map, 8.0f, 8.0f), 10.0f, 0.001f);
+    T_FEQ(sc2_map_broad_height_at_point(&map, 8.0f, 8.0f), 10.0f, 0.001f);
     layer->data[8 + 8 * side].height = 1;
     T_FEQ(sc2_map_height_at_point(&map, 8.0f, 8.0f), 0.0f, 0.001f);
-    T_FEQ(sc2_map_camera_height_at_point(&map, 8.0f, 8.0f), 9.6f, 0.001f);
+    T_FEQ(sc2_map_broad_height_at_point(&map, 8.0f, 8.0f), 9.6f, 0.001f);
     MemFree(layer);
+}
+
+TEST(sc2_map, flying_unit_height_is_terrain_relative) {
+    T_FEQ(sc2_unit_world_height(0.4f, 3.75f, true), 4.15f, 0.001f);
+    T_FEQ(sc2_unit_world_height(0.4f, 3.75f, false), 0.4f, 0.001f);
 }
 
 TEST(sc2_map, cliff_weld_requires_matching_height_and_normal_hemisphere) {
@@ -421,6 +426,7 @@ static void assert_tiny_map_catalog_overrides(sc2Map_t *map) {
     T_STREQ(map->objects[1].mover, "Ground");
     T_EQ(map->objects[1].unit_flags, SC2_UNIT_FLAG_MOVABLE);
     T_FEQ(map->objects[1].radius, 0.875f, 0.001f);
+    T_FEQ(map->objects[1].move_height, 1.25f, 0.001f);
     T_FEQ(map->objects[1].footprint_width, 1.0f, 0.001f);
     T_FEQ(map->objects[1].footprint_height, 1.0f, 0.001f);
     T_FEQ(map->objects[1].footprint_radius, 0.5f, 0.001f);
@@ -467,6 +473,7 @@ TEST(sc2_map, sc2_map_loads_xml_objects_and_terrain) {
     T_STREQ(unit.model, "Assets\\Units\\Terran\\MarineManifestModel\\MarineManifestModel.m3");
     T_STREQ(unit.mover, "Ground");
     T_FEQ(unit.radius, 0.875f, 0.001f);
+    T_FEQ(unit.move_height, 1.25f, 0.001f);
 
     T_STREQ(map->map_name, "SC2 Tiny Fixture");
     T_EQ(map->MapInfo.fourcc, MAKEFOURCC('I','p','a','M'));

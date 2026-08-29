@@ -42,7 +42,7 @@ static void look_for_another_tree(LPEDICT ent) {
 }
 
 BOOL G_ActorHasSkill(LPEDICT ent, LPCSTR id) {
-    LPCSTR abilities = UNIT_ABILITIES_NORMAL(ent->class_id);
+    LPCSTR abilities = ent->abilities->abilList;
     if (abilities) {
         PARSE_LIST(abilities, abil, parse_segment) {
             if (!strcmp(abil, id))
@@ -137,7 +137,7 @@ void harvest_walk(LPEDICT ent) {
 
 void harvest_swing(LPEDICT ent) {
     unit_setmove(ent, &harvest_move_swing);
-    ent->wait = UNIT_ATTACK1_DAMAGE_POINT(ent->class_id);
+    ent->wait = ent->weapons->attack1.damagePoint;
 }
 
 void harvest_walkback(LPEDICT ent) {
@@ -212,8 +212,8 @@ static void wisp_harvest_command(LPEDICT clent) {
 }
 
 static void SP_ability_wisp_harvest(LPCSTR classname, ability_t *self) {
-    wisp_lumber_per_interval = AB_Number(classname, "DataA1");
-    wisp_interval_count = (DWORD)AB_Number(classname, "DataB1");
+    wisp_lumber_per_interval = G_AbilityDataName(classname)->data[0][0];
+    wisp_interval_count = (DWORD)G_AbilityDataName(classname)->data[0][1];
 }
 
 ability_t a_wisp_harvest = {
@@ -281,9 +281,9 @@ void SP_ability_harvest(LPCSTR classname, ability_t *self) {
     HARVEST_TREE_DAMAGE = AB_Data(classname, 1, 1);     /* lumber/tree-HP per swing */
     HARVEST_LUMBER_CAPACITY = AB_Data(classname, 1, 2); /* max lumber to carry */
     HARVEST_GOLD_CAPACITY = AB_Data(classname, 1, 3);
-    HARVEST_RANGE = AB_Number(classname, "Rng1");
-    HARVEST_COOLDOWN = AB_Number(classname, "Dur1");
-    HARVEST_SEARCH_RANGE = AB_Number(classname, "Area1");
+    HARVEST_RANGE = G_AbilityDataName(classname)->range[0];
+    HARVEST_COOLDOWN = G_AbilityDataName(classname)->dur[0];
+    HARVEST_SEARCH_RANGE = G_AbilityDataName(classname)->area[0];
 }
 
 ability_t a_harvest = {

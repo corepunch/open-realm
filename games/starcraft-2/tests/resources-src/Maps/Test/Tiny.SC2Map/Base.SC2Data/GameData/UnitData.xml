@@ -6,6 +6,7 @@
         <Mover value="Ground"/>
         <Flag index="Movable" value="1"/>
         <Radius value="0.75"/>
+        <Height value="1.25"/>
     </CUnit>
     <CUnit id="SupplyDepot">
         <Actor value="SupplyDepotActor"/>

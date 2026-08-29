@@ -93,6 +93,7 @@ typedef struct {
     char tooltip[256];
     char ubertip[512];
     BYTE slot;
+    DWORD charges;
 } gameInventoryItem_t;
 
 typedef struct {

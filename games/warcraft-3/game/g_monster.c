@@ -93,11 +93,13 @@ LPEDICT Waypoint_add(LPCVECTOR2 spot) {
 }
 
 BOOL player_pay(LPPLAYER ps, DWORD project) {
+    UnitBalance_t const *b;
     if (!ps) return false;
-    if (UNIT_GOLD_COST(project) > ps->stats[PLAYERSTATE_RESOURCE_GOLD]) return false;
-    if (UNIT_LUMBER_COST(project) > ps->stats[PLAYERSTATE_RESOURCE_LUMBER]) return false;
-    ps->stats[PLAYERSTATE_RESOURCE_GOLD] -= UNIT_GOLD_COST(project);
-    ps->stats[PLAYERSTATE_RESOURCE_LUMBER] -= UNIT_LUMBER_COST(project);
+    b = G_UnitBalance(project);
+    if (b->goldCost > ps->stats[PLAYERSTATE_RESOURCE_GOLD]) return false;
+    if (b->lumberCost > ps->stats[PLAYERSTATE_RESOURCE_LUMBER]) return false;
+    ps->stats[PLAYERSTATE_RESOURCE_GOLD] -= b->goldCost;
+    ps->stats[PLAYERSTATE_RESOURCE_LUMBER] -= b->lumberCost;
     return true;
 }
 
@@ -169,7 +171,7 @@ void M_MoveFrame(LPEDICT self) {
     DWORD next_frame = self->s.frame + FRAMETIME;
     if (!strcmp(anim->name, "birth")) {
         DWORD anim_len = anim->interval[1] - anim->interval[0];
-        DWORD build_time = UNIT_BUILD_TIME_MSEC(self->class_id);
+        DWORD build_time = G_UnitBalance(self->class_id)->buildTime * 1000;
         if (build_time > 0) {
             next_frame = self->s.frame + FRAMETIME * anim_len / build_time;
         }
@@ -250,12 +252,11 @@ pathTex_t *M_LoadPathTex(LPCSTR filename) {
 
 DWORD M_LoadUberSplat(LPCSTR uber_splat) {
     if (IS_FOURCC(uber_splat)) {
-        LPCSTR dir = FS_FindSheetCell(game.config.uberSplats, uber_splat, "dir");
-        LPCSTR file = FS_FindSheetCell(game.config.uberSplats, uber_splat, "file");
-        LPCSTR scale = FS_FindSheetCell(game.config.uberSplats, uber_splat, "scale");
+        UberSplatData_t const *row = G_UberSplat(*(DWORD const *)uber_splat);
         PATHSTR filename;
-        snprintf(filename, sizeof(PATHSTR), "%s\\%s.blp", dir, file);
-        return gi.ImageIndex(filename) | (atoi(scale) << 16);
+        if (!row->id) return 0;
+        snprintf(filename, sizeof(PATHSTR), "%s\\%s.blp", row->Dir, row->file);
+        return gi.ImageIndex(filename) | ((DWORD)row->Scale << 16);
     } else {
         return 0;
     }
@@ -298,7 +299,8 @@ DWORD G_LoadShadowTexture(LPCSTR shadow, BOOL allowDDSFallback) {
 }
 
 static void M_SetUnitShadow(LPEDICT self) {
-    LPCSTR unit_shadow = UNIT_SHADOW_IMAGE_UNIT(self->class_id);
+    UnitUI_t const *ui = self->ui;
+    LPCSTR unit_shadow = ui->unitShadowTexture;
     DWORD shadow = G_LoadShadowTexture(unit_shadow, true);
     if (!shadow) {
         shadow = G_LoadShadowTexture("Shadow", true);
@@ -309,12 +311,12 @@ static void M_SetUnitShadow(LPEDICT self) {
 
 #ifndef USE_SHADOWMAPS
     self->s.shadow = shadow;
-    FLOAT shadow_x = UNIT_SHADOW_IMAGE_CENTER_X(self->class_id);
-    FLOAT shadow_y = UNIT_SHADOW_IMAGE_CENTER_Y(self->class_id);
-    FLOAT shadow_w = UNIT_SHADOW_IMAGE_WIDTH(self->class_id);
-    FLOAT shadow_h = UNIT_SHADOW_IMAGE_HEIGHT(self->class_id);
+    FLOAT shadow_x = ui->shadowCenterX;
+    FLOAT shadow_y = ui->shadowCenterY;
+    FLOAT shadow_w = ui->shadowWidth;
+    FLOAT shadow_h = ui->shadowHeight;
     if (shadow_w <= 0 || shadow_h <= 0) {
-        FLOAT size = MAX(72, UNIT_SELECTION_SCALE(self->class_id) * SEL_SCALE);
+        FLOAT size = MAX(72, ui->selectionScale * SEL_SCALE);
         shadow_x = size * 0.5f;
         shadow_y = size * 0.5f;
         shadow_w = size;
@@ -325,10 +327,11 @@ static void M_SetUnitShadow(LPEDICT self) {
 }
 
 static void M_SetBuildingShadow(LPEDICT self) {
-    LPCSTR building_shadow = UNIT_BUILDING_SHADOW(self->class_id);
+    UnitUI_t const *ui = self->ui;
+    LPCSTR building_shadow = ui->buildingShadowTexture;
     DWORD shadow = G_LoadShadowTexture(building_shadow, false);
     if (!shadow) {
-        if (G_HasShadowName(UNIT_SHADOW_IMAGE_UNIT(self->class_id))) {
+        if (G_HasShadowName(ui->unitShadowTexture)) {
             M_SetUnitShadow(self);
         }
         return;
@@ -342,11 +345,11 @@ static void M_SetBuildingShadow(LPEDICT self) {
 
 /* Register the first sound file for a given SLK label+suffix and return its
  * configstring index, or 0 if the entry is not found or has no files. */
-static int G_RegisterSoundLabel(sheetRow_t *sounds, LPCSTR label, LPCSTR suffix) {
+static int G_RegisterSoundLabel(LPCSTR label, LPCSTR suffix) {
     char key[128];
     snprintf(key, sizeof(key), "%s%s", label, suffix);
-    LPCSTR files = FS_FindSheetCell(sounds, key, "FileNames");
-    LPCSTR dir   = FS_FindSheetCell(sounds, key, "DirectoryBase");
+    UnitAckSounds_t const *row = G_UnitAckSound(key);
+    LPCSTR files = row->FileNames, dir = row->DirectoryBase;
     if (!files || !files[0]) return 0;
     /* Take the first comma-separated filename. */
     char first[256];
@@ -363,21 +366,36 @@ static int G_RegisterSoundLabel(sheetRow_t *sounds, LPCSTR label, LPCSTR suffix)
     return gi.SoundIndex(path);
 }
 
+/* Cache every native selection response so repeated clicks can choose among
+ * the authored UnitAckSounds variants instead of repeating the first file. */
+void G_RegisterSelectSounds(LPEDICT self, LPCSTR label) {
+    char key[128], file[256], path[512];
+    snprintf(key, sizeof(key), "%sWhat", label);
+    UnitAckSounds_t const *row = G_UnitAckSound(key);
+    LPCSTR files = row->FileNames, dir = row->DirectoryBase;
+    while (files && files[0] && self->num_select_sounds < MAX_UNIT_SELECT_SOUNDS) {
+        LPCSTR comma = strchr(files, ',');
+        snprintf(file, sizeof(file), "%.*s", comma ? (int)(comma - files) : (int)strlen(files), files);
+        snprintf(path, sizeof(path), "%s%s", dir ? dir : "", file);
+        self->sound_select[self->num_select_sounds++] = (BYTE)gi.SoundIndex(path);
+        files = comma ? comma + 1 : NULL;
+    }
+}
+
 /* Populate the unit's cached sound indices from UnitAckSounds.slk using the
  * "unitSound" label (e.g. "Footman").  Falls back gracefully if entries are
  * missing — sounds simply won't fire for that unit. */
 static void G_RegisterUnitSounds(LPEDICT self) {
-    LPCSTR label = UnitStringField(UnitsMetaData, self->class_id, "usnd");
+    LPCSTR label = self->ui->soundLabel;
     if (!label || !label[0]) return;
-    sheetRow_t *ack = game.config.unitAckSounds;
-    if (!ack) return;
-    self->sound_attack = G_RegisterSoundLabel(ack, label, "YesAttack");
+    G_RegisterSelectSounds(self, label);
+    self->sound_attack = G_RegisterSoundLabel(label, "YesAttack");
     /* Death sounds follow the pattern {label}Death but may not exist in the
      * AckSounds SLK.  Try the SLK first; fall back to the raw file path. */
-    self->sound_death = G_RegisterSoundLabel(ack, label, "Death");
+    self->sound_death = G_RegisterSoundLabel(label, "Death");
     if (!self->sound_death) {
         /* Derive death sound path from model directory: units\race\Name\NameDeath.wav */
-        LPCSTR model = UNIT_MODEL(self->class_id);
+        LPCSTR model = self->ui->modelFile;
         if (model && model[0]) {
             char path[512];
             snprintf(path, sizeof(path), "%s\\%sDeath.wav",
@@ -396,7 +414,7 @@ static void G_RegisterUnitSounds(LPEDICT self) {
 }
 
 /* Unit data decides the persistent AI capabilities assigned at spawn. */
-DWORD unit_spawn_aiflags(DWORD class_id) { return UNIT_IS_BUILDING(class_id) ? AI_IMMOBILE : 0; }
+DWORD unit_spawn_aiflags(DWORD class_id) { return G_UnitIsBuilding(class_id) ? AI_IMMOBILE : 0; }
 
 /* Initialize a unit entity from the unit data tables.
  * Reads model path, scale, collision radius, HP, mana, and attack parameters
@@ -404,51 +422,55 @@ DWORD unit_spawn_aiflags(DWORD class_id) { return UNIT_IS_BUILDING(class_id) ? A
  * unit's class_id and stores them in the edict. */
 void SP_SpawnUnit(LPEDICT self) {
     PATHSTR model_filename;
-    LPCSTR uber_splat = UNIT_UBER_SPLAT(self->class_id);
-    LPCSTR path_tex = UNIT_PATH_TEX(self->class_id);
-    self->balance.flags = (unit_spawn_aiflags(self->class_id) & AI_IMMOBILE) ? UNIT_BALANCE_BUILDING : 0;
-    snprintf(model_filename, sizeof(model_filename), "%s.mdx", UNIT_MODEL(self->class_id));
+    UnitBalance_t const *b = self->balance;
+    UnitData_t const *d = self->data;
+    UnitUI_t const *ui = self->ui;
+    UnitWeapons_t const *w = self->weapons;
+    LPCSTR uber_splat = ui->groundTexture;
+    LPCSTR path_tex = d->pathingTexture;
+    self->runtime.flags = (unit_spawn_aiflags(self->class_id) & AI_IMMOBILE) ? UNIT_BALANCE_BUILDING : 0;
+    snprintf(model_filename, sizeof(model_filename), "%s.mdx", ui->modelFile);
     self->s.model = G_RegisterModel(model_filename);
     self->s.splat = M_LoadUberSplat(uber_splat);
-    if (self->balance.flags & UNIT_BALANCE_BUILDING) {
+    if (self->runtime.flags & UNIT_BALANCE_BUILDING) {
         M_SetBuildingShadow(self);
     } else {
         M_SetUnitShadow(self);
     }
-    self->s.scale = UNIT_SCALING_VALUE(self->class_id);
-    self->s.radius = UNIT_SELECTION_SCALE(self->class_id) * SEL_SCALE / 2;
+    self->s.scale = ui->modelScale;
+    self->s.radius = ui->selectionScale * SEL_SCALE / 2;
     /* Unit-vs-unit separation uses the authentic collisionSize ('ucol') from
      * the unit data, matching WC3. Buildings have no meaningful collisionSize
      * and instead block via their pathing footprint (set from pathtex below). */
     {
-        FLOAT const ucol = (FLOAT)UNIT_COLLISION(self->class_id);
+        FLOAT const ucol = G_UnitCollision(self->class_id);
         /* Real WC3 units always have ucol>0; if missing, fall back to 0 (block
          * via footprint, set below for buildings) — NOT s.radius, which is a
          * selection-circle scale, not a world-unit collision radius. */
         self->collision = ucol > 0.0f ? ucol : 0.0f;
     }
 //    printf("%.4s\n", &self->class_id);
-    self->targtype = G_GetTargetType(UNIT_TARGETED_AS(self->class_id));
-    if (UNIT_OCCLUDER_HEIGHT(self->class_id) > 0) {
+    self->targtype = G_GetTargetType(d->targetType);
+    if (ui->occluderHeight > 0) {
         self->s.flags |= EF_FOW_BLOCKER;
     }
-    if (UNIT_SIGHT_RADIUS(self->class_id) > 0 || UNIT_SIGHT_RADIUS_NIGHT(self->class_id) > 0) {
+    if (b->sightRadius > 0 || b->nightSightRadius > 0) {
         self->s.flags |= EF_FOW_REVEALER;
     }
-    self->mana.max_value = UNIT_MANA_MAXIMUM(self->class_id);
-    self->mana.value = MIN(self->mana.max_value, UNIT_MANA_INITIAL(self->class_id));
-    self->health.value = UNIT_HP(self->class_id);
-    self->health.max_value = UNIT_HP(self->class_id);
+    self->mana.max_value = b->maxMana;
+    self->mana.value = MIN(self->mana.max_value, b->initialMana);
+    self->health.value = b->maxHealth;
+    self->health.max_value = b->maxHealth;
     self->invulnerable = G_ActorHasSkill(self, "Avul");
-    self->unitinfo.MoveSpeed = UNIT_SPEED(self->class_id);
-    self->balance.sight_radius.day = UNIT_SIGHT_RADIUS(self->class_id);
-    self->balance.sight_radius.night = UNIT_SIGHT_RADIUS_NIGHT(self->class_id);
+    self->unitinfo.MoveSpeed = b->speed;
+    self->runtime.sight_radius.day = b->sightRadius;
+    self->runtime.sight_radius.night = b->nightSightRadius;
     /* Unit-table values are immutable after spawn; cache them before the per-frame AI/FOW paths consume them. */
-    self->balance.acquisition_range = UNIT_ACQUISITION_RANGE(self->class_id);
-    if (self->balance.acquisition_range <= 0.0f)
-        self->balance.acquisition_range = self->balance.sight_radius.day * 0.5f;
-    if (self->balance.sight_radius.day > 0.0f && self->balance.acquisition_range > self->balance.sight_radius.day)
-        self->balance.acquisition_range = self->balance.sight_radius.day;
+    self->runtime.acquisition_range = w->acquisitionRange;
+    if (self->runtime.acquisition_range <= 0.0f)
+        self->runtime.acquisition_range = self->runtime.sight_radius.day * 0.5f;
+    if (self->runtime.sight_radius.day > 0.0f && self->runtime.acquisition_range > self->runtime.sight_radius.day)
+        self->runtime.acquisition_range = self->runtime.sight_radius.day;
     self->think = monster_think;
     /* Blighted gold mines earn gold on an interval instead of via workers. */
     if (G_ActorHasSkill(self, "Abgm")) {
@@ -457,26 +479,26 @@ void SP_SpawnUnit(LPEDICT self) {
     self->svflags |= SVF_MONSTER;
     /* Buildings use a single immobility contract so smart orders, combat, and
      * future movement paths cannot rotate or translate them independently. */
-    if (self->balance.flags & UNIT_BALANCE_BUILDING) self->aiflags |= AI_IMMOBILE;
+    if (self->runtime.flags & UNIT_BALANCE_BUILDING) self->aiflags |= AI_IMMOBILE;
     /* Cache the air/ground collision layer once. Flyers ('movetp' == "fly")
      * never collide with ground units and vice-versa. */
     {
-        LPCSTR const movetp = UNIT_MOVE_TYPE_NAME(self->class_id);
+        LPCSTR const movetp = d->moveTypeName;
         if (movetp && !strcmp(movetp, "fly"))
             self->aiflags |= AI_FLYING;
     }
 
-    self->defense_type = FindEnumValue(UNIT_DEFENSE_TYPE_NAME(self->class_id), defense_type);
-    self->armor_value = UNIT_ARMOR_VALUE(self->class_id);
+    self->defense_type = FindEnumValue(b->defenseType, defense_type);
+    self->armor_value = b->armor;
     /* Heroes carry their base primary attributes.  realHP/realM/realdef already
      * bake in the level-1 attribute bonus, so we just record the base values;
      * when the attributes later change (tomes, SetHeroStr/Agi/Int, level-up)
      * G_RecomputeHeroStats applies the per-point deltas (+25 HP / +15 mana /
      * +0.3 armor).  Non-heroes have no attributes (all zero) and are skipped. */
     {
-        LONG const baseStr = UNIT_STRENGTH(self->class_id);
-        LONG const baseAgi = UNIT_AGILITY(self->class_id);
-        LONG const baseInt = UNIT_INTELLIGENCE(self->class_id);
+        LONG const baseStr = b->strength;
+        LONG const baseAgi = b->agility;
+        LONG const baseInt = b->intelligence;
         if (baseStr > 0 || baseAgi > 0 || baseInt > 0) {
             self->hero.str   = (DWORD)baseStr;
             self->hero.agi   = (DWORD)baseAgi;
@@ -486,29 +508,29 @@ void SP_SpawnUnit(LPEDICT self) {
             }
         }
     }
-    self->attack1.type = FindEnumValue(UNIT_ATTACK1_ATTACK_TYPE(self->class_id), attack_type);
-    self->attack1.weapon = FindEnumValue(UNIT_ATTACK1_WEAPON_TYPE(self->class_id), weapon_type);
-    self->attack1.damageBase = UNIT_ATTACK1_DAMAGE_BASE(self->class_id);
-    self->attack1.numberOfDice = UNIT_ATTACK1_DAMAGE_NUMBER_OF_DICE(self->class_id);
-    self->attack1.sidesPerDie = UNIT_ATTACK1_DAMAGE_SIDES_PER_DIE(self->class_id);
-    self->attack1.cooldown = UNIT_ATTACK1_BASE_COOLDOWN(self->class_id);
-    self->attack1.damagePoint = UNIT_ATTACK1_DAMAGE_POINT(self->class_id);
-    self->attack1.range = UNIT_ATTACK1_RANGE(self->class_id);
-    self->attack1.areaFull = UNIT_ATTACK1_AREA_OF_EFFECT_FULL_DAMAGE(self->class_id);
-    self->attack1.areaMedium = UNIT_ATTACK1_AREA_OF_EFFECT_MEDIUM_DAMAGE(self->class_id);
-    self->attack1.areaSmall = UNIT_ATTACK1_AREA_OF_EFFECT_SMALL_DAMAGE(self->class_id);
-    self->attack1.factorMedium = UNIT_ATTACK1_DAMAGE_FACTOR_MEDIUM(self->class_id);
-    self->attack1.factorSmall = UNIT_ATTACK1_DAMAGE_FACTOR_SMALL(self->class_id);
-    self->attack1.maxTargets = UNIT_ATTACK1_MAXIMUM_NUMBER_OF_TARGETS(self->class_id);
-    self->attack1.damageLoss = UNIT_ATTACK1_DAMAGE_LOSS_FACTOR(self->class_id);
+    self->attack1.type = FindEnumValue(w->attack1.attackType, attack_type);
+    self->attack1.weapon = FindEnumValue(w->attack1.weaponType, weapon_type);
+    self->attack1.damageBase = w->attack1.damageBase;
+    self->attack1.numberOfDice = w->attack1.damageDice;
+    self->attack1.sidesPerDie = w->attack1.damageSides;
+    self->attack1.cooldown = w->attack1.cooldown;
+    self->attack1.damagePoint = w->attack1.damagePoint;
+    self->attack1.range = w->attack1.range;
+    self->attack1.areaFull = w->attack1.areaFull;
+    self->attack1.areaMedium = w->attack1.areaMedium;
+    self->attack1.areaSmall = w->attack1.areaSmall;
+    self->attack1.factorMedium = w->attack1.factorMedium;
+    self->attack1.factorSmall = w->attack1.factorSmall;
+    self->attack1.maxTargets = w->attack1.maxTargets;
+    self->attack1.damageLoss = w->attack1.damageLossFactor;
     /* Heroes: fold the primary-attribute attack-damage bonus into damageBase now
      * that base attributes + attack1 are loaded (no-op for non-heroes). */
     G_RecomputeHeroStats(self);
 
     if (self->attack1.weapon == WPN_MISSILE) {
-        self->attack1.origin.x = UNIT_ATTACK1_LAUNCH_X(self->class_id);
-        self->attack1.origin.y = UNIT_ATTACK1_LAUNCH_Y(self->class_id);
-        self->attack1.origin.z = UNIT_ATTACK1_LAUNCH_Z(self->class_id);
+        self->attack1.origin.x = G_UnitAttack1LaunchX(self->class_id);
+        self->attack1.origin.y = G_UnitAttack1LaunchY(self->class_id);
+        self->attack1.origin.z = G_UnitAttack1LaunchZ(self->class_id);
         self->attack1.projectile.model = G_RegisterModel(UNIT_ATTACK1_PROJECTILE_ART(self->class_id));
         self->attack1.projectile.arc = UNIT_ATTACK1_PROJECTILE_ARC(self->class_id);
         self->attack1.projectile.speed = UNIT_ATTACK1_PROJECTILE_SPEED(self->class_id);        
@@ -517,7 +539,7 @@ void SP_SpawnUnit(LPEDICT self) {
 
     if ((self->pathtex = M_LoadPathTex(path_tex))) {
         /* Buildings: collide by footprint (their collisionSize is ~0). */
-        if (self->balance.flags & UNIT_BALANCE_BUILDING) {
+        if (self->runtime.flags & UNIT_BALANCE_BUILDING) {
             self->collision = get_unit_collision(self->pathtex);
         }
     }

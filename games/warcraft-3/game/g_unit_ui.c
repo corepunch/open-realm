@@ -9,9 +9,6 @@
  * used to shade the command-card button while it recharges. */
 FLOAT S_SpellCooldownFraction(LPEDICT caster, DWORD code, DWORD level);
 
-/* Defined in skills/s_spell.c — reads a per-level ability data field, e.g. "Cost". */
-FLOAT S_SpellNumber(DWORD code, LPCSTR field, DWORD level);
-
 static void G_CopyString(LPSTR out, DWORD out_size, LPCSTR text) {
     if (!out || out_size == 0) {
         return;
@@ -50,7 +47,7 @@ LPCSTR GetBuildCommand(unitRace_t race) {
 
 static LPCSTR G_CommandArtCode(LPEDICT ent, LPCSTR code) {
     if (!strcmp(code, STR_CmdBuild)) {
-        return GetBuildCommand(G_RaceFromString(UnitStringField(UnitsMetaData, ent->class_id, "urac")));
+        return GetBuildCommand(G_RaceFromString(ent->data->race));
     }
     return code;
 }
@@ -75,7 +72,7 @@ static LPCSTR G_RemoveQuotes(LPCSTR text) {
 }
 
 static LPCSTR G_AbilityString(LPCSTR classname, LPCSTR field) {
-    return game.config.abilities ? FS_FindSheetCell(game.config.abilities, classname, field) : NULL;
+    return G_AbilityDataText(classname, field);
 }
 
 static LPCSTR G_ProcessTooltipString(LPCSTR input) {
@@ -123,7 +120,7 @@ static LPCSTR G_CleanTooltipString(LPCSTR text, DWORD level) {
     return G_RemoveQuotes(G_ProcessTooltipString(G_StringForLevel(text, level)));
 }
 
-static LPCSTR G_CommandArtPath(LPCSTR art) {
+static LPCSTR G_UIArtPath(LPCSTR art) {
     if (!art || !*art) {
         return art;
     }
@@ -147,17 +144,14 @@ BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, 
     }
 
     memset(button, 0, sizeof(*button));
-    base_code = game.config.abilities ? FS_FindSheetCell(game.config.abilities, code, "code") : NULL;
-    if (!base_code) {
-        base_code = code;
-    }
+    base_code = GetClassName(G_AbilityCodeName(code));
     art_code = G_CommandArtCode(ent, code);
     art = FindConfigValue(art_code, G_ResearchField(STR_ART, research));
     buttonpos = FindConfigValue(art_code, G_ResearchField(STR_BUTTONPOS, research));
     tip = FindConfigValue(art_code, G_ResearchField(STR_TIP, research));
     ubertip = FindConfigValue(art_code, G_ResearchField(STR_UBERTIP, research));
     hotkey = FindConfigValue(art_code, STR_HOTKEY);
-    art_path = G_CommandArtPath(art);
+    art_path = G_UIArtPath(art);
 
     if (buttonpos && *buttonpos) {
         sscanf(buttonpos, "%u,%u", &x, &y);
@@ -174,7 +168,7 @@ BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, 
     button->active = (BYTE)FindAbilityIndex(base_code);
     if (strlen(base_code) >= 4) {
         button->manacost = S_SpellNumber(MAKEFOURCC(base_code[0], base_code[1], base_code[2], base_code[3]),
-                                         "Cost", level);
+                         ABILITY_NUMBER_COST, level);
     }
     if (!button->art[0]) {
         fprintf(stderr,
@@ -213,40 +207,43 @@ static BOOL G_IsImplementedAbility(LPCSTR code) {
 
 BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_buttons) {
     BYTE count = 0;
+    UnitBalance_t const *b;
+    UnitWeapons_t const *w;
+    UnitAbilities_t const *a;
 
     if (!ent || !ent->class_id || !buttons) {
         return 0;
     }
     memset(buttons, 0, sizeof(*buttons) * max_buttons);
+    b = ent->balance;
+    w = ent->weapons;
+    a = ent->abilities;
 
     if (ent->currentmove && ent->currentmove->think == ai_birth) {
         return 0;
     }
 
-    if (UNIT_SPEED(ent->class_id) > 0) {
+    if (b->speed > 0) {
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdMove, false, 0);
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdHoldPos, false, 0);
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdPatrol, false, 0);
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdStop, false, 0);
     }
-    if (UNIT_ATTACK1_DAMAGE_NUMBER_OF_DICE(ent->class_id) != 0) {
+    if (w->attack1.damageDice != 0) {
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdAttack, false, 0);
     }
     if (UNIT_BUILDS(ent->class_id)) {
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdBuild, false, 0);
     }
-    if (UNIT_ABILITIES_HERO(ent->class_id)) {
+    if (a->heroAbilList) {
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdSelectSkill, false, 0);
-    } else if (UNIT_ABILITIES_NORMAL(ent->class_id)) {
-        PARSE_LIST(UNIT_ABILITIES_NORMAL(ent->class_id), abil, parse_segment) {
-            LPCSTR code = game.config.abilities ? FS_FindSheetCell(game.config.abilities, abil, "code") : NULL;
-            if (code && G_IsImplementedAbility(code)) {
+    } else if (a->abilList) {
+        PARSE_LIST(a->abilList, abil, parse_segment) {
+            DWORD const code = G_AbilityCodeName(abil);
+            if (G_IsImplementedAbility(GetClassName(code))) {
                 BYTE const idx = count;
                 G_AddCommandButton(ent, buttons, max_buttons, &count, abil, false, 0);
-                if (count > idx && strlen(code) >= 4) {
-                    buttons[idx].cooldown = S_SpellCooldownFraction(ent,
-                        MAKEFOURCC(code[0], code[1], code[2], code[3]), 0);
-                }
+                if (count > idx) buttons[idx].cooldown = S_SpellCooldownFraction(ent, code, 0);
             }
         }
     }
@@ -269,30 +266,39 @@ BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_but
     return count;
 }
 
+BOOL G_BuildInventoryItem(LPEDICT ent, LPEDICT item, BYTE slot, gameInventoryItem_t *out) {
+    LPCSTR item_name;
+    LPCSTR art;
+
+    if (!ent || !out || slot >= G_InventoryCapacity(ent) || !G_IsItem(item) ||
+        item->item.carrier != ent || item->item.inventory_slot != slot || item->item.in_world) return false;
+
+    memset(out, 0, sizeof(*out));
+    item_name = GetClassName(item->class_id);
+    art = FindConfigValue(item_name, STR_ART);
+    G_CopyString(out->art, sizeof(out->art), G_UIArtPath(art));
+    G_CopyString(out->tooltip, sizeof(out->tooltip), G_CleanTooltipString(FindConfigValue(item_name, STR_TIP), 0));
+    G_CopyString(out->ubertip, sizeof(out->ubertip), G_CleanTooltipString(FindConfigValue(item_name, STR_UBERTIP), 0));
+    out->slot = slot;
+    out->charges = G_ItemCharges(item);
+    if (!out->art[0]) {
+        fprintf(stderr, "G_BuildInventoryItem: missing Art item=%.4s slot=%u\n",
+                (char *)&item->class_id, (unsigned)slot);
+    }
+    return true;
+}
+
 BYTE G_GetInventory(LPEDICT ent, gameInventoryItem_t *items, BYTE max_items) {
     BYTE count = 0;
+    DWORD capacity;
 
-    if (!ent || !items) {
-        return 0;
-    }
+    if (!ent || !items) return 0;
     memset(items, 0, sizeof(*items) * max_items);
-
-    for (BYTE slot = 0; slot < MAX_INVENTORY && count < max_items; slot++) {
-        LPEDICT item = ent->inventory[slot];
-        if (!G_IsItem(item) || item->item.carrier != ent || item->item.inventory_slot != slot ||
-            item->item.in_world) {
-            continue;
-        }
-        LPCSTR item_name = GetClassName(item->class_id);
-        G_CopyString(items[count].art, sizeof(items[count].art), FindConfigValue(item_name, STR_ART));
-        G_CopyString(items[count].tooltip, sizeof(items[count].tooltip),
-                     G_RemoveQuotes(FindConfigValue(item_name, STR_TIP)));
-        G_CopyString(items[count].ubertip, sizeof(items[count].ubertip),
-                     G_RemoveQuotes(FindConfigValue(item_name, STR_UBERTIP)));
-        items[count].slot = slot;
-        count++;
+    capacity = G_InventoryCapacity(ent);
+    FOR_LOOP(slot, capacity) {
+        if (count >= max_items) break;
+        if (G_BuildInventoryItem(ent, ent->inventory[slot], (BYTE)slot, &items[count])) count++;
     }
-
     return count;
 }
 
@@ -306,7 +312,7 @@ BYTE G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue) {
     memset(queue, 0, sizeof(*queue) * max_queue);
     for (LPEDICT build = ent->build; build && count < max_queue; build = build->build) {
         LPCSTR build_name = GetClassName(build->class_id);
-        DWORD duration = UNIT_BUILD_TIME_MSEC(build->class_id);
+        DWORD duration = build->balance->buildTime * 1000;
         FLOAT progress = 0;
 
         if (count == 0 && build->health.max_value > 0) {

@@ -589,6 +589,19 @@ TEST(wow_game, quest_serverdata_contains_givers_and_objective_locations) {
     T_ASSERT(Wow_QuestDetail(0xFFFFFFFF) == NULL);
 }
 
+TEST(wow_game, quest_giver_group_index_returns_only_one_physical_npc_rows) {
+    VECTOR2 deputy = { -8947.64f, -132.319f };
+    VECTOR2 missing = { 1.0f, 2.0f };
+    DWORD group = Wow_QuestGiverGroup(6, &deputy);
+    DWORD expected[] = { 6, 18, 783, 3903, 5261 };
+
+    T_ASSERT(group != WOW_QUEST_GIVER_GROUP_NONE);
+    T_EQ((int)Wow_QuestGiverGroupCount(group), 5);
+    FOR_LOOP(i, sizeof(expected) / sizeof(*expected)) T_EQ((int)Wow_QuestGiverInGroup(group, i)->quest_id, (int)expected[i]);
+    T_EQ((int)Wow_QuestGiverGroup(6, &missing), (int)WOW_QUEST_GIVER_GROUP_NONE);
+    T_ASSERT(Wow_QuestGiverInGroup(group, 5) == NULL);
+}
+
 TEST(wow_game, creature_serverdata_preserves_templates_and_all_models) {
     LPCWOWCREATURE marshal = Wow_CreatureByEntry(197);
     LPCWOWCREATURE deputy = Wow_CreatureByEntry(823);

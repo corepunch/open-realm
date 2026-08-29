@@ -73,6 +73,18 @@ reconstructs and may override map/player setup before `main()` starts. Setup
 callbacks therefore need mutable per-level state initialized from `MAPINFO`;
 casting away `level.mapinfo` constness is not the long-term ownership model.
 
+## Runtime Error Reporting
+
+`jass_rterror()` records the error on the root VM and aborts the current
+coroutine. Reporting belongs to `JASSHOST.RuntimeError`; `jass_sethost()` uses
+the standard `JASS runtime error:` stderr reporter when the host omits it.
+
+In engine tests, `run_test_jass_error(source, expected)` installs a silent host
+reporter and compares the recorded error with `expected`. Use it for deliberate
+negative paths so expected failures do not resemble test-run failures. Ordinary
+`run_test_jass()` calls print captured errors as `JASS test error:` before
+returning false.
+
 ## Map Configuration Contract
 
 The following callbacks form one coherent setup subsystem:
@@ -193,6 +205,9 @@ so trigger publication and snapshots remain consistent.
 - Item ownership is the inventory holder or explicit owning player defined by
   the item contract, not merely `edict.s.player` unless that field is kept in
   sync by every inventory transition.
+- Item charges are mutable item-instance state. `GetItemCharges` and
+  `SetItemCharges` read/write the carried or world item's edict state; setting
+  charges on a carried item refreshes the selected-unit inventory layer.
 - `widget` life operations share the damage/life representation across units,
   items, and destructables and clamp against the runtime maximum.
 

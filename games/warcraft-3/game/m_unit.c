@@ -114,7 +114,7 @@ void unit_die(LPEDICT self, LPEDICT attacker) {
 
 void unit_birth(LPEDICT self) {
     unit_setmove(self, &unit_move_birth);
-    self->wait = UNIT_BUILD_TIME(self->class_id);
+    self->wait = self->balance->buildTime;
     self->s.renderfx |= RF_NO_UBERSPLAT;
 }
 
@@ -366,16 +366,16 @@ void unit_learnability(LPEDICT ent, DWORD abilcode) {
  * cannot drop a living hero below 1 HP).  Non-heroes (no attributes) are a
  * no-op.  Call whenever a hero's str/agi/intel change. */
 void G_RecomputeHeroStats(LPEDICT ent) {
-    DWORD const cls = ent->class_id;
-    LONG const baseStr = UNIT_STRENGTH(cls);
-    LONG const baseAgi = UNIT_AGILITY(cls);
-    LONG const baseInt = UNIT_INTELLIGENCE(cls);
+    UnitBalance_t const *balance = ent->balance;
+    LONG const baseStr = balance->strength;
+    LONG const baseAgi = balance->agility;
+    LONG const baseInt = balance->intelligence;
     if (baseStr <= 0 && baseAgi <= 0 && baseInt <= 0) {
         return;
     }
-    FLOAT const newMaxHP   = UNIT_HP(cls)           + ((LONG)ent->hero.str   - baseStr) * 25.0f;
-    FLOAT const newMaxMana = UNIT_MANA_MAXIMUM(cls) + ((LONG)ent->hero.intel - baseInt) * 15.0f;
-    FLOAT const newArmor   = UNIT_ARMOR_VALUE(cls)  + ((LONG)ent->hero.agi   - baseAgi) * 0.3f;
+    FLOAT const newMaxHP = balance->maxHealth + ((LONG)ent->hero.str - baseStr) * 25.0f;
+    FLOAT const newMaxMana = balance->maxMana + ((LONG)ent->hero.intel - baseInt) * 15.0f;
+    FLOAT const newArmor = balance->armor + ((LONG)ent->hero.agi - baseAgi) * 0.3f;
 
     BOOL const alive = ent->health.value > 0.0f;
     FLOAT const dHP = newMaxHP - ent->health.max_value;
@@ -395,13 +395,13 @@ void G_RecomputeHeroStats(LPEDICT ent) {
      * damage = the hero's current primary-attribute value).  Primary is the
      * UnitBalance "Primary" column: STR/AGI/INT. */
     {
-        LPCSTR const prim = UNIT_PRIMARY_ATTRIBUTE(cls);
+        LPCSTR const prim = balance->primaryAttribute;
         DWORD primVal = ent->hero.str;
         if (prim) {
             if (!strcmp(prim, "AGI")) primVal = ent->hero.agi;
             else if (!strcmp(prim, "INT")) primVal = ent->hero.intel;
         }
-        ent->attack1.damageBase = UNIT_ATTACK1_DAMAGE_BASE(cls) + (FLOAT)primVal;
+        ent->attack1.damageBase = ent->weapons->attack1.damageBase + (FLOAT)primVal;
     }
 }
 
@@ -439,10 +439,10 @@ DWORD G_HeroLevelForXP(DWORD xp) {
 
 /* Set a hero's level and derive its attributes + HP/mana/armor for that level. */
 void G_HeroApplyLevel(LPEDICT ent, DWORD level) {
-    DWORD const cls = ent->class_id;
-    LONG const baseStr = UNIT_STRENGTH(cls);
-    LONG const baseAgi = UNIT_AGILITY(cls);
-    LONG const baseInt = UNIT_INTELLIGENCE(cls);
+    UnitBalance_t const *balance = ent->balance;
+    LONG const baseStr = balance->strength;
+    LONG const baseAgi = balance->agility;
+    LONG const baseInt = balance->intelligence;
     if (baseStr <= 0 && baseAgi <= 0 && baseInt <= 0) {
         return; /* not a hero */
     }
@@ -451,9 +451,9 @@ void G_HeroApplyLevel(LPEDICT ent, DWORD level) {
 
     FLOAT const steps = (FLOAT)(level - 1);
     ent->hero.level = level;
-    ent->hero.str   = (DWORD)MAX(0, baseStr + (LONG)(steps * UNIT_STRENGTH_PER_LEVEL(cls)));
-    ent->hero.agi   = (DWORD)MAX(0, baseAgi + (LONG)(steps * UNIT_AGILITY_PER_LEVEL(cls)));
-    ent->hero.intel = (DWORD)MAX(0, baseInt + (LONG)(steps * UNIT_INTELLIGENCE_PER_LEVEL(cls)));
+    ent->hero.str = (DWORD)MAX(0, baseStr + (LONG)(steps * balance->strengthPerLevel));
+    ent->hero.agi = (DWORD)MAX(0, baseAgi + (LONG)(steps * balance->agilityPerLevel));
+    ent->hero.intel = (DWORD)MAX(0, baseInt + (LONG)(steps * balance->intelligencePerLevel));
     G_RecomputeHeroStats(ent);
 }
 
@@ -503,20 +503,19 @@ static FLOAT G_MiscListNum(LPCSTR key, DWORD n, FLOAT fallback) {
 }
 
 BOOL G_UnitIsHero(LPCEDICT ent) {
-    DWORD const cls = ent->class_id;
-    return UNIT_STRENGTH(cls) > 0 || UNIT_AGILITY(cls) > 0 || UNIT_INTELLIGENCE(cls) > 0;
+    return ent->balance->strength > 0 || ent->balance->agility > 0 || ent->balance->intelligence > 0;
 }
 
 /* Award experience for killing `victim` to the killer's heroes within range,
  * applying the per-victim base XP and the level-difference diminishing returns. */
 void G_GrantKillXP(LPEDICT victim, LPEDICT killer) {
     DWORD const vcls = victim->class_id;
-    if (UNIT_IS_BUILDING(vcls) && G_MiscNum("BuildingKillsGiveExp", 0.0f) == 0.0f) {
+    if (G_UnitIsBuilding(vcls) && G_MiscNum("BuildingKillsGiveExp", 0.0f) == 0.0f) {
         return;
     }
     BOOL const victimHero = G_UnitIsHero(victim);
     DWORD const victimLevel = victimHero ? (DWORD)MAX(1, (LONG)victim->hero.level)
-                                         : (DWORD)MAX(1, UNIT_LEVEL(vcls));
+                                         : (DWORD)MAX(1, victim->balance->level);
     DWORD baseXP;
     if (victimHero) {
         baseXP = (DWORD)G_MiscListNum("GrantHeroXP", victimLevel - 1, 100.0f);

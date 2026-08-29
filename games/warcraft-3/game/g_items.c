@@ -39,10 +39,16 @@ static void G_RefreshInventoryUI(LPEDICT unit) {
     if (!unit) {
         return;
     }
-    FOR_LOOP(i, globals.num_edicts) {
+
+    /* Player/client edicts occupy the reserved [0, max_clients) range and are
+     * intentionally not normal in-use gameplay entities.  Refresh inventory by
+     * connection state instead of edict->inuse, otherwise a successful pickup
+     * never re-sends LAYER_INVENTORY to the selecting client. */
+    FOR_LOOP(i, game.max_clients) {
         LPEDICT player = globals.edicts + i;
-        if (player->inuse && player->client && G_IsEntitySelected(player->client, unit)) {
-            Get_Portrait_f(player);
+        if (player->client && player->client->connected &&
+            G_IsEntitySelected(player->client, unit)) {
+            G_RefreshInventoryLayer(player);
         }
     }
 }
@@ -75,16 +81,16 @@ void SP_SpawnItem(LPEDICT self) {
     LPCSTR model;
     FLOAT scale;
 
-    if (!self || !(model = ITEM_FILE(self->class_id))) {
+    if (!self || !(model = self->itemData->file)) {
         return;
     }
     strlcpy(model_filename, model, sizeof(model_filename));
     self->s.model = G_RegisterModel(model_filename);
-    scale = ITEM_SCALE(self->class_id);
+    scale = self->itemData->scale;
     if (scale > 0) {
         self->s.scale = scale;
     }
-    self->s.radius = ITEM_SELECTION_SIZE(self->class_id);
+    self->s.radius = self->itemData->selectionSize;
 #ifndef USE_SHADOWMAPS
     self->s.shadow = G_LoadShadowTexture(FS_FindSheetCell(game.config.misc, "Misc", "ItemShadowFile"), false);
     self->s.shadow_rect = ShadowPackRect(
@@ -98,28 +104,54 @@ void SP_SpawnItem(LPEDICT self) {
     self->item.carrier = NULL;
     self->item.inventory_slot = -1;
     self->item.in_world = true;
+    self->item.charges = (DWORD)MAX(0, (LONG)(G_ItemData(self->class_id) ? G_ItemData(self->class_id)->uses : 0));
 }
 
 BOOL G_IsItem(LPCEDICT item) {
     if (!item || !item->inuse || !item->class_id) {
         return false;
     }
-    return item->item.in_world || item->item.carrier || ITEM_FILE(item->class_id) != NULL;
+    return item->item.in_world || item->item.carrier || item->itemData->file != NULL;
+}
+
+DWORD G_InventoryCapacity(LPCEDICT unit) {
+    LPCSTR abilities;
+
+    if (!unit || !unit->inuse || !(abilities = UNIT_ABILITIES_NORMAL(unit->class_id))) return 0;
+    PARSE_LIST(abilities, abil, parse_segment) {
+        LPCSTR base = game.config.abilities ? FS_FindSheetCell(game.config.abilities, abil, "code") : NULL;
+        LONG capacity;
+
+        if ((base && strcmp(base, "AInv")) || (!base && strcmp(abil, "AInv"))) continue;
+        capacity = (LONG)AB_Data(abil, 1, 1); /* inv1 / Item Capacity */
+        if (capacity <= 0) {
+            fprintf(stderr, "G_InventoryCapacity: %.4s inventory ability %.4s has invalid inv1=%ld\n",
+                    (char *)&unit->class_id, abil, (long)capacity);
+            return 0;
+        }
+        return (DWORD)MIN(capacity, MAX_INVENTORY);
+    }
+    return 0;
 }
 
 BOOL G_UnitHasInventory(LPEDICT unit) {
-    return unit && unit->inuse && G_ActorHasSkill(unit, "AInv");
+    return G_InventoryCapacity(unit) > 0;
+}
+
+DWORD G_ItemCharges(LPCEDICT item) {
+    return G_IsItem(item) ? item->item.charges : 0;
+}
+
+void G_SetItemCharges(LPEDICT item, DWORD charges) {
+    if (!G_IsItem(item) || item->item.charges == charges) return;
+    item->item.charges = charges;
+    if (item->item.carrier) G_RefreshInventoryUI(item->item.carrier);
 }
 
 LONG G_FindFreeInventorySlot(LPCEDICT unit) {
-    if (!unit) {
-        return -1;
-    }
-    FOR_LOOP(i, MAX_INVENTORY) {
-        if (!unit->inventory[i]) {
-            return (LONG)i;
-        }
-    }
+    DWORD capacity = G_InventoryCapacity(unit);
+
+    FOR_LOOP(i, capacity) if (!unit->inventory[i]) return (LONG)i;
     return -1;
 }
 
@@ -132,7 +164,7 @@ BOOL G_CanPickupItem(LPEDICT unit, LPEDICT item) {
 }
 
 BOOL G_AddItemToSlot(LPEDICT unit, LPEDICT item, DWORD slot) {
-    if (slot >= MAX_INVENTORY || !G_CanPickupItem(unit, item) || unit->inventory[slot]) {
+    if (slot >= G_InventoryCapacity(unit) || !G_CanPickupItem(unit, item) || unit->inventory[slot]) {
         return false;
     }
 
@@ -287,7 +319,7 @@ void G_UseItem(LPEDICT unit, DWORD slot) {
     LPEDICT item;
     ability_t const *abil;
 
-    if (!unit || !unit->client || slot >= MAX_INVENTORY) {
+    if (!unit || !unit->client || slot >= G_InventoryCapacity(unit)) {
         return;
     }
     item = unit->inventory[slot];

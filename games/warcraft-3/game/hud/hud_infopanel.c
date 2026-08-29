@@ -16,6 +16,8 @@ static InfoPanelBuildingDetail_t building_panel;
 static FRAMEDEF bottom_panel;
 static BOOL infopanel_loaded;
 
+#define INVENTORY_CHARGE_FONT_SIZE 10
+
 static void InfoPanelEnsureLoaded(void) {
     if (infopanel_loaded) return;
     infopanel_loaded = true;
@@ -31,17 +33,17 @@ static void InfoPanelEnsureLoaded(void) {
 
 void UI_WriteSingleInfo(LPEDICT ent) {
     char buffer[128];
+    UnitBalance_t const *balance = ent->balance;
+    UnitWeapons_t const *weapons = ent->weapons;
     LPCSTR name = UNIT_PROPER_NAMES(ent->class_id);
     LPCSTR unit_name = UNIT_NAME(ent->class_id);
-    BOOL const is_hero = UNIT_STRENGTH(ent->class_id) > 0 ||
-                         UNIT_AGILITY(ent->class_id) > 0 ||
-                         UNIT_INTELLIGENCE(ent->class_id) > 0;
+    BOOL const is_hero = balance->strength > 0 || balance->agility > 0 || balance->intelligence > 0;
     DWORD level = is_hero && ent->hero.level > 0 ? ent->hero.level
-                                                 : MAX(1, UNIT_LEVEL(ent->class_id));
+                                                 : MAX(1, balance->level);
     LONG dice = ent->attack1.numberOfDice;
     LONG min_damage = dice ? (LONG)(ent->attack1.damageBase + dice) : 0;
     LONG max_damage = dice ? (LONG)(ent->attack1.damageBase + dice * ent->attack1.sidesPerDie) : 0;
-    LONG dice2 = UNIT_ATTACK2_DAMAGE_NUMBER_OF_DICE(ent->class_id);
+    LONG dice2 = weapons->attack2.damageDice;
     BOOL has_attack2 = UI_HasSecondAttack(dice2);
 
     if (!name || !*name) {
@@ -60,8 +62,8 @@ void UI_WriteSingleInfo(LPEDICT ent) {
 
     UI_SetText(unit_panel.AttackLabel2, "Damage:");
     snprintf(buffer, sizeof(buffer), "%d - %d",
-             (int)(UNIT_ATTACK2_DAMAGE_BASE(ent->class_id) + dice2),
-             (int)(UNIT_ATTACK2_DAMAGE_BASE(ent->class_id) + dice2 * UNIT_ATTACK2_DAMAGE_SIDES_PER_DIE(ent->class_id)));
+             (int)(weapons->attack2.damageBase + dice2),
+             (int)(weapons->attack2.damageBase + dice2 * weapons->attack2.damageSides));
     UI_SetText(unit_panel.AttackValue2, "%s", buffer);
     UI_SetHidden(unit_panel.AttackLabel2, !has_attack2);
     UI_SetHidden(unit_panel.AttackValue2, !has_attack2);
@@ -75,12 +77,12 @@ void UI_WriteSingleInfo(LPEDICT ent) {
     UI_SetText(unit_panel.RangeTitle1, "Range:");
     UI_SetText(unit_panel.RangeValue1, "%d", (int)(ent->attack1.range + 0.5f));
     UI_SetText(unit_panel.RangeTitle2, "Range:");
-    UI_SetText(unit_panel.RangeValue2, "%d", (int)(UNIT_ATTACK2_RANGE(ent->class_id) + 0.5f));
+    UI_SetText(unit_panel.RangeValue2, "%d", (int)(weapons->attack2.range + 0.5f));
     UI_SetHidden(unit_panel.RangeTitle2, !has_attack2);
     UI_SetHidden(unit_panel.RangeValue2, !has_attack2);
 
     if (is_hero) {
-        LPCSTR const prim = UNIT_PRIMARY_ATTRIBUTE(ent->class_id);
+        LPCSTR const prim = balance->primaryAttribute;
         struct { LPCSTR tag, code; DWORD val; } attrs[3] = {
             { "Str:", "STR", ent->hero.str },
             { "Agi:", "AGI", ent->hero.agi },
@@ -204,6 +206,21 @@ static void WritePortraitFrame(LPEDICT ent) {
     UI_WriteProxyFrame(&frame, NULL, 0);
 }
 
+static void WriteInventoryCharge(FLOAT x, FLOAT y, FLOAT w, FLOAT h, DWORD charges) {
+    uiFrame_t frame;
+    uiLabel_t label;
+    char text[16];
+
+    if (!charges) return;
+    memset(&frame, 0, sizeof(frame)); memset(&label, 0, sizeof(label));
+    snprintf(text, sizeof(text), "%u", (unsigned)charges);
+    frame.flags.type = FT_STRING; frame.text = text; frame.color = COLOR32_WHITE;
+    label.font = gi.FontIndex("Fonts\\FRIZQT__.TTF", INVENTORY_CHARGE_FONT_SIZE);
+    label.textalignx = FONT_JUSTIFYRIGHT; label.textaligny = FONT_JUSTIFYBOTTOM;
+    UI_SetFrameRect(&frame, x + 0.001f, y + 0.001f, w - 0.002f, h - 0.002f);
+    UI_WriteProxyFrame(&frame, &label, sizeof(label));
+}
+
 static void WriteInventory(LPEDICT ent) {
     gameInventoryItem_t items[MAX_INVENTORY];
     BYTE count = G_GetInventory(ent, items, MAX_INVENTORY);
@@ -212,17 +229,35 @@ static void WriteInventory(LPEDICT ent) {
         FLOAT by = UI_BASE_HEIGHT - 0.0971f + (FLOAT)(items[i].slot / 2) * 0.0384f;
         uiFrame_t frame;
         char onclick[128];
+        char tooltip[1024];
         memset(&frame, 0, sizeof(frame));
         frame.flags.type = FT_COMMANDBUTTON;
         frame.color = COLOR32_WHITE;
         frame.tex.index = gi.ImageIndex(items[i].art);
-        frame.tooltip = items[i].ubertip[0] ? items[i].ubertip : items[i].tooltip;
+        UI_FormatTooltip("", items[i].tooltip, items[i].ubertip, 0, tooltip, sizeof(tooltip));
+        frame.tooltip = tooltip;
         snprintf(onclick, sizeof(onclick), "inventory %u", (unsigned)items[i].slot);
         frame.onclick = onclick;
         UI_SetFrameRect(&frame, bx - 0.0165f, by - 0.0165f, 0.033f, 0.033f);
         UI_WriteProxyFrame(&frame, NULL, 0);
+        WriteInventoryCharge(bx - 0.0165f, by - 0.0165f, 0.033f, 0.033f, items[i].charges);
     }
     if (count) UI_WriteTooltipFrame();
+}
+
+static void UI_SendInventoryLayer(LPEDICT ent, LPEDICT *selected, DWORD count) {
+    UI_WriteStart(LAYER_INVENTORY);
+    if (count == 1) WriteInventory(selected[0]);
+    UI_WriteEnd(ent);
+}
+
+void G_RefreshInventoryLayer(LPEDICT ent) {
+    LPEDICT selected[MAX_SELECTED_ENTITIES];
+    DWORD count;
+
+    if (!ent || !ent->client) return;
+    count = SelectedUnits(ent->client, selected, MAX_SELECTED_ENTITIES);
+    UI_SendInventoryLayer(ent, selected, count);
 }
 
 void Get_Portrait_f(LPEDICT ent) {
@@ -237,10 +272,7 @@ void Get_Portrait_f(LPEDICT ent) {
     UI_WriteEnd(ent);
 
     UI_SendInfoPanel(ent, selected, count);
-
-    UI_WriteStart(LAYER_INVENTORY);
-    if (count == 1) WriteInventory(selected[0]);
-    UI_WriteEnd(ent);
+    UI_SendInventoryLayer(ent, selected, count);
 }
 
 /* Re-send LAYER_INFOPANEL only when HP, mana, or XP of the selected unit changed. */

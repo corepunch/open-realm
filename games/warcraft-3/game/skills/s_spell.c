@@ -51,48 +51,29 @@ DWORD S_SpellLevel(LPEDICT caster, DWORD code) {
     return 1;
 }
 
-FLOAT S_SpellNumber(DWORD code, LPCSTR field, DWORD level) {
-    char code_string[5];
-    char field_string[16];
-    LPCSTR value;
-    size_t len;
-
-    if (!field || !*field) {
-        return 0;
-    }
-
-    S_SpellCodeString(code, code_string);
-    len = strlen(field);
-    if (level > 0 && level <= 3 && len > 0 && !isdigit((unsigned char)field[len - 1])) {
-        snprintf(field_string, sizeof(field_string), "%s%u", field, (unsigned)level);
-        field = field_string;
-    }
-    value = game.config.abilities ? FS_FindSheetCell(game.config.abilities, code_string, field) : NULL;
-    if (!value || !strcmp(value, "-")) {
-        return 0;
-    }
-    return atof(value);
+FLOAT S_SpellNumber(DWORD code, abilityNumber_t field, DWORD level) {
+    AbilityData_t const *row = G_AbilityData(code);
+    FLOAT const *values[] = { row->cast, row->dur, row->heroDur, row->cool, row->cost, row->area, row->range };
+    level = MAX(1, MIN(level, 4));
+    return values[field][level - 1];
 }
 
 LPCSTR S_SpellString(DWORD code, LPCSTR field, DWORD level) {
     char code_string[5];
-    char field_string[16];
     LPCSTR value;
-    size_t len;
 
     if (!field || !*field) {
         return NULL;
     }
 
     S_SpellCodeString(code, code_string);
-    len = strlen(field);
-    if (level > 0 && level <= 3 && len > 0 && !isdigit((unsigned char)field[len - 1])) {
-        snprintf(field_string, sizeof(field_string), "%s%u", field, (unsigned)level);
-        field = field_string;
-    }
-    value = game.config.abilities ? FS_FindSheetCell(game.config.abilities, code_string, field) : NULL;
+    value = FindConfigValue(code_string, field);
     if (!value || !strcmp(value, "-") || !strcmp(value, "_")) {
         return NULL;
+    }
+    if (!level) return value;
+    PARSE_LIST(value, perlevel, parse_segment) {
+        if (--level == 0) return perlevel;
     }
     return value;
 }
@@ -105,22 +86,16 @@ FLOAT S_SpellData(DWORD code, DWORD level, DWORD index) {
 }
 
 DWORD S_SpellUnitId(DWORD code, DWORD level) {
-    LPCSTR value;
-
-    level = MAX(1, MIN(level, 3));
-    value = S_SpellString(code, "UnitID", level);
-    if (!value || strlen(value) < 4) {
-        return 0;
-    }
-    return *((DWORD const *)value);
+    level = MAX(1, MIN(level, 4));
+    return G_AbilityData(code)->unitID[level - 1];
 }
 
 FLOAT S_SpellRange(DWORD code, DWORD level) {
-    return S_SpellNumber(code, "Rng", level);
+    return S_SpellNumber(code, ABILITY_NUMBER_RANGE, level);
 }
 
 FLOAT S_SpellDuration(DWORD code, DWORD level, BOOL hero) {
-    return S_SpellNumber(code, hero ? "HeroDur" : "Dur", level);
+    return S_SpellNumber(code, hero ? ABILITY_NUMBER_HERO_DURATION : ABILITY_NUMBER_DURATION, level);
 }
 
 BOOL S_SpellCooldownReady(LPEDICT caster, DWORD code) {
@@ -153,7 +128,7 @@ FLOAT S_SpellCooldownFraction(LPEDICT caster, DWORD code, DWORD level) {
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t const *status = caster->abilstatus + i;
         if (status->level && status->code == code && status->timestamp > now) {
-            FLOAT const total = S_SpellNumber(code, "Cool", level ? level : status->level);
+            FLOAT const total = S_SpellNumber(code, ABILITY_NUMBER_COOLDOWN, level ? level : status->level);
             if (total <= 0.0f) {
                 return 0.0f;
             }
@@ -171,7 +146,7 @@ void S_SpellStartCooldown(LPEDICT caster, DWORD code, DWORD level) {
     if (!caster) {
         return;
     }
-    cooldown = S_SpellNumber(code, "Cool", level);
+    cooldown = S_SpellNumber(code, ABILITY_NUMBER_COOLDOWN, level);
     if (cooldown <= 0) {
         return;
     }
@@ -201,7 +176,7 @@ BOOL S_SpellSpendMana(LPEDICT caster, DWORD code, DWORD level) {
     if (!caster) {
         return false;
     }
-    cost = S_SpellNumber(code, "Cost", level);
+    cost = S_SpellNumber(code, ABILITY_NUMBER_COST, level);
     if (cost <= 0) {
         return true;
     }
@@ -218,7 +193,7 @@ BOOL S_SpellCanPay(LPEDICT caster, DWORD code, DWORD level) {
     if (!caster) {
         return false;
     }
-    cost = S_SpellNumber(code, "Cost", level);
+    cost = S_SpellNumber(code, ABILITY_NUMBER_COST, level);
     return cost <= 0 || caster->mana.value >= cost;
 }
 
@@ -268,7 +243,7 @@ BOOL S_SpellAllowsTarget(DWORD code, LPEDICT caster, LPEDICT target) {
     if (!S_SpellIsAliveTarget(target)) {
         return false;
     }
-    targets = S_SpellString(code, "targs", 0);
+    targets = G_AbilityData(code)->targs[0];
     if (!targets) {
         return true;
     }
@@ -502,7 +477,7 @@ void spell_cmd(LPEDICT clent) {
         break;
     case SPELL_TARGET_POINT: {
         UI_AddCancelButton(clent);
-        FLOAT area = S_SpellNumber(code, "Area", S_SpellLevel(caster, code));
+        FLOAT area = S_SpellNumber(code, ABILITY_NUMBER_AREA, S_SpellLevel(caster, code));
         S_SpellCursorSplat(clent, area > 0 ? area : 200.0f);
         clent->client->menu.on_location_selected = spell_point_target_selected;
         break;

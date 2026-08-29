@@ -342,6 +342,7 @@ sheetMetaData_t ItemsMetaData[] = {
     { "iprn", "pickRandom", "ItemData" },
     { "isca", "scale", "ItemData" },
     { "issc", "selSize", "ItemData" },
+    { "iuse", "uses", "ItemData" },
     { NULL }
 };
 #endif

@@ -74,11 +74,16 @@ Buildings use `BuildingSoundLabel` (from `*UnitFunc.txt`) which maps to looping 
 
 ## OpenWarcraft3 Implementation
 
-The game loads `UI/SoundInfo/UnitAckSounds.slk` at init (`game.config.unitAckSounds`).
-At unit spawn, `G_RegisterUnitSounds` reads the `usnd` label from `unitUI.slk` and registers:
+The typed SLK registry loads `UI/SoundInfo/UnitAckSounds.slk` into a flat `unitSoundRow_t` array. Sound names are not FOURCCs, so each row owns its complete source name and `G_UnitAckSound` compares that string. At unit spawn, `G_RegisterUnitSounds` reads the `usnd` label from `unitUI.slk` and registers:
+- `sound_select[]` ← every `{label}What` file (up to the authoritative ROC/TFT maximum of six)
 - `sound_attack` ← `{label}YesAttack` first file path via `gi.SoundIndex`
 - `sound_death` ← `{label}Death.wav` raw path via `gi.SoundIndex`
 
+On selection, the server chooses a random `sound_select` entry and queues it until
+`G_RunEntities`, after that function clears the previous frame's one-shot event.
+The selected entity then carries `EV_ACK` plus the sound configstring index for one snapshot.
+`G_CustomizeEntity` strips that event from snapshots sent to clients that did
+not select the entity, keeping acknowledgement voices local to the selecting player.
 On attack swing (`attack_melee`/`attack_ranged`): `s.event = EV_ATTACK; s.sound = sound_attack`.
 On death (`unit_die`): `s.event = EV_DEATH; s.sound = sound_death`.
 Client fires `S_PlaySoundFile` on any non-zero `s.event`.

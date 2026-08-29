@@ -22,6 +22,8 @@
 #define SC2_ARRAY_LEN(x)             ((DWORD)(sizeof(x) / sizeof((x)[0])))
 #define SC2_XML_STRING_FIELD(name, field) { name, offsetof(sc2MapObject_t, field), SC2_XML_FIELD_STRING, sizeof(((sc2MapObject_t *)0)->field) }
 #define SC2_XML_FIELD(name, field, type)  { name, offsetof(sc2MapObject_t, field), type, 0 }
+#define SC2_STRUCT_XML_STRING_FIELD(struct_type, name, field) { name, offsetof(struct_type, field), SC2_XML_FIELD_STRING, sizeof(((struct_type *)0)->field) }
+#define SC2_STRUCT_XML_FIELD(struct_type, name, field, field_type) { name, offsetof(struct_type, field), field_type, 0 }
 #define SC2_TERRAIN_XML_STRING_FIELD(name, field) { name, offsetof(sc2MapTerrain_t, field), SC2_XML_FIELD_STRING, sizeof(((sc2MapTerrain_t *)0)->field) }
 #define SC2_TERRAIN_XML_FIELD(name, field, type)  { name, offsetof(sc2MapTerrain_t, field), type, 0 }
 #define SC2_LIGHTING_XML_FIELD(name, field, type) { name, offsetof(sc2MapLighting_t, field), type, 0 }
@@ -53,8 +55,8 @@ typedef struct {
     char footprint[64];
     char mover[64];
     DWORD flags;
-    BOOL has_radius;
-    FLOAT radius;
+    BOOL has_radius, has_height;
+    FLOAT radius, height;
 } sc2CatalogUnit_t;
 
 typedef struct {
@@ -66,6 +68,7 @@ typedef struct {
     FLOAT footprint_width;
     FLOAT footprint_height;
     FLOAT footprint_radius;
+    FLOAT move_height;
     DWORD unit_flags, variation;
 } sc2ResolvedObjectModel_t;
 
@@ -117,20 +120,18 @@ typedef struct {
     sc2CatalogSound_t sounds[SC2_MAX_CATALOG_SOUNDS];
 } sc2Catalog_t;
 
-typedef enum {
-    SC2_XML_FIELD_DWORD,
-    SC2_XML_FIELD_FLOAT,
-    SC2_XML_FIELD_STRING,
-    SC2_XML_FIELD_VEC3,
-    SC2_XML_FIELD_COLOR_ARGB,
-    SC2_XML_FIELD_COLOR_RGBA,
-} sc2XmlFieldType_t;
+#define SC2_XML_FIELD_DWORD      BZ_FIELD_U32
+#define SC2_XML_FIELD_FLOAT      BZ_FIELD_FLOAT
+#define SC2_XML_FIELD_STRING     BZ_FIELD_CHAR_ARRAY
+#define SC2_XML_FIELD_VEC3       BZ_FIELD_VEC3
+#define SC2_XML_FIELD_COLOR_ARGB BZ_FIELD_COLOR32_ARGB
+#define SC2_XML_FIELD_COLOR_RGBA BZ_FIELD_COLOR32_RGBA
 
 typedef struct {
-    LPCSTR            name;
-    size_t            offset;
-    sc2XmlFieldType_t type;
-    DWORD             size;
+    LPCSTR        name;
+    size_t        offset;
+    bzFieldType_t type;
+    DWORD         size;
 } sc2XmlField_t;
 
 typedef struct {
@@ -636,10 +637,18 @@ static void sc2_parse_terrain_data_node(xmlNodePtr node, LPCSTR terrain_id) {
         sc2_parse_terrain_data_node(child, terrain_id);
 }
 
+static struct {
+    LPCSTR name;
+    int    index;
+} const sc2_light_indices[] = {
+    { "Key",  SC2_LIGHT_KEY },
+    { "Fill", SC2_LIGHT_FILL },
+    { "Back", SC2_LIGHT_BACK },
+};
+
 static int sc2_light_index(LPCSTR index) {
-    if (sc2_streqi(index, "Key")) return SC2_LIGHT_KEY;
-    if (sc2_streqi(index, "Fill")) return SC2_LIGHT_FILL;
-    if (sc2_streqi(index, "Back")) return SC2_LIGHT_BACK;
+    FOR_LOOP(i, SC2_ARRAY_LEN(sc2_light_indices))
+        if (sc2_streqi(index, sc2_light_indices[i].name)) return sc2_light_indices[i].index;
     return -1;
 }
 
@@ -1005,9 +1014,19 @@ static BOOL sc2_parse_xml_field(void *base, sc2XmlField_t const *fields, DWORD n
                 return sc2_parse_argb_color(value, (LPCOLOR32)out);
             case SC2_XML_FIELD_COLOR_RGBA:
                 return sc2_parse_rgba_color(value, (LPCOLOR32)out);
+            default: return false; /* BZ_FIELD_BOOL / BZ_FIELD_CSTR / BZ_FIELD_FOURCC not used in SC2 XML */
         }
     }
     return false;
+}
+
+/* Catalog scalar children share one DDX-style decoder; nested productions stay with their owning grammar. */
+static BOOL sc2_parse_xml_child_field(void *base, sc2XmlField_t const *fields, DWORD num_fields,
+                                      xmlNodePtr node, LPCSTR attr_name) {
+    char value[256];
+
+    if (!node || node->type != XML_ELEMENT_NODE || !sc2_xml_attr(node, attr_name, value, sizeof(value))) return false;
+    return sc2_parse_xml_field(base, fields, num_fields, (LPCSTR)node->name, value);
 }
 
 static void sc2_parse_object_field(sc2MapObject_t *object, sc2XmlField_t const *fields, DWORD num_fields, LPCSTR key, LPCSTR value, BOOL *has_position) {
@@ -1036,15 +1055,28 @@ static void sc2_parse_object_fields(sc2MapObject_t *object, sc2ObjectType_t type
     }
 }
 
+static struct {
+    LPCSTR          name;
+    sc2ObjectType_t type;
+    BOOL            contains;
+} const sc2_object_types[] = {
+    { "ObjectUnit",   SC2_OBJECT_UNIT,   true }, { "Unit",   SC2_OBJECT_UNIT,   false },
+    { "ObjectDoodad", SC2_OBJECT_DOODAD, true }, { "Doodad", SC2_OBJECT_DOODAD, false },
+    { "ObjectPoint",  SC2_OBJECT_POINT,  true }, { "Point",  SC2_OBJECT_POINT,  false },
+    { "ObjectCamera", SC2_OBJECT_CAMERA, true }, { "Camera", SC2_OBJECT_CAMERA, false },
+};
+
 static BOOL sc2_object_type(xmlNodePtr node, sc2ObjectType_t *type) {
     LPCSTR name = (char const *)node->name;
 
-    if (sc2_contains_i(name, "ObjectUnit") || sc2_streqi(name, "Unit")) *type = SC2_OBJECT_UNIT;
-    else if (sc2_contains_i(name, "ObjectDoodad") || sc2_streqi(name, "Doodad")) *type = SC2_OBJECT_DOODAD;
-    else if (sc2_contains_i(name, "ObjectPoint") || sc2_streqi(name, "Point")) *type = SC2_OBJECT_POINT;
-    else if (sc2_contains_i(name, "ObjectCamera") || sc2_streqi(name, "Camera")) *type = SC2_OBJECT_CAMERA;
-    else return false;
-    return true;
+    FOR_LOOP(i, SC2_ARRAY_LEN(sc2_object_types)) {
+        if ((sc2_object_types[i].contains && sc2_contains_i(name, sc2_object_types[i].name)) ||
+            (!sc2_object_types[i].contains && sc2_streqi(name, sc2_object_types[i].name))) {
+            *type = sc2_object_types[i].type;
+            return true;
+        }
+    }
+    return false;
 }
 
 static void sc2_object_flag(sc2MapObject_t *object, xmlNodePtr node) {
@@ -1181,12 +1213,17 @@ static void sc2_catalog_add_actor(sc2Catalog_t *catalog, LPCSTR id, LPCSTR model
     snprintf(actor->footprint, sizeof(actor->footprint), "%s", footprint ? footprint : "");
 }
 
+static sc2XmlFlag_t const sc2_unit_flags[] = {
+    { "Movable",   SC2_UNIT_FLAG_MOVABLE },
+    { "Worker",    SC2_UNIT_FLAG_WORKER },
+    { "Resource",  SC2_UNIT_FLAG_RESOURCE },
+    { "Structure", SC2_UNIT_FLAG_STRUCTURE },
+};
+
 static DWORD sc2_unit_flag(LPCSTR name) {
     if (!name || !*name) return 0;
-    if (sc2_streqi(name, "Movable")) return SC2_UNIT_FLAG_MOVABLE;
-    if (sc2_streqi(name, "Worker")) return SC2_UNIT_FLAG_WORKER;
-    if (sc2_streqi(name, "Resource")) return SC2_UNIT_FLAG_RESOURCE;
-    if (sc2_streqi(name, "Structure")) return SC2_UNIT_FLAG_STRUCTURE;
+    FOR_LOOP(i, SC2_ARRAY_LEN(sc2_unit_flags))
+        if (sc2_streqi(name, sc2_unit_flags[i].name)) return sc2_unit_flags[i].flag;
     return 0;
 }
 
@@ -1197,11 +1234,13 @@ static void sc2_catalog_add_unit(sc2Catalog_t *catalog,
                                  LPCSTR mover,
                                  DWORD flags,
                                  FLOAT radius,
-                                 BOOL has_radius) {
+                                 BOOL has_radius,
+                                 FLOAT height,
+                                 BOOL has_height) {
     sc2CatalogUnit_t *unit;
 
     if (!catalog || !id || !*id ||
-        ((!actor_id || !*actor_id) && (!footprint || !*footprint) && (!mover || !*mover) && !flags && !has_radius))
+        ((!actor_id || !*actor_id) && (!footprint || !*footprint) && (!mover || !*mover) && !flags && !has_radius && !has_height))
         return;
     FOR_LOOP(i, catalog->units_count) {
         if (!strcasecmp(catalog->units[i].id, id)) {
@@ -1216,6 +1255,10 @@ static void sc2_catalog_add_unit(sc2Catalog_t *catalog,
                 catalog->units[i].has_radius = true;
                 catalog->units[i].radius = radius;
             }
+            if (has_height) {
+                catalog->units[i].has_height = true;
+                catalog->units[i].height = height;
+            }
             return;
         }
     }
@@ -1228,6 +1271,8 @@ static void sc2_catalog_add_unit(sc2Catalog_t *catalog,
     unit->flags = flags;
     unit->has_radius = has_radius;
     unit->radius = has_radius ? radius : 0.0f;
+    unit->has_height = has_height;
+    unit->height = has_height ? height : 0.0f;
 }
 
 static void sc2_catalog_add_terrain_tex(sc2Catalog_t *catalog, LPCSTR id, LPCSTR diffuse, LPCSTR normal) {
@@ -1521,23 +1566,51 @@ static BOOL sc2_terrain_texture_path_from_tileset(LPCSTR id,
     return true;
 }
 
+static sc2XmlField_t const sc2_catalog_model_fields[] = {
+    SC2_STRUCT_XML_STRING_FIELD(sc2CatalogModel_t, "Model", path),
+    SC2_STRUCT_XML_FIELD(sc2CatalogModel_t, "VariationCount", variants, SC2_XML_FIELD_DWORD),
+};
+
+static sc2XmlField_t const sc2_catalog_sound_fields[] = {
+    SC2_STRUCT_XML_STRING_FIELD(sc2CatalogSound_t, "AssetArray", path),
+};
+
+static sc2XmlField_t const sc2_catalog_actor_fields[] = {
+    SC2_STRUCT_XML_STRING_FIELD(sc2CatalogActor_t, "Model", model),
+    SC2_STRUCT_XML_STRING_FIELD(sc2CatalogActor_t, "Footprint", footprint),
+};
+
+static sc2XmlField_t const sc2_catalog_unit_fields[] = {
+    SC2_STRUCT_XML_STRING_FIELD(sc2CatalogUnit_t, "Actor", actor),
+    SC2_STRUCT_XML_STRING_FIELD(sc2CatalogUnit_t, "Footprint", footprint),
+    SC2_STRUCT_XML_STRING_FIELD(sc2CatalogUnit_t, "Mover", mover),
+    SC2_STRUCT_XML_FIELD(sc2CatalogUnit_t, "Radius", radius, SC2_XML_FIELD_FLOAT),
+    SC2_STRUCT_XML_FIELD(sc2CatalogUnit_t, "Height", height, SC2_XML_FIELD_FLOAT),
+};
+
+static sc2XmlField_t const sc2_catalog_terrain_tex_fields[] = {
+    SC2_STRUCT_XML_STRING_FIELD(sc2CatalogTerrainTex_t, "Texture", diffuse),
+    SC2_STRUCT_XML_STRING_FIELD(sc2CatalogTerrainTex_t, "Normalmap", normal),
+};
+
+static sc2XmlField_t const sc2_catalog_cliff_fields[] = {
+    SC2_STRUCT_XML_STRING_FIELD(sc2CatalogCliff_t, "CliffMesh", mesh),
+};
+
+static sc2XmlField_t const sc2_catalog_tile_fields[] = {
+    SC2_STRUCT_XML_STRING_FIELD(sc2CatalogTile_t, "Material", model),
+};
+
 static void sc2_parse_model_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
     xmlNodePtr root = xmlDocGetRootElement(doc);
-    static sc2XmlField_t const fields[] = {
-        { "Model", offsetof(sc2CatalogModel_t, path), SC2_XML_FIELD_STRING, sizeof(((sc2CatalogModel_t *)0)->path) },
-        { "VariationCount", offsetof(sc2CatalogModel_t, variants), SC2_XML_FIELD_DWORD, 0 },
-    };
     for (xmlNodePtr node = root ? root->children : NULL; node; node = node->next) {
         sc2CatalogModel_t model = { .variants = -1 };
         if (node->type != XML_ELEMENT_NODE || !sc2_contains_i((char const *)node->name, "CModel")) continue;
         if (!sc2_xml_attr(node, "id", model.id, sizeof(model.id))) continue;
         sc2_xml_attr(node, "parent", model.parent, sizeof(model.parent));
         sc2_xml_attr(node, "Race", model.race, sizeof(model.race));
-        for (xmlNodePtr child = node->children; child; child = child->next) {
-            char value[256];
-            if (sc2_xml_attr(child, "value", value, sizeof(value)))
-                sc2_parse_xml_field(&model, fields, SC2_ARRAY_LEN(fields), (LPCSTR)child->name, value);
-        }
+        for (xmlNodePtr child = node->children; child; child = child->next)
+            sc2_parse_xml_child_field(&model, sc2_catalog_model_fields, SC2_ARRAY_LEN(sc2_catalog_model_fields), child, "value");
         sc2_catalog_add_model(catalog, &model);
     }
 }
@@ -1550,8 +1623,7 @@ static void sc2_parse_sound_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
         if (!sc2_xml_attr(node, "id", sound.id, sizeof(sound.id))) continue;
         sc2_xml_attr(node, "parent", sound.parent, sizeof(sound.parent));
         for (xmlNodePtr child = node->children; child; child = child->next)
-            if (child->type == XML_ELEMENT_NODE && sc2_streqi((char const *)child->name, "AssetArray"))
-                sc2_xml_attr(child, "File", sound.path, sizeof(sound.path));
+            sc2_parse_xml_child_field(&sound, sc2_catalog_sound_fields, SC2_ARRAY_LEN(sc2_catalog_sound_fields), child, "File");
         sc2_catalog_add_sound(catalog, &sound);
     }
 }
@@ -1578,8 +1650,7 @@ static void sc2_parse_actor_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
     for (xmlNodePtr node = root ? root->children : NULL; node; node = node->next) {
         char id[64];
         char unit_name[64] = "";
-        char model_id[64] = "";
-        char footprint[64] = "";
+        sc2CatalogActor_t actor = {0};
         BOOL actor_node;
 
         if (node->type != XML_ELEMENT_NODE) continue;
@@ -1587,17 +1658,11 @@ static void sc2_parse_actor_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
                      sc2_contains_i((char const *)node->name, "CActorDoodad");
         if (!actor_node || !sc2_xml_attr(node, "id", id, sizeof(id))) continue;
         sc2_xml_attr(node, "unitName", unit_name, sizeof(unit_name));
-        for (xmlNodePtr child = node->children; child; child = child->next) {
-            if (child->type != XML_ELEMENT_NODE) continue;
-            if (sc2_streqi((char const *)child->name, "Model")) {
-                sc2_xml_attr(child, "value", model_id, sizeof(model_id));
-            } else if (sc2_streqi((char const *)child->name, "Footprint")) {
-                sc2_xml_attr(child, "value", footprint, sizeof(footprint));
-            }
-        }
-        if (!model_id[0]) snprintf(model_id, sizeof(model_id), "%s", id);
-        sc2_catalog_add_actor(catalog, id, model_id, footprint);
-        if (unit_name[0]) sc2_catalog_add_actor(catalog, unit_name, model_id, footprint);
+        for (xmlNodePtr child = node->children; child; child = child->next)
+            sc2_parse_xml_child_field(&actor, sc2_catalog_actor_fields, SC2_ARRAY_LEN(sc2_catalog_actor_fields), child, "value");
+        if (!actor.model[0]) snprintf(actor.model, sizeof(actor.model), "%s", id);
+        sc2_catalog_add_actor(catalog, id, actor.model, actor.footprint);
+        if (unit_name[0]) sc2_catalog_add_actor(catalog, unit_name, actor.model, actor.footprint);
     }
 }
 
@@ -1622,12 +1687,8 @@ static void sc2_parse_unit_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
     root = xmlDocGetRootElement(doc);
     for (xmlNodePtr node = root ? root->children : NULL; node; node = node->next) {
         char id[64];
-        char actor_id[64] = "";
-        char footprint[64] = "";
-        char mover[64] = "";
-        DWORD flags = 0;
-        FLOAT radius = 0.0f;
-        BOOL has_radius = false;
+        sc2CatalogUnit_t unit = {0};
+        BOOL has_radius = false, has_height = false;
 
         if (node->type != XML_ELEMENT_NODE || !sc2_contains_i((char const *)node->name, "CUnit"))
             continue;
@@ -1635,30 +1696,22 @@ static void sc2_parse_unit_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
         for (xmlNodePtr child = node->children; child; child = child->next) {
             char value[64];
 
-            if (child->type != XML_ELEMENT_NODE)
-                continue;
-            if (sc2_streqi((char const *)child->name, "Actor")) {
-                sc2_xml_attr(child, "value", actor_id, sizeof(actor_id));
-            } else if (sc2_streqi((char const *)child->name, "Footprint")) {
-                sc2_xml_attr(child, "value", footprint, sizeof(footprint));
-            } else if (sc2_streqi((char const *)child->name, "Mover")) {
-                sc2_xml_attr(child, "value", mover, sizeof(mover));
-            } else if (sc2_contains_i((char const *)child->name, "Flag")) {
+            if (sc2_parse_xml_child_field(&unit, sc2_catalog_unit_fields, SC2_ARRAY_LEN(sc2_catalog_unit_fields), child, "value")) {
+                if (sc2_streqi((char const *)child->name, "Radius")) has_radius = unit.radius > 0.0f;
+                if (sc2_streqi((char const *)child->name, "Height")) has_height = true;
+            } else if (child->type == XML_ELEMENT_NODE && sc2_contains_i((char const *)child->name, "Flag")) {
                 char index[64];
                 if ((sc2_xml_attr(child, "index", index, sizeof(index)) ||
                      sc2_xml_attr(child, "Index", index, sizeof(index))) &&
                     (sc2_xml_attr(child, "value", value, sizeof(value)) ||
                      sc2_xml_attr(child, "Value", value, sizeof(value))) &&
                     atoi(value)) {
-                    flags |= sc2_unit_flag(index);
+                    unit.flags |= sc2_unit_flag(index);
                 }
-            } else if (sc2_streqi((char const *)child->name, "Radius") &&
-                       sc2_xml_attr(child, "value", value, sizeof(value)) &&
-                       sscanf(value, "%f", &radius) == 1 && radius > 0.0f) {
-                has_radius = true;
             }
         }
-        sc2_catalog_add_unit(catalog, id, actor_id, footprint, mover, flags, radius, has_radius);
+        sc2_catalog_add_unit(catalog, id, unit.actor, unit.footprint, unit.mover, unit.flags,
+                             unit.radius, has_radius, unit.height, has_height);
     }
 }
 
@@ -1747,20 +1800,14 @@ static void sc2_parse_terrain_tex_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr d
     root = xmlDocGetRootElement(doc);
     for (xmlNodePtr node = root ? root->children : NULL; node; node = node->next) {
         char id[64];
-        char diffuse[256] = "";
-        char normal[256] = "";
+        sc2CatalogTerrainTex_t tex = {0};
 
         if (node->type != XML_ELEMENT_NODE || !sc2_contains_i((char const *)node->name, "CTerrainTex"))
             continue;
         if (!sc2_xml_attr(node, "id", id, sizeof(id))) continue;
-        for (xmlNodePtr child = node->children; child; child = child->next) {
-            if (child->type != XML_ELEMENT_NODE) continue;
-            if (sc2_streqi((char const *)child->name, "Texture"))
-                sc2_xml_attr(child, "value", diffuse, sizeof(diffuse));
-            else if (sc2_streqi((char const *)child->name, "Normalmap"))
-                sc2_xml_attr(child, "value", normal, sizeof(normal));
-        }
-        sc2_catalog_add_terrain_tex(catalog, id, diffuse, normal);
+        for (xmlNodePtr child = node->children; child; child = child->next)
+            sc2_parse_xml_child_field(&tex, sc2_catalog_terrain_tex_fields, SC2_ARRAY_LEN(sc2_catalog_terrain_tex_fields), child, "value");
+        sc2_catalog_add_terrain_tex(catalog, id, tex.diffuse, tex.normal);
     }
 }
 
@@ -1785,19 +1832,14 @@ static void sc2_parse_cliff_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
     root = xmlDocGetRootElement(doc);
     for (xmlNodePtr node = root ? root->children : NULL; node; node = node->next) {
         char id[64];
-        char mesh[64] = "";
+        sc2CatalogCliff_t cliff = {0};
 
         if (node->type != XML_ELEMENT_NODE || !sc2_contains_i((char const *)node->name, "CCliff"))
             continue;
         if (!sc2_xml_attr(node, "id", id, sizeof(id))) continue;
-        for (xmlNodePtr child = node->children; child; child = child->next) {
-            if (child->type != XML_ELEMENT_NODE) continue;
-            if (sc2_streqi((char const *)child->name, "CliffMesh")) {
-                sc2_xml_attr(child, "value", mesh, sizeof(mesh));
-                break;
-            }
-        }
-        sc2_catalog_add_cliff(catalog, id, mesh);
+        for (xmlNodePtr child = node->children; child; child = child->next)
+            sc2_parse_xml_child_field(&cliff, sc2_catalog_cliff_fields, SC2_ARRAY_LEN(sc2_catalog_cliff_fields), child, "value");
+        sc2_catalog_add_cliff(catalog, id, cliff.mesh);
     }
 }
 
@@ -1821,14 +1863,14 @@ static void sc2_parse_tile_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
     if (!doc) return;
     root = xmlDocGetRootElement(doc);
     for (xmlNodePtr node = root ? root->children : NULL; node; node = node->next) {
-        char id[64], model[256] = "";
+        char id[64];
+        sc2CatalogTile_t tile = {0};
 
         if (node->type != XML_ELEMENT_NODE || !sc2_streqi((char const *)node->name, "CTile")) continue;
         if (!sc2_xml_attr(node, "id", id, sizeof(id))) continue;
         for (xmlNodePtr child = node->children; child; child = child->next)
-            if (child->type == XML_ELEMENT_NODE && sc2_streqi((char const *)child->name, "Material"))
-                sc2_xml_attr(child, "value", model, sizeof(model));
-        sc2_catalog_add_tile(catalog, id, model);
+            sc2_parse_xml_child_field(&tile, sc2_catalog_tile_fields, SC2_ARRAY_LEN(sc2_catalog_tile_fields), child, "value");
+        sc2_catalog_add_tile(catalog, id, tile.model);
     }
 }
 
@@ -2066,6 +2108,7 @@ static void sc2_resolve_object_model(sc2Catalog_t const *catalog, sc2MapObject_t
         sc2CatalogUnit_t const *unit = sc2_catalog_unit(catalog, object->name);
         if (unit) {
             if (unit->has_radius) object->radius = unit->radius;
+            if (unit->has_height) object->move_height = unit->height;
             if (unit->footprint[0]) snprintf(object->footprint, sizeof(object->footprint), "%s", unit->footprint);
             if (unit->mover[0]) snprintf(object->mover, sizeof(object->mover), "%s", unit->mover);
             object->unit_flags |= unit->flags;
@@ -2106,6 +2149,7 @@ static void sc2_resolve_object_models(sc2Catalog_t const *catalog) {
                 object->footprint_width = resolved[j].footprint_width;
                 object->footprint_height = resolved[j].footprint_height;
                 object->footprint_radius = resolved[j].footprint_radius;
+                object->move_height = resolved[j].move_height;
                 object->unit_flags = resolved[j].unit_flags;
                 goto next_object;
             }
@@ -2122,6 +2166,7 @@ static void sc2_resolve_object_models(sc2Catalog_t const *catalog) {
             resolved[resolved_count].footprint_width = object->footprint_width;
             resolved[resolved_count].footprint_height = object->footprint_height;
             resolved[resolved_count].footprint_radius = object->footprint_radius;
+            resolved[resolved_count].move_height = object->move_height;
             resolved[resolved_count].unit_flags = object->unit_flags;
             resolved[resolved_count].variation = object->variation;
             resolved_count++;
@@ -2628,8 +2673,12 @@ FLOAT SC2_MapHeightAtPoint(FLOAT x, FLOAT y) {
     return sc2_map_height_at_point(&sc2_map, x, y);
 }
 
+FLOAT SC2_MapAirHeightAtPoint(FLOAT x, FLOAT y) {
+    return sc2_map_broad_height_at_point(&sc2_map, x, y);
+}
+
 FLOAT SC2_MapCameraHeightAtPoint(FLOAT x, FLOAT y) {
-    return sc2_map_camera_height_at_point(&sc2_map, x, y);
+    return sc2_map_broad_height_at_point(&sc2_map, x, y);
 }
 
 BOX2 SC2_MapBounds(void) {

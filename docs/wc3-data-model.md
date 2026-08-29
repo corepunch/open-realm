@@ -97,8 +97,8 @@ All reads go through `UnitIntegerField` / `UnitRealField` / `UnitBooleanField` /
 
 ## Ability Field Codes
 
-Ability custom data must be read through `AB_Data(classname, level, slot)`. ROC stores `Data<level><slot>` columns such as
-`Data11/12/13`; TFT stores the same slots as `Data<letter><level>` (`DataA1/B1/C1`). Direct `AB_Number` calls are release-specific.
+Ability custom data uses `abilityDataRow_t.data[level][slot]`, with `AB_Data` retained for callers that start from a class-name string.
+ROC `Data<level><slot>` columns and TFT `Data<slot-letter><level>` columns map to that canonical array in the DDX schema.
 
 | Ability | Field | Column | Value |
 |---|---|---|---|

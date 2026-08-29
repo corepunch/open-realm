@@ -104,23 +104,23 @@ void item_stat_remove(LPEDICT unit, DWORD item_code) {
 /* Init functions — read bonus values from AbilityData.slk at startup. */
 
 void SP_ability_item_attack_bonus(LPCSTR classname, ability_t *self) {
-    item_attack_bonus_val = AB_Number(classname, "DataA1");
+    item_attack_bonus_val = G_AbilityDataName(classname)->data[0][0];
 }
 
 void SP_ability_item_defense_bonus(LPCSTR classname, ability_t *self) {
-    item_defense_bonus_val = AB_Number(classname, "DataA1");
+    item_defense_bonus_val = G_AbilityDataName(classname)->data[0][0];
 }
 
 void SP_ability_item_life_bonus(LPCSTR classname, ability_t *self) {
-    item_life_bonus_val = AB_Number(classname, "DataA1");
+    item_life_bonus_val = G_AbilityDataName(classname)->data[0][0];
 }
 
 void SP_ability_item_mana_bonus(LPCSTR classname, ability_t *self) {
-    item_mana_bonus_val = AB_Number(classname, "DataA1");
+    item_mana_bonus_val = G_AbilityDataName(classname)->data[0][0];
 }
 
 void SP_ability_item_stat_bonus(LPCSTR classname, ability_t *self) {
-    item_stat_str_val = AB_Number(classname, "DataA1");
-    item_stat_agi_val = AB_Number(classname, "DataB1");
-    item_stat_int_val = AB_Number(classname, "DataC1");
+    item_stat_str_val = G_AbilityDataName(classname)->data[0][0];
+    item_stat_agi_val = G_AbilityDataName(classname)->data[0][1];
+    item_stat_int_val = G_AbilityDataName(classname)->data[0][2];
 }

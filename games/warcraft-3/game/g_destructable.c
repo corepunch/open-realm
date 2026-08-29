@@ -83,7 +83,7 @@ BOOL G_IsDestructable(LPCEDICT ent) {
     if (ent->svflags & SVF_MONSTER) {
         return false;
     }
-    return level.mapinfo && DESTRUCTABLE_FILE(ent->class_id) != NULL;
+    return level.mapinfo && ent->destructableData->file != NULL;
 }
 
 BOOL G_DestructableIsAttackable(LPCEDICT ent) {
@@ -167,7 +167,7 @@ static void G_QueueDestructableDrop(DWORD item_id,
         fprintf(stderr, "G_SpawnDestructableLoot: unsupported encoded random item 0x%08x\n", item_id);
         return;
     }
-    item_file = ITEM_FILE(item_id);
+    item_file = G_ItemData(item_id)->file;
     if (!item_file || !*item_file) {
         fprintf(stderr, "G_SpawnDestructableLoot: invalid item ID 0x%08x\n", item_id);
         return;

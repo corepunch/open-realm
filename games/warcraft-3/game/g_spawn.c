@@ -79,8 +79,6 @@ TARGTYPE G_GetTargetType(LPCSTR str) {
 //    { NULL, NULL }
 //};
 
-extern sheetRow_t *Doodads;
-
 void SP_monster_unit(LPEDICT edict);
 void SP_monster_tree(LPEDICT edict);
 
@@ -110,9 +108,9 @@ LPEDICT G_Spawn(void) {
 }
 
 static void SP_SpawnDoodad(LPEDICT edict) {
-    LPCSTR class_id = GetClassName(edict->class_id);
-    LPCSTR dir = FS_FindSheetCell(Doodads, class_id, "dir");
-    LPCSTR file = FS_FindSheetCell(Doodads, class_id, "file");
+    Doodads_t const *row = edict->doodad;
+    LPCSTR dir = row->dir;
+    LPCSTR file = row->file;
     PATHSTR buffer;
     if (dir) {
         snprintf(buffer, sizeof(buffer), "%s\\%s\\%s%d.mdx", dir, file, file, edict->variation);
@@ -125,12 +123,13 @@ static void SP_SpawnDoodad(LPEDICT edict) {
 }
 
 static void SP_SpawnDestructable(LPEDICT edict) {
-    LPCSTR dir = DESTRUCTABLE_DIRECTORY(edict->class_id);
-    LPCSTR file = DESTRUCTABLE_FILE(edict->class_id);
-    LPCSTR path_tex = DESTRUCTABLE_PATH_TEX(edict->class_id);
-    FLOAT radius = DESTRUCTABLE_RADIUS(edict->class_id);
+    DestructableData_t const *row = edict->destructableData;
+    LPCSTR dir = row->modelDirectory;
+    LPCSTR file = row->file;
+    LPCSTR path_tex = row->pathingTexture;
+    FLOAT radius = row->radius;
     PATHSTR buffer;
-    LPCSTR tex = DESTRUCTABLE_TEXTURE(edict->class_id);
+    LPCSTR tex = row->textureFile;
     /* texFile may include an extension; "_" means the model has no replacement texture. */
     edict->s.image = tex && *tex && strcmp(tex, "_") ? gi.ImageIndex(tex) : 0;
     if (dir) {
@@ -140,7 +139,7 @@ static void SP_SpawnDestructable(LPEDICT edict) {
     }
     edict->s.model = G_RegisterModel(buffer);
     edict->destructable.alive_pathtex = M_LoadPathTex(path_tex);
-    edict->destructable.death_pathtex = M_LoadPathTex(DESTRUCTABLE_DEATH_PATH_TEX(edict->class_id));
+    edict->destructable.death_pathtex = M_LoadPathTex(row->deathPathingTexture);
     edict->pathtex = edict->destructable.alive_pathtex;
     edict->s.radius = radius > 0.0f ? radius : 50.0f;  /* selection/UI circle only */
     /* WC3 trees have collisionSize 0 and block solely via their baked pathing
@@ -155,13 +154,13 @@ static void SP_SpawnDestructable(LPEDICT edict) {
     edict->destructable.placement_solid = true;
     edict->destructable.pathing_active = edict->pathtex || edict->collision > 0.0f;
 #ifndef USE_SHADOWMAPS
-    edict->s.shadow = G_LoadShadowTexture(DESTRUCTABLE_SHADOW(edict->class_id), false);
+    edict->s.shadow = G_LoadShadowTexture(row->shadow, false);
     edict->s.shadow_rect = 0;
 #endif
-    edict->health.value = DESTRUCTABLE_HIT_POINT_MAXIMUM(edict->class_id);
-    edict->health.max_value = DESTRUCTABLE_HIT_POINT_MAXIMUM(edict->class_id);
-    edict->targtype = G_GetTargetType(DESTRUCTABLE_TARGETED_AS(edict->class_id));
-    if (DESTRUCTABLE_OCCLUDER_HEIGHT(edict->class_id) > 0 || edict->targtype == TARG_TREE) {
+    edict->health.value = row->maxHealth;
+    edict->health.max_value = row->maxHealth;
+    edict->targtype = G_GetTargetType(row->targetType);
+    if (row->occluderHeight > 0 || edict->targtype == TARG_TREE) {
         edict->s.flags |= EF_FOW_BLOCKER;
     }
     edict->movetype = MOVETYPE_NONE;
@@ -172,14 +171,6 @@ static void SP_SpawnDestructable(LPEDICT edict) {
  * back by the GetEnumDestructable native inside the enum action (mirrors the
  * jass-lib `currentunit`/GetEnumUnit pair). */
 LPEDICT currentdestructable = NULL;
-
-sheetRow_t *find_row(LPCSTR dood_id) {
-    FOR_EACH_LIST(sheetRow_t, d, Doodads){
-        if (!strcmp(d->name, dood_id))
-            return d;
-    }
-    return NULL;
-}
 
 static BOOL G_ClassIdIsPrintable(DWORD class_id) {
     BYTE const *id = (BYTE const *)&class_id;
@@ -192,25 +183,38 @@ static BOOL G_ClassIdIsPrintable(DWORD class_id) {
     return true;
 }
 
+/* Bind immutable table rows after class_id is assigned and before entity-specific initialization. */
+void G_BindEntityData(LPEDICT edict) {
+    edict->balance = G_UnitBalance(edict->class_id);
+    edict->data = G_UnitData(edict->class_id);
+    edict->ui = G_UnitUI(edict->class_id);
+    edict->weapons = G_UnitWeapons(edict->class_id);
+    edict->abilities = G_UnitAbil(edict->class_id);
+    edict->doodad = G_Doodad(edict->class_id);
+    edict->itemData = G_ItemData(edict->class_id);
+    edict->destructableData = G_DestructableData(edict->class_id);
+}
+
 void SP_CallSpawn(LPEDICT edict) {
     if (!edict->class_id)
         return;
     edict->s.class_id = edict->class_id;
-    if (find_row(GetClassName(edict->class_id))) {
+    G_BindEntityData(edict);
+    if (edict->doodad->id) {
         SP_SpawnDoodad(edict);
-    } else if (DESTRUCTABLE_FILE(edict->class_id)) {
+    } else if (edict->destructableData->file) {
         SP_SpawnDestructable(edict);
         SP_monster_tree(edict);
-    } else if (UNIT_MODEL(edict->class_id)) {
+    } else if (edict->ui->modelFile) {
         SP_SpawnUnit(edict);
         SP_monster_unit(edict);
-    } else if (ITEM_FILE(edict->class_id)) {
+    } else if (edict->itemData->file) {
         SP_SpawnItem(edict);
     } else if (MAKEFOURCC('s', 'l', 'o', 'c') == edict->class_id) {
         edict->svflags |= SVF_NOCLIENT;
     } else {
         if (edict->class_id == MAKEFOURCC('L', 'T', 'l', 't')) {
-            UnitStringField(DestructableMetaData, edict->class_id, "bfil");
+            (void)G_DestructableData(edict->class_id)->file; /* TODO: use model path */
         }
         edict->svflags |= SVF_NOCLIENT;
         if (!G_ClassIdIsPrintable(edict->class_id)) {
@@ -299,6 +303,7 @@ static DWORD G_RacePreference(LPCMAPPLAYER player) {
 static void G_InitMapPlayer(LPEDICT clent, LPCMAPINFO mapinfo, DWORD playernum) {
     LPCMAPPLAYER player = mapinfo ? mapinfo->players + playernum : NULL;
     LPPLAYER ps = &clent->client->ps;
+    G_SetClientConnected(clent, false);
     memset(&clent->client->jass, 0, sizeof(clent->client->jass));
     memset(ps, 0, sizeof(PLAYER));
     ps->number = playernum;
@@ -515,7 +520,7 @@ LPEDICT G_CreateDeadDestructable(DWORD class_id,
 }
 
 BOOL SP_FindEmptySpaceAround(LPEDICT townhall, DWORD class_id, LPVECTOR2 out, FLOAT *angle) {
-    FLOAT const colsize = UNIT_SELECTION_SCALE(class_id) * SEL_SCALE / 2;
+    FLOAT const colsize = G_UnitUI(class_id)->selectionScale * SEL_SCALE / 2;
     FLOAT const start_angle = M_PI * 1.25f;
     FOR_LOOP(i, MAX_SPAWN_ITERATIONS) {
         FLOAT const radius = townhall->s.radius + colsize * (i * 2 + 1);

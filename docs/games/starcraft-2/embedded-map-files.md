@@ -250,7 +250,8 @@ numLayers = (FileSize - 64) / (sizeX * sizeY / 2)
 
 Source: https://sc2mapster.wiki.gg/wiki/File_Formats/Maps/t3SyncHeightMap
 
-Parsed by the engine and added to the decoded `t3HeightMap` values.
+Parsed and retained for simulation diagnostics. It is not added to visible terrain heights: doing so creates cliff spikes, and live
+TRaynor01 samples show that it follows the ravine depression rather than the broad `HeightMap="Air"` movement surface.
 
 **Header:**
 

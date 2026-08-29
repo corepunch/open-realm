@@ -21,6 +21,13 @@ BOOL G_IsEntitySelected(LPGAMECLIENT client, LPEDICT ent) {
     return ent->selected & (1 << client->ps.number);
 }
 
+/* Client commands arrive before G_RunEntities clears the previous snapshot's
+ * event, so retain the chosen acknowledgement until that frame begins. */
+void G_QueueSelectionSound(LPEDICT ent) {
+    if (ent && ent->num_select_sounds)
+        ent->pending_sound = ent->sound_select[rand() % ent->num_select_sounds];
+}
+
 void CMD_CancelCommand(LPEDICT ent) {
     Get_Commands_f(ent);
 }
@@ -37,12 +44,13 @@ CLIENTCOMMAND(Select) {
     } else {
         BOOL cleared = false;
         BOOL hasunits = false;
+        LPEDICT voice = NULL;
         for (DWORD i = 1; i < argc; i++) {
             DWORD number = atoi(argv[i]);
             if (number >= globals.num_edicts)
                 continue;
             LPEDICT e = &globals.edicts[number];
-            if (e->s.player == client->ps.number && !UNIT_IS_BUILDING(e->class_id)) {
+            if (e->s.player == client->ps.number && !G_UnitIsBuilding(e->class_id)) {
                 hasunits = true;
             }
         }
@@ -52,16 +60,18 @@ CLIENTCOMMAND(Select) {
                 continue;
             LPEDICT e = &globals.edicts[number];
             if (e->s.player == client->ps.number) {
-                if (hasunits && UNIT_IS_BUILDING(e->class_id))
+                if (hasunits && G_UnitIsBuilding(e->class_id))
                     continue;
                 if (!cleared) {
                     FOR_SELECTED_UNITS(client, ent) G_DeselectEntity(client, ent);
                     cleared = true;
                 }
                 G_SelectEntity(client, e);
+                if (!voice) voice = e;
             }
         }
         if (cleared) {
+            G_QueueSelectionSound(voice);
             Get_Portrait_f(clent);
             Get_Commands_f(clent);
         }
@@ -115,8 +125,7 @@ CLIENTCOMMAND(SmartPoint) {
 CLIENTCOMMAND(Button) {
     LPCSTR classname = argv[1];
     LPGAMECLIENT client = clent->client;
-    LPCSTR code = game.config.abilities ? FS_FindSheetCell(game.config.abilities, classname, "code") : NULL;
-    ability_t const *ability = FindAbilityByClassname(code ? code : classname);
+    ability_t const *ability = FindAbilityByClassname(GetClassName(G_AbilityCodeName(classname)));
     if (ability && ability->cmd) {
         client->menu.ability_code = *((DWORD const *)classname);
         ability->cmd(clent);
@@ -238,7 +247,7 @@ CLIENTCOMMAND(Inventory) {
 
     ent = G_GetMainSelectedUnit(client);
     slot = atoi(argv[1]);
-    if (!ent || slot < 0 || slot >= MAX_INVENTORY) {
+    if (!ent || slot < 0 || (DWORD)slot >= G_InventoryCapacity(ent)) {
         return;
     }
 
@@ -253,8 +262,7 @@ CLIENTCOMMAND(Inventory) {
     abilities = FindConfigValue(GetClassName(item->class_id), "abilList");
     if (abilities && *abilities) {
         PARSE_LIST(abilities, ability_name, parse_segment) {
-            LPCSTR code = game.config.abilities ? FS_FindSheetCell(game.config.abilities, ability_name, "code") : NULL;
-            ability_t const *ability = FindAbilityByClassname(code ? code : ability_name);
+            ability_t const *ability = FindAbilityByClassname(GetClassName(G_AbilityCodeName(ability_name)));
             if (ability && ability->cmd) {
                 client->menu.ability_code = *((DWORD const *)ability_name);
                 ability->cmd(clent);
@@ -279,7 +287,7 @@ CLIENTCOMMAND(DropItem) {
     }
     unit = G_GetMainSelectedUnit(clent->client);
     slot = atoi(argv[1]);
-    if (!unit || slot < 0 || slot >= MAX_INVENTORY) {
+    if (!unit || slot < 0 || (DWORD)slot >= G_InventoryCapacity(unit)) {
         return;
     }
     G_DropItem(unit, (DWORD)slot);

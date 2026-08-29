@@ -134,16 +134,33 @@ static LPEDICT make_unit_hero(void) {
     return ent;
 }
 
-TEST(wc3_api, customize_entity_export_is_inert) {
+TEST(wc3_api, customize_entity_preserves_world_state) {
     entityState_t state = { .number = 7, .model = 11, .renderfx = RF_SELECTED };
+    edict_t ent = { 0 };
 
     T_NOT_NULL(globals.CustomizeEntity);
     if (!globals.CustomizeEntity)
         return;
-    globals.CustomizeEntity(3, NULL, &state);
+    globals.CustomizeEntity(3, &ent, &state);
     T_EQ(state.number, 7);
     T_EQ(state.model, 11);
     T_EQ(state.renderfx, RF_SELECTED);
+}
+
+TEST(wc3_api, customize_entity_keeps_ack_for_selecting_player) {
+    entityState_t state = { .event = EV_ACK, .sound = 11 };
+    edict_t ent = { .selected = 1 << 3 };
+    globals.CustomizeEntity(3, &ent, &state);
+    T_EQ(state.event, EV_ACK);
+    T_EQ(state.sound, 11);
+}
+
+TEST(wc3_api, customize_entity_hides_ack_from_other_players) {
+    entityState_t state = { .event = EV_ACK, .sound = 11 };
+    edict_t ent = { .selected = 1 << 3 };
+    globals.CustomizeEntity(2, &ent, &state);
+    T_EQ(state.event, EV_NONE);
+    T_EQ(state.sound, 0);
 }
 
 /* =========================================================================

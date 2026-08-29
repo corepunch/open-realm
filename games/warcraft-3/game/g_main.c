@@ -168,12 +168,6 @@ static void G_InitGame(void) {
     game.max_clients = globals.max_clients;
     game.clients = gi.MemAlloc(game.max_clients * sizeof(GAMECLIENT));
     game.config.theme = FS_ParseINI("UI\\war3skins.txt");
-    game.config.splats = FS_ParseSLK("Splats\\SplatData.slk");
-    game.config.uberSplats = FS_ParseSLK("Splats\\UberSplatData.slk");
-    game.config.abilities = FS_ParseSLK("Units\\AbilityData.slk");
-    game.config.items = FS_ParseSLK("Units\\ItemData.slk");
-    game.config.unitAckSounds = FS_ParseSLK("UI\\SoundInfo\\UnitAckSounds.slk");
-    game.config.unitCombatSounds = FS_ParseSLK("UI\\SoundInfo\\UnitCombatSounds.slk");
     InitConstants();
     InitUnitData();
     InitAbilities();
@@ -438,6 +432,10 @@ LPCSTR G_LevelString(LPCSTR name) {
     return name;
 }
 
+void G_SetClientConnected(LPEDICT player, BOOL connected) {
+    player->client->connected = connected;
+}
+
 /* Called when a client finishes the connection handshake and is ready to play.
  * The in-game HUD is server-authored through svc_layout; this binds the game
  * client and initializes gameplay state when a map is loaded. */
@@ -447,6 +445,7 @@ static void G_ClientBegin(LPEDICT edict) {
         edict->client = client;
     }
 
+    G_SetClientConnected(edict, true);
     client->ps.client_ui_state = CLIENT_UI_GAME;
     if (!client->mapplayer) {
         client->ps.origin = (VECTOR2){ 0, 0 };
@@ -468,8 +467,9 @@ static void G_ClientBegin(LPEDICT edict) {
     UI_ShowGameInterface(edict);
 
     FILTER_EDICTS(ent, client->ps.number == ent->s.player) {
-        client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] += UNIT_FOOD_MADE(ent->class_id);
-        client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] += UNIT_FOOD_USED(ent->class_id);
+        UnitBalance_t const *b = ent->balance;
+        client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] += b->foodMade;
+        client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] += b->foodUsed;
     }
     /* Invalidate cache so the initial resource bar write always fires. */
     client->resourcebar.gold = -1;
@@ -482,9 +482,13 @@ static void G_ClientBegin(LPEDICT edict) {
     G_FowSendFull(edict);
 }
 
-/* Keep the mandatory snapshot hook inert because WC3 entity state is identical for every recipient. */
+/* Selection voices are local feedback; suppress them in snapshots for clients
+ * that did not select this entity while leaving world sounds unchanged. */
 static void G_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
-    (void)player; (void)ent; (void)state;
+    if (state->event == EV_ACK && !(ent->selected & (1 << player))) {
+        state->event = EV_NONE;
+        state->sound = 0;
+    }
 }
 
 /* Return the game API vtable to the server.

@@ -44,7 +44,7 @@ static spell_info_t spell_blink = {
 
 static void fanofknives_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *spell) {
     DWORD level = S_SpellLevel(caster, spell->code);
-    FLOAT radius = S_SpellNumber(spell->code, "Area", level);
+    FLOAT radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     FLOAT damage = MAX(1.0f, S_SpellData(spell->code, level, 1));
     FLOAT maxtotal = S_SpellData(spell->code, level, 2);
     DWORD ntargets = 0;

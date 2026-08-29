@@ -101,6 +101,11 @@ void G_RunEntities(void) {
         /* Clear one-shot event fields so each event fires for exactly one frame. */
         ent->s.event = EV_NONE;
         ent->s.sound = 0;
+        if (ent->pending_sound) {
+            ent->s.event = EV_ACK;
+            ent->s.sound = ent->pending_sound;
+            ent->pending_sound = 0;
+        }
     }
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT ent = globals.edicts+i;

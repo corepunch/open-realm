@@ -136,6 +136,8 @@ TEST_UI_SRCS := \
 	$(WC3_TEST_DIR)/stb_fdf_impl.c \
 	tests/test_tool_common.c
 
+TEST_JOBS ?= 16
+
  test: test-assets $(SHARED_LIB) $(JASS_LIB) $(SHEET_LIB) | $(BIN_DIR)
 	@$(CC) $(TEST_CFLAGS) -DBZ_TESTS -o $(BIN_DIR)/test_openwarcraft3$(EXE_EXT) \
 		tests/test_runner.c tests/test_compat.c tests/test_net.c tests/test_tool_common.c \
@@ -143,23 +145,11 @@ TEST_UI_SRCS := \
 		common/net.c common/msg.c client/cl_parse.c client/cl_scrn.c client/cl_layout.c \
 		$(RPATH) $(LDFLAGS) -lsheet -lshared -lm
 	@$(BIN_DIR)/test_openwarcraft3$(EXE_EXT)
-	@# Propagate sub-suite failures; the old ignored-error prefix made a red suite report success.
-	@$(MAKE) test-commands
-	@$(MAKE) test-jass-build
-	@$(MAKE) test-galaxy
-	@$(MAKE) test-server-net
-	@$(MAKE) test-renderer-model
-	@$(MAKE) test-renderer-shadows
-	@$(MAKE) test-sc2
-	@$(MAKE) test-wow-appearance
-	@$(MAKE) test-wow-engine
-	@$(MAKE) test-wow-game
-	@$(MAKE) test-wow-entities
-	@$(MAKE) test-wow-abilities
-	@$(MAKE) test-wow-ui
-	@$(MAKE) test-wow-wmo
-	@$(MAKE) test-ui
-	@$(MAKE) test-wc3-engine
+	@# Run independent suites concurrently while preserving recursive-make failure propagation.
+	@$(MAKE) -j$(TEST_JOBS) test-commands test-jass-build test-galaxy test-server-net \
+		test-renderer-model test-renderer-shadows test-sc2 test-wow-appearance \
+		test-wow-engine test-wow-game test-wow-entities test-wow-abilities test-wow-ui \
+		test-wow-wmo test-ui test-wc3-engine
 
 $(eval $(call test_schema,test-commands,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_commands$(EXE_EXT),tests/test_runner.c $(WC3_TEST_DIR)/test_commands.c client/cl_screenshot.c common/common.c common/cmd.c common/cvar.c common/msg.c common/net.c common/mpq.c,-lsheet -lshared -lm -lz $(NET_LIBS),))
 $(eval $(call test_schema,test-server-net,test-assets $(SHARED_LIB) $(SHEET_LIB),$(TEST_CFLAGS),$(BIN_DIR)/test_server_net$(EXE_EXT),tests/test_runner.c $(WC3_TEST_DIR)/test_server_net.c $(WC3_TEST_DIR)/test_client_stubs.c server/sv_init.c server/sv_lan.c server/sv_main.c server/sv_lobby.c server/sv_send.c common/net.c common/msg.c,-lsheet -lshared -lm $(NET_LIBS),))
@@ -223,6 +213,10 @@ test-assets: blpgen mdxgen mpqtool mdxtool | $(TESTS_DIR)
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat TestUI/Textures/solid_white.blp | head -c4 | grep -q "BLP2" && echo "  cat BLP OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat Units/ItemData.slk | \
 		grep -q "Test Attack Item" && echo "  cat item SLK OK"
+	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat Units/AbilityData.slk | \
+		grep -q "AInv" && echo "  cat ability SLK OK"
+	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat Units/ItemFunc.txt | \
+		grep -q "spro" && echo "  cat item UI OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat Units/UnitBalance.slk | grep -q "hpea" && echo "  cat unit SLK OK"
 	@$(BIN_DIR)/mpqtool$(EXE_EXT) -mpq $(TESTS_MPQ) cat Scripts/common.j | \
 		grep -q "playergameresult" && echo "  cat common.j OK"

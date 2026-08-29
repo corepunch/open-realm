@@ -9,6 +9,7 @@
 #include "common/stb_fdf.h"
 #include "server/game.h"
 #include "g_shared.h"
+#include "g_unitrow.h"
 #include "g_unitdata.h"
 #include "jass/jlex.h"
 
@@ -20,6 +21,7 @@
 #define MAX_BUILD_QUEUE 7
 #define MAX_EVENT_QUEUE 256
 #define MAX_MESSAGE_SUBSCRIBERS 8 // callbacks; bounded because messages are synchronous and game-local
+#define MAX_UNIT_SELECT_SOUNDS 6 // sounds; largest UnitAckSounds *What variant list in ROC/TFT data
 #define MAX_ENTITIES MAX_GAME_ENTITIES
 #define MAX_REGION_SIZE 16
 #define MAX_INVENTORY 6
@@ -379,6 +381,7 @@ struct gcamerasetup_s {
 
 struct client_s {
     PLAYER ps;
+    BOOL connected; /* ClientBegin completed for this reserved player edict. */
     struct {
         DWORD race_pref, controller;
         BYTE tax[MAX_PLAYERS][PLAYERSTATE_LUMBER_GATHERED + 1];
@@ -631,6 +634,7 @@ struct edict_s {
         LPEDICT carrier;
         LONG inventory_slot;
         BOOL in_world;
+        DWORD charges;
     } item;
     struct {
         BOOL initialized;
@@ -694,7 +698,15 @@ struct edict_s {
     LPEDICT owner;
     LPEDICT build;
     LPCANIMATION animation;
-    unitbalance_t balance;
+    UnitBalance_t const *balance;
+    UnitData_t const *data;
+    UnitUI_t const *ui;
+    UnitWeapons_t const *weapons;
+    UnitAbilities_t const *abilities;
+    Doodads_t const *doodad;
+    ItemData_t const *itemData;
+    DestructableData_t const *destructableData;
+    unitbalance_t runtime;
     umove_t *currentmove;
 //    unitRace_t race;
     FLOAT wait;
@@ -704,6 +716,9 @@ struct edict_s {
     DWORD defense_type;   /* WC3 defType index: small/medium/large/fort/normal/hero/divine/none */
     FLOAT armor_value;    /* computed armor ('realdef', incl. hero AGI) for damage reduction */
     /* Registered sound configstring indices, populated at spawn from unitSound label. */
+    BYTE sound_select[MAX_UNIT_SELECT_SOUNDS]; /* selection acknowledgement variants */
+    BYTE num_select_sounds;
+    BYTE pending_sound; /* command-time voice queued for the next entity frame */
     int sound_attack;   /* attack swing sound */
     int sound_death;    /* death sound */
     int sound_move;     /* footstep / movement sound */
@@ -725,14 +740,8 @@ struct game_locals {
     DWORD num_abilities;
     LPGAMECLIENT clients;
     struct {
-        sheetRow_t *abilities;
-        sheetRow_t *items;
         sheetRow_t *theme;
-        sheetRow_t *splats;
-        sheetRow_t *uberSplats;
         sheetRow_t *misc;
-        sheetRow_t *unitAckSounds;    /* UI/SoundInfo/UnitAckSounds.slk */
-        sheetRow_t *unitCombatSounds; /* UI/SoundInfo/UnitCombatSounds.slk */
     } config;
     struct {
         FLOAT attackHalfAngle;
@@ -854,6 +863,7 @@ typedef struct {
 LPPLAYER G_GetPlayerByNumber(DWORD);
 LPEDICT G_GetPlayerEntityByNumber(DWORD);
 LPGAMECLIENT G_GetPlayerClientByNumber(DWORD);
+void G_SetClientConnected(LPEDICT player, BOOL connected);
 TARGTYPE G_GetTargetType(LPCSTR);
 LPCSTR G_LevelString(LPCSTR);
 FLOAT G_Cinefade(void);
@@ -883,6 +893,7 @@ BOOL G_IsNight(void);
 // g_spawn.c
 LPEDICT G_Spawn(void);
 void SP_CallSpawn(LPEDICT);
+void G_BindEntityData(LPEDICT);
 void G_SpawnEntities(void);
 BOOL SP_FindEmptySpaceAround(LPEDICT, DWORD, LPVECTOR2, FLOAT *);
 LPEDICT SP_SpawnAtLocation(DWORD, DWORD, LPCVECTOR2);
@@ -961,6 +972,7 @@ LPCSTR GetClassName(DWORD);
 // g_unit_ui.c (Phase 8)
 BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_buttons);
 BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, gameCommandButton_t *button);
+BOOL G_BuildInventoryItem(LPEDICT ent, LPEDICT item, BYTE slot, gameInventoryItem_t *out);
 BYTE G_GetInventory(LPEDICT ent, gameInventoryItem_t *items, BYTE max_items);
 BYTE G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue);
 
@@ -968,6 +980,7 @@ BYTE G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue);
 LPEDICT G_GetMainSelectedUnit(LPGAMECLIENT);
 void Get_Commands_f(LPEDICT);
 void Get_Portrait_f(LPEDICT);
+void G_RefreshInventoryLayer(LPEDICT);
 void G_RefreshInfoPanel(LPEDICT);
 void G_UpdateClientInfoPanels(void);
 void G_RefreshResourceBar(LPEDICT);
@@ -1046,20 +1059,23 @@ LPCSTR UnitStringField(sheetMetaData_t *, DWORD, LPCSTR);
 LONG UnitIntegerField(sheetMetaData_t *, DWORD, LPCSTR);
 BOOL UnitBooleanField(sheetMetaData_t *, DWORD, LPCSTR);
 FLOAT UnitRealField(sheetMetaData_t *, DWORD, LPCSTR);
-LONG UnitCollisionField(DWORD);
 
 void InitUnitData(void);
 void ShutdownUnitData(void);
+#ifdef BZ_TESTS
+sheetRow_t *G_SetSLKRows(LPCSTR, sheetRow_t *);
+#endif
+void G_RegisterSelectSounds(LPEDICT, LPCSTR);
 
 // g_command.c
 void G_SelectEntity(LPGAMECLIENT, LPEDICT);
 void G_DeselectEntity(LPGAMECLIENT, LPEDICT);
 BOOL G_IsEntitySelected(LPGAMECLIENT, LPEDICT);
+void G_QueueSelectionSound(LPEDICT);
 void G_ClientCommand(LPEDICT, DWORD, LPCSTR[]);
 void G_ClientSetCameraPosition(LPEDICT, LPCVECTOR2);
 
 //  s_skills.c
-FLOAT AB_Number(LPCSTR, LPCSTR);
 FLOAT AB_Data(LPCSTR, DWORD, DWORD);
 DWORD GetAbilityIndex(ability_t const *);
 
@@ -1135,7 +1151,10 @@ void G_RunEvents(void);
 // g_items.c
 void SP_SpawnItem(LPEDICT);
 BOOL G_IsItem(LPCEDICT item);
+DWORD G_InventoryCapacity(LPCEDICT unit);
 BOOL G_UnitHasInventory(LPEDICT unit);
+DWORD G_ItemCharges(LPCEDICT item);
+void G_SetItemCharges(LPEDICT item, DWORD charges);
 LONG G_FindFreeInventorySlot(LPCEDICT unit);
 BOOL G_CanPickupItem(LPEDICT unit, LPEDICT item);
 BOOL G_AddItemToSlot(LPEDICT unit, LPEDICT item, DWORD slot);
