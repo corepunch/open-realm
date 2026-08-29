@@ -143,7 +143,7 @@ $(LUA_LIB): $(LUA_SRCS) $(wildcard $(LUA_DIR)/*.h) | $(LIB_DIR)
 TOOL_SRCS := $(shell find tools -maxdepth 1 -name '*.c' ! -name 'jass.c' | sort)
 TOOL_NAMES := $(patsubst tools/%.c,%,$(TOOL_SRCS))
 TOOL_BINS := $(addprefix $(BIN_DIR)/,$(addsuffix $(EXE_EXT),$(TOOL_NAMES)))
-TOOL_DEPS := $(shell find tools -maxdepth 1 -name '*.h' | sort)
+TOOL_DEPS := $(shell find tools -maxdepth 1 -name '*.h' | sort) common/mpq.c common/mpq.h
 CLIENT_HEADERS := $(shell find client -name '*.h' | sort)
 COMMON_HEADERS := $(shell find common -name '*.h' | sort)
 WORLD_CORE_SRCS := common/world.c common/routing.c

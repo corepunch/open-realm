@@ -47,6 +47,9 @@ int main(int argc, char **argv)
     HANDLE owned_map_info;
     DWORD map_size;
     DWORD map_bytes_read;
+    DWORD sound_size;
+    DWORD riff_size;
+    BYTE *sound_data;
 
     if (!SFileOpenArchive(mpq_path, 0, 0, &archive)) {
         fail("SFileOpenArchive failed");
@@ -91,6 +94,34 @@ int main(int argc, char **argv)
     }
 
     unlink(out_path);
+
+    if (!SFileOpenFileEx(archive, "Units\\Human\\Footman\\FootmanWhat1.wav", SFILE_OPEN_FROM_MPQ, &file)) {
+        SFileCloseArchive(archive);
+        fail("SFileOpenFileEx failed for compressed unit sound");
+    }
+    sound_size = SFileGetFileSize(file, NULL);
+    sound_data = (BYTE *)malloc(sound_size);
+    if (!sound_data || !SFileReadFile(file, sound_data, sound_size, &bytes_read, NULL) || bytes_read != sound_size) {
+        free(sound_data);
+        SFileCloseFile(file);
+        SFileCloseArchive(archive);
+        fail("Huffman/ADPCM unit sound was not read in full");
+    }
+    if (sound_size < 12 || memcmp(sound_data, "RIFF", 4) || memcmp(sound_data + 8, "WAVE", 4)) {
+        free(sound_data);
+        SFileCloseFile(file);
+        SFileCloseArchive(archive);
+        fail("Huffman/ADPCM unit sound has an invalid WAV header");
+    }
+    riff_size = sound_data[4] | (sound_data[5] << 8) | (sound_data[6] << 16) | (sound_data[7] << 24);
+    if (riff_size + 8 != sound_size) {
+        free(sound_data);
+        SFileCloseFile(file);
+        SFileCloseArchive(archive);
+        fail("Huffman/ADPCM unit sound has an incomplete WAV payload");
+    }
+    free(sound_data);
+    SFileCloseFile(file);
 
     find = SFileFindFirstFile(archive, "*", &find_data, NULL);
     if (!find) {

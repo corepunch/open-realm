@@ -93,3 +93,9 @@ Client fires `S_PlaySoundFile` on any non-zero `s.event`.
 the client sends `begin`. The event path therefore performs only a configstring
 lookup and cached playback; archive I/O and resampling never occur on the click.
 Later `CS_SOUNDS` updates are registered directly by `CL_ParseConfigString`.
+
+Classic WC3 unit WAVs are multi-sector, encrypted MPQ entries. Their first sector may use zlib while later sectors
+use Blizzard adaptive Huffman plus mono ADPCM (`0x41`). The in-tree MPQ reader must decode every sector before the
+sound cache parses the WAV; accepting a partial MPQ read produces a valid 4096-byte RIFF prefix and audibly reduces
+lines such as “What?” to “Wh-”. WoW UI sounds do not necessarily use this compression combination, which is why the
+same mixer can play them completely while WC3 unit responses are cropped.

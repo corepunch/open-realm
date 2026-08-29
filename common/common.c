@@ -902,12 +902,17 @@ int FS_ReadFileQ3(LPCSTR filename, void **buf) {
 
 HANDLE FS_ReadFile(LPCSTR filename, LPDWORD size) {
     HANDLE fp = FS_OpenFile(filename);
+    DWORD read_size = 0;
     if (!fp) {
         return FS_ReadLooseFile(filename, size, 0);
     }
     *size = SFileGetFileSize(fp, NULL);
     LPSTR buffer = MemAlloc(*size + 1);
-    SFileReadFile(fp, buffer, *size, NULL, NULL);
+    if (!SFileReadFile(fp, buffer, *size, &read_size, NULL) || read_size != *size) {
+        fprintf(stderr, "FS_ReadFile: incomplete MPQ read for %s (%u/%u bytes)\n", filename, read_size, *size);
+        MemFree(buffer); FS_CloseFile(fp); *size = 0;
+        return NULL;
+    }
     buffer[*size] = '\0';
     FS_CloseFile(fp);
     return buffer;
