@@ -30,6 +30,9 @@
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
 void reset_entities(void);
 void setup_test_world(void);
+void CM_SetupTestPathmap(DWORD width, DWORD height, BYTE const *cells);
+void CM_SetupTestWorldBounds(LPCBOX2 bounds);
+extern void ai_train_build(LPEDICT ent);
 
 
 
@@ -327,6 +330,91 @@ TEST(wc3_movement, lumber_return_deposits_at_next_step_contact) {
     T_EQ(worker->harvested_lumber, 0);
     T_ASSERT(!(worker->s.renderfx & RF_HAS_LUMBER));
     T_ASSERT(worker->goalentity == tree);
+}
+
+/* The old training helper checked only dynamic circles and could choose a
+ * point inside the producer's baked pathing footprint. This reproduces the
+ * Human02 trained-Peasant regression observed while validating resource return. */
+TEST(wc3_movement, trained_unit_exit_skips_blocked_producer_footprint) {
+    enum { CELLS = 64 };
+    BYTE pathmap[CELLS * CELLS] = {0};
+    LPEDICT producer = make_moving_unit(0.0f, 0.0f);
+    LPEDICT trained = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    VECTOR2 exit;
+    FLOAT angle;
+
+    producer->class_id = MAKEFOURCC('h','t','o','w');
+    producer->movetype = MOVETYPE_NONE;
+    producer->collision = 192.0f;
+    trained->collision = 16.0f;
+
+    /* 16x16 no-walk cells centered on the producer model a large authored
+     * building footprint. WPM bit 1 is the no-walk flag. */
+    for (int y = 24; y < 40; y++) {
+        for (int x = 24; x < 40; x++) {
+            pathmap[x + y * CELLS] = 0x02;
+        }
+    }
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(BOX2,
+        .min = {-1024.0f, -1024.0f},
+        .max = { 1024.0f,  1024.0f}));
+
+    T_ASSERT(SP_FindUnitExitPosition(producer, trained, &exit, &angle));
+    T_ASSERT(CM_PointIsPathableForRadius(&exit, trained->collision));
+    T_ASSERT(Vector2_distance(&producer->s.origin2, &exit) > 256.0f);
+}
+
+/* Dynamic unit circles are also part of legal exit placement. The first
+ * deterministic candidate is occupied, so the trained unit must pick another. */
+TEST(wc3_movement, trained_unit_exit_skips_dynamic_blocker) {
+    LPEDICT producer = make_moving_unit(0.0f, 0.0f);
+    LPEDICT trained = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    LPEDICT blocker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -64.0f, -64.0f);
+    VECTOR2 exit;
+    FLOAT angle;
+
+    producer->movetype = MOVETYPE_NONE;
+    trained->collision = 16.0f;
+    blocker->movetype = MOVETYPE_STEP;
+    blocker->collision = 16.0f;
+    blocker->s.model = 1;
+
+    T_ASSERT(SP_FindUnitExitPosition(producer, trained, &exit, &angle));
+    T_ASSERT(Vector2_distance(&blocker->s.origin2, &exit) >=
+             trained->collision + blocker->collision);
+}
+
+/* A completed unit must remain hidden and queued when no legal exit exists;
+ * revealing it on blocked pathing recreates the permanent stuck-unit bug. */
+TEST(wc3_movement, trained_unit_waits_when_no_exit_position_exists) {
+    enum { CELLS = 64 };
+    BYTE pathmap[CELLS * CELLS];
+    LPEDICT producer = make_moving_unit(0.0f, 0.0f);
+    LPEDICT trained = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+
+    memset(pathmap, 0x02, sizeof(pathmap));
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(BOX2,
+        .min = {-1024.0f, -1024.0f},
+        .max = { 1024.0f,  1024.0f}));
+
+    producer->class_id = MAKEFOURCC('h','t','o','w');
+    producer->movetype = MOVETYPE_NONE;
+    producer->build = trained;
+    UnitBalance_t balance = { .buildTime = 1 };
+    trained->UnitBalance = &balance;
+    trained->collision = 16.0f;
+    trained->health.max_value = 100.0f;
+    trained->health.value = 100.0f;
+    trained->s.renderfx |= RF_HIDDEN;
+
+    ai_train_build(producer);
+
+    T_ASSERT(producer->build == trained);
+    T_ASSERT(trained->s.renderfx & RF_HIDDEN);
+    T_FEQ(trained->s.origin2.x, 0.0f, 0.01f);
+    T_FEQ(trained->s.origin2.y, 0.0f, 0.01f);
 }
 
 /* The complete gold loop enters, exits carrying gold, deposits it, and resumes mining. */

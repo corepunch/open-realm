@@ -1,13 +1,17 @@
 #include "s_skills.h"
 
-static void ShowTrainedUnit(LPEDICT townhall, LPEDICT unit) {
+static BOOL ShowTrainedUnit(LPEDICT townhall, LPEDICT unit) {
     VECTOR2 origin;
     FLOAT angle;
-    SP_FindEmptySpaceAround(townhall, unit->class_id, &origin, &angle);
+
+    if (!SP_FindUnitExitPosition(townhall, unit, &origin, &angle)) {
+        return false;
+    }
     unit->s.origin2 = origin;
     unit->s.angle = angle;
     unit->s.renderfx &= ~RF_HIDDEN;
     unit->stand(unit);
+    return true;
 }
 
 void ai_train_build(LPEDICT ent) {
@@ -18,7 +22,9 @@ void ai_train_build(LPEDICT ent) {
         LPEDICT clent = G_GetPlayerEntityByNumber(ent->s.player);
 
         hp->value = hp->max_value;
-        ShowTrainedUnit(ent, ent->build);
+        if (!ShowTrainedUnit(ent, ent->build)) {
+            return;
+        }
         G_PublishEvent(ent->build, EVENT_PLAYER_UNIT_TRAIN_FINISH);
         if (!(ent->build = ent->build->build)) {
             ent->stand(ent);

@@ -539,3 +539,77 @@ BOOL SP_FindEmptySpaceAround(LPEDICT townhall, DWORD class_id, LPVECTOR2 out, FL
     }
     return false;
 }
+
+static BOOL SP_CanPlaceUnitAt(LPEDICT unit, LPCVECTOR2 point) {
+    if (!CM_PointIsPathableForRadius(point, unit->collision)) {
+        return false;
+    }
+
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT other = &globals.edicts[i];
+        VECTOR2 delta;
+
+        if (other == unit || IS_HOLLOW(other) || other->movetype == MOVETYPE_NONE || other->collision <= 0.0f) {
+            continue;
+        }
+        delta = Vector2_sub(&other->s.origin2, point);
+        if (Vector2_len(&delta) < unit->collision + other->collision) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static BOOL SP_TryUnitExitCandidate(LPEDICT producer,
+                                    LPEDICT unit,
+                                    int grid_x,
+                                    int grid_y,
+                                    FLOAT spacing,
+                                    LPVECTOR2 out,
+                                    FLOAT *angle) {
+    VECTOR2 const candidate = {
+        producer->s.origin2.x + (FLOAT)grid_x * spacing,
+        producer->s.origin2.y + (FLOAT)grid_y * spacing,
+    };
+
+    if (!SP_CanPlaceUnitAt(unit, &candidate)) {
+        return false;
+    }
+    *out = candidate;
+    *angle = atan2f(candidate.y - producer->s.origin2.y,
+                    candidate.x - producer->s.origin2.x);
+    return true;
+}
+
+/* Trained units are created at their producer and remain hidden until a legal
+ * exit point is found. Search deterministic 64-world-unit square rings, using
+ * the trained unit's real collision radius against both the baked static
+ * pathmap and dynamic unit circles. */
+BOOL SP_FindUnitExitPosition(LPEDICT producer, LPEDICT unit, LPVECTOR2 out, FLOAT *angle) {
+    FLOAT const spacing = 64.0f;
+    DWORD const max_candidates = 300;
+    DWORD tested = 0;
+
+    if (!producer || !unit || !out || !angle) {
+        return false;
+    }
+
+    for (int ring = 1; tested < max_candidates; ring++) {
+        int const lo = -ring;
+        int const hi = ring;
+
+        for (int x = lo; x <= hi && tested < max_candidates; x++, tested++) {
+            if (SP_TryUnitExitCandidate(producer, unit, x, lo, spacing, out, angle)) return true;
+        }
+        for (int y = lo + 1; y <= hi && tested < max_candidates; y++, tested++) {
+            if (SP_TryUnitExitCandidate(producer, unit, hi, y, spacing, out, angle)) return true;
+        }
+        for (int x = hi - 1; x >= lo && tested < max_candidates; x--, tested++) {
+            if (SP_TryUnitExitCandidate(producer, unit, x, hi, spacing, out, angle)) return true;
+        }
+        for (int y = hi - 1; y > lo && tested < max_candidates; y--, tested++) {
+            if (SP_TryUnitExitCandidate(producer, unit, lo, y, spacing, out, angle)) return true;
+        }
+    }
+    return false;
+}

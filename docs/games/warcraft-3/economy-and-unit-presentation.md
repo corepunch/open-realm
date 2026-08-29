@@ -99,6 +99,20 @@ build/bin/mpqtool -mpq "data/Warcraft III/War3x.mpq" cat "Units/AbilityData.slk"
 
 Bounded ROC and TFT startups both resolve `Ahar` slots to damage=1, lumber capacity=10, gold capacity=10.
 
+### Trained-unit exit placement
+
+A Human02 regression observed while validating the gold/lumber return fixes was traced separately to training placement, not to the
+resource deposit thresholds themselves. A bounded runtime trace showed a newly trained Peasant created by Town Hall entity 102 at
+`(-3776,-4032)` being moved to `(-3961.8,-4217.8)`: the old `SP_FindEmptySpaceAround` accepted that point using dynamic-circle
+collision, while `CM_PointIsPathableForRadius(..., 16)` reported it statically blocked. Every subsequent move was rejected with both
+`origin_pathable=0` and `candidate_pathable=0`, leaving the worker permanently stuck.
+
+Training therefore uses a dedicated exit search before revealing the completed unit. `SP_FindUnitExitPosition` walks deterministic
+64-world-unit square rings around the producer, up to 300 candidates, and accepts the first point that fits the trained unit's actual
+collision radius in the baked static pathmap and does not overlap a dynamic blocking unit. If no point is legal, the completed unit
+remains hidden in the training queue and placement is retried on the next training tick; the train-finish event is not published until
+placement succeeds. Scripted `CreateUnit` coordinates and the separate resource-return interaction ranges are unchanged.
+
 ### Lumber gather cycle
 
 Each swing does `HARVEST_TREE_DAMAGE` (slot 1 = 1) HP of damage to the tree and adds the same amount
@@ -160,6 +174,7 @@ make test-wc3-engine WC3_PATTERN='wc3_game.hud_*'
 make test-wc3-engine WC3_PATTERN='wc3_game.overhead_*'
 ```
 
-The movement suite covers large-footprint mine entry, the complete gold deposit/resume cycle, exact lethal tree trips with next-tree
-selection, the no-live-tree stop path, non-lethal chops, and both sides of the immobility contract. The in-engine fixture
+The movement suite covers large-footprint mine entry, the complete gold deposit/resume cycle, trained-unit exit placement against
+static footprints, exact lethal tree trips with next-tree selection, the no-live-tree stop path, non-lethal chops, and both sides of
+the immobility contract. The in-engine fixture
 `games/warcraft-3/tests/resources-src/Units/UnitUI.slk` supplies `isbldg` for the same metadata lookup used by the game.
