@@ -175,7 +175,9 @@ static void sc2_fire_trigger_func(LPJASS j, LPCSTR funcname, BOOL testConds, BOO
         }
         if (trig) trig->wrapper_conds[testConds ? 1 : 0] = true;
     }
+#ifdef SC2_DEBUG_CUTSCENE
     fprintf(stderr, "sc2_fire_trigger_func: calling %s (coroutine=%d)\n", funcname, as_coroutine);
+#endif
     if (as_coroutine) {
         jass_startcoroutinebyname(root, name);
     } else {
@@ -256,8 +258,10 @@ static void sc2_run_unit_orders(void) {
                     if (cargo && sc2_galaxy_unit_set_position)
                         sc2_galaxy_unit_set_position(cargo, x, y, 0.0f);
                 }
+#ifdef SC2_DEBUG_CUTSCENE
                 fprintf(stderr, "UnitIssueOrder: unloaded %ld cargo units at (%.1f,%.1f)\n",
                         (long)cargo_n, ord->x, ord->y);
+#endif
                 sc2_gcargo_n[unit_h - 1] = 0;
             }
             sc2_pop_unit_order(unit_h);
@@ -366,8 +370,10 @@ static DWORD sc2_TriggerExecute(LPJASS j) {
     BOOL   waitDone  = jass_checkboolean(j, 3);
     for (DWORD i = 0; i < sc2_trig_n; i++) {
         if (sc2_trigs[i].id == id && sc2_trigs[i].func) {
+#ifdef SC2_DEBUG_CUTSCENE
             fprintf(stderr, "TriggerExecute: %s testConds=%d waitDone=%d\n",
                     sc2_trigs[i].func, testConds, waitDone);
+#endif
             sc2_fire_trigger_func(j, sc2_trigs[i].func, testConds, !waitDone);
             break;
         }
@@ -438,8 +444,10 @@ static DWORD sc2_CameraInfoDefault(LPJASS j) { return jass_pushnullhandle(j, "ca
 static DWORD sc2_CameraApplyInfo(LPJASS j) {
     LONG h = (LONG)(uintptr_t)jass_checkhandle(j, 2, "camerainfo");
     FLOAT dur = jass_checknumber(j, 3);
+#ifdef SC2_DEBUG_CUTSCENE
     fprintf(stderr, "CameraApplyInfo: handle=%ld count=%ld duration=%.2f callback=%d\n",
             (long)h, (long)sc2_gcam_n, dur, sc2_galaxy_on_camera != NULL);
+#endif
     if (h > 0 && h < sc2_gcam_n && sc2_galaxy_on_camera) {
         sc2GCam_t *c = &sc2_gcams[h];
         sc2_galaxy_on_camera(c->tx, c->ty, c->yaw, c->pitch, c->dist, c->fov, c->height, dur);
@@ -460,7 +468,9 @@ static DWORD sc2_CameraGetTarget(LPJASS j)   { return jass_pushinteger(j, 0); }
 static DWORD sc2_CinematicMode(LPJASS j) {
     BOOL  enable = jass_checkboolean(j, 2);
     FLOAT dur    = jass_checknumber(j, 3);
+#ifdef SC2_DEBUG_CUTSCENE
     fprintf(stderr, "CinematicMode: enable=%d dur=%.1f\n", enable, dur);
+#endif
     if (sc2_galaxy_on_cinematic) sc2_galaxy_on_cinematic(enable, dur);
     return jass_pushnull(j);
 }
@@ -580,8 +590,10 @@ static DWORD sc2_UnitIssueOrder(LPJASS j) {
     queued->x = tx;
     queued->y = ty;
     queued->started = false;
+#ifdef SC2_DEBUG_CUTSCENE
     fprintf(stderr, "UnitIssueOrder: unit=%ld ability=%s target=(%.1f,%.1f) queue=%ld depth=%ld\n",
             (long)unit_h, ability, tx, ty, (long)queue, (long)*count);
+#endif
     return jass_pushboolean(j, true);
 }
 static DWORD sc2_UnitPauseAll(LPJASS j)             { (void)j; return jass_pushnull(j); }

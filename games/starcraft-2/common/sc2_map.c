@@ -2008,8 +2008,10 @@ static void sc2_resolve_cliff_sets(sc2Catalog_t const *catalog) {
 static void sc2_resolve_hard_tiles(sc2Catalog_t const *catalog) {
     DWORD resolved = 0, unresolved = 0;
 
+#ifdef SC2_DEBUG_CUTSCENE
     fprintf(stderr, "SC2 road resolve: placements=%u CTile catalog entries=%u\n",
             (unsigned)ARRAY_COUNT(sc2_map.hard_tiles), (unsigned)catalog->tiles_count);
+#endif
     FOR_EACH_ARRAY(sc2MapHardTile_t, tile, sc2_map.hard_tiles) {
         FOR_LOOP(i, catalog->tiles_count) {
             if (strcasecmp(tile->tile, catalog->tiles[i].id)) continue;
@@ -2025,12 +2027,16 @@ static void sc2_resolve_hard_tiles(sc2Catalog_t const *catalog) {
                 fprintf(stderr, "SC2 hard tile: unresolved CTile %s\n", tile->tile);
         }
         if (tile->model[0]) resolved++; else unresolved++;
+#ifdef SC2_DEBUG_CUTSCENE
         fprintf(stderr, "SC2 road resolve[%u]: CTile='%s' model='%s' center_z=%.3f terrain_z=%.3f delta=%.3f\n",
             (unsigned)(tile - sc2_map.hard_tiles), tile->tile, tile->model[0] ? tile->model : "(unresolved)",
             tile->position.z, SC2_MapHeightAtPoint(tile->position.x, tile->position.y),
             tile->position.z - SC2_MapHeightAtPoint(tile->position.x, tile->position.y));
+#endif
     }
+#ifdef SC2_DEBUG_CUTSCENE
     fprintf(stderr, "SC2 road resolve: resolved=%u unresolved=%u\n", (unsigned)resolved, (unsigned)unresolved);
+#endif
 }
 
 static BOOL sc2_try_object_model_path(sc2MapObject_t *object, LPCSTR prefix) {
