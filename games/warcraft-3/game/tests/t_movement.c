@@ -74,6 +74,14 @@ static LPEDICT make_harvest_tree(FLOAT x, FLOAT y, FLOAT life) {
     return tree;
 }
 
+static UnitAbilities_t const return_gold_lumber_abilities = { .abilList = "Argl" };
+static UnitAbilities_t const return_lumber_abilities = { .abilList = "Arlm" };
+
+static void make_live_dropoff(LPEDICT building, UnitAbilities_t const *abilities) {
+    building->UnitAbilities = abilities;
+    building->health.value = building->health.max_value = 1000.0f;
+}
+
 extern FLOAT MINING_CAPACITY;
 extern FLOAT MINING_DURATION;
 extern FLOAT HARVEST_GOLD_CAPACITY;
@@ -221,6 +229,7 @@ TEST(wc3_movement, lumber_lethal_trip_fells_then_selects_next_tree) {
     LPEDICT tree2 = make_harvest_tree(30.0f, 0.0f, 500.0f);
     LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 0.0f, 0.0f);
     hall->s.player = worker->s.player;
+    make_live_dropoff(hall, &return_gold_lumber_abilities);
     HARVEST_RANGE = 64.0f; HARVEST_TREE_DAMAGE = 1.0f;
     HARVEST_LUMBER_CAPACITY = 10.0f; HARVEST_COOLDOWN = 0.01f; HARVEST_SEARCH_RANGE = 1000.0f;
     MSGTRACE trace = {0};
@@ -271,6 +280,7 @@ TEST(wc3_movement, lumber_deposit_without_live_tree_stops) {
     LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 0.0f, 0.0f);
     worker->attack1.damagePoint = 0.01f;
     hall->s.player = worker->s.player;
+    make_live_dropoff(hall, &return_gold_lumber_abilities);
     HARVEST_RANGE = 64.0f; HARVEST_TREE_DAMAGE = 1.0f; HARVEST_LUMBER_CAPACITY = 1.0f;
     MSGTRACE trace = {0};
     T_ASSERT(G_SubscribeMessage(trace_message, &trace));
@@ -294,6 +304,7 @@ TEST(wc3_movement, lumber_manual_return_without_tree_stops) {
     LPEDICT worker = make_moving_unit(0.0f, 0.0f);
     LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 0.0f, 0.0f);
     hall->s.player = worker->s.player;
+    make_live_dropoff(hall, &return_gold_lumber_abilities);
     worker->harvested_lumber = 1;
     worker->s.renderfx |= RF_HAS_LUMBER;
     harvest_walkback(worker);
@@ -316,6 +327,7 @@ TEST(wc3_movement, lumber_return_deposits_at_next_step_contact) {
 
     worker->collision = 16.0f; worker->unitinfo.MoveSpeed = 190.0f;
     hall->collision = 192.0f; hall->s.model = 1; hall->s.player = worker->s.player;
+    make_live_dropoff(hall, &return_gold_lumber_abilities);
     gi.LinkEntity(worker); gi.LinkEntity(tree); gi.LinkEntity(hall);
     worker->harvested_lumber = 10;
     worker->s.renderfx |= RF_HAS_LUMBER;
@@ -417,6 +429,47 @@ TEST(wc3_movement, trained_unit_waits_when_no_exit_position_exists) {
     T_FEQ(trained->s.origin2.y, 0.0f, 0.01f);
 }
 
+/* Lumber return is ability-driven and chooses the nearest compatible
+ * same-owner building rather than preferring a Town Hall class. */
+TEST(wc3_movement, lumber_return_prefers_nearer_lumber_mill) {
+    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
+    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 500.0f, 0.0f);
+    LPEDICT mill = alloc_test_unit(MAKEFOURCC('h','l','u','m'), 100.0f, 0.0f);
+    hall->s.player = mill->s.player = worker->s.player;
+    make_live_dropoff(hall, &return_gold_lumber_abilities);
+    make_live_dropoff(mill, &return_lumber_abilities);
+    worker->harvested_lumber = 10;
+    worker->s.renderfx |= RF_HAS_LUMBER;
+
+    harvest_walkback(worker);
+
+    T_ASSERT(worker->goalentity == mill);
+    T_FEQ(worker->harvested_lumber, 10.0f, 0.01f);
+}
+
+/* If the chosen Lumber Mill dies during the trip, retain the carried lumber
+ * and redirect to the nearest remaining compatible return building. */
+TEST(wc3_movement, lumber_return_retargets_after_lumber_mill_dies) {
+    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
+    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 500.0f, 0.0f);
+    LPEDICT mill = alloc_test_unit(MAKEFOURCC('h','l','u','m'), 100.0f, 0.0f);
+    hall->s.player = mill->s.player = worker->s.player;
+    make_live_dropoff(hall, &return_gold_lumber_abilities);
+    make_live_dropoff(mill, &return_lumber_abilities);
+    worker->unitinfo.MoveSpeed = 190.0f;
+    worker->harvested_lumber = 10;
+    worker->s.renderfx |= RF_HAS_LUMBER;
+
+    harvest_walkback(worker);
+    T_ASSERT(worker->goalentity == mill);
+    mill->health.value = 0;
+    worker->currentmove->think(worker);
+
+    T_ASSERT(worker->goalentity == hall);
+    T_FEQ(worker->harvested_lumber, 10.0f, 0.01f);
+    T_ASSERT(worker->s.renderfx & RF_HAS_LUMBER);
+}
+
 /* The complete gold loop enters, exits carrying gold, deposits it, and resumes mining. */
 TEST(wc3_movement, gold_worker_deposits_and_resumes_mining) {
     LPEDICT worker = make_moving_unit(0.0f, 0.0f);
@@ -425,6 +478,7 @@ TEST(wc3_movement, gold_worker_deposits_and_resumes_mining) {
     worker->collision = 16.0f; worker->unitinfo.MoveSpeed = 100.0f;
     mine->collision = 128.0f; mine->s.model = 1;
     hall->collision = 64.0f; hall->s.model = 1;
+    make_live_dropoff(hall, &return_gold_lumber_abilities);
     gi.LinkEntity(worker); gi.LinkEntity(mine); gi.LinkEntity(hall);
     MINING_CAPACITY = 5.0f; MINING_DURATION = 0.01f; HARVEST_GOLD_CAPACITY = 10.0f;
     DWORD const old_gold = game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD];
@@ -469,6 +523,7 @@ TEST(wc3_movement, gold_return_deposits_at_next_step_contact) {
     worker->collision = 16.0f; worker->unitinfo.MoveSpeed = 190.0f;
     mine->collision = 128.0f; mine->s.model = 1; mine->peonsinside = 1;
     hall->collision = 192.0f; hall->s.model = 1; hall->s.player = worker->s.player;
+    make_live_dropoff(hall, &return_gold_lumber_abilities);
     gi.LinkEntity(worker); gi.LinkEntity(mine); gi.LinkEntity(hall);
     HARVEST_GOLD_CAPACITY = 10.0f;
     worker->goalentity = mine; worker->secondarygoal = mine;
@@ -482,6 +537,27 @@ TEST(wc3_movement, gold_return_deposits_at_next_step_contact) {
     T_EQ(worker->harvested_gold, 0);
     T_ASSERT(!(worker->s.renderfx & RF_HAS_GOLD));
     T_ASSERT(worker->goalentity == mine);
+}
+
+/* A lumber-only return ability is incompatible with carried gold even when it
+ * is closer than a gold+lumber return building. */
+TEST(wc3_movement, gold_return_rejects_nearer_lumber_only_dropoff) {
+    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
+    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), -400.0f, 0.0f);
+    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 500.0f, 0.0f);
+    LPEDICT mill = alloc_test_unit(MAKEFOURCC('h','l','u','m'), 100.0f, 0.0f);
+    hall->s.player = mill->s.player = worker->s.player;
+    make_live_dropoff(hall, &return_gold_lumber_abilities);
+    make_live_dropoff(mill, &return_lumber_abilities);
+    mine->peonsinside = 1;
+    worker->goalentity = worker->secondarygoal = mine;
+    HARVEST_GOLD_CAPACITY = 10.0f;
+
+    harvestgold_walkback(worker);
+
+    T_ASSERT(worker->goalentity == hall);
+    T_FEQ(worker->harvested_gold, 10.0f, 0.01f);
+    T_ASSERT(worker->s.renderfx & RF_HAS_GOLD);
 }
 
 /* Unsubscription is part of the callback lifetime contract. */
