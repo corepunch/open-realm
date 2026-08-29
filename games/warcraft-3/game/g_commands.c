@@ -21,6 +21,13 @@ BOOL G_IsEntitySelected(LPGAMECLIENT client, LPEDICT ent) {
     return ent->selected & (1 << client->ps.number);
 }
 
+/* Client commands arrive before G_RunEntities clears the previous snapshot's
+ * event, so retain the chosen acknowledgement until that frame begins. */
+void G_QueueSelectionSound(LPEDICT ent) {
+    if (ent && ent->num_select_sounds)
+        ent->pending_sound = ent->sound_select[rand() % ent->num_select_sounds];
+}
+
 void CMD_CancelCommand(LPEDICT ent) {
     Get_Commands_f(ent);
 }
@@ -37,6 +44,7 @@ CLIENTCOMMAND(Select) {
     } else {
         BOOL cleared = false;
         BOOL hasunits = false;
+        LPEDICT voice = NULL;
         for (DWORD i = 1; i < argc; i++) {
             DWORD number = atoi(argv[i]);
             if (number >= globals.num_edicts)
@@ -59,9 +67,11 @@ CLIENTCOMMAND(Select) {
                     cleared = true;
                 }
                 G_SelectEntity(client, e);
+                if (!voice) voice = e;
             }
         }
         if (cleared) {
+            G_QueueSelectionSound(voice);
             Get_Portrait_f(clent);
             Get_Commands_f(clent);
         }

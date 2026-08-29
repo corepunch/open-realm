@@ -482,9 +482,13 @@ static void G_ClientBegin(LPEDICT edict) {
     G_FowSendFull(edict);
 }
 
-/* Keep the mandatory snapshot hook inert because WC3 entity state is identical for every recipient. */
+/* Selection voices are local feedback; suppress them in snapshots for clients
+ * that did not select this entity while leaving world sounds unchanged. */
 static void G_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
-    (void)player; (void)ent; (void)state;
+    if (state->event == EV_ACK && !(ent->selected & (1 << player))) {
+        state->event = EV_NONE;
+        state->sound = 0;
+    }
 }
 
 /* Return the game API vtable to the server.

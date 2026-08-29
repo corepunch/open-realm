@@ -20,6 +20,7 @@
 #define MAX_BUILD_QUEUE 7
 #define MAX_EVENT_QUEUE 256
 #define MAX_MESSAGE_SUBSCRIBERS 8 // callbacks; bounded because messages are synchronous and game-local
+#define MAX_UNIT_SELECT_SOUNDS 6 // sounds; largest UnitAckSounds *What variant list in ROC/TFT data
 #define MAX_ENTITIES MAX_GAME_ENTITIES
 #define MAX_REGION_SIZE 16
 #define MAX_INVENTORY 6
@@ -704,6 +705,9 @@ struct edict_s {
     DWORD defense_type;   /* WC3 defType index: small/medium/large/fort/normal/hero/divine/none */
     FLOAT armor_value;    /* computed armor ('realdef', incl. hero AGI) for damage reduction */
     /* Registered sound configstring indices, populated at spawn from unitSound label. */
+    BYTE sound_select[MAX_UNIT_SELECT_SOUNDS]; /* selection acknowledgement variants */
+    BYTE num_select_sounds;
+    BYTE pending_sound; /* command-time voice queued for the next entity frame */
     int sound_attack;   /* attack swing sound */
     int sound_death;    /* death sound */
     int sound_move;     /* footstep / movement sound */
@@ -1050,11 +1054,13 @@ LONG UnitCollisionField(DWORD);
 
 void InitUnitData(void);
 void ShutdownUnitData(void);
+void G_RegisterSelectSounds(LPEDICT, sheetRow_t *, LPCSTR);
 
 // g_command.c
 void G_SelectEntity(LPGAMECLIENT, LPEDICT);
 void G_DeselectEntity(LPGAMECLIENT, LPEDICT);
 BOOL G_IsEntitySelected(LPGAMECLIENT, LPEDICT);
+void G_QueueSelectionSound(LPEDICT);
 void G_ClientCommand(LPEDICT, DWORD, LPCSTR[]);
 void G_ClientSetCameraPosition(LPEDICT, LPCVECTOR2);
 

@@ -25,6 +25,8 @@ BOOL unit_issueorder(LPEDICT self, LPCSTR order, LPCVECTOR2 point);
 BOOL unit_issueimmediateorder(LPEDICT self, LPCSTR order);
 BOOL unit_additem(LPEDICT edict, LPEDICT item);
 BOOL unit_additemtoslot(LPEDICT edict, LPEDICT item, DWORD slot);
+sheetRow_t *parse_slk_string(LPCSTR slk_text);
+void free_slk_rows(sheetRow_t *rows);
 
 /* Reset the entity pool between tests. */
 static void reset_test_entities(void) {
@@ -67,6 +69,44 @@ static LPEDICT make_world_item(DWORD class_id) {
     item->item.in_world = true;
     item->item.inventory_slot = -1;
     return item;
+}
+
+TEST(wc3_unit, selection_sound_registration_caches_all_responses) {
+    static LPCSTR const slk =
+        "ID;PWXL;N;E\n"
+        "B;X3;Y2;D0\n"
+        "C;Y1;X1;K\"SoundLabel\"\n"
+        "C;Y1;X2;K\"FileNames\"\n"
+        "C;Y1;X3;K\"DirectoryBase\"\n"
+        "C;Y2;X1;K\"FootmanWhat\"\n"
+        "C;Y2;X2;K\"FootmanWhat1.wav,FootmanWhat2.wav,FootmanWhat3.wav,FootmanWhat4.wav\"\n"
+        "C;Y2;X3;K\"Units\\Human\\Footman\\\"\n"
+        "E\n";
+    LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    sheetRow_t *sounds = parse_slk_string(slk);
+    G_RegisterSelectSounds(ent, sounds, "Footman");
+    T_EQ(ent->num_select_sounds, 4);
+    FOR_LOOP(i, ent->num_select_sounds) T_ASSERT(ent->sound_select[i]);
+    free_slk_rows(sounds);
+}
+
+TEST(wc3_unit, selecting_owned_unit_emits_one_ack_event) {
+    LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    ent->sound_select[0] = 11;
+    ent->sound_select[1] = 12;
+    ent->num_select_sounds = 2;
+    G_QueueSelectionSound(ent);
+    T_ASSERT(ent->pending_sound == 11 || ent->pending_sound == 12);
+    G_RunEntities();
+    T_EQ(ent->s.event, EV_ACK);
+    T_ASSERT(ent->s.sound == 11 || ent->s.sound == 12);
+    T_EQ(ent->pending_sound, 0);
+}
+
+TEST(wc3_unit, selection_without_responses_does_not_queue_ack) {
+    LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    G_QueueSelectionSound(ent);
+    T_EQ(ent->pending_sound, 0);
 }
 
 /* -----------------------------------------------------------------------

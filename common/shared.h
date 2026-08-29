@@ -435,6 +435,7 @@ typedef enum {
     EV_ATTACK,       /* unit began an attack swing */
     EV_DEATH,        /* unit died */
     EV_MOVE,         /* footstep / movement sound */
+    EV_ACK,          /* unit acknowledged a player selection/order */
 } entity_event_t;
 
 typedef struct entityState_s {
