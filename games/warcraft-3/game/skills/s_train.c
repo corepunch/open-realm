@@ -21,7 +21,7 @@ void ai_train_build(LPEDICT ent) {
     if (hp->value >= hp->max_value) {
         LPEDICT clent = G_GetPlayerEntityByNumber(ent->s.player);
 
-        hp->value = hp->max_value;
+        hp->value = hp->max_value; /* clamp; placement retries every tick until space clears */
         if (!ShowTrainedUnit(ent, ent->build)) {
             return;
         }
