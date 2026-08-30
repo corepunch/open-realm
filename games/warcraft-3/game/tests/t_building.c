@@ -26,6 +26,9 @@ static void building_capture_write(pfWriteType_t type, void const *value) {
     building_command_frame_seen = true;
 }
 
+static void building_noop_write(pfWriteType_t type, void const *value) { (void)type; (void)value; }
+static void building_noop_unicast(LPEDICT ent) { (void)ent; }
+
 TEST(wc3_building, player_tech_state_tracks_max_and_researched_levels) {
     LPGAMECLIENT client = &game.clients[0];
     DWORD const barracks = MAKEFOURCC('h','b','a','r');
@@ -237,7 +240,15 @@ TEST(wc3_building, completing_construction_clears_state_publishes_once_and_grant
     level.events.read = 0;
     building_stand_calls = 0;
 
-    G_CompleteConstruction(building);
+    {
+        void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+        void (*old_unicast)(LPEDICT) = gi.unicast;
+        gi.Write = building_noop_write;
+        gi.unicast = building_noop_unicast;
+        G_CompleteConstruction(building);
+        gi.Write = old_write;
+        gi.unicast = old_unicast;
+    }
 
     T_ASSERT(!building->construction.active);
     T_ASSERT(!building->construction.paused);
