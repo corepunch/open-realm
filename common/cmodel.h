@@ -46,6 +46,7 @@ BOOL CM_ClosestPathablePoint(LPCVECTOR2 location, LPVECTOR2 out);
 BOOL CM_ClosestPathablePointForRadius(LPCVECTOR2 location, FLOAT radius, LPVECTOR2 out);
 BOOL CM_PointIsPathableForRadius(LPCVECTOR2 location, FLOAT radius);
 BOOL CM_LineIsWalkable(LPCVECTOR2 a, LPCVECTOR2 b);
+BOOL CM_GetPathingFlagsAt(LPCVECTOR2 location, LPBYTE flags);
 BOX2 CM_GetWorldBounds(void);
 
 /* WoW-only: all WorldSafeLocs entries for the current map.  Populated during

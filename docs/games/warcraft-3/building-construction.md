@@ -1,0 +1,126 @@
+# Warcraft III Building Construction
+
+## Contract
+
+Human construction is server-authoritative. `UnitProfile.Builds` remains the source of which structures a worker can offer; a client cannot select an arbitrary unit rawcode and bypass that list. `games/warcraft-3/game/g_building.c` owns technology/resource availability, placement snapping/validation, and the common construction state used by Human Repair.
+
+The runtime developer override is:
+
+```sh
++set wc3_build_all 1
+```
+
+It makes every structure already present in the selected worker's final `Builds` list available regardless of technology maximums, `Requires`, gold, lumber, or food. It does **not** bypass `Builds`, building classification, map bounds, terrain/static pathing, live-unit occupancy, or build-on-target rules. This keeps the cheat useful for tech-tree testing without allowing invalid world placement.
+
+## Build-menu data flow
+
+```text
+UnitProfile.Builds
+    -> G_GetBuildCommandState
+       -> SetPlayerTechMaxAllowed state
+       -> Requires / Requiresamount
+       -> current gold/lumber/food
+    -> ui_builds
+       -> hidden at tech maximum
+       -> disabled with reason when requirements/resources fail
+       -> available otherwise
+```
+
+`SetPlayerTechMaxAllowed`, `GetPlayerTechMaxAllowed`, `AddPlayerTechResearched`, `SetPlayerTechResearched`, `GetPlayerTechResearched`, and `GetPlayerTechCount` now have game-state backing rather than no-op JASS stubs. W3I technology-availability entries initialize a player's matching technology maximum to zero before map script execution; map JASS can subsequently change that state.
+
+`G_GetPlayerTechCountValue()` counts researched levels plus live owned entities of the requested rawcode. In-progress structures therefore count against a maximum as soon as they exist.
+
+## Placement
+
+`G_SnapBuildingPoint()` implements the WC3 pathing-grid alignment used by both authoritative placement and the client ghost:
+
+```text
+base lattice = 64 world units
+odd half-pathing-map dimension -> +32 on that axis
+no authored pathing texture -> 32-unit fallback grid
+```
+
+The placement cursor carries its authored pathing-texture width/height in the cursor-only `entityState_t.origin.x/y` fields. `client/cl_view.c:CL_AddBuilding()` uses those dimensions for the same visual snap; those cursor metadata values are not world position.
+
+`G_EvaluateBuildPlacement()` checks:
+
+- building classification;
+- snapped pathing footprint inside the map path grid;
+- `UNBUILDABLE` and `UNWALKABLE` static pathing;
+- normalized `preventPlace` (`unwalkable`, `unbuildable`, `blighted`);
+- normalized `requirePlace` for the same supported flags;
+- static building/destructable footprints already baked into `pathmap.original`;
+- live unit-circle occupancy, excluding the builder;
+- exact build-on-target presence when `isBuildOn` requires a `canBuildOn` structure.
+
+The common routing layer exposes `CM_GetPathingFlagsAt()` specifically so placement can read the immutable terrain + baked-static pathing result without mutating movement's dynamic path map.
+
+A declared pathing texture that fails to load is a placement failure. Do not silently degrade such a structure to a one-cell footprint; `M_LoadPathTex()` already reports the missing asset.
+
+Placement is checked once when the player confirms the ghost and again when the worker reaches the site. Resources are charged only after the arrival-time validation passes. Construction spawns at the stored snapped waypoint, not at the worker's current position.
+
+The current client ghost snaps correctly but does not yet render the full per-cell green/red placement texture. Live units are therefore authoritative server blockers but are not painted into the preview.
+
+## Human construction and power building
+
+A successfully started Human structure uses explicit construction state on the building:
+
+```text
+construction.active = true
+construction.paused = true
+construction.primary_builder = original Peasant
+construction.progress = 0
+life = 10% max life
+```
+
+The building's birth animation is held until construction completes. The primary Peasant enters Human Repair and contributes `1.0` construction time. If that Peasant stops/dies/receives another behavior, no autonomous timer advances the paused structure. A later Human Repair worker can become the new primary worker.
+
+Additional `Arep` repairers use the ability's authored data:
+
+- `DataC` -> incremental power-build cost ratio;
+- `DataD` -> additional construction-time contribution.
+
+Each additional worker independently contributes:
+
+```text
+progress += frame_time * DataD
+```
+
+and accumulates incremental gold/lumber cost from the building's `goldRep` / `lumberRep`, build time, and `DataC`. An additional repairer stops when that incremental payment cannot be made. `+set wc3_build_all 1` suppresses those debug-time costs.
+
+Ordinary repair aliases remain separate and do not acquire Human power-building behavior automatically.
+
+Completion clears paused/constructing state, releases the held birth animation, restores full life, applies positive `foodMade`, publishes `EVENT_PLAYER_UNIT_CONSTRUCT_FINISH`, and refreshes resource/HUD state.
+
+## Known gaps
+
+This patch intentionally focuses on Human construction. The following clean-room-spec items remain incomplete:
+
+- `war3map.w3u` modifications are not yet fully merged into the normalized typed unit rows, so map-local edits to `Builds`/requirements may still resolve through the base unit row;
+- the client does not yet draw a per-cell green/red pathing splat or mirror live-unit obstruction into that splat;
+- placement supports the currently decoded walk/build/blight flags, not every Warcraft compound placement type;
+- build cancellation after a structure has spawned does not yet have the retail partial-refund lifecycle;
+- Orc worker-inside, Night Elf worker/Ancient consumption, and Undead summon/release construction strategies remain legacy behavior;
+- normal completed-building Repair still uses the older simplified HP rate; DataA/DataB repair cost/time parity is separate from Human power-building DataC/DataD.
+
+## Verification
+
+Focused automated checks after building:
+
+```sh
+make test-wc3-engine WC3_PATTERN='wc3_building.*'
+make test-wc3-engine WC3_PATTERN='wc3_combat.*'
+make test-wc3-engine WC3_PATTERN='wc3_movement.*'
+```
+
+Runtime checks should cover at least:
+
+1. Peasant Build submenu only exposes its `Builds` entries.
+2. A `SetPlayerTechMaxAllowed(..., 0)` structure disappears; `+set wc3_build_all 1` restores it.
+3. Missing `Requires` or resources disable the button; the cvar bypasses those gates.
+4. Farm/Barracks ghost and spawned structure use the same 64/32 alignment.
+5. Terrain, tree/building static pathing, map edges, and live units reject placement.
+6. Obstruction introduced while the Peasant walks causes arrival-time rejection without charging resources.
+7. One Peasant constructs at the base rate; stopping it pauses progress.
+8. A replacement Peasant resumes construction.
+9. Additional Peasants accelerate according to Repair `DataD` and consume incremental `DataC` costs.

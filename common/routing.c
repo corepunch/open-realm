@@ -478,6 +478,21 @@ BOOL CM_PointIsPathableForRadius(LPCVECTOR2 location, FLOAT radius) {
  * pathmap cells along the segment (Bresenham) and fail on the first obstacle.
  * O(cells on the line) — vastly cheaper than a full flow-field bake, so a unit
  * chasing a target in the open can steer directly instead of flood-filling. */
+
+BOOL CM_GetPathingFlagsAt(LPCVECTOR2 location, LPBYTE flags) {
+    VECTOR2 n;
+    int x, y;
+
+    if (flags) *flags = 0;
+    if (!location || !flags || !pathmap.original || !pathmap.width || !pathmap.height) return false;
+    n = CM_GetNormalizedMapPosition(location->x, location->y);
+    x = (int)floorf(n.x * pathmap.width);
+    y = (int)floorf(n.y * pathmap.height);
+    if (x < 0 || y < 0 || !is_valid_point((DWORD)x, (DWORD)y)) return false;
+    memcpy(flags, &pathmap.original[x + y * pathmap.width], sizeof(*flags));
+    return true;
+}
+
 BOOL CM_LineIsWalkable(LPCVECTOR2 a, LPCVECTOR2 b) {
     if (!a || !b || pathmap.width == 0 || pathmap.height == 0) {
         return false;

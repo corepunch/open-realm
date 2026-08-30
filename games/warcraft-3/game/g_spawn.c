@@ -306,6 +306,7 @@ static void G_InitMapPlayer(LPEDICT clent, LPCMAPINFO mapinfo, DWORD playernum) 
     LPPLAYER ps = &clent->client->ps;
     G_SetClientConnected(clent, false);
     memset(&clent->client->jass, 0, sizeof(clent->client->jass));
+    memset(clent->client->tech, 0, sizeof(clent->client->tech));
     memset(ps, 0, sizeof(PLAYER));
     ps->number = playernum;
     ps->team = G_MapPlayerTeam(mapinfo, playernum);
@@ -323,6 +324,14 @@ static void G_InitMapPlayer(LPEDICT clent, LPCMAPINFO mapinfo, DWORD playernum) 
     clent->client->camera.state.fov = 50;
     clent->client->camera.state.target_distance = 1650;
     clent->client->camera.old_state = clent->client->camera.state;
+    if (mapinfo) {
+        FOR_LOOP(i, mapinfo->num_techAvailabilities) {
+            mapTechAvailability_t const *tech = mapinfo->techAvailabilities + i;
+            if (tech->playerFlags & (1u << playernum)) {
+                G_SetPlayerTechMaxAllowed(clent->client, tech->techID, 0);
+            }
+        }
+    }
     clent->client->mapplayer = player;
     clent->client->jass.controller = G_MapControl(player);
     clent->client->jass.race_pref = G_RacePreference(player);

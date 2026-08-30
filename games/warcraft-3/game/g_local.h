@@ -32,6 +32,7 @@
 #define PLAYER_TEXT_BACKUP 16
 #define PLAYER_TEXT_MASK (PLAYER_TEXT_BACKUP - 1)
 #define MAX_START_PRIO 16 // slots; one possible priority entry per WC3 player start location
+#define MAX_PLAYER_TECH_STATE 128
 
 #define FILTER_EDICTS(ENT, CONDITION) \
 for (LPEDICT ENT = globals.edicts; \
@@ -70,6 +71,29 @@ KNOWN_AS(gevent_s, EVENT);
 KNOWN_AS(gtrigger_s, TRIGGER);
 KNOWN_AS(gquest_s, QUEST);
 KNOWN_AS(gquestitem_s, QUESTITEM);
+
+typedef enum {
+    BUILD_COMMAND_ABSENT,
+    BUILD_COMMAND_HIDDEN,
+    BUILD_COMMAND_DISABLED,
+    BUILD_COMMAND_AVAILABLE,
+} buildCommandState_t;
+
+typedef enum {
+    PLACE_OK,
+    PLACE_INVALID_BUILDING,
+    PLACE_TERRAIN_BLOCKED,
+    PLACE_UNIT_BLOCKED,
+    PLACE_REQUIRED_PATHING_MISSING,
+    PLACE_OUT_OF_BOUNDS,
+    PLACE_REQUIRED_PARENT_MISSING,
+} buildPlacementResult_t;
+
+typedef struct {
+    DWORD id;
+    LONG researched;
+    LONG max_allowed; /* -1 = unlimited/default */
+} playerTechState_t;
 
 typedef struct {
     BOOL (*on_entity_selected)(LPEDICT, LPEDICT);
@@ -318,6 +342,7 @@ struct client_s {
         BOOL race_selectable, on_score_screen;
         char name[MAX_PATHLEN];
     } jass;
+    playerTechState_t tech[MAX_PLAYER_TECH_STATE];
     char playerTextStorage[PLAYERTEXT_COUNT][PLAYER_TEXT_BACKUP][512];
     DWORD playerTextCursor[PLAYERTEXT_COUNT];
     LPCMAPPLAYER mapplayer;
@@ -541,6 +566,17 @@ struct edict_s {
     DWORD class_id;
     DWORD variation;
     DWORD build_project;
+    struct {
+        BOOL active;
+        BOOL paused;
+        LPEDICT primary_builder;
+        FLOAT progress;
+    } construction;
+    struct {
+        BOOL primary;
+        FLOAT gold_accum;
+        FLOAT lumber_accum;
+    } buildwork;
     DWORD spawn_time;
     DWORD harvested_lumber;
     DWORD harvested_gold;
@@ -915,6 +951,22 @@ LPCSTR GetClassName(DWORD);
 // g_unit_ui.c (Phase 8)
 BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_buttons);
 BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, gameCommandButton_t *button);
+BOOL G_BuildAllEnabled(void);
+BOOL G_WorkerCanBuild(LPEDICT worker, DWORD building_id);
+buildCommandState_t G_GetBuildCommandState(LPGAMECLIENT client, LPEDICT worker, DWORD building_id, LPSTR reason, DWORD reason_size);
+BOOL G_ChargeBuilding(LPGAMECLIENT client, DWORD building_id);
+void G_RefundBuilding(LPGAMECLIENT client, DWORD building_id);
+void G_SnapBuildingPoint(DWORD building_id, LPVECTOR2 point);
+buildPlacementResult_t G_EvaluateBuildPlacement(LPEDICT builder, DWORD building_id, LPCVECTOR2 requested, LPVECTOR2 snapped);
+FLOAT G_BuildApproachDistance(DWORD building_id);
+BOOL G_StartHumanConstruction(LPEDICT builder, LPEDICT building);
+void G_CompleteConstruction(LPEDICT building);
+void G_SetPlayerTechMaxAllowed(LPGAMECLIENT client, DWORD techid, LONG maximum);
+LONG G_GetPlayerTechMaxAllowed(LPGAMECLIENT client, DWORD techid);
+void G_SetPlayerTechResearched(LPGAMECLIENT client, DWORD techid, LONG level_value);
+void G_AddPlayerTechResearched(LPGAMECLIENT client, DWORD techid, LONG levels);
+LONG G_GetPlayerTechResearchedLevel(LPGAMECLIENT client, DWORD techid);
+LONG G_GetPlayerTechCountValue(LPGAMECLIENT client, DWORD techid);
 BOOL G_BuildInventoryItem(LPEDICT ent, LPEDICT item, BYTE slot, gameInventoryItem_t *out);
 BYTE G_GetInventory(LPEDICT ent, gameInventoryItem_t *items, BYTE max_items);
 BYTE G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue);
@@ -929,6 +981,7 @@ void G_UpdateClientInfoPanels(void);
 void G_RefreshResourceBar(LPEDICT);
 void G_UpdateClientResourceBars(void);
 void UI_AddCancelButton(LPEDICT);
+void UI_WriteCommandButtonFrame(gameCommandButton_t const *button);
 void UI_AddCommandButton(LPCSTR);
 void UI_AddCommandButtonExtended(LPCSTR code, BOOL research, DWORD level);
 void UI_WriteTooltipFrame(void);

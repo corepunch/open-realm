@@ -8,7 +8,7 @@ and map-script behavior, but do not replace the native declarations.
 ## Baseline
 
 The registry currently contains 836 callbacks. A conservative source audit
-classifies 476 as implemented and 360 as clear placeholders, for 56.9% overall
+classifies 482 as implemented and 354 as clear placeholders, for 57.7% overall
 coverage. This count treats a callback as a placeholder only when it ignores its
 arguments and unconditionally returns no value, zero, false, or a null handle.
 A working `returns nothing` callback also returns zero at the C ABI boundary, so
@@ -18,7 +18,7 @@ raw `return 0` counts are not meaningful.
 | --- | ---: | ---: | ---: |
 | `api_misc.h` | 317 | 190 | 127 |
 | `api_unit.h` | 144 | 82 | 62 |
-| `api_player.h` | 86 | 37 | 49 |
+| `api_player.h` | 86 | 43 | 43 |
 | `api_trigger.h` | 48 | 26 | 22 |
 | `api_camera.h` | 42 | 34 | 8 |
 | `api_sound.h` | 35 | 7 | 28 |
@@ -132,8 +132,7 @@ in the registry: `SetEnemyStartLocPrioCount`, `SetEnemyStartLocPrio`, and
 - `SetPlayerHandicap` and `SetPlayerHandicapXP` are percentages represented by
   real values; their getters must return the stored values, not normalized
   fractions unless runtime evidence demonstrates that contract.
-- Tech maximums, researched levels, and ability availability require keyed
-  per-player tables. They should not be packed into `ps.stats[]`.
+- Tech maximums and researched levels use the keyed `game.clients[].tech` table rather than `ps.stats[]`. `SetPlayerTechMaxAllowed`, `GetPlayerTechMaxAllowed`, `AddPlayerTechResearched`, `SetPlayerTechResearched`, `GetPlayerTechResearched`, and `GetPlayerTechCount` now round-trip through that state. W3I technology-unavailability entries seed a maximum of zero before map scripts may override it. Ability availability remains separate work.
 
 ## Trigger Context Contract
 

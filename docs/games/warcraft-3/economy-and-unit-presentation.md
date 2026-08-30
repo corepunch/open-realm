@@ -259,6 +259,10 @@ the server received `CmdBuild`, but pre-dispatch SLK normalization produced `Cmd
 unit's `trains` list. Peasants have a `Builds` list rather than a `trains` list, so the visible Build button appeared to do nothing.
 The investigative trace was removed after the root cause was confirmed.
 
+### Human building construction
+
+The command-card `CmdBuild` resolver is only the entry point. Authoritative build availability, WC3 grid snapping, placement/pathing validation, arrival-time revalidation, and Human Repair/power-building state live in [building-construction.md](building-construction.md). Use `+set wc3_build_all 1` to bypass tech/resource gates for structures already present in the selected worker's `Builds` list while retaining world-placement validation.
+
 ## Verification
 
 Focused deterministic checks:

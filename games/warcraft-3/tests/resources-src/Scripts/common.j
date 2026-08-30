@@ -94,6 +94,12 @@ native SetPlayerHandicap     takes player whichPlayer, real handicap returns not
 native GetPlayerHandicap     takes player whichPlayer returns real
 native SetPlayerHandicapXP   takes player whichPlayer, real handicap returns nothing
 native GetPlayerHandicapXP   takes player whichPlayer returns real
+native SetPlayerTechMaxAllowed takes player whichPlayer, integer techid, integer maximum returns nothing
+native GetPlayerTechMaxAllowed takes player whichPlayer, integer techid returns integer
+native AddPlayerTechResearched takes player whichPlayer, integer techid, integer levels returns nothing
+native SetPlayerTechResearched takes player whichPlayer, integer techid, integer setToLevel returns nothing
+native GetPlayerTechResearched takes player whichPlayer, integer techid, boolean specificonly returns integer
+native GetPlayerTechCount      takes player whichPlayer, integer techid, boolean specificonly returns integer
 native SetPlayerOnScoreScreen takes player whichPlayer, boolean flag returns nothing
 native Rect                   takes real minx, real miny, real maxx, real maxy returns rect
 native CreateRegion           takes nothing returns region

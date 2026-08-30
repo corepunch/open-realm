@@ -107,3 +107,5 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [ROC Ability Checklist](architecture/roc-ability-checklist.md)
 - [Cinematics](cinematics.md)
 - [Sounds](sounds.md)
+
+- [Building construction](building-construction.md) — build-menu availability, placement validation, Human construction, and power building.

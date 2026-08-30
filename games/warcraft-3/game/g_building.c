@@ -1,0 +1,405 @@
+#include "g_local.h"
+
+#define WC3_BUILD_CELL_SIZE 32.0f
+#define WC3_BUILD_GRID_SIZE 64.0f
+#define WC3_BUILD_START_LIFE 0.10f
+#define WC3_PATH_UNWALKABLE 0x02
+#define WC3_PATH_UNBUILDABLE 0x08
+#define WC3_PATH_BLIGHTED 0x20
+
+static BOOL G_StringHasPlacementType(LPCSTR list, LPCSTR type) {
+    char token[64];
+    LPCSTR p;
+
+    if (!list || !type || !*type) return false;
+    p = list;
+    while (*p) {
+        DWORD n = 0;
+        while (*p == ',' || *p == ' ' || *p == '\t') p++;
+        while (*p && *p != ',' && n + 1 < sizeof(token)) token[n++] = (char)tolower(*p++);
+        token[n] = '\0';
+        while (*p && *p != ',') p++;
+        if (*p == ',') p++;
+        if (!strcmp(token, type)) return true;
+    }
+    return false;
+}
+
+static BYTE G_PlacementFlags(LPCSTR list) {
+    BYTE flags = 0;
+    if (G_StringHasPlacementType(list, "unwalkable")) flags |= WC3_PATH_UNWALKABLE;
+    if (G_StringHasPlacementType(list, "unbuildable")) flags |= WC3_PATH_UNBUILDABLE;
+    if (G_StringHasPlacementType(list, "blighted")) flags |= WC3_PATH_BLIGHTED;
+    return flags;
+}
+
+static DWORD G_CsvToken(LPCSTR list, DWORD index, LPSTR out, DWORD out_size) {
+    DWORD current = 0;
+    LPCSTR p = list;
+
+    if (!out || !out_size) return 0;
+    out[0] = '\0';
+    if (!list) return 0;
+    while (*p) {
+        LPCSTR start;
+        DWORD len;
+        while (*p == ',' || *p == ' ' || *p == '\t') p++;
+        start = p;
+        while (*p && *p != ',') p++;
+        len = (DWORD)(p - start);
+        while (len && (start[len - 1] == ' ' || start[len - 1] == '\t')) len--;
+        if (current++ == index) {
+            len = MIN(len, out_size - 1);
+            memcpy(out, start, len);
+            out[len] = '\0';
+            return len;
+        }
+        if (*p == ',') p++;
+    }
+    return 0;
+}
+
+BOOL G_BuildAllEnabled(void) {
+    return gi.CvarString && atoi(gi.CvarString("wc3_build_all", "0")) != 0;
+}
+
+static LONG G_FindTechSlot(LPGAMECLIENT client, DWORD techid, BOOL create) {
+    LONG free_slot = -1;
+
+    if (!client || !techid) return -1;
+    FOR_LOOP(i, MAX_PLAYER_TECH_STATE) {
+        if (client->tech[i].id == techid) return (LONG)i;
+        if (!client->tech[i].id && free_slot < 0) free_slot = (LONG)i;
+    }
+    if (!create || free_slot < 0) return -1;
+    client->tech[free_slot].id = techid;
+    client->tech[free_slot].max_allowed = -1;
+    return free_slot;
+}
+
+void G_SetPlayerTechMaxAllowed(LPGAMECLIENT client, DWORD techid, LONG maximum) {
+    LONG slot = G_FindTechSlot(client, techid, true);
+    if (slot < 0) return;
+    client->tech[slot].max_allowed = MAX(0, maximum);
+}
+
+LONG G_GetPlayerTechMaxAllowed(LPGAMECLIENT client, DWORD techid) {
+    LONG slot = G_FindTechSlot(client, techid, false);
+    return slot < 0 ? -1 : client->tech[slot].max_allowed;
+}
+
+void G_SetPlayerTechResearched(LPGAMECLIENT client, DWORD techid, LONG level_value) {
+    LONG slot = G_FindTechSlot(client, techid, true);
+    if (slot < 0) return;
+    client->tech[slot].researched = MAX(0, level_value);
+}
+
+void G_AddPlayerTechResearched(LPGAMECLIENT client, DWORD techid, LONG levels) {
+    LONG slot = G_FindTechSlot(client, techid, true);
+    if (slot < 0) return;
+    client->tech[slot].researched = MAX(0, client->tech[slot].researched + levels);
+}
+
+LONG G_GetPlayerTechResearchedLevel(LPGAMECLIENT client, DWORD techid) {
+    LONG slot = G_FindTechSlot(client, techid, false);
+    return slot < 0 ? 0 : MAX(0, client->tech[slot].researched);
+}
+
+LONG G_GetPlayerTechCountValue(LPGAMECLIENT client, DWORD techid) {
+    LONG count = G_GetPlayerTechResearchedLevel(client, techid);
+    DWORD player;
+
+    if (!client || !techid) return 0;
+    player = client->ps.number;
+    FILTER_EDICTS(ent, ent->inuse && ent->class_id == techid && ent->s.player == player &&
+                         !(ent->svflags & SVF_DEADMONSTER)) {
+        count++;
+    }
+    return count;
+}
+
+BOOL G_WorkerCanBuild(LPEDICT worker, DWORD building_id) {
+    char token[64];
+    LPCSTR builds;
+
+    if (!worker || !building_id) return false;
+    builds = worker->UnitProfile ? worker->UnitProfile->builds : NULL;
+    if (!builds) return false;
+    for (DWORD i = 0; G_CsvToken(builds, i, token, sizeof(token)); i++) {
+        if (strlen(token) == 4 && !memcmp(token, &building_id, 4)) return true;
+    }
+    return false;
+}
+
+static LONG G_RequirementAmount(UnitProfile_t const *profile, DWORD index) {
+    char amount[32];
+    LONG value = 1;
+
+    if (!profile || !profile->requiresAmount ||
+        !G_CsvToken(profile->requiresAmount, index, amount, sizeof(amount))) return 1;
+    if (sscanf(amount, "%ld", &value) != 1) return 1;
+    return MAX(1, value);
+}
+
+static LONG G_PlayerRequirementCount(LPGAMECLIENT client, DWORD techid) {
+    LONG count = G_GetPlayerTechResearchedLevel(client, techid);
+    DWORD player;
+
+    if (!client || !techid) return 0;
+    player = client->ps.number;
+    FILTER_EDICTS(ent, ent->inuse && ent->class_id == techid && ent->s.player == player &&
+                         !(ent->svflags & SVF_DEADMONSTER) && !ent->construction.active) {
+        count++;
+    }
+    return count;
+}
+
+static BOOL G_RequirementsSatisfied(LPGAMECLIENT client, DWORD building_id, LPSTR reason, DWORD reason_size) {
+    UnitProfile_t const *profile = G_UnitProfile(building_id);
+    char requirement[64];
+
+    if (!profile->requires || !*profile->requires) return true;
+    for (DWORD i = 0; G_CsvToken(profile->requires, i, requirement, sizeof(requirement)); i++) {
+        DWORD rawcode;
+        LONG required;
+        if (strlen(requirement) != 4) continue;
+        memcpy(&rawcode, requirement, sizeof(rawcode));
+        required = G_RequirementAmount(profile, i);
+        if (G_PlayerRequirementCount(client, rawcode) < required) {
+            if (reason && reason_size) {
+                LPCSTR name = G_UnitProfile(rawcode)->name;
+                if (required > 1) {
+                    snprintf(reason, reason_size, "Requires %s x%ld",
+                             name && *name ? name : requirement, required);
+                } else {
+                    snprintf(reason, reason_size, "Requires %s",
+                             name && *name ? name : requirement);
+                }
+            }
+            return false;
+        }
+    }
+    return true;
+}
+
+static BOOL G_BuildResourcesAvailable(LPGAMECLIENT client, DWORD building_id, LPSTR reason, DWORD reason_size) {
+    UnitBalance_t const *b = G_UnitBalance(building_id);
+    LONG food_after;
+
+    if (!client) return false;
+    if (b->goldCost > (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_GOLD]) {
+        if (reason && reason_size) snprintf(reason, reason_size, "Not enough gold");
+        return false;
+    }
+    if (b->lumberCost > (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]) {
+        if (reason && reason_size) snprintf(reason, reason_size, "Not enough lumber");
+        return false;
+    }
+    food_after = (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] + MAX(0, b->foodUsed);
+    if (b->foodUsed > 0 && food_after > (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP]) {
+        if (reason && reason_size) snprintf(reason, reason_size, "Not enough food");
+        return false;
+    }
+    return true;
+}
+
+buildCommandState_t G_GetBuildCommandState(LPGAMECLIENT client, LPEDICT worker, DWORD building_id,
+                                           LPSTR reason, DWORD reason_size) {
+    LONG maximum;
+
+    if (reason && reason_size) reason[0] = '\0';
+    if (!client || !G_WorkerCanBuild(worker, building_id)) return BUILD_COMMAND_ABSENT;
+    if (!G_UnitIsBuilding(building_id)) return BUILD_COMMAND_ABSENT;
+    if (G_BuildAllEnabled()) return BUILD_COMMAND_AVAILABLE;
+
+    maximum = G_GetPlayerTechMaxAllowed(client, building_id);
+    if (maximum >= 0 && G_GetPlayerTechCountValue(client, building_id) >= maximum) {
+        return BUILD_COMMAND_HIDDEN;
+    }
+    if (!G_RequirementsSatisfied(client, building_id, reason, reason_size)) {
+        return BUILD_COMMAND_DISABLED;
+    }
+    if (!G_BuildResourcesAvailable(client, building_id, reason, reason_size)) {
+        return BUILD_COMMAND_DISABLED;
+    }
+    return BUILD_COMMAND_AVAILABLE;
+}
+
+BOOL G_ChargeBuilding(LPGAMECLIENT client, DWORD building_id) {
+    UnitBalance_t const *b;
+
+    if (!client) return false;
+    if (G_BuildAllEnabled()) return true;
+    if (!G_BuildResourcesAvailable(client, building_id, NULL, 0)) return false;
+    b = G_UnitBalance(building_id);
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] -= MAX(0, b->goldCost);
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] -= MAX(0, b->lumberCost);
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] += MAX(0, b->foodUsed);
+    return true;
+}
+
+void G_RefundBuilding(LPGAMECLIENT client, DWORD building_id) {
+    UnitBalance_t const *b;
+    if (!client || G_BuildAllEnabled()) return;
+    b = G_UnitBalance(building_id);
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] += MAX(0, b->goldCost);
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] += MAX(0, b->lumberCost);
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] =
+        MAX(0, (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] - MAX(0, b->foodUsed));
+}
+
+void G_SnapBuildingPoint(DWORD building_id, LPVECTOR2 point) {
+    pathTex_t *pathtex;
+    UnitData_t const *data;
+
+    if (!point) return;
+    data = G_UnitData(building_id);
+    pathtex = M_LoadPathTex(data->pathingTexture);
+    if (!pathtex) {
+        point->x = floorf(point->x / WC3_BUILD_CELL_SIZE) * WC3_BUILD_CELL_SIZE;
+        point->y = floorf(point->y / WC3_BUILD_CELL_SIZE) * WC3_BUILD_CELL_SIZE;
+        return;
+    }
+    point->x = floorf(point->x / WC3_BUILD_GRID_SIZE) * WC3_BUILD_GRID_SIZE;
+    point->y = floorf(point->y / WC3_BUILD_GRID_SIZE) * WC3_BUILD_GRID_SIZE;
+    if (((pathtex->width / 2) & 1) != 0) point->x += WC3_BUILD_CELL_SIZE;
+    if (((pathtex->height / 2) & 1) != 0) point->y += WC3_BUILD_CELL_SIZE;
+    gi.MemFree(pathtex);
+}
+
+static BOOL G_PathCellUsed(pathTex_t const *pathtex, DWORD x, DWORD y) {
+    if (!pathtex) return true;
+    return pathtex->map[x + y * pathtex->width].b != 0;
+}
+
+static BOOL G_FindBuildOnTarget(DWORD building_id, LPCVECTOR2 point, LPEDICT *out) {
+    UnitData_t const *data = G_UnitData(building_id);
+    if (out) *out = NULL;
+    if (!data->isBuildOn) return true;
+    FILTER_EDICTS(ent, ent->inuse && G_UnitIsBuilding(ent->class_id) && ent->UnitData->canBuildOn) {
+        if (fabsf(ent->s.origin2.x - point->x) <= WC3_BUILD_CELL_SIZE &&
+            fabsf(ent->s.origin2.y - point->y) <= WC3_BUILD_CELL_SIZE) {
+            if (out) *out = ent;
+            return true;
+        }
+    }
+    return false;
+}
+
+static BOOL G_LiveUnitBlocksBuild(LPEDICT builder, LPEDICT build_on, LPCBOX2 footprint) {
+    FILTER_EDICTS(ent, ent->inuse && (ent->svflags & SVF_MONSTER) && !(ent->svflags & SVF_DEADMONSTER)) {
+        FLOAT x, y;
+        if (ent == builder || ent == build_on || ent->collision <= 0.0f) continue;
+        x = MAX(footprint->min.x, MIN(footprint->max.x, ent->s.origin2.x));
+        y = MAX(footprint->min.y, MIN(footprint->max.y, ent->s.origin2.y));
+        VECTOR2 nearest = { x, y };
+        if (Vector2_distance(&nearest, &ent->s.origin2) < ent->collision) return true;
+    }
+    return false;
+}
+
+buildPlacementResult_t G_EvaluateBuildPlacement(LPEDICT builder, DWORD building_id, LPCVECTOR2 requested,
+                                                LPVECTOR2 snapped) {
+    UnitBalance_t const *balance = G_UnitBalance(building_id);
+    UnitUI_t const *ui = G_UnitUI(building_id);
+    UnitData_t const *data = G_UnitData(building_id);
+    LPCSTR prevent = balance->preventPlace ? balance->preventPlace : ui->preventPlace;
+    LPCSTR require = balance->requirePlace ? balance->requirePlace : ui->requirePlace;
+    BYTE prevented = WC3_PATH_UNBUILDABLE | WC3_PATH_UNWALKABLE | G_PlacementFlags(prevent);
+    BYTE required = G_PlacementFlags(require);
+    pathTex_t *pathtex = NULL;
+    LPEDICT build_on = NULL;
+    DWORD width = 1, height = 1;
+    BOX2 footprint;
+    VECTOR2 point;
+
+    if (!requested || !G_UnitIsBuilding(building_id)) return PLACE_INVALID_BUILDING;
+    point = *requested;
+    G_SnapBuildingPoint(building_id, &point);
+    if (snapped) *snapped = point;
+
+    if (!G_FindBuildOnTarget(building_id, &point, &build_on)) return PLACE_REQUIRED_PARENT_MISSING;
+    pathtex = M_LoadPathTex(data->pathingTexture);
+    if (data->pathingTexture && strlen(data->pathingTexture) > 1 && !pathtex) {
+        return PLACE_INVALID_BUILDING;
+    }
+    if (pathtex) {
+        width = MAX(1, pathtex->width);
+        height = MAX(1, pathtex->height);
+    }
+    footprint.min.x = point.x - width * WC3_BUILD_CELL_SIZE * 0.5f;
+    footprint.min.y = point.y - height * WC3_BUILD_CELL_SIZE * 0.5f;
+    footprint.max.x = point.x + width * WC3_BUILD_CELL_SIZE * 0.5f;
+    footprint.max.y = point.y + height * WC3_BUILD_CELL_SIZE * 0.5f;
+
+    if (!build_on) {
+        FOR_LOOP(x, width) {
+            FOR_LOOP(y, height) {
+                VECTOR2 sample;
+                BYTE flags;
+                if (pathtex && !G_PathCellUsed(pathtex, x, y)) continue;
+                sample.x = point.x + ((FLOAT)x + 0.5f - (FLOAT)width * 0.5f) * WC3_BUILD_CELL_SIZE;
+                sample.y = point.y + ((FLOAT)y + 0.5f - (FLOAT)height * 0.5f) * WC3_BUILD_CELL_SIZE;
+                if (!CM_GetPathingFlagsAt(&sample, &flags)) {
+                    if (pathtex) gi.MemFree(pathtex);
+                    return PLACE_OUT_OF_BOUNDS;
+                }
+                if (flags & prevented) {
+                    if (pathtex) gi.MemFree(pathtex);
+                    return PLACE_TERRAIN_BLOCKED;
+                }
+                if ((flags & required) != required) {
+                    if (pathtex) gi.MemFree(pathtex);
+                    return PLACE_REQUIRED_PATHING_MISSING;
+                }
+            }
+        }
+    }
+    if (pathtex) gi.MemFree(pathtex);
+    if (G_LiveUnitBlocksBuild(builder, build_on, &footprint)) return PLACE_UNIT_BLOCKED;
+    return PLACE_OK;
+}
+
+FLOAT G_BuildApproachDistance(DWORD building_id) {
+    pathTex_t *pathtex = M_LoadPathTex(G_UnitData(building_id)->pathingTexture);
+    FLOAT result;
+    if (!pathtex) return MAX(WC3_BUILD_CELL_SIZE, G_UnitCollision(building_id));
+    result = MAX(pathtex->width, pathtex->height) * WC3_BUILD_CELL_SIZE * 0.5f;
+    gi.MemFree(pathtex);
+    return result;
+}
+
+BOOL G_StartHumanConstruction(LPEDICT builder, LPEDICT building) {
+    EDICTSTAT *hp;
+    if (!builder || !building || !G_UnitIsBuilding(building->class_id)) return false;
+    hp = &building->health;
+    building->construction.active = true;
+    building->construction.paused = true;
+    building->construction.primary_builder = builder;
+    building->construction.progress = 0.0f;
+    building->aiflags |= AI_HOLD_FRAME;
+    hp->value = MAX(1.0f, hp->max_value * WC3_BUILD_START_LIFE);
+    return true;
+}
+
+void G_CompleteConstruction(LPEDICT building) {
+    LPGAMECLIENT client;
+    if (!building || !building->construction.active) return;
+    client = G_GetPlayerClientByNumber(building->s.player);
+    building->construction.active = false;
+    building->construction.paused = false;
+    building->construction.primary_builder = NULL;
+    building->construction.progress = 0.0f;
+    building->aiflags &= ~AI_HOLD_FRAME;
+    building->health.value = building->health.max_value;
+    building->stand(building);
+    if (client && building->UnitBalance->foodMade > 0) {
+        client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] += building->UnitBalance->foodMade;
+    }
+    G_PublishEvent(building, EVENT_PLAYER_UNIT_CONSTRUCT_FINISH);
+    if (client) {
+        LPEDICT clent = G_GetPlayerEntityByNumber(client->ps.number);
+        G_RefreshResourceBar(clent);
+        Get_Portrait_f(clent);
+    }
+}
