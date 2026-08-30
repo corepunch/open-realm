@@ -86,6 +86,7 @@ LPEDICT Waypoint_add(LPCVECTOR2 spot) {
     waypoint->s.origin.x = spot->x;
     waypoint->s.origin.y = spot->y;
     waypoint->heatmap2 = 0;
+    waypoint->heatmap2_radius = 0;
     waypoint->secondarygoal = NULL;
     waypoint->collision = 0;
     M_CheckGround(waypoint);
@@ -107,16 +108,26 @@ BOOL M_IsDead(LPEDICT ent) {
     return ent->health.value <= 0;
 }
 
-/* Per-sim-tick budget on expensive flow-field bakes. Under heavy combat many
- * units chase many moving targets; without a hard cap the bakes exceed the tick
- * budget and the fixed-timestep catch-up loop death-spirals permanently. When
- * the budget is spent, callers reuse a stale flow field (or fall back to direct
- * steering if none exists). Reset each tick in G_RunFrame. */
+/* Preserve main's existing hard cap on synchronous generic flow-field bakes.
+ * Despite the legacy variable name, main does not reset this counter. An
+ * earlier compatibility patch did reset it every simulation tick, which made
+ * arbitrary right-click destinations eligible for another whole-map flood and
+ * produced visible input stalls on slower devices. Collision-sized lumber
+ * routes bypass this generic cap and are cached on the fixed tree target. */
 DWORD g_heatmap_builds_this_frame = 0;
 #define HEATMAP_BUILD_BUDGET 2
 
-DWORD M_RefreshHeatmap(LPEDICT self) {
+static int monster_harvest_path_debug_level(void) {
+    LPCSTR value;
+    if (!gi.CvarString)
+        return 0;
+    value = gi.CvarString("wc3_harvest_path_debug", "0");
+    return value ? atoi(value) : 0;
+}
+
+DWORD M_RefreshHeatmap(LPEDICT self, FLOAT radius) {
     LPEDICT route = self && self->secondarygoal ? self->secondarygoal : self;
+    BOOL const radius_matches = route && fabsf(route->heatmap2_radius - radius) < 0.01f;
 
     if (!route) {
         return 0;
@@ -127,7 +138,7 @@ DWORD M_RefreshHeatmap(LPEDICT self) {
      * every tick) is catastrophic — the flow field is shared by all chasers, so
      * cache it on the target and rebuild only when the target has actually moved
      * past ~half a pathing cell. */
-    if (route->heatmap2 && CM_ActivateCachedFlow(route->heatmap2)) {
+    if (radius_matches && route->heatmap2 && CM_ActivateCachedFlow(route->heatmap2)) {
         if (!(route->svflags & SVF_MONSTER)) {
             return route->heatmap2;
         }
@@ -136,19 +147,53 @@ DWORD M_RefreshHeatmap(LPEDICT self) {
         if (!moved || !stale) {
             return route->heatmap2;
         }
-        /* Wants a rebuild, but defer if the per-tick bake budget is spent. */
-        if (g_heatmap_builds_this_frame >= HEATMAP_BUILD_BUDGET) {
+        /* Generic point routes keep main's bounded synchronous rebuild policy. */
+        if (radius <= 0.01f && g_heatmap_builds_this_frame >= HEATMAP_BUILD_BUDGET) {
+            if (monster_harvest_path_debug_level() >= 2 && route->targtype == TARG_TREE) {
+                fprintf(stderr,
+                        "WC3_HARVEST_PATH heatmap target=%d reason=budget_reuse generation=%u radius=%.1f budget=%u/%u\n",
+                        route->s.number, route->heatmap2, radius,
+                        g_heatmap_builds_this_frame, HEATMAP_BUILD_BUDGET);
+            }
             return route->heatmap2;
         }
-    } else if (g_heatmap_builds_this_frame >= HEATMAP_BUILD_BUDGET) {
-        /* No usable cache and budget spent: skip this tick. Caller (chasing a
-         * moving target) falls back to direct steering toward the goal. */
-        return route->heatmap2;
+    } else if (radius <= 0.01f && g_heatmap_builds_this_frame >= HEATMAP_BUILD_BUDGET) {
+        /* No usable generic cache and the legacy synchronous-build cap is
+         * spent: preserve main's fallback behavior rather than doing another
+         * whole-map bake on the input/simulation path. */
+        if (monster_harvest_path_debug_level() >= 2 && route->targtype == TARG_TREE) {
+            fprintf(stderr,
+                    "WC3_HARVEST_PATH heatmap target=%d reason=budget_wait generation=0 radius=%.1f budget=%u/%u\n",
+                    route->s.number, radius,
+                    g_heatmap_builds_this_frame, HEATMAP_BUILD_BUDGET);
+        }
+        return 0;
     }
-    g_heatmap_builds_this_frame++;
-    route->heatmap2 = CM_BuildHeatmap(route);
+    /* Generic point routes retain main's bounded synchronous-build behavior.
+     * Lumber's collision-sized tree route must still be able to build after
+     * that generic budget has been consumed, otherwise an unreachable-tree
+     * order becomes dependent on what happened earlier in the match. */
+    if (radius <= 0.01f)
+        g_heatmap_builds_this_frame++;
+    route->heatmap2 = CM_BuildHeatmapForRadius(route, radius);
     route->heatmap2_origin = route->s.origin2;
     route->heatmap2_time = level.time;
+    route->heatmap2_radius = radius;
+    if (monster_harvest_path_debug_level() >= 2) {
+        if (route->targtype == TARG_TREE) {
+            fprintf(stderr,
+                    "WC3_HARVEST_PATH heatmap target=%d reason=build generation=%u radius=%.1f generic_budget=%u/%u bypass=%d\n",
+                    route->s.number, route->heatmap2, radius,
+                    g_heatmap_builds_this_frame, HEATMAP_BUILD_BUDGET, radius > 0.01f);
+        } else if (radius <= 0.01f) {
+            /* Temporary routing diagnostic: at most the legacy generic build
+             * cap can emit these, so ordinary movement cannot flood stderr. */
+            fprintf(stderr,
+                    "WC3_ROUTE_PATH heatmap target=%d reason=build generation=%u generic_budget=%u/%u\n",
+                    route->s.number, route->heatmap2,
+                    g_heatmap_builds_this_frame, HEATMAP_BUILD_BUDGET);
+        }
+    }
     return route->heatmap2;
 }
 

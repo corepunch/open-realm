@@ -33,6 +33,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 JASS native coverage, callback contracts, state ownership | [docs/games/warcraft-3/jass-native-coverage.md](docs/games/warcraft-3/jass-native-coverage.md) |
 | WC3 gathering, immobile units, construction HUD, overhead bars | [docs/games/warcraft-3/economy-and-unit-presentation.md](docs/games/warcraft-3/economy-and-unit-presentation.md) |
 | WC3 building menu, placement validation, Human construction and power building | [docs/games/warcraft-3/building-construction.md](docs/games/warcraft-3/building-construction.md) |
+| WC3 pathfinding, flow fields, collision-sized routing, unreachable lumber targets | [docs/games/warcraft-3/pathfinding.md](docs/games/warcraft-3/pathfinding.md) |
 | WC3 inventory, world-item lifecycle, item UI presentation | [docs/games/warcraft-3/inventory-and-items.md](docs/games/warcraft-3/inventory-and-items.md) |
 | WC3 campaign loading lifecycle, texture references, unused FDF art, cliff transitions | [docs/games/warcraft-3/loading-and-assets.md](docs/games/warcraft-3/loading-and-assets.md) |
 | WC3 perf hot spots: MDX bone/geoset setup, shadow batching, client/server entity scans | [docs/games/warcraft-3/performance.md](docs/games/warcraft-3/performance.md) |

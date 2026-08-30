@@ -235,6 +235,34 @@ static FLOAT unit_desired_heading(LPEDICT self, FLOAT goal_angle, FLOAT dist) {
     return goal_angle;  /* boxed in: aim at the goal, hold (move step will fail) */
 }
 
+static void unit_apply_heading(LPEDICT self, LPCVECTOR2 dir) {
+    FLOAT const dirlen = Vector2_len(dir);
+    if (dirlen <= 0.001f)
+        return;  /* no meaningful heading this tick: hold current facing */
+
+    /* Local avoidance resolves into ONE heading; the facing turns toward it and
+     * the move step (unit_moveindirection) follows it, keeping facing and motion
+     * aligned (no second, disagreeing search). */
+    FLOAT const goal_angle = atan2f(dir->y, dir->x);
+    FLOAT const desired = unit_desired_heading(self, goal_angle, unit_movedistance(self));
+    self->movement.heading = desired;
+    unit_turn_toward(self, desired);
+}
+
+void unit_changeangle_towards_point(LPEDICT self, LPCVECTOR2 point) {
+    VECTOR2 dir;
+
+    if (!self || !point || (self->aiflags & AI_IMMOBILE))
+        return;
+    self->movement.heading = self->s.angle;
+    self->movement.flow_generation = 0;
+    self->movement.flow_goal_reached = false;
+    self->movement.flow_unreachable = false;
+    self->movement.flow_direct = true;
+    dir = Vector2_sub(point, &self->s.origin2);
+    unit_apply_heading(self, &dir);
+}
+
 void unit_changeangle(LPEDICT self) {
     if (self->aiflags & AI_IMMOBILE)
         return;
@@ -242,30 +270,70 @@ void unit_changeangle(LPEDICT self) {
     VECTOR2 dir;
 
     self->movement.heading = self->s.angle;  /* default if no heading is resolved this tick */
+    self->movement.flow_generation = 0;
+    self->movement.flow_goal_reached = false;
+    self->movement.flow_unreachable = false;
+    self->movement.flow_direct = false;
 
-    /* Global routing: steer straight only when the line to the goal is clear of
-     * terrain (near OR far); otherwise follow the flow field around terrain.
-     * The cheap Bresenham test gates the expensive flow-field bake. */
+    /* Generic interaction movement keeps the original point-route contract.
+     * Attack, mine entry, resource return, repair, and other ranged behaviors
+     * decide when their interaction boundary has been reached.  Do not stop
+     * those orders at a collision-expanded flow goal outside that boundary. */
     if (CM_LineIsWalkable(&self->s.origin2, &self->goalentity->s.origin2)) {
+        self->movement.flow_direct = true;
         dir = to_goal;
     } else {
-        DWORD heatmap = M_RefreshHeatmap(self->goalentity);
+        DWORD heatmap = M_RefreshHeatmap(self->goalentity, 0.0f);
+        self->movement.flow_generation = heatmap;
         dir = get_flow_direction(heatmap, self->s.origin.x, self->s.origin.y);
         if (Vector2_len(&dir) <= 0.001f)
             dir = to_goal;
     }
 
-    FLOAT const dirlen = Vector2_len(&dir);
-    if (dirlen <= 0.001f)
-        return;  /* no meaningful heading this tick: hold current facing */
+    unit_apply_heading(self, &dir);
+}
 
-    /* Local avoidance resolves into ONE heading; the facing turns toward it and
-     * the move step (unit_moveindirection) follows it, keeping facing and motion
-     * aligned (no second, disagreeing search). */
-    FLOAT const goal_angle = atan2f(dir.y, dir.x);
-    FLOAT const desired = unit_desired_heading(self, goal_angle, unit_movedistance(self));
-    self->movement.heading = desired;
-    unit_turn_toward(self, desired);
+/* Lumber's retail-compatible unreachable-tree handling needs to know when a
+ * mover has exhausted a collision-sized route to a blocked destructible while
+ * still outside chop range.  Keep that stronger route-end contract scoped to
+ * the lumber approach; generic building/unit interactions own different range
+ * boundaries and must continue through unit_changeangle(). */
+void unit_changeangle_for_radius(LPEDICT self, FLOAT radius) {
+    if (self->aiflags & AI_IMMOBILE)
+        return;
+    VECTOR2 to_goal = Vector2_sub(&self->goalentity->s.origin2, &self->s.origin2);
+    VECTOR2 dir;
+
+    self->movement.heading = self->s.angle;
+    self->movement.flow_generation = 0;
+    self->movement.flow_goal_reached = false;
+    self->movement.flow_unreachable = false;
+    self->movement.flow_direct = false;
+
+    if (CM_LineIsWalkableForRadius(&self->s.origin2,
+                                   &self->goalentity->s.origin2,
+                                   radius)) {
+        self->movement.flow_direct = true;
+        dir = to_goal;
+    } else {
+        DWORD heatmap = M_RefreshHeatmap(self->goalentity, radius);
+        self->movement.flow_generation = heatmap;
+        if (!heatmap)
+            return; /* per-frame route budget exhausted: wait for a later tick */
+
+        if (CM_FlowReachedGoal(heatmap, self->s.origin.x, self->s.origin.y)) {
+            self->movement.flow_goal_reached = true;
+            return;
+        }
+        dir = get_flow_direction(heatmap, self->s.origin.x, self->s.origin.y);
+        if (Vector2_len(&dir) <= 0.001f) {
+            self->movement.flow_unreachable =
+                !CM_FlowCanReach(heatmap, self->s.origin.x, self->s.origin.y);
+            return;
+        }
+    }
+
+    unit_apply_heading(self, &dir);
 }
 
 void unit_setanimation(LPEDICT self, LPCSTR anim) {

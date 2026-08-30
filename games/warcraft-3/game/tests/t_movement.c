@@ -134,6 +134,21 @@ static void setup_test_goldmine(LPEDICT mine, UnitAbilities_t const *abilities, 
     mine->health.value = mine->health.max_value = 1000.0f;
 }
 
+static pathTex_t *movement_make_goldmine_pathtex(void) {
+    enum { W = 16, H = 16 };
+    pathTex_t *tex = gi.MemAlloc(sizeof(*tex) + W * H * sizeof(COLOR32));
+    T_ASSERT(tex != NULL);
+    tex->width = W;
+    tex->height = H;
+    FOR_LOOP(i, W * H)
+        tex->map[i] = (COLOR32){ 0, 0, 0, 255 };
+    for (int y = 4; y < 12; y++) {
+        for (int x = 4; x < 12; x++)
+            tex->map[x + y * W].b = 255;
+    }
+    return tex;
+}
+
 static LPEDICT add_gold_worker(FLOAT x, FLOAT y) {
     LPEDICT worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), x, y);
     worker->movetype = MOVETYPE_STEP;
@@ -189,6 +204,102 @@ TEST(wc3_movement, gold_worker_enters_large_mine_footprint) {
     free_slk_rows(rows);
 }
 
+
+/* A worker at the last legal cell beside an authored mine footprint must be
+ * admitted when one movement step reaches the footprint.  Keep this fixture at
+ * the interaction boundary so it tests mine-entry semantics independently of
+ * global route-cache/build-budget state left by earlier pathfinding tests. */
+TEST(wc3_movement, gold_worker_enters_mine_with_blocked_pathing_footprint) {
+    enum { CELLS = 64 };
+    BYTE pathmap[CELLS * CELLS] = {0};
+    LPEDICT worker = make_moving_unit(158.0f, 0.0f);
+    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 320.0f, 0.0f);
+    pathTex_t *mine_pathtex = movement_make_goldmine_pathtex();
+
+    worker->collision = 16.0f;
+    worker->unitinfo.MoveSpeed = 190.0f;
+    mine->collision = 128.0f;
+    mine->s.model = 1;
+    mine->movetype = MOVETYPE_NONE;
+    mine->pathtex = mine_pathtex;
+    setup_test_goldmine(mine, &test_goldmine_cap1, 100);
+    gi.LinkEntity(worker);
+    gi.LinkEntity(mine);
+
+    /* Mirror the mine path texture's central 8x8 no-walk cells into the
+     * static test map.  The entity carries the same authored pathtex so
+     * interaction distance and movement pathing describe one footprint. */
+    for (int y = 28; y < 36; y++) {
+        for (int x = 38; x < 46; x++)
+            pathmap[x + y * CELLS] = 0x02;
+    }
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(BOX2,
+        .min = {-1024.0f, -1024.0f},
+        .max = { 1024.0f,  1024.0f}));
+
+    T_ASSERT(CM_PointIsPathableForRadius(&worker->s.origin2, worker->collision));
+    T_ASSERT(!CM_PointIsPathableForRadius(&mine->s.origin2, 0.0f));
+    T_ASSERT(CM_DistanceToPathingFootprint(mine, &worker->s.origin2) <=
+             worker->collision + unit_movedistance(worker));
+
+    slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
+    harvest_gold_start(worker, mine);
+    worker->currentmove->think(worker);
+
+    T_ASSERT(worker->s.renderfx & RF_HIDDEN);
+    T_EQ(mine->peonsinside, 1);
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+    gi.MemFree(mine_pathtex);
+}
+
+/* The mine pathing footprint is square/texture-authored, while mine->collision
+ * is only a scalar approximation.  At a footprint corner the worker can be one
+ * legal movement step from the no-walk cells while its centre distance is still
+ * greater than worker+mine collision+step.  Mine entry must use the authored
+ * footprint so routing cannot strand a diagonally approaching worker. */
+TEST(wc3_movement, gold_worker_enters_at_pathing_footprint_corner) {
+    enum { CELLS = 64 };
+    BYTE pathmap[CELLS * CELLS] = {0};
+    LPEDICT worker = make_moving_unit(170.0f, 170.0f);
+    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 320.0f, 320.0f);
+    pathTex_t *mine_pathtex = movement_make_goldmine_pathtex();
+
+    worker->collision = 16.0f;
+    worker->unitinfo.MoveSpeed = 190.0f;
+    mine->collision = 128.0f;
+    mine->s.model = 1;
+    mine->movetype = MOVETYPE_NONE;
+    mine->pathtex = mine_pathtex;
+    setup_test_goldmine(mine, &test_goldmine_cap1, 100);
+    gi.LinkEntity(worker);
+    gi.LinkEntity(mine);
+
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(BOX2,
+        .min = {-1024.0f, -1024.0f},
+        .max = { 1024.0f,  1024.0f}));
+
+    /* Centre-circle entry is deliberately still false at this corner.
+     * Check the fixture geometry directly: harvest_gold_start() has not yet
+     * assigned worker->goalentity, so M_DistanceToGoal() is not valid here. */
+    T_ASSERT(Vector2_distance(&worker->s.origin2, &mine->s.origin2) >
+             worker->collision + mine->collision + unit_movedistance(worker));
+    T_ASSERT(CM_DistanceToPathingFootprint(mine, &worker->s.origin2) <=
+             worker->collision + unit_movedistance(worker));
+
+    slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
+    harvest_gold_start(worker, mine);
+    worker->currentmove->think(worker);
+
+    T_ASSERT(worker->s.renderfx & RF_HIDDEN);
+    T_EQ(mine->peonsinside, 1);
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+    gi.MemFree(mine_pathtex);
+}
+
 /* A final chop equal to the remaining life must run the tree's death callback,
  * which owns its fall animation and pathing removal. */
 TEST(wc3_movement, lumber_final_chop_fells_tree) {
@@ -240,6 +351,73 @@ TEST(wc3_movement, lumber_nonlethal_chop_keeps_tree_standing) {
     T_ASSERT(!tree_died);
     T_EQ(tree_pained, 1);
     T_FEQ(tree->health.value, 1.0f, 0.01f);
+}
+
+/* Retail WC3 does not leave a worker orbiting an unreachable tree buried in a
+ * forest.  The clicked tree remains authoritative while a route exists; once
+ * the collision-sized flow field reaches its closest legal approach point and
+ * that point is still outside chop range, Harvest selects a reachable edge
+ * tree and begins chopping it. */
+TEST(wc3_movement, lumber_unreachable_clicked_tree_retargets_reachable_edge_tree) {
+    enum { CELLS = 64 };
+    BYTE pathmap[CELLS * CELLS] = {0};
+    LPEDICT worker = make_moving_unit(0.0f, -320.0f);
+    LPEDICT edge = make_harvest_tree(0.0f, -96.0f, 500.0f);
+    LPEDICT interior = make_harvest_tree(0.0f, 0.0f, 500.0f);
+
+    worker->collision = 16.0f;
+    worker->unitinfo.MoveSpeed = 190.0f;
+    worker->attack1.damagePoint = 0.01f;
+    edge->collision = interior->collision = 0.0f;
+
+    /* Seven blocked rows/columns model a dense forest around the clicked
+     * interior tree.  With a 16u worker radius the closest legal route goal is
+     * outside the forest, still >64u from the interior target but within 64u of
+     * the southern edge tree. */
+    for (int y = 29; y <= 35; y++) {
+        for (int x = 29; x <= 35; x++)
+            pathmap[x + y * CELLS] = 0x02;
+    }
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(BOX2,
+        .min = {-1024.0f, -1024.0f},
+        .max = { 1024.0f,  1024.0f}));
+
+    HARVEST_RANGE = 64.0f;
+    HARVEST_SEARCH_RANGE = 1000.0f;
+    HARVEST_TREE_DAMAGE = 1.0f;
+    harvest_start(worker, interior);
+
+    FOR_LOOP(i, 200) {
+        worker->currentmove->think(worker);
+        if (worker->goalentity == edge &&
+            worker->currentmove &&
+            !strcmp(worker->currentmove->animation, "attack"))
+            break;
+    }
+
+    T_ASSERT(worker->goalentity == edge);
+    T_ASSERT(worker->secondarygoal == edge);
+    T_NOT_NULL(worker->currentmove);
+    T_STREQ(worker->currentmove->animation, "attack");
+    T_ASSERT(Vector2_distance(&worker->s.origin2, &edge->s.origin2) <= HARVEST_RANGE);
+}
+
+TEST(wc3_movement, lumber_tree_dying_during_approach_retargets_immediately) {
+    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
+    LPEDICT dead = make_harvest_tree(400.0f, 0.0f, 100.0f);
+    LPEDICT live = make_harvest_tree(100.0f, 0.0f, 100.0f);
+
+    HARVEST_RANGE = 64.0f;
+    HARVEST_SEARCH_RANGE = 1000.0f;
+    harvest_start(worker, dead);
+    dead->health.value = 0.0f;
+    dead->svflags |= SVF_DEADMONSTER;
+
+    worker->currentmove->think(worker);
+
+    T_ASSERT(worker->goalentity == live);
+    T_ASSERT(worker->secondarygoal == live);
 }
 
 /* Ahar slots 1=1 (damage/lumber per swing), 2=10 (capacity): 10 swings are
@@ -393,6 +571,55 @@ TEST(wc3_movement, lumber_return_deposits_at_next_step_contact) {
     T_ASSERT(M_DistanceToGoal(worker) > worker->collision + hall->collision + 5.0f);
     T_ASSERT(M_DistanceToGoal(worker) <= worker->collision + hall->collision + unit_movedistance(worker));
     worker->currentmove->think(worker);
+
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER], old_lumber + 10);
+    T_EQ(worker->harvested_lumber, 0);
+    T_ASSERT(!(worker->s.renderfx & RF_HAS_LUMBER));
+    T_ASSERT(worker->goalentity == tree);
+}
+
+
+/* Returning lumber to a building with authored blocking pathing uses the same
+ * generic point-route contract as mine entry.  Routing may approach the blocked
+ * center, but the resource behavior owns the contact+step completion boundary. */
+TEST(wc3_movement, lumber_return_reaches_blocked_townhall_footprint) {
+    enum { CELLS = 64 };
+    BYTE pathmap[CELLS * CELLS] = {0};
+    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
+    LPEDICT tree = make_harvest_tree(-400.0f, 0.0f, 100.0f);
+    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 320.0f, 0.0f);
+    DWORD const old_lumber = game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER];
+
+    worker->collision = 16.0f;
+    worker->unitinfo.MoveSpeed = 190.0f;
+    hall->collision = 192.0f;
+    hall->s.model = 1;
+    hall->movetype = MOVETYPE_NONE;
+    hall->s.player = worker->s.player;
+    make_live_dropoff(hall, &return_gold_lumber_abilities);
+    gi.LinkEntity(worker);
+    gi.LinkEntity(tree);
+    gi.LinkEntity(hall);
+
+    /* 12x12 Town Hall footprint centered on world (320,0). */
+    for (int y = 26; y < 38; y++) {
+        for (int x = 36; x < 48; x++)
+            pathmap[x + y * CELLS] = 0x02;
+    }
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(BOX2,
+        .min = {-1024.0f, -1024.0f},
+        .max = { 1024.0f,  1024.0f}));
+
+    worker->harvested_lumber = 10;
+    worker->s.renderfx |= RF_HAS_LUMBER;
+    worker->secondarygoal = tree;
+    harvest_walkback(worker);
+
+    FOR_LOOP(i, 80) {
+        worker->currentmove->think(worker);
+        if (!worker->harvested_lumber) break;
+    }
 
     T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER], old_lumber + 10);
     T_EQ(worker->harvested_lumber, 0);
@@ -603,6 +830,61 @@ TEST(wc3_movement, gold_return_deposits_at_next_step_contact) {
     T_EQ(mine->resources, 90);
     G_SetSLKRows("AbilityData", old_abilities);
     free_slk_rows(rows);
+}
+
+/* Return-to-building range must use the authored footprint, not only the
+ * building's scalar collision circle.  At a Town Hall corner the Peasant can
+ * be one legal step from the no-walk cells while centre distance is still well
+ * outside collision+step; gold must deposit at that footprint edge. */
+TEST(wc3_movement, gold_return_deposits_at_townhall_footprint_corner) {
+    enum { CELLS = 64 };
+    BYTE pathmap[CELLS * CELLS] = {0};
+    LPEDICT worker = make_moving_unit(170.0f, 170.0f);
+    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), -400.0f, 0.0f);
+    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 320.0f, 320.0f);
+    pathTex_t *hall_pathtex = movement_make_goldmine_pathtex();
+    DWORD const old_gold = game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD];
+
+    worker->collision = 16.0f;
+    worker->unitinfo.MoveSpeed = 190.0f;
+    mine->collision = 128.0f;
+    mine->s.model = 1;
+    hall->collision = 64.0f; /* deliberately smaller than its authored footprint */
+    hall->s.model = 1;
+    hall->s.player = worker->s.player;
+    hall->pathtex = hall_pathtex;
+    make_live_dropoff(hall, &return_gold_lumber_abilities);
+    setup_test_goldmine(mine, &test_goldmine_cap1, 100);
+    gi.LinkEntity(worker);
+    gi.LinkEntity(mine);
+    gi.LinkEntity(hall);
+
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(BOX2,
+        .min = {-1024.0f, -1024.0f},
+        .max = { 1024.0f,  1024.0f}));
+
+    slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
+    HARVEST_GOLD_CAPACITY = 10.0f;
+    worker->goalentity = worker->secondarygoal = mine;
+    harvestgold_minegold(worker);
+    harvestgold_walkback(worker);
+
+    T_ASSERT(worker->goalentity == hall);
+    T_ASSERT(M_DistanceToGoal(worker) >
+             worker->collision + hall->collision + unit_movedistance(worker));
+    T_ASSERT(CM_DistanceToPathingFootprint(hall, &worker->s.origin2) <=
+             worker->collision + unit_movedistance(worker));
+
+    worker->currentmove->think(worker);
+
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD], old_gold + 10);
+    T_EQ(worker->harvested_gold, 0);
+    T_ASSERT(!(worker->s.renderfx & RF_HAS_GOLD));
+    T_ASSERT(worker->goalentity == mine);
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+    gi.MemFree(hall_pathtex);
 }
 
 /* A lumber-only return ability is incompatible with carried gold even when it

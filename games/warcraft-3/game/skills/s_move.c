@@ -166,6 +166,10 @@ void move_reset_progress(LPEDICT self) {
     self->movement.last_origin = self->s.origin2;
     self->movement.last_distance = -1;
     self->movement.blocked_frames = 0;
+    self->movement.flow_generation = 0;
+    self->movement.flow_goal_reached = false;
+    self->movement.flow_unreachable = false;
+    self->movement.flow_direct = false;
     self->movement.group_speed = 0;  /* single-unit/default: travel at own speed */
 }
 
