@@ -902,6 +902,7 @@ void G_PushEntity3(LPEDICT ent, FLOAT distance, LPCVECTOR3 direction);
 
 // g_abilities.c
 ability_t const *FindAbilityByClassname(LPCSTR);
+ability_t const *FindAbilityForCommand(LPCSTR);
 ability_t const *GetAbilityByIndex(DWORD);
 DWORD FindAbilityIndex(LPCSTR);
 void InitAbilities(void);

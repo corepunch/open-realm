@@ -132,7 +132,7 @@ CLIENTCOMMAND(SmartPoint) {
 CLIENTCOMMAND(Button) {
     LPCSTR classname = argv[1];
     LPGAMECLIENT client = clent->client;
-    ability_t const *ability = FindAbilityByClassname(GetClassName(G_AbilityCodeName(classname)));
+    ability_t const *ability = FindAbilityForCommand(classname);
     if (ability && ability->cmd) {
         client->menu.ability_code = *((DWORD const *)classname);
         ability->cmd(clent);
@@ -269,7 +269,7 @@ CLIENTCOMMAND(Inventory) {
     abilities = FindConfigValue(GetClassName(item->class_id), "abilList");
     if (abilities && *abilities) {
         PARSE_LIST(abilities, ability_name, parse_segment) {
-            ability_t const *ability = FindAbilityByClassname(GetClassName(G_AbilityCodeName(ability_name)));
+            ability_t const *ability = FindAbilityForCommand(ability_name);
             if (ability && ability->cmd) {
                 client->menu.ability_code = *((DWORD const *)ability_name);
                 ability->cmd(clent);

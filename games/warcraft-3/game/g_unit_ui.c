@@ -135,6 +135,8 @@ BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, 
     LPCSTR tip;
     LPCSTR ubertip;
     LPCSTR hotkey;
+    ability_t const *ability;
+    DWORD ability_code = 0;
     DWORD x = UINT_MAX;
     DWORD y = UINT_MAX;
 
@@ -143,7 +145,13 @@ BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, 
     }
 
     memset(button, 0, sizeof(*button));
-    base_code = GetClassName(G_AbilityCodeName(code));
+    ability = FindAbilityForCommand(code);
+    if (strlen(code) == 4) {
+        ability_code = G_AbilityCodeName(code);
+        base_code = GetClassName(ability_code);
+    } else {
+        base_code = code;
+    }
     art_code = G_CommandArtCode(ent, code);
     art = FindConfigValue(art_code, G_ResearchField(STR_ART, research));
     buttonpos = FindConfigValue(art_code, G_ResearchField(STR_BUTTONPOS, research));
@@ -164,10 +172,9 @@ BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, 
     button->x = x == UINT_MAX ? 255 : (BYTE)MIN(x, 3);
     button->y = y == UINT_MAX ? 255 : (BYTE)MIN(y, 2);
     button->research = research ? 1 : 0;
-    button->active = (BYTE)FindAbilityIndex(base_code);
-    if (strlen(base_code) >= 4) {
-        button->manacost = S_SpellNumber(MAKEFOURCC(base_code[0], base_code[1], base_code[2], base_code[3]),
-                         ABILITY_NUMBER_COST, level);
+    button->active = (BYTE)GetAbilityIndex(ability);
+    if (ability_code) {
+        button->manacost = S_SpellNumber(ability_code, ABILITY_NUMBER_COST, level);
     }
     if (!button->art[0]) {
         fprintf(stderr,
@@ -201,7 +208,7 @@ static void G_AddCommandButton(LPEDICT ent,
 }
 
 static BOOL G_IsImplementedAbility(LPCSTR code) {
-    return FindAbilityByClassname(code) != NULL;
+    return FindAbilityForCommand(code) != NULL;
 }
 
 BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_buttons) {
@@ -239,7 +246,7 @@ BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_but
     } else if (a->abilList) {
         PARSE_LIST(a->abilList, abil, parse_segment) {
             DWORD const code = G_AbilityCodeName(abil);
-            if (G_IsImplementedAbility(GetClassName(code))) {
+            if (G_IsImplementedAbility(abil)) {
                 BYTE const idx = count;
                 G_AddCommandButton(ent, buttons, max_buttons, &count, abil, false, 0);
                 if (count > idx) buttons[idx].cooldown = S_SpellCooldownFraction(ent, code, 0);
