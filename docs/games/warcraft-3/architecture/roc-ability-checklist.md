@@ -224,7 +224,7 @@ ROC totals: 397 ability aliases, 244 unique base codes.
 | `TODO` | `Aroa` | Item | Roar | Aroa, ACro, AIrr |  |
 | `Partial` | `Aroo` | Unit/Common | Root (Ancients) | Aro1, Aro2 | Basic rooted movement toggle exists. |
 | `Stub` | `Arst` | Unit/Common | Restoration | Arst | Registered repair variant stub. |
-| `Partial` | `Artn` | Unit/Common | Return (Gold) | Argd, Argl, Arlm | Drop-off capability, nearest compatible selection, and retargeting are implemented; command/carry state remains in harvest state machines. |
+| `Partial` | `Artn` | Unit/Common | Return (Gold) | Argd, Argl, Arlm | Drop-off capability, nearest compatible selection, destroyed-target retargeting, explicit Smart-click return, and no-target return through `Ahar` are implemented; carried-resource state remains in harvest state machines. |
 | `TODO` | `Asac` | Unit/Common | Sacrifice (Sacrificial Pit) | Asac |  |
 | `TODO` | `Asal` | Unit/Common | Pillage | Asal |  |
 | `TODO` | `Asds` | Unit/Common | Self Destruct | Asds |  |

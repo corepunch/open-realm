@@ -91,8 +91,8 @@ generic `Button` command path rather than by a registered ability code.
 | `Abgm` | Blighted Gold Mine | TODO | Needs undead mine variant. |
 | `Abli` | Blight | TODO | Needs blight placement/spread and terrain interaction. |
 | `Aaha` | Acolyte Harvest | TODO | Needs undead gold harvesting behavior. |
-| `Artn` | Return Resources | Partial | Drop-off eligibility is ability-driven (`Argd`/`Arlm`/`Argl` plus `Artn`-derived data), with nearest compatible selection and retargeting; the carried-resource command/state still lives in harvest state machines. |
-| `Ahar` | Harvest | Partial | Local worker harvest exists, but not as the same split data model as the ability data. |
+| `Artn` | Return Resources | Partial | Drop-off eligibility is ability-driven (`Argd`/`Arlm`/`Argl` plus `Artn`-derived data), with nearest compatible selection, destroyed-target retargeting, explicit Smart-click return, and no-target return through the worker Harvest command; carried-resource state still lives in the harvest state machines. |
+| `Ahar` | Harvest | Partial | Human worker harvest/return gameplay exists, including capacity clamping and same-forest resume after a dead remembered tree, but not as the same split data model as the ability data; command-card art/text does not yet model the carried-state presentation separately. |
 | `Awha` | Wisp Harvest | TODO | Needs wisp-specific gather behavior. |
 | `Ahrl` | Harvest Lumber | Partial | Local lumber harvest is under `Ahar`; `Ahrl` is not registered. |
 | `ANcl` | Channel test | Stub | Opens cancel mode as a generic channel scaffold. |
