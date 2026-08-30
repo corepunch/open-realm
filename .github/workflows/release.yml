@@ -52,6 +52,7 @@ jobs:
           msystem: MINGW64
           update: false
           install: >-
+            mingw-w64-x86_64-gcc
             mingw-w64-x86_64-SDL2
             mingw-w64-x86_64-libepoxy
             make
