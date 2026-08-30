@@ -6,6 +6,9 @@
 
 #include <SDL2/SDL.h>
 #include <sys/stat.h>
+#ifdef _WIN32
+#include <direct.h>
+#endif
 #ifdef __APPLE__
 /* Forward-declare the Objective-C runtime calls we need without pulling in
  * <objc/objc.h>, which redefines BOOL and conflicts with our project typedef. */
