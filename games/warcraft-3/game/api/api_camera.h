@@ -296,14 +296,43 @@ DWORD CameraSetSmoothingFactor(LPJASS j) {
     //FLOAT factor = jass_checknumber(j, 1);
     return 0;
 }
+static BOX2 G_DefaultCameraBounds(void) {
+    FLOAT const *bounds = level.mapinfo->cameraBounds.bounds;
+
+    return MAKE(BOX2,
+        .min = {
+            MIN(MIN(bounds[0], bounds[2]), MIN(bounds[4], bounds[6])),
+            MIN(MIN(bounds[1], bounds[3]), MIN(bounds[5], bounds[7])),
+        },
+        .max = {
+            MAX(MAX(bounds[0], bounds[2]), MAX(bounds[4], bounds[6])),
+            MAX(MAX(bounds[1], bounds[3]), MAX(bounds[5], bounds[7])),
+        });
+}
+
+static BOX2 G_PlayableMapBounds(void) {
+    mapCameraBounds_t const *camera = &level.mapinfo->cameraBounds;
+    BOX2 playable = CM_GetWorldBounds();
+
+    /* W3I complements describe the terrain cells outside the playable map.
+     * They are not the values returned by the JASS GetCameraMargin native. */
+    playable.min.x += camera->complement.left * TILE_SIZE;
+    playable.max.x -= camera->complement.right * TILE_SIZE;
+    playable.min.y += camera->complement.bottom * TILE_SIZE;
+    playable.max.y -= camera->complement.top * TILE_SIZE;
+    return playable;
+}
+
 DWORD GetCameraMargin(LPJASS j) {
     LONG whichMargin = jass_checkinteger(j, 1);
-    mapCameraBounds_t const *bounds = &level.mapinfo->cameraBounds;
+    BOX2 const camera = G_DefaultCameraBounds();
+    BOX2 const playable = G_PlayableMapBounds();
+
     switch (whichMargin) {
-        case 0: jass_pushnumber(j, bounds->margin.left * TILE_SIZE); break;
-        case 1: jass_pushnumber(j, bounds->margin.right * TILE_SIZE); break;
-        case 2: jass_pushnumber(j, bounds->margin.top * TILE_SIZE); break;
-        case 3: jass_pushnumber(j, bounds->margin.bottom * TILE_SIZE); break;
+        case 0: jass_pushnumber(j, camera.min.x - playable.min.x); break;
+        case 1: jass_pushnumber(j, playable.max.x - camera.max.x); break;
+        case 2: jass_pushnumber(j, playable.max.y - camera.max.y); break;
+        case 3: jass_pushnumber(j, camera.min.y - playable.min.y); break;
         default: jass_pushnull(j);
     }
     return 1;

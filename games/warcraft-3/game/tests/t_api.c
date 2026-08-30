@@ -22,6 +22,7 @@
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
 void reset_entities(void);
 void setup_test_world(void);
+void CM_SetupTestWorldBounds(LPCBOX2 bounds);
 BOOL run_test_jass(LPCSTR src);
 extern LPPLAYER currentplayer;
 void unit_die(LPEDICT self, LPEDICT attacker);
@@ -100,31 +101,47 @@ TEST(wc3_api, escape_restores_game_camera_ui_and_control) {
     T_FEQ(gc->ps.viewquat.x, quat.x, 0.001f); T_FEQ(gc->ps.viewquat.w, quat.w, 0.001f);
 }
 
-TEST(wc3_api, camera_margin_uses_w3i_vertical_complement_order) {
-    /* war3map.w3i stores complements as left, right, bottom, top even though
-     * the JASS CAMERA_MARGIN_* selector order is left, right, top, bottom. */
-    int const raw_complements[4] = { 1, 2, 3, 4 };
+TEST(wc3_api, camera_margin_is_default_camera_inset_from_playable_area) {
+    /* W3I complements crop the entire W3E terrain to the playable rectangle.
+     * GetCameraMargin is the remaining inset from that playable rectangle to
+     * the W3I default camera bounds; it is not complement * TILE_SIZE. */
+    int const raw_complements[4] = { 4, 8, 6, 10 };
     LPMAPINFO mapinfo = (LPMAPINFO)level.mapinfo;
     LPGAMECLIENT gc = &game.clients[0];
 
-    memcpy(&mapinfo->cameraBounds.margin, raw_complements, sizeof(raw_complements));
+    CM_SetupTestWorldBounds(&MAKE(BOX2,
+        .min = { -4096.0f, -3072.0f },
+        .max = { 4096.0f, 3072.0f }));
+    memcpy(&mapinfo->cameraBounds.complement, raw_complements, sizeof(raw_complements));
+
+    /* Complements produce playable [-3584,-2304]..[3072,1792].
+     * Default camera bounds are inset by L=256, R=384, B=384, T=512. */
+    memcpy(mapinfo->cameraBounds.bounds, (FLOAT[8]){
+        -3328.0f, -1920.0f,
+        -3328.0f,  1280.0f,
+         2688.0f,  1280.0f,
+         2688.0f, -1920.0f,
+    }, sizeof(mapinfo->cameraBounds.bounds));
+
     currentplayer = NULL;
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
-        "  call SetCameraBounds(-1024.0 + GetCameraMargin(CAMERA_MARGIN_LEFT), "
-        "-1024.0 + GetCameraMargin(CAMERA_MARGIN_BOTTOM), "
-        "-1024.0 + GetCameraMargin(CAMERA_MARGIN_LEFT), "
-        "1024.0 - GetCameraMargin(CAMERA_MARGIN_TOP), "
-        "1024.0 - GetCameraMargin(CAMERA_MARGIN_RIGHT), "
-        "1024.0 - GetCameraMargin(CAMERA_MARGIN_TOP), "
-        "1024.0 - GetCameraMargin(CAMERA_MARGIN_RIGHT), "
-        "-1024.0 + GetCameraMargin(CAMERA_MARGIN_BOTTOM))\n"
+        "  call SetCameraBounds(-3584.0 + GetCameraMargin(CAMERA_MARGIN_LEFT), "
+        "-2304.0 + GetCameraMargin(CAMERA_MARGIN_BOTTOM), "
+        "-3584.0 + GetCameraMargin(CAMERA_MARGIN_LEFT), "
+        "1792.0 - GetCameraMargin(CAMERA_MARGIN_TOP), "
+        "3072.0 - GetCameraMargin(CAMERA_MARGIN_RIGHT), "
+        "1792.0 - GetCameraMargin(CAMERA_MARGIN_TOP), "
+        "3072.0 - GetCameraMargin(CAMERA_MARGIN_RIGHT), "
+        "-2304.0 + GetCameraMargin(CAMERA_MARGIN_BOTTOM))\n"
         "endfunction\n"));
 
-    T_FEQ(gc->ps.camera_bounds.min.x, -896.0f, 0.001f);
-    T_FEQ(gc->ps.camera_bounds.max.x, 768.0f, 0.001f);
-    T_FEQ(gc->ps.camera_bounds.min.y, -640.0f, 0.001f);
-    T_FEQ(gc->ps.camera_bounds.max.y, 512.0f, 0.001f);
+    /* The generated SetCameraBounds call reconstructs the W3I default camera
+     * rectangle instead of applying the complement widths a second time. */
+    T_FEQ(gc->ps.camera_bounds.min.x, -3328.0f, 0.001f);
+    T_FEQ(gc->ps.camera_bounds.max.x, 2688.0f, 0.001f);
+    T_FEQ(gc->ps.camera_bounds.min.y, -1920.0f, 0.001f);
+    T_FEQ(gc->ps.camera_bounds.max.y, 1280.0f, 0.001f);
 }
 
 TEST(wc3_api, camera_bounds_clamp_user_and_scripted_targets) {

@@ -18,7 +18,7 @@ typedef struct {
          * Keep this declaration in on-disk order: CM_ReadInfoInto reads the
          * complete mapCameraBounds_t directly from war3map.w3i. */
         int left, right, bottom, top;
-    } margin;
+    } complement;
 } mapCameraBounds_t;
 
 enum mapInfoFlags_t {

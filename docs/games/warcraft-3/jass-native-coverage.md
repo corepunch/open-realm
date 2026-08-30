@@ -73,7 +73,7 @@ reconstructs and may override map/player setup before `main()` starts. Setup
 callbacks therefore need mutable per-level state initialized from `MAPINFO`;
 casting away `level.mapinfo` constness is not the long-term ownership model.
 
-Camera bounds are an example of client-visible runtime state rather than mutable map metadata: each WC3 `PLAYER` receives a `BOX2 camera_bounds` initialized from W3I, `SetCameraBounds` changes that per-player copy, and the snapshot transports it so camera prediction uses the same limits as the server.
+Camera bounds are an example of client-visible runtime state rather than mutable map metadata: each WC3 `PLAYER` receives a `BOX2 camera_bounds` initialized from W3I, `SetCameraBounds` changes that per-player copy, and the snapshot transports it so camera prediction uses the same limits as the server. `GetCameraMargin` is not a direct read of the W3I complement integers: it returns the geometric inset between the complement-derived playable rectangle and the W3I default camera rectangle. This distinction matters because World Editor generated `SetCameraBounds` calls use playable-edge constants plus/minus `GetCameraMargin`.
 
 ## Runtime Error Reporting
 
