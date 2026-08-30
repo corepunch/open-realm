@@ -36,7 +36,8 @@ CSTR   mapAuthor
 CSTR   mapDescription
 CSTR   playersRecommended
 ...
-FLOAT[8]  cameraBounds     // playable camera extents
+FLOAT[8]  cameraBounds     // initial four camera-bound corner points; copied into per-player runtime camera bounds
+LONG[4]   cameraMargins    // W3I complements in left, right, bottom, top order (tiles)
 SIZE2     playableArea     // width × height in tiles
 DWORD     flags
 CHAR      mainGroundType   // e.g. 'A' = Ashenvale, 'L' = Lordaeron
@@ -47,6 +48,8 @@ DWORD  num_forces
 [forceRecord × num_forces]
 ...
 ```
+
+The four W3I camera-bound complements are stored in **left, right, bottom, top** order. This differs from the JASS selector constants, whose numeric order is left, right, top, bottom. `GetCameraMargin` translates the selector to the named W3I field and multiplies the tile count by `TILE_SIZE`; do not reinterpret the raw third/fourth W3I integers as top/bottom. World Editor generated `main` functions use the returned bottom and top margins when constructing `SetCameraBounds`.
 
 Each `playerRecord` contains:
 - player slot index

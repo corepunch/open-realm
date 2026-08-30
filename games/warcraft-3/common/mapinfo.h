@@ -14,8 +14,11 @@
 typedef struct {
     float bounds[8];
     struct {
-        int left, right, top, bottom;
-    } margin; // bounds complements* (see note 1) (ints A, B, C and D)
+        /* W3I stores the four complements as left, right, bottom, top.
+         * Keep this declaration in on-disk order: CM_ReadInfoInto reads the
+         * complete mapCameraBounds_t directly from war3map.w3i. */
+        int left, right, bottom, top;
+    } margin;
 } mapCameraBounds_t;
 
 enum mapInfoFlags_t {

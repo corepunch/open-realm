@@ -202,6 +202,43 @@ BOOL G_SkipCutscene(void) {
     return value && *value && strcmp(value, "0");
 }
 
+VECTOR2 G_ClampCameraPosition(LPGAMECLIENT client, LPCVECTOR2 position) {
+    VECTOR2 clamped = position ? *position : (VECTOR2){ 0, 0 };
+
+    if (!client || !position) {
+        return clamped;
+    }
+    if (client->ps.camera_bounds.max.x > client->ps.camera_bounds.min.x) {
+        clamped.x = MAX(client->ps.camera_bounds.min.x,
+                        MIN(client->ps.camera_bounds.max.x, clamped.x));
+    }
+    if (client->ps.camera_bounds.max.y > client->ps.camera_bounds.min.y) {
+        clamped.y = MAX(client->ps.camera_bounds.min.y,
+                        MIN(client->ps.camera_bounds.max.y, clamped.y));
+    }
+    return clamped;
+}
+
+void G_SetClientCameraBounds(LPGAMECLIENT client, FLOAT const bounds[8]) {
+    VECTOR2 position;
+
+    if (!client || !bounds) {
+        return;
+    }
+
+    client->ps.camera_bounds.min.x = MIN(MIN(bounds[0], bounds[2]), MIN(bounds[4], bounds[6]));
+    client->ps.camera_bounds.max.x = MAX(MAX(bounds[0], bounds[2]), MAX(bounds[4], bounds[6]));
+    client->ps.camera_bounds.min.y = MIN(MIN(bounds[1], bounds[3]), MIN(bounds[5], bounds[7]));
+    client->ps.camera_bounds.max.y = MAX(MAX(bounds[1], bounds[3]), MAX(bounds[5], bounds[7]));
+
+    position = G_ClampCameraPosition(client, &client->ps.origin);
+    client->ps.origin = position;
+    position = G_ClampCameraPosition(client, &client->camera.old_state.position);
+    client->camera.old_state.position = position;
+    position = G_ClampCameraPosition(client, &client->camera.state.position);
+    client->camera.state.position = position;
+}
+
 void G_ClearCameraTarget(LPGAMECLIENT client, LPCSTR func) {
     (void)func;
     if (!client || !client->camera.target_controller) {
@@ -224,6 +261,7 @@ static void G_UpdateCameraTarget(LPGAMECLIENT client) {
     }
     position.x = target->s.origin2.x + client->camera.target_offset.x;
     position.y = target->s.origin2.y + client->camera.target_offset.y;
+    position = G_ClampCameraPosition(client, &position);
     client->camera.old_state.position = position;
     client->camera.state.position = position;
     client->camera.start_time = gi.GetTime();

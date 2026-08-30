@@ -129,6 +129,9 @@ void CL_SetGameplayBindings(void);
 void CL_BeginLoadingMap(LPCSTR mapName);
 void CL_RequestUnitUI(DWORD num_selected, DWORD *entity_nums);
 BOOL CL_AltModifierDown(void);
+#ifdef WC3
+VECTOR2 CL_ClampCameraPosition(VECTOR2 position);
+#endif
 
 void V_RenderView(void);
 void V_Shutdown(void);

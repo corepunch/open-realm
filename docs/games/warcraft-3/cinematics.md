@@ -150,6 +150,21 @@ Units move using the same system as normal gameplay: JASS scripts issue move ord
 
 Camera follows units via `SetCameraTargetController`. The camera interpolation runs in `G_RunClients()` each frame, lerping position/quaternion/FOV between `camera.start_time` and `camera.end_time`. The `G_UpdateCameraTarget` function follows `target_controller` unit's position plus offset.
 
+Camera target bounds are per-player runtime state. `G_InitMapPlayer()` initializes `PLAYER.camera_bounds` from the four W3I camera-bound points, then `SetCameraBounds` may replace that rectangle at runtime. Because OpenRealm executes one server-side JASS VM rather than one VM per rendered client, an unscoped `SetCameraBounds` (`currentplayer == NULL`) applies to every game client; inside a local-player context it updates only that player's bounds. `GetCameraBoundMinX/Y` and `GetCameraBoundMaxX/Y` read the same current rectangle. Do not mutate `level.mapinfo->cameraBounds`: W3I remains immutable initial map metadata.
+
+W3I stores its four integer camera complements in **left, right, bottom, top** order, while the JASS `CAMERA_MARGIN_*` selector constants are left, right, top, bottom. `mapCameraBounds_t.margin` deliberately follows the W3I on-disk order because `CM_ReadInfoInto()` reads the structure directly. `GetCameraMargin()` performs the selector-to-field mapping used by World Editor generated `SetCameraBounds` calls. Swapping the two vertical W3I fields makes the generated map script clamp the camera with the opposite edge's margin and can make one side of the map unreachable.
+
+All camera target writers use `G_ClampCameraPosition()`: user `clc_camera_position`, `SetCameraPosition`/`PanCameraTo`, camera setups, and target-controller following. The WC3 player snapshot carries the current `BOX2 camera_bounds`, allowing `CL_SetCameraPosition()` to clamp edge-scroll, keyboard, middle-drag, and minimap click/drag before applying local prediction. When a new snapshot shrinks the bounds, `CL_ParsePlayerInfo()` reclamps any pending prediction before comparing it with the authoritative server origin; this prevents the old loop where the server rejected an out-of-bounds prediction and the client immediately restored it.
+
+Regression coverage:
+
+```sh
+make test-wc3-engine WC3_PATTERN='wc3_api.camera_bounds*'
+make test
+```
+
+The full test target covers the standalone `net.playerstate_camera_bounds_roundtrip` and `net.camera_prediction_reconciles_to_server_clamped_bound` cases. The implementation change must also retain the existing cinematic cleanup tests because camera bounds are transmitted in `PLAYER`.
+
 ### Cinefilter
 
 Full-screen overlay effects (fades, blurs) use `SetCineFilterTexture`/`SetCineFilterStartColor`/`SetCineFilterEndColor`/`SetCineFilterDuration`/`DisplayCineFilter`. The runtime interpolation is in `G_Cinefade()` which lerps between start/end alpha.

@@ -429,6 +429,9 @@ struct playerState_s {
     QUATERNION viewquat;            // canonical 3D view orientation sent to the renderer
     VECTOR3 viewangles;             // euler pitch/yaw for WoW orbit camera math; only transmitted #ifdef WOW (can't round-trip euler from quat losslessly)
     VECTOR2 origin;                 // 2D camera focus point; XY only because all games here are isometric/orbit, not first-person
+#ifdef WC3
+    BOX2 camera_bounds;             // current per-player camera target bounds; initialized from W3I, mutable by SetCameraBounds
+#endif
     FLOAT distance;                 // camera distance from origin for orbit/isometric view
     DWORD fov;                      // vertical FOV in degrees; transmitted as NFT_BYTE so BYTE would suffice
     DWORD rdflags;                  // refdef flags (underwater tint, etc.)

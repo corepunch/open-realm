@@ -100,6 +100,88 @@ TEST(wc3_api, escape_restores_game_camera_ui_and_control) {
     T_FEQ(gc->ps.viewquat.x, quat.x, 0.001f); T_FEQ(gc->ps.viewquat.w, quat.w, 0.001f);
 }
 
+TEST(wc3_api, camera_margin_uses_w3i_vertical_complement_order) {
+    /* war3map.w3i stores complements as left, right, bottom, top even though
+     * the JASS CAMERA_MARGIN_* selector order is left, right, top, bottom. */
+    int const raw_complements[4] = { 1, 2, 3, 4 };
+    LPMAPINFO mapinfo = (LPMAPINFO)level.mapinfo;
+    LPGAMECLIENT gc = &game.clients[0];
+
+    memcpy(&mapinfo->cameraBounds.margin, raw_complements, sizeof(raw_complements));
+    currentplayer = NULL;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SetCameraBounds(-1024.0 + GetCameraMargin(CAMERA_MARGIN_LEFT), "
+        "-1024.0 + GetCameraMargin(CAMERA_MARGIN_BOTTOM), "
+        "-1024.0 + GetCameraMargin(CAMERA_MARGIN_LEFT), "
+        "1024.0 - GetCameraMargin(CAMERA_MARGIN_TOP), "
+        "1024.0 - GetCameraMargin(CAMERA_MARGIN_RIGHT), "
+        "1024.0 - GetCameraMargin(CAMERA_MARGIN_TOP), "
+        "1024.0 - GetCameraMargin(CAMERA_MARGIN_RIGHT), "
+        "-1024.0 + GetCameraMargin(CAMERA_MARGIN_BOTTOM))\n"
+        "endfunction\n"));
+
+    T_FEQ(gc->ps.camera_bounds.min.x, -896.0f, 0.001f);
+    T_FEQ(gc->ps.camera_bounds.max.x, 768.0f, 0.001f);
+    T_FEQ(gc->ps.camera_bounds.min.y, -640.0f, 0.001f);
+    T_FEQ(gc->ps.camera_bounds.max.y, 512.0f, 0.001f);
+}
+
+TEST(wc3_api, camera_bounds_clamp_user_and_scripted_targets) {
+    LPGAMECLIENT gc = &game.clients[0];
+    VECTOR2 requested = { 500.0f, -500.0f };
+
+    currentplayer = NULL;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SetCameraBounds(-100.0, -50.0, -100.0, 50.0, 100.0, 50.0, 100.0, -50.0)\n"
+        "endfunction\n"));
+    T_FEQ(gc->ps.camera_bounds.min.x, -100.0f, 0.001f);
+    T_FEQ(gc->ps.camera_bounds.min.y, -50.0f, 0.001f);
+    T_FEQ(gc->ps.camera_bounds.max.x, 100.0f, 0.001f);
+    T_FEQ(gc->ps.camera_bounds.max.y, 50.0f, 0.001f);
+    if (game.max_clients > 1) {
+        T_FEQ(game.clients[1].ps.camera_bounds.max.x, 100.0f, 0.001f);
+    }
+
+    G_ClientSetCameraPosition(&g_edicts[0], &requested);
+    T_FEQ(gc->camera.state.position.x, 100.0f, 0.001f);
+    T_FEQ(gc->camera.state.position.y, -50.0f, 0.001f);
+
+    currentplayer = &gc->ps;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SetCameraPosition(GetCameraBoundMinX() - 200.0, GetCameraBoundMaxY() + 200.0)\n"
+        "endfunction\n"));
+    T_FEQ(gc->camera.state.position.x, -100.0f, 0.001f);
+    T_FEQ(gc->camera.state.position.y, 50.0f, 0.001f);
+    currentplayer = NULL;
+}
+
+TEST(wc3_api, camera_bounds_are_per_player_when_local_context_exists) {
+    LPGAMECLIENT gc0 = &game.clients[0];
+    LPGAMECLIENT gc1 = game.max_clients > 1 ? &game.clients[1] : NULL;
+
+    currentplayer = NULL;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SetCameraBounds(-100.0, -100.0, -100.0, 100.0, 100.0, 100.0, 100.0, -100.0)\n"
+        "endfunction\n"));
+
+    currentplayer = &gc0->ps;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SetCameraBounds(-25.0, -20.0, -25.0, 20.0, 25.0, 20.0, 25.0, -20.0)\n"
+        "endfunction\n"));
+    T_FEQ(gc0->ps.camera_bounds.min.x, -25.0f, 0.001f);
+    T_FEQ(gc0->ps.camera_bounds.max.y, 20.0f, 0.001f);
+    if (gc1) {
+        T_FEQ(gc1->ps.camera_bounds.min.x, -100.0f, 0.001f);
+        T_FEQ(gc1->ps.camera_bounds.max.y, 100.0f, 0.001f);
+    }
+    currentplayer = NULL;
+}
+
 /* Fast-forward only changes cinematic timing; JASS retains ownership of the input/UI lifecycle. */
 TEST(wc3_api, skip_cutscene_preserves_scripted_input_and_ui_state) {
     LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;

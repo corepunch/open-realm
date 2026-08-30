@@ -17,24 +17,26 @@ static LPGAMECLIENT G_CurrentCameraClient(LPCSTR func) {
 
 static void G_SetCameraPositionForCurrentPlayer(LPCSTR func, FLOAT x, FLOAT y, FLOAT duration) {
     LPGAMECLIENT gc = G_CurrentCameraClient(func);
+    VECTOR2 position = { x, y };
+
     if (!gc) {
         return;
     }
     if (G_SkipCutscene()) {
         duration = 0;
     }
+    position = G_ClampCameraPosition(gc, &position);
     G_ClearCameraTarget(gc, func);
     gc->camera.old_state = gc->camera.state;
-    gc->camera.state.position.x = x;
-    gc->camera.state.position.y = y;
+    gc->camera.state.position = position;
     gc->camera.start_time = gi.GetTime();
     gc->camera.end_time = gc->camera.start_time + duration * 1000;
     fprintf(stderr,
             "%s: player=%u pos=(%.1f,%.1f) duration=%.3f start=%u end=%u\n",
             func,
             (unsigned)PLAYER_NUM(currentplayer),
-            x,
-            y,
+            position.x,
+            position.y,
             duration,
             (unsigned)gc->camera.start_time,
             (unsigned)gc->camera.end_time);
@@ -52,9 +54,9 @@ DWORD SetCameraTargetController(LPJASS j) {
     gc->camera.target_controller = whichUnit;
     gc->camera.target_offset = (VECTOR2){ xoffset, yoffset };
     if (whichUnit) {
+        VECTOR2 position = { whichUnit->s.origin2.x + xoffset, whichUnit->s.origin2.y + yoffset };
         gc->camera.old_state = gc->camera.state;
-        gc->camera.state.position.x = whichUnit->s.origin2.x + xoffset;
-        gc->camera.state.position.y = whichUnit->s.origin2.y + yoffset;
+        gc->camera.state.position = G_ClampCameraPosition(gc, &position);
         gc->camera.start_time = gi.GetTime();
         gc->camera.end_time = gc->camera.start_time;
     }
@@ -79,14 +81,18 @@ DWORD SetCameraQuickPosition(LPJASS j) {
     return 0;
 }
 DWORD SetCameraBounds(LPJASS j) {
-    (void)jass_checknumber(j, 1);
-    (void)jass_checknumber(j, 2);
-    (void)jass_checknumber(j, 3);
-    (void)jass_checknumber(j, 4);
-    (void)jass_checknumber(j, 5);
-    (void)jass_checknumber(j, 6);
-    (void)jass_checknumber(j, 7);
-    (void)jass_checknumber(j, 8);
+    FLOAT bounds[8];
+
+    FOR_LOOP(i, 8) {
+        bounds[i] = jass_checknumber(j, i + 1);
+    }
+    if (currentplayer) {
+        G_SetClientCameraBounds(PLAYER_CLIENT(currentplayer), bounds);
+    } else {
+        FOR_LOOP(i, game.max_clients) {
+            G_SetClientCameraBounds(game.clients + i, bounds);
+        }
+    }
     return 0;
 }
 DWORD StopCamera(LPJASS j) {
@@ -245,6 +251,7 @@ static void G_ApplyCameraSetup(LPCAMERASETUP setup, FLOAT duration_ms) {
     G_ClearCameraTarget(gc, "CameraSetupApply");
     gc->camera.old_state = gc->camera.state;
     gc->camera.state = *setup;
+    gc->camera.state.position = G_ClampCameraPosition(gc, &gc->camera.state.position);
     gc->camera.start_time = gi.GetTime();
     gc->camera.end_time = gc->camera.start_time + duration_ms;
 }
@@ -302,16 +309,20 @@ DWORD GetCameraMargin(LPJASS j) {
     return 1;
 }
 DWORD GetCameraBoundMinX(LPJASS j) {
-    return jass_pushnumber(j, 0);
+    LPGAMECLIENT gc = currentplayer ? PLAYER_CLIENT(currentplayer) : game.clients;
+    return jass_pushnumber(j, gc ? gc->ps.camera_bounds.min.x : 0);
 }
 DWORD GetCameraBoundMinY(LPJASS j) {
-    return jass_pushnumber(j, 0);
+    LPGAMECLIENT gc = currentplayer ? PLAYER_CLIENT(currentplayer) : game.clients;
+    return jass_pushnumber(j, gc ? gc->ps.camera_bounds.min.y : 0);
 }
 DWORD GetCameraBoundMaxX(LPJASS j) {
-    return jass_pushnumber(j, 0);
+    LPGAMECLIENT gc = currentplayer ? PLAYER_CLIENT(currentplayer) : game.clients;
+    return jass_pushnumber(j, gc ? gc->ps.camera_bounds.max.x : 0);
 }
 DWORD GetCameraBoundMaxY(LPJASS j) {
-    return jass_pushnumber(j, 0);
+    LPGAMECLIENT gc = currentplayer ? PLAYER_CLIENT(currentplayer) : game.clients;
+    return jass_pushnumber(j, gc ? gc->ps.camera_bounds.max.y : 0);
 }
 DWORD GetCameraField(LPJASS j) {
     //HANDLE whichField = jass_checkhandle(j, 1, "camerafield");
