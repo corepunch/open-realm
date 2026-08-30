@@ -6,6 +6,7 @@
 
 #ifdef _WIN32
 #include <io.h>
+#include <direct.h>
 #else
 #include <dirent.h>
 #include <strings.h>
