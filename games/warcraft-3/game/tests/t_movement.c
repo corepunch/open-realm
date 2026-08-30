@@ -311,6 +311,7 @@ TEST(wc3_movement, lumber_final_chop_fells_tree) {
     T_ASSERT(G_SubscribeMessage(trace_message, &trace));
     HARVEST_RANGE = 64.0f;
     HARVEST_TREE_DAMAGE = 10.0f;
+    HARVEST_LUMBER_CAPACITY = 10.0f;
     harvest_start(worker, tree);
 
     worker->currentmove->think(worker);
@@ -343,6 +344,7 @@ TEST(wc3_movement, lumber_nonlethal_chop_keeps_tree_standing) {
     tree_pained = 0;
     HARVEST_RANGE = 64.0f;
     HARVEST_TREE_DAMAGE = 10.0f;
+    HARVEST_LUMBER_CAPACITY = 10.0f;
     harvest_start(worker, tree);
 
     worker->currentmove->think(worker);
