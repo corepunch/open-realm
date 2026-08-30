@@ -150,7 +150,7 @@ static LONG G_RequirementAmount(UnitProfile_t const *profile, DWORD index) {
 
     if (!profile || !profile->requiresAmount ||
         !G_CsvToken(profile->requiresAmount, index, amount, sizeof(amount))) return 1;
-    if (sscanf(amount, "%ld", &value) != 1) {
+    if (sscanf(amount, "%d", &value) != 1) {
         fprintf(stderr, "G_RequirementAmount: invalid Requiresamount token '%s' at index %u\n",
                 amount, (unsigned)index);
         return 1;
@@ -190,7 +190,7 @@ static BOOL G_RequirementsSatisfied(LPGAMECLIENT client, DWORD building_id, LPST
             if (reason && reason_size) {
                 LPCSTR name = G_UnitProfile(rawcode)->name;
                 if (required > 1) {
-                    snprintf(reason, reason_size, "Requires %s x%ld",
+                    snprintf(reason, reason_size, "Requires %s x%d",
                              name && *name ? name : requirement, required);
                 } else {
                     snprintf(reason, reason_size, "Requires %s",

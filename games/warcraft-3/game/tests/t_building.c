@@ -261,7 +261,7 @@ TEST(wc3_building, plain_build_error_text_is_not_resolved_as_trigger_string_zero
     mapTrigStr_t zero = { .id = 0 };
 
     snprintf(zero.text, sizeof(zero.text), "Human02");
-    level.mapinfo->strings = &zero;
+    ((LPMAPINFO)level.mapinfo)->strings = &zero;
 
     T_STREQ(G_LevelString("Unable to build there."), "Unable to build there.");
     T_STREQ(G_LevelString("TRIGSTR_0"), "Human02");
