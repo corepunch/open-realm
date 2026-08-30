@@ -105,6 +105,21 @@ ability_t const *FindAbilityByClassname(LPCSTR classname) {
     return NULL;
 }
 
+/* Command-card names use two namespaces. Engine commands (CmdBuild, CmdMove,
+ * etc.) are full strings registered directly in abilitylist. WC3 abilities are
+ * four-character rawcodes whose AbilityData alias may point at a base handler.
+ * Only rawcodes belong in the SLK resolver: passing CmdBuild through FS_SLKKey
+ * truncates it to CmdB and loses the registered build command. */
+ability_t const *FindAbilityForCommand(LPCSTR classname) {
+    if (!classname || !*classname) {
+        return NULL;
+    }
+    if (strlen(classname) != 4) {
+        return FindAbilityByClassname(classname);
+    }
+    return FindAbilityByClassname(GetClassName(G_AbilityCodeName(classname)));
+}
+
 DWORD FindAbilityIndex(LPCSTR classname) {
     FOR_LOOP(i, game.num_abilities) {
         if (!abilitylist[i].classname)

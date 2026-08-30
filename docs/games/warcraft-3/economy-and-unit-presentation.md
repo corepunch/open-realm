@@ -239,12 +239,37 @@ An August 2026 regression had working world picking and working selected-unit he
 entity number at input, view, renderer, and health-bar filtering before the fix. Keep the active-view assignment in `V_RenderView`.
 The investigative logs were removed after confirmation.
 
+### Command-card command resolution
+
+Command-card clicks carry the original command string from `hud/hud_commands.c` to `CLIENTCOMMAND(Button)` in `g_commands.c`.
+There are two command namespaces and they must not be normalized the same way:
+
+- engine commands such as `CmdBuild`, `CmdMove`, and `CmdAttack` are full strings registered directly in `skills/s_skills.c`;
+- WC3 ability commands are four-character rawcodes such as `Ahrp`, which must follow `AbilityData.slk:code` to the registered base
+  handler (for example `Ahrp -> Arep`).
+
+Use `FindAbilityForCommand()` at the command-card boundary. It preserves non-four-character engine command strings verbatim and only
+runs four-character rawcodes through `G_AbilityCodeName()`. Do not pass `Cmd*` names through `FS_SLKKey()`/`G_AbilityCodeName()`: the
+SLK key helper intentionally copies at most four bytes, so `CmdBuild` becomes `CmdB` and cannot match the registered `CmdBuild`
+handler. The same resolver supplies the command button's `active` ability index; mana-cost lookup remains rawcode-only because engine
+commands have no `AbilityData` row.
+
+The August 30, 2026 build-menu regression was confirmed by a bounded runtime trace: the client hit `onclick="button CmdBuild"` and
+the server received `CmdBuild`, but pre-dispatch SLK normalization produced `CmdB`, missed `a_build`, and fell through to the selected
+unit's `trains` list. Peasants have a `Builds` list rather than a `trains` list, so the visible Build button appeared to do nothing.
+The investigative trace was removed after the root cause was confirmed.
+
+### Human building construction
+
+The command-card `CmdBuild` resolver is only the entry point. Authoritative build availability, WC3 grid snapping, placement/pathing validation, arrival-time revalidation, and Human Repair/power-building state live in [building-construction.md](building-construction.md). Use `+set wc3_build_all 1` to bypass tech/resource gates for structures already present in the selected worker's `Builds` list while retaining world-placement validation.
+
 ## Verification
 
 Focused deterministic checks:
 
 ```sh
 make test-wc3-engine WC3_PATTERN='wc3_movement.*'
+make test-wc3-engine WC3_PATTERN='wc3_combat.command_lookup_*'
 make test-wc3-engine WC3_PATTERN='wc3_combat.ability_data_resolves_roc_and_tft_columns'
 make test-wc3-engine WC3_PATTERN='wc3_unit.*'
 make test-wc3-engine WC3_PATTERN='wc3_game.hud_*'

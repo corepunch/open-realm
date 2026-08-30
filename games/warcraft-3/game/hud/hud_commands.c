@@ -74,15 +74,15 @@ void UI_WriteCommandButtonFrame(gameCommandButton_t const *button) {
     FLOAT by = UI_BASE_HEIGHT - 0.1131f + (FLOAT)button->y * 0.0434f;
     memset(&frame, 0, sizeof(frame));
     frame.flags.type = FT_COMMANDBUTTON;
-    frame.color = COLOR32_WHITE;
+    frame.color = button->disabled ? (COLOR32){ 128, 128, 128, 255 } : COLOR32_WHITE;
     frame.tex.index = gi.ImageIndex(button->art);
     frame.stat = button->active;
     frame.value = button->cooldown;
-    frame.hotkey = (BYTE)button->hotkey;
+    frame.hotkey = button->disabled ? 0 : (BYTE)button->hotkey;
     UI_FormatTooltip(button->command, button->tooltip, button->ubertip, button->manacost, tooltip, sizeof(tooltip));
     frame.tooltip = tooltip;
     snprintf(onclick, sizeof(onclick), "%s %s", button->research ? "research" : "button", button->command);
-    frame.onclick = onclick;
+    frame.onclick = button->disabled ? NULL : onclick;
     UI_SetFrameRect(&frame, bx - 0.0195f, by - 0.0195f, 0.039f, 0.039f);
     UI_WriteProxyFrame(&frame, NULL, 0);
 }

@@ -311,15 +311,24 @@ static void CL_AddBuilding(void) {
     
     re.TraceLocation(&cl.viewDef, mouse.origin.x, mouse.origin.y, &ent.origin);
 
-    ent.origin.x = floor(ent.origin.x / 32) * 32;
-    ent.origin.y = floor(ent.origin.y / 32) * 32;
+    if (cl.cursorEntity->pathing_width && cl.cursorEntity->pathing_height) {
+        DWORD const path_width = cl.cursorEntity->pathing_width;
+        DWORD const path_height = cl.cursorEntity->pathing_height;
+        ent.origin.x = floorf(ent.origin.x / 64.0f) * 64.0f;
+        ent.origin.y = floorf(ent.origin.y / 64.0f) * 64.0f;
+        if (((path_width / 2) & 1) != 0) ent.origin.x += 32.0f;
+        if (((path_height / 2) & 1) != 0) ent.origin.y += 32.0f;
+    } else {
+        ent.origin.x = floorf(ent.origin.x / 32.0f) * 32.0f;
+        ent.origin.y = floorf(ent.origin.y / 32.0f) * 32.0f;
+    }
     ent.origin.z = CM_GetHeightAtPoint(ent.origin.x, ent.origin.y);
     ent.scale = cl.cursorEntity->scale;
+    ent.angle = cl.cursorEntity->angle;
+    ent.team = cl.cursorEntity->player;
     ent.frame = cl.cursorEntity->frame;
     ent.oldframe = cl.cursorEntity->frame;
     ent.model = cl.models[cl.cursorEntity->model];
-    
-    cl.cursorEntity->origin = ent.origin;
     
     view_state.entities[view_state.num_entities++] = ent;
 }

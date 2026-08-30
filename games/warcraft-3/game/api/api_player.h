@@ -304,39 +304,50 @@ DWORD SetPlayerHandicapXP(LPJASS j) {
     return 0;
 }
 DWORD SetPlayerTechMaxAllowed(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    //LONG techid = jass_checkinteger(j, 2);
-    //LONG maximum = jass_checkinteger(j, 3);
+    LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
+    LONG techid = jass_checkinteger(j, 2);
+    LONG maximum = jass_checkinteger(j, 3);
+    if (whichPlayer) G_SetPlayerTechMaxAllowed(PLAYER_CLIENT(whichPlayer), (DWORD)techid, maximum);
     return 0;
 }
 DWORD GetPlayerTechMaxAllowed(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    //LONG techid = jass_checkinteger(j, 2);
-    return jass_pushinteger(j, 0);
+    LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
+    LONG techid = jass_checkinteger(j, 2);
+    LONG maximum = whichPlayer ? G_GetPlayerTechMaxAllowed(PLAYER_CLIENT(whichPlayer), (DWORD)techid) : -1;
+    return jass_pushinteger(j, maximum);
 }
 DWORD AddPlayerTechResearched(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    //LONG techid = jass_checkinteger(j, 2);
-    //LONG levels = jass_checkinteger(j, 3);
+    LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
+    LONG techid = jass_checkinteger(j, 2);
+    LONG levels = jass_checkinteger(j, 3);
+    if (whichPlayer) G_AddPlayerTechResearched(PLAYER_CLIENT(whichPlayer), (DWORD)techid, levels);
     return 0;
 }
 DWORD SetPlayerTechResearched(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    //LONG techid = jass_checkinteger(j, 2);
-    //LONG setToLevel = jass_checkinteger(j, 3);
+    LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
+    LONG techid = jass_checkinteger(j, 2);
+    LONG setToLevel = jass_checkinteger(j, 3);
+    if (whichPlayer) G_SetPlayerTechResearched(PLAYER_CLIENT(whichPlayer), (DWORD)techid, setToLevel);
     return 0;
 }
 DWORD GetPlayerTechResearched(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    //LONG techid = jass_checkinteger(j, 2);
-    //BOOL specificonly = jass_checkboolean(j, 3);
-    return jass_pushboolean(j, 0);
+    LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
+    LONG techid = jass_checkinteger(j, 2);
+    BOOL specificonly = jass_checkboolean(j, 3);
+    /* TODO: model Warcraft technology-equivalence groups. Until that data is
+     * represented, both specificonly modes address the exact rawcode only. */
+    (void)specificonly;
+    return jass_pushboolean(j, whichPlayer &&
+        G_GetPlayerTechResearchedLevel(PLAYER_CLIENT(whichPlayer), (DWORD)techid) > 0);
 }
 DWORD GetPlayerTechCount(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    //LONG techid = jass_checkinteger(j, 2);
-    //BOOL specificonly = jass_checkboolean(j, 3);
-    return jass_pushinteger(j, 0);
+    LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
+    LONG techid = jass_checkinteger(j, 2);
+    BOOL specificonly = jass_checkboolean(j, 3);
+    /* TODO: model Warcraft technology-equivalence groups. Until that data is
+     * represented, both specificonly modes address the exact rawcode only. */
+    (void)specificonly;
+    return jass_pushinteger(j, whichPlayer ? G_GetPlayerTechCountValue(PLAYER_CLIENT(whichPlayer), (DWORD)techid) : 0);
 }
 DWORD SetPlayerAbilityAvailable(LPJASS j) {
     //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");

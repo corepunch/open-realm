@@ -20,7 +20,8 @@ void free_slk_rows(slkTestData_t *rows);
  *                          armor reduction (0.06/point), negative armor,
  *                          minimum-1 clamp, zero-armor passthrough
  *   Ability lookup       — FindAbilityByClassname hit/miss,
- *                          GetAbilityByIndex, GetAbilityIndex
+ *                          command-name/rawcode resolution, GetAbilityByIndex,
+ *                          GetAbilityIndex
  *   player_pay           — deducts gold on success,
  *                          refuses when gold insufficient,
  *                          refuses when lumber insufficient,
@@ -671,6 +672,13 @@ TEST(wc3_combat, find_ability_move) {
     T_NOT_NULL(a);
 }
 
+TEST(wc3_combat, command_lookup_preserves_engine_command_name) {
+    ability_t const *a = FindAbilityForCommand(STR_CmdBuild);
+    T_NOT_NULL(a);
+    T_ASSERT(a == FindAbilityByClassname(STR_CmdBuild));
+    T_EQ(GetAbilityIndex(a), FindAbilityIndex(STR_CmdBuild));
+}
+
 TEST(wc3_combat, find_ability_unknown_returns_null) {
     ability_t const *a = FindAbilityByClassname("NotAnAbility");
     T_NULL(a);
@@ -713,7 +721,7 @@ TEST(wc3_combat, registered_reference_ability_codes) {
 }
 
 static const char slk_ability_helpers[] =
-    "ID;PWXL;N;EBB;Y3;X13\n"
+    "ID;PWXL;N;EBB;Y4;X13\n"
     "C;Y1;X1;K\"alias\"\n"
     "C;Y1;X2;K\"code\"\n"
     "C;Y1;X3;K\"targs\"\n"
@@ -745,7 +753,21 @@ static const char slk_ability_helpers[] =
     "C;Y3;X7;K\"75\"\n"
     "C;Y3;X9;K\"2\"\n"
     "C;Y3;X10;K\"hwat\"\n"
+    "C;Y4;X1;K\"Ahrp\"\n"
+    "C;Y4;X2;K\"Arep\"\n"
     "E\n";
+
+TEST(wc3_combat, command_lookup_resolves_fourcc_ability_alias) {
+    slkTestData_t *rows = parse_slk_string(slk_ability_helpers);
+    slkTestData_t *old_abilities = G_SetSLKRows("AbilityData", rows);
+    ability_t const *resolved = FindAbilityForCommand("Ahrp");
+
+    T_NOT_NULL(resolved);
+    T_ASSERT(resolved == FindAbilityByClassname("Arep"));
+
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
 
 static const char slk_ability_helpers_roc[] =
     "ID;PWXL;N;EBB;Y3;X4\n"
