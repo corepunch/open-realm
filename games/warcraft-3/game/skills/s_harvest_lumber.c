@@ -16,20 +16,27 @@ void harvest_start(LPEDICT self, LPEDICT target);
 void harvest_gold_start(LPEDICT self, LPEDICT target);
 
 static DWORD return_resources_mask(LPCSTR ability) {
-    DWORD mask = 0;
+    static struct { LPCSTR name; DWORD mask; } const artn_aliases[] = {
+        { "Argd", RETURN_RESOURCE_GOLD },
+        { "Arlm", RETURN_RESOURCE_LUMBER },
+        { "Argl", RETURN_RESOURCE_GOLD | RETURN_RESOURCE_LUMBER },
+    };
     AbilityData_t const *data;
+    DWORD mask = 0;
+    int i;
 
-    /* Stock return-resource abilities expose the same Artn capability with
-     * different accepted-resource configurations. Keep the aliases explicit
-     * so tests and stripped data sets do not need a full AbilityData table. */
-    if (!strcmp(ability, "Argd")) return RETURN_RESOURCE_GOLD;
-    if (!strcmp(ability, "Arlm")) return RETURN_RESOURCE_LUMBER;
-    if (!strcmp(ability, "Argl")) return RETURN_RESOURCE_GOLD | RETURN_RESOURCE_LUMBER;
+    /* Stock aliases map directly without a full AbilityData table. */
+    for (i = 0; i < (int)(sizeof(artn_aliases) / sizeof(artn_aliases[0])); i++) {
+        if (!strcmp(ability, artn_aliases[i].name))
+            return artn_aliases[i].mask;
+    }
 
     if (G_AbilityCodeName(ability) != MAKEFOURCC('A', 'r', 't', 'n'))
         return 0;
 
     data = G_AbilityDataName(ability);
+    if (!data)
+        return 0;
     if (data->data[0][0]) mask |= RETURN_RESOURCE_GOLD;
     if (data->data[0][1]) mask |= RETURN_RESOURCE_LUMBER;
     return mask;
@@ -54,6 +61,7 @@ LPEDICT S_FindNearestResourceDropoff(LPEDICT unit, returnResource_t resource) {
     LPEDICT best = NULL;
     FLOAT best_dist = 0;
 
+    /* TODO: use pathfinding distance; geometric distance misjudges across impassable terrain */
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT building = &globals.edicts[i];
         FLOAT dist;
@@ -117,9 +125,8 @@ static void ai_walktree(LPEDICT ent) {
 }
 
 static void ai_harvest_walkback(LPEDICT ent) {
-    LPEDICT dropoff;
     if (!S_CanReturnResourceAt(ent, ent->goalentity, RETURN_RESOURCE_LUMBER)) {
-        dropoff = S_FindNearestResourceDropoff(ent, RETURN_RESOURCE_LUMBER);
+        LPEDICT dropoff = S_FindNearestResourceDropoff(ent, RETURN_RESOURCE_LUMBER);
         if (!dropoff) {
             ent->stand(ent);
             return;
