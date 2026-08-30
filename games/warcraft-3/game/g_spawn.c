@@ -560,24 +560,26 @@ static BOOL SP_CanPlaceUnitAt(LPEDICT unit, LPCVECTOR2 point) {
     return true;
 }
 
-static BOOL SP_TryUnitExitCandidate(LPEDICT producer,
-                                    LPEDICT unit,
-                                    int grid_x,
-                                    int grid_y,
-                                    FLOAT spacing,
-                                    LPVECTOR2 out,
-                                    FLOAT *angle) {
+typedef struct {
+    LPEDICT   producer;
+    LPEDICT   unit;
+    FLOAT     spacing;
+    LPVECTOR2 out;
+    FLOAT    *angle;
+} unitExitCtx_t;
+
+static BOOL SP_TryUnitExitCandidate(unitExitCtx_t const *ctx, int grid_x, int grid_y) {
     VECTOR2 const candidate = {
-        producer->s.origin2.x + (FLOAT)grid_x * spacing,
-        producer->s.origin2.y + (FLOAT)grid_y * spacing,
+        ctx->producer->s.origin2.x + (FLOAT)grid_x * ctx->spacing,
+        ctx->producer->s.origin2.y + (FLOAT)grid_y * ctx->spacing,
     };
 
-    if (!SP_CanPlaceUnitAt(unit, &candidate)) {
+    if (!SP_CanPlaceUnitAt(ctx->unit, &candidate)) {
         return false;
     }
-    *out = candidate;
-    *angle = atan2f(candidate.y - producer->s.origin2.y,
-                    candidate.x - producer->s.origin2.x);
+    *ctx->out = candidate;
+    *ctx->angle = atan2f(candidate.y - ctx->producer->s.origin2.y,
+                         candidate.x - ctx->producer->s.origin2.x);
     return true;
 }
 
@@ -586,29 +588,31 @@ static BOOL SP_TryUnitExitCandidate(LPEDICT producer,
  * the trained unit's real collision radius against both the baked static
  * pathmap and dynamic unit circles. */
 BOOL SP_FindUnitExitPosition(LPEDICT producer, LPEDICT unit, LPVECTOR2 out, FLOAT *angle) {
-    FLOAT const spacing = 64.0f;
     DWORD const max_candidates = 300;
     DWORD tested = 0;
+    unitExitCtx_t ctx;
 
     if (!producer || !unit || !out || !angle) {
         return false;
     }
+
+    ctx = (unitExitCtx_t){ producer, unit, 64.0f, out, angle };
 
     for (int ring = 1; tested < max_candidates; ring++) {
         int const lo = -ring;
         int const hi = ring;
 
         for (int x = lo; x <= hi && tested < max_candidates; x++, tested++) {
-            if (SP_TryUnitExitCandidate(producer, unit, x, lo, spacing, out, angle)) return true;
+            if (SP_TryUnitExitCandidate(&ctx, x, lo)) return true;
         }
         for (int y = lo + 1; y <= hi && tested < max_candidates; y++, tested++) {
-            if (SP_TryUnitExitCandidate(producer, unit, hi, y, spacing, out, angle)) return true;
+            if (SP_TryUnitExitCandidate(&ctx, hi, y)) return true;
         }
         for (int x = hi - 1; x >= lo && tested < max_candidates; x--, tested++) {
-            if (SP_TryUnitExitCandidate(producer, unit, x, hi, spacing, out, angle)) return true;
+            if (SP_TryUnitExitCandidate(&ctx, x, hi)) return true;
         }
         for (int y = hi - 1; y > lo && tested < max_candidates; y--, tested++) {
-            if (SP_TryUnitExitCandidate(producer, unit, lo, y, spacing, out, angle)) return true;
+            if (SP_TryUnitExitCandidate(&ctx, lo, y)) return true;
         }
     }
     return false;
