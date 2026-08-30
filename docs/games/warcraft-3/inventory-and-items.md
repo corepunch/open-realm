@@ -108,6 +108,19 @@ The cover samples only the useful lower portion of the packed console BLP
 frame. This crop came from the bounded runtime asset diagnostic that established
 the useful pixels begin at row 195 of the 512-pixel source image.
 
+Stock non-hero inventory abilities are capability-gated by their Backpack
+upgrade rather than becoming active merely because the alias appears in
+`UnitAbilities.slk`. For example, the Footman carries `Aihn` in its authored
+ability list, but its two inventory slots remain covered until Human Backpack
+`Rhpm` is researched. The same rule applies to the stock Orc, Night Elf and
+Undead unit-inventory variants. Plain `AInv` and custom `AInv`-derived inventory
+abilities are not implicitly gated.
+
+The current typed metadata layer does not yet normalize `UpgradeData.slk`
+effects, so the stock inventory-ability-to-Backpack relationships are kept as a
+small explicit table in `g_items.c`. Move that table into normalized upgrade
+effect data when upgrade effects become authoritative runtime metadata.
+
 ## Inventory Refresh Lifecycle
 
 Player/client edicts occupy the reserved `[0, max_clients)` range and are not

@@ -322,6 +322,39 @@ TEST(wc3_items, inventory_panel_uses_race_cover_when_selected_unit_has_no_invent
           0.425f, 0.001f);
 }
 
+TEST(wc3_items, footman_unit_inventory_stays_covered_until_human_backpack_is_researched) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(LPEDICT) = gi.unicast;
+    int (*old_image_index)(LPCSTR) = gi.ImageIndex;
+    LPEDICT player, footman;
+    LPGAMECLIENT client;
+
+    setup_test_world();
+    player = &g_edicts[0]; client = player->client;
+    footman = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    client->ps.race = kPlayerRaceHuman;
+    G_SelectEntity(client, footman);
+
+    T_EQ(G_InventoryCapacity(footman), 0);
+    reset_inventory_refresh_capture(); reset_inventory_panel_capture();
+    gi.Write = capture_inventory_refresh_write; gi.unicast = capture_inventory_refresh_unicast;
+    gi.ImageIndex = capture_inventory_panel_image;
+    G_RefreshInventoryLayer(player);
+    gi.Write = old_write; gi.unicast = old_unicast; gi.ImageIndex = old_image_index;
+    T_EQ(inventory_panel_image_count, 1);
+    T_STREQ(inventory_panel_images[0], "TestUI\\Textures\\human-inventory-cover.blp");
+
+    G_SetPlayerTechResearched(client, MAKEFOURCC('R','h','p','m'), 1);
+    T_EQ(G_InventoryCapacity(footman), 2);
+    reset_inventory_panel_capture();
+    gi.Write = capture_inventory_refresh_write; gi.unicast = capture_inventory_refresh_unicast;
+    gi.ImageIndex = capture_inventory_panel_image;
+    G_RefreshInventoryLayer(player);
+    gi.Write = old_write; gi.unicast = old_unicast; gi.ImageIndex = old_image_index;
+    T_EQ(inventory_panel_image_count, 4);
+    FOR_LOOP(i, 4) T_STREQ(inventory_panel_images[i], "TestUI\\Textures\\human-inventory-no-capacity.blp");
+}
+
 TEST(wc3_items, inventory_panel_uses_local_player_race_not_selected_unit_race) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
     void (*old_unicast)(LPEDICT) = gi.unicast;
