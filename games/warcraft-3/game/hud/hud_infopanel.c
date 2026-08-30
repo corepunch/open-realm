@@ -180,6 +180,7 @@ void Get_Commands_f(LPEDICT ent) {
     BYTE count;
 
     if (!ent || !ent->client) return;
+    ent->client->commands_dirty = false;
     if (!selected) {
         UI_ClearLayer(ent, LAYER_COMMANDBAR);
         return;

@@ -93,7 +93,8 @@ static LONG G_FindTechSlot(LPGAMECLIENT client, DWORD techid, BOOL create) {
 void G_SetPlayerTechMaxAllowed(LPGAMECLIENT client, DWORD techid, LONG maximum) {
     LONG slot = G_FindTechSlot(client, techid, true);
     if (slot < 0) return;
-    client->tech[slot].max_allowed = MAX(0, maximum);
+    client->tech[slot].max_allowed = maximum < 0 ? -1 : maximum;
+    G_InvalidateCommands(client);
 }
 
 LONG G_GetPlayerTechMaxAllowed(LPGAMECLIENT client, DWORD techid) {
@@ -105,12 +106,14 @@ void G_SetPlayerTechResearched(LPGAMECLIENT client, DWORD techid, LONG level_val
     LONG slot = G_FindTechSlot(client, techid, true);
     if (slot < 0) return;
     client->tech[slot].researched = MAX(0, level_value);
+    G_InvalidateCommands(client);
 }
 
 void G_AddPlayerTechResearched(LPGAMECLIENT client, DWORD techid, LONG levels) {
     LONG slot = G_FindTechSlot(client, techid, true);
     if (slot < 0) return;
     client->tech[slot].researched = MAX(0, client->tech[slot].researched + levels);
+    G_InvalidateCommands(client);
 }
 
 LONG G_GetPlayerTechResearchedLevel(LPGAMECLIENT client, DWORD techid) {
@@ -131,17 +134,24 @@ LONG G_GetPlayerTechCountValue(LPGAMECLIENT client, DWORD techid) {
     return count;
 }
 
-BOOL G_WorkerCanBuild(LPEDICT worker, DWORD building_id) {
+static BOOL G_ProducerContains(LPCSTR list, DWORD type_id) {
     char token[64];
-    LPCSTR builds;
 
-    if (!worker || !building_id) return false;
-    builds = worker->UnitProfile ? worker->UnitProfile->builds : NULL;
-    if (!builds) return false;
-    for (DWORD i = 0; G_CsvToken(builds, i, token, sizeof(token)); i++) {
-        if (strlen(token) == 4 && !memcmp(token, &building_id, 4)) return true;
+    if (!list || !type_id) return false;
+    for (DWORD i = 0; G_CsvToken(list, i, token, sizeof(token)); i++) {
+        if (strlen(token) == 4 && !memcmp(token, &type_id, 4)) return true;
     }
     return false;
+}
+
+BOOL G_WorkerCanBuild(LPEDICT worker, DWORD building_id) {
+    return worker && worker->UnitProfile &&
+        G_ProducerContains(worker->UnitProfile->builds, building_id);
+}
+
+BOOL G_ProducerCanTrain(LPEDICT producer, DWORD unit_id) {
+    return producer && producer->UnitProfile &&
+        G_ProducerContains(producer->UnitProfile->trains, unit_id);
 }
 
 static LONG G_RequirementAmount(UnitProfile_t const *profile, DWORD index) {
@@ -165,14 +175,14 @@ static LONG G_PlayerRequirementCount(LPGAMECLIENT client, DWORD techid) {
     if (!client || !techid) return 0;
     player = client->ps.number;
     FILTER_EDICTS(ent, ent->inuse && ent->class_id == techid && ent->s.player == player &&
-                         !(ent->svflags & SVF_DEADMONSTER) && !ent->construction.active) {
+                         !(ent->svflags & SVF_DEADMONSTER) && !ent->construction.active && !ent->training) {
         count++;
     }
     return count;
 }
 
-static BOOL G_RequirementsSatisfied(LPGAMECLIENT client, DWORD building_id, LPSTR reason, DWORD reason_size) {
-    UnitProfile_t const *profile = G_UnitProfile(building_id);
+static BOOL G_RequirementsSatisfied(LPGAMECLIENT client, DWORD type_id, LPSTR reason, DWORD reason_size) {
+    UnitProfile_t const *profile = G_UnitProfile(type_id);
     char requirement[64];
 
     if (!profile->requires || !*profile->requires) return true;
@@ -181,7 +191,7 @@ static BOOL G_RequirementsSatisfied(LPGAMECLIENT client, DWORD building_id, LPST
         LONG required;
         if (strlen(requirement) != 4) {
             fprintf(stderr, "G_RequirementsSatisfied: unsupported requirement token '%s' for 0x%08x\n",
-                    requirement, (unsigned)building_id);
+                    requirement, (unsigned)type_id);
             continue;
         }
         memcpy(&rawcode, requirement, sizeof(rawcode));
@@ -241,6 +251,23 @@ buildCommandState_t G_GetBuildCommandState(LPGAMECLIENT client, LPEDICT worker, 
         return BUILD_COMMAND_DISABLED;
     }
     if (!G_BuildResourcesAvailable(client, building_id, reason, reason_size)) {
+        return BUILD_COMMAND_DISABLED;
+    }
+    return BUILD_COMMAND_AVAILABLE;
+}
+
+buildCommandState_t G_GetTrainCommandState(LPGAMECLIENT client, LPEDICT producer, DWORD unit_id,
+                                           LPSTR reason, DWORD reason_size) {
+    LONG maximum;
+
+    if (reason && reason_size) reason[0] = '\0';
+    if (!client || !G_ProducerCanTrain(producer, unit_id)) return BUILD_COMMAND_ABSENT;
+
+    maximum = G_GetPlayerTechMaxAllowed(client, unit_id);
+    if (maximum >= 0 && G_GetPlayerTechCountValue(client, unit_id) >= maximum) {
+        return BUILD_COMMAND_HIDDEN;
+    }
+    if (!G_RequirementsSatisfied(client, unit_id, reason, reason_size)) {
         return BUILD_COMMAND_DISABLED;
     }
     return BUILD_COMMAND_AVAILABLE;
@@ -420,6 +447,7 @@ void G_CompleteConstruction(LPEDICT building) {
     G_PublishEvent(building, EVENT_PLAYER_UNIT_CONSTRUCT_FINISH);
     if (client) {
         LPEDICT clent = G_GetPlayerEntityByNumber(client->ps.number);
+        G_InvalidateCommands(client);
         G_RefreshResourceBar(clent);
         Get_Portrait_f(clent);
     }

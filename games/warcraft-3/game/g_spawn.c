@@ -306,6 +306,7 @@ static void G_InitMapPlayer(LPEDICT clent, LPCMAPINFO mapinfo, DWORD playernum) 
     LPCMAPPLAYER player = mapinfo ? mapinfo->players + playernum : NULL;
     LPPLAYER ps = &clent->client->ps;
     G_SetClientConnected(clent, false);
+    clent->client->commands_dirty = false;
     memset(&clent->client->jass, 0, sizeof(clent->client->jass));
     memset(clent->client->tech, 0, sizeof(clent->client->tech));
     memset(ps, 0, sizeof(PLAYER));
@@ -410,6 +411,7 @@ void G_SpawnEntities(void) {
  
 LPEDICT SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location) {
     LPEDICT ent = G_Spawn();
+    LPGAMECLIENT client;
     if (!ent) {
         return NULL;
     }
@@ -426,6 +428,10 @@ LPEDICT SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location) {
     SP_CallSpawn(ent);
     if (ent->birth) {
         ent->birth(ent);
+    }
+    client = G_GetPlayerClientByNumber(player);
+    if ((ent->svflags & SVF_MONSTER) && client && client->ps.number == player) {
+        G_InvalidateCommands(client);
     }
     return ent;
 }

@@ -57,6 +57,10 @@ TEST(wc3_building, player_tech_state_tracks_max_and_researched_levels) {
 
     T_EQ(G_GetPlayerTechMaxAllowed(client, barracks), 2);
     T_EQ(G_GetPlayerTechResearchedLevel(client, barracks), 3);
+    T_ASSERT(client->commands_dirty);
+
+    G_SetPlayerTechMaxAllowed(client, barracks, -1);
+    T_EQ(G_GetPlayerTechMaxAllowed(client, barracks), -1);
 }
 
 TEST(wc3_building, tech_count_includes_owned_structures_and_research) {
@@ -113,6 +117,46 @@ TEST(wc3_building, build_command_state_covers_available_hidden_disabled_and_abse
 
     worker_profile.builds = "hfoo";
     T_EQ(G_GetBuildCommandState(client, worker, barracks, reason, sizeof(reason)), BUILD_COMMAND_ABSENT);
+}
+
+TEST(wc3_building, train_command_state_uses_trains_list_and_player_maximum) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
+    DWORD const trainee = MAKEFOURCC('u','0','0','1');
+    UnitProfile_t producer_profile = { .trains = "u001" };
+    char reason[128];
+
+    producer->UnitProfile = &producer_profile;
+    producer->s.player = client->ps.number;
+
+    T_ASSERT(G_ProducerCanTrain(producer, trainee));
+    T_EQ(G_GetTrainCommandState(client, producer, trainee, reason, sizeof(reason)), BUILD_COMMAND_AVAILABLE);
+
+    G_SetPlayerTechMaxAllowed(client, trainee, 0);
+    T_EQ(G_GetTrainCommandState(client, producer, trainee, reason, sizeof(reason)), BUILD_COMMAND_HIDDEN);
+
+    G_SetPlayerTechMaxAllowed(client, trainee, -1);
+    T_EQ(G_GetTrainCommandState(client, producer, trainee, reason, sizeof(reason)), BUILD_COMMAND_AVAILABLE);
+
+    producer_profile.trains = "u002";
+    T_EQ(G_GetTrainCommandState(client, producer, trainee, reason, sizeof(reason)), BUILD_COMMAND_ABSENT);
+}
+
+TEST(wc3_building, queued_training_counts_against_player_tech_maximum) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
+    LPEDICT queued = alloc_test_unit(MAKEFOURCC('u','0','0','1'), 0, 0);
+    DWORD const trainee = MAKEFOURCC('u','0','0','1');
+    UnitProfile_t producer_profile = { .trains = "u001" };
+
+    producer->UnitProfile = &producer_profile;
+    producer->s.player = client->ps.number;
+    queued->s.player = client->ps.number;
+    queued->training = true;
+    G_SetPlayerTechMaxAllowed(client, trainee, 1);
+
+    T_EQ(G_GetPlayerTechCountValue(client, trainee), 1);
+    T_EQ(G_GetTrainCommandState(client, producer, trainee, NULL, 0), BUILD_COMMAND_HIDDEN);
 }
 
 TEST(wc3_building, disabled_command_button_is_inert_and_available_button_is_clickable) {

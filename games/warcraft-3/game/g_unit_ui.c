@@ -211,6 +211,17 @@ static BOOL G_IsImplementedAbility(LPCSTR code) {
     return FindAbilityForCommand(code) != NULL;
 }
 
+static void G_DisableCommandButton(gameCommandButton_t *button, LPCSTR reason) {
+    size_t used;
+
+    if (!button) return;
+    button->disabled = 1;
+    if (!reason || !*reason) return;
+    used = strlen(button->ubertip);
+    snprintf(button->ubertip + used, sizeof(button->ubertip) - used,
+             "%s|cffffcc00%s|r", used ? "|n" : "", reason);
+}
+
 BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_buttons) {
     BYTE count = 0;
     UnitBalance_t const *b;
@@ -265,7 +276,21 @@ BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_but
     }
     if (G_UnitProfile(ent->class_id)->trains) {
         PARSE_LIST(G_UnitProfile(ent->class_id)->trains, unit, parse_segment) {
+            LPGAMECLIENT client = G_GetPlayerClientByNumber(ent->s.player);
+            DWORD unit_id = 0;
+            buildCommandState_t state;
+            char reason[128];
+            BYTE idx;
+
+            if (strlen(unit) != 4 || !client || client->ps.number != ent->s.player) continue;
+            memcpy(&unit_id, unit, sizeof(unit_id));
+            state = G_GetTrainCommandState(client, ent, unit_id, reason, sizeof(reason));
+            if (state == BUILD_COMMAND_ABSENT || state == BUILD_COMMAND_HIDDEN) continue;
+            idx = count;
             G_AddCommandButton(ent, buttons, max_buttons, &count, unit, false, 0);
+            if (state == BUILD_COMMAND_DISABLED && count > idx) {
+                G_DisableCommandButton(&buttons[idx], reason);
+            }
         }
     }
 

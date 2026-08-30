@@ -74,6 +74,8 @@ DWORD KillUnit(LPJASS j) {
 DWORD RemoveUnit(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     if (whichUnit) {
+        LPGAMECLIENT owner = G_GetPlayerClientByNumber(whichUnit->s.player);
+        if (owner && owner->ps.number == whichUnit->s.player) G_InvalidateCommands(owner);
         G_FreeEdict(whichUnit);
     }
     return 0;
@@ -154,7 +156,16 @@ DWORD SetUnitOwner(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LPCPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
 //    BOOL changeColor = jass_checkboolean(j, 3);
-    if (whichUnit && whichPlayer) whichUnit->s.player = PLAYER_NUM(whichPlayer);
+    if (whichUnit && whichPlayer) {
+        DWORD const old_player = whichUnit->s.player;
+        DWORD const new_player = PLAYER_NUM(whichPlayer);
+        LPGAMECLIENT old_client = G_GetPlayerClientByNumber(old_player);
+        LPGAMECLIENT new_client = G_GetPlayerClientByNumber(new_player);
+
+        whichUnit->s.player = new_player;
+        if (old_client && old_client->ps.number == old_player) G_InvalidateCommands(old_client);
+        if (new_client && new_client->ps.number == new_player) G_InvalidateCommands(new_client);
+    }
     return 0;
 }
 DWORD SetUnitColor(LPJASS j) {

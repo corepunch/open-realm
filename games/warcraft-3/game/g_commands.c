@@ -138,9 +138,13 @@ CLIENTCOMMAND(SmartPoint) {
 }
 
 CLIENTCOMMAND(Button) {
-    LPCSTR classname = argv[1];
+    LPCSTR classname;
     LPGAMECLIENT client = clent->client;
-    ability_t const *ability = FindAbilityForCommand(classname);
+    ability_t const *ability;
+
+    if (argc < 2) return;
+    classname = argv[1];
+    ability = FindAbilityForCommand(classname);
     if (ability && ability->cmd) {
         client->menu.ability_code = *((DWORD const *)classname);
         ability->cmd(clent);
@@ -148,15 +152,11 @@ CLIENTCOMMAND(Button) {
         client->menu.cmdbutton(clent, *((DWORD *)classname));
     } else {
         LPEDICT ent = G_GetMainSelectedUnit(client);
-        LPCSTR builds = G_UnitProfile(ent->class_id)->trains;
-        if (!builds)
-            return;
-        PARSE_LIST(builds, build, parse_segment) {
-            if (!strcmp(build, classname)) {
-                SP_TrainUnit(ent, *((DWORD *)classname));
-                break;
-            }
-        }
+        DWORD class_id = 0;
+
+        if (!ent || strlen(classname) != 4) return;
+        memcpy(&class_id, classname, sizeof(class_id));
+        SP_TrainUnit(ent, class_id);
     }
 }
 
