@@ -220,7 +220,7 @@ enum {
 #define MAX_CLIENTS 24
 #define MAX_MODELS 256
 #define MAX_FONTSTYLES 256
-#define MAX_SOUNDS 512
+#define MAX_SOUNDS 512 // units carry many sounds (what/yes/attack/death per unit type); a single map peaks above 256
 #define MAX_IMAGES 256
 #define MAX_DYNAMIC_IMAGES 32
 #define MAX_ITEMS 256
