@@ -296,6 +296,32 @@ TEST(wc3_api, customize_entity_marks_passive_ally_hover_relation_neutral) {
     T_ASSERT(state.flags & EF_NEUTRAL);
 }
 
+TEST(wc3_api, customize_entity_marks_neutral_passive_owner_neutral) {
+    entityState_t state = { .number = 7, .model = 11 };
+    edict_t ent = { .svflags = SVF_MONSTER, .s = { .player = PLAYER_NEUTRAL_PASSIVE } };
+    ent.health.value = 100.0f;
+
+    T_ASSERT(PLAYER_NEUTRAL_PASSIVE < MAX_PLAYERS);
+    globals.CustomizeEntity(0, &ent, &state);
+    T_ASSERT(state.flags & EF_HOVER_HEALTH);
+    T_ASSERT(!(state.flags & EF_HOSTILE));
+    T_ASSERT(state.flags & EF_NEUTRAL);
+}
+
+TEST(wc3_api, customize_entity_marks_neutral_aggressive_owner_hostile) {
+    entityState_t state = { .number = 7, .model = 11 };
+    edict_t ent = { .svflags = SVF_MONSTER, .s = { .player = PLAYER_NEUTRAL_AGGRESSIVE } };
+    ent.health.value = 100.0f;
+
+    T_ASSERT(PLAYER_NEUTRAL_AGGRESSIVE < MAX_PLAYERS);
+    G_SetPlayerAlliance(test_player(0), test_player(PLAYER_NEUTRAL_AGGRESSIVE), ALLIANCE_PASSIVE, true);
+    G_SetPlayerAlliance(test_player(0), test_player(PLAYER_NEUTRAL_AGGRESSIVE), ALLIANCE_SHARED_CONTROL, true);
+    globals.CustomizeEntity(0, &ent, &state);
+    T_ASSERT(state.flags & EF_HOVER_HEALTH);
+    T_ASSERT(state.flags & EF_HOSTILE);
+    T_ASSERT(!(state.flags & EF_NEUTRAL));
+}
+
 TEST(wc3_api, customize_entity_marks_shared_control_hover_relation_friendly) {
     entityState_t state = { .number = 7, .model = 11 };
     edict_t ent = { .svflags = SVF_MONSTER, .s = { .player = 1 } };

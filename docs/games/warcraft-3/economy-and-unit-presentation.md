@@ -221,16 +221,21 @@ TraceEntity -> cl.hover_entity -> cl.viewDef.hover_entity -> R_DrawHealthBars
 ```
 
 The same hover entity drives the ground selection-preview splat in `renderer/r_ents.c`. `G_CustomizeEntity` derives the
-recipient-relative relationship from WC3 alliance state: non-passive allies are `EF_HOSTILE`, passive allies without shared control are
-`EF_NEUTRAL`, and own/shared-control units carry neither relationship flag. The renderer maps those states to faint red, yellow, and
-green rings respectively, using the normal selection-circle size/texture choice and half-alpha hover presentation. Selection remains a
-separate state and suppresses the hover preview while the full selected-unit circle is visible.
+recipient-relative relationship by resolving the two hover-relevant WC3 neutral ownership classes before ordinary alliance state:
+`PLAYER_NEUTRAL_PASSIVE` (12) is `EF_NEUTRAL`, while `PLAYER_NEUTRAL_AGGRESSIVE` (15) is `EF_HOSTILE`. Both values are inside this
+engine's `MAX_PLAYERS == 16`, so a range check cannot identify them. Reserved slots 13 and 14 are not assigned special hover semantics
+here; they continue through ordinary relationship handling until their presentation behavior is established. Normal foreign players use
+passive-alliance and shared-control flags: passive allies without shared control are `EF_NEUTRAL`, enemies are `EF_HOSTILE`, and
+own/shared-control units carry neither relationship flag. Human02 runtime evidence identified `ngol` (Gold Mine) and `nshe` (Sheep) as
+owner 12 and neutral-hostile creeps as owner 15, matching the authored player-slot semantics. The renderer maps those states to faint
+red, yellow, and green rings respectively, using the normal selection-circle size/texture choice and half-alpha hover presentation.
+Selection remains a separate state and suppresses the hover preview while the full selected-unit circle is visible.
 
-The authored WC3 cursor reuses that recipient-relative hover state without changing cursor assets. While the current hover entity carries
-both `EF_HOVER_HEALTH` and `EF_HOSTILE`, `client/cl_scrn.c` submits a red per-instance tint to the renderer; clearing/changing hover
-submits white, restoring the cursor's original artwork. This step intentionally leaves non-hostile cursors untinted and does not change
-the cursor animation sequence. `MDLX_DrawSpriteTinted` stores the tint on the transient cursor render entity, and the MDX renderer folds
-it into the existing geoset-color shader value so texture alpha and authored geoset/material colour remain independent.
+The authored WC3 cursor reuses that recipient-relative hover state without changing cursor assets. `client/cl_scrn.c` submits red for
+`EF_HOSTILE`, the same yellow family used by the neutral hover ring for `EF_NEUTRAL`, and white for friendly/no hover. This keeps Sheep,
+Gold Mines, and other Neutral Passive targets visually neutral while Neutral Hostile creeps remain hostile. `MDLX_DrawSpriteTinted`
+stores the tint on the transient cursor render entity, and the MDX renderer folds it into the existing geoset-color shader value so
+texture alpha and authored geoset/material colour remain independent.
 
 An August 2026 regression had working world picking and working selected-unit health bars, but active gameplay never copied
 `cl.hover_entity` into `cl.viewDef.hover_entity`; the renderer therefore always saw hover entity 0. Targeted runtime logs confirmed the

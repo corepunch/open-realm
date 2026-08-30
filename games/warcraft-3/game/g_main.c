@@ -525,17 +525,24 @@ static void G_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
     state->flags &= ~(EF_HOVER_HEALTH | EF_HOSTILE | EF_NEUTRAL);
     if (hoverable) {
         DWORD const owner = ent->s.player;
-        BOOL const valid_players = player < MAX_PLAYERS && owner < MAX_PLAYERS;
-        BOOL const passive_ally = valid_players &&
-            (level.alliances[player][owner] & (1 << ALLIANCE_PASSIVE));
-        BOOL const shared_control = valid_players &&
-            (level.alliances[player][owner] & (1 << ALLIANCE_SHARED_CONTROL));
 
         state->flags |= EF_HOVER_HEALTH;
-        if (owner != player && !passive_ally) {
+        if (owner == PLAYER_NEUTRAL_AGGRESSIVE) {
             state->flags |= EF_HOSTILE;
-        } else if (owner != player && !shared_control) {
+        } else if (owner == PLAYER_NEUTRAL_PASSIVE) {
             state->flags |= EF_NEUTRAL;
+        } else if (owner != player) {
+            BOOL const valid_players = player < MAX_PLAYERS && owner < MAX_PLAYERS;
+            BOOL const passive_ally = valid_players &&
+                (level.alliances[player][owner] & (1 << ALLIANCE_PASSIVE));
+            BOOL const shared_control = valid_players &&
+                (level.alliances[player][owner] & (1 << ALLIANCE_SHARED_CONTROL));
+
+            if (!passive_ally) {
+                state->flags |= EF_HOSTILE;
+            } else if (!shared_control) {
+                state->flags |= EF_NEUTRAL;
+            }
         }
     }
 

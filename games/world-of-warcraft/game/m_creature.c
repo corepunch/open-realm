@@ -2,6 +2,7 @@
 #include "wow_assets.h"
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #define WOW_AMBIENT_CREATURE_COUNT 64
 #define WOW_QUEST_LOCATION_BUDGET  32
