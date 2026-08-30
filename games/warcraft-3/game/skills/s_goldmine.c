@@ -23,9 +23,8 @@ static void ai_walkmine(LPEDICT ent) {
 }
 
 static void ai_goldmine_walkback(LPEDICT ent) {
-    LPEDICT dropoff;
     if (!S_CanReturnResourceAt(ent, ent->goalentity, RETURN_RESOURCE_GOLD)) {
-        dropoff = S_FindNearestResourceDropoff(ent, RETURN_RESOURCE_GOLD);
+        LPEDICT dropoff = S_FindNearestResourceDropoff(ent, RETURN_RESOURCE_GOLD);
         if (!dropoff) {
             ent->stand(ent);
             return;
