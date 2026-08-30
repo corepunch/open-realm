@@ -167,7 +167,7 @@ make test-wc3-engine WC3_PATTERN='wc3_api.camera_bounds*'
 make test
 ```
 
-The full test target covers the standalone `net.playerstate_camera_bounds_roundtrip` and `net.camera_prediction_reconciles_to_server_clamped_bound` cases. The implementation change must also retain the existing cinematic cleanup tests because camera bounds are transmitted in `PLAYER`.
+The full test target covers the standalone `net.playerstate_camera_bounds_roundtrip` and `net.camera_prediction_reconciles_to_server_clamped_bound` cases. The implementation change must also retain the existing cinematic cleanup tests because camera bounds are transmitted in `PLAYER`. Camera JASS regression tests run against the deliberately minimal `games/warcraft-3/tests/resources-src/Scripts/common.j`; when a test uses a `common.j` constant or native, add its real declaration/value to that fixture. In particular, `GetCameraMargin` requires the integer `CAMERA_MARGIN_LEFT/RIGHT/TOP/BOTTOM` selectors (`0/1/2/3`). Leaving those globals undefined passes a non-integer value to the native and trips `jass_checkinteger()` before the assertion can run.
 
 ### Cinefilter
 
