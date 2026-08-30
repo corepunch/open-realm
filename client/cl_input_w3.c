@@ -212,12 +212,10 @@ void CL_InputModeMouseButton(SDL_MouseButtonEvent const *button, BOOL down) {
 }
 
 static BOOL CL_CanHoverHealthEntity(DWORD entnum) {
-    LPCENTITYSTATE state;
-
     if (!entnum || entnum >= MAX_CLIENT_ENTITIES) {
         return false;
     }
-    state = &cl.ents[entnum].current;
+    LPCENTITYSTATE const state = &cl.ents[entnum].current;
     return state->model &&
            state->stats[ENT_HEALTH] > 0 &&
            (state->flags & EF_HOVER_HEALTH) &&
