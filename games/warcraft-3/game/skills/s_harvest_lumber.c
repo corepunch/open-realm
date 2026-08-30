@@ -71,6 +71,29 @@ BOOL S_CanReturnResourceAt(LPEDICT unit, LPEDICT building, returnResource_t reso
     return false;
 }
 
+void S_SetCarriedResource(LPEDICT unit, returnResource_t resource, DWORD amount) {
+    if (!unit)
+        return;
+
+    /* A worker carries exactly one visible resource type.  Keep the gameplay
+     * counters and renderer flags in one transition so stale lumber/gold tags
+     * cannot survive a resource switch or completed deposit. */
+    unit->harvested_gold = 0;
+    unit->harvested_lumber = 0;
+    unit->s.renderfx &= ~(RF_HAS_GOLD | RF_HAS_LUMBER);
+
+    if (!amount)
+        return;
+
+    if (resource == RETURN_RESOURCE_GOLD) {
+        unit->harvested_gold = amount;
+        unit->s.renderfx |= RF_HAS_GOLD;
+    } else if (resource == RETURN_RESOURCE_LUMBER) {
+        unit->harvested_lumber = amount;
+        unit->s.renderfx |= RF_HAS_LUMBER;
+    }
+}
+
 LPEDICT S_FindNearestResourceDropoff(LPEDICT unit, returnResource_t resource) {
     LPEDICT best = NULL;
     FLOAT best_dist = 0;
@@ -276,8 +299,7 @@ static void ai_harvest_walkback(LPEDICT ent) {
         if (player) {
             player->stats[PLAYERSTATE_RESOURCE_LUMBER] += ent->harvested_lumber;
         }
-        ent->s.renderfx &= ~RF_HAS_LUMBER;
-        ent->harvested_lumber = 0;
+        S_SetCarriedResource(ent, RETURN_RESOURCE_LUMBER, 0);
         /* Resolve the next live tree at the deposit boundary.  Resuming with
          * the felled tree left it as the worker's active goal for another tick. */
         LPEDICT tree = ent->secondarygoal;
@@ -310,10 +332,8 @@ static void ai_chop(LPEDICT ent) {
                                   HARVEST_LUMBER_CAPACITY);
 
         felled = G_DestructableApplyDamage(tree, ent, HARVEST_TREE_DAMAGE);
-        if (carried > ent->harvested_lumber) {
-            ent->harvested_lumber = (DWORD)carried;
-            ent->s.renderfx |= RF_HAS_LUMBER;
-        }
+        if (carried > ent->harvested_lumber)
+            S_SetCarriedResource(ent, RETURN_RESOURCE_LUMBER, (DWORD)carried);
     }
     /* Tree-fall supersedes chop: play one-shot EV_ATTACK sound for all clients. */
     if (felled && g_numTreeFallSounds) {

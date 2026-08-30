@@ -501,6 +501,30 @@ TEST(wc3_movement, lumber_invulnerable_tree_does_not_award_lumber) {
     T_ASSERT(!(worker->s.renderfx & RF_HAS_LUMBER));
 }
 
+/* A worker has one carried-resource presentation.  Starting to collect lumber
+ * after gold must replace the gold bag rather than leaving both carry flags set. */
+TEST(wc3_movement, lumber_chop_replaces_gold_carry_state) {
+    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
+    LPEDICT tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
+
+    worker->attack1.damagePoint = 0.01f;
+    worker->harvested_gold = 7;
+    worker->s.renderfx |= RF_HAS_GOLD;
+    HARVEST_RANGE = 64.0f;
+    HARVEST_TREE_DAMAGE = 1.0f;
+    HARVEST_LUMBER_CAPACITY = 10.0f;
+
+    harvest_start(worker, tree);
+    worker->currentmove->think(worker);
+    worker->wait = 0.01f;
+    worker->currentmove->think(worker);
+
+    T_EQ(worker->harvested_gold, 0);
+    T_EQ(worker->harvested_lumber, 1);
+    T_ASSERT(!(worker->s.renderfx & RF_HAS_GOLD));
+    T_ASSERT(worker->s.renderfx & RF_HAS_LUMBER);
+}
+
 /* Reissuing Harvest while already full remembers the requested tree but begins
  * return immediately, so no extra over-capacity chop can occur. */
 TEST(wc3_movement, lumber_full_worker_returns_before_new_chop) {
@@ -687,11 +711,14 @@ TEST(wc3_movement, lumber_return_deposits_at_next_step_contact) {
     harvest_walkback(worker);
     T_ASSERT(M_DistanceToGoal(worker) > worker->collision + hall->collision + 5.0f);
     T_ASSERT(M_DistanceToGoal(worker) <= worker->collision + hall->collision + unit_movedistance(worker));
+    worker->s.renderfx |= RF_HAS_GOLD; /* stale opposite carry tag must not survive deposit */
     worker->currentmove->think(worker);
 
     T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER], old_lumber + 10);
     T_EQ(worker->harvested_lumber, 0);
+    T_EQ(worker->harvested_gold, 0);
     T_ASSERT(!(worker->s.renderfx & RF_HAS_LUMBER));
+    T_ASSERT(!(worker->s.renderfx & RF_HAS_GOLD));
     T_ASSERT(worker->goalentity == tree);
 }
 
@@ -916,6 +943,32 @@ TEST(wc3_movement, gold_worker_deposits_and_resumes_mining) {
     free_slk_rows(rows);
 }
 
+/* Gold pickup replaces a prior lumber carry state.  RF_HAS_LUMBER used to
+ * survive here, and the renderer checks lumber before gold, so the Peasant
+ * continued to display the lumber-carry model while actually carrying gold. */
+TEST(wc3_movement, gold_pickup_replaces_lumber_carry_state) {
+    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
+    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 0.0f, 0.0f);
+    slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
+
+    setup_test_goldmine(mine, &test_goldmine_cap1, 100);
+    gi.LinkEntity(mine);
+    HARVEST_GOLD_CAPACITY = 10.0f;
+    worker->harvested_lumber = 5;
+    worker->s.renderfx |= RF_HAS_LUMBER;
+    worker->goalentity = worker->secondarygoal = mine;
+
+    harvestgold_minegold(worker);
+    harvestgold_walkback(worker);
+
+    T_EQ(worker->harvested_lumber, 0);
+    T_EQ(worker->harvested_gold, 10);
+    T_ASSERT(!(worker->s.renderfx & RF_HAS_LUMBER));
+    T_ASSERT(worker->s.renderfx & RF_HAS_GOLD);
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
 /* A large Town Hall footprint can block the next step before the old +5u
  * deposit tolerance is reached. The interaction must complete at contact plus
  * one simulation step, just like entering a gold mine. */
@@ -938,10 +991,13 @@ TEST(wc3_movement, gold_return_deposits_at_next_step_contact) {
     harvestgold_walkback(worker);
     T_ASSERT(M_DistanceToGoal(worker) > worker->collision + hall->collision + 5.0f);
     T_ASSERT(M_DistanceToGoal(worker) <= worker->collision + hall->collision + unit_movedistance(worker));
+    worker->s.renderfx |= RF_HAS_LUMBER; /* stale opposite carry tag must not survive deposit */
     worker->currentmove->think(worker);
 
     T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD], old_gold + 10);
+    T_EQ(worker->harvested_lumber, 0);
     T_EQ(worker->harvested_gold, 0);
+    T_ASSERT(!(worker->s.renderfx & RF_HAS_LUMBER));
     T_ASSERT(!(worker->s.renderfx & RF_HAS_GOLD));
     T_ASSERT(worker->goalentity == mine);
     T_EQ(mine->resources, 90);
