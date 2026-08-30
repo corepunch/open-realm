@@ -18,6 +18,16 @@ static void G_BuildPlacementError(LPEDICT clent) {
     G_BuildError(clent, "Unable to build there.");
 }
 
+static void G_ClearBuildPlacementCursor(LPEDICT clent) {
+    entityState_t empty = { 0 };
+
+    if (!clent || !clent->client) return;
+    clent->build_project = 0;
+    gi.Write(PF_BYTE, &(LONG){svc_cursor});
+    gi.Write(PF_ENTITY, &empty);
+    gi.unicast(clent);
+}
+
 static void ai_build_walk(LPEDICT ent) {
     FLOAT const reach = unit_movedistance(ent) + G_BuildApproachDistance(ent->build_project);
     if (M_DistanceToGoal(ent) <= reach) {
@@ -139,11 +149,18 @@ BOOL build_menu_send_builder(LPEDICT clent, LPCVECTOR2 location) {
     builder->goalentity = waypoint;
     builder->build_project = clent->build_project;
     unit_setmove(builder, &build_move_walk);
-    entityState_t empty;
-    memset(&empty, 0, sizeof(entityState_t));
-    gi.Write(PF_BYTE, &(LONG){svc_cursor});
-    gi.Write(PF_ENTITY, &empty);
-    gi.unicast(clent);
+    G_ClearBuildPlacementCursor(clent);
+    return true;
+}
+
+BOOL G_CancelBuildPlacement(LPEDICT clent) {
+    if (!clent || !clent->client ||
+        clent->client->menu.on_location_selected != build_menu_send_builder) {
+        return false;
+    }
+
+    G_ClearBuildPlacementCursor(clent);
+    Get_Commands_f(clent);
     return true;
 }
 

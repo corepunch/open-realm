@@ -5,8 +5,6 @@ typedef struct {
     ability_t *ability;
 } abilityitem_t;
 
-void CMD_CancelCommand(LPEDICT ent);
-
 /* ROC/TFT physical data columns are normalized by the AbilityData DDX schema. */
 FLOAT AB_Data(LPCSTR classname, DWORD level, DWORD index) {
     AbilityData_t const *row = G_AbilityDataName(classname);
