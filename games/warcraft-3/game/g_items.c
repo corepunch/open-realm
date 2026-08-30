@@ -114,6 +114,37 @@ BOOL G_IsItem(LPCEDICT item) {
     return item->item.in_world || item->item.carrier || item->ItemData->file != NULL;
 }
 
+static DWORD G_InventoryRequiredUpgrade(DWORD ability_id) {
+    /* Stock unit-inventory abilities are present on the unit before the race
+     * Backpack upgrade is researched. UpgradeData effects are not normalized
+     * yet, so keep this small stock dependency table explicit until that data
+     * becomes authoritative here. Hero/custom AInv-derived abilities remain
+     * immediately available. */
+    switch (ability_id) {
+        case MAKEFOURCC('A','i','h','n'): return MAKEFOURCC('R','h','p','m');
+        case MAKEFOURCC('A','i','o','n'):
+        case MAKEFOURCC('A','p','a','k'): return MAKEFOURCC('R','o','p','m');
+        case MAKEFOURCC('A','i','e','n'): return MAKEFOURCC('R','e','p','m');
+        case MAKEFOURCC('A','i','u','n'): return MAKEFOURCC('R','u','p','m');
+        default: return 0;
+    }
+}
+
+static BOOL G_InventoryAbilityAvailable(LPCEDICT unit, LPCSTR ability) {
+    DWORD ability_id;
+    DWORD required_upgrade;
+    LPGAMECLIENT owner;
+
+    if (!unit || !ability || strlen(ability) != 4) return false;
+    memcpy(&ability_id, ability, sizeof(ability_id));
+    required_upgrade = G_InventoryRequiredUpgrade(ability_id);
+    if (!required_upgrade) return true;
+
+    owner = G_GetPlayerClientByNumber(unit->s.player);
+    if (!owner || owner->ps.number != unit->s.player) return false;
+    return G_GetPlayerTechResearchedLevel(owner, required_upgrade) > 0;
+}
+
 DWORD G_InventoryCapacity(LPCEDICT unit) {
     LPCSTR abilities;
 
@@ -123,6 +154,7 @@ DWORD G_InventoryCapacity(LPCEDICT unit) {
 
         /* Typed AbilityData resolves custom inventory abilities without returning to the removed sheet cache. */
         if (G_AbilityCodeName(abil) != MAKEFOURCC('A','I','n','v')) continue;
+        if (!G_InventoryAbilityAvailable(unit, abil)) continue;
         capacity = (LONG)AB_Data(abil, 1, 1); /* inv1 / Item Capacity */
         if (capacity <= 0) {
             fprintf(stderr, "G_InventoryCapacity: %.4s inventory ability %.4s has invalid inv1=%ld\n",
