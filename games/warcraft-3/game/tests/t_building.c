@@ -241,13 +241,13 @@ TEST(wc3_building, completing_construction_clears_state_publishes_once_and_grant
     building_stand_calls = 0;
 
     {
-        void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-        void (*old_unicast)(LPEDICT) = gi.unicast;
-        gi.Write = building_noop_write;
-        gi.unicast = building_noop_unicast;
+        /* Prevent G_CompleteConstruction from invoking HUD refresh (which
+         * requires FDF/UI state unavailable in tests) by hiding the player
+         * entity from G_GetPlayerEntityByNumber while the call runs. */
+        LPGAMECLIENT saved_client = g_edicts[0].client;
+        g_edicts[0].client = NULL;
         G_CompleteConstruction(building);
-        gi.Write = old_write;
-        gi.unicast = old_unicast;
+        g_edicts[0].client = saved_client;
     }
 
     T_ASSERT(!building->construction.active);
@@ -314,7 +314,7 @@ TEST(wc3_building, human_builder_exit_is_outside_baked_building_footprint) {
     memset(pathtex, 0, pathtex_size);
     pathtex->width = FOOTPRINT_W;
     pathtex->height = FOOTPRINT_H;
-    FOR_LOOP(i, FOOTPRINT_W * FOOTPRINT_H) pathtex->map[i].b = 0x02;
+    FOR_LOOP(i, FOOTPRINT_W * FOOTPRINT_H) pathtex->map[i].b = 0xff;
     building->pathtex = pathtex;
 
     gi.LinkEntity(builder);
