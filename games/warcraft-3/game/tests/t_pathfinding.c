@@ -51,6 +51,7 @@ DWORD  CM_BuildHeatmap(edict_t *goalentity);
 DWORD  CM_BuildHeatmapForRadius(edict_t *goalentity, FLOAT radius);
 BOOL   CM_ClosestPathablePointForRadius(LPCVECTOR2 location, FLOAT radius, LPVECTOR2 out);
 BOOL   CM_LineIsWalkableForRadius(LPCVECTOR2 a, LPCVECTOR2 b, FLOAT radius);
+BOOL   CM_FindDirectApproachPointForRadius(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT range, FLOAT radius, LPVECTOR2 out);
 BOOL   CM_FlowReachedGoal(DWORD generation, FLOAT x, FLOAT y);
 BOOL   CM_FlowCanReach(DWORD generation, FLOAT x, FLOAT y);
 VECTOR2 get_flow_direction(DWORD heatmapindex, float fnx, float fny);
@@ -191,7 +192,13 @@ TEST(wc3_pathfinding, heatmap_cache_perf_same_target_builds_once) {
     T_EQ(stats.cache_misses, 1);
     T_EQ(stats.cache_hits, 1);
     T_EQ(stats.heatmap_iterations, MAP_W * MAP_H);
-    T_EQ(stats.flow_cells_baked, MAP_W * MAP_H);
+    T_EQ(stats.flow_cells_computed, 0);
+
+    /* Route creation caches prices only; flow work is local to a query. */
+    (void)get_flow_direction(CM_BuildHeatmap(wp1), 2.0f, 5.0f);
+    stats = CM_GetTestPathPerfStats();
+    T_ASSERT(stats.flow_cells_computed > 0);
+    T_ASSERT(stats.flow_cells_computed <= 4);
 }
 
 TEST(wc3_pathfinding, heatmap_cache_miss_different_goal) {
@@ -284,7 +291,7 @@ TEST(wc3_pathfinding, heatmap_cache_ignores_stale_dynamic_pathmap_stamps) {
     T_EQ(gen1, gen2);
 }
 
-TEST(wc3_pathfinding, flow_bake_perf_skips_unreachable_half) {
+TEST(wc3_pathfinding, heatmap_build_does_not_bake_whole_flow_field) {
     build_split_map();
     setup_test_pathmap(MAP_W, MAP_H, split_map);
     reset_entities();
@@ -297,8 +304,12 @@ TEST(wc3_pathfinding, flow_bake_perf_skips_unreachable_half) {
     T_EQ(stats.cache_misses, 1);
     T_EQ(stats.cache_hits, 0);
     T_EQ(stats.heatmap_iterations, (MAP_W - 6) * MAP_H);
-    T_EQ(stats.flow_cells_baked, stats.heatmap_iterations);
-    T_ASSERT(stats.flow_cells_baked < MAP_W * MAP_H);
+    T_EQ(stats.flow_cells_computed, 0);
+
+    (void)get_flow_direction(CM_BuildHeatmap(wp), 7.0f, 5.0f);
+    stats = CM_GetTestPathPerfStats();
+    T_ASSERT(stats.flow_cells_computed > 0);
+    T_ASSERT(stats.flow_cells_computed <= 4);
 }
 
 TEST(wc3_pathfinding, flow_reachability_distinguishes_disconnected_component) {
@@ -404,6 +415,23 @@ TEST(wc3_pathfinding, line_walkability_respects_collision_radius) {
     T_ASSERT(!CM_LineIsWalkableForRadius(&a, &b, 1.0f));
 }
 
+TEST(wc3_pathfinding, direct_approach_stops_before_blocked_target_center) {
+    BYTE blocked_target[MAP_W * MAP_H];
+    VECTOR2 from = { 1.0f, 5.0f };
+    VECTOR2 target = { 5.0f, 5.0f };
+    VECTOR2 approach = { 0 };
+
+    memset(blocked_target, 0, sizeof(blocked_target));
+    blocked_target[5 * MAP_W + 5] = 2;
+    setup_test_pathmap(MAP_W, MAP_H, blocked_target);
+    reset_entities();
+
+    T_ASSERT(CM_FindDirectApproachPointForRadius(&from, &target, 2.0f, 0.0f, &approach));
+    T_ASSERT(Vector2_distance(&approach, &target) <= 2.0f);
+    T_ASSERT(CM_PointIsPathableForRadius(&approach, 0.0f));
+    T_ASSERT(CM_LineIsWalkableForRadius(&from, &approach, 0.0f));
+}
+
 TEST(wc3_pathfinding, heatmap_rejects_corridor_too_narrow_for_radius) {
     BYTE corridor[MAP_W * MAP_H];
     memset(corridor, 2, sizeof(corridor));
@@ -493,8 +521,8 @@ TEST(wc3_pathfinding, no_diagonal_corner_cutting) {
  * Flow-field cache consistency
  *
  * After a cache hit, get_flow_direction() must return the same vector as
- * it did immediately after the original build.  This verifies that the
- * pre-baked flow field is stored correctly and survives a cache lookup.
+ * it did immediately after the original build.  This verifies that cached
+ * integration prices produce stable on-demand flow across cache lookups.
  * --------------------------------------------------------------------- */
 
 TEST(wc3_pathfinding, flow_cache_consistent_after_hit) {

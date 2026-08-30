@@ -912,6 +912,7 @@ void unit_updatestatuses(LPEDICT);
 // g_monster.c
 void unit_moveindirection(LPEDICT);
 void unit_changeangle(LPEDICT);
+void unit_changeangle_towards_point(LPEDICT, LPCVECTOR2);
 void unit_changeangle_for_radius(LPEDICT, FLOAT);
 BOOL M_MoveIsValid(LPEDICT self, LPCVECTOR2 pos);
 BOOL M_CheckAttack(LPEDICT);

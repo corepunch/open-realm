@@ -59,6 +59,7 @@ struct {
     pathMapCell_t *data;
     routeNode_t *heatmap;
     DWORD *queue;          /* SPFA relaxation queue (ring buffer, width*height+1) */
+    DWORD *obstacle_prefix; /* summed-area table for static nowalk cells */
 } pathmap = { 0 };
 
 #define HEATMAP_CACHE_SLOTS 4
@@ -67,32 +68,31 @@ typedef struct {
     point2_t target;    /* pathmap cell coordinate of the goal; {-1,-1} = invalid */
     int      radius_cells; /* mover footprint used when this field was built */
     DWORD    generation;
-    VECTOR2 *flow;   /* pre-computed flow vector per cell; NULL until first use */
-    BYTE    *reachable; /* 1 for cells reached by the matching flood */
+    int     *prices;      /* cached distance-to-goal price per cell */
 } heatmapCacheEntry_t;
 
 static heatmapCacheEntry_t heatmap_cache[HEATMAP_CACHE_SLOTS];
 static DWORD    heatmap_next_generation = 1;
 static int      heatmap_lru[HEATMAP_CACHE_SLOTS];
 static int      heatmap_lru_clock = 0;
-static VECTOR2 *active_flow = NULL; /* points into the current cache slot */
+static heatmapCacheEntry_t *active_heatmap = NULL;
 
 #if defined(TOOL_COMMON_NO_MPQ) || defined(BZ_TESTS)
 /* Per-call perf counters; only tracked in test builds to avoid overhead. */
 static struct {
-    DWORD cache_hits, cache_misses, heatmap_iterations, flow_cells_baked;
+    DWORD cache_hits, cache_misses, heatmap_iterations, flow_cells_computed;
 } g_perf;
 
 void CM_ResetTestPathPerfStats(void) { memset(&g_perf, 0, sizeof(g_perf)); }
 
 typedef struct routePerfStats_s {
-    DWORD cache_hits, cache_misses, heatmap_iterations, flow_cells_baked;
+    DWORD cache_hits, cache_misses, heatmap_iterations, flow_cells_computed;
 } routePerfStats_t;
 
 routePerfStats_t CM_GetTestPathPerfStats(void) {
     return (routePerfStats_t){
         g_perf.cache_hits, g_perf.cache_misses,
-        g_perf.heatmap_iterations, g_perf.flow_cells_baked,
+        g_perf.heatmap_iterations, g_perf.flow_cells_computed,
     };
 }
 #define PERF_INC(field) g_perf.field++
@@ -107,11 +107,11 @@ static void heatmap_cache_invalidate(void) {
         heatmap_cache[i].target    = (point2_t){ -1, -1 };
         heatmap_cache[i].radius_cells = -1;
         heatmap_cache[i].generation = 0;
-        /* Keep flow buffers allocated to avoid malloc churn on map reload. */
+        /* Keep price buffers allocated to avoid malloc churn on map reload. */
     }
     heatmap_next_generation = 1;
     heatmap_lru_clock       = 0;
-    active_flow             = NULL;
+    active_heatmap          = NULL;
     memset(heatmap_lru, 0, sizeof(heatmap_lru));
 }
 
@@ -119,16 +119,15 @@ void CM_InvalidatePathCache(void) {
     heatmap_cache_invalidate();
 }
 
-/* Set active_flow to the cached flow field for the given generation without
- * triggering a heatmap rebuild.  Returns true if the generation is still in
- * the cache (the caller may then skip the expensive CM_BuildHeatmap call).
- * Returns false when the entry was evicted; the caller must rebuild. */
+/* Activate the cached integration field for a generation without rebuilding.
+ * The public name is retained for callers, but cache entries now store prices
+ * rather than a pre-baked VECTOR2 for every map cell. */
 BOOL CM_ActivateCachedFlow(DWORD generation) {
     if (!generation)
         return false;
     FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
-        if (heatmap_cache[i].generation == generation && heatmap_cache[i].flow) {
-            active_flow = heatmap_cache[i].flow;
+        if (heatmap_cache[i].generation == generation && heatmap_cache[i].prices) {
+            active_heatmap = &heatmap_cache[i];
             heatmap_lru[i] = heatmap_lru_clock++;
             return true;
         }
@@ -144,7 +143,7 @@ BOOL CM_FlowReachedGoal(DWORD generation, FLOAT x, FLOAT y) {
         return false;
 
     FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
-        if (heatmap_cache[i].generation != generation || !heatmap_cache[i].flow)
+        if (heatmap_cache[i].generation != generation || !heatmap_cache[i].prices)
             continue;
         n = CM_GetNormalizedMapPosition(x, y);
         cx = (int)floorf(n.x * pathmap.width);
@@ -163,16 +162,34 @@ BOOL CM_FlowCanReach(DWORD generation, FLOAT x, FLOAT y) {
         return false;
 
     FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
-        if (heatmap_cache[i].generation != generation || !heatmap_cache[i].reachable)
+        if (heatmap_cache[i].generation != generation || !heatmap_cache[i].prices)
             continue;
         n = CM_GetNormalizedMapPosition(x, y);
         cx = (int)floorf(n.x * pathmap.width);
         cy = (int)floorf(n.y * pathmap.height);
         if (cx < 0 || cy < 0 || cx >= (int)pathmap.width || cy >= (int)pathmap.height)
             return false;
-        return heatmap_cache[i].reachable[cx + cy * pathmap.width] != 0;
+        return heatmap_cache[i].prices[cx + cy * pathmap.width] != INT_MAX;
     }
     return false;
+}
+
+static void rebuild_static_obstacle_prefix(void) {
+    DWORD const stride = pathmap.width + 1;
+    DWORD const rows = pathmap.height + 1;
+
+    if (!pathmap.obstacle_prefix || !pathmap.original)
+        return;
+
+    memset(pathmap.obstacle_prefix, 0, stride * rows * sizeof(DWORD));
+    FOR_LOOP(y, pathmap.height) {
+        DWORD row_sum = 0;
+        FOR_LOOP(x, pathmap.width) {
+            row_sum += pathmap.original[x + y * pathmap.width].nowalk ? 1 : 0;
+            pathmap.obstacle_prefix[(x + 1) + (y + 1) * stride] =
+                pathmap.obstacle_prefix[(x + 1) + y * stride] + row_sum;
+        }
+    }
 }
 
 void CM_SetupPathMap(DWORD width, DWORD height, BYTE const *cells) {
@@ -183,9 +200,9 @@ void CM_SetupPathMap(DWORD width, DWORD height, BYTE const *cells) {
     SAFE_DELETE(pathmap.original, MemFree);
     SAFE_DELETE(pathmap.heatmap, MemFree);
     SAFE_DELETE(pathmap.queue, MemFree);
+    SAFE_DELETE(pathmap.obstacle_prefix, MemFree);
     FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
-        SAFE_DELETE(heatmap_cache[i].flow, MemFree);
-        SAFE_DELETE(heatmap_cache[i].reachable, MemFree);
+        SAFE_DELETE(heatmap_cache[i].prices, MemFree);
     }
 
     pathmap.width = width;
@@ -200,6 +217,7 @@ void CM_SetupPathMap(DWORD width, DWORD height, BYTE const *cells) {
     pathmap.original = MemAlloc(n);
     pathmap.heatmap = MemAlloc(n * sizeof(routeNode_t));
     pathmap.queue = MemAlloc((n + 1) * sizeof(DWORD));
+    pathmap.obstacle_prefix = MemAlloc((width + 1) * (height + 1) * sizeof(DWORD));
 
     if (cells) {
         memcpy(pathmap.terrain, cells, n);
@@ -209,6 +227,7 @@ void CM_SetupPathMap(DWORD width, DWORD height, BYTE const *cells) {
     memcpy(pathmap.original, pathmap.terrain, n);
     memcpy(pathmap.data, pathmap.original, n);
     memset(pathmap.heatmap, 0, n * sizeof(routeNode_t));
+    rebuild_static_obstacle_prefix();
 
     heatmap_cache_invalidate();
 }
@@ -321,6 +340,7 @@ void CM_BakeStaticObstacles(void) {
     if (pathmap.data) {
         memcpy(pathmap.data, pathmap.original, cells);
     }
+    rebuild_static_obstacle_prefix();
     /* Invalidate the cache so the next build uses the updated original. */
     heatmap_cache_invalidate();
 }
@@ -489,17 +509,67 @@ static bool is_pathable_node_original(int x, int y) {
 }
 
 static bool is_pathable_node_original_for_radius_cells(int x, int y, int radius_cells) {
-    if (!is_pathable_node_original(x, y)) {
+    int const x0 = x - radius_cells;
+    int const y0 = y - radius_cells;
+    int const x1 = x + radius_cells;
+    int const y1 = y + radius_cells;
+    DWORD stride, blocked;
+
+    if (x0 < 0 || y0 < 0 || x1 >= (int)pathmap.width || y1 >= (int)pathmap.height)
         return false;
+    if (!pathmap.obstacle_prefix)
+        return is_pathable_node_original(x, y);
+
+    /* O(1) square-footprint test from the summed-area table.  Radius-aware
+     * heatmap expansion previously re-scanned this whole square for every
+     * neighbour of every visited cell. */
+    stride = pathmap.width + 1;
+    blocked = pathmap.obstacle_prefix[(x1 + 1) + (y1 + 1) * stride]
+            - pathmap.obstacle_prefix[x0 + (y1 + 1) * stride]
+            - pathmap.obstacle_prefix[(x1 + 1) + y0 * stride]
+            + pathmap.obstacle_prefix[x0 + y0 * stride];
+    return blocked == 0;
+}
+
+static bool closest_pathable_node_original(LPCVECTOR2 location, FLOAT radius, point2_t *out) {
+    VECTOR2 n = CM_GetNormalizedMapPosition(location->x, location->y);
+    FLOAT fx = n.x * pathmap.width;
+    FLOAT fy = n.y * pathmap.height;
+    int tx = (int)floorf(fx);
+    int ty = (int)floorf(fy);
+    int max_radius = (int)MAX(pathmap.width, pathmap.height);
+    int radius_cells = (int)ceilf(MAX(0.f, radius) / pathmap_cell_world_size());
+    FLOAT best_dist = FLT_MAX;
+    point2_t best = { 0, 0 };
+    bool found = false;
+
+    if (is_pathable_node_original_for_radius_cells(tx, ty, radius_cells)) {
+        *out = (point2_t){ tx, ty };
+        return true;
     }
-    for (int py = y - radius_cells; py <= y + radius_cells; py++) {
-        for (int px = x - radius_cells; px <= x + radius_cells; px++) {
-            if (!is_pathable_node_original(px, py)) {
-                return false;
+    for (int search_radius = 1; search_radius <= max_radius && !found; search_radius++) {
+        for (int y = ty - search_radius; y <= ty + search_radius; y++) {
+            for (int x = tx - search_radius; x <= tx + search_radius; x++) {
+                FLOAT cx, cy, dist;
+                if (x != tx - search_radius && x != tx + search_radius &&
+                    y != ty - search_radius && y != ty + search_radius)
+                    continue;
+                if (!is_pathable_node_original_for_radius_cells(x, y, radius_cells))
+                    continue;
+                cx = x + 0.5f;
+                cy = y + 0.5f;
+                dist = (cx - fx) * (cx - fx) + (cy - fy) * (cy - fy);
+                if (!found || dist < best_dist) {
+                    best_dist = dist;
+                    best = (point2_t){ x, y };
+                    found = true;
+                }
             }
         }
     }
-    return true;
+    if (found)
+        *out = best;
+    return found;
 }
 
 /* Read-only test: can a unit with the given collision radius stand at this
@@ -569,6 +639,54 @@ BOOL CM_LineIsWalkable(LPCVECTOR2 a, LPCVECTOR2 b) {
     return CM_LineIsWalkableForRadius(a, b, 0);
 }
 
+BOOL CM_FindDirectApproachPointForRadius(LPCVECTOR2 from, LPCVECTOR2 target,
+                                             FLOAT range, FLOAT radius, LPVECTOR2 out) {
+    VECTOR2 n;
+    FLOAT const cell_size = pathmap_cell_world_size();
+    int tx, ty, search_cells, radius_cells;
+    FLOAT best_dist2 = FLT_MAX;
+    BOOL found = false;
+
+    if (!from || !target || !out || range < 0.0f ||
+        !pathmap.original || !pathmap.width || !pathmap.height)
+        return false;
+
+    n = CM_GetNormalizedMapPosition(target->x, target->y);
+    tx = (int)floorf(n.x * pathmap.width);
+    ty = (int)floorf(n.y * pathmap.height);
+    search_cells = (int)ceilf(range / cell_size) + 1;
+    radius_cells = (int)ceilf(MAX(0.f, radius) / cell_size);
+
+    /* A behavior needs an interaction point, not the blocked target centre.
+     * Search only cells inside the small interaction disc and choose the
+     * directly visible legal cell nearest the mover. */
+    for (int y = ty - search_cells; y <= ty + search_cells; y++) {
+        for (int x = tx - search_cells; x <= tx + search_cells; x++) {
+            VECTOR2 candidate;
+            FLOAT dxw, dyw, dist2;
+
+            if (!is_pathable_node_original_for_radius_cells(x, y, radius_cells))
+                continue;
+            candidate = CM_GetDenormalizedMapPosition((x + 0.5f) / pathmap.width,
+                                                       (y + 0.5f) / pathmap.height);
+            if (Vector2_distance(&candidate, target) > range)
+                continue;
+            if (!CM_LineIsWalkableForRadius(from, &candidate, radius))
+                continue;
+
+            dxw = candidate.x - from->x;
+            dyw = candidate.y - from->y;
+            dist2 = dxw * dxw + dyw * dyw;
+            if (!found || dist2 < best_dist2) {
+                best_dist2 = dist2;
+                *out = candidate;
+                found = true;
+            }
+        }
+    }
+    return found;
+}
+
 FLOAT CM_DistanceToPathingFootprint(struct edict_s const *target, LPCVECTOR2 point) {
     point2_t center;
     pathTex_t const *pt;
@@ -608,42 +726,52 @@ FLOAT CM_DistanceToPathingFootprint(struct edict_s const *target, LPCVECTOR2 poi
     return best;
 }
 
-static VECTOR2 compute_flow_at(DWORD x, DWORD y, int radius_cells) {
+static VECTOR2 compute_flow_at(int const *prices_field, DWORD x, DWORD y, int radius_cells) {
     int prices[8];
     int min_price = INT_MAX;
-    int const current_price = heatmap(x, y)->price;
+    int current_price;
+    VECTOR2 direction = { 0, 0 };
 
-    FOR_LOOP(dir, 8) {
+    if (!prices_field || !is_valid_point(x, y))
+        return direction;
+    current_price = prices_field[x + y * pathmap.width];
+    if (current_price == INT_MAX)
+        return direction;
+
+    PERF_INC(flow_cells_computed);
+    FOR_LOOP(dir, 8)
         prices[dir] = INT_MAX;
-    }
+
     FOR_LOOP(dir, 8) {
         int new_x = (int)x + dx[dir];
         int new_y = (int)y + dy[dir];
-        if (!is_pathable_node_for_radius_cells(new_x, new_y, radius_cells) ||
-            heatmap(new_x, new_y)->price == INT_MAX) /* unreached by the flood */
+        int new_price;
+
+        if (!is_pathable_node_original_for_radius_cells(new_x, new_y, radius_cells))
+            continue;
+        new_price = prices_field[new_x + new_y * pathmap.width];
+        if (new_price == INT_MAX)
             continue;
         /* Collision-sized routes are used by lumber to detect a genuine route
          * endpoint, so those vectors must strictly descend toward the goal.
-         * Generic point routes intentionally preserve the older blended flow
-         * around blocked building centres: the owning behavior (mine entry,
-         * return resources, repair, attack, ...) decides its own interaction
-         * boundary and may need to keep steering after the point-route goal. */
-        if (radius_cells > 0 && heatmap(new_x, new_y)->price >= current_price)
+         * Generic point routes preserve the older blended flow contract. */
+        if (radius_cells > 0 && new_price >= current_price)
             continue;
-        /* Don't let the flow vector point diagonally through a wall corner. */
-        if (dir >= 4 && !(is_pathable_node_for_radius_cells((int)x + dx[dir], (int)y, radius_cells) &&
-                          is_pathable_node_for_radius_cells((int)x, (int)y + dy[dir], radius_cells)))
+        if (dir >= 4 &&
+            !(is_pathable_node_original_for_radius_cells((int)x + dx[dir], (int)y, radius_cells) &&
+              is_pathable_node_original_for_radius_cells((int)x, (int)y + dy[dir], radius_cells)))
             continue;
-        prices[dir] = heatmap(new_x, new_y)->price;
-        min_price = MIN(prices[dir], min_price);
+        prices[dir] = new_price;
+        min_price = MIN(new_price, min_price);
     }
 
-    VECTOR2 direction = { 0, 0 };
     FOR_LOOP(dir, 8) {
+        VECTOR2 dirvec;
+        float k;
         if (prices[dir] == INT_MAX)
             continue;
-        float k = 10.f / MAX(1, 10 + (prices[dir] - min_price));
-        VECTOR2 dirvec = { dx[dir], dy[dir] };
+        k = 10.f / MAX(1, 10 + (prices[dir] - min_price));
+        dirvec = (VECTOR2){ dx[dir], dy[dir] };
         Vector2_normalize(&dirvec);
         direction.x += dirvec.x * k;
         direction.y += dirvec.y * k;
@@ -651,54 +779,36 @@ static VECTOR2 compute_flow_at(DWORD x, DWORD y, int radius_cells) {
     return direction;
 }
 
-/* Bake flow vectors only for cells reached by the heatmap (price != INT_MAX).
- * Unreachable cells get a zero vector; counting only reachable cells lets
- * tests verify the flood boundary without baking the whole map. */
-static void bake_flow_field(VECTOR2 *flow, BYTE *reachable, int radius_cells) {
-    DWORD cells = pathmap.width * pathmap.height;
-    FOR_LOOP(i, cells) {
-        if (pathmap.heatmap[i].price == INT_MAX) {
-            flow[i] = (VECTOR2){ 0, 0 };
-            reachable[i] = 0;
-        } else {
-            flow[i] = compute_flow_at(i % pathmap.width, i / pathmap.width, radius_cells);
-            reachable[i] = 1;
-            PERF_INC(flow_cells_baked);
-        }
-    }
-}
-
 VECTOR2 get_flow_direction(DWORD heatmapindex, float fnx, float fny) {
-    /* Honor the generation handshake: point active_flow at THIS goal's field.
-     * Previously the generation was ignored and we read whatever flow field was
-     * globally active, so a unit that missed the per-frame build budget would
-     * sample another unit's goal field and steer to the wrong place ('weird
-     * routes' in multi-unit movement).  On a miss, return zero so the caller
-     * can wait/retry without sampling the wrong field. */
-    if (!CM_ActivateCachedFlow(heatmapindex)) {
+    VECTOR2 n, a, b, c, d, ab, cd;
+    DWORD cx, cy, cx1, cy1;
+    FLOAT tx, ty;
+
+    /* Cache only the integration prices.  Flow is derived for the four cells
+     * around the current mover and interpolated on demand; route creation no
+     * longer computes a vector for every reachable cell in the map. */
+    if (!CM_ActivateCachedFlow(heatmapindex) || !active_heatmap ||
+        !active_heatmap->prices || !pathmap.width || !pathmap.height)
         return (VECTOR2){ 0, 0 };
-    }
-    if (!active_flow || !pathmap.width || !pathmap.height) {
-        return (VECTOR2){ 0, 0 };
-    }
-    VECTOR2 n = CM_GetNormalizedMapPosition(fnx, fny);
+
+    n = CM_GetNormalizedMapPosition(fnx, fny);
     n.x *= pathmap.width;
     n.y *= pathmap.height;
-    DWORD cx = (DWORD)floorf(n.x);
-    DWORD cy = (DWORD)floorf(n.y);
+    cx = (DWORD)floorf(n.x);
+    cy = (DWORD)floorf(n.y);
     if (!is_valid_point(cx, cy))
         return (VECTOR2){ 0, 0 };
-    /* Bilinear interpolation over the pre-baked flow field. */
-    DWORD cx1 = (cx + 1 < pathmap.width)  ? cx + 1 : cx;
-    DWORD cy1 = (cy + 1 < pathmap.height) ? cy + 1 : cy;
-    FLOAT tx = n.x - (FLOAT)cx;
-    FLOAT ty = n.y - (FLOAT)cy;
-    VECTOR2 a = active_flow[cx  + cy  * pathmap.width];
-    VECTOR2 b = active_flow[cx1 + cy  * pathmap.width];
-    VECTOR2 c = active_flow[cx1 + cy1 * pathmap.width];
-    VECTOR2 d = active_flow[cx  + cy1 * pathmap.width];
-    VECTOR2 ab = Vector2_lerp(&a, &b, tx);
-    VECTOR2 cd = Vector2_lerp(&d, &c, tx);
+
+    cx1 = (cx + 1 < pathmap.width) ? cx + 1 : cx;
+    cy1 = (cy + 1 < pathmap.height) ? cy + 1 : cy;
+    tx = n.x - (FLOAT)cx;
+    ty = n.y - (FLOAT)cy;
+    a = compute_flow_at(active_heatmap->prices, cx,  cy,  active_heatmap->radius_cells);
+    b = compute_flow_at(active_heatmap->prices, cx1, cy,  active_heatmap->radius_cells);
+    c = compute_flow_at(active_heatmap->prices, cx1, cy1, active_heatmap->radius_cells);
+    d = compute_flow_at(active_heatmap->prices, cx,  cy1, active_heatmap->radius_cells);
+    ab = Vector2_lerp(&a, &b, tx);
+    cd = Vector2_lerp(&d, &c, tx);
     return Vector2_lerp(&ab, &cd, ty);
 }
 
@@ -743,11 +853,11 @@ DWORD build_heatmap(point2_t target, int radius_cells) {
         FOR_LOOP(i, 8) {
             int const nx = ux + dx[i];
             int const ny = uy + dy[i];
-            if (!is_pathable_node_for_radius_cells(nx, ny, radius_cells))
+            if (!is_pathable_node_original_for_radius_cells(nx, ny, radius_cells))
                 continue;
             /* no diagonal corner-cutting: both cardinal cells must be open too */
-            if (i >= 4 && !(is_pathable_node_for_radius_cells(nx, uy, radius_cells) &&
-                            is_pathable_node_for_radius_cells(ux, ny, radius_cells)))
+            if (i >= 4 && !(is_pathable_node_original_for_radius_cells(nx, uy, radius_cells) &&
+                            is_pathable_node_original_for_radius_cells(ux, ny, radius_cells)))
                 continue;
             DWORD const v = (DWORD)nx + (DWORD)ny * width;
             routeNode_t *const vn = &pathmap.heatmap[v];
@@ -774,10 +884,8 @@ DWORD CM_BuildHeatmapForRadius(edict_t *goalentity, FLOAT radius) {
         return 0;
     }
 
-    /* Flow fields represent static routing only.  Closest-point queries may
-     * temporarily stamp live units into pathmap.data, so always restore the
-     * baked terrain/building/destructible layer before resolving this goal. */
-    reset_pathmap_data();
+    /* Flow fields read the immutable static routing layer directly; dynamic
+     * unit occupancy remains a move-time/local-avoidance concern. */
 
     /* Resolve the goal's pathmap cell, adjusting to the closest pathable
      * cell if the raw position falls into an obstacle.  The adjusted target
@@ -785,56 +893,52 @@ DWORD CM_BuildHeatmapForRadius(edict_t *goalentity, FLOAT radius) {
      * a cached heatmap) and as the source for building. */
     radius_cells = (int)ceilf(MAX(0.f, radius) / pathmap_cell_world_size());
     point2_t target = LocationToPathMap(&goalentity->s.origin2);
-    if (!is_pathable_node_for_radius_cells(target.x, target.y, radius_cells)) {
-        if (!closest_pathable_node(&goalentity->s.origin2, radius, &target))
+    if (!is_pathable_node_original_for_radius_cells(target.x, target.y, radius_cells)) {
+        if (!closest_pathable_node_original(&goalentity->s.origin2, radius, &target))
             return 0;
     }
 
-    /* Cache lookup — find slot with matching target cell.
-     * On a hit: point active_flow at the cached flow field and return
-     * immediately.  No memcpy of the raw heatmap needed. */
+    /* Cache lookup — integration prices are shared by all movers using the
+     * same adjusted target cell and collision footprint. */
     FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
         if (heatmap_cache[i].target.x == target.x &&
             heatmap_cache[i].target.y == target.y &&
             heatmap_cache[i].radius_cells == radius_cells &&
-            heatmap_cache[i].flow) {
+            heatmap_cache[i].prices) {
             heatmap_lru[i] = heatmap_lru_clock++;
-            active_flow = heatmap_cache[i].flow;
+            active_heatmap = &heatmap_cache[i];
             PERF_INC(cache_hits);
             return heatmap_cache[i].generation;
         }
     }
     PERF_INC(cache_misses);
 
-    /* Cache miss — evict the least-recently-used slot.
-     * Prefer slots with generation==0 before comparing LRU timestamps. */
+    /* Cache miss — evict the least-recently-used slot.  Store only one int
+     * price per cell; flow vectors are derived around the mover on demand. */
     int evict = 0;
     FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
         if (!heatmap_cache[i].generation) { evict = i; break; }
         if (!heatmap_cache[evict].generation) break;
         if (heatmap_lru[i] < heatmap_lru[evict]) evict = i;
     }
-    if (!heatmap_cache[evict].flow)
-        heatmap_cache[evict].flow = MemAlloc(map_cells * sizeof(VECTOR2));
-    if (!heatmap_cache[evict].reachable)
-        heatmap_cache[evict].reachable = MemAlloc(map_cells);
+    if (!heatmap_cache[evict].prices)
+        heatmap_cache[evict].prices = MemAlloc(map_cells * sizeof(int));
 
-    reset_pathmap_data();
     clear_heatmap();
     /* Static obstacles are already baked into pathmap.original by
-     * CM_BakeStaticObstacles(); no per-frame entity scan needed here. */
+     * CM_BakeStaticObstacles(); build_heatmap uses its O(1) radius-footprint
+     * predicate rather than re-scanning the footprint square per edge. */
     build_heatmap(target, radius_cells);
-    bake_flow_field(heatmap_cache[evict].flow,
-                    heatmap_cache[evict].reachable,
-                    radius_cells);
+    FOR_LOOP(i, map_cells)
+        heatmap_cache[evict].prices[i] = pathmap.heatmap[i].price;
 
-    heatmap_cache[evict].target    = target;
+    heatmap_cache[evict].target = target;
     heatmap_cache[evict].radius_cells = radius_cells;
     heatmap_cache[evict].generation = heatmap_next_generation++;
     if (heatmap_next_generation == 0)
         heatmap_next_generation = 1;
     heatmap_lru[evict] = heatmap_lru_clock++;
-    active_flow = heatmap_cache[evict].flow;
+    active_heatmap = &heatmap_cache[evict];
 
     return heatmap_cache[evict].generation;
 }

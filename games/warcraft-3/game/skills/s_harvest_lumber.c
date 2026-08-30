@@ -119,11 +119,8 @@ static BOOL tree_has_reachable_harvest_approach(LPEDICT ent, LPEDICT tree) {
 
     if (distance <= HARVEST_RANGE)
         return true;
-    if (!CM_ClosestPathablePointForRadius(&tree->s.origin2, ent->collision, &approach))
-        return false;
-    if (Vector2_distance(&approach, &tree->s.origin2) > HARVEST_RANGE)
-        return false;
-    return CM_LineIsWalkableForRadius(&ent->s.origin2, &approach, ent->collision);
+    return CM_FindDirectApproachPointForRadius(&ent->s.origin2, &tree->s.origin2,
+                                               HARVEST_RANGE, ent->collision, &approach);
 }
 
 static LPEDICT find_reachable_replacement_tree(LPEDICT ent, LPEDICT exclude) {
@@ -202,19 +199,29 @@ static void ai_walktree(LPEDICT ent) {
                          ent->s.number, ent->goalentity ? ent->goalentity->s.number : -1);
         look_for_another_tree(ent);
     } else if (distance > HARVEST_RANGE) {
+        VECTOR2 approach = { 0, 0 };
+        BOOL const direct_approach = CM_FindDirectApproachPointForRadius(
+            &ent->s.origin2, &ent->goalentity->s.origin2, HARVEST_RANGE,
+            ent->collision, &approach);
+
         if (move_is_blocked(ent, distance, step)) {
             harvest_route_failed(ent, "movement_blocked");
             return;
         }
-        unit_changeangle_for_radius(ent, ent->collision);
+        if (direct_approach)
+            unit_changeangle_towards_point(ent, &approach);
+        else
+            unit_changeangle_for_radius(ent, ent->collision);
         HARVEST_PATH_LOG(2,
             "approach worker=%d target=%d worker_pos=(%.1f,%.1f) target_pos=(%.1f,%.1f) "
-            "distance=%.1f range=%.1f step=%.1f blocked_frames=%u direct=%d flow=%u flow_goal=%d flow_unreachable=%d\n",
+            "distance=%.1f range=%.1f step=%.1f blocked_frames=%u direct=%d approach=(%.1f,%.1f) "
+            "flow=%u flow_goal=%d flow_unreachable=%d\n",
             ent->s.number, ent->goalentity->s.number,
             ent->s.origin2.x, ent->s.origin2.y,
             ent->goalentity->s.origin2.x, ent->goalentity->s.origin2.y,
             distance, HARVEST_RANGE, step, ent->movement.blocked_frames,
-            ent->movement.flow_direct, ent->movement.flow_generation,
+            direct_approach, direct_approach ? approach.x : 0.0f,
+            direct_approach ? approach.y : 0.0f, ent->movement.flow_generation,
             ent->movement.flow_goal_reached, ent->movement.flow_unreachable);
         if (ent->movement.flow_goal_reached) {
             harvest_route_failed(ent, "route_goal_out_of_range");

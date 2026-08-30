@@ -249,6 +249,20 @@ static void unit_apply_heading(LPEDICT self, LPCVECTOR2 dir) {
     unit_turn_toward(self, desired);
 }
 
+void unit_changeangle_towards_point(LPEDICT self, LPCVECTOR2 point) {
+    VECTOR2 dir;
+
+    if (!self || !point || (self->aiflags & AI_IMMOBILE))
+        return;
+    self->movement.heading = self->s.angle;
+    self->movement.flow_generation = 0;
+    self->movement.flow_goal_reached = false;
+    self->movement.flow_unreachable = false;
+    self->movement.flow_direct = true;
+    dir = Vector2_sub(point, &self->s.origin2);
+    unit_apply_heading(self, &dir);
+}
+
 void unit_changeangle(LPEDICT self) {
     if (self->aiflags & AI_IMMOBILE)
         return;

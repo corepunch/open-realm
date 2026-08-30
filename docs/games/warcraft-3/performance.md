@@ -38,6 +38,18 @@ Fix: `client_state` gains `active_entities[]` / `num_active`, a compact list of 
 
 Fix: all three `G_RunEntities` loops skip `!ent->inuse`, and `G_RunEntity` guards with `if (!ent->inuse) return;`. Freed edicts carry no simulation state and are never re-sent, so this is a pure skip.
 
+## Lumber order routing hitch (August 2026)
+
+A weighted ARM `perf report` captured while ordering a Peasant to harvest a tree resolved the server hot path through `ai_walktree -> unit_changeangle_for_radius -> M_RefreshHeatmap -> CM_BuildHeatmapForRadius`. Roughly half of that route-build cost was `build_heatmap()` repeatedly expanding the mover footprint, and the other half was `bake_flow_field()` computing vectors for every reachable cell even though the Peasant samples only its current location.
+
+The route now keeps three performance boundaries:
+
+1. Harvest first searches only the small `HARVEST_RANGE` interaction disc for a collision-safe point with a direct static line from the worker. Reachable trees therefore steer to the interaction area without building a whole-map field.
+2. Cached routes store integration prices only. `get_flow_direction()` computes the four local samples needed for interpolation on demand; there is no whole-map flow-vector bake on the order path.
+3. Radius-expanded static walkability uses a summed-area table over baked `nowalk` cells, making each square footprint query O(1) during a genuine heatmap flood.
+
+The unreachable-interior-tree behavior remains unchanged: when no direct harvest-range point is visible, the collision-sized integration field still drives the worker to the forest edge and exposes route completion/unreachability to Harvest, which owns retargeting.
+
 ## Verification
 
 ```bash
@@ -110,7 +122,7 @@ The best candidates based on scaling and current code, pending weighted data, ar
    `glDrawArrays` for each image. This is a plausible GL4ES/handheld driver cost even when desktop CPU profiles make it
    look small. Text already has an atlas batch path that demonstrates the appropriate boundary.
 
-MDX pose sharing, splat topology caching, and flow-field direction caching are secondary measurement candidates. The
+MDX pose sharing and splat topology caching are secondary measurement candidates. Harvest routing is separately covered by the weighted tree-order profile above. The
 local Human02 pose-key audit found little identical-pose reuse; disabling shadows barely changed desktop FPS; and
 `get_flow_direction` itself only scans four generations and performs a bilinear interpolation. Do not trade animation,
 terrain-conforming shadows, or movement quality for these without weighted evidence. First isolate the handheld run
