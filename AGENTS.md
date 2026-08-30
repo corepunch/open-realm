@@ -93,6 +93,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 - Keep control-flow keywords at the start of their own line. Do not write chained forms like `...; if (...)` on the same physical line.
 - Add a short comment before each non-trivial function describing why it exists — the constraint or contract that isn't obvious from the signature alone.
 - Add a trailing `//` comment to every numeric `#define`. State the units, the specific reason for the value, and what it controls. Format: `#define NAME VALUE // units; why this value; used as ...`. Bare names are never self-documenting for magic numbers — a reader should not have to grep callers to understand what `0.15f` or `24` means.
+- When changing a constant's value, update its trailing comment to explain why the value changed — what measurement, constraint, or incident forced the new value. The comment must reflect the current value, not the old one.
 - For any fallback, workaround, or partial implementation, prepend `/* HACK: */` or `/* TODO: */` and explain why.
 - Extract grass rendering tuning and schema values into named `WOW_GRASS_*` defines at the top of the WoW renderer header; do not leave grass literals in generation code or hardcode asset/material values when MPQ data provides them.
 - When providing a bug fix, add an inline comment at the fix site explaining why the fix is correct and what the original behaviour was.
