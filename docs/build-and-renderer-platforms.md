@@ -84,6 +84,10 @@ Populate the state, then call `R_ApplyShader` at the draw boundary. See
 [descriptor programs and typed state](architecture/model-shader.md#descriptor-programs-and-typed-state).
 `make test-renderer-model` verifies declaration generation and upload dispatch.
 
+## Game Compile-Time Selectors
+
+Each game build defines its game selector on every module and application translation unit: `WC3`, `WOW`, or `SC2`. Warcraft III uses `WC3_CFLAGS` for this just as the other games use `WOW_CFLAGS` and `SC2_CFLAGS`. Keep game-specific fields and network descriptors behind the matching selector only when all producers and consumers are compiled with that same game flag. In particular, a field added to `PLAYER` under `#ifdef WC3` must see `-DWC3` in `libgame`, `libjass`, renderer/UI modules, the client/server application unity build, and WC3 standalone tests; otherwise the game module and client disagree on the `PLAYER` layout and guarded client logic is silently omitted.
+
 ## JASS Header Dependencies
 
 WC3's `libjass` directly includes game structs through `jass.h -> game/g_local.h`. Header changes must rebuild it even

@@ -268,10 +268,10 @@ static BOOL R_TraceViewportCornerToMinimap(FLOAT x, FLOAT y, LPCRECT screen, LPV
 
 void R_DrawMinimapCameraRect(LPCRECT screen) {
     size2_t window = R_GetWindowSize();
-    FLOAT left = tr.viewDef.scissor.x * window.width;
-    FLOAT right = (tr.viewDef.scissor.x + tr.viewDef.scissor.w) * window.width;
-    FLOAT top = (1.0f - (tr.viewDef.scissor.y + tr.viewDef.scissor.h)) * window.height;
-    FLOAT bottom = (1.0f - tr.viewDef.scissor.y) * window.height;
+    FLOAT left = tr.viewDef.viewport.x * window.width;
+    FLOAT right = (tr.viewDef.viewport.x + tr.viewDef.viewport.w) * window.width;
+    FLOAT top = (1.0f - (tr.viewDef.viewport.y + tr.viewDef.viewport.h)) * window.height;
+    FLOAT bottom = (1.0f - tr.viewDef.viewport.y) * window.height;
     VECTOR2 corners[4];
     VERTEX vertices[5];
     COLOR32 color = MAKE(COLOR32, 255, 255, 255, 220);

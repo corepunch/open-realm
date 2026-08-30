@@ -10,6 +10,9 @@ static struct {
 } camera_drag;
 
 static void CL_SetCameraPosition(VECTOR2 position) {
+#ifdef WC3
+    position = CL_ClampCameraPosition(position);
+#endif
     cl.viewDef.camerastate[0].origin.x = position.x;
     cl.viewDef.camerastate[0].origin.y = position.y;
     cl.viewDef.camerastate[1].origin.x = position.x;

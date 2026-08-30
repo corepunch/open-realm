@@ -710,6 +710,59 @@ TEST(net, cinematic_cleanup_restores_camera_and_ui_samples) {
     T_EQ(cl.viewDef.camerastate[0].fov, 50);
 }
 
+#ifdef WC3
+TEST(net, playerstate_camera_bounds_roundtrip) {
+    BYTE buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    PLAYER from = { 0 };
+    PLAYER to = { 0 };
+    PLAYER out = { 0 };
+    DWORD bits;
+    int number;
+
+    to.number = 3;
+    to.camera_bounds.min = (VECTOR2){ -4096.0f, -3072.0f };
+    to.camera_bounds.max = (VECTOR2){ 4096.0f, 3072.0f };
+
+    MSG_WriteDeltaPlayerState(&sb, &from, &to);
+    sb.readcount = 0;
+    number = MSG_ReadPlayerBits(&sb, &bits);
+    MSG_ReadDeltaPlayerState(&sb, &out, number, bits);
+
+    T_EQ(number, 3);
+    T_FEQ(out.camera_bounds.min.x, -4096.0f, 0.001f);
+    T_FEQ(out.camera_bounds.min.y, -3072.0f, 0.001f);
+    T_FEQ(out.camera_bounds.max.x, 4096.0f, 0.001f);
+    T_FEQ(out.camera_bounds.max.y, 3072.0f, 0.001f);
+}
+
+TEST(net, camera_prediction_reconciles_to_server_clamped_bound) {
+    BYTE buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    PLAYER from = { 0 };
+    PLAYER to = { 0 };
+
+    test_client_stubs_init();
+    to.number = 1;
+    to.origin = (VECTOR2){ 100.0f, -50.0f };
+    to.camera_bounds.min = (VECTOR2){ -100.0f, -50.0f };
+    to.camera_bounds.max = (VECTOR2){ 100.0f, 50.0f };
+    to.fov = 50;
+    to.distance = 1650;
+    to.client_ui_state = CLIENT_UI_GAME;
+    cl.camera_prediction.active = true;
+    cl.camera_prediction.origin = (VECTOR2){ 500.0f, -500.0f };
+
+    MSG_WriteByte(&sb, svc_playerinfo);
+    MSG_WriteDeltaPlayerState(&sb, &from, &to);
+    CL_ParseServerMessage(&sb);
+
+    T_ASSERT(!cl.camera_prediction.active);
+    T_FEQ(cl.viewDef.camerastate[0].origin.x, 100.0f, 0.001f);
+    T_FEQ(cl.viewDef.camerastate[0].origin.y, -50.0f, 0.001f);
+}
+#endif
+
 TEST(net, fow_full_message_unpacks_visible_and_explored_planes) {
     BYTE buf[64];
     BYTE payload[] = {

@@ -8,7 +8,7 @@ and map-script behavior, but do not replace the native declarations.
 ## Baseline
 
 The registry currently contains 836 callbacks. A conservative source audit
-classifies 482 as implemented and 354 as clear placeholders, for 57.7% overall
+classifies 487 as implemented and 349 as clear placeholders, for 58.3% overall
 coverage. This count treats a callback as a placeholder only when it ignores its
 arguments and unconditionally returns no value, zero, false, or a null handle.
 A working `returns nothing` callback also returns zero at the C ABI boundary, so
@@ -20,7 +20,7 @@ raw `return 0` counts are not meaningful.
 | `api_unit.h` | 144 | 82 | 62 |
 | `api_player.h` | 86 | 43 | 43 |
 | `api_trigger.h` | 48 | 26 | 22 |
-| `api_camera.h` | 42 | 34 | 8 |
+| `api_camera.h` | 42 | 39 | 3 |
 | `api_sound.h` | 35 | 7 | 28 |
 | `api_leaderboard.h` | 27 | 2 | 25 |
 | `api_math.h` | 26 | 18 | 8 |
@@ -33,8 +33,8 @@ raw `return 0` counts are not meaningful.
 | `api_test.h` | 1 | 1 | 0 |
 
 The codebase already exceeds 50% of all registered callbacks. "Populate 50% of
-the placeholders" is a different target: 180 of the 360 placeholders, yielding
-656 implemented callbacks (78.5% overall). Recount whenever callbacks are added
+the original placeholder baseline" is a different target: 180 of the original
+360 placeholders, yielding 656 implemented callbacks (78.5% overall). Recount whenever callbacks are added
 to the registry or a placeholder begins consuming authoritative state.
 
 Coverage is not conformance. Several callbacks consume state but still violate
@@ -66,12 +66,14 @@ because a JASS type is named `playerstate`.
 | --- | --- | --- |
 | Map setup | `level` or a mutable map-setup snapshot | game type, map flags, placement, speed, difficulty, density, start-location priorities |
 | Player setup/runtime | `game.clients[]` and server-only WC3 client fields | controller, race preferences, tax rates, handicap, tech state |
-| Client-visible runtime | `PLAYER ps` | resources, food, team, race, color, camera/UI state |
+| Client-visible runtime | `PLAYER ps` | resources, food, team, race, color, camera target/bounds, UI state |
 
 `war3map.w3i` remains authoritative initial data. The JASS `config()` function
 reconstructs and may override map/player setup before `main()` starts. Setup
 callbacks therefore need mutable per-level state initialized from `MAPINFO`;
 casting away `level.mapinfo` constness is not the long-term ownership model.
+
+Camera bounds are an example of client-visible runtime state rather than mutable map metadata: each WC3 `PLAYER` receives a `BOX2 camera_bounds` initialized from W3I, `SetCameraBounds` changes that per-player copy, and the snapshot transports it so camera prediction uses the same limits as the server. `GetCameraMargin` is not a direct read of the W3I complement integers: it returns the geometric inset between the complement-derived playable rectangle and the W3I default camera rectangle. This distinction matters because World Editor generated `SetCameraBounds` calls use playable-edge constants plus/minus `GetCameraMargin`.
 
 ## Runtime Error Reporting
 

@@ -13,7 +13,7 @@ WC3_JASS_DIR := $(WC3_DIR)/jass
 WC3_SHEET_DIR := $(WC3_DIR)/sheet
 WC3_TEST_DIR := $(WC3_DIR)/tests
 
-WC3_CFLAGS := $(CFLAGS) -I$(WC3_DIR) -I$(WC3_DIR)/common -DUSE_FOGOFWAR -DBZ_GAME=\"warcraft-3\"
+WC3_CFLAGS := $(CFLAGS) -I$(WC3_DIR) -I$(WC3_DIR)/common -DWC3 -DUSE_FOGOFWAR -DBZ_GAME=\"warcraft-3\"
 WC3_FDF_CFLAGS := $(WC3_CFLAGS) -DSTB_FDF_IMPLEMENTATION -DSTB_FDF_GLOBALS
 WC3_COMMON_SRCS := $(shell find $(WC3_DIR)/common -name '*.c' 2>/dev/null | sort)
 WC3_UI_HEADERS := $(shell find $(WC3_DIR)/ui -name '*.h' | sort) client/ui.h

@@ -134,7 +134,11 @@ void Matrix4_getCameraMatrix(LPMATRIX4 output) {
 #endif
     FLOAT distance = LerpNumber(a->distance, b->distance, cl.viewDef.lerpfrac);
     FLOAT fov = LerpNumber(a->fov, b->fov, cl.viewDef.lerpfrac);
-    FLOAT aspect = (FLOAT)windowSize.width / (FLOAT)windowSize.height;
+    FLOAT viewport_width = cl.viewDef.viewport.w * windowSize.width;
+    FLOAT viewport_height = cl.viewDef.viewport.h * windowSize.height;
+    FLOAT aspect = viewport_height > 0.0f
+        ? viewport_width / viewport_height
+        : (FLOAT)windowSize.width / (FLOAT)windowSize.height;
     FLOAT znear = LerpNumber(a->znear, b->znear, cl.viewDef.lerpfrac);
     FLOAT zfar = LerpNumber(a->zfar, b->zfar, cl.viewDef.lerpfrac);
     
@@ -506,11 +510,15 @@ void V_RenderView(void) {
 
     cl.viewDef.lerpfrac = (FLOAT)(cl.time - cl.frame.servertime) / FRAMETIME;
     cl.viewDef.lerpfrac = MAX(0.0f, MIN(1.0f, cl.viewDef.lerpfrac));
-    cl.viewDef.viewport = (RECT) { 0, 0, 1, 1 };
 #if defined(WOW) || defined(SC2)
-    cl.viewDef.scissor = (RECT) { 0, 0, 1, 1 };
+    cl.viewDef.viewport = (RECT) { 0, 0, 1, 1 };
+    cl.viewDef.scissor = cl.viewDef.viewport;
 #else
-    cl.viewDef.scissor = (RECT) { 0, 0.22, 1, 0.76 };
+    /* Warcraft III's 3D world occupies the area above the command console.
+     * Use that rectangle as the real projection viewport rather than drawing a
+     * full-window camera and merely clipping it afterwards. */
+    cl.viewDef.viewport = (RECT) { 0, 0.22, 1, 0.76 };
+    cl.viewDef.scissor = cl.viewDef.viewport;
 #endif
     cl.viewDef.time = cl.time;
     cl.viewDef.deltaTime = cl.time - lastTime;

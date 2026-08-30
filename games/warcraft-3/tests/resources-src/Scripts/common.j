@@ -46,6 +46,13 @@ native ShowInterface              takes boolean flag, real fadeDuration returns 
 native EnableUserControl          takes boolean b returns nothing
 native ResetToGameCamera          takes real duration returns nothing
 native PanCameraTo                takes real x, real y returns nothing
+native SetCameraPosition          takes real x, real y returns nothing
+native SetCameraBounds            takes real x1, real y1, real x2, real y2, real x3, real y3, real x4, real y4 returns nothing
+native GetCameraMargin            takes integer whichMargin returns real
+constant native GetCameraBoundMinX takes nothing returns real
+constant native GetCameraBoundMinY takes nothing returns real
+constant native GetCameraBoundMaxX takes nothing returns real
+constant native GetCameraBoundMaxY takes nothing returns real
 
 // Map and player configuration.
 native ConvertRacePref       takes integer i returns racepreference
@@ -161,6 +168,12 @@ native BJassError   takes string msg returns nothing
 // Player game result constants — must live in a globals block (top-level
 // "constant <type>" is not valid; only "constant native" is top-level).
 globals
+    // Integer selector order follows Warcraft III common.j, not W3I's on-disk
+    // complement order (left, right, bottom, top).
+    constant integer CAMERA_MARGIN_LEFT   = 0
+    constant integer CAMERA_MARGIN_RIGHT  = 1
+    constant integer CAMERA_MARGIN_TOP    = 2
+    constant integer CAMERA_MARGIN_BOTTOM = 3
     constant playerevent EVENT_PLAYER_END_CINEMATIC = ConvertPlayerEvent(17)
     constant playergameresult PLAYER_GAME_RESULT_VICTORY = ConvertPlayerGameResult(0)
     constant playergameresult PLAYER_GAME_RESULT_DEFEAT  = ConvertPlayerGameResult(1)

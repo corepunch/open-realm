@@ -844,6 +844,8 @@ TARGTYPE G_GetTargetType(LPCSTR);
 LPCSTR G_LevelString(LPCSTR);
 FLOAT G_Cinefade(void);
 BOOL G_SkipCutscene(void);
+VECTOR2 G_ClampCameraPosition(LPGAMECLIENT client, LPCVECTOR2 position);
+void G_SetClientCameraBounds(LPGAMECLIENT client, FLOAT const bounds[8]);
 void G_ClearCameraTarget(LPGAMECLIENT client, LPCSTR func);
 void G_SetPlayerText(LPGAMECLIENT, PLAYERTEXT, LPCSTR);
 GAMEEVENT *G_PublishEvent(LPEDICT, EVENTTYPE);

@@ -331,6 +331,7 @@ static void G_InitMapPlayer(LPEDICT clent, LPCMAPINFO mapinfo, DWORD playernum) 
                 G_SetPlayerTechMaxAllowed(clent->client, tech->techID, 0);
             }
         }
+        G_SetClientCameraBounds(clent->client, mapinfo->cameraBounds.bounds);
     }
     clent->client->mapplayer = player;
     clent->client->jass.controller = G_MapControl(player);

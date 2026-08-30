@@ -137,19 +137,31 @@ void R_DrawDecals(void) {
     }
 }
 
-VECTOR2 R_PointToScreenSpace(float x, float y) {
+static VECTOR2 R_PointToViewSpace(viewDef_t const *viewdef, float x, float y) {
     size2_t window = R_GetWindowSize();
-    VECTOR2 p = {
-        .x = (x / window.width - 0.5) * 2,
-        .y = (0.5 - y / window.height) * 2,
+    RECT viewport = viewdef ? viewdef->viewport : (RECT){ 0, 0, 1, 1 };
+    FLOAT left;
+    FLOAT top;
+    FLOAT width;
+    FLOAT height;
+
+    if (viewport.w <= 0.0f || viewport.h <= 0.0f) {
+        viewport = (RECT){ 0, 0, 1, 1 };
+    }
+    left = viewport.x * window.width;
+    top = (1.0f - (viewport.y + viewport.h)) * window.height;
+    width = viewport.w * window.width;
+    height = viewport.h * window.height;
+    return (VECTOR2){
+        .x = ((x - left) / width - 0.5f) * 2.0f,
+        .y = (0.5f - (y - top) / height) * 2.0f,
     };
-    return p;
 }
 
 LINE3 R_LineForScreenPoint(viewDef_t const *viewdef, float x, float y) {
     MATRIX4 invproj;
     Matrix4_inverse(&viewdef->viewProjectionMatrix, &invproj);
-    VECTOR2 const p = R_PointToScreenSpace(x, y);
+    VECTOR2 const p = R_PointToViewSpace(viewdef, x, y);
     LINE3 const line = {
         Matrix4_multiply_vector3(&invproj, &(VECTOR3 const) { p.x, p.y, 0 }),
         Matrix4_multiply_vector3(&invproj, &(VECTOR3 const) { p.x, p.y, 1 }),
@@ -200,8 +212,8 @@ DWORD R_EntitiesInRect(viewDef_t const *viewdef, LPCRECT rect, DWORD max, LPDWOR
         return 0;
     }
     tr.viewDef = *viewdef;
-    VECTOR2 const a = R_PointToScreenSpace(rect->x, rect->y);
-    VECTOR2 const b = R_PointToScreenSpace(rect->x+rect->w, rect->y+rect->h);
+    VECTOR2 const a = R_PointToViewSpace(viewdef, rect->x, rect->y);
+    VECTOR2 const b = R_PointToViewSpace(viewdef, rect->x+rect->w, rect->y+rect->h);
     RECT const screen = {
         .x = MIN(a.x, b.x),
         .y = MIN(a.y, b.y),
@@ -322,8 +334,12 @@ static bool R_WorldToUI(LPCVECTOR3 world, FLOAT *out_x, FLOAT *out_y) {
         return false;
     }
     RECT const scene = R_UISceneRect();
-    *out_x = scene.x + (cx / cw * 0.5f + 0.5f) * scene.w;
-    *out_y = scene.y + (1.0f - (cy / cw * 0.5f + 0.5f)) * scene.h;
+    FLOAT const ndc_x = cx / cw;
+    FLOAT const ndc_y = cy / cw;
+    FLOAT const screen_x = tr.viewDef.viewport.x + (ndc_x * 0.5f + 0.5f) * tr.viewDef.viewport.w;
+    FLOAT const screen_y = tr.viewDef.viewport.y + (ndc_y * 0.5f + 0.5f) * tr.viewDef.viewport.h;
+    *out_x = scene.x + screen_x * scene.w;
+    *out_y = scene.y + (1.0f - screen_y) * scene.h;
     return true;
 }
 

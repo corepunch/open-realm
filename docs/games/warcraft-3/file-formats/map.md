@@ -36,7 +36,8 @@ CSTR   mapAuthor
 CSTR   mapDescription
 CSTR   playersRecommended
 ...
-FLOAT[8]  cameraBounds     // playable camera extents
+FLOAT[8]  cameraBounds     // initial four camera-bound corner points; copied into per-player runtime camera bounds
+LONG[4]   cameraComplements // W3I complements in left, right, bottom, top order (tiles)
 SIZE2     playableArea     // width × height in tiles
 DWORD     flags
 CHAR      mainGroundType   // e.g. 'A' = Ashenvale, 'L' = Lordaeron
@@ -47,6 +48,26 @@ DWORD  num_forces
 [forceRecord × num_forces]
 ...
 ```
+
+The four W3I camera-bound complements are stored in **left, right, bottom, top** order. They describe how many terrain cells on each side of the complete W3E terrain lie outside the playable rectangle; they are **not** the JASS `GetCameraMargin` values. OpenRealm stores them as `cameraBounds.complement` in the same on-disk order because the W3I reader copies the structure directly. The playable rectangle is reconstructed from `CM_GetWorldBounds()` as:
+
+```text
+playable.min.x = world.min.x + complement.left   * 128
+playable.max.x = world.max.x - complement.right  * 128
+playable.min.y = world.min.y + complement.bottom * 128
+playable.max.y = world.max.y - complement.top    * 128
+```
+
+The eight W3I camera-bound floats form the default camera rectangle. Warcraft's `GetCameraMargin` is the inset between that default camera rectangle and the playable rectangle:
+
+```text
+LEFT   = default.min.x - playable.min.x
+RIGHT  = playable.max.x - default.max.x
+BOTTOM = default.min.y - playable.min.y
+TOP    = playable.max.y - default.max.y
+```
+
+This matches Warsmash's `Terrain.getPlayableMapArea()`/`getDefaultCameraBounds()` mapping and its JASS `GetCameraMargin` native (`Terrain.java` and `Jass2.java` in WarsmashModEngine). World Editor generated `main` functions add/subtract these margins from playable-map edge constants when calling `SetCameraBounds`, thereby reconstructing the default camera rectangle. Returning `complement * TILE_SIZE` from `GetCameraMargin` applies the unplayable border a second time and makes the runtime camera stop substantially too early at map edges.
 
 Each `playerRecord` contains:
 - player slot index
