@@ -17,8 +17,13 @@ jobs:
         include:
           - os: ubuntu-latest
             name: linux-x64
+            archive: openwarcraft3-linux-x64.tar.gz
           - os: macos-latest
             name: macos-x64
+            archive: openwarcraft3-macos-x64.tar.gz
+          - os: windows-latest
+            name: windows-x64
+            archive: openwarcraft3-windows-x64.zip
 
     runs-on: ${{ matrix.os }}
     permissions:
@@ -40,19 +45,49 @@ jobs:
         if: runner.os == 'macOS'
         run: brew install sdl2 libjpeg
 
-      - name: Build
+      - name: Install dependencies (Windows)
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: false
+          install: >-
+            mingw-w64-x86_64-SDL2
+            mingw-w64-x86_64-libepoxy
+            make
+            zip
+
+      - name: Build (Unix)
+        if: runner.os != 'Windows'
         run: make build
 
-      - name: Create release archive
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: make build
+
+      - name: Create release archive (Unix)
+        if: runner.os != 'Windows'
         run: |
           mkdir -p release
           cp build/bin/openwarcraft3 release/
           cp -r build/lib/. release/
           cp -r build/share release/
-          tar -czf openwarcraft3-${{ matrix.name }}.tar.gz -C release .
+          tar -czf ${{ matrix.archive }} -C release .
+
+      - name: Create release archive (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          mkdir -p release
+          cp build/bin/openwarcraft3.exe release/
+          cp -r build/lib/. release/
+          cp -r build/share release/
+          cd release && zip -r ../${{ matrix.archive }} .
 
       - name: Determine release tag
         id: get_tag
+        shell: bash
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "tag=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
@@ -63,7 +98,8 @@ jobs:
       - name: Upload release asset
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
         run: |
           gh release upload "${{ steps.get_tag.outputs.tag }}" \
-            "openwarcraft3-${{ matrix.name }}.tar.gz" \
+            "${{ matrix.archive }}" \
             --clobber

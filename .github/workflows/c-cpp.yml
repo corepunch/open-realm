@@ -65,3 +65,32 @@ jobs:
             build/lib/
             build/share/
           if-no-files-found: error
+
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: false
+          install: >-
+            mingw-w64-x86_64-SDL2
+            mingw-w64-x86_64-libepoxy
+            make
+
+      - name: Build
+        shell: msys2 {0}
+        run: make
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: openwarcraft3-windows-x64
+          path: |
+            build/bin/openwarcraft3.exe
+            build/lib/
+            build/share/
+          if-no-files-found: error
