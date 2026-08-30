@@ -247,8 +247,7 @@ static void ai_goldmine_walkback(LPEDICT ent) {
                     ent->s.number, dropoff->s.number,
                     ent->goalentity ? ent->goalentity->s.number : -1,
                     ent->harvested_gold);
-        ent->s.renderfx &= ~RF_HAS_GOLD;
-        ent->harvested_gold = 0;
+        S_SetCarriedResource(ent, RETURN_RESOURCE_GOLD, 0);
         if (S_GoldMineCanHarvest(ent->goalentity)) {
             G_PublishMessage(ent, GAME_MSG_HARVEST_RESUME_GOLD, ent->goalentity);
             harvestgold_walk(ent);
@@ -362,8 +361,7 @@ void harvestgold_walkback(LPEDICT ent) {
         return;
     }
 
-    ent->s.renderfx |= RF_HAS_GOLD;
-    ent->harvested_gold += amount;
+    S_SetCarriedResource(ent, RETURN_RESOURCE_GOLD, ent->harvested_gold + amount);
     LPEDICT dropoff = S_FindNearestResourceDropoff(ent, RETURN_RESOURCE_GOLD);
     if (dropoff) {
         if (goldmine_path_debug_level() >= 1)

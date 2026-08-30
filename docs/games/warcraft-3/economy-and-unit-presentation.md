@@ -7,6 +7,7 @@ The Gather command reaches the same state machines through `harvest_menu_selectt
 
 - Gold: `harvest_gold_start` -> walk to mine -> capacity-gated hidden mining wait -> carry finite mine gold -> nearest live same-owner drop-off accepting gold -> deposit -> resume the mine while it remains harvestable.
 - Lumber: `harvest_start` -> walk into `HARVEST_RANGE` -> swing/damage -> carry lumber -> nearest live same-owner drop-off accepting lumber -> deposit -> resume or find another tree. Successful chops clamp carried lumber to `HARVEST_LUMBER_CAPACITY`; a tree that cannot take damage (for example an invulnerable destructible) does not award lumber.
+- Carried resources are mutually exclusive presentation/gameplay state: collecting gold clears stale carried lumber and its `RF_HAS_LUMBER` tag; collecting lumber clears stale carried gold and `RF_HAS_GOLD`. Depositing clears both carry counters/tags, so a worker carrying nothing uses its ordinary animation set rather than retaining a lumber/gold carry model.
 - If an explicitly clicked live tree is buried behind other trees, routing remains responsible only for reaching the best legal approach.  Once that route is exhausted outside `HARVEST_RANGE`, Harvest selects a reachable replacement tree and continues lumber work, matching retail behavior.  See [WC3 Pathfinding And Harvest Reachability](pathfinding.md).
 - `s_goldmine.c` uses the mine's authored no-walk pathing footprint plus the worker radius and one movement step as the primary entry boundary. A collision-circle contact check remains the fallback for mines without a path texture. Mine footprints are authoritative; do not restore the old fixed 180-unit radius.
 - A chop is lethal when tree life is less than or equal to `HARVEST_TREE_DAMAGE`. The lethal path must call `tree->die` because
@@ -280,6 +281,6 @@ The movement suite covers large-footprint mine entry, mine entry through an auth
 deposit/resume cycle, stock capacity 1 under six assigned workers, independent custom mine capacities/durations, non-orderable inside
 miners, finite-gold depletion and partial final trips,
 trained-unit exit placement against static footprints, nearest compatible lumber drop-off selection, explicit Smart-click drop-off return, lumber return through an authored
-blocking Town Hall footprint, rejection of lumber-only drop-offs for gold, drop-off destruction retargeting, exact lethal tree trips with next-tree selection, dead-previous-tree same-forest retargeting, the no-live-tree stop path, capacity clamping, invulnerable-tree rejection,
+blocking Town Hall footprint, rejection of lumber-only drop-offs for gold, drop-off destruction retargeting, exact lethal tree trips with next-tree selection, dead-previous-tree same-forest retargeting, the no-live-tree stop path, capacity clamping, invulnerable-tree rejection, carried-resource gold/lumber visual switching and zero-carry visual clearing,
 non-lethal chops, and both sides of the immobility contract. The in-engine fixture
 `games/warcraft-3/tests/resources-src/Units/UnitUI.slk` supplies `isbldg` for the same metadata lookup used by the game.

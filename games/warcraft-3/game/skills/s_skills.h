@@ -82,6 +82,7 @@ typedef enum {
 
 BOOL S_CanReturnResourceAt(LPEDICT unit, LPEDICT building, returnResource_t resource);
 LPEDICT S_FindNearestResourceDropoff(LPEDICT unit, returnResource_t resource);
+void S_SetCarriedResource(LPEDICT unit, returnResource_t resource, DWORD amount);
 
 typedef enum {
 	ABILITY_NUMBER_CAST,
