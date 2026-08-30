@@ -98,10 +98,13 @@ static COLOR32 SCR_CursorTint(void) {
 
     if (entnum && entnum < MAX_CLIENT_ENTITIES) {
         LPCENTITYSTATE state = &cl.ents[entnum].current;
-        if ((state->flags & (EF_HOVER_HEALTH | EF_HOSTILE)) ==
-            (EF_HOVER_HEALTH | EF_HOSTILE))
-        {
-            return MAKE(COLOR32, 255, 0, 0, 255);
+        if (state->flags & EF_HOVER_HEALTH) {
+            if (state->flags & EF_HOSTILE) {
+                return MAKE(COLOR32, 255, 0, 0, 255);
+            }
+            if (state->flags & EF_NEUTRAL) {
+                return MAKE(COLOR32, 255, 220, 80, 255);
+            }
         }
     }
     return COLOR32_WHITE;

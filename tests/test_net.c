@@ -74,9 +74,10 @@ TEST(net, no_refresh_preserves_client_loop_without_screen_submission) {
 }
 
 
-/* Authored cursors use recipient-relative hover state for presentation only:
- * hostile WC3 hover is red, and clearing hover restores the original artwork. */
-TEST(client_screen, cursor_tint_is_red_only_while_hovering_hostile_unit) {
+/* Authored cursors use the same recipient-relative hover relationship as the
+ * world ring: enemies tint red, neutral/passive targets yellow, and friendly
+ * or no hover restores the original artwork. */
+TEST(client_screen, cursor_tint_follows_wc3_hover_relationship) {
     test_client_stubs_init(); test_client_stubs_clear_cvars();
     cls.state = ca_active; cls.key_dest = key_game; scr_initialized = true;
     test_client_stubs_set_cvar("r_hud", "0");
@@ -93,9 +94,17 @@ TEST(client_screen, cursor_tint_is_red_only_while_hovering_hostile_unit) {
     T_EQ(test_cursor_tint.b, 0);
     T_EQ(test_cursor_tint.a, 255);
 
-    cl.hover_entity = 0;
+    cl.ents[7].current.flags = EF_HOVER_HEALTH | EF_NEUTRAL;
     SCR_UpdateScreen(16);
     T_EQ(test_cursor_draw_calls, 2);
+    T_EQ(test_cursor_tint.r, 255);
+    T_EQ(test_cursor_tint.g, 220);
+    T_EQ(test_cursor_tint.b, 80);
+    T_EQ(test_cursor_tint.a, 255);
+
+    cl.hover_entity = 0;
+    SCR_UpdateScreen(16);
+    T_EQ(test_cursor_draw_calls, 3);
     T_EQ(test_cursor_tint.r, 255);
     T_EQ(test_cursor_tint.g, 255);
     T_EQ(test_cursor_tint.b, 255);
