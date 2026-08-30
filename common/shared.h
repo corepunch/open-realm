@@ -220,7 +220,7 @@ enum {
 #define MAX_CLIENTS 24
 #define MAX_MODELS 256
 #define MAX_FONTSTYLES 256
-#define MAX_SOUNDS 256
+#define MAX_SOUNDS 512
 #define MAX_IMAGES 256
 #define MAX_DYNAMIC_IMAGES 32
 #define MAX_ITEMS 256
@@ -469,7 +469,7 @@ typedef struct entityState_s {
     BYTE model;
     BYTE model2;
     USHORT image;
-    BYTE sound;
+    USHORT sound;
     DWORD frame;
     BYTE event;
     BYTE flags;
@@ -488,7 +488,7 @@ typedef struct entityState_s {
 
 _Static_assert(MAX_CLIENTS     <= 256,  "entityState_t.player is BYTE — bump to USHORT if MAX_CLIENTS exceeds 255");
 _Static_assert(MAX_MODELS      <= 256,  "entityState_t.model/model2 are BYTE — bump to USHORT if MAX_MODELS exceeds 255");
-_Static_assert(MAX_SOUNDS      <= 256,  "entityState_t.sound is BYTE — bump to USHORT if MAX_SOUNDS exceeds 255");
+_Static_assert(MAX_SOUNDS      <= 65535, "entityState_t.sound is USHORT — bump to DWORD if MAX_SOUNDS exceeds 65534");
 _Static_assert(MAX_CONFIGSTRINGS <= 65536, "entityState_t.image is USHORT — bump to DWORD if MAX_CONFIGSTRINGS exceeds 65535");
 
 #ifdef WOW
