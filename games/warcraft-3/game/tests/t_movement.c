@@ -615,15 +615,20 @@ TEST(wc3_movement, gold_return_rejects_nearer_lumber_only_dropoff) {
     hall->s.player = mill->s.player = worker->s.player;
     make_live_dropoff(hall, &return_gold_lumber_abilities);
     make_live_dropoff(mill, &return_lumber_abilities);
-    mine->peonsinside = 1;
-    worker->goalentity = worker->secondarygoal = mine;
+    setup_test_goldmine(mine, &test_goldmine_cap1, 100);
+    gi.LinkEntity(worker); gi.LinkEntity(mine); gi.LinkEntity(hall); gi.LinkEntity(mill);
+    slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
     HARVEST_GOLD_CAPACITY = 10.0f;
+    worker->goalentity = worker->secondarygoal = mine;
+    harvestgold_minegold(worker); /* registers worker in mine */
 
     harvestgold_walkback(worker);
 
     T_ASSERT(worker->goalentity == hall);
     T_FEQ(worker->harvested_gold, 10.0f, 0.01f);
     T_ASSERT(worker->s.renderfx & RF_HAS_GOLD);
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
 }
 
 /* Unsubscription is part of the callback lifetime contract. */
