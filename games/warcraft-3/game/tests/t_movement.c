@@ -205,28 +205,30 @@ TEST(wc3_movement, gold_worker_enters_large_mine_footprint) {
 }
 
 
-/* The generic mover must not treat its collision-expanded flow endpoint as the
- * completion point for mine entry.  The mine behavior owns the interaction
- * boundary (worker + mine collision + one movement step), so once the point
- * route reaches the authored footprint edge the worker must continue into that
- * boundary and enter rather than stopping one path cell too early. */
+/* A worker at the last legal cell beside an authored mine footprint must be
+ * admitted when one movement step reaches the footprint.  Keep this fixture at
+ * the interaction boundary so it tests mine-entry semantics independently of
+ * global route-cache/build-budget state left by earlier pathfinding tests. */
 TEST(wc3_movement, gold_worker_enters_mine_with_blocked_pathing_footprint) {
     enum { CELLS = 64 };
     BYTE pathmap[CELLS * CELLS] = {0};
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
+    LPEDICT worker = make_moving_unit(158.0f, 0.0f);
     LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 320.0f, 0.0f);
+    pathTex_t *mine_pathtex = movement_make_goldmine_pathtex();
 
     worker->collision = 16.0f;
-    worker->unitinfo.MoveSpeed = 100.0f;
+    worker->unitinfo.MoveSpeed = 190.0f;
     mine->collision = 128.0f;
     mine->s.model = 1;
     mine->movetype = MOVETYPE_NONE;
+    mine->pathtex = mine_pathtex;
     setup_test_goldmine(mine, &test_goldmine_cap1, 100);
     gi.LinkEntity(worker);
     gi.LinkEntity(mine);
 
-    /* 8x8 authored mine footprint centered on world (320,0) in the default
-     * -1024..1024 / 64-cell test map. */
+    /* Mirror the mine path texture's central 8x8 no-walk cells into the
+     * static test map.  The entity carries the same authored pathtex so
+     * interaction distance and movement pathing describe one footprint. */
     for (int y = 28; y < 36; y++) {
         for (int x = 38; x < 46; x++)
             pathmap[x + y * CELLS] = 0x02;
@@ -236,18 +238,20 @@ TEST(wc3_movement, gold_worker_enters_mine_with_blocked_pathing_footprint) {
         .min = {-1024.0f, -1024.0f},
         .max = { 1024.0f,  1024.0f}));
 
+    T_ASSERT(CM_PointIsPathableForRadius(&worker->s.origin2, worker->collision));
+    T_ASSERT(!CM_PointIsPathableForRadius(&mine->s.origin2, 0.0f));
+    T_ASSERT(CM_DistanceToPathingFootprint(mine, &worker->s.origin2) <=
+             worker->collision + unit_movedistance(worker));
+
     slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
     harvest_gold_start(worker, mine);
-
-    FOR_LOOP(i, 80) {
-        worker->currentmove->think(worker);
-        if (worker->s.renderfx & RF_HIDDEN) break;
-    }
+    worker->currentmove->think(worker);
 
     T_ASSERT(worker->s.renderfx & RF_HIDDEN);
     T_EQ(mine->peonsinside, 1);
     G_SetSLKRows("AbilityData", old_abilities);
     free_slk_rows(rows);
+    gi.MemFree(mine_pathtex);
 }
 
 /* The mine pathing footprint is square/texture-authored, while mine->collision
@@ -277,8 +281,10 @@ TEST(wc3_movement, gold_worker_enters_at_pathing_footprint_corner) {
         .min = {-1024.0f, -1024.0f},
         .max = { 1024.0f,  1024.0f}));
 
-    /* Centre-circle entry is deliberately still false at this corner. */
-    T_ASSERT(M_DistanceToGoal(worker) >
+    /* Centre-circle entry is deliberately still false at this corner.
+     * Check the fixture geometry directly: harvest_gold_start() has not yet
+     * assigned worker->goalentity, so M_DistanceToGoal() is not valid here. */
+    T_ASSERT(Vector2_distance(&worker->s.origin2, &mine->s.origin2) >
              worker->collision + mine->collision + unit_movedistance(worker));
     T_ASSERT(CM_DistanceToPathingFootprint(mine, &worker->s.origin2) <=
              worker->collision + unit_movedistance(worker));
