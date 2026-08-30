@@ -159,6 +159,7 @@ BOOL G_CancelBuildPlacement(LPEDICT clent) {
         return false;
     }
 
+    clent->client->menu.on_location_selected = NULL;
     G_ClearBuildPlacementCursor(clent);
     Get_Commands_f(clent);
     return true;
