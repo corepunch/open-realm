@@ -99,6 +99,7 @@ typedef struct {
     BOOL (*on_entity_selected)(LPEDICT, LPEDICT);
     BOOL (*on_location_selected)(LPEDICT, LPCVECTOR2);
     void (*cmdbutton)(LPEDICT, DWORD);
+    void (*refresh)(LPEDICT);
     DWORD ability_code;
 } menu_t;
 
@@ -335,6 +336,7 @@ struct gcamerasetup_s {
 struct client_s {
     PLAYER ps;
     BOOL connected; /* ClientBegin completed for this reserved player edict. */
+    BOOL commands_dirty; /* authoritative command availability changed; rebuild after simulation */
     struct {
         DWORD race_pref, controller;
         BYTE tax[MAX_PLAYERS][PLAYERSTATE_LUMBER_GATHERED + 1];
@@ -572,6 +574,7 @@ struct edict_s {
         LPEDICT primary_builder;
         FLOAT progress;
     } construction;
+    BOOL training; /* spawned in a production queue but not yet completed */
     struct {
         BOOL primary;
         FLOAT gold_accum;
@@ -962,7 +965,9 @@ BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_but
 BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, gameCommandButton_t *button);
 BOOL G_BuildAllEnabled(void);
 BOOL G_WorkerCanBuild(LPEDICT worker, DWORD building_id);
+BOOL G_ProducerCanTrain(LPEDICT producer, DWORD unit_id);
 buildCommandState_t G_GetBuildCommandState(LPGAMECLIENT client, LPEDICT worker, DWORD building_id, LPSTR reason, DWORD reason_size);
+buildCommandState_t G_GetTrainCommandState(LPGAMECLIENT client, LPEDICT producer, DWORD unit_id, LPSTR reason, DWORD reason_size);
 BOOL G_ChargeBuilding(LPGAMECLIENT client, DWORD building_id);
 void G_RefundBuilding(LPGAMECLIENT client, DWORD building_id);
 void G_SnapBuildingPoint(DWORD building_id, LPVECTOR2 point);
@@ -977,6 +982,7 @@ void G_SetPlayerTechResearched(LPGAMECLIENT client, DWORD techid, LONG level_val
 void G_AddPlayerTechResearched(LPGAMECLIENT client, DWORD techid, LONG levels);
 LONG G_GetPlayerTechResearchedLevel(LPGAMECLIENT client, DWORD techid);
 LONG G_GetPlayerTechCountValue(LPGAMECLIENT client, DWORD techid);
+void G_InvalidateCommands(LPGAMECLIENT client);
 BOOL G_BuildInventoryItem(LPEDICT ent, LPEDICT item, BYTE slot, gameInventoryItem_t *out);
 BYTE G_GetInventory(LPEDICT ent, gameInventoryItem_t *items, BYTE max_items);
 BYTE G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue);

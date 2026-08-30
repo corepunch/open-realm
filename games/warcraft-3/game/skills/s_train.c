@@ -9,6 +9,7 @@ static BOOL ShowTrainedUnit(LPEDICT townhall, LPEDICT unit) {
     }
     unit->s.origin2 = origin;
     unit->s.angle = angle;
+    unit->training = false;
     unit->s.renderfx &= ~RF_HIDDEN;
     unit->stand(unit);
     return true;
@@ -25,6 +26,7 @@ void ai_train_build(LPEDICT ent) {
         if (!ShowTrainedUnit(ent, ent->build)) {
             return;
         }
+        G_InvalidateCommands(G_GetPlayerClientByNumber(ent->s.player));
         G_PublishEvent(ent->build, EVENT_PLAYER_UNIT_TRAIN_FINISH);
         if (!(ent->build = ent->build->build)) {
             ent->stand(ent);
@@ -47,6 +49,7 @@ void unit_add_build_queue(LPEDICT self, LPEDICT item) {
 
 void unit_build(LPEDICT self, DWORD class_id) {
     LPEDICT ent = SP_SpawnAtLocation(class_id, self->s.player, &self->s.origin2);
+    ent->training = true;
     ent->health.value = 0;
     ent->birth(ent);
     ent->s.renderfx |= RF_HIDDEN;
@@ -55,12 +58,24 @@ void unit_build(LPEDICT self, DWORD class_id) {
 }
 
 void SP_TrainUnit(LPEDICT townhall, DWORD class_id) {
-    LPEDICT clent = g_edicts+townhall->s.player;
-    LPPLAYER player = G_GetPlayerByNumber(townhall->s.player);
+    LPGAMECLIENT client;
+    LPEDICT clent;
+    LPPLAYER player;
+
+    if (!townhall || !class_id) return;
+    client = G_GetPlayerClientByNumber(townhall->s.player);
+    if (!client || client->ps.number != townhall->s.player ||
+        G_GetTrainCommandState(client, townhall, class_id, NULL, 0) != BUILD_COMMAND_AVAILABLE) {
+        return;
+    }
+    clent = G_GetPlayerEntityByNumber(townhall->s.player);
+    player = G_GetPlayerByNumber(townhall->s.player);
     if (player_pay(player, class_id)) {
         unit_build(townhall, class_id);
-        Get_Portrait_f(clent);
-        Get_Commands_f(clent);
+        if (clent) {
+            Get_Portrait_f(clent);
+            Get_Commands_f(clent);
+        }
     } else {
         fprintf(stdout, "Not enough resources\n");
     }

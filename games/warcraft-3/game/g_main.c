@@ -306,6 +306,28 @@ static void G_RunClients(void) {
     }
 }
 
+void G_InvalidateCommands(LPGAMECLIENT client) {
+    if (client) client->commands_dirty = true;
+}
+
+static void G_UpdateClientCommandCards(void) {
+    FOR_LOOP(i, game.max_clients) {
+        LPGAMECLIENT client = game.clients + i;
+        LPEDICT clent;
+
+        if (!client->connected || !client->commands_dirty) continue;
+        if (client->menu.on_entity_selected || client->menu.on_location_selected) continue;
+        clent = G_GetPlayerEntityByNumber(client->ps.number);
+        if (!clent || clent->client != client) continue;
+        if (client->menu.refresh) {
+            client->commands_dirty = false;
+            client->menu.refresh(clent);
+        } else {
+            Get_Commands_f(clent);
+        }
+    }
+}
+
 static void G_StartScripts(void) {
     if (level.scriptsStarted) {
         return;
@@ -344,6 +366,8 @@ static void G_RunFrame(void) {
     G_RunClients();
 
     G_RunEntities();
+
+    G_UpdateClientCommandCards();
 
     G_UpdateClientInfoPanels();
     G_UpdateClientResourceBars();

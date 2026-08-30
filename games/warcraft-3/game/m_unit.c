@@ -93,6 +93,8 @@ void unit_stand(LPEDICT self) {
 }
 
 void unit_die(LPEDICT self, LPEDICT attacker) {
+    LPGAMECLIENT owner;
+
     unit_leavecombat(self);
     unit_setmove(self, &unit_move_death);
     /* Destroying a transport ejects its passengers at the wreck. */
@@ -110,6 +112,8 @@ void unit_die(LPEDICT self, LPEDICT attacker) {
     if (attacker && attacker != self && attacker->s.player != self->s.player) {
         G_GrantKillXP(self, attacker);
     }
+    owner = G_GetPlayerClientByNumber(self->s.player);
+    if (owner && owner->ps.number == self->s.player) G_InvalidateCommands(owner);
 }
 
 void unit_birth(LPEDICT self) {
@@ -220,8 +224,14 @@ unit_createorfind(DWORD player,
         if (ent->class_id == unitid &&
             Vector2_distance(location, &ent->s.origin2) < 10)
         {
+            DWORD const old_player = ent->s.player;
+            LPGAMECLIENT old_client = G_GetPlayerClientByNumber(old_player);
+            LPGAMECLIENT new_client = G_GetPlayerClientByNumber(player);
+
             ent->s.player = player;
             ent->s.angle = facing * M_PI / 180;
+            if (old_client && old_client->ps.number == old_player) G_InvalidateCommands(old_client);
+            if (new_client && new_client->ps.number == player) G_InvalidateCommands(new_client);
             return ent;
         }
     }

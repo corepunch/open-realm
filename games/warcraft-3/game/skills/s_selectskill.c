@@ -30,6 +30,7 @@ void ui_selectskill(LPGAMECLIENT client) {
 void selectskill_command(LPEDICT edict) {
     UI_WRITE_LAYER(edict, ui_selectskill, LAYER_COMMANDBAR);
     edict->client->menu.cmdbutton = selectskill_menu_selected;
+    edict->client->menu.refresh = selectskill_command;
 }
 
 ability_t a_selectskill = {

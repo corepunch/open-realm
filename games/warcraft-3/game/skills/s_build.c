@@ -222,6 +222,7 @@ void ui_builds(LPGAMECLIENT client) {
 void build_command(LPEDICT edict) {
     UI_WRITE_LAYER(edict, ui_builds, LAYER_COMMANDBAR);
     edict->client->menu.cmdbutton = build_menu_selectlocation;
+    edict->client->menu.refresh = build_command;
 }
 
 ability_t a_build = {

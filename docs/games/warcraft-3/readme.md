@@ -110,4 +110,4 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Cinematics](cinematics.md)
 - [Sounds](sounds.md)
 
-- [Building construction](building-construction.md) — build-menu availability, placement validation, Human construction, and power building.
+- [Building construction](building-construction.md) — shared build/train tech availability, placement validation, Human construction, and power building.

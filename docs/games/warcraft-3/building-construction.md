@@ -2,7 +2,7 @@
 
 ## Contract
 
-Human construction is server-authoritative. `UnitProfile.Builds` remains the source of which structures a worker can offer; a client cannot select an arbitrary unit rawcode and bypass that list. `games/warcraft-3/game/g_building.c` owns technology/resource availability, placement snapping/validation, and the common construction state used by Human Repair.
+Human construction is server-authoritative. `UnitProfile.Builds` remains the source of which structures a worker can offer; a client cannot select an arbitrary unit rawcode and bypass that list. Training follows the same authority rule through `UnitProfile.Trains`: command-card visibility and the eventual `button <rawcode>` request both re-evaluate the producer list, per-player technology maximum, and target requirements before a unit can enter the queue. `games/warcraft-3/game/g_building.c` owns the shared technology/requirement checks as well as building resource availability and placement validation.
 
 The runtime developer override is:
 
@@ -29,6 +29,25 @@ UnitProfile.Builds
 `SetPlayerTechMaxAllowed`, `GetPlayerTechMaxAllowed`, `AddPlayerTechResearched`, `SetPlayerTechResearched`, `GetPlayerTechResearched`, and `GetPlayerTechCount` now have game-state backing rather than no-op JASS stubs. W3I technology-availability entries initialize a player's matching technology maximum to zero before map script execution; map JASS can subsequently change that state.
 
 `G_GetPlayerTechCountValue()` counts researched levels plus live owned entities of the requested rawcode. In-progress structures therefore count against a maximum as soon as they exist.
+
+`-1` is the unlimited/default sentinel for `SetPlayerTechMaxAllowed`; non-negative values are exact maxima. Starting a queued unit spawns its hidden entity immediately, so it also counts against the maximum before training completes. The queued entity carries `edict.training` until `ShowTrainedUnit()` succeeds; requirement counts exclude both `construction.active` structures and `training` units so in-progress production cannot satisfy a prerequisite early.
+
+Training command flow is:
+
+```text
+UnitProfile.Trains
+    -> G_GetTrainCommandState
+       -> SetPlayerTechMaxAllowed state
+       -> Requires / Requiresamount
+    -> G_GetCommandButtons
+       -> hidden at tech maximum
+       -> disabled with requirement text when prerequisites fail
+       -> available otherwise
+    -> SP_TrainUnit
+       -> re-check the same state before payment/spawn
+```
+
+Technology/count changes mark the owner's command card dirty instead of pushing UI from inside arbitrary JASS/entity callbacks. `G_UpdateClientCommandCards()` consumes that flag after entity simulation, while the initial `G_ClientBegin()` command-card write clears any dirty state accumulated by W3I or map-init JASS before the game HUD is shown. Build/skill submenus retain a refresh callback so a tech update rebuilds the current submenu rather than forcing the main card; active location/entity targeting defers the refresh until that input mode is resolved so cursor state is not stranded. Runtime spawns, ownership changes, removals, deaths, construction start/completion, and training completion invalidate affected command cards.
 
 ## Placement
 
@@ -100,9 +119,13 @@ Completion clears paused/constructing state, releases the held birth animation, 
 
 ## Known gaps
 
-This patch intentionally focuses on Human construction. The following clean-room-spec items remain incomplete:
+The following clean-room-spec items remain incomplete:
 
 - `war3map.w3u` modifications are not yet fully merged into the normalized typed unit rows, so map-local edits to `Builds`/requirements may still resolve through the base unit row;
+- W3I upgrade-availability records are parsed but are not yet applied to a complete research/upgrade production system;
+- `SetPlayerAbilityAvailable` remains separate from unit/building technology availability and is not yet backed by per-player disabled-ability state;
+- hero training still lacks the additional hero-count/tier/token rules layered on top of normal `Trains`/maximum/requirement checks;
+- training still uses the legacy `player_pay()` gold/lumber charging path; full food reservation/refund and queue-cancel economics are separate work;
 - the client does not yet draw a per-cell green/red pathing splat or mirror live-unit obstruction into that splat;
 - placement supports the currently decoded walk/build/blight flags, not every Warcraft compound placement type; unsupported tokens are reported to `stderr` instead of being silently discarded;
 - build cancellation after a structure has spawned does not yet have the retail partial-refund lifecycle;
@@ -138,3 +161,6 @@ Runtime checks should cover at least:
 11. Reject a blocked placement and verify the UI displays `Unable to build there.`, not the map name.
 12. Select a building, right-click terrain and a unit, and verify placement cancels without moving/ordering the Peasant.
 13. Select a building, press the command-card Cancel button, and verify the ghost model disappears when the cursor-clear message is processed.
+14. Set a trainable unit maximum to zero and verify its button disappears; set the maximum back to `-1` and verify it returns.
+15. Set a trainable unit prerequisite unmet/met and verify its button is disabled/enabled without changing the producer's `Trains` list.
+16. With maximum one, queue the unit in one producer and verify another producer hides the command while the first unit is still training.
