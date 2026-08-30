@@ -15,6 +15,20 @@ void harvest_walk(LPEDICT ent);
 void harvest_start(LPEDICT self, LPEDICT target);
 void harvest_gold_start(LPEDICT self, LPEDICT target);
 
+static int harvest_path_debug_level(void) {
+    LPCSTR value;
+    if (!gi.CvarString)
+        return 0;
+    value = gi.CvarString("wc3_harvest_path_debug", "0");
+    return value ? atoi(value) : 0;
+}
+
+#define HARVEST_PATH_LOG(LEVEL, ...) do { \
+    if (harvest_path_debug_level() >= (LEVEL)) { \
+        fprintf(stderr, "WC3_HARVEST_PATH " __VA_ARGS__); \
+    } \
+} while (0)
+
 static DWORD return_resources_mask(LPCSTR ability) {
     static struct { LPCSTR name; DWORD mask; } const artn_aliases[] = {
         { "Argd", RETURN_RESOURCE_GOLD },
@@ -92,6 +106,73 @@ static LPEDICT find_another_tree(LPEDICT ent) {
     return other;
 }
 
+/* Retail WC3 continues lumber work when the explicitly clicked tree is alive
+ * but cannot be reached.  Keep target selection in Harvest: routing reports
+ * failure/exhaustion, then Harvest chooses a replacement tree.  Prefer a tree
+ * already in chop range; otherwise require a static, collision-sized straight
+ * route to a legal approach point that is itself within HARVEST_RANGE.  This
+ * avoids full flow-field builds for every candidate while still rejecting the
+ * buried interior trees that caused the original orbit. */
+static BOOL tree_has_reachable_harvest_approach(LPEDICT ent, LPEDICT tree) {
+    VECTOR2 approach;
+    FLOAT const distance = Vector2_distance(&ent->s.origin2, &tree->s.origin2);
+
+    if (distance <= HARVEST_RANGE)
+        return true;
+    if (!CM_ClosestPathablePointForRadius(&tree->s.origin2, ent->collision, &approach))
+        return false;
+    if (Vector2_distance(&approach, &tree->s.origin2) > HARVEST_RANGE)
+        return false;
+    return CM_LineIsWalkableForRadius(&ent->s.origin2, &approach, ent->collision);
+}
+
+static LPEDICT find_reachable_replacement_tree(LPEDICT ent, LPEDICT exclude) {
+    FLOAT min_dist = HARVEST_SEARCH_RANGE;
+    LPEDICT other = NULL;
+
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT tree = globals.edicts + i;
+        FLOAT dist;
+        BOOL reachable;
+
+        if (tree == exclude || tree->targtype != TARG_TREE || M_IsDead(tree))
+            continue;
+        dist = Vector2_distance(&ent->s.origin2, &tree->s.origin2);
+        if (dist >= min_dist)
+            continue;
+        reachable = tree_has_reachable_harvest_approach(ent, tree);
+        HARVEST_PATH_LOG(2,
+            "candidate worker=%d failed_target=%d candidate=%d distance=%.1f reachable=%d\n",
+            ent->s.number, exclude ? exclude->s.number : -1, tree->s.number,
+            dist, reachable);
+        if (!reachable)
+            continue;
+        other = tree;
+        min_dist = dist;
+    }
+    return other;
+}
+
+static void harvest_route_failed(LPEDICT ent, LPCSTR reason) {
+    LPEDICT failed = ent->goalentity;
+    LPEDICT other = find_reachable_replacement_tree(ent, failed);
+
+    if (other) {
+        HARVEST_PATH_LOG(1,
+            "fallback worker=%d old_target=%d new_target=%d reason=%s worker_pos=(%.1f,%.1f)\n",
+            ent->s.number, failed ? failed->s.number : -1, other->s.number, reason,
+            ent->s.origin2.x, ent->s.origin2.y);
+        harvest_start(ent, other);
+        return;
+    }
+
+    HARVEST_PATH_LOG(1,
+        "stop worker=%d target=%d reason=%s no_reachable_tree=1 worker_pos=(%.1f,%.1f)\n",
+        ent->s.number, failed ? failed->s.number : -1, reason,
+        ent->s.origin2.x, ent->s.origin2.y);
+    ent->stand(ent);
+}
+
 static void look_for_another_tree(LPEDICT ent) {
     LPEDICT other = find_another_tree(ent);
     if (other) {
@@ -113,12 +194,41 @@ BOOL G_ActorHasSkill(LPEDICT ent, LPCSTR id) {
 }
 
 static void ai_walktree(LPEDICT ent) {
-    if (M_DistanceToGoal(ent) > HARVEST_RANGE) {
-        unit_changeangle(ent);
-        unit_moveindirection(ent);
-    } else if (M_IsDead(ent->goalentity)) {
+    FLOAT const distance = M_DistanceToGoal(ent);
+    FLOAT const step = unit_movedistance(ent);
+
+    if (!ent->goalentity || M_IsDead(ent->goalentity)) {
+        HARVEST_PATH_LOG(1, "invalid worker=%d target=%d reason=dead_or_missing\n",
+                         ent->s.number, ent->goalentity ? ent->goalentity->s.number : -1);
         look_for_another_tree(ent);
+    } else if (distance > HARVEST_RANGE) {
+        if (move_is_blocked(ent, distance, step)) {
+            harvest_route_failed(ent, "movement_blocked");
+            return;
+        }
+        unit_changeangle_for_radius(ent, ent->collision);
+        HARVEST_PATH_LOG(2,
+            "approach worker=%d target=%d worker_pos=(%.1f,%.1f) target_pos=(%.1f,%.1f) "
+            "distance=%.1f range=%.1f step=%.1f blocked_frames=%u direct=%d flow=%u flow_goal=%d flow_unreachable=%d\n",
+            ent->s.number, ent->goalentity->s.number,
+            ent->s.origin2.x, ent->s.origin2.y,
+            ent->goalentity->s.origin2.x, ent->goalentity->s.origin2.y,
+            distance, HARVEST_RANGE, step, ent->movement.blocked_frames,
+            ent->movement.flow_direct, ent->movement.flow_generation,
+            ent->movement.flow_goal_reached, ent->movement.flow_unreachable);
+        if (ent->movement.flow_goal_reached) {
+            harvest_route_failed(ent, "route_goal_out_of_range");
+            return;
+        }
+        if (ent->movement.flow_unreachable) {
+            harvest_route_failed(ent, "route_unreachable");
+            return;
+        }
+        unit_moveindirection(ent);
     } else {
+        HARVEST_PATH_LOG(1,
+            "reached worker=%d target=%d distance=%.1f range=%.1f\n",
+            ent->s.number, ent->goalentity->s.number, distance, HARVEST_RANGE);
         G_PublishMessage(ent, GAME_MSG_HARVEST_START_CHOP, ent->goalentity);
         harvest_swing(ent);
     }
@@ -238,6 +348,13 @@ void CMD_Harvest(LPEDICT ent);
 void harvest_start(LPEDICT self, LPEDICT target) {
     self->goalentity = target;
     self->secondarygoal = target;
+    move_reset_progress(self);
+    HARVEST_PATH_LOG(1,
+        "start worker=%d target=%d worker_pos=(%.1f,%.1f) target_pos=(%.1f,%.1f)\n",
+        self->s.number, target ? target->s.number : -1,
+        self->s.origin2.x, self->s.origin2.y,
+        target ? target->s.origin2.x : 0.0f,
+        target ? target->s.origin2.y : 0.0f);
     G_PublishMessage(self, GAME_MSG_HARVEST_MOVE_LUMBER, target);
     harvest_walk(self);
 }

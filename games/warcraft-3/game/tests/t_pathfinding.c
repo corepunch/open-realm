@@ -48,7 +48,11 @@ extern struct routePerfStats_s CM_GetTestPathPerfStats(void);
 
 /* Public API from routing.c. */
 DWORD  CM_BuildHeatmap(edict_t *goalentity);
+DWORD  CM_BuildHeatmapForRadius(edict_t *goalentity, FLOAT radius);
 BOOL   CM_ClosestPathablePointForRadius(LPCVECTOR2 location, FLOAT radius, LPVECTOR2 out);
+BOOL   CM_LineIsWalkableForRadius(LPCVECTOR2 a, LPCVECTOR2 b, FLOAT radius);
+BOOL   CM_FlowReachedGoal(DWORD generation, FLOAT x, FLOAT y);
+BOOL   CM_FlowCanReach(DWORD generation, FLOAT x, FLOAT y);
 VECTOR2 get_flow_direction(DWORD heatmapindex, float fnx, float fny);
 
 /* Static-map point test from routing.c — the static half of move-time
@@ -57,6 +61,7 @@ BOOL CM_PointIsPathableForRadius(LPCVECTOR2 location, FLOAT radius);
 
 /* From g_monster.c */
 LPEDICT Waypoint_add(LPCVECTOR2 spot);
+DWORD M_RefreshHeatmap(LPEDICT goal, FLOAT radius);
 
 /* From s_move.c — needed to set up a moving unit. */
 void order_move(LPEDICT self, LPEDICT target);
@@ -214,6 +219,20 @@ TEST(wc3_pathfinding, heatmap_generation_is_nonzero) {
     T_ASSERT(gen != 0);
 }
 
+TEST(wc3_pathfinding, heatmap_cache_separates_collision_radius) {
+    build_open_map();
+    setup_test_pathmap(MAP_W, MAP_H, open_map);
+    reset_entities();
+
+    LPEDICT wp = make_waypoint(5.0f, 5.0f);
+    DWORD point_gen = CM_BuildHeatmapForRadius(wp, 0.0f);
+    DWORD wide_gen = CM_BuildHeatmapForRadius(wp, 1.0f);
+
+    T_ASSERT(point_gen != 0);
+    T_ASSERT(wide_gen != 0);
+    T_ASSERT(point_gen != wide_gen);
+}
+
 /* -----------------------------------------------------------------------
  * Multi-goal cache (fix #3): switching between two known goals should
  * not force a full rebuild every time; each goal keeps its own cached
@@ -282,6 +301,18 @@ TEST(wc3_pathfinding, flow_bake_perf_skips_unreachable_half) {
     T_ASSERT(stats.flow_cells_baked < MAP_W * MAP_H);
 }
 
+TEST(wc3_pathfinding, flow_reachability_distinguishes_disconnected_component) {
+    build_split_map();
+    setup_test_pathmap(MAP_W, MAP_H, split_map);
+    reset_entities();
+
+    LPEDICT wp = make_waypoint(7.0f, 5.0f);
+    DWORD gen = CM_BuildHeatmap(wp);
+
+    T_ASSERT(CM_FlowCanReach(gen, 7.0f, 5.0f));
+    T_ASSERT(!CM_FlowCanReach(gen, 3.0f, 5.0f));
+}
+
 /* -----------------------------------------------------------------------
  * Static obstacle tests
  * --------------------------------------------------------------------- */
@@ -300,8 +331,8 @@ TEST(wc3_pathfinding, wall_routes_flow_around_obstacle) {
     LPEDICT wp = make_waypoint(7.0f, 5.0f);
     build_flow(wp);
 
-    /* Flow at (7, 5) itself (goal cell) may be zero or any direction.
-     * Flow at (8, 5) — right side, open — should point toward the goal
+    /* Flow at (7, 5) itself is zero by contract.  Flow at (8, 5) — right
+     * side, open — should point toward the goal
      * i.e. leftward (-x component). */
     VECTOR2 dir_right = flow_at_cell(8.0f, 5.0f);
     T_ASSERT(dir_right.x < 0.0f);
@@ -324,6 +355,66 @@ TEST(wc3_pathfinding, flow_direction_points_toward_goal_open) {
     /* At cell (2, 5), flow should point roughly rightward (+x). */
     VECTOR2 dir = flow_at_cell(2.0f, 5.0f);
     T_ASSERT(dir.x > 0.0f);
+}
+
+TEST(wc3_pathfinding, flow_goal_has_no_outward_direction) {
+    build_open_map();
+    setup_test_pathmap(MAP_W, MAP_H, open_map);
+    reset_entities();
+
+    LPEDICT wp = make_waypoint(5.0f, 5.0f);
+    DWORD gen = CM_BuildHeatmap(wp);
+    VECTOR2 dir = get_flow_direction(gen, 5.0f, 5.0f);
+
+    T_ASSERT(CM_FlowReachedGoal(gen, 5.0f, 5.0f));
+    T_FEQ(dir.x, 0.0f, 0.001f);
+    T_FEQ(dir.y, 0.0f, 0.001f);
+}
+
+TEST(wc3_pathfinding, flow_goal_reports_adjusted_blocked_target_cell) {
+    BYTE blocked_goal[MAP_W * MAP_H];
+    memset(blocked_goal, 0, sizeof(blocked_goal));
+    blocked_goal[5 * MAP_W + 5] = 2;
+    setup_test_pathmap(MAP_W, MAP_H, blocked_goal);
+    reset_entities();
+
+    LPEDICT wp = make_waypoint(5.0f, 5.0f);
+    DWORD gen = CM_BuildHeatmap(wp);
+
+    T_ASSERT(gen != 0);
+    T_ASSERT(!CM_FlowReachedGoal(gen, 5.0f, 5.0f));
+    /* Deterministic closest_pathable_node scans the upper ring first. */
+    T_ASSERT(CM_FlowReachedGoal(gen, 5.0f, 4.0f) ||
+             CM_FlowReachedGoal(gen, 4.0f, 4.0f));
+}
+
+TEST(wc3_pathfinding, line_walkability_respects_collision_radius) {
+    BYTE corridor[MAP_W * MAP_H];
+    memset(corridor, 0, sizeof(corridor));
+    for (int x = 0; x < MAP_W; x++) {
+        corridor[4 * MAP_W + x] = 2;
+        corridor[6 * MAP_W + x] = 2;
+    }
+    setup_test_pathmap(MAP_W, MAP_H, corridor);
+    reset_entities();
+
+    VECTOR2 a = { 1.0f, 5.0f };
+    VECTOR2 b = { 8.0f, 5.0f };
+    T_ASSERT(CM_LineIsWalkableForRadius(&a, &b, 0.0f));
+    T_ASSERT(!CM_LineIsWalkableForRadius(&a, &b, 1.0f));
+}
+
+TEST(wc3_pathfinding, heatmap_rejects_corridor_too_narrow_for_radius) {
+    BYTE corridor[MAP_W * MAP_H];
+    memset(corridor, 2, sizeof(corridor));
+    for (int x = 0; x < MAP_W; x++)
+        corridor[5 * MAP_W + x] = 0;
+    setup_test_pathmap(MAP_W, MAP_H, corridor);
+    reset_entities();
+
+    LPEDICT wp = make_waypoint(8.0f, 5.0f);
+    T_ASSERT(CM_BuildHeatmapForRadius(wp, 0.0f) != 0);
+    T_EQ(CM_BuildHeatmapForRadius(wp, 1.0f), 0);
 }
 
 /* -----------------------------------------------------------------------

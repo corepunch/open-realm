@@ -97,6 +97,8 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 
 ### Implementation Notes
 
+- [Economy And Unit Presentation](economy-and-unit-presentation.md)
+- [Pathfinding And Harvest Reachability](pathfinding.md)
 - [Inventory And World Items](inventory-and-items.md)
 - [Breakable Destructables](breakable-destructables.md)
 - [Warcraft III UI System](architecture/ui.md)

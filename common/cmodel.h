@@ -3,6 +3,10 @@
 
 #include "common.h"
 
+/* cmodel.h is included by common.h before common.h reaches its own edict
+ * forward declaration, so declare the tag here before using it in prototypes. */
+struct edict_s;
+
 struct War3MapVertex {
     USHORT accurate_height;
     USHORT waterlevel;
@@ -47,6 +51,10 @@ BOOL CM_ClosestPathablePointForRadius(LPCVECTOR2 location, FLOAT radius, LPVECTO
 BOOL CM_PointIsPathableForRadius(LPCVECTOR2 location, FLOAT radius);
 BOOL CM_LineIsWalkable(LPCVECTOR2 a, LPCVECTOR2 b);
 BOOL CM_GetPathingFlagsAt(LPCVECTOR2 location, LPBYTE flags);
+BOOL CM_LineIsWalkableForRadius(LPCVECTOR2 a, LPCVECTOR2 b, FLOAT radius);
+/* Distance from a world point to the target entity's authored no-walk
+ * pathing footprint. Returns FLT_MAX when the target has no usable footprint. */
+FLOAT CM_DistanceToPathingFootprint(struct edict_s const *target, LPCVECTOR2 point);
 BOX2 CM_GetWorldBounds(void);
 
 /* WoW-only: all WorldSafeLocs entries for the current map.  Populated during

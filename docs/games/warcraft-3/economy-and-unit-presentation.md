@@ -7,14 +7,16 @@ The Gather command reaches the same state machines through `harvest_menu_selectt
 
 - Gold: `harvest_gold_start` -> walk to mine -> capacity-gated hidden mining wait -> carry finite mine gold -> nearest live same-owner drop-off accepting gold -> deposit -> resume the mine while it remains harvestable.
 - Lumber: `harvest_start` -> walk into `HARVEST_RANGE` -> swing/damage -> carry lumber -> nearest live same-owner drop-off accepting lumber -> deposit -> resume or find another tree.
-- `s_goldmine.c` uses the worker+mine collision contact radius plus one movement step as the entry boundary. Mine footprints are
-  authoritative; do not restore the old fixed 180-unit radius.
+- If an explicitly clicked live tree is buried behind other trees, routing remains responsible only for reaching the best legal approach.  Once that route is exhausted outside `HARVEST_RANGE`, Harvest selects a reachable replacement tree and continues lumber work, matching retail behavior.  See [WC3 Pathfinding And Harvest Reachability](pathfinding.md).
+- `s_goldmine.c` uses the mine's authored no-walk pathing footprint plus the worker radius and one movement step as the primary entry boundary. A collision-circle contact check remains the fallback for mines without a path texture. Mine footprints are authoritative; do not restore the old fixed 180-unit radius.
 - A chop is lethal when tree life is less than or equal to `HARVEST_TREE_DAMAGE`. The lethal path must call `tree->die` because
   `m_tree.c` owns the fall animation and removal of the tree's pathing obstruction.
 
 The gold regression followed commit `55724517`, which correctly changed buildings to footprint-authored collision while mine entry
-still used a fixed 180-unit radius. Entry now uses worker radius + mine radius + one movement step, so a worker transitions before
-the collision solver prevents the next step.
+still used a fixed 180-unit radius. A scalar building collision radius is sufficient on a face but not at a square footprint corner,
+where static pathing may stop the worker at a larger centre-to-centre distance. Entry therefore measures the worker against the mine's
+authored no-walk footprint and transitions when the worker radius plus one movement step would touch it. The historical
+worker+mine collision+step formula remains a fallback when no path texture is available.
 
 Gold-mine tuning is no longer copied into process-wide globals. `s_goldmine.c` resolves the mine entity's own `UnitAbilities.slk`
 list, follows `AbilityData.slk:code` to the `Agld` base ability, and reads Data1/Data2/Data3 as maximum gold, mining duration, and
@@ -60,10 +62,7 @@ the smallest `Vector2_distance` from the worker. This is geometric distance; it 
 route lengths. A Human Lumber Mill therefore competes with a Town Hall for lumber return and wins when it is geometrically closer,
 while a Lumber Mill remains ineligible for gold.
 
-The existing building-contact rule still controls when the deposit completes: worker collision + building collision + one movement
-step. The return move revalidates its target before each movement/deposit tick. If the selected drop-off dies, is removed, changes
-owner, or no longer exposes a compatible Return Resources ability, the worker retargets the nearest remaining compatible drop-off.
-If none exists, the worker stands while preserving the carried resource and carry visual.
+Return completion is footprint-aware for buildings that expose an authored pathing texture. The worker deposits when its collision radius plus one simulation step reaches the building's no-walk footprint; the older worker+building collision+step test remains the fallback when no path texture is available. This prevents a Peasant carrying gold from stopping at a Town Hall corner while still outside the scalar centre-circle threshold. The return move revalidates its target before each movement/deposit tick. If the selected drop-off dies, is removed, changes owner, or no longer exposes a compatible Return Resources ability, the worker retargets the nearest remaining compatible drop-off. If none exists, the worker stands while preserving the carried resource and carry visual.
 
 ### Mine Entry — Collision Formula
 
@@ -82,10 +81,9 @@ states the latest build from August 25 was used, so do not attribute that report
 Distinguish the states: `ai_walkmine` keeps the walk animation while outside the entry threshold; a full mine switches to
 `harvestgold_move_wait` (stand), while an empty/dead/zero-capacity mine is not harvestable. First verify `unit_issuetargetorder` actually
 calls `harvest_gold_start`: smart orders require worker `Ahar` and an `Agld`-derived target; otherwise a non-enemy target becomes a
-plain move to its center, which also stops at collision. For a failing bounded run, temporarily log distance, both collision radii,
-`unit_movedistance`, occupancy, per-mine capacity, and remaining `resources` at these transitions. If the worker remains outside entry
-range, log rejection in
-`g_ai.c:move_is_valid` separately for static pathmap and entity-circle collision. Do not enlarge the entry radius without this evidence.
+plain move to its center, which also stops at collision. For a failing bounded run, `+set wc3_harvest_path_debug 2` logs `WC3_GOLD_PATH` approach/entry/wait events including centre distance,
+worker+mine collision contact, movement step, distance to the mine's authored pathing footprint, occupancy, capacity, resources, and
+flow generation. Gold return uses the same cvar and emits `WC3_GOLD_RETURN start`, periodic `approach`, `deposit_range`, and `deposit` transitions so a Town Hall return failure can be distinguished from a mine-entry failure. If the worker remains outside entry range, log rejection in `g_ai.c:move_is_valid` separately for static pathmap and entity-circle collision. Do not enlarge an interaction radius without this evidence.
 Movement uses `FRAMETIME` through `unit_movedistance`; low rendering FPS alone does not shrink the per-tick entry allowance.
 
 Build and run the existing gold tests with either local archive set (add `-tft` for TFT):
@@ -276,9 +274,10 @@ make test-wc3-engine WC3_PATTERN='wc3_game.hud_*'
 make test-wc3-engine WC3_PATTERN='wc3_game.overhead_*'
 ```
 
-The movement suite covers large-footprint mine entry, the complete gold deposit/resume cycle, stock capacity 1 under six assigned
-workers, independent custom mine capacities/durations, non-orderable inside miners, finite-gold depletion and partial final trips,
-trained-unit exit placement against static footprints, nearest compatible lumber drop-off selection, rejection of lumber-only
-drop-offs for gold, drop-off destruction retargeting, exact lethal tree trips with next-tree selection, the no-live-tree stop path,
+The movement suite covers large-footprint mine entry, mine entry through an authored blocking pathing footprint, the complete gold
+deposit/resume cycle, stock capacity 1 under six assigned workers, independent custom mine capacities/durations, non-orderable inside
+miners, finite-gold depletion and partial final trips,
+trained-unit exit placement against static footprints, nearest compatible lumber drop-off selection, lumber return through an authored
+blocking Town Hall footprint, rejection of lumber-only drop-offs for gold, drop-off destruction retargeting, exact lethal tree trips with next-tree selection, the no-live-tree stop path,
 non-lethal chops, and both sides of the immobility contract. The in-engine fixture
 `games/warcraft-3/tests/resources-src/Units/UnitUI.slk` supplies `isbldg` for the same metadata lookup used by the game.

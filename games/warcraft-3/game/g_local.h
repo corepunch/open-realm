@@ -583,6 +583,7 @@ struct edict_s {
     DWORD heatmap2;
     VECTOR2 heatmap2_origin;  /* target position when heatmap2 was last built */
     DWORD heatmap2_time;      /* level.time when heatmap2 was last built */
+    FLOAT heatmap2_radius;    /* mover collision radius used for heatmap2 */
     DWORD peonsinside;
     DWORD aiflags;
     DWORD damage;
@@ -649,6 +650,10 @@ struct edict_s {
         VECTOR2 last_origin;
         FLOAT last_distance;
         DWORD blocked_frames;
+        DWORD flow_generation; /* active static-route field selected this tick */
+        BOOL flow_goal_reached; /* mover occupies the route's adjusted goal cell */
+        BOOL flow_unreachable;  /* field exists but current cell has no route */
+        BOOL flow_direct;       /* static path from mover to requested goal is clear */
         FLOAT group_speed;  // slowest member's speed for a group move (0 = no cap), keeps the group together
         FLOAT heading;      // avoidance-resolved heading chosen this tick by unit_changeangle; movement follows it
         LPEDICT attackmove_waypoint;  // resume attack-move after a combat detour
@@ -907,6 +912,7 @@ void unit_updatestatuses(LPEDICT);
 // g_monster.c
 void unit_moveindirection(LPEDICT);
 void unit_changeangle(LPEDICT);
+void unit_changeangle_for_radius(LPEDICT, FLOAT);
 BOOL M_MoveIsValid(LPEDICT self, LPCVECTOR2 pos);
 BOOL M_CheckAttack(LPEDICT);
 BOOL unit_is_walking(LPCEDICT);
@@ -915,7 +921,7 @@ void unit_setmove(LPEDICT, umove_t *);
 void M_MoveFrame(LPEDICT);
 FLOAT M_DistanceToGoal(LPEDICT);
 FLOAT unit_movedistance(LPEDICT);
-DWORD M_RefreshHeatmap(LPEDICT);
+DWORD M_RefreshHeatmap(LPEDICT, FLOAT);
 BOOL M_IsDead(LPEDICT);
 void SP_SpawnUnit(LPEDICT);
 DWORD unit_spawn_aiflags(DWORD);

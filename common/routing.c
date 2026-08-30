@@ -65,8 +65,10 @@ struct {
 
 typedef struct {
     point2_t target;    /* pathmap cell coordinate of the goal; {-1,-1} = invalid */
+    int      radius_cells; /* mover footprint used when this field was built */
     DWORD    generation;
     VECTOR2 *flow;   /* pre-computed flow vector per cell; NULL until first use */
+    BYTE    *reachable; /* 1 for cells reached by the matching flood */
 } heatmapCacheEntry_t;
 
 static heatmapCacheEntry_t heatmap_cache[HEATMAP_CACHE_SLOTS];
@@ -103,6 +105,7 @@ routePerfStats_t CM_GetTestPathPerfStats(void) {
 static void heatmap_cache_invalidate(void) {
     FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
         heatmap_cache[i].target    = (point2_t){ -1, -1 };
+        heatmap_cache[i].radius_cells = -1;
         heatmap_cache[i].generation = 0;
         /* Keep flow buffers allocated to avoid malloc churn on map reload. */
     }
@@ -133,6 +136,45 @@ BOOL CM_ActivateCachedFlow(DWORD generation) {
     return false;
 }
 
+BOOL CM_FlowReachedGoal(DWORD generation, FLOAT x, FLOAT y) {
+    VECTOR2 n;
+    int cx, cy;
+
+    if (!generation || !pathmap.width || !pathmap.height)
+        return false;
+
+    FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
+        if (heatmap_cache[i].generation != generation || !heatmap_cache[i].flow)
+            continue;
+        n = CM_GetNormalizedMapPosition(x, y);
+        cx = (int)floorf(n.x * pathmap.width);
+        cy = (int)floorf(n.y * pathmap.height);
+        return cx == (int)heatmap_cache[i].target.x &&
+               cy == (int)heatmap_cache[i].target.y;
+    }
+    return false;
+}
+
+BOOL CM_FlowCanReach(DWORD generation, FLOAT x, FLOAT y) {
+    VECTOR2 n;
+    int cx, cy;
+
+    if (!generation || !pathmap.width || !pathmap.height)
+        return false;
+
+    FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
+        if (heatmap_cache[i].generation != generation || !heatmap_cache[i].reachable)
+            continue;
+        n = CM_GetNormalizedMapPosition(x, y);
+        cx = (int)floorf(n.x * pathmap.width);
+        cy = (int)floorf(n.y * pathmap.height);
+        if (cx < 0 || cy < 0 || cx >= (int)pathmap.width || cy >= (int)pathmap.height)
+            return false;
+        return heatmap_cache[i].reachable[cx + cy * pathmap.width] != 0;
+    }
+    return false;
+}
+
 void CM_SetupPathMap(DWORD width, DWORD height, BYTE const *cells) {
     DWORD n = width * height;
 
@@ -143,6 +185,7 @@ void CM_SetupPathMap(DWORD width, DWORD height, BYTE const *cells) {
     SAFE_DELETE(pathmap.queue, MemFree);
     FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
         SAFE_DELETE(heatmap_cache[i].flow, MemFree);
+        SAFE_DELETE(heatmap_cache[i].reachable, MemFree);
     }
 
     pathmap.width = width;
@@ -475,7 +518,8 @@ BOOL CM_PointIsPathableForRadius(LPCVECTOR2 location, FLOAT radius) {
 }
 
 /* Cheap straight-line walkability test between two world points: walk the
- * pathmap cells along the segment (Bresenham) and fail on the first obstacle.
+ * pathmap cells along the segment (Bresenham) and fail on the first position
+ * where the mover's full collision footprint would overlap static pathing.
  * O(cells on the line) — vastly cheaper than a full flow-field bake, so a unit
  * chasing a target in the open can steer directly instead of flood-filling. */
 
@@ -493,10 +537,11 @@ BOOL CM_GetPathingFlagsAt(LPCVECTOR2 location, LPBYTE flags) {
     return true;
 }
 
-BOOL CM_LineIsWalkable(LPCVECTOR2 a, LPCVECTOR2 b) {
+BOOL CM_LineIsWalkableForRadius(LPCVECTOR2 a, LPCVECTOR2 b, FLOAT radius) {
     if (!a || !b || pathmap.width == 0 || pathmap.height == 0) {
         return false;
     }
+    int radius_cells = (int)ceilf(MAX(0.f, radius) / pathmap_cell_world_size());
     VECTOR2 na = CM_GetNormalizedMapPosition(a->x, a->y);
     VECTOR2 nb = CM_GetNormalizedMapPosition(b->x, b->y);
     int ax = (int)(na.x * pathmap.width),  ay = (int)(na.y * pathmap.height);
@@ -507,8 +552,7 @@ BOOL CM_LineIsWalkable(LPCVECTOR2 a, LPCVECTOR2 b) {
     int x = ax, y = ay;
     int guard = dx + dy + 2;
     while (guard-- > 0) {
-        if (x < 0 || y < 0 || !is_valid_point((DWORD)x, (DWORD)y) ||
-            is_obstacle((DWORD)x, (DWORD)y)) {
+        if (!is_pathable_node_original_for_radius_cells(x, y, radius_cells)) {
             return false;
         }
         if (x == bx && y == by) {
@@ -521,9 +565,53 @@ BOOL CM_LineIsWalkable(LPCVECTOR2 a, LPCVECTOR2 b) {
     return true;
 }
 
-static VECTOR2 compute_flow_at(DWORD x, DWORD y) {
+BOOL CM_LineIsWalkable(LPCVECTOR2 a, LPCVECTOR2 b) {
+    return CM_LineIsWalkableForRadius(a, b, 0);
+}
+
+FLOAT CM_DistanceToPathingFootprint(struct edict_s const *target, LPCVECTOR2 point) {
+    point2_t center;
+    pathTex_t const *pt;
+    FLOAT best = FLT_MAX;
+
+    if (!target || !point || !(pt = target->pathtex) ||
+        !pathmap.width || !pathmap.height)
+        return FLT_MAX;
+
+    center = LocationToPathMap(&target->s.origin2);
+    FOR_LOOP(x, pt->width) {
+        FOR_LOOP(y, pt->height) {
+            int const px = (int)x + center.x - (int)pt->width / 2;
+            int const py = (int)y + center.y - (int)pt->height / 2;
+            VECTOR2 a, b;
+            FLOAT min_x, max_x, min_y, max_y, dx = 0.0f, dy = 0.0f;
+
+            if (!pt->map[x + y * pt->width].b || !is_valid_point(px, py))
+                continue;
+
+            /* Use the exact same cell placement as stamp_entity_obstacle(),
+             * but measure to the blocked cell rectangle instead of reducing a
+             * square/irregular footprint to one collision circle. */
+            a = CM_GetDenormalizedMapPosition((FLOAT)px / pathmap.width,
+                                               (FLOAT)py / pathmap.height);
+            b = CM_GetDenormalizedMapPosition((FLOAT)(px + 1) / pathmap.width,
+                                               (FLOAT)(py + 1) / pathmap.height);
+            min_x = MIN(a.x, b.x); max_x = MAX(a.x, b.x);
+            min_y = MIN(a.y, b.y); max_y = MAX(a.y, b.y);
+            if (point->x < min_x) dx = min_x - point->x;
+            else if (point->x > max_x) dx = point->x - max_x;
+            if (point->y < min_y) dy = min_y - point->y;
+            else if (point->y > max_y) dy = point->y - max_y;
+            best = MIN(best, sqrtf(dx * dx + dy * dy));
+        }
+    }
+    return best;
+}
+
+static VECTOR2 compute_flow_at(DWORD x, DWORD y, int radius_cells) {
     int prices[8];
     int min_price = INT_MAX;
+    int const current_price = heatmap(x, y)->price;
 
     FOR_LOOP(dir, 8) {
         prices[dir] = INT_MAX;
@@ -531,13 +619,20 @@ static VECTOR2 compute_flow_at(DWORD x, DWORD y) {
     FOR_LOOP(dir, 8) {
         int new_x = (int)x + dx[dir];
         int new_y = (int)y + dy[dir];
-        if (!is_valid_point(new_x, new_y) ||
-            is_obstacle(new_x, new_y) ||
-            heatmap(new_x, new_y)->price == INT_MAX)  /* unreached by the flood */
+        if (!is_pathable_node_for_radius_cells(new_x, new_y, radius_cells) ||
+            heatmap(new_x, new_y)->price == INT_MAX) /* unreached by the flood */
+            continue;
+        /* Collision-sized routes are used by lumber to detect a genuine route
+         * endpoint, so those vectors must strictly descend toward the goal.
+         * Generic point routes intentionally preserve the older blended flow
+         * around blocked building centres: the owning behavior (mine entry,
+         * return resources, repair, attack, ...) decides its own interaction
+         * boundary and may need to keep steering after the point-route goal. */
+        if (radius_cells > 0 && heatmap(new_x, new_y)->price >= current_price)
             continue;
         /* Don't let the flow vector point diagonally through a wall corner. */
-        if (dir >= 4 && !(is_pathable_node((int)x + dx[dir], (int)y) &&
-                          is_pathable_node((int)x, (int)y + dy[dir])))
+        if (dir >= 4 && !(is_pathable_node_for_radius_cells((int)x + dx[dir], (int)y, radius_cells) &&
+                          is_pathable_node_for_radius_cells((int)x, (int)y + dy[dir], radius_cells)))
             continue;
         prices[dir] = heatmap(new_x, new_y)->price;
         min_price = MIN(prices[dir], min_price);
@@ -559,13 +654,15 @@ static VECTOR2 compute_flow_at(DWORD x, DWORD y) {
 /* Bake flow vectors only for cells reached by the heatmap (price != INT_MAX).
  * Unreachable cells get a zero vector; counting only reachable cells lets
  * tests verify the flood boundary without baking the whole map. */
-static void bake_flow_field(VECTOR2 *flow) {
+static void bake_flow_field(VECTOR2 *flow, BYTE *reachable, int radius_cells) {
     DWORD cells = pathmap.width * pathmap.height;
     FOR_LOOP(i, cells) {
         if (pathmap.heatmap[i].price == INT_MAX) {
             flow[i] = (VECTOR2){ 0, 0 };
+            reachable[i] = 0;
         } else {
-            flow[i] = compute_flow_at(i % pathmap.width, i / pathmap.width);
+            flow[i] = compute_flow_at(i % pathmap.width, i / pathmap.width, radius_cells);
+            reachable[i] = 1;
             PERF_INC(flow_cells_baked);
         }
     }
@@ -577,7 +674,7 @@ VECTOR2 get_flow_direction(DWORD heatmapindex, float fnx, float fny) {
      * globally active, so a unit that missed the per-frame build budget would
      * sample another unit's goal field and steer to the wrong place ('weird
      * routes' in multi-unit movement).  On a miss, return zero so the caller
-     * falls back to the direct heading deterministically. */
+     * can wait/retry without sampling the wrong field. */
     if (!CM_ActivateCachedFlow(heatmapindex)) {
         return (VECTOR2){ 0, 0 };
     }
@@ -623,7 +720,7 @@ static point2_t LocationToPathMap(LPCVECTOR2 location) {
  * The 'closed' flag means "currently queued"; since a cell is never queued
  * twice, at most width*height cells are queued at once and the ring buffer of
  * width*height+1 never overflows. */
-DWORD build_heatmap(point2_t target) {
+DWORD build_heatmap(point2_t target, int radius_cells) {
     DWORD const width = pathmap.width;
     DWORD const cap = pathmap.width * pathmap.height + 1;
     DWORD *const q = pathmap.queue;
@@ -646,10 +743,11 @@ DWORD build_heatmap(point2_t target) {
         FOR_LOOP(i, 8) {
             int const nx = ux + dx[i];
             int const ny = uy + dy[i];
-            if (!is_pathable_node(nx, ny))
+            if (!is_pathable_node_for_radius_cells(nx, ny, radius_cells))
                 continue;
             /* no diagonal corner-cutting: both cardinal cells must be open too */
-            if (i >= 4 && !(is_pathable_node(nx, uy) && is_pathable_node(ux, ny)))
+            if (i >= 4 && !(is_pathable_node_for_radius_cells(nx, uy, radius_cells) &&
+                            is_pathable_node_for_radius_cells(ux, ny, radius_cells)))
                 continue;
             DWORD const v = (DWORD)nx + (DWORD)ny * width;
             routeNode_t *const vn = &pathmap.heatmap[v];
@@ -668,20 +766,28 @@ DWORD build_heatmap(point2_t target) {
     return 0;
 }
 
-DWORD CM_BuildHeatmap(edict_t *goalentity) {
+DWORD CM_BuildHeatmapForRadius(edict_t *goalentity, FLOAT radius) {
     DWORD map_cells = pathmap.width * pathmap.height;
+    int radius_cells;
 
     if (!goalentity || !pathmap.data || !pathmap.original || !pathmap.heatmap || !map_cells) {
         return 0;
     }
 
+    /* Flow fields represent static routing only.  Closest-point queries may
+     * temporarily stamp live units into pathmap.data, so always restore the
+     * baked terrain/building/destructible layer before resolving this goal. */
+    reset_pathmap_data();
+
     /* Resolve the goal's pathmap cell, adjusting to the closest pathable
      * cell if the raw position falls into an obstacle.  The adjusted target
      * is used both as the cache key (so two entities at the same cell share
      * a cached heatmap) and as the source for building. */
+    radius_cells = (int)ceilf(MAX(0.f, radius) / pathmap_cell_world_size());
     point2_t target = LocationToPathMap(&goalentity->s.origin2);
-    if (!is_pathable_node(target.x, target.y)) {
-        closest_pathable_node(&goalentity->s.origin2, 0, &target);
+    if (!is_pathable_node_for_radius_cells(target.x, target.y, radius_cells)) {
+        if (!closest_pathable_node(&goalentity->s.origin2, radius, &target))
+            return 0;
     }
 
     /* Cache lookup — find slot with matching target cell.
@@ -690,6 +796,7 @@ DWORD CM_BuildHeatmap(edict_t *goalentity) {
     FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
         if (heatmap_cache[i].target.x == target.x &&
             heatmap_cache[i].target.y == target.y &&
+            heatmap_cache[i].radius_cells == radius_cells &&
             heatmap_cache[i].flow) {
             heatmap_lru[i] = heatmap_lru_clock++;
             active_flow = heatmap_cache[i].flow;
@@ -709,15 +816,20 @@ DWORD CM_BuildHeatmap(edict_t *goalentity) {
     }
     if (!heatmap_cache[evict].flow)
         heatmap_cache[evict].flow = MemAlloc(map_cells * sizeof(VECTOR2));
+    if (!heatmap_cache[evict].reachable)
+        heatmap_cache[evict].reachable = MemAlloc(map_cells);
 
     reset_pathmap_data();
     clear_heatmap();
     /* Static obstacles are already baked into pathmap.original by
      * CM_BakeStaticObstacles(); no per-frame entity scan needed here. */
-    build_heatmap(target);
-    bake_flow_field(heatmap_cache[evict].flow);
+    build_heatmap(target, radius_cells);
+    bake_flow_field(heatmap_cache[evict].flow,
+                    heatmap_cache[evict].reachable,
+                    radius_cells);
 
     heatmap_cache[evict].target    = target;
+    heatmap_cache[evict].radius_cells = radius_cells;
     heatmap_cache[evict].generation = heatmap_next_generation++;
     if (heatmap_next_generation == 0)
         heatmap_next_generation = 1;
@@ -725,6 +837,10 @@ DWORD CM_BuildHeatmap(edict_t *goalentity) {
     active_flow = heatmap_cache[evict].flow;
 
     return heatmap_cache[evict].generation;
+}
+
+DWORD CM_BuildHeatmap(edict_t *goalentity) {
+    return CM_BuildHeatmapForRadius(goalentity, 0);
 }
 
 #if defined(TOOL_COMMON_NO_MPQ) || defined(BZ_TESTS)
