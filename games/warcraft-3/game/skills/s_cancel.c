@@ -1,7 +1,7 @@
 #include "s_skills.h"
 
 void cancel_command(LPEDICT ent) {
-    Get_Commands_f(ent);
+    CMD_CancelCommand(ent);
 }
 
 ability_t a_cancel = {

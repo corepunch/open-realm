@@ -59,6 +59,12 @@ A declared pathing texture that fails to load is a placement failure. Do not sil
 
 Placement is checked once when the player confirms the ghost and again when the worker reaches the site. Resources are charged only after the arrival-time validation passes. Construction spawns at the stored snapped waypoint, not at the worker's current position. Placement rejection uses the plain UI message `Unable to build there.`; requirement/resource failures remain separate command-state messages. `G_LevelString()` resolves only exact `TRIGSTR_<id>` tokens. Previously it parsed arbitrary UI text as trigger-string ID 0, so Human02's WTS entry 0 (the map name) replaced ordinary errors with `Human02`.
 
+### Placement cancellation
+
+Build placement is a server-owned UI mode. `G_CancelBuildPlacement()` is the single teardown path: it clears the player's pending `build_project`, sends an empty `svc_cursor` so the client removes the ghost model, and restores the normal command card. The command-card `CmdCancel`, the gameplay `cancel` command, and both `smart`/`smartpoint` right-click paths use this teardown. A right-click while the build ghost is active is therefore consumed as cancellation and must not issue an order to the selected worker.
+
+A successful left-click copies the pending project to the worker order before clearing the player's placement cursor state. This avoids stale `build_project` state making a later right-click look like an active placement.
+
 The current client ghost snaps correctly but does not yet render the full per-cell green/red placement texture. Live units are therefore authoritative server blockers but are not painted into the preview.
 
 ## Human construction and power building
@@ -130,3 +136,5 @@ Runtime checks should cover at least:
 9. Additional Peasants accelerate according to Repair `DataD` and consume incremental `DataC` costs.
 10. Build a Lumber Mill and then order its primary Peasant away; the worker must begin outside the baked footprint and move normally.
 11. Reject a blocked placement and verify the UI displays `Unable to build there.`, not the map name.
+12. Select a building, right-click terrain and a unit, and verify placement cancels without moving/ordering the Peasant.
+13. Select a building, press the command-card Cancel button, and verify the ghost model disappears when the cursor-clear message is processed.

@@ -984,6 +984,8 @@ BYTE G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue);
 // g_ai.c
 LPEDICT G_GetMainSelectedUnit(LPGAMECLIENT);
 void Get_Commands_f(LPEDICT);
+void CMD_CancelCommand(LPEDICT ent);
+BOOL G_CancelBuildPlacement(LPEDICT clent);
 void Get_Portrait_f(LPEDICT);
 void G_RefreshInventoryLayer(LPEDICT);
 void G_RefreshInfoPanel(LPEDICT);

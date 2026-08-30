@@ -5,10 +5,13 @@
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
 void setup_test_world(void);
 void repair_build_primary(LPEDICT ent, LPEDICT building);
+BOOL build_menu_send_builder(LPEDICT clent, LPCVECTOR2 location);
 
 static DWORD building_stand_calls;
 static uiFrame_t building_command_frame;
 static BOOL building_command_frame_seen;
+static BOOL building_cursor_opcode_seen;
+static BOOL building_cursor_clear_seen;
 
 static void building_test_stand(LPEDICT ent) {
     (void)ent;
@@ -21,9 +24,21 @@ static int building_test_image_index(LPCSTR name) {
 }
 
 static void building_capture_write(pfWriteType_t type, void const *value) {
-    if (type != PF_UIFRAME || !value) return;
-    building_command_frame = *(uiFrame_t const *)value;
-    building_command_frame_seen = true;
+    if (!value) return;
+    if (type == PF_UIFRAME) {
+        building_command_frame = *(uiFrame_t const *)value;
+        building_command_frame_seen = true;
+        return;
+    }
+    if (type == PF_BYTE) {
+        building_cursor_opcode_seen = *(LONG const *)value == svc_cursor;
+        return;
+    }
+    if (type == PF_ENTITY && building_cursor_opcode_seen) {
+        entityState_t const *cursor = value;
+        building_cursor_clear_seen = cursor->model == 0;
+        building_cursor_opcode_seen = false;
+    }
 }
 
 static void building_noop_write(pfWriteType_t type, void const *value) { (void)type; (void)value; }
@@ -330,6 +345,80 @@ TEST(wc3_building, human_builder_exit_is_outside_baked_building_footprint) {
 
     building->pathtex = NULL;
     gi.MemFree(pathtex);
+}
+
+
+TEST(wc3_building, cancel_command_clears_active_build_placement_cursor) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    LPEDICT clent = &g_edicts[0];
+    LPGAMECLIENT client = clent->client;
+
+    client->menu.on_location_selected = build_menu_send_builder;
+    clent->build_project = MAKEFOURCC('h','b','a','r');
+    building_cursor_opcode_seen = false;
+    building_cursor_clear_seen = false;
+    gi.Write = building_capture_write;
+
+    CMD_CancelCommand(clent);
+
+    T_EQ(clent->build_project, 0);
+    T_NULL(client->menu.on_location_selected);
+    T_ASSERT(building_cursor_clear_seen);
+
+    gi.Write = old_write;
+}
+
+TEST(wc3_building, smartpoint_cancels_build_placement_without_moving_selected_worker) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    LPEDICT clent = &g_edicts[0];
+    LPGAMECLIENT client = clent->client;
+    LPEDICT worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    LPCSTR command[] = { "smartpoint", "256", "256" };
+
+    G_SelectEntity(client, worker);
+    client->menu.on_location_selected = build_menu_send_builder;
+    clent->build_project = MAKEFOURCC('h','b','a','r');
+    worker->goalentity = NULL;
+    building_cursor_opcode_seen = false;
+    building_cursor_clear_seen = false;
+    gi.Write = building_capture_write;
+
+    G_ClientCommand(clent, 3, command);
+
+    T_EQ(clent->build_project, 0);
+    T_NULL(client->menu.on_location_selected);
+    T_NULL(worker->goalentity);
+    T_ASSERT(building_cursor_clear_seen);
+
+    gi.Write = old_write;
+}
+
+TEST(wc3_building, smart_target_cancels_build_placement_before_issuing_order) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    LPEDICT clent = &g_edicts[0];
+    LPGAMECLIENT client = clent->client;
+    LPEDICT worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 128, 0);
+    char target_number[16];
+    LPCSTR command[] = { "smart", target_number };
+
+    snprintf(target_number, sizeof(target_number), "%u", (unsigned)target->s.number);
+    G_SelectEntity(client, worker);
+    client->menu.on_location_selected = build_menu_send_builder;
+    clent->build_project = MAKEFOURCC('h','b','a','r');
+    worker->goalentity = NULL;
+    building_cursor_opcode_seen = false;
+    building_cursor_clear_seen = false;
+    gi.Write = building_capture_write;
+
+    G_ClientCommand(clent, 2, command);
+
+    T_EQ(clent->build_project, 0);
+    T_NULL(client->menu.on_location_selected);
+    T_NULL(worker->goalentity);
+    T_ASSERT(building_cursor_clear_seen);
+
+    gi.Write = old_write;
 }
 
 #endif

@@ -34,7 +34,9 @@ static void G_QueueOrderSound(LPEDICT ent) {
 }
 
 void CMD_CancelCommand(LPEDICT ent) {
-    Get_Commands_f(ent);
+    if (!G_CancelBuildPlacement(ent)) {
+        Get_Commands_f(ent);
+    }
 }
 
 CLIENTCOMMAND(Select) {
@@ -99,6 +101,9 @@ CLIENTCOMMAND(Smart) {
     DWORD number;
     LPEDICT target;
 
+    if (G_CancelBuildPlacement(clent)) {
+        return;
+    }
     if (argc < 2) {
         return;
     }
@@ -121,6 +126,9 @@ CLIENTCOMMAND(Smart) {
 CLIENTCOMMAND(SmartPoint) {
     VECTOR2 loc;
 
+    if (G_CancelBuildPlacement(clent)) {
+        return;
+    }
     if (argc < 3) {
         return;
     }
@@ -301,6 +309,9 @@ CLIENTCOMMAND(DropItem) {
 }
 
 CLIENTCOMMAND(Cancel) {
+    if (G_CancelBuildPlacement(clent)) {
+        return;
+    }
     fprintf(stderr,
             "Client cancel command: player=%u edict=%u time=%u\n",
             clent && clent->client ? (unsigned)clent->client->ps.number : 999u,
