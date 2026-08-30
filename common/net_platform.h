@@ -77,7 +77,8 @@ typedef WINBOOL *LPBOOL;
 #undef LPCRECT
 #undef DrawText
 #undef PlaySound
-#undef MAKEFOURCC
+/* MAKEFOURCC: not undef'd — our macro is compatible with the SDK version
+ * and must remain defined for ID_xxx constants in shared.h */
 
 typedef SOCKET net_socket_t;
 typedef int net_socklen_t;
