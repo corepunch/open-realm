@@ -74,6 +74,7 @@ static LPEDICT make_harvest_tree(FLOAT x, FLOAT y, FLOAT life) {
     return tree;
 }
 
+static UnitAbilities_t const harvest_abilities = { .abilList = "Ahar" };
 static UnitAbilities_t const return_gold_lumber_abilities = { .abilList = "Argl" };
 static UnitAbilities_t const return_lumber_abilities = { .abilList = "Arlm" };
 
@@ -450,6 +451,77 @@ TEST(wc3_movement, lumber_worker_takes_ten_swings_per_trip) {
     T_ASSERT(!tree_died);
 }
 
+/* A custom/non-even capacity must clamp the final successful chop instead of
+ * allowing the worker to carry more lumber than the Harvest capacity. */
+TEST(wc3_movement, lumber_final_chop_clamps_to_capacity) {
+    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
+    LPEDICT tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
+
+    worker->attack1.damagePoint = 0.01f;
+    HARVEST_RANGE = 64.0f;
+    HARVEST_TREE_DAMAGE = 10.0f;
+    HARVEST_LUMBER_CAPACITY = 25.0f;
+    HARVEST_COOLDOWN = 0.01f;
+    harvest_start(worker, tree);
+    worker->currentmove->think(worker);
+
+    FOR_LOOP(i, 3) {
+        worker->wait = 0.01f;
+        worker->currentmove->think(worker);
+        if (i < 2) {
+            harvest_cooldown(worker);
+            worker->wait = 0.01f;
+            worker->currentmove->think(worker);
+        }
+    }
+
+    T_EQ(worker->harvested_lumber, 25);
+    T_FEQ(tree->health.value, 70.0f, 0.01f);
+    T_ASSERT(worker->s.renderfx & RF_HAS_LUMBER);
+}
+
+/* Harvest only awards carried lumber when the tree can actually take the
+ * chop. Invulnerable destructibles reject G_DestructableApplyDamage. */
+TEST(wc3_movement, lumber_invulnerable_tree_does_not_award_lumber) {
+    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
+    LPEDICT tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
+
+    worker->attack1.damagePoint = 0.01f;
+    tree->invulnerable = true;
+    HARVEST_RANGE = 64.0f;
+    HARVEST_TREE_DAMAGE = 10.0f;
+    HARVEST_LUMBER_CAPACITY = 25.0f;
+    harvest_start(worker, tree);
+    worker->currentmove->think(worker);
+    worker->wait = 0.01f;
+    worker->currentmove->think(worker);
+
+    T_EQ(worker->harvested_lumber, 0);
+    T_FEQ(tree->health.value, 100.0f, 0.01f);
+    T_ASSERT(!(worker->s.renderfx & RF_HAS_LUMBER));
+}
+
+/* Reissuing Harvest while already full remembers the requested tree but begins
+ * return immediately, so no extra over-capacity chop can occur. */
+TEST(wc3_movement, lumber_full_worker_returns_before_new_chop) {
+    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
+    LPEDICT tree = make_harvest_tree(100.0f, 0.0f, 100.0f);
+    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 300.0f, 0.0f);
+
+    hall->s.player = worker->s.player;
+    make_live_dropoff(hall, &return_gold_lumber_abilities);
+    worker->harvested_lumber = 10;
+    worker->s.renderfx |= RF_HAS_LUMBER;
+    HARVEST_LUMBER_CAPACITY = 10.0f;
+
+    harvest_start(worker, tree);
+
+    T_ASSERT(worker->secondarygoal == tree);
+    T_ASSERT(worker->goalentity == hall);
+    T_STREQ(worker->currentmove->animation, "walk");
+    T_EQ(worker->harvested_lumber, 10);
+}
+
 /* The capacity-filling chop must fell the tree before return starts.  After
  * depositing, the worker must reject that dead tree and select the next one. */
 TEST(wc3_movement, lumber_lethal_trip_fells_then_selects_next_tree) {
@@ -548,6 +620,51 @@ TEST(wc3_movement, lumber_manual_return_without_tree_stops) {
     T_ASSERT(worker->secondarygoal == NULL);
     T_EQ(worker->harvested_lumber, 0);
     T_STREQ(worker->currentmove->animation, "stand");
+}
+
+/* If the remembered tree dies while the worker is away, replacement-tree
+ * selection is centered on that forest rather than the return building. */
+TEST(wc3_movement, lumber_dead_previous_tree_searches_near_old_tree) {
+    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
+    LPEDICT old_tree = make_harvest_tree(-400.0f, 0.0f, 100.0f);
+    LPEDICT forest_tree = make_harvest_tree(-450.0f, 0.0f, 100.0f);
+    LPEDICT dropoff_tree = make_harvest_tree(50.0f, 0.0f, 100.0f);
+    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 0.0f, 0.0f);
+
+    hall->s.player = worker->s.player;
+    make_live_dropoff(hall, &return_gold_lumber_abilities);
+    old_tree->health.value = 0.0f;
+    worker->harvested_lumber = 10;
+    worker->s.renderfx |= RF_HAS_LUMBER;
+    worker->secondarygoal = old_tree;
+    HARVEST_SEARCH_RANGE = 1000.0f;
+
+    harvest_walkback(worker);
+    worker->currentmove->think(worker);
+
+    T_ASSERT(worker->goalentity == forest_tree);
+    T_ASSERT(worker->secondarygoal == forest_tree);
+    T_ASSERT(worker->goalentity != dropoff_tree);
+    T_EQ(worker->harvested_lumber, 0);
+}
+
+/* Smart-targeting a compatible drop-off while carrying lumber honors the
+ * building the player clicked instead of silently choosing another nearer one. */
+TEST(wc3_movement, lumber_smart_click_returns_to_clicked_dropoff) {
+    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
+    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 100.0f, 0.0f);
+    LPEDICT mill = alloc_test_unit(MAKEFOURCC('h','l','u','m'), 500.0f, 0.0f);
+
+    worker->UnitAbilities = &harvest_abilities;
+    hall->s.player = mill->s.player = worker->s.player;
+    make_live_dropoff(hall, &return_gold_lumber_abilities);
+    make_live_dropoff(mill, &return_lumber_abilities);
+    worker->harvested_lumber = 10;
+    worker->s.renderfx |= RF_HAS_LUMBER;
+
+    T_ASSERT(unit_issuetargetorder(worker, "smart", mill));
+    T_ASSERT(worker->goalentity == mill);
+    T_EQ(worker->harvested_lumber, 10);
 }
 
 /* A large Town Hall footprint can block the next step before the old +5u

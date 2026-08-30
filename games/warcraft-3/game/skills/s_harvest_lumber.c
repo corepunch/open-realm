@@ -90,20 +90,30 @@ LPEDICT S_FindNearestResourceDropoff(LPEDICT unit, returnResource_t resource) {
     return best;
 }
 
-static LPEDICT find_another_tree(LPEDICT ent) {
+static LPEDICT find_another_tree_near(LPCVECTOR2 origin) {
     FLOAT min_dist = HARVEST_SEARCH_RANGE;
     LPEDICT other = NULL;
+
+    if (!origin)
+        return NULL;
+
     FOR_LOOP(i, globals.num_edicts) {
-        LPEDICT tree = globals.edicts+i;
+        LPEDICT tree = globals.edicts + i;
+        FLOAT dist;
+
         if (tree->targtype != TARG_TREE || M_IsDead(tree))
             continue;
-        FLOAT dist = Vector2_distance(&ent->s.origin2, &tree->s.origin2);
+        dist = Vector2_distance(origin, &tree->s.origin2);
         if (dist < min_dist) {
             other = tree;
             min_dist = dist;
         }
     }
     return other;
+}
+
+static LPEDICT find_another_tree(LPEDICT ent) {
+    return ent ? find_another_tree_near(&ent->s.origin2) : NULL;
 }
 
 /* Retail WC3 continues lumber work when the explicitly clicked tree is alive
@@ -271,7 +281,9 @@ static void ai_harvest_walkback(LPEDICT ent) {
         /* Resolve the next live tree at the deposit boundary.  Resuming with
          * the felled tree left it as the worker's active goal for another tick. */
         LPEDICT tree = ent->secondarygoal;
-        if (!tree || M_IsDead(tree))
+        if (tree && M_IsDead(tree))
+            tree = find_another_tree_near(&tree->s.origin2);
+        else if (!tree)
             tree = find_another_tree(ent);
         ent->goalentity = ent->secondarygoal = tree;
         if (tree) {
@@ -288,13 +300,21 @@ static void ai_harvest_walkback(LPEDICT ent) {
 
 static void ai_chop(LPEDICT ent) {
     LPEDICT tree = ent->secondarygoal;
+    BOOL const valid_hit = tree && G_IsDestructable(tree) && !M_IsDead(tree) &&
+                           !tree->invulnerable && HARVEST_TREE_DAMAGE > 0.0f;
+    BOOL felled = false;
 
     G_PublishMessage(ent, GAME_MSG_HARVEST_CHOP, tree);
-    if (tree && !M_IsDead(tree)) {
-        ent->harvested_lumber += HARVEST_TREE_DAMAGE;
-        ent->s.renderfx |= RF_HAS_LUMBER;
+    if (valid_hit) {
+        FLOAT const carried = MIN((FLOAT)ent->harvested_lumber + HARVEST_TREE_DAMAGE,
+                                  HARVEST_LUMBER_CAPACITY);
+
+        felled = G_DestructableApplyDamage(tree, ent, HARVEST_TREE_DAMAGE);
+        if (carried > ent->harvested_lumber) {
+            ent->harvested_lumber = (DWORD)carried;
+            ent->s.renderfx |= RF_HAS_LUMBER;
+        }
     }
-    BOOL felled = G_DestructableApplyDamage(tree, ent, HARVEST_TREE_DAMAGE);
     /* Tree-fall supersedes chop: play one-shot EV_ATTACK sound for all clients. */
     if (felled && g_numTreeFallSounds) {
         G_PublishMessage(ent, GAME_MSG_HARVEST_TREE_FELLED, tree);
@@ -339,22 +359,33 @@ void harvest_swing(LPEDICT ent) {
     ent->wait = ent->UnitWeapons->attack1.damagePoint;
 }
 
+BOOL harvest_lumber_return_to(LPEDICT ent, LPEDICT dropoff) {
+    if (!ent || !dropoff || !ent->harvested_lumber ||
+        !S_CanReturnResourceAt(ent, dropoff, RETURN_RESOURCE_LUMBER)) {
+        return false;
+    }
+
+    G_PublishMessage(ent, GAME_MSG_HARVEST_RETURN_LUMBER, dropoff);
+    ent->goalentity = dropoff;
+    unit_setmove(ent, &harvest_move_walkback);
+    return true;
+}
+
 void harvest_walkback(LPEDICT ent) {
     LPEDICT dropoff = S_FindNearestResourceDropoff(ent, RETURN_RESOURCE_LUMBER);
-    if (dropoff) {
-        G_PublishMessage(ent, GAME_MSG_HARVEST_RETURN_LUMBER, dropoff);
-        ent->goalentity = dropoff;
-        unit_setmove(ent, &harvest_move_walkback);
-    } else {
+    if (!harvest_lumber_return_to(ent, dropoff))
         ent->stand(ent);
-    }
 }
 
 void CMD_Harvest(LPEDICT ent);
 
 void harvest_start(LPEDICT self, LPEDICT target) {
-    self->goalentity = target;
     self->secondarygoal = target;
+    if (self->harvested_lumber >= HARVEST_LUMBER_CAPACITY && self->harvested_lumber > 0) {
+        harvest_walkback(self);
+        return;
+    }
+    self->goalentity = target;
     move_reset_progress(self);
     HARVEST_PATH_LOG(1,
         "start worker=%d target=%d worker_pos=(%.1f,%.1f) target_pos=(%.1f,%.1f)\n",
@@ -450,8 +481,12 @@ ability_t a_acolyte_harvest = {
 /* ---- Return Resources: standalone command to deposit carried resources --- */
 static void return_resources_command(LPEDICT clent) {
     FOR_SELECTED_UNITS(clent->client, ent) {
-        if (ent->harvested_lumber > 0 || ent->harvested_gold > 0) {
+        if (ent->harvested_lumber > 0) {
             harvest_walkback(ent);
+        } else if (ent->harvested_gold > 0) {
+            LPEDICT dropoff = S_FindNearestResourceDropoff(ent, RETURN_RESOURCE_GOLD);
+            if (!harvest_gold_return_to(ent, dropoff))
+                ent->stand(ent);
         }
     }
 }
@@ -479,6 +514,16 @@ BOOL harvest_menu_selecttarget(LPEDICT clent, LPEDICT target) {
 }
 
 void harvest_command(LPEDICT ent) {
+    LPEDICT selected = G_GetMainSelectedUnit(ent->client);
+
+    /* Ahar is the worker's visible command in stock unit data. While the main
+     * selected worker carries resources, activating it performs the same
+     * no-target Return Resources behavior instead of entering target mode. */
+    if (selected && (selected->harvested_lumber > 0 || selected->harvested_gold > 0)) {
+        return_resources_command(ent);
+        return;
+    }
+
     UI_AddCancelButton(ent);
     ent->client->menu.on_entity_selected = harvest_menu_selecttarget;
 }

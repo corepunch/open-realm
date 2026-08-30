@@ -282,6 +282,18 @@ static umove_t harvestgold_move_walkback = { "walk", ai_goldmine_walkback, NULL,
 static umove_t harvestgold_move_minegold = { "attack", ai_minegold, NULL, &a_goldmine };
 static umove_t harvestgold_move_wait = { "stand", ai_waittoenter, NULL, &a_goldmine };
 
+BOOL harvest_gold_return_to(LPEDICT ent, LPEDICT dropoff) {
+    if (!ent || !dropoff || !ent->harvested_gold ||
+        !S_CanReturnResourceAt(ent, dropoff, RETURN_RESOURCE_GOLD)) {
+        return false;
+    }
+
+    G_PublishMessage(ent, GAME_MSG_HARVEST_RETURN_GOLD, dropoff);
+    ent->goalentity = dropoff;
+    unit_setmove(ent, &harvestgold_move_walkback);
+    return true;
+}
+
 void harvestgold_walk(LPEDICT ent) {
     unit_setmove(ent, &harvestgold_move_walk);
 }
