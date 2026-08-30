@@ -110,19 +110,31 @@ static void ai_repair(LPEDICT ent) {
 
 static umove_t repair_move_build = { "stand work", ai_repair, NULL, &a_repair };
 
-static void repair_begin(LPEDICT ent, LPEDICT building, BOOL primary) {
+static BOOL repair_begin(LPEDICT ent, LPEDICT building, BOOL primary) {
     VECTOR2 origin;
     FLOAT angle;
-    if (!ent || !building) return;
+
+    if (!ent || !building) return false;
+    /* Human builders must leave the building's authored pathing footprint, not
+     * merely its selection/collision circle. The static footprint is baked by
+     * build_build() before this search. */
+    if (!SP_FindUnitExitPosition(building, ent, &origin, &angle)) {
+        if (primary && building->construction.primary_builder == ent) {
+            building->construction.primary_builder = NULL;
+        }
+        if (ent->stand) ent->stand(ent);
+        return false;
+    }
     unit_setmove(ent, &repair_move_build);
-    SP_FindEmptySpaceAround(building, ent->class_id, &origin, &angle);
     ent->s.origin2 = origin;
     ent->s.angle = angle - M_PI;
+    gi.LinkEntity(ent);
     ent->build = building;
     ent->buildwork.primary = primary;
     ent->buildwork.gold_accum = 0.0f;
     ent->buildwork.lumber_accum = 0.0f;
     if (primary) building->construction.primary_builder = ent;
+    return true;
 }
 
 void repair_build_primary(LPEDICT ent, LPEDICT building) {
@@ -141,7 +153,7 @@ void repair_build(LPEDICT ent, LPEDICT building) {
 }
 
 
-static BOOL repair_unit_has_human_repair(LPEDICT ent) {
+BOOL G_UnitHasHumanRepair(LPEDICT ent) {
     LPCSTR abilities;
 
     if (!ent || !ent->UnitAbilities) return false;
@@ -167,7 +179,7 @@ static BOOL repair_selecttarget(LPEDICT clent, LPEDICT target) {
         return false;
     }
     FOR_SELECTED_UNITS(clent->client, ent) {
-        if (repair_unit_has_human_repair(ent)) repair_build(ent, target);
+        if (G_UnitHasHumanRepair(ent)) repair_build(ent, target);
     }
     return true;
 }

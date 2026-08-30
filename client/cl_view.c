@@ -311,9 +311,9 @@ static void CL_AddBuilding(void) {
     
     re.TraceLocation(&cl.viewDef, mouse.origin.x, mouse.origin.y, &ent.origin);
 
-    if (cl.cursorEntity->origin.x > 0.0f && cl.cursorEntity->origin.y > 0.0f) {
-        DWORD const path_width = (DWORD)cl.cursorEntity->origin.x;
-        DWORD const path_height = (DWORD)cl.cursorEntity->origin.y;
+    if (cl.cursorEntity->pathing_width && cl.cursorEntity->pathing_height) {
+        DWORD const path_width = cl.cursorEntity->pathing_width;
+        DWORD const path_height = cl.cursorEntity->pathing_height;
         ent.origin.x = floorf(ent.origin.x / 64.0f) * 64.0f;
         ent.origin.y = floorf(ent.origin.y / 64.0f) * 64.0f;
         if (((path_width / 2) & 1) != 0) ent.origin.x += 32.0f;

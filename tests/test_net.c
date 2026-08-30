@@ -868,6 +868,29 @@ TEST(net, entity_delta_preserves_large_wc3_radii) {
     }
 }
 
+/* Building placement cursor metadata must survive svc_cursor entity deltas without
+ * overloading world-position fields. */
+TEST(net, entity_delta_preserves_pathing_dimensions) {
+    BYTE buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    entityState_t from = { 0 };
+    entityState_t to = { .number = 9, .model = 1, .pathing_width = 6, .pathing_height = 4 };
+    entityState_t out = { 0 };
+    DWORD bits = 0;
+    int number;
+
+    MSG_WriteDeltaEntity(&sb, &from, &to, true);
+    sb.readcount = 0;
+    number = MSG_ReadEntityBits(&sb, &bits);
+    MSG_ReadDeltaEntity(&sb, &out, number, bits);
+
+    T_EQ(number, 9);
+    T_EQ(out.pathing_width, 6);
+    T_EQ(out.pathing_height, 4);
+    T_FEQ(out.origin.x, 0.0f, 0.001f);
+    T_FEQ(out.origin.y, 0.0f, 0.001f);
+}
+
 /* Dead destructable remains rely on EF_NOT_SELECTABLE surviving snapshots, so
  * guard its round trip explicitly. */
 TEST(net, entity_delta_preserves_not_selectable_flag) {

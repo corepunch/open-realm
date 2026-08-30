@@ -10,8 +10,12 @@ static BOOL G_IsHumanBuilder(LPEDICT ent) {
 }
 
 static void G_BuildError(LPEDICT clent, LPCSTR text) {
-    if (!clent) return;
-    UI_ShowText(clent, &MAKE(VECTOR2, 0, 0), text && *text ? text : "Unable to build there.", 2.0f);
+    if (!clent || !text || !*text) return;
+    UI_ShowText(clent, &MAKE(VECTOR2, 0, 0), text, 2.0f);
+}
+
+static void G_BuildPlacementError(LPEDICT clent) {
+    G_BuildError(clent, "Unable to build there.");
 }
 
 static void ai_build_walk(LPEDICT ent) {
@@ -41,10 +45,8 @@ static void FillUnitData(LPENTITYSTATE ent, DWORD unit_id, LPCSTR anim) {
     {
         pathTex_t *pathtex = M_LoadPathTex(G_UnitData(unit_id)->pathingTexture);
         if (pathtex) {
-            /* Cursor-only metadata: preserve the authored footprint dimensions so
-             * the client uses the same 64/32 placement snap before confirmation. */
-            ent->origin.x = (FLOAT)pathtex->width;
-            ent->origin.y = (FLOAT)pathtex->height;
+            ent->pathing_width = (USHORT)MIN(pathtex->width, USHRT_MAX);
+            ent->pathing_height = (USHORT)MIN(pathtex->height, USHRT_MAX);
             gi.MemFree(pathtex);
         }
     }
@@ -68,9 +70,13 @@ void build_build(LPEDICT ent) {
     client = G_GetPlayerClientByNumber(ent->s.player);
     placement = G_EvaluateBuildPlacement(ent, ent->build_project, &ent->goalentity->s.origin2, &snapped);
     state = G_GetBuildCommandState(client, ent, ent->build_project, NULL, 0);
-    if (placement != PLACE_OK || state != BUILD_COMMAND_AVAILABLE) {
-        G_BuildError(G_GetPlayerEntityByNumber(ent->s.player),
-                     placement == PLACE_OK ? "Unable to build: requirements changed." : "Unable to build there.");
+    if (placement != PLACE_OK) {
+        G_BuildPlacementError(G_GetPlayerEntityByNumber(ent->s.player));
+        ent->stand(ent);
+        return;
+    }
+    if (state != BUILD_COMMAND_AVAILABLE) {
+        G_BuildError(G_GetPlayerEntityByNumber(ent->s.player), "Unable to build: requirements changed.");
         ent->stand(ent);
         return;
     }
@@ -87,6 +93,10 @@ void build_build(LPEDICT ent) {
         return;
     }
 
+    /* The structure blocks pathing as soon as construction starts. Bake its
+     * authored footprint before relocating the worker so the egress search
+     * cannot choose a point that becomes blocked immediately afterward. */
+    CM_BakeStaticObstacles();
     if (G_IsHumanBuilder(ent)) {
         G_StartHumanConstruction(ent, building);
         repair_build_primary(ent, building);
@@ -98,7 +108,6 @@ void build_build(LPEDICT ent) {
     }
     building->build = building;
     G_PublishEvent(building, EVENT_PLAYER_UNIT_CONSTRUCT_START);
-    CM_BakeStaticObstacles();
     G_RefreshResourceBar(G_GetPlayerEntityByNumber(ent->s.player));
     Get_Portrait_f(G_GetPlayerEntityByNumber(ent->s.player));
 }
@@ -122,7 +131,7 @@ BOOL build_menu_send_builder(LPEDICT clent, LPCVECTOR2 location) {
     }
     placement = G_EvaluateBuildPlacement(builder, clent->build_project, location, &snapped);
     if (placement != PLACE_OK) {
-        G_BuildError(clent, "Unable to build there.");
+        G_BuildPlacementError(clent);
         return false;
     }
 

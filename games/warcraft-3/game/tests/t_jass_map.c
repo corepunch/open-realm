@@ -128,6 +128,21 @@ TEST(wc3_jass_map, map_metadata_and_start_priority_persist) {
     T_STREQ(level.setup.description, "Native setup state");
 }
 
+TEST(wc3_jass_map, player_technology_roundtrip_uses_declared_types) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SetPlayerTechMaxAllowed(Player(0), 123456, 3)\n"
+        "  call SetPlayerTechResearched(Player(0), 123456, 1)\n"
+        "  call AddPlayerTechResearched(Player(0), 123456, 1)\n"
+        "  call BJassAssert(GetPlayerTechMaxAllowed(Player(0), 123456) == 3, \"tech maximum\")\n"
+        "  call BJassAssert(GetPlayerTechResearched(Player(0), 123456, true), \"tech researched boolean\")\n"
+        "  call BJassAssert(GetPlayerTechCount(Player(0), 123456, true) == 2, \"tech level count\")\n"
+        "  call SetPlayerTechResearched(Player(0), 123456, 0)\n"
+        "  call BJassAssert(not GetPlayerTechResearched(Player(0), 123456, false), \"tech researched cleared\")\n"
+        "endfunction\n"
+    ));
+}
+
 TEST(wc3_jass_map, player_configuration_roundtrip) {
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"

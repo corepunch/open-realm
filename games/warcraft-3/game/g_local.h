@@ -961,6 +961,7 @@ buildPlacementResult_t G_EvaluateBuildPlacement(LPEDICT builder, DWORD building_
 FLOAT G_BuildApproachDistance(DWORD building_id);
 BOOL G_StartHumanConstruction(LPEDICT builder, LPEDICT building);
 void G_CompleteConstruction(LPEDICT building);
+BOOL G_UnitHasHumanRepair(LPEDICT ent);
 void G_SetPlayerTechMaxAllowed(LPGAMECLIENT client, DWORD techid, LONG maximum);
 LONG G_GetPlayerTechMaxAllowed(LPGAMECLIENT client, DWORD techid);
 void G_SetPlayerTechResearched(LPGAMECLIENT client, DWORD techid, LONG level_value);

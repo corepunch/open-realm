@@ -40,7 +40,7 @@ odd half-pathing-map dimension -> +32 on that axis
 no authored pathing texture -> 32-unit fallback grid
 ```
 
-The placement cursor carries its authored pathing-texture width/height in the cursor-only `entityState_t.origin.x/y` fields. `client/cl_view.c:CL_AddBuilding()` uses those dimensions for the same visual snap; those cursor metadata values are not world position.
+The placement cursor carries its authored pathing-texture width/height in dedicated `entityState_t.pathing_width` / `pathing_height` fields. `client/cl_view.c:CL_AddBuilding()` uses those dimensions for the same visual snap. The fields are delta-serialized and have an explicit network round-trip test; world-position fields remain world position only.
 
 `G_EvaluateBuildPlacement()` checks:
 
@@ -57,7 +57,7 @@ The common routing layer exposes `CM_GetPathingFlagsAt()` specifically so placem
 
 A declared pathing texture that fails to load is a placement failure. Do not silently degrade such a structure to a one-cell footprint; `M_LoadPathTex()` already reports the missing asset.
 
-Placement is checked once when the player confirms the ghost and again when the worker reaches the site. Resources are charged only after the arrival-time validation passes. Construction spawns at the stored snapped waypoint, not at the worker's current position.
+Placement is checked once when the player confirms the ghost and again when the worker reaches the site. Resources are charged only after the arrival-time validation passes. Construction spawns at the stored snapped waypoint, not at the worker's current position. Placement rejection uses the plain UI message `Unable to build there.`; requirement/resource failures remain separate command-state messages. `G_LevelString()` resolves only exact `TRIGSTR_<id>` tokens. Previously it parsed arbitrary UI text as trigger-string ID 0, so Human02's WTS entry 0 (the map name) replaced ordinary errors with `Human02`.
 
 The current client ghost snaps correctly but does not yet render the full per-cell green/red placement texture. Live units are therefore authoritative server blockers but are not painted into the preview.
 
@@ -73,7 +73,7 @@ construction.progress = 0
 life = 10% max life
 ```
 
-The building's birth animation is held until construction completes. The primary Peasant enters Human Repair and contributes `1.0` construction time. If that Peasant stops/dies/receives another behavior, no autonomous timer advances the paused structure. A later Human Repair worker can become the new primary worker.
+The building's birth animation is held until construction completes. Its authored pathing footprint is baked before the primary Peasant is relocated. Human Repair uses `SP_FindUnitExitPosition()` against that baked footprint and relinks the worker at the chosen point; selection radius is not a substitute for pathing geometry. This prevents the Lumber Mill case where the old `SP_FindEmptySpaceAround()` placed the Peasant inside cells that became blocked immediately after construction started. The primary Peasant then contributes `1.0` construction time. If that Peasant stops/dies/receives another behavior, no autonomous timer advances the paused structure. A later Human Repair worker can become the new primary worker.
 
 Additional `Arep` repairers use the ability's authored data:
 
@@ -98,10 +98,12 @@ This patch intentionally focuses on Human construction. The following clean-room
 
 - `war3map.w3u` modifications are not yet fully merged into the normalized typed unit rows, so map-local edits to `Builds`/requirements may still resolve through the base unit row;
 - the client does not yet draw a per-cell green/red pathing splat or mirror live-unit obstruction into that splat;
-- placement supports the currently decoded walk/build/blight flags, not every Warcraft compound placement type;
+- placement supports the currently decoded walk/build/blight flags, not every Warcraft compound placement type; unsupported tokens are reported to `stderr` instead of being silently discarded;
 - build cancellation after a structure has spawned does not yet have the retail partial-refund lifecycle;
 - Orc worker-inside, Night Elf worker/Ancient consumption, and Undead summon/release construction strategies remain legacy behavior;
-- normal completed-building Repair still uses the older simplified HP rate; DataA/DataB repair cost/time parity is separate from Human power-building DataC/DataD.
+- normal completed-building Repair still uses the older simplified HP rate; DataA/DataB repair cost/time parity is separate from Human power-building DataC/DataD;
+- the per-player technology table is intentionally bounded at `MAX_PLAYER_TECH_STATE`; exhaustion is reported as a warning and does not overwrite an existing entry;
+- `GetPlayerTechResearched` / `GetPlayerTechCount` currently have exact-rawcode semantics for both `specificonly` values because technology-equivalence groups are not represented yet.
 
 ## Verification
 
@@ -111,6 +113,8 @@ Focused automated checks after building:
 make test-wc3-engine WC3_PATTERN='wc3_building.*'
 make test-wc3-engine WC3_PATTERN='wc3_combat.*'
 make test-wc3-engine WC3_PATTERN='wc3_movement.*'
+make test-wc3-engine WC3_PATTERN='wc3_jass_map.player_technology_*'
+make test
 ```
 
 Runtime checks should cover at least:
@@ -124,3 +128,5 @@ Runtime checks should cover at least:
 7. One Peasant constructs at the base rate; stopping it pauses progress.
 8. A replacement Peasant resumes construction.
 9. Additional Peasants accelerate according to Repair `DataD` and consume incremental `DataC` costs.
+10. Build a Lumber Mill and then order its primary Peasant away; the worker must begin outside the baked footprint and move normally.
+11. Reject a blocked placement and verify the UI displays `Unable to build there.`, not the map name.

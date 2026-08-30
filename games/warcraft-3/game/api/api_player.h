@@ -333,13 +333,20 @@ DWORD SetPlayerTechResearched(LPJASS j) {
 DWORD GetPlayerTechResearched(LPJASS j) {
     LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     LONG techid = jass_checkinteger(j, 2);
-    (void)jass_checkboolean(j, 3);
-    return jass_pushinteger(j, whichPlayer ? G_GetPlayerTechResearchedLevel(PLAYER_CLIENT(whichPlayer), (DWORD)techid) : 0);
+    BOOL specificonly = jass_checkboolean(j, 3);
+    /* TODO: model Warcraft technology-equivalence groups. Until that data is
+     * represented, both specificonly modes address the exact rawcode only. */
+    (void)specificonly;
+    return jass_pushboolean(j, whichPlayer &&
+        G_GetPlayerTechResearchedLevel(PLAYER_CLIENT(whichPlayer), (DWORD)techid) > 0);
 }
 DWORD GetPlayerTechCount(LPJASS j) {
     LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     LONG techid = jass_checkinteger(j, 2);
-    (void)jass_checkboolean(j, 3);
+    BOOL specificonly = jass_checkboolean(j, 3);
+    /* TODO: model Warcraft technology-equivalence groups. Until that data is
+     * represented, both specificonly modes address the exact rawcode only. */
+    (void)specificonly;
     return jass_pushinteger(j, whichPlayer ? G_GetPlayerTechCountValue(PLAYER_CLIENT(whichPlayer), (DWORD)techid) : 0);
 }
 DWORD SetPlayerAbilityAvailable(LPJASS j) {

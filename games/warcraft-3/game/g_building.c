@@ -7,29 +7,37 @@
 #define WC3_PATH_UNBUILDABLE 0x08
 #define WC3_PATH_BLIGHTED 0x20
 
-static BOOL G_StringHasPlacementType(LPCSTR list, LPCSTR type) {
-    char token[64];
-    LPCSTR p;
+static BYTE G_PlacementFlags(LPCSTR list) {
+    BYTE flags = 0;
+    LPCSTR p = list;
 
-    if (!list || !type || !*type) return false;
-    p = list;
+    if (!list) return 0;
     while (*p) {
+        char token[64];
         DWORD n = 0;
+
         while (*p == ',' || *p == ' ' || *p == '\t') p++;
-        while (*p && *p != ',' && n + 1 < sizeof(token)) token[n++] = (char)tolower(*p++);
+        while (*p && *p != ',' && n + 1 < sizeof(token)) {
+            token[n++] = (char)tolower((unsigned char)*p++);
+        }
         token[n] = '\0';
         while (*p && *p != ',') p++;
         if (*p == ',') p++;
-        if (!strcmp(token, type)) return true;
-    }
-    return false;
-}
+        while (n && (token[n - 1] == ' ' || token[n - 1] == '\t')) token[--n] = '\0';
 
-static BYTE G_PlacementFlags(LPCSTR list) {
-    BYTE flags = 0;
-    if (G_StringHasPlacementType(list, "unwalkable")) flags |= WC3_PATH_UNWALKABLE;
-    if (G_StringHasPlacementType(list, "unbuildable")) flags |= WC3_PATH_UNBUILDABLE;
-    if (G_StringHasPlacementType(list, "blighted")) flags |= WC3_PATH_BLIGHTED;
+        if (!token[0]) continue;
+        if (!strcmp(token, "unwalkable")) {
+            flags |= WC3_PATH_UNWALKABLE;
+        } else if (!strcmp(token, "unbuildable")) {
+            flags |= WC3_PATH_UNBUILDABLE;
+        } else if (!strcmp(token, "blighted")) {
+            flags |= WC3_PATH_BLIGHTED;
+        } else {
+            /* TODO: decode the remaining Warcraft placement predicates from the
+             * authoritative unit data instead of silently treating them as no-op. */
+            fprintf(stderr, "G_PlacementFlags: unsupported placement type '%s'\n", token);
+        }
+    }
     return flags;
 }
 
@@ -71,7 +79,12 @@ static LONG G_FindTechSlot(LPGAMECLIENT client, DWORD techid, BOOL create) {
         if (client->tech[i].id == techid) return (LONG)i;
         if (!client->tech[i].id && free_slot < 0) free_slot = (LONG)i;
     }
-    if (!create || free_slot < 0) return -1;
+    if (!create) return -1;
+    if (free_slot < 0) {
+        fprintf(stderr, "G_FindTechSlot: player %u tech state capacity %u exhausted for 0x%08x\n",
+                (unsigned)client->ps.number, (unsigned)MAX_PLAYER_TECH_STATE, (unsigned)techid);
+        return -1;
+    }
     client->tech[free_slot].id = techid;
     client->tech[free_slot].max_allowed = -1;
     return free_slot;
@@ -137,7 +150,11 @@ static LONG G_RequirementAmount(UnitProfile_t const *profile, DWORD index) {
 
     if (!profile || !profile->requiresAmount ||
         !G_CsvToken(profile->requiresAmount, index, amount, sizeof(amount))) return 1;
-    if (sscanf(amount, "%ld", &value) != 1) return 1;
+    if (sscanf(amount, "%ld", &value) != 1) {
+        fprintf(stderr, "G_RequirementAmount: invalid Requiresamount token '%s' at index %u\n",
+                amount, (unsigned)index);
+        return 1;
+    }
     return MAX(1, value);
 }
 
@@ -162,7 +179,11 @@ static BOOL G_RequirementsSatisfied(LPGAMECLIENT client, DWORD building_id, LPST
     for (DWORD i = 0; G_CsvToken(profile->requires, i, requirement, sizeof(requirement)); i++) {
         DWORD rawcode;
         LONG required;
-        if (strlen(requirement) != 4) continue;
+        if (strlen(requirement) != 4) {
+            fprintf(stderr, "G_RequirementsSatisfied: unsupported requirement token '%s' for 0x%08x\n",
+                    requirement, (unsigned)building_id);
+            continue;
+        }
         memcpy(&rawcode, requirement, sizeof(rawcode));
         required = G_RequirementAmount(profile, i);
         if (G_PlayerRequirementCount(client, rawcode) < required) {

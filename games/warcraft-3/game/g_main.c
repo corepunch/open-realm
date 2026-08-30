@@ -409,10 +409,16 @@ void G_PublishMessage(LPEDICT actor, GAMEMSGTYPE type, LPEDICT target) {
 }
 
 LPCSTR G_LevelString(LPCSTR name) {
-    DWORD string_id = 0;
-    sscanf(name, "TRIGSTR_%d", &string_id);
+    unsigned int string_id;
+    char trailing;
+
+    if (!name || strncmp(name, "TRIGSTR_", 8) ||
+        sscanf(name, "TRIGSTR_%u%c", &string_id, &trailing) != 1 ||
+        !level.mapinfo) {
+        return name;
+    }
     FOR_EACH_LIST(mapTrigStr_t, trigstr, level.mapinfo->strings) {
-        if (trigstr->id == string_id) {
+        if (trigstr->id == (DWORD)string_id) {
             return trigstr->text;
         }
     }

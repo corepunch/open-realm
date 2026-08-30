@@ -132,7 +132,7 @@ in the registry: `SetEnemyStartLocPrioCount`, `SetEnemyStartLocPrio`, and
 - `SetPlayerHandicap` and `SetPlayerHandicapXP` are percentages represented by
   real values; their getters must return the stored values, not normalized
   fractions unless runtime evidence demonstrates that contract.
-- Tech maximums and researched levels use the keyed `game.clients[].tech` table rather than `ps.stats[]`. `SetPlayerTechMaxAllowed`, `GetPlayerTechMaxAllowed`, `AddPlayerTechResearched`, `SetPlayerTechResearched`, `GetPlayerTechResearched`, and `GetPlayerTechCount` now round-trip through that state. W3I technology-unavailability entries seed a maximum of zero before map scripts may override it. Ability availability remains separate work.
+- Tech maximums and researched levels use the keyed `game.clients[].tech` table rather than `ps.stats[]`. `SetPlayerTechMaxAllowed`, `GetPlayerTechMaxAllowed`, `AddPlayerTechResearched`, `SetPlayerTechResearched`, `GetPlayerTechResearched`, and `GetPlayerTechCount` round-trip through that state. W3I technology-unavailability entries seed a maximum of zero before map scripts may override it. The table is bounded by `MAX_PLAYER_TECH_STATE` and reports exhaustion rather than silently overwriting state. The bundled `game/common.txt` declares `GetPlayerTechResearched` as `boolean`, so it reports whether the exact rawcode has a researched level above zero; `GetPlayerTechCount` returns the exact-rawcode count/level. Both currently ignore technology-equivalence expansion when `specificonly` is false because equivalence groups are not represented yet. Ability availability remains separate work.
 
 ## Trigger Context Contract
 

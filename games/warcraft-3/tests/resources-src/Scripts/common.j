@@ -98,7 +98,7 @@ native SetPlayerTechMaxAllowed takes player whichPlayer, integer techid, integer
 native GetPlayerTechMaxAllowed takes player whichPlayer, integer techid returns integer
 native AddPlayerTechResearched takes player whichPlayer, integer techid, integer levels returns nothing
 native SetPlayerTechResearched takes player whichPlayer, integer techid, integer setToLevel returns nothing
-native GetPlayerTechResearched takes player whichPlayer, integer techid, boolean specificonly returns integer
+native GetPlayerTechResearched takes player whichPlayer, integer techid, boolean specificonly returns boolean
 native GetPlayerTechCount      takes player whichPlayer, integer techid, boolean specificonly returns integer
 native SetPlayerOnScoreScreen takes player whichPlayer, boolean flag returns nothing
 native Rect                   takes real minx, real miny, real maxx, real maxy returns rect

@@ -480,6 +480,8 @@ typedef struct entityState_s {
     USHORT flags;
     BYTE renderfx;
     BYTE ability;
+    USHORT pathing_width;   /* authored cursor/building pathing texture width in 32-unit cells */
+    USHORT pathing_height;  /* authored cursor/building pathing texture height in 32-unit cells */
     DWORD splat;
 #ifdef WOW
     DWORD appearance;
