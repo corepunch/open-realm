@@ -6,6 +6,9 @@ Implement server-side computer players through Warcraft III's authoritative AI s
 
 This is player AI, not unit AI. Blizzard's AI script requests economy, production, defenders, captains, and assaults. Existing construction, training, movement, harvesting, and combat state machines perform the resulting actions.
 
+See [Player AI Postmortem](player-ai-postmortem.md) for the final architecture assessment, evidence from the archived scripts,
+implementation lessons, and rules for future work.
+
 ## Authoritative Sources
 
 Use these sources in priority order:
