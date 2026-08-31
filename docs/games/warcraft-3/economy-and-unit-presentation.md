@@ -81,6 +81,13 @@ scan therefore produces the correct 128-unit radius (`8 * 32 / 2`). A prior test
 direct inspection of all 256 decoded pixels disproved that claim. The mine-entry regression belongs in the interaction threshold,
 not in a fabricated larger footprint.
 
+The August 31 Human02 trace exposed a second boundary case after point-flow routing was made monotonic. Three miners eventually
+stopped at fixed positions with `peons=0 capacity=1`; the two front workers were 36.9 and 40.6 units from the authored footprint while
+the strict `worker collision + one step` threshold was 35.0. This is a crowded final-approach settle, not a larger Gold Mine. Gold now
+uses the ordinary footprint/circle threshold first, then hands a worker to the mine queue when either the shared point flow reports its
+adjusted route goal or Move's existing near-goal settle detector confirms that the worker has stopped making progress at that boundary.
+The same rule is used for gold return/deposit. A blocked route farther from the building is not treated as arrival.
+
 ### Remote Mine-Entry Reports
 
 First collect the executable/game-module revision, device OS, archive release (ROC/TFT and patch), exact map, and whether one worker
@@ -93,7 +100,7 @@ Distinguish the states: `ai_walkmine` keeps the walk animation while outside the
 calls `harvest_gold_start`: smart orders require worker `Ahar` and an `Agld`-derived target; otherwise a non-enemy target becomes a
 plain move to its center, which also stops at collision. For a failing bounded run, `+set wc3_harvest_path_debug 2` logs `WC3_GOLD_PATH` approach/entry/wait events including centre distance,
 worker+mine collision contact, movement step, distance to the mine's authored pathing footprint, occupancy, capacity, resources, and
-flow generation. Gold return uses the same cvar and emits `WC3_GOLD_RETURN start`, periodic `approach`, `deposit_range`, and `deposit` transitions so a Town Hall return failure can be distinguished from a mine-entry failure. If the worker remains outside entry range, log rejection in `g_ai.c:move_is_valid` separately for static pathmap and entity-circle collision. Do not enlarge an interaction radius without this evidence.
+flow generation. Entry/deposit logs identify `via=footprint`, `circle`, `route_goal`, or `settled`. Gold return uses the same cvar and emits `WC3_GOLD_RETURN start`, periodic `approach`, `deposit_range`, and `deposit` transitions so a Town Hall return failure can be distinguished from a mine-entry failure. If the worker remains outside all completion modes, log rejection in `g_ai.c:move_is_valid` separately for static pathmap and entity-circle collision. Do not enlarge the authored mine footprint to hide a routing/crowding problem.
 Movement uses `FRAMETIME` through `unit_movedistance`; low rendering FPS alone does not shrink the per-tick entry allowance.
 
 Build and run the existing gold tests with either local archive set (add `-tft` for TFT):

@@ -262,6 +262,59 @@ TEST(wc3_movement, gold_worker_enters_mine_with_blocked_pathing_footprint) {
     gi.MemFree(mine_pathtex);
 }
 
+/* Human02 can pack several returning miners into the same final approach lane.
+ * The front worker may then settle just outside the strict one-step footprint
+ * threshold: in the captured regression a 16u-radius Peasant with a 19u step
+ * stopped at 36.9u while the normal threshold was 35u.  A worker that has
+ * stopped making progress inside Move's near-goal settle band must hand off to
+ * the mine queue instead of remaining in walk forever. */
+TEST(wc3_movement, gold_worker_settled_at_blocked_mine_edge_enters_queue) {
+    enum { CELLS = 64 };
+    BYTE pathmap[CELLS * CELLS] = {0};
+    LPEDICT worker = make_moving_unit(151.0f, 0.0f);
+    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 320.0f, 0.0f);
+    pathTex_t *mine_pathtex = movement_make_goldmine_pathtex();
+    FLOAT footprint;
+
+    worker->collision = 16.0f;
+    worker->unitinfo.MoveSpeed = 190.0f;
+    mine->collision = 128.0f;
+    mine->s.model = 1;
+    mine->movetype = MOVETYPE_NONE;
+    mine->pathtex = mine_pathtex;
+    setup_test_goldmine(mine, &test_goldmine_cap1, 100);
+    gi.LinkEntity(worker);
+    gi.LinkEntity(mine);
+
+    for (int y = 28; y < 36; y++) {
+        for (int x = 38; x < 46; x++)
+            pathmap[x + y * CELLS] = 0x02;
+    }
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(BOX2,
+        .min = {-1024.0f, -1024.0f},
+        .max = { 1024.0f,  1024.0f}));
+
+    footprint = CM_DistanceToPathingFootprint(mine, &worker->s.origin2);
+    T_ASSERT(footprint > worker->collision + unit_movedistance(worker));
+
+    slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
+    harvest_gold_start(worker, mine);
+
+    FOR_LOOP(i, 20) {
+        worker->currentmove->think(worker);
+        CM_ProcessPathJobs(65536);
+        if (worker->s.renderfx & RF_HIDDEN)
+            break;
+    }
+
+    T_ASSERT(worker->s.renderfx & RF_HIDDEN);
+    T_EQ(mine->peonsinside, 1);
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+    gi.MemFree(mine_pathtex);
+}
+
 /* The mine pathing footprint is square/texture-authored, while mine->collision
  * is only a scalar approximation.  At a footprint corner the worker can be one
  * legal movement step from the no-walk cells while its centre distance is still

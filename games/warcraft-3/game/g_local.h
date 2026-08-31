@@ -1463,6 +1463,7 @@ void blight_mine_think(LPEDICT);
 BOOL move_selectlocation(LPEDICT, LPCVECTOR2);
 BOOL move_should_arrive(LPEDICT, FLOAT);
 BOOL move_is_blocked(LPEDICT, FLOAT, FLOAT);
+BOOL move_is_settled_near_goal(LPEDICT, FLOAT, FLOAT);
 void move_reset_progress(LPEDICT);
 LPEDICT G_FindNearestEnemy(LPEDICT, FLOAT);
 FLOAT G_AcquisitionRange(LPCEDICT);
