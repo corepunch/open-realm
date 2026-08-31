@@ -51,6 +51,7 @@ JASSMODULE jass_funcs[] = {
     { "HarvestWood", HarvestWood },
     { "CreateCaptains", CreateCaptains },
     { "IgnoredUnits", IgnoredUnits },
+    { "CaptainInCombat", CaptainInCombat },
     { "CommandsWaiting", CommandsWaiting },
     { "GetLastCommand", GetLastCommand },
     { "GetLastData", GetLastData },

@@ -109,6 +109,10 @@ DWORD IgnoredUnits(LPJASS j) {
     return jass_pushinteger(j, G_BotIgnoredUnits(jass_getcontext(j)->playerState, jass_checkinteger(j, 1)));
 }
 
+DWORD CaptainInCombat(LPJASS j) {
+    return jass_pushboolean(j, G_BotCaptainInCombat(jass_getcontext(j)->playerState, jass_checkboolean(j, 1)));
+}
+
 DWORD CommandsWaiting(LPJASS j) {
     return jass_pushinteger(j, G_BotCommandsWaiting(jass_getcontext(j)->playerState));
 }

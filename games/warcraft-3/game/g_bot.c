@@ -110,6 +110,17 @@ DWORD G_BotIgnoredUnits(LPPLAYER player, DWORD class_id) {
     return count;
 }
 
+/* Combat belongs to members, not formation state; validating each target also clears stale combat links. */
+BOOL G_BotCaptainInCombat(LPPLAYER player, BOOL attack) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    botCaptain_t *captain;
+    if (!bot) return false;
+    captain = bot->captains + (attack ? BOT_CAPTAIN_ATTACK : BOT_CAPTAIN_DEFENSE);
+    FOR_EACH_ARRAY(LPEDICT, unit, captain->units)
+        if (G_BotUnitAlive(*unit) && unit_affectingcombat(*unit)) return true;
+    return false;
+}
+
 /* CommandAI is a per-player stack: GetLast* observes the newest command until PopLastCommand removes it. */
 BOOL G_BotPushCommand(LPPLAYER player, LONG command, LONG data) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;

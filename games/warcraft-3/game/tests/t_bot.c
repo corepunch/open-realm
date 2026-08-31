@@ -329,6 +329,27 @@ TEST(wc3_bot, ignored_units_counts_only_live_owned_captain_members) {
     T_ASSERT(!jass_rterror_pending(bot->vm));
 }
 
+TEST(wc3_bot, captain_in_combat_selects_roster_and_clears_stale_targets) {
+    bot_t *bot = level.bots + 2;
+    LPEDICT attack = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    LPEDICT defense = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 32, 0);
+    LPEDICT enemy = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 64, 0);
+    attack->health.value = defense->health.value = enemy->health.value = 100;
+    attack->s.player = defense->s.player = 2; enemy->s.player = 1;
+    bot->captains[BOT_CAPTAIN_ATTACK].units = gi.MemAlloc(sizeof(LPEDICT));
+    bot->captains[BOT_CAPTAIN_DEFENSE].units = gi.MemAlloc(sizeof(LPEDICT));
+    ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units) = 1;
+    ARRAY_COUNT(bot->captains[BOT_CAPTAIN_DEFENSE].units) = 1;
+    bot->captains[BOT_CAPTAIN_ATTACK].units[0] = attack;
+    bot->captains[BOT_CAPTAIN_DEFENSE].units[0] = defense;
+    attack->combatentity = enemy;
+
+    T_ASSERT(G_BotCaptainInCombat(&game.clients[2].ps, true));
+    T_ASSERT(!G_BotCaptainInCombat(&game.clients[2].ps, false));
+    enemy->inuse = false;
+    T_ASSERT(!G_BotCaptainInCombat(&game.clients[2].ps, true)); T_NULL(attack->combatentity);
+}
+
 TEST(wc3_bot, command_stack_is_player_owned_and_consumed_by_ai_natives) {
     T_ASSERT(G_BotStart(&game.clients[2].ps, "test_bot_commands.ai", BOT_CAMPAIGN));
     T_ASSERT(run_test_jass("function main takes nothing returns nothing\n"
