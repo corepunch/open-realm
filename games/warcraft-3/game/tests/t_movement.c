@@ -454,6 +454,38 @@ TEST(wc3_movement, lumber_pending_flow_does_not_move_on_stale_heading) {
     T_ASSERT(worker->goalentity == tree);
 }
 
+/* Same-tree workers are allowed, but their final direct approach should not
+ * deliberately select one shared chop point.  The second worker receives the
+ * next deterministic approach lane while both retain the same tree target. */
+TEST(wc3_movement, lumber_same_tree_workers_choose_distinct_approach_lanes) {
+    enum { CELLS = 64 };
+    BYTE pathmap[CELLS * CELLS] = {0};
+    LPEDICT first = make_moving_unit(-400.0f, 0.0f);
+    LPEDICT second = add_gold_worker(-300.0f, 0.0f);
+    LPEDICT tree = make_harvest_tree(0.0f, 0.0f, 500.0f);
+
+    first->collision = second->collision = 16.0f;
+    first->unitinfo.MoveSpeed = second->unitinfo.MoveSpeed = 190.0f;
+    tree->collision = 0.0f;
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(BOX2,
+        .min = {-1024.0f, -1024.0f},
+        .max = { 1024.0f,  1024.0f}));
+
+    HARVEST_RANGE = 116.0f;
+    HARVEST_SEARCH_RANGE = 1000.0f;
+    harvest_start(first, tree);
+    harvest_start(second, tree);
+    first->currentmove->think(first);
+    second->currentmove->think(second);
+
+    T_ASSERT(first->goalentity == tree);
+    T_ASSERT(second->goalentity == tree);
+    T_ASSERT(first->movement.flow_direct);
+    T_ASSERT(second->movement.flow_direct);
+    T_ASSERT(fabsf(first->s.angle - second->s.angle) > 0.1f);
+}
+
 /* Retail WC3 does not leave a worker orbiting an unreachable tree buried in a
  * forest.  The clicked tree remains authoritative while a route exists; once
  * the collision-sized flow field reaches its closest legal approach point and
@@ -822,6 +854,55 @@ TEST(wc3_movement, gold_three_workers_hold_while_shared_route_is_pending) {
 
     G_SetSLKRows("AbilityData", old_abilities);
     free_slk_rows(rows);
+}
+
+/* A Town Hall is a blocked footprint, not a reachable centre point.  The
+ * interaction walker should first take a collision-sized edge lane instead of
+ * waiting for a point-flow toward the blocked centre.  This reproduces the
+ * Human02 return stall where a Peasant could sit more than 100 units from the
+ * footprint until another worker vacated the shared centre-directed lane. */
+TEST(wc3_movement, gold_return_prefers_direct_footprint_edge_lane) {
+    enum { CELLS = 64 };
+    BYTE pathmap[CELLS * CELLS] = {0};
+    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
+    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), -400.0f, 0.0f);
+    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 320.0f, 0.0f);
+    pathTex_t *hall_pathtex = movement_make_goldmine_pathtex();
+    VECTOR2 const origin = worker->s.origin2;
+    FLOAT const before = 192.0f;
+
+    worker->collision = 16.0f;
+    worker->unitinfo.MoveSpeed = 190.0f;
+    worker->harvested_gold = 10;
+    worker->s.renderfx |= RF_HAS_GOLD;
+    worker->secondarygoal = mine;
+    hall->collision = 64.0f;
+    hall->s.model = 1;
+    hall->s.player = worker->s.player;
+    hall->pathtex = hall_pathtex;
+    make_live_dropoff(hall, &return_gold_lumber_abilities);
+    gi.LinkEntity(worker);
+    gi.LinkEntity(hall);
+
+    /* 320 world units maps to cell 42 in this fixture.  Mirror the 8x8
+     * no-walk centre of movement_make_goldmine_pathtex(). */
+    for (int y = 28; y < 36; y++) {
+        for (int x = 38; x < 46; x++)
+            pathmap[x + y * CELLS] = 0x02;
+    }
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(BOX2,
+        .min = {-1024.0f, -1024.0f},
+        .max = { 1024.0f,  1024.0f}));
+
+    T_ASSERT(harvest_gold_return_to(worker, hall));
+    T_FEQ(CM_DistanceToPathingFootprint(hall, &worker->s.origin2), before, 0.01f);
+    worker->currentmove->think(worker);
+
+    T_ASSERT(worker->movement.flow_direct);
+    T_ASSERT(worker->s.origin2.x > origin.x);
+    T_ASSERT(CM_DistanceToPathingFootprint(hall, &worker->s.origin2) < before);
+    gi.MemFree(hall_pathtex);
 }
 
 /* Gold return can miss the cache independently of mine approach.  A worker

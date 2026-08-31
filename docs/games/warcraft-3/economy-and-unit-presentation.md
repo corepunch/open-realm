@@ -138,6 +138,10 @@ the entry threshold, and entered as the capacity-1 slot became free. ROC logged 
 (entry threshold=163); local TFT mode logged mine radius=50, worker=16, step=19 (threshold=85). These are observations of the
 local archive sets, not universal ROC/TFT constants. Do not use one archive mode's radius to diagnose the other without logging it.
 
+A later August 31 Human02 trace exposed a distinct crowding failure at the Town Hall. A gold carrier remained at `(-4075.4,-3838.9)` for 24 logged approach updates while still 107.4 world units from the authored Town Hall footprint. It was well outside the normal one-step deposit boundary and moved again only after the local lane cleared. This is not a deposit-range or mine-capacity condition: centre-directed interaction routing had funnelled multiple returning workers through the same blocked-building approach. Gold and lumber return now prefer a collision-sized directly reachable cell beside the authored footprint, then hand completion back to their unchanged footprint/contact checks.
+
+The same trace also showed multiple Peasants legitimately converging on one tree. The old direct-approach helper considered only static pathability, so each worker could independently choose the same final chop cell and leave dynamic collision sliding to untangle them. Lumber Harvest now assigns deterministic alternating approach lanes to workers sharing a tree and rejects a lane that currently overlaps another active harvester's collision space. This reservation is deliberately local to the final Harvest approach; cached static flow fields remain independent of transient unit occupancy.
+
 An August 31 Human02 trace with all three starting Peasants ordered together exposed a separate regression after generic
 flow fields became resumable. While the shared mine field was still pending, all three reported `flow=0 direct=0`, yet movement
 still committed a step using the previous facing. A later lumber trace reproduced the same state on newly clicked trees: several

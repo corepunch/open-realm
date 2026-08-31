@@ -474,6 +474,10 @@ static FLOAT pathmap_cell_world_size(void) {
     return MAX(1.f, MIN(cell_x, cell_y));
 }
 
+FLOAT CM_PathCellWorldSize(void) {
+    return pathmap_cell_world_size();
+}
+
 static bool is_pathable_node_for_radius_cells(int x, int y, int radius_cells) {
     if (!is_pathable_node(x, y)) {
         return false;

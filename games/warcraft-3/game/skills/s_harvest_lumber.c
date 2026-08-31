@@ -139,6 +139,105 @@ static LPEDICT find_another_tree(LPEDICT ent) {
     return ent ? find_another_tree_near(&ent->s.origin2) : NULL;
 }
 
+/* Several workers may legitimately chop one tree, but they should not all
+ * choose the same direct approach point and depend on last-step collision to
+ * untangle themselves.  Lower entity numbers keep the first lane; later
+ * workers bias around the tree in alternating 30-degree slots. */
+static DWORD harvest_tree_approach_slot(LPCEDICT ent, LPCEDICT tree) {
+    DWORD slot = 0;
+
+    FOR_LOOP(i, globals.num_edicts) {
+        LPCEDICT other = globals.edicts + i;
+        if (other == ent || !other->inuse || other->s.number >= ent->s.number ||
+            !other->currentmove || other->currentmove->ability != &a_harvest ||
+            other->goalentity != tree)
+            continue;
+        slot++;
+    }
+    return slot;
+}
+
+static BOOL harvest_tree_approach_occupied(LPCEDICT ent, LPCEDICT tree,
+                                            LPCVECTOR2 point) {
+    FOR_LOOP(i, globals.num_edicts) {
+        LPCEDICT other = globals.edicts + i;
+        FLOAT separation;
+
+        if (other == ent || !other->inuse || !other->currentmove ||
+            other->currentmove->ability != &a_harvest || other->goalentity != tree)
+            continue;
+        separation = ent->collision + other->collision + 2.0f;
+        if (Vector2_distance(point, &other->s.origin2) < separation)
+            return true;
+    }
+    return false;
+}
+
+static BOOL harvest_find_direct_tree_approach(LPEDICT ent, LPEDICT tree,
+                                               LPVECTOR2 out) {
+    VECTOR2 base, radial;
+    FLOAT radius, angle;
+    DWORD const slot = harvest_tree_approach_slot(ent, tree);
+    int const slot_step = (int)((slot + 1) / 2);
+    int const slot_sign = (slot == 0 || (slot & 1)) ? 1 : -1;
+    FLOAT const slot_angle = (FLOAT)slot_step * slot_sign *
+                             (30.0f * (FLOAT)M_PI / 180.0f);
+
+    if (!CM_FindDirectApproachPointForRadius(&ent->s.origin2, &tree->s.origin2,
+                                              HARVEST_RANGE, ent->collision, &base))
+        return false;
+    radial = Vector2_sub(&base, &tree->s.origin2);
+    radius = Vector2_len(&radial);
+    if (radius <= 0.001f)
+        return false;
+    angle = atan2f(radial.y, radial.x) + slot_angle;
+
+    /* Search outward from the worker's assigned lane in small angular steps.
+     * Static pathability decides whether the lane exists; live peers already
+     * chopping this tree reserve their current collision space. */
+    for (int ring = 0; ring < 12; ring++) {
+        int const magnitude = (ring + 1) / 2;
+        int const sign = ring == 0 ? 0 : ((ring & 1) ? 1 : -1);
+        FLOAT const a = angle + sign * magnitude *
+                                (15.0f * (FLOAT)M_PI / 180.0f);
+        VECTOR2 const candidate = {
+            tree->s.origin2.x + cosf(a) * radius,
+            tree->s.origin2.y + sinf(a) * radius
+        };
+
+        if (Vector2_distance(&candidate, &tree->s.origin2) > HARVEST_RANGE + 0.01f)
+            continue;
+        if (!CM_PointIsPathableForRadius(&candidate, ent->collision))
+            continue;
+        if (!CM_LineIsWalkableForRadius(&ent->s.origin2, &candidate, ent->collision))
+            continue;
+        if (harvest_tree_approach_occupied(ent, tree, &candidate))
+            continue;
+        *out = candidate;
+        return true;
+    }
+
+    if (!harvest_tree_approach_occupied(ent, tree, &base)) {
+        *out = base;
+        return true;
+    }
+    return false;
+}
+
+static BOOL harvest_find_direct_dropoff_approach(LPEDICT ent, LPEDICT dropoff,
+                                                  FLOAT step, LPVECTOR2 out) {
+    FLOAT route_band;
+
+    if (!ent || !dropoff || !dropoff->pathtex || !out)
+        return false;
+    route_band = ent->collision + step +
+                 CM_PathCellWorldSize() * 1.41421356237f;
+    if (!CM_FindApproachPointToFootprintForRadius(
+            dropoff, &ent->s.origin2, route_band, ent->collision, out))
+        return false;
+    return CM_LineIsWalkableForRadius(&ent->s.origin2, out, ent->collision);
+}
+
 /* Retail WC3 continues lumber work when the explicitly clicked tree is alive
  * but cannot be reached.  Keep target selection in Harvest: routing reports
  * failure/exhaustion, then Harvest chooses a replacement tree.  Prefer a tree
@@ -297,9 +396,8 @@ static void ai_walktree(LPEDICT ent) {
         look_for_another_tree(ent);
     } else if (distance > HARVEST_RANGE) {
         VECTOR2 approach = { 0, 0 };
-        BOOL const direct_approach = CM_FindDirectApproachPointForRadius(
-            &ent->s.origin2, &ent->goalentity->s.origin2, HARVEST_RANGE,
-            ent->collision, &approach);
+        BOOL const direct_approach =
+            harvest_find_direct_tree_approach(ent, ent->goalentity, &approach);
 
         if (move_is_blocked(ent, distance, step)) {
             harvest_route_failed(ent, "movement_blocked");
@@ -388,16 +486,17 @@ static void ai_harvest_walkback(LPEDICT ent) {
         }
     } else {
         VECTOR2 approach = { 0, 0 };
-        BOOL const direct_approach = CM_FindDirectApproachPointForRadius(
-            &ent->s.origin2, &ent->goalentity->s.origin2, contact,
-            ent->collision, &approach);
+        BOOL const direct_approach =
+            harvest_find_direct_dropoff_approach(ent, ent->goalentity,
+                                                 step, &approach);
 
-        /* Returning to an unobstructed building edge should not wait for a
-         * whole-map flow field whose raw target is the blocked building centre.
-         * Use the same collision-safe direct approach primitive as Harvest and
-         * Build; fall back to the resumable point route when obstacles really
-         * require a detour. */
-        if (direct_approach)
+        /* A Town Hall/Lumber Mill is an authored blocked footprint, not a
+         * reachable centre point.  Prefer a collision-sized edge staging lane
+         * while it is still at least one step away; once there, resume the
+         * ordinary interaction steering so the exact deposit check above owns
+         * completion. */
+        if (direct_approach &&
+            Vector2_distance(&ent->s.origin2, &approach) > step)
             unit_changeangle_towards_point(ent, &approach);
         else
             unit_changeangle(ent);

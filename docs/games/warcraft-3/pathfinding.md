@@ -40,6 +40,8 @@ Flow vectors only descend to a strictly lower heatmap price for both collision-s
 
 Generic interactions still own their final range/contact semantics. When a radius-zero field reaches its adjusted legal cell beside a blocked entity target, `unit_changeangle()` records `flow_goal_reached` and resumes steering toward the real entity centre. Most behaviors still complete at their own footprint/range boundary. Gold Mine entry and gold return additionally treat that reached point-flow goal as a valid queue/deposit handoff, because the mover's collision validation can forbid the final step toward the blocked centre. Gold also reuses Move's near-goal settle detector for the crowded case where another worker leaves it a fraction outside the strict one-step footprint threshold. Location orders may instead stop at their collision-safe route endpoint.
 
+Blocked building interactions should not make every worker use that centre-directed fallback as the normal approach. Gold Mine entry and gold/lumber return first look for a collision-sized, directly reachable cell beside the target's authored pathing footprint. The search band is routing slack only: mover radius + one simulation step + one path-cell diagonal. It accounts for radius-expanded pathmap cell centres near an irregular/square footprint; it does **not** enlarge mine entry or resource-deposit range. Once the edge staging point is within one movement step, behavior-owned footprint/contact checks remain authoritative and ordinary interaction steering resumes. `CM_PathCellWorldSize()` exposes the routing grid scale for this staging calculation; it is not a gameplay range constant.
+
 ## Retail Move Destination Behavior
 
 Two defects explained the Human01 fence report and units getting stuck behind trees or towers:
@@ -78,6 +80,8 @@ Retail Warcraft III continues lumber gathering when the explicitly clicked tree 
 OpenRealm keeps the clicked tree authoritative while routing can still approach it. If the worker reaches the collision-sized flow field's adjusted goal but remains outside `HARVEST_RANGE`, or the active field has no route from the worker's component, Harvest treats that approach as failed and selects a replacement tree. The replacement search excludes the failed tree and prefers the nearest live tree with a directly reachable legal harvest approach; a tree already within `HARVEST_RANGE` is immediately eligible.
 
 This fallback is gameplay behavior in `s_harvest_lumber.c`, not a pathfinder rule. Normal movement, attack, patrol, item pickup, and spells do not acquire a different target when routing fails.
+
+Multiple Peasants may legally harvest the same tree, but their final direct approach is also behavior-owned. Harvest assigns same-tree workers deterministic alternating angular lanes by entity number and rejects a candidate that overlaps another active harvester's current collision space. Static flow fields remain shared and occupancy-free; this small final-approach policy keeps workers from intentionally selecting the same chop point without baking transient unit occupancy into cached routing.
 
 ## Confirmed August 2026 Regression
 

@@ -25,6 +25,24 @@ static BOOL gold_route_pending(LPCEDICT worker) {
            worker->movement.flow_generation == 0;
 }
 
+/* Gold interactions target blocked buildings.  Route first toward a legal
+ * collision-sized cell beside the authored footprint instead of aiming every
+ * worker at the building centre.  The extra path-cell diagonal is routing
+ * slack only: the behavior still owns the exact mine/deposit range check. */
+static BOOL gold_find_direct_footprint_approach(LPEDICT worker, LPEDICT target,
+                                                 FLOAT step, LPVECTOR2 out) {
+    FLOAT cell, route_band;
+
+    if (!worker || !target || !target->pathtex || !out)
+        return false;
+    cell = CM_PathCellWorldSize();
+    route_band = worker->collision + step + cell * 1.41421356237f;
+    if (!CM_FindApproachPointToFootprintForRadius(
+            target, &worker->s.origin2, route_band, worker->collision, out))
+        return false;
+    return CM_LineIsWalkableForRadius(&worker->s.origin2, out, worker->collision);
+}
+
 static AbilityData_t const *goldmine_ability_data(LPCEDICT mine) {
     LPCSTR abilities;
 
@@ -201,7 +219,21 @@ static void ai_walkmine(LPEDICT ent) {
             harvestgold_minegold(ent);
             return;
         }
-        unit_changeangle(ent);
+        {
+            VECTOR2 approach;
+            BOOL const footprint_approach =
+                gold_find_direct_footprint_approach(ent, mine, step, &approach);
+
+            /* A direct legal footprint lane avoids funnelling every miner at
+             * the blocked centre.  Once the staging point is within one move
+             * step, resume the ordinary interaction steering so the exact
+             * footprint/range hand-off above remains authoritative. */
+            if (footprint_approach &&
+                Vector2_distance(&ent->s.origin2, &approach) > step)
+                unit_changeangle_towards_point(ent, &approach);
+            else
+                unit_changeangle(ent);
+        }
         /* A cache miss is resumable.  Until it produces a flow generation,
          * preserve the Harvest order but do not walk along a stale facing. */
         if (gold_route_pending(ent))
@@ -330,7 +362,22 @@ static void ai_goldmine_walkback(LPEDICT ent) {
                     ent->s.origin2.x, ent->s.origin2.y,
                     dropoff->s.origin2.x, dropoff->s.origin2.y,
                     dist, contact, step, footprint_dist, ent->harvested_gold);
-        unit_changeangle(ent);
+        {
+            VECTOR2 approach;
+            BOOL const footprint_approach =
+                gold_find_direct_footprint_approach(ent, dropoff, step, &approach);
+
+            /* Town Halls are blocked shapes.  Steering at their centre makes
+             * several returning workers queue in one narrow lane and can hold
+             * a Peasant far outside deposit range until the front worker moves.
+             * Prefer a collision-sized footprint-edge lane; fall back to the
+             * existing shared route when no direct edge lane exists. */
+            if (footprint_approach &&
+                Vector2_distance(&ent->s.origin2, &approach) > step)
+                unit_changeangle_towards_point(ent, &approach);
+            else
+                unit_changeangle(ent);
+        }
         /* Return routing uses the same resumable flow lifecycle as mine
          * approach.  Hold the current position until that field is ready. */
         if (gold_route_pending(ent))
