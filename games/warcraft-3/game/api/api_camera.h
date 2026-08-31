@@ -85,12 +85,6 @@ DWORD SetCameraQuickPosition(LPJASS j) {
      * mutate the current camera target when the script assigns it. */
     gc->camera.quick_position = MAKE(VECTOR2, x, y);
     gc->camera.quick_position_set = true;
-    fprintf(stderr,
-            "SetCameraQuickPosition: player=%u quick=(%.1f,%.1f) current=(%.1f,%.1f)\n",
-            (unsigned)PLAYER_NUM(currentplayer),
-            x, y,
-            gc->camera.state.position.x,
-            gc->camera.state.position.y);
     return 0;
 }
 DWORD SetCameraBounds(LPJASS j) {
