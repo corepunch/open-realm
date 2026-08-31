@@ -1048,6 +1048,7 @@ TEST(wc3_api, player_structure_count_survives_nonstructure_death) {
         "function main takes nothing returns nothing\n"
         "  local trigger t = CreateTrigger()\n"
         "  set building = CreateUnit(Player(0), 'hbar', 0.0, 0.0, 0.0)\n"
+        "  call SetWidgetLife(building, 1.0)\n"
         "  set victim = CreateUnit(Player(0), 'hfoo', 64.0, 64.0, 0.0)\n"
         "  call TriggerRegisterDeathEvent(t, victim)\n"
         "  call TriggerAddAction(t, function onDeath)\n"
