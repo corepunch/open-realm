@@ -87,6 +87,41 @@ static void G_FowSetVisible(fowPlayerGrid_t *grid, DWORD x, DWORD y) {
 
 static BOOL G_FowStateValid(DWORD state) { return state && state <= WC3_FOG_STATE_VISIBLE && !(state & (state - 1)); }
 
+/* Read the off-by-default runtime trace level shared by game and client diagnostics. */
+int fow_debug_level(void) {
+    LPCSTR value;
+    if (!gi.CvarString) return 0;
+    value = gi.CvarString("wc3_fow_debug", "0");
+    return value ? atoi(value) : 0;
+}
+
+/* Stable state names keep scripted fog logs readable without changing the numeric JASS contract. */
+static LPCSTR fow_state_name(DWORD state) {
+    static struct { DWORD state; LPCSTR name; } const names[] = {
+        { WC3_FOG_STATE_MASKED, "MASKED" },
+        { WC3_FOG_STATE_FOGGED, "FOGGED" },
+        { WC3_FOG_STATE_VISIBLE, "VISIBLE" },
+    };
+    FOR_LOOP(i, sizeof(names) / sizeof(names[0]))
+        if (names[i].state == state) return names[i].name;
+    return "INVALID";
+}
+
+typedef struct {
+    LPCSTR action;
+    DWORD source, viewer, state, x, y;
+} fowDebugCell_t;
+
+/* Sample one authoritative cell after a scripted write or active modifier application. */
+static void fow_debug_cell(fowDebugCell_t const *d) {
+    fowPlayerGrid_t const *grid;
+    DWORD index;
+    if (!d || fow_debug_level() < 1 || d->viewer >= MAX_PLAYERS || d->x >= level.fow.width || d->y >= level.fow.height) return;
+    grid = &level.fow.players[d->viewer];
+    index = G_FowCellIndex(d->x, d->y);
+    fprintf(stderr, "WC3_FOW %s time=%u source=%u viewer=%u state=%s(%u) cell=(%u,%u) visible=%u explored=%u\n", d->action, level.time, d->source, d->viewer, fow_state_name(d->state), d->state, d->x, d->y, grid->visible ? grid->visible[index] : 0, grid->explored ? grid->explored[index] : 0);
+}
+
 typedef struct {
     DWORD x, y, state;
     int cells;
@@ -665,32 +700,63 @@ static void G_FowRevealForViewers(LPCEDICT ent, FLOAT radius, DWORD viewers) {
 static LPFOGMODIFIER g_fog_modifiers[MAX_FOG_MODIFIERS];
 static DWORD g_num_fog_modifiers;
 
-void G_FogModifierStart(LPFOGMODIFIER mod) {
-    if (!mod) {
+static void G_FowApplyModifierForPlayer(DWORD player, LPCFOGMODIFIER mod);
+
+/* Start is observable immediately in Warcraft scripts. This matters for the
+ * common reveal pattern that starts and destroys/stops a VISIBLE modifier in
+ * the same trigger turn: exploration must still be recorded even if the
+ * modifier is gone before the next simulation fog update. */
+static void G_FowApplyModifierImmediately(LPCFOGMODIFIER mod) {
+    if (!mod || !G_FowReady() || !G_FowStateValid(mod->state) ||
+        mod->player >= MAX_PLAYERS) {
         return;
     }
+    FOR_LOOP(viewer, MAX_PLAYERS) {
+        if (viewer != mod->player &&
+            (!mod->use_shared_vision || !G_FowSharedVision(viewer, mod->player))) {
+            continue;
+        }
+        G_FowApplyModifierForPlayer(viewer, mod);
+    }
+}
+
+void G_FogModifierStart(LPFOGMODIFIER mod) {
+    if (!mod) return;
     mod->started = true;
     FOR_LOOP(i, g_num_fog_modifiers) {
         if (g_fog_modifiers[i] == mod) {
+            if (fow_debug_level() >= 1)
+                fprintf(stderr, "WC3_FOW modifier_start_existing time=%u mod=%p player=%u state=%s(%u) active=%u\n", level.time, (void *)mod, mod->player, fow_state_name(mod->state), mod->state, g_num_fog_modifiers);
             return;
         }
     }
-    if (g_num_fog_modifiers < MAX_FOG_MODIFIERS) {
-        g_fog_modifiers[g_num_fog_modifiers++] = mod;
+    if (g_num_fog_modifiers >= MAX_FOG_MODIFIERS) {
+        fprintf(stderr, "WC3_FOW modifier_start_rejected mod=%p player=%u reason=capacity active=%u max=%u\n", (void *)mod, mod->player, g_num_fog_modifiers, (DWORD)MAX_FOG_MODIFIERS);
+        return;
+    }
+    g_fog_modifiers[g_num_fog_modifiers++] = mod;
+    G_FowApplyModifierImmediately(mod);
+    if (fow_debug_level() >= 1) {
+        if (mod->is_rect)
+            fprintf(stderr, "WC3_FOW modifier_start time=%u mod=%p player=%u state=%s(%u) shared=%d shape=rect world=(%.1f,%.1f)-(%.1f,%.1f) active=%u\n", level.time, (void *)mod, mod->player, fow_state_name(mod->state), mod->state, mod->use_shared_vision, mod->rect.min.x, mod->rect.min.y, mod->rect.max.x, mod->rect.max.y, g_num_fog_modifiers);
+        else
+            fprintf(stderr, "WC3_FOW modifier_start time=%u mod=%p player=%u state=%s(%u) shared=%d shape=radius center=(%.1f,%.1f) radius=%.1f active=%u\n", level.time, (void *)mod, mod->player, fow_state_name(mod->state), mod->state, mod->use_shared_vision, mod->center.x, mod->center.y, mod->radius, g_num_fog_modifiers);
     }
 }
 
 void G_FogModifierStop(LPFOGMODIFIER mod) {
-    if (!mod) {
-        return;
-    }
+    if (!mod) return;
     mod->started = false;
     FOR_LOOP(i, g_num_fog_modifiers) {
         if (g_fog_modifiers[i] == mod) {
             g_fog_modifiers[i] = g_fog_modifiers[--g_num_fog_modifiers];
+            if (fow_debug_level() >= 1)
+                fprintf(stderr, "WC3_FOW modifier_stop time=%u mod=%p player=%u state=%s(%u) active=%u\n", level.time, (void *)mod, mod->player, fow_state_name(mod->state), mod->state, g_num_fog_modifiers);
             return;
         }
     }
+    if (fow_debug_level() >= 1)
+        fprintf(stderr, "WC3_FOW modifier_stop_missing time=%u mod=%p player=%u state=%s(%u) active=%u\n", level.time, (void *)mod, mod->player, fow_state_name(mod->state), mod->state, g_num_fog_modifiers);
 }
 
 /* Rectangular writes use the same cell-state contract as circular reveals. */
@@ -711,13 +777,22 @@ static void G_FowSetBoxState(fowPlayerGrid_t *grid, LPCBOX2 box, DWORD state) {
 
 /* Immediate JASS writes persist in the target grid even when no client currently consumes it. */
 void G_FowSetStateRect(LPCFOGWRITE fog, LPCBOX2 box) {
-    if (!fog || fog->player >= MAX_PLAYERS || !box ||
-        !G_FowReady() || !G_FowStateValid(fog->state))
+    DWORD x0, y0, x1, y1, cx, cy;
+    if (!fog || !box || fog->player >= MAX_PLAYERS || !G_FowReady() || !G_FowStateValid(fog->state)) {
+        if (fow_debug_level() >= 1)
+            fprintf(stderr, "WC3_FOW set_rect_rejected time=%u fog=%p box=%p player=%u state=%u ready=%d\n", level.time, (void *)fog, (void *)box, fog ? fog->player : MAX_PLAYERS, fog ? fog->state : 0, G_FowReady());
         return;
+    }
+    x0 = G_FowWorldToCellX(box->min.x); y0 = G_FowWorldToCellY(box->min.y);
+    x1 = G_FowWorldToCellX(box->max.x); y1 = G_FowWorldToCellY(box->max.y);
+    cx = G_FowWorldToCellX((box->min.x + box->max.x) * 0.5f);
+    cy = G_FowWorldToCellY((box->min.y + box->max.y) * 0.5f);
+    if (fow_debug_level() >= 1)
+        fprintf(stderr, "WC3_FOW set_rect time=%u player=%u state=%s(%u) shared=%d world=(%.1f,%.1f)-(%.1f,%.1f) cells=(%u,%u)-(%u,%u)\n", level.time, fog->player, fow_state_name(fog->state), fog->state, fog->shared, box->min.x, box->min.y, box->max.x, box->max.y, x0, y0, x1, y1);
     FOR_LOOP(viewer, MAX_PLAYERS) {
-        if (viewer != fog->player && (!fog->shared || !G_FowSharedVision(viewer, fog->player)))
-            continue;
+        if (viewer != fog->player && (!fog->shared || !G_FowSharedVision(viewer, fog->player))) continue;
         G_FowSetBoxState(&level.fow.players[viewer], box, fog->state);
+        fow_debug_cell(&(fowDebugCell_t){ "set_rect_result", fog->player, viewer, fog->state, cx, cy });
     }
 }
 
@@ -725,19 +800,26 @@ void G_FowSetStateRect(LPCFOGWRITE fog, LPCBOX2 box) {
 void G_FowSetStateRadius(LPCFOGWRITE fog, LPCVECTOR2 center, FLOAT radius) {
     DWORD cx, cy;
     int cells;
-    if (!fog || fog->player >= MAX_PLAYERS || !center ||
-        !G_FowReady() || !G_FowStateValid(fog->state))
+    if (!fog || !center || fog->player >= MAX_PLAYERS || !G_FowReady() || !G_FowStateValid(fog->state)) {
+        if (fow_debug_level() >= 1)
+            fprintf(stderr, "WC3_FOW set_radius_rejected time=%u fog=%p center=%p player=%u state=%u radius=%.1f ready=%d\n", level.time, (void *)fog, (void *)center, fog ? fog->player : MAX_PLAYERS, fog ? fog->state : 0, radius, G_FowReady());
         return;
+    }
     cx = G_FowWorldToCellX(center->x);
     cy = G_FowWorldToCellY(center->y);
-    if (cx == FOW_INVALID_CELL || cy == FOW_INVALID_CELL)
+    if (cx == FOW_INVALID_CELL || cy == FOW_INVALID_CELL) {
+        if (fow_debug_level() >= 1)
+            fprintf(stderr, "WC3_FOW set_radius_rejected time=%u player=%u reason=invalid_cell center=(%.1f,%.1f) radius=%.1f\n", level.time, fog->player, center->x, center->y, radius);
         return;
+    }
     cells = G_FowRadiusCells(radius);
+    if (fow_debug_level() >= 1)
+        fprintf(stderr, "WC3_FOW set_radius time=%u player=%u state=%s(%u) shared=%d center=(%.1f,%.1f) radius=%.1f cell=(%u,%u) radius_cells=%d\n", level.time, fog->player, fow_state_name(fog->state), fog->state, fog->shared, center->x, center->y, radius, cx, cy, cells);
     FOGDISK disk = { cx, cy, fog->state, cells };
     FOR_LOOP(viewer, MAX_PLAYERS) {
-        if (viewer != fog->player && (!fog->shared || !G_FowSharedVision(viewer, fog->player)))
-            continue;
+        if (viewer != fog->player && (!fog->shared || !G_FowSharedVision(viewer, fog->player))) continue;
         G_FowSetDiskState(&level.fow.players[viewer], &disk);
+        fow_debug_cell(&(fowDebugCell_t){ "set_radius_result", fog->player, viewer, fog->state, cx, cy });
     }
 }
 
@@ -879,6 +961,23 @@ void G_FowUpdate(void) {
     }
 
     G_FowApplyModifiers(viewers);
+    if (fow_debug_level() >= 2 && g_num_fog_modifiers && (level.time % 500) < FRAMETIME) {
+        FOR_LOOP(i, g_num_fog_modifiers) {
+            LPCFOGMODIFIER mod = g_fog_modifiers[i];
+            DWORD x, y;
+            if (!mod || !mod->started || mod->player >= MAX_PLAYERS || !G_FowStateValid(mod->state)) continue;
+            if (mod->is_rect) {
+                x = G_FowWorldToCellX((mod->rect.min.x + mod->rect.max.x) * 0.5f);
+                y = G_FowWorldToCellY((mod->rect.min.y + mod->rect.max.y) * 0.5f);
+            } else {
+                x = G_FowWorldToCellX(mod->center.x); y = G_FowWorldToCellY(mod->center.y);
+            }
+            FOR_LOOP(viewer, MAX_PLAYERS)
+                if ((viewers & (1u << viewer)) &&
+                    (viewer == mod->player || (mod->use_shared_vision && G_FowSharedVision(viewer, mod->player))))
+                    fow_debug_cell(&(fowDebugCell_t){ "modifier_sample", mod->player, viewer, mod->state, x, y });
+        }
+    }
 }
 
 /* FogEnable(false) reveals the whole map for this player, units included
@@ -1064,6 +1163,12 @@ static void G_FowWriteRows(LPEDICT ent, DWORD player, DWORD flags, DWORD first_r
     data = (pfWriteData_t){ payload, payload_bytes };
     gi.Write(PF_DATA, &data);
     gi.unicast(ent);
+    if (fow_debug_level() >= 2 && (flags & FOW_MSG_EXPLORED_PLANE)) {
+        BYTE const *plane = level.fow.players[player].explored;
+        DWORD first = first_row * level.fow.width, cells = row_count * level.fow.width, ones = 0;
+        if (plane) FOR_LOOP(i, cells) ones += plane[first + i] != 0;
+        fprintf(stderr, "WC3_FOW send_explored time=%u player=%u rows=%u+%u explored_cells=%u/%u full=%d payload=%u\n", level.time, player, first_row, row_count, ones, cells, !!(flags & FOW_MSG_FULL), payload_bytes);
+    }
 }
 
 static DWORD G_FowRowsPerChunk(DWORD flags) {

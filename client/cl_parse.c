@@ -587,6 +587,14 @@ static BOOL CL_ParseFogOfWar(LPSIZEBUF msg) {
     CL_UnpackFogRLE(payload, payload_bytes, flags, first_row, row_count);
     msg->readcount += payload_bytes;
     CL_UpdateFogTextureRows(first_row, row_count);
+#ifdef WC3
+    if (Cvar_Integer("wc3_fow_debug", 0) >= 2 && (flags & FOW_MSG_EXPLORED_PLANE)) {
+        DWORD first = first_row * cl.fow.width, cells = row_count * cl.fow.width;
+        DWORD visible = 0, explored = 0;
+        FOR_LOOP(i, cells) { visible += cl.fow.visible[first + i] != 0; explored += cl.fow.explored[first + i] != 0; }
+        fprintf(stderr, "WC3_FOW client_explored frame=%d rows=%u+%u visible_cells=%u/%u explored_cells=%u/%u full=%d payload=%u\n", cl.frame.serverframe, first_row, row_count, visible, cells, explored, cells, !!(flags & FOW_MSG_FULL), payload_bytes);
+    }
+#endif
     return true;
 }
 
