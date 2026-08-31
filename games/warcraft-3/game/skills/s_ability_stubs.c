@@ -59,8 +59,7 @@ ability_t a_cold_arrows = {
 ability_t a_phoenix_fire = {0};
 ability_t a_invulnerable = {0};
 
-/* Harvest Lumber, Repair Generic, Couple Instant: non-spell abilities with
- * stub command handlers. */
+/* Harvest Lumber and Couple Instant: non-spell abilities with stub command handlers. */
 static void stub_cancel_command(LPEDICT clent) {
     UI_AddCancelButton(clent);
 }
@@ -69,10 +68,6 @@ ability_t a_harvest_lumber = {
     .cmd = stub_cancel_command,
 };
 
-ability_t a_repair_generic = {
-    .init = SP_ability_repair,
-    .cmd = stub_cancel_command,
-};
 
 ability_t a_couple_instant = {
     .cmd = stub_cancel_command,

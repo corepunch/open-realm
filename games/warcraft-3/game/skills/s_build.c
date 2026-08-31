@@ -2,12 +2,9 @@
 
 void build_walk(LPEDICT ent);
 void build_build(LPEDICT ent);
-void repair_build(LPEDICT ent, LPEDICT building);
+void repair_build_legacy(LPEDICT ent, LPEDICT building);
 void repair_build_primary(LPEDICT ent, LPEDICT building);
 
-static BOOL G_IsHumanBuilder(LPEDICT ent) {
-    return ent && ent->UnitData && ent->UnitData->race && !strcmp(ent->UnitData->race, STR_HUMAN);
-}
 
 static void G_BuildError(LPEDICT clent, LPCSTR text) {
     if (!clent || !text || !*text) return;
@@ -107,13 +104,13 @@ void build_build(LPEDICT ent) {
      * authored footprint before relocating the worker so the egress search
      * cannot choose a point that becomes blocked immediately afterward. */
     CM_BakeStaticObstacles();
-    if (G_IsHumanBuilder(ent)) {
+    if (G_UnitHasHumanRepair(ent)) {
         G_StartHumanConstruction(ent, building);
         repair_build_primary(ent, building);
     } else {
         /* Other race lifecycles remain the legacy behavior until their
          * worker-inside/summon construction strategies are implemented. */
-        repair_build(ent, building);
+        repair_build_legacy(ent, building);
         building->health.value = 0;
     }
     building->build = building;

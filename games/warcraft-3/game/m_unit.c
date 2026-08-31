@@ -175,6 +175,9 @@ BOOL unit_issuetargetorder(LPEDICT self, LPCSTR order, LPEDICT target) {
             order_attack(self, target);
             return true;
         }
+        if (S_RepairSmart(self, target)) {
+            return true;
+        }
         return unit_issueorder(self, "move", &target->s.origin2);
     }
     if (!strcmp(order, "attack")) {

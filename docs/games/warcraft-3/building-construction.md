@@ -99,7 +99,7 @@ construction.progress = 0
 life = 10% max life
 ```
 
-The building's birth animation is held until construction completes. Its authored pathing footprint is baked before the primary Peasant is relocated. Human Repair uses `SP_FindUnitExitPosition()` against that baked footprint and relinks the worker at the chosen point; selection radius is not a substitute for pathing geometry. This prevents the Lumber Mill case where the old `SP_FindEmptySpaceAround()` placed the Peasant inside cells that became blocked immediately after construction started. The primary Peasant then contributes `1.0` construction time. If that Peasant stops/dies/receives another behavior, no autonomous timer advances the paused structure. A later Human Repair worker can become the new primary worker.
+The building's birth animation is held until construction completes. Human construction is selected from the builder's `Arep` capability, not from `UnitData.race`. Its authored pathing footprint is baked before the primary worker is relocated. Only this initial construction transition uses `SP_FindUnitExitPosition()` against the baked footprint; ordinary Repair orders approach their target through movement/pathfinding and never teleport to the structure. Selection radius is not a substitute for pathing geometry. This prevents the Lumber Mill case where the old `SP_FindEmptySpaceAround()` placed the worker inside cells that became blocked immediately after construction started. The primary worker then contributes `1.0` construction time. If that worker stops, dies, or receives another behavior, Repair teardown clears the primary-builder association and no autonomous timer advances the paused structure. A later Human Repair worker can become the new primary worker.
 
 Additional `Arep` repairers use the ability's authored data:
 
@@ -114,13 +114,38 @@ progress += frame_time * DataD
 
 and accumulates incremental gold/lumber cost from the building's `goldRep` / `lumberRep`, build time, and `DataC`. An additional repairer stops when that incremental payment cannot be made. `+set wc3_build_all 1` suppresses those debug-time costs.
 
-Ordinary repair aliases remain separate and do not acquire Human power-building behavior automatically.
+Ordinary repair aliases remain separate and do not acquire Human power-building behavior automatically. Human power building additionally requires `construction.active && construction.paused` and a positive `DataD`; standard `Aren` / `Arst` Repair rejects an unfinished structure.
+
+Construction HP is additive. Each builder contributes the same fraction of `(max_life - 10% start_life)` as its construction-time contribution, rather than snapping HP back to the value implied by total progress. Damage dealt while a structure is incomplete therefore remains damage until separately repaired or construction completes.
 
 Completion clears paused/constructing state, releases the held birth animation, restores full life, applies positive `foodMade`, publishes `EVENT_PLAYER_UNIT_CONSTRUCT_FINISH`, and refreshes resource/HUD state.
 
+## Repair orders
+
+`Arep`, `Aren`, and `Arst` all have a real entity-target Repair command. The exact ability rawcode is retained on the worker's Repair state so custom aliases and the three base Repair definitions read their own `AbilityData` row; Repair data is not kept in shared globals.
+
+For completed owned buildings, the current implementation uses:
+
+```text
+HP/sec = max_life / repair_time * DataB
+
+gold/sec = goldRep / repair_time * DataA * DataB
+lumber/sec = lumberRep / repair_time * DataA * DataB
+```
+
+`repair_time` is `UnitBalance.reptm` when populated. Current ROC/test rows can leave that field at zero, so the implementation has a documented compatibility TODO that retains the previous `buildTime` duration for those rows until normalized unit-data import always exposes authoritative repair time.
+
+Gold and lumber use per-worker floating-point accumulators; only whole accumulated resources are deducted. Affordability is checked before the corresponding HP/progress update. The `wc3_build_all` override continues to suppress incremental **power-build** cost only; it does not make ordinary completed-building Repair free.
+
+Repair range comes from ability `Rng`. A worker outside range enters a walk behavior with the structure as `goalentity`; contact is measured against `CM_DistanceToPathingFootprint()` when authored pathing exists, with the legacy collision-circle distance only as a no-footprint fallback. When in range, the worker uses `stand work`. Leaving Repair through another order or death releases its Repair state and any primary-builder ownership.
+
+Smart/right-click tries Repair on an otherwise non-enemy target before falling back to Move. A full-health target declines Smart Repair silently. Explicit Repair reports `Target is not damaged.` for a completed full-health building and rejects standard Repair on construction.
+
+Target eligibility remains intentionally conservative: the target must be a live owned building and must pass the relation/air-ground subset currently handled by `S_SpellAllowsTarget()`. Do not treat that helper as a complete WC3 `Targets Allowed` implementation yet.
+
 ## Known gaps
 
-The following clean-room-spec items remain incomplete:
+Construction and owned-building Repair now share the behavior described above. The following clean-room-spec items remain incomplete:
 
 - `war3map.w3u` modifications are not yet fully merged into the normalized typed unit rows, so map-local edits to `Builds`/requirements may still resolve through the base unit row;
 - W3I upgrade-availability records are parsed but are not yet applied to a complete research/upgrade production system;
@@ -131,7 +156,9 @@ The following clean-room-spec items remain incomplete:
 - placement supports the currently decoded walk/build/blight flags, not every Warcraft compound placement type; unsupported tokens are reported to `stderr` instead of being silently discarded;
 - build cancellation after a structure has spawned does not yet have the retail partial-refund lifecycle;
 - Orc worker-inside, Night Elf worker/Ancient consumption, and Undead summon/release construction strategies remain legacy behavior;
-- normal completed-building Repair still uses the older simplified HP rate; DataA/DataB repair cost/time parity is separate from Human power-building DataC/DataD;
+- Repair target masks are not yet complete enough to safely enable allied structures, repairable mechanical non-buildings, or destructibles; the current implementation keeps the pre-existing owned-building boundary;
+- Repair `DataE` naval-range behavior is not implemented;
+- Repair autocast (`repairon` / `repairoff`, nearest-valid acquisition) is not implemented;
 - the per-player technology table is intentionally bounded at `MAX_PLAYER_TECH_STATE`; exhaustion is reported as a warning and does not overwrite an existing entry;
 - `GetPlayerTechResearched` / `GetPlayerTechCount` currently have exact-rawcode semantics for both `specificonly` values because technology-equivalence groups are not represented yet.
 
@@ -166,3 +193,8 @@ Runtime checks should cover at least:
 15. Set a trainable unit maximum to zero and verify its button disappears; set the maximum back to `-1` and verify it returns.
 16. Set a trainable unit prerequisite unmet/met and verify its button is disabled/enabled without changing the producer's `Trains` list.
 17. With maximum one, queue the unit in one producer and verify another producer hides the command while the first unit is still training.
+18. Standard `Aren` / `Arst` Repair rejects unfinished construction; `Arep` power building only accepts paused Human construction.
+19. Damage a completed owned building and verify Repair uses `reptm`, `DataA`, and `DataB`, including fractional gold/lumber deductions.
+20. Order Repair from outside `Rng`; the worker must walk to the building footprint rather than teleport to it.
+21. Right-click a damaged owned building with a Repair-capable worker; Smart Repair should start. Right-click a full-health building; Repair should decline and normal Smart fallback remains available.
+22. Interrupt Repair or kill the worker and verify a paused building retains no stale primary-builder association.

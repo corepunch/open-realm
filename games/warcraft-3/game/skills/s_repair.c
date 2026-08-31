@@ -1,11 +1,49 @@
 #include "s_skills.h"
 
-static FLOAT repair_cost_factor;
-static FLOAT power_build_cost_ratio;
-static FLOAT power_build_time_ratio;
-
-void repair_build(LPEDICT ent, LPEDICT building);
 void repair_build_primary(LPEDICT ent, LPEDICT building);
+void repair_build_legacy(LPEDICT ent, LPEDICT building);
+
+static umove_t repair_move_walk;
+static umove_t repair_move_work;
+static umove_t repair_generic_move_walk;
+static umove_t repair_generic_move_work;
+static umove_t repair_legacy_move_work;
+
+static void repair_code_string(DWORD code, char out[5]) {
+    memcpy(out, &code, 4);
+    out[4] = '\0';
+}
+
+static ability_t const *repair_handler(DWORD code) {
+    char rawcode[5];
+    if (!code) return NULL;
+    repair_code_string(code, rawcode);
+    return FindAbilityForCommand(rawcode);
+}
+
+static DWORD repair_find_code(LPEDICT ent, ability_t const *wanted, DWORD preferred) {
+    DWORD fallback = 0;
+    LPCSTR abilities;
+
+    if (!ent || !ent->UnitAbilities) return 0;
+    abilities = ent->UnitAbilities->abilList;
+    if (!abilities) return 0;
+
+    PARSE_LIST(abilities, ability_name, parse_segment) {
+        ability_t const *handler = FindAbilityForCommand(ability_name);
+        DWORD code;
+        if (handler != &a_repair && handler != &a_repair_generic) continue;
+        if (wanted && handler != wanted) continue;
+        code = FS_SLKKey(ability_name);
+        if (preferred && code == preferred) return code;
+        if (!fallback) fallback = code;
+    }
+    return fallback;
+}
+
+static AbilityData_t const *repair_data(LPEDICT ent) {
+    return ent && ent->buildwork.ability ? G_AbilityData(ent->buildwork.ability) : NULL;
+}
 
 static BOOL repair_primary_active(LPEDICT building) {
     LPEDICT worker;
@@ -15,22 +53,57 @@ static BOOL repair_primary_active(LPEDICT building) {
            worker->currentmove && worker->currentmove->ability == &a_repair;
 }
 
-static BOOL repair_charge_power_cost(LPEDICT ent, LPEDICT building) {
+static void repair_release(LPEDICT ent) {
+    LPEDICT building;
+    if (!ent) return;
+    building = ent->build;
+    if (ent->buildwork.primary && building && building->construction.primary_builder == ent) {
+        building->construction.primary_builder = NULL;
+    }
+    if (ent->goalentity == building) ent->goalentity = NULL;
+    if (ent->build == building) ent->build = NULL;
+    ent->buildwork.primary = false;
+    ent->buildwork.ability = 0;
+    ent->buildwork.gold_accum = 0.0f;
+    ent->buildwork.lumber_accum = 0.0f;
+}
+
+void S_CancelRepair(LPEDICT ent) {
+    ability_t const *ability;
+    if (!ent || !ent->buildwork.ability) return;
+    ability = repair_handler(ent->buildwork.ability);
+    if (ability == &a_repair || ability == &a_repair_generic) repair_release(ent);
+}
+
+static void repair_stop(LPEDICT ent) {
+    repair_release(ent);
+    if (ent && ent->stand) ent->stand(ent);
+}
+
+static FLOAT repair_time(UnitBalance_t const *balance) {
+    if (!balance) return 0.0f;
+    if (balance->reptm > 0) return (FLOAT)balance->reptm;
+    /* TODO: Current ROC/test rows can omit reptm. Preserve the old build-time
+     * duration for those rows until the normalized unit-data import always
+     * exposes the authoritative repair-time field. */
+    return (FLOAT)balance->buildTime;
+}
+
+static BOOL repair_charge(LPEDICT ent, FLOAT gold_rate, FLOAT lumber_rate) {
     LPGAMECLIENT client;
-    UnitBalance_t const *b;
     FLOAT seconds;
     LONG gold_due, lumber_due;
 
-    if (!ent || !building || ent->buildwork.primary || G_BuildAllEnabled()) return true;
+    if (!ent) return false;
     client = G_GetPlayerClientByNumber(ent->s.player);
-    b = building->UnitBalance;
-    if (!client || b->buildTime <= 0 || power_build_cost_ratio <= 0.0f) return true;
+    if (!client) return false;
 
     seconds = (FLOAT)FRAMETIME / 1000.0f;
-    ent->buildwork.gold_accum += ((FLOAT)b->goldRep / (FLOAT)b->buildTime) * power_build_cost_ratio * seconds;
-    ent->buildwork.lumber_accum += ((FLOAT)b->lumberRep / (FLOAT)b->buildTime) * power_build_cost_ratio * seconds;
+    ent->buildwork.gold_accum += MAX(0.0f, gold_rate) * seconds;
+    ent->buildwork.lumber_accum += MAX(0.0f, lumber_rate) * seconds;
     gold_due = (LONG)floorf(ent->buildwork.gold_accum);
     lumber_due = (LONG)floorf(ent->buildwork.lumber_accum);
+
     if (gold_due > (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] ||
         lumber_due > (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]) {
         return false;
@@ -43,62 +116,196 @@ static BOOL repair_charge_power_cost(LPEDICT ent, LPEDICT building) {
         client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] -= lumber_due;
         ent->buildwork.lumber_accum -= lumber_due;
     }
-    if (gold_due || lumber_due) G_RefreshResourceBar(G_GetPlayerEntityByNumber(ent->s.player));
+    if (gold_due || lumber_due) {
+        G_RefreshResourceBar(G_GetPlayerEntityByNumber(ent->s.player));
+    }
     return true;
+}
+
+static BOOL repair_charge_power_cost(LPEDICT ent, LPEDICT building, AbilityData_t const *data) {
+    UnitBalance_t const *balance;
+    FLOAT build_time;
+    FLOAT cost_ratio;
+
+    if (!ent || !building || ent->buildwork.primary || G_BuildAllEnabled()) return true;
+    balance = building->UnitBalance;
+    build_time = balance ? (FLOAT)balance->buildTime : 0.0f;
+    cost_ratio = data ? data->data[0][2] : 0.0f;
+    if (build_time <= 0.0f || cost_ratio <= 0.0f) return true;
+
+    return repair_charge(ent,
+        ((FLOAT)balance->goldRep / build_time) * cost_ratio,
+        ((FLOAT)balance->lumberRep / build_time) * cost_ratio);
+}
+
+static BOOL repair_target_valid(LPEDICT ent, LPEDICT target, DWORD code) {
+    ability_t const *handler = repair_handler(code);
+    AbilityData_t const *data = G_AbilityData(code);
+
+    if (!ent || !target || !target->inuse || M_IsDead(target)) return false;
+    if (!G_UnitIsBuilding(target->class_id) || !target->UnitBalance) return false;
+    /* Keep the current ownership rule until the generic target-mask evaluator
+     * represents all WC3 repair categories (structure/mechanical/ally/etc.). */
+    if (target->s.player != ent->s.player) return false;
+    if (!S_SpellAllowsTarget(code, ent, target)) return false;
+
+    if (target->construction.active) {
+        return handler == &a_repair && target->construction.paused && data->data[0][3] > 0.0f;
+    }
+    return target->health.value < target->health.max_value;
+}
+
+static FLOAT repair_range(LPEDICT ent) {
+    AbilityData_t const *data = repair_data(ent);
+    return data ? MAX(0.0f, data->range[0]) : 0.0f;
+}
+
+static BOOL repair_in_range(LPEDICT ent, LPEDICT target, BOOL next_step) {
+    FLOAT footprint;
+    FLOAT range;
+    FLOAT step = next_step ? unit_movedistance(ent) : 0.0f;
+
+    if (!ent || !target) return false;
+    range = repair_range(ent);
+    footprint = CM_DistanceToPathingFootprint(target, &ent->s.origin2);
+    if (footprint < FLT_MAX) {
+        return footprint <= ent->collision + range + step;
+    }
+    return M_DistanceToGoal(ent) <= ent->collision + target->collision + range + step;
+}
+
+static void repair_set_work(LPEDICT ent) {
+    if (repair_handler(ent->buildwork.ability) == &a_repair_generic)
+        unit_setmove(ent, &repair_generic_move_work);
+    else
+        unit_setmove(ent, &repair_move_work);
+}
+
+static void repair_set_walk(LPEDICT ent) {
+    if (repair_handler(ent->buildwork.ability) == &a_repair_generic)
+        unit_setmove(ent, &repair_generic_move_walk);
+    else
+        unit_setmove(ent, &repair_move_walk);
+}
+
+static void ai_repair_walk(LPEDICT ent) {
+    LPEDICT building = ent ? ent->build : NULL;
+    FLOAT distance, step;
+
+    if (!building || !repair_target_valid(ent, building, ent->buildwork.ability)) {
+        repair_stop(ent);
+        return;
+    }
+    if (repair_in_range(ent, building, true)) {
+        repair_set_work(ent);
+        return;
+    }
+
+    distance = M_DistanceToGoal(ent);
+    step = unit_movedistance(ent);
+    if (move_is_blocked(ent, distance, step)) {
+        repair_stop(ent);
+        return;
+    }
+    unit_changeangle(ent);
+    unit_moveindirection(ent);
 }
 
 static void ai_repair(LPEDICT ent) {
     LPEDICT building = ent ? ent->build : NULL;
+    AbilityData_t const *data;
     EDICTSTAT *hp;
 
-    if (!building || !building->inuse) {
-        if (ent) ent->stand(ent);
+    if (!building || !repair_target_valid(ent, building, ent->buildwork.ability)) {
+        repair_stop(ent);
         return;
     }
+    if (!repair_in_range(ent, building, false)) {
+        repair_set_walk(ent);
+        return;
+    }
+
+    data = repair_data(ent);
     hp = &building->health;
+    unit_changeangle(ent);
 
     if (building->construction.active) {
         FLOAT ratio;
         FLOAT duration;
+        FLOAT hp_gain;
         FLOAT start_hp;
-        FLOAT fraction;
 
+        if (!building->construction.paused || !data) {
+            repair_stop(ent);
+            return;
+        }
         if (ent->buildwork.primary) {
             if (building->construction.primary_builder != ent) {
-                ent->stand(ent);
+                repair_stop(ent);
                 return;
             }
             ratio = 1.0f;
         } else {
-            if (power_build_time_ratio <= 0.0f) {
-                ent->stand(ent);
+            ratio = data->data[0][3];
+            if (ratio <= 0.0f) {
+                repair_stop(ent);
                 return;
             }
-            ratio = power_build_time_ratio;
         }
-        if (!repair_charge_power_cost(ent, building)) {
-            ent->stand(ent);
+        if (!repair_charge_power_cost(ent, building, data)) {
+            repair_stop(ent);
             return;
         }
 
         duration = MAX(1.0f, (FLOAT)building->UnitBalance->buildTime * 1000.0f);
         building->construction.progress += (FLOAT)FRAMETIME * ratio;
-        fraction = MIN(1.0f, building->construction.progress / duration);
         start_hp = MAX(1.0f, hp->max_value * 0.10f);
-        hp->value = start_hp + (hp->max_value - start_hp) * fraction;
-        if (fraction >= 1.0f) {
+        hp_gain = (hp->max_value - start_hp) * ((FLOAT)FRAMETIME * ratio / duration);
+        hp->value = MIN(hp->max_value, hp->value + hp_gain);
+        if (building->construction.progress >= duration) {
             G_CompleteConstruction(building);
-            ent->stand(ent);
+            repair_stop(ent);
         }
         return;
     }
 
-    /* Completed-structure repair keeps the existing simple rate until the
-     * normal Repair DataA/DataB resource/time model is implemented. */
-    if (building->UnitBalance->buildTime <= 0) {
-        ent->stand(ent);
+    if (data) {
+        UnitBalance_t const *balance = building->UnitBalance;
+        FLOAT seconds = (FLOAT)FRAMETIME / 1000.0f;
+        FLOAT duration = repair_time(balance);
+        FLOAT cost_ratio = data->data[0][0];
+        FLOAT time_ratio = data->data[0][1];
+        FLOAT hp_rate;
+
+        if (duration <= 0.0f || time_ratio <= 0.0f) {
+            repair_stop(ent);
+            return;
+        }
+        hp_rate = (hp->max_value / duration) * time_ratio;
+        if (!repair_charge(ent,
+                ((FLOAT)balance->goldRep / duration) * cost_ratio * time_ratio,
+                ((FLOAT)balance->lumberRep / duration) * cost_ratio * time_ratio)) {
+            repair_stop(ent);
+            return;
+        }
+        hp->value = MIN(hp->max_value, hp->value + hp_rate * seconds);
+    }
+    if (hp->value >= hp->max_value) {
+        hp->value = hp->max_value;
+        building->stand(building);
+        repair_stop(ent);
+    }
+}
+
+static void ai_repair_legacy(LPEDICT ent) {
+    LPEDICT building = ent ? ent->build : NULL;
+    EDICTSTAT *hp;
+
+    if (!building || !building->inuse || M_IsDead(building) || building->UnitBalance->buildTime <= 0) {
+        if (ent) ent->stand(ent);
         return;
     }
+    hp = &building->health;
     hp->value += hp->max_value * (FLOAT)FRAMETIME /
                  ((FLOAT)building->UnitBalance->buildTime * 1000.0f);
     if (hp->value >= hp->max_value) {
@@ -108,80 +315,134 @@ static void ai_repair(LPEDICT ent) {
     }
 }
 
-static umove_t repair_move_build = { "stand work", ai_repair, NULL, &a_repair };
+static umove_t repair_move_walk = { "walk", ai_repair_walk, NULL, &a_repair };
+static umove_t repair_move_work = { "stand work", ai_repair, NULL, &a_repair };
+static umove_t repair_generic_move_walk = { "walk", ai_repair_walk, NULL, &a_repair_generic };
+static umove_t repair_generic_move_work = { "stand work", ai_repair, NULL, &a_repair_generic };
+static umove_t repair_legacy_move_work = { "stand work", ai_repair_legacy, NULL, &a_repair };
 
-static BOOL repair_begin(LPEDICT ent, LPEDICT building, BOOL primary) {
+static BOOL repair_begin(LPEDICT ent, LPEDICT building, DWORD code, BOOL primary) {
     VECTOR2 origin;
     FLOAT angle;
 
-    if (!ent || !building) return false;
-    /* Human builders must leave the building's authored pathing footprint, not
-     * merely its selection/collision circle. The static footprint is baked by
-     * build_build() before this search. */
-    if (!SP_FindUnitExitPosition(building, ent, &origin, &angle)) {
-        if (primary && building->construction.primary_builder == ent) {
-            building->construction.primary_builder = NULL;
-        }
-        if (ent->stand) ent->stand(ent);
-        return false;
-    }
-    unit_setmove(ent, &repair_move_build);
-    ent->s.origin2 = origin;
-    ent->s.angle = angle - M_PI;
-    gi.LinkEntity(ent);
+    if (!ent || !building || !code || !repair_target_valid(ent, building, code)) return false;
+    S_CancelRepair(ent);
     ent->build = building;
+    ent->goalentity = building;
     ent->buildwork.primary = primary;
+    ent->buildwork.ability = code;
     ent->buildwork.gold_accum = 0.0f;
     ent->buildwork.lumber_accum = 0.0f;
-    if (primary) building->construction.primary_builder = ent;
+    move_reset_progress(ent);
+
+    if (primary) {
+        /* The initial Human builder starts inside the newly baked footprint.
+         * Relocate only this construction transition; ordinary Repair orders
+         * must approach through pathfinding instead of teleporting. */
+        if (!SP_FindUnitExitPosition(building, ent, &origin, &angle)) {
+            repair_release(ent);
+            if (ent->stand) ent->stand(ent);
+            return false;
+        }
+        ent->s.origin2 = origin;
+        ent->s.angle = angle - M_PI;
+        gi.LinkEntity(ent);
+        building->construction.primary_builder = ent;
+    }
+
+    if (repair_in_range(ent, building, true)) repair_set_work(ent);
+    else repair_set_walk(ent);
     return true;
 }
 
 void repair_build_primary(LPEDICT ent, LPEDICT building) {
-    repair_begin(ent, building, true);
+    DWORD code = repair_find_code(ent, &a_repair, 0);
+    if (!code || !repair_begin(ent, building, code, true)) {
+        if (building && building->construction.primary_builder == ent)
+            building->construction.primary_builder = NULL;
+    }
 }
 
-void repair_build(LPEDICT ent, LPEDICT building) {
+void repair_build_legacy(LPEDICT ent, LPEDICT building) {
+    VECTOR2 origin;
+    FLOAT angle;
+
+    if (!ent || !building) return;
+    if (!SP_FindUnitExitPosition(building, ent, &origin, &angle)) {
+        if (ent->stand) ent->stand(ent);
+        return;
+    }
+    ent->s.origin2 = origin;
+    ent->s.angle = angle - M_PI;
+    gi.LinkEntity(ent);
+    ent->build = building;
+    ent->goalentity = building;
+    ent->buildwork.primary = false;
+    ent->buildwork.ability = 0;
+    ent->buildwork.gold_accum = 0.0f;
+    ent->buildwork.lumber_accum = 0.0f;
+    unit_setmove(ent, &repair_legacy_move_work);
+}
+
+BOOL G_UnitHasHumanRepair(LPEDICT ent) {
+    return repair_find_code(ent, &a_repair, 0) != 0;
+}
+
+BOOL S_OrderRepair(LPEDICT ent, LPEDICT target, DWORD preferred) {
+    ability_t const *wanted = NULL;
+    DWORD code;
     BOOL primary = false;
-    if (building && building->construction.active) {
-        if (!repair_primary_active(building)) {
-            building->construction.primary_builder = NULL;
+
+    if (!ent || !target) return false;
+    if (preferred) {
+        wanted = repair_handler(preferred);
+        if (wanted != &a_repair && wanted != &a_repair_generic) return false;
+    }
+    code = repair_find_code(ent, wanted, preferred);
+    if (!code || !repair_target_valid(ent, target, code)) return false;
+
+    if (target->construction.active) {
+        if (repair_handler(code) != &a_repair) return false;
+        if (!repair_primary_active(target)) {
+            target->construction.primary_builder = NULL;
             primary = true;
         }
     }
-    repair_begin(ent, building, primary);
+    return repair_begin(ent, target, code, primary);
 }
 
-
-BOOL G_UnitHasHumanRepair(LPEDICT ent) {
-    LPCSTR abilities;
-
-    if (!ent || !ent->UnitAbilities) return false;
-    abilities = ent->UnitAbilities->abilList;
-    if (!abilities) return false;
-    PARSE_LIST(abilities, ability_name, parse_segment) {
-        if (FindAbilityForCommand(ability_name) == &a_repair) return true;
-    }
-    return false;
+BOOL S_RepairSmart(LPEDICT ent, LPEDICT target) {
+    return S_OrderRepair(ent, target, 0);
 }
 
 static BOOL repair_selecttarget(LPEDICT clent, LPEDICT target) {
-    if (!target || !G_UnitIsBuilding(target->class_id)) {
+    DWORD code;
+    ability_t const *handler;
+    BOOL issued = false;
+
+    if (!clent || !clent->client || !target) return false;
+    code = clent->client->menu.ability_code;
+    handler = repair_handler(code);
+    if (handler != &a_repair && handler != &a_repair_generic) return false;
+    if (!target->inuse || M_IsDead(target) || !G_UnitIsBuilding(target->class_id) ||
+        target->s.player != clent->client->ps.number) {
         return false;
     }
-    if (target->s.player != clent->client->ps.number) {
+
+    if (!target->construction.active && target->health.value >= target->health.max_value) {
+        UI_ShowText(clent, &MAKE(VECTOR2, 0, 0), "Target is not damaged.", 2.0f);
         return false;
     }
-    if (target->health.value >= target->health.max_value && !target->construction.active) {
+    if (target->construction.active &&
+        (handler != &a_repair || !target->construction.paused || G_AbilityData(code)->data[0][3] <= 0.0f)) {
+        UI_ShowText(clent, &MAKE(VECTOR2, 0, 0), "That building is currently under construction.", 2.0f);
         return false;
     }
-    if (target->construction.active && power_build_time_ratio <= 0.0f && repair_primary_active(target)) {
-        return false;
-    }
+
     FOR_SELECTED_UNITS(clent->client, ent) {
-        if (G_UnitHasHumanRepair(ent)) repair_build(ent, target);
+        if (S_OrderRepair(ent, target, code)) issued = true;
     }
-    return true;
+    return issued;
 }
 
 static void repair_command(LPEDICT clent) {
@@ -189,15 +450,10 @@ static void repair_command(LPEDICT clent) {
     clent->client->menu.on_entity_selected = repair_selecttarget;
 }
 
-void SP_ability_repair(LPCSTR classname, ability_t *self) {
-    AbilityData_t const *data = G_AbilityDataName(classname);
-    (void)self;
-    repair_cost_factor = data->data[0][0];
-    power_build_cost_ratio = data->data[0][2];
-    power_build_time_ratio = data->data[0][3];
-}
-
 ability_t a_repair = {
-    .init = SP_ability_repair,
+    .cmd = repair_command,
+};
+
+ability_t a_repair_generic = {
     .cmd = repair_command,
 };
