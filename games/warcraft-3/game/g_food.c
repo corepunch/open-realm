@@ -34,7 +34,9 @@ DWORD G_GetPlayerUpkeepTier(LPGAMECLIENT client) {
     FOR_LOOP(i, count) {
         if ((FLOAT)food <= game.constants.upkeepUsage[i]) return i;
     }
-    return count - 1;
+    /* Thresholds delimit tiers; food above the final threshold enters the
+     * following tier instead of remaining at the last bounded tier. */
+    return count;
 }
 
 static LONG G_UpkeepRate(LPCFLOAT taxes, DWORD count, DWORD tier) {

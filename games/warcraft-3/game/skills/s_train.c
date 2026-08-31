@@ -76,6 +76,10 @@ static BOOL CancelTrainingQueueItem(LPEDICT producer, DWORD index, BOOL refund, 
     else producer->build = next;
     item->build = NULL;
 
+    /* Publish while the cancelled queue entity still carries its unit and
+     * owner metadata; clearing it first made train-cancel triggers impossible. */
+    G_PublishEvent(item, EVENT_PLAYER_UNIT_TRAIN_CANCEL);
+    G_PublishEvent(item, EVENT_UNIT_TRAIN_CANCEL);
     if (refund) RefundTrainingCost(item);
     G_ClearUnitFood(item);
     G_FreeEdict(item);

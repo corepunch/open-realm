@@ -96,12 +96,11 @@ static void reset_test_state(void) {
     FOR_LOOP(i, game.max_clients) g_edicts[i].s.number = i;
     memset(game.clients, 0, game.max_clients * sizeof(*game.clients));
     game.constants.foodCeiling = 100;
-    game.constants.upkeepUsageCount = 3;
+    game.constants.upkeepUsageCount = 2;
     game.constants.upkeepGoldTaxCount = 3;
     game.constants.upkeepLumberTaxCount = 3;
     game.constants.upkeepUsage[0] = 50.0f;
     game.constants.upkeepUsage[1] = 80.0f;
-    game.constants.upkeepUsage[2] = 10000.0f;
     game.constants.upkeepGoldTax[0] = 0.0f;
     game.constants.upkeepGoldTax[1] = 0.30f;
     game.constants.upkeepGoldTax[2] = 0.60f;

@@ -241,6 +241,7 @@ TEST(wc3_food, cancelling_unreserved_head_does_not_release_unowned_food) {
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 5;
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
+    level.events.read = level.events.write = 0;
 
     T_ASSERT(G_CancelTrainingQueueItem(producer, 0, true));
 
@@ -249,6 +250,9 @@ TEST(wc3_food, cancelling_unreserved_head_does_not_release_unowned_food) {
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 5);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 100);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 20);
+    T_EQ(level.events.write, 2);
+    T_EQ(level.events.queue[0].type, EVENT_PLAYER_UNIT_TRAIN_CANCEL);
+    T_EQ(level.events.queue[1].type, EVENT_UNIT_TRAIN_CANCEL);
 }
 
 TEST(wc3_food, cancelling_waiting_item_refunds_cost_without_touching_head_reservation) {
