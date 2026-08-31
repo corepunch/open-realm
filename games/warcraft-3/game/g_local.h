@@ -644,6 +644,9 @@ struct edict_s {
         LPEDICT units[MAX_CARGO];
         DWORD count;
     } cargo;
+    struct {
+        DWORD item_slots, unit_slots;
+    } stock;
     FLOAT velocity;
     doodadHero_t hero;
     heroability_t heroabilities[MAX_HERO_ABILITIES];
@@ -901,6 +904,9 @@ struct level_locals {
     } setup;
     LEVELEVENTS events;
     GAMEMESSAGES messages;
+    struct {
+        DWORD item_slots, unit_slots;
+    } stock;
     LPQUEST quests;
     USHORT alliances[MAX_PLAYERS][MAX_PLAYERS];
     fowGrid_t fow;
@@ -938,6 +944,9 @@ VECTOR2 G_ClampCameraPosition(LPGAMECLIENT client, LPCVECTOR2 position);
 void G_SetClientCameraBounds(LPGAMECLIENT client, FLOAT const bounds[8]);
 void G_ClearCameraTarget(LPGAMECLIENT client, LPCSTR func);
 void G_SetPlayerText(LPGAMECLIENT, PLAYERTEXT, LPCSTR);
+void G_SetAllStockSlots(BOOL, LONG);
+void G_SetStockSlots(LPEDICT, BOOL, LONG);
+void G_InitStockSlots(LPEDICT);
 GAMEEVENT *G_PublishEvent(LPEDICT, EVENTTYPE);
 GAMEEVENT *G_PublishEventWithSource(LPEDICT, EVENTTYPE, LPEDICT);
 BOOL G_SubscribeMessage(gameMsgFn, void *);

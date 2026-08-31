@@ -13,6 +13,7 @@
  *   Unit    — invulnerable, paused, no_pathing, unit_color flags
  *   Group   — FirstOfGroup, IsUnitInGroup
  *   Misc    — SubString semantics, GetRandomInt / GetRandomReal range
+ *   Stock   — global capacities, per-unit overrides, spawn inheritance
  */
 
 #include "test.h"
@@ -1204,6 +1205,44 @@ TEST(wc3_api, death_event_exposes_trigger_widget_and_killing_unit) {
     jass_callbyname(level.vm, "verifyDeath", true);
     jass_runevents(level.vm);
     T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
+TEST(wc3_api, stock_slots_propagate_override_clamp_and_inherit) {
+    LPEDICT first = alloc_test_unit(MAKEFOURCC('n','m','r','k'), 0, 0);
+    LPEDICT second = alloc_test_unit(MAKEFOURCC('n','m','r','k'), 32, 0);
+    LPEDICT future;
+
+    G_SetAllStockSlots(true, 11); G_SetAllStockSlots(false, 9);
+    T_EQ(level.stock.item_slots, 11); T_EQ(level.stock.unit_slots, 9);
+    T_EQ(first->stock.item_slots, 11); T_EQ(second->stock.item_slots, 11);
+    T_EQ(first->stock.unit_slots, 9); T_EQ(second->stock.unit_slots, 9);
+
+    G_SetStockSlots(first, true, 3); G_SetStockSlots(first, false, -1);
+    T_EQ(first->stock.item_slots, 3); T_EQ(first->stock.unit_slots, 0);
+    T_EQ(second->stock.item_slots, 11); T_EQ(second->stock.unit_slots, 9);
+
+    future = alloc_test_unit(MAKEFOURCC('n','m','r','k'), 64, 0);
+    G_InitStockSlots(future);
+    T_EQ(future->stock.item_slots, 11); T_EQ(future->stock.unit_slots, 9);
+}
+
+TEST(wc3_api, stock_slot_natives_update_global_and_unit_state) {
+    LPEDICT shop = alloc_test_unit(MAKEFOURCC('n','m','r','k'), 0, 0);
+    LPEDICT created = NULL;
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\nlocal unit shop\n"
+        "call SetAllItemTypeSlots(11)\n"
+        "call SetAllUnitTypeSlots(10)\n"
+        "set shop = CreateUnit(Player(0),'hfoo',128.0,128.0,0.0)\n"
+        "call SetItemTypeSlots(shop,3)\n"
+        "call SetUnitTypeSlots(shop,4)\n"
+        "endfunction"));
+    T_EQ(level.stock.item_slots, 11); T_EQ(level.stock.unit_slots, 10);
+    T_EQ(shop->stock.item_slots, 11); T_EQ(shop->stock.unit_slots, 10);
+    FOR_LOOP(i, globals.num_edicts) if (g_edicts[i].class_id == MAKEFOURCC('h','f','o','o')) created = g_edicts + i;
+    T_NOT_NULL(created);
+    T_EQ(created->stock.item_slots, 3); T_EQ(created->stock.unit_slots, 4);
 }
 
 /* =========================================================================

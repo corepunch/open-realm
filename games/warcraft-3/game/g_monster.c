@@ -497,6 +497,7 @@ void SP_SpawnUnit(LPEDICT self) {
     UnitWeapons_t const *w = self->UnitWeapons;
     LPCSTR uber_splat = ui->groundTexture;
     LPCSTR path_tex = d->pathingTexture;
+    G_InitStockSlots(self);
     self->runtime.flags = (unit_spawn_aiflags(self->class_id) & AI_IMMOBILE) ? UNIT_BALANCE_BUILDING : 0;
     snprintf(model_filename, sizeof(model_filename), "%s.mdx", ui->modelFile);
     self->s.model = G_RegisterModel(model_filename);
