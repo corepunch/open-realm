@@ -42,6 +42,8 @@ Generic interactions still own their final range/contact semantics. When a radiu
 
 Blocked building interactions should not make every worker use that centre-directed fallback as the normal approach. Gold Mine entry and gold/lumber return first look for a collision-sized, directly reachable cell beside the target's authored pathing footprint. The search band is routing slack only: mover radius + one simulation step + one path-cell diagonal. It accounts for radius-expanded pathmap cell centres near an irregular/square footprint; it does **not** enlarge mine entry or resource-deposit range. Once the edge staging point is within one movement step, behavior-owned footprint/contact checks remain authoritative and ordinary interaction steering resumes. `CM_PathCellWorldSize()` exposes the routing grid scale for this staging calculation; it is not a gameplay range constant.
 
+The footprint edge is re-selected from the mover's current position rather than cached for the whole order. Live-unit collision can push packed workers onto different sides of the same building, so a previously good staging point can become a stale lane that sends the worker back through the crowd. `CM_FindApproachPointToFootprintForRadius()` keeps this adaptive policy inexpensive by marking the exact pathmap cells within range of the authored blocked pixels in a reusable scratch mask, then evaluating each candidate once. Do not replace that mask with a simple footprint bounding box: sparse and irregular pathing textures require distance to the actual blocked pixels.
+
 ## Retail Move Destination Behavior
 
 Two defects explained the Human01 fence report and units getting stuck behind trees or towers:

@@ -745,11 +745,6 @@ struct edict_s {
         BOOL flow_goal_reached; /* mover occupies the route's adjusted goal cell */
         BOOL flow_unreachable;  /* field exists but current cell has no route */
         BOOL flow_direct;       /* static path from mover to requested goal is clear */
-        LPEDICT approach_target; /* behavior-owned cached interaction approach target */
-        DWORD approach_target_spawn_time;
-        VECTOR2 approach_point;
-        BOOL approach_checked;
-        BOOL approach_valid;
         FLOAT group_speed;  // slowest member's speed for a group move (0 = no cap), keeps the group together
         FLOAT heading;      // avoidance-resolved heading chosen this tick by unit_changeangle; movement follows it
         LPEDICT attackmove_waypoint;  // resume attack-move after a combat detour

@@ -483,14 +483,6 @@ TEST(wc3_movement, lumber_same_tree_workers_choose_distinct_approach_lanes) {
     T_ASSERT(second->goalentity == tree);
     T_ASSERT(first->movement.flow_direct);
     T_ASSERT(second->movement.flow_direct);
-    T_ASSERT(first->movement.approach_checked);
-    T_ASSERT(second->movement.approach_checked);
-    T_ASSERT(first->movement.approach_valid);
-    T_ASSERT(second->movement.approach_valid);
-    T_ASSERT(first->movement.approach_target == tree);
-    T_ASSERT(second->movement.approach_target == tree);
-    T_ASSERT(Vector2_distance(&first->movement.approach_point,
-                              &second->movement.approach_point) > 1.0f);
     T_ASSERT(fabsf(first->s.angle - second->s.angle) > 0.1f);
 }
 
@@ -908,11 +900,69 @@ TEST(wc3_movement, gold_return_prefers_direct_footprint_edge_lane) {
     worker->currentmove->think(worker);
 
     T_ASSERT(worker->movement.flow_direct);
-    T_ASSERT(worker->movement.approach_checked);
-    T_ASSERT(worker->movement.approach_valid);
-    T_ASSERT(worker->movement.approach_target == hall);
     T_ASSERT(worker->s.origin2.x > origin.x);
     T_ASSERT(CM_DistanceToPathingFootprint(hall, &worker->s.origin2) < before);
+    gi.MemFree(hall_pathtex);
+}
+
+/* Local collision can move a returner away from the edge lane that was nearest
+ * on the previous think.  Re-select from the current position: retaining one
+ * lane for the whole return leg makes packed Peasants steer back across the
+ * Town Hall footprint and oscillate around one another. */
+TEST(wc3_movement, gold_return_reselects_footprint_edge_after_displacement) {
+    enum { CELLS = 64 };
+    BYTE pathmap[CELLS * CELLS] = {0};
+    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
+    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), -400.0f, 0.0f);
+    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 320.0f, 0.0f);
+    pathTex_t *hall_pathtex = movement_make_goldmine_pathtex();
+    VECTOR2 const displaced = { 640.0f, 160.0f };
+    VECTOR2 expected, expected_dir, actual_dir;
+    FLOAT step, route_band;
+
+    worker->collision = 16.0f;
+    worker->unitinfo.MoveSpeed = 190.0f;
+    worker->harvested_gold = 10;
+    worker->s.renderfx |= RF_HAS_GOLD;
+    worker->secondarygoal = mine;
+    hall->collision = 64.0f;
+    hall->s.model = 1;
+    hall->s.player = worker->s.player;
+    hall->pathtex = hall_pathtex;
+    make_live_dropoff(hall, &return_gold_lumber_abilities);
+    gi.LinkEntity(worker);
+    gi.LinkEntity(hall);
+
+    for (int y = 28; y < 36; y++) {
+        for (int x = 38; x < 46; x++)
+            pathmap[x + y * CELLS] = 0x02;
+    }
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(BOX2,
+        .min = {-1024.0f, -1024.0f},
+        .max = { 1024.0f,  1024.0f}));
+
+    T_ASSERT(harvest_gold_return_to(worker, hall));
+    worker->currentmove->think(worker);
+
+    /* Simulate collision avoidance having displaced this worker to the other
+     * side of the drop-off without restarting the Harvest order. */
+    worker->s.origin2 = displaced;
+    gi.LinkEntity(worker);
+    step = unit_movedistance(worker);
+    route_band = worker->collision + step +
+                 CM_PathCellWorldSize() * 1.41421356237f;
+    T_ASSERT(CM_FindApproachPointToFootprintForRadius(
+        hall, &worker->s.origin2, route_band, worker->collision, &expected));
+    T_ASSERT(CM_LineIsWalkableForRadius(
+        &worker->s.origin2, &expected, worker->collision));
+    expected_dir = Vector2_sub(&expected, &worker->s.origin2);
+    Vector2_normalize(&expected_dir);
+
+    worker->currentmove->think(worker);
+    actual_dir = MAKE(VECTOR2, cosf(worker->movement.heading),
+                               sinf(worker->movement.heading));
+    T_ASSERT(Vector2_dot(&expected_dir, &actual_dir) > 0.99f);
     gi.MemFree(hall_pathtex);
 }
 

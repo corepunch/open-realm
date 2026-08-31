@@ -563,6 +563,44 @@ TEST(wc3_pathfinding, footprint_approach_returns_legal_point_beside_blocked_buil
     gi.MemFree(pathtex);
 }
 
+/* The fast footprint-approach mask must preserve irregular/sparse pathing
+ * textures exactly.  A bounding-box shortcut would incorrectly accept the
+ * open middle of this five-cell texture even though it is outside range of
+ * either authored blocked pixel. */
+TEST(wc3_pathfinding, footprint_approach_respects_sparse_path_texture) {
+    BYTE blocked_target[MAP_W * MAP_H];
+    LPEDICT building;
+    pathTex_t *pathtex;
+    VECTOR2 from = { 5.5f, 5.5f };
+    VECTOR2 approach = { 0 };
+
+    memset(blocked_target, 0, sizeof(blocked_target));
+    blocked_target[5 * MAP_W + 3] = 2;
+    blocked_target[5 * MAP_W + 7] = 2;
+    setup_test_pathmap(MAP_W, MAP_H, blocked_target);
+    reset_entities();
+
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 5.0f, 5.0f);
+    pathtex = gi.MemAlloc(sizeof(*pathtex) + 5 * sizeof(COLOR32));
+    T_NOT_NULL(pathtex);
+    pathtex->width = 5;
+    pathtex->height = 1;
+    FOR_LOOP(i, 5)
+        pathtex->map[i] = (COLOR32){ 0, 0, 0, 255 };
+    pathtex->map[0].b = 255;
+    pathtex->map[4].b = 255;
+    building->pathtex = pathtex;
+
+    T_ASSERT(CM_FindApproachPointToFootprintForRadius(
+        building, &from, 0.6f, 0.0f, &approach));
+    T_ASSERT(CM_DistanceToPathingFootprint(building, &approach) <= 0.6f);
+    T_ASSERT(fabsf(approach.x - from.x) >= 0.9f);
+    T_ASSERT(CM_PointIsPathableForRadius(&approach, 0.0f));
+
+    building->pathtex = NULL;
+    gi.MemFree(pathtex);
+}
+
 TEST(wc3_pathfinding, heatmap_rejects_corridor_too_narrow_for_radius) {
     BYTE corridor[MAP_W * MAP_H];
     memset(corridor, 2, sizeof(corridor));

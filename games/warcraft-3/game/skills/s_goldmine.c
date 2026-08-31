@@ -36,35 +36,17 @@ static BOOL gold_find_direct_footprint_approach(LPEDICT worker, LPEDICT target,
     if (!worker || !target || !target->pathtex || !out)
         return false;
 
-    /* Footprint approach selection is intentionally more expensive than the
-     * ordinary steering step: it searches the authored pathing shape for a
-     * legal collision-sized edge cell.  That result is static for this
-     * worker/target movement leg, so do not repeat the footprint search every
-     * monster think.  move_reset_progress() clears this cache whenever Harvest
-     * starts or retargets a mine/drop-off leg. */
-    if (worker->movement.approach_checked &&
-        worker->movement.approach_target == target &&
-        worker->movement.approach_target_spawn_time == target->spawn_time) {
-        if (!worker->movement.approach_valid)
-            return false;
-        *out = worker->movement.approach_point;
-        return true;
-    }
-
-    worker->movement.approach_target = target;
-    worker->movement.approach_target_spawn_time = target->spawn_time;
-    worker->movement.approach_checked = true;
-    worker->movement.approach_valid = false;
+    /* Re-select the nearest direct edge point from the worker's current
+     * position every think.  Local collision can push packed harvesters around
+     * one another; freezing this point for the whole resource leg makes them
+     * keep returning to a lane that another worker now occupies.  The common
+     * helper keeps this adaptive selection cheap. */
     cell = CM_PathCellWorldSize();
     route_band = worker->collision + step + cell * 1.41421356237f;
     if (!CM_FindApproachPointToFootprintForRadius(
             target, &worker->s.origin2, route_band, worker->collision, out))
         return false;
-    if (!CM_LineIsWalkableForRadius(&worker->s.origin2, out, worker->collision))
-        return false;
-    worker->movement.approach_point = *out;
-    worker->movement.approach_valid = true;
-    return true;
+    return CM_LineIsWalkableForRadius(&worker->s.origin2, out, worker->collision);
 }
 
 static AbilityData_t const *goldmine_ability_data(LPCEDICT mine) {
