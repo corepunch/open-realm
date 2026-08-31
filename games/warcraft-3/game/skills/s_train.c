@@ -127,9 +127,10 @@ BOOL G_UnitCanReviveHeroes(LPCEDICT altar) {
 }
 
 BOOL G_HeroCanBeRevivedAt(LPCEDICT altar, LPCEDICT hero) {
-    return altar && hero && altar->inuse && hero->inuse && !M_IsDead((LPEDICT)altar) &&
-        G_UnitCanReviveHeroes(altar) && altar->s.player == hero->s.player &&
-        hero->UnitBalance && G_UnitIsHero(hero) && M_IsDead((LPEDICT)hero) &&
+    return altar && hero && altar->inuse && hero->inuse &&
+        !(altar->svflags & SVF_DEADMONSTER) && G_UnitCanReviveHeroes(altar) &&
+        altar->s.player == hero->s.player && hero->UnitBalance &&
+        G_UnitIsHero(hero) && (hero->svflags & SVF_DEADMONSTER) &&
         hero->revival.awaiting && !hero->revival.reviving;
 }
 
@@ -250,7 +251,7 @@ static BOOL CompleteHeroRevive(LPEDICT altar, LPEDICT hero) {
     LPEDICT next;
 
     if (!altar || !hero || !hero->inuse || !hero->revival.reviving ||
-        !hero->revival.awaiting || !M_IsDead(hero)) return false;
+        !hero->revival.awaiting || !(hero->svflags & SVF_DEADMONSTER)) return false;
     if (!SP_FindUnitExitPosition(altar, hero, &origin, &angle)) return false;
 
     next = hero->revival.queue_next;
@@ -277,7 +278,8 @@ void ai_train_build(LPEDICT ent) {
         LPEDICT hero = ent->build;
         FLOAT required;
 
-        if (!hero->inuse || !hero->revival.awaiting || !M_IsDead(hero)) {
+        if (!hero->inuse || !hero->revival.awaiting ||
+            !(hero->svflags & SVF_DEADMONSTER)) {
             G_CancelHeroRevive(ent, hero);
             return;
         }

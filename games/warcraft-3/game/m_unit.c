@@ -34,7 +34,8 @@ void unit_decay1(LPEDICT self) {
 static void hero_become_revivable(LPEDICT self) {
     LPGAMECLIENT owner;
 
-    if (!self || !self->inuse || !G_UnitIsHero(self) || !M_IsDead(self)) return;
+    if (!self || !self->inuse || !G_UnitIsHero(self) ||
+        !(self->svflags & SVF_DEADMONSTER)) return;
     self->revival.awaiting = true;
     self->revival.reviving = false;
     self->s.renderfx |= RF_HIDDEN;
