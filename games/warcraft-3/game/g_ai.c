@@ -168,6 +168,16 @@ static void unit_commit_step(LPEDICT self, LPCVECTOR2 cand) {
 void unit_moveindirection(LPEDICT self) {
     if (self->aiflags & AI_IMMOBILE)
         return;
+
+    /* unit_changeangle* clears both routing fields before resolving this
+     * tick's heading.  A resumable cache miss deliberately leaves both clear;
+     * in that state there is no valid movement decision yet.  Never commit a
+     * step using the unit's previous facing/heading while the requested route
+     * is still being built.  This is the common safety net for Move, Harvest,
+     * Patrol, Attack, Build, Repair, and resource-return walkers. */
+    if (!self->movement.flow_direct && self->movement.flow_generation == 0)
+        return;
+
     FLOAT const dist = unit_movedistance(self);
     VECTOR2 const by_facing = Vector2_mad(&self->s.origin2, dist,
                                           &MAKE(VECTOR2, cosf(self->s.angle), sinf(self->s.angle)));

@@ -288,11 +288,18 @@ static void ai_harvest_walkback(LPEDICT ent) {
     FLOAT const dist = M_DistanceToGoal(ent);
     FLOAT const contact = ent->collision + ent->goalentity->collision;
     FLOAT const step = unit_movedistance(ent);
+    FLOAT const footprint_dist = CM_DistanceToPathingFootprint(
+        ent->goalentity, &ent->s.origin2);
+    BOOL const footprint_deposit = footprint_dist < FLT_MAX &&
+                                   footprint_dist <= ent->collision + step;
+    BOOL const circle_deposit = dist <= contact + step;
 
-    /* Building pathing can block the next movement step before the worker
-     * reaches physical contact. Deposit once that next step would cross the
-     * contact boundary, matching the resource interaction rule. */
-    if (dist <= contact + step) {
+    /* Match gold return: authored building pathing is the authoritative
+     * physical boundary when it exists.  A Lumber Mill/Town Hall can block the
+     * worker before its scalar collision circle reaches contact, so complete
+     * the deposit when one legal step reaches either the footprint or the
+     * collision fallback. */
+    if (footprint_deposit || circle_deposit) {
         LPEDICT dropoff = ent->goalentity;
         G_PublishMessage(ent, GAME_MSG_HARVEST_DEPOSIT_LUMBER, dropoff);
         LPPLAYER player = G_GetPlayerByNumber(ent->s.player);
@@ -315,7 +322,20 @@ static void ai_harvest_walkback(LPEDICT ent) {
             ent->stand(ent);
         }
     } else {
-        unit_changeangle(ent);
+        VECTOR2 approach = { 0, 0 };
+        BOOL const direct_approach = CM_FindDirectApproachPointForRadius(
+            &ent->s.origin2, &ent->goalentity->s.origin2, contact,
+            ent->collision, &approach);
+
+        /* Returning to an unobstructed building edge should not wait for a
+         * whole-map flow field whose raw target is the blocked building centre.
+         * Use the same collision-safe direct approach primitive as Harvest and
+         * Build; fall back to the resumable point route when obstacles really
+         * require a detour. */
+        if (direct_approach)
+            unit_changeangle_towards_point(ent, &approach);
+        else
+            unit_changeangle(ent);
         unit_moveindirection(ent);
     }
 }
