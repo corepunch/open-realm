@@ -31,6 +31,7 @@ UnitProfile.Builds
 `G_GetPlayerTechCountValue()` counts researched levels plus live owned entities of the requested rawcode. In-progress structures therefore count against a maximum as soon as they exist.
 
 `-1` is the unlimited/default sentinel for `SetPlayerTechMaxAllowed`; non-negative values are exact maxima. Starting a queued unit spawns its hidden entity immediately, so it also counts against the maximum before training completes. The queued entity carries `edict.training` until `ShowTrainedUnit()` succeeds; requirement counts exclude both `construction.active` structures and `training` units so in-progress production cannot satisfy a prerequisite early.
+Training queues are linked through each queued entity's `edict.build` pointer. Completion preserves the next queue pointer before calling `ShowTrainedUnit()`, because the reveal path calls `unit_stand()` and standing clears the completed unit's `build` field. The producer then advances to the saved next entry, so completing the head cannot discard later paid queue entries.
 
 Training command flow is:
 
