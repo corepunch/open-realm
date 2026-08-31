@@ -52,6 +52,7 @@ DWORD  CM_BuildHeatmapForRadius(edict_t *goalentity, FLOAT radius);
 BOOL   CM_ClosestPathablePointForRadius(LPCVECTOR2 location, FLOAT radius, LPVECTOR2 out);
 BOOL   CM_LineIsWalkableForRadius(LPCVECTOR2 a, LPCVECTOR2 b, FLOAT radius);
 BOOL   CM_FindDirectApproachPointForRadius(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT range, FLOAT radius, LPVECTOR2 out);
+BOOL   CM_FindApproachPointToFootprintForRadius(LPCEDICT target, LPCVECTOR2 from, FLOAT range, FLOAT radius, LPVECTOR2 out);
 BOOL   CM_FlowReachedGoal(DWORD generation, FLOAT x, FLOAT y);
 BOOL   CM_FlowCanReach(DWORD generation, FLOAT x, FLOAT y);
 VECTOR2 get_flow_direction(DWORD heatmapindex, float fnx, float fny);
@@ -430,6 +431,35 @@ TEST(wc3_pathfinding, direct_approach_stops_before_blocked_target_center) {
     T_ASSERT(Vector2_distance(&approach, &target) <= 2.0f);
     T_ASSERT(CM_PointIsPathableForRadius(&approach, 0.0f));
     T_ASSERT(CM_LineIsWalkableForRadius(&from, &approach, 0.0f));
+}
+
+
+TEST(wc3_pathfinding, footprint_approach_returns_legal_point_beside_blocked_building) {
+    BYTE blocked_target[MAP_W * MAP_H];
+    LPEDICT building;
+    pathTex_t *pathtex;
+    VECTOR2 from = { 1.0f, 5.0f };
+    VECTOR2 approach = { 0 };
+
+    memset(blocked_target, 0, sizeof(blocked_target));
+    blocked_target[5 * MAP_W + 5] = 2;
+    setup_test_pathmap(MAP_W, MAP_H, blocked_target);
+    reset_entities();
+
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 5.0f, 5.0f);
+    pathtex = gi.MemAlloc(sizeof(*pathtex) + sizeof(COLOR32));
+    T_NOT_NULL(pathtex);
+    pathtex->width = 1;
+    pathtex->height = 1;
+    pathtex->map[0] = (COLOR32){ 0, 0, 255, 255 };
+    building->pathtex = pathtex;
+
+    T_ASSERT(CM_FindApproachPointToFootprintForRadius(building, &from, 2.0f, 0.0f, &approach));
+    T_ASSERT(CM_DistanceToPathingFootprint(building, &approach) <= 2.0f);
+    T_ASSERT(CM_PointIsPathableForRadius(&approach, 0.0f));
+
+    building->pathtex = NULL;
+    gi.MemFree(pathtex);
 }
 
 TEST(wc3_pathfinding, heatmap_rejects_corridor_too_narrow_for_radius) {

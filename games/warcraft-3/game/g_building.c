@@ -71,6 +71,14 @@ BOOL G_BuildAllEnabled(void) {
     return gi.CvarString && atoi(gi.CvarString("wc3_build_all", "0")) != 0;
 }
 
+int G_BuildRepairDebugLevel(void) {
+    LPCSTR value;
+
+    if (!gi.CvarString) return 0;
+    value = gi.CvarString("wc3_build_repair_debug", "0");
+    return value ? atoi(value) : 0;
+}
+
 static LONG G_FindTechSlot(LPGAMECLIENT client, DWORD techid, BOOL create) {
     LONG free_slot = -1;
 
@@ -418,8 +426,45 @@ FLOAT G_BuildApproachDistance(DWORD building_id) {
     return result;
 }
 
+void G_UpdateConstructionAnimation(LPEDICT building) {
+    LPCANIMATION anim;
+    FLOAT duration, fraction;
+    DWORD first, last, span, frame;
+
+    if (!building || !building->construction.active || !building->UnitBalance) return;
+    if (building->UnitBalance->buildTime <= 0) return;
+
+    /* Construction owns the birth sequence. Re-resolve it instead of relying
+     * on whatever animation happened to be left on the entity by a previous
+     * state transition. */
+    anim = building->animation;
+    if (!anim || strcasecmp(anim->name, "birth"))
+        anim = G_GetAnimation(building->s.model, "birth");
+    if (!anim || anim->interval[1] <= anim->interval[0]) return;
+    building->animation = anim;
+
+    duration = (FLOAT)building->UnitBalance->buildTime * 1000.0f;
+    fraction = MAX(0.0f, MIN(1.0f, building->construction.progress / duration));
+    first = anim->interval[0];
+    last = anim->interval[1];
+    span = last - first;
+    frame = first + (DWORD)((FLOAT)span * fraction);
+    if (frame >= last) frame = last - 1;
+    building->s.frame = frame;
+
+    if (G_BuildRepairDebugLevel() >= 2) {
+        fprintf(stderr,
+                "WC3_BUILD_ANIM progress building=%d class=0x%08x progress=%.0f/%.0f fraction=%.3f frame=%u interval=%u..%u\n",
+                building->s.number, (unsigned)building->class_id,
+                building->construction.progress, duration, fraction,
+                (unsigned)frame, (unsigned)first, (unsigned)last);
+    }
+}
+
 BOOL G_StartHumanConstruction(LPEDICT builder, LPEDICT building) {
     EDICTSTAT *hp;
+    LPCANIMATION birth;
+
     if (!builder || !building || !G_UnitIsBuilding(building->class_id)) return false;
     hp = &building->health;
     building->construction.active = true;
@@ -428,6 +473,19 @@ BOOL G_StartHumanConstruction(LPEDICT builder, LPEDICT building) {
     building->construction.progress = 0.0f;
     building->aiflags |= AI_HOLD_FRAME;
     hp->value = MAX(1.0f, hp->max_value * WC3_BUILD_START_LIFE);
+
+    G_UpdateConstructionAnimation(building);
+    birth = building->animation;
+    if (!birth || strcasecmp(birth->name, "birth"))
+        birth = G_GetAnimation(building->s.model, "birth");
+    if (G_BuildRepairDebugLevel() >= 1) {
+        fprintf(stderr,
+                "WC3_BUILD_ANIM start building=%d class=0x%08x builder=%d model=%u birth=%s build_time=%d hp=%.1f/%.1f\n",
+                building->s.number, (unsigned)building->class_id, builder->s.number,
+                (unsigned)building->s.model, birth ? birth->name : "<missing>",
+                building->UnitBalance ? building->UnitBalance->buildTime : 0,
+                hp->value, hp->max_value);
+    }
     return true;
 }
 
@@ -435,6 +493,13 @@ void G_CompleteConstruction(LPEDICT building) {
     LPGAMECLIENT client;
     if (!building || !building->construction.active) return;
     client = G_GetPlayerClientByNumber(building->s.player);
+    if (G_BuildRepairDebugLevel() >= 1) {
+        fprintf(stderr,
+                "WC3_BUILD_ANIM complete building=%d class=0x%08x progress=%.0f hp=%.1f/%.1f frame=%u\n",
+                building->s.number, (unsigned)building->class_id,
+                building->construction.progress, building->health.value,
+                building->health.max_value, (unsigned)building->s.frame);
+    }
     building->construction.active = false;
     building->construction.paused = false;
     building->construction.primary_builder = NULL;

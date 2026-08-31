@@ -763,4 +763,170 @@ TEST(wc3_building, smart_target_cancels_build_placement_before_issuing_order) {
     gi.Write = old_write;
 }
 
+
+TEST(wc3_building, repair_order_from_stand_keeps_staged_target_and_walks) {
+    LPEDICT worker;
+    LPEDICT building;
+    UnitAbilities_t abilities = { .abilList = "Aren" };
+    slkTestData_t *rows, *old_abilities;
+
+    old_abilities = building_install_repair_data(&rows);
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -256, 0);
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 256, 0);
+    worker->UnitAbilities = &abilities;
+    worker->stand = unit_stand;
+    worker->collision = 16.0f;
+    building->collision = 32.0f;
+    building->health.max_value = 1000.0f;
+    building->health.value = 500.0f;
+    building->svflags |= SVF_MONSTER;
+    building->s.player = worker->s.player;
+
+    /* Real spawned workers already have a stand move. Entering Repair from
+     * that move must not make unit_setmove() cancel the newly staged state. */
+    unit_stand(worker);
+    T_NOT_NULL(worker->currentmove);
+    T_ASSERT(S_OrderRepair(worker, building, MAKEFOURCC('A','r','e','n')));
+    T_EQ(worker->buildwork.ability, MAKEFOURCC('A','r','e','n'));
+    T_ASSERT(worker->build == building);
+    T_ASSERT(worker->goalentity == building);
+    T_STREQ(worker->currentmove->animation, "walk");
+
+    building_restore_repair_data(old_abilities, rows);
+}
+
+TEST(wc3_building, repair_walk_handoff_requires_actual_contact) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT worker;
+    LPEDICT building;
+    UnitAbilities_t abilities = { .abilList = "Aren" };
+    AbilityData_t *repair;
+    slkTestData_t *rows, *old_abilities;
+    FLOAT interaction;
+    FLOAT step;
+    FLOAT hp_before;
+
+    old_abilities = building_install_repair_data(&rows);
+    setup_test_world();
+    repair = (AbilityData_t *)G_AbilityData(MAKEFOURCC('A','r','e','n'));
+    T_NOT_NULL(repair);
+    repair->range[0] = 50.0f;
+
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 200, 0);
+    worker->UnitAbilities = &abilities;
+    worker->stand = unit_stand;
+    worker->collision = 16.0f;
+    worker->unitinfo.MoveSpeed = 190.0f;
+    worker->s.player = client->ps.number;
+    building->collision = 32.0f;
+    building->s.player = client->ps.number;
+    building->svflags |= SVF_MONSTER;
+    building->health.max_value = 1000.0f;
+    building->health.value = 500.0f;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 100;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 100;
+
+    T_ASSERT(S_OrderRepair(worker, building, MAKEFOURCC('A','r','e','n')));
+    T_STREQ(worker->currentmove->animation, "walk");
+
+    interaction = worker->collision + building->collision + repair->range[0];
+    step = unit_movedistance(worker);
+    worker->s.origin2.x = building->s.origin2.x - interaction - step * 0.5f;
+    worker->s.origin2.y = building->s.origin2.y;
+    gi.LinkEntity(worker);
+
+    /* This is the runtime failure from Human02: close enough that one more
+     * movement step will make contact, but not actually in Repair range yet.
+     * The worker must take that step instead of starting/restarting work. */
+    T_ASSERT(M_DistanceToGoal(worker) > interaction);
+    T_ASSERT(M_DistanceToGoal(worker) <= interaction + step);
+    worker->currentmove->think(worker);
+    T_STREQ(worker->currentmove->animation, "walk");
+
+    /* The movement tick has now crossed the interaction boundary.  The next
+     * AI tick may enter work, and the following work tick must change HP. */
+    T_ASSERT(M_DistanceToGoal(worker) <= interaction);
+    worker->currentmove->think(worker);
+    T_STREQ(worker->currentmove->animation, "stand work");
+    hp_before = building->health.value;
+    worker->currentmove->think(worker);
+    T_ASSERT(building->health.value > hp_before);
+
+    building_restore_repair_data(old_abilities, rows);
+}
+
+TEST(wc3_building, held_construction_birth_animation_tracks_progress) {
+    LPEDICT building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 64);
+    UnitBalance_t balance = *building->UnitBalance;
+    animation_t birth = {
+        .name = "birth",
+        .interval = { 1000, 3000 },
+    };
+
+    balance.buildTime = 10;
+    building->UnitBalance = &balance;
+    building->animation = &birth;
+    building->construction.active = true;
+    building->construction.paused = true;
+    building->aiflags |= AI_HOLD_FRAME;
+
+    building->construction.progress = 2500.0f;
+    M_MoveFrame(building);
+    T_EQ(building->s.frame, 1500);
+
+    building->construction.progress = 7500.0f;
+    M_MoveFrame(building);
+    T_EQ(building->s.frame, 2500);
+
+    /* No progress means no visual drift while Human construction is paused. */
+    M_MoveFrame(building);
+    T_EQ(building->s.frame, 2500);
+}
+
+TEST(wc3_building, primary_human_builder_ignores_datad_but_extra_builder_requires_it) {
+    LPEDICT primary;
+    LPEDICT extra;
+    LPEDICT building;
+    UnitAbilities_t abilities = { .abilList = "Arep" };
+    AbilityData_t *repair;
+    slkTestData_t *rows, *old_abilities;
+
+    old_abilities = building_install_repair_data(&rows);
+    setup_test_world();
+    repair = (AbilityData_t *)G_AbilityData(MAKEFOURCC('A','r','e','p'));
+    T_NOT_NULL(repair);
+    repair->data[0][3] = 0.0f;
+
+    primary = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    extra = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 64);
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 0);
+    primary->UnitAbilities = &abilities;
+    extra->UnitAbilities = &abilities;
+    primary->stand = unit_stand;
+    extra->stand = unit_stand;
+    primary->collision = 16.0f;
+    extra->collision = 16.0f;
+    building->collision = 32.0f;
+    primary->s.player = 0;
+    extra->s.player = 0;
+    building->s.player = 0;
+    building->svflags |= SVF_MONSTER;
+    building->health.max_value = 1000.0f;
+    building->health.value = 1000.0f;
+
+    T_ASSERT(G_StartHumanConstruction(primary, building));
+    T_ASSERT(S_OrderRepair(primary, building, MAKEFOURCC('A','r','e','p')));
+    T_ASSERT(primary->buildwork.primary);
+    T_ASSERT(primary->build == building);
+    T_ASSERT(building->construction.primary_builder == primary);
+
+    T_ASSERT(!S_OrderRepair(extra, building, MAKEFOURCC('A','r','e','p')));
+    T_EQ(extra->buildwork.ability, 0);
+    T_NULL(extra->build);
+
+    building_restore_repair_data(old_abilities, rows);
+}
+
 #endif

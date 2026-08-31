@@ -202,6 +202,14 @@ DWORD M_RefreshHeatmap(LPEDICT self, FLOAT radius) {
  * umove_t endfunc is called (e.g. to loop the walk cycle or transition to
  * the cooldown phase after an attack). */
 void M_MoveFrame(LPEDICT self) {
+    /* Human construction keeps AI_HOLD_FRAME so a paused building never
+     * advances on wall-clock time. Its birth sequence is instead driven by
+     * authoritative construction progress, which also makes power building
+     * accelerate the visible construction animation. */
+    if ((self->aiflags & AI_HOLD_FRAME) && self->construction.active) {
+        G_UpdateConstructionAnimation(self);
+        return;
+    }
     if (self->aiflags & AI_HOLD_FRAME)
         return;
     umove_t const *move = self->currentmove;
