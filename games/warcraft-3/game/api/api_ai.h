@@ -153,6 +153,9 @@ DWORD InitAssault(LPJASS j) { G_BotInitAssault(jass_getcontext(j)->playerState);
 DWORD AddAssault(LPJASS j) {
     return jass_pushboolean(j, G_BotAddAssault(jass_getcontext(j)->playerState, jass_checkinteger(j, 1), jass_checkinteger(j, 2)));
 }
+DWORD CaptainGroupSize(LPJASS j) { return jass_pushinteger(j, G_BotCaptainGroupSize(jass_getcontext(j)->playerState)); }
+DWORD CaptainIsFull(LPJASS j) { return jass_pushboolean(j, G_BotCaptainIsFull(jass_getcontext(j)->playerState)); }
+DWORD CaptainIsEmpty(LPJASS j) { return jass_pushboolean(j, !G_BotCaptainGroupSize(jass_getcontext(j)->playerState)); }
 
 DWORD AddDefenders(LPJASS j) {
     return jass_pushboolean(j, G_BotAddDefenders(jass_getcontext(j)->playerState, jass_checkinteger(j, 1), jass_checkinteger(j, 2)));

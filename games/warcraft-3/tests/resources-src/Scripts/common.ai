@@ -40,6 +40,9 @@ native IgnoredUnits takes integer unitid returns integer
 native CaptainInCombat takes boolean attack_captain returns boolean
 native InitAssault takes nothing returns nothing
 native AddAssault takes integer qty, integer unitid returns boolean
+native CaptainGroupSize takes nothing returns integer
+native CaptainIsFull takes nothing returns boolean
+native CaptainIsEmpty takes nothing returns boolean
 native AddDefenders takes integer qty, integer unitid returns boolean
 native AddGuardPost takes integer id, real x, real y returns nothing
 native FillGuardPosts takes nothing returns nothing

@@ -977,6 +977,8 @@ void G_BotInitAssault(LPPLAYER);
 DWORD G_BotIgnoredUnits(LPPLAYER, DWORD);
 BOOL G_BotCaptainInCombat(LPPLAYER, BOOL);
 BOOL G_BotAddAssault(LPPLAYER, LONG, DWORD);
+DWORD G_BotCaptainGroupSize(LPPLAYER);
+BOOL G_BotCaptainIsFull(LPPLAYER);
 BOOL G_BotAddDefenders(LPPLAYER, LONG, DWORD);
 void G_BotAddGuardPost(LPPLAYER, DWORD, FLOAT, FLOAT);
 void G_BotFillGuardPosts(LPPLAYER);

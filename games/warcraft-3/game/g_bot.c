@@ -171,6 +171,20 @@ BOOL G_BotAddAssault(LPPLAYER player, LONG qty, DWORD class_id) {
     return G_BotCaptainFill(player, BOT_CAPTAIN_ATTACK, qty, class_id);
 }
 
+DWORD G_BotCaptainGroupSize(LPPLAYER player) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    DWORD count = 0;
+    if (!bot) return 0;
+    FOR_EACH_ARRAY(LPEDICT, unit, bot->captains[BOT_CAPTAIN_ATTACK].units)
+        if (G_BotUnitAlive(*unit)) count++;
+    return count;
+}
+
+BOOL G_BotCaptainIsFull(LPPLAYER player) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    return bot && G_BotCaptainGroupSize(player) >= bot->captains[BOT_CAPTAIN_ATTACK].desired;
+}
+
 BOOL G_BotAddDefenders(LPPLAYER player, LONG qty, DWORD class_id) {
     return G_BotCaptainFill(player, BOT_CAPTAIN_DEFENSE, qty, class_id);
 }

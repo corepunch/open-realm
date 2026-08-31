@@ -406,6 +406,28 @@ TEST(wc3_bot, assault_init_resets_attack_only_and_fill_tracks_desired_roster) {
     T_ASSERT(first != second && building != enemy);
 }
 
+TEST(wc3_bot, captain_size_empty_and_full_count_only_live_assault_members) {
+    bot_t *bot = level.bots + 2;
+    DWORD type = MAKEFOURCC('h','f','o','o');
+    LPEDICT first = make_bot_harvest_unit(type, 0, 0, 2, NULL);
+    LPEDICT second = make_bot_harvest_unit(type, 32, 0, 2, NULL);
+
+    G_BotCreateCaptains(&game.clients[2].ps);
+    T_EQ(G_BotCaptainGroupSize(&game.clients[2].ps), 0);
+    T_ASSERT(G_BotCaptainIsFull(&game.clients[2].ps));
+    G_BotInitAssault(&game.clients[2].ps);
+    T_ASSERT(G_BotAddAssault(&game.clients[2].ps, 2, type));
+    T_EQ(G_BotCaptainGroupSize(&game.clients[2].ps), 2);
+    T_ASSERT(G_BotCaptainIsFull(&game.clients[2].ps));
+    first->svflags |= SVF_DEADMONSTER;
+    T_EQ(G_BotCaptainGroupSize(&game.clients[2].ps), 1);
+    T_ASSERT(!G_BotCaptainIsFull(&game.clients[2].ps));
+    second->inuse = false;
+    T_EQ(G_BotCaptainGroupSize(&game.clients[2].ps), 0);
+    T_ASSERT(!G_BotCaptainIsFull(&game.clients[2].ps));
+    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].desired, 2);
+}
+
 TEST(wc3_bot, guard_posts_fill_typed_units_without_stealing_captain_members) {
     bot_t *bot = level.bots + 2;
     DWORD type = MAKEFOURCC('h','f','o','o');
