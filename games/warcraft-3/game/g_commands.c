@@ -2,6 +2,38 @@
 
 #define CLIENTCOMMAND(NAME) void CMD_##NAME(LPEDICT clent, DWORD argc, LPCSTR argv[])
 
+static int G_HarvestOrderDebugLevel(void) {
+    LPCSTR value;
+
+    if (!gi.CvarString)
+        return 0;
+    value = gi.CvarString("wc3_harvest_path_debug", "0");
+    return value ? atoi(value) : 0;
+}
+
+static BOOL G_TargetModeActive(LPGAMECLIENT client) {
+    return client && (client->menu.on_entity_selected || client->menu.on_location_selected);
+}
+
+static void G_LogHarvestSelection(LPGAMECLIENT client, LPCSTR phase, LPEDICT target) {
+    if (G_HarvestOrderDebugLevel() < 1 || !client)
+        return;
+
+    fprintf(stderr,
+            "WC3_HARVEST_ORDER %s player=%u target=%d target_mode=%d\n",
+            phase, client->ps.number, target ? target->s.number : -1,
+            G_TargetModeActive(client));
+    FOR_SELECTED_UNITS(client, ent) {
+        fprintf(stderr,
+                "WC3_HARVEST_ORDER selected player=%u worker=%d class=%.4s goal=%d secondary=%d gold=%u lumber=%u inside_mine=%d\n",
+                client->ps.number, ent->s.number, (LPCSTR)&ent->class_id,
+                ent->goalentity ? ent->goalentity->s.number : -1,
+                ent->secondarygoal ? ent->secondarygoal->s.number : -1,
+                ent->harvested_gold, ent->harvested_lumber,
+                S_GoldMineWorkerIsInside(ent));
+    }
+}
+
 LPEDICT G_GetMainSelectedUnit(LPGAMECLIENT client) {
     FOR_SELECTED_UNITS(client, ent) {
         return ent;
@@ -45,8 +77,10 @@ CLIENTCOMMAND(Select) {
         DWORD number = atoi(argv[1]);
         if (number >= globals.num_edicts)
             return;
+        G_LogHarvestSelection(client, "target_click_before", &globals.edicts[number]);
         if (client->menu.on_entity_selected(clent, &globals.edicts[number])) {
             Get_Commands_f(clent);
+            G_LogHarvestSelection(client, "target_click_after", &globals.edicts[number]);
         }
     } else {
         BOOL cleared = false;
@@ -81,6 +115,7 @@ CLIENTCOMMAND(Select) {
             G_QueueSelectionSound(voice);
             Get_Portrait_f(clent);
             Get_Commands_f(clent);
+            G_LogHarvestSelection(client, "selection_replaced", voice);
         }
     }
 }
@@ -104,6 +139,14 @@ CLIENTCOMMAND(Smart) {
     if (G_CancelBuildPlacement(clent)) {
         return;
     }
+    /* WC3 right-click cancels an active targeted command.  Do not also send
+     * a Smart order through the still-selected server-side unit set: doing so
+     * can make a click intended only to leave target mode retask that group. */
+    if (G_TargetModeActive(client)) {
+        G_LogHarvestSelection(client, "smart_cancel_target_mode", NULL);
+        Get_Commands_f(clent);
+        return;
+    }
     if (argc < 2) {
         return;
     }
@@ -112,6 +155,7 @@ CLIENTCOMMAND(Smart) {
         return;
     }
     target = &globals.edicts[number];
+    G_LogHarvestSelection(client, "smart_issue", target);
     FOR_SELECTED_UNITS(client, ent) {
         if (unit_issuetargetorder(ent, "smart", target)) {
             issued = true;
@@ -124,17 +168,27 @@ CLIENTCOMMAND(Smart) {
 }
 
 CLIENTCOMMAND(SmartPoint) {
+    LPGAMECLIENT client = clent->client;
     VECTOR2 loc;
 
     if (G_CancelBuildPlacement(clent)) {
+        return;
+    }
+    /* A right-click while an ability is waiting for a target is cancellation,
+     * not a move order.  In particular this clears Harvest's entity callback
+     * before a later unit click can be consumed as a harvest target. */
+    if (G_TargetModeActive(client)) {
+        G_LogHarvestSelection(client, "smartpoint_cancel_target_mode", NULL);
+        Get_Commands_f(clent);
         return;
     }
     if (argc < 3) {
         return;
     }
     loc = (VECTOR2){ atoi(argv[1]), atoi(argv[2]) };
+    G_LogHarvestSelection(client, "smartpoint_issue", NULL);
     if (move_selectlocation(clent, &loc))
-        G_QueueOrderSound(G_GetMainSelectedUnit(clent->client));
+        G_QueueOrderSound(G_GetMainSelectedUnit(client));
 }
 
 CLIENTCOMMAND(Button) {
