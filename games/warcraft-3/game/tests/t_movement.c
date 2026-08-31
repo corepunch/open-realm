@@ -483,6 +483,14 @@ TEST(wc3_movement, lumber_same_tree_workers_choose_distinct_approach_lanes) {
     T_ASSERT(second->goalentity == tree);
     T_ASSERT(first->movement.flow_direct);
     T_ASSERT(second->movement.flow_direct);
+    T_ASSERT(first->movement.approach_checked);
+    T_ASSERT(second->movement.approach_checked);
+    T_ASSERT(first->movement.approach_valid);
+    T_ASSERT(second->movement.approach_valid);
+    T_ASSERT(first->movement.approach_target == tree);
+    T_ASSERT(second->movement.approach_target == tree);
+    T_ASSERT(Vector2_distance(&first->movement.approach_point,
+                              &second->movement.approach_point) > 1.0f);
     T_ASSERT(fabsf(first->s.angle - second->s.angle) > 0.1f);
 }
 
@@ -900,6 +908,9 @@ TEST(wc3_movement, gold_return_prefers_direct_footprint_edge_lane) {
     worker->currentmove->think(worker);
 
     T_ASSERT(worker->movement.flow_direct);
+    T_ASSERT(worker->movement.approach_checked);
+    T_ASSERT(worker->movement.approach_valid);
+    T_ASSERT(worker->movement.approach_target == hall);
     T_ASSERT(worker->s.origin2.x > origin.x);
     T_ASSERT(CM_DistanceToPathingFootprint(hall, &worker->s.origin2) < before);
     gi.MemFree(hall_pathtex);

@@ -282,3 +282,13 @@ submission; the address-only gists cannot choose between CPU submission and driv
 - The follow-up `10904293` restores the MDX particle size factor removed from `R_DrawParticles` in `97a52d18`.
   `ReadParticleEmitter` doubles all three `ParticleScaling` lifecycle values once; both MDX head and tail spawns
   consume those values. The shared renderer and M2 particle scaling are unchanged.
+
+## Harvest interaction-lane cache (August 31, 2026)
+
+An RG40xx-H weighted `perf report` after the blocked-footprint worker approach fix showed the new interaction helper dominating the server frame. The resolved game stack was `G_RunFrame -> G_RunEntities -> G_RunEntity -> monster_think`, with about 34% under `ai_goldmine_walkback -> gold_find_direct_footprint_approach` and another 11% under `ai_walkmine -> gold_find_direct_footprint_approach`. Both paths entered `CM_FindApproachPointToFootprintForRadius`, whose candidate search repeatedly calls `CM_DistanceToPathingFootprint`; the combined route accounted for roughly 45% of sampled cycles in that capture.
+
+The footprint-edge point is behavior state, not frame state. A mine, Town Hall, Lumber Mill, or tree does not need a fresh approach-lane search every monster think while the worker remains on the same movement leg. `edict_t.movement` therefore caches the checked interaction target, target spawn generation, selected point, and whether the search succeeded. `move_reset_progress()` invalidates the cache together with the route-progress state. Gold and lumber explicitly reset progress whenever they switch between resource target and drop-off, including automatic retargets.
+
+This preserves the functional crowding fix while changing the expensive footprint/tree search from once per worker per think to once per worker per movement leg. A failed optional direct-lane search is cached too; the existing shared flow-field fallback remains authoritative for that leg instead of retrying the same static search every frame. Same-tree lumber lane assignment is likewise cached, so its entity scans and angular candidate search are not repeated while approaching the same tree.
+
+Keep `CM_DistanceToPathingFootprint` in the per-think interaction-range check: that single authored-footprint distance is required to decide exact mine/deposit completion. The removed cost was the nested candidate-by-footprint search repeated by the optional staging helper, not the one boundary measurement owned by the behavior.

@@ -183,6 +183,23 @@ static BOOL harvest_find_direct_tree_approach(LPEDICT ent, LPEDICT tree,
     FLOAT const slot_angle = (FLOAT)slot_step * slot_sign *
                              (30.0f * (FLOAT)M_PI / 180.0f);
 
+    /* Lane assignment scans the other active harvesters and may test several
+     * angular candidates.  The assigned tree lane is stable for this movement
+     * leg, so retain it until move_reset_progress() accompanies a retarget. */
+    if (ent->movement.approach_checked &&
+        ent->movement.approach_target == tree &&
+        ent->movement.approach_target_spawn_time == tree->spawn_time) {
+        if (!ent->movement.approach_valid)
+            return false;
+        *out = ent->movement.approach_point;
+        return true;
+    }
+
+    ent->movement.approach_target = tree;
+    ent->movement.approach_target_spawn_time = tree->spawn_time;
+    ent->movement.approach_checked = true;
+    ent->movement.approach_valid = false;
+
     if (!CM_FindDirectApproachPointForRadius(&ent->s.origin2, &tree->s.origin2,
                                               HARVEST_RANGE, ent->collision, &base))
         return false;
@@ -214,11 +231,15 @@ static BOOL harvest_find_direct_tree_approach(LPEDICT ent, LPEDICT tree,
         if (harvest_tree_approach_occupied(ent, tree, &candidate))
             continue;
         *out = candidate;
+        ent->movement.approach_point = candidate;
+        ent->movement.approach_valid = true;
         return true;
     }
 
     if (!harvest_tree_approach_occupied(ent, tree, &base)) {
         *out = base;
+        ent->movement.approach_point = base;
+        ent->movement.approach_valid = true;
         return true;
     }
     return false;
@@ -230,12 +251,32 @@ static BOOL harvest_find_direct_dropoff_approach(LPEDICT ent, LPEDICT dropoff,
 
     if (!ent || !dropoff || !dropoff->pathtex || !out)
         return false;
+
+    /* As with gold return, the authored footprint search is static for one
+     * worker/drop-off leg and must not run once per think. */
+    if (ent->movement.approach_checked &&
+        ent->movement.approach_target == dropoff &&
+        ent->movement.approach_target_spawn_time == dropoff->spawn_time) {
+        if (!ent->movement.approach_valid)
+            return false;
+        *out = ent->movement.approach_point;
+        return true;
+    }
+
+    ent->movement.approach_target = dropoff;
+    ent->movement.approach_target_spawn_time = dropoff->spawn_time;
+    ent->movement.approach_checked = true;
+    ent->movement.approach_valid = false;
     route_band = ent->collision + step +
                  CM_PathCellWorldSize() * 1.41421356237f;
     if (!CM_FindApproachPointToFootprintForRadius(
             dropoff, &ent->s.origin2, route_band, ent->collision, out))
         return false;
-    return CM_LineIsWalkableForRadius(&ent->s.origin2, out, ent->collision);
+    if (!CM_LineIsWalkableForRadius(&ent->s.origin2, out, ent->collision))
+        return false;
+    ent->movement.approach_point = *out;
+    ent->movement.approach_valid = true;
+    return true;
 }
 
 /* Retail WC3 continues lumber work when the explicitly clicked tree is alive
@@ -445,6 +486,7 @@ static void ai_harvest_walkback(LPEDICT ent) {
         }
         G_PublishMessage(ent, GAME_MSG_HARVEST_RETURN_LUMBER, dropoff);
         ent->goalentity = dropoff;
+        move_reset_progress(ent);
     }
 
     FLOAT const dist = M_DistanceToGoal(ent);
@@ -480,6 +522,7 @@ static void ai_harvest_walkback(LPEDICT ent) {
         ent->goalentity = ent->secondarygoal = tree;
         if (tree) {
             G_PublishMessage(ent, GAME_MSG_HARVEST_RESUME_LUMBER, tree);
+            move_reset_progress(ent);
             harvest_walk(ent);
         } else {
             ent->stand(ent);
@@ -571,6 +614,7 @@ BOOL harvest_lumber_return_to(LPEDICT ent, LPEDICT dropoff) {
 
     G_PublishMessage(ent, GAME_MSG_HARVEST_RETURN_LUMBER, dropoff);
     ent->goalentity = dropoff;
+    move_reset_progress(ent);
     unit_setmove(ent, &harvest_move_walkback);
     return true;
 }

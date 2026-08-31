@@ -170,6 +170,11 @@ void move_reset_progress(LPEDICT self) {
     self->movement.flow_goal_reached = false;
     self->movement.flow_unreachable = false;
     self->movement.flow_direct = false;
+    self->movement.approach_target = NULL;
+    self->movement.approach_target_spawn_time = 0;
+    self->movement.approach_point = MAKE(VECTOR2, 0, 0);
+    self->movement.approach_checked = false;
+    self->movement.approach_valid = false;
     self->movement.group_speed = 0;  /* single-unit/default: travel at own speed */
 }
 
