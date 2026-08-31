@@ -662,6 +662,110 @@ TEST(wc3_movement, gold_smart_click_gold_mine_visits_mine_then_returns_and_resum
     free_slk_rows(rows);
 }
 
+/* Resumable routing returns generation 0 until its shared flow job completes.
+ * Three workers ordered together must all hold their starting positions during
+ * that interval instead of walking along their previous facing (the Human02
+ * regression made all three initially head away from the clicked mine). */
+TEST(wc3_movement, gold_three_workers_hold_while_shared_route_is_pending) {
+    enum { CELLS = 64, WORKERS = 3 };
+    BYTE pathmap[CELLS * CELLS] = {0};
+    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), -320.0f, 0.0f);
+    LPEDICT workers[WORKERS] = {
+        make_moving_unit(320.0f, -64.0f),
+        make_moving_unit(352.0f,   0.0f),
+        make_moving_unit(384.0f,  64.0f),
+    };
+    VECTOR2 origin[WORKERS];
+    slkTestData_t *rows, *old_abilities;
+
+    /* Block the direct westward line but leave a reachable opening north of
+     * the workers so the shared mine route requires a resumable flow field. */
+    FOR_LOOP(y, CELLS)
+        pathmap[32 + y * CELLS] = 0x02;
+    pathmap[32 + 40 * CELLS] = 0;
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(BOX2,
+        .min = {-1024.0f, -1024.0f},
+        .max = { 1024.0f,  1024.0f}));
+
+    old_abilities = install_goldmine_test_data(&rows);
+    mine->collision = 128.0f;
+    mine->s.model = 1;
+    mine->movetype = MOVETYPE_NONE;
+    setup_test_goldmine(mine, &test_goldmine_cap1, 100);
+    gi.LinkEntity(mine);
+
+    FOR_LOOP(i, WORKERS) {
+        workers[i]->collision = 16.0f;
+        workers[i]->unitinfo.MoveSpeed = 190.0f;
+        workers[i]->s.angle = 0.0f; /* stale facing points east, away from mine */
+        origin[i] = workers[i]->s.origin2;
+        harvest_gold_start(workers[i], mine);
+    }
+
+    FOR_LOOP(i, WORKERS) {
+        workers[i]->currentmove->think(workers[i]);
+        T_FEQ(workers[i]->s.origin2.x, origin[i].x, 0.001f);
+        T_FEQ(workers[i]->s.origin2.y, origin[i].y, 0.001f);
+        T_EQ(workers[i]->movement.flow_generation, 0);
+        T_ASSERT(!workers[i]->movement.flow_direct);
+    }
+
+    CM_ProcessPathJobs(65536);
+    FOR_LOOP(i, WORKERS) {
+        workers[i]->currentmove->think(workers[i]);
+        T_ASSERT(workers[i]->movement.flow_generation != 0);
+    }
+
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
+/* Gold return can miss the cache independently of mine approach.  A worker
+ * carrying gold must likewise wait for the drop-off field instead of moving
+ * along a stale facing while that route is still being built. */
+TEST(wc3_movement, gold_return_holds_while_route_is_pending) {
+    enum { CELLS = 64 };
+    BYTE pathmap[CELLS * CELLS] = {0};
+    LPEDICT worker = make_moving_unit(320.0f, 0.0f);
+    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 500.0f, 0.0f);
+    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), -320.0f, 0.0f);
+    VECTOR2 origin;
+
+    FOR_LOOP(y, CELLS)
+        pathmap[32 + y * CELLS] = 0x02;
+    pathmap[32 + 40 * CELLS] = 0;
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(BOX2,
+        .min = {-1024.0f, -1024.0f},
+        .max = { 1024.0f,  1024.0f}));
+
+    worker->collision = 16.0f;
+    worker->unitinfo.MoveSpeed = 190.0f;
+    worker->s.angle = 0.0f; /* stale facing points east, away from hall */
+    worker->harvested_gold = 10;
+    worker->s.renderfx |= RF_HAS_GOLD;
+    worker->secondarygoal = mine;
+    hall->collision = 64.0f;
+    hall->s.model = 1;
+    hall->s.player = worker->s.player;
+    make_live_dropoff(hall, &return_gold_lumber_abilities);
+    gi.LinkEntity(hall);
+
+    T_ASSERT(harvest_gold_return_to(worker, hall));
+    origin = worker->s.origin2;
+    worker->currentmove->think(worker);
+
+    T_FEQ(worker->s.origin2.x, origin.x, 0.001f);
+    T_FEQ(worker->s.origin2.y, origin.y, 0.001f);
+    T_EQ(worker->movement.flow_generation, 0);
+    T_ASSERT(!worker->movement.flow_direct);
+
+    CM_ProcessPathJobs(65536);
+    worker->currentmove->think(worker);
+    T_ASSERT(worker->movement.flow_generation != 0);
+}
+
 /* Right-click is also the cancel gesture for an active targeted command.
  * Leaving Harvest target mode armed lets the next left-click on an idle worker
  * be consumed as the old target click, so the previous worker group stays

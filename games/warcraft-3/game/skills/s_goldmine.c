@@ -16,6 +16,15 @@ static int goldmine_path_debug_level(void) {
     return value ? atoi(value) : 0;
 }
 
+/* A resumable route miss deliberately leaves both fields clear until the
+ * shared flow job completes.  Gold movement must hold in that state: moving
+ * with the previous facing would send workers in an unrelated direction while
+ * the requested mine/drop-off route is still being built. */
+static BOOL gold_route_pending(LPCEDICT worker) {
+    return worker && !worker->movement.flow_direct &&
+           worker->movement.flow_generation == 0;
+}
+
 static AbilityData_t const *goldmine_ability_data(LPCEDICT mine) {
     LPCSTR abilities;
 
@@ -165,31 +174,29 @@ static void ai_walkmine(LPEDICT ent) {
     if (footprint_entry || circle_entry) {
         if (debug >= 1) {
             fprintf(stderr,
-                    "WC3_GOLD_PATH enter_range worker=%d mine=%d distance=%.1f contact=%.1f step=%.1f footprint=%.1f via=%s peons=%u capacity=%u resources=%u carry_gold=%u carry_lumber=%u resume=%d\n",
+                    "WC3_GOLD_PATH enter_range worker=%d mine=%d distance=%.1f contact=%.1f step=%.1f footprint=%.1f via=%s peons=%u capacity=%u resources=%u\n",
                     ent->s.number, mine->s.number, dist, contact, step,
                     footprint_dist, footprint_entry ? "footprint" : "circle",
-                    mine->peonsinside, S_GoldMineCapacity(mine), mine->resources,
-                    ent->harvested_gold, ent->harvested_lumber,
-                    ent->secondarygoal ? ent->secondarygoal->s.number : -1);
+                    mine->peonsinside, S_GoldMineCapacity(mine), mine->resources);
         }
         harvestgold_minegold(ent);
     } else {
         unit_changeangle(ent);
+        /* A cache miss is resumable.  Until it produces a flow generation,
+         * preserve the Harvest order but do not walk along a stale facing. */
+        if (gold_route_pending(ent))
+            return;
         /* Gold can have several workers approaching/waiting simultaneously;
          * sample verbose movement twice a second so diagnostics do not become
          * the dominant cost on stderr-heavy handheld launches. */
         if (debug >= 2 && (level.time % 500) < FRAMETIME) {
             fprintf(stderr,
-                    "WC3_GOLD_PATH approach worker=%d mine=%d worker_pos=(%.1f,%.1f) mine_pos=(%.1f,%.1f) distance=%.1f contact=%.1f step=%.1f footprint=%.1f flow=%u direct=%d flow_goal=%d flow_unreachable=%d angle=%.3f heading=%.3f carry_gold=%u carry_lumber=%u resume=%d peons=%u capacity=%u resources=%u\n",
+                    "WC3_GOLD_PATH approach worker=%d mine=%d worker_pos=(%.1f,%.1f) mine_pos=(%.1f,%.1f) distance=%.1f contact=%.1f step=%.1f footprint=%.1f flow=%u direct=%d peons=%u capacity=%u resources=%u\n",
                     ent->s.number, mine->s.number,
                     ent->s.origin2.x, ent->s.origin2.y,
                     mine->s.origin2.x, mine->s.origin2.y,
                     dist, contact, step, footprint_dist,
                     ent->movement.flow_generation, ent->movement.flow_direct,
-                    ent->movement.flow_goal_reached, ent->movement.flow_unreachable,
-                    ent->s.angle, ent->movement.heading,
-                    ent->harvested_gold, ent->harvested_lumber,
-                    ent->secondarygoal ? ent->secondarygoal->s.number : -1,
                     mine->peonsinside, S_GoldMineCapacity(mine), mine->resources);
         }
         unit_moveindirection(ent);
@@ -237,11 +244,10 @@ static void ai_goldmine_walkback(LPEDICT ent) {
     if (footprint_deposit || circle_deposit) {
         if (debug >= 1)
             fprintf(stderr,
-                    "WC3_GOLD_RETURN deposit_range worker=%d dropoff=%d distance=%.1f contact=%.1f step=%.1f footprint=%.1f via=%s gold=%u lumber=%u resume=%d\n",
+                    "WC3_GOLD_RETURN deposit_range worker=%d dropoff=%d distance=%.1f contact=%.1f step=%.1f footprint=%.1f via=%s gold=%u\n",
                     ent->s.number, dropoff->s.number, dist, contact, step,
                     footprint_dist, footprint_deposit ? "footprint" : "circle",
-                    ent->harvested_gold, ent->harvested_lumber,
-                    ent->secondarygoal ? ent->secondarygoal->s.number : -1);
+                    ent->harvested_gold);
         G_PublishMessage(ent, GAME_MSG_HARVEST_DEPOSIT_GOLD, dropoff);
         ent->goalentity = ent->secondarygoal;
         LPPLAYER player = G_GetPlayerByNumber(ent->s.player);
@@ -262,24 +268,20 @@ static void ai_goldmine_walkback(LPEDICT ent) {
             ent->stand(ent);
         }
     } else {
-        unit_changeangle(ent);
         /* Keep verbose return tracing useful without emitting one line per
-         * worker per simulation tick.  Log after unit_changeangle so flow and
-         * heading fields describe the decision that unit_moveindirection will
-         * actually try this tick. */
+         * worker per simulation tick. */
         if (debug >= 2 && (level.time % 500) < FRAMETIME)
             fprintf(stderr,
-                    "WC3_GOLD_RETURN approach worker=%d dropoff=%d resume=%d worker_pos=(%.1f,%.1f) dropoff_pos=(%.1f,%.1f) distance=%.1f contact=%.1f step=%.1f footprint=%.1f flow=%u direct=%d flow_goal=%d flow_unreachable=%d angle=%.3f heading=%.3f origin_pathable=%d gold=%u lumber=%u\n",
+                    "WC3_GOLD_RETURN approach worker=%d dropoff=%d worker_pos=(%.1f,%.1f) dropoff_pos=(%.1f,%.1f) distance=%.1f contact=%.1f step=%.1f footprint=%.1f gold=%u\n",
                     ent->s.number, dropoff->s.number,
-                    ent->secondarygoal ? ent->secondarygoal->s.number : -1,
                     ent->s.origin2.x, ent->s.origin2.y,
                     dropoff->s.origin2.x, dropoff->s.origin2.y,
-                    dist, contact, step, footprint_dist,
-                    ent->movement.flow_generation, ent->movement.flow_direct,
-                    ent->movement.flow_goal_reached, ent->movement.flow_unreachable,
-                    ent->s.angle, ent->movement.heading,
-                    CM_PointIsPathableForRadius(&ent->s.origin2, ent->collision),
-                    ent->harvested_gold, ent->harvested_lumber);
+                    dist, contact, step, footprint_dist, ent->harvested_gold);
+        unit_changeangle(ent);
+        /* Return routing uses the same resumable flow lifecycle as mine
+         * approach.  Hold the current position until that field is ready. */
+        if (gold_route_pending(ent))
+            return;
         unit_moveindirection(ent);
     }
 }
@@ -302,13 +304,6 @@ BOOL harvest_gold_return_to(LPEDICT ent, LPEDICT dropoff) {
         return false;
     }
 
-    if (goldmine_path_debug_level() >= 1)
-        fprintf(stderr,
-                "WC3_GOLD_SWITCH return_existing worker=%d dropoff=%d resume=%d gold=%u lumber=%u worker_pos=(%.1f,%.1f)\n",
-                ent->s.number, dropoff->s.number,
-                ent->secondarygoal ? ent->secondarygoal->s.number : -1,
-                ent->harvested_gold, ent->harvested_lumber,
-                ent->s.origin2.x, ent->s.origin2.y);
     G_PublishMessage(ent, GAME_MSG_HARVEST_RETURN_GOLD, dropoff);
     ent->goalentity = dropoff;
     unit_setmove(ent, &harvestgold_move_walkback);
@@ -323,7 +318,6 @@ void harvestgold_minegold(LPEDICT ent) {
     LPEDICT mine = ent ? ent->goalentity : NULL;
     LPEDICT dropoff;
     DWORD capacity;
-    int const debug = goldmine_path_debug_level();
 
     if (!ent || !S_GoldMineCanHarvest(mine)) {
         if (ent) ent->stand(ent);
@@ -331,16 +325,6 @@ void harvestgold_minegold(LPEDICT ent) {
     }
     if (S_GoldMineWorkerIsInside(ent))
         return;
-
-    if (debug >= 1)
-        fprintf(stderr,
-                "WC3_GOLD_SWITCH mine_arrival worker=%d mine=%d carry_gold=%u carry_lumber=%u resume=%d worker_pos=(%.1f,%.1f) mine_pos=(%.1f,%.1f) peons=%u capacity=%u resources=%u\n",
-                ent->s.number, mine->s.number, ent->harvested_gold,
-                ent->harvested_lumber,
-                ent->secondarygoal ? ent->secondarygoal->s.number : -1,
-                ent->s.origin2.x, ent->s.origin2.y,
-                mine->s.origin2.x, mine->s.origin2.y, mine->peonsinside,
-                S_GoldMineCapacity(mine), mine->resources);
 
     /* Retail honors the clicked mine first even when the worker is already
      * carrying gold.  Once the worker reaches the mine interaction boundary,
@@ -363,13 +347,11 @@ void harvestgold_minegold(LPEDICT ent) {
         return;
     }
     if (mine->peonsinside < capacity) {
-        if (debug >= 1)
+        if (goldmine_path_debug_level() >= 1)
             fprintf(stderr,
-                    "WC3_GOLD_PATH enter worker=%d mine=%d peons=%u capacity=%u duration=%.3f resources=%u carry_gold=%u carry_lumber=%u resume=%d\n",
+                    "WC3_GOLD_PATH enter worker=%d mine=%d peons=%u capacity=%u duration=%.3f resources=%u\n",
                     ent->s.number, mine->s.number, mine->peonsinside, capacity,
-                    S_GoldMineMiningDuration(mine), mine->resources,
-                    ent->harvested_gold, ent->harvested_lumber,
-                    ent->secondarygoal ? ent->secondarygoal->s.number : -1);
+                    S_GoldMineMiningDuration(mine), mine->resources);
         G_PublishMessage(ent, GAME_MSG_HARVEST_ENTER_MINE, mine);
         unit_setmove(ent, &harvestgold_move_minegold);
         ent->wait = S_GoldMineMiningDuration(mine);
@@ -387,15 +369,11 @@ void harvestgold_walkback(LPEDICT ent) {
     LPEDICT mine;
     DWORD amount = 0;
     DWORD carry_capacity;
-    DWORD old_gold, old_lumber;
-    int const debug = goldmine_path_debug_level();
 
     if (!ent || !(mine = ent->goldmine.mine)) {
         if (ent) ent->stand(ent);
         return;
     }
-    old_gold = ent->harvested_gold;
-    old_lumber = ent->harvested_lumber;
 
     if (goldmine_membership_valid(ent, mine) && !M_IsDead(mine) && S_GoldMineIsMine(mine)) {
         carry_capacity = HARVEST_GOLD_CAPACITY > 0 ? (DWORD)HARVEST_GOLD_CAPACITY : 0;
@@ -415,21 +393,12 @@ void harvestgold_walkback(LPEDICT ent) {
 
     S_SetCarriedResource(ent, RETURN_RESOURCE_GOLD, ent->harvested_gold + amount);
     LPEDICT dropoff = S_FindNearestResourceDropoff(ent, RETURN_RESOURCE_GOLD);
-    if (debug >= 1)
-        fprintf(stderr,
-                "WC3_GOLD_SWITCH collected worker=%d mine=%d mined=%u before_gold=%u before_lumber=%u after_gold=%u after_lumber=%u dropoff=%d resume=%d worker_pos=(%.1f,%.1f)\n",
-                ent->s.number, mine->s.number, amount, old_gold, old_lumber,
-                ent->harvested_gold, ent->harvested_lumber,
-                dropoff ? dropoff->s.number : -1,
-                ent->secondarygoal ? ent->secondarygoal->s.number : -1,
-                ent->s.origin2.x, ent->s.origin2.y);
     if (dropoff) {
-        if (debug >= 1)
+        if (goldmine_path_debug_level() >= 1)
             fprintf(stderr,
-                    "WC3_GOLD_RETURN start worker=%d mine=%d dropoff=%d gold=%u lumber=%u resume=%d\n",
+                    "WC3_GOLD_RETURN start worker=%d mine=%d dropoff=%d gold=%u\n",
                     ent->s.number, mine->s.number, dropoff->s.number,
-                    ent->harvested_gold, ent->harvested_lumber,
-                    ent->secondarygoal ? ent->secondarygoal->s.number : -1);
+                    ent->harvested_gold);
         G_PublishMessage(ent, GAME_MSG_HARVEST_RETURN_GOLD, dropoff);
         ent->goalentity = dropoff;
         unit_setmove(ent, &harvestgold_move_walkback);
@@ -445,14 +414,6 @@ void harvestgold_wait(LPEDICT ent) {
 void harvest_gold_start(LPEDICT self, LPEDICT target) {
     self->goalentity = target;
     self->secondarygoal = target;
-    if (goldmine_path_debug_level() >= 1)
-        fprintf(stderr,
-                "WC3_GOLD_SWITCH order worker=%d mine=%d carry_gold=%u carry_lumber=%u worker_pos=(%.1f,%.1f) mine_pos=(%.1f,%.1f) goal=%d resume=%d\n",
-                self->s.number, target->s.number, self->harvested_gold,
-                self->harvested_lumber, self->s.origin2.x, self->s.origin2.y,
-                target->s.origin2.x, target->s.origin2.y,
-                self->goalentity ? self->goalentity->s.number : -1,
-                self->secondarygoal ? self->secondarygoal->s.number : -1);
     G_PublishMessage(self, GAME_MSG_HARVEST_MOVE_GOLD, target);
     harvestgold_walk(self);
 }
