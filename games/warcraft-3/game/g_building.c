@@ -127,8 +127,10 @@ LONG G_GetPlayerTechCountValue(LPGAMECLIENT client, DWORD techid) {
 
     if (!client || !techid) return 0;
     player = client->ps.number;
+    /* A dead Hero still consumes its techtree/hero-limit slot.  Revival
+     * restores the same object and must not make a second unlock available. */
     FILTER_EDICTS(ent, ent->inuse && ent->class_id == techid && ent->s.player == player &&
-                         !(ent->svflags & SVF_DEADMONSTER)) {
+                         (!(ent->svflags & SVF_DEADMONSTER) || G_UnitIsHero(ent))) {
         count++;
     }
     return count;

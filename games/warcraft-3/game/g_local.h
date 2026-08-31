@@ -595,6 +595,18 @@ struct edict_s {
         FLOAT gold_accum;
         FLOAT lumber_accum;
     } buildwork;
+    /* Hero revival state lives on the persistent Hero edict. While reviving,
+     * queue_next links the Hero into a producer's ordinary production chain
+     * without borrowing hero->build, which may have independent gameplay use. */
+    struct {
+        BOOL awaiting;
+        BOOL reviving;
+        LPEDICT producer;
+        LPEDICT queue_next;
+        DWORD player;
+        LONG gold, lumber;
+        FLOAT progress;
+    } revival;
     DWORD spawn_time;
     DWORD harvested_lumber;
     DWORD harvested_gold;
@@ -1103,6 +1115,14 @@ void G_CancelTrainingQueue(LPEDICT producer, BOOL refund);
 void G_SetUnitPlayer(LPEDICT unit, DWORD player);
 void G_RecomputePlayerUpkeep(LPGAMECLIENT client);
 LONG G_ApplyResourceIncome(LPPLAYER player, DWORD resource_state, LONG gross_amount);
+BOOL G_UnitCanReviveHeroes(LPCEDICT altar);
+BOOL G_HeroCanBeRevivedAt(LPCEDICT altar, LPCEDICT hero);
+DWORD G_HeroReviveGoldCost(LPCEDICT hero);
+DWORD G_HeroReviveLumberCost(LPCEDICT hero);
+FLOAT G_HeroReviveTime(LPCEDICT hero);
+BOOL G_QueueHeroRevive(LPEDICT altar, LPEDICT hero);
+BOOL G_CancelHeroRevive(LPEDICT altar, LPEDICT hero);
+void G_CancelHeroRevives(LPEDICT altar);
 BYTE compress_stat(EDICTSTAT const *);
 DWORD G_LoadShadowTexture(LPCSTR, BOOL);
 

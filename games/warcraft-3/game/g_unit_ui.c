@@ -222,6 +222,40 @@ static void G_DisableCommandButton(gameCommandButton_t *button, LPCSTR reason) {
              "%s|cffffcc00%s|r", used ? "|n" : "", reason);
 }
 
+static BOOL G_BuildHeroReviveButton(LPEDICT altar, LPEDICT hero, BYTE slot,
+                                    gameCommandButton_t *button) {
+    char command[32];
+    char fallback[128];
+    LPCSTR code;
+    LPCSTR art;
+    LPCSTR tip;
+    LPCSTR ubertip;
+
+    if (!G_HeroCanBeRevivedAt(altar, hero) || !button) return false;
+    code = GetClassName(hero->class_id);
+    art = FindConfigValue(code, STR_ART);
+    tip = hero->UnitProfile ? hero->UnitProfile->reviveTip : NULL;
+    ubertip = hero->UnitProfile ? hero->UnitProfile->uberTip : NULL;
+    if (!art || !*art) return false;
+
+    memset(button, 0, sizeof(*button));
+    G_CopyString(button->art, sizeof(button->art), G_UIArtPath(art));
+    if (tip && *tip) {
+        G_CopyString(button->tooltip, sizeof(button->tooltip), G_CleanTooltipString(tip, 0));
+    } else {
+        snprintf(fallback, sizeof(fallback), "Revive %s",
+                 hero->UnitProfile && hero->UnitProfile->name ? hero->UnitProfile->name : code);
+        G_CopyString(button->tooltip, sizeof(button->tooltip), fallback);
+    }
+    G_CopyString(button->ubertip, sizeof(button->ubertip), G_CleanTooltipString(ubertip, 0));
+    snprintf(command, sizeof(command), "revive:%u", (unsigned)hero->s.number);
+    G_CopyString(button->command, sizeof(button->command), command);
+    button->x = slot % 4;
+    button->y = slot / 4;
+    button->active = 255;
+    return true;
+}
+
 BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_buttons) {
     BYTE count = 0;
     UnitBalance_t const *b;
@@ -293,6 +327,18 @@ BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_but
             }
         }
     }
+    if (G_UnitCanReviveHeroes(ent)) {
+        FILTER_EDICTS(hero, hero->inuse && hero->s.player == ent->s.player) {
+            if (count >= max_buttons) break;
+            if (G_BuildHeroReviveButton(ent, hero, count, &buttons[count])) count++;
+        }
+    }
+    /* The existing Cancel command can safely cancel the active revival. Do
+     * not expose it for ordinary unit training until that queue has matching
+     * refund semantics. */
+    if (ent->build && ent->build->revival.reviving) {
+        G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdCancel, false, 0);
+    }
 
     return count;
 }
@@ -342,14 +388,20 @@ BYTE G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue) {
         return 0;
     }
     memset(queue, 0, sizeof(*queue) * max_queue);
-    for (LPEDICT build = ent->build; build && count < max_queue; build = build->build) {
+    for (LPEDICT build = ent->build; build && count < max_queue;
+         build = build->revival.reviving ? build->revival.queue_next : build->build) {
         LPCSTR build_name = GetClassName(build->class_id);
-        DWORD duration = build->UnitBalance->buildTime * 1000;
+        DWORD duration = build->revival.reviving
+            ? (DWORD)(G_HeroReviveTime(build) * 1000.0f)
+            : build->UnitBalance->buildTime * 1000;
         FLOAT progress = 0;
 
         if (count == 0) {
             LONG cost = MAX(0, build->UnitBalance->foodUsed);
-            if (build->health.max_value > 0) {
+            if (build->revival.reviving && duration > 0) {
+                progress = build->revival.progress / ((FLOAT)duration / 1000.0f);
+                progress = MAX(0, MIN(progress, 1));
+            } else if (build->health.max_value > 0) {
                 progress = build->health.value / build->health.max_value;
                 progress = MAX(0, MIN(progress, 1));
             }
@@ -372,7 +424,8 @@ BYTE G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue) {
             queue[count].endtime = cursor;
         }
         count++;
-        if (build->build == build) {
+        if ((build->revival.reviving && build->revival.queue_next == build) ||
+            (!build->revival.reviving && build->build == build)) {
             break;
         }
     }

@@ -24,8 +24,9 @@ void G_FreeActorSkills(LPEDICT ent) {
 
 void G_FreeEdict(LPEDICT ent) {
     if (!ent) return;
+    if (ent->revival.reviving) G_CancelHeroRevive(ent->revival.producer, ent);
     if (ent->training) G_ClearTrainingQueueFood(ent);
-    else G_CancelTrainingQueue(ent, true);
+    else { G_CancelHeroRevives(ent); G_CancelTrainingQueue(ent, true); }
     G_ClearUnitFood(ent);
     if (ent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     S_GoldMineReleaseWorker(ent);
