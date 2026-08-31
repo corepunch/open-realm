@@ -175,6 +175,27 @@ TEST(wc3_api, camera_bounds_clamp_user_and_scripted_targets) {
     currentplayer = NULL;
 }
 
+TEST(wc3_api, camera_quick_position_sets_spacebar_target_without_moving_camera) {
+    LPGAMECLIENT gc = &game.clients[0];
+
+    gc->ps.number = 0;
+    gc->camera.state.position = MAKE(VECTOR2, 12.0f, 34.0f);
+    gc->camera.quick_position = MAKE(VECTOR2, 0.0f, 0.0f);
+    gc->camera.quick_position_set = false;
+    currentplayer = &gc->ps;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SetCameraQuickPosition(2608.0, -5856.0)\n"
+        "endfunction\n"));
+
+    T_FEQ(gc->camera.state.position.x, 12.0f, 0.001f);
+    T_FEQ(gc->camera.state.position.y, 34.0f, 0.001f);
+    T_ASSERT(gc->camera.quick_position_set);
+    T_FEQ(gc->camera.quick_position.x, 2608.0f, 0.001f);
+    T_FEQ(gc->camera.quick_position.y, -5856.0f, 0.001f);
+    currentplayer = NULL;
+}
+
 TEST(wc3_api, camera_bounds_are_per_player_when_local_context_exists) {
     LPGAMECLIENT gc0 = &game.clients[0];
     LPGAMECLIENT gc1 = game.max_clients > 1 ? &game.clients[1] : NULL;
@@ -265,6 +286,32 @@ TEST(wc3_api, fog_state_shared_vision_reaches_allied_viewer_only) {
     T_EQ(level.fow.players[0].visible[index], 1);
     T_EQ(level.fow.players[1].visible[index], 1);
     T_EQ(level.fow.players[2].visible[index], 0);
+}
+
+TEST(wc3_api, fog_modifier_same_turn_start_stop_still_explores) {
+    FOGMODIFIER mod = {
+        .player = 0,
+        .state = WC3_FOG_STATE_VISIBLE,
+        .center = { 0.0f, 0.0f },
+        .radius = 32.0f,
+    };
+    DWORD index;
+
+    setup_test_world();
+    G_FowInit();
+    G_FowConnectPlayer(0);
+    index = test_fow_cell(0.0f, 0.0f);
+
+    G_FogModifierStart(&mod);
+    T_EQ(level.fow.players[0].explored[index], 1);
+    T_EQ(level.fow.players[0].visible[index], 1);
+    G_FogModifierStop(&mod);
+
+    /* The next normal update removes current sight but must retain the
+     * exploration created synchronously by the short-lived modifier. */
+    G_FowUpdate();
+    T_EQ(level.fow.players[0].explored[index], 1);
+    T_EQ(level.fow.players[0].visible[index], 0);
 }
 
 TEST(wc3_api, fog_modifier_states_and_visible_stop_transition) {

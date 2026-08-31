@@ -356,6 +356,8 @@ struct client_s {
         CAMERASETUP old_state;
         DWORD start_time;
         DWORD end_time;
+        VECTOR2 quick_position; /* SetCameraQuickPosition spacebar target; does not move the camera */
+        BOOL quick_position_set;
         LPEDICT target_controller;
         VECTOR2 target_offset;
     } camera;
@@ -882,6 +884,7 @@ void G_FowSendDeltas(void);
 void G_FowSendFull(LPEDICT ent);
 BOOL G_FowPlayerCanSeeEntity(DWORD player, LPCEDICT ent);
 BOOL G_FowPlayerCanHoverEntity(DWORD player, LPCEDICT ent);
+int fow_debug_level(void);
 void G_FowSetStateRect(LPCFOGWRITE fog, LPCBOX2 box);
 void G_FowSetStateRadius(LPCFOGWRITE fog, LPCVECTOR2 center, FLOAT radius);
 void G_FogModifierStart(LPFOGMODIFIER mod);

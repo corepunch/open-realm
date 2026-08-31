@@ -31,7 +31,7 @@ exploration map. With `useSharedVision`, the same state is also applied to viewe
 ## Fog Modifiers
 
 `CreateFogModifierRect`, `CreateFogModifierRadius`, and `CreateFogModifierRadiusLoc` create disabled modifier handles.
-`FogModifierStart` makes the modifier participate in `G_FowUpdate()` and `FogModifierStop` removes it.
+`FogModifierStart` applies the modifier once immediately and then makes it participate in `G_FowUpdate()`; `FogModifierStop` removes it. The synchronous first application is required for map scripts that start and stop/destroy a `VISIBLE` modifier in the same trigger turn to permanently explore an area without holding current sight open.
 
 Started modifiers apply the same three-state cell writer after normal unit sight:
 
@@ -51,6 +51,23 @@ The server's existing `G_FowPlayerCanSeeEntity()` remains the foreign-entity vis
 fog as separate planes, so world fog and minimap fog consume the same authoritative state while the minimap camera box continues to
 derive from camera state independently.
 
+## Runtime Diagnostics
+
+`wc3_fow_debug` is an off-by-default runtime diagnostic for campaign/scripted reveal investigations. Use level `1` to trace fog-related
+JASS calls and fog-modifier create/start/stop lifecycle, including player, state, shared-vision and `afterUnits` arguments, world
+bounds/center, and the authoritative server sample cell after each direct write. Level `2` additionally traces active-modifier sample
+cells plus explored-plane network chunks on the server and the corresponding explored rows after client decode.
+
+```sh
++set wc3_fow_debug 2
+```
+
+Logs use the `WC3_FOW` prefix. For a reveal that visually remains masked, the expected sequence is a `set_*` or `modifier_start` line, a
+server result with `explored=1` (and `visible=1` for `VISIBLE`), a `send_explored` line covering the changed rows, and a matching
+`client_explored` line whose explored count is non-zero. The first missing stage identifies whether the problem is script dispatch,
+authoritative fog mutation, or server-to-client fog transport. `FogEnable` and `FogMaskEnable` are also logged because cinematic scripts
+may use those globals instead of region modifiers. Keep the cvar at `0` outside bounded investigations.
+
 ## Known Gaps
 
 This change intentionally does not alter unrelated compatibility areas that need broader evidence:
@@ -66,6 +83,7 @@ The WC3 API tests cover:
 
 - all three direct fog states through rect/radius/radius-location natives;
 - `useSharedVision` propagation;
+- a same-turn `VISIBLE` start/stop still recording exploration;
 - a temporary `VISIBLE` modifier falling back to `FOGGED`;
 - active `FOGGED` and `MASKED` modifiers.
 

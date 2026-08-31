@@ -47,6 +47,7 @@ native EnableUserControl          takes boolean b returns nothing
 native ResetToGameCamera          takes real duration returns nothing
 native PanCameraTo                takes real x, real y returns nothing
 native SetCameraPosition          takes real x, real y returns nothing
+native SetCameraQuickPosition     takes real x, real y returns nothing
 native SetCameraBounds            takes real x1, real y1, real x2, real y2, real x3, real y3, real x4, real y4 returns nothing
 native GetCameraMargin            takes integer whichMargin returns real
 constant native GetCameraBoundMinX takes nothing returns real

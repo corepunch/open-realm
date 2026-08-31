@@ -77,7 +77,20 @@ DWORD SetCameraPosition(LPJASS j) {
 DWORD SetCameraQuickPosition(LPJASS j) {
     FLOAT x = jass_checknumber(j, 1);
     FLOAT y = jass_checknumber(j, 2);
-    G_SetCameraPositionForCurrentPlayer("SetCameraQuickPosition", x, y, 0);
+    LPGAMECLIENT gc = G_CurrentCameraClient("SetCameraQuickPosition");
+    if (!gc) {
+        return 0;
+    }
+    /* Warcraft's quick position is the spacebar recall point. It must not
+     * mutate the current camera target when the script assigns it. */
+    gc->camera.quick_position = MAKE(VECTOR2, x, y);
+    gc->camera.quick_position_set = true;
+    fprintf(stderr,
+            "SetCameraQuickPosition: player=%u quick=(%.1f,%.1f) current=(%.1f,%.1f)\n",
+            (unsigned)PLAYER_NUM(currentplayer),
+            x, y,
+            gc->camera.state.position.x,
+            gc->camera.state.position.y);
     return 0;
 }
 DWORD SetCameraBounds(LPJASS j) {

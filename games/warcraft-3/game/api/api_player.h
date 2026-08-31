@@ -446,6 +446,8 @@ DWORD SetFogStateRadiusLoc(LPJASS j) {
 }
 DWORD FogMaskEnable(LPJASS j) {
     BOOL enable = jass_checkboolean(j, 1);
+    if (fow_debug_level() >= 1)
+        fprintf(stderr, "WC3_FOW FogMaskEnable time=%u enable=%d currentplayer=%d\n", level.time, enable, currentplayer ? (int)PLAYER_NUM(currentplayer) : -1);
     if (currentplayer) {
         LPGAMECLIENT client = PLAYER_CLIENT(currentplayer);
         SET_FLAG(client->ps.rdflags, RDF_NOFOGMASK, !enable);
@@ -456,6 +458,8 @@ DWORD FogMaskEnable(LPJASS j) {
 }
 DWORD FogEnable(LPJASS j) {
     BOOL enable = jass_checkboolean(j, 1);
+    if (fow_debug_level() >= 1)
+        fprintf(stderr, "WC3_FOW FogEnable time=%u enable=%d currentplayer=%d\n", level.time, enable, currentplayer ? (int)PLAYER_NUM(currentplayer) : -1);
     if (currentplayer) {
         LPGAMECLIENT client = PLAYER_CLIENT(currentplayer);
         SET_FLAG(client->ps.rdflags, RDF_NOFOG, !enable);
@@ -496,11 +500,14 @@ DWORD CreateFogModifierRect(LPJASS j) {
     DWORD *whichState = jass_checkhandle(j, 2, "fogstate");
     LPCBOX2 where = jass_checkhandle(j, 3, "rect");
     BOOL useSharedVision = jass_checkboolean(j, 4);
+    BOOL afterUnits = jass_checkboolean(j, 5);
     LPFOGMODIFIER mod = G_NewFogModifier(j, forWhichPlayer, whichState, useSharedVision);
     if (mod && where) {
         mod->is_rect = true;
         mod->rect = *where;
     }
+    if (fow_debug_level() >= 1)
+        fprintf(stderr, "WC3_FOW CreateFogModifierRect time=%u mod=%p player=%d state=%u shared=%d after_units=%d valid_rect=%d\n", level.time, (void *)mod, forWhichPlayer ? (int)PLAYER_NUM(forWhichPlayer) : -1, whichState ? *whichState : 0, useSharedVision, afterUnits, where != NULL);
     return 1;
 }
 DWORD CreateFogModifierRadius(LPJASS j) {
@@ -510,11 +517,14 @@ DWORD CreateFogModifierRadius(LPJASS j) {
     FLOAT centerY = jass_checknumber(j, 4);
     FLOAT radius = jass_checknumber(j, 5);
     BOOL useSharedVision = jass_checkboolean(j, 6);
+    BOOL afterUnits = jass_checkboolean(j, 7);
     LPFOGMODIFIER mod = G_NewFogModifier(j, forWhichPlayer, whichState, useSharedVision);
     if (mod) {
         mod->center = MAKE(VECTOR2, centerx, centerY);
         mod->radius = radius;
     }
+    if (fow_debug_level() >= 1)
+        fprintf(stderr, "WC3_FOW CreateFogModifierRadius time=%u mod=%p player=%d state=%u shared=%d after_units=%d center=(%.1f,%.1f) radius=%.1f\n", level.time, (void *)mod, forWhichPlayer ? (int)PLAYER_NUM(forWhichPlayer) : -1, whichState ? *whichState : 0, useSharedVision, afterUnits, centerx, centerY, radius);
     return 1;
 }
 DWORD CreateFogModifierRadiusLoc(LPJASS j) {
@@ -523,11 +533,14 @@ DWORD CreateFogModifierRadiusLoc(LPJASS j) {
     LPCVECTOR2 center = jass_checkhandle(j, 3, "location");
     FLOAT radius = jass_checknumber(j, 4);
     BOOL useSharedVision = jass_checkboolean(j, 5);
+    BOOL afterUnits = jass_checkboolean(j, 6);
     LPFOGMODIFIER mod = G_NewFogModifier(j, forWhichPlayer, whichState, useSharedVision);
     if (mod && center) {
         mod->center = *center;
         mod->radius = radius;
     }
+    if (fow_debug_level() >= 1)
+        fprintf(stderr, "WC3_FOW CreateFogModifierRadiusLoc time=%u mod=%p player=%d state=%u shared=%d after_units=%d center=(%.1f,%.1f) radius=%.1f valid_location=%d\n", level.time, (void *)mod, forWhichPlayer ? (int)PLAYER_NUM(forWhichPlayer) : -1, whichState ? *whichState : 0, useSharedVision, afterUnits, center ? center->x : 0.0f, center ? center->y : 0.0f, radius, center != NULL);
     return 1;
 }
 DWORD DestroyFogModifier(LPJASS j) {
