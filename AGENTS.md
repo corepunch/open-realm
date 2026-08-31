@@ -222,6 +222,7 @@ Follow Quake 2's pattern. Never fail silently, never crash, never log per-frame.
 
 ## Command Conventions
 
+- **Fast-forward bounded simulations explicitly.** `com_frame_limit` counts main-loop iterations, not 10 Hz server ticks. For AI and other long simulation diagnostics, pass `-com_fast_forward` (or `+set com_fast_forward 1`) together with `+com_frame_limit N`; each loop then advances one fixed `FRAMETIME` (100 ms) server tick without wall-clock pacing. Example: `build/bin/openwarcraft3 -data 'data/Warcraft III' -roc -com_fast_forward +map 'Maps/(2)Rivercross.w3m' +com_frame_limit 10000`. Do not use fast-forward for rendering, input, networking, or frame-pacing validation.
 - **SDL display modes are opt-in diagnostics.** Pass `-vid_modes` (or `+set vid_modes 1`) to log the available SDL display modes during renderer startup; normal startup omits the list. This works in WC3, WoW and SC2 and is not saved automatically. Plural `vid_modes` controls logging; singular `vid_mode` selects resolution. See [video modes](docs/build-and-renderer-platforms.md#video-modes).
 - The `+` prefix (e.g. `+map`, `+menu_main`) is for **command-line arguments only**. It tells `Cbuf_AddLateCommands` to strip the `+` and queue the command for startup execution.
 - In code, use the bare command name when calling `Cbuf_AddText` or `uiimport.Cmd_ExecuteText`: `"map ..."` not `"+map ..."`.

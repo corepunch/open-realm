@@ -28,6 +28,7 @@ LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y) {
 }
 
 void reset_entities(void) {
+    FOR_LOOP(i, globals.max_edicts) G_FreeActorSkills(g_edicts + i);
     memset(g_edicts, 0, sizeof(edict_t) * globals.max_edicts);
     globals.num_edicts = game.max_clients;
     globals.edicts = g_edicts;

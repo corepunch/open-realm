@@ -560,7 +560,7 @@ TEST(wc3_api, customize_entity_marks_neutral_passive_owner_neutral) {
     edict_t ent = { .svflags = SVF_MONSTER, .s = { .player = PLAYER_NEUTRAL_PASSIVE } };
     ent.health.value = 100.0f;
 
-    T_ASSERT(PLAYER_NEUTRAL_PASSIVE < MAX_PLAYERS);
+    T_EQ(PLAYER_NEUTRAL_PASSIVE, 15); T_ASSERT(PLAYER_NEUTRAL_PASSIVE < MAX_PLAYERS);
     globals.CustomizeEntity(0, &ent, &state);
     T_ASSERT(state.flags & EF_HOVER_HEALTH);
     T_ASSERT(!(state.flags & EF_HOSTILE));
@@ -572,7 +572,7 @@ TEST(wc3_api, customize_entity_marks_neutral_aggressive_owner_hostile) {
     edict_t ent = { .svflags = SVF_MONSTER, .s = { .player = PLAYER_NEUTRAL_AGGRESSIVE } };
     ent.health.value = 100.0f;
 
-    T_ASSERT(PLAYER_NEUTRAL_AGGRESSIVE < MAX_PLAYERS);
+    T_EQ(PLAYER_NEUTRAL_AGGRESSIVE, 12); T_ASSERT(PLAYER_NEUTRAL_AGGRESSIVE < MAX_PLAYERS);
     G_SetPlayerAlliance(test_player(0), test_player(PLAYER_NEUTRAL_AGGRESSIVE), ALLIANCE_PASSIVE, true);
     G_SetPlayerAlliance(test_player(0), test_player(PLAYER_NEUTRAL_AGGRESSIVE), ALLIANCE_SHARED_CONTROL, true);
     globals.CustomizeEntity(0, &ent, &state);
@@ -939,6 +939,90 @@ TEST(wc3_api, destroy_group_clears_members) {
     currentplayer = NULL;
 }
 
+TEST(wc3_api, unit_ability_mutation_has_set_semantics) {
+    reset_entities();
+    currentplayer = &game.clients[0].ps;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "local unit u = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "if not UnitAddAbility(u, 'AInv') or UnitAddAbility(u, 'AInv') then\n"
+        "call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_GOLD, 1)\n"
+        "endif\n"
+        "if not UnitRemoveAbility(u, 'AInv') or UnitRemoveAbility(u, 'AInv') then\n"
+        "call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_GOLD, 2)\n"
+        "endif\n"
+        "call RemoveUnit(u)\n"
+        "endfunction"));
+    T_EQ(game.clients[0].ps.stats[1], 0);
+    currentplayer = NULL;
+}
+
+TEST(wc3_api, unit_ability_mutation_rejects_invalid_inputs) {
+    reset_entities();
+    currentplayer = &game.clients[0].ps;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "local unit u = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "if UnitAddAbility(u, 'xxxx') or UnitAddAbility(null, 'AInv') or UnitRemoveAbility(null, 'AInv') then\n"
+        "call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_GOLD, 1)\n"
+        "endif\n"
+        "call RemoveUnit(u)\n"
+        "endfunction"));
+    T_EQ(game.clients[0].ps.stats[1], 0);
+    currentplayer = NULL;
+}
+
+TEST(wc3_api, unit_ability_mutation_restores_static_ability) {
+    LPEDICT unit;
+    static UnitAbilities_t const abilities = { .abilList = "Ahar" };
+    reset_entities(); unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0); unit->UnitAbilities = &abilities;
+    T_ASSERT(G_ActorHasSkill(unit, "Ahar"));
+    T_ASSERT(G_ActorRemoveSkill(unit, MAKEFOURCC('A','h','a','r')));
+    T_ASSERT(!G_ActorHasSkill(unit, "Ahar"));
+    T_ASSERT(!G_ActorRemoveSkill(unit, MAKEFOURCC('A','h','a','r')));
+    T_ASSERT(G_ActorAddSkill(unit, MAKEFOURCC('A','h','a','r')));
+    T_ASSERT(G_ActorHasSkill(unit, "Ahar"));
+    T_ASSERT(!G_ActorAddSkill(unit, MAKEFOURCC('A','h','a','r')));
+    G_FreeEdict(unit);
+}
+
+TEST(wc3_api, unit_ability_permanence_requires_present_ability) {
+    LPEDICT unit;
+    reset_entities();
+    currentplayer = &game.clients[0].ps;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "local unit u = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "if not UnitAddAbility(u, 'AInv') or not UnitMakeAbilityPermanent(u, true, 'AInv') then\n"
+        "call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_GOLD, 1)\n"
+        "endif\n"
+        "if UnitMakeAbilityPermanent(u, true, 'xxxx') then\n"
+        "call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_GOLD, 2)\n"
+        "endif\n"
+        "endfunction"));
+    T_EQ(game.clients[0].ps.stats[1], 0);
+    unit = globals.edicts + game.max_clients;
+    T_ASSERT(G_ActorSkillPermanent(unit, MAKEFOURCC('A','I','n','v')));
+    T_ASSERT(G_ActorSetSkillPermanent(unit, MAKEFOURCC('A','I','n','v'), false));
+    T_ASSERT(!G_ActorSkillPermanent(unit, MAKEFOURCC('A','I','n','v')));
+    T_ASSERT(G_ActorSetSkillPermanent(unit, MAKEFOURCC('A','I','n','v'), false));
+    G_FreeEdict(unit); currentplayer = NULL;
+}
+
+TEST(wc3_api, ai_difficulty_defaults_to_normal) {
+    reset_entities();
+    test_player(0);
+    currentplayer = &game.clients[0].ps;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "if GetAIDifficulty(Player(0)) != AI_DIFFICULTY_NORMAL then\n"
+        "call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_GOLD, 1)\n"
+        "endif\n"
+        "endfunction"));
+    T_EQ(game.clients[0].ps.stats[1], 0);
+    currentplayer = NULL;
+}
+
 TEST(wc3_api, group_is_unit_in_group_true) {
     reset_entities();
     LPEDICT a = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
@@ -1154,6 +1238,29 @@ TEST(wc3_api, unit_not_owned_by_player) {
     ent->s.player = 1;
     LPPLAYER p = test_player(3);
     T_ASSERT(ent->s.player != PLAYER_NUM(p));
+}
+
+TEST(wc3_api, is_unit_type_reports_structure_from_authoritative_metadata) {
+    reset_entities();
+    T_ASSERT(G_UnitIsBuilding(MAKEFOURCC('h','b','a','r')));
+    T_ASSERT(!G_UnitIsBuilding(MAKEFOURCC('h','p','e','a')));
+    currentplayer = &game.clients[0].ps;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "local unit building = CreateUnit(Player(0), 'hbar', 0.0, 0.0, 0.0)\n"
+        "local unit worker = CreateUnit(Player(0), 'hpea', 256.0, 0.0, 0.0)\n"
+        "if not IsUnitType(building, UNIT_TYPE_STRUCTURE) then\n"
+        "call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_GOLD, 1)\n"
+        "endif\n"
+        "if IsUnitType(worker, UNIT_TYPE_STRUCTURE) then\n"
+        "call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_LUMBER, 1)\n"
+        "endif\n"
+        "call RemoveUnit(building)\n"
+        "call RemoveUnit(worker)\n"
+        "endfunction"));
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD], 0);
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 0);
+    currentplayer = NULL;
 }
 
 /* =========================================================================

@@ -1,5 +1,9 @@
+function hero_levels takes nothing returns nothing
+endfunction
+
 function main takes nothing returns nothing
     call SetMeleeAI()
+    call SetHeroLevels(function hero_levels)
     call SetTargetHeroes(true)
     call SetPeonsRepair(false)
     call SetHeroesFlee(true)

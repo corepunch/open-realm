@@ -612,9 +612,10 @@ DWORD IsUnitRace(LPJASS j) {
     return jass_pushboolean(j, 0);
 }
 DWORD IsUnitType(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //HANDLE whichUnitType = jass_checkhandle(j, 2, "unittype");
-    return jass_pushboolean(j, 0);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LPDWORD whichUnitType = jass_checkhandle(j, 2, "unittype");
+    return jass_pushboolean(j, whichUnit && whichUnitType && *whichUnitType == 2 &&
+                              G_UnitIsBuilding(whichUnit->class_id));
 }
 DWORD IsUnit(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
@@ -675,10 +676,21 @@ DWORD UnitSuspendDecay(LPJASS j) {
     //BOOL suspend = jass_checkboolean(j, 2);
     return 0;
 }
+DWORD UnitAddAbility(LPJASS j) {
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    DWORD abilityId = jass_checkinteger(j, 2);
+    return jass_pushboolean(j, G_ActorAddSkill(whichUnit, abilityId));
+}
 DWORD UnitRemoveAbility(LPJASS j) {
-    //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //LONG abilityId = jass_checkinteger(j, 2);
-    return jass_pushboolean(j, 0);
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    DWORD abilityId = jass_checkinteger(j, 2);
+    return jass_pushboolean(j, G_ActorRemoveSkill(whichUnit, abilityId));
+}
+DWORD UnitMakeAbilityPermanent(LPJASS j) {
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    BOOL permanent = jass_checkboolean(j, 2);
+    DWORD abilityId = jass_checkinteger(j, 3);
+    return jass_pushboolean(j, G_ActorSetSkillPermanent(whichUnit, abilityId, permanent));
 }
 DWORD UnitRemoveBuffs(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");

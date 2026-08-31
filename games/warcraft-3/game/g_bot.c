@@ -3,6 +3,8 @@
 #include "skills/s_skills.h"
 
 #define BOT_GUARD_RETURN_RANGE 64.0f // world units; avoid resetting movement for guards already standing near their post
+#define BOT_BUILD_GRID 32.0f // world units; WC3 structures snap to this placement-cell interval
+#define BOT_BUILD_SEARCH_RINGS 32 // 32-unit grid rings; searches 1024 world units around a town for legal placement
 
 static bot_t *G_BotState(DWORD player) {
     return player < MAX_PLAYERS ? &level.bots[player] : NULL;
@@ -52,7 +54,7 @@ void G_BotClearHarvest(LPPLAYER player) {
 }
 
 /* Town IDs enumerate owned gold drop-offs in spawn order, matching the expansion index used by common.ai. */
-static LPEDICT G_BotHarvestTown(LPPLAYER player, LONG town) {
+LPEDICT G_BotTown(LPPLAYER player, LONG town) {
     edict_t probe = {0};
     if (!player || town < 0) return NULL;
     probe.s.player = PLAYER_NUM(player);
@@ -61,27 +63,151 @@ static LPEDICT G_BotHarvestTown(LPPLAYER player, LONG town) {
     return NULL;
 }
 
-static LPEDICT G_BotHarvestTarget(LPEDICT town, returnResource_t resource) {
+static LPEDICT G_BotMineOwner(LPPLAYER player, LPEDICT mine) {
+    LPEDICT best = NULL;
+    FLOAT best_dist = 0;
+    edict_t probe = {0};
+    if (!player || !mine) return NULL;
+    probe.s.player = PLAYER_NUM(player);
+    FILTER_EDICTS(town, S_CanReturnResourceAt(&probe, town, RETURN_RESOURCE_GOLD)) {
+        FLOAT dist = Vector2_distance(&town->s.origin2, &mine->s.origin2);
+        if (!best || dist < best_dist) { best = town; best_dist = dist; }
+    }
+    return best;
+}
+
+static LPEDICT G_BotHarvestTarget(LPPLAYER player, LPEDICT town, returnResource_t resource) {
     LPEDICT best = NULL;
     FLOAT best_dist = 0;
     FILTER_EDICTS(ent, resource == RETURN_RESOURCE_GOLD ? S_GoldMineCanHarvest(ent) :
         ent->inuse && ent->targtype == TARG_TREE && !M_IsDead(ent)) {
         FLOAT dist = Vector2_distance(&town->s.origin2, &ent->s.origin2);
+        if (resource == RETURN_RESOURCE_GOLD && G_BotMineOwner(player, ent) != town) continue;
         if (!best || dist < best_dist) { best = ent; best_dist = dist; }
     }
     return best;
 }
 
-/* A ClearHarvestAI pass assigns each eligible worker once across all town/resource requests. */
+LPEDICT G_BotTownMine(LPPLAYER player, LONG town) {
+    LPEDICT hall = G_BotTown(player, town);
+    return hall ? G_BotHarvestTarget(player, hall, RETURN_RESOURCE_GOLD) : NULL;
+}
+
+LONG G_BotTownWithMine(LPPLAYER player) {
+    for (LONG town = 0; G_BotTown(player, town); town++)
+        if (G_BotTownMine(player, town)) return town;
+    return -1;
+}
+
+DWORD G_BotMinesOwned(LPPLAYER player) {
+    DWORD count = 0;
+    for (LONG town = 0; G_BotTown(player, town); town++)
+        if (G_BotTownMine(player, town)) count++;
+    return count;
+}
+
+DWORD G_BotGoldOwned(LPPLAYER player) {
+    DWORD gold = 0;
+    for (LONG town = 0; G_BotTown(player, town); town++) {
+        LPEDICT mine = G_BotTownMine(player, town);
+        if (mine) gold += mine->resources;
+    }
+    return gold;
+}
+
+static BOOL G_BotUnitAtTown(LPPLAYER player, LPEDICT unit, LONG town_id) {
+    LPEDICT town, nearest = NULL, candidate;
+    FLOAT best_dist = 0;
+    if (town_id < 0) return true;
+    town = G_BotTown(player, town_id);
+    if (!town) return false;
+    for (LONG index = 0; (candidate = G_BotTown(player, index)); index++) {
+        FLOAT dist = Vector2_distance(&candidate->s.origin2, &unit->s.origin2);
+        if (!nearest || dist < best_dist) { nearest = candidate; best_dist = dist; }
+    }
+    return nearest == town;
+}
+
+static BOOL G_BotBuildSiteReachable(LPEDICT worker, LPCVECTOR2 point) {
+    return worker && point && CM_LineIsWalkableForRadius(&worker->s.origin2, point, MAX(0.0f, worker->collision));
+}
+
+static BOOL G_BotBuildNearTown(LPPLAYER player, DWORD class_id, LONG town_id) {
+    LPEDICT town = G_BotTown(player, town_id < 0 ? 0 : town_id);
+    if (!town) return false;
+    /* Pending footprints are not baked yet, so serialize them to keep later orders from invalidating earlier placement. */
+    FILTER_EDICTS(unit, G_BotUnitAlive(unit) && unit->s.player == PLAYER_NUM(player) && unit->build_project)
+        return false;
+    FILTER_EDICTS(worker, G_BotUnitAlive(worker) && worker->s.player == PLAYER_NUM(player) &&
+        !worker->construction.active && !worker->training && !worker->build_project &&
+        (!worker->currentmove || worker->currentmove->ability != &a_repair) && G_WorkerCanBuild(worker, class_id)) {
+        for (LONG ring = 1; ring <= BOT_BUILD_SEARCH_RINGS; ring++) {
+            for (LONG x = -ring; x <= ring; x++) for (LONG y = -ring; y <= ring; y++) {
+                VECTOR2 point;
+                if (abs(x) != ring && abs(y) != ring) continue;
+                point = MAKE(VECTOR2, town->s.origin2.x + x * BOT_BUILD_GRID,
+                             town->s.origin2.y + y * BOT_BUILD_GRID);
+                if (!G_BotBuildSiteReachable(worker, &point)) continue;
+                if (G_IssueBuildOrder(worker, class_id, &point)) return true;
+            }
+        }
+    }
+    return false;
+}
+
+/* common.ai has already bounded qty by resources; each accepted action still performs authoritative checks/payment. */
+BOOL G_BotProduce(LPPLAYER player, LONG qty, DWORD class_id, LONG town_id) {
+    DWORD made = 0;
+    if (!player || qty <= 0 || !class_id) return false;
+#ifdef WC3_DEBUG_AI
+    fprintf(stderr, "WC3_DEBUG_AI produce request player=%u qty=%d id=%.4s town=%d\n",
+        PLAYER_NUM(player), qty, (LPCSTR)&class_id, town_id);
+#endif
+    while (qty-- > 0) {
+        if (G_UnitIsBuilding(class_id)) {
+            if (!G_BotBuildNearTown(player, class_id, town_id)) break;
+            made++;
+            break; /* common.ai retries deficits; one pending footprint at a time prevents overlapping reservations. */
+        } else {
+            LPEDICT producer = NULL;
+            FILTER_EDICTS(ent, G_BotUnitAlive(ent) && ent->s.player == PLAYER_NUM(player) &&
+                !ent->construction.active && !ent->training && G_BotUnitAtTown(player, ent, town_id) &&
+                G_GetTrainCommandState(G_GetPlayerClientByNumber(ent->s.player), ent, class_id, NULL, 0) ==
+                    BUILD_COMMAND_AVAILABLE) { producer = ent; break; }
+            if (!producer || !SP_TrainUnit(producer, class_id)) break;
+        }
+        made++;
+    }
+#ifdef WC3_DEBUG_AI
+    fprintf(stderr, "WC3_DEBUG_AI produce result id=%.4s made=%u\n", (LPCSTR)&class_id, made);
+#endif
+    return made > 0;
+}
+
+static BOOL G_BotHarvesting(LPEDICT unit, returnResource_t resource) {
+    ability_t *ability = resource == RETURN_RESOURCE_GOLD ? &a_goldmine : &a_harvest;
+    return unit->currentmove && unit->currentmove->ability == ability;
+}
+
+/* A ClearHarvestAI pass preserves active jobs, then assigns each remaining worker once. */
 void G_BotHarvest(LPPLAYER player, LONG town_id, LONG peons, BOOL gold) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
     returnResource_t resource = gold ? RETURN_RESOURCE_GOLD : RETURN_RESOURCE_LUMBER;
     LPEDICT town, target;
-    if (!bot || peons <= 0 || !(town = G_BotHarvestTown(player, town_id)) || !(target = G_BotHarvestTarget(town, resource))) return;
+    if (!bot || peons <= 0 || !(town = G_BotTown(player, town_id)) ||
+        !(target = G_BotHarvestTarget(player, town, resource))) return;
+    FILTER_EDICTS(unit, peons > 0 && G_BotUnitAlive(unit) && unit->s.player == PLAYER_NUM(player) &&
+        G_BotHarvesting(unit, resource) && !G_BotHarvesterReserved(bot, unit)) {
+        G_BotReserveHarvester(bot, unit); peons--;
+    }
     while (peons-- > 0) {
         LPEDICT best = NULL;
         FLOAT best_dist = 0;
-        FILTER_EDICTS(unit, G_BotUnitAlive(unit) && unit->s.player == PLAYER_NUM(player) && unit->UnitAbilities &&
+        /* Preserve accepted construction orders; harvest reassignment used to strand their pending footprints. */
+        FILTER_EDICTS(unit, G_BotUnitAlive(unit) && unit->s.player == PLAYER_NUM(player) && !unit->training &&
+            !unit->construction.active && !unit->build_project &&
+            (!unit->currentmove || (unit->currentmove->ability != &a_goldmine &&
+             unit->currentmove->ability != &a_harvest && unit->currentmove->ability != &a_repair)) && unit->UnitAbilities &&
             G_ActorHasSkill(unit, "Ahar") && !G_BotHarvesterReserved(bot, unit)) {
             FLOAT dist = Vector2_distance(&town->s.origin2, &unit->s.origin2);
             if (!best || dist < best_dist) { best = unit; best_dist = dist; }
@@ -139,6 +265,9 @@ void G_BotInitAssault(LPPLAYER player) {
     captain = bot->captains + BOT_CAPTAIN_ATTACK;
     if (captain->units) gi.MemFree(captain->units);
     memset(captain, 0, sizeof(*captain)); captain->state = BOT_CAPTAIN_FORMING;
+#ifdef WC3_DEBUG_AI
+    fprintf(stderr, "WC3_DEBUG_AI assault init player=%u\n", PLAYER_NUM(player));
+#endif
 }
 
 static void G_BotCaptainAdd(botCaptain_t *captain, LPEDICT unit) {
@@ -167,8 +296,15 @@ static BOOL G_BotCaptainFill(LPPLAYER player, botCaptainType_t type, LONG qty, D
 
 BOOL G_BotAddAssault(LPPLAYER player, LONG qty, DWORD class_id) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    BOOL ready;
     if (bot && qty > 0 && class_id) bot->captains[BOT_CAPTAIN_ATTACK].desired += qty;
-    return G_BotCaptainFill(player, BOT_CAPTAIN_ATTACK, qty, class_id);
+    ready = G_BotCaptainFill(player, BOT_CAPTAIN_ATTACK, qty, class_id);
+#ifdef WC3_DEBUG_AI
+    fprintf(stderr, "WC3_DEBUG_AI assault add player=%u qty=%d id=%.4s ready=%d size=%u desired=%d\n",
+        player ? PLAYER_NUM(player) : MAX_PLAYERS, qty, (LPCSTR)&class_id, ready,
+        G_BotCaptainGroupSize(player), bot ? bot->captains[BOT_CAPTAIN_ATTACK].desired : 0);
+#endif
+    return ready;
 }
 
 DWORD G_BotCaptainGroupSize(LPPLAYER player) {

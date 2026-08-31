@@ -41,6 +41,8 @@ static LONG BotUnitCount(LPPLAYER player, DWORD unitid, BOOL done) {
                          ent->s.player == PLAYER_NUM(player) && !(ent->svflags & SVF_DEADMONSTER)) {
         if (!done || (!ent->construction.active && !ent->training)) count++;
     }
+    if (!done) FILTER_EDICTS(builder, G_BotUnitAlive(builder) && builder->s.player == PLAYER_NUM(player) &&
+                                      builder->build_project == unitid) count++;
     return count;
 }
 
@@ -49,8 +51,23 @@ DWORD GetAiPlayer(LPJASS j) {
     return jass_pushinteger(j, player ? (LONG)PLAYER_NUM(player) : -1);
 }
 
+DWORD GetAIDifficulty(LPJASS j) {
+    LPPLAYER player = jass_checkhandle(j, 1, "player");
+    LPDWORD difficulty = jass_newhandle(j, sizeof(*difficulty), "aidifficulty");
+    *difficulty = player ? 1 : 0; /* Lobby slots currently expose WC3's normal AI difficulty only. */
+    return 1;
+}
+
 DWORD GetUnitCount(LPJASS j) {
-    return jass_pushinteger(j, BotUnitCount(jass_getcontext(j)->playerState, jass_checkinteger(j, 1), false));
+    LPPLAYER player = jass_getcontext(j)->playerState;
+    DWORD class_id = jass_checkinteger(j, 1);
+    LONG count = BotUnitCount(player, class_id, false);
+#ifdef WC3_DEBUG_AI
+    if (class_id == MAKEFOURCC('h','p','e','a'))
+        fprintf(stderr, "WC3_DEBUG_AI count id=%.4s value=%d gold=%d lumber=%d\n", (LPCSTR)&class_id, count,
+            player->stats[PLAYERSTATE_RESOURCE_GOLD], player->stats[PLAYERSTATE_RESOURCE_LUMBER]);
+#endif
+    return jass_pushinteger(j, count);
 }
 
 DWORD GetPlayerUnitTypeCount(LPJASS j) {
@@ -60,6 +77,21 @@ DWORD GetPlayerUnitTypeCount(LPJASS j) {
 
 DWORD GetUnitCountDone(LPJASS j) {
     return jass_pushinteger(j, BotUnitCount(jass_getcontext(j)->playerState, jass_checkinteger(j, 1), true));
+}
+
+DWORD GetMinesOwned(LPJASS j) { return jass_pushinteger(j, G_BotMinesOwned(jass_getcontext(j)->playerState)); }
+DWORD GetGoldOwned(LPJASS j) { return jass_pushinteger(j, G_BotGoldOwned(jass_getcontext(j)->playerState)); }
+DWORD TownWithMine(LPJASS j) { return jass_pushinteger(j, G_BotTownWithMine(jass_getcontext(j)->playerState)); }
+DWORD TownHasMine(LPJASS j) {
+    return jass_pushboolean(j, G_BotTownMine(jass_getcontext(j)->playerState, jass_checkinteger(j, 1)) != NULL);
+}
+DWORD TownHasHall(LPJASS j) {
+    return jass_pushboolean(j, G_BotUnitAlive(G_BotTown(jass_getcontext(j)->playerState, jass_checkinteger(j, 1))));
+}
+
+DWORD SetProduce(LPJASS j) {
+    return jass_pushboolean(j, G_BotProduce(jass_getcontext(j)->playerState, jass_checkinteger(j, 1),
+                                            jass_checkinteger(j, 2), jass_checkinteger(j, 3)));
 }
 
 DWORD GetUnitGoldCost(LPJASS j) {
@@ -98,6 +130,7 @@ static DWORD BotSetFlag(LPJASS j, botFlag_t flag) {
 
 DWORD SetCampaignAI(LPJASS j) { bot_t *bot = BotState(j); if (bot) bot->mode = BOT_CAMPAIGN; return 0; }
 DWORD SetMeleeAI(LPJASS j) { bot_t *bot = BotState(j); if (bot) bot->mode = BOT_MELEE; return 0; }
+DWORD SetHeroLevels(LPJASS j) { bot_t *bot = BotState(j); if (bot) bot->hero_levels = jass_checkcode(j, 1); return 0; }
 DWORD SetTargetHeroes(LPJASS j) { return BotSetFlag(j, BOT_TARGET_HEROES); }
 DWORD SetPeonsRepair(LPJASS j) { return BotSetFlag(j, BOT_PEONS_REPAIR); }
 DWORD SetHeroesFlee(LPJASS j) { return BotSetFlag(j, BOT_HEROES_FLEE); }

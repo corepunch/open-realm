@@ -8,6 +8,8 @@
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
 BOOL run_test_jass(LPCSTR src);
 void reset_entities(void);
+void setup_test_pathmap(DWORD width, DWORD height, BYTE const *cells);
+void setup_test_world(void);
 
 static UnitAbilities_t const bot_harvester_abilities = { .abilList = "Ahar" };
 static UnitAbilities_t const bot_hall_abilities = { .abilList = "Argl" };
@@ -110,6 +112,9 @@ TEST(wc3_bot, query_natives_read_authoritative_player_state) {
     LPEDICT training = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
     LPEDICT dead = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 96, 0);
     LPEDICT other = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 128, 0);
+    LPEDICT hall = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 128, 2, &bot_hall_abilities);
+    LPEDICT mine = make_bot_harvest_unit(MAKEFOURCC('n','g','o','l'), 256, 128, MAX_PLAYERS, &bot_mine_abilities);
+    LPEDICT builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 128);
 
     done->s.player = building->s.player = training->s.player = dead->s.player = 2;
     other->s.player = 1;
@@ -117,12 +122,62 @@ TEST(wc3_bot, query_natives_read_authoritative_player_state) {
     dead->svflags |= SVF_MONSTER | SVF_DEADMONSTER; other->svflags |= SVF_MONSTER;
     building->construction.active = true;
     training->training = true;
+    builder->s.player = 2; builder->health.value = 100; builder->build_project = MAKEFOURCC('h','b','a','r');
+    mine->resources = 1000;
     G_SetPlayerTechResearched(&game.clients[2], MAKEFOURCC('R','h','m','e'), 2);
 
     T_ASSERT(G_BotStart(&game.clients[2].ps, "test_queries.ai", BOT_CAMPAIGN));
     G_BotRunFrame();
     T_NOT_NULL(level.bots[2].vm);
     if (level.bots[2].vm) T_ASSERT(!jass_rterror_pending(level.bots[2].vm));
+    T_EQ(G_BotTown(&game.clients[2].ps, 0), hall); T_EQ(G_BotTownMine(&game.clients[2].ps, 0), mine);
+}
+
+TEST(wc3_bot, mines_belong_to_the_nearest_owned_town) {
+    LPPLAYER player = &game.clients[2].ps;
+    reset_entities();
+    LPEDICT hall0 = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 0, 2, &bot_hall_abilities);
+    LPEDICT hall1 = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 1000, 0, 2, &bot_hall_abilities);
+    LPEDICT mine0 = make_bot_harvest_unit(MAKEFOURCC('n','g','o','l'), 100, 0, MAX_PLAYERS, &bot_mine_abilities);
+    LPEDICT mine1 = make_bot_harvest_unit(MAKEFOURCC('n','g','o','l'), 900, 0, MAX_PLAYERS, &bot_mine_abilities);
+    mine0->resources = 1000; mine1->resources = 2000;
+
+    T_EQ(G_BotTown(player, 0), hall0); T_EQ(G_BotTown(player, 1), hall1);
+    T_EQ(G_BotTownMine(player, 0), mine0); T_EQ(G_BotTownMine(player, 1), mine1);
+    T_EQ(G_BotTownWithMine(player), 0); T_EQ(G_BotMinesOwned(player), 2); T_EQ(G_BotGoldOwned(player), 3000);
+    mine0->resources = 0;
+    T_NULL(G_BotTownMine(player, 0)); T_EQ(G_BotTownWithMine(player), 1); T_EQ(G_BotMinesOwned(player), 1);
+    T_EQ(G_BotGoldOwned(player), 2000);
+}
+
+TEST(wc3_bot, produce_queues_trainable_units_and_rejects_unknown_types) {
+    LPPLAYER player = &game.clients[2].ps;
+    LPEDICT producer;
+    UnitProfile_t profile = { .trains = "hfoo" };
+    reset_entities();
+    producer = make_bot_harvest_unit(MAKEFOURCC('h','b','a','r'), 0, 0, 2, NULL);
+    producer->UnitProfile = &profile;
+    player->stats[PLAYERSTATE_RESOURCE_GOLD] = 10000;
+    player->stats[PLAYERSTATE_RESOURCE_LUMBER] = 10000;
+    player->stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+    player->stats[PLAYERSTATE_RESOURCE_FOOD_USED] = 0;
+
+    T_ASSERT(G_BotProduce(player, 2, MAKEFOURCC('h','f','o','o'), -1));
+    T_NOT_NULL(producer->build); T_EQ(producer->build->class_id, MAKEFOURCC('h','f','o','o'));
+    T_NOT_NULL(producer->build->build); T_EQ(producer->build->build->class_id, MAKEFOURCC('h','f','o','o'));
+    T_ASSERT(!G_BotProduce(player, 1, MAKEFOURCC('u','n','k','n'), -1));
+}
+
+TEST(wc3_bot, build_site_requires_direct_static_route) {
+    BYTE cells[100] = {0};
+    edict_t worker = { .collision = 0.0f, .s.origin2 = { 1.0f, 5.0f } };
+    VECTOR2 same_side = { 4.0f, 5.0f }, across_wall = { 8.0f, 5.0f };
+    FOR_LOOP(y, 10) cells[5 + y * 10] = 2;
+    setup_test_pathmap(10, 10, cells);
+    T_ASSERT(G_BotBuildSiteReachable(&worker, &same_side));
+    T_ASSERT(!G_BotBuildSiteReachable(&worker, &across_wall));
+    T_ASSERT(!G_BotBuildSiteReachable(NULL, &same_side));
+    setup_test_world();
 }
 
 TEST(wc3_bot, unit_alive_rejects_null_dead_and_removed_handles) {
@@ -149,6 +204,8 @@ TEST(wc3_bot, campaign_settings_persist_for_authoritative_consumers) {
     ai = level.bots + 3;
     T_NOT_NULL(ai->vm);
     T_EQ(ai->mode, BOT_CAMPAIGN);
+    T_NOT_NULL(ai->hero_levels);
+    T_STREQ(jass_functionname(ai->hero_levels), "hero_levels");
     T_EQ(ai->replacement_count, 3);
     T_EQ(ai->flags, enabled);
     T_ASSERT(!(ai->flags & BOT_PEONS_REPAIR));
@@ -220,20 +277,25 @@ TEST(wc3_bot, harvest_gold_assigns_nearest_owned_workers_up_to_quota) {
     bot_t *bot = level.bots + 2;
     reset_entities();
     LPEDICT hall = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 0, 2, &bot_hall_abilities);
+    LPEDICT trainee = make_bot_harvest_unit(MAKEFOURCC('h','p','e','a'), 8, 0, 2, &bot_harvester_abilities);
+    LPEDICT builder = make_bot_harvest_unit(MAKEFOURCC('h','p','e','a'), 16, 0, 2, &bot_harvester_abilities);
     LPEDICT near = make_bot_harvest_unit(MAKEFOURCC('h','p','e','a'), 32, 0, 2, &bot_harvester_abilities);
     LPEDICT far = make_bot_harvest_unit(MAKEFOURCC('h','p','e','a'), 96, 0, 2, &bot_harvester_abilities);
     LPEDICT other = make_bot_harvest_unit(MAKEFOURCC('h','p','e','a'), 16, 0, 1, &bot_harvester_abilities);
     LPEDICT mine = make_bot_harvest_unit(MAKEFOURCC('n','g','o','l'), 256, 0, MAX_PLAYERS, &bot_mine_abilities);
-    mine->resources = 1000;
+    mine->resources = 1000; trainee->training = true; trainee->s.renderfx |= RF_HIDDEN;
+    builder->build_project = MAKEFOURCC('h','b','a','r');
 
     G_BotClearHarvest(&game.clients[2].ps);
     G_BotHarvest(&game.clients[2].ps, 0, 1, true);
     T_EQ(ARRAY_COUNT(bot->harvesters), 1); T_EQ(bot->harvesters[0], near);
     T_EQ(near->goalentity, mine); T_EQ(near->currentmove->ability, &a_goldmine);
-    T_NULL(far->currentmove); T_NULL(other->currentmove); T_EQ(hall->s.player, 2);
+    T_NULL(trainee->currentmove); T_NULL(builder->currentmove); T_NULL(far->currentmove);
+    T_NULL(other->currentmove); T_EQ(hall->s.player, 2);
 }
 
 TEST(wc3_bot, harvest_pass_reserves_workers_across_gold_and_wood_then_clears) {
+    static umove_t gold_move = { "attack", NULL, NULL, &a_goldmine };
     bot_t *bot = level.bots + 2;
     reset_entities();
     make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 0, 2, &bot_hall_abilities);
@@ -242,12 +304,13 @@ TEST(wc3_bot, harvest_pass_reserves_workers_across_gold_and_wood_then_clears) {
     LPEDICT mine = make_bot_harvest_unit(MAKEFOURCC('n','g','o','l'), 256, 0, MAX_PLAYERS, &bot_mine_abilities);
     LPEDICT tree = make_bot_harvest_unit(MAKEFOURCC('L','T','l','t'), 0, 256, MAX_PLAYERS, NULL);
     mine->resources = 1000; tree->targtype = TARG_TREE;
+    first->currentmove = &gold_move; first->goalentity = mine;
 
     G_BotClearHarvest(&game.clients[2].ps);
     G_BotHarvest(&game.clients[2].ps, 0, 1, true);
     G_BotHarvest(&game.clients[2].ps, 0, 1, false);
     T_EQ(ARRAY_COUNT(bot->harvesters), 2); T_EQ(bot->harvesters[0], first); T_EQ(bot->harvesters[1], second);
-    T_EQ(first->goalentity, mine); T_EQ(second->goalentity, tree);
+    T_EQ(first->currentmove, &gold_move); T_EQ(first->goalentity, mine); T_EQ(second->goalentity, tree);
     G_BotHarvest(&game.clients[2].ps, 1, 2, true);
     T_EQ(ARRAY_COUNT(bot->harvesters), 2);
     G_BotClearHarvest(&game.clients[2].ps);

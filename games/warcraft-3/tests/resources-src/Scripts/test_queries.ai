@@ -21,7 +21,19 @@ function main takes nothing returns nothing
     if GetUnitBuildTime('hfoo') != 60 or GetUnitBuildTime('xxxx') != 0 then
         call MissingAIAction()
     endif
+    if GetUnitCount('hbar') != 1 or GetUnitCountDone('hbar') != 0 then
+        call MissingAIAction()
+    endif
     if GetUpgradeLevel('Rhme') != 2 then
+        call MissingAIAction()
+    endif
+    if GetMinesOwned() != 1 or GetGoldOwned() != 1000 then
+        call MissingAIAction()
+    endif
+    if TownWithMine() != 0 or not TownHasMine(0) or not TownHasHall(0) then
+        call MissingAIAction()
+    endif
+    if TownHasMine(1) or TownHasHall(1) then
         call MissingAIAction()
     endif
     call Sleep(10)

@@ -163,6 +163,20 @@ TEST(commands, roc_command_line_disables_expansion_archives) {
     T_STREQ(Cvar_String("fs_expansion", NULL), "0");
 }
 
+TEST(commands, roc_uses_base_ai_scripts_without_dropping_localized_data) {
+    setup_command_tests();
+    Cvar_Set("fs_expansion", "0");
+
+    T_ASSERT(!FS_ArchiveFileVisible("data/War3Local.mpq", "Scripts\\human.ai"));
+    T_ASSERT(!FS_ArchiveFileVisible("data/war3local.MPQ", "Scripts\\campaign.ai"));
+    T_ASSERT(FS_ArchiveFileVisible("data/War3Local.mpq", "Scripts\\HumanMelee.pld"));
+    T_ASSERT(FS_ArchiveFileVisible("data/War3Local.mpq", "UI\\WorldEditStrings.txt"));
+    T_ASSERT(FS_ArchiveFileVisible("data/War3.mpq", "Scripts\\human.ai"));
+
+    Cvar_Set("fs_expansion", "1");
+    T_ASSERT(FS_ArchiveFileVisible("data/War3Local.mpq", "Scripts\\human.ai"));
+}
+
 TEST(commands, dash_cvars_are_not_command_line_cvars) {
     LPCSTR argv[] = { "test_commands", "-r_module=stdout" };
 
@@ -184,6 +198,19 @@ TEST(commands, display_modes_require_explicit_flag) {
     Cvar_ApplyCommandLine(2, args);
     T_STREQ(Cvar_String("vid_modes", NULL), "1");
     Cvar_Set("vid_modes", "0");
+}
+
+TEST(commands, fast_forward_requires_explicit_flag) {
+    LPCSTR args[] = { "test_commands", "-com_fast_forward" };
+    LPCSTR other[] = { "test_commands", "-com_fast_forward_extra" };
+
+    setup_command_tests();
+    T_STREQ(Cvar_String("com_fast_forward", NULL), "0");
+    Cvar_ApplyCommandLine(2, other);
+    T_STREQ(Cvar_String("com_fast_forward", NULL), "0");
+    Cvar_ApplyCommandLine(2, args);
+    T_STREQ(Cvar_String("com_fast_forward", NULL), "1");
+    Cvar_Set("com_fast_forward", "0");
 }
 
 TEST(commands, plus_cvars_apply_immediately) {

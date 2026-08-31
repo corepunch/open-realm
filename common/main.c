@@ -421,7 +421,7 @@ int main(int argc, LPSTR argv[]) {
         DWORD currentTime = SDL_GetTicks();
         DWORD msec = currentTime - startTime;
         if (svs.initialized && (sv.state == ss_lobby || sv.state == ss_game)) {
-            SV_Frame(msec);
+            SV_Frame(Cvar_Integer("com_fast_forward", 0) ? FRAMETIME : msec);
         }
         if (!dedicated) {
             CL_Frame(msec);

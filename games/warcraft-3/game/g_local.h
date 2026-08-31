@@ -651,6 +651,9 @@ struct edict_s {
     doodadHero_t hero;
     heroability_t heroabilities[MAX_HERO_ABILITIES];
     heroabilitystatus_t abilstatus[MAX_UNIT_STATUSES];
+    ARRAY(DWORD, added_abilities);
+    ARRAY(DWORD, removed_abilities);
+    ARRAY(DWORD, permanent_abilities);
     BOOL invulnerable;  // unit cannot take damage when true
     BOOL paused;        // unit AI and movement suspended when true
     BOOL stunned;       // unit AI and movement suspended by timed status
@@ -885,6 +888,7 @@ typedef enum {
 typedef struct {
     LPJASS vm;
     LPPLAYER player;
+    struct jass_function const *hero_levels;
     botCaptain_t captains[BOT_CAPTAIN_COUNT];
     ARRAY(botCommand_t, commands);
     ARRAY(LPEDICT, harvesters);
@@ -969,6 +973,12 @@ void G_BotShutdown(void);
 void G_BotPause(DWORD, BOOL);
 void G_BotRunFrame(void);
 BOOL G_BotUnitAlive(LPEDICT);
+LPEDICT G_BotTown(LPPLAYER, LONG);
+LPEDICT G_BotTownMine(LPPLAYER, LONG);
+LONG G_BotTownWithMine(LPPLAYER);
+DWORD G_BotMinesOwned(LPPLAYER);
+DWORD G_BotGoldOwned(LPPLAYER);
+BOOL G_BotProduce(LPPLAYER, LONG, DWORD, LONG);
 void G_BotStopGathering(LPPLAYER);
 void G_BotClearHarvest(LPPLAYER);
 void G_BotHarvest(LPPLAYER, LONG, LONG, BOOL);
@@ -1060,7 +1070,7 @@ DWORD M_RefreshHeatmap(LPEDICT, FLOAT);
 BOOL M_IsDead(LPEDICT);
 void SP_SpawnUnit(LPEDICT);
 DWORD unit_spawn_aiflags(DWORD);
-void SP_TrainUnit(LPEDICT, DWORD);
+BOOL SP_TrainUnit(LPEDICT, DWORD);
 BOOL player_pay(LPPLAYER, DWORD);
 BYTE compress_stat(EDICTSTAT const *);
 DWORD G_LoadShadowTexture(LPCSTR, BOOL);
@@ -1103,6 +1113,7 @@ BOOL G_ChargeBuilding(LPGAMECLIENT client, DWORD building_id);
 void G_RefundBuilding(LPGAMECLIENT client, DWORD building_id);
 void G_SnapBuildingPoint(DWORD building_id, LPVECTOR2 point);
 buildPlacementResult_t G_EvaluateBuildPlacement(LPEDICT builder, DWORD building_id, LPCVECTOR2 requested, LPVECTOR2 snapped);
+BOOL G_IssueBuildOrder(LPEDICT builder, DWORD building_id, LPCVECTOR2 location);
 FLOAT G_BuildApproachDistance(DWORD building_id);
 BOOL G_StartHumanConstruction(LPEDICT builder, LPEDICT building);
 void G_UpdateConstructionAnimation(LPEDICT building);
@@ -1281,6 +1292,11 @@ extern umove_t holdpos_move_stand;
 extern umove_t holdpos_move_stand_ready;
 void unit_stand(LPEDICT);
 BOOL G_ActorHasSkill(LPEDICT, LPCSTR);
+BOOL G_ActorAddSkill(LPEDICT, DWORD);
+BOOL G_ActorRemoveSkill(LPEDICT, DWORD);
+BOOL G_ActorSetSkillPermanent(LPEDICT, DWORD, BOOL);
+BOOL G_ActorSkillPermanent(LPEDICT, DWORD);
+void G_FreeActorSkills(LPEDICT);
 BOOL S_GoldMineIsMine(LPCEDICT);
 DWORD S_GoldMineMaximumGold(LPCEDICT);
 FLOAT S_GoldMineMiningDuration(LPCEDICT);

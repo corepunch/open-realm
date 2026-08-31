@@ -417,6 +417,9 @@ void Cvar_ApplyCommandLine(int argc, LPCSTR *argv) {
         if (Cvar_ApplyDashFlag(arg, "vid_modes", "vid_modes", "1")) {
             continue;
         }
+        if (Cvar_ApplyDashFlag(arg, "com_fast_forward", "com_fast_forward", "1")) {
+            continue;
+        }
         if (Cvar_ApplyDashFlag(arg, "tft", "fs_expansion", "1")) {
             continue;
         }
@@ -464,6 +467,7 @@ void Cvar_Init(void) {
     Cvar_GetD("sv_cheats",        "0",                 0,            "enable cheat commands on this server");
     Cvar_GetD("dedicated",        "0",                 0,            "dedicated server mode (no client)");
     Cvar_GetD("com_frame_limit",  "0",                 0,            "cap frame rate in fps; 0=unlimited");
+    Cvar_GetD("com_fast_forward", "0",                 0,            "run one fixed server tick per main-loop frame");
     Cvar_GetD("scr_showfps",      "1",                 CVAR_ARCHIVE, "show FPS counter on screen");
     Cvar_GetD("skip_cutscene",    "0",                 0,            "skip intro cutscene on startup");
     Cvar_GetD("vid_mode",         "0",                 CVAR_ARCHIVE, "resolution index: 0=640x480, 1=800x600, 2=1024x768, ...");

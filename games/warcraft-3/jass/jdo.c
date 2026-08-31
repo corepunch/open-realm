@@ -207,7 +207,7 @@ static BOOL var_eq(LPCJASSVAR a, LPCJASSVAR b) {
         "race", "alliancetype", "racepreference", "igamestate", "fgamestate", "playerstate",
         "playergameresult", "unitstate", "gameevent", "playerevent", "playerunitevent", "widgetevent",
         "dialogevent", "unitevent", "limitop", "unittype", "gamespeed", "placement", "startlocprio",
-        "gamedifficulty", "gametype", "mapflag", "mapvisibility", "mapsetting", "mapdensity", "mapcontrol",
+        "gamedifficulty", "aidifficulty", "gametype", "mapflag", "mapvisibility", "mapsetting", "mapdensity", "mapcontrol",
         "playercolor", "playerslotstate", "volumegroup", "camerafield", "blendmode", "raritycontrol",
         "texmapflags", "fogstate", "effecttype"
     };

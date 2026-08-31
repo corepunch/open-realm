@@ -25,7 +25,7 @@ static BYTE G_PlacementFlags(LPCSTR list) {
         if (*p == ',') p++;
         while (n && (token[n - 1] == ' ' || token[n - 1] == '\t')) token[--n] = '\0';
 
-        if (!token[0]) continue;
+        if (!token[0] || !strcmp(token, "_")) continue;
         if (!strcmp(token, "unwalkable")) {
             flags |= WC3_PATH_UNWALKABLE;
         } else if (!strcmp(token, "unbuildable")) {
@@ -472,6 +472,10 @@ void G_CompleteConstruction(LPEDICT building) {
     building->aiflags &= ~AI_HOLD_FRAME;
     building->health.value = building->health.max_value;
     building->stand(building);
+#ifdef WC3_DEBUG_AI
+    fprintf(stderr, "WC3_DEBUG_AI construction complete building=%ld id=%.4s player=%u\n",
+        (long)(building - g_edicts), (LPCSTR)&building->class_id, building->s.player);
+#endif
     if (client && building->UnitBalance->foodMade > 0) {
         client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] += building->UnitBalance->foodMade;
     }

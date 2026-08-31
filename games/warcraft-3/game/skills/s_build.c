@@ -5,7 +5,6 @@ void build_build(LPEDICT ent);
 void repair_build_legacy(LPEDICT ent, LPEDICT building);
 void repair_build_primary(LPEDICT ent, LPEDICT building);
 
-
 static void G_BuildError(LPEDICT clent, LPCSTR text) {
     if (!clent || !text || !*text) return;
     UI_ShowText(clent, &MAKE(VECTOR2, 0, 0), text, 2.0f);
@@ -68,6 +67,26 @@ static void ai_build_walk(LPEDICT ent) {
 
 static umove_t build_move_walk = { "walk", ai_build_walk, NULL, &a_build };
 
+/* Shared callers submit only validated legal orders; build_build revalidates before charging at arrival. */
+BOOL G_IssueBuildOrder(LPEDICT builder, DWORD building_id, LPCVECTOR2 location) {
+    LPGAMECLIENT client;
+    VECTOR2 snapped;
+    LPEDICT waypoint;
+
+    if (!builder || !location || !(client = G_GetPlayerClientByNumber(builder->s.player)) ||
+        G_GetBuildCommandState(client, builder, building_id, NULL, 0) != BUILD_COMMAND_AVAILABLE ||
+        G_EvaluateBuildPlacement(builder, building_id, location, &snapped) != PLACE_OK) return false;
+    waypoint = Waypoint_add(&snapped);
+    if (!waypoint) return false;
+    /* Build orders used to strand selected miners hidden inside the mine, permanently consuming its worker capacity. */
+    S_GoldMineReleaseWorker(builder);
+    builder->goalentity = waypoint;
+    builder->build_project = building_id;
+    move_reset_progress(builder);
+    unit_setmove(builder, &build_move_walk);
+    return true;
+}
+
 static void FillUnitData(LPENTITYSTATE ent, DWORD unit_id, LPCSTR anim) {
     PATHSTR buffer = { 0 };
     UnitUI_t const *ui = G_UnitUI(unit_id);
@@ -109,17 +128,32 @@ void build_build(LPEDICT ent) {
     placement = G_EvaluateBuildPlacement(ent, ent->build_project, &ent->goalentity->s.origin2, &snapped);
     state = G_GetBuildCommandState(client, ent, ent->build_project, NULL, 0);
     if (placement != PLACE_OK) {
+#ifdef WC3_DEBUG_AI
+        fprintf(stderr, "WC3_DEBUG_AI build arrival rejected worker=%ld id=%.4s placement=%d\n",
+            (long)(ent - g_edicts), (LPCSTR)&ent->build_project, placement);
+#endif
         G_BuildPlacementError(G_GetPlayerEntityByNumber(ent->s.player));
+        ent->build_project = 0;
         ent->stand(ent);
         return;
     }
     if (state != BUILD_COMMAND_AVAILABLE) {
+#ifdef WC3_DEBUG_AI
+        fprintf(stderr, "WC3_DEBUG_AI build arrival rejected worker=%ld id=%.4s state=%d\n",
+            (long)(ent - g_edicts), (LPCSTR)&ent->build_project, state);
+#endif
         G_BuildError(G_GetPlayerEntityByNumber(ent->s.player), "Unable to build: requirements changed.");
+        ent->build_project = 0;
         ent->stand(ent);
         return;
     }
     if (!G_ChargeBuilding(client, ent->build_project)) {
+#ifdef WC3_DEBUG_AI
+        fprintf(stderr, "WC3_DEBUG_AI build arrival rejected worker=%ld id=%.4s payment\n",
+            (long)(ent - g_edicts), (LPCSTR)&ent->build_project);
+#endif
         G_BuildError(G_GetPlayerEntityByNumber(ent->s.player), "Not enough resources.");
+        ent->build_project = 0;
         ent->stand(ent);
         return;
     }
@@ -127,9 +161,15 @@ void build_build(LPEDICT ent) {
     building = SP_SpawnAtLocation(ent->build_project, ent->s.player, &snapped);
     if (!building) {
         G_RefundBuilding(client, ent->build_project);
+        ent->build_project = 0;
         ent->stand(ent);
         return;
     }
+#ifdef WC3_DEBUG_AI
+    fprintf(stderr, "WC3_DEBUG_AI build started worker=%ld building=%ld id=%.4s\n",
+        (long)(ent - g_edicts), (long)(building - g_edicts), (LPCSTR)&ent->build_project);
+#endif
+    ent->build_project = 0;
 
     /* The structure blocks pathing as soon as construction starts. Bake its
      * authored footprint before relocating the worker so the egress search
@@ -155,7 +195,6 @@ BOOL build_menu_send_builder(LPEDICT clent, LPCVECTOR2 location) {
     VECTOR2 snapped;
     buildPlacementResult_t placement;
     buildCommandState_t state;
-    LPEDICT waypoint;
     char reason[128];
 
     if (!clent || !clent->client || !location || !clent->build_project) return false;
@@ -173,11 +212,7 @@ BOOL build_menu_send_builder(LPEDICT clent, LPCVECTOR2 location) {
         return false;
     }
 
-    waypoint = Waypoint_add(&snapped);
-    builder->goalentity = waypoint;
-    builder->build_project = clent->build_project;
-    move_reset_progress(builder);
-    unit_setmove(builder, &build_move_walk);
+    if (!G_IssueBuildOrder(builder, clent->build_project, &snapped)) return false;
     G_ClearBuildPlacementCursor(clent);
     return true;
 }

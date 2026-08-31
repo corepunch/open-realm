@@ -326,6 +326,54 @@ TEST(wc3_building, placement_accepts_open_ground_rejects_live_unit_and_map_edge)
     T_EQ(G_EvaluateBuildPlacement(builder, barracks, &requested, &snapped), PLACE_OUT_OF_BOUNDS);
 }
 
+TEST(wc3_building, placement_flags_treat_slk_sentinel_as_empty) {
+    T_EQ(G_PlacementFlags(NULL), 0);
+    T_EQ(G_PlacementFlags("_"), 0);
+    T_ASSERT(G_PlacementFlags("unwalkable") & WC3_PATH_UNWALKABLE);
+}
+
+TEST(wc3_building, shared_build_order_uses_authoritative_validation) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT builder;
+    UnitProfile_t profile = { .builds = "hbar" };
+    VECTOR2 point = { 64.0f, 64.0f };
+    DWORD const barracks = MAKEFOURCC('h','b','a','r');
+
+    setup_test_world();
+    builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -128, -128);
+    builder->s.player = client->ps.number; builder->UnitProfile = &profile;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = G_UnitBalance(barracks)->goldCost;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = G_UnitBalance(barracks)->lumberCost;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+
+    T_ASSERT(G_IssueBuildOrder(builder, barracks, &point));
+    T_EQ(builder->build_project, barracks); T_NOT_NULL(builder->goalentity);
+    T_ASSERT(!G_IssueBuildOrder(builder, MAKEFOURCC('h','f','o','o'), &point));
+}
+
+TEST(wc3_building, shared_build_order_releases_builder_from_gold_mine) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT builder, mine;
+    UnitProfile_t profile = { .builds = "hbar" };
+    VECTOR2 point = { 64.0f, 64.0f };
+    DWORD const barracks = MAKEFOURCC('h','b','a','r');
+
+    setup_test_world();
+    builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -128, -128);
+    mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), -64, -64);
+    builder->s.player = client->ps.number; builder->UnitProfile = &profile;
+    builder->goldmine.mine = mine; builder->goldmine.mine_spawn_time = mine->spawn_time;
+    builder->invulnerable = true; builder->s.renderfx |= RF_HIDDEN; mine->peonsinside = 1;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = G_UnitBalance(barracks)->goldCost;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = G_UnitBalance(barracks)->lumberCost;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+
+    T_ASSERT(G_IssueBuildOrder(builder, barracks, &point));
+    T_ASSERT(!S_GoldMineWorkerIsInside(builder)); T_EQ(mine->peonsinside, 0);
+    T_ASSERT(!(builder->s.renderfx & RF_HIDDEN)); T_ASSERT(!builder->invulnerable);
+    T_EQ(builder->build_project, barracks); T_NOT_NULL(builder->goalentity);
+}
+
 TEST(wc3_building, building_snap_without_authored_pathing_uses_32_unit_grid) {
     VECTOR2 point = { 47.0f, 79.0f };
 

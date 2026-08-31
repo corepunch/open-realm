@@ -306,11 +306,69 @@ Booty Bay lobby with an Orc computer slot reaches `MeleeStartingAI`, starts the 
 same per-player VM as campaign AI. The first confirmed melee-only registration is `SetHeroLevels(function SkillArrays)`:
 the callback is VM-owned bot policy consumed when heroes gain levels, not an eager call during `StandardAI` startup.
 
+TFT melee initialization adds `Amic` to each starting town hall and marks it permanent before race AI starts.
+`UnitAddAbility` and `UnitRemoveAbility` therefore maintain per-unit runtime additions and suppressions over immutable
+`UnitAbilities.slk` rows; `UnitMakeAbilityPermanent` records which present abilities survive later unit-type changes.
+Duplicate adds, absent removes, and permanence requests for absent abilities return false. Runtime skill queries consume
+the same overlay, and entity removal, level shutdown, and test resets release its storage.
+
+The lobby currently exposes no per-slot difficulty selector, so `GetAIDifficulty` returns
+`AI_DIFFICULTY_NORMAL` for valid players. `aidifficulty` is a value-like JASS enum handle and must remain in the VM's
+payload-comparison type table. Add a lobby field before supporting newbie or insane; do not infer difficulty from race,
+team, or map settings.
+
+With these startup APIs, bounded TFT Booty Bay launches start all four unchanged race scripts without a JASS runtime
+error: `Scripts/human.ai`, `Scripts/orc.ai`, `Scripts/undead.ai`, and `Scripts/elf.ai`. Keep slot type fixed at `2`
+(computer) and vary the race argument from `1` through `4` when reproducing the matrix. Blizzard's physical ROC scripts
+in `War3.mpq` are internally consistent. In ROC mode `FS_ArchiveFileVisible` hides only `Scripts/*.ai` from
+`War3Local.mpq`, whose patched copies match TFT and are incompatible with ROC `common.ai`; localized non-AI files remain
+visible. TFT mode retains the ordinary expansion archive precedence. Command tests cover both policies, so do not
+register the TFT-only JASS helper `SetSkillArray` as an engine native or disable the whole localization archive.
+
+### Melee Economy And Production
+
+Rivercross proved the following runtime contracts:
+
+- Canonical neutral slots are hostile `12`, victim `13`, extra `14`, and passive `15`. Its two `ngol` mines are owned by
+  neutral passive. `IsUnitType(unit, UNIT_TYPE_STRUCTURE)` must classify buildings through `G_UnitIsBuilding`; otherwise
+  Blizzard's `MeleeClearExcessUnit` removes both mines during map initialization.
+- Town IDs enumerate completed owned gold drop-offs in stable edict order. A mine belongs to its nearest owned town.
+  `TownWithMine`, `TownHasMine`, `TownHasHall`, `GetMinesOwned`, and `GetGoldOwned` expose those authoritative facts.
+- `SetProduce` uses `SP_TrainUnit` and `G_IssueBuildOrder`. Non-done counts include accepted `build_project` orders and
+  queued/constructing entities so `common.ai` does not duplicate requests; done counts exclude training and construction.
+- A `ClearHarvestAI` pass must reserve active matching harvesters before assigning idle workers. Restarting a worker's
+  `a_goldmine` move while it is hidden inside the mine resets its mining timer and stalls income. Pending builders,
+  active Human construction workers, and hidden training entities are not eligible harvest candidates.
+- Queued units are suspended with no movement or animation until revealed. Their `build` field is the queue link, so an
+  animation callback on a hidden trainee would sever the producer queue.
+- AI structure orders are serialized while one worker has `build_project`, because pending footprints are not baked.
+  Candidate sites must also have a direct collision-safe static route from the selected worker. This prevents repeatedly
+  accepting a legal footprint across disconnected Rivercross terrain. During execution builders use collision-radius
+  flow routing; the larger structure footprint distance remains only the arrival threshold.
+- SLK placement predicate `_` means no authored predicate. Treat it like an empty value; continue reporting genuinely
+  unsupported placement tokens.
+
+With these rules, a bounded Human ROC Rivercross run repeatedly returns gold and completes five queued Peasants, a
+Barracks, and a Farm without a JASS runtime error. Use `WC3_DEBUG_AI` builds for requested/accepted/completed production
+and captain milestones; detailed traces remain disabled in normal builds.
+
+#### Multiplayer Test Map
+
+Use [Rivercross by Bernard](https://www.epicwar.com/maps/192650/) as the standard manually downloaded ROC multiplayer
+map. It is a 64x64, two-player melee map saved by Warcraft III 1.00 editor build 4448; its 52x52 playable area keeps
+startup tests small. Download `(2)Rivercross.w3m` into `data/Warcraft III/Maps/`. The expected SHA-256 is
+`d0e539329a6567e7695a130607417fcd052c36388d4e76c58ec6f99302ab3cf0`.
+
+Rivercross is free to download for play, but no redistribution license is published by its author or EpicWar. Credit
+Bernard whenever referring to the map, keep the file in the ignored local `data/` tree, and do not commit it or package
+it with OpenWarcraft3 without explicit permission. Tests committed to the repository must continue to use
+project-authored fixtures under `games/warcraft-3/tests/resources-src/`.
+
 ```sh
-build/bin/openwarcraft3 -data 'data/Warcraft III' +set vid_hidden 1 \
-  +lobby_start 'Maps/(2)BootyBay.w3m' +lobby_config 2 2 BootyBay \
-  +lobby_slot 0 1 0 1 1 0 0 Player +lobby_slot 1 1 1 2 2 1 1 Computer \
-  +map 'Maps/(2)BootyBay.w3m' +com_frame_limit 1000
+build/bin/openwarcraft3 -data 'data/Warcraft III' -roc +set vid_hidden 1 \
+  +lobby_start 'Maps/(2)Rivercross.w3m' +lobby_config 2 2 Rivercross \
+  +lobby_slot 0 1 0 1 1 0 0 Player +lobby_slot 1 1 1 2 1 1 1 Computer \
+  +map 'Maps/(2)Rivercross.w3m' +com_frame_limit 1000
 ```
 
 ## Verification

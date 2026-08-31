@@ -18,6 +18,21 @@ When WC3 resolves a file path it searches in this order:
 4. `war3x.mpq` / `war3xlocal.mpq` (TFT expansion)
 5. `war3.mpq` (base game)
 
+OpenWarcraft's mounted archive order follows the active game mode, with one path-aware ROC compatibility rule. Patched
+`War3Local.mpq` archives can contain `Scripts/*.ai` copies matching TFT while ROC `Scripts/common.ai` resolves from
+`War3.mpq`. In ROC mode `FS_ArchiveFileVisible` therefore hides only `.ai` files under `Scripts/` from
+`War3Local.mpq`; all other localized files remain visible. TFT mode leaves those AI files visible under normal expansion
+precedence. Apply this policy in both `FS_OpenFile` and `FS_ReadFileAll`; fixing only one API creates inconsistent VFS
+results between streaming and whole-file consumers.
+
+Verify the archive policy with:
+
+```sh
+make test-commands
+build/bin/mpqtool -mpq 'data/Warcraft III/War3.mpq' cat Scripts/common.ai
+build/bin/mpqtool -mpq 'data/Warcraft III/War3.mpq' cat Scripts/human.ai
+```
+
 ## Standard WC3 MPQ archives
 
 | Archive | Contents |

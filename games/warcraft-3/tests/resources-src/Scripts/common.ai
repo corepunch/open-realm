@@ -7,6 +7,12 @@ native GetAiPlayer takes nothing returns integer
 native GetUnitCount takes integer unitid returns integer
 native GetPlayerUnitTypeCount takes player p, integer unitid returns integer
 native GetUnitCountDone takes integer unitid returns integer
+native GetMinesOwned takes nothing returns integer
+native GetGoldOwned takes nothing returns integer
+native TownWithMine takes nothing returns integer
+native TownHasMine takes integer townid returns boolean
+native TownHasHall takes integer townid returns boolean
+native SetProduce takes integer qty, integer id, integer town returns boolean
 native GetUnitGoldCost takes integer unitid returns integer
 native GetUnitWoodCost takes integer unitid returns integer
 native GetUnitBuildTime takes integer unitid returns integer
@@ -14,6 +20,7 @@ native GetUpgradeLevel takes integer id returns integer
 native UnitAlive takes unit id returns boolean
 native SetCampaignAI takes nothing returns nothing
 native SetMeleeAI takes nothing returns nothing
+native SetHeroLevels takes code func returns nothing
 native SetTargetHeroes takes boolean state returns nothing
 native SetPeonsRepair takes boolean state returns nothing
 native SetHeroesFlee takes boolean state returns nothing
