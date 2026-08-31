@@ -584,6 +584,7 @@ struct edict_s {
         FLOAT progress;
     } construction;
     BOOL training; /* spawned in a production queue but not yet completed */
+    BOOL training_food_wait_notified; /* one-shot Nofood feedback for the active queue head */
     struct {
         LONG used; /* food currently accounted to s.player; queue-head reservations live here */
         LONG made; /* food capacity currently accounted to s.player */
@@ -1097,6 +1098,8 @@ void G_SetUnitFoodMade(LPEDICT unit, LONG amount);
 void G_ActivateUnitFood(LPEDICT unit);
 void G_ClearUnitFood(LPEDICT unit);
 void G_ClearTrainingQueueFood(LPEDICT producer);
+BOOL G_CancelTrainingQueueItem(LPEDICT producer, DWORD index, BOOL refund);
+void G_CancelTrainingQueue(LPEDICT producer, BOOL refund);
 void G_SetUnitPlayer(LPEDICT unit, DWORD player);
 void G_RecomputePlayerUpkeep(LPGAMECLIENT client);
 LONG G_ApplyResourceIncome(LPPLAYER player, DWORD resource_state, LONG gross_amount);

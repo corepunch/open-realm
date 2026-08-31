@@ -336,6 +336,7 @@ BYTE G_GetInventory(LPEDICT ent, gameInventoryItem_t *items, BYTE max_items) {
 BYTE G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue) {
     BYTE count = 0;
     DWORD cursor = gi.GetTime();
+    BOOL food_blocked = false;
 
     if (!ent || !queue) {
         return 0;
@@ -346,12 +347,22 @@ BYTE G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue) {
         DWORD duration = build->UnitBalance->buildTime * 1000;
         FLOAT progress = 0;
 
-        if (count == 0 && build->health.max_value > 0) {
-            progress = build->health.value / build->health.max_value;
-            progress = MAX(0, MIN(progress, 1));
+        if (count == 0) {
+            LONG cost = MAX(0, build->UnitBalance->foodUsed);
+            if (build->health.max_value > 0) {
+                progress = build->health.value / build->health.max_value;
+                progress = MAX(0, MIN(progress, 1));
+            }
+            food_blocked = build->training && cost > 0 && build->food.used == 0 && G_FoodLimitsEnabled();
         }
         G_CopyString(queue[count].art, sizeof(queue[count].art), FindConfigValue(build_name, STR_ART));
-        if (duration > 0) {
+        if (food_blocked) {
+            /* A food-stalled head has no meaningful predicted completion time.
+             * Zero times are an explicit wire sentinel: the client holds the
+             * progress bar at zero and still renders every waiting queue icon. */
+            queue[count].starttime = 0;
+            queue[count].endtime = 0;
+        } else if (duration > 0) {
             DWORD elapsed = (DWORD)(duration * progress);
             queue[count].starttime = count == 0 && elapsed <= cursor ? cursor - elapsed : cursor;
             queue[count].endtime = queue[count].starttime + duration;

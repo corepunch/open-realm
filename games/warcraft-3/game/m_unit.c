@@ -95,7 +95,8 @@ void unit_stand(LPEDICT self) {
 void unit_die(LPEDICT self, LPEDICT attacker) {
     LPGAMECLIENT owner;
 
-    G_ClearTrainingQueueFood(self);
+    if (self->training) G_ClearTrainingQueueFood(self);
+    else G_CancelTrainingQueue(self, true);
     G_ClearUnitFood(self);
     unit_leavecombat(self);
     unit_setmove(self, &unit_move_death);

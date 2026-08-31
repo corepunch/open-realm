@@ -1288,8 +1288,8 @@ TEST(wc3_movement, trained_unit_completion_preserves_remaining_queue) {
     T_FEQ(second->health.value, 0.0f, 0.01f);
     T_EQ(first->food.used, 2);
     T_EQ(first->food.made, 4);
-    T_EQ(second->food.used, 0);
-    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 2);
+    T_EQ(second->food.used, 2);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 4);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP], 104);
 }
 

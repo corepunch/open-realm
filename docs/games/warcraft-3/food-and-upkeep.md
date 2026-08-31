@@ -48,7 +48,7 @@ Hero revival reactivates the revived hero's unit-data food contribution. Trigger
 
 The existing training queue stores hidden queued units as linked edicts through `edict.build`. Food reservation uses those same entities; no parallel queue structure is required.
 
-Only the active head may reserve food:
+Only the active head may reserve food. The reservation is attempted immediately when an empty queue receives its first item, and immediately when completion/cancellation promotes a waiting item to the head; the per-frame retry remains authoritative while a head is food-blocked:
 
 ```text
 producer->build (active head)
@@ -60,6 +60,8 @@ producer->build (active head)
 head->build (later queue item)
         -> food.used remains zero until it becomes the head
 ```
+
+Immediate head reservation matters for command-time checks. Once item A becomes the active head, a second Train click must observe A's newly accounted Food Used; only later waiting items are omitted from the food total. Gold/lumber remain charged at queue insertion for every item.
 
 `G_GetTrainCommandState()` also reports current gold, lumber, and food shortages, but that UI/order check is not the authoritative reservation. Supply can change while an item waits, so `ai_train_build()` re-checks at the active queue slot.
 
@@ -73,7 +75,13 @@ hidden queue edict with food.used=N
         -> visible unit still owns food.used=N
 ```
 
-Destroying or explicitly removing a producer clears any food reservation owned by its training queue so a hidden orphan cannot strand Food Used. The current queue still has no user-facing train-item cancellation/refund path. When that lifecycle is implemented it must clear only the cancelled item's actual `edict.food.used` reservation; later queue entries normally own zero food. Gold/lumber refund policy for producer destruction remains separate from this food cleanup.
+A food reservation failure emits `Not enough food` once when that item first becomes the active blocked head. The item records that notification state so the per-frame retry does not spam the player. When supply later becomes available, successful reservation clears the waiting state and refreshes the selected producer's queue panel.
+
+The build-queue panel uses zero `starttime/endtime` as a server-authored sentinel for a food-blocked head. The client holds the production bar at zero and continues drawing all waiting queue icons. When the head eventually reserves food, the server rewrites the panel with normal timing, so the progress bar starts from that transition rather than pretending training continued while supply-blocked.
+
+Queue icons are cancellation targets. The server receives `canceltrain <slot>`, unlinks that exact hidden training edict, refunds its configured gold/lumber cost, releases only food actually owned by `edict.food.used`, and frees the hidden entity. Cancelling an unreserved blocked head therefore cannot reduce some other unit's Food Used. If the head is cancelled, the next item becomes active and immediately attempts its own reservation.
+
+Destroying or explicitly removing a producer runs the same queue-cancellation ownership path for every queued item: all paid gold/lumber is refunded, the active reservation (if any) is released, and hidden queue entities are freed. Producer destruction does not briefly activate later queue items while cancelling the queue.
 
 ## Food Ceiling And Debug Override
 
@@ -105,8 +113,9 @@ The JASS rawcode natives `GetFoodMade(unitId)` and `GetFoodUsed(unitId)` read ge
 
 ## Known Gaps
 
-- Training queue cancellation/refund economics are still missing because the current command lifecycle has no train-item cancel operation. Producer death/removal releases any active food reservation, but the pre-existing hidden queue entities and gold/lumber refund policy still need an explicit cancellation lifecycle. Do not infer cancellation from queue presence.
+- Queue cancellation now covers ordinary trained-unit entries and producer death/removal. Research/upgrade queues and altar-specific Hero revival are separate production systems and still need their own cancellation/cost lifecycles.
 - Hero altar production/revival still needs its command-specific food validation/reservation and displayed revival cost; direct `G_ReviveHero()` only restores the live unit's accounting.
+- Food-block feedback currently uses the existing gameplay text overlay. Race-specific Warcraft command-error sounds/localized `Nofood` strings need a dedicated command-error presentation path rather than hard-coded sound guesses in queue code.
 - `PLAYERSTATE_GOLD_GATHERED` / `PLAYERSTATE_LUMBER_GATHERED` remain storage/API states. This patch does not guess whether their Warcraft-compatible cumulative semantics are gross harvested or net credited.
 - Upkeep HUD strings remain authored directly by the current resource-bar code; localization through Warcraft UI string data is separate work.
 - `war3map.w3u` unit-object overrides remain subject to the existing normalized object-data merge limitations documented elsewhere.

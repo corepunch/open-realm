@@ -56,6 +56,7 @@ UnitProfile.Trains
 ```
 
 Only the queue head owns a food reservation; later linked queue entries remain unreserved until they advance. See [Warcraft III Food, Supply, And Upkeep](food-and-upkeep.md) for the food ownership and upkeep lifecycle.
+Queue insertion reserves food immediately when the new item is the head. A later head that cannot reserve food remains paid and queued, reports the shortage once, and retries without progress. Queue icons issue `canceltrain <slot>`; cancellation refunds that item's gold/lumber and releases only a reservation actually owned by that hidden queue edict.
 
 Technology/count changes mark the owner's command card dirty instead of pushing UI from inside arbitrary JASS/entity callbacks. `G_UpdateClientCommandCards()` consumes that flag after entity simulation, while the initial `G_ClientBegin()` command-card write clears any dirty state accumulated by W3I or map-init JASS before the game HUD is shown. Build/skill submenus retain a refresh callback so a tech update rebuilds the current submenu rather than forcing the main card; active location/entity targeting defers the refresh until that input mode is resolved so cursor state is not stranded. Runtime spawns, ownership changes, removals, deaths, construction start/completion, and training completion invalidate affected command cards.
 
@@ -160,7 +161,7 @@ Construction and owned-building Repair now share the behavior described above. T
 - W3I upgrade-availability records are parsed but are not yet applied to a complete research/upgrade production system;
 - `SetPlayerAbilityAvailable` remains separate from unit/building technology availability and is not yet backed by per-player disabled-ability state;
 - hero training still lacks the additional hero-count/tier/token rules layered on top of normal `Trains`/maximum/requirement checks;
-- training still uses the legacy `player_pay()` gold/lumber payment path, while food reservation is owned by the active queue edict; train-item cancellation/refund economics remain separate work because no user-facing queue-cancel lifecycle exists yet;
+- training still uses the legacy `player_pay()` gold/lumber payment path, while food reservation is owned by the active queue edict; queued unit icons can now cancel/refund their exact hidden queue edict, and producer death/removal cancels/refunds all queued unit entries;
 - the client does not yet draw a per-cell green/red pathing splat or mirror live-unit obstruction into that splat;
 - placement supports the currently decoded walk/build/blight flags, not every Warcraft compound placement type; unsupported tokens are reported to `stderr` instead of being silently discarded;
 - build cancellation after a structure has spawned does not yet have the retail partial-refund lifecycle;

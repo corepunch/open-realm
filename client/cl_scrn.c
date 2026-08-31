@@ -480,12 +480,16 @@ void SCR_LayoutDrawBuildQueue(LPCUIFRAME frame, LPCRECT scrn) {
     RECT screen = *scrn;
     RECT const uv = { 0, 0, 1, 1 };
     uiBuildQueue_t const *queue = frame->buffer.data;
-    DWORD active = queue->numitems;
-    FOR_LOOP(i, queue->numitems) {
-        if (cl.time < queue->items[i].endtime) { active = i; break; }
+    BOOL const food_blocked = queue->numitems && queue->items[0].starttime == 0 && queue->items[0].endtime == 0;
+    DWORD active = food_blocked ? 0 : queue->numitems;
+
+    if (!food_blocked) {
+        FOR_LOOP(i, queue->numitems) {
+            if (cl.time < queue->items[i].endtime) { active = i; break; }
+        }
     }
     for (DWORD i = active + 1; i < queue->numitems; i++) {
-        if (cl.time < queue->items[i].endtime) {
+        if (food_blocked || cl.time < queue->items[i].endtime) {
             re.DrawImage(cl.pics[queue->items[i].image], &screen, &uv, frame->color);
             screen.x += queue->itemoffset;
         }
@@ -496,6 +500,12 @@ void SCR_LayoutUpdateBuildQueue(LPCUIFRAME frame, LPCRECT screen) {
     uiBuildQueue_t const *queue = frame->buffer.data;
     LPUIFRAME buildtimer = SCR_Frame(queue->buildtimer);
     LPUIFRAME firstitem  = SCR_Frame(queue->firstitem);
+
+    if (queue->numitems && queue->items[0].starttime == 0 && queue->items[0].endtime == 0) {
+        if (buildtimer) buildtimer->value = 0;
+        if (firstitem) firstitem->tex.index = queue->items[0].image;
+        return;
+    }
     FOR_LOOP(i, queue->numitems) {
         uiBuildQueueItem_t const *item = &queue->items[i];
         if (cl.time < item->endtime) {
