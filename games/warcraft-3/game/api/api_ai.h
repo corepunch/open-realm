@@ -90,6 +90,16 @@ DWORD StopGathering(LPJASS j) {
     return 0;
 }
 
+DWORD ClearHarvestAI(LPJASS j) { G_BotClearHarvest(jass_getcontext(j)->playerState); return 0; }
+DWORD HarvestGold(LPJASS j) {
+    G_BotHarvest(jass_getcontext(j)->playerState, jass_checkinteger(j, 1), jass_checkinteger(j, 2), true);
+    return 0;
+}
+DWORD HarvestWood(LPJASS j) {
+    G_BotHarvest(jass_getcontext(j)->playerState, jass_checkinteger(j, 1), jass_checkinteger(j, 2), false);
+    return 0;
+}
+
 DWORD CreateCaptains(LPJASS j) {
     G_BotCreateCaptains(jass_getcontext(j)->playerState);
     return 0;

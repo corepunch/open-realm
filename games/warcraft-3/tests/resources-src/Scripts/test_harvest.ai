@@ -1,0 +1,6 @@
+function main takes nothing returns nothing
+    call ClearHarvestAI()
+    call HarvestGold(0, 1)
+    call HarvestWood(0, 1)
+    call Sleep(1000.0)
+endfunction

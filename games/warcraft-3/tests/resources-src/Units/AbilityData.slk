@@ -1,9 +1,11 @@
 ID;PWXL;N;E
-B;X4;Y6;D0
+B;X6;Y7;D0
 C;X1;Y1;K"alias"
 C;X2;K"code"
 C;X3;K"Data11"
 C;X4;K"DataA1"
+C;X5;K"Data12"
+C;X6;K"Data13"
 C;X1;Y2;K"AInv"
 C;X2;K"AInv"
 C;X3;K"6"
@@ -24,4 +26,9 @@ C;X1;Y6;K"Aihn"
 C;X2;K"AInv"
 C;X3;K"2"
 C;X4;K"2"
+C;X1;Y7;K"Abgm"
+C;X2;K"Agld"
+C;X3;K"12500"
+C;X5;K"1"
+C;X6;K"1"
 E

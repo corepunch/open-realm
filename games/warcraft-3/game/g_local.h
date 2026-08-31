@@ -881,6 +881,7 @@ typedef struct {
     LPPLAYER player;
     botCaptain_t captains[BOT_CAPTAIN_COUNT];
     ARRAY(botCommand_t, commands);
+    ARRAY(LPEDICT, harvesters);
     botMode_t mode, pending_mode;
     DWORD flags;
     LONG replacement_count;
@@ -962,6 +963,8 @@ void G_BotPause(DWORD, BOOL);
 void G_BotRunFrame(void);
 BOOL G_BotUnitAlive(LPEDICT);
 void G_BotStopGathering(LPPLAYER);
+void G_BotClearHarvest(LPPLAYER);
+void G_BotHarvest(LPPLAYER, LONG, LONG, BOOL);
 void G_BotCreateCaptains(LPPLAYER);
 DWORD G_BotIgnoredUnits(LPPLAYER, DWORD);
 BOOL G_BotPushCommand(LPPLAYER, LONG, LONG);

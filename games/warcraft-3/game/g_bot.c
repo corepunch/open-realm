@@ -29,6 +29,70 @@ void G_BotStopGathering(LPPLAYER player) {
     }
 }
 
+static BOOL G_BotHarvesterReserved(bot_t *bot, LPEDICT unit) {
+    FOR_EACH_ARRAY(LPEDICT, assigned, bot->harvesters) if (*assigned == unit) return true;
+    return false;
+}
+
+static void G_BotReserveHarvester(bot_t *bot, LPEDICT unit) {
+    DWORD count = ARRAY_COUNT(bot->harvesters);
+    LPEDICT *units = gi.MemAlloc((count + 1) * sizeof(*units));
+    if (count) memcpy(units, bot->harvesters, count * sizeof(*units));
+    if (bot->harvesters) gi.MemFree(bot->harvesters);
+    bot->harvesters = units; ARRAY_COUNT(bot->harvesters) = count + 1; bot->harvesters[count] = unit;
+}
+
+void G_BotClearHarvest(LPPLAYER player) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    if (!bot) return;
+    if (bot->harvesters) gi.MemFree(bot->harvesters);
+    bot->harvesters = NULL; ARRAY_COUNT(bot->harvesters) = 0;
+}
+
+/* Town IDs enumerate owned gold drop-offs in spawn order, matching the expansion index used by common.ai. */
+static LPEDICT G_BotHarvestTown(LPPLAYER player, LONG town) {
+    edict_t probe = {0};
+    if (!player || town < 0) return NULL;
+    probe.s.player = PLAYER_NUM(player);
+    FILTER_EDICTS(ent, S_CanReturnResourceAt(&probe, ent, RETURN_RESOURCE_GOLD))
+        if (!town--) return ent;
+    return NULL;
+}
+
+static LPEDICT G_BotHarvestTarget(LPEDICT town, returnResource_t resource) {
+    LPEDICT best = NULL;
+    FLOAT best_dist = 0;
+    FILTER_EDICTS(ent, resource == RETURN_RESOURCE_GOLD ? S_GoldMineCanHarvest(ent) :
+        ent->inuse && ent->targtype == TARG_TREE && !M_IsDead(ent)) {
+        FLOAT dist = Vector2_distance(&town->s.origin2, &ent->s.origin2);
+        if (!best || dist < best_dist) { best = ent; best_dist = dist; }
+    }
+    return best;
+}
+
+/* A ClearHarvestAI pass assigns each eligible worker once across all town/resource requests. */
+void G_BotHarvest(LPPLAYER player, LONG town_id, LONG peons, BOOL gold) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    returnResource_t resource = gold ? RETURN_RESOURCE_GOLD : RETURN_RESOURCE_LUMBER;
+    LPEDICT town, target;
+    if (!bot || peons <= 0 || !(town = G_BotHarvestTown(player, town_id)) || !(target = G_BotHarvestTarget(town, resource))) return;
+    while (peons-- > 0) {
+        LPEDICT best = NULL;
+        FLOAT best_dist = 0;
+        FILTER_EDICTS(unit, G_BotUnitAlive(unit) && unit->s.player == PLAYER_NUM(player) && unit->UnitAbilities &&
+            G_ActorHasSkill(unit, "Ahar") && !G_BotHarvesterReserved(bot, unit)) {
+            FLOAT dist = Vector2_distance(&town->s.origin2, &unit->s.origin2);
+            if (!best || dist < best_dist) { best = unit; best_dist = dist; }
+        }
+        if (!best) return;
+        G_BotReserveHarvester(bot, best);
+        if (best->harvested_gold) harvest_gold_return_to(best, town);
+        else if (best->harvested_lumber) harvest_lumber_return_to(best, town);
+        else if (resource == RETURN_RESOURCE_GOLD) harvest_gold_start(best, target);
+        else harvest_start(best, target);
+    }
+}
+
 /* Blizzard AI owns one assault and one defense captain; recreation drops all prior membership and orders. */
 void G_BotCreateCaptains(LPPLAYER player) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
@@ -96,6 +160,7 @@ void G_BotStop(DWORD player) {
     if (bot->vm) jass_close(bot->vm);
     G_BotClearCaptains(bot);
     if (bot->commands) gi.MemFree(bot->commands);
+    if (bot->harvesters) gi.MemFree(bot->harvesters);
     memset(bot, 0, sizeof(*bot));
 }
 
