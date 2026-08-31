@@ -83,6 +83,11 @@ static void make_live_dropoff(LPEDICT building, UnitAbilities_t const *abilities
     building->health.value = building->health.max_value = 1000.0f;
 }
 
+/* Command-integration tests exercise server selection/target-mode state, not
+ * svc_layout transport. Keep their HUD refreshes inside the game-test boundary. */
+static void movement_noop_write(pfWriteType_t type, void const *value) { (void)type; (void)value; }
+static void movement_noop_unicast(LPEDICT ent) { (void)ent; }
+
 slkTestData_t *parse_slk_string(const char *slk_text);
 void free_slk_rows(slkTestData_t *rows);
 
@@ -548,18 +553,23 @@ TEST(wc3_movement, lumber_smart_click_preserves_gold_carry) {
  * be consumed as the old target click, so the previous worker group stays
  * selected and a following lumber Smart order retasks that entire group. */
 TEST(wc3_movement, harvest_target_mode_right_click_cancel_prevents_stale_group_retask) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(LPEDICT) = gi.unicast;
     LPEDICT clent = &g_edicts[0];
     LPGAMECLIENT client = clent->client;
-    LPEDICT miner1 = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
-    LPEDICT miner2 = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32.0f, 0.0f);
-    LPEDICT idle = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 0.0f);
-    LPEDICT tree = make_harvest_tree(160.0f, 0.0f, 100.0f);
+    LPEDICT miner1, miner2, idle, tree;
     char idle_number[16], tree_number[16];
     LPCSTR cancel_command[] = { "smartpoint", "256", "256" };
     LPCSTR select_command[] = { "select", idle_number };
     LPCSTR harvest_command[] = { "smart", tree_number };
 
     setup_test_world();
+    gi.Write = movement_noop_write;
+    gi.unicast = movement_noop_unicast;
+    miner1 = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    miner2 = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32.0f, 0.0f);
+    idle = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 0.0f);
+    tree = make_harvest_tree(160.0f, 0.0f, 100.0f);
     miner1->UnitAbilities = miner2->UnitAbilities = idle->UnitAbilities = &harvest_abilities;
     G_SelectEntity(client, miner1);
     G_SelectEntity(client, miner2);
@@ -584,18 +594,26 @@ TEST(wc3_movement, harvest_target_mode_right_click_cancel_prevents_stale_group_r
     T_ASSERT(idle->secondarygoal == tree);
     T_NULL(miner1->goalentity);
     T_NULL(miner2->goalentity);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
 }
 
 /* Entity Smart/right-click uses the same cancel contract as ground Smart. */
 TEST(wc3_movement, harvest_target_mode_right_click_entity_cancels_without_order) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(LPEDICT) = gi.unicast;
     LPEDICT clent = &g_edicts[0];
     LPGAMECLIENT client = clent->client;
-    LPEDICT worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
-    LPEDICT tree = make_harvest_tree(160.0f, 0.0f, 100.0f);
+    LPEDICT worker, tree;
     char tree_number[16];
     LPCSTR command[] = { "smart", tree_number };
 
     setup_test_world();
+    gi.Write = movement_noop_write;
+    gi.unicast = movement_noop_unicast;
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    tree = make_harvest_tree(160.0f, 0.0f, 100.0f);
     worker->UnitAbilities = &harvest_abilities;
     G_SelectEntity(client, worker);
     client->menu.on_entity_selected = harvest_menu_selecttarget;
@@ -607,6 +625,9 @@ TEST(wc3_movement, harvest_target_mode_right_click_entity_cancels_without_order)
     T_NULL(client->menu.on_location_selected);
     T_NULL(worker->goalentity);
     T_NULL(worker->secondarygoal);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
 }
 
 /* Reissuing Harvest while already full remembers the requested tree but begins
