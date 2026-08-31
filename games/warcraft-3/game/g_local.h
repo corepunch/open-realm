@@ -884,7 +884,6 @@ void G_FowSendDeltas(void);
 void G_FowSendFull(LPEDICT ent);
 BOOL G_FowPlayerCanSeeEntity(DWORD player, LPCEDICT ent);
 BOOL G_FowPlayerCanHoverEntity(DWORD player, LPCEDICT ent);
-int fow_debug_level(void);
 void G_FowSetStateRect(LPCFOGWRITE fog, LPCBOX2 box);
 void G_FowSetStateRadius(LPCFOGWRITE fog, LPCVECTOR2 center, FLOAT radius);
 void G_FogModifierStart(LPFOGMODIFIER mod);
