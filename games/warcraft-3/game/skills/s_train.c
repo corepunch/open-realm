@@ -36,7 +36,9 @@ static BOOL ReserveTrainingFood(LPEDICT producer, LPEDICT unit) {
 
     unit->training_food_wait_notified = true;
     clent = G_GetPlayerEntityByNumber(unit->s.player);
-    if (clent) UI_ShowText(clent, &MAKE(VECTOR2, 0, 0), "Not enough food", 2.0f);
+    if (clent && client->connected) {
+        UI_ShowText(clent, &MAKE(VECTOR2, 0, 0), "Not enough food", 2.0f);
+    }
     return false;
 }
 
@@ -220,7 +222,7 @@ BOOL SP_TrainUnit(LPEDICT townhall, DWORD class_id) {
     clent = G_GetPlayerEntityByNumber(townhall->s.player);
     state = G_GetTrainCommandState(client, townhall, class_id, reason, sizeof(reason));
     if (state != BUILD_COMMAND_AVAILABLE) {
-        if (clent && reason[0]) UI_ShowText(clent, &MAKE(VECTOR2, 0, 0), reason, 2.0f);
+        if (clent && client->connected && reason[0]) UI_ShowText(clent, &MAKE(VECTOR2, 0, 0), reason, 2.0f);
         return false;
     }
     player = G_GetPlayerByNumber(townhall->s.player);
@@ -231,7 +233,7 @@ BOOL SP_TrainUnit(LPEDICT townhall, DWORD class_id) {
             Get_Commands_f(clent);
         }
         return true;
-    } else if (clent) {
+    } else if (clent && client->connected) {
         UI_ShowText(clent, &MAKE(VECTOR2, 0, 0), "Not enough resources", 2.0f);
     }
     return false;

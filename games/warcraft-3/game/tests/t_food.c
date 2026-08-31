@@ -188,9 +188,11 @@ TEST(wc3_food, active_training_waits_for_food_and_only_head_reserves) {
 
 TEST(wc3_food, first_queued_unit_reserves_food_immediately) {
     LPGAMECLIENT client = &game.clients[0];
-    LPEDICT producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0.0f, 0.0f);
+    LPEDICT producer;
     UnitBalance_t const *balance = G_UnitBalance(MAKEFOURCC('h','f','o','o'));
 
+    setup_test_world();
+    producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0.0f, 0.0f);
     producer->s.player = client->ps.number;
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] = 0;
