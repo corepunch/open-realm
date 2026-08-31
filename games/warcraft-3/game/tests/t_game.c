@@ -648,6 +648,7 @@ TEST(wc3_game, fow_blocker_stops_visibility_behind_it) {
 TEST(wc3_game, fow_blocker_cache_skips_clean_and_unchanged_dirty_updates) {
     DWORD old_index, new_index, sentinel;
     LPEDICT blocker;
+    VECTOR2 direction = { 1.0f, 0.0f };
 
     reset_entities();
     G_FowInit();
@@ -668,8 +669,7 @@ TEST(wc3_game, fow_blocker_cache_skips_clean_and_unchanged_dirty_updates) {
     G_FowUpdate();
     T_EQ(level.fow.blocked[sentinel], 7);
 
-    blocker->s.origin.x = 320.0f;
-    G_FowMarkBlockersDirty();
+    G_PushEntity(blocker, 256.0f, &direction);
     G_FowUpdate();
     T_EQ(level.fow.blocked[sentinel], 0);
     T_ASSERT(!level.fow.blocked[old_index]);

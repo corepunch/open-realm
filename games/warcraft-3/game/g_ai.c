@@ -147,6 +147,7 @@ BOOL M_MoveIsValid(LPEDICT self, LPCVECTOR2 pos) {
 }
 
 static void unit_commit_step(LPEDICT self, LPCVECTOR2 cand) {
+    if (self->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     self->s.origin2 = *cand;
     gi.LinkEntity(self);
 }

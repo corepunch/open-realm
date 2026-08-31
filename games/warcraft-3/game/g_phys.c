@@ -30,6 +30,7 @@ extern void spell_run_frame(LPEDICT ent);
 
 void G_PushEntity(LPEDICT ent, FLOAT distance, LPCVECTOR2 direction) {
     ent->s.origin2 = Vector2_mad(&ent->s.origin2, distance, direction);
+    if (ent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     gi.LinkEntity(ent);
 }
 
