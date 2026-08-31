@@ -41,7 +41,7 @@ typedef struct test_s {
 /* Registry + runner (defined in shared/test.c, one instance in libshared). */
 void Test_Register(test_t *t);
 int  Test_Run(const char *pattern);                 /* returns failure count */
-void Test_Fail(const char *file, int line, const char *expr);
+void Test_Fail(const char *func, const char *file, int line, const char *expr);
 void Test_SetBeforeEach(void (*fn)(void));
 
 /* Per-test counters (reset by Test_Run before each test). */
@@ -64,7 +64,7 @@ extern int test_failures;
 
 #define T_ASSERT(cond) do {                                                    \
     test_asserts++;                                                            \
-    if (!(cond)) Test_Fail(__FILE__, __LINE__, #cond);                         \
+    if (!(cond)) Test_Fail(__func__, __FILE__, __LINE__, #cond);               \
 } while (0)
 
 #define T_EQ(a, b)        T_ASSERT((a) == (b))

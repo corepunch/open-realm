@@ -16,6 +16,7 @@ int test_failures = 0;
 
 static test_t *test_head = NULL;
 static void (*test_before_each)(void);
+static const char *test_current_name = NULL;
 
 /* Modules with stateful in-engine tests register one reset hook for their binary. */
 void Test_SetBeforeEach(void (*fn)(void)) { test_before_each = fn; }
@@ -30,9 +31,10 @@ void Test_Register(test_t *t) {
     *tail = t;
 }
 
-void Test_Fail(const char *file, int line, const char *expr) {
+void Test_Fail(const char *func, const char *file, int line, const char *expr) {
     test_failures++;
-    fprintf(stderr, "    FAIL [%s:%d]: %s\n", file, line, expr);
+    fprintf(stderr, "    FAIL [%s] %s() [%s:%d]: %s\n",
+            test_current_name ? test_current_name : "<direct>", func, file, line, expr);
 }
 
 /* Case-insensitive glob: "*" matches all, a trailing "*" is a prefix match,
@@ -59,8 +61,10 @@ int Test_Run(const char *pattern) {
         test_failures = 0;
         test_asserts = 0;
         before = total_failures;
+        test_current_name = t->name;
         if (test_before_each) test_before_each();
         t->fn();
+        test_current_name = NULL;
         total_failures += test_failures;
         total_asserts += test_asserts;
         ran++;
