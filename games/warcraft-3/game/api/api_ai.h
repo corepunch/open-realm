@@ -1,6 +1,38 @@
 #ifndef api_ai_h
 #define api_ai_h
 
+/* Blizzard AI traces use %d substitution, but the script string must never become a C format string. */
+static void BotDisplayFormat(LPSTR dst, size_t size, LPCSTR format, const LONG *values, DWORD count) {
+    DWORD value = 0;
+    size_t pos = 0;
+    while (*format && pos + 1 < size) {
+        if (format[0] == '\\' && format[1] == 'n') dst[pos++] = '\n', format += 2;
+        else if (format[0] == '%' && format[1] == '%' && pos + 1 < size) dst[pos++] = '%', format += 2;
+        else if (format[0] == '%' && format[1] == 'd' && value < count) {
+            int written = snprintf(dst + pos, size - pos, "%d", values[value++]);
+            if (written < 0) break;
+            pos += (size_t)written < size - pos ? (size_t)written : size - pos - 1;
+            format += 2;
+        } else dst[pos++] = *format++;
+    }
+    dst[pos] = 0;
+}
+
+static DWORD BotDisplayText(LPJASS j, DWORD count) {
+    LONG player = jass_checkinteger(j, 1), values[3] = {0};
+    LPCSTR format = jass_checkstring(j, 2);
+    char message[1024];
+    FOR_LOOP(i, count) values[i] = jass_checkinteger(j, 3 + i);
+    BotDisplayFormat(message, sizeof(message), format, values, count);
+    fprintf(stderr, "WC3 AI[%d]: %s", player, message);
+    return 0;
+}
+
+DWORD DisplayText(LPJASS j) { return BotDisplayText(j, 0); }
+DWORD DisplayTextI(LPJASS j) { return BotDisplayText(j, 1); }
+DWORD DisplayTextII(LPJASS j) { return BotDisplayText(j, 2); }
+DWORD DisplayTextIII(LPJASS j) { return BotDisplayText(j, 3); }
+
 /* common.ai counts queued and constructing units toward desired totals; Done excludes both incomplete states. */
 static LONG BotUnitCount(LPPLAYER player, DWORD unitid, BOOL done) {
     LONG count = 0;
@@ -36,6 +68,10 @@ DWORD GetUnitGoldCost(LPJASS j) {
 
 DWORD GetUnitWoodCost(LPJASS j) {
     return jass_pushinteger(j, MAX(0, G_UnitBalance(jass_checkinteger(j, 1))->lumberCost));
+}
+
+DWORD GetUnitBuildTime(LPJASS j) {
+    return jass_pushinteger(j, MAX(0, G_UnitBalance(jass_checkinteger(j, 1))->buildTime));
 }
 
 DWORD GetUpgradeLevel(LPJASS j) {

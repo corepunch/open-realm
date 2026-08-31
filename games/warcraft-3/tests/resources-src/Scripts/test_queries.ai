@@ -1,4 +1,8 @@
 function main takes nothing returns nothing
+    call DisplayText(GetAiPlayer(), "query test\n")
+    call DisplayTextI(GetAiPlayer(), "one %d\n", 1)
+    call DisplayTextII(GetAiPlayer(), "two %d %d\n", 1, 2)
+    call DisplayTextIII(GetAiPlayer(), "three %d %d %d\n", 1, 2, 3)
     if GetUnitCount('hfoo') != 3 then
         call MissingAIAction()
     endif
@@ -12,6 +16,9 @@ function main takes nothing returns nothing
         call MissingAIAction()
     endif
     if GetUnitGoldCost('hbar') != 235 or GetUnitWoodCost('hbar') != 85 then
+        call MissingAIAction()
+    endif
+    if GetUnitBuildTime('hfoo') != 60 or GetUnitBuildTime('xxxx') != 0 then
         call MissingAIAction()
     endif
     if GetUpgradeLevel('Rhme') != 2 then

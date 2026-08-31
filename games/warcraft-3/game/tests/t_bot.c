@@ -13,6 +13,18 @@ static UnitAbilities_t const bot_harvester_abilities = { .abilList = "Ahar" };
 static UnitAbilities_t const bot_hall_abilities = { .abilList = "Argl" };
 static UnitAbilities_t const bot_mine_abilities = { .abilList = "Abgm" };
 
+TEST(wc3_bot, display_text_formats_only_authoritative_integer_templates) {
+    LONG values[] = {12, -3, 7};
+    char text[64], small[8];
+
+    BotDisplayFormat(text, sizeof(text), "values %d %d %d %% %x\\n", values, sizeof(values) / sizeof(*values));
+    T_STREQ(text, "values 12 -3 7 % %x\n");
+    BotDisplayFormat(text, sizeof(text), "missing %d", values, 0);
+    T_STREQ(text, "missing %d");
+    BotDisplayFormat(small, sizeof(small), "123456789", values, sizeof(values) / sizeof(*values));
+    T_STREQ(small, "1234567");
+}
+
 static LPEDICT make_bot_harvest_unit(DWORD class_id, FLOAT x, FLOAT y, DWORD player, UnitAbilities_t const *abilities) {
     LPEDICT unit = alloc_test_unit(class_id, x, y);
     unit->s.player = player; unit->UnitAbilities = abilities;

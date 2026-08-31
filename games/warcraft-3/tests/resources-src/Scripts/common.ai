@@ -1,10 +1,15 @@
 // Minimal common.ai for player AI lifecycle tests.
+native DisplayText takes integer p, string str returns nothing
+native DisplayTextI takes integer p, string str, integer val returns nothing
+native DisplayTextII takes integer p, string str, integer v1, integer v2 returns nothing
+native DisplayTextIII takes integer p, string str, integer v1, integer v2, integer v3 returns nothing
 native GetAiPlayer takes nothing returns integer
 native GetUnitCount takes integer unitid returns integer
 native GetPlayerUnitTypeCount takes player p, integer unitid returns integer
 native GetUnitCountDone takes integer unitid returns integer
 native GetUnitGoldCost takes integer unitid returns integer
 native GetUnitWoodCost takes integer unitid returns integer
+native GetUnitBuildTime takes integer unitid returns integer
 native GetUpgradeLevel takes integer id returns integer
 native UnitAlive takes unit id returns boolean
 native SetCampaignAI takes nothing returns nothing

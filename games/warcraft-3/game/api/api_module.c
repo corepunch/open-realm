@@ -18,12 +18,17 @@
 #include "api_cinefilter.h"
 
 JASSMODULE jass_funcs[] = {
+    { "DisplayText", DisplayText },
+    { "DisplayTextI", DisplayTextI },
+    { "DisplayTextII", DisplayTextII },
+    { "DisplayTextIII", DisplayTextIII },
     { "GetAiPlayer", GetAiPlayer },
     { "GetUnitCount", GetUnitCount },
     { "GetPlayerUnitTypeCount", GetPlayerUnitTypeCount },
     { "GetUnitCountDone", GetUnitCountDone },
     { "GetUnitGoldCost", GetUnitGoldCost },
     { "GetUnitWoodCost", GetUnitWoodCost },
+    { "GetUnitBuildTime", GetUnitBuildTime },
     { "GetUpgradeLevel", GetUpgradeLevel },
     { "UnitAlive", UnitAlive },
     { "SetCampaignAI", SetCampaignAI },
