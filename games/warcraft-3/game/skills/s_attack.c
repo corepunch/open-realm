@@ -194,7 +194,8 @@ void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
     } else {
         target->health.value -= damage;
     }
-    if (can_attack(target) && !unit_is_walking(target)) {
+    if (can_attack(target) && !unit_is_walking(target) &&
+        S_SpellIsEnemy(target, attacker)) {
         order_attack(target, attacker);
     } else if (target->pain) {
         target->pain(target);
@@ -343,8 +344,14 @@ void attack_ranged(LPEDICT self) {
 
 BOOL attack_menu_selecttarget(LPEDICT ent, LPEDICT target) {
     BOOL destructable = G_DestructableIsAttackable(target);
+    BOOL own_building = target && ent && target->s.player == ent->s.player &&
+        G_UnitIsBuilding(target->class_id);
 
-    if (!destructable && (!S_SpellIsAliveTarget(target) || !S_SpellIsEnemy(ent, target))) {
+    /* Explicit Attack may force-fire on the player's own buildings.  Smart
+     * right-click attack selection remains unchanged, and friendly non-building
+     * units stay invalid for this command. */
+    if (!destructable && (!S_SpellIsAliveTarget(target) ||
+        (!S_SpellIsEnemy(ent, target) && !own_building))) {
         return false;
     }
     FOR_SELECTED_UNITS(ent->client, e) {
