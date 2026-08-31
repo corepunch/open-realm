@@ -175,3 +175,4 @@ Relevant regressions:
 - [Network Architecture](network.md)
 - [UI Screen Authoring](../ui-authoring.md)
 - [WoW Quest UI](../games/world-of-warcraft/quest-ui.md)
+- [WC3 Triggered Dialogue](../games/warcraft-3/triggered-dialogue.md)

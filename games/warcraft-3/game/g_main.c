@@ -309,7 +309,6 @@ static void G_RunClients(void) {
         LPGAMECLIENT client = game.clients+i;
         LPEDICT client_ent = G_GetPlayerEntityByNumber(client->ps.number);
         DWORD duration;
-        BOOL presentation_dirty = false;
         G_UpdateCameraTarget(client);
         duration = client->camera.end_time - client->camera.start_time;
         if (gi.GetTime() < client->camera.end_time && duration > 0) {
@@ -337,16 +336,19 @@ static void G_RunClients(void) {
             client->ps.cinematic_portrait = 0;
             client->cinematic_end_time = 0;
             client->cinematic_voice_end_time = 0;
-            presentation_dirty = true;
+            client->presentation_dirty = true;
         } else if (client->cinematic_voice_end_time && gi.GetTime() >= client->cinematic_voice_end_time) {
             client->cinematic_voice_end_time = 0;
-            presentation_dirty = true;
+            client->presentation_dirty = true;
         }
         if (client->message.end_time && gi.GetTime() >= client->message.end_time) {
             memset(&client->message, 0, sizeof(client->message));
-            presentation_dirty = true;
+            client->presentation_dirty = true;
         }
-        if (presentation_dirty && client_ent) UI_WriteDialoguePresentation(client_ent);
+        if (client->connected && client->presentation_dirty && client_ent) {
+            UI_WriteDialoguePresentation(client_ent);
+            client->presentation_dirty = false;
+        }
         client->ps.cinefade = cinefade;
     }
 }

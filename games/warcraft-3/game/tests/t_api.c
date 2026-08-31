@@ -53,6 +53,55 @@ static LPCSTR skip_cutscene_cvar(LPCSTR name, LPCSTR fallback) {
     return !strcmp(name, "skip_cutscene") ? "1" : fallback;
 }
 
+static DWORD presentation_write_count;
+static DWORD presentation_unicast_count;
+
+static void capture_presentation_write(pfWriteType_t type, void const *data) {
+    (void)type;
+    (void)data;
+    presentation_write_count++;
+}
+
+static void capture_presentation_unicast(LPEDICT ent) {
+    (void)ent;
+    presentation_unicast_count++;
+}
+
+TEST(wc3_api, disconnected_presentation_defers_network_write_until_connected) {
+    LPGAMECLIENT gc = &game.clients[0];
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(LPEDICT) = gi.unicast;
+
+    presentation_write_count = 0;
+    presentation_unicast_count = 0;
+    gi.Write = capture_presentation_write;
+    gi.unicast = capture_presentation_unicast;
+
+    T_ASSERT(!gc->connected);
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  if GetLocalPlayer() == Player(0) then\n"
+        "    call ShowInterface(false, 0.0)\n"
+        "  endif\n"
+        "endfunction\n"));
+    T_EQ(gc->ps.client_ui_state, CLIENT_UI_CINEMATIC);
+    T_ASSERT(gc->presentation_dirty);
+
+    G_RunClients();
+    T_EQ(presentation_write_count, 0);
+    T_EQ(presentation_unicast_count, 0);
+    T_ASSERT(gc->presentation_dirty);
+
+    G_SetClientConnected(&g_edicts[0], true);
+    G_RunClients();
+    T_ASSERT(presentation_write_count > 0);
+    T_ASSERT(presentation_unicast_count > 0);
+    T_ASSERT(!gc->presentation_dirty);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+}
+
 /* Campaign human slots need not match the connection slot; exercise the real VM/edict module boundary. */
 TEST(wc3_api, escape_restores_game_camera_ui_and_control) {
     LPGAMECLIENT gc = &game.clients[0];
