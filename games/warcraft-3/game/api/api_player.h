@@ -269,9 +269,26 @@ DWORD GetPlayerTypedUnitCount(LPJASS j) {
     return jass_pushinteger(j, 0);
 }
 DWORD GetPlayerStructureCount(LPJASS j) {
-    //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    //BOOL includeIncomplete = jass_checkboolean(j, 2);
-    return jass_pushinteger(j, 0);
+    LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
+    BOOL includeIncomplete = jass_checkboolean(j, 2);
+    LONG count = 0;
+
+    if (!whichPlayer) return jass_pushinteger(j, 0);
+
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT ent = globals.edicts + i;
+
+        if (!ent->inuse || !ent->class_id ||
+            ent->s.player != PLAYER_NUM(whichPlayer) ||
+            !G_UnitIsBuilding(ent->class_id) || M_IsDead(ent)) {
+            continue;
+        }
+        if (!includeIncomplete && ent->construction.active) {
+            continue;
+        }
+        count++;
+    }
+    return jass_pushinteger(j, count);
 }
 DWORD GetPlayerState(LPJASS j) {
     LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
