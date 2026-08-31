@@ -15,6 +15,7 @@ void G_SetPlayerText(LPGAMECLIENT client, PLAYERTEXT index, LPCSTR text) {
 }
 
 void G_FreeEdict(LPEDICT ent) {
+    if (ent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     S_GoldMineReleaseWorker(ent);
     gi.UnlinkEntity(ent);
     memset(ent, 0, sizeof(*ent));

@@ -35,6 +35,7 @@ void G_PushEntity(LPEDICT ent, FLOAT distance, LPCVECTOR2 direction) {
 
 void G_PushEntity3(LPEDICT ent, FLOAT distance, LPCVECTOR3 direction) {
     ent->s.origin = Vector3_mad(&ent->s.origin, distance, direction);
+    if (ent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     gi.LinkEntity(ent);
 }
 
@@ -62,8 +63,10 @@ void SV_Physics_Toss(LPEDICT ent) {
 }
 
 void SV_Physics_Link(LPEDICT ent) {
+    VECTOR3 const old = ent->s.origin;
     ent->s.origin = ent->goalentity->s.origin;
     ent->s.angle = ent->goalentity->s.angle;
+    if ((ent->s.flags & EF_FOW_BLOCKER) && memcmp(&old, &ent->s.origin, sizeof(old))) G_FowMarkBlockersDirty();
 }
 
 /* Whether a unit's hit points regenerate right now, per its WC3 regenType

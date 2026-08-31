@@ -3,6 +3,7 @@ DWORD SetUnit##NAME(LPJASS j) {  \
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");  \
     if (whichUnit) { \
         memcpy(&whichUnit->FIELD, jass_checkhandle(j, 2, #TYPE), sizeof(whichUnit->FIELD)); \
+        if (whichUnit->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty(); \
         gi.LinkEntity(whichUnit); \
     } \
     return 0; \
@@ -15,7 +16,10 @@ DWORD GetUnit##NAME(LPJASS j) {  \
 #define UNIT_ACCESS(NAME, FIELD) \
 DWORD SetUnit##NAME(LPJASS j) {  \
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");  \
-    if(whichUnit)whichUnit->FIELD = jass_checknumber(j, 2); \
+    if (whichUnit) { \
+        whichUnit->FIELD = jass_checknumber(j, 2); \
+        if (whichUnit->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty(); \
+    } \
     return 0; \
 }  \
 DWORD GetUnit##NAME(LPJASS j) {  \
@@ -61,7 +65,10 @@ DWORD SetUnitFacingTimed(LPJASS j) {
 
 DWORD KillUnit(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    if (whichUnit) whichUnit->health.value = 0;
+    if (whichUnit) {
+        whichUnit->health.value = 0;
+        if (whichUnit->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
+    }
     return 0;
 }
 DWORD RemoveUnit(LPJASS j) {
@@ -74,14 +81,18 @@ DWORD RemoveUnit(LPJASS j) {
 DWORD ShowUnit(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     BOOL show = jass_checkboolean(j, 2);
+    BOOL was_hidden;
     if (!whichUnit) {
         return 0;
     }
+    was_hidden = !!(whichUnit->s.renderfx & RF_HIDDEN);
     if (show) {
         whichUnit->s.renderfx &= ~RF_HIDDEN;
     } else {
         whichUnit->s.renderfx |= RF_HIDDEN;
     }
+    if ((whichUnit->s.flags & EF_FOW_BLOCKER) && was_hidden != !!(whichUnit->s.renderfx & RF_HIDDEN))
+        G_FowMarkBlockersDirty();
     return 0;
 }
 
@@ -90,10 +101,13 @@ JASS_API(SetUnitState,
 (UNITSTATE, whichUnitState, "unitstate"),
 (number, newVal))
 {
+    BOOL was_dead;
     if (!whichUnit || !whichUnitState) {
         return;
     }
+    was_dead = M_IsDead(whichUnit);
     (&whichUnit->health.value)[*whichUnitState] = newVal;
+    if ((whichUnit->s.flags & EF_FOW_BLOCKER) && was_dead != M_IsDead(whichUnit)) G_FowMarkBlockersDirty();
 }
 //DWORD SetUnitState(LPJASS j) {
 //    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
@@ -115,6 +129,7 @@ DWORD SetUnitPosition(LPJASS j) {
     if (whichUnit) {
         whichUnit->s.origin.x = x;
         whichUnit->s.origin.y = y;
+        if (whichUnit->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
         gi.LinkEntity(whichUnit);
     }
     return 0;
@@ -155,7 +170,10 @@ DWORD SetUnitScale(LPJASS j) {
 //    FLOAT scaleX = jass_checknumber(j, 2);
 //    FLOAT scaleY = jass_checknumber(j, 3);
     FLOAT scaleZ = jass_checknumber(j, 4);
-    if (whichUnit) whichUnit->s.scale = scaleZ;
+    if (whichUnit) {
+        whichUnit->s.scale = scaleZ;
+        if (whichUnit->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
+    }
     return 0;
 }
 DWORD SetUnitTimeScale(LPJASS j) {
