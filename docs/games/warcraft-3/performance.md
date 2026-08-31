@@ -130,6 +130,45 @@ with `r_norefresh`, then A/B `r_entities`, `r_unit_shadows`, `r_particles`, and 
 window; a large `r_norefresh` gain implicates rendering/driver cost, while a low no-refresh rate implicates game/FOW/
 snapshot work.
 
+### Cutscene snapshot and MDX report audit (August 2026)
+
+The reported `SV_SendClientDatagram` subtree includes both `SV_BuildClientFrame` and `SV_WriteFrameToClient`; it does not
+isolate wire serialization. The builder's overflow policy was an actual scaling defect: after filling the 1,024-entity
+budget, every additional visible entity scanned all retained candidates to find the farthest one. The candidate set is
+now a bounded max-heap, reducing selection from O(E*K) to O(E*log K), followed by the same entity-number sort required
+by delta encoding. A server test feeds farther entities first, forces nearer replacements after the heap is full, and
+checks the final wire order.
+
+Unchanged entity deltas now compare the contiguous `entityState_t` first. Exact matches skip the descriptor-table walk;
+changed or forced states retain field-granular encoding and the existing wire format. This benefits local and remote
+clients equally. ioquake3's `SV_SendClientSnapshot` does not bypass serialization for loopback clients: it exempts
+loopback from rate limiting, while only bots consume snapshots without transmission. Keep Open Realm's one snapshot
+contract too; a direct-pointer loopback path would hide remote-client cost and create a second state-delivery path.
+
+WC3 MDX key tracks were already contiguous file-shaped allocations, so repacking was not the prerequisite claimed by
+the animation report. The measured defect was lookup: each sample scanned the complete packed track once for sequence
+bounds and again for its interpolation pair. `MDLX_GetModelKeytrackValue` now uses binary lower/upper bounds over the
+existing variable stride. Tests preserve exact-key sampling, pre-first-key clamping, interpolation, interval-tail wrap,
+and exclusion of adjacent-sequence keys.
+
+Do not apply the remaining proposals without a weighted same-scene A/B capture:
+
+1. `nlerp` changes authored rotation timing, while Hermite/Bezier quaternion tracks require spherical quadrangle
+   interpolation. Add a visual corpus and angular-error threshold before changing either the key-track interpolation or
+   the separate old-frame/current-frame render blend.
+2. MDX, M2, and M3 have separate loaders, animation clocks, and render paths. A shared SoA runtime is a cross-game
+   architecture change, not an MDX load-time cleanup; measure each path before replacing its file-shaped representation.
+3. NEON is useful only after a scalar batch with four independent bones exists. Hierarchy concatenation is parent
+   dependent, and the current global matrix cache is indexed by sparse authored node IDs. Benchmark a scalar packed-pose
+   prototype before adding an architecture-specific kernel.
+4. Spawn/damage staggering changes JASS-visible timing and ordering. Shadow splats are already batched, and the local
+   Human02 A/B above found negligible FPS change from disabling unit shadows. Neither change is justified by an address
+   map that only proves reachability.
+
+Re-profile a fixed Human02 interval with weighted stacks after these changes. Keep `SV_BuildClientFrame`,
+`MSG_WriteDeltaEntity`, `MDLX_GetModelKeytrackValue`, and `Quaternion_slerp` separate in the report; only then choose
+between spatial snapshot indexing, animation cursor state, pose packing, or interpolation approximation.
+
 ### Implemented follow-up: sparse FOW clears and spawn-cached unit fields
 
 A temporary bounded Human02 diagnostic at the old `G_FowClearVisible` loop confirmed that each connected player
