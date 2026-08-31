@@ -9,12 +9,6 @@ static umove_t repair_generic_move_walk;
 static umove_t repair_generic_move_work;
 static umove_t repair_legacy_move_work;
 
-#define REPAIR_LOG(LEVEL, ...) do { \
-    if (G_BuildRepairDebugLevel() >= (LEVEL)) { \
-        fprintf(stderr, "WC3_REPAIR " __VA_ARGS__); \
-    } \
-} while (0)
-
 static void repair_code_string(DWORD code, char out[5]) {
     memcpy(out, &code, 4);
     out[4] = '\0';
@@ -198,14 +192,6 @@ static void repair_set_work(LPEDICT ent) {
         unit_setmove(ent, &repair_generic_move_work);
     else
         unit_setmove(ent, &repair_move_work);
-
-    REPAIR_LOG(1,
-        "work worker=%d building=%d primary=%d requested_anim=stand_work resolved_anim=%s "
-        "worker_pos=(%.1f,%.1f) building_pos=(%.1f,%.1f)\n",
-        ent->s.number, building->s.number, ent->buildwork.primary,
-        ent->animation ? ent->animation->name : "<missing>",
-        ent->s.origin2.x, ent->s.origin2.y,
-        building->s.origin2.x, building->s.origin2.y);
 }
 
 static BOOL repair_prepare_approach(LPEDICT ent) {
@@ -221,13 +207,6 @@ static BOOL repair_prepare_approach(LPEDICT ent) {
     if (found) {
         ent->goalentity = Waypoint_add(&approach);
         move_reset_progress(ent);
-        REPAIR_LOG(1,
-            "approach_goal worker=%d building=%d waypoint=%d interaction=%.1f "
-            "worker_pos=(%.1f,%.1f) approach=(%.1f,%.1f) footprint=1\n",
-            ent->s.number, building->s.number,
-            ent->goalentity ? ent->goalentity->s.number : -1,
-            interaction_range, ent->s.origin2.x, ent->s.origin2.y,
-            approach.x, approach.y);
         return true;
     }
 
@@ -236,18 +215,9 @@ static BOOL repair_prepare_approach(LPEDICT ent) {
     if (!building->pathtex) {
         ent->goalentity = building;
         move_reset_progress(ent);
-        REPAIR_LOG(1,
-            "approach_goal worker=%d building=%d interaction=%.1f footprint=0 fallback=center\n",
-            ent->s.number, building->s.number, interaction_range);
         return true;
     }
 
-    REPAIR_LOG(1,
-        "stop worker=%d building=%d reason=no_legal_footprint_approach interaction=%.1f "
-        "worker_pos=(%.1f,%.1f) building_pos=(%.1f,%.1f)\n",
-        ent->s.number, building->s.number, interaction_range,
-        ent->s.origin2.x, ent->s.origin2.y,
-        building->s.origin2.x, building->s.origin2.y);
     return false;
 }
 
@@ -265,24 +235,14 @@ static BOOL repair_set_walk(LPEDICT ent) {
 
 static void ai_repair_walk(LPEDICT ent) {
     LPEDICT building = ent ? ent->build : NULL;
-    FLOAT distance, step, footprint_distance;
+    FLOAT distance, step;
 
     if (!building || !repair_target_valid(ent, building, ent->buildwork.ability,
                                            ent->buildwork.primary)) {
-        REPAIR_LOG(1,
-            "stop worker=%d building=%d reason=invalid_target primary=%d ability=0x%08x\n",
-            ent ? ent->s.number : -1, building ? building->s.number : -1,
-            ent ? ent->buildwork.primary : 0,
-            ent ? (unsigned)ent->buildwork.ability : 0u);
         repair_stop(ent);
         return;
     }
-    footprint_distance = CM_DistanceToPathingFootprint(building, &ent->s.origin2);
     if (repair_in_range(ent, building)) {
-        REPAIR_LOG(1,
-            "reached worker=%d building=%d footprint_distance=%.1f interaction=%.1f step=%.1f\n",
-            ent->s.number, building->s.number, footprint_distance,
-            ent->collision + repair_range(ent), unit_movedistance(ent));
         repair_set_work(ent);
         return;
     }
@@ -290,44 +250,17 @@ static void ai_repair_walk(LPEDICT ent) {
     distance = M_DistanceToGoal(ent);
     step = unit_movedistance(ent);
     if (move_is_blocked(ent, distance, step)) {
-        REPAIR_LOG(1,
-            "stop worker=%d building=%d route_goal=%d reason=movement_blocked "
-            "route_distance=%.1f footprint_distance=%.1f blocked_frames=%u\n",
-            ent->s.number, building->s.number,
-            ent->goalentity ? ent->goalentity->s.number : -1,
-            distance, footprint_distance, ent->movement.blocked_frames);
         repair_stop(ent);
         return;
     }
 
     unit_changeangle_for_radius(ent, ent->collision);
-    REPAIR_LOG(2,
-        "walk worker=%d building=%d route_goal=%d worker_pos=(%.1f,%.1f) "
-        "route_pos=(%.1f,%.1f) building_pos=(%.1f,%.1f) route_distance=%.1f "
-        "footprint_distance=%.1f interaction=%.1f step=%.1f flow=%u flow_goal=%d flow_unreachable=%d\n",
-        ent->s.number, building->s.number,
-        ent->goalentity ? ent->goalentity->s.number : -1,
-        ent->s.origin2.x, ent->s.origin2.y,
-        ent->goalentity ? ent->goalentity->s.origin2.x : 0.0f,
-        ent->goalentity ? ent->goalentity->s.origin2.y : 0.0f,
-        building->s.origin2.x, building->s.origin2.y,
-        distance, footprint_distance, ent->collision + repair_range(ent), step,
-        ent->movement.flow_generation, ent->movement.flow_goal_reached,
-        ent->movement.flow_unreachable);
 
     if (ent->movement.flow_goal_reached && !repair_in_range(ent, building)) {
-        REPAIR_LOG(1,
-            "stop worker=%d building=%d reason=route_goal_out_of_range footprint_distance=%.1f interaction=%.1f\n",
-            ent->s.number, building->s.number, footprint_distance,
-            ent->collision + repair_range(ent));
         repair_stop(ent);
         return;
     }
     if (ent->movement.flow_unreachable) {
-        REPAIR_LOG(1,
-            "stop worker=%d building=%d reason=route_unreachable route_goal=%d\n",
-            ent->s.number, building->s.number,
-            ent->goalentity ? ent->goalentity->s.number : -1);
         repair_stop(ent);
         return;
     }
@@ -341,17 +274,10 @@ static void ai_repair(LPEDICT ent) {
 
     if (!building || !repair_target_valid(ent, building, ent->buildwork.ability,
                                            ent->buildwork.primary)) {
-        REPAIR_LOG(1,
-            "stop worker=%d building=%d reason=invalid_target_while_working primary=%d ability=0x%08x\n",
-            ent ? ent->s.number : -1, building ? building->s.number : -1,
-            ent ? ent->buildwork.primary : 0,
-            ent ? (unsigned)ent->buildwork.ability : 0u);
         repair_stop(ent);
         return;
     }
     if (!repair_in_range(ent, building)) {
-        REPAIR_LOG(1, "leave_work worker=%d building=%d reason=out_of_range\n",
-                   ent->s.number, building->s.number);
         repair_set_walk(ent);
         return;
     }
@@ -394,11 +320,6 @@ static void ai_repair(LPEDICT ent) {
         start_hp = MAX(1.0f, hp->max_value * 0.10f);
         hp_gain = (hp->max_value - start_hp) * ((FLOAT)FRAMETIME * ratio / duration);
         hp->value = MIN(hp->max_value, hp->value + hp_gain);
-        REPAIR_LOG(2,
-            "construct worker=%d building=%d primary=%d ratio=%.3f progress=%.0f/%.0f hp=%.1f/%.1f frame=%u\n",
-            ent->s.number, building->s.number, ent->buildwork.primary, ratio,
-            building->construction.progress, duration, hp->value, hp->max_value,
-            (unsigned)building->s.frame);
         if (building->construction.progress >= duration) {
             G_CompleteConstruction(building);
             repair_stop(ent);
@@ -415,9 +336,6 @@ static void ai_repair(LPEDICT ent) {
         FLOAT hp_rate;
 
         if (duration <= 0.0f || time_ratio <= 0.0f) {
-            REPAIR_LOG(1,
-                "stop worker=%d building=%d reason=invalid_repair_rate duration=%.3f dataB=%.3f\n",
-                ent->s.number, building->s.number, duration, time_ratio);
             repair_stop(ent);
             return;
         }
@@ -425,17 +343,10 @@ static void ai_repair(LPEDICT ent) {
         if (!repair_charge(ent,
                 ((FLOAT)balance->goldRep / duration) * cost_ratio * time_ratio,
                 ((FLOAT)balance->lumberRep / duration) * cost_ratio * time_ratio)) {
-            REPAIR_LOG(1,
-                "stop worker=%d building=%d reason=insufficient_repair_resources hp=%.1f/%.1f\n",
-                ent->s.number, building->s.number, hp->value, hp->max_value);
             repair_stop(ent);
             return;
         }
         hp->value = MIN(hp->max_value, hp->value + hp_rate * seconds);
-        REPAIR_LOG(2,
-            "repair worker=%d building=%d hp=%.1f/%.1f hp_rate=%.3f duration=%.3f dataA=%.3f dataB=%.3f\n",
-            ent->s.number, building->s.number, hp->value, hp->max_value,
-            hp_rate, duration, cost_ratio, time_ratio);
     }
     if (hp->value >= hp->max_value) {
         hp->value = hp->max_value;
@@ -472,15 +383,7 @@ static BOOL repair_begin(LPEDICT ent, LPEDICT building, DWORD code, BOOL primary
     VECTOR2 origin;
     FLOAT angle;
 
-    if (!ent || !building || !code || !repair_target_valid(ent, building, code, primary)) {
-        REPAIR_LOG(1,
-            "begin_rejected worker=%d building=%d ability=0x%08x primary=%d construction=%d paused=%d data=%p\n",
-            ent ? ent->s.number : -1, building ? building->s.number : -1,
-            (unsigned)code, primary, building ? building->construction.active : 0,
-            building ? building->construction.paused : 0,
-            code ? (void *)G_AbilityData(code) : NULL);
-        return false;
-    }
+    if (!ent || !building || !code || !repair_target_valid(ent, building, code, primary)) return false;
     S_CancelRepair(ent);
     ent->build = building;
     ent->goalentity = building;
@@ -495,10 +398,6 @@ static BOOL repair_begin(LPEDICT ent, LPEDICT building, DWORD code, BOOL primary
          * Relocate only this construction transition; ordinary Repair orders
          * must approach through pathfinding instead of teleporting. */
         if (!SP_FindUnitExitPosition(building, ent, &origin, &angle)) {
-            REPAIR_LOG(1,
-                "begin_rejected worker=%d building=%d reason=no_primary_exit worker_pos=(%.1f,%.1f) building_pos=(%.1f,%.1f)\n",
-                ent->s.number, building->s.number, ent->s.origin2.x, ent->s.origin2.y,
-                building->s.origin2.x, building->s.origin2.y);
             repair_release(ent);
             if (ent->stand) ent->stand(ent);
             return false;
@@ -509,12 +408,6 @@ static BOOL repair_begin(LPEDICT ent, LPEDICT building, DWORD code, BOOL primary
         building->construction.primary_builder = ent;
     }
 
-    REPAIR_LOG(1,
-        "begin worker=%d building=%d ability=0x%08x primary=%d worker_pos=(%.1f,%.1f) building_pos=(%.1f,%.1f) range=%.1f collision=%.1f\n",
-        ent->s.number, building->s.number, (unsigned)code, primary,
-        ent->s.origin2.x, ent->s.origin2.y, building->s.origin2.x,
-        building->s.origin2.y, repair_range(ent), ent->collision);
-
     if (repair_in_range(ent, building)) repair_set_work(ent);
     else if (!repair_set_walk(ent)) return false;
     return true;
@@ -523,10 +416,6 @@ static BOOL repair_begin(LPEDICT ent, LPEDICT building, DWORD code, BOOL primary
 void repair_build_primary(LPEDICT ent, LPEDICT building) {
     DWORD code = repair_find_code(ent, &a_repair, 0);
     if (!code || !repair_begin(ent, building, code, true)) {
-        REPAIR_LOG(1,
-            "primary_failed worker=%d building=%d ability=0x%08x dataD=%.3f\n",
-            ent ? ent->s.number : -1, building ? building->s.number : -1,
-            (unsigned)code, code && G_AbilityData(code) ? G_AbilityData(code)->data[0][3] : 0.0f);
         if (building && building->construction.primary_builder == ent)
             building->construction.primary_builder = NULL;
     }
@@ -565,50 +454,20 @@ BOOL S_OrderRepair(LPEDICT ent, LPEDICT target, DWORD preferred) {
     if (!ent || !target) return false;
     if (preferred) {
         wanted = repair_handler(preferred);
-        if (wanted != &a_repair && wanted != &a_repair_generic) {
-            REPAIR_LOG(1,
-                "order_rejected worker=%d building=%d preferred=0x%08x reason=not_repair_handler\n",
-                ent->s.number, target->s.number, (unsigned)preferred);
-            return false;
-        }
+        if (wanted != &a_repair && wanted != &a_repair_generic) return false;
     }
     code = repair_find_code(ent, wanted, preferred);
-    if (!code) {
-        REPAIR_LOG(1,
-            "order_rejected worker=%d building=%d preferred=0x%08x reason=no_repair_ability\n",
-            ent->s.number, target->s.number, (unsigned)preferred);
-        return false;
-    }
+    if (!code) return false;
 
     if (target->construction.active) {
-        if (repair_handler(code) != &a_repair) {
-            REPAIR_LOG(1,
-                "order_rejected worker=%d building=%d ability=0x%08x reason=generic_repair_on_construction\n",
-                ent->s.number, target->s.number, (unsigned)code);
-            return false;
-        }
+        if (repair_handler(code) != &a_repair) return false;
         if (!repair_primary_active(target)) {
             target->construction.primary_builder = NULL;
             primary = true;
         }
     }
-    if (!repair_target_valid(ent, target, code, primary)) {
-        REPAIR_LOG(1,
-            "order_rejected worker=%d building=%d ability=0x%08x primary=%d reason=invalid_target "
-            "construction=%d paused=%d hp=%.1f/%.1f dataD=%.3f\n",
-            ent->s.number, target->s.number, (unsigned)code, primary,
-            target->construction.active, target->construction.paused,
-            target->health.value, target->health.max_value,
-            G_AbilityData(code) ? G_AbilityData(code)->data[0][3] : 0.0f);
-        return false;
-    }
+    if (!repair_target_valid(ent, target, code, primary)) return false;
 
-    REPAIR_LOG(1,
-        "order worker=%d building=%d ability=0x%08x primary=%d construction=%d "
-        "worker_pos=(%.1f,%.1f) building_pos=(%.1f,%.1f)\n",
-        ent->s.number, target->s.number, (unsigned)code, primary,
-        target->construction.active, ent->s.origin2.x, ent->s.origin2.y,
-        target->s.origin2.x, target->s.origin2.y);
     return repair_begin(ent, target, code, primary);
 }
 
