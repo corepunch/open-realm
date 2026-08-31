@@ -1,5 +1,6 @@
 #include "jass/jass.h"
 
+#include "api_ai.h"
 #include "api_test.h"
 #include "api_unit.h"
 #include "api_effect.h"
@@ -17,6 +18,9 @@
 #include "api_cinefilter.h"
 
 JASSMODULE jass_funcs[] = {
+    { "GetAiPlayer", GetAiPlayer },
+    { "StartThread", StartThread },
+    { "Sleep", Sleep },
     { "ConvertRace", ConvertRace },
     { "ConvertAllianceType", ConvertAllianceType },
     { "ConvertRacePref", ConvertRacePref },

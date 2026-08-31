@@ -27,6 +27,7 @@
 #define JASSALLOC(type) jass_alloc(sizeof(type))
 
 static void jass_setnull(LPJASSVAR var);
+static void jass_deletedict(LPJASSDICT dict);
 
 #define JASS_ADD_STACK(j, VAR, TYPE) \
 LPJASSVAR VAR = &j->stack[j->num_stack++]; \
@@ -356,13 +357,29 @@ LPCJASSCONTEXT jass_getcontext(LPJASS j) {
 
 static LPJASS jass_root(LPJASS j) { return j->root ? j->root : j; }
 LPJASS jass_getroot(LPJASS j)     { return jass_root(j); }
+BOOL jass_isrunning(LPJASS j)     { return jass_root(j)->current_coroutine != NULL; }
+void jass_haltevents(LPJASS j)    { jass_root(j)->halt_events = true; }
 
 /* =========================================================================
  * Coroutine frame management
  * ========================================================================= */
 
+static void jass_free_frame(LPJASSCOROUTINE co, LPJASSCOROUTINEFRAME frame) {
+    if (frame->locals) {
+        FOR_LOOP(i, co->state->num_stack)
+            if (co->state->stack[i].env.locals == frame->locals) co->state->stack[i].env.locals = NULL;
+        jass_deletedict(frame->locals);
+    }
+    jass_free(frame);
+}
+
 static void jass_free_coroutine(LPJASSCOROUTINE co) {
-    DELETE_LIST(JASSCOROUTINEFRAME, co->frames, jass_free);
+    while (co->frames) {
+        LPJASSCOROUTINEFRAME next = co->frames->next;
+        jass_free_frame(co, co->frames);
+        co->frames = next;
+    }
+    FOR_LOOP(i, co->state->num_stack) jass_setnull(co->state->stack + i);
     SAFE_DELETE(co->state, jass_free);
     jass_free(co);
 }
@@ -387,7 +404,7 @@ static void jass_coroutine_popframe(LPJASSCOROUTINE co) {
     LPJASSCOROUTINEFRAME frame = co->frames;
     if (frame) {
         co->frames = frame->next;
-        jass_free(frame);
+        jass_free_frame(co, frame);
     }
 }
 
@@ -481,6 +498,19 @@ LPJASSCOROUTINE jass_startcoroutinebyname(LPJASS j, LPCSTR name) {
     return jass_startcoroutine(j, &context);
 }
 
+/* AI roots have no ambient map-trigger context, so their entrypoint must carry the owning player explicitly. */
+LPJASSCOROUTINE jass_startcoroutinebynameforplayer(LPJASS j, LPCSTR name, struct playerState_s *player) {
+    LPCJASSFUNC func = find_function(jass_root(j), name);
+    JASSCONTEXT context = *jass_getcontext(j);
+    if (!func) {
+        fprintf(stderr, "Function not found %s\n", name);
+        return NULL;
+    }
+    context.func = func;
+    context.playerState = player;
+    return jass_startcoroutine(j, &context);
+}
+
 /* Dynamic wait-done calls must share the active coroutine so yielded child frames resume before their caller. */
 BOOL jass_callcoroutinebyname(LPJASS j, LPCSTR name) {
     LPJASS root = jass_root(j);
@@ -524,16 +554,32 @@ static BOOL jass_yielded(LPJASS j) {
  * Runtime error boundary  (JASS equivalent of Lua error())
  * ========================================================================= */
 
-void jass_rterror(LPJASS j, LPCSTR message) {
+static void jass_setruntimeerror(LPJASS j, LPCSTR message) {
     LPJASS root = jass_root(j);
     root->rterror_pending = true;
     snprintf(root->rterror_message, sizeof(root->rterror_message), "%s", message ? message : "(nil)");
     jass_host.RuntimeError(root->rterror_message);
+}
+
+static void jass_unimplementednative(LPJASS j, LPCSTR name) {
+    LPJASS root = jass_root(j);
+    char message[256];
+    snprintf(message, sizeof(message), "unimplemented native: %s", name ? name : "(nil)");
+    jass_setruntimeerror(root, message);
+    if (root->current_coroutine && root->current_coroutine->rterror_jmp_set)
+        longjmp(root->current_coroutine->rterror_jmp, 1);
+    if (root->sync_rterror_jmp_set) longjmp(root->sync_rterror_jmp, 1);
+}
+
+void jass_rterror(LPJASS j, LPCSTR message) {
+    LPJASS root = jass_root(j);
+    jass_setruntimeerror(root, message);
 
     LPJASSCOROUTINE co = root->current_coroutine;
     if (co && co->rterror_jmp_set) {
         longjmp(co->rterror_jmp, 1);
     }
+    if (root->sync_rterror_jmp_set) longjmp(root->sync_rterror_jmp, 1);
     /* No active coroutine boundary — abort process (parser-path fallback). */
     abort();
 }
@@ -579,6 +625,11 @@ static BOOL jass_coroutine_callstatement(LPJASS j, LPJASSCOROUTINE co, LPCTOKEN 
     }
     if (func->nativefunc) {
         return false;
+    }
+    /* Native declarations without host bindings must not run as empty script functions. */
+    if (func->native) {
+        jass_unimplementednative(j, func->name);
+        return true;
     }
     locals = jass_coroutine_buildlocals(j, func, token->args);
     jass_coroutine_pushframe(co, JASS_FRAME_FUNCTION, func, func->code, locals);
@@ -792,6 +843,7 @@ void jass_runevents(LPJASS j) {
         } else {
             prev = co;
         }
+        if (root->halt_events) break;
         co = next;
     }
 }
@@ -1049,6 +1101,13 @@ static void jass_deletedict(LPJASSDICT dict) {
     jass_free(dict);
 }
 
+static void jass_deletearray(LPJASSARRAY array) {
+    if (!array) return;
+    jass_deletearray(array->next);
+    jass_setnull(&array->value);
+    jass_free(array);
+}
+
 void jass_setnull(LPJASSVAR var) {
     if (!var || !var->type) {
         return;
@@ -1058,6 +1117,7 @@ void jass_setnull(LPJASSVAR var) {
         memset(var, 0, sizeof(*var));
         return;
     }
+    SAFE_DELETE(var->_array, jass_deletearray);
     JASSTYPEID type = jass_getvarbasetype(var);
     if (type == jasstype_code || type == jasstype_cfunction) {
         SAFE_DELETE(var->env.locals, jass_deletedict);
@@ -1423,6 +1483,11 @@ DWORD VM_EvalCall(LPJASS j, LPCTOKEN token) {
         fprintf(stdout, "%s\n", token->args->primary);
         return 0;
     } else if ((f = find_function(j, token->primary))) {
+        /* An unresolved native used to execute as an empty JASS function, hiding missing engine behavior. */
+        if (f->native && !f->nativefunc) {
+            jass_unimplementednative(j, f->name);
+            return 0;
+        }
         DWORD args = 0;
         jass_pushfunction(j, f);
         FOR_EACH_LIST(TOKEN, arg, token->args) {
@@ -1607,6 +1672,7 @@ TOKENFUNC(FUNCTION) {
     LPJASSFUNC *bucket;
     func->name = token->primary;
     func->code = token->body;
+    func->native = token->flags & TF_NATIVE;
     func->returns = find_type(j, token->secondary);
     FOR_EACH_LIST(TOKEN, arg, token->args) {
         LPJASSARG jarg = JASSALLOC(JASSARG);
@@ -1841,8 +1907,11 @@ BOOL jass_dobuffer_ex(LPJASS j, LPSTR buffer, JASSMODE mode) {
         snprintf(root->rterror_message, sizeof(root->rterror_message), "parse error");
         return false;
     }
+    LPJASSPROGRAM owned = JASSALLOC(JASSPROGRAM);
+    owned->tokens = program;
+    ADD_TO_LIST(owned, jass_root(j)->programs);
     eval_TOKENS(j, program);
-    return true;
+    return !jass_rterror_pending(j);
 }
 
 BOOL jass_dobuffer(LPJASS j, LPSTR buffer) {
@@ -1865,7 +1934,22 @@ void jass_close(LPJASS j) {
         jass_free_coroutine(co);
         co = next;
     }
-    jass_free(j);
+    FOR_LOOP(i, root->num_stack) jass_setnull(root->stack + i);
+    SAFE_DELETE(root->globals, jass_deletedict);
+    while (root->functions) {
+        LPJASSFUNC func = root->functions, next = func->next;
+        DELETE_LIST(JASSARG, func->args, jass_free);
+        jass_free(func);
+        root->functions = next;
+    }
+    DELETE_LIST(JASSTYPE, root->types, jass_free);
+    while (root->programs) {
+        LPJASSPROGRAM program = root->programs, next = program->next;
+        JASS_FreeTokens(program->tokens);
+        jass_free(program);
+        root->programs = next;
+    }
+    jass_free(root);
 }
 
 BOOL jass_dofile_ex(LPJASS j, LPCSTR fileName, JASSMODE mode) {
@@ -1899,7 +1983,7 @@ BOOL jass_dofile(LPJASS j, LPCSTR fileName) {
 static int depth = 0, callnum = 0;
 #endif
 
-DWORD jass_call(LPJASS j, DWORD args) {
+static DWORD jass_call_impl(LPJASS j, DWORD args) {
     LPJASSVAR root = &j->stack[j->num_stack - args - 1];
     LPJASSVAR old_stack_pointer = j->stack_pointer;
     DWORD ret = 0;
@@ -1958,6 +2042,26 @@ DWORD jass_call(LPJASS j, DWORD args) {
 #ifdef DEBUG_JASS
     depth--;
 #endif
+    return ret;
+}
+
+/* Synchronous native failures unwind to the outer call instead of executing later script statements. */
+DWORD jass_call(LPJASS j, DWORD args) {
+    LPJASS root = jass_root(j);
+    LPJASSVAR stack_pointer = j->stack_pointer;
+    DWORD stack_base = j->num_stack - args - 1;
+    DWORD ret;
+
+    if (root->current_coroutine || root->sync_rterror_jmp_set) return jass_call_impl(j, args);
+    root->sync_rterror_jmp_set = true;
+    if (setjmp(root->sync_rterror_jmp) != 0) {
+        root->sync_rterror_jmp_set = false;
+        jass_discard(j, j->num_stack - stack_base);
+        j->stack_pointer = stack_pointer;
+        return 0;
+    }
+    ret = jass_call_impl(j, args);
+    root->sync_rterror_jmp_set = false;
     return ret;
 }
 

@@ -164,6 +164,8 @@ static void G_ShutdownGame(void) {
     if (g_edicts == NULL) {
         return;
     }
+    G_PlayerAIShutdown();
+    if (level.vm) { jass_close(level.vm); level.vm = NULL; }
     G_FowShutdown();
     G_FreeModels();
     gi.MemFree(g_edicts);
@@ -373,6 +375,7 @@ static void G_RunFrame(void) {
     
     G_RunEvents();
     jass_runevents(level.vm);
+    G_PlayerAIRunFrame();
 
     G_RunClients();
 

@@ -1,0 +1,7 @@
+// Minimal common.ai for player AI lifecycle tests.
+native GetAiPlayer takes nothing returns integer
+native StartThread takes code func returns nothing
+native Sleep takes real seconds returns nothing
+native MissingAIAction takes nothing returns nothing
+native MissingAIValue takes nothing returns integer
+native StartCampaignAI takes player num, string script returns nothing

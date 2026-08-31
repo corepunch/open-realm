@@ -15,6 +15,7 @@ KNOWN_AS(jass_array, JASSARRAY);
 KNOWN_AS(jass_dict, JASSDICT);
 KNOWN_AS(jass_arg, JASSARG);
 KNOWN_AS(jass_coroutine_frame, JASSCOROUTINEFRAME);
+KNOWN_AS(jass_program, JASSPROGRAM);
 
 #define BZ_JASS_HASH_SIZE 4096 // buckets; keeps Galaxy lookup chains near one entry; used for root globals/functions
 
@@ -53,7 +54,7 @@ struct jass_function {
     LPCSTR name;
     LPCTOKEN code;
     DWORD (*nativefunc)(LPJASS j);
-    BOOL constant;
+    BOOL constant, native;
 };
 
 struct jass_array {
@@ -97,6 +98,11 @@ struct jass_coroutine {
     BOOL rterror_jmp_set;
 };
 
+struct jass_program {
+    LPJASSPROGRAM next;
+    LPTOKEN tokens;
+};
+
 #define MAX_JASS_STACK 256
 
 struct jass_s {
@@ -105,6 +111,7 @@ struct jass_s {
     LPJASSTYPE types;
     LPJASSFUNC functions;
     LPJASSFUNC function_hash[BZ_JASS_HASH_SIZE];
+    LPJASSPROGRAM programs;
     JASSVAR stack[MAX_JASS_STACK];
     DWORD num_stack;
     LPJASSVAR stack_pointer;
@@ -112,9 +119,12 @@ struct jass_s {
     LPJASS root;
     LPJASSCOROUTINE coroutines;
     LPJASSCOROUTINE current_coroutine;
+    BOOL halt_events;
     /* Runtime error state — owned by root, written by jass_rterror(). */
     BOOL rterror_pending;
     char rterror_message[512];
+    jmp_buf sync_rterror_jmp;
+    BOOL sync_rterror_jmp_set;
 };
 
 /* Primitive type table — indexed by JASSTYPEID. Defined in jdo.c. */

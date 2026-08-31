@@ -113,6 +113,23 @@ static LPTOKEN alloc_token(TOKENTYPE type) {
     return token;
 }
 
+/* Parsed programs own every AST edge and string; runtime declarations borrow those strings until VM close. */
+void JASS_FreeTokens(LPTOKEN tokens) {
+    while (tokens) {
+        LPTOKEN next = tokens->next;
+        JASS_FreeTokens(tokens->init);
+        JASS_FreeTokens(tokens->body);
+        JASS_FreeTokens(tokens->args);
+        JASS_FreeTokens(tokens->condition);
+        JASS_FreeTokens(tokens->elseblock);
+        JASS_FreeTokens(tokens->index);
+        free(tokens->primary);
+        free(tokens->secondary);
+        jass_free(tokens);
+        tokens = next;
+    }
+}
+
 //PARSER(parse_identifier) {
 //    LPTOKEN token = alloc_token(TT_IDENTIFIER);
 //    token->primary = read_identifier(p);
@@ -459,7 +476,7 @@ LPTOKEN JASS_ParseTokens(LPPARSER p) {
         }
         return tokens;
     } else {
-        FREE(tokens);
+        JASS_FreeTokens(tokens);
         p->error = true;
         fprintf(stderr, "Parser Error\n");
         return NULL;
@@ -808,7 +825,7 @@ LPTOKEN GALAXY_ParseTokens(LPPARSER p) {
         }
         return tokens;
     } else {
-        FREE(tokens);
+        JASS_FreeTokens(tokens);
         p->error = true;
         return NULL;
     }

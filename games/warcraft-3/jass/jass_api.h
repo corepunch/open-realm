@@ -51,6 +51,8 @@ void   jass_free(HANDLE ptr);
 
 /* Return the root VM state (coroutine states share globals with the root). */
 LPJASS jass_getroot(LPJASS j);
+BOOL jass_isrunning(LPJASS j);
+void jass_haltevents(LPJASS j);
 
 /* Runtime error boundary */
 void   jass_rterror(LPJASS j, LPCSTR message);
@@ -73,6 +75,7 @@ DWORD  jass_pushstring(LPJASS j, LPCSTR value);
 DWORD  jass_pushstringlen(LPJASS j, LPCSTR value, DWORD len);
 DWORD  jass_pushlighthandle(LPJASS j, HANDLE value, LPCSTR type);
 LPJASSCOROUTINE jass_startcoroutinebyname(LPJASS j, LPCSTR name);
+LPJASSCOROUTINE jass_startcoroutinebynameforplayer(LPJASS j, LPCSTR name, struct playerState_s *player);
 BOOL   jass_callcoroutinebyname(LPJASS j, LPCSTR name);
 void   jass_sleep(LPJASS j, DWORD msec);
 

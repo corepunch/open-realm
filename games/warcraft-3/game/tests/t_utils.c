@@ -85,6 +85,7 @@ void setup_test_world(void) {
 
 /* Every in-engine WC3 test starts from the state contract the old standalone harness provided. */
 static void reset_test_state(void) {
+    G_PlayerAIShutdown();
     if (level.vm) { jass_close(level.vm); }
     G_FowShutdown();
     memset(g_edicts, 0, sizeof(edict_t) * globals.max_edicts);

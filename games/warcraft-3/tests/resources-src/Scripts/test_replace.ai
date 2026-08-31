@@ -1,0 +1,8 @@
+function late_replace takes nothing returns nothing
+    call StartCampaignAI(Player(GetAiPlayer()), "missing.ai")
+endfunction
+
+function main takes nothing returns nothing
+    call StartThread(function late_replace)
+    call StartCampaignAI(Player(GetAiPlayer()), "test_idle.ai")
+endfunction

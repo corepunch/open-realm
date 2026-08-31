@@ -824,8 +824,23 @@ typedef struct fogmodifier_s {
 } FOGMODIFIER, *LPFOGMODIFIER;
 typedef FOGMODIFIER const *LPCFOGMODIFIER;
 
+typedef enum {
+    PLAYER_AI_NONE,
+    PLAYER_AI_CAMPAIGN,
+    PLAYER_AI_MELEE,
+} playerAIMode_t;
+
+typedef struct {
+    LPJASS vm;
+    LPPLAYER player;
+    playerAIMode_t mode, pending_mode;
+    BOOL paused, stop_requested, restart_requested;
+    char script[MAX_PATHLEN], pending_script[MAX_PATHLEN];
+} playerAI_t;
+
 struct level_locals {
     LPJASS vm;
+    playerAI_t player_ai[MAX_PLAYERS];
     LPCMAPINFO mapinfo;
     struct {
         char name[MAX_PATHLEN], description[MAX_TRIGSTR_LENGTH];
@@ -864,6 +879,7 @@ typedef struct {
 
 // g_main.c
 LPPLAYER G_GetPlayerByNumber(DWORD);
+void G_InitJassHost(void);
 LPEDICT G_GetPlayerEntityByNumber(DWORD);
 LPGAMECLIENT G_GetPlayerClientByNumber(DWORD);
 void G_SetClientConnected(LPEDICT player, BOOL connected);
@@ -880,6 +896,14 @@ GAMEEVENT *G_PublishEventWithSource(LPEDICT, EVENTTYPE, LPEDICT);
 BOOL G_SubscribeMessage(gameMsgFn, void *);
 void G_UnsubscribeMessage(gameMsgFn, void *);
 void G_PublishMessage(LPEDICT, GAMEMSGTYPE, LPEDICT);
+
+// g_player_ai.c
+BOOL G_PlayerAIStart(LPPLAYER, LPCSTR, playerAIMode_t);
+void G_PlayerAIStop(DWORD);
+void G_PlayerAIRequestStop(DWORD);
+void G_PlayerAIShutdown(void);
+void G_PlayerAIPause(DWORD, BOOL);
+void G_PlayerAIRunFrame(void);
 
 // g_fow.c
 void G_FowInit(void);

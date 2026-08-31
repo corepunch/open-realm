@@ -94,6 +94,9 @@ static JASSMODULE gal_test_natives[] = {
     { "TriggerAddEventTimeElapsed",  gal_stub },
     { "TriggerAddEventTimePeriodic", gal_stub },
     { "TriggerAddEventTimer",        gal_stub },
+    { "TriggerAddEventDialogControl", gal_stub },
+    { "TriggerAddEventUnitProperty", gal_stub },
+    { "TriggerEnable",               gal_stub },
     { "UnitGroupLoopBegin",          gal_stub },
     { "UnitGroupLoopDone",           gal_true  },   /* true = done, exits loop */
     { "UnitGroupLoopEnd",            gal_stub },
@@ -109,6 +112,8 @@ static JASSMODULE gal_test_natives[] = {
     { "PlayerGroupLoopEnd",          gal_stub },
     { "PlayerGroupLoopStep",         gal_stub },
     { "PlayerGroupAll",              gal_stub },
+    { "PlayerGroupEmpty",            gal_stub },
+    { "Color",                       gal_stub },
     { "SoundLink",                   gal_stub },
     { "SoundPlay",                   gal_stub },
     { "SoundPlayAtPoint",            gal_stub },
@@ -504,6 +509,35 @@ TEST(jass_syntax, parse_native_form) {
     T_ASSERT(gal_parse_mode(&s,
         "globals\ninteger value=0\nendglobals\n"
         "function main takes nothing returns nothing\nset value=value+1\nendfunction\n", JASS_MODE_JASS));
+    gal_destroy(&s);
+}
+
+TEST(jass_syntax, unresolved_native_reports_runtime_error) {
+    gal_state_t s = gal_new();
+    T_ASSERT(gal_parse_mode(&s,
+        "native MissingAIAction takes nothing returns nothing\n"
+        "function main takes nothing returns nothing\ncall MissingAIAction()\nendfunction\n", JASS_MODE_JASS));
+    jass_callbyname(s.j, "main", true);
+    jass_runevents(s.j);
+    T_ASSERT(jass_rterror_pending(s.j));
+    T_ASSERT(!strcmp(jass_rterror_message(s.j), "unimplemented native: MissingAIAction"));
+    gal_destroy(&s);
+}
+
+TEST(jass_syntax, unresolved_native_stops_synchronous_call) {
+    gal_state_t s = gal_new();
+    T_ASSERT(gal_parse_mode(&s,
+        "native MissingAIAction takes nothing returns nothing\n"
+        "native TestFail takes string msg returns nothing\n"
+        "globals\ninteger value=0\nendglobals\n"
+        "function main takes nothing returns nothing\ncall MissingAIAction()\nset value=1\nendfunction\n"
+        "function verify takes nothing returns nothing\n"
+        "if value!=0 then\ncall TestFail(\"continued after native error\")\nendif\nendfunction\n", JASS_MODE_JASS));
+    jass_callbyname(s.j, "main", false);
+    T_ASSERT(jass_rterror_pending(s.j));
+    jass_rterror_clear(s.j);
+    jass_callbyname(s.j, "verify", false);
+    T_ASSERT(!jass_rterror_pending(s.j));
     gal_destroy(&s);
 }
 
