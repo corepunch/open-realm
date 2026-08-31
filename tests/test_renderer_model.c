@@ -238,6 +238,26 @@ static LPTEXTURE reset_texture_registry(void) {
     return test_alloc(sizeof(TEXTURE));
 }
 
+TEST(renderer_model, mdx_keytrack_binary_lookup_preserves_sequence_semantics) {
+    BYTE storage[sizeof(mdxKeyTrack_t) + 5 * (sizeof(int) + sizeof(float))] = { 0 };
+    mdxKeyTrack_t *track = (mdxKeyTrack_t *)storage;
+    int times[] = { 50, 150, 200, 300, 400 };
+    float values[] = { 0.5f, 1.5f, 2.0f, 3.0f, 4.0f };
+    mdxSequence_t seq = { .interval = { 100, 350 } };
+    mdxModel_t model = { .sequences = &seq, .num_sequences = 1 };
+    float value = 0;
+
+    track->keyframeCount = 5; track->datatype = TDATA_FLOAT1;
+    track->linetype = TRACK_LINEAR; track->globalSeqId = (DWORD)-1;
+    FOR_LOOP(i, 5) {
+        mdxKeyFrame_t *key = (mdxKeyFrame_t *)((BYTE *)track->values + i * (sizeof(int) + sizeof(float)));
+        key->time = times[i]; memcpy(key->data, &values[i], sizeof(values[i]));
+    }
+    MDLX_GetModelKeytrackValue(&model, track, 100, &value); T_FEQ(value, 1.5f, 0.001f);
+    MDLX_GetModelKeytrackValue(&model, track, 250, &value); T_FEQ(value, 2.5f, 0.001f);
+    MDLX_GetModelKeytrackValue(&model, track, 325, &value); T_FEQ(value, 2.625f, 0.001f);
+}
+
 
 TEST(renderer_model, mdx_geometry_packs_two_geosets_into_model_ranges) {
     VECTOR3 pos[] = {{1,2,3}, {4,5,6}, {7,8,9}}, normals[] = {{0,0,1}, {0,1,0}, {1,0,0}};

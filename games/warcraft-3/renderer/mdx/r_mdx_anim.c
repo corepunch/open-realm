@@ -25,10 +25,24 @@ mdxSequence_t const *R_FindSequenceAtTime(mdxModel_t const *model, DWORD time) {
     return NULL;
 }
 
+static mdxKeyFrame_t *R_KeyFrameAt(mdxKeyTrack_t const *track, DWORD index) {
+    DWORD stride = GetModelKeyFrameSize(track->datatype, track->linetype);
+    return (mdxKeyFrame_t *)((LPSTR)track->values + stride * index);
+}
+
+/* MDX key times are authored in ascending order; binary bounds avoid rescanning every track for every model instance. */
+static DWORD R_KeyFrameBound(mdxKeyTrack_t const *track, DWORD time, BOOL upper) {
+    DWORD lo = 0, hi = track->keyframeCount;
+    while (lo < hi) {
+        DWORD mid = lo + (hi - lo) / 2;
+        DWORD keytime = R_KeyFrameAt(track, mid)->time;
+        if (keytime < time || (upper && keytime == time)) lo = mid + 1;
+        else hi = mid;
+    }
+    return lo;
+}
+
 void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *keytrack, DWORD time, HANDLE output) {
-    DWORD const keyframeSize = GetModelKeyFrameSize(keytrack->datatype, keytrack->linetype);
-    LPCSTR keyFrames = (LPCSTR)keytrack->values;
-    mdxKeyFrame_t *prevKeyFrame = NULL;
     DWORD interval[2] = { 0, 0 };
     if (keytrack->globalSeqId != -1) {
         interval[0] = 0;
@@ -46,59 +60,29 @@ void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *ke
         interval[0] = seq->interval[0];
         interval[1] = seq->interval[1];
     }
-    {
-        /* Find the first and last keyframe within the sequence interval.
-         * Used by both the main evaluation loop and the wrap-at-end path. */
-        mdxKeyFrame_t *firstKF = NULL, *lastKF = NULL;
-
-        FOR_LOOP(i, keytrack->keyframeCount) {
-            mdxKeyFrame_t *kf = (HANDLE)(keyFrames + keyframeSize * i);
-            if (kf->time < interval[0] || kf->time > interval[1]) continue;
-            if (!firstKF || kf->time < firstKF->time) firstKF = kf;
-            if (!lastKF  || kf->time > lastKF->time)  lastKF  = kf;
+    DWORD first_index = R_KeyFrameBound(keytrack, interval[0], false);
+    DWORD end_index = R_KeyFrameBound(keytrack, interval[1], true);
+    if (first_index >= end_index)
+        return;
+    mdxKeyFrame_t *first = R_KeyFrameAt(keytrack, first_index);
+    mdxKeyFrame_t *last = R_KeyFrameAt(keytrack, end_index - 1);
+    if (time >= last->time) {
+        /* The interval tail blends back to its first key; keys outside this sequence never participate. */
+        DWORD span = (interval[1] - last->time) + (first->time - interval[0]);
+        if (first != last && span && time < interval[1]) {
+            FLOAT t = (FLOAT)(time - last->time) / (FLOAT)span;
+            R_EvalKeyframeValue(last->data, first->data, t, keytrack->datatype, keytrack->linetype, output);
+        } else {
+            memcpy(output, last->data, GetModelKeyTrackDataTypeSize(keytrack->datatype));
         }
-
-        if (lastKF && firstKF && time >= lastKF->time && time <= interval[1]) {
-            /* Reference (WarsmashModEngine / SdSequence.getValue): when frame
-             * exceeds the last keyframe within the interval, wrap back toward
-             * the first keyframe over the remaining interval span. */
-            if (firstKF != lastKF) {
-                FLOAT end_to_start = (FLOAT)((interval[1] - lastKF->time) + (firstKF->time - interval[0]));
-                FLOAT wrap_t = (FLOAT)(time - lastKF->time) / end_to_start;
-                if (wrap_t < 1.0f) {
-                    R_EvalKeyframeValue(lastKF->data, firstKF->data,
-                        wrap_t, keytrack->datatype, keytrack->linetype, output);
-                    return;
-                }
-            }
-            memcpy(output, lastKF->data, GetModelKeyTrackDataTypeSize(keytrack->datatype));
-            return;
-        }
-
-        FOR_LOOP(keyframeIndex, keytrack->keyframeCount) {
-            mdxKeyFrame_t *keyFrame = (HANDLE)(keyFrames + keyframeSize * keyframeIndex);
-            if (keyFrame->time < interval[0])
-                continue;
-            if (keyFrame->time > interval[1]) {
-                if (prevKeyFrame) {
-                    memcpy(output, prevKeyFrame->data, GetModelKeyTrackDataTypeSize(keytrack->datatype));
-                }
-                return;
-            }
-            if (keyFrame->time == time || (keyFrame->time > time && !prevKeyFrame)) {
-                memcpy(output, keyFrame->data, GetModelKeyTrackDataTypeSize(keytrack->datatype));
-                return;
-            }
-            if (keyFrame->time > time) {
-                R_GetKeyframeValue(prevKeyFrame, keyFrame, keytrack, time, output);
-                return;
-            }
-            prevKeyFrame = keyFrame;
-        }
-        if (prevKeyFrame) {
-            memcpy(output, prevKeyFrame->data, GetModelKeyTrackDataTypeSize(keytrack->datatype));
-        }
+        return;
     }
+    DWORD right_index = R_KeyFrameBound(keytrack, time, false);
+    mdxKeyFrame_t *right = R_KeyFrameAt(keytrack, right_index);
+    if (right_index == first_index || right->time == time)
+        memcpy(output, right->data, GetModelKeyTrackDataTypeSize(keytrack->datatype));
+    else
+        R_GetKeyframeValue(R_KeyFrameAt(keytrack, right_index - 1), right, keytrack, time, output);
 }
 
 static void R_CalculateNodeMatrix(mdxModel_t const *model, mdxNode_t *node, DWORD frame1, DWORD frame0, LPMATRIX4 matrix) {

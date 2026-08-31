@@ -77,32 +77,6 @@ typedef struct {
     DWORD start;
 } tFileBlock_t;
 
-DWORD GetModelKeyTrackDataTypeSize(MODELKEYTRACKDATATYPE dataType) {
-    switch (dataType) {
-        case TDATA_INT1: return 4;
-        case TDATA_FLOAT1: return 4;
-        case TDATA_FLOAT3: return 12;
-        case TDATA_FLOAT4: return 16;
-        default: return 0;
-    }
-}
-
-DWORD GetModelKeyTrackTypeSize(MODELKEYTRACKTYPE keyTrackType) {
-    switch (keyTrackType) {
-        case TRACK_NO_INTERP: return 1;
-        case TRACK_LINEAR: return 1;
-        case TRACK_HERMITE: return 3;
-        case TRACK_BEZIER: return 3;
-        default: return 0;
-    }
-}
-
-DWORD GetModelKeyFrameSize(MODELKEYTRACKDATATYPE dataType,
-                           MODELKEYTRACKTYPE keyTrackType)
-{
-    return 4 + GetModelKeyTrackDataTypeSize(dataType) * GetModelKeyTrackTypeSize(keyTrackType);
-}
-
 DWORD R_ModelFindBiggestGroup(mdxGeoset_t const *geoset) {
     if (!geoset || !geoset->matrixGroupSizes || geoset->num_matrixGroupSizes <= 0) {
         return 0;
