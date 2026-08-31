@@ -10,7 +10,7 @@ The runtime developer override is:
 +set wc3_build_all 1
 ```
 
-It makes every structure already present in the selected worker's final `Builds` list available regardless of technology maximums, `Requires`, gold, lumber, or food. It does **not** bypass `Builds`, building classification, map bounds, terrain/static pathing, live-unit occupancy, or build-on-target rules. This keeps the cheat useful for tech-tree testing without allowing invalid world placement.
+It makes every structure or trained unit already present in the selected producer's final `Builds` / `Trains` list available regardless of technology maximums or `Requires`. Structure construction also keeps the existing debug behavior of bypassing gold, lumber, and food charges; training continues to use its normal `player_pay()` resource check. It does **not** invent commands outside `Builds` / `Trains`, bypass building classification, or relax map bounds, terrain/static pathing, live-unit occupancy, or build-on-target rules. This keeps the cheat useful for tech-tree testing without allowing invalid production commands or world placement.
 
 ## Build-menu data flow
 
@@ -150,17 +150,18 @@ Runtime checks should cover at least:
 
 1. Peasant Build submenu only exposes its `Builds` entries.
 2. A `SetPlayerTechMaxAllowed(..., 0)` structure disappears; `+set wc3_build_all 1` restores it.
-3. Missing `Requires` or resources disable the button; the cvar bypasses those gates.
-4. Farm/Barracks ghost and spawned structure use the same 64/32 alignment.
-5. Terrain, tree/building static pathing, map edges, and live units reject placement.
-6. Obstruction introduced while the Peasant walks causes arrival-time rejection without charging resources.
-7. One Peasant constructs at the base rate; stopping it pauses progress.
-8. A replacement Peasant resumes construction.
-9. Additional Peasants accelerate according to Repair `DataD` and consume incremental `DataC` costs.
-10. Build a Lumber Mill and then order its primary Peasant away; the worker must begin outside the baked footprint and move normally.
-11. Reject a blocked placement and verify the UI displays `Unable to build there.`, not the map name.
-12. Select a building, right-click terrain and a unit, and verify placement cancels without moving/ordering the Peasant.
-13. Select a building, press the command-card Cancel button, and verify the ghost model disappears when the cursor-clear message is processed.
-14. Set a trainable unit maximum to zero and verify its button disappears; set the maximum back to `-1` and verify it returns.
-15. Set a trainable unit prerequisite unmet/met and verify its button is disabled/enabled without changing the producer's `Trains` list.
-16. With maximum one, queue the unit in one producer and verify another producer hides the command while the first unit is still training.
+3. A trainable unit hidden by a tech maximum or disabled by `Requires` becomes available with `+set wc3_build_all 1`, while units absent from that producer's `Trains` list remain absent.
+4. Missing structure `Requires` or resources disable the button; the cvar bypasses those structure gates.
+5. Farm/Barracks ghost and spawned structure use the same 64/32 alignment.
+6. Terrain, tree/building static pathing, map edges, and live units reject placement.
+7. Obstruction introduced while the Peasant walks causes arrival-time rejection without charging resources.
+8. One Peasant constructs at the base rate; stopping it pauses progress.
+9. A replacement Peasant resumes construction.
+10. Additional Peasants accelerate according to Repair `DataD` and consume incremental `DataC` costs.
+11. Build a Lumber Mill and then order its primary Peasant away; the worker must begin outside the baked footprint and move normally.
+12. Reject a blocked placement and verify the UI displays `Unable to build there.`, not the map name.
+13. Select a building, right-click terrain and a unit, and verify placement cancels without moving/ordering the Peasant.
+14. Select a building, press the command-card Cancel button, and verify the ghost model disappears when the cursor-clear message is processed.
+15. Set a trainable unit maximum to zero and verify its button disappears; set the maximum back to `-1` and verify it returns.
+16. Set a trainable unit prerequisite unmet/met and verify its button is disabled/enabled without changing the producer's `Trains` list.
+17. With maximum one, queue the unit in one producer and verify another producer hides the command while the first unit is still training.
