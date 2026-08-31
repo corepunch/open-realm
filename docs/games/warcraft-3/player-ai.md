@@ -260,6 +260,8 @@ TFT `Blizzard.j` calls `SetAllItemTypeSlots(11)` and `SetAllUnitTypeSlots(11)` d
 
 `EnableUserUI` is separate from `EnableUserControl` and must not be treated as a gameplay-command authorization gate. Warcraft uses it to suppress UI affordances such as unit/ability/item hover presentation and tooltips; disabling it does not make world selection, point targeting, Smart orders, inventory actions, research, or menu commands inert. OpenRealm records the per-client state for the presentation path, while `EnableUserControl` remains the control/input policy native. Gating `select`/`point`/`smart` on `EnableUserUI(false)` caused campaign fade/filter calls to leave ordinary mouse selection apparently dead after the rebase. Bounded TFT runs can still execute the native without a JASS error; client-side suppression of the corresponding hover/tooltips remains presentation work rather than server command filtering.
 
+World selection itself may be updated before a reserved player slot has completed `ClientBegin` (notably in in-engine tests). In that state `CMD_Select` updates the authoritative selection and marks command presentation dirty, but defers portrait/info/inventory/command-bar serialization until the client is connected. Do not make selection correctness depend on an initialized server UI transport buffer.
+
 Internal engine ownership uses `bot_t`, `level.bots`, and `G_Bot*`. Blizzard's exported JASS names retain `AI` because that spelling is part of the archive script ABI. Campaign/melee mode, replacement count, and the ROC/TFT policy toggles are persisted on each bot for the later production and captain consumers.
 
 ### Phase 4: Human02 Completion

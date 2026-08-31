@@ -104,8 +104,14 @@ CLIENTCOMMAND(Select) {
         }
         if (cleared) {
             G_QueueSelectionSound(voice);
-            Get_Portrait_f(clent);
-            Get_Commands_f(clent);
+            /* Selection is authoritative game state; HUD serialization is not
+             * valid until ClientBegin has completed for this player slot. */
+            if (client->connected) {
+                Get_Portrait_f(clent);
+                Get_Commands_f(clent);
+            } else {
+                G_InvalidateCommands(client);
+            }
         }
     }
 }
