@@ -266,6 +266,8 @@ static void move_hold(LPEDICT ent) {
 static void ai_move_walk(LPEDICT ent) {
     FLOAT distance = M_DistanceToGoal(ent);
     FLOAT move_distance = unit_movedistance(ent);
+    FLOAT const settle_distance = move_distance + ent->collision + MOVE_SLOT_MARGIN;
+    BOOL blocked;
 
     if (move_should_arrive(ent, move_distance)) {
         /* Snap exactly onto the goal only if that spot is actually free; if the
@@ -276,10 +278,36 @@ static void ai_move_walk(LPEDICT ent) {
             gi.LinkEntity(ent);
         }
         ent->stand(ent);
-    } else if (move_is_blocked(ent, distance, move_distance)) {
-        move_hold(ent);
     } else {
-        unit_changeangle(ent);
+        blocked = move_is_blocked(ent, distance, move_distance);
+
+        /* A plain move waypoint is collision-safe and has no interaction
+         * boundary owned by another behavior, so route it using the mover's
+         * real footprint.  Point-sized generic routing can legitimately choose
+         * a tree/building gap that the unit itself cannot enter. */
+        unit_changeangle_for_radius(ent, ent->collision);
+
+        if (ent->movement.flow_unreachable) {
+            move_hold(ent); /* static topology says this goal cannot be reached */
+            return;
+        }
+        if (!ent->movement.flow_direct && !ent->movement.flow_generation) {
+            return; /* resumable route field is still being built */
+        }
+        if (ent->movement.flow_goal_reached) {
+            return;
+        }
+
+        /* Retail move orders keep trying when another unit temporarily blocks
+         * the path.  Preserve the old near-goal settle behavior so an occupied
+         * final slot does not orbit forever, but do not cancel a distant move
+         * merely because local avoidance failed for a short period. */
+        if (blocked && ent->movement.last_distance <= settle_distance) {
+            move_hold(ent);
+            return;
+        }
+        if (blocked)
+            ent->movement.blocked_frames = 0;
         unit_moveindirection(ent);
     }
 }

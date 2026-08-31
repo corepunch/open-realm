@@ -49,6 +49,8 @@ extern struct routePerfStats_s CM_GetTestPathPerfStats(void);
 /* Public API from routing.c. */
 DWORD  CM_BuildHeatmap(edict_t *goalentity);
 DWORD  CM_BuildHeatmapForRadius(edict_t *goalentity, FLOAT radius);
+DWORD  CM_RequestHeatmapForRadius(edict_t *goalentity, FLOAT radius);
+void   CM_ProcessPathJobs(DWORD work_budget);
 BOOL   CM_ClosestPathablePointForRadius(LPCVECTOR2 location, FLOAT radius, LPVECTOR2 out);
 BOOL   CM_LineIsWalkableForRadius(LPCVECTOR2 a, LPCVECTOR2 b, FLOAT radius);
 BOOL   CM_FindDirectApproachPointForRadius(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT range, FLOAT radius, LPVECTOR2 out);
@@ -225,6 +227,37 @@ TEST(wc3_pathfinding, heatmap_generation_is_nonzero) {
     DWORD gen = CM_BuildHeatmap(wp);
 
     T_ASSERT(gen != 0);
+}
+
+TEST(wc3_pathfinding, incremental_heatmap_serializes_cache_misses_without_losing_later_goal) {
+    build_open_map();
+    setup_test_pathmap(MAP_W, MAP_H, open_map);
+    reset_entities();
+    CM_ResetTestPathPerfStats();
+
+    LPEDICT first = make_waypoint(2.0f, 2.0f);
+    LPEDICT second = make_waypoint(7.0f, 7.0f);
+
+    /* A cache miss only queues work; a second goal waits rather than being
+     * permanently denied by the old lifetime two-build quota. */
+    T_EQ(CM_RequestHeatmapForRadius(first, 0.0f), 0);
+    T_EQ(CM_RequestHeatmapForRadius(second, 0.0f), 0);
+
+    for (int i = 0; i < 200; i++)
+        CM_ProcessPathJobs(4);
+
+    DWORD first_gen = CM_RequestHeatmapForRadius(first, 0.0f);
+    T_ASSERT(first_gen != 0);
+
+    /* Once the first job completes, the previously waiting destination can
+     * start on the next request and eventually gets its own generation. */
+    T_EQ(CM_RequestHeatmapForRadius(second, 0.0f), 0);
+    for (int i = 0; i < 200; i++)
+        CM_ProcessPathJobs(4);
+
+    DWORD second_gen = CM_RequestHeatmapForRadius(second, 0.0f);
+    T_ASSERT(second_gen != 0);
+    T_ASSERT(second_gen != first_gen);
 }
 
 TEST(wc3_pathfinding, heatmap_cache_separates_collision_radius) {

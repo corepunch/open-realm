@@ -286,9 +286,14 @@ void unit_changeangle(LPEDICT self) {
     } else {
         DWORD heatmap = M_RefreshHeatmap(self->goalentity, 0.0f);
         self->movement.flow_generation = heatmap;
+        if (!heatmap)
+            return; /* incremental route is still building; keep the order */
         dir = get_flow_direction(heatmap, self->s.origin.x, self->s.origin.y);
-        if (Vector2_len(&dir) <= 0.001f)
-            dir = to_goal;
+        if (Vector2_len(&dir) <= 0.001f) {
+            self->movement.flow_unreachable =
+                !CM_FlowCanReach(heatmap, self->s.origin.x, self->s.origin.y);
+            return;
+        }
     }
 
     unit_apply_heading(self, &dir);
@@ -320,7 +325,7 @@ void unit_changeangle_for_radius(LPEDICT self, FLOAT radius) {
         DWORD heatmap = M_RefreshHeatmap(self->goalentity, radius);
         self->movement.flow_generation = heatmap;
         if (!heatmap)
-            return; /* per-frame route budget exhausted: wait for a later tick */
+            return; /* resumable route field is still building */
 
         if (CM_FlowReachedGoal(heatmap, self->s.origin.x, self->s.origin.y)) {
             self->movement.flow_goal_reached = true;
