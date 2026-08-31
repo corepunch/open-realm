@@ -233,6 +233,47 @@ TEST(wc3_combat, attack_button_does_not_order_unit_to_attack_itself) {
     T_NULL(unit->goalentity);
 }
 
+/* Building attacks use the authored no-walk footprint as their interaction
+ * boundary.  A melee unit beside a large building may be well outside attack
+ * range of the building centre while already being in range of its wall. */
+TEST(wc3_combat, attack_owned_building_starts_at_pathing_footprint_range) {
+    enum { W = 8, H = 8 };
+    LPEDICT attacker;
+    LPEDICT building;
+    pathTex_t *pathtex;
+
+    setup_test_world();
+    attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 150.0f, 0.0f);
+    building = make_combat_unit(MAKEFOURCC('h','b','a','r'), 1500.0f, 0.0f, 0.0f);
+    attacker->s.player = 0;
+    building->s.player = 0;
+    attacker->collision = 16.0f;
+    attacker->attack1.type = ATK_NORMAL;
+    attacker->attack1.weapon = WPN_NORMAL;
+    attacker->attack1.range = 90.0f;
+
+    pathtex = gi.MemAlloc(sizeof(*pathtex) + W * H * sizeof(COLOR32));
+    T_NOT_NULL(pathtex);
+    pathtex->width = W;
+    pathtex->height = H;
+    FOR_LOOP(i, W * H)
+        pathtex->map[i] = (COLOR32){ 0, 0, 255, 255 };
+    building->pathtex = pathtex;
+
+    /* Centre distance is intentionally beyond melee range. */
+    T_ASSERT(Vector2_distance(&attacker->s.origin2, &building->s.origin2) >
+             attacker->attack1.range);
+    T_ASSERT(CM_DistanceToPathingFootprint(building, &attacker->s.origin2) <=
+             attacker->collision + attacker->attack1.range);
+
+    order_attack(attacker, building);
+    T_STREQ(attacker->currentmove->animation, "walk");
+    attacker->currentmove->think(attacker);
+
+    T_STREQ(attacker->currentmove->animation, "attack");
+    gi.MemFree(pathtex);
+}
+
 /* ==========================================================================
  * M_MoveFrame
  * ========================================================================== */
