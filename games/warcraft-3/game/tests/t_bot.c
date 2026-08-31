@@ -228,6 +228,7 @@ TEST(wc3_bot, ignored_units_counts_only_live_owned_captain_members) {
     wrong_owner->s.player = 1;
     attack->health.value = defense->health.value = removed->health.value = wrong_type->health.value = 100;
     wrong_owner->health.value = 100; dead->health.value = 0; removed->inuse = false;
+    T_ASSERT(G_BotStart(&game.clients[2].ps, "test_ignored_units.ai", BOT_CAMPAIGN));
     bot->captains[BOT_CAPTAIN_ATTACK].units = gi.MemAlloc(3 * sizeof(LPEDICT));
     ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units) = 3;
     bot->captains[BOT_CAPTAIN_ATTACK].units[0] = attack;
@@ -242,10 +243,26 @@ TEST(wc3_bot, ignored_units_counts_only_live_owned_captain_members) {
     T_EQ(G_BotIgnoredUnits(&game.clients[2].ps, MAKEFOURCC('h','f','o','o')), 2);
     T_EQ(G_BotIgnoredUnits(&game.clients[2].ps, MAKEFOURCC('h','r','i','f')), 1);
     T_EQ(G_BotIgnoredUnits(NULL, MAKEFOURCC('h','f','o','o')), 0);
-    T_ASSERT(G_BotStart(&game.clients[2].ps, "test_ignored_units.ai", BOT_CAMPAIGN));
     G_BotRunFrame();
     T_NOT_NULL(bot->vm);
     T_ASSERT(!jass_rterror_pending(bot->vm));
+}
+
+TEST(wc3_bot, command_stack_is_player_owned_and_consumed_by_ai_natives) {
+    T_ASSERT(G_BotStart(&game.clients[2].ps, "test_bot_commands.ai", BOT_CAMPAIGN));
+    T_ASSERT(run_test_jass("function main takes nothing returns nothing\n"
+        "call CommandAI(Player(2),10,20)\ncall CommandAI(Player(2),30,40)\n"
+        "call CommandAI(Player(1),50,60)\nendfunction"));
+    T_EQ(G_BotCommandsWaiting(&game.clients[2].ps), 2);
+    T_EQ(G_BotCommandsWaiting(&game.clients[1].ps), 1);
+    T_EQ(G_BotLastCommand(&game.clients[1].ps), 50);
+    T_EQ(G_BotLastData(&game.clients[1].ps), 60);
+
+    G_BotRunFrame();
+    T_NOT_NULL(level.bots[2].vm);
+    T_ASSERT(!jass_rterror_pending(level.bots[2].vm));
+    T_EQ(G_BotCommandsWaiting(&game.clients[2].ps), 0);
+    T_EQ(G_BotCommandsWaiting(&game.clients[1].ps), 1);
 }
 
 #endif /* BZ_TESTS */

@@ -6,6 +6,13 @@ static bot_t *G_BotState(DWORD player) {
     return player < MAX_PLAYERS ? &level.bots[player] : NULL;
 }
 
+static void G_BotClearCaptains(bot_t *bot) {
+    FOR_LOOP(i, BOT_CAPTAIN_COUNT) {
+        if (bot->captains[i].units) gi.MemFree(bot->captains[i].units);
+        memset(bot->captains + i, 0, sizeof(bot->captains[i]));
+    }
+}
+
 /* KillUnit changes life immediately while ordinary death also carries SVF_DEADMONSTER. */
 BOOL G_BotUnitAlive(LPEDICT unit) {
     return unit && unit->inuse && unit->health.value > 0 && !(unit->svflags & SVF_DEADMONSTER);
@@ -26,10 +33,7 @@ void G_BotStopGathering(LPPLAYER player) {
 void G_BotCreateCaptains(LPPLAYER player) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
     if (!bot) return;
-    FOR_LOOP(i, BOT_CAPTAIN_COUNT) {
-        if (bot->captains[i].units) gi.MemFree(bot->captains[i].units);
-        memset(bot->captains + i, 0, sizeof(bot->captains[i]));
-    }
+    G_BotClearCaptains(bot);
 }
 
 /* Captain members remain in TownCount, so common.ai adds this count when requesting their replacements. */
@@ -40,6 +44,41 @@ DWORD G_BotIgnoredUnits(LPPLAYER player, DWORD class_id) {
     FOR_LOOP(i, BOT_CAPTAIN_COUNT) FOR_EACH_ARRAY(LPEDICT, unit, bot->captains[i].units)
         if (G_BotUnitAlive(*unit) && (*unit)->s.player == PLAYER_NUM(player) && (*unit)->class_id == class_id) count++;
     return count;
+}
+
+/* CommandAI is a per-player stack: GetLast* observes the newest command until PopLastCommand removes it. */
+BOOL G_BotPushCommand(LPPLAYER player, LONG command, LONG data) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    botCommand_t *commands;
+    DWORD count;
+    if (!bot) return false;
+    count = ARRAY_COUNT(bot->commands);
+    commands = gi.MemAlloc((count + 1) * sizeof(*commands));
+    if (count) memcpy(commands, bot->commands, count * sizeof(*commands));
+    if (bot->commands) gi.MemFree(bot->commands);
+    bot->commands = commands; ARRAY_COUNT(bot->commands) = count + 1;
+    bot->commands[count] = MAKE(botCommand_t, command, data);
+    return true;
+}
+
+DWORD G_BotCommandsWaiting(LPPLAYER player) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    return bot ? ARRAY_COUNT(bot->commands) : 0;
+}
+
+LONG G_BotLastCommand(LPPLAYER player) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    return bot && ARRAY_COUNT(bot->commands) ? bot->commands[ARRAY_COUNT(bot->commands) - 1].command : 0;
+}
+
+LONG G_BotLastData(LPPLAYER player) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    return bot && ARRAY_COUNT(bot->commands) ? bot->commands[ARRAY_COUNT(bot->commands) - 1].data : 0;
+}
+
+void G_BotPopCommand(LPPLAYER player) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    if (bot && ARRAY_COUNT(bot->commands)) ARRAY_COUNT(bot->commands)--;
 }
 
 /* AI script paths are normally basenames; preserve an explicit archive path when a map supplies one. */
@@ -53,9 +92,10 @@ static BOOL G_BotScriptPath(LPCSTR script, LPSTR path, size_t size) {
 
 void G_BotStop(DWORD player) {
     bot_t *bot = G_BotState(player);
-    if (!bot || !bot->vm) return;
-    jass_close(bot->vm);
-    G_BotCreateCaptains(bot->player);
+    if (!bot) return;
+    if (bot->vm) jass_close(bot->vm);
+    G_BotClearCaptains(bot);
+    if (bot->commands) gi.MemFree(bot->commands);
     memset(bot, 0, sizeof(*bot));
 }
 

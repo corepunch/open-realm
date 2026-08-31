@@ -99,6 +99,23 @@ DWORD IgnoredUnits(LPJASS j) {
     return jass_pushinteger(j, G_BotIgnoredUnits(jass_getcontext(j)->playerState, jass_checkinteger(j, 1)));
 }
 
+DWORD CommandsWaiting(LPJASS j) {
+    return jass_pushinteger(j, G_BotCommandsWaiting(jass_getcontext(j)->playerState));
+}
+
+DWORD GetLastCommand(LPJASS j) {
+    return jass_pushinteger(j, G_BotLastCommand(jass_getcontext(j)->playerState));
+}
+
+DWORD GetLastData(LPJASS j) {
+    return jass_pushinteger(j, G_BotLastData(jass_getcontext(j)->playerState));
+}
+
+DWORD PopLastCommand(LPJASS j) {
+    G_BotPopCommand(jass_getcontext(j)->playerState);
+    return 0;
+}
+
 DWORD StartThread(LPJASS j) {
     LPCJASSFUNC func = jass_checkcode(j, 1);
     JASSCONTEXT context = *jass_getcontext(j);

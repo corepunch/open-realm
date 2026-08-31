@@ -850,6 +850,10 @@ typedef struct {
     botCaptainState_t state;
 } botCaptain_t;
 
+typedef struct {
+    LONG command, data;
+} botCommand_t;
+
 typedef enum {
     BOT_TARGET_HEROES    = 1 << 0,
     BOT_PEONS_REPAIR     = 1 << 1,
@@ -873,6 +877,7 @@ typedef struct {
     LPJASS vm;
     LPPLAYER player;
     botCaptain_t captains[BOT_CAPTAIN_COUNT];
+    ARRAY(botCommand_t, commands);
     botMode_t mode, pending_mode;
     DWORD flags;
     LONG replacement_count;
@@ -950,6 +955,11 @@ BOOL G_BotUnitAlive(LPEDICT);
 void G_BotStopGathering(LPPLAYER);
 void G_BotCreateCaptains(LPPLAYER);
 DWORD G_BotIgnoredUnits(LPPLAYER, DWORD);
+BOOL G_BotPushCommand(LPPLAYER, LONG, LONG);
+DWORD G_BotCommandsWaiting(LPPLAYER);
+LONG G_BotLastCommand(LPPLAYER);
+LONG G_BotLastData(LPPLAYER);
+void G_BotPopCommand(LPPLAYER);
 
 // g_fow.c
 void G_FowInit(void);

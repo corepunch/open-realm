@@ -199,6 +199,8 @@ Implemented query subset: `GetUnitCount` and `GetPlayerUnitTypeCount` include li
 
 `IgnoredUnits` counts live, matching, bot-owned members across the assault and defense captain rosters. `common.ai` adds this value to desired production because captain members still contribute to `TownCount` after assignment away from town duties. A bounded ROC Human02 run now passes this query and reports `CommandsWaiting` as the next unresolved native.
 
+`CommandAI` appends to a per-player command stack; `CommandsWaiting`, `GetLastCommand`, `GetLastData`, and `PopLastCommand` expose Blizzard's newest-command consumer contract to the bound bot VM. Empty reads return zero, commands remain isolated by player, and pending storage is released on bot replacement or shutdown. A bounded ROC Human02 run now passes its interruptible sleep checks and reports `ClearHarvestAI` as the next unresolved native.
+
 Internal engine ownership uses `bot_t`, `level.bots`, and `G_Bot*`. Blizzard's exported JASS names retain `AI` because that spelling is part of the archive script ABI. Campaign/melee mode, replacement count, and the ROC/TFT policy toggles are persisted on each bot for the later production and captain consumers.
 
 ### Phase 4: Human02 Completion

@@ -596,10 +596,8 @@ DWORD StartCampaignAI(LPJASS j) {
     return 0;
 }
 DWORD CommandAI(LPJASS j) {
-    (void)jass_checkhandle(j, 1, "player");
-    (void)jass_checkinteger(j, 2);
-    (void)jass_checkinteger(j, 3);
-    jass_rterror(j, "CommandAI is not implemented");
+    LPPLAYER player = jass_checkhandle(j, 1, "player");
+    G_BotPushCommand(player, jass_checkinteger(j, 2), jass_checkinteger(j, 3));
     return 0;
 }
 DWORD PauseCompAI(LPJASS j) {
