@@ -34,6 +34,9 @@ native CreateCaptains takes nothing returns nothing
 native IgnoredUnits takes integer unitid returns integer
 native CaptainInCombat takes boolean attack_captain returns boolean
 native AddDefenders takes integer qty, integer unitid returns boolean
+native AddGuardPost takes integer id, real x, real y returns nothing
+native FillGuardPosts takes nothing returns nothing
+native ReturnGuardPosts takes nothing returns nothing
 native CommandsWaiting takes nothing returns integer
 native GetLastCommand takes nothing returns integer
 native GetLastData takes nothing returns integer

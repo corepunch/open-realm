@@ -117,6 +117,13 @@ DWORD AddDefenders(LPJASS j) {
     return jass_pushboolean(j, G_BotAddDefenders(jass_getcontext(j)->playerState, jass_checkinteger(j, 1), jass_checkinteger(j, 2)));
 }
 
+DWORD AddGuardPost(LPJASS j) {
+    G_BotAddGuardPost(jass_getcontext(j)->playerState, jass_checkinteger(j, 1), jass_checknumber(j, 2), jass_checknumber(j, 3));
+    return 0;
+}
+DWORD FillGuardPosts(LPJASS j) { G_BotFillGuardPosts(jass_getcontext(j)->playerState); return 0; }
+DWORD ReturnGuardPosts(LPJASS j) { G_BotReturnGuardPosts(jass_getcontext(j)->playerState); return 0; }
+
 DWORD CommandsWaiting(LPJASS j) {
     return jass_pushinteger(j, G_BotCommandsWaiting(jass_getcontext(j)->playerState));
 }

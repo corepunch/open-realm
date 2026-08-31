@@ -857,6 +857,12 @@ typedef struct {
     LONG command, data;
 } botCommand_t;
 
+typedef struct {
+    DWORD class_id;
+    VECTOR2 origin;
+    LPEDICT unit;
+} botGuardPost_t;
+
 typedef enum {
     BOT_TARGET_HEROES    = 1 << 0,
     BOT_PEONS_REPAIR     = 1 << 1,
@@ -882,6 +888,7 @@ typedef struct {
     botCaptain_t captains[BOT_CAPTAIN_COUNT];
     ARRAY(botCommand_t, commands);
     ARRAY(LPEDICT, harvesters);
+    ARRAY(botGuardPost_t, guards);
     botMode_t mode, pending_mode;
     DWORD flags;
     LONG replacement_count;
@@ -969,6 +976,9 @@ void G_BotCreateCaptains(LPPLAYER);
 DWORD G_BotIgnoredUnits(LPPLAYER, DWORD);
 BOOL G_BotCaptainInCombat(LPPLAYER, BOOL);
 BOOL G_BotAddDefenders(LPPLAYER, LONG, DWORD);
+void G_BotAddGuardPost(LPPLAYER, DWORD, FLOAT, FLOAT);
+void G_BotFillGuardPosts(LPPLAYER);
+void G_BotReturnGuardPosts(LPPLAYER);
 BOOL G_BotPushCommand(LPPLAYER, LONG, LONG);
 DWORD G_BotCommandsWaiting(LPPLAYER);
 LONG G_BotLastCommand(LPPLAYER);

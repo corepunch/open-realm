@@ -370,6 +370,59 @@ TEST(wc3_bot, add_defenders_fills_idempotently_from_completed_owned_units) {
     T_ASSERT(G_BotAddDefenders(&game.clients[2].ps, 0, type));
 }
 
+TEST(wc3_bot, guard_posts_fill_typed_units_without_stealing_captain_members) {
+    bot_t *bot = level.bots + 2;
+    DWORD type = MAKEFOURCC('h','f','o','o');
+    LPEDICT captain = alloc_test_unit(type, 0, 0), first = alloc_test_unit(type, 32, 0);
+    LPEDICT second = alloc_test_unit(type, 64, 0), other = alloc_test_unit(type, 96, 0);
+    captain->s.player = first->s.player = second->s.player = 2; other->s.player = 1;
+    captain->health.value = first->health.value = second->health.value = other->health.value = 100;
+    bot->captains[BOT_CAPTAIN_DEFENSE].units = gi.MemAlloc(sizeof(LPEDICT));
+    ARRAY_COUNT(bot->captains[BOT_CAPTAIN_DEFENSE].units) = 1;
+    bot->captains[BOT_CAPTAIN_DEFENSE].units[0] = captain;
+
+    G_BotAddGuardPost(&game.clients[2].ps, type, 100, 200);
+    G_BotAddGuardPost(&game.clients[2].ps, type, 300, 400);
+    G_BotFillGuardPosts(&game.clients[2].ps);
+    T_EQ(ARRAY_COUNT(bot->guards), 2);
+    T_EQ(bot->guards[0].unit, first); T_EQ(bot->guards[1].unit, second);
+    T_FEQ(bot->guards[0].origin.x, 100, 0.001f); T_FEQ(bot->guards[1].origin.y, 400, 0.001f);
+    T_EQ(G_BotIgnoredUnits(&game.clients[2].ps, type), 3);
+}
+
+TEST(wc3_bot, guard_posts_replace_dead_members_and_leave_missing_types_empty) {
+    bot_t *bot = level.bots + 2;
+    DWORD type = MAKEFOURCC('h','f','o','o');
+    LPEDICT dead = alloc_test_unit(type, 0, 0), replacement = alloc_test_unit(type, 32, 0);
+    dead->s.player = replacement->s.player = 2; dead->health.value = replacement->health.value = 100;
+    G_BotAddGuardPost(&game.clients[2].ps, type, 100, 200);
+    G_BotAddGuardPost(&game.clients[2].ps, MAKEFOURCC('h','r','i','f'), 300, 400);
+    G_BotFillGuardPosts(&game.clients[2].ps);
+    T_EQ(bot->guards[0].unit, dead); T_NULL(bot->guards[1].unit);
+    dead->health.value = 0;
+    G_BotFillGuardPosts(&game.clients[2].ps);
+    T_EQ(bot->guards[0].unit, replacement); T_NULL(bot->guards[1].unit);
+}
+
+TEST(wc3_bot, return_guard_posts_moves_idle_units_but_preserves_combat) {
+    bot_t *bot = level.bots + 2;
+    DWORD type = MAKEFOURCC('h','f','o','o');
+    LPEDICT idle = alloc_test_unit(type, 0, 0), fighting = alloc_test_unit(type, 0, 32);
+    LPEDICT enemy = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 64, 0);
+    idle->s.player = fighting->s.player = 2; enemy->s.player = 1;
+    idle->health.value = fighting->health.value = enemy->health.value = 100;
+    idle->stand = fighting->stand = unit_stand; fighting->combatentity = enemy;
+    G_BotAddGuardPost(&game.clients[2].ps, type, 256, 0);
+    G_BotAddGuardPost(&game.clients[2].ps, type, 256, 32);
+    G_BotFillGuardPosts(&game.clients[2].ps);
+    G_BotReturnGuardPosts(&game.clients[2].ps);
+    T_EQ(bot->guards[0].unit, idle); T_EQ(idle->currentmove->ability, &a_move);
+    T_FEQ(idle->goalentity->s.origin2.x, 256, 0.001f);
+    T_EQ(bot->guards[1].unit, fighting); T_NULL(fighting->currentmove);
+    G_BotReturnGuardPosts(&game.clients[3].ps);
+    T_EQ(ARRAY_COUNT(level.bots[3].guards), 0);
+}
+
 TEST(wc3_bot, command_stack_is_player_owned_and_consumed_by_ai_natives) {
     T_ASSERT(G_BotStart(&game.clients[2].ps, "test_bot_commands.ai", BOT_CAMPAIGN));
     T_ASSERT(run_test_jass("function main takes nothing returns nothing\n"

@@ -2,6 +2,8 @@
 #include "jass/jass.h"
 #include "skills/s_skills.h"
 
+#define BOT_GUARD_RETURN_RANGE 64.0f // world units; avoid resetting movement for guards already standing near their post
+
 static bot_t *G_BotState(DWORD player) {
     return player < MAX_PLAYERS ? &level.bots[player] : NULL;
 }
@@ -107,6 +109,8 @@ DWORD G_BotIgnoredUnits(LPPLAYER player, DWORD class_id) {
     if (!bot) return 0;
     FOR_LOOP(i, BOT_CAPTAIN_COUNT) FOR_EACH_ARRAY(LPEDICT, unit, bot->captains[i].units)
         if (G_BotUnitAlive(*unit) && (*unit)->s.player == PLAYER_NUM(player) && (*unit)->class_id == class_id) count++;
+    FOR_EACH_ARRAY(botGuardPost_t, post, bot->guards)
+        if (G_BotUnitAlive(post->unit) && post->unit->s.player == PLAYER_NUM(player) && post->unit->class_id == class_id) count++;
     return count;
 }
 
@@ -149,6 +153,47 @@ BOOL G_BotAddDefenders(LPPLAYER player, LONG qty, DWORD class_id) {
         G_BotCaptainAdd(captain, unit); have++;
     }
     return have >= qty;
+}
+
+void G_BotAddGuardPost(LPPLAYER player, DWORD class_id, FLOAT x, FLOAT y) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    botGuardPost_t *guards;
+    DWORD count;
+    if (!bot || !class_id) return;
+    count = ARRAY_COUNT(bot->guards); guards = gi.MemAlloc((count + 1) * sizeof(*guards));
+    if (count) memcpy(guards, bot->guards, count * sizeof(*guards));
+    if (bot->guards) gi.MemFree(bot->guards);
+    bot->guards = guards; ARRAY_COUNT(bot->guards) = count + 1;
+    bot->guards[count] = MAKE(botGuardPost_t, class_id, MAKE(VECTOR2, x, y), NULL);
+}
+
+static BOOL G_BotGuardHasUnit(bot_t *bot, LPEDICT unit) {
+    FOR_EACH_ARRAY(botGuardPost_t, post, bot->guards) if (post->unit == unit) return true;
+    return false;
+}
+
+/* Guard posts reserve ordinary completed units independently from the two captain rosters. */
+void G_BotFillGuardPosts(LPPLAYER player) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    if (!bot) return;
+    FOR_EACH_ARRAY(botGuardPost_t, post, bot->guards) {
+        if (G_BotUnitAlive(post->unit) && post->unit->s.player == PLAYER_NUM(player) && post->unit->class_id == post->class_id) continue;
+        post->unit = NULL;
+        FILTER_EDICTS(unit, !post->unit && G_BotUnitAlive(unit) && unit->s.player == PLAYER_NUM(player) &&
+            unit->class_id == post->class_id && !unit->construction.active && !unit->training &&
+            !G_BotCaptainHasUnit(bot, unit) && !G_BotGuardHasUnit(bot, unit)) post->unit = unit;
+    }
+}
+
+/* A fighting guard keeps its combat target; an idle guard outside its post radius walks home. */
+void G_BotReturnGuardPosts(LPPLAYER player) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    if (!bot) return;
+    FOR_EACH_ARRAY(botGuardPost_t, post, bot->guards) {
+        if (!G_BotUnitAlive(post->unit)) { post->unit = NULL; continue; }
+        if (!unit_affectingcombat(post->unit) && Vector2_distance(&post->unit->s.origin2, &post->origin) > BOT_GUARD_RETURN_RANGE)
+            order_move(post->unit, Waypoint_add(&post->origin));
+    }
 }
 
 /* CommandAI is a per-player stack: GetLast* observes the newest command until PopLastCommand removes it. */
@@ -202,6 +247,7 @@ void G_BotStop(DWORD player) {
     G_BotClearCaptains(bot);
     if (bot->commands) gi.MemFree(bot->commands);
     if (bot->harvesters) gi.MemFree(bot->harvesters);
+    if (bot->guards) gi.MemFree(bot->guards);
     memset(bot, 0, sizeof(*bot));
 }
 
