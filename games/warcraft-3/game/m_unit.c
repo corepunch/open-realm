@@ -151,6 +151,8 @@ BOOL unit_issuetargetorder(LPEDICT self, LPCSTR order, LPEDICT target) {
                 return true;
             }
             if (target->targtype == TARG_TREE) {
+                if (self->harvested_lumber > 0 || self->harvested_gold > 0)
+                    return false;
                 harvest_start(self, target);
                 return true;
             }
