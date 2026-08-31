@@ -94,6 +94,7 @@ extern FLOAT HARVEST_RANGE;
 extern FLOAT HARVEST_COOLDOWN;
 extern FLOAT HARVEST_SEARCH_RANGE;
 extern void harvest_cooldown(LPEDICT);
+BOOL harvest_menu_selecttarget(LPEDICT clent, LPEDICT target);
 
 static const char slk_goldmine_test_data[] =
     "ID;PWXL;N;E\n"
@@ -540,6 +541,72 @@ TEST(wc3_movement, lumber_smart_click_preserves_gold_carry) {
     T_EQ(worker->harvested_gold, 7);
     T_ASSERT(worker->s.renderfx & RF_HAS_GOLD);
     T_NULL(worker->goalentity);
+}
+
+/* Right-click is also the cancel gesture for an active targeted command.
+ * Leaving Harvest target mode armed lets the next left-click on an idle worker
+ * be consumed as the old target click, so the previous worker group stays
+ * selected and a following lumber Smart order retasks that entire group. */
+TEST(wc3_movement, harvest_target_mode_right_click_cancel_prevents_stale_group_retask) {
+    LPEDICT clent = &g_edicts[0];
+    LPGAMECLIENT client = clent->client;
+    LPEDICT miner1 = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    LPEDICT miner2 = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32.0f, 0.0f);
+    LPEDICT idle = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 0.0f);
+    LPEDICT tree = make_harvest_tree(160.0f, 0.0f, 100.0f);
+    char idle_number[16], tree_number[16];
+    LPCSTR cancel_command[] = { "smartpoint", "256", "256" };
+    LPCSTR select_command[] = { "select", idle_number };
+    LPCSTR harvest_command[] = { "smart", tree_number };
+
+    setup_test_world();
+    miner1->UnitAbilities = miner2->UnitAbilities = idle->UnitAbilities = &harvest_abilities;
+    G_SelectEntity(client, miner1);
+    G_SelectEntity(client, miner2);
+    client->menu.on_entity_selected = harvest_menu_selecttarget;
+
+    G_ClientCommand(clent, 3, cancel_command);
+
+    T_NULL(client->menu.on_entity_selected);
+    T_NULL(client->menu.on_location_selected);
+    T_NULL(miner1->goalentity);
+    T_NULL(miner2->goalentity);
+
+    snprintf(idle_number, sizeof(idle_number), "%u", (unsigned)idle->s.number);
+    G_ClientCommand(clent, 2, select_command);
+    T_ASSERT(!G_IsEntitySelected(client, miner1));
+    T_ASSERT(!G_IsEntitySelected(client, miner2));
+    T_ASSERT(G_IsEntitySelected(client, idle));
+
+    snprintf(tree_number, sizeof(tree_number), "%u", (unsigned)tree->s.number);
+    G_ClientCommand(clent, 2, harvest_command);
+    T_ASSERT(idle->goalentity == tree);
+    T_ASSERT(idle->secondarygoal == tree);
+    T_NULL(miner1->goalentity);
+    T_NULL(miner2->goalentity);
+}
+
+/* Entity Smart/right-click uses the same cancel contract as ground Smart. */
+TEST(wc3_movement, harvest_target_mode_right_click_entity_cancels_without_order) {
+    LPEDICT clent = &g_edicts[0];
+    LPGAMECLIENT client = clent->client;
+    LPEDICT worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    LPEDICT tree = make_harvest_tree(160.0f, 0.0f, 100.0f);
+    char tree_number[16];
+    LPCSTR command[] = { "smart", tree_number };
+
+    setup_test_world();
+    worker->UnitAbilities = &harvest_abilities;
+    G_SelectEntity(client, worker);
+    client->menu.on_entity_selected = harvest_menu_selecttarget;
+    snprintf(tree_number, sizeof(tree_number), "%u", (unsigned)tree->s.number);
+
+    G_ClientCommand(clent, 2, command);
+
+    T_NULL(client->menu.on_entity_selected);
+    T_NULL(client->menu.on_location_selected);
+    T_NULL(worker->goalentity);
+    T_NULL(worker->secondarygoal);
 }
 
 /* Reissuing Harvest while already full remembers the requested tree but begins
