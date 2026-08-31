@@ -1,0 +1,4 @@
+function main takes nothing returns nothing
+    call StopGathering()
+    call Sleep(1000.0)
+endfunction

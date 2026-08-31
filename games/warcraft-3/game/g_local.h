@@ -926,6 +926,7 @@ void G_BotShutdown(void);
 void G_BotPause(DWORD, BOOL);
 void G_BotRunFrame(void);
 BOOL G_BotUnitAlive(LPEDICT);
+void G_BotStopGathering(LPPLAYER);
 
 // g_fow.c
 void G_FowInit(void);

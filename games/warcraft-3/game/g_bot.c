@@ -1,5 +1,6 @@
 #include "g_local.h"
 #include "jass/jass.h"
+#include "skills/s_skills.h"
 
 static bot_t *G_BotState(DWORD player) {
     return player < MAX_PLAYERS ? &level.bots[player] : NULL;
@@ -8,6 +9,17 @@ static bot_t *G_BotState(DWORD player) {
 /* KillUnit changes life immediately while ordinary death also carries SVF_DEADMONSTER. */
 BOOL G_BotUnitAlive(LPEDICT unit) {
     return unit && unit->inuse && unit->health.value > 0 && !(unit->svflags & SVF_DEADMONSTER);
+}
+
+/* Stop only active gather orders; carried resources remain available for an explicit return order. */
+void G_BotStopGathering(LPPLAYER player) {
+    if (!player) return;
+    FILTER_EDICTS(unit, unit->inuse && unit->s.player == PLAYER_NUM(player) && unit->currentmove &&
+        (unit->currentmove->ability == &a_harvest || unit->currentmove->ability == &a_goldmine ||
+         unit->currentmove->ability == &a_wisp_harvest)) {
+        S_GoldMineReleaseWorker(unit);
+        order_stop(unit);
+    }
 }
 
 /* AI script paths are normally basenames; preserve an explicit archive path when a map supplies one. */

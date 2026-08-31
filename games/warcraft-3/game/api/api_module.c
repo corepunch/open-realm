@@ -45,6 +45,7 @@ JASSMODULE jass_funcs[] = {
     { "SetRandomPaths", SetRandomPaths },
     { "SetDefendPlayer", SetDefendPlayer },
     { "SetHeroesBuyItems", SetHeroesBuyItems },
+    { "StopGathering", StopGathering },
     { "StartThread", StartThread },
     { "Sleep", Sleep },
     { "ConvertRace", ConvertRace },

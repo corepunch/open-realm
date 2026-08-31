@@ -193,6 +193,8 @@ Exit: `CampaignAI` starts both periodic threads, defender requests persist, atta
 
 Implemented query subset: `GetUnitCount` and `GetPlayerUnitTypeCount` include live queued/constructing units because `common.ai` compares them against desired totals; `GetUnitCountDone` excludes training and active construction. All three exclude dead entities. `GetUnitGoldCost`, `GetUnitWoodCost`, `GetUpgradeLevel`, and `UnitAlive` read existing authoritative metadata, tech state, and entity lifecycle state. Town partitioning and upgrade-cost progression remain unresolved until their authoritative runtime representation exists.
 
+`StopGathering` stops only the invoking bot's units whose active movement belongs to lumber, gold, or wisp harvesting. It releases workers hidden inside gold mines through the ordinary mine-membership lifecycle, preserves carried resources, and leaves unrelated orders and other players untouched. A bounded ROC Human02 run now passes this call and reports `CreateCaptains` as the next unresolved native.
+
 Internal engine ownership uses `bot_t`, `level.bots`, and `G_Bot*`. Blizzard's exported JASS names retain `AI` because that spelling is part of the archive script ABI. Campaign/melee mode, replacement count, and the ROC/TFT policy toggles are persisted on each bot for the later production and captain consumers.
 
 ### Phase 4: Human02 Completion
@@ -243,8 +245,8 @@ Run targeted tests first, then the complete suite:
 
 ```sh
 make test-wc3-engine WC3_PATTERN='wc3_bot.*'
-build/bin/openwarcraft3 -data 'data/Warcraft III' +map 'Maps/Campaign/Human02.w3m' +ai_debug 1 +com_frame_limit 6000
-build/bin/openwarcraft3 -data 'data/Warcraft III' -tft +map 'Maps/Campaign/Human02.w3m' +ai_debug 1 +com_frame_limit 6000
+build/bin/openwarcraft3 -data 'data/Warcraft III' +set vid_hidden 1 +set skip_cutscene 1 +map 'Maps/Campaign/Human02.w3m' +com_frame_limit 6000
+build/bin/openwarcraft3 -data 'data/Warcraft III' -tft +set vid_hidden 1 +set skip_cutscene 1 +map 'Maps/Campaign/Human02.w3m' +com_frame_limit 6000
 make test
 ```
 

@@ -85,6 +85,11 @@ DWORD SetReplacementCount(LPJASS j) {
     return 0;
 }
 
+DWORD StopGathering(LPJASS j) {
+    G_BotStopGathering(jass_getcontext(j)->playerState);
+    return 0;
+}
+
 DWORD StartThread(LPJASS j) {
     LPCJASSFUNC func = jass_checkcode(j, 1);
     JASSCONTEXT context = *jass_getcontext(j);

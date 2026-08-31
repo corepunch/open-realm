@@ -2,6 +2,7 @@
 
 #include "../g_local.h"
 #include "jass/jass.h"
+#include "../skills/s_skills.h"
 #include "shared/test.h"
 
 LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
@@ -157,6 +158,38 @@ TEST(wc3_bot, melee_settings_cover_inverse_flags_and_clamp_replacements) {
     T_ASSERT(!(ai->flags & BOT_SMART_ARTILLERY));
     T_ASSERT(!(ai->flags & BOT_NEW_HEROES));
     T_ASSERT(!(ai->flags & BOT_DEFEND_PLAYER));
+}
+
+TEST(wc3_bot, stop_gathering_stops_only_owned_harvesters_and_releases_mines) {
+    static umove_t lumber_move = { "attack", NULL, NULL, &a_harvest };
+    static umove_t gold_move = { "attack", NULL, NULL, &a_goldmine };
+    static umove_t attack_move = { "attack", NULL, NULL, &a_attack };
+    LPEDICT lumber = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    LPEDICT gold = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32, 0);
+    LPEDICT other = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 0);
+    LPEDICT fighter = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 96, 0);
+    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 128, 0);
+
+    lumber->s.player = gold->s.player = fighter->s.player = 2; other->s.player = 1;
+    lumber->stand = gold->stand = other->stand = fighter->stand = unit_stand;
+    lumber->currentmove = &lumber_move; gold->currentmove = &gold_move;
+    other->currentmove = &lumber_move; fighter->currentmove = &attack_move;
+    gold->goldmine.mine = mine; gold->goldmine.mine_spawn_time = mine->spawn_time;
+    gold->invulnerable = true; gold->s.renderfx |= RF_HIDDEN; mine->peonsinside = 1;
+    lumber->harvested_lumber = 7; gold->harvested_gold = 5;
+
+    T_ASSERT(G_BotStart(&game.clients[2].ps, "test_stop_gathering.ai", BOT_CAMPAIGN));
+    G_BotRunFrame();
+    T_NULL(lumber->currentmove->ability);
+    T_NULL(gold->currentmove->ability);
+    T_EQ(lumber->harvested_lumber, 7);
+    T_EQ(gold->harvested_gold, 5);
+    T_NULL(gold->goldmine.mine);
+    T_EQ(mine->peonsinside, 0);
+    T_ASSERT(!(gold->s.renderfx & RF_HIDDEN));
+    T_ASSERT(!gold->invulnerable);
+    T_EQ(other->currentmove->ability, &a_harvest);
+    T_EQ(fighter->currentmove->ability, &a_attack);
 }
 
 #endif /* BZ_TESTS */
