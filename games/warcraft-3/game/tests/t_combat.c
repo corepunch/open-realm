@@ -49,6 +49,7 @@ int   G_AttackDamage(LPEDICT attacker, LPEDICT target, int base);
 void  attack_melee(LPEDICT self);
 void  attack_melee_cooldown(LPEDICT self);
 void  attack_ranged_cooldown(LPEDICT self);
+BOOL  attack_menu_selecttarget(LPEDICT ent, LPEDICT target);
 void  M_MoveFrame(LPEDICT self);
 void  G_RunEntity(LPEDICT ent);
 void  unit_add_build_queue(LPEDICT self, LPEDICT item);
@@ -149,6 +150,54 @@ TEST(wc3_combat, tdamage_invulnerable_ignores_damage) {
 
     T_FEQ(target->health.value, 420.0f, 0.01f);
     T_EQ(_die_call_count, 0);
+}
+
+TEST(wc3_combat, friendly_damage_does_not_trigger_counterattack) {
+    LPEDICT target   = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    LPEDICT attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 50.0f, 0.0f);
+    target->s.player = 0;
+    attacker->s.player = 0;
+    target->attack1.type = ATK_NORMAL;
+
+    T_Damage(target, attacker, 1);
+
+    T_ASSERT(target->goalentity != attacker);
+}
+
+/* Explicit Attack-button targeting deliberately differs from Smart/right-click:
+ * it may force-fire on an owned building, but not on another owned unit. */
+TEST(wc3_combat, attack_button_accepts_owned_building) {
+    LPEDICT clent = &g_edicts[0];
+    LPEDICT attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
+    LPEDICT building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 100.0f, 0.0f);
+
+    clent->s.player = 0;
+    attacker->s.player = 0;
+    building->s.player = 0;
+    attacker->selected = 1 << clent->client->ps.number;
+    building->svflags |= SVF_MONSTER;
+    building->health.value = 100.0f;
+    building->health.max_value = 100.0f;
+
+    T_ASSERT(attack_menu_selecttarget(clent, building));
+    T_ASSERT(attacker->goalentity == building);
+}
+
+TEST(wc3_combat, attack_button_rejects_owned_nonbuilding_unit) {
+    LPEDICT clent = &g_edicts[0];
+    LPEDICT attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
+    LPEDICT friendly = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 100.0f, 0.0f);
+
+    clent->s.player = 0;
+    attacker->s.player = 0;
+    friendly->s.player = 0;
+    attacker->selected = 1 << clent->client->ps.number;
+    friendly->svflags |= SVF_MONSTER;
+    friendly->health.value = 100.0f;
+    friendly->health.max_value = 100.0f;
+
+    T_ASSERT(!attack_menu_selecttarget(clent, friendly));
+    T_NULL(attacker->goalentity);
 }
 
 /* ==========================================================================
