@@ -37,6 +37,19 @@ static void G_QueueOrderSound(LPEDICT ent) {
         ent->sound.pending = ent->sound.yes[rand() % ent->sound.num_yes];
 }
 
+/* select/point are left-click completion paths for targeted commands.  A
+ * right-click Smart action cancels that mode instead of being interpreted as
+ * a new order by the units that were selected when targeting began. */
+static BOOL G_CancelTargetMode(LPEDICT clent) {
+    LPGAMECLIENT client = clent ? clent->client : NULL;
+
+    if (!client || (!client->menu.on_entity_selected && !client->menu.on_location_selected))
+        return false;
+    memset(&client->menu, 0, sizeof(client->menu));
+    Get_Commands_f(clent);
+    return true;
+}
+
 void CMD_CancelCommand(LPEDICT ent) {
     if (!G_CancelBuildPlacement(ent)) {
         Get_Commands_f(ent);
@@ -105,7 +118,7 @@ CLIENTCOMMAND(Smart) {
     DWORD number;
     LPEDICT target;
 
-    if (G_CancelBuildPlacement(clent)) {
+    if (G_CancelBuildPlacement(clent) || G_CancelTargetMode(clent)) {
         return;
     }
     /* WC3 right-click cancels an active targeted command.  Do not also send
@@ -138,7 +151,7 @@ CLIENTCOMMAND(SmartPoint) {
     LPGAMECLIENT client = clent->client;
     VECTOR2 loc;
 
-    if (G_CancelBuildPlacement(clent)) {
+    if (G_CancelBuildPlacement(clent) || G_CancelTargetMode(clent)) {
         return;
     }
     /* A right-click while an ability is waiting for a target is cancellation,
