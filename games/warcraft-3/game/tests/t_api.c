@@ -350,6 +350,94 @@ TEST(wc3_api, fog_modifier_states_and_visible_stop_transition) {
     G_FogModifierStop(&mod);
 }
 
+TEST(wc3_api, display_text_tracks_lifetime_and_clear) {
+    LPGAMECLIENT gc = &game.clients[0];
+
+    level.time = 100;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call DisplayTimedTextToPlayer(Player(0), 0.10, 0.20, 2.0, \"Timed message\")\n"
+        "endfunction\n"));
+    T_EQ(gc->message.end_time, 2100);
+    T_FEQ(gc->message.position.x, 0.10f, 0.001f);
+    T_FEQ(gc->message.position.y, 0.20f, 0.001f);
+    T_STREQ(gc->message.text, "Timed message");
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call ClearTextMessages()\n"
+        "endfunction\n"));
+    T_EQ(gc->message.end_time, 0);
+    T_STREQ(gc->message.text, "");
+}
+
+TEST(wc3_api, display_text_uses_automatic_duration) {
+    LPGAMECLIENT gc = &game.clients[0];
+
+    level.time = 100;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call DisplayTextToPlayer(Player(0), 0.0, 0.0, \"123456\")\n"
+        "endfunction\n"));
+    T_EQ(gc->message.end_time, 6100);
+
+    level.time = gc->message.end_time;
+    G_RunClients();
+    T_EQ(gc->message.end_time, 0);
+}
+
+TEST(wc3_api, transmission_keeps_gameplay_ui_and_separates_voice_lifetime) {
+    LPGAMECLIENT gc = &game.clients[0];
+
+    level.time = 100;
+    gc->ps.client_ui_state = CLIENT_UI_GAME;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  if GetLocalPlayer() == Player(0) then\n"
+        "    call SetCinematicScene(0, PLAYER_COLOR_RED, \"Captain\", \"Hold the line!\", 6.0, 4.0)\n"
+        "  endif\n"
+        "endfunction\n"));
+    T_EQ(gc->ps.client_ui_state, CLIENT_UI_GAME);
+    T_STREQ(gc->ps.texts[PLAYERTEXT_SPEAKER], "Captain");
+    T_STREQ(gc->ps.texts[PLAYERTEXT_DIALOGUE], "Hold the line!");
+    T_EQ(gc->cinematic_voice_end_time, 4100);
+    T_EQ(gc->cinematic_end_time, 6100);
+
+    level.time = 4100;
+    G_RunClients();
+    T_EQ(gc->cinematic_voice_end_time, 0);
+    T_EQ(gc->cinematic_end_time, 6100);
+    T_STREQ(gc->ps.texts[PLAYERTEXT_DIALOGUE], "Hold the line!");
+
+    level.time = 6100;
+    G_RunClients();
+    T_EQ(gc->cinematic_end_time, 0);
+    T_STREQ(gc->ps.texts[PLAYERTEXT_SPEAKER], "");
+    T_STREQ(gc->ps.texts[PLAYERTEXT_DIALOGUE], "");
+}
+
+TEST(wc3_api, gameplay_transmission_preserves_underlying_timed_message_state) {
+    LPGAMECLIENT gc = &game.clients[0];
+
+    level.time = 100;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call DisplayTimedTextToPlayer(Player(0), 0.0, 0.0, 10.0, \"Objective updated\")\n"
+        "  if GetLocalPlayer() == Player(0) then\n"
+        "    call SetCinematicScene(0, PLAYER_COLOR_RED, \"Footman\", \"Ready.\", 3.0, 2.0)\n"
+        "  endif\n"
+        "endfunction\n"));
+    T_EQ(gc->message.end_time, 10100);
+    T_STREQ(gc->message.text, "Objective updated");
+    T_EQ(gc->cinematic_end_time, 3100);
+
+    level.time = 3100;
+    G_RunClients();
+    T_EQ(gc->cinematic_end_time, 0);
+    T_EQ(gc->message.end_time, 10100);
+    T_STREQ(gc->message.text, "Objective updated");
+}
+
 /* Create a minimal unit in slot 0 and return it. */
 static LPEDICT make_unit_hero(void) {
     reset_entities();

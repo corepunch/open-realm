@@ -1,14 +1,19 @@
 /*
- * hud_cinematic.c — Cinematic layer, interface toggle, message overlay.
+ * hud_cinematic.c — Cinematic layer, gameplay transmissions, interface toggle,
+ * and timed message overlay.
  *
- * Manages the cinematic letterbox bars, portrait model, speaker/dialogue
- * text, the client_ui_state toggle, the text message overlay, and the
- * layer clear helper.
+ * SetCinematicScene is presentation state, not the UI-mode switch.  When the
+ * normal interface is active a transmission temporarily owns the ordinary
+ * portrait/message layers; when cinematic mode is active the same state is
+ * rendered through CinematicPanel.
  */
 
 #include "hud_local.h"
 #include "hud_utils.h"
 #include "../generated/cinematic_panel.h"
+
+#define WC3_MESSAGE_CHARS_PER_SECOND 6.0f
+#define WC3_MESSAGE_BASE_DURATION 5.0f
 
 static CinematicPanel_t cin;
 static FRAMEDEF msg_overlay_root, msg_overlay_text;
@@ -52,10 +57,109 @@ static FRAMEDEF MessageFrame(LPCVECTOR2 pos, LPCSTR message) {
     return frame;
 }
 
+static BOOL HasTransmission(LPGAMECLIENT client) {
+    LPPLAYER ps;
+
+    if (!client) return false;
+    ps = &client->ps;
+    return ps->cinematic_portrait ||
+           (ps->texts[PLAYERTEXT_SPEAKER] && ps->texts[PLAYERTEXT_SPEAKER][0]) ||
+           (ps->texts[PLAYERTEXT_DIALOGUE] && ps->texts[PLAYERTEXT_DIALOGUE][0]);
+}
+
+static BOOL TransmissionTalking(LPGAMECLIENT client) {
+    return client && client->cinematic_voice_end_time &&
+           gi.GetTime() < client->cinematic_voice_end_time;
+}
+
+static void WriteMessageLayer(LPEDICT ent, LPCVECTOR2 pos, LPCSTR message) {
+    FRAMEDEF frame;
+
+    if (!ent || !MessageEnsureLoaded()) return;
+    UI_WriteStart(LAYER_MESSAGE);
+    if (message && *message) {
+        frame = MessageFrame(pos, message);
+        UI_WriteFrame(&msg_overlay_root);
+        UI_WriteFrameWithChildren(&frame, &msg_overlay_root);
+    }
+    UI_WriteEnd(ent);
+}
+
+static void WriteStoredMessageLayer(LPEDICT ent) {
+    LPGAMECLIENT client;
+
+    if (!ent || !ent->client) return;
+    client = ent->client;
+    WriteMessageLayer(ent,
+                      client->message.end_time ? &client->message.position : NULL,
+                      client->message.end_time ? client->message.text : NULL);
+}
+
+static void WriteGameplayTransmissionPortrait(LPEDICT ent) {
+    LPGAMECLIENT client;
+    uiFrame_t frame;
+
+    if (!ent || !ent->client) return;
+    client = ent->client;
+
+    UI_WriteStart(LAYER_PORTRAIT);
+    if (client->ps.cinematic_portrait) {
+        memset(&frame, 0, sizeof(frame));
+        frame.flags.type = FT_PORTRAIT;
+        frame.color = COLOR32_WHITE;
+        frame.tex.index = client->ps.cinematic_portrait;
+        frame.text = TransmissionTalking(client) ? "Portrait Talk" : "Portrait";
+        UI_SetFrameRect(&frame, 0.215f, 0.486f, 0.080f, 0.080f);
+        UI_WriteProxyFrame(&frame, NULL, 0);
+    }
+    UI_WriteEnd(ent);
+}
+
+static void WriteGameplayTransmissionMessage(LPEDICT ent) {
+    LPGAMECLIENT client;
+    LPCSTR speaker, dialogue;
+    char message[1200];
+
+    if (!ent || !ent->client) return;
+    client = ent->client;
+    speaker = client->ps.texts[PLAYERTEXT_SPEAKER];
+    dialogue = client->ps.texts[PLAYERTEXT_DIALOGUE];
+
+    if (speaker && *speaker && dialogue && *dialogue) {
+        snprintf(message, sizeof(message), "|cffffcc00%s:|r %s", speaker, dialogue);
+    } else if (speaker && *speaker) {
+        snprintf(message, sizeof(message), "|cffffcc00%s|r", speaker);
+    } else {
+        snprintf(message, sizeof(message), "%s", dialogue && *dialogue ? dialogue : "");
+    }
+    WriteMessageLayer(ent, NULL, UI_FormatMessageText(message));
+}
+
 void UI_ClearLayer(LPEDICT ent, DWORD layer) {
     if (!ent) return;
     UI_WriteStart(layer);
     UI_WriteEnd(ent);
+}
+
+void UI_WriteDialoguePresentation(LPEDICT ent) {
+    LPGAMECLIENT client;
+
+    if (!ent || !ent->client) return;
+    client = ent->client;
+
+    if (client->ps.client_ui_state == CLIENT_UI_CINEMATIC) {
+        UI_WriteCinematicLayer(ent);
+        return;
+    }
+    if (client->ps.client_ui_state != CLIENT_UI_GAME) return;
+
+    if (HasTransmission(client)) {
+        WriteGameplayTransmissionPortrait(ent);
+        WriteGameplayTransmissionMessage(ent);
+    } else {
+        UI_WriteSelectedPortraitLayer(ent);
+        WriteStoredMessageLayer(ent);
+    }
 }
 
 void UI_ShowInterface(LPEDICT ent, BOOL flag, FLOAT duration) {
@@ -66,34 +170,59 @@ void UI_ShowInterface(LPEDICT ent, BOOL flag, FLOAT duration) {
         ent->client->ps.uiflags = 1 << LAYER_CINEMATIC;
     else
         ent->client->ps.uiflags = ~(1u << LAYER_CINEMATIC);
+    UI_WriteDialoguePresentation(ent);
 }
 
 __attribute__((visibility("hidden"))) void UI_ShowMainMenu(LPEDICT ent) { (void)ent; }
 
 void UI_ShowGameInterface(LPEDICT ent) {
-    UI_WriteCinematicLayer(ent);
+    UI_WriteDialoguePresentation(ent);
 }
 
 void UI_ShowText(LPEDICT ent, LPCVECTOR2 pos, LPCSTR text, FLOAT duration) {
-    FRAMEDEF frame;
-    LPCSTR message;
+    LPGAMECLIENT client;
+    LPCSTR resolved, message;
 
-    (void)duration;
-    if (!ent || !MessageEnsureLoaded()) return;
-    message = UI_FormatMessageText(UI_LevelStringSafe(text));
-    frame = MessageFrame(pos, message);
+    if (!ent || !ent->client || !MessageEnsureLoaded()) return;
+    client = ent->client;
+    resolved = UI_LevelStringSafe(text);
+    message = UI_FormatMessageText(resolved);
 
-    UI_WriteStart(LAYER_MESSAGE);
-    UI_WriteFrame(&msg_overlay_root);
-    UI_WriteFrameWithChildren(&frame, &msg_overlay_root);
-    UI_WriteEnd(ent);
+    if (duration < 0.0f)
+        duration = (FLOAT)strlen(resolved) / WC3_MESSAGE_CHARS_PER_SECOND + WC3_MESSAGE_BASE_DURATION;
+    if (duration <= 0.0f) {
+        UI_ClearTextMessages(ent);
+        return;
+    }
+
+    client->message.position = pos ? *pos : MAKE(VECTOR2, 0.05f, 0.0f);
+    client->message.end_time = gi.GetTime() + MAX(1u, (DWORD)(duration * 1000.0f));
+    snprintf(client->message.text, sizeof(client->message.text), "%s", message);
+
+    /* A gameplay transmission owns LAYER_MESSAGE while active.  Preserve an
+     * ordinary message started underneath it and reveal that message when the
+     * transmission ends if its own lifetime has not expired. */
+    if (client->ps.client_ui_state == CLIENT_UI_GAME && HasTransmission(client)) return;
+    WriteStoredMessageLayer(ent);
+}
+
+void UI_ClearTextMessages(LPEDICT ent) {
+    LPGAMECLIENT client;
+
+    if (!ent || !ent->client) return;
+    client = ent->client;
+    memset(&client->message, 0, sizeof(client->message));
+    if (client->ps.client_ui_state == CLIENT_UI_GAME && HasTransmission(client)) return;
+    UI_ClearLayer(ent, LAYER_MESSAGE);
 }
 
 void UI_WriteCinematicLayer(LPEDICT ent) {
+    LPGAMECLIENT client;
     LPPLAYER ps;
 
     if (!ent || !ent->client) return;
-    ps = &ent->client->ps;
+    client = ent->client;
+    ps = &client->ps;
 
     CinematicEnsureLoaded();
 
@@ -108,11 +237,13 @@ void UI_WriteCinematicLayer(LPEDICT ent) {
     UI_SetHidden(cin.CinematicPortraitBackground, !has_portrait);
     UI_SetHidden(cin.CinematicPortrait, !has_portrait);
     UI_SetHidden(cin.CinematicPortraitCover, !has_portrait);
+    UI_SetHidden(cin.CinematicSpeakerText, !has_speaker);
+    UI_SetHidden(cin.CinematicDialogueText, !has_dialogue);
 
     if (has_portrait) {
         /* FT_PORTRAIT serialization reads Portrait.model; Texture.Image left the transmitted model at zero. */
         UI_SetPortraitFrameModel(cin.CinematicPortrait, ps->cinematic_portrait);
-        cin.CinematicPortrait->Text = has_dialogue ? "Portrait Talk" : "Portrait";
+        cin.CinematicPortrait->Text = TransmissionTalking(client) ? "Portrait Talk" : "Portrait";
     }
 
     if (has_speaker) {

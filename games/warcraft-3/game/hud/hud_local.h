@@ -57,6 +57,7 @@ void UI_WriteSingleInfo(LPEDICT ent);
 void UI_WriteMultiselect(LPEDICT *ents, DWORD count);
 void UI_SeedInfoPanelCache(LPEDICT ent, LPEDICT *selected, DWORD count);
 void UI_SendInfoPanel(LPEDICT ent, LPEDICT *selected, DWORD count);
+void UI_WriteSelectedPortraitLayer(LPEDICT ent);
 
 /* Quests (hud_quests.c) */
 DWORD UI_QuestIndex(LPCQUEST quest);
@@ -72,6 +73,8 @@ void UI_HideGameResult(LPEDICT ent);
 void UI_ShowInterface(LPEDICT ent, BOOL flag, FLOAT duration);
 void UI_ShowGameInterface(LPEDICT ent);
 void UI_ShowText(LPEDICT ent, LPCVECTOR2 pos, LPCSTR text, FLOAT duration);
+void UI_ClearTextMessages(LPEDICT ent);
+void UI_WriteDialoguePresentation(LPEDICT ent);
 void UI_WriteCinematicLayer(LPEDICT ent);
 void UI_ClearLayer(LPEDICT ent, DWORD layer);
 
