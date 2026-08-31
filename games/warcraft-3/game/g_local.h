@@ -1024,6 +1024,7 @@ void G_RefreshInfoPanel(LPEDICT);
 void G_UpdateClientInfoPanels(void);
 void UI_WriteSelectedPortraitLayer(LPEDICT);
 void G_RefreshResourceBar(LPEDICT);
+void G_AccumulatePlayerFood(LPGAMECLIENT client);
 void G_UpdateClientResourceBars(void);
 void UI_AddCancelButton(LPEDICT);
 void UI_WriteCommandButtonFrame(gameCommandButton_t const *button);

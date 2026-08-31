@@ -5,7 +5,7 @@
  * Supports:
  *  - MPQ v1/v2 format
  *  - File lookup by name
- *  - ZLIB decompression
+ *  - ZLIB, adaptive Huffman, and Blizzard ADPCM decompression
  *  - Uncompressed files
  *
  * Based on StormLib specifications and MPQ format documentation.
@@ -255,6 +255,8 @@ static BOOL Mpq_DecompressSector(mpqDecompress_t *p) {
         if (uncompress(p->dst, &size, p->src + 1, p->src_size - 1) != Z_OK) return FALSE;
         p->out_size = (DWORD)size; return TRUE;
     }
+    if (mask == MPQ_COMP_ADPCM_MONO || mask == MPQ_COMP_ADPCM_STEREO)
+        return Mpq_AdpcmDecode(p->src + 1, p->src_size - 1, p->dst, p->dst_size, mask == MPQ_COMP_ADPCM_STEREO ? 2 : 1, &p->out_size);
     if (mask == (MPQ_COMP_HUFF | MPQ_COMP_ADPCM_MONO) || mask == (MPQ_COMP_HUFF | MPQ_COMP_ADPCM_STEREO)) {
         BYTE *tmp = malloc(p->dst_size);
         DWORD tmp_size = 0, channels = mask & MPQ_COMP_ADPCM_STEREO ? 2 : 1;
@@ -266,6 +268,15 @@ static BOOL Mpq_DecompressSector(mpqDecompress_t *p) {
     fprintf(stderr, "MPQ: unsupported sector compression mask 0x%02x\n", mask);
     return FALSE;
 }
+
+#ifdef MPQ_TEST_API
+BOOL Mpq_TestDecompressSector(BYTE const *src, DWORD src_size, BYTE *dst, DWORD dst_size, DWORD *out_size) {
+    mpqDecompress_t p = { src, src_size, dst, dst_size, 0 };
+    BOOL ok = Mpq_DecompressSector(&p);
+    if (out_size) *out_size = p.out_size;
+    return ok;
+}
+#endif
 
 typedef struct {
     DWORD dwID;                 // "MPQ\x1a"

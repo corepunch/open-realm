@@ -53,7 +53,7 @@ Units\MiscData.txt
 ## Tools
 
 - **Ladik's MPQ Editor** — https://www.zezula.net/en/mpq/download.html (GUI editor)
-- **OW3 MPQ layer** (`common/mpq.c`) — in-tree Warcraft III MPQ reader. Handles archive open/read/find operations without StormLib at build or run time, and normalizes forward-slash paths to the backslash-separated form used in MPQs.
+- **OW3 MPQ layer** (`common/mpq.c`) — in-tree Warcraft III MPQ reader. Handles archive open/read/find operations without StormLib at build or run time, normalizes forward-slash paths to the backslash-separated form used in MPQs, and decodes zlib, adaptive Huffman plus Blizzard ADPCM, and standalone mono/stereo Blizzard ADPCM sectors. TFT voice assets such as `Units\\Creeps\\SpiritWolf\\SpiritWolfYesAttack1.wav` use standalone mono ADPCM (`0x40`).
 - **mpqtool** (`tools/mpqtool.c`) — in-tree CLI built by `make build`. Supports `ls [subdir]` for incremental directory listing and `cat <file>` for dumping file contents to stdout. Usage: `build/bin/mpqtool -mpq <path> ls [subdir]` / `build/bin/mpqtool -mpq <path> cat <archive-file>`.
 - **SFmpqapi** — older API, source available at https://sfsrealm.hopto.org/downloads/SFmpqapi.html
 - **MPQDraft** — creates executable patches embedding a custom MPQ (for overriding files that can't go in the map MPQ)

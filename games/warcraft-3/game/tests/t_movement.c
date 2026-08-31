@@ -1702,6 +1702,65 @@ TEST(wc3_movement, unit_position_changes_after_move_frame) {
     T_ASSERT(unit->s.origin2.x > x0);
 }
 
+/* Route generation must expand obstacles by the mover radius, matching the
+ * move-time collision test.  The point route hugs this wall too closely; a
+ * Peasant-sized route has room to detour above it and reach the destination. */
+TEST(wc3_movement, move_order_detours_with_unit_collision_radius) {
+    enum { CELLS = 16 };
+    BYTE pathmap[CELLS * CELLS] = {0};
+    LPEDICT unit = make_moving_unit(80.0f, 240.0f);
+    VECTOR2 dest = {432.0f, 240.0f};
+
+    for (int y = 3; y <= 12; y++)
+        pathmap[y * CELLS + 7] = 2;
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(BOX2, .min = {0.0f, 0.0f}, .max = {512.0f, 512.0f}));
+    unit->collision = 16.0f;
+    unit->unitinfo.MoveSpeed = 80.0f;
+    gi.LinkEntity(unit);
+    order_move(unit, Waypoint_add(&dest));
+
+    for (int frame = 0; frame < 200 && unit->currentmove->think; frame++) {
+        unit->currentmove->think(unit);
+        CM_ProcessPathJobs(4096);
+        T_ASSERT(CM_PointIsPathableForRadius(&unit->s.origin2, unit->collision));
+    }
+
+    T_STREQ(unit->currentmove->animation, "stand");
+    T_FEQ(Vector2_distance(&unit->s.origin2, &dest), 0.0f, 0.01f);
+}
+
+/* A click in another static connected component cannot be reached.  Retail
+ * movement still advances as far as collision permits, then settles at the
+ * closest boundary instead of freezing at the order origin or walking forever. */
+TEST(wc3_movement, unreachable_move_settles_at_closest_boundary) {
+    enum { CELLS = 16 };
+    BYTE pathmap[CELLS * CELLS] = {0};
+    LPEDICT unit = make_moving_unit(80.0f, 240.0f);
+    VECTOR2 const start = unit->s.origin2;
+    VECTOR2 dest = {432.0f, 240.0f};
+
+    for (int y = 0; y < CELLS; y++)
+        pathmap[y * CELLS + 7] = 2;
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(BOX2, .min = {0.0f, 0.0f}, .max = {512.0f, 512.0f}));
+    unit->collision = 16.0f;
+    unit->unitinfo.MoveSpeed = 80.0f;
+    gi.LinkEntity(unit);
+    order_move(unit, Waypoint_add(&dest));
+
+    for (int frame = 0; frame < 200 && unit->currentmove->think; frame++) {
+        unit->currentmove->think(unit);
+        CM_ProcessPathJobs(4096);
+        T_ASSERT(CM_PointIsPathableForRadius(&unit->s.origin2, unit->collision));
+    }
+
+    T_STREQ(unit->currentmove->animation, "stand");
+    T_ASSERT(unit->s.origin2.x > start.x);
+    T_ASSERT(unit->s.origin2.x < 7.0f * 32.0f);
+    T_ASSERT(Vector2_distance(&unit->s.origin2, &dest) < Vector2_distance(&start, &dest));
+}
+
 /* Immobile is a single movement/facing contract, not just a command-menu filter. */
 TEST(wc3_movement, immobile_unit_neither_moves_nor_rotates) {
     LPEDICT unit = make_moving_unit(0.0f, 0.0f);
@@ -1866,10 +1925,12 @@ TEST(wc3_movement, plain_move_uses_collision_sized_static_route) {
     T_ASSERT(unit_issueorder(unit, "move", &dest));
     unit->currentmove->think(unit); /* queues the resumable radius field */
     CM_ProcessPathJobs(65536);
-    unit->currentmove->think(unit); /* completed field reports no route */
+    unit->currentmove->think(unit); /* completed field retargets the private waypoint */
 
-    T_STREQ(unit->currentmove->animation, "stand");
-    T_ASSERT(unit->movement.flow_unreachable);
+    T_STREQ(unit->currentmove->animation, "walk");
+    T_ASSERT(!unit->movement.flow_unreachable);
+    T_ASSERT(unit->goalentity->s.origin2.x > unit->s.origin2.x);
+    T_ASSERT(unit->goalentity->s.origin2.x < 0.0f);
 }
 
 TEST(wc3_movement, blocked_move_keeps_order_alive_away_from_goal) {

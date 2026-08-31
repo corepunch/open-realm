@@ -8,9 +8,9 @@ WC3 movement keeps target selection, static routing, and interaction behavior se
 order / behavior -> target + interaction range -> routing -> collision-aware step
 ```
 
-`games/warcraft-3/game/g_ai.c` owns per-tick steering and local block-and-slide. `common/routing.c` owns static pathmap line tests and cached flow fields. Harvest target selection remains in `skills/s_harvest_lumber.c`; the router never changes a tree target by itself.
+`games/warcraft-3/game/g_ai.c` owns per-tick steering and local block-and-slide. `common/routing.c` owns static pathmap line tests, connectivity queries, and cached flow fields. Harvest target selection remains in `skills/s_harvest_lumber.c`; the router never changes a tree target by itself.
 
-Move-time occupancy is collision-size aware, but generic interaction routing deliberately keeps the existing point-route contract. Attack, gold-mine entry, resource return, repair, and similar behaviors own their interaction ranges and may need to continue toward a blocked target after the point flow reaches the footprint edge. Live units remain outside the static flow field and are handled by the precise swept-circle checks in `move_is_valid`.
+Ground Move, Patrol, and Attack-move location orders are collision-size aware from destination selection through line tests, flow generation, and move-time validation. Generic interaction routing deliberately keeps the point-route contract: attack, gold-mine entry, resource return, repair, and similar behaviors own their interaction ranges and may need to continue toward a blocked target after the point flow reaches the footprint edge. Live units remain outside static flow fields and are handled by the precise swept-circle checks in `move_is_valid`.
 
 Attack range against a building is measured from the attacker's collision edge to the building's authored no-walk footprint when `pathtex` is available. `skills/s_attack.c` therefore uses `CM_DistanceToPathingFootprint()` for building targets instead of requiring the attacker to enter weapon range of the blocked building centre. This is especially important for explicit force-fire on owned/friendly large buildings: centre-distance range checks make a melee unit orbit the footprint forever even though it is already beside a valid attack surface. Non-building targets retain the existing centre-distance attack check.
 
@@ -37,6 +37,19 @@ While a resumable request is pending, `unit_changeangle*()` leaves both `movemen
 `CM_BuildHeatmapForRadius()` and the resumable request path both key cached fields by adjusted target cell and mover collision radius. The flood and flow query use the same radius-expanded static pathability predicate as move-time terrain checks. The zero-radius `CM_BuildHeatmap()` wrapper remains for callers that intentionally route a point.
 
 Flow vectors only descend to a strictly lower heatmap price. The adjusted goal cell therefore has a zero vector instead of pointing back out to a higher-cost neighbour. Cached prices retain `INT_MAX` for cells that the completed field cannot reach. `CM_FlowReachedGoal(generation, x, y)` identifies the adjusted goal cell, while `CM_FlowCanReach(generation, x, y)` distinguishes a disconnected cell from a zero produced by interpolation near the goal.
+
+## Retail Move Destination Behavior
+
+Two defects explained the Human01 fence report and units getting stuck behind trees or towers:
+
+1. `CM_LineIsWalkableForRadius()` used ordinary Bresenham stepping. A 45-degree step from one cell to the next checked only those two cells, so the direct shortcut accepted an `ox/xo` arrangement even though both cardinal side cells were blocked. The shortcut now requires both side cells to be legal, matching heatmap expansion and `compute_flow_at()`.
+2. Location steering requested a point-sized route while `move_is_valid()` rejected positions using the unit collision radius. The field could therefore direct a unit through a gap that its body could not occupy. Move, Patrol, and Attack-move now use `self->collision` for the direct line and field; interaction behaviors retain radius zero.
+
+When a clicked destination is in another static connected component, the destination-rooted field reports the mover cell unreachable. `CM_ClosestReachablePointForRadius(from, target, radius)` floods the mover component with the same radius and diagonal rules, then chooses its legal cell nearest the click. The location order retargets its private waypoint once and follows a normal field to that point. This avoids both failure modes of the old behavior: freezing at the order origin and sliding forever along the blocking wall.
+
+Ordinary destination fields remain incremental and frame-budgeted. The mover-component flood is synchronous only after a completed destination field proves the click unreachable, so this exceptional recovery does not add input-time work to reachable orders.
+
+The current router does not need wholesale replacement. Its cached integration fields, collision expansion, direct-line shortcut, and local dynamic avoidance are suitable for WC3 movement once they share one traversability contract. Remaining large-scale work is performance-oriented: incremental field construction and richer dynamic crowd routing, not a different static shortest-path algorithm.
 
 ## Retail Lumber Fallback
 
@@ -90,7 +103,13 @@ Focused tests live in `games/warcraft-3/game/tests/t_pathfinding.c` and `t_movem
 - cache separation by collision radius;
 - resumable cache misses serialize without losing a later destination;
 - collision-radius-aware line walkability;
+- direct-line and flow rejection of diagonal `ox/xo` corner cuts;
 - rejection of a corridor too narrow for the mover;
+- collision-sized Move, Patrol, and Attack-move route selection;
+- collision-sized Move routing around a long wall;
+- exact reachable clicks and closest reachable points across a disconnected wall;
+- collision-radius expansion of the closest reachable boundary;
+- end-to-end settling at the nearest reachable point for a disconnected click;
 - a zero outward vector at the flow goal;
 - end-to-end lumber retarget from a buried clicked tree to a reachable edge tree;
 - gold-mine entry through an authored blocking mine footprint;
@@ -104,6 +123,7 @@ Run when validating locally:
 make test-wc3-engine WC3_PATTERN='wc3_pathfinding.*'
 make test-wc3-engine WC3_PATTERN='wc3_movement.plain_move_*'
 make test-wc3-engine WC3_PATTERN='wc3_movement.blocked_move_*'
+make test-wc3-engine WC3_PATTERN='wc3_movement.*'
 make test-wc3-engine WC3_PATTERN='wc3_movement.lumber_*'
 ```
 

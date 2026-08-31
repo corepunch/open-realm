@@ -52,6 +52,7 @@ DWORD  CM_BuildHeatmapForRadius(edict_t *goalentity, FLOAT radius);
 DWORD  CM_RequestHeatmapForRadius(edict_t *goalentity, FLOAT radius);
 void   CM_ProcessPathJobs(DWORD work_budget);
 BOOL   CM_ClosestPathablePointForRadius(LPCVECTOR2 location, FLOAT radius, LPVECTOR2 out);
+BOOL   CM_ClosestReachablePointForRadius(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT radius, LPVECTOR2 out);
 BOOL   CM_LineIsWalkableForRadius(LPCVECTOR2 a, LPCVECTOR2 b, FLOAT radius);
 BOOL   CM_FindDirectApproachPointForRadius(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT range, FLOAT radius, LPVECTOR2 out);
 BOOL   CM_FindApproachPointToFootprintForRadius(LPCEDICT target, LPCVECTOR2 from, FLOAT range, FLOAT radius, LPVECTOR2 out);
@@ -69,6 +70,8 @@ DWORD M_RefreshHeatmap(LPEDICT goal, FLOAT radius);
 
 /* From s_move.c — needed to set up a moving unit. */
 void order_move(LPEDICT self, LPEDICT target);
+void order_patrol(LPEDICT self, LPEDICT target);
+void order_attackmove(LPEDICT self, LPEDICT target);
 
 /* From m_unit.c */
 void unit_stand(LPEDICT self);
@@ -508,6 +511,64 @@ TEST(wc3_pathfinding, heatmap_rejects_corridor_too_narrow_for_radius) {
     T_EQ(CM_BuildHeatmapForRadius(wp, 1.0f), 0);
 }
 
+/* Move steering and move-time collision must use the same footprint.  A point
+ * route fits through this one-cell opening, but a radius-one unit does not. */
+TEST(wc3_pathfinding, move_order_requests_collision_sized_route) {
+    BYTE gap_map[MAP_W * MAP_H];
+    memset(gap_map, 0, sizeof(gap_map));
+    for (int y = 2; y <= 6; y++)
+        if (y != 5) gap_map[y * MAP_W + 5] = 2;
+    setup_test_pathmap(MAP_W, MAP_H, gap_map);
+    reset_entities();
+
+    LPEDICT unit = make_unit_at(2.0f, 5.0f);
+    LPEDICT wp = make_waypoint(8.0f, 5.0f);
+    unit->collision = 1.0f;
+    order_move(unit, wp);
+
+    T_ASSERT(CM_LineIsWalkableForRadius(&unit->s.origin2, &wp->s.origin2, 0.0f));
+    T_ASSERT(!CM_LineIsWalkableForRadius(&unit->s.origin2, &wp->s.origin2, unit->collision));
+    T_ASSERT(CM_BuildHeatmapForRadius(wp, unit->collision));
+    unit_changeangle(unit);
+    T_FEQ(wp->heatmap2_radius, unit->collision, 0.001f);
+}
+
+TEST(wc3_pathfinding, patrol_requests_collision_sized_route) {
+    BYTE gap_map[MAP_W * MAP_H];
+    memset(gap_map, 0, sizeof(gap_map));
+    for (int y = 2; y <= 6; y++)
+        if (y != 5) gap_map[y * MAP_W + 5] = 2;
+    setup_test_pathmap(MAP_W, MAP_H, gap_map);
+    reset_entities();
+
+    LPEDICT unit = make_unit_at(2.0f, 5.0f);
+    LPEDICT wp = make_waypoint(8.0f, 5.0f);
+    unit->collision = 1.0f;
+    order_patrol(unit, wp);
+    T_ASSERT(CM_BuildHeatmapForRadius(wp, unit->collision));
+    unit_changeangle(unit);
+
+    T_FEQ(wp->heatmap2_radius, unit->collision, 0.001f);
+}
+
+TEST(wc3_pathfinding, attack_move_requests_collision_sized_route) {
+    BYTE gap_map[MAP_W * MAP_H];
+    memset(gap_map, 0, sizeof(gap_map));
+    for (int y = 2; y <= 6; y++)
+        if (y != 5) gap_map[y * MAP_W + 5] = 2;
+    setup_test_pathmap(MAP_W, MAP_H, gap_map);
+    reset_entities();
+
+    LPEDICT unit = make_unit_at(2.0f, 5.0f);
+    LPEDICT wp = make_waypoint(8.0f, 5.0f);
+    unit->collision = 1.0f;
+    order_attackmove(unit, wp);
+    T_ASSERT(CM_BuildHeatmapForRadius(wp, unit->collision));
+    unit_changeangle(unit);
+
+    T_FEQ(wp->heatmap2_radius, unit->collision, 0.001f);
+}
+
 /* -----------------------------------------------------------------------
  * Unit-obstacle separation (fix #2):
  * A live unit entity at a given location must NOT cause the heatmap for
@@ -560,6 +621,36 @@ TEST(wc3_pathfinding, closest_pathable_keeps_exact_open_point) {
     T_FEQ(out.y, point.y, 0.001f);
 }
 
+TEST(wc3_pathfinding, closest_reachable_keeps_exact_reachable_point) {
+    VECTOR2 from = { 1.25f, 5.25f }, target = { 3.75f, 5.75f }, out = {0};
+    build_open_map();
+    setup_test_pathmap(MAP_W, MAP_H, open_map);
+
+    T_ASSERT(CM_ClosestReachablePointForRadius(&from, &target, 0.0f, &out));
+    T_FEQ(out.x, target.x, 0.001f);
+    T_FEQ(out.y, target.y, 0.001f);
+}
+
+TEST(wc3_pathfinding, closest_reachable_stops_at_disconnected_wall) {
+    VECTOR2 from = { 1.5f, 5.5f }, target = { 8.5f, 5.5f }, out = {0};
+    build_split_map();
+    setup_test_pathmap(MAP_W, MAP_H, split_map);
+
+    T_ASSERT(CM_ClosestReachablePointForRadius(&from, &target, 0.0f, &out));
+    T_FEQ(out.x, 4.5f, 0.001f);
+    T_FEQ(out.y, 5.5f, 0.001f);
+}
+
+TEST(wc3_pathfinding, closest_reachable_respects_collision_radius) {
+    VECTOR2 from = { 1.5f, 5.5f }, target = { 8.5f, 5.5f }, out = {0};
+    build_split_map();
+    setup_test_pathmap(MAP_W, MAP_H, split_map);
+
+    T_ASSERT(CM_ClosestReachablePointForRadius(&from, &target, 1.0f, &out));
+    T_FEQ(out.x, 3.5f, 0.001f);
+    T_FEQ(out.y, 5.5f, 0.001f);
+}
+
 /* The flood and the flow must not cut diagonally through a wall corner: with
  * walls at (1,0) and (0,1), the cell (0,0) is boxed off from a goal at (1,1)
  * (squeezing the corner is not a legal move), so its flow is zero, not a
@@ -578,6 +669,36 @@ TEST(wc3_pathfinding, no_diagonal_corner_cutting) {
     VECTOR2 flow = flow_at_cell(0.0f, 0.0f);
     T_FEQ(flow.x, 0.0f, 0.001f);
     T_FEQ(flow.y, 0.0f, 0.001f);
+}
+
+/* The direct-line shortcut must obey the same corner rule as the flow field.
+ * Otherwise generic movement bypasses routing for the exact ox/xo fence shape
+ * and repeatedly asks collision to enter the blocked diagonal gap. */
+TEST(wc3_pathfinding, direct_line_rejects_diagonal_corner_cutting) {
+    BYTE corner_map[MAP_W * MAP_H];
+    VECTOR2 start = { 0.5f, 0.5f };
+    VECTOR2 goal = { 1.5f, 1.5f };
+    memset(corner_map, 0, sizeof(corner_map));
+    corner_map[0 * MAP_W + 1] = 2;
+    corner_map[1 * MAP_W + 0] = 2;
+    setup_test_pathmap(MAP_W, MAP_H, corner_map);
+
+    T_ASSERT(!CM_LineIsWalkable(&start, &goal));
+}
+
+TEST(wc3_pathfinding, closest_reachable_does_not_cross_diagonal_corner) {
+    BYTE corner_map[MAP_W * MAP_H];
+    VECTOR2 start = { 0.5f, 0.5f };
+    VECTOR2 target = { 1.5f, 1.5f };
+    VECTOR2 out = {0};
+    memset(corner_map, 0, sizeof(corner_map));
+    corner_map[0 * MAP_W + 1] = 2;
+    corner_map[1 * MAP_W + 0] = 2;
+    setup_test_pathmap(MAP_W, MAP_H, corner_map);
+
+    T_ASSERT(CM_ClosestReachablePointForRadius(&start, &target, 0.0f, &out));
+    T_FEQ(out.x, start.x, 0.001f);
+    T_FEQ(out.y, start.y, 0.001f);
 }
 
 /* -----------------------------------------------------------------------
@@ -654,6 +775,7 @@ TEST(wc3_pathfinding, proximity_shortcut_gives_correct_angle) {
     /* Place unit close to goal (within NAVI_THRESHOLD). */
     LPEDICT unit = make_unit_at(0.0f, 0.0f);
     LPEDICT wp   = make_waypoint(5.0f, 5.0f);
+    unit->collision = 0.0f;
     unit->goalentity = wp;
     unit->stand      = unit_stand;
     unit_stand(unit);

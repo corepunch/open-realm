@@ -43,9 +43,6 @@ static void building_capture_write(pfWriteType_t type, void const *value) {
     }
 }
 
-static void building_noop_write(pfWriteType_t type, void const *value) { (void)type; (void)value; }
-static void building_noop_unicast(LPEDICT ent) { (void)ent; }
-
 static LPCSTR building_all_cvar(LPCSTR name, LPCSTR fallback) {
     return !strcmp(name, "wc3_build_all") ? "1" : fallback;
 }

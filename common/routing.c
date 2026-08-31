@@ -712,8 +712,17 @@ BOOL CM_LineIsWalkableForRadius(LPCVECTOR2 a, LPCVECTOR2 b, FLOAT radius) {
             return true;
         }
         int e2 = 2 * err;
-        if (e2 > -dy) { err -= dy; x += sx; }
-        if (e2 <  dx) { err += dx; y += sy; }
+        BOOL const step_x = e2 > -dy;
+        BOOL const step_y = e2 < dx;
+        /* A simultaneous Bresenham step crosses a cell corner.  Check both
+         * cardinal neighbours so the direct shortcut cannot bypass the
+         * flow-field rule and steer through touching obstacle corners. */
+        if (step_x && step_y &&
+            !(is_pathable_node_original_for_radius_cells(x + sx, y, radius_cells) &&
+              is_pathable_node_original_for_radius_cells(x, y + sy, radius_cells)))
+            return false;
+        if (step_x) { err -= dy; x += sx; }
+        if (step_y) { err += dx; y += sy; }
     }
     return true;
 }
@@ -1005,6 +1014,60 @@ static BOOL resolve_heatmap_request(edict_t *goalentity, FLOAT radius,
         if (!closest_pathable_node_original(&goalentity->s.origin2, radius, target))
             return false;
     }
+    return true;
+}
+
+/* Resolve a click to the closest legal point in the mover's static connected
+ * component.  This is used only after destination-rooted routing proves the
+ * mover cannot reach that component, so the whole-component flood is paid once
+ * for an exceptional order rather than on every ordinary right click. */
+BOOL CM_ClosestReachablePointForRadius(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT radius, LPVECTOR2 out) {
+    VECTOR2 n;
+    point2_t start;
+    heatmapJob_t job = { 0 };
+    FLOAT tx, ty, best_dist = FLT_MAX;
+    int radius_cells, target_x, target_y, best_x = -1, best_y = -1;
+
+    if (!from || !target || !out || !pathmap.original || !pathmap.heatmap)
+        return false;
+    radius_cells = (int)ceilf(MAX(0.f, radius) / pathmap_cell_world_size());
+    if (!closest_pathable_node_original(from, radius, &start))
+        return false;
+
+    begin_heatmap_build(&job, start, radius_cells);
+    while (!step_heatmap_build(&job, UINT_MAX)) {
+        /* UINT_MAX is already effectively unbounded for WC3 pathmap sizes. */
+    }
+    n = CM_GetNormalizedMapPosition(target->x, target->y);
+    tx = n.x * pathmap.width;
+    ty = n.y * pathmap.height;
+    target_x = (int)floorf(tx);
+    target_y = (int)floorf(ty);
+    if (is_valid_point(target_x, target_y) &&
+        pathmap.heatmap[target_x + target_y * pathmap.width].price != INT_MAX &&
+        is_pathable_node_original_for_radius_cells(target_x, target_y, radius_cells)) {
+        *out = *target;
+        return true;
+    }
+    FOR_LOOP(y, pathmap.height) {
+        FOR_LOOP(x, pathmap.width) {
+            FLOAT dxw, dyw, dist;
+            if (pathmap.heatmap[x + y * pathmap.width].price == INT_MAX)
+                continue;
+            dxw = (FLOAT)x + 0.5f - tx;
+            dyw = (FLOAT)y + 0.5f - ty;
+            dist = dxw * dxw + dyw * dyw;
+            if (dist < best_dist) {
+                best_dist = dist;
+                best_x = x;
+                best_y = y;
+            }
+        }
+    }
+    if (best_x < 0)
+        return false;
+    *out = CM_GetDenormalizedMapPosition(((FLOAT)best_x + 0.5f) / pathmap.width,
+                                         ((FLOAT)best_y + 0.5f) / pathmap.height);
     return true;
 }
 

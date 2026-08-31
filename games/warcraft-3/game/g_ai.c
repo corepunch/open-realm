@@ -12,11 +12,21 @@ static FLOAT angle_wrap(FLOAT a) {
 /* unit_changeangle is defined lower down — it needs the move-validity test and
  * the give-way helpers, which are declared below. */
 
-extern ability_t a_move;
+extern ability_t a_move, a_attack, a_patrol;
 
 /* A unit is actively executing a ground move order (right-click move). */
 BOOL unit_is_walking(LPCEDICT ent) {
     return ent->currentmove && ent->currentmove->ability == &a_move;
+}
+
+/* Location orders own a legal ground endpoint; interaction orders route to an
+ * entity centre and let their behavior-specific range decide arrival. */
+static BOOL unit_routes_to_location(LPCEDICT ent) {
+    if (!ent->currentmove)
+        return false;
+    if (ent->currentmove->ability == &a_move || ent->currentmove->ability == &a_patrol)
+        return true;
+    return ent->currentmove->ability == &a_attack && ent->goalentity == ent->movement.attackmove_waypoint;
 }
 
 /* Unit's effective current move speed.  Group moves travel at the slowest
@@ -279,6 +289,7 @@ void unit_changeangle(LPEDICT self) {
         return;
     VECTOR2 to_goal = Vector2_sub(&self->goalentity->s.origin2, &self->s.origin2);
     VECTOR2 dir;
+    FLOAT const radius = unit_routes_to_location(self) ? self->collision : 0.0f;
 
     self->movement.heading = self->s.angle;  /* default if no heading is resolved this tick */
     self->movement.flow_generation = 0;
@@ -289,20 +300,42 @@ void unit_changeangle(LPEDICT self) {
     /* Generic interaction movement keeps the original point-route contract.
      * Attack, mine entry, resource return, repair, and other ranged behaviors
      * decide when their interaction boundary has been reached.  Do not stop
-     * those orders at a collision-expanded flow goal outside that boundary. */
-    if (CM_LineIsWalkable(&self->s.origin2, &self->goalentity->s.origin2)) {
+     * those orders at a collision-expanded flow goal outside that boundary.
+     * Move orders own radius-valid reserved destinations, so their route must
+     * use the same footprint as move-time collision; point routing previously
+     * sent units into narrow gaps and touching obstacle corners. */
+    if (CM_LineIsWalkableForRadius(&self->s.origin2, &self->goalentity->s.origin2, radius)) {
         self->movement.flow_direct = true;
         dir = to_goal;
     } else {
-        DWORD heatmap = M_RefreshHeatmap(self->goalentity, 0.0f);
+        DWORD heatmap = M_RefreshHeatmap(self->goalentity, radius);
         self->movement.flow_generation = heatmap;
         if (!heatmap)
             return; /* incremental route is still building; keep the order */
-        dir = get_flow_direction(heatmap, self->s.origin.x, self->s.origin.y);
-        if (Vector2_len(&dir) <= 0.001f) {
-            self->movement.flow_unreachable =
-                !CM_FlowCanReach(heatmap, self->s.origin.x, self->s.origin.y);
-            return;
+        if (radius > 0.0f && CM_FlowReachedGoal(heatmap, self->s.origin.x, self->s.origin.y)) {
+            self->movement.flow_goal_reached = true;
+            dir = to_goal;
+        } else {
+            dir = get_flow_direction(heatmap, self->s.origin.x, self->s.origin.y);
+            if (Vector2_len(&dir) <= 0.001f) {
+                self->movement.flow_unreachable = !CM_FlowCanReach(heatmap, self->s.origin.x, self->s.origin.y);
+                /* Location targets are private waypoints.  When the clicked static
+                 * component is unreachable, replace the waypoint with the
+                 * closest legal point in this mover's component; aiming at the
+                 * raw click made local avoidance walk forever along walls. */
+                if (radius > 0.0f && self->movement.flow_unreachable) {
+                    VECTOR2 closest;
+                    if (CM_ClosestReachablePointForRadius(&self->s.origin2, &self->goalentity->s.origin2, radius, &closest)) {
+                        self->goalentity->s.origin2 = closest;
+                        self->goalentity->secondarygoal = NULL;
+                        self->goalentity->heatmap2 = 0;
+                        self->goalentity->heatmap2_radius = 0;
+                        move_reset_progress(self);
+                    }
+                    return;
+                }
+                return;
+            }
         }
     }
 
