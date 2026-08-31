@@ -137,6 +137,7 @@ constant native GetPlayerStructureCount takes player whichPlayer, boolean includ
 // Unit/death-event coverage used by player structure-count regression tests.
 native CreateUnit                takes player id, integer unitid, real x, real y, real face returns unit
 native TriggerRegisterDeathEvent takes trigger whichTrigger, widget whichWidget returns event
+native SetWidgetLife             takes widget whichWidget, real newLife returns nothing
 
 // Scripted fog state coverage.
 native SetFogStateRect      takes player forWhichPlayer, fogstate whichState, rect where, boolean useSharedVision returns nothing
