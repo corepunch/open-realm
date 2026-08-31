@@ -802,6 +802,7 @@ TEST(wc3_building, repair_walk_handoff_requires_actual_contact) {
     LPEDICT building;
     UnitAbilities_t abilities = { .abilList = "Aren" };
     AbilityData_t *repair;
+    UnitBalance_t balance;
     slkTestData_t *rows, *old_abilities;
     FLOAT interaction;
     FLOAT step;
@@ -825,6 +826,14 @@ TEST(wc3_building, repair_walk_handoff_requires_actual_contact) {
     building->svflags |= SVF_MONSTER;
     building->health.max_value = 1000.0f;
     building->health.value = 500.0f;
+    /* The minimal hbar fixture has no repair/build duration. Give this test
+     * an explicit Repair duration so its work tick exercises HP progression. */
+    balance = *building->UnitBalance;
+    balance.reptm = 10;
+    balance.buildTime = 100;
+    balance.goldRep = 5;
+    balance.lumberRep = 3;
+    building->UnitBalance = &balance;
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 100;
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 100;
 
