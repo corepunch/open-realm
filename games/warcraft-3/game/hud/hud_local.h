@@ -74,6 +74,7 @@ void UI_ShowInterface(LPEDICT ent, BOOL flag, FLOAT duration);
 void UI_ShowGameInterface(LPEDICT ent);
 void UI_ShowText(LPEDICT ent, LPCVECTOR2 pos, LPCSTR text, FLOAT duration);
 void UI_ClearTextMessages(LPEDICT ent);
+void UI_InvalidateDialoguePresentation(LPEDICT ent);
 void UI_WriteDialoguePresentation(LPEDICT ent);
 void UI_WriteCinematicLayer(LPEDICT ent);
 void UI_ClearLayer(LPEDICT ent, DWORD layer);
