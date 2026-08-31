@@ -998,7 +998,6 @@ FLOAT G_BuildApproachDistance(DWORD building_id);
 BOOL G_StartHumanConstruction(LPEDICT builder, LPEDICT building);
 void G_UpdateConstructionAnimation(LPEDICT building);
 void G_CompleteConstruction(LPEDICT building);
-int G_BuildRepairDebugLevel(void);
 BOOL G_UnitHasHumanRepair(LPEDICT ent);
 BOOL S_OrderRepair(LPEDICT ent, LPEDICT target, DWORD preferred);
 BOOL S_RepairSmart(LPEDICT ent, LPEDICT target);

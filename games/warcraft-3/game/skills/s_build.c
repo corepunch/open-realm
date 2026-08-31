@@ -32,11 +32,6 @@ static void ai_build_walk(LPEDICT ent) {
     BOOL direct_approach;
 
     if (!ent || !goal || !ent->build_project) {
-        if (G_BuildRepairDebugLevel() >= 1 && ent) {
-            fprintf(stderr,
-                    "WC3_BUILD_PATH stop worker=%d reason=missing_goal_or_project goal=%d project=0x%08x\n",
-                    ent->s.number, goal ? goal->s.number : -1, (unsigned)ent->build_project);
-        }
         if (ent && ent->stand) ent->stand(ent);
         return;
     }
@@ -46,25 +41,11 @@ static void ai_build_walk(LPEDICT ent) {
     approach_range = G_BuildApproachDistance(ent->build_project) + ent->collision;
     reach = approach_range + step;
     if (distance <= reach) {
-        if (G_BuildRepairDebugLevel() >= 1) {
-            fprintf(stderr,
-                    "WC3_BUILD_PATH reached worker=%d waypoint=%d project=0x%08x distance=%.1f reach=%.1f pos=(%.1f,%.1f) site=(%.1f,%.1f)\n",
-                    ent->s.number, goal->s.number, (unsigned)ent->build_project,
-                    distance, reach, ent->s.origin2.x, ent->s.origin2.y,
-                    goal->s.origin2.x, goal->s.origin2.y);
-        }
         build_build(ent);
         return;
     }
 
     if (move_is_blocked(ent, distance, step)) {
-        if (G_BuildRepairDebugLevel() >= 1) {
-            fprintf(stderr,
-                    "WC3_BUILD_PATH stop worker=%d waypoint=%d project=0x%08x reason=movement_blocked distance=%.1f blocked_frames=%u flow=%u flow_goal=%d flow_unreachable=%d\n",
-                    ent->s.number, goal->s.number, (unsigned)ent->build_project,
-                    distance, ent->movement.blocked_frames, ent->movement.flow_generation,
-                    ent->movement.flow_goal_reached, ent->movement.flow_unreachable);
-        }
         G_BuildError(G_GetPlayerEntityByNumber(ent->s.player), "Unable to reach build site.");
         ent->stand(ent);
         return;
@@ -77,22 +58,7 @@ static void ai_build_walk(LPEDICT ent) {
     else
         unit_changeangle_for_radius(ent, ent->collision);
 
-    if (G_BuildRepairDebugLevel() >= 2) {
-        fprintf(stderr,
-                "WC3_BUILD_PATH approach worker=%d waypoint=%d project=0x%08x pos=(%.1f,%.1f) site=(%.1f,%.1f) distance=%.1f range=%.1f step=%.1f direct=%d approach=(%.1f,%.1f) flow=%u flow_goal=%d flow_unreachable=%d\n",
-                ent->s.number, goal->s.number, (unsigned)ent->build_project,
-                ent->s.origin2.x, ent->s.origin2.y, goal->s.origin2.x, goal->s.origin2.y,
-                distance, approach_range, step, direct_approach,
-                direct_approach ? approach.x : 0.0f, direct_approach ? approach.y : 0.0f,
-                ent->movement.flow_generation, ent->movement.flow_goal_reached,
-                ent->movement.flow_unreachable);
-    }
     if (ent->movement.flow_unreachable) {
-        if (G_BuildRepairDebugLevel() >= 1) {
-            fprintf(stderr,
-                    "WC3_BUILD_PATH stop worker=%d waypoint=%d project=0x%08x reason=route_unreachable\n",
-                    ent->s.number, goal->s.number, (unsigned)ent->build_project);
-        }
         G_BuildError(G_GetPlayerEntityByNumber(ent->s.player), "Unable to reach build site.");
         ent->stand(ent);
         return;
@@ -159,13 +125,6 @@ void build_build(LPEDICT ent) {
     }
 
     building = SP_SpawnAtLocation(ent->build_project, ent->s.player, &snapped);
-    if (G_BuildRepairDebugLevel() >= 1) {
-        fprintf(stderr,
-                "WC3_BUILD_PATH spawn worker=%d project=0x%08x building=%d requested=(%.1f,%.1f) snapped=(%.1f,%.1f) success=%d\n",
-                ent->s.number, (unsigned)ent->build_project,
-                building ? building->s.number : -1, ent->goalentity->s.origin2.x,
-                ent->goalentity->s.origin2.y, snapped.x, snapped.y, building != NULL);
-    }
     if (!building) {
         G_RefundBuilding(client, ent->build_project);
         ent->stand(ent);
@@ -218,13 +177,6 @@ BOOL build_menu_send_builder(LPEDICT clent, LPCVECTOR2 location) {
     builder->goalentity = waypoint;
     builder->build_project = clent->build_project;
     move_reset_progress(builder);
-    if (G_BuildRepairDebugLevel() >= 1) {
-        fprintf(stderr,
-                "WC3_BUILD_PATH order worker=%d waypoint=%d project=0x%08x pos=(%.1f,%.1f) site=(%.1f,%.1f) collision=%.1f approach=%.1f\n",
-                builder->s.number, waypoint->s.number, (unsigned)builder->build_project,
-                builder->s.origin2.x, builder->s.origin2.y, snapped.x, snapped.y,
-                builder->collision, G_BuildApproachDistance(builder->build_project));
-    }
     unit_setmove(builder, &build_move_walk);
     G_ClearBuildPlacementCursor(clent);
     return true;
