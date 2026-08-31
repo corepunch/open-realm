@@ -62,6 +62,27 @@ void UI_FormatTooltip(LPCSTR code, LPCSTR tip, LPCSTR ubertip, FLOAT manacost, L
     }
 }
 
+static void UI_WriteCommandButtonNumber(FLOAT x, FLOAT y, FLOAT w, FLOAT h, DWORD number) {
+    uiFrame_t frame;
+    uiLabel_t label;
+    char text[16];
+
+    if (!number) {
+        return;
+    }
+    memset(&frame, 0, sizeof(frame));
+    memset(&label, 0, sizeof(label));
+    snprintf(text, sizeof(text), "%u", (unsigned)number);
+    frame.flags.type = FT_STRING;
+    frame.text = text;
+    frame.color = COLOR32_WHITE;
+    label.font = gi.FontIndex("Fonts\\FRIZQT__.TTF", HUD_FONT_SIZE);
+    label.textalignx = FONT_JUSTIFYRIGHT;
+    label.textaligny = FONT_JUSTIFYBOTTOM;
+    UI_SetFrameRect(&frame, x + 0.001f, y + 0.001f, w - 0.002f, h - 0.002f);
+    UI_WriteProxyFrame(&frame, &label, sizeof(label));
+}
+
 void UI_WriteCommandButtonFrame(gameCommandButton_t const *button) {
     uiFrame_t frame;
     char onclick[320];
@@ -85,6 +106,7 @@ void UI_WriteCommandButtonFrame(gameCommandButton_t const *button) {
     frame.onclick = button->disabled ? NULL : onclick;
     UI_SetFrameRect(&frame, bx - 0.0195f, by - 0.0195f, 0.039f, 0.039f);
     UI_WriteProxyFrame(&frame, NULL, 0);
+    UI_WriteCommandButtonNumber(bx - 0.0195f, by - 0.0195f, 0.039f, 0.039f, button->number);
 }
 
 void UI_WriteCommandButton(LPCSTR code, BOOL research, DWORD level) {

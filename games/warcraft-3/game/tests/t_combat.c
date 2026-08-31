@@ -566,11 +566,13 @@ TEST(wc3_combat, hero_setxp_levels_up) {
     h->health.max_value = 650.0f; h->health.value = 650.0f;
     h->mana.max_value   = 255.0f; h->mana.value   = 255.0f;
     h->hero.level       = 1;
+    h->hero.skillpoints = 1;
 
     G_HeroSetXP(h, 500);  /* crosses the level-3 threshold */
 
     T_EQ((int)h->hero.level, 3);
     T_EQ((int)h->hero.xp,    500);
+    T_EQ((int)h->hero.skillpoints, 3);
     T_FEQ(h->health.max_value, 775.0f, 0.01f);
 }
 
@@ -615,6 +617,112 @@ TEST(wc3_combat, hero_learn_skill) {
     unit_learnability(h, MAKEFOURCC('A','H','d','s'));   /* Divine Shield in slot 1 */
     T_EQ((int)h->heroabilities[1].code, (int)MAKEFOURCC('A','H','d','s'));
     T_EQ((int)h->heroabilities[1].level, 1);
+}
+
+static const char slk_hero_skill_progression[] =
+    "ID;PWXL;N;E\n"
+    "C;Y1;X1;K\"alias\"\n"
+    "C;Y1;X2;K\"code\"\n"
+    "C;Y1;X3;K\"levels\"\n"
+    "C;Y1;X4;K\"reqLevel\"\n"
+    "C;Y1;X5;K\"levelSkip\"\n"
+    "C;Y2;X1;K\"AHhb\"\n"
+    "C;Y2;X2;K\"AHhb\"\n"
+    "C;Y2;X3;K3\n"
+    "C;Y2;X4;K1\n"
+    "C;Y2;X5;K2\n"
+    "C;Y3;X1;K\"AHds\"\n"
+    "C;Y3;X2;K\"AHds\"\n"
+    "C;Y3;X3;K1\n"
+    "C;Y3;X4;K6\n"
+    "C;Y3;X5;K0\n"
+    "C;Y4;X1;K\"AHtb\"\n"
+    "C;Y4;X2;K\"AHtb\"\n"
+    "C;Y4;X3;K2\n"
+    "C;Y4;X4;K1\n"
+    "C;Y4;X5;K0\n"
+    "E\n";
+
+TEST(wc3_combat, hero_progression_initializes_preleveled_map_point_budget) {
+    LPEDICT h = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+
+    memset(h->heroabilities, 0, sizeof(h->heroabilities));
+    h->hero.level = 3;
+    h->hero.skillpoints = 0;
+    h->heroabilities[0].code = MAKEFOURCC('A','H','h','b');
+    h->heroabilities[0].level = 1;
+
+    G_HeroInitializeProgression(h);
+    T_EQ((int)h->hero.level, 3);
+    T_EQ((int)h->hero.skillpoints, 2);
+
+    h->hero.level = 0;
+    h->hero.skillpoints = 0;
+    memset(h->heroabilities, 0, sizeof(h->heroabilities));
+    G_HeroInitializeProgression(h);
+    T_EQ((int)h->hero.level, 1);
+    T_EQ((int)h->hero.skillpoints, 1);
+}
+
+TEST(wc3_combat, hero_skill_progression_uses_candidate_points_level_and_max_rank) {
+    UnitAbilities_t const tree = { .abilList = "AInv", .heroAbilList = "AHhb,AHds,AHtb" };
+    slkTestData_t *rows = parse_slk_string(slk_hero_skill_progression);
+    slkTestData_t *old_abilities = G_SetSLKRows("AbilityData", rows);
+    LPEDICT h = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    DWORD const holy = MAKEFOURCC('A','H','h','b');
+    DWORD const shield = MAKEFOURCC('A','H','d','s');
+    DWORD const thunder = MAKEFOURCC('A','H','t','b');
+    DWORD next = 0, required = 0;
+
+    h->UnitAbilities = &tree;
+    h->hero.level = 1;
+    h->hero.skillpoints = 1;
+    memset(h->heroabilities, 0, sizeof(h->heroabilities));
+
+    T_EQ((int)G_UnitAbilityLevel(h, MAKEFOURCC('A','I','n','v')), 1);
+    T_EQ((int)G_HeroSkillState(h, holy, &next, &required), HERO_SKILL_AVAILABLE);
+    T_EQ((int)next, 1);
+    T_EQ((int)required, 1);
+    T_ASSERT(G_HeroLearnSkill(h, holy));
+    T_EQ((int)G_UnitAbilityLevel(h, holy), 1);
+    T_EQ((int)h->hero.skillpoints, 0);
+
+    T_EQ((int)G_HeroSkillState(h, holy, &next, &required), HERO_SKILL_NO_POINTS);
+    h->hero.skillpoints = 1;
+    T_EQ((int)G_HeroSkillState(h, holy, &next, &required), HERO_SKILL_LEVEL_LOCKED);
+    T_EQ((int)next, 2);
+    T_EQ((int)required, 3);
+
+    h->hero.level = 3;
+    T_ASSERT(G_HeroLearnSkill(h, holy));
+    T_EQ((int)G_UnitAbilityLevel(h, holy), 2);
+
+    h->hero.level = 5;
+    h->hero.skillpoints = 1;
+    T_ASSERT(G_HeroLearnSkill(h, holy));
+    T_EQ((int)G_UnitAbilityLevel(h, holy), 3);
+    h->hero.skillpoints = 1;
+    T_EQ((int)G_HeroSkillState(h, holy, &next, &required), HERO_SKILL_MAXED);
+
+    h->hero.level = 1;
+    h->hero.skillpoints = 1;
+    T_ASSERT(G_HeroLearnSkill(h, thunder));
+    h->hero.level = 2;
+    h->hero.skillpoints = 1;
+    T_EQ((int)G_HeroSkillState(h, thunder, &next, &required), HERO_SKILL_LEVEL_LOCKED);
+    T_EQ((int)required, 3);
+    h->hero.level = 3;
+    T_EQ((int)G_HeroSkillState(h, thunder, &next, &required), HERO_SKILL_AVAILABLE);
+
+    h->hero.level = 5;
+    T_EQ((int)G_HeroSkillState(h, shield, &next, &required), HERO_SKILL_LEVEL_LOCKED);
+    T_EQ((int)required, 6);
+    h->hero.level = 6;
+    T_EQ((int)G_HeroSkillState(h, shield, &next, &required), HERO_SKILL_AVAILABLE);
+    T_EQ((int)G_HeroSkillState(h, MAKEFOURCC('A','H','w','e'), NULL, NULL), HERO_SKILL_ABSENT);
+
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
 }
 
 /* ReviveHero: a dead hero comes back to life at the given point with HP/mana

@@ -31,8 +31,10 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | Entity sound architecture | [docs/architecture/sound.md](docs/architecture/sound.md) |
 | WC3 data model (SLK, unit stats, combat) | [docs/wc3-data-model.md](docs/wc3-data-model.md) |
 | WC3 JASS native coverage, callback contracts, state ownership | [docs/games/warcraft-3/jass-native-coverage.md](docs/games/warcraft-3/jass-native-coverage.md) |
+| WC3 campaign game cache, persisted Hero progression, `StoreUnit`/`RestoreUnit` | [docs/games/warcraft-3/campaign-game-cache.md](docs/games/warcraft-3/campaign-game-cache.md) |
 | WC3 fog states, scripted reveals, fog modifiers, shared vision, cinematic separation | [docs/games/warcraft-3/fog-and-cinematics.md](docs/games/warcraft-3/fog-and-cinematics.md) |
 | WC3 triggered dialogue, gameplay/cinematic presentation split, message and transmission lifetimes | [docs/games/warcraft-3/triggered-dialogue.md](docs/games/warcraft-3/triggered-dialogue.md) |
+| WC3 Hero skill tree, skill points, rank requirements, learning UI, JASS progression | [docs/games/warcraft-3/hero-abilities.md](docs/games/warcraft-3/hero-abilities.md) |
 | WC3 gathering, immobile units, construction HUD, overhead bars | [docs/games/warcraft-3/economy-and-unit-presentation.md](docs/games/warcraft-3/economy-and-unit-presentation.md) |
 | WC3 building menu, placement validation, Human construction and power building | [docs/games/warcraft-3/building-construction.md](docs/games/warcraft-3/building-construction.md) |
 | WC3 Build/Repair blocked-footprint approach routing | [docs/games/warcraft-3/build-repair-routing.md](docs/games/warcraft-3/build-repair-routing.md) |

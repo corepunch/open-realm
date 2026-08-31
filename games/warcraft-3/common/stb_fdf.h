@@ -571,11 +571,24 @@ static inline LPCSTR parse_segment(LPPARSER p) {
     if (*p->buffer == '\0') return NULL;
     LPCSTR start = p->buffer;
     if (*p->buffer == '"') {
+        LPCSTR closing_quote;
+        LPCSTR comma;
+        size_t seglen;
+
         ++start;
-        p->buffer = strchr(start, '"');
-        memcpy(seg, start, p->buffer - start);
-        seg[p->buffer - start] = '\0';
-        p->buffer = strchr(p->buffer, ',');
+        closing_quote = strchr(start, '"');
+        if (!closing_quote) {
+            strlcpy(seg, start, PARSER_MAX_SEGMENT);
+            p->buffer = start + strlen(start);
+            return seg;
+        }
+        seglen = (size_t)(closing_quote - start);
+        if (seglen >= PARSER_MAX_SEGMENT) seglen = PARSER_MAX_SEGMENT - 1;
+        memcpy(seg, start, seglen);
+        seg[seglen] = '\0';
+        comma = strchr(closing_quote + 1, ',');
+        p->buffer = comma ? comma + 1 : closing_quote + 1;
+        return seg;
     } else {
         p->buffer = strchr(p->buffer, ',');
         if (p->buffer) {

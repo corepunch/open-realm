@@ -555,6 +555,60 @@ typedef struct {
     DWORD level;
 } heroability_t;
 
+#define MAX_GAMECACHE_ENTRIES 256
+#define MAX_GAMECACHE_STRING 256
+
+typedef enum {
+    GAMECACHE_INTEGER = 1,
+    GAMECACHE_REAL,
+    GAMECACHE_BOOLEAN,
+    GAMECACHE_UNIT,
+    GAMECACHE_STRING,
+} gameCacheValueType_t;
+
+typedef struct {
+    DWORD item_id;
+    DWORD charges;
+} gameCacheItem_t;
+
+typedef struct {
+    DWORD class_id;
+    doodadHero_t hero;
+    heroability_t abilities[MAX_HERO_ABILITIES];
+    EDICTSTAT health;
+    EDICTSTAT mana;
+    DWORD unit_color;
+    gameCacheItem_t inventory[MAX_INVENTORY];
+} gameCacheUnit_t;
+
+typedef struct {
+    UINAME mission;
+    UINAME key;
+    gameCacheValueType_t type;
+    union {
+        LONG integer;
+        FLOAT real;
+        BOOL boolean;
+        char string[MAX_GAMECACHE_STRING];
+        gameCacheUnit_t unit;
+    } value;
+} gameCacheEntry_t;
+
+typedef struct {
+    PATHSTR campaign;
+    DWORD num_entries;
+    BOOL dirty;
+    gameCacheEntry_t entries[MAX_GAMECACHE_ENTRIES];
+} gameCache_t;
+
+typedef enum {
+    HERO_SKILL_ABSENT,
+    HERO_SKILL_NO_POINTS,
+    HERO_SKILL_LEVEL_LOCKED,
+    HERO_SKILL_AVAILABLE,
+    HERO_SKILL_MAXED
+} heroSkillState_t;
+
 typedef struct {
     DWORD code;
     DWORD level;
@@ -1328,6 +1382,31 @@ BOOL unit_additem(LPEDICT, LPEDICT);
 void unit_addstatus(LPEDICT, LPCSTR, DWORD);
 void unit_addtimedstatus(LPEDICT, LPCSTR, DWORD, FLOAT);
 void unit_learnability(LPEDICT, DWORD);
+DWORD G_UnitAbilityLevel(LPCEDICT ent, DWORD abilcode);
+BOOL G_HeroHasCandidateSkill(LPCEDICT ent, DWORD abilcode);
+void G_HeroInitializeProgression(LPEDICT ent);
+DWORD G_HeroSkillRequiredLevel(LPEDICT ent, DWORD abilcode);
+heroSkillState_t G_HeroSkillState(LPEDICT ent, DWORD abilcode, DWORD *next_level, DWORD *required_level);
+BOOL G_HeroLearnSkill(LPEDICT ent, DWORD abilcode);
+
+void G_GameCacheInit(gameCache_t *cache, LPCSTR campaign);
+BOOL G_GameCacheSave(gameCache_t *cache);
+void G_GameCacheFlush(gameCache_t *cache);
+void G_GameCacheFlushMission(gameCache_t *cache, LPCSTR mission);
+void G_GameCacheFlushEntry(gameCache_t *cache, LPCSTR mission, LPCSTR key, gameCacheValueType_t type);
+BOOL G_GameCacheStoreInteger(gameCache_t *cache, LPCSTR mission, LPCSTR key, LONG value);
+BOOL G_GameCacheStoreReal(gameCache_t *cache, LPCSTR mission, LPCSTR key, FLOAT value);
+BOOL G_GameCacheStoreBoolean(gameCache_t *cache, LPCSTR mission, LPCSTR key, BOOL value);
+BOOL G_GameCacheStoreString(gameCache_t *cache, LPCSTR mission, LPCSTR key, LPCSTR value);
+BOOL G_GameCacheStoreUnit(gameCache_t *cache, LPCSTR mission, LPCSTR key, LPCEDICT unit);
+BOOL G_GameCacheHave(gameCache_t const *cache, LPCSTR mission, LPCSTR key, gameCacheValueType_t type);
+LONG G_GameCacheGetInteger(gameCache_t const *cache, LPCSTR mission, LPCSTR key);
+FLOAT G_GameCacheGetReal(gameCache_t const *cache, LPCSTR mission, LPCSTR key);
+BOOL G_GameCacheGetBoolean(gameCache_t const *cache, LPCSTR mission, LPCSTR key);
+LPCSTR G_GameCacheGetString(gameCache_t const *cache, LPCSTR mission, LPCSTR key);
+LPEDICT G_GameCacheRestoreUnit(gameCache_t const *cache, LPCSTR mission, LPCSTR key,
+                              DWORD player, LPCVECTOR2 location, FLOAT facing);
+
 void G_RecomputeHeroStats(LPEDICT);
 DWORD G_MaxHeroLevel(void);
 DWORD G_HeroXPForLevel(DWORD level);

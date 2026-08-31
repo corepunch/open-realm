@@ -64,19 +64,29 @@ LPCSTR parse_segment(LPPARSER p) {
     while (isspace(*p->buffer))
         ++p->buffer;
     LPCSTR start = p->buffer;
-    if (*p->buffer == '\"') {
+    if (*p->buffer == '"') {
+        LPCSTR closingQuote;
+        LPCSTR comma;
+        size_t seglen;
+
         ++start;
-        p->buffer = strchr(start, '\"');
-        if (!p->buffer) {
+        closingQuote = strchr(start, '"');
+        if (!closingQuote) {
+            seglen = MIN(strlen(start), MAX_SEGMENT_SIZE - 1);
+            memcpy(segment, start, seglen);
+            segment[seglen] = '\0';
             p->buffer = start + strlen(start);
+            return segment;
         }
-        size_t seglen = (size_t)(p->buffer - start);
+        seglen = (size_t)(closingQuote - start);
         if (seglen >= MAX_SEGMENT_SIZE) {
             seglen = MAX_SEGMENT_SIZE - 1;
         }
         memcpy(segment, start, seglen);
         segment[seglen] = '\0';
-        p->buffer = strchr(p->buffer, ',');
+        comma = strchr(closingQuote + 1, ',');
+        p->buffer = comma ? comma + 1 : closingQuote + 1;
+        return segment;
     } else {
         p->buffer = strchr(p->buffer, ',');
         if (p->buffer) {

@@ -53,7 +53,7 @@ static LPCSTR skip_cutscene_cvar(LPCSTR name, LPCSTR fallback) {
     return !strcmp(name, "skip_cutscene") ? "1" : fallback;
 }
 
-static DWORD presentation_write_count;
+ static DWORD presentation_write_count;
 static DWORD presentation_unicast_count;
 
 static void capture_presentation_write(pfWriteType_t type, void const *data) {
@@ -99,8 +99,9 @@ TEST(wc3_api, disconnected_presentation_defers_network_write_until_connected) {
     T_ASSERT(!gc->presentation_dirty);
 
     gi.Write = old_write;
-    gi.unicast = old_unicast;
-}
+ static LPCSTR gamecache_memory_cvar(LPCSTR name, LPCSTR fallback) {
+     return !strcmp(name, "wc3_gamecache_mode") ? "memory" : fallback;
+ }
 
 /* Campaign human slots need not match the connection slot; exercise the real VM/edict module boundary. */
 TEST(wc3_api, escape_restores_game_camera_ui_and_control) {
@@ -1438,6 +1439,87 @@ TEST(wc3_api, player_structure_count_survives_nonstructure_death) {
     jass_callbyname(level.vm, "verifyDeath", true);
     jass_runevents(level.vm);
     T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
+/* =========================================================================
+ * Campaign game cache
+ * ========================================================================= */
+
+TEST(wc3_api, gamecache_scalar_values_round_trip_and_flush_by_type) {
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local gamecache c = InitGameCache(\"openrealm-test-memory-only.w3v\")\n"
+        "  call FlushGameCache(c)\n"
+        "  call StoreInteger(c, \"mission\", \"value\", 42)\n"
+        "  call StoreReal(c, \"mission\", \"real\", 3.5)\n"
+        "  call StoreBoolean(c, \"mission\", \"flag\", true)\n"
+        "  call StoreString(c, \"mission\", \"text\", \"arthas\")\n"
+        "  call BJassAssert(HaveStoredInteger(c, \"mission\", \"value\"), \"missing stored integer\")\n"
+        "  call BJassAssert(GetStoredInteger(c, \"mission\", \"value\") == 42, \"wrong stored integer\")\n"
+        "  call BJassAssert(GetStoredReal(c, \"mission\", \"real\") == 3.5, \"wrong stored real\")\n"
+        "  call BJassAssert(GetStoredBoolean(c, \"mission\", \"flag\"), \"wrong stored boolean\")\n"
+        "  call BJassAssert(GetStoredString(c, \"mission\", \"text\") == \"arthas\", \"wrong stored string\")\n"
+        "  call FlushStoredInteger(c, \"mission\", \"value\")\n"
+        "  call BJassAssert(not HaveStoredInteger(c, \"mission\", \"value\"), \"integer flush failed\")\n"
+        "  call BJassAssert(HaveStoredString(c, \"mission\", \"text\"), \"typed flush removed another value\")\n"
+        "endfunction\n"));
+}
+
+TEST(wc3_api, gamecache_save_commits_to_process_memory) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+
+    gi.CvarString = gamecache_memory_cvar;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local gamecache source = InitGameCache(\"openrealm-test-memory-save.w3v\")\n"
+        "  local gamecache unsaved\n"
+        "  local gamecache saved\n"
+        "  call FlushGameCache(source)\n"
+        "  call BJassAssert(SaveGameCache(source), \"initial memory save failed\")\n"
+        "  call StoreInteger(source, \"Human01\", \"Stage\", 2)\n"
+        "  set unsaved = InitGameCache(\"openrealm-test-memory-save.w3v\")\n"
+        "  call BJassAssert(not HaveStoredInteger(unsaved, \"Human01\", \"Stage\"), \"unsaved value leaked into committed cache\")\n"
+        "  call BJassAssert(SaveGameCache(source), \"memory save failed\")\n"
+        "  set saved = InitGameCache(\"openrealm-test-memory-save.w3v\")\n"
+        "  call BJassAssert(GetStoredInteger(saved, \"Human01\", \"Stage\") == 2, \"saved value did not survive new cache handle\")\n"
+        "endfunction\n"));
+    gi.CvarString = old_cvar;
+}
+
+TEST(wc3_api, gamecache_restore_preserves_hero_progression) {
+    LPEDICT restored = NULL;
+
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit restoredHero = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  local gamecache c = InitGameCache(\"openrealm-test-hero-memory-only.w3v\")\n"
+        "  local unit h = CreateUnit(Player(0), 'Hpal', 0.0, 0.0, 0.0)\n"
+        "  call FlushGameCache(c)\n"
+        "  call SetHeroLevel(h, 2, false)\n"
+        "  call SelectHeroSkill(h, 'AHhb')\n"
+        "  call BJassAssert(StoreUnit(c, \"Human01\", \"Arthas\", h), \"StoreUnit failed\")\n"
+        "  set restoredHero = RestoreUnit(c, \"Human01\", \"Arthas\", Player(0), 128.0, 64.0, 90.0)\n"
+        "  call BJassAssert(restoredHero != null, \"RestoreUnit returned null\")\n"
+        "  call BJassAssert(GetHeroLevel(restoredHero) == 2, \"hero level was not restored\")\n"
+        "  call BJassAssert(GetUnitAbilityLevel(restoredHero, 'AHhb') == 1, \"learned rank was not restored\")\n"
+        "endfunction\n"));
+
+    FOR_LOOP(i, globals.num_edicts) {
+        LPEDICT ent = globals.edicts + i;
+        if (ent->inuse && ent->class_id == MAKEFOURCC('H','p','a','l') &&
+            fabsf(ent->s.origin2.x - 128.0f) < 0.01f &&
+            fabsf(ent->s.origin2.y - 64.0f) < 0.01f) {
+            restored = ent;
+            break;
+        }
+    }
+    T_NOT_NULL(restored);
+    T_EQ((int)restored->hero.level, 2);
+    T_EQ((int)restored->hero.skillpoints, 1);
+    T_EQ((int)restored->heroabilities[0].code, (int)MAKEFOURCC('A','H','h','b'));
+    T_EQ((int)restored->heroabilities[0].level, 1);
 }
 
 /* =========================================================================

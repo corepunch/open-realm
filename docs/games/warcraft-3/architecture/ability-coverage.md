@@ -28,8 +28,9 @@ Abilities are discovered through the static `abilitylist[]` in
 unit ability alias resolves through `Units\AbilityData.slk` to a registered base
 code. The command keeps the original alias when dispatching so per-alias SLK
 data such as item heal amounts still resolves correctly. Hero abilities are
-stored as `heroability_t` entries on the unit, but the skill selection menu is
-still incomplete.
+stored as `heroability_t` entries on the unit; `heroAbilList`, skill points,
+`reqLevel`, `levelSkip`, maximum ranks, and the Research-button learn menu are
+described in [Hero Ability Progression](../hero-abilities.md).
 
 Directly copying another engine's ability classes is not mechanical. The local
 implementation should port behavior into flat C handlers, `umove_t` state
@@ -46,7 +47,7 @@ machines, existing edict fields, and data loaded from SLK/config tables.
 | `CmdHoldPos` | `s_holdpos.c` | Registered stub. |
 | `CmdPatrol` | `s_patrol.c` | Registered stub. |
 | `CmdCancel` | `s_cancel.c` | Implemented UI cancel. |
-| `CmdSelectSkill` | `s_selectskill.c` | Partial; menu draw exists, selection callback is commented out. |
+| `CmdSelectSkill` | `s_selectskill.c` | Partial; candidate skill menu, next-rank Research UI, point/level gating, max-rank hiding, and authoritative learning are implemented. Skill-point and next-rank numeric overlays are implemented; multi-selection presentation remains. |
 | `Ahar` | `s_harvest_lumber.c` | Partial worker harvest implementation. |
 | `Amil` | `s_militia.c` | Registered stub. |
 | `Arep` | `s_repair.c` | Partial; entity command, Smart Repair, ranged approach, completed-building DataA/DataB costs, and paused Human power building are wired. Full target masks/naval/autocast remain. |

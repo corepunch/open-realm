@@ -479,6 +479,7 @@ JASSMODULE jass_funcs[] = {
     { "SuspendHeroXP", SuspendHeroXP },
     { "IsSuspendedXP", IsSuspendedXP },
     { "SelectHeroSkill", SelectHeroSkill },
+    { "GetUnitAbilityLevel", GetUnitAbilityLevel },
     { "ReviveHero", ReviveHero },
     { "ReviveHeroLoc", ReviveHeroLoc },
     { "SetUnitExploded", SetUnitExploded },
