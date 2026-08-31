@@ -910,6 +910,16 @@ TEST(net, fow_malformed_payload_does_not_overread) {
 
 /* WC3 selection radii (buildings/destructables) exceed the packed-float range of ±65.5, so radius must stay
  * NFT_ROUND. Guard the WC3 delta path against a regression back to a narrow two-byte encoding. */
+TEST(net, unchanged_entity_delta_emits_nothing) {
+    BYTE buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    entityState_t state = { .number = 9, .model = 1, .origin = { 10.0f, 20.0f, 30.0f } };
+
+    MSG_WriteDeltaEntity(&sb, &state, &state, false);
+
+    T_EQ(sb.cursize, 0);
+}
+
 TEST(net, entity_delta_preserves_large_wc3_radii) {
     FLOAT radii[] = { 36.0f, 72.0f, 200.0f, 320.0f };
 

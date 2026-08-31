@@ -417,6 +417,9 @@ void MSG_WriteDeltaEntity(LPSIZEBUF msg,
                           LPCENTITYSTATE to,
                           bool force)
 {
+    /* Unchanged snapshots dominate static scenes; the old path walked every wire field before discovering no delta. */
+    if (!force && memcmp(from, to, sizeof(*to)) == 0)
+        return;
     DWORD bits = MSG_GetBits(from, to, entityStateFields);
     if (bits == 0 && !force)
         return;
