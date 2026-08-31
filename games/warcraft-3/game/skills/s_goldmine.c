@@ -252,7 +252,8 @@ static void ai_goldmine_walkback(LPEDICT ent) {
         ent->goalentity = ent->secondarygoal;
         LPPLAYER player = G_GetPlayerByNumber(ent->s.player);
         if (player) {
-            player->stats[PLAYERSTATE_RESOURCE_GOLD] += ent->harvested_gold;
+            player->stats[PLAYERSTATE_RESOURCE_GOLD] +=
+                G_ApplyResourceIncome(player, PLAYERSTATE_RESOURCE_GOLD, (LONG)ent->harvested_gold);
         }
         if (debug >= 1)
             fprintf(stderr,
@@ -444,7 +445,7 @@ static BOOL entangle_goldmine_selecttarget(LPEDICT clent, LPEDICT target) {
         return false;
     }
     /* Transfer mine ownership to the caster's player. */
-    target->s.player = caster->s.player;
+    G_SetUnitPlayer(target, caster->s.player);
     return true;
 }
 
@@ -474,8 +475,9 @@ void blight_mine_think(LPEDICT ent) {
     if (!player || ent->health.value <= 0) {
         return;
     }
-    /* Add gold income directly to the player. */
-    player->stats[PLAYERSTATE_RESOURCE_GOLD] += (DWORD)blight_gold_per_interval;
+    /* Apply the same player income rate used by worker deposits. */
+    player->stats[PLAYERSTATE_RESOURCE_GOLD] +=
+        G_ApplyResourceIncome(player, PLAYERSTATE_RESOURCE_GOLD, (LONG)blight_gold_per_interval);
     ent->freetime = now + (DWORD)(blight_interval_duration * 1000.0f);
 }
 

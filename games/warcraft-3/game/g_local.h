@@ -75,7 +75,8 @@ KNOWN_AS(gquestitem_s, QUESTITEM);
 typedef enum {
     BUILD_COMMAND_ABSENT,
     BUILD_COMMAND_HIDDEN,
-    BUILD_COMMAND_DISABLED,
+    BUILD_COMMAND_DISABLED,      /* visible but inert: unmet prerequisite */
+    BUILD_COMMAND_UNAFFORDABLE,  /* visible/clickable: report resource shortage */
     BUILD_COMMAND_AVAILABLE,
 } buildCommandState_t;
 
@@ -583,6 +584,11 @@ struct edict_s {
         FLOAT progress;
     } construction;
     BOOL training; /* spawned in a production queue but not yet completed */
+    BOOL training_food_wait_notified; /* one-shot Nofood feedback for the active queue head */
+    struct {
+        LONG used; /* food currently accounted to s.player; queue-head reservations live here */
+        LONG made; /* food capacity currently accounted to s.player */
+    } food;
     struct {
         DWORD ability;
         BOOL primary;
@@ -733,6 +739,7 @@ struct edict_s {
  * not a live model.  Shared by g_phys.c (M_CheckCollision) and g_ai.c
  * (collision-aware movement). */
 #define IS_HOLLOW(ent) ((ent->svflags & SVF_DEADMONSTER) || (ent->s.renderfx & RF_HIDDEN) || !ent->s.model || !ent->inuse)
+#define MAX_UPKEEP_TIERS 10
 
 struct game_locals {
     DWORD max_clients;
@@ -757,6 +764,13 @@ struct game_locals {
         FLOAT gameDayLength;
         FLOAT buildingAngle;
         FLOAT rootAngle;
+        LONG foodCeiling;
+        DWORD upkeepUsageCount;
+        DWORD upkeepGoldTaxCount;
+        DWORD upkeepLumberTaxCount;
+        FLOAT upkeepUsage[MAX_UPKEEP_TIERS];
+        FLOAT upkeepGoldTax[MAX_UPKEEP_TIERS];
+        FLOAT upkeepLumberTax[MAX_UPKEEP_TIERS];
     } constants;
 };
 
@@ -1072,6 +1086,23 @@ void SP_SpawnUnit(LPEDICT);
 DWORD unit_spawn_aiflags(DWORD);
 BOOL SP_TrainUnit(LPEDICT, DWORD);
 BOOL player_pay(LPPLAYER, DWORD);
+
+// g_food.c
+BOOL G_FoodLimitsEnabled(void);
+LONG G_GetEffectiveFoodCap(LPGAMECLIENT client);
+DWORD G_GetPlayerUpkeepTier(LPGAMECLIENT client);
+BOOL G_PlayerHasFoodFor(LPGAMECLIENT client, LONG food_cost);
+BOOL G_ReserveTrainingFood(LPEDICT unit);
+void G_SetUnitFoodUsed(LPEDICT unit, LONG amount);
+void G_SetUnitFoodMade(LPEDICT unit, LONG amount);
+void G_ActivateUnitFood(LPEDICT unit);
+void G_ClearUnitFood(LPEDICT unit);
+void G_ClearTrainingQueueFood(LPEDICT producer);
+BOOL G_CancelTrainingQueueItem(LPEDICT producer, DWORD index, BOOL refund);
+void G_CancelTrainingQueue(LPEDICT producer, BOOL refund);
+void G_SetUnitPlayer(LPEDICT unit, DWORD player);
+void G_RecomputePlayerUpkeep(LPGAMECLIENT client);
+LONG G_ApplyResourceIncome(LPPLAYER player, DWORD resource_state, LONG gross_amount);
 BYTE compress_stat(EDICTSTAT const *);
 DWORD G_LoadShadowTexture(LPCSTR, BOOL);
 

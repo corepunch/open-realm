@@ -688,8 +688,14 @@ DWORD GetWidgetY(LPJASS j) {
     return jass_pushnumber(j, whichWidget ? whichWidget->s.origin.y : 0);
 }
 DWORD GetFoodMade(LPJASS j) {
-    //LONG unitId = jass_checkinteger(j, 1);
-    return jass_pushinteger(j, 0);
+    LONG unitId = jass_checkinteger(j, 1);
+    UnitBalance_t const *balance = G_UnitBalance((DWORD)unitId);
+    return jass_pushinteger(j, balance ? balance->foodMade : 0);
+}
+DWORD GetFoodUsed(LPJASS j) {
+    LONG unitId = jass_checkinteger(j, 1);
+    UnitBalance_t const *balance = G_UnitBalance((DWORD)unitId);
+    return jass_pushinteger(j, balance ? balance->foodUsed : 0);
 }
 
 DWORD EndGame(LPJASS j) {

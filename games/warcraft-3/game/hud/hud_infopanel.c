@@ -371,7 +371,7 @@ void G_RefreshResourceBar(LPEDICT ent) {
     gold   = (LONG)ps->stats[PLAYERSTATE_RESOURCE_GOLD];
     lumber = (LONG)ps->stats[PLAYERSTATE_RESOURCE_LUMBER];
     food_u = (LONG)ps->stats[PLAYERSTATE_RESOURCE_FOOD_USED];
-    food_c = (LONG)ps->stats[PLAYERSTATE_RESOURCE_FOOD_CAP];
+    food_c = G_GetEffectiveFoodCap(ent->client);
 
     if (gold   == ent->client->resourcebar.gold   &&
         lumber == ent->client->resourcebar.lumber  &&
@@ -380,7 +380,7 @@ void G_RefreshResourceBar(LPEDICT ent) {
         return;
 
     UI_WriteStart(LAYER_CONSOLE);
-    UI_WriteConsoleBackdrop(food_u);
+    UI_WriteConsoleBackdrop(ent->client, food_u, food_c);
     UI_WriteMinimapFrame();
     UI_WriteEnd(ent);
 

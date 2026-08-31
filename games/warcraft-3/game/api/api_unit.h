@@ -157,14 +157,7 @@ DWORD SetUnitOwner(LPJASS j) {
     LPCPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
 //    BOOL changeColor = jass_checkboolean(j, 3);
     if (whichUnit && whichPlayer) {
-        DWORD const old_player = whichUnit->s.player;
-        DWORD const new_player = PLAYER_NUM(whichPlayer);
-        LPGAMECLIENT old_client = G_GetPlayerClientByNumber(old_player);
-        LPGAMECLIENT new_client = G_GetPlayerClientByNumber(new_player);
-
-        whichUnit->s.player = new_player;
-        if (old_client && old_client->ps.number == old_player) G_InvalidateCommands(old_client);
-        if (new_client && new_client->ps.number == new_player) G_InvalidateCommands(new_client);
+        G_SetUnitPlayer(whichUnit, PLAYER_NUM(whichPlayer));
     }
     return 0;
 }

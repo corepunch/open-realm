@@ -14,6 +14,8 @@ The Gather command reaches the same state machines through `harvest_menu_selectt
 - A chop is lethal when tree life is less than or equal to `HARVEST_TREE_DAMAGE`. The lethal path must call `tree->die` because
   `m_tree.c` owns the fall animation and removal of the tree's pathing obstruction.
 
+Food/supply ownership and upkeep are documented separately in [Warcraft III Food, Supply, And Upkeep](food-and-upkeep.md). Gold workers carry the gross harvested amount; the deposit transition applies the current player's gold upkeep rate before crediting stored gold. Standard lumber remains at a 100% rate.
+
 The gold regression followed commit `55724517`, which correctly changed buildings to footprint-authored collision while mine entry
 still used a fixed 180-unit radius. A scalar building collision radius is sufficient on a face but not at a square footprint corner,
 where static pathing may stop the worker at a larger centre-to-centre distance. Entry therefore measures the worker against the mine's

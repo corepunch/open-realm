@@ -376,8 +376,19 @@ DWORD SetPlayerState(LPJASS j) {
     LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
     PLAYERSTATE *whichPlayerState = jass_checkhandle(j, 2, "playerstate");
     LONG value = jass_checkinteger(j, 3);
-    LPGAMECLIENT client = PLAYER_CLIENT(whichPlayer);
-    client->ps.stats[*whichPlayerState] = MAX(0, value);
+    LPGAMECLIENT client;
+
+    if (!whichPlayer || !whichPlayerState || *whichPlayerState >= MAX_STATS) return 0;
+    client = PLAYER_CLIENT(whichPlayer);
+    client->ps.stats[*whichPlayerState] = (USHORT)MIN(MAX(0, value), USHRT_MAX);
+    if (*whichPlayerState == PLAYERSTATE_RESOURCE_FOOD_USED) {
+        G_RecomputePlayerUpkeep(client);
+    }
+    if (*whichPlayerState == PLAYERSTATE_RESOURCE_FOOD_USED ||
+        *whichPlayerState == PLAYERSTATE_RESOURCE_FOOD_CAP ||
+        *whichPlayerState == PLAYERSTATE_FOOD_CAP_CEILING) {
+        G_InvalidateCommands(client);
+    }
     return 0;
 }
 DWORD RemovePlayer(LPJASS j) {

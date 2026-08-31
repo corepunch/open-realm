@@ -95,6 +95,9 @@ void unit_stand(LPEDICT self) {
 void unit_die(LPEDICT self, LPEDICT attacker) {
     LPGAMECLIENT owner;
 
+    if (self->training) G_ClearTrainingQueueFood(self);
+    else G_CancelTrainingQueue(self, true);
+    G_ClearUnitFood(self);
     unit_leavecombat(self);
     unit_setmove(self, &unit_move_death);
     /* Destroying a transport ejects its passengers at the wreck. */
@@ -231,14 +234,9 @@ unit_createorfind(DWORD player,
         if (ent->class_id == unitid &&
             Vector2_distance(location, &ent->s.origin2) < 10)
         {
-            DWORD const old_player = ent->s.player;
-            LPGAMECLIENT old_client = G_GetPlayerClientByNumber(old_player);
-            LPGAMECLIENT new_client = G_GetPlayerClientByNumber(player);
-
-            ent->s.player = player;
+            G_SetUnitPlayer(ent, player);
             ent->s.angle = facing * M_PI / 180;
-            if (old_client && old_client->ps.number == old_player) G_InvalidateCommands(old_client);
-            if (new_client && new_client->ps.number == player) G_InvalidateCommands(new_client);
+            G_ActivateUnitFood(ent);
             return ent;
         }
     }
@@ -251,6 +249,7 @@ unit_createorfind(DWORD player,
         unit->stand(unit);
     }
     unit->s.angle = facing * M_PI / 180;;
+    G_ActivateUnitFood(unit);
     return unit;
 }
 
@@ -589,6 +588,7 @@ void G_ReviveHero(LPEDICT ent, FLOAT x, FLOAT y) {
     ent->s.origin2.x = x;
     ent->s.origin2.y = y;
     if (ent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
+    G_ActivateUnitFood(ent);
     unit_stand(ent); /* back to a living idle state */
 }
 

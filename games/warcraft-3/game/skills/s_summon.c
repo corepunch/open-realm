@@ -22,6 +22,7 @@ static void summon_unit(LPEDICT caster, DWORD unit_id, DWORD index, DWORD count,
     if (!summon)
         return;
     summon->owner = caster;
+    G_ActivateUnitFood(summon);
     if (summon->stand)
         summon->stand(summon);
     if (duration > 0)

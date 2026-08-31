@@ -95,8 +95,23 @@ static void reset_test_state(void) {
     /* Restore player-slot client pointers so G_GetPlayerEntityByNumber works. */
     FOR_LOOP(i, game.max_clients) g_edicts[i].s.number = i;
     memset(game.clients, 0, game.max_clients * sizeof(*game.clients));
+    game.constants.foodCeiling = 100;
+    game.constants.upkeepUsageCount = 2;
+    game.constants.upkeepGoldTaxCount = 3;
+    game.constants.upkeepLumberTaxCount = 3;
+    game.constants.upkeepUsage[0] = 50.0f;
+    game.constants.upkeepUsage[1] = 80.0f;
+    game.constants.upkeepGoldTax[0] = 0.0f;
+    game.constants.upkeepGoldTax[1] = 0.30f;
+    game.constants.upkeepGoldTax[2] = 0.60f;
+    game.constants.upkeepLumberTax[0] = 0.0f;
+    game.constants.upkeepLumberTax[1] = 0.0f;
+    game.constants.upkeepLumberTax[2] = 0.0f;
     FOR_LOOP(i, game.max_clients) {
         game.clients[i].ps.number = i;
+        game.clients[i].ps.stats[PLAYERSTATE_FOOD_CAP_CEILING] = 100;
+        game.clients[i].ps.stats[PLAYERSTATE_GOLD_UPKEEP_RATE] = 100;
+        game.clients[i].ps.stats[PLAYERSTATE_LUMBER_UPKEEP_RATE] = 100;
         g_edicts[i].client = &game.clients[i];
     }
     memset(&level, 0, sizeof(level));

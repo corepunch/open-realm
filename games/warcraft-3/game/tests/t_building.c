@@ -149,7 +149,7 @@ TEST(wc3_building, building_charge_checks_and_deducts_resources) {
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 0);
 }
 
-TEST(wc3_building, build_command_state_covers_available_hidden_disabled_and_absent) {
+TEST(wc3_building, build_command_state_covers_available_hidden_unaffordable_and_absent) {
     LPGAMECLIENT client = &game.clients[0];
     LPEDICT worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     DWORD const barracks = MAKEFOURCC('h','b','a','r');
@@ -168,7 +168,7 @@ TEST(wc3_building, build_command_state_covers_available_hidden_disabled_and_abse
 
     memset(client->tech, 0, sizeof(client->tech));
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
-    T_EQ(G_GetBuildCommandState(client, worker, barracks, reason, sizeof(reason)), BUILD_COMMAND_DISABLED);
+    T_EQ(G_GetBuildCommandState(client, worker, barracks, reason, sizeof(reason)), BUILD_COMMAND_UNAFFORDABLE);
     T_STREQ(reason, "Not enough gold");
 
     worker_profile.builds = "hfoo";
@@ -196,6 +196,33 @@ TEST(wc3_building, train_command_state_uses_trains_list_and_player_maximum) {
 
     producer_profile.trains = "u002";
     T_EQ(G_GetTrainCommandState(client, producer, trainee, reason, sizeof(reason)), BUILD_COMMAND_ABSENT);
+}
+
+TEST(wc3_building, train_command_state_reports_food_shortage) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
+    DWORD const trainee = MAKEFOURCC('h','f','o','o');
+    UnitBalance_t const *balance = G_UnitBalance(trainee);
+    UnitProfile_t producer_profile = { .trains = "hfoo" };
+    LPCSTR (*saved_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+    char reason[128];
+
+    producer->UnitProfile = &producer_profile;
+    producer->s.player = client->ps.number;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = balance->goldCost;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = balance->lumberCost;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = MAX(0, balance->foodUsed - 1);
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] = 0;
+    gi.CvarString = building_all_cvar;
+
+    T_ASSERT(balance->foodUsed > 0);
+    T_EQ(G_GetTrainCommandState(client, producer, trainee, reason, sizeof(reason)), BUILD_COMMAND_UNAFFORDABLE);
+    T_STREQ(reason, "Not enough food");
+
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = balance->foodUsed;
+    T_EQ(G_GetTrainCommandState(client, producer, trainee, reason, sizeof(reason)), BUILD_COMMAND_AVAILABLE);
+
+    gi.CvarString = saved_cvar;
 }
 
 TEST(wc3_building, build_all_cvar_bypasses_training_tech_gates_but_not_trains_list) {
@@ -439,6 +466,7 @@ TEST(wc3_building, completing_construction_clears_state_publishes_once_and_grant
     T_ASSERT(!(building->aiflags & AI_HOLD_FRAME));
     T_FEQ(building->health.value, building->health.max_value, 0.001f);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP], 16);
+    T_EQ(building->food.made, 6);
     T_EQ(building_stand_calls, 1);
     T_EQ(level.events.write, 1);
     T_EQ(level.events.queue[0].type, EVENT_PLAYER_UNIT_CONSTRUCT_FINISH);

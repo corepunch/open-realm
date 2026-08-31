@@ -20,7 +20,7 @@ static void charm_execute(LPEDICT caster, spellTarget_t st, spell_info_t const *
     LPEDICT target = st.entity;
     (void)spell;
 
-    target->s.player = caster->s.player;
+    G_SetUnitPlayer(target, caster->s.player);
     target->owner = caster;
     target->combatentity = NULL;
     if (target->stand)

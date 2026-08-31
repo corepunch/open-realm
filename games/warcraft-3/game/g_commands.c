@@ -329,6 +329,25 @@ CLIENTCOMMAND(Inventory) {
     }
 }
 
+CLIENTCOMMAND(CancelTrain) {
+    LPGAMECLIENT client;
+    LPEDICT producer;
+    char *end = NULL;
+    unsigned long parsed;
+    DWORD index;
+
+    if (!clent || !clent->client || argc < 2 || !argv[1] || !*argv[1]) return;
+    parsed = strtoul(argv[1], &end, 10);
+    if (!end || *end || parsed > UINT_MAX) return;
+    client = clent->client;
+    producer = G_GetMainSelectedUnit(client);
+    if (!producer || producer->s.player != client->ps.number || !producer->build || !producer->build->training) return;
+    index = (DWORD)parsed;
+    if (!G_CancelTrainingQueueItem(producer, index, true)) return;
+    Get_Portrait_f(clent);
+    Get_Commands_f(clent);
+}
+
 CLIENTCOMMAND(DropItem) {
     LPEDICT unit;
     LONG slot;
@@ -464,6 +483,7 @@ CLIENTCOMMAND(DebugSpawn) {
     if (!spawned) {
         return;
     }
+    G_ActivateUnitFood(spawned);
 
     for (DWORD i = first_ability; i < argc; i++) {
         if (strlen(argv[i]) >= 4) {
@@ -498,6 +518,7 @@ clientCommand_t clientCommands[] = {
     { "smart", CMD_Smart, true },
     { "smartpoint", CMD_SmartPoint, true },
     { "cancel", CMD_Cancel, false },
+    { "canceltrain", CMD_CancelTrain, true },
     { "quests", CMD_Quests, false },
     { "hidequests", CMD_HideQuests, false },
     { "quest", CMD_Quest, false },

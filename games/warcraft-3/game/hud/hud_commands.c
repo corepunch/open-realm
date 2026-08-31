@@ -167,6 +167,30 @@ void UI_WriteBuildQueue(LPEDICT ent) {
     UI_SetFrameRect(&list, 0.3195f, 0.566f, 0.020f, 0.0215f);
     UI_WriteProxyFrame(&list, buffer, size);
     gi.MemFree(buffer);
+
+    /* Warcraft queue entries are clickable cancellation targets. Keep the
+     * existing FT_BUILDQUEUE drawing/prediction payload and place invisible
+     * server-authored click frames over the active and waiting icons. */
+    if (ent->build && ent->build->training) {
+        FOR_LOOP(i, count) {
+            uiFrame_t cancel;
+            char onclick[64];
+            FLOAT x, y, w, h;
+
+            memset(&cancel, 0, sizeof(cancel));
+            cancel.flags.type = FT_SIMPLEFRAME; /* no drawer; hit-test only */
+            snprintf(onclick, sizeof(onclick), "canceltrain %u", (unsigned)i);
+            cancel.onclick = onclick;
+            if (i == 0) {
+                x = 0.320f; y = 0.525f; w = 0.028f; h = 0.031f;
+            } else {
+                x = 0.3195f + (FLOAT)(i - 1) * 0.0281f;
+                y = 0.566f; w = 0.020f; h = 0.0215f;
+            }
+            UI_SetFrameRect(&cancel, x, y, w, h);
+            UI_WriteProxyFrame(&cancel, NULL, 0);
+        }
+    }
 }
 
 void UI_AddCommandButtonExtended(LPCSTR code, BOOL research, DWORD level) {

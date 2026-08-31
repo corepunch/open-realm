@@ -102,7 +102,8 @@ static void item_figurine_command(LPEDICT clent) {
     if (!target || !unit_id) {
         return;
     }
-    SP_SpawnAtLocation(unit_id, target->s.player, &target->s.origin2);
+    LPEDICT summon = SP_SpawnAtLocation(unit_id, target->s.player, &target->s.origin2);
+    G_ActivateUnitFood(summon);
 }
 
 /* ---- Ability definitions ------------------------------------------------ */
