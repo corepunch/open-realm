@@ -185,6 +185,23 @@ BOOL G_BotCaptainIsFull(LPPLAYER player) {
     return bot && G_BotCaptainGroupSize(player) >= bot->captains[BOT_CAPTAIN_ATTACK].desired;
 }
 
+/* Blizzard scores heroes and ordinary units separately so one healthy category cannot hide the other's losses. */
+LONG G_BotCaptainReadiness(LPPLAYER player, BOOL mana) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    FLOAT cur[2] = {0}, max[2] = {0};
+    if (!bot) return 100;
+    FOR_EACH_ARRAY(LPEDICT, unit, bot->captains[BOT_CAPTAIN_ATTACK].units) {
+        DWORD hero;
+        if (!G_BotUnitAlive(*unit)) continue;
+        hero = G_UnitIsHero(*unit) ? 1 : 0;
+        cur[hero] += mana ? (*unit)->mana.value : (*unit)->health.value;
+        max[hero] += mana ? (*unit)->mana.max_value : (*unit)->health.max_value;
+    }
+    /* The original fixed-real divider defines equal operands, including 0/0, as 1.0. */
+    FOR_LOOP(i, 2) cur[i] = cur[i] == max[i] ? 100.0f : cur[i] * 100.0f / max[i];
+    return (LONG)MIN(cur[0], cur[1]);
+}
+
 BOOL G_BotAddDefenders(LPPLAYER player, LONG qty, DWORD class_id) {
     return G_BotCaptainFill(player, BOT_CAPTAIN_DEFENSE, qty, class_id);
 }

@@ -205,6 +205,42 @@ Implemented query subset: `GetUnitCount` and `GetPlayerUnitTypeCount` include li
 
 `CaptainGroupSize`, `CaptainIsEmpty`, and `CaptainIsFull` inspect the attack captain and count only live roster members. Fullness compares that count with the accumulated desired total; a fresh zero-desire captain is therefore both empty and full, allowing Blizzard's zero-unit formation path to complete. Dead and removed members remain harmless stale references until the next `InitAssault` rebuild.
 
+### Captain Readiness Provenance
+
+The authoritative reference is the ROC demo `data/Warcraft3demo/Game.dll`, SHA-256
+`286823c37a1083e91f07d040e46a9df7af4c4952e01fcbba460589bd4e297654`. It is a PE32 x86 image linked by
+Microsoft linker 6.0, timestamped September 14, 2002, with image base `0x6f000000`. The native wrappers are at
+`0x6f30f6b0` (`CaptainReadiness`), `0x6f30f700` (`CaptainReadinessHP`), and `0x6f30f750`
+(`CaptainReadinessMa`); all call the calculator at `0x6f3122e0`. The wrappers pass `(1, 1)`, `(1, 0)`, and `(0, 1)`
+respectively. In this build the first two flags select the same HP result, while the mana wrapper selects mana.
+
+For each selected stat, the calculator sums current and maximum values separately for live heroes and live non-heroes,
+computes each aggregate percentage, and returns the lower category. It does not average per-unit percentages. Its
+fixed-real divider returns `1.0` when numerator and denominator are equal, including `0/0`, so an absent category and a
+category containing only mana-less units score 100%. Conversion to the JASS integer truncates toward zero. In compact
+form, with category $c \in \{\text{hero}, \text{unit}\}$:
+
+$$
+R_c = \begin{cases}
+100 & \text{if } \sum current_c = \sum maximum_c \\
+100 \cdot \dfrac{\sum current_c}{\sum maximum_c} & \text{otherwise}
+\end{cases}, \qquad readiness = \operatorname{trunc}(\min(R_{hero}, R_{unit})).
+$$
+
+Archive `Scripts/common.ai` independently establishes intent rather than the formula: `FormGroup` waits for
+`CaptainReadiness() >= 50`, and `CommonSleepUntilTargetDead` retreats at `CaptainReadinessHP() <= 40`. Stock
+`common.ai` declares but does not call `CaptainReadinessMa`. Jassbot documents all three declarations as integer natives
+present since patch 1.00, but supplies no behavioral comments; do not use that declaration-only page to infer the math.
+
+Reproduce the evidence with:
+
+```sh
+shasum -a 256 data/Warcraft3demo/Game.dll
+rabin2 -I data/Warcraft3demo/Game.dll
+r2 -q -e bin.cache=true -A -c 's 0x6f3122e0' -c pdf -c q data/Warcraft3demo/Game.dll
+build/bin/mpqtool -mpq 'data/Warcraft III/War3.mpq' cat Scripts/common.ai | grep -n -C 8 CaptainReadiness
+```
+
 `AddGuardPost` stores persistent typed map positions authored by campaign AI. `FillGuardPosts` reserves completed owned units not already assigned to captains or another post; assigned guards contribute to `IgnoredUnits`. `ReturnGuardPosts` preserves valid combat targets and returns idle guards that drift more than 64 world units from their authored position. Human02 defines no posts, so its periodic fill/return cycle is observably empty; a bounded ROC run now continues for 6000 frames without a JASS runtime error.
 
 TFT `common.ai` uses JASS `debug call`, `debug set`, and `debug if` statements. The parser preserves the following ordinary statement as an AST node marked `TF_DEBUG`, and release execution skips that node. Parser failures now report the source line and next token, while staged bot loading identifies `common.j`, `common.ai`, or the requested script separately.

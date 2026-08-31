@@ -428,6 +428,47 @@ TEST(wc3_bot, captain_size_empty_and_full_count_only_live_assault_members) {
     T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].desired, 2);
 }
 
+TEST(wc3_bot, captain_readiness_uses_lower_hero_and_unit_aggregate) {
+    static UnitBalance_t hero_balance = { .strength = 1 };
+    static UnitBalance_t unit_balance = {0};
+    bot_t *bot = level.bots + 2;
+    LPEDICT hero = make_bot_harvest_unit(MAKEFOURCC('H','p','a','l'), 0, 0, 2, NULL);
+    LPEDICT first = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 32, 0, 2, NULL);
+    LPEDICT second = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 64, 0, 2, NULL);
+    hero->UnitBalance = &hero_balance; first->UnitBalance = second->UnitBalance = &unit_balance;
+    hero->health.value = 333; hero->health.max_value = 1000;
+    first->health.value = 100; first->health.max_value = 100;
+    second->health.value = 50; second->health.max_value = 100;
+    bot->captains[BOT_CAPTAIN_ATTACK].units = gi.MemAlloc(3 * sizeof(LPEDICT));
+    ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units) = 3;
+    bot->captains[BOT_CAPTAIN_ATTACK].units[0] = hero;
+    bot->captains[BOT_CAPTAIN_ATTACK].units[1] = first;
+    bot->captains[BOT_CAPTAIN_ATTACK].units[2] = second;
+
+    T_EQ(G_BotCaptainReadiness(&game.clients[2].ps, false), 33);
+    hero->health.value = 1000;
+    T_EQ(G_BotCaptainReadiness(&game.clients[2].ps, false), 75);
+    first->svflags |= SVF_DEADMONSTER; second->inuse = false;
+    T_EQ(G_BotCaptainReadiness(&game.clients[2].ps, false), 100);
+}
+
+TEST(wc3_bot, captain_readiness_treats_empty_and_zero_mana_categories_as_full) {
+    static UnitBalance_t unit_balance = {0};
+    bot_t *bot = level.bots + 2;
+    LPEDICT unit = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 0, 0, 2, NULL);
+    unit->UnitBalance = &unit_balance;
+    T_EQ(G_BotCaptainReadiness(&game.clients[2].ps, false), 100);
+    T_EQ(G_BotCaptainReadiness(&game.clients[2].ps, true), 100);
+    bot->captains[BOT_CAPTAIN_ATTACK].units = gi.MemAlloc(sizeof(LPEDICT));
+    ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units) = 1;
+    bot->captains[BOT_CAPTAIN_ATTACK].units[0] = unit;
+    unit->mana.value = unit->mana.max_value = 0;
+    T_EQ(G_BotCaptainReadiness(&game.clients[2].ps, true), 100);
+    unit->mana.value = 2; unit->mana.max_value = 3;
+    T_EQ(G_BotCaptainReadiness(&game.clients[2].ps, true), 66);
+    T_EQ(G_BotCaptainReadiness(NULL, true), 100);
+}
+
 TEST(wc3_bot, guard_posts_fill_typed_units_without_stealing_captain_members) {
     bot_t *bot = level.bots + 2;
     DWORD type = MAKEFOURCC('h','f','o','o');

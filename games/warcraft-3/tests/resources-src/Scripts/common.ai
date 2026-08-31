@@ -43,6 +43,9 @@ native AddAssault takes integer qty, integer unitid returns boolean
 native CaptainGroupSize takes nothing returns integer
 native CaptainIsFull takes nothing returns boolean
 native CaptainIsEmpty takes nothing returns boolean
+native CaptainReadiness takes nothing returns integer
+native CaptainReadinessHP takes nothing returns integer
+native CaptainReadinessMa takes nothing returns integer
 native AddDefenders takes integer qty, integer unitid returns boolean
 native AddGuardPost takes integer id, real x, real y returns nothing
 native FillGuardPosts takes nothing returns nothing
