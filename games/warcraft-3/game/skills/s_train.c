@@ -90,14 +90,18 @@ BOOL SP_TrainUnit(LPEDICT townhall, DWORD class_id) {
     LPGAMECLIENT client;
     LPEDICT clent;
     LPPLAYER player;
+    buildCommandState_t state;
+    char reason[128];
 
     if (!townhall || !class_id) return false;
     client = G_GetPlayerClientByNumber(townhall->s.player);
-    if (!client || client->ps.number != townhall->s.player ||
-        G_GetTrainCommandState(client, townhall, class_id, NULL, 0) != BUILD_COMMAND_AVAILABLE) {
+    if (!client || client->ps.number != townhall->s.player) return false;
+    clent = G_GetPlayerEntityByNumber(townhall->s.player);
+    state = G_GetTrainCommandState(client, townhall, class_id, reason, sizeof(reason));
+    if (state != BUILD_COMMAND_AVAILABLE) {
+        if (clent && reason[0]) UI_ShowText(clent, &MAKE(VECTOR2, 0, 0), reason, 2.0f);
         return false;
     }
-    clent = G_GetPlayerEntityByNumber(townhall->s.player);
     player = G_GetPlayerByNumber(townhall->s.player);
     if (player_pay(player, class_id)) {
         unit_build(townhall, class_id);
@@ -106,8 +110,8 @@ BOOL SP_TrainUnit(LPEDICT townhall, DWORD class_id) {
             Get_Commands_f(clent);
         }
         return true;
-    } else {
-        fprintf(stdout, "Not enough resources\n");
+    } else if (clent) {
+        UI_ShowText(clent, &MAKE(VECTOR2, 0, 0), "Not enough resources", 2.0f);
     }
     return false;
 }

@@ -249,7 +249,7 @@ buildCommandState_t G_GetBuildCommandState(LPGAMECLIENT client, LPEDICT worker, 
         return BUILD_COMMAND_DISABLED;
     }
     if (!G_ProductionResourcesAvailable(client, building_id, reason, reason_size)) {
-        return BUILD_COMMAND_DISABLED;
+        return BUILD_COMMAND_UNAFFORDABLE;
     }
     return BUILD_COMMAND_AVAILABLE;
 }
@@ -270,7 +270,7 @@ buildCommandState_t G_GetTrainCommandState(LPGAMECLIENT client, LPEDICT producer
         }
     }
     if (!G_ProductionResourcesAvailable(client, unit_id, reason, reason_size)) {
-        return BUILD_COMMAND_DISABLED;
+        return BUILD_COMMAND_UNAFFORDABLE;
     }
     return BUILD_COMMAND_AVAILABLE;
 }

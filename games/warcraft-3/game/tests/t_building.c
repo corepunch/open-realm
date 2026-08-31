@@ -149,7 +149,7 @@ TEST(wc3_building, building_charge_checks_and_deducts_resources) {
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 0);
 }
 
-TEST(wc3_building, build_command_state_covers_available_hidden_disabled_and_absent) {
+TEST(wc3_building, build_command_state_covers_available_hidden_unaffordable_and_absent) {
     LPGAMECLIENT client = &game.clients[0];
     LPEDICT worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     DWORD const barracks = MAKEFOURCC('h','b','a','r');
@@ -168,7 +168,7 @@ TEST(wc3_building, build_command_state_covers_available_hidden_disabled_and_abse
 
     memset(client->tech, 0, sizeof(client->tech));
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
-    T_EQ(G_GetBuildCommandState(client, worker, barracks, reason, sizeof(reason)), BUILD_COMMAND_DISABLED);
+    T_EQ(G_GetBuildCommandState(client, worker, barracks, reason, sizeof(reason)), BUILD_COMMAND_UNAFFORDABLE);
     T_STREQ(reason, "Not enough gold");
 
     worker_profile.builds = "hfoo";
@@ -216,7 +216,7 @@ TEST(wc3_building, train_command_state_reports_food_shortage) {
     gi.CvarString = building_all_cvar;
 
     T_ASSERT(balance->foodUsed > 0);
-    T_EQ(G_GetTrainCommandState(client, producer, trainee, reason, sizeof(reason)), BUILD_COMMAND_DISABLED);
+    T_EQ(G_GetTrainCommandState(client, producer, trainee, reason, sizeof(reason)), BUILD_COMMAND_UNAFFORDABLE);
     T_STREQ(reason, "Not enough food");
 
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = balance->foodUsed;

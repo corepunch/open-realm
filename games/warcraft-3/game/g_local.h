@@ -75,7 +75,8 @@ KNOWN_AS(gquestitem_s, QUESTITEM);
 typedef enum {
     BUILD_COMMAND_ABSENT,
     BUILD_COMMAND_HIDDEN,
-    BUILD_COMMAND_DISABLED,
+    BUILD_COMMAND_DISABLED,      /* visible but inert: unmet prerequisite */
+    BUILD_COMMAND_UNAFFORDABLE,  /* visible/clickable: report resource shortage */
     BUILD_COMMAND_AVAILABLE,
 } buildCommandState_t;
 

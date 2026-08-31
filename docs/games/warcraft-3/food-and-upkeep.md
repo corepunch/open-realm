@@ -63,6 +63,8 @@ head->build (later queue item)
 
 `G_GetTrainCommandState()` also reports current gold, lumber, and food shortages, but that UI/order check is not the authoritative reservation. Supply can change while an item waits, so `ai_train_build()` re-checks at the active queue slot.
 
+Resource shortages use `BUILD_COMMAND_UNAFFORDABLE`, not the prerequisite-only `BUILD_COMMAND_DISABLED` state. This keeps the train/build icon visible and clickable while still rejecting the order authoritatively. `SP_TrainUnit()` re-checks the state on click and sends the specific reason (`Not enough gold`, `Not enough lumber`, or `Not enough food`) through the gameplay message layer. Requirement-disabled commands remain inert.
+
 Completion does not charge Food Used again. The queue entity already owns the reservation and becomes the visible trained unit; completion only activates `foodMade` if the trained unit type provides supply. This is the ownership transfer:
 
 ```text
