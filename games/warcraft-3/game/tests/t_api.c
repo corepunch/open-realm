@@ -226,6 +226,83 @@ TEST(wc3_api, skip_cutscene_preserves_scripted_input_and_ui_state) {
     gi.CvarString = old_cvar;
 }
 
+static DWORD test_fow_cell(FLOAT x, FLOAT y) {
+    DWORD cx = G_FowWorldToCellX(x), cy = G_FowWorldToCellY(y);
+    return cy * level.fow.width + cx;
+}
+
+TEST(wc3_api, fog_state_natives_write_masked_fogged_and_visible) {
+    DWORD fogged, visible, masked;
+    fowPlayerGrid_t *grid;
+    setup_test_world();
+    G_FowInit();
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SetFogStateRect(Player(0), FOG_OF_WAR_FOGGED, Rect(-64.0, -64.0, 64.0, 64.0), false)\n"
+        "  call SetFogStateRadius(Player(0), FOG_OF_WAR_VISIBLE, 256.0, 0.0, 32.0, false)\n"
+        "  call SetFogStateRadius(Player(0), FOG_OF_WAR_VISIBLE, -256.0, 0.0, 32.0, false)\n"
+        "  call SetFogStateRadiusLoc(Player(0), FOG_OF_WAR_MASKED, Location(-256.0, 0.0), 32.0, false)\n"
+        "endfunction\n"));
+    grid = &level.fow.players[0];
+    fogged = test_fow_cell(0.0f, 0.0f);
+    visible = test_fow_cell(256.0f, 0.0f);
+    masked = test_fow_cell(-256.0f, 0.0f);
+    T_EQ(grid->explored[fogged], 1); T_EQ(grid->visible[fogged], 0);
+    T_EQ(grid->explored[visible], 1); T_EQ(grid->visible[visible], 1);
+    T_EQ(grid->explored[masked], 0); T_EQ(grid->visible[masked], 0);
+}
+
+TEST(wc3_api, fog_state_shared_vision_reaches_allied_viewer_only) {
+    DWORD index;
+    setup_test_world();
+    G_FowInit();
+    G_SetPlayerAlliance(test_player(1), test_player(0), ALLIANCE_SHARED_VISION, true);
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call SetFogStateRadius(Player(0), FOG_OF_WAR_VISIBLE, 0.0, 0.0, 32.0, true)\n"
+        "endfunction\n"));
+    index = test_fow_cell(0.0f, 0.0f);
+    T_EQ(level.fow.players[0].visible[index], 1);
+    T_EQ(level.fow.players[1].visible[index], 1);
+    T_EQ(level.fow.players[2].visible[index], 0);
+}
+
+TEST(wc3_api, fog_modifier_states_and_visible_stop_transition) {
+    FOGMODIFIER mod = {
+        .player = 0,
+        .state = WC3_FOG_STATE_VISIBLE,
+        .center = { 0.0f, 0.0f },
+        .radius = 32.0f,
+    };
+    DWORD index;
+    setup_test_world();
+    G_FowInit();
+    G_FowConnectPlayer(0);
+    index = test_fow_cell(0.0f, 0.0f);
+
+    G_FogModifierStart(&mod);
+    G_FowUpdate();
+    T_EQ(level.fow.players[0].explored[index], 1);
+    T_EQ(level.fow.players[0].visible[index], 1);
+    G_FogModifierStop(&mod);
+    G_FowUpdate();
+    T_EQ(level.fow.players[0].explored[index], 1);
+    T_EQ(level.fow.players[0].visible[index], 0);
+
+    mod.center.x = 256.0f;
+    index = test_fow_cell(256.0f, 0.0f);
+    mod.state = WC3_FOG_STATE_FOGGED;
+    G_FogModifierStart(&mod);
+    G_FowUpdate();
+    T_EQ(level.fow.players[0].explored[index], 1);
+    T_EQ(level.fow.players[0].visible[index], 0);
+    mod.state = WC3_FOG_STATE_MASKED;
+    G_FowUpdate();
+    T_EQ(level.fow.players[0].explored[index], 0);
+    T_EQ(level.fow.players[0].visible[index], 0);
+    G_FogModifierStop(&mod);
+}
+
 /* Create a minimal unit in slot 0 and return it. */
 static LPEDICT make_unit_hero(void) {
     reset_entities();

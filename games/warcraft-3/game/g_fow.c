@@ -85,6 +85,42 @@ static void G_FowSetVisible(fowPlayerGrid_t *grid, DWORD x, DWORD y) {
     G_FOW_SET_VISIBLE_CELL(grid, x, y);
 }
 
+static BOOL G_FowStateValid(DWORD state) { return state && state <= WC3_FOG_STATE_VISIBLE && !(state & (state - 1)); }
+
+typedef struct {
+    DWORD x, y, state;
+    int cells;
+} FOGDISK;
+typedef FOGDISK *LPFOGDISK;
+typedef FOGDISK const *LPCFOGDISK;
+
+/* Scripted fog states own both planes, so the three JASS states need no parallel cinematic map. */
+static void G_FowSetCellState(fowPlayerGrid_t *grid, DWORD index, DWORD state) {
+    DWORD y, x;
+    if (!grid || !grid->visible || !grid->explored || index >= G_FowCellCount()) return;
+    y = index / level.fow.width;
+    x = index - y * level.fow.width;
+    if (state == WC3_FOG_STATE_VISIBLE) {
+        G_FOW_SET_VISIBLE_CELL(grid, x, y);
+        return;
+    }
+    if (grid->visible[index]) {
+        grid->visible[index] = 0;
+        if (grid->dirty_visible_rows) grid->dirty_visible_rows[y] = 1;
+    }
+    if (state == WC3_FOG_STATE_FOGGED) {
+        if (!grid->explored[index]) {
+            grid->explored[index] = 1;
+            if (grid->dirty_explored_rows) grid->dirty_explored_rows[y] = 1;
+        }
+        return;
+    }
+    if (state == WC3_FOG_STATE_MASKED && grid->explored[index]) {
+        grid->explored[index] = 0;
+        if (grid->dirty_explored_rows) grid->dirty_explored_rows[y] = 1;
+    }
+}
+
 static void G_FowSetBlocked(DWORD x, DWORD y) {
     DWORD index;
 
@@ -151,25 +187,29 @@ static int G_FowRadiusCells(FLOAT radius) {
     return MAX(1, (int)ceilf(radius / (FLOAT)FOW_CELL_SIZE));
 }
 
-static void G_FowRevealDisk(fowPlayerGrid_t *grid, DWORD cx, DWORD cy, int radius_cells) {
-    int radius_sq = radius_cells * radius_cells;
+/* Circular trigger/modifier state writes reuse the ordinary fog-grid rasterization. */
+static void G_FowSetDiskState(fowPlayerGrid_t *grid, LPCFOGDISK disk) {
+    int radius_sq = disk->cells * disk->cells;
 
-    for (int dy = -radius_cells; dy <= radius_cells; dy++) {
-        int y = (int)cy + dy;
+    for (int dy = -disk->cells; dy <= disk->cells; dy++) {
+        int y = (int)disk->y + dy;
         int max_dx;
-
         if (y < 0 || y >= (int)level.fow.height) {
             continue;
         }
         max_dx = (int)sqrtf((FLOAT)(radius_sq - dy * dy));
         for (int dx = -max_dx; dx <= max_dx; dx++) {
-            int x = (int)cx + dx;
+            int x = (int)disk->x + dx;
             if (x < 0 || x >= (int)level.fow.width) {
                 continue;
             }
-            G_FOW_SET_VISIBLE_CELL(grid, x, y);
+            G_FowSetCellState(grid, G_FowCellIndex((DWORD)x, (DWORD)y), disk->state);
         }
     }
+}
+static void G_FowRevealDisk(fowPlayerGrid_t *grid, DWORD cx, DWORD cy, int radius_cells) {
+    FOGDISK disk = { cx, cy, WC3_FOG_STATE_VISIBLE, radius_cells };
+    G_FowSetDiskState(grid, &disk);
 }
 
 static void G_FowCastLight(fowPlayerGrid_t *grid,
@@ -618,13 +658,9 @@ static void G_FowRevealForViewers(LPCEDICT ent, FLOAT radius, DWORD viewers) {
 }
 
 /* --- Fog modifiers ------------------------------------------------------- *
- * CreateFogModifier + FogModifierStart register a region that reveals (or
- * masks) fog for a player independent of unit sight. Cinematics use VISIBLE
- * modifiers to show staged units in otherwise-unexplored areas. Applied each
- * G_FowUpdate after unit-based reveals so they persist while started. */
-
-#define FOG_OF_WAR_VISIBLE 4
-#define MAX_FOG_MODIFIERS 256
+ * Direct state writes and started modifiers use the same three-state cell
+ * contract. Modifiers are applied after unit sight so their state persists. */
+#define MAX_FOG_MODIFIERS 256 // handles; bounded active map-script fog modifiers
 
 static LPFOGMODIFIER g_fog_modifiers[MAX_FOG_MODIFIERS];
 static DWORD g_num_fog_modifiers;
@@ -657,7 +693,8 @@ void G_FogModifierStop(LPFOGMODIFIER mod) {
     }
 }
 
-static void G_FowRevealBox(fowPlayerGrid_t *grid, LPCBOX2 box) {
+/* Rectangular writes use the same cell-state contract as circular reveals. */
+static void G_FowSetBoxState(fowPlayerGrid_t *grid, LPCBOX2 box, DWORD state) {
     DWORD x0 = G_FowWorldToCellX(box->min.x);
     DWORD y0 = G_FowWorldToCellY(box->min.y);
     DWORD x1 = G_FowWorldToCellX(box->max.x);
@@ -668,31 +705,61 @@ static void G_FowRevealBox(fowPlayerGrid_t *grid, LPCBOX2 box) {
         return;
     }
     for (DWORD y = y0; y <= y1; y++) {
-        for (DWORD x = x0; x <= x1; x++) {
-            G_FOW_SET_VISIBLE_CELL(grid, x, y);
-        }
+        for (DWORD x = x0; x <= x1; x++) G_FowSetCellState(grid, G_FowCellIndex(x, y), state);
+    }
+}
+
+/* Immediate JASS writes persist in the target grid even when no client currently consumes it. */
+void G_FowSetStateRect(LPCFOGWRITE fog, LPCBOX2 box) {
+    if (!fog || fog->player >= MAX_PLAYERS || !box ||
+        !G_FowReady() || !G_FowStateValid(fog->state))
+        return;
+    FOR_LOOP(viewer, MAX_PLAYERS) {
+        if (viewer != fog->player && (!fog->shared || !G_FowSharedVision(viewer, fog->player)))
+            continue;
+        G_FowSetBoxState(&level.fow.players[viewer], box, fog->state);
+    }
+}
+
+/* Radius and location natives share one authoritative circular state path. */
+void G_FowSetStateRadius(LPCFOGWRITE fog, LPCVECTOR2 center, FLOAT radius) {
+    DWORD cx, cy;
+    int cells;
+    if (!fog || fog->player >= MAX_PLAYERS || !center ||
+        !G_FowReady() || !G_FowStateValid(fog->state))
+        return;
+    cx = G_FowWorldToCellX(center->x);
+    cy = G_FowWorldToCellY(center->y);
+    if (cx == FOW_INVALID_CELL || cy == FOW_INVALID_CELL)
+        return;
+    cells = G_FowRadiusCells(radius);
+    FOGDISK disk = { cx, cy, fog->state, cells };
+    FOR_LOOP(viewer, MAX_PLAYERS) {
+        if (viewer != fog->player && (!fog->shared || !G_FowSharedVision(viewer, fog->player)))
+            continue;
+        G_FowSetDiskState(&level.fow.players[viewer], &disk);
     }
 }
 
 static void G_FowApplyModifierForPlayer(DWORD player, LPCFOGMODIFIER mod) {
     fowPlayerGrid_t *grid = &level.fow.players[player];
-
     if (mod->is_rect) {
-        G_FowRevealBox(grid, &mod->rect);
+        G_FowSetBoxState(grid, &mod->rect, mod->state);
     } else {
         DWORD cx = G_FowWorldToCellX(mod->center.x);
         DWORD cy = G_FowWorldToCellY(mod->center.y);
         if (cx == FOW_INVALID_CELL || cy == FOW_INVALID_CELL) {
             return;
         }
-        G_FowRevealDisk(grid, cx, cy, G_FowRadiusCells(mod->radius));
+        FOGDISK disk = { cx, cy, mod->state, G_FowRadiusCells(mod->radius) };
+        G_FowSetDiskState(grid, &disk);
     }
 }
 
 static void G_FowApplyModifiers(DWORD viewers) {
     FOR_LOOP(i, g_num_fog_modifiers) {
         LPCFOGMODIFIER mod = g_fog_modifiers[i];
-        if (!mod || !mod->started || mod->state != FOG_OF_WAR_VISIBLE ||
+        if (!mod || !mod->started || !G_FowStateValid(mod->state) ||
             mod->player >= MAX_PLAYERS) {
             continue;
         }

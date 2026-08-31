@@ -771,7 +771,18 @@ typedef struct {
     GAMEEVENT queue[MAX_EVENT_QUEUE];
     DWORD write, read;
 } LEVELEVENTS;
-
+enum {
+    WC3_FOG_STATE_MASKED = 1,  /* JASS FOG_OF_WAR_MASKED: unexplored */
+    WC3_FOG_STATE_FOGGED = 2,  /* JASS FOG_OF_WAR_FOGGED: explored without current sight */
+    WC3_FOG_STATE_VISIBLE = 4, /* JASS FOG_OF_WAR_VISIBLE: explored with current sight */
+};
+typedef struct {
+    DWORD player;
+    DWORD state;
+    BOOL shared;
+} FOGWRITE;
+typedef FOGWRITE *LPFOGWRITE;
+typedef FOGWRITE const *LPCFOGWRITE;
 typedef struct {
     BYTE *visible;
     BYTE *explored;
@@ -791,12 +802,10 @@ typedef struct {
     fowPlayerGrid_t players[MAX_PLAYERS];
 } fowGrid_t;
 
-/* A fog modifier reveals (or masks) a region for a player while started.
- * FOG_OF_WAR_VISIBLE (state 4) reveals the region so units inside it become
- * visible; cinematics use these to show staged units in unexplored areas. */
+/* A fog modifier continuously applies one of the three JASS fog states while started. */
 typedef struct fogmodifier_s {
     DWORD player;
-    DWORD state;             /* fogstate value: 4 = FOG_OF_WAR_VISIBLE */
+    DWORD state;             /* WC3_FOG_STATE_* */
     BOOL is_rect;
     BOX2 rect;               /* used when is_rect */
     VECTOR2 center;          /* used when !is_rect */
@@ -873,6 +882,8 @@ void G_FowSendDeltas(void);
 void G_FowSendFull(LPEDICT ent);
 BOOL G_FowPlayerCanSeeEntity(DWORD player, LPCEDICT ent);
 BOOL G_FowPlayerCanHoverEntity(DWORD player, LPCEDICT ent);
+void G_FowSetStateRect(LPCFOGWRITE fog, LPCBOX2 box);
+void G_FowSetStateRadius(LPCFOGWRITE fog, LPCVECTOR2 center, FLOAT radius);
 void G_FogModifierStart(LPFOGMODIFIER mod);
 void G_FogModifierStop(LPFOGMODIFIER mod);
 DWORD G_FowWorldToCellX(FLOAT x);
