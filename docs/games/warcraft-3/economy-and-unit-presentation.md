@@ -71,8 +71,6 @@ A worker carrying lumber or gold may explicitly Smart/right-click a compatible r
 
 Targeted command state is server-owned in `gameClient_t::menu.on_entity_selected` / `on_location_selected`. A right-click (`smart` or `smartpoint`) while either callback is active cancels that target mode and restores the normal command card; it must not also issue the Smart/Move order to the still-selected server-side group. Otherwise the callback can survive a ground right-click, consume the next left-click that the player intended as a fresh unit selection, and leave the previous worker group selected. A following tree Smart order then legitimately iterates that stale group and appears as if unrelated gold miners spontaneously switched to lumber.
 
-`+set wc3_harvest_path_debug 1` also emits command-boundary lines with the `WC3_HARVEST_ORDER` prefix. `selection_replaced` records the server selection after a normal unit click, `target_click_before` / `target_click_after` show clicks consumed by a targeted ability, `smart*_cancel_target_mode` identifies right-click cancellation, and `smart_issue` / `smartpoint_issue` show the selected units that are about to receive a normal order. Each selected-unit line includes its current and secondary goals, carried gold/lumber, and whether it is registered inside a mine. These event-driven lines are intended to correlate with `WC3_HARVEST_PATH`, `WC3_GOLD_PATH`, and `WC3_GOLD_RETURN` without adding per-frame logging.
-
 ### Mine Entry — Collision Formula
 
 ROC `PathTextures\16x16Goldmine.tga` is 16x16, but its no-walk (`COLOR32.b`) region is the central 8x8 cells. The existing diagonal
