@@ -1197,6 +1197,10 @@ DWORD EnableUserControl(LPJASS j) {
 }
 DWORD EnableUserUI(LPJASS j) {
     BOOL enabled = jass_checkboolean(j, 1);
+    /* Warcraft keeps this separate from EnableUserControl: it suppresses UI
+     * affordances such as hover/tooltips, but does not make world selection or
+     * gameplay orders inert.  Keep the state for the client presentation path;
+     * command authorization must not key off it. */
     if (currentplayer) PLAYER_CLIENT(currentplayer)->no_ui = !enabled;
     return 0;
 }

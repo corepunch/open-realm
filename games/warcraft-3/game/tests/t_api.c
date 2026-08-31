@@ -491,7 +491,28 @@ TEST(wc3_api, gameplay_transmission_preserves_underlying_timed_message_state) {
 static DWORD ui_point_calls;
 static BOOL count_ui_point(LPEDICT ent, LPCVECTOR2 loc) { ui_point_calls++; return false; }
 
-TEST(wc3_api, enable_user_ui_is_local_and_blocks_gameplay_ui_commands) {
+TEST(wc3_api, enable_user_ui_does_not_block_world_selection) {
+    LPGAMECLIENT gc = &game.clients[0];
+    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
+    char number[16];
+    LPCSTR select[] = { "select", number };
+
+    gc->ps.number = 0;
+    unit->s.player = 0;
+    snprintf(number, sizeof(number), "%u", unit->s.number);
+    currentplayer = &gc->ps;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "call EnableUserUI(false)\n"
+        "endfunction"));
+    T_ASSERT(gc->no_ui);
+
+    globals.ClientCommand(&g_edicts[0], 2, select);
+    T_ASSERT(unit->selected & (1u << gc->ps.number));
+    currentplayer = NULL;
+}
+
+TEST(wc3_api, enable_user_ui_does_not_block_target_commands) {
     LPGAMECLIENT gc = &game.clients[0];
     LPCSTR point[] = { "point", "10", "20" };
 
@@ -503,7 +524,7 @@ TEST(wc3_api, enable_user_ui_is_local_and_blocks_gameplay_ui_commands) {
         "endfunction"));
     T_ASSERT(gc->no_ui);
     globals.ClientCommand(&g_edicts[0], 3, point);
-    T_EQ(ui_point_calls, 0);
+    T_EQ(ui_point_calls, 1);
 
     currentplayer = &gc->ps;
     T_ASSERT(run_test_jass(
@@ -512,7 +533,7 @@ TEST(wc3_api, enable_user_ui_is_local_and_blocks_gameplay_ui_commands) {
         "endfunction"));
     T_ASSERT(!gc->no_ui);
     globals.ClientCommand(&g_edicts[0], 3, point);
-    T_EQ(ui_point_calls, 1);
+    T_EQ(ui_point_calls, 2);
     gc->menu.on_location_selected = NULL;
     currentplayer = NULL;
 }
