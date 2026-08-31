@@ -393,27 +393,38 @@ DWORD CachePlayerHeroData(LPJASS j) {
     return 0;
 }
 DWORD SetFogStateRect(LPJASS j) {
-    //HANDLE forWhichPlayer = jass_checkhandle(j, 1, "player");
-    //HANDLE whichState = jass_checkhandle(j, 2, "fogstate");
-    //HANDLE where = jass_checkhandle(j, 3, "rect");
-    //BOOL useSharedVision = jass_checkboolean(j, 4);
+    LPPLAYER forWhichPlayer = jass_checkhandle(j, 1, "player");
+    DWORD *whichState = jass_checkhandle(j, 2, "fogstate");
+    LPCBOX2 where = jass_checkhandle(j, 3, "rect");
+    BOOL useSharedVision = jass_checkboolean(j, 4);
+    if (forWhichPlayer && whichState && where) {
+        FOGWRITE fog = { PLAYER_NUM(forWhichPlayer), *whichState, useSharedVision };
+        G_FowSetStateRect(&fog, where);
+    }
     return 0;
 }
 DWORD SetFogStateRadius(LPJASS j) {
-    //HANDLE forWhichPlayer = jass_checkhandle(j, 1, "player");
-    //HANDLE whichState = jass_checkhandle(j, 2, "fogstate");
-    //FLOAT centerx = jass_checknumber(j, 3);
-    //FLOAT centerY = jass_checknumber(j, 4);
-    //FLOAT radius = jass_checknumber(j, 5);
-    //BOOL useSharedVision = jass_checkboolean(j, 6);
+    LPPLAYER forWhichPlayer = jass_checkhandle(j, 1, "player");
+    DWORD *whichState = jass_checkhandle(j, 2, "fogstate");
+    VECTOR2 center = { jass_checknumber(j, 3), jass_checknumber(j, 4) };
+    FLOAT radius = jass_checknumber(j, 5);
+    BOOL useSharedVision = jass_checkboolean(j, 6);
+    if (forWhichPlayer && whichState) {
+        FOGWRITE fog = { PLAYER_NUM(forWhichPlayer), *whichState, useSharedVision };
+        G_FowSetStateRadius(&fog, &center, radius);
+    }
     return 0;
 }
 DWORD SetFogStateRadiusLoc(LPJASS j) {
-    //HANDLE forWhichPlayer = jass_checkhandle(j, 1, "player");
-    //HANDLE whichState = jass_checkhandle(j, 2, "fogstate");
-    //HANDLE center = jass_checkhandle(j, 3, "location");
-    //FLOAT radius = jass_checknumber(j, 4);
-    //BOOL useSharedVision = jass_checkboolean(j, 5);
+    LPPLAYER forWhichPlayer = jass_checkhandle(j, 1, "player");
+    DWORD *whichState = jass_checkhandle(j, 2, "fogstate");
+    LPCVECTOR2 center = jass_checkhandle(j, 3, "location");
+    FLOAT radius = jass_checknumber(j, 4);
+    BOOL useSharedVision = jass_checkboolean(j, 5);
+    if (forWhichPlayer && whichState && center) {
+        FOGWRITE fog = { PLAYER_NUM(forWhichPlayer), *whichState, useSharedVision };
+        G_FowSetStateRadius(&fog, center, radius);
+    }
     return 0;
 }
 DWORD FogMaskEnable(LPJASS j) {
