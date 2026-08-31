@@ -299,6 +299,7 @@ void harvestgold_walk(LPEDICT ent) {
 
 void harvestgold_minegold(LPEDICT ent) {
     LPEDICT mine = ent ? ent->goalentity : NULL;
+    LPEDICT dropoff;
     DWORD capacity;
 
     if (!ent || !S_GoldMineCanHarvest(mine)) {
@@ -307,6 +308,18 @@ void harvestgold_minegold(LPEDICT ent) {
     }
     if (S_GoldMineWorkerIsInside(ent))
         return;
+
+    /* Retail honors the clicked mine first even when the worker is already
+     * carrying gold.  Once the worker reaches the mine interaction boundary,
+     * do not mine another load: return the existing gold to the nearest valid
+     * drop-off, then resume this clicked mine after the deposit completes. */
+    if (ent->harvested_gold > 0) {
+        dropoff = S_FindNearestResourceDropoff(ent, RETURN_RESOURCE_GOLD);
+        if (!dropoff || !harvest_gold_return_to(ent, dropoff)) {
+            ent->stand(ent);
+        }
+        return;
+    }
 
     capacity = S_GoldMineCapacity(mine);
     if (capacity == 0) {
@@ -386,6 +399,17 @@ void harvest_gold_start(LPEDICT self, LPEDICT target) {
     self->secondarygoal = target;
     G_PublishMessage(self, GAME_MSG_HARVEST_MOVE_GOLD, target);
     harvestgold_walk(self);
+}
+
+BOOL harvest_gold_order(LPEDICT self, LPEDICT target) {
+    if (!self || !target || !S_GoldMineCanHarvest(target))
+        return false;
+
+    /* Keep the clicked mine as the immediate goal regardless of carried
+     * resources.  Gold already in hand is handled only after the worker
+     * reaches this mine, matching retail's visible order transition. */
+    harvest_gold_start(self, target);
+    return true;
 }
 
 ability_t a_goldmine = {0};

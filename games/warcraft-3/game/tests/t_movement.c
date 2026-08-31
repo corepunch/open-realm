@@ -535,19 +535,131 @@ TEST(wc3_movement, lumber_chop_replaces_gold_carry_state) {
     T_ASSERT(worker->s.renderfx & RF_HAS_LUMBER);
 }
 
-/* A worker carrying gold must not discard it when Smart-clicking a tree. */
-TEST(wc3_movement, lumber_smart_click_preserves_gold_carry) {
+/* Smart-clicking a tree after an interrupted partial lumber trip resumes the
+ * same trip and preserves the amount already gathered. */
+TEST(wc3_movement, lumber_smart_click_resumes_partial_trip) {
     LPEDICT worker = make_moving_unit(0.0f, 0.0f);
     LPEDICT tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
 
     worker->UnitAbilities = &harvest_abilities;
+    worker->attack1.damagePoint = 0.01f;
+    worker->harvested_lumber = 3;
+    worker->s.renderfx |= RF_HAS_LUMBER;
+    HARVEST_RANGE = 64.0f;
+    HARVEST_TREE_DAMAGE = 1.0f;
+    HARVEST_LUMBER_CAPACITY = 10.0f;
+
+    T_ASSERT(unit_issuetargetorder(worker, "smart", tree));
+    T_EQ(worker->harvested_lumber, 3);
+    worker->currentmove->think(worker);
+    worker->wait = 0.01f;
+    worker->currentmove->think(worker);
+
+    T_EQ(worker->harvested_lumber, 4);
+    T_ASSERT(worker->s.renderfx & RF_HAS_LUMBER);
+}
+
+/* Switching from lumber to gold keeps the lumber carry while travelling and
+ * mining.  The first actual gold pickup replaces it atomically. */
+TEST(wc3_movement, lumber_smart_click_gold_mine_switches_on_gold_pickup) {
+    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
+    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 0.0f, 0.0f);
+    slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
+
+    worker->UnitAbilities = &harvest_abilities;
+    worker->harvested_lumber = 5;
+    worker->s.renderfx |= RF_HAS_LUMBER;
+    setup_test_goldmine(mine, &test_goldmine_cap1, 100);
+    HARVEST_GOLD_CAPACITY = 10.0f;
+
+    T_ASSERT(unit_issuetargetorder(worker, "smart", mine));
+    T_EQ(worker->harvested_lumber, 5);
+    T_EQ(worker->harvested_gold, 0);
+    T_ASSERT(worker->s.renderfx & RF_HAS_LUMBER);
+    T_ASSERT(!(worker->s.renderfx & RF_HAS_GOLD));
+
+    harvestgold_minegold(worker);
+    harvestgold_walkback(worker);
+
+    T_EQ(worker->harvested_lumber, 0);
+    T_EQ(worker->harvested_gold, 10);
+    T_ASSERT(!(worker->s.renderfx & RF_HAS_LUMBER));
+    T_ASSERT(worker->s.renderfx & RF_HAS_GOLD);
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
+/* Switching from gold to lumber similarly keeps the gold while approaching
+ * the tree.  Only a successful chop replaces the carried gold with lumber. */
+TEST(wc3_movement, gold_smart_click_tree_switches_on_successful_chop) {
+    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
+    LPEDICT tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
+
+    worker->UnitAbilities = &harvest_abilities;
+    worker->attack1.damagePoint = 0.01f;
     worker->harvested_gold = 7;
     worker->s.renderfx |= RF_HAS_GOLD;
+    HARVEST_RANGE = 64.0f;
+    HARVEST_TREE_DAMAGE = 1.0f;
+    HARVEST_LUMBER_CAPACITY = 10.0f;
 
-    T_ASSERT(!unit_issuetargetorder(worker, "smart", tree));
+    T_ASSERT(unit_issuetargetorder(worker, "smart", tree));
     T_EQ(worker->harvested_gold, 7);
     T_ASSERT(worker->s.renderfx & RF_HAS_GOLD);
-    T_NULL(worker->goalentity);
+    worker->currentmove->think(worker);
+    T_EQ(worker->harvested_gold, 7);
+    worker->wait = 0.01f;
+    worker->currentmove->think(worker);
+
+    T_EQ(worker->harvested_gold, 0);
+    T_EQ(worker->harvested_lumber, 1);
+    T_ASSERT(!(worker->s.renderfx & RF_HAS_GOLD));
+    T_ASSERT(worker->s.renderfx & RF_HAS_LUMBER);
+}
+
+/* A worker already carrying gold honors the clicked mine first.  Reaching the
+ * mine redirects the existing load to the nearest gold drop-off without
+ * entering/mining, then deposit resumes the originally clicked mine. */
+TEST(wc3_movement, gold_smart_click_gold_mine_visits_mine_then_returns_and_resumes) {
+    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
+    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 0.0f, 0.0f);
+    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 0.0f, 0.0f);
+    slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
+    DWORD const old_gold = game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD];
+
+    worker->UnitAbilities = &harvest_abilities;
+    worker->harvested_gold = 7;
+    worker->s.renderfx |= RF_HAS_GOLD;
+    hall->s.player = worker->s.player;
+    make_live_dropoff(hall, &return_gold_lumber_abilities);
+    setup_test_goldmine(mine, &test_goldmine_cap1, 100);
+
+    T_ASSERT(unit_issuetargetorder(worker, "smart", mine));
+    T_ASSERT(worker->goalentity == mine);
+    T_ASSERT(worker->secondarygoal == mine);
+    T_EQ(worker->harvested_gold, 7);
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD], old_gold);
+
+    /* Reaching the clicked mine redirects the existing load without entering
+     * the mine or collecting any additional gold. */
+    worker->currentmove->think(worker);
+    T_ASSERT(worker->goalentity == hall);
+    T_ASSERT(worker->secondarygoal == mine);
+    T_EQ(worker->harvested_gold, 7);
+    T_EQ(mine->peonsinside, 0);
+    T_ASSERT(!S_GoldMineWorkerIsInside(worker));
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD], old_gold);
+
+    /* The return completes immediately in this fixture because the hall is at
+     * the worker position, then the original clicked mine becomes the goal. */
+    worker->currentmove->think(worker);
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD], old_gold + 7);
+    T_EQ(worker->harvested_gold, 0);
+    T_ASSERT(worker->goalentity == mine);
+    T_ASSERT(worker->secondarygoal == mine);
+    T_STREQ(worker->currentmove->animation, "walk");
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
 }
 
 /* Right-click is also the cancel gesture for an active targeted command.

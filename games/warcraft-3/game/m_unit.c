@@ -147,20 +147,17 @@ BOOL unit_issuetargetorder(LPEDICT self, LPCSTR order, LPEDICT target) {
             return G_OrderPickupItem(self, target);
         }
         if (G_ActorHasSkill(self, "Ahar")) {
+            if (S_GoldMineIsMine(target)) {
+                return harvest_gold_order(self, target);
+            }
+            if (target->targtype == TARG_TREE) {
+                harvest_start(self, target);
+                return true;
+            }
             if (self->harvested_lumber > 0 && harvest_lumber_return_to(self, target))
                 return true;
             if (self->harvested_gold > 0 && harvest_gold_return_to(self, target))
                 return true;
-            if (S_GoldMineIsMine(target)) {
-                harvest_gold_start(self, target);
-                return true;
-            }
-            if (target->targtype == TARG_TREE) {
-                if (self->harvested_lumber > 0 || self->harvested_gold > 0)
-                    return false;
-                harvest_start(self, target);
-                return true;
-            }
         }
         /* Neutral crates are not enemy units, but they are valid normal-attack
          * targets.  Trees keep the harvest behavior above for workers. */
