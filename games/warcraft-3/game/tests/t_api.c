@@ -905,6 +905,23 @@ TEST(wc3_api, group_add_is_set_semantics) {
     T_EQ(group.num_units, 1);
 }
 
+TEST(wc3_api, destroy_group_clears_members) {
+    reset_entities();
+    currentplayer = &game.clients[0].ps;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "local group g = CreateGroup()\n"
+        "local unit u = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "call GroupAddUnit(g, u)\n"
+        "call DestroyGroup(g)\n"
+        "if FirstOfGroup(g) != null then\n"
+        "call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_GOLD, 1)\n"
+        "endif\n"
+        "endfunction"));
+    T_EQ(game.clients[0].ps.stats[1], 0);
+    currentplayer = NULL;
+}
+
 TEST(wc3_api, group_is_unit_in_group_true) {
     reset_entities();
     LPEDICT a = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);

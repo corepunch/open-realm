@@ -12,6 +12,11 @@ DWORD CreateGroup(LPJASS j) {
     (void)group;
     return 1;
 }
+DWORD DestroyGroup(LPJASS j) {
+    ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
+    if (whichGroup) whichGroup->num_units = 0;
+    return 0;
+}
 DWORD GroupAddUnit(LPJASS j) {
     ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
     LPEDICT whichUnit = jass_checkhandle(j, 2, "unit");

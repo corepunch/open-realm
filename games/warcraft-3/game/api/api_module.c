@@ -176,6 +176,7 @@ JASSMODULE jass_funcs[] = {
     { "ResumeTimer", ResumeTimer },
     { "GetExpiredTimer", GetExpiredTimer },
     { "CreateGroup", CreateGroup },
+    { "DestroyGroup", DestroyGroup },
     { "GroupAddUnit", GroupAddUnit },
     { "GroupRemoveUnit", GroupRemoveUnit },
     { "GroupClear", GroupClear },
