@@ -2,7 +2,7 @@
 #define api_ai_h
 
 /* common.ai counts queued and constructing units toward desired totals; Done excludes both incomplete states. */
-static LONG AIUnitCount(LPPLAYER player, DWORD unitid, BOOL done) {
+static LONG BotUnitCount(LPPLAYER player, DWORD unitid, BOOL done) {
     LONG count = 0;
     if (!player || !unitid) return 0;
     FILTER_EDICTS(ent, ent->inuse && (ent->svflags & SVF_MONSTER) && ent->class_id == unitid &&
@@ -18,16 +18,16 @@ DWORD GetAiPlayer(LPJASS j) {
 }
 
 DWORD GetUnitCount(LPJASS j) {
-    return jass_pushinteger(j, AIUnitCount(jass_getcontext(j)->playerState, jass_checkinteger(j, 1), false));
+    return jass_pushinteger(j, BotUnitCount(jass_getcontext(j)->playerState, jass_checkinteger(j, 1), false));
 }
 
 DWORD GetPlayerUnitTypeCount(LPJASS j) {
     LPPLAYER player = jass_checkhandle(j, 1, "player");
-    return jass_pushinteger(j, AIUnitCount(player, jass_checkinteger(j, 2), false));
+    return jass_pushinteger(j, BotUnitCount(player, jass_checkinteger(j, 2), false));
 }
 
 DWORD GetUnitCountDone(LPJASS j) {
-    return jass_pushinteger(j, AIUnitCount(jass_getcontext(j)->playerState, jass_checkinteger(j, 1), true));
+    return jass_pushinteger(j, BotUnitCount(jass_getcontext(j)->playerState, jass_checkinteger(j, 1), true));
 }
 
 DWORD GetUnitGoldCost(LPJASS j) {
@@ -45,7 +45,44 @@ DWORD GetUpgradeLevel(LPJASS j) {
 
 DWORD UnitAlive(LPJASS j) {
     LPEDICT unit = jass_checkhandle(j, 1, "unit");
-    return jass_pushboolean(j, G_AIUnitAlive(unit));
+    return jass_pushboolean(j, G_BotUnitAlive(unit));
+}
+
+static bot_t *BotState(LPJASS j) {
+    LPPLAYER player = jass_getcontext(j)->playerState;
+    return player ? level.bots + PLAYER_NUM(player) : NULL;
+}
+
+static DWORD BotSetFlag(LPJASS j, botFlag_t flag) {
+    bot_t *bot = BotState(j);
+    BOOL set = jass_checkboolean(j, 1);
+    if (bot) bot->flags = set ? bot->flags | flag : bot->flags & ~flag;
+    return 0;
+}
+
+DWORD SetCampaignAI(LPJASS j) { bot_t *bot = BotState(j); if (bot) bot->mode = BOT_CAMPAIGN; return 0; }
+DWORD SetMeleeAI(LPJASS j) { bot_t *bot = BotState(j); if (bot) bot->mode = BOT_MELEE; return 0; }
+DWORD SetTargetHeroes(LPJASS j) { return BotSetFlag(j, BOT_TARGET_HEROES); }
+DWORD SetPeonsRepair(LPJASS j) { return BotSetFlag(j, BOT_PEONS_REPAIR); }
+DWORD SetHeroesFlee(LPJASS j) { return BotSetFlag(j, BOT_HEROES_FLEE); }
+DWORD SetWatchMegaTargets(LPJASS j) { return BotSetFlag(j, BOT_WATCH_MEGA); }
+DWORD SetIgnoreInjured(LPJASS j) { return BotSetFlag(j, BOT_IGNORE_INJURED); }
+DWORD SetHeroesTakeItems(LPJASS j) { return BotSetFlag(j, BOT_HEROES_TAKE_ITEM); }
+DWORD SetUnitsFlee(LPJASS j) { return BotSetFlag(j, BOT_UNITS_FLEE); }
+DWORD SetGroupsFlee(LPJASS j) { return BotSetFlag(j, BOT_GROUPS_FLEE); }
+DWORD SetSlowChopping(LPJASS j) { return BotSetFlag(j, BOT_SLOW_CHOPPING); }
+DWORD SetCaptainChanges(LPJASS j) { return BotSetFlag(j, BOT_CAPTAIN_CHANGES); }
+DWORD SetSmartArtillery(LPJASS j) { return BotSetFlag(j, BOT_SMART_ARTILLERY); }
+DWORD GroupTimedLife(LPJASS j) { return BotSetFlag(j, BOT_GROUP_TIMED_LIFE); }
+DWORD SetNewHeroes(LPJASS j) { return BotSetFlag(j, BOT_NEW_HEROES); }
+DWORD SetRandomPaths(LPJASS j) { return BotSetFlag(j, BOT_RANDOM_PATHS); }
+DWORD SetDefendPlayer(LPJASS j) { return BotSetFlag(j, BOT_DEFEND_PLAYER); }
+DWORD SetHeroesBuyItems(LPJASS j) { return BotSetFlag(j, BOT_HEROES_BUY_ITEMS); }
+
+DWORD SetReplacementCount(LPJASS j) {
+    bot_t *bot = BotState(j);
+    if (bot) bot->replacement_count = MAX(0, jass_checkinteger(j, 1));
+    return 0;
 }
 
 DWORD StartThread(LPJASS j) {

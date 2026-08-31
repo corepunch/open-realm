@@ -825,22 +825,43 @@ typedef struct fogmodifier_s {
 typedef FOGMODIFIER const *LPCFOGMODIFIER;
 
 typedef enum {
-    PLAYER_AI_NONE,
-    PLAYER_AI_CAMPAIGN,
-    PLAYER_AI_MELEE,
-} playerAIMode_t;
+    BOT_NONE,
+    BOT_CAMPAIGN,
+    BOT_MELEE,
+} botMode_t;
+
+typedef enum {
+    BOT_TARGET_HEROES    = 1 << 0,
+    BOT_PEONS_REPAIR     = 1 << 1,
+    BOT_HEROES_FLEE      = 1 << 2,
+    BOT_WATCH_MEGA       = 1 << 3,
+    BOT_IGNORE_INJURED   = 1 << 4,
+    BOT_HEROES_TAKE_ITEM = 1 << 5,
+    BOT_UNITS_FLEE       = 1 << 6,
+    BOT_GROUPS_FLEE      = 1 << 7,
+    BOT_SLOW_CHOPPING    = 1 << 8,
+    BOT_CAPTAIN_CHANGES  = 1 << 9,
+    BOT_SMART_ARTILLERY  = 1 << 10,
+    BOT_GROUP_TIMED_LIFE = 1 << 11,
+    BOT_NEW_HEROES       = 1 << 12,
+    BOT_RANDOM_PATHS     = 1 << 13,
+    BOT_DEFEND_PLAYER    = 1 << 14,
+    BOT_HEROES_BUY_ITEMS = 1 << 15,
+} botFlag_t;
 
 typedef struct {
     LPJASS vm;
     LPPLAYER player;
-    playerAIMode_t mode, pending_mode;
+    botMode_t mode, pending_mode;
+    DWORD flags;
+    LONG replacement_count;
     BOOL paused, stop_requested, restart_requested;
     char script[MAX_PATHLEN], pending_script[MAX_PATHLEN];
-} playerAI_t;
+} bot_t;
 
 struct level_locals {
     LPJASS vm;
-    playerAI_t player_ai[MAX_PLAYERS];
+    bot_t bots[MAX_PLAYERS];
     LPCMAPINFO mapinfo;
     struct {
         char name[MAX_PATHLEN], description[MAX_TRIGSTR_LENGTH];
@@ -897,14 +918,14 @@ BOOL G_SubscribeMessage(gameMsgFn, void *);
 void G_UnsubscribeMessage(gameMsgFn, void *);
 void G_PublishMessage(LPEDICT, GAMEMSGTYPE, LPEDICT);
 
-// g_player_ai.c
-BOOL G_PlayerAIStart(LPPLAYER, LPCSTR, playerAIMode_t);
-void G_PlayerAIStop(DWORD);
-void G_PlayerAIRequestStop(DWORD);
-void G_PlayerAIShutdown(void);
-void G_PlayerAIPause(DWORD, BOOL);
-void G_PlayerAIRunFrame(void);
-BOOL G_AIUnitAlive(LPEDICT);
+// g_bot.c
+BOOL G_BotStart(LPPLAYER, LPCSTR, botMode_t);
+void G_BotStop(DWORD);
+void G_BotRequestStop(DWORD);
+void G_BotShutdown(void);
+void G_BotPause(DWORD, BOOL);
+void G_BotRunFrame(void);
+BOOL G_BotUnitAlive(LPEDICT);
 
 // g_fow.c
 void G_FowInit(void);

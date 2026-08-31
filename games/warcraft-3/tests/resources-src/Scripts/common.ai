@@ -7,6 +7,25 @@ native GetUnitGoldCost takes integer unitid returns integer
 native GetUnitWoodCost takes integer unitid returns integer
 native GetUpgradeLevel takes integer id returns integer
 native UnitAlive takes unit id returns boolean
+native SetCampaignAI takes nothing returns nothing
+native SetMeleeAI takes nothing returns nothing
+native SetTargetHeroes takes boolean state returns nothing
+native SetPeonsRepair takes boolean state returns nothing
+native SetHeroesFlee takes boolean state returns nothing
+native SetWatchMegaTargets takes boolean state returns nothing
+native SetIgnoreInjured takes boolean state returns nothing
+native SetHeroesTakeItems takes boolean state returns nothing
+native SetUnitsFlee takes boolean state returns nothing
+native SetGroupsFlee takes boolean state returns nothing
+native SetSlowChopping takes boolean state returns nothing
+native SetCaptainChanges takes boolean state returns nothing
+native SetSmartArtillery takes boolean state returns nothing
+native SetReplacementCount takes integer qty returns nothing
+native GroupTimedLife takes boolean allow returns nothing
+native SetNewHeroes takes boolean state returns nothing
+native SetRandomPaths takes boolean state returns nothing
+native SetDefendPlayer takes boolean state returns nothing
+native SetHeroesBuyItems takes boolean state returns nothing
 native StartThread takes code func returns nothing
 native Sleep takes real seconds returns nothing
 native MissingAIAction takes nothing returns nothing
