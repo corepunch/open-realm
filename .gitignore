@@ -12,5 +12,7 @@ StormLib-master/
 _codeql_detected_source_root
 War3.mpq
 .mcp.json
+.claude/
+.vscode/
 screenshots/
 site/
