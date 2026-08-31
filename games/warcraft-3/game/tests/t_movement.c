@@ -363,6 +363,44 @@ TEST(wc3_movement, lumber_nonlethal_chop_keeps_tree_standing) {
     T_FEQ(tree->health.value, 1.0f, 0.01f);
 }
 
+/* A resumable route miss has not chosen a heading yet.  Harvest used to call
+ * unit_moveindirection anyway, which committed a step along the worker's stale
+ * facing while flow_generation=0/direct=false.  Hold the order and position
+ * until CM_ProcessPathJobs completes the requested field. */
+TEST(wc3_movement, lumber_pending_flow_does_not_move_on_stale_heading) {
+    enum { CELLS = 64 };
+    BYTE pathmap[CELLS * CELLS] = {0};
+    LPEDICT worker = make_moving_unit(-320.0f, 0.0f);
+    LPEDICT tree = make_harvest_tree(320.0f, 0.0f, 500.0f);
+    VECTOR2 const origin = worker->s.origin2;
+
+    worker->collision = 16.0f;
+    worker->unitinfo.MoveSpeed = 190.0f;
+    worker->s.angle = 1.5707963f; /* stale north-facing movement is legal */
+    tree->collision = 0.0f;
+
+    /* A full-height wall blocks the direct approach so the first Harvest tick
+     * must request a resumable collision-sized field.  Do not process the job:
+     * this test covers the pending state itself, not route completion. */
+    for (int y = 0; y < CELLS; y++)
+        pathmap[32 + y * CELLS] = 0x02;
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(BOX2,
+        .min = {-1024.0f, -1024.0f},
+        .max = { 1024.0f,  1024.0f}));
+
+    HARVEST_RANGE = 64.0f;
+    HARVEST_SEARCH_RANGE = 1000.0f;
+    harvest_start(worker, tree);
+    worker->currentmove->think(worker);
+
+    T_EQ(worker->movement.flow_generation, 0);
+    T_ASSERT(!worker->movement.flow_direct);
+    T_FEQ(worker->s.origin2.x, origin.x, 0.01f);
+    T_FEQ(worker->s.origin2.y, origin.y, 0.01f);
+    T_ASSERT(worker->goalentity == tree);
+}
+
 /* Retail WC3 does not leave a worker orbiting an unreachable tree buried in a
  * forest.  The clicked tree remains authoritative while a route exists; once
  * the collision-sized flow field reaches its closest legal approach point and
@@ -1053,6 +1091,56 @@ TEST(wc3_movement, lumber_return_deposits_at_next_step_contact) {
 /* Returning lumber to a building with authored blocking pathing uses the same
  * generic point-route contract as mine entry.  Routing may approach the blocked
  * center, but the resource behavior owns the contact+step completion boundary. */
+/* Lumber return uses the authored no-walk footprint as the physical deposit
+ * boundary, matching gold return.  A drop-off can have a scalar collision
+ * circle smaller than its pathing texture; in that case the worker must not
+ * wait for or route toward the blocked model centre after it has already
+ * reached the building footprint. */
+TEST(wc3_movement, lumber_return_deposits_at_dropoff_footprint_corner) {
+    enum { CELLS = 64 };
+    BYTE pathmap[CELLS * CELLS] = {0};
+    LPEDICT worker = make_moving_unit(170.0f, 170.0f);
+    LPEDICT tree = make_harvest_tree(-400.0f, 0.0f, 100.0f);
+    LPEDICT mill = alloc_test_unit(MAKEFOURCC('h','l','u','m'), 320.0f, 320.0f);
+    pathTex_t *mill_pathtex = movement_make_goldmine_pathtex();
+    DWORD const old_lumber = game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER];
+
+    worker->collision = 16.0f;
+    worker->unitinfo.MoveSpeed = 190.0f;
+    mill->collision = 64.0f; /* deliberately smaller than authored footprint */
+    mill->s.model = 1;
+    mill->s.player = worker->s.player;
+    mill->pathtex = mill_pathtex;
+    make_live_dropoff(mill, &return_lumber_abilities);
+    gi.LinkEntity(worker);
+    gi.LinkEntity(tree);
+    gi.LinkEntity(mill);
+
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(BOX2,
+        .min = {-1024.0f, -1024.0f},
+        .max = { 1024.0f,  1024.0f}));
+
+    worker->harvested_lumber = 10;
+    worker->s.renderfx |= RF_HAS_LUMBER;
+    worker->secondarygoal = tree;
+    harvest_walkback(worker);
+
+    T_ASSERT(worker->goalentity == mill);
+    T_ASSERT(M_DistanceToGoal(worker) >
+             worker->collision + mill->collision + unit_movedistance(worker));
+    T_ASSERT(CM_DistanceToPathingFootprint(mill, &worker->s.origin2) <=
+             worker->collision + unit_movedistance(worker));
+
+    worker->currentmove->think(worker);
+
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER], old_lumber + 10);
+    T_EQ(worker->harvested_lumber, 0);
+    T_ASSERT(!(worker->s.renderfx & RF_HAS_LUMBER));
+    T_ASSERT(worker->goalentity == tree);
+    gi.MemFree(mill_pathtex);
+}
+
 TEST(wc3_movement, lumber_return_reaches_blocked_townhall_footprint) {
     enum { CELLS = 64 };
     BYTE pathmap[CELLS * CELLS] = {0};

@@ -130,11 +130,18 @@ the entry threshold, and entered as the capacity-1 slot became free. ROC logged 
 local archive sets, not universal ROC/TFT constants. Do not use one archive mode's radius to diagnose the other without logging it.
 
 An August 31 Human02 trace with all three starting Peasants ordered together exposed a separate regression after generic
-flow fields became resumable.  While the shared mine field was still pending, all three reported `flow=0 direct=0`, yet
-`ai_walkmine` still called `unit_moveindirection`; their default east-facing heading therefore moved them away from the mine until
-the field completed.  Gold return had the same stale-facing window on a drop-off cache miss.  Gold approach and return now hold
-position whenever both `flow_generation == 0` and `flow_direct == false`, preserving the order until the resumable route supplies a
-heading.  The same trace verified that lumber-to-gold switching itself is correct: workers retained carried lumber through mine
+flow fields became resumable. While the shared mine field was still pending, all three reported `flow=0 direct=0`, yet movement
+still committed a step using the previous facing. A later lumber trace reproduced the same state on newly clicked trees: several
+workers changed position for multiple ticks while their collision-sized field was still generation 0, then corrected as soon as
+the field became ready. The fix is shared in `unit_moveindirection`: `flow_generation == 0 && !flow_direct` means no heading has
+been resolved and the unit holds position without losing its order. Gold's narrower guards remain valid but are no longer the only
+protection against stale-heading movement.
+
+Lumber return is also footprint-aware, matching gold return. A Lumber Mill or Town Hall may have authored no-walk pathing that
+extends beyond its scalar collision circle; carried lumber deposits when the worker's radius plus one simulation step reaches that
+authored footprint (with collision contact as the fallback). When a collision-safe direct point exists inside the drop-off contact
+boundary, lumber return steers to that point immediately instead of requesting a whole-map field toward the blocked building
+centre. The same trace verified that lumber-to-gold switching itself is correct: workers retained carried lumber through mine
 approach/entry and replaced it only when gold was actually collected.
 
 Use the [cinematic skip workflow](cinematics.md#common-issues), with `+set r_vsync 1 +com_frame_limit 2400` to leave time for

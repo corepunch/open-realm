@@ -28,7 +28,9 @@ Game routing no longer uses the old lifetime quota of two synchronous whole-map 
 +set wc3_path_work_budget 4096
 ```
 
-The value is clamped to 256-65536. This keeps the expensive SPFA relaxation work bounded without permanently denying later destinations. Only one miss is built at a time; requests for other destinations naturally retry after the active job completes. Static-pathing invalidation cancels the in-progress job along with cached generations.
+The value is clamped to 256-65536. This keeps the expensive SPFA relaxation work bounded without permanently denying later destinations. Only one miss is built at a time; requests for other destinations naturally retry after the active job completes. Static-pathing invalidation cancels the in-progress job along with cached generations. A cache miss can therefore produce a short, intentional start pause when a real detour is required. Raising `wc3_path_work_budget` (for example to 8192) reduces that latency at the cost of more routing work per simulation frame; the default remains 4096 for handheld safety.
+
+While a resumable request is pending, `unit_changeangle*()` leaves both `movement.flow_generation == 0` and `movement.flow_direct == false`. `unit_moveindirection()` treats that pair as "no heading resolved this tick" and does not commit a step. This shared guard is important: a caller must never turn a pending route into movement along the unit's stale facing.
 
 `CM_BuildHeatmapForRadius()` remains the synchronous API for tests/tools that explicitly require a completed field. Production movement goes through `M_RefreshHeatmap()` -> `CM_RequestHeatmapForRadius()`.
 
