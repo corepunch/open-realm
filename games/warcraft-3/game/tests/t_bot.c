@@ -350,6 +350,26 @@ TEST(wc3_bot, captain_in_combat_selects_roster_and_clears_stale_targets) {
     T_ASSERT(!G_BotCaptainInCombat(&game.clients[2].ps, true)); T_NULL(attack->combatentity);
 }
 
+TEST(wc3_bot, add_defenders_fills_idempotently_from_completed_owned_units) {
+    bot_t *bot = level.bots + 2;
+    DWORD type = MAKEFOURCC('h','f','o','o');
+    LPEDICT first = alloc_test_unit(type, 0, 0), second = alloc_test_unit(type, 32, 0);
+    LPEDICT training = alloc_test_unit(type, 64, 0), other = alloc_test_unit(type, 96, 0);
+    first->s.player = second->s.player = training->s.player = 2; other->s.player = 1;
+    first->health.value = second->health.value = training->health.value = other->health.value = 100;
+    training->training = true;
+
+    T_ASSERT(G_BotAddDefenders(&game.clients[2].ps, 2, type));
+    T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_DEFENSE].units), 2);
+    T_EQ(bot->captains[BOT_CAPTAIN_DEFENSE].units[0], first);
+    T_EQ(bot->captains[BOT_CAPTAIN_DEFENSE].units[1], second);
+    T_ASSERT(G_BotAddDefenders(&game.clients[2].ps, 2, type));
+    T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_DEFENSE].units), 2);
+    T_ASSERT(!G_BotAddDefenders(&game.clients[2].ps, 3, type));
+    T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_DEFENSE].units), 2);
+    T_ASSERT(G_BotAddDefenders(&game.clients[2].ps, 0, type));
+}
+
 TEST(wc3_bot, command_stack_is_player_owned_and_consumed_by_ai_natives) {
     T_ASSERT(G_BotStart(&game.clients[2].ps, "test_bot_commands.ai", BOT_CAMPAIGN));
     T_ASSERT(run_test_jass("function main takes nothing returns nothing\n"

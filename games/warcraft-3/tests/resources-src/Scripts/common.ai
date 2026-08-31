@@ -33,6 +33,7 @@ native HarvestWood takes integer town, integer peons returns nothing
 native CreateCaptains takes nothing returns nothing
 native IgnoredUnits takes integer unitid returns integer
 native CaptainInCombat takes boolean attack_captain returns boolean
+native AddDefenders takes integer qty, integer unitid returns boolean
 native CommandsWaiting takes nothing returns integer
 native GetLastCommand takes nothing returns integer
 native GetLastData takes nothing returns integer

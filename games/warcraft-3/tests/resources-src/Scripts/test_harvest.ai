@@ -3,5 +3,6 @@ function main takes nothing returns nothing
     call HarvestGold(0, 1)
     call HarvestWood(0, 1)
     call CaptainInCombat(true)
+    call AddDefenders(0, 'hfoo')
     call Sleep(1000.0)
 endfunction

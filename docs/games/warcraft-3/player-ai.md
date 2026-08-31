@@ -199,6 +199,8 @@ Implemented query subset: `GetUnitCount` and `GetPlayerUnitTypeCount` include li
 
 `CaptainInCombat(attack)` selects the assault or defense roster and returns true when any live member has a valid `combatentity`; stale, removed, or dead targets are cleared through `unit_affectingcombat`. A bounded ROC Human02 run now passes the defense economy check and reports `AddDefenders` as the next unresolved native.
 
+`AddDefenders(qty, id)` idempotently fills the defense captain from live, completed, owned units of the requested type without stealing members already assigned to either captain. `common.ai` separately owns the production request; the boolean result reports whether the requested roster quantity is currently satisfied. A bounded ROC Human02 run now passes defender assignment and reports `FillGuardPosts` as the next unresolved native.
+
 `IgnoredUnits` counts live, matching, bot-owned members across the assault and defense captain rosters. `common.ai` adds this value to desired production because captain members still contribute to `TownCount` after assignment away from town duties. A bounded ROC Human02 run now passes this query and reports `CommandsWaiting` as the next unresolved native.
 
 `CommandAI` appends to a per-player command stack; `CommandsWaiting`, `GetLastCommand`, `GetLastData`, and `PopLastCommand` expose Blizzard's newest-command consumer contract to the bound bot VM. Empty reads return zero, commands remain isolated by player, and pending storage is released on bot replacement or shutdown.

@@ -113,6 +113,10 @@ DWORD CaptainInCombat(LPJASS j) {
     return jass_pushboolean(j, G_BotCaptainInCombat(jass_getcontext(j)->playerState, jass_checkboolean(j, 1)));
 }
 
+DWORD AddDefenders(LPJASS j) {
+    return jass_pushboolean(j, G_BotAddDefenders(jass_getcontext(j)->playerState, jass_checkinteger(j, 1), jass_checkinteger(j, 2)));
+}
+
 DWORD CommandsWaiting(LPJASS j) {
     return jass_pushinteger(j, G_BotCommandsWaiting(jass_getcontext(j)->playerState));
 }

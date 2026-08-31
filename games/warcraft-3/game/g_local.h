@@ -968,6 +968,7 @@ void G_BotHarvest(LPPLAYER, LONG, LONG, BOOL);
 void G_BotCreateCaptains(LPPLAYER);
 DWORD G_BotIgnoredUnits(LPPLAYER, DWORD);
 BOOL G_BotCaptainInCombat(LPPLAYER, BOOL);
+BOOL G_BotAddDefenders(LPPLAYER, LONG, DWORD);
 BOOL G_BotPushCommand(LPPLAYER, LONG, LONG);
 DWORD G_BotCommandsWaiting(LPPLAYER);
 LONG G_BotLastCommand(LPPLAYER);

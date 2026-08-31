@@ -121,6 +121,36 @@ BOOL G_BotCaptainInCombat(LPPLAYER player, BOOL attack) {
     return false;
 }
 
+static BOOL G_BotCaptainHasUnit(bot_t *bot, LPEDICT unit) {
+    FOR_LOOP(i, BOT_CAPTAIN_COUNT) FOR_EACH_ARRAY(LPEDICT, member, bot->captains[i].units)
+        if (*member == unit) return true;
+    return false;
+}
+
+static void G_BotCaptainAdd(botCaptain_t *captain, LPEDICT unit) {
+    DWORD count = ARRAY_COUNT(captain->units);
+    LPEDICT *units = gi.MemAlloc((count + 1) * sizeof(*units));
+    if (count) memcpy(units, captain->units, count * sizeof(*units));
+    if (captain->units) gi.MemFree(captain->units);
+    captain->units = units; ARRAY_COUNT(captain->units) = count + 1; captain->units[count] = unit;
+}
+
+/* Production is requested by common.ai; this assigns completed units without stealing either captain's members. */
+BOOL G_BotAddDefenders(LPPLAYER player, LONG qty, DWORD class_id) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    botCaptain_t *captain;
+    LONG have = 0;
+    if (!bot || qty <= 0 || !class_id) return qty <= 0;
+    captain = bot->captains + BOT_CAPTAIN_DEFENSE;
+    FOR_EACH_ARRAY(LPEDICT, unit, captain->units)
+        if (G_BotUnitAlive(*unit) && (*unit)->class_id == class_id) have++;
+    FILTER_EDICTS(unit, have < qty && G_BotUnitAlive(unit) && unit->s.player == PLAYER_NUM(player) &&
+        unit->class_id == class_id && !unit->construction.active && !unit->training && !G_BotCaptainHasUnit(bot, unit)) {
+        G_BotCaptainAdd(captain, unit); have++;
+    }
+    return have >= qty;
+}
+
 /* CommandAI is a per-player stack: GetLast* observes the newest command until PopLastCommand removes it. */
 BOOL G_BotPushCommand(LPPLAYER player, LONG command, LONG data) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
