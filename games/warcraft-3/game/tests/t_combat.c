@@ -165,7 +165,7 @@ TEST(wc3_combat, friendly_damage_does_not_trigger_counterattack) {
 }
 
 /* Explicit Attack-button targeting deliberately differs from Smart/right-click:
- * it may force-fire on an owned building, but not on another owned unit. */
+ * it may force-fire on friendly units and buildings. */
 TEST(wc3_combat, attack_button_accepts_owned_building) {
     LPEDICT clent = &g_edicts[0];
     LPEDICT attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
@@ -183,7 +183,7 @@ TEST(wc3_combat, attack_button_accepts_owned_building) {
     T_ASSERT(attacker->goalentity == building);
 }
 
-TEST(wc3_combat, attack_button_rejects_owned_nonbuilding_unit) {
+TEST(wc3_combat, attack_button_accepts_owned_nonbuilding_unit) {
     LPEDICT clent = &g_edicts[0];
     LPEDICT attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
     LPEDICT friendly = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 100.0f, 0.0f);
@@ -196,8 +196,41 @@ TEST(wc3_combat, attack_button_rejects_owned_nonbuilding_unit) {
     friendly->health.value = 100.0f;
     friendly->health.max_value = 100.0f;
 
-    T_ASSERT(!attack_menu_selecttarget(clent, friendly));
-    T_NULL(attacker->goalentity);
+    T_ASSERT(attack_menu_selecttarget(clent, friendly));
+    T_ASSERT(attacker->goalentity == friendly);
+}
+
+TEST(wc3_combat, attack_button_accepts_allied_unit) {
+    LPEDICT clent = &g_edicts[0];
+    LPEDICT attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
+    LPEDICT friendly = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 100.0f, 0.0f);
+
+    clent->s.player = 0;
+    attacker->s.player = 0;
+    friendly->s.player = 1;
+    level.alliances[0][1] = 1;
+    attacker->selected = 1 << clent->client->ps.number;
+    friendly->svflags |= SVF_MONSTER;
+    friendly->health.value = 100.0f;
+    friendly->health.max_value = 100.0f;
+
+    T_ASSERT(attack_menu_selecttarget(clent, friendly));
+    T_ASSERT(attacker->goalentity == friendly);
+}
+
+TEST(wc3_combat, attack_button_does_not_order_unit_to_attack_itself) {
+    LPEDICT clent = &g_edicts[0];
+    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
+
+    clent->s.player = 0;
+    unit->s.player = 0;
+    unit->selected = 1 << clent->client->ps.number;
+    unit->svflags |= SVF_MONSTER;
+    unit->health.value = 100.0f;
+    unit->health.max_value = 100.0f;
+
+    T_ASSERT(!attack_menu_selecttarget(clent, unit));
+    T_NULL(unit->goalentity);
 }
 
 /* ==========================================================================
