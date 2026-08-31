@@ -481,9 +481,6 @@ void Cvar_Init(void) {
     Cvar_GetD("r_norefresh",      "0",                 0,            "skip all screen rendering while client/server processing continues");
     Cvar_GetD("r_entities",       "1",                 0,            "render game entities (units, buildings, etc.)");
     Cvar_GetD("r_fogofwar",       "1",                 0,            "render fog-of-war overlay");
-#ifdef WC3
-    Cvar_GetD("wc3_fow_debug",    "0",                 0,            "WC3 scripted fog diagnostics: 0=off, 1=script/modifiers, 2=server/client fog transport");
-#endif
 #ifdef WOW
     /* Bare Quake-style console assignment only works for cvars registered before command dispatch. */
     Cvar_GetD("r_fog",            "1",                 CVAR_ARCHIVE, "render world distance fog");
