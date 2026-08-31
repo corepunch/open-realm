@@ -312,7 +312,12 @@ void unit_changeangle(LPEDICT self) {
         self->movement.flow_generation = heatmap;
         if (!heatmap)
             return; /* incremental route is still building; keep the order */
-        if (radius > 0.0f && CM_FlowReachedGoal(heatmap, self->s.origin.x, self->s.origin.y)) {
+        if (CM_FlowReachedGoal(heatmap, self->s.origin.x, self->s.origin.y)) {
+            /* Location orders stop at their collision-safe route endpoint in
+             * the owning behavior.  Interaction orders use a point field whose
+             * raw target may be blocked (mine/building/unit centre); once the
+             * adjusted route end is reached they must steer toward the real
+             * target so the behavior's footprint/range check can complete. */
             self->movement.flow_goal_reached = true;
             dir = to_goal;
         } else {

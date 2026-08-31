@@ -36,7 +36,9 @@ While a resumable request is pending, `unit_changeangle*()` leaves both `movemen
 
 `CM_BuildHeatmapForRadius()` and the resumable request path both key cached fields by adjusted target cell and mover collision radius. The flood and flow query use the same radius-expanded static pathability predicate as move-time terrain checks. The zero-radius `CM_BuildHeatmap()` wrapper remains for callers that intentionally route a point.
 
-Flow vectors only descend to a strictly lower heatmap price. The adjusted goal cell therefore has a zero vector instead of pointing back out to a higher-cost neighbour. Cached prices retain `INT_MAX` for cells that the completed field cannot reach. `CM_FlowReachedGoal(generation, x, y)` identifies the adjusted goal cell, while `CM_FlowCanReach(generation, x, y)` distinguishes a disconnected cell from a zero produced by interpolation near the goal.
+Flow vectors only descend to a strictly lower heatmap price for both collision-sized and radius-zero point fields. The adjusted goal cell therefore has a zero vector instead of pointing back out to a higher-cost neighbour. This matters for shared interaction routes such as Gold Mines and resource drop-offs: an outward point-flow at the adjusted cell makes every worker sharing that field orbit the same wrong location. Cached prices retain `INT_MAX` for cells that the completed field cannot reach. `CM_FlowReachedGoal(generation, x, y)` identifies the adjusted goal cell, while `CM_FlowCanReach(generation, x, y)` distinguishes a disconnected cell from a zero produced by interpolation near the goal.
+
+Generic interactions still own their final range/contact semantics. When a radius-zero field reaches its adjusted legal cell beside a blocked entity target, `unit_changeangle()` records `flow_goal_reached` and resumes steering toward the real entity centre; the owning behavior then completes at its footprint/range boundary. Location orders may instead stop at their collision-safe route endpoint.
 
 ## Retail Move Destination Behavior
 
@@ -86,7 +88,7 @@ Two routing defects originally combined to prevent Harvest from ever receiving a
 1. The lumber direct-line gate used `CM_LineIsWalkable()` as a zero-radius point test while the actual movement step used `CM_PointIsPathableForRadius(..., self->collision)`. A line could therefore be declared clear even when the Peasant could not physically fit along it. The fix remains scoped to behavior contracts that can safely use a collision-sized route; gold-mine/building interactions complete at their own contact/range boundary rather than at a flow field's adjusted goal.
 2. The legacy generic heatmap build cap could permanently deny later route fields. The current implementation removes that lifetime quota entirely and uses resumable game routing instead, so lumber and ordinary movement do not depend on which route misses happened earlier in the match.
 
-A third defect made a reached flow goal unstable: `compute_flow_at()` blended all reachable neighbours, including higher-cost cells, so a zero-cost goal cell could point outward. Collision-sized fields only follow lower prices.
+A third defect made a reached flow goal unstable: `compute_flow_at()` blended reachable neighbours including equal/higher-cost cells, so an adjusted goal beside asymmetric blocked geometry could point outward. All fields now follow only lower prices; radius-zero interaction routing then hands the final approach back to the behavior at the adjusted route end.
 
 Do not reintroduce a distance-only timeout around Harvest to hide these routing failures. Fix and expose the routing state first, then let Harvest decide whether to retarget.
 
@@ -147,4 +149,4 @@ make test-wc3-engine WC3_PATTERN='wc3_movement.lumber_*'
 
 ### Interaction-owned route endpoints
 
-Generic radius-0 point flow fields retain blended steering around blocked goal cells because mine entry, resource return, repair, attack, and other behaviors own their interaction boundary. Strictly descending vectors are used only for collision-sized routes (`radius > 0`) where the lumber behavior needs an explicit route-end signal.
+Generic radius-0 point fields are still used for mine entry, resource return, attack, and other behaviors whose real target centre may be blocked. Their flow vectors nevertheless strictly descend to the adjusted legal route endpoint. Once that endpoint is reached, `unit_changeangle()` steers toward the real entity target and the behavior's own footprint/range test decides completion. This keeps routing monotonic while preserving interaction-owned arrival semantics.

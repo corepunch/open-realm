@@ -922,10 +922,14 @@ static VECTOR2 compute_flow_at(int const *prices_field, DWORD x, DWORD y, int ra
         new_price = prices_field[new_x + new_y * pathmap.width];
         if (new_price == INT_MAX)
             continue;
-        /* Collision-sized routes are used by lumber to detect a genuine route
-         * endpoint, so those vectors must strictly descend toward the goal.
-         * Generic point routes preserve the older blended flow contract. */
-        if (radius_cells > 0 && new_price >= current_price)
+        /* A flow field must always descend toward its integration target.
+         * Allowing a point route to blend equal/higher-cost neighbours makes
+         * an adjusted target beside a blocked interaction object point back
+         * out into the map, which can make every unit sharing that field orbit
+         * the same off-target cell.  Interaction behaviors may continue from
+         * the adjusted route end toward their real target; the field itself
+         * must never direct them away from the route end. */
+        if (new_price >= current_price)
             continue;
         if (dir >= 4 &&
             !(is_pathable_node_original_for_radius_cells((int)x + dx[dir], (int)y, radius_cells) &&
