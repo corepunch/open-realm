@@ -91,14 +91,7 @@ Distinguish the states: `ai_walkmine` keeps the walk animation while outside the
 calls `harvest_gold_start`: smart orders require worker `Ahar` and an `Agld`-derived target; otherwise a non-enemy target becomes a
 plain move to its center, which also stops at collision. For a failing bounded run, `+set wc3_harvest_path_debug 2` logs `WC3_GOLD_PATH` approach/entry/wait events including centre distance,
 worker+mine collision contact, movement step, distance to the mine's authored pathing footprint, occupancy, capacity, resources, and
-flow generation. Resource-switch investigation also emits `WC3_GOLD_SWITCH order`, `mine_arrival`, `collected`, and `return_existing`;
-these preserve the worker's carried gold/lumber amounts, clicked/resume mine, selected drop-off, and transition positions so a
-lumber-to-gold failure can be separated into mine approach, collection, or return routing. Gold return uses the same cvar and emits
-`WC3_GOLD_RETURN start`, periodic `approach`, `deposit_range`, and `deposit` transitions. At level 2 the return `approach` sample is
-recorded after `unit_changeangle` and includes flow generation/direct/reached/unreachable state, current facing, desired heading,
-static origin pathability, and remembered resume mine; this is the bounded trace to use when a worker circles between the mine and
-drop-off. If the worker remains outside entry range, log rejection in `g_ai.c:move_is_valid` separately for static pathmap and
-entity-circle collision. Do not enlarge an interaction radius without this evidence.
+flow generation. Gold return uses the same cvar and emits `WC3_GOLD_RETURN start`, periodic `approach`, `deposit_range`, and `deposit` transitions so a Town Hall return failure can be distinguished from a mine-entry failure. If the worker remains outside entry range, log rejection in `g_ai.c:move_is_valid` separately for static pathmap and entity-circle collision. Do not enlarge an interaction radius without this evidence.
 Movement uses `FRAMETIME` through `unit_movedistance`; low rendering FPS alone does not shrink the per-tick entry allowance.
 
 Build and run the existing gold tests with either local archive set (add `-tft` for TFT):
@@ -135,6 +128,14 @@ three live starting workers; it did not change collision, positions, or mining v
 the entry threshold, and entered as the capacity-1 slot became free. ROC logged mine radius=128, worker=16, step=19
 (entry threshold=163); local TFT mode logged mine radius=50, worker=16, step=19 (threshold=85). These are observations of the
 local archive sets, not universal ROC/TFT constants. Do not use one archive mode's radius to diagnose the other without logging it.
+
+An August 31 Human02 trace with all three starting Peasants ordered together exposed a separate regression after generic
+flow fields became resumable.  While the shared mine field was still pending, all three reported `flow=0 direct=0`, yet
+`ai_walkmine` still called `unit_moveindirection`; their default east-facing heading therefore moved them away from the mine until
+the field completed.  Gold return had the same stale-facing window on a drop-off cache miss.  Gold approach and return now hold
+position whenever both `flow_generation == 0` and `flow_direct == false`, preserving the order until the resumable route supplies a
+heading.  The same trace verified that lumber-to-gold switching itself is correct: workers retained carried lumber through mine
+approach/entry and replaced it only when gold was actually collected.
 
 Use the [cinematic skip workflow](cinematics.md#common-issues), with `+set r_vsync 1 +com_frame_limit 2400` to leave time for
 the post-intro approach. A 900-frame uncapped run ended before the 7000-ms probe here: `com_frame_limit` bounds main-loop
