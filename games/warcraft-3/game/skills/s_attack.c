@@ -344,21 +344,21 @@ void attack_ranged(LPEDICT self) {
 
 BOOL attack_menu_selecttarget(LPEDICT ent, LPEDICT target) {
     BOOL destructable = G_DestructableIsAttackable(target);
-    BOOL own_building = target && ent && target->s.player == ent->s.player &&
-        G_UnitIsBuilding(target->class_id);
+    BOOL issued = false;
 
-    /* Explicit Attack may force-fire on the player's own buildings.  Smart
-     * right-click attack selection remains unchanged, and friendly non-building
-     * units stay invalid for this command. */
+    /* Explicit Attack may force-fire on friendly units and buildings.  Smart
+     * right-click attack selection remains enemy-only. */
     if (!destructable && (!S_SpellIsAliveTarget(target) ||
-        (!S_SpellIsEnemy(ent, target) && !own_building))) {
+        (!S_SpellIsEnemy(ent, target) && !S_SpellIsFriend(ent, target)))) {
         return false;
     }
     FOR_SELECTED_UNITS(ent->client, e) {
+        if (e == target) continue;
         e->movement.attackmove_waypoint = NULL;
         order_attack(e, target);
+        issued = true;
     }
-    return true;
+    return issued;
 }
 
 /* Attack-move: walk toward the goal, but each tick prefer engaging the

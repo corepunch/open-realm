@@ -41,7 +41,7 @@ machines, existing edict fields, and data loaded from SLK/config tables.
 |---|---|---|
 | `CmdStop` | `s_stop.c` | Registered, no `cmd`; order helper exists. |
 | `CmdMove` | `s_move.c` | Implemented ground move command. |
-| `CmdAttack` | `s_attack.c` | Implemented basic melee/ranged attack and projectiles. Explicit Attack may target an owned building; Smart/right-click attack selection remains unchanged. |
+| `CmdAttack` | `s_attack.c` | Implemented basic melee/ranged attack and projectiles. Explicit Attack may target friendly units and buildings; Smart/right-click attack selection remains unchanged. |
 | `CmdBuild` | `s_build.c` | Implemented build menu and placement flow. |
 | `CmdHoldPos` | `s_holdpos.c` | Registered stub. |
 | `CmdPatrol` | `s_patrol.c` | Registered stub. |
