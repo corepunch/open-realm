@@ -91,7 +91,14 @@ Distinguish the states: `ai_walkmine` keeps the walk animation while outside the
 calls `harvest_gold_start`: smart orders require worker `Ahar` and an `Agld`-derived target; otherwise a non-enemy target becomes a
 plain move to its center, which also stops at collision. For a failing bounded run, `+set wc3_harvest_path_debug 2` logs `WC3_GOLD_PATH` approach/entry/wait events including centre distance,
 worker+mine collision contact, movement step, distance to the mine's authored pathing footprint, occupancy, capacity, resources, and
-flow generation. Gold return uses the same cvar and emits `WC3_GOLD_RETURN start`, periodic `approach`, `deposit_range`, and `deposit` transitions so a Town Hall return failure can be distinguished from a mine-entry failure. If the worker remains outside entry range, log rejection in `g_ai.c:move_is_valid` separately for static pathmap and entity-circle collision. Do not enlarge an interaction radius without this evidence.
+flow generation. Resource-switch investigation also emits `WC3_GOLD_SWITCH order`, `mine_arrival`, `collected`, and `return_existing`;
+these preserve the worker's carried gold/lumber amounts, clicked/resume mine, selected drop-off, and transition positions so a
+lumber-to-gold failure can be separated into mine approach, collection, or return routing. Gold return uses the same cvar and emits
+`WC3_GOLD_RETURN start`, periodic `approach`, `deposit_range`, and `deposit` transitions. At level 2 the return `approach` sample is
+recorded after `unit_changeangle` and includes flow generation/direct/reached/unreachable state, current facing, desired heading,
+static origin pathability, and remembered resume mine; this is the bounded trace to use when a worker circles between the mine and
+drop-off. If the worker remains outside entry range, log rejection in `g_ai.c:move_is_valid` separately for static pathmap and
+entity-circle collision. Do not enlarge an interaction radius without this evidence.
 Movement uses `FRAMETIME` through `unit_movedistance`; low rendering FPS alone does not shrink the per-tick entry allowance.
 
 Build and run the existing gold tests with either local archive set (add `-tft` for TFT):
