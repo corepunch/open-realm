@@ -10,7 +10,7 @@ void G_SetPlayerText(LPGAMECLIENT client, PLAYERTEXT index, LPCSTR text) {
     snprintf(client->playerTextStorage[index][cursor],
              sizeof(client->playerTextStorage[index][cursor]),
              "%s",
-             text && *text ? text : " ");
+             text ? text : "");
     client->ps.texts[index] = client->playerTextStorage[index][cursor];
 }
 

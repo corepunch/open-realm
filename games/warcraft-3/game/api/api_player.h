@@ -550,7 +550,7 @@ DWORD DisplayTextToPlayer(LPJASS j) {
     FLOAT x = jass_checknumber(j, 2);
     FLOAT y = jass_checknumber(j, 3);
     LPCSTR message = jass_checkstring(j, 4);
-    UI_ShowText(PLAYER_ENT(toPlayer), &MAKE(VECTOR2, x, y), message, 0);
+    UI_ShowText(PLAYER_ENT(toPlayer), &MAKE(VECTOR2, x, y), message, -1.0f);
     return 0;
 }
 DWORD DisplayTimedTextToPlayer(LPJASS j) {
@@ -572,6 +572,14 @@ DWORD DisplayTimedTextFromPlayer(LPJASS j) {
     return 0;
 }
 DWORD ClearTextMessages(LPJASS j) {
+    if (currentplayer) {
+        UI_ClearTextMessages(PLAYER_ENT(currentplayer));
+    } else {
+        FOR_LOOP(i, game.max_clients) {
+            LPEDICT ent = G_GetPlayerEntityByNumber(i);
+            if (ent && ent->client) UI_ClearTextMessages(ent);
+        }
+    }
     return 0;
 }
 DWORD StartMeleeAI(LPJASS j) {

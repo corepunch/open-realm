@@ -272,7 +272,9 @@ static void G_RunClients(void) {
     FLOAT cinefade = G_Cinefade();
     FOR_LOOP(i, game.max_clients) {
         LPGAMECLIENT client = game.clients+i;
+        LPEDICT client_ent = G_GetPlayerEntityByNumber(client->ps.number);
         DWORD duration;
+        BOOL presentation_dirty = false;
         G_UpdateCameraTarget(client);
         duration = client->camera.end_time - client->camera.start_time;
         if (gi.GetTime() < client->camera.end_time && duration > 0) {
@@ -291,17 +293,25 @@ static void G_RunClients(void) {
             client->ps.fov = client->camera.state.fov;
             client->ps.distance = client->camera.state.target_distance;
         }
-        /* Auto-clear cinematic scene when its duration expires.
-         * Blizzard.j TransmissionFromUnitWithNameBJ never calls
-         * EndCinematicScene; the original WC3 engine times out via the
-         * sceneDuration parameter of SetCinematicScene. */
+        /* Transmission scene and voice lifetimes are independent. Blizzard.j
+         * keeps the portrait scene alive past the voice, so Portrait Talk must
+         * fall back to Portrait before the entire transmission disappears. */
         if (client->cinematic_end_time && gi.GetTime() >= client->cinematic_end_time) {
             G_SetPlayerText(client, PLAYERTEXT_SPEAKER, "");
             G_SetPlayerText(client, PLAYERTEXT_DIALOGUE, "");
             client->ps.cinematic_portrait = 0;
             client->cinematic_end_time = 0;
-            UI_WriteCinematicLayer(G_GetPlayerEntityByNumber(client->ps.number));
+            client->cinematic_voice_end_time = 0;
+            presentation_dirty = true;
+        } else if (client->cinematic_voice_end_time && gi.GetTime() >= client->cinematic_voice_end_time) {
+            client->cinematic_voice_end_time = 0;
+            presentation_dirty = true;
         }
+        if (client->message.end_time && gi.GetTime() >= client->message.end_time) {
+            memset(&client->message, 0, sizeof(client->message));
+            presentation_dirty = true;
+        }
+        if (presentation_dirty && client_ent) UI_WriteDialoguePresentation(client_ent);
         client->ps.cinefade = cinefade;
     }
 }

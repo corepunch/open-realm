@@ -1293,10 +1293,11 @@ DWORD SetCinematicScene(LPJASS j) {
     LPCSTR speakerTitle = jass_checkstring(j, 3);
     LPCSTR text = jass_checkstring(j, 4);
     FLOAT sceneDuration = jass_checknumber(j, 5);
-    //FLOAT voiceoverDuration = jass_checknumber(j, 6);
+    FLOAT voiceoverDuration = jass_checknumber(j, 6);
     if (G_SkipCutscene()) return 0;
     if (currentplayer) {
         LPGAMECLIENT gc = PLAYER_CLIENT(currentplayer);
+        DWORD now = gi.GetTime();
         G_SetPlayerText(gc, PLAYERTEXT_SPEAKER, G_LevelString(speakerTitle));
         G_SetPlayerText(gc, PLAYERTEXT_DIALOGUE, G_LevelString(text));
         currentplayer->cinematic_portrait = 0;
@@ -1308,8 +1309,11 @@ DWORD SetCinematicScene(LPJASS j) {
                 currentplayer->cinematic_portrait = G_RegisterModel(mf);
             }
         }
-        if (gc) gc->cinematic_end_time = sceneDuration > 0 ? gi.GetTime() + (DWORD)(sceneDuration * 1000.0f) : 0;
-        UI_WriteCinematicLayer(PLAYER_ENT(currentplayer));
+        if (gc) {
+            gc->cinematic_end_time = sceneDuration > 0 ? now + (DWORD)(sceneDuration * 1000.0f) : 0;
+            gc->cinematic_voice_end_time = voiceoverDuration > 0 ? now + (DWORD)(voiceoverDuration * 1000.0f) : 0;
+        }
+        UI_WriteDialoguePresentation(PLAYER_ENT(currentplayer));
     }
     return 0;
 }
@@ -1319,8 +1323,11 @@ DWORD EndCinematicScene(LPJASS j) {
         G_SetPlayerText(gc, PLAYERTEXT_SPEAKER, "");
         G_SetPlayerText(gc, PLAYERTEXT_DIALOGUE, "");
         currentplayer->cinematic_portrait = 0;
-        if (gc) gc->cinematic_end_time = 0;
-        UI_WriteCinematicLayer(PLAYER_ENT(currentplayer));
+        if (gc) {
+            gc->cinematic_end_time = 0;
+            gc->cinematic_voice_end_time = 0;
+        }
+        UI_WriteDialoguePresentation(PLAYER_ENT(currentplayer));
     }
     return 0;
 }

@@ -1,3 +1,5 @@
+extern LPPLAYER currentplayer;
+
 DWORD CreateSound(LPJASS j) {
     LPCSTR fileName = jass_checkstring(j, 1);
     BOOL looping = jass_checkboolean(j, 2);
@@ -115,6 +117,11 @@ DWORD AttachSoundToUnit(LPJASS j) {
 DWORD StartSound(LPJASS j) {
     gsound_t *sound = jass_checkhandle(j, 1, "sound");
     if (!sound || !sound->soundIndex) return 0;
+    if (currentplayer) {
+        LPEDICT clent = PLAYER_ENT(currentplayer);
+        if (clent) gi.GameCommand(clent, "snd", &sound->soundIndex, sizeof(int));
+        return 0;
+    }
     FOR_LOOP(i, game.max_clients) {
         LPEDICT clent = G_GetPlayerEntityByNumber(i);
         if (clent) gi.GameCommand(clent, "snd", &sound->soundIndex, sizeof(int));

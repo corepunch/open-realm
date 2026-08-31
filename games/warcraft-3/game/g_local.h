@@ -377,7 +377,13 @@ struct client_s {
         LONG food_used;
         LONG food_cap;
     } resourcebar;
-    DWORD cinematic_end_time;  /* game time (ms) when current SetCinematicScene expires, 0 = none */
+    struct {
+        VECTOR2 position;
+        DWORD end_time;        /* game time (ms), 0 = inactive */
+        char text[1024];
+    } message;
+    DWORD cinematic_end_time;       /* game time (ms) when current SetCinematicScene expires, 0 = none */
+    DWORD cinematic_voice_end_time; /* game time (ms) when Portrait Talk becomes Portrait, 0 = not talking */
 };
 
 typedef struct {
@@ -1011,6 +1017,7 @@ void Get_Portrait_f(LPEDICT);
 void G_RefreshInventoryLayer(LPEDICT);
 void G_RefreshInfoPanel(LPEDICT);
 void G_UpdateClientInfoPanels(void);
+void UI_WriteSelectedPortraitLayer(LPEDICT);
 void G_RefreshResourceBar(LPEDICT);
 void G_UpdateClientResourceBars(void);
 void UI_AddCancelButton(LPEDICT);
@@ -1021,6 +1028,8 @@ void UI_WriteTooltipFrame(void);
 void UI_SetCurrentClient(LPGAMECLIENT client);
 void UI_ShowInterface(LPEDICT, BOOL, FLOAT);
 void UI_ShowText(LPEDICT, LPCVECTOR2, LPCSTR, FLOAT);
+void UI_ClearTextMessages(LPEDICT);
+void UI_WriteDialoguePresentation(LPEDICT);
 LPCSTR GetBuildCommand(unitRace_t);
 void UI_RenderRoute(LPEDICT, LPCSTR);
 void UI_ShowMainMenu(LPEDICT);

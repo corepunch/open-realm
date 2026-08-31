@@ -221,6 +221,13 @@ the WC3 sound-data tables; they must not treat the label itself as a filename.
 The server emits sound commands/state through the existing sound architecture;
 JASS callbacks must not call a client mixer directly.
 
+Triggered transmissions reuse this sound path but remain presentation state,
+not cinematic-mode policy. `StartSound` preserves `GetLocalPlayer()` context so
+force-gated Blizzard.j transmissions send speech only to the represented local
+player; global calls still broadcast. See
+[triggered-dialogue.md](triggered-dialogue.md) for the gameplay portrait/message
+layer split, independent voice/scene lifetimes, and remaining ping/indicator gaps.
+
 `StartSound`, `StopSound`, attachment, 3D position, and playing/loading queries
 must describe one coherent handle state machine. `killWhenDone` releases only
 after playback completion, while an immediate destroyed/stopped handle cannot

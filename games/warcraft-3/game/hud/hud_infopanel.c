@@ -207,6 +207,18 @@ static void WritePortraitFrame(LPEDICT ent) {
     UI_WriteProxyFrame(&frame, NULL, 0);
 }
 
+void UI_WriteSelectedPortraitLayer(LPEDICT ent) {
+    LPEDICT selected[MAX_SELECTED_ENTITIES];
+    DWORD count;
+
+    if (!ent || !ent->client) return;
+    count = SelectedUnits(ent->client, selected, MAX_SELECTED_ENTITIES);
+
+    UI_WriteStart(LAYER_PORTRAIT);
+    if (count == 1) WritePortraitFrame(selected[0]);
+    UI_WriteEnd(ent);
+}
+
 static void WriteInventoryCharge(FLOAT x, FLOAT y, FLOAT w, FLOAT h, DWORD charges) {
     uiFrame_t frame;
     uiLabel_t label;
@@ -308,9 +320,10 @@ void Get_Portrait_f(LPEDICT ent) {
     if (!ent || !ent->client) return;
     count = SelectedUnits(ent->client, selected, MAX_SELECTED_ENTITIES);
 
-    UI_WriteStart(LAYER_PORTRAIT);
-    if (count == 1) WritePortraitFrame(selected[0]);
-    UI_WriteEnd(ent);
+    /* A normal-game transmission temporarily owns LAYER_PORTRAIT. Selection
+     * still updates the info/inventory panels, but the talking head remains
+     * authoritative until the transmission ends. */
+    UI_WriteDialoguePresentation(ent);
 
     UI_SendInfoPanel(ent, selected, count);
     UI_SendInventoryLayer(ent, selected, count);
