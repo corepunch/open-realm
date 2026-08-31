@@ -680,6 +680,39 @@ TEST(wc3_movement, trained_unit_exit_skips_dynamic_blocker) {
              trained->collision + blocker->collision);
 }
 
+/* Completing the head of a multi-unit queue must preserve the next link.
+ * unit_stand() clears the completed unit's build pointer, which is also the
+ * queue link while that unit is waiting behind the producer. */
+TEST(wc3_movement, trained_unit_completion_preserves_remaining_queue) {
+    LPEDICT producer = make_moving_unit(0.0f, 0.0f);
+    LPEDICT first = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    LPEDICT second = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    UnitBalance_t balance = { .buildTime = 1 };
+
+    producer->class_id = MAKEFOURCC('h','t','o','w');
+    producer->movetype = MOVETYPE_NONE;
+    first->stand = second->stand = unit_stand;
+    first->UnitBalance = second->UnitBalance = &balance;
+    first->health.max_value = second->health.max_value = 100.0f;
+    first->health.value = 100.0f;
+    second->health.value = 0.0f;
+    first->training = second->training = true;
+    first->s.renderfx |= RF_HIDDEN;
+    second->s.renderfx |= RF_HIDDEN;
+    first->build = second;
+    producer->build = first;
+
+    ai_train_build(producer);
+
+    T_ASSERT(producer->build == second);
+    T_NULL(first->build);
+    T_ASSERT(!first->training);
+    T_ASSERT(!(first->s.renderfx & RF_HIDDEN));
+    T_ASSERT(second->training);
+    T_ASSERT(second->s.renderfx & RF_HIDDEN);
+    T_FEQ(second->health.value, 0.0f, 0.01f);
+}
+
 /* A completed unit must remain hidden and queued when no legal exit exists;
  * revealing it on blocked pathing recreates the permanent stuck-unit bug. */
 TEST(wc3_movement, trained_unit_waits_when_no_exit_position_exists) {

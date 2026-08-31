@@ -21,14 +21,20 @@ void ai_train_build(LPEDICT ent) {
     hp->value += hp->max_value * k;
     if (hp->value >= hp->max_value) {
         LPEDICT clent = G_GetPlayerEntityByNumber(ent->s.player);
+        LPEDICT completed = ent->build;
+        LPEDICT next = completed->build;
 
         hp->value = hp->max_value; /* clamp; placement retries every tick until space clears */
-        if (!ShowTrainedUnit(ent, ent->build)) {
+        if (!ShowTrainedUnit(ent, completed)) {
             return;
         }
+        /* Queued units use build as the next-item link, while unit_stand()
+         * clears build for the completed unit. Preserve the producer's queue
+         * link before revealing/standing the completed unit. */
+        ent->build = next;
         G_InvalidateCommands(G_GetPlayerClientByNumber(ent->s.player));
-        G_PublishEvent(ent->build, EVENT_PLAYER_UNIT_TRAIN_FINISH);
-        if (!(ent->build = ent->build->build)) {
+        G_PublishEvent(completed, EVENT_PLAYER_UNIT_TRAIN_FINISH);
+        if (!ent->build) {
             ent->stand(ent);
         }
         Get_Portrait_f(clent);
