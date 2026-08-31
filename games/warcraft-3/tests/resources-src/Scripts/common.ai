@@ -1,5 +1,12 @@
 // Minimal common.ai for player AI lifecycle tests.
 native GetAiPlayer takes nothing returns integer
+native GetUnitCount takes integer unitid returns integer
+native GetPlayerUnitTypeCount takes player p, integer unitid returns integer
+native GetUnitCountDone takes integer unitid returns integer
+native GetUnitGoldCost takes integer unitid returns integer
+native GetUnitWoodCost takes integer unitid returns integer
+native GetUpgradeLevel takes integer id returns integer
+native UnitAlive takes unit id returns boolean
 native StartThread takes code func returns nothing
 native Sleep takes real seconds returns nothing
 native MissingAIAction takes nothing returns nothing

@@ -191,6 +191,8 @@ Use explicit diagnostics for every unresolved native or unsupported semantic. A 
 
 Exit: `CampaignAI` starts both periodic threads, defender requests persist, attack requests fill through ordinary production queues, and the first assault completes through script control flow.
 
+Implemented query subset: `GetUnitCount` and `GetPlayerUnitTypeCount` include live queued/constructing units because `common.ai` compares them against desired totals; `GetUnitCountDone` excludes training and active construction. All three exclude dead entities. `GetUnitGoldCost`, `GetUnitWoodCost`, `GetUpgradeLevel`, and `UnitAlive` read existing authoritative metadata, tech state, and entity lifecycle state. Town partitioning and upgrade-cost progression remain unresolved until their authoritative runtime representation exists.
+
 ### Phase 4: Human02 Completion
 
 - Run `h02_red.ai` unchanged.

@@ -1,0 +1,21 @@
+function main takes nothing returns nothing
+    if GetUnitCount('hfoo') != 3 then
+        call MissingAIAction()
+    endif
+    if GetUnitCountDone('hfoo') != 1 then
+        call MissingAIAction()
+    endif
+    if GetPlayerUnitTypeCount(Player(2), 'hfoo') != 3 then
+        call MissingAIAction()
+    endif
+    if GetPlayerUnitTypeCount(Player(1), 'hfoo') != 1 then
+        call MissingAIAction()
+    endif
+    if GetUnitGoldCost('hbar') != 235 or GetUnitWoodCost('hbar') != 85 then
+        call MissingAIAction()
+    endif
+    if GetUpgradeLevel('Rhme') != 2 then
+        call MissingAIAction()
+    endif
+    call Sleep(10)
+endfunction

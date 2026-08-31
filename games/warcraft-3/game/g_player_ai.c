@@ -5,6 +5,11 @@ static playerAI_t *G_PlayerAIState(DWORD player) {
     return player < MAX_PLAYERS ? &level.player_ai[player] : NULL;
 }
 
+/* KillUnit changes life immediately while ordinary death also carries SVF_DEADMONSTER. */
+BOOL G_AIUnitAlive(LPEDICT unit) {
+    return unit && unit->inuse && unit->health.value > 0 && !(unit->svflags & SVF_DEADMONSTER);
+}
+
 /* AI script paths are normally basenames; preserve an explicit archive path when a map supplies one. */
 static BOOL G_PlayerAIScriptPath(LPCSTR script, LPSTR path, size_t size) {
     int len;

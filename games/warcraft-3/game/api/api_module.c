@@ -19,6 +19,13 @@
 
 JASSMODULE jass_funcs[] = {
     { "GetAiPlayer", GetAiPlayer },
+    { "GetUnitCount", GetUnitCount },
+    { "GetPlayerUnitTypeCount", GetPlayerUnitTypeCount },
+    { "GetUnitCountDone", GetUnitCountDone },
+    { "GetUnitGoldCost", GetUnitGoldCost },
+    { "GetUnitWoodCost", GetUnitWoodCost },
+    { "GetUpgradeLevel", GetUpgradeLevel },
+    { "UnitAlive", UnitAlive },
     { "StartThread", StartThread },
     { "Sleep", Sleep },
     { "ConvertRace", ConvertRace },

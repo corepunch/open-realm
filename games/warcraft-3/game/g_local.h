@@ -904,6 +904,7 @@ void G_PlayerAIRequestStop(DWORD);
 void G_PlayerAIShutdown(void);
 void G_PlayerAIPause(DWORD, BOOL);
 void G_PlayerAIRunFrame(void);
+BOOL G_AIUnitAlive(LPEDICT);
 
 // g_fow.c
 void G_FowInit(void);
