@@ -254,11 +254,27 @@ static void ai_ranged(LPEDICT ent) {
     unit_runwait(ent, throw_missile);
 }
 
+static BOOL attack_target_out_of_range(LPEDICT ent) {
+    LPEDICT target;
+    FLOAT footprint;
+
+    if (!ent || !(target = ent->goalentity)) {
+        return true;
+    }
+    if (G_UnitIsBuilding(target->class_id)) {
+        footprint = CM_DistanceToPathingFootprint(target, &ent->s.origin2);
+        if (footprint < FLT_MAX) {
+            return footprint > ent->collision + ent->attack1.range;
+        }
+    }
+    return M_DistanceToGoal(ent) > ent->attack1.range;
+}
+
 static void ai_melee_cooldown(LPEDICT ent) {
     if (attack_stop_if_target_invalid(ent)) {
         return;
     }
-    if (M_DistanceToGoal(ent) > ent->attack1.range) {
+    if (attack_target_out_of_range(ent)) {
         attack_walk(ent);
     } else {
         unit_runwait(ent, attack_melee);
@@ -269,7 +285,7 @@ static void ai_ranged_cooldown(LPEDICT ent) {
     if (attack_stop_if_target_invalid(ent)) {
         return;
     }
-    if (M_DistanceToGoal(ent) > ent->attack1.range) {
+    if (attack_target_out_of_range(ent)) {
         attack_walk(ent);
     } else {
         unit_runwait(ent, attack_ranged);
@@ -280,7 +296,7 @@ static void ai_attack_walk(LPEDICT ent) {
     if (attack_stop_if_target_invalid(ent)) {
         return;
     }
-    if (M_DistanceToGoal(ent) > ent->attack1.range) {
+    if (attack_target_out_of_range(ent)) {
         unit_changeangle(ent);
         unit_moveindirection(ent);
     } else if (ent->attack1.weapon == WPN_MISSILE) {
