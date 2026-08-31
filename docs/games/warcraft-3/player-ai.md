@@ -203,6 +203,8 @@ Implemented query subset: `GetUnitCount` and `GetPlayerUnitTypeCount` include li
 
 `AddGuardPost` stores persistent typed map positions authored by campaign AI. `FillGuardPosts` reserves completed owned units not already assigned to captains or another post; assigned guards contribute to `IgnoredUnits`. `ReturnGuardPosts` preserves valid combat targets and returns idle guards that drift more than 64 world units from their authored position. Human02 defines no posts, so its periodic fill/return cycle is observably empty; a bounded ROC run now continues for 6000 frames without a JASS runtime error. TFT reaches bot startup but currently fails while parsing one of its authoritative script inputs before `h02_red.ai` begins.
 
+TFT `common.ai` uses JASS `debug call`, `debug set`, and `debug if` statements. The parser preserves the following ordinary statement as an AST node marked `TF_DEBUG`, and release execution skips that node. Parser failures now report the source line and next token, while staged bot loading identifies `common.j`, `common.ai`, or the requested script separately. TFT Human02 now parses all three scripts, starts `h02_red.ai`, and reports `GetUnitBuildTime` as its next unresolved native.
+
 `IgnoredUnits` counts live, matching, bot-owned members across the assault and defense captain rosters. `common.ai` adds this value to desired production because captain members still contribute to `TownCount` after assignment away from town duties. A bounded ROC Human02 run now passes this query and reports `CommandsWaiting` as the next unresolved native.
 
 `CommandAI` appends to a per-player command stack; `CommandsWaiting`, `GetLastCommand`, `GetLastData`, and `PopLastCommand` expose Blizzard's newest-command consumer contract to the bound bot VM. Empty reads return zero, commands remain isolated by player, and pending storage is released on bot replacement or shutdown.
@@ -256,6 +258,18 @@ After Human02 is complete:
 - add replayable decision/action traces and repeated evaluation across maps, opponents, and seeds before tuning tactical quality.
 
 This phase is not part of Human02's definition of done.
+
+Full multiplayer melee AI is tracked by [issue #215](https://github.com/corepunch/open-realm/issues/215). A two-player
+Booty Bay lobby with an Orc computer slot reaches `MeleeStartingAI`, starts the unchanged `Scripts/orc.ai`, and uses the
+same per-player VM as campaign AI. The first confirmed melee-only registration is `SetHeroLevels(function SkillArrays)`:
+the callback is VM-owned bot policy consumed when heroes gain levels, not an eager call during `StandardAI` startup.
+
+```sh
+build/bin/openwarcraft3 -data 'data/Warcraft III' +set vid_hidden 1 \
+  +lobby_start 'Maps/(2)BootyBay.w3m' +lobby_config 2 2 BootyBay \
+  +lobby_slot 0 1 0 1 1 0 0 Player +lobby_slot 1 1 1 2 2 1 1 Computer \
+  +map 'Maps/(2)BootyBay.w3m' +com_frame_limit 1000
+```
 
 ## Verification
 

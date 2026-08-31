@@ -453,6 +453,7 @@ void UI_WriteFrameWithChildren(LPCFRAMEDEF frame, LPCFRAMEDEF parent);
 KNOWN_AS(word_extractor, PARSER);
 struct word_extractor {
     LPCSTR buffer;
+    LPCSTR start;
     const char *delimiters;
     BOOL error;
     BOOL eat_quotes;

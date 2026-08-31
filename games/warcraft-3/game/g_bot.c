@@ -292,8 +292,17 @@ BOOL G_BotStart(LPPLAYER player, LPCSTR script, botMode_t mode) {
     bot->player = player;
     bot->mode = mode;
     strlcpy(bot->script, path, sizeof(bot->script));
-    if (!jass_dofile(bot->vm, "Scripts\\common.j") || !jass_dofile(bot->vm, "Scripts\\common.ai") ||
-        !jass_dofile(bot->vm, path)) {
+    if (!jass_dofile(bot->vm, "Scripts\\common.j")) {
+        fprintf(stderr, "WC3 AI: player %u could not load Scripts\\common.j\n", playernum);
+        G_BotStop(playernum);
+        return false;
+    }
+    if (!jass_dofile(bot->vm, "Scripts\\common.ai")) {
+        fprintf(stderr, "WC3 AI: player %u could not load Scripts\\common.ai\n", playernum);
+        G_BotStop(playernum);
+        return false;
+    }
+    if (!jass_dofile(bot->vm, path)) {
         fprintf(stderr, "WC3 AI: player %u could not load %s\n", playernum, path);
         G_BotStop(playernum);
         return false;

@@ -468,6 +468,23 @@ TEST(wc3_api, enable_user_ui_is_local_and_blocks_gameplay_ui_commands) {
     currentplayer = NULL;
 }
 
+TEST(wc3_api, debug_statements_parse_but_do_not_execute_in_release) {
+    LPGAMECLIENT gc = &game.clients[0];
+    gc->ps.stats[1] = 0;
+    currentplayer = &gc->ps;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_GOLD, 6)\n"
+        "debug call MissingDebug()\n"
+        "debug set bj_forLoopAIndex = 7\n"
+        "debug if true then\n"
+        "call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_GOLD, 8)\n"
+        "endif\n"
+        "endfunction"));
+    T_EQ(gc->ps.stats[1], 6);
+    currentplayer = NULL;
+}
+
 /* Create a minimal unit in slot 0 and return it. */
 static LPEDICT make_unit_hero(void) {
     reset_entities();

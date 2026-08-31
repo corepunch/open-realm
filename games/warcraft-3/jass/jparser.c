@@ -37,6 +37,12 @@ static BOOL token_in(LPCSTR tok, LPCSTR const *grammar, DWORD count) {
     return false;
 }
 
+static DWORD parser_line(LPPARSER p) {
+    DWORD line = 1;
+    for (LPCSTR cur = p->start; cur && cur < p->buffer; cur++) if (*cur == '\n') line++;
+    return line;
+}
+
 BOOL is_multiplicative_operator(LPCSTR str) {
     static LPCSTR const grammar[] = { "*", "/" };
     return token_in(str, grammar, sizeof(grammar) / sizeof(*grammar));
@@ -102,7 +108,7 @@ static BOOL parse_body(LPPARSER p, LPTOKEN function) {
     if (func && (token = func(p))) {
         PUSH_BACK(TOKEN, token, function->body);
     } else {
-        PARSER_THROW("error parsing function");
+        PARSER_THROW("error parsing function at line %u near '%s'", parser_line(p), peek_token(p));
     }
     return true;
 }
@@ -430,6 +436,15 @@ PARSER(statement_return) {
     return ret;
 }
 
+/* Retail JASS parses debug-prefixed statements but excludes them from release execution. */
+PARSER(statement_debug) {
+    LPGRAMMARFUNC func = eat_keyword(p, function_keywords);
+    LPTOKEN token = func ? func(p) : NULL;
+    if (!token) PARSER_THROW("invalid debug statement at line %u near '%s'", parser_line(p), peek_token(p));
+    token->flags |= TF_DEBUG;
+    return token;
+}
+
 parseClass_t function_keywords[] = {
     { "set", statement_set },
     { "call", statement_call },
@@ -438,6 +453,7 @@ parseClass_t function_keywords[] = {
     { "loop", statement_loop },
     { "return", statement_return },
     { "exitwhen", statement_exitwhen },
+    { "debug", statement_debug },
     { NULL },
 };
 

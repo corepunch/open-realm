@@ -729,6 +729,7 @@ static void jass_resumecoroutine(LPJASSCOROUTINE co) {
         }
 
         next = token->next;
+        if (token->flags & TF_DEBUG) { frame->pc = next; continue; }
         switch (token->type) {
             case TT_CALL:
                 frame->pc = next;
@@ -1899,7 +1900,7 @@ BOOL jass_dobuffer_ex(LPJASS j, LPSTR buffer, JASSMODE mode) {
     const JASSSYNTAX *syntax = &jass_syntax[mode];
     if (syntax->flags & SYNTAX_INCLUDES)
         galaxy_preprocess_includes(j, buffer, mode);
-    PARSER parser = MAKE(PARSER, .buffer = buffer, .delimiters = syntax->delimiters);
+    PARSER parser = MAKE(PARSER, .buffer = buffer, .start = buffer, .delimiters = syntax->delimiters);
     LPTOKEN program = syntax->parse(&parser);
     if (parser.error) {
         LPJASS root = jass_root(j);
