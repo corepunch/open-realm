@@ -707,14 +707,20 @@ TEST(wc3_movement, gold_smart_click_gold_mine_visits_mine_then_returns_and_resum
 TEST(wc3_movement, gold_three_workers_hold_while_shared_route_is_pending) {
     enum { CELLS = 64, WORKERS = 3 };
     BYTE pathmap[CELLS * CELLS] = {0};
-    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), -320.0f, 0.0f);
-    LPEDICT workers[WORKERS] = {
-        make_moving_unit(320.0f, -64.0f),
-        make_moving_unit(352.0f,   0.0f),
-        make_moving_unit(384.0f,  64.0f),
-    };
+    LPEDICT mine;
+    LPEDICT workers[WORKERS];
     VECTOR2 origin[WORKERS];
     slkTestData_t *rows, *old_abilities;
+
+    /* make_moving_unit() resets the shared entity array for isolated tests.
+     * This test needs three workers and their mine alive at the same time, so
+     * create the common world once and initialize each worker in-place. */
+    reset_entities();
+    setup_test_world();
+    mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), -320.0f, 0.0f);
+    workers[0] = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 320.0f, -64.0f);
+    workers[1] = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 352.0f,   0.0f);
+    workers[2] = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 384.0f,  64.0f);
 
     /* Block the direct westward line but leave a reachable opening north of
      * the workers so the shared mine route requires a resumable flow field. */
@@ -734,9 +740,15 @@ TEST(wc3_movement, gold_three_workers_hold_while_shared_route_is_pending) {
     gi.LinkEntity(mine);
 
     FOR_LOOP(i, WORKERS) {
+        workers[i]->movetype = MOVETYPE_STEP;
+        workers[i]->stand = unit_stand;
+        workers[i]->birth = unit_birth;
+        workers[i]->die = unit_die;
         workers[i]->collision = 16.0f;
+        workers[i]->health.value = workers[i]->health.max_value = 250.0f;
         workers[i]->unitinfo.MoveSpeed = 190.0f;
         workers[i]->s.angle = 0.0f; /* stale facing points east, away from mine */
+        unit_stand(workers[i]);
         origin[i] = workers[i]->s.origin2;
         harvest_gold_start(workers[i], mine);
     }
