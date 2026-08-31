@@ -28,6 +28,7 @@ type mapdensity      extends handle
 type gamedifficulty  extends handle
 type gamespeed       extends handle
 type playerstate     extends handle
+type fogstate         extends handle
 type rect            extends handle
 type region          extends handle
 type location        extends handle
@@ -66,6 +67,7 @@ native ConvertMapDensity     takes integer i returns mapdensity
 native ConvertGameDifficulty takes integer i returns gamedifficulty
 native ConvertGameSpeed      takes integer i returns gamespeed
 native ConvertPlayerState    takes integer i returns playerstate
+native ConvertFogState       takes integer i returns fogstate
 native SetMapName            takes string name returns nothing
 native SetMapDescription     takes string description returns nothing
 native SetTeams              takes integer teamcount returns nothing
@@ -130,6 +132,16 @@ native GetEnumPlayer          takes nothing returns player
 native Condition              takes code func returns conditionfunc
 native IsPlayerInForce        takes player whichPlayer, force whichForce returns boolean
 native GetPlayerId            takes player whichPlayer returns integer
+constant native GetPlayerStructureCount takes player whichPlayer, boolean includeIncomplete returns integer
+
+// Unit/death-event coverage used by player structure-count regression tests.
+native CreateUnit                takes player id, integer unitid, real x, real y, real face returns unit
+native TriggerRegisterDeathEvent takes trigger whichTrigger, widget whichWidget returns event
+
+// Scripted fog state coverage.
+native SetFogStateRect      takes player forWhichPlayer, fogstate whichState, rect where, boolean useSharedVision returns nothing
+native SetFogStateRadius    takes player forWhichPlayer, fogstate whichState, real centerx, real centerY, real radius, boolean useSharedVision returns nothing
+native SetFogStateRadiusLoc takes player forWhichPlayer, fogstate whichState, location center, real radius, boolean useSharedVision returns nothing
 
 // Win conditions.
 native ConvertPlayerGameResult  takes integer i returns playergameresult
@@ -176,6 +188,9 @@ globals
     constant integer CAMERA_MARGIN_TOP    = 2
     constant integer CAMERA_MARGIN_BOTTOM = 3
     constant playerevent EVENT_PLAYER_END_CINEMATIC = ConvertPlayerEvent(17)
+    constant fogstate FOG_OF_WAR_MASKED  = ConvertFogState(1)
+    constant fogstate FOG_OF_WAR_FOGGED  = ConvertFogState(2)
+    constant fogstate FOG_OF_WAR_VISIBLE = ConvertFogState(4)
     constant playergameresult PLAYER_GAME_RESULT_VICTORY = ConvertPlayerGameResult(0)
     constant playergameresult PLAYER_GAME_RESULT_DEFEAT  = ConvertPlayerGameResult(1)
     constant playergameresult PLAYER_GAME_RESULT_TIE     = ConvertPlayerGameResult(2)
