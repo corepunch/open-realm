@@ -527,6 +527,21 @@ TEST(wc3_movement, lumber_chop_replaces_gold_carry_state) {
     T_ASSERT(worker->s.renderfx & RF_HAS_LUMBER);
 }
 
+/* A worker carrying gold must not discard it when Smart-clicking a tree. */
+TEST(wc3_movement, lumber_smart_click_preserves_gold_carry) {
+    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
+    LPEDICT tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
+
+    worker->UnitAbilities = &harvest_abilities;
+    worker->harvested_gold = 7;
+    worker->s.renderfx |= RF_HAS_GOLD;
+
+    T_ASSERT(!unit_issuetargetorder(worker, "smart", tree));
+    T_EQ(worker->harvested_gold, 7);
+    T_ASSERT(worker->s.renderfx & RF_HAS_GOLD);
+    T_NULL(worker->goalentity);
+}
+
 /* Reissuing Harvest while already full remembers the requested tree but begins
  * return immediately, so no extra over-capacity chop can occur. */
 TEST(wc3_movement, lumber_full_worker_returns_before_new_chop) {
