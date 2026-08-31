@@ -289,9 +289,16 @@ void ui_builds(LPGAMECLIENT client) {
 }
 
 void build_command(LPEDICT edict) {
-    UI_WRITE_LAYER(edict, ui_builds, LAYER_COMMANDBAR);
-    edict->client->menu.cmdbutton = build_menu_selectlocation;
-    edict->client->menu.refresh = build_command;
+    LPGAMECLIENT client;
+
+    if (!edict || !edict->client) return;
+    client = edict->client;
+    client->menu.cmdbutton = build_menu_selectlocation;
+    client->menu.refresh = build_command;
+
+    /* The menu callbacks are gameplay state.  The command-bar payload is
+     * presentation and cannot be serialized before ClientBegin. */
+    if (client->connected) UI_WRITE_LAYER(edict, ui_builds, LAYER_COMMANDBAR);
 }
 
 ability_t a_build = {

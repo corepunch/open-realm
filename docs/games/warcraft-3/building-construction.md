@@ -6,6 +6,8 @@ Human construction is server-authoritative. `UnitProfile.Builds` remains the sou
 
 Command-card activation is independent of JASS `EnableUserUI`. `button CmdBuild`, `button <unit rawcode>`, and other gameplay button commands must continue through `CMD_Button()` when `EnableUserUI(false)` is recorded; that native suppresses presentation affordances, not gameplay command authorization. A rebase briefly special-cased `client->no_ui` inside `CMD_Button()`, which made the button animate client-side while silently discarding both the Peasant Build submenu and Town Hall training requests.
 
+Build-menu state and command-bar transport also have separate lifecycles. `build_command()` installs its `cmdbutton`/`refresh` callbacks even for a reserved player slot that has not completed `ClientBegin`, but only serializes `LAYER_COMMANDBAR` when `client->connected` is true. This keeps in-engine command tests and pre-connect state changes from touching the server message buffer while preserving the menu state that a connected client will render.
+
 The runtime developer override is:
 
 ```sh
