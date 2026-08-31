@@ -47,6 +47,7 @@ JASSMODULE jass_funcs[] = {
     { "SetHeroesBuyItems", SetHeroesBuyItems },
     { "StopGathering", StopGathering },
     { "CreateCaptains", CreateCaptains },
+    { "IgnoredUnits", IgnoredUnits },
     { "StartThread", StartThread },
     { "Sleep", Sleep },
     { "ConvertRace", ConvertRace },

@@ -197,6 +197,8 @@ Implemented query subset: `GetUnitCount` and `GetPlayerUnitTypeCount` include li
 
 `CreateCaptains` initializes bot-owned assault and defense captain state and discards prior membership when scripts recreate captains. A bounded ROC Human02 run now passes captain creation and reports `IgnoredUnits` as the next unresolved native while translating campaign defender requests into build totals.
 
+`IgnoredUnits` counts live, matching, bot-owned members across the assault and defense captain rosters. `common.ai` adds this value to desired production because captain members still contribute to `TownCount` after assignment away from town duties. A bounded ROC Human02 run now passes this query and reports `CommandsWaiting` as the next unresolved native.
+
 Internal engine ownership uses `bot_t`, `level.bots`, and `G_Bot*`. Blizzard's exported JASS names retain `AI` because that spelling is part of the archive script ABI. Campaign/melee mode, replacement count, and the ROC/TFT policy toggles are persisted on each bot for the later production and captain consumers.
 
 ### Phase 4: Human02 Completion

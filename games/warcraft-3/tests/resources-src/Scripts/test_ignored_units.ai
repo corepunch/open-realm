@@ -1,0 +1,9 @@
+function main takes nothing returns nothing
+    if IgnoredUnits('hfoo') != 2 then
+        call MissingAIAction()
+    endif
+    if IgnoredUnits('hrif') != 1 then
+        call MissingAIAction()
+    endif
+    call Sleep(1000.0)
+endfunction

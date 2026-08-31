@@ -215,4 +215,37 @@ TEST(wc3_bot, create_captains_resets_both_bot_owned_captains) {
     }
 }
 
+TEST(wc3_bot, ignored_units_counts_only_live_owned_captain_members) {
+    bot_t *bot = level.bots + 2;
+    LPEDICT attack = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    LPEDICT defense = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 32, 0);
+    LPEDICT dead = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+    LPEDICT removed = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 96, 0);
+    LPEDICT wrong_type = alloc_test_unit(MAKEFOURCC('h','r','i','f'), 128, 0);
+    LPEDICT wrong_owner = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 160, 0);
+
+    attack->s.player = defense->s.player = dead->s.player = removed->s.player = wrong_type->s.player = 2;
+    wrong_owner->s.player = 1;
+    attack->health.value = defense->health.value = removed->health.value = wrong_type->health.value = 100;
+    wrong_owner->health.value = 100; dead->health.value = 0; removed->inuse = false;
+    bot->captains[BOT_CAPTAIN_ATTACK].units = gi.MemAlloc(3 * sizeof(LPEDICT));
+    ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units) = 3;
+    bot->captains[BOT_CAPTAIN_ATTACK].units[0] = attack;
+    bot->captains[BOT_CAPTAIN_ATTACK].units[1] = dead;
+    bot->captains[BOT_CAPTAIN_ATTACK].units[2] = wrong_type;
+    bot->captains[BOT_CAPTAIN_DEFENSE].units = gi.MemAlloc(3 * sizeof(LPEDICT));
+    ARRAY_COUNT(bot->captains[BOT_CAPTAIN_DEFENSE].units) = 3;
+    bot->captains[BOT_CAPTAIN_DEFENSE].units[0] = defense;
+    bot->captains[BOT_CAPTAIN_DEFENSE].units[1] = removed;
+    bot->captains[BOT_CAPTAIN_DEFENSE].units[2] = wrong_owner;
+
+    T_EQ(G_BotIgnoredUnits(&game.clients[2].ps, MAKEFOURCC('h','f','o','o')), 2);
+    T_EQ(G_BotIgnoredUnits(&game.clients[2].ps, MAKEFOURCC('h','r','i','f')), 1);
+    T_EQ(G_BotIgnoredUnits(NULL, MAKEFOURCC('h','f','o','o')), 0);
+    T_ASSERT(G_BotStart(&game.clients[2].ps, "test_ignored_units.ai", BOT_CAMPAIGN));
+    G_BotRunFrame();
+    T_NOT_NULL(bot->vm);
+    T_ASSERT(!jass_rterror_pending(bot->vm));
+}
+
 #endif /* BZ_TESTS */

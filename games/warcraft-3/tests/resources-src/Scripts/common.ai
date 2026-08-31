@@ -28,6 +28,7 @@ native SetDefendPlayer takes boolean state returns nothing
 native SetHeroesBuyItems takes boolean state returns nothing
 native StopGathering takes nothing returns nothing
 native CreateCaptains takes nothing returns nothing
+native IgnoredUnits takes integer unitid returns integer
 native StartThread takes code func returns nothing
 native Sleep takes real seconds returns nothing
 native MissingAIAction takes nothing returns nothing

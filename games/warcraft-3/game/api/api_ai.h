@@ -95,6 +95,10 @@ DWORD CreateCaptains(LPJASS j) {
     return 0;
 }
 
+DWORD IgnoredUnits(LPJASS j) {
+    return jass_pushinteger(j, G_BotIgnoredUnits(jass_getcontext(j)->playerState, jass_checkinteger(j, 1)));
+}
+
 DWORD StartThread(LPJASS j) {
     LPCJASSFUNC func = jass_checkcode(j, 1);
     JASSCONTEXT context = *jass_getcontext(j);

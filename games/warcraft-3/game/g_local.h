@@ -949,6 +949,7 @@ void G_BotRunFrame(void);
 BOOL G_BotUnitAlive(LPEDICT);
 void G_BotStopGathering(LPPLAYER);
 void G_BotCreateCaptains(LPPLAYER);
+DWORD G_BotIgnoredUnits(LPPLAYER, DWORD);
 
 // g_fow.c
 void G_FowInit(void);

@@ -32,6 +32,16 @@ void G_BotCreateCaptains(LPPLAYER player) {
     }
 }
 
+/* Captain members remain in TownCount, so common.ai adds this count when requesting their replacements. */
+DWORD G_BotIgnoredUnits(LPPLAYER player, DWORD class_id) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    DWORD count = 0;
+    if (!bot) return 0;
+    FOR_LOOP(i, BOT_CAPTAIN_COUNT) FOR_EACH_ARRAY(LPEDICT, unit, bot->captains[i].units)
+        if (G_BotUnitAlive(*unit) && (*unit)->s.player == PLAYER_NUM(player) && (*unit)->class_id == class_id) count++;
+    return count;
+}
+
 /* AI script paths are normally basenames; preserve an explicit archive path when a map supplies one. */
 static BOOL G_BotScriptPath(LPCSTR script, LPSTR path, size_t size) {
     int len;
