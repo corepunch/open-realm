@@ -70,7 +70,12 @@ extern int test_failures;
 #define T_EQ(a, b)        T_ASSERT((a) == (b))
 #define T_NE(a, b)        T_ASSERT((a) != (b))
 #define T_FEQ(a, b, eps)  T_ASSERT(fabsf((float)(a) - (float)(b)) <= (float)(eps))
-#define T_STREQ(a, b)     T_ASSERT((a) && (b) && strcmp((a), (b)) == 0)
+
+static inline int Test_StringsEqual(const char *a, const char *b) {
+    return a && b && strcmp(a, b) == 0;
+}
+
+#define T_STREQ(a, b)     T_ASSERT(Test_StringsEqual((a), (b)))
 #define T_NULL(p)         T_ASSERT((p) == 0)
 #define T_NOT_NULL(p)     T_ASSERT((p) != 0)
 
