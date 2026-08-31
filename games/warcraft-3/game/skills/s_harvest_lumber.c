@@ -519,7 +519,7 @@ ability_t a_return_resources = {
 BOOL harvest_menu_selecttarget(LPEDICT clent, LPEDICT target) {
     if (S_GoldMineIsMine(target)) {
         FOR_SELECTED_UNITS(clent->client, ent) {
-            harvest_gold_start(ent, target);
+            harvest_gold_order(ent, target);
         }
     } else if (G_ActorHasSkill(target, "Abgm")) {
         FOR_SELECTED_UNITS(clent->client, ent) {
