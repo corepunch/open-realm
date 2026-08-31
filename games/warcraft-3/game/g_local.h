@@ -784,6 +784,7 @@ typedef struct {
     BOX2 bounds;
     BYTE *blocked;
     DWORD num_blocked;
+    ARRAY(DWORD, rim_cells);
     fowPlayerGrid_t players[MAX_PLAYERS];
 } fowGrid_t;
 
@@ -864,6 +865,7 @@ void G_FowInit(void);
 void G_FowShutdown(void);
 void G_FowConnectPlayer(DWORD player);
 void G_FowUpdate(void);
+void G_FowMarkBlockersDirty(void);
 void G_FowSendDeltas(void);
 void G_FowSendFull(LPEDICT ent);
 BOOL G_FowPlayerCanSeeEntity(DWORD player, LPCEDICT ent);

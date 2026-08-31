@@ -165,6 +165,21 @@ draw counts throughout the cinematic and showed run-order/thermal noise larger t
 was not treated as an end-to-end result. Repeat the fixed-scene weighted profile on the reported ARM/gl4es device to
 measure the actual frame-rate effect; renderer submission still dominates the available weighted profile.
 
+### Contributor FOW follow-up audit
+
+The non-PortMaster FOW commits from `sookyboo/portmaster_rebase_28_08_2026_2` were audited individually against current
+main. `ffcb57ca` (replace the visible-cell loop with `memchr`/`memset`) is obsolete: the `visible_rows` implementation
+above avoids scanning empty rows altogether. The dirty-blocker idea from `722469c8` and rim-cell list from `e279778d`
+remain useful, but were reapplied rather than cherry-picked because current destructable lifecycle ownership has changed.
+
+A temporary bounded ROC Human02 diagnostic over 50 FOW updates recorded 121,500 blocker-hash edict visits and 540,700
+second-pass rim-cell visits for 41,909 committed rim cells. Steady updates now skip the blocker hash until a blocker is
+spawned, freed, moved, scaled, hidden, killed, restored, or revived. Dirty updates retain the hash comparison as a
+correctness check, so redundant invalidations do not rebuild the grid. The rim pass records its temporary blocker cells
+while discovering them and commits only that list; initialization treats allocation failure as fatal instead of silently
+falling back to the square scan. `wc3_game.fow_blocker_cache_skips_clean_and_unchanged_dirty_updates` covers the clean
+cache hit, dirty/hash hit, and dirty/hash miss paths.
+
 ### Local release A/B and remaining cost
 
 A same-machine release-build comparison used ROC Human02, 150 console `wait` commands, `cmd cancel`, then 1,200 waits

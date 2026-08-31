@@ -549,6 +549,7 @@ void SP_SpawnUnit(LPEDICT self) {
     self->targtype = G_GetTargetType(d->targetType);
     if (ui->occluderHeight > 0) {
         self->s.flags |= EF_FOW_BLOCKER;
+        G_FowMarkBlockersDirty();
     }
     if (b->sightRadius > 0 || b->nightSightRadius > 0) {
         self->s.flags |= EF_FOW_REVEALER;

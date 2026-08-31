@@ -645,6 +645,38 @@ TEST(wc3_game, fow_blocker_stops_visibility_behind_it) {
     G_FowShutdown();
 }
 
+TEST(wc3_game, fow_blocker_cache_skips_clean_and_unchanged_dirty_updates) {
+    DWORD old_index, new_index, sentinel;
+    LPEDICT blocker;
+
+    reset_entities();
+    G_FowInit();
+    G_FowConnectPlayer(0);
+    blocker = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 64.0f, 64.0f);
+    blocker->s.flags |= EF_FOW_BLOCKER;
+    blocker->health.value = blocker->health.max_value = 1.0f;
+    old_index = G_FowWorldToCellY(64.0f) * level.fow.width + G_FowWorldToCellX(64.0f);
+    new_index = G_FowWorldToCellY(64.0f) * level.fow.width + G_FowWorldToCellX(320.0f);
+    sentinel = level.fow.width * level.fow.height - 1;
+
+    G_FowUpdate();
+    T_ASSERT(level.fow.blocked[old_index]);
+    level.fow.blocked[sentinel] = 7;
+    G_FowUpdate();
+    T_EQ(level.fow.blocked[sentinel], 7);
+    G_FowMarkBlockersDirty();
+    G_FowUpdate();
+    T_EQ(level.fow.blocked[sentinel], 7);
+
+    blocker->s.origin.x = 320.0f;
+    G_FowMarkBlockersDirty();
+    G_FowUpdate();
+    T_EQ(level.fow.blocked[sentinel], 0);
+    T_ASSERT(!level.fow.blocked[old_index]);
+    T_ASSERT(level.fow.blocked[new_index]);
+    G_FowShutdown();
+}
+
 static pathTex_t *make_fow_pathtex(DWORD width, DWORD height, BYTE blocked) {
     pathTex_t *tex = gi.MemAlloc(sizeof(*tex) + width * height * sizeof(COLOR32));
 

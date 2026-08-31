@@ -673,7 +673,9 @@ DWORD SetWidgetLife(LPJASS j) {
     LPEDICT whichWidget = jass_checkhandle(j, 1, "widget");
     FLOAT newLife = jass_checknumber(j, 2);
     if (whichWidget) {
+        BOOL const was_dead = M_IsDead(whichWidget);
         whichWidget->health.value = newLife;
+        if ((whichWidget->s.flags & EF_FOW_BLOCKER) && was_dead != M_IsDead(whichWidget)) G_FowMarkBlockersDirty();
     }
     return 0;
 }

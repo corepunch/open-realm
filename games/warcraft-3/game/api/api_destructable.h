@@ -166,11 +166,13 @@ DWORD ShowDestructable(LPJASS j) {
     LPEDICT d = jass_checkhandle(j, 1, "destructable");
     BOOL show = jass_checkboolean(j, 2);
     if (d) {
+        BOOL const was_hidden = !!(d->s.renderfx & RF_HIDDEN);
         if (show) {
             d->s.renderfx &= ~RF_HIDDEN;
         } else {
             d->s.renderfx |= RF_HIDDEN;
         }
+        if ((d->s.flags & EF_FOW_BLOCKER) && was_hidden != !!(d->s.renderfx & RF_HIDDEN)) G_FowMarkBlockersDirty();
     }
     return 0;
 }

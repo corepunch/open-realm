@@ -66,6 +66,7 @@ void G_ActivateScriptedDestructable(LPEDICT ent,
 
     G_ApplyDestructableAlivePathing(ent);
     G_DestructableStartAliveAnimation(ent, false);
+    if (ent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
 
     gi.LinkEntity(ent);
 }
@@ -251,6 +252,7 @@ static BOOL G_EnterDestructableDeathState(LPEDICT ent,
 
     unit_leavecombat(ent);
     G_ApplyDestructableDeathPathing(ent);
+    if (ent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     G_DestructableStartDeathAnimation(ent);
     if (rebuild_pathing) {
         CM_BakeStaticObstacles();
@@ -357,6 +359,7 @@ BOOL G_RestoreDestructable(LPEDICT ent, FLOAT life, BOOL birth) {
         ent->s.flags &= ~EF_NOT_SELECTABLE;
     }
     G_ApplyDestructableAlivePathing(ent);
+    if (ent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     G_DestructableStartAliveAnimation(ent, birth);
     CM_BakeStaticObstacles();
     return true;
