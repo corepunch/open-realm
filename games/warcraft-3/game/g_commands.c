@@ -464,6 +464,7 @@ CLIENTCOMMAND(DebugSpawn) {
     if (!spawned) {
         return;
     }
+    G_ActivateUnitFood(spawned);
 
     for (DWORD i = first_ability; i < argc; i++) {
         if (strlen(argv[i]) >= 4) {

@@ -1259,12 +1259,15 @@ TEST(wc3_movement, trained_unit_completion_preserves_remaining_queue) {
     LPEDICT producer = make_moving_unit(0.0f, 0.0f);
     LPEDICT first = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
     LPEDICT second = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
-    UnitBalance_t balance = { .buildTime = 1 };
+    UnitBalance_t balance = { .buildTime = 1, .foodUsed = 2, .foodMade = 4 };
+    LPGAMECLIENT client = &game.clients[0];
 
     producer->class_id = MAKEFOURCC('h','t','o','w');
     producer->movetype = MOVETYPE_NONE;
+    producer->s.player = first->s.player = second->s.player = client->ps.number;
     first->stand = second->stand = unit_stand;
     first->UnitBalance = second->UnitBalance = &balance;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
     first->health.max_value = second->health.max_value = 100.0f;
     first->health.value = 100.0f;
     second->health.value = 0.0f;
@@ -1283,6 +1286,11 @@ TEST(wc3_movement, trained_unit_completion_preserves_remaining_queue) {
     T_ASSERT(second->training);
     T_ASSERT(second->s.renderfx & RF_HIDDEN);
     T_FEQ(second->health.value, 0.0f, 0.01f);
+    T_EQ(first->food.used, 2);
+    T_EQ(first->food.made, 4);
+    T_EQ(second->food.used, 0);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 2);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP], 104);
 }
 
 /* A completed unit must remain hidden and queued when no legal exit exists;

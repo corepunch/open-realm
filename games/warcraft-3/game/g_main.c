@@ -61,7 +61,34 @@ static void InitMiscValue(LPCSTR name, FLOAT *dest) {
     *dest = strvalue ? atof(strvalue) : 0;
 }
 
+static DWORD InitMiscList(LPCSTR name, FLOAT *dest, DWORD capacity) {
+    LPCSTR value = Stb_IniCacheFind(&game.config.misc, "Misc", name);
+    DWORD count = 0;
+
+    if (!value || !*value) return 0;
+    while (*value && count < capacity) {
+        char *end = NULL;
+        while (*value == ' ' || *value == '\t') value++;
+        dest[count] = strtof(value, &end);
+        if (!end || end == value) {
+            fprintf(stderr, "Invalid Misc.%s list near '%s'\n", name, value);
+            break;
+        }
+        count++;
+        value = end;
+        while (*value == ' ' || *value == '\t') value++;
+        if (*value == ',') {
+            value++;
+        } else if (*value) {
+            fprintf(stderr, "Invalid Misc.%s separator near '%s'\n", name, value);
+            break;
+        }
+    }
+    return count;
+}
+
 static void InitConstants(void) {
+    FLOAT food_ceiling;
     Stb_IniCacheLoadFiles(&game.config.misc, miscdata_files);
     InitMiscValue("AttackHalfAngle", &game.constants.attackHalfAngle);
     InitMiscValue("MaxCollisionRadius", &game.constants.maxCollisionRadius);
@@ -77,6 +104,11 @@ static void InitConstants(void) {
     InitMiscValue("DayLength", &game.constants.gameDayLength);
     InitMiscValue("BuildingAngle", &game.constants.buildingAngle);
     InitMiscValue("RootAngle", &game.constants.rootAngle);
+    InitMiscValue("FoodCeiling", &food_ceiling);
+    game.constants.foodCeiling = MAX(0, (LONG)food_ceiling);
+    game.constants.upkeepUsageCount = InitMiscList("UpkeepUsage", game.constants.upkeepUsage, MAX_UPKEEP_TIERS);
+    game.constants.upkeepGoldTaxCount = InitMiscList("UpkeepGoldTax", game.constants.upkeepGoldTax, MAX_UPKEEP_TIERS);
+    game.constants.upkeepLumberTaxCount = InitMiscList("UpkeepLumberTax", game.constants.upkeepLumberTax, MAX_UPKEEP_TIERS);
 }
 
 /* -------------------------------------------------------------------------
@@ -520,9 +552,11 @@ void G_SetClientConnected(LPEDICT player, BOOL connected) {
  * unit row.  Only live, metadata-bound units contribute authored food values. */
 void G_AccumulatePlayerFood(LPGAMECLIENT client) {
     FILTER_EDICTS(ent, ent->inuse && ent->UnitBalance && client->ps.number == ent->s.player) {
-        client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] += ent->UnitBalance->foodMade;
-        client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] += ent->UnitBalance->foodUsed;
+        if (ent->svflags & SVF_DEADMONSTER || ent->training) continue;
+        G_SetUnitFoodUsed(ent, ent->UnitBalance->foodUsed);
+        if (!ent->construction.active) G_SetUnitFoodMade(ent, ent->UnitBalance->foodMade);
     }
+    G_RecomputePlayerUpkeep(client);
 }
 
 /* Called when a client finishes the connection handshake and is ready to play.

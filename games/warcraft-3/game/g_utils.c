@@ -23,6 +23,9 @@ void G_FreeActorSkills(LPEDICT ent) {
 }
 
 void G_FreeEdict(LPEDICT ent) {
+    if (!ent) return;
+    G_ClearTrainingQueueFood(ent);
+    G_ClearUnitFood(ent);
     if (ent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     S_GoldMineReleaseWorker(ent);
     gi.UnlinkEntity(ent);

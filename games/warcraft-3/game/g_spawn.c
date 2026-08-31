@@ -316,6 +316,9 @@ static void G_InitMapPlayer(LPEDICT clent, LPCMAPINFO mapinfo, DWORD playernum) 
     ps->race = player ? player->playerRace : kPlayerRaceNone;
     ps->name = player ? player->playerName : NULL;
     ps->start_location = player ? (LONG)playernum : -1;
+    ps->stats[PLAYERSTATE_FOOD_CAP_CEILING] = (USHORT)MIN(MAX(0, game.constants.foodCeiling), USHRT_MAX);
+    ps->stats[PLAYERSTATE_GOLD_UPKEEP_RATE] = 100;
+    ps->stats[PLAYERSTATE_LUMBER_UPKEEP_RATE] = 100;
     ps->origin.x = player ? player->startingPosition.x : 0.0f;
     ps->origin.y = player ? player->startingPosition.y : 0.0f;
     ps->viewquat = Quaternion_fromEuler(&MAKE(VECTOR3, 326, 0, 0), ROTATE_ZYX);

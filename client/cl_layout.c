@@ -123,7 +123,10 @@ LPCSTR SCR_GetStringValue(LPCUIFRAME frame) {
     } else if (frame->stat == PLAYERSTATE_RESOURCE_FOOD_USED) {
         DWORD food_used = cl.playerstate.stats[PLAYERSTATE_RESOURCE_FOOD_USED];
         DWORD food_made = cl.playerstate.stats[PLAYERSTATE_RESOURCE_FOOD_CAP];
-        snprintf(text, sizeof(text), "%d/%d", food_used, food_made);
+        DWORD food_ceiling = cl.playerstate.stats[PLAYERSTATE_FOOD_CAP_CEILING];
+        if (food_ceiling) food_made = MIN(food_made, food_ceiling);
+        if (food_made) snprintf(text, sizeof(text), "%d/%d", food_used, food_made);
+        else snprintf(text, sizeof(text), "%d", food_used);
     } else if (frame->stat > 0) {
         snprintf(text, sizeof(text), "%d", cl.playerstate.stats[frame->stat]);
     } else if (frame->text) {

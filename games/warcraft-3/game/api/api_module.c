@@ -514,6 +514,7 @@ JASSMODULE jass_funcs[] = {
     { "GetUnitFoodUsed", GetUnitFoodUsed },
     { "GetUnitFoodMade", GetUnitFoodMade },
     { "GetFoodMade", GetFoodMade },
+    { "GetFoodUsed", GetFoodUsed },
     { "IsUnitInGroup", IsUnitInGroup },
     { "IsUnitInForce", IsUnitInForce },
     { "IsUnitOwnedByPlayer", IsUnitOwnedByPlayer },

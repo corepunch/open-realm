@@ -41,19 +41,24 @@ void UI_WriteMinimapFrame(void) {
     UI_WriteProxyFrame(&frame, NULL, 0);
 }
 
-void UI_WriteConsoleBackdrop(LONG food_used) {
+void UI_WriteConsoleBackdrop(LPGAMECLIENT client, LONG food_used, LONG food_cap) {
+    DWORD upkeep_tier;
     LPCSTR upkeep_text;
     COLOR32 upkeep_color;
 
     ConsoleEnsureLoaded();
     if (!hud_console_loaded) return;
 
-    upkeep_text = food_used > 80 ? "Heavy Upkeep" : food_used > 50 ? "Low Upkeep" : "No Upkeep";
-    upkeep_color = food_used > 80 ? MAKE(COLOR32, 255, 64, 64, 255)
-                 : food_used > 50 ? MAKE(COLOR32, 255, 200, 64, 255)
-                                  : MAKE(COLOR32, 96, 255, 96, 255);
+    upkeep_tier = G_GetPlayerUpkeepTier(client);
+    upkeep_text = upkeep_tier > 1 ? "High Upkeep" : upkeep_tier == 1 ? "Low Upkeep" : "No Upkeep";
+    upkeep_color = upkeep_tier > 1 ? MAKE(COLOR32, 255, 64, 64, 255)
+                 : upkeep_tier == 1 ? MAKE(COLOR32, 255, 200, 64, 255)
+                                    : MAKE(COLOR32, 96, 255, 96, 255);
     UI_SetText(res.ResourceBarUpkeepText, "%s", upkeep_text);
     res.ResourceBarUpkeepText->Font.Color = upkeep_color;
+    res.ResourceBarSupplyText->Font.Color = food_used > food_cap
+        ? MAKE(COLOR32, 255, 64, 64, 255)
+        : COLOR32_WHITE;
 
     UI_WriteFrameWithChildren(console_ui.ConsoleUI, NULL);
 }

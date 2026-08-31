@@ -620,10 +620,14 @@ TEST(wc3_combat, hero_learn_skill) {
 /* ReviveHero: a dead hero comes back to life at the given point with HP/mana
  * from the revive factors (defaults: full life, no mana). */
 TEST(wc3_combat, hero_revive) {
+    LPGAMECLIENT client = &game.clients[0];
     LPEDICT h           = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
     h->health.max_value = 650.0f; h->health.value = 0.0f;   /* dead */
     h->mana.max_value   = 255.0f; h->mana.value   = 0.0f;
     h->svflags         |= SVF_DEADMONSTER;
+    h->s.player         = client->ps.number;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] = 0;
 
     G_ReviveHero(h, 100.0f, 200.0f);
 
@@ -632,6 +636,8 @@ TEST(wc3_combat, hero_revive) {
     T_ASSERT((h->svflags & SVF_DEADMONSTER) == 0);       /* alive again */
     T_FEQ(h->s.origin2.x, 100.0f, 0.01f);
     T_FEQ(h->s.origin2.y, 200.0f, 0.01f);
+    T_EQ(h->food.used, h->UnitBalance->foodUsed);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], h->UnitBalance->foodUsed);
 }
 
 TEST(wc3_combat, hero_levelup_fires_event) {

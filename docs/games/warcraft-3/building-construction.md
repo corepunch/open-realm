@@ -10,7 +10,9 @@ The runtime developer override is:
 +set wc3_build_all 1
 ```
 
-It makes every structure or trained unit already present in the selected producer's final `Builds` / `Trains` list available regardless of technology maximums or `Requires`. Structure construction also keeps the existing debug behavior of bypassing gold, lumber, and food charges; training continues to use its normal `player_pay()` resource check. It does **not** invent commands outside `Builds` / `Trains`, bypass building classification, or relax map bounds, terrain/static pathing, live-unit occupancy, or build-on-target rules. This keeps the cheat useful for tech-tree testing without allowing invalid production commands or world placement.
+It makes every structure or trained unit already present in the selected producer's final `Builds` / `Trains` list available regardless of technology maximums or `Requires`. Structure construction also keeps the existing debug behavior of bypassing gold, lumber, and food charges. Training bypasses technology/requirement gates but still performs normal gold/lumber/food availability checks and payment/reservation. It does **not** invent commands outside `Builds` / `Trains`, bypass building classification, or relax map bounds, terrain/static pathing, live-unit occupancy, or build-on-target rules. This keeps the cheat useful for tech-tree testing without allowing invalid production commands or world placement.
+
+Food-only capacity checks have their own runtime override: `+set wc3_food_limits 0`. Unlike `wc3_build_all`, it leaves producer/tech/resource behavior intact and only removes the requirement for sufficient Food Cap/Farms; Food Used remains accounted for upkeep and HUD state.
 
 ## Build-menu data flow
 
@@ -40,13 +42,20 @@ UnitProfile.Trains
     -> G_GetTrainCommandState
        -> SetPlayerTechMaxAllowed state
        -> Requires / Requiresamount
+       -> current gold/lumber/food
     -> G_GetCommandButtons
        -> hidden at tech maximum
-       -> disabled with requirement text when prerequisites fail
+       -> disabled with requirement/resource text when unavailable
        -> available otherwise
     -> SP_TrainUnit
-       -> re-check the same state before payment/spawn
+       -> re-check the same state before gold/lumber payment and spawn
+       -> hidden queue edict
+       -> active head reserves Food Used
+       -> no supply: progress waits and retries
+       -> completion keeps the reservation on the visible unit
 ```
+
+Only the queue head owns a food reservation; later linked queue entries remain unreserved until they advance. See [Warcraft III Food, Supply, And Upkeep](food-and-upkeep.md) for the food ownership and upkeep lifecycle.
 
 Technology/count changes mark the owner's command card dirty instead of pushing UI from inside arbitrary JASS/entity callbacks. `G_UpdateClientCommandCards()` consumes that flag after entity simulation, while the initial `G_ClientBegin()` command-card write clears any dirty state accumulated by W3I or map-init JASS before the game HUD is shown. Build/skill submenus retain a refresh callback so a tech update rebuilds the current submenu rather than forcing the main card; active location/entity targeting defers the refresh until that input mode is resolved so cursor state is not stranded. Runtime spawns, ownership changes, removals, deaths, construction start/completion, and training completion invalidate affected command cards.
 
@@ -118,7 +127,7 @@ Ordinary repair aliases remain separate and do not acquire Human power-building 
 
 Construction HP is additive. Each builder contributes the same fraction of `(max_life - 10% start_life)` as its construction-time contribution, rather than snapping HP back to the value implied by total progress. Damage dealt while a structure is incomplete therefore remains damage until separately repaired or construction completes.
 
-Completion clears paused/constructing state, releases the held birth animation, restores full life, applies positive `foodMade`, publishes `EVENT_PLAYER_UNIT_CONSTRUCT_FINISH`, and refreshes resource/HUD state.
+Completion clears paused/constructing state, releases the held birth animation, restores full life, assigns positive `foodMade` to the completed building's per-edict food bookkeeping, publishes `EVENT_PLAYER_UNIT_CONSTRUCT_FINISH`, and refreshes resource/HUD state. Death/removal can therefore subtract the same contribution symmetrically.
 
 ## Repair orders
 
@@ -151,7 +160,7 @@ Construction and owned-building Repair now share the behavior described above. T
 - W3I upgrade-availability records are parsed but are not yet applied to a complete research/upgrade production system;
 - `SetPlayerAbilityAvailable` remains separate from unit/building technology availability and is not yet backed by per-player disabled-ability state;
 - hero training still lacks the additional hero-count/tier/token rules layered on top of normal `Trains`/maximum/requirement checks;
-- training still uses the legacy `player_pay()` gold/lumber charging path; full food reservation/refund and queue-cancel economics are separate work;
+- training still uses the legacy `player_pay()` gold/lumber payment path, while food reservation is owned by the active queue edict; train-item cancellation/refund economics remain separate work because no user-facing queue-cancel lifecycle exists yet;
 - the client does not yet draw a per-cell green/red pathing splat or mirror live-unit obstruction into that splat;
 - placement supports the currently decoded walk/build/blight flags, not every Warcraft compound placement type; unsupported tokens are reported to `stderr` instead of being silently discarded;
 - build cancellation after a structure has spawned does not yet have the retail partial-refund lifecycle;

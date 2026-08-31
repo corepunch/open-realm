@@ -11,13 +11,29 @@ static BOOL ShowTrainedUnit(LPEDICT townhall, LPEDICT unit) {
     unit->s.angle = angle;
     unit->training = false;
     unit->s.renderfx &= ~RF_HIDDEN;
+    /* Food Used was already reserved on this queue entity. Completion only
+     * activates Food Made; it must not charge Food Used a second time. */
+    G_SetUnitFoodMade(unit, unit->UnitBalance->foodMade);
     unit->stand(unit);
     return true;
 }
 
 void ai_train_build(LPEDICT ent) {
-    FLOAT const k = (FLOAT)FRAMETIME / ((FLOAT)ent->build->UnitBalance->buildTime * 1000.0f);
-    EDICTSTAT *hp = &ent->build->health;
+    FLOAT k;
+    EDICTSTAT *hp;
+
+    if (!ent || !ent->build) {
+        if (ent && ent->stand) ent->stand(ent);
+        return;
+    }
+    /* Only the active queue head owns a food reservation. Later queue entries
+     * stay at food.used == 0 until they advance to the front. If supply falls
+     * before reservation succeeds, production waits and retries next tick. */
+    if (!G_ReserveTrainingFood(ent->build)) {
+        return;
+    }
+    k = (FLOAT)FRAMETIME / ((FLOAT)ent->build->UnitBalance->buildTime * 1000.0f);
+    hp = &ent->build->health;
     hp->value += hp->max_value * k;
     if (hp->value >= hp->max_value) {
         LPEDICT clent = G_GetPlayerEntityByNumber(ent->s.player);

@@ -213,9 +213,8 @@ static BOOL G_RequirementsSatisfied(LPGAMECLIENT client, DWORD type_id, LPSTR re
     return true;
 }
 
-static BOOL G_BuildResourcesAvailable(LPGAMECLIENT client, DWORD building_id, LPSTR reason, DWORD reason_size) {
-    UnitBalance_t const *b = G_UnitBalance(building_id);
-    LONG food_after;
+static BOOL G_ProductionResourcesAvailable(LPGAMECLIENT client, DWORD type_id, LPSTR reason, DWORD reason_size) {
+    UnitBalance_t const *b = G_UnitBalance(type_id);
 
     if (!client) return false;
     if (b->goldCost > (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_GOLD]) {
@@ -226,8 +225,7 @@ static BOOL G_BuildResourcesAvailable(LPGAMECLIENT client, DWORD building_id, LP
         if (reason && reason_size) snprintf(reason, reason_size, "Not enough lumber");
         return false;
     }
-    food_after = (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] + MAX(0, b->foodUsed);
-    if (b->foodUsed > 0 && food_after > (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP]) {
+    if (!G_PlayerHasFoodFor(client, MAX(0, b->foodUsed))) {
         if (reason && reason_size) snprintf(reason, reason_size, "Not enough food");
         return false;
     }
@@ -250,7 +248,7 @@ buildCommandState_t G_GetBuildCommandState(LPGAMECLIENT client, LPEDICT worker, 
     if (!G_RequirementsSatisfied(client, building_id, reason, reason_size)) {
         return BUILD_COMMAND_DISABLED;
     }
-    if (!G_BuildResourcesAvailable(client, building_id, reason, reason_size)) {
+    if (!G_ProductionResourcesAvailable(client, building_id, reason, reason_size)) {
         return BUILD_COMMAND_DISABLED;
     }
     return BUILD_COMMAND_AVAILABLE;
@@ -262,13 +260,16 @@ buildCommandState_t G_GetTrainCommandState(LPGAMECLIENT client, LPEDICT producer
 
     if (reason && reason_size) reason[0] = '\0';
     if (!client || !G_ProducerCanTrain(producer, unit_id)) return BUILD_COMMAND_ABSENT;
-    if (G_BuildAllEnabled()) return BUILD_COMMAND_AVAILABLE;
-
-    maximum = G_GetPlayerTechMaxAllowed(client, unit_id);
-    if (maximum >= 0 && G_GetPlayerTechCountValue(client, unit_id) >= maximum) {
-        return BUILD_COMMAND_HIDDEN;
+    if (!G_BuildAllEnabled()) {
+        maximum = G_GetPlayerTechMaxAllowed(client, unit_id);
+        if (maximum >= 0 && G_GetPlayerTechCountValue(client, unit_id) >= maximum) {
+            return BUILD_COMMAND_HIDDEN;
+        }
+        if (!G_RequirementsSatisfied(client, unit_id, reason, reason_size)) {
+            return BUILD_COMMAND_DISABLED;
+        }
     }
-    if (!G_RequirementsSatisfied(client, unit_id, reason, reason_size)) {
+    if (!G_ProductionResourcesAvailable(client, unit_id, reason, reason_size)) {
         return BUILD_COMMAND_DISABLED;
     }
     return BUILD_COMMAND_AVAILABLE;
@@ -279,11 +280,10 @@ BOOL G_ChargeBuilding(LPGAMECLIENT client, DWORD building_id) {
 
     if (!client) return false;
     if (G_BuildAllEnabled()) return true;
-    if (!G_BuildResourcesAvailable(client, building_id, NULL, 0)) return false;
+    if (!G_ProductionResourcesAvailable(client, building_id, NULL, 0)) return false;
     b = G_UnitBalance(building_id);
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] -= MAX(0, b->goldCost);
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] -= MAX(0, b->lumberCost);
-    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] += MAX(0, b->foodUsed);
     return true;
 }
 
@@ -293,8 +293,6 @@ void G_RefundBuilding(LPGAMECLIENT client, DWORD building_id) {
     b = G_UnitBalance(building_id);
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] += MAX(0, b->goldCost);
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] += MAX(0, b->lumberCost);
-    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] =
-        MAX(0, (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] - MAX(0, b->foodUsed));
 }
 
 void G_SnapBuildingPoint(DWORD building_id, LPVECTOR2 point) {
@@ -465,6 +463,7 @@ void G_CompleteConstruction(LPEDICT building) {
     LPGAMECLIENT client;
     if (!building || !building->construction.active) return;
     client = G_GetPlayerClientByNumber(building->s.player);
+    if (client && client->ps.number != building->s.player) client = NULL;
     building->construction.active = false;
     building->construction.paused = false;
     building->construction.primary_builder = NULL;
@@ -476,9 +475,7 @@ void G_CompleteConstruction(LPEDICT building) {
     fprintf(stderr, "WC3_DEBUG_AI construction complete building=%ld id=%.4s player=%u\n",
         (long)(building - g_edicts), (LPCSTR)&building->class_id, building->s.player);
 #endif
-    if (client && building->UnitBalance->foodMade > 0) {
-        client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] += building->UnitBalance->foodMade;
-    }
+    G_SetUnitFoodMade(building, building->UnitBalance->foodMade);
     G_PublishEvent(building, EVENT_PLAYER_UNIT_CONSTRUCT_FINISH);
     if (client) {
         LPEDICT clent = G_GetPlayerEntityByNumber(client->ps.number);
