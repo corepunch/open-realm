@@ -338,6 +338,7 @@ struct client_s {
     PLAYER ps;
     BOOL connected; /* ClientBegin completed for this reserved player edict. */
     BOOL commands_dirty; /* authoritative command availability changed; rebuild after simulation */
+    BOOL presentation_dirty; /* dialogue/interface state changed; flush svc_layout after simulation */
     struct {
         DWORD race_pref, controller;
         BYTE tax[MAX_PLAYERS][PLAYERSTATE_LUMBER_GATHERED + 1];
@@ -1206,6 +1207,7 @@ void UI_SetCurrentClient(LPGAMECLIENT client);
 void UI_ShowInterface(LPEDICT, BOOL, FLOAT);
 void UI_ShowText(LPEDICT, LPCVECTOR2, LPCSTR, FLOAT);
 void UI_ClearTextMessages(LPEDICT);
+void UI_InvalidateDialoguePresentation(LPEDICT);
 void UI_WriteDialoguePresentation(LPEDICT);
 LPCSTR GetBuildCommand(unitRace_t);
 void UI_RenderRoute(LPEDICT, LPCSTR);

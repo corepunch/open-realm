@@ -1344,7 +1344,7 @@ DWORD SetCinematicScene(LPJASS j) {
             gc->cinematic_end_time = sceneDuration > 0 ? now + (DWORD)(sceneDuration * 1000.0f) : 0;
             gc->cinematic_voice_end_time = voiceoverDuration > 0 ? now + (DWORD)(voiceoverDuration * 1000.0f) : 0;
         }
-        UI_WriteDialoguePresentation(PLAYER_ENT(currentplayer));
+        UI_InvalidateDialoguePresentation(PLAYER_ENT(currentplayer));
     }
     return 0;
 }
@@ -1358,7 +1358,7 @@ DWORD EndCinematicScene(LPJASS j) {
             gc->cinematic_end_time = 0;
             gc->cinematic_voice_end_time = 0;
         }
-        UI_WriteDialoguePresentation(PLAYER_ENT(currentplayer));
+        UI_InvalidateDialoguePresentation(PLAYER_ENT(currentplayer));
     }
     return 0;
 }

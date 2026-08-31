@@ -29,7 +29,8 @@ transmission path use empty strings to decide whether a scene exists.
 resolve TRIGSTR speaker/text
   -> resolve portrait unit type to model
   -> store scene and voice expiry independently
-  -> UI_WriteDialoguePresentation(player entity)
+  -> mark client presentation_dirty
+  -> G_RunClients flushes UI_WriteDialoguePresentation for connected clients
 ```
 
 `UI_WriteDialoguePresentation` selects presentation from the existing UI mode:
@@ -46,6 +47,54 @@ CLIENT_UI_CINEMATIC
 A gameplay transmission does not set `CLIENT_UI_CINEMATIC`. When it expires,
 `G_RunClients` clears transmission state, restores the selected-unit portrait,
 and restores an ordinary timed message if that message is still alive.
+
+## Network Lifecycle
+
+Dialogue/interface JASS natives own presentation **state**, not the server
+message transport. `ShowInterface`, `SetCinematicScene`, `EndCinematicScene`,
+`DisplayText*`, and `ClearTextMessages` mark `client_s.presentation_dirty`.
+`G_RunClients` sends the final presentation once per simulation update only
+when `client->connected` is true. The dirty bit remains set while disconnected,
+so a state change is deferred rather than discarded.
+
+`UI_WriteDialoguePresentation` also enforces the same `connected` boundary.
+This is a transport invariant: `svc_layout` ultimately writes through
+`gi.Write`/`PF_Write`, whose server multicast buffer is not valid before
+`G_ClientBegin` completes. `UI_ShowGameInterface` is the intentional immediate
+initial-HUD path because `G_ClientBegin` sets `connected` first. Selection/HUD
+refresh paths may also request an immediate write, but the writer will not
+serialize for an unconnected reserved player edict.
+
+Commit `39193e6` (`wc3: implement triggered in-game dialogue`) introduced the
+regression by calling `UI_WriteDialoguePresentation` synchronously from
+`UI_ShowInterface`. In-engine JASS tests use reserved player edicts whose
+clients are deliberately not connected, so that call reached `PF_Write` with
+an uninitialized zero-sized multicast buffer and printed:
+
+```text
+Write buffer overflow (msg):
+```
+
+Do not fix this in `MSG_Write`, `PF_Write`, or by initializing a fake multicast
+buffer for disconnected tests. The invalid operation is the premature
+server-to-client UI write.
+
+### Alternative Considered: Guard-Only
+
+A smaller fix is to leave every JASS/native caller synchronous and add only:
+
+```c
+if (!client->connected)
+    return;
+```
+
+to `UI_WriteDialoguePresentation`. This prevents the overflow, but it keeps
+state mutation coupled to immediate network serialization and can emit several
+complete layout updates when one trigger changes interface mode, transmission,
+and message state in the same simulation step. The implemented dirty-state
+path keeps the boundary explicit, coalesces those changes in `G_RunClients`,
+and still retains the writer guard as a transport invariant for explicit HUD
+refresh callers.
 
 The portrait animation has two lifetimes. While
 `cinematic_voice_end_time > GetTime()` the frame requests `Portrait Talk`.
@@ -112,6 +161,7 @@ or UI mode.
 
 Relevant in-engine tests are under `games/warcraft-3/game/tests/t_api.c`:
 
+- `wc3_api.disconnected_presentation_defers_network_write_until_connected`
 - `wc3_api.display_text_tracks_lifetime_and_clear`
 - `wc3_api.display_text_uses_automatic_duration`
 - `wc3_api.transmission_keeps_gameplay_ui_and_separates_voice_lifetime`
@@ -121,9 +171,16 @@ Run when validating changes:
 
 ```sh
 make test-wc3-engine WC3_PATTERN='wc3_api.*'
+make test-wc3-engine 2>&1 | tee /tmp/wc3-tests.log
+! grep -F "Write buffer overflow (msg):" /tmp/wc3-tests.log
 ```
 
 For campaign behavior, verify a bounded Human02 run with a transmission that
 occurs outside cinematic mode. Confirm the normal command UI remains usable,
 the selected portrait is restored after speech, the camera does not move from
 the transmission itself, and fog state is unchanged.
+
+## See Also
+
+- [Server-Authored UI Payloads](../../architecture/ui-payloads.md)
+- [JASS Native Coverage](jass-native-coverage.md)

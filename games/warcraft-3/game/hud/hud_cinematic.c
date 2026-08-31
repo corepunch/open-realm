@@ -141,11 +141,20 @@ void UI_ClearLayer(LPEDICT ent, DWORD layer) {
     UI_WriteEnd(ent);
 }
 
+void UI_InvalidateDialoguePresentation(LPEDICT ent) {
+    if (ent && ent->client) ent->client->presentation_dirty = true;
+}
+
 void UI_WriteDialoguePresentation(LPEDICT ent) {
     LPGAMECLIENT client;
 
     if (!ent || !ent->client) return;
     client = ent->client;
+
+    /* svc_layout is a server->client write and is not valid until ClientBegin
+     * has completed.  JASS-facing state mutations retain presentation_dirty,
+     * so skipping this transport write does not discard presentation state. */
+    if (!client->connected) return;
 
     if (client->ps.client_ui_state == CLIENT_UI_CINEMATIC) {
         UI_WriteCinematicLayer(ent);
@@ -170,13 +179,15 @@ void UI_ShowInterface(LPEDICT ent, BOOL flag, FLOAT duration) {
         ent->client->ps.uiflags = 1 << LAYER_CINEMATIC;
     else
         ent->client->ps.uiflags = ~(1u << LAYER_CINEMATIC);
-    UI_WriteDialoguePresentation(ent);
+    UI_InvalidateDialoguePresentation(ent);
 }
 
 __attribute__((visibility("hidden"))) void UI_ShowMainMenu(LPEDICT ent) { (void)ent; }
 
 void UI_ShowGameInterface(LPEDICT ent) {
     UI_WriteDialoguePresentation(ent);
+    if (ent && ent->client && ent->client->connected)
+        ent->client->presentation_dirty = false;
 }
 
 void UI_ShowText(LPEDICT ent, LPCVECTOR2 pos, LPCSTR text, FLOAT duration) {
@@ -203,7 +214,7 @@ void UI_ShowText(LPEDICT ent, LPCVECTOR2 pos, LPCSTR text, FLOAT duration) {
      * ordinary message started underneath it and reveal that message when the
      * transmission ends if its own lifetime has not expired. */
     if (client->ps.client_ui_state == CLIENT_UI_GAME && HasTransmission(client)) return;
-    WriteStoredMessageLayer(ent);
+    UI_InvalidateDialoguePresentation(ent);
 }
 
 void UI_ClearTextMessages(LPEDICT ent) {
@@ -213,7 +224,7 @@ void UI_ClearTextMessages(LPEDICT ent) {
     client = ent->client;
     memset(&client->message, 0, sizeof(client->message));
     if (client->ps.client_ui_state == CLIENT_UI_GAME && HasTransmission(client)) return;
-    UI_ClearLayer(ent, LAYER_MESSAGE);
+    UI_InvalidateDialoguePresentation(ent);
 }
 
 void UI_WriteCinematicLayer(LPEDICT ent) {
