@@ -342,6 +342,9 @@ void unit_setanimation(LPEDICT self, LPCSTR anim) {
 }
 
 void unit_setmove(LPEDICT self, umove_t *move) {
+    if (self->currentmove && self->currentmove->ability != move->ability) {
+        S_CancelRepair(self);
+    }
     self->currentmove = move;
     self->animation = G_GetAnimation(self->s.model, move->animation);
     if (self->animation) {

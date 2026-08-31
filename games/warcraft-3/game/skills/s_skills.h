@@ -123,7 +123,6 @@ void S_SpellCancelChannel(LPEDICT caster);
  * validation, and execution via the spell_info_t attached to ability_t. */
 void spell_cmd(LPEDICT clent);
 void spell_run_frame(LPEDICT ent);
-void SP_ability_repair(LPCSTR classname, ability_t *self);
 void SP_ability_item_attack_bonus(LPCSTR classname, ability_t *self);
 void SP_ability_item_defense_bonus(LPCSTR classname, ability_t *self);
 void SP_ability_item_life_bonus(LPCSTR classname, ability_t *self);

@@ -6,6 +6,8 @@ LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
 void setup_test_world(void);
 void repair_build_primary(LPEDICT ent, LPEDICT building);
 BOOL build_menu_send_builder(LPEDICT clent, LPCVECTOR2 location);
+slkTestData_t *parse_slk_string(const char *slk_text);
+void free_slk_rows(slkTestData_t *rows);
 
 static DWORD building_stand_calls;
 static uiFrame_t building_command_frame;
@@ -46,6 +48,55 @@ static void building_noop_unicast(LPEDICT ent) { (void)ent; }
 
 static LPCSTR building_all_cvar(LPCSTR name, LPCSTR fallback) {
     return !strcmp(name, "wc3_build_all") ? "1" : fallback;
+}
+
+static const char building_repair_slk[] =
+    "ID;PWXL;N;E\n"
+    "B;X8;Y4;D0\n"
+    "C;X1;Y1;K\"alias\"\n"
+    "C;X2;K\"code\"\n"
+    "C;X3;K\"DataA1\"\n"
+    "C;X4;K\"DataB1\"\n"
+    "C;X5;K\"DataC1\"\n"
+    "C;X6;K\"DataD1\"\n"
+    "C;X7;K\"DataE1\"\n"
+    "C;X8;K\"Rng1\"\n"
+    "C;X1;Y2;K\"Arep\"\n"
+    "C;X2;K\"Arep\"\n"
+    "C;X3;K1\n"
+    "C;X4;K1\n"
+    "C;X5;K0.5\n"
+    "C;X6;K0.5\n"
+    "C;X7;K0\n"
+    "C;X8;K128\n"
+    "C;X1;Y3;K\"Aren\"\n"
+    "C;X2;K\"Aren\"\n"
+    "C;X3;K1\n"
+    "C;X4;K2\n"
+    "C;X5;K0\n"
+    "C;X6;K0\n"
+    "C;X7;K0\n"
+    "C;X8;K128\n"
+    "C;X1;Y4;K\"Arst\"\n"
+    "C;X2;K\"Arst\"\n"
+    "C;X3;K0.75\n"
+    "C;X4;K1\n"
+    "C;X5;K0\n"
+    "C;X6;K0\n"
+    "C;X7;K0\n"
+    "C;X8;K96\n"
+    "E\n";
+
+static slkTestData_t *building_install_repair_data(slkTestData_t **rows_out) {
+    slkTestData_t *rows = parse_slk_string(building_repair_slk);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    if (rows_out) *rows_out = rows;
+    return old;
+}
+
+static void building_restore_repair_data(slkTestData_t *old, slkTestData_t *rows) {
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
 }
 
 TEST(wc3_building, player_tech_state_tracks_max_and_researched_levels) {
@@ -381,16 +432,24 @@ TEST(wc3_building, human_builder_exit_is_outside_baked_building_footprint) {
     LPEDICT builder;
     LPEDICT building;
     pathTex_t *pathtex;
+    UnitAbilities_t abilities = { .abilList = "Arep" };
+    slkTestData_t *rows, *old_abilities;
     size_t const pathtex_size = sizeof(*pathtex) +
                                 FOOTPRINT_W * FOOTPRINT_H * sizeof(COLOR32);
 
+    old_abilities = building_install_repair_data(&rows);
     setup_test_world();
     builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
+    builder->UnitAbilities = &abilities;
     builder->collision = 16.0f;
     builder->s.model = 1;
     building->s.model = 1;
     building->movetype = MOVETYPE_NONE;
+    building->svflags |= SVF_MONSTER;
+    building->health.max_value = 1200.0f;
+    building->health.value = 1200.0f;
+    T_ASSERT(G_StartHumanConstruction(builder, building));
 
     pathtex = gi.MemAlloc(pathtex_size);
     memset(pathtex, 0, pathtex_size);
@@ -412,6 +471,178 @@ TEST(wc3_building, human_builder_exit_is_outside_baked_building_footprint) {
 
     building->pathtex = NULL;
     gi.MemFree(pathtex);
+    building_restore_repair_data(old_abilities, rows);
+}
+
+TEST(wc3_building, completed_repair_uses_repair_time_ratios_and_fractional_costs) {
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT worker;
+    LPEDICT building;
+    UnitAbilities_t abilities = { .abilList = "Aren" };
+    UnitBalance_t balance;
+    LPGAMECLIENT saved_client;
+    slkTestData_t *rows, *old_abilities;
+
+    old_abilities = building_install_repair_data(&rows);
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 0);
+    worker->UnitAbilities = &abilities;
+    worker->collision = 16.0f;
+    building->collision = 32.0f;
+    worker->s.player = client->ps.number;
+    building->s.player = client->ps.number;
+    balance = *building->UnitBalance;
+    balance.reptm = 10;
+    balance.buildTime = 100;
+    balance.goldRep = 5;
+    balance.lumberRep = 3;
+    building->UnitBalance = &balance;
+    building->health.max_value = 1000.0f;
+    building->health.value = 500.0f;
+    building->svflags |= SVF_MONSTER;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 100;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 100;
+
+    T_ASSERT(S_OrderRepair(worker, building, MAKEFOURCC('A','r','e','n')));
+    T_NOT_NULL(worker->currentmove);
+    T_STREQ(worker->currentmove->animation, "stand work");
+
+    saved_client = g_edicts[0].client;
+    g_edicts[0].client = NULL;
+    FOR_LOOP(i, 20) worker->currentmove->think(worker);
+    g_edicts[0].client = saved_client;
+
+    /* Aren fixture: DataA=1, DataB=2, reptm=10. Over two seconds the
+     * building gains 400 HP. Costs accumulate at 1 gold/sec and 0.6
+     * lumber/sec, proving sub-unit tick costs are retained. buildTime=100
+     * also proves reptm wins as the completed-repair duration source. */
+    T_FEQ(building->health.value, 900.0f, 0.001f);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 98);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 99);
+
+    building_restore_repair_data(old_abilities, rows);
+}
+
+TEST(wc3_building, repair_order_walks_to_remote_target_without_teleporting) {
+    LPEDICT worker;
+    LPEDICT building;
+    UnitAbilities_t abilities = { .abilList = "Aren" };
+    VECTOR2 start;
+    slkTestData_t *rows, *old_abilities;
+
+    old_abilities = building_install_repair_data(&rows);
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -256, 0);
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 256, 0);
+    worker->UnitAbilities = &abilities;
+    worker->collision = 16.0f;
+    building->collision = 32.0f;
+    building->health.max_value = 1000.0f;
+    building->health.value = 500.0f;
+    building->svflags |= SVF_MONSTER;
+    building->s.player = worker->s.player;
+    start = worker->s.origin2;
+
+    T_ASSERT(S_OrderRepair(worker, building, MAKEFOURCC('A','r','e','n')));
+    T_FEQ(worker->s.origin2.x, start.x, 0.001f);
+    T_FEQ(worker->s.origin2.y, start.y, 0.001f);
+    T_ASSERT(worker->goalentity == building);
+    T_STREQ(worker->currentmove->animation, "walk");
+
+    unit_stand(worker);
+    T_EQ(worker->buildwork.ability, 0);
+    T_NULL(worker->build);
+    T_NULL(worker->goalentity);
+
+    building_restore_repair_data(old_abilities, rows);
+}
+
+TEST(wc3_building, smart_order_repairs_damaged_owned_building) {
+    LPEDICT worker;
+    LPEDICT building;
+    UnitAbilities_t abilities = { .abilList = "Aren" };
+    slkTestData_t *rows, *old_abilities;
+
+    old_abilities = building_install_repair_data(&rows);
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 0);
+    worker->UnitAbilities = &abilities;
+    worker->collision = 16.0f;
+    building->collision = 32.0f;
+    building->svflags |= SVF_MONSTER;
+    building->s.player = worker->s.player;
+    building->health.max_value = 1000.0f;
+    building->health.value = 500.0f;
+
+    T_ASSERT(unit_issuetargetorder(worker, "smart", building));
+    T_NE(worker->buildwork.ability, 0);
+    T_ASSERT(worker->build == building);
+    T_STREQ(worker->currentmove->animation, "stand work");
+
+    building_restore_repair_data(old_abilities, rows);
+}
+
+TEST(wc3_building, repair_stops_and_releases_state_when_target_dies) {
+    LPEDICT worker;
+    LPEDICT building;
+    UnitAbilities_t abilities = { .abilList = "Aren" };
+    slkTestData_t *rows, *old_abilities;
+
+    old_abilities = building_install_repair_data(&rows);
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 0);
+    worker->UnitAbilities = &abilities;
+    worker->stand = unit_stand;
+    worker->collision = 16.0f;
+    building->collision = 32.0f;
+    building->svflags |= SVF_MONSTER;
+    building->s.player = worker->s.player;
+    building->health.max_value = 1000.0f;
+    building->health.value = 500.0f;
+
+    T_ASSERT(S_OrderRepair(worker, building, MAKEFOURCC('A','r','e','n')));
+    building->health.value = 0.0f;
+    worker->currentmove->think(worker);
+
+    T_EQ(worker->buildwork.ability, 0);
+    T_NULL(worker->build);
+    T_NULL(worker->goalentity);
+
+    building_restore_repair_data(old_abilities, rows);
+}
+
+TEST(wc3_building, standard_repair_rejects_construction_and_human_requires_paused_state) {
+    LPEDICT human;
+    LPEDICT standard;
+    LPEDICT building;
+    UnitAbilities_t human_abilities = { .abilList = "Arep" };
+    UnitAbilities_t standard_abilities = { .abilList = "Aren" };
+    slkTestData_t *rows, *old_abilities;
+
+    old_abilities = building_install_repair_data(&rows);
+    setup_test_world();
+    human = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    standard = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 32);
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 0);
+    human->UnitAbilities = &human_abilities;
+    standard->UnitAbilities = &standard_abilities;
+    human->s.player = 0;
+    standard->s.player = 0;
+    building->s.player = 0;
+    building->health.max_value = 1000.0f;
+    building->health.value = 100.0f;
+    building->svflags |= SVF_MONSTER;
+    building->construction.active = true;
+    building->construction.paused = true;
+
+    T_ASSERT(!S_OrderRepair(standard, building, MAKEFOURCC('A','r','e','n')));
+    building->construction.paused = false;
+    T_ASSERT(!S_OrderRepair(human, building, MAKEFOURCC('A','r','e','p')));
+
+    building_restore_repair_data(old_abilities, rows);
 }
 
 

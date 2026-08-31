@@ -576,6 +576,7 @@ struct edict_s {
     } construction;
     BOOL training; /* spawned in a production queue but not yet completed */
     struct {
+        DWORD ability;
         BOOL primary;
         FLOAT gold_accum;
         FLOAT lumber_accum;
@@ -978,6 +979,9 @@ FLOAT G_BuildApproachDistance(DWORD building_id);
 BOOL G_StartHumanConstruction(LPEDICT builder, LPEDICT building);
 void G_CompleteConstruction(LPEDICT building);
 BOOL G_UnitHasHumanRepair(LPEDICT ent);
+BOOL S_OrderRepair(LPEDICT ent, LPEDICT target, DWORD preferred);
+BOOL S_RepairSmart(LPEDICT ent, LPEDICT target);
+void S_CancelRepair(LPEDICT ent);
 void G_SetPlayerTechMaxAllowed(LPGAMECLIENT client, DWORD techid, LONG maximum);
 LONG G_GetPlayerTechMaxAllowed(LPGAMECLIENT client, DWORD techid);
 void G_SetPlayerTechResearched(LPGAMECLIENT client, DWORD techid, LONG level_value);
