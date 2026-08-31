@@ -18,6 +18,8 @@ void setup_test_world(void);
 void unit_stand(LPEDICT self);
 void unit_birth(LPEDICT self);
 void unit_die(LPEDICT self, LPEDICT attacker);
+void unit_begin_decay(LPEDICT self);
+void unit_decay_think(LPEDICT self);
 void unit_entercombat(LPEDICT self, LPEDICT target);
 void unit_leavecombat(LPEDICT self);
 BOOL unit_affectingcombat(LPEDICT self);
@@ -251,6 +253,95 @@ TEST(wc3_unit, die_publishes_death_event) {
         }
     }
     T_ASSERT(found);
+}
+
+TEST(wc3_unit, hero_dissipation_marks_same_hero_revivable_and_hidden) {
+    reset_test_entities();
+    LPEDICT hero = make_inventory_unit(0, 0);
+    hero->health.value = hero->health.max_value = 500.0f;
+
+    unit_die(hero, NULL);
+    T_ASSERT(hero->svflags & SVF_DEADMONSTER);
+    T_ASSERT(!hero->revival.awaiting);
+
+    unit_begin_decay(hero);
+    /* Drive exactly one elapsed simulation step without depending on the
+     * archive's configured DissipateTime in this unit test. */
+    hero->wait = (FLOAT)FRAMETIME / 1000.0f;
+    unit_decay_think(hero);
+
+    T_ASSERT(hero->inuse);
+    T_ASSERT(hero->revival.awaiting);
+    T_ASSERT(hero->s.renderfx & RF_HIDDEN);
+}
+
+TEST(wc3_unit, scripted_revive_clears_altar_revival_state_on_same_hero) {
+    reset_test_entities();
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT altar = make_unit(0, 0);
+    LPEDICT hero = make_inventory_unit(0, 0);
+    altar->s.player = hero->s.player = client->ps.number;
+    altar->build = hero;
+    hero->health.max_value = 500.0f;
+    hero->mana.max_value = 300.0f;
+    hero->svflags |= SVF_DEADMONSTER;
+    hero->s.renderfx |= RF_HIDDEN;
+    hero->revival.awaiting = true;
+    hero->revival.reviving = true;
+    hero->revival.producer = altar;
+    hero->revival.player = client->ps.number;
+    hero->revival.gold = 100;
+    hero->revival.lumber = 50;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
+
+    G_ReviveHero(hero, 64.0f, 96.0f);
+
+    T_NULL(altar->build);
+    T_ASSERT(hero->inuse);
+    T_ASSERT(!(hero->svflags & SVF_DEADMONSTER));
+    T_ASSERT(!(hero->s.renderfx & RF_HIDDEN));
+    T_ASSERT(!hero->revival.awaiting);
+    T_ASSERT(!hero->revival.reviving);
+    T_NULL(hero->revival.producer);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 100);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 50);
+    T_EQ((int)hero->s.origin2.x, 64);
+    T_EQ((int)hero->s.origin2.y, 96);
+    T_ASSERT(hero->health.value > 0.0f);
+}
+
+TEST(wc3_unit, removing_producer_cancels_mixed_revival_and_training_queue) {
+    reset_test_entities();
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT altar = make_unit(0, 0);
+    LPEDICT hero = make_inventory_unit(0, 0);
+    LPEDICT trainee = make_unit(0, 0);
+    LONG gold = MAX(0, trainee->UnitBalance->goldCost);
+    LONG lumber = MAX(0, trainee->UnitBalance->lumberCost);
+
+    altar->s.player = hero->s.player = trainee->s.player = client->ps.number;
+    altar->build = hero;
+    hero->revival.awaiting = true;
+    hero->revival.reviving = true;
+    hero->revival.producer = altar;
+    hero->revival.queue_next = trainee;
+    hero->revival.player = client->ps.number;
+    hero->revival.gold = 100;
+    hero->revival.lumber = 50;
+    trainee->training = true;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
+
+    G_FreeEdict(altar);
+
+    T_ASSERT(!altar->inuse);
+    T_ASSERT(hero->inuse);
+    T_ASSERT(!hero->revival.reviving);
+    T_NULL(hero->revival.producer);
+    T_ASSERT(!trainee->inuse);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 100 + gold);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 50 + lumber);
 }
 
 /* -----------------------------------------------------------------------

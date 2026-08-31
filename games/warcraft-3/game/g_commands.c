@@ -51,6 +51,14 @@ static BOOL G_CancelTargetMode(LPEDICT clent) {
 }
 
 void CMD_CancelCommand(LPEDICT ent) {
+    LPEDICT producer;
+    if (ent && ent->client && (producer = G_GetMainSelectedUnit(ent->client)) &&
+        producer->build && producer->build->revival.reviving) {
+        if (G_CancelHeroRevive(producer, producer->build)) {
+            Get_Commands_f(ent);
+            return;
+        }
+    }
     if (!G_CancelBuildPlacement(ent)) {
         Get_Commands_f(ent);
     }
@@ -173,6 +181,7 @@ CLIENTCOMMAND(Button) {
     LPCSTR classname;
     LPGAMECLIENT client = clent->client;
     ability_t const *ability;
+    LPEDICT producer;
 
     if (argc < 2) return;
     if (client->no_ui) {
@@ -180,6 +189,15 @@ CLIENTCOMMAND(Button) {
         return;
     }
     classname = argv[1];
+    if (!strncmp(classname, "revive:", 7)) {
+        char *end = NULL;
+        unsigned long const number = strtoul(classname + 7, &end, 10);
+        if (!end || *end || number >= globals.num_edicts) return;
+        producer = G_GetMainSelectedUnit(client);
+        if (!producer) return;
+        G_QueueHeroRevive(producer, &globals.edicts[number]);
+        return;
+    }
     ability = FindAbilityForCommand(classname);
     if (ability && ability->cmd) {
         client->menu.ability_code = *((DWORD const *)classname);

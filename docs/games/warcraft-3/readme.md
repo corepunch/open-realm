@@ -108,6 +108,7 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Ability Coverage](architecture/ability-coverage.md)
 - [ROC Ability Checklist](architecture/roc-ability-checklist.md)
 - [Cinematics](cinematics.md)
+- [Hero Revival](hero-revival.md)
 - [Sounds](sounds.md)
 
 - [Building construction](building-construction.md) — shared build/train tech availability, placement validation, Human construction, and power building.

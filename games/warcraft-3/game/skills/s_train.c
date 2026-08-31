@@ -109,6 +109,122 @@ void G_CancelTrainingQueue(LPEDICT producer, BOOL refund) {
     }
 }
 
+static BOOL HeroReviveMisc(LPCSTR key, FLOAT *out) {
+    LPCSTR value;
+    if (!key || !out) return false;
+    value = Stb_IniCacheFind(&game.config.misc, "Misc", key);
+    if (!value || !*value) {
+        fprintf(stderr, "Hero revival: missing Misc.%s\n", key);
+        return false;
+    }
+    *out = (FLOAT)atof(value);
+    return true;
+}
+
+BOOL G_UnitCanReviveHeroes(LPCEDICT altar) {
+    LPCSTR revive = altar && altar->UnitProfile ? altar->UnitProfile->revive : NULL;
+    return revive && *revive && atoi(revive) != 0;
+}
+
+BOOL G_HeroCanBeRevivedAt(LPCEDICT altar, LPCEDICT hero) {
+    return altar && hero && altar->inuse && hero->inuse && !M_IsDead((LPEDICT)altar) &&
+        G_UnitCanReviveHeroes(altar) && altar->s.player == hero->s.player &&
+        hero->UnitBalance && G_UnitIsHero(hero) && M_IsDead((LPEDICT)hero) &&
+        hero->revival.awaiting && !hero->revival.reviving;
+}
+
+static BOOL HeroReviveValues(LPCEDICT hero, DWORD *gold, DWORD *lumber, FLOAT *seconds) {
+    FLOAT goldBase, goldLevel, lumberBase, lumberLevel, maxFactor;
+    FLOAT timeFactor, maxTimeFactor, factor;
+    DWORD level;
+    if (!hero || !hero->UnitBalance || !G_UnitIsHero(hero)) return false;
+    if (!HeroReviveMisc("ReviveBaseFactor", &goldBase) ||
+        !HeroReviveMisc("ReviveLevelFactor", &goldLevel) ||
+        !HeroReviveMisc("ReviveBaseLumberFactor", &lumberBase) ||
+        !HeroReviveMisc("ReviveLumberLevelFactor", &lumberLevel) ||
+        !HeroReviveMisc("ReviveMaxFactor", &maxFactor) ||
+        !HeroReviveMisc("ReviveTimeFactor", &timeFactor) ||
+        !HeroReviveMisc("ReviveMaxTimeFactor", &maxTimeFactor)) return false;
+
+    level = MAX(1, hero->hero.level);
+    factor = goldBase + goldLevel * (FLOAT)(level - 1);
+    if (maxFactor > 0.0f) factor = MIN(factor, maxFactor);
+    if (gold) *gold = (DWORD)MAX(0.0f, (FLOAT)MAX(0, hero->UnitBalance->goldCost) * factor);
+
+    factor = lumberBase + lumberLevel * (FLOAT)(level - 1);
+    if (maxFactor > 0.0f) factor = MIN(factor, maxFactor);
+    if (lumber) *lumber = (DWORD)MAX(0.0f, (FLOAT)MAX(0, hero->UnitBalance->lumberCost) * factor);
+
+    factor = (FLOAT)MAX(0, hero->UnitBalance->buildTime) * (FLOAT)level * timeFactor;
+    if (maxTimeFactor > 0.0f) {
+        FLOAT const maximum = (FLOAT)MAX(0, hero->UnitBalance->buildTime) * maxTimeFactor;
+        factor = MIN(factor, maximum);
+    }
+    if (seconds) *seconds = MAX(0.0f, factor);
+    return true;
+}
+
+DWORD G_HeroReviveGoldCost(LPCEDICT hero) {
+    DWORD value = 0;
+    HeroReviveValues(hero, &value, NULL, NULL);
+    return value;
+}
+
+DWORD G_HeroReviveLumberCost(LPCEDICT hero) {
+    DWORD value = 0;
+    HeroReviveValues(hero, NULL, &value, NULL);
+    return value;
+}
+
+FLOAT G_HeroReviveTime(LPCEDICT hero) {
+    FLOAT value = 0.0f;
+    HeroReviveValues(hero, NULL, NULL, &value);
+    return value;
+}
+
+static LPEDICT ProductionNext(LPEDICT item) {
+    if (!item) return NULL;
+    return item->revival.reviving ? item->revival.queue_next : item->build;
+}
+
+static void ProductionSetNext(LPEDICT item, LPEDICT next) {
+    if (!item) return;
+    if (item->revival.reviving) item->revival.queue_next = next;
+    else item->build = next;
+}
+
+static DWORD ProductionQueueCount(LPEDICT producer) {
+    DWORD count = 0;
+    for (LPEDICT item = producer ? producer->build : NULL; item && count < MAX_BUILD_QUEUE; item = ProductionNext(item)) {
+        count++;
+        if (ProductionNext(item) == item) break;
+    }
+    return count;
+}
+
+static void RefreshReviveUI(LPEDICT altar) {
+    LPEDICT clent;
+    LPGAMECLIENT client;
+    if (!altar) return;
+    client = G_GetPlayerClientByNumber(altar->s.player);
+    clent = G_GetPlayerEntityByNumber(altar->s.player);
+    if (client) G_InvalidateCommands(client);
+    if (clent) {
+        G_RefreshResourceBar(clent);
+        Get_Commands_f(clent);
+        Get_Portrait_f(clent);
+    }
+}
+
+static void RefundHeroRevive(LPEDICT altar, LPEDICT hero) {
+    LPGAMECLIENT client;
+    if (!altar || !hero) return;
+    client = G_GetPlayerClientByNumber(hero->revival.player);
+    if (!client || client->ps.number != hero->revival.player) return;
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] += MAX(0, hero->revival.gold);
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] += MAX(0, hero->revival.lumber);
+}
+
 static BOOL ShowTrainedUnit(LPEDICT townhall, LPEDICT unit) {
     VECTOR2 origin;
     FLOAT angle;
@@ -128,67 +244,166 @@ static BOOL ShowTrainedUnit(LPEDICT townhall, LPEDICT unit) {
     return true;
 }
 
-void ai_train_build(LPEDICT ent) {
-    FLOAT k;
-    EDICTSTAT *hp;
+static BOOL CompleteHeroRevive(LPEDICT altar, LPEDICT hero) {
+    VECTOR2 origin;
+    FLOAT angle;
+    LPEDICT next;
 
+    if (!altar || !hero || !hero->inuse || !hero->revival.reviving ||
+        !hero->revival.awaiting || !M_IsDead(hero)) return false;
+    if (!SP_FindUnitExitPosition(altar, hero, &origin, &angle)) return false;
+
+    next = hero->revival.queue_next;
+    altar->build = next;
+    hero->revival.reviving = false;
+    hero->revival.producer = NULL;
+    hero->revival.queue_next = NULL;
+    hero->revival.player = 0;
+    hero->s.angle = angle;
+    G_ReviveHero(hero, origin.x, origin.y);
+    G_PublishEventWithSource(hero, EVENT_PLAYER_HERO_REVIVE_FINISH, altar);
+    G_PublishEventWithSource(hero, EVENT_UNIT_HERO_REVIVE_FINISH, altar);
+    RefreshReviveUI(altar);
+    if (!altar->build) altar->stand(altar);
+    return true;
+}
+
+void ai_train_build(LPEDICT ent) {
     if (!ent || !ent->build) {
         if (ent && ent->stand) ent->stand(ent);
         return;
     }
-    /* Only the active queue head owns a food reservation. Later queue entries
-     * stay at food.used == 0 until they advance to the front. If supply falls
-     * before reservation succeeds, production waits and retries next tick. */
-    if (!ReserveTrainingFood(ent, ent->build)) {
-        return;
-    }
-    k = (FLOAT)FRAMETIME / ((FLOAT)ent->build->UnitBalance->buildTime * 1000.0f);
-    hp = &ent->build->health;
-    hp->value += hp->max_value * k;
-    if (hp->value >= hp->max_value) {
-        LPEDICT clent = G_GetPlayerEntityByNumber(ent->s.player);
-        LPEDICT completed = ent->build;
-        LPEDICT next = completed->build;
+    if (ent->build->revival.reviving) {
+        LPEDICT hero = ent->build;
+        FLOAT required;
 
-        hp->value = hp->max_value; /* clamp; placement retries every tick until space clears */
-        if (!ShowTrainedUnit(ent, completed)) {
+        if (!hero->inuse || !hero->revival.awaiting || !M_IsDead(hero)) {
+            G_CancelHeroRevive(ent, hero);
             return;
         }
-        /* Queued units use build as the next-item link, while unit_stand()
-         * clears build for the completed unit. Preserve the producer's queue
-         * link before revealing/standing the completed unit. */
-        ent->build = next;
-        if (ent->build) {
-            /* The next item is active as soon as the previous item completes.
-             * Reserving here closes the one-frame gap where another Train click
-             * could otherwise see stale Food Used. */
-            ReserveTrainingFood(ent, ent->build);
+        required = G_HeroReviveTime(hero);
+        if (required <= 0.0f) return;
+        hero->revival.progress += (FLOAT)FRAMETIME / 1000.0f;
+        if (hero->revival.progress >= required) CompleteHeroRevive(ent, hero);
+        return;
+    }
+
+    /* Only the active training head owns food. Revival has no food reservation. */
+    if (!ReserveTrainingFood(ent, ent->build)) return;
+    {
+        FLOAT const k = (FLOAT)FRAMETIME / ((FLOAT)ent->build->UnitBalance->buildTime * 1000.0f);
+        EDICTSTAT *hp = &ent->build->health;
+        hp->value += hp->max_value * k;
+        if (hp->value >= hp->max_value) {
+            LPEDICT clent = G_GetPlayerEntityByNumber(ent->s.player);
+            LPEDICT completed = ent->build;
+            LPEDICT next = completed->build;
+
+            hp->value = hp->max_value; /* clamp; placement retries every tick until space clears */
+            if (!ShowTrainedUnit(ent, completed)) {
+                return;
+            }
+            /* Queued units use build as the next-item link, while unit_stand()
+             * clears build for the completed unit. Preserve the producer's queue
+             * link before revealing/standing the completed unit. */
+            ent->build = next;
+            if (ent->build && ent->build->training) ReserveTrainingFood(ent, ent->build);
+            G_InvalidateCommands(G_GetPlayerClientByNumber(ent->s.player));
+            G_PublishEvent(completed, EVENT_PLAYER_UNIT_TRAIN_FINISH);
+#ifdef WC3_DEBUG_AI
+            fprintf(stderr, "WC3_DEBUG_AI training complete producer=%ld unit=%ld id=%.4s player=%u\n",
+                (long)(ent - g_edicts), (long)(completed - g_edicts), (LPCSTR)&completed->class_id, completed->s.player);
+#endif
+            if (!ent->build) {
+                ent->stand(ent);
+            }
+            if (clent) Get_Portrait_f(clent);
         }
-        G_InvalidateCommands(G_GetPlayerClientByNumber(ent->s.player));
-        G_PublishEvent(completed, EVENT_PLAYER_UNIT_TRAIN_FINISH);
-    #ifdef WC3_DEBUG_AI
-        fprintf(stderr, "WC3_DEBUG_AI training complete producer=%ld unit=%ld id=%.4s player=%u\n",
-            (long)(ent - g_edicts), (long)(completed - g_edicts), (LPCSTR)&completed->class_id, completed->s.player);
-    #endif
-        if (!ent->build) {
-            ent->stand(ent);
-        }
-        Get_Portrait_f(clent);
     }
 }
 
 static umove_t train_move_train = { "stand", ai_train_build, NULL, &a_train };
 
 void unit_add_build_queue(LPEDICT self, LPEDICT item) {
+    LPEDICT last;
+
     /* Queued units must not run stand/birth callbacks, which clear build and used to sever the queue behind them. */
-    item->currentmove = NULL;
-    item->animation = NULL;
+    if (item->training) { item->currentmove = NULL; item->animation = NULL; }
     if (!self->build) {
         self->build = item;
     } else {
-        LPEDICT last = self->build;
-        while (last->build) last = last->build;
-        last->build = item;
+        last = self->build;
+        while (ProductionNext(last)) last = ProductionNext(last);
+        ProductionSetNext(last, item);
+    }
+}
+
+BOOL G_QueueHeroRevive(LPEDICT altar, LPEDICT hero) {
+    LPGAMECLIENT client;
+    DWORD gold, lumber;
+    FLOAT seconds;
+
+    if (!G_HeroCanBeRevivedAt(altar, hero) || ProductionQueueCount(altar) >= MAX_BUILD_QUEUE) return false;
+    client = G_GetPlayerClientByNumber(altar->s.player);
+    if (!client || client->ps.number != altar->s.player ||
+        !HeroReviveValues(hero, &gold, &lumber, &seconds) || seconds <= 0.0f) return false;
+    if (gold > client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] ||
+        lumber > client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]) return false;
+
+    hero->revival.reviving = true;
+    hero->revival.producer = altar;
+    hero->revival.queue_next = NULL;
+    hero->revival.player = altar->s.player;
+    hero->revival.gold = (LONG)gold;
+    hero->revival.lumber = (LONG)lumber;
+    hero->revival.progress = 0.0f;
+    unit_add_build_queue(altar, hero);
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] -= gold;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] -= lumber;
+    unit_setmove(altar, &train_move_train);
+    G_PublishEventWithSource(hero, EVENT_PLAYER_HERO_REVIVE_START, altar);
+    G_PublishEventWithSource(hero, EVENT_UNIT_HERO_REVIVE_START, altar);
+    RefreshReviveUI(altar);
+    return true;
+}
+
+BOOL G_CancelHeroRevive(LPEDICT altar, LPEDICT hero) {
+    LPEDICT prev = NULL;
+    LPEDICT item;
+    LPEDICT next;
+
+    if (!altar || !hero || !hero->revival.reviving || hero->revival.producer != altar) return false;
+    for (item = altar->build; item; prev = item, item = ProductionNext(item)) {
+        if (item == hero) break;
+    }
+    if (!item) return false;
+    next = ProductionNext(item);
+    if (prev) ProductionSetNext(prev, next);
+    else altar->build = next;
+    RefundHeroRevive(altar, hero);
+    hero->revival.reviving = false;
+    hero->revival.producer = NULL;
+    hero->revival.queue_next = NULL;
+    hero->revival.player = 0;
+    hero->revival.gold = hero->revival.lumber = 0;
+    hero->revival.progress = 0.0f;
+    G_PublishEventWithSource(hero, EVENT_PLAYER_HERO_REVIVE_CANCEL, altar);
+    G_PublishEventWithSource(hero, EVENT_UNIT_HERO_REVIVE_CANCEL, altar);
+    RefreshReviveUI(altar);
+    if (!altar->build && !M_IsDead(altar) && altar->stand) altar->stand(altar);
+    return true;
+}
+
+void G_CancelHeroRevives(LPEDICT altar) {
+    LPEDICT item;
+    LPEDICT next;
+
+    if (!altar) return;
+    item = altar->build;
+    while (item) {
+        next = ProductionNext(item);
+        if (item->revival.reviving) G_CancelHeroRevive(altar, item);
+        item = next;
     }
 }
 

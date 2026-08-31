@@ -31,18 +31,33 @@ void unit_decay1(LPEDICT self) {
     self->aiflags |= AI_HOLD_FRAME;
 }
 
+static void hero_become_revivable(LPEDICT self) {
+    LPGAMECLIENT owner;
+
+    if (!self || !self->inuse || !G_UnitIsHero(self) || !M_IsDead(self)) return;
+    self->revival.awaiting = true;
+    self->revival.reviving = false;
+    self->s.renderfx |= RF_HIDDEN;
+    G_PublishEvent(self, EVENT_PLAYER_HERO_REVIVABLE);
+    G_PublishEvent(self, EVENT_UNIT_HERO_REVIVABLE);
+    owner = G_GetPlayerClientByNumber(self->s.player);
+    if (owner && owner->ps.number == self->s.player) G_InvalidateCommands(owner);
+}
+
 /* Death animation finished: hold the corpse pose and start the removal timer. */
 void unit_begin_decay(LPEDICT self) {
     unit_setmove(self, &unit_move_decay);
     self->aiflags |= AI_HOLD_FRAME;
-    self->wait = UNIT_DECAY_SECONDS;
+    self->wait = G_UnitIsHero(self) && game.constants.dissipateTime > 0.0f
+        ? game.constants.dissipateTime
+        : UNIT_DECAY_SECONDS;
 }
 
-/* Count down the corpse decay timer; remove the corpse when it elapses.  Dead
- * heroes are NOT removed — they persist as a revivable body (ReviveHero), as in
- * the original where heroes wait at the altar rather than decaying away. */
+/* Ordinary corpses are removed. Heroes instead finish their dissipation timer,
+ * become hidden/awaiting-revive, and keep the same authoritative edict. */
 void unit_decay_think(LPEDICT self) {
     if (G_UnitIsHero(self)) {
+        if (!self->revival.awaiting) unit_runwait(self, hero_become_revivable);
         return;
     }
     unit_runwait(self, G_FreeEdict);
@@ -96,8 +111,17 @@ void unit_die(LPEDICT self, LPEDICT attacker) {
     LPGAMECLIENT owner;
 
     if (self->training) G_ClearTrainingQueueFood(self);
-    else G_CancelTrainingQueue(self, true);
+    else { G_CancelHeroRevives(self); G_CancelTrainingQueue(self, true); }
     G_ClearUnitFood(self);
+    if (G_UnitIsHero(self)) {
+        self->revival.awaiting = false;
+        self->revival.reviving = false;
+        self->revival.producer = NULL;
+        self->revival.queue_next = NULL;
+        self->revival.player = 0;
+        self->revival.gold = self->revival.lumber = 0;
+        self->revival.progress = 0.0f;
+    }
     unit_leavecombat(self);
     unit_setmove(self, &unit_move_death);
     /* Destroying a transport ejects its passengers at the wreck. */
@@ -111,6 +135,9 @@ void unit_die(LPEDICT self, LPEDICT attacker) {
     G_PublishEventWithSource(self, EVENT_UNIT_DEATH, attacker);
     G_PublishEventWithSource(self, EVENT_PLAYER_UNIT_DEATH, attacker);
     self->svflags |= SVF_DEADMONSTER;
+    /* A dead producer cannot retain ownership of a revival.  This clears each
+     * Hero's reviving flag and refunds what this Altar charged. */
+    G_CancelHeroRevives(self);
     if (self->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     /* Award experience to the killer's nearby heroes (enemy kills only). */
     if (attacker && attacker != self && attacker->s.player != self->s.player) {
@@ -575,21 +602,36 @@ void G_GrantKillXP(LPEDICT victim, LPEDICT killer) {
  * (x,y) with HP/mana set from the MiscGame revive factors (defaults: full life,
  * no mana).  Dead heroes persist (unit_decay_think) so the edict is still valid. */
 void G_ReviveHero(LPEDICT ent, FLOAT x, FLOAT y) {
+    FLOAT mana;
+
     if (!ent) {
         return;
     }
+    if (ent->revival.reviving) G_CancelHeroRevive(ent->revival.producer, ent);
     FLOAT const lifeFactor = G_MiscNum("HeroReviveLifeFactor", 1.0f);
     FLOAT const manaFactor = G_MiscNum("HeroReviveManaFactor", 0.0f);
+    FLOAT const manaStart = G_MiscNum("HeroReviveManaStart", 0.0f);
     ent->svflags &= ~SVF_DEADMONSTER;
     ent->aiflags &= ~AI_HOLD_FRAME;
     ent->combatentity = NULL;
-    ent->health.value = MAX(1.0f, ent->health.max_value * lifeFactor);
-    ent->mana.value   = MAX(0.0f, ent->mana.max_value * manaFactor);
+    ent->revival.awaiting = false;
+    ent->revival.reviving = false;
+    ent->revival.producer = NULL;
+    ent->revival.queue_next = NULL;
+    ent->revival.player = 0;
+    ent->revival.gold = ent->revival.lumber = 0;
+    ent->revival.progress = 0.0f;
+    ent->s.renderfx &= ~RF_HIDDEN;
+    ent->health.value = MIN(ent->health.max_value, MAX(1.0f, ent->health.max_value * lifeFactor));
+    mana = ent->mana.max_value * manaFactor;
+    if (ent->UnitBalance) mana += ent->UnitBalance->initialMana * manaStart;
+    ent->mana.value = MAX(0.0f, MIN(ent->mana.max_value, mana));
     ent->s.origin2.x = x;
     ent->s.origin2.y = y;
     if (ent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     G_ActivateUnitFood(ent);
     unit_stand(ent); /* back to a living idle state */
+    gi.LinkEntity(ent);
 }
 
 void SP_monster_unit(LPEDICT self) {
