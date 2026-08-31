@@ -294,11 +294,11 @@ void unit_changeangle(LPEDICT self) {
     unit_apply_heading(self, &dir);
 }
 
-/* Lumber's retail-compatible unreachable-tree handling needs to know when a
- * mover has exhausted a collision-sized route to a blocked destructible while
- * still outside chop range.  Keep that stronger route-end contract scoped to
- * the lumber approach; generic building/unit interactions own different range
- * boundaries and must continue through unit_changeangle(). */
+/* Behaviors that route around authored blocked geometry may request a
+ * collision-sized field. Lumber uses its route-end state to retarget an
+ * unreachable tree. Build and Repair instead route toward behavior-owned legal
+ * approach points, so reaching the adjusted flow goal never changes their
+ * gameplay target. Generic point movement continues through unit_changeangle(). */
 void unit_changeangle_for_radius(LPEDICT self, FLOAT radius) {
     if (self->aiflags & AI_IMMOBILE)
         return;
@@ -341,8 +341,24 @@ void unit_setanimation(LPEDICT self, LPCSTR anim) {
     self->animation = G_GetAnimation(self->s.model, anim);
 }
 
+static BOOL unit_is_active_repair_move(LPEDICT self) {
+    char rawcode[5];
+    ability_t const *handler;
+
+    if (!self || !self->currentmove || !self->buildwork.ability) return false;
+    memcpy(rawcode, &self->buildwork.ability, 4);
+    rawcode[4] = '\0';
+    handler = FindAbilityForCommand(rawcode);
+    return handler && self->currentmove->ability == handler;
+}
+
 void unit_setmove(LPEDICT self, umove_t *move) {
-    if (self->currentmove && self->currentmove->ability != move->ability) {
+    /* buildwork.ability is staged before Repair switches from the worker's
+     * existing stand/move behavior. Only an OLD Repair move means this
+     * transition is actually leaving Repair; otherwise cancelling here erases
+     * the new target before the Repair walk can begin. */
+    if (self->currentmove && self->currentmove->ability != move->ability &&
+        unit_is_active_repair_move(self)) {
         S_CancelRepair(self);
     }
     self->currentmove = move;

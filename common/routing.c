@@ -726,6 +726,84 @@ FLOAT CM_DistanceToPathingFootprint(struct edict_s const *target, LPCVECTOR2 poi
     return best;
 }
 
+BOOL CM_FindApproachPointToFootprintForRadius(struct edict_s const *target,
+                                                LPCVECTOR2 from, FLOAT range,
+                                                FLOAT radius, LPVECTOR2 out) {
+    pathTex_t const *pt;
+    point2_t center;
+    FLOAT const cell_size = pathmap_cell_world_size();
+    FLOAT best_direct_dist2 = FLT_MAX;
+    FLOAT best_any_dist2 = FLT_MAX;
+    VECTOR2 best_direct = { 0, 0 };
+    VECTOR2 best_any = { 0, 0 };
+    int radius_cells, padding_cells;
+    int min_x, max_x, min_y, max_y;
+    BOOL found_direct = false;
+    BOOL found_any = false;
+
+    if (!target || !from || !out || range < 0.0f ||
+        !(pt = target->pathtex) || !pathmap.original ||
+        !pathmap.width || !pathmap.height) {
+        return false;
+    }
+
+    center = LocationToPathMap(&target->s.origin2);
+    radius_cells = (int)ceilf(MAX(0.0f, radius) / cell_size);
+    padding_cells = (int)ceilf(MAX(0.0f, range) / cell_size) + radius_cells + 1;
+    min_x = center.x - (int)pt->width / 2 - padding_cells;
+    max_x = center.x - (int)pt->width / 2 + (int)pt->width - 1 + padding_cells;
+    min_y = center.y - (int)pt->height / 2 - padding_cells;
+    max_y = center.y - (int)pt->height / 2 + (int)pt->height - 1 + padding_cells;
+
+    /* Building interaction targets are blocked shapes, not reachable points.
+     * Search a small ring around the authored footprint. Prefer a legal point
+     * with a direct static route; otherwise return the nearest legal point and
+     * let the caller's collision-sized flow field route around intervening
+     * terrain/buildings. */
+    for (int y = min_y; y <= max_y; y++) {
+        for (int x = min_x; x <= max_x; x++) {
+            VECTOR2 candidate;
+            FLOAT footprint_distance;
+            FLOAT dxw, dyw, dist2;
+            BOOL direct;
+
+            if (!is_pathable_node_original_for_radius_cells(x, y, radius_cells))
+                continue;
+            candidate = CM_GetDenormalizedMapPosition((x + 0.5f) / pathmap.width,
+                                                       (y + 0.5f) / pathmap.height);
+            footprint_distance = CM_DistanceToPathingFootprint(target, &candidate);
+            if (footprint_distance == FLT_MAX || footprint_distance > range)
+                continue;
+
+            dxw = candidate.x - from->x;
+            dyw = candidate.y - from->y;
+            dist2 = dxw * dxw + dyw * dyw;
+            if (!found_any || dist2 < best_any_dist2) {
+                best_any_dist2 = dist2;
+                best_any = candidate;
+                found_any = true;
+            }
+
+            direct = CM_LineIsWalkableForRadius(from, &candidate, radius);
+            if (direct && (!found_direct || dist2 < best_direct_dist2)) {
+                best_direct_dist2 = dist2;
+                best_direct = candidate;
+                found_direct = true;
+            }
+        }
+    }
+
+    if (found_direct) {
+        *out = best_direct;
+        return true;
+    }
+    if (found_any) {
+        *out = best_any;
+        return true;
+    }
+    return false;
+}
+
 static VECTOR2 compute_flow_at(int const *prices_field, DWORD x, DWORD y, int radius_cells) {
     int prices[8];
     int min_price = INT_MAX;
