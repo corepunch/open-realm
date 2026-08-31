@@ -262,6 +262,7 @@ buildCommandState_t G_GetTrainCommandState(LPGAMECLIENT client, LPEDICT producer
 
     if (reason && reason_size) reason[0] = '\0';
     if (!client || !G_ProducerCanTrain(producer, unit_id)) return BUILD_COMMAND_ABSENT;
+    if (G_BuildAllEnabled()) return BUILD_COMMAND_AVAILABLE;
 
     maximum = G_GetPlayerTechMaxAllowed(client, unit_id);
     if (maximum >= 0 && G_GetPlayerTechCountValue(client, unit_id) >= maximum) {

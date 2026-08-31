@@ -44,6 +44,10 @@ static void building_capture_write(pfWriteType_t type, void const *value) {
 static void building_noop_write(pfWriteType_t type, void const *value) { (void)type; (void)value; }
 static void building_noop_unicast(LPEDICT ent) { (void)ent; }
 
+static LPCSTR building_all_cvar(LPCSTR name, LPCSTR fallback) {
+    return !strcmp(name, "wc3_build_all") ? "1" : fallback;
+}
+
 TEST(wc3_building, player_tech_state_tracks_max_and_researched_levels) {
     LPGAMECLIENT client = &game.clients[0];
     DWORD const barracks = MAKEFOURCC('h','b','a','r');
@@ -140,6 +144,25 @@ TEST(wc3_building, train_command_state_uses_trains_list_and_player_maximum) {
 
     producer_profile.trains = "u002";
     T_EQ(G_GetTrainCommandState(client, producer, trainee, reason, sizeof(reason)), BUILD_COMMAND_ABSENT);
+}
+
+TEST(wc3_building, build_all_cvar_bypasses_training_tech_gates_but_not_trains_list) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
+    DWORD const trainee = MAKEFOURCC('u','0','0','1');
+    UnitProfile_t producer_profile = { .trains = "u001" };
+
+    producer->UnitProfile = &producer_profile;
+    producer->s.player = client->ps.number;
+    G_SetPlayerTechMaxAllowed(client, trainee, 0);
+
+    gi.CvarString = building_all_cvar;
+    T_EQ(G_GetTrainCommandState(client, producer, trainee, NULL, 0), BUILD_COMMAND_AVAILABLE);
+
+    producer_profile.trains = "u002";
+    T_EQ(G_GetTrainCommandState(client, producer, trainee, NULL, 0), BUILD_COMMAND_ABSENT);
+    gi.CvarString = old_cvar;
 }
 
 TEST(wc3_building, queued_training_counts_against_player_tech_maximum) {
