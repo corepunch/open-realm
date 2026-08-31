@@ -53,7 +53,7 @@ static LPCSTR skip_cutscene_cvar(LPCSTR name, LPCSTR fallback) {
     return !strcmp(name, "skip_cutscene") ? "1" : fallback;
 }
 
- static DWORD presentation_write_count;
+static DWORD presentation_write_count;
 static DWORD presentation_unicast_count;
 
 static void capture_presentation_write(pfWriteType_t type, void const *data) {
@@ -99,9 +99,12 @@ TEST(wc3_api, disconnected_presentation_defers_network_write_until_connected) {
     T_ASSERT(!gc->presentation_dirty);
 
     gi.Write = old_write;
- static LPCSTR gamecache_memory_cvar(LPCSTR name, LPCSTR fallback) {
-     return !strcmp(name, "wc3_gamecache_mode") ? "memory" : fallback;
- }
+    gi.unicast = old_unicast;
+}
+
+static LPCSTR gamecache_memory_cvar(LPCSTR name, LPCSTR fallback) {
+    return !strcmp(name, "wc3_gamecache_mode") ? "memory" : fallback;
+}
 
 /* Campaign human slots need not match the connection slot; exercise the real VM/edict module boundary. */
 TEST(wc3_api, escape_restores_game_camera_ui_and_control) {
