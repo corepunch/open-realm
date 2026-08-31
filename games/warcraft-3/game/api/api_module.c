@@ -57,6 +57,8 @@ JASSMODULE jass_funcs[] = {
     { "CreateCaptains", CreateCaptains },
     { "IgnoredUnits", IgnoredUnits },
     { "CaptainInCombat", CaptainInCombat },
+    { "InitAssault", InitAssault },
+    { "AddAssault", AddAssault },
     { "AddDefenders", AddDefenders },
     { "AddGuardPost", AddGuardPost },
     { "FillGuardPosts", FillGuardPosts },

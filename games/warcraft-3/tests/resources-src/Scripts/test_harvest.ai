@@ -3,6 +3,8 @@ function main takes nothing returns nothing
     call HarvestGold(0, 1)
     call HarvestWood(0, 1)
     call CaptainInCombat(true)
+    call InitAssault()
+    call AddAssault(0, 'hfoo')
     call AddDefenders(0, 'hfoo')
     call AddGuardPost('hrif', 128.0, 256.0)
     call FillGuardPosts()

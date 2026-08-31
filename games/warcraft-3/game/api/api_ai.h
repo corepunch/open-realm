@@ -149,6 +149,11 @@ DWORD CaptainInCombat(LPJASS j) {
     return jass_pushboolean(j, G_BotCaptainInCombat(jass_getcontext(j)->playerState, jass_checkboolean(j, 1)));
 }
 
+DWORD InitAssault(LPJASS j) { G_BotInitAssault(jass_getcontext(j)->playerState); return 0; }
+DWORD AddAssault(LPJASS j) {
+    return jass_pushboolean(j, G_BotAddAssault(jass_getcontext(j)->playerState, jass_checkinteger(j, 1), jass_checkinteger(j, 2)));
+}
+
 DWORD AddDefenders(LPJASS j) {
     return jass_pushboolean(j, G_BotAddDefenders(jass_getcontext(j)->playerState, jass_checkinteger(j, 1), jass_checkinteger(j, 2)));
 }

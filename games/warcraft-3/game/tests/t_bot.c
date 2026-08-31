@@ -382,6 +382,30 @@ TEST(wc3_bot, add_defenders_fills_idempotently_from_completed_owned_units) {
     T_ASSERT(G_BotAddDefenders(&game.clients[2].ps, 0, type));
 }
 
+TEST(wc3_bot, assault_init_resets_attack_only_and_fill_tracks_desired_roster) {
+    bot_t *bot = level.bots + 2;
+    DWORD type = MAKEFOURCC('h','f','o','o');
+    LPEDICT first = make_bot_harvest_unit(type, 0, 0, 2, NULL);
+    LPEDICT second = make_bot_harvest_unit(type, 32, 0, 2, NULL);
+    LPEDICT building = make_bot_harvest_unit(type, 64, 0, 2, NULL);
+    LPEDICT enemy = make_bot_harvest_unit(type, 96, 0, 1, NULL);
+    building->construction.active = true;
+
+    G_BotCreateCaptains(&game.clients[2].ps);
+    T_ASSERT(G_BotAddDefenders(&game.clients[2].ps, 1, type));
+    G_BotInitAssault(&game.clients[2].ps);
+    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].state, BOT_CAPTAIN_FORMING);
+    T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_DEFENSE].units), 1);
+    T_ASSERT(!G_BotAddAssault(&game.clients[2].ps, 2, type));
+    T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units), 1);
+    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].units[0], second);
+    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].desired, 2);
+    T_ASSERT(!G_BotAddAssault(&game.clients[2].ps, 2, type));
+    T_EQ(ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units), 1);
+    T_EQ(bot->captains[BOT_CAPTAIN_ATTACK].desired, 4);
+    T_ASSERT(first != second && building != enemy);
+}
+
 TEST(wc3_bot, guard_posts_fill_typed_units_without_stealing_captain_members) {
     bot_t *bot = level.bots + 2;
     DWORD type = MAKEFOURCC('h','f','o','o');
