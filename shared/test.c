@@ -7,6 +7,7 @@
  * engine's `+test` command calls Test_Run here.
  */
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "test.h"
@@ -35,6 +36,11 @@ void Test_Fail(const char *func, const char *file, int line, const char *expr) {
     test_failures++;
     fprintf(stderr, "    FAIL [%s] %s() [%s:%d]: %s\n",
             test_current_name ? test_current_name : "<direct>", func, file, line, expr);
+    if (getenv("GITHUB_ACTIONS")) {
+        fprintf(stderr,
+                "::error file=%s,line=%d,title=Test assertion failed::%s\n",
+                file, line, expr);
+    }
 }
 
 /* Case-insensitive glob: "*" matches all, a trailing "*" is a prefix match,

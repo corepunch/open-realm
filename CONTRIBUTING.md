@@ -32,6 +32,8 @@ The registry lives in `libshared` so game-module constructors register into the 
 
 Available assertions: `T_ASSERT(cond)`, `T_EQ(a,b)`, `T_NE(a,b)`, `T_FEQ(a,b,eps)`, `T_STREQ(a,b)`, `T_NULL(p)`, `T_NOT_NULL(p)`.
 
+Assertion failures always include `__FILE__` and `__LINE__`. Under GitHub Actions, the runner also emits a workflow error annotation so failures are clickable at the originating source line.
+
 Do not include `test_framework.h` — it has been removed. Do not write a `main()` for test files; link against `tests/test_runner.c` instead.
 
 ### Message Delta Tests
