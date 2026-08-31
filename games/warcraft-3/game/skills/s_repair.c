@@ -144,10 +144,11 @@ static BOOL repair_target_valid(LPEDICT ent, LPEDICT target, DWORD code) {
 
     if (!ent || !target || !target->inuse || M_IsDead(target)) return false;
     if (!G_UnitIsBuilding(target->class_id) || !target->UnitBalance) return false;
-    /* Keep the current ownership rule until the generic target-mask evaluator
-     * represents all WC3 repair categories (structure/mechanical/ally/etc.). */
+    /* Keep the current ownership/building rule until Repair has a target-mask
+     * evaluator that understands WC3's overlapping categories (for example a
+     * structure can also be a ground target).  S_SpellAllowsTarget() models a
+     * smaller spell subset and can reject otherwise-valid Repair structures. */
     if (target->s.player != ent->s.player) return false;
-    if (!S_SpellAllowsTarget(code, ent, target)) return false;
 
     if (target->construction.active) {
         return handler == &a_repair && target->construction.paused && data->data[0][3] > 0.0f;
