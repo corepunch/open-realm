@@ -1,0 +1,7 @@
+function main takes nothing returns nothing
+    if GetAiPlayer() != 2 then
+        call MissingAIAction()
+    endif
+    call Sleep(10)
+    call MissingAIAction()
+endfunction

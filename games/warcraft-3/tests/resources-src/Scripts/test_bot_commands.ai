@@ -1,0 +1,15 @@
+function main takes nothing returns nothing
+    if CommandsWaiting() != 2 or GetLastCommand() != 30 or GetLastData() != 40 then
+        call MissingAIAction()
+    endif
+    call PopLastCommand()
+    if CommandsWaiting() != 1 or GetLastCommand() != 10 or GetLastData() != 20 then
+        call MissingAIAction()
+    endif
+    call PopLastCommand()
+    call PopLastCommand()
+    if CommandsWaiting() != 0 or GetLastCommand() != 0 or GetLastData() != 0 then
+        call MissingAIAction()
+    endif
+    call Sleep(1000.0)
+endfunction

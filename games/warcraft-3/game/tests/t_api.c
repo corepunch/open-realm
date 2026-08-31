@@ -13,6 +13,7 @@
  *   Unit    — invulnerable, paused, no_pathing, unit_color flags
  *   Group   — FirstOfGroup, IsUnitInGroup
  *   Misc    — SubString semantics, GetRandomInt / GetRandomReal range
+ *   Stock   — global capacities, per-unit overrides, spawn inheritance
  */
 
 #include "test.h"
@@ -438,6 +439,52 @@ TEST(wc3_api, gameplay_transmission_preserves_underlying_timed_message_state) {
     T_STREQ(gc->message.text, "Objective updated");
 }
 
+static DWORD ui_point_calls;
+static BOOL count_ui_point(LPEDICT ent, LPCVECTOR2 loc) { ui_point_calls++; return false; }
+
+TEST(wc3_api, enable_user_ui_is_local_and_blocks_gameplay_ui_commands) {
+    LPGAMECLIENT gc = &game.clients[0];
+    LPCSTR point[] = { "point", "10", "20" };
+
+    ui_point_calls = 0; gc->ps.number = 0; gc->menu.on_location_selected = count_ui_point;
+    currentplayer = &gc->ps;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "call EnableUserUI(false)\n"
+        "endfunction"));
+    T_ASSERT(gc->no_ui);
+    globals.ClientCommand(&g_edicts[0], 3, point);
+    T_EQ(ui_point_calls, 0);
+
+    currentplayer = &gc->ps;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "call EnableUserUI(true)\n"
+        "endfunction"));
+    T_ASSERT(!gc->no_ui);
+    globals.ClientCommand(&g_edicts[0], 3, point);
+    T_EQ(ui_point_calls, 1);
+    gc->menu.on_location_selected = NULL;
+    currentplayer = NULL;
+}
+
+TEST(wc3_api, debug_statements_parse_but_do_not_execute_in_release) {
+    LPGAMECLIENT gc = &game.clients[0];
+    gc->ps.stats[1] = 0;
+    currentplayer = &gc->ps;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_GOLD, 6)\n"
+        "debug call MissingDebug()\n"
+        "debug set bj_forLoopAIndex = 7\n"
+        "debug if true then\n"
+        "call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_GOLD, 8)\n"
+        "endif\n"
+        "endfunction"));
+    T_EQ(gc->ps.stats[1], 6);
+    currentplayer = NULL;
+}
+
 /* Create a minimal unit in slot 0 and return it. */
 static LPEDICT make_unit_hero(void) {
     reset_entities();
@@ -513,7 +560,7 @@ TEST(wc3_api, customize_entity_marks_neutral_passive_owner_neutral) {
     edict_t ent = { .svflags = SVF_MONSTER, .s = { .player = PLAYER_NEUTRAL_PASSIVE } };
     ent.health.value = 100.0f;
 
-    T_ASSERT(PLAYER_NEUTRAL_PASSIVE < MAX_PLAYERS);
+    T_EQ(PLAYER_NEUTRAL_PASSIVE, 15); T_ASSERT(PLAYER_NEUTRAL_PASSIVE < MAX_PLAYERS);
     globals.CustomizeEntity(0, &ent, &state);
     T_ASSERT(state.flags & EF_HOVER_HEALTH);
     T_ASSERT(!(state.flags & EF_HOSTILE));
@@ -525,7 +572,7 @@ TEST(wc3_api, customize_entity_marks_neutral_aggressive_owner_hostile) {
     edict_t ent = { .svflags = SVF_MONSTER, .s = { .player = PLAYER_NEUTRAL_AGGRESSIVE } };
     ent.health.value = 100.0f;
 
-    T_ASSERT(PLAYER_NEUTRAL_AGGRESSIVE < MAX_PLAYERS);
+    T_EQ(PLAYER_NEUTRAL_AGGRESSIVE, 12); T_ASSERT(PLAYER_NEUTRAL_AGGRESSIVE < MAX_PLAYERS);
     G_SetPlayerAlliance(test_player(0), test_player(PLAYER_NEUTRAL_AGGRESSIVE), ALLIANCE_PASSIVE, true);
     G_SetPlayerAlliance(test_player(0), test_player(PLAYER_NEUTRAL_AGGRESSIVE), ALLIANCE_SHARED_CONTROL, true);
     globals.CustomizeEntity(0, &ent, &state);
@@ -875,6 +922,107 @@ TEST(wc3_api, group_add_is_set_semantics) {
     T_EQ(group.num_units, 1);
 }
 
+TEST(wc3_api, destroy_group_clears_members) {
+    reset_entities();
+    currentplayer = &game.clients[0].ps;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "local group g = CreateGroup()\n"
+        "local unit u = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "call GroupAddUnit(g, u)\n"
+        "call DestroyGroup(g)\n"
+        "if FirstOfGroup(g) != null then\n"
+        "call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_GOLD, 1)\n"
+        "endif\n"
+        "endfunction"));
+    T_EQ(game.clients[0].ps.stats[1], 0);
+    currentplayer = NULL;
+}
+
+TEST(wc3_api, unit_ability_mutation_has_set_semantics) {
+    reset_entities();
+    currentplayer = &game.clients[0].ps;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "local unit u = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "if not UnitAddAbility(u, 'AInv') or UnitAddAbility(u, 'AInv') then\n"
+        "call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_GOLD, 1)\n"
+        "endif\n"
+        "if not UnitRemoveAbility(u, 'AInv') or UnitRemoveAbility(u, 'AInv') then\n"
+        "call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_GOLD, 2)\n"
+        "endif\n"
+        "call RemoveUnit(u)\n"
+        "endfunction"));
+    T_EQ(game.clients[0].ps.stats[1], 0);
+    currentplayer = NULL;
+}
+
+TEST(wc3_api, unit_ability_mutation_rejects_invalid_inputs) {
+    reset_entities();
+    currentplayer = &game.clients[0].ps;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "local unit u = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "if UnitAddAbility(u, 'xxxx') or UnitAddAbility(null, 'AInv') or UnitRemoveAbility(null, 'AInv') then\n"
+        "call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_GOLD, 1)\n"
+        "endif\n"
+        "call RemoveUnit(u)\n"
+        "endfunction"));
+    T_EQ(game.clients[0].ps.stats[1], 0);
+    currentplayer = NULL;
+}
+
+TEST(wc3_api, unit_ability_mutation_restores_static_ability) {
+    LPEDICT unit;
+    static UnitAbilities_t const abilities = { .abilList = "Ahar" };
+    reset_entities(); unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0); unit->UnitAbilities = &abilities;
+    T_ASSERT(G_ActorHasSkill(unit, "Ahar"));
+    T_ASSERT(G_ActorRemoveSkill(unit, MAKEFOURCC('A','h','a','r')));
+    T_ASSERT(!G_ActorHasSkill(unit, "Ahar"));
+    T_ASSERT(!G_ActorRemoveSkill(unit, MAKEFOURCC('A','h','a','r')));
+    T_ASSERT(G_ActorAddSkill(unit, MAKEFOURCC('A','h','a','r')));
+    T_ASSERT(G_ActorHasSkill(unit, "Ahar"));
+    T_ASSERT(!G_ActorAddSkill(unit, MAKEFOURCC('A','h','a','r')));
+    G_FreeEdict(unit);
+}
+
+TEST(wc3_api, unit_ability_permanence_requires_present_ability) {
+    LPEDICT unit;
+    reset_entities();
+    currentplayer = &game.clients[0].ps;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "local unit u = CreateUnit(Player(0), 'hpea', 0.0, 0.0, 0.0)\n"
+        "if not UnitAddAbility(u, 'AInv') or not UnitMakeAbilityPermanent(u, true, 'AInv') then\n"
+        "call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_GOLD, 1)\n"
+        "endif\n"
+        "if UnitMakeAbilityPermanent(u, true, 'xxxx') then\n"
+        "call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_GOLD, 2)\n"
+        "endif\n"
+        "endfunction"));
+    T_EQ(game.clients[0].ps.stats[1], 0);
+    unit = globals.edicts + game.max_clients;
+    T_ASSERT(G_ActorSkillPermanent(unit, MAKEFOURCC('A','I','n','v')));
+    T_ASSERT(G_ActorSetSkillPermanent(unit, MAKEFOURCC('A','I','n','v'), false));
+    T_ASSERT(!G_ActorSkillPermanent(unit, MAKEFOURCC('A','I','n','v')));
+    T_ASSERT(G_ActorSetSkillPermanent(unit, MAKEFOURCC('A','I','n','v'), false));
+    G_FreeEdict(unit); currentplayer = NULL;
+}
+
+TEST(wc3_api, ai_difficulty_defaults_to_normal) {
+    reset_entities();
+    test_player(0);
+    currentplayer = &game.clients[0].ps;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "if GetAIDifficulty(Player(0)) != AI_DIFFICULTY_NORMAL then\n"
+        "call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_GOLD, 1)\n"
+        "endif\n"
+        "endfunction"));
+    T_EQ(game.clients[0].ps.stats[1], 0);
+    currentplayer = NULL;
+}
+
 TEST(wc3_api, group_is_unit_in_group_true) {
     reset_entities();
     LPEDICT a = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
@@ -1092,6 +1240,29 @@ TEST(wc3_api, unit_not_owned_by_player) {
     T_ASSERT(ent->s.player != PLAYER_NUM(p));
 }
 
+TEST(wc3_api, is_unit_type_reports_structure_from_authoritative_metadata) {
+    reset_entities();
+    T_ASSERT(G_UnitIsBuilding(MAKEFOURCC('h','b','a','r')));
+    T_ASSERT(!G_UnitIsBuilding(MAKEFOURCC('h','p','e','a')));
+    currentplayer = &game.clients[0].ps;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "local unit building = CreateUnit(Player(0), 'hbar', 0.0, 0.0, 0.0)\n"
+        "local unit worker = CreateUnit(Player(0), 'hpea', 256.0, 0.0, 0.0)\n"
+        "if not IsUnitType(building, UNIT_TYPE_STRUCTURE) then\n"
+        "call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_GOLD, 1)\n"
+        "endif\n"
+        "if IsUnitType(worker, UNIT_TYPE_STRUCTURE) then\n"
+        "call SetPlayerState(Player(0), PLAYER_STATE_RESOURCE_LUMBER, 1)\n"
+        "endif\n"
+        "call RemoveUnit(building)\n"
+        "call RemoveUnit(worker)\n"
+        "endfunction"));
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD], 0);
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER], 0);
+    currentplayer = NULL;
+}
+
 /* =========================================================================
  * Unit — IsUnitInRange
  * ========================================================================= */
@@ -1204,6 +1375,44 @@ TEST(wc3_api, death_event_exposes_trigger_widget_and_killing_unit) {
     jass_callbyname(level.vm, "verifyDeath", true);
     jass_runevents(level.vm);
     T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
+TEST(wc3_api, stock_slots_propagate_override_clamp_and_inherit) {
+    LPEDICT first = alloc_test_unit(MAKEFOURCC('n','m','r','k'), 0, 0);
+    LPEDICT second = alloc_test_unit(MAKEFOURCC('n','m','r','k'), 32, 0);
+    LPEDICT future;
+
+    G_SetAllStockSlots(true, 11); G_SetAllStockSlots(false, 9);
+    T_EQ(level.stock.item_slots, 11); T_EQ(level.stock.unit_slots, 9);
+    T_EQ(first->stock.item_slots, 11); T_EQ(second->stock.item_slots, 11);
+    T_EQ(first->stock.unit_slots, 9); T_EQ(second->stock.unit_slots, 9);
+
+    G_SetStockSlots(first, true, 3); G_SetStockSlots(first, false, -1);
+    T_EQ(first->stock.item_slots, 3); T_EQ(first->stock.unit_slots, 0);
+    T_EQ(second->stock.item_slots, 11); T_EQ(second->stock.unit_slots, 9);
+
+    future = alloc_test_unit(MAKEFOURCC('n','m','r','k'), 64, 0);
+    G_InitStockSlots(future);
+    T_EQ(future->stock.item_slots, 11); T_EQ(future->stock.unit_slots, 9);
+}
+
+TEST(wc3_api, stock_slot_natives_update_global_and_unit_state) {
+    LPEDICT shop = alloc_test_unit(MAKEFOURCC('n','m','r','k'), 0, 0);
+    LPEDICT created = NULL;
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\nlocal unit shop\n"
+        "call SetAllItemTypeSlots(11)\n"
+        "call SetAllUnitTypeSlots(10)\n"
+        "set shop = CreateUnit(Player(0),'hfoo',128.0,128.0,0.0)\n"
+        "call SetItemTypeSlots(shop,3)\n"
+        "call SetUnitTypeSlots(shop,4)\n"
+        "endfunction"));
+    T_EQ(level.stock.item_slots, 11); T_EQ(level.stock.unit_slots, 10);
+    T_EQ(shop->stock.item_slots, 11); T_EQ(shop->stock.unit_slots, 10);
+    FOR_LOOP(i, globals.num_edicts) if (g_edicts[i].class_id == MAKEFOURCC('h','f','o','o')) created = g_edicts + i;
+    T_NOT_NULL(created);
+    T_EQ(created->stock.item_slots, 3); T_EQ(created->stock.unit_slots, 4);
 }
 
 /* =========================================================================

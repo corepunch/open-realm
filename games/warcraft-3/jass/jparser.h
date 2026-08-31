@@ -33,6 +33,7 @@ enum {
     TF_CONSTANT = 2,
     TF_ARRAY = 4,
     TF_FUNCTION = 8,
+    TF_DEBUG = 16,
 };
 
 struct token {
@@ -51,5 +52,6 @@ struct token {
 
 LPTOKEN JASS_ParseTokens(LPPARSER p);
 LPTOKEN GALAXY_ParseTokens(LPPARSER p);
+void JASS_FreeTokens(LPTOKEN tokens);
 
 #endif

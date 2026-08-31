@@ -349,7 +349,7 @@ struct client_s {
     DWORD playerTextCursor[PLAYERTEXT_COUNT];
     LPCMAPPLAYER mapplayer;
     DWORD ping;
-    BOOL no_control;
+    BOOL no_control, no_ui;
     menu_t menu;
     struct {
         CAMERASETUP state;
@@ -644,10 +644,16 @@ struct edict_s {
         LPEDICT units[MAX_CARGO];
         DWORD count;
     } cargo;
+    struct {
+        DWORD item_slots, unit_slots;
+    } stock;
     FLOAT velocity;
     doodadHero_t hero;
     heroability_t heroabilities[MAX_HERO_ABILITIES];
     heroabilitystatus_t abilstatus[MAX_UNIT_STATUSES];
+    ARRAY(DWORD, added_abilities);
+    ARRAY(DWORD, removed_abilities);
+    ARRAY(DWORD, permanent_abilities);
     BOOL invulnerable;  // unit cannot take damage when true
     BOOL paused;        // unit AI and movement suspended when true
     BOOL stunned;       // unit AI and movement suspended by timed status
@@ -824,8 +830,79 @@ typedef struct fogmodifier_s {
 } FOGMODIFIER, *LPFOGMODIFIER;
 typedef FOGMODIFIER const *LPCFOGMODIFIER;
 
+typedef enum {
+    BOT_NONE,
+    BOT_CAMPAIGN,
+    BOT_MELEE,
+} botMode_t;
+
+typedef enum {
+    BOT_CAPTAIN_ATTACK,
+    BOT_CAPTAIN_DEFENSE,
+    BOT_CAPTAIN_COUNT,
+} botCaptainType_t;
+
+typedef enum {
+    BOT_CAPTAIN_IDLE,
+    BOT_CAPTAIN_FORMING,
+    BOT_CAPTAIN_ACTIVE,
+    BOT_CAPTAIN_RETREATING,
+} botCaptainState_t;
+
+typedef struct {
+    ARRAY(LPEDICT, units);
+    VECTOR2 home, goal;
+    DWORD desired;
+    botCaptainState_t state;
+} botCaptain_t;
+
+typedef struct {
+    LONG command, data;
+} botCommand_t;
+
+typedef struct {
+    DWORD class_id;
+    VECTOR2 origin;
+    LPEDICT unit;
+} botGuardPost_t;
+
+typedef enum {
+    BOT_TARGET_HEROES    = 1 << 0,
+    BOT_PEONS_REPAIR     = 1 << 1,
+    BOT_HEROES_FLEE      = 1 << 2,
+    BOT_WATCH_MEGA       = 1 << 3,
+    BOT_IGNORE_INJURED   = 1 << 4,
+    BOT_HEROES_TAKE_ITEM = 1 << 5,
+    BOT_UNITS_FLEE       = 1 << 6,
+    BOT_GROUPS_FLEE      = 1 << 7,
+    BOT_SLOW_CHOPPING    = 1 << 8,
+    BOT_CAPTAIN_CHANGES  = 1 << 9,
+    BOT_SMART_ARTILLERY  = 1 << 10,
+    BOT_GROUP_TIMED_LIFE = 1 << 11,
+    BOT_NEW_HEROES       = 1 << 12,
+    BOT_RANDOM_PATHS     = 1 << 13,
+    BOT_DEFEND_PLAYER    = 1 << 14,
+    BOT_HEROES_BUY_ITEMS = 1 << 15,
+} botFlag_t;
+
+typedef struct {
+    LPJASS vm;
+    LPPLAYER player;
+    struct jass_function const *hero_levels;
+    botCaptain_t captains[BOT_CAPTAIN_COUNT];
+    ARRAY(botCommand_t, commands);
+    ARRAY(LPEDICT, harvesters);
+    ARRAY(botGuardPost_t, guards);
+    botMode_t mode, pending_mode;
+    DWORD flags;
+    LONG replacement_count;
+    BOOL paused, stop_requested, restart_requested;
+    char script[MAX_PATHLEN], pending_script[MAX_PATHLEN];
+} bot_t;
+
 struct level_locals {
     LPJASS vm;
+    bot_t bots[MAX_PLAYERS];
     LPCMAPINFO mapinfo;
     struct {
         char name[MAX_PATHLEN], description[MAX_TRIGSTR_LENGTH];
@@ -839,6 +916,9 @@ struct level_locals {
     } setup;
     LEVELEVENTS events;
     GAMEMESSAGES messages;
+    struct {
+        DWORD item_slots, unit_slots;
+    } stock;
     LPQUEST quests;
     USHORT alliances[MAX_PLAYERS][MAX_PLAYERS];
     fowGrid_t fow;
@@ -864,6 +944,7 @@ typedef struct {
 
 // g_main.c
 LPPLAYER G_GetPlayerByNumber(DWORD);
+void G_InitJassHost(void);
 LPEDICT G_GetPlayerEntityByNumber(DWORD);
 LPGAMECLIENT G_GetPlayerClientByNumber(DWORD);
 void G_SetClientConnected(LPEDICT player, BOOL connected);
@@ -875,11 +956,49 @@ VECTOR2 G_ClampCameraPosition(LPGAMECLIENT client, LPCVECTOR2 position);
 void G_SetClientCameraBounds(LPGAMECLIENT client, FLOAT const bounds[8]);
 void G_ClearCameraTarget(LPGAMECLIENT client, LPCSTR func);
 void G_SetPlayerText(LPGAMECLIENT, PLAYERTEXT, LPCSTR);
+void G_SetAllStockSlots(BOOL, LONG);
+void G_SetStockSlots(LPEDICT, BOOL, LONG);
+void G_InitStockSlots(LPEDICT);
 GAMEEVENT *G_PublishEvent(LPEDICT, EVENTTYPE);
 GAMEEVENT *G_PublishEventWithSource(LPEDICT, EVENTTYPE, LPEDICT);
 BOOL G_SubscribeMessage(gameMsgFn, void *);
 void G_UnsubscribeMessage(gameMsgFn, void *);
 void G_PublishMessage(LPEDICT, GAMEMSGTYPE, LPEDICT);
+
+// g_bot.c
+BOOL G_BotStart(LPPLAYER, LPCSTR, botMode_t);
+void G_BotStop(DWORD);
+void G_BotRequestStop(DWORD);
+void G_BotShutdown(void);
+void G_BotPause(DWORD, BOOL);
+void G_BotRunFrame(void);
+BOOL G_BotUnitAlive(LPEDICT);
+LPEDICT G_BotTown(LPPLAYER, LONG);
+LPEDICT G_BotTownMine(LPPLAYER, LONG);
+LONG G_BotTownWithMine(LPPLAYER);
+DWORD G_BotMinesOwned(LPPLAYER);
+DWORD G_BotGoldOwned(LPPLAYER);
+BOOL G_BotProduce(LPPLAYER, LONG, DWORD, LONG);
+void G_BotStopGathering(LPPLAYER);
+void G_BotClearHarvest(LPPLAYER);
+void G_BotHarvest(LPPLAYER, LONG, LONG, BOOL);
+void G_BotCreateCaptains(LPPLAYER);
+void G_BotInitAssault(LPPLAYER);
+DWORD G_BotIgnoredUnits(LPPLAYER, DWORD);
+BOOL G_BotCaptainInCombat(LPPLAYER, BOOL);
+BOOL G_BotAddAssault(LPPLAYER, LONG, DWORD);
+DWORD G_BotCaptainGroupSize(LPPLAYER);
+BOOL G_BotCaptainIsFull(LPPLAYER);
+LONG G_BotCaptainReadiness(LPPLAYER, BOOL);
+BOOL G_BotAddDefenders(LPPLAYER, LONG, DWORD);
+void G_BotAddGuardPost(LPPLAYER, DWORD, FLOAT, FLOAT);
+void G_BotFillGuardPosts(LPPLAYER);
+void G_BotReturnGuardPosts(LPPLAYER);
+BOOL G_BotPushCommand(LPPLAYER, LONG, LONG);
+DWORD G_BotCommandsWaiting(LPPLAYER);
+LONG G_BotLastCommand(LPPLAYER);
+LONG G_BotLastData(LPPLAYER);
+void G_BotPopCommand(LPPLAYER);
 
 // g_fow.c
 void G_FowInit(void);
@@ -951,7 +1070,7 @@ DWORD M_RefreshHeatmap(LPEDICT, FLOAT);
 BOOL M_IsDead(LPEDICT);
 void SP_SpawnUnit(LPEDICT);
 DWORD unit_spawn_aiflags(DWORD);
-void SP_TrainUnit(LPEDICT, DWORD);
+BOOL SP_TrainUnit(LPEDICT, DWORD);
 BOOL player_pay(LPPLAYER, DWORD);
 BYTE compress_stat(EDICTSTAT const *);
 DWORD G_LoadShadowTexture(LPCSTR, BOOL);
@@ -994,6 +1113,7 @@ BOOL G_ChargeBuilding(LPGAMECLIENT client, DWORD building_id);
 void G_RefundBuilding(LPGAMECLIENT client, DWORD building_id);
 void G_SnapBuildingPoint(DWORD building_id, LPVECTOR2 point);
 buildPlacementResult_t G_EvaluateBuildPlacement(LPEDICT builder, DWORD building_id, LPCVECTOR2 requested, LPVECTOR2 snapped);
+BOOL G_IssueBuildOrder(LPEDICT builder, DWORD building_id, LPCVECTOR2 location);
 FLOAT G_BuildApproachDistance(DWORD building_id);
 BOOL G_StartHumanConstruction(LPEDICT builder, LPEDICT building);
 void G_UpdateConstructionAnimation(LPEDICT building);
@@ -1172,6 +1292,11 @@ extern umove_t holdpos_move_stand;
 extern umove_t holdpos_move_stand_ready;
 void unit_stand(LPEDICT);
 BOOL G_ActorHasSkill(LPEDICT, LPCSTR);
+BOOL G_ActorAddSkill(LPEDICT, DWORD);
+BOOL G_ActorRemoveSkill(LPEDICT, DWORD);
+BOOL G_ActorSetSkillPermanent(LPEDICT, DWORD, BOOL);
+BOOL G_ActorSkillPermanent(LPEDICT, DWORD);
+void G_FreeActorSkills(LPEDICT);
 BOOL S_GoldMineIsMine(LPCEDICT);
 DWORD S_GoldMineMaximumGold(LPCEDICT);
 FLOAT S_GoldMineMiningDuration(LPCEDICT);

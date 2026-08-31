@@ -26,9 +26,11 @@ type placement       extends handle
 type startlocprio    extends handle
 type mapdensity      extends handle
 type gamedifficulty  extends handle
+type aidifficulty    extends handle
 type gamespeed       extends handle
 type playerstate     extends handle
 type fogstate         extends handle
+type unittype        extends handle
 type rect            extends handle
 type region          extends handle
 type location        extends handle
@@ -65,9 +67,12 @@ native ConvertPlacement      takes integer i returns placement
 native ConvertStartLocPrio   takes integer i returns startlocprio
 native ConvertMapDensity     takes integer i returns mapdensity
 native ConvertGameDifficulty takes integer i returns gamedifficulty
+native ConvertAIDifficulty   takes integer i returns aidifficulty
 native ConvertGameSpeed      takes integer i returns gamespeed
 native ConvertPlayerState    takes integer i returns playerstate
 native ConvertFogState       takes integer i returns fogstate
+native ConvertUnitType       takes integer i returns unittype
+native IsUnitType             takes unit whichUnit, unittype whichUnitType returns boolean
 native SetMapName            takes string name returns nothing
 native SetMapDescription     takes string description returns nothing
 native SetTeams              takes integer teamcount returns nothing
@@ -86,6 +91,7 @@ native SetGameSpeed          takes gamespeed whichSpeed returns nothing
 native GetGameSpeed          takes nothing returns gamespeed
 native SetGameDifficulty     takes gamedifficulty whichDifficulty returns nothing
 native GetGameDifficulty     takes nothing returns gamedifficulty
+native GetAIDifficulty       takes player num returns aidifficulty
 native SetResourceDensity    takes mapdensity whichDensity returns nothing
 native GetResourceDensity    takes nothing returns mapdensity
 native SetCreatureDensity    takes mapdensity whichDensity returns nothing
@@ -210,6 +216,8 @@ globals
     constant mapdensity MAP_DENSITY_LIGHT = ConvertMapDensity(1)
     constant mapdensity MAP_DENSITY_HEAVY = ConvertMapDensity(3)
     constant gamedifficulty MAP_DIFFICULTY_HARD = ConvertGameDifficulty(2)
+    constant aidifficulty AI_DIFFICULTY_NORMAL = ConvertAIDifficulty(1)
     constant gamespeed MAP_SPEED_FAST = ConvertGameSpeed(3)
     constant playerstate PLAYER_STATE_RESOURCE_GOLD = ConvertPlayerState(1)
+    constant unittype UNIT_TYPE_STRUCTURE = ConvertUnitType(2)
 endglobals

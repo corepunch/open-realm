@@ -1096,6 +1096,8 @@ TEST(wc3_combat, build_queue_chained_items) {
 
     T_ASSERT(producer->build == item1);
     T_ASSERT(item1->build    == item2);
+    T_NULL(item1->currentmove);
+    T_NULL(item2->currentmove);
     T_NULL(item2->build);
 }
 

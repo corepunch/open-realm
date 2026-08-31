@@ -615,6 +615,17 @@ BOOL FS_AddDataDirectory(LPCSTR dirname) {
     return true;
 }
 
+/* War3Local from patched installs can carry TFT race AI; ROC must use the matching scripts from War3.mpq. */
+BOOL FS_ArchiveFileVisible(LPCSTR archive, LPCSTR filename) {
+    LPCSTR base;
+
+    if (Cvar_Integer("fs_expansion", 0) || !archive || !filename)
+        return true;
+    base = FS_BaseName(archive);
+    return strcasecmp(base, "War3Local.mpq") || strncasecmp(filename, "Scripts\\", 8) ||
+           !FS_HasExtension(filename, ".ai");
+}
+
 #if 0
 static void ExtractStarCraft2(void) {
     HANDLE archive;
@@ -765,6 +776,8 @@ HANDLE FS_OpenFile(LPCSTR fileName) {
         if (!archives[i]) {
             continue;
         }
+        if (!FS_ArchiveFileVisible(archiveNames[i], fileName))
+            continue;
         if (SFileOpenFileEx(archives[i], fileName, SFILE_OPEN_FROM_MPQ, &file)) {
             return file;
         }
@@ -996,6 +1009,7 @@ void FS_ReadFileAll(LPCSTR filename, void (*callback)(HANDLE buf, DWORD size, vo
     for (int i = 0; i < MAX_ARCHIVES; i++) {
         HANDLE file;
         if (!archives[i]) continue;
+        if (!FS_ArchiveFileVisible(archiveNames[i], filename)) continue;
         if (!SFileOpenFileEx(archives[i], filename, SFILE_OPEN_FROM_MPQ, &file)) continue;
         DWORD sz = SFileGetFileSize(file, NULL);
         LPSTR buf = MemAlloc(sz + 1);

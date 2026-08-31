@@ -1,0 +1,23 @@
+globals
+    integer bound_player = -1
+endglobals
+
+function idle_child takes nothing returns nothing
+    loop
+        call Sleep(10)
+        if bound_player != GetAiPlayer() then
+            call MissingAIAction()
+        endif
+    endloop
+endfunction
+
+function main takes nothing returns nothing
+    set bound_player = GetAiPlayer()
+    call StartThread(function idle_child)
+    loop
+        call Sleep(10)
+        if bound_player != GetAiPlayer() then
+            call MissingAIAction()
+        endif
+    endloop
+endfunction

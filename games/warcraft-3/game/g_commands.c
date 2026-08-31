@@ -175,6 +175,10 @@ CLIENTCOMMAND(Button) {
     ability_t const *ability;
 
     if (argc < 2) return;
+    if (client->no_ui) {
+        if (client->menu.cmdbutton) client->menu.cmdbutton(clent, *((DWORD *)argv[1]));
+        return;
+    }
     classname = argv[1];
     ability = FindAbilityForCommand(classname);
     if (ability && ability->cmd) {
@@ -478,35 +482,37 @@ CLIENTCOMMAND(DebugSpawn) {
 typedef struct {
     LPCSTR name;
     void (*func)(LPEDICT ent, DWORD argc, LPCSTR argv[]);
+    BOOL requires_ui;
 } clientCommand_t;
 
 clientCommand_t clientCommands[] = {
-    { "give", CMD_Give },
-    { "god", CMD_God },
-    { "kill", CMD_Kill },
-    { "button", CMD_Button },
-    { "research", CMD_Research },
-    { "inventory", CMD_Inventory },
-    { "dropitem", CMD_DropItem },
-    { "select", CMD_Select },
-    { "point", CMD_Point },
-    { "smart", CMD_Smart },
-    { "smartpoint", CMD_SmartPoint },
-    { "cancel", CMD_Cancel },
-    { "quests", CMD_Quests },
-    { "hidequests", CMD_HideQuests },
-    { "quest", CMD_Quest },
-    { "hidegameresult", CMD_HideGameResult },
-    { "gameresult_restart", CMD_GameResultRestart },
-    { "gameresult_quit", CMD_GameResultQuit },
-    { "debugspawn", CMD_DebugSpawn },
-    { "menu", CMD_Menu },
+    { "give", CMD_Give, false },
+    { "god", CMD_God, false },
+    { "kill", CMD_Kill, false },
+    { "button", CMD_Button, false },
+    { "research", CMD_Research, true },
+    { "inventory", CMD_Inventory, true },
+    { "dropitem", CMD_DropItem, true },
+    { "select", CMD_Select, true },
+    { "point", CMD_Point, true },
+    { "smart", CMD_Smart, true },
+    { "smartpoint", CMD_SmartPoint, true },
+    { "cancel", CMD_Cancel, false },
+    { "quests", CMD_Quests, false },
+    { "hidequests", CMD_HideQuests, false },
+    { "quest", CMD_Quest, false },
+    { "hidegameresult", CMD_HideGameResult, false },
+    { "gameresult_restart", CMD_GameResultRestart, false },
+    { "gameresult_quit", CMD_GameResultQuit, false },
+    { "debugspawn", CMD_DebugSpawn, false },
+    { "menu", CMD_Menu, true },
     { NULL }
 };
 
 void G_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
     for (clientCommand_t const *cmd = clientCommands; cmd->name; cmd++) {
         if (!strcmp(cmd->name, argv[0])) {
+            if (cmd->requires_ui && ent->client->no_ui) return;
             cmd->func(ent, argc, argv);
             return;
         }

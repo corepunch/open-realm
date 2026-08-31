@@ -393,6 +393,7 @@ DWORD RemovePlayer(LPJASS j) {
     DWORD *gameResult = jass_checkhandle(j, 2, "playergameresult");
     if (whichPlayer && gameResult) {
         LPEDICT pent = PLAYER_ENT(whichPlayer);
+        G_BotRequestStop(PLAYER_NUM(whichPlayer));
         if (pent) {
             if (*gameResult == 0) {
                 G_PublishEvent(pent, EVENT_PLAYER_VICTORY);
@@ -583,24 +584,26 @@ DWORD ClearTextMessages(LPJASS j) {
     return 0;
 }
 DWORD StartMeleeAI(LPJASS j) {
-    //HANDLE num = jass_checkhandle(j, 1, "player");
-    //LPCSTR script = jass_checkstring(j, 2);
+    LPPLAYER player = jass_checkhandle(j, 1, "player");
+    LPCSTR script = jass_checkstring(j, 2);
+    G_BotStart(player, script, BOT_MELEE);
     return 0;
 }
 DWORD StartCampaignAI(LPJASS j) {
-    //HANDLE num = jass_checkhandle(j, 1, "player");
-    //LPCSTR script = jass_checkstring(j, 2);
+    LPPLAYER player = jass_checkhandle(j, 1, "player");
+    LPCSTR script = jass_checkstring(j, 2);
+    G_BotStart(player, script, BOT_CAMPAIGN);
     return 0;
 }
 DWORD CommandAI(LPJASS j) {
-    //HANDLE num = jass_checkhandle(j, 1, "player");
-    //LONG command = jass_checkinteger(j, 2);
-    //LONG data = jass_checkinteger(j, 3);
+    LPPLAYER player = jass_checkhandle(j, 1, "player");
+    G_BotPushCommand(player, jass_checkinteger(j, 2), jass_checkinteger(j, 3));
     return 0;
 }
 DWORD PauseCompAI(LPJASS j) {
-    //HANDLE p = jass_checkhandle(j, 1, "player");
-    //BOOL pause = jass_checkboolean(j, 2);
+    LPPLAYER player = jass_checkhandle(j, 1, "player");
+    BOOL pause = jass_checkboolean(j, 2);
+    if (player) G_BotPause(PLAYER_NUM(player), pause);
     return 0;
 }
 DWORD RemoveAllGuardPositions(LPJASS j) {

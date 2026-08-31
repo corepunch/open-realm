@@ -34,6 +34,10 @@ void ai_train_build(LPEDICT ent) {
         ent->build = next;
         G_InvalidateCommands(G_GetPlayerClientByNumber(ent->s.player));
         G_PublishEvent(completed, EVENT_PLAYER_UNIT_TRAIN_FINISH);
+    #ifdef WC3_DEBUG_AI
+        fprintf(stderr, "WC3_DEBUG_AI training complete producer=%ld unit=%ld id=%.4s player=%u\n",
+            (long)(ent - g_edicts), (long)(completed - g_edicts), (LPCSTR)&completed->class_id, completed->s.player);
+    #endif
         if (!ent->build) {
             ent->stand(ent);
         }
@@ -44,6 +48,9 @@ void ai_train_build(LPEDICT ent) {
 static umove_t train_move_train = { "stand", ai_train_build, NULL, &a_train };
 
 void unit_add_build_queue(LPEDICT self, LPEDICT item) {
+    /* Queued units must not run stand/birth callbacks, which clear build and used to sever the queue behind them. */
+    item->currentmove = NULL;
+    item->animation = NULL;
     if (!self->build) {
         self->build = item;
     } else {
@@ -57,22 +64,22 @@ void unit_build(LPEDICT self, DWORD class_id) {
     LPEDICT ent = SP_SpawnAtLocation(class_id, self->s.player, &self->s.origin2);
     ent->training = true;
     ent->health.value = 0;
-    ent->birth(ent);
+    /* SP_SpawnAtLocation already ran birth; calling it twice reset the trained unit and crashed sparse fixtures. */
     ent->s.renderfx |= RF_HIDDEN;
     unit_add_build_queue(self, ent);
     unit_setmove(self, &train_move_train);
 }
 
-void SP_TrainUnit(LPEDICT townhall, DWORD class_id) {
+BOOL SP_TrainUnit(LPEDICT townhall, DWORD class_id) {
     LPGAMECLIENT client;
     LPEDICT clent;
     LPPLAYER player;
 
-    if (!townhall || !class_id) return;
+    if (!townhall || !class_id) return false;
     client = G_GetPlayerClientByNumber(townhall->s.player);
     if (!client || client->ps.number != townhall->s.player ||
         G_GetTrainCommandState(client, townhall, class_id, NULL, 0) != BUILD_COMMAND_AVAILABLE) {
-        return;
+        return false;
     }
     clent = G_GetPlayerEntityByNumber(townhall->s.player);
     player = G_GetPlayerByNumber(townhall->s.player);
@@ -82,9 +89,11 @@ void SP_TrainUnit(LPEDICT townhall, DWORD class_id) {
             Get_Portrait_f(clent);
             Get_Commands_f(clent);
         }
+        return true;
     } else {
         fprintf(stdout, "Not enough resources\n");
     }
+    return false;
 }
 
 ability_t a_train = {

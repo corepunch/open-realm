@@ -1,0 +1,5 @@
+function main takes nothing returns nothing
+    call CreateCaptains()
+    call CreateCaptains()
+    call Sleep(1000.0)
+endfunction

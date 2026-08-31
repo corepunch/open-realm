@@ -212,15 +212,79 @@ static void look_for_another_tree(LPEDICT ent) {
     }
 }
 
-BOOL G_ActorHasSkill(LPEDICT ent, LPCSTR id) {
-    LPCSTR abilities = ent->UnitAbilities->abilList;
+static LONG skill_index(DWORD const *skills, DWORD count, DWORD code) {
+    FOR_LOOP(i, count) if (skills[i] == code) return i;
+    return -1;
+}
+
+static void skill_add(DWORD **skills, DWORD *count, DWORD code) {
+    DWORD *next = gi.MemAlloc((*count + 1) * sizeof(*next));
+    if (*skills) { memcpy(next, *skills, *count * sizeof(*next)); gi.MemFree(*skills); }
+    next[(*count)++] = code; *skills = next;
+}
+
+static void skill_remove(DWORD *skills, DWORD *count, DWORD index) {
+    memmove(skills + index, skills + index + 1, (--*count - index) * sizeof(*skills));
+}
+
+static BOOL actor_has_skill(LPEDICT ent, DWORD code) {
+    LPCSTR abilities;
+    if (!ent || !code) return false;
+    if (skill_index(ent->removed_abilities, ARRAY_COUNT(ent->removed_abilities), code) >= 0) return false;
+    if (skill_index(ent->added_abilities, ARRAY_COUNT(ent->added_abilities), code) >= 0) return true;
+    if (!ent->UnitAbilities) return false;
+    abilities = ent->UnitAbilities->abilList;
     if (abilities) {
         PARSE_LIST(abilities, abil, parse_segment) {
-            if (!strcmp(abil, id))
-                return true;
+            DWORD static_code = 0;
+            if (strlen(abil) == 4) memcpy(&static_code, abil, sizeof(static_code));
+            if (static_code == code) return true;
         }
     }
     return false;
+}
+
+BOOL G_ActorHasSkill(LPEDICT ent, LPCSTR id) {
+    DWORD code = 0;
+    if (!id || strlen(id) != 4) return false;
+    memcpy(&code, id, sizeof(code));
+    return actor_has_skill(ent, code);
+}
+
+BOOL G_ActorAddSkill(LPEDICT ent, DWORD code) {
+    LONG index;
+    if (!ent || !code || actor_has_skill(ent, code)) return false;
+    index = skill_index(ent->removed_abilities, ARRAY_COUNT(ent->removed_abilities), code);
+    if (index >= 0) skill_remove(ent->removed_abilities, &ARRAY_COUNT(ent->removed_abilities), index);
+    else {
+        if (G_AbilityData(code)->id != code) return false;
+        skill_add(&ent->added_abilities, &ARRAY_COUNT(ent->added_abilities), code);
+    }
+    return true;
+}
+
+BOOL G_ActorRemoveSkill(LPEDICT ent, DWORD code) {
+    LONG index;
+    if (!ent || !code || !actor_has_skill(ent, code)) return false;
+    index = skill_index(ent->added_abilities, ARRAY_COUNT(ent->added_abilities), code);
+    if (index >= 0) skill_remove(ent->added_abilities, &ARRAY_COUNT(ent->added_abilities), index);
+    else skill_add(&ent->removed_abilities, &ARRAY_COUNT(ent->removed_abilities), code);
+    index = skill_index(ent->permanent_abilities, ARRAY_COUNT(ent->permanent_abilities), code);
+    if (index >= 0) skill_remove(ent->permanent_abilities, &ARRAY_COUNT(ent->permanent_abilities), index);
+    return true;
+}
+
+BOOL G_ActorSetSkillPermanent(LPEDICT ent, DWORD code, BOOL permanent) {
+    LONG index;
+    if (!actor_has_skill(ent, code)) return false;
+    index = skill_index(ent->permanent_abilities, ARRAY_COUNT(ent->permanent_abilities), code);
+    if (permanent && index < 0) skill_add(&ent->permanent_abilities, &ARRAY_COUNT(ent->permanent_abilities), code);
+    else if (!permanent && index >= 0) skill_remove(ent->permanent_abilities, &ARRAY_COUNT(ent->permanent_abilities), index);
+    return true;
+}
+
+BOOL G_ActorSkillPermanent(LPEDICT ent, DWORD code) {
+    return ent && skill_index(ent->permanent_abilities, ARRAY_COUNT(ent->permanent_abilities), code) >= 0;
 }
 
 static void ai_walktree(LPEDICT ent) {

@@ -178,6 +178,7 @@ void Sys_Quit(void);
 
 HANDLE FS_AddArchive(LPCSTR filename);
 BOOL FS_AddDataDirectory(LPCSTR dirname);
+BOOL FS_ArchiveFileVisible(LPCSTR archive, LPCSTR filename);
 HANDLE FS_OpenFile(LPCSTR fileName);
 void FS_CloseFile(HANDLE file);
 HANDLE FS_ReadLooseFile(LPCSTR filename, LPDWORD size, DWORD extraBytes);

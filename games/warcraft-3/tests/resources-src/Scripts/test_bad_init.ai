@@ -1,0 +1,6 @@
+globals
+    integer bad_value = MissingAIValue()
+endglobals
+
+function main takes nothing returns nothing
+endfunction

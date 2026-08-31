@@ -1,0 +1,68 @@
+// Minimal common.ai for player AI lifecycle tests.
+native DisplayText takes integer p, string str returns nothing
+native DisplayTextI takes integer p, string str, integer val returns nothing
+native DisplayTextII takes integer p, string str, integer v1, integer v2 returns nothing
+native DisplayTextIII takes integer p, string str, integer v1, integer v2, integer v3 returns nothing
+native GetAiPlayer takes nothing returns integer
+native GetUnitCount takes integer unitid returns integer
+native GetPlayerUnitTypeCount takes player p, integer unitid returns integer
+native GetUnitCountDone takes integer unitid returns integer
+native GetMinesOwned takes nothing returns integer
+native GetGoldOwned takes nothing returns integer
+native TownWithMine takes nothing returns integer
+native TownHasMine takes integer townid returns boolean
+native TownHasHall takes integer townid returns boolean
+native SetProduce takes integer qty, integer id, integer town returns boolean
+native GetUnitGoldCost takes integer unitid returns integer
+native GetUnitWoodCost takes integer unitid returns integer
+native GetUnitBuildTime takes integer unitid returns integer
+native GetUpgradeLevel takes integer id returns integer
+native UnitAlive takes unit id returns boolean
+native SetCampaignAI takes nothing returns nothing
+native SetMeleeAI takes nothing returns nothing
+native SetHeroLevels takes code func returns nothing
+native SetTargetHeroes takes boolean state returns nothing
+native SetPeonsRepair takes boolean state returns nothing
+native SetHeroesFlee takes boolean state returns nothing
+native SetWatchMegaTargets takes boolean state returns nothing
+native SetIgnoreInjured takes boolean state returns nothing
+native SetHeroesTakeItems takes boolean state returns nothing
+native SetUnitsFlee takes boolean state returns nothing
+native SetGroupsFlee takes boolean state returns nothing
+native SetSlowChopping takes boolean state returns nothing
+native SetCaptainChanges takes boolean state returns nothing
+native SetSmartArtillery takes boolean state returns nothing
+native SetReplacementCount takes integer qty returns nothing
+native GroupTimedLife takes boolean allow returns nothing
+native SetNewHeroes takes boolean state returns nothing
+native SetRandomPaths takes boolean state returns nothing
+native SetDefendPlayer takes boolean state returns nothing
+native SetHeroesBuyItems takes boolean state returns nothing
+native StopGathering takes nothing returns nothing
+native ClearHarvestAI takes nothing returns nothing
+native HarvestGold takes integer town, integer peons returns nothing
+native HarvestWood takes integer town, integer peons returns nothing
+native CreateCaptains takes nothing returns nothing
+native IgnoredUnits takes integer unitid returns integer
+native CaptainInCombat takes boolean attack_captain returns boolean
+native InitAssault takes nothing returns nothing
+native AddAssault takes integer qty, integer unitid returns boolean
+native CaptainGroupSize takes nothing returns integer
+native CaptainIsFull takes nothing returns boolean
+native CaptainIsEmpty takes nothing returns boolean
+native CaptainReadiness takes nothing returns integer
+native CaptainReadinessHP takes nothing returns integer
+native CaptainReadinessMa takes nothing returns integer
+native AddDefenders takes integer qty, integer unitid returns boolean
+native AddGuardPost takes integer id, real x, real y returns nothing
+native FillGuardPosts takes nothing returns nothing
+native ReturnGuardPosts takes nothing returns nothing
+native CommandsWaiting takes nothing returns integer
+native GetLastCommand takes nothing returns integer
+native GetLastData takes nothing returns integer
+native PopLastCommand takes nothing returns nothing
+native StartThread takes code func returns nothing
+native Sleep takes real seconds returns nothing
+native MissingAIAction takes nothing returns nothing
+native MissingAIValue takes nothing returns integer
+native StartCampaignAI takes player num, string script returns nothing

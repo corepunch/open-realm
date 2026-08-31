@@ -164,8 +164,11 @@ static void G_ShutdownGame(void) {
     if (g_edicts == NULL) {
         return;
     }
+    G_BotShutdown();
+    if (level.vm) { jass_close(level.vm); level.vm = NULL; }
     G_FowShutdown();
     G_FreeModels();
+    FOR_LOOP(i, globals.max_edicts) G_FreeActorSkills(g_edicts + i);
     gi.MemFree(g_edicts);
     g_edicts = NULL;
     globals.edicts = NULL;
@@ -373,6 +376,7 @@ static void G_RunFrame(void) {
     
     G_RunEvents();
     jass_runevents(level.vm);
+    G_BotRunFrame();
 
     G_RunClients();
 

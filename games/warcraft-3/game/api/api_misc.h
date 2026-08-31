@@ -1050,6 +1050,26 @@ DWORD ChooseRandomNPBuilding(LPJASS j) {
     return jass_pushinteger(j, 0);
 }
 
+DWORD SetAllItemTypeSlots(LPJASS j) {
+    G_SetAllStockSlots(true, jass_checkinteger(j, 1));
+    return 0;
+}
+
+DWORD SetAllUnitTypeSlots(LPJASS j) {
+    G_SetAllStockSlots(false, jass_checkinteger(j, 1));
+    return 0;
+}
+
+DWORD SetItemTypeSlots(LPJASS j) {
+    G_SetStockSlots(jass_checkhandle(j, 1, "unit"), true, jass_checkinteger(j, 2));
+    return 0;
+}
+
+DWORD SetUnitTypeSlots(LPJASS j) {
+    G_SetStockSlots(jass_checkhandle(j, 1, "unit"), false, jass_checkinteger(j, 2));
+    return 0;
+}
+
 static BOOL JassRandomItemEligible(ItemData_t const *row, LONG level, DWORD type) {
     if (!row->pickRandom || row->level != level) return false;
     return type == 8 || G_ItemTypeFromClass(row->itemClass) == type;
@@ -1167,6 +1187,11 @@ DWORD EnableUserControl(LPJASS j) {
     if (currentplayer) {
         PLAYER_CLIENT(currentplayer)->no_control = !b;
     }
+    return 0;
+}
+DWORD EnableUserUI(LPJASS j) {
+    BOOL enabled = jass_checkboolean(j, 1);
+    if (currentplayer) PLAYER_CLIENT(currentplayer)->no_ui = !enabled;
     return 0;
 }
 DWORD SuspendTimeOfDay(LPJASS j) {

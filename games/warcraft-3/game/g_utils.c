@@ -14,10 +14,19 @@ void G_SetPlayerText(LPGAMECLIENT client, PLAYERTEXT index, LPCSTR text) {
     client->ps.texts[index] = client->playerTextStorage[index][cursor];
 }
 
+void G_FreeActorSkills(LPEDICT ent) {
+    if (ent->added_abilities) gi.MemFree(ent->added_abilities);
+    if (ent->removed_abilities) gi.MemFree(ent->removed_abilities);
+    if (ent->permanent_abilities) gi.MemFree(ent->permanent_abilities);
+    ent->added_abilities = ent->removed_abilities = ent->permanent_abilities = NULL;
+    ARRAY_COUNT(ent->added_abilities) = ARRAY_COUNT(ent->removed_abilities) = ARRAY_COUNT(ent->permanent_abilities) = 0;
+}
+
 void G_FreeEdict(LPEDICT ent) {
     if (ent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     S_GoldMineReleaseWorker(ent);
     gi.UnlinkEntity(ent);
+    G_FreeActorSkills(ent);
     memset(ent, 0, sizeof(*ent));
     ent->freetime = level.time;
 }

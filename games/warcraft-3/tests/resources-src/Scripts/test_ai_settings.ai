@@ -1,0 +1,26 @@
+function hero_levels takes nothing returns nothing
+endfunction
+
+function main takes nothing returns nothing
+    call SetMeleeAI()
+    call SetHeroLevels(function hero_levels)
+    call SetTargetHeroes(true)
+    call SetPeonsRepair(false)
+    call SetHeroesFlee(true)
+    call SetWatchMegaTargets(false)
+    call SetIgnoreInjured(true)
+    call SetHeroesTakeItems(false)
+    call SetUnitsFlee(true)
+    call SetGroupsFlee(false)
+    call SetSlowChopping(true)
+    call SetCaptainChanges(false)
+    call SetSmartArtillery(true)
+    call GroupTimedLife(false)
+    call SetNewHeroes(true)
+    call SetRandomPaths(false)
+    call SetDefendPlayer(true)
+    call SetHeroesBuyItems(false)
+    call SetReplacementCount(3)
+    call SetCampaignAI()
+    call Sleep(1000.0)
+endfunction
