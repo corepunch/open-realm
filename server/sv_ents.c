@@ -70,28 +70,38 @@ static int SV_CompareCandidateByNumber(const void *a, const void *b) {
     return ea->edict->s.number - eb->edict->s.number;
 }
 
+/* Keep the worst retained candidate at the root so overflow replacement is logarithmic. */
 static void SV_AddVisibleEntityCandidate(visibleEntityCandidate_t *candidates,
                                          int *num_candidates,
                                          edict_t *edict,
                                          FLOAT score)
 {
-    int worst = 0;
-
     if (*num_candidates < MAX_PACKET_ENTITIES) {
-        candidates[*num_candidates] = (visibleEntityCandidate_t){ edict, score };
-        (*num_candidates)++;
-        return;
-    }
-
-    for (int i = 1; i < *num_candidates; i++) {
-        if (candidates[i].score > candidates[worst].score) {
-            worst = i;
+        int index = (*num_candidates)++;
+        candidates[index] = (visibleEntityCandidate_t){ edict, score };
+        while (index > 0) {
+            int parent = (index - 1) / 2;
+            if (candidates[parent].score >= candidates[index].score)
+                break;
+            visibleEntityCandidate_t tmp = candidates[parent];
+            candidates[parent] = candidates[index]; candidates[index] = tmp;
+            index = parent;
         }
-    }
-    if (score >= candidates[worst].score) {
         return;
     }
-    candidates[worst] = (visibleEntityCandidate_t){ edict, score };
+    if (score >= candidates[0].score)
+        return;
+    candidates[0] = (visibleEntityCandidate_t){ edict, score };
+    for (int index = 0;;) {
+        int left = index * 2 + 1, right = left + 1, worst = index;
+        if (left < *num_candidates && candidates[left].score > candidates[worst].score) worst = left;
+        if (right < *num_candidates && candidates[right].score > candidates[worst].score) worst = right;
+        if (worst == index)
+            break;
+        visibleEntityCandidate_t tmp = candidates[index];
+        candidates[index] = candidates[worst]; candidates[worst] = tmp;
+        index = worst;
+    }
 }
 
 LPENTITYSTATE SV_NextClientEntity(void) {

@@ -63,6 +63,10 @@ static int test_model_index(LPCSTR name) {
     return 0;
 }
 
+static void test_customize_entity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
+    (void)player; (void)ent; (void)state;
+}
+
 static int test_image_index(LPCSTR name) {
     (void)name;
     return 0;
@@ -83,14 +87,6 @@ static void reset_test_gi(void) {
     gi.FontIndex = test_font_index;
     gi.ClearWorld = SV_ClearWorld;
     gi.ApplyLobbySettings = SV_ApplyLobbySettings;
-}
-
-void SV_BuildClientFrame(LPCLIENT client) {
-    (void)client;
-}
-
-void SV_WriteFrameToClient(LPCLIENT client) {
-    (void)client;
 }
 
 void SV_ParseClientMessage(LPSIZEBUF msg, LPCLIENT client) {
@@ -139,6 +135,7 @@ static void reset_server_state(int max_players) {
     test_ge.LoadMap = test_load_map;
     test_ge.GetWorldBounds = CM_GetWorldBounds;
     test_ge.Shutdown = test_game_shutdown;
+    test_ge.CustomizeEntity = test_customize_entity;
     ge = &test_ge;
     reset_test_gi();
 }
@@ -510,6 +507,31 @@ TEST(server_net, server_snapshot_ring_scales_to_client_capacity) {
     T_EQ(svs.num_client_entities, (DWORD)(test_ge.max_clients * MAX_PACKET_ENTITIES * UPDATE_BACKUP));
     T_ASSERT(svs.num_client_entities < (DWORD)(UPDATE_BACKUP * test_ge.max_clients * MAX_GAME_ENTITIES));
     T_ASSERT(svs.client_entities != NULL);
+}
+
+TEST(server_net, snapshot_overflow_keeps_nearest_entities_in_wire_order) {
+    static struct client_s game_client;
+    LPCLIENT client;
+    LPCLIENTFRAME frame;
+
+    reset_server_state(1);
+    SV_InitGame();
+    client = &svs.clients[0]; frame = &client->frames[0];
+    memset(&game_client, 0, sizeof(game_client));
+    test_edicts[0].client = &game_client; client->edict = &test_edicts[0];
+    test_ge.num_edicts = MAX_PACKET_ENTITIES + 3;
+    for (int i = 1; i < test_ge.num_edicts; i++) {
+        test_edicts[i].inuse = true;
+        test_edicts[i].s.number = i; test_edicts[i].s.model = 1;
+        test_edicts[i].s.origin.x = (FLOAT)(test_ge.num_edicts - i);
+    }
+
+    SV_BuildClientFrame(client);
+
+    T_EQ(frame->num_entities, MAX_PACKET_ENTITIES);
+    FOR_LOOP(i, frame->num_entities)
+        T_EQ(svs.client_entities[frame->first_entity + i].number, i + 3);
+    SV_Shutdown();
 }
 
 TEST(server_net, lobby_start_preserves_connected_clients) {
