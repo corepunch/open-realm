@@ -46,6 +46,7 @@ JASSMODULE jass_funcs[] = {
     { "SetDefendPlayer", SetDefendPlayer },
     { "SetHeroesBuyItems", SetHeroesBuyItems },
     { "StopGathering", StopGathering },
+    { "CreateCaptains", CreateCaptains },
     { "StartThread", StartThread },
     { "Sleep", Sleep },
     { "ConvertRace", ConvertRace },

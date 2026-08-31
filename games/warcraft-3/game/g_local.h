@@ -831,6 +831,26 @@ typedef enum {
 } botMode_t;
 
 typedef enum {
+    BOT_CAPTAIN_ATTACK,
+    BOT_CAPTAIN_DEFENSE,
+    BOT_CAPTAIN_COUNT,
+} botCaptainType_t;
+
+typedef enum {
+    BOT_CAPTAIN_IDLE,
+    BOT_CAPTAIN_FORMING,
+    BOT_CAPTAIN_ACTIVE,
+    BOT_CAPTAIN_RETREATING,
+} botCaptainState_t;
+
+typedef struct {
+    ARRAY(LPEDICT, units);
+    VECTOR2 home, goal;
+    DWORD desired;
+    botCaptainState_t state;
+} botCaptain_t;
+
+typedef enum {
     BOT_TARGET_HEROES    = 1 << 0,
     BOT_PEONS_REPAIR     = 1 << 1,
     BOT_HEROES_FLEE      = 1 << 2,
@@ -852,6 +872,7 @@ typedef enum {
 typedef struct {
     LPJASS vm;
     LPPLAYER player;
+    botCaptain_t captains[BOT_CAPTAIN_COUNT];
     botMode_t mode, pending_mode;
     DWORD flags;
     LONG replacement_count;
@@ -927,6 +948,7 @@ void G_BotPause(DWORD, BOOL);
 void G_BotRunFrame(void);
 BOOL G_BotUnitAlive(LPEDICT);
 void G_BotStopGathering(LPPLAYER);
+void G_BotCreateCaptains(LPPLAYER);
 
 // g_fow.c
 void G_FowInit(void);

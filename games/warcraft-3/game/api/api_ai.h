@@ -90,6 +90,11 @@ DWORD StopGathering(LPJASS j) {
     return 0;
 }
 
+DWORD CreateCaptains(LPJASS j) {
+    G_BotCreateCaptains(jass_getcontext(j)->playerState);
+    return 0;
+}
+
 DWORD StartThread(LPJASS j) {
     LPCJASSFUNC func = jass_checkcode(j, 1);
     JASSCONTEXT context = *jass_getcontext(j);

@@ -195,6 +195,8 @@ Implemented query subset: `GetUnitCount` and `GetPlayerUnitTypeCount` include li
 
 `StopGathering` stops only the invoking bot's units whose active movement belongs to lumber, gold, or wisp harvesting. It releases workers hidden inside gold mines through the ordinary mine-membership lifecycle, preserves carried resources, and leaves unrelated orders and other players untouched. A bounded ROC Human02 run now passes this call and reports `CreateCaptains` as the next unresolved native.
 
+`CreateCaptains` initializes bot-owned assault and defense captain state and discards prior membership when scripts recreate captains. A bounded ROC Human02 run now passes captain creation and reports `IgnoredUnits` as the next unresolved native while translating campaign defender requests into build totals.
+
 Internal engine ownership uses `bot_t`, `level.bots`, and `G_Bot*`. Blizzard's exported JASS names retain `AI` because that spelling is part of the archive script ABI. Campaign/melee mode, replacement count, and the ROC/TFT policy toggles are persisted on each bot for the later production and captain consumers.
 
 ### Phase 4: Human02 Completion

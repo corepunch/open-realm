@@ -192,4 +192,27 @@ TEST(wc3_bot, stop_gathering_stops_only_owned_harvesters_and_releases_mines) {
     T_EQ(fighter->currentmove->ability, &a_attack);
 }
 
+TEST(wc3_bot, create_captains_resets_both_bot_owned_captains) {
+    bot_t *bot = level.bots + 2;
+    bot->captains[BOT_CAPTAIN_ATTACK].state = BOT_CAPTAIN_ACTIVE;
+    bot->captains[BOT_CAPTAIN_ATTACK].desired = 6;
+    bot->captains[BOT_CAPTAIN_ATTACK].home.x = 128;
+    bot->captains[BOT_CAPTAIN_DEFENSE].state = BOT_CAPTAIN_RETREATING;
+    bot->captains[BOT_CAPTAIN_DEFENSE].desired = 3;
+    bot->captains[BOT_CAPTAIN_DEFENSE].goal.y = 256;
+
+    T_ASSERT(G_BotStart(&game.clients[2].ps, "test_create_captains.ai", BOT_CAMPAIGN));
+    G_BotRunFrame();
+    FOR_LOOP(i, BOT_CAPTAIN_COUNT) {
+        T_EQ(bot->captains[i].state, BOT_CAPTAIN_IDLE);
+        T_EQ(bot->captains[i].desired, 0);
+        T_EQ(ARRAY_COUNT(bot->captains[i].units), 0);
+        T_NULL(bot->captains[i].units);
+        T_FEQ(bot->captains[i].home.x, 0, 0.001f);
+        T_FEQ(bot->captains[i].home.y, 0, 0.001f);
+        T_FEQ(bot->captains[i].goal.x, 0, 0.001f);
+        T_FEQ(bot->captains[i].goal.y, 0, 0.001f);
+    }
+}
+
 #endif /* BZ_TESTS */

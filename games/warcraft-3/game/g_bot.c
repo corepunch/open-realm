@@ -22,6 +22,16 @@ void G_BotStopGathering(LPPLAYER player) {
     }
 }
 
+/* Blizzard AI owns one assault and one defense captain; recreation drops all prior membership and orders. */
+void G_BotCreateCaptains(LPPLAYER player) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    if (!bot) return;
+    FOR_LOOP(i, BOT_CAPTAIN_COUNT) {
+        if (bot->captains[i].units) gi.MemFree(bot->captains[i].units);
+        memset(bot->captains + i, 0, sizeof(bot->captains[i]));
+    }
+}
+
 /* AI script paths are normally basenames; preserve an explicit archive path when a map supplies one. */
 static BOOL G_BotScriptPath(LPCSTR script, LPSTR path, size_t size) {
     int len;
@@ -35,6 +45,7 @@ void G_BotStop(DWORD player) {
     bot_t *bot = G_BotState(player);
     if (!bot || !bot->vm) return;
     jass_close(bot->vm);
+    G_BotCreateCaptains(bot->player);
     memset(bot, 0, sizeof(*bot));
 }
 
