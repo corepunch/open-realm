@@ -48,6 +48,7 @@ VECTOR2 CM_GetNormalizedMapPosition(float x, float y);
 VECTOR2 CM_GetDenormalizedMapPosition(float x, float y);
 BOOL CM_ClosestPathablePoint(LPCVECTOR2 location, LPVECTOR2 out);
 BOOL CM_ClosestPathablePointForRadius(LPCVECTOR2 location, FLOAT radius, LPVECTOR2 out);
+BOOL CM_ClosestReachablePointForRadius(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT radius, LPVECTOR2 out);
 BOOL CM_PointIsPathableForRadius(LPCVECTOR2 location, FLOAT radius);
 BOOL CM_LineIsWalkable(LPCVECTOR2 a, LPCVECTOR2 b);
 BOOL CM_GetPathingFlagsAt(LPCVECTOR2 location, LPBYTE flags);

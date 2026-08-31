@@ -27,6 +27,8 @@ static const char *resolve_mpq_path(int argc, char **argv)
 
 int main(int argc, char **argv)
 {
+    static BYTE const adpcm_mono[] = { 0x40, 0, 0, 0x34, 0x12 };
+    static BYTE const adpcm_stereo[] = { 0x80, 0, 0, 0x34, 0x12, 0x78, 0x56 };
     const char *mpq_path = resolve_mpq_path(argc, argv);
     HANDLE archive;
     HANDLE file;
@@ -50,7 +52,15 @@ int main(int argc, char **argv)
     DWORD sound_size;
     DWORD riff_size;
     BYTE *sound_data;
+    BYTE decoded[4];
+    DWORD decoded_size;
 
+    if (!Mpq_TestDecompressSector(adpcm_mono, sizeof(adpcm_mono), decoded, 2, &decoded_size) ||
+        decoded_size != 2 || decoded[0] != 0x34 || decoded[1] != 0x12)
+        fail("pure mono ADPCM sector decode failed");
+    if (!Mpq_TestDecompressSector(adpcm_stereo, sizeof(adpcm_stereo), decoded, 4, &decoded_size) ||
+        decoded_size != 4 || memcmp(decoded, "\x34\x12\x78\x56", 4))
+        fail("pure stereo ADPCM sector decode failed");
     if (!SFileOpenArchive(mpq_path, 0, 0, &archive)) {
         fail("SFileOpenArchive failed");
     }

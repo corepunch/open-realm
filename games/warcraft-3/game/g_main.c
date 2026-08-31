@@ -512,6 +512,15 @@ void G_SetClientConnected(LPEDICT player, BOOL connected) {
     player->client->connected = connected;
 }
 
+/* Client slots and free edicts have zero-initialized player ownership but no
+ * unit row.  Only live, metadata-bound units contribute authored food values. */
+void G_AccumulatePlayerFood(LPGAMECLIENT client) {
+    FILTER_EDICTS(ent, ent->inuse && ent->UnitBalance && client->ps.number == ent->s.player) {
+        client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] += ent->UnitBalance->foodMade;
+        client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] += ent->UnitBalance->foodUsed;
+    }
+}
+
 /* Called when a client finishes the connection handshake and is ready to play.
  * The in-game HUD is server-authored through svc_layout; this binds the game
  * client and initializes gameplay state when a map is loaded. */
@@ -542,11 +551,7 @@ static void G_ClientBegin(LPEDICT edict) {
 
     UI_ShowGameInterface(edict);
 
-    FILTER_EDICTS(ent, client->ps.number == ent->s.player) {
-        UnitBalance_t const *b = ent->UnitBalance;
-        client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] += b->foodMade;
-        client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] += b->foodUsed;
-    }
+    G_AccumulatePlayerFood(client);
     /* Invalidate cache so the initial resource bar write always fires. */
     client->resourcebar.gold = -1;
     G_RefreshResourceBar(edict);

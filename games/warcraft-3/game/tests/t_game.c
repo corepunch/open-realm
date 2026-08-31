@@ -80,6 +80,23 @@ TEST(wc3_game, hud_valid_texture_path_is_unchanged) {
 }
 TEST(wc3_game, hud_second_attack_present_with_dice) { T_ASSERT(UI_HasSecondAttack(1)); }
 TEST(wc3_game, hud_second_attack_absent_without_dice) { T_ASSERT(!UI_HasSecondAttack(0)); }
+TEST(wc3_game, player_zero_food_ignores_free_edicts) {
+    static UnitBalance_t const owned_balance = { .foodMade = 6, .foodUsed = 1 };
+    static UnitBalance_t const enemy_balance = { .foodMade = 12, .foodUsed = 2 };
+    LPGAMECLIENT client = &game.clients[0];
+    LPEDICT owned, enemy;
+
+    reset_entities();
+    client->ps.number = 0;
+    owned = G_Spawn(); enemy = G_Spawn();
+    owned->s.player = 0; owned->UnitBalance = &owned_balance;
+    enemy->s.player = 1; enemy->UnitBalance = &enemy_balance;
+
+    G_AccumulatePlayerFood(client);
+
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP], 6);
+    T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED], 1);
+}
 TEST(wc3_game, hud_portrait_model_uses_serialized_field) {
     FRAMEDEF frame = { 0 };
     UI_SetPortraitFrameModel(&frame, 42);

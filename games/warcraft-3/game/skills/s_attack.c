@@ -420,18 +420,16 @@ void order_attackmove(LPEDICT self, LPEDICT waypoint) {
 }
 
 static BOOL attackmove_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
-    LPEDICT waypoint;
     BOOL any = false;
 
     FOR_SELECTED_UNITS(clent->client, ent) {
+        VECTOR2 target = *location;
         if ((ent->aiflags & AI_IMMOBILE) || ent->UnitBalance->speed <= 0) {
             continue;
         }
-        if (!any) {
-            waypoint = Waypoint_add(location);
-            any = true;
-        }
-        order_attackmove(ent, waypoint);
+        CM_ClosestPathablePointForRadius(location, ent->collision, &target);
+        order_attackmove(ent, Waypoint_add(&target));
+        any = true;
     }
     return any;
 }

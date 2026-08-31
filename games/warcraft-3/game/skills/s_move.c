@@ -281,11 +281,10 @@ static void ai_move_walk(LPEDICT ent) {
     } else {
         blocked = move_is_blocked(ent, distance, move_distance);
 
-        /* A plain move waypoint is collision-safe and has no interaction
-         * boundary owned by another behavior, so route it using the mover's
-         * real footprint.  Point-sized generic routing can legitimately choose
-         * a tree/building gap that the unit itself cannot enter. */
-        unit_changeangle_for_radius(ent, ent->collision);
+        /* Plain Move owns a private destination, so location-aware steering
+         * uses the mover footprint and retargets a disconnected click before
+         * this behavior treats an unresolved route as terminal. */
+        unit_changeangle(ent);
 
         if (ent->movement.flow_unreachable) {
             move_hold(ent); /* static topology says this goal cannot be reached */

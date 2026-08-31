@@ -61,6 +61,10 @@ HANDLE SFileFindFirstFile(HANDLE archive, LPCSTR mask, SFILE_FIND_DATA *findData
 BOOL SFileFindNextFile(HANDLE find, SFILE_FIND_DATA *findData);
 BOOL SFileFindClose(HANDLE find);
 
+#ifdef MPQ_TEST_API
+BOOL Mpq_TestDecompressSector(BYTE const *src, DWORD src_size, BYTE *dst, DWORD dst_size, DWORD *out_size);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

@@ -81,7 +81,7 @@ $(JASS_BIN): tools/jass.c $(TOOL_DEPS) | $(BIN_DIR) $(SHARED_LIB) $(JASS_LIB) $(
 
 $(MPQ_TEST): $(WC3_TEST_DIR)/test_mpq_compat.c common/mpq.c common/mpq.h | $(BIN_DIR)
 	@echo "[mpq-compat-test]"
-	@$(CC) $(CFLAGS) -o $@ $(WC3_TEST_DIR)/test_mpq_compat.c common/mpq.c -lm -lz
+	@$(CC) $(CFLAGS) -DMPQ_TEST_API -o $@ $(WC3_TEST_DIR)/test_mpq_compat.c common/mpq.c -lm -lz
 
 # jass.h includes g_local.h: stale edict/client offsets break player-local ESC cleanup after contract changes.
 JASS_HEADERS := $(COMMON_HEADERS) $(CLIENT_HEADERS) $(shell find $(WC3_DIR)/game $(WC3_DIR)/common server shared -name '*.h')
