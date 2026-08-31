@@ -977,6 +977,51 @@ TEST(wc3_api, unit_out_of_range) {
     T_ASSERT(!(dist <= 4.0f));
 }
 
+/* A campaign defeat trigger may run on any owned unit death and ask whether
+ * the player still has structures.  The structure-count native must scan the
+ * surviving world state rather than returning zero just because the event was
+ * raised by a non-building unit. */
+TEST(wc3_api, player_structure_count_survives_nonstructure_death) {
+    LPEDICT victim = NULL;
+
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit building = null\n"
+        "  unit victim = null\n"
+        "  boolean deathFired = false\n"
+        "endglobals\n"
+        "function onDeath takes nothing returns nothing\n"
+        "  set deathFired = true\n"
+        "  call BJassAssert(GetPlayerStructureCount(Player(0), true) == 1, \"living structure lost on unit death\")\n"
+        "endfunction\n"
+        "function verifyDeath takes nothing returns nothing\n"
+        "  call BJassAssert(deathFired, \"death trigger did not fire\")\n"
+        "  call BJassAssert(GetPlayerStructureCount(Player(0), true) == 1, \"living structure count changed after unit death\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local trigger t = CreateTrigger()\n"
+        "  set building = CreateUnit(Player(0), 'hbar', 0.0, 0.0, 0.0)\n"
+        "  set victim = CreateUnit(Player(0), 'hfoo', 64.0, 64.0, 0.0)\n"
+        "  call TriggerRegisterDeathEvent(t, victim)\n"
+        "  call TriggerAddAction(t, function onDeath)\n"
+        "endfunction\n"));
+
+    FOR_LOOP(i, globals.num_edicts) {
+        if (g_edicts[i].class_id == MAKEFOURCC('h', 'f', 'o', 'o') &&
+            g_edicts[i].s.player == 0) {
+            victim = &g_edicts[i];
+            break;
+        }
+    }
+    T_NOT_NULL(victim);
+    unit_die(victim, NULL);
+    G_RunEvents();
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "verifyDeath", true);
+    jass_runevents(level.vm);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
 /* =========================================================================
  * Death event context
  * ========================================================================= */
