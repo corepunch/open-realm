@@ -51,6 +51,9 @@ the Hero's normal `buildTime * level * ReviveTimeFactor`, capped by
 Gold and lumber are charged when the Hero is inserted into the producer's
 existing linked production queue. The Hero itself is the queue identity; a
 separate `revival.queue_next` pointer avoids reusing its normal `build` field.
+`revival.producer` identifies the queue that owns the Hero, while
+`revival.player` records the player actually charged so cancellation cannot
+refund a later owner after either entity changes ownership.
 
 ## Completion and cancellation
 
@@ -68,13 +71,12 @@ The finish event is published after the Hero is alive and positioned. An active
 revival exposes the existing command-card Cancel action; cancellation refunds
 the exact gold/lumber charged, clears `reviving`, and leaves the Hero awaiting
 revival. Destroying a producer cancels/refunds all Hero revivals in its mixed
-production chain while preserving unrelated queue links.
+production chain and then cancels ordinary trainees. Removing a queued Hero,
+scripted revival, and ownership transfer detach it through the same cancellation
+path before the edict or owner state changes.
 
 ## Remaining gaps
 
-- The generic unit-training queue does not yet reserve/release unit food, so
-  Hero revival deliberately does not invent a Hero-only food accounting path.
-  Food reservation should be added once to the shared production queue.
 - Exact proper-Hero-name formatting and a Hero-level number overlay are not yet
   represented by the current command-button wire format.
 - Revival tooltip resource icons/cost fields are not represented separately by

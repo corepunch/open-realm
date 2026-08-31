@@ -330,7 +330,8 @@ void unit_add_build_queue(LPEDICT self, LPEDICT item) {
     LPEDICT last;
 
     /* Queued units must not run stand/birth callbacks, which clear build and used to sever the queue behind them. */
-    if (item->training) { item->currentmove = NULL; item->animation = NULL; }
+    item->currentmove = NULL;
+    item->animation = NULL;
     if (!self->build) {
         self->build = item;
     } else {
