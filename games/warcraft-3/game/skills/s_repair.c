@@ -151,7 +151,7 @@ static BOOL repair_target_valid(LPEDICT ent, LPEDICT target, DWORD code) {
     if (target->s.player != ent->s.player) return false;
 
     if (target->construction.active) {
-        return handler == &a_repair && target->construction.paused && data->data[0][3] > 0.0f;
+        return handler == &a_repair && data && target->construction.paused && data->data[0][3] > 0.0f;
     }
     return target->health.value < target->health.max_value;
 }
