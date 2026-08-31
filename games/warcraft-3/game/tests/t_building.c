@@ -52,7 +52,7 @@ static LPCSTR building_all_cvar(LPCSTR name, LPCSTR fallback) {
 
 static const char building_repair_slk[] =
     "ID;PWXL;N;E\n"
-    "B;X8;Y4;D0\n"
+    "B;X9;Y4;D0\n"
     "C;X1;Y1;K\"alias\"\n"
     "C;X2;K\"code\"\n"
     "C;X3;K\"DataA1\"\n"
@@ -61,6 +61,7 @@ static const char building_repair_slk[] =
     "C;X6;K\"DataD1\"\n"
     "C;X7;K\"DataE1\"\n"
     "C;X8;K\"Rng1\"\n"
+    "C;X9;K\"targs1\"\n"
     "C;X1;Y2;K\"Arep\"\n"
     "C;X2;K\"Arep\"\n"
     "C;X3;K1\n"
@@ -69,6 +70,7 @@ static const char building_repair_slk[] =
     "C;X6;K0.5\n"
     "C;X7;K0\n"
     "C;X8;K128\n"
+    "C;X9;K\"ground,structure,friend\"\n"
     "C;X1;Y3;K\"Aren\"\n"
     "C;X2;K\"Aren\"\n"
     "C;X3;K1\n"
@@ -77,6 +79,7 @@ static const char building_repair_slk[] =
     "C;X6;K0\n"
     "C;X7;K0\n"
     "C;X8;K128\n"
+    "C;X9;K\"ground,structure,friend\"\n"
     "C;X1;Y4;K\"Arst\"\n"
     "C;X2;K\"Arst\"\n"
     "C;X3;K0.75\n"
@@ -85,6 +88,7 @@ static const char building_repair_slk[] =
     "C;X6;K0\n"
     "C;X7;K0\n"
     "C;X8;K96\n"
+    "C;X9;K\"ground,structure,friend\"\n"
     "E\n";
 
 static slkTestData_t *building_install_repair_data(slkTestData_t **rows_out) {
@@ -554,6 +558,46 @@ TEST(wc3_building, repair_order_walks_to_remote_target_without_teleporting) {
     T_EQ(worker->buildwork.ability, 0);
     T_NULL(worker->build);
     T_NULL(worker->goalentity);
+
+    building_restore_repair_data(old_abilities, rows);
+}
+
+TEST(wc3_building, repair_button_then_target_issues_repair_order) {
+    LPEDICT clent = &g_edicts[0];
+    LPGAMECLIENT client = clent->client;
+    LPEDICT worker;
+    LPEDICT building;
+    UnitAbilities_t abilities = { .abilList = "Arep" };
+    slkTestData_t *rows, *old_abilities;
+    char target_number[16];
+    LPCSTR button[] = { "button", "Arep" };
+    LPCSTR select_target[] = { "select", target_number };
+
+    old_abilities = building_install_repair_data(&rows);
+    setup_test_world();
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 0);
+    worker->UnitAbilities = &abilities;
+    worker->collision = 16.0f;
+    building->collision = 32.0f;
+    building->svflags |= SVF_MONSTER;
+    building->targtype = TARG_STRUCTURE;
+    worker->s.player = client->ps.number;
+    building->s.player = client->ps.number;
+    building->health.max_value = 1000.0f;
+    building->health.value = 500.0f;
+    snprintf(target_number, sizeof(target_number), "%u", (unsigned)building->s.number);
+    G_SelectEntity(client, worker);
+
+    G_ClientCommand(clent, 2, button);
+    T_NOT_NULL(client->menu.on_entity_selected);
+    T_EQ(client->menu.ability_code, MAKEFOURCC('A','r','e','p'));
+
+    G_ClientCommand(clent, 2, select_target);
+
+    T_ASSERT(worker->build == building);
+    T_EQ(worker->buildwork.ability, MAKEFOURCC('A','r','e','p'));
+    T_NOT_NULL(worker->currentmove);
 
     building_restore_repair_data(old_abilities, rows);
 }

@@ -141,7 +141,7 @@ Repair range comes from ability `Rng`. A worker outside range enters a walk beha
 
 Smart/right-click tries Repair on an otherwise non-enemy target before falling back to Move. A full-health target declines Smart Repair silently. Explicit Repair reports `Target is not damaged.` for a completed full-health building and rejects standard Repair on construction.
 
-Target eligibility remains intentionally conservative: the target must be a live owned building and must pass the relation/air-ground subset currently handled by `S_SpellAllowsTarget()`. Do not treat that helper as a complete WC3 `Targets Allowed` implementation yet.
+Target eligibility remains intentionally conservative: the target must be a live owned building. Repair deliberately does **not** route this check through `S_SpellAllowsTarget()` because that helper models a smaller spell-oriented subset and treats air/ground as exclusive target types; WC3 Repair targets can combine categories such as ground + structure. Full Repair `Targets Allowed` evaluation remains a separate gap rather than silently rejecting otherwise-valid owned buildings.
 
 ## Known gaps
 
