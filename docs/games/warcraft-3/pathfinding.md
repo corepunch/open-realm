@@ -16,15 +16,25 @@ Attack range against a building is measured from the attacker's collision edge t
 
 Lumber's unreachable-interior-tree detection is the narrower exception: `unit_changeangle_for_radius()` uses the Peasant's collision radius so Harvest can identify when the best legal approach to a blocked tree has genuinely been exhausted outside `HARVEST_RANGE`. Do not use that route-end signal for building interactions unless the route request also carries the behavior's interaction range.
 
+Plain right-click movement is different from an interaction order: `move_selectlocation()` already assigns a collision-safe final waypoint, so `ai_move_walk()` may safely route that order with the mover's real collision radius. A distant temporary block does not cancel a plain move order. The unit keeps the order and retries local movement while the static route remains reachable; the existing near-goal settle rule is retained for an occupied final slot. If a completed collision-sized flow field reports the mover's component unreachable, the move may stop.
+
 ## Flow-Field Lifecycle
 
-Generic point routing keeps main's existing hard cap on synchronous whole-map flow-field bakes. An earlier version of this compatibility patch reset that cap from `G_RunFrame()`, which made each new obstructed right-click destination eligible for another full flood and produced a visible input-time stall on the handheld target. Do not globally refill that synchronous budget until generic routing is made incremental or otherwise cheap enough for the frame budget.
+Game routing no longer uses the old lifetime quota of two synchronous whole-map flow-field bakes. That quota avoided repeated handheld stalls, but after it was spent a later uncached move order received generation 0 forever and generic steering fell back toward the raw target. A reachable order behind trees/buildings could therefore stop even though the static router could have found a route.
 
-The collision-sized lumber route is intentionally separate. `M_RefreshHeatmap(goal, mover_radius)` bypasses the generic point-build cap only when `mover_radius > 0`; that path is used by the fixed tree target and cached on the tree after its first build. This keeps retail unreachable-tree recovery independent of whether generic movement already spent its two legacy bakes, without re-enabling repeated whole-map bakes for ordinary move orders.
+`CM_RequestHeatmapForRadius()` is now the game-facing cache-miss path. A cache hit returns its generation immediately; a miss starts one resumable reverse shortest-path job and returns 0 until the job completes. `G_RunFrame()` advances that job after entity simulation through `CM_ProcessPathJobs()`. The default relaxation budget is 4096 queue pops per frame and is runtime-tunable with:
 
-`CM_BuildHeatmapForRadius()` keys cached fields by both adjusted target cell and mover collision radius. The flood and flow bake use the same radius-expanded static pathability predicate as move-time terrain checks. The zero-radius `CM_BuildHeatmap()` wrapper remains for callers that intentionally route a point.
+```sh
++set wc3_path_work_budget 4096
+```
 
-Flow vectors only descend to a strictly lower heatmap price. The adjusted goal cell therefore has a zero vector instead of pointing back out to a higher-cost neighbour. Cached fields also retain a one-byte reachability mask: `CM_FlowReachedGoal(generation, x, y)` identifies the intentional zero at the adjusted goal, while `CM_FlowCanReach(generation, x, y)` distinguishes a disconnected cell from a zero produced by interpolation near the goal.
+The value is clamped to 256-65536. This keeps the expensive SPFA relaxation work bounded without permanently denying later destinations. Only one miss is built at a time; requests for other destinations naturally retry after the active job completes. Static-pathing invalidation cancels the in-progress job along with cached generations.
+
+`CM_BuildHeatmapForRadius()` remains the synchronous API for tests/tools that explicitly require a completed field. Production movement goes through `M_RefreshHeatmap()` -> `CM_RequestHeatmapForRadius()`.
+
+`CM_BuildHeatmapForRadius()` and the resumable request path both key cached fields by adjusted target cell and mover collision radius. The flood and flow query use the same radius-expanded static pathability predicate as move-time terrain checks. The zero-radius `CM_BuildHeatmap()` wrapper remains for callers that intentionally route a point.
+
+Flow vectors only descend to a strictly lower heatmap price. The adjusted goal cell therefore has a zero vector instead of pointing back out to a higher-cost neighbour. Cached prices retain `INT_MAX` for cells that the completed field cannot reach. `CM_FlowReachedGoal(generation, x, y)` identifies the adjusted goal cell, while `CM_FlowCanReach(generation, x, y)` distinguishes a disconnected cell from a zero produced by interpolation near the goal.
 
 ## Retail Lumber Fallback
 
@@ -38,30 +48,30 @@ This fallback is gameplay behavior in `s_harvest_lumber.c`, not a pathfinder rul
 
 A Human02 handheld trace for a Peasant ordered to an interior tree showed the worker reaching the forest edge and oscillating indefinitely at roughly 352-358 world units from the target. Every tick reported `blocked_frames=0` and, after instrumentation was extended, `flow=0 flow_goal=0`.
 
-Two routing defects combined to prevent Harvest from ever receiving a usable failure/exhaustion state:
+Two routing defects originally combined to prevent Harvest from ever receiving a usable failure/exhaustion state:
 
-1. The lumber direct-line gate used `CM_LineIsWalkable()` as a zero-radius point test while the actual movement step used `CM_PointIsPathableForRadius(..., self->collision)`. A line could therefore be declared clear even when the Peasant could not physically fit along it. The fix is scoped to the lumber approach; collision-expanding every generic entity route caused gold-mine/building regressions because those behaviors complete at their own contact/range boundary rather than at the flow field's adjusted goal.
-2. Once the legacy generic heatmap build cap had been consumed, a later lumber target could receive generation 0. The lumber-specific collision-sized refresh now bypasses that generic cap and caches the resulting fixed-tree field. A global per-frame reset was tested and rejected because it caused visible right-click movement stalls from repeated synchronous whole-map bakes.
+1. The lumber direct-line gate used `CM_LineIsWalkable()` as a zero-radius point test while the actual movement step used `CM_PointIsPathableForRadius(..., self->collision)`. A line could therefore be declared clear even when the Peasant could not physically fit along it. The fix remains scoped to behavior contracts that can safely use a collision-sized route; gold-mine/building interactions complete at their own contact/range boundary rather than at a flow field's adjusted goal.
+2. The legacy generic heatmap build cap could permanently deny later route fields. The current implementation removes that lifetime quota entirely and uses resumable game routing instead, so lumber and ordinary movement do not depend on which route misses happened earlier in the match.
 
-A third defect made a reached flow goal unstable: `compute_flow_at()` blended all reachable neighbours, including higher-cost cells, so a zero-cost goal cell could point outward. The corrected collision-sized field only follows lower prices.
+A third defect made a reached flow goal unstable: `compute_flow_at()` blended all reachable neighbours, including higher-cost cells, so a zero-cost goal cell could point outward. Collision-sized fields only follow lower prices.
 
 Do not reintroduce a distance-only timeout around Harvest to hide these routing failures. Fix and expose the routing state first, then let Harvest decide whether to retarget.
 
 ## Diagnostics
 
-Runtime logging is off by default:
+Runtime Harvest logging is off by default:
 
 ```sh
 +set wc3_harvest_path_debug 1
 ```
 
-prints Harvest transitions and fallback reasons. Level 2 adds per-approach route state and flow-field build decisions:
+prints Harvest transitions and fallback reasons. Level 2 adds per-approach route state and reports when a requested tree field becomes ready:
 
 ```sh
 +set wc3_harvest_path_debug 2
 ```
 
-Lumber routing uses the `WC3_HARVEST_PATH` prefix. Gold-mine entry uses `WC3_GOLD_PATH`, gold return/deposit uses `WC3_GOLD_RETURN`, and the temporary `WC3_ROUTE_PATH` line records each generic synchronous flow-field build. Because the legacy generic build cap is retained, `WC3_ROUTE_PATH` cannot become a per-frame log flood. A healthy interior-tree fallback should progress through a nonzero flow generation and then one of:
+Lumber routing uses the `WC3_HARVEST_PATH` prefix. Gold-mine entry uses `WC3_GOLD_PATH`, and gold return/deposit uses `WC3_GOLD_RETURN`. Generic resumable routing does not emit per-build debug lines. A healthy interior-tree fallback should progress through a nonzero flow generation and then one of:
 
 ```text
 fallback ... reason=route_goal_out_of_range
@@ -76,18 +86,22 @@ followed by `start` and `reached` for the replacement tree.
 Focused tests live in `games/warcraft-3/game/tests/t_pathfinding.c` and `t_movement.c`. They cover:
 
 - cache separation by collision radius;
+- resumable cache misses serialize without losing a later destination;
 - collision-radius-aware line walkability;
 - rejection of a corridor too narrow for the mover;
 - a zero outward vector at the flow goal;
 - end-to-end lumber retarget from a buried clicked tree to a reachable edge tree;
 - gold-mine entry through an authored blocking mine footprint;
 - gold return/deposit at an authored Town Hall footprint corner;
-- lumber return to a Town Hall through an authored blocking building footprint.
+- lumber return to a Town Hall through an authored blocking building footprint;
+- a distant temporarily blocked plain move keeps its order alive while near-goal jitter still settles.
 
 Run when validating locally:
 
 ```sh
 make test-wc3-engine WC3_PATTERN='wc3_pathfinding.*'
+make test-wc3-engine WC3_PATTERN='wc3_movement.plain_move_*'
+make test-wc3-engine WC3_PATTERN='wc3_movement.blocked_move_*'
 make test-wc3-engine WC3_PATTERN='wc3_movement.lumber_*'
 ```
 

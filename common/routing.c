@@ -77,6 +77,26 @@ static int      heatmap_lru[HEATMAP_CACHE_SLOTS];
 static int      heatmap_lru_clock = 0;
 static heatmapCacheEntry_t *active_heatmap = NULL;
 
+typedef struct {
+    BOOL active;
+    BOOL started;
+    point2_t target;
+    int radius_cells;
+    DWORD head;
+    DWORD tail;
+} heatmapJob_t;
+
+/* Generic game routing is built incrementally.  The old game-side cap allowed
+ * only two synchronous whole-map floods for the lifetime of the map, which
+ * made later reachable right-click destinations fall back to straight-line
+ * steering and stop at trees/buildings.  Keep one resumable build here so the
+ * expensive relaxation work is bounded per simulation frame. */
+static heatmapJob_t heatmap_job = { 0 };
+
+static void heatmap_job_cancel(void) {
+    memset(&heatmap_job, 0, sizeof(heatmap_job));
+}
+
 #if defined(TOOL_COMMON_NO_MPQ) || defined(BZ_TESTS)
 /* Per-call perf counters; only tracked in test builds to avoid overhead. */
 static struct {
@@ -113,6 +133,7 @@ static void heatmap_cache_invalidate(void) {
     heatmap_lru_clock       = 0;
     active_heatmap          = NULL;
     memset(heatmap_lru, 0, sizeof(heatmap_lru));
+    heatmap_job_cancel();
 }
 
 void CM_InvalidatePathCache(void) {
@@ -272,6 +293,68 @@ static void clear_heatmap(void) {
         pathmap.heatmap[i].price = INT_MAX;
         pathmap.heatmap[i].closed = false;
     }
+}
+
+static bool is_pathable_node_original_for_radius_cells(int x, int y, int radius_cells);
+
+static void begin_heatmap_build(heatmapJob_t *job, point2_t target, int radius_cells) {
+    DWORD const width = pathmap.width;
+    DWORD const ti = (DWORD)target.x + (DWORD)target.y * width;
+
+    clear_heatmap();
+    job->target = target;
+    job->radius_cells = radius_cells;
+    job->head = 0;
+    job->tail = 1;
+    job->started = true;
+    pathmap.heatmap[ti].price = 0;
+    pathmap.heatmap[ti].closed = true;
+    pathmap.queue[0] = ti;
+}
+
+/* Advance one reverse shortest-path build by at most work_budget queue pops.
+ * Returns true when the relaxation queue is empty.  Keeping the queue/head/tail
+ * in heatmapJob_t lets game routing spread a large map flood over many frames,
+ * while the synchronous test/tool API can run the same implementation to
+ * completion in one call. */
+static BOOL step_heatmap_build(heatmapJob_t *job, DWORD work_budget) {
+    DWORD const width = pathmap.width;
+    DWORD const cap = pathmap.width * pathmap.height + 1;
+    DWORD *const q = pathmap.queue;
+    DWORD work = 0;
+
+    while (job->head != job->tail && work < work_budget) {
+        DWORD const u = q[job->head];
+        job->head = (job->head + 1) % cap;
+        work++;
+        PERF_INC(heatmap_iterations);
+        routeNode_t *const un = &pathmap.heatmap[u];
+        un->closed = false;
+        int const up = un->price;
+        int const ux = (int)(u % width);
+        int const uy = (int)(u / width);
+        FOR_LOOP(i, 8) {
+            int const nx = ux + dx[i];
+            int const ny = uy + dy[i];
+            if (!is_pathable_node_original_for_radius_cells(nx, ny, job->radius_cells))
+                continue;
+            if (i >= 4 && !(is_pathable_node_original_for_radius_cells(nx, uy, job->radius_cells) &&
+                            is_pathable_node_original_for_radius_cells(ux, ny, job->radius_cells)))
+                continue;
+            DWORD const v = (DWORD)nx + (DWORD)ny * width;
+            routeNode_t *const vn = &pathmap.heatmap[v];
+            int const np = up + gv[i];
+            if (np < vn->price) {
+                vn->price = np;
+                if (!vn->closed) {
+                    vn->closed = true;
+                    q[job->tail] = v;
+                    job->tail = (job->tail + 1) % cap;
+                }
+            }
+        }
+    }
+    return job->head == job->tail;
 }
 
 static FLOAT pathmap_cell_world_size(void);
@@ -908,105 +991,56 @@ static point2_t LocationToPathMap(LPCVECTOR2 location) {
  * The 'closed' flag means "currently queued"; since a cell is never queued
  * twice, at most width*height cells are queued at once and the ring buffer of
  * width*height+1 never overflows. */
-DWORD build_heatmap(point2_t target, int radius_cells) {
-    DWORD const width = pathmap.width;
-    DWORD const cap = pathmap.width * pathmap.height + 1;
-    DWORD *const q = pathmap.queue;
-    DWORD head = 0, tail = 0;
+static BOOL resolve_heatmap_request(edict_t *goalentity, FLOAT radius,
+                                    point2_t *target, int *radius_cells) {
+    DWORD const map_cells = pathmap.width * pathmap.height;
 
-    DWORD const ti = (DWORD)target.x + (DWORD)target.y * width;
-    pathmap.heatmap[ti].price = 0;
-    pathmap.heatmap[ti].closed = true;
-    q[tail++] = ti;
+    if (!goalentity || !target || !radius_cells || !pathmap.data ||
+        !pathmap.original || !pathmap.heatmap || !map_cells)
+        return false;
 
-    while (head != tail) {
-        DWORD const u = q[head];
-        head = (head + 1) % cap;
-        PERF_INC(heatmap_iterations);
-        routeNode_t *const un = &pathmap.heatmap[u];
-        un->closed = false;
-        int const up = un->price;
-        int const ux = (int)(u % width);
-        int const uy = (int)(u / width);
-        FOR_LOOP(i, 8) {
-            int const nx = ux + dx[i];
-            int const ny = uy + dy[i];
-            if (!is_pathable_node_original_for_radius_cells(nx, ny, radius_cells))
-                continue;
-            /* no diagonal corner-cutting: both cardinal cells must be open too */
-            if (i >= 4 && !(is_pathable_node_original_for_radius_cells(nx, uy, radius_cells) &&
-                            is_pathable_node_original_for_radius_cells(ux, ny, radius_cells)))
-                continue;
-            DWORD const v = (DWORD)nx + (DWORD)ny * width;
-            routeNode_t *const vn = &pathmap.heatmap[v];
-            int const np = up + gv[i];
-            if (np < vn->price) {
-                vn->price = np;
-                if (!vn->closed) {
-                    vn->closed = true;
-                    q[tail] = v;
-                    tail = (tail + 1) % cap;
-                }
-            }
-        }
+    *radius_cells = (int)ceilf(MAX(0.f, radius) / pathmap_cell_world_size());
+    *target = LocationToPathMap(&goalentity->s.origin2);
+    if (!is_pathable_node_original_for_radius_cells(target->x, target->y, *radius_cells)) {
+        if (!closest_pathable_node_original(&goalentity->s.origin2, radius, target))
+            return false;
     }
-
-    return 0;
+    return true;
 }
 
-DWORD CM_BuildHeatmapForRadius(edict_t *goalentity, FLOAT radius) {
-    DWORD map_cells = pathmap.width * pathmap.height;
-    int radius_cells;
-
-    if (!goalentity || !pathmap.data || !pathmap.original || !pathmap.heatmap || !map_cells) {
-        return 0;
-    }
-
-    /* Flow fields read the immutable static routing layer directly; dynamic
-     * unit occupancy remains a move-time/local-avoidance concern. */
-
-    /* Resolve the goal's pathmap cell, adjusting to the closest pathable
-     * cell if the raw position falls into an obstacle.  The adjusted target
-     * is used both as the cache key (so two entities at the same cell share
-     * a cached heatmap) and as the source for building. */
-    radius_cells = (int)ceilf(MAX(0.f, radius) / pathmap_cell_world_size());
-    point2_t target = LocationToPathMap(&goalentity->s.origin2);
-    if (!is_pathable_node_original_for_radius_cells(target.x, target.y, radius_cells)) {
-        if (!closest_pathable_node_original(&goalentity->s.origin2, radius, &target))
-            return 0;
-    }
-
-    /* Cache lookup — integration prices are shared by all movers using the
-     * same adjusted target cell and collision footprint. */
+static int find_cached_heatmap(point2_t target, int radius_cells) {
     FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
-        if (heatmap_cache[i].target.x == target.x &&
+        if (heatmap_cache[i].generation &&
+            heatmap_cache[i].target.x == target.x &&
             heatmap_cache[i].target.y == target.y &&
             heatmap_cache[i].radius_cells == radius_cells &&
             heatmap_cache[i].prices) {
             heatmap_lru[i] = heatmap_lru_clock++;
             active_heatmap = &heatmap_cache[i];
-            PERF_INC(cache_hits);
-            return heatmap_cache[i].generation;
+            return i;
         }
     }
-    PERF_INC(cache_misses);
+    return -1;
+}
 
-    /* Cache miss — evict the least-recently-used slot.  Store only one int
-     * price per cell; flow vectors are derived around the mover on demand. */
+static int choose_heatmap_cache_slot(void) {
     int evict = 0;
+
     FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
-        if (!heatmap_cache[i].generation) { evict = i; break; }
-        if (!heatmap_cache[evict].generation) break;
-        if (heatmap_lru[i] < heatmap_lru[evict]) evict = i;
+        if (!heatmap_cache[i].generation)
+            return i;
+        if (heatmap_lru[i] < heatmap_lru[evict])
+            evict = i;
     }
+    return evict;
+}
+
+static DWORD commit_heatmap(point2_t target, int radius_cells) {
+    DWORD const map_cells = pathmap.width * pathmap.height;
+    int const evict = choose_heatmap_cache_slot();
+
     if (!heatmap_cache[evict].prices)
         heatmap_cache[evict].prices = MemAlloc(map_cells * sizeof(int));
-
-    clear_heatmap();
-    /* Static obstacles are already baked into pathmap.original by
-     * CM_BakeStaticObstacles(); build_heatmap uses its O(1) radius-footprint
-     * predicate rather than re-scanning the footprint square per edge. */
-    build_heatmap(target, radius_cells);
     FOR_LOOP(i, map_cells)
         heatmap_cache[evict].prices[i] = pathmap.heatmap[i].price;
 
@@ -1017,12 +1051,85 @@ DWORD CM_BuildHeatmapForRadius(edict_t *goalentity, FLOAT radius) {
         heatmap_next_generation = 1;
     heatmap_lru[evict] = heatmap_lru_clock++;
     active_heatmap = &heatmap_cache[evict];
-
     return heatmap_cache[evict].generation;
+}
+
+/* Synchronous build retained for tests/tools and callers that explicitly need
+ * a completed field now.  Game movement uses CM_RequestHeatmapForRadius() so a
+ * large flood does not run to completion inside one unit think. */
+DWORD CM_BuildHeatmapForRadius(edict_t *goalentity, FLOAT radius) {
+    point2_t target;
+    int radius_cells;
+    int cached;
+    heatmapJob_t job = { 0 };
+
+    if (!resolve_heatmap_request(goalentity, radius, &target, &radius_cells))
+        return 0;
+
+    cached = find_cached_heatmap(target, radius_cells);
+    if (cached >= 0) {
+        PERF_INC(cache_hits);
+        return heatmap_cache[cached].generation;
+    }
+    PERF_INC(cache_misses);
+
+    /* The synchronous API and the resumable game job share one scratch map.
+     * No production gameplay caller uses this path; cancel a pending job so a
+     * direct test/tool build cannot leave its queue state half-valid. */
+    heatmap_job_cancel();
+    begin_heatmap_build(&job, target, radius_cells);
+    while (!step_heatmap_build(&job, UINT_MAX)) {
+        /* UINT_MAX is already effectively unbounded for WC3 pathmap sizes. */
+    }
+    return commit_heatmap(target, radius_cells);
 }
 
 DWORD CM_BuildHeatmap(edict_t *goalentity) {
     return CM_BuildHeatmapForRadius(goalentity, 0);
+}
+
+/* Request a game-routing field without doing a synchronous whole-map flood.
+ * A cache hit returns its generation immediately.  A miss starts (or waits for)
+ * the single resumable build and returns zero until CM_ProcessPathJobs()
+ * finishes it.  Repeated unit thinks naturally retry the same request, so a
+ * second destination cannot be lost: it starts after the current job completes. */
+DWORD CM_RequestHeatmapForRadius(edict_t *goalentity, FLOAT radius) {
+    point2_t target;
+    int radius_cells;
+    int cached;
+
+    if (!resolve_heatmap_request(goalentity, radius, &target, &radius_cells))
+        return 0;
+
+    cached = find_cached_heatmap(target, radius_cells);
+    if (cached >= 0) {
+        PERF_INC(cache_hits);
+        return heatmap_cache[cached].generation;
+    }
+
+    if (heatmap_job.active)
+        return 0;
+
+    PERF_INC(cache_misses);
+    heatmap_job.active = true;
+    heatmap_job.started = false;
+    heatmap_job.target = target;
+    heatmap_job.radius_cells = radius_cells;
+    return 0;
+}
+
+void CM_ProcessPathJobs(DWORD work_budget) {
+    if (!heatmap_job.active || !work_budget || !pathmap.width || !pathmap.height)
+        return;
+
+    if (!heatmap_job.started)
+        begin_heatmap_build(&heatmap_job, heatmap_job.target, heatmap_job.radius_cells);
+
+    if (!step_heatmap_build(&heatmap_job, work_budget))
+        return;
+
+    commit_heatmap(heatmap_job.target, heatmap_job.radius_cells);
+    heatmap_job_cancel();
 }
 
 #if defined(TOOL_COMMON_NO_MPQ) || defined(BZ_TESTS)

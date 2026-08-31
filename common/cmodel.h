@@ -53,6 +53,8 @@ BOOL CM_LineIsWalkable(LPCVECTOR2 a, LPCVECTOR2 b);
 BOOL CM_GetPathingFlagsAt(LPCVECTOR2 location, LPBYTE flags);
 BOOL CM_LineIsWalkableForRadius(LPCVECTOR2 a, LPCVECTOR2 b, FLOAT radius);
 BOOL CM_FindDirectApproachPointForRadius(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT range, FLOAT radius, LPVECTOR2 out);
+DWORD CM_RequestHeatmapForRadius(struct edict_s *goalentity, FLOAT radius);
+void CM_ProcessPathJobs(DWORD work_budget);
 BOOL CM_FindApproachPointToFootprintForRadius(struct edict_s const *target, LPCVECTOR2 from, FLOAT range, FLOAT radius, LPVECTOR2 out);
 /* Distance from a world point to the target entity's authored no-walk
  * pathing footprint. Returns FLT_MAX when the target has no usable footprint. */

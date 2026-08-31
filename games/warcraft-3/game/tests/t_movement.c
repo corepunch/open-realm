@@ -32,6 +32,7 @@ void reset_entities(void);
 void setup_test_world(void);
 void CM_SetupTestPathmap(DWORD width, DWORD height, BYTE const *cells);
 void CM_SetupTestWorldBounds(LPCBOX2 bounds);
+void CM_ProcessPathJobs(DWORD work_budget);
 extern void ai_train_build(LPEDICT ent);
 
 
@@ -399,6 +400,7 @@ TEST(wc3_movement, lumber_unreachable_clicked_tree_retargets_reachable_edge_tree
 
     FOR_LOOP(i, 200) {
         worker->currentmove->think(worker);
+        CM_ProcessPathJobs(65536);
         if (worker->goalentity == edge &&
             worker->currentmove &&
             !strcmp(worker->currentmove->animation, "attack"))
@@ -871,6 +873,7 @@ TEST(wc3_movement, lumber_return_reaches_blocked_townhall_footprint) {
 
     FOR_LOOP(i, 80) {
         worker->currentmove->think(worker);
+        CM_ProcessPathJobs(65536);
         if (!worker->harvested_lumber) break;
     }
 
@@ -1525,13 +1528,43 @@ TEST(wc3_movement, single_unit_move_keeps_own_speed) {
     T_FEQ(unit_movedistance(unit), 10.0f * 300.0f / (FLOAT)FRAMETIME, 0.01f);
 }
 
-TEST(wc3_movement, blocked_move_stops_instead_of_walking_forever) {
+TEST(wc3_movement, plain_move_uses_collision_sized_static_route) {
+    enum { CELLS = 64 };
+    BYTE pathmap[CELLS * CELLS] = {0};
+    LPEDICT unit = make_moving_unit(-320.0f, 0.0f);
+    VECTOR2 dest = {320.0f, 0.0f};
+
+    unit->collision = 16.0f; /* one 32u path-cell radius in this fixture */
+    unit->unitinfo.MoveSpeed = 190.0f;
+
+    /* A one-cell opening is traversable by a point route but not by this
+     * mover's 3x3 collision footprint.  Plain move must use the latter. */
+    for (int y = 0; y < CELLS; y++)
+        pathmap[32 + y * CELLS] = 0x02;
+    pathmap[32 + 32 * CELLS] = 0;
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(BOX2,
+        .min = {-1024.0f, -1024.0f},
+        .max = { 1024.0f,  1024.0f}));
+
+    T_ASSERT(unit_issueorder(unit, "move", &dest));
+    unit->currentmove->think(unit); /* queues the resumable radius field */
+    CM_ProcessPathJobs(65536);
+    unit->currentmove->think(unit); /* completed field reports no route */
+
+    T_STREQ(unit->currentmove->animation, "stand");
+    T_ASSERT(unit->movement.flow_unreachable);
+}
+
+TEST(wc3_movement, blocked_move_keeps_order_alive_away_from_goal) {
     LPEDICT unit = make_moving_unit(0.0f, 0.0f);
     VECTOR2 origin = unit->s.origin2;
     VECTOR2 dest = {400.0f, 0.0f};
     unit_issueorder(unit, "move", &dest);
 
-    /* Budget exceeds MOVE_BLOCKED_FRAMES so the pinned (stuck) unit gives up. */
+    /* Budget exceeds MOVE_BLOCKED_FRAMES.  A distant plain move must remain
+     * active: another unit may be the temporary blocker and retail keeps the
+     * right-click order alive until the route can make progress. */
     for (int i = 0; i < 30; i++) {
         if (!unit->currentmove || strcmp(unit->currentmove->animation, "walk") != 0) {
             break;
@@ -1546,7 +1579,7 @@ TEST(wc3_movement, blocked_move_stops_instead_of_walking_forever) {
     unit->bounds.max.y = unit->s.origin2.y + unit->collision;
     }
 
-    T_STREQ(unit->currentmove->animation, "stand");
+    T_STREQ(unit->currentmove->animation, "walk");
 }
 
 TEST(wc3_movement, near_goal_jitter_settles_to_stand) {

@@ -244,6 +244,8 @@ void Sys_MkDir(LPCSTR directory);
 struct edict_s;
 DWORD CM_BuildHeatmap(struct edict_s *goalentity);
 DWORD CM_BuildHeatmapForRadius(struct edict_s *goalentity, FLOAT radius);
+DWORD CM_RequestHeatmapForRadius(struct edict_s *goalentity, FLOAT radius);
+void  CM_ProcessPathJobs(DWORD work_budget);
 BOOL  CM_ActivateCachedFlow(DWORD generation);
 BOOL  CM_FlowReachedGoal(DWORD generation, FLOAT x, FLOAT y);
 BOOL  CM_FlowCanReach(DWORD generation, FLOAT x, FLOAT y);
