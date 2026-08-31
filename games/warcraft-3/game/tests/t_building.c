@@ -261,6 +261,26 @@ TEST(wc3_building, queued_training_counts_against_player_tech_maximum) {
     T_EQ(G_GetTrainCommandState(client, producer, trainee, NULL, 0), BUILD_COMMAND_HIDDEN);
 }
 
+TEST(wc3_building, enable_user_ui_does_not_block_build_command_button) {
+    LPEDICT clent = &g_edicts[0];
+    LPGAMECLIENT client = clent->client;
+    LPEDICT worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    UnitProfile_t worker_profile = { .builds = "hbar" };
+    LPCSTR button[] = { "button", "CmdBuild" };
+
+    setup_test_world();
+    worker->UnitProfile = &worker_profile;
+    worker->s.player = client->ps.number;
+    client->no_ui = true;
+    client->menu.cmdbutton = NULL;
+    G_SelectEntity(client, worker);
+
+    G_ClientCommand(clent, 2, button);
+
+    T_NOT_NULL(client->menu.cmdbutton);
+    client->no_ui = false;
+}
+
 TEST(wc3_building, disabled_command_button_is_inert_and_available_button_is_clickable) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
     int (*old_image_index)(LPCSTR) = gi.ImageIndex;

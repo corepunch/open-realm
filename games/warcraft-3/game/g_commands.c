@@ -184,10 +184,6 @@ CLIENTCOMMAND(Button) {
     LPEDICT producer;
 
     if (argc < 2) return;
-    if (client->no_ui) {
-        if (client->menu.cmdbutton) client->menu.cmdbutton(clent, *((DWORD *)argv[1]));
-        return;
-    }
     classname = argv[1];
     if (!strncmp(classname, "revive:", 7)) {
         char *end = NULL;
