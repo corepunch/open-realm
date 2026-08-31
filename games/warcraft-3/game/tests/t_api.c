@@ -439,6 +439,35 @@ TEST(wc3_api, gameplay_transmission_preserves_underlying_timed_message_state) {
     T_STREQ(gc->message.text, "Objective updated");
 }
 
+static DWORD ui_point_calls;
+static BOOL count_ui_point(LPEDICT ent, LPCVECTOR2 loc) { ui_point_calls++; return false; }
+
+TEST(wc3_api, enable_user_ui_is_local_and_blocks_gameplay_ui_commands) {
+    LPGAMECLIENT gc = &game.clients[0];
+    LPCSTR point[] = { "point", "10", "20" };
+
+    ui_point_calls = 0; gc->ps.number = 0; gc->menu.on_location_selected = count_ui_point;
+    currentplayer = &gc->ps;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "call EnableUserUI(false)\n"
+        "endfunction"));
+    T_ASSERT(gc->no_ui);
+    globals.ClientCommand(&g_edicts[0], 3, point);
+    T_EQ(ui_point_calls, 0);
+
+    currentplayer = &gc->ps;
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "call EnableUserUI(true)\n"
+        "endfunction"));
+    T_ASSERT(!gc->no_ui);
+    globals.ClientCommand(&g_edicts[0], 3, point);
+    T_EQ(ui_point_calls, 1);
+    gc->menu.on_location_selected = NULL;
+    currentplayer = NULL;
+}
+
 /* Create a minimal unit in slot 0 and return it. */
 static LPEDICT make_unit_hero(void) {
     reset_entities();

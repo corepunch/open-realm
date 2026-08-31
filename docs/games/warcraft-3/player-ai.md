@@ -203,6 +203,8 @@ Implemented query subset: `GetUnitCount` and `GetPlayerUnitTypeCount` include li
 
 TFT `Blizzard.j` calls `SetAllItemTypeSlots(11)` and `SetAllUnitTypeSlots(11)` during neutral-building initialization before either campaign map starts. Stock capacities are level defaults propagated to existing units; `SetItemTypeSlots` and `SetUnitTypeSlots` provide per-unit overrides, and later spawns inherit the current defaults. Both TFT maps now pass stock initialization and report `EnableUserUI` as their next unresolved native. Stock entries and purchase/restock behavior remain owned by the shop subsystem and must consume the existing `Sellitems`/`Sellunits`, `stockMax`, `stockRegen`, and `stockStart` data rather than inventing parallel values.
 
+`EnableUserUI` is a per-client gameplay UI input gate, distinct from `EnableUserControl` and `ShowInterface`. Blizzard disables it while cinematic fades and victory/defeat dialogs remain visible, so gameplay selection, point, order, inventory, research, and menu commands are blocked while modal button callbacks, cancel, quest, and game-result commands remain available. Bounded TFT runs now start Human01 without a JASS error and advance Human02 to `DestroyGroup`.
+
 Internal engine ownership uses `bot_t`, `level.bots`, and `G_Bot*`. Blizzard's exported JASS names retain `AI` because that spelling is part of the archive script ABI. Campaign/melee mode, replacement count, and the ROC/TFT policy toggles are persisted on each bot for the later production and captain consumers.
 
 ### Phase 4: Human02 Completion

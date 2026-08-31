@@ -349,7 +349,7 @@ struct client_s {
     DWORD playerTextCursor[PLAYERTEXT_COUNT];
     LPCMAPPLAYER mapplayer;
     DWORD ping;
-    BOOL no_control;
+    BOOL no_control, no_ui;
     menu_t menu;
     struct {
         CAMERASETUP state;

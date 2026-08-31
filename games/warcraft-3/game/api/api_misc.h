@@ -1189,6 +1189,11 @@ DWORD EnableUserControl(LPJASS j) {
     }
     return 0;
 }
+DWORD EnableUserUI(LPJASS j) {
+    BOOL enabled = jass_checkboolean(j, 1);
+    if (currentplayer) PLAYER_CLIENT(currentplayer)->no_ui = !enabled;
+    return 0;
+}
 DWORD SuspendTimeOfDay(LPJASS j) {
     //BOOL b = jass_checkboolean(j, 1);
     return 0;

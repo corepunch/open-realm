@@ -677,6 +677,7 @@ JASSMODULE jass_funcs[] = {
     { "SetDayNightModels", SetDayNightModels },
     { "SetSkyModel", SetSkyModel },
     { "EnableUserControl", EnableUserControl },
+    { "EnableUserUI", EnableUserUI },
     { "SuspendTimeOfDay", SuspendTimeOfDay },
     { "SetTimeOfDayScale", SetTimeOfDayScale },
     { "GetTimeOfDayScale", GetTimeOfDayScale },
