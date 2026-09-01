@@ -119,6 +119,11 @@ static uiLabel_t MakeLabel(LPCFRAMEDEF frame) {
     );
 }
 
+static BOOL UI_IsSingleLineText(LPCSTR text) {
+    if (!text) return true;
+    return strchr(text, '\n') == NULL && strchr(text, '\r') == NULL;
+}
+
 BOOL UI_BuildFrameForWrite(LPCFRAMEDEF frame,
                                   LPUIFRAME out,
                                   LPBYTE typedata,
@@ -168,6 +173,14 @@ BOOL UI_BuildFrameForWrite(LPCFRAMEDEF frame,
         case FT_STRING:
         case FT_TEXT: {
             uiLabel_t data = MakeLabel(frame);
+            /* Match the local FDF renderer: a single-line text frame with no
+             * authored Width/Height uses the declared FDF font size for its
+             * layout height.  Renderer glyph bounds are drawing metrics, not
+             * the authored line box used by anchor chains. */
+            if (frame->Width == 0.0f && frame->Height == 0.0f &&
+                frame->Font.Size > 0.0f && UI_IsSingleLineText(frame->Text)) {
+                out->size.height = frame->Font.Size;
+            }
             if (!out->points.x[FPP_MIN].used && !out->points.x[FPP_MID].used && !out->points.x[FPP_MAX].used) {
                 DWORD anchor = frame->Font.Justification.Horizontal ^ 1;
                 out->points.x[anchor].targetPos = anchor;
@@ -241,7 +254,7 @@ BOOL UI_BuildFrameForWrite(LPCFRAMEDEF frame,
     return true;
 }
 
-void UI_WriteFrame(LPCFRAMEDEF frame) {
+static void UI_WriteBuiltFrame(LPCFRAMEDEF frame, FLOAT value, BOOL override_value) {
     UINAME textbuf;
     uiFrame_t tmp;
     BYTE typedata[256] = { 0 };
@@ -249,9 +262,22 @@ void UI_WriteFrame(LPCFRAMEDEF frame) {
     if (!UI_BuildFrameForWrite(frame, &tmp, typedata, sizeof(typedata), textbuf, sizeof(textbuf))) {
         return;
     }
+    if (override_value) tmp.value = value;
     /* FDF frames and proxy frames share one wire namespace; previously the first proxy overwrote frame 1. */
     ui_next_frame_number = UI_NextProxyFrameNumber(ui_next_frame_number, tmp.number);
     gi.Write(PF_UIFRAME, &tmp);
+}
+
+void UI_WriteFrame(LPCFRAMEDEF frame) {
+    UI_WriteBuiltFrame(frame, 0.0f, false);
+}
+
+void UI_WriteFrameValue(LPCFRAMEDEF frame, FLOAT value) {
+    UI_WriteBuiltFrame(frame, MAX(0.0f, MIN(value, 1.0f)), true);
+}
+
+DWORD UI_GetWrittenFrameNumber(LPCFRAMEDEF frame) {
+    return FindFrameNumber(frame, 0);
 }
 
 void UI_WriteFrameWithChildren(LPCFRAMEDEF frame, LPCFRAMEDEF parent) {

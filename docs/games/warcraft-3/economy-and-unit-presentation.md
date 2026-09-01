@@ -287,6 +287,65 @@ static `FRAMEDEF` objects in C with inline float literals; do not add `#define` 
 `ConsoleUI.fdf` and `ResourceBar.fdf` are loaded directly from War3.mpq; the minimap viewport is a C-constructed `FT_MINIMAP`
 frame anchored inline.
 
+The selected-unit portrait is one of those runtime-owned frames. Current Warsmash ships a project-only
+`SmashUI/UnitPortrait.fdf`; that file is useful as a parity reference but is not retail MPQ data and must not be loaded by OpenRealm.
+The runtime portrait therefore mirrors its final WC3-space contract directly: the model is `(0.211, 0.4865, 0.0835, 0.085)`, while
+centered `current / max` health and mana strings occupy the strip below it. Health uses the Warcraft red -> yellow -> green life-ratio
+gradient and mana is white; units with no mana keep the mana frame but render an empty value. HP/mana changes mark the gameplay
+presentation dirty so `LAYER_PORTRAIT` refreshes on the next presentation pass. A normal gameplay transmission still owns that layer
+while active, so selection-stat refresh must not replace a talking portrait mid-transmission.
+
+The selected-unit damage, armor, and Hero-attribute blocks use retail `UI\FrameDef\UI\SimpleInfoPanel.fdf` for the
+actual icon, label, value, and internal offsets. C owns only the runtime wrapper rectangles that the game repositions:
+attack 1 is `(0.000, -0.04000, 0.100, 0.030125)` relative to the unit-detail top-left, attack 2 is
+`(0.100, -0.03925, 0.100, 0.030125)`, armor is `(0.000, -0.07050, 0.100, 0.030125)` when an attack is
+shown (or `y=-0.04000` for attackless units), and the Hero attribute block is
+`(0.100, -0.03700, 0.100, 0.062500)`. The second damage block is a cloned FDF tree so its frame identity and
+anchors are independent. The legacy `InfoPanelUnitDetail.fdf` speed/range/damage/attribute fields are suppressed
+when `SimpleInfoPanel.fdf` is available; they remain only as an explicitly diagnosed fallback if the retail template
+cannot be loaded. Hero STR/AGI/INT label positions and the primary-attribute icon are therefore data-driven by the
+retail FDF/War3Skins rather than duplicated as child-coordinate literals in C. `GlobalStrings.fdf` must be loaded before
+`SimpleInfoPanel.fdf`: `COLON_DAMAGE`, `COLON_ARMOR`, and the Hero `COLON_*` labels are string-table IDs resolved while the FDF is
+parsed, not at draw time. Never replace unresolved IDs with hardcoded English text.
+
+The right-hand second damage block is attack slot 2, not a status/buff icon. It is emitted only when `weapsOn` enables bit 1, the
+second weapon has damage dice, and `showUI2` is true. A populated dormant attack-2 row must not produce a second icon/value such as
+`2 - 8`. Attack 1 remains driven by the live runtime attack record.
+
+Buff/status presentation is a separate runtime strip at the bottom of `SimpleInfoPanelUnitDetail`. The `Status:` frame is
+`0.035 x 0.010` at `BOTTOMLEFT + (0.030, 0.003)`; visible buff icons are `0.015 x 0.015`, with the first icon attached to the
+label's right edge at `+0.001` and later icons chained at the same gap. Icon, tip, and ubertip metadata comes from Warcraft's
+`Units\AbilityBuffData.slk` (`Buffart`, `Bufftip`, `Buffubertip`) with standard profile TXT values allowed to override it. The shared
+`abilstatus[]` array also carries cooldown bookkeeping, so only entries that resolve as buff UI metadata are rendered in this strip;
+`BTLF` remains reserved for timed-life presentation. Adding, replacing, removing, or expiring a status invalidates the selected-unit
+info layer so the strip refreshes without polling every frame.
+
+Upgrade-level text is the small `InfoPanelIconLevel` overlay attached to the bottom-right of a damage/armor icon. It is not a buff
+slot. Resolve the selected unit's `UnitBalance.upgrades` rawcodes through `UpgradeData.slk` and show the player's researched level only
+for the matching `melee`/`ranged`/`artillery` weapon class or `armor` class. Hero attribute presentation does not inherit an unrelated
+unit upgrade marker. Buildings with `foodMade > 0` use the retail `SimpleInfoPanelIconFood` tree, `InfoPanelIconFood` skin texture,
+`COLON_FOOD_PROVIDED` label, and the authored Food Provided value layout; the dynamic wrapper occupies the right-hand first stat slot.
+
+`SimpleNameValue` owns the selected-unit title typography and anchor. Do not synthesize `Level 1 Peasant`-style class strings. Heroes
+use the retail `SimpleHeroLevelBar` in the line below their proper name, with `SimpleXpBarConsole` / `SimpleXpBarBorder` and the
+current-level XP fraction. The class line remains empty for this compatibility presentation. Runtime values may override a status-bar
+value, but its geometry and anchors stay FDF-authored.
+
+`SimpleInfoPanelBuildingDetail` owns the training/research shell. The queue backdrop is `0.180 x 0.090`; the FDF build-time indicator
+is runtime-sized to `0.10538 x 0.0103` and remains at its authored anchor. Warcraft creates queue icons outside the FDF: active slot 0
+is `0.02671875` square at top-left `(0.320546875, 0.526875)`, while waiting slots are `0.020390625` square beginning at
+`(0.319140625, 0.562734375)` with horizontal stride `0.028125`. Cancellation hit targets must use those same rectangles.
+
+Ability state and visible buff state are different namespaces. `abilstatus[]` may carry an ability rawcode such as `AHad`; status UI
+resolves that ability's level-specific `AbilityData.slk` `BuffID*` to the corresponding buff rawcode (for example `BHad`) before
+reading `AbilityBuffData.slk` art and tooltip fields. This prevents a learned/cooldown ability ID from being drawn as a fake status icon
+and lets aura buffs use their actual Warcraft buff artwork.
+
+The retained client solver preserves authored FDF dimensions when both opposing anchors are present; for vertical `SetAllPoints`
+children the bottom edge stays attached to the runtime wrapper and authored height extends upward. Single-line stat labels also use
+their declared FDF font size as the line-box height, so the Strength -> Agility -> Intelligence anchor chain does not accumulate glyph-
+metric error.
+
 Repeated quest rows already have authoritative schemas in Blizzard's `QuestDialog.fdf`. `QuestListItem` and
 `QuestItemListItem` own row size and child placement. The server clones those templates, stacks each clone by the template's own
 height, then binds title, selection color, and command data to the named children. It must not spawn generic text rows or impose a

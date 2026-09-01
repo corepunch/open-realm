@@ -90,6 +90,14 @@ typedef struct {
 } UnitBalance_t;
 
 /* =========================================================================
+ * UpgradeData.slk
+ * =========================================================================*/
+typedef struct {
+    DWORD  id;
+    LPCSTR upgradeClass;
+} UpgradeData_t;
+
+/* =========================================================================
  * UnitData.slk
  * =========================================================================*/
 typedef struct {
@@ -259,6 +267,17 @@ typedef struct {
 } AbilityData_t;
 
 /* =========================================================================
+ * AbilityBuffData.slk
+ * =========================================================================*/
+typedef struct {
+    DWORD id, code;
+    LPCSTR comments, sort, race;
+    LONG version;
+    BOOL isEffect, useInEditor, InBeta;
+    LPCSTR buffArt, buffTip, buffUberTip;
+} AbilityBuffData_t;
+
+/* =========================================================================
  * Doodads.slk
  * =========================================================================*/
 typedef struct {
@@ -397,8 +416,10 @@ extern UnitProfile_t *g_UnitProfile; extern DWORD g_UnitProfileCount;
 extern UnitData_t *g_UnitData; extern DWORD g_UnitDataCount;
 extern UnitUI_t *g_UnitUI; extern DWORD g_UnitUICount;
 extern UnitWeapons_t *g_UnitWeapons; extern DWORD g_UnitWeaponsCount;
+extern UpgradeData_t *g_UpgradeData; extern DWORD g_UpgradeDataCount;
 extern UnitAbilities_t *g_UnitAbilities; extern DWORD g_UnitAbilitiesCount;
 extern AbilityData_t *g_AbilityData; extern DWORD g_AbilityDataCount;
+extern AbilityBuffData_t *g_AbilityBuffData; extern DWORD g_AbilityBuffDataCount;
 extern Doodads_t *g_Doodads; extern DWORD g_DoodadsCount;
 extern UberSplatData_t *g_UberSplatData; extern DWORD g_UberSplatDataCount;
 extern UnitAckSounds_t *g_UnitAckSounds; extern DWORD g_UnitAckSoundsCount;
@@ -408,6 +429,7 @@ extern ItemData_t *g_ItemData; extern DWORD g_ItemDataCount;
 extern DestructableData_t *g_DestructableData; extern DWORD g_DestructableDataCount;
 
 UnitBalance_t const *G_UnitBalance(DWORD id);
+UpgradeData_t const *G_UpgradeData(DWORD id);
 UnitProfile_t const *G_UnitProfile(DWORD id);
 UnitData_t    const *G_UnitData(DWORD id);
 UnitUI_t      const *G_UnitUI(DWORD id);
@@ -415,6 +437,7 @@ UnitWeapons_t const *G_UnitWeapons(DWORD id);
 UnitAbilities_t    const *G_UnitAbil(DWORD id);
 AbilityData_t const *G_AbilityData(DWORD id);
 AbilityData_t const *G_AbilityDataName(LPCSTR name);
+AbilityBuffData_t const *G_AbilityBuffData(DWORD id);
 DWORD G_AbilityCode(DWORD id);
 DWORD G_AbilityCodeName(LPCSTR name);
 LPCSTR G_AbilityDataText(LPCSTR name, LPCSTR column);

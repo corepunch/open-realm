@@ -91,8 +91,8 @@ void UI_WriteCommandButtonFrame(gameCommandButton_t const *button) {
     if (!button) {
         return;
     }
-    FLOAT bx = UI_BASE_WIDTH * 0.5f + 0.2365f + (FLOAT)button->x * 0.0434f;
-    FLOAT by = UI_BASE_HEIGHT - 0.1131f + (FLOAT)button->y * 0.0434f;
+    FLOAT const x = 0.6175f + (FLOAT)button->x * 0.0434f;
+    FLOAT const y = 0.4660f + (FLOAT)button->y * 0.0440f;
     memset(&frame, 0, sizeof(frame));
     frame.flags.type = FT_COMMANDBUTTON;
     frame.color = button->disabled ? (COLOR32){ 128, 128, 128, 255 } : COLOR32_WHITE;
@@ -104,9 +104,9 @@ void UI_WriteCommandButtonFrame(gameCommandButton_t const *button) {
     frame.tooltip = tooltip;
     snprintf(onclick, sizeof(onclick), "%s %s", button->research ? "research" : "button", button->command);
     frame.onclick = button->disabled ? NULL : onclick;
-    UI_SetFrameRect(&frame, bx - 0.0195f, by - 0.0195f, 0.039f, 0.039f);
+    UI_SetFrameRect(&frame, x, y, 0.039f, 0.039f);
     UI_WriteProxyFrame(&frame, NULL, 0);
-    UI_WriteCommandButtonNumber(bx - 0.0195f, by - 0.0195f, 0.039f, 0.039f, button->number);
+    UI_WriteCommandButtonNumber(x, y, 0.039f, 0.039f, button->number);
 }
 
 void UI_WriteCommandButton(LPCSTR code, BOOL research, DWORD level) {
@@ -127,55 +127,54 @@ void UI_WriteBuildQueue(LPEDICT ent) {
     gameQueueItem_t queue[MAX_BUILD_QUEUE];
     BYTE count = G_GetBuildQueue(ent, queue, MAX_BUILD_QUEUE);
     DWORD size;
+    DWORD buildtimer_number;
     LPBYTE buffer;
     uiBuildQueue_t *buildqueue;
-    uiFrame_t backdrop;
     uiFrame_t firstitem;
     uiFrame_t buildtimer;
     uiFrame_t list;
+    BOOL const constructing = ent && ent->currentmove && ent->currentmove->think == ai_birth;
+    FLOAT const active_x = 0.320546875f;
+    FLOAT const active_y = 0.526875000f;
+    FLOAT const active_size = 0.026718750f;
+    FLOAT const waiting_x = 0.319140625f;
+    FLOAT const waiting_y = 0.562734375f;
+    FLOAT const waiting_size = 0.020390625f;
+    FLOAT const waiting_step = 0.028125000f;
 
-    if (!count) {
-        return;
-    }
+    if (!count) return;
 
-    UI_WriteTextFrame(0.310f, 0.486f, 0.180f, 0.018f,
-                      G_UnitProfile(ent->class_id)->name ? G_UnitProfile(ent->class_id)->name : GetClassName(ent->class_id),
-                      COLOR32_WHITE, FONT_JUSTIFYCENTER);
-    UI_WriteTextFrame(0.371250f, 0.508875f, 0.105f, 0.014f,
-                      ent->currentmove && ent->currentmove->think == ai_birth ? "Constructing" : "Training",
-                      MAKE(COLOR32, 252, 210, 18, 255), FONT_JUSTIFYCENTER);
-
-    if (!ent->currentmove || ent->currentmove->think != ai_birth) {
-        memset(&backdrop, 0, sizeof(backdrop));
-        backdrop.flags.type = FT_TEXTURE;
-        backdrop.color = COLOR32_WHITE;
-        backdrop.tex.index = gi.ImageIndex("BuildQueueBackdrop");
-        UI_SetFrameRect(&backdrop, 0.310f, 0.491f, 0.180f, 0.100f);
-        UI_WriteProxyFrame(&backdrop, NULL, 0);
+    /* The building name, action label, queue backdrop, and progress-bar
+     * geometry come from retail SimpleInfoPanel.fdf.  The runtime queue owns
+     * only icon contents, timings, click targets, and the positions of the
+     * repeated queue icons that Warcraft creates in code. */
+    buildtimer_number = UI_WriteBuildingQueueShell(ent, constructing ? "CONSTRUCTING" : "TRAINING");
+    if (!buildtimer_number) {
+        fprintf(stderr, "UI_WriteBuildQueue: SimpleInfoPanel building shell unavailable; using runtime progress fallback\n");
+        memset(&buildtimer, 0, sizeof(buildtimer));
+        buildtimer.flags.type = FT_SIMPLESTATUSBAR;
+        buildtimer.color = COLOR32_WHITE;
+        buildtimer.tex.index = gi.ImageIndex(Theme_String("SimpleBuildTimeIndicator", "SimpleBuildTimeIndicator"));
+        buildtimer.tex.index2 = gi.ImageIndex(Theme_String("SimpleBuildTimeIndicatorBorder", "SimpleBuildTimeIndicatorBorder"));
+        UI_SetFrameRect(&buildtimer, 0.371250f, 0.518125f, 0.105380f, 0.010300f);
+        UI_WriteProxyFrame(&buildtimer, NULL, 0);
+        buildtimer_number = buildtimer.number;
     }
 
     memset(&firstitem, 0, sizeof(firstitem));
     firstitem.flags.type = FT_TEXTURE;
     firstitem.color = COLOR32_WHITE;
     firstitem.tex.index = gi.ImageIndex(queue[0].art);
-    UI_SetFrameRect(&firstitem, 0.320f, 0.525f, 0.028f, 0.031f);
+    UI_SetFrameRect(&firstitem, active_x, active_y, active_size, active_size);
     UI_WriteProxyFrame(&firstitem, NULL, 0);
-
-    memset(&buildtimer, 0, sizeof(buildtimer));
-    buildtimer.flags.type = FT_SIMPLESTATUSBAR;
-    buildtimer.color = MAKE(COLOR32, 160, 0, 160, 255);
-    buildtimer.tex.index = gi.ImageIndex("SimpleBuildTimeIndicator");
-    buildtimer.tex.index2 = gi.ImageIndex("SimpleBuildTimeIndicatorBorder");
-    UI_SetFrameRect(&buildtimer, 0.371250f, 0.524125f, 0.145f, 0.012f);
-    UI_WriteProxyFrame(&buildtimer, NULL, 0);
 
     size = sizeof(uiBuildQueue_t) + sizeof(uiBuildQueueItem_t) * count;
     buffer = gi.MemAlloc(size);
     memset(buffer, 0, size);
     buildqueue = (uiBuildQueue_t *)buffer;
     buildqueue->firstitem = (USHORT)firstitem.number;
-    buildqueue->buildtimer = (USHORT)buildtimer.number;
-    buildqueue->itemoffset = 0.0281f;
+    buildqueue->buildtimer = (USHORT)buildtimer_number;
+    buildqueue->itemoffset = waiting_step;
     buildqueue->numitems = count;
     FOR_LOOP(i, count) {
         buildqueue->items[i].image = (USHORT)gi.ImageIndex(queue[i].art);
@@ -186,13 +185,13 @@ void UI_WriteBuildQueue(LPEDICT ent) {
     memset(&list, 0, sizeof(list));
     list.flags.type = FT_BUILDQUEUE;
     list.color = COLOR32_WHITE;
-    UI_SetFrameRect(&list, 0.3195f, 0.566f, 0.020f, 0.0215f);
+    UI_SetFrameRect(&list, waiting_x, waiting_y, waiting_size, waiting_size);
     UI_WriteProxyFrame(&list, buffer, size);
     gi.MemFree(buffer);
 
-    /* Warcraft queue entries are clickable cancellation targets. Keep the
-     * existing FT_BUILDQUEUE drawing/prediction payload and place invisible
-     * server-authored click frames over the active and waiting icons. */
+    /* Match the repeated icon geometry for cancellation hit targets as well as
+     * drawing.  Slot 0 is the larger active item beside the progress bar; the
+     * remaining slots are the smaller row along the panel bottom. */
     if (ent->build && ent->build->training) {
         FOR_LOOP(i, count) {
             uiFrame_t cancel;
@@ -200,14 +199,14 @@ void UI_WriteBuildQueue(LPEDICT ent) {
             FLOAT x, y, w, h;
 
             memset(&cancel, 0, sizeof(cancel));
-            cancel.flags.type = FT_SIMPLEFRAME; /* no drawer; hit-test only */
+            cancel.flags.type = FT_SIMPLEFRAME;
             snprintf(onclick, sizeof(onclick), "canceltrain %u", (unsigned)i);
             cancel.onclick = onclick;
             if (i == 0) {
-                x = 0.320f; y = 0.525f; w = 0.028f; h = 0.031f;
+                x = active_x; y = active_y; w = active_size; h = active_size;
             } else {
-                x = 0.3195f + (FLOAT)(i - 1) * 0.0281f;
-                y = 0.566f; w = 0.020f; h = 0.0215f;
+                x = waiting_x + (FLOAT)(i - 1) * waiting_step;
+                y = waiting_y; w = waiting_size; h = waiting_size;
             }
             UI_SetFrameRect(&cancel, x, y, w, h);
             UI_WriteProxyFrame(&cancel, NULL, 0);

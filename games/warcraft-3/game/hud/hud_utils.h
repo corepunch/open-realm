@@ -3,7 +3,10 @@
 
 /* Keep generated FDF frames and later proxy frames in one monotonically increasing wire namespace. */
 static DWORD UI_NextProxyFrameNumber(DWORD next, DWORD written) { return MAX(next, written + 1); }
-static BOOL UI_HasSecondAttack(DWORD dice) { return dice > 0; }
+static BOOL UI_HasSecondAttack(UnitWeapons_t const *weapons) {
+    if (!weapons || !(weapons->attacksEnabled & 0x2)) return false;
+    return weapons->attack2.damageDice > 0 && weapons->attack2.showUI;
+}
 static void UI_SetPortraitFrameModel(LPFRAMEDEF frame, DWORD model) {
     frame->Type = FT_PORTRAIT;
     frame->Portrait.model = model;

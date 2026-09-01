@@ -109,7 +109,7 @@ static void WriteGameplayTransmissionPortrait(LPEDICT ent) {
         frame.color = COLOR32_WHITE;
         frame.tex.index = client->ps.cinematic_portrait;
         frame.text = TransmissionTalking(client) ? "Portrait Talk" : "Portrait";
-        UI_SetFrameRect(&frame, 0.215f, 0.486f, 0.080f, 0.080f);
+        UI_SetFrameRect(&frame, 0.211f, 0.4865f, 0.0835f, 0.085f);
         UI_WriteProxyFrame(&frame, NULL, 0);
     }
     UI_WriteEnd(ent);

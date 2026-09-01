@@ -489,6 +489,21 @@ static slkField_t const ability_schema[] = {
 #undef AB_D
 #undef AB_F
 
+static slkField_t const ability_buff_schema[] = {
+    { "",            offsetof(AbilityBuffData_t, id),          STB_SLK_FOURCC },
+    { "code",        offsetof(AbilityBuffData_t, code),        STB_SLK_FOURCC },
+    { "comments",    offsetof(AbilityBuffData_t, comments),    STB_SLK_STR    },
+    { "isEffect",    offsetof(AbilityBuffData_t, isEffect),    STB_SLK_BOOL   },
+    { "version",     offsetof(AbilityBuffData_t, version),     STB_SLK_INT    },
+    { "useInEditor", offsetof(AbilityBuffData_t, useInEditor), STB_SLK_BOOL   },
+    { "sort",        offsetof(AbilityBuffData_t, sort),        STB_SLK_STR    },
+    { "race",        offsetof(AbilityBuffData_t, race),        STB_SLK_STR    },
+    { "Buffart",     offsetof(AbilityBuffData_t, buffArt),     STB_SLK_STR    },
+    { "Bufftip",     offsetof(AbilityBuffData_t, buffTip),     STB_SLK_STR    },
+    { "Buffubertip", offsetof(AbilityBuffData_t, buffUberTip), STB_SLK_STR    },
+    { NULL, 0, 0 }
+};
+
 #define DOOD_VERT(NAME, VERTEX, CHANNEL) { NAME, offsetof(Doodads_t, vert[VERTEX][CHANNEL]), STB_SLK_INT }
 static slkField_t const doodad_schema[] = {
     { "",                  offsetof(Doodads_t, id),                STB_SLK_FOURCC },
@@ -701,16 +716,24 @@ static slkField_t const dest_schema[] = {
     { NULL, 0, 0 }
 };
 
+static slkField_t const upgrade_schema[] = {
+    { "",          offsetof(UpgradeData_t, id),           STB_SLK_FOURCC },
+    { "class",     offsetof(UpgradeData_t, upgradeClass), STB_SLK_STR    },
+    { NULL, 0, 0 }
+};
+
 /* =========================================================================
  * Decoded row arrays and lookup indexes (allocated at InitUnitData time).
  * =========================================================================*/
 UnitBalance_t *g_UnitBalance; DWORD g_UnitBalanceCount; static slkIndex_t balance_idx;
+UpgradeData_t *g_UpgradeData; DWORD g_UpgradeDataCount; static slkIndex_t upgrade_idx;
 UnitProfile_t *g_UnitProfile; DWORD g_UnitProfileCount; static slkIndex_t profile_idx;
 UnitData_t *g_UnitData; DWORD g_UnitDataCount; static slkIndex_t data_idx;
 UnitUI_t *g_UnitUI; DWORD g_UnitUICount; static slkIndex_t ui_idx;
 UnitWeapons_t *g_UnitWeapons; DWORD g_UnitWeaponsCount; static slkIndex_t weapons_idx;
 UnitAbilities_t *g_UnitAbilities; DWORD g_UnitAbilitiesCount; static slkIndex_t abil_idx;
 AbilityData_t *g_AbilityData; DWORD g_AbilityDataCount; static slkIndex_t ability_idx;
+AbilityBuffData_t *g_AbilityBuffData; DWORD g_AbilityBuffDataCount; static slkIndex_t ability_buff_idx;
 Doodads_t *g_Doodads; DWORD g_DoodadsCount; static slkIndex_t doodad_idx;
 UberSplatData_t *g_UberSplatData; DWORD g_UberSplatDataCount; static slkIndex_t uber_idx;
 UnitAckSounds_t *g_UnitAckSounds; DWORD g_UnitAckSoundsCount;
@@ -730,11 +753,13 @@ typedef struct {
 
 static slkStore_t slk_stores[] = {
     { "UnitBalance", "Units\\UnitBalance.slk", balance_schema, sizeof(*g_UnitBalance), (void **)&g_UnitBalance, &g_UnitBalanceCount, &balance_idx },
+    { "UpgradeData", "Units\\UpgradeData.slk", upgrade_schema, sizeof(*g_UpgradeData), (void **)&g_UpgradeData, &g_UpgradeDataCount, &upgrade_idx },
     { "UnitData", "Units\\UnitData.slk", data_schema, sizeof(*g_UnitData), (void **)&g_UnitData, &g_UnitDataCount, &data_idx },
     { "UnitUI", "Units\\UnitUI.slk", ui_schema, sizeof(*g_UnitUI), (void **)&g_UnitUI, &g_UnitUICount, &ui_idx },
     { "UnitWeapons", "Units\\UnitWeapons.slk", weapons_schema, sizeof(*g_UnitWeapons), (void **)&g_UnitWeapons, &g_UnitWeaponsCount, &weapons_idx },
     { "UnitAbilities", "Units\\UnitAbilities.slk", abil_schema, sizeof(*g_UnitAbilities), (void **)&g_UnitAbilities, &g_UnitAbilitiesCount, &abil_idx },
     { "AbilityData", "Units\\AbilityData.slk", ability_schema, sizeof(*g_AbilityData), (void **)&g_AbilityData, &g_AbilityDataCount, &ability_idx },
+    { "AbilityBuffData", "Units\\AbilityBuffData.slk", ability_buff_schema, sizeof(*g_AbilityBuffData), (void **)&g_AbilityBuffData, &g_AbilityBuffDataCount, &ability_buff_idx },
     { "Doodads", "Doodads\\Doodads.slk", doodad_schema, sizeof(*g_Doodads), (void **)&g_Doodads, &g_DoodadsCount, &doodad_idx },
     { "UberSplatData", "Splats\\UberSplatData.slk", uber_schema, sizeof(*g_UberSplatData), (void **)&g_UberSplatData, &g_UberSplatDataCount, &uber_idx },
     { "UnitAckSounds",    "UI\\SoundInfo\\UnitAckSounds.slk",    sound_schema, sizeof(*g_UnitAckSounds),    (void **)&g_UnitAckSounds,    &g_UnitAckSoundsCount,    NULL },
@@ -1121,6 +1146,7 @@ FLOAT UnitMetaReal(LPEDICT unit, DWORD field_id) {
 }
 
 UnitBalance_t const *G_UnitBalance(DWORD id) { static UnitBalance_t zero; UnitBalance_t *row = FS_SLKLookup(&balance_idx, ResolveUnitID(id)); return row ? row : &zero; }
+UpgradeData_t const *G_UpgradeData(DWORD id) { static UpgradeData_t zero; UpgradeData_t *row = FS_SLKLookup(&upgrade_idx, id); return row ? row : &zero; }
 UnitProfile_t const *G_UnitProfile(DWORD id) { static UnitProfile_t zero; UnitProfile_t *row = FS_SLKLookup(&profile_idx, ResolveUnitID(id)); return row ? row : &zero; }
 UnitData_t const *G_UnitData(DWORD id) { static UnitData_t zero; UnitData_t *row = FS_SLKLookup(&data_idx, ResolveUnitID(id)); return row ? row : &zero; }
 UnitUI_t const *G_UnitUI(DWORD id) { static UnitUI_t zero; UnitUI_t *row = FS_SLKLookup(&ui_idx, ResolveUnitID(id)); return row ? row : &zero; }
@@ -1128,6 +1154,7 @@ UnitWeapons_t const *G_UnitWeapons(DWORD id) { static UnitWeapons_t zero; UnitWe
 UnitAbilities_t const *G_UnitAbil(DWORD id) { static UnitAbilities_t zero; UnitAbilities_t *row = FS_SLKLookup(&abil_idx, ResolveUnitID(id)); return row ? row : &zero; }
 AbilityData_t const *G_AbilityData(DWORD id) { static AbilityData_t zero; AbilityData_t *row = FS_SLKLookup(&ability_idx, id); return row ? row : &zero; }
 AbilityData_t const *G_AbilityDataName(LPCSTR name) { return G_AbilityData(FS_SLKKey(name)); }
+AbilityBuffData_t const *G_AbilityBuffData(DWORD id) { static AbilityBuffData_t zero; AbilityBuffData_t *row = FS_SLKLookup(&ability_buff_idx, id); return row ? row : &zero; }
 DWORD G_AbilityCode(DWORD id) { DWORD code = G_AbilityData(id)->code; return code ? code : id; }
 DWORD G_AbilityCodeName(LPCSTR name) { return G_AbilityCode(FS_SLKKey(name)); }
 

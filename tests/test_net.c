@@ -643,6 +643,132 @@ TEST(net, msg_multiple_types_sequential) {
     T_EQ((unsigned int)MSG_ReadLong(&sb), (unsigned int)0x12345678);
 }
 
+
+TEST(net, ui_frame_delta_preserves_text_length) {
+    BYTE buf[128];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    uiFrame_t from = {0}, to = { .number = 7, .textLength = 19 }, out = {0};
+    DWORD bits = 0;
+    int number;
+
+    MSG_WriteDeltaUIFrame(&sb, &from, &to, true);
+    sb.readcount = 0;
+    number = MSG_ReadEntityBits(&sb, &bits);
+    MSG_ReadDeltaUIFrame(&sb, &out, number, bits);
+
+    T_EQ(number, 7);
+    T_EQ(out.textLength, 19);
+}
+
+static VECTOR2 text_length_mock_size(LPCDRAWTEXT text) {
+    if (text && text->text && !strcmp(text->text, " ")) {
+        return MAKE(VECTOR2, 0.006f, 0.012f);
+    }
+    return MAKE(VECTOR2, 0.018f, 0.012f);
+}
+
+TEST(net, layout_text_length_uses_space_advance_for_implicit_width) {
+    BYTE buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    uiFrame_t empty = {0}, frame = {0};
+    uiLabel_t label = {0};
+    LPCRECT rect;
+
+    frame.number = 1;
+    frame.flags.type = FT_STRING;
+    frame.text = "123";
+    frame.textLength = 10;
+    frame.size.height = 0.012f;
+    frame.points.x[FPP_MIN].used = 1;
+    frame.points.x[FPP_MIN].targetPos = FPP_MIN;
+    frame.points.x[FPP_MIN].relativeTo = 0;
+    frame.points.x[FPP_MIN].offset = (SHORT)(0.100f * UI_FRAMEPOINT_SCALE);
+    frame.points.y[FPP_MIN].used = 1;
+    frame.points.y[FPP_MIN].targetPos = FPP_MIN;
+    frame.points.y[FPP_MIN].relativeTo = 0;
+    frame.points.y[FPP_MIN].offset = (SHORT)(-0.100f * UI_FRAMEPOINT_SCALE);
+
+    test_client_stubs_init();
+    re.GetTextSize = text_length_mock_size;
+    MSG_WriteByte(&sb, LAYER_CONSOLE);
+    MSG_WriteDeltaUIFrame(&sb, &empty, &frame, true);
+    MSG_WriteByte(&sb, sizeof(label));
+    MSG_Write(&sb, &label, sizeof(label));
+    MSG_WriteLong(&sb, 0);
+    MSG_WriteShort(&sb, 0);
+    sb.readcount = 0;
+
+    CL_ParseLayout(&sb);
+    T_NOT_NULL(cl.layout[LAYER_CONSOLE]);
+    SCR_Clear(cl.layout[LAYER_CONSOLE]);
+    rect = SCR_LayoutRect(SCR_Frame(1));
+    T_NOT_NULL(rect);
+    T_FEQ(rect->x, 0.100f, 0.001f);
+    T_FEQ(rect->w, 0.060f, 0.001f);
+}
+
+TEST(net, layout_authored_height_with_top_bottom_anchors_keeps_bottom_edge) {
+    BYTE buf[512];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    uiFrame_t empty = {0}, parent = {0}, child = {0};
+    LPCRECT parent_rect, child_rect;
+
+    parent.number = 1;
+    parent.flags.type = FT_SIMPLEFRAME;
+    parent.size.width = 0.100f;
+    parent.size.height = 0.030125f;
+    parent.points.x[FPP_MIN].used = 1;
+    parent.points.x[FPP_MIN].targetPos = FPP_MIN;
+    parent.points.x[FPP_MIN].relativeTo = 0;
+    parent.points.x[FPP_MIN].offset = (SHORT)(0.310f * UI_FRAMEPOINT_SCALE);
+    parent.points.y[FPP_MIN].used = 1;
+    parent.points.y[FPP_MIN].targetPos = FPP_MIN;
+    parent.points.y[FPP_MIN].relativeTo = 0;
+    parent.points.y[FPP_MIN].offset = (SHORT)(-0.51925f * UI_FRAMEPOINT_SCALE);
+
+    child.number = 2;
+    child.parent = 1;
+    child.flags.type = FT_SIMPLEFRAME;
+    child.size.width = 0.100f;
+    child.size.height = 0.03125f;
+    child.points.x[FPP_MIN].used = 1;
+    child.points.x[FPP_MIN].targetPos = FPP_MIN;
+    child.points.x[FPP_MIN].relativeTo = UI_PARENT;
+    child.points.x[FPP_MAX].used = 1;
+    child.points.x[FPP_MAX].targetPos = FPP_MAX;
+    child.points.x[FPP_MAX].relativeTo = UI_PARENT;
+    child.points.y[FPP_MIN].used = 1;
+    child.points.y[FPP_MIN].targetPos = FPP_MIN;
+    child.points.y[FPP_MIN].relativeTo = UI_PARENT;
+    child.points.y[FPP_MAX].used = 1;
+    child.points.y[FPP_MAX].targetPos = FPP_MAX;
+    child.points.y[FPP_MAX].relativeTo = UI_PARENT;
+
+    test_client_stubs_init();
+    MSG_WriteByte(&sb, LAYER_INFOPANEL);
+    MSG_WriteDeltaUIFrame(&sb, &empty, &parent, true);
+    MSG_WriteByte(&sb, 0);
+    MSG_WriteDeltaUIFrame(&sb, &empty, &child, true);
+    MSG_WriteByte(&sb, 0);
+    MSG_WriteLong(&sb, 0);
+    MSG_WriteShort(&sb, 0);
+    sb.readcount = 0;
+
+    CL_ParseLayout(&sb);
+    T_NOT_NULL(cl.layout[LAYER_INFOPANEL]);
+    SCR_Clear(cl.layout[LAYER_INFOPANEL]);
+    parent_rect = SCR_LayoutRect(SCR_Frame(1));
+    child_rect = SCR_LayoutRect(SCR_Frame(2));
+    T_NOT_NULL(parent_rect);
+    T_NOT_NULL(child_rect);
+    T_FEQ(child_rect->x, parent_rect->x, 0.0001f);
+    T_FEQ(child_rect->w, 0.100f, 0.0001f);
+    T_FEQ(child_rect->h, 0.03125f, 0.0001f);
+    T_FEQ(child_rect->y + child_rect->h,
+          parent_rect->y + parent_rect->h, 0.0001f);
+    T_FEQ(child_rect->y, parent_rect->y - 0.001125f, 0.0002f);
+}
+
 /* Layout payload sizes are one unsigned wire byte; WoW's textured scrollbar is larger than signed-char range. */
 TEST(net, layout_parser_accepts_scrollbar_payload_above_127_bytes) {
     BYTE buf[512];

@@ -108,8 +108,24 @@ TEST(wc3_game, hud_valid_texture_path_is_unchanged) {
     T_STREQ(UI_ResolveTextureAlias("UI\\Feedback\\Resources\\ResourceGold.blp"),
                   "UI\\Feedback\\Resources\\ResourceGold.blp");
 }
-TEST(wc3_game, hud_second_attack_present_with_dice) { T_ASSERT(UI_HasSecondAttack(1)); }
-TEST(wc3_game, hud_second_attack_absent_without_dice) { T_ASSERT(!UI_HasSecondAttack(0)); }
+TEST(wc3_game, hud_second_attack_requires_enabled_slot_and_showui) {
+    UnitWeapons_t weapons = { 0 };
+
+    weapons.attack2.damageDice = 2;
+    weapons.attack2.showUI = true;
+    weapons.attacksEnabled = 1;
+    T_ASSERT(!UI_HasSecondAttack(&weapons));
+
+    weapons.attacksEnabled = 3;
+    weapons.attack2.showUI = false;
+    T_ASSERT(!UI_HasSecondAttack(&weapons));
+
+    weapons.attack2.showUI = true;
+    T_ASSERT(UI_HasSecondAttack(&weapons));
+
+    weapons.attack2.damageDice = 0;
+    T_ASSERT(!UI_HasSecondAttack(&weapons));
+}
 TEST(wc3_game, player_zero_food_ignores_free_edicts) {
     static UnitBalance_t const owned_balance = { .foodMade = 6, .foodUsed = 1 };
     static UnitBalance_t const enemy_balance = { .foodMade = 12, .foodUsed = 2 };
@@ -132,6 +148,34 @@ TEST(wc3_game, hud_portrait_model_uses_serialized_field) {
     UI_SetPortraitFrameModel(&frame, 42);
     T_EQ(frame.Type, FT_PORTRAIT);
     T_EQ(frame.Portrait.model, 42);
+}
+
+TEST(wc3_game, hud_single_line_fdf_text_serializes_declared_font_height) {
+    FRAMEDEF frame = { .Type = FT_STRING };
+    uiFrame_t wire = {0};
+    BYTE typedata[128] = {0};
+    char textbuf[128] = {0};
+
+    frame.Text = "Strength:";
+    frame.Font.Size = 0.010f;
+    UI_ResetFrameWriteList();
+    T_ASSERT(UI_BuildFrameForWrite(&frame, &wire, typedata, sizeof(typedata),
+                                   textbuf, sizeof(textbuf)));
+    T_FEQ(wire.size.height, 0.010f, 0.0001f);
+}
+
+TEST(wc3_game, hud_multiline_fdf_text_keeps_renderer_auto_height) {
+    FRAMEDEF frame = { .Type = FT_STRING };
+    uiFrame_t wire = {0};
+    BYTE typedata[128] = {0};
+    char textbuf[128] = {0};
+
+    frame.Text = "Line one\nLine two";
+    frame.Font.Size = 0.010f;
+    UI_ResetFrameWriteList();
+    T_ASSERT(UI_BuildFrameForWrite(&frame, &wire, typedata, sizeof(typedata),
+                                   textbuf, sizeof(textbuf)));
+    T_FEQ(wire.size.height, 0.0f, 0.0001f);
 }
 
 TEST(wc3_game, hud_authored_row_keeps_template_size) {

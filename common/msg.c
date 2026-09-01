@@ -119,6 +119,7 @@ netField_t uiFrameFields[] = {
     { NETF(uiFrame_t, points.y[FPP_MID]), NFT_LONG },
     { NETF(uiFrame_t, points.y[FPP_MAX]), NFT_LONG },
     { NETF(uiFrame_t, size), NFT_VECTOR2 },
+    { NETF(uiFrame_t, textLength), NFT_SHORT },
     { NETF(uiFrame_t, tex.index), NFT_LONG },
     { NETF(uiFrame_t, tex.coord), NFT_LONG },
     { NETF(uiFrame_t, stat), NFT_BYTE },
