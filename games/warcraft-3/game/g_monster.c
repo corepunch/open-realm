@@ -116,13 +116,6 @@ static int monster_harvest_path_debug_level(void) {
     return value ? atoi(value) : 0;
 }
 
-static int monster_unit_death_debug_level(void) {
-    LPCSTR value;
-    if (!gi.CvarString) return 0;
-    value = gi.CvarString("wc3_unit_death_debug", "0");
-    return value ? atoi(value) : 0;
-}
-
 DWORD M_RefreshHeatmap(LPEDICT self, FLOAT radius) {
     LPEDICT route = self && self->secondarygoal ? self->secondarygoal : self;
     BOOL radius_matches;
@@ -182,16 +175,8 @@ void M_MoveFrame(LPEDICT self) {
         G_UpdateConstructionAnimation(self);
         return;
     }
-    if (self->aiflags & AI_HOLD_FRAME) {
-        if (monster_unit_death_debug_level() >= 2 && self->currentmove &&
-            self->currentmove->animation && !strcmp(self->currentmove->animation, "death")) {
-            fprintf(stderr,
-                    "WC3_UNIT_DEATH frame_blocked ent=%d id=%.4s reason=hold health=%.3f dead=%d deadmonster=%d frame=%u\n",
-                    self->s.number, (LPCSTR)&self->class_id, self->health.value, M_IsDead(self),
-                    !!(self->svflags & SVF_DEADMONSTER), self->s.frame);
-        }
+    if (self->aiflags & AI_HOLD_FRAME)
         return;
-    }
     umove_t const *move = self->currentmove;
     LPCANIMATION anim = self->animation;
     if (!anim) {
@@ -202,14 +187,6 @@ void M_MoveFrame(LPEDICT self) {
         }
     }
     DWORD next_frame = self->s.frame + FRAMETIME;
-    if (monster_unit_death_debug_level() >= 2 && move && move->animation &&
-        !strcmp(move->animation, "death")) {
-        fprintf(stderr,
-                "WC3_UNIT_DEATH frame ent=%d id=%.4s health=%.3f dead=%d deadmonster=%d frame=%u next=%u interval=%u-%u hold=%d\n",
-                self->s.number, (LPCSTR)&self->class_id, self->health.value, M_IsDead(self),
-                !!(self->svflags & SVF_DEADMONSTER), self->s.frame, next_frame, anim->interval[0],
-                anim->interval[1], !!(self->aiflags & AI_HOLD_FRAME));
-    }
     if (!strcmp(anim->name, "birth")) {
         DWORD anim_len = anim->interval[1] - anim->interval[0];
         DWORD build_time = G_UnitBalance(self->class_id)->buildTime * 1000;
@@ -237,17 +214,8 @@ void M_MoveFrame(LPEDICT self) {
 void monster_think(LPEDICT self) {
     if (!self->currentmove)
         return;
-    if (self->paused || self->stunned) {
-        if (monster_unit_death_debug_level() >= 2 && self->currentmove->animation &&
-            !strcmp(self->currentmove->animation, "death")) {
-            fprintf(stderr,
-                    "WC3_UNIT_DEATH frame_blocked ent=%d id=%.4s reason=%s health=%.3f dead=%d deadmonster=%d frame=%u\n",
-                    self->s.number, (LPCSTR)&self->class_id, self->paused ? "paused" : "stunned",
-                    self->health.value, M_IsDead(self), !!(self->svflags & SVF_DEADMONSTER),
-                    self->s.frame);
-        }
+    if (self->paused || self->stunned)
         return;
-    }
     M_MoveFrame(self);
     if (self->currentmove->think) {
         self->currentmove->think(self);

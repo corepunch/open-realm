@@ -6,10 +6,6 @@ static BOOL G_TargetModeActive(LPGAMECLIENT client) {
     return client && (client->menu.on_entity_selected || client->menu.on_location_selected);
 }
 
-static BOOL G_UnitDeathDebugEnabled(void) {
-    return gi.CvarString && atoi(gi.CvarString("wc3_unit_death_debug", "0")) > 0;
-}
-
 LPEDICT G_GetMainSelectedUnit(LPGAMECLIENT client) {
     FOR_SELECTED_UNITS(client, ent) {
         return ent;
@@ -21,16 +17,7 @@ void G_SelectEntity(LPGAMECLIENT client, LPEDICT ent) {
     /* Corpses remain networked while their death/decay presentation runs, but
      * they are no longer valid gameplay selection targets. */
     if (!client || !ent || !ent->inuse) return;
-    if (M_IsDead(ent) || (ent->s.flags & EF_NOT_SELECTABLE)) {
-        if (G_UnitDeathDebugEnabled()) {
-            fprintf(stderr,
-                    "WC3_UNIT_DEATH reject_selection ent=%d id=%.4s health=%.3f dead=%d deadmonster=%d notselectable=%d flags=0x%x selected=0x%x\n",
-                    ent->s.number, (LPCSTR)&ent->class_id, ent->health.value, M_IsDead(ent),
-                    !!(ent->svflags & SVF_DEADMONSTER), !!(ent->s.flags & EF_NOT_SELECTABLE),
-                    ent->s.flags, ent->selected);
-        }
-        return;
-    }
+    if (M_IsDead(ent) || (ent->s.flags & EF_NOT_SELECTABLE)) return;
     ent->selected |= 1 << client->ps.number;
 }
 

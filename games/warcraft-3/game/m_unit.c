@@ -111,6 +111,7 @@ void unit_stand(LPEDICT self) {
 void unit_die(LPEDICT self, LPEDICT attacker) {
     LPGAMECLIENT owner;
 
+    self->health.value = 0.0f;
     if (self->training) G_ClearTrainingQueueFood(self);
     else { G_CancelHeroRevives(self); G_CancelTrainingQueue(self, true); }
     G_ClearUnitFood(self);
@@ -124,7 +125,11 @@ void unit_die(LPEDICT self, LPEDICT attacker) {
         self->revival.progress = 0.0f;
     }
     unit_leavecombat(self);
+    self->selected = 0;
+    self->s.flags |= EF_NOT_SELECTABLE;
+    self->aiflags &= ~AI_HOLD_FRAME;
     unit_setmove(self, &unit_move_death);
+    if (self->animation) self->s.frame = self->animation->interval[0];
     if (self->sound.death) {
         self->sound.world_pending = self->sound.death;
         self->sound.world_pending_event = EV_DEATH;
@@ -176,6 +181,7 @@ BOOL unit_issuetargetorder(LPEDICT self, LPCSTR order, LPEDICT target) {
     if (!self || !order || !target) {
         return false;
     }
+    if (M_IsDead(self)) return false;
     /* Rally is producer metadata, not movement. It must be accepted before
      * immobility/mining guards so structures and other producers can use both
      * the explicit setrally order and Warcraft's Smart/right-click shortcut. */
@@ -234,6 +240,7 @@ BOOL unit_issueorder(LPEDICT self, LPCSTR order, LPCVECTOR2 point) {
     if (!self || !order || !point) {
         return false;
     }
+    if (M_IsDead(self)) return false;
     if (!strcmp(order, "setrally") || (!strcmp(order, "smart") && G_UnitHasRally(self))) {
         return G_SetRallyPoint(self, point);
     }
@@ -257,6 +264,7 @@ BOOL unit_issueimmediateorder(LPEDICT self, LPCSTR order) {
     if (!self || !order) {
         return false;
     }
+    if (M_IsDead(self)) return false;
     if (S_GoldMineWorkerIsInside(self))
         return false;
     if (!strcmp(order, "stop")) {
@@ -778,6 +786,7 @@ void G_ReviveHero(LPEDICT ent, FLOAT x, FLOAT y) {
     FLOAT const manaFactor = G_MiscNum("HeroReviveManaFactor", 0.0f);
     FLOAT const manaStart = G_MiscNum("HeroReviveManaStart", 0.0f);
     ent->svflags &= ~SVF_DEADMONSTER;
+    ent->s.flags &= ~EF_NOT_SELECTABLE;
     ent->aiflags &= ~AI_HOLD_FRAME;
     ent->combatentity = NULL;
     ent->revival.awaiting = false;
