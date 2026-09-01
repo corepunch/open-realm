@@ -1011,6 +1011,10 @@ void G_FowUpdate(void) {
         G_FowRevealForViewers(ent, radius, owner_viewers[ent->s.player]);
     }
 
+#ifdef WC3_FOW_PACKED_MASK
+    if (g_fow_fast)
+        FOR_LOOP(player, MAX_PLAYERS) if (viewers & (1u << player)) G_FowMaterializePacked(&level.fow.players[player]);
+#endif
     G_FowApplyModifiers(viewers);
 }
 
