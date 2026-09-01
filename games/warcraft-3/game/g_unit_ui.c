@@ -167,6 +167,7 @@ BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, 
     LPCSTR hotkey;
     ability_t const *ability;
     DWORD ability_code = 0;
+    BOOL toggle_on = false;
     DWORD x = UINT_MAX;
     DWORD y = UINT_MAX;
 
@@ -190,11 +191,12 @@ BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, 
         base_code = code;
     }
     art_code = G_CommandArtCode(ent, code);
-    art = FindConfigValue(art_code, G_ResearchField(STR_ART, research));
-    buttonpos = FindConfigValue(art_code, G_ResearchField(STR_BUTTONPOS, research));
-    tip = FindConfigValue(art_code, G_ResearchField(STR_TIP, research));
-    ubertip = FindConfigValue(art_code, G_ResearchField(STR_UBERTIP, research));
-    hotkey = FindConfigValue(art_code, G_ResearchField(STR_HOTKEY, research));
+    toggle_on = !research && ability && ability->is_toggle_on && ability->is_toggle_on(ent);
+    art = FindConfigValue(art_code, toggle_on ? STR_UNART : G_ResearchField(STR_ART, research));
+    buttonpos = FindConfigValue(art_code, toggle_on ? STR_UNBUTTONPOS : G_ResearchField(STR_BUTTONPOS, research));
+    tip = FindConfigValue(art_code, toggle_on ? STR_UNTIP : G_ResearchField(STR_TIP, research));
+    ubertip = FindConfigValue(art_code, toggle_on ? STR_UNUBERTIP : G_ResearchField(STR_UBERTIP, research));
+    hotkey = FindConfigValue(art_code, toggle_on ? STR_UNHOTKEY : G_ResearchField(STR_HOTKEY, research));
     art_path = G_UIArtPath(art);
 
     if (buttonpos && *buttonpos) {

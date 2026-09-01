@@ -72,6 +72,9 @@ BOOL S_CanReturnResourceAt(LPEDICT unit, LPEDICT building, returnResource_t reso
 }
 
 void S_SetCarriedResource(LPEDICT unit, returnResource_t resource, DWORD amount) {
+    BOOL const was_carrying = unit && (unit->harvested_gold > 0 || unit->harvested_lumber > 0);
+    BOOL is_carrying;
+
     if (!unit)
         return;
 
@@ -82,15 +85,24 @@ void S_SetCarriedResource(LPEDICT unit, returnResource_t resource, DWORD amount)
     unit->harvested_lumber = 0;
     unit->s.renderfx &= ~(RF_HAS_GOLD | RF_HAS_LUMBER);
 
-    if (!amount)
-        return;
-
-    if (resource == RETURN_RESOURCE_GOLD) {
+    if (amount && resource == RETURN_RESOURCE_GOLD) {
         unit->harvested_gold = amount;
         unit->s.renderfx |= RF_HAS_GOLD;
-    } else if (resource == RETURN_RESOURCE_LUMBER) {
+    } else if (amount && resource == RETURN_RESOURCE_LUMBER) {
         unit->harvested_lumber = amount;
         unit->s.renderfx |= RF_HAS_LUMBER;
+    }
+
+    /* Warsmash exposes Harvest as one toggled ability: empty workers use the
+     * normal Gather UI, while any positive carried amount uses the Un* Return
+     * Resources UI.  Refresh only when that boolean presentation state flips. */
+    is_carrying = unit->harvested_gold > 0 || unit->harvested_lumber > 0;
+    if (was_carrying != is_carrying) {
+        FOR_LOOP(i, game.max_clients) {
+            LPGAMECLIENT client = game.clients + i;
+            if (G_IsEntitySelected(client, unit))
+                G_InvalidateCommands(client);
+        }
     }
 }
 
@@ -651,6 +663,10 @@ BOOL harvest_menu_selecttarget(LPEDICT clent, LPEDICT target) {
     return true;
 }
 
+static BOOL harvest_is_toggle_on(LPEDICT ent) {
+    return ent && (ent->harvested_lumber > 0 || ent->harvested_gold > 0);
+}
+
 void harvest_command(LPEDICT ent) {
     LPEDICT selected = G_GetMainSelectedUnit(ent->client);
 
@@ -678,4 +694,5 @@ void SP_ability_harvest(LPCSTR classname, ability_t *self) {
 ability_t a_harvest = {
     .init = SP_ability_harvest,
     .cmd = harvest_command,
+    .is_toggle_on = harvest_is_toggle_on,
 };

@@ -1,0 +1,5 @@
+[Ahar]
+Tip=Gather
+Ubertip=Gather resources from a Gold Mine or tree.
+Untip=Return Resources
+Unubertip=Return carried resources to a compatible drop-off.
