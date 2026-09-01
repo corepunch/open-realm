@@ -164,6 +164,9 @@ CLIENTCOMMAND(Smart) {
 CLIENTCOMMAND(SmartPoint) {
     LPGAMECLIENT client = clent->client;
     VECTOR2 loc;
+    BOOL rally = false;
+    BOOL non_rally = false;
+    BOOL issued = false;
 
     if (G_CancelBuildPlacement(clent) || G_CancelTargetMode(clent)) {
         return;
@@ -179,8 +182,20 @@ CLIENTCOMMAND(SmartPoint) {
         return;
     }
     loc = (VECTOR2){ atoi(argv[1]), atoi(argv[2]) };
-    if (move_selectlocation(clent, &loc))
+    FOR_SELECTED_UNITS(client, ent) {
+        if (G_UnitHasRally(ent)) {
+            if (unit_issueorder(ent, "smart", &loc)) rally = true;
+        } else {
+            non_rally = true;
+        }
+    }
+    /* Normal unit SmartPoint retains the existing formation-aware move path.
+     * Selection rules normally keep production structures separate from mobile
+     * units, so rally-capable selections do not enter this path. */
+    if (non_rally && move_selectlocation(clent, &loc)) issued = true;
+    if (rally || issued) {
         G_QueueOrderSound(G_GetMainSelectedUnit(client));
+    }
 }
 
 CLIENTCOMMAND(Button) {

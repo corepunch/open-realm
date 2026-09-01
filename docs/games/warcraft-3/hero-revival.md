@@ -81,5 +81,5 @@ path before the edict or owner state changes.
   represented by the current command-button wire format.
 - Revival tooltip resource icons/cost fields are not represented separately by
   `gameCommandButton_t`; authoritative charging is implemented server-side.
-- Rally orders after revival are not yet applied.
+- Altar Rally is applied after revive-finish events through the shared producer `G_ApplyRallyOrder`; see [rally-points.md](rally-points.md).
 - Tavern/instant Hero awakening remains a separate future mechanic.

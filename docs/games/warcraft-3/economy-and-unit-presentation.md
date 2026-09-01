@@ -3,6 +3,7 @@
 ## Gathering Contract
 
 `unit_issuetargetorder(..., "smart", target)` routes workers with `Ahar` to gold or lumber in `m_unit.c`.
+The same Smart resolver is also the post-production action layer for producer Rally; Rally stores a target but does not duplicate harvest/repair/item logic. See [rally-points.md](rally-points.md).
 The Gather command reaches the same state machines through `harvest_menu_selecttarget`.
 
 - Gold: `harvest_gold_start` -> walk to mine -> capacity-gated hidden mining wait -> carry finite mine gold -> nearest live same-owner drop-off accepting gold -> deposit -> resume the mine while it remains harvestable.

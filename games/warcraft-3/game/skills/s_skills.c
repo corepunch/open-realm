@@ -19,6 +19,7 @@ static abilityitem_t abilitylist[] = {
     { STR_CmdBuild, &a_build },
     { STR_CmdHoldPos, &a_holdpos },
     { STR_CmdPatrol, &a_patrol },
+    { STR_CmdRally, &a_rally },
     { STR_CmdCancel, &a_cancel },
     { STR_CmdSelectSkill, &a_selectskill },
 

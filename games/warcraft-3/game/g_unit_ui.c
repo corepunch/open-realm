@@ -330,6 +330,9 @@ BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_but
             buttons[idx].number = ent->hero.skillpoints;
         }
     }
+    if (G_UnitHasRally(ent)) {
+        G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdRally, false, 0);
+    }
     if (a->abilList) {
         PARSE_LIST(a->abilList, abil, parse_segment) {
             DWORD const code = G_AbilityCodeName(abil);
