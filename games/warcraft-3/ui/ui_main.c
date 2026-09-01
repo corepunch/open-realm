@@ -559,8 +559,10 @@ static void UI_DrawHoverUnit(void) {
             .screen = bar, .uv = { 0, 0, 1, 1 }, .color = MAKE(COLOR32, 0, 0, 0, 220) });
         if (hover_mana) {
             RECT inner = MAKE(RECT, bar.x + 0.001f, bar.y + 0.001f, bar.w - 0.002f, bar.h - 0.002f);
+            /* The old renderer shortened the fill geometry; UV-only cropping leaves a solid bar full-width. */
+            inner.w *= mana;
             hover_renderer->DrawImageEx(&(drawImage_t){ .texture = hover_mana, .shader = SHADER_UI,
-                .screen = inner, .uv = { 0, 0, mana, 1 }, .color = MAKE(COLOR32, 60, 90, 235, 255) });
+                .screen = inner, .uv = { 0, 0, 1, 1 }, .color = MAKE(COLOR32, 60, 90, 235, 255) });
         }
         cursor = bar.y + 0.001f;
     }
@@ -569,8 +571,10 @@ static void UI_DrawHoverUnit(void) {
         .screen = bar, .uv = { 0, 0, 1, 1 }, .color = MAKE(COLOR32, 0, 0, 0, 220) });
     if (hover_hp) {
         RECT inner = MAKE(RECT, bar.x + 0.001f, bar.y + 0.001f, bar.w - 0.002f, bar.h - 0.002f);
+        /* Keep the fill width authoritative so damage changes the visible bar, as in the pre-UI migration path. */
+        inner.w *= hp;
         hover_renderer->DrawImageEx(&(drawImage_t){ .texture = hover_hp, .shader = SHADER_UI,
-            .screen = inner, .uv = { 0, 0, hp, 1 }, .color = hp_color });
+            .screen = inner, .uv = { 0, 0, 1, 1 }, .color = hp_color });
     }
     cursor = bar.y + 0.001f;
     label = MAKE(RECT, hover_unit.x - label_w * 0.5f, cursor - 0.003f - text_size.y - 0.012f,
