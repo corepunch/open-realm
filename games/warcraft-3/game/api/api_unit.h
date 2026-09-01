@@ -498,6 +498,39 @@ DWORD UnitUseItemTarget(LPJASS j) {
     //HANDLE target = jass_checkhandle(j, 3, "widget");
     return jass_pushboolean(j, 0);
 }
+DWORD GetUnitRallyPoint(LPJASS j) {
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    API_ALLOC(VECTOR2, location);
+    if (whichUnit) {
+        G_ResolveRallyTarget(whichUnit, location, NULL);
+    }
+    return 1;
+}
+DWORD GetUnitRallyUnit(LPJASS j) {
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LPEDICT target = NULL;
+    rallyTargetType_t type;
+
+    if (!whichUnit) return jass_pushnullhandle(j, "unit");
+    type = G_ResolveRallyTarget(whichUnit, NULL, &target);
+    if ((type == RALLY_TARGET_SELF || type == RALLY_TARGET_ENTITY) &&
+        target && (target->svflags & SVF_MONSTER)) {
+        return jass_pushlighthandle(j, target, "unit");
+    }
+    return jass_pushnullhandle(j, "unit");
+}
+DWORD GetUnitRallyDestructable(LPJASS j) {
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LPEDICT target = NULL;
+    rallyTargetType_t type;
+
+    if (!whichUnit) return jass_pushnullhandle(j, "destructable");
+    type = G_ResolveRallyTarget(whichUnit, NULL, &target);
+    if (type == RALLY_TARGET_ENTITY && target && G_IsDestructable(target)) {
+        return jass_pushlighthandle(j, target, "destructable");
+    }
+    return jass_pushnullhandle(j, "destructable");
+}
 DWORD GetUnitLoc(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     API_ALLOC(VECTOR2, location);

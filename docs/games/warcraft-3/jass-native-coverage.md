@@ -95,6 +95,10 @@ The `SyncStored*` callbacks remain **partial**: they validate/consume their
 arguments but do not implement multiplayer synchronization.
 `ReloadGameCachesFromDisk` remains unregistered.
 
+## Rally getters
+
+`GetUnitRallyPoint`, `GetUnitRallyUnit`, and `GetUnitRallyDestructable` are registered against the producer-owned rally state documented in [rally-points.md](rally-points.md). The point getter resolves current widget coordinates; the typed widget getters return only matching unit/destructable targets. String-based `setrally` orders are implemented. Numeric order-ID parity remains partial because the engine still lacks the general Warcraft order-ID table.
+
 ## Runtime Error Reporting
 
 `jass_rterror()` records the error on the root VM and aborts the current

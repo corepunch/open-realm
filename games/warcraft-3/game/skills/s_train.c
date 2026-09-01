@@ -264,6 +264,7 @@ static BOOL CompleteHeroRevive(LPEDICT altar, LPEDICT hero) {
     G_ReviveHero(hero, origin.x, origin.y);
     G_PublishEventWithSource(hero, EVENT_PLAYER_HERO_REVIVE_FINISH, altar);
     G_PublishEventWithSource(hero, EVENT_UNIT_HERO_REVIVE_FINISH, altar);
+    G_ApplyRallyOrder(altar, hero);
     RefreshReviveUI(altar);
     if (!altar->build) altar->stand(altar);
     return true;
@@ -313,6 +314,7 @@ void ai_train_build(LPEDICT ent) {
             G_InvalidateCommands(G_GetPlayerClientByNumber(ent->s.player));
             G_QueueReadySound(completed);
             G_PublishEvent(completed, EVENT_PLAYER_UNIT_TRAIN_FINISH);
+            G_ApplyRallyOrder(ent, completed);
 #ifdef WC3_DEBUG_AI
             fprintf(stderr, "WC3_DEBUG_AI training complete producer=%ld unit=%ld id=%.4s player=%u\n",
                 (long)(ent - g_edicts), (long)(completed - g_edicts), (LPCSTR)&completed->class_id, completed->s.player);

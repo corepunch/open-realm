@@ -140,6 +140,7 @@ void unit_die(LPEDICT self, LPEDICT attacker) {
     G_PublishEventWithSource(self, EVENT_UNIT_DEATH, attacker);
     G_PublishEventWithSource(self, EVENT_PLAYER_UNIT_DEATH, attacker);
     self->svflags |= SVF_DEADMONSTER;
+    G_InvalidateRallyTarget(self);
     /* A dead producer cannot retain ownership of a revival.  This clears each
      * Hero's reviving flag and refunds what this Altar charged. */
     G_CancelHeroRevives(self);
@@ -174,6 +175,12 @@ static BOOL unit_smart_target_is_enemy(LPEDICT self, LPEDICT target) {
 BOOL unit_issuetargetorder(LPEDICT self, LPCSTR order, LPEDICT target) {
     if (!self || !order || !target) {
         return false;
+    }
+    /* Rally is producer metadata, not movement. It must be accepted before
+     * immobility/mining guards so structures and other producers can use both
+     * the explicit setrally order and Warcraft's Smart/right-click shortcut. */
+    if (!strcmp(order, "setrally") || (!strcmp(order, "smart") && G_UnitHasRally(self))) {
+        return G_SetRallyEntity(self, target);
     }
     if (S_GoldMineWorkerIsInside(self))
         return false;
@@ -227,11 +234,15 @@ BOOL unit_issueorder(LPEDICT self, LPCSTR order, LPCVECTOR2 point) {
     if (!self || !order || !point) {
         return false;
     }
+    if (!strcmp(order, "setrally") || (!strcmp(order, "smart") && G_UnitHasRally(self))) {
+        return G_SetRallyPoint(self, point);
+    }
     if (S_GoldMineWorkerIsInside(self))
         return false;
     if (self->aiflags & AI_IMMOBILE)
         return false;
-    if (!strcmp(order, "move") || !strcmp(order, "attack")) {
+    /* Smart + point resolves through ordinary movement for movable units. */
+    if (!strcmp(order, "smart") || !strcmp(order, "move") || !strcmp(order, "attack")) {
         VECTOR2 target = *point;
         CM_ClosestPathablePointForRadius(point, self->collision, &target);
         LPEDICT waypoint = Waypoint_add(&target);

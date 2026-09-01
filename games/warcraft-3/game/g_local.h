@@ -411,6 +411,16 @@ typedef enum {
     SPELL_TARGET_UNIT_OR_POINT,
 } spellTargetType_t;
 
+/* Rally state is producer-owned and intentionally separate from the training
+ * queue. Zero-initialized RALLY_TARGET_SELF is the Warcraft default: the
+ * producer itself is the rally widget until the player chooses another target. */
+typedef enum {
+    RALLY_TARGET_NONE = -1,
+    RALLY_TARGET_SELF = 0,
+    RALLY_TARGET_POINT,
+    RALLY_TARGET_ENTITY,
+} rallyTargetType_t;
+
 typedef struct spell_target_s {
     spellTargetType_t type;
     union {
@@ -643,6 +653,12 @@ struct edict_s {
     } construction;
     BOOL training; /* spawned in a production queue but not yet completed */
     BOOL training_food_wait_notified; /* one-shot Nofood feedback for the active queue head */
+    struct {
+        rallyTargetType_t type;
+        VECTOR2 point;
+        LPEDICT entity;
+        DWORD entity_spawn_time;
+    } rally;
     struct {
         LONG used; /* food currently accounted to s.player; queue-head reservations live here */
         LONG made; /* food capacity currently accounted to s.player */
@@ -1195,6 +1211,16 @@ void G_RecomputePlayerUpkeep(LPGAMECLIENT client);
 LONG G_ApplyResourceIncome(LPPLAYER player, DWORD resource_state, LONG gross_amount);
 BOOL G_UnitCanReviveHeroes(LPCEDICT altar);
 BOOL G_HeroCanBeRevivedAt(LPCEDICT altar, LPCEDICT hero);
+
+// skills/s_rally.c
+BOOL G_UnitHasRally(LPCEDICT producer);
+void G_ResetRallyTarget(LPEDICT producer);
+BOOL G_SetRallyPoint(LPEDICT producer, LPCVECTOR2 point);
+BOOL G_SetRallyEntity(LPEDICT producer, LPEDICT target);
+rallyTargetType_t G_ResolveRallyTarget(LPEDICT producer, LPVECTOR2 point, LPEDICT *target);
+BOOL G_ApplyRallyOrder(LPEDICT producer, LPEDICT produced);
+void G_InvalidateRallyTarget(LPEDICT target);
+
 DWORD G_HeroReviveGoldCost(LPCEDICT hero);
 DWORD G_HeroReviveLumberCost(LPCEDICT hero);
 FLOAT G_HeroReviveTime(LPCEDICT hero);
