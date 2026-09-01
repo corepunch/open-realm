@@ -209,6 +209,15 @@ LPCRECT SCR_LayoutRect(LPCUIFRAME frame) {
             drawtext = SCR_GetDrawText(frame, avl_space, SCR_GetStringValue(frame), frame->buffer.data);
             elemsize = re.GetTextSize(&drawtext);
             break;
+        case FT_NAMETAG: {
+            uiNameTag_t const *tag = frame->buffer.data;
+            drawtext = SCR_GetDrawText(frame, avl_space, SCR_GetStringValue(frame), &tag->text);
+            elemsize = re.GetTextSize(&drawtext);
+            if (frame->flagsvalue & UIFLAG_SIZE_TO_CONTENT) {
+                elemsize.x += tag->padding_x * 2; elemsize.y += tag->padding_y * 2;
+            }
+            break;
+        }
         case FT_TEXTURE:
         case FT_SIMPLESTATUSBAR: {
             /* NormalImage/HoverImage semantics: when the frame has no explicit
