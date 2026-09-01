@@ -228,6 +228,7 @@ void SV_InitGameProgs(void) {
     import.Write = PF_Write;
     import.ApplyLobbySettings = SV_ApplyLobbySettings;
     import.CvarString = Cvar_String;
+    import.UserPath = FS_UserPath;
 
     ge = GetGameAPI(&import);
     ge->Init();

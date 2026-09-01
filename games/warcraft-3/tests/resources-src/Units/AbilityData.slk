@@ -1,11 +1,14 @@
 ID;PWXL;N;E
-B;X6;Y7;D0
+B;X9;Y8;D0
 C;X1;Y1;K"alias"
 C;X2;K"code"
 C;X3;K"Data11"
 C;X4;K"DataA1"
 C;X5;K"Data12"
 C;X6;K"Data13"
+C;X7;K"levels"
+C;X8;K"reqLevel"
+C;X9;K"levelSkip"
 C;X1;Y2;K"AInv"
 C;X2;K"AInv"
 C;X3;K"6"
@@ -31,4 +34,9 @@ C;X2;K"Agld"
 C;X3;K"12500"
 C;X5;K"1"
 C;X6;K"1"
+C;X1;Y8;K"AHhb"
+C;X2;K"AHhb"
+C;X7;K3
+C;X8;K1
+C;X9;K2
 E

@@ -106,6 +106,7 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [UI Quick Reference](architecture/ui-quick-reference.md)
 - [Map Renderer](architecture/map-renderer.md)
 - [Ability Coverage](architecture/ability-coverage.md)
+- [Hero Ability Progression](hero-abilities.md)
 - [ROC Ability Checklist](architecture/roc-ability-checklist.md)
 - [Cinematics](cinematics.md)
 - [Hero Revival](hero-revival.md)

@@ -12,6 +12,10 @@ void free_slk_rows(slkTestData_t *rows);
 static DWORD building_stand_calls;
 static uiFrame_t building_command_frame;
 static BOOL building_command_frame_seen;
+static uiFrame_t building_command_number_frame;
+static uiLabel_t building_command_number_label;
+static char building_command_number_text[16];
+static BOOL building_command_number_seen;
 static BOOL building_cursor_opcode_seen;
 static BOOL building_cursor_clear_seen;
 
@@ -28,8 +32,16 @@ static int building_test_image_index(LPCSTR name) {
 static void building_capture_write(pfWriteType_t type, void const *value) {
     if (!value) return;
     if (type == PF_UIFRAME) {
-        building_command_frame = *(uiFrame_t const *)value;
-        building_command_frame_seen = true;
+        uiFrame_t const *frame = value;
+        if (frame->flags.type == FT_STRING && frame->text && frame->buffer.size == sizeof(uiLabel_t)) {
+            building_command_number_frame = *frame;
+            building_command_number_label = *(uiLabel_t const *)frame->buffer.data;
+            snprintf(building_command_number_text, sizeof(building_command_number_text), "%s", frame->text);
+            building_command_number_seen = true;
+        } else {
+            building_command_frame = *frame;
+            building_command_frame_seen = true;
+        }
         return;
     }
     if (type == PF_BYTE) {
@@ -313,6 +325,37 @@ TEST(wc3_building, disabled_command_button_is_inert_and_available_button_is_clic
     T_ASSERT(building_command_frame_seen);
     T_EQ(building_command_frame.hotkey, 'B');
     T_NOT_NULL(building_command_frame.onclick);
+
+    gi.Write = old_write;
+    gi.ImageIndex = old_image_index;
+}
+
+TEST(wc3_building, command_button_number_draws_bottom_right_overlay) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    int (*old_image_index)(LPCSTR) = gi.ImageIndex;
+    gameCommandButton_t button;
+
+    memset(&button, 0, sizeof(button));
+    snprintf(button.command, sizeof(button.command), "CmdSelectSkill");
+    snprintf(button.art, sizeof(button.art), "test");
+    button.x = 0;
+    button.y = 0;
+    button.number = 1;
+
+    gi.Write = building_capture_write;
+    gi.ImageIndex = building_test_image_index;
+    building_command_frame_seen = false;
+    building_command_number_seen = false;
+    building_command_number_text[0] = '\0';
+
+    UI_WriteCommandButtonFrame(&button);
+
+    T_ASSERT(building_command_frame_seen);
+    T_ASSERT(building_command_number_seen);
+    T_EQ(building_command_number_frame.flags.type, FT_STRING);
+    T_STREQ(building_command_number_text, "1");
+    T_EQ(building_command_number_label.textalignx, FONT_JUSTIFYRIGHT);
+    T_EQ(building_command_number_label.textaligny, FONT_JUSTIFYBOTTOM);
 
     gi.Write = old_write;
     gi.ImageIndex = old_image_index;

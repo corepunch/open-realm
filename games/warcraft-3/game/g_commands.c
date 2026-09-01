@@ -217,16 +217,16 @@ CLIENTCOMMAND(Button) {
 }
 
 CLIENTCOMMAND(Research) {
-    LPCSTR classname = argv[1];
+    LPCSTR classname = argc >= 2 ? argv[1] : NULL;
     LPGAMECLIENT client = clent->client;
-//    ability_t const *ability = FindAbilityByClassname(classname);
-//    if (!ability) {
-//        gi.error("No such ability %s", classname);
-//        return;
-//    }
     LPEDICT ent = G_GetMainSelectedUnit(client);
-    DWORD abilcode = *(DWORD const *)classname;
-    unit_learnability(ent, abilcode);
+    DWORD abilcode = 0;
+
+    if (!ent || !classname || strlen(classname) != 4) {
+        return;
+    }
+    memcpy(&abilcode, classname, sizeof(abilcode));
+    G_HeroLearnSkill(ent, abilcode);
     Get_Commands_f(clent);
 }
 

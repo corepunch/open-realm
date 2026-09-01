@@ -313,12 +313,12 @@ DWORD SetHeroLevel(LPJASS j) {
 //    BOOL showEyeCandy = jass_checkboolean(j, 3);
     if (whichHero && level > (LONG)whichHero->hero.level) {
         /* WC3 SetHeroLevel raises the level by granting enough XP to reach it
-         * (level only increases); attributes/stats derive from the new level. */
-        DWORD const need = G_HeroXPForLevel((DWORD)level);
-        if (whichHero->hero.xp < need) {
-            whichHero->hero.xp = need;
-        }
-        G_HeroApplyLevel(whichHero, (DWORD)level);
+         * (level only increases). Route through the XP transition so skill
+         * points and one EVENT_PLAYER_HERO_LEVEL event per crossed level stay
+         * identical to ordinary XP gains. */
+        DWORD const target = MIN((DWORD)level, G_MaxHeroLevel());
+        DWORD const need = G_HeroXPForLevel(target);
+        G_HeroSetXP(whichHero, MAX(whichHero->hero.xp, need));
     }
     return 0;
 }
@@ -340,9 +340,14 @@ DWORD SelectHeroSkill(LPJASS j) {
     LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
     LONG abilcode = jass_checkinteger(j, 2);
     if (whichHero) {
-        unit_learnability(whichHero, (DWORD)abilcode);
+        G_HeroLearnSkill(whichHero, (DWORD)abilcode);
     }
     return 0;
+}
+DWORD GetUnitAbilityLevel(LPJASS j) {
+    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
+    LONG abilcode = jass_checkinteger(j, 2);
+    return jass_pushinteger(j, whichUnit ? (LONG)G_UnitAbilityLevel(whichUnit, (DWORD)abilcode) : 0);
 }
 DWORD ReviveHero(LPJASS j) {
     LPEDICT whichHero = jass_checkhandle(j, 1, "unit");

@@ -1,9 +1,11 @@
 ID;PWXL;N;E
-B;X2;Y7;D0
+B;X3;Y7;D0
 C;X1;Y1;K"unitAbilID"
 C;X2;K"abilList"
+C;X3;K"heroAbilList"
 C;X1;Y2;K"Hpal"
 C;X2;K"AInv"
+C;X3;K"AHhb"
 C;X1;Y3;K"hpea"
 C;X2;K"Ahar"
 C;X1;Y4;K"H001"

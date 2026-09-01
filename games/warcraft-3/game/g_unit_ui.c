@@ -115,8 +115,37 @@ static LPCSTR G_StringForLevel(LPCSTR text, DWORD level) {
     return text;
 }
 
+static LPCSTR G_FormatTooltipLevel(LPCSTR input, DWORD level) {
+    static char buffers[4][1024];
+    static DWORD cursor;
+    LPSTR out = buffers[cursor++ & 3];
+    LPSTR const out_end = out + sizeof(buffers[0]) - 1;
+
+    if (!input) {
+        out[0] = '\0';
+        return out;
+    }
+    while (*input && out < out_end) {
+        if (level && input[0] == '%' && input[1] == 'd') {
+            char number[16];
+            size_t count;
+
+            snprintf(number, sizeof(number), "%u", (unsigned)level);
+            count = MIN(strlen(number), (size_t)(out_end - out));
+            memcpy(out, number, count);
+            out += count;
+            input += 2;
+            continue;
+        }
+        *out++ = *input++;
+    }
+    *out = '\0';
+    return buffers[(cursor - 1) & 3];
+}
+
 static LPCSTR G_CleanTooltipString(LPCSTR text, DWORD level) {
-    return G_RemoveQuotes(G_ProcessTooltipString(G_StringForLevel(text, level)));
+    return G_RemoveQuotes(G_FormatTooltipLevel(
+        G_ProcessTooltipString(G_StringForLevel(text, level)), level));
 }
 
 static LPCSTR G_UIArtPath(LPCSTR art) {
@@ -127,6 +156,7 @@ static LPCSTR G_UIArtPath(LPCSTR art) {
 }
 
 BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, gameCommandButton_t *button) {
+    char command_code[256];
     LPCSTR base_code;
     LPCSTR art_code;
     LPCSTR art;
@@ -144,6 +174,13 @@ BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, 
         return false;
     }
 
+    /* parse_segment() returns a shared static buffer. Command-card callers
+     * commonly pass that buffer here, while tooltip level selection also uses
+     * parse_segment(). Own the command string before any nested parsing so
+     * ResearchTip/ResearchUbertip processing cannot overwrite the rawcode. */
+    G_CopyString(command_code, sizeof(command_code), code);
+    code = command_code;
+
     memset(button, 0, sizeof(*button));
     ability = FindAbilityForCommand(code);
     if (strlen(code) == 4) {
@@ -157,7 +194,7 @@ BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, 
     buttonpos = FindConfigValue(art_code, G_ResearchField(STR_BUTTONPOS, research));
     tip = FindConfigValue(art_code, G_ResearchField(STR_TIP, research));
     ubertip = FindConfigValue(art_code, G_ResearchField(STR_UBERTIP, research));
-    hotkey = FindConfigValue(art_code, STR_HOTKEY);
+    hotkey = FindConfigValue(art_code, G_ResearchField(STR_HOTKEY, research));
     art_path = G_UIArtPath(art);
 
     if (buttonpos && *buttonpos) {
@@ -287,8 +324,13 @@ BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_but
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdBuild, false, 0);
     }
     if (a->heroAbilList) {
+        BYTE const idx = count;
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdSelectSkill, false, 0);
-    } else if (a->abilList) {
+        if (count > idx) {
+            buttons[idx].number = ent->hero.skillpoints;
+        }
+    }
+    if (a->abilList) {
         PARSE_LIST(a->abilList, abil, parse_segment) {
             DWORD const code = G_AbilityCodeName(abil);
             if (G_IsImplementedAbility(abil)) {

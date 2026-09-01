@@ -7,9 +7,11 @@ and map-script behavior, but do not replace the native declarations.
 
 ## Baseline
 
-The registry currently contains 836 callbacks. A conservative source audit
-classifies 487 as implemented and 349 as clear placeholders, for 58.3% overall
-coverage. This count treats a callback as a placeholder only when it ignores its
+The registry currently contains 917 callbacks. The last conservative source
+audit snapshot classified 487 as implemented and 349 as clear placeholders
+across 836 callbacks (58.3% overall at that snapshot). Newer registrations,
+including `GetUnitAbilityLevel`, are not folded into the implementation split
+below yet. This count treats a callback as a placeholder only when it ignores its
 arguments and unconditionally returns no value, zero, false, or a null handle.
 A working `returns nothing` callback also returns zero at the C ABI boundary, so
 raw `return 0` counts are not meaningful.
@@ -74,6 +76,24 @@ callbacks therefore need mutable per-level state initialized from `MAPINFO`;
 casting away `level.mapinfo` constness is not the long-term ownership model.
 
 Camera bounds are an example of client-visible runtime state rather than mutable map metadata: each WC3 `PLAYER` receives a `BOX2 camera_bounds` initialized from W3I, `SetCameraBounds` changes that per-player copy, and the snapshot transports it so camera prediction uses the same limits as the server. `GetCameraMargin` is not a direct read of the W3I complement integers: it returns the geometric inset between the complement-derived playable rectangle and the W3I default camera rectangle. This distinction matters because World Editor generated `SetCameraBounds` calls use playable-edge constants plus/minus `GetCameraMargin`.
+
+## Campaign Game Cache
+
+Campaign carry-over uses a `gameCache_t` JASS handle plus a committed
+process-level snapshot. `Store*` mutates the handle and `SaveGameCache` commits
+it. `wc3_gamecache_mode` defaults to `memory`, which carries saved state between
+maps in the same process without disk I/O; `disk` additionally loads/writes the
+OpenRealm sidecar for cross-process persistence. Scalar typed values support
+store/get/have/flush, while `StoreUnit` snapshots the unit rawcode, Hero
+progression (including unspent skill points and learned ranks), health/mana,
+unit colour, and inventory IDs/charges. `RestoreUnit` creates a fresh unit for
+the requested player and reapplies that snapshot. See
+[campaign-game-cache.md](campaign-game-cache.md) for the lifecycle and private
+on-disk format.
+
+The `SyncStored*` callbacks remain **partial**: they validate/consume their
+arguments but do not implement multiplayer synchronization.
+`ReloadGameCachesFromDisk` remains unregistered.
 
 ## Runtime Error Reporting
 
@@ -212,6 +232,14 @@ so trigger publication and snapshots remain consistent.
   charges on a carried item refreshes the selected-unit inventory layer.
 - `widget` life operations share the damage/life representation across units,
   items, and destructables and clamp against the runtime maximum.
+
+Hero skill progression is documented separately in
+[Hero Ability Progression](hero-abilities.md). `SelectHeroSkill` routes through
+the same candidate/point/level/max-rank validation as the in-game skill menu,
+`SetHeroLevel` routes through the XP level transition, and
+`GetUnitAbilityLevel` reads the runtime learned rank. Generic runtime ability
+addition/removal/level mutation remains separate work because OpenRealm does
+not yet own a general per-unit dynamic ability collection.
 
 ## Sound And Music
 

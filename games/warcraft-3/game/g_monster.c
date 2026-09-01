@@ -574,9 +574,10 @@ void SP_SpawnUnit(LPEDICT self) {
             self->hero.str   = (DWORD)baseStr;
             self->hero.agi   = (DWORD)baseAgi;
             self->hero.intel = (DWORD)baseInt;
-            if (self->hero.level == 0) {
-                self->hero.level = 1;
-            }
+            /* war3mapUnits.doo stores Hero level but not unspent skill
+             * points. Seed the level-derived point budget before the map
+             * script applies its authored SelectHeroSkill calls. */
+            G_HeroInitializeProgression(self);
         }
     }
     self->attack1.type = FindEnumValue(w->attack1.attackType, attack_type);

@@ -69,6 +69,10 @@ struct game_import {
     /* Cvar access — allows the game library to read command-line/config values
      * without linking directly against common.  Returns fallback if not set. */
     LPCSTR (*CvarString)(LPCSTR name, LPCSTR fallback);
+
+    /* Resolve writable per-game state without linking game modules against
+     * engine common. The engine owns fs_homepath/basepath fallback policy. */
+    void (*UserPath)(LPCSTR rel, LPSTR out, DWORD out_size);
 };
 
 struct client;
@@ -85,6 +89,7 @@ typedef struct {
     BYTE research;
     BYTE active;
     BYTE disabled;
+    DWORD number; /* optional command-button numeric overlay; 0 hides it */
     FLOAT cooldown; /* fraction of the ability's cooldown still remaining (0=ready, 1=just used) */
     FLOAT manacost; /* mana cost to cast this ability at its current level (0 if not a spell) */
 } gameCommandButton_t;

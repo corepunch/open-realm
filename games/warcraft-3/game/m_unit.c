@@ -393,18 +393,167 @@ void unit_addstatus(LPEDICT ent, LPCSTR skill, DWORD level) {
     unit_addtimedstatus(ent, skill, level, 0);
 }
 
-void unit_learnability(LPEDICT ent, DWORD abilcode) {
+static heroability_t *G_FindRuntimeAbility(LPEDICT ent, DWORD abilcode) {
+    if (!ent || !abilcode) {
+        return NULL;
+    }
     FOR_LOOP(i, MAX_HERO_ABILITIES) {
-        heroability_t *ha = ent->heroabilities+i;
+        heroability_t *ha = ent->heroabilities + i;
+        if (ha->level && ha->code == abilcode) {
+            return ha;
+        }
+    }
+    return NULL;
+}
+
+static BOOL G_FourCCListContains(LPCSTR list, DWORD code) {
+    LPCSTR cursor = list;
+
+    if (!list || !code) {
+        return false;
+    }
+    while (*cursor) {
+        LPCSTR start;
+        LPCSTR end;
+        DWORD item = 0;
+
+        while (*cursor == ',' || isspace((unsigned char)*cursor)) cursor++;
+        if (!*cursor) break;
+        start = cursor;
+        while (*cursor && *cursor != ',') cursor++;
+        end = cursor;
+        while (end > start && isspace((unsigned char)end[-1])) end--;
+        if ((size_t)(end - start) == sizeof(item)) {
+            memcpy(&item, start, sizeof(item));
+            if (item == code) return true;
+        }
+        if (*cursor == ',') cursor++;
+    }
+    return false;
+}
+
+static DWORD G_HeroSkillLevel(LPCEDICT ent, DWORD abilcode) {
+    if (!ent || !abilcode) {
+        return 0;
+    }
+    FOR_LOOP(i, MAX_HERO_ABILITIES) {
+        heroability_t const *ha = ent->heroabilities + i;
+        if (ha->level && ha->code == abilcode) {
+            return ha->level;
+        }
+    }
+    return 0;
+}
+
+void G_HeroInitializeProgression(LPEDICT ent) {
+    DWORD spent_points = 0;
+
+    if (!ent) {
+        return;
+    }
+    if (ent->hero.level == 0) {
+        ent->hero.level = 1;
+    }
+    FOR_LOOP(i, MAX_HERO_ABILITIES) {
+        spent_points += ent->heroabilities[i].level;
+    }
+    if (!ent->hero.skillpoints && ent->hero.level > spent_points) {
+        ent->hero.skillpoints = ent->hero.level - spent_points;
+    }
+}
+
+DWORD G_UnitAbilityLevel(LPCEDICT ent, DWORD abilcode) {
+    DWORD const hero_level = G_HeroSkillLevel(ent, abilcode);
+    if (hero_level) {
+        return hero_level;
+    }
+    if (ent && ent->UnitAbilities && G_FourCCListContains(ent->UnitAbilities->abilList, abilcode)) {
+        return 1;
+    }
+    return 0;
+}
+
+void unit_learnability(LPEDICT ent, DWORD abilcode) {
+    heroability_t *existing = G_FindRuntimeAbility(ent, abilcode);
+    if (existing) {
+        existing->level++;
+        return;
+    }
+    FOR_LOOP(i, MAX_HERO_ABILITIES) {
+        heroability_t *ha = ent->heroabilities + i;
         if (ha->level == 0) {
             ha->level = 1;
             ha->code = abilcode;
             return;
-        } else if (ha->code == abilcode) {
-            ha->level++;
-            return;
         }
     }
+}
+
+static DWORD G_HeroAbilityLevelSkip(void) {
+    LPCSTR const value = Stb_IniCacheFind(&game.config.misc, "Misc", "HeroAbilityLevelSkip");
+    DWORD const skip = value ? (DWORD)atoi(value) : 0;
+    return skip > 0 ? skip : 2;
+}
+
+BOOL G_HeroHasCandidateSkill(LPCEDICT ent, DWORD abilcode) {
+    if (!ent || !G_UnitIsHero(ent) || !ent->UnitAbilities || !abilcode) {
+        return false;
+    }
+    return G_FourCCListContains(ent->UnitAbilities->heroAbilList, abilcode);
+}
+
+DWORD G_HeroSkillRequiredLevel(LPEDICT ent, DWORD abilcode) {
+    AbilityData_t const *ability = G_AbilityData(abilcode);
+    DWORD const current = G_HeroSkillLevel(ent, abilcode);
+    DWORD const base = ability->reqLevel > 0 ? (DWORD)ability->reqLevel : 1;
+    DWORD const skip = ability->levelSkip > 0 ? (DWORD)ability->levelSkip : G_HeroAbilityLevelSkip();
+    return base + current * skip;
+}
+
+heroSkillState_t G_HeroSkillState(LPEDICT ent, DWORD abilcode, DWORD *next_level, DWORD *required_level) {
+    AbilityData_t const *ability;
+    DWORD current;
+    DWORD required;
+
+    if (next_level) *next_level = 0;
+    if (required_level) *required_level = 0;
+    if (!G_HeroHasCandidateSkill(ent, abilcode)) {
+        return HERO_SKILL_ABSENT;
+    }
+
+    ability = G_AbilityData(abilcode);
+    if (!ability->id || ability->levels <= 0) {
+        return HERO_SKILL_ABSENT;
+    }
+    current = G_HeroSkillLevel(ent, abilcode);
+    if (next_level) *next_level = current + 1;
+    if (current >= (DWORD)ability->levels) {
+        return HERO_SKILL_MAXED;
+    }
+    if (!ent->hero.skillpoints) {
+        return HERO_SKILL_NO_POINTS;
+    }
+
+    required = G_HeroSkillRequiredLevel(ent, abilcode);
+    if (required_level) *required_level = required;
+    if (ent->hero.level < required) {
+        return HERO_SKILL_LEVEL_LOCKED;
+    }
+    return HERO_SKILL_AVAILABLE;
+}
+
+BOOL G_HeroLearnSkill(LPEDICT ent, DWORD abilcode) {
+    DWORD const old_level = G_HeroSkillLevel(ent, abilcode);
+
+    if (G_HeroSkillState(ent, abilcode, NULL, NULL) != HERO_SKILL_AVAILABLE) {
+        return false;
+    }
+    unit_learnability(ent, abilcode);
+    if (G_HeroSkillLevel(ent, abilcode) != old_level + 1) {
+        return false;
+    }
+    ent->hero.skillpoints--;
+    return true;
 }
 
 /* WC3 hero attribute -> derived-stat bonuses.  Per-point constants are taken
@@ -513,11 +662,12 @@ void G_HeroSetXP(LPEDICT ent, DWORD xp) {
     ent->hero.xp = xp;
     DWORD const newLevel = G_HeroLevelForXP(xp);
     if (newLevel > oldLevel) {
-        G_HeroApplyLevel(ent, newLevel);
         /* WC3 fires the hero level-up event once per level gained; campaign
          * triggers (TriggerRegisterPlayerUnitEvent, EVENT_PLAYER_HERO_LEVEL)
          * react to it and GetLevelingUnit() resolves to this hero. */
         for (DWORD lv = oldLevel + 1; lv <= newLevel; lv++) {
+            G_HeroApplyLevel(ent, lv);
+            ent->hero.skillpoints++;
             G_PublishEvent(ent, EVENT_PLAYER_HERO_LEVEL);
         }
     }

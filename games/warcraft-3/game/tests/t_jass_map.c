@@ -37,6 +37,39 @@ static BOOL event_in_queue(EVENTTYPE type) {
 }
 
 /* =========================================================================
+ * Shared JASS/list lexer regressions
+ * ========================================================================= */
+
+TEST(wc3_jass_map, parse_segment_quoted_single_value_stops_at_end) {
+    PARSER parser = {
+        .buffer = "\"Learn Holy Light - [Level %d]\"",
+        .delimiters = ""
+    };
+    LPCSTR value = parse_segment(&parser);
+
+    T_NOT_NULL(value);
+    T_STREQ(value, "Learn Holy Light - [Level %d]");
+    T_NULL(parse_segment(&parser));
+}
+
+TEST(wc3_jass_map, parse_segment_quoted_list_advances_to_next_value) {
+    PARSER parser = {
+        .buffer = "\"Level 1\",\"Level 2\"",
+        .delimiters = ""
+    };
+    char first[32];
+    LPCSTR value = parse_segment(&parser);
+
+    T_NOT_NULL(value);
+    strlcpy(first, value, sizeof(first));
+    value = parse_segment(&parser);
+    T_STREQ(first, "Level 1");
+    T_NOT_NULL(value);
+    T_STREQ(value, "Level 2");
+    T_NULL(parse_segment(&parser));
+}
+
+/* =========================================================================
  * Sanity — assertion helpers work end-to-end
  * ========================================================================= */
 

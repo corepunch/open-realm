@@ -53,9 +53,7 @@ typedef struct gtriggercondition_s {
     struct gtriggercondition_s *next;
 } TRIGGERCONDITION;
 
-typedef struct {
-    UINAME campaign;
-} ggamecache_t;
+typedef gameCache_t ggamecache_t;
 
 struct gtrigger_s {
     struct gtriggeraction_s *actions;
