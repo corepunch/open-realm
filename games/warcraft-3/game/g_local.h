@@ -1204,6 +1204,7 @@ DWORD M_RefreshHeatmap(LPEDICT, FLOAT);
 BOOL M_IsDead(LPEDICT);
 void SP_SpawnUnit(LPEDICT);
 DWORD unit_spawn_aiflags(DWORD);
+DWORD unit_spawn_entityflags(DWORD);
 BOOL SP_TrainUnit(LPEDICT, DWORD);
 BOOL player_pay(LPPLAYER, DWORD);
 

@@ -159,6 +159,11 @@ typedef struct mdxAttachment_s {
     struct mdxAttachment_s *next;
 } mdxAttachment_t;
 
+typedef struct mdxAttachmentPosition_s {
+    LPCSTR name;
+    VECTOR3 origin;
+} mdxAttachmentPosition_t;
+
 typedef enum {
     MODELLIGHTTYPE_OMNI = 0x0,
     MODELLIGHTTYPE_DIRECT = 0x1,
@@ -381,6 +386,9 @@ extern MATRIX4 node_matrices[MDX_MAX_NODES];
 mdxSequence_t const *R_FindSequenceAtTime(mdxModel_t const *model, DWORD time);
 void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *keytrack, DWORD time, HANDLE output);
 mdxSequence_t const *MDLX_FindSequenceByName(mdxModel_t const *model, LPCSTR name);
+DWORD MDLX_CollectAttachmentPositions(mdxModel_t const *model, LPCMATRIX4 model_matrix,
+                                      DWORD frame, DWORD oldframe, LPCSTR prefix,
+                                      mdxAttachmentPosition_t *positions, DWORD max_positions);
 
 mdxModel_t *R_LoadModelMDLX(void *buffer, DWORD size);
 void MDLX_Release(mdxModel_t *model);

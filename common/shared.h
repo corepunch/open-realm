@@ -192,6 +192,9 @@ enum {
     FLAG(RF_QUEST_COMPLETE, 18), /* tint "?" sprite yellow */
     FLAG(RF_NOT_SELECTABLE, 19), /* render normally but exclude from world hit/box selection */
     FLAG(RF_NEUTRAL, 20),        /* neutral/passive relationship presentation */
+    FLAG(RF_BUILDING, 21),       /* WC3 structure; enables building-only presentation */
+    FLAG(RF_BUILDING_FIRE_UNDEAD, 22),    /* use Undead building-damage fire family */
+    FLAG(RF_BUILDING_FIRE_NIGHTELF, 23),  /* use Night Elf building-damage fire family */
 };
 
 enum {
@@ -207,6 +210,9 @@ enum {
      * response or game command; do not widen entityState_t for this presentation data. */
     FLAG(EF_HOVER_HEALTH, 8),   /* client may expose this entity's health on world hover */
     FLAG(EF_NEUTRAL, 9),        /* neutral/passive relationship to this snapshot recipient */
+    FLAG(EF_BUILDING, 10),      /* WC3 structure presentation metadata */
+    FLAG(EF_BUILDING_FIRE_UNDEAD, 11),   /* WC3 Undead structure fire visuals */
+    FLAG(EF_BUILDING_FIRE_NIGHTELF, 12), /* WC3 Night Elf structure fire visuals */
 };
 
 enum {

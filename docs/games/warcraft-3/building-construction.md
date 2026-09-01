@@ -212,3 +212,7 @@ Runtime checks should cover at least:
 20. Order Repair from outside `Rng`; the worker must walk to the building footprint rather than teleport to it.
 21. Right-click a damaged owned building with a Repair-capable worker; Smart Repair should start. Right-click a full-health building; Repair should decline and normal Smart fallback remains available.
 22. Interrupt Repair or kill the worker and verify a paused building retains no stale primary-builder association.
+
+## See Also
+
+- [Building Damage Rendering](building-damage-rendering.md) — health-driven fire overlays are renderer presentation; construction Birth suppresses them even though construction starts at low HP.

@@ -134,6 +134,7 @@ typedef struct {
     DWORD frame;
     DWORD oldframe;
     DWORD flags;
+    BYTE health;        /* compressed 0..255 snapshot health ratio */
     float angle;        /* 1D yaw for dynamic actors (units, players); grounded Warcraft III entities use this */
     float scale;
     float radius;

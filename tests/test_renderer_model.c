@@ -258,6 +258,35 @@ TEST(renderer_model, mdx_keytrack_binary_lookup_preserves_sequence_semantics) {
     MDLX_GetModelKeytrackValue(&model, track, 325, &value); T_FEQ(value, 2.625f, 0.001f);
 }
 
+TEST(renderer_model, mdx_attachment_positions_follow_authored_pivot_and_model_transform) {
+    mdxAttachment_t sprite = { 0 }, other = { 0 };
+    mdxAttachmentPosition_t positions[2] = { 0 };
+    VECTOR3 pivots[] = { { 4.0f, 5.0f, 6.0f }, { 1.0f, 2.0f, 3.0f } };
+    mdxModel_t model = { .attachments = &sprite, .pivots = pivots, .num_pivots = 2 };
+    MATRIX4 transform;
+    DWORD count;
+
+    snprintf(sprite.node.name, sizeof(sprite.node.name), "Sprite First Ref");
+    sprite.node.node_id = 0; sprite.node.parent_id = (DWORD)-1; sprite.next = &other;
+    snprintf(other.node.name, sizeof(other.node.name), "Origin Ref");
+    other.node.node_id = 1; other.node.parent_id = (DWORD)-1;
+    model.nodes[0] = &sprite.node; model.nodes[1] = &other.node;
+    model.node_list[0] = &sprite.node; model.node_list[1] = &other.node;
+    model.num_nodes = 2;
+
+    Matrix4_identity(&transform);
+    Matrix4_translate(&transform, &(VECTOR3){ 10.0f, 20.0f, 30.0f });
+    count = MDLX_CollectAttachmentPositions(&model, &transform, 0, 0,
+                                            "Sprite ", positions,
+                                            sizeof(positions) / sizeof(*positions));
+
+    T_EQ(count, 1);
+    T_STREQ(positions[0].name, "Sprite First Ref");
+    T_FEQ(positions[0].origin.x, 14.0f, 0.001f);
+    T_FEQ(positions[0].origin.y, 25.0f, 0.001f);
+    T_FEQ(positions[0].origin.z, 36.0f, 0.001f);
+}
+
 
 TEST(renderer_model, mdx_geometry_packs_two_geosets_into_model_ranges) {
     VECTOR3 pos[] = {{1,2,3}, {4,5,6}, {7,8,9}}, normals[] = {{0,0,1}, {0,1,0}, {1,0,0}};
