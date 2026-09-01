@@ -162,6 +162,10 @@ All camera target writers use `G_ClampCameraPosition()`: user `clc_camera_positi
 
 The camera bounds constrain the **target**, not the visible frustum. Do not widen `SetCameraBounds` to compensate for a view that appears to stop too early. WC3's world projection must instead use the actual gameplay viewport above the command console. `V_RenderView()` assigns `{0, 0.22, 1, 0.76}` to both `viewDef.viewport` and `viewDef.scissor`; `Matrix4_getCameraMatrix()` derives aspect ratio from that viewport rather than the full window. Renderer screen rays (`R_LineForScreenPoint`) and drag-selection normalization use the same viewport, so ground picking, middle-dragging, minimap camera-footprint projection, and the visible world all agree. A full-window projection followed only by scissoring narrows the horizontal ground footprint and leaves the camera target vertically off-center inside the visible WC3 world area; near map edges this can look like an over-tight camera clamp even when the JASS bounds themselves are correct.
 
+The August 30, 2026 viewport change (`9c22952`, `wc3: match retail camera viewport and bounds semantics`) also established a presentation contract for post-world overlays. `R_RenderView()` calls `R_RevertSettings()` before drawing 2D overhead bars, and `V_RenderView()` draws the drag-selection marquee after `re.RenderFrame()`, so both paths are back in full-window GL state even though their content belongs to the world. Those overlays must temporarily re-apply `viewDef.scissor` and then restore the full-window scissor before `SCR_DrawLayout()` draws the HUD. Do not move the WC3 HUD boundary into renderer constants or rely on opaque console art to hide world overlays; the client-authored `viewDef.scissor` remains the authoritative rectangular world boundary.
+
+The classic console is not itself rectangular: the retained info/status panel, portrait/minimap region, build queue, and command-card buttons can protrude above the flat world-scissor bottom while still being authored HUD. Drag selection therefore has one additional client-side rule. `SCR_LayoutClampSelectionRect()` examines the visible retained layout frames that extend into the bottom console and constrains the marquee's moving corner before the rectangle is used for both drawing and `EntitiesInRect()`. This keeps the selection box out of transparent status/command-card art without changing the camera viewport or teaching the shared renderer Warcraft-specific button coordinates. Full-screen world games naturally skip this rule because their world scissor already reaches the bottom of the UI canvas. See [economy-and-unit-presentation.md](economy-and-unit-presentation.md) for overhead-bar presentation details.
+
 Regression coverage:
 
 ```sh
@@ -170,6 +174,15 @@ make test
 ```
 
 The full test target covers the standalone `net.playerstate_camera_bounds_roundtrip` and `net.camera_prediction_reconciles_to_server_clamped_bound` cases. The implementation change must also retain the existing cinematic cleanup tests because camera bounds are transmitted in `PLAYER`. Camera JASS regression tests run against the deliberately minimal `games/warcraft-3/tests/resources-src/Scripts/common.j`; when a test uses a `common.j` constant or native, add its real declaration/value to that fixture. In particular, `GetCameraMargin` requires the integer `CAMERA_MARGIN_LEFT/RIGHT/TOP/BOTTOM` selectors (`0/1/2/3`). Leaving those globals undefined passes a non-integer value to the native and trips `jass_checkinteger()` before the assertion can run.
+
+Visual viewport-overlay verification must cover both archive modes because the HUD art can differ while the world boundary contract must not:
+
+```sh
+build/bin/openwarcraft3 -data 'data/Warcraft III' -roc +map 'Maps\Campaign\Human02.w3m' +com_frame_limit 1200
+build/bin/openwarcraft3 -data 'data/Warcraft III' -tft +map 'Maps\Campaign\Human02.w3m' +com_frame_limit 1200
+```
+
+During each bounded run, drag a world selection marquee downward through the command console and select a living unit near the lower world edge. Overhead health/mana bars must stop at `viewDef.scissor`. The marquee must stop earlier wherever retained bottom-console frames protrude above that rectangular boundary, including the status/info panel and command-card/build-button area; no console pixel may reveal the marquee.
 
 ### Cinefilter
 
