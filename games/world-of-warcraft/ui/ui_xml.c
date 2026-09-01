@@ -1,6 +1,8 @@
 /* ui_xml.c — WoW Glue FrameXML runtime: drawing, Lua bindings, mouse events, TOC loader.
  * Parsing lives in stb_wowxml.h. */
+#ifndef STB_WOW_XML_IMPLEMENTATION
 #define STB_WOW_XML_IMPLEMENTATION
+#endif
 #include "ui_local.h"
 #include "ui_dbc.h"
 #include "client/ui_text_input.h"
