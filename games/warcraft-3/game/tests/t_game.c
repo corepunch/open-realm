@@ -196,13 +196,8 @@ TEST(wc3_game, hud_message_overlay_invalid_position_keeps_fdf_anchor) {
     T_FEQ(frame.Points.y[FPP_MIN].offset, -0.30f, 0.001f);
 }
 
-
-TEST(wc3_game, overhead_bar_width_uses_unit_selection_radius) {
-    T_FEQ(WC3_HoverBarWidth(45.0f), 0.045f, 0.0001f); /* Hpal: scale 1.25 * retail ScaleFactor 72 / 2. */
-}
-
-TEST(wc3_game, overhead_bar_fill_keeps_retail_one_thousandth_inset) {
-    T_FEQ(0.008f - 0.001f * 2.0f, 0.006f, 0.0001f);
+TEST(wc3_game, overhead_bar_fill_keeps_warsmash_three_pixel_inset) {
+    T_FEQ(0.008f - 0.003f * 2.0f, 0.002f, 0.0001f);
 }
 
 /* =========================================================================

@@ -212,16 +212,16 @@ static void test_spawn(void *context) { (*(DWORD *)context)++; }
 
 LPTEXTURE R_LoadTexture(LPCSTR filename) { (void)filename; return texture_load_result; }
 
-LPMODEL R_GameLoadModel(LPCSTR filename) {
+LPMODEL R_LoadModel(LPCSTR filename) {
     (void)filename; load_count++;
     return fail_load ? NULL : test_alloc(sizeof(model_t));
 }
 
-void R_GameReleaseModel(LPMODEL model) { release_count++; test_free(model); }
+void R_ReleaseModel(LPMODEL model) { release_count++; test_free(model); }
 
-void R_GameRegisterMap(LPCSTR map) {
+void R_RegisterMap(LPCSTR map) {
     (void)map; register_count++;
-    if (touch_during_registration) R_LoadModel("models/touched.mdx");
+    if (touch_during_registration) R_LoadRegisteredModel("models/touched.mdx");
 }
 
 static void reset_registry(void) {
@@ -280,10 +280,10 @@ TEST(renderer_model, mdx_geometry_packs_two_geosets_into_model_ranges) {
 TEST(renderer_model, filename_cache_hit_and_miss) {
     LPMODEL first, second;
     reset_registry();
-    first = R_LoadModel("Models/Foo.mdx");
-    second = R_LoadModel("models/foo.mdx");
+    first = R_LoadRegisteredModel("Models/Foo.mdx");
+    second = R_LoadRegisteredModel("models/foo.mdx");
     T_ASSERT(first == second); T_EQ(load_count, 1); T_EQ(release_count, 0);
-    R_ReleaseModel(first); R_ReleaseModel(second);
+    R_ReleaseRegisteredModel(first); R_ReleaseRegisteredModel(second);
     R_RegisterMapAssets("next");
     T_EQ(register_count, 1); T_EQ(release_count, 1);
 }
@@ -291,26 +291,26 @@ TEST(renderer_model, filename_cache_hit_and_miss) {
 TEST(renderer_model, registration_keeps_touched_model_then_reclaims_it) {
     LPMODEL model;
     reset_registry();
-    model = R_LoadModel("models/touched.mdx"); R_ReleaseModel(model);
+    model = R_LoadRegisteredModel("models/touched.mdx"); R_ReleaseRegisteredModel(model);
     touch_during_registration = true; R_RegisterMapAssets("current");
     T_EQ(load_count, 1); T_EQ(release_count, 0);
-    R_ReleaseModel(model); touch_during_registration = false; R_RegisterMapAssets("next");
+    R_ReleaseRegisteredModel(model); touch_during_registration = false; R_RegisterMapAssets("next");
     T_EQ(release_count, 1);
 }
 
 TEST(renderer_model, missing_model_placeholder_is_cached) {
     LPMODEL first, second;
     reset_registry(); fail_load = true;
-    first = R_LoadModel("models/missing.mdx"); second = R_LoadModel("models/missing.mdx");
+    first = R_LoadRegisteredModel("models/missing.mdx"); second = R_LoadRegisteredModel("models/missing.mdx");
     T_ASSERT(first == second); T_EQ(load_count, 1);
-    R_ReleaseModel(first); R_ReleaseModel(second); R_RegisterMapAssets("next");
+    R_ReleaseRegisteredModel(first); R_ReleaseRegisteredModel(second); R_RegisterMapAssets("next");
     T_EQ(release_count, 1);
 }
 
 TEST(renderer_model, unknown_model_release_is_immediate) {
     LPMODEL model;
     reset_registry(); model = test_alloc(sizeof(*model));
-    R_ReleaseModel(model); T_EQ(release_count, 1);
+    R_ReleaseRegisteredModel(model); T_EQ(release_count, 1);
 }
 
 TEST(renderer_texture, cached_registration_preserves_newer_texture_indices) {

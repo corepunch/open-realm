@@ -146,11 +146,7 @@ static void SCR_UpdateHoverUnitUI(void) {
             unit.visible = true;
             unit.x = (cl.viewDef.viewport.x + (ndc_x * 0.5f + 0.5f) * cl.viewDef.viewport.w) * UI_BASE_WIDTH;
             unit.y = (1.0f - (cl.viewDef.viewport.y + (ndc_y * 0.5f + 0.5f) * cl.viewDef.viewport.h)) * UI_BASE_HEIGHT;
-#ifdef WC3
-            unit.width = WC3_HoverBarWidth(cl.viewDef.entities[i].radius);
-#else
-            unit.width = 0.064f;
-#endif
+            unit.width = 0.045f;
             unit.health = ent->stats[ENT_HEALTH];
             unit.mana = ent->stats[ENT_MANA];
             strlcpy(unit.name, "Object", sizeof(unit.name));
@@ -1003,7 +999,7 @@ static BOOL SCR_RangesOverlap(FLOAT a0, FLOAT a1, FLOAT b0, FLOAT b1) {
 void SCR_LayoutClampSelectionRect(LPRECT rect) {
     VECTOR2 start, finish, clamped;
     FLOAT world_bottom;
-    FLOAT xmin, xmax, ymin, ymax;
+    FLOAT xmin, xmax;
     size2_t window;
 
     if (!rect) {
@@ -1042,35 +1038,6 @@ void SCR_LayoutClampSelectionRect(LPRECT rect) {
                 clamped.y = r->y;
             } else if (finish.y < start.y && bottom < start.y && bottom > clamped.y) {
                 clamped.y = bottom;
-            }
-        }
-    }
-
-    ymin = MIN(start.y, clamped.y);
-    ymax = MAX(start.y, clamped.y);
-
-    /* A protruding panel can also be entered sideways when the drag begins
-     * near its top.  Clamp horizontal travel against the same bottom-console
-     * mask using the already-clamped vertical span. */
-    FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
-        HANDLE layout = layout_layers[layer];
-        DWORD flags = cl.playerstate.uiflags;
-        if (!layout || ((1 << layer) & flags)) continue;
-        SCR_Clear(layout);
-        FOR_LOOP(i, SCR_NumFrames()) {
-            LPCUIFRAME frame = SCR_Frame(i);
-            LPCRECT r;
-            FLOAT bottom;
-            if (!frame || !SCR_LayoutSelectionBlockerType(frame->flags.type)) continue;
-            r = SCR_LayoutRect(frame);
-            if (!r || r->w <= 0.0f || r->h <= 0.0f) continue;
-            bottom = r->y + r->h;
-            if (bottom < world_bottom || !SCR_RangesOverlap(ymin, ymax, r->y, bottom)) continue;
-
-            if (finish.x > start.x && r->x > start.x && r->x < clamped.x) {
-                clamped.x = r->x;
-            } else if (finish.x < start.x && (r->x + r->w) < start.x && (r->x + r->w) > clamped.x) {
-                clamped.x = r->x + r->w;
             }
         }
     }

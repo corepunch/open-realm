@@ -530,7 +530,7 @@ void UI_RefreshLocal(DWORD time) {
 /* Draw the client-projected hover unit as a WC3 UI-owned name plate and status stack. */
 static void UI_DrawHoverUnit(void) {
     RECT label, bar;
-    FLOAT hp, mana, label_w;
+    FLOAT hp, mana, label_w, cursor;
     VECTOR2 text_size;
     drawText_t text_draw;
     COLOR32 hp_color;
@@ -551,24 +551,10 @@ static void UI_DrawHoverUnit(void) {
         .color = COLOR32_WHITE, .textWidth = 0, .lineHeight = 1.0f };
     text_size = hover_font ? hover_renderer->GetTextSize(&text_draw) : MAKE(VECTOR2, 0, 0);
     label_w = text_size.x + 0.016f;
-    label = MAKE(RECT, hover_unit.x - label_w * 0.5f, hover_unit.y - 0.005f - text_size.y - 0.012f,
-        label_w, text_size.y + 0.012f);
-    if (hover_bg && hover_edge) hover_renderer->DrawBackdrop(&(drawBackdrop_t){
-        .screen = label, .bg = { hover_bg, COLOR32_WHITE }, .edge = { hover_edge, COLOR32_WHITE },
-        .corner = { 0x1ff, 0.010f }, .insets = { 0.0019f, 0.0019f, 0.0019f, 0.0019f }, .flags = 0 });
-    if (hover_font) hover_renderer->DrawText(&(drawText_t){ .font = hover_font, .text = hover_unit.name, .rect = label,
-        .color = COLOR32_WHITE, .textWidth = label.w, .lineHeight = label.h,
-        .halign = FONT_JUSTIFYCENTER, .valign = FONT_JUSTIFYMIDDLE });
-    bar = MAKE(RECT, hover_unit.x - hover_unit.width * 0.5f, hover_unit.y - 0.002f, hover_unit.width, 0.008f);
-    if (hover_black) hover_renderer->DrawImageEx(&(drawImage_t){ .texture = hover_black, .shader = SHADER_UI,
-        .screen = bar, .uv = { 0, 0, 1, 1 }, .color = MAKE(COLOR32, 0, 0, 0, 220) });
-    if (hover_hp) {
-        RECT inner = MAKE(RECT, bar.x + 0.001f, bar.y + 0.001f, bar.w - 0.002f, bar.h - 0.002f);
-        hover_renderer->DrawImageEx(&(drawImage_t){ .texture = hover_hp, .shader = SHADER_UI,
-            .screen = inner, .uv = { 0, 0, hp, 1 }, .color = hp_color });
-    }
+    /* The projected point is the table: fill upward from it, mana first, then HP, then the nameplate. */
+    cursor = hover_unit.y;
     if (mana > 0.0f) {
-        bar.y += 0.008f;
+        bar = MAKE(RECT, hover_unit.x - hover_unit.width * 0.5f, cursor - 0.008f, hover_unit.width, 0.008f);
         if (hover_black) hover_renderer->DrawImageEx(&(drawImage_t){ .texture = hover_black, .shader = SHADER_UI,
             .screen = bar, .uv = { 0, 0, 1, 1 }, .color = MAKE(COLOR32, 0, 0, 0, 220) });
         if (hover_mana) {
@@ -576,7 +562,25 @@ static void UI_DrawHoverUnit(void) {
             hover_renderer->DrawImageEx(&(drawImage_t){ .texture = hover_mana, .shader = SHADER_UI,
                 .screen = inner, .uv = { 0, 0, mana, 1 }, .color = MAKE(COLOR32, 60, 90, 235, 255) });
         }
+        cursor = bar.y + 0.001f;
     }
+    bar = MAKE(RECT, hover_unit.x - hover_unit.width * 0.5f, cursor - 0.008f, hover_unit.width, 0.008f);
+    if (hover_black) hover_renderer->DrawImageEx(&(drawImage_t){ .texture = hover_black, .shader = SHADER_UI,
+        .screen = bar, .uv = { 0, 0, 1, 1 }, .color = MAKE(COLOR32, 0, 0, 0, 220) });
+    if (hover_hp) {
+        RECT inner = MAKE(RECT, bar.x + 0.001f, bar.y + 0.001f, bar.w - 0.002f, bar.h - 0.002f);
+        hover_renderer->DrawImageEx(&(drawImage_t){ .texture = hover_hp, .shader = SHADER_UI,
+            .screen = inner, .uv = { 0, 0, hp, 1 }, .color = hp_color });
+    }
+    cursor = bar.y + 0.001f;
+    label = MAKE(RECT, hover_unit.x - label_w * 0.5f, cursor - 0.003f - text_size.y - 0.012f,
+        label_w, text_size.y + 0.012f);
+    if (hover_bg && hover_edge) hover_renderer->DrawBackdrop(&(drawBackdrop_t){
+        .screen = label, .bg = { hover_bg, COLOR32_WHITE }, .edge = { hover_edge, COLOR32_WHITE },
+        .corner = { 0x1ff, 0.010f }, .insets = { 0.0019f, 0.0019f, 0.0019f, 0.0019f }, .flags = 0 });
+    if (hover_font) hover_renderer->DrawText(&(drawText_t){ .font = hover_font, .text = hover_unit.name, .rect = label,
+        .color = COLOR32_WHITE, .textWidth = label.w, .lineHeight = label.h,
+        .halign = FONT_JUSTIFYCENTER, .valign = FONT_JUSTIFYMIDDLE });
 }
 
 static void UI_UpdateHoverUnitLocal(uiHoverUnit_t const *unit) {

@@ -320,7 +320,7 @@ static void R_SetupGL(bool drawLight) {
     MATRIX4 ui_matrix;
 
     Matrix4_identity(&model_matrix);
-    R_GameSetupTextureMatrix();
+    R_SetupTextureMatrix();
     Matrix4_ortho(&ui_matrix, 0.0f, window.width, window.height, 0.0f, 0.0f, 100.0f);
 
     Matrix3_normal(&normal_matrix, &model_matrix);
@@ -421,7 +421,7 @@ static void R_UpdateSwapInterval(void) {
         fprintf(stderr, "OpenGL: vsync=%d\n", SDL_GL_GetSwapInterval());
 }
 
-void R_Init(DWORD width, DWORD height) {
+void R_InitRenderer(DWORD width, DWORD height) {
     renderer_shutdown = false;
     r_swapinterval = -999;
     BOOL gl_current = false;
@@ -529,7 +529,7 @@ void R_Init(DWORD width, DWORD height) {
 //    R_LoadModel("Assets\\Units\\Terran\\MarineTychus\\MarineTychus.m3");
 //    R_LoadModel("Assets\\Units\\Zerg\\Queen\\Queen.m3");
     
-    R_GameLoadAssets();
+    R_LoadAssets();
 
     R_LoadBuiltinShaders();
     fprintf(stderr, "Loading shaders succeeded.\n");
@@ -548,7 +548,7 @@ void R_Init(DWORD width, DWORD height) {
     R_Call(glClearColor, 0.0, 0.0, 0.0, 1.0);
     R_Call(glViewport, 0, 0, tr.drawableSize.width, tr.drawableSize.height);
     R_InitParticles();
-    R_GameInit();
+    R_Init();
     fprintf(stderr, "Refresher initialized.\n\n");
 }
 
@@ -588,13 +588,13 @@ void R_SetAlphaKeyState(BOOL enabled) {
 #endif
 }
 
-void R_Shutdown(void) {
+void R_ShutdownRenderer(void) {
     if (renderer_shutdown) {
         return;
     }
     renderer_shutdown = true;
     R_ShutdownModels();
-    R_GameShutdown();
+    R_Shutdown();
     R_ShutdownModelShader();
     R_ShutdownBuiltinShaders();
     R_ShutdownFonts();
@@ -640,8 +640,8 @@ void R_RenderShadowMap(void) {
     R_Call(glEnable, GL_POLYGON_OFFSET_FILL);
     R_Call(glPolygonOffset, 2.0f, 4.0f);
     R_BindTexture(tr.texture[TEX_SHADOWMAP], 1);
-    R_GameDrawWorld();
-    R_GameDrawTerrainShadows();
+    R_DrawWorld();
+    R_DrawTerrainShadows();
     R_DrawEntities();
     R_Call(glDisable, GL_POLYGON_OFFSET_FILL);
     R_Call(glPolygonOffset, 0.0f, 0.0f);
@@ -656,11 +656,11 @@ void R_RenderView(void) {
     if (tr.viewDef.rdflags & RDF_NOWORLDMODEL) {
         R_Call(glClear, GL_DEPTH_BUFFER_BIT);
     }
-    R_GameDrawWorld();
+    R_DrawWorld();
     R_DrawDecals();
     R_DrawEntities();
     tr.render_phase = RENDER_PHASE_ALPHA;
-    R_GameDrawAlphaSurfaces();
+    R_DrawAlphaSurfaces();
     if (!(tr.viewDef.rdflags & RDF_NOPARTICLES)) {
         R_DrawParticles();
     }
@@ -696,7 +696,7 @@ void R_RenderFrame(viewDef_t const *viewDef) {
         float aspect = (tr.viewDef.viewport.w * tr.drawableSize.width) > 0.0f
             ? (tr.viewDef.viewport.w * tr.drawableSize.width) / (tr.viewDef.viewport.h * tr.drawableSize.height)
             : 1.0f;
-        if (!R_GameExtractEntityCamera(entity, aspect, &tr.viewDef)) {
+        if (!R_ExtractEntityCamera(entity, aspect, &tr.viewDef)) {
             Matrix4_identity(&tr.viewDef.viewProjectionMatrix);
             Matrix4_identity(&tr.viewDef.textureMatrix);
             Matrix4_identity(&tr.viewDef.lightMatrix);
@@ -862,43 +862,29 @@ size2_t R_GetTextureSize(LPCTEXTURE texture) {
     }
 }
 
-bool R_GetModelInfo(LPMODEL model, LPMODELINFO info) {
-    if (!model || !info) {
-        return false;
-    }
-    memset(info, 0, sizeof(*info));
-    return R_GameGetModelInfo(model, info);
-}
+
 
 /* Keep model-format bounds inside the renderer while clients place game-owned world UI. */
 bool R_GetEntityOverheadPosition(renderEntity_t const *entity, LPVECTOR3 out) {
-    return R_GameEntityOverheadPosition(entity, out);
-}
-
-void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
-    R_GameDrawSprite(model, anim, x, y);
+    return R_EntityOverheadPosition(entity, out);
 }
 
 /* Cursor presentation is game-owned; the client only supplies UI coordinates. */
-bool R_DrawCursor(float x, float y, COLOR32 tint) { return R_GameDrawCursor(x, y, tint); }
 
-bool R_SetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
-    return R_GameSetEntityAnimFrame(model, anim, entity);
-}
 
 refExport_t R_GetAPI(refImport_t imp) {
     ri = imp;
     return (refExport_t) {
-        .Init = R_Init,
+        .Init = R_InitRenderer,
         .RegisterMap = R_RegisterMapAssets,
         .LoadTexture = R_LoadTexture,
-        .LoadModel = R_LoadModel,
+        .LoadModel = R_LoadRegisteredModel,
         .LoadFont = R_LoadFont,
         .SetFogOfWarData = R_SetFogOfWarData,
         .ReleaseTexture = R_ReleaseTexture,
-        .ReleaseModel = R_ReleaseModel,
+        .ReleaseModel = R_ReleaseRegisteredModel,
         .RenderFrame = R_RenderFrame,
-        .Shutdown = R_Shutdown,
+        .Shutdown = R_ShutdownRenderer,
         .BeginFrame = R_BeginFrame,
         .EndFrame = R_EndFrame,
         .Screenshot = R_Screenshot,
@@ -906,7 +892,7 @@ refExport_t R_GetAPI(refImport_t imp) {
         .DrawImage = R_DrawImage,
         .DrawImageEx = R_DrawImageEx,
         .DrawBackdrop = R_DrawBackdrop,
-        .DrawMinimap = R_DrawMinimap,
+        .DrawMinimap = R_DrawMinimapScene,
         .DrawLoadingIndicator = R_DrawLoadingIndicator,
         .DrawSelectionRect = R_DrawSelectionRect,
         .DrawChar = R_DrawChar,
@@ -924,9 +910,9 @@ refExport_t R_GetAPI(refImport_t imp) {
         .GetModelInfo = R_GetModelInfo,
         .GetEntityOverheadPosition = R_GetEntityOverheadPosition,
         .DrawBoundingBox = R_DrawBoundingBox,
-        .GetHeightAtPoint = R_GameGetHeightAtPoint,
+        .GetHeightAtPoint = R_GetHeightAtPoint,
         .TraceEntity = R_TraceEntity,
-        .TraceLocation = R_GameTraceLocation,
+        .TraceLocation = R_TraceLocation,
         .TraceCameraPlane = R_TraceCameraPlane,
         .TraceMinimap = R_TraceMinimap,
         .EntitiesInRect = R_EntitiesInRect,

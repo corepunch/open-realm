@@ -233,7 +233,7 @@ static BOOL R_MinimapPointForWorld(LPCVECTOR3 world, LPCRECT screen, LPVECTOR2 o
         return false;
     }
 
-    map_size = R_GameWorldSize();
+    map_size = R_WorldSize();
     if (map_size.x <= 0.0f || map_size.y <= 0.0f) {
         return false;
     }
@@ -348,7 +348,7 @@ bool R_TraceMinimap(float x, float y, LPVECTOR2 outWorld) {
     if (ux < r.x || ux > r.x + r.w || uy < r.y || uy > r.y + r.h) {
         return false;
     }
-    map_size = R_GameWorldSize();
+    map_size = R_WorldSize();
     if (map_size.x <= 0.0f || map_size.y <= 0.0f) {
         return false;
     }
@@ -359,7 +359,7 @@ bool R_TraceMinimap(float x, float y, LPVECTOR2 outWorld) {
     return true;
 }
 
-void R_DrawMinimap(LPCRECT screen) {
+void R_DrawMinimapScene(LPCRECT screen) {
     if (!screen) {
         return;
     }
@@ -368,7 +368,7 @@ void R_DrawMinimap(LPCRECT screen) {
     tr.hasMinimap = true;
 
     /* Each game owns its minimap content and authoritative texture source. */
-    R_GameDrawMinimap(screen);
+    R_DrawMinimap(screen);
 }
 
 void R_DrawPic(LPCTEXTURE texture, float x, float y) {

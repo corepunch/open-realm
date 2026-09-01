@@ -270,7 +270,7 @@ LPMAPLAYER R_BuildMapSegmentLayer(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD laye
     LPMAPLAYER mapLayer = ri.MemAlloc(sizeof(MAPLAYER));
     PATHSTR zBuffer;
     if (g_groundTextures[layer] == NULL) {
-        w3TerrainArt_t const *terrain = R_GameTerrainArt(map->grounds[layer]);
+        w3TerrainArt_t const *terrain = R_TerrainArt(map->grounds[layer]);
         if (terrain->file && terrain->dir) {
             snprintf(zBuffer, sizeof(zBuffer), "%s\\%s.blp", terrain->dir, terrain->file);
             g_groundTextures[layer] = R_LoadTexture(zBuffer);
@@ -296,7 +296,7 @@ LPMAPLAYER R_BuildGroundLayerGlobal(LPCWAR3MAP map, DWORD layer) {
     PATHSTR zBuffer;
 
     if (g_groundTextures[layer] == NULL) {
-        w3TerrainArt_t const *terrain = R_GameTerrainArt(map->grounds[layer]);
+        w3TerrainArt_t const *terrain = R_TerrainArt(map->grounds[layer]);
         if (terrain->file && terrain->dir) {
             sprintf(zBuffer, "%s\\%s.blp", terrain->dir, terrain->file);
             g_groundTextures[layer] = R_LoadTexture(zBuffer);
@@ -467,7 +467,7 @@ static BOOL R_TraceHeightmapTile(int x, int y, LPCLINE3 line, LPVECTOR3 output) 
     return Line3_intersect_triangle(line, &tri2, output);
 }
 
-bool R_TraceLocation(viewDef_t const *viewdef, FLOAT x, FLOAT y, LPVECTOR3 output) {
+bool _W3M_TraceLocation(viewDef_t const *viewdef, FLOAT x, FLOAT y, LPVECTOR3 output) {
     if (!viewdef || !output || !tr.world) {
         return false;
     }

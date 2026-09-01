@@ -1,6 +1,6 @@
 #include "r_wowmap.h"
 
-void R_RegisterMap(LPCSTR mapFileName) {
+void Wow_RegisterMap(LPCSTR mapFileName) {
     PATHSTR path;
     LPBYTE data = NULL;
     int size;
@@ -357,7 +357,7 @@ void Wow_DrawMinimap(LPCRECT screen) {
     }
 }
 
-void R_DrawWorld(void) {
+void Wow_DrawWorld(void) {
     WOWDRAWSTATS stats = { .collect = R_CvarEnabled("r_stats", "0") };
     DWORD doodad_bucket_count = 0;
     DWORD doodad_candidates = 0;
@@ -434,7 +434,7 @@ void R_DrawWorld(void) {
                     if (doodad->group == group && Wow_EntityInView(&doodad->entity)) R_RenderModel(&doodad->entity);
                 continue;
             }
-            R_GameRenderModelInstanced(group->model, &group->instances, 0); instanced_models++;
+            R_RenderModelInstanced(group->model, &group->instances, 0); instanced_models++;
         }
         if (R_CvarEnabled("r_wmos", "1")) {
             for (wowDoodadModel_t *group = wow_world.doodad_models; group; group = group->next) {
@@ -442,7 +442,7 @@ void R_DrawWorld(void) {
                 if (!R_UpdateInstanceBuffer(&group->wmo_instances, group->wmo_matrices, group->wmo_count)) {
                     fprintf(stderr, "WoW WMO doodads: instance upload failed for %s\n", group->path); continue;
                 }
-                R_GameRenderModelInstanced(group->model, &group->wmo_instances, 0); instanced_models++;
+                R_RenderModelInstanced(group->model, &group->wmo_instances, 0); instanced_models++;
             }
         }
         doodad_draws = R_GetFrameDrawCalls() - draw_start;
@@ -483,5 +483,5 @@ void R_DrawWorld(void) {
     }
 }
 
-void R_DrawAlphaSurfaces(void) {
+void Wow_DrawAlphaSurfaces(void) {
 }

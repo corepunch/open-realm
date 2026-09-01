@@ -336,7 +336,7 @@ void R_InitTextureFormats(void);
 void R_LoadTextureMipLevel(LPCTEXTURE texture, LPCTEXMIP mip);
 void R_BindTexture(LPCTEXTURE texture, DWORD unit);
 void R_SetTextureWrap(LPCTEXTURE texture, bool wrapS, bool wrapT);
-void R_RenderModel(renderEntity_t const *edict);
+void R_DrawEntity(renderEntity_t const *edict);
 void R_DrawTerrainShadows(void);
 bool MDLX_TraceModel(renderEntity_t const *edict, LPCLINE3 line);
 void R_ReleaseVertexArrayObject(LPBUFFER buffer);
@@ -386,8 +386,11 @@ void R_DrawEntities(void);
 FLOAT R_GetHeightAtPoint(FLOAT x, FLOAT y);
 
 // r_model.c
+/* Canonical game renderer hooks are declared here so unity-ordered game sources can call them directly. */
 LPMODEL R_LoadModel(LPCSTR modelFilename);
 void R_ReleaseModel(LPMODEL model);
+LPMODEL R_LoadRegisteredModel(LPCSTR modelFilename);
+void R_ReleaseRegisteredModel(LPMODEL model);
 void R_RegisterMapAssets(LPCSTR mapFileName);
 void R_ShutdownModels(void);
 
@@ -422,7 +425,7 @@ void R_DrawFill(LPCRECT rect, COLOR32 color);
 void R_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color);
 void R_DrawImageEx(LPCDRAWIMAGE drawImage);
 void R_DrawImageBatch(LPCTEXTURE texture, SHADERTYPE shaderType, BLEND_MODE alphamode, FLOAT uActiveGlow, BOOL hasClip, LPCRECT clip, LPCVERTEX vertices, DWORD num_vertices, BOOL repeat);
-void R_DrawMinimap(LPCRECT screen);
+void R_DrawMinimapScene(LPCRECT screen);
 bool R_TraceMinimap(float x, float y, LPVECTOR2 outWorld);
 void R_DrawMinimapCameraRect(LPCRECT screen);
 void R_DrawLoadingIndicator(LPCRECT rect, DWORD time, COLOR32 color);

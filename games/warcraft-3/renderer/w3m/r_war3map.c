@@ -203,7 +203,7 @@ LPWAR3MAP FileReadWar3Map(HANDLE archive) {
     return map;
 }
 
-void R_RegisterMap(char const *mapFilename) {
+void _W3M_RegisterMap(char const *mapFilename) {
     HANDLE hMpq;
     LPBYTE mapData;
     int mapSize;
@@ -233,7 +233,7 @@ void R_RegisterMap(char const *mapFilename) {
     R_BuildGroundLayers(map);
 }
 
-void R_DrawTerrainShadows(void) {
+void _W3M_DrawTerrainShadows(void) {
     if (!tr.world || !tr.texture[TEX_TERRAIN_SHADOW] || (tr.viewDef.rdflags & RDF_NOWORLDMODEL)) {
         return;
     }
@@ -249,7 +249,7 @@ void R_DrawTerrainShadows(void) {
     R_RenderRectSplat(&mins, &maxs, tr.texture[TEX_TERRAIN_SHADOW], R_SPLAT_SHADER(&tr.shader_shadowSplat), shadowColor);
 }
 
-void R_DrawWorld(void) {
+void _W3M_DrawWorld(void) {
     if (tr.viewDef.rdflags & RDF_NOWORLDMODEL)
         return;
 
@@ -276,7 +276,7 @@ void R_DrawWorld(void) {
     }
 }
 
-void R_DrawAlphaSurfaces(void) {
+void _W3M_DrawAlphaSurfaces(void) {
     if (tr.viewDef.rdflags & RDF_NOWORLDMODEL)
         return;
 
