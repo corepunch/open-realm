@@ -35,13 +35,10 @@ Features here use the Q2 svc_layout / server-authored UI pattern, not WoWee's Im
 
 ## World Labels
 
-`renderer/r_ents.c` follows WoWee's `renderNameplates()` distance policy: ordinary NPC labels cull at 20 world units,
-player labels at 40, and the selected target at 60. Each tier fades over its final 5 units. Distance is measured from the
-interpolated third-person camera eye, not merely from clip-space visibility; projecting every server-authored name produced
-readable labels for NPCs 50–1,650 units away and severe overlap.
-
-The reusable camera-angle math lives in `games/world-of-warcraft/common/wow_view.h`; keep client camera construction and
-renderer label culling on that same pitch/yaw/roll convention.
+`g_ui.c` sends a static `LAYER_WORLD_HOVER` name and health/mana tree during `ClientBegin`. `Wow_CustomizeEntity` grants
+`EF_HOVER_HEALTH` and compressed vitals only to live selectable creatures. The generic client projects the hovered model's authored
+overhead point and evaluates those bindings locally; mouse motion sends no network message. Vanilla-style recipient filtering keeps
+the pooled name hidden until the creature is selected, so an unselected hover can show bars without disclosing its name.
 
 ## Loot System Details
 

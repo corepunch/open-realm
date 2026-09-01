@@ -200,8 +200,8 @@ TEST(sc2_hud_live, hud_supply_icon_drawn) {
 TEST(sc2_hud_live, hud_supply_text_is_stat_driven) {
     capture_output();
     /* Supply label (SupplyLabel, stat=FOOD_USED/FOOD_CAP) must render
-     * as "0/0", not "text N".  Both values start at zero on connect. */
-    ASSERT_BOTH_IN_LINE("draw_text", "text=\"0/0\"");
+     * as "0", not "text N". The formatter omits an empty capacity. */
+    ASSERT_BOTH_IN_LINE("draw_text", "text=\"0\"");
 }
 
 TEST(sc2_hud_live, hud_mineral_count_is_stat_driven) {
@@ -277,6 +277,7 @@ TEST(sc2_hud_live, hud_console_uses_one_retained_layer) {
     T_EQ(count_lines("SV layout: layer=0"), 1);
     T_EQ(count_lines("SV layout: layer=4"), 0);
     T_EQ(count_lines("SV layout: layer=5"), 0);
+    T_EQ(count_lines("SV layout: layer=10"), 1);
 }
 
 TEST(sc2_hud_live, hud_command_button_icons_stamped) {

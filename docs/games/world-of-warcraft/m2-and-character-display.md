@@ -207,7 +207,7 @@ before any recursive render overwrites it. See
 
 The renderer applies the same lifetime rule to overhead name/quest anchors. Immediately after drawing an entity, it resolves
 the PlayerName attachment from the current bone palette and caches the world point under the complete pose/transform key.
-Later name and marker passes reuse that point instead of rebuilding the M2 pose. A bounded Human-start diagnostic recorded
+The generic world-hover layout projection and later marker passes reuse that point instead of rebuilding the M2 pose. A bounded Human-start diagnostic recorded
 only cache hits after scene initialization (steady one-second windows included 20 and 148 hits, with zero misses).
 
 ## Grounded Actor Yaw

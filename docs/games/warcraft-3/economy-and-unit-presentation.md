@@ -282,13 +282,6 @@ Repeated quest rows already have authoritative schemas in Blizzard's `QuestDialo
 height, then binds title, selection color, and command data to the named children. It must not spawn generic text rows or impose a
 parallel width/stride.
 
-Overhead resource bars use two fixed slots in `renderer/r_ents.c`: mana keeps the lower/original slot, and health occupies the slot
-above it. Without mana, health still sits one bar height above the projected model point. `R_DrawHealthBars()` is intentionally a
-post-world 2D pass: `R_RenderView()` first restores the full-window viewport so UI-space projection is not compressed into the WC3
-world viewport, then temporarily re-applies `viewDef.scissor` while drawing the bars. Keep that split. Drawing with the world viewport
-still active double-applies the viewport transform; drawing with the full-window scissor lets bars near the lower world edge bleed into
-the command console. See [cinematics.md](cinematics.md) for the WC3 camera/viewport contract and the drag-selection overlay rule.
-
 ### World-unit hover health
 
 WC3 world hover is presentation-only and remains separate from selection. `client/cl_input_w3.c` ray-picks the world on mouse motion,
@@ -302,6 +295,10 @@ The presentation path is:
 game.dll UI_WriteHoverLayout -> svc_layout LAYER_WORLD_HOVER
 TraceEntity -> cl.hover_entity -> generic context projection/bindings -> SCR_DrawLayout
 ```
+
+The renderer does not construct or draw this widget. `SCR_LayoutWorldHoverRoot` projects the model-authored overhead point and rejects
+points outside the world scissor before the generic layout drawer evaluates the server-declared frames. WoW uses the same context
+layer with its own frame tree; SC2 currently sends an empty layer as an explicit server-owned placeholder.
 
 The hover nameplate/stat bar is native runtime UI, not an FDF-defined frame. ROC `FrameDef.toc` contains no world-hover frame;
 retail constructs `CUnitTip` and `CStatBar` directly, so `game.dll` mirrors that lifecycle with proxy `uiFrame_t` frames rather than

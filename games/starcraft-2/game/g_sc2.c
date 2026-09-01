@@ -704,6 +704,8 @@ static void SC2_ClientBegin(LPEDICT ent) {
     /* Send initial static HUD. */
     SC2_HUD_WriteResourcePanel(ent);
     SC2_HUD_WriteConsolePanel(ent);
+    SC2_HUD_WriteStart(LAYER_WORLD_HOVER);
+    SC2_HUD_WriteEnd(ent);
 
     /* Fire the Galaxy MapInit event on the first client connect. */
     if (sc2_level.vm && !sc2_level.scriptsStarted) {

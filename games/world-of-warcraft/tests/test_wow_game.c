@@ -37,6 +37,7 @@ static char test_playerinfo[MAX_PATHLEN];
 typedef struct {
     BYTE layer;
     FRAMETYPE type;
+    DWORD stat;
     char text[512];
     char onclick[128];
     DWORD image_index;
@@ -370,6 +371,7 @@ static void test_write(pfWriteType_t type, void const *value) {
             capture = &test_ui_frames[test_ui_frame_count++];
             capture->layer = test_layout_layer;
             capture->type = frame->flags.type;
+            capture->stat = frame->stat;
             snprintf(capture->text, sizeof(capture->text), "%s", frame->text ? frame->text : "");
             snprintf(capture->onclick, sizeof(capture->onclick), "%s", frame->onclick ? frame->onclick : "");
             capture->image_index = frame->tex.index;
@@ -690,6 +692,55 @@ TEST(wow_game, quest_marker_transitions_on_acceptance) {
         T_ASSERT(!(state.renderfx & RF_ATTACH_OVERHEAD));
         T_ASSERT(!(state.flags & EF_QUEST_COMPLETE));
     }
+    if (game->Shutdown) game->Shutdown();
+}
+
+TEST(wow_game, customize_entity_authors_live_creature_hover_vitals) {
+    struct game_export *game = init_game();
+    LPEDICT ent = &wow_edicts[WOW_MAX_CLIENTS];
+    wowEntityLocal_t *local = Wow_EntityLocal(ent);
+    entityState_t state;
+
+    ent->inuse = true; ent->svflags = SVF_MONSTER; ent->s.number = WOW_MAX_CLIENTS; ent->s.model = 1;
+    local->health = 50; local->mana = 100;
+    state = ent->s;
+    game->CustomizeEntity(0, ent, &state);
+    T_ASSERT(state.flags & EF_HOVER_HEALTH);
+    T_EQ((int)state.stats[ENT_HEALTH], 127); T_EQ((int)state.stats[ENT_MANA], 255);
+    if (game->Shutdown) game->Shutdown();
+}
+
+TEST(wow_game, customize_entity_clears_dead_creature_hover_vitals) {
+    struct game_export *game = init_game();
+    LPEDICT ent = &wow_edicts[WOW_MAX_CLIENTS];
+    wowEntityLocal_t *local = Wow_EntityLocal(ent);
+    entityState_t state;
+
+    ent->inuse = true; ent->svflags = SVF_MONSTER | SVF_DEADMONSTER; ent->s.number = WOW_MAX_CLIENTS; ent->s.model = 1;
+    local->health = 50; local->dead = true;
+    state = ent->s; state.flags |= EF_HOVER_HEALTH;
+    state.stats[ENT_HEALTH] = state.stats[ENT_MANA] = 255;
+    game->CustomizeEntity(0, ent, &state);
+    T_ASSERT(!(state.flags & EF_HOVER_HEALTH));
+    T_EQ((int)state.stats[ENT_HEALTH], 0); T_EQ((int)state.stats[ENT_MANA], 0);
+    if (game->Shutdown) game->Shutdown();
+}
+
+TEST(wow_game, client_begin_sends_server_authored_hover_context) {
+    struct game_export *game = init_game();
+    LPEDICT player = &wow_edicts[0];
+    BOOL name = false, health = false, mana = false;
+
+    game->ClientBegin(player);
+    T_ASSERT(test_layout_seen[LAYER_WORLD_HOVER]);
+    FOR_LOOP(i, test_ui_frame_count) {
+        testUiFrame_t const *frame = &test_ui_frames[i];
+        if (frame->layer != LAYER_WORLD_HOVER) continue;
+        name |= frame->type == FT_STRING && frame->stat == UI_STAT_CONTEXT_NAME;
+        health |= frame->type == FT_SIMPLESTATUSBAR && frame->stat == UI_STAT_CONTEXT_HEALTH;
+        mana |= frame->type == FT_SIMPLESTATUSBAR && frame->stat == UI_STAT_CONTEXT_MANA;
+    }
+    T_ASSERT(name); T_ASSERT(health); T_ASSERT(mana);
     if (game->Shutdown) game->Shutdown();
 }
 
