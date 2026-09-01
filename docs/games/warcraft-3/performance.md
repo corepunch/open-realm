@@ -219,6 +219,29 @@ while discovering them and commits only that list; initialization treats allocat
 falling back to the square scan. `wc3_game.fow_blocker_cache_skips_clean_and_unchanged_dirty_updates` covers the clean
 cache hit, dirty/hash hit, and dirty/hash miss paths.
 
+### Retail Game.dll fog-of-war audit (Demo build 4486)
+
+`data/Warcraft3demo/Game.dll` is a PE32 x86 binary identified as `Warcraft III Demo (build 4486)`. It contains no matching
+PDB in the archive, but retains RTTI names and compiler source-path strings for `CFogOfWarMap.cpp`, `CFogMask`, and
+`CFogModifier`. Those anchors make the following observations direct disassembly results rather than guesses about the
+retail implementation.
+
+The retail map owns a packed fog mask rather than a byte-per-cell disk. Its initialization allocates dimensions rounded
+to powers of two, stores the mask in 16-bit words, and clears/initializes several parallel planes. The mask update code
+operates on word-aligned rows and applies precomputed directional bit patterns to rectangular spans. The disassembled
+helpers at `Game.dll+0x38e730`, `+0x38e7f0`, and `+0x38e8b0` are the horizontal/vertical mask primitives; they shift,
+merge, and clear 16-bit visibility bits while clipping the span to the mask bounds. A separate routine at `+0x38f4b0`
+selects a fog-mask entry, computes a clamped map-space window, and applies the directional spans. The binary also contains
+`CFogMaskTable.h` and a checksum diagnostic, confirming that these patterns are table-driven rather than generated as a
+per-cell circle.
+
+This is enough to reject the claim that `wc3_fow_fast=1` reproduces Warcraft III's exact visibility algorithm: the fast
+mode is intentionally a bounded circular reveal with no occlusion. The normal OpenRealm path remains the closer semantic
+match because it preserves blocker occlusion, but it is not yet a byte-for-byte retail reproduction. The exact mask-table
+contents, modifier-to-mask selection, update scheduling, and the meaning of every packed plane require either the matching
+PDB/source or controlled runtime tracing of the Windows binary. Do not replace the current shadowcast path with the fast
+disk based only on this audit.
+
 ### Local release A/B and remaining cost
 
 A same-machine release-build comparison used ROC Human02, 150 console `wait` commands, `cmd cancel`, then 1,200 waits
