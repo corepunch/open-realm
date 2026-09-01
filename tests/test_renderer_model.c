@@ -258,6 +258,14 @@ TEST(renderer_model, mdx_keytrack_binary_lookup_preserves_sequence_semantics) {
     MDLX_GetModelKeytrackValue(&model, track, 325, &value); T_FEQ(value, 2.625f, 0.001f);
 }
 
+TEST(renderer_model, mdx_particle_filter_modes_preserve_authored_blending) {
+    T_EQ(MDLX_ParticleBlendMode(MDX_PRE2_FILTER_BLEND), BLEND_MODE_BLEND);
+    T_EQ(MDLX_ParticleBlendMode(MDX_PRE2_FILTER_ADDITIVE), BLEND_MODE_ADD);
+    T_EQ(MDLX_ParticleBlendMode(MDX_PRE2_FILTER_MODULATE), BLEND_MODE_MODULATE);
+    T_EQ(MDLX_ParticleBlendMode(MDX_PRE2_FILTER_MODULATE_2X), BLEND_MODE_MODULATE_2X);
+    T_EQ(MDLX_ParticleBlendMode(MDX_PRE2_FILTER_ALPHAKEY), BLEND_MODE_ALPHAKEY);
+}
+
 TEST(renderer_model, mdx_attachment_positions_follow_authored_pivot_and_model_transform) {
     mdxAttachment_t sprite = { 0 }, other = { 0 };
     mdxAttachmentPosition_t positions[2] = { 0 };
@@ -533,6 +541,22 @@ TEST(renderer_shader, fog_raycast_uses_float_literals_for_glsl120) {
     }
     if (file) fclose(file);
     T_ASSERT(up); T_ASSERT(z); T_ASSERT(!invalid);
+}
+
+/* PRE2 supports non-additive filter modes; the shared particle pass must not collapse them to alpha blend. */
+TEST(renderer_shader, world_particles_support_pre2_modulate_filter_modes) {
+    FILE *file = fopen("renderer/r_particles.c", "rb");
+    char line[256];
+    BOOL modulate = false, modulate2x = false, alpha_key_state = false;
+
+    T_NOT_NULL(file);
+    while (file && fgets(line, sizeof(line), file)) {
+        if (strstr(line, "case BLEND_MODE_MODULATE:")) modulate = true;
+        if (strstr(line, "case BLEND_MODE_MODULATE_2X:")) modulate2x = true;
+        if (strstr(line, "blend_mode == BLEND_MODE_ALPHAKEY")) alpha_key_state = true;
+    }
+    if (file) fclose(file);
+    T_ASSERT(modulate); T_ASSERT(modulate2x); T_ASSERT(alpha_key_state);
 }
 
 /* WC3 waterfalls are PRE2-only MDX models, so their shared particle shader must consume the world FOW mask. */

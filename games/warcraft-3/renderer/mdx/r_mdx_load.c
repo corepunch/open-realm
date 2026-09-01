@@ -330,6 +330,11 @@ void ReadParticleEmitter(LPSIZEBUF buffer, mdxParticleEmitter_t *pe) {
     MSG_READ(buffer, pe->Length);
     MSG_READ(buffer, pe->Width);
     MSG_READ(buffer, pe->FilterMode);
+    if (pe->FilterMode >= MDX_PRE2_FILTER_COUNT) {
+        fprintf(stderr, "MDX: ParticleEmitter2 '%s' has unsupported FilterMode %u; using Blend\n",
+                pe->node.name, pe->FilterMode);
+        pe->FilterMode = MDX_PRE2_FILTER_BLEND;
+    }
     MSG_READ(buffer, pe->Rows);
     MSG_READ(buffer, pe->Columns);
     MSG_READ(buffer, pe->FrameFlags);
