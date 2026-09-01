@@ -295,7 +295,7 @@ as the 2004 behavior source.
 The reveal lifecycle is per player: an unselected quest giver shows only `!`;
 selection reveals its name in the attachment-18 slot and moves only the marker
 above it. Deselecting hides the name again. `Wow_CustomizeEntity` clears the
-copied snapshot's `image` field for every recipient except the one whose
+copied snapshot's `name` field for every recipient except the one whose
 `selected_entity` matches the creature, without changing the shared edict.
 Accepted and completed quest marker state remains recipient-specific.
 
@@ -304,13 +304,14 @@ Accepted and completed quest marker state remains recipient-specific.
 NPC names do not exist in the client creature DBCs. `CreatureDisplayInfo.dbc`
 and `CreatureModelData.dbc` resolve appearance/model data only; authoritative
 names come from the generated AzerothCore `WOWCREATURE` table. At quest-giver
-spawn, the server interns `WOWCREATURE.name` into `CS_GENERAL` and sends the
-absolute configstring index through the otherwise-unused WoW
-`entityState_t.image` field. `Wow_CustomizeEntity` exposes that index only for
-the recipient's selected creature. `V_AddClientEntity` resolves it to
-`renderEntity_t.name`; the renderer projects the entity top through the active
-view-projection and draws the green `Fonts\\FRIZQT__.TTF` label. The secondary
-marker render entity clears its inherited name so each NPC receives one label.
+spawn, the server interns `WOWCREATURE.name` into packed `CS_GENERAL` name
+slots and stores the 1-based packed identifier in `entityState_t.name`.
+`Wow_CustomizeEntity` clears the copied snapshot's `name` field for recipients
+that have not selected that creature, without changing the shared edict.
+`V_AddClientEntity` decodes the packed identifier to `renderEntity_t.name`; the
+renderer projects the entity top through the active view-projection and draws
+the green `Fonts\\FRIZQT__.TTF` label. The secondary marker render entity clears
+its inherited name so each NPC receives one label.
 
 ## Extraction Tools
 
