@@ -13,7 +13,7 @@ void order_stop(LPEDICT ent) {
 }
 
 static void stop_command(LPEDICT ent) {
-    FOR_SELECTED_UNITS(ent->client, e) {
+    FOR_CONTROLLABLE_SELECTED_UNITS(ent->client, e) {
         order_stop(e);
     }
 }

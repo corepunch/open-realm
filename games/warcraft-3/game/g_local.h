@@ -67,6 +67,9 @@ if (NAME) { \
 #define FOR_SELECTED_UNITS(CLIENT, ENT) \
 FILTER_EDICTS(ENT, G_IsEntitySelected(CLIENT, ENT))
 
+#define FOR_CONTROLLABLE_SELECTED_UNITS(CLIENT, ENT) \
+FILTER_EDICTS(ENT, G_IsEntitySelected(CLIENT, ENT) && G_UnitCanControl(CLIENT, ENT))
+
 KNOWN_AS(jass_s, JASS);
 KNOWN_AS(gcamerasetup_s, CAMERASETUP);
 KNOWN_AS(gregion_s, REGION);
@@ -171,6 +174,12 @@ typedef enum {
     ALLIANCE_RESCUABLE = 8,
     ALLIANCE_SHARED_VISION_FORCED = 9,
 } PLAYERALLIANCE;
+
+typedef enum {
+    SELECT_RELATION_FRIEND,
+    SELECT_RELATION_NEUTRAL,
+    SELECT_RELATION_ENEMY,
+} selectionRelation_t;
 
 typedef enum {
     TARG_NONE,
@@ -1402,6 +1411,11 @@ extern BYTE g_numTreeFallSounds;
 void G_SelectEntity(LPGAMECLIENT, LPEDICT);
 void G_DeselectEntity(LPGAMECLIENT, LPEDICT);
 BOOL G_IsEntitySelected(LPGAMECLIENT, LPEDICT);
+BOOL G_UnitCanBeSelected(LPGAMECLIENT, LPCEDICT);
+BOOL G_UnitCanControl(LPGAMECLIENT, LPCEDICT);
+selectionRelation_t G_SelectionRelation(DWORD viewer, LPCEDICT ent);
+LPEDICT G_GetMainControllableUnit(LPGAMECLIENT);
+void G_UpdateClientSelections(void);
 void G_QueueSelectionSound(LPEDICT);
 void G_ClientCommand(LPEDICT, DWORD, LPCSTR[]);
 void G_ClientSetCameraPosition(LPEDICT, LPCVECTOR2);

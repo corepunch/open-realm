@@ -1,6 +1,7 @@
 #include "g_local.h"
 
 #define CLIENTCOMMAND(NAME) void CMD_##NAME(LPEDICT clent, DWORD argc, LPCSTR argv[])
+#define WC3_SELECTION_LIMIT 12
 
 static BOOL G_TargetModeActive(LPGAMECLIENT client) {
     return client && (client->menu.on_entity_selected || client->menu.on_location_selected);
@@ -8,6 +9,13 @@ static BOOL G_TargetModeActive(LPGAMECLIENT client) {
 
 LPEDICT G_GetMainSelectedUnit(LPGAMECLIENT client) {
     FOR_SELECTED_UNITS(client, ent) {
+        return ent;
+    }
+    return NULL;
+}
+
+LPEDICT G_GetMainControllableUnit(LPGAMECLIENT client) {
+    FOR_CONTROLLABLE_SELECTED_UNITS(client, ent) {
         return ent;
     }
     return NULL;
@@ -29,6 +37,96 @@ BOOL G_IsEntitySelected(LPGAMECLIENT client, LPEDICT ent) {
     return client && ent && ent->inuse && !M_IsDead(ent) &&
         !(ent->s.flags & EF_NOT_SELECTABLE) &&
         (ent->selected & (1 << client->ps.number));
+}
+
+selectionRelation_t G_SelectionRelation(DWORD viewer, LPCEDICT ent) {
+    DWORD owner;
+    DWORD alliances;
+
+    if (!ent) {
+        return SELECT_RELATION_ENEMY;
+    }
+    owner = ent->s.player;
+    if (owner == viewer) {
+        return SELECT_RELATION_FRIEND;
+    }
+    if (owner == PLAYER_NEUTRAL_AGGRESSIVE) {
+        return SELECT_RELATION_ENEMY;
+    }
+    if (owner == PLAYER_NEUTRAL_PASSIVE) {
+        return SELECT_RELATION_NEUTRAL;
+    }
+    if (viewer >= MAX_PLAYERS || owner >= MAX_PLAYERS) {
+        return SELECT_RELATION_ENEMY;
+    }
+    alliances = level.alliances[viewer][owner];
+    if (!(alliances & (1 << ALLIANCE_PASSIVE))) {
+        return SELECT_RELATION_ENEMY;
+    }
+    if (alliances & (1 << ALLIANCE_SHARED_CONTROL)) {
+        return SELECT_RELATION_FRIEND;
+    }
+    return SELECT_RELATION_NEUTRAL;
+}
+
+BOOL G_UnitCanBeSelected(LPGAMECLIENT client, LPCEDICT ent) {
+    if (!client || !ent || !ent->inuse || !(ent->svflags & SVF_MONSTER)) {
+        return false;
+    }
+    if ((ent->svflags & SVF_DEADMONSTER) || ent->health.value <= 0.0f ||
+        (ent->s.flags & EF_NOT_SELECTABLE) || (ent->s.renderfx & RF_HIDDEN)) {
+        return false;
+    }
+    return G_FowPlayerCanHoverEntity(client->ps.number, ent);
+}
+
+BOOL G_UnitCanControl(LPGAMECLIENT client, LPCEDICT ent) {
+    DWORD owner;
+    DWORD alliances;
+
+    if (!G_UnitCanBeSelected(client, ent)) {
+        return false;
+    }
+    owner = ent->s.player;
+    if (owner == client->ps.number) {
+        return true;
+    }
+    if (owner == PLAYER_NEUTRAL_AGGRESSIVE || owner == PLAYER_NEUTRAL_PASSIVE ||
+        owner >= MAX_PLAYERS || client->ps.number >= MAX_PLAYERS) {
+        return false;
+    }
+    alliances = level.alliances[client->ps.number][owner];
+    return (alliances & (1 << ALLIANCE_PASSIVE)) != 0 &&
+           (alliances & (1 << ALLIANCE_SHARED_CONTROL)) != 0;
+}
+
+void G_UpdateClientSelections(void) {
+    FOR_LOOP(i, game.max_clients) {
+        LPGAMECLIENT client = game.clients + i;
+        LPEDICT clent;
+        BOOL changed = false;
+        DWORD bit = 1 << client->ps.number;
+
+        /* Inspect the raw bit here rather than FOR_SELECTED_UNITS.  The latter
+         * deliberately hides dead/unselectable entities, while this pass must
+         * clear stale selection bits after visibility/selectability changes. */
+        FILTER_EDICTS(ent, ent->selected & bit) {
+            if (!G_UnitCanBeSelected(client, ent)) {
+                G_DeselectEntity(client, ent);
+                changed = true;
+            }
+        }
+        if (!changed) {
+            continue;
+        }
+        clent = G_GetPlayerEntityByNumber(client->ps.number);
+        if (client->connected && clent && clent->client == client) {
+            Get_Portrait_f(clent);
+            Get_Commands_f(clent);
+        } else {
+            G_InvalidateCommands(client);
+        }
+    }
 }
 
 /* Client commands arrive before G_RunEntities clears the previous snapshot's
@@ -59,6 +157,7 @@ static BOOL G_CancelTargetMode(LPEDICT clent) {
 void CMD_CancelCommand(LPEDICT ent) {
     LPEDICT producer;
     if (ent && ent->client && (producer = G_GetMainSelectedUnit(ent->client)) &&
+        G_UnitCanControl(ent->client, producer) &&
         producer->build && producer->build->revival.reviving) {
         if (G_CancelHeroRevive(producer, producer->build)) {
             Get_Commands_f(ent);
@@ -83,12 +182,14 @@ CLIENTCOMMAND(Select) {
         BOOL cleared = false;
         BOOL hasunits = false;
         LPEDICT voice = NULL;
+        DWORD selected_count = 0;
         for (DWORD i = 1; i < argc; i++) {
             DWORD number = atoi(argv[i]);
             if (number >= globals.num_edicts)
                 continue;
             LPEDICT e = &globals.edicts[number];
-            if (e->s.player == client->ps.number && !G_UnitIsBuilding(e->class_id)) {
+            if (G_UnitCanBeSelected(client, e) && G_UnitCanControl(client, e) &&
+                !G_UnitIsBuilding(e->class_id)) {
                 hasunits = true;
             }
         }
@@ -97,19 +198,33 @@ CLIENTCOMMAND(Select) {
             if (number >= globals.num_edicts)
                 continue;
             LPEDICT e = &globals.edicts[number];
-            if (e->s.player == client->ps.number) {
-                if (hasunits && G_UnitIsBuilding(e->class_id))
+            if (G_UnitCanBeSelected(client, e)) {
+                if (hasunits && (!G_UnitCanControl(client, e) || G_UnitIsBuilding(e->class_id)))
                     continue;
                 if (!cleared) {
                     FOR_SELECTED_UNITS(client, ent) G_DeselectEntity(client, ent);
                     cleared = true;
                 }
+                if (G_IsEntitySelected(client, e)) {
+                    continue;
+                }
+                if (selected_count >= WC3_SELECTION_LIMIT) {
+                    break;
+                }
                 G_SelectEntity(client, e);
+                selected_count++;
                 if (!voice) voice = e;
             }
         }
         if (cleared) {
-            G_QueueSelectionSound(voice);
+            if (G_UnitCanControl(client, voice)) {
+                G_QueueSelectionSound(voice);
+            } else if (voice && voice->s.player != PLAYER_NEUTRAL_PASSIVE) {
+                /* Ordinary foreign units use interface feedback rather than
+                 * speaking their owner's selection acknowledgement. Neutral
+                 * Passive critter response rules remain a separate gap. */
+                G_PlayUISoundForPlayer(clent, "InterfaceClick");
+            }
             /* Selection is authoritative game state; HUD serialization is not
              * valid until ClientBegin has completed for this player slot. */
             if (client->connected) {
@@ -156,13 +271,13 @@ CLIENTCOMMAND(Smart) {
         return;
     }
     target = &globals.edicts[number];
-    FOR_SELECTED_UNITS(client, ent) {
+    FOR_CONTROLLABLE_SELECTED_UNITS(client, ent) {
         if (unit_issuetargetorder(ent, "smart", target)) {
             issued = true;
         }
     }
     if (issued) {
-        G_QueueOrderSound(G_GetMainSelectedUnit(client));
+        G_QueueOrderSound(G_GetMainControllableUnit(client));
         Get_Commands_f(clent);
     }
 }
@@ -188,7 +303,7 @@ CLIENTCOMMAND(SmartPoint) {
         return;
     }
     loc = (VECTOR2){ atoi(argv[1]), atoi(argv[2]) };
-    FOR_SELECTED_UNITS(client, ent) {
+    FOR_CONTROLLABLE_SELECTED_UNITS(client, ent) {
         if (G_UnitHasRally(ent)) {
             if (unit_issueorder(ent, "smart", &loc)) rally = true;
         } else {
@@ -200,7 +315,7 @@ CLIENTCOMMAND(SmartPoint) {
      * units, so rally-capable selections do not enter this path. */
     if (non_rally && move_selectlocation(clent, &loc)) issued = true;
     if (rally || issued) {
-        G_QueueOrderSound(G_GetMainSelectedUnit(client));
+        G_QueueOrderSound(G_GetMainControllableUnit(client));
     }
 }
 
@@ -211,13 +326,13 @@ CLIENTCOMMAND(Button) {
     LPEDICT producer;
 
     if (argc < 2) return;
+    producer = G_GetMainSelectedUnit(client);
+    if (!G_UnitCanControl(client, producer)) return;
     classname = argv[1];
     if (!strncmp(classname, "revive:", 7)) {
         char *end = NULL;
         unsigned long const number = strtoul(classname + 7, &end, 10);
         if (!end || *end || number >= globals.num_edicts) return;
-        producer = G_GetMainSelectedUnit(client);
-        if (!producer) return;
         G_QueueHeroRevive(producer, &globals.edicts[number]);
         return;
     }
@@ -228,12 +343,11 @@ CLIENTCOMMAND(Button) {
     } else if (client->menu.cmdbutton) {
         client->menu.cmdbutton(clent, *((DWORD *)classname));
     } else {
-        LPEDICT ent = G_GetMainSelectedUnit(client);
         DWORD class_id = 0;
 
-        if (!ent || strlen(classname) != 4) return;
+        if (strlen(classname) != 4) return;
         memcpy(&class_id, classname, sizeof(class_id));
-        SP_TrainUnit(ent, class_id);
+        SP_TrainUnit(producer, class_id);
     }
 }
 
@@ -243,7 +357,7 @@ CLIENTCOMMAND(Research) {
     LPEDICT ent = G_GetMainSelectedUnit(client);
     DWORD abilcode = 0;
 
-    if (!ent || !classname || strlen(classname) != 4) {
+    if (!G_UnitCanControl(client, ent) || !classname || strlen(classname) != 4) {
         return;
     }
     memcpy(&abilcode, classname, sizeof(abilcode));
@@ -339,7 +453,7 @@ CLIENTCOMMAND(Inventory) {
 
     ent = G_GetMainSelectedUnit(client);
     slot = atoi(argv[1]);
-    if (!ent || slot < 0 || (DWORD)slot >= G_InventoryCapacity(ent)) {
+    if (!G_UnitCanControl(client, ent) || slot < 0 || (DWORD)slot >= G_InventoryCapacity(ent)) {
         return;
     }
 
@@ -382,7 +496,7 @@ CLIENTCOMMAND(CancelTrain) {
     if (!end || *end || parsed > UINT_MAX) return;
     client = clent->client;
     producer = G_GetMainSelectedUnit(client);
-    if (!producer || producer->s.player != client->ps.number || !producer->build || !producer->build->training) return;
+    if (!G_UnitCanControl(client, producer) || !producer->build || !producer->build->training) return;
     index = (DWORD)parsed;
     if (!G_CancelTrainingQueueItem(producer, index, true)) return;
     Get_Portrait_f(clent);
@@ -398,7 +512,7 @@ CLIENTCOMMAND(DropItem) {
     }
     unit = G_GetMainSelectedUnit(clent->client);
     slot = atoi(argv[1]);
-    if (!unit || slot < 0 || (DWORD)slot >= G_InventoryCapacity(unit)) {
+    if (!G_UnitCanControl(clent->client, unit) || slot < 0 || (DWORD)slot >= G_InventoryCapacity(unit)) {
         return;
     }
     G_DropItem(unit, (DWORD)slot);

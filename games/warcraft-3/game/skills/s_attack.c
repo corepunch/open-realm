@@ -368,7 +368,7 @@ BOOL attack_menu_selecttarget(LPEDICT ent, LPEDICT target) {
         (!S_SpellIsEnemy(ent, target) && !S_SpellIsFriend(ent, target)))) {
         return false;
     }
-    FOR_SELECTED_UNITS(ent->client, e) {
+    FOR_CONTROLLABLE_SELECTED_UNITS(ent->client, e) {
         if (e == target) continue;
         e->movement.attackmove_waypoint = NULL;
         order_attack(e, target);
@@ -422,7 +422,7 @@ void order_attackmove(LPEDICT self, LPEDICT waypoint) {
 static BOOL attackmove_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
     BOOL any = false;
 
-    FOR_SELECTED_UNITS(clent->client, ent) {
+    FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
         VECTOR2 target = *location;
         if ((ent->aiflags & AI_IMMOBILE) || ent->UnitBalance->speed <= 0) {
             continue;

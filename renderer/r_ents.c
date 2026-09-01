@@ -310,7 +310,14 @@ static void R_DrawEntityShadows(void) {
 
 static void R_RenderSelectedCircle(const renderEntity_t *entity, LPCVECTOR2 origin) {
     if (entity->flags & RF_SELECTED) {
-        COLOR32 color = { 0, 255, 0, 255 };
+        COLOR32 color;
+        if (entity->flags & RF_HOSTILE) {
+            color = MAKE(COLOR32, 255, 80, 80, 255);
+        } else if (entity->flags & RF_NEUTRAL) {
+            color = MAKE(COLOR32, 255, 220, 80, 255);
+        } else {
+            color = MAKE(COLOR32, 80, 200, 80, 255);
+        }
         float radius = R_SelectionRadius(entity);
         FOR_LOOP(i, NUM_SELECTION_CIRCLES) {
             if ((radius * 2) > selCircles[i])
