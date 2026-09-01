@@ -643,8 +643,8 @@ TEST(wow_game, quest_givers_receive_creature_frame_for_idle_animation) {
         T_ASSERT(e->svflags & SVF_MONSTER);
         T_NOT_NULL(local->animation);
         T_ASSERT(local->quest_available_model != 0);
-        T_ASSERT(e->s.image >= CS_GENERAL);
-        T_STREQ(test_configstrings[e->s.image], "Deputy Willem");
+        T_ASSERT(e->s.name != 0);
+        T_STREQ(test_configstrings[CS_GENERAL + ((e->s.name - 1) >> 4)] + ((e->s.name - 1) & 0xF) * ENT_NAME_SLOT_SIZE, "Deputy Willem");
         if (local->animation) T_STREQ(local->animation->name, "Stand");
         break;
     }
@@ -671,7 +671,7 @@ TEST(wow_game, quest_marker_transitions_on_acceptance) {
         /* Before acceptance: the authoritative yellow "!" M2, EF_HAS_QUEST cleared for this client. */
         state = giver->s;
         game->CustomizeEntity(0, giver, &state);
-        T_EQ((int)state.image, 0);
+        T_EQ((int)state.name, 0);
         T_ASSERT(!(state.flags & EF_HAS_QUEST));
         T_EQ((int)state.model2, (int)avail_model);
         T_ASSERT(state.renderfx & RF_ATTACH_OVERHEAD);
@@ -679,7 +679,7 @@ TEST(wow_game, quest_marker_transitions_on_acceptance) {
         wow_clients[0].selected_entity = giver->s.number;
         state = giver->s;
         game->CustomizeEntity(0, giver, &state);
-        T_EQ((int)state.image, (int)giver->s.image);
+        T_EQ((int)state.name, (int)giver->s.name);
         wow_clients[0].selected_entity = 0;
         /* After acceptance: grey "?" flag, no tint. */
         game->ClientCommand(&wow_edicts[0], 2, (LPCSTR[]){ "quest_accept", "783" });

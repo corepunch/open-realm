@@ -2497,7 +2497,7 @@ static void Wow_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state)
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
     if (player >= WOW_MAX_CLIENTS) return;
     /* Vanilla reveals a creature's overhead name only after that recipient selects it. */
-    if (wow_clients[player].selected_entity != state->number) state->image = 0;
+    if (wow_clients[player].selected_entity != state->number) state->name = 0;
     if (!local || !local->quest_id || !(state->flags & EF_HAS_QUEST)) return;
     state->flags &= ~(EF_HAS_QUEST | EF_QUEST_COMPLETE);
     switch (Wow_QuestMarkerForGiver(&wow_clients[player], local)) {
