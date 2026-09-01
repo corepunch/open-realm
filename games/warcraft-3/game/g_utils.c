@@ -25,6 +25,7 @@ void G_FreeActorSkills(LPEDICT ent) {
 void G_FreeEdict(LPEDICT ent) {
     if (!ent) return;
     G_UnregisterGroundSurface(ent);
+    G_InvalidateUnitShortcutsForUnit(ent);
     G_InvalidateRallyTarget(ent);
     if (ent->revival.reviving) G_CancelHeroRevive(ent->revival.producer, ent);
     if (ent->training) G_ClearTrainingQueueFood(ent);
@@ -77,12 +78,19 @@ void G_RemoveQuest(LPQUEST quest) {
 
 void G_SetPlayerAlliance(LPCPLAYER p1, LPCPLAYER p2, PLAYERALLIANCE type, BOOL value) {
     DWORD flag = 1 << type;
+    DWORD before12 = level.alliances[p1->number][p2->number];
+    DWORD before21 = level.alliances[p2->number][p1->number];
     if (value) {
         level.alliances[p1->number][p2->number] |= flag;
         level.alliances[p2->number][p1->number] |= flag;
     } else {
         level.alliances[p1->number][p2->number] &= ~flag;
         level.alliances[p2->number][p1->number] &= ~flag;
+    }
+    if ((type == ALLIANCE_PASSIVE || type == ALLIANCE_SHARED_CONTROL) &&
+        (before12 != level.alliances[p1->number][p2->number] ||
+         before21 != level.alliances[p2->number][p1->number])) {
+        G_InvalidateAllUnitShortcuts();
     }
 }
 

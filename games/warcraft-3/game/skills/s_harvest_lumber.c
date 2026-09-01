@@ -289,12 +289,16 @@ BOOL G_ActorAddSkill(LPEDICT ent, DWORD code) {
         if (G_AbilityData(code)->id != code) return false;
         skill_add(&ent->added_abilities, &ARRAY_COUNT(ent->added_abilities), code);
     }
+    if (code == MAKEFOURCC('A', 'h', 'a', 'r')) G_InvalidateUnitShortcutsForUnit(ent);
     return true;
 }
 
 BOOL G_ActorRemoveSkill(LPEDICT ent, DWORD code) {
     LONG index;
     if (!ent || !code || !actor_has_skill(ent, code)) return false;
+    /* Invalidate while Ahar is still present; the shortcut invalidation hook
+     * deliberately ignores ordinary non-worker units for low CPU overhead. */
+    if (code == MAKEFOURCC('A', 'h', 'a', 'r')) G_InvalidateUnitShortcutsForUnit(ent);
     index = skill_index(ent->added_abilities, ARRAY_COUNT(ent->added_abilities), code);
     if (index >= 0) skill_remove(ent->added_abilities, &ARRAY_COUNT(ent->added_abilities), index);
     else skill_add(&ent->removed_abilities, &ARRAY_COUNT(ent->removed_abilities), code);

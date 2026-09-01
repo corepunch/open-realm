@@ -391,6 +391,12 @@ struct client_s {
         LONG food_used;
         LONG food_cap;
     } resourcebar;
+    /* Persistent Hero/idle-worker HUD is rebuilt only after gameplay marks it
+     * dirty. last_idle_worker is the cycling cursor, not a per-frame cache. */
+    struct {
+        BOOL dirty;
+        DWORD last_idle_worker;
+    } shortcuts;
     struct {
         VECTOR2 position;
         DWORD end_time;        /* game time (ms), 0 = inactive */
@@ -1316,6 +1322,18 @@ void UI_WriteSelectedPortraitLayer(LPEDICT);
 void G_RefreshResourceBar(LPEDICT);
 void G_AccumulatePlayerFood(LPGAMECLIENT client);
 void G_UpdateClientResourceBars(void);
+BOOL G_UnitIsIdleWorker(LPCEDICT ent);
+BOOL G_UnitShowsIdleWorkerShortcut(LPGAMECLIENT client, LPCEDICT ent);
+BOOL G_UnitShowsHeroShortcut(LPGAMECLIENT client, LPCEDICT ent);
+LPEDICT G_GetNextIdleWorker(LPGAMECLIENT client, DWORD after);
+void G_InvalidateUnitShortcuts(LPGAMECLIENT client);
+void G_InvalidateAllUnitShortcuts(void);
+void G_InvalidateUnitShortcutsForUnit(LPEDICT ent);
+void G_ActivateHeroButton(LPEDICT clent, DWORD number);
+void G_ActivateHeroKey(LPEDICT clent, DWORD slot);
+void G_ActivateIdleWorkerShortcut(LPEDICT clent, DWORD hinted_number);
+void G_UpdateClientUnitShortcuts(void);
+void UI_WriteUnitShortcutLayer(LPEDICT ent);
 void UI_AddCancelButton(LPEDICT);
 void UI_WriteCommandButtonFrame(gameCommandButton_t const *button);
 void UI_AddCommandButton(LPCSTR);

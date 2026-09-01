@@ -209,6 +209,7 @@ Frames are grouped into `UILAYOUTLAYER` layers:
 | `LAYER_CINEMATIC` | Cinematic overlays |
 | `LAYER_MESSAGE` | Chat message area |
 | `LAYER_QUESTDIALOG` | Quest/objective display |
+| `LAYER_UNIT_SHORTCUTS` | Warcraft III persistent Hero and idle-worker controls |
 
 The server controls visibility via `playerState_t.uiflags` — a bitmask where each bit corresponds to a `UILAYOUTLAYER` value. The client's `SCR_DrawLayout()` skips layers whose bit is set:
 

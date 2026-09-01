@@ -1064,7 +1064,11 @@ BOOL SCR_LayoutHitTest(int x, int y) {
         SCR_Clear(layout);
         FOR_LOOP(i, SCR_NumFrames()) {
             LPCUIFRAME frame = SCR_Frame(i);
-            if (!frame || frame->flags.type != FT_TEXTURE) continue;
+            if (!frame) continue;
+            /* Persistent controls may intentionally sit over the world instead
+             * of over a console texture. Any clickable server-authored frame
+             * is gameplay UI and must suppress world selection underneath it. */
+            if (frame->flags.type != FT_TEXTURE && !SCR_LayoutFrameHasClickCommand(frame)) continue;
             if (Rect_contains(SCR_LayoutRect(frame), &point)) return true;
         }
     }

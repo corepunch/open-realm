@@ -16,6 +16,7 @@ static void cargo_add_unit(LPEDICT transport, LPEDICT unit) {
     transport->cargo.units[transport->cargo.count++] = unit;
     unit->s.renderfx |= RF_HIDDEN;
     unit->invulnerable = true;
+    G_InvalidateUnitShortcutsForUnit(unit);
 }
 
 static void cargo_drop_unit(LPEDICT transport, DWORD index) {
@@ -32,6 +33,7 @@ static void cargo_drop_unit(LPEDICT transport, DWORD index) {
     unit->s.renderfx &= ~RF_HIDDEN;
     unit->invulnerable = false;
     unit->s.origin2 = transport->s.origin2;
+    G_InvalidateUnitShortcutsForUnit(unit);
 }
 
 void cargo_drop_all(LPEDICT transport) {

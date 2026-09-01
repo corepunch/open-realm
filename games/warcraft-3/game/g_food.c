@@ -133,6 +133,7 @@ void G_SetUnitPlayer(LPEDICT unit, DWORD player) {
     DWORD old_player;
 
     if (!unit || unit->s.player == player) return;
+    G_InvalidateUnitShortcutsForUnit(unit);
     /* Queue charges belong to the original player. Cancel before ownership
      * changes so neither queued items nor refunds cross the transfer. */
     if (unit->revival.reviving) G_CancelHeroRevive(unit->revival.producer, unit);
@@ -153,6 +154,7 @@ void G_SetUnitPlayer(LPEDICT unit, DWORD player) {
     unit->s.player = player;
     G_InvalidateCommands(old_client);
     G_InvalidateCommands(new_client);
+    G_InvalidateUnitShortcutsForUnit(unit);
 }
 
 BOOL G_ReserveTrainingFood(LPEDICT unit) {

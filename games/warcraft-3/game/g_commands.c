@@ -159,6 +159,30 @@ static BOOL G_CancelTargetMode(LPEDICT clent) {
     return true;
 }
 
+static void G_PrepareUnitShortcut(LPEDICT clent) {
+    if (!clent || !clent->client) return;
+    G_CancelBuildPlacement(clent);
+    G_CancelTargetMode(clent);
+}
+
+CLIENTCOMMAND(HeroButton) {
+    if (argc < 2) return;
+    G_PrepareUnitShortcut(clent);
+    G_ActivateHeroButton(clent, (DWORD)atoi(argv[1]));
+}
+
+CLIENTCOMMAND(HeroKey) {
+    if (argc < 2) return;
+    G_PrepareUnitShortcut(clent);
+    G_ActivateHeroKey(clent, (DWORD)atoi(argv[1]));
+}
+
+CLIENTCOMMAND(IdleWorker) {
+    DWORD hinted_number = argc >= 2 ? (DWORD)atoi(argv[1]) : 0;
+    G_PrepareUnitShortcut(clent);
+    G_ActivateIdleWorkerShortcut(clent, hinted_number);
+}
+
 void CMD_CancelCommand(LPEDICT ent) {
     LPEDICT producer;
     if (ent && ent->client && (producer = G_GetMainSelectedUnit(ent->client)) &&
@@ -673,6 +697,9 @@ clientCommand_t clientCommands[] = {
     { "inventory", CMD_Inventory },
     { "dropitem", CMD_DropItem },
     { "select", CMD_Select },
+    { "herobutton", CMD_HeroButton },
+    { "herokey", CMD_HeroKey },
+    { "idleworker", CMD_IdleWorker },
     { "point", CMD_Point },
     { "smart", CMD_Smart },
     { "smartpoint", CMD_SmartPoint },

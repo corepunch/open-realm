@@ -75,6 +75,16 @@ static void CL_ApplySelection(DWORD const *ids, DWORD n) {
 BOOL CL_HandleGameKey(int sym, Uint16 mod) {
     if (!CL_GameplayInputReady())
         return false;
+    if (sym >= SDLK_F1 && sym <= SDLK_F7) {
+        MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+        SZ_Printf(&cls.netchan.message, "herokey %d", sym - SDLK_F1);
+        return true;
+    }
+    if (sym == SDLK_F8) {
+        MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+        SZ_Printf(&cls.netchan.message, "idleworker");
+        return true;
+    }
     if (sym < SDLK_0 || sym > SDLK_9)
         return false;
     DWORD const g = (DWORD)(sym - SDLK_0); /* 0..9 */
