@@ -103,6 +103,17 @@ static void G_FowSetCellState(fowPlayerGrid_t *grid, DWORD index, DWORD state) {
     if (!grid || !grid->visible || !grid->explored || index >= G_FowCellCount()) return;
     y = index / level.fow.width;
     x = index - y * level.fow.width;
+#ifdef WC3_FOW_PACKED_MASK
+    if (g_fow_fast) {
+        WORD *visible = grid->packed_visible + (x >> 4) + y * grid->packed_stride;
+        WORD *explored = grid->packed_explored + (x >> 4) + y * grid->packed_stride;
+        WORD bit = (WORD)(1u << (x & 15));
+        /* Scripted fog writes must update the packed planes read in fast mode, not only the legacy byte planes. */
+        if (state == WC3_FOG_STATE_VISIBLE) *visible |= bit, *explored |= bit;
+        else if (state == WC3_FOG_STATE_FOGGED) *visible &= ~bit, *explored |= bit;
+        else *visible &= ~bit, *explored &= ~bit;
+    }
+#endif
     if (state == WC3_FOG_STATE_VISIBLE) {
         G_FOW_SET_VISIBLE_CELL(grid, x, y);
         return;
@@ -245,28 +256,36 @@ static void G_FowRevealPacked(fowPlayerGrid_t *grid, DWORD cx, DWORD cy, int rad
 
             for (int bit_index = first; bit_index <= last; bit_index++) mask |= bit[bit_index];
             grid->packed_visible[word + y * grid->packed_stride] |= mask;
+            grid->packed_explored[word + y * grid->packed_stride] |= mask;
             grid->visible_rows[y] = 1;
             grid->dirty_visible_rows[y] = 1;
-            for (int bit_index = first; bit_index <= last; bit_index++) {
-                DWORD const index = (word << 4) + bit_index + y * level.fow.width;
-                if (!grid->explored[index]) {
-                    grid->explored[index] = 1;
-                    grid->dirty_explored_rows[y] = 1;
-                }
-            }
+            grid->dirty_explored_rows[y] = 1;
             x = (word + 1) << 4;
         }
     }
 }
 
-/* Unpack only rows touched by the current reveal pass for byte-based queries and network packing. */
-static void G_FowMaterializePacked(fowPlayerGrid_t *grid) {
-    FOR_LOOP(y, level.fow.height) {
-        BYTE *dst;
-        if (!grid->visible_rows[y]) continue;
-        dst = grid->visible + y * level.fow.width;
-        FOR_LOOP(x, level.fow.width) dst[x] = (grid->packed_visible[(x >> 4) + y * grid->packed_stride] >> (x & 15)) & 1;
+static void G_FowRevealPackedBox(fowPlayerGrid_t *grid, DWORD x0, DWORD y0, DWORD x1, DWORD y1) {
+    FOR_LOOP(y, y1 - y0 + 1) {
+        DWORD const row = y + y0;
+        DWORD x = x0;
+        while (x <= x1) {
+            DWORD const word = x >> 4;
+            DWORD const first = x & 15;
+            DWORD const last = MIN(15, x1 - (word << 4));
+            WORD mask = 0;
+            for (DWORD bit_index = first; bit_index <= last; bit_index++) mask |= (WORD)(1u << bit_index);
+            grid->packed_visible[word + row * grid->packed_stride] |= mask;
+            grid->packed_explored[word + row * grid->packed_stride] |= mask;
+            grid->visible_rows[row] = grid->dirty_visible_rows[row] = 1;
+            grid->dirty_explored_rows[row] = 1;
+            x = (word + 1) << 4;
+        }
     }
+}
+
+static BOOL G_FowPackedAt(WORD const *plane, fowPlayerGrid_t const *grid, DWORD x, DWORD y) {
+    return plane[(x >> 4) + y * grid->packed_stride] & (1u << (x & 15));
 }
 #endif
 
@@ -791,6 +810,12 @@ static void G_FowSetBoxState(fowPlayerGrid_t *grid, LPCBOX2 box, DWORD state) {
         x1 == FOW_INVALID_CELL || y1 == FOW_INVALID_CELL) {
         return;
     }
+#ifdef WC3_FOW_PACKED_MASK
+    if (g_fow_fast && state == WC3_FOG_STATE_VISIBLE) {
+        G_FowRevealPackedBox(grid, x0, y0, x1, y1);
+        return;
+    }
+#endif
     for (DWORD y = y0; y <= y1; y++) {
         for (DWORD x = x0; x <= x1; x++) G_FowSetCellState(grid, G_FowCellIndex(x, y), state);
     }
@@ -867,6 +892,7 @@ void G_FowShutdown(void) {
         SAFE_DELETE(grid->dirty_explored_rows, gi.MemFree);
 #ifdef WC3_FOW_PACKED_MASK
         SAFE_DELETE(grid->packed_visible, gi.MemFree);
+        SAFE_DELETE(grid->packed_explored, gi.MemFree);
         grid->packed_stride = 0;
 #endif
     }
@@ -911,12 +937,14 @@ void G_FowInit(void) {
 #ifdef WC3_FOW_PACKED_MASK
         grid->packed_stride = (level.fow.width + 15) >> 4;
         grid->packed_visible = gi.MemAlloc(grid->packed_stride * level.fow.height * sizeof(*grid->packed_visible));
+        grid->packed_explored = gi.MemAlloc(grid->packed_stride * level.fow.height * sizeof(*grid->packed_explored));
 #endif
         grid->dirty_visible_rows = gi.MemAlloc(level.fow.height);
         grid->dirty_explored_rows = gi.MemAlloc(level.fow.height);
         if (!grid->visible || !grid->explored || !grid->visible_rows ||
 #ifdef WC3_FOW_PACKED_MASK
             !grid->packed_visible ||
+            !grid->packed_explored ||
 #endif
             !grid->dirty_visible_rows || !grid->dirty_explored_rows) {
             G_FowShutdown();
@@ -926,6 +954,7 @@ void G_FowInit(void) {
         memset(grid->explored, 0, cells);
 #ifdef WC3_FOW_PACKED_MASK
         memset(grid->packed_visible, 0, grid->packed_stride * level.fow.height * sizeof(*grid->packed_visible));
+        memset(grid->packed_explored, 0, grid->packed_stride * level.fow.height * sizeof(*grid->packed_explored));
 #endif
         memset(grid->visible_rows, 0, level.fow.height);
         memset(grid->dirty_visible_rows, 1, level.fow.height);
@@ -982,10 +1011,6 @@ void G_FowUpdate(void) {
         G_FowRevealForViewers(ent, radius, owner_viewers[ent->s.player]);
     }
 
-#ifdef WC3_FOW_PACKED_MASK
-    if (g_fow_fast)
-        FOR_LOOP(player, MAX_PLAYERS) if (viewers & (1u << player)) G_FowMaterializePacked(&level.fow.players[player]);
-#endif
     G_FowApplyModifiers(viewers);
 }
 
@@ -1021,6 +1046,10 @@ BOOL G_FowPlayerCanHoverEntity(DWORD player, LPCEDICT ent) {
     }
     index = y * level.fow.width + x;
     grid = &level.fow.players[player];
+#ifdef WC3_FOW_PACKED_MASK
+    if (g_fow_fast)
+        return G_FowPackedAt(grid->packed_visible, grid, x, y);
+#endif
     return grid->visible && grid->visible[index] != 0;
 }
 
@@ -1046,8 +1075,16 @@ BOOL G_FowPlayerCanSeeEntity(DWORD player, LPCEDICT ent) {
     grid = &level.fow.players[player];
     /* Explored scenery stays shrouded after sight leaves; sending unexplored map-wide doodads saturated snapshots. */
     if ((ent->svflags & SVF_STATIC_SCENERY) || (ent->runtime.flags & UNIT_BALANCE_BUILDING)) {
+#ifdef WC3_FOW_PACKED_MASK
+        if (g_fow_fast)
+            return G_FowPackedAt(grid->packed_explored, grid, x, y);
+#endif
         return grid->explored && grid->explored[index] != 0;
     }
+#ifdef WC3_FOW_PACKED_MASK
+    if (g_fow_fast)
+        return G_FowPackedAt(grid->packed_visible, grid, x, y);
+#endif
     return grid->visible && grid->visible[index] != 0;
 }
 
@@ -1086,7 +1123,15 @@ static DWORD G_FowPackRows(fowPlayerGrid_t *grid,
         FOR_LOOP(row, row_count) {
             DWORD y = first_row + row;
             FOR_LOOP(x, level.fow.width) {
-                BYTE value = plane[y * level.fow.width + x] ? 1 : 0;
+                BYTE value;
+#ifdef WC3_FOW_PACKED_MASK
+                if (g_fow_fast && plane == grid->visible)
+                    value = G_FowPackedAt(grid->packed_visible, grid, x, y);
+                else if (g_fow_fast && plane == grid->explored)
+                    value = G_FowPackedAt(grid->packed_explored, grid, x, y);
+                else
+#endif
+                    value = plane[y * level.fow.width + x] ? 1 : 0;
 
                 if (!started) {
                     payload[out++] = value;

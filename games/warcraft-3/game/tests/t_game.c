@@ -689,8 +689,12 @@ TEST(wc3_game, fow_packed_fast_path_uses_word_mask_and_skips_occlusion) {
     blocker_index = G_FowWorldToCellY(96.0f) * level.fow.width + G_FowWorldToCellX(160.0f);
     behind_index = G_FowWorldToCellY(96.0f) * level.fow.width + G_FowWorldToCellX(288.0f);
     T_EQ(level.fow.players[0].packed_stride, (level.fow.width + 15) >> 4);
-    T_ASSERT(level.fow.players[0].visible[blocker_index]);
-    T_ASSERT(level.fow.players[0].visible[behind_index]);
+    T_ASSERT(level.fow.players[0].packed_visible[(blocker_index % level.fow.width >> 4) +
+                                                blocker_index / level.fow.width * level.fow.players[0].packed_stride] &
+             (1u << (blocker_index % level.fow.width & 15)));
+    T_ASSERT(level.fow.players[0].packed_visible[(behind_index % level.fow.width >> 4) +
+                                                behind_index / level.fow.width * level.fow.players[0].packed_stride] &
+             (1u << (behind_index % level.fow.width & 15)));
 
     gi.CvarString = old_cvar;
     G_FowShutdown();

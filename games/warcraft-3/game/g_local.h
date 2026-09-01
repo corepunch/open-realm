@@ -833,6 +833,7 @@ typedef struct {
     BYTE *dirty_explored_rows;
 #ifdef WC3_FOW_PACKED_MASK
     WORD *packed_visible;
+    WORD *packed_explored;
     DWORD packed_stride;
 #endif
     BOOL client_connected;
