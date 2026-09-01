@@ -97,7 +97,6 @@ table's layout shifts across client versions. See
 
 The remaining high-confidence manual grammars are bounded and should be converted when their subsystem is touched:
 
-- `games/world-of-warcraft/ui/stb_wowxml.h` and its guarded `ui_xml.c` copy: FrameXML node types, script handlers, shared attributes, button parts, and anchor-point factors.
 - `games/world-of-warcraft/common/world_wow.c`, `renderer/wow/r_wowmap_adt.c`, and `game/g_gameobject.c`: simple WoW chunk-tag bindings; use the descriptor shape already present in `renderer/wow/r_wowmap_wmo.c`.
 - `games/warcraft-3/ui/screens/single_player.c`: scalar campaign keys; keep indexed mission/file productions specialized.
 - `games/warcraft-3/game/g_unit_ui.c`, `tools/m2tool.c`, and `tools/mpqtool.c`: direct string-to-value maps.
