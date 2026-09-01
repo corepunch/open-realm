@@ -111,6 +111,7 @@ void unit_stand(LPEDICT self) {
 void unit_die(LPEDICT self, LPEDICT attacker) {
     LPGAMECLIENT owner;
 
+    G_InvalidateUnitShortcutsForUnit(self);
     self->health.value = 0.0f;
     if (self->training) G_ClearTrainingQueueFood(self);
     else { G_CancelHeroRevives(self); G_CancelTrainingQueue(self, true); }

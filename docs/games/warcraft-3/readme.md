@@ -99,6 +99,7 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 
 - [Economy And Unit Presentation](economy-and-unit-presentation.md)
 - [Unit Selection And Control](selection-and-control.md)
+- [Persistent Hero And Idle-Worker Shortcuts](unit-shortcuts.md)
 - [Pathfinding And Harvest Reachability](pathfinding.md)
 - [Inventory And World Items](inventory-and-items.md)
 - [Breakable Destructables](breakable-destructables.md)

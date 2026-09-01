@@ -724,6 +724,15 @@ static void CL_ParseGameCommand(LPSIZEBUF msg) {
             LPCSTR path = cl.configstrings[CS_SOUNDS + idx];
             if (path && path[0]) S_PlaySoundFile(path);
         }
+#ifdef WC3
+    } else if (!strcmp(command, "wc3_selection")) {
+        int number = MSG_ReadLong(&payload);
+        if (number > 0 && number < MAX_EDICTS) {
+            cl.selection.num_selected = 1;
+            cl.selection.entity_nums[0] = (DWORD)number;
+            CL_RequestUnitUI(1, cl.selection.entity_nums);
+        }
+#endif
     }
 
     msg->readcount = payload_start + (DWORD)payload_size;

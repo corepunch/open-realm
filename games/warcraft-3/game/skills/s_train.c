@@ -242,6 +242,7 @@ static BOOL ShowTrainedUnit(LPEDICT townhall, LPEDICT unit) {
      * activates Food Made; it must not charge Food Used a second time. */
     G_SetUnitFoodMade(unit, unit->UnitBalance->foodMade);
     unit->stand(unit);
+    G_InvalidateUnitShortcutsForUnit(unit);
     return true;
 }
 

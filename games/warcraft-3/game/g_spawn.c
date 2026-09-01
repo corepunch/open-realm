@@ -439,6 +439,7 @@ LPEDICT SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location) {
     client = G_GetPlayerClientByNumber(player);
     if ((ent->svflags & SVF_MONSTER) && client && client->ps.number == player) {
         G_InvalidateCommands(client);
+        G_InvalidateUnitShortcutsForUnit(ent);
     }
     return ent;
 }

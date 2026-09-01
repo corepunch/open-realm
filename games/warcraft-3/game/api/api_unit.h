@@ -84,9 +84,11 @@ DWORD ShowUnit(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     BOOL show = jass_checkboolean(j, 2);
     BOOL was_hidden;
+    BOOL was_idle;
     if (!whichUnit) {
         return 0;
     }
+    was_idle = G_UnitIsIdleWorker(whichUnit);
     was_hidden = !!(whichUnit->s.renderfx & RF_HIDDEN);
     if (show) {
         whichUnit->s.renderfx &= ~RF_HIDDEN;
@@ -95,6 +97,7 @@ DWORD ShowUnit(LPJASS j) {
     }
     if ((whichUnit->s.flags & EF_FOW_BLOCKER) && was_hidden != !!(whichUnit->s.renderfx & RF_HIDDEN))
         G_FowMarkBlockersDirty();
+    if (was_idle != G_UnitIsIdleWorker(whichUnit)) G_InvalidateUnitShortcutsForUnit(whichUnit);
     return 0;
 }
 

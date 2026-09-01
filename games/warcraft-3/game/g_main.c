@@ -430,6 +430,7 @@ static void G_RunFrame(void) {
 
     G_UpdateClientInfoPanels();
     G_UpdateClientResourceBars();
+    G_UpdateClientUnitShortcuts();
 
     G_SolveCollisions();
     G_FowUpdate();
@@ -599,6 +600,9 @@ static void G_ClientBegin(LPEDICT edict) {
     G_RefreshResourceBar(edict);
     Get_Portrait_f(edict);
     Get_Commands_f(edict);
+    client->shortcuts.last_idle_worker = 0;
+    client->shortcuts.dirty = false;
+    UI_WriteUnitShortcutLayer(edict);
 
     G_FowConnectPlayer(client->ps.number);
     G_FowUpdate();

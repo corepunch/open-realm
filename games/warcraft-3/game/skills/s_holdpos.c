@@ -19,6 +19,7 @@ static void holdpos_command(LPEDICT ent) {
         e->movement.holding_position = true;
         unit_leavecombat(e);
         unit_stand(e);
+        G_InvalidateUnitShortcutsForUnit(e);
     }
 }
 
