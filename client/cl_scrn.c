@@ -149,7 +149,11 @@ static void SCR_UpdateHoverUnitUI(void) {
             unit.width = 0.045f;
             unit.health = ent->stats[ENT_HEALTH];
             unit.mana = ent->stats[ENT_MANA];
-            strlcpy(unit.name, "Object", sizeof(unit.name));
+            if (ent->name) {
+                DWORD ni = ent->name - 1;
+                LPCSTR cs = cl.configstrings[CS_GENERAL + (ni >> 4)];
+                if (cs) strlcpy(unit.name, cs + (ni & 0xF) * ENT_NAME_SLOT_SIZE, sizeof(unit.name));
+            }
             break;
         }
 done:
