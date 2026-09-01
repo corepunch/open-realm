@@ -558,6 +558,7 @@ TEST(wc3_api, enable_user_ui_does_not_block_world_selection) {
 
     gc->ps.number = 0;
     unit->s.player = 0;
+    unit->svflags |= SVF_MONSTER;
     snprintf(number, sizeof(number), "%u", unit->s.number);
     currentplayer = &gc->ps;
     T_ASSERT(run_test_jass(

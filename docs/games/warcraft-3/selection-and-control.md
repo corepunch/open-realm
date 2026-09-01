@@ -12,7 +12,7 @@ visible/selectable -> relationship presentation -> control authority
 
 - `G_UnitCanBeSelected(client, ent)` accepts a live `SVF_MONSTER` that is in use, not hidden, not `EF_NOT_SELECTABLE`, and actively visible through `G_FowPlayerCanHoverEntity`.
 - `G_SelectionRelation(viewer, ent)` returns friend, neutral, or enemy independently of command authority.
-- `G_UnitCanControl(client, ent)` accepts locally owned units and passive allies that grant `ALLIANCE_SHARED_CONTROL`. Neutral Hostile and Neutral Passive slots never become controllable through alliance-bit accidents.
+- `G_UnitCanControl(client, ent)` is a pure authority check: it accepts locally owned units and passive allies that grant `ALLIANCE_SHARED_CONTROL`, independent of fog/hover/selectability state. Active selection/order paths separately reject dead, hidden, and unselectable entities. Neutral Hostile and Neutral Passive slots never become controllable through alliance-bit accidents.
 
 This means a visible foreign unit may be inspected without giving the viewer ownership or order authority.
 

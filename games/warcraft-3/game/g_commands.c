@@ -35,7 +35,7 @@ void G_DeselectEntity(LPGAMECLIENT client, LPEDICT ent) {
 
 BOOL G_IsEntitySelected(LPGAMECLIENT client, LPEDICT ent) {
     return client && ent && ent->inuse && !M_IsDead(ent) &&
-        !(ent->s.flags & EF_NOT_SELECTABLE) &&
+        !(ent->s.flags & EF_NOT_SELECTABLE) && !(ent->s.renderfx & RF_HIDDEN) &&
         (ent->selected & (1 << client->ps.number));
 }
 
@@ -84,7 +84,12 @@ BOOL G_UnitCanControl(LPGAMECLIENT client, LPCEDICT ent) {
     DWORD owner;
     DWORD alliances;
 
-    if (!G_UnitCanBeSelected(client, ent)) {
+    /* Control is an authority relationship, not a visibility/selectability
+     * test.  Callers that issue player orders already operate on an active
+     * selected unit via G_IsEntitySelected(), which filters dead, hidden, and
+     * unselectable entities.  Keeping these decisions separate prevents fog
+     * or presentation state from revoking ownership/shared-control rights. */
+    if (!client || !ent || !ent->inuse) {
         return false;
     }
     owner = ent->s.player;
