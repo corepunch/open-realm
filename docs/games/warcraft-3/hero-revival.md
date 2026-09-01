@@ -19,7 +19,11 @@ being freed. `EVENT_PLAYER_HERO_REVIVABLE` and `EVENT_UNIT_HERO_REVIVABLE` are
 published at that transition.
 
 A dead Hero remains counted by `G_GetPlayerTechCountValue()`. This preserves
-Hero/techtree limits while the Hero is dead.
+Hero/techtree limits while the Hero is dead. The same edict is not interactable as a
+living unit during this period: `unit_die()` clears its selection mask and sets
+`EF_NOT_SELECTABLE`, and `G_ReviveHero()` clears that flag when the Hero returns to its
+living stand state. The shared death-animation, selection, and corpse-ordering contract is
+documented in [WC3 Economy And Unit Presentation](economy-and-unit-presentation.md#unit-death-and-corpse-interaction).
 
 ## Command card and identity
 
