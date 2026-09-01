@@ -237,7 +237,8 @@ TEST(wc3_game, hover_layout_is_server_authored_with_entity_context_bindings) {
     int (*old_font)(LPCSTR, DWORD) = gi.FontIndex;
     LPEDICT player;
 
-    setup_test_world(); player = &g_edicts[0]; player->client->connected = true; player->mana.max_value = 100.0f;
+    setup_test_world(); player = &g_edicts[0]; player->client->connected = true;
+    player->mana.max_value = 100.0f; player->mana.value = 50.0f;
     hover_layout_pending = hover_layer_seen = hover_name_seen = hover_hp_seen = hover_mana_seen = hover_name_sized = false;
     hover_name_centered = hover_name_short = false;
     hover_frame_count = hover_unicast_count = hover_image_count = hover_font_count = 0; hover_unicast_target = NULL;
