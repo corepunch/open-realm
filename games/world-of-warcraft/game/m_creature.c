@@ -56,19 +56,28 @@ static wowAmbientCreatureType_t const wow_ambient_creature_types[] = {
 static wowCreatureModelCache_t wow_creature_model_cache[sizeof(wow_ambient_creature_types) /
                                                         sizeof(wow_ambient_creature_types[0])];
 
-/* Quake-style configstrings keep authoritative server creature names out of the snapshot struct. */
-static DWORD Wow_CreatureNameConfigstring(LPCWOWCREATURE creature) {
-    if (!creature || !creature->name || !*creature->name) return 0;
-    for (DWORD slot = WOW_CS_NPC_NAME_FIRST; slot < MAX_GENERAL; slot++) {
+static USHORT G_UnitNameConfigstring(LPCSTR name) {
+    char buf[ENT_NAME_SLOT_SIZE * ENT_NAMES_PER_CS];
+    if (!name || !*name) return 0;
+    /* WOW_CS_PLAYERINFO occupies CS_GENERAL+0; NPC names start from slot 1. */
+    for (DWORD slot = WOW_CS_NPC_NAME_FIRST; slot < CS_MAX_NAMES / ENT_NAMES_PER_CS; slot++) {
         DWORD idx = CS_GENERAL + slot;
-        LPCSTR name = gi.GetConfigstring(idx);
-        if (name && !strcmp(name, creature->name)) return idx;
-        if (name && *name) continue;
-        gi.configstring(idx, creature->name);
-        return idx;
+        LPCSTR cs = gi.GetConfigstring(idx);
+        for (DWORD sub = 0; sub < ENT_NAMES_PER_CS; sub++) {
+            LPCSTR entry = cs ? cs + sub * ENT_NAME_SLOT_SIZE : NULL;
+            if (entry && *entry) {
+                if (!strncmp(entry, name, ENT_NAME_SLOT_SIZE - 1))
+                    return (USHORT)(slot * ENT_NAMES_PER_CS + sub + 1);
+                continue;
+            }
+            memset(buf, 0, sizeof(buf));
+            if (cs && *cs) memcpy(buf, cs, sizeof(buf));
+            strncpy(buf + sub * ENT_NAME_SLOT_SIZE, name, ENT_NAME_SLOT_SIZE - 1);
+            gi.configstring(idx, buf);
+            return (USHORT)(slot * ENT_NAMES_PER_CS + sub + 1);
+        }
     }
-    fprintf(stderr, "WoW: NPC name configstring pool full for creature %u (%s)\n",
-            (unsigned)creature->entry, creature->name);
+    fprintf(stderr, "G_UnitNameConfigstring: pool full for \"%s\"\n", name);
     return 0;
 }
 
@@ -315,7 +324,7 @@ void Wow_SpawnQuestLocations(LPCVECTOR2 origin) {
         ent->s.player = 2;
         ent->s.class_id = creature_model->display_id;
         local->quest_available_model = (DWORD)G_RegisterModel(WOW_QUEST_AVAILABLE_MODEL);
-        ent->s.image = Wow_CreatureNameConfigstring(creature);
+        ent->s.name = G_UnitNameConfigstring(creature->name);
         ent->s.angle = data->orientation;
         ent->s.flags = EF_GROUND_ANCHOR | EF_HAS_QUEST;
         /* Non-hostile NPCs still need the creature frame for their idle (Stand)

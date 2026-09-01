@@ -370,53 +370,14 @@ void R_DrawHealthBars(void) {
     RECT const scene = R_UISceneRect();
     FLOAT const w = scene.w * 0.045f;
     FLOAT const h = scene.h * 0.008f;
-#ifdef WOW
-    static LPFONT wow_name_font;
-    static BOOL wow_name_font_tried;
-    viewCamera_t const *old = tr.viewDef.camerastate + 1, *cur = tr.viewDef.camerastate;
-    VECTOR3 wow_cam = Vector3_lerp(&old->origin, &cur->origin, tr.viewDef.lerpfrac);
-    VECTOR3 wow_ang = {
-        Wow_LerpDegrees(old->viewangles.x, cur->viewangles.x, tr.viewDef.lerpfrac),
-        Wow_LerpDegrees(old->viewangles.y, cur->viewangles.y, tr.viewDef.lerpfrac),
-        Wow_LerpDegrees(old->viewangles.z, cur->viewangles.z, tr.viewDef.lerpfrac),
-    };
-    VECTOR3 wow_fwd, wow_off;
-    FOR_LOOP(i, tr.viewDef.num_entities)
-        if (tr.viewDef.entities[i].number == tr.viewDef.player) {
-            wow_cam.z = tr.viewDef.entities[i].origin.z + WOW_CAMERA_EYE_HEIGHT; break;
-        }
-    wow_fwd = Wow_ViewForward(&wow_ang);
-    wow_off = Vector3_scale(&wow_fwd, -LerpNumber(old->distance, cur->distance, tr.viewDef.lerpfrac));
-    wow_cam = Vector3_add(&wow_cam, &wow_off);
-#endif
+    static LPFONT name_font;
+    static BOOL name_font_tried;
+    if (!name_font_tried) {
+        name_font_tried = true;
+        name_font = R_LoadFont("Fonts\\FRIZQT__.TTF", 10);
+    }
     FOR_LOOP(i, tr.viewDef.num_entities) {
         renderEntity_t const *e = tr.viewDef.entities + i;
-#ifdef WOW
-        if (e->name && *e->name) {
-            VECTOR3 top;
-            VECTOR3 delta;
-            FLOAT alpha, ux, uy;
-            R_GameEntityOverheadPosition(e, &top);
-            delta = Vector3_sub(&top, &wow_cam);
-            alpha = Wow_WorldLabelAlpha(Vector3_len(&delta), e->flags & RF_SELECTED, e->number == tr.viewDef.player);
-            if (alpha > 0.0f && R_WorldToUI(&top, &ux, &uy)) {
-                if (!wow_name_font_tried) {
-                    wow_name_font_tried = true;
-                    wow_name_font = R_LoadFont("Fonts\\FRIZQT__.TTF", 14);
-                    if (!wow_name_font) fprintf(stderr, "WoW: NPC name font Fonts\\FRIZQT__.TTF could not be loaded\n");
-                }
-                if (wow_name_font) {
-                    /* Attachment 18 is the model-authored point below the name, so the label ends at its projection. */
-                    RECT label = MAKE(RECT, ux - scene.w * 0.12f, uy - scene.h * 0.03f,
-                                      scene.w * 0.24f, scene.h * 0.03f);
-                    drawText_t text = MAKE(drawText_t, .font = wow_name_font, .text = e->name, .rect = label,
-                        .color = MAKE(COLOR32, 0, 255, 0, (BYTE)(255.0f * alpha)), .textWidth = label.w, .lineHeight = label.h,
-                        .halign = FONT_JUSTIFYCENTER, .valign = FONT_JUSTIFYMIDDLE);
-                    R_DrawText(&text);
-                }
-            }
-        }
-#endif
         /* Always for the current selection; for hovered entity; for every unit while ALT is held. */
         if (e->health == 0 || (!show_all && !(e->flags & RF_SELECTED) && e->number != tr.viewDef.hover_entity)) {
             continue;
@@ -437,6 +398,14 @@ void R_DrawHealthBars(void) {
         R_DrawStatusBar(x, uy + bars.x, w, h, hp, hpcol);
         if (e->mana > 0) {
             R_DrawStatusBar(x, uy + bars.y, w, h, e->mana / 255.0f, MAKE(COLOR32, 60, 90, 235, 255));
+        }
+        if (name_font && e->name && *e->name && e->number == tr.viewDef.hover_entity) {
+            RECT label = MAKE(RECT, ux - scene.w * 0.10f, uy - scene.h * 0.025f,
+                              scene.w * 0.20f, scene.h * 0.025f);
+            drawText_t text = MAKE(drawText_t, .font = name_font, .text = e->name, .rect = label,
+                .color = COLOR32_WHITE, .textWidth = label.w, .lineHeight = label.h,
+                .halign = FONT_JUSTIFYCENTER, .valign = FONT_JUSTIFYMIDDLE);
+            R_DrawText(&text);
         }
     }
 }

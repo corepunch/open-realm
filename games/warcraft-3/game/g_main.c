@@ -603,6 +603,33 @@ static void G_ClientBegin(LPEDICT edict) {
     G_FowSendFull(edict);
 }
 
+/* Look up or register a display name in the packed CS_GENERAL configstring pool.
+ * Each configstring stores ENT_NAMES_PER_CS names of ENT_NAME_SLOT_SIZE bytes each.
+ * Returns a 1-based packed index (0 = not found / pool full). */
+static USHORT G_UnitNameConfigstring(LPCSTR name) {
+    char buf[ENT_NAME_SLOT_SIZE * ENT_NAMES_PER_CS];
+    if (!name || !*name) return 0;
+    for (DWORD slot = 0; slot < CS_MAX_NAMES / ENT_NAMES_PER_CS; slot++) {
+        DWORD idx = CS_GENERAL + slot;
+        LPCSTR cs = gi.GetConfigstring(idx);
+        for (DWORD sub = 0; sub < ENT_NAMES_PER_CS; sub++) {
+            LPCSTR entry = cs ? cs + sub * ENT_NAME_SLOT_SIZE : NULL;
+            if (entry && *entry) {
+                if (!strncmp(entry, name, ENT_NAME_SLOT_SIZE - 1))
+                    return (USHORT)(slot * ENT_NAMES_PER_CS + sub + 1);
+                continue;
+            }
+            memset(buf, 0, sizeof(buf));
+            if (cs && *cs) memcpy(buf, cs, sizeof(buf));
+            strncpy(buf + sub * ENT_NAME_SLOT_SIZE, name, ENT_NAME_SLOT_SIZE - 1);
+            gi.configstring(idx, buf);
+            return (USHORT)(slot * ENT_NAMES_PER_CS + sub + 1);
+        }
+    }
+    fprintf(stderr, "G_UnitNameConfigstring: pool full for \"%s\"\n", name);
+    return 0;
+}
+
 /* Selection voices are local feedback; suppress them in snapshots for clients
  * that did not select this entity while leaving world sounds unchanged. */
 static void G_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
@@ -613,9 +640,11 @@ static void G_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
         G_FowPlayerCanHoverEntity(player, ent);
 
     state->flags &= ~(EF_HOVER_HEALTH | EF_HOSTILE | EF_NEUTRAL);
+    state->name = 0;
     if (hoverable) {
         DWORD const owner = ent->s.player;
-
+        UnitProfile_t const *prof = G_UnitProfile(ent->s.class_id);
+        state->name = G_UnitNameConfigstring(prof->name);
         state->flags |= EF_HOVER_HEALTH;
         if (owner == PLAYER_NEUTRAL_AGGRESSIVE) {
             state->flags |= EF_HOSTILE;

@@ -462,6 +462,14 @@ typedef enum {
     EV_OWNER_SOUND,  /* one-shot sound audible only to the entity owner */
 } entity_event_t;
 
+/* Packing layout for entityState_t.name.
+ * CS_MAX_NAMES names total, ENT_NAMES_PER_CS per CS_GENERAL slot, ENT_NAME_SLOT_SIZE bytes each.
+ * Slots used = CS_MAX_NAMES / ENT_NAMES_PER_CS (must be <= MAX_GENERAL).
+ * Decode: i = name-1; slot = i>>4; sub = i&0xF; str = configstrings[CS_GENERAL+slot] + sub*ENT_NAME_SLOT_SIZE */
+#define CS_MAX_NAMES        256
+#define ENT_NAMES_PER_CS    16  /* names per configstring slot */
+#define ENT_NAME_SLOT_SIZE  16  /* bytes per name; ENT_NAME_SLOT_SIZE * ENT_NAMES_PER_CS == MAX_PATHLEN */
+
 typedef struct entityState_s {
     DWORD number; // edict index
     DWORD class_id;
@@ -480,6 +488,7 @@ typedef struct entityState_s {
     BYTE model;
     BYTE model2;
     USHORT image;
+    USHORT name;        /* packed name: 0=none; see ENT_NAME_SLOT_SIZE/ENT_NAMES_PER_CS */
     USHORT sound;
     DWORD frame;
     BYTE event;
@@ -503,6 +512,9 @@ _Static_assert(MAX_CLIENTS     <= 256,  "entityState_t.player is BYTE — bump t
 _Static_assert(MAX_MODELS      <= 256,  "entityState_t.model/model2 are BYTE — bump to USHORT if MAX_MODELS exceeds 255");
 _Static_assert(MAX_SOUNDS      <= 65535, "entityState_t.sound is USHORT — bump to DWORD if MAX_SOUNDS exceeds 65534");
 _Static_assert(MAX_CONFIGSTRINGS <= 65536, "entityState_t.image is USHORT — bump to DWORD if MAX_CONFIGSTRINGS exceeds 65535");
+_Static_assert(ENT_NAME_SLOT_SIZE * ENT_NAMES_PER_CS == MAX_PATHLEN, "packed name configstring must exactly fill one PATHSTR");
+_Static_assert(CS_MAX_NAMES / ENT_NAMES_PER_CS <= MAX_GENERAL,       "name pool requires more CS_GENERAL slots than MAX_GENERAL provides");
+_Static_assert(CS_MAX_NAMES <= 65535,                                 "entityState_t.name is USHORT; packed index is 1-based so max is 65535");
 
 #ifdef WOW
 typedef struct wowAppearance_s {
