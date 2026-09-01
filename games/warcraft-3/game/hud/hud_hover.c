@@ -37,16 +37,22 @@ void UI_WriteHoverLayout(LPEDICT ent) {
 
     frame.flags.type = FT_NAMETAG; frame.flagsvalue |= UIFLAG_SIZE_TO_CONTENT; frame.stat = UI_STAT_CONTEXT_NAME;
     frame.color = COLOR32_WHITE;
-    uiNameTag_t data = { 0 };
-    data.background.Background = gi.ImageIndex(Theme_String("ToolTipBackground", "ToolTipBackground"));
-    data.background.EdgeFile = gi.ImageIndex(Theme_String("ToolTipBorder", "ToolTipBorder"));
-    data.background.CornerFlags = 0x1ff; data.background.CornerSize = 0.010f; data.background.BackgroundSize = 0.036f;
-    data.background.BackgroundInsets[0] = data.background.BackgroundInsets[1] = 0.0019f;
-    data.background.BackgroundInsets[2] = data.background.BackgroundInsets[3] = 0.0019f;
-    data.background.TileBackground = true; data.background.BlendAll = true;
-    data.text.font = gi.FontIndex(Theme_String("MasterFont", "Fonts\\FRIZQT__.TTF"), HUD_FONT_SIZE);
-    data.text.textalignx = FONT_JUSTIFYCENTER; data.text.textaligny = FONT_JUSTIFYMIDDLE;
-    data.padding_x = 0.008f; data.padding_y = 0.006f;
+    uiNameTag_t data = MAKE(uiNameTag_t,
+        .background = MAKE(uiBackdrop_t,
+            .Background = gi.ImageIndex(Theme_String("ToolTipBackground", "ToolTipBackground")),
+            .EdgeFile = gi.ImageIndex(Theme_String("ToolTipBorder", "ToolTipBorder")),
+            .CornerFlags = 0x1ff,
+            .CornerSize = 0.010f,
+            .BackgroundSize = 0.036f,
+            .BackgroundInsets = { 0.0019f, 0.0019f, 0.0019f, 0.0019f },
+            .TileBackground = true,
+            .BlendAll = true),
+        .text = MAKE(uiLabel_t,
+            .font = gi.FontIndex(Theme_String("MasterFont", "Fonts\\FRIZQT__.TTF"), HUD_FONT_SIZE),
+            .textalignx = FONT_JUSTIFYCENTER,
+            .textaligny = FONT_JUSTIFYMIDDLE),
+        .padding_x = 0.008f,
+        .padding_y = 0.006f);
     UI_SetFramePoint(&frame.points.x[FPP_MID], FPP_MID, 0, 0.0f, false);
     UI_SetFramePoint(&frame.points.y[FPP_MIN], FPP_MIN, 0, -0.043f, true);
     UI_WriteProxyFrame(&frame, &data, sizeof(data));
