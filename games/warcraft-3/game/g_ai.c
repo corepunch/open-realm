@@ -60,7 +60,17 @@ FLOAT unit_movedistance(LPEDICT self) {
 #define MOVE_SLIDE_STEP        (15.0f * (FLOAT)M_PI / 180.0f)  /* deflection step */
 #define MOVE_SLIDE_RINGS       6                               /* up to +/- 90 deg */
 #define MOVE_SLIDE_RINGS_YIELD 2                               /* +/- 30 deg: faster unit holds its line */
+#define MOVE_WORKER_QUEUE_TICKS 4                              /* same-stream blocker: queue before passing */
+#define MOVE_WORKER_ESCAPE_TICKS 8                             /* widen bounded escape corridor after this */
+#define MOVE_WORKER_CORRIDOR_RESET (30.0f * (FLOAT)M_PI / 180.0f)
+#define MOVE_WORKER_MAX_DEVIATION 5.0f                         /* collision radii */
+#define MOVE_WORKER_ESCAPE_DEVIATION 6.0f                      /* collision radii */
 #define MAX_MOVE_COLLIDERS     256
+
+typedef enum {
+    MOVE_AVOID_GENERIC,
+    MOVE_AVOID_RESOURCE_WORKER,
+} moveAvoidPolicy_t;
 
 static LPEDICT trymove_self = NULL;
 static LPEDICT trymove_blocker = NULL;  /* unit that rejected the last candidate (NULL = clear or terrain) */
@@ -225,16 +235,95 @@ static void unit_turn_toward(LPEDICT self, FLOAT target) {
     }
 }
 
-/* Pick the heading the unit actually wants to move along this tick: the goal
- * heading if a step along it is free, otherwise the nearest free deflection
- * (the same block-and-slide search and speed give-way as unit_trymove).  By
- * resolving avoidance into the *heading* — which the facing then turns toward
- * and the unit moves along — facing and movement stay aligned, so a unit
- * weaving past trees/units turns to follow its path instead of crab-walking
- * sideways while pointing at the goal (the old split that looked like wobble). */
-static FLOAT unit_desired_heading(LPEDICT self, FLOAT goal_angle, FLOAT dist) {
+/* Resource workers need a different local crowd rule from ordinary combat
+ * movement.  A same-direction worker is a queue, not an obstacle to weave
+ * around; crossing traffic may pass immediately.  This is the minimal policy
+ * that stayed close to the direct Human02 resource corridor in the 30-worker
+ * simulation while still breaking counterflow deadlocks. */
+static BOOL unit_worker_same_stream(LPCEDICT blocker, FLOAT goal_angle) {
+    VECTOR2 dir, goal;
+    FLOAT len;
+
+    if (!blocker || !blocker->currentmove || !blocker->goalentity ||
+        (blocker->aiflags & AI_IMMOBILE))
+        return false;
+    dir = Vector2_sub(&blocker->goalentity->s.origin2, &blocker->s.origin2);
+    len = Vector2_len(&dir);
+    if (len <= 0.001f)
+        return false;
+    goal = MAKE(VECTOR2, cosf(goal_angle), sinf(goal_angle));
+    return Vector2_dot(&goal, &dir) / len > 0.25f;
+}
+
+static FLOAT unit_worker_lateral_deviation(LPCEDICT self, LPCVECTOR2 point) {
+    VECTOR2 const delta = Vector2_sub(point, &self->movement.worker_avoid_origin);
+    VECTOR2 const direct = { cosf(self->movement.worker_avoid_heading),
+                             sinf(self->movement.worker_avoid_heading) };
+    return fabsf(direct.x * delta.y - direct.y * delta.x);
+}
+
+static FLOAT unit_worker_desired_heading(LPEDICT self, FLOAT goal_angle, FLOAT dist) {
     VECTOR2 const straight = Vector2_mad(&self->s.origin2, dist,
                                          &MAKE(VECTOR2, cosf(goal_angle), sinf(goal_angle)));
+    LPEDICT blocker;
+    FLOAT max_deviation;
+
+    if (move_is_valid(self, &straight)) {
+        self->movement.worker_avoid_blocked_frames = 0;
+        self->movement.worker_avoid_active = false;
+        return goal_angle;
+    }
+
+    blocker = trymove_blocker;
+    if (!self->movement.worker_avoid_active ||
+        fabsf(angle_wrap(goal_angle - self->movement.worker_avoid_heading)) >
+            MOVE_WORKER_CORRIDOR_RESET) {
+        self->movement.worker_avoid_origin = self->s.origin2;
+        self->movement.worker_avoid_heading = goal_angle;
+        self->movement.worker_avoid_blocked_frames = 0;
+        self->movement.worker_avoid_active = true;
+    }
+    self->movement.worker_avoid_blocked_frames++;
+
+    /* Do not turn a short pause in a resource stream into overtaking.  Four
+     * blocked decisions let the queue advance naturally; a genuinely pinned
+     * queue then gets the same bounded escape used for crossing traffic. */
+    if (unit_worker_same_stream(blocker, goal_angle) &&
+        self->movement.worker_avoid_blocked_frames <= MOVE_WORKER_QUEUE_TICKS)
+        return goal_angle;
+
+    max_deviation = self->collision *
+        (self->movement.worker_avoid_blocked_frames <= MOVE_WORKER_ESCAPE_TICKS
+            ? MOVE_WORKER_MAX_DEVIATION : MOVE_WORKER_ESCAPE_DEVIATION);
+
+    /* Deterministic right-hand passing avoids the +/- re-decision that made
+     * packed Peasants dance.  Retry the exact direct heading next think; no
+     * passing lane is cached. */
+    for (int sign = -1; sign <= 1; sign += 2) {
+        for (int ring = 1; ring <= MOVE_SLIDE_RINGS; ring++) {
+            FLOAT const angle = angle_wrap(goal_angle + sign * ring * MOVE_SLIDE_STEP);
+            VECTOR2 const cand = Vector2_mad(&self->s.origin2, dist,
+                                             &MAKE(VECTOR2, cosf(angle), sinf(angle)));
+            if (unit_worker_lateral_deviation(self, &cand) > max_deviation)
+                continue;
+            if (move_is_valid(self, &cand)) {
+                self->movement.worker_avoid_blocked_frames = 0;
+                return angle;
+            }
+        }
+    }
+    return goal_angle;
+}
+
+/* Pick the heading the unit actually wants to move along this tick.  Generic
+ * units retain speed-priority block-and-slide; resource workers use the
+ * queue/pass-right policy above. */
+static FLOAT unit_desired_heading(LPEDICT self, FLOAT goal_angle, FLOAT dist,
+                                  moveAvoidPolicy_t policy) {
+    VECTOR2 const straight = Vector2_mad(&self->s.origin2, dist,
+                                         &MAKE(VECTOR2, cosf(goal_angle), sinf(goal_angle)));
+    if (policy == MOVE_AVOID_RESOURCE_WORKER)
+        return unit_worker_desired_heading(self, goal_angle, dist);
     if (move_is_valid(self, &straight))
         return goal_angle;
 
@@ -256,7 +345,7 @@ static FLOAT unit_desired_heading(LPEDICT self, FLOAT goal_angle, FLOAT dist) {
     return goal_angle;  /* boxed in: aim at the goal, hold (move step will fail) */
 }
 
-static void unit_apply_heading(LPEDICT self, LPCVECTOR2 dir) {
+static void unit_apply_heading(LPEDICT self, LPCVECTOR2 dir, moveAvoidPolicy_t policy) {
     FLOAT const dirlen = Vector2_len(dir);
     if (dirlen <= 0.001f)
         return;  /* no meaningful heading this tick: hold current facing */
@@ -265,12 +354,14 @@ static void unit_apply_heading(LPEDICT self, LPCVECTOR2 dir) {
      * the move step (unit_moveindirection) follows it, keeping facing and motion
      * aligned (no second, disagreeing search). */
     FLOAT const goal_angle = atan2f(dir->y, dir->x);
-    FLOAT const desired = unit_desired_heading(self, goal_angle, unit_movedistance(self));
+    FLOAT const desired = unit_desired_heading(self, goal_angle,
+                                                unit_movedistance(self), policy);
     self->movement.heading = desired;
     unit_turn_toward(self, desired);
 }
 
-void unit_changeangle_towards_point(LPEDICT self, LPCVECTOR2 point) {
+static void unit_changeangle_towards_point_policy(LPEDICT self, LPCVECTOR2 point,
+                                                   moveAvoidPolicy_t policy) {
     VECTOR2 dir;
 
     if (!self || !point || (self->aiflags & AI_IMMOBILE))
@@ -281,10 +372,18 @@ void unit_changeangle_towards_point(LPEDICT self, LPCVECTOR2 point) {
     self->movement.flow_unreachable = false;
     self->movement.flow_direct = true;
     dir = Vector2_sub(point, &self->s.origin2);
-    unit_apply_heading(self, &dir);
+    unit_apply_heading(self, &dir, policy);
 }
 
-void unit_changeangle(LPEDICT self) {
+void unit_changeangle_towards_point(LPEDICT self, LPCVECTOR2 point) {
+    unit_changeangle_towards_point_policy(self, point, MOVE_AVOID_GENERIC);
+}
+
+void unit_changeangle_towards_point_worker(LPEDICT self, LPCVECTOR2 point) {
+    unit_changeangle_towards_point_policy(self, point, MOVE_AVOID_RESOURCE_WORKER);
+}
+
+static void unit_changeangle_policy(LPEDICT self, moveAvoidPolicy_t policy) {
     if (self->aiflags & AI_IMMOBILE)
         return;
     VECTOR2 to_goal = Vector2_sub(&self->goalentity->s.origin2, &self->s.origin2);
@@ -344,7 +443,15 @@ void unit_changeangle(LPEDICT self) {
         }
     }
 
-    unit_apply_heading(self, &dir);
+    unit_apply_heading(self, &dir, policy);
+}
+
+void unit_changeangle(LPEDICT self) {
+    unit_changeangle_policy(self, MOVE_AVOID_GENERIC);
+}
+
+void unit_changeangle_worker(LPEDICT self) {
+    unit_changeangle_policy(self, MOVE_AVOID_RESOURCE_WORKER);
 }
 
 /* Behaviors that route around authored blocked geometry may request a
@@ -352,7 +459,8 @@ void unit_changeangle(LPEDICT self) {
  * unreachable tree. Build and Repair instead route toward behavior-owned legal
  * approach points, so reaching the adjusted flow goal never changes their
  * gameplay target. Generic point movement continues through unit_changeangle(). */
-void unit_changeangle_for_radius(LPEDICT self, FLOAT radius) {
+static void unit_changeangle_for_radius_policy(LPEDICT self, FLOAT radius,
+                                               moveAvoidPolicy_t policy) {
     if (self->aiflags & AI_IMMOBILE)
         return;
     VECTOR2 to_goal = Vector2_sub(&self->goalentity->s.origin2, &self->s.origin2);
@@ -387,7 +495,15 @@ void unit_changeangle_for_radius(LPEDICT self, FLOAT radius) {
         }
     }
 
-    unit_apply_heading(self, &dir);
+    unit_apply_heading(self, &dir, policy);
+}
+
+void unit_changeangle_for_radius(LPEDICT self, FLOAT radius) {
+    unit_changeangle_for_radius_policy(self, radius, MOVE_AVOID_GENERIC);
+}
+
+void unit_changeangle_for_radius_worker(LPEDICT self, FLOAT radius) {
+    unit_changeangle_for_radius_policy(self, radius, MOVE_AVOID_RESOURCE_WORKER);
 }
 
 void unit_setanimation(LPEDICT self, LPCSTR anim) {

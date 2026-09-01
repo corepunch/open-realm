@@ -290,3 +290,14 @@ Useful keys:
 - Paths inside MPQs usually use forward slashes, but most tools accept either
   `\` or `/` on the command line.
 - The `build/bin/...` paths are the default build outputs used by this repo.
+
+## `wc3_peasant_crowd_sim.py`
+
+Deterministic Human02 resource-worker crowd simulation used to evaluate local avoidance policies independently of static routing. It seeds the logged Gold Mine/Town Hall corridor, runs 30-Peasant return and counterflow scenarios, and can stress randomized 30-Peasant layouts. The simulation and measured results are documented in [`docs/games/warcraft-3/worker-crowd-routing.md`](../docs/games/warcraft-3/worker-crowd-routing.md).
+
+```sh
+python3 tools/wc3_peasant_crowd_sim.py --stress-seeds 100
+python3 tools/wc3_peasant_crowd_sim.py --stress-seeds 1000
+```
+
+Matplotlib is optional; without it the numeric simulation and CSV output still run.

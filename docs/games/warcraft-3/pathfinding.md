@@ -83,7 +83,7 @@ OpenRealm keeps the clicked tree authoritative while routing can still approach 
 
 This fallback is gameplay behavior in `s_harvest_lumber.c`, not a pathfinder rule. Normal movement, attack, patrol, item pickup, and spells do not acquire a different target when routing fails.
 
-Multiple Peasants may legally harvest the same tree, but their final direct approach is also behavior-owned. Harvest assigns same-tree workers deterministic alternating angular lanes by entity number and rejects a candidate that overlaps another active harvester's current collision space. Static flow fields remain shared and occupancy-free; this small final-approach policy keeps workers from intentionally selecting the same chop point without baking transient unit occupancy into cached routing.
+Multiple Peasants may legally harvest the same tree. Harvest now keeps the closest direct legal chop point instead of pre-assigning angular lanes. Dynamic separation is handled by the resource-worker local avoidance policy: a worker blocked by same-direction resource traffic queues briefly, while crossing or persistently pinned traffic uses deterministic right-first bounded passing. Static flow fields remain shared and occupancy-free, and the final tree approach no longer scans all edicts to allocate or reserve lanes. See [worker-crowd-routing.md](worker-crowd-routing.md) for the Human02 simulation and policy contract.
 
 ## Confirmed August 2026 Regression
 

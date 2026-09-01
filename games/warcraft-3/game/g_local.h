@@ -747,6 +747,10 @@ struct edict_s {
         BOOL flow_direct;       /* static path from mover to requested goal is clear */
         FLOAT group_speed;  // slowest member's speed for a group move (0 = no cap), keeps the group together
         FLOAT heading;      // avoidance-resolved heading chosen this tick by unit_changeangle; movement follows it
+        VECTOR2 worker_avoid_origin; /* start of the active resource-worker avoidance corridor */
+        FLOAT worker_avoid_heading;  /* direct corridor heading captured when local blocking begins */
+        DWORD worker_avoid_blocked_frames; /* consecutive blocked decisions before queue escape */
+        BOOL worker_avoid_active;    /* resource-worker corridor is constraining lateral sidesteps */
         LPEDICT attackmove_waypoint;  // resume attack-move after a combat detour
         LPEDICT patrol_a, patrol_b, patrol_target;
         BOOL holding_position;
@@ -1147,8 +1151,11 @@ void unit_updatestatuses(LPEDICT);
 // g_monster.c
 void unit_moveindirection(LPEDICT);
 void unit_changeangle(LPEDICT);
+void unit_changeangle_worker(LPEDICT);
 void unit_changeangle_towards_point(LPEDICT, LPCVECTOR2);
+void unit_changeangle_towards_point_worker(LPEDICT, LPCVECTOR2);
 void unit_changeangle_for_radius(LPEDICT, FLOAT);
+void unit_changeangle_for_radius_worker(LPEDICT, FLOAT);
 BOOL M_MoveIsValid(LPEDICT self, LPCVECTOR2 pos);
 BOOL M_CheckAttack(LPEDICT);
 BOOL unit_is_walking(LPCEDICT);

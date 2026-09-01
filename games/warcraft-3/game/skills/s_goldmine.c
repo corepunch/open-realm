@@ -236,9 +236,9 @@ static void ai_walkmine(LPEDICT ent) {
              * footprint/range hand-off above remains authoritative. */
             if (footprint_approach &&
                 Vector2_distance(&ent->s.origin2, &approach) > step)
-                unit_changeangle_towards_point(ent, &approach);
+                unit_changeangle_towards_point_worker(ent, &approach);
             else
-                unit_changeangle(ent);
+                unit_changeangle_worker(ent);
         }
         /* A cache miss is resumable.  Until it produces a flow generation,
          * preserve the Harvest order but do not walk along a stale facing. */
@@ -380,9 +380,9 @@ static void ai_goldmine_walkback(LPEDICT ent) {
              * existing shared route when no direct edge lane exists. */
             if (footprint_approach &&
                 Vector2_distance(&ent->s.origin2, &approach) > step)
-                unit_changeangle_towards_point(ent, &approach);
+                unit_changeangle_towards_point_worker(ent, &approach);
             else
-                unit_changeangle(ent);
+                unit_changeangle_worker(ent);
         }
         /* Return routing uses the same resumable flow lifecycle as mine
          * approach.  Hold the current position until that field is ready. */

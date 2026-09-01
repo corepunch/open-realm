@@ -139,89 +139,14 @@ static LPEDICT find_another_tree(LPEDICT ent) {
     return ent ? find_another_tree_near(&ent->s.origin2) : NULL;
 }
 
-/* Several workers may legitimately chop one tree, but they should not all
- * choose the same direct approach point and depend on last-step collision to
- * untangle themselves.  Lower entity numbers keep the first lane; later
- * workers bias around the tree in alternating 30-degree slots. */
-static DWORD harvest_tree_approach_slot(LPCEDICT ent, LPCEDICT tree) {
-    DWORD slot = 0;
-
-    FOR_LOOP(i, globals.num_edicts) {
-        LPCEDICT other = globals.edicts + i;
-        if (other == ent || !other->inuse || other->s.number >= ent->s.number ||
-            !other->currentmove || other->currentmove->ability != &a_harvest ||
-            other->goalentity != tree)
-            continue;
-        slot++;
-    }
-    return slot;
-}
-
-static BOOL harvest_tree_approach_occupied(LPCEDICT ent, LPCEDICT tree,
-                                            LPCVECTOR2 point) {
-    FOR_LOOP(i, globals.num_edicts) {
-        LPCEDICT other = globals.edicts + i;
-        FLOAT separation;
-
-        if (other == ent || !other->inuse || !other->currentmove ||
-            other->currentmove->ability != &a_harvest || other->goalentity != tree)
-            continue;
-        separation = ent->collision + other->collision + 2.0f;
-        if (Vector2_distance(point, &other->s.origin2) < separation)
-            return true;
-    }
-    return false;
-}
-
+/* Tree interaction keeps the closest direct legal chop point.  Dynamic
+ * Peasant separation belongs to the resource-worker local avoidance policy:
+ * same-stream workers queue instead of pre-allocating angular lanes, while
+ * crossing/pinned traffic uses deterministic bounded passing. */
 static BOOL harvest_find_direct_tree_approach(LPEDICT ent, LPEDICT tree,
                                                LPVECTOR2 out) {
-    VECTOR2 base, radial;
-    FLOAT radius, angle;
-    DWORD const slot = harvest_tree_approach_slot(ent, tree);
-    int const slot_step = (int)((slot + 1) / 2);
-    int const slot_sign = (slot == 0 || (slot & 1)) ? 1 : -1;
-    FLOAT const slot_angle = (FLOAT)slot_step * slot_sign *
-                             (30.0f * (FLOAT)M_PI / 180.0f);
-
-    if (!CM_FindDirectApproachPointForRadius(&ent->s.origin2, &tree->s.origin2,
-                                              HARVEST_RANGE, ent->collision, &base))
-        return false;
-    radial = Vector2_sub(&base, &tree->s.origin2);
-    radius = Vector2_len(&radial);
-    if (radius <= 0.001f)
-        return false;
-    angle = atan2f(radial.y, radial.x) + slot_angle;
-
-    /* Search outward from the worker's assigned lane in small angular steps.
-     * Static pathability decides whether the lane exists; live peers already
-     * chopping this tree reserve their current collision space. */
-    for (int ring = 0; ring < 12; ring++) {
-        int const magnitude = (ring + 1) / 2;
-        int const sign = ring == 0 ? 0 : ((ring & 1) ? 1 : -1);
-        FLOAT const a = angle + sign * magnitude *
-                                (15.0f * (FLOAT)M_PI / 180.0f);
-        VECTOR2 const candidate = {
-            tree->s.origin2.x + cosf(a) * radius,
-            tree->s.origin2.y + sinf(a) * radius
-        };
-
-        if (Vector2_distance(&candidate, &tree->s.origin2) > HARVEST_RANGE + 0.01f)
-            continue;
-        if (!CM_PointIsPathableForRadius(&candidate, ent->collision))
-            continue;
-        if (!CM_LineIsWalkableForRadius(&ent->s.origin2, &candidate, ent->collision))
-            continue;
-        if (harvest_tree_approach_occupied(ent, tree, &candidate))
-            continue;
-        *out = candidate;
-        return true;
-    }
-
-    if (!harvest_tree_approach_occupied(ent, tree, &base)) {
-        *out = base;
-        return true;
-    }
-    return false;
+    return CM_FindDirectApproachPointForRadius(&ent->s.origin2, &tree->s.origin2,
+                                                HARVEST_RANGE, ent->collision, out);
 }
 
 static BOOL harvest_find_direct_dropoff_approach(LPEDICT ent, LPEDICT dropoff,
@@ -409,9 +334,9 @@ static void ai_walktree(LPEDICT ent) {
             return;
         }
         if (direct_approach)
-            unit_changeangle_towards_point(ent, &approach);
+            unit_changeangle_towards_point_worker(ent, &approach);
         else
-            unit_changeangle_for_radius(ent, ent->collision);
+            unit_changeangle_for_radius_worker(ent, ent->collision);
         HARVEST_PATH_LOG(2,
             "approach worker=%d target=%d worker_pos=(%.1f,%.1f) target_pos=(%.1f,%.1f) "
             "distance=%.1f range=%.1f step=%.1f blocked_frames=%u direct=%d approach=(%.1f,%.1f) "
@@ -504,9 +429,9 @@ static void ai_harvest_walkback(LPEDICT ent) {
          * completion. */
         if (direct_approach &&
             Vector2_distance(&ent->s.origin2, &approach) > step)
-            unit_changeangle_towards_point(ent, &approach);
+            unit_changeangle_towards_point_worker(ent, &approach);
         else
-            unit_changeangle(ent);
+            unit_changeangle_worker(ent);
         unit_moveindirection(ent);
     }
 }

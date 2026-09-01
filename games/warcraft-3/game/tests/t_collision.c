@@ -251,6 +251,54 @@ TEST(wc3_collision, faster_unit_holds_line_slower_yields) {
     T_ASSERT(lateral_when_faster < lateral_when_slower);
 }
 
+/* Resource workers sharing a route should form a short queue instead of
+ * immediately choosing alternating slide sides.  Four blocked decisions are
+ * tolerated; a pinned queue may then take the deterministic right-hand escape. */
+TEST(wc3_collision, resource_worker_queues_then_passes_right) {
+    reset_collision_world();
+    LPEDICT mover = make_collision_unit(0.0f, 0.0f, 16.0f);
+    LPEDICT blocker = make_collision_unit(45.0f, 0.0f, 16.0f);
+    VECTOR2 const dest = { 300.0f, 0.0f };
+    VECTOR2 const origin = mover->s.origin2;
+
+    mover->unitinfo.MoveSpeed = blocker->unitinfo.MoveSpeed = 190.0f;
+    unit_issueorder(blocker, "move", &dest);
+
+    FOR_LOOP(i, 4) {
+        unit_changeangle_towards_point_worker(mover, &dest);
+        unit_moveindirection(mover);
+        T_FEQ(mover->s.origin2.x, origin.x, 0.01f);
+        T_FEQ(mover->s.origin2.y, origin.y, 0.01f);
+    }
+    T_EQ(mover->movement.worker_avoid_blocked_frames, 4);
+
+    unit_changeangle_towards_point_worker(mover, &dest);
+    unit_moveindirection(mover);
+    T_ASSERT(mover->s.origin2.x > origin.x);
+    T_ASSERT(mover->s.origin2.y < -0.1f);
+    T_ASSERT(fabsf(mover->s.origin2.y) <= mover->collision * 5.0f + 0.5f);
+}
+
+/* Opposing resource streams must not wait on one another: use the same
+ * deterministic right-hand pass immediately so mine/drop-off counterflow cannot
+ * deadlock in a narrow corridor. */
+TEST(wc3_collision, resource_worker_passes_opposing_traffic_immediately) {
+    reset_collision_world();
+    LPEDICT mover = make_collision_unit(0.0f, 0.0f, 16.0f);
+    LPEDICT blocker = make_collision_unit(45.0f, 0.0f, 16.0f);
+    VECTOR2 const east = { 300.0f, 0.0f };
+    VECTOR2 const west = { -300.0f, 0.0f };
+
+    mover->unitinfo.MoveSpeed = blocker->unitinfo.MoveSpeed = 190.0f;
+    unit_issueorder(blocker, "move", &west);
+
+    unit_changeangle_towards_point_worker(mover, &east);
+    unit_moveindirection(mover);
+    T_ASSERT(mover->s.origin2.x > 0.0f);
+    T_ASSERT(mover->s.origin2.y < -0.1f);
+    T_EQ(mover->movement.worker_avoid_blocked_frames, 0);
+}
+
 /* A very fast unit (per-tick step larger than a unit) ordered straight at a
  * stationary unit must NOT jump clean over it between ticks — the swept-circle
  * test blocks the path, not just the endpoint.  Assert the mover's per-tick
