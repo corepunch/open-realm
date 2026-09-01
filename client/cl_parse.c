@@ -730,7 +730,9 @@ static void CL_ParseGameCommand(LPSIZEBUF msg) {
         if (number > 0 && number < MAX_CLIENT_ENTITIES) {
             cl.selection.num_selected = 1;
             cl.selection.entity_nums[0] = (DWORD)number;
-            CL_RequestUnitUI(1, cl.selection.entity_nums);
+            if (ui.UpdateUnitUI) {
+                ui.UpdateUnitUI(0, NULL);
+            }
         }
 #endif
     }
