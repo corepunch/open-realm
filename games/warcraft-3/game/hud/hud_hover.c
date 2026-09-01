@@ -31,7 +31,6 @@ void UI_WriteHoverLayout(LPEDICT ent) {
     LPCSTR black = "Textures\\Black32.blp";
     LPCSTR hp = Theme_String("SimpleHpBarConsoleSmall", "SimpleHpBarConsoleSmall");
     LPCSTR mana = Theme_String("SimpleManaBarConsoleSmall", "SimpleManaBarConsoleSmall");
-    FLOAT const bar_y = -0.010f;
 
     if (!ent || !ent->client || !ent->client->connected) return;
     UI_WriteStart(LAYER_WORLD_HOVER);
@@ -49,14 +48,12 @@ void UI_WriteHoverLayout(LPEDICT ent) {
     data.text.textalignx = FONT_JUSTIFYCENTER; data.text.textaligny = FONT_JUSTIFYMIDDLE;
     data.padding_x = 0.008f; data.padding_y = 0.006f;
     UI_SetFramePoint(&frame.points.x[FPP_MID], FPP_MID, 0, 0.0f, false);
-    UI_SetFramePoint(&frame.points.y[FPP_MIN], FPP_MIN, 0, -0.047f, true);
+    UI_SetFramePoint(&frame.points.y[FPP_MIN], FPP_MIN, 0, -0.043f, true);
     UI_WriteProxyFrame(&frame, &data, sizeof(data));
 
-    if (ent->mana.value > 0.0f) {
-        UI_WriteHoverTexture(-0.0225f, -0.019f, 0.045f, 0.008f, black, UI_STAT_CONTEXT_MANA, MAKE(COLOR32, 0, 0, 0, 220));
-        UI_WriteHoverBar(-0.0215f, -0.018f, 0.043f, 0.006f, mana, UI_STAT_CONTEXT_MANA, MAKE(COLOR32, 60, 90, 235, 255));
-    }
-    UI_WriteHoverTexture(-0.0225f, bar_y, 0.045f, 0.008f, black, 0, MAKE(COLOR32, 0, 0, 0, 220));
-    UI_WriteHoverBar(-0.0215f, bar_y + 0.001f, 0.043f, 0.006f, hp, UI_STAT_CONTEXT_HEALTH, MAKE(COLOR32, 80, 200, 80, 255));
+    UI_WriteHoverTexture(-0.0225f, -0.019f, 0.045f, 0.008f, black, 0, MAKE(COLOR32, 0, 0, 0, 220));
+    UI_WriteHoverBar(-0.0215f, -0.018f, 0.043f, 0.006f, hp, UI_STAT_CONTEXT_HEALTH, MAKE(COLOR32, 80, 200, 80, 255));
+    UI_WriteHoverTexture(-0.0225f, -0.010f, 0.045f, 0.008f, black, UI_STAT_CONTEXT_MANA, MAKE(COLOR32, 0, 0, 0, 220));
+    UI_WriteHoverBar(-0.0215f, -0.009f, 0.043f, 0.006f, mana, UI_STAT_CONTEXT_MANA, MAKE(COLOR32, 60, 90, 235, 255));
     UI_WriteEnd(ent);
 }
