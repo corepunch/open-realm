@@ -26,6 +26,12 @@ static uiState_t ui_state;
 static uiScreen_t *ui_current_screen = NULL;
 static BOOL ui_menu_commands_registered;
 static LoadingScreen_t loading_screen;
+static uiHoverUnit_t hover_unit;
+static LPRENDERER hover_renderer;
+static LPCTEXTURE hover_bg, hover_edge, hover_hp, hover_mana, hover_black;
+static LPFONT hover_font;
+
+static void UI_DrawHoverUnit(void);
 
 static void UI_EnterGameMode(void);
 
@@ -521,6 +527,65 @@ void UI_RefreshLocal(DWORD time) {
     }
 }
 
+/* Draw the client-projected hover unit as a WC3 UI-owned name plate and status stack. */
+static void UI_DrawHoverUnit(void) {
+    RECT label, bar;
+    FLOAT hp, mana, label_w;
+    VECTOR2 text_size;
+    drawText_t text_draw;
+    COLOR32 hp_color;
+
+    if (!hover_unit.visible || !uiimport.GetRenderer) return;
+    hover_renderer = uiimport.GetRenderer();
+    if (!hover_renderer) return;
+    if (!hover_bg) hover_bg = hover_renderer->LoadTexture("UI\\Widgets\\ToolTips\\Human\\human-tooltip-background.blp");
+    if (!hover_edge) hover_edge = hover_renderer->LoadTexture("UI\\Widgets\\ToolTips\\Human\\human-tooltip-border.blp");
+    if (!hover_hp) hover_hp = hover_renderer->LoadTexture("UI\\Feedback\\HpBarConsole\\human-healthbar-fill.blp");
+    if (!hover_mana) hover_mana = hover_renderer->LoadTexture("UI\\Feedback\\ManaBarConsole\\human-manabar-fill.blp");
+    if (!hover_black) hover_black = hover_renderer->LoadTexture("Textures\\Black32.blp");
+    if (!hover_font) hover_font = hover_renderer->LoadFont("Fonts\\FRIZQT__.TTF", 10);
+    hp = hover_unit.health / 255.0f; mana = hover_unit.mana / 255.0f;
+    hp_color = hp > 0.5f ? MAKE(COLOR32, (BYTE)(255.0f * (1.0f - hp) * 2.0f), 200, 0, 255) :
+        MAKE(COLOR32, 220, (BYTE)(200.0f * hp * 2.0f), 0, 255);
+    text_draw = (drawText_t){ .font = hover_font, .text = hover_unit.name, .rect = { 0, 0, 0, 0 },
+        .color = COLOR32_WHITE, .textWidth = 0, .lineHeight = 1.0f };
+    text_size = hover_font ? hover_renderer->GetTextSize(&text_draw) : MAKE(VECTOR2, 0, 0);
+    label_w = MAX(hover_unit.width, text_size.x + 0.012f);
+    label = MAKE(RECT, hover_unit.x - label_w * 0.5f, hover_unit.y - 0.033f, label_w, 0.020f);
+    if (hover_bg && hover_edge) hover_renderer->DrawBackdrop(&(drawBackdrop_t){
+        .screen = label, .bg = { hover_bg, COLOR32_WHITE }, .edge = { hover_edge, COLOR32_WHITE },
+        .corner = { 0x1ff, 0.008f }, .insets = { 0.0025f, 0.0025f, 0.0025f, 0.0025f }, .flags = 0 });
+    if (hover_font) hover_renderer->DrawText(&(drawText_t){ .font = hover_font, .text = hover_unit.name, .rect = label,
+        .color = COLOR32_WHITE, .textWidth = label.w, .lineHeight = label.h,
+        .halign = FONT_JUSTIFYCENTER, .valign = FONT_JUSTIFYMIDDLE });
+    bar = MAKE(RECT, hover_unit.x - hover_unit.width * 0.5f, hover_unit.y - 0.010f, hover_unit.width, 0.008f);
+    if (hover_black) hover_renderer->DrawImageEx(&(drawImage_t){ .texture = hover_black, .shader = SHADER_UI,
+        .screen = bar, .uv = { 0, 0, 1, 1 }, .color = MAKE(COLOR32, 0, 0, 0, 220) });
+    if (hover_hp) {
+        RECT inner = MAKE(RECT, bar.x + 0.003f, bar.y + 0.003f, bar.w - 0.006f, bar.h - 0.006f);
+        hover_renderer->DrawImageEx(&(drawImage_t){ .texture = hover_hp, .shader = SHADER_UI,
+            .screen = inner, .uv = { 0, 0, hp, 1 }, .color = hp_color });
+    }
+    if (mana > 0.0f) {
+        bar.y += 0.010f;
+        if (hover_black) hover_renderer->DrawImageEx(&(drawImage_t){ .texture = hover_black, .shader = SHADER_UI,
+            .screen = bar, .uv = { 0, 0, 1, 1 }, .color = MAKE(COLOR32, 0, 0, 0, 220) });
+        if (hover_mana) {
+            RECT inner = MAKE(RECT, bar.x + 0.003f, bar.y + 0.003f, bar.w - 0.006f, bar.h - 0.006f);
+            hover_renderer->DrawImageEx(&(drawImage_t){ .texture = hover_mana, .shader = SHADER_UI,
+                .screen = inner, .uv = { 0, 0, mana, 1 }, .color = MAKE(COLOR32, 60, 90, 235, 255) });
+        }
+    }
+}
+
+static void UI_UpdateHoverUnitLocal(uiHoverUnit_t const *unit) {
+    hover_unit = unit ? *unit : (uiHoverUnit_t){ 0 };
+}
+
+static void UI_DrawGameOverlayLocal(void) {
+    UI_DrawHoverUnit();
+}
+
 void UI_KeyEventLocal(int key, BOOL down, DWORD time) {
     (void)time;
 
@@ -811,6 +876,8 @@ uiExport_t UI_GetAPI(uiImport_t import) {
     exp.TextInput = UI_TextInputLocal;
     exp.MouseEvent = UI_MouseEventLocal;
     exp.UpdateUnitUI = UI_UpdateUnitUILocal;
+    exp.UpdateHoverUnit = UI_UpdateHoverUnitLocal;
+    exp.DrawGameOverlay = UI_DrawGameOverlayLocal;
     exp.UpdateLobbySetup = UI_UpdateLobbySetupLocal;
     
     return exp;

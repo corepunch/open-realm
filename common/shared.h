@@ -203,6 +203,8 @@ enum {
     FLAG(EF_QUEST_COMPLETE, 5), /* quest is ready to turn in — tint "?" yellow */
     FLAG(EF_HOSTILE, 6),        /* hostile relationship to this snapshot recipient */
     FLAG(EF_NOT_SELECTABLE, 7), /* render entity, but exclude it from world/box selection */
+    /* TODO: deliver the authoritative/localized unit name through a dedicated hover-UI
+     * response or game command; do not widen entityState_t for this presentation data. */
     FLAG(EF_HOVER_HEALTH, 8),   /* client may expose this entity's health on world hover */
     FLAG(EF_NEUTRAL, 9),        /* neutral/passive relationship to this snapshot recipient */
 };

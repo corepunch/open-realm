@@ -121,6 +121,43 @@ static void SCR_DrawCursor(void) {
     SCR_UpdateSystemCursor(drawn);
 }
 
+/* Convert the current hovered entity's model-top point into the UI canvas consumed by ui.dll. */
+static void SCR_UpdateHoverUnitUI(void) {
+    uiHoverUnit_t unit = { 0 };
+    LPCENTITYSTATE ent;
+    FLOAT const *m;
+    FLOAT cx, cy, cw, ndc_x, ndc_y;
+    VECTOR3 top;
+
+    if (!ui.UpdateHoverUnit || !cl.hover_entity || cl.hover_entity >= MAX_CLIENT_ENTITIES)
+        goto done;
+    ent = &cl.ents[cl.hover_entity].current;
+    if (!ent->model || !ent->stats[ENT_HEALTH] || !(ent->flags & EF_HOVER_HEALTH))
+        goto done;
+    FOR_LOOP(i, cl.viewDef.num_entities)
+        if (cl.viewDef.entities[i].number == cl.hover_entity) {
+            top = cl.viewDef.entities[i].origin;
+            top.z += cl.viewDef.entities[i].radius * 2.0f + 48.0f;
+            m = cl.viewDef.viewProjectionMatrix.v;
+            cx = m[0] * top.x + m[4] * top.y + m[8] * top.z + m[12];
+            cy = m[1] * top.x + m[5] * top.y + m[9] * top.z + m[13];
+            cw = m[3] * top.x + m[7] * top.y + m[11] * top.z + m[15];
+            if (cw <= 0.0001f) goto done;
+            ndc_x = cx / cw; ndc_y = cy / cw;
+            unit.visible = true;
+            unit.x = (cl.viewDef.viewport.x + (ndc_x * 0.5f + 0.5f) * cl.viewDef.viewport.w) * UI_BASE_WIDTH;
+            unit.y = (1.0f - (cl.viewDef.viewport.y + (ndc_y * 0.5f + 0.5f) * cl.viewDef.viewport.h)) * UI_BASE_HEIGHT;
+            /* Preserve the authored 128:16 console-bar aspect at the 0.008 FDF-unit height. */
+            unit.width = 0.064f;
+            unit.health = ent->stats[ENT_HEALTH];
+            unit.mana = ent->stats[ENT_MANA];
+            strlcpy(unit.name, "Object", sizeof(unit.name));
+            break;
+        }
+done:
+    ui.UpdateHoverUnit(&unit);
+}
+
 void SCR_BeginLoadingPlaque(void) {
     if (cls.disable_screen)
         return;
@@ -153,6 +190,7 @@ void SCR_DrawScreenField(DWORD msec) {
         break;
     case ca_active:
         V_RenderView();
+        SCR_UpdateHoverUnitUI();
         if (Cvar_Integer("r_hud", 1)) {
             SCR_DrawLayout();
             if (ui.DrawGameOverlay) ui.DrawGameOverlay();
