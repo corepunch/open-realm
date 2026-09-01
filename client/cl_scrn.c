@@ -671,6 +671,16 @@ void SCR_LayoutDrawString(LPCUIFRAME frame, LPCRECT screen) {
     layout_text(frame, &scr, SCR_GetStringValue(frame));
 }
 
+/* Draw a nameplate whose backdrop and text share the measured content rect. */
+void SCR_LayoutDrawNameTag(LPCUIFRAME frame, LPCRECT screen) {
+    uiNameTag_t const *tag = frame->buffer.data;
+    RECT text = { screen->x + tag->padding_x, screen->y + tag->padding_y,
+                  screen->w - tag->padding_x * 2, screen->h - tag->padding_y * 2 };
+    drawText_t dt = SCR_GetDrawText(frame, text.w, SCR_GetStringValue(frame), &tag->text);
+    SCR_LayoutDrawBackdrop2(frame, screen, &tag->background);
+    dt.rect = text; dt.flags |= DRAW_WORD_WRAP; re.DrawText(&dt);
+}
+
 void SCR_LayoutDrawTextArea(LPCUIFRAME frame, LPCRECT screen) {
     uiTextArea_t const *ta = frame->buffer.data;
     LPCSTR value = SCR_GetStringValue(frame);
@@ -787,6 +797,7 @@ static drawer_t drawers[] = {
     { FT_SIMPLESTATUSBAR,SCR_LayoutDrawStatusbar },
     { FT_COMMANDBUTTON,  SCR_LayoutDrawCommandButton },
     { FT_STRING,         SCR_LayoutDrawString },
+    { FT_NAMETAG,        SCR_LayoutDrawNameTag },
     { FT_TEXT,           SCR_LayoutDrawString },
     { FT_TEXTAREA,       SCR_LayoutDrawTextArea },
     { FT_LISTBOX,        SCR_LayoutDrawListBox },

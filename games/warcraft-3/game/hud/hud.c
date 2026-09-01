@@ -157,6 +157,14 @@ BOOL UI_BuildFrameForWrite(LPCFRAMEDEF frame,
             } else { buf.overflowed = true; }
             break;
         }
+        case FT_NAMETAG: {
+            uiNameTag_t data = { .background = MakeBackdrop(frame), .text = MakeLabel(frame),
+                                 .padding_x = 0.008f, .padding_y = 0.006f };
+            if (buf.cursize + sizeof(data) <= buf.maxsize) {
+                memcpy(buf.data + buf.cursize, &data, sizeof(data)); buf.cursize += sizeof(data);
+            } else { buf.overflowed = true; }
+            break;
+        }
         case FT_STRING:
         case FT_TEXT: {
             uiLabel_t data = MakeLabel(frame);

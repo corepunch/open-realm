@@ -55,7 +55,7 @@ static LPEDICT make_test_unit(void) {
     return ent;
 }
 
-static BOOL hover_layout_pending, hover_layer_seen, hover_name_seen, hover_hp_seen, hover_mana_seen;
+static BOOL hover_layout_pending, hover_layer_seen, hover_name_seen, hover_hp_seen, hover_mana_seen, hover_name_sized, hover_name_centered, hover_name_short;
 static DWORD hover_frame_count, hover_unicast_count, hover_image_count, hover_font_count;
 static LPEDICT hover_unicast_target;
 
@@ -72,7 +72,13 @@ static void hover_test_write(pfWriteType_t type, void const *value) {
     } else if (type == PF_UIFRAME) {
         LPCUIFRAME frame = value;
         hover_frame_count++;
-        hover_name_seen |= frame->flags.type == FT_STRING && frame->stat == UI_STAT_CONTEXT_NAME;
+        hover_name_seen |= frame->flags.type == FT_NAMETAG && frame->stat == UI_STAT_CONTEXT_NAME;
+        hover_name_sized |= frame->flags.type == FT_NAMETAG && (frame->flagsvalue & UIFLAG_SIZE_TO_CONTENT);
+        if (frame->flags.type == FT_NAMETAG && frame->buffer.size == sizeof(uiNameTag_t)) {
+            uiNameTag_t const *tag = frame->buffer.data;
+            hover_name_centered = frame->points.x[FPP_MID].used;
+            hover_name_short = tag->padding_y == 0.006f;
+        }
         hover_hp_seen |= frame->flags.type == FT_SIMPLESTATUSBAR && frame->stat == UI_STAT_CONTEXT_HEALTH;
         hover_mana_seen |= frame->stat == UI_STAT_CONTEXT_MANA;
     }
@@ -231,16 +237,18 @@ TEST(wc3_game, hover_layout_is_server_authored_with_entity_context_bindings) {
     int (*old_font)(LPCSTR, DWORD) = gi.FontIndex;
     LPEDICT player;
 
-    setup_test_world(); player = &g_edicts[0]; player->client->connected = true;
-    hover_layout_pending = hover_layer_seen = hover_name_seen = hover_hp_seen = hover_mana_seen = false;
+    setup_test_world(); player = &g_edicts[0]; player->client->connected = true; player->mana.max_value = 100.0f;
+    hover_layout_pending = hover_layer_seen = hover_name_seen = hover_hp_seen = hover_mana_seen = hover_name_sized = false;
+    hover_name_centered = hover_name_short = false;
     hover_frame_count = hover_unicast_count = hover_image_count = hover_font_count = 0; hover_unicast_target = NULL;
     gi.Write = hover_test_write; gi.unicast = hover_test_unicast;
     gi.ImageIndex = hover_test_image; gi.FontIndex = hover_test_font;
     UI_WriteHoverLayout(player);
     gi.Write = old_write; gi.unicast = old_unicast; gi.ImageIndex = old_image; gi.FontIndex = old_font;
 
-    T_ASSERT(hover_layer_seen); T_EQ(hover_frame_count, 6);
-    T_ASSERT(hover_name_seen); T_ASSERT(hover_hp_seen); T_ASSERT(hover_mana_seen);
+    T_ASSERT(hover_layer_seen); T_EQ(hover_frame_count, 5);
+    T_ASSERT(hover_name_seen); T_ASSERT(hover_name_sized); T_ASSERT(hover_name_centered); T_ASSERT(hover_name_short);
+    T_ASSERT(hover_hp_seen); T_ASSERT(hover_mana_seen);
     T_EQ(hover_image_count, 6); T_EQ(hover_font_count, 1);
     T_EQ(hover_unicast_count, 1); T_ASSERT(hover_unicast_target == player);
 }
