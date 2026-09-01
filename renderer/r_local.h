@@ -125,11 +125,6 @@ static inline DWORD R_InstanceBufferCapacity(DWORD capacity, DWORD count) {
     for (capacity = capacity ? capacity : 16; capacity < count; capacity *= 2) {}
     return capacity;
 }
-#define STATUS_BAR_GAP_RATIO 0.1875f // bar heights; preserves the old 0.0015/0.008 scene-height gap
-/* Mana keeps the original lower slot while health moves one row above it. */
-static inline VECTOR2 R_StatusBarOffsets(FLOAT height, BOOL mana) {
-    return MAKE(VECTOR2, -(mana ? 2.0f + STATUS_BAR_GAP_RATIO : 1.0f) * height, 0.0f);
-}
 static inline void R_SwapRedBlue(BYTE *pixels, DWORD count, DWORD stride) {
     FOR_LOOP(i, count) {
         BYTE tmp = pixels[i * stride]; pixels[i * stride] = pixels[i * stride + 2]; pixels[i * stride + 2] = tmp;
@@ -344,7 +339,6 @@ LPCTEXTURE R_FindTextureByID(DWORD textureID);
 void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y);
 bool R_SetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity);
 void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture, splat_shader_t *shader, COLOR32 color);
-void R_DrawHealthBars(void);
 void R_DrawBackdrop(LPCDRAWBACKDROP drawBackdrop);
 void R_RenderRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, splat_shader_t *shader, COLOR32 color);
 void R_RenderFlatRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, FLOAT z, LPCTEXTURE texture, splat_shader_t *shader, COLOR32 color);

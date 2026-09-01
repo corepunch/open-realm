@@ -243,8 +243,6 @@ static void V_AddClientEntity(centity_t const *ent) {
     if (ent->current.flags & EF_NOT_SELECTABLE) re.flags |= RF_NOT_SELECTABLE;
     re.radius = ent->current.radius;
     re.number = ent->current.number;
-    re.health = ent->current.stats[ENT_HEALTH];
-    re.mana   = ent->current.stats[ENT_MANA];
     re.splat = cl.pics[ent->current.splat & 0xffff];
     re.splatsize = ent->current.splat >> 16;
 #ifndef USE_SHADOWMAPS
@@ -283,7 +281,6 @@ static void V_AddClientEntity(centity_t const *ent) {
         re.scale = 1;
         re.name = NULL;
         re.number = 0;
-        re.health = re.mana = 0;
         re.flags |= RF_NO_SHADOW;
         if (ent->current.renderfx & RF_ATTACH_OVERHEAD) {
             re.origin.z += re.radius * 2.5;
@@ -520,9 +517,6 @@ void V_RenderView(void) {
     cl.viewDef.time = cl.time;
     cl.viewDef.deltaTime = cl.time - lastTime;
     cl.viewDef.rdflags = cl.playerstate.rdflags;
-    if (CL_AltModifierDown()) {
-        cl.viewDef.rdflags |= RDF_SHOW_ALL_HEALTHBARS; /* ALT: bars on every unit */
-    }
     cl.viewDef.player = cl.playerstate.number;
     cl.viewDef.hover_entity = cl.hover_entity;
     

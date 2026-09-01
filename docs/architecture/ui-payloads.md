@@ -173,6 +173,11 @@ This is not a per-hover network protocol. The server sends the static frame tree
 once; mouse picking, projection, and evaluation of already-replicated values happen locally each render frame. Do not revive
 `clc_request_unit_ui`/`svc_unit_ui`, add an entity-name query, or resend `svc_layout` on mouse motion.
 
+Game modules own the layer contents. WC3 and WoW send their native frame trees during `ClientBegin`; WoW authors compressed creature
+vitals through `CustomizeEntity` and keeps `entityState_t.name` hidden until that recipient selects the creature. SC2 sends a header
+and terminator with no frames until its gameplay state can author a real widget. The renderer has no parallel health-bar pass, and
+there is no ALT-driven show-all mode because one `LAYER_WORLD_HOVER` instance has one `cl.hover_entity` context.
+
 ## Key Files
 
 | File | Responsibility |

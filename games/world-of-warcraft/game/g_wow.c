@@ -2492,10 +2492,18 @@ static questMarker_t Wow_QuestMarkerForGiver(wowClient_t *client, wowEntityLocal
     return best;
 }
 
-/* Select a quest marker per recipient; entity state is shared between clients until this copy. */
+/* Author recipient-specific hover and quest presentation from the private creature state. */
 static void Wow_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
     if (player >= WOW_MAX_CLIENTS) return;
+    state->flags &= ~EF_HOVER_HEALTH;
+    state->stats[ENT_HEALTH] = state->stats[ENT_MANA] = 0;
+    if (local && state->model && (ent->svflags & SVF_MONSTER) && !(ent->svflags & SVF_DEADMONSTER) &&
+        !local->dead && local->health && !(state->flags & EF_NOT_SELECTABLE)) {
+        state->flags |= EF_HOVER_HEALTH;
+        state->stats[ENT_HEALTH] = (BYTE)(MIN(local->health, 100u) * 255u / 100u);
+        state->stats[ENT_MANA] = (BYTE)(MIN(local->mana, WOW_MANA_MAX) * 255u / WOW_MANA_MAX);
+    }
     /* Vanilla reveals a creature's overhead name only after that recipient selects it. */
     if (wow_clients[player].selected_entity != state->number) state->name = 0;
     if (!local || !local->quest_id || !(state->flags & EF_HAS_QUEST)) return;
@@ -2527,6 +2535,7 @@ static void Wow_ClientBegin(LPEDICT ent) {
     Wow_SendPlayerUi(ent);
     Wow_SendInbox(ent);
     UI_WriteWowHud(ent);
+    UI_WriteWowHover(ent);
     UI_WriteWelcomeWindow(ent);
 }
 

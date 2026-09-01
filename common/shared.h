@@ -216,7 +216,6 @@ enum {
     FLAG(RDF_NOFRUSTUMCULL, 3),
     FLAG(RDF_NOPARTICLES, 4),
     FLAG(RDF_USE_ENTITY_CAMERA, 5),
-    FLAG(RDF_SHOW_ALL_HEALTHBARS, 6), /* ALT held: overhead bars on every unit */
 };
 
 #define MAX_COMMANDS 12
