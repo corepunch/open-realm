@@ -247,25 +247,6 @@ authoritative edict for revival; `G_ReviveHero()` clears `SVF_DEADMONSTER`,
 `EF_NOT_SELECTABLE`, `RF_HIDDEN`, and `AI_HOLD_FRAME` before returning the Hero to its
 living stand state. See [Hero revival](hero-revival.md) for the remainder of that lifecycle.
 
-### Diagnostics
-
-Runtime corpse/death tracing is off by default. `+set wc3_unit_death_debug 1` logs the
-entry and completed state of `unit_die()`, including health, `M_IsDead()`,
-`SVF_DEADMONSTER`, selection bits, `EF_NOT_SELECTABLE`, current move, animation frame,
-and whether `AI_HOLD_FRAME` is active. It also logs attempts to select the corpse or issue
-point, target, or immediate orders to it. The expected post-transition line contains
-`health=0.000 dead=1 deadmonster=1 notselectable=1 selected=0x0` and reports the
-`death` move.
-
-`+set wc3_unit_death_debug 2` additionally logs every server animation-clock step while the
-active move is `death`, with current/next frame and authored interval. If the animation
-clock is prevented from running it instead reports `frame_blocked` with `hold`, `paused`, or
-`stunned` as the reason. A complete corpse sequence should show monotonically advancing
-`frame` lines followed by a single
-`animation_complete` line when `unit_begin_decay()` takes ownership of the final corpse
-pose. This level is intentionally verbose and should only be used for bounded reproduction
-runs.
-
 ### Verification
 
 `wc3_unit.die_clears_selection_and_marks_corpse_unselectable` covers the authoritative
