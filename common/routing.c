@@ -60,6 +60,7 @@ struct {
     routeNode_t *heatmap;
     DWORD *queue;          /* SPFA relaxation queue (ring buffer, width*height+1) */
     DWORD *obstacle_prefix; /* summed-area table for static nowalk cells */
+    BYTE *approach_mask;    /* reusable footprint-approach candidate mask */
 } pathmap = { 0 };
 
 #define HEATMAP_CACHE_SLOTS 4
@@ -222,6 +223,7 @@ void CM_SetupPathMap(DWORD width, DWORD height, BYTE const *cells) {
     SAFE_DELETE(pathmap.heatmap, MemFree);
     SAFE_DELETE(pathmap.queue, MemFree);
     SAFE_DELETE(pathmap.obstacle_prefix, MemFree);
+    SAFE_DELETE(pathmap.approach_mask, MemFree);
     FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
         SAFE_DELETE(heatmap_cache[i].prices, MemFree);
     }
@@ -239,6 +241,7 @@ void CM_SetupPathMap(DWORD width, DWORD height, BYTE const *cells) {
     pathmap.heatmap = MemAlloc(n * sizeof(routeNode_t));
     pathmap.queue = MemAlloc((n + 1) * sizeof(DWORD));
     pathmap.obstacle_prefix = MemAlloc((width + 1) * (height + 1) * sizeof(DWORD));
+    pathmap.approach_mask = MemAlloc(n);
 
     if (cells) {
         memcpy(pathmap.terrain, cells, n);
@@ -248,6 +251,7 @@ void CM_SetupPathMap(DWORD width, DWORD height, BYTE const *cells) {
     memcpy(pathmap.original, pathmap.terrain, n);
     memcpy(pathmap.data, pathmap.original, n);
     memset(pathmap.heatmap, 0, n * sizeof(routeNode_t));
+    memset(pathmap.approach_mask, 0, n);
     rebuild_static_obstacle_prefix();
 
     heatmap_cache_invalidate();
@@ -457,21 +461,31 @@ static bool is_pathable_node(int x, int y) {
     return is_valid_point(x, y) && !is_obstacle(x, y);
 }
 
-static FLOAT pathmap_cell_world_size(void) {
-    FLOAT cell_x = FLT_MAX;
-    FLOAT cell_y = FLT_MAX;
+static void pathmap_cell_world_dimensions(FLOAT *cell_x, FLOAT *cell_y) {
+    *cell_x = FLT_MAX;
+    *cell_y = FLT_MAX;
 
     if (pathmap.width > 0) {
         VECTOR2 a = CM_GetDenormalizedMapPosition(0, 0);
         VECTOR2 b = CM_GetDenormalizedMapPosition(1.f / pathmap.width, 0);
-        cell_x = fabsf(b.x - a.x);
+        *cell_x = fabsf(b.x - a.x);
     }
     if (pathmap.height > 0) {
         VECTOR2 a = CM_GetDenormalizedMapPosition(0, 0);
         VECTOR2 b = CM_GetDenormalizedMapPosition(0, 1.f / pathmap.height);
-        cell_y = fabsf(b.y - a.y);
+        *cell_y = fabsf(b.y - a.y);
     }
+}
+
+static FLOAT pathmap_cell_world_size(void) {
+    FLOAT cell_x, cell_y;
+
+    pathmap_cell_world_dimensions(&cell_x, &cell_y);
     return MAX(1.f, MIN(cell_x, cell_y));
+}
+
+FLOAT CM_PathCellWorldSize(void) {
+    return pathmap_cell_world_size();
 }
 
 static bool is_pathable_node_for_radius_cells(int x, int y, int radius_cells) {
@@ -823,50 +837,99 @@ BOOL CM_FindApproachPointToFootprintForRadius(struct edict_s const *target,
                                                 FLOAT radius, LPVECTOR2 out) {
     pathTex_t const *pt;
     point2_t center;
-    FLOAT const cell_size = pathmap_cell_world_size();
+    FLOAT cell_x, cell_y;
+    FLOAT cell_size;
+    FLOAT const range_sq = range * range;
     FLOAT best_direct_dist2 = FLT_MAX;
     FLOAT best_any_dist2 = FLT_MAX;
     VECTOR2 best_direct = { 0, 0 };
     VECTOR2 best_any = { 0, 0 };
-    int radius_cells, padding_cells;
+    int radius_cells, padding_cells, reach_x, reach_y;
     int min_x, max_x, min_y, max_y;
     BOOL found_direct = false;
     BOOL found_any = false;
 
     if (!target || !from || !out || range < 0.0f ||
-        !(pt = target->pathtex) || !pathmap.original ||
+        !(pt = target->pathtex) || !pathmap.original || !pathmap.approach_mask ||
         !pathmap.width || !pathmap.height) {
         return false;
     }
 
+    pathmap_cell_world_dimensions(&cell_x, &cell_y);
+    cell_x = MAX(1.0f, cell_x);
+    cell_y = MAX(1.0f, cell_y);
+    cell_size = MIN(cell_x, cell_y);
     center = LocationToPathMap(&target->s.origin2);
     radius_cells = (int)ceilf(MAX(0.0f, radius) / cell_size);
     padding_cells = (int)ceilf(MAX(0.0f, range) / cell_size) + radius_cells + 1;
-    min_x = center.x - (int)pt->width / 2 - padding_cells;
-    max_x = center.x - (int)pt->width / 2 + (int)pt->width - 1 + padding_cells;
-    min_y = center.y - (int)pt->height / 2 - padding_cells;
-    max_y = center.y - (int)pt->height / 2 + (int)pt->height - 1 + padding_cells;
+    min_x = MAX(0, center.x - (int)pt->width / 2 - padding_cells);
+    max_x = MIN((int)pathmap.width - 1,
+                center.x - (int)pt->width / 2 + (int)pt->width - 1 + padding_cells);
+    min_y = MAX(0, center.y - (int)pt->height / 2 - padding_cells);
+    max_y = MIN((int)pathmap.height - 1,
+                center.y - (int)pt->height / 2 + (int)pt->height - 1 + padding_cells);
+    if (min_x > max_x || min_y > max_y)
+        return false;
+
+    /* The previous implementation called CM_DistanceToPathingFootprint for
+     * every candidate cell.  That helper scans every authored footprint pixel,
+     * turning one small edge search into candidate_count * footprint_area work
+     * every time a worker adjusted its lane.  Build an exact reusable mask of
+     * cells that lie within range of any blocked footprint pixel instead. */
+    for (int y = min_y; y <= max_y; y++)
+        memset(&pathmap.approach_mask[min_x + y * pathmap.width], 0,
+               (size_t)(max_x - min_x + 1));
+
+    reach_x = (int)ceilf(range / cell_x + 0.5f);
+    reach_y = (int)ceilf(range / cell_y + 0.5f);
+    FOR_LOOP(px_local, pt->width) {
+        FOR_LOOP(py_local, pt->height) {
+            int const px = (int)px_local + center.x - (int)pt->width / 2;
+            int const py = (int)py_local + center.y - (int)pt->height / 2;
+            int const x0 = MAX(min_x, px - reach_x);
+            int const x1 = MIN(max_x, px + reach_x);
+            int const y0 = MAX(min_y, py - reach_y);
+            int const y1 = MIN(max_y, py + reach_y);
+
+            if (!pt->map[px_local + py_local * pt->width].b ||
+                !is_valid_point(px, py))
+                continue;
+
+            for (int y = y0; y <= y1; y++) {
+                int const dy_cells = abs(y - py);
+                FLOAT const dyw = dy_cells > 0
+                    ? ((FLOAT)dy_cells - 0.5f) * cell_y : 0.0f;
+                FLOAT const dy2 = dyw * dyw;
+
+                if (dy2 > range_sq)
+                    continue;
+                for (int x = x0; x <= x1; x++) {
+                    int const dx_cells = abs(x - px);
+                    FLOAT const dxw = dx_cells > 0
+                        ? ((FLOAT)dx_cells - 0.5f) * cell_x : 0.0f;
+
+                    if (dxw * dxw + dy2 <= range_sq + 0.001f)
+                        pathmap.approach_mask[x + y * pathmap.width] = 1;
+                }
+            }
+        }
+    }
 
     /* Building interaction targets are blocked shapes, not reachable points.
-     * Search a small ring around the authored footprint. Prefer a legal point
-     * with a direct static route; otherwise return the nearest legal point and
-     * let the caller's collision-sized flow field route around intervening
-     * terrain/buildings. */
+     * Search the exact marked ring around the authored footprint. Prefer a
+     * legal point with a direct static route; otherwise return the nearest
+     * legal point and let the caller's collision-sized flow field route around
+     * intervening terrain/buildings. */
     for (int y = min_y; y <= max_y; y++) {
         for (int x = min_x; x <= max_x; x++) {
             VECTOR2 candidate;
-            FLOAT footprint_distance;
             FLOAT dxw, dyw, dist2;
-            BOOL direct;
 
-            if (!is_pathable_node_original_for_radius_cells(x, y, radius_cells))
+            if (!pathmap.approach_mask[x + y * pathmap.width] ||
+                !is_pathable_node_original_for_radius_cells(x, y, radius_cells))
                 continue;
             candidate = CM_GetDenormalizedMapPosition((x + 0.5f) / pathmap.width,
                                                        (y + 0.5f) / pathmap.height);
-            footprint_distance = CM_DistanceToPathingFootprint(target, &candidate);
-            if (footprint_distance == FLT_MAX || footprint_distance > range)
-                continue;
-
             dxw = candidate.x - from->x;
             dyw = candidate.y - from->y;
             dist2 = dxw * dxw + dyw * dyw;
@@ -876,8 +939,10 @@ BOOL CM_FindApproachPointToFootprintForRadius(struct edict_s const *target,
                 found_any = true;
             }
 
-            direct = CM_LineIsWalkableForRadius(from, &candidate, radius);
-            if (direct && (!found_direct || dist2 < best_direct_dist2)) {
+            /* Once a direct point has been found, a farther candidate cannot
+             * improve it, so avoid another line walkability trace. */
+            if ((!found_direct || dist2 < best_direct_dist2) &&
+                CM_LineIsWalkableForRadius(from, &candidate, radius)) {
                 best_direct_dist2 = dist2;
                 best_direct = candidate;
                 found_direct = true;
@@ -922,10 +987,14 @@ static VECTOR2 compute_flow_at(int const *prices_field, DWORD x, DWORD y, int ra
         new_price = prices_field[new_x + new_y * pathmap.width];
         if (new_price == INT_MAX)
             continue;
-        /* Collision-sized routes are used by lumber to detect a genuine route
-         * endpoint, so those vectors must strictly descend toward the goal.
-         * Generic point routes preserve the older blended flow contract. */
-        if (radius_cells > 0 && new_price >= current_price)
+        /* A flow field must always descend toward its integration target.
+         * Allowing a point route to blend equal/higher-cost neighbours makes
+         * an adjusted target beside a blocked interaction object point back
+         * out into the map, which can make every unit sharing that field orbit
+         * the same off-target cell.  Interaction behaviors may continue from
+         * the adjusted route end toward their real target; the field itself
+         * must never direct them away from the route end. */
+        if (new_price >= current_price)
             continue;
         if (dir >= 4 &&
             !(is_pathable_node_original_for_radius_cells((int)x + dx[dir], (int)y, radius_cells) &&

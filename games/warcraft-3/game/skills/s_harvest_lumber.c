@@ -139,6 +139,35 @@ static LPEDICT find_another_tree(LPEDICT ent) {
     return ent ? find_another_tree_near(&ent->s.origin2) : NULL;
 }
 
+/* Tree interaction keeps the closest direct legal chop point.  Dynamic
+ * Peasant separation belongs to the resource-worker local avoidance policy:
+ * same-stream workers queue instead of pre-allocating angular lanes, while
+ * crossing/pinned traffic uses deterministic bounded passing. */
+static BOOL harvest_find_direct_tree_approach(LPEDICT ent, LPEDICT tree,
+                                               LPVECTOR2 out) {
+    return CM_FindDirectApproachPointForRadius(&ent->s.origin2, &tree->s.origin2,
+                                                HARVEST_RANGE, ent->collision, out);
+}
+
+static BOOL harvest_find_direct_dropoff_approach(LPEDICT ent, LPEDICT dropoff,
+                                                  FLOAT step, LPVECTOR2 out) {
+    FLOAT route_band;
+
+    if (!ent || !dropoff || !dropoff->pathtex || !out)
+        return false;
+
+    /* Re-select from the current position so local avoidance can move a
+     * returning worker onto a different free edge lane as nearby workers
+     * change position.  CM_FindApproachPointToFootprintForRadius keeps this
+     * per-think selection bounded without the old nested footprint scan. */
+    route_band = ent->collision + step +
+                 CM_PathCellWorldSize() * 1.41421356237f;
+    if (!CM_FindApproachPointToFootprintForRadius(
+            dropoff, &ent->s.origin2, route_band, ent->collision, out))
+        return false;
+    return CM_LineIsWalkableForRadius(&ent->s.origin2, out, ent->collision);
+}
+
 /* Retail WC3 continues lumber work when the explicitly clicked tree is alive
  * but cannot be reached.  Keep target selection in Harvest: routing reports
  * failure/exhaustion, then Harvest chooses a replacement tree.  Prefer a tree
@@ -297,18 +326,17 @@ static void ai_walktree(LPEDICT ent) {
         look_for_another_tree(ent);
     } else if (distance > HARVEST_RANGE) {
         VECTOR2 approach = { 0, 0 };
-        BOOL const direct_approach = CM_FindDirectApproachPointForRadius(
-            &ent->s.origin2, &ent->goalentity->s.origin2, HARVEST_RANGE,
-            ent->collision, &approach);
+        BOOL const direct_approach =
+            harvest_find_direct_tree_approach(ent, ent->goalentity, &approach);
 
         if (move_is_blocked(ent, distance, step)) {
             harvest_route_failed(ent, "movement_blocked");
             return;
         }
         if (direct_approach)
-            unit_changeangle_towards_point(ent, &approach);
+            unit_changeangle_towards_point_worker(ent, &approach);
         else
-            unit_changeangle_for_radius(ent, ent->collision);
+            unit_changeangle_for_radius_worker(ent, ent->collision);
         HARVEST_PATH_LOG(2,
             "approach worker=%d target=%d worker_pos=(%.1f,%.1f) target_pos=(%.1f,%.1f) "
             "distance=%.1f range=%.1f step=%.1f blocked_frames=%u direct=%d approach=(%.1f,%.1f) "
@@ -347,6 +375,7 @@ static void ai_harvest_walkback(LPEDICT ent) {
         }
         G_PublishMessage(ent, GAME_MSG_HARVEST_RETURN_LUMBER, dropoff);
         ent->goalentity = dropoff;
+        move_reset_progress(ent);
     }
 
     FLOAT const dist = M_DistanceToGoal(ent);
@@ -382,25 +411,27 @@ static void ai_harvest_walkback(LPEDICT ent) {
         ent->goalentity = ent->secondarygoal = tree;
         if (tree) {
             G_PublishMessage(ent, GAME_MSG_HARVEST_RESUME_LUMBER, tree);
+            move_reset_progress(ent);
             harvest_walk(ent);
         } else {
             ent->stand(ent);
         }
     } else {
         VECTOR2 approach = { 0, 0 };
-        BOOL const direct_approach = CM_FindDirectApproachPointForRadius(
-            &ent->s.origin2, &ent->goalentity->s.origin2, contact,
-            ent->collision, &approach);
+        BOOL const direct_approach =
+            harvest_find_direct_dropoff_approach(ent, ent->goalentity,
+                                                 step, &approach);
 
-        /* Returning to an unobstructed building edge should not wait for a
-         * whole-map flow field whose raw target is the blocked building centre.
-         * Use the same collision-safe direct approach primitive as Harvest and
-         * Build; fall back to the resumable point route when obstacles really
-         * require a detour. */
-        if (direct_approach)
-            unit_changeangle_towards_point(ent, &approach);
+        /* A Town Hall/Lumber Mill is an authored blocked footprint, not a
+         * reachable centre point.  Prefer a collision-sized edge staging lane
+         * while it is still at least one step away; once there, resume the
+         * ordinary interaction steering so the exact deposit check above owns
+         * completion. */
+        if (direct_approach &&
+            Vector2_distance(&ent->s.origin2, &approach) > step)
+            unit_changeangle_towards_point_worker(ent, &approach);
         else
-            unit_changeangle(ent);
+            unit_changeangle_worker(ent);
         unit_moveindirection(ent);
     }
 }
@@ -472,6 +503,7 @@ BOOL harvest_lumber_return_to(LPEDICT ent, LPEDICT dropoff) {
 
     G_PublishMessage(ent, GAME_MSG_HARVEST_RETURN_LUMBER, dropoff);
     ent->goalentity = dropoff;
+    move_reset_progress(ent);
     unit_setmove(ent, &harvest_move_walkback);
     return true;
 }

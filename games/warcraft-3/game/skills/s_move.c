@@ -170,6 +170,10 @@ void move_reset_progress(LPEDICT self) {
     self->movement.flow_goal_reached = false;
     self->movement.flow_unreachable = false;
     self->movement.flow_direct = false;
+    self->movement.worker_avoid_origin = self->s.origin2;
+    self->movement.worker_avoid_heading = self->s.angle;
+    self->movement.worker_avoid_blocked_frames = 0;
+    self->movement.worker_avoid_active = false;
     self->movement.group_speed = 0;  /* single-unit/default: travel at own speed */
 }
 
@@ -250,6 +254,18 @@ BOOL move_is_blocked(LPEDICT ent, FLOAT distance, FLOAT move_distance) {
     return ent->movement.last_distance <= settle_distance
         ? ent->movement.blocked_frames >= MOVE_SETTLE_FRAMES
         : ent->movement.blocked_frames >= MOVE_BLOCKED_FRAMES;
+}
+
+/* Interaction walkers sometimes stop just outside a blocked building because
+ * another worker occupies the final approach lane.  Reuse Move's established
+ * near-goal settle window instead of duplicating its margin/frame constants in
+ * each behavior.  This only reports true when the unit has both stopped making
+ * progress and reached the same near-goal band where an ordinary Move would
+ * settle; a wall or disconnected route farther away is not an arrival. */
+BOOL move_is_settled_near_goal(LPEDICT ent, FLOAT distance, FLOAT move_distance) {
+    FLOAT const settle_distance = move_distance + ent->collision + MOVE_SLOT_MARGIN;
+    BOOL const blocked = move_is_blocked(ent, distance, move_distance);
+    return blocked && ent->movement.last_distance <= settle_distance;
 }
 
 static umove_t move_move_hold = { "stand", NULL, NULL, &a_move };

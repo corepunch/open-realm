@@ -436,6 +436,71 @@ TEST(wc3_pathfinding, flow_goal_reports_adjusted_blocked_target_cell) {
              CM_FlowReachedGoal(gen, 4.0f, 4.0f));
 }
 
+/* Point routes are used for interactions whose real target can be blocked,
+ * such as a Gold Mine or Town Hall centre.  The adjusted route-end cell must
+ * not produce a vector back out into the map: all workers sharing that field
+ * would otherwise orbit the same wrong location instead of completing the
+ * behavior-owned footprint/range interaction. */
+TEST(wc3_pathfinding, point_flow_adjusted_goal_has_no_outward_direction) {
+    BYTE blocked_goal[MAP_W * MAP_H];
+    FLOAT goal_x = 5.0f, goal_y = 4.0f;
+    VECTOR2 dir;
+
+    memset(blocked_goal, 0, sizeof(blocked_goal));
+    blocked_goal[5 * MAP_W + 5] = 2;
+    setup_test_pathmap(MAP_W, MAP_H, blocked_goal);
+    reset_entities();
+
+    LPEDICT wp = make_waypoint(5.0f, 5.0f);
+    DWORD gen = CM_BuildHeatmap(wp);
+
+    T_ASSERT(gen != 0);
+    if (!CM_FlowReachedGoal(gen, goal_x, goal_y)) {
+        goal_x = 4.0f;
+        goal_y = 4.0f;
+    }
+    T_ASSERT(CM_FlowReachedGoal(gen, goal_x, goal_y));
+    dir = get_flow_direction(gen, goal_x, goal_y);
+    T_FEQ(dir.x, 0.0f, 0.001f);
+    T_FEQ(dir.y, 0.0f, 0.001f);
+}
+
+/* Generic interactions intentionally use a radius-zero field and own their
+ * final range test.  Reaching the field's adjusted target is therefore not an
+ * unreachable/stall state: steering must expose that route-end and continue
+ * toward the real entity target so mine entry, resource deposit, attack range,
+ * and similar behavior checks can finish. */
+TEST(wc3_pathfinding, interaction_point_route_reports_adjusted_goal) {
+    BYTE blocked_goal[MAP_W * MAP_H];
+    FLOAT goal_x = 5.0f, goal_y = 4.0f;
+
+    memset(blocked_goal, 0, sizeof(blocked_goal));
+    blocked_goal[5 * MAP_W + 5] = 2;
+    setup_test_pathmap(MAP_W, MAP_H, blocked_goal);
+    reset_entities();
+
+    LPEDICT target = make_waypoint(5.0f, 5.0f);
+    DWORD gen = CM_BuildHeatmap(target);
+    T_ASSERT(gen != 0);
+    if (!CM_FlowReachedGoal(gen, goal_x, goal_y)) {
+        goal_x = 4.0f;
+        goal_y = 4.0f;
+    }
+    T_ASSERT(CM_FlowReachedGoal(gen, goal_x, goal_y));
+
+    LPEDICT unit = make_unit_at(goal_x, goal_y);
+    unit->collision = 0.0f;
+    unit->goalentity = target;
+    target->heatmap2 = gen;
+    target->heatmap2_radius = 0.0f;
+
+    unit_changeangle(unit);
+
+    T_EQ(unit->movement.flow_generation, gen);
+    T_ASSERT(unit->movement.flow_goal_reached);
+    T_ASSERT(!unit->movement.flow_unreachable);
+}
+
 TEST(wc3_pathfinding, line_walkability_respects_collision_radius) {
     BYTE corridor[MAP_W * MAP_H];
     memset(corridor, 0, sizeof(corridor));
@@ -492,6 +557,44 @@ TEST(wc3_pathfinding, footprint_approach_returns_legal_point_beside_blocked_buil
 
     T_ASSERT(CM_FindApproachPointToFootprintForRadius(building, &from, 2.0f, 0.0f, &approach));
     T_ASSERT(CM_DistanceToPathingFootprint(building, &approach) <= 2.0f);
+    T_ASSERT(CM_PointIsPathableForRadius(&approach, 0.0f));
+
+    building->pathtex = NULL;
+    gi.MemFree(pathtex);
+}
+
+/* The fast footprint-approach mask must preserve irregular/sparse pathing
+ * textures exactly.  A bounding-box shortcut would incorrectly accept the
+ * open middle of this five-cell texture even though it is outside range of
+ * either authored blocked pixel. */
+TEST(wc3_pathfinding, footprint_approach_respects_sparse_path_texture) {
+    BYTE blocked_target[MAP_W * MAP_H];
+    LPEDICT building;
+    pathTex_t *pathtex;
+    VECTOR2 from = { 5.5f, 5.5f };
+    VECTOR2 approach = { 0 };
+
+    memset(blocked_target, 0, sizeof(blocked_target));
+    blocked_target[5 * MAP_W + 3] = 2;
+    blocked_target[5 * MAP_W + 7] = 2;
+    setup_test_pathmap(MAP_W, MAP_H, blocked_target);
+    reset_entities();
+
+    building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 5.0f, 5.0f);
+    pathtex = gi.MemAlloc(sizeof(*pathtex) + 5 * sizeof(COLOR32));
+    T_NOT_NULL(pathtex);
+    pathtex->width = 5;
+    pathtex->height = 1;
+    FOR_LOOP(i, 5)
+        pathtex->map[i] = (COLOR32){ 0, 0, 0, 255 };
+    pathtex->map[0].b = 255;
+    pathtex->map[4].b = 255;
+    building->pathtex = pathtex;
+
+    T_ASSERT(CM_FindApproachPointToFootprintForRadius(
+        building, &from, 0.6f, 0.0f, &approach));
+    T_ASSERT(CM_DistanceToPathingFootprint(building, &approach) <= 0.6f);
+    T_ASSERT(fabsf(approach.x - from.x) >= 0.9f);
     T_ASSERT(CM_PointIsPathableForRadius(&approach, 0.0f));
 
     building->pathtex = NULL;

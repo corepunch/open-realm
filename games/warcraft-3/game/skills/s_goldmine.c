@@ -25,6 +25,30 @@ static BOOL gold_route_pending(LPCEDICT worker) {
            worker->movement.flow_generation == 0;
 }
 
+/* Gold interactions target blocked buildings.  Route first toward a legal
+ * collision-sized cell beside the authored footprint instead of aiming every
+ * worker at the building centre.  The extra path-cell diagonal is routing
+ * slack only: the behavior still owns the exact mine/deposit range check. */
+static BOOL gold_find_direct_footprint_approach(LPEDICT worker, LPEDICT target,
+                                                 FLOAT step, LPVECTOR2 out) {
+    FLOAT cell, route_band;
+
+    if (!worker || !target || !target->pathtex || !out)
+        return false;
+
+    /* Re-select the nearest direct edge point from the worker's current
+     * position every think.  Local collision can push packed harvesters around
+     * one another; freezing this point for the whole resource leg makes them
+     * keep returning to a lane that another worker now occupies.  The common
+     * helper keeps this adaptive selection cheap. */
+    cell = CM_PathCellWorldSize();
+    route_band = worker->collision + step + cell * 1.41421356237f;
+    if (!CM_FindApproachPointToFootprintForRadius(
+            target, &worker->s.origin2, route_band, worker->collision, out))
+        return false;
+    return CM_LineIsWalkableForRadius(&worker->s.origin2, out, worker->collision);
+}
+
 static AbilityData_t const *goldmine_ability_data(LPCEDICT mine) {
     LPCSTR abilities;
 
@@ -181,11 +205,60 @@ static void ai_walkmine(LPEDICT ent) {
         }
         harvestgold_minegold(ent);
     } else {
-        unit_changeangle(ent);
+        /* A packed group can stop a fraction outside the one-step footprint
+         * threshold even though the front worker has reached the mine's usable
+         * approach boundary.  Human02 reproduced this with all three miners
+         * stationary at 36.9-40.6 units from the footprint while the ordinary
+         * threshold was 35.0 and the mine had an empty slot.  Use Move's
+         * established near-goal settle detector so only a worker that has
+         * actually stopped making progress at the interaction edge is handed
+         * to the mine queue; a blocked route farther away remains a route. */
+        if (footprint_dist < FLT_MAX &&
+            move_is_settled_near_goal(ent, footprint_dist, step)) {
+            if (debug >= 1) {
+                fprintf(stderr,
+                        "WC3_GOLD_PATH enter_range worker=%d mine=%d distance=%.1f contact=%.1f step=%.1f footprint=%.1f via=settled peons=%u capacity=%u resources=%u\n",
+                        ent->s.number, mine->s.number, dist, contact, step,
+                        footprint_dist, mine->peonsinside, S_GoldMineCapacity(mine),
+                        mine->resources);
+            }
+            harvestgold_minegold(ent);
+            return;
+        }
+        {
+            VECTOR2 approach;
+            BOOL const footprint_approach =
+                gold_find_direct_footprint_approach(ent, mine, step, &approach);
+
+            /* A direct legal footprint lane avoids funnelling every miner at
+             * the blocked centre.  Once the staging point is within one move
+             * step, resume the ordinary interaction steering so the exact
+             * footprint/range hand-off above remains authoritative. */
+            if (footprint_approach &&
+                Vector2_distance(&ent->s.origin2, &approach) > step)
+                unit_changeangle_towards_point_worker(ent, &approach);
+            else
+                unit_changeangle_worker(ent);
+        }
         /* A cache miss is resumable.  Until it produces a flow generation,
          * preserve the Harvest order but do not walk along a stale facing. */
         if (gold_route_pending(ent))
             return;
+        /* A point route to a blocked mine centre can end at an adjusted legal
+         * cell before the scalar footprint threshold is crossed.  The route
+         * endpoint means pathfinding has completed its job; mine capacity and
+         * waiting are behavior-owned, so hand the worker to that queue here. */
+        if (ent->movement.flow_goal_reached) {
+            if (debug >= 1) {
+                fprintf(stderr,
+                        "WC3_GOLD_PATH enter_range worker=%d mine=%d distance=%.1f contact=%.1f step=%.1f footprint=%.1f via=route_goal peons=%u capacity=%u resources=%u\n",
+                        ent->s.number, mine->s.number, dist, contact, step,
+                        footprint_dist, mine->peonsinside, S_GoldMineCapacity(mine),
+                        mine->resources);
+            }
+            harvestgold_minegold(ent);
+            return;
+        }
         /* Gold can have several workers approaching/waiting simultaneously;
          * sample verbose movement twice a second so diagnostics do not become
          * the dominant cost on stderr-heavy handheld launches. */
@@ -200,6 +273,31 @@ static void ai_walkmine(LPEDICT ent) {
                     mine->peonsinside, S_GoldMineCapacity(mine), mine->resources);
         }
         unit_moveindirection(ent);
+    }
+}
+
+static void goldmine_finish_deposit(LPEDICT ent, LPEDICT dropoff, int debug) {
+    LPPLAYER player;
+
+    G_PublishMessage(ent, GAME_MSG_HARVEST_DEPOSIT_GOLD, dropoff);
+    ent->goalentity = ent->secondarygoal;
+    player = G_GetPlayerByNumber(ent->s.player);
+    if (player) {
+        player->stats[PLAYERSTATE_RESOURCE_GOLD] +=
+            G_ApplyResourceIncome(player, PLAYERSTATE_RESOURCE_GOLD, (LONG)ent->harvested_gold);
+    }
+    if (debug >= 1)
+        fprintf(stderr,
+                "WC3_GOLD_RETURN deposit worker=%d dropoff=%d resume_mine=%d gold=%u\n",
+                ent->s.number, dropoff->s.number,
+                ent->goalentity ? ent->goalentity->s.number : -1,
+                ent->harvested_gold);
+    S_SetCarriedResource(ent, RETURN_RESOURCE_GOLD, 0);
+    if (S_GoldMineCanHarvest(ent->goalentity)) {
+        G_PublishMessage(ent, GAME_MSG_HARVEST_RESUME_GOLD, ent->goalentity);
+        harvestgold_walk(ent);
+    } else {
+        ent->stand(ent);
     }
 }
 
@@ -221,6 +319,7 @@ static void ai_goldmine_walkback(LPEDICT ent) {
         }
         G_PublishMessage(ent, GAME_MSG_HARVEST_RETURN_GOLD, dropoff);
         ent->goalentity = dropoff;
+        move_reset_progress(ent);
         if (debug >= 1)
             fprintf(stderr,
                     "WC3_GOLD_RETURN retarget worker=%d dropoff=%d gold=%u\n",
@@ -248,27 +347,18 @@ static void ai_goldmine_walkback(LPEDICT ent) {
                     ent->s.number, dropoff->s.number, dist, contact, step,
                     footprint_dist, footprint_deposit ? "footprint" : "circle",
                     ent->harvested_gold);
-        G_PublishMessage(ent, GAME_MSG_HARVEST_DEPOSIT_GOLD, dropoff);
-        ent->goalentity = ent->secondarygoal;
-        LPPLAYER player = G_GetPlayerByNumber(ent->s.player);
-        if (player) {
-            player->stats[PLAYERSTATE_RESOURCE_GOLD] +=
-                G_ApplyResourceIncome(player, PLAYERSTATE_RESOURCE_GOLD, (LONG)ent->harvested_gold);
-        }
-        if (debug >= 1)
-            fprintf(stderr,
-                    "WC3_GOLD_RETURN deposit worker=%d dropoff=%d resume_mine=%d gold=%u\n",
-                    ent->s.number, dropoff->s.number,
-                    ent->goalentity ? ent->goalentity->s.number : -1,
-                    ent->harvested_gold);
-        S_SetCarriedResource(ent, RETURN_RESOURCE_GOLD, 0);
-        if (S_GoldMineCanHarvest(ent->goalentity)) {
-            G_PublishMessage(ent, GAME_MSG_HARVEST_RESUME_GOLD, ent->goalentity);
-            harvestgold_walk(ent);
-        } else {
-            ent->stand(ent);
-        }
+        goldmine_finish_deposit(ent, dropoff, debug);
     } else {
+        if (footprint_dist < FLT_MAX &&
+            move_is_settled_near_goal(ent, footprint_dist, step)) {
+            if (debug >= 1)
+                fprintf(stderr,
+                        "WC3_GOLD_RETURN deposit_range worker=%d dropoff=%d distance=%.1f contact=%.1f step=%.1f footprint=%.1f via=settled gold=%u\n",
+                        ent->s.number, dropoff->s.number, dist, contact, step,
+                        footprint_dist, ent->harvested_gold);
+            goldmine_finish_deposit(ent, dropoff, debug);
+            return;
+        }
         /* Keep verbose return tracing useful without emitting one line per
          * worker per simulation tick. */
         if (debug >= 2 && (level.time % 500) < FRAMETIME)
@@ -278,11 +368,35 @@ static void ai_goldmine_walkback(LPEDICT ent) {
                     ent->s.origin2.x, ent->s.origin2.y,
                     dropoff->s.origin2.x, dropoff->s.origin2.y,
                     dist, contact, step, footprint_dist, ent->harvested_gold);
-        unit_changeangle(ent);
+        {
+            VECTOR2 approach;
+            BOOL const footprint_approach =
+                gold_find_direct_footprint_approach(ent, dropoff, step, &approach);
+
+            /* Town Halls are blocked shapes.  Steering at their centre makes
+             * several returning workers queue in one narrow lane and can hold
+             * a Peasant far outside deposit range until the front worker moves.
+             * Prefer a collision-sized footprint-edge lane; fall back to the
+             * existing shared route when no direct edge lane exists. */
+            if (footprint_approach &&
+                Vector2_distance(&ent->s.origin2, &approach) > step)
+                unit_changeangle_towards_point_worker(ent, &approach);
+            else
+                unit_changeangle_worker(ent);
+        }
         /* Return routing uses the same resumable flow lifecycle as mine
          * approach.  Hold the current position until that field is ready. */
         if (gold_route_pending(ent))
             return;
+        if (ent->movement.flow_goal_reached) {
+            if (debug >= 1)
+                fprintf(stderr,
+                        "WC3_GOLD_RETURN deposit_range worker=%d dropoff=%d distance=%.1f contact=%.1f step=%.1f footprint=%.1f via=route_goal gold=%u\n",
+                        ent->s.number, dropoff->s.number, dist, contact, step,
+                        footprint_dist, ent->harvested_gold);
+            goldmine_finish_deposit(ent, dropoff, debug);
+            return;
+        }
         unit_moveindirection(ent);
     }
 }
@@ -307,11 +421,13 @@ BOOL harvest_gold_return_to(LPEDICT ent, LPEDICT dropoff) {
 
     G_PublishMessage(ent, GAME_MSG_HARVEST_RETURN_GOLD, dropoff);
     ent->goalentity = dropoff;
+    move_reset_progress(ent);
     unit_setmove(ent, &harvestgold_move_walkback);
     return true;
 }
 
 void harvestgold_walk(LPEDICT ent) {
+    move_reset_progress(ent);
     unit_setmove(ent, &harvestgold_move_walk);
 }
 
@@ -402,6 +518,7 @@ void harvestgold_walkback(LPEDICT ent) {
                     ent->harvested_gold);
         G_PublishMessage(ent, GAME_MSG_HARVEST_RETURN_GOLD, dropoff);
         ent->goalentity = dropoff;
+        move_reset_progress(ent);
         unit_setmove(ent, &harvestgold_move_walkback);
     } else {
         ent->stand(ent);

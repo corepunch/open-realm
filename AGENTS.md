@@ -41,6 +41,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 food/supply ownership, training reservations, provider lifecycle, upkeep income | [docs/games/warcraft-3/food-and-upkeep.md](docs/games/warcraft-3/food-and-upkeep.md) |
 | WC3 Hero death persistence and Altar revival lifecycle | [docs/games/warcraft-3/hero-revival.md](docs/games/warcraft-3/hero-revival.md) |
 | WC3 pathfinding, flow fields, collision-sized routing, unreachable lumber targets | [docs/games/warcraft-3/pathfinding.md](docs/games/warcraft-3/pathfinding.md) |
+| WC3 resource-worker crowd routing and Human02 30-Peasant simulation | [docs/games/warcraft-3/worker-crowd-routing.md](docs/games/warcraft-3/worker-crowd-routing.md) |
 | WC3 inventory, world-item lifecycle, item UI presentation | [docs/games/warcraft-3/inventory-and-items.md](docs/games/warcraft-3/inventory-and-items.md) |
 | WC3 player AI, Blizzard AI script contract, Human02 implementation plan | [docs/games/warcraft-3/player-ai.md](docs/games/warcraft-3/player-ai.md) |
 | WC3 player AI architecture and implementation postmortem | [docs/games/warcraft-3/player-ai-postmortem.md](docs/games/warcraft-3/player-ai-postmortem.md) |
