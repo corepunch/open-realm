@@ -538,40 +538,41 @@ static void UI_DrawHoverUnit(void) {
     if (!hover_unit.visible || !uiimport.GetRenderer) return;
     hover_renderer = uiimport.GetRenderer();
     if (!hover_renderer) return;
-    if (!hover_bg) hover_bg = hover_renderer->LoadTexture("UI\\Widgets\\ToolTips\\Human\\human-tooltip-background.blp");
-    if (!hover_edge) hover_edge = hover_renderer->LoadTexture("UI\\Widgets\\ToolTips\\Human\\human-tooltip-border.blp");
-    if (!hover_hp) hover_hp = hover_renderer->LoadTexture("UI\\Feedback\\HpBarConsole\\human-healthbar-fill.blp");
-    if (!hover_mana) hover_mana = hover_renderer->LoadTexture("UI\\Feedback\\ManaBarConsole\\human-manabar-fill.blp");
+    if (!hover_bg) hover_bg = hover_renderer->LoadTexture(Theme_String("ToolTipBackground", "Default"));
+    if (!hover_edge) hover_edge = hover_renderer->LoadTexture(Theme_String("ToolTipBorder", "Default"));
+    if (!hover_hp) hover_hp = hover_renderer->LoadTexture(Theme_String("SimpleHpBarConsoleSmall", "Default"));
+    if (!hover_mana) hover_mana = hover_renderer->LoadTexture(Theme_String("SimpleManaBarConsoleSmall", "Default"));
     if (!hover_black) hover_black = hover_renderer->LoadTexture("Textures\\Black32.blp");
-    if (!hover_font) hover_font = hover_renderer->LoadFont("Fonts\\FRIZQT__.TTF", 10);
+    if (!hover_font) hover_font = hover_renderer->LoadFont(Theme_String("MasterFont", "Default"), 10);
     hp = hover_unit.health / 255.0f; mana = hover_unit.mana / 255.0f;
     hp_color = hp > 0.5f ? MAKE(COLOR32, (BYTE)(255.0f * (1.0f - hp) * 2.0f), 200, 0, 255) :
         MAKE(COLOR32, 220, (BYTE)(200.0f * hp * 2.0f), 0, 255);
     text_draw = (drawText_t){ .font = hover_font, .text = hover_unit.name, .rect = { 0, 0, 0, 0 },
         .color = COLOR32_WHITE, .textWidth = 0, .lineHeight = 1.0f };
     text_size = hover_font ? hover_renderer->GetTextSize(&text_draw) : MAKE(VECTOR2, 0, 0);
-    label_w = MAX(hover_unit.width, text_size.x + 0.012f);
-    label = MAKE(RECT, hover_unit.x - label_w * 0.5f, hover_unit.y - 0.033f, label_w, 0.020f);
+    label_w = text_size.x + 0.016f;
+    label = MAKE(RECT, hover_unit.x - label_w * 0.5f, hover_unit.y - 0.005f - text_size.y - 0.012f,
+        label_w, text_size.y + 0.012f);
     if (hover_bg && hover_edge) hover_renderer->DrawBackdrop(&(drawBackdrop_t){
         .screen = label, .bg = { hover_bg, COLOR32_WHITE }, .edge = { hover_edge, COLOR32_WHITE },
-        .corner = { 0x1ff, 0.008f }, .insets = { 0.0025f, 0.0025f, 0.0025f, 0.0025f }, .flags = 0 });
+        .corner = { 0x1ff, 0.010f }, .insets = { 0.0019f, 0.0019f, 0.0019f, 0.0019f }, .flags = 0 });
     if (hover_font) hover_renderer->DrawText(&(drawText_t){ .font = hover_font, .text = hover_unit.name, .rect = label,
         .color = COLOR32_WHITE, .textWidth = label.w, .lineHeight = label.h,
         .halign = FONT_JUSTIFYCENTER, .valign = FONT_JUSTIFYMIDDLE });
-    bar = MAKE(RECT, hover_unit.x - hover_unit.width * 0.5f, hover_unit.y - 0.010f, hover_unit.width, 0.008f);
+    bar = MAKE(RECT, hover_unit.x - hover_unit.width * 0.5f, hover_unit.y - 0.002f, hover_unit.width, 0.004f);
     if (hover_black) hover_renderer->DrawImageEx(&(drawImage_t){ .texture = hover_black, .shader = SHADER_UI,
         .screen = bar, .uv = { 0, 0, 1, 1 }, .color = MAKE(COLOR32, 0, 0, 0, 220) });
     if (hover_hp) {
-        RECT inner = MAKE(RECT, bar.x + 0.003f, bar.y + 0.003f, bar.w - 0.006f, bar.h - 0.006f);
+        RECT inner = MAKE(RECT, bar.x + 0.001f, bar.y + 0.001f, bar.w - 0.002f, bar.h - 0.002f);
         hover_renderer->DrawImageEx(&(drawImage_t){ .texture = hover_hp, .shader = SHADER_UI,
             .screen = inner, .uv = { 0, 0, hp, 1 }, .color = hp_color });
     }
     if (mana > 0.0f) {
-        bar.y += 0.010f;
+        bar.y += 0.004f;
         if (hover_black) hover_renderer->DrawImageEx(&(drawImage_t){ .texture = hover_black, .shader = SHADER_UI,
             .screen = bar, .uv = { 0, 0, 1, 1 }, .color = MAKE(COLOR32, 0, 0, 0, 220) });
         if (hover_mana) {
-            RECT inner = MAKE(RECT, bar.x + 0.003f, bar.y + 0.003f, bar.w - 0.006f, bar.h - 0.006f);
+            RECT inner = MAKE(RECT, bar.x + 0.001f, bar.y + 0.001f, bar.w - 0.002f, bar.h - 0.002f);
             hover_renderer->DrawImageEx(&(drawImage_t){ .texture = hover_mana, .shader = SHADER_UI,
                 .screen = inner, .uv = { 0, 0, mana, 1 }, .color = MAKE(COLOR32, 60, 90, 235, 255) });
         }

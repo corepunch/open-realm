@@ -286,10 +286,14 @@ FLOAT R_GameSelectionRadius(renderEntity_t const *entity) {
     return entity->radius;
 }
 
-FLOAT R_GameEntityHeight(renderEntity_t const *entity) { return entity ? entity->radius * 2.0f : 0.0f; }
+FLOAT R_GameEntityHeight(renderEntity_t const *entity) {
+    if (!entity || !entity->model || entity->model->modeltype != ID_MDLX || !entity->model->mdx) return 0.0f;
+    return entity->model->mdx->bounds.box.max.z * entity->scale;
+}
 BOOL R_GameEntityOverheadPosition(renderEntity_t const *entity, LPVECTOR3 out) {
     if (!entity || !out) return false;
-    *out = entity->origin; out->z += R_GameEntityHeight(entity);
+    /* Retail PreSelect.cpp uses transformed model bounds; selection-circle radius made mines high and heroes low. */
+    *out = entity->origin; out->z += R_GameEntityHeight(entity) + 30.0f;
     return true;
 }
 

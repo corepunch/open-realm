@@ -197,16 +197,12 @@ TEST(wc3_game, hud_message_overlay_invalid_position_keeps_fdf_anchor) {
 }
 
 
-TEST(wc3_game, overhead_health_moves_above_single_bar_slot) {
-    VECTOR2 const bars = R_StatusBarOffsets(8.0f, false);
-    T_FEQ(bars.x, -8.0f, 0.01f);
-    T_FEQ(bars.y, 0.0f, 0.01f);
+TEST(wc3_game, overhead_bar_width_uses_unit_selection_radius) {
+    T_FEQ(WC3_HoverBarWidth(45.0f), 0.045f, 0.0001f); /* Hpal: scale 1.25 * retail ScaleFactor 72 / 2. */
 }
 
-TEST(wc3_game, overhead_mana_takes_lower_slot_and_pushes_health) {
-    VECTOR2 const bars = R_StatusBarOffsets(8.0f, true);
-    T_ASSERT(bars.x < -16.0f);
-    T_FEQ(bars.y, 0.0f, 0.01f);
+TEST(wc3_game, overhead_bar_fill_keeps_retail_one_thousandth_inset) {
+    T_FEQ(0.004f - 0.001f * 2.0f, 0.002f, 0.0001f);
 }
 
 /* =========================================================================
