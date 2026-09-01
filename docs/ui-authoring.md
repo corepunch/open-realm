@@ -43,3 +43,15 @@ with `#define` constants.
 - `stb_fdf.h` is the shared declarations-only header for FDF types (`FRAMEDEF`, enums, bind macros) and API declarations (`UI_ParseFDF`, `UI_DrawFrames`, etc.).
 - Parser implementation stays in `ui_fdf.c` (has `uiimport` dependency for MPQ asset loading). `stb_fdf.h` provides shared types + declarations so both modules see identical structs without circular includes.
 - Generated binding headers in `generated/` map FDF field names to struct member offsets via macros like `bind_<fieldname>`. Use `fdfbindgen` tool to regenerate from MPQ source FDF files.
+
+## DDX-Style Schema Tables Across Layout Engines
+
+All three game layout engines follow the single-header DDX-style schema table architecture:
+
+| Game | Header | Schema Tables | Role |
+|---|---|---|---|
+| **Warcraft III** | `games/warcraft-3/common/stb_fdf.h` | `items[]`, `classes[]` (`FDF_F` macros) | Parses `.fdf` frame templates into `FRAMEDEF frames[]` |
+| **StarCraft II** | `games/starcraft-2/common/stb_sc2layout.h` | `sc2_frame_attrs[]`, `sc2_frame_fields[]`, `sc2_child_tags[]` | Parses `.SC2Layout` XML into `sc2Frame_t` and flattened `sc2BaseFrame_t` |
+| **World of Warcraft** | `games/world-of-warcraft/ui/stb_wowxml.h` | `uiwow_node_types[]`, `uiwow_script_tags[]`, `uiwow_button_part_tags[]`, `uiwow_shared_attrs[]`, `uiwow_point_factors[]` | Parses FrameXML (`.xml`) into `uiWowXmlElem_t wow_xml.elems[]` |
+
+Each parser defines the format grammar as data (table of names, offsets, types, flags/callbacks) and dispatches in one generic loop without manual `if`/`else` ladders.
