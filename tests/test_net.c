@@ -1139,6 +1139,25 @@ TEST(net, entity_delta_preserves_neutral_flag) {
     T_ASSERT(out.flags & EF_NEUTRAL);
 }
 
+/* WC3 building damage rendering relies on structure/race presentation bits
+ * surviving the shared entity delta unchanged. */
+TEST(net, entity_delta_preserves_building_damage_flags) {
+    BYTE buf[256];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    USHORT const expected = EF_BUILDING | EF_BUILDING_FIRE_UNDEAD | EF_BUILDING_FIRE_NIGHTELF;
+    entityState_t from = { 0 }, to = { .number = 9, .model = 1, .flags = expected }, out = { 0 };
+    DWORD bits = 0;
+    int number;
+
+    MSG_WriteDeltaEntity(&sb, &from, &to, true);
+    sb.readcount = 0;
+    number = MSG_ReadEntityBits(&sb, &bits);
+    MSG_ReadDeltaEntity(&sb, &out, number, bits);
+
+    T_EQ(number, 9);
+    T_EQ(out.flags & expected, expected);
+}
+
 /* Sound events must travel with the entity snapshot so the client can resolve
  * the server-assigned CS_SOUNDS index and fire the one-shot exactly once. */
 TEST(net, entity_delta_preserves_sound_event) {

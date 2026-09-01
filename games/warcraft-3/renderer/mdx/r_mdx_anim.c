@@ -204,3 +204,49 @@ static void MDLX_BindBoneMatrices(mdxModel_t const *model, LPCMATRIX4 model_matr
     FOR_LOOP(i, model->num_nodes)
         R_GetNodeGlobalMatrix(model, model_matrix, model->node_list[i]);
 }
+
+/* Resolve authored attachment pivots from the same interpolated node pose used
+ * for geometry. Callers can filter by a name prefix (for example "Sprite ")
+ * without depending on list order in the MDX file. */
+DWORD MDLX_CollectAttachmentPositions(mdxModel_t const *model, LPCMATRIX4 model_matrix,
+                                      DWORD frame, DWORD oldframe, LPCSTR prefix,
+                                      mdxAttachmentPosition_t *positions, DWORD max_positions) {
+    DWORD count = 0;
+    size_t const prefix_len = prefix ? strlen(prefix) : 0;
+
+    if (!model || !model_matrix || !positions || !max_positions) {
+        return 0;
+    }
+
+    MDLX_BindBoneMatrices(model, model_matrix, frame, oldframe);
+    FOR_EACH_LIST(mdxAttachment_t, attachment, model->attachments) {
+        mdxNode_t const *node = &attachment->node;
+        VECTOR3 pivot = { 0, 0, 0 };
+        VECTOR3 local;
+        float visibility = 1.0f;
+
+        if (prefix_len && strncasecmp(node->name, prefix, prefix_len)) {
+            continue;
+        }
+        if (attachment->Visibility) {
+            MDLX_GetModelKeytrackValue(model, attachment->Visibility, frame, &visibility);
+            if (visibility < EPSILON) {
+                continue;
+            }
+        }
+        if (node->node_id < (DWORD)model->num_pivots) {
+            pivot = model->pivots[node->node_id];
+        }
+        local = pivot;
+        if (node->node_id < MDX_MAX_NODES && model->nodes[node->node_id]) {
+            local = Matrix4_multiply_vector3(&node_matrices[node->node_id], &pivot);
+        }
+        positions[count].name = node->name;
+        positions[count].origin = Matrix4_multiply_vector3(model_matrix, &local);
+        count++;
+        if (count == max_positions) {
+            break;
+        }
+    }
+    return count;
+}

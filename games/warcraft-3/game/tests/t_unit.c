@@ -239,8 +239,16 @@ TEST(wc3_unit, spawned_building_is_immobile) {
     T_ASSERT(unit_spawn_aiflags(MAKEFOURCC('h','b','a','r')) & AI_IMMOBILE);
 }
 
+TEST(wc3_unit, spawned_building_carries_renderer_building_flag) {
+    T_ASSERT(unit_spawn_entityflags(MAKEFOURCC('h','b','a','r')) & EF_BUILDING);
+}
+
 TEST(wc3_unit, spawned_mobile_unit_is_not_immobile) {
     T_ASSERT(!(unit_spawn_aiflags(MAKEFOURCC('h','p','e','a')) & AI_IMMOBILE));
+}
+
+TEST(wc3_unit, spawned_mobile_unit_has_no_building_presentation_flags) {
+    T_EQ(unit_spawn_entityflags(MAKEFOURCC('h','p','e','a')), 0);
 }
 
 /* -----------------------------------------------------------------------

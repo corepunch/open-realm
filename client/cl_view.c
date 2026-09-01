@@ -211,6 +211,7 @@ static void V_AddClientEntity(centity_t const *ent) {
     re.scale = LerpNumber(ent->prev.scale, ent->current.scale, cl.viewDef.lerpfrac);
     re.frame = ent->current.frame;
     re.oldframe = ent->prev.frame;
+    re.health = ent->current.stats[ENT_HEALTH];
     re.model = cl.models[ent->current.model];
     re.skin = cl.pics[ent->current.image];
     if (ent->current.name) {
@@ -241,6 +242,9 @@ static void V_AddClientEntity(centity_t const *ent) {
     if (ent->current.flags & EF_HOSTILE) re.flags |= RF_HOSTILE;
     if (ent->current.flags & EF_NEUTRAL) re.flags |= RF_NEUTRAL;
     if (ent->current.flags & EF_NOT_SELECTABLE) re.flags |= RF_NOT_SELECTABLE;
+    if (ent->current.flags & EF_BUILDING) re.flags |= RF_BUILDING;
+    if (ent->current.flags & EF_BUILDING_FIRE_UNDEAD) re.flags |= RF_BUILDING_FIRE_UNDEAD;
+    if (ent->current.flags & EF_BUILDING_FIRE_NIGHTELF) re.flags |= RF_BUILDING_FIRE_NIGHTELF;
     re.radius = ent->current.radius;
     re.number = ent->current.number;
     re.splat = cl.pics[ent->current.splat & 0xffff];
@@ -281,6 +285,8 @@ static void V_AddClientEntity(centity_t const *ent) {
         re.scale = 1;
         re.name = NULL;
         re.number = 0;
+        re.health = 0;
+        re.flags &= ~(RF_BUILDING | RF_BUILDING_FIRE_UNDEAD | RF_BUILDING_FIRE_NIGHTELF);
         re.flags |= RF_NO_SHADOW;
         if (ent->current.renderfx & RF_ATTACH_OVERHEAD) {
             re.origin.z += re.radius * 2.5;
