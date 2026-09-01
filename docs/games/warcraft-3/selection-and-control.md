@@ -85,9 +85,8 @@ In-engine coverage is in `games/warcraft-3/game/tests/t_api.c` and `t_unit.c` fo
 Useful targeted commands after building the test binary:
 
 ```bash
-make test-wc3-engine WC3_PATTERN='wc3_api.*selection*'
-make test-wc3-engine WC3_PATTERN='wc3_api.*control*'
-make test-wc3-engine WC3_PATTERN='wc3_unit.*die*'
+make test-wc3-engine WC3_PATTERN='wc3_api.*'
+make test-wc3-engine WC3_PATTERN='wc3_unit.*'
 ```
 
 Runtime verification should also cover an enemy walking from visible terrain into fog, Neutral Passive/Hostile circle colours, and attempting Smart/command-card orders while a foreign unit is selected.

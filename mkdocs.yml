@@ -41,6 +41,7 @@ nav:
         - FDF Reference: games/warcraft-3/file-docs/fdf.md
       - Implementation:
         - Economy And Unit Presentation: games/warcraft-3/economy-and-unit-presentation.md
+        - Unit Selection And Control: games/warcraft-3/selection-and-control.md
         - Pathfinding And Harvest Reachability: games/warcraft-3/pathfinding.md
         - Inventory And World Items: games/warcraft-3/inventory-and-items.md
         - Breakable Destructables: games/warcraft-3/breakable-destructables.md
