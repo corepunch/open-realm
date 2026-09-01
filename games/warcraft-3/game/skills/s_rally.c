@@ -46,7 +46,8 @@ static BOOL G_RallyEntityIsValid(LPEDICT producer) {
     /* Current Warsmash explicitly drops dead unit targets. Destructable/item
      * death/removal semantics are less certain, so only unit death is folded
      * into the default here; freed/reused edicts are rejected for every type. */
-    /* Death is published before health reaches zero, so the server death bit must invalidate rally targets immediately. */
+    /* Death is published before health reaches zero, so the server death bit
+     * must invalidate rally targets immediately. */
     if ((target->svflags & SVF_MONSTER) && ((target->svflags & SVF_DEADMONSTER) || M_IsDead(target))) return false;
     return true;
 }
