@@ -55,6 +55,30 @@ static LPEDICT make_test_unit(void) {
     return ent;
 }
 
+static BOOL hover_layout_pending, hover_layer_seen, hover_name_seen, hover_hp_seen, hover_mana_seen;
+static DWORD hover_frame_count, hover_unicast_count, hover_image_count, hover_font_count;
+static LPEDICT hover_unicast_target;
+
+static int hover_test_image(LPCSTR name) { T_ASSERT(name && *name); return (int)++hover_image_count; }
+static int hover_test_font(LPCSTR name, DWORD size) {
+    T_ASSERT(name && *name); T_EQ(size, HUD_FONT_SIZE); hover_font_count++; return 1;
+}
+static void hover_test_write(pfWriteType_t type, void const *value) {
+    if (!value) return;
+    if (type == PF_BYTE) {
+        LONG byte = *(LONG const *)value;
+        if (hover_layout_pending) { hover_layer_seen = byte == LAYER_WORLD_HOVER; hover_layout_pending = false; }
+        else hover_layout_pending = byte == svc_layout;
+    } else if (type == PF_UIFRAME) {
+        LPCUIFRAME frame = value;
+        hover_frame_count++;
+        hover_name_seen |= frame->flags.type == FT_STRING && frame->stat == UI_STAT_CONTEXT_NAME;
+        hover_hp_seen |= frame->flags.type == FT_SIMPLESTATUSBAR && frame->stat == UI_STAT_CONTEXT_HEALTH;
+        hover_mana_seen |= frame->stat == UI_STAT_CONTEXT_MANA;
+    }
+}
+static void hover_test_unicast(LPEDICT ent) { hover_unicast_count++; hover_unicast_target = ent; }
+
 /* =========================================================================
  * HUD frame numbering
  * ========================================================================= */
@@ -198,6 +222,27 @@ TEST(wc3_game, hud_message_overlay_invalid_position_keeps_fdf_anchor) {
 
 TEST(wc3_game, overhead_bar_fill_keeps_warsmash_three_pixel_inset) {
     T_FEQ(0.008f - 0.003f * 2.0f, 0.002f, 0.0001f);
+}
+
+TEST(wc3_game, hover_layout_is_server_authored_with_entity_context_bindings) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(LPEDICT) = gi.unicast;
+    int (*old_image)(LPCSTR) = gi.ImageIndex;
+    int (*old_font)(LPCSTR, DWORD) = gi.FontIndex;
+    LPEDICT player;
+
+    setup_test_world(); player = &g_edicts[0]; player->client->connected = true;
+    hover_layout_pending = hover_layer_seen = hover_name_seen = hover_hp_seen = hover_mana_seen = false;
+    hover_frame_count = hover_unicast_count = hover_image_count = hover_font_count = 0; hover_unicast_target = NULL;
+    gi.Write = hover_test_write; gi.unicast = hover_test_unicast;
+    gi.ImageIndex = hover_test_image; gi.FontIndex = hover_test_font;
+    UI_WriteHoverLayout(player);
+    gi.Write = old_write; gi.unicast = old_unicast; gi.ImageIndex = old_image; gi.FontIndex = old_font;
+
+    T_ASSERT(hover_layer_seen); T_EQ(hover_frame_count, 6);
+    T_ASSERT(hover_name_seen); T_ASSERT(hover_hp_seen); T_ASSERT(hover_mana_seen);
+    T_EQ(hover_image_count, 6); T_EQ(hover_font_count, 1);
+    T_EQ(hover_unicast_count, 1); T_ASSERT(hover_unicast_target == player);
 }
 
 /* =========================================================================

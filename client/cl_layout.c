@@ -112,9 +112,45 @@ VECTOR2 get_position(LPCUIFRAME frame,
     return SCR_SolveAxisPosition(frame, p, width, get == get_x);
 }
 
+/* Context bindings read only recipient-filtered snapshot state already present on the client. */
+LPCENTITYSTATE SCR_LayoutContextEntity(void) {
+    LPCENTITYSTATE ent;
+
+    if (!cl.hover_entity || cl.hover_entity >= MAX_CLIENT_ENTITIES) return NULL;
+    ent = &cl.ents[cl.hover_entity].current;
+    if (!ent->model || !ent->stats[ENT_HEALTH] || !(ent->flags & EF_HOVER_HEALTH)) return NULL;
+    return ent;
+}
+
+BOOL SCR_LayoutContextValue(DWORD stat, LPFLOAT value) {
+    LPCENTITYSTATE ent = SCR_LayoutContextEntity();
+
+    if (!ent || !value) return false;
+    switch (stat) {
+        case UI_STAT_CONTEXT_HEALTH:
+            *value = ent->stats[ENT_HEALTH] / 255.0f;
+            break;
+        case UI_STAT_CONTEXT_MANA:
+            *value = ent->stats[ENT_MANA] / 255.0f;
+            break;
+        default:
+            return false;
+    }
+    return true;
+}
+
 LPCSTR SCR_GetStringValue(LPCUIFRAME frame) {
     static char text[1024] = { 0 };
-    if (frame->stat >= MAX_STATS) {
+    if (frame->stat == UI_STAT_CONTEXT_NAME) {
+        LPCENTITYSTATE ent = SCR_LayoutContextEntity();
+        DWORD ni, cs_index;
+
+        if (!ent || !ent->name) { text[0] = '\0'; return text; }
+        ni = ent->name - 1;
+        cs_index = CS_GENERAL + (ni >> 4);
+        if (cs_index >= MAX_CONFIGSTRINGS || !cl.configstrings[cs_index]) { text[0] = '\0'; return text; }
+        return cl.configstrings[cs_index] + (ni & 0xF) * ENT_NAME_SLOT_SIZE;
+    } else if (frame->stat >= MAX_STATS && frame->stat < MAX_STATS * 2) {
         if (cl.playerstate.texts[frame->stat - MAX_STATS]) {
             strlcpy(text, cl.playerstate.texts[frame->stat - MAX_STATS], sizeof(text));
         } else {
@@ -128,7 +164,8 @@ LPCSTR SCR_GetStringValue(LPCUIFRAME frame) {
         if (food_made) snprintf(text, sizeof(text), "%d/%d", food_used, food_made);
         else snprintf(text, sizeof(text), "%d", food_used);
     } else if (frame->stat > 0) {
-        snprintf(text, sizeof(text), "%d", cl.playerstate.stats[frame->stat]);
+        if (frame->stat < MAX_STATS) snprintf(text, sizeof(text), "%d", cl.playerstate.stats[frame->stat]);
+        else text[0] = '\0';
     } else if (frame->text) {
         return frame->text;
     } else {
@@ -324,6 +361,12 @@ LPCUIFRAME SCR_Clear(HANDLE data) {
     }
     SCR_InferContainerHeights();
     return frames;
+}
+
+void SCR_SetLayoutRoot(LPCRECT root) {
+    if (!root) return;
+    frames[0].size.width = root->w; frames[0].size.height = root->h;
+    runtimes[0].rect = *root; runtimes[0].calculated = true;
 }
 
 

@@ -106,16 +106,6 @@ typedef struct {
     uiQueueItem_t queue[MAX_BUILD_QUEUE_ITEMS];
 } uiUnitData_t;
 
-/* Client-projected world-hover presentation; screen coordinates use the WC3 UI canvas. */
-typedef struct {
-    BOOL visible;
-    FLOAT x, y;
-    FLOAT width;
-    BYTE health;
-    BYTE mana;
-    char name[128];
-} uiHoverUnit_t;
-
 /* Callbacks provided by the client to the UI library.
  * The UI imports file I/O, memory allocation, and command forwarding. */
 typedef struct {
@@ -205,7 +195,6 @@ typedef struct {
     
     /* Unit UI data updates (Phase 8: HUD migration) */
     void (*UpdateUnitUI)(DWORD num_units, uiUnitData_t *units);
-    void (*UpdateHoverUnit)(uiHoverUnit_t const *unit);
     void (*UpdateLobbySetup)(lobbyState_t const *state);
     uiGameCommand_t GameCommand;
     void (*DrawGameOverlay)(void);

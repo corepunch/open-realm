@@ -160,6 +160,9 @@ LPCUIFRAME SCR_Clear(HANDLE data);
 DWORD SCR_NumFrames(void);
 LPUIFRAME SCR_Frame(DWORD number);
 LPCRECT SCR_LayoutRect(LPCUIFRAME frame);
+LPCENTITYSTATE SCR_LayoutContextEntity(void);
+BOOL SCR_LayoutContextValue(DWORD stat, LPFLOAT value);
+BOOL SCR_LayoutWorldHoverRoot(LPRECT root);
 VECTOR2 SCR_GetAxisBounds(LPCRECT rect, bool is_x_axis);
 FLOAT SCR_NormalizeAnchorOffset(uiFramePoint_t const *p, bool is_x_axis);
 VECTOR2 SCR_SolveAxisPosition(LPCUIFRAME frame,
