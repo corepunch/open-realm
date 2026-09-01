@@ -78,7 +78,7 @@ TEST(wow_smoke, missing_m2_uses_fallback_model_and_disables_static_instancing) {
 
     model.modeltype = ID_MD20;
     model.m2 = (m2Model_t *)&fake;
-    T_ASSERT(!R_GameModelCanStaticInstance(&model));
+    T_ASSERT(!R_ModelCanStaticInstance(&model));
 }
 
 #endif /* BZ_TESTS */

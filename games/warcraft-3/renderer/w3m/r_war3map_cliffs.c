@@ -275,7 +275,7 @@ LPMAPLAYER R_BuildMapSegmentCliffs(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD cli
     }
 
     LPMAPLAYER mapLayer = ri.MemAlloc(sizeof(MAPLAYER));
-    w3CliffType_t const *row = R_GameCliffType(cliffID);
+    w3CliffType_t const *row = R_CliffType(cliffID);
     cliffData_t data = {
         .cliff = cliff,
         .texDir = row->texDir,

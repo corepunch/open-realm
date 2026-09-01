@@ -636,6 +636,6 @@ void Wow_DrawGrass(void) {
                 (unsigned)wow_grass_draw_count, (unsigned)wow_grass_group_count);
     }
     FOR_LOOP(i, wow_grass_group_count)
-        R_GameRenderModelInstanced(wow_grass_groups[i].model, &wow_grass_groups[i].instances, RF_GROUND_EFFECT);
+        R_RenderModelInstanced(wow_grass_groups[i].model, &wow_grass_groups[i].instances, RF_GROUND_EFFECT);
 #endif
 }

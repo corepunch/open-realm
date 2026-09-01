@@ -336,7 +336,7 @@ static void sc2_hud_hide_optional_panels(void) {
         /* TODO: show CommandTooltip only on command-button hover; hide for now. */
         "CommandTooltip",
         /* InfopanelModel, MinimapModel, CommandPanelModel are now rendered
-         * via FT_PORTRAIT + R_GameExtractEntityCamera. */
+         * via FT_PORTRAIT + R_ExtractEntityCamera. */
         NULL,
     };
 

@@ -120,7 +120,7 @@ void Wow_AddSplatTriangle(LPVERTEX vertices,
     vertices[(*count)++] = c;
 }
 
-void R_DrawTerrainShadows(void) {
+void Wow_DrawTerrainShadows(void) {
 }
 
 void R_RenderRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, splat_shader_t *shader, COLOR32 color) {
@@ -274,7 +274,7 @@ void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture, splat_
     R_RenderRectSplat(&mins, &maxs, texture, shader, color);
 }
 
-/* WoW shadows are drawn by R_GameRenderShadow (returns true) and splats already
+/* WoW shadows are drawn by R_RenderShadow (returns true) and splats already
  * batch through Wow_QueueSplatVertices, so the shared batch API stays immediate. */
 static splat_shader_t *wow_batch_shader;
 void R_BeginSplatBatch(splat_shader_t *shader) { wow_batch_shader = shader; }
@@ -296,7 +296,7 @@ float GetAccurateHeightAtPoint(float sx, float sy) {
     return 0.0f;
 }
 
-FLOAT R_GetHeightAtPoint(FLOAT x, FLOAT y) {
+FLOAT Wow_GetHeightAtPoint(FLOAT x, FLOAT y) {
     return GetAccurateHeightAtPoint(x, y);
 }
 

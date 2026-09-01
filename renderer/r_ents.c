@@ -10,7 +10,7 @@
 void R_GetEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
     VECTOR3 origin = entity->origin;
 
-    if (R_GameEntityMatrix(entity, matrix)) {
+    if (R_EntityMatrix(entity, matrix)) {
         return;
     }
 
@@ -69,7 +69,7 @@ void R_DrawEntities(void) {
         }
         if (in_view) {
             drawn++;
-            R_RenderModel(ent);
+            R_DrawEntity(ent);
         } else {
             culled++;
         }
@@ -195,7 +195,7 @@ bool R_TraceEntity(viewDef_t const *viewdef, float x, float y, LPDWORD number) {
         if (!ent->number || !ent->model || (ent->flags & (RF_HIDDEN | RF_NOT_SELECTABLE))) {
             continue;
         }
-        if (R_GameTraceModel(ent, &line, &distance) && distance < best) {
+        if (R_TraceModel(ent, &line, &distance) && distance < best) {
             best = distance;
             best_number = ent->number;
         }
@@ -245,12 +245,12 @@ static void R_RenderUberSplat(const renderEntity_t *entity, LPCVECTOR2 origin) {
     }
 }
 
-static void R_RenderShadow(const renderEntity_t *entity, LPCVECTOR2 origin) {
+static void R_DrawEntityShadow(const renderEntity_t *entity, LPCVECTOR2 origin) {
 #ifndef USE_SHADOWMAPS
     LPCTEXTURE shadow = entity->shadow;
     BOX3 bounds;
 
-    if (R_GameRenderShadow(entity, origin)) {
+    if (R_RenderShadow(entity, origin)) {
         return;
     }
     if (!shadow || (entity->flags & RF_NO_SHADOW) || !tr.world) {
@@ -302,7 +302,7 @@ static void R_DrawEntityShadows(void) {
         if ((ent->flags & RF_HIDDEN) || !ent->model) {
             continue;
         }
-        R_RenderShadow(ent, (LPCVECTOR2)&ent->origin);
+        R_DrawEntityShadow(ent, (LPCVECTOR2)&ent->origin);
     }
     R_EndSplatBatch();
 #endif
@@ -311,7 +311,7 @@ static void R_DrawEntityShadows(void) {
 static void R_RenderSelectedCircle(const renderEntity_t *entity, LPCVECTOR2 origin) {
     if (entity->flags & RF_SELECTED) {
         COLOR32 color = { 0, 255, 0, 255 };
-        float radius = R_GameSelectionRadius(entity);
+        float radius = R_SelectionRadius(entity);
         FOR_LOOP(i, NUM_SELECTION_CIRCLES) {
             if ((radius * 2) > selCircles[i])
                 continue;
@@ -370,14 +370,53 @@ void R_DrawHealthBars(void) {
     RECT const scene = R_UISceneRect();
     FLOAT const w = scene.w * 0.045f;
     FLOAT const h = scene.h * 0.008f;
-    static LPFONT name_font;
-    static BOOL name_font_tried;
-    if (!name_font_tried) {
-        name_font_tried = true;
-        name_font = R_LoadFont("Fonts\\FRIZQT__.TTF", 10);
-    }
+#ifdef WOW
+    static LPFONT wow_name_font;
+    static BOOL wow_name_font_tried;
+    viewCamera_t const *old = tr.viewDef.camerastate + 1, *cur = tr.viewDef.camerastate;
+    VECTOR3 wow_cam = Vector3_lerp(&old->origin, &cur->origin, tr.viewDef.lerpfrac);
+    VECTOR3 wow_ang = {
+        Wow_LerpDegrees(old->viewangles.x, cur->viewangles.x, tr.viewDef.lerpfrac),
+        Wow_LerpDegrees(old->viewangles.y, cur->viewangles.y, tr.viewDef.lerpfrac),
+        Wow_LerpDegrees(old->viewangles.z, cur->viewangles.z, tr.viewDef.lerpfrac),
+    };
+    VECTOR3 wow_fwd, wow_off;
+    FOR_LOOP(i, tr.viewDef.num_entities)
+        if (tr.viewDef.entities[i].number == tr.viewDef.player) {
+            wow_cam.z = tr.viewDef.entities[i].origin.z + WOW_CAMERA_EYE_HEIGHT; break;
+        }
+    wow_fwd = Wow_ViewForward(&wow_ang);
+    wow_off = Vector3_scale(&wow_fwd, -LerpNumber(old->distance, cur->distance, tr.viewDef.lerpfrac));
+    wow_cam = Vector3_add(&wow_cam, &wow_off);
+#endif
     FOR_LOOP(i, tr.viewDef.num_entities) {
         renderEntity_t const *e = tr.viewDef.entities + i;
+#ifdef WOW
+        if (e->name && *e->name) {
+            VECTOR3 top;
+            VECTOR3 delta;
+            FLOAT alpha, ux, uy;
+            R_EntityOverheadPosition(e, &top);
+            delta = Vector3_sub(&top, &wow_cam);
+            alpha = Wow_WorldLabelAlpha(Vector3_len(&delta), e->flags & RF_SELECTED, e->number == tr.viewDef.player);
+            if (alpha > 0.0f && R_WorldToUI(&top, &ux, &uy)) {
+                if (!wow_name_font_tried) {
+                    wow_name_font_tried = true;
+                    wow_name_font = R_LoadFont("Fonts\\FRIZQT__.TTF", 14);
+                    if (!wow_name_font) fprintf(stderr, "WoW: NPC name font Fonts\\FRIZQT__.TTF could not be loaded\n");
+                }
+                if (wow_name_font) {
+                    /* Attachment 18 is the model-authored point below the name, so the label ends at its projection. */
+                    RECT label = MAKE(RECT, ux - scene.w * 0.12f, uy - scene.h * 0.03f,
+                                      scene.w * 0.24f, scene.h * 0.03f);
+                    drawText_t text = MAKE(drawText_t, .font = wow_name_font, .text = e->name, .rect = label,
+                        .color = MAKE(COLOR32, 0, 255, 0, (BYTE)(255.0f * alpha)), .textWidth = label.w, .lineHeight = label.h,
+                        .halign = FONT_JUSTIFYCENTER, .valign = FONT_JUSTIFYMIDDLE);
+                    R_DrawText(&text);
+                }
+            }
+        }
+#endif
         /* Always for the current selection; for hovered entity; for every unit while ALT is held. */
         if (e->health == 0 || (!show_all && !(e->flags & RF_SELECTED) && e->number != tr.viewDef.hover_entity)) {
             continue;
@@ -399,14 +438,6 @@ void R_DrawHealthBars(void) {
         if (e->mana > 0) {
             R_DrawStatusBar(x, uy + bars.y, w, h, e->mana / 255.0f, MAKE(COLOR32, 60, 90, 235, 255));
         }
-        if (name_font && e->name && *e->name && e->number == tr.viewDef.hover_entity) {
-            RECT label = MAKE(RECT, ux - scene.w * 0.10f, uy - scene.h * 0.025f,
-                              scene.w * 0.20f, scene.h * 0.025f);
-            drawText_t text = MAKE(drawText_t, .font = name_font, .text = e->name, .rect = label,
-                .color = COLOR32_WHITE, .textWidth = label.w, .lineHeight = label.h,
-                .halign = FONT_JUSTIFYCENTER, .valign = FONT_JUSTIFYMIDDLE);
-            R_DrawText(&text);
-        }
     }
 }
 
@@ -426,7 +457,7 @@ static void R_RenderHoverHighlight(renderEntity_t const *entity) {
     } else {
         color = MAKE(COLOR32, 80, 200, 80, 128);   /* own/shared-control: faint green */
     }
-    float radius = R_GameSelectionRadius(entity);
+    float radius = R_SelectionRadius(entity);
     FOR_LOOP(i, NUM_SELECTION_CIRCLES) {
         if ((radius * 2) > selCircles[i])
             continue;
@@ -437,20 +468,20 @@ static void R_RenderHoverHighlight(renderEntity_t const *entity) {
     }
 }
 
-void R_RenderModel(renderEntity_t const *entity) {
+void R_DrawEntity(renderEntity_t const *entity) {
     if ((entity->flags & RF_HIDDEN) || !entity->model)
         return;
 
 #ifdef USE_SHADOWMAPS
     if (tr.render_phase == RENDER_PHASE_LIGHTS) {
         if (!(entity->flags & RF_NO_SHADOW))
-            R_GameRenderModel(entity);
+            R_RenderModel(entity);
         return;
     }
 #endif
 
     R_RenderUberSplat(entity, (LPCVECTOR2)&entity->origin);
-    R_GameRenderModel(entity);
+    R_RenderModel(entity);
     R_RenderSelectedCircle(entity, (LPCVECTOR2)&entity->origin);
     R_RenderHoverHighlight(entity);
 }

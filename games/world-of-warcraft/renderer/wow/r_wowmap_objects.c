@@ -28,7 +28,7 @@ LPMODEL Wow_LoadDoodadModel(LPCSTR path) {
         wow_world.num_missing_doodad_models++;
         return NULL;
     }
-    entry->can_instance = R_GameModelCanStaticInstance(entry->model);
+    entry->can_instance = R_ModelCanStaticInstance(entry->model);
     return entry->model;
 }
 

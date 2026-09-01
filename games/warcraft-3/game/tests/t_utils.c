@@ -27,7 +27,7 @@ LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y) {
     /* Match SP_SpawnUnit's liveness contract for real unit rows.  Order and
      * selection code uses health <= 0 as the authoritative dead predicate, so
      * a generic test unit must not silently start life as a corpse. */
-    ent->health.max_value = ent->UnitBalance->maxHealth;
+    ent->health.max_value = MAX(ent->UnitBalance->maxHealth, 1.0f);
     ent->health.value = ent->health.max_value;
     return ent;
 }

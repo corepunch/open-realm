@@ -22,11 +22,11 @@ enum {
     KEY_OUTTAN,
 };
 
-static float R_GameLerp(float left, float right, float t) {
+static float R_M3Lerp(float left, float right, float t) {
     return left * (1 - t) + right * t;
 }
 
-static float R_GameBezier(float left, float outTan, float inTan, float right, float t) {
+static float R_M3Bezier(float left, float outTan, float inTan, float right, float t) {
     float const inverseFactor = 1 - t,
         inverseFactorTimesTwo = inverseFactor * inverseFactor,
         factorTimes2 = t * t,
@@ -37,7 +37,7 @@ static float R_GameBezier(float left, float outTan, float inTan, float right, fl
     return left * factor1 + outTan * factor2 + inTan * factor3 + right * factor4;
 }
 
-static float R_GameHermite(float left, float outTan, float inTan, float right, float t) {
+static float R_M3Hermite(float left, float outTan, float inTan, float right, float t) {
     float const factorTimes2 = t * t,
         factor1 = factorTimes2 * (2 * t - 3) + 1,
         factor2 = factorTimes2 * (t - 2) + t,
@@ -46,25 +46,25 @@ static float R_GameHermite(float left, float outTan, float inTan, float right, f
     return left * factor1 + outTan * factor2 + inTan * factor3 + right * factor4;
 }
 
-static int R_GameInterpInt(int const *left, int const *right, float t, MODELKEYTRACKTYPE lineType) {
+static int R_M3InterpInt(int const *left, int const *right, float t, MODELKEYTRACKTYPE lineType) {
     switch (lineType) {
         case TRACK_NO_INTERP: return left[KEY_VALUE];
-        case TRACK_BEZIER: return R_GameBezier(left[KEY_VALUE], left[KEY_OUTTAN], right[KEY_INTAN], right[KEY_VALUE], t);
-        case TRACK_HERMITE: return R_GameHermite(left[KEY_VALUE], left[KEY_OUTTAN], right[KEY_INTAN], right[KEY_VALUE], t);
-        default: return R_GameLerp(left[KEY_VALUE], right[KEY_VALUE], t);
+        case TRACK_BEZIER: return R_M3Bezier(left[KEY_VALUE], left[KEY_OUTTAN], right[KEY_INTAN], right[KEY_VALUE], t);
+        case TRACK_HERMITE: return R_M3Hermite(left[KEY_VALUE], left[KEY_OUTTAN], right[KEY_INTAN], right[KEY_VALUE], t);
+        default: return R_M3Lerp(left[KEY_VALUE], right[KEY_VALUE], t);
     }
 }
 
-static float R_GameInterpFloat(float const *left, float const *right, float t, MODELKEYTRACKTYPE lineType) {
+static float R_M3InterpFloat(float const *left, float const *right, float t, MODELKEYTRACKTYPE lineType) {
     switch (lineType) {
         case TRACK_NO_INTERP: return left[KEY_VALUE];
-        case TRACK_BEZIER: return R_GameBezier(left[KEY_VALUE], left[KEY_OUTTAN], right[KEY_INTAN], right[KEY_VALUE], t);
-        case TRACK_HERMITE: return R_GameHermite(left[KEY_VALUE], left[KEY_OUTTAN], right[KEY_INTAN], right[KEY_VALUE], t);
-        default: return R_GameLerp(left[KEY_VALUE], right[KEY_VALUE], t);
+        case TRACK_BEZIER: return R_M3Bezier(left[KEY_VALUE], left[KEY_OUTTAN], right[KEY_INTAN], right[KEY_VALUE], t);
+        case TRACK_HERMITE: return R_M3Hermite(left[KEY_VALUE], left[KEY_OUTTAN], right[KEY_INTAN], right[KEY_VALUE], t);
+        default: return R_M3Lerp(left[KEY_VALUE], right[KEY_VALUE], t);
     }
 }
 
-static VECTOR3 R_GameInterpVec3(LPCVECTOR3 left, LPCVECTOR3 right, float t, MODELKEYTRACKTYPE lineType) {
+static VECTOR3 R_M3InterpVec3(LPCVECTOR3 left, LPCVECTOR3 right, float t, MODELKEYTRACKTYPE lineType) {
     switch (lineType) {
         case TRACK_NO_INTERP: return left[KEY_VALUE];
         case TRACK_BEZIER: return Vector3_bezier(&left[KEY_VALUE], &left[KEY_OUTTAN], &right[KEY_INTAN], &right[KEY_VALUE], t);
@@ -73,7 +73,7 @@ static VECTOR3 R_GameInterpVec3(LPCVECTOR3 left, LPCVECTOR3 right, float t, MODE
     }
 }
 
-static QUATERNION R_GameInterpQuat(LPCQUATERNION left, LPCQUATERNION right, float t, MODELKEYTRACKTYPE lineType) {
+static QUATERNION R_M3InterpQuat(LPCQUATERNION left, LPCQUATERNION right, float t, MODELKEYTRACKTYPE lineType) {
     switch (lineType) {
         case TRACK_NO_INTERP: return left[KEY_VALUE];
         case TRACK_BEZIER:
@@ -90,10 +90,10 @@ void R_EvalKeyframeValue(void const *left,
                          HANDLE out)
 {
     switch (datatype) {
-        case TDATA_INT1: *((int *)out) = R_GameInterpInt(left, right, t, linetype); return;
-        case TDATA_FLOAT1: *((float *)out) = R_GameInterpFloat(left, right, t, linetype); return;
-        case TDATA_FLOAT3: *((VECTOR3 *)out) = R_GameInterpVec3(left, right, t, linetype); return;
-        case TDATA_FLOAT4: *((QUATERNION *)out) = R_GameInterpQuat(left, right, t, linetype); return;
+        case TDATA_INT1: *((int *)out) = R_M3InterpInt(left, right, t, linetype); return;
+        case TDATA_FLOAT1: *((float *)out) = R_M3InterpFloat(left, right, t, linetype); return;
+        case TDATA_FLOAT3: *((VECTOR3 *)out) = R_M3InterpVec3(left, right, t, linetype); return;
+        case TDATA_FLOAT4: *((QUATERNION *)out) = R_M3InterpQuat(left, right, t, linetype); return;
     }
 }
 
@@ -173,19 +173,19 @@ void R_AddRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, COLOR3
 }
 void R_EndSplatBatch(void) { }
 
-void R_GameLoadAssets(void) {
+void R_LoadAssets(void) {
 }
 
-void R_GameInit(void) {
+void R_Init(void) {
     M3_Init();
 }
 
-void R_GameShutdown(void) {
+void R_Shutdown(void) {
     R_SC2ShutdownShaders();
     M3_Shutdown();
 }
 
-void R_GameSetupTextureMatrix(void) {
+void R_SetupTextureMatrix(void) {
     sc2Map_t const *map = SC2_MapCurrent();
     if (map && map->MapInfo.width && map->MapInfo.height) {
         BOX2 bounds = SC2_MapBounds();
@@ -201,38 +201,38 @@ void R_GameSetupTextureMatrix(void) {
     }
 }
 
-void R_GameDrawMinimap(LPCRECT screen) {
+void R_DrawMinimap(LPCRECT screen) {
     LPCTEXTURE tex = tr.minimap ? tr.minimap : tr.texture[TEX_WHITE];
     R_DrawImage(tex, screen, &MAKE(RECT, 0, 0, 1, 1), COLOR32_WHITE);
 }
 
-void R_GameRegisterMap(LPCSTR mapFileName) {
+void R_RegisterMap(LPCSTR mapFileName) {
     R_SC2RegisterMap(mapFileName);
 }
 
-void R_GameDrawWorld(void) {
+void R_DrawWorld(void) {
     R_SC2DrawWorld();
 }
 
-void R_GameDrawTerrainShadows(void) {
+void R_DrawTerrainShadows(void) {
 }
 
-void R_GameDrawAlphaSurfaces(void) {
+void R_DrawAlphaSurfaces(void) {
 }
 
-bool R_GameTraceLocation(viewDef_t const *viewdef, float x, float y, LPVECTOR3 point) {
+bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, LPVECTOR3 point) {
     return R_SC2TraceLocation(viewdef, x, y, point);
 }
 
-FLOAT R_GameGetHeightAtPoint(FLOAT x, FLOAT y) {
+FLOAT R_GetHeightAtPoint(FLOAT x, FLOAT y) {
     return R_SC2GetHeightAtPoint(x, y);
 }
 
-VECTOR2 R_GameWorldSize(void) {
+VECTOR2 R_WorldSize(void) {
     return R_SC2WorldSize();
 }
 
-LPMODEL R_GameLoadModel(LPCSTR modelFilename) {
+LPMODEL R_LoadModel(LPCSTR modelFilename) {
     void *buffer = NULL;
     int fileSize = ri.FS_ReadFile(modelFilename, &buffer);
     LPMODEL model = NULL;
@@ -251,11 +251,11 @@ LPMODEL R_GameLoadModel(LPCSTR modelFilename) {
     return model;
 }
 
-void R_GameReleaseModel(LPMODEL model) {
+void R_ReleaseModel(LPMODEL model) {
     ri.MemFree(model);
 }
 
-void R_GameRenderModel(renderEntity_t const *entity) {
+void R_RenderModel(renderEntity_t const *entity) {
     MATRIX4 transform;
 
     if (!entity || !entity->model || entity->model->modeltype != ID_43DM || !entity->model->m3) {
@@ -265,37 +265,37 @@ void R_GameRenderModel(renderEntity_t const *entity) {
     M3_RenderModel(entity, entity->model->m3, &transform);
 }
 
-bool R_GameTraceModel(renderEntity_t const *entity, LPCLINE3 line, LPFLOAT distance) {
+bool R_TraceModel(renderEntity_t const *entity, LPCLINE3 line, LPFLOAT distance) {
     (void)entity;
     (void)line;
     (void)distance;
     return false;
 }
 
-bool R_GameEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
+bool R_EntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
     (void)entity;
     (void)matrix;
     return false;
 }
 
-bool R_GameRenderShadow(renderEntity_t const *entity, LPCVECTOR2 origin) {
+bool R_RenderShadow(renderEntity_t const *entity, LPCVECTOR2 origin) {
     (void)entity;
     (void)origin;
     return false;
 }
 
-FLOAT R_GameSelectionRadius(renderEntity_t const *entity) {
+FLOAT R_SelectionRadius(renderEntity_t const *entity) {
     return entity->radius;
 }
 
-FLOAT R_GameEntityHeight(renderEntity_t const *entity) { return entity ? entity->radius * 2.0f : 0.0f; }
-BOOL R_GameEntityOverheadPosition(renderEntity_t const *entity, LPVECTOR3 out) {
+FLOAT R_EntityHeight(renderEntity_t const *entity) { return entity ? entity->radius * 2.0f : 0.0f; }
+BOOL R_EntityOverheadPosition(renderEntity_t const *entity, LPVECTOR3 out) {
     if (!entity || !out) return false;
-    *out = entity->origin; out->z += R_GameEntityHeight(entity);
+    *out = entity->origin; out->z += R_EntityHeight(entity);
     return true;
 }
 
-static void R_GameTextureCacheAdd(LPCSTR path) {
+static void R_M3TextureCacheAdd(LPCSTR path) {
     if (!path || !*path || model_texture_cache.count >= 256) {
         return;
     }
@@ -309,7 +309,7 @@ static void R_GameTextureCacheAdd(LPCSTR path) {
     model_texture_cache.count++;
 }
 
-static void R_GameBuildModelTextureCache(LPMODEL model) {
+static void R_M3BuildModelTextureCache(LPMODEL model) {
     if (model_texture_cache.model == model) {
         return;
     }
@@ -339,17 +339,18 @@ static void R_GameBuildModelTextureCache(LPMODEL model) {
         FOR_LOOP(layerIndex, sizeof(layers) / sizeof(layers[0])) {
             m3Layer_t const *layer = layers[layerIndex];
             if (layer && layer->imagePath && *layer->imagePath) {
-                R_GameTextureCacheAdd(layer->imagePath);
+                R_M3TextureCacheAdd(layer->imagePath);
             }
         }
     }
 }
 
-bool R_GameGetModelInfo(LPMODEL model, LPMODELINFO info) {
+bool R_GetModelInfo(LPMODEL model, LPMODELINFO info) {
     if (!model || !info || model->modeltype != ID_43DM) {
         return false;
     }
-    R_GameBuildModelTextureCache(model);
+    memset(info, 0, sizeof(*info));
+    R_M3BuildModelTextureCache(model);
     if (model_texture_cache.model == model) {
         info->textureCount = MIN(model_texture_cache.count, MODELINFO_MAX_TEXTURES);
         FOR_LOOP(i, info->textureCount) {
@@ -360,7 +361,7 @@ bool R_GameGetModelInfo(LPMODEL model, LPMODELINFO info) {
 }
 
 /* Unit portraits use a bounds-derived perspective camera; layout models supply their own camera payload. */
-bool R_GameExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t *viewdef) {
+bool R_ExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t *viewdef) {
     if (!entity || !entity->model || entity->model->modeltype != ID_43DM || !entity->model->m3 || !viewdef)
         return false;
 
@@ -401,7 +402,7 @@ bool R_GameExtractEntityCamera(renderEntity_t const *entity, float aspect, viewD
 }
 
 /* Retained SC2 UI models use a stable final pose from the requested sequence. */
-bool R_GameSetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
+bool R_SetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
     if (!model || model->modeltype != ID_43DM || !model->m3 || !entity) return false;
     m3Model_t const *m3 = model->m3;
     DWORD time = 0;
@@ -417,7 +418,7 @@ bool R_GameSetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entit
     return false;
 }
 
-void R_GameDrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
+void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
     (void)model;
     (void)anim;
     (void)x;
@@ -426,7 +427,7 @@ void R_GameDrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
 
 /* TODO: SC2 authored cursor assets are not wired to the renderer yet;
  * returning false keeps SDL's native platform cursor visible. */
-bool R_GameDrawCursor(float x, float y, COLOR32 tint) {
+bool R_DrawCursor(float x, float y, COLOR32 tint) {
     (void)x; (void)y; (void)tint;
     return false;
 }

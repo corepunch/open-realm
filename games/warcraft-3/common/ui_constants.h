@@ -8,7 +8,4 @@
 #define UI_FONT_COORD_SCALE 1000.0f // font coordinates per FDF unit; converts authored font heights
 #define UI_PIXEL_ASPECT (UI_MIN_ASPECT * UI_BASE_HEIGHT / UI_BASE_WIDTH) // y/x; square authored pixels in UI coordinates
 
-/* Retail derives the native CStatBar width from UnitUI scale and SelectionCircle.ScaleFactor. */
-static inline FLOAT WC3_HoverBarWidth(FLOAT radius) { return radius * 0.001f; }
-
 #endif

@@ -3,11 +3,11 @@
 #include "w3m/r_war3map.h"
 #include "common/stb_slk.h"
 
-void R_RegisterMap(LPCSTR mapFileName);
-void R_DrawWorld(void);
-void R_DrawTerrainShadows(void);
-void R_DrawAlphaSurfaces(void);
-bool R_TraceLocation(viewDef_t const *viewdef, FLOAT x, FLOAT y, LPVECTOR3 output);
+void _W3M_RegisterMap(LPCSTR mapFileName);
+void _W3M_DrawWorld(void);
+void _W3M_DrawTerrainShadows(void);
+void _W3M_DrawAlphaSurfaces(void);
+bool _W3M_TraceLocation(viewDef_t const *viewdef, FLOAT x, FLOAT y, LPVECTOR3 output);
 float GetAccurateHeightAtPoint(float sx, float sy);
 
 static LPCSTR selCirclesNames[NUM_SELECTION_CIRCLES] = {
@@ -52,7 +52,7 @@ typedef struct {
 
 static model_texture_cache_t model_texture_cache = { 0 };
 
-static BOOL R_GamePathHasExtension(LPCSTR path, LPCSTR extension) {
+static BOOL R_W3PathHasExtension(LPCSTR path, LPCSTR extension) {
     size_t pathLen;
     size_t extLen;
 
@@ -67,7 +67,7 @@ static BOOL R_GamePathHasExtension(LPCSTR path, LPCSTR extension) {
     return !strcasecmp(path + pathLen - extLen, extension);
 }
 
-void R_GameLoadAssets(void) {
+void R_LoadAssets(void) {
     FOR_LOOP(i, MODEL_COUNT) {
         tr.model[i] = R_LoadModel(modelNames[i]);
     }
@@ -95,12 +95,12 @@ void R_GameLoadAssets(void) {
     tr.texture[TEX_WATER] = R_LoadTexture("ReplaceableTextures\\Water\\Water12.blp");
 }
 
-void R_GameInit(void) {
+void R_Init(void) {
     cursor_model = NULL; cursor_load_attempted = false;
     MDLX_Init();
 }
 
-void R_GameShutdown(void) {
+void R_Shutdown(void) {
     /* R_ShutdownModels runs first and owns the cached model allocation; only clear our borrowed handle here. */
     cursor_model = NULL; cursor_load_attempted = false;
     FS_SLKFreeIndex(&g_terrain_idx);
@@ -112,19 +112,19 @@ void R_GameShutdown(void) {
     MDLX_Shutdown();
 }
 
-w3TerrainArt_t const *R_GameTerrainArt(DWORD id) {
+w3TerrainArt_t const *R_TerrainArt(DWORD id) {
     static w3TerrainArt_t zero;
     w3TerrainArt_t *row = FS_SLKLookup(&g_terrain_idx, id);
     return row ? row : &zero;
 }
 
-w3CliffType_t const *R_GameCliffType(DWORD id) {
+w3CliffType_t const *R_CliffType(DWORD id) {
     static w3CliffType_t zero;
     w3CliffType_t *row = FS_SLKLookup(&g_cliff_idx, id);
     return row ? row : &zero;
 }
 
-void R_GameSetupTextureMatrix(void) {
+void R_SetupTextureMatrix(void) {
     if (tr.world) {
         VECTOR2 s = GetWar3MapSize(tr.world);
         VECTOR2 c = tr.world->center;
@@ -134,7 +134,7 @@ void R_GameSetupTextureMatrix(void) {
     }
 }
 
-void R_GameDrawMinimap(LPCRECT screen) {
+void R_DrawMinimap(LPCRECT screen) {
     LPCTEXTURE tex = tr.minimap ? tr.minimap : tr.texture[TEX_WHITE];
     R_DrawImage(tex, screen, &MAKE(RECT, 0, 0, 1, 1), COLOR32_WHITE);
 
@@ -159,35 +159,35 @@ void R_GameDrawMinimap(LPCRECT screen) {
     R_DrawMinimapCameraRect(screen);
 }
 
-void R_GameRegisterMap(LPCSTR mapFileName) {
-    R_RegisterMap(mapFileName);
+void R_RegisterMap(LPCSTR mapFileName) {
+    _W3M_RegisterMap(mapFileName);
 }
 
-void R_GameDrawWorld(void) {
-    R_DrawWorld();
+void R_DrawWorld(void) {
+    _W3M_DrawWorld();
 }
 
-void R_GameDrawTerrainShadows(void) {
-    R_DrawTerrainShadows();
+void R_DrawTerrainShadows(void) {
+    _W3M_DrawTerrainShadows();
 }
 
-void R_GameDrawAlphaSurfaces(void) {
-    R_DrawAlphaSurfaces();
+void R_DrawAlphaSurfaces(void) {
+    _W3M_DrawAlphaSurfaces();
 }
 
-bool R_GameTraceLocation(viewDef_t const *viewdef, float x, float y, LPVECTOR3 point) {
-    return R_TraceLocation(viewdef, x, y, point);
+bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, LPVECTOR3 point) {
+    return _W3M_TraceLocation(viewdef, x, y, point);
 }
 
-FLOAT R_GameGetHeightAtPoint(FLOAT x, FLOAT y) {
+FLOAT R_GetHeightAtPoint(FLOAT x, FLOAT y) {
     return GetAccurateHeightAtPoint(x, y);
 }
 
-VECTOR2 R_GameWorldSize(void) {
+VECTOR2 R_WorldSize(void) {
     return tr.world ? GetWar3MapSize(tr.world) : (VECTOR2){ 0 };
 }
 
-LPMODEL R_GameLoadModel(LPCSTR modelFilename) {
+LPMODEL R_LoadModel(LPCSTR modelFilename) {
     void *buffer = NULL;
     int fileSize = ri.FS_ReadFile(modelFilename, &buffer);
     LPMODEL model = NULL;
@@ -221,7 +221,7 @@ LPMODEL R_GameLoadModel(LPCSTR modelFilename) {
         model = ri.MemAlloc(sizeof(model_t));
         model->mdx = R_LoadModelMDLX(buffer, fileSize);
         model->modeltype = ID_MDLX;
-    } else if (R_GamePathHasExtension(modelFilename, ".mdl")) {
+    } else if (R_W3PathHasExtension(modelFilename, ".mdl")) {
         /* Same case-insensitive issue: use stem length, not strstr. */
         PATHSTR tempFileName = { 0 };
         size_t stemLen = strlen(modelFilename) - 4;
@@ -240,14 +240,14 @@ LPMODEL R_GameLoadModel(LPCSTR modelFilename) {
     return model;
 }
 
-void R_GameReleaseModel(LPMODEL model) {
+void R_ReleaseModel(LPMODEL model) {
     if (model->modeltype == ID_MDLX) {
         MDLX_Release(model->mdx);
     }
     ri.MemFree(model);
 }
 
-void R_GameRenderModel(renderEntity_t const *entity) {
+void R_RenderModel(renderEntity_t const *entity) {
     MATRIX4 transform;
 
     if (!entity || !entity->model || entity->model->modeltype != ID_MDLX) {
@@ -257,7 +257,7 @@ void R_GameRenderModel(renderEntity_t const *entity) {
     MDX_RenderModel(entity, entity->model->mdx, &transform);
 }
 
-bool R_GameTraceModel(renderEntity_t const *entity, LPCLINE3 line, LPFLOAT distance) {
+bool R_TraceModel(renderEntity_t const *entity, LPCLINE3 line, LPFLOAT distance) {
     if (!entity || !entity->model || entity->model->modeltype != ID_MDLX) {
         return false;
     }
@@ -270,34 +270,34 @@ bool R_GameTraceModel(renderEntity_t const *entity, LPCLINE3 line, LPFLOAT dista
     return true;
 }
 
-bool R_GameEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
+bool R_EntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
     (void)entity;
     (void)matrix;
     return false;
 }
 
-bool R_GameRenderShadow(renderEntity_t const *entity, LPCVECTOR2 origin) {
+bool R_RenderShadow(renderEntity_t const *entity, LPCVECTOR2 origin) {
     (void)entity;
     (void)origin;
     return false;
 }
 
-FLOAT R_GameSelectionRadius(renderEntity_t const *entity) {
+FLOAT R_SelectionRadius(renderEntity_t const *entity) {
     return entity->radius;
 }
 
-FLOAT R_GameEntityHeight(renderEntity_t const *entity) {
+FLOAT R_EntityHeight(renderEntity_t const *entity) {
     if (!entity || !entity->model || entity->model->modeltype != ID_MDLX || !entity->model->mdx) return 0.0f;
     return entity->model->mdx->bounds.box.max.z * entity->scale;
 }
-BOOL R_GameEntityOverheadPosition(renderEntity_t const *entity, LPVECTOR3 out) {
+BOOL R_EntityOverheadPosition(renderEntity_t const *entity, LPVECTOR3 out) {
     if (!entity || !out) return false;
-    /* Retail PreSelect.cpp uses transformed model bounds; selection-circle radius made mines high and heroes low. */
-    *out = entity->origin; out->z += R_GameEntityHeight(entity) + 30.0f;
+    /* Match Warsmash: the status stack is centered on the transformed model-bounds maximum. */
+    *out = entity->origin; out->z += R_EntityHeight(entity);
     return true;
 }
 
-static void R_GameTextureCacheAdd(LPCSTR path) {
+static void R_W3TextureCacheAdd(LPCSTR path) {
     if (!path || !*path || model_texture_cache.count >= 256) {
         return;
     }
@@ -311,7 +311,7 @@ static void R_GameTextureCacheAdd(LPCSTR path) {
     model_texture_cache.count++;
 }
 
-static void R_GameBuildModelTextureCache(LPMODEL model) {
+static void R_W3BuildModelTextureCache(LPMODEL model) {
     if (model_texture_cache.model == model) {
         return;
     }
@@ -321,19 +321,20 @@ static void R_GameBuildModelTextureCache(LPMODEL model) {
         return;
     }
     FOR_LOOP(i, model->mdx->num_textures) {
-        R_GameTextureCacheAdd(model->mdx->textures[i].path);
+        R_W3TextureCacheAdd(model->mdx->textures[i].path);
     }
 }
 
-bool R_GameGetModelInfo(LPMODEL model, LPMODELINFO info) {
+bool R_GetModelInfo(LPMODEL model, LPMODELINFO info) {
     bool found = false;
     float min_u = 1.0f, min_v = 1.0f, max_u = 0.0f, max_v = 0.0f;
 
     if (!model || !info || model->modeltype != ID_MDLX || !model->mdx) {
         return false;
     }
+    memset(info, 0, sizeof(*info));
 
-    R_GameBuildModelTextureCache(model);
+    R_W3BuildModelTextureCache(model);
     if (model_texture_cache.model == model) {
         info->textureCount = MIN(model_texture_cache.count, MODELINFO_MAX_TEXTURES);
         FOR_LOOP(i, info->textureCount) {
@@ -371,7 +372,7 @@ bool R_GameGetModelInfo(LPMODEL model, LPMODELINFO info) {
     return true;
 }
 
-bool R_GameExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t *viewdef) {
+bool R_ExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t *viewdef) {
     if (!entity || !entity->model || !entity->model->mdx || !viewdef) {
         return false;
     }
@@ -381,22 +382,22 @@ bool R_GameExtractEntityCamera(renderEntity_t const *entity, float aspect, viewD
     return ok;
 }
 
-bool R_GameSetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
+bool R_SetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
     return MDLX_SetEntityAnimationFrame(model, anim, entity);
 }
 
-void R_GameDrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
+void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
     MDLX_DrawSprite(model, anim, x, y);
 }
 
 /* Warcraft III can replace the platform cursor with its authored animated MDX cursor. */
-bool R_GameDrawCursor(float x, float y, COLOR32 tint) {
+bool R_DrawCursor(float x, float y, COLOR32 tint) {
     renderEntity_t probe = {0};
 
     if (!cursor_model && !cursor_load_attempted) {
         cursor_load_attempted = true;
         cursor_model = R_LoadModel(cursor_model_name);
-        if (!cursor_model || !R_GameSetEntityAnimFrame(cursor_model, "Normal", &probe)) {
+        if (!cursor_model || !R_SetEntityAnimFrame(cursor_model, "Normal", &probe)) {
             fprintf(stderr, "WC3 cursor unavailable: %s\n", cursor_model_name);
             if (cursor_model) R_ReleaseModel(cursor_model);
             cursor_model = NULL;

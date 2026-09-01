@@ -275,7 +275,7 @@ void R_RenderFogOfWar(void) {
 
     MATRIX4 model_matrix;
     MATRIX4 proj_matrix;
-    VECTOR2 mapsize = R_GameWorldSize();
+    VECTOR2 mapsize = R_WorldSize();
 
     Matrix4_identity(&model_matrix);
     Matrix4_translate(&model_matrix, &(VECTOR3) { -tr.world->center.x, -tr.world->center.y, 0 });

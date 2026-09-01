@@ -5,10 +5,12 @@
 #include "wow/r_wowmap.h"
 #include "m2/r_m2_format.h"
 
-void R_RegisterMap(LPCSTR mapFileName);
-void R_DrawWorld(void);
-void R_DrawTerrainShadows(void);
-void R_DrawAlphaSurfaces(void);
+void Wow_RegisterMap(LPCSTR mapFileName);
+void Wow_DrawWorld(void);
+void Wow_DrawTerrainShadows(void);
+void Wow_DrawAlphaSurfaces(void);
+void Wow_DrawMinimap(LPCRECT screen);
+FLOAT Wow_GetHeightAtPoint(FLOAT x, FLOAT y);
 bool R_TraceLocation(viewDef_t const *viewdef, FLOAT x, FLOAT y, LPVECTOR3 output);
 float GetAccurateHeightAtPoint(float sx, float sy);
 
@@ -43,7 +45,7 @@ typedef struct {
 static wowOverheadCache_t s_overhead[MAX_GAME_ENTITIES];
 
 /* Entity transforms can change without server time advancing, so every pose input participates in the cache key. */
-static BOOL R_GameOverheadCacheMatch(wowOverheadCache_t const *cache, renderEntity_t const *entity) {
+static BOOL R_WowOverheadCacheMatch(wowOverheadCache_t const *cache, renderEntity_t const *entity) {
     return cache->valid && cache->model == entity->model && cache->time == tr.viewDef.time &&
            cache->frame == entity->frame && cache->oldframe == entity->oldframe && cache->flags == entity->flags &&
            cache->angle == entity->angle && cache->scale == entity->scale &&
@@ -52,7 +54,7 @@ static BOOL R_GameOverheadCacheMatch(wowOverheadCache_t const *cache, renderEnti
 }
 
 /* Preserve the model-authored attachment result before another M2 draw overwrites the shared bone palette. */
-static void R_GameCacheOverhead(renderEntity_t const *entity, LPCMATRIX4 transform) {
+static void R_WowCacheOverhead(renderEntity_t const *entity, LPCMATRIX4 transform) {
     wowOverheadCache_t *cache;
     DWORD attachment;
     if (entity->number >= MAX_GAME_ENTITIES) return;
@@ -65,7 +67,7 @@ static void R_GameCacheOverhead(renderEntity_t const *entity, LPCMATRIX4 transfo
     cache->valid = true;
 }
 
-static BOOL R_GamePathHasExtension(LPCSTR path, LPCSTR extension) {
+static BOOL R_WowPathHasExtension(LPCSTR path, LPCSTR extension) {
     size_t pathLen;
     size_t extLen;
 
@@ -80,7 +82,7 @@ static BOOL R_GamePathHasExtension(LPCSTR path, LPCSTR extension) {
     return !strcasecmp(path + pathLen - extLen, extension);
 }
 
-void R_GameLoadAssets(void) {
+void R_LoadAssets(void) {
     /* WoW has no WC3 selection-circle BLPs; generate one ring and share it across the size slots until
      * distinct per-size variants exist. */
     LPTEXTURE ring = R_MakeSelectionCircleTexture();
@@ -89,53 +91,48 @@ void R_GameLoadAssets(void) {
     s_quest_active_icon = R_LoadTexture(WOW_QUEST_ACTIVE_ICON);
 }
 
-void R_GameInit(void) {
+void R_Init(void) {
     M2_Init();
 }
 
-void R_GameShutdown(void) {
+void R_Shutdown(void) {
     Wow_ShutdownWorldShaders();
     M2_Shutdown();
 }
 
-void R_GameSetupTextureMatrix(void) {
+void R_SetupTextureMatrix(void) {
     Matrix4_identity(&tr.viewDef.textureMatrix);
 }
 
-void R_GameDrawMinimap(LPCRECT screen) {
+void R_DrawMinimap(LPCRECT screen) {
     Wow_DrawMinimap(screen);
 }
 
-void R_GameRegisterMap(LPCSTR mapFileName) {
-    R_RegisterMap(mapFileName);
+void R_RegisterMap(LPCSTR mapFileName) {
+    Wow_RegisterMap(mapFileName);
 }
 
-void R_GameDrawWorld(void) {
-    R_DrawWorld();
+void R_DrawWorld(void) {
+    Wow_DrawWorld();
 }
 
-void R_GameDrawTerrainShadows(void) {
-    R_DrawTerrainShadows();
+void R_DrawTerrainShadows(void) {
+    Wow_DrawTerrainShadows();
 }
 
-void R_GameDrawAlphaSurfaces(void) {
-    Wow_FlushSplats();
-    R_DrawAlphaSurfaces();
+void R_DrawAlphaSurfaces(void) {
+    Wow_DrawAlphaSurfaces();
 }
 
-bool R_GameTraceLocation(viewDef_t const *viewdef, float x, float y, LPVECTOR3 point) {
-    return R_TraceLocation(viewdef, x, y, point);
+FLOAT R_GetHeightAtPoint(FLOAT x, FLOAT y) {
+    return Wow_GetHeightAtPoint(x, y);
 }
 
-FLOAT R_GameGetHeightAtPoint(FLOAT x, FLOAT y) {
-    return GetAccurateHeightAtPoint(x, y);
-}
-
-VECTOR2 R_GameWorldSize(void) {
+VECTOR2 R_WorldSize(void) {
     return (VECTOR2){ 0 };
 }
 
-LPMODEL R_GameLoadModel(LPCSTR modelFilename) {
+LPMODEL R_LoadModel(LPCSTR modelFilename) {
     void *buffer = NULL;
     PATHSTR load_name;
     int fileSize = ri.FS_ReadFile(modelFilename, &buffer);
@@ -145,7 +142,7 @@ LPMODEL R_GameLoadModel(LPCSTR modelFilename) {
     /* WoW only uses .m2; legacy data files (WMO MODN chunks, early ADTs) may
      * reference models with any extension (.MDL, .MDX, etc.).  If the direct
      * read failed and the path isn't already .m2, strip the extension and retry. */
-    if ((fileSize < 0 || !buffer) && !R_GamePathHasExtension(modelFilename, ".m2")) {
+    if ((fileSize < 0 || !buffer) && !R_WowPathHasExtension(modelFilename, ".m2")) {
         PATHSTR tempFileName = { 0 };
         LPCSTR dot = strrchr(modelFilename, '.');
         size_t stemLen = dot ? (size_t)(dot - modelFilename) : strlen(modelFilename);
@@ -185,14 +182,14 @@ LPMODEL R_GameLoadModel(LPCSTR modelFilename) {
     return model;
 }
 
-void R_GameReleaseModel(LPMODEL model) {
+void R_ReleaseModel(LPMODEL model) {
     if (model->modeltype == ID_MD20) {
         M2_Release(model->m2);
     }
     ri.MemFree(model);
 }
 
-bool R_GameEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
+bool R_EntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
     VECTOR3 origin;
     MATRIX4 adt_to_world_basis;
     MATRIX4 tmp;
@@ -254,7 +251,7 @@ bool R_GameEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
 }
 
 /* Build a stable top/front light for WoW UI model-camera previews. */
-static void R_GameEntityCameraLightMatrix(LPCVECTOR3 target, FLOAT radius, LPMATRIX4 output) {
+static void R_WowEntityCameraLightMatrix(LPCVECTOR3 target, FLOAT radius, LPMATRIX4 output) {
     MATRIX4 proj;
     MATRIX4 view;
     VECTOR3 light_dir = { -0.35f, -0.50f, 0.80f };
@@ -271,7 +268,7 @@ static void R_GameEntityCameraLightMatrix(LPCVECTOR3 target, FLOAT radius, LPMAT
     Matrix4_multiply(&proj, &view, output);
 }
 
-void R_GameRenderModel(renderEntity_t const *entity) {
+void R_RenderModel(renderEntity_t const *entity) {
     MATRIX4 transform;
     MATRIX4 attached_transform;
     renderEntity_t attached_entity;
@@ -282,10 +279,10 @@ void R_GameRenderModel(renderEntity_t const *entity) {
     }
     R_GetEntityMatrix(entity, &transform);
     M2_RenderModel(entity, entity->model->m2, &transform);
-    R_GameCacheOverhead(entity, &transform);
+    R_WowCacheOverhead(entity, &transform);
     if (entity->overhead_model && entity->overhead_model->modeltype == ID_MD20) {
         renderEntity_t marker = *entity;
-        R_GameEntityOverheadPosition(entity, &marker.origin);
+        R_EntityOverheadPosition(entity, &marker.origin);
         marker.model = entity->overhead_model;
         /* A visible name owns the base slot; TalkToMe's authored bottom clearance separates the marker above it. */
         if (entity->name && *entity->name) marker.origin.z += M2_VisibleBottom(marker.model->m2);
@@ -329,18 +326,18 @@ void R_GameRenderModel(renderEntity_t const *entity) {
     }
 }
 
-void R_GameRenderModelInstanced(LPCMODEL model, LPCINSTANCEBUFFER instances, DWORD flags) {
+void R_RenderModelInstanced(LPCMODEL model, LPCINSTANCEBUFFER instances, DWORD flags) {
     if (!model || model->modeltype != ID_MD20) {
         return;
     }
     M2_RenderInstanced(model->m2, instances, flags);
 }
 
-bool R_GameModelCanStaticInstance(LPCMODEL model) {
+bool R_ModelCanStaticInstance(LPCMODEL model) {
     return model && model->modeltype == ID_MD20 && M2_CanStaticInstance(model->m2);
 }
 
-bool R_GameTraceModel(renderEntity_t const *entity, LPCLINE3 line, LPFLOAT distance) {
+bool R_TraceModel(renderEntity_t const *entity, LPCLINE3 line, LPFLOAT distance) {
     VECTOR3 ab;
     VECTOR3 ac;
     VECTOR3 center;
@@ -384,7 +381,7 @@ bool R_GameTraceModel(renderEntity_t const *entity, LPCLINE3 line, LPFLOAT dista
 }
 
 #ifndef USE_SHADOWMAPS
-bool R_GameRenderShadow(renderEntity_t const *entity, LPCVECTOR2 origin) {
+bool R_RenderShadow(renderEntity_t const *entity, LPCVECTOR2 origin) {
     LPCTEXTURE shadow;
     BOOL use_fast_blob;
     float shadow_z;
@@ -429,7 +426,7 @@ bool R_GameRenderShadow(renderEntity_t const *entity, LPCVECTOR2 origin) {
         };
         /* Entity Z is the server-authored ground position; reject its blob before the terrain height lookup. */
         if (!Wow_ShadowBoundsVisible(&tr.viewDef.frustum, &pre_bounds, !(tr.viewDef.rdflags & RDF_NOFRUSTUMCULL))) return true;
-        shadow_z = R_GameGetHeightAtPoint(origin->x, origin->y) + WOW_SPLAT_Z_BIAS;
+        shadow_z = R_GetHeightAtPoint(origin->x, origin->y) + WOW_SPLAT_Z_BIAS;
     }
     bounds = (BOX3){
         .min = { mins.x, mins.y, shadow_z - 16.0f },
@@ -445,13 +442,13 @@ bool R_GameRenderShadow(renderEntity_t const *entity, LPCVECTOR2 origin) {
 }
 #endif
 
-FLOAT R_GameSelectionRadius(renderEntity_t const *entity) {
+FLOAT R_SelectionRadius(renderEntity_t const *entity) {
     /* Fractional WoW collision radii need a minimum visual footprint around the model. */
     return MAX(entity->radius * MAX(entity->scale, 1.0f), 1.0f);
 }
 
 /* The PlayerName attachment (mounted variant when riding) is the model-authored name-plate point. */
-BOOL R_GameEntityOverheadPosition(renderEntity_t const *entity, LPVECTOR3 out) {
+BOOL R_EntityOverheadPosition(renderEntity_t const *entity, LPVECTOR3 out) {
     static LPCMODEL last_missing;
     wowOverheadCache_t *cache;
     MATRIX4 transform;
@@ -463,12 +460,12 @@ BOOL R_GameEntityOverheadPosition(renderEntity_t const *entity, LPVECTOR3 out) {
         return false;
     }
     cache = entity->number < MAX_GAME_ENTITIES ? &s_overhead[entity->number] : NULL;
-    if (cache && cache->found && R_GameOverheadCacheMatch(cache, entity)) { *out = cache->point; return true; }
+    if (cache && cache->found && R_WowOverheadCacheMatch(cache, entity)) { *out = cache->point; return true; }
     R_GetEntityMatrix(entity, &transform);
     /* CGUnit_C::GetNamePosition prefers the mounted anchor (29) over the grounded one (18). */
     attachment = (entity->flags & RF_MOUNTED) ? M2_ATTACH_PLAYER_NAME_MOUNTED : M2_ATTACH_PLAYER_NAME;
     if (M2_EntityAttachmentPosition(entity->model->m2, entity, attachment, &transform, out)) {
-        if (cache) { R_GameCacheOverhead(entity, &transform); *out = cache->point; }
+        if (cache) { R_WowCacheOverhead(entity, &transform); *out = cache->point; }
         return true;
     }
     if (entity->model != last_missing) {
@@ -479,20 +476,20 @@ BOOL R_GameEntityOverheadPosition(renderEntity_t const *entity, LPVECTOR3 out) {
     return false;
 }
 
-FLOAT R_GameEntityHeight(renderEntity_t const *entity) {
+FLOAT R_EntityHeight(renderEntity_t const *entity) {
     VECTOR3 top;
     if (!entity) return 0.0f;
-    R_GameEntityOverheadPosition(entity, &top);
+    R_EntityOverheadPosition(entity, &top);
     return top.z - entity->origin.z;
 }
 
-bool R_GameGetModelInfo(LPMODEL model, LPMODELINFO info) {
+bool R_GetModelInfo(LPMODEL model, LPMODELINFO info) {
+    if (info) memset(info, 0, sizeof(*info));
     (void)model;
-    (void)info;
     return false;
 }
 
-bool R_GameExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t *viewdef) {
+bool R_ExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t *viewdef) {
     BOX3 const *bounds;
     MATRIX4 transform;
     VECTOR3 center;
@@ -560,17 +557,17 @@ bool R_GameExtractEntityCamera(renderEntity_t const *entity, float aspect, viewD
     Matrix4_lookAt(&view_matrix, &eye, &dir, &up);
     Matrix4_multiply(&proj_matrix, &view_matrix, &viewdef->viewProjectionMatrix);
     Matrix4_identity(&viewdef->textureMatrix);
-    R_GameEntityCameraLightMatrix(&target, radius, &viewdef->lightMatrix);
+    R_WowEntityCameraLightMatrix(&target, radius, &viewdef->lightMatrix);
     return true;
 }
 
-bool R_GameSetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
+bool R_SetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
     if (!model || model->modeltype != ID_MD20)
         return false;
     return M2_SetEntitySequenceFrame(model->m2, anim, entity);
 }
 
-void R_GameDrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
+void R_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
     (void)model;
     (void)anim;
     (void)x;
@@ -578,7 +575,7 @@ void R_GameDrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
 }
 
 /* WoW context cursors are native SDL cursors owned by cl_input_wow.c. */
-bool R_GameDrawCursor(float x, float y, COLOR32 tint) {
+bool R_DrawCursor(float x, float y, COLOR32 tint) {
     (void)x; (void)y; (void)tint;
     return false;
 }
