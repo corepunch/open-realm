@@ -284,7 +284,7 @@ struct uiFrameDef_s {
             FLOAT Height;
         } Item;
         DWORD ItemCount;
-        uiMenuItem_t Items[UI_MAX_MENU_ITEMS];
+        uiMenuItem_t *Items; // lazily UI_FdfAlloc'd at UI_MAX_MENU_ITEMS on first UI_MenuAddItem; most frames never use Menu, so no fixed array here
         COLOR32 TextHighlightColor;
     } Menu;
     struct {
@@ -898,13 +898,19 @@ DWORD UI_CollectFrameTree(LPCFRAMEDEF root, LPCFRAMEDEF *out, DWORD max) {
 
 void UI_MenuClearItems(LPFRAMEDEF frame) {
     if (!frame) return;
+    UI_FdfFree(frame->Menu.Items);
+    frame->Menu.Items = NULL;
     frame->Menu.ItemCount = 0;
-    memset(frame->Menu.Items, 0, sizeof(frame->Menu.Items));
 }
 
 void UI_MenuAddItem(LPFRAMEDEF frame, LPCSTR text, LONG value) {
     if (!frame || frame->Menu.ItemCount >= UI_MAX_MENU_ITEMS) return;
+    if (!frame->Menu.Items) {
+        frame->Menu.Items = UI_FdfAlloc((long)(sizeof(uiMenuItem_t) * UI_MAX_MENU_ITEMS));
+        if (!frame->Menu.Items) return;
+    }
     uiMenuItem_t *item = &frame->Menu.Items[frame->Menu.ItemCount++];
+    memset(item, 0, sizeof(*item));
     snprintf(item->text, sizeof(item->text), "%s", text ? text : "");
     item->value = value;
     snprintf(frame->Menu.Item.Text, sizeof(frame->Menu.Item.Text), "%s", item->text);
@@ -1041,12 +1047,15 @@ static void UI_CopyDisplayString(char *out, size_t out_size, LPCSTR in);
 static void UI_SetFrameDisplayString(LPFRAMEDEF frame, LPCSTR text);
 static void UI_FixCopiedFrameTextPointer(LPFRAMEDEF frame, LPCFRAMEDEF source);
 static void UI_FreeFrameDynamicText(LPFRAMEDEF frame);
+static void UI_FreeFrameMenuItems(LPFRAMEDEF frame);
+static void UI_FixCopiedFrameMenuItems(LPFRAMEDEF frame, LPCFRAMEDEF source);
 static void UI_RemoveBom(LPSTR buffer);
 static void UI_CloneTemplateChildren(LPCFRAMEDEF source, LPFRAMEDEF parent);
 
 void UI_ClearTemplates(void) {
     FOR_LOOP(i, MAX_UI_CLASSES) {
         UI_FreeFrameDynamicText(&frames[i]);
+        UI_FreeFrameMenuItems(&frames[i]);
     }
     memset(frames, 0, sizeof(frames));
     memset(ui_loaded_fdfs, 0, sizeof(ui_loaded_fdfs));
@@ -1133,6 +1142,31 @@ static void UI_FreeFrameDynamicText(LPFRAMEDEF frame) {
         UI_FdfFree(frame->DynamicText);
         frame->DynamicText = NULL;
         frame->DynamicTextCapacity = 0;
+    }
+}
+
+static void UI_FreeFrameMenuItems(LPFRAMEDEF frame) {
+    if (frame && frame->Menu.Items) {
+        UI_FdfFree(frame->Menu.Items);
+        frame->Menu.Items = NULL;
+        frame->Menu.ItemCount = 0;
+    }
+}
+
+/* memcpy-based frame copies (UI_InheritFrom, UI_CloneFrameTree) shallow-copy the
+ * Items pointer; give the copy its own buffer so growing/clearing one menu can't
+ * corrupt the template or sibling clone it was copied from. */
+static void UI_FixCopiedFrameMenuItems(LPFRAMEDEF frame, LPCFRAMEDEF source) {
+    if (!frame) return;
+    if (!source || !source->Menu.Items || !source->Menu.ItemCount) {
+        frame->Menu.Items = NULL;
+        return;
+    }
+    frame->Menu.Items = UI_FdfAlloc((long)(sizeof(uiMenuItem_t) * UI_MAX_MENU_ITEMS));
+    if (frame->Menu.Items) {
+        memcpy(frame->Menu.Items, source->Menu.Items, sizeof(uiMenuItem_t) * source->Menu.ItemCount);
+    } else {
+        frame->Menu.ItemCount = 0;
     }
 }
 
@@ -1662,8 +1696,11 @@ void UI_InheritFrom(LPFRAMEDEF frame, LPCSTR inheritName) {
         FRAMETYPE requested_type = frame->Type;
         memcpy(&tmp, frame, sizeof(FRAMEDEF));
         UI_FreeFrameDynamicText(frame);
+        UI_FreeFrameMenuItems(frame);
         memcpy(frame, inherit, sizeof(FRAMEDEF));
+        frame->Menu.Items = NULL; frame->Menu.ItemCount = 0; // clear aliased pointer memcpy just copied in; UI_FixCopiedFrameMenuItems below gives it its own buffer
         UI_FixCopiedFrameTextPointer(frame, inherit);
+        UI_FixCopiedFrameMenuItems(frame, inherit);
         memcpy(frame->Name, tmp.Name, sizeof(UINAME));
         frame->Parent = tmp.Parent;
         frame->Type = requested_type;
@@ -1759,7 +1796,9 @@ LPFRAMEDEF UI_CloneFrameTree(LPCFRAMEDEF source, LPFRAMEDEF parent) {
             return NULL;
         }
         *copies[i] = *sources[i];
+        copies[i]->Menu.Items = NULL; copies[i]->Menu.ItemCount = 0; // clear aliased pointer the struct copy just copied in; fix-up below gives it its own buffer
         UI_FixCopiedFrameTextPointer(copies[i], sources[i]);
+        UI_FixCopiedFrameMenuItems(copies[i], sources[i]);
     }
     FOR_LOOP(i, count) {
         UI_RemapClonedFramePointers(copies[i], parent, sources, copies, count);
