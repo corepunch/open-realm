@@ -32,6 +32,8 @@ The value is clamped to 256-65536. This keeps the expensive SPFA relaxation work
 
 While a resumable request is pending, `unit_changeangle*()` leaves both `movement.flow_generation == 0` and `movement.flow_direct == false`. `unit_moveindirection()` treats that pair as "no heading resolved this tick" and does not commit a step. This shared guard is important: a caller must never turn a pending route into movement along the unit's stale facing.
 
+Plain Move also keeps the stand presentation while that pair is clear. The order switches to walk only after direct steering or a completed flow field supplies a heading; starting the walk pose at order submission made the old facing look like an incorrect first turn during a long route build.
+
 `CM_BuildHeatmapForRadius()` remains the synchronous API for tests/tools that explicitly require a completed field. Production movement goes through `M_RefreshHeatmap()` -> `CM_RequestHeatmapForRadius()`.
 
 `CM_BuildHeatmapForRadius()` and the resumable request path both key cached fields by adjusted target cell and mover collision radius. The flood and flow query use the same radius-expanded static pathability predicate as move-time terrain checks. The zero-radius `CM_BuildHeatmap()` wrapper remains for callers that intentionally route a point.

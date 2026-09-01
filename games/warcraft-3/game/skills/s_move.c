@@ -313,6 +313,10 @@ static void ai_move_walk(LPEDICT ent) {
             return;
         }
 
+        /* Restore the walk pose only after steering resolves a heading;
+         * previously it advertised the stale facing throughout the pause. */
+        unit_setanimation(ent, "walk");
+
         /* Retail move orders keep trying when another unit temporarily blocks
          * the path.  Preserve the old near-goal settle behavior so an occupied
          * final slot does not orbit forever, but do not cancel a distant move
@@ -341,6 +345,9 @@ void order_move(LPEDICT self, LPEDICT target) {
     self->movement.patrol_a = NULL;
     move_reset_progress(self);
     unit_setmove(self, &move_move_walk);
+    /* No route heading exists at submission time. Hold the stand pose instead
+     * of showing a walking unit facing its previous, often opposite, heading. */
+    unit_setanimation(self, "stand");
 }
 
 /* Handle a right-click move command from the client.

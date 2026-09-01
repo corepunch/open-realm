@@ -490,6 +490,44 @@ TEST(wc3_movement, lumber_same_tree_workers_preserve_direct_order) {
     T_ASSERT(fabsf(second->s.origin2.y - second_origin.y) < 2.0f);
 }
 
+/* A plain Move has no valid route heading while an incremental detour is being
+ * built. Keep its position and facing until the field is ready, then advance
+ * on the first resolved steering tick without changing the logical order. */
+TEST(wc3_movement, pending_move_waits_for_resolved_heading) {
+    enum { CELLS = 64 };
+    BYTE pathmap[CELLS * CELLS] = {0};
+    LPEDICT unit = make_moving_unit(320.0f, 0.0f);
+    VECTOR2 const origin = unit->s.origin2;
+    VECTOR2 dest = {-320.0f, 0.0f};
+
+    FOR_LOOP(y, CELLS)
+        pathmap[32 + y * CELLS] = 0x02;
+    for (int y = 39; y <= 41; y++)
+        pathmap[32 + y * CELLS] = 0;
+    CM_SetupTestPathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(BOX2,
+        .min = {-1024.0f, -1024.0f},
+        .max = { 1024.0f,  1024.0f}));
+
+    unit->collision = 16.0f;
+    unit->unitinfo.MoveSpeed = 190.0f;
+    unit->s.angle = 0.0f;
+    order_move(unit, Waypoint_add(&dest));
+    unit->currentmove->think(unit);
+
+    T_EQ(unit->movement.flow_generation, 0);
+    T_ASSERT(!unit->movement.flow_direct);
+    T_FEQ(unit->s.origin2.x, origin.x, 0.001f);
+    T_FEQ(unit->s.origin2.y, origin.y, 0.001f);
+    T_FEQ(unit->s.angle, 0.0f, 0.001f);
+    T_STREQ(unit->currentmove->animation, "walk");
+
+    CM_ProcessPathJobs(65536);
+    unit->currentmove->think(unit);
+    T_ASSERT(unit->movement.flow_generation != 0);
+    T_ASSERT(Vector2_distance(&unit->s.origin2, &origin) > 0.001f);
+}
+
 /* Retail WC3 does not leave a worker orbiting an unreachable tree buried in a
  * forest.  The clicked tree remains authoritative while a route exists; once
  * the collision-sized flow field reaches its closest legal approach point and
