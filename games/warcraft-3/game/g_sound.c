@@ -83,7 +83,7 @@ void G_ShowCommandErrorText(LPEDICT clent, LPCSTR text) {
     LPCSTR key;
 
     if (!clent || !text || !text[0]) return;
-    UI_ShowText(clent, &MAKE(VECTOR2, 0, 0), text, 2.0f);
+    UI_ShowTransientText(clent, &MAKE(VECTOR2, 0, 0), text, 2.0f);
     key = G_CommandErrorKeyForText(text);
     if (key) G_PlayCommandErrorSound(clent, key);
     else G_PlayUISoundForPlayer(clent, "InterfaceError");

@@ -153,8 +153,21 @@ TEST(wc3_game, hud_authored_row_stride_uses_template_height) {
     T_FEQ(row->Points.y[FPP_MIN].offset, -0.036f, 0.001f);
 }
 
+
+TEST(wc3_game, hud_quest_visibility_requires_enabled_and_discovered) {
+    QUEST quest = { 0 };
+
+    T_ASSERT(!QuestIsVisible(&quest));
+    quest.enabled = true;
+    T_ASSERT(!QuestIsVisible(&quest));
+    quest.discovered = true;
+    T_ASSERT(QuestIsVisible(&quest));
+    quest.enabled = false;
+    T_ASSERT(!QuestIsVisible(&quest));
+}
+
 TEST(wc3_game, hud_quest_rows_bind_authored_children) {
-    QUEST quest = { .title = "Test Quest", .discovered = true, .required = true };
+    QUEST quest = { .title = "Test Quest", .discovered = true, .required = true, .enabled = true };
     QUESTITEM item = { .description = "Test Objective" };
     LPFRAMEDEF list, item_list, button, title, item_title;
 
@@ -189,6 +202,11 @@ TEST(wc3_game, hud_quest_rows_bind_authored_children) {
     T_STREQ(title->Text, "> Test Quest");
     T_STREQ(button->OnClick, "quest 0");
     T_STREQ(item_title->Text, "- Test Objective");
+
+    /* Refreshing the dialog reuses authored runtime rows instead of consuming
+     * another set of permanent FDF frame slots. */
+    PopulateQuestList(list, true, &quest);
+    T_ASSERT(UI_FindChildFrame(list, "QuestListItemTitle") == title);
 
     level.quests = NULL;
     quest_row_template = quest_item_template = NULL;

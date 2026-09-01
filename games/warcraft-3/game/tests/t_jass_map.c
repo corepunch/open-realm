@@ -273,7 +273,7 @@ TEST(wc3_jass_map, quest_created_is_non_null) {
     ));
 }
 
-TEST(wc3_jass_map, quest_flags_default_false) {
+TEST(wc3_jass_map, quest_flags_default_state) {
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
         "  local quest q = CreateQuest()\n"
@@ -281,7 +281,7 @@ TEST(wc3_jass_map, quest_flags_default_false) {
         "  call BJassAssert(not IsQuestFailed(q),     \"failed should default false\")\n"
         "  call BJassAssert(not IsQuestDiscovered(q), \"discovered should default false\")\n"
         "  call BJassAssert(not IsQuestRequired(q),   \"required should default false\")\n"
-        "  call BJassAssert(not IsQuestEnabled(q),    \"enabled should default false\")\n"
+        "  call BJassAssert(IsQuestEnabled(q),        \"enabled should default true\")\n"
         "endfunction\n"
     ));
 }

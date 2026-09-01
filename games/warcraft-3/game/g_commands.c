@@ -559,6 +559,14 @@ CLIENTCOMMAND(HideQuests) {
     UI_HideQuests(clent);
 }
 
+CLIENTCOMMAND(Log) {
+    UI_ShowLog(clent);
+}
+
+CLIENTCOMMAND(HideLog) {
+    UI_HideLog(clent);
+}
+
 CLIENTCOMMAND(HideGameResult) {
     UI_HideGameResult(clent);
 }
@@ -681,6 +689,8 @@ clientCommand_t clientCommands[] = {
     { "quests", CMD_Quests },
     { "hidequests", CMD_HideQuests },
     { "quest", CMD_Quest },
+    { "log", CMD_Log },
+    { "hidelog", CMD_HideLog },
     { "hidegameresult", CMD_HideGameResult },
     { "gameresult_restart", CMD_GameResultRestart },
     { "gameresult_quit", CMD_GameResultQuit },

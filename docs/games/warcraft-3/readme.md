@@ -110,5 +110,6 @@ File formats, renderer notes, UI/FDF behavior, and gameplay coverage work used b
 - [Cinematics](cinematics.md)
 - [Hero Revival](hero-revival.md)
 - [Sounds](sounds.md)
+- [Quest And Message Log UI](quest-and-message-log-ui.md)
 
 - [Building construction](building-construction.md) — shared build/train tech availability, placement validation, Human construction, and power building.

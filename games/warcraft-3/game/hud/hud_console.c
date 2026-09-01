@@ -12,9 +12,11 @@
 #include "hud_local.h"
 #include "../generated/console_ui.h"
 #include "../generated/resource_bar.h"
+#include "../generated/upper_button_bar.h"
 
 static ConsoleUI_t console_ui;
 static ResourceBar_t res;
+static UpperButtonBar_t upper;
 static BOOL hud_console_loaded;
 
 static void ConsoleEnsureLoaded(void) {
@@ -25,6 +27,14 @@ static void ConsoleEnsureLoaded(void) {
     ResourceBar_Load(&res);
     UI_SetParent(res.ResourceBarFrame, console_ui.ConsoleUI);
     UI_SetPoint(res.ResourceBarFrame, FRAMEPOINT_TOPRIGHT, console_ui.ConsoleUI, FRAMEPOINT_TOPRIGHT, 0.0f, 0.0f);
+    if (UpperButtonBar_Load(&upper)) {
+        /* UpperButtonBar.fdf is a separate authored root.  Attach it to the
+         * serialized ConsoleUI tree and bind the mouse actions here; keyboard
+         * mapping is intentionally handled elsewhere. */
+        UI_SetParent(upper.UpperButtonBarFrame, console_ui.ConsoleUI);
+        UI_SetOnClick(upper.UpperButtonBarQuestsButton, "quests");
+        UI_SetOnClick(upper.UpperButtonBarChatButton, "log");
+    }
     res.ResourceBarGoldText->Stat = PLAYERSTATE_RESOURCE_GOLD;
     res.ResourceBarLumberText->Stat = PLAYERSTATE_RESOURCE_LUMBER;
     res.ResourceBarSupplyText->Stat = PLAYERSTATE_RESOURCE_FOOD_USED;

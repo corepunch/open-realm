@@ -11,6 +11,7 @@
  *   hud_commands.c  — command buttons, build queue, inventory
  *   hud_infopanel.c — info panel, multiselect, per-frame update stubs
  *   hud_quests.c    — quest dialog
+ *   hud_log.c       — persistent single-player message log
  *   hud_cinematic.c — cinematic layer, interface toggle, message overlay
  */
 

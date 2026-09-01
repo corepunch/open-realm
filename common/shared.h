@@ -404,6 +404,7 @@ typedef enum {
     LAYER_QUESTDIALOG,
     LAYER_GAME_RESULT,
     LAYER_WORLD_HOVER,
+    LAYER_LOGDIALOG,
 } UILAYOUTLAYER;
 
 typedef enum {
