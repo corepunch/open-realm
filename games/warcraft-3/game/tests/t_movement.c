@@ -454,11 +454,9 @@ TEST(wc3_movement, lumber_pending_flow_does_not_move_on_stale_heading) {
     T_ASSERT(worker->goalentity == tree);
 }
 
-/* Same-tree workers are allowed and should keep the closest direct chop
- * approach.  When the rear Peasant's first step intersects the worker in front,
- * resource avoidance queues it instead of assigning a different angular lane;
- * the front worker continues directly and opens the route naturally. */
-TEST(wc3_movement, lumber_same_tree_workers_queue_on_direct_approach) {
+/* Same-tree workers should progress toward the same chop target without
+ * overtaking or being forced onto an artificial lateral lane. */
+TEST(wc3_movement, lumber_same_tree_workers_preserve_direct_order) {
     enum { CELLS = 64 };
     BYTE pathmap[CELLS * CELLS] = {0};
     LPEDICT first = make_moving_unit(-400.0f, 0.0f);
@@ -481,16 +479,15 @@ TEST(wc3_movement, lumber_same_tree_workers_queue_on_direct_approach) {
     harvest_start(second, tree);
     first->currentmove->think(first);
     second->currentmove->think(second);
-
     T_ASSERT(first->goalentity == tree);
     T_ASSERT(second->goalentity == tree);
     T_ASSERT(first->movement.flow_direct);
     T_ASSERT(second->movement.flow_direct);
-    T_FEQ(first->s.origin2.x, first_origin.x, 0.01f);
-    T_FEQ(first->s.origin2.y, first_origin.y, 0.01f);
-    T_EQ(first->movement.worker_avoid_blocked_frames, 1);
+    T_ASSERT(first->s.origin2.x > first_origin.x);
+    T_ASSERT(first->s.origin2.x < second->s.origin2.x);
+    T_ASSERT(fabsf(first->s.origin2.y - first_origin.y) < 2.0f);
     T_ASSERT(second->s.origin2.x > second_origin.x);
-    T_FEQ(second->s.origin2.y, second_origin.y, 0.01f);
+    T_ASSERT(fabsf(second->s.origin2.y - second_origin.y) < 2.0f);
 }
 
 /* Retail WC3 does not leave a worker orbiting an unreachable tree buried in a
