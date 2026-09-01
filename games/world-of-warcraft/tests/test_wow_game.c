@@ -644,7 +644,7 @@ TEST(wow_game, quest_givers_receive_creature_frame_for_idle_animation) {
         T_NOT_NULL(local->animation);
         T_ASSERT(local->quest_available_model != 0);
         T_ASSERT(e->s.name != 0);
-        T_STREQ(test_configstrings[CS_GENERAL + ((e->s.name - 1) >> 4)] + ((e->s.name - 1) & 0xF) * ENT_NAME_SLOT_SIZE, "Deputy Willem");
+        T_ASSERT(entity_name_slot_equals(test_configstrings[CS_GENERAL + ((e->s.name - 1) >> 4)] + ((e->s.name - 1) & 0xF) * ENT_NAME_SLOT_SIZE, "Deputy Willem"));
         if (local->animation) T_STREQ(local->animation->name, "Stand");
         break;
     }

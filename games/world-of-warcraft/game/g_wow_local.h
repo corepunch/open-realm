@@ -213,7 +213,6 @@ LPCWOWQUESTDETAIL Wow_QuestDetail(DWORD quest_id);
    Set by the UI via a single userinfo-style cvar before map load, read by
    Wow_Init.  Format: \race\Human\sex\Male\class\1\appearance\12345 */
 #define WOW_CS_PLAYERINFO 0
-#define WOW_CS_NPC_NAME_FIRST 1 // CS_GENERAL slot; first server-authored NPC name used by world labels
 #define WOW_MOVE_FORWARD 1
 #define WOW_MOVE_BACK 2
 #define WOW_MOVE_LEFT 4

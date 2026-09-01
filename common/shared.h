@@ -464,11 +464,40 @@ typedef enum {
 
 /* Packing layout for entityState_t.name.
  * CS_MAX_NAMES names total, ENT_NAMES_PER_CS per CS_GENERAL slot, ENT_NAME_SLOT_SIZE bytes each.
- * Slots used = CS_MAX_NAMES / ENT_NAMES_PER_CS (must be <= MAX_GENERAL).
- * Decode: i = name-1; slot = i>>4; sub = i&0xF; str = configstrings[CS_GENERAL+slot] + sub*ENT_NAME_SLOT_SIZE */
+ * Wire slots use ASCII Unit Separator padding because configstrings cannot carry embedded NULs. The client restores separators
+ * to NULs after receipt. Decode: i = name-1; slot = i>>4; sub = i&0xF. */
 #define CS_MAX_NAMES        256
 #define ENT_NAMES_PER_CS    16  /* names per configstring slot */
 #define ENT_NAME_SLOT_SIZE  16  /* bytes per name; ENT_NAME_SLOT_SIZE * ENT_NAMES_PER_CS == MAX_PATHLEN */
+#define ENT_NAME_SEPARATOR  0x1f // ASCII byte; keeps fixed-width name records transmissible through C-string configstrings
+
+static inline BOOL entity_name_slot_empty(LPCSTR slot) { return !*slot || (BYTE)*slot == ENT_NAME_SEPARATOR; }
+
+static inline BOOL entity_name_slot_equals(LPCSTR slot, LPCSTR name) {
+    size_t slot_len = 0, name_len = MIN(strlen(name), ENT_NAME_SLOT_SIZE - 1);
+    while (slot_len < ENT_NAME_SLOT_SIZE - 1 && slot[slot_len] && (BYTE)slot[slot_len] != ENT_NAME_SEPARATOR) slot_len++;
+    return slot_len == name_len && !memcmp(slot, name, name_len);
+}
+
+static inline void entity_name_pool_prepare(LPSTR pool, LPCSTR current) {
+    memset(pool, ENT_NAME_SEPARATOR, ENT_NAME_SLOT_SIZE * ENT_NAMES_PER_CS);
+    pool[ENT_NAME_SLOT_SIZE * ENT_NAMES_PER_CS - 1] = '\0';
+    if (current && *current)
+        memcpy(pool, current, strnlen(current, ENT_NAME_SLOT_SIZE * ENT_NAMES_PER_CS - 1));
+}
+
+static inline void entity_name_slot_store(LPSTR pool, DWORD sub, LPCSTR name) {
+    LPSTR slot = pool + sub * ENT_NAME_SLOT_SIZE;
+    size_t len = MIN(strlen(name), ENT_NAME_SLOT_SIZE - 1);
+    memset(slot, ENT_NAME_SEPARATOR, ENT_NAME_SLOT_SIZE);
+    memcpy(slot, name, len);
+    pool[ENT_NAME_SLOT_SIZE * ENT_NAMES_PER_CS - 1] = '\0';
+}
+
+static inline void entity_name_pool_decode(LPSTR pool) {
+    FOR_LOOP(i, ENT_NAME_SLOT_SIZE * ENT_NAMES_PER_CS - 1)
+        if ((BYTE)pool[i] == ENT_NAME_SEPARATOR) pool[i] = '\0';
+}
 
 typedef struct entityState_s {
     DWORD number; // edict index
