@@ -61,7 +61,7 @@ static void G_ShowInventoryFull(LPEDICT unit) {
     }
     player = G_GetPlayerEntityByNumber(unit->s.player);
     if (player && player->client) {
-        UI_ShowText(player, &MAKE(VECTOR2, 0, 0), "Inventory is full.", 2.0f);
+        G_ShowCommandErrorText(player, "Inventory is full.");
     }
 }
 
@@ -214,11 +214,14 @@ BOOL G_AddItemToSlot(LPEDICT unit, LPEDICT item, DWORD slot) {
 
 BOOL G_PickupItem(LPEDICT unit, LPEDICT item) {
     LONG slot = G_FindFreeInventorySlot(unit);
+    BOOL added;
 
     if (slot < 0) {
         return false;
     }
-    return G_AddItemToSlot(unit, item, (DWORD)slot);
+    added = G_AddItemToSlot(unit, item, (DWORD)slot);
+    if (added) G_QueueOwnerSoundAlias(unit, "ItemGet");
+    return added;
 }
 
 static void G_StopPickupOrder(LPEDICT unit) {
@@ -305,6 +308,7 @@ BOOL G_DropItemAt(LPEDICT unit, DWORD slot, LPCVECTOR2 position) {
     item->svflags &= ~SVF_NOCLIENT;
     gi.LinkEntity(item);
     G_RefreshInventoryUI(unit);
+    G_QueueOwnerSoundAlias(unit, "ItemDrop");
     return true;
 }
 

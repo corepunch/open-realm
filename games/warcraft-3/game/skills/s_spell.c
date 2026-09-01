@@ -343,26 +343,34 @@ void spell_run_frame(LPEDICT ent) {
 }
 
 /* Shared validation for spell spells: mana, cooldown, and optional range check. */
-static BOOL spell_validate(LPEDICT caster, DWORD code, DWORD level, LPEDICT target, FLOAT range) {
+static BOOL spell_validate(LPEDICT clent, LPEDICT caster, DWORD code, DWORD level, LPEDICT target, FLOAT range) {
     if (!caster)
         return false;
-    if (!S_SpellCooldownReady(caster, code))
+    if (!S_SpellCooldownReady(caster, code)) {
+        G_ShowCommandErrorText(clent, "Spell is not ready yet.");
         return false;
-    if (!S_SpellCanPay(caster, code, level))
+    }
+    if (!S_SpellCanPay(caster, code, level)) {
+        G_ShowCommandErrorText(clent, "Not enough mana.");
         return false;
+    }
     if (range > 0 && target && !S_SpellTargetInRange(caster, target, range))
         return false;
     return true;
 }
 
 /* Shared validation for point-target spells. */
-static BOOL spell_validate_point(LPEDICT caster, DWORD code, DWORD level, LPCVECTOR2 point, FLOAT range) {
+static BOOL spell_validate_point(LPEDICT clent, LPEDICT caster, DWORD code, DWORD level, LPCVECTOR2 point, FLOAT range) {
     if (!caster || !point)
         return false;
-    if (!S_SpellCooldownReady(caster, code))
+    if (!S_SpellCooldownReady(caster, code)) {
+        G_ShowCommandErrorText(clent, "Spell is not ready yet.");
         return false;
-    if (!S_SpellCanPay(caster, code, level))
+    }
+    if (!S_SpellCanPay(caster, code, level)) {
+        G_ShowCommandErrorText(clent, "Not enough mana.");
         return false;
+    }
     if (range > 0 && Vector2_distance(&caster->s.origin2, point) > range)
         return false;
     return true;
@@ -392,7 +400,7 @@ static BOOL spell_unit_target_selected(LPEDICT clent, LPEDICT target) {
     spell_info_t const *spell = abil ? abil->spell : NULL;
 
     if (!spell) return false;
-    if (!spell_validate(caster, code, level, target, range)) return false;
+    if (!spell_validate(clent, caster, code, level, target, range)) return false;
     if (!S_SpellAllowsTarget(code, caster, target)) return false;
     if (!S_SpellIsAliveTarget(target)) return false;
     spellTarget_t st = { .type = SPELL_TARGET_UNIT, .entity = target };
@@ -415,7 +423,7 @@ static BOOL spell_point_target_selected(LPEDICT clent, LPCVECTOR2 point) {
     spell_info_t const *spell = abil ? abil->spell : NULL;
 
     if (!spell) return false;
-    if (!spell_validate_point(caster, code, level, point, range))
+    if (!spell_validate_point(clent, caster, code, level, point, range))
         return false;
     spellTarget_t st = { .type = SPELL_TARGET_POINT, .point = *point };
     if (spell->validate && !spell->validate(caster, st)) return false;
@@ -437,8 +445,7 @@ static void spell_no_target_execute(LPEDICT clent) {
     spell_info_t const *spell = abil ? abil->spell : NULL;
 
     if (!spell) return;
-    if (!S_SpellCooldownReady(caster, code)) return;
-    if (!S_SpellCanPay(caster, code, level)) return;
+    if (!spell_validate(clent, caster, code, level, NULL, 0.0f)) return;
     spellTarget_t st = { .type = SPELL_TARGET_NONE, .entity = NULL };
     if (spell->validate && !spell->validate(caster, st)) return;
 
@@ -459,6 +466,7 @@ void spell_cmd(LPEDICT clent) {
         fprintf(stderr, "spell_cmd: no spell_info for code '%.4s'\n", (LPCSTR)&code);
         return;
     }
+    if (!caster) return;
 
     /* Toggle abilities bypass the normal pipeline. */
     if (spell->flags & SPELL_TOGGLE) {
@@ -466,6 +474,7 @@ void spell_cmd(LPEDICT clent) {
         Get_Commands_f(clent);
         return;
     }
+
 
     switch (spell->target_type) {
     case SPELL_TARGET_NONE:

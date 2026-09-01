@@ -457,6 +457,7 @@ typedef enum {
     EV_DEATH,        /* unit died */
     EV_MOVE,         /* footstep / movement sound */
     EV_ACK,          /* unit acknowledged a player selection/order */
+    EV_OWNER_SOUND,  /* one-shot sound audible only to the entity owner */
 } entity_event_t;
 
 typedef struct entityState_s {

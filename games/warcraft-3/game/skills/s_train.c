@@ -37,7 +37,7 @@ static BOOL ReserveTrainingFood(LPEDICT producer, LPEDICT unit) {
     unit->training_food_wait_notified = true;
     clent = G_GetPlayerEntityByNumber(unit->s.player);
     if (clent && client->connected) {
-        UI_ShowText(clent, &MAKE(VECTOR2, 0, 0), "Not enough food", 2.0f);
+        G_ShowCommandErrorText(clent, "Not enough food");
     }
     return false;
 }
@@ -311,6 +311,7 @@ void ai_train_build(LPEDICT ent) {
             ent->build = next;
             if (ent->build && ent->build->training) ReserveTrainingFood(ent, ent->build);
             G_InvalidateCommands(G_GetPlayerClientByNumber(ent->s.player));
+            G_QueueReadySound(completed);
             G_PublishEvent(completed, EVENT_PLAYER_UNIT_TRAIN_FINISH);
 #ifdef WC3_DEBUG_AI
             fprintf(stderr, "WC3_DEBUG_AI training complete producer=%ld unit=%ld id=%.4s player=%u\n",
@@ -444,7 +445,7 @@ BOOL SP_TrainUnit(LPEDICT townhall, DWORD class_id) {
     clent = G_GetPlayerEntityByNumber(townhall->s.player);
     state = G_GetTrainCommandState(client, townhall, class_id, reason, sizeof(reason));
     if (state != BUILD_COMMAND_AVAILABLE) {
-        if (clent && client->connected && reason[0]) UI_ShowText(clent, &MAKE(VECTOR2, 0, 0), reason, 2.0f);
+        if (clent && client->connected && reason[0]) G_ShowCommandErrorText(clent, reason);
         return false;
     }
     player = G_GetPlayerByNumber(townhall->s.player);
@@ -456,7 +457,7 @@ BOOL SP_TrainUnit(LPEDICT townhall, DWORD class_id) {
         }
         return true;
     } else if (clent && client->connected) {
-        UI_ShowText(clent, &MAKE(VECTOR2, 0, 0), "Not enough resources", 2.0f);
+        G_ShowCommandErrorText(clent, "Not enough resources");
     }
     return false;
 }

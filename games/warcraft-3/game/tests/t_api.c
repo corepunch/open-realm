@@ -106,6 +106,20 @@ static LPCSTR gamecache_memory_cvar(LPCSTR name, LPCSTR fallback) {
     return !strcmp(name, "wc3_gamecache_mode") ? "memory" : fallback;
 }
 
+static int ui_sound_gamecommand_calls;
+static int ui_sound_gamecommand_value;
+static char ui_sound_gamecommand_name[16];
+static int capture_ui_sound_index(LPCSTR path) {
+    (void)path;
+    return 77;
+}
+static void capture_ui_sound_gamecommand(LPEDICT ent, LPCSTR command, void const *data, DWORD size) {
+    (void)ent;
+    ui_sound_gamecommand_calls++;
+    snprintf(ui_sound_gamecommand_name, sizeof(ui_sound_gamecommand_name), "%s", command ? command : "");
+    ui_sound_gamecommand_value = data && size == sizeof(int) ? *(int const *)data : 0;
+}
+
 /* Campaign human slots need not match the connection slot; exercise the real VM/edict module boundary. */
 TEST(wc3_api, escape_restores_game_camera_ui_and_control) {
     LPGAMECLIENT gc = &game.clients[0];
@@ -607,6 +621,31 @@ static LPEDICT make_unit_hero(void) {
     return ent;
 }
 
+TEST(wc3_api, ui_sound_transport_waits_for_connected_client) {
+    GAMECLIENT client = { 0 };
+    edict_t ent = { .client = &client };
+    void (*old_gamecommand)(LPEDICT, LPCSTR, void const *, DWORD) = gi.GameCommand;
+    int (*old_soundindex)(LPCSTR) = gi.SoundIndex;
+
+    ui_sound_gamecommand_calls = 0;
+    ui_sound_gamecommand_value = 0;
+    ui_sound_gamecommand_name[0] = 0;
+    gi.GameCommand = capture_ui_sound_gamecommand;
+    gi.SoundIndex = capture_ui_sound_index;
+
+    G_PlayUISoundForPlayer(&ent, "InterfaceError");
+    T_EQ(ui_sound_gamecommand_calls, 0);
+
+    client.connected = true;
+    G_PlayUISoundForPlayer(&ent, "InterfaceError");
+    T_EQ(ui_sound_gamecommand_calls, 1);
+    T_STREQ(ui_sound_gamecommand_name, "snd");
+    T_EQ(ui_sound_gamecommand_value, 77);
+
+    gi.SoundIndex = old_soundindex;
+    gi.GameCommand = old_gamecommand;
+}
+
 TEST(wc3_api, customize_entity_preserves_world_state) {
     entityState_t state = { .number = 7, .model = 11, .renderfx = RF_SELECTED };
     edict_t ent = { 0 };
@@ -631,6 +670,24 @@ TEST(wc3_api, customize_entity_keeps_ack_for_selecting_player) {
 TEST(wc3_api, customize_entity_hides_ack_from_other_players) {
     entityState_t state = { .event = EV_ACK, .sound = 11 };
     edict_t ent = { .selected = 1 << 3 };
+    globals.CustomizeEntity(2, &ent, &state);
+    T_EQ(state.event, EV_NONE);
+    T_EQ(state.sound, 0);
+}
+
+TEST(wc3_api, customize_entity_keeps_owner_sound_for_owner) {
+    entityState_t state = { .event = EV_OWNER_SOUND, .sound = 13 };
+    edict_t ent = { .s = { .player = 3 } };
+
+    globals.CustomizeEntity(3, &ent, &state);
+    T_EQ(state.event, EV_OWNER_SOUND);
+    T_EQ(state.sound, 13);
+}
+
+TEST(wc3_api, customize_entity_hides_owner_sound_from_other_players) {
+    entityState_t state = { .event = EV_OWNER_SOUND, .sound = 13 };
+    edict_t ent = { .s = { .player = 3 } };
+
     globals.CustomizeEntity(2, &ent, &state);
     T_EQ(state.event, EV_NONE);
     T_EQ(state.sound, 0);

@@ -715,6 +715,7 @@ Doodads_t *g_Doodads; DWORD g_DoodadsCount; static slkIndex_t doodad_idx;
 UberSplatData_t *g_UberSplatData; DWORD g_UberSplatDataCount; static slkIndex_t uber_idx;
 UnitAckSounds_t *g_UnitAckSounds; DWORD g_UnitAckSoundsCount;
 UnitAckSounds_t *g_UnitCombatSounds; DWORD g_UnitCombatSoundsCount;
+UnitAckSounds_t *g_UISounds; DWORD g_UISoundsCount;
 ItemData_t *g_ItemData; DWORD g_ItemDataCount; static slkIndex_t item_idx;
 DestructableData_t *g_DestructableData; DWORD g_DestructableDataCount; static slkIndex_t dest_idx;
 
@@ -738,6 +739,7 @@ static slkStore_t slk_stores[] = {
     { "UberSplatData", "Splats\\UberSplatData.slk", uber_schema, sizeof(*g_UberSplatData), (void **)&g_UberSplatData, &g_UberSplatDataCount, &uber_idx },
     { "UnitAckSounds",    "UI\\SoundInfo\\UnitAckSounds.slk",    sound_schema, sizeof(*g_UnitAckSounds),    (void **)&g_UnitAckSounds,    &g_UnitAckSoundsCount,    NULL },
     { "UnitCombatSounds", "UI\\SoundInfo\\UnitCombatSounds.slk", sound_schema, sizeof(*g_UnitCombatSounds), (void **)&g_UnitCombatSounds, &g_UnitCombatSoundsCount, NULL },
+    { "UISounds",         "UI\\SoundInfo\\UISounds.slk",         sound_schema, sizeof(*g_UISounds),         (void **)&g_UISounds,         &g_UISoundsCount,         NULL },
     { "ItemData", "Units\\ItemData.slk", item_schema, sizeof(*g_ItemData), (void **)&g_ItemData, &g_ItemDataCount, &item_idx },
     { "DestructableData", "Units\\DestructableData.slk", dest_schema, sizeof(*g_DestructableData), (void **)&g_DestructableData, &g_DestructableDataCount, &dest_idx },
 };
@@ -1157,6 +1159,12 @@ UnitAckSounds_t const *G_UnitAckSound(LPCSTR name) {
 UnitAckSounds_t const *G_UnitCombatSound(LPCSTR name) {
     static UnitAckSounds_t zero;
     FOR_LOOP(i, g_UnitCombatSoundsCount) if (!strcmp(g_UnitCombatSounds[i].name, name)) return g_UnitCombatSounds + i;
+    return &zero;
+}
+
+UnitAckSounds_t const *G_UISound(LPCSTR name) {
+    static UnitAckSounds_t zero;
+    FOR_LOOP(i, g_UISoundsCount) if (!strcmp(g_UISounds[i].name, name)) return g_UISounds + i;
     return &zero;
 }
 ItemData_t const *G_ItemData(DWORD id) { static ItemData_t zero; ItemData_t *row = FS_SLKLookup(&item_idx, ResolveUnitID(id)); return row ? row : &zero; }

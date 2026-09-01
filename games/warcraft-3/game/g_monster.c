@@ -432,6 +432,7 @@ static void G_RegisterUnitSounds(LPEDICT self) {
     /* Register all order-confirmation variants so clients have them cached;
      * sound.attack keeps the first index for the attack-swing event. */
     G_RegisterSoundVariants(self->sound.yes, &self->sound.num_yes, label, "Yes");
+    G_RegisterSoundVariants(self->sound.ready, &self->sound.num_ready, label, "Ready");
     {
         BYTE tmp[MAX_UNIT_SELECT_SOUNDS]; BYTE n = 0;
         G_RegisterSoundVariants(tmp, &n, label, "YesAttack");
