@@ -48,8 +48,6 @@ nav:
         - UI Flow: games/warcraft-3/architecture/ui-flow.md
         - UI Quick Reference: games/warcraft-3/architecture/ui-quick-reference.md
         - Map Renderer: games/warcraft-3/architecture/map-renderer.md
-        - Ability Coverage: games/warcraft-3/architecture/ability-coverage.md
-        - ROC Ability Checklist: games/warcraft-3/architecture/roc-ability-checklist.md
         - Cinematics: games/warcraft-3/cinematics.md
         - Sounds: games/warcraft-3/sounds.md
     - World of Warcraft:
