@@ -239,8 +239,16 @@ This is enough to reject the claim that `wc3_fow_fast=1` reproduces Warcraft III
 mode is intentionally a bounded circular reveal with no occlusion. The normal OpenRealm path remains the closer semantic
 match because it preserves blocker occlusion, but it is not yet a byte-for-byte retail reproduction. The exact mask-table
 contents, modifier-to-mask selection, update scheduling, and the meaning of every packed plane require either the matching
-PDB/source or controlled runtime tracing of the Windows binary. Do not replace the current shadowcast path with the fast
-disk based only on this audit.
+PDB/source or controlled runtime tracing of the Windows binary.
+
+The experimental `WC3_FOW_PACKED_MASK` build define now applies the same broad optimization shape without changing the
+default build. It allocates one packed 16-bit visibility plane per viewer, writes contiguous reveal spans a word at a time,
+and mirrors only newly set bits into the existing byte plane used by snapshot/network code. Set `wc3_fow_fast=1` only in
+that guarded build; it deliberately skips blocker occlusion for performance profiling. Removing the `#ifdef WC3_FOW_PACKED_MASK`
+blocks in `g_fow.c` and the matching fields in `g_local.h` removes the experiment. Do not enable it for correctness or
+retail-parity validation until the mask tables and modifier semantics have been recovered. The current implementation uses
+the existing circular sight radius to form row spans; the static bit table represents the 16-bit storage contract, not the
+unrecovered retail mask contents.
 
 ### Local release A/B and remaining cost
 

@@ -662,6 +662,41 @@ TEST(wc3_game, fow_blocker_stops_visibility_behind_it) {
     G_FowShutdown();
 }
 
+#ifdef WC3_FOW_PACKED_MASK
+static LPCSTR fow_fast_cvar(LPCSTR name, LPCSTR fallback) {
+    return !strcmp(name, "wc3_fow_fast") ? "1" : fallback;
+}
+
+TEST(wc3_game, fow_packed_fast_path_uses_word_mask_and_skips_occlusion) {
+    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+    DWORD blocker_index, behind_index;
+
+    reset_entities();
+    G_FowInit();
+    G_FowConnectPlayer(0);
+    gi.CvarString = fow_fast_cvar;
+
+    LPEDICT revealer = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 96.0f, 96.0f);
+    revealer->s.player = 0;
+    revealer->runtime.sight_radius.day = 256.0f;
+    revealer->health.value = revealer->health.max_value = 1.0f;
+
+    LPEDICT blocker = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 160.0f, 96.0f);
+    blocker->s.flags |= EF_FOW_BLOCKER;
+    blocker->health.value = blocker->health.max_value = 1.0f;
+
+    G_FowUpdate();
+    blocker_index = G_FowWorldToCellY(96.0f) * level.fow.width + G_FowWorldToCellX(160.0f);
+    behind_index = G_FowWorldToCellY(96.0f) * level.fow.width + G_FowWorldToCellX(288.0f);
+    T_EQ(level.fow.players[0].packed_stride, (level.fow.width + 15) >> 4);
+    T_ASSERT(level.fow.players[0].visible[blocker_index]);
+    T_ASSERT(level.fow.players[0].visible[behind_index]);
+
+    gi.CvarString = old_cvar;
+    G_FowShutdown();
+}
+#endif
+
 TEST(wc3_game, fow_blocker_cache_skips_clean_and_unchanged_dirty_updates) {
     DWORD old_index, new_index, sentinel;
     LPEDICT blocker;

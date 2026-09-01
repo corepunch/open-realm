@@ -831,6 +831,10 @@ typedef struct {
     BYTE *visible_rows;
     BYTE *dirty_visible_rows;
     BYTE *dirty_explored_rows;
+#ifdef WC3_FOW_PACKED_MASK
+    WORD *packed_visible;
+    DWORD packed_stride;
+#endif
     BOOL client_connected;
 } fowPlayerGrid_t;
 

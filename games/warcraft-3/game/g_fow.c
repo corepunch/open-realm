@@ -26,7 +26,9 @@ static DWORD g_fow_blocker_hash;
 static DWORD g_fow_blocker_count;
 static BOOL g_fow_blockers_valid;
 static BOOL g_fow_blockers_dirty = true;
+#ifdef WC3_FOW_PACKED_MASK
 static BOOL g_fow_fast;
+#endif
 
 static DWORD G_FowCellCount(void) {
     return level.fow.width * level.fow.height;
@@ -159,6 +161,9 @@ static void G_FowClearVisible(fowPlayerGrid_t *grid) {
         if (!grid->visible_rows[y]) continue;
         /* Visibility writers mark occupied rows, so clearing no longer scans every cell of a mostly hidden map. */
         memset(grid->visible + y * level.fow.width, 0, level.fow.width);
+#ifdef WC3_FOW_PACKED_MASK
+        memset(grid->packed_visible + y * grid->packed_stride, 0, grid->packed_stride * sizeof(*grid->packed_visible));
+#endif
         grid->visible_rows[y] = 0;
         grid->dirty_visible_rows[y] = 1;
     }
@@ -212,6 +217,46 @@ static void G_FowRevealDisk(fowPlayerGrid_t *grid, DWORD cx, DWORD cy, int radiu
     FOGDISK disk = { cx, cy, WC3_FOG_STATE_VISIBLE, radius_cells };
     G_FowSetDiskState(grid, &disk);
 }
+
+#ifdef WC3_FOW_PACKED_MASK
+/* Apply a table-shaped packed mask, then mirror newly set bits into the wire-facing byte plane. */
+static void G_FowRevealPacked(fowPlayerGrid_t *grid, DWORD cx, DWORD cy, int radius_cells) {
+    static WORD const bit[16] = {
+        0x0001, 0x0002, 0x0004, 0x0008, 0x0010, 0x0020, 0x0040, 0x0080,
+        0x0100, 0x0200, 0x0400, 0x0800, 0x1000, 0x2000, 0x4000, 0x8000,
+    };
+    int radius_sq = radius_cells * radius_cells;
+
+    for (int dy = -radius_cells; dy <= radius_cells; dy++) {
+        int y = (int)cy + dy;
+        int max_dx;
+        int min_x;
+        int max_x;
+
+        if (y < 0 || y >= (int)level.fow.height) continue;
+        max_dx = (int)sqrtf((FLOAT)(radius_sq - dy * dy));
+        min_x = MAX(0, (int)cx - max_dx);
+        max_x = MIN((int)level.fow.width - 1, (int)cx + max_dx);
+        for (int x = min_x; x <= max_x;) {
+            int word = x >> 4;
+            int first = x & 15;
+            int last = MIN(15, max_x - (word << 4));
+            WORD mask = 0;
+            WORD fresh;
+
+            for (int bit_index = first; bit_index <= last; bit_index++) mask |= bit[bit_index];
+            fresh = (WORD)(mask & (WORD)~grid->packed_visible[word + y * grid->packed_stride]);
+            grid->packed_visible[word + y * grid->packed_stride] |= mask;
+            while (fresh) {
+                int bit_index = __builtin_ctz((unsigned)fresh);
+                G_FOW_SET_VISIBLE_CELL(grid, (DWORD)((word << 4) + bit_index), (DWORD)y);
+                fresh &= (WORD)~bit[bit_index];
+            }
+            x = (word + 1) << 4;
+        }
+    }
+}
+#endif
 
 static void G_FowCastLight(fowPlayerGrid_t *grid,
                            int cx,
@@ -410,13 +455,14 @@ static void G_FowRevealCircle(DWORD player, LPCEDICT ent, FLOAT radius) {
     }
 
     radius_cells = G_FowRadiusCells(radius);
-    /* Fast FoW trades occlusion precision for a bounded disk walk.  On the
-     * handheld target, shadowcasting is the expensive path and exact tree/building
-     * silhouettes are less important than keeping the simulation frame budget. */
+#ifdef WC3_FOW_PACKED_MASK
+    /* This removable experiment mirrors retail's packed-word mask shape but
+     * intentionally trades blocker precision for bounded reveal work. */
     if (g_fow_fast) {
-        G_FowRevealDisk(grid, cx, cy, radius_cells);
+        G_FowRevealPacked(grid, cx, cy, radius_cells);
         return;
     }
+#endif
     if (G_FowAnyBlockedInBox((int)cx - radius_cells,
                              (int)cy - radius_cells,
                              (int)cx + radius_cells,
@@ -807,6 +853,10 @@ void G_FowShutdown(void) {
         SAFE_DELETE(grid->visible_rows, gi.MemFree);
         SAFE_DELETE(grid->dirty_visible_rows, gi.MemFree);
         SAFE_DELETE(grid->dirty_explored_rows, gi.MemFree);
+#ifdef WC3_FOW_PACKED_MASK
+        SAFE_DELETE(grid->packed_visible, gi.MemFree);
+        grid->packed_stride = 0;
+#endif
     }
     SAFE_DELETE(level.fow.blocked, gi.MemFree);
     SAFE_DELETE(level.fow.rim_cells, gi.MemFree);
@@ -846,15 +896,25 @@ void G_FowInit(void) {
         grid->visible = gi.MemAlloc(cells);
         grid->explored = gi.MemAlloc(cells);
         grid->visible_rows = gi.MemAlloc(level.fow.height);
+#ifdef WC3_FOW_PACKED_MASK
+        grid->packed_stride = (level.fow.width + 15) >> 4;
+        grid->packed_visible = gi.MemAlloc(grid->packed_stride * level.fow.height * sizeof(*grid->packed_visible));
+#endif
         grid->dirty_visible_rows = gi.MemAlloc(level.fow.height);
         grid->dirty_explored_rows = gi.MemAlloc(level.fow.height);
         if (!grid->visible || !grid->explored || !grid->visible_rows ||
+#ifdef WC3_FOW_PACKED_MASK
+            !grid->packed_visible ||
+#endif
             !grid->dirty_visible_rows || !grid->dirty_explored_rows) {
             G_FowShutdown();
             return;
         }
         memset(grid->visible, 0, cells);
         memset(grid->explored, 0, cells);
+#ifdef WC3_FOW_PACKED_MASK
+        memset(grid->packed_visible, 0, grid->packed_stride * level.fow.height * sizeof(*grid->packed_visible));
+#endif
         memset(grid->visible_rows, 0, level.fow.height);
         memset(grid->dirty_visible_rows, 1, level.fow.height);
         memset(grid->dirty_explored_rows, 1, level.fow.height);
@@ -880,7 +940,9 @@ void G_FowUpdate(void) {
             viewers |= 1u << player;
     if (!viewers)
         return;
-    g_fow_fast = gi.CvarString && atoi(gi.CvarString("wc3_fow_fast", "0"));
+#ifdef WC3_FOW_PACKED_MASK
+    g_fow_fast = atoi(gi.CvarString("wc3_fow_fast", "0"));
+#endif
     FOR_LOOP(owner, MAX_PLAYERS)
         FOR_LOOP(viewer, MAX_PLAYERS)
             if ((viewers & (1u << viewer)) && G_FowSharedVision(viewer, owner))
