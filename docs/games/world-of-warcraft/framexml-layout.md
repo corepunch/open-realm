@@ -4,6 +4,18 @@
 parent/relative-frame links, anchors, and rectangle calculation. `ui_xml.c` supplies Lua bindings, drawing, and input. Production
 and UI tests compile the single-header implementation with `STB_WOW_XML_IMPLEMENTATION` in `ui_xml.c`.
 
+## DDX Schema Tables (stb_wowxml.h)
+
+`stb_wowxml.h` parses FrameXML grammar through declarative descriptor tables:
+
+- `uiwow_node_types[]`: Maps XML element tags (`Frame`, `ScrollFrame`, `Slider`, `Model`, `Texture`, `FontString`, `Button`, `CheckButton`, `EditBox`, `ThumbTexture`, etc.) to `uiWowXmlType_t` and intrinsic flags (`EF_IS_SCROLLFRAME`, `EF_CHECKBUTTON`, `EF_FOCUSABLE`).
+- `uiwow_shared_attrs[]`: Maps XML attributes (`file`, `text`, `hidden`, `virtual`, `setAllPoints`, `password`, `id`, `wordWrap`, `checked`) to element fields or flags through `uiWowAttrType_t`.
+- `uiwow_script_tags[]`: Dispatches `<Scripts>` child elements (`OnClick`, `OnLoad`, `OnShow`, `OnEnter`, `OnLeave`, `OnEnterPressed`, `OnEscapePressed`, `OnTabPressed`, `OnMouseWheel`, `OnUpdateModel`, `OnUpdate`) directly to `uiWowXmlStr_t` fields.
+- `uiwow_button_part_tags[]`: Table-drives button texture layers (`NormalTexture`, `PushedTexture`, `HighlightTexture`, `CheckedTexture`) and their associated texcoord flags.
+- `uiwow_button_text_tags[]`: Table-drives button font strings (`NormalText`, `HighlightText`, `DisabledText`) to `uiWowXmlButtonTextState_t`.
+- `uiwow_point_factors[]`: Maps anchor points (`TOPLEFT`, `TOP`, `CENTER`, `BOTTOMRIGHT`, etc.) to X and Y bounding-box interpolation factors, eliminating branching ladders in anchor math.
+- `uiwow_layer_levels[]`, `uiwow_justify_h[]`, `uiwow_justify_v[]`: Table-driven string-to-enum lookups.
+
 ## Geometry contract
 
 - `<Size><AbsDimension .../></Size>` supplies explicit axes after conversion from the native 1024x768 grid.

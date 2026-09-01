@@ -194,6 +194,15 @@ sc2BaseFrame_t *SC2_LayoutFindFrameByType(sc2FrameType type) {
 
 Templates store a direct pointer to their flattened frame via `resolved_frame`, avoiding index-based lookups between the two arrays. This contrasts with `SC2_LayoutFindFrameByName()` which iterates the flattened `frames[]` array directly.
 
+## DDX Schema Tables (stb_sc2layout.h)
+
+`stb_sc2layout.h` parses SC2 layout XML through declarative descriptor tables:
+
+- `sc2_frame_attrs[]`: Maps `<Frame>` XML attributes (`name`, `template`, `Image`) to `sc2Frame_t` struct offsets.
+- `sc2_frame_fields[]`: Table-driven property parser mapping child XML tags (`Width`, `Height`, `Alpha`, `Visible`, `AcceptsMouse`, `CollapseLayout`, `HighlightOnHover`, `HighlightOnFocus`, `BatchImages`, `BatchText`, `Color`, `DescFlags`, `Projection`, `LayerCount`, `LayerVisible`, `TextureType`, `StateCount`) to frame struct offsets and flags via `sc2FrameFieldType_t` typed dispatch.
+- `sc2_child_tags[]`: Dispatches structural child tags (`Anchor`, `Texture`, `Model`, `Camera`, `Frame`) to typed handler functions.
+- `sc2_sides[]`, `sc2_positions[]`, `sc2_frame_types[]`: Table-driven lookups for anchor sides, anchor positions, and frame class strings.
+
 ## SC2 Image frames → FT_TEXTURE not FT_SPRITE
 
 `SC2_FRAMETYPE_IMAGE` (the `<Frame type="Image">` SC2 element) maps to `FT_TEXTURE` in the engine, not `FT_SPRITE`. `FT_SPRITE` is reserved for `SC2_FRAMETYPE_MODEL` (3D scene models). `SCR_LayoutDrawTexture` handles `FT_TEXTURE` (2D images); `SCR_LayoutDrawSprite` handles `FT_SPRITE` (3D models via `re.DrawSprite`).
