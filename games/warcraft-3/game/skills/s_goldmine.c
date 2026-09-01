@@ -16,12 +16,12 @@ static int goldmine_path_debug_level(void) {
     return value ? atoi(value) : 0;
 }
 
-/* A resumable route miss deliberately leaves both fields clear until the
- * shared flow job completes.  Gold movement must hold in that state: moving
- * with the previous facing would send workers in an unrelated direction while
- * the requested mine/drop-off route is still being built. */
+/* A resumable route miss leaves direct, accelerator, and flow states clear.
+ * Gold movement must hold then: using the previous facing would send workers
+ * in an unrelated direction while the shared route is still being built. */
 static BOOL gold_route_pending(LPCEDICT worker) {
     return worker && !worker->movement.flow_direct &&
+           !worker->movement.path_valid &&
            worker->movement.flow_generation == 0;
 }
 

@@ -748,6 +748,9 @@ struct edict_s {
         BOOL flow_goal_reached; /* mover occupies the route's adjusted goal cell */
         BOOL flow_unreachable;  /* field exists but current cell has no route */
         BOOL flow_direct;       /* static path from mover to requested goal is clear */
+        VECTOR2 path_waypoint, path_target; /* persistent accelerated turn and the destination that produced it */
+        FLOAT path_radius;
+        BOOL path_valid;
         FLOAT group_speed;  // slowest member's speed for a group move (0 = no cap), keeps the group together
         FLOAT heading;      // avoidance-resolved heading chosen this tick by unit_changeangle; movement follows it
         VECTOR2 worker_avoid_origin; /* start of the active resource-worker avoidance corridor */

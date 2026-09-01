@@ -306,7 +306,7 @@ static void ai_move_walk(LPEDICT ent) {
             move_hold(ent); /* static topology says this goal cannot be reached */
             return;
         }
-        if (!ent->movement.flow_direct && !ent->movement.flow_generation) {
+        if (!ent->movement.flow_direct && !ent->movement.path_valid && !ent->movement.flow_generation) {
             return; /* resumable route field is still being built */
         }
         if (ent->movement.flow_goal_reached) {

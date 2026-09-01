@@ -201,7 +201,7 @@ void unit_moveindirection(LPEDICT self) {
      * step using the unit's previous facing/heading while the requested route
      * is still being built.  This is the common safety net for Move, Harvest,
      * Patrol, Attack, Build, Repair, and resource-return walkers. */
-    if (!self->movement.flow_direct && self->movement.flow_generation == 0)
+    if (!self->movement.flow_direct && !self->movement.path_valid && self->movement.flow_generation == 0)
         return;
 
     FLOAT const dist = unit_movedistance(self);
@@ -381,6 +381,27 @@ static void unit_changeangle_towards_point_policy(LPEDICT self, LPCVECTOR2 point
     unit_apply_heading(self, &dir, policy);
 }
 
+/* Keep the bounded point-route turn until it is reached; retail likewise owns
+ * route progress on each mover instead of rebuilding from its current point. */
+static BOOL unit_accel_direction(LPEDICT self, FLOAT radius, LPVECTOR2 dir) {
+    VECTOR2 const target = self->goalentity->s.origin2;
+    FLOAT const reached = CM_PathCellWorldSize();
+
+    if (self->movement.path_valid &&
+        (Vector2_distance(&self->movement.path_target, &target) >= 1.0f ||
+         fabsf(self->movement.path_radius - radius) >= 0.01f ||
+         Vector2_distance(&self->s.origin2, &self->movement.path_waypoint) <= reached ||
+         !CM_LineIsWalkableForRadius(&self->s.origin2, &self->movement.path_waypoint, radius)))
+        self->movement.path_valid = false;
+    if (!self->movement.path_valid) {
+        pathAccelParams_t params = { &self->s.origin2, &target, radius };
+        if (!CM_FindPathWaypoint(&params, &self->movement.path_waypoint)) return false;
+        self->movement.path_target = target; self->movement.path_radius = radius; self->movement.path_valid = true;
+    }
+    *dir = Vector2_sub(&self->movement.path_waypoint, &self->s.origin2);
+    return true;
+}
+
 void unit_changeangle_towards_point(LPEDICT self, LPCVECTOR2 point) {
     unit_changeangle_towards_point_policy(self, point, MOVE_AVOID_GENERIC);
 }
@@ -410,13 +431,21 @@ static void unit_changeangle_policy(LPEDICT self, moveAvoidPolicy_t policy) {
      * use the same footprint as move-time collision; point routing previously
      * sent units into narrow gaps and touching obstacle corners. */
     if (CM_LineIsWalkableForRadius(&self->s.origin2, &self->goalentity->s.origin2, radius)) {
+        self->movement.path_valid = false;
         self->movement.flow_direct = true;
         dir = to_goal;
     } else {
         DWORD heatmap = M_RefreshHeatmap(self->goalentity, radius);
         self->movement.flow_generation = heatmap;
-        if (!heatmap)
-            return; /* incremental route is still building; keep the order */
+        if (!heatmap) {
+            if (!unit_accel_direction(self, radius, &dir))
+                return; /* long incremental route is still building; keep the order */
+            /* path_valid resolves the heading while the shared field builds;
+             * this is not a direct line to the requested destination. */
+            unit_apply_heading(self, &dir, policy);
+            return;
+        }
+        self->movement.path_valid = false;
         if (CM_FlowReachedGoal(heatmap, self->s.origin.x, self->s.origin.y)) {
             /* Location orders stop at their collision-safe route endpoint in
              * the owning behavior.  Interaction orders use a point field whose
@@ -435,7 +464,8 @@ static void unit_changeangle_policy(LPEDICT self, moveAvoidPolicy_t policy) {
                  * raw click made local avoidance walk forever along walls. */
                 if (radius > 0.0f && self->movement.flow_unreachable) {
                     VECTOR2 closest;
-                    if (CM_ClosestReachablePointForRadius(&self->s.origin2, &self->goalentity->s.origin2, radius, &closest)) {
+                        if (CM_ClosestReachablePointForRadius(
+                            &self->s.origin2, &self->goalentity->s.origin2, radius, &closest)) {
                         self->goalentity->s.origin2 = closest;
                         self->goalentity->secondarygoal = NULL;
                         self->goalentity->heatmap2 = 0;
@@ -481,13 +511,19 @@ static void unit_changeangle_for_radius_policy(LPEDICT self, FLOAT radius,
     if (CM_LineIsWalkableForRadius(&self->s.origin2,
                                    &self->goalentity->s.origin2,
                                    radius)) {
+        self->movement.path_valid = false;
         self->movement.flow_direct = true;
         dir = to_goal;
     } else {
         DWORD heatmap = M_RefreshHeatmap(self->goalentity, radius);
         self->movement.flow_generation = heatmap;
-        if (!heatmap)
-            return; /* resumable route field is still building */
+        if (!heatmap) {
+            if (!unit_accel_direction(self, radius, &dir))
+                return; /* long incremental route is still building */
+            unit_apply_heading(self, &dir, policy);
+            return;
+        }
+        self->movement.path_valid = false;
 
         if (CM_FlowReachedGoal(heatmap, self->s.origin.x, self->s.origin.y)) {
             self->movement.flow_goal_reached = true;

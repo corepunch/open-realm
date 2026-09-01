@@ -27,8 +27,9 @@
 #define HEATMAP_MAX_ITERATIONS(cells) ((int)(cells))
 
 typedef struct {
-    point2_t parent;
-    int f, g, h, s;
+    int parent, f, g, heap_pos;
+    DWORD stamp;
+    BOOL closed;
 } pathNode_t;
 
 /* Per-build heatmap node.  x/y are NOT stored here — they are derivable
@@ -59,6 +60,8 @@ struct {
     pathMapCell_t *data;
     routeNode_t *heatmap;
     DWORD *queue;          /* SPFA relaxation queue (ring buffer, width*height+1) */
+    pathNode_t *pathnodes; /* generation-stamped scratch nodes for bounded point routes */
+    DWORD *pathheap;       /* binary min-heap of pathmap indexes */
     DWORD *obstacle_prefix; /* summed-area table for static nowalk cells */
     BYTE *approach_mask;    /* reusable footprint-approach candidate mask */
 } pathmap = { 0 };
@@ -93,6 +96,10 @@ typedef struct {
  * steering and stop at trees/buildings.  Keep one resumable build here so the
  * expensive relaxation work is bounded per simulation frame. */
 static heatmapJob_t heatmap_job = { 0 };
+static DWORD path_search_stamp = 0;
+
+#define PATH_ACCEL_MAX_EXPANSIONS 2048 // nodes/request; bounds immediate point-route work before shared-field fallback
+#define PATH_ACCEL_MAX_DISTANCE 48 // pathing cells/axis; limits the accelerator to nearby obstacle detours
 
 static void heatmap_job_cancel(void) {
     memset(&heatmap_job, 0, sizeof(heatmap_job));
@@ -222,6 +229,8 @@ void CM_SetupPathMap(DWORD width, DWORD height, BYTE const *cells) {
     SAFE_DELETE(pathmap.original, MemFree);
     SAFE_DELETE(pathmap.heatmap, MemFree);
     SAFE_DELETE(pathmap.queue, MemFree);
+    SAFE_DELETE(pathmap.pathnodes, MemFree);
+    SAFE_DELETE(pathmap.pathheap, MemFree);
     SAFE_DELETE(pathmap.obstacle_prefix, MemFree);
     SAFE_DELETE(pathmap.approach_mask, MemFree);
     FOR_LOOP(i, HEATMAP_CACHE_SLOTS) {
@@ -240,6 +249,8 @@ void CM_SetupPathMap(DWORD width, DWORD height, BYTE const *cells) {
     pathmap.original = MemAlloc(n);
     pathmap.heatmap = MemAlloc(n * sizeof(routeNode_t));
     pathmap.queue = MemAlloc((n + 1) * sizeof(DWORD));
+    pathmap.pathnodes = MemAlloc(n * sizeof(pathNode_t));
+    pathmap.pathheap = MemAlloc(n * sizeof(DWORD));
     pathmap.obstacle_prefix = MemAlloc((width + 1) * (height + 1) * sizeof(DWORD));
     pathmap.approach_mask = MemAlloc(n);
 
@@ -251,6 +262,7 @@ void CM_SetupPathMap(DWORD width, DWORD height, BYTE const *cells) {
     memcpy(pathmap.original, pathmap.terrain, n);
     memcpy(pathmap.data, pathmap.original, n);
     memset(pathmap.heatmap, 0, n * sizeof(routeNode_t));
+    memset(pathmap.pathnodes, 0, n * sizeof(pathNode_t));
     memset(pathmap.approach_mask, 0, n);
     rebuild_static_obstacle_prefix();
 
@@ -743,6 +755,115 @@ BOOL CM_LineIsWalkableForRadius(LPCVECTOR2 a, LPCVECTOR2 b, FLOAT radius) {
 
 BOOL CM_LineIsWalkable(LPCVECTOR2 a, LPCVECTOR2 b) {
     return CM_LineIsWalkableForRadius(a, b, 0);
+}
+
+static int path_octile(int ax, int ay, int bx, int by) {
+    int const x = abs(ax - bx), y = abs(ay - by);
+    return 10 * MAX(x, y) + 4 * MIN(x, y);
+}
+
+static BOOL path_heap_less(DWORD a, DWORD b) {
+    pathNode_t const *an = &pathmap.pathnodes[a], *bn = &pathmap.pathnodes[b];
+    return an->f < bn->f || (an->f == bn->f && an->g > bn->g);
+}
+
+static void path_heap_swap(DWORD a, DWORD b) {
+    DWORD const tmp = pathmap.pathheap[a];
+    pathmap.pathheap[a] = pathmap.pathheap[b]; pathmap.pathheap[b] = tmp;
+    pathmap.pathnodes[pathmap.pathheap[a]].heap_pos = (int)a;
+    pathmap.pathnodes[pathmap.pathheap[b]].heap_pos = (int)b;
+}
+
+static void path_heap_up(DWORD pos) {
+    while (pos) {
+        DWORD const parent = (pos - 1) / 2;
+        if (!path_heap_less(pathmap.pathheap[pos], pathmap.pathheap[parent])) break;
+        path_heap_swap(pos, parent); pos = parent;
+    }
+}
+
+static DWORD path_heap_pop(DWORD *count) {
+    DWORD const result = pathmap.pathheap[0];
+    pathmap.pathnodes[result].heap_pos = -1;
+    if (!--*count) return result;
+    pathmap.pathheap[0] = pathmap.pathheap[*count]; pathmap.pathnodes[pathmap.pathheap[0]].heap_pos = 0;
+    for (DWORD pos = 0;;) {
+        DWORD child = pos * 2 + 1;
+        if (child >= *count) break;
+        if (child + 1 < *count && path_heap_less(pathmap.pathheap[child + 1], pathmap.pathheap[child])) child++;
+        if (!path_heap_less(pathmap.pathheap[child], pathmap.pathheap[pos])) break;
+        path_heap_swap(pos, child); pos = child;
+    }
+    return result;
+}
+
+/* Retail keeps a compact path object per mover and consults a separate pathing
+ * accelerator before its longer-lived route state. This bounded A* supplies
+ * the same useful behavior for nearby detours: return one persistent waypoint
+ * immediately, while long searches remain on the shared incremental field. */
+BOOL CM_FindPathWaypoint(pathAccelParams_t const *params, LPVECTOR2 out) {
+    point2_t start, target;
+    DWORD heap_count = 0, expanded = 0, cells = pathmap.width * pathmap.height;
+    int radius_cells;
+
+    if (!params || !params->from || !params->target || !out || !pathmap.pathnodes || !pathmap.pathheap || !cells)
+        return false;
+    radius_cells = (int)ceilf(MAX(0.f, params->radius) / pathmap_cell_world_size());
+    if (!closest_pathable_node_original(params->from, params->radius, &start) ||
+        !closest_pathable_node_original(params->target, params->radius, &target) ||
+        abs(start.x - target.x) > PATH_ACCEL_MAX_DISTANCE || abs(start.y - target.y) > PATH_ACCEL_MAX_DISTANCE)
+        return false;
+
+    if (++path_search_stamp == 0) {
+        FOR_LOOP(i, cells) pathmap.pathnodes[i].stamp = 0;
+        path_search_stamp = 1;
+    }
+    DWORD const start_index = (DWORD)start.x + (DWORD)start.y * pathmap.width;
+    DWORD const target_index = (DWORD)target.x + (DWORD)target.y * pathmap.width;
+    pathNode_t *node = &pathmap.pathnodes[start_index];
+    *node = (pathNode_t){ .parent = -1, .f = path_octile(start.x, start.y, target.x, target.y),
+                         .g = 0, .heap_pos = 0, .stamp = path_search_stamp };
+    pathmap.pathheap[heap_count++] = start_index;
+
+    while (heap_count && expanded++ < PATH_ACCEL_MAX_EXPANSIONS) {
+        DWORD const current = path_heap_pop(&heap_count);
+        int const cx = (int)(current % pathmap.width), cy = (int)(current / pathmap.width);
+        node = &pathmap.pathnodes[current]; node->closed = true;
+        if (current == target_index) {
+            DWORD count = 0;
+            for (int at = (int)current; at >= 0 && count < cells; at = pathmap.pathnodes[at].parent)
+                pathmap.pathheap[count++] = (DWORD)at;
+            for (DWORD i = 0; i + 1 < count; i++) {
+                DWORD const at = pathmap.pathheap[i];
+                VECTOR2 candidate = CM_GetDenormalizedMapPosition(((FLOAT)(at % pathmap.width) + 0.5f) / pathmap.width,
+                    ((FLOAT)(at / pathmap.width) + 0.5f) / pathmap.height);
+                if (CM_LineIsWalkableForRadius(params->from, &candidate, params->radius)) {
+                    *out = candidate;
+                    return true;
+                }
+            }
+            return false;
+        }
+        FOR_LOOP(dir, 8) {
+            int const nx = cx + dx[dir], ny = cy + dy[dir];
+            if (!is_pathable_node_original_for_radius_cells(nx, ny, radius_cells) ||
+                (dir >= 4 && !(is_pathable_node_original_for_radius_cells(nx, cy, radius_cells) &&
+                              is_pathable_node_original_for_radius_cells(cx, ny, radius_cells)))) continue;
+            DWORD const next = (DWORD)nx + (DWORD)ny * pathmap.width;
+            pathNode_t *next_node = &pathmap.pathnodes[next];
+            int const next_g = node->g + gv[dir];
+            if (next_node->stamp == path_search_stamp && (next_node->closed || next_g >= next_node->g)) continue;
+            if (next_node->stamp != path_search_stamp)
+                *next_node = (pathNode_t){ .heap_pos = -1, .stamp = path_search_stamp };
+            next_node->parent = (int)current; next_node->g = next_g;
+            next_node->f = next_g + path_octile(nx, ny, target.x, target.y);
+            if (next_node->heap_pos < 0) {
+                next_node->heap_pos = (int)heap_count;
+                pathmap.pathheap[heap_count++] = next; path_heap_up(heap_count - 1);
+            } else path_heap_up((DWORD)next_node->heap_pos);
+        }
+    }
+    return false;
 }
 
 BOOL CM_FindDirectApproachPointForRadius(LPCVECTOR2 from, LPCVECTOR2 target,

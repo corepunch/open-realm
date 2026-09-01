@@ -281,6 +281,43 @@ TEST(wc3_pathfinding, production_budget_completes_large_open_field_in_two_frames
     T_ASSERT(CM_RequestHeatmapForRadius(goal, 0.0f) != 0);
 }
 
+TEST(wc3_pathfinding, nearby_detour_accelerator_returns_clear_waypoint) {
+    VECTOR2 from = {2.0f, 5.0f}, target = {7.0f, 5.0f}, waypoint;
+    pathAccelParams_t params = { &from, &target, 0.0f };
+
+    build_wall_map();
+    setup_test_pathmap(MAP_W, MAP_H, wall_map);
+    T_ASSERT(!CM_LineIsWalkableForRadius(&from, &target, 0.0f));
+    T_ASSERT(CM_FindPathWaypoint(&params, &waypoint));
+    T_ASSERT(CM_LineIsWalkableForRadius(&from, &waypoint, 0.0f));
+    T_ASSERT(waypoint.y > 7.0f);
+}
+
+TEST(wc3_pathfinding, distant_detour_skips_bounded_accelerator) {
+    enum { WIDTH = 128, HEIGHT = 16 };
+    static BYTE open[WIDTH * HEIGHT];
+    VECTOR2 from = {2.0f, 8.0f}, target = {100.0f, 8.0f}, waypoint;
+    pathAccelParams_t params = { &from, &target, 0.0f };
+
+    memset(open, 0, sizeof(open));
+    setup_test_pathmap(WIDTH, HEIGHT, open);
+    T_ASSERT(!CM_FindPathWaypoint(&params, &waypoint));
+}
+
+TEST(wc3_pathfinding, nearby_detour_accelerator_respects_collision_radius) {
+    BYTE narrow[MAP_W * MAP_H];
+    VECTOR2 from = {2.0f, 5.0f}, target = {7.0f, 5.0f}, waypoint;
+    pathAccelParams_t point = { &from, &target, 0.0f };
+    pathAccelParams_t wide = { &from, &target, 1.0f };
+
+    memset(narrow, 0, sizeof(narrow));
+    FOR_LOOP(y, MAP_H) narrow[5 + y * MAP_W] = 0x02;
+    narrow[5 + 5 * MAP_W] = 0;
+    setup_test_pathmap(MAP_W, MAP_H, narrow);
+    T_ASSERT(CM_FindPathWaypoint(&point, &waypoint));
+    T_ASSERT(!CM_FindPathWaypoint(&wide, &waypoint));
+}
+
 TEST(wc3_pathfinding, heatmap_cache_separates_collision_radius) {
     build_open_map();
     setup_test_pathmap(MAP_W, MAP_H, open_map);

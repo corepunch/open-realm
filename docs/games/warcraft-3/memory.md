@@ -55,6 +55,10 @@ asset sharing. That points initially toward approximately **300–350 MiB**, not
 Getting near **230 MiB / 2×** likely requires additional texture/terrain work and/or a smaller drawable.
 **~155 MiB / 3× at unchanged quality is not established by these measurements.**
 
+The bounded pathfinding accelerator adds one generation-stamped node array plus one index heap per pathing cell. With
+the current 24-byte node and 4-byte heap index this is 1.75 MiB on a 256x256 pathmap and 5.25 MiB on a 384x512 pathmap.
+The storage is global scratch, not per unit; mover persistence adds two points, one radius, and one validity flag.
+
 ## MDX: tiny streams incur large backing allocations
 
 `games/warcraft-3/renderer/mdx/r_mdx_load.c:R_SetupGeosetVertexBuffer` creates separate buffers for
